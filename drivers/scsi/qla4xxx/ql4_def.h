@@ -276,6 +276,8 @@ struct ql82xx_hw_data {
 	uint32_t flt_region_boot;
 	uint32_t flt_region_bootload;
 	uint32_t flt_region_fw;
+
+	uint32_t flt_iscsi_param;
 	uint32_t reserved;
 };
 
@@ -341,6 +343,41 @@ struct ipaddress_config {
 	struct in6_addr ipv6_addr0;
 	struct in6_addr ipv6_addr1;
 	struct in6_addr ipv6_default_router_addr;
+};
+
+#define QL4_CHAP_MAX_NAME_LEN 256
+#define QL4_CHAP_MAX_SECRET_LEN 100
+
+struct ql4_chap_format {
+	u8  intr_chap_name[QL4_CHAP_MAX_NAME_LEN];
+	u8  intr_secret[QL4_CHAP_MAX_SECRET_LEN];
+	u8  target_chap_name[QL4_CHAP_MAX_NAME_LEN];
+	u8  target_secret[QL4_CHAP_MAX_SECRET_LEN];
+	u16 intr_chap_name_length;
+	u16 intr_secret_length;
+	u16 target_chap_name_length;
+	u16 target_secret_length;
+};
+
+struct ip_address_format {
+	u8 ip_type;
+	u8 ip_address[16];
+};
+
+struct	ql4_conn_info {
+	u16	dest_port;
+	struct	ip_address_format dest_ipaddr;
+	struct	ql4_chap_format chap;
+};
+
+struct ql4_boot_session_info {
+	u8	target_name[224];
+	struct	ql4_conn_info conn_list[1];
+};
+
+struct ql4_boot_tgt_info {
+	struct ql4_boot_session_info boot_pri_sess;
+	struct ql4_boot_session_info boot_sec_sess;
 };
 
 /*
@@ -444,7 +481,7 @@ struct scsi_qla_host {
 	/* --- From FlashSysInfo --- */
 	uint8_t my_mac[MAC_ADDR_LEN];
 	uint8_t serial_number[16];
-
+	uint16_t port_num;
 	/* --- From GetFwState --- */
 	uint32_t firmware_state;
 	uint32_t addl_fw_state;
@@ -569,6 +606,9 @@ struct scsi_qla_host {
 #define CHAP_DMA_BLOCK_SIZE    512
 	struct workqueue_struct *task_wq;
 	unsigned long ddb_idx_map[MAX_DDB_ENTRIES / BITS_PER_LONG];
+#define SYSFS_FLAG_FW_SEL_BOOT 2
+	struct iscsi_boot_kset *boot_kset;
+	struct ql4_boot_tgt_info boot_tgt;
 };
 
 struct ql4_task_data {

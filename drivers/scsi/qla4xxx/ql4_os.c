@@ -6,6 +6,8 @@
  */
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
+#include <linux/blkdev.h>
+#include <linux/iscsi_boot_sysfs.h>
 
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsicam.h>
@@ -2551,6 +2553,477 @@ uint16_t qla4_8xxx_rd_shdw_rsp_q_in(struct scsi_qla_host *ha)
 	return (uint16_t)le32_to_cpu(readl(&ha->qla4_8xxx_reg->rsp_q_in));
 }
 
+static ssize_t qla4xxx_show_boot_eth_info(void *data, int type, char *buf)
+{
+	struct scsi_qla_host *ha = data;
+	char *str = buf;
+	int rc;
+
+	switch (type) {
+	case ISCSI_BOOT_ETH_FLAGS:
+		rc = sprintf(str, "%d\n", SYSFS_FLAG_FW_SEL_BOOT);
+		break;
+	case ISCSI_BOOT_ETH_INDEX:
+		rc = sprintf(str, "0\n");
+		break;
+	case ISCSI_BOOT_ETH_MAC:
+		rc = sysfs_format_mac(str, ha->my_mac,
+				      MAC_ADDR_LEN);
+		break;
+	default:
+		rc = -ENOSYS;
+		break;
+	}
+	return rc;
+}
+
+static mode_t qla4xxx_eth_get_attr_visibility(void *data, int type)
+{
+	int rc;
+
+	switch (type) {
+	case ISCSI_BOOT_ETH_FLAGS:
+	case ISCSI_BOOT_ETH_MAC:
+	case ISCSI_BOOT_ETH_INDEX:
+		rc = S_IRUGO;
+		break;
+	default:
+		rc = 0;
+		break;
+	}
+	return rc;
+}
+
+static ssize_t qla4xxx_show_boot_ini_info(void *data, int type, char *buf)
+{
+	struct scsi_qla_host *ha = data;
+	char *str = buf;
+	int rc;
+
+	switch (type) {
+	case ISCSI_BOOT_INI_INITIATOR_NAME:
+		rc = sprintf(str, "%s\n", ha->name_string);
+		break;
+	default:
+		rc = -ENOSYS;
+		break;
+	}
+	return rc;
+}
+
+static mode_t qla4xxx_ini_get_attr_visibility(void *data, int type)
+{
+	int rc;
+
+	switch (type) {
+	case ISCSI_BOOT_INI_INITIATOR_NAME:
+		rc = S_IRUGO;
+		break;
+	default:
+		rc = 0;
+		break;
+	}
+	return rc;
+}
+
+static ssize_t
+qla4xxx_show_boot_tgt_info(struct ql4_boot_session_info *boot_sess, int type,
+			   char *buf)
+{
+	struct ql4_conn_info *boot_conn = &boot_sess->conn_list[0];
+	char *str = buf;
+	int rc;
+
+	switch (type) {
+	case ISCSI_BOOT_TGT_NAME:
+		rc = sprintf(buf, "%s\n", (char *)&boot_sess->target_name);
+		break;
+	case ISCSI_BOOT_TGT_IP_ADDR:
+		if (boot_sess->conn_list[0].dest_ipaddr.ip_type == 0x1)
+			rc = sprintf(buf, "%pI4\n",
+				     &boot_conn->dest_ipaddr.ip_address);
+		else
+			rc = sprintf(str, "%pI6\n",
+				     &boot_conn->dest_ipaddr.ip_address);
+		break;
+	case ISCSI_BOOT_TGT_PORT:
+			rc = sprintf(str, "%d\n", boot_conn->dest_port);
+		break;
+	case ISCSI_BOOT_TGT_CHAP_NAME:
+		rc = sprintf(str,  "%.*s\n",
+			     boot_conn->chap.target_chap_name_length,
+			     (char *)&boot_conn->chap.target_chap_name);
+		break;
+	case ISCSI_BOOT_TGT_CHAP_SECRET:
+		rc = sprintf(str,  "%.*s\n",
+			     boot_conn->chap.target_secret_length,
+			     (char *)&boot_conn->chap.target_secret);
+		break;
+	case ISCSI_BOOT_TGT_REV_CHAP_NAME:
+		rc = sprintf(str,  "%.*s\n",
+			     boot_conn->chap.intr_chap_name_length,
+			     (char *)&boot_conn->chap.intr_chap_name);
+		break;
+	case ISCSI_BOOT_TGT_REV_CHAP_SECRET:
+		rc = sprintf(str,  "%.*s\n",
+			     boot_conn->chap.intr_secret_length,
+			     (char *)&boot_conn->chap.intr_secret);
+		break;
+	case ISCSI_BOOT_TGT_FLAGS:
+		rc = sprintf(str, "%d\n", SYSFS_FLAG_FW_SEL_BOOT);
+		break;
+	case ISCSI_BOOT_TGT_NIC_ASSOC:
+		rc = sprintf(str, "0\n");
+		break;
+	default:
+		rc = -ENOSYS;
+		break;
+	}
+	return rc;
+}
+
+static ssize_t qla4xxx_show_boot_tgt_pri_info(void *data, int type, char *buf)
+{
+	struct scsi_qla_host *ha = data;
+	struct ql4_boot_session_info *boot_sess = &(ha->boot_tgt.boot_pri_sess);
+
+	return qla4xxx_show_boot_tgt_info(boot_sess, type, buf);
+}
+
+static ssize_t qla4xxx_show_boot_tgt_sec_info(void *data, int type, char *buf)
+{
+	struct scsi_qla_host *ha = data;
+	struct ql4_boot_session_info *boot_sess = &(ha->boot_tgt.boot_sec_sess);
+
+	return qla4xxx_show_boot_tgt_info(boot_sess, type, buf);
+}
+
+static mode_t qla4xxx_tgt_get_attr_visibility(void *data, int type)
+{
+	int rc;
+
+	switch (type) {
+	case ISCSI_BOOT_TGT_NAME:
+	case ISCSI_BOOT_TGT_IP_ADDR:
+	case ISCSI_BOOT_TGT_PORT:
+	case ISCSI_BOOT_TGT_CHAP_NAME:
+	case ISCSI_BOOT_TGT_CHAP_SECRET:
+	case ISCSI_BOOT_TGT_REV_CHAP_NAME:
+	case ISCSI_BOOT_TGT_REV_CHAP_SECRET:
+	case ISCSI_BOOT_TGT_NIC_ASSOC:
+	case ISCSI_BOOT_TGT_FLAGS:
+		rc = S_IRUGO;
+		break;
+	default:
+		rc = 0;
+		break;
+	}
+	return rc;
+}
+
+static void qla4xxx_boot_release(void *data)
+{
+	struct scsi_qla_host *ha = data;
+
+	scsi_host_put(ha->host);
+}
+
+static int get_fw_boot_info(struct scsi_qla_host *ha, uint16_t ddb_index[])
+{
+	dma_addr_t buf_dma;
+	uint32_t addr, pri_addr, sec_addr;
+	uint32_t offset;
+	uint16_t func_num;
+	uint8_t val;
+	uint8_t *buf = NULL;
+	size_t size = 13 * sizeof(uint8_t);
+	int ret = QLA_SUCCESS;
+
+	func_num = PCI_FUNC(ha->pdev->devfn);
+
+	DEBUG2(ql4_printk(KERN_INFO, ha,
+			  "%s: Get FW  boot info for 0x%x func %d\n", __func__,
+			  (is_qla4032(ha) ? PCI_DEVICE_ID_QLOGIC_ISP4032 :
+			   PCI_DEVICE_ID_QLOGIC_ISP8022), func_num));
+
+	if (is_qla4032(ha)) {
+		if (func_num == 1) {
+			addr = NVRAM_PORT0_BOOT_MODE;
+			pri_addr = NVRAM_PORT0_BOOT_PRI_TGT;
+			sec_addr = NVRAM_PORT0_BOOT_SEC_TGT;
+		} else if (func_num == 3) {
+			addr = NVRAM_PORT1_BOOT_MODE;
+			pri_addr = NVRAM_PORT1_BOOT_PRI_TGT;
+			sec_addr = NVRAM_PORT1_BOOT_SEC_TGT;
+		} else {
+			ret = QLA_ERROR;
+			goto exit_boot_info;
+		}
+
+		/* Check Boot Mode */
+		val = rd_nvram_byte(ha, addr);
+		if (!(val & 0x07)) {
+			DEBUG2(ql4_printk(KERN_ERR, ha,
+					  "%s: Failed Boot options : 0x%x\n",
+					  __func__, val));
+			ret = QLA_ERROR;
+			goto exit_boot_info;
+		}
+
+		/* get primary valid target index */
+		val = rd_nvram_byte(ha, pri_addr);
+		if (val & BIT_7)
+			ddb_index[0] = (val & 0x7f);
+		else
+			ddb_index[0] = 0;
+
+		/* get secondary valid target index */
+		val = rd_nvram_byte(ha, sec_addr);
+		if (val & BIT_7)
+			ddb_index[1] = (val & 0x7f);
+		else
+			ddb_index[1] = 1;
+
+	} else if (is_qla8022(ha)) {
+		buf = dma_alloc_coherent(&ha->pdev->dev, size,
+					 &buf_dma, GFP_KERNEL);
+		if (!buf) {
+			DEBUG2(ql4_printk(KERN_ERR, ha,
+					  "%s: Unable to allocate dma buffer\n",
+					   __func__));
+			ret = QLA_ERROR;
+			goto exit_boot_info;
+		}
+
+		if (ha->port_num == 0)
+			offset = BOOT_PARAM_OFFSET_PORT0;
+		else if (ha->port_num == 1)
+			offset = BOOT_PARAM_OFFSET_PORT1;
+		else {
+			ret = QLA_ERROR;
+			goto exit_boot_info_free;
+		}
+		addr = FLASH_RAW_ACCESS_ADDR + (ha->hw.flt_iscsi_param * 4) +
+		       offset;
+		if (qla4xxx_get_flash(ha, buf_dma, addr,
+				      13 * sizeof(uint8_t)) != QLA_SUCCESS) {
+			DEBUG2(ql4_printk(KERN_ERR, ha, "scsi%ld: %s: Get Flash"
+					  "failed\n", ha->host_no, __func__));
+			ret = QLA_ERROR;
+			goto exit_boot_info_free;
+		}
+		/* Check Boot Mode */
+		if (!(buf[1] & 0x07)) {
+			DEBUG2(ql4_printk(KERN_INFO, ha,
+					  "Failed: Boot options : 0x%x\n",
+					  buf[1]));
+			ret = QLA_ERROR;
+			goto exit_boot_info_free;
+		}
+
+		/* get primary valid target index */
+		if (buf[2] & BIT_7)
+			ddb_index[0] = buf[2] & 0x7f;
+		else
+			ddb_index[0] = 0;
+
+		/* get secondary valid target index */
+		if (buf[11] & BIT_7)
+			ddb_index[1] = buf[11] & 0x7f;
+		else
+			ddb_index[1] = 1;
+
+	} else {
+		ret = QLA_ERROR;
+		goto exit_boot_info;
+	}
+
+	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: Primary target ID %d, Secondary"
+			  " target ID %d\n", __func__, ddb_index[0],
+			  ddb_index[1]));
+
+exit_boot_info_free:
+	dma_free_coherent(&ha->pdev->dev, size, buf, buf_dma);
+exit_boot_info:
+	return ret;
+}
+
+static int qla4xxx_get_boot_target(struct scsi_qla_host *ha,
+				   struct ql4_boot_session_info *boot_sess,
+				   uint16_t ddb_index)
+{
+	struct ql4_conn_info *boot_conn = &boot_sess->conn_list[0];
+	struct dev_db_entry *fw_ddb_entry;
+	dma_addr_t fw_ddb_entry_dma;
+	uint16_t idx;
+	uint16_t options;
+	int ret = QLA_SUCCESS;
+
+	fw_ddb_entry = dma_alloc_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry),
+					  &fw_ddb_entry_dma, GFP_KERNEL);
+	if (!fw_ddb_entry) {
+		DEBUG2(ql4_printk(KERN_ERR, ha,
+				  "%s: Unable to allocate dma buffer.\n",
+				  __func__));
+		ret = QLA_ERROR;
+		return ret;
+	}
+
+	if (qla4xxx_bootdb_by_index(ha, fw_ddb_entry,
+				   fw_ddb_entry_dma, ddb_index)) {
+		DEBUG2(ql4_printk(KERN_ERR, ha,
+				  "%s: Flash DDB read Failed\n", __func__));
+		ret = QLA_ERROR;
+		goto exit_boot_target;
+	}
+
+	/* Update target name and IP from DDB */
+	memcpy(boot_sess->target_name, fw_ddb_entry->iscsi_name,
+	       min(sizeof(boot_sess->target_name),
+		   sizeof(fw_ddb_entry->iscsi_name)));
+
+	options = le16_to_cpu(fw_ddb_entry->options);
+	if (options & DDB_OPT_IPV6_DEVICE) {
+		memcpy(&boot_conn->dest_ipaddr.ip_address,
+		       &fw_ddb_entry->ip_addr[0], IPv6_ADDR_LEN);
+	} else {
+		boot_conn->dest_ipaddr.ip_type = 0x1;
+		memcpy(&boot_conn->dest_ipaddr.ip_address,
+		       &fw_ddb_entry->ip_addr[0], IP_ADDR_LEN);
+	}
+
+	boot_conn->dest_port = le16_to_cpu(fw_ddb_entry->port);
+
+	/* update chap information */
+	idx = __le16_to_cpu(fw_ddb_entry->chap_tbl_idx);
+
+	if (BIT_7 & le16_to_cpu(fw_ddb_entry->iscsi_options))	{
+
+		DEBUG2(ql4_printk(KERN_INFO, ha, "Setting chap\n"));
+
+		ret = qla4xxx_get_chap(ha, (char *)&boot_conn->chap.
+				       target_chap_name,
+				       (char *)&boot_conn->chap.target_secret,
+				       idx);
+		if (ret) {
+			ql4_printk(KERN_ERR, ha, "Failed to set chap\n");
+			ret = QLA_ERROR;
+			goto exit_boot_target;
+		}
+
+		boot_conn->chap.target_chap_name_length = QL4_CHAP_MAX_NAME_LEN;
+		boot_conn->chap.target_secret_length = QL4_CHAP_MAX_SECRET_LEN;
+	}
+
+	if (BIT_4 & le16_to_cpu(fw_ddb_entry->iscsi_options)) {
+
+		DEBUG2(ql4_printk(KERN_INFO, ha, "Setting BIDI chap\n"));
+
+		ret = qla4xxx_get_chap(ha, (char *)&boot_conn->chap.
+				       intr_chap_name,
+				       (char *)&boot_conn->chap.intr_secret,
+				       (idx + 1));
+		if (ret) {
+			ql4_printk(KERN_ERR, ha, "Failed to set BIDI chap\n");
+			ret = QLA_ERROR;
+			goto exit_boot_target;
+		}
+
+		boot_conn->chap.intr_chap_name_length = QL4_CHAP_MAX_NAME_LEN;
+		boot_conn->chap.intr_secret_length = QL4_CHAP_MAX_SECRET_LEN;
+	}
+
+exit_boot_target:
+	dma_free_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry),
+			  fw_ddb_entry, fw_ddb_entry_dma);
+	return ret;
+}
+
+static int qla4xxx_get_boot_info(struct scsi_qla_host *ha)
+{
+	uint16_t ddb_index[2];
+	int ret = QLA_SUCCESS;
+
+	memset(ddb_index, 0, sizeof(ddb_index));
+	ret = get_fw_boot_info(ha, ddb_index);
+	if (ret != QLA_SUCCESS) {
+		DEBUG2(ql4_printk(KERN_ERR, ha,
+				  "%s: Failed to set boot info.\n", __func__));
+		return ret;
+	}
+
+	ret = qla4xxx_get_boot_target(ha, &(ha->boot_tgt.boot_pri_sess),
+				      ddb_index[0]);
+	if (ret != QLA_SUCCESS) {
+		DEBUG2(ql4_printk(KERN_ERR, ha, "%s: Failed to get "
+				  "primary target\n", __func__));
+	}
+
+	ret = qla4xxx_get_boot_target(ha, &(ha->boot_tgt.boot_sec_sess),
+				      ddb_index[1]);
+	if (ret != QLA_SUCCESS) {
+		DEBUG2(ql4_printk(KERN_ERR, ha, "%s: Failed to get "
+				  "secondary target\n", __func__));
+	}
+	return ret;
+}
+
+static int qla4xxx_setup_boot_info(struct scsi_qla_host *ha)
+{
+	struct iscsi_boot_kobj *boot_kobj;
+
+	if (qla4xxx_get_boot_info(ha) != QLA_SUCCESS)
+		return 0;
+
+	ha->boot_kset = iscsi_boot_create_host_kset(ha->host->host_no);
+	if (!ha->boot_kset)
+		goto kset_free;
+
+	if (!scsi_host_get(ha->host))
+		goto kset_free;
+	boot_kobj = iscsi_boot_create_target(ha->boot_kset, 0, ha,
+					     qla4xxx_show_boot_tgt_pri_info,
+					     qla4xxx_tgt_get_attr_visibility,
+					     qla4xxx_boot_release);
+	if (!boot_kobj)
+		goto put_host;
+
+	if (!scsi_host_get(ha->host))
+		goto kset_free;
+	boot_kobj = iscsi_boot_create_target(ha->boot_kset, 1, ha,
+					     qla4xxx_show_boot_tgt_sec_info,
+					     qla4xxx_tgt_get_attr_visibility,
+					     qla4xxx_boot_release);
+	if (!boot_kobj)
+		goto put_host;
+
+	if (!scsi_host_get(ha->host))
+		goto kset_free;
+	boot_kobj = iscsi_boot_create_initiator(ha->boot_kset, 0, ha,
+					       qla4xxx_show_boot_ini_info,
+					       qla4xxx_ini_get_attr_visibility,
+					       qla4xxx_boot_release);
+	if (!boot_kobj)
+		goto put_host;
+
+	if (!scsi_host_get(ha->host))
+		goto kset_free;
+	boot_kobj = iscsi_boot_create_ethernet(ha->boot_kset, 0, ha,
+					       qla4xxx_show_boot_eth_info,
+					       qla4xxx_eth_get_attr_visibility,
+					       qla4xxx_boot_release);
+	if (!boot_kobj)
+		goto put_host;
+
+	return 0;
+
+put_host:
+	scsi_host_put(ha->host);
+kset_free:
+	iscsi_boot_destroy_kset(ha->boot_kset);
+	return -ENOMEM;
+}
+
 /**
  * qla4xxx_probe_adapter - callback function to probe HBA
  * @pdev: pointer to pci_dev structure
@@ -2758,6 +3231,10 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	       ha->host_no, ha->firmware_version[0], ha->firmware_version[1],
 	       ha->patch_number, ha->build_number);
 
+	if (qla4xxx_setup_boot_info(ha))
+		ql4_printk(KERN_ERR, ha, "%s:ISCSI boot info setup failed\n",
+			   __func__);
+
 	qla4xxx_create_ifaces(ha);
 	return 0;
 
@@ -2830,6 +3307,9 @@ static void __devexit qla4xxx_remove_adapter(struct pci_dev *pdev)
 
 	/* destroy iface from sysfs */
 	qla4xxx_destroy_ifaces(ha);
+
+	if (ha->boot_kset)
+		iscsi_boot_destroy_kset(ha->boot_kset);
 
 	scsi_remove_host(ha->host);
 

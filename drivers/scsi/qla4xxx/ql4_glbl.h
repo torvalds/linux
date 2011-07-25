@@ -60,6 +60,7 @@ int qla4xxx_get_acb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
 		    uint32_t *mbox_sts, dma_addr_t acb_dma);
 void qla4xxx_mark_device_missing(struct iscsi_cls_session *cls_session);
 u16 rd_nvram_word(struct scsi_qla_host *ha, int offset);
+u8 rd_nvram_byte(struct scsi_qla_host *ha, int offset);
 void qla4xxx_get_crash_record(struct scsi_qla_host *ha);
 int qla4xxx_is_nvram_configuration_valid(struct scsi_qla_host *ha);
 int qla4xxx_about_firmware(struct scsi_qla_host *ha);
@@ -154,6 +155,12 @@ int qla4xxx_get_mgmt_data(struct scsi_qla_host *ha, uint16_t fw_ddb_index,
 			  uint16_t stats_size, dma_addr_t stats_dma);
 void qla4xxx_update_session_conn_param(struct scsi_qla_host *ha,
 				       struct ddb_entry *ddb_entry);
+int qla4xxx_bootdb_by_index(struct scsi_qla_host *ha,
+			    struct dev_db_entry *fw_ddb_entry,
+			    dma_addr_t fw_ddb_entry_dma, uint16_t ddb_index);
+int qla4xxx_get_chap(struct scsi_qla_host *ha, char *username,
+		     char *password, uint16_t idx);
+
 /* BSG Functions */
 int qla4xxx_bsg_request(struct bsg_job *bsg_job);
 int qla4xxx_process_vendor_specific(struct bsg_job *bsg_job);

@@ -2020,6 +2020,9 @@ qla4_8xxx_get_flt_info(struct scsi_qla_host *ha, uint32_t flt_addr)
 		case FLT_REG_BOOTLOAD_82:
 			hw->flt_region_bootload = start;
 			break;
+		case FLT_REG_ISCSI_PARAM:
+			hw->flt_iscsi_param =  start;
+			break;
 		}
 	}
 	goto done;
@@ -2258,6 +2261,7 @@ int qla4_8xxx_get_sys_info(struct scsi_qla_host *ha)
 	}
 
 	/* Save M.A.C. address & serial_number */
+	ha->port_num = sys_info->port_num;
 	memcpy(ha->my_mac, &sys_info->mac_addr[0],
 	    min(sizeof(ha->my_mac), sizeof(sys_info->mac_addr)));
 	memcpy(ha->serial_number, &sys_info->serial_number,

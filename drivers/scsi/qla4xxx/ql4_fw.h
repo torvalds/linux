@@ -146,6 +146,13 @@ struct isp_reg {
 #define QL4022_NVRAM_SEM_MASK	(QL4022_RESOURCE_MASK_BASE_CODE << (10+16))
 #define QL4022_FLASH_SEM_MASK	(QL4022_RESOURCE_MASK_BASE_CODE << (13+16))
 
+/* nvram address for 4032 */
+#define NVRAM_PORT0_BOOT_MODE		0x03b1
+#define NVRAM_PORT0_BOOT_PRI_TGT	0x03b2
+#define NVRAM_PORT0_BOOT_SEC_TGT	0x03bb
+#define NVRAM_PORT1_BOOT_MODE		0x07b1
+#define NVRAM_PORT1_BOOT_PRI_TGT	0x07b2
+#define NVRAM_PORT1_BOOT_SEC_TGT	0x07bb
 
 
 /* Page # defines for 4022 */
@@ -298,6 +305,7 @@ struct qla_flt_header {
 #define FLT_REG_FW_82		0x74
 #define FLT_REG_GOLD_FW_82	0x75
 #define FLT_REG_BOOT_CODE_82	0x78
+#define FLT_REG_ISCSI_PARAM	0x65
 
 struct qla_flt_region {
 	uint32_t code;
@@ -733,7 +741,10 @@ struct dev_db_entry {
 	uint8_t tcp_rcv_wsf;	/* 1C7 */
 	uint32_t stat_sn;	/* 1C8-1CB */
 	uint32_t exp_stat_sn;	/* 1CC-1CF */
-	uint8_t res6[0x30];	/* 1D0-1FF */
+	uint8_t res6[0x2b];	/* 1D0-1FB */
+#define DDB_VALID_COOKIE	0x9034
+	uint16_t cookie;	/* 1FC-1FD */
+	uint16_t len;		/* 1FE-1FF */
 };
 
 /*************************************************************************/
@@ -745,6 +756,14 @@ struct dev_db_entry {
 #define FLASH_EOF_OFFSET	(FLASH_DEFAULTBLOCKSIZE-8) /* 4 bytes
 							    * for EOF
 							    * signature */
+#define FLASH_RAW_ACCESS_ADDR	0x8e000000
+
+#define BOOT_PARAM_OFFSET_PORT0 0x3b0
+#define BOOT_PARAM_OFFSET_PORT1 0x7b0
+
+#define FLASH_OFFSET_DB_INFO	0x05000000
+#define FLASH_OFFSET_DB_END	(FLASH_OFFSET_DB_INFO + 0x7fff)
+
 
 struct sys_info_phys_addr {
 	uint8_t address[6];	/* 00-05 */

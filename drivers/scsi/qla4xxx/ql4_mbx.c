@@ -1262,6 +1262,83 @@ int qla4xxx_set_flash(struct scsi_qla_host *ha, dma_addr_t dma_addr,
 	return status;
 }
 
+int qla4xxx_bootdb_by_index(struct scsi_qla_host *ha,
+			    struct dev_db_entry *fw_ddb_entry,
+			    dma_addr_t fw_ddb_entry_dma, uint16_t ddb_index)
+{
+	uint32_t dev_db_start_offset = FLASH_OFFSET_DB_INFO;
+	uint32_t dev_db_end_offset;
+	int status = QLA_ERROR;
+
+	memset(fw_ddb_entry, 0, sizeof(*fw_ddb_entry));
+
+	dev_db_start_offset += (ddb_index * sizeof(*fw_ddb_entry));
+	dev_db_end_offset = FLASH_OFFSET_DB_END;
+
+	if (dev_db_start_offset > dev_db_end_offset) {
+		DEBUG2(ql4_printk(KERN_ERR, ha,
+				  "%s:Invalid DDB index %d", __func__,
+				  ddb_index));
+		goto exit_bootdb_failed;
+	}
+
+	if (qla4xxx_get_flash(ha, fw_ddb_entry_dma, dev_db_start_offset,
+			      sizeof(*fw_ddb_entry)) != QLA_SUCCESS) {
+		ql4_printk(KERN_ERR, ha, "scsi%ld: %s: Get Flash"
+			   "failed\n", ha->host_no, __func__);
+		goto exit_bootdb_failed;
+	}
+
+	if (fw_ddb_entry->cookie == DDB_VALID_COOKIE)
+		status = QLA_SUCCESS;
+
+exit_bootdb_failed:
+	return status;
+}
+
+int qla4xxx_get_chap(struct scsi_qla_host *ha, char *username, char *password,
+		     uint16_t idx)
+{
+	int ret = 0;
+	int rval = QLA_ERROR;
+	uint32_t offset = 0;
+	struct ql4_chap_table *chap_table;
+	dma_addr_t chap_dma;
+
+	chap_table = dma_pool_alloc(ha->chap_dma_pool, GFP_KERNEL, &chap_dma);
+	if (chap_table == NULL) {
+		ret = -ENOMEM;
+		goto exit_get_chap;
+	}
+
+	memset(chap_table, 0, sizeof(struct ql4_chap_table));
+
+	offset = 0x06000000 | (idx * sizeof(struct ql4_chap_table));
+
+	rval = qla4xxx_get_flash(ha, chap_dma, offset,
+				 sizeof(struct ql4_chap_table));
+	if (rval != QLA_SUCCESS) {
+		ret = -EINVAL;
+		goto exit_get_chap;
+	}
+
+	DEBUG2(ql4_printk(KERN_INFO, ha, "Chap Cookie: x%x\n",
+		__le16_to_cpu(chap_table->cookie)));
+
+	if (__le16_to_cpu(chap_table->cookie) != CHAP_VALID_COOKIE) {
+		ql4_printk(KERN_ERR, ha, "No valid chap entry found\n");
+		goto exit_get_chap;
+	}
+
+	strncpy(password, chap_table->secret, QL4_CHAP_MAX_SECRET_LEN);
+	strncpy(username, chap_table->name, QL4_CHAP_MAX_NAME_LEN);
+	chap_table->cookie = __constant_cpu_to_le16(CHAP_VALID_COOKIE);
+
+exit_get_chap:
+	dma_pool_free(ha->chap_dma_pool, chap_table, chap_dma);
+	return ret;
+}
+
 static int qla4xxx_set_chap(struct scsi_qla_host *ha, char *username,
 			    char *password, uint16_t idx, int bidi)
 {
