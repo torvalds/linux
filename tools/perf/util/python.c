@@ -187,14 +187,117 @@ static PyTypeObject pyrf_throttle_event__type = {
 	.tp_repr	= (reprfunc)pyrf_throttle_event__repr,
 };
 
+static char pyrf_lost_event__doc[] = PyDoc_STR("perf lost event object.");
+
+static PyMemberDef pyrf_lost_event__members[] = {
+	sample_members
+	member_def(lost_event, id, T_ULONGLONG, "event id"),
+	member_def(lost_event, lost, T_ULONGLONG, "number of lost events"),
+	{ .name = NULL, },
+};
+
+static PyObject *pyrf_lost_event__repr(struct pyrf_event *pevent)
+{
+	PyObject *ret;
+	char *s;
+
+	if (asprintf(&s, "{ type: lost, id: %#" PRIx64 ", "
+			 "lost: %#" PRIx64 " }",
+		     pevent->event.lost.id, pevent->event.lost.lost) < 0) {
+		ret = PyErr_NoMemory();
+	} else {
+		ret = PyString_FromString(s);
+		free(s);
+	}
+	return ret;
+}
+
+static PyTypeObject pyrf_lost_event__type = {
+	PyVarObject_HEAD_INIT(NULL, 0)
+	.tp_name	= "perf.lost_event",
+	.tp_basicsize	= sizeof(struct pyrf_event),
+	.tp_flags	= Py_TPFLAGS_DEFAULT|Py_TPFLAGS_BASETYPE,
+	.tp_doc		= pyrf_lost_event__doc,
+	.tp_members	= pyrf_lost_event__members,
+	.tp_repr	= (reprfunc)pyrf_lost_event__repr,
+};
+
+static char pyrf_read_event__doc[] = PyDoc_STR("perf read event object.");
+
+static PyMemberDef pyrf_read_event__members[] = {
+	sample_members
+	member_def(read_event, pid, T_UINT, "event pid"),
+	member_def(read_event, tid, T_UINT, "event tid"),
+	{ .name = NULL, },
+};
+
+static PyObject *pyrf_read_event__repr(struct pyrf_event *pevent)
+{
+	return PyString_FromFormat("{ type: read, pid: %u, tid: %u }",
+				   pevent->event.read.pid,
+				   pevent->event.read.tid);
+	/*
+ 	 * FIXME: return the array of read values,
+ 	 * making this method useful ;-)
+ 	 */
+}
+
+static PyTypeObject pyrf_read_event__type = {
+	PyVarObject_HEAD_INIT(NULL, 0)
+	.tp_name	= "perf.read_event",
+	.tp_basicsize	= sizeof(struct pyrf_event),
+	.tp_flags	= Py_TPFLAGS_DEFAULT|Py_TPFLAGS_BASETYPE,
+	.tp_doc		= pyrf_read_event__doc,
+	.tp_members	= pyrf_read_event__members,
+	.tp_repr	= (reprfunc)pyrf_read_event__repr,
+};
+
+static char pyrf_sample_event__doc[] = PyDoc_STR("perf sample event object.");
+
+static PyMemberDef pyrf_sample_event__members[] = {
+	sample_members
+	member_def(perf_event_header, type, T_UINT, "event type"),
+	{ .name = NULL, },
+};
+
+static PyObject *pyrf_sample_event__repr(struct pyrf_event *pevent)
+{
+	PyObject *ret;
+	char *s;
+
+	if (asprintf(&s, "{ type: sample }") < 0) {
+		ret = PyErr_NoMemory();
+	} else {
+		ret = PyString_FromString(s);
+		free(s);
+	}
+	return ret;
+}
+
+static PyTypeObject pyrf_sample_event__type = {
+	PyVarObject_HEAD_INIT(NULL, 0)
+	.tp_name	= "perf.sample_event",
+	.tp_basicsize	= sizeof(struct pyrf_event),
+	.tp_flags	= Py_TPFLAGS_DEFAULT|Py_TPFLAGS_BASETYPE,
+	.tp_doc		= pyrf_sample_event__doc,
+	.tp_members	= pyrf_sample_event__members,
+	.tp_repr	= (reprfunc)pyrf_sample_event__repr,
+};
+
 static int pyrf_event__setup_types(void)
 {
 	int err;
 	pyrf_mmap_event__type.tp_new =
 	pyrf_task_event__type.tp_new =
 	pyrf_comm_event__type.tp_new =
+	pyrf_lost_event__type.tp_new =
+	pyrf_read_event__type.tp_new =
+	pyrf_sample_event__type.tp_new =
 	pyrf_throttle_event__type.tp_new = PyType_GenericNew;
 	err = PyType_Ready(&pyrf_mmap_event__type);
+	if (err < 0)
+		goto out;
+	err = PyType_Ready(&pyrf_lost_event__type);
 	if (err < 0)
 		goto out;
 	err = PyType_Ready(&pyrf_task_event__type);
@@ -206,20 +309,26 @@ static int pyrf_event__setup_types(void)
 	err = PyType_Ready(&pyrf_throttle_event__type);
 	if (err < 0)
 		goto out;
+	err = PyType_Ready(&pyrf_read_event__type);
+	if (err < 0)
+		goto out;
+	err = PyType_Ready(&pyrf_sample_event__type);
+	if (err < 0)
+		goto out;
 out:
 	return err;
 }
 
 static PyTypeObject *pyrf_event__type[] = {
 	[PERF_RECORD_MMAP]	 = &pyrf_mmap_event__type,
-	[PERF_RECORD_LOST]	 = &pyrf_mmap_event__type,
+	[PERF_RECORD_LOST]	 = &pyrf_lost_event__type,
 	[PERF_RECORD_COMM]	 = &pyrf_comm_event__type,
 	[PERF_RECORD_EXIT]	 = &pyrf_task_event__type,
 	[PERF_RECORD_THROTTLE]	 = &pyrf_throttle_event__type,
 	[PERF_RECORD_UNTHROTTLE] = &pyrf_throttle_event__type,
 	[PERF_RECORD_FORK]	 = &pyrf_task_event__type,
-	[PERF_RECORD_READ]	 = &pyrf_mmap_event__type,
-	[PERF_RECORD_SAMPLE]	 = &pyrf_mmap_event__type,
+	[PERF_RECORD_READ]	 = &pyrf_read_event__type,
+	[PERF_RECORD_SAMPLE]	 = &pyrf_sample_event__type,
 };
 
 static PyObject *pyrf_event__new(union perf_event *event)
