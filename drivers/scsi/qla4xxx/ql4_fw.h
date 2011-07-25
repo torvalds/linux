@@ -484,6 +484,7 @@ struct addr_ctrl_blk {
 #define TCPOPT_DHCP_ENABLE		0x0200
 	uint16_t ipv4_ip_opts;	/* 34-35 */
 #define IPOPT_IPV4_PROTOCOL_ENABLE	0x8000
+#define IPOPT_VLAN_TAGGING_ENABLE	0x2000
 
 	uint16_t iscsi_max_pdu_size;	/* 36-37 */
 	uint8_t ipv4_tos;	/* 38 */
@@ -535,6 +536,7 @@ struct addr_ctrl_blk {
 	uint16_t ipv6_port;	/* 204-205 */
 	uint16_t ipv6_opts;	/* 206-207 */
 #define IPV6_OPT_IPV6_PROTOCOL_ENABLE	0x8000
+#define IPV6_OPT_VLAN_TAGGING_ENABLE	0x2000
 
 	uint16_t ipv6_addtl_opts;	/* 208-209 */
 #define IPV6_ADDOPT_NEIGHBOR_DISCOVERY_ADDR_ENABLE	0x0002 /* Pri ACB

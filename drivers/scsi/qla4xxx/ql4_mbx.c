@@ -351,6 +351,8 @@ qla4xxx_update_local_ip(struct scsi_qla_host *ha,
 	       min(sizeof(ha->ip_config.gateway),
 		   sizeof(init_fw_cb->ipv4_gw_addr)));
 
+	ha->ip_config.ipv4_vlan_tag = be16_to_cpu(init_fw_cb->ipv4_vlan_tag);
+
 	if (is_ipv6_enabled(ha)) {
 		/* Save IPv6 Address */
 		ha->ip_config.ipv6_link_local_state =
@@ -378,6 +380,8 @@ qla4xxx_update_local_ip(struct scsi_qla_host *ha,
 		       init_fw_cb->ipv6_dflt_rtr_addr,
 		       min(sizeof(ha->ip_config.ipv6_default_router_addr),
 			   sizeof(init_fw_cb->ipv6_dflt_rtr_addr)));
+		ha->ip_config.ipv6_vlan_tag =
+				be16_to_cpu(init_fw_cb->ipv6_vlan_tag);
 	}
 }
 

@@ -185,6 +185,9 @@ static mode_t ql4_attr_is_visible(int param_type, int param)
 		case ISCSI_NET_PARAM_IPV6_ROUTER:
 		case ISCSI_NET_PARAM_IPV6_ADDR_AUTOCFG:
 		case ISCSI_NET_PARAM_IPV6_LINKLOCAL_AUTOCFG:
+		case ISCSI_NET_PARAM_VLAN_ID:
+		case ISCSI_NET_PARAM_VLAN_PRIORITY:
+		case ISCSI_NET_PARAM_VLAN_ENABLED:
 			return S_IRUGO;
 		default:
 			return 0;
@@ -257,6 +260,38 @@ static int qla4xxx_get_iface_param(struct iscsi_iface *iface,
 			      (ha->ip_config.ipv6_addl_options &
 			       IPV6_ADDOPT_AUTOCONFIG_LINK_LOCAL_ADDR) ?
 			       "auto" : "static");
+		break;
+	case ISCSI_NET_PARAM_VLAN_ID:
+		if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4)
+			len = sprintf(buf, "%d\n",
+				      (ha->ip_config.ipv4_vlan_tag &
+				       ISCSI_MAX_VLAN_ID));
+		else if (iface->iface_type == ISCSI_IFACE_TYPE_IPV6)
+			len = sprintf(buf, "%d\n",
+				      (ha->ip_config.ipv6_vlan_tag &
+				       ISCSI_MAX_VLAN_ID));
+		break;
+	case ISCSI_NET_PARAM_VLAN_PRIORITY:
+		if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4)
+			len = sprintf(buf, "%d\n",
+				      ((ha->ip_config.ipv4_vlan_tag >> 13) &
+					ISCSI_MAX_VLAN_PRIORITY));
+		else if (iface->iface_type == ISCSI_IFACE_TYPE_IPV6)
+			len = sprintf(buf, "%d\n",
+				      ((ha->ip_config.ipv6_vlan_tag >> 13) &
+					ISCSI_MAX_VLAN_PRIORITY));
+		break;
+	case ISCSI_NET_PARAM_VLAN_ENABLED:
+		if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4)
+			len = sprintf(buf, "%s\n",
+				      (ha->ip_config.ipv4_options &
+				       IPOPT_VLAN_TAGGING_ENABLE) ?
+				       "enabled" : "disabled");
+		else if (iface->iface_type == ISCSI_IFACE_TYPE_IPV6)
+			len = sprintf(buf, "%s\n",
+				      (ha->ip_config.ipv6_options &
+				       IPV6_OPT_VLAN_TAGGING_ENABLE) ?
+				       "enabled" : "disabled");
 		break;
 	default:
 		len = -ENOSYS;
@@ -479,7 +514,16 @@ static void qla4xxx_set_ipv6(struct scsi_qla_host *ha,
 	case ISCSI_NET_PARAM_VLAN_ID:
 		if (iface_param->len != sizeof(init_fw_cb->ipv6_vlan_tag))
 			break;
-		init_fw_cb->ipv6_vlan_tag = *(uint16_t *)iface_param->value;
+		init_fw_cb->ipv6_vlan_tag =
+				cpu_to_be16(*(uint16_t *)iface_param->value);
+		break;
+	case ISCSI_NET_PARAM_VLAN_ENABLED:
+		if (iface_param->value[0] == ISCSI_VLAN_ENABLE)
+			init_fw_cb->ipv6_opts |=
+				cpu_to_le16(IPV6_OPT_VLAN_TAGGING_ENABLE);
+		else
+			init_fw_cb->ipv6_opts &=
+				cpu_to_le16(~IPV6_OPT_VLAN_TAGGING_ENABLE);
 		break;
 	default:
 		ql4_printk(KERN_ERR, ha, "Unknown IPv6 param = %d\n",
@@ -530,7 +574,16 @@ static void qla4xxx_set_ipv4(struct scsi_qla_host *ha,
 	case ISCSI_NET_PARAM_VLAN_ID:
 		if (iface_param->len != sizeof(init_fw_cb->ipv4_vlan_tag))
 			break;
-		init_fw_cb->ipv4_vlan_tag = *(uint16_t *)iface_param->value;
+		init_fw_cb->ipv4_vlan_tag =
+				cpu_to_be16(*(uint16_t *)iface_param->value);
+		break;
+	case ISCSI_NET_PARAM_VLAN_ENABLED:
+		if (iface_param->value[0] == ISCSI_VLAN_ENABLE)
+			init_fw_cb->ipv4_ip_opts |=
+					cpu_to_le16(IPOPT_VLAN_TAGGING_ENABLE);
+		else
+			init_fw_cb->ipv4_ip_opts &=
+					cpu_to_le16(~IPOPT_VLAN_TAGGING_ENABLE);
 		break;
 	default:
 		ql4_printk(KERN_ERR, ha, "Unknown IPv4 param = %d\n",
