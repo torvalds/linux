@@ -23,9 +23,9 @@
 #include "drxk.h"
 #include "mt2063.h"
 #include "dvb_ca_en50221.h"
-#include "dvb-usb.h"
 
 #define DVB_USB_LOG_PREFIX "az6007"
+#include "dvb-usb.h"
 
 /* debug */
 int dvb_usb_az6007_debug;
