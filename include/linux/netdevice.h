@@ -974,6 +974,8 @@ struct net_device_ops {
 						    netdev_features_t features);
 	int			(*ndo_set_features)(struct net_device *dev,
 						    netdev_features_t features);
+	int			(*ndo_neigh_construct)(struct neighbour *n);
+	int			(*ndo_neigh_destroy)(struct neighbour *n);
 };
 
 /*

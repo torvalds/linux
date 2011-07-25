@@ -489,6 +489,14 @@ struct neighbour *neigh_create(struct neigh_table *tbl, const void *pkey,
 		goto out_neigh_release;
 	}
 
+	if (dev->netdev_ops->ndo_neigh_construct) {
+		error = dev->netdev_ops->ndo_neigh_construct(n);
+		if (error < 0) {
+			rc = ERR_PTR(error);
+			goto out_neigh_release;
+		}
+	}
+
 	/* Device specific setup. */
 	if (n->parms->neigh_setup &&
 	    (error = n->parms->neigh_setup(n)) < 0) {
@@ -692,6 +700,8 @@ static inline void neigh_parms_put(struct neigh_parms *parms)
  */
 void neigh_destroy(struct neighbour *neigh)
 {
+	struct net_device *dev = neigh->dev;
+
 	NEIGH_CACHE_STAT_INC(neigh->tbl, destroys);
 
 	if (!neigh->dead) {
@@ -707,7 +717,10 @@ void neigh_destroy(struct neighbour *neigh)
 	skb_queue_purge(&neigh->arp_queue);
 	neigh->arp_queue_len_bytes = 0;
 
-	dev_put(neigh->dev);
+	if (dev->netdev_ops->ndo_neigh_destroy)
+		dev->netdev_ops->ndo_neigh_destroy(neigh);
+
+	dev_put(dev);
 	neigh_parms_put(neigh->parms);
 
 	NEIGH_PRINTK2("neigh %p is destroyed.\n", neigh);
