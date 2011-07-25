@@ -494,8 +494,16 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			if (hc->tx_rpdupack >= NUMDUPACK) {
 				hc->tx_rpdupack = -1; /* XXX lame */
 				hc->tx_rpseq    = 0;
-
+#ifdef __CCID2_COPES_GRACEFULLY_WITH_ACK_CONGESTION_CONTROL__
+				/*
+				 * FIXME: Ack Congestion Control is broken; in
+				 * the current state instabilities occurred with
+				 * Ack Ratios greater than 1; causing hang-ups
+				 * and long RTO timeouts. This needs to be fixed
+				 * before opening up dynamic changes. -- gerrit
+				 */
 				ccid2_change_l_ack_ratio(sk, 2 * dp->dccps_l_ack_ratio);
+#endif
 			}
 		}
 	}
