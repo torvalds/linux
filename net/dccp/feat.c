@@ -12,6 +12,7 @@
  *  -----------
  *  o Feature negotiation is coordinated with connection setup (as in TCP), wild
  *    changes of parameters of an established connection are not supported.
+ *  o Changing non-negotiable (NN) values is supported in state OPEN/PARTOPEN.
  *  o All currently known SP features have 1-byte quantities. If in the future
  *    extensions of RFCs 4340..42 define features with item lengths larger than
  *    one byte, a feature-specific extension of the code will be required.
@@ -730,6 +731,70 @@ int dccp_feat_register_sp(struct sock *sk, u8 feat, u8 is_local,
 				  0, list, len);
 }
 
+/**
+ * dccp_feat_nn_get  -  Query current/pending value of NN feature
+ * @sk: DCCP socket of an established connection
+ * @feat: NN feature number from %dccp_feature_numbers
+ * For a known NN feature, returns value currently being negotiated, or
+ * current (confirmed) value if no negotiation is going on.
+ */
+u64 dccp_feat_nn_get(struct sock *sk, u8 feat)
+{
+	if (dccp_feat_type(feat) == FEAT_NN) {
+		struct dccp_sock *dp = dccp_sk(sk);
+		struct dccp_feat_entry *entry;
+
+		entry = dccp_feat_list_lookup(&dp->dccps_featneg, feat, 1);
+		if (entry != NULL)
+			return entry->val.nn;
+
+		switch (feat) {
+		case DCCPF_ACK_RATIO:
+			return dp->dccps_l_ack_ratio;
+		case DCCPF_SEQUENCE_WINDOW:
+			return dp->dccps_l_seq_win;
+		}
+	}
+	DCCP_BUG("attempt to look up unsupported feature %u", feat);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dccp_feat_nn_get);
+
+/**
+ * dccp_feat_signal_nn_change  -  Update NN values for an established connection
+ * @sk: DCCP socket of an established connection
+ * @feat: NN feature number from %dccp_feature_numbers
+ * @nn_val: the new value to use
+ * This function is used to communicate NN updates out-of-band.
+ */
+int dccp_feat_signal_nn_change(struct sock *sk, u8 feat, u64 nn_val)
+{
+	struct list_head *fn = &dccp_sk(sk)->dccps_featneg;
+	dccp_feat_val fval = { .nn = nn_val };
+	struct dccp_feat_entry *entry;
+
+	if (sk->sk_state != DCCP_OPEN && sk->sk_state != DCCP_PARTOPEN)
+		return 0;
+
+	if (dccp_feat_type(feat) != FEAT_NN ||
+	    !dccp_feat_is_valid_nn_val(feat, nn_val))
+		return -EINVAL;
+
+	if (nn_val == dccp_feat_nn_get(sk, feat))
+		return 0;	/* already set or negotiation under way */
+
+	entry = dccp_feat_list_lookup(fn, feat, 1);
+	if (entry != NULL) {
+		dccp_pr_debug("Clobbering existing NN entry %llu -> %llu\n",
+			      (unsigned long long)entry->val.nn,
+			      (unsigned long long)nn_val);
+		dccp_feat_list_pop(entry);
+	}
+
+	inet_csk_schedule_ack(sk);
+	return dccp_feat_push_change(fn, feat, 1, 0, &fval);
+}
+EXPORT_SYMBOL_GPL(dccp_feat_signal_nn_change);
 
 /*
  *	Tracking features whose value depend on the choice of CCID
