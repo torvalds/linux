@@ -231,6 +231,7 @@ EXPORT_SYMBOL(eth_header_parse);
  * eth_header_cache - fill cache entry from neighbour
  * @neigh: source neighbour
  * @hh: destination cache entry
+ * @type: Ethernet type field
  * Create an Ethernet header template from the neighbour.
  */
 int eth_header_cache(const struct neighbour *neigh, struct hh_cache *hh, __be16 type)
