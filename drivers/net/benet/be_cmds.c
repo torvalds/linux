@@ -82,26 +82,6 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 		if (((compl->tag0 == OPCODE_ETH_GET_STATISTICS) ||
 			 (compl->tag0 == OPCODE_ETH_GET_PPORT_STATS)) &&
 			(compl->tag1 == CMD_SUBSYSTEM_ETH)) {
-			if (adapter->generation == BE_GEN3) {
-				if (lancer_chip(adapter)) {
-					struct lancer_cmd_resp_pport_stats
-						*resp = adapter->stats_cmd.va;
-					be_dws_le_to_cpu(&resp->pport_stats,
-						sizeof(resp->pport_stats));
-				} else {
-					struct be_cmd_resp_get_stats_v1 *resp =
-							adapter->stats_cmd.va;
-
-				be_dws_le_to_cpu(&resp->hw_stats,
-							sizeof(resp->hw_stats));
-				}
-			} else {
-				struct be_cmd_resp_get_stats_v0 *resp =
-							adapter->stats_cmd.va;
-
-				be_dws_le_to_cpu(&resp->hw_stats,
-							sizeof(resp->hw_stats));
-			}
 			be_parse_stats(adapter);
 			netdev_stats_update(adapter);
 			adapter->stats_cmd_sent = false;

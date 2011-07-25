@@ -693,8 +693,7 @@ struct be_cmd_resp_get_stats_v0 {
 	struct be_hw_stats_v0 hw_stats;
 };
 
-#define make_64bit_val(hi_32, lo_32)	(((u64)hi_32<<32) | lo_32)
-struct lancer_cmd_pport_stats {
+struct lancer_pport_stats {
 	u32 tx_packets_lo;
 	u32 tx_packets_hi;
 	u32 tx_unicast_packets_lo;
@@ -871,16 +870,16 @@ struct lancer_cmd_req_pport_stats {
 	struct be_cmd_req_hdr hdr;
 	union {
 		struct pport_stats_params params;
-		u8 rsvd[sizeof(struct lancer_cmd_pport_stats)];
+		u8 rsvd[sizeof(struct lancer_pport_stats)];
 	} cmd_params;
 };
 
 struct lancer_cmd_resp_pport_stats {
 	struct be_cmd_resp_hdr hdr;
-	struct lancer_cmd_pport_stats pport_stats;
+	struct lancer_pport_stats pport_stats;
 };
 
-static inline  struct lancer_cmd_pport_stats*
+static inline struct lancer_pport_stats*
 	pport_stats_from_cmd(struct be_adapter *adapter)
 {
 	struct lancer_cmd_resp_pport_stats *cmd = adapter->stats_cmd.va;
@@ -1383,8 +1382,7 @@ struct be_cmd_resp_get_stats_v1 {
 	struct be_hw_stats_v1 hw_stats;
 };
 
-static inline void *
-hw_stats_from_cmd(struct be_adapter *adapter)
+static inline void *hw_stats_from_cmd(struct be_adapter *adapter)
 {
 	if (adapter->generation == BE_GEN3) {
 		struct be_cmd_resp_get_stats_v1 *cmd = adapter->stats_cmd.va;
@@ -1394,34 +1392,6 @@ hw_stats_from_cmd(struct be_adapter *adapter)
 		struct be_cmd_resp_get_stats_v0 *cmd = adapter->stats_cmd.va;
 
 		return &cmd->hw_stats;
-	}
-}
-
-static inline void *be_port_rxf_stats_from_cmd(struct be_adapter *adapter)
-{
-	if (adapter->generation == BE_GEN3) {
-		struct be_hw_stats_v1 *hw_stats = hw_stats_from_cmd(adapter);
-		struct be_rxf_stats_v1 *rxf_stats = &hw_stats->rxf;
-
-		return &rxf_stats->port[adapter->port_num];
-	} else {
-		struct be_hw_stats_v0 *hw_stats = hw_stats_from_cmd(adapter);
-		struct be_rxf_stats_v0 *rxf_stats = &hw_stats->rxf;
-
-		return &rxf_stats->port[adapter->port_num];
-	}
-}
-
-static inline void *be_rxf_stats_from_cmd(struct be_adapter *adapter)
-{
-	if (adapter->generation == BE_GEN3) {
-		struct be_hw_stats_v1 *hw_stats = hw_stats_from_cmd(adapter);
-
-		return &hw_stats->rxf;
-	} else {
-		struct be_hw_stats_v0 *hw_stats = hw_stats_from_cmd(adapter);
-
-		return &hw_stats->rxf;
 	}
 }
 
@@ -1435,19 +1405,6 @@ static inline void *be_erx_stats_from_cmd(struct be_adapter *adapter)
 		struct be_hw_stats_v0 *hw_stats = hw_stats_from_cmd(adapter);
 
 		return &hw_stats->erx;
-	}
-}
-
-static inline void *be_pmem_stats_from_cmd(struct be_adapter *adapter)
-{
-	if (adapter->generation == BE_GEN3) {
-		struct be_hw_stats_v1 *hw_stats = hw_stats_from_cmd(adapter);
-
-		return &hw_stats->pmem;
-	} else {
-		struct be_hw_stats_v0 *hw_stats = hw_stats_from_cmd(adapter);
-
-		return &hw_stats->pmem;
 	}
 }
 

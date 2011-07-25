@@ -26,33 +26,18 @@ struct be_ethtool_stat {
 	int offset;
 };
 
-enum {NETSTAT, DRVSTAT_TX, DRVSTAT_RX, ERXSTAT,
-			DRVSTAT};
+enum {DRVSTAT_TX, DRVSTAT_RX, DRVSTAT};
 #define FIELDINFO(_struct, field) FIELD_SIZEOF(_struct, field), \
 					offsetof(_struct, field)
-#define NETSTAT_INFO(field) 	#field, NETSTAT,\
-					FIELDINFO(struct net_device_stats,\
-						field)
 #define DRVSTAT_TX_INFO(field)	#field, DRVSTAT_TX,\
 					FIELDINFO(struct be_tx_stats, field)
 #define DRVSTAT_RX_INFO(field)	#field, DRVSTAT_RX,\
 					FIELDINFO(struct be_rx_stats, field)
-#define ERXSTAT_INFO(field)	#field, ERXSTAT,\
-					FIELDINFO(struct be_erx_stats_v1, field)
 #define	DRVSTAT_INFO(field)	#field, DRVSTAT,\
-					FIELDINFO(struct be_drv_stats, \
-						field)
+					FIELDINFO(struct be_drv_stats, field)
 
 static const struct be_ethtool_stat et_stats[] = {
-	{NETSTAT_INFO(rx_packets)},
-	{NETSTAT_INFO(tx_packets)},
-	{NETSTAT_INFO(rx_bytes)},
-	{NETSTAT_INFO(tx_bytes)},
-	{NETSTAT_INFO(rx_errors)},
-	{NETSTAT_INFO(tx_errors)},
-	{NETSTAT_INFO(rx_dropped)},
-	{NETSTAT_INFO(tx_dropped)},
-	{DRVSTAT_INFO(be_tx_events)},
+	{DRVSTAT_INFO(tx_events)},
 	{DRVSTAT_INFO(rx_crc_errors)},
 	{DRVSTAT_INFO(rx_alignment_symbol_errors)},
 	{DRVSTAT_INFO(rx_pause_frames)},
@@ -71,9 +56,6 @@ static const struct be_ethtool_stat et_stats[] = {
 	{DRVSTAT_INFO(rx_ip_checksum_errs)},
 	{DRVSTAT_INFO(rx_tcp_checksum_errs)},
 	{DRVSTAT_INFO(rx_udp_checksum_errs)},
-	{DRVSTAT_INFO(rx_switched_unicast_packets)},
-	{DRVSTAT_INFO(rx_switched_multicast_packets)},
-	{DRVSTAT_INFO(rx_switched_broadcast_packets)},
 	{DRVSTAT_INFO(tx_pauseframes)},
 	{DRVSTAT_INFO(tx_controlframes)},
 	{DRVSTAT_INFO(rx_priority_pause_frames)},
@@ -96,24 +78,24 @@ static const struct be_ethtool_stat et_stats[] = {
 static const struct be_ethtool_stat et_rx_stats[] = {
 	{DRVSTAT_RX_INFO(rx_bytes)},
 	{DRVSTAT_RX_INFO(rx_pkts)},
-	{DRVSTAT_RX_INFO(rx_rate)},
 	{DRVSTAT_RX_INFO(rx_polls)},
 	{DRVSTAT_RX_INFO(rx_events)},
 	{DRVSTAT_RX_INFO(rx_compl)},
 	{DRVSTAT_RX_INFO(rx_mcast_pkts)},
 	{DRVSTAT_RX_INFO(rx_post_fail)},
-	{DRVSTAT_RX_INFO(rx_dropped)},
-	{ERXSTAT_INFO(rx_drops_no_fragments)}
+	{DRVSTAT_RX_INFO(rx_drops_no_skbs)},
+	{DRVSTAT_RX_INFO(rx_drops_no_frags)}
 };
 #define ETHTOOL_RXSTATS_NUM (ARRAY_SIZE(et_rx_stats))
 
 /* Stats related to multi TX queues */
 static const struct be_ethtool_stat et_tx_stats[] = {
-	{DRVSTAT_TX_INFO(be_tx_rate)},
-	{DRVSTAT_TX_INFO(be_tx_reqs)},
-	{DRVSTAT_TX_INFO(be_tx_wrbs)},
-	{DRVSTAT_TX_INFO(be_tx_stops)},
-	{DRVSTAT_TX_INFO(be_tx_compl)}
+	{DRVSTAT_TX_INFO(tx_bytes)},
+	{DRVSTAT_TX_INFO(tx_pkts)},
+	{DRVSTAT_TX_INFO(tx_reqs)},
+	{DRVSTAT_TX_INFO(tx_wrbs)},
+	{DRVSTAT_TX_INFO(tx_compl)},
+	{DRVSTAT_TX_INFO(tx_stops)}
 };
 #define ETHTOOL_TXSTATS_NUM (ARRAY_SIZE(et_tx_stats))
 
@@ -260,20 +242,11 @@ be_get_ethtool_stats(struct net_device *netdev,
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct be_rx_obj *rxo;
 	struct be_tx_obj *txo;
-	void *p = NULL;
+	void *p;
 	int i, j, base;
 
 	for (i = 0; i < ETHTOOL_STATS_NUM; i++) {
-		switch (et_stats[i].type) {
-		case NETSTAT:
-			p = &netdev->stats;
-			break;
-		case DRVSTAT:
-			p = &adapter->drv_stats;
-			break;
-		}
-
-		p = (u8 *)p + et_stats[i].offset;
+		p = (u8 *)&adapter->drv_stats + et_stats[i].offset;
 		data[i] = (et_stats[i].size == sizeof(u64)) ?
 				*(u64 *)p: *(u32 *)p;
 	}
@@ -281,15 +254,7 @@ be_get_ethtool_stats(struct net_device *netdev,
 	base = ETHTOOL_STATS_NUM;
 	for_all_rx_queues(adapter, rxo, j) {
 		for (i = 0; i < ETHTOOL_RXSTATS_NUM; i++) {
-			switch (et_rx_stats[i].type) {
-			case DRVSTAT_RX:
-				p = (u8 *)&rxo->stats + et_rx_stats[i].offset;
-				break;
-			case ERXSTAT:
-				p = (u32 *)be_erx_stats_from_cmd(adapter) +
-								rxo->q.id;
-				break;
-			}
+			p = (u8 *)rx_stats(rxo) + et_rx_stats[i].offset;
 			data[base + j * ETHTOOL_RXSTATS_NUM + i] =
 				(et_rx_stats[i].size == sizeof(u64)) ?
 					*(u64 *)p: *(u32 *)p;
@@ -299,7 +264,7 @@ be_get_ethtool_stats(struct net_device *netdev,
 	base = ETHTOOL_STATS_NUM + adapter->num_rx_qs * ETHTOOL_RXSTATS_NUM;
 	for_all_tx_queues(adapter, txo, j) {
 		for (i = 0; i < ETHTOOL_TXSTATS_NUM; i++) {
-			p = (u8 *)&txo->stats + et_tx_stats[i].offset;
+			p = (u8 *)tx_stats(txo) + et_tx_stats[i].offset;
 			data[base + j * ETHTOOL_TXSTATS_NUM + i] =
 				(et_tx_stats[i].size == sizeof(u64)) ?
 					*(u64 *)p: *(u32 *)p;

@@ -167,15 +167,13 @@ struct be_mcc_obj {
 };
 
 struct be_tx_stats {
-	u32 be_tx_reqs;		/* number of TX requests initiated */
-	u32 be_tx_stops;	/* number of times TX Q was stopped */
-	u32 be_tx_wrbs;		/* number of tx WRBs used */
-	u32 be_tx_compl;	/* number of tx completion entries processed */
-	ulong be_tx_jiffies;
-	u64 be_tx_bytes;
-	u64 be_tx_bytes_prev;
-	u64 be_tx_pkts;
-	u32 be_tx_rate;
+	u64 tx_bytes;
+	u64 tx_pkts;
+	u64 tx_reqs;
+	u64 tx_wrbs;
+	u64 tx_compl;
+	ulong tx_jiffies;
+	u32 tx_stops;
 };
 
 struct be_tx_obj {
@@ -195,22 +193,19 @@ struct be_rx_page_info {
 };
 
 struct be_rx_stats {
-	u32 rx_post_fail;/* number of ethrx buffer alloc failures */
-	u32 rx_polls;	/* number of times NAPI called poll function */
-	u32 rx_events;	/* number of ucast rx completion events  */
-	u32 rx_compl;	/* number of rx completion entries processed */
-	ulong rx_dropped; /* number of skb allocation errors */
-	ulong rx_jiffies;
 	u64 rx_bytes;
-	u64 rx_bytes_prev;
 	u64 rx_pkts;
-	u32 rx_rate;
+	u64 rx_pkts_prev;
+	ulong rx_jiffies;
+	u32 rx_drops_no_skbs;	/* skb allocation errors */
+	u32 rx_drops_no_frags;	/* HW has no fetched frags */
+	u32 rx_post_fail;	/* page post alloc failures */
+	u32 rx_polls;		/* NAPI calls */
+	u32 rx_events;
+	u32 rx_compl;
 	u32 rx_mcast_pkts;
-	u32 rxcp_err;	/* Num rx completion entries w/ err set. */
-	ulong rx_fps_jiffies;	/* jiffies at last FPS calc */
-	u32 rx_frags;
-	u32 prev_rx_frags;
-	u32 rx_fps;		/* Rx frags per second */
+	u32 rx_compl_err;	/* completions with err set */
+	u32 rx_pps;		/* pkts per second */
 };
 
 struct be_rx_compl_info {
@@ -247,43 +242,40 @@ struct be_rx_obj {
 
 struct be_drv_stats {
 	u8 be_on_die_temperature;
-	u64 be_tx_events;
-	u64 eth_red_drops;
-	u64 rx_drops_no_pbuf;
-	u64 rx_drops_no_txpb;
-	u64 rx_drops_no_erx_descr;
-	u64 rx_drops_no_tpre_descr;
-	u64 rx_drops_too_many_frags;
-	u64 rx_drops_invalid_ring;
-	u64 forwarded_packets;
-	u64 rx_drops_mtu;
-	u64 rx_crc_errors;
-	u64 rx_alignment_symbol_errors;
-	u64 rx_pause_frames;
-	u64 rx_priority_pause_frames;
-	u64 rx_control_frames;
-	u64 rx_in_range_errors;
-	u64 rx_out_range_errors;
-	u64 rx_frame_too_long;
-	u64 rx_address_match_errors;
-	u64 rx_dropped_too_small;
-	u64 rx_dropped_too_short;
-	u64 rx_dropped_header_too_small;
-	u64 rx_dropped_tcp_length;
-	u64 rx_dropped_runt;
-	u64 rx_ip_checksum_errs;
-	u64 rx_tcp_checksum_errs;
-	u64 rx_udp_checksum_errs;
-	u64 rx_switched_unicast_packets;
-	u64 rx_switched_multicast_packets;
-	u64 rx_switched_broadcast_packets;
-	u64 tx_pauseframes;
-	u64 tx_priority_pauseframes;
-	u64 tx_controlframes;
-	u64 rxpp_fifo_overflow_drop;
-	u64 rx_input_fifo_overflow_drop;
-	u64 pmem_fifo_overflow_drop;
-	u64 jabber_events;
+	u32 tx_events;
+	u32 eth_red_drops;
+	u32 rx_drops_no_pbuf;
+	u32 rx_drops_no_txpb;
+	u32 rx_drops_no_erx_descr;
+	u32 rx_drops_no_tpre_descr;
+	u32 rx_drops_too_many_frags;
+	u32 rx_drops_invalid_ring;
+	u32 forwarded_packets;
+	u32 rx_drops_mtu;
+	u32 rx_crc_errors;
+	u32 rx_alignment_symbol_errors;
+	u32 rx_pause_frames;
+	u32 rx_priority_pause_frames;
+	u32 rx_control_frames;
+	u32 rx_in_range_errors;
+	u32 rx_out_range_errors;
+	u32 rx_frame_too_long;
+	u32 rx_address_match_errors;
+	u32 rx_dropped_too_small;
+	u32 rx_dropped_too_short;
+	u32 rx_dropped_header_too_small;
+	u32 rx_dropped_tcp_length;
+	u32 rx_dropped_runt;
+	u32 rx_ip_checksum_errs;
+	u32 rx_tcp_checksum_errs;
+	u32 rx_udp_checksum_errs;
+	u32 tx_pauseframes;
+	u32 tx_priority_pauseframes;
+	u32 tx_controlframes;
+	u32 rxpp_fifo_overflow_drop;
+	u32 rx_input_fifo_overflow_drop;
+	u32 pmem_fifo_overflow_drop;
+	u32 jabber_events;
 };
 
 struct be_vf_cfg {
