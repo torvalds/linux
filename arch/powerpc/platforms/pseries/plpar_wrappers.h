@@ -73,9 +73,9 @@ static inline long register_slb_shadow(unsigned long cpu, unsigned long vpa)
 	return vpa_call(0x3, cpu, vpa);
 }
 
-static inline long unregister_dtl(unsigned long cpu, unsigned long vpa)
+static inline long unregister_dtl(unsigned long cpu)
 {
-	return vpa_call(0x6, cpu, vpa);
+	return vpa_call(0x6, cpu, 0);
 }
 
 static inline long register_dtl(unsigned long cpu, unsigned long vpa)
