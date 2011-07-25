@@ -37,6 +37,7 @@ struct iscsi_cls_conn;
 struct iscsi_conn;
 struct iscsi_task;
 struct sockaddr;
+struct iscsi_iface;
 
 /**
  * struct iscsi_transport - iSCSI Transport template
@@ -87,6 +88,8 @@ struct iscsi_transport {
 	/* LLD sets this to indicate what values it can export to sysfs */
 	uint64_t param_mask;
 	uint64_t host_param_mask;
+	uint64_t iface_param_mask;
+
 	struct iscsi_cls_session *(*create_session) (struct iscsi_endpoint *ep,
 					uint16_t cmds_max, uint16_t qdepth,
 					uint32_t sn);
@@ -138,6 +141,9 @@ struct iscsi_transport {
 			  uint32_t enable, struct sockaddr *dst_addr);
 	int (*set_path) (struct Scsi_Host *shost, struct iscsi_path *params);
 	int (*set_iface_param) (struct Scsi_Host *shost, char *data, int count);
+	int (*get_iface_param) (struct iscsi_iface *iface,
+				enum iscsi_param_type param_type,
+				int param, char *buf);
 };
 
 /*
@@ -229,6 +235,20 @@ struct iscsi_endpoint {
 	struct iscsi_cls_conn *conn;
 };
 
+struct iscsi_iface {
+	struct device dev;
+	struct iscsi_transport *transport;
+	uint32_t iface_type;	/* IPv4 or IPv6 */
+	uint32_t iface_num;	/* iface number, 0 - n */
+	void *dd_data;		/* LLD private data */
+};
+
+#define iscsi_dev_to_iface(_dev) \
+	container_of(_dev, struct iscsi_iface, dev)
+
+#define iscsi_iface_to_shost(_iface) \
+	dev_to_shost(_iface->dev.parent)
+
 /*
  * session and connection functions that can be used by HW iSCSI LLDs
  */
@@ -262,5 +282,11 @@ extern struct iscsi_endpoint *iscsi_create_endpoint(int dd_size);
 extern void iscsi_destroy_endpoint(struct iscsi_endpoint *ep);
 extern struct iscsi_endpoint *iscsi_lookup_endpoint(u64 handle);
 extern int iscsi_block_scsi_eh(struct scsi_cmnd *cmd);
+extern struct iscsi_iface *iscsi_create_iface(struct Scsi_Host *shost,
+					      struct iscsi_transport *t,
+					      uint32_t iface_type,
+					      uint32_t iface_num, int dd_size);
+extern void iscsi_destroy_iface(struct iscsi_iface *iface);
+extern struct iscsi_iface *iscsi_lookup_iface(int handle);
 
 #endif

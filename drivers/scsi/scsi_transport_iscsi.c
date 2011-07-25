@@ -270,6 +270,185 @@ struct iscsi_endpoint *iscsi_lookup_endpoint(u64 handle)
 }
 EXPORT_SYMBOL_GPL(iscsi_lookup_endpoint);
 
+/*
+ * Interface to display network param to sysfs
+ */
+
+static void iscsi_iface_release(struct device *dev)
+{
+	struct iscsi_iface *iface = iscsi_dev_to_iface(dev);
+	struct device *parent = iface->dev.parent;
+
+	kfree(iface);
+	put_device(parent);
+}
+
+
+static struct class iscsi_iface_class = {
+	.name = "iscsi_iface",
+	.dev_release = iscsi_iface_release,
+};
+
+#define ISCSI_IFACE_ATTR(_prefix, _name, _mode, _show, _store)	\
+struct device_attribute dev_attr_##_prefix##_##_name =		\
+	__ATTR(_name, _mode, _show, _store)
+
+/* iface attrs show */
+#define iscsi_iface_attr_show(type, name, param_type, param)		\
+static ssize_t								\
+show_##type##_##name(struct device *dev, struct device_attribute *attr,	\
+		     char *buf)						\
+{									\
+	struct iscsi_iface *iface = iscsi_dev_to_iface(dev);		\
+	struct iscsi_transport *t = iface->transport;			\
+	return t->get_iface_param(iface, param_type, param, buf);	\
+}									\
+
+#define iscsi_iface_net_attr(type, name, param)				\
+	iscsi_iface_attr_show(type, name, ISCSI_NET_PARAM, param)	\
+static ISCSI_IFACE_ATTR(type, name, S_IRUGO, show_##type##_##name, NULL);
+
+/* generic read only ipvi4 attribute */
+iscsi_iface_net_attr(ipv4_iface, ipaddress, ISCSI_NET_PARAM_IPV4_ADDR);
+iscsi_iface_net_attr(ipv4_iface, gateway, ISCSI_NET_PARAM_IPV4_GW);
+iscsi_iface_net_attr(ipv4_iface, subnet, ISCSI_NET_PARAM_IPV4_SUBNET);
+iscsi_iface_net_attr(ipv4_iface, bootproto, ISCSI_NET_PARAM_IPV4_BOOTPROTO);
+
+/* generic read only ipv6 attribute */
+iscsi_iface_net_attr(ipv6_iface, ipaddress, ISCSI_NET_PARAM_IPV6_ADDR);
+iscsi_iface_net_attr(ipv6_iface, link_local_addr, ISCSI_NET_PARAM_IPV6_LINKLOCAL);
+iscsi_iface_net_attr(ipv6_iface, router_addr, ISCSI_NET_PARAM_IPV6_ROUTER);
+iscsi_iface_net_attr(ipv6_iface, ipaddr_autocfg,
+		     ISCSI_NET_PARAM_IPV6_ADDR_AUTOCFG);
+iscsi_iface_net_attr(ipv6_iface, linklocal_autocfg,
+		     ISCSI_NET_PARAM_IPV6_LINKLOCAL_AUTOCFG);
+
+/* common read only iface attribute */
+iscsi_iface_net_attr(iface, enabled, ISCSI_NET_PARAM_IFACE_ENABLE);
+iscsi_iface_net_attr(iface, vlan, ISCSI_NET_PARAM_VLAN_ID);
+
+static mode_t iscsi_iface_attr_is_visible(struct kobject *kobj,
+					  struct attribute *attr, int i)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct iscsi_iface *iface = iscsi_dev_to_iface(dev);
+	struct iscsi_transport *t = iface->transport;
+
+	if (attr == &dev_attr_iface_enabled.attr)
+		return (t->iface_param_mask & ISCSI_NET_IFACE_ENABLE) ?
+								S_IRUGO : 0;
+	else if (attr == &dev_attr_iface_vlan.attr)
+		return (t->iface_param_mask & ISCSI_NET_VLAN_ID) ? S_IRUGO : 0;
+
+	if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4) {
+		if (attr == &dev_attr_ipv4_iface_ipaddress.attr)
+			return (t->iface_param_mask & ISCSI_NET_IPV4_ADDR) ?
+								S_IRUGO : 0;
+		else if (attr == &dev_attr_ipv4_iface_gateway.attr)
+			return (t->iface_param_mask & ISCSI_NET_IPV4_GW) ?
+								S_IRUGO : 0;
+		else if (attr == &dev_attr_ipv4_iface_subnet.attr)
+			return (t->iface_param_mask & ISCSI_NET_IPV4_SUBNET) ?
+								S_IRUGO : 0;
+		else if (attr == &dev_attr_ipv4_iface_bootproto.attr)
+			return (t->iface_param_mask & ISCSI_NET_IPV4_BOOTPROTO) ?
+								 S_IRUGO : 0;
+	} else if (iface->iface_type == ISCSI_IFACE_TYPE_IPV6) {
+		if (attr == &dev_attr_ipv6_iface_ipaddress.attr)
+			return (t->iface_param_mask & ISCSI_NET_IPV6_ADDR) ?
+								S_IRUGO : 0;
+		else if (attr == &dev_attr_ipv6_iface_link_local_addr.attr)
+			return (t->iface_param_mask & ISCSI_NET_IPV6_LINKLOCAL) ?
+								S_IRUGO : 0;
+		else if (attr == &dev_attr_ipv6_iface_router_addr.attr)
+			return (t->iface_param_mask & ISCSI_NET_IPV6_ROUTER) ?
+								S_IRUGO : 0;
+		else if (attr == &dev_attr_ipv6_iface_ipaddr_autocfg.attr)
+			return (t->iface_param_mask & ISCSI_NET_IPV6_ADDR_AUTOCFG) ?
+								S_IRUGO : 0;
+		else if (attr == &dev_attr_ipv6_iface_linklocal_autocfg.attr)
+			return (t->iface_param_mask & ISCSI_NET_IPV6_LINKLOCAL_AUTOCFG) ?
+								S_IRUGO : 0;
+	}
+
+	return 0;
+}
+
+static struct attribute *iscsi_iface_attrs[] = {
+	&dev_attr_iface_enabled.attr,
+	&dev_attr_iface_vlan.attr,
+	&dev_attr_ipv4_iface_ipaddress.attr,
+	&dev_attr_ipv4_iface_gateway.attr,
+	&dev_attr_ipv4_iface_subnet.attr,
+	&dev_attr_ipv4_iface_bootproto.attr,
+	&dev_attr_ipv6_iface_ipaddress.attr,
+	&dev_attr_ipv6_iface_link_local_addr.attr,
+	&dev_attr_ipv6_iface_router_addr.attr,
+	&dev_attr_ipv6_iface_ipaddr_autocfg.attr,
+	&dev_attr_ipv6_iface_linklocal_autocfg.attr,
+	NULL,
+};
+
+static struct attribute_group iscsi_iface_group = {
+	.attrs = iscsi_iface_attrs,
+	.is_visible = iscsi_iface_attr_is_visible,
+};
+
+struct iscsi_iface *
+iscsi_create_iface(struct Scsi_Host *shost, struct iscsi_transport *transport,
+		   uint32_t iface_type, uint32_t iface_num, int dd_size)
+{
+	struct iscsi_iface *iface;
+	int err;
+
+	iface = kzalloc(sizeof(*iface) + dd_size, GFP_KERNEL);
+	if (!iface)
+		return NULL;
+
+	iface->transport = transport;
+	iface->iface_type = iface_type;
+	iface->iface_num = iface_num;
+	iface->dev.release = iscsi_iface_release;
+	iface->dev.class = &iscsi_iface_class;
+	/* parent reference released in iscsi_iface_release */
+	iface->dev.parent = get_device(&shost->shost_gendev);
+	if (iface_type == ISCSI_IFACE_TYPE_IPV4)
+		dev_set_name(&iface->dev, "ipv4-iface-%u-%u", shost->host_no,
+			     iface_num);
+	else
+		dev_set_name(&iface->dev, "ipv6-iface-%u-%u", shost->host_no,
+			     iface_num);
+
+	err = device_register(&iface->dev);
+	if (err)
+		goto free_iface;
+
+	err = sysfs_create_group(&iface->dev.kobj, &iscsi_iface_group);
+	if (err)
+		goto unreg_iface;
+
+	if (dd_size)
+		iface->dd_data = &iface[1];
+	return iface;
+
+unreg_iface:
+	device_unregister(&iface->dev);
+	return NULL;
+
+free_iface:
+	put_device(iface->dev.parent);
+	kfree(iface);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(iscsi_create_iface);
+
+void iscsi_destroy_iface(struct iscsi_iface *iface)
+{
+	sysfs_remove_group(&iface->dev.kobj, &iscsi_iface_group);
+	device_unregister(&iface->dev);
+}
+EXPORT_SYMBOL_GPL(iscsi_destroy_iface);
+
 static int iscsi_setup_host(struct transport_container *tc, struct device *dev,
 			    struct device *cdev)
 {
@@ -2175,6 +2354,7 @@ iscsi_register_transport(struct iscsi_transport *tt)
 
 	BUG_ON(count > ISCSI_SESSION_ATTRS);
 	priv->session_attrs[count] = NULL;
+	count = 0;
 
 	spin_lock_irqsave(&iscsi_transport_lock, flags);
 	list_add(&priv->list, &iscsi_transports);
@@ -2237,9 +2417,13 @@ static __init int iscsi_transport_init(void)
 	if (err)
 		goto unregister_transport_class;
 
-	err = transport_class_register(&iscsi_host_class);
+	err = class_register(&iscsi_iface_class);
 	if (err)
 		goto unregister_endpoint_class;
+
+	err = transport_class_register(&iscsi_host_class);
+	if (err)
+		goto unregister_iface_class;
 
 	err = transport_class_register(&iscsi_connection_class);
 	if (err)
@@ -2270,6 +2454,8 @@ unregister_conn_class:
 	transport_class_unregister(&iscsi_connection_class);
 unregister_host_class:
 	transport_class_unregister(&iscsi_host_class);
+unregister_iface_class:
+	class_unregister(&iscsi_iface_class);
 unregister_endpoint_class:
 	class_unregister(&iscsi_endpoint_class);
 unregister_transport_class:
@@ -2285,6 +2471,7 @@ static void __exit iscsi_transport_exit(void)
 	transport_class_unregister(&iscsi_session_class);
 	transport_class_unregister(&iscsi_host_class);
 	class_unregister(&iscsi_endpoint_class);
+	class_unregister(&iscsi_iface_class);
 	class_unregister(&iscsi_transport_class);
 }
 
