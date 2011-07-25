@@ -491,6 +491,20 @@ static __devinit void wm831x_buckv_dvs_init(struct wm831x_dcdc *dcdc,
 		return;
 	}
 
+	/* If DVS_VSEL is set to the minimum value then raise it to ON_VSEL
+	 * to make bootstrapping a bit smoother.
+	 */
+	if (!dcdc->dvs_vsel) {
+		ret = wm831x_set_bits(wm831x,
+				      dcdc->base + WM831X_DCDC_DVS_CONTROL,
+				      WM831X_DC1_DVS_VSEL_MASK, dcdc->on_vsel);
+		if (ret == 0)
+			dcdc->dvs_vsel = dcdc->on_vsel;
+		else
+			dev_warn(wm831x->dev, "Failed to set DVS_VSEL: %d\n",
+				 ret);
+	}
+
 	ret = wm831x_set_bits(wm831x, dcdc->base + WM831X_DCDC_DVS_CONTROL,
 			      WM831X_DC1_DVS_SRC_MASK, ctrl);
 	if (ret < 0) {
