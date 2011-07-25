@@ -673,6 +673,16 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			if (r->parent || (r->flags & mask) != type)
 				continue;
 			r_size = resource_size(r);
+#ifdef CONFIG_PCI_IOV
+			/* put SRIOV requested res to the optional list */
+			if (add_head && i >= PCI_IOV_RESOURCES &&
+					i <= PCI_IOV_RESOURCE_END) {
+				r->end = r->start - 1;
+				add_to_list(add_head, dev, r, r_size, 1);
+				children_add_size += r_size;
+				continue;
+			}
+#endif
 			/* For bridges size != alignment */
 			align = pci_resource_alignment(dev, r);
 			order = __ffs(align) - 20;
