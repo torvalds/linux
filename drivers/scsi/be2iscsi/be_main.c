@@ -4364,8 +4364,6 @@ struct iscsi_transport beiscsi_iscsi_transport = {
 	.name = DRV_NAME,
 	.caps = CAP_RECOVERY_L0 | CAP_HDRDGST | CAP_TEXT_NEGO |
 		CAP_MULTI_R2T | CAP_DATADGST | CAP_DATA_PATH_OFFLOAD,
-	.host_param_mask = ISCSI_HOST_HWADDRESS | ISCSI_HOST_IPADDRESS |
-				ISCSI_HOST_INITIATOR_NAME,
 	.create_session = beiscsi_session_create,
 	.destroy_session = beiscsi_session_destroy,
 	.create_conn = beiscsi_conn_create,

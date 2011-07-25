@@ -107,9 +107,6 @@ static struct iscsi_transport cxgb4i_iscsi_transport = {
 	.caps		= CAP_RECOVERY_L0 | CAP_MULTI_R2T | CAP_HDRDGST |
 				CAP_DATADGST | CAP_DIGEST_OFFLOAD |
 				CAP_PADDING_OFFLOAD | CAP_TEXT_NEGO,
-	.host_param_mask	= ISCSI_HOST_HWADDRESS | ISCSI_HOST_IPADDRESS |
-				ISCSI_HOST_INITIATOR_NAME |
-				ISCSI_HOST_NETDEV_NAME,
 	.attr_is_visible	= cxgbi_attr_is_visible,
 	.get_host_param	= cxgbi_get_host_param,
 	.set_host_param	= cxgbi_set_host_param,

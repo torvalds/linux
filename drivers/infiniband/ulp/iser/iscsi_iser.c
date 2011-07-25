@@ -635,6 +635,15 @@ iscsi_iser_ep_disconnect(struct iscsi_endpoint *ep)
 static mode_t iser_attr_is_visible(int param_type, int param)
 {
 	switch (param_type) {
+	case ISCSI_HOST_PARAM:
+		switch (param) {
+		case ISCSI_HOST_PARAM_NETDEV_NAME:
+		case ISCSI_HOST_PARAM_HWADDRESS:
+		case ISCSI_HOST_PARAM_INITIATOR_NAME:
+			return S_IRUGO;
+		default:
+			return 0;
+		}
 	case ISCSI_PARAM:
 		switch (param) {
 		case ISCSI_PARAM_MAX_RECV_DLENGTH:
@@ -697,9 +706,6 @@ static struct iscsi_transport iscsi_iser_transport = {
 	.owner                  = THIS_MODULE,
 	.name                   = "iser",
 	.caps                   = CAP_RECOVERY_L0 | CAP_MULTI_R2T,
-	.host_param_mask	= ISCSI_HOST_HWADDRESS |
-				  ISCSI_HOST_NETDEV_NAME |
-				  ISCSI_HOST_INITIATOR_NAME,
 	/* session management */
 	.create_session         = iscsi_iser_session_create,
 	.destroy_session        = iscsi_iser_session_destroy,

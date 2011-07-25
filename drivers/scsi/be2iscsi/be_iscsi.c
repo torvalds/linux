@@ -737,6 +737,15 @@ void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 mode_t be2iscsi_attr_is_visible(int param_type, int param)
 {
 	switch (param_type) {
+	case ISCSI_HOST_PARAM:
+		switch (param) {
+		case ISCSI_HOST_PARAM_HWADDRESS:
+		case ISCSI_HOST_PARAM_IPADDRESS:
+		case ISCSI_HOST_PARAM_INITIATOR_NAME:
+			return S_IRUGO;
+		default:
+			return 0;
+		}
 	case ISCSI_PARAM:
 		switch (param) {
 		case ISCSI_PARAM_MAX_RECV_DLENGTH:

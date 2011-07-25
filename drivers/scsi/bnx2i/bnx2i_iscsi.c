@@ -2180,6 +2180,15 @@ static int bnx2i_nl_set_path(struct Scsi_Host *shost, struct iscsi_path *params)
 static mode_t bnx2i_attr_is_visible(int param_type, int param)
 {
 	switch (param_type) {
+	case ISCSI_HOST_PARAM:
+		switch (param) {
+		case ISCSI_HOST_PARAM_NETDEV_NAME:
+		case ISCSI_HOST_PARAM_HWADDRESS:
+		case ISCSI_HOST_PARAM_IPADDRESS:
+			return S_IRUGO;
+		default:
+			return 0;
+		}
 	case ISCSI_PARAM:
 		switch (param) {
 		case ISCSI_PARAM_MAX_RECV_DLENGTH:
@@ -2251,8 +2260,6 @@ struct iscsi_transport bnx2i_iscsi_transport = {
 				  CAP_MULTI_R2T | CAP_DATADGST |
 				  CAP_DATA_PATH_OFFLOAD |
 				  CAP_TEXT_NEGO,
-	.host_param_mask	= ISCSI_HOST_HWADDRESS | ISCSI_HOST_IPADDRESS |
-				  ISCSI_HOST_NETDEV_NAME,
 	.create_session		= bnx2i_session_create,
 	.destroy_session	= bnx2i_session_destroy,
 	.create_conn		= bnx2i_conn_create,

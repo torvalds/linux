@@ -85,8 +85,6 @@ struct iscsi_transport {
 	struct module *owner;
 	char *name;
 	unsigned int caps;
-	/* LLD sets this to indicate what values it can export to sysfs */
-	uint64_t host_param_mask;
 
 	struct iscsi_cls_session *(*create_session) (struct iscsi_endpoint *ep,
 					uint16_t cmds_max, uint16_t qdepth,

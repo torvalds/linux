@@ -875,6 +875,16 @@ static void iscsi_sw_tcp_session_destroy(struct iscsi_cls_session *cls_session)
 static mode_t iscsi_sw_tcp_attr_is_visible(int param_type, int param)
 {
 	switch (param_type) {
+	case ISCSI_HOST_PARAM:
+		switch (param) {
+		case ISCSI_HOST_PARAM_NETDEV_NAME:
+		case ISCSI_HOST_PARAM_HWADDRESS:
+		case ISCSI_HOST_PARAM_IPADDRESS:
+		case ISCSI_HOST_PARAM_INITIATOR_NAME:
+			return S_IRUGO;
+		default:
+			return 0;
+		}
 	case ISCSI_PARAM:
 		switch (param) {
 		case ISCSI_PARAM_MAX_RECV_DLENGTH:
@@ -955,9 +965,6 @@ static struct iscsi_transport iscsi_sw_tcp_transport = {
 	.name			= "tcp",
 	.caps			= CAP_RECOVERY_L0 | CAP_MULTI_R2T | CAP_HDRDGST
 				  | CAP_DATADGST,
-	.host_param_mask	= ISCSI_HOST_HWADDRESS | ISCSI_HOST_IPADDRESS |
-				  ISCSI_HOST_INITIATOR_NAME |
-				  ISCSI_HOST_NETDEV_NAME,
 	/* session management */
 	.create_session		= iscsi_sw_tcp_session_create,
 	.destroy_session	= iscsi_sw_tcp_session_destroy,

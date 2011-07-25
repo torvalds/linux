@@ -32,8 +32,6 @@
 #include <scsi/iscsi_if.h>
 #include <scsi/scsi_cmnd.h>
 
-#define ISCSI_HOST_ATTRS 4
-
 #define ISCSI_TRANSPORT_VERSION "2.0-870"
 
 static int dbg_session;
@@ -74,7 +72,6 @@ struct iscsi_internal {
 	struct list_head list;
 	struct device dev;
 
-	struct device_attribute *host_attrs[ISCSI_HOST_ATTRS + 1];
 	struct transport_container conn_cont;
 	struct transport_container session_cont;
 };
@@ -2301,13 +2298,42 @@ iscsi_host_attr(hwaddress, ISCSI_HOST_PARAM_HWADDRESS);
 iscsi_host_attr(ipaddress, ISCSI_HOST_PARAM_IPADDRESS);
 iscsi_host_attr(initiatorname, ISCSI_HOST_PARAM_INITIATOR_NAME);
 
-#define SETUP_HOST_RD_ATTR(field, param_flag)				\
-do {									\
-	if (tt->host_param_mask & param_flag) {				\
-		priv->host_attrs[count] = &dev_attr_host_##field; \
-		count++;						\
-	}								\
-} while (0)
+static struct attribute *iscsi_host_attrs[] = {
+	&dev_attr_host_netdev.attr,
+	&dev_attr_host_hwaddress.attr,
+	&dev_attr_host_ipaddress.attr,
+	&dev_attr_host_initiatorname.attr,
+	NULL,
+};
+
+static mode_t iscsi_host_attr_is_visible(struct kobject *kobj,
+					 struct attribute *attr, int i)
+{
+	struct device *cdev = container_of(kobj, struct device, kobj);
+	struct Scsi_Host *shost = transport_class_to_shost(cdev);
+	struct iscsi_internal *priv = to_iscsi_internal(shost->transportt);
+	int param;
+
+	if (attr == &dev_attr_host_netdev.attr)
+		param = ISCSI_HOST_PARAM_NETDEV_NAME;
+	else if (attr == &dev_attr_host_hwaddress.attr)
+		param = ISCSI_HOST_PARAM_HWADDRESS;
+	else if (attr == &dev_attr_host_ipaddress.attr)
+		param = ISCSI_HOST_PARAM_IPADDRESS;
+	else if (attr == &dev_attr_host_initiatorname.attr)
+		param = ISCSI_HOST_PARAM_INITIATOR_NAME;
+	else {
+		WARN_ONCE(1, "Invalid host attr");
+		return 0;
+	}
+
+	return priv->iscsi_transport->attr_is_visible(ISCSI_HOST_PARAM, param);
+}
+
+static struct attribute_group iscsi_host_group = {
+	.attrs = iscsi_host_attrs,
+	.is_visible = iscsi_host_attr_is_visible,
+};
 
 static int iscsi_session_match(struct attribute_container *cont,
 			   struct device *dev)
@@ -2379,7 +2405,7 @@ iscsi_register_transport(struct iscsi_transport *tt)
 {
 	struct iscsi_internal *priv;
 	unsigned long flags;
-	int count = 0, err;
+	int err;
 
 	BUG_ON(!tt);
 
@@ -2406,19 +2432,11 @@ iscsi_register_transport(struct iscsi_transport *tt)
 		goto unregister_dev;
 
 	/* host parameters */
-	priv->t.host_attrs.ac.attrs = &priv->host_attrs[0];
 	priv->t.host_attrs.ac.class = &iscsi_host_class.class;
 	priv->t.host_attrs.ac.match = iscsi_host_match;
+	priv->t.host_attrs.ac.grp = &iscsi_host_group;
 	priv->t.host_size = sizeof(struct iscsi_cls_host);
 	transport_container_register(&priv->t.host_attrs);
-
-	SETUP_HOST_RD_ATTR(netdev, ISCSI_HOST_NETDEV_NAME);
-	SETUP_HOST_RD_ATTR(ipaddress, ISCSI_HOST_IPADDRESS);
-	SETUP_HOST_RD_ATTR(hwaddress, ISCSI_HOST_HWADDRESS);
-	SETUP_HOST_RD_ATTR(initiatorname, ISCSI_HOST_INITIATOR_NAME);
-	BUG_ON(count > ISCSI_HOST_ATTRS);
-	priv->host_attrs[count] = NULL;
-	count = 0;
 
 	/* connection parameters */
 	priv->conn_cont.ac.class = &iscsi_connection_class.class;
