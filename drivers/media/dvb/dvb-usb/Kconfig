@@ -374,3 +374,10 @@ config DVB_USB_TECHNISAT_USB2
 	select DVB_STV6110x if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the Technisat USB2 DVB-S/S2 device
+
+config DVB_USB_IT913X
+	tristate "it913x driver"
+	depends on DVB_USB
+	select DVB_IT913X_FE
+	help
+	  Say Y here to support the it913x device
