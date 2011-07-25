@@ -124,6 +124,8 @@ struct usb_data_stream_properties {
  * @caps: capabilities of the DVB USB device.
  * @pid_filter_count: number of PID filter position in the optional hardware
  *  PID-filter.
+ * @num_frontends: number of frontends of the DVB USB adapter.
+ * @frontend_ctrl: called to power on/off active frontend.
  * @streaming_ctrl: called to start and stop the MPEG2-TS streaming of the
  *  device (not URB submitting/killing).
  * @pid_filter_ctrl: called to en/disable the PID filter, if any.
@@ -141,7 +143,9 @@ struct dvb_usb_adapter_properties {
 #define DVB_USB_ADAP_RECEIVES_204_BYTE_TS         0x08
 	int caps;
 	int pid_filter_count;
+	int num_frontends;
 
+	int (*frontend_ctrl)   (struct dvb_frontend *, int);
 	int (*streaming_ctrl)  (struct dvb_usb_adapter *, int);
 	int (*pid_filter_ctrl) (struct dvb_usb_adapter *, int);
 	int (*pid_filter)      (struct dvb_usb_adapter *, int, u16, int);
@@ -345,6 +349,7 @@ struct usb_data_stream {
  *
  * @stream: the usb data stream.
  */
+#define MAX_NO_OF_FE_PER_ADAP 2
 struct dvb_usb_adapter {
 	struct dvb_usb_device *dev;
 	struct dvb_usb_adapter_properties props;
@@ -363,11 +368,11 @@ struct dvb_usb_adapter {
 	struct dmxdev        dmxdev;
 	struct dvb_demux     demux;
 	struct dvb_net       dvb_net;
-	struct dvb_frontend *fe[1];
+	struct dvb_frontend *fe[MAX_NO_OF_FE_PER_ADAP];
 	int                  max_feed_count;
 
-	int (*fe_init)  (struct dvb_frontend *);
-	int (*fe_sleep) (struct dvb_frontend *);
+	int (*fe_init[MAX_NO_OF_FE_PER_ADAP])  (struct dvb_frontend *);
+	int (*fe_sleep[MAX_NO_OF_FE_PER_ADAP]) (struct dvb_frontend *);
 
 	struct usb_data_stream stream;
 

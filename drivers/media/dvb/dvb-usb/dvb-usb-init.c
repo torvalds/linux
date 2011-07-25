@@ -77,6 +77,10 @@ static int dvb_usb_adapter_init(struct dvb_usb_device *d, short *adapter_nrs)
 			return ret;
 		}
 
+		/* use exclusive FE lock if there is multiple shared FEs */
+		if (adap->fe[1])
+			adap->dvb_adap.mfe_shared = 1;
+
 		d->num_adapters_initialized++;
 		d->state |= DVB_USB_STATE_DVB;
 	}
