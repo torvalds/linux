@@ -456,27 +456,6 @@ static __devinit void wm831x_buckv_dvs_init(struct wm831x_dcdc *dcdc,
 	if (!pdata || !pdata->dvs_gpio)
 		return;
 
-	switch (pdata->dvs_control_src) {
-	case 1:
-		ctrl = 2 << WM831X_DC1_DVS_SRC_SHIFT;
-		break;
-	case 2:
-		ctrl = 3 << WM831X_DC1_DVS_SRC_SHIFT;
-		break;
-	default:
-		dev_err(wm831x->dev, "Invalid DVS control source %d for %s\n",
-			pdata->dvs_control_src, dcdc->name);
-		return;
-	}
-
-	ret = wm831x_set_bits(wm831x, dcdc->base + WM831X_DCDC_DVS_CONTROL,
-			      WM831X_DC1_DVS_SRC_MASK, ctrl);
-	if (ret < 0) {
-		dev_err(wm831x->dev, "Failed to set %s DVS source: %d\n",
-			dcdc->name, ret);
-		return;
-	}
-
 	ret = gpio_request(pdata->dvs_gpio, "DCDC DVS");
 	if (ret < 0) {
 		dev_err(wm831x->dev, "Failed to get %s DVS GPIO: %d\n",
@@ -498,6 +477,26 @@ static __devinit void wm831x_buckv_dvs_init(struct wm831x_dcdc *dcdc,
 	}
 
 	dcdc->dvs_gpio = pdata->dvs_gpio;
+
+	switch (pdata->dvs_control_src) {
+	case 1:
+		ctrl = 2 << WM831X_DC1_DVS_SRC_SHIFT;
+		break;
+	case 2:
+		ctrl = 3 << WM831X_DC1_DVS_SRC_SHIFT;
+		break;
+	default:
+		dev_err(wm831x->dev, "Invalid DVS control source %d for %s\n",
+			pdata->dvs_control_src, dcdc->name);
+		return;
+	}
+
+	ret = wm831x_set_bits(wm831x, dcdc->base + WM831X_DCDC_DVS_CONTROL,
+			      WM831X_DC1_DVS_SRC_MASK, ctrl);
+	if (ret < 0) {
+		dev_err(wm831x->dev, "Failed to set %s DVS source: %d\n",
+			dcdc->name, ret);
+	}
 }
 
 static __devinit int wm831x_buckv_probe(struct platform_device *pdev)
