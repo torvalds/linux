@@ -179,6 +179,13 @@ struct neigh_table {
 	struct pneigh_entry	**phash_buckets;
 };
 
+#define NEIGH_PRIV_ALIGN	sizeof(long long)
+
+static inline void *neighbour_priv(const struct neighbour *n)
+{
+	return (char *)n + ALIGN(sizeof(*n) + n->tbl->key_len, NEIGH_PRIV_ALIGN);
+}
+
 /* flags for neigh_update() */
 #define NEIGH_UPDATE_F_OVERRIDE			0x00000001
 #define NEIGH_UPDATE_F_WEAK_OVERRIDE		0x00000002
