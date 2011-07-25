@@ -1041,14 +1041,34 @@ config SENSORS_SMSC47B397
 	  This driver can also be built as a module.  If so, the module
 	  will be called smsc47b397.
 
+config SENSORS_SCH56XX_COMMON
+	tristate
+	default n
+
 config SENSORS_SCH5627
 	tristate "SMSC SCH5627"
+	select SENSORS_SCH56XX_COMMON
 	help
 	  If you say yes here you get support for the hardware monitoring
 	  features of the SMSC SCH5627 Super-I/O chip.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called sch5627.
+
+config SENSORS_SCH5636
+	tristate "SMSC SCH5636"
+	select SENSORS_SCH56XX_COMMON
+	help
+	  SMSC SCH5636 Super I/O chips include an embedded microcontroller for
+	  hardware monitoring solutions, allowing motherboard manufacturers to
+	  create their own custom hwmon solution based upon the SCH5636.
+
+	  Currently this driver only supports the Fujitsu Theseus SCH5636 based
+	  hwmon solution. Say yes here if you want support for the Fujitsu
+	  Theseus' hardware monitoring features.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called sch5636.
 
 config SENSORS_ADS1015
 	tristate "Texas Instruments ADS1015"
@@ -1142,6 +1162,7 @@ config SENSORS_TWL4030_MADC
 config SENSORS_VIA_CPUTEMP
 	tristate "VIA CPU temperature sensor"
 	depends on X86
+	select HWMON_VID
 	help
 	  If you say yes here you get support for the temperature
 	  sensor inside your CPU. Supported are all known variants of
