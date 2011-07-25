@@ -38,6 +38,7 @@
 #define SIO_REG_ADDR		0x66	/* Logical device address (2 bytes) */
 
 #define SIO_SCH5627_ID		0xC6	/* Chipset ID */
+#define SIO_SCH5636_ID		0xC7	/* Chipset ID */
 
 #define REGION_LENGTH		9
 
@@ -237,6 +238,9 @@ static int __init sch56xx_find(int sioaddr, unsigned short *address,
 	switch (devid) {
 	case SIO_SCH5627_ID:
 		*name = "sch5627";
+		break;
+	case SIO_SCH5636_ID:
+		*name = "sch5636";
 		break;
 	default:
 		pr_debug("Unsupported device id: 0x%02x\n",

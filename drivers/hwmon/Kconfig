@@ -1055,6 +1055,21 @@ config SENSORS_SCH5627
 	  This driver can also be built as a module.  If so, the module
 	  will be called sch5627.
 
+config SENSORS_SCH5636
+	tristate "SMSC SCH5636"
+	select SENSORS_SCH56XX_COMMON
+	help
+	  SMSC SCH5636 Super I/O chips include an embedded microcontroller for
+	  hardware monitoring solutions, allowing motherboard manufacturers to
+	  create their own custom hwmon solution based upon the SCH5636.
+
+	  Currently this driver only supports the Fujitsu Theseus SCH5636 based
+	  hwmon solution. Say yes here if you want support for the Fujitsu
+	  Theseus' hardware monitoring features.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called sch5636.
+
 config SENSORS_ADS1015
 	tristate "Texas Instruments ADS1015"
 	depends on I2C
