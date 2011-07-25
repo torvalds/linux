@@ -72,9 +72,6 @@ static void qla4xxx_config_dma_addressing(struct scsi_qla_host *ha);
 /*
  * iSCSI template entry points
  */
-static int qla4xxx_tgt_dscvr(struct Scsi_Host *shost,
-			     enum iscsi_tgt_dscvr type, uint32_t enable,
-			     struct sockaddr *dst_addr);
 static int qla4xxx_conn_get_param(struct iscsi_cls_conn *conn,
 				  enum iscsi_param param, char *buf);
 static int qla4xxx_host_get_param(struct Scsi_Host *shost,
@@ -121,7 +118,6 @@ static int qla4xxx_eh_host_reset(struct scsi_cmnd *cmd);
 static int qla4xxx_slave_alloc(struct scsi_device *device);
 static int qla4xxx_slave_configure(struct scsi_device *device);
 static void qla4xxx_slave_destroy(struct scsi_device *sdev);
-static void qla4xxx_scan_start(struct Scsi_Host *shost);
 static mode_t ql4_attr_is_visible(int param_type, int param);
 
 static struct qla4_8xxx_legacy_intr_set legacy_intr[] =
@@ -160,7 +156,6 @@ static struct iscsi_transport qla4xxx_iscsi_transport = {
 				  CAP_DATA_PATH_OFFLOAD | CAP_HDRDGST |
 				  CAP_DATADGST | CAP_LOGIN_OFFLOAD |
 				  CAP_MULTI_R2T,
-	.tgt_dscvr		= qla4xxx_tgt_dscvr,
 	.attr_is_visible	= ql4_attr_is_visible,
 	.create_session         = qla4xxx_session_create,
 	.destroy_session        = qla4xxx_session_destroy,
@@ -949,41 +944,6 @@ static int qla4xxx_conn_get_param(struct iscsi_cls_conn *cls_conn,
 
 }
 
-static int qla4xxx_tgt_dscvr(struct Scsi_Host *shost,
-			     enum iscsi_tgt_dscvr type, uint32_t enable,
-			     struct sockaddr *dst_addr)
-{
-	struct scsi_qla_host *ha;
-	struct sockaddr_in *addr;
-	struct sockaddr_in6 *addr6;
-	int ret = 0;
-
-	ha = (struct scsi_qla_host *) to_qla_host(shost);
-
-	switch (type) {
-	case ISCSI_TGT_DSCVR_SEND_TARGETS:
-		if (dst_addr->sa_family == AF_INET) {
-			addr = (struct sockaddr_in *)dst_addr;
-			if (qla4xxx_send_tgts(ha, (char *)&addr->sin_addr,
-					      addr->sin_port) != QLA_SUCCESS)
-				ret = -EIO;
-		} else if (dst_addr->sa_family == AF_INET6) {
-			/*
-			 * TODO: fix qla4xxx_send_tgts
-			 */
-			addr6 = (struct sockaddr_in6 *)dst_addr;
-			if (qla4xxx_send_tgts(ha, (char *)&addr6->sin6_addr,
-					      addr6->sin6_port) != QLA_SUCCESS)
-				ret = -EIO;
-		} else
-			ret = -ENOSYS;
-		break;
-	default:
-		ret = -ENOSYS;
-	}
-	return ret;
-}
-
 static struct iscsi_cls_session *
 qla4xxx_session_create(struct iscsi_endpoint *ep,
 			uint16_t cmds_max, uint16_t qdepth,
@@ -1073,18 +1033,6 @@ static void qla4xxx_session_destroy(struct iscsi_cls_session *cls_sess)
 	iscsi_session_teardown(cls_sess);
 }
 
-void qla4xxx_destroy_sess(struct ddb_entry *ddb_entry)
-{
-	if (!ddb_entry->sess)
-		return;
-
-	if (ddb_entry->conn) {
-		atomic_set(&ddb_entry->state, DDB_STATE_DEAD);
-		iscsi_remove_session(ddb_entry->sess);
-	}
-	iscsi_free_session(ddb_entry->sess);
-}
-
 static struct iscsi_cls_conn *
 qla4xxx_conn_create(struct iscsi_cls_session *cls_sess, uint32_t conn_idx)
 {
@@ -1129,7 +1077,6 @@ static int qla4xxx_conn_start(struct iscsi_cls_conn *cls_conn)
 	struct scsi_qla_host *ha;
 	struct dev_db_entry *fw_ddb_entry;
 	dma_addr_t fw_ddb_entry_dma;
-	uint32_t fw_ddb_device_state;
 	uint32_t mbx_sts = 0;
 	int ret = 0;
 	int status = QLA_SUCCESS;
@@ -1166,9 +1113,8 @@ static int qla4xxx_conn_start(struct iscsi_cls_conn *cls_conn)
 
 	status = qla4xxx_conn_open(ha, ddb_entry->fw_ddb_index);
 	if (status == QLA_ERROR) {
-		ql4_printk(KERN_ERR, ha, "%s: Login failed: %s %s:%d\n",
-			   __func__, ddb_entry->iscsi_name,
-			   ddb_entry->ip_addr, ddb_entry->port);
+		ql4_printk(KERN_ERR, ha, "%s: Login failed: %s\n", __func__,
+			   sess->targetname);
 		ret = -EINVAL;
 		goto exit_conn_start;
 	}
@@ -1427,59 +1373,6 @@ void qla4xxx_update_session_conn_param(struct scsi_qla_host *ha,
 
 	memcpy(sess->initiatorname, ha->name_string,
 	       min(sizeof(ha->name_string), sizeof(sess->initiatorname)));
-}
-
-int qla4xxx_add_sess(struct ddb_entry *ddb_entry)
-{
-	int err;
-
-	ddb_entry->sess->recovery_tmo = ql4xsess_recovery_tmo;
-
-	err = iscsi_add_session(ddb_entry->sess, ddb_entry->fw_ddb_index);
-	if (err) {
-		DEBUG2(printk(KERN_ERR "Could not add session.\n"));
-		return err;
-	}
-
-	ddb_entry->conn = iscsi_create_conn(ddb_entry->sess, 0, 0);
-	if (!ddb_entry->conn) {
-		iscsi_remove_session(ddb_entry->sess);
-		DEBUG2(printk(KERN_ERR "Could not add connection.\n"));
-		return -ENOMEM;
-	}
-
-	/* finally ready to go */
-	iscsi_unblock_session(ddb_entry->sess);
-	return 0;
-}
-
-struct ddb_entry *qla4xxx_alloc_sess(struct scsi_qla_host *ha)
-{
-	struct ddb_entry *ddb_entry;
-	struct iscsi_cls_session *sess;
-
-	sess = iscsi_alloc_session(ha->host, &qla4xxx_iscsi_transport,
-				   sizeof(struct ddb_entry));
-	if (!sess)
-		return NULL;
-
-	ddb_entry = sess->dd_data;
-	memset(ddb_entry, 0, sizeof(*ddb_entry));
-	ddb_entry->ha = ha;
-	ddb_entry->sess = sess;
-	return ddb_entry;
-}
-
-static void qla4xxx_scan_start(struct Scsi_Host *shost)
-{
-	struct scsi_qla_host *ha = to_qla_host(shost);
-	struct ddb_entry *ddb_entry, *ddbtemp;
-
-	/* finish setup of sessions that were already setup in firmware */
-	list_for_each_entry_safe(ddb_entry, ddbtemp, &ha->ddb_list, list) {
-		if (ddb_entry->fw_ddb_device_state == DDB_DS_SESSION_ACTIVE)
-			qla4xxx_add_sess(ddb_entry);
-	}
 }
 
 /*
@@ -2232,7 +2125,7 @@ recover_ha_init_adapter:
 
 		/* NOTE: AF_ONLINE flag set upon successful completion of
 		 *       qla4xxx_initialize_adapter */
-		status = qla4xxx_initialize_adapter(ha, PRESERVE_DDB_LIST);
+		status = qla4xxx_initialize_adapter(ha);
 	}
 
 	/* Retry failed adapter initialization, if necessary
@@ -2732,7 +2625,6 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	qla4xxx_config_dma_addressing(ha);
 
 	/* Initialize lists and spinlocks. */
-	INIT_LIST_HEAD(&ha->ddb_list);
 	INIT_LIST_HEAD(&ha->free_srb_q);
 
 	mutex_init(&ha->mbox_sem);
@@ -2778,7 +2670,7 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	 * firmware
 	 * NOTE: interrupts enabled upon successful completion
 	 */
-	status = qla4xxx_initialize_adapter(ha, REBUILD_DDB_LIST);
+	status = qla4xxx_initialize_adapter(ha);
 	while ((!test_bit(AF_ONLINE, &ha->flags)) &&
 	    init_retry_count++ < MAX_INIT_RETRIES) {
 
@@ -2799,7 +2691,7 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 		if (ha->isp_ops->reset_chip(ha) == QLA_ERROR)
 			continue;
 
-		status = qla4xxx_initialize_adapter(ha, REBUILD_DDB_LIST);
+		status = qla4xxx_initialize_adapter(ha);
 	}
 
 	if (!test_bit(AF_ONLINE, &ha->flags)) {
@@ -2935,9 +2827,6 @@ static void __devexit qla4xxx_remove_adapter(struct pci_dev *pdev)
 
 	if (!is_qla8022(ha))
 		qla4xxx_prevent_other_port_reinit(ha);
-
-	/* remove devs from iscsi_sessions to scsi_devices */
-	qla4xxx_free_ddb_list(ha);
 
 	/* destroy iface from sysfs */
 	qla4xxx_destroy_ifaces(ha);
@@ -3485,7 +3374,7 @@ static uint32_t qla4_8xxx_error_recovery(struct scsi_qla_host *ha)
 
 		qla4_8xxx_idc_unlock(ha);
 		clear_bit(AF_FW_RECOVERY, &ha->flags);
-		rval = qla4xxx_initialize_adapter(ha, PRESERVE_DDB_LIST);
+		rval = qla4xxx_initialize_adapter(ha);
 		qla4_8xxx_idc_lock(ha);
 
 		if (rval != QLA_SUCCESS) {
@@ -3521,8 +3410,7 @@ static uint32_t qla4_8xxx_error_recovery(struct scsi_qla_host *ha)
 		if ((qla4_8xxx_rd_32(ha, QLA82XX_CRB_DEV_STATE) ==
 		    QLA82XX_DEV_READY)) {
 			clear_bit(AF_FW_RECOVERY, &ha->flags);
-			rval = qla4xxx_initialize_adapter(ha,
-			    PRESERVE_DDB_LIST);
+			rval = qla4xxx_initialize_adapter(ha);
 			if (rval == QLA_SUCCESS) {
 				ret = qla4xxx_request_irqs(ha);
 				if (ret) {

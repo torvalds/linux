@@ -1214,61 +1214,6 @@ int qla4xxx_req_ddb_entry(struct scsi_qla_host *ha, uint32_t ddb_index,
 	return status;
 }
 
-int qla4xxx_send_tgts(struct scsi_qla_host *ha, char *ip, uint16_t port)
-{
-	struct dev_db_entry *fw_ddb_entry;
-	dma_addr_t fw_ddb_entry_dma;
-	uint32_t ddb_index;
-	uint32_t mbx_sts;
-	uint32_t options = 0;
-	int ret_val = QLA_SUCCESS;
-
-
-	fw_ddb_entry = dma_alloc_coherent(&ha->pdev->dev,
-					  sizeof(*fw_ddb_entry),
-					  &fw_ddb_entry_dma, GFP_KERNEL);
-	if (!fw_ddb_entry) {
-		DEBUG2(printk("scsi%ld: %s: Unable to allocate dma buffer.\n",
-			      ha->host_no, __func__));
-		ret_val = QLA_ERROR;
-		goto exit_send_tgts_no_free;
-	}
-
-	ret_val = qla4xxx_get_default_ddb(ha, options, fw_ddb_entry_dma);
-	if (ret_val != QLA_SUCCESS)
-		goto exit_send_tgts;
-
-	ret_val = qla4xxx_req_ddb_entry(ha, &ddb_index, &mbx_sts);
-	if (ret_val != QLA_SUCCESS)
-		goto exit_send_tgts;
-
-	memset(fw_ddb_entry->iscsi_alias, 0,
-	       sizeof(fw_ddb_entry->iscsi_alias));
-
-	memset(fw_ddb_entry->iscsi_name, 0,
-	       sizeof(fw_ddb_entry->iscsi_name));
-
-	memset(fw_ddb_entry->ip_addr, 0, sizeof(fw_ddb_entry->ip_addr));
-	memset(fw_ddb_entry->tgt_addr, 0,
-	       sizeof(fw_ddb_entry->tgt_addr));
-
-	fw_ddb_entry->options = (DDB_OPT_DISC_SESSION | DDB_OPT_TARGET);
-	fw_ddb_entry->port = cpu_to_le16(ntohs(port));
-
-	fw_ddb_entry->ip_addr[0] = *ip;
-	fw_ddb_entry->ip_addr[1] = *(ip + 1);
-	fw_ddb_entry->ip_addr[2] = *(ip + 2);
-	fw_ddb_entry->ip_addr[3] = *(ip + 3);
-
-	ret_val = qla4xxx_set_ddb_entry(ha, ddb_index, fw_ddb_entry_dma, NULL);
-
-exit_send_tgts:
-	dma_free_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry),
-			  fw_ddb_entry, fw_ddb_entry_dma);
-exit_send_tgts_no_free:
-	return ret_val;
-}
-
 int qla4xxx_clear_ddb_entry(struct scsi_qla_host *ha, uint32_t ddb_index)
 {
 	int status;

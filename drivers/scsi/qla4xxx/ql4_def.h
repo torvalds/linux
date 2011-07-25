@@ -233,52 +233,12 @@ struct ql4_aen_log {
  * Device Database (DDB) structure
  */
 struct ddb_entry {
-	struct list_head list;	/* ddb list */
 	struct scsi_qla_host *ha;
 	struct iscsi_cls_session *sess;
 	struct iscsi_cls_conn *conn;
 
-	atomic_t state;		/* DDB State */
-
-	unsigned long flags;	/* DDB Flags */
-
 	uint16_t fw_ddb_index;	/* DDB firmware index */
-	uint16_t options;
 	uint32_t fw_ddb_device_state; /* F/W Device State  -- see ql4_fw.h */
-
-	uint32_t CmdSn;
-	uint16_t target_session_id;
-	uint16_t connection_id;
-	uint16_t exe_throttle;	/* Max mumber of cmds outstanding
-				 * simultaneously */
-	uint16_t task_mgmt_timeout; /* Min time for task mgmt cmds to
-				     * complete */
-	uint16_t default_relogin_timeout; /*  Max time to wait for
-					   *  relogin to complete */
-	uint16_t tcp_source_port_num;
-	uint32_t default_time2wait; /* Default Min time between
-				     * relogins (+aens) */
-
-	atomic_t retry_relogin_timer; /* Min Time between relogins
-				       * (4000 only) */
-	atomic_t relogin_timer;	/* Max Time to wait for relogin to complete */
-	atomic_t relogin_retry_count; /* Num of times relogin has been
-				       * retried */
-
-	uint16_t port;
-	uint32_t tpgt;
-	uint8_t ip_addr[IP_ADDR_LEN];
-	uint8_t iscsi_name[ISCSI_NAME_SIZE];	/* 72 x48 */
-	uint8_t iscsi_alias[0x20];
-	uint8_t isid[6];
-	uint16_t iscsi_max_burst_len;
-	uint16_t iscsi_max_outsnd_r2t;
-	uint16_t iscsi_first_burst_len;
-	uint16_t iscsi_max_rcv_data_seg_len;
-	uint16_t iscsi_max_snd_data_seg_len;
-
-	struct in6_addr remote_ipv6_addr;
-	struct in6_addr link_local_ipv6_addr;
 };
 
 /*
@@ -546,10 +506,7 @@ struct scsi_qla_host {
 	volatile uint8_t mbox_status_count;
 	volatile uint32_t mbox_status[MBOX_REG_COUNT];
 
-	/* local device database list (contains internal ddb entries) */
-	struct list_head ddb_list;
-
-	/* Map ddb_list entry by FW ddb index */
+	/* FW ddb index map */
 	struct ddb_entry *fw_ddb_index_map[MAX_DDB_ENTRIES];
 
 	/* Saved srb for status continuation entry processing */

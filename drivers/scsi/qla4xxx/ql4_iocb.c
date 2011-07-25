@@ -313,10 +313,8 @@ int qla4xxx_send_command_to_isp(struct scsi_qla_host *ha, struct srb * srb)
 	cmd_entry->hdr.entryType = ET_COMMAND;
 	cmd_entry->handle = cpu_to_le32(index);
 	cmd_entry->target = cpu_to_le16(ddb_entry->fw_ddb_index);
-	cmd_entry->connection_id = cpu_to_le16(ddb_entry->connection_id);
 
 	int_to_scsilun(cmd->device->lun, &cmd_entry->lun);
-	cmd_entry->cmdSeqNum = cpu_to_le32(ddb_entry->CmdSn);
 	cmd_entry->ttlByteCnt = cpu_to_le32(scsi_bufflen(cmd));
 	memcpy(cmd_entry->cdb, cmd->cmnd, cmd->cmd_len);
 	cmd_entry->dataSegCnt = cpu_to_le16(tot_dsds);
