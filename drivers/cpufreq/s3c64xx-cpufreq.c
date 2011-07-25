@@ -1,5 +1,4 @@
-/* linux/arch/arm/plat-s3c64xx/cpufreq.c
- *
+/*
  * Copyright 2009 Wolfson Microelectronics plc
  *
  * S3C64xx CPUfreq Support
@@ -32,11 +31,14 @@ static struct s3c64xx_dvfs s3c64xx_dvfs_table[] = {
 	[1] = { 1050000, 1150000 },
 	[2] = { 1100000, 1150000 },
 	[3] = { 1200000, 1350000 },
+	[4] = { 1300000, 1350000 },
 };
 
 static struct cpufreq_frequency_table s3c64xx_freq_table[] = {
 	{ 0,  66000 },
+	{ 0, 100000 },
 	{ 0, 133000 },
+	{ 1, 200000 },
 	{ 1, 222000 },
 	{ 1, 266000 },
 	{ 2, 333000 },
@@ -44,6 +46,7 @@ static struct cpufreq_frequency_table s3c64xx_freq_table[] = {
 	{ 2, 532000 },
 	{ 2, 533000 },
 	{ 3, 667000 },
+	{ 4, 800000 },
 	{ 0, CPUFREQ_TABLE_END },
 };
 #endif
@@ -111,6 +114,8 @@ static int s3c64xx_cpufreq_set_target(struct cpufreq_policy *policy,
 		goto err;
 	}
 
+	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+
 #ifdef CONFIG_REGULATOR
 	if (vddarm && freqs.new < freqs.old) {
 		ret = regulator_set_voltage(vddarm,
@@ -123,8 +128,6 @@ static int s3c64xx_cpufreq_set_target(struct cpufreq_policy *policy,
 		}
 	}
 #endif
-
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
 	pr_debug("cpufreq: Set actual frequency %lukHz\n",
 		 clk_get_rate(armclk) / 1000);

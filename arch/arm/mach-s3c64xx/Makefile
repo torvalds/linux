@@ -23,10 +23,6 @@ obj-$(CONFIG_CPU_S3C6410)	+= s3c6410.o
 obj-y				+= irq.o
 obj-y				+= irq-eint.o
 
-# CPU frequency scaling
-
-obj-$(CONFIG_CPU_FREQ_S3C64XX)  += cpufreq.o
-
 # DMA support
 
 obj-$(CONFIG_S3C64XX_DMA)	+= dma.o
