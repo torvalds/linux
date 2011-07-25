@@ -903,7 +903,7 @@ static bool ignore_reg_update(struct wiphy *wiphy,
 	    initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
 	    !is_world_regdom(last_request->alpha2)) {
 		REG_DBG_PRINT("Ignoring regulatory request %s "
-			      "since the driver requires its own regulaotry "
+			      "since the driver requires its own regulatory "
 			      "domain to be set first",
 			      reg_initiator_name(initiator));
 		return true;
