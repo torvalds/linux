@@ -4482,11 +4482,19 @@ static void drbdd(struct drbd_connection *connection)
 	conn_request_state(connection, NS(conn, C_PROTOCOL_ERROR), CS_HARD);
 }
 
+static int w_complete(struct drbd_work *w, int cancel)
+{
+	struct drbd_wq_barrier *b = container_of(w, struct drbd_wq_barrier, w);
+
+	complete(&b->done);
+	return 0;
+}
+
 void conn_flush_workqueue(struct drbd_connection *connection)
 {
 	struct drbd_wq_barrier barr;
 
-	barr.w.cb = w_prev_work_done;
+	barr.w.cb = w_complete;
 	barr.w.connection = connection;
 	init_completion(&barr.done);
 	drbd_queue_work(&connection->sender_work, &barr.w);
