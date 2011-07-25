@@ -40,6 +40,7 @@
 #include <linux/magic.h>
 #include <linux/slab.h>
 #include <linux/cleancache.h>
+#include <linux/mnt_namespace.h>
 #include "compat.h"
 #include "delayed-inode.h"
 #include "ctree.h"
@@ -58,6 +59,7 @@
 #include <trace/events/btrfs.h>
 
 static const struct super_operations btrfs_super_ops;
+static struct file_system_type btrfs_fs_type;
 
 static const char *btrfs_decode_error(struct btrfs_fs_info *fs_info, int errno,
 				      char nbuf[16])
@@ -411,7 +413,7 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 	int intarg;
 
 	if (!options)
-		goto out;
+		return 0;
 
 	/*
 	 * strsep changes the string, duplicate it because parse_options
@@ -460,26 +462,15 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 			error = btrfs_scan_one_device(match_strdup(&args[0]),
 					flags, holder, fs_devices);
 			if (error)
-				goto out_free_opts;
+				goto out;
 			break;
 		default:
 			break;
 		}
 	}
 
- out_free_opts:
+out:
 	kfree(orig);
- out:
-	/*
-	 * If no subvolume name is specified we use the default one.  Allocate
-	 * a copy of the string "." here so that code later in the
-	 * mount path doesn't care if it's the default volume or another one.
-	 */
-	if (!*subvol_name) {
-		*subvol_name = kstrdup(".", GFP_KERNEL);
-		if (!*subvol_name)
-			return -ENOMEM;
-	}
 	return error;
 }
 
@@ -730,6 +721,118 @@ static int btrfs_set_super(struct super_block *s, void *data)
 	return set_anon_super(s, data);
 }
 
+/*
+ * This will strip out the subvol=%s argument for an argument string and add
+ * subvolid=0 to make sure we get the actual tree root for path walking to the
+ * subvol we want.
+ */
+static char *setup_root_args(char *args)
+{
+	unsigned copied = 0;
+	unsigned len = strlen(args) + 2;
+	char *pos;
+	char *ret;
+
+	/*
+	 * We need the same args as before, but minus
+	 *
+	 * subvol=a
+	 *
+	 * and add
+	 *
+	 * subvolid=0
+	 *
+	 * which is a difference of 2 characters, so we allocate strlen(args) +
+	 * 2 characters.
+	 */
+	ret = kzalloc(len * sizeof(char), GFP_NOFS);
+	if (!ret)
+		return NULL;
+	pos = strstr(args, "subvol=");
+
+	/* This shouldn't happen, but just in case.. */
+	if (!pos) {
+		kfree(ret);
+		return NULL;
+	}
+
+	/*
+	 * The subvol=<> arg is not at the front of the string, copy everybody
+	 * up to that into ret.
+	 */
+	if (pos != args) {
+		*pos = '\0';
+		strcpy(ret, args);
+		copied += strlen(args);
+		pos++;
+	}
+
+	strncpy(ret + copied, "subvolid=0", len - copied);
+
+	/* Length of subvolid=0 */
+	copied += 10;
+
+	/*
+	 * If there is no , after the subvol= option then we know there's no
+	 * other options and we can just return.
+	 */
+	pos = strchr(pos, ',');
+	if (!pos)
+		return ret;
+
+	/* Copy the rest of the arguments into our buffer */
+	strncpy(ret + copied, pos, len - copied);
+	copied += strlen(pos);
+
+	return ret;
+}
+
+static struct dentry *mount_subvol(const char *subvol_name, int flags,
+				   const char *device_name, char *data)
+{
+	struct super_block *s;
+	struct dentry *root;
+	struct vfsmount *mnt;
+	struct mnt_namespace *ns_private;
+	char *newargs;
+	struct path path;
+	int error;
+
+	newargs = setup_root_args(data);
+	if (!newargs)
+		return ERR_PTR(-ENOMEM);
+	mnt = vfs_kern_mount(&btrfs_fs_type, flags, device_name,
+			     newargs);
+	kfree(newargs);
+	if (IS_ERR(mnt))
+		return ERR_CAST(mnt);
+
+	ns_private = create_mnt_ns(mnt);
+	if (IS_ERR(ns_private)) {
+		mntput(mnt);
+		return ERR_CAST(ns_private);
+	}
+
+	/*
+	 * This will trigger the automount of the subvol so we can just
+	 * drop the mnt we have here and return the dentry that we
+	 * found.
+	 */
+	error = vfs_path_lookup(mnt->mnt_root, mnt, subvol_name,
+				LOOKUP_FOLLOW, &path);
+	put_mnt_ns(ns_private);
+	if (error)
+		return ERR_PTR(error);
+
+	/* Get a ref to the sb and the dentry we found and return it */
+	s = path.mnt->mnt_sb;
+	atomic_inc(&s->s_active);
+	root = dget(path.dentry);
+	path_put(&path);
+	down_write(&s->s_umount);
+
+	return root;
+}
 
 /*
  * Find a superblock for the given device / mount point.
@@ -761,13 +864,19 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	if (error)
 		return ERR_PTR(error);
 
+	if (subvol_name) {
+		root = mount_subvol(subvol_name, flags, device_name, data);
+		kfree(subvol_name);
+		return root;
+	}
+
 	error = btrfs_scan_one_device(device_name, mode, fs_type, &fs_devices);
 	if (error)
-		goto error_free_subvol_name;
+		return ERR_PTR(error);
 
 	error = btrfs_open_devices(fs_devices, mode, fs_type);
 	if (error)
-		goto error_free_subvol_name;
+		return ERR_PTR(error);
 
 	if (!(flags & MS_RDONLY) && fs_devices->rw_devices == 0) {
 		error = -EACCES;
@@ -792,14 +901,15 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 
 	bdev = fs_devices->latest_bdev;
 	s = sget(fs_type, btrfs_test_super, btrfs_set_super, tree_root);
-	if (IS_ERR(s))
-		goto error_s;
+	if (IS_ERR(s)) {
+		error = PTR_ERR(s);
+		goto error_close_devices;
+	}
 
 	if (s->s_root) {
 		if ((flags ^ s->s_flags) & MS_RDONLY) {
 			deactivate_locked_super(s);
-			error = -EBUSY;
-			goto error_close_devices;
+			return ERR_PTR(-EBUSY);
 		}
 
 		btrfs_close_devices(fs_devices);
@@ -814,64 +924,25 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 					 flags & MS_SILENT ? 1 : 0);
 		if (error) {
 			deactivate_locked_super(s);
-			goto error_free_subvol_name;
+			return ERR_PTR(error);
 		}
 
 		btrfs_sb(s)->fs_info->bdev_holder = fs_type;
 		s->s_flags |= MS_ACTIVE;
 	}
 
-	/* if they gave us a subvolume name bind mount into that */
-	if (strcmp(subvol_name, ".")) {
-		struct dentry *new_root;
-
-		root = get_default_root(s, subvol_rootid);
-		if (IS_ERR(root)) {
-			error = PTR_ERR(root);
-			deactivate_locked_super(s);
-			goto error_free_subvol_name;
-		}
-
-		mutex_lock(&root->d_inode->i_mutex);
-		new_root = lookup_one_len(subvol_name, root,
-				      strlen(subvol_name));
-		mutex_unlock(&root->d_inode->i_mutex);
-
-		if (IS_ERR(new_root)) {
-			dput(root);
-			deactivate_locked_super(s);
-			error = PTR_ERR(new_root);
-			goto error_free_subvol_name;
-		}
-		if (!new_root->d_inode) {
-			dput(root);
-			dput(new_root);
-			deactivate_locked_super(s);
-			error = -ENXIO;
-			goto error_free_subvol_name;
-		}
-		dput(root);
-		root = new_root;
-	} else {
-		root = get_default_root(s, subvol_objectid);
-		if (IS_ERR(root)) {
-			error = PTR_ERR(root);
-			deactivate_locked_super(s);
-			goto error_free_subvol_name;
-		}
+	root = get_default_root(s, subvol_objectid);
+	if (IS_ERR(root)) {
+		deactivate_locked_super(s);
+		return root;
 	}
 
-	kfree(subvol_name);
 	return root;
 
-error_s:
-	error = PTR_ERR(s);
 error_close_devices:
 	btrfs_close_devices(fs_devices);
 	kfree(fs_info);
 	kfree(tree_root);
-error_free_subvol_name:
-	kfree(subvol_name);
 	return ERR_PTR(error);
 }
 
