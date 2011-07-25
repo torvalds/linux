@@ -551,7 +551,7 @@ static __devinit int wm831x_buckv_probe(struct platform_device *pdev)
 	}
 	dcdc->on_vsel = ret & WM831X_DC1_ON_VSEL_MASK;
 
-	ret = wm831x_reg_read(wm831x, dcdc->base + WM831X_DCDC_ON_CONFIG);
+	ret = wm831x_reg_read(wm831x, dcdc->base + WM831X_DCDC_DVS_CONTROL);
 	if (ret < 0) {
 		dev_err(wm831x->dev, "Failed to read DVS VSEL: %d\n", ret);
 		goto err;
