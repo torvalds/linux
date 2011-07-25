@@ -2160,12 +2160,9 @@ static void rtl8169sb_hw_phy_config(struct rtl8169_private *tp)
 static void rtl8169scd_hw_phy_config_quirk(struct rtl8169_private *tp)
 {
 	struct pci_dev *pdev = tp->pci_dev;
-	u16 vendor_id, device_id;
 
-	pci_read_config_word(pdev, PCI_SUBSYSTEM_VENDOR_ID, &vendor_id);
-	pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &device_id);
-
-	if ((vendor_id != PCI_VENDOR_ID_GIGABYTE) || (device_id != 0xe000))
+	if ((pdev->subsystem_vendor != PCI_VENDOR_ID_GIGABYTE) ||
+	    (pdev->subsystem_device != 0xe000))
 		return;
 
 	rtl_writephy(tp, 0x1f, 0x0001);

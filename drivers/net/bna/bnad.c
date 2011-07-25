@@ -25,7 +25,6 @@
 #include <linux/if_ether.h>
 #include <linux/ip.h>
 #include <linux/prefetch.h>
-#include <linux/if_vlan.h>
 
 #include "bnad.h"
 #include "bna.h"
@@ -60,7 +59,7 @@ static const u8 bnad_bcast_addr[] =  {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 #define BNAD_GET_MBOX_IRQ(_bnad)				\
 	(((_bnad)->cfg_flags & BNAD_CF_MSIX) ?			\
-	 ((_bnad)->msix_table[(_bnad)->msix_num - 1].vector) : 	\
+	 ((_bnad)->msix_table[BNAD_MAILBOX_MSIX_INDEX].vector) : \
 	 ((_bnad)->pcidev->irq))
 
 #define BNAD_FILL_UNMAPQ_MEM_REQ(_res_info, _num, _depth)	\
@@ -112,10 +111,10 @@ static void
 bnad_free_all_txbufs(struct bnad *bnad,
 		 struct bna_tcb *tcb)
 {
-	u32 		unmap_cons;
+	u32		unmap_cons;
 	struct bnad_unmap_q *unmap_q = tcb->unmap_q;
 	struct bnad_skb_unmap *unmap_array;
-	struct sk_buff 		*skb = NULL;
+	struct sk_buff		*skb = NULL;
 	int			i;
 
 	unmap_array = unmap_q->unmap_array;
@@ -165,11 +164,11 @@ static u32
 bnad_free_txbufs(struct bnad *bnad,
 		 struct bna_tcb *tcb)
 {
-	u32 		sent_packets = 0, sent_bytes = 0;
-	u16 		wis, unmap_cons, updated_hw_cons;
+	u32		sent_packets = 0, sent_bytes = 0;
+	u16		wis, unmap_cons, updated_hw_cons;
 	struct bnad_unmap_q *unmap_q = tcb->unmap_q;
 	struct bnad_skb_unmap *unmap_array;
-	struct sk_buff 		*skb;
+	struct sk_buff		*skb;
 	int i;
 
 	/*
@@ -247,7 +246,7 @@ bnad_tx_free_tasklet(unsigned long bnad_ptr)
 {
 	struct bnad *bnad = (struct bnad *)bnad_ptr;
 	struct bna_tcb *tcb;
-	u32 		acked = 0;
+	u32		acked = 0;
 	int			i, j;
 
 	for (i = 0; i < bnad->num_tx; i++) {
@@ -1102,10 +1101,10 @@ static int
 bnad_mbox_irq_alloc(struct bnad *bnad,
 		    struct bna_intr_info *intr_info)
 {
-	int 		err = 0;
-	unsigned long 	irq_flags, flags;
+	int		err = 0;
+	unsigned long	irq_flags, flags;
 	u32	irq;
-	irq_handler_t 	irq_handler;
+	irq_handler_t	irq_handler;
 
 	/* Mbox should use only 1 vector */
 
@@ -1116,17 +1115,17 @@ bnad_mbox_irq_alloc(struct bnad *bnad,
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 	if (bnad->cfg_flags & BNAD_CF_MSIX) {
 		irq_handler = (irq_handler_t)bnad_msix_mbox_handler;
-		irq = bnad->msix_table[bnad->msix_num - 1].vector;
+		irq = bnad->msix_table[BNAD_MAILBOX_MSIX_INDEX].vector;
 		irq_flags = 0;
 		intr_info->intr_type = BNA_INTR_T_MSIX;
-		intr_info->idl[0].vector = bnad->msix_num - 1;
+		intr_info->idl[0].vector = BNAD_MAILBOX_MSIX_INDEX;
 	} else {
 		irq_handler = (irq_handler_t)bnad_isr;
 		irq = bnad->pcidev->irq;
 		irq_flags = IRQF_SHARED;
 		intr_info->intr_type = BNA_INTR_T_INTX;
-		/* intr_info->idl.vector = 0 ? */
 	}
+
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 	sprintf(bnad->mbox_irq_name, "%s", BNAD_NAME);
 
@@ -1179,11 +1178,12 @@ bnad_txrx_irq_alloc(struct bnad *bnad, enum bnad_intr_source src,
 
 		switch (src) {
 		case BNAD_INTR_TX:
-			vector_start = txrx_id;
+			vector_start = BNAD_MAILBOX_MSIX_VECTORS + txrx_id;
 			break;
 
 		case BNAD_INTR_RX:
-			vector_start = bnad->num_tx * bnad->num_txq_per_tx +
+			vector_start = BNAD_MAILBOX_MSIX_VECTORS +
+					(bnad->num_tx * bnad->num_txq_per_tx) +
 					txrx_id;
 			break;
 
@@ -1204,11 +1204,11 @@ bnad_txrx_irq_alloc(struct bnad *bnad, enum bnad_intr_source src,
 
 		switch (src) {
 		case BNAD_INTR_TX:
-			intr_info->idl[0].vector = 0x1; /* Bit mask : Tx IB */
+			intr_info->idl[0].vector = BNAD_INTX_TX_IB_BITMASK;
 			break;
 
 		case BNAD_INTR_RX:
-			intr_info->idl[0].vector = 0x2; /* Bit mask : Rx IB */
+			intr_info->idl[0].vector = BNAD_INTX_RX_IB_BITMASK;
 			break;
 		}
 	}
@@ -1447,7 +1447,7 @@ bnad_iocpf_sem_timeout(unsigned long data)
 /*
  * All timer routines use bnad->bna_lock to protect against
  * the following race, which may occur in case of no locking:
- * 	Time	CPU m  		CPU n
+ *	Time	CPU m	CPU n
  *	0       1 = test_bit
  *	1			clear_bit
  *	2			del_timer_sync
@@ -1912,7 +1912,7 @@ void
 bnad_rx_coalescing_timeo_set(struct bnad *bnad)
 {
 	struct bnad_rx_info *rx_info;
-	int 	i;
+	int	i;
 
 	for (i = 0; i < bnad->num_rx; i++) {
 		rx_info = &bnad->rx_info[i];
@@ -2075,7 +2075,7 @@ bnad_mbox_irq_sync(struct bnad *bnad)
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 	if (bnad->cfg_flags & BNAD_CF_MSIX)
-		irq = bnad->msix_table[bnad->msix_num - 1].vector;
+		irq = bnad->msix_table[BNAD_MAILBOX_MSIX_INDEX].vector;
 	else
 		irq = bnad->pcidev->irq;
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
@@ -2426,18 +2426,18 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct bnad *bnad = netdev_priv(netdev);
 
-	u16 		txq_prod, vlan_tag = 0;
-	u32 		unmap_prod, wis, wis_used, wi_range;
-	u32 		vectors, vect_id, i, acked;
+	u16		txq_prod, vlan_tag = 0;
+	u32		unmap_prod, wis, wis_used, wi_range;
+	u32		vectors, vect_id, i, acked;
 	u32		tx_id;
-	int 			err;
+	int			err;
 
 	struct bnad_tx_info *tx_info;
 	struct bna_tcb *tcb;
 	struct bnad_unmap_q *unmap_q;
-	dma_addr_t 		dma_addr;
+	dma_addr_t		dma_addr;
 	struct bna_txq_entry *txqent;
-	bna_txq_wi_ctrl_flag_t 	flags;
+	bna_txq_wi_ctrl_flag_t	flags;
 
 	if (unlikely
 	    (skb->len <= ETH_HLEN || skb->len > BFI_TX_MAX_DATA_PER_PKT)) {
@@ -3033,8 +3033,8 @@ static int __devinit
 bnad_pci_probe(struct pci_dev *pdev,
 		const struct pci_device_id *pcidev_id)
 {
-	bool 	using_dac = false;
-	int 	err;
+	bool	using_dac = false;
+	int	err;
 	struct bnad *bnad;
 	struct bna *bna;
 	struct net_device *netdev;
@@ -3066,7 +3066,7 @@ bnad_pci_probe(struct pci_dev *pdev,
 
 	/*
 	 * PCI initialization
-	 * 	Output : using_dac = 1 for 64 bit DMA
+	 *	Output : using_dac = 1 for 64 bit DMA
 	 *			   = 0 for 32 bit DMA
 	 */
 	err = bnad_pci_init(bnad, pdev, &using_dac);
@@ -3209,7 +3209,7 @@ bnad_pci_remove(struct pci_dev *pdev)
 	free_netdev(netdev);
 }
 
-static const struct pci_device_id bnad_pci_id_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(bnad_pci_id_table) = {
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_BROCADE,
 			PCI_DEVICE_ID_BROCADE_CT),
@@ -3232,7 +3232,8 @@ bnad_module_init(void)
 {
 	int err;
 
-	pr_info("Brocade 10G Ethernet driver\n");
+	pr_info("Brocade 10G Ethernet driver - version: %s\n",
+			BNAD_VERSION);
 
 	bfa_nw_ioc_auto_recover(bnad_ioc_auto_recover);
 

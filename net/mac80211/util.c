@@ -799,6 +799,7 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 
 		qparam.uapsd = false;
 
+		local->tx_conf[queue] = qparam;
 		drv_conf_tx(local, queue, &qparam);
 	}
 
@@ -1016,7 +1017,7 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 }
 
 struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
-					  u8 *dst,
+					  u8 *dst, u32 ratemask,
 					  const u8 *ssid, size_t ssid_len,
 					  const u8 *ie, size_t ie_len,
 					  bool directed)
@@ -1049,9 +1050,7 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 
 	buf_len = ieee80211_build_preq_ies(local, buf, ie, ie_len,
 					   local->hw.conf.channel->band,
-					   sdata->rc_rateidx_mask
-					   [local->hw.conf.channel->band],
-					   chan);
+					   ratemask, chan);
 
 	skb = ieee80211_probereq_get(&local->hw, &sdata->vif,
 				     ssid, ssid_len,
@@ -1072,12 +1071,12 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 			      const u8 *ssid, size_t ssid_len,
 			      const u8 *ie, size_t ie_len,
-			      bool directed)
+			      u32 ratemask, bool directed)
 {
 	struct sk_buff *skb;
 
-	skb = ieee80211_build_probe_req(sdata, dst, ssid, ssid_len, ie, ie_len,
-					directed);
+	skb = ieee80211_build_probe_req(sdata, dst, ratemask, ssid, ssid_len,
+					ie, ie_len, directed);
 	if (skb)
 		ieee80211_tx_skb(sdata, skb);
 }
@@ -1134,7 +1133,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	struct ieee80211_hw *hw = &local->hw;
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
-	int res;
+	int res, i;
 
 #ifdef CONFIG_PM
 	if (local->suspended)
@@ -1157,26 +1156,36 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	}
 #endif
 
-	/* restart hardware */
-	if (local->open_count) {
-		/*
-		 * Upon resume hardware can sometimes be goofy due to
-		 * various platform / driver / bus issues, so restarting
-		 * the device may at times not work immediately. Propagate
-		 * the error.
-		 */
-		res = drv_start(local);
-		if (res) {
-			WARN(local->suspended, "Hardware became unavailable "
-			     "upon resume. This could be a software issue "
-			     "prior to suspend or a hardware issue.\n");
-			return res;
-		}
+	/* setup fragmentation threshold */
+	drv_set_frag_threshold(local, hw->wiphy->frag_threshold);
 
-		ieee80211_led_radio(local, true);
-		ieee80211_mod_tpt_led_trig(local,
-					   IEEE80211_TPT_LEDTRIG_FL_RADIO, 0);
+	/* setup RTS threshold */
+	drv_set_rts_threshold(local, hw->wiphy->rts_threshold);
+
+	/* reset coverage class */
+	drv_set_coverage_class(local, hw->wiphy->coverage_class);
+
+	/* everything else happens only if HW was up & running */
+	if (!local->open_count)
+		goto wake_up;
+
+	/*
+	 * Upon resume hardware can sometimes be goofy due to
+	 * various platform / driver / bus issues, so restarting
+	 * the device may at times not work immediately. Propagate
+	 * the error.
+	 */
+	res = drv_start(local);
+	if (res) {
+		WARN(local->suspended, "Hardware became unavailable "
+		     "upon resume. This could be a software issue "
+		     "prior to suspend or a hardware issue.\n");
+		return res;
 	}
+
+	ieee80211_led_radio(local, true);
+	ieee80211_mod_tpt_led_trig(local,
+				   IEEE80211_TPT_LEDTRIG_FL_RADIO, 0);
 
 	/* add interfaces */
 	list_for_each_entry(sdata, &local->interfaces, list) {
@@ -1201,11 +1210,9 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	}
 	mutex_unlock(&local->sta_mtx);
 
-	/* setup fragmentation threshold */
-	drv_set_frag_threshold(local, hw->wiphy->frag_threshold);
-
-	/* setup RTS threshold */
-	drv_set_rts_threshold(local, hw->wiphy->rts_threshold);
+	/* reconfigure tx conf */
+	for (i = 0; i < hw->queues; i++)
+		drv_conf_tx(local, i, &local->tx_conf[i]);
 
 	/* reconfigure hardware */
 	ieee80211_hw_config(local, ~0);
@@ -1287,9 +1294,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		if (ieee80211_sdata_running(sdata))
 			ieee80211_enable_keys(sdata);
 
-#ifdef CONFIG_PM
  wake_up:
-#endif
 	ieee80211_wake_queues_by_reason(hw,
 			IEEE80211_QUEUE_STOP_REASON_SUSPEND);
 

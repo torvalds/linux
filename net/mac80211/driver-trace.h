@@ -319,6 +319,49 @@ TRACE_EVENT(drv_bss_info_changed,
 	)
 );
 
+DECLARE_EVENT_CLASS(tx_sync_evt,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 const u8 *bssid,
+		 enum ieee80211_tx_sync_type type),
+	TP_ARGS(local, sdata, bssid, type),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__array(char, bssid, ETH_ALEN)
+		__field(u32, sync_type)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		memcpy(__entry->bssid, bssid, ETH_ALEN);
+		__entry->sync_type = type;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT  VIF_PR_FMT " bssid:%pM type:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->bssid, __entry->sync_type
+	)
+);
+
+DEFINE_EVENT(tx_sync_evt, drv_tx_sync,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 const u8 *bssid,
+		 enum ieee80211_tx_sync_type type),
+	TP_ARGS(local, sdata, bssid, type)
+);
+
+DEFINE_EVENT(tx_sync_evt, drv_finish_tx_sync,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 const u8 *bssid,
+		 enum ieee80211_tx_sync_type type),
+	TP_ARGS(local, sdata, bssid, type)
+);
+
 TRACE_EVENT(drv_prepare_multicast,
 	TP_PROTO(struct ieee80211_local *local, int mc_count),
 

@@ -1671,11 +1671,12 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 
 	switch (command) {
 	case (RAMROD_CMD_ID_ETH_CLIENT_UPDATE):
-		DP(NETIF_MSG_IFUP, "got UPDATE ramrod. CID %d\n", cid);
+		DP(BNX2X_MSG_SP, "got UPDATE ramrod. CID %d\n", cid);
 		drv_cmd = BNX2X_Q_CMD_UPDATE;
 		break;
+
 	case (RAMROD_CMD_ID_ETH_CLIENT_SETUP):
-		DP(NETIF_MSG_IFUP, "got MULTI[%d] setup ramrod\n", cid);
+		DP(BNX2X_MSG_SP, "got MULTI[%d] setup ramrod\n", cid);
 		drv_cmd = BNX2X_Q_CMD_SETUP;
 		break;
 
@@ -1685,17 +1686,17 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 		break;
 
 	case (RAMROD_CMD_ID_ETH_HALT):
-		DP(NETIF_MSG_IFDOWN, "got MULTI[%d] halt ramrod\n", cid);
+		DP(BNX2X_MSG_SP, "got MULTI[%d] halt ramrod\n", cid);
 		drv_cmd = BNX2X_Q_CMD_HALT;
 		break;
 
 	case (RAMROD_CMD_ID_ETH_TERMINATE):
-		DP(NETIF_MSG_IFDOWN, "got MULTI[%d] teminate ramrod\n", cid);
+		DP(BNX2X_MSG_SP, "got MULTI[%d] teminate ramrod\n", cid);
 		drv_cmd = BNX2X_Q_CMD_TERMINATE;
 		break;
 
 	case (RAMROD_CMD_ID_ETH_EMPTY):
-		DP(NETIF_MSG_IFDOWN, "got MULTI[%d] empty ramrod\n", cid);
+		DP(BNX2X_MSG_SP, "got MULTI[%d] empty ramrod\n", cid);
 		drv_cmd = BNX2X_Q_CMD_EMPTY;
 		break;
 
@@ -1724,6 +1725,8 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 	atomic_inc(&bp->cq_spq_left);
 	/* push the change in bp->spq_left and towards the memory */
 	smp_mb__after_atomic_inc();
+
+	DP(BNX2X_MSG_SP, "bp->cq_spq_left %x\n", atomic_read(&bp->cq_spq_left));
 
 	return;
 }
@@ -2151,10 +2154,12 @@ u8 bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
 		u8 rc;
 		int cfx_idx = bnx2x_get_link_cfg_idx(bp);
 		u16 req_line_speed = bp->link_params.req_line_speed[cfx_idx];
-		/* Initialize link parameters structure variables */
-		/* It is recommended to turn off RX FC for jumbo frames
-		   for better performance */
-		if ((CHIP_IS_E1x(bp)) && (bp->dev->mtu > 5000))
+		/*
+		 * Initialize link parameters structure variables
+		 * It is recommended to turn off RX FC for jumbo frames
+		 * for better performance
+		 */
+		if (CHIP_IS_E1x(bp) && (bp->dev->mtu > 5000))
 			bp->link_params.req_fc_auto_adv = BNX2X_FLOW_CTRL_TX;
 		else
 			bp->link_params.req_fc_auto_adv = BNX2X_FLOW_CTRL_BOTH;
@@ -2162,8 +2167,18 @@ u8 bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
 		bnx2x_acquire_phy_lock(bp);
 
 		if (load_mode == LOAD_DIAG) {
-			bp->link_params.loopback_mode = LOOPBACK_XGXS;
-			bp->link_params.req_line_speed[cfx_idx] = SPEED_10000;
+			struct link_params *lp = &bp->link_params;
+			lp->loopback_mode = LOOPBACK_XGXS;
+			/* do PHY loopback at 10G speed, if possible */
+			if (lp->req_line_speed[cfx_idx] < SPEED_10000) {
+				if (lp->speed_cap_mask[cfx_idx] &
+				    PORT_HW_CFG_SPEED_CAPABILITY_D0_10G)
+					lp->req_line_speed[cfx_idx] =
+					SPEED_10000;
+				else
+					lp->req_line_speed[cfx_idx] =
+					SPEED_1000;
+			}
 		}
 
 		rc = bnx2x_phy_init(&bp->link_params, &bp->link_vars);
@@ -3077,26 +3092,23 @@ int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
 	spe->data.update_data_addr.hi = cpu_to_le32(data_hi);
 	spe->data.update_data_addr.lo = cpu_to_le32(data_lo);
 
-	/* stats ramrod has it's own slot on the spq */
-	if (command != RAMROD_CMD_ID_COMMON_STAT_QUERY) {
-		/*
-		 * It's ok if the actual decrement is issued towards the memory
-		 * somewhere between the spin_lock and spin_unlock. Thus no
-		 * more explict memory barrier is needed.
-		 */
-		if (common)
-			atomic_dec(&bp->eq_spq_left);
-		else
-			atomic_dec(&bp->cq_spq_left);
-	}
+	/*
+	 * It's ok if the actual decrement is issued towards the memory
+	 * somewhere between the spin_lock and spin_unlock. Thus no
+	 * more explict memory barrier is needed.
+	 */
+	if (common)
+		atomic_dec(&bp->eq_spq_left);
+	else
+		atomic_dec(&bp->cq_spq_left);
 
 
 	DP(BNX2X_MSG_SP/*NETIF_MSG_TIMER*/,
-	   "SPQE[%x] (%x:%x)  command %d  hw_cid %x  data (%x:%x) "
-	   "type(0x%x) left (ETH, COMMON) (%x,%x)\n",
+	   "SPQE[%x] (%x:%x)  (cmd, common?) (%d,%d)  hw_cid %x  data (%x:%x) "
+	   "type(0x%x) left (CQ, EQ) (%x,%x)\n",
 	   bp->spq_prod_idx, (u32)U64_HI(bp->spq_mapping),
 	   (u32)(U64_LO(bp->spq_mapping) +
-	   (void *)bp->spq_prod_bd - (void *)bp->spq), command,
+	   (void *)bp->spq_prod_bd - (void *)bp->spq), command, common,
 	   HW_CID(bp, cid), data_hi, data_lo, type,
 	   atomic_read(&bp->cq_spq_left), atomic_read(&bp->eq_spq_left));
 
@@ -3453,6 +3465,7 @@ static inline void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 		} else if (attn & BNX2X_MC_ASSERT_BITS) {
 
 			BNX2X_ERR("MC assert!\n");
+			bnx2x_mc_assert(bp);
 			REG_WR(bp, MISC_REG_AEU_GENERAL_ATTN_10, 0);
 			REG_WR(bp, MISC_REG_AEU_GENERAL_ATTN_9, 0);
 			REG_WR(bp, MISC_REG_AEU_GENERAL_ATTN_8, 0);
@@ -4412,7 +4425,7 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 	sw_cons = bp->eq_cons;
 	sw_prod = bp->eq_prod;
 
-	DP(BNX2X_MSG_SP, "EQ:  hw_cons %u  sw_cons %u bp->cq_spq_left %u\n",
+	DP(BNX2X_MSG_SP, "EQ:  hw_cons %u  sw_cons %u bp->eq_spq_left %x\n",
 			hw_cons, sw_cons, atomic_read(&bp->eq_spq_left));
 
 	for (; sw_cons != hw_cons;
@@ -4431,7 +4444,7 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 			DP(NETIF_MSG_TIMER, "got statistics comp event %d\n",
 			   bp->stats_comp++);
 			/* nothing to do with stats comp */
-			continue;
+			goto next_spqe;
 
 		case EVENT_RING_OPCODE_CFC_DEL:
 			/* handle according to cid range */
@@ -4439,7 +4452,7 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 			 * we may want to verify here that the bp state is
 			 * HALTING
 			 */
-			DP(NETIF_MSG_IFDOWN,
+			DP(BNX2X_MSG_SP,
 			   "got delete ramrod for MULTI[%d]\n", cid);
 #ifdef BCM_CNIC
 			if (!bnx2x_cnic_handle_cfc_del(bp, cid, elem))
@@ -4455,7 +4468,7 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 			goto next_spqe;
 
 		case EVENT_RING_OPCODE_STOP_TRAFFIC:
-			DP(NETIF_MSG_IFUP, "got STOP TRAFFIC\n");
+			DP(BNX2X_MSG_SP, "got STOP TRAFFIC\n");
 			if (f_obj->complete_cmd(bp, f_obj,
 						BNX2X_F_CMD_TX_STOP))
 				break;
@@ -4463,21 +4476,21 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 			goto next_spqe;
 
 		case EVENT_RING_OPCODE_START_TRAFFIC:
-			DP(NETIF_MSG_IFUP, "got START TRAFFIC\n");
+			DP(BNX2X_MSG_SP, "got START TRAFFIC\n");
 			if (f_obj->complete_cmd(bp, f_obj,
 						BNX2X_F_CMD_TX_START))
 				break;
 			bnx2x_dcbx_set_params(bp, BNX2X_DCBX_STATE_TX_RELEASED);
 			goto next_spqe;
 		case EVENT_RING_OPCODE_FUNCTION_START:
-			DP(NETIF_MSG_IFUP, "got FUNC_START ramrod\n");
+			DP(BNX2X_MSG_SP, "got FUNC_START ramrod\n");
 			if (f_obj->complete_cmd(bp, f_obj, BNX2X_F_CMD_START))
 				break;
 
 			goto next_spqe;
 
 		case EVENT_RING_OPCODE_FUNCTION_STOP:
-			DP(NETIF_MSG_IFDOWN, "got FUNC_STOP ramrod\n");
+			DP(BNX2X_MSG_SP, "got FUNC_STOP ramrod\n");
 			if (f_obj->complete_cmd(bp, f_obj, BNX2X_F_CMD_STOP))
 				break;
 
@@ -4491,7 +4504,7 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 		      BNX2X_STATE_OPENING_WAIT4_PORT):
 			cid = elem->message.data.eth_event.echo &
 				BNX2X_SWCID_MASK;
-			DP(NETIF_MSG_IFUP, "got RSS_UPDATE ramrod. CID %d\n",
+			DP(BNX2X_MSG_SP, "got RSS_UPDATE ramrod. CID %d\n",
 			   cid);
 			rss_raw->clear_pending(rss_raw);
 			break;
@@ -4506,7 +4519,7 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 		      BNX2X_STATE_DIAG):
 		case (EVENT_RING_OPCODE_CLASSIFICATION_RULES |
 		      BNX2X_STATE_CLOSING_WAIT4_HALT):
-			DP(NETIF_MSG_IFUP, "got (un)set mac ramrod\n");
+			DP(BNX2X_MSG_SP, "got (un)set mac ramrod\n");
 			bnx2x_handle_classification_eqe(bp, elem);
 			break;
 
@@ -4516,7 +4529,7 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 		      BNX2X_STATE_DIAG):
 		case (EVENT_RING_OPCODE_MULTICAST_RULES |
 		      BNX2X_STATE_CLOSING_WAIT4_HALT):
-			DP(NETIF_MSG_IFUP, "got mcast ramrod\n");
+			DP(BNX2X_MSG_SP, "got mcast ramrod\n");
 			bnx2x_handle_mcast_eqe(bp);
 			break;
 
@@ -4526,7 +4539,7 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 		      BNX2X_STATE_DIAG):
 		case (EVENT_RING_OPCODE_FILTERS_RULES |
 		      BNX2X_STATE_CLOSING_WAIT4_HALT):
-			DP(NETIF_MSG_IFUP, "got rx_mode ramrod\n");
+			DP(BNX2X_MSG_SP, "got rx_mode ramrod\n");
 			bnx2x_handle_rx_mode_eqe(bp);
 			break;
 		default:
@@ -5639,7 +5652,7 @@ static void bnx2x_init_pxp(struct bnx2x *bp)
 	int r_order, w_order;
 
 	pci_read_config_word(bp->pdev,
-			     bp->pdev->pcie_cap + PCI_EXP_DEVCTL, &devctl);
+			     pci_pcie_cap(bp->pdev) + PCI_EXP_DEVCTL, &devctl);
 	DP(NETIF_MSG_HW, "read 0x%x from devctl\n", devctl);
 	w_order = ((devctl & PCI_EXP_DEVCTL_PAYLOAD) >> 5);
 	if (bp->mrrs == -1)
@@ -8400,31 +8413,45 @@ static void bnx2x_sp_rtnl_task(struct work_struct *work)
 	if (!netif_running(bp->dev))
 		goto sp_rtnl_exit;
 
-	if (test_and_clear_bit(BNX2X_SP_RTNL_SETUP_TC, &bp->sp_rtnl_state))
-		bnx2x_setup_tc(bp->dev, bp->dcbx_port_params.ets.num_of_cos);
-
 	/* if stop on error is defined no recovery flows should be executed */
 #ifdef BNX2X_STOP_ON_ERROR
 	BNX2X_ERR("recovery flow called but STOP_ON_ERROR defined "
 		  "so reset not done to allow debug dump,\n"
 		  "you will need to reboot when done\n");
-	goto sp_rtnl_exit;
+	goto sp_rtnl_not_reset;
 #endif
 
 	if (unlikely(bp->recovery_state != BNX2X_RECOVERY_DONE)) {
 		/*
-		 * Clear TX_TIMEOUT bit as we are going to reset the function
-		 * anyway.
+		 * Clear all pending SP commands as we are going to reset the
+		 * function anyway.
 		 */
-		smp_mb__before_clear_bit();
-		clear_bit(BNX2X_SP_RTNL_TX_TIMEOUT, &bp->sp_rtnl_state);
-		smp_mb__after_clear_bit();
+		bp->sp_rtnl_state = 0;
+		smp_mb();
+
 		bnx2x_parity_recover(bp);
-	} else if (test_and_clear_bit(BNX2X_SP_RTNL_TX_TIMEOUT,
-				    &bp->sp_rtnl_state)){
+
+		goto sp_rtnl_exit;
+	}
+
+	if (test_and_clear_bit(BNX2X_SP_RTNL_TX_TIMEOUT, &bp->sp_rtnl_state)) {
+		/*
+		 * Clear all pending SP commands as we are going to reset the
+		 * function anyway.
+		 */
+		bp->sp_rtnl_state = 0;
+		smp_mb();
+
 		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
 		bnx2x_nic_load(bp, LOAD_NORMAL);
+
+		goto sp_rtnl_exit;
 	}
+#ifdef BNX2X_STOP_ON_ERROR
+sp_rtnl_not_reset:
+#endif
+	if (test_and_clear_bit(BNX2X_SP_RTNL_SETUP_TC, &bp->sp_rtnl_state))
+		bnx2x_setup_tc(bp->dev, bp->dcbx_port_params.ets.num_of_cos);
 
 sp_rtnl_exit:
 	rtnl_unlock();
@@ -10229,11 +10256,14 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 	REG_WR(bp, PXP2_REG_PGL_ADDR_90_F0 + BP_PORT(bp)*16, 0);
 	REG_WR(bp, PXP2_REG_PGL_ADDR_94_F0 + BP_PORT(bp)*16, 0);
 
-	/**
+	/*
 	 * Enable internal target-read (in case we are probed after PF FLR).
-	 * Must be done prior to any BAR read access
+	 * Must be done prior to any BAR read access. Only for 57712 and up
 	 */
-	REG_WR(bp, PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_READ, 1);
+	if (board_type != BCM57710 &&
+	    board_type != BCM57711 &&
+	    board_type != BCM57711E)
+		REG_WR(bp, PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_READ, 1);
 
 	/* Reset the load counter */
 	bnx2x_clear_load_cnt(bp);

@@ -33,7 +33,7 @@
 
 #include <linux/list.h>
 
-#define bfa_sm_fault(__mod, __event)    do {                            \
+#define bfa_sm_fault(__event)    do {                            \
 	pr_err("SM Assertion failure: %s: %d: event = %d", __FILE__, __LINE__, \
 		__event); \
 } while (0)

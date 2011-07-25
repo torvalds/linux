@@ -16,7 +16,7 @@
  * www.brocade.com
  */
 #include "bna.h"
-#include "bfa_sm.h"
+#include "bfa_cs.h"
 #include "bfi.h"
 
 /**
@@ -569,7 +569,7 @@ bna_rxf_sm_stopped(struct bna_rxf *rxf, enum bna_rxf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(rxf->rx->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -627,7 +627,7 @@ bna_rxf_sm_start_wait(struct bna_rxf *rxf, enum bna_rxf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(rxf->rx->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -678,7 +678,7 @@ bna_rxf_sm_cam_fltr_mod_wait(struct bna_rxf *rxf, enum bna_rxf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(rxf->rx->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -724,7 +724,7 @@ bna_rxf_sm_started(struct bna_rxf *rxf, enum bna_rxf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(rxf->rx->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -734,7 +734,7 @@ bna_rxf_sm_cam_fltr_clr_wait_entry(struct bna_rxf *rxf)
 	/**
 	 *  Note: Do not add rxf_clear_packet_filter here.
 	 * It will overstep mbox when this transition happens:
-	 * 	cam_fltr_mod_wait -> cam_fltr_clr_wait on RXF_E_STOP event
+	 *	cam_fltr_mod_wait -> cam_fltr_clr_wait on RXF_E_STOP event
 	 */
 }
 
@@ -761,7 +761,7 @@ bna_rxf_sm_cam_fltr_clr_wait(struct bna_rxf *rxf, enum bna_rxf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(rxf->rx->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -771,7 +771,7 @@ bna_rxf_sm_stop_wait_entry(struct bna_rxf *rxf)
 	/**
 	 * NOTE: Do not add  rxf_disable here.
 	 * It will overstep mbox when this transition happens:
-	 * 	start_wait -> stop_wait on RXF_E_STOP event
+	 *	start_wait -> stop_wait on RXF_E_STOP event
 	 */
 }
 
@@ -815,7 +815,7 @@ bna_rxf_sm_stop_wait(struct bna_rxf *rxf, enum bna_rxf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(rxf->rx->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -851,7 +851,7 @@ bna_rxf_sm_pause_wait(struct bna_rxf *rxf, enum bna_rxf_event event)
 	 * any other event during these states
 	 */
 	default:
-		bfa_sm_fault(rxf->rx->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -887,7 +887,7 @@ bna_rxf_sm_resume_wait(struct bna_rxf *rxf, enum bna_rxf_event event)
 	 * any other event during these states
 	 */
 	default:
-		bfa_sm_fault(rxf->rx->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -907,7 +907,7 @@ bna_rxf_sm_stat_clr_wait(struct bna_rxf *rxf, enum bna_rxf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(rxf->rx->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -1898,7 +1898,7 @@ static void bna_rx_sm_stopped(struct bna_rx *rx,
 		/* no-op */
 		break;
 	default:
-		bfa_sm_fault(rx->bna, event);
+		bfa_sm_fault(event);
 		break;
 	}
 
@@ -1946,7 +1946,7 @@ static void bna_rx_sm_rxf_start_wait(struct bna_rx *rx,
 		bfa_fsm_set_state(rx, bna_rx_sm_started);
 		break;
 	default:
-		bfa_sm_fault(rx->bna, event);
+		bfa_sm_fault(event);
 		break;
 	}
 }
@@ -1981,7 +1981,7 @@ bna_rx_sm_started(struct bna_rx *rx, enum bna_rx_event event)
 		bfa_fsm_set_state(rx, bna_rx_sm_rxf_stop_wait);
 		break;
 	default:
-		bfa_sm_fault(rx->bna, event);
+		bfa_sm_fault(event);
 		break;
 	}
 }
@@ -2011,7 +2011,7 @@ bna_rx_sm_rxf_stop_wait(struct bna_rx *rx, enum bna_rx_event event)
 		bna_rxf_fail(&rx->rxf);
 		break;
 	default:
-		bfa_sm_fault(rx->bna, event);
+		bfa_sm_fault(event);
 		break;
 	}
 
@@ -2064,7 +2064,7 @@ bna_rx_sm_rxq_stop_wait(struct bna_rx *rx, enum bna_rx_event event)
 		bfa_fsm_set_state(rx, bna_rx_sm_stopped);
 		break;
 	default:
-		bfa_sm_fault(rx->bna, event);
+		bfa_sm_fault(event);
 		break;
 	}
 }
@@ -3216,7 +3216,7 @@ bna_tx_sm_stopped(struct bna_tx *tx, enum bna_tx_event event)
 		break;
 
 	default:
-		bfa_sm_fault(tx->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -3261,7 +3261,7 @@ bna_tx_sm_started(struct bna_tx *tx, enum bna_tx_event event)
 		break;
 
 	default:
-		bfa_sm_fault(tx->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -3294,7 +3294,7 @@ bna_tx_sm_txq_stop_wait(struct bna_tx *tx, enum bna_tx_event event)
 		break;
 
 	default:
-		bfa_sm_fault(tx->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -3335,7 +3335,7 @@ bna_tx_sm_prio_stop_wait(struct bna_tx *tx, enum bna_tx_event event)
 		break;
 
 	default:
-		bfa_sm_fault(tx->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -3355,7 +3355,7 @@ bna_tx_sm_stat_clr_wait(struct bna_tx *tx, enum bna_tx_event event)
 		break;
 
 	default:
-		bfa_sm_fault(tx->bna, event);
+		bfa_sm_fault(event);
 	}
 }
 

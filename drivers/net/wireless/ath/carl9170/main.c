@@ -1630,7 +1630,7 @@ static int carl9170_read_eeprom(struct ar9170 *ar)
 	BUILD_BUG_ON(sizeof(ar->eeprom) % RB);
 #endif
 
-	for (i = 0; i < sizeof(ar->eeprom)/RB; i++) {
+	for (i = 0; i < sizeof(ar->eeprom) / RB; i++) {
 		for (j = 0; j < RW; j++)
 			offsets[j] = cpu_to_le32(AR9170_EEPROM_START +
 						 RB * i + 4 * j);
