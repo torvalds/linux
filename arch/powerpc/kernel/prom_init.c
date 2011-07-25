@@ -1830,10 +1830,12 @@ static void __init *make_room(unsigned long *mem_start, unsigned long *mem_end,
 		if (room > DEVTREE_CHUNK_SIZE)
 			room = DEVTREE_CHUNK_SIZE;
 		if (room < PAGE_SIZE)
-			prom_panic("No memory for flatten_device_tree (no room)");
+			prom_panic("No memory for flatten_device_tree "
+				   "(no room)\n");
 		chunk = alloc_up(room, 0);
 		if (chunk == 0)
-			prom_panic("No memory for flatten_device_tree (claim failed)");
+			prom_panic("No memory for flatten_device_tree "
+				   "(claim failed)\n");
 		*mem_end = chunk + room;
 	}
 
@@ -2042,7 +2044,7 @@ static void __init flatten_device_tree(void)
 
 	/*
 	 * Check how much room we have between alloc top & bottom (+/- a
-	 * few pages), crop to 4Mb, as this is our "chuck" size
+	 * few pages), crop to 1MB, as this is our "chunk" size
 	 */
 	room = RELOC(alloc_top) - RELOC(alloc_bottom) - 0x4000;
 	if (room > DEVTREE_CHUNK_SIZE)
