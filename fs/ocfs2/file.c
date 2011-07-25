@@ -2591,6 +2591,57 @@ bail:
 	return ret;
 }
 
+/* Refer generic_file_llseek_unlocked() */
+static loff_t ocfs2_file_llseek(struct file *file, loff_t offset, int origin)
+{
+	struct inode *inode = file->f_mapping->host;
+	int ret = 0;
+
+	mutex_lock(&inode->i_mutex);
+
+	switch (origin) {
+	case SEEK_SET:
+		break;
+	case SEEK_END:
+		offset += inode->i_size;
+		break;
+	case SEEK_CUR:
+		if (offset == 0) {
+			offset = file->f_pos;
+			goto out;
+		}
+		offset += file->f_pos;
+		break;
+	case SEEK_DATA:
+	case SEEK_HOLE:
+		ret = ocfs2_seek_data_hole_offset(file, &offset, origin);
+		if (ret)
+			goto out;
+		break;
+	default:
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (offset < 0 && !(file->f_mode & FMODE_UNSIGNED_OFFSET))
+		ret = -EINVAL;
+	if (!ret && offset > inode->i_sb->s_maxbytes)
+		ret = -EINVAL;
+	if (ret)
+		goto out;
+
+	if (offset != file->f_pos) {
+		file->f_pos = offset;
+		file->f_version = 0;
+	}
+
+out:
+	mutex_unlock(&inode->i_mutex);
+	if (ret)
+		return ret;
+	return offset;
+}
+
 const struct inode_operations ocfs2_file_iops = {
 	.setattr	= ocfs2_setattr,
 	.getattr	= ocfs2_getattr,
@@ -2615,7 +2666,7 @@ const struct inode_operations ocfs2_special_file_iops = {
  * ocfs2_fops_no_plocks and ocfs2_dops_no_plocks!
  */
 const struct file_operations ocfs2_fops = {
-	.llseek		= generic_file_llseek,
+	.llseek		= ocfs2_file_llseek,
 	.read		= do_sync_read,
 	.write		= do_sync_write,
 	.mmap		= ocfs2_mmap,
@@ -2663,7 +2714,7 @@ const struct file_operations ocfs2_dops = {
  * the cluster.
  */
 const struct file_operations ocfs2_fops_no_plocks = {
-	.llseek		= generic_file_llseek,
+	.llseek		= ocfs2_file_llseek,
 	.read		= do_sync_read,
 	.write		= do_sync_write,
 	.mmap		= ocfs2_mmap,
