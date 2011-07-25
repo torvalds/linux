@@ -116,7 +116,11 @@ static struct dbs_tuners {
 } dbs_tuners_ins = {
 	.up_threshold = DEF_FREQUENCY_UP_THRESHOLD,
 	.down_differential = DEF_FREQUENCY_DOWN_DIFFERENTIAL,
+#ifdef CONFIG_ARCH_RK29
+	.ignore_nice = 1,
+#else
 	.ignore_nice = 0,
+#endif
 	.powersave_bias = 0,
 };
 
