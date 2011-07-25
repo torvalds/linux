@@ -1646,7 +1646,7 @@ EXPORT_SYMBOL(init_special_inode);
  * @mode: mode of the new inode
  */
 void inode_init_owner(struct inode *inode, const struct inode *dir,
-			mode_t mode)
+			umode_t mode)
 {
 	inode->i_uid = current_fsuid();
 	if (dir && dir->i_mode & S_ISGID) {

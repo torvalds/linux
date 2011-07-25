@@ -1534,7 +1534,7 @@ extern void dentry_unhash(struct dentry *dentry);
  * VFS file helper functions.
  */
 extern void inode_init_owner(struct inode *inode, const struct inode *dir,
-			mode_t mode);
+			umode_t mode);
 /*
  * VFS FS_IOC_FIEMAP helper definitions.
  */
