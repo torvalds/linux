@@ -98,6 +98,8 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define SENSOR_AF_IS_ERR    (0x00<<0)
 #define SENSOR_AF_IS_OK		(0x01<<0)
+#define SENSOR_INIT_IS_ERR   (0x00<<28)
+#define SENSOR_INIT_IS_OK    (0x01<<28)
 
 #if CONFIG_SENSOR_Focus
 #define SENSOR_AF_MODE_INFINITY    0
@@ -2304,12 +2306,10 @@ static struct reginfo sensor_sxga[] =
 	{0x0028, 0x7000},
 	//002A 03F8
 	////0F12 0079 // #REG_TC_DBG_AutoAlgEnBits, default : 007F0028 7000
-
-		//002A 0496
-		//0F12 0300 //0220 //0330	// #lt_uMaxAnGain2
+	//002A 0496
+	//0F12 0300 //0220 //0330	// #lt_uMaxAnGain2
 	{0x002A, REG_TC_GP_ActiveCapConfig},
 	{0x0F12, 0x0000},
-
 	{0x002A, REG_TC_GP_NewConfigSync},
 	{0x0F12, 0x0001},
 	{0x002A, REG_TC_GP_CapConfigChanged},
@@ -3408,9 +3408,10 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
         sensor->info_priv.flash = qctrl->default_value;
     #endif
     SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),((val == 0)?__FUNCTION__:"sensor_reinit"),icd->user_width,icd->user_height);
-
+    sensor->info_priv.funmodule_state |= SENSOR_INIT_IS_OK;
     return 0;
 sensor_INIT_ERR:
+    sensor->info_priv.funmodule_state |= SENSOR_INIT_IS_OK;
 	sensor_task_lock(client,0);
 	sensor_deactivate(client);
     return ret;
@@ -3419,15 +3420,19 @@ sensor_INIT_ERR:
 static int sensor_deactivate(struct i2c_client *client)
 {
 	struct soc_camera_device *icd = client->dev.platform_data;
+    struct sensor *sensor = to_sensor(client);
 
 	SENSOR_DG("\n%s..%s.. Enter\n",SENSOR_NAME_STRING(),__FUNCTION__);
 
 	/* ddl@rock-chips.com : all sensor output pin must change to input for other sensor */
-	sensor_task_lock(client, 1);
+	//sensor_task_lock(client, 1);
 	sensor_ioctrl(icd, Sensor_PowerDown, 1);
+    msleep(100); 
+
 	/* ddl@rock-chips.com : sensor config init width , because next open sensor quickly(soc_camera_open -> Try to configure with default parameters) */
 	icd->user_width = SENSOR_INIT_WIDTH;
     icd->user_height = SENSOR_INIT_HEIGHT;
+    sensor->info_priv.funmodule_state &= ~SENSOR_INIT_IS_OK;
 
 	return 0;
 }
@@ -3627,11 +3632,22 @@ static struct reginfo* sensor_fmt_catch(int set_w, int set_h, int *ret_w, int *r
         winseqe_set_addr = sensor_vga;
         *ret_w = 640;
         *ret_h = 480;
-    } else if (((set_w <= 800) && (set_h <= 600)) && (sensor_svga[0].reg!=SEQUENCE_END)) {
+    }  
+#if CONFIG_SENSOR_FOR_CTS
+   /**lzg@rockchip.com: forbid to preview with resolution 1280*1024*/
+    else if (((set_w <= 800) && (set_h <= 600)) && (sensor_vga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_vga;
+            *ret_w = 640;
+            *ret_h = 480;
+        } 
+#else
+    else if (((set_w <= 800) && (set_h <= 600)) && (sensor_svga[0].reg!=SEQUENCE_END)) {
         winseqe_set_addr = sensor_svga;
         *ret_w = 800;
-        *ret_h = 600;
-    } else if (((set_w <= 1024) && (set_h <= 768)) && (sensor_xga[0].reg!=SEQUENCE_END)) {
+        *ret_h = 600;       
+    } 
+#endif
+    else if (((set_w <= 1024) && (set_h <= 768)) && (sensor_xga[0].reg!=SEQUENCE_END)) {
         winseqe_set_addr = sensor_xga;
         *ret_w = 1024;
         *ret_h = 768;
@@ -3647,11 +3663,22 @@ static struct reginfo* sensor_fmt_catch(int set_w, int set_h, int *ret_w, int *r
         winseqe_set_addr = sensor_uxga;
         *ret_w = 1600;
         *ret_h = 1200;
-	} else if (((set_w <= 1920) && (set_h <= 1080)) && (sensor_1080p[0].reg!=SEQUENCE_END)) {
+	} 
+#if CONFIG_SENSOR_FOR_CTS
+   /**lzg@rockchip.com: forbid to preview with resolution 1280*1024*/
+    else if (((set_w <= 1920) && (set_h <= 1080)) && (sensor_vga[0].reg!=SEQUENCE_END)) {
+        winseqe_set_addr = sensor_vga;
+        *ret_w = 640;
+        *ret_h = 480;
+    }     
+#else
+    else if (((set_w <= 1920) && (set_h <= 1080)) && (sensor_1080p[0].reg!=SEQUENCE_END)) {
         winseqe_set_addr = sensor_1080p;
         *ret_w = 1920;
         *ret_h = 1080;
-    } else if (((set_w <= 2048) && (set_h <= 1536)) && (sensor_qxga[0].reg!=SEQUENCE_END)) {
+    } 
+#endif
+    else if (((set_w <= 2048) && (set_h <= 1536)) && (sensor_qxga[0].reg!=SEQUENCE_END)) {
         winseqe_set_addr = sensor_qxga;
         *ret_w = 2048;
         *ret_h = 1536;

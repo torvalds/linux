@@ -41,4 +41,8 @@ struct reginfo
 #define ADJUST_FOR_VGA_FALG       1
 #define ADJUST_FOR_CAPTURE_FALG   1
 #define ADJUST_PCLK_FRE_FALG      1
+/**optimize code to shoten open time******/
+#define ADJUST_OPTIMIZE_TIME_FALG      1
+
+
 #endif
