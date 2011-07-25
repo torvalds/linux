@@ -42,6 +42,7 @@
 #include <linux/string.h>
 #include <linux/time.h>
 #include <linux/vmalloc.h>
+#include <linux/workqueue.h>
 
 #include <asm/byteorder.h>
 #include <asm/page.h>
@@ -226,7 +227,7 @@ struct fw_ohci {
 
 	__le32    *self_id_cpu;
 	dma_addr_t self_id_bus;
-	struct tasklet_struct bus_reset_tasklet;
+	struct work_struct bus_reset_work;
 
 	u32 self_id_buffer[512];
 };
@@ -859,7 +860,7 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 	 *
 	 * Alas some chips sometimes emit bus reset packets with a
 	 * wrong generation.  We set the correct generation for these
-	 * at a slightly incorrect time (in bus_reset_tasklet).
+	 * at a slightly incorrect time (in bus_reset_work).
 	 */
 	if (evt == OHCI1394_evt_bus_reset) {
 		if (!(ohci->quirks & QUIRK_RESET_PACKET))
@@ -1713,9 +1714,10 @@ static u32 update_bus_time(struct fw_ohci *ohci)
 	return ohci->bus_time | cycle_time_seconds;
 }
 
-static void bus_reset_tasklet(unsigned long data)
+static void bus_reset_work(struct work_struct *work)
 {
-	struct fw_ohci *ohci = (struct fw_ohci *)data;
+	struct fw_ohci *ohci =
+		container_of(work, struct fw_ohci, bus_reset_work);
 	int self_id_count, i, j, reg;
 	int generation, new_generation;
 	unsigned long flags;
@@ -1887,7 +1889,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 	log_irqs(event);
 
 	if (event & OHCI1394_selfIDComplete)
-		tasklet_schedule(&ohci->bus_reset_tasklet);
+		queue_work(fw_workqueue, &ohci->bus_reset_work);
 
 	if (event & OHCI1394_RQPkt)
 		tasklet_schedule(&ohci->ar_request_ctx.tasklet);
@@ -2260,7 +2262,7 @@ static int ohci_set_config_rom(struct fw_card *card,
 	 * then set up the real values for the two registers.
 	 *
 	 * We use ohci->lock to avoid racing with the code that sets
-	 * ohci->next_config_rom to NULL (see bus_reset_tasklet).
+	 * ohci->next_config_rom to NULL (see bus_reset_work).
 	 */
 
 	next_config_rom =
@@ -3239,8 +3241,7 @@ static int __devinit pci_probe(struct pci_dev *dev,
 	spin_lock_init(&ohci->lock);
 	mutex_init(&ohci->phy_reg_mutex);
 
-	tasklet_init(&ohci->bus_reset_tasklet,
-		     bus_reset_tasklet, (unsigned long)ohci);
+	INIT_WORK(&ohci->bus_reset_work, bus_reset_work);
 
 	err = pci_request_region(dev, 0, ohci_driver_name);
 	if (err) {
@@ -3382,6 +3383,7 @@ static void pci_remove(struct pci_dev *dev)
 	ohci = pci_get_drvdata(dev);
 	reg_write(ohci, OHCI1394_IntMaskClear, ~0);
 	flush_writes(ohci);
+	cancel_work_sync(&ohci->bus_reset_work);
 	fw_core_remove_card(&ohci->card);
 
 	/*
