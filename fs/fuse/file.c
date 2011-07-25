@@ -749,18 +749,6 @@ static size_t fuse_send_write(struct fuse_req *req, struct file *file,
 	return req->misc.write.out.size;
 }
 
-static int fuse_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata)
-{
-	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
-
-	*pagep = grab_cache_page_write_begin(mapping, index, flags);
-	if (!*pagep)
-		return -ENOMEM;
-	return 0;
-}
-
 void fuse_write_update_size(struct inode *inode, loff_t pos)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
@@ -771,62 +759,6 @@ void fuse_write_update_size(struct inode *inode, loff_t pos)
 	if (pos > inode->i_size)
 		i_size_write(inode, pos);
 	spin_unlock(&fc->lock);
-}
-
-static int fuse_buffered_write(struct file *file, struct inode *inode,
-			       loff_t pos, unsigned count, struct page *page)
-{
-	int err;
-	size_t nres;
-	struct fuse_conn *fc = get_fuse_conn(inode);
-	unsigned offset = pos & (PAGE_CACHE_SIZE - 1);
-	struct fuse_req *req;
-
-	if (is_bad_inode(inode))
-		return -EIO;
-
-	/*
-	 * Make sure writepages on the same page are not mixed up with
-	 * plain writes.
-	 */
-	fuse_wait_on_page_writeback(inode, page->index);
-
-	req = fuse_get_req(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
-
-	req->in.argpages = 1;
-	req->num_pages = 1;
-	req->pages[0] = page;
-	req->page_offset = offset;
-	nres = fuse_send_write(req, file, pos, count, NULL);
-	err = req->out.h.error;
-	fuse_put_request(fc, req);
-	if (!err && !nres)
-		err = -EIO;
-	if (!err) {
-		pos += nres;
-		fuse_write_update_size(inode, pos);
-		if (count == PAGE_CACHE_SIZE)
-			SetPageUptodate(page);
-	}
-	fuse_invalidate_attr(inode);
-	return err ? err : nres;
-}
-
-static int fuse_write_end(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned copied,
-			struct page *page, void *fsdata)
-{
-	struct inode *inode = mapping->host;
-	int res = 0;
-
-	if (copied)
-		res = fuse_buffered_write(file, inode, pos, copied, page);
-
-	unlock_page(page);
-	page_cache_release(page);
-	return res;
 }
 
 static size_t fuse_send_write_pages(struct fuse_req *req, struct file *file,
@@ -2181,8 +2113,6 @@ static const struct address_space_operations fuse_file_aops  = {
 	.readpage	= fuse_readpage,
 	.writepage	= fuse_writepage,
 	.launder_page	= fuse_launder_page,
-	.write_begin	= fuse_write_begin,
-	.write_end	= fuse_write_end,
 	.readpages	= fuse_readpages,
 	.set_page_dirty	= __set_page_dirty_nobuffers,
 	.bmap		= fuse_bmap,
