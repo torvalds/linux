@@ -214,10 +214,13 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 	pfifo->unload_context(dev);
 
 	for (e = NVOBJ_ENGINE_NR - 1; e >= 0; e--) {
-		if (dev_priv->eng[e]) {
-			ret = dev_priv->eng[e]->fini(dev, e);
-			if (ret)
-				goto out_abort;
+		if (!dev_priv->eng[e])
+			continue;
+
+		ret = dev_priv->eng[e]->fini(dev, e, true);
+		if (ret) {
+			NV_ERROR(dev, "... engine %d failed: %d\n", i, ret);
+			goto out_abort;
 		}
 	}
 

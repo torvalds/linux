@@ -304,7 +304,7 @@ nvc0_graph_object_new(struct nouveau_channel *chan, int engine,
 }
 
 static int
-nvc0_graph_fini(struct drm_device *dev, int engine)
+nvc0_graph_fini(struct drm_device *dev, int engine, bool suspend)
 {
 	return 0;
 }

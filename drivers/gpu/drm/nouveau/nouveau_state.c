@@ -694,7 +694,7 @@ out_engine:
 		for (e = e - 1; e >= 0; e--) {
 			if (!dev_priv->eng[e])
 				continue;
-			dev_priv->eng[e]->fini(dev, e);
+			dev_priv->eng[e]->fini(dev, e, false);
 			dev_priv->eng[e]->destroy(dev,e );
 		}
 	}
@@ -746,7 +746,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 		engine->fifo.takedown(dev);
 		for (e = NVOBJ_ENGINE_NR - 1; e >= 0; e--) {
 			if (dev_priv->eng[e]) {
-				dev_priv->eng[e]->fini(dev, e);
+				dev_priv->eng[e]->fini(dev, e, false);
 				dev_priv->eng[e]->destroy(dev,e );
 			}
 		}

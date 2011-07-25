@@ -5966,6 +5966,12 @@ apply_dcb_connector_quirks(struct nvbios *bios, int idx)
 		if (cte->type == DCB_CONNECTOR_HDMI_1)
 			cte->type = DCB_CONNECTOR_DVI_I;
 	}
+
+	/* Gigabyte GV-NX86T512H */
+	if (nv_match_device(dev, 0x0402, 0x1458, 0x3455)) {
+		if (cte->type == DCB_CONNECTOR_HDMI_1)
+			cte->type = DCB_CONNECTOR_DVI_I;
+	}
 }
 
 static const u8 hpd_gpio[16] = {
