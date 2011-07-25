@@ -164,7 +164,6 @@ static const struct neigh_ops arp_broken_ops = {
 
 struct neigh_table arp_tbl = {
 	.family		= AF_INET,
-	.entry_size	= sizeof(struct neighbour) + 4,
 	.key_len	= 4,
 	.hash		= arp_hash,
 	.constructor	= arp_constructor,

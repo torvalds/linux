@@ -322,7 +322,6 @@ static u32 clip_hash(const void *pkey, const struct net_device *dev, __u32 rnd)
 
 static struct neigh_table clip_tbl = {
 	.family 	= AF_INET,
-	.entry_size 	= sizeof(struct neighbour)+sizeof(struct atmarp_entry),
 	.key_len 	= 4,
 	.hash 		= clip_hash,
 	.constructor 	= clip_constructor,
