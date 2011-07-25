@@ -1218,6 +1218,8 @@ static struct net_device *ipoib_add_port(const char *format,
 	priv->dev->mtu  = IPOIB_UD_MTU(priv->max_ib_mtu);
 	priv->mcast_mtu  = priv->admin_mtu = priv->dev->mtu;
 
+	priv->dev->neigh_priv_len = sizeof(struct ipoib_neigh);
+
 	result = ib_query_pkey(hca, port, 0, &priv->pkey);
 	if (result) {
 		printk(KERN_WARNING "%s: ib_query_pkey port %d failed (ret = %d)\n",

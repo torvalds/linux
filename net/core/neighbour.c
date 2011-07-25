@@ -273,7 +273,7 @@ int neigh_ifdown(struct neigh_table *tbl, struct net_device *dev)
 }
 EXPORT_SYMBOL(neigh_ifdown);
 
-static struct neighbour *neigh_alloc(struct neigh_table *tbl)
+static struct neighbour *neigh_alloc(struct neigh_table *tbl, struct net_device *dev)
 {
 	struct neighbour *n = NULL;
 	unsigned long now = jiffies;
@@ -288,7 +288,15 @@ static struct neighbour *neigh_alloc(struct neigh_table *tbl)
 			goto out_entries;
 	}
 
-	n = kzalloc(tbl->entry_size, GFP_ATOMIC);
+	if (tbl->entry_size)
+		n = kzalloc(tbl->entry_size, GFP_ATOMIC);
+	else {
+		int sz = sizeof(*n) + tbl->key_len;
+
+		sz = ALIGN(sz, NEIGH_PRIV_ALIGN);
+		sz += dev->neigh_priv_len;
+		n = kzalloc(sz, GFP_ATOMIC);
+	}
 	if (!n)
 		goto out_entries;
 
@@ -463,7 +471,7 @@ struct neighbour *neigh_create(struct neigh_table *tbl, const void *pkey,
 	u32 hash_val;
 	int key_len = tbl->key_len;
 	int error;
-	struct neighbour *n1, *rc, *n = neigh_alloc(tbl);
+	struct neighbour *n1, *rc, *n = neigh_alloc(tbl, dev);
 	struct neigh_hash_table *nht;
 
 	if (!n) {

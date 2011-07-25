@@ -535,6 +535,7 @@ static void clip_setup(struct net_device *dev)
 {
 	dev->netdev_ops = &clip_netdev_ops;
 	dev->type = ARPHRD_ATM;
+	dev->neigh_priv_len = sizeof(struct atmarp_entry);
 	dev->hard_header_len = RFC1483LLC_LEN;
 	dev->mtu = RFC1626_MTU;
 	dev->tx_queue_len = 100;	/* "normal" queue (packets) */
