@@ -23,8 +23,8 @@ static struct resource mxc_hsi2c_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	{
-		.start = MX51_MXC_INT_HS_I2C,
-		.end = MX51_MXC_INT_HS_I2C,
+		.start = MX51_INT_HS_I2C,
+		.end = MX51_INT_HS_I2C,
 		.flags = IORESOURCE_IRQ,
 	},
 };
@@ -45,7 +45,7 @@ static struct resource usbotg_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	{
-		.start = MX51_MXC_INT_USB_OTG,
+		.start = MX51_INT_USB_OTG,
 		.flags = IORESOURCE_IRQ,
 	},
 };
@@ -80,7 +80,7 @@ static struct resource usbh1_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	{
-		.start = MX51_MXC_INT_USB_H1,
+		.start = MX51_INT_USB_H1,
 		.flags = IORESOURCE_IRQ,
 	},
 };
@@ -103,7 +103,7 @@ static struct resource usbh2_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	{
-		.start = MX51_MXC_INT_USB_H2,
+		.start = MX51_INT_USB_H2,
 		.flags = IORESOURCE_IRQ,
 	},
 };
