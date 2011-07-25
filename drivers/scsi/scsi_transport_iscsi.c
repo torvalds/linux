@@ -1558,6 +1558,30 @@ iscsi_set_path(struct iscsi_transport *transport, struct iscsi_uevent *ev)
 }
 
 static int
+iscsi_set_iface_params(struct iscsi_transport *transport,
+		       struct iscsi_uevent *ev)
+{
+	char *data = (char *)ev + sizeof(*ev);
+	struct Scsi_Host *shost;
+	int err;
+
+	if (!transport->set_iface_param)
+		return -ENOSYS;
+
+	shost = scsi_host_lookup(ev->u.set_iface_params.host_no);
+	if (!shost) {
+		printk(KERN_ERR "set_iface_params could not find host no %u\n",
+		       ev->u.set_iface_params.host_no);
+		return -ENODEV;
+	}
+
+	err = transport->set_iface_param(shost, data,
+					 ev->u.set_iface_params.count);
+	scsi_host_put(shost);
+	return err;
+}
+
+static int
 iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 {
 	int err = 0;
@@ -1695,6 +1719,9 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 		break;
 	case ISCSI_UEVENT_PATH_UPDATE:
 		err = iscsi_set_path(transport, ev);
+		break;
+	case ISCSI_UEVENT_SET_IFACE_PARAMS:
+		err = iscsi_set_iface_params(transport, ev);
 		break;
 	default:
 		err = -ENOSYS;

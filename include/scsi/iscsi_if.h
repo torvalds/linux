@@ -59,6 +59,7 @@ enum iscsi_uevent_e {
 	ISCSI_UEVENT_TRANSPORT_EP_CONNECT_THROUGH_HOST	= UEVENT_BASE + 19,
 
 	ISCSI_UEVENT_PATH_UPDATE	= UEVENT_BASE + 20,
+	ISCSI_UEVENT_SET_IFACE_PARAMS	= UEVENT_BASE + 21,
 
 	/* up events */
 	ISCSI_KEVENT_RECV_PDU		= KEVENT_BASE + 1,
@@ -172,6 +173,10 @@ struct iscsi_uevent {
 		struct msg_set_path {
 			uint32_t	host_no;
 		} set_path;
+		struct msg_set_iface_params {
+			uint32_t	host_no;
+			uint32_t	count;
+		} set_iface_params;
 	} u;
 	union {
 		/* messages k -> u */
@@ -214,6 +219,21 @@ struct iscsi_uevent {
 	} r;
 } __attribute__ ((aligned (sizeof(uint64_t))));
 
+enum iscsi_param_type {
+	ISCSI_PARAM,		/* iscsi_param (session, conn, target, LU) */
+	ISCSI_HOST_PARAM,	/* iscsi_host_param */
+	ISCSI_NET_PARAM,	/* iscsi_net_param */
+};
+
+struct iscsi_iface_param_info {
+	uint32_t iface_num;	/* iface number, 0 - n */
+	uint32_t len;		/* Actual length of the param */
+	uint16_t param;		/* iscsi param value */
+	uint8_t iface_type;	/* IPv4 or IPv6 */
+	uint8_t param_type;	/* iscsi_param_type */
+	uint8_t value[0];	/* length sized value follows */
+} __packed;
+
 /*
  * To keep the struct iscsi_uevent size the same for userspace code
  * compatibility, the main structure for ISCSI_UEVENT_PATH_UPDATE and
@@ -236,6 +256,49 @@ struct iscsi_path {
 	uint16_t	vlan_id;
 	uint16_t	pmtu;
 } __attribute__ ((aligned (sizeof(uint64_t))));
+
+/* iscsi iface enabled/disabled setting */
+#define ISCSI_IFACE_DISABLE	0x01
+#define ISCSI_IFACE_ENABLE	0x02
+
+/* ipv4 bootproto */
+#define ISCSI_BOOTPROTO_STATIC		0x01
+#define ISCSI_BOOTPROTO_DHCP		0x02
+
+/* ipv6 addr autoconfig type */
+#define ISCSI_IPV6_AUTOCFG_DISABLE		0x01
+#define ISCSI_IPV6_AUTOCFG_ND_ENABLE		0x02
+#define ISCSI_IPV6_AUTOCFG_DHCPV6_ENABLE	0x03
+
+/* ipv6 link local addr type */
+#define ISCSI_IPV6_LINKLOCAL_AUTOCFG_ENABLE	0x01
+#define ISCSI_IPV6_LINKLOCAL_AUTOCFG_DISABLE	0x02
+
+/* ipv6 router addr type */
+#define ISCSI_IPV6_ROUTER_AUTOCFG_ENABLE	0x01
+#define ISCSI_IPV6_ROUTER_AUTOCFG_DISABLE	0x02
+
+#define ISCSI_IFACE_TYPE_IPV4		0x01
+#define ISCSI_IFACE_TYPE_IPV6		0x02
+
+/* iSCSI network params */
+enum iscsi_net_param {
+	ISCSI_NET_PARAM_IPV4_ADDR		= 1,
+	ISCSI_NET_PARAM_IPV4_SUBNET		= 2,
+	ISCSI_NET_PARAM_IPV4_GW			= 3,
+	ISCSI_NET_PARAM_IPV4_BOOTPROTO		= 4,
+	ISCSI_NET_PARAM_MAC			= 5,
+	ISCSI_NET_PARAM_IPV6_LINKLOCAL		= 6,
+	ISCSI_NET_PARAM_IPV6_ADDR		= 7,
+	ISCSI_NET_PARAM_IPV6_ROUTER		= 8,
+	ISCSI_NET_PARAM_IPV6_ADDR_AUTOCFG	= 9,
+	ISCSI_NET_PARAM_IPV6_LINKLOCAL_AUTOCFG	= 10,
+	ISCSI_NET_PARAM_IPV6_ROUTER_AUTOCFG	= 11,
+	ISCSI_NET_PARAM_IFACE_ENABLE		= 12,
+	ISCSI_NET_PARAM_VLAN_ID			= 13,
+	ISCSI_NET_IFACE_TYPE			= 14,
+	ISCSI_NET_IFACE_NAME			= 15,
+};
 
 /*
  * Common error codes
