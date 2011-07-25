@@ -36,9 +36,12 @@
 #include <scsi/scsi_transport_iscsi.h>
 #include <scsi/scsi_bsg_iscsi.h>
 #include <scsi/scsi_netlink.h>
+#include <scsi/libiscsi.h>
 
 #include "ql4_dbg.h"
 #include "ql4_nx.h"
+#include "ql4_fw.h"
+#include "ql4_nvram.h"
 
 #ifndef PCI_DEVICE_ID_QLOGIC_ISP4010
 #define PCI_DEVICE_ID_QLOGIC_ISP4010	0x4010
@@ -112,7 +115,7 @@
 #define MAX_BUSES		1
 #define MAX_TARGETS		MAX_DEV_DB_ENTRIES
 #define MAX_LUNS		0xffff
-#define MAX_AEN_ENTRIES		256 /* should be > EXT_DEF_MAX_AEN_QUEUE */
+#define MAX_AEN_ENTRIES		MAX_DEV_DB_ENTRIES
 #define MAX_DDB_ENTRIES		MAX_DEV_DB_ENTRIES
 #define MAX_PDU_ENTRIES		32
 #define INVALID_ENTRY		0xFFFF
@@ -296,8 +299,6 @@ struct ddb_entry {
 #define DF_FO_MASKED		3
 
 
-#include "ql4_fw.h"
-#include "ql4_nvram.h"
 
 struct ql82xx_hw_data {
 	/* Offsets for flash/nvram access (set to ~0 if not used). */
@@ -607,6 +608,33 @@ struct scsi_qla_host {
 #define	QLFLASH_WAITING		0
 #define	QLFLASH_READING		1
 #define	QLFLASH_WRITING		2
+	struct dma_pool *chap_dma_pool;
+#define CHAP_DMA_BLOCK_SIZE    512
+	struct workqueue_struct *task_wq;
+	unsigned long ddb_idx_map[MAX_DDB_ENTRIES / BITS_PER_LONG];
+};
+
+struct ql4_task_data {
+	struct scsi_qla_host *ha;
+	uint8_t iocb_req_cnt;
+	dma_addr_t data_dma;
+	void *req_buffer;
+	dma_addr_t req_dma;
+	void *resp_buffer;
+	dma_addr_t resp_dma;
+	uint32_t resp_len;
+	struct iscsi_task *task;
+	struct passthru_status sts;
+	struct work_struct task_work;
+};
+
+struct qla_endpoint {
+	struct Scsi_Host *host;
+	struct sockaddr dst_addr;
+};
+
+struct qla_conn {
+	struct qla_endpoint *qla_ep;
 };
 
 static inline int is_ipv4_enabled(struct scsi_qla_host *ha)
@@ -657,7 +685,7 @@ static inline int adapter_up(struct scsi_qla_host *ha)
 
 static inline struct scsi_qla_host* to_qla_host(struct Scsi_Host *shost)
 {
-	return (struct scsi_qla_host *)shost->hostdata;
+	return (struct scsi_qla_host *)iscsi_host_priv(shost);
 }
 
 static inline void __iomem* isp_semaphore(struct scsi_qla_host *ha)

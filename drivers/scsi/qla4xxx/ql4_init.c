@@ -48,22 +48,15 @@ static void ql4xxx_set_mac_number(struct scsi_qla_host *ha)
  * @ha: pointer to host adapter structure.
  * @ddb_entry: pointer to device database entry
  *
- * This routine deallocates and unlinks the specified ddb_entry from the
- * adapter's
+ * This routine marks a DDB entry INVALID
  **/
 void qla4xxx_free_ddb(struct scsi_qla_host *ha,
     struct ddb_entry *ddb_entry)
 {
-	/* Remove device entry from list */
-	list_del_init(&ddb_entry->list);
-
 	/* Remove device pointer from index mapping arrays */
 	ha->fw_ddb_index_map[ddb_entry->fw_ddb_index] =
 		(struct ddb_entry *) INVALID_ENTRY;
 	ha->tot_ddbs--;
-
-	/* Free memory and scsi-ml struct for device entry */
-	qla4xxx_destroy_sess(ddb_entry);
 }
 
 /**
@@ -820,7 +813,8 @@ static int qla4xxx_build_ddb_list(struct scsi_qla_host *ha)
 					((!ipv6_device &&
 					  *((uint32_t *)fw_ddb_entry->ip_addr))
 					 || ipv6_device)) {
-				qla4xxx_set_ddb_entry(ha, fw_ddb_index, 0);
+				qla4xxx_set_ddb_entry(ha, fw_ddb_index, 0,
+						      NULL);
 				if (qla4xxx_get_fwddb_entry(ha, fw_ddb_index,
 							NULL, 0, NULL,
 							&next_fw_ddb_index,
@@ -927,7 +921,7 @@ int qla4xxx_reinitialize_ddb_list(struct scsi_qla_host *ha)
 				       ddb_entry->fw_ddb_index));
 			iscsi_unblock_session(ddb_entry->sess);
 		} else if (atomic_read(&ddb_entry->state) == DDB_STATE_ONLINE)
-			qla4xxx_mark_device_missing(ha, ddb_entry);
+			qla4xxx_mark_device_missing(ddb_entry->sess);
 	}
 	return status;
 }
@@ -952,7 +946,7 @@ int qla4xxx_relogin_device(struct scsi_qla_host *ha,
 	DEBUG2(printk("scsi%ld: Relogin ddb [%d]. TOV=%d\n", ha->host_no,
 		      ddb_entry->fw_ddb_index, relogin_timer));
 
-	qla4xxx_set_ddb_entry(ha, ddb_entry->fw_ddb_index, 0);
+	qla4xxx_set_ddb_entry(ha, ddb_entry->fw_ddb_index, 0, NULL);
 
 	return QLA_SUCCESS;
 }
@@ -1418,88 +1412,66 @@ int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 		uint32_t state, uint32_t conn_err)
 {
 	struct ddb_entry * ddb_entry;
+	uint32_t old_fw_ddb_device_state;
+	int status = QLA_ERROR;
 
 	/* check for out of range index */
 	if (fw_ddb_index >= MAX_DDB_ENTRIES)
-		return QLA_ERROR;
+		goto exit_ddb_event;
 
 	/* Get the corresponging ddb entry */
 	ddb_entry = qla4xxx_lookup_ddb_by_fw_index(ha, fw_ddb_index);
 	/* Device does not currently exist in our database. */
 	if (ddb_entry == NULL) {
-		if (state == DDB_DS_SESSION_ACTIVE)
-			qla4xxx_add_device_dynamically(ha, fw_ddb_index);
-		return QLA_SUCCESS;
+		ql4_printk(KERN_ERR, ha, "%s: No ddb_entry at FW index [%d]\n",
+			   __func__, fw_ddb_index);
+		goto exit_ddb_event;
 	}
 
-	/* Device already exists in our database. */
-	DEBUG2(printk("scsi%ld: %s DDB - old state= 0x%x, new state=0x%x for "
-		      "index [%d]\n", ha->host_no, __func__,
-		      ddb_entry->fw_ddb_device_state, state, fw_ddb_index));
+	old_fw_ddb_device_state = ddb_entry->fw_ddb_device_state;
+	DEBUG2(ql4_printk(KERN_INFO, ha,
+			  "%s: DDB - old state = 0x%x, new state = 0x%x for "
+			  "index [%d]\n", __func__,
+			  ddb_entry->fw_ddb_device_state, state, fw_ddb_index));
 
 	ddb_entry->fw_ddb_device_state = state;
-	/* Device is back online. */
-	if ((ddb_entry->fw_ddb_device_state == DDB_DS_SESSION_ACTIVE) &&
-	   (atomic_read(&ddb_entry->state) != DDB_STATE_ONLINE)) {
-		atomic_set(&ddb_entry->state, DDB_STATE_ONLINE);
-		atomic_set(&ddb_entry->relogin_retry_count, 0);
-		atomic_set(&ddb_entry->relogin_timer, 0);
-		clear_bit(DF_RELOGIN, &ddb_entry->flags);
-		iscsi_unblock_session(ddb_entry->sess);
-		iscsi_session_event(ddb_entry->sess,
-				    ISCSI_KEVENT_CREATE_SESSION);
-		/*
-		 * Change the lun state to READY in case the lun TIMEOUT before
-		 * the device came back.
-		 */
-	} else if (ddb_entry->fw_ddb_device_state != DDB_DS_SESSION_ACTIVE) {
-		/* Device went away, mark device missing */
-		if (atomic_read(&ddb_entry->state) == DDB_STATE_ONLINE) {
-			DEBUG2(ql4_printk(KERN_INFO, ha, "%s mark missing "
-					"ddb_entry 0x%p sess 0x%p conn 0x%p\n",
-					__func__, ddb_entry,
-					ddb_entry->sess, ddb_entry->conn));
-			qla4xxx_mark_device_missing(ha, ddb_entry);
-		}
 
-		/*
-		 * Relogin if device state changed to a not active state.
-		 * However, do not relogin if a RELOGIN is in process, or
-		 * we are not allowed to relogin to this DDB.
-		 */
-		if (ddb_entry->fw_ddb_device_state == DDB_DS_SESSION_FAILED &&
-		    !test_bit(DF_RELOGIN, &ddb_entry->flags) &&
-		    qla4_is_relogin_allowed(ha, conn_err)) {
-			/*
-			 * This triggers a relogin.  After the relogin_timer
-			 * expires, the relogin gets scheduled.	 We must wait a
-			 * minimum amount of time since receiving an 0x8014 AEN
-			 * with failed device_state or a logout response before
-			 * we can issue another relogin.
-			 */
-			/* Firmware pads this timeout: (time2wait +1).
-			 * Driver retry to login should be longer than F/W.
-			 * Otherwise F/W will fail
-			 * set_ddb() mbx cmd with 0x4005 since it still
-			 * counting down its time2wait.
-			 */
-			atomic_set(&ddb_entry->relogin_timer, 0);
-			atomic_set(&ddb_entry->retry_relogin_timer,
-				   ddb_entry->default_time2wait + 4);
-			DEBUG(printk("scsi%ld: %s: ddb[%d] "
-			    "initiate relogin after %d seconds\n",
-			    ha->host_no, __func__,
-			    ddb_entry->fw_ddb_index,
-			    ddb_entry->default_time2wait + 4));
-		} else {
-			DEBUG(printk("scsi%ld: %s: ddb[%d] "
-			    "relogin not initiated, state = %d, "
-			    "ddb_entry->flags = 0x%lx\n",
-			    ha->host_no, __func__,
-			    ddb_entry->fw_ddb_index,
-			    ddb_entry->fw_ddb_device_state,
-			    ddb_entry->flags));
+	switch (old_fw_ddb_device_state) {
+	case DDB_DS_LOGIN_IN_PROCESS:
+		switch (state) {
+		case DDB_DS_SESSION_ACTIVE:
+		case DDB_DS_DISCOVERY:
+			iscsi_conn_login_event(ddb_entry->conn,
+					       ISCSI_CONN_STATE_LOGGED_IN);
+			qla4xxx_update_session_conn_param(ha, ddb_entry);
+			status = QLA_SUCCESS;
+			break;
+		case DDB_DS_SESSION_FAILED:
+		case DDB_DS_NO_CONNECTION_ACTIVE:
+			iscsi_conn_login_event(ddb_entry->conn,
+					       ISCSI_CONN_STATE_FREE);
+			status = QLA_SUCCESS;
+			break;
 		}
+		break;
+	case DDB_DS_SESSION_ACTIVE:
+		if (state == DDB_DS_SESSION_FAILED) {
+			/*
+			 * iscsi_session failure  will cause userspace to
+			 * stop the connection which in turn would block the
+			 * iscsi_session and start relogin
+			 */
+			iscsi_session_failure(ddb_entry->sess->dd_data,
+					      ISCSI_ERR_CONN_FAILED);
+			status = QLA_SUCCESS;
+		}
+		break;
+	default:
+		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: Unknown Event\n",
+				__func__));
+		break;
 	}
-	return QLA_SUCCESS;
+
+exit_ddb_event:
+	return status;
 }

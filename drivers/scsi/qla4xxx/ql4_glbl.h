@@ -51,7 +51,7 @@ int qla4xxx_get_fwddb_entry(struct scsi_qla_host *ha,
 			    uint16_t *connection_id);
 
 int qla4xxx_set_ddb_entry(struct scsi_qla_host * ha, uint16_t fw_ddb_index,
-			  dma_addr_t fw_ddb_entry_dma);
+			  dma_addr_t fw_ddb_entry_dma, uint32_t *mbx_sts);
 uint8_t qla4xxx_get_ifcb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
 			 uint32_t *mbox_sts, dma_addr_t init_fw_cb_dma);
 int qla4xxx_conn_close_sess_logout(struct scsi_qla_host *ha,
@@ -63,8 +63,7 @@ int qla4xxx_set_acb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
 		    uint32_t *mbox_sts, dma_addr_t acb_dma);
 int qla4xxx_get_acb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
 		    uint32_t *mbox_sts, dma_addr_t acb_dma);
-void qla4xxx_mark_device_missing(struct scsi_qla_host *ha,
-				 struct ddb_entry *ddb_entry);
+void qla4xxx_mark_device_missing(struct iscsi_cls_session *cls_session);
 u16 rd_nvram_word(struct scsi_qla_host *ha, int offset);
 void qla4xxx_get_crash_record(struct scsi_qla_host *ha);
 struct ddb_entry *qla4xxx_alloc_sess(struct scsi_qla_host *ha);
@@ -150,7 +149,21 @@ int qla4_8xxx_device_state_handler(struct scsi_qla_host *ha);
 void qla4_8xxx_need_qsnt_handler(struct scsi_qla_host *ha);
 void qla4_8xxx_clear_drv_active(struct scsi_qla_host *ha);
 void qla4_8xxx_set_drv_active(struct scsi_qla_host *ha);
-
+int qla4xxx_conn_open(struct scsi_qla_host *ha, uint16_t fw_ddb_index);
+int qla4xxx_set_param_ddbentry(struct scsi_qla_host *ha,
+			       struct ddb_entry *ddb_entry,
+			       struct iscsi_cls_conn *cls_conn,
+			       uint32_t *mbx_sts);
+int qla4xxx_session_logout_ddb(struct scsi_qla_host *ha,
+			       struct ddb_entry *ddb_entry, int options);
+int qla4xxx_req_ddb_entry(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
+			  uint32_t *mbx_sts);
+int qla4xxx_clear_ddb_entry(struct scsi_qla_host *ha, uint32_t fw_ddb_index);
+int qla4xxx_send_passthru0(struct iscsi_task *task);
+int qla4xxx_get_mgmt_data(struct scsi_qla_host *ha, uint16_t fw_ddb_index,
+			  uint16_t stats_size, dma_addr_t stats_dma);
+void qla4xxx_update_session_conn_param(struct scsi_qla_host *ha,
+				       struct ddb_entry *ddb_entry);
 /* BSG Functions */
 int qla4xxx_bsg_request(struct bsg_job *bsg_job);
 int qla4xxx_process_vendor_specific(struct bsg_job *bsg_job);

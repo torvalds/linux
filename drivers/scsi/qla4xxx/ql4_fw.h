@@ -331,9 +331,11 @@ struct qla_flt_region {
 #define MBOX_CMD_WRITE_FLASH			0x0025
 #define MBOX_CMD_READ_FLASH			0x0026
 #define MBOX_CMD_CLEAR_DATABASE_ENTRY		0x0031
+#define MBOX_CMD_CONN_OPEN			0x0074
 #define MBOX_CMD_CONN_CLOSE_SESS_LOGOUT		0x0056
-#define LOGOUT_OPTION_CLOSE_SESSION		0x01
-#define LOGOUT_OPTION_RELOGIN			0x02
+#define LOGOUT_OPTION_CLOSE_SESSION		0x0002
+#define LOGOUT_OPTION_RELOGIN			0x0004
+#define LOGOUT_OPTION_FREE_DDB			0x0008
 #define MBOX_CMD_EXECUTE_IOCB_A64		0x005A
 #define MBOX_CMD_INITIALIZE_FIRMWARE		0x0060
 #define MBOX_CMD_GET_INIT_FW_CTRL_BLOCK		0x0061
@@ -342,6 +344,7 @@ struct qla_flt_region {
 #define MBOX_CMD_GET_DATABASE_ENTRY		0x0064
 #define DDB_DS_UNASSIGNED			0x00
 #define DDB_DS_NO_CONNECTION_ACTIVE		0x01
+#define DDB_DS_DISCOVERY			0x02
 #define DDB_DS_SESSION_ACTIVE			0x04
 #define DDB_DS_SESSION_FAILED			0x06
 #define DDB_DS_LOGIN_IN_PROCESS			0x07
@@ -375,7 +378,10 @@ struct qla_flt_region {
 #define FW_ADDSTATE_DHCPv4_LEASE_EXPIRED	0x0008
 #define FW_ADDSTATE_LINK_UP			0x0010
 #define FW_ADDSTATE_ISNS_SVC_ENABLED		0x0020
+
 #define MBOX_CMD_GET_DATABASE_ENTRY_DEFAULTS	0x006B
+#define IPV6_DEFAULT_DDB_ENTRY			0x0001
+
 #define MBOX_CMD_CONN_OPEN_SESS_LOGIN		0x0074
 #define MBOX_CMD_GET_CRASH_RECORD		0x0076	/* 4010 only */
 #define MBOX_CMD_GET_CONN_EVENT_LOG		0x0077
@@ -463,7 +469,8 @@ struct addr_ctrl_blk {
 	uint8_t res0;	/* 07 */
 	uint16_t eth_mtu_size;	/* 08-09 */
 	uint16_t add_fw_options;	/* 0A-0B */
-#define SERIALIZE_TASK_MGMT		0x0400
+#define ADFWOPT_SERIALIZE_TASK_MGMT	0x0400
+#define ADFWOPT_AUTOCONN_DISABLE	0x0002
 
 	uint8_t hb_interval;	/* 0C */
 	uint8_t inst_num; /* 0D */
@@ -655,11 +662,30 @@ struct addr_ctrl_blk_def {
 
 /*************************************************************************/
 
+#define MAX_CHAP_ENTRIES_40XX	128
+#define MAX_CHAP_ENTRIES_82XX	1024
+
+struct ql4_chap_table {
+	uint16_t link;
+	uint8_t flags;
+	uint8_t secret_len;
+#define MIN_CHAP_SECRET_LEN	12
+#define MAX_CHAP_SECRET_LEN	100
+	uint8_t secret[MAX_CHAP_SECRET_LEN];
+#define MAX_CHAP_NAME_LEN	256
+	uint8_t name[MAX_CHAP_NAME_LEN];
+	uint16_t reserved;
+#define CHAP_VALID_COOKIE	0x4092
+#define CHAP_INVALID_COOKIE	0xFFEE
+	uint16_t cookie;
+};
+
 struct dev_db_entry {
 	uint16_t options;	/* 00-01 */
 #define DDB_OPT_DISC_SESSION  0x10
 #define DDB_OPT_TARGET	      0x02 /* device is a target */
 #define DDB_OPT_IPV6_DEVICE	0x100
+#define DDB_OPT_AUTO_SENDTGTS_DISABLE		0x40
 #define DDB_OPT_IPV6_NULL_LINK_LOCAL		0x800 /* post connection */
 #define DDB_OPT_IPV6_FW_DEFINED_LINK_LOCAL	0x800 /* pre connection */
 
@@ -670,6 +696,7 @@ struct dev_db_entry {
 	uint16_t tcp_options;	/* 0A-0B */
 	uint16_t ip_options;	/* 0C-0D */
 	uint16_t iscsi_max_rcv_data_seg_len;	/* 0E-0F */
+#define BYTE_UNITS	512
 	uint32_t res1;	/* 10-13 */
 	uint16_t iscsi_max_snd_data_seg_len;	/* 14-15 */
 	uint16_t iscsi_first_burst_len;	/* 16-17 */
@@ -853,6 +880,7 @@ struct qla4_header {
 
 	uint8_t entryStatus;
 	uint8_t systemDefined;
+#define SD_ISCSI_PDU	0x01
 	uint8_t entryCount;
 
 	/* SyetemDefined definition */
@@ -1010,21 +1038,22 @@ struct passthru0 {
 	struct qla4_header hdr;		       /* 00-03 */
 	uint32_t handle;	/* 04-07 */
 	uint16_t target;	/* 08-09 */
-	uint16_t connectionID;	/* 0A-0B */
+	uint16_t connection_id;	/* 0A-0B */
 #define ISNS_DEFAULT_SERVER_CONN_ID	((uint16_t)0x8000)
 
-	uint16_t controlFlags;	/* 0C-0D */
+	uint16_t control_flags;	/* 0C-0D */
 #define PT_FLAG_ETHERNET_FRAME		0x8000
 #define PT_FLAG_ISNS_PDU		0x8000
 #define PT_FLAG_SEND_BUFFER		0x0200
 #define PT_FLAG_WAIT_4_RESPONSE		0x0100
+#define PT_FLAG_ISCSI_PDU		0x1000
 
 	uint16_t timeout;	/* 0E-0F */
 #define PT_DEFAULT_TIMEOUT		30 /* seconds */
 
-	struct data_seg_a64 outDataSeg64;	/* 10-1B */
+	struct data_seg_a64 out_dsd;    /* 10-1B */
 	uint32_t res1;		/* 1C-1F */
-	struct data_seg_a64 inDataSeg64;	/* 20-2B */
+	struct data_seg_a64 in_dsd;     /* 20-2B */
 	uint8_t res2[20];	/* 2C-3F */
 };
 
@@ -1055,6 +1084,45 @@ struct response {
 	uint8_t data[60];
 	uint32_t signature;
 #define RESPONSE_PROCESSED	0xDEADDEAD	/* Signature */
+};
+
+struct ql_iscsi_stats {
+	uint8_t reserved1[656]; /* 0000-028F */
+	uint32_t tx_cmd_pdu; /* 0290-0293 */
+	uint32_t tx_resp_pdu; /* 0294-0297 */
+	uint32_t rx_cmd_pdu; /* 0298-029B */
+	uint32_t rx_resp_pdu; /* 029C-029F */
+
+	uint64_t tx_data_octets; /* 02A0-02A7 */
+	uint64_t rx_data_octets; /* 02A8-02AF */
+
+	uint32_t hdr_digest_err; /* 02B0–02B3 */
+	uint32_t data_digest_err; /* 02B4–02B7 */
+	uint32_t conn_timeout_err; /* 02B8–02BB */
+	uint32_t framing_err; /* 02BC–02BF */
+
+	uint32_t tx_nopout_pdus; /* 02C0–02C3 */
+	uint32_t tx_scsi_cmd_pdus;  /* 02C4–02C7 */
+	uint32_t tx_tmf_cmd_pdus; /* 02C8–02CB */
+	uint32_t tx_login_cmd_pdus; /* 02CC–02CF */
+	uint32_t tx_text_cmd_pdus; /* 02D0–02D3 */
+	uint32_t tx_scsi_write_pdus; /* 02D4–02D7 */
+	uint32_t tx_logout_cmd_pdus; /* 02D8–02DB */
+	uint32_t tx_snack_req_pdus; /* 02DC–02DF */
+
+	uint32_t rx_nopin_pdus; /* 02E0–02E3 */
+	uint32_t rx_scsi_resp_pdus; /* 02E4–02E7 */
+	uint32_t rx_tmf_resp_pdus; /* 02E8–02EB */
+	uint32_t rx_login_resp_pdus; /* 02EC–02EF */
+	uint32_t rx_text_resp_pdus; /* 02F0–02F3 */
+	uint32_t rx_scsi_read_pdus; /* 02F4–02F7 */
+	uint32_t rx_logout_resp_pdus; /* 02F8–02FB */
+
+	uint32_t rx_r2t_pdus; /* 02FC–02FF */
+	uint32_t rx_async_pdus; /* 0300–0303 */
+	uint32_t rx_reject_pdus; /* 0304–0307 */
+
+	uint8_t reserved2[264]; /* 0x0308 - 0x040F */
 };
 
 #endif /*  _QLA4X_FW_H */

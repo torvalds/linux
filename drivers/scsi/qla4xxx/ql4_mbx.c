@@ -477,10 +477,11 @@ int qla4xxx_initialize_fw_cb(struct scsi_qla_host * ha)
 
 	init_fw_cb->fw_options &= __constant_cpu_to_le16(~FWOPT_TARGET_MODE);
 
-	/* Set bit for "serialize task mgmt" all other bits need to be zero */
 	init_fw_cb->add_fw_options = 0;
 	init_fw_cb->add_fw_options |=
-	    __constant_cpu_to_le16(SERIALIZE_TASK_MGMT);
+			__constant_cpu_to_le16(ADFWOPT_SERIALIZE_TASK_MGMT);
+	init_fw_cb->add_fw_options |=
+			__constant_cpu_to_le16(ADFWOPT_AUTOCONN_DISABLE);
 
 	if (qla4xxx_set_ifcb(ha, &mbox_cmd[0], &mbox_sts[0], init_fw_cb_dma)
 		!= QLA_SUCCESS) {
@@ -706,19 +707,38 @@ exit_get_fwddb:
 	return status;
 }
 
+int qla4xxx_conn_open(struct scsi_qla_host *ha, uint16_t fw_ddb_index)
+{
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
+	int status;
+
+	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
+	memset(&mbox_sts, 0, sizeof(mbox_sts));
+
+	mbox_cmd[0] = MBOX_CMD_CONN_OPEN;
+	mbox_cmd[1] = fw_ddb_index;
+
+	status = qla4xxx_mailbox_command(ha, MBOX_REG_COUNT, 2, &mbox_cmd[0],
+					 &mbox_sts[0]);
+	DEBUG2(ql4_printk(KERN_INFO, ha,
+			  "%s: status = %d mbx0 = 0x%x mbx1 = 0x%x\n",
+			  __func__, status, mbox_sts[0], mbox_sts[1]));
+	return status;
+}
+
 /**
  * qla4xxx_set_fwddb_entry - sets a ddb entry.
  * @ha: Pointer to host adapter structure.
  * @fw_ddb_index: Firmware's device database index
- * @fw_ddb_entry: Pointer to firmware's ddb entry structure, or NULL.
+ * @fw_ddb_entry_dma: dma address of ddb entry
+ * @mbx_sts: mailbox 0 to be returned or NULL
  *
  * This routine initializes or updates the adapter's device database
- * entry for the specified device. It also triggers a login for the
- * specified device. Therefore, it may also be used as a secondary
- * login routine when a NULL pointer is specified for the fw_ddb_entry.
+ * entry for the specified device.
  **/
 int qla4xxx_set_ddb_entry(struct scsi_qla_host * ha, uint16_t fw_ddb_index,
-			  dma_addr_t fw_ddb_entry_dma)
+			  dma_addr_t fw_ddb_entry_dma, uint32_t *mbx_sts)
 {
 	uint32_t mbox_cmd[MBOX_REG_COUNT];
 	uint32_t mbox_sts[MBOX_REG_COUNT];
@@ -737,9 +757,37 @@ int qla4xxx_set_ddb_entry(struct scsi_qla_host * ha, uint16_t fw_ddb_index,
 	mbox_cmd[4] = sizeof(struct dev_db_entry);
 
 	status = qla4xxx_mailbox_command(ha, MBOX_REG_COUNT, 5, &mbox_cmd[0],
-	    &mbox_sts[0]);
+					 &mbox_sts[0]);
+	if (mbx_sts)
+		*mbx_sts = mbox_sts[0];
 	DEBUG2(printk("scsi%ld: %s: status=%d mbx0=0x%x mbx4=0x%x\n",
 	    ha->host_no, __func__, status, mbox_sts[0], mbox_sts[4]);)
+
+	return status;
+}
+
+int qla4xxx_session_logout_ddb(struct scsi_qla_host *ha,
+			       struct ddb_entry *ddb_entry, int options)
+{
+	int status;
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
+
+	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
+	memset(&mbox_sts, 0, sizeof(mbox_sts));
+
+	mbox_cmd[0] = MBOX_CMD_CONN_CLOSE_SESS_LOGOUT;
+	mbox_cmd[1] = ddb_entry->fw_ddb_index;
+	mbox_cmd[3] = options;
+
+	status = qla4xxx_mailbox_command(ha, MBOX_REG_COUNT, 2, &mbox_cmd[0],
+					 &mbox_sts[0]);
+	if (status != QLA_SUCCESS) {
+		DEBUG2(ql4_printk(KERN_INFO, ha,
+				  "%s: MBOX_CMD_CONN_CLOSE_SESS_LOGOUT "
+				  "failed sts %04X %04X", __func__,
+				  mbox_sts[0], mbox_sts[1]));
+	}
 
 	return status;
 }
@@ -1119,7 +1167,7 @@ exit_about_fw:
 	return status;
 }
 
-static int qla4xxx_get_default_ddb(struct scsi_qla_host *ha,
+static int qla4xxx_get_default_ddb(struct scsi_qla_host *ha, uint32_t options,
 				   dma_addr_t dma_addr)
 {
 	uint32_t mbox_cmd[MBOX_REG_COUNT];
@@ -1129,6 +1177,7 @@ static int qla4xxx_get_default_ddb(struct scsi_qla_host *ha,
 	memset(&mbox_sts, 0, sizeof(mbox_sts));
 
 	mbox_cmd[0] = MBOX_CMD_GET_DATABASE_ENTRY_DEFAULTS;
+	mbox_cmd[1] = options;
 	mbox_cmd[2] = LSDW(dma_addr);
 	mbox_cmd[3] = MSDW(dma_addr);
 
@@ -1141,8 +1190,10 @@ static int qla4xxx_get_default_ddb(struct scsi_qla_host *ha,
 	return QLA_SUCCESS;
 }
 
-static int qla4xxx_req_ddb_entry(struct scsi_qla_host *ha, uint32_t *ddb_index)
+int qla4xxx_req_ddb_entry(struct scsi_qla_host *ha, uint32_t ddb_index,
+			  uint32_t *mbx_sts)
 {
+	int status;
 	uint32_t mbox_cmd[MBOX_REG_COUNT];
 	uint32_t mbox_sts[MBOX_REG_COUNT];
 
@@ -1150,30 +1201,26 @@ static int qla4xxx_req_ddb_entry(struct scsi_qla_host *ha, uint32_t *ddb_index)
 	memset(&mbox_sts, 0, sizeof(mbox_sts));
 
 	mbox_cmd[0] = MBOX_CMD_REQUEST_DATABASE_ENTRY;
-	mbox_cmd[1] = MAX_PRST_DEV_DB_ENTRIES;
+	mbox_cmd[1] = ddb_index;
 
-	if (qla4xxx_mailbox_command(ha, MBOX_REG_COUNT, 3, &mbox_cmd[0], &mbox_sts[0]) !=
-	    QLA_SUCCESS) {
-		if (mbox_sts[0] == MBOX_STS_COMMAND_ERROR) {
-			*ddb_index = mbox_sts[2];
-		} else {
-			DEBUG2(printk("scsi%ld: %s: failed status %04X\n",
-			     ha->host_no, __func__, mbox_sts[0]));
-			return QLA_ERROR;
-		}
-	} else {
-		*ddb_index = MAX_PRST_DEV_DB_ENTRIES;
+	status = qla4xxx_mailbox_command(ha, MBOX_REG_COUNT, 1, &mbox_cmd[0],
+					 &mbox_sts[0]);
+	if (status != QLA_SUCCESS) {
+		DEBUG2(ql4_printk(KERN_ERR, ha, "%s: failed status %04X\n",
+				   __func__, mbox_sts[0]));
 	}
 
-	return QLA_SUCCESS;
+	*mbx_sts = mbox_sts[0];
+	return status;
 }
-
 
 int qla4xxx_send_tgts(struct scsi_qla_host *ha, char *ip, uint16_t port)
 {
 	struct dev_db_entry *fw_ddb_entry;
 	dma_addr_t fw_ddb_entry_dma;
 	uint32_t ddb_index;
+	uint32_t mbx_sts;
+	uint32_t options = 0;
 	int ret_val = QLA_SUCCESS;
 
 
@@ -1187,11 +1234,11 @@ int qla4xxx_send_tgts(struct scsi_qla_host *ha, char *ip, uint16_t port)
 		goto exit_send_tgts_no_free;
 	}
 
-	ret_val = qla4xxx_get_default_ddb(ha, fw_ddb_entry_dma);
+	ret_val = qla4xxx_get_default_ddb(ha, options, fw_ddb_entry_dma);
 	if (ret_val != QLA_SUCCESS)
 		goto exit_send_tgts;
 
-	ret_val = qla4xxx_req_ddb_entry(ha, &ddb_index);
+	ret_val = qla4xxx_req_ddb_entry(ha, &ddb_index, &mbx_sts);
 	if (ret_val != QLA_SUCCESS)
 		goto exit_send_tgts;
 
@@ -1213,13 +1260,35 @@ int qla4xxx_send_tgts(struct scsi_qla_host *ha, char *ip, uint16_t port)
 	fw_ddb_entry->ip_addr[2] = *(ip + 2);
 	fw_ddb_entry->ip_addr[3] = *(ip + 3);
 
-	ret_val = qla4xxx_set_ddb_entry(ha, ddb_index, fw_ddb_entry_dma);
+	ret_val = qla4xxx_set_ddb_entry(ha, ddb_index, fw_ddb_entry_dma, NULL);
 
 exit_send_tgts:
 	dma_free_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry),
 			  fw_ddb_entry, fw_ddb_entry_dma);
 exit_send_tgts_no_free:
 	return ret_val;
+}
+
+int qla4xxx_clear_ddb_entry(struct scsi_qla_host *ha, uint32_t ddb_index)
+{
+	int status;
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
+
+	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
+	memset(&mbox_sts, 0, sizeof(mbox_sts));
+
+	mbox_cmd[0] = MBOX_CMD_CLEAR_DATABASE_ENTRY;
+	mbox_cmd[1] = ddb_index;
+
+	status = qla4xxx_mailbox_command(ha, 2, 1, &mbox_cmd[0],
+					 &mbox_sts[0]);
+	if (status != QLA_SUCCESS) {
+		DEBUG2(ql4_printk(KERN_ERR, ha, "%s: failed status %04X\n",
+				   __func__, mbox_sts[0]));
+	}
+
+	return status;
 }
 
 int qla4xxx_set_flash(struct scsi_qla_host *ha, dma_addr_t dma_addr,
@@ -1246,6 +1315,42 @@ int qla4xxx_set_flash(struct scsi_qla_host *ha, dma_addr_t dma_addr,
 				  __func__, mbox_sts[0], mbox_sts[1]));
 	}
 	return status;
+}
+
+static int qla4xxx_set_chap(struct scsi_qla_host *ha, char *username,
+			    char *password, uint16_t idx, int bidi)
+{
+	int ret = 0;
+	int rval = QLA_ERROR;
+	uint32_t offset = 0;
+	struct ql4_chap_table *chap_table;
+	dma_addr_t chap_dma;
+
+	chap_table = dma_pool_alloc(ha->chap_dma_pool, GFP_KERNEL, &chap_dma);
+	if (chap_table == NULL) {
+		ret =  -ENOMEM;
+		goto exit_set_chap;
+	}
+
+	memset(chap_table, 0, sizeof(struct ql4_chap_table));
+	if (bidi)
+		chap_table->flags |= BIT_6; /* peer */
+	else
+		chap_table->flags |= BIT_7; /* local */
+	chap_table->secret_len = strlen(password);
+	strncpy(chap_table->secret, password, MAX_CHAP_SECRET_LEN);
+	strncpy(chap_table->name, username, MAX_CHAP_NAME_LEN);
+	chap_table->cookie = __constant_cpu_to_le16(CHAP_VALID_COOKIE);
+	offset = 0x06000000 | (idx * sizeof(struct ql4_chap_table));
+	rval = qla4xxx_set_flash(ha, chap_dma, offset,
+				sizeof(struct ql4_chap_table),
+				FLASH_OPT_RMW_COMMIT);
+	dma_pool_free(ha->chap_dma_pool, chap_table, chap_dma);
+	if (rval != QLA_SUCCESS)
+		ret =  -EINVAL;
+
+exit_set_chap:
+	return ret;
 }
 
 int qla4xxx_conn_close_sess_logout(struct scsi_qla_host *ha,
@@ -1332,6 +1437,207 @@ int qla4xxx_set_acb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
 	status = qla4xxx_mailbox_command(ha, 5, 5, &mbox_cmd[0], &mbox_sts[0]);
 	if (status != QLA_SUCCESS) {
 		DEBUG2(ql4_printk(KERN_WARNING, ha,  "%s: MBOX_CMD_SET_ACB "
+				  "failed w/ status %04X\n", __func__,
+				  mbox_sts[0]));
+	}
+	return status;
+}
+
+int qla4xxx_set_param_ddbentry(struct scsi_qla_host *ha,
+			       struct ddb_entry *ddb_entry,
+			       struct iscsi_cls_conn *cls_conn,
+			       uint32_t *mbx_sts)
+{
+	struct dev_db_entry *fw_ddb_entry;
+	struct iscsi_conn *conn;
+	struct iscsi_session *sess;
+	struct qla_conn *qla_conn;
+	struct sockaddr *dst_addr;
+	dma_addr_t fw_ddb_entry_dma;
+	int status = QLA_SUCCESS;
+	int rval = 0;
+	struct sockaddr_in *addr;
+	struct sockaddr_in6 *addr6;
+	char *ip;
+	uint16_t iscsi_opts = 0;
+	uint32_t options = 0;
+	uint16_t idx;
+	int max_chap_entries = 0;
+
+	fw_ddb_entry = dma_alloc_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry),
+					  &fw_ddb_entry_dma, GFP_KERNEL);
+	if (!fw_ddb_entry) {
+		DEBUG2(ql4_printk(KERN_ERR, ha,
+				  "%s: Unable to allocate dma buffer.\n",
+				  __func__));
+		rval = -ENOMEM;
+		goto exit_set_param_no_free;
+	}
+
+	conn = cls_conn->dd_data;
+	qla_conn = conn->dd_data;
+	sess = conn->session;
+	dst_addr = &qla_conn->qla_ep->dst_addr;
+
+	if (dst_addr->sa_family == AF_INET6)
+		options |= IPV6_DEFAULT_DDB_ENTRY;
+
+	status = qla4xxx_get_default_ddb(ha, options, fw_ddb_entry_dma);
+	if (status == QLA_ERROR) {
+		rval = -EINVAL;
+		goto exit_set_param;
+	}
+
+	iscsi_opts = le16_to_cpu(fw_ddb_entry->iscsi_options);
+	memset(fw_ddb_entry->iscsi_alias, 0, sizeof(fw_ddb_entry->iscsi_alias));
+
+	memset(fw_ddb_entry->iscsi_name, 0, sizeof(fw_ddb_entry->iscsi_name));
+
+	if (sess->targetname != NULL) {
+		memcpy(fw_ddb_entry->iscsi_name, sess->targetname,
+		       min(strlen(sess->targetname),
+		       sizeof(fw_ddb_entry->iscsi_name)));
+	}
+
+	memset(fw_ddb_entry->ip_addr, 0, sizeof(fw_ddb_entry->ip_addr));
+	memset(fw_ddb_entry->tgt_addr, 0, sizeof(fw_ddb_entry->tgt_addr));
+
+	fw_ddb_entry->options =  DDB_OPT_TARGET | DDB_OPT_AUTO_SENDTGTS_DISABLE;
+
+	if (dst_addr->sa_family == AF_INET) {
+		addr = (struct sockaddr_in *)dst_addr;
+		ip = (char *)&addr->sin_addr;
+		memcpy(fw_ddb_entry->ip_addr, ip, IP_ADDR_LEN);
+		fw_ddb_entry->port = cpu_to_le16(ntohs(addr->sin_port));
+		DEBUG2(ql4_printk(KERN_INFO, ha,
+				  "%s: Destination Address [%pI4]: index [%d]\n",
+				   __func__, fw_ddb_entry->ip_addr,
+				  ddb_entry->fw_ddb_index));
+	} else if (dst_addr->sa_family == AF_INET6) {
+		addr6 = (struct sockaddr_in6 *)dst_addr;
+		ip = (char *)&addr6->sin6_addr;
+		memcpy(fw_ddb_entry->ip_addr, ip, IPv6_ADDR_LEN);
+		fw_ddb_entry->port = cpu_to_le16(ntohs(addr6->sin6_port));
+		fw_ddb_entry->options |= DDB_OPT_IPV6_DEVICE;
+		DEBUG2(ql4_printk(KERN_INFO, ha,
+				  "%s: Destination Address [%pI6]: index [%d]\n",
+				   __func__, fw_ddb_entry->ip_addr,
+				  ddb_entry->fw_ddb_index));
+	} else {
+		ql4_printk(KERN_ERR, ha,
+			   "%s: Failed to get IP Address\n",
+			   __func__);
+		rval = -EINVAL;
+		goto exit_set_param;
+	}
+
+	if (is_qla8022(ha))
+		max_chap_entries = MAX_CHAP_ENTRIES_82XX;
+	else
+		max_chap_entries = MAX_CHAP_ENTRIES_40XX;
+	/* CHAP */
+	if (sess->username != NULL && sess->password != NULL) {
+		if (strlen(sess->username) && strlen(sess->password)) {
+			iscsi_opts |= BIT_7;
+			idx = ddb_entry->fw_ddb_index * 2;
+			if (idx > max_chap_entries) {
+				ql4_printk(KERN_ERR, ha,
+					   "%s: Invalid ddb or chap index\n",
+					   __func__);
+				rval  = -EINVAL;
+				goto exit_set_param;
+			}
+
+			rval = qla4xxx_set_chap(ha, sess->username,
+						sess->password, idx, 0);
+			if (rval)
+				goto exit_set_param;
+
+			fw_ddb_entry->chap_tbl_idx = cpu_to_le16(idx);
+		}
+	}
+
+	if (sess->username_in != NULL && sess->password_in != NULL) {
+		/* Check if BIDI CHAP */
+		if (strlen(sess->username_in) && strlen(sess->password_in)) {
+			iscsi_opts |= BIT_4;
+			idx = (ddb_entry->fw_ddb_index * 2) + 1;
+			if (idx > max_chap_entries) {
+				ql4_printk(KERN_ERR, ha,
+					   "%s: Invalid ddb or bidi chap "
+					   "index\n", __func__);
+				rval  = -EINVAL;
+				goto exit_set_param;
+			}
+			rval = qla4xxx_set_chap(ha, sess->username_in,
+						sess->password_in, idx, 0);
+			if (rval)
+				goto exit_set_param;
+		}
+	}
+
+	if (sess->initial_r2t_en)
+		iscsi_opts |= BIT_10;
+
+	if (sess->imm_data_en)
+		iscsi_opts |= BIT_11;
+
+	fw_ddb_entry->iscsi_options = cpu_to_le16(iscsi_opts);
+
+	if (conn->max_recv_dlength)
+		fw_ddb_entry->iscsi_max_rcv_data_seg_len =
+		  __constant_cpu_to_le16((conn->max_recv_dlength / BYTE_UNITS));
+
+	if (sess->max_r2t)
+		fw_ddb_entry->iscsi_max_outsnd_r2t = cpu_to_le16(sess->max_r2t);
+
+	if (sess->first_burst)
+		fw_ddb_entry->iscsi_first_burst_len =
+		       __constant_cpu_to_le16((sess->first_burst / BYTE_UNITS));
+
+	if (sess->max_burst)
+		fw_ddb_entry->iscsi_max_burst_len =
+			__constant_cpu_to_le16((sess->max_burst / BYTE_UNITS));
+
+	if (sess->time2wait)
+		fw_ddb_entry->iscsi_def_time2wait =
+			cpu_to_le16(sess->time2wait);
+
+	if (sess->time2retain)
+		fw_ddb_entry->iscsi_def_time2retain =
+			cpu_to_le16(sess->time2retain);
+
+	status = qla4xxx_set_ddb_entry(ha, ddb_entry->fw_ddb_index,
+				       fw_ddb_entry_dma, mbx_sts);
+
+	if (status != QLA_SUCCESS)
+		rval = -EINVAL;
+exit_set_param:
+	dma_free_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry),
+			  fw_ddb_entry, fw_ddb_entry_dma);
+exit_set_param_no_free:
+	return rval;
+}
+
+int qla4xxx_get_mgmt_data(struct scsi_qla_host *ha, uint16_t fw_ddb_index,
+			  uint16_t stats_size, dma_addr_t stats_dma)
+{
+	int status = QLA_SUCCESS;
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
+
+	memset(mbox_cmd, 0, sizeof(mbox_cmd[0]) * MBOX_REG_COUNT);
+	memset(mbox_sts, 0, sizeof(mbox_sts[0]) * MBOX_REG_COUNT);
+	mbox_cmd[0] = MBOX_CMD_GET_MANAGEMENT_DATA;
+	mbox_cmd[1] = fw_ddb_index;
+	mbox_cmd[2] = LSDW(stats_dma);
+	mbox_cmd[3] = MSDW(stats_dma);
+	mbox_cmd[4] = stats_size;
+
+	status = qla4xxx_mailbox_command(ha, 5, 1, &mbox_cmd[0], &mbox_sts[0]);
+	if (status != QLA_SUCCESS) {
+		DEBUG2(ql4_printk(KERN_WARNING, ha,
+				  "%s: MBOX_CMD_GET_MANAGEMENT_DATA "
 				  "failed w/ status %04X\n", __func__,
 				  mbox_sts[0]));
 	}
