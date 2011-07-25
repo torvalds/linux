@@ -15,7 +15,6 @@
 
 
 #define CLIP_VCC(vcc) ((struct clip_vcc *) ((vcc)->user_back))
-#define NEIGH2ENTRY(neigh) ((struct atmarp_entry *) (neigh)->primary_key)
 
 struct sk_buff;
 
@@ -36,7 +35,6 @@ struct clip_vcc {
 
 
 struct atmarp_entry {
-	__be32		ip;		/* IP address */
 	struct clip_vcc	*vccs;		/* active VCCs; NULL if resolution is
 					   pending */
 	unsigned long	expires;	/* entry expiration time */
