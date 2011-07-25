@@ -156,6 +156,8 @@ extern int iscsi_unregister_transport(struct iscsi_transport *tt);
  */
 extern void iscsi_conn_error_event(struct iscsi_cls_conn *conn,
 				   enum iscsi_err error);
+extern void iscsi_conn_login_event(struct iscsi_cls_conn *conn,
+				   enum iscsi_conn_state state);
 extern int iscsi_recv_pdu(struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 			  char *data, uint32_t data_size);
 
@@ -268,6 +270,7 @@ struct iscsi_iface {
 	dev_printk(prefix, &(_cls_conn)->dev, fmt, ##a)
 
 extern int iscsi_session_chkready(struct iscsi_cls_session *session);
+extern int iscsi_is_session_online(struct iscsi_cls_session *session);
 extern struct iscsi_cls_session *iscsi_alloc_session(struct Scsi_Host *shost,
 				struct iscsi_transport *transport, int dd_size);
 extern int iscsi_add_session(struct iscsi_cls_session *session,
