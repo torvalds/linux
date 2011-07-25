@@ -392,7 +392,7 @@ static u16 usbhsp_setup_pipemaxp(struct usbhs_pipe *pipe,
 	/* host should set DEVSEL */
 
 	/* reutn MXPS */
-	return PIPE_MAXP_MASK & le16_to_cpu(desc->wMaxPacketSize);
+	return PIPE_MAXP_MASK & usb_endpoint_maxp(desc);
 }
 
 static u16 usbhsp_setup_pipebuff(struct usbhs_pipe *pipe,
