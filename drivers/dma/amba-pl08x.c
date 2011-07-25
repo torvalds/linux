@@ -1123,8 +1123,9 @@ static u32 pl08x_width(enum dma_slave_buswidth width)
 		return PL080_WIDTH_16BIT;
 	case DMA_SLAVE_BUSWIDTH_4_BYTES:
 		return PL080_WIDTH_32BIT;
+	default:
+		return ~0;
 	}
-	return ~0;
 }
 
 static u32 pl08x_burst(u32 maxburst)
