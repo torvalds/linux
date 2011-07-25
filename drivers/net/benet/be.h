@@ -29,6 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/firmware.h>
 #include <linux/slab.h>
+#include <linux/u64_stats_sync.h>
 
 #include "be_hw.h"
 
@@ -174,6 +175,8 @@ struct be_tx_stats {
 	u64 tx_compl;
 	ulong tx_jiffies;
 	u32 tx_stops;
+	struct u64_stats_sync sync;
+	struct u64_stats_sync sync_compl;
 };
 
 struct be_tx_obj {
@@ -206,6 +209,7 @@ struct be_rx_stats {
 	u32 rx_mcast_pkts;
 	u32 rx_compl_err;	/* completions with err set */
 	u32 rx_pps;		/* pkts per second */
+	struct u64_stats_sync sync;
 };
 
 struct be_rx_compl_info {
@@ -518,7 +522,6 @@ static inline bool be_multi_rxq(const struct be_adapter *adapter)
 extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
 		u16 num_popped);
 extern void be_link_status_update(struct be_adapter *adapter, bool link_up);
-extern void netdev_stats_update(struct be_adapter *adapter);
 extern void be_parse_stats(struct be_adapter *adapter);
 extern int be_load_fw(struct be_adapter *adapter, u8 *func);
 #endif				/* BE_H */

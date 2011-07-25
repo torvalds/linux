@@ -83,7 +83,6 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 			 (compl->tag0 == OPCODE_ETH_GET_PPORT_STATS)) &&
 			(compl->tag1 == CMD_SUBSYSTEM_ETH)) {
 			be_parse_stats(adapter);
-			netdev_stats_update(adapter);
 			adapter->stats_cmd_sent = false;
 		}
 	} else {

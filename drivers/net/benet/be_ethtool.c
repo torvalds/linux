@@ -74,10 +74,12 @@ static const struct be_ethtool_stat et_stats[] = {
 };
 #define ETHTOOL_STATS_NUM ARRAY_SIZE(et_stats)
 
-/* Stats related to multi RX queues */
+/* Stats related to multi RX queues: get_stats routine assumes bytes, pkts
+ * are first and second members respectively.
+ */
 static const struct be_ethtool_stat et_rx_stats[] = {
-	{DRVSTAT_RX_INFO(rx_bytes)},
-	{DRVSTAT_RX_INFO(rx_pkts)},
+	{DRVSTAT_RX_INFO(rx_bytes)},/* If moving this member see above note */
+	{DRVSTAT_RX_INFO(rx_pkts)}, /* If moving this member see above note */
 	{DRVSTAT_RX_INFO(rx_polls)},
 	{DRVSTAT_RX_INFO(rx_events)},
 	{DRVSTAT_RX_INFO(rx_compl)},
@@ -88,8 +90,11 @@ static const struct be_ethtool_stat et_rx_stats[] = {
 };
 #define ETHTOOL_RXSTATS_NUM (ARRAY_SIZE(et_rx_stats))
 
-/* Stats related to multi TX queues */
+/* Stats related to multi TX queues: get_stats routine assumes compl is the
+ * first member
+ */
 static const struct be_ethtool_stat et_tx_stats[] = {
+	{DRVSTAT_TX_INFO(tx_compl)}, /* If moving this member see above note */
 	{DRVSTAT_TX_INFO(tx_bytes)},
 	{DRVSTAT_TX_INFO(tx_pkts)},
 	{DRVSTAT_TX_INFO(tx_reqs)},
@@ -243,32 +248,48 @@ be_get_ethtool_stats(struct net_device *netdev,
 	struct be_rx_obj *rxo;
 	struct be_tx_obj *txo;
 	void *p;
-	int i, j, base;
+	unsigned int i, j, base = 0, start;
 
 	for (i = 0; i < ETHTOOL_STATS_NUM; i++) {
 		p = (u8 *)&adapter->drv_stats + et_stats[i].offset;
-		data[i] = (et_stats[i].size == sizeof(u64)) ?
-				*(u64 *)p: *(u32 *)p;
+		data[i] = *(u32 *)p;
 	}
+	base += ETHTOOL_STATS_NUM;
 
-	base = ETHTOOL_STATS_NUM;
 	for_all_rx_queues(adapter, rxo, j) {
-		for (i = 0; i < ETHTOOL_RXSTATS_NUM; i++) {
-			p = (u8 *)rx_stats(rxo) + et_rx_stats[i].offset;
-			data[base + j * ETHTOOL_RXSTATS_NUM + i] =
-				(et_rx_stats[i].size == sizeof(u64)) ?
-					*(u64 *)p: *(u32 *)p;
+		struct be_rx_stats *stats = rx_stats(rxo);
+
+		do {
+			start = u64_stats_fetch_begin_bh(&stats->sync);
+			data[base] = stats->rx_bytes;
+			data[base + 1] = stats->rx_pkts;
+		} while (u64_stats_fetch_retry_bh(&stats->sync, start));
+
+		for (i = 2; i < ETHTOOL_RXSTATS_NUM; i++) {
+			p = (u8 *)stats + et_rx_stats[i].offset;
+			data[base + i] = *(u32 *)p;
 		}
+		base += ETHTOOL_RXSTATS_NUM;
 	}
 
-	base = ETHTOOL_STATS_NUM + adapter->num_rx_qs * ETHTOOL_RXSTATS_NUM;
 	for_all_tx_queues(adapter, txo, j) {
-		for (i = 0; i < ETHTOOL_TXSTATS_NUM; i++) {
-			p = (u8 *)tx_stats(txo) + et_tx_stats[i].offset;
-			data[base + j * ETHTOOL_TXSTATS_NUM + i] =
-				(et_tx_stats[i].size == sizeof(u64)) ?
-					*(u64 *)p: *(u32 *)p;
-		}
+		struct be_tx_stats *stats = tx_stats(txo);
+
+		do {
+			start = u64_stats_fetch_begin_bh(&stats->sync_compl);
+			data[base] = stats->tx_compl;
+		} while (u64_stats_fetch_retry_bh(&stats->sync_compl, start));
+
+		do {
+			start = u64_stats_fetch_begin_bh(&stats->sync);
+			for (i = 1; i < ETHTOOL_TXSTATS_NUM; i++) {
+				p = (u8 *)stats + et_tx_stats[i].offset;
+				data[base + i] =
+					(et_tx_stats[i].size == sizeof(u64)) ?
+						*(u64 *)p : *(u32 *)p;
+			}
+		} while (u64_stats_fetch_retry_bh(&stats->sync, start));
+		base += ETHTOOL_TXSTATS_NUM;
 	}
 }
 
