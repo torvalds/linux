@@ -953,7 +953,7 @@ static void rpc_cachedir_depopulate(struct dentry *dentry)
 }
 
 struct dentry *rpc_create_cache_dir(struct dentry *parent, struct qstr *name,
-				    mode_t umode, struct cache_detail *cd)
+				    umode_t umode, struct cache_detail *cd)
 {
 	return rpc_mkdir_populate(parent, name, umode, NULL,
 			rpc_cachedir_populate, cd);
