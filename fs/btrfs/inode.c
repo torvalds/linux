@@ -6734,10 +6734,9 @@ int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
 	btrfs_i_size_write(inode, 0);
 
 	err = btrfs_update_inode(trans, new_root, inode);
-	BUG_ON(err);
 
 	iput(inode);
-	return 0;
+	return err;
 }
 
 struct inode *btrfs_alloc_inode(struct super_block *sb)

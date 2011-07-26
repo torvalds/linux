@@ -430,6 +430,11 @@ static noinline int create_subvol(struct btrfs_root *root,
 	btrfs_record_root_in_trans(trans, new_root);
 
 	ret = btrfs_create_subvol_root(trans, new_root, new_dirid);
+	if (ret) {
+		/* We potentially lose an unused inode item here */
+		goto fail;
+	}
+
 	/*
 	 * insert the directory item
 	 */
