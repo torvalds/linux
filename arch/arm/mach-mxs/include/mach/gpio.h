@@ -24,7 +24,6 @@
 
 /* use gpiolib dispatchers */
 #define __ARM_GPIOLIB_TRIVIAL
-#define gpio_to_irq		__gpio_to_irq
 
 #define irq_to_gpio(irq)	((irq) - MXS_GPIO_IRQ_START)
 

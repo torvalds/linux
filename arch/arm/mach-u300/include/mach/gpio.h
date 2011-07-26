@@ -281,6 +281,7 @@ static inline unsigned gpio_to_irq(unsigned gpio)
 {
 	return PIN_TO_PORT(gpio) + IRQ_U300_GPIO_PORT0;
 }
+#define gpio_to_irq gpio_to_irq
 
 static inline unsigned irq_to_gpio(unsigned irq)
 {

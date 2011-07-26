@@ -147,11 +147,6 @@ static inline int gpio_cansleep(unsigned gpio)
 		return __gpio_cansleep(gpio);
 }
 
-static inline int gpio_to_irq(unsigned gpio)
-{
-	return __gpio_to_irq(gpio);
-}
-
 static inline int irq_to_gpio(unsigned irq)
 {
 	/* don't support the reverse mapping */

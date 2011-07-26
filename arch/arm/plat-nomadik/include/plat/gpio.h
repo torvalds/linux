@@ -15,7 +15,6 @@
 #include <linux/kernel.h>
 
 #define __ARM_GPIOLIB_TRIVIAL
-#define gpio_to_irq     __gpio_to_irq
 
 /*
  * "nmk_gpio" and "NMK_GPIO" stand for "Nomadik GPIO", leaving

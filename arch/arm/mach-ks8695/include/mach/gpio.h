@@ -40,8 +40,6 @@ extern int ks8695_gpio_interrupt(unsigned int pin, unsigned int type);
  */
 extern int irq_to_gpio(unsigned int irq);
 
-#define gpio_to_irq __gpio_to_irq
-
 #define __ARM_GPIOLIB_TRIVIAL
 
 /* Register the GPIOs */

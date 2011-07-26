@@ -36,6 +36,7 @@ static inline int gpio_to_irq(unsigned int gpio)
 		return INT_GPIO_BASE + gpio;
 	return -EINVAL;
 }
+#define gpio_to_irq gpio_to_irq
 
 static inline int irq_to_gpio(unsigned int irq)
 {

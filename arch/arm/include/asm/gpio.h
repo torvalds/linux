@@ -14,4 +14,13 @@
 #define gpio_cansleep   __gpio_cansleep
 #endif
 
+/*
+ * Provide a default gpio_to_irq() which should satisfy every case.
+ * However, some platforms want to do this differently, so allow them
+ * to override it.
+ */
+#ifndef gpio_to_irq
+#define gpio_to_irq	__gpio_to_irq
+#endif
+
 #endif /* _ARCH_ARM_GPIO_H */

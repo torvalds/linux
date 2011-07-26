@@ -13,8 +13,6 @@
 #ifndef __ASM_ARCH_GPIO_H
 #define __ASM_ARCH_GPIO_H __FILE__
 
-#define gpio_to_irq	__gpio_to_irq
-
 /* Practically, GPIO banks up to GPZ are the configurable gpio banks */
 
 /* GPIO bank sizes */

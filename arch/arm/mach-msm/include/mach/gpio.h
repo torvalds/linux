@@ -18,6 +18,4 @@
 
 #define __ARM_GPIOLIB_TRIVIAL
 
-#define gpio_to_irq     __gpio_to_irq
-
 #endif /* __ASM_ARCH_MSM_GPIO_H */
