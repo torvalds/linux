@@ -366,7 +366,7 @@ xfs_vn_symlink(
 	struct xfs_inode *cip = NULL;
 	struct xfs_name	name;
 	int		error;
-	mode_t		mode;
+	umode_t		mode;
 
 	mode = S_IFLNK |
 		(irix_symlink_mode ? 0777 & ~current_umask() : S_IRWXUGO);
