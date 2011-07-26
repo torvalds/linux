@@ -840,7 +840,7 @@ static int __devexit s6e63m0_remove(struct spi_device *spi)
 }
 
 #if defined(CONFIG_PM)
-unsigned int before_power;
+static unsigned int before_power;
 
 static int s6e63m0_suspend(struct spi_device *spi, pm_message_t mesg)
 {
