@@ -176,7 +176,7 @@ int walk_page_range(unsigned long addr, unsigned long end,
 		 * we can't handled it in the same manner as non-huge pages.
 		 */
 		vma = find_vma(walk->mm, addr);
-		if (vma && is_vm_hugetlb_page(vma)) {
+		if (vma && vma->vm_start <= addr && is_vm_hugetlb_page(vma)) {
 			if (vma->vm_end < next)
 				next = vma->vm_end;
 			/*
