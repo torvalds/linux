@@ -13,6 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/clk.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
@@ -24,11 +25,12 @@
 #include "rk29_pcm.h"
 #include "rk29_i2s.h"
 
-#if 0
+#if 1
 #define	DBG(x...)	printk(KERN_INFO x)
 #else
 #define	DBG(x...)
 #endif
+
 
 static int rk29_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
@@ -38,6 +40,8 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
         struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
         unsigned int pll_out = 0; 
         unsigned int lrclk = 0;
+		int div_bclk,div_mclk;
+		struct clk	*general_pll;
         int ret;
           
         DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);    
@@ -50,34 +54,33 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
         	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
         }
         else
-        {
-                
-                /* set codec DAI configuration */
-                #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
-                ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-                                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
-                #endif	
-                #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
-                ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-                                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM ); 
-                #endif
-                if (ret < 0)
-                  return ret; 
+    	{       
+            /* set codec DAI configuration */
+            #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+            ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
+                            SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
+            #endif	
+            #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+            ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
+                            SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
+            #endif
+            if (ret < 0)
+              return ret; 
 
-                /* set cpu DAI configuration */
-                #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
-                ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-                                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-                #endif	
-                #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
-                ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-                                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);	
-                #endif		
-                if (ret < 0)
-                  return ret;
+            /* set cpu DAI configuration */
+            #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+            ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
+                            SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
+            #endif	
+            #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+            ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
+                            SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
 
+            #endif		
+            if (ret < 0)
+              return ret;
         }
-
+		DBG("Enter:%s, rate=%d\n",__FUNCTION__,params_rate(params));
 
         switch(params_rate(params)) {
         case 8000:
@@ -93,23 +96,48 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
                 pll_out = 11289600;
                 break;
         default:
-                DBG("Enter:%s, %d, Error rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
+                DBG("Enter:%s, Error rate=%d\n",__FUNCTION__,params_rate(params));
                 return -EINVAL;
                 break;
         }
-        DBG("Enter:%s, %d, rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
+
+		//pll_out = 12000000;
 
         #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
-         //
-         //
+		pll_out = 11289600;
+		snd_soc_dai_set_sysclk(codec_dai, 0, pll_out, 0);
+		snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
         #endif
 
         #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE)
-        snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
-        snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, (pll_out/4)/params_rate(params)-1);
-        snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, 3);
+		general_pll=clk_get(NULL, "general_pll");
+		if(clk_get_rate(general_pll)>260000000)
+		{
+			div_bclk=(pll_out/4)/params_rate(params)-1;
+			//div_bclk= 63;
+			div_mclk= 3;
+		}
+		else if(clk_get_rate(general_pll)>130000000)
+		{
+			div_bclk=(pll_out/2)/params_rate(params)-1;
+			div_mclk=1;
+		}
+		else
+		{
+			pll_out=pll_out/4;
+			div_bclk=(pll_out)/params_rate(params)-1;
+			div_mclk=0;
+		}
+		DBG("func is%s,gpll=%ld,pll_out=%ld,div_mclk=%ld,div_bclk=%ld\n",
+			__FUNCTION__,clk_get_rate(general_pll),pll_out,div_mclk,div_bclk);
+
+		//snd_soc_dai_set_sysclk(codec_dai, 0, pll_out, 0);
+		snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
+        snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK,div_bclk);
+        snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, div_mclk);
+        DBG("Enter:%s, LRCK=%d\n",__FUNCTION__,(pll_out/4)/params_rate(params));
         #endif
-        DBG("Enter:%s, %d, LRCK=%d\n",__FUNCTION__,__LINE__,(pll_out/4)/params_rate(params));
+
         
         return 0;
 }
@@ -140,20 +168,31 @@ static int rk29_cs42l52_init(struct snd_soc_codec *codec)
 	int ret;
 	  
         DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-
+#if 0
         /* Add specific widgets */
 	snd_soc_dapm_new_controls(codec, cs42l52_dapm_widgets,
 				  ARRAY_SIZE(cs42l52_dapm_widgets));
+
+
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
         /* Set up specific audio path audio_mapnects */
         snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
-        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-        snd_soc_dapm_nc_pin(codec, "HPA");
-        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-	snd_soc_dapm_nc_pin(codec, "HPB");
-	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+#endif		
+
+	snd_soc_dapm_nc_pin(codec, "INPUT1A");
+	snd_soc_dapm_nc_pin(codec, "INPUT2A");
+
+	snd_soc_dapm_nc_pin(codec, "INPUT3A");
+	snd_soc_dapm_nc_pin(codec, "INPUT4A");
+
+	snd_soc_dapm_nc_pin(codec, "INPUT1B");
+	snd_soc_dapm_nc_pin(codec, "INPUT2B");
+	snd_soc_dapm_nc_pin(codec, "INPUT3B");
+	snd_soc_dapm_nc_pin(codec, "INPUT4B");
+	snd_soc_dapm_nc_pin(codec, "MICB");
+	
         snd_soc_dapm_sync(codec);
-        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+		
         return 0;
 }
 
