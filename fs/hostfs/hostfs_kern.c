@@ -676,7 +676,7 @@ int hostfs_symlink(struct inode *ino, struct dentry *dentry, const char *to)
 	return err;
 }
 
-int hostfs_mkdir(struct inode *ino, struct dentry *dentry, int mode)
+int hostfs_mkdir(struct inode *ino, struct dentry *dentry, umode_t mode)
 {
 	char *file;
 	int err;

@@ -395,7 +395,7 @@ err_clunk_old_fid:
  */
 
 static int v9fs_vfs_mkdir_dotl(struct inode *dir,
-			       struct dentry *dentry, int omode)
+			       struct dentry *dentry, umode_t omode)
 {
 	int err;
 	struct v9fs_session_info *v9ses;

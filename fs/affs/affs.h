@@ -157,7 +157,7 @@ extern int	affs_hash_name(struct super_block *sb, const u8 *name, unsigned int l
 extern struct dentry *affs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *);
 extern int	affs_unlink(struct inode *dir, struct dentry *dentry);
 extern int	affs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidata *);
-extern int	affs_mkdir(struct inode *dir, struct dentry *dentry, int mode);
+extern int	affs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode);
 extern int	affs_rmdir(struct inode *dir, struct dentry *dentry);
 extern int	affs_link(struct dentry *olddentry, struct inode *dir,
 			  struct dentry *dentry);

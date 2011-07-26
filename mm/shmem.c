@@ -1489,7 +1489,7 @@ shmem_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 	return error;
 }
 
-static int shmem_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int shmem_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int error;
 

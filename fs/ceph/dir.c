@@ -753,7 +753,7 @@ static int ceph_symlink(struct inode *dir, struct dentry *dentry,
 	return err;
 }
 
-static int ceph_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int ceph_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(dir->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
@@ -767,7 +767,7 @@ static int ceph_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		dout("mksnap dir %p snap '%.*s' dn %p\n", dir,
 		     dentry->d_name.len, dentry->d_name.name, dentry);
 	} else if (ceph_snap(dir) == CEPH_NOSNAP) {
-		dout("mkdir dir %p dn %p mode 0%o\n", dir, dentry, mode);
+		dout("mkdir dir %p dn %p mode 0%ho\n", dir, dentry, mode);
 		op = CEPH_MDS_OP_MKDIR;
 	} else {
 		goto out;

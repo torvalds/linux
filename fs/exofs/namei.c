@@ -153,7 +153,7 @@ static int exofs_link(struct dentry *old_dentry, struct inode *dir,
 	return exofs_add_nondir(dentry, inode);
 }
 
-static int exofs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int exofs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
 	int err = -EMLINK;

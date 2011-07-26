@@ -712,7 +712,7 @@ out_cancel:
 	return err;
 }
 
-static int ubifs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int ubifs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
 	struct ubifs_inode *dir_ui = ubifs_inode(dir);
@@ -725,7 +725,7 @@ static int ubifs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	 * directory inode.
 	 */
 
-	dbg_gen("dent '%.*s', mode %#x in dir ino %lu",
+	dbg_gen("dent '%.*s', mode %#hx in dir ino %lu",
 		dentry->d_name.len, dentry->d_name.name, mode, dir->i_ino);
 
 	err = ubifs_budget_space(c, &req);

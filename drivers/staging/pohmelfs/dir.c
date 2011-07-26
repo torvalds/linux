@@ -667,7 +667,7 @@ static int pohmelfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	return pohmelfs_create_entry(dir, dentry, 0, mode);
 }
 
-static int pohmelfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int pohmelfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int err;
 

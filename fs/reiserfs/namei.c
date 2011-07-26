@@ -721,7 +721,7 @@ static int reiserfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	return retval;
 }
 
-static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int retval;
 	struct inode *inode;

@@ -1768,7 +1768,7 @@ retry:
 	return err;
 }
 
-static int ext3_mkdir(struct inode * dir, struct dentry * dentry, int mode)
+static int ext3_mkdir(struct inode * dir, struct dentry * dentry, umode_t mode)
 {
 	handle_t *handle;
 	struct inode * inode;

@@ -285,12 +285,12 @@ affs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidata
 }
 
 int
-affs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+affs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct inode		*inode;
 	int			 error;
 
-	pr_debug("AFFS: mkdir(%lu,\"%.*s\",0%o)\n",dir->i_ino,
+	pr_debug("AFFS: mkdir(%lu,\"%.*s\",0%ho)\n",dir->i_ino,
 		 (int)dentry->d_name.len,dentry->d_name.name,mode);
 
 	inode = affs_new_inode(dir);

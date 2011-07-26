@@ -559,7 +559,7 @@ out_lock:
 	return rc;
 }
 
-static int ecryptfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int ecryptfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int rc;
 	struct dentry *lower_dentry;

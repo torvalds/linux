@@ -602,7 +602,7 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 
 static int ocfs2_mkdir(struct inode *dir,
 		       struct dentry *dentry,
-		       int mode)
+		       umode_t mode)
 {
 	int ret;
 

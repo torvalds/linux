@@ -103,7 +103,7 @@ static int minix_link(struct dentry * old_dentry, struct inode * dir,
 	return add_nondir(dentry, inode);
 }
 
-static int minix_mkdir(struct inode * dir, struct dentry *dentry, int mode)
+static int minix_mkdir(struct inode * dir, struct dentry *dentry, umode_t mode)
 {
 	struct inode * inode;
 	int err = -EMLINK;

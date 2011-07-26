@@ -640,7 +640,7 @@ out:
 	return err;
 }
 
-static int udf_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int udf_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
 	struct udf_fileident_bh fibh;

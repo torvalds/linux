@@ -1129,7 +1129,7 @@ static int gfs2_symlink(struct inode *dir, struct dentry *dentry,
  * Returns: errno
  */
 
-static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	return gfs2_create_inode(dir, dentry, S_IFDIR | mode, 0, NULL, 0, 0);
 }

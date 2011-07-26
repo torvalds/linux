@@ -1170,7 +1170,7 @@ void configfs_undepend_item(struct configfs_subsystem *subsys,
 }
 EXPORT_SYMBOL(configfs_undepend_item);
 
-static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int configfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int ret = 0;
 	int module_got = 0;

@@ -785,7 +785,7 @@ error:
  *
  */
 
-static int v9fs_vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int v9fs_vfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int err;
 	u32 perm;

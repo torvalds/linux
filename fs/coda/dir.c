@@ -37,7 +37,7 @@ static int coda_link(struct dentry *old_dentry, struct inode *dir_inode,
 static int coda_unlink(struct inode *dir_inode, struct dentry *entry);
 static int coda_symlink(struct inode *dir_inode, struct dentry *entry,
 			const char *symname);
-static int coda_mkdir(struct inode *dir_inode, struct dentry *entry, int mode);
+static int coda_mkdir(struct inode *dir_inode, struct dentry *entry, umode_t mode);
 static int coda_rmdir(struct inode *dir_inode, struct dentry *entry);
 static int coda_rename(struct inode *old_inode, struct dentry *old_dentry, 
                        struct inode *new_inode, struct dentry *new_dentry);
@@ -223,7 +223,7 @@ err_out:
 	return error;
 }
 
-static int coda_mkdir(struct inode *dir, struct dentry *de, int mode)
+static int coda_mkdir(struct inode *dir, struct dentry *de, umode_t mode)
 {
 	struct inode *inode;
 	struct coda_vattr attrs;
