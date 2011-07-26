@@ -52,7 +52,7 @@ static struct backing_dev_info ramfs_backing_dev_info = {
 };
 
 struct inode *ramfs_get_inode(struct super_block *sb,
-				const struct inode *dir, int mode, dev_t dev)
+				const struct inode *dir, umode_t mode, dev_t dev)
 {
 	struct inode * inode = new_inode(sb);
 
