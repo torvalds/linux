@@ -753,7 +753,7 @@ asmlinkage long sys_inotify_rm_watch(int fd, __s32 wd);
 asmlinkage long sys_spu_run(int fd, __u32 __user *unpc,
 				 __u32 __user *ustatus);
 asmlinkage long sys_spu_create(const char __user *name,
-		unsigned int flags, mode_t mode, int fd);
+		unsigned int flags, umode_t mode, int fd);
 
 asmlinkage long sys_mknodat(int dfd, const char __user * filename, umode_t mode,
 			    unsigned dev);
