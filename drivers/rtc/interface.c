@@ -656,6 +656,8 @@ int rtc_irq_set_state(struct rtc_device *rtc, struct rtc_task *task, int enabled
 		err = -EBUSY;
 	if (rtc->irq_task != task)
 		err = -EACCES;
+	if (err)
+		goto out;
 
 	if (enabled) {
 		ktime_t period = ktime_set(0, NSEC_PER_SEC/rtc->irq_freq);
@@ -664,6 +666,7 @@ int rtc_irq_set_state(struct rtc_device *rtc, struct rtc_task *task, int enabled
 		hrtimer_cancel(&rtc->pie_timer);
 	}
 	rtc->pie_enabled = enabled;
+out:
 	spin_unlock_irqrestore(&rtc->irq_task_lock, flags);
 
 	return err;
