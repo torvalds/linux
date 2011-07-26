@@ -2891,6 +2891,11 @@ sub process {
 			WARN("__packed is preferred over __attribute__((packed))\n" . $herecurr);
 		}
 
+# Check for __attribute__ aligned, prefer __aligned
+		if ($line =~ /\b__attribute__\s*\(\s*\(.*aligned/) {
+			WARN("__aligned(size) is preferred over __attribute__((aligned(size)))\n" . $herecurr);
+		}
+
 # check for sizeof(&)
 		if ($line =~ /\bsizeof\s*\(\s*\&/) {
 			WARN("sizeof(& should be avoided\n" . $herecurr);
