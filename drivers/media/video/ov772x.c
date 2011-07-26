@@ -21,11 +21,12 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/videodev2.h>
-#include <media/v4l2-chip-ident.h>
-#include <media/v4l2-subdev.h>
+
+#include <media/ov772x.h>
 #include <media/soc_camera.h>
 #include <media/soc_mediabus.h>
-#include <media/ov772x.h>
+#include <media/v4l2-chip-ident.h>
+#include <media/v4l2-subdev.h>
 
 /*
  * register offset
@@ -1095,6 +1096,22 @@ static int ov772x_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 	return 0;
 }
 
+static int ov772x_g_mbus_config(struct v4l2_subdev *sd,
+				struct v4l2_mbus_config *cfg)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct soc_camera_device *icd = client->dev.platform_data;
+	struct soc_camera_link *icl = to_soc_camera_link(icd);
+
+	cfg->flags = V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_MASTER |
+		V4L2_MBUS_VSYNC_ACTIVE_HIGH | V4L2_MBUS_HSYNC_ACTIVE_HIGH |
+		V4L2_MBUS_DATA_ACTIVE_HIGH;
+	cfg->type = V4L2_MBUS_PARALLEL;
+	cfg->flags = soc_camera_apply_board_flags(icl, cfg);
+
+	return 0;
+}
+
 static struct v4l2_subdev_video_ops ov772x_subdev_video_ops = {
 	.s_stream	= ov772x_s_stream,
 	.g_mbus_fmt	= ov772x_g_fmt,
@@ -1103,6 +1120,7 @@ static struct v4l2_subdev_video_ops ov772x_subdev_video_ops = {
 	.cropcap	= ov772x_cropcap,
 	.g_crop		= ov772x_g_crop,
 	.enum_mbus_fmt	= ov772x_enum_fmt,
+	.g_mbus_config	= ov772x_g_mbus_config,
 };
 
 static struct v4l2_subdev_ops ov772x_subdev_ops = {
