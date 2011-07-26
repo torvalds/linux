@@ -1,10 +1,9 @@
-
-/* A Bison parser, made by GNU Bison 2.4.1.  */
+/* A Bison parser, made by GNU Bison 2.4.3.  */
 
 /* Skeleton implementation for Bison's Yacc-like parsers in C
    
-      Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
-   Free Software Foundation, Inc.
+      Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
+   2009, 2010 Free Software Foundation, Inc.
    
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,7 +45,7 @@
 #define YYBISON 1
 
 /* Bison version.  */
-#define YYBISON_VERSION "2.4.1"
+#define YYBISON_VERSION "2.4.3"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -67,8 +66,6 @@
 
 /* Copy the first part of user declarations.  */
 
-/* Line 189 of yacc.c  */
-#line 24 "scripts/genksyms/parse.y"
 
 
 #include <assert.h>
@@ -101,8 +98,6 @@ remove_list(struct string_list **pb, struct string_list **pe)
 
 
 
-/* Line 189 of yacc.c  */
-#line 106 "scripts/genksyms/parse.c"
 
 /* Enabling traces.  */
 #ifndef YYDEBUG
@@ -186,8 +181,6 @@ typedef int YYSTYPE;
 /* Copy the second part of user declarations.  */
 
 
-/* Line 264 of yacc.c  */
-#line 191 "scripts/genksyms/parse.c"
 
 #ifdef short
 # undef short
@@ -237,7 +230,7 @@ typedef short int yytype_int16;
 #define YYSIZE_MAXIMUM ((YYSIZE_T) -1)
 
 #ifndef YY_
-# if YYENABLE_NLS
+# if defined YYENABLE_NLS && YYENABLE_NLS
 #  if ENABLE_NLS
 #   include <libintl.h> /* INFRINGES ON USER NAME SPACE */
 #   define YY_(msgid) dgettext ("bison-runtime", msgid)
@@ -855,9 +848,18 @@ static const yytype_uint8 yystos[] =
 
 /* Like YYERROR except do call yyerror.  This remains here temporarily
    to ease the transition to the new meaning of YYERROR, for GCC.
-   Once GCC version 2 has supplanted version 1, this can go.  */
+   Once GCC version 2 has supplanted version 1, this can go.  However,
+   YYFAIL appears to be in use.  Nevertheless, it is formally deprecated
+   in Bison 2.4.2's NEWS entry, where a plan to phase it out is
+   discussed.  */
 
 #define YYFAIL		goto yyerrlab
+#if defined YYFAIL
+  /* This is here to suppress warnings from the GCC cpp's
+     -Wunused-macros.  Normally we don't worry about that warning, but
+     some users do, and we want to make it easy for users to remove
+     YYFAIL uses, which will produce warnings from Bison 2.5.  */
+#endif
 
 #define YYRECOVERING()  (!!yyerrstatus)
 
@@ -914,7 +916,7 @@ while (YYID (0))
    we won't break user code: when these are the locations we know.  */
 
 #ifndef YY_LOCATION_PRINT
-# if YYLTYPE_IS_TRIVIAL
+# if defined YYLTYPE_IS_TRIVIAL && YYLTYPE_IS_TRIVIAL
 #  define YY_LOCATION_PRINT(File, Loc)			\
      fprintf (File, "%d.%d-%d.%d",			\
 	      (Loc).first_line, (Loc).first_column,	\
@@ -1653,64 +1655,46 @@ yyreduce:
     {
         case 4:
 
-/* Line 1455 of yacc.c  */
-#line 109 "scripts/genksyms/parse.y"
     { is_typedef = 0; is_extern = 0; current_name = NULL; decl_spec = NULL; ;}
     break;
 
   case 5:
 
-/* Line 1455 of yacc.c  */
-#line 111 "scripts/genksyms/parse.y"
     { free_list(*(yyvsp[(2) - (2)]), NULL); *(yyvsp[(2) - (2)]) = NULL; ;}
     break;
 
   case 6:
 
-/* Line 1455 of yacc.c  */
-#line 115 "scripts/genksyms/parse.y"
     { is_typedef = 1; ;}
     break;
 
   case 7:
 
-/* Line 1455 of yacc.c  */
-#line 116 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(4) - (4)]); ;}
     break;
 
   case 8:
 
-/* Line 1455 of yacc.c  */
-#line 117 "scripts/genksyms/parse.y"
     { is_typedef = 1; ;}
     break;
 
   case 9:
 
-/* Line 1455 of yacc.c  */
-#line 118 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(3) - (3)]); ;}
     break;
 
   case 14:
 
-/* Line 1455 of yacc.c  */
-#line 123 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 15:
 
-/* Line 1455 of yacc.c  */
-#line 124 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 16:
 
-/* Line 1455 of yacc.c  */
-#line 129 "scripts/genksyms/parse.y"
     { if (current_name) {
 		    struct string_list *decl = (*(yyvsp[(3) - (3)]))->next;
 		    (*(yyvsp[(3) - (3)]))->next = NULL;
@@ -1725,15 +1709,11 @@ yyreduce:
 
   case 17:
 
-/* Line 1455 of yacc.c  */
-#line 142 "scripts/genksyms/parse.y"
     { (yyval) = NULL; ;}
     break;
 
   case 19:
 
-/* Line 1455 of yacc.c  */
-#line 148 "scripts/genksyms/parse.y"
     { struct string_list *decl = *(yyvsp[(1) - (1)]);
 		  *(yyvsp[(1) - (1)]) = NULL;
 		  add_symbol(current_name,
@@ -1745,8 +1725,6 @@ yyreduce:
 
   case 20:
 
-/* Line 1455 of yacc.c  */
-#line 156 "scripts/genksyms/parse.y"
     { struct string_list *decl = *(yyvsp[(3) - (3)]);
 		  *(yyvsp[(3) - (3)]) = NULL;
 		  free_list(*(yyvsp[(2) - (3)]), NULL);
@@ -1760,36 +1738,26 @@ yyreduce:
 
   case 21:
 
-/* Line 1455 of yacc.c  */
-#line 169 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(4) - (4)]) ? (yyvsp[(4) - (4)]) : (yyvsp[(3) - (4)]) ? (yyvsp[(3) - (4)]) : (yyvsp[(2) - (4)]) ? (yyvsp[(2) - (4)]) : (yyvsp[(1) - (4)]); ;}
     break;
 
   case 22:
 
-/* Line 1455 of yacc.c  */
-#line 174 "scripts/genksyms/parse.y"
     { decl_spec = NULL; ;}
     break;
 
   case 24:
 
-/* Line 1455 of yacc.c  */
-#line 179 "scripts/genksyms/parse.y"
     { decl_spec = *(yyvsp[(1) - (1)]); ;}
     break;
 
   case 25:
 
-/* Line 1455 of yacc.c  */
-#line 180 "scripts/genksyms/parse.y"
     { decl_spec = *(yyvsp[(2) - (2)]); ;}
     break;
 
   case 26:
 
-/* Line 1455 of yacc.c  */
-#line 185 "scripts/genksyms/parse.y"
     { /* Version 2 checksumming ignores storage class, as that
 		     is really irrelevant to the linkage.  */
 		  remove_node((yyvsp[(1) - (1)]));
@@ -1799,43 +1767,31 @@ yyreduce:
 
   case 31:
 
-/* Line 1455 of yacc.c  */
-#line 197 "scripts/genksyms/parse.y"
     { is_extern = 1; (yyval) = (yyvsp[(1) - (1)]); ;}
     break;
 
   case 32:
 
-/* Line 1455 of yacc.c  */
-#line 198 "scripts/genksyms/parse.y"
     { is_extern = 0; (yyval) = (yyvsp[(1) - (1)]); ;}
     break;
 
   case 37:
 
-/* Line 1455 of yacc.c  */
-#line 210 "scripts/genksyms/parse.y"
     { remove_node((yyvsp[(1) - (2)])); (*(yyvsp[(2) - (2)]))->tag = SYM_STRUCT; (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 38:
 
-/* Line 1455 of yacc.c  */
-#line 212 "scripts/genksyms/parse.y"
     { remove_node((yyvsp[(1) - (2)])); (*(yyvsp[(2) - (2)]))->tag = SYM_UNION; (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 39:
 
-/* Line 1455 of yacc.c  */
-#line 214 "scripts/genksyms/parse.y"
     { remove_node((yyvsp[(1) - (2)])); (*(yyvsp[(2) - (2)]))->tag = SYM_ENUM; (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 40:
 
-/* Line 1455 of yacc.c  */
-#line 218 "scripts/genksyms/parse.y"
     { struct string_list *s = *(yyvsp[(3) - (3)]), *i = *(yyvsp[(2) - (3)]), *r;
 		  r = copy_node(i); r->tag = SYM_STRUCT;
 		  r->next = (*(yyvsp[(1) - (3)]))->next; *(yyvsp[(3) - (3)]) = r; (*(yyvsp[(1) - (3)]))->next = NULL;
@@ -1846,8 +1802,6 @@ yyreduce:
 
   case 41:
 
-/* Line 1455 of yacc.c  */
-#line 225 "scripts/genksyms/parse.y"
     { struct string_list *s = *(yyvsp[(3) - (3)]), *i = *(yyvsp[(2) - (3)]), *r;
 		  r = copy_node(i); r->tag = SYM_UNION;
 		  r->next = (*(yyvsp[(1) - (3)]))->next; *(yyvsp[(3) - (3)]) = r; (*(yyvsp[(1) - (3)]))->next = NULL;
@@ -1858,8 +1812,6 @@ yyreduce:
 
   case 42:
 
-/* Line 1455 of yacc.c  */
-#line 232 "scripts/genksyms/parse.y"
     { struct string_list *s = *(yyvsp[(3) - (3)]), *i = *(yyvsp[(2) - (3)]), *r;
 		  r = copy_node(i); r->tag = SYM_ENUM;
 		  r->next = (*(yyvsp[(1) - (3)]))->next; *(yyvsp[(3) - (3)]) = r; (*(yyvsp[(1) - (3)]))->next = NULL;
@@ -1870,57 +1822,41 @@ yyreduce:
 
   case 43:
 
-/* Line 1455 of yacc.c  */
-#line 242 "scripts/genksyms/parse.y"
     { add_symbol(NULL, SYM_ENUM, NULL, 0); (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 44:
 
-/* Line 1455 of yacc.c  */
-#line 244 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 45:
 
-/* Line 1455 of yacc.c  */
-#line 245 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 56:
 
-/* Line 1455 of yacc.c  */
-#line 259 "scripts/genksyms/parse.y"
     { (*(yyvsp[(1) - (1)]))->tag = SYM_TYPEDEF; (yyval) = (yyvsp[(1) - (1)]); ;}
     break;
 
   case 57:
 
-/* Line 1455 of yacc.c  */
-#line 264 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(2) - (2)]) ? (yyvsp[(2) - (2)]) : (yyvsp[(1) - (2)]); ;}
     break;
 
   case 58:
 
-/* Line 1455 of yacc.c  */
-#line 268 "scripts/genksyms/parse.y"
     { (yyval) = NULL; ;}
     break;
 
   case 61:
 
-/* Line 1455 of yacc.c  */
-#line 274 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 65:
 
-/* Line 1455 of yacc.c  */
-#line 280 "scripts/genksyms/parse.y"
     { /* restrict has no effect in prototypes so ignore it */
 		  remove_node((yyvsp[(1) - (1)]));
 		  (yyval) = (yyvsp[(1) - (1)]);
@@ -1929,15 +1865,11 @@ yyreduce:
 
   case 66:
 
-/* Line 1455 of yacc.c  */
-#line 287 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 68:
 
-/* Line 1455 of yacc.c  */
-#line 293 "scripts/genksyms/parse.y"
     { if (current_name != NULL) {
 		    error_with_pos("unexpected second declaration name");
 		    YYERROR;
@@ -1950,134 +1882,96 @@ yyreduce:
 
   case 69:
 
-/* Line 1455 of yacc.c  */
-#line 302 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(4) - (4)]); ;}
     break;
 
   case 70:
 
-/* Line 1455 of yacc.c  */
-#line 304 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(4) - (4)]); ;}
     break;
 
   case 71:
 
-/* Line 1455 of yacc.c  */
-#line 306 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 72:
 
-/* Line 1455 of yacc.c  */
-#line 308 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(3) - (3)]); ;}
     break;
 
   case 73:
 
-/* Line 1455 of yacc.c  */
-#line 310 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(3) - (3)]); ;}
     break;
 
   case 74:
 
-/* Line 1455 of yacc.c  */
-#line 316 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 78:
 
-/* Line 1455 of yacc.c  */
-#line 324 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(4) - (4)]); ;}
     break;
 
   case 79:
 
-/* Line 1455 of yacc.c  */
-#line 326 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(4) - (4)]); ;}
     break;
 
   case 80:
 
-/* Line 1455 of yacc.c  */
-#line 328 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 81:
 
-/* Line 1455 of yacc.c  */
-#line 330 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(3) - (3)]); ;}
     break;
 
   case 82:
 
-/* Line 1455 of yacc.c  */
-#line 332 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(3) - (3)]); ;}
     break;
 
   case 83:
 
-/* Line 1455 of yacc.c  */
-#line 336 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 85:
 
-/* Line 1455 of yacc.c  */
-#line 338 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(3) - (3)]); ;}
     break;
 
   case 86:
 
-/* Line 1455 of yacc.c  */
-#line 342 "scripts/genksyms/parse.y"
     { (yyval) = NULL; ;}
     break;
 
   case 89:
 
-/* Line 1455 of yacc.c  */
-#line 349 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(3) - (3)]); ;}
     break;
 
   case 90:
 
-/* Line 1455 of yacc.c  */
-#line 354 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(2) - (2)]) ? (yyvsp[(2) - (2)]) : (yyvsp[(1) - (2)]); ;}
     break;
 
   case 91:
 
-/* Line 1455 of yacc.c  */
-#line 359 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(2) - (2)]) ? (yyvsp[(2) - (2)]) : (yyvsp[(1) - (2)]); ;}
     break;
 
   case 93:
 
-/* Line 1455 of yacc.c  */
-#line 364 "scripts/genksyms/parse.y"
     { (yyval) = NULL; ;}
     break;
 
   case 94:
 
-/* Line 1455 of yacc.c  */
-#line 366 "scripts/genksyms/parse.y"
     { /* For version 2 checksums, we don't want to remember
 		     private parameter names.  */
 		  remove_node((yyvsp[(1) - (1)]));
@@ -2087,8 +1981,6 @@ yyreduce:
 
   case 95:
 
-/* Line 1455 of yacc.c  */
-#line 374 "scripts/genksyms/parse.y"
     { remove_node((yyvsp[(1) - (1)]));
 		  (yyval) = (yyvsp[(1) - (1)]);
 		;}
@@ -2096,43 +1988,31 @@ yyreduce:
 
   case 96:
 
-/* Line 1455 of yacc.c  */
-#line 378 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(4) - (4)]); ;}
     break;
 
   case 97:
 
-/* Line 1455 of yacc.c  */
-#line 380 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(4) - (4)]); ;}
     break;
 
   case 98:
 
-/* Line 1455 of yacc.c  */
-#line 382 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 99:
 
-/* Line 1455 of yacc.c  */
-#line 384 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(3) - (3)]); ;}
     break;
 
   case 100:
 
-/* Line 1455 of yacc.c  */
-#line 386 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(3) - (3)]); ;}
     break;
 
   case 101:
 
-/* Line 1455 of yacc.c  */
-#line 391 "scripts/genksyms/parse.y"
     { struct string_list *decl = *(yyvsp[(2) - (3)]);
 		  *(yyvsp[(2) - (3)]) = NULL;
 		  add_symbol(current_name, SYM_NORMAL, decl, is_extern);
@@ -2142,120 +2022,86 @@ yyreduce:
 
   case 102:
 
-/* Line 1455 of yacc.c  */
-#line 399 "scripts/genksyms/parse.y"
     { (yyval) = NULL; ;}
     break;
 
   case 104:
 
-/* Line 1455 of yacc.c  */
-#line 406 "scripts/genksyms/parse.y"
     { remove_list((yyvsp[(2) - (2)]), &(*(yyvsp[(1) - (2)]))->next); (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 105:
 
-/* Line 1455 of yacc.c  */
-#line 410 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(3) - (3)]); ;}
     break;
 
   case 106:
 
-/* Line 1455 of yacc.c  */
-#line 411 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(3) - (3)]); ;}
     break;
 
   case 107:
 
-/* Line 1455 of yacc.c  */
-#line 415 "scripts/genksyms/parse.y"
     { (yyval) = NULL; ;}
     break;
 
   case 110:
 
-/* Line 1455 of yacc.c  */
-#line 421 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 111:
 
-/* Line 1455 of yacc.c  */
-#line 426 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(3) - (3)]); ;}
     break;
 
   case 112:
 
-/* Line 1455 of yacc.c  */
-#line 428 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 113:
 
-/* Line 1455 of yacc.c  */
-#line 432 "scripts/genksyms/parse.y"
     { (yyval) = NULL; ;}
     break;
 
   case 116:
 
-/* Line 1455 of yacc.c  */
-#line 438 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(3) - (3)]); ;}
     break;
 
   case 117:
 
-/* Line 1455 of yacc.c  */
-#line 442 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(2) - (2)]) ? (yyvsp[(2) - (2)]) : (yyvsp[(1) - (2)]); ;}
     break;
 
   case 118:
 
-/* Line 1455 of yacc.c  */
-#line 443 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 120:
 
-/* Line 1455 of yacc.c  */
-#line 448 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 121:
 
-/* Line 1455 of yacc.c  */
-#line 452 "scripts/genksyms/parse.y"
     { (yyval) = NULL; ;}
     break;
 
   case 123:
 
-/* Line 1455 of yacc.c  */
-#line 457 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(3) - (3)]); ;}
     break;
 
   case 124:
 
-/* Line 1455 of yacc.c  */
-#line 458 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(4) - (4)]); ;}
     break;
 
   case 127:
 
-/* Line 1455 of yacc.c  */
-#line 467 "scripts/genksyms/parse.y"
     {
 			const char *name = strdup((*(yyvsp[(1) - (1)]))->string);
 			add_symbol(name, SYM_ENUM_CONST, NULL, 0);
@@ -2264,8 +2110,6 @@ yyreduce:
 
   case 128:
 
-/* Line 1455 of yacc.c  */
-#line 472 "scripts/genksyms/parse.y"
     {
 			const char *name = strdup((*(yyvsp[(1) - (3)]))->string);
 			struct string_list *expr = copy_list_range(*(yyvsp[(3) - (3)]), *(yyvsp[(2) - (3)]));
@@ -2275,29 +2119,21 @@ yyreduce:
 
   case 129:
 
-/* Line 1455 of yacc.c  */
-#line 479 "scripts/genksyms/parse.y"
     { (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 130:
 
-/* Line 1455 of yacc.c  */
-#line 483 "scripts/genksyms/parse.y"
     { (yyval) = NULL; ;}
     break;
 
   case 132:
 
-/* Line 1455 of yacc.c  */
-#line 489 "scripts/genksyms/parse.y"
     { export_symbol((*(yyvsp[(3) - (5)]))->string); (yyval) = (yyvsp[(5) - (5)]); ;}
     break;
 
 
 
-/* Line 1455 of yacc.c  */
-#line 2301 "scripts/genksyms/parse.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -2508,8 +2344,6 @@ yyreturn:
 
 
 
-/* Line 1675 of yacc.c  */
-#line 493 "scripts/genksyms/parse.y"
 
 
 static void
