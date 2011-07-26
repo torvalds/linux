@@ -822,13 +822,13 @@ static int ov772x_set_params(struct i2c_client *client, u32 *width, u32 *height,
 			goto ov772x_set_fmt_error;
 
 		ret = ov772x_mask_set(client,
-				      EDGE_TRSHLD, EDGE_THRESHOLD_MASK,
+				      EDGE_TRSHLD, OV772X_EDGE_THRESHOLD_MASK,
 				      priv->info->edgectrl.threshold);
 		if (ret < 0)
 			goto ov772x_set_fmt_error;
 
 		ret = ov772x_mask_set(client,
-				      EDGE_STRNGT, EDGE_STRENGTH_MASK,
+				      EDGE_STRNGT, OV772X_EDGE_STRENGTH_MASK,
 				      priv->info->edgectrl.strength);
 		if (ret < 0)
 			goto ov772x_set_fmt_error;
@@ -840,13 +840,13 @@ static int ov772x_set_params(struct i2c_client *client, u32 *width, u32 *height,
 		 * set upper and lower limit
 		 */
 		ret = ov772x_mask_set(client,
-				      EDGE_UPPER, EDGE_UPPER_MASK,
+				      EDGE_UPPER, OV772X_EDGE_UPPER_MASK,
 				      priv->info->edgectrl.upper);
 		if (ret < 0)
 			goto ov772x_set_fmt_error;
 
 		ret = ov772x_mask_set(client,
-				      EDGE_LOWER, EDGE_LOWER_MASK,
+				      EDGE_LOWER, OV772X_EDGE_LOWER_MASK,
 				      priv->info->edgectrl.lower);
 		if (ret < 0)
 			goto ov772x_set_fmt_error;
