@@ -122,7 +122,7 @@ int ceph_open(struct inode *inode, struct file *file)
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req;
 	struct ceph_file_info *cf = file->private_data;
-	struct inode *parent_inode = file->f_dentry->d_parent->d_inode;
+	struct inode *parent_inode = NULL;
 	int err;
 	int flags, fmode, wanted;
 
@@ -194,8 +194,10 @@ int ceph_open(struct inode *inode, struct file *file)
 	req->r_inode = inode;
 	ihold(inode);
 	req->r_num_caps = 1;
-	err = ceph_mdsc_do_request(mdsc, (flags & (O_CREAT|O_TRUNC)) ?
-				   parent_inode : NULL, req);
+	if (flags & (O_CREAT|O_TRUNC))
+		parent_inode = ceph_get_dentry_parent_inode(file->f_dentry);
+	err = ceph_mdsc_do_request(mdsc, parent_inode, req);
+	iput(parent_inode);
 	if (!err)
 		err = ceph_init_file(inode, file, req->r_fmode);
 	ceph_mdsc_put_request(req);

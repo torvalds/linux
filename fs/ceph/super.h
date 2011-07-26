@@ -801,6 +801,7 @@ extern void ceph_dentry_lru_touch(struct dentry *dn);
 extern void ceph_dentry_lru_del(struct dentry *dn);
 extern void ceph_invalidate_dentry_lease(struct dentry *dentry);
 extern unsigned ceph_dentry_hash(struct dentry *dn);
+extern struct inode *ceph_get_dentry_parent_inode(struct dentry *dentry);
 
 /*
  * our d_ops vary depending on whether the inode is live,
@@ -822,14 +823,6 @@ extern void ceph_count_locks(struct inode *inode, int *p_num, int *f_num);
 extern int ceph_encode_locks(struct inode *i, struct ceph_pagelist *p,
 			     int p_locks, int f_locks);
 extern int lock_to_ceph_filelock(struct file_lock *fl, struct ceph_filelock *c);
-
-static inline struct inode *get_dentry_parent_inode(struct dentry *dentry)
-{
-	if (dentry && dentry->d_parent)
-		return dentry->d_parent->d_inode;
-
-	return NULL;
-}
 
 /* debugfs.c */
 extern int ceph_fs_debugfs_init(struct ceph_fs_client *client);

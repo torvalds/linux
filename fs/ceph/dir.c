@@ -71,6 +71,21 @@ out_unlock:
 	return 0;
 }
 
+struct inode *ceph_get_dentry_parent_inode(struct dentry *dentry)
+{
+	struct inode *inode = NULL;
+
+	if (!dentry)
+		return NULL;
+
+	spin_lock(&dentry->d_lock);
+	if (dentry->d_parent) {
+		inode = dentry->d_parent->d_inode;
+		ihold(inode);
+	}
+	spin_unlock(&dentry->d_lock);
+	return inode;
+}
 
 
 /*
