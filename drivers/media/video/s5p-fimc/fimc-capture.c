@@ -577,57 +577,26 @@ static int fimc_cap_s_fmt_mplane(struct file *file, void *priv,
 }
 
 static int fimc_cap_enum_input(struct file *file, void *priv,
-				     struct v4l2_input *i)
+			       struct v4l2_input *i)
 {
 	struct fimc_ctx *ctx = priv;
-	struct s5p_platform_fimc *pldata = ctx->fimc_dev->pdata;
-	struct s5p_fimc_isp_info *isp_info;
 
-	if (i->index >= pldata->num_clients)
+	if (i->index != 0)
 		return -EINVAL;
 
-	isp_info = &pldata->isp_info[i->index];
 
 	i->type = V4L2_INPUT_TYPE_CAMERA;
-	strncpy(i->name, isp_info->board_info->type, 32);
 	return 0;
 }
 
-static int fimc_cap_s_input(struct file *file, void *priv,
-				  unsigned int i)
+static int fimc_cap_s_input(struct file *file, void *priv, unsigned int i)
 {
-	struct fimc_ctx *ctx = priv;
-	struct fimc_dev *fimc = ctx->fimc_dev;
-	struct s5p_platform_fimc *pdata = fimc->pdata;
-
-	if (fimc_capture_active(ctx->fimc_dev))
-		return -EBUSY;
-
-	if (i >= pdata->num_clients)
-		return -EINVAL;
-
-
-	if (fimc->vid_cap.sd) {
-		int ret = v4l2_subdev_call(fimc->vid_cap.sd, core, s_power, 0);
-		if (ret)
-			err("s_power failed: %d", ret);
-
-		clk_disable(fimc->clock[CLK_CAM]);
-	}
-
-	/* Release the attached sensor subdevice. */
-	fimc_subdev_unregister(fimc);
-
-	return fimc_isp_subdev_init(fimc, i);
+	return i == 0 ? i : -EINVAL;
 }
 
-static int fimc_cap_g_input(struct file *file, void *priv,
-				       unsigned int *i)
+static int fimc_cap_g_input(struct file *file, void *priv, unsigned int *i)
 {
-	struct fimc_ctx *ctx = priv;
-	struct fimc_vid_cap *cap = &ctx->fimc_dev->vid_cap;
-
-	*i = cap->input_index;
+	*i = 0;
 	return 0;
 }
 
