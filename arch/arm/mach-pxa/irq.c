@@ -11,7 +11,7 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
-
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -21,7 +21,6 @@
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/gpio.h>
 
 #include "generic.h"
 

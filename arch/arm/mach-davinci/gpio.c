@@ -9,14 +9,12 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-
+#include <linux/gpio.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
-
-#include <mach/gpio.h>
 
 #include <asm/mach/irq.h>
 

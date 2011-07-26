@@ -18,7 +18,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
@@ -32,7 +32,6 @@
 #include <linux/smc91x.h>
 
 #include <mach/hardware.h>
-#include <asm/gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

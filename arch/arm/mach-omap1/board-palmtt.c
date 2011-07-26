@@ -12,6 +12,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -30,7 +31,6 @@
 #include <asm/mach/map.h>
 
 #include <plat/led.h>
-#include <mach/gpio.h>
 #include <plat/flash.h>
 #include <plat/mux.h>
 #include <plat/usb.h>

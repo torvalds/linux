@@ -16,7 +16,7 @@
  * Author: Rod Whitby <rod@whitby.id.au>
  * Maintainers: http://www.nslu2-linux.org/
  */
-
+#include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/jiffies.h>
 #include <linux/timer.h>
@@ -31,7 +31,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/time.h>
-#include <asm/gpio.h>
 
 #define DSMG600_SDA_PIN		5
 #define DSMG600_SCL_PIN		4

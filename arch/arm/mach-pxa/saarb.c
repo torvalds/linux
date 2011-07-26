@@ -9,7 +9,7 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  publishhed by the Free Software Foundation.
  */
-
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
@@ -23,7 +23,6 @@
 #include <mach/hardware.h>
 #include <mach/mfp.h>
 #include <mach/mfp-pxa930.h>
-#include <mach/gpio.h>
 
 #include "generic.h"
 

@@ -11,14 +11,12 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
-
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/syscore_ops.h>
 #include <linux/slab.h>
-
-#include <mach/gpio.h>
 
 int pxa_last_gpio;
 

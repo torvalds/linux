@@ -14,7 +14,7 @@
 #ifndef __ASM_ARCH_H1940_LATCH_H
 #define __ASM_ARCH_H1940_LATCH_H
 
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 
 #define H1940_LATCH_GPIO(x)		(S3C_GPIO_END + (x))
 

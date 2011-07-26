@@ -11,7 +11,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/input.h>
@@ -30,7 +30,6 @@
 
 #include <plat/io.h>
 #include <plat/board-ams-delta.h>
-#include <mach/gpio.h>
 #include <plat/keypad.h>
 #include <plat/mux.h>
 #include <plat/usb.h>

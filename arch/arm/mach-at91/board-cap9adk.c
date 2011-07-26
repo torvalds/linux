@@ -22,6 +22,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -41,7 +42,6 @@
 #include <asm/mach/map.h>
 
 #include <mach/board.h>
-#include <mach/gpio.h>
 #include <mach/at91cap9_matrix.h>
 #include <mach/at91sam9_smc.h>
 #include <mach/system_rev.h>

@@ -11,6 +11,7 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
+#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -42,7 +43,6 @@
 #include <asm/hardware/sa1111.h>
 
 #include <mach/pxa25x.h>
-#include <mach/gpio.h>
 #include <mach/audio.h>
 #include <mach/lubbock.h>
 #include <mach/udc.h>

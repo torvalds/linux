@@ -9,12 +9,11 @@
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/io.h>
-#include <asm/gpio.h>
 #include <mach/bridge-regs.h>
 #include <plat/irq.h>
 #include "common.h"

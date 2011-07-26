@@ -13,6 +13,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -33,7 +34,6 @@
 
 #include <plat/board-voiceblue.h>
 #include <plat/common.h>
-#include <mach/gpio.h>
 #include <plat/flash.h>
 #include <plat/mux.h>
 #include <plat/tc.h>

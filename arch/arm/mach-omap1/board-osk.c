@@ -25,7 +25,7 @@
  * with this program; if not, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -42,7 +42,6 @@
 #include <linux/i2c/tps65010.h>
 
 #include <mach/hardware.h>
-#include <asm/gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

@@ -13,7 +13,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#include <linux/gpio.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/major.h>
@@ -34,7 +34,6 @@
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <mach/hardware.h>
-#include <asm/gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

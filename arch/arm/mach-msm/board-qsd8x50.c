@@ -14,7 +14,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA.
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
@@ -32,7 +32,6 @@
 #include <mach/board.h>
 #include <mach/irqs.h>
 #include <mach/sirc.h>
-#include <mach/gpio.h>
 #include <mach/vreg.h>
 #include <mach/mmc.h>
 

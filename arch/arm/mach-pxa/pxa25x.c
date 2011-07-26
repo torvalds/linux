@@ -16,6 +16,7 @@
  * initialization stuff for PXA machines which can be overridden later if
  * need be.
  */
+#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -28,7 +29,6 @@
 #include <asm/suspend.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/gpio.h>
 #include <mach/pxa25x.h>
 #include <mach/reset.h>
 #include <mach/pm.h>

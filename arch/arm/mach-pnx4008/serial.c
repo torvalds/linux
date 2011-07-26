@@ -9,7 +9,7 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/io.h>
@@ -19,7 +19,6 @@
 
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
-#include <mach/gpio.h>
 
 #include <mach/clock.h>
 

@@ -16,6 +16,7 @@
 #include <asm/mach/irq.h>
 
 #include <linux/dma-mapping.h>
+#include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/i2c-gpio.h>
 
@@ -23,7 +24,6 @@
 
 #include <mach/board.h>
 #include <mach/cpu.h>
-#include <mach/gpio.h>
 #include <mach/at91cap9.h>
 #include <mach/at91cap9_matrix.h>
 #include <mach/at91sam9_smc.h>

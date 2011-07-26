@@ -13,12 +13,11 @@
  * GNU General Public License for more details.
  *
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 
 #include <mach/pinmux.h>
-#include <mach/gpio.h>
 
 #include "gpio-names.h"
 #include "board-trimslice.h"

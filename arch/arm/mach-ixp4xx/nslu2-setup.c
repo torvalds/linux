@@ -16,7 +16,7 @@
  * Maintainers: http://www.nslu2-linux.org/
  *
  */
-
+#include <linux/gpio.h>
 #include <linux/if_ether.h>
 #include <linux/irq.h>
 #include <linux/serial.h>
@@ -30,7 +30,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/time.h>
-#include <asm/gpio.h>
 
 #define NSLU2_SDA_PIN		7
 #define NSLU2_SCL_PIN		6

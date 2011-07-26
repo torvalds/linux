@@ -9,7 +9,7 @@
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -21,7 +21,6 @@
 #include <linux/mv643xx_eth.h>
 #include <linux/i2c.h>
 #include <asm/mach-types.h>
-#include <asm/gpio.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
 #include <mach/orion5x.h>

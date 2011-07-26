@@ -14,7 +14,7 @@
 * it under the terms of the GNU General Public License version 2 as
 * published by the Free Software Foundation.
 */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/input.h>
@@ -32,7 +32,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/gpio.h>
 #include <plat/flash.h>
 #include <plat/mux.h>
 #include <plat/dma.h>
