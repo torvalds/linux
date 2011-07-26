@@ -135,7 +135,7 @@
 
 static bool lease_breaking(struct file_lock *fl)
 {
-	return fl->fl_type & F_INPROGRESS;
+	return fl->fl_flags & FL_INPROGRESS;
 }
 
 int leases_enable = 1;
@@ -1132,6 +1132,7 @@ int lease_modify(struct file_lock **before, int arg)
 
 	if (error)
 		return error;
+	fl->fl_flags &= ~FL_INPROGRESS;
 	locks_wake_up_blocks(fl);
 	if (arg == F_UNLCK)
 		locks_delete_lock(before);
@@ -1152,7 +1153,7 @@ static void time_out_leases(struct inode *inode)
 			before = &fl->fl_next;
 			continue;
 		}
-		lease_modify(before, fl->fl_type & ~F_INPROGRESS);
+		lease_modify(before, fl->fl_type);
 		if (fl == *before)	/* lease_modify may have freed fl */
 			before = &fl->fl_next;
 	}
@@ -1193,13 +1194,13 @@ int __break_lease(struct inode *inode, unsigned int mode)
 
 	if (want_write) {
 		/* If we want write access, we have to revoke any lease. */
-		future = F_UNLCK | F_INPROGRESS;
+		future = F_UNLCK;
 	} else if (lease_breaking(flock)) {
 		/* If the lease is already being broken, we just leave it */
 		future = flock->fl_type;
 	} else if (flock->fl_type & F_WRLCK) {
 		/* Downgrade the exclusive lease to a read-only lease. */
-		future = F_RDLCK | F_INPROGRESS;
+		future = F_RDLCK;
 	} else {
 		/* the existing lease was read-only, so we can read too. */
 		goto out;
@@ -1221,6 +1222,7 @@ int __break_lease(struct inode *inode, unsigned int mode)
 	for (fl = flock; fl && IS_LEASE(fl); fl = fl->fl_next) {
 		if (fl->fl_type != future) {
 			fl->fl_type = future;
+			fl->fl_flags |= FL_INPROGRESS;
 			fl->fl_break_time = break_time;
 			/* lease must have lmops break callback */
 			fl->fl_lmops->lm_break(fl);
@@ -1319,7 +1321,7 @@ int fcntl_getlease(struct file *filp)
 	for (fl = filp->f_path.dentry->d_inode->i_flock; fl && IS_LEASE(fl);
 			fl = fl->fl_next) {
 		if (fl->fl_file == filp) {
-			type = fl->fl_type & ~F_INPROGRESS;
+			type = fl->fl_type;
 			break;
 		}
 	}
@@ -1384,7 +1386,7 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 			before = &fl->fl_next) {
 		if (fl->fl_file == filp)
 			my_before = before;
-		else if (fl->fl_type == (F_INPROGRESS | F_UNLCK))
+		else if ((fl->fl_type == F_UNLCK) && lease_breaking(fl))
 			/*
 			 * Someone is in the process of opening this
 			 * file for writing so we may not take an
