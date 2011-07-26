@@ -181,14 +181,7 @@ static void acct_arg_size(struct linux_binprm *bprm, unsigned long pages)
 		return;
 
 	bprm->vma_pages = pages;
-
-#ifdef SPLIT_RSS_COUNTING
 	add_mm_counter(mm, MM_ANONPAGES, diff);
-#else
-	spin_lock(&mm->page_table_lock);
-	add_mm_counter(mm, MM_ANONPAGES, diff);
-	spin_unlock(&mm->page_table_lock);
-#endif
 }
 
 static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
