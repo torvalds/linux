@@ -479,6 +479,7 @@ static int __devinit ams369fg06_probe(struct spi_device *spi)
 	struct ams369fg06 *lcd = NULL;
 	struct lcd_device *ld = NULL;
 	struct backlight_device *bd = NULL;
+	struct backlight_properties props;
 
 	lcd = kzalloc(sizeof(struct ams369fg06), GFP_KERNEL);
 	if (!lcd)
@@ -511,16 +512,18 @@ static int __devinit ams369fg06_probe(struct spi_device *spi)
 
 	lcd->ld = ld;
 
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
+	props.max_brightness = MAX_BRIGHTNESS;
+
 	bd = backlight_device_register("ams369fg06-bl", &spi->dev, lcd,
-		&ams369fg06_backlight_ops, NULL);
+		&ams369fg06_backlight_ops, &props);
 	if (IS_ERR(bd)) {
 		ret =  PTR_ERR(bd);
 		goto out_lcd_unregister;
 	}
 
-	bd->props.max_brightness = MAX_BRIGHTNESS;
 	bd->props.brightness = DEFAULT_BRIGHTNESS;
-	bd->props.type = BACKLIGHT_RAW;
 	lcd->bd = bd;
 
 	if (!lcd->lcd_pd->lcd_enabled) {

@@ -668,6 +668,7 @@ static int ld9040_probe(struct spi_device *spi)
 	struct ld9040 *lcd = NULL;
 	struct lcd_device *ld = NULL;
 	struct backlight_device *bd = NULL;
+	struct backlight_properties props;
 
 	lcd = kzalloc(sizeof(struct ld9040), GFP_KERNEL);
 	if (!lcd)
@@ -699,14 +700,17 @@ static int ld9040_probe(struct spi_device *spi)
 
 	lcd->ld = ld;
 
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
+	props.max_brightness = MAX_BRIGHTNESS;
+
 	bd = backlight_device_register("ld9040-bl", &spi->dev,
-		lcd, &ld9040_backlight_ops, NULL);
+		lcd, &ld9040_backlight_ops, &props);
 	if (IS_ERR(bd)) {
 		ret = PTR_ERR(bd);
 		goto out_unregister_lcd;
 	}
 
-	bd->props.max_brightness = MAX_BRIGHTNESS;
 	bd->props.brightness = MAX_BRIGHTNESS;
 	lcd->bd = bd;
 
