@@ -193,6 +193,8 @@ static inline int notifier_to_errno(int ret)
 
 /* Hibernation and suspend events are defined in include/linux/suspend.h. */
 
+/* Virtual Terminal events are defined in include/linux/vt.h. */
+
 #define NETLINK_URELEASE	0x0001	/* Unicast netlink socket released */
 
 /* Console keyboard events.
@@ -205,13 +207,6 @@ static inline int notifier_to_errno(int ret)
 #define KBD_POST_KEYSYM		0x0005 /* Called after keyboard keysym interpretation */
 
 extern struct blocking_notifier_head reboot_notifier_list;
-
-/* Virtual Terminal events. */
-#define VT_ALLOCATE		0x0001 /* Console got allocated */
-#define VT_DEALLOCATE		0x0002 /* Console will be deallocated */
-#define VT_WRITE		0x0003 /* A char got output */
-#define VT_UPDATE		0x0004 /* A bigger update occurred */
-#define VT_PREWRITE		0x0005 /* A char is about to be written to the console */
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_NOTIFIER_H */
