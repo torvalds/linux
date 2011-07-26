@@ -855,6 +855,17 @@ static int ov5642_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 	return 0;
 }
 
+static int ov5642_g_mbus_config(struct v4l2_subdev *sd,
+				struct v4l2_mbus_config *cfg)
+{
+	cfg->type = V4L2_MBUS_CSI2;
+	cfg->flags = V4L2_MBUS_CSI2_2_LANE |
+		V4L2_MBUS_CSI2_CHANNEL_0 |
+		V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+
+	return 0;
+}
+
 static struct v4l2_subdev_video_ops ov5642_subdev_video_ops = {
 	.s_mbus_fmt	= ov5642_s_fmt,
 	.g_mbus_fmt	= ov5642_g_fmt,
@@ -862,6 +873,7 @@ static struct v4l2_subdev_video_ops ov5642_subdev_video_ops = {
 	.enum_mbus_fmt	= ov5642_enum_fmt,
 	.g_crop		= ov5642_g_crop,
 	.cropcap	= ov5642_cropcap,
+	.g_mbus_config	= ov5642_g_mbus_config,
 };
 
 static struct v4l2_subdev_core_ops ov5642_subdev_core_ops = {
