@@ -2472,9 +2472,19 @@ int btrfs_trim_block_group(struct btrfs_block_group_cache *block_group,
 		spin_unlock(&ctl->tree_lock);
 
 		if (bytes >= minlen) {
-			int update_ret;
-			update_ret = btrfs_update_reserved_bytes(block_group,
-								 bytes, 1, 1);
+			struct btrfs_space_info *space_info;
+			int update = 0;
+
+			space_info = block_group->space_info;
+			spin_lock(&space_info->lock);
+			spin_lock(&block_group->lock);
+			if (!block_group->ro) {
+				block_group->reserved += bytes;
+				space_info->bytes_reserved += bytes;
+				update = 1;
+			}
+			spin_unlock(&block_group->lock);
+			spin_unlock(&space_info->lock);
 
 			ret = btrfs_error_discard_extent(fs_info->extent_root,
 							 start,
@@ -2482,9 +2492,16 @@ int btrfs_trim_block_group(struct btrfs_block_group_cache *block_group,
 							 &actually_trimmed);
 
 			btrfs_add_free_space(block_group, start, bytes);
-			if (!update_ret)
-				btrfs_update_reserved_bytes(block_group,
-							    bytes, 0, 1);
+			if (update) {
+				spin_lock(&space_info->lock);
+				spin_lock(&block_group->lock);
+				if (block_group->ro)
+					space_info->bytes_readonly += bytes;
+				block_group->reserved -= bytes;
+				space_info->bytes_reserved -= bytes;
+				spin_unlock(&space_info->lock);
+				spin_unlock(&block_group->lock);
+			}
 
 			if (ret)
 				break;
