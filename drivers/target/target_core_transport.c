@@ -4726,6 +4726,13 @@ int transport_send_check_condition_and_sense(
 	 */
 	switch (reason) {
 	case TCM_NON_EXISTENT_LUN:
+		/* CURRENT ERROR */
+		buffer[offset] = 0x70;
+		/* ILLEGAL REQUEST */
+		buffer[offset+SPC_SENSE_KEY_OFFSET] = ILLEGAL_REQUEST;
+		/* LOGICAL UNIT NOT SUPPORTED */
+		buffer[offset+SPC_ASC_KEY_OFFSET] = 0x25;
+		break;
 	case TCM_UNSUPPORTED_SCSI_OPCODE:
 	case TCM_SECTOR_COUNT_TOO_MANY:
 		/* CURRENT ERROR */
