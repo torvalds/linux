@@ -242,13 +242,9 @@ struct stripe_head_state {
 	int syncing, expanding, expanded;
 	int locked, uptodate, to_read, to_write, failed, written;
 	int to_fill, compute, req_compute, non_overwrite;
-	int failed_num;
+	int failed_num[2];
 	unsigned long ops_request;
-};
-
-/* r6_state - extra state data only relevant to r6 */
-struct r6_state {
-	int p_failed, q_failed, failed_num[2];
+	int p_failed, q_failed;
 };
 
 /* Flags */
