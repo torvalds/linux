@@ -4169,20 +4169,11 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 	u32 nritems;
 	int ret;
 	int old_spinning = path->leave_spinning;
-	int force_blocking = 0;
 	int next_rw_lock = 0;
 
 	nritems = btrfs_header_nritems(path->nodes[0]);
 	if (nritems == 0)
 		return 1;
-
-	/*
-	 * we take the blocks in an order that upsets lockdep.  Using
-	 * blocking mode is the only way around it.
-	 */
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-	force_blocking = 1;
-#endif
 
 	btrfs_item_key_to_cpu(path->nodes[0], &key, nritems - 1);
 again:
@@ -4192,9 +4183,7 @@ again:
 	btrfs_release_path(path);
 
 	path->keep_locks = 1;
-
-	if (!force_blocking)
-		path->leave_spinning = 1;
+	path->leave_spinning = 1;
 
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	path->keep_locks = 0;
@@ -4255,18 +4244,10 @@ again:
 			if (!ret) {
 				btrfs_set_path_blocking(path);
 				btrfs_tree_read_lock(next);
-				if (!force_blocking) {
-					btrfs_clear_path_blocking(path, next,
+				btrfs_clear_path_blocking(path, next,
 							  BTRFS_READ_LOCK);
-				}
 			}
-			if (force_blocking) {
-				btrfs_set_lock_blocking_rw(next,
-							   BTRFS_READ_LOCK);
-				next_rw_lock = BTRFS_READ_LOCK_BLOCKING;
-			} else {
-				next_rw_lock = BTRFS_READ_LOCK;
-			}
+			next_rw_lock = BTRFS_READ_LOCK;
 		}
 		break;
 	}
@@ -4300,17 +4281,10 @@ again:
 			if (!ret) {
 				btrfs_set_path_blocking(path);
 				btrfs_tree_read_lock(next);
-				if (!force_blocking)
-					btrfs_clear_path_blocking(path, next,
+				btrfs_clear_path_blocking(path, next,
 							  BTRFS_READ_LOCK);
 			}
-			if (force_blocking) {
-				btrfs_set_lock_blocking_rw(next,
-						   BTRFS_READ_LOCK);
-				next_rw_lock = BTRFS_READ_LOCK_BLOCKING;
-			} else {
-				next_rw_lock = BTRFS_READ_LOCK;
-			}
+			next_rw_lock = BTRFS_READ_LOCK;
 		}
 	}
 	ret = 0;
