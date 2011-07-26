@@ -61,7 +61,7 @@ static struct dentry *sysv_lookup(struct inode * dir, struct dentry * dentry, st
 	return NULL;
 }
 
-static int sysv_mknod(struct inode * dir, struct dentry * dentry, int mode, dev_t rdev)
+static int sysv_mknod(struct inode * dir, struct dentry * dentry, umode_t mode, dev_t rdev)
 {
 	struct inode * inode;
 	int err;

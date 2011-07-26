@@ -201,7 +201,7 @@ bail:
 	return err;
 }
 
-static int hpfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
+static int hpfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	const unsigned char *name = dentry->d_name.name;
 	unsigned len = dentry->d_name.len;

@@ -769,7 +769,7 @@ out_budg:
 }
 
 static int ubifs_mknod(struct inode *dir, struct dentry *dentry,
-		       int mode, dev_t rdev)
+		       umode_t mode, dev_t rdev)
 {
 	struct inode *inode;
 	struct ubifs_inode *ui;

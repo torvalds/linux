@@ -38,7 +38,7 @@ static int ncp_rmdir(struct inode *, struct dentry *);
 static int ncp_rename(struct inode *, struct dentry *,
 	  	      struct inode *, struct dentry *);
 static int ncp_mknod(struct inode * dir, struct dentry *dentry,
-		     int mode, dev_t rdev);
+		     umode_t mode, dev_t rdev);
 #if defined(CONFIG_NCPFS_EXTRAS) || defined(CONFIG_NCPFS_NFS_NS)
 extern int ncp_symlink(struct inode *, struct dentry *, const char *);
 #else
@@ -1201,12 +1201,12 @@ out:
 }
 
 static int ncp_mknod(struct inode * dir, struct dentry *dentry,
-		     int mode, dev_t rdev)
+		     umode_t mode, dev_t rdev)
 {
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
 	if (ncp_is_nfs_extras(NCP_SERVER(dir), NCP_FINFO(dir)->volNumber)) {
-		DPRINTK(KERN_DEBUG "ncp_mknod: mode = 0%o\n", mode);
+		DPRINTK(KERN_DEBUG "ncp_mknod: mode = 0%ho\n", mode);
 		return ncp_create_new(dir, dentry, mode, rdev, 0);
 	}
 	return -EPERM; /* Strange, but true */

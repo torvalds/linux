@@ -119,7 +119,7 @@ static int ext2_create (struct inode * dir, struct dentry * dentry, umode_t mode
 	return ext2_add_nondir(dentry, inode);
 }
 
-static int ext2_mknod (struct inode * dir, struct dentry *dentry, int mode, dev_t rdev)
+static int ext2_mknod (struct inode * dir, struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct inode * inode;
 	int err;

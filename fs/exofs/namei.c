@@ -74,7 +74,7 @@ static int exofs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	return err;
 }
 
-static int exofs_mknod(struct inode *dir, struct dentry *dentry, int mode,
+static int exofs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
 		       dev_t rdev)
 {
 	struct inode *inode;

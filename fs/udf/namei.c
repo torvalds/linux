@@ -596,7 +596,7 @@ static int udf_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	return 0;
 }
 
-static int udf_mknod(struct inode *dir, struct dentry *dentry, int mode,
+static int udf_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
 		     dev_t rdev)
 {
 	struct inode *inode;

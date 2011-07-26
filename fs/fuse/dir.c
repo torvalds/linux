@@ -547,7 +547,7 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
 	return err;
 }
 
-static int fuse_mknod(struct inode *dir, struct dentry *entry, int mode,
+static int fuse_mknod(struct inode *dir, struct dentry *entry, umode_t mode,
 		      dev_t rdev)
 {
 	struct fuse_mknod_in inarg;

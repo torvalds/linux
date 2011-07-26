@@ -1353,7 +1353,7 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
  * FUNCTION:	Create a special file (device)
  */
 static int jfs_mknod(struct inode *dir, struct dentry *dentry,
-		int mode, dev_t rdev)
+		umode_t mode, dev_t rdev)
 {
 	struct jfs_inode_info *jfs_ip;
 	struct btstack btstack;

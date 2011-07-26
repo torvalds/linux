@@ -424,7 +424,7 @@ out:
 }
 
 static int hfsplus_mknod(struct inode *dir, struct dentry *dentry,
-			 int mode, dev_t rdev)
+			 umode_t mode, dev_t rdev)
 {
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(dir->i_sb);
 	struct inode *inode;

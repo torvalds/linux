@@ -168,7 +168,7 @@ STATIC int
 xfs_vn_mknod(
 	struct inode	*dir,
 	struct dentry	*dentry,
-	int		mode,
+	umode_t		mode,
 	dev_t		rdev)
 {
 	struct inode	*inode;

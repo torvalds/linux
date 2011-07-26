@@ -1397,7 +1397,7 @@ clunk_fid:
  */
 
 static int
-v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
+v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	int retval;
 	char *name;

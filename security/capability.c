@@ -159,7 +159,7 @@ static int cap_inode_rmdir(struct inode *inode, struct dentry *dentry)
 }
 
 static int cap_inode_mknod(struct inode *inode, struct dentry *dentry,
-			   int mode, dev_t dev)
+			   umode_t mode, dev_t dev)
 {
 	return 0;
 }

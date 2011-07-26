@@ -48,7 +48,7 @@
 #include "acl.h"
 
 static int
-v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, int omode,
+v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 		    dev_t rdev);
 
 /**
@@ -799,7 +799,7 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
  *
  */
 static int
-v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, int omode,
+v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 		dev_t rdev)
 {
 	int err;
@@ -814,7 +814,7 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, int omode,
 	struct posix_acl *dacl = NULL, *pacl = NULL;
 
 	P9_DPRINTK(P9_DEBUG_VFS,
-		" %lu,%s mode: %x MAJOR: %u MINOR: %u\n", dir->i_ino,
+		" %lu,%s mode: %hx MAJOR: %u MINOR: %u\n", dir->i_ino,
 		dentry->d_name.name, omode, MAJOR(rdev), MINOR(rdev));
 
 	if (!new_valid_dev(rdev))

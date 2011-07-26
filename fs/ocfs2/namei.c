@@ -207,7 +207,7 @@ static struct inode *ocfs2_get_init_inode(struct inode *dir, int mode)
 
 static int ocfs2_mknod(struct inode *dir,
 		       struct dentry *dentry,
-		       int mode,
+		       umode_t mode,
 		       dev_t dev)
 {
 	int status = 0;

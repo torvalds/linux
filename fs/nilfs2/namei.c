@@ -112,7 +112,7 @@ static int nilfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 }
 
 static int
-nilfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
+nilfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct inode *inode;
 	struct nilfs_transaction_info ti;

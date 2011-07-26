@@ -2444,7 +2444,7 @@ struct dentry *user_path_create(int dfd, const char __user *pathname, struct pat
 }
 EXPORT_SYMBOL(user_path_create);
 
-int vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
+int vfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	int error = may_create(dir, dentry);
 

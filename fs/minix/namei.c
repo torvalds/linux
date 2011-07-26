@@ -36,7 +36,7 @@ static struct dentry *minix_lookup(struct inode * dir, struct dentry *dentry, st
 	return NULL;
 }
 
-static int minix_mknod(struct inode * dir, struct dentry *dentry, int mode, dev_t rdev)
+static int minix_mknod(struct inode * dir, struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	int error;
 	struct inode *inode;

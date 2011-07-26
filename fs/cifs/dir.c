@@ -355,7 +355,7 @@ cifs_create_out:
 	return rc;
 }
 
-int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
+int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 		dev_t device_number)
 {
 	int rc = -EPERM;

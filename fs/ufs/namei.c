@@ -94,7 +94,7 @@ static int ufs_create (struct inode * dir, struct dentry * dentry, umode_t mode,
 	return err;
 }
 
-static int ufs_mknod (struct inode * dir, struct dentry *dentry, int mode, dev_t rdev)
+static int ufs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct inode *inode;
 	int err;
