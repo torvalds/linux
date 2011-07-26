@@ -289,21 +289,24 @@ struct r6_state {
 /*
  * Stripe state
  */
-#define STRIPE_HANDLE		2
-#define	STRIPE_SYNCING		3
-#define	STRIPE_INSYNC		4
-#define	STRIPE_PREREAD_ACTIVE	5
-#define	STRIPE_DELAYED		6
-#define	STRIPE_DEGRADED		7
-#define	STRIPE_BIT_DELAY	8
-#define	STRIPE_EXPANDING	9
-#define	STRIPE_EXPAND_SOURCE	10
-#define	STRIPE_EXPAND_READY	11
-#define	STRIPE_IO_STARTED	12 /* do not count towards 'bypass_count' */
-#define	STRIPE_FULL_WRITE	13 /* all blocks are set to be overwritten */
-#define	STRIPE_BIOFILL_RUN	14
-#define	STRIPE_COMPUTE_RUN	15
-#define	STRIPE_OPS_REQ_PENDING	16
+enum {
+	STRIPE_HANDLE,
+	STRIPE_SYNC_REQUESTED,
+	STRIPE_SYNCING,
+	STRIPE_INSYNC,
+	STRIPE_PREREAD_ACTIVE,
+	STRIPE_DELAYED,
+	STRIPE_DEGRADED,
+	STRIPE_BIT_DELAY,
+	STRIPE_EXPANDING,
+	STRIPE_EXPAND_SOURCE,
+	STRIPE_EXPAND_READY,
+	STRIPE_IO_STARTED,	/* do not count towards 'bypass_count' */
+	STRIPE_FULL_WRITE,	/* all blocks are set to be overwritten */
+	STRIPE_BIOFILL_RUN,
+	STRIPE_COMPUTE_RUN,
+	STRIPE_OPS_REQ_PENDING,
+};
 
 /*
  * Operation request flags

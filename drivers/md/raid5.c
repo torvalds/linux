@@ -3022,6 +3022,10 @@ static void handle_stripe5(struct stripe_head *sh)
 		 sh->reconstruct_state);
 
 	spin_lock(&sh->lock);
+	if (test_and_clear_bit(STRIPE_SYNC_REQUESTED, &sh->state)) {
+		set_bit(STRIPE_SYNCING, &sh->state);
+		clear_bit(STRIPE_INSYNC, &sh->state);
+	}
 	clear_bit(STRIPE_HANDLE, &sh->state);
 	clear_bit(STRIPE_DELAYED, &sh->state);
 
@@ -3313,6 +3317,10 @@ static void handle_stripe6(struct stripe_head *sh)
 	memset(&s, 0, sizeof(s));
 
 	spin_lock(&sh->lock);
+	if (test_and_clear_bit(STRIPE_SYNC_REQUESTED, &sh->state)) {
+		set_bit(STRIPE_SYNCING, &sh->state);
+		clear_bit(STRIPE_INSYNC, &sh->state);
+	}
 	clear_bit(STRIPE_HANDLE, &sh->state);
 	clear_bit(STRIPE_DELAYED, &sh->state);
 
@@ -4373,10 +4381,7 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 
 	bitmap_start_sync(mddev->bitmap, sector_nr, &sync_blocks, still_degraded);
 
-	spin_lock(&sh->lock);
-	set_bit(STRIPE_SYNCING, &sh->state);
-	clear_bit(STRIPE_INSYNC, &sh->state);
-	spin_unlock(&sh->lock);
+	set_bit(STRIPE_SYNC_REQUESTED, &sh->state);
 
 	handle_stripe(sh);
 	release_stripe(sh);
