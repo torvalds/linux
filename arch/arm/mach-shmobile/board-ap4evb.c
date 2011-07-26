@@ -933,7 +933,7 @@ static struct platform_device ap4evb_camera = {
 static struct sh_csi2_client_config csi2_clients[] = {
 	{
 		.phy		= SH_CSI2_PHY_MAIN,
-		.lanes		= 3,
+		.lanes		= 0,		/* default: 2 lanes */
 		.channel	= 0,
 		.pdev		= &ap4evb_camera,
 	},
