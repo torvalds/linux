@@ -6549,8 +6549,6 @@ static int set_block_group_ro(struct btrfs_block_group_cache *cache, int force)
 	u64 min_allocable_bytes;
 	int ret = -ENOSPC;
 
-	if (cache->ro)
-		return 0;
 
 	/*
 	 * We need some metadata space and system metadata space for
@@ -6566,6 +6564,12 @@ static int set_block_group_ro(struct btrfs_block_group_cache *cache, int force)
 
 	spin_lock(&sinfo->lock);
 	spin_lock(&cache->lock);
+
+	if (cache->ro) {
+		ret = 0;
+		goto out;
+	}
+
 	num_bytes = cache->key.offset - cache->reserved - cache->pinned -
 		    cache->bytes_super - btrfs_block_group_used(&cache->item);
 
@@ -6579,7 +6583,7 @@ static int set_block_group_ro(struct btrfs_block_group_cache *cache, int force)
 		cache->ro = 1;
 		ret = 0;
 	}
-
+out:
 	spin_unlock(&cache->lock);
 	spin_unlock(&sinfo->lock);
 	return ret;
