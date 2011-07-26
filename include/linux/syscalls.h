@@ -483,8 +483,8 @@ asmlinkage long sys_symlink(const char __user *old, const char __user *new);
 asmlinkage long sys_unlink(const char __user *pathname);
 asmlinkage long sys_rename(const char __user *oldname,
 				const char __user *newname);
-asmlinkage long sys_chmod(const char __user *filename, mode_t mode);
-asmlinkage long sys_fchmod(unsigned int fd, mode_t mode);
+asmlinkage long sys_chmod(const char __user *filename, umode_t mode);
+asmlinkage long sys_fchmod(unsigned int fd, umode_t mode);
 
 asmlinkage long sys_fcntl(unsigned int fd, unsigned int cmd, unsigned long arg);
 #if BITS_PER_LONG == 32
@@ -769,7 +769,7 @@ asmlinkage long sys_futimesat(int dfd, const char __user *filename,
 			      struct timeval __user *utimes);
 asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode);
 asmlinkage long sys_fchmodat(int dfd, const char __user * filename,
-			     mode_t mode);
+			     umode_t mode);
 asmlinkage long sys_fchownat(int dfd, const char __user *filename, uid_t user,
 			     gid_t group, int flag);
 asmlinkage long sys_openat(int dfd, const char __user *filename, int flags,
