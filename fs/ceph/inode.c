@@ -843,11 +843,13 @@ out_unlock:
 /*
  * Set dentry's directory position based on the current dir's max, and
  * order it in d_subdirs, so that dcache_readdir behaves.
+ *
+ * Always called under directory's i_mutex.
  */
 static void ceph_set_dentry_offset(struct dentry *dn)
 {
 	struct dentry *dir = dn->d_parent;
-	struct inode *inode = dn->d_parent->d_inode;
+	struct inode *inode = dir->d_inode;
 	struct ceph_dentry_info *di;
 
 	BUG_ON(!inode);
