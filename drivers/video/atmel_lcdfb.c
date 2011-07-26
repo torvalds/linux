@@ -21,7 +21,7 @@
 
 #include <mach/board.h>
 #include <mach/cpu.h>
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 
 #include <video/atmel_lcdc.h>
 
