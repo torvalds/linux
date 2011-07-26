@@ -2180,11 +2180,8 @@ static void drain_all_stock_async(struct mem_cgroup *root_mem)
 		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
 		struct mem_cgroup *mem;
 
-		if (cpu == curcpu)
-			continue;
-
 		mem = stock->cached;
-		if (!mem)
+		if (!mem || !stock->nr_pages)
 			continue;
 		if (mem != root_mem) {
 			if (!root_mem->use_hierarchy)
@@ -2193,8 +2190,12 @@ static void drain_all_stock_async(struct mem_cgroup *root_mem)
 			if (!css_is_ancestor(&mem->css, &root_mem->css))
 				continue;
 		}
-		if (!test_and_set_bit(FLUSHING_CACHED_CHARGE, &stock->flags))
-			schedule_work_on(cpu, &stock->work);
+		if (!test_and_set_bit(FLUSHING_CACHED_CHARGE, &stock->flags)) {
+			if (cpu == curcpu)
+				drain_local_stock(&stock->work);
+			else
+				schedule_work_on(cpu, &stock->work);
+		}
 	}
  	put_online_cpus();
 	mutex_unlock(&percpu_charge_mutex);
