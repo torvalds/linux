@@ -243,6 +243,25 @@ static int fsl_elbc_run_command(struct mtd_info *mtd)
 		return -EIO;
 	}
 
+	if (chip->ecc.mode != NAND_ECC_HW)
+		return 0;
+
+	if (elbc_fcm_ctrl->read_bytes == mtd->writesize + mtd->oobsize) {
+		uint32_t lteccr = in_be32(&lbc->lteccr);
+		/*
+		 * if command was a full page read and the ELBC
+		 * has the LTECCR register, then bits 12-15 (ppc order) of
+		 * LTECCR indicates which 512 byte sub-pages had fixed errors.
+		 * bits 28-31 are uncorrectable errors, marked elsewhere.
+		 * for small page nand only 1 bit is used.
+		 * if the ELBC doesn't have the lteccr register it reads 0
+		 */
+		if (lteccr & 0x000F000F)
+			out_be32(&lbc->lteccr, 0x000F000F); /* clear lteccr */
+		if (lteccr & 0x000F0000)
+			mtd->ecc_stats.corrected++;
+	}
+
 	return 0;
 }
 
