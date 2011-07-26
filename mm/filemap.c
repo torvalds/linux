@@ -1968,7 +1968,7 @@ EXPORT_SYMBOL(read_cache_page);
  */
 int should_remove_suid(struct dentry *dentry)
 {
-	mode_t mode = dentry->d_inode->i_mode;
+	umode_t mode = dentry->d_inode->i_mode;
 	int kill = 0;
 
 	/* suid always must be killed */
