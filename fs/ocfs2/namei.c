@@ -185,7 +185,7 @@ bail:
 	return ret;
 }
 
-static struct inode *ocfs2_get_init_inode(struct inode *dir, int mode)
+static struct inode *ocfs2_get_init_inode(struct inode *dir, umode_t mode)
 {
 	struct inode *inode;
 

@@ -400,7 +400,7 @@ static struct backing_dev_info dlmfs_backing_dev_info = {
 static struct inode *dlmfs_get_root_inode(struct super_block *sb)
 {
 	struct inode *inode = new_inode(sb);
-	int mode = S_IFDIR | 0755;
+	umode_t mode = S_IFDIR | 0755;
 	struct dlmfs_inode_private *ip;
 
 	if (inode) {
@@ -421,7 +421,7 @@ static struct inode *dlmfs_get_root_inode(struct super_block *sb)
 
 static struct inode *dlmfs_get_inode(struct inode *parent,
 				     struct dentry *dentry,
-				     int mode)
+				     umode_t mode)
 {
 	struct super_block *sb = parent->i_sb;
 	struct inode * inode = new_inode(sb);
