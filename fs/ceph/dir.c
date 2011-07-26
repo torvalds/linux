@@ -40,14 +40,6 @@ int ceph_init_dentry(struct dentry *dentry)
 	if (dentry->d_fsdata)
 		return 0;
 
-	if (dentry->d_parent == NULL ||   /* nfs fh_to_dentry */
-	    ceph_snap(dentry->d_parent->d_inode) == CEPH_NOSNAP)
-		d_set_d_op(dentry, &ceph_dentry_ops);
-	else if (ceph_snap(dentry->d_parent->d_inode) == CEPH_SNAPDIR)
-		d_set_d_op(dentry, &ceph_snapdir_dentry_ops);
-	else
-		d_set_d_op(dentry, &ceph_snap_dentry_ops);
-
 	di = kmem_cache_alloc(ceph_dentry_cachep, GFP_NOFS | __GFP_ZERO);
 	if (!di)
 		return -ENOMEM;          /* oh well */
@@ -58,10 +50,21 @@ int ceph_init_dentry(struct dentry *dentry)
 		kmem_cache_free(ceph_dentry_cachep, di);
 		goto out_unlock;
 	}
+
+	if (dentry->d_parent == NULL ||   /* nfs fh_to_dentry */
+	    ceph_snap(dentry->d_parent->d_inode) == CEPH_NOSNAP)
+		d_set_d_op(dentry, &ceph_dentry_ops);
+	else if (ceph_snap(dentry->d_parent->d_inode) == CEPH_SNAPDIR)
+		d_set_d_op(dentry, &ceph_snapdir_dentry_ops);
+	else
+		d_set_d_op(dentry, &ceph_snap_dentry_ops);
+
 	di->dentry = dentry;
 	di->lease_session = NULL;
-	dentry->d_fsdata = di;
 	dentry->d_time = jiffies;
+	/* avoid reordering d_fsdata setup so that the check above is safe */
+	smp_mb();
+	dentry->d_fsdata = di;
 	ceph_dentry_lru_add(dentry);
 out_unlock:
 	spin_unlock(&dentry->d_lock);
