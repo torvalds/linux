@@ -140,13 +140,20 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
   return c;
 }
 
-static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
+/**
+ * atomic_clear_mask - Atomically clear bits in atomic variable
+ * @mask: Mask of the bits to be cleared
+ * @v: pointer of type atomic_t
+ *
+ * Atomically clears the bits set in @mask from @v
+ */
+static inline void atomic_clear_mask(unsigned long mask, atomic_t *v)
 {
 	unsigned long flags;
 
 	mask = ~mask;
 	raw_local_irq_save(flags); /* Don't trace it in a irqsoff handler */
-	*addr &= mask;
+	v->counter &= mask;
 	raw_local_irq_restore(flags);
 }
 
