@@ -194,7 +194,8 @@ int ceph_open(struct inode *inode, struct file *file)
 	req->r_inode = inode;
 	ihold(inode);
 	req->r_num_caps = 1;
-	err = ceph_mdsc_do_request(mdsc, parent_inode, req);
+	err = ceph_mdsc_do_request(mdsc, (flags & (O_CREAT|O_TRUNC)) ?
+				   parent_inode : NULL, req);
 	if (!err)
 		err = ceph_init_file(inode, file, req->r_fmode);
 	ceph_mdsc_put_request(req);
