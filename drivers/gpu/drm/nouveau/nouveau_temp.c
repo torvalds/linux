@@ -43,7 +43,7 @@ nouveau_temp_vbios_parse(struct drm_device *dev, u8 *temp)
 
 	/* Set the default sensor's contants */
 	sensor->offset_constant = 0;
-	sensor->offset_mult = 1;
+	sensor->offset_mult = 0;
 	sensor->offset_div = 1;
 	sensor->slope_mult = 1;
 	sensor->slope_div = 1;
@@ -99,6 +99,13 @@ nouveau_temp_vbios_parse(struct drm_device *dev, u8 *temp)
 			sensor->slope_mult = 431;
 			sensor->slope_div = 10000;
 			break;
+
+		case 0x67:
+			sensor->offset_mult = -26149;
+			sensor->offset_div = 100;
+			sensor->slope_mult = 484;
+			sensor->slope_div = 10000;
+			break;
 		}
 	}
 
@@ -109,7 +116,7 @@ nouveau_temp_vbios_parse(struct drm_device *dev, u8 *temp)
 
 	/* Read the entries from the table */
 	for (i = 0; i < entries; i++) {
-		u16 value = ROM16(temp[1]);
+		s16 value = ROM16(temp[1]);
 
 		switch (temp[0]) {
 		case 0x01:
@@ -160,8 +167,8 @@ nv40_sensor_setup(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	struct nouveau_pm_temp_sensor_constants *sensor = &pm->sensor_constants;
-	u32 offset = sensor->offset_mult / sensor->offset_div;
-	u32 sensor_calibration;
+	s32 offset = sensor->offset_mult / sensor->offset_div;
+	s32 sensor_calibration;
 
 	/* set up the sensors */
 	sensor_calibration = 120 - offset - sensor->offset_constant;

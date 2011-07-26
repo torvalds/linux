@@ -361,10 +361,12 @@ static void notify_ring(struct drm_device *dev,
 
 	ring->irq_seqno = seqno;
 	wake_up_all(&ring->irq_queue);
-
-	dev_priv->hangcheck_count = 0;
-	mod_timer(&dev_priv->hangcheck_timer,
-		  jiffies + msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
+	if (i915_enable_hangcheck) {
+		dev_priv->hangcheck_count = 0;
+		mod_timer(&dev_priv->hangcheck_timer,
+			  jiffies +
+			  msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
+	}
 }
 
 static void gen6_pm_rps_work(struct work_struct *work)
@@ -1663,6 +1665,9 @@ void i915_hangcheck_elapsed(unsigned long data)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	uint32_t acthd, instdone, instdone1;
 	bool err = false;
+
+	if (!i915_enable_hangcheck)
+		return;
 
 	/* If all work is done then ACTHD clearly hasn't advanced. */
 	if (i915_hangcheck_ring_idle(&dev_priv->ring[RCS], &err) &&

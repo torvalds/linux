@@ -35,89 +35,6 @@ struct nv40_graph_engine {
 	u32 grctx_size;
 };
 
-static struct nouveau_channel *
-nv40_graph_channel(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *grctx;
-	uint32_t inst;
-	int i;
-
-	inst = nv_rd32(dev, NV40_PGRAPH_CTXCTL_CUR);
-	if (!(inst & NV40_PGRAPH_CTXCTL_CUR_LOADED))
-		return NULL;
-	inst = (inst & NV40_PGRAPH_CTXCTL_CUR_INSTANCE) << 4;
-
-	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
-		if (!dev_priv->channels.ptr[i])
-			continue;
-
-		grctx = dev_priv->channels.ptr[i]->engctx[NVOBJ_ENGINE_GR];
-		if (grctx && grctx->pinst == inst)
-			return dev_priv->channels.ptr[i];
-	}
-
-	return NULL;
-}
-
-static int
-nv40_graph_transfer_context(struct drm_device *dev, uint32_t inst, int save)
-{
-	uint32_t old_cp, tv = 1000, tmp;
-	int i;
-
-	old_cp = nv_rd32(dev, NV20_PGRAPH_CHANNEL_CTX_POINTER);
-	nv_wr32(dev, NV20_PGRAPH_CHANNEL_CTX_POINTER, inst);
-
-	tmp  = nv_rd32(dev, NV40_PGRAPH_CTXCTL_0310);
-	tmp |= save ? NV40_PGRAPH_CTXCTL_0310_XFER_SAVE :
-		      NV40_PGRAPH_CTXCTL_0310_XFER_LOAD;
-	nv_wr32(dev, NV40_PGRAPH_CTXCTL_0310, tmp);
-
-	tmp  = nv_rd32(dev, NV40_PGRAPH_CTXCTL_0304);
-	tmp |= NV40_PGRAPH_CTXCTL_0304_XFER_CTX;
-	nv_wr32(dev, NV40_PGRAPH_CTXCTL_0304, tmp);
-
-	nouveau_wait_for_idle(dev);
-
-	for (i = 0; i < tv; i++) {
-		if (nv_rd32(dev, NV40_PGRAPH_CTXCTL_030C) == 0)
-			break;
-	}
-
-	nv_wr32(dev, NV20_PGRAPH_CHANNEL_CTX_POINTER, old_cp);
-
-	if (i == tv) {
-		uint32_t ucstat = nv_rd32(dev, NV40_PGRAPH_CTXCTL_UCODE_STAT);
-		NV_ERROR(dev, "Failed: Instance=0x%08x Save=%d\n", inst, save);
-		NV_ERROR(dev, "IP: 0x%02x, Opcode: 0x%08x\n",
-			 ucstat >> NV40_PGRAPH_CTXCTL_UCODE_STAT_IP_SHIFT,
-			 ucstat  & NV40_PGRAPH_CTXCTL_UCODE_STAT_OP_MASK);
-		NV_ERROR(dev, "0x40030C = 0x%08x\n",
-			 nv_rd32(dev, NV40_PGRAPH_CTXCTL_030C));
-		return -EBUSY;
-	}
-
-	return 0;
-}
-
-static int
-nv40_graph_unload_context(struct drm_device *dev)
-{
-	uint32_t inst;
-	int ret;
-
-	inst = nv_rd32(dev, NV40_PGRAPH_CTXCTL_CUR);
-	if (!(inst & NV40_PGRAPH_CTXCTL_CUR_LOADED))
-		return 0;
-	inst &= NV40_PGRAPH_CTXCTL_CUR_INSTANCE;
-
-	ret = nv40_graph_transfer_context(dev, inst, 1);
-
-	nv_wr32(dev, NV40_PGRAPH_CTXCTL_CUR, inst);
-	return ret;
-}
-
 static int
 nv40_graph_context_new(struct nouveau_channel *chan, int engine)
 {
@@ -163,16 +80,16 @@ nv40_graph_context_del(struct nouveau_channel *chan, int engine)
 	struct nouveau_gpuobj *grctx = chan->engctx[engine];
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	u32 inst = 0x01000000 | (grctx->pinst >> 4);
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
-	nv04_graph_fifo_access(dev, false);
-
-	/* Unload the context if it's the currently active one */
-	if (nv40_graph_channel(dev) == chan)
-		nv40_graph_unload_context(dev);
-
-	nv04_graph_fifo_access(dev, true);
+	nv_mask(dev, 0x400720, 0x00000000, 0x00000001);
+	if (nv_rd32(dev, 0x40032c) == inst)
+		nv_mask(dev, 0x40032c, 0x01000000, 0x00000000);
+	if (nv_rd32(dev, 0x400330) == inst)
+		nv_mask(dev, 0x400330, 0x01000000, 0x00000000);
+	nv_mask(dev, 0x400720, 0x00000001, 0x00000001);
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
 	/* Free the context resources */
@@ -429,9 +346,20 @@ nv40_graph_init(struct drm_device *dev, int engine)
 }
 
 static int
-nv40_graph_fini(struct drm_device *dev, int engine)
+nv40_graph_fini(struct drm_device *dev, int engine, bool suspend)
 {
-	nv40_graph_unload_context(dev);
+	u32 inst = nv_rd32(dev, 0x40032c);
+	if (inst & 0x01000000) {
+		nv_wr32(dev, 0x400720, 0x00000000);
+		nv_wr32(dev, 0x400784, inst);
+		nv_mask(dev, 0x400310, 0x00000020, 0x00000020);
+		nv_mask(dev, 0x400304, 0x00000001, 0x00000001);
+		if (!nv_wait(dev, 0x400300, 0x00000001, 0x00000000)) {
+			u32 insn = nv_rd32(dev, 0x400308);
+			NV_ERROR(dev, "PGRAPH: ctxprog timeout 0x%08x\n", insn);
+		}
+		nv_mask(dev, 0x40032c, 0x01000000, 0x00000000);
+	}
 	return 0;
 }
 

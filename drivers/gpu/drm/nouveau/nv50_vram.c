@@ -51,9 +51,7 @@ void
 nv50_vram_del(struct drm_device *dev, struct nouveau_mem **pmem)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct ttm_bo_device *bdev = &dev_priv->ttm.bdev;
-	struct ttm_mem_type_manager *man = &bdev->man[TTM_PL_VRAM];
-	struct nouveau_mm *mm = man->priv;
+	struct nouveau_mm *mm = dev_priv->engine.vram.mm;
 	struct nouveau_mm_node *this;
 	struct nouveau_mem *mem;
 
@@ -84,9 +82,7 @@ nv50_vram_new(struct drm_device *dev, u64 size, u32 align, u32 size_nc,
 	      u32 memtype, struct nouveau_mem **pmem)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct ttm_bo_device *bdev = &dev_priv->ttm.bdev;
-	struct ttm_mem_type_manager *man = &bdev->man[TTM_PL_VRAM];
-	struct nouveau_mm *mm = man->priv;
+	struct nouveau_mm *mm = dev_priv->engine.vram.mm;
 	struct nouveau_mm_node *r;
 	struct nouveau_mem *mem;
 	int comp = (memtype & 0x300) >> 8;
@@ -190,22 +186,35 @@ int
 nv50_vram_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_vram_engine *vram = &dev_priv->engine.vram;
+	const u32 rsvd_head = ( 256 * 1024) >> 12; /* vga memory */
+	const u32 rsvd_tail = (1024 * 1024) >> 12; /* vbios etc */
+	u32 rblock, length;
 
 	dev_priv->vram_size  = nv_rd32(dev, 0x10020c);
 	dev_priv->vram_size |= (dev_priv->vram_size & 0xff) << 32;
 	dev_priv->vram_size &= 0xffffffff00ULL;
 
-	switch (dev_priv->chipset) {
-	case 0xaa:
-	case 0xac:
-	case 0xaf:
+	/* IGPs, no funky reordering happens here, they don't have VRAM */
+	if (dev_priv->chipset == 0xaa ||
+	    dev_priv->chipset == 0xac ||
+	    dev_priv->chipset == 0xaf) {
 		dev_priv->vram_sys_base = (u64)nv_rd32(dev, 0x100e10) << 12;
-		dev_priv->vram_rblock_size = 4096;
-		break;
-	default:
-		dev_priv->vram_rblock_size = nv50_vram_rblock(dev);
-		break;
+		rblock = 4096 >> 12;
+	} else {
+		rblock = nv50_vram_rblock(dev) >> 12;
 	}
 
-	return 0;
+	length = (dev_priv->vram_size >> 12) - rsvd_head - rsvd_tail;
+
+	return nouveau_mm_init(&vram->mm, rsvd_head, length, rblock);
+}
+
+void
+nv50_vram_fini(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_vram_engine *vram = &dev_priv->engine.vram;
+
+	nouveau_mm_fini(&vram->mm);
 }
