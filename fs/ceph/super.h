@@ -136,7 +136,7 @@ struct ceph_cap_snap {
 	int issued, dirty;
 	struct ceph_snap_context *context;
 
-	mode_t mode;
+	umode_t mode;
 	uid_t uid;
 	gid_t gid;
 
