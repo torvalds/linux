@@ -231,6 +231,14 @@ static long ceph_ioctl_lazyio(struct file *file)
 	return 0;
 }
 
+static long ceph_ioctl_syncio(struct file *file)
+{
+	struct ceph_file_info *fi = file->private_data;
+
+	fi->flags |= CEPH_F_SYNC;
+	return 0;
+}
+
 long ceph_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	dout("ioctl file %p cmd %u arg %lu\n", file, cmd, arg);
@@ -249,6 +257,9 @@ long ceph_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case CEPH_IOC_LAZYIO:
 		return ceph_ioctl_lazyio(file);
+
+	case CEPH_IOC_SYNCIO:
+		return ceph_ioctl_syncio(file);
 	}
 
 	return -ENOTTY;

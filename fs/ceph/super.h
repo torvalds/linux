@@ -543,6 +543,8 @@ extern void ceph_reservation_status(struct ceph_fs_client *client,
 /*
  * we keep buffered readdir results attached to file->private_data
  */
+#define CEPH_F_SYNC     1
+
 struct ceph_file_info {
 	short fmode;     /* initialized on open */
 	short flags;     /* CEPH_F_* */
