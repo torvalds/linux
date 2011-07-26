@@ -4052,17 +4052,16 @@ static int transport_allocate_data_tasks(
 	struct se_task *task;
 	struct se_device *dev = cmd->se_dev;
 	unsigned long flags;
-	sector_t sectors;
 	int task_count, i, ret;
-	sector_t dev_max_sectors = dev->se_sub_dev->se_dev_attrib.max_sectors;
+	sector_t sectors, dev_max_sectors = dev->se_sub_dev->se_dev_attrib.max_sectors;
 	u32 sector_size = dev->se_sub_dev->se_dev_attrib.block_size;
 	struct scatterlist *sg;
 	struct scatterlist *cmd_sg;
 
 	WARN_ON(cmd->data_length % sector_size);
 	sectors = DIV_ROUND_UP(cmd->data_length, sector_size);
-	task_count = DIV_ROUND_UP(sectors, dev_max_sectors);
-
+	task_count = DIV_ROUND_UP_SECTOR_T(sectors, dev_max_sectors);
+	
 	cmd_sg = sgl;
 	for (i = 0; i < task_count; i++) {
 		unsigned int task_size;
