@@ -353,6 +353,14 @@ static int bnx2fc_init_tgt(struct bnx2fc_rport *tgt,
 	tgt->rq_cons_idx = 0;
 	atomic_set(&tgt->num_active_ios, 0);
 
+	if (rdata->flags & FC_RP_FLAGS_RETRY) {
+		tgt->dev_type = TYPE_TAPE;
+		tgt->io_timeout = 0; /* use default ULP timeout */
+	} else {
+		tgt->dev_type = TYPE_DISK;
+		tgt->io_timeout = BNX2FC_IO_TIMEOUT;
+	}
+
 	/* initialize sq doorbell */
 	sq_db->header.header = B577XX_DOORBELL_HDR_DB_TYPE;
 	sq_db->header.header |= B577XX_FCOE_CONNECTION_TYPE <<

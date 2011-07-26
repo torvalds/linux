@@ -1862,7 +1862,8 @@ static int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 	}
 
 	/* Time IO req */
-	bnx2fc_cmd_timer_set(io_req, BNX2FC_IO_TIMEOUT);
+	if (tgt->io_timeout)
+		bnx2fc_cmd_timer_set(io_req, BNX2FC_IO_TIMEOUT);
 	/* Obtain free SQ entry */
 	bnx2fc_add_2_sq(tgt, xid);
 

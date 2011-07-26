@@ -244,9 +244,11 @@ struct bnx2fc_rport {
 	struct fc_rport_priv *rdata;
 	void __iomem *ctx_base;
 #define DPM_TRIGER_TYPE		0x40
+	u32 io_timeout;
 	u32 fcoe_conn_id;
 	u32 context_id;
 	u32 sid;
+	int dev_type;
 
 	unsigned long flags;
 #define BNX2FC_FLAG_SESSION_READY	0x1

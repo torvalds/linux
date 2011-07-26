@@ -279,6 +279,18 @@ int bnx2fc_send_session_ofld_req(struct fcoe_port *port,
 	ofld_req3.flags |= (((rdata->sp_features & FC_SP_FT_SEQC) ? 1 : 0) <<
 			     FCOE_KWQE_CONN_OFFLOAD3_B_CONT_INCR_SEQ_CNT_SHIFT);
 
+	/*
+	 * Info from PRLI response, this info is used for sequence level error
+	 * recovery support
+	 */
+	if (tgt->dev_type == TYPE_TAPE) {
+		ofld_req3.flags |= 1 <<
+				    FCOE_KWQE_CONN_OFFLOAD3_B_CONF_REQ_SHIFT;
+		ofld_req3.flags |= (((rdata->flags & FC_RP_FLAGS_REC_SUPPORTED)
+				    ? 1 : 0) <<
+				    FCOE_KWQE_CONN_OFFLOAD3_B_REC_VALID_SHIFT);
+	}
+
 	/* vlan flag */
 	ofld_req3.flags |= (interface->vlan_enabled <<
 			    FCOE_KWQE_CONN_OFFLOAD3_B_VLAN_FLAG_SHIFT);
