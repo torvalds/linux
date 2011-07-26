@@ -22,6 +22,8 @@
 #include <linux/jbd.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
+#include <linux/blkdev.h>
+#include <trace/events/jbd.h>
 
 /*
  * Unlink a buffer from a transaction checkpoint list.
@@ -95,10 +97,14 @@ static int __try_to_free_cp_buf(struct journal_head *jh)
 
 	if (jh->b_jlist == BJ_None && !buffer_locked(bh) &&
 	    !buffer_dirty(bh) && !buffer_write_io_error(bh)) {
+		/*
+		 * Get our reference so that bh cannot be freed before
+		 * we unlock it
+		 */
+		get_bh(bh);
 		JBUFFER_TRACE(jh, "remove from checkpoint list");
 		ret = __journal_remove_checkpoint(jh) + 1;
 		jbd_unlock_bh_state(bh);
-		journal_remove_journal_head(bh);
 		BUFFER_TRACE(bh, "release");
 		__brelse(bh);
 	} else {
@@ -220,8 +226,8 @@ restart:
 			spin_lock(&journal->j_list_lock);
 			goto restart;
 		}
+		get_bh(bh);
 		if (buffer_locked(bh)) {
-			get_bh(bh);
 			spin_unlock(&journal->j_list_lock);
 			jbd_unlock_bh_state(bh);
 			wait_on_buffer(bh);
@@ -240,7 +246,6 @@ restart:
 		 */
 		released = __journal_remove_checkpoint(jh);
 		jbd_unlock_bh_state(bh);
-		journal_remove_journal_head(bh);
 		__brelse(bh);
 	}
 
@@ -253,9 +258,12 @@ static void
 __flush_batch(journal_t *journal, struct buffer_head **bhs, int *batch_count)
 {
 	int i;
+	struct blk_plug plug;
 
+	blk_start_plug(&plug);
 	for (i = 0; i < *batch_count; i++)
-		write_dirty_buffer(bhs[i], WRITE);
+		write_dirty_buffer(bhs[i], WRITE_SYNC);
+	blk_finish_plug(&plug);
 
 	for (i = 0; i < *batch_count; i++) {
 		struct buffer_head *bh = bhs[i];
@@ -304,12 +312,12 @@ static int __process_buffer(journal_t *journal, struct journal_head *jh,
 		ret = 1;
 		if (unlikely(buffer_write_io_error(bh)))
 			ret = -EIO;
+		get_bh(bh);
 		J_ASSERT_JH(jh, !buffer_jbddirty(bh));
 		BUFFER_TRACE(bh, "remove from checkpoint");
 		__journal_remove_checkpoint(jh);
 		spin_unlock(&journal->j_list_lock);
 		jbd_unlock_bh_state(bh);
-		journal_remove_journal_head(bh);
 		__brelse(bh);
 	} else {
 		/*
@@ -358,6 +366,7 @@ int log_do_checkpoint(journal_t *journal)
 	 * journal straight away.
 	 */
 	result = cleanup_journal_tail(journal);
+	trace_jbd_checkpoint(journal, result);
 	jbd_debug(1, "cleanup_journal_tail returned %d\n", result);
 	if (result <= 0)
 		return result;
@@ -503,6 +512,7 @@ int cleanup_journal_tail(journal_t *journal)
 	if (blocknr < journal->j_tail)
 		freed = freed + journal->j_last - journal->j_first;
 
+	trace_jbd_cleanup_journal_tail(journal, first_tid, blocknr, freed);
 	jbd_debug(1,
 		  "Cleaning journal tail from %d to %d (offset %u), "
 		  "freeing %u\n",
@@ -523,9 +533,9 @@ int cleanup_journal_tail(journal_t *journal)
 /*
  * journal_clean_one_cp_list
  *
- * Find all the written-back checkpoint buffers in the given list and release them.
+ * Find all the written-back checkpoint buffers in the given list and release
+ * them.
  *
- * Called with the journal locked.
  * Called with j_list_lock held.
  * Returns number of bufers reaped (for debug)
  */
@@ -632,8 +642,8 @@ out:
  * checkpoint lists.
  *
  * The function returns 1 if it frees the transaction, 0 otherwise.
+ * The function can free jh and bh.
  *
- * This function is called with the journal locked.
  * This function is called with j_list_lock held.
  * This function is called with jbd_lock_bh_state(jh2bh(jh))
  */
@@ -652,13 +662,14 @@ int __journal_remove_checkpoint(struct journal_head *jh)
 	}
 	journal = transaction->t_journal;
 
+	JBUFFER_TRACE(jh, "removing from transaction");
 	__buffer_unlink(jh);
 	jh->b_cp_transaction = NULL;
+	journal_put_journal_head(jh);
 
 	if (transaction->t_checkpoint_list != NULL ||
 	    transaction->t_checkpoint_io_list != NULL)
 		goto out;
-	JBUFFER_TRACE(jh, "transaction has no more buffers");
 
 	/*
 	 * There is one special case to worry about: if we have just pulled the
@@ -669,10 +680,8 @@ int __journal_remove_checkpoint(struct journal_head *jh)
 	 * The locking here around t_state is a bit sleazy.
 	 * See the comment at the end of journal_commit_transaction().
 	 */
-	if (transaction->t_state != T_FINISHED) {
-		JBUFFER_TRACE(jh, "belongs to running/committing transaction");
+	if (transaction->t_state != T_FINISHED)
 		goto out;
-	}
 
 	/* OK, that was the last buffer for the transaction: we can now
 	   safely remove this transaction from the log */
@@ -684,7 +693,6 @@ int __journal_remove_checkpoint(struct journal_head *jh)
 	wake_up(&journal->j_wait_logspace);
 	ret = 1;
 out:
-	JBUFFER_TRACE(jh, "exit");
 	return ret;
 }
 
@@ -703,6 +711,8 @@ void __journal_insert_checkpoint(struct journal_head *jh,
 	J_ASSERT_JH(jh, buffer_dirty(jh2bh(jh)) || buffer_jbddirty(jh2bh(jh)));
 	J_ASSERT_JH(jh, jh->b_cp_transaction == NULL);
 
+	/* Get reference for checkpointing transaction */
+	journal_grab_journal_head(jh2bh(jh));
 	jh->b_cp_transaction = transaction;
 
 	if (!transaction->t_checkpoint_list) {
@@ -752,6 +762,7 @@ void __journal_drop_transaction(journal_t *journal, transaction_t *transaction)
 	J_ASSERT(journal->j_committing_transaction != transaction);
 	J_ASSERT(journal->j_running_transaction != transaction);
 
+	trace_jbd_drop_transaction(journal, transaction);
 	jbd_debug(1, "Dropping transaction %d, all done\n", transaction->t_tid);
 	kfree(transaction);
 }
