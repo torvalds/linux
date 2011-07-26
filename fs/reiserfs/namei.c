@@ -559,7 +559,7 @@ static int drop_new_inode(struct inode *inode)
 ** outside of a transaction, so we had to pull some bits of
 ** reiserfs_new_inode out into this func.
 */
-static int new_inode_init(struct inode *inode, struct inode *dir, int mode)
+static int new_inode_init(struct inode *inode, struct inode *dir, umode_t mode)
 {
 	/* Make inode invalid - just in case we are going to drop it before
 	 * the initialization happens */
