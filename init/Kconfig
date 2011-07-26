@@ -673,7 +673,7 @@ config CGROUP_MEM_RES_CTLR_SWAP
 	  be careful about enabling this. When memory resource controller
 	  is disabled by boot option, this will be automatically disabled and
 	  there will be no overhead from this. Even when you set this config=y,
-	  if boot option "noswapaccount" is set, swap will not be accounted.
+	  if boot option "swapaccount=0" is set, swap will not be accounted.
 	  Now, memory usage of swap_cgroup is 2 bytes per entry. If swap page
 	  size is 4096bytes, 512k per 1Gbytes of swap.
 config CGROUP_MEM_RES_CTLR_SWAP_ENABLED
@@ -688,7 +688,7 @@ config CGROUP_MEM_RES_CTLR_SWAP_ENABLED
 	  parameter should have this option unselected.
 	  For those who want to have the feature enabled by default should
 	  select this option (if, for some reason, they need to disable it
-	  then noswapaccount does the trick).
+	  then swapaccount=0 does the trick).
 
 config CGROUP_PERF
 	bool "Enable perf_event per-cpu per-container group (cgroup) monitoring"

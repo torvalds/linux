@@ -24,6 +24,7 @@
 #include <linux/cpumask.h>
 #include <linux/memblock.h>
 #include <linux/slab.h>
+#include <linux/reboot.h>
 
 #include <asm/prom.h>
 #include <asm/rtas.h>

@@ -184,7 +184,7 @@ Why:	/proc/<pid>/oom_adj allows userspace to influence the oom killer's
 
 	A much more powerful interface, /proc/<pid>/oom_score_adj, was
 	introduced with the oom killer rewrite that allows users to increase or
-	decrease the badness() score linearly.  This interface will replace
+	decrease the badness score linearly.  This interface will replace
 	/proc/<pid>/oom_adj.
 
 	A warning will be emitted to the kernel log if an application uses this
@@ -515,22 +515,6 @@ What:	xt_connlimit rev 0
 When:	2012
 Who:	Jan Engelhardt <jengelh@medozas.de>
 Files:	net/netfilter/xt_connlimit.c
-
-----------------------------
-
-What:	noswapaccount kernel command line parameter
-When:	3.0
-Why:	The original implementation of memsw feature enabled by
-	CONFIG_CGROUP_MEM_RES_CTLR_SWAP could be disabled by the noswapaccount
-	kernel parameter (introduced in 2.6.29-rc1). Later on, this decision
-	turned out to be not ideal because we cannot have the feature compiled
-	in and disabled by default and let only interested to enable it
-	(e.g. general distribution kernels might need it). Therefore we have
-	added swapaccount[=0|1] parameter (introduced in 2.6.37) which provides
-	the both possibilities. If we remove noswapaccount we will have
-	less command line parameters with the same functionality and we
-	can also cleanup the parameter handling a bit ().
-Who:	Michal Hocko <mhocko@suse.cz>
 
 ----------------------------
 

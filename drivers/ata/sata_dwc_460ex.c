@@ -1642,13 +1642,12 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	const struct ata_port_info *ppi[] = { &pi, NULL };
 
 	/* Allocate DWC SATA device */
-	hsdev = kmalloc(sizeof(*hsdev), GFP_KERNEL);
+	hsdev = kzalloc(sizeof(*hsdev), GFP_KERNEL);
 	if (hsdev == NULL) {
 		dev_err(&ofdev->dev, "kmalloc failed for hsdev\n");
 		err = -ENOMEM;
 		goto error;
 	}
-	memset(hsdev, 0, sizeof(*hsdev));
 
 	/* Ioremap SATA registers */
 	base = of_iomap(ofdev->dev.of_node, 0);
