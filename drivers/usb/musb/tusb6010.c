@@ -269,8 +269,6 @@ void musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *buf)
 
 static struct musb *the_musb;
 
-#ifdef CONFIG_USB_GADGET_MUSB_HDRC
-
 /* This is used by gadget drivers, and OTG transceiver logic, allowing
  * at most mA current to be drawn from VBUS during a Default-B session
  * (that is, while VBUS exceeds 4.4V).  In Default-A (including pure host
@@ -309,10 +307,6 @@ static int tusb_draw_power(struct otg_transceiver *x, unsigned mA)
 	dev_dbg(musb->controller, "draw max %d mA VBUS\n", mA);
 	return 0;
 }
-
-#else
-#define tusb_draw_power	NULL
-#endif
 
 /* workaround for issue 13:  change clock during chip idle
  * (to be fixed in rev3 silicon) ... symptoms include disconnect
@@ -440,19 +434,15 @@ static void musb_do_idle(unsigned long _musb)
 		if (is_host_active(musb) && (musb->port1_status >> 16))
 			goto done;
 
-#ifdef CONFIG_USB_GADGET_MUSB_HDRC
-		if (is_peripheral_enabled(musb) && !musb->gadget_driver)
+		if (is_peripheral_enabled(musb) && !musb->gadget_driver) {
 			wakeups = 0;
-		else {
+		} else {
 			wakeups = TUSB_PRCM_WHOSTDISCON
-					| TUSB_PRCM_WBUS
+				| TUSB_PRCM_WBUS
 					| TUSB_PRCM_WVBUS;
 			if (is_otg_enabled(musb))
 				wakeups |= TUSB_PRCM_WID;
 		}
-#else
-		wakeups = TUSB_PRCM_WHOSTDISCON | TUSB_PRCM_WBUS;
-#endif
 		tusb_allow_idle(musb, wakeups);
 	}
 done:
@@ -610,30 +600,22 @@ static int tusb_musb_set_mode(struct musb *musb, u8 musb_mode)
 
 	switch (musb_mode) {
 
-#ifdef CONFIG_USB_MUSB_HDRC_HCD
 	case MUSB_HOST:		/* Disable PHY ID detect, ground ID */
 		phy_otg_ctrl &= ~TUSB_PHY_OTG_CTRL_OTG_ID_PULLUP;
 		phy_otg_ena |= TUSB_PHY_OTG_CTRL_OTG_ID_PULLUP;
 		dev_conf |= TUSB_DEV_CONF_ID_SEL;
 		dev_conf &= ~TUSB_DEV_CONF_SOFT_ID;
 		break;
-#endif
-
-#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	case MUSB_PERIPHERAL:	/* Disable PHY ID detect, keep ID pull-up on */
 		phy_otg_ctrl |= TUSB_PHY_OTG_CTRL_OTG_ID_PULLUP;
 		phy_otg_ena |= TUSB_PHY_OTG_CTRL_OTG_ID_PULLUP;
 		dev_conf |= (TUSB_DEV_CONF_ID_SEL | TUSB_DEV_CONF_SOFT_ID);
 		break;
-#endif
-
-#ifdef CONFIG_USB_MUSB_OTG
 	case MUSB_OTG:		/* Use PHY ID detection */
 		phy_otg_ctrl |= TUSB_PHY_OTG_CTRL_OTG_ID_PULLUP;
 		phy_otg_ena |= TUSB_PHY_OTG_CTRL_OTG_ID_PULLUP;
 		dev_conf &= ~(TUSB_DEV_CONF_ID_SEL | TUSB_DEV_CONF_SOFT_ID);
 		break;
-#endif
 
 	default:
 		dev_dbg(musb->controller, "Trying to set mode %i\n", musb_mode);
@@ -684,7 +666,6 @@ tusb_otg_ints(struct musb *musb, u32 int_src, void __iomem *tbase)
 		/* B-dev state machine:  no vbus ~= disconnect */
 		if ((is_otg_enabled(musb) && !musb->xceiv->default_a)
 				|| !is_host_enabled(musb)) {
-#ifdef CONFIG_USB_MUSB_HDRC_HCD
 			/* ? musb_root_disconnect(musb); */
 			musb->port1_status &=
 				~(USB_PORT_STAT_CONNECTION
@@ -693,7 +674,6 @@ tusb_otg_ints(struct musb *musb, u32 int_src, void __iomem *tbase)
 				| USB_PORT_STAT_HIGH_SPEED
 				| USB_PORT_STAT_TEST
 				);
-#endif
 
 			if (otg_stat & TUSB_DEV_OTG_STAT_SESS_END) {
 				dev_dbg(musb->controller, "Forcing disconnect (no interrupt)\n");

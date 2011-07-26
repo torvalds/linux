@@ -75,6 +75,7 @@ struct ehci_hcd {			/* one per controller */
 	struct ehci_qh		*async;
 	struct ehci_qh		*dummy;		/* For AMD quirk use */
 	struct ehci_qh		*reclaim;
+	struct ehci_qh		*qh_scan_next;
 	unsigned		scanning : 1;
 
 	/* periodic schedule support */
@@ -87,6 +88,8 @@ struct ehci_hcd {			/* one per controller */
 	union ehci_shadow	*pshadow;	/* mirror hw periodic table */
 	int			next_uframe;	/* scan periodic, start here */
 	unsigned		periodic_sched;	/* periodic activity count */
+	unsigned		uframe_periodic_max; /* max periodic time per uframe */
+
 
 	/* list of itds & sitds completed while clock_frame was still active */
 	struct list_head	cached_itd_list;
@@ -117,7 +120,6 @@ struct ehci_hcd {			/* one per controller */
 	struct timer_list	iaa_watchdog;
 	struct timer_list	watchdog;
 	unsigned long		actions;
-	unsigned		stamp;
 	unsigned		periodic_stamp;
 	unsigned		random_frame;
 	unsigned long		next_statechange;
@@ -343,6 +345,7 @@ struct ehci_qh {
 	struct ehci_qh		*reclaim;	/* next to reclaim */
 
 	struct ehci_hcd		*ehci;
+	unsigned long		unlink_time;
 
 	/*
 	 * Do NOT use atomic operations for QH refcounting. On some CPUs
@@ -374,6 +377,7 @@ struct ehci_qh {
 #define NO_FRAME ((unsigned short)~0)			/* pick new start */
 
 	struct usb_device	*dev;		/* access to TT */
+	unsigned		is_out:1;	/* bulk or intr OUT */
 	unsigned		clearing_tt:1;	/* Clear-TT-Buf in progress */
 };
 

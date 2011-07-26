@@ -1011,12 +1011,18 @@ static int pxa25x_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 	return -EOPNOTSUPP;
 }
 
+static int pxa25x_start(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *));
+static int pxa25x_stop(struct usb_gadget_driver *driver);
+
 static const struct usb_gadget_ops pxa25x_udc_ops = {
 	.get_frame	= pxa25x_udc_get_frame,
 	.wakeup		= pxa25x_udc_wakeup,
 	.vbus_session	= pxa25x_udc_vbus_session,
 	.pullup		= pxa25x_udc_pullup,
 	.vbus_draw	= pxa25x_udc_vbus_draw,
+	.start		= pxa25x_start,
+	.stop		= pxa25x_stop,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -1263,7 +1269,7 @@ static void udc_enable (struct pxa25x_udc *dev)
  * disconnect is reported.  then a host may connect again, or
  * the driver might get unbound.
  */
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int pxa25x_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	struct pxa25x_udc	*dev = the_controller;
@@ -1322,7 +1328,6 @@ fail:
 bind_fail:
 	return retval;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 static void
 stop_activity(struct pxa25x_udc *dev, struct usb_gadget_driver *driver)
@@ -1351,7 +1356,7 @@ stop_activity(struct pxa25x_udc *dev, struct usb_gadget_driver *driver)
 	udc_reinit(dev);
 }
 
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int pxa25x_stop(struct usb_gadget_driver *driver)
 {
 	struct pxa25x_udc	*dev = the_controller;
 
@@ -1379,8 +1384,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	dump_state(dev);
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
-
 
 /*-------------------------------------------------------------------------*/
 
@@ -2231,8 +2234,11 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 #endif
 	create_debug_files(dev);
 
-	return 0;
+	retval = usb_add_gadget_udc(&pdev->dev, &dev->gadget);
+	if (!retval)
+		return retval;
 
+	remove_debug_files(dev);
 #ifdef	CONFIG_ARCH_LUBBOCK
 lubbock_fail0:
 	free_irq(LUBBOCK_USB_DISC_IRQ, dev);
@@ -2261,6 +2267,7 @@ static int __exit pxa25x_udc_remove(struct platform_device *pdev)
 {
 	struct pxa25x_udc *dev = platform_get_drvdata(pdev);
 
+	usb_del_gadget_udc(&dev->gadget);
 	if (dev->driver)
 		return -EBUSY;
 

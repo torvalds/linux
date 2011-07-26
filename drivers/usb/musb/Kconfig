@@ -8,7 +8,7 @@ comment "Enable Host or Gadget support to see Inventra options"
 
 # (M)HDRC = (Multipoint) Highspeed Dual-Role Controller
 config USB_MUSB_HDRC
-	depends on (USB || USB_GADGET)
+	depends on USB && USB_GADGET
 	depends on (ARM || (BF54x && !BF544) || (BF52x && !BF522 && !BF523))
 	select NOP_USB_XCEIV if (ARCH_DAVINCI || MACH_OMAP3EVM || BLACKFIN)
 	select TWL4030_USB if MACH_OMAP_3430SDP
@@ -66,79 +66,6 @@ config USB_MUSB_UX500
 	depends on (ARCH_U8500 && AB8500_USB) || (ARCH_U5500)
 
 endchoice
-
-choice
-	prompt "Driver Mode"
-	depends on USB_MUSB_HDRC
-	help
-	  Dual-Role devices can support both host and peripheral roles,
-	  as well as a the special "OTG Device" role which can switch
-	  between both roles as needed.
-
-# use USB_MUSB_HDRC_HCD not USB_MUSB_HOST to #ifdef host side support;
-# OTG needs both roles, not just USB_MUSB_HOST.
-config USB_MUSB_HOST
-	depends on USB
-	bool "USB Host"
-	help
-	  Say Y here if your system supports the USB host role.
-	  If it has a USB "A" (rectangular), "Mini-A" (uncommon),
-	  or "Mini-AB" connector, it supports the host role.
-	  (With a "Mini-AB" connector, you should enable USB OTG.)
-
-# use USB_GADGET_MUSB_HDRC not USB_MUSB_PERIPHERAL to #ifdef peripheral
-# side support ... OTG needs both roles
-config USB_MUSB_PERIPHERAL
-	depends on USB_GADGET
-	bool "USB Peripheral (gadget stack)"
-	select USB_GADGET_MUSB_HDRC
-	help
-	  Say Y here if your system supports the USB peripheral role.
-	  If it has a USB "B" (squarish), "Mini-B", or "Mini-AB"
-	  connector, it supports the peripheral role.
-	  (With a "Mini-AB" connector, you should enable USB OTG.)
-
-config USB_MUSB_OTG
-	depends on USB && USB_GADGET && PM && EXPERIMENTAL
-	bool "Both host and peripheral:  USB OTG (On The Go) Device"
-	select USB_GADGET_MUSB_HDRC
-	select USB_OTG
-	help
-	   The most notable feature of USB OTG is support for a
-	   "Dual-Role" device, which can act as either a device
-	   or a host.  The initial role choice can be changed
-	   later, when two dual-role devices talk to each other.
-
-	   At this writing, the OTG support in this driver is incomplete,
-	   omitting the mandatory HNP or SRP protocols.  However, some
-	   of the cable based role switching works.  (That is, grounding
-	   the ID pin switches the controller to host mode, while leaving
-	   it floating leaves it in peripheral mode.)
-
-	   Select this if your system has a Mini-AB connector, or
-	   to simplify certain kinds of configuration.
-
-	   To implement your OTG Targeted Peripherals List (TPL), enable
-	   USB_OTG_WHITELIST and update "drivers/usb/core/otg_whitelist.h"
-	   to match your requirements.
-
-endchoice
-
-# enable peripheral support (including with OTG)
-config USB_GADGET_MUSB_HDRC
-	bool
-	depends on USB_MUSB_HDRC && (USB_MUSB_PERIPHERAL || USB_MUSB_OTG)
-#	default y
-#	select USB_GADGET_DUALSPEED
-#	select USB_GADGET_SELECTED
-
-# enables host support (including with OTG)
-config USB_MUSB_HDRC_HCD
-	bool
-	depends on USB_MUSB_HDRC && (USB_MUSB_HOST || USB_MUSB_OTG)
-	select USB_OTG if USB_GADGET_MUSB_HDRC
-	default y
-
 
 config MUSB_PIO_ONLY
 	bool 'Disable DMA (always use PIO)'

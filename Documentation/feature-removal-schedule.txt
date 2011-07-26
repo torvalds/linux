@@ -569,3 +569,10 @@ Why:	Just opening a V4L device should not change the state of the hardware
 Who:	Hans Verkuil <hans.verkuil@cisco.com>
 
 ----------------------------
+
+What:	g_file_storage driver
+When:	3.8
+Why:	This driver has been superseded by g_mass_storage.
+Who:	Alan Stern <stern@rowland.harvard.edu>
+
+----------------------------
