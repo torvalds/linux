@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/ramoops.h>
 
 #define RAMOOPS_KERNMSG_HDR "===="
@@ -55,6 +56,9 @@ static struct ramoops_context {
 	int count;
 	int max_count;
 } oops_cxt;
+
+static struct platform_device *dummy;
+static struct ramoops_platform_data *dummy_data;
 
 static void ramoops_do_dump(struct kmsg_dumper *dumper,
 		enum kmsg_dump_reason reason, const char *s1, unsigned long l1,
@@ -106,27 +110,22 @@ static int __init ramoops_probe(struct platform_device *pdev)
 	struct ramoops_context *cxt = &oops_cxt;
 	int err = -EINVAL;
 
-	if (pdata) {
-		mem_size = pdata->mem_size;
-		mem_address = pdata->mem_address;
-	}
-
-	if (!mem_size) {
+	if (!pdata->mem_size) {
 		printk(KERN_ERR "ramoops: invalid size specification");
 		goto fail3;
 	}
 
-	rounddown_pow_of_two(mem_size);
+	rounddown_pow_of_two(pdata->mem_size);
 
-	if (mem_size < RECORD_SIZE) {
+	if (pdata->mem_size < RECORD_SIZE) {
 		printk(KERN_ERR "ramoops: size too small");
 		goto fail3;
 	}
 
-	cxt->max_count = mem_size / RECORD_SIZE;
+	cxt->max_count = pdata->mem_size / RECORD_SIZE;
 	cxt->count = 0;
-	cxt->size = mem_size;
-	cxt->phys_addr = mem_address;
+	cxt->size = pdata->mem_size;
+	cxt->phys_addr = pdata->mem_address;
 
 	if (!request_mem_region(cxt->phys_addr, cxt->size, "ramoops")) {
 		printk(KERN_ERR "ramoops: request mem region failed");
@@ -179,12 +178,36 @@ static struct platform_driver ramoops_driver = {
 
 static int __init ramoops_init(void)
 {
-	return platform_driver_probe(&ramoops_driver, ramoops_probe);
+	int ret;
+	ret = platform_driver_probe(&ramoops_driver, ramoops_probe);
+	if (ret == -ENODEV) {
+		/*
+		 * If we didn't find a platform device, we use module parameters
+		 * building platform data on the fly.
+		 */
+		dummy_data = kzalloc(sizeof(struct ramoops_platform_data),
+				     GFP_KERNEL);
+		if (!dummy_data)
+			return -ENOMEM;
+		dummy_data->mem_size = mem_size;
+		dummy_data->mem_address = mem_address;
+		dummy = platform_create_bundle(&ramoops_driver, ramoops_probe,
+			NULL, 0, dummy_data,
+			sizeof(struct ramoops_platform_data));
+
+		if (IS_ERR(dummy))
+			ret = PTR_ERR(dummy);
+		else
+			ret = 0;
+	}
+
+	return ret;
 }
 
 static void __exit ramoops_exit(void)
 {
 	platform_driver_unregister(&ramoops_driver);
+	kfree(dummy_data);
 }
 
 module_init(ramoops_init);
