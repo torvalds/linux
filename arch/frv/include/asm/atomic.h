@@ -257,5 +257,4 @@ static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
 }
 
 
-#include <asm-generic/atomic-long.h>
 #endif /* _ASM_ATOMIC_H */

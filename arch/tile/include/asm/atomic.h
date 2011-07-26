@@ -177,9 +177,4 @@ extern unsigned long __cmpxchg_called_with_bad_pointer(void);
 #include <asm/atomic_64.h>
 #endif
 
-/* Provide the appropriate atomic_long_t definitions. */
-#ifndef __ASSEMBLY__
-#include <asm-generic/atomic-long.h>
-#endif
-
 #endif /* _ASM_TILE_ATOMIC_H */

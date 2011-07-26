@@ -765,10 +765,6 @@ static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
  */
 #define atomic64_add_negative(i, v) (atomic64_add_return(i, (v)) < 0)
 
-#else /* !CONFIG_64BIT */
-
-#include <asm-generic/atomic64.h>
-
 #endif /* CONFIG_64BIT */
 
 /*
@@ -779,7 +775,5 @@ static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
 #define smp_mb__after_atomic_dec()	smp_llsc_mb()
 #define smp_mb__before_atomic_inc()	smp_mb__before_llsc()
 #define smp_mb__after_atomic_inc()	smp_llsc_mb()
-
-#include <asm-generic/atomic-long.h>
 
 #endif /* _ASM_ATOMIC_H */

@@ -67,7 +67,4 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 #define smp_mb__before_atomic_inc()	smp_mb()
 #define smp_mb__after_atomic_inc()	smp_mb()
 
-#include <asm-generic/atomic-long.h>
-#include <asm-generic/atomic64.h>
-
 #endif /* __ASM_SH_ATOMIC_H */
