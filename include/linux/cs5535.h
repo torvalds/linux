@@ -11,6 +11,8 @@
 #ifndef _CS5535_H
 #define _CS5535_H
 
+#include <asm/msr.h>
+
 /* MSRs */
 #define MSR_GLIU_P2D_RO0	0x10000029
 
@@ -38,16 +40,74 @@
 #define MSR_MFGPT_NR		0x51400029
 #define MSR_MFGPT_SETUP		0x5140002B
 
+#define MSR_RTC_DOMA_OFFSET	0x51400055
+#define MSR_RTC_MONA_OFFSET	0x51400056
+#define MSR_RTC_CEN_OFFSET	0x51400057
+
 #define MSR_LX_SPARE_MSR	0x80000011	/* DC-specific */
 
 #define MSR_GX_GLD_MSR_CONFIG	0xC0002001
 #define MSR_GX_MSR_PADSEL	0xC0002011
+
+static inline int cs5535_pic_unreqz_select_high(unsigned int group,
+						unsigned int irq)
+{
+	uint32_t lo, hi;
+
+	rdmsr(MSR_PIC_ZSEL_HIGH, lo, hi);
+	lo &= ~(0xF << (group * 4));
+	lo |= (irq & 0xF) << (group * 4);
+	wrmsr(MSR_PIC_ZSEL_HIGH, lo, hi);
+	return 0;
+}
+
+/* PIC registers */
+#define CS5536_PIC_INT_SEL1	0x4d0
+#define CS5536_PIC_INT_SEL2	0x4d1
 
 /* resource sizes */
 #define LBAR_GPIO_SIZE		0xFF
 #define LBAR_MFGPT_SIZE		0x40
 #define LBAR_ACPI_SIZE		0x40
 #define LBAR_PMS_SIZE		0x80
+
+/*
+ * PMC registers (PMS block)
+ * It is only safe to access these registers as dword accesses.
+ * See CS5536 Specification Update erratas 17 & 18
+ */
+#define CS5536_PM_SCLK		0x10
+#define CS5536_PM_IN_SLPCTL	0x20
+#define CS5536_PM_WKXD		0x34
+#define CS5536_PM_WKD		0x30
+#define CS5536_PM_SSC		0x54
+
+/*
+ * PM registers (ACPI block)
+ * It is only safe to access these registers as dword accesses.
+ * See CS5536 Specification Update erratas 17 & 18
+ */
+#define CS5536_PM1_STS		0x00
+#define CS5536_PM1_EN		0x02
+#define CS5536_PM1_CNT		0x08
+#define CS5536_PM_GPE0_STS	0x18
+#define CS5536_PM_GPE0_EN	0x1c
+
+/* CS5536_PM1_STS bits */
+#define CS5536_WAK_FLAG		(1 << 15)
+#define CS5536_PWRBTN_FLAG	(1 << 8)
+
+/* CS5536_PM1_EN bits */
+#define CS5536_PM_PWRBTN	(1 << 8)
+#define CS5536_PM_RTC		(1 << 10)
+
+/* CS5536_PM_GPE0_STS bits */
+#define CS5536_GPIOM7_PME_FLAG	(1 << 31)
+#define CS5536_GPIOM6_PME_FLAG	(1 << 30)
+
+/* CS5536_PM_GPE0_EN bits */
+#define CS5536_GPIOM7_PME_EN	(1 << 31)
+#define CS5536_GPIOM6_PME_EN	(1 << 30)
 
 /* VSA2 magic values */
 #define VSA_VRC_INDEX		0xAC1C
