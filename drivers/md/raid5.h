@@ -243,8 +243,12 @@ struct stripe_head_state {
 	int locked, uptodate, to_read, to_write, failed, written;
 	int to_fill, compute, req_compute, non_overwrite;
 	int failed_num[2];
-	unsigned long ops_request;
 	int p_failed, q_failed;
+	int dec_preread_active;
+	unsigned long ops_request;
+
+	struct bio *return_bi;
+	mdk_rdev_t *blocked_rdev;
 };
 
 /* Flags */
