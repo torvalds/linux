@@ -268,6 +268,20 @@ sub build_types {
 }
 build_types();
 
+our $match_balanced_parentheses = qr/(\((?:[^\(\)]+|(-1))*\))/;
+
+our $Typecast	= qr{\s*(\(\s*$NonptrType\s*\)){0,1}\s*};
+our $LvalOrFunc	= qr{($Lval)\s*($match_balanced_parentheses{0,1})\s*};
+
+sub deparenthesize {
+	my ($string) = @_;
+	return "" if (!defined($string));
+	$string =~ s@^\s*\(\s*@@g;
+	$string =~ s@\s*\)\s*$@@g;
+	$string =~ s@\s+@ @g;
+	return $string;
+}
+
 $chk_signoff = 0 if ($file);
 
 my @dep_includes = ();
@@ -2287,6 +2301,27 @@ sub process {
 			my $name = $1;
 			if ($name ne 'EOF' && $name ne 'ERROR') {
 				WARN("return of an errno should typically be -ve (return -$1)\n" . $herecurr);
+			}
+		}
+
+# typecasts on min/max could be min_t/max_t
+		if ($line =~ /^\+(?:.*?)\b(min|max)\s*\($Typecast{0,1}($LvalOrFunc)\s*,\s*$Typecast{0,1}($LvalOrFunc)\s*\)/) {
+			if (defined $2 || defined $8) {
+				my $call = $1;
+				my $cast1 = deparenthesize($2);
+				my $arg1 = $3;
+				my $cast2 = deparenthesize($8);
+				my $arg2 = $9;
+				my $cast;
+
+				if ($cast1 ne "" && $cast2 ne "") {
+					$cast = "$cast1 or $cast2";
+				} elsif ($cast1 ne "") {
+					$cast = $cast1;
+				} else {
+					$cast = $cast2;
+				}
+				WARN("$call() should probably be ${call}_t($cast, $arg1, $arg2)\n" . $herecurr);
 			}
 		}
 
