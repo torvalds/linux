@@ -21,7 +21,7 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
 
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 #include <mach/sdhci.h>
 
 #include "sdhci-pltfm.h"
