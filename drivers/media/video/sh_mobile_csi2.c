@@ -36,6 +36,7 @@ struct sh_csi2 {
 	struct v4l2_subdev		subdev;
 	struct list_head		list;
 	unsigned int			irq;
+	unsigned long			mipi_flags;
 	void __iomem			*base;
 	struct platform_device		*pdev;
 	struct sh_csi2_client_config	*client;
@@ -128,9 +129,34 @@ static int sh_csi2_s_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int sh_csi2_g_mbus_config(struct v4l2_subdev *sd,
+				 struct v4l2_mbus_config *cfg)
+{
+	cfg->flags = V4L2_MBUS_PCLK_SAMPLE_RISING |
+		V4L2_MBUS_HSYNC_ACTIVE_HIGH | V4L2_MBUS_VSYNC_ACTIVE_HIGH |
+		V4L2_MBUS_MASTER | V4L2_MBUS_DATA_ACTIVE_HIGH;
+	cfg->type = V4L2_MBUS_PARALLEL;
+
+	return 0;
+}
+
+static int sh_csi2_s_mbus_config(struct v4l2_subdev *sd,
+				 const struct v4l2_mbus_config *cfg)
+{
+	struct sh_csi2 *priv = container_of(sd, struct sh_csi2, subdev);
+	struct soc_camera_device *icd = (struct soc_camera_device *)sd->grp_id;
+	struct v4l2_subdev *client_sd = soc_camera_to_subdev(icd);
+	struct v4l2_mbus_config client_cfg = {.type = V4L2_MBUS_CSI2,
+					      .flags = priv->mipi_flags};
+
+	return v4l2_subdev_call(client_sd, video, s_mbus_config, &client_cfg);
+}
+
 static struct v4l2_subdev_video_ops sh_csi2_subdev_video_ops = {
 	.s_mbus_fmt	= sh_csi2_s_fmt,
 	.try_mbus_fmt	= sh_csi2_try_fmt,
+	.g_mbus_config	= sh_csi2_g_mbus_config,
+	.s_mbus_config	= sh_csi2_s_mbus_config,
 };
 
 static void sh_csi2_hwinit(struct sh_csi2 *priv)
@@ -251,6 +277,7 @@ static int sh_csi2_client_connect(struct sh_csi2 *priv)
 		return -EINVAL;
 
 	/* All good: camera MIPI configuration supported */
+	priv->mipi_flags = common_flags;
 	priv->client = pdata->clients + i;
 
 	priv->set_bus_param		= icd->ops->set_bus_param;
