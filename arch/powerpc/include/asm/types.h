@@ -27,12 +27,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifdef __powerpc64__
-typedef unsigned int umode_t;
-#else
-typedef unsigned short umode_t;
-#endif
-
 typedef struct {
 	__u32 u[4];
 } __attribute__((aligned(16))) __vector128;
