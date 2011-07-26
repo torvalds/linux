@@ -455,7 +455,7 @@ int security_path_truncate(struct path *path)
 }
 
 int security_path_chmod(struct dentry *dentry, struct vfsmount *mnt,
-			mode_t mode)
+			umode_t mode)
 {
 	if (unlikely(IS_PRIVATE(dentry->d_inode)))
 		return 0;
