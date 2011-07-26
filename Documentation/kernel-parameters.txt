@@ -1846,7 +1846,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			See Documentation/sound/oss/oss-parameters.txt
 
 	panic=		[KNL] Kernel behaviour on panic: delay <timeout>
-			seconds before rebooting
+			timeout > 0: seconds before rebooting
+			timeout = 0: wait forever
+			timeout < 0: reboot immediately
 			Format: <timeout>
 
 	parkbd.port=	[HW] Parallel port number the keyboard adapter is
