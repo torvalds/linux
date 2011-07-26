@@ -544,7 +544,8 @@ extern void ceph_reservation_status(struct ceph_fs_client *client,
  * we keep buffered readdir results attached to file->private_data
  */
 struct ceph_file_info {
-	int fmode;     /* initialized on open */
+	short fmode;     /* initialized on open */
+	short flags;     /* CEPH_F_* */
 
 	/* readdir: position within the dir */
 	u32 frag;
