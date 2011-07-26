@@ -1609,8 +1609,8 @@ sub process {
 			my $ptr = substr($blank, 0, length($utf8_prefix)) . "^";
 			my $hereptr = "$hereline$ptr\n";
 
-			ERROR("INVALID_UTF8",
-			      "Invalid UTF-8, patch and commit message should be encoded in UTF-8\n" . $hereptr);
+			CHK("INVALID_UTF8",
+			    "Invalid UTF-8, patch and commit message should be encoded in UTF-8\n" . $hereptr);
 		}
 
 # ignore non-hunk lines and lines being removed
