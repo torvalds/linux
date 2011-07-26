@@ -3085,11 +3085,12 @@ static void rk29_pm_power_off(void)
 	while (1);
 }
 
-static struct cpufreq_frequency_table freq_table[] = {
-
+static struct cpufreq_frequency_table freq_table[] =
+{
 	{ .index = 1050000, .frequency =  408000 },
-    { .index = 1100000, .frequency =  576000 },
+	{ .index = 1100000, .frequency =  600000 },
 	{ .index = 1150000, .frequency =  816000 },
+	{ .index = 1250000, .frequency = 1008000 },
 	{ .frequency = CPUFREQ_TABLE_END },
 };
 
@@ -3097,13 +3098,13 @@ static void __init machine_rk29_board_init(void)
 {
 	rk29_board_iomux_init();
     
-    board_update_cpufreq_table(freq_table);
-    
 	gpio_request(POWER_ON_PIN,"poweronpin");
 	gpio_set_value(POWER_ON_PIN, GPIO_HIGH);
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
 	pm_power_off = rk29_pm_power_off;
 	//arm_pm_restart = rk29_pm_power_restart;
+
+	board_update_cpufreq_table(freq_table);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29
