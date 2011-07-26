@@ -189,7 +189,9 @@ static irqreturn_t bu92747_irda_irq(int irqno, void *dev_id)
 	
 	if (irq_src & (REG_INT_DRX | FRM_EVT_RX_EOFRX | FRM_EVT_RX_RDE)) {
 		bu92747_irda_do_rx(s);
-		tty_flip_buffer_push(s->port.state->port.tty);
+		if (!IS_FIR(s))
+			tty_flip_buffer_push(s->port.state->port.tty);
+
 	}
 	
 	if ((irq_src & REG_INT_EOF) && (s->port.state->port.tty != NULL)) {
@@ -366,7 +368,7 @@ static int bu92747_irda_startup(struct uart_port *port)
 	INIT_WORK(&s->work, bu92747_irda_work);
 
 	if (request_irq(s->irq, bu92747_irda_irq,
-			IRQ_TYPE_EDGE_FALLING, "bu92747_irda", s) < 0) {
+			IRQ_TYPE_LEVEL_LOW, "bu92747_irda", s) < 0) {
 		dev_warn(s->dev, "cannot allocate irq %d\n", s->irq);
 		s->irq = 0;
 		destroy_workqueue(s->workqueue);

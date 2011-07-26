@@ -303,40 +303,12 @@ static struct clk otgphy1_clkin = {
 
 static noinline void delay_500ns(void)
 {
-	if (system_state == SYSTEM_BOOTING) {
-		LOOP(LOOPS_PER_USEC * 1200 / 24);
-	} else {
-		udelay(1);
-	}
+	udelay(1);
 }
 
 static noinline void delay_300us(void)
 {
-	if (system_state == SYSTEM_BOOTING) {
-		LOOP(LOOPS_PER_MSEC * 1200 / 24);
-	} else {
-		mdelay(1);
-	}
-}
-
-static noinline void arm_delay_500ns(void)
-{
-	static unsigned long loops = 0;
-	if (!loops) {
-		loops = general_pll_clk.rate / MHZ;
-		loops = loops * LOOPS_PER_USEC / 24;
-	}
-	LOOP(loops);
-}
-
-static noinline void arm_delay_300us(void)
-{
-	static unsigned long loops = 0;
-	if (!loops) {
-		loops = general_pll_clk.rate / MHZ;
-		loops = loops * LOOPS_PER_MSEC / 24;
-	}
-	LOOP(loops);
+	udelay(300);
 }
 
 #define GENERAL_PLL_IDX     0
@@ -381,6 +353,7 @@ struct arm_pll_set {
 	unsigned long rate;
 	u32 apll_con;
 	u32 clksel0_con;
+	unsigned long lpj;
 };
 
 #define CORE_ACLK_11	(0 << 5)
@@ -401,24 +374,29 @@ struct arm_pll_set {
 #define ACLK_PCLK_81	(3 << 10)
 #define ACLK_PCLK_MASK	(3 << 10)
 
+#define LPJ_600MHZ	2998368ULL
+static unsigned long lpj_gpll;
+
 #define ARM_PLL(_mhz, nr, nf, no, _axi_div, _ahb_div, _apb_div) \
 { \
 	.rate		= _mhz * MHZ, \
 	.apll_con	= PLL_CLKR(nr) | PLL_CLKF(nf >> 1) | PLL_NO_##no, \
 	.clksel0_con	= CORE_ACLK_##_axi_div | ACLK_HCLK_##_ahb_div | ACLK_PCLK_##_apb_div, \
+	.lpj		= LPJ_600MHZ * _mhz / 600, \
 }
 
 static const struct arm_pll_set arm_pll[] = {
 	// rate = 24 * NF / (NR * NO)
 	//      rate NR  NF NO adiv hdiv pdiv
-	ARM_PLL(1200, 1, 50, 1, 31, 21, 81),
-	ARM_PLL(1104, 1, 46, 1, 31, 21, 81),
+	ARM_PLL(1200, 1, 50, 1, 21, 21, 81),
+	ARM_PLL(1176, 2, 98, 1, 21, 21, 81),
+	ARM_PLL(1104, 1, 46, 1, 21, 21, 81),
 	ARM_PLL(1008, 1, 42, 1, 21, 21, 81),
-	ARM_PLL( 912, 1, 38, 1, 31, 21, 81),
-	ARM_PLL( 888, 2, 74, 1, 31, 21, 81),
-	ARM_PLL( 816, 1, 34, 1, 31, 21, 81),
-	ARM_PLL( 696, 1, 58, 2, 31, 21, 81),
-	ARM_PLL( 624, 1, 52, 2, 31, 21, 81),
+	ARM_PLL( 912, 1, 38, 1, 21, 21, 81),
+	ARM_PLL( 888, 2, 74, 1, 21, 21, 81),
+	ARM_PLL( 816, 1, 34, 1, 21, 21, 81),
+	ARM_PLL( 696, 1, 58, 2, 21, 21, 81),
+	ARM_PLL( 624, 1, 52, 2, 21, 21, 81),
 	ARM_PLL( 600, 1, 50, 2, 21, 21, 81),
 	ARM_PLL( 504, 1, 42, 2, 21, 21, 81),
 	ARM_PLL( 408, 1, 34, 2, 21, 21, 81),
@@ -433,7 +411,7 @@ static const struct arm_pll_set arm_pll[] = {
 #define CORE_PARENT_ARM_PLL	(0 << 23)
 #define CORE_PARENT_GENERAL_PLL	(1 << 23)
 
-static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
+static const struct arm_pll_set* arm_pll_clk_get_best_pll_set(unsigned long rate)
 {
 	const struct arm_pll_set *ps, *pt;
 
@@ -452,34 +430,53 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 		pt++;
 	}
 
+	return ps;
+}
+
+static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	unsigned long flags;
+	const struct arm_pll_set *ps = arm_pll_clk_get_best_pll_set(rate);
+
+	local_irq_save(flags);
 	/* make aclk safe & reparent to general pll */
 	cru_writel((cru_readl(CRU_CLKSEL0_CON) & ~(CORE_PARENT_MASK | CORE_ACLK_MASK)) | CORE_PARENT_GENERAL_PLL | CORE_ACLK_21, CRU_CLKSEL0_CON);
+	loops_per_jiffy = lpj_gpll;
 
 	/* enter slow mode */
 	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CPU_MODE_MASK) | CRU_CPU_MODE_SLOW, CRU_MODE_CON);
 
 	/* power down */
 	cru_writel(cru_readl(CRU_APLL_CON) | PLL_PD, CRU_APLL_CON);
+	local_irq_restore(flags);
 
-	arm_delay_500ns();
+	delay_500ns();
 
 	cru_writel(ps->apll_con | PLL_PD, CRU_APLL_CON);
 
-	arm_delay_500ns();
+	delay_500ns();
 
 	/* power up */
 	cru_writel(ps->apll_con, CRU_APLL_CON);
 
-	arm_delay_300us();
+	delay_300us();
 	pll_wait_lock(ARM_PLL_IDX);
 
-	/* reparent to arm pll & set aclk/hclk/pclk */
-	cru_writel((cru_readl(CRU_CLKSEL0_CON) & ~(CORE_PARENT_MASK | CORE_ACLK_MASK | ACLK_HCLK_MASK | ACLK_PCLK_MASK)) | CORE_PARENT_ARM_PLL | ps->clksel0_con, CRU_CLKSEL0_CON);
-
+	local_irq_save(flags);
 	/* enter normal mode */
 	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CPU_MODE_MASK) | CRU_CPU_MODE_NORMAL, CRU_MODE_CON);
 
+	loops_per_jiffy = ps->lpj;
+	/* reparent to arm pll & set aclk/hclk/pclk */
+	cru_writel((cru_readl(CRU_CLKSEL0_CON) & ~(CORE_PARENT_MASK | CORE_ACLK_MASK | ACLK_HCLK_MASK | ACLK_PCLK_MASK)) | CORE_PARENT_ARM_PLL | ps->clksel0_con, CRU_CLKSEL0_CON);
+	local_irq_restore(flags);
+
 	return 0;
+}
+
+static long arm_pll_clk_round_rate(struct clk *clk, unsigned long rate)
+{
+	return arm_pll_clk_get_best_pll_set(rate)->rate;
 }
 
 static struct clk *arm_pll_parents[2] = { &xin24m, &xin27m };
@@ -489,6 +486,7 @@ static struct clk arm_pll_clk = {
 	.parent		= &xin24m,
 	.recalc		= arm_pll_clk_recalc,
 	.set_rate	= arm_pll_clk_set_rate,
+	.round_rate	= arm_pll_clk_round_rate,
 	.clksel_con	= CRU_MODE_CON,
 	.clksel_parent_mask	= 1,
 	.clksel_parent_shift	= 8,
@@ -2520,6 +2518,7 @@ static void __init rk29_clock_common_init(unsigned long ppll_rate, unsigned long
 	}
 
 	clk_set_rate_nolock(&general_pll_clk, ppll_rate);
+	lpj_gpll = div_u64(LPJ_600MHZ * general_pll_clk.rate, 600 * MHZ);
 	clk_set_parent_nolock(&aclk_periph, &general_pll_clk);
 	clk_set_rate_nolock(&aclk_periph, aclk_p);
 	clk_set_rate_nolock(&hclk_periph, hclk_p);
@@ -2623,6 +2622,8 @@ void __init rk29_clock_init2(enum periph_pll ppll_rate, enum codec_pll cpll_rate
 
 	clk_recalculate_root_clocks_nolock();
 
+	loops_per_jiffy = div_u64(LPJ_600MHZ * arm_pll_clk.rate, 600 * MHZ);
+
 	/*
 	 * Only enable those clocks we will need, let the drivers
 	 * enable other clocks as necessary
@@ -2639,7 +2640,9 @@ void __init rk29_clock_init2(enum periph_pll ppll_rate, enum codec_pll cpll_rate
 	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/gpll/core/aclk_cpu/hclk_cpu/pclk_cpu/aclk_periph/hclk_periph/pclk_periph): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz",
 	       arm_pll_clk.rate / MHZ, ddr_pll_clk.rate / MHZ, codec_pll_clk.rate / MHZ, general_pll_clk.rate / MHZ, clk_core.rate / MHZ,
 	       aclk_cpu.rate / MHZ, hclk_cpu.rate / MHZ, pclk_cpu.rate / MHZ, aclk_periph.rate / MHZ, hclk_periph.rate / MHZ, pclk_periph.rate / MHZ);
-	printk(KERN_CONT " (20110718)\n");
+	printk(KERN_CONT " (20110725)\n");
+
+	preset_lpj = loops_per_jiffy;
 }
 
 void __init rk29_clock_init(enum periph_pll ppll_rate)
