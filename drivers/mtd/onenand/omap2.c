@@ -40,7 +40,7 @@
 #include <asm/mach/flash.h>
 #include <plat/gpmc.h>
 #include <plat/onenand.h>
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 
 #include <plat/dma.h>
 

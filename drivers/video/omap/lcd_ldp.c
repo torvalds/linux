@@ -26,7 +26,7 @@
 #include <linux/delay.h>
 #include <linux/i2c/twl.h>
 
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 #include <plat/mux.h>
 #include <asm/mach-types.h>
 

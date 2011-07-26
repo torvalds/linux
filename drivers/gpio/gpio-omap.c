@@ -25,7 +25,7 @@
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <mach/irqs.h>
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 #include <asm/mach/irq.h>
 
 struct gpio_bank {
