@@ -112,7 +112,6 @@ struct switch_stack {
 #define user_mode(regs) (((regs)->dccr & 0x100) != 0)
 #define instruction_pointer(regs) ((regs)->irp)
 #define profile_pc(regs) instruction_pointer(regs)
-extern void show_regs(struct pt_regs *);
 
 #endif  /*  __KERNEL__  */
 
