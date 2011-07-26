@@ -17,6 +17,7 @@
 #define _XTENSA_UACCESS_H
 
 #include <linux/errno.h>
+#include <linux/prefetch.h>
 
 #define VERIFY_READ    0
 #define VERIFY_WRITE   1
