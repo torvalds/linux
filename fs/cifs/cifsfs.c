@@ -393,7 +393,7 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 	cifs_show_address(s, tcon->ses->server);
 
 	if (!tcon->unix_ext)
-		seq_printf(s, ",file_mode=0%o,dir_mode=0%o",
+		seq_printf(s, ",file_mode=0%ho,dir_mode=0%ho",
 					   cifs_sb->mnt_file_mode,
 					   cifs_sb->mnt_dir_mode);
 	if (tcon->seal)
