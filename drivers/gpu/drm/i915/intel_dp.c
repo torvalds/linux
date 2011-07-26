@@ -50,6 +50,7 @@ struct intel_dp {
 	bool has_audio;
 	int force_audio;
 	uint32_t color_range;
+	int dpms_mode;
 	uint8_t link_bw;
 	uint8_t lane_count;
 	uint8_t dpcd[8];
@@ -1011,6 +1012,8 @@ static void intel_dp_commit(struct drm_encoder *encoder)
 
 	if (is_edp(intel_dp))
 		ironlake_edp_backlight_on(dev);
+
+	intel_dp->dpms_mode = DRM_MODE_DPMS_ON;
 }
 
 static void
@@ -1045,6 +1048,7 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 		if (is_edp(intel_dp))
 			ironlake_edp_backlight_on(dev);
 	}
+	intel_dp->dpms_mode = mode;
 }
 
 /*
@@ -1591,6 +1595,9 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 static void
 intel_dp_check_link_status(struct intel_dp *intel_dp)
 {
+	if (intel_dp->dpms_mode != DRM_MODE_DPMS_ON)
+		return;
+
 	if (!intel_dp->base.base.crtc)
 		return;
 
@@ -1939,6 +1946,7 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 		return;
 
 	intel_dp->output_reg = output_reg;
+	intel_dp->dpms_mode = -1;
 
 	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
 	if (!intel_connector) {
