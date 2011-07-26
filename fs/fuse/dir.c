@@ -369,8 +369,8 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
  * If the filesystem doesn't support this, then fall back to separate
  * 'mknod' + 'open' requests.
  */
-static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
-			    struct nameidata *nd)
+static int fuse_create_open(struct inode *dir, struct dentry *entry,
+			    umode_t mode, struct nameidata *nd)
 {
 	int err;
 	struct inode *inode;
@@ -480,7 +480,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
  */
 static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
 			    struct inode *dir, struct dentry *entry,
-			    int mode)
+			    umode_t mode)
 {
 	struct fuse_entry_out outarg;
 	struct inode *inode;
