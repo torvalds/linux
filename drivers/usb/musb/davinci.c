@@ -35,7 +35,7 @@
 
 #include <mach/hardware.h>
 #include <mach/memory.h>
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 #include <mach/cputype.h>
 
 #include <asm/mach-types.h>
