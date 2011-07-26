@@ -191,15 +191,9 @@ static inline int notifier_to_errno(int ret)
 
 /* reboot notifiers are defined in include/linux/reboot.h. */
 
-#define NETLINK_URELEASE	0x0001	/* Unicast netlink socket released */
+/* Hibernation and suspend events are defined in include/linux/suspend.h. */
 
-/* Hibernation and suspend events */
-#define PM_HIBERNATION_PREPARE	0x0001 /* Going to hibernate */
-#define PM_POST_HIBERNATION	0x0002 /* Hibernation finished */
-#define PM_SUSPEND_PREPARE	0x0003 /* Going to suspend the system */
-#define PM_POST_SUSPEND		0x0004 /* Suspend finished */
-#define PM_RESTORE_PREPARE	0x0005 /* Going to restore a saved image */
-#define PM_POST_RESTORE		0x0006 /* Restore failed */
+#define NETLINK_URELEASE	0x0001	/* Unicast netlink socket released */
 
 /* Console keyboard events.
  * Note: KBD_KEYCODE is always sent before KBD_UNBOUND_KEYCODE, KBD_UNICODE and
