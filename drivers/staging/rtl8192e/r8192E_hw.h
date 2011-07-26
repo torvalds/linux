@@ -109,7 +109,7 @@ enum _RTL8192Pci_HW {
 #define	MULRW_SHIFT		3
 #define	MXDMA2_RX_SHIFT		4
 #define	MXDMA2_TX_SHIFT		0
-        PMR                     = 0x00c,
+	PMR			= 0x00c,
 	EPROM_CMD		= 0x00e,
 #define EPROM_CMD_RESERVED_MASK BIT5
 #define EPROM_CMD_9356SEL	BIT4
@@ -141,7 +141,8 @@ enum _RTL8192Pci_HW {
 	SIFS		= 0x03E,
 	TCR			= 0x040,
 	RCR			= 0x044,
-#define RCR_FILTER_MASK (BIT0|BIT1|BIT2|BIT3|BIT5|BIT12|BIT18|BIT19|BIT20|BIT21|BIT22|BIT23)
+#define RCR_FILTER_MASK (BIT0 | BIT1 | BIT2 | BIT3 | BIT5 | BIT12 |	\
+			BIT18 | BIT19 | BIT20 | BIT21 | BIT22 | BIT23)
 #define RCR_ONLYERLPKT		BIT31
 #define RCR_ENCS2		BIT30
 #define RCR_ENCS1		BIT29
@@ -337,9 +338,9 @@ enum _RTL8192Pci_HW {
 	NHM_RPI_COUNTER5	= 0x269,
 	NHM_RPI_COUNTER6	= 0x26A,
 	NHM_RPI_COUNTER7	= 0x26B,
-        WFCRC0                  = 0x2f0,
-        WFCRC1                  = 0x2f4,
-        WFCRC2                  = 0x2f8,
+	WFCRC0		  = 0x2f0,
+	WFCRC1		  = 0x2f4,
+	WFCRC2		  = 0x2f8,
 
 	BW_OPMODE		= 0x300,
 #define	BW_OPMODE_11J			BIT0
@@ -365,32 +366,32 @@ enum _RTL8192Pci_HW {
 #define RETRY_LIMIT_LONG_SHIFT 0
 	TSFR			= 0x308,
 	RRSR			= 0x310,
-#define RRSR_RSC_OFFSET			21
+#define RRSR_RSC_OFFSET				21
 #define RRSR_SHORT_OFFSET			23
 #define RRSR_RSC_DUPLICATE			0x600000
 #define RRSR_RSC_UPSUBCHNL			0x400000
-#define RRSR_RSC_LOWSUBCHNL		0x200000
-#define RRSR_SHORT					0x800000
-#define RRSR_1M						BIT0
-#define RRSR_2M						BIT1
-#define RRSR_5_5M					BIT2
-#define RRSR_11M					BIT3
-#define RRSR_6M						BIT4
-#define RRSR_9M						BIT5
-#define RRSR_12M					BIT6
-#define RRSR_18M					BIT7
-#define RRSR_24M					BIT8
-#define RRSR_36M					BIT9
-#define RRSR_48M					BIT10
-#define RRSR_54M					BIT11
-#define RRSR_MCS0					BIT12
-#define RRSR_MCS1					BIT13
-#define RRSR_MCS2					BIT14
-#define RRSR_MCS3					BIT15
-#define RRSR_MCS4					BIT16
-#define RRSR_MCS5					BIT17
-#define RRSR_MCS6					BIT18
-#define RRSR_MCS7					BIT19
+#define RRSR_RSC_LOWSUBCHNL			0x200000
+#define RRSR_SHORT				0x800000
+#define RRSR_1M					BIT0
+#define RRSR_2M					BIT1
+#define RRSR_5_5M				BIT2
+#define RRSR_11M				BIT3
+#define RRSR_6M					BIT4
+#define RRSR_9M					BIT5
+#define RRSR_12M				BIT6
+#define RRSR_18M				BIT7
+#define RRSR_24M				BIT8
+#define RRSR_36M				BIT9
+#define RRSR_48M				BIT10
+#define RRSR_54M				BIT11
+#define RRSR_MCS0				BIT12
+#define RRSR_MCS1				BIT13
+#define RRSR_MCS2				BIT14
+#define RRSR_MCS3				BIT15
+#define RRSR_MCS4				BIT16
+#define RRSR_MCS5				BIT17
+#define RRSR_MCS6				BIT18
+#define RRSR_MCS7				BIT19
 #define BRSR_AckShortPmb			BIT23
 	UFWP			= 0x318,
 	RATR0			= 0x320,
@@ -422,12 +423,15 @@ enum _RTL8192Pci_HW {
 #define	RATR_MCS13		0x02000000
 #define	RATR_MCS14		0x04000000
 #define	RATR_MCS15		0x08000000
-#define RATE_ALL_CCK		RATR_1M|RATR_2M|RATR_55M|RATR_11M
-#define RATE_ALL_OFDM_AG	RATR_6M|RATR_9M|RATR_12M|RATR_18M|RATR_24M|RATR_36M|RATR_48M|RATR_54M
-#define RATE_ALL_OFDM_1SS	RATR_MCS0|RATR_MCS1|RATR_MCS2|RATR_MCS3 | \
-									RATR_MCS4|RATR_MCS5|RATR_MCS6	|RATR_MCS7
-#define RATE_ALL_OFDM_2SS	RATR_MCS8|RATR_MCS9	|RATR_MCS10|RATR_MCS11| \
-									RATR_MCS12|RATR_MCS13|RATR_MCS14|RATR_MCS15
+#define RATE_ALL_CCK		(RATR_1M | RATR_2M | RATR_55M | RATR_11M)
+#define RATE_ALL_OFDM_AG	(RATR_6M | RATR_9M | RATR_12M | RATR_18M | \
+				RATR_24M | RATR_36M | RATR_48M | RATR_54M)
+#define RATE_ALL_OFDM_1SS	(RATR_MCS0 | RATR_MCS1 | RATR_MCS2 |	\
+				RATR_MCS3 | RATR_MCS4 | RATR_MCS5 |	\
+				RATR_MCS6 | RATR_MCS7)
+#define RATE_ALL_OFDM_2SS	(RATR_MCS8 | RATR_MCS9 | RATR_MCS10 |	\
+				RATR_MCS11 | RATR_MCS12 | RATR_MCS13 |	\
+				RATR_MCS14|RATR_MCS15)
 
 
 	DRIVER_RSSI		= 0x32c,
@@ -442,8 +446,8 @@ enum _RTL8192Pci_HW {
 #define GPO 0x109
 #define GPE 0x10a
 
-#define         HWSET_MAX_SIZE_92S                              128
+#define	 HWSET_MAX_SIZE_92S				128
 
-#define	ANAPAR_FOR_8192PciE							0x17
+#define	ANAPAR_FOR_8192PciE				0x17
 
 #endif
