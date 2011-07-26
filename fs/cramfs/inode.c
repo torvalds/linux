@@ -378,7 +378,7 @@ static int cramfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		unsigned long nextoffset;
 		char *name;
 		ino_t ino;
-		mode_t mode;
+		umode_t mode;
 		int namelen, error;
 
 		mutex_lock(&read_mutex);

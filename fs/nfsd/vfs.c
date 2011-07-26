@@ -307,7 +307,7 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 	struct dentry	*dentry;
 	struct inode	*inode;
 	int		accmode = NFSD_MAY_SATTR;
-	int		ftype = 0;
+	umode_t		ftype = 0;
 	__be32		err;
 	int		host_err;
 	int		size_change = 0;
@@ -730,7 +730,7 @@ static int nfsd_open_break_lease(struct inode *inode, int access)
  * N.B. After this call fhp needs an fh_put
  */
 __be32
-nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
+nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type,
 			int access, struct file **filp)
 {
 	struct dentry	*dentry;
