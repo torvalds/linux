@@ -621,6 +621,12 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
  */
 struct dentry *get_nonsnap_parent(struct dentry *dentry)
 {
+	/*
+	 * we don't need to worry about protecting the d_parent access
+	 * here because we never renaming inside the snapped namespace
+	 * except to resplice to another snapdir, and either the old or new
+	 * result is a valid result.
+	 */
 	while (!IS_ROOT(dentry) && ceph_snap(dentry->d_inode) != CEPH_NOSNAP)
 		dentry = dentry->d_parent;
 	return dentry;
@@ -656,7 +662,9 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 	if (req->r_inode) {
 		inode = req->r_inode;
 	} else if (req->r_dentry) {
-		struct inode *dir = req->r_dentry->d_parent->d_inode;
+		/* ignore race with rename; old or new d_parent is okay */
+		struct dentry *parent = req->r_dentry->d_parent;
+		struct inode *dir = parent->d_inode;
 
 		if (dir->i_sb != mdsc->fsc->sb) {
 			/* not this fs! */
@@ -664,8 +672,7 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 		} else if (ceph_snap(dir) != CEPH_NOSNAP) {
 			/* direct snapped/virtual snapdir requests
 			 * based on parent dir inode */
-			struct dentry *dn =
-				get_nonsnap_parent(req->r_dentry->d_parent);
+			struct dentry *dn = get_nonsnap_parent(parent);
 			inode = dn->d_inode;
 			dout("__choose_mds using nonsnap parent %p\n", inode);
 		} else if (req->r_dentry->d_inode) {

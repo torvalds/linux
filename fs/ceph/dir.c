@@ -506,7 +506,7 @@ int ceph_handle_snapdir(struct ceph_mds_request *req,
 			struct dentry *dentry, int err)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(dentry->d_sb);
-	struct inode *parent = dentry->d_parent->d_inode;
+	struct inode *parent = dentry->d_parent->d_inode; /* we hold i_mutex */
 
 	/* .snap dir? */
 	if (err == -ENOENT &&
