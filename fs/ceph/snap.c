@@ -465,9 +465,8 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		   cap_snap.  lucky us. */
 		dout("queue_cap_snap %p already pending\n", inode);
 		kfree(capsnap);
-	} else if (ci->i_wrbuffer_ref_head ||
-		   (dirty & (CEPH_CAP_AUTH_EXCL|CEPH_CAP_XATTR_EXCL|
-			     CEPH_CAP_FILE_EXCL|CEPH_CAP_FILE_WR))) {
+	} else if (dirty & (CEPH_CAP_AUTH_EXCL|CEPH_CAP_XATTR_EXCL|
+			    CEPH_CAP_FILE_EXCL|CEPH_CAP_FILE_WR)) {
 		struct ceph_snap_context *snapc = ci->i_head_snapc;
 
 		/*
@@ -480,7 +479,6 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		dout("queue_cap_snap %p cap_snap %p queuing under %p %s\n",
 		     inode, capsnap, snapc, ceph_cap_string(dirty));
 		ihold(inode);
-		BUG_ON(dirty == 0);
 
 		atomic_set(&capsnap->nref, 1);
 		capsnap->ci = ci;
