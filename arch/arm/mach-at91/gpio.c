@@ -22,7 +22,6 @@
 
 #include <mach/hardware.h>
 #include <mach/at91_pio.h>
-#include <mach/gpio.h>
 
 #include <asm/gpio.h>
 
