@@ -3193,15 +3193,9 @@ mount_fail_check:
 		else
 			cifs_put_tcp_session(srvTcp);
 		bdi_destroy(&cifs_sb->bdi);
-		goto out;
 	}
 
-	/* volume_info->password is freed above when existing session found
-	(in which case it is not needed anymore) but when new sesion is created
-	the password ptr is put in the new session structure (in which case the
-	password will be freed at unmount time) */
 out:
-	/* zero out password before freeing */
 	FreeXid(xid);
 	return rc;
 }
