@@ -40,16 +40,9 @@ extern int ks8695_gpio_interrupt(unsigned int pin, unsigned int type);
  */
 extern int irq_to_gpio(unsigned int irq);
 
-#include <asm-generic/gpio.h>
-
-/* If it turns out that we need to optimise GPIO access for the
- * Micrel's GPIOs, then these can be changed to check their argument
- * directly as static inlines. However for now it's probably not
- * worthwhile.
- */
-#define gpio_get_value __gpio_get_value
-#define gpio_set_value __gpio_set_value
 #define gpio_to_irq __gpio_to_irq
+
+#define __ARM_GPIOLIB_TRIVIAL
 
 /* Register the GPIOs */
 extern void ks8695_register_gpios(void);

@@ -11,9 +11,7 @@
  * published by the Free Software Foundation.
 */
 
-#define gpio_get_value	__gpio_get_value
-#define gpio_set_value	__gpio_set_value
-#define gpio_cansleep	__gpio_cansleep
+#define __ARM_GPIOLIB_TRIVIAL
 #define gpio_to_irq	__gpio_to_irq
 
 /* some boards require extra gpio capacity to support external
@@ -28,7 +26,6 @@
 #define ARCH_NR_GPIOS	(256 + CONFIG_S3C24XX_GPIO_EXTRA)
 #endif
 
-#include <asm-generic/gpio.h>
 #include <mach/gpio-nrs.h>
 #include <mach/gpio-fns.h>
 

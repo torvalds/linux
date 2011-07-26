@@ -13,9 +13,6 @@
 #ifndef __ASM_ARCH_GPIO_H
 #define __ASM_ARCH_GPIO_H __FILE__
 
-#define gpio_get_value	__gpio_get_value
-#define gpio_set_value	__gpio_set_value
-#define gpio_cansleep	__gpio_cansleep
 #define gpio_to_irq	__gpio_to_irq
 
 /* Practically, GPIO banks up to GPZ are the configurable gpio banks */
@@ -151,6 +148,6 @@ enum s5p_gpio_number {
 #define ARCH_NR_GPIOS		(EXYNOS4_GPZ(EXYNOS4_GPIO_Z_NR) +	\
 				 CONFIG_SAMSUNG_GPIO_EXTRA + 1)
 
-#include <asm-generic/gpio.h>
+#define __ARM_GPIOLIB_TRIVIAL
 
 #endif /* __ASM_ARCH_GPIO_H */

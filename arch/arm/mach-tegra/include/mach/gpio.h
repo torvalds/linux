@@ -25,11 +25,7 @@
 
 #define TEGRA_NR_GPIOS		INT_GPIO_NR
 
-#include <asm-generic/gpio.h>
-
-#define gpio_get_value		__gpio_get_value
-#define gpio_set_value		__gpio_set_value
-#define gpio_cansleep		__gpio_cansleep
+#define __ARM_GPIOLIB_TRIVIAL
 
 #define TEGRA_GPIO_TO_IRQ(gpio) (INT_GPIO_BASE + (gpio))
 #define TEGRA_IRQ_TO_GPIO(irq) ((irq) - INT_GPIO_BASE)

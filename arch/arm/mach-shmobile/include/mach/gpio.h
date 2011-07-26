@@ -18,20 +18,7 @@
 
 #ifdef CONFIG_GPIOLIB
 
-static inline int gpio_get_value(unsigned gpio)
-{
-	return __gpio_get_value(gpio);
-}
-
-static inline void gpio_set_value(unsigned gpio, int value)
-{
-	__gpio_set_value(gpio, value);
-}
-
-static inline int gpio_cansleep(unsigned gpio)
-{
-	return __gpio_cansleep(gpio);
-}
+#define __ARM_GPIOLIB_TRIVIAL
 
 static inline int gpio_to_irq(unsigned gpio)
 {
