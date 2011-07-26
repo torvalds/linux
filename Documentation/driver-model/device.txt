@@ -104,4 +104,4 @@ Then in the module init function is would do:
 
 And assuming 'dev' is the struct device passed into the probe hook, the driver
 probe function would do something like:
-	create_device(&mydriver_class, dev, chrdev, &private_data, "my_name");
+	device_create(&mydriver_class, dev, chrdev, &private_data, "my_name");
