@@ -1507,10 +1507,8 @@ static int fimc_register_m2m_device(struct fimc_dev *fimc)
 	pdev = fimc->pdev;
 	v4l2_dev = &fimc->m2m.v4l2_dev;
 
-	/* set name if it is empty */
-	if (!v4l2_dev->name[0])
-		snprintf(v4l2_dev->name, sizeof(v4l2_dev->name),
-			 "%s.m2m", dev_name(&pdev->dev));
+	snprintf(v4l2_dev->name, sizeof(v4l2_dev->name),
+		 "%s.m2m", dev_name(&pdev->dev));
 
 	ret = v4l2_device_register(&pdev->dev, v4l2_dev);
 	if (ret)
@@ -1524,6 +1522,7 @@ static int fimc_register_m2m_device(struct fimc_dev *fimc)
 
 	vfd->fops	= &fimc_m2m_fops;
 	vfd->ioctl_ops	= &fimc_m2m_ioctl_ops;
+	vfd->v4l2_dev	= v4l2_dev;
 	vfd->minor	= -1;
 	vfd->release	= video_device_release;
 	vfd->lock	= &fimc->lock;
@@ -1541,17 +1540,22 @@ static int fimc_register_m2m_device(struct fimc_dev *fimc)
 		goto err_m2m_r2;
 	}
 
+	ret = media_entity_init(&vfd->entity, 0, NULL, 0);
+	if (ret)
+		goto err_m2m_r3;
+
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
 	if (ret) {
 		v4l2_err(v4l2_dev,
 			 "%s(): failed to register video device\n", __func__);
-		goto err_m2m_r3;
+		goto err_m2m_r4;
 	}
 	v4l2_info(v4l2_dev,
 		  "FIMC m2m driver registered as /dev/video%d\n", vfd->num);
 
 	return 0;
-
+err_m2m_r4:
+	media_entity_cleanup(&vfd->entity);
 err_m2m_r3:
 	v4l2_m2m_release(fimc->m2m.m2m_dev);
 err_m2m_r2:
@@ -1564,12 +1568,13 @@ err_m2m_r1:
 
 static void fimc_unregister_m2m_device(struct fimc_dev *fimc)
 {
-	if (fimc) {
-		v4l2_m2m_release(fimc->m2m.m2m_dev);
-		video_unregister_device(fimc->m2m.vfd);
+	if (fimc == NULL)
+		return;
 
-		v4l2_device_unregister(&fimc->m2m.v4l2_dev);
-	}
+	v4l2_m2m_release(fimc->m2m.m2m_dev);
+	v4l2_device_unregister(&fimc->m2m.v4l2_dev);
+	media_entity_cleanup(&fimc->m2m.vfd->entity);
+	video_unregister_device(fimc->m2m.vfd);
 }
 
 static void fimc_clk_put(struct fimc_dev *fimc)

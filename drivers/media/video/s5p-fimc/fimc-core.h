@@ -16,6 +16,8 @@
 #include <linux/types.h>
 #include <linux/videodev2.h>
 #include <linux/io.h>
+
+#include <media/media-entity.h>
 #include <media/videobuf2-core.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mem2mem.h>
@@ -298,6 +300,7 @@ struct fimc_m2m_device {
  * @vfd: video device node for camera capture mode
  * @v4l2_dev: v4l2_device struct to manage subdevs
  * @sd: pointer to camera sensor subdevice currently in use
+ * @vd_pad: fimc video capture node pad
  * @fmt: Media Bus format configured at selected image sensor
  * @pending_buf_q: the pending buffer queue head
  * @active_buf_q: the queue head of buffers scheduled in hardware
@@ -315,6 +318,7 @@ struct fimc_vid_cap {
 	struct video_device		*vfd;
 	struct v4l2_device		v4l2_dev;
 	struct v4l2_subdev		*sd;;
+	struct media_pad		vd_pad;
 	struct v4l2_mbus_framefmt	fmt;
 	struct list_head		pending_buf_q;
 	struct list_head		active_buf_q;

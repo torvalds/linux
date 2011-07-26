@@ -853,9 +853,8 @@ int fimc_register_capture_device(struct fimc_dev *fimc)
 	fr->width = fr->f_width = fr->o_width = 640;
 	fr->height = fr->f_height = fr->o_height = 480;
 
-	if (!v4l2_dev->name[0])
-		snprintf(v4l2_dev->name, sizeof(v4l2_dev->name),
-			 "%s.capture", dev_name(&fimc->pdev->dev));
+	snprintf(v4l2_dev->name, sizeof(v4l2_dev->name),
+		 "%s.capture", dev_name(&fimc->pdev->dev));
 
 	ret = v4l2_device_register(NULL, v4l2_dev);
 	if (ret)
@@ -867,11 +866,11 @@ int fimc_register_capture_device(struct fimc_dev *fimc)
 		goto err_v4l2_reg;
 	}
 
-	snprintf(vfd->name, sizeof(vfd->name), "%s:cap",
-		 dev_name(&fimc->pdev->dev));
+	strlcpy(vfd->name, v4l2_dev->name, sizeof(vfd->name));
 
 	vfd->fops	= &fimc_capture_fops;
 	vfd->ioctl_ops	= &fimc_capture_ioctl_ops;
+	vfd->v4l2_dev	= v4l2_dev;
 	vfd->minor	= -1;
 	vfd->release	= video_device_release;
 	vfd->lock	= &fimc->lock;
@@ -901,6 +900,11 @@ int fimc_register_capture_device(struct fimc_dev *fimc)
 
 	vb2_queue_init(q);
 
+	fimc->vid_cap.vd_pad.flags = MEDIA_PAD_FL_SINK;
+	ret = media_entity_init(&vfd->entity, 1, &fimc->vid_cap.vd_pad, 0);
+	if (ret)
+		goto err_ent;
+
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
 	if (ret) {
 		v4l2_err(v4l2_dev, "Failed to register video device\n");
@@ -910,10 +914,11 @@ int fimc_register_capture_device(struct fimc_dev *fimc)
 	v4l2_info(v4l2_dev,
 		  "FIMC capture driver registered as /dev/video%d\n",
 		  vfd->num);
-
 	return 0;
 
 err_vd_reg:
+	media_entity_cleanup(&vfd->entity);
+err_ent:
 	video_device_release(vfd);
 err_v4l2_reg:
 	v4l2_device_unregister(v4l2_dev);
@@ -925,10 +930,11 @@ err_info:
 
 void fimc_unregister_capture_device(struct fimc_dev *fimc)
 {
-	struct fimc_vid_cap *capture = &fimc->vid_cap;
+	struct video_device *vfd = fimc->vid_cap.vfd;
 
-	if (capture->vfd)
-		video_unregister_device(capture->vfd);
-
-	kfree(capture->ctx);
+	if (vfd) {
+		media_entity_cleanup(&vfd->entity);
+		video_unregister_device(vfd);
+	}
+	kfree(fimc->vid_cap.ctx);
 }
