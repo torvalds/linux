@@ -314,7 +314,7 @@ EXPORT_SYMBOL_GPL(fat_getattr);
 static int fat_sanitize_mode(const struct msdos_sb_info *sbi,
 			     struct inode *inode, umode_t *mode_ptr)
 {
-	mode_t mask, perm;
+	umode_t mask, perm;
 
 	/*
 	 * Note, the basic check is already done by a caller of
@@ -351,7 +351,7 @@ static int fat_sanitize_mode(const struct msdos_sb_info *sbi,
 
 static int fat_allow_set_time(struct msdos_sb_info *sbi, struct inode *inode)
 {
-	mode_t allow_utime = sbi->options.allow_utime;
+	umode_t allow_utime = sbi->options.allow_utime;
 
 	if (current_fsuid() != inode->i_uid) {
 		if (in_group_p(inode->i_gid))
