@@ -267,6 +267,17 @@ static int imx074_g_chip_ident(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int imx074_g_mbus_config(struct v4l2_subdev *sd,
+				struct v4l2_mbus_config *cfg)
+{
+	cfg->type = V4L2_MBUS_CSI2;
+	cfg->flags = V4L2_MBUS_CSI2_2_LANE |
+		V4L2_MBUS_CSI2_CHANNEL_0 |
+		V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+
+	return 0;
+}
+
 static struct v4l2_subdev_video_ops imx074_subdev_video_ops = {
 	.s_stream	= imx074_s_stream,
 	.s_mbus_fmt	= imx074_s_fmt,
@@ -275,6 +286,7 @@ static struct v4l2_subdev_video_ops imx074_subdev_video_ops = {
 	.enum_mbus_fmt	= imx074_enum_fmt,
 	.g_crop		= imx074_g_crop,
 	.cropcap	= imx074_cropcap,
+	.g_mbus_config	= imx074_g_mbus_config,
 };
 
 static struct v4l2_subdev_core_ops imx074_subdev_core_ops = {
