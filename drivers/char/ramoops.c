@@ -32,8 +32,12 @@
 #include <linux/ramoops.h>
 
 #define RAMOOPS_KERNMSG_HDR "===="
+#define MIN_MEM_SIZE 4096UL
 
-#define RECORD_SIZE 4096UL
+static ulong record_size = MIN_MEM_SIZE;
+module_param(record_size, ulong, 0400);
+MODULE_PARM_DESC(record_size,
+		"size of each dump done on oops/panic");
 
 static ulong mem_address;
 module_param(mem_address, ulong, 0400);
@@ -55,6 +59,7 @@ static struct ramoops_context {
 	void *virt_addr;
 	phys_addr_t phys_addr;
 	unsigned long size;
+	unsigned long record_size;
 	int dump_oops;
 	int count;
 	int max_count;
@@ -84,10 +89,10 @@ static void ramoops_do_dump(struct kmsg_dumper *dumper,
 	if (reason == KMSG_DUMP_OOPS && !cxt->dump_oops)
 		return;
 
-	buf = cxt->virt_addr + (cxt->count * RECORD_SIZE);
+	buf = cxt->virt_addr + (cxt->count * cxt->record_size);
 	buf_orig = buf;
 
-	memset(buf, '\0', RECORD_SIZE);
+	memset(buf, '\0', cxt->record_size);
 	res = sprintf(buf, "%s", RAMOOPS_KERNMSG_HDR);
 	buf += res;
 	do_gettimeofday(&timestamp);
@@ -95,8 +100,8 @@ static void ramoops_do_dump(struct kmsg_dumper *dumper,
 	buf += res;
 
 	hdr_size = buf - buf_orig;
-	l2_cpy = min(l2, RECORD_SIZE - hdr_size);
-	l1_cpy = min(l1, RECORD_SIZE - hdr_size - l2_cpy);
+	l2_cpy = min(l2, cxt->record_size - hdr_size);
+	l1_cpy = min(l1, cxt->record_size - hdr_size - l2_cpy);
 
 	s2_start = l2 - l2_cpy;
 	s1_start = l1 - l1_cpy;
@@ -113,22 +118,33 @@ static int __init ramoops_probe(struct platform_device *pdev)
 	struct ramoops_context *cxt = &oops_cxt;
 	int err = -EINVAL;
 
-	if (!pdata->mem_size) {
-		pr_err("invalid size specification\n");
+	if (!pdata->mem_size || !pdata->record_size) {
+		pr_err("The memory size and the record size must be "
+			"non-zero\n");
 		goto fail3;
 	}
 
 	rounddown_pow_of_two(pdata->mem_size);
+	rounddown_pow_of_two(pdata->record_size);
 
-	if (pdata->mem_size < RECORD_SIZE) {
-		pr_err("size too small\n");
+	/* Check for the minimum memory size */
+	if (pdata->mem_size < MIN_MEM_SIZE &&
+			pdata->record_size < MIN_MEM_SIZE) {
+		pr_err("memory size too small, minium is %lu\n", MIN_MEM_SIZE);
 		goto fail3;
 	}
 
-	cxt->max_count = pdata->mem_size / RECORD_SIZE;
+	if (pdata->mem_size < pdata->record_size) {
+		pr_err("The memory size must be larger than the "
+			"records size\n");
+		goto fail3;
+	}
+
+	cxt->max_count = pdata->mem_size / pdata->record_size;
 	cxt->count = 0;
 	cxt->size = pdata->mem_size;
 	cxt->phys_addr = pdata->mem_address;
+	cxt->record_size = pdata->record_size;
 	cxt->dump_oops = pdata->dump_oops;
 
 	if (!request_mem_region(cxt->phys_addr, cxt->size, "ramoops")) {
@@ -196,6 +212,7 @@ static int __init ramoops_init(void)
 			return -ENOMEM;
 		dummy_data->mem_size = mem_size;
 		dummy_data->mem_address = mem_address;
+		dummy_data->record_size = record_size;
 		dummy_data->dump_oops = dump_oops;
 		dummy = platform_create_bundle(&ramoops_driver, ramoops_probe,
 			NULL, 0, dummy_data,
