@@ -12,7 +12,7 @@
 #include <linux/linkage.h>
 #include <linux/pagemap.h>
 #include <linux/wait.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #ifdef CONFIG_BLOCK
 

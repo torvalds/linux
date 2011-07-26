@@ -17,7 +17,7 @@
 #include <linux/init.h>
 
 #include <asm/hwrpb.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/irq.h>
 #include <asm/irq_regs.h>
 #include <asm/pal.h>

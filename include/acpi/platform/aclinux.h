@@ -59,7 +59,7 @@
 #include <linux/ctype.h>
 #include <linux/sched.h>
 #include <asm/system.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/div64.h>
 #include <asm/acpi.h>
 #include <linux/slab.h>

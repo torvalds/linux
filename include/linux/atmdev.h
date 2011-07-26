@@ -220,7 +220,7 @@ struct atm_cirange {
 #include <linux/skbuff.h> /* struct sk_buff */
 #include <linux/uio.h>
 #include <net/sock.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #ifdef CONFIG_PROC_FS
 #include <linux/proc_fs.h>

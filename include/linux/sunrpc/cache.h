@@ -15,7 +15,7 @@
 
 #include <linux/kref.h>
 #include <linux/slab.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/proc_fs.h>
 
 /*

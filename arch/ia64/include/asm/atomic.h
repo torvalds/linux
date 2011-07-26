@@ -105,7 +105,6 @@ static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
 	return c != (u);
 }
 
-#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
 static __inline__ long atomic64_add_unless(atomic64_t *v, long a, long u)
 {

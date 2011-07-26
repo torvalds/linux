@@ -21,7 +21,7 @@ struct task_struct;
 struct exec_domain;
 #include <asm/processor.h>
 #include <asm/ftrace.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */

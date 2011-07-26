@@ -31,7 +31,7 @@
 #include <linux/string.h>
 EXPORT_SYMBOL(memset);
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 EXPORT_SYMBOL(__xchg8);
 EXPORT_SYMBOL(__xchg32);
 EXPORT_SYMBOL(__cmpxchg_u32);

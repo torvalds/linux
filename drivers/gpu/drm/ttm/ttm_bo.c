@@ -37,7 +37,7 @@
 #include <linux/mm.h>
 #include <linux/file.h>
 #include <linux/module.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #define TTM_ASSERT_LOCKED(param)
 #define TTM_DEBUG(fmt, arg...)

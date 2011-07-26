@@ -13,7 +13,7 @@
 #include <linux/spinlock.h>
 #include <linux/rtnetlink.h>
 #include <net/ipv6.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 struct inetpeer_addr_base {
 	union {

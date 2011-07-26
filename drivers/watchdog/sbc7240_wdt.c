@@ -29,7 +29,7 @@
 #include <linux/watchdog.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/system.h>
 
 #define SBC7240_PREFIX "sbc7240_wdt: "

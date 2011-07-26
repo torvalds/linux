@@ -19,7 +19,7 @@
 #include <linux/workqueue.h>
 #include <linux/backing-dev.h>
 #include <linux/percpu.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/scatterlist.h>
 #include <asm/page.h>
 #include <asm/unaligned.h>

@@ -180,7 +180,7 @@ enum {
 #include <linux/dqblk_v1.h>
 #include <linux/dqblk_v2.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 typedef __kernel_uid32_t qid_t; /* Type in which we store ids in memory */
 typedef long long qsize_t;	/* Type in which we store sizes */

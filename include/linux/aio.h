@@ -7,7 +7,7 @@
 #include <linux/uio.h>
 #include <linux/rcupdate.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #define AIO_MAXSEGS		4
 #define AIO_KIOGRP_NR_ATOMIC	8

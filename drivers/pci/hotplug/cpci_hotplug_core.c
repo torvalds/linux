@@ -32,7 +32,7 @@
 #include <linux/pci_hotplug.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include "cpci_hotplug.h"

@@ -11,7 +11,7 @@
 #ifndef _ASM_MICROBLAZE_MMU_CONTEXT_H
 #define _ASM_MICROBLAZE_MMU_CONTEXT_H
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/bitops.h>
 #include <asm/mmu.h>
 #include <asm-generic/mm_hooks.h>

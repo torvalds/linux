@@ -22,7 +22,7 @@
 #include <asm/stacktrace.h>
 #include <asm/cpudata.h>
 #include <asm/uaccess.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/nmi.h>
 #include <asm/pcr.h>
 

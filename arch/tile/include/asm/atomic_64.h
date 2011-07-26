@@ -11,7 +11,7 @@
  *   NON INFRINGEMENT.  See the GNU General Public License for
  *   more details.
  *
- * Do not include directly; use <asm/atomic.h>.
+ * Do not include directly; use <linux/atomic.h>.
  */
 
 #ifndef _ASM_TILE_ATOMIC_64_H

@@ -21,7 +21,7 @@
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
 #include <asm/irqflags.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/asm-offsets.h>
 #include <hv/hypervisor.h>
 #include <arch/abi.h>

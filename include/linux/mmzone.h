@@ -16,7 +16,7 @@
 #include <linux/nodemask.h>
 #include <linux/pageblock-flags.h>
 #include <generated/bounds.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/page.h>
 
 /* Free memory management - zoned buddy allocator.  */

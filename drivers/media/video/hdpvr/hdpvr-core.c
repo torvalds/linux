@@ -17,7 +17,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/usb.h>
 #include <linux/mutex.h>
 #include <linux/i2c.h>

@@ -26,7 +26,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/module.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/if.h>
 #include <linux/skbuff.h>
 #include <linux/ieee80211.h>

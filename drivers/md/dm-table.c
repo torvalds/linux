@@ -17,7 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #define DM_MSG_PREFIX "table"
 

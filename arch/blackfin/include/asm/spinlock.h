@@ -11,7 +11,7 @@
 # include <asm-generic/spinlock.h>
 #else
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 asmlinkage int __raw_spin_is_locked_asm(volatile int *ptr);
 asmlinkage void __raw_spin_lock_asm(volatile int *ptr);

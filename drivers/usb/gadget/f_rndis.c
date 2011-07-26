@@ -29,7 +29,7 @@
 #include <linux/device.h>
 #include <linux/etherdevice.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "u_ether.h"
 #include "rndis.h"

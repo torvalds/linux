@@ -38,7 +38,7 @@
 #include <net/xfrm.h>
 #endif /* CONFIG_XFRM */
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <asm/octeon/octeon.h>
 

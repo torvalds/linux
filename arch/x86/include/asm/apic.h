@@ -8,7 +8,7 @@
 #include <asm/cpufeature.h>
 #include <asm/processor.h>
 #include <asm/apicdef.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/fixmap.h>
 #include <asm/mpspec.h>
 #include <asm/system.h>

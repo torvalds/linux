@@ -9,7 +9,7 @@
 #include <linux/sched.h>
 #include <linux/node.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/page.h>
 
 struct notifier_block;

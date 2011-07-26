@@ -10,7 +10,7 @@
 #include <linux/bitops.h>
 #include <linux/lockdep.h>
 #include <linux/threads.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 struct workqueue_struct;
 

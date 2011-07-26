@@ -29,7 +29,7 @@
 #include <linux/wait.h>
 #include <linux/delay.h>
 #include <asm/io.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-dev.h>
 #include <media/videobuf-core.h>

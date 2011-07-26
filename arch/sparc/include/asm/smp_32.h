@@ -22,7 +22,7 @@
 
 #include <asm/ptrace.h>
 #include <asm/asi.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 /*
  *	Private routines/data

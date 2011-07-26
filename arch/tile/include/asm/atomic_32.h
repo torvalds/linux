@@ -11,7 +11,7 @@
  *   NON INFRINGEMENT.  See the GNU General Public License for
  *   more details.
  *
- * Do not include directly; use <asm/atomic.h>.
+ * Do not include directly; use <linux/atomic.h>.
  */
 
 #ifndef _ASM_TILE_ATOMIC_32_H
@@ -21,7 +21,7 @@
 
 #ifndef __ASSEMBLY__
 
-/* Tile-specific routines to support <asm/atomic.h>. */
+/* Tile-specific routines to support <linux/atomic.h>. */
 int _atomic_xchg(atomic_t *v, int n);
 int _atomic_xchg_add(atomic_t *v, int i);
 int _atomic_xchg_add_unless(atomic_t *v, int a, int u);

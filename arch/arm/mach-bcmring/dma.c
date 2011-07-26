@@ -34,7 +34,7 @@
 
 #include <linux/mm.h>
 #include <linux/pfn.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <mach/dma.h>
 
 /* I don't quite understand why dc4 fails when this is set to 1 and DMA is enabled */

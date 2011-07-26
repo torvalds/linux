@@ -27,7 +27,7 @@
 #include <net/atmclip.h>
 #include <linux/uaccess.h>
 #include <linux/param.h> /* for HZ */
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include "resources.h"
 #include "common.h" /* atm_proc_init prototype */
 #include "signaling.h" /* to get sigd - ugly too */

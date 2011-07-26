@@ -212,7 +212,6 @@ static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
 	return t != u;
 }
 
-#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
 #define atomic_sub_and_test(a, v)	(atomic_sub_return((a), (v)) == 0)
 #define atomic_dec_and_test(v)		(atomic_dec_return((v)) == 0)

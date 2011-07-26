@@ -5,7 +5,7 @@
 #include <linux/fs.h>
 #include <linux/spinlock.h>
 #include <linux/magic.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 struct net;
 struct completion;

@@ -33,7 +33,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>

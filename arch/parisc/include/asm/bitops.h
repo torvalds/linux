@@ -8,7 +8,7 @@
 #include <linux/compiler.h>
 #include <asm/types.h>		/* for BITS_PER_LONG/SHIFT_PER_LONG */
 #include <asm/byteorder.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 /*
  * HP-PARISC specific bit operations

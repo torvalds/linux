@@ -40,7 +40,7 @@
 #include <linux/slab.h>
 
 #include <asm/uaccess.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <net/icmp.h>
 #include <net/ip.h>

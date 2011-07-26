@@ -10,7 +10,7 @@
  */
 
 #include <linux/types.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/blkdev.h>
 #include <linux/fs.h>
 #include <linux/init.h>

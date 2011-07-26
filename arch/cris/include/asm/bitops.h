@@ -20,7 +20,7 @@
 
 #include <arch/bitops.h>
 #include <asm/system.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/compiler.h>
 
 /*

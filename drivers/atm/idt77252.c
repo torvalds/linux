@@ -46,7 +46,7 @@
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/byteorder.h>
 
 #ifdef CONFIG_ATM_IDT77252_USE_SUNI

@@ -108,7 +108,6 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 	return c != u;
 }
 
-#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
 #undef __CS_LOOP
 

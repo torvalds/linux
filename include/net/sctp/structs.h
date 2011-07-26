@@ -60,7 +60,7 @@
 #include <linux/in6.h>		/* We get struct in6_addr     */
 #include <linux/ipv6.h>
 #include <asm/param.h>		/* We get MAXHOSTNAMELEN.     */
-#include <asm/atomic.h>		/* This gets us atomic counters.  */
+#include <linux/atomic.h>		/* This gets us atomic counters.  */
 #include <linux/skbuff.h>	/* We need sk_buff_head. */
 #include <linux/workqueue.h>	/* We need tq_struct.	 */
 #include <linux/sctp.h>		/* We need sctp* header structs.  */

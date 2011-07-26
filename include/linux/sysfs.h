@@ -17,7 +17,7 @@
 #include <linux/list.h>
 #include <linux/lockdep.h>
 #include <linux/kobject_ns.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 struct kobject;
 struct module;

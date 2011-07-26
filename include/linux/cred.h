@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/key.h>
 #include <linux/selinux.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 struct user_struct;
 struct cred;

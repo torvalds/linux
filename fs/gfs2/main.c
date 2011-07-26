@@ -16,7 +16,7 @@
 #include <linux/gfs2_ondisk.h>
 #include <linux/rcupdate.h>
 #include <linux/rculist_bl.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "gfs2.h"
 #include "incore.h"

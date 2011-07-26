@@ -21,7 +21,7 @@
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
 #include <linux/wait.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>

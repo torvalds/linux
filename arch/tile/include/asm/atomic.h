@@ -121,15 +121,6 @@ static inline int atomic_read(const atomic_t *v)
  */
 #define atomic_add_negative(i, v)	(atomic_add_return((i), (v)) < 0)
 
-/**
- * atomic_inc_not_zero - increment unless the number is zero
- * @v: pointer of type atomic_t
- *
- * Atomically increments @v by 1, so long as @v is non-zero.
- * Returns non-zero if @v was non-zero, and zero otherwise.
- */
-#define atomic_inc_not_zero(v)		atomic_add_unless((v), 1, 0)
-
 /* Nonexistent functions intended to cause link errors. */
 extern unsigned long __xchg_called_with_bad_pointer(void);
 extern unsigned long __cmpxchg_called_with_bad_pointer(void);

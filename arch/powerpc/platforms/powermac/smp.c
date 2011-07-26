@@ -35,7 +35,7 @@
 #include <linux/compiler.h>
 
 #include <asm/ptrace.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/code-patching.h>
 #include <asm/irq.h>
 #include <asm/page.h>

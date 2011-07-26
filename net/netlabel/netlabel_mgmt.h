@@ -32,7 +32,7 @@
 #define _NETLABEL_MGMT_H
 
 #include <net/netlabel.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 /*
  * The following NetLabel payloads are supported by the management interface.

@@ -116,7 +116,6 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 	local_irq_restore(flags);
 	return ret != u;
 }
-#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
 static __inline__ void atomic_clear_mask(unsigned long mask, unsigned long *v)
 {

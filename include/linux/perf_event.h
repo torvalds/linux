@@ -509,7 +509,7 @@ struct perf_guest_info_callbacks {
 #include <linux/cpu.h>
 #include <linux/irq_work.h>
 #include <linux/jump_label.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/local.h>
 
 #define PERF_MAX_STACK_DEPTH		255

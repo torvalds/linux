@@ -3,6 +3,15 @@
 #include <asm/atomic.h>
 
 /**
+ * atomic_inc_not_zero - increment unless the number is zero
+ * @v: pointer of type atomic_t
+ *
+ * Atomically increments @v by 1, so long as @v is non-zero.
+ * Returns non-zero if @v was non-zero, and zero otherwise.
+ */
+#define atomic_inc_not_zero(v)		atomic_add_unless((v), 1, 0)
+
+/**
  * atomic_inc_not_zero_hint - increment if not null
  * @v: pointer of type atomic_t
  * @hint: probable value of the atomic before the increment

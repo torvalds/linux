@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/cacheflush.h>
 
 #ifdef CONFIG_DYNAMIC_FTRACE

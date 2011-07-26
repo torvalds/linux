@@ -198,7 +198,6 @@ static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
 	return c != (u);
 }
 
-#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
 /* Atomic operations are already serializing */
 #define smp_mb__before_atomic_dec()	barrier()

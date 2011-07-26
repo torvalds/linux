@@ -30,7 +30,7 @@
 #include <linux/netdevice.h>
 #include <linux/timer.h>
 #include <linux/spinlock.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/uaccess.h>
 #include <net/neighbour.h>
 #include <net/dst.h>

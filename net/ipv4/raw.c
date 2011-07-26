@@ -38,7 +38,7 @@
  */
 
 #include <linux/types.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/byteorder.h>
 #include <asm/current.h>
 #include <asm/uaccess.h>

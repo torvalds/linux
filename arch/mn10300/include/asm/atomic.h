@@ -269,7 +269,6 @@ static inline void atomic_dec(atomic_t *v)
 	c != (u);						\
 })
 
-#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
 /**
  * atomic_clear_mask - Atomically clear bits in memory

@@ -52,7 +52,7 @@
 #include <net/net_namespace.h>
 #include <net/netlabel.h>
 #include <asm/bug.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "netlabel_user.h"
 #include "netlabel_addrlist.h"
