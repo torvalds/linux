@@ -700,6 +700,8 @@ struct hda_codec_ops {
 	int (*init)(struct hda_codec *codec);
 	void (*free)(struct hda_codec *codec);
 	void (*unsol_event)(struct hda_codec *codec, unsigned int res);
+	void (*set_power_state)(struct hda_codec *codec, hda_nid_t fg,
+				unsigned int power_state);
 #ifdef CONFIG_PM
 	int (*suspend)(struct hda_codec *codec, pm_message_t state);
 	int (*post_suspend)(struct hda_codec *codec);
@@ -1006,6 +1008,9 @@ int snd_hda_is_supported_format(struct hda_codec *codec, hda_nid_t nid,
  */
 void snd_hda_get_codec_name(struct hda_codec *codec, char *name, int namelen);
 void snd_hda_bus_reboot_notify(struct hda_bus *bus);
+void snd_hda_codec_set_power_to_all(struct hda_codec *codec, hda_nid_t fg,
+				    unsigned int power_state,
+				    bool eapd_workaround);
 
 /*
  * power management
