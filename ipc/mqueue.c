@@ -113,6 +113,7 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 {
 	struct user_struct *u = current_user();
 	struct inode *inode;
+	int ret = -ENOMEM;
 
 	inode = new_inode(sb);
 	if (!inode)
@@ -160,6 +161,7 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 		    u->mq_bytes + mq_bytes > task_rlimit(p, RLIMIT_MSGQUEUE)) {
 			spin_unlock(&mq_lock);
 			/* mqueue_evict_inode() releases info->messages */
+			ret = -EMFILE;
 			goto out_inode;
 		}
 		u->mq_bytes += mq_bytes;
@@ -179,7 +181,7 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 out_inode:
 	iput(inode);
 err:
-	return NULL;
+	return ERR_PTR(ret);
 }
 
 static int mqueue_fill_super(struct super_block *sb, void *data, int silent)
@@ -195,8 +197,8 @@ static int mqueue_fill_super(struct super_block *sb, void *data, int silent)
 
 	inode = mqueue_get_inode(sb, ns, S_IFDIR | S_ISVTX | S_IRWXUGO,
 				NULL);
-	if (!inode) {
-		error = -ENOMEM;
+	if (IS_ERR(inode)) {
+		error = PTR_ERR(inode);
 		goto out;
 	}
 
@@ -316,8 +318,8 @@ static int mqueue_create(struct inode *dir, struct dentry *dentry,
 	spin_unlock(&mq_lock);
 
 	inode = mqueue_get_inode(dir->i_sb, ipc_ns, mode, attr);
-	if (!inode) {
-		error = -ENOMEM;
+	if (IS_ERR(inode)) {
+		error = PTR_ERR(inode);
 		spin_lock(&mq_lock);
 		ipc_ns->mq_queues_count--;
 		goto out_unlock;
