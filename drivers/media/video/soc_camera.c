@@ -108,6 +108,40 @@ const struct soc_camera_format_xlate *soc_camera_xlate_by_fourcc(
 EXPORT_SYMBOL(soc_camera_xlate_by_fourcc);
 
 /**
+ * soc_camera_apply_board_flags() - apply platform SOCAM_SENSOR_INVERT_* flags
+ * @icl:	camera platform parameters
+ * @cfg:	media bus configuration
+ * @return:	resulting flags
+ */
+unsigned long soc_camera_apply_board_flags(struct soc_camera_link *icl,
+					   const struct v4l2_mbus_config *cfg)
+{
+	unsigned long f, flags = cfg->flags;
+
+	/* If only one of the two polarities is supported, switch to the opposite */
+	if (icl->flags & SOCAM_SENSOR_INVERT_HSYNC) {
+		f = flags & (V4L2_MBUS_HSYNC_ACTIVE_HIGH | V4L2_MBUS_HSYNC_ACTIVE_LOW);
+		if (f == V4L2_MBUS_HSYNC_ACTIVE_HIGH || f == V4L2_MBUS_HSYNC_ACTIVE_LOW)
+			flags ^= V4L2_MBUS_HSYNC_ACTIVE_HIGH | V4L2_MBUS_HSYNC_ACTIVE_LOW;
+	}
+
+	if (icl->flags & SOCAM_SENSOR_INVERT_VSYNC) {
+		f = flags & (V4L2_MBUS_VSYNC_ACTIVE_HIGH | V4L2_MBUS_VSYNC_ACTIVE_LOW);
+		if (f == V4L2_MBUS_VSYNC_ACTIVE_HIGH || f == V4L2_MBUS_VSYNC_ACTIVE_LOW)
+			flags ^= V4L2_MBUS_VSYNC_ACTIVE_HIGH | V4L2_MBUS_VSYNC_ACTIVE_LOW;
+	}
+
+	if (icl->flags & SOCAM_SENSOR_INVERT_PCLK) {
+		f = flags & (V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_PCLK_SAMPLE_FALLING);
+		if (f == V4L2_MBUS_PCLK_SAMPLE_RISING || f == V4L2_MBUS_PCLK_SAMPLE_FALLING)
+			flags ^= V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_PCLK_SAMPLE_FALLING;
+	}
+
+	return flags;
+}
+EXPORT_SYMBOL(soc_camera_apply_board_flags);
+
+/**
  * soc_camera_apply_sensor_flags() - apply platform SOCAM_SENSOR_INVERT_* flags
  * @icl:	camera platform parameters
  * @flags:	flags to be inverted according to platform configuration
