@@ -157,6 +157,22 @@ static inline void atomic_clear_mask(unsigned long mask, atomic_t *v)
 	raw_local_irq_restore(flags);
 }
 
+/**
+ * atomic_set_mask - Atomically set bits in atomic variable
+ * @mask: Mask of the bits to be set
+ * @v: pointer of type atomic_t
+ *
+ * Atomically sets the bits set in @mask in @v
+ */
+static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
+{
+	unsigned long flags;
+
+	raw_local_irq_save(flags); /* Don't trace it in a irqsoff handler */
+	v->counter |= mask;
+	raw_local_irq_restore(flags);
+}
+
 /* Assume that atomic operations are already serializing */
 #define smp_mb__before_atomic_dec()	barrier()
 #define smp_mb__after_atomic_dec()	barrier()
