@@ -1567,18 +1567,16 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 	POSTING_READ(intel_dp->output_reg);
 }
 
-static enum drm_connector_status
-i915_dp_detect_common(struct intel_dp *intel_dp)
+static bool
+intel_dp_get_dpcd(struct intel_dp *intel_dp)
 {
-	enum drm_connector_status status = connector_status_disconnected;
-
 	if (intel_dp_aux_native_read_retry(intel_dp, 0x000, intel_dp->dpcd,
 					   sizeof (intel_dp->dpcd)) &&
 	    (intel_dp->dpcd[DP_DPCD_REV] != 0)) {
-		status = connector_status_connected;
+		return true;
 	}
 
-	return status;
+	return false;
 }
 
 /*
@@ -1603,7 +1601,7 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 	}
 
 	/* Now read the DPCD to see if it's actually running */
-	if (i915_dp_detect_common(intel_dp) != connector_status_connected) {
+	if (!intel_dp_get_dpcd(intel_dp)) {
 		intel_dp_link_down(intel_dp);
 		return;
 	}
@@ -1614,6 +1612,14 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 		intel_dp_start_link_train(intel_dp);
 		intel_dp_complete_link_train(intel_dp);
 	}
+}
+
+static enum drm_connector_status
+intel_dp_detect_dpcd(struct intel_dp *intel_dp)
+{
+	if (intel_dp_get_dpcd(intel_dp))
+		return connector_status_connected;
+	return connector_status_disconnected;
 }
 
 static enum drm_connector_status
@@ -1629,7 +1635,7 @@ ironlake_dp_detect(struct intel_dp *intel_dp)
 		return status;
 	}
 
-	return i915_dp_detect_common(intel_dp);
+	return intel_dp_detect_dpcd(intel_dp);
 }
 
 static enum drm_connector_status
@@ -1658,7 +1664,7 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 	if ((temp & bit) == 0)
 		return connector_status_disconnected;
 
-	return i915_dp_detect_common(intel_dp);
+	return intel_dp_detect_dpcd(intel_dp);
 }
 
 /**
