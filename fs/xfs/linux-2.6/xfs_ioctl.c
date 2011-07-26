@@ -850,14 +850,14 @@ xfs_set_diflags(
 		di_flags |= XFS_DIFLAG_NODEFRAG;
 	if (xflags & XFS_XFLAG_FILESTREAM)
 		di_flags |= XFS_DIFLAG_FILESTREAM;
-	if ((ip->i_d.di_mode & S_IFMT) == S_IFDIR) {
+	if (S_ISDIR(ip->i_d.di_mode)) {
 		if (xflags & XFS_XFLAG_RTINHERIT)
 			di_flags |= XFS_DIFLAG_RTINHERIT;
 		if (xflags & XFS_XFLAG_NOSYMLINKS)
 			di_flags |= XFS_DIFLAG_NOSYMLINKS;
 		if (xflags & XFS_XFLAG_EXTSZINHERIT)
 			di_flags |= XFS_DIFLAG_EXTSZINHERIT;
-	} else if ((ip->i_d.di_mode & S_IFMT) == S_IFREG) {
+	} else if (S_ISREG(ip->i_d.di_mode)) {
 		if (xflags & XFS_XFLAG_REALTIME)
 			di_flags |= XFS_DIFLAG_REALTIME;
 		if (xflags & XFS_XFLAG_EXTSIZE)

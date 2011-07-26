@@ -344,7 +344,7 @@ _xfs_filestream_update_ag(
 	 * Either ip is a regular file and pip is a directory, or ip is a
 	 * directory and pip is NULL.
 	 */
-	ASSERT(ip && (((ip->i_d.di_mode & S_IFREG) && pip &&
+	ASSERT(ip && ((S_ISREG(ip->i_d.di_mode) && pip &&
 	               (pip->i_d.di_mode & S_IFDIR)) ||
 	              ((ip->i_d.di_mode & S_IFDIR) && !pip)));
 

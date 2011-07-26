@@ -1331,7 +1331,7 @@ xfs_mountfs(
 
 	ASSERT(rip != NULL);
 
-	if (unlikely((rip->i_d.di_mode & S_IFMT) != S_IFDIR)) {
+	if (unlikely(!S_ISDIR(rip->i_d.di_mode))) {
 		xfs_warn(mp, "corrupted root inode %llu: not a directory",
 			(unsigned long long)rip->i_ino);
 		xfs_iunlock(rip, XFS_ILOCK_EXCL);
