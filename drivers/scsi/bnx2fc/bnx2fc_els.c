@@ -259,7 +259,7 @@ static int bnx2fc_initiate_els(struct bnx2fc_rport *tgt, unsigned int op,
 			struct bnx2fc_els_cb_arg *cb_arg, u32 timer_msec)
 {
 	struct fcoe_port *port = tgt->port;
-	struct bnx2fc_hba *hba = port->priv;
+	struct bnx2fc_interface *interface = port->priv;
 	struct fc_rport *rport = tgt->rport;
 	struct fc_lport *lport = port->lport;
 	struct bnx2fc_cmd *els_req;
@@ -352,7 +352,8 @@ static int bnx2fc_initiate_els(struct bnx2fc_rport *tgt, unsigned int op,
 	index = xid % BNX2FC_TASKS_PER_PAGE;
 
 	/* Initialize task context for this IO request */
-	task_page = (struct fcoe_task_ctx_entry *) hba->task_ctx[task_idx];
+	task_page = (struct fcoe_task_ctx_entry *)
+			interface->hba->task_ctx[task_idx];
 	task = &(task_page[index]);
 	bnx2fc_init_mp_task(els_req, task);
 
@@ -496,8 +497,8 @@ struct fc_seq *bnx2fc_elsct_send(struct fc_lport *lport, u32 did,
 				      void *arg, u32 timeout)
 {
 	struct fcoe_port *port = lport_priv(lport);
-	struct bnx2fc_hba *hba = port->priv;
-	struct fcoe_ctlr *fip = &hba->ctlr;
+	struct bnx2fc_interface *interface = port->priv;
+	struct fcoe_ctlr *fip = &interface->ctlr;
 	struct fc_frame_header *fh = fc_frame_header_get(fp);
 
 	switch (op) {

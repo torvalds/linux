@@ -29,10 +29,11 @@ static void bnx2fc_parse_fcp_rsp(struct bnx2fc_cmd *io_req,
 void bnx2fc_cmd_timer_set(struct bnx2fc_cmd *io_req,
 			  unsigned int timer_msec)
 {
-	struct bnx2fc_hba *hba = io_req->port->priv;
+	struct bnx2fc_interface *interface = io_req->port->priv;
 
-	if (queue_delayed_work(hba->timer_work_queue, &io_req->timeout_work,
-				  msecs_to_jiffies(timer_msec)))
+	if (queue_delayed_work(interface->timer_work_queue,
+			       &io_req->timeout_work,
+			       msecs_to_jiffies(timer_msec)))
 		kref_get(&io_req->refcount);
 }
 
@@ -419,8 +420,8 @@ free_cmgr:
 struct bnx2fc_cmd *bnx2fc_elstm_alloc(struct bnx2fc_rport *tgt, int type)
 {
 	struct fcoe_port *port = tgt->port;
-	struct bnx2fc_hba *hba = port->priv;
-	struct bnx2fc_cmd_mgr *cmd_mgr = hba->cmd_mgr;
+	struct bnx2fc_interface *interface = port->priv;
+	struct bnx2fc_cmd_mgr *cmd_mgr = interface->hba->cmd_mgr;
 	struct bnx2fc_cmd *io_req;
 	struct list_head *listp;
 	struct io_bdt *bd_tbl;
@@ -485,11 +486,12 @@ struct bnx2fc_cmd *bnx2fc_elstm_alloc(struct bnx2fc_rport *tgt, int type)
 	kref_init(&io_req->refcount);
 	return io_req;
 }
-static struct bnx2fc_cmd *bnx2fc_cmd_alloc(struct bnx2fc_rport *tgt)
+
+struct bnx2fc_cmd *bnx2fc_cmd_alloc(struct bnx2fc_rport *tgt)
 {
 	struct fcoe_port *port = tgt->port;
-	struct bnx2fc_hba *hba = port->priv;
-	struct bnx2fc_cmd_mgr *cmd_mgr = hba->cmd_mgr;
+	struct bnx2fc_interface *interface = port->priv;
+	struct bnx2fc_cmd_mgr *cmd_mgr = interface->hba->cmd_mgr;
 	struct bnx2fc_cmd *io_req;
 	struct list_head *listp;
 	struct io_bdt *bd_tbl;
@@ -570,7 +572,8 @@ void bnx2fc_cmd_release(struct kref *ref)
 static void bnx2fc_free_mp_resc(struct bnx2fc_cmd *io_req)
 {
 	struct bnx2fc_mp_req *mp_req = &(io_req->mp_req);
-	struct bnx2fc_hba *hba = io_req->port->priv;
+	struct bnx2fc_interface *interface = io_req->port->priv;
+	struct bnx2fc_hba *hba = interface->hba;
 	size_t sz = sizeof(struct fcoe_bd_ctx);
 
 	/* clear tm flags */
@@ -606,7 +609,8 @@ int bnx2fc_init_mp_req(struct bnx2fc_cmd *io_req)
 	struct bnx2fc_mp_req *mp_req;
 	struct fcoe_bd_ctx *mp_req_bd;
 	struct fcoe_bd_ctx *mp_resp_bd;
-	struct bnx2fc_hba *hba = io_req->port->priv;
+	struct bnx2fc_interface *interface = io_req->port->priv;
+	struct bnx2fc_hba *hba = interface->hba;
 	dma_addr_t addr;
 	size_t sz;
 
@@ -682,7 +686,7 @@ static int bnx2fc_initiate_tmf(struct scsi_cmnd *sc_cmd, u8 tm_flags)
 	struct fc_rport *rport = starget_to_rport(scsi_target(sc_cmd->device));
 	struct fc_rport_libfc_priv *rp = rport->dd_data;
 	struct fcoe_port *port;
-	struct bnx2fc_hba *hba;
+	struct bnx2fc_interface *interface;
 	struct bnx2fc_rport *tgt;
 	struct bnx2fc_cmd *io_req;
 	struct bnx2fc_mp_req *tm_req;
@@ -699,7 +703,7 @@ static int bnx2fc_initiate_tmf(struct scsi_cmnd *sc_cmd, u8 tm_flags)
 
 	lport = shost_priv(host);
 	port = lport_priv(lport);
-	hba = port->priv;
+	interface = port->priv;
 
 	if (rport == NULL) {
 		printk(KERN_ERR PFX "device_reset: rport is NULL\n");
@@ -774,7 +778,8 @@ retry_tmf:
 	index = xid % BNX2FC_TASKS_PER_PAGE;
 
 	/* Initialize task context for this IO request */
-	task_page = (struct fcoe_task_ctx_entry *) hba->task_ctx[task_idx];
+	task_page = (struct fcoe_task_ctx_entry *)
+			interface->hba->task_ctx[task_idx];
 	task = &(task_page[index]);
 	bnx2fc_init_mp_task(io_req, task);
 
@@ -822,7 +827,7 @@ int bnx2fc_initiate_abts(struct bnx2fc_cmd *io_req)
 	struct bnx2fc_rport *tgt = io_req->tgt;
 	struct fc_rport *rport = tgt->rport;
 	struct fc_rport_priv *rdata = tgt->rdata;
-	struct bnx2fc_hba *hba;
+	struct bnx2fc_interface *interface;
 	struct fcoe_port *port;
 	struct bnx2fc_cmd *abts_io_req;
 	struct fcoe_task_ctx_entry *task;
@@ -839,7 +844,7 @@ int bnx2fc_initiate_abts(struct bnx2fc_cmd *io_req)
 	BNX2FC_IO_DBG(io_req, "Entered bnx2fc_initiate_abts\n");
 
 	port = io_req->port;
-	hba = port->priv;
+	interface = port->priv;
 	lport = port->lport;
 
 	if (!test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags)) {
@@ -896,7 +901,8 @@ int bnx2fc_initiate_abts(struct bnx2fc_cmd *io_req)
 	index = xid % BNX2FC_TASKS_PER_PAGE;
 
 	/* Initialize task context for this IO request */
-	task_page = (struct fcoe_task_ctx_entry *) hba->task_ctx[task_idx];
+	task_page = (struct fcoe_task_ctx_entry *)
+			interface->hba->task_ctx[task_idx];
 	task = &(task_page[index]);
 	bnx2fc_init_mp_task(abts_io_req, task);
 
@@ -928,7 +934,7 @@ int bnx2fc_initiate_cleanup(struct bnx2fc_cmd *io_req)
 {
 	struct fc_lport *lport;
 	struct bnx2fc_rport *tgt = io_req->tgt;
-	struct bnx2fc_hba *hba;
+	struct bnx2fc_interface *interface;
 	struct fcoe_port *port;
 	struct bnx2fc_cmd *cleanup_io_req;
 	struct fcoe_task_ctx_entry *task;
@@ -941,7 +947,7 @@ int bnx2fc_initiate_cleanup(struct bnx2fc_cmd *io_req)
 	BNX2FC_IO_DBG(io_req, "Entered bnx2fc_initiate_cleanup\n");
 
 	port = io_req->port;
-	hba = port->priv;
+	interface = port->priv;
 	lport = port->lport;
 
 	cleanup_io_req = bnx2fc_elstm_alloc(tgt, BNX2FC_CLEANUP);
@@ -963,7 +969,8 @@ int bnx2fc_initiate_cleanup(struct bnx2fc_cmd *io_req)
 	index = xid % BNX2FC_TASKS_PER_PAGE;
 
 	/* Initialize task context for this IO request */
-	task_page = (struct fcoe_task_ctx_entry *) hba->task_ctx[task_idx];
+	task_page = (struct fcoe_task_ctx_entry *)
+			interface->hba->task_ctx[task_idx];
 	task = &(task_page[index]);
 	orig_xid = io_req->xid;
 
@@ -1796,7 +1803,8 @@ static int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 	struct fcoe_task_ctx_entry *task_page;
 	struct scsi_cmnd *sc_cmd = io_req->sc_cmd;
 	struct fcoe_port *port = tgt->port;
-	struct bnx2fc_hba *hba = port->priv;
+	struct bnx2fc_interface *interface = port->priv;
+	struct bnx2fc_hba *hba = interface->hba;
 	struct fc_lport *lport = port->lport;
 	struct fcoe_dev_stats *stats;
 	int task_idx, index;

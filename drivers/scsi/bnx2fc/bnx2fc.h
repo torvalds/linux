@@ -153,18 +153,13 @@ struct bnx2fc_percpu_s {
 };
 
 struct bnx2fc_hba {
-	struct list_head link;
+	struct list_head list;
 	struct cnic_dev *cnic;
 	struct pci_dev *pcidev;
-	struct net_device *netdev;
 	struct net_device *phys_dev;
 	unsigned long reg_with_cnic;
 		#define BNX2FC_CNIC_REGISTERED           1
-	struct packet_type fcoe_packet_type;
-	struct packet_type fip_packet_type;
 	struct bnx2fc_cmd_mgr *cmd_mgr;
-	struct workqueue_struct *timer_work_queue;
-	struct kref kref;
 	spinlock_t hba_lock;
 	struct mutex hba_mutex;
 	unsigned long adapter_state;
@@ -172,15 +167,9 @@ struct bnx2fc_hba {
 		#define ADAPTER_STATE_GOING_DOWN	1
 		#define ADAPTER_STATE_LINK_DOWN		2
 		#define ADAPTER_STATE_READY		3
-	u32 flags;
-	unsigned long init_done;
-		#define BNX2FC_FW_INIT_DONE		0
-		#define BNX2FC_CTLR_INIT_DONE		1
-		#define BNX2FC_CREATE_DONE		2
-	struct fcoe_ctlr ctlr;
-	struct list_head vports;
-	u8 vlan_enabled;
-	int vlan_id;
+	unsigned long flags;
+		#define BNX2FC_FLAG_FW_INIT_DONE	0
+		#define BNX2FC_FLAG_DESTROY_CMPL	1
 	u32 next_conn_id;
 	struct fcoe_task_ctx_entry **task_ctx;
 	dma_addr_t *task_ctx_dma;
@@ -199,38 +188,41 @@ struct bnx2fc_hba {
 	char *dummy_buffer;
 	dma_addr_t dummy_buf_dma;
 
+	/* Active list of offloaded sessions */
+	struct bnx2fc_rport **tgt_ofld_list;
+
+	/* statistics */
 	struct fcoe_statistics_params *stats_buffer;
 	dma_addr_t stats_buf_dma;
-
-	/*
-	 * PCI related info.
-	 */
-	u16 pci_did;
-	u16 pci_vid;
-	u16 pci_sdid;
-	u16 pci_svid;
-	u16 pci_func;
-	u16 pci_devno;
-
-	struct task_struct *l2_thread;
-
-	/* linkdown handling */
-	wait_queue_head_t shutdown_wait;
-	int wait_for_link_down;
+	struct completion stat_req_done;
 
 	/*destroy handling */
 	struct timer_list destroy_timer;
 	wait_queue_head_t destroy_wait;
 
-	/* Active list of offloaded sessions */
-	struct bnx2fc_rport *tgt_ofld_list[BNX2FC_NUM_MAX_SESS];
+	/* linkdown handling */
+	wait_queue_head_t shutdown_wait;
+	int wait_for_link_down;
 	int num_ofld_sess;
-
-	/* statistics */
-	struct completion stat_req_done;
+	struct list_head vports;
 };
 
-#define bnx2fc_from_ctlr(fip) container_of(fip, struct bnx2fc_hba, ctlr)
+struct bnx2fc_interface {
+	struct list_head list;
+	unsigned long if_flags;
+		#define BNX2FC_CTLR_INIT_DONE		0
+	struct bnx2fc_hba *hba;
+	struct net_device *netdev;
+	struct packet_type fcoe_packet_type;
+	struct packet_type fip_packet_type;
+	struct workqueue_struct *timer_work_queue;
+	struct kref kref;
+	struct fcoe_ctlr ctlr;
+	u8 vlan_enabled;
+	int vlan_id;
+};
+
+#define bnx2fc_from_ctlr(fip) container_of(fip, struct bnx2fc_interface, ctlr)
 
 struct bnx2fc_lport {
 	struct list_head list;
@@ -262,10 +254,9 @@ struct bnx2fc_rport {
 #define BNX2FC_FLAG_DISABLED		0x3
 #define BNX2FC_FLAG_DESTROYED		0x4
 #define BNX2FC_FLAG_OFLD_REQ_CMPL	0x5
-#define BNX2FC_FLAG_DESTROY_CMPL	0x6
-#define BNX2FC_FLAG_CTX_ALLOC_FAILURE	0x7
-#define BNX2FC_FLAG_UPLD_REQ_COMPL	0x8
-#define BNX2FC_FLAG_EXPL_LOGO		0x9
+#define BNX2FC_FLAG_CTX_ALLOC_FAILURE	0x6
+#define BNX2FC_FLAG_UPLD_REQ_COMPL	0x7
+#define BNX2FC_FLAG_EXPL_LOGO		0x8
 
 	u8 src_addr[ETH_ALEN];
 	u32 max_sqes;
@@ -327,12 +318,9 @@ struct bnx2fc_rport {
 	spinlock_t cq_lock;
 	atomic_t num_active_ios;
 	u32 flush_in_prog;
-	unsigned long work_time_slice;
 	unsigned long timestamp;
 	struct list_head free_task_list;
 	struct bnx2fc_cmd *pending_queue[BNX2FC_SQ_WQES_MAX+1];
-	atomic_t pi;
-	atomic_t ci;
 	struct list_head active_cmd_queue;
 	struct list_head els_queue;
 	struct list_head io_retire_queue;

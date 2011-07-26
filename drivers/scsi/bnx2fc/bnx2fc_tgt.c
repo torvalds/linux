@@ -65,7 +65,8 @@ static void bnx2fc_offload_session(struct fcoe_port *port,
 {
 	struct fc_lport *lport = rdata->local_port;
 	struct fc_rport *rport = rdata->rport;
-	struct bnx2fc_hba *hba = port->priv;
+	struct bnx2fc_interface *interface = port->priv;
+	struct bnx2fc_hba *hba = interface->hba;
 	int rval;
 	int i = 0;
 
@@ -237,7 +238,8 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 static void bnx2fc_upload_session(struct fcoe_port *port,
 					struct bnx2fc_rport *tgt)
 {
-	struct bnx2fc_hba *hba = port->priv;
+	struct bnx2fc_interface *interface = port->priv;
+	struct bnx2fc_hba *hba = interface->hba;
 
 	BNX2FC_TGT_DBG(tgt, "upload_session: active_ios = %d\n",
 		tgt->num_active_ios.counter);
@@ -316,7 +318,8 @@ static int bnx2fc_init_tgt(struct bnx2fc_rport *tgt,
 {
 
 	struct fc_rport *rport = rdata->rport;
-	struct bnx2fc_hba *hba = port->priv;
+	struct bnx2fc_interface *interface = port->priv;
+	struct bnx2fc_hba *hba = interface->hba;
 	struct b577xx_doorbell_set_prod *sq_db = &tgt->sq_db;
 	struct b577xx_fcoe_rx_doorbell *rx_db = &tgt->rx_db;
 
@@ -392,7 +395,8 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 				enum fc_rport_event event)
 {
 	struct fcoe_port *port = lport_priv(lport);
-	struct bnx2fc_hba *hba = port->priv;
+	struct bnx2fc_interface *interface = port->priv;
+	struct bnx2fc_hba *hba = interface->hba;
 	struct fc_rport *rport = rdata->rport;
 	struct fc_rport_libfc_priv *rp;
 	struct bnx2fc_rport *tgt;
@@ -537,7 +541,8 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 struct bnx2fc_rport *bnx2fc_tgt_lookup(struct fcoe_port *port,
 					     u32 port_id)
 {
-	struct bnx2fc_hba *hba = port->priv;
+	struct bnx2fc_interface *interface = port->priv;
+	struct bnx2fc_hba *hba = interface->hba;
 	struct bnx2fc_rport *tgt;
 	struct fc_rport_priv *rdata;
 	int i;
@@ -552,7 +557,7 @@ struct bnx2fc_rport *bnx2fc_tgt_lookup(struct fcoe_port *port,
 						"obtained\n");
 					return tgt;
 				} else {
-					printk(KERN_ERR PFX "rport 0x%x "
+					BNX2FC_TGT_DBG(tgt, "rport 0x%x "
 						"is in DELETED state\n",
 						rdata->ids.port_id);
 					return NULL;
