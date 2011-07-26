@@ -679,7 +679,7 @@ err:
 	return ERR_PTR(ret);
 }
 
-SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, mode_t, mode,
+SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, umode_t, mode,
 		struct mq_attr __user *, u_attr)
 {
 	struct dentry *dentry;

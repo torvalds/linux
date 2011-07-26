@@ -234,7 +234,7 @@ struct audit_context {
 		} mq_sendrecv;
 		struct {
 			int			oflag;
-			mode_t			mode;
+			umode_t			mode;
 			struct mq_attr		attr;
 		} mq_open;
 		struct {
@@ -1278,7 +1278,7 @@ static void show_special(struct audit_context *context, int *call_panic)
 		break; }
 	case AUDIT_MQ_OPEN: {
 		audit_log_format(ab,
-			"oflag=0x%x mode=%#o mq_flags=0x%lx mq_maxmsg=%ld "
+			"oflag=0x%x mode=%#ho mq_flags=0x%lx mq_maxmsg=%ld "
 			"mq_msgsize=%ld mq_curmsgs=%ld",
 			context->mq_open.oflag, context->mq_open.mode,
 			context->mq_open.attr.mq_flags,
@@ -2160,7 +2160,7 @@ int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
  * @attr: queue attributes
  *
  */
-void __audit_mq_open(int oflag, mode_t mode, struct mq_attr *attr)
+void __audit_mq_open(int oflag, umode_t mode, struct mq_attr *attr)
 {
 	struct audit_context *context = current->audit_context;
 
