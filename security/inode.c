@@ -164,7 +164,7 @@ static int create_by_name(const char *name, mode_t mode,
 	mutex_lock(&parent->d_inode->i_mutex);
 	*dentry = lookup_one_len(name, parent, strlen(name));
 	if (!IS_ERR(*dentry)) {
-		if ((mode & S_IFMT) == S_IFDIR)
+		if (S_ISDIR(mode))
 			error = mkdir(parent->d_inode, *dentry, mode);
 		else
 			error = create(parent->d_inode, *dentry, mode);
