@@ -223,8 +223,9 @@ struct dentry *ceph_lookup_open(struct inode *dir, struct dentry *dentry,
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(dir->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
-	struct file *file = nd->intent.open.file;
+	struct file *file;
 	struct ceph_mds_request *req;
+	struct dentry *ret;
 	int err;
 	int flags = nd->intent.open.flags - 1;  /* silly vfs! */
 
@@ -245,15 +246,21 @@ struct dentry *ceph_lookup_open(struct inode *dir, struct dentry *dentry,
 	err = ceph_mdsc_do_request(mdsc,
 				   (flags & (O_CREAT|O_TRUNC)) ? dir : NULL,
 				   req);
-	dentry = ceph_finish_lookup(req, dentry, err);
-	if (!err && (flags & O_CREAT) && !req->r_reply_info.head->is_dentry)
+	err = ceph_handle_snapdir(req, dentry, err);
+	if (err)
+		goto out;
+	if ((flags & O_CREAT) && !req->r_reply_info.head->is_dentry)
 		err = ceph_handle_notrace_create(dir, dentry);
-	if (!err)
-		err = ceph_init_file(req->r_dentry->d_inode, file,
-				     req->r_fmode);
+	if (err)
+		goto out;
+	file = lookup_instantiate_filp(nd, req->r_dentry, ceph_open);
+	if (IS_ERR(file))
+		err = PTR_ERR(file);
+out:
+	ret = ceph_finish_lookup(req, dentry, err);
 	ceph_mdsc_put_request(req);
-	dout("ceph_lookup_open result=%p\n", dentry);
-	return dentry;
+	dout("ceph_lookup_open result=%p\n", ret);
+	return ret;
 }
 
 int ceph_release(struct inode *inode, struct file *file)

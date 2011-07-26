@@ -482,18 +482,10 @@ static loff_t ceph_dir_llseek(struct file *file, loff_t offset, int origin)
 }
 
 /*
- * Process result of a lookup/open request.
- *
- * Mainly, make sure we return the final req->r_dentry (if it already
- * existed) in place of the original VFS-provided dentry when they
- * differ.
- *
- * Gracefully handle the case where the MDS replies with -ENOENT and
- * no trace (which it may do, at its discretion, e.g., if it doesn't
- * care to issue a lease on the negative dentry).
+ * Handle lookups for the hidden .snap directory.
  */
-struct dentry *ceph_finish_lookup(struct ceph_mds_request *req,
-				  struct dentry *dentry, int err)
+int ceph_handle_snapdir(struct ceph_mds_request *req,
+			struct dentry *dentry, int err)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(dentry->d_sb);
 	struct inode *parent = dentry->d_parent->d_inode;
@@ -510,7 +502,23 @@ struct dentry *ceph_finish_lookup(struct ceph_mds_request *req,
 		d_add(dentry, inode);
 		err = 0;
 	}
+	return err;
+}
 
+/*
+ * Figure out final result of a lookup/open request.
+ *
+ * Mainly, make sure we return the final req->r_dentry (if it already
+ * existed) in place of the original VFS-provided dentry when they
+ * differ.
+ *
+ * Gracefully handle the case where the MDS replies with -ENOENT and
+ * no trace (which it may do, at its discretion, e.g., if it doesn't
+ * care to issue a lease on the negative dentry).
+ */
+struct dentry *ceph_finish_lookup(struct ceph_mds_request *req,
+				  struct dentry *dentry, int err)
+{
 	if (err == -ENOENT) {
 		/* no trace? */
 		err = 0;
@@ -605,6 +613,7 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 	req->r_args.getattr.mask = cpu_to_le32(CEPH_STAT_CAP_INODE);
 	req->r_locked_dir = dir;
 	err = ceph_mdsc_do_request(mdsc, NULL, req);
+	err = ceph_handle_snapdir(req, dentry, err);
 	dentry = ceph_finish_lookup(req, dentry, err);
 	ceph_mdsc_put_request(req);  /* will dput(dentry) */
 	dout("lookup result=%p\n", dentry);
