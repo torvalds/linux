@@ -544,6 +544,7 @@ extern void ceph_reservation_status(struct ceph_fs_client *client,
  * we keep buffered readdir results attached to file->private_data
  */
 #define CEPH_F_SYNC     1
+#define CEPH_F_ATEND    2
 
 struct ceph_file_info {
 	short fmode;     /* initialized on open */
@@ -552,7 +553,6 @@ struct ceph_file_info {
 	/* readdir: position within the dir */
 	u32 frag;
 	struct ceph_mds_request *last_readdir;
-	int at_end;
 
 	/* readdir: position within a frag */
 	unsigned offset;       /* offset of last chunk, adjusted for . and .. */

@@ -133,7 +133,7 @@ more:
 		     d_unhashed(dentry) ? "!hashed" : "hashed",
 		     parent->d_subdirs.prev, parent->d_subdirs.next);
 		if (p == &parent->d_subdirs) {
-			fi->at_end = 1;
+			fi->flags |= CEPH_F_ATEND;
 			goto out_unlock;
 		}
 		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
@@ -234,7 +234,7 @@ static int ceph_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	const int max_bytes = fsc->mount_options->max_readdir_bytes;
 
 	dout("readdir %p filp %p frag %u off %u\n", inode, filp, frag, off);
-	if (fi->at_end)
+	if (fi->flags & CEPH_F_ATEND)
 		return 0;
 
 	/* always start with . and .. */
@@ -403,7 +403,7 @@ more:
 		dout("readdir next frag is %x\n", frag);
 		goto more;
 	}
-	fi->at_end = 1;
+	fi->flags |= CEPH_F_ATEND;
 
 	/*
 	 * if dir_release_count still matches the dir, no dentries
@@ -435,7 +435,7 @@ static void reset_readdir(struct ceph_file_info *fi)
 		dput(fi->dentry);
 		fi->dentry = NULL;
 	}
-	fi->at_end = 0;
+	fi->flags &= ~CEPH_F_ATEND;
 }
 
 static loff_t ceph_dir_llseek(struct file *file, loff_t offset, int origin)
@@ -458,7 +458,7 @@ static loff_t ceph_dir_llseek(struct file *file, loff_t offset, int origin)
 		if (offset != file->f_pos) {
 			file->f_pos = offset;
 			file->f_version = 0;
-			fi->at_end = 0;
+			fi->flags &= ~CEPH_F_ATEND;
 		}
 		retval = offset;
 
