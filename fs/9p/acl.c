@@ -98,7 +98,6 @@ static struct posix_acl *v9fs_get_cached_acl(struct inode *inode, int type)
 
 struct posix_acl *v9fs_iop_get_acl(struct inode *inode, int type)
 {
-	struct posix_acl *acl;
 	struct v9fs_session_info *v9ses;
 
 	v9ses = v9fs_inode2v9ses(inode);
