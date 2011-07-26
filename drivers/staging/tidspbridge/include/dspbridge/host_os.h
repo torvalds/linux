@@ -24,7 +24,6 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/syscalls.h>
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/stddef.h>

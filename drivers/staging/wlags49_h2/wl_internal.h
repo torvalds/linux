@@ -67,7 +67,6 @@
 /*******************************************************************************
  *  include files
  ******************************************************************************/
-#include <linux/version.h>
 #ifdef BUS_PCMCIA
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>

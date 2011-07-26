@@ -222,7 +222,7 @@ irqreturn_t et131x_isr(int irq, void *dev_id)
 	 * DPC. We will clear the software copy of that in that
 	 * routine.
 	 */
-	adapter->Stats.InterruptStatus = status;
+	adapter->stats.InterruptStatus = status;
 
 	/* Schedule the ISR handler as a bottom-half task in the
 	 * kernel's tq_immediate queue, and mark the queue for
@@ -244,8 +244,8 @@ void et131x_isr_handler(struct work_struct *work)
 {
 	struct et131x_adapter *etdev =
 		container_of(work, struct et131x_adapter, task);
-	u32 status = etdev->Stats.InterruptStatus;
-	ADDRESS_MAP_t __iomem *iomem = etdev->regs;
+	u32 status = etdev->stats.InterruptStatus;
+	struct address_map __iomem *iomem = etdev->regs;
 
 	/*
 	 * These first two are by far the most common.  Once handled, we clear
@@ -268,7 +268,7 @@ void et131x_isr_handler(struct work_struct *work)
 			u32 txdma_err;
 
 			/* Following read also clears the register (COR) */
-			txdma_err = readl(&iomem->txdma.TxDmaError);
+			txdma_err = readl(&iomem->txdma.tx_dma_error);
 
 			dev_warn(&etdev->pdev->dev,
 				    "TXDMA_ERR interrupt, error = %d\n",
@@ -365,7 +365,8 @@ void et131x_isr_handler(struct work_struct *work)
 		/* Handle the PHY interrupt */
 		if (status & ET_INTR_PHY) {
 			u32 pm_csr;
-			MI_BMSR_t BmsrInts, BmsrData;
+			u16 bmsr_ints;
+			u16 bmsr_data;
 			u16 myisr;
 
 			/* If we are in coma mode when we get this interrupt,
@@ -390,14 +391,13 @@ void et131x_isr_handler(struct work_struct *work)
 			if (!etdev->ReplicaPhyLoopbk) {
 				MiRead(etdev,
 				       (uint8_t) offsetof(struct mi_regs, bmsr),
-				       &BmsrData.value);
+				       &bmsr_data);
 
-				BmsrInts.value =
-				    etdev->Bmsr.value ^ BmsrData.value;
-				etdev->Bmsr.value = BmsrData.value;
+				bmsr_ints = etdev->bmsr ^ bmsr_data;
+				etdev->bmsr = bmsr_data;
 
 				/* Do all the cable in / cable out stuff */
-				et131x_Mii_check(etdev, BmsrData, BmsrInts);
+				et131x_Mii_check(etdev, bmsr_data, bmsr_ints);
 			}
 		}
 

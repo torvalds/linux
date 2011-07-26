@@ -25,7 +25,7 @@ struct mrst_vbt {
 	u8 size;
 	u8 checksum;
 	void *mrst_gct;
-} __attribute__ ((packed));
+} __packed;
 
 struct mrst_timing_info {
 	u16 pixel_clock;
@@ -58,7 +58,7 @@ struct mrst_timing_info {
 	u8 stereo:1;
 	u8 unknown6:1;
 	u8 interlaced:1;
-} __attribute__((packed));
+} __packed;
 
 struct gct_r10_timing_info {
 	u16 pixel_clock;
@@ -82,7 +82,7 @@ struct gct_r10_timing_info {
 	u16 vsync_pulse_width_hi:2;
 	u16 vsync_positive:1;
 	u16 rsvd_2:3;
-} __attribute__((packed));
+} __packed;
 
 struct mrst_panel_descriptor_v1 {
 	u32 Panel_Port_Control; /* 1 dword, Register 0x61180 if LVDS */
@@ -111,7 +111,7 @@ struct mrst_panel_descriptor_v1 {
 			/* Bit 6, Reserved, 2 bits, 00b */
 			/* Bit 8, Minimum Supported Frame Rate, 6 bits, 0 - 63Hz */
 			/* Bit 14, Reserved, 2 bits, 00b */
-} __attribute__ ((packed));
+} __packed;
 
 struct mrst_panel_descriptor_v2 {
 	u32 Panel_Port_Control; /* 1 dword, Register 0x61180 if LVDS */
@@ -141,10 +141,10 @@ struct mrst_panel_descriptor_v2 {
 			/* Bit 6, Reserved, 2 bits, 00b */
 			/* Bit 8, Minimum Supported Frame Rate, 6 bits, 0 - 63Hz */
 			/* Bit 14, Reserved, 2 bits, 00b */
-} __attribute__ ((packed));
+} __packed;
 
 union mrst_panel_rx {
-	struct{
+	struct {
 		u16 NumberOfLanes:2; /*Num of Lanes, 2 bits,0 = 1 lane,*/
 			/* 1 = 2 lanes, 2 = 3 lanes, 3 = 4 lanes. */
 		u16 MaxLaneFreq:3; /* 0: 100MHz, 1: 200MHz, 2: 300MHz, */
@@ -159,10 +159,10 @@ union mrst_panel_rx {
 		u16 Rsvd:5;/*5 bits,00000b */
 	} panelrx;
 	u16 panel_receiver;
-} __attribute__ ((packed));
+} __packed;
 
 struct mrst_gct_v1 {
-	union{ /*8 bits,Defined as follows: */
+	union { /*8 bits,Defined as follows: */
 		struct {
 			u8 PanelType:4; /*4 bits, Bit field for panels*/
 					/* 0 - 3: 0 = LVDS, 1 = MIPI*/
@@ -176,10 +176,10 @@ struct mrst_gct_v1 {
 	};
 	struct mrst_panel_descriptor_v1 panel[4];/*panel descrs,38 bytes each*/
 	union mrst_panel_rx panelrx[4]; /* panel receivers*/
-} __attribute__ ((packed));
+} __packed;
 
 struct mrst_gct_v2 {
-	union{ /*8 bits,Defined as follows: */
+	union { /*8 bits,Defined as follows: */
 		struct {
 			u8 PanelType:4; /*4 bits, Bit field for panels*/
 					/* 0 - 3: 0 = LVDS, 1 = MIPI*/
@@ -193,7 +193,7 @@ struct mrst_gct_v2 {
 	};
 	struct mrst_panel_descriptor_v2 panel[4];/*panel descrs,38 bytes each*/
 	union mrst_panel_rx panelrx[4]; /* panel receivers*/
-} __attribute__ ((packed));
+} __packed;
 
 struct mrst_gct_data {
 	u8 bpi; /* boot panel index, number of panel used during boot */
@@ -205,13 +205,48 @@ struct mrst_gct_data {
 	u32 PP_Cycle_Delay;
 	u16 Panel_Backlight_Inverter_Descriptor;
 	u16 Panel_MIPI_Display_Descriptor;
-} __attribute__ ((packed));
+} __packed;
 
-#define MODE_SETTING_IN_CRTC 	0x1
-#define MODE_SETTING_IN_ENCODER 0x2
-#define MODE_SETTING_ON_GOING 	0x3
-#define MODE_SETTING_IN_DSR 	0x4
-#define MODE_SETTING_ENCODER_DONE 0x8
-#define GCT_R10_HEADER_SIZE	16
+#define MODE_SETTING_IN_CRTC		0x1
+#define MODE_SETTING_IN_ENCODER		0x2
+#define MODE_SETTING_ON_GOING		0x3
+#define MODE_SETTING_IN_DSR		0x4
+#define MODE_SETTING_ENCODER_DONE	0x8
+
+#define GCT_R10_HEADER_SIZE		16
 #define GCT_R10_DISPLAY_DESC_SIZE	28
 
+/*
+ *	Moorestown HDMI interfaces
+ */
+
+struct mrst_hdmi_dev {
+	struct pci_dev *dev;
+	void __iomem *regs;
+	unsigned int mmio, mmio_len;
+	int dpms_mode;
+	struct hdmi_i2c_dev *i2c_dev;
+
+	/* register state */
+	u32 saveDPLL_CTRL;
+	u32 saveDPLL_DIV_CTRL;
+	u32 saveDPLL_ADJUST;
+	u32 saveDPLL_UPDATE;
+	u32 saveDPLL_CLK_ENABLE;
+	u32 savePCH_HTOTAL_B;
+	u32 savePCH_HBLANK_B;
+	u32 savePCH_HSYNC_B;
+	u32 savePCH_VTOTAL_B;
+	u32 savePCH_VBLANK_B;
+	u32 savePCH_VSYNC_B;
+	u32 savePCH_PIPEBCONF;
+	u32 savePCH_PIPEBSRC;
+};
+
+extern void mrst_hdmi_setup(struct drm_device *dev);
+extern void mrst_hdmi_teardown(struct drm_device *dev);
+extern int  mrst_hdmi_i2c_init(struct pci_dev *dev);
+extern void mrst_hdmi_i2c_exit(struct pci_dev *dev);
+extern void mrst_hdmi_save(struct drm_device *dev);
+extern void mrst_hdmi_restore(struct drm_device *dev);
+extern void mrst_hdmi_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev);

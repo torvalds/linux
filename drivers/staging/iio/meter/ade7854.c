@@ -29,7 +29,7 @@ static ssize_t ade7854_read_8bit(struct device *dev,
 	int ret;
 	u8 val = 0;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7854_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7854_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 
 	ret = st->read_reg_8(dev, this_attr->address, &val);
@@ -46,7 +46,7 @@ static ssize_t ade7854_read_16bit(struct device *dev,
 	int ret;
 	u16 val = 0;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7854_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7854_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 
 	ret = st->read_reg_16(dev, this_attr->address, &val);
@@ -63,7 +63,7 @@ static ssize_t ade7854_read_24bit(struct device *dev,
 	int ret;
 	u32 val;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7854_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7854_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 
 	ret = st->read_reg_24(dev, this_attr->address, &val);
@@ -81,7 +81,7 @@ static ssize_t ade7854_read_32bit(struct device *dev,
 	u32 val = 0;
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7854_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7854_state *st = iio_priv(indio_dev);
 
 	ret = st->read_reg_32(dev, this_attr->address, &val);
 	if (ret)
@@ -97,7 +97,7 @@ static ssize_t ade7854_write_8bit(struct device *dev,
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7854_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7854_state *st = iio_priv(indio_dev);
 
 	int ret;
 	long val;
@@ -118,7 +118,7 @@ static ssize_t ade7854_write_16bit(struct device *dev,
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7854_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7854_state *st = iio_priv(indio_dev);
 
 	int ret;
 	long val;
@@ -139,7 +139,7 @@ static ssize_t ade7854_write_24bit(struct device *dev,
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7854_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7854_state *st = iio_priv(indio_dev);
 
 	int ret;
 	long val;
@@ -160,7 +160,7 @@ static ssize_t ade7854_write_32bit(struct device *dev,
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7854_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7854_state *st = iio_priv(indio_dev);
 
 	int ret;
 	long val;
@@ -177,7 +177,7 @@ error_ret:
 static int ade7854_reset(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7854_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7854_state *st = iio_priv(indio_dev);
 	u16 val;
 
 	st->read_reg_16(dev, ADE7854_CONFIG, &val);
@@ -426,7 +426,7 @@ static IIO_DEV_ATTR_CVAHR(ade7854_read_32bit,
 static int ade7854_set_irq(struct device *dev, bool enable)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7854_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7854_state *st = iio_priv(indio_dev);
 
 	int ret;
 	u32 irqen;
@@ -449,10 +449,10 @@ error_ret:
 	return ret;
 }
 
-static int ade7854_initial_setup(struct ade7854_state *st)
+static int ade7854_initial_setup(struct iio_dev *indio_dev)
 {
 	int ret;
-	struct device *dev = &st->indio_dev->dev;
+	struct device *dev = &indio_dev->dev;
 
 	/* Disable IRQ */
 	ret = ade7854_set_irq(dev, false);
@@ -556,68 +556,40 @@ static const struct iio_info ade7854_info = {
 	.driver_module = THIS_MODULE,
 };
 
-int ade7854_probe(struct ade7854_state *st, struct device *dev)
+int ade7854_probe(struct iio_dev *indio_dev, struct device *dev)
 {
 	int ret;
-
-	/* Allocate the comms buffers */
-	st->rx = kzalloc(sizeof(*st->rx)*ADE7854_MAX_RX, GFP_KERNEL);
-	if (st->rx == NULL) {
-		ret = -ENOMEM;
-		goto error_free_st;
-	}
-	st->tx = kzalloc(sizeof(*st->tx)*ADE7854_MAX_TX, GFP_KERNEL);
-	if (st->tx == NULL) {
-		ret = -ENOMEM;
-		goto error_free_rx;
-	}
-	mutex_init(&st->buf_lock);
+	struct ade7854_state *st = iio_priv(indio_dev);
 	/* setup the industrialio driver allocated elements */
-	st->indio_dev = iio_allocate_device(0);
-	if (st->indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_free_tx;
-	}
+	mutex_init(&st->buf_lock);
 
-	st->indio_dev->dev.parent = dev;
-	st->indio_dev->info = &ade7854_info;
-	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->dev.parent = dev;
+	indio_dev->info = &ade7854_info;
+	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(st->indio_dev);
+	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_free_dev;
 
 	/* Get the device into a sane initial state */
-	ret = ade7854_initial_setup(st);
+	ret = ade7854_initial_setup(indio_dev);
 	if (ret)
 		goto error_unreg_dev;
 
 	return 0;
 
 error_unreg_dev:
-	iio_device_unregister(st->indio_dev);
+	iio_device_unregister(indio_dev);
 error_free_dev:
-	iio_free_device(st->indio_dev);
-error_free_tx:
-	kfree(st->tx);
-error_free_rx:
-	kfree(st->rx);
-error_free_st:
-	kfree(st);
-
+	iio_free_device(indio_dev);
+error_ret:
 	return ret;
 }
 EXPORT_SYMBOL(ade7854_probe);
 
-int ade7854_remove(struct ade7854_state *st)
+int ade7854_remove(struct iio_dev *indio_dev)
 {
-	struct iio_dev *indio_dev = st->indio_dev;
-
 	iio_device_unregister(indio_dev);
-	kfree(st->tx);
-	kfree(st->rx);
-	kfree(st);
 
 	return 0;
 }

@@ -69,6 +69,7 @@ TRIG_WAKE_EOS
 #include "../comedidev.h"
 
 #include <linux/ioport.h>
+#include <linux/io.h>
 #include <asm/dma.h>
 
 #include "8253.h"

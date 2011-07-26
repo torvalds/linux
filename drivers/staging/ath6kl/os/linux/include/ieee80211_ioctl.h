@@ -24,8 +24,6 @@
 #ifndef _IEEE80211_IOCTL_H_
 #define _IEEE80211_IOCTL_H_
 
-#include <linux/version.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif

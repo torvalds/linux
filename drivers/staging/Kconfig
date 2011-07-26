@@ -24,10 +24,6 @@ menuconfig STAGING
 
 if STAGING
 
-source "drivers/staging/tty/Kconfig"
-
-source "drivers/staging/generic_serial/Kconfig"
-
 source "drivers/staging/et131x/Kconfig"
 
 source "drivers/staging/slicoss/Kconfig"
@@ -100,8 +96,6 @@ source "drivers/staging/sep/Kconfig"
 
 source "drivers/staging/iio/Kconfig"
 
-source "drivers/staging/cs5535_gpio/Kconfig"
-
 source "drivers/staging/zram/Kconfig"
 
 source "drivers/staging/zcache/Kconfig"
@@ -120,8 +114,6 @@ source "drivers/staging/cxt1e1/Kconfig"
 
 source "drivers/staging/xgifb/Kconfig"
 
-source "drivers/staging/msm/Kconfig"
-
 source "drivers/staging/lirc/Kconfig"
 
 source "drivers/staging/easycap/Kconfig"
@@ -131,8 +123,6 @@ source "drivers/staging/solo6x10/Kconfig"
 source "drivers/staging/tidspbridge/Kconfig"
 
 source "drivers/staging/quickstart/Kconfig"
-
-source "drivers/staging/westbridge/Kconfig"
 
 source "drivers/staging/sbe-2t3e3/Kconfig"
 

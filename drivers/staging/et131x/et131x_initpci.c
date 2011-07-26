@@ -113,13 +113,13 @@
 static u32 et131x_speed_set;
 module_param(et131x_speed_set, uint, 0);
 MODULE_PARM_DESC(et131x_speed_set,
-		"Set Link speed and dublex manually (0-5)  [0]\n \
-		 1 : 10Mb   Half-Duplex\n \
-		 2 : 10Mb   Full-Duplex\n \
-		 3 : 100Mb  Half-Duplex\n \
-		 4 : 100Mb  Full-Duplex\n \
-		 5 : 1000Mb Full-Duplex\n \
-		 0 : Auto Speed Auto Dublex");
+		"Set Link speed and dublex manually (0-5)  [0]\n"
+		"1 : 10Mb   Half-Duplex\n"
+		"2 : 10Mb   Full-Duplex\n"
+		"3 : 100Mb  Half-Duplex\n"
+		"4 : 100Mb  Full-Duplex\n"
+		"5 : 1000Mb Full-Duplex\n"
+		"0 : Auto Speed Auto Dublex");
 
 /**
  * et131x_hwaddr_init - set up the MAC Address on the ET1310
@@ -274,14 +274,14 @@ void et131x_error_timer_handler(unsigned long data)
 		dev_err(&etdev->pdev->dev,
 		    "No interrupts, in PHY coma, pm_csr = 0x%x\n", pm_csr);
 
-	if (!etdev->Bmsr.bits.link_status &&
+	if (!(etdev->bmsr & MI_BMSR_LINK_STATUS) &&
 	    etdev->RegistryPhyComa &&
 	    etdev->boot_coma < 11) {
 		etdev->boot_coma++;
 	}
 
 	if (etdev->boot_coma == 10) {
-		if (!etdev->Bmsr.bits.link_status
+		if (!(etdev->bmsr & MI_BMSR_LINK_STATUS)
 		    && etdev->RegistryPhyComa) {
 			if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {
 				/* NOTE - This was originally a 'sync with
@@ -312,7 +312,6 @@ void et131x_link_detection_handler(unsigned long data)
 		spin_lock_irqsave(&etdev->Lock, flags);
 
 		etdev->MediaState = NETIF_STATUS_MEDIA_DISCONNECT;
-		etdev->Flags &= ~fMP_ADAPTER_LINK_DETECTION;
 
 		spin_unlock_irqrestore(&etdev->Lock, flags);
 
@@ -539,7 +538,8 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 
 	struct et131x_adapter *etdev;
 
-	/* Setup the fundamental net_device and private adapter structure elements  */
+	/* Setup the fundamental net_device and private adapter structure
+	 * elements  */
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	/* Allocate private adapter struct and copy in relevant information */
@@ -807,12 +807,12 @@ static struct pci_device_id et131x_pci_table[] __devinitdata = {
 MODULE_DEVICE_TABLE(pci, et131x_pci_table);
 
 static struct pci_driver et131x_driver = {
-      .name	= DRIVER_NAME,
-      .id_table	= et131x_pci_table,
-      .probe	= et131x_pci_setup,
-      .remove	= __devexit_p(et131x_pci_remove),
-      .suspend	= NULL,		/* et131x_pci_suspend */
-      .resume	= NULL,		/* et131x_pci_resume */
+	.name		= DRIVER_NAME,
+	.id_table	= et131x_pci_table,
+	.probe		= et131x_pci_setup,
+	.remove		= __devexit_p(et131x_pci_remove),
+	.suspend	= NULL,		/* et131x_pci_suspend */
+	.resume		= NULL,		/* et131x_pci_resume */
 };
 
 

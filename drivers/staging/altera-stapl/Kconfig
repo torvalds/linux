@@ -1,5 +1,3 @@
-comment "Altera FPGA firmware download module"
-
 config ALTERA_STAPL
 	tristate "Altera FPGA firmware download module"
 	depends on I2C
