@@ -972,20 +972,7 @@ found:
 	error = add_to_page_cache_locked(page, mapping, idx, GFP_NOWAIT);
 	/* which does mem_cgroup_uncharge_cache_page on error */
 
-	if (error == -EEXIST) {
-		struct page *filepage = find_get_page(mapping, idx);
-		error = 1;
-		if (filepage) {
-			/*
-			 * There might be a more uptodate page coming down
-			 * from a stacked writepage: forget our swappage if so.
-			 */
-			if (PageUptodate(filepage))
-				error = 0;
-			page_cache_release(filepage);
-		}
-	}
-	if (!error) {
+	if (error != -ENOMEM) {
 		delete_from_swap_cache(page);
 		set_page_dirty(page);
 		info->flags |= SHMEM_PAGEIN;
@@ -1072,16 +1059,17 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 	/*
 	 * shmem_backing_dev_info's capabilities prevent regular writeback or
 	 * sync from ever calling shmem_writepage; but a stacking filesystem
-	 * may use the ->writepage of its underlying filesystem, in which case
+	 * might use ->writepage of its underlying filesystem, in which case
 	 * tmpfs should write out to swap only in response to memory pressure,
-	 * and not for the writeback threads or sync.  However, in those cases,
-	 * we do still want to check if there's a redundant swappage to be
-	 * discarded.
+	 * and not for the writeback threads or sync.
 	 */
-	if (wbc->for_reclaim)
-		swap = get_swap_page();
-	else
-		swap.val = 0;
+	if (!wbc->for_reclaim) {
+		WARN_ON_ONCE(1);	/* Still happens? Tell us about it! */
+		goto redirty;
+	}
+	swap = get_swap_page();
+	if (!swap.val)
+		goto redirty;
 
 	/*
 	 * Add inode to shmem_unuse()'s list of swapped-out inodes,
@@ -1092,15 +1080,12 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 	 * we've taken the spinlock, because shmem_unuse_inode() will
 	 * prune a !swapped inode from the swaplist under both locks.
 	 */
-	if (swap.val) {
-		mutex_lock(&shmem_swaplist_mutex);
-		if (list_empty(&info->swaplist))
-			list_add_tail(&info->swaplist, &shmem_swaplist);
-	}
+	mutex_lock(&shmem_swaplist_mutex);
+	if (list_empty(&info->swaplist))
+		list_add_tail(&info->swaplist, &shmem_swaplist);
 
 	spin_lock(&info->lock);
-	if (swap.val)
-		mutex_unlock(&shmem_swaplist_mutex);
+	mutex_unlock(&shmem_swaplist_mutex);
 
 	if (index >= info->next_index) {
 		BUG_ON(!(info->flags & SHMEM_TRUNCATE));
@@ -1108,16 +1093,13 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 	}
 	entry = shmem_swp_entry(info, index, NULL);
 	if (entry->val) {
-		/*
-		 * The more uptodate page coming down from a stacked
-		 * writepage should replace our old swappage.
-		 */
+		WARN_ON_ONCE(1);	/* Still happens? Tell us about it! */
 		free_swap_and_cache(*entry);
 		shmem_swp_set(info, entry, 0);
 	}
 	shmem_recalc_inode(inode);
 
-	if (swap.val && add_to_swap_cache(page, swap, GFP_ATOMIC) == 0) {
+	if (add_to_swap_cache(page, swap, GFP_ATOMIC) == 0) {
 		delete_from_page_cache(page);
 		shmem_swp_set(info, entry, swap.val);
 		shmem_swp_unmap(entry);
