@@ -1567,6 +1567,20 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 	POSTING_READ(intel_dp->output_reg);
 }
 
+static enum drm_connector_status
+i915_dp_detect_common(struct intel_dp *intel_dp)
+{
+	enum drm_connector_status status = connector_status_disconnected;
+
+	if (intel_dp_aux_native_read_retry(intel_dp, 0x000, intel_dp->dpcd,
+					   sizeof (intel_dp->dpcd)) &&
+	    (intel_dp->dpcd[DP_DPCD_REV] != 0)) {
+		status = connector_status_connected;
+	}
+
+	return status;
+}
+
 /*
  * According to DP spec
  * 5.1.2:
@@ -1579,42 +1593,27 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 static void
 intel_dp_check_link_status(struct intel_dp *intel_dp)
 {
-	int ret;
-
 	if (!intel_dp->base.base.crtc)
 		return;
 
+	/* Try to read receiver status if the link appears to be up */
 	if (!intel_dp_get_link_status(intel_dp)) {
 		intel_dp_link_down(intel_dp);
 		return;
 	}
 
-	/* Try to read receiver status if the link appears to be up */
-	ret = intel_dp_aux_native_read(intel_dp,
-				       0x000, intel_dp->dpcd,
-				       sizeof (intel_dp->dpcd));
-	if (ret != sizeof(intel_dp->dpcd)) {
+	/* Now read the DPCD to see if it's actually running */
+	if (i915_dp_detect_common(intel_dp) != connector_status_connected) {
 		intel_dp_link_down(intel_dp);
 		return;
 	}
 
 	if (!intel_channel_eq_ok(intel_dp)) {
+		DRM_DEBUG_KMS("%s: channel EQ not ok, retraining\n",
+			      drm_get_encoder_name(&intel_dp->base.base));
 		intel_dp_start_link_train(intel_dp);
 		intel_dp_complete_link_train(intel_dp);
 	}
-}
-
-static enum drm_connector_status
-i915_dp_detect_common(struct intel_dp *intel_dp)
-{
-	enum drm_connector_status status = connector_status_disconnected;
-
-	if (intel_dp_aux_native_read_retry(intel_dp, 0x000, intel_dp->dpcd,
-					   sizeof (intel_dp->dpcd)) &&
-	    (intel_dp->dpcd[DP_DPCD_REV] != 0))
-		status = connector_status_connected;
-
-	return status;
 }
 
 static enum drm_connector_status
