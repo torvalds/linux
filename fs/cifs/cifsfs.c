@@ -86,24 +86,6 @@ extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
 extern mempool_t *cifs_mid_poolp;
 
-void
-cifs_sb_active(struct super_block *sb)
-{
-	struct cifs_sb_info *server = CIFS_SB(sb);
-
-	if (atomic_inc_return(&server->active) == 1)
-		atomic_inc(&sb->s_active);
-}
-
-void
-cifs_sb_deactive(struct super_block *sb)
-{
-	struct cifs_sb_info *server = CIFS_SB(sb);
-
-	if (atomic_dec_and_test(&server->active))
-		deactivate_super(sb);
-}
-
 static int
 cifs_read_super(struct super_block *sb)
 {
