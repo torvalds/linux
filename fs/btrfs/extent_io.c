@@ -2551,7 +2551,6 @@ int extent_write_full_page(struct extent_io_tree *tree, struct page *page,
 	};
 	struct writeback_control wbc_writepages = {
 		.sync_mode	= wbc->sync_mode,
-		.older_than_this = NULL,
 		.nr_to_write	= 64,
 		.range_start	= page_offset(page) + PAGE_CACHE_SIZE,
 		.range_end	= (loff_t)-1,
@@ -2584,7 +2583,6 @@ int extent_write_locked_range(struct extent_io_tree *tree, struct inode *inode,
 	};
 	struct writeback_control wbc_writepages = {
 		.sync_mode	= mode,
-		.older_than_this = NULL,
 		.nr_to_write	= nr_pages * 2,
 		.range_start	= start,
 		.range_end	= end + 1,
