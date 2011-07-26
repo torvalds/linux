@@ -537,7 +537,7 @@ int swap_cgroup_swapon(int type, unsigned long max_pages)
 nomem:
 	printk(KERN_INFO "couldn't allocate enough memory for swap_cgroup.\n");
 	printk(KERN_INFO
-		"swap_cgroup can be disabled by noswapaccount boot option\n");
+		"swap_cgroup can be disabled by swapaccount=0 boot option\n");
 	return -ENOMEM;
 }
 
