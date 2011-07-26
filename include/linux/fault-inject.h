@@ -27,23 +27,7 @@ struct fault_attr {
 	unsigned long count;
 
 #ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
-
-	struct {
-		struct dentry *dir;
-
-		struct dentry *probability_file;
-		struct dentry *interval_file;
-		struct dentry *times_file;
-		struct dentry *space_file;
-		struct dentry *verbose_file;
-		struct dentry *task_filter_file;
-		struct dentry *stacktrace_depth_file;
-		struct dentry *require_start_file;
-		struct dentry *require_end_file;
-		struct dentry *reject_start_file;
-		struct dentry *reject_end_file;
-	} dentries;
-
+	struct dentry *dir;
 #endif
 };
 

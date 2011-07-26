@@ -45,7 +45,7 @@ static int __init failslab_debugfs_init(void)
 	err = init_fault_attr_dentries(&failslab.attr, "failslab");
 	if (err)
 		return err;
-	dir = failslab.attr.dentries.dir;
+	dir = failslab.attr.dir;
 
 	failslab.ignore_gfp_wait_file =
 		debugfs_create_bool("ignore-gfp-wait", mode, dir,

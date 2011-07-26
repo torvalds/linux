@@ -199,48 +199,7 @@ static struct dentry *debugfs_create_atomic_t(const char *name, mode_t mode,
 
 void cleanup_fault_attr_dentries(struct fault_attr *attr)
 {
-	debugfs_remove(attr->dentries.probability_file);
-	attr->dentries.probability_file = NULL;
-
-	debugfs_remove(attr->dentries.interval_file);
-	attr->dentries.interval_file = NULL;
-
-	debugfs_remove(attr->dentries.times_file);
-	attr->dentries.times_file = NULL;
-
-	debugfs_remove(attr->dentries.space_file);
-	attr->dentries.space_file = NULL;
-
-	debugfs_remove(attr->dentries.verbose_file);
-	attr->dentries.verbose_file = NULL;
-
-	debugfs_remove(attr->dentries.task_filter_file);
-	attr->dentries.task_filter_file = NULL;
-
-#ifdef CONFIG_FAULT_INJECTION_STACKTRACE_FILTER
-
-	debugfs_remove(attr->dentries.stacktrace_depth_file);
-	attr->dentries.stacktrace_depth_file = NULL;
-
-	debugfs_remove(attr->dentries.require_start_file);
-	attr->dentries.require_start_file = NULL;
-
-	debugfs_remove(attr->dentries.require_end_file);
-	attr->dentries.require_end_file = NULL;
-
-	debugfs_remove(attr->dentries.reject_start_file);
-	attr->dentries.reject_start_file = NULL;
-
-	debugfs_remove(attr->dentries.reject_end_file);
-	attr->dentries.reject_end_file = NULL;
-
-#endif /* CONFIG_FAULT_INJECTION_STACKTRACE_FILTER */
-
-	if (attr->dentries.dir)
-		WARN_ON(!simple_empty(attr->dentries.dir));
-
-	debugfs_remove(attr->dentries.dir);
-	attr->dentries.dir = NULL;
+	debugfs_remove_recursive(attr->dir);
 }
 
 int init_fault_attr_dentries(struct fault_attr *attr, const char *name)
@@ -248,66 +207,46 @@ int init_fault_attr_dentries(struct fault_attr *attr, const char *name)
 	mode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
 	struct dentry *dir;
 
-	memset(&attr->dentries, 0, sizeof(attr->dentries));
-
 	dir = debugfs_create_dir(name, NULL);
 	if (!dir)
+		return -ENOMEM;
+
+	attr->dir = dir;
+
+	if (!debugfs_create_ul("probability", mode, dir, &attr->probability))
 		goto fail;
-	attr->dentries.dir = dir;
-
-	attr->dentries.probability_file =
-		debugfs_create_ul("probability", mode, dir, &attr->probability);
-
-	attr->dentries.interval_file =
-		debugfs_create_ul("interval", mode, dir, &attr->interval);
-
-	attr->dentries.times_file =
-		debugfs_create_atomic_t("times", mode, dir, &attr->times);
-
-	attr->dentries.space_file =
-		debugfs_create_atomic_t("space", mode, dir, &attr->space);
-
-	attr->dentries.verbose_file =
-		debugfs_create_ul("verbose", mode, dir, &attr->verbose);
-
-	attr->dentries.task_filter_file = debugfs_create_bool("task-filter",
-						mode, dir, &attr->task_filter);
-
-	if (!attr->dentries.probability_file || !attr->dentries.interval_file ||
-	    !attr->dentries.times_file || !attr->dentries.space_file ||
-	    !attr->dentries.verbose_file || !attr->dentries.task_filter_file)
+	if (!debugfs_create_ul("interval", mode, dir, &attr->interval))
+		goto fail;
+	if (!debugfs_create_atomic_t("times", mode, dir, &attr->times))
+		goto fail;
+	if (!debugfs_create_atomic_t("space", mode, dir, &attr->space))
+		goto fail;
+	if (!debugfs_create_ul("verbose", mode, dir, &attr->verbose))
+		goto fail;
+	if (!debugfs_create_bool("task-filter", mode, dir, &attr->task_filter))
 		goto fail;
 
 #ifdef CONFIG_FAULT_INJECTION_STACKTRACE_FILTER
 
-	attr->dentries.stacktrace_depth_file =
-		debugfs_create_stacktrace_depth(
-			"stacktrace-depth", mode, dir, &attr->stacktrace_depth);
-
-	attr->dentries.require_start_file =
-		debugfs_create_ul("require-start", mode, dir, &attr->require_start);
-
-	attr->dentries.require_end_file =
-		debugfs_create_ul("require-end", mode, dir, &attr->require_end);
-
-	attr->dentries.reject_start_file =
-		debugfs_create_ul("reject-start", mode, dir, &attr->reject_start);
-
-	attr->dentries.reject_end_file =
-		debugfs_create_ul("reject-end", mode, dir, &attr->reject_end);
-
-	if (!attr->dentries.stacktrace_depth_file ||
-	    !attr->dentries.require_start_file ||
-	    !attr->dentries.require_end_file ||
-	    !attr->dentries.reject_start_file ||
-	    !attr->dentries.reject_end_file)
+	if (!debugfs_create_stacktrace_depth("stacktrace-depth", mode, dir,
+				&attr->stacktrace_depth))
+		goto fail;
+	if (!debugfs_create_ul("require-start", mode, dir,
+				&attr->require_start))
+		goto fail;
+	if (!debugfs_create_ul("require-end", mode, dir, &attr->require_end))
+		goto fail;
+	if (!debugfs_create_ul("reject-start", mode, dir, &attr->reject_start))
+		goto fail;
+	if (!debugfs_create_ul("reject-end", mode, dir, &attr->reject_end))
 		goto fail;
 
 #endif /* CONFIG_FAULT_INJECTION_STACKTRACE_FILTER */
 
 	return 0;
 fail:
-	cleanup_fault_attr_dentries(attr);
+	debugfs_remove_recursive(attr->dir);
+
 	return -ENOMEM;
 }
 

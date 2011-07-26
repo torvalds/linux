@@ -1424,7 +1424,7 @@ static int __init fail_page_alloc_debugfs(void)
 				       "fail_page_alloc");
 	if (err)
 		return err;
-	dir = fail_page_alloc.attr.dentries.dir;
+	dir = fail_page_alloc.attr.dir;
 
 	fail_page_alloc.ignore_gfp_wait_file =
 		debugfs_create_bool("ignore-gfp-wait", mode, dir,
