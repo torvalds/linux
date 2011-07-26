@@ -483,22 +483,26 @@ void ceph_mdsc_release_request(struct kref *kref)
 		destroy_reply_info(&req->r_reply_info);
 	}
 	if (req->r_inode) {
-		ceph_put_cap_refs(ceph_inode(req->r_inode),
-				  CEPH_CAP_PIN);
+		ceph_put_cap_refs(ceph_inode(req->r_inode), CEPH_CAP_PIN);
 		iput(req->r_inode);
 	}
 	if (req->r_locked_dir)
-		ceph_put_cap_refs(ceph_inode(req->r_locked_dir),
-				  CEPH_CAP_PIN);
+		ceph_put_cap_refs(ceph_inode(req->r_locked_dir), CEPH_CAP_PIN);
 	if (req->r_target_inode)
 		iput(req->r_target_inode);
 	if (req->r_dentry)
 		dput(req->r_dentry);
 	if (req->r_old_dentry) {
-		ceph_put_cap_refs(
-			ceph_inode(req->r_old_dentry->d_parent->d_inode),
-			CEPH_CAP_PIN);
+		/*
+		 * track (and drop pins for) r_old_dentry_dir
+		 * separately, since r_old_dentry's d_parent may have
+		 * changed between the dir mutex being dropped and
+		 * this request being freed.
+		 */
+		ceph_put_cap_refs(ceph_inode(req->r_old_dentry_dir),
+				  CEPH_CAP_PIN);
 		dput(req->r_old_dentry);
+		iput(req->r_old_dentry_dir);
 	}
 	kfree(req->r_path1);
 	kfree(req->r_path2);
@@ -1931,9 +1935,8 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 	if (req->r_locked_dir)
 		ceph_get_cap_refs(ceph_inode(req->r_locked_dir), CEPH_CAP_PIN);
 	if (req->r_old_dentry)
-		ceph_get_cap_refs(
-			ceph_inode(req->r_old_dentry->d_parent->d_inode),
-			CEPH_CAP_PIN);
+		ceph_get_cap_refs(ceph_inode(req->r_old_dentry_dir),
+				  CEPH_CAP_PIN);
 
 	/* issue */
 	mutex_lock(&mdsc->mutex);
