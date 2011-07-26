@@ -2015,7 +2015,7 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 
 	/* Cache some DPCD data in the eDP case */
 	if (is_edp(intel_dp)) {
-		int ret;
+		bool ret;
 		u32 pp_on, pp_div;
 
 		pp_on = I915_READ(PCH_PP_ON_DELAYS);
@@ -2028,11 +2028,9 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 		dev_priv->panel_t12 *= 100; /* t12 in 100ms units */
 
 		ironlake_edp_panel_vdd_on(intel_dp);
-		ret = intel_dp_aux_native_read(intel_dp, DP_DPCD_REV,
-					       intel_dp->dpcd,
-					       sizeof(intel_dp->dpcd));
+		ret = intel_dp_get_dpcd(intel_dp);
 		ironlake_edp_panel_vdd_off(intel_dp);
-		if (ret == sizeof(intel_dp->dpcd)) {
+		if (ret) {
 			if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11)
 				dev_priv->no_aux_handshake =
 					intel_dp->dpcd[DP_MAX_DOWNSPREAD] &
