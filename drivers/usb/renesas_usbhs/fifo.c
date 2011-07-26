@@ -16,6 +16,7 @@
  */
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/scatterlist.h>
 #include "./common.h"
 #include "./pipe.h"
 
