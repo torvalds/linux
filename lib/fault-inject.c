@@ -139,16 +139,6 @@ static int debugfs_ul_set(void *data, u64 val)
 	return 0;
 }
 
-#ifdef CONFIG_FAULT_INJECTION_STACKTRACE_FILTER
-static int debugfs_ul_set_MAX_STACK_TRACE_DEPTH(void *data, u64 val)
-{
-	*(unsigned long *)data =
-		val < MAX_STACK_TRACE_DEPTH ?
-		val : MAX_STACK_TRACE_DEPTH;
-	return 0;
-}
-#endif /* CONFIG_FAULT_INJECTION_STACKTRACE_FILTER */
-
 static int debugfs_ul_get(void *data, u64 *val)
 {
 	*val = *(unsigned long *)data;
@@ -164,16 +154,26 @@ static struct dentry *debugfs_create_ul(const char *name, mode_t mode,
 }
 
 #ifdef CONFIG_FAULT_INJECTION_STACKTRACE_FILTER
-DEFINE_SIMPLE_ATTRIBUTE(fops_ul_MAX_STACK_TRACE_DEPTH, debugfs_ul_get,
-			debugfs_ul_set_MAX_STACK_TRACE_DEPTH, "%llu\n");
 
-static struct dentry *debugfs_create_ul_MAX_STACK_TRACE_DEPTH(
+static int debugfs_stacktrace_depth_set(void *data, u64 val)
+{
+	*(unsigned long *)data =
+		min_t(unsigned long, val, MAX_STACK_TRACE_DEPTH);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(fops_stacktrace_depth, debugfs_ul_get,
+			debugfs_stacktrace_depth_set, "%llu\n");
+
+static struct dentry *debugfs_create_stacktrace_depth(
 	const char *name, mode_t mode,
 	struct dentry *parent, unsigned long *value)
 {
 	return debugfs_create_file(name, mode, parent, value,
-				   &fops_ul_MAX_STACK_TRACE_DEPTH);
+				   &fops_stacktrace_depth);
 }
+
 #endif /* CONFIG_FAULT_INJECTION_STACKTRACE_FILTER */
 
 static int debugfs_atomic_t_set(void *data, u64 val)
@@ -281,7 +281,7 @@ int init_fault_attr_dentries(struct fault_attr *attr, const char *name)
 #ifdef CONFIG_FAULT_INJECTION_STACKTRACE_FILTER
 
 	attr->dentries.stacktrace_depth_file =
-		debugfs_create_ul_MAX_STACK_TRACE_DEPTH(
+		debugfs_create_stacktrace_depth(
 			"stacktrace-depth", mode, dir, &attr->stacktrace_depth);
 
 	attr->dentries.require_start_file =
