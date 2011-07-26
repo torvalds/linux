@@ -145,7 +145,8 @@ our $Sparse	= qr{
 			__must_check|
 			__init_refok|
 			__kprobes|
-			__ref
+			__ref|
+			__rcu
 		}x;
 
 # Notes to $Attribute:
