@@ -2083,9 +2083,6 @@
 #define   DP_PIPEB_SELECT		(1 << 30)
 #define   DP_PIPE_MASK			(1 << 30)
 
-#define DP_PIPE_ENABLED(V, P) \
-	(((V) & (DP_PIPE_MASK | DP_PORT_EN)) == ((P) << 30 | DP_PORT_EN))
-
 /* Link training mode - select a suitable mode for each stage */
 #define   DP_LINK_TRAIN_PAT_1		(0 << 28)
 #define   DP_LINK_TRAIN_PAT_2		(1 << 28)
