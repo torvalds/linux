@@ -5463,20 +5463,21 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 	netdev->stats.tx_packets = packets;
 
 	hwstats->crcerrs += IXGBE_READ_REG(hw, IXGBE_CRCERRS);
+
+	/* 8 register reads */
 	for (i = 0; i < 8; i++) {
 		/* for packet buffers not used, the register should read 0 */
 		mpc = IXGBE_READ_REG(hw, IXGBE_MPC(i));
 		missed_rx += mpc;
 		hwstats->mpc[i] += mpc;
 		total_mpc += hwstats->mpc[i];
-		if (hw->mac.type == ixgbe_mac_82598EB)
-			hwstats->rnbc[i] += IXGBE_READ_REG(hw, IXGBE_RNBC(i));
-		hwstats->qptc[i] += IXGBE_READ_REG(hw, IXGBE_QPTC(i));
-		hwstats->qbtc[i] += IXGBE_READ_REG(hw, IXGBE_QBTC(i));
-		hwstats->qprc[i] += IXGBE_READ_REG(hw, IXGBE_QPRC(i));
-		hwstats->qbrc[i] += IXGBE_READ_REG(hw, IXGBE_QBRC(i));
+		hwstats->pxontxc[i] += IXGBE_READ_REG(hw, IXGBE_PXONTXC(i));
+		hwstats->pxofftxc[i] += IXGBE_READ_REG(hw, IXGBE_PXOFFTXC(i));
 		switch (hw->mac.type) {
 		case ixgbe_mac_82598EB:
+			hwstats->rnbc[i] += IXGBE_READ_REG(hw, IXGBE_RNBC(i));
+			hwstats->qbtc[i] += IXGBE_READ_REG(hw, IXGBE_QBTC(i));
+			hwstats->qbrc[i] += IXGBE_READ_REG(hw, IXGBE_QBRC(i));
 			hwstats->pxonrxc[i] +=
 				IXGBE_READ_REG(hw, IXGBE_PXONRXC(i));
 			break;
@@ -5488,9 +5489,21 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 		default:
 			break;
 		}
-		hwstats->pxontxc[i] += IXGBE_READ_REG(hw, IXGBE_PXONTXC(i));
-		hwstats->pxofftxc[i] += IXGBE_READ_REG(hw, IXGBE_PXOFFTXC(i));
 	}
+
+	/*16 register reads */
+	for (i = 0; i < 16; i++) {
+		hwstats->qptc[i] += IXGBE_READ_REG(hw, IXGBE_QPTC(i));
+		hwstats->qprc[i] += IXGBE_READ_REG(hw, IXGBE_QPRC(i));
+		if ((hw->mac.type == ixgbe_mac_82599EB) ||
+		    (hw->mac.type == ixgbe_mac_X540)) {
+			hwstats->qbtc[i] += IXGBE_READ_REG(hw, IXGBE_QBTC_L(i));
+			IXGBE_READ_REG(hw, IXGBE_QBTC_H(i)); /* to clear */
+			hwstats->qbrc[i] += IXGBE_READ_REG(hw, IXGBE_QBRC_L(i));
+			IXGBE_READ_REG(hw, IXGBE_QBRC_H(i)); /* to clear */
+		}
+	}
+
 	hwstats->gprc += IXGBE_READ_REG(hw, IXGBE_GPRC);
 	/* work around hardware counting issue */
 	hwstats->gprc -= missed_rx;
@@ -5550,7 +5563,6 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 	hwstats->lxontxc += lxon;
 	lxoff = IXGBE_READ_REG(hw, IXGBE_LXOFFTXC);
 	hwstats->lxofftxc += lxoff;
-	hwstats->ruc += IXGBE_READ_REG(hw, IXGBE_RUC);
 	hwstats->gptc += IXGBE_READ_REG(hw, IXGBE_GPTC);
 	hwstats->mptc += IXGBE_READ_REG(hw, IXGBE_MPTC);
 	/*
