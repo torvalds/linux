@@ -1018,9 +1018,6 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, unsigned int
 		cam->width	= mf.width;
 		cam->height	= mf.height;
 
-		cam->width	= mf.width;
-		cam->height	= mf.height;
-
 		icd->host_priv = cam;
 	} else {
 		cam = icd->host_priv;
