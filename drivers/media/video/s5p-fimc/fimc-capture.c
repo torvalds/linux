@@ -16,12 +16,9 @@
 #include <linux/bug.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
-#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <linux/clk.h>
-#include <linux/i2c.h>
 
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
@@ -31,126 +28,6 @@
 #include <media/videobuf2-dma-contig.h>
 
 #include "fimc-core.h"
-
-static struct v4l2_subdev *fimc_subdev_register(struct fimc_dev *fimc,
-					    struct s5p_fimc_isp_info *isp_info)
-{
-	struct i2c_adapter *i2c_adap;
-	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
-	struct v4l2_subdev *sd = NULL;
-
-	i2c_adap = i2c_get_adapter(isp_info->i2c_bus_num);
-	if (!i2c_adap)
-		return ERR_PTR(-ENOMEM);
-
-	sd = v4l2_i2c_new_subdev_board(&vid_cap->v4l2_dev, i2c_adap,
-				       isp_info->board_info, NULL);
-	if (!sd) {
-		v4l2_err(&vid_cap->v4l2_dev, "failed to acquire subdev\n");
-		return NULL;
-	}
-
-	v4l2_info(&vid_cap->v4l2_dev, "subdevice %s registered successfuly\n",
-		isp_info->board_info->type);
-
-	return sd;
-}
-
-static void fimc_subdev_unregister(struct fimc_dev *fimc)
-{
-	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
-	struct i2c_client *client;
-
-	if (vid_cap->input_index < 0)
-		return;	/* Subdevice already released or not registered. */
-
-	if (vid_cap->sd) {
-		v4l2_device_unregister_subdev(vid_cap->sd);
-		client = v4l2_get_subdevdata(vid_cap->sd);
-		i2c_unregister_device(client);
-		i2c_put_adapter(client->adapter);
-		vid_cap->sd = NULL;
-	}
-
-	vid_cap->input_index = -1;
-}
-
-/**
- * fimc_subdev_attach - attach v4l2_subdev to camera host interface
- *
- * @fimc: FIMC device information
- * @index: index to the array of available subdevices,
- *	   -1 for full array search or non negative value
- *	   to select specific subdevice
- */
-static int fimc_subdev_attach(struct fimc_dev *fimc, int index)
-{
-	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
-	struct s5p_platform_fimc *pdata = fimc->pdata;
-	struct s5p_fimc_isp_info *isp_info;
-	struct v4l2_subdev *sd;
-	int i;
-
-	for (i = 0; i < pdata->num_clients; ++i) {
-		isp_info = &pdata->isp_info[i];
-
-		if (index >= 0 && i != index)
-			continue;
-
-		sd = fimc_subdev_register(fimc, isp_info);
-		if (!IS_ERR_OR_NULL(sd)) {
-			vid_cap->sd = sd;
-			vid_cap->input_index = i;
-
-			return 0;
-		}
-	}
-
-	vid_cap->input_index = -1;
-	vid_cap->sd = NULL;
-	v4l2_err(&vid_cap->v4l2_dev, "fimc%d: sensor attach failed\n",
-		 fimc->id);
-	return -ENODEV;
-}
-
-static int fimc_isp_subdev_init(struct fimc_dev *fimc, unsigned int index)
-{
-	struct s5p_fimc_isp_info *isp_info;
-	struct s5p_platform_fimc *pdata = fimc->pdata;
-	int ret;
-
-	if (index >= pdata->num_clients)
-		return -EINVAL;
-
-	isp_info = &pdata->isp_info[index];
-
-	if (isp_info->clk_frequency)
-		clk_set_rate(fimc->clock[CLK_CAM], isp_info->clk_frequency);
-
-	ret = clk_enable(fimc->clock[CLK_CAM]);
-	if (ret)
-		return ret;
-
-	ret = fimc_subdev_attach(fimc, index);
-	if (ret)
-		return ret;
-
-	ret = fimc_hw_set_camera_polarity(fimc, isp_info);
-	if (ret)
-		return ret;
-
-	ret = v4l2_subdev_call(fimc->vid_cap.sd, core, s_power, 1);
-	if (!ret)
-		return ret;
-
-	/* enabling power failed so unregister subdev */
-	fimc_subdev_unregister(fimc);
-
-	v4l2_err(&fimc->vid_cap.v4l2_dev, "ISP initialization failed: %d\n",
-		 ret);
-
-	return ret;
-}
 
 static void fimc_capture_state_cleanup(struct fimc_dev *fimc)
 {
@@ -411,15 +288,7 @@ static int fimc_capture_open(struct file *file)
 	if (ret)
 		return ret;
 
-	if (++fimc->vid_cap.refcnt == 1) {
-		ret = fimc_isp_subdev_init(fimc, 0);
-		if (ret) {
-			pm_runtime_put_sync(&fimc->pdev->dev);
-			fimc->vid_cap.refcnt--;
-			return -EIO;
-		}
-	}
-
+	++fimc->vid_cap.refcnt;
 	file->private_data = fimc->vid_cap.ctx;
 
 	return 0;
@@ -434,12 +303,6 @@ static int fimc_capture_close(struct file *file)
 	if (--fimc->vid_cap.refcnt == 0) {
 		fimc_stop_capture(fimc);
 		vb2_queue_release(&fimc->vid_cap.vbq);
-
-		v4l2_err(&fimc->vid_cap.v4l2_dev, "releasing ISP\n");
-
-		v4l2_subdev_call(fimc->vid_cap.sd, core, s_power, 0);
-		clk_disable(fimc->clock[CLK_CAM]);
-		fimc_subdev_unregister(fimc);
 	}
 
 	pm_runtime_put(&fimc->pdev->dev);

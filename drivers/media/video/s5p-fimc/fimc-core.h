@@ -11,6 +11,7 @@
 
 /*#define DEBUG*/
 
+#include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -649,7 +650,6 @@ int fimc_register_m2m_device(struct fimc_dev *fimc);
 /* fimc-capture.c					*/
 int fimc_register_capture_device(struct fimc_dev *fimc);
 void fimc_unregister_capture_device(struct fimc_dev *fimc);
-int fimc_sensor_sd_init(struct fimc_dev *fimc, int index);
 int fimc_vid_cap_buf_queue(struct fimc_dev *fimc,
 			     struct fimc_vid_buffer *fimc_vb);
 int fimc_capture_suspend(struct fimc_dev *fimc);
