@@ -255,7 +255,7 @@ generic_secondary_common_init:
 	mtctr	r23
 	bctrl
 
-3:	LOAD_REG_ADDR(r3, boot_cpu_count) /* Decrement boot_cpu_count */
+3:	LOAD_REG_ADDR(r3, spinning_secondaries) /* Decrement spinning_secondaries */
 	lwarx	r4,0,r3
 	subi	r4,r4,1
 	stwcx.	r4,0,r3

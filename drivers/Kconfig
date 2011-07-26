@@ -128,4 +128,6 @@ source "drivers/clocksource/Kconfig"
 
 source "drivers/iommu/Kconfig"
 
+source "drivers/virt/Kconfig"
+
 endmenu

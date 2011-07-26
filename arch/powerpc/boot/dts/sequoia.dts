@@ -110,6 +110,18 @@
 			dcr-reg = <0x010 0x002>;
 		};
 
+		CRYPTO: crypto@e0100000 {
+			compatible = "amcc,ppc440epx-crypto","amcc,ppc4xx-crypto";
+			reg = <0 0xE0100000 0x80400>;
+			interrupt-parent = <&UIC0>;
+			interrupts = <0x17 0x4>;
+		};
+
+		rng@e0120000 {
+			compatible = "amcc,ppc440epx-rng","amcc,ppc4xx-rng";
+			reg = <0 0xE0120000 0x150>;
+		};
+
 		DMA0: dma {
 			compatible = "ibm,dma-440epx", "ibm,dma-4xx";
 			dcr-reg = <0x100 0x027>;

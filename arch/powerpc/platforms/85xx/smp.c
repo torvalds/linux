@@ -2,7 +2,7 @@
  * Author: Andy Fleming <afleming@freescale.com>
  * 	   Kumar Gala <galak@kernel.crashing.org>
  *
- * Copyright 2006-2008 Freescale Semiconductor Inc.
+ * Copyright 2006-2008, 2011 Freescale Semiconductor Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -111,14 +111,6 @@ smp_85xx_kick_cpu(int nr)
 	return 0;
 }
 
-static void __init
-smp_85xx_setup_cpu(int cpu_nr)
-{
-	mpic_setup_this_cpu();
-	if (cpu_has_feature(CPU_FTR_DBELL))
-		doorbell_setup_this_cpu();
-}
-
 struct smp_ops_t smp_85xx_ops = {
 	.kick_cpu = smp_85xx_kick_cpu,
 #ifdef CONFIG_KEXEC
@@ -224,23 +216,35 @@ static void mpc85xx_smp_machine_kexec(struct kimage *image)
 }
 #endif /* CONFIG_KEXEC */
 
+static void __init
+smp_85xx_setup_cpu(int cpu_nr)
+{
+	if (smp_85xx_ops.probe == smp_mpic_probe)
+		mpic_setup_this_cpu();
+
+	if (cpu_has_feature(CPU_FTR_DBELL))
+		doorbell_setup_this_cpu();
+}
+
 void __init mpc85xx_smp_init(void)
 {
 	struct device_node *np;
 
+	smp_85xx_ops.setup_cpu = smp_85xx_setup_cpu;
+
 	np = of_find_node_by_type(NULL, "open-pic");
 	if (np) {
 		smp_85xx_ops.probe = smp_mpic_probe;
-		smp_85xx_ops.setup_cpu = smp_85xx_setup_cpu;
 		smp_85xx_ops.message_pass = smp_mpic_message_pass;
 	}
 
 	if (cpu_has_feature(CPU_FTR_DBELL)) {
-		smp_85xx_ops.message_pass = smp_muxed_ipi_message_pass;
+		/*
+		 * If left NULL, .message_pass defaults to
+		 * smp_muxed_ipi_message_pass
+		 */
 		smp_85xx_ops.cause_ipi = doorbell_cause_ipi;
 	}
-
-	BUG_ON(!smp_85xx_ops.message_pass);
 
 	smp_ops = &smp_85xx_ops;
 

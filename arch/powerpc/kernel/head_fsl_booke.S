@@ -346,11 +346,12 @@ interrupt_base:
 	/* Data TLB Error Interrupt */
 	START_EXCEPTION(DataTLBError)
 	mtspr	SPRN_SPRG_WSCRATCH0, r10 /* Save some working registers */
-	mtspr	SPRN_SPRG_WSCRATCH1, r11
-	mtspr	SPRN_SPRG_WSCRATCH2, r12
-	mtspr	SPRN_SPRG_WSCRATCH3, r13
-	mfcr	r11
-	mtspr	SPRN_SPRG_WSCRATCH4, r11
+	mfspr	r10, SPRN_SPRG_THREAD
+	stw	r11, THREAD_NORMSAVE(0)(r10)
+	stw	r12, THREAD_NORMSAVE(1)(r10)
+	stw	r13, THREAD_NORMSAVE(2)(r10)
+	mfcr	r13
+	stw	r13, THREAD_NORMSAVE(3)(r10)
 	mfspr	r10, SPRN_DEAR		/* Get faulting address */
 
 	/* If we are faulting a kernel address, we have to use the
@@ -416,11 +417,12 @@ interrupt_base:
 	/* The bailout.  Restore registers to pre-exception conditions
 	 * and call the heavyweights to help us out.
 	 */
-	mfspr	r11, SPRN_SPRG_RSCRATCH4
+	mfspr	r10, SPRN_SPRG_THREAD
+	lwz	r11, THREAD_NORMSAVE(3)(r10)
 	mtcr	r11
-	mfspr	r13, SPRN_SPRG_RSCRATCH3
-	mfspr	r12, SPRN_SPRG_RSCRATCH2
-	mfspr	r11, SPRN_SPRG_RSCRATCH1
+	lwz	r13, THREAD_NORMSAVE(2)(r10)
+	lwz	r12, THREAD_NORMSAVE(1)(r10)
+	lwz	r11, THREAD_NORMSAVE(0)(r10)
 	mfspr	r10, SPRN_SPRG_RSCRATCH0
 	b	DataStorage
 
@@ -432,11 +434,12 @@ interrupt_base:
 	 */
 	START_EXCEPTION(InstructionTLBError)
 	mtspr	SPRN_SPRG_WSCRATCH0, r10 /* Save some working registers */
-	mtspr	SPRN_SPRG_WSCRATCH1, r11
-	mtspr	SPRN_SPRG_WSCRATCH2, r12
-	mtspr	SPRN_SPRG_WSCRATCH3, r13
-	mfcr	r11
-	mtspr	SPRN_SPRG_WSCRATCH4, r11
+	mfspr	r10, SPRN_SPRG_THREAD
+	stw	r11, THREAD_NORMSAVE(0)(r10)
+	stw	r12, THREAD_NORMSAVE(1)(r10)
+	stw	r13, THREAD_NORMSAVE(2)(r10)
+	mfcr	r13
+	stw	r13, THREAD_NORMSAVE(3)(r10)
 	mfspr	r10, SPRN_SRR0		/* Get faulting address */
 
 	/* If we are faulting a kernel address, we have to use the
@@ -496,11 +499,12 @@ interrupt_base:
 	/* The bailout.  Restore registers to pre-exception conditions
 	 * and call the heavyweights to help us out.
 	 */
-	mfspr	r11, SPRN_SPRG_RSCRATCH4
+	mfspr	r10, SPRN_SPRG_THREAD
+	lwz	r11, THREAD_NORMSAVE(3)(r10)
 	mtcr	r11
-	mfspr	r13, SPRN_SPRG_RSCRATCH3
-	mfspr	r12, SPRN_SPRG_RSCRATCH2
-	mfspr	r11, SPRN_SPRG_RSCRATCH1
+	lwz	r13, THREAD_NORMSAVE(2)(r10)
+	lwz	r12, THREAD_NORMSAVE(1)(r10)
+	lwz	r11, THREAD_NORMSAVE(0)(r10)
 	mfspr	r10, SPRN_SPRG_RSCRATCH0
 	b	InstructionStorage
 
@@ -621,11 +625,12 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
 	tlbwe
 
 	/* Done...restore registers and get out of here.  */
-	mfspr	r11, SPRN_SPRG_RSCRATCH4
+	mfspr	r10, SPRN_SPRG_THREAD
+	lwz	r11, THREAD_NORMSAVE(3)(r10)
 	mtcr	r11
-	mfspr	r13, SPRN_SPRG_RSCRATCH3
-	mfspr	r12, SPRN_SPRG_RSCRATCH2
-	mfspr	r11, SPRN_SPRG_RSCRATCH1
+	lwz	r13, THREAD_NORMSAVE(2)(r10)
+	lwz	r12, THREAD_NORMSAVE(1)(r10)
+	lwz	r11, THREAD_NORMSAVE(0)(r10)
 	mfspr	r10, SPRN_SPRG_RSCRATCH0
 	rfi					/* Force context change */
 

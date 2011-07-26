@@ -20,33 +20,43 @@
 	addi	reg,reg,val@l
 #endif
 
+/*
+ * Macro used to get to thread save registers.
+ * Note that entries 0-3 are used for the prolog code, and the remaining
+ * entries are available for specific exception use in the event a handler
+ * requires more than 4 scratch registers.
+ */
+#define THREAD_NORMSAVE(offset)	(THREAD_NORMSAVES + (offset * 4))
+
 #define NORMAL_EXCEPTION_PROLOG						     \
-	mtspr	SPRN_SPRG_WSCRATCH0,r10;/* save two registers to work with */\
-	mtspr	SPRN_SPRG_WSCRATCH1,r11;				     \
-	mtspr	SPRN_SPRG_WSCRATCH2,r1;					     \
-	mfcr	r10;			/* save CR in r10 for now	   */\
+	mtspr	SPRN_SPRG_WSCRATCH0, r10;	/* save one register */	     \
+	mfspr	r10, SPRN_SPRG_THREAD;					     \
+	stw	r11, THREAD_NORMSAVE(0)(r10);				     \
+	stw	r13, THREAD_NORMSAVE(2)(r10);				     \
+	mfcr	r13;			/* save CR in r13 for now	   */\
 	mfspr	r11,SPRN_SRR1;		/* check whether user or kernel    */\
 	andi.	r11,r11,MSR_PR;						     \
+	mr	r11, r1;						     \
 	beq	1f;							     \
-	mfspr	r1,SPRN_SPRG_THREAD;	/* if from user, start at top of   */\
-	lwz	r1,THREAD_INFO-THREAD(r1); /* this thread's kernel stack   */\
-	ALLOC_STACK_FRAME(r1, THREAD_SIZE);				     \
-1:	subi	r1,r1,INT_FRAME_SIZE;	/* Allocate an exception frame     */\
-	mr	r11,r1;							     \
-	stw	r10,_CCR(r11);          /* save various registers	   */\
+	/* if from user, start at top of this thread's kernel stack */       \
+	lwz	r11, THREAD_INFO-THREAD(r10);				     \
+	ALLOC_STACK_FRAME(r11, THREAD_SIZE);				     \
+1 :	subi	r11, r11, INT_FRAME_SIZE; /* Allocate exception frame */     \
+	stw	r13, _CCR(r11);		/* save various registers */	     \
 	stw	r12,GPR12(r11);						     \
 	stw	r9,GPR9(r11);						     \
-	mfspr	r10,SPRN_SPRG_RSCRATCH0;					\
-	stw	r10,GPR10(r11);						     \
-	mfspr	r12,SPRN_SPRG_RSCRATCH1;				     \
+	mfspr	r13, SPRN_SPRG_RSCRATCH0;				     \
+	stw	r13, GPR10(r11);					     \
+	lwz	r12, THREAD_NORMSAVE(0)(r10);				     \
 	stw	r12,GPR11(r11);						     \
+	lwz	r13, THREAD_NORMSAVE(2)(r10); /* restore r13 */		     \
 	mflr	r10;							     \
 	stw	r10,_LINK(r11);						     \
-	mfspr	r10,SPRN_SPRG_RSCRATCH2;				     \
 	mfspr	r12,SPRN_SRR0;						     \
-	stw	r10,GPR1(r11);						     \
+	stw	r1, GPR1(r11);						     \
 	mfspr	r9,SPRN_SRR1;						     \
-	stw	r10,0(r11);						     \
+	stw	r1, 0(r11);						     \
+	mr	r1, r11;						     \
 	rlwinm	r9,r9,0,14,12;		/* clear MSR_WE (necessary?)	   */\
 	stw	r0,GPR0(r11);						     \
 	lis	r10, STACK_FRAME_REGS_MARKER@ha;/* exception frame marker */ \

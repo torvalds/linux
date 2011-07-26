@@ -78,6 +78,10 @@ config MPIC
 	bool
 	default n
 
+config PPC_EPAPR_HV_PIC
+	bool
+	default n
+
 config MPIC_WEIRD
 	bool
 	default n
@@ -266,7 +270,7 @@ config TAU_AVERAGE
 
 config QUICC_ENGINE
 	bool "Freescale QUICC Engine (QE) Support"
-	depends on FSL_SOC
+	depends on FSL_SOC && PPC32
 	select PPC_LIB_RHEAP
 	select CRC32
 	help

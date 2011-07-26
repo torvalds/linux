@@ -82,6 +82,9 @@ int main(void)
 	DEFINE(KSP, offsetof(struct thread_struct, ksp));
 	DEFINE(KSP_LIMIT, offsetof(struct thread_struct, ksp_limit));
 	DEFINE(PT_REGS, offsetof(struct thread_struct, regs));
+#ifdef CONFIG_BOOKE
+	DEFINE(THREAD_NORMSAVES, offsetof(struct thread_struct, normsave[0]));
+#endif
 	DEFINE(THREAD_FPEXC_MODE, offsetof(struct thread_struct, fpexc_mode));
 	DEFINE(THREAD_FPR0, offsetof(struct thread_struct, fpr[0]));
 	DEFINE(THREAD_FPSCR, offsetof(struct thread_struct, fpscr));
