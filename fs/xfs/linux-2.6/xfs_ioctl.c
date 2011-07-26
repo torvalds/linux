@@ -265,7 +265,7 @@ xfs_open_by_handle(
 		return PTR_ERR(filp);
 	}
 
-	if (inode->i_mode & S_IFREG) {
+	if (S_ISREG(inode->i_mode)) {
 		filp->f_flags |= O_NOATIME;
 		filp->f_mode |= FMODE_NOCMTIME;
 	}
