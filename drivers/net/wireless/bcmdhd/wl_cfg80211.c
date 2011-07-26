@@ -468,7 +468,7 @@ static void wl_debugfs_remove_netdev(struct wl_priv *wl);
 /*
  * rfkill support
  */
-static int wl_setup_rfkill(struct wl_priv *wl);
+static int wl_setup_rfkill(struct wl_priv *wl, bool setup);
 static int wl_rfkill_set(void *data, bool blocked);
 
 /*
@@ -5382,7 +5382,7 @@ s32 wl_cfg80211_attach(struct net_device *ndev, void *data)
 		goto cfg80211_attach_out;
 	}
 
-	err = wl_setup_rfkill(wl);
+	err = wl_setup_rfkill(wl, TRUE);
 	if (unlikely(err)) {
 		WL_ERR(("Failed to setup rfkill %d\n", err));
 		goto cfg80211_attach_out;
@@ -5398,7 +5398,7 @@ s32 wl_cfg80211_attach(struct net_device *ndev, void *data)
 	return err;
 
 cfg80211_attach_out:
-	err = wl_setup_rfkill(wl);
+	err = wl_setup_rfkill(wl, FALSE);
 	wl_free_wdev(wl);
 	return err;
 }
@@ -5415,8 +5415,7 @@ void wl_cfg80211_detach(void)
 	if (wl_sysctl_hdr)
 		unregister_sysctl_table(wl_sysctl_hdr);
 #endif
-	rfkill_unregister(wl->rfkill);
-	rfkill_destroy(wl->rfkill);
+	wl_setup_rfkill(wl, FALSE);
 	if (wl->p2p_supported)
 		wl_cfgp2p_deinit_priv(wl);
 	wl_deinit_priv(wl);
@@ -6544,29 +6543,44 @@ static int wl_rfkill_set(void *data, bool blocked)
 	WL_DBG(("Enter \n"));
 	WL_DBG(("RF %s\n", blocked ? "blocked" : "unblocked"));
 
+	if (!wl)
+		return -EINVAL;
+
 	wl->rf_blocked = blocked;
 
 	return 0;
 }
 
-static int wl_setup_rfkill(struct wl_priv *wl)
+static int wl_setup_rfkill(struct wl_priv *wl, bool setup)
 {
-	s32 err;
+	s32 err = 0;
 
 	WL_DBG(("Enter \n"));
-	wl->rfkill = rfkill_alloc("brcmfmac-wifi",
-		&wl_cfg80211_get_sdio_func()->dev,
-		RFKILL_TYPE_WLAN, &wl_rfkill_ops, (void *)wl);
+	if (!wl)
+		return -EINVAL;
+	if (setup) {
+		wl->rfkill = rfkill_alloc("brcmfmac-wifi",
+			&wl_cfg80211_get_sdio_func()->dev,
+			RFKILL_TYPE_WLAN, &wl_rfkill_ops, (void *)wl);
 
-	if (!wl->rfkill) {
-		err =  -ENOMEM;
-		goto err_out;
-	}
+		if (!wl->rfkill) {
+			err = -ENOMEM;
+			goto err_out;
+		}
 
-	err = rfkill_register(wl->rfkill);
+		err = rfkill_register(wl->rfkill);
 
-	if (err)
+		if (err)
+			rfkill_destroy(wl->rfkill);
+	} else {
+		if (!wl->rfkill) {
+			err = -ENOMEM;
+			goto err_out;
+		}
+
+		rfkill_unregister(wl->rfkill);
 		rfkill_destroy(wl->rfkill);
+	}
 
 err_out:
 	return err;
