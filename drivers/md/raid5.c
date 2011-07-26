@@ -1021,10 +1021,12 @@ ops_run_biodrain(struct stripe_head *sh, struct dma_async_tx_descriptor *tx)
 			struct bio *wbi;
 
 			spin_lock(&sh->lock);
+			spin_lock_irq(&sh->raid_conf->device_lock);
 			chosen = dev->towrite;
 			dev->towrite = NULL;
 			BUG_ON(dev->written);
 			wbi = dev->written = chosen;
+			spin_unlock_irq(&sh->raid_conf->device_lock);
 			spin_unlock(&sh->lock);
 
 			while (wbi && wbi->bi_sector <
@@ -2141,7 +2143,7 @@ static int add_stripe_bio(struct stripe_head *sh, struct bio *bi, int dd_idx, in
 	raid5_conf_t *conf = sh->raid_conf;
 	int firstwrite=0;
 
-	pr_debug("adding bh b#%llu to stripe s#%llu\n",
+	pr_debug("adding bi b#%llu to stripe s#%llu\n",
 		(unsigned long long)bi->bi_sector,
 		(unsigned long long)sh->sector);
 
@@ -2167,19 +2169,6 @@ static int add_stripe_bio(struct stripe_head *sh, struct bio *bi, int dd_idx, in
 		bi->bi_next = *bip;
 	*bip = bi;
 	bi->bi_phys_segments++;
-	spin_unlock_irq(&conf->device_lock);
-	spin_unlock(&sh->lock);
-
-	pr_debug("added bi b#%llu to stripe s#%llu, disk %d.\n",
-		(unsigned long long)bi->bi_sector,
-		(unsigned long long)sh->sector, dd_idx);
-
-	if (conf->mddev->bitmap && firstwrite) {
-		bitmap_startwrite(conf->mddev->bitmap, sh->sector,
-				  STRIPE_SECTORS, 0);
-		sh->bm_seq = conf->seq_flush+1;
-		set_bit(STRIPE_BIT_DELAY, &sh->state);
-	}
 
 	if (forwrite) {
 		/* check if page is covered */
@@ -2193,6 +2182,19 @@ static int add_stripe_bio(struct stripe_head *sh, struct bio *bi, int dd_idx, in
 		}
 		if (sector >= sh->dev[dd_idx].sector + STRIPE_SECTORS)
 			set_bit(R5_OVERWRITE, &sh->dev[dd_idx].flags);
+	}
+	spin_unlock_irq(&conf->device_lock);
+	spin_unlock(&sh->lock);
+
+	pr_debug("added bi b#%llu to stripe s#%llu, disk %d.\n",
+		(unsigned long long)(*bip)->bi_sector,
+		(unsigned long long)sh->sector, dd_idx);
+
+	if (conf->mddev->bitmap && firstwrite) {
+		bitmap_startwrite(conf->mddev->bitmap, sh->sector,
+				  STRIPE_SECTORS, 0);
+		sh->bm_seq = conf->seq_flush+1;
+		set_bit(STRIPE_BIT_DELAY, &sh->state);
 	}
 	return 1;
 
