@@ -1414,6 +1414,10 @@ DEFINE_CLOCK(ipu_di0_clk, 0, MXC_CCM_CCGR6, MXC_CCM_CCGRx_CG5_OFFSET,
 DEFINE_CLOCK(ipu_di1_clk, 0, MXC_CCM_CCGR6, MXC_CCM_CCGRx_CG6_OFFSET,
 		NULL, NULL, &pll3_sw_clk, NULL);
 
+/* PATA */
+DEFINE_CLOCK(pata_clk, 0, MXC_CCM_CCGR4, MXC_CCM_CCGRx_CG0_OFFSET,
+		NULL, NULL, &ipg_clk, &spba_clk);
+
 #define _REGISTER_CLOCK(d, n, c) \
        { \
 		.dev_id = d, \
@@ -1470,6 +1474,7 @@ static struct clk_lookup mx51_lookups[] = {
 	_REGISTER_CLOCK("imx-ipuv3", "di0", ipu_di0_clk)
 	_REGISTER_CLOCK("imx-ipuv3", "di1", ipu_di1_clk)
 	_REGISTER_CLOCK(NULL, "gpc_dvfs", gpc_dvfs_clk)
+	_REGISTER_CLOCK("pata_imx", NULL, pata_clk)
 };
 
 static struct clk_lookup mx53_lookups[] = {
