@@ -805,14 +805,14 @@ static void update_dentry_lease(struct dentry *dentry,
 		return;
 
 	spin_lock(&dentry->d_lock);
-	dout("update_dentry_lease %p mask %d duration %lu ms ttl %lu\n",
-	     dentry, le16_to_cpu(lease->mask), duration, ttl);
+	dout("update_dentry_lease %p duration %lu ms ttl %lu\n",
+	     dentry, duration, ttl);
 
 	/* make lease_rdcache_gen match directory */
 	dir = dentry->d_parent->d_inode;
 	di->lease_shared_gen = ceph_inode(dir)->i_shared_gen;
 
-	if (lease->mask == 0)
+	if (duration == 0)
 		goto out_unlock;
 
 	if (di->lease_gen == session->s_cap_gen &&
@@ -1022,9 +1022,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 
 		/* do we have a dn lease? */
 		have_lease = have_dir_cap ||
-			(le16_to_cpu(rinfo->dlease->mask) &
-			 CEPH_LOCK_DN);
-
+			le32_to_cpu(rinfo->dlease->duration_ms);
 		if (!have_lease)
 			dout("fill_trace  no dentry lease or dir cap\n");
 
