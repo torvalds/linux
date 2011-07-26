@@ -136,7 +136,7 @@ extern int	affs_remove_header(struct dentry *dentry);
 extern u32	affs_checksum_block(struct super_block *sb, struct buffer_head *bh);
 extern void	affs_fix_checksum(struct super_block *sb, struct buffer_head *bh);
 extern void	secs_to_datestamp(time_t secs, struct affs_date *ds);
-extern mode_t	prot_to_mode(u32 prot);
+extern umode_t	prot_to_mode(u32 prot);
 extern void	mode_to_prot(struct inode *inode);
 extern void	affs_error(struct super_block *sb, const char *function, const char *fmt, ...);
 extern void	affs_warning(struct super_block *sb, const char *function, const char *fmt, ...);
