@@ -59,7 +59,7 @@ static struct dentry *exofs_lookup(struct inode *dir, struct dentry *dentry,
 	return d_splice_alias(inode, dentry);
 }
 
-static int exofs_create(struct inode *dir, struct dentry *dentry, int mode,
+static int exofs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 			 struct nameidata *nd)
 {
 	struct inode *inode = exofs_new_inode(dir, mode);

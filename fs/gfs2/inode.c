@@ -760,7 +760,7 @@ fail:
  */
 
 static int gfs2_create(struct inode *dir, struct dentry *dentry,
-		       int mode, struct nameidata *nd)
+		       umode_t mode, struct nameidata *nd)
 {
 	int excl = 0;
 	if (nd && (nd->flags & LOOKUP_EXCL))

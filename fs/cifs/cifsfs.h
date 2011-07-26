@@ -44,7 +44,7 @@ extern const struct address_space_operations cifs_addr_ops_smallbuf;
 /* Functions related to inodes */
 extern const struct inode_operations cifs_dir_inode_ops;
 extern struct inode *cifs_root_iget(struct super_block *);
-extern int cifs_create(struct inode *, struct dentry *, int,
+extern int cifs_create(struct inode *, struct dentry *, umode_t,
 		       struct nameidata *);
 extern struct dentry *cifs_lookup(struct inode *, struct dentry *,
 				  struct nameidata *);

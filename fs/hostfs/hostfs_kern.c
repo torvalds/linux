@@ -551,7 +551,7 @@ static int read_name(struct inode *ino, char *name)
 	return 0;
 }
 
-int hostfs_create(struct inode *dir, struct dentry *dentry, int mode,
+int hostfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		  struct nameidata *nd)
 {
 	struct inode *inode;
