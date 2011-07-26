@@ -267,6 +267,7 @@ static int sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 	unsigned long top1, top2;
 	unsigned long bottom1, bottom2;
 	u32 status;
+	bool planar;
 	int ret = 0;
 
 	/*
@@ -314,17 +315,29 @@ static int sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 
 	phys_addr_top = vb2_dma_contig_plane_dma_addr(pcdev->active, 0);
 
-	ceu_write(pcdev, top1, phys_addr_top);
-	if (V4L2_FIELD_NONE != pcdev->field) {
-		phys_addr_bottom = phys_addr_top + icd->user_width;
-		ceu_write(pcdev, bottom1, phys_addr_bottom);
-	}
-
 	switch (icd->current_fmt->host_fmt->fourcc) {
 	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_NV21:
 	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV61:
+		planar = true;
+		break;
+	default:
+		planar = false;
+	}
+
+	ceu_write(pcdev, top1, phys_addr_top);
+	if (V4L2_FIELD_NONE != pcdev->field) {
+		if (planar)
+			phys_addr_bottom = phys_addr_top + icd->user_width;
+		else
+			phys_addr_bottom = phys_addr_top +
+				soc_mbus_bytes_per_line(icd->user_width,
+							icd->current_fmt->host_fmt);
+		ceu_write(pcdev, bottom1, phys_addr_bottom);
+	}
+
+	if (planar) {
 		phys_addr_top += icd->user_width *
 			icd->user_height;
 		ceu_write(pcdev, top2, phys_addr_top);
