@@ -103,7 +103,7 @@ char *tomoyo_realpath_from_path(struct path *path)
 		if (!buf)
 			break;
 		/* Get better name for socket. */
-		if (dentry->d_sb && dentry->d_sb->s_magic == SOCKFS_MAGIC) {
+		if (dentry->d_sb->s_magic == SOCKFS_MAGIC) {
 			struct inode *inode = dentry->d_inode;
 			struct socket *sock = inode ? SOCKET_I(inode) : NULL;
 			struct sock *sk = sock ? sock->sk : NULL;

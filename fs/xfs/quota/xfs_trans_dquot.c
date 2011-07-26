@@ -59,7 +59,7 @@ xfs_trans_dqjoin(
 	xfs_trans_add_item(tp, &dqp->q_logitem.qli_item);
 
 	/*
-	 * Initialize i_transp so we can later determine if this dquot is
+	 * Initialize d_transp so we can later determine if this dquot is
 	 * associated with this transaction.
 	 */
 	dqp->q_transp = tp;
@@ -387,18 +387,18 @@ xfs_trans_apply_dquot_deltas(
 				qtrx->qt_delbcnt_delta;
 			totalrtbdelta = qtrx->qt_rtbcount_delta +
 				qtrx->qt_delrtb_delta;
-#ifdef QUOTADEBUG
+#ifdef DEBUG
 			if (totalbdelta < 0)
 				ASSERT(be64_to_cpu(d->d_bcount) >=
-				       (xfs_qcnt_t) -totalbdelta);
+				       -totalbdelta);
 
 			if (totalrtbdelta < 0)
 				ASSERT(be64_to_cpu(d->d_rtbcount) >=
-				       (xfs_qcnt_t) -totalrtbdelta);
+				       -totalrtbdelta);
 
 			if (qtrx->qt_icount_delta < 0)
 				ASSERT(be64_to_cpu(d->d_icount) >=
-				       (xfs_qcnt_t) -qtrx->qt_icount_delta);
+				       -qtrx->qt_icount_delta);
 #endif
 			if (totalbdelta)
 				be64_add_cpu(&d->d_bcount, (xfs_qcnt_t)totalbdelta);
@@ -642,11 +642,6 @@ xfs_trans_dqresv(
 	    ((XFS_IS_UQUOTA_ENFORCED(dqp->q_mount) && XFS_QM_ISUDQ(dqp)) ||
 	     (XFS_IS_OQUOTA_ENFORCED(dqp->q_mount) &&
 	      (XFS_QM_ISPDQ(dqp) || XFS_QM_ISGDQ(dqp))))) {
-#ifdef QUOTADEBUG
-		xfs_debug(mp,
-			"BLK Res: nblks=%ld + resbcount=%Ld > hardlimit=%Ld?",
-			nblks, *resbcountp, hardlimit);
-#endif
 		if (nblks > 0) {
 			/*
 			 * dquot is locked already. See if we'd go over the

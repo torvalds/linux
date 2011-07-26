@@ -324,6 +324,8 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	fep->cur_tx = bdp;
 
+	skb_tx_timestamp(skb);
+
 	spin_unlock_irqrestore(&fep->hw_lock, flags);
 
 	return NETDEV_TX_OK;
@@ -650,7 +652,8 @@ fec_enet_rx(struct net_device *ndev)
 			skb_put(skb, pkt_len - 4);	/* Make room */
 			skb_copy_to_linear_data(skb, data, pkt_len - 4);
 			skb->protocol = eth_type_trans(skb, ndev);
-			netif_rx(skb);
+			if (!skb_defer_rx_timestamp(skb))
+				netif_rx(skb);
 		}
 
 		bdp->cbd_bufaddr = dma_map_single(&fep->pdev->dev, data,
@@ -1224,10 +1227,6 @@ static void set_multicast_list(struct net_device *ndev)
 	writel(0, fep->hwp + FEC_GRP_HASH_TABLE_LOW);
 
 	netdev_for_each_mc_addr(ha, ndev) {
-		/* Only support group multicast for now */
-		if (!(ha->addr[0] & 1))
-			continue;
-
 		/* calculate crc32 value of mac address */
 		crc = 0xffffffff;
 

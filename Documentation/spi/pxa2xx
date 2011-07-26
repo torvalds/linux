@@ -22,14 +22,10 @@ Typically a SPI master is defined in the arch/.../mach-*/board-*.c as a
 found in include/linux/spi/pxa2xx_spi.h:
 
 struct pxa2xx_spi_master {
-	enum pxa_ssp_type ssp_type;
 	u32 clock_enable;
 	u16 num_chipselect;
 	u8 enable_dma;
 };
-
-The "pxa2xx_spi_master.ssp_type" field must have a value between 1 and 3 and
-informs the driver which features a particular SSP supports.
 
 The "pxa2xx_spi_master.clock_enable" field is used to enable/disable the
 corresponding SSP peripheral block in the "Clock Enable Register (CKEN"). See
@@ -61,7 +57,6 @@ static struct resource pxa_spi_nssp_resources[] = {
 };
 
 static struct pxa2xx_spi_master pxa_nssp_master_info = {
-	.ssp_type = PXA25x_NSSP, /* Type of SSP */
 	.clock_enable = CKEN_NSSP, /* NSSP Peripheral clock */
 	.num_chipselect = 1, /* Matches the number of chips attached to NSSP */
 	.enable_dma = 1, /* Enables NSSP DMA */

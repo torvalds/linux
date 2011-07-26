@@ -3501,10 +3501,8 @@ retry:
 				 offset, nr_segs,
 				 ext4_get_block, NULL, NULL, 0);
 	else {
-		ret = blockdev_direct_IO(rw, iocb, inode,
-				 inode->i_sb->s_bdev, iov,
-				 offset, nr_segs,
-				 ext4_get_block, NULL);
+		ret = blockdev_direct_IO(rw, iocb, inode, iov,
+				 offset, nr_segs, ext4_get_block);
 
 		if (unlikely((rw & WRITE) && ret < 0)) {
 			loff_t isize = i_size_read(inode);
@@ -3575,6 +3573,7 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 			    ssize_t size, void *private, int ret,
 			    bool is_async)
 {
+	struct inode *inode = iocb->ki_filp->f_path.dentry->d_inode;
         ext4_io_end_t *io_end = iocb->private;
 	struct workqueue_struct *wq;
 	unsigned long flags;
@@ -3596,6 +3595,7 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 out:
 		if (is_async)
 			aio_complete(iocb, ret, 0);
+		inode_dio_done(inode);
 		return;
 	}
 
@@ -3616,6 +3616,9 @@ out:
 	/* queue the work to convert unwritten extents to written */
 	queue_work(wq, &io_end->work);
 	iocb->private = NULL;
+
+	/* XXX: probably should move into the real I/O completion handler */
+	inode_dio_done(inode);
 }
 
 static void ext4_end_io_buffer_write(struct buffer_head *bh, int uptodate)
@@ -3748,11 +3751,13 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 			EXT4_I(inode)->cur_aio_dio = iocb->private;
 		}
 
-		ret = blockdev_direct_IO(rw, iocb, inode,
+		ret = __blockdev_direct_IO(rw, iocb, inode,
 					 inode->i_sb->s_bdev, iov,
 					 offset, nr_segs,
 					 ext4_get_block_write,
-					 ext4_end_io_dio);
+					 ext4_end_io_dio,
+					 NULL,
+					 DIO_LOCKING | DIO_SKIP_HOLES);
 		if (iocb->private)
 			EXT4_I(inode)->cur_aio_dio = NULL;
 		/*
@@ -5351,6 +5356,8 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 
 	if (attr->ia_valid & ATTR_SIZE) {
+		inode_dio_wait(inode);
+
 		if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))) {
 			struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 
@@ -5843,80 +5850,84 @@ int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct page *page = vmf->page;
 	loff_t size;
 	unsigned long len;
-	int ret = -EINVAL;
-	void *fsdata;
+	int ret;
 	struct file *file = vma->vm_file;
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct address_space *mapping = inode->i_mapping;
+	handle_t *handle;
+	get_block_t *get_block;
+	int retries = 0;
 
 	/*
-	 * Get i_alloc_sem to stop truncates messing with the inode. We cannot
-	 * get i_mutex because we are already holding mmap_sem.
+	 * This check is racy but catches the common case. We rely on
+	 * __block_page_mkwrite() to do a reliable check.
 	 */
-	down_read(&inode->i_alloc_sem);
-	size = i_size_read(inode);
-	if (page->mapping != mapping || size <= page_offset(page)
-	    || !PageUptodate(page)) {
-		/* page got truncated from under us? */
-		goto out_unlock;
+	vfs_check_frozen(inode->i_sb, SB_FREEZE_WRITE);
+	/* Delalloc case is easy... */
+	if (test_opt(inode->i_sb, DELALLOC) &&
+	    !ext4_should_journal_data(inode) &&
+	    !ext4_nonda_switch(inode->i_sb)) {
+		do {
+			ret = __block_page_mkwrite(vma, vmf,
+						   ext4_da_get_block_prep);
+		} while (ret == -ENOSPC &&
+		       ext4_should_retry_alloc(inode->i_sb, &retries));
+		goto out_ret;
 	}
-	ret = 0;
 
 	lock_page(page);
-	wait_on_page_writeback(page);
-	if (PageMappedToDisk(page)) {
-		up_read(&inode->i_alloc_sem);
-		return VM_FAULT_LOCKED;
+	size = i_size_read(inode);
+	/* Page got truncated from under us? */
+	if (page->mapping != mapping || page_offset(page) > size) {
+		unlock_page(page);
+		ret = VM_FAULT_NOPAGE;
+		goto out;
 	}
 
 	if (page->index == size >> PAGE_CACHE_SHIFT)
 		len = size & ~PAGE_CACHE_MASK;
 	else
 		len = PAGE_CACHE_SIZE;
-
 	/*
-	 * return if we have all the buffers mapped. This avoid
-	 * the need to call write_begin/write_end which does a
-	 * journal_start/journal_stop which can block and take
-	 * long time
+	 * Return if we have all the buffers mapped. This avoids the need to do
+	 * journal_start/journal_stop which can block and take a long time
 	 */
 	if (page_has_buffers(page)) {
 		if (!walk_page_buffers(NULL, page_buffers(page), 0, len, NULL,
 					ext4_bh_unmapped)) {
-			up_read(&inode->i_alloc_sem);
-			return VM_FAULT_LOCKED;
+			/* Wait so that we don't change page under IO */
+			wait_on_page_writeback(page);
+			ret = VM_FAULT_LOCKED;
+			goto out;
 		}
 	}
 	unlock_page(page);
-	/*
-	 * OK, we need to fill the hole... Do write_begin write_end
-	 * to do block allocation/reservation.We are not holding
-	 * inode.i__mutex here. That allow * parallel write_begin,
-	 * write_end call. lock_page prevent this from happening
-	 * on the same page though
-	 */
-	ret = mapping->a_ops->write_begin(file, mapping, page_offset(page),
-			len, AOP_FLAG_UNINTERRUPTIBLE, &page, &fsdata);
-	if (ret < 0)
-		goto out_unlock;
-	ret = mapping->a_ops->write_end(file, mapping, page_offset(page),
-			len, len, page, fsdata);
-	if (ret < 0)
-		goto out_unlock;
-	ret = 0;
-
-	/*
-	 * write_begin/end might have created a dirty page and someone
-	 * could wander in and start the IO.  Make sure that hasn't
-	 * happened.
-	 */
-	lock_page(page);
-	wait_on_page_writeback(page);
-	up_read(&inode->i_alloc_sem);
-	return VM_FAULT_LOCKED;
-out_unlock:
-	if (ret)
+	/* OK, we need to fill the hole... */
+	if (ext4_should_dioread_nolock(inode))
+		get_block = ext4_get_block_write;
+	else
+		get_block = ext4_get_block;
+retry_alloc:
+	handle = ext4_journal_start(inode, ext4_writepage_trans_blocks(inode));
+	if (IS_ERR(handle)) {
 		ret = VM_FAULT_SIGBUS;
-	up_read(&inode->i_alloc_sem);
+		goto out;
+	}
+	ret = __block_page_mkwrite(vma, vmf, get_block);
+	if (!ret && ext4_should_journal_data(inode)) {
+		if (walk_page_buffers(handle, page_buffers(page), 0,
+			  PAGE_CACHE_SIZE, NULL, do_journal_get_write_access)) {
+			unlock_page(page);
+			ret = VM_FAULT_SIGBUS;
+			goto out;
+		}
+		ext4_set_inode_state(inode, EXT4_STATE_JDATA);
+	}
+	ext4_journal_stop(handle);
+	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
+		goto retry_alloc;
+out_ret:
+	ret = block_page_mkwrite_return(ret);
+out:
 	return ret;
 }

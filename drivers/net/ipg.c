@@ -22,6 +22,7 @@
  */
 #include <linux/crc32.h>
 #include <linux/ethtool.h>
+#include <linux/interrupt.h>
 #include <linux/gfp.h>
 #include <linux/mii.h>
 #include <linux/mutex.h>

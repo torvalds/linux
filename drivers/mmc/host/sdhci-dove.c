@@ -22,7 +22,6 @@
 #include <linux/io.h>
 #include <linux/mmc/host.h>
 
-#include "sdhci.h"
 #include "sdhci-pltfm.h"
 
 static u16 sdhci_dove_readw(struct sdhci_host *host, int reg)
@@ -61,10 +60,50 @@ static struct sdhci_ops sdhci_dove_ops = {
 	.read_l	= sdhci_dove_readl,
 };
 
-struct sdhci_pltfm_data sdhci_dove_pdata = {
+static struct sdhci_pltfm_data sdhci_dove_pdata = {
 	.ops	= &sdhci_dove_ops,
 	.quirks	= SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER |
 		  SDHCI_QUIRK_NO_BUSY_IRQ |
 		  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
 		  SDHCI_QUIRK_FORCE_DMA,
 };
+
+static int __devinit sdhci_dove_probe(struct platform_device *pdev)
+{
+	return sdhci_pltfm_register(pdev, &sdhci_dove_pdata);
+}
+
+static int __devexit sdhci_dove_remove(struct platform_device *pdev)
+{
+	return sdhci_pltfm_unregister(pdev);
+}
+
+static struct platform_driver sdhci_dove_driver = {
+	.driver		= {
+		.name	= "sdhci-dove",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= sdhci_dove_probe,
+	.remove		= __devexit_p(sdhci_dove_remove),
+#ifdef CONFIG_PM
+	.suspend	= sdhci_pltfm_suspend,
+	.resume		= sdhci_pltfm_resume,
+#endif
+};
+
+static int __init sdhci_dove_init(void)
+{
+	return platform_driver_register(&sdhci_dove_driver);
+}
+module_init(sdhci_dove_init);
+
+static void __exit sdhci_dove_exit(void)
+{
+	platform_driver_unregister(&sdhci_dove_driver);
+}
+module_exit(sdhci_dove_exit);
+
+MODULE_DESCRIPTION("SDHCI driver for Dove");
+MODULE_AUTHOR("Saeed Bishara <saeed@marvell.com>, "
+	      "Mike Rapoport <mike@compulab.co.il>");
+MODULE_LICENSE("GPL v2");

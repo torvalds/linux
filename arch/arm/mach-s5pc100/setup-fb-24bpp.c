@@ -15,7 +15,6 @@
 #include <linux/fb.h>
 #include <linux/gpio.h>
 
-#include <mach/regs-fb.h>
 #include <mach/map.h>
 #include <plat/fb.h>
 #include <plat/gpio-cfg.h>

@@ -89,3 +89,14 @@ err:
 
 	return pdev;
 }
+
+struct device mxc_aips_bus = {
+	.init_name	= "mxc_aips",
+	.parent		= &platform_bus,
+};
+
+static int __init mxc_device_init(void)
+{
+	return device_register(&mxc_aips_bus);
+}
+core_initcall(mxc_device_init);

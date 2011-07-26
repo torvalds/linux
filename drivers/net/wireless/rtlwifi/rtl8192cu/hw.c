@@ -27,6 +27,8 @@
  *
  *****************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "../wifi.h"
 #include "../efuse.h"
 #include "../base.h"
@@ -337,7 +339,7 @@ static void _rtl92cu_read_board_type(struct ieee80211_hw *hw, u8 *contents)
 	rtlefuse->board_type = boardType;
 	if (IS_HIGHT_PA(rtlefuse->board_type))
 		rtlefuse->external_pa = 1;
-	printk(KERN_INFO "rtl8192cu: Board Type %x\n", rtlefuse->board_type);
+	pr_info("Board Type %x\n", rtlefuse->board_type);
 
 #ifdef CONFIG_ANTENNA_DIVERSITY
 	/* Antenna Diversity setting. */
@@ -346,8 +348,7 @@ static void _rtl92cu_read_board_type(struct ieee80211_hw *hw, u8 *contents)
 	else
 		rtl_efuse->antenna_cfg = registry_par->antdiv_cfg; /* 0:OFF, */
 
-	printk(KERN_INFO "rtl8192cu: Antenna Config %x\n",
-	       rtl_efuse->antenna_cfg);
+	pr_info("Antenna Config %x\n", rtl_efuse->antenna_cfg);
 #endif
 }
 
@@ -384,71 +385,57 @@ static void _update_bt_param(_adapter *padapter)
 	pbtpriv->bBTNonTrafficModeSet = _FALSE;
 	pbtpriv->CurrentState = 0;
 	pbtpriv->PreviousState = 0;
-	printk(KERN_INFO "rtl8192cu: BT Coexistance = %s\n",
-	       (pbtpriv->BT_Coexist == _TRUE) ? "enable" : "disable");
+	pr_info("BT Coexistance = %s\n",
+		(pbtpriv->BT_Coexist == _TRUE) ? "enable" : "disable");
 	if (pbtpriv->BT_Coexist) {
 		if (pbtpriv->BT_Ant_Num == Ant_x2)
-			printk(KERN_INFO "rtl8192cu: BlueTooth BT_"
-			       "Ant_Num = Antx2\n");
+			pr_info("BlueTooth BT_Ant_Num = Antx2\n");
 		else if (pbtpriv->BT_Ant_Num == Ant_x1)
-			printk(KERN_INFO "rtl8192cu: BlueTooth BT_"
-			       "Ant_Num = Antx1\n");
+			pr_info("BlueTooth BT_Ant_Num = Antx1\n");
 		switch (pbtpriv->BT_CoexistType) {
 		case BT_2Wire:
-			printk(KERN_INFO "rtl8192cu: BlueTooth BT_"
-			       "CoexistType = BT_2Wire\n");
+			pr_info("BlueTooth BT_CoexistType = BT_2Wire\n");
 			break;
 		case BT_ISSC_3Wire:
-			printk(KERN_INFO "rtl8192cu: BlueTooth BT_"
-			       "CoexistType = BT_ISSC_3Wire\n");
+			pr_info("BlueTooth BT_CoexistType = BT_ISSC_3Wire\n");
 			break;
 		case BT_Accel:
-			printk(KERN_INFO "rtl8192cu: BlueTooth BT_"
-			       "CoexistType = BT_Accel\n");
+			pr_info("BlueTooth BT_CoexistType = BT_Accel\n");
 			break;
 		case BT_CSR_BC4:
-			printk(KERN_INFO "rtl8192cu: BlueTooth BT_"
-			       "CoexistType = BT_CSR_BC4\n");
+			pr_info("BlueTooth BT_CoexistType = BT_CSR_BC4\n");
 			break;
 		case BT_CSR_BC8:
-			printk(KERN_INFO "rtl8192cu: BlueTooth BT_"
-			       "CoexistType = BT_CSR_BC8\n");
+			pr_info("BlueTooth BT_CoexistType = BT_CSR_BC8\n");
 			break;
 		case BT_RTL8756:
-			printk(KERN_INFO "rtl8192cu: BlueTooth BT_"
-			       "CoexistType = BT_RTL8756\n");
+			pr_info("BlueTooth BT_CoexistType = BT_RTL8756\n");
 			break;
 		default:
-			printk(KERN_INFO "rtl8192cu: BlueTooth BT_"
-			       "CoexistType = Unknown\n");
+			pr_info("BlueTooth BT_CoexistType = Unknown\n");
 			break;
 		}
-		printk(KERN_INFO "rtl8192cu: BlueTooth BT_Ant_isolation = %d\n",
-		       pbtpriv->BT_Ant_isolation);
+		pr_info("BlueTooth BT_Ant_isolation = %d\n",
+			pbtpriv->BT_Ant_isolation);
 		switch (pbtpriv->BT_Service) {
 		case BT_OtherAction:
-			printk(KERN_INFO "rtl8192cu: BlueTooth BT_Service = "
-			       "BT_OtherAction\n");
+			pr_info("BlueTooth BT_Service = BT_OtherAction\n");
 			break;
 		case BT_SCO:
-			printk(KERN_INFO "rtl8192cu: BlueTooth BT_Service = "
-			       "BT_SCO\n");
+			pr_info("BlueTooth BT_Service = BT_SCO\n");
 			break;
 		case BT_Busy:
-			printk(KERN_INFO "rtl8192cu: BlueTooth BT_Service = "
-			       "BT_Busy\n");
+			pr_info("BlueTooth BT_Service = BT_Busy\n");
 			break;
 		case BT_OtherBusy:
-			printk(KERN_INFO "rtl8192cu: BlueTooth BT_Service = "
-			       "BT_OtherBusy\n");
+			pr_info("BlueTooth BT_Service = BT_OtherBusy\n");
 			break;
 		default:
-			printk(KERN_INFO "rtl8192cu: BlueTooth BT_Service = "
-			       "BT_Idle\n");
+			pr_info("BlueTooth BT_Service = BT_Idle\n");
 			break;
 		}
-		printk(KERN_INFO "rtl8192cu: BT_RadioSharedType = 0x%x\n",
-		       pbtpriv->BT_RadioSharedType);
+		pr_info("BT_RadioSharedType = 0x%x\n",
+			pbtpriv->BT_RadioSharedType);
 	}
 }
 
@@ -520,13 +507,13 @@ static void _rtl92cu_read_adapter_info(struct ieee80211_hw *hw)
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, ("Autoload OK\n"));
 		rtlefuse->autoload_failflag = false;
 	}
-	if (rtlefuse->autoload_failflag == true)
+	if (rtlefuse->autoload_failflag)
 		return;
 	for (i = 0; i < 6; i += 2) {
 		usvalue = *(u16 *)&hwinfo[EEPROM_MAC_ADDR + i];
 		*((u16 *) (&rtlefuse->dev_addr[i])) = usvalue;
 	}
-	printk(KERN_INFO "rtl8192cu: MAC address: %pM\n", rtlefuse->dev_addr);
+	pr_info("MAC address: %pM\n", rtlefuse->dev_addr);
 	_rtl92cu_read_txpower_info_from_hwpg(hw,
 					   rtlefuse->autoload_failflag, hwinfo);
 	rtlefuse->eeprom_vid = *(u16 *)&hwinfo[EEPROM_VID];
@@ -665,7 +652,7 @@ static int _rtl92cu_init_power_on(struct ieee80211_hw *hw)
 	rtl_write_word(rtlpriv, REG_APS_FSMCO, value16);
 	do {
 		if (!(rtl_read_word(rtlpriv, REG_APS_FSMCO) & APFM_ONMAC)) {
-			printk(KERN_INFO "rtl8192cu: MAC auto ON okay!\n");
+			pr_info("MAC auto ON okay!\n");
 			break;
 		}
 		if (pollingCount++ > 100) {
@@ -819,7 +806,7 @@ static void _rtl92cu_init_chipN_one_out_ep_priority(struct ieee80211_hw *hw,
 	}
 	_rtl92c_init_chipN_reg_priority(hw, value, value, value, value,
 					value, value);
-	printk(KERN_INFO "rtl8192cu: Tx queue select: 0x%02x\n", queue_sel);
+	pr_info("Tx queue select: 0x%02x\n", queue_sel);
 }
 
 static void _rtl92cu_init_chipN_two_out_ep_priority(struct ieee80211_hw *hw,
@@ -863,7 +850,7 @@ static void _rtl92cu_init_chipN_two_out_ep_priority(struct ieee80211_hw *hw,
 		hiQ = valueHi;
 	}
 	_rtl92c_init_chipN_reg_priority(hw, beQ, bkQ, viQ, voQ, mgtQ, hiQ);
-	printk(KERN_INFO "rtl8192cu: Tx queue select: 0x%02x\n", queue_sel);
+	pr_info("Tx queue select: 0x%02x\n", queue_sel);
 }
 
 static void _rtl92cu_init_chipN_three_out_ep_priority(struct ieee80211_hw *hw,
@@ -1594,7 +1581,7 @@ static void _rtl92cu_set_check_bssid(struct ieee80211_hw *hw,
 	default:
 		break;
 	}
-	if (filterout_non_associated_bssid == true) {
+	if (filterout_non_associated_bssid) {
 		if (IS_NORMAL_CHIP(rtlhal->version)) {
 			switch (rtlphy->current_io_type) {
 			case IO_CMD_RESUME_DM_BY_SCAN:
@@ -2155,7 +2142,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HW_VAR_CORRECT_TSF:{
 			u8 btype_ibss = ((u8 *) (val))[0];
 
-			if (btype_ibss == true)
+			if (btype_ibss)
 				_rtl92cu_stop_tx_beacon(hw);
 			_rtl92cu_set_bcn_ctrl_reg(hw, 0, BIT(3));
 			rtl_write_dword(rtlpriv, REG_TSFTR, (u32)(mac->tsf &
@@ -2163,7 +2150,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			rtl_write_dword(rtlpriv, REG_TSFTR + 4,
 					(u32)((mac->tsf >> 32) & 0xffffffff));
 			_rtl92cu_set_bcn_ctrl_reg(hw, BIT(3), 0);
-			if (btype_ibss == true)
+			if (btype_ibss)
 				_rtl92cu_resume_tx_beacon(hw);
 			break;
 		}

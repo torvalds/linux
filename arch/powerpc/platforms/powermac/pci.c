@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/irq.h>
+#include <linux/of_pci.h>
 
 #include <asm/sections.h>
 #include <asm/io.h>
@@ -235,7 +236,7 @@ static int chaos_validate_dev(struct pci_bus *bus, int devfn, int offset)
 
 	if (offset >= 0x100)
 		return  PCIBIOS_BAD_REGISTER_NUMBER;
-	np = pci_busdev_to_OF_node(bus, devfn);
+	np = of_pci_find_child_device(bus->dev.of_node, devfn);
 	if (np == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
@@ -838,8 +839,7 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 	 * into cfg_addr
 	 */
 	hose->cfg_data = ioremap(cfg_res.start, 0x02000000);
-	hose->cfg_addr = ioremap(self_res.start,
-				 self_res.end - self_res.start + 1);
+	hose->cfg_addr = ioremap(self_res.start, resource_size(&self_res));
 
 	/*
 	 * /ht node doesn't expose a "ranges" property, we read the register
@@ -1323,8 +1323,7 @@ static void fixup_u4_pcie(struct pci_dev* dev)
 		 */
 		if (r->start >= 0xf0000000 && r->start < 0xf3000000)
 			continue;
-		if (!region || (r->end - r->start) >
-		    (region->end - region->start))
+		if (!region || resource_size(r) > resource_size(region))
 			region = r;
 	}
 	/* Nothing found, bail */

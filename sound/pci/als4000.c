@@ -1036,7 +1036,7 @@ static int snd_als4000_resume(struct pci_dev *pci)
 
 
 static struct pci_driver driver = {
-	.name = "ALS4000",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_als4000_ids,
 	.probe = snd_card_als4000_probe,
 	.remove = __devexit_p(snd_card_als4000_remove),

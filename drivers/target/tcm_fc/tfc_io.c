@@ -39,6 +39,7 @@
 #include <linux/configfs.h>
 #include <linux/ctype.h>
 #include <linux/hash.h>
+#include <linux/ratelimit.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
@@ -53,7 +54,6 @@
 #include <target/target_core_device.h>
 #include <target/target_core_tpg.h>
 #include <target/target_core_configfs.h>
-#include <target/target_core_base.h>
 #include <target/configfs_macros.h>
 
 #include "tcm_fc.h"
@@ -65,21 +65,20 @@
 int ft_queue_data_in(struct se_cmd *se_cmd)
 {
 	struct ft_cmd *cmd = container_of(se_cmd, struct ft_cmd, se_cmd);
-	struct se_transport_task *task;
 	struct fc_frame *fp = NULL;
 	struct fc_exch *ep;
 	struct fc_lport *lport;
-	struct se_mem *mem;
+	struct scatterlist *sg = NULL;
 	size_t remaining;
 	u32 f_ctl = FC_FC_EX_CTX | FC_FC_REL_OFF;
-	u32 mem_off;
+	u32 mem_off = 0;
 	u32 fh_off = 0;
 	u32 frame_off = 0;
 	size_t frame_len = 0;
-	size_t mem_len;
+	size_t mem_len = 0;
 	size_t tlen;
 	size_t off_in_page;
-	struct page *page;
+	struct page *page = NULL;
 	int use_sg;
 	int error;
 	void *page_addr;
@@ -90,24 +89,17 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 	lport = ep->lp;
 	cmd->seq = lport->tt.seq_start_next(cmd->seq);
 
-	task = T_TASK(se_cmd);
-	BUG_ON(!task);
 	remaining = se_cmd->data_length;
 
 	/*
-	 * Setup to use first mem list entry if any.
+	 * Setup to use first mem list entry, unless no data.
 	 */
-	if (task->t_tasks_se_num) {
-		mem = list_first_entry(task->t_mem_list,
-			 struct se_mem, se_list);
-		mem_len = mem->se_len;
-		mem_off = mem->se_off;
-		page = mem->se_page;
-	} else {
-		mem = NULL;
-		mem_len = remaining;
-		mem_off = 0;
-		page = NULL;
+	BUG_ON(remaining && !se_cmd->t_data_sg);
+	if (remaining) {
+		sg = se_cmd->t_data_sg;
+		mem_len = sg->length;
+		mem_off = sg->offset;
+		page = sg_page(sg);
 	}
 
 	/* no scatter/gather in skb for odd word length due to fc_seq_send() */
@@ -115,12 +107,10 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 
 	while (remaining) {
 		if (!mem_len) {
-			BUG_ON(!mem);
-			mem = list_entry(mem->se_list.next,
-				struct se_mem, se_list);
-			mem_len = min((size_t)mem->se_len, remaining);
-			mem_off = mem->se_off;
-			page = mem->se_page;
+			sg = sg_next(sg);
+			mem_len = min((size_t)sg->length, remaining);
+			mem_off = sg->offset;
+			page = sg_page(sg);
 		}
 		if (!frame_len) {
 			/*
@@ -148,18 +138,7 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 		tlen = min(mem_len, frame_len);
 
 		if (use_sg) {
-			if (!mem) {
-				BUG_ON(!task->t_task_buf);
-				page_addr = task->t_task_buf + mem_off;
-				/*
-				 * In this case, offset is 'offset_in_page' of
-				 * (t_task_buf + mem_off) instead of 'mem_off'.
-				 */
-				off_in_page = offset_in_page(page_addr);
-				page = virt_to_page(page_addr);
-				tlen = min(tlen, PAGE_SIZE - off_in_page);
-			} else
-				off_in_page = mem_off;
+			off_in_page = mem_off;
 			BUG_ON(!page);
 			get_page(page);
 			skb_fill_page_desc(fp_skb(fp),
@@ -169,7 +148,7 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 			fp_skb(fp)->data_len += tlen;
 			fp_skb(fp)->truesize +=
 					PAGE_SIZE << compound_order(page);
-		} else if (mem) {
+		} else {
 			BUG_ON(!page);
 			from = kmap_atomic(page + (mem_off >> PAGE_SHIFT),
 					   KM_SOFTIRQ0);
@@ -179,10 +158,6 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 						(mem_off & ~PAGE_MASK)));
 			memcpy(to, from, tlen);
 			kunmap_atomic(page_addr, KM_SOFTIRQ0);
-			to += tlen;
-		} else {
-			from = task->t_task_buf + mem_off;
-			memcpy(to, from, tlen);
 			to += tlen;
 		}
 
@@ -201,8 +176,7 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 		error = lport->tt.seq_send(lport, cmd->seq, fp);
 		if (error) {
 			/* XXX For now, initiator will retry */
-			if (printk_ratelimit())
-				printk(KERN_ERR "%s: Failed to send frame %p, "
+			pr_err_ratelimited("%s: Failed to send frame %p, "
 						"xid <0x%x>, remaining %zu, "
 						"lso_max <0x%x>\n",
 						__func__, fp, ep->xid,
@@ -221,23 +195,19 @@ void ft_recv_write_data(struct ft_cmd *cmd, struct fc_frame *fp)
 	struct fc_seq *seq = cmd->seq;
 	struct fc_exch *ep;
 	struct fc_lport *lport;
-	struct se_transport_task *task;
 	struct fc_frame_header *fh;
-	struct se_mem *mem;
-	u32 mem_off;
+	struct scatterlist *sg = NULL;
+	u32 mem_off = 0;
 	u32 rel_off;
 	size_t frame_len;
-	size_t mem_len;
+	size_t mem_len = 0;
 	size_t tlen;
-	struct page *page;
+	struct page *page = NULL;
 	void *page_addr;
 	void *from;
 	void *to;
 	u32 f_ctl;
 	void *buf;
-
-	task = T_TASK(se_cmd);
-	BUG_ON(!task);
 
 	fh = fc_frame_header_get(fp);
 	if (!(ntoh24(fh->fh_f_ctl) & FC_FC_REL_OFF))
@@ -251,7 +221,7 @@ void ft_recv_write_data(struct ft_cmd *cmd, struct fc_frame *fp)
 	 */
 	buf = fc_frame_payload_get(fp, 1);
 	if (cmd->was_ddp_setup && buf) {
-		printk(KERN_INFO "%s: When DDP was setup, not expected to"
+		pr_debug("%s: When DDP was setup, not expected to"
 				 "receive frame with payload, Payload shall be"
 				 "copied directly to buffer instead of coming "
 				 "via. legacy receive queues\n", __func__);
@@ -289,7 +259,7 @@ void ft_recv_write_data(struct ft_cmd *cmd, struct fc_frame *fp)
 			 * this point, but just in case if required in future
 			 * for debugging or any other purpose
 			 */
-			printk(KERN_ERR "%s: Received frame with TSI bit not"
+			pr_err("%s: Received frame with TSI bit not"
 					" being SET, dropping the frame, "
 					"cmd->sg <%p>, cmd->sg_cnt <0x%x>\n",
 					__func__, cmd->sg, cmd->sg_cnt);
@@ -312,29 +282,22 @@ void ft_recv_write_data(struct ft_cmd *cmd, struct fc_frame *fp)
 		frame_len = se_cmd->data_length - rel_off;
 
 	/*
-	 * Setup to use first mem list entry if any.
+	 * Setup to use first mem list entry, unless no data.
 	 */
-	if (task->t_tasks_se_num) {
-		mem = list_first_entry(task->t_mem_list,
-				       struct se_mem, se_list);
-		mem_len = mem->se_len;
-		mem_off = mem->se_off;
-		page = mem->se_page;
-	} else {
-		mem = NULL;
-		page = NULL;
-		mem_off = 0;
-		mem_len = frame_len;
+	BUG_ON(frame_len && !se_cmd->t_data_sg);
+	if (frame_len) {
+		sg = se_cmd->t_data_sg;
+		mem_len = sg->length;
+		mem_off = sg->offset;
+		page = sg_page(sg);
 	}
 
 	while (frame_len) {
 		if (!mem_len) {
-			BUG_ON(!mem);
-			mem = list_entry(mem->se_list.next,
-					 struct se_mem, se_list);
-			mem_len = mem->se_len;
-			mem_off = mem->se_off;
-			page = mem->se_page;
+			sg = sg_next(sg);
+			mem_len = sg->length;
+			mem_off = sg->offset;
+			page = sg_page(sg);
 		}
 		if (rel_off >= mem_len) {
 			rel_off -= mem_len;
@@ -347,19 +310,15 @@ void ft_recv_write_data(struct ft_cmd *cmd, struct fc_frame *fp)
 
 		tlen = min(mem_len, frame_len);
 
-		if (mem) {
-			to = kmap_atomic(page + (mem_off >> PAGE_SHIFT),
-					 KM_SOFTIRQ0);
-			page_addr = to;
-			to += mem_off & ~PAGE_MASK;
-			tlen = min(tlen, (size_t)(PAGE_SIZE -
-						(mem_off & ~PAGE_MASK)));
-			memcpy(to, from, tlen);
-			kunmap_atomic(page_addr, KM_SOFTIRQ0);
-		} else {
-			to = task->t_task_buf + mem_off;
-			memcpy(to, from, tlen);
-		}
+		to = kmap_atomic(page + (mem_off >> PAGE_SHIFT),
+				 KM_SOFTIRQ0);
+		page_addr = to;
+		to += mem_off & ~PAGE_MASK;
+		tlen = min(tlen, (size_t)(PAGE_SIZE -
+					  (mem_off & ~PAGE_MASK)));
+		memcpy(to, from, tlen);
+		kunmap_atomic(page_addr, KM_SOFTIRQ0);
+
 		from += tlen;
 		frame_len -= tlen;
 		mem_off += tlen;

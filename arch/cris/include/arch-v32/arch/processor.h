@@ -47,7 +47,6 @@ struct thread_struct {
  */
 #define start_thread(regs, ip, usp) \
 do { \
-	set_fs(USER_DS); \
 	regs->erp = ip; \
 	regs->ccs |= 1 << (U_CCS_BITNR + CCS_SHIFT); \
 	wrusp(usp); \

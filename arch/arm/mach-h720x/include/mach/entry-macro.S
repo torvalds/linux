@@ -57,9 +57,6 @@
 		tst     \irqstat, #1		       @ bit 0 should be set
 		.endm
 
-		.macro  irq_prio_table
-		.endm
-
 #else
 #error hynix processor selection missmatch
 #endif

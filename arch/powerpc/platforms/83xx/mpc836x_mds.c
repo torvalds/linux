@@ -76,7 +76,7 @@ static void __init mpc836x_mds_setup_arch(void)
 		struct resource res;
 
 		of_address_to_resource(np, 0, &res);
-		bcsr_regs = ioremap(res.start, res.end - res.start +1);
+		bcsr_regs = ioremap(res.start, resource_size(&res));
 		of_node_put(np);
 	}
 

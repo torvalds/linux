@@ -176,6 +176,56 @@ static const struct file_operations fops_rx_chainmask = {
 	.llseek = default_llseek,
 };
 
+static ssize_t read_file_disable_ani(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	char buf[32];
+	unsigned int len;
+
+	len = sprintf(buf, "%d\n", common->disable_ani);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_disable_ani(struct file *file,
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	unsigned long disable_ani;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	if (strict_strtoul(buf, 0, &disable_ani))
+		return -EINVAL;
+
+	common->disable_ani = !!disable_ani;
+
+	if (disable_ani) {
+		sc->sc_flags &= ~SC_OP_ANI_RUN;
+		del_timer_sync(&common->ani.timer);
+	} else {
+		sc->sc_flags |= SC_OP_ANI_RUN;
+		ath_start_ani(common);
+	}
+
+	return count;
+}
+
+static const struct file_operations fops_disable_ani = {
+	.read = read_file_disable_ani,
+	.write = write_file_disable_ani,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
 
 static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
@@ -550,6 +600,7 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 
 	PR("MPDUs Queued:    ", queued);
 	PR("MPDUs Completed: ", completed);
+	PR("MPDUs XRetried:  ", xretries);
 	PR("Aggregates:      ", a_aggr);
 	PR("AMPDUs Queued HW:", a_queued_hw);
 	PR("AMPDUs Queued SW:", a_queued_sw);
@@ -587,7 +638,6 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 
 	PRQLE("axq_q empty:       ", axq_q);
 	PRQLE("axq_acq empty:     ", axq_acq);
-	PRQLE("txq_fifo_pending:  ", txq_fifo_pending);
 	for (i = 0; i < ATH_TXFIFO_DEPTH; i++) {
 		snprintf(tmp, sizeof(tmp) - 1, "txq_fifo[%i] empty: ", i);
 		PRQLE(tmp, txq_fifo[i]);
@@ -699,7 +749,6 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 	char *buf;
 	unsigned int len = 0, size = 8000;
 	ssize_t retval = 0;
-	const char *tmp;
 	unsigned int reg;
 	struct ath9k_vif_iter_data iter_data;
 
@@ -709,31 +758,14 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	switch (sc->sc_ah->opmode) {
-	case  NL80211_IFTYPE_ADHOC:
-		tmp = "ADHOC";
-		break;
-	case  NL80211_IFTYPE_MESH_POINT:
-		tmp = "MESH";
-		break;
-	case  NL80211_IFTYPE_AP:
-		tmp = "AP";
-		break;
-	case  NL80211_IFTYPE_STATION:
-		tmp = "STATION";
-		break;
-	default:
-		tmp = "???";
-		break;
-	}
-
 	ath9k_ps_wakeup(sc);
 	len += snprintf(buf + len, size - len,
 			"curbssid: %pM\n"
 			"OP-Mode: %s(%i)\n"
 			"Beacon-Timer-Register: 0x%x\n",
 			common->curbssid,
-			tmp, (int)(sc->sc_ah->opmode),
+			ath_opmode_to_string(sc->sc_ah->opmode),
+			(int)(sc->sc_ah->opmode),
 			REG_READ(ah, AR_BEACON_PERIOD));
 
 	reg = REG_READ(ah, AR_TIMER_MODE);
@@ -807,7 +839,10 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 		else
 			TX_STAT_INC(qnum, a_completed);
 	} else {
-		TX_STAT_INC(qnum, completed);
+		if (bf_isxretried(bf))
+			TX_STAT_INC(qnum, xretries);
+		else
+			TX_STAT_INC(qnum, completed);
 	}
 
 	if (ts->ts_status & ATH9K_TXERR_FIFO)
@@ -1160,6 +1195,8 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    sc->debug.debugfs_phy, sc, &fops_rx_chainmask);
 	debugfs_create_file("tx_chainmask", S_IRUSR | S_IWUSR,
 			    sc->debug.debugfs_phy, sc, &fops_tx_chainmask);
+	debugfs_create_file("disable_ani", S_IRUSR | S_IWUSR,
+			    sc->debug.debugfs_phy, sc, &fops_disable_ani);
 	debugfs_create_file("regidx", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
 			    sc, &fops_regidx);
 	debugfs_create_file("regval", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,

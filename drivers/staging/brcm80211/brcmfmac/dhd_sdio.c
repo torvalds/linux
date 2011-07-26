@@ -20,92 +20,39 @@
 #include <linux/printk.h>
 #include <linux/pci_ids.h>
 #include <linux/netdevice.h>
-#include <linux/interrupt.h>
-#include <linux/sched.h>
-#include <linux/mmc/sdio.h>
-#include <linux/mmc/sdio_func.h>
-#include <linux/semaphore.h>
-#include <linux/firmware.h>
-#include <asm/unaligned.h>
-#include <defs.h>
-#include <brcmu_wifi.h>
-#include <brcmu_utils.h>
-#include <brcm_hw_ids.h>
-#include <soc.h>
-#include "sdio_host.h"
+#include <bcmdefs.h>
+#include <bcmsdh.h>
 
-/* register access macros */
-#ifndef __BIG_ENDIAN
-#ifndef __mips__
-#define R_REG(r, typ) \
-	brcmf_sdcard_reg_read(NULL, (r), sizeof(typ))
-#else				/* __mips__ */
-#define R_REG(r, typ) \
-	({ \
-		__typeof(*(r)) __osl_v; \
-		__asm__ __volatile__("sync"); \
-		__osl_v = brcmf_sdcard_reg_read(NULL, (r),\
-					  sizeof(typ)); \
-		__asm__ __volatile__("sync"); \
-		__osl_v; \
-	})
-#endif				/* __mips__ */
+#ifdef BCMEMBEDIMAGE
+#include BCMEMBEDIMAGE
+#endif				/* BCMEMBEDIMAGE */
 
-#else				/* __BIG_ENDIAN */
-#define R_REG(r, typ) \
-	brcmf_sdcard_reg_read(NULL, (r), sizeof(typ))
-#endif				/* __BIG_ENDIAN */
+#include <bcmutils.h>
+#include <bcmdevs.h>
 
-#define OR_REG(r, v, typ) \
-	brcmf_sdcard_reg_write(NULL, (r), sizeof(typ), R_REG(r, typ) | (v))
+#include <hndsoc.h>
+#ifdef DHD_DEBUG
+#include <hndrte_armtrap.h>
+#include <hndrte_cons.h>
+#endif				/* DHD_DEBUG */
+#include <sbchipc.h>
+#include <sbhnddma.h>
 
-#ifdef BCMDBG
+#include <sdio.h>
+#include <sbsdio.h>
+#include <sbsdpcmdev.h>
+#include <bcmsdpcm.h>
 
-/* ARM trap handling */
+#include <proto/802.11.h>
 
-/* Trap types defined by ARM (see arminc.h) */
-
-#if defined(__ARM_ARCH_4T__)
-#define	MAX_TRAP_TYPE	(TR_FIQ + 1)
-#elif defined(__ARM_ARCH_7M__)
-#define	MAX_TRAP_TYPE	(TR_ISR + ARMCM3_NUMINTS)
-#endif				/* __ARM_ARCH_7M__ */
-
-/* The trap structure is defined here as offsets for assembly */
-#define	TR_TYPE		0x00
-#define	TR_EPC		0x04
-#define	TR_CPSR		0x08
-#define	TR_SPSR		0x0c
-#define	TR_REGS		0x10
-#define	TR_REG(n)	(TR_REGS + (n) * 4)
-#define	TR_SP		TR_REG(13)
-#define	TR_LR		TR_REG(14)
-#define	TR_PC		TR_REG(15)
-
-#define	TRAP_T_SIZE	80
-
-struct brcmf_trap {
-	u32 type;
-	u32 epc;
-	u32 cpsr;
-	u32 spsr;
-	u32 r0;
-	u32 r1;
-	u32 r2;
-	u32 r3;
-	u32 r4;
-	u32 r5;
-	u32 r6;
-	u32 r7;
-	u32 r8;
-	u32 r9;
-	u32 r10;
-	u32 r11;
-	u32 r12;
-	u32 r13;
-	u32 r14;
-	u32 pc;
-};
+#include <dngl_stats.h>
+#include <dhd.h>
+#include <dhd_bus.h>
+#include <dhd_proto.h>
+#include <dhd_dbg.h>
+#include <dhdioctl.h>
+#include <sdiovar.h>
+#include <bcmchip.h>
 
 #define CBUF_LEN	(128)
 

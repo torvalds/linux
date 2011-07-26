@@ -73,13 +73,12 @@ posix_acl_release(struct posix_acl *acl)
 
 extern void posix_acl_init(struct posix_acl *, int);
 extern struct posix_acl *posix_acl_alloc(int, gfp_t);
-extern struct posix_acl *posix_acl_clone(const struct posix_acl *, gfp_t);
 extern int posix_acl_valid(const struct posix_acl *);
 extern int posix_acl_permission(struct inode *, const struct posix_acl *, int);
 extern struct posix_acl *posix_acl_from_mode(mode_t, gfp_t);
 extern int posix_acl_equiv_mode(const struct posix_acl *, mode_t *);
-extern int posix_acl_create_masq(struct posix_acl *, mode_t *);
-extern int posix_acl_chmod_masq(struct posix_acl *, mode_t);
+extern int posix_acl_create(struct posix_acl **, gfp_t, mode_t *);
+extern int posix_acl_chmod(struct posix_acl **, gfp_t, mode_t);
 
 extern struct posix_acl *get_posix_acl(struct inode *, int);
 extern int set_posix_acl(struct inode *, int, struct posix_acl *);

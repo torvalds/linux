@@ -2770,7 +2770,7 @@ static int __devinit emac_probe(struct platform_device *ofdev)
 	}
 	// TODO : request_mem_region
 	dev->emacp = ioremap(dev->rsrc_regs.start,
-			     dev->rsrc_regs.end - dev->rsrc_regs.start + 1);
+			     resource_size(&dev->rsrc_regs));
 	if (dev->emacp == NULL) {
 		printk(KERN_ERR "%s: Can't map device registers!\n",
 		       np->full_name);

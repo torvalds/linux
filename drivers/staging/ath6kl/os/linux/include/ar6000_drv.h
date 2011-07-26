@@ -52,7 +52,6 @@
 #include "aggr_recv_api.h"
 #include <host_version.h>
 #include <linux/rtnetlink.h>
-#include <linux/init.h>
 #include <linux/moduleparam.h>
 #include "ar6000_api.h"
 #ifdef CONFIG_HOST_TCMD_SUPPORT

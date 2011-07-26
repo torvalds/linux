@@ -45,6 +45,7 @@
 #define AR9300_DEVID_PCIE	0x0030
 #define AR9300_DEVID_AR9340	0x0031
 #define AR9300_DEVID_AR9485_PCIE 0x0032
+#define AR9300_DEVID_AR9330	0x0035
 
 #define AR5416_AR9100_DEVID	0x000b
 
@@ -142,6 +143,8 @@
 #define AR_KEYTABLE_SIZE            128
 #define POWER_UP_TIME               10000
 #define SPUR_RSSI_THRESH            40
+#define UPPER_5G_SUB_BAND_START		5700
+#define MID_5G_SUB_BAND_START		5400
 
 #define CAB_TIMEOUT_VAL             10
 #define BEACON_TIMEOUT_VAL          10
@@ -157,8 +160,9 @@
 #define ATH9K_HW_RX_HP_QDEPTH	16
 #define ATH9K_HW_RX_LP_QDEPTH	128
 
-#define PAPRD_GAIN_TABLE_ENTRIES    32
-#define PAPRD_TABLE_SZ              24
+#define PAPRD_GAIN_TABLE_ENTRIES	32
+#define PAPRD_TABLE_SZ			24
+#define PAPRD_IDEAL_AGC2_PWR_RANGE	0xe0
 
 enum ath_hw_txq_subtype {
 	ATH_TXQ_AC_BE = 0,
@@ -403,7 +407,6 @@ struct ath9k_beacon_state {
 	u32 bs_nexttbtt;
 	u32 bs_nextdtim;
 	u32 bs_intval;
-#define ATH9K_BEACON_PERIOD       0x0000ffff
 #define ATH9K_TSFOOR_THRESHOLD    0x00004240 /* 16k us */
 	u32 bs_dtimperiod;
 	u16 bs_cfpperiod;
@@ -603,7 +606,6 @@ struct ath_hw_ops {
 				     int power_off);
 	void (*rx_enable)(struct ath_hw *ah);
 	void (*set_desc_link)(void *ds, u32 link);
-	void (*get_desc_link)(void *ds, u32 **link);
 	bool (*calibrate)(struct ath_hw *ah,
 			  struct ath9k_channel *chan,
 			  u8 rxchainmask,
@@ -862,6 +864,8 @@ struct ath_hw {
 	u32 ent_mode;
 
 	bool is_clk_25mhz;
+	int (*get_mac_revision)(void);
+	int (*external_reset)(void);
 };
 
 struct ath_bus_ops {
@@ -981,8 +985,6 @@ void ath9k_hw_get_delta_slope_vals(struct ath_hw *ah, u32 coef_scaled,
 void ar9002_hw_cck_chan14_spread(struct ath_hw *ah);
 int ar9002_hw_rf_claim(struct ath_hw *ah);
 void ar9002_hw_enable_async_fifo(struct ath_hw *ah);
-void ar9002_hw_update_async_fifo(struct ath_hw *ah);
-void ar9002_hw_enable_wep_aggregation(struct ath_hw *ah);
 
 /*
  * Code specific to AR9003, we stuff these here to avoid callbacks

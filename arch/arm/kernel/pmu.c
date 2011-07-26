@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 #include <asm/pmu.h>
@@ -25,36 +26,88 @@ static volatile long pmu_lock;
 
 static struct platform_device *pmu_devices[ARM_NUM_PMU_DEVICES];
 
-static int __devinit pmu_device_probe(struct platform_device *pdev)
+static int __devinit pmu_register(struct platform_device *pdev,
+					enum arm_pmu_type type)
 {
-
-	if (pdev->id < 0 || pdev->id >= ARM_NUM_PMU_DEVICES) {
+	if (type < 0 || type >= ARM_NUM_PMU_DEVICES) {
 		pr_warning("received registration request for unknown "
-				"device %d\n", pdev->id);
+				"device %d\n", type);
 		return -EINVAL;
 	}
 
-	if (pmu_devices[pdev->id])
-		pr_warning("registering new PMU device type %d overwrites "
-				"previous registration!\n", pdev->id);
-	else
-		pr_info("registered new PMU device of type %d\n",
-				pdev->id);
+	if (pmu_devices[type]) {
+		pr_warning("rejecting duplicate registration of PMU device "
+			"type %d.", type);
+		return -ENOSPC;
+	}
 
-	pmu_devices[pdev->id] = pdev;
+	pr_info("registered new PMU device of type %d\n", type);
+	pmu_devices[type] = pdev;
 	return 0;
 }
 
-static struct platform_driver pmu_driver = {
+#define OF_MATCH_PMU(_name, _type) {	\
+	.compatible = _name,		\
+	.data = (void *)_type,		\
+}
+
+#define OF_MATCH_CPU(name)	OF_MATCH_PMU(name, ARM_PMU_DEVICE_CPU)
+
+static struct of_device_id armpmu_of_device_ids[] = {
+	OF_MATCH_CPU("arm,cortex-a9-pmu"),
+	OF_MATCH_CPU("arm,cortex-a8-pmu"),
+	OF_MATCH_CPU("arm,arm1136-pmu"),
+	OF_MATCH_CPU("arm,arm1176-pmu"),
+	{},
+};
+
+#define PLAT_MATCH_PMU(_name, _type) {	\
+	.name		= _name,	\
+	.driver_data	= _type,	\
+}
+
+#define PLAT_MATCH_CPU(_name)	PLAT_MATCH_PMU(_name, ARM_PMU_DEVICE_CPU)
+
+static struct platform_device_id armpmu_plat_device_ids[] = {
+	PLAT_MATCH_CPU("arm-pmu"),
+	{},
+};
+
+enum arm_pmu_type armpmu_device_type(struct platform_device *pdev)
+{
+	const struct of_device_id	*of_id;
+	const struct platform_device_id *pdev_id;
+
+	/* provided by of_device_id table */
+	if (pdev->dev.of_node) {
+		of_id = of_match_device(armpmu_of_device_ids, &pdev->dev);
+		BUG_ON(!of_id);
+		return (enum arm_pmu_type)of_id->data;
+	}
+
+	/* Provided by platform_device_id table */
+	pdev_id = platform_get_device_id(pdev);
+	BUG_ON(!pdev_id);
+	return pdev_id->driver_data;
+}
+
+static int __devinit armpmu_device_probe(struct platform_device *pdev)
+{
+	return pmu_register(pdev, armpmu_device_type(pdev));
+}
+
+static struct platform_driver armpmu_driver = {
 	.driver		= {
 		.name	= "arm-pmu",
+		.of_match_table = armpmu_of_device_ids,
 	},
-	.probe		= pmu_device_probe,
+	.probe		= armpmu_device_probe,
+	.id_table	= armpmu_plat_device_ids,
 };
 
 static int __init register_pmu_driver(void)
 {
-	return platform_driver_register(&pmu_driver);
+	return platform_driver_register(&armpmu_driver);
 }
 device_initcall(register_pmu_driver);
 
@@ -77,11 +130,11 @@ reserve_pmu(enum arm_pmu_type device)
 EXPORT_SYMBOL_GPL(reserve_pmu);
 
 int
-release_pmu(struct platform_device *pdev)
+release_pmu(enum arm_pmu_type device)
 {
-	if (WARN_ON(pdev != pmu_devices[pdev->id]))
+	if (WARN_ON(!pmu_devices[device]))
 		return -EINVAL;
-	clear_bit_unlock(pdev->id, &pmu_lock);
+	clear_bit_unlock(device, &pmu_lock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(release_pmu);

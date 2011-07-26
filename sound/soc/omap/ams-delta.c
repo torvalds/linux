@@ -330,7 +330,7 @@ static int cx81801_hangup(struct tty_struct *tty)
 	return 0;
 }
 
-/* Line discipline .recieve_buf() */
+/* Line discipline .receive_buf() */
 static void cx81801_receive(struct tty_struct *tty,
 				const unsigned char *cp, char *fp, int count)
 {
@@ -427,7 +427,8 @@ static struct snd_soc_ops ams_delta_ops = {
 
 /* Board specific codec bias level control */
 static int ams_delta_set_bias_level(struct snd_soc_card *card,
-					enum snd_soc_bias_level level)
+				    struct snd_soc_dapm_context *dapm,
+				    enum snd_soc_bias_level level)
 {
 	struct snd_soc_codec *codec = card->rtd->codec;
 

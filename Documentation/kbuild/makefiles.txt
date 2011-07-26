@@ -441,7 +441,7 @@ more details, with real examples.
 	specified if first option are not supported.
 
 	Example:
-		#arch/i386/kernel/Makefile
+		#arch/x86/kernel/Makefile
 		vsyscall-flags += $(call cc-ldoption, -Wl$(comma)--hash-style=sysv)
 
 	In the above example, vsyscall-flags will be assigned the option
@@ -460,7 +460,7 @@ more details, with real examples.
 	supported to use an optional second option.
 
 	Example:
-		#arch/i386/Makefile
+		#arch/x86/Makefile
 		cflags-y += $(call cc-option,-march=pentium-mmx,-march=i586)
 
 	In the above example, cflags-y will be assigned the option
@@ -522,7 +522,7 @@ more details, with real examples.
 	even though the option was accepted by gcc.
 
 	Example:
-		#arch/i386/Makefile
+		#arch/x86/Makefile
 		cflags-y += $(shell \
 		if [ $(call cc-version) -ge 0300 ] ; then \
 			echo "-mregparm=3"; fi ;)
@@ -802,7 +802,7 @@ but in the architecture makefiles where the kbuild infrastructure
 is not sufficient this sometimes needs to be explicit.
 
 	Example:
-		#arch/i386/boot/Makefile
+		#arch/x86/boot/Makefile
 		subdir- := compressed/
 
 The above assignment instructs kbuild to descend down in the
@@ -812,12 +812,12 @@ To support the clean infrastructure in the Makefiles that builds the
 final bootimage there is an optional target named archclean:
 
 	Example:
-		#arch/i386/Makefile
+		#arch/x86/Makefile
 		archclean:
-			$(Q)$(MAKE) $(clean)=arch/i386/boot
+			$(Q)$(MAKE) $(clean)=arch/x86/boot
 
-When "make clean" is executed, make will descend down in arch/i386/boot,
-and clean as usual. The Makefile located in arch/i386/boot/ may use
+When "make clean" is executed, make will descend down in arch/x86/boot,
+and clean as usual. The Makefile located in arch/x86/boot/ may use
 the subdir- trick to descend further down.
 
 Note 1: arch/$(ARCH)/Makefile cannot use "subdir-", because that file is
@@ -882,7 +882,7 @@ When kbuild executes, the following steps are followed (roughly):
 	LDFLAGS_vmlinux uses the LDFLAGS_$@ support.
 
 	Example:
-		#arch/i386/Makefile
+		#arch/x86/Makefile
 		LDFLAGS_vmlinux := -e stext
 
     OBJCOPYFLAGS	objcopy flags
@@ -920,14 +920,14 @@ When kbuild executes, the following steps are followed (roughly):
 	Often, the KBUILD_CFLAGS variable depends on the configuration.
 
 	Example:
-		#arch/i386/Makefile
+		#arch/x86/Makefile
 		cflags-$(CONFIG_M386) += -march=i386
 		KBUILD_CFLAGS += $(cflags-y)
 
 	Many arch Makefiles dynamically run the target C compiler to
 	probe supported options:
 
-		#arch/i386/Makefile
+		#arch/x86/Makefile
 
 		...
 		cflags-$(CONFIG_MPENTIUMII)     += $(call cc-option,\
@@ -1038,8 +1038,8 @@ When kbuild executes, the following steps are followed (roughly):
 	into the arch/$(ARCH)/boot/Makefile.
 
 	Example:
-		#arch/i386/Makefile
-		boot := arch/i386/boot
+		#arch/x86/Makefile
+		boot := arch/x86/boot
 		bzImage: vmlinux
 			$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
@@ -1051,7 +1051,7 @@ When kbuild executes, the following steps are followed (roughly):
 	To support this, $(archhelp) must be defined.
 
 	Example:
-		#arch/i386/Makefile
+		#arch/x86/Makefile
 		define archhelp
 		  echo  '* bzImage      - Image (arch/$(ARCH)/boot/bzImage)'
 		endif
@@ -1065,7 +1065,7 @@ When kbuild executes, the following steps are followed (roughly):
 	from vmlinux.
 
 	Example:
-		#arch/i386/Makefile
+		#arch/x86/Makefile
 		all: bzImage
 
 	When "make" is executed without arguments, bzImage will be built.
@@ -1083,7 +1083,7 @@ When kbuild executes, the following steps are followed (roughly):
 	2) kbuild knows what files to delete during "make clean"
 
 	Example:
-		#arch/i386/kernel/Makefile
+		#arch/x86/kernel/Makefile
 		extra-y := head.o init_task.o
 
 	In this example, extra-y is used to list object files that
@@ -1133,7 +1133,7 @@ When kbuild executes, the following steps are followed (roughly):
 	Compress target. Use maximum compression to compress target.
 
 	Example:
-		#arch/i386/boot/Makefile
+		#arch/x86/boot/Makefile
 		LDFLAGS_bootsect := -Ttext 0x0 -s --oformat binary
 		LDFLAGS_setup    := -Ttext 0x0 -s --oformat binary -e begtext
 
@@ -1193,7 +1193,7 @@ When kbuild executes, the following steps are followed (roughly):
 
 	When updating the $(obj)/bzImage target, the line
 
-	BUILD    arch/i386/boot/bzImage
+	BUILD    arch/x86/boot/bzImage
 
 	will be displayed with "make KBUILD_VERBOSE=0".
 
@@ -1207,7 +1207,7 @@ When kbuild executes, the following steps are followed (roughly):
 	kbuild knows .lds files and includes a rule *lds.S -> *lds.
 
 	Example:
-		#arch/i386/kernel/Makefile
+		#arch/x86/kernel/Makefile
 		always := vmlinux.lds
 
 		#Makefile

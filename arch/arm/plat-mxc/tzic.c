@@ -49,6 +49,8 @@
 
 void __iomem *tzic_base; /* Used as irq controller base in entry-macro.S */
 
+#define TZIC_NUM_IRQS 128
+
 #ifdef CONFIG_FIQ
 static int tzic_set_irq_fiq(unsigned int irq, unsigned int type)
 {
@@ -166,7 +168,7 @@ void __init tzic_init_irq(void __iomem *irqbase)
 
 	/* all IRQ no FIQ Warning :: No selection */
 
-	for (i = 0; i < MXC_INTERNAL_IRQS; i++) {
+	for (i = 0; i < TZIC_NUM_IRQS; i++) {
 		irq_set_chip_and_handler(i, &mxc_tzic_chip.base,
 					 handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);

@@ -20,9 +20,8 @@ static void kill_off_processes(void)
 		os_kill_ptraced_process(userspace_pid[0], 1);
 	else {
 		struct task_struct *p;
-		int pid, me;
+		int pid;
 
-		me = os_getpid();
 		for_each_process(p) {
 			if (p->mm == NULL)
 				continue;

@@ -142,7 +142,7 @@ hydra_init(void)
 		return 0;
 	}
 	of_node_put(np);
-	Hydra = ioremap(r.start, r.end-r.start);
+	Hydra = ioremap(r.start, resource_size(&r));
 	printk("Hydra Mac I/O at %llx\n", (unsigned long long)r.start);
 	printk("Hydra Feature_Control was %x",
 	       in_le32(&Hydra->Feature_Control));

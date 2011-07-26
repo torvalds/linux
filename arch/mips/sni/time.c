@@ -1,11 +1,11 @@
 #include <linux/types.h>
+#include <linux/i8253.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/smp.h>
 #include <linux/time.h>
 #include <linux/clockchips.h>
 
-#include <asm/i8253.h>
 #include <asm/sni.h>
 #include <asm/time.h>
 #include <asm-generic/rtc.h>

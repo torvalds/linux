@@ -648,13 +648,13 @@ static int __devinit hamachi_init_one (struct pci_dev *pdev,
 	ring_space = pci_alloc_consistent(pdev, TX_TOTAL_SIZE, &ring_dma);
 	if (!ring_space)
 		goto err_out_cleardev;
-	hmp->tx_ring = (struct hamachi_desc *)ring_space;
+	hmp->tx_ring = ring_space;
 	hmp->tx_ring_dma = ring_dma;
 
 	ring_space = pci_alloc_consistent(pdev, RX_TOTAL_SIZE, &ring_dma);
 	if (!ring_space)
 		goto err_out_unmap_tx;
-	hmp->rx_ring = (struct hamachi_desc *)ring_space;
+	hmp->rx_ring = ring_space;
 	hmp->rx_ring_dma = ring_dma;
 
 	/* Check for options being passed in */

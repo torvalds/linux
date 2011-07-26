@@ -18,6 +18,7 @@
 
 #include <asm/hardware/gic.h>
 #include <asm/cacheflush.h>
+#include <asm/cputype.h>
 #include <asm/mach-types.h>
 
 #include <mach/msm_iomap.h>
@@ -39,6 +40,12 @@ extern void msm_secondary_startup(void);
 volatile int pen_release = -1;
 
 static DEFINE_SPINLOCK(boot_lock);
+
+static inline int get_core_count(void)
+{
+	/* 1 + the PART[1:0] field of MIDR */
+	return ((read_cpuid_id() >> 4) & 3) + 1;
+}
 
 void __cpuinit platform_secondary_init(unsigned int cpu)
 {
@@ -147,9 +154,9 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
  */
 void __init smp_init_cpus(void)
 {
-	unsigned int i;
+	unsigned int i, ncores = get_core_count();
 
-	for (i = 0; i < NR_CPUS; i++)
+	for (i = 0; i < ncores; i++)
 		set_cpu_possible(i, true);
 
         set_smp_cross_call(gic_raise_softirq);
@@ -157,12 +164,4 @@ void __init smp_init_cpus(void)
 
 void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 {
-	int i;
-
-	/*
-	 * Initialise the present map, which describes the set of CPUs
-	 * actually populated at the present time.
-	 */
-	for (i = 0; i < max_cpus; i++)
-		set_cpu_present(i, true);
 }

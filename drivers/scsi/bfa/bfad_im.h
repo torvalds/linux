@@ -141,4 +141,7 @@ extern struct device_attribute *bfad_im_vport_attrs[];
 
 irqreturn_t bfad_intx(int irq, void *dev_id);
 
+int bfad_im_bsg_request(struct fc_bsg_job *job);
+int bfad_im_bsg_timeout(struct fc_bsg_job *job);
+
 #endif

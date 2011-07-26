@@ -269,10 +269,10 @@ void lguest_arch_run_guest(struct lg_cpu *cpu)
 static int emulate_insn(struct lg_cpu *cpu)
 {
 	u8 insn;
-	unsigned int insnlen = 0, in = 0, shift = 0;
+	unsigned int insnlen = 0, in = 0, small_operand = 0;
 	/*
 	 * The eip contains the *virtual* address of the Guest's instruction:
-	 * guest_pa just subtracts the Guest's page_offset.
+	 * walk the Guest's page tables to find the "physical" address.
 	 */
 	unsigned long physaddr = guest_pa(cpu, cpu->regs->eip);
 
@@ -300,11 +300,10 @@ static int emulate_insn(struct lg_cpu *cpu)
 	}
 
 	/*
-	 * 0x66 is an "operand prefix".  It means it's using the upper 16 bits
-	 * of the eax register.
+	 * 0x66 is an "operand prefix".  It means a 16, not 32 bit in/out.
 	 */
 	if (insn == 0x66) {
-		shift = 16;
+		small_operand = 1;
 		/* The instruction is 1 byte so far, read the next byte. */
 		insnlen = 1;
 		insn = lgread(cpu, physaddr + insnlen, u8);
@@ -340,79 +339,19 @@ static int emulate_insn(struct lg_cpu *cpu)
 	 * traditionally means "there's nothing there".
 	 */
 	if (in) {
-		/* Lower bit tells is whether it's a 16 or 32 bit access */
-		if (insn & 0x1)
-			cpu->regs->eax = 0xFFFFFFFF;
-		else
-			cpu->regs->eax |= (0xFFFF << shift);
+		/* Lower bit tells means it's a 32/16 bit access */
+		if (insn & 0x1) {
+			if (small_operand)
+				cpu->regs->eax |= 0xFFFF;
+			else
+				cpu->regs->eax = 0xFFFFFFFF;
+		} else
+			cpu->regs->eax |= 0xFF;
 	}
 	/* Finally, we've "done" the instruction, so move past it. */
 	cpu->regs->eip += insnlen;
 	/* Success! */
 	return 1;
-}
-
-/*
- * Our hypercalls mechanism used to be based on direct software interrupts.
- * After Anthony's "Refactor hypercall infrastructure" kvm patch, we decided to
- * change over to using kvm hypercalls.
- *
- * KVM_HYPERCALL is actually a "vmcall" instruction, which generates an invalid
- * opcode fault (fault 6) on non-VT cpus, so the easiest solution seemed to be
- * an *emulation approach*: if the fault was really produced by an hypercall
- * (is_hypercall() does exactly this check), we can just call the corresponding
- * hypercall host implementation function.
- *
- * But these invalid opcode faults are notably slower than software interrupts.
- * So we implemented the *patching (or rewriting) approach*: every time we hit
- * the KVM_HYPERCALL opcode in Guest code, we patch it to the old "int 0x1f"
- * opcode, so next time the Guest calls this hypercall it will use the
- * faster trap mechanism.
- *
- * Matias even benchmarked it to convince you: this shows the average cycle
- * cost of a hypercall.  For each alternative solution mentioned above we've
- * made 5 runs of the benchmark:
- *
- * 1) direct software interrupt: 2915, 2789, 2764, 2721, 2898
- * 2) emulation technique: 3410, 3681, 3466, 3392, 3780
- * 3) patching (rewrite) technique: 2977, 2975, 2891, 2637, 2884
- *
- * One two-line function is worth a 20% hypercall speed boost!
- */
-static void rewrite_hypercall(struct lg_cpu *cpu)
-{
-	/*
-	 * This are the opcodes we use to patch the Guest.  The opcode for "int
-	 * $0x1f" is "0xcd 0x1f" but vmcall instruction is 3 bytes long, so we
-	 * complete the sequence with a NOP (0x90).
-	 */
-	u8 insn[3] = {0xcd, 0x1f, 0x90};
-
-	__lgwrite(cpu, guest_pa(cpu, cpu->regs->eip), insn, sizeof(insn));
-	/*
-	 * The above write might have caused a copy of that page to be made
-	 * (if it was read-only).  We need to make sure the Guest has
-	 * up-to-date pagetables.  As this doesn't happen often, we can just
-	 * drop them all.
-	 */
-	guest_pagetable_clear_all(cpu);
-}
-
-static bool is_hypercall(struct lg_cpu *cpu)
-{
-	u8 insn[3];
-
-	/*
-	 * This must be the Guest kernel trying to do something.
-	 * The bottom two bits of the CS segment register are the privilege
-	 * level.
-	 */
-	if ((cpu->regs->cs & 3) != GUEST_PL)
-		return false;
-
-	/* Is it a vmcall? */
-	__lgread(cpu, insn, guest_pa(cpu, cpu->regs->eip), sizeof(insn));
-	return insn[0] == 0x0f && insn[1] == 0x01 && insn[2] == 0xc1;
 }
 
 /*H:050 Once we've re-enabled interrupts, we look at why the Guest exited. */
@@ -428,20 +367,6 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 		if (cpu->regs->errcode == 0) {
 			if (emulate_insn(cpu))
 				return;
-		}
-		/*
-		 * If KVM is active, the vmcall instruction triggers a General
-		 * Protection Fault.  Normally it triggers an invalid opcode
-		 * fault (6):
-		 */
-	case 6:
-		/*
-		 * We need to check if ring == GUEST_PL and faulting
-		 * instruction == vmcall.
-		 */
-		if (is_hypercall(cpu)) {
-			rewrite_hypercall(cpu);
-			return;
 		}
 		break;
 	case 14: /* We've intercepted a Page Fault. */
@@ -486,7 +411,7 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 		 * These values mean a real interrupt occurred, in which case
 		 * the Host handler has already been run. We just do a
 		 * friendly check if another process should now be run, then
-		 * return to run the Guest again
+		 * return to run the Guest again.
 		 */
 		cond_resched();
 		return;
@@ -536,7 +461,7 @@ void __init lguest_arch_host_init(void)
 	int i;
 
 	/*
-	 * Most of the i386/switcher.S doesn't care that it's been moved; on
+	 * Most of the x86/switcher_32.S doesn't care that it's been moved; on
 	 * Intel, jumps are relative, and it doesn't access any references to
 	 * external code or data.
 	 *
@@ -664,7 +589,7 @@ void __init lguest_arch_host_init(void)
 		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_PGE);
 	}
 	put_online_cpus();
-};
+}
 /*:*/
 
 void __exit lguest_arch_host_fini(void)
@@ -747,8 +672,6 @@ int lguest_arch_init_hypercalls(struct lg_cpu *cpu)
 /*:*/
 
 /*L:030
- * lguest_arch_setup_regs()
- *
  * Most of the Guest's registers are left alone: we used get_zeroed_page() to
  * allocate the structure, so they will be 0.
  */

@@ -816,7 +816,7 @@ static void update_gids_task(struct work_struct *work)
 		memcpy(gw->dev->iboe.gid_table[gw->port - 1], gw->gids, sizeof gw->gids);
 		event.device = &gw->dev->ib_dev;
 		event.element.port_num = gw->port;
-		event.event    = IB_EVENT_LID_CHANGE;
+		event.event    = IB_EVENT_GID_CHANGE;
 		ib_dispatch_event(&event);
 	}
 
@@ -1098,11 +1098,21 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	if (init_node_data(ibdev))
 		goto err_map;
 
+	for (i = 0; i < ibdev->num_ports; ++i) {
+		if (mlx4_ib_port_link_layer(&ibdev->ib_dev, i + 1) ==
+						IB_LINK_LAYER_ETHERNET) {
+			err = mlx4_counter_alloc(ibdev->dev, &ibdev->counters[i]);
+			if (err)
+				ibdev->counters[i] = -1;
+		} else
+				ibdev->counters[i] = -1;
+	}
+
 	spin_lock_init(&ibdev->sm_lock);
 	mutex_init(&ibdev->cap_mask_mutex);
 
 	if (ib_register_device(&ibdev->ib_dev, NULL))
-		goto err_map;
+		goto err_counter;
 
 	if (mlx4_ib_mad_init(ibdev))
 		goto err_reg;
@@ -1132,6 +1142,10 @@ err_notif:
 err_reg:
 	ib_unregister_device(&ibdev->ib_dev);
 
+err_counter:
+	for (; i; --i)
+		mlx4_counter_free(ibdev->dev, ibdev->counters[i - 1]);
+
 err_map:
 	iounmap(ibdev->uar_map);
 
@@ -1160,7 +1174,8 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 		ibdev->iboe.nb.notifier_call = NULL;
 	}
 	iounmap(ibdev->uar_map);
-
+	for (p = 0; p < ibdev->num_ports; ++p)
+		mlx4_counter_free(ibdev->dev, ibdev->counters[p]);
 	mlx4_foreach_port(p, dev, MLX4_PORT_TYPE_IB)
 		mlx4_CLOSE_PORT(dev, p);
 

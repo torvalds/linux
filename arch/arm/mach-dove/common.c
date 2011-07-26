@@ -13,11 +13,9 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/pci.h>
-#include <linux/serial_8250.h>
 #include <linux/clk.h>
 #include <linux/mbus.h>
 #include <linux/ata_platform.h>
-#include <linux/serial_8250.h>
 #include <linux/gpio.h>
 #include <asm/page.h>
 #include <asm/setup.h>

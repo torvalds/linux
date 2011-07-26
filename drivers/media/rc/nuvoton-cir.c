@@ -991,7 +991,6 @@ static int nvt_open(struct rc_dev *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&nvt->nvt_lock, flags);
-	nvt->in_use = true;
 	nvt_enable_cir(nvt);
 	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
 
@@ -1004,7 +1003,6 @@ static void nvt_close(struct rc_dev *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&nvt->nvt_lock, flags);
-	nvt->in_use = false;
 	nvt_disable_cir(nvt);
 	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
 }
@@ -1112,7 +1110,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	rdev->dev.parent = &pdev->dev;
 	rdev->driver_name = NVT_DRIVER_NAME;
 	rdev->map_name = RC_MAP_RC6_MCE;
-	rdev->timeout = US_TO_NS(1000);
+	rdev->timeout = MS_TO_NS(100);
 	/* rx resolution is hardwired to 50us atm, 1, 25, 100 also possible */
 	rdev->rx_resolution = US_TO_NS(CIR_SAMPLE_PERIOD);
 #if 0

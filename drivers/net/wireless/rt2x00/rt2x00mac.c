@@ -818,3 +818,17 @@ void rt2x00mac_get_ringparam(struct ieee80211_hw *hw,
 	*rx_max = rt2x00dev->rx->limit;
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_get_ringparam);
+
+bool rt2x00mac_tx_frames_pending(struct ieee80211_hw *hw)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct data_queue *queue;
+
+	tx_queue_for_each(rt2x00dev, queue) {
+		if (!rt2x00queue_empty(queue))
+			return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_tx_frames_pending);

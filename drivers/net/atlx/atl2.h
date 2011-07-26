@@ -453,9 +453,6 @@ struct atl2_adapter {
 	/* OS defined structs */
 	struct net_device *netdev;
 	struct pci_dev *pdev;
-#ifdef NETIF_F_HW_VLAN_TX
-	struct vlan_group *vlgrp;
-#endif
 	u32 wol;
 	u16 link_speed;
 	u16 link_duplex;

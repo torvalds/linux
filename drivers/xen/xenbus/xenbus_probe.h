@@ -48,6 +48,8 @@ struct xen_bus_type
 	struct bus_type bus;
 };
 
+extern struct device_attribute xenbus_dev_attrs[];
+
 extern int xenbus_match(struct device *_dev, struct device_driver *_drv);
 extern int xenbus_dev_probe(struct device *_dev);
 extern int xenbus_dev_remove(struct device *_dev);

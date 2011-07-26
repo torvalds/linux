@@ -24,7 +24,6 @@
 #include <linux/hiddev.h>
 #include <linux/pci.h>
 #include <linux/dmi.h>
-#include <linux/delay.h>
 
 #include "hyperv.h"
 

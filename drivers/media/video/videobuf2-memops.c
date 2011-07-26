@@ -18,7 +18,6 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/file.h>
-#include <linux/slab.h>
 
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-memops.h>

@@ -11,55 +11,75 @@ menu "BF518 Specific Configuration"
 comment "Alternative Multiplexing Scheme"
 
 choice
-	prompt "SPORT0"
-	default BF518_SPORT0_PORTG
+	prompt "PWM Channel Pins"
+	default BF518_PWM_ALL_PORTF
 	help
-	  Select PORT used for SPORT0. See Hardware Reference Manual
+	  Select pins used for the PWM channels:
+	    PWM_AH PWM_AL PWM_BH PWM_BL PWM_CH PWM_CL
 
-config BF518_SPORT0_PORTF
-	bool "PORT F"
-	help
-	  PORT F
+	  See the Hardware Reference Manual for more details.
 
-config BF518_SPORT0_PORTG
-	bool "PORT G"
+config BF518_PWM_ALL_PORTF
+	bool "PF1 - PF6"
 	help
-	  PORT G
+	  PF{1,2,3,4,5,6} <-> PWM_{AH,AL,BH,BL,CH,CL}
+
+config BF518_PWM_PORTF_PORTG
+	bool "PF11 - PF14 / PG1 - PG2"
+	help
+	  PF{11,12,13,14} <-> PWM_{AH,AL,BH,BL}
+	  PG{1,2} <-> PWM_{CH,CL}
+
 endchoice
 
 choice
-	prompt "SPORT0 TSCLK Location"
-	depends on BF518_SPORT0_PORTG
-	default BF518_SPORT0_TSCLK_PG10
+	prompt "PWM Sync Pin"
+	default BF518_PWM_SYNC_PF7
 	help
-	  Select PIN used for SPORT0_TSCLK. See Hardware Reference Manual
+	  Select the pin used for PWM_SYNC.
 
-config BF518_SPORT0_TSCLK_PG10
-	bool "PORT PG10"
-	help
-	  PORT PG10
+	  See the Hardware Reference Manual for more details.
 
-config BF518_SPORT0_TSCLK_PG14
-	bool "PORT PG14"
-	help
-	  PORT PG14
+config BF518_PWM_SYNC_PF7
+	bool "PF7"
+config BF518_PWM_SYNC_PF15
+	bool "PF15"
 endchoice
 
 choice
-	prompt "UART1"
-	default BF518_UART1_PORTF
+	prompt "PWM Trip B Pin"
+	default BF518_PWM_TRIPB_PG10
 	help
-	  Select PORT used for UART1. See Hardware Reference Manual
+	  Select the pin used for PWM_TRIPB.
 
-config BF518_UART1_PORTF
-	bool "PORT F"
-	help
-	  PORT F
+	  See the Hardware Reference Manual for more details.
 
-config BF518_UART1_PORTG
-	bool "PORT G"
+config BF518_PWM_TRIPB_PG10
+	bool "PG10"
+config BF518_PWM_TRIPB_PG14
+	bool "PG14"
+endchoice
+
+choice
+	prompt "PPI / Timer Pins"
+	default BF518_PPI_TMR_PG5
 	help
-	  PORT G
+	  Select pins used for PPI/Timer:
+	    PPICLK PPIFS1 PPIFS2
+	    TMRCLK TMR0 TMR1
+
+	  See the Hardware Reference Manual for more details.
+
+config BF518_PPI_TMR_PG5
+	bool "PG5 - PG7"
+	help
+	  PG{5,6,7} <-> {PPICLK/TMRCLK,TMR0/PPIFS1,TMR1/PPIFS2}
+
+config BF518_PPI_TMR_PG12
+	bool "PG12 - PG14"
+	help
+	  PG{12,13,14} <-> {PPICLK/TMRCLK,TMR0/PPIFS1,TMR1/PPIFS2}
+
 endchoice
 
 comment "Hysteresis/Schmitt Trigger Control"

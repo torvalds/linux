@@ -204,7 +204,7 @@ static int __init eic_probe(struct platform_device *pdev)
 	}
 
 	eic->first_irq = EIM_IRQ_BASE + 32 * pdev->id;
-	eic->regs = ioremap(regs->start, regs->end - regs->start + 1);
+	eic->regs = ioremap(regs->start, resource_size(regs));
 	if (!eic->regs) {
 		dev_dbg(&pdev->dev, "failed to map regs\n");
 		goto err_ioremap;

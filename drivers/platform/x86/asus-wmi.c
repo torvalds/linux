@@ -857,7 +857,7 @@ static mode_t asus_hwmon_sysfs_is_visible(struct kobject *kobj,
 		int err = asus_wmi_get_devstate(asus, dev_id, &value);
 
 		if (err < 0)
-			return err;
+			return 0; /* can't return negative here */
 	}
 
 	if (dev_id == ASUS_WMI_DEVID_FAN_CTRL) {
@@ -1025,6 +1025,7 @@ static int asus_wmi_backlight_init(struct asus_wmi *asus)
 		return power;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = max;
 	bd = backlight_device_register(asus->driver->name,
 				       &asus->platform_device->dev, asus,

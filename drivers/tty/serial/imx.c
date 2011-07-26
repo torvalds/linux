@@ -954,7 +954,7 @@ static void imx_release_port(struct uart_port *port)
 	struct resource *mmres;
 
 	mmres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(mmres->start, mmres->end - mmres->start + 1);
+	release_mem_region(mmres->start, resource_size(mmres));
 }
 
 /*
@@ -970,8 +970,7 @@ static int imx_request_port(struct uart_port *port)
 	if (!mmres)
 		return -ENODEV;
 
-	ret = request_mem_region(mmres->start, mmres->end - mmres->start + 1,
-			"imx-uart");
+	ret = request_mem_region(mmres->start, resource_size(mmres), "imx-uart");
 
 	return  ret ? 0 : -EBUSY;
 }

@@ -743,7 +743,7 @@ pci_ni8430_setup(struct serial_private *priv,
 	len =  pci_resource_len(priv->dev, bar);
 	p = ioremap_nocache(base, len);
 
-	/* enable the transciever */
+	/* enable the transceiver */
 	writeb(readb(p + offset + NI8430_PORTCON) | NI8430_PORTCON_TXVR_ENABLE,
 	       p + offset + NI8430_PORTCON);
 

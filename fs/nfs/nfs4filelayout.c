@@ -398,7 +398,6 @@ filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 	 * this offset and save the original offset.
 	 */
 	data->args.offset = filelayout_get_dserver_offset(lseg, offset);
-	data->mds_offset = offset;
 
 	/* Perform an asynchronous write */
 	status = nfs_initiate_write(data, ds->ds_clp->cl_rpcclient,
