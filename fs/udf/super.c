@@ -195,11 +195,11 @@ struct udf_options {
 	unsigned int fileset;
 	unsigned int rootdir;
 	unsigned int flags;
-	mode_t umask;
+	umode_t umask;
 	gid_t gid;
 	uid_t uid;
-	mode_t fmode;
-	mode_t dmode;
+	umode_t fmode;
+	umode_t dmode;
 	struct nls_table *nls_map;
 };
 
@@ -279,11 +279,11 @@ static int udf_show_options(struct seq_file *seq, struct vfsmount *mnt)
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_GID_SET))
 		seq_printf(seq, ",gid=%u", sbi->s_gid);
 	if (sbi->s_umask != 0)
-		seq_printf(seq, ",umask=%o", sbi->s_umask);
+		seq_printf(seq, ",umask=%ho", sbi->s_umask);
 	if (sbi->s_fmode != UDF_INVALID_MODE)
-		seq_printf(seq, ",mode=%o", sbi->s_fmode);
+		seq_printf(seq, ",mode=%ho", sbi->s_fmode);
 	if (sbi->s_dmode != UDF_INVALID_MODE)
-		seq_printf(seq, ",dmode=%o", sbi->s_dmode);
+		seq_printf(seq, ",dmode=%ho", sbi->s_dmode);
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_SESSION_SET))
 		seq_printf(seq, ",session=%u", sbi->s_session);
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_LASTBLOCK_SET))
