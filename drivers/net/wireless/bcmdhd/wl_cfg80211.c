@@ -32,9 +32,7 @@
 /*
  * sys proc file will be REMOVED in next release
  */
-#undef CONFIG_SYSCTL
-
-#ifdef CONFIG_SYSCTL
+#if defined(DHD_P2P_DEV_ADDR_FROM_SYSFS) && defined(CONFIG_SYSCTL)
 #include <linux/sysctl.h>
 #endif
 
@@ -88,7 +86,7 @@ u32 wl_dbg_level = WL_DBG_ERR;
 #define MAX_WAIT_TIME 3000
 static s8 ioctlbuf[WLC_IOCTL_MAXLEN];
 
-#ifdef CONFIG_SYSCTL
+#if defined(DHD_P2P_DEV_ADDR_FROM_SYSFS) && defined(CONFIG_SYSCTL)
 #define MAC_STRING_LEN (sizeof(u8) * 17)
 u8 wl_sysctl_macstring[2][MAC_STRING_LEN];
 
@@ -5295,7 +5293,7 @@ static void wl_deinit_priv(struct wl_priv *wl)
 	wl_deinit_priv_mem(wl);
 }
 
-#ifdef CONFIG_SYSCTL
+#if defined(DHD_P2P_DEV_ADDR_FROM_SYSFS) && defined(CONFIG_SYSCTL)
 s32 wl_cfg80211_sysctl_export_devaddr(void *data)
 {
 	/* Export the p2p_dev_addr via sysctl interface
@@ -5331,7 +5329,7 @@ s32 wl_cfg80211_attach_post(struct net_device *ndev)
 					BIT(NL80211_IFTYPE_P2P_GO));
 				if ((err = wl_cfgp2p_init_priv(wl)) != 0)
 					goto fail;
-#ifdef CONFIG_SYSCTL
+#if defined(DHD_P2P_DEV_ADDR_FROM_SYSFS) && defined(CONFIG_SYSCTL)
 				wl_cfg80211_sysctl_export_devaddr(wl->pub);
 #endif
 				wl->p2p_supported = true;
@@ -5388,7 +5386,7 @@ s32 wl_cfg80211_attach(struct net_device *ndev, void *data)
 		goto cfg80211_attach_out;
 	}
 
-#ifdef CONFIG_SYSCTL
+#if defined(DHD_P2P_DEV_ADDR_FROM_SYSFS) && defined(CONFIG_SYSCTL)
 	if (!(wl_sysctl_hdr = register_sysctl_table(wl_sysctl_table))) {
 		WL_ERR(("%s: sysctl register failed!! \n", __func__));
 		goto cfg80211_attach_out;
@@ -5410,8 +5408,7 @@ void wl_cfg80211_detach(void)
 	wl = WL_PRIV_GET();
 
 	WL_TRACE(("In\n"));
-
-#ifdef CONFIG_SYSCTL
+#if defined(DHD_P2P_DEV_ADDR_FROM_SYSFS) && defined(CONFIG_SYSCTL)
 	if (wl_sysctl_hdr)
 		unregister_sysctl_table(wl_sysctl_hdr);
 #endif
