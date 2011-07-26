@@ -59,6 +59,7 @@ extern int dhd_bus_rxctl(struct dhd_bus *bus, uchar *msg, uint msglen);
 
 /* Watchdog timer function */
 extern bool dhd_bus_watchdog(dhd_pub_t *dhd);
+extern void dhd_disable_intr(dhd_pub_t *dhd);
 
 #if defined(DHD_DEBUG)
 /* Device console input function */

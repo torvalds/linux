@@ -21,11 +21,9 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfg80211.c,v 1.1.4.1.2.14 2011-02-09 01:40:07 Exp $
- * $Id$
+ * $Id: wl_cfgp2p.c,v 1.1.4.1.2.14 2011-02-09 01:40:07 Exp $
+ *
  */
-
-
 #include <typedefs.h>
 #include <linuxver.h>
 #include <osl.h>
@@ -436,7 +434,7 @@ wl_cfgp2p_enable_discovery(struct wl_priv *wl, struct net_device *dev, const u8 
 		CFGP2P_ERR((" wsec error %d\n", ret));
 	}
 set_ie:
-	ret = wl_cfgp2p_set_managment_ie(wl, dev,
+	ret = wl_cfgp2p_set_management_ie(wl, dev,
 	            wl_to_p2p_bss_bssidx(wl, P2PAPI_BSSCFG_DEVICE),
 	            VNDR_IE_PRBREQ_FLAG, ie, ie_len);
 
@@ -604,7 +602,7 @@ wl_cfgp2p_escan(struct wl_priv *wl, struct net_device *dev, u16 active,
  */
 
 s32
-wl_cfgp2p_set_managment_ie(struct wl_priv *wl, struct net_device *ndev, s32 bssidx,
+wl_cfgp2p_set_management_ie(struct wl_priv *wl, struct net_device *ndev, s32 bssidx,
     s32 pktflag, const u8 *vndr_ie, u32 vndr_ie_len)
 {
 	/* Vendor-specific Information Element ID */
@@ -677,7 +675,7 @@ wl_cfgp2p_set_managment_ie(struct wl_priv *wl, struct net_device *ndev, s32 bssi
 	}
 	/* Add if there is any extra IE */
 	if (vndr_ie && vndr_ie_len) {
-		CFGP2P_ERR(("Request has extra IE"));
+		CFGP2P_INFO(("Request has extra IE"));
 		if (vndr_ie_len > mgmt_ie_buf_len) {
 			CFGP2P_ERR(("extra IE size too big\n"));
 			ret = -ENOMEM;
@@ -898,7 +896,7 @@ wl_cfgp2p_find_idx(struct wl_priv *wl, struct net_device *ndev)
 		return P2PAPI_BSSCFG_PRIMARY;
 	}
 	for (i = 0; i < P2PAPI_BSSCFG_MAX; i++) {
-	    if (ndev == wl_to_p2p_bss_ndev(wl, i)) {
+		if (ndev == wl_to_p2p_bss_ndev(wl, i)) {
 			index = wl_to_p2p_bss_bssidx(wl, i);
 			break;
 		}
@@ -1015,11 +1013,11 @@ wl_cfgp2p_discover_enable_search(struct wl_priv *wl, u8 enable)
 	CFGP2P_DBG((" Enter\n"));
 	if (!wl_get_p2p_status(wl, DISCOVERY_ON)) {
 
-		CFGP2P_ERR((" do nothing, discovery is off\n"));
+		CFGP2P_DBG((" do nothing, discovery is off\n"));
 		return ret;
 	}
 	if (wl_get_p2p_status(wl, SEARCH_ENABLED) == enable) {
-		CFGP2P_ERR(("already : %d\n", enable));
+		CFGP2P_DBG(("already : %d\n", enable));
 		return ret;
 	}
 
@@ -1254,7 +1252,7 @@ wl_cfgp2p_supported(struct wl_priv *wl, struct net_device *ndev)
 	ret = wldev_iovar_getint(ndev, "p2p",
 	               &p2p_supported);
 	if (ret < 0) {
-	    CFGP2P_ERR(("wl p2p error %d\n", ret));
+		CFGP2P_ERR(("wl p2p error %d\n", ret));
 		return 0;
 	}
 	if (p2p_supported == 1) {

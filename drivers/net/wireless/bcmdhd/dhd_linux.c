@@ -3248,6 +3248,9 @@ dhd_module_init(void)
 		goto fail_2;
 		}
 #endif
+#if defined(WL_CFG80211)
+	error = wl_android_post_init();
+#endif
 
 	return error;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && 1

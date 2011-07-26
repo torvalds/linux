@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfg80211.h,v 1.1.4.1.2.8 2011/02/09 01:37:52 Exp $
+ * $Id: wl_cfgp2p.h,v 1.1.4.1.2.8 2011/02/09 01:37:52 Exp $
  */
 #ifndef _wl_cfgp2p_h_
 #define _wl_cfgp2p_h_
@@ -176,7 +176,7 @@ extern wifi_p2p_ie_t *
 wl_cfgp2p_find_p2pie(u8 *parse, u32 len);
 
 extern s32
-wl_cfgp2p_set_managment_ie(struct wl_priv *wl, struct net_device *ndev, s32 bssidx,
+wl_cfgp2p_set_management_ie(struct wl_priv *wl, struct net_device *ndev, s32 bssidx,
             s32 pktflag, const u8 *vndr_ie, u32 vndr_ie_len);
 extern s32
 wl_cfgp2p_clear_management_ie(struct wl_priv *wl, s32 bssidx);

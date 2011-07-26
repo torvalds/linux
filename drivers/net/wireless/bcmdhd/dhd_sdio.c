@@ -395,7 +395,7 @@ static bool dhd_readahead;
 	(((uint8)(bus->tx_max - bus->tx_seq) > 1) && \
 	(((uint8)(bus->tx_max - bus->tx_seq) & 0x80) == 0))
 
-/* To check if there's window offered for ctrl frame*/
+/* To check if there's window offered for ctrl frame */
 #define TXCTLOK(bus) \
 	(((uint8)(bus->tx_max - bus->tx_seq) != 0) && \
 	(((uint8)(bus->tx_max - bus->tx_seq) & 0x80) == 0))
@@ -4598,7 +4598,7 @@ clkwait:
 		framecnt = dhdsdio_sendfromq(bus, framecnt);
 		txlimit -= framecnt;
 	}
-	/* Resched the DPC if ctrl cmd is pending on bus credit*/
+	/* Resched the DPC if ctrl cmd is pending on bus credit */
 	if (bus->ctrl_frame_stat)
 		resched = TRUE;
 
@@ -4957,6 +4957,14 @@ dhdsdio_testrcv(dhd_bus_t *bus, void *pkt, uint seq)
 	}
 }
 #endif /* SDTEST */
+
+extern void
+dhd_disable_intr(dhd_pub_t *dhdp)
+{
+	dhd_bus_t *bus;
+	bus = dhdp->bus;
+	bcmsdh_intr_disable(bus->sdh);
+}
 
 extern bool
 dhd_bus_watchdog(dhd_pub_t *dhdp)

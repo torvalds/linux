@@ -92,7 +92,7 @@ typedef struct cmd_tlv {
 	char subver;
 	char reserved;
 } cmd_tlv_t;
-#endif
+#endif /* PNO_SUPPORT */
 
 typedef struct android_wifi_priv_cmd {
 	char *buf;
@@ -280,7 +280,7 @@ static int wl_android_set_pno_setup(struct net_device *dev, char *command, int t
 exit_proc:
 	return res;
 }
-#endif
+#endif /* PNO_SUPPORT */
 
 static int wl_android_get_p2p_dev_addr(struct net_device *ndev, char *command, int total_len)
 {
@@ -401,7 +401,7 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 
 	if (!g_wifi_on) {
 		DHD_ERROR(("%s: Ignore private cmd \"%s\" - iface %s is down\n",
-				__FUNCTION__, command, ifr->ifr_name));
+			__FUNCTION__, command, ifr->ifr_name));
 		ret = 0;
 		goto exit;
 	}
@@ -520,6 +520,17 @@ int wl_android_exit(void)
 	return ret;
 }
 
+int wl_android_post_init(void)
+{
+	int ret = 0;
+	if (!dhd_download_fw_on_driverload) {
+		/* Call customer gpio to turn off power with WL_REG_ON signal */
+		dhd_customer_gpio_wlan_ctrl(WLAN_RESET_OFF);
+		g_wifi_on = 0;
+
+	}
+	return ret;
+}
 
 /**
  * Functions for Android WiFi card detection
