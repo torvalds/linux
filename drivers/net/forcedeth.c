@@ -2764,7 +2764,14 @@ static int nv_rx_process_optimized(struct net_device *dev, int limit)
 			prefetch(skb->data);
 
 			vlanflags = le32_to_cpu(np->get_rx.ex->buflow);
-			if (vlanflags & NV_RX3_VLAN_TAG_PRESENT) {
+
+			/*
+			 * There's need to check for NETIF_F_HW_VLAN_RX here.
+			 * Even if vlan rx accel is disabled,
+			 * NV_RX3_VLAN_TAG_PRESENT is pseudo randomly set.
+			 */
+			if (dev->features & NETIF_F_HW_VLAN_RX &&
+			    vlanflags & NV_RX3_VLAN_TAG_PRESENT) {
 				u16 vid = vlanflags & NV_RX3_VLAN_TAG_MASK;
 
 				__vlan_hwaccel_put_tag(skb, vid);
@@ -5331,14 +5338,15 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		np->txrxctl_bits |= NVREG_TXRXCTL_RXCHECK;
 		dev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_SG |
 			NETIF_F_TSO | NETIF_F_RXCSUM;
-		dev->features |= dev->hw_features;
 	}
 
 	np->vlanctl_bits = 0;
 	if (id->driver_data & DEV_HAS_VLAN) {
 		np->vlanctl_bits = NVREG_VLANCONTROL_ENABLE;
-		dev->features |= NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX;
+		dev->hw_features |= NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX;
 	}
+
+	dev->features |= dev->hw_features;
 
 	np->pause_flags = NV_PAUSEFRAME_RX_CAPABLE | NV_PAUSEFRAME_RX_REQ | NV_PAUSEFRAME_AUTONEG;
 	if ((id->driver_data & DEV_HAS_PAUSEFRAME_TX_V1) ||
@@ -5606,6 +5614,8 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		dev_info(&pci_dev->dev, "unable to register netdev: %d\n", err);
 		goto out_error;
 	}
+
+	nv_vlan_mode(dev, dev->features);
 
 	netif_carrier_off(dev);
 
