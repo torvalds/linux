@@ -181,21 +181,21 @@ static __inline__ int atomic_dec_return(atomic_t *v)
 #define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 
 /**
- * atomic_add_unless - add unless the number is a given value
+ * __atomic_add_unless - add unless the number is a given value
  * @v: pointer of type atomic_t
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
  *
  * Atomically adds @a to @v, so long as it was not @u.
- * Returns non-zero if @v was not @u, and zero otherwise.
+ * Returns the old value of @v.
  */
-static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
+static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
 {
 	int t;
 
 	__asm__ __volatile__ (
 	PPC_RELEASE_BARRIER
-"1:	lwarx	%0,0,%1		# atomic_add_unless\n\
+"1:	lwarx	%0,0,%1		# __atomic_add_unless\n\
 	cmpw	0,%0,%3 \n\
 	beq-	2f \n\
 	add	%0,%2,%0 \n"
@@ -209,7 +209,7 @@ static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
 	: "r" (&v->counter), "r" (a), "r" (u)
 	: "cc", "memory");
 
-	return t != u;
+	return t;
 }
 
 
@@ -443,7 +443,7 @@ static __inline__ long atomic64_dec_if_positive(atomic64_t *v)
  * @u: ...unless v is equal to u.
  *
  * Atomically adds @a to @v, so long as it was not @u.
- * Returns non-zero if @v was not @u, and zero otherwise.
+ * Returns the old value of @v.
  */
 static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
 {
@@ -451,7 +451,7 @@ static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
 
 	__asm__ __volatile__ (
 	PPC_RELEASE_BARRIER
-"1:	ldarx	%0,0,%1		# atomic_add_unless\n\
+"1:	ldarx	%0,0,%1		# __atomic_add_unless\n\
 	cmpd	0,%0,%3 \n\
 	beq-	2f \n\
 	add	%0,%2,%0 \n"

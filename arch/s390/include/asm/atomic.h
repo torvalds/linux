@@ -93,7 +93,7 @@ static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 	return old;
 }
 
-static inline int atomic_add_unless(atomic_t *v, int a, int u)
+static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 {
 	int c, old;
 	c = atomic_read(v);
@@ -105,7 +105,7 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 			break;
 		c = old;
 	}
-	return c != u;
+	return c;
 }
 
 
