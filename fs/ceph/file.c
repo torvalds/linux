@@ -713,7 +713,7 @@ retry_snap:
 		want = CEPH_CAP_FILE_BUFFER;
 	ret = ceph_get_caps(ci, CEPH_CAP_FILE_WR, want, &got, endoff);
 	if (ret < 0)
-		goto out;
+		goto out_put;
 
 	dout("aio_write %p %llx.%llx %llu~%u  got cap refs on %s\n",
 	     inode, ceph_vinop(inode), pos, (unsigned)iov->iov_len,
@@ -726,8 +726,18 @@ retry_snap:
 		ret = ceph_sync_write(file, iov->iov_base, iov->iov_len,
 			&iocb->ki_pos);
 	} else {
-		ret = generic_file_aio_write(iocb, iov, nr_segs, pos);
+		/*
+		 * buffered write; drop Fw early to avoid slow
+		 * revocation if we get stuck on balance_dirty_pages
+		 */
+		int dirty;
 
+		spin_lock(&inode->i_lock);
+		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR);
+		spin_unlock(&inode->i_lock);
+		ceph_put_cap_refs(ci, got);
+
+		ret = generic_file_aio_write(iocb, iov, nr_segs, pos);
 		if ((ret >= 0 || ret == -EIOCBQUEUED) &&
 		    ((file->f_flags & O_SYNC) || IS_SYNC(file->f_mapping->host)
 		     || ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_NEARFULL))) {
@@ -735,7 +745,12 @@ retry_snap:
 			if (err < 0)
 				ret = err;
 		}
+
+		if (dirty)
+			__mark_inode_dirty(inode, dirty);
+		goto out;
 	}
+
 	if (ret >= 0) {
 		int dirty;
 		spin_lock(&inode->i_lock);
@@ -745,12 +760,13 @@ retry_snap:
 			__mark_inode_dirty(inode, dirty);
 	}
 
-out:
+out_put:
 	dout("aio_write %p %llx.%llx %llu~%u  dropping cap refs on %s\n",
 	     inode, ceph_vinop(inode), pos, (unsigned)iov->iov_len,
 	     ceph_cap_string(got));
 	ceph_put_cap_refs(ci, got);
 
+out:
 	if (ret == -EOLDSNAPC) {
 		dout("aio_write %p %llx.%llx %llu~%u got EOLDSNAPC, retrying\n",
 		     inode, ceph_vinop(inode), pos, (unsigned)iov->iov_len);
