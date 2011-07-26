@@ -1337,6 +1337,38 @@ static struct v4l2_subdev_core_ops rj54n1_subdev_core_ops = {
 #endif
 };
 
+static int rj54n1_g_mbus_config(struct v4l2_subdev *sd,
+				struct v4l2_mbus_config *cfg)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct soc_camera_device *icd = client->dev.platform_data;
+	struct soc_camera_link *icl = to_soc_camera_link(icd);
+
+	cfg->flags =
+		V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_PCLK_SAMPLE_FALLING |
+		V4L2_MBUS_MASTER | V4L2_MBUS_DATA_ACTIVE_HIGH |
+		V4L2_MBUS_HSYNC_ACTIVE_HIGH | V4L2_MBUS_VSYNC_ACTIVE_HIGH;
+	cfg->type = V4L2_MBUS_PARALLEL;
+	cfg->flags = soc_camera_apply_board_flags(icl, cfg);
+
+	return 0;
+}
+
+static int rj54n1_s_mbus_config(struct v4l2_subdev *sd,
+				const struct v4l2_mbus_config *cfg)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct soc_camera_device *icd = client->dev.platform_data;
+	struct soc_camera_link *icl = to_soc_camera_link(icd);
+
+	/* Figures 2.5-1 to 2.5-3 - default falling pixclk edge */
+	if (soc_camera_apply_board_flags(icl, cfg) &
+	    V4L2_MBUS_PCLK_SAMPLE_RISING)
+		return reg_write(client, RJ54N1_OUT_SIGPO, 1 << 4);
+	else
+		return reg_write(client, RJ54N1_OUT_SIGPO, 0);
+}
+
 static struct v4l2_subdev_video_ops rj54n1_subdev_video_ops = {
 	.s_stream	= rj54n1_s_stream,
 	.s_mbus_fmt	= rj54n1_s_fmt,
@@ -1346,6 +1378,8 @@ static struct v4l2_subdev_video_ops rj54n1_subdev_video_ops = {
 	.g_crop		= rj54n1_g_crop,
 	.s_crop		= rj54n1_s_crop,
 	.cropcap	= rj54n1_cropcap,
+	.g_mbus_config	= rj54n1_g_mbus_config,
+	.s_mbus_config	= rj54n1_s_mbus_config,
 };
 
 static struct v4l2_subdev_ops rj54n1_subdev_ops = {
