@@ -56,7 +56,7 @@
  *
  * This function returns the inherited flags.
  */
-static int inherit_flags(const struct inode *dir, int mode)
+static int inherit_flags(const struct inode *dir, umode_t mode)
 {
 	int flags;
 	const struct ubifs_inode *ui = ubifs_inode(dir);
@@ -86,7 +86,7 @@ static int inherit_flags(const struct inode *dir, int mode)
  * case of failure.
  */
 struct inode *ubifs_new_inode(struct ubifs_info *c, const struct inode *dir,
-			      int mode)
+			      umode_t mode)
 {
 	struct inode *inode;
 	struct ubifs_inode *ui;
