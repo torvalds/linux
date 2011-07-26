@@ -59,7 +59,7 @@ static const struct inode_operations v9fs_symlink_inode_operations;
  *
  */
 
-static u32 unixmode2p9mode(struct v9fs_session_info *v9ses, int mode)
+static u32 unixmode2p9mode(struct v9fs_session_info *v9ses, umode_t mode)
 {
 	int res;
 	res = mode & 0777;
@@ -94,11 +94,11 @@ static u32 unixmode2p9mode(struct v9fs_session_info *v9ses, int mode)
  * @rdev: major number, minor number in case of device files.
  *
  */
-static int p9mode2unixmode(struct v9fs_session_info *v9ses,
-			   struct p9_wstat *stat, dev_t *rdev)
+static umode_t p9mode2unixmode(struct v9fs_session_info *v9ses,
+			       struct p9_wstat *stat, dev_t *rdev)
 {
 	int res;
-	int mode = stat->mode;
+	u32 mode = stat->mode;
 
 	res = mode & S_IALLUGO;
 	*rdev = 0;
@@ -255,7 +255,7 @@ void v9fs_destroy_inode(struct inode *inode)
 }
 
 int v9fs_init_inode(struct v9fs_session_info *v9ses,
-		    struct inode *inode, int mode, dev_t rdev)
+		    struct inode *inode, umode_t mode, dev_t rdev)
 {
 	int err = 0;
 
@@ -329,7 +329,7 @@ int v9fs_init_inode(struct v9fs_session_info *v9ses,
 
 		break;
 	default:
-		P9_DPRINTK(P9_DEBUG_ERROR, "BAD mode 0x%x S_IFMT 0x%x\n",
+		P9_DPRINTK(P9_DEBUG_ERROR, "BAD mode 0x%hx S_IFMT 0x%x\n",
 			   mode, mode & S_IFMT);
 		err = -EINVAL;
 		goto error;
@@ -346,13 +346,13 @@ error:
  *
  */
 
-struct inode *v9fs_get_inode(struct super_block *sb, int mode, dev_t rdev)
+struct inode *v9fs_get_inode(struct super_block *sb, umode_t mode, dev_t rdev)
 {
 	int err;
 	struct inode *inode;
 	struct v9fs_session_info *v9ses = sb->s_fs_info;
 
-	P9_DPRINTK(P9_DEBUG_VFS, "super block: %p mode: %o\n", sb, mode);
+	P9_DPRINTK(P9_DEBUG_VFS, "super block: %p mode: %ho\n", sb, mode);
 
 	inode = new_inode(sb);
 	if (!inode) {
@@ -486,7 +486,8 @@ static struct inode *v9fs_qid_iget(struct super_block *sb,
 				   int new)
 {
 	dev_t rdev;
-	int retval, umode;
+	int retval;
+	umode_t umode;
 	unsigned long i_ino;
 	struct inode *inode;
 	struct v9fs_session_info *v9ses = sb->s_fs_info;
@@ -1125,7 +1126,7 @@ void
 v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 	struct super_block *sb)
 {
-	mode_t mode;
+	umode_t mode;
 	char ext[32];
 	char tag_name[14];
 	unsigned int i_nlink;
