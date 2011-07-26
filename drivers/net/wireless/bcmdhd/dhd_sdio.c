@@ -6067,6 +6067,7 @@ _dhdsdio_download_firmware(struct dhd_bus *bus)
 	/* External nvram takes precedence if specified */
 	if (dhdsdio_download_nvram(bus)) {
 		DHD_ERROR(("%s: dongle nvram file download failed\n", __FUNCTION__));
+		goto err;
 	}
 
 	/* Take arm out of reset */
