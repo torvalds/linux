@@ -427,7 +427,7 @@ static s32 wl_config_dongle(struct wl_priv *wl, bool need_lock);
  */
 static void wl_iscan_timer(unsigned long data);
 static void wl_term_iscan(struct wl_priv *wl);
-static s32 wl_init_iscan(struct wl_priv *wl);
+static s32 wl_init_scan(struct wl_priv *wl);
 static s32 wl_iscan_thread(void *data);
 static s32 wl_run_iscan(struct wl_iscan_ctrl *iscan, struct wlc_ssid *ssid,
 	u16 action);
@@ -2068,8 +2068,20 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	size_t join_params_size;
 	s32 err = 0;
 
-	WL_TRACE(("In\n"));
+	WL_DBG(("In\n"));
 	CHECK_SYS_UP();
+
+	/*
+	 * Cancel ongoing scan to sync up with sme state machine of cfg80211.
+	 */
+	if (wl->scan_request) {
+		wl_set_drv_status(wl, SCAN_ABORTING);
+		cfg80211_scan_done(wl->scan_request, true);
+		wl->scan_request = NULL;
+		wl_clr_drv_status(wl, SCANNING);
+		wl_clr_drv_status(wl, SCAN_ABORTING);
+	}
+
 	if (IS_P2P_SSID(sme->ssid) && (dev != wl_to_prmry_ndev(wl))) {
 		/* we only allow to connect using virtual interface in case of P2P */
 		if (p2p_on(wl) && is_wps_conn(sme)) {
@@ -2762,7 +2774,7 @@ static s32 wl_cfg80211_resume(struct wiphy *wiphy)
 	struct wl_priv *wl = WL_PRIV_GET();
 	s32 err = 0;
 
-	if (unlikely(!test_bit(WL_STATUS_READY, &wl->status))) {
+	if (unlikely(!wl_get_drv_status(wl, READY))) {
 		WL_INFO(("device is not ready : status (%d)\n",
 			(int)wl->status));
 		return 0;
@@ -2782,7 +2794,7 @@ static s32 wl_cfg80211_suspend(struct wiphy *wiphy)
 	struct wl_priv *wl = WL_PRIV_GET();
 	s32 err = 0;
 
-	if (unlikely(!test_bit(WL_STATUS_READY, &wl->status))) {
+	if (unlikely(!wl_get_drv_status(wl, READY))) {
 		WL_INFO(("device is not ready : status (%d)\n",
 			(int)wl->status));
 		return 0;
@@ -4510,7 +4522,17 @@ wl_bss_connect_done(struct wl_priv *wl, struct net_device *ndev,
 			GFP_KERNEL);
 		WL_DBG(("Report roaming result\n"));
 	}
-	wl_set_drv_status(wl, CONNECTED);
+	if (completed)
+		wl_set_drv_status(wl, CONNECTED);
+	else {
+		if (wl->scan_request) {
+			wl_set_drv_status(wl, SCAN_ABORTING);
+			cfg80211_scan_done(wl->scan_request, true);
+			wl->scan_request = NULL;
+			wl_clr_drv_status(wl, SCANNING);
+			wl_clr_drv_status(wl, SCAN_ABORTING);
+		}
+	}
 
 	return err;
 }
@@ -4554,8 +4576,6 @@ wl_notify_scan_status(struct wl_priv *wl, struct net_device *ndev,
 		return -EINVAL;
 	}
 	wl_clr_drv_status(wl, SCANNING);
-	if (unlikely(!wl->scan_request)) {
-	}
 	rtnl_lock();
 	err = wldev_ioctl(ndev, WLC_GET_CHANNEL, &channel_inform,
 		sizeof(channel_inform), false);
@@ -4589,7 +4609,7 @@ wl_notify_scan_status(struct wl_priv *wl, struct net_device *ndev,
 
 scan_done_out:
 	if (wl->scan_request) {
-		WL_ERR(("cfg80211_scan_done\n"));
+		WL_DBG(("cfg80211_scan_done\n"));
 		cfg80211_scan_done(wl->scan_request, false);
 		wl->scan_request = NULL;
 	}
@@ -5192,7 +5212,7 @@ exit:
 	return err;
 }
 
-static s32 wl_init_iscan(struct wl_priv *wl)
+static s32 wl_init_scan(struct wl_priv *wl)
 {
 	struct wl_iscan_ctrl *iscan = wl_to_iscan(wl);
 	int err = 0;
@@ -5254,7 +5274,7 @@ static s32 wl_init_priv(struct wl_priv *wl)
 		return -ENOMEM;
 	wl_init_event_handler(wl);
 	mutex_init(&wl->usr_sync);
-	err = wl_init_iscan(wl);
+	err = wl_init_scan(wl);
 	if (unlikely(err))
 		return err;
 	wl_init_fw(wl->fw);
