@@ -1244,9 +1244,8 @@ void ceph_dentry_lru_del(struct dentry *dn)
  * Return name hash for a given dentry.  This is dependent on
  * the parent directory's hash function.
  */
-unsigned ceph_dentry_hash(struct dentry *dn)
+unsigned ceph_dentry_hash(struct inode *dir, struct dentry *dn)
 {
-	struct inode *dir = dn->d_parent->d_inode;
 	struct ceph_inode_info *dci = ceph_inode(dir);
 
 	switch (dci->i_dir_layout.dl_dir_hash) {
