@@ -1664,7 +1664,7 @@ zonelist_scan:
 				continue;
 		if ((alloc_flags & ALLOC_CPUSET) &&
 			!cpuset_zone_allowed_softwall(zone, gfp_mask))
-				goto try_next_zone;
+				continue;
 
 		BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
@@ -1676,17 +1676,36 @@ zonelist_scan:
 				    classzone_idx, alloc_flags))
 				goto try_this_zone;
 
+			if (NUMA_BUILD && !did_zlc_setup && nr_online_nodes > 1) {
+				/*
+				 * we do zlc_setup if there are multiple nodes
+				 * and before considering the first zone allowed
+				 * by the cpuset.
+				 */
+				allowednodes = zlc_setup(zonelist, alloc_flags);
+				zlc_active = 1;
+				did_zlc_setup = 1;
+			}
+
 			if (zone_reclaim_mode == 0)
 				goto this_zone_full;
+
+			/*
+			 * As we may have just activated ZLC, check if the first
+			 * eligible zone has failed zone_reclaim recently.
+			 */
+			if (NUMA_BUILD && zlc_active &&
+				!zlc_zone_worth_trying(zonelist, z, allowednodes))
+				continue;
 
 			ret = zone_reclaim(zone, gfp_mask, order);
 			switch (ret) {
 			case ZONE_RECLAIM_NOSCAN:
 				/* did not scan */
-				goto try_next_zone;
+				continue;
 			case ZONE_RECLAIM_FULL:
 				/* scanned but unreclaimable */
-				goto this_zone_full;
+				continue;
 			default:
 				/* did we reclaim enough */
 				if (!zone_watermark_ok(zone, order, mark,
@@ -1703,16 +1722,6 @@ try_this_zone:
 this_zone_full:
 		if (NUMA_BUILD)
 			zlc_mark_zone_full(zonelist, z);
-try_next_zone:
-		if (NUMA_BUILD && !did_zlc_setup && nr_online_nodes > 1) {
-			/*
-			 * we do zlc_setup after the first zone is tried but only
-			 * if there are multiple nodes make it worthwhile
-			 */
-			allowednodes = zlc_setup(zonelist, alloc_flags);
-			zlc_active = 1;
-			did_zlc_setup = 1;
-		}
 	}
 
 	if (unlikely(NUMA_BUILD && page == NULL && zlc_active)) {
