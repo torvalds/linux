@@ -6198,6 +6198,7 @@ int ar6000_create_ap_interface(struct ar6_softc *ar, char *ap_ifname)
     
     ether_setup(dev);
     init_netdev(dev, ap_ifname);
+    dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 
     if (register_netdev(dev)) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000_create_ap_interface: register_netdev failed\n"));
