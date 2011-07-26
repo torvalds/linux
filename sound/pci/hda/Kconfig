@@ -243,6 +243,7 @@ config SND_HDA_GENERIC
 
 config SND_HDA_POWER_SAVE
 	bool "Aggressive power-saving on HD-audio"
+	depends on PM
 	help
 	  Say Y here to enable more aggressive power-saving mode on
 	  HD-audio driver.  The power-saving timeout can be configured

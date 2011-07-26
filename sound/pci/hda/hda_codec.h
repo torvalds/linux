@@ -26,10 +26,6 @@
 #include <sound/pcm.h>
 #include <sound/hwdep.h>
 
-#if defined(CONFIG_PM) || defined(CONFIG_SND_HDA_POWER_SAVE)
-#define SND_HDA_NEEDS_RESUME	/* resume control code is required */
-#endif
-
 /*
  * nodes
  */
@@ -704,17 +700,15 @@ struct hda_codec_ops {
 	int (*init)(struct hda_codec *codec);
 	void (*free)(struct hda_codec *codec);
 	void (*unsol_event)(struct hda_codec *codec, unsigned int res);
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 	int (*suspend)(struct hda_codec *codec, pm_message_t state);
+	int (*pre_resume)(struct hda_codec *codec);
 	int (*resume)(struct hda_codec *codec);
 #endif
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	int (*check_power_status)(struct hda_codec *codec, hda_nid_t nid);
 #endif
 	void (*reboot_notify)(struct hda_codec *codec);
-#ifdef SND_HDA_NEEDS_RESUME
-	int (*pre_resume)(struct hda_codec *codec);
-#endif
 };
 
 /* record for amp information cache */
@@ -930,7 +924,7 @@ void snd_hda_sequence_write(struct hda_codec *codec,
 int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex);
 
 /* cached write */
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
 			      int direct, unsigned int verb, unsigned int parm);
 void snd_hda_sequence_write_cache(struct hda_codec *codec,

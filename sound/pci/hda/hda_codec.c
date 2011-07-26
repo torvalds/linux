@@ -1101,7 +1101,7 @@ void snd_hda_shutup_pins(struct hda_codec *codec)
 }
 EXPORT_SYMBOL_HDA(snd_hda_shutup_pins);
 
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 /* Restore the pin controls cleared previously via snd_hda_shutup_pins() */
 static void restore_shutup_pins(struct hda_codec *codec)
 {
@@ -1499,7 +1499,7 @@ static void purify_inactive_streams(struct hda_codec *codec)
 	}
 }
 
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 /* clean up all streams; called from suspend */
 static void hda_cleanup_all_streams(struct hda_codec *codec)
 {
@@ -1838,7 +1838,7 @@ int snd_hda_codec_amp_stereo(struct hda_codec *codec, hda_nid_t nid,
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_amp_stereo);
 
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 /**
  * snd_hda_codec_resume_amp - Resume all AMP commands from the cache
  * @codec: HD-audio codec
@@ -1868,7 +1868,7 @@ void snd_hda_codec_resume_amp(struct hda_codec *codec)
 	}
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_resume_amp);
-#endif /* SND_HDA_NEEDS_RESUME */
+#endif /* CONFIG_PM */
 
 static u32 get_amp_max_value(struct hda_codec *codec, hda_nid_t nid, int dir,
 			     unsigned int ofs)
@@ -3082,7 +3082,7 @@ int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid)
 }
 EXPORT_SYMBOL_HDA(snd_hda_create_spdif_in_ctls);
 
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 /*
  * command cache
  */
@@ -3199,7 +3199,7 @@ void snd_hda_sequence_write_cache(struct hda_codec *codec,
 					  seq->param);
 }
 EXPORT_SYMBOL_HDA(snd_hda_sequence_write_cache);
-#endif /* SND_HDA_NEEDS_RESUME */
+#endif /* CONFIG_PM */
 
 /*
  * set power state of the codec
@@ -3274,7 +3274,7 @@ static void hda_exec_init_verbs(struct hda_codec *codec)
 static inline void hda_exec_init_verbs(struct hda_codec *codec) {}
 #endif
 
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 /*
  * call suspend and power-down; used both from PM and power-save
  */
@@ -3315,7 +3315,7 @@ static void hda_call_codec_resume(struct hda_codec *codec)
 		snd_hda_codec_resume_cache(codec);
 	}
 }
-#endif /* SND_HDA_NEEDS_RESUME */
+#endif /* CONFIG_PM */
 
 
 /**
