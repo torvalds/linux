@@ -919,7 +919,7 @@ out_close:
 	goto out;
 }
 
-int ncp_create_new(struct inode *dir, struct dentry *dentry, int mode,
+int ncp_create_new(struct inode *dir, struct dentry *dentry, umode_t mode,
 		   dev_t rdev, __le32 attributes)
 {
 	struct ncp_server *server = NCP_SERVER(dir);
@@ -928,7 +928,7 @@ int ncp_create_new(struct inode *dir, struct dentry *dentry, int mode,
 	int opmode;
 	__u8 __name[NCP_MAXPATHLEN + 1];
 	
-	PPRINTK("ncp_create_new: creating %s/%s, mode=%x\n",
+	PPRINTK("ncp_create_new: creating %s/%s, mode=%hx\n",
 		dentry->d_parent->d_name.name, dentry->d_name.name, mode);
 
 	ncp_age_dentry(server, dentry);
