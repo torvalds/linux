@@ -1034,6 +1034,16 @@ config RTC_DRV_LPC32XX
 	  This driver can also be buillt as a module. If so, the module
 	  will be called rtc-lpc32xx.
 
+config RTC_DRV_PM8XXX
+	tristate "Qualcomm PMIC8XXX RTC"
+	depends on MFD_PM8XXX
+	help
+	  If you say yes here you get support for the
+	  Qualcomm PMIC8XXX RTC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rtc-pm8xxx.
+
 config RTC_DRV_TEGRA
 	tristate "NVIDIA Tegra Internal RTC driver"
 	depends on RTC_CLASS && ARCH_TEGRA
