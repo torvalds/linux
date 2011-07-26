@@ -3016,12 +3016,6 @@ static void handle_stripe5(struct stripe_head *sh)
 		 atomic_read(&sh->count), sh->pd_idx, sh->check_state,
 		 sh->reconstruct_state);
 
-	if (test_and_clear_bit(STRIPE_SYNC_REQUESTED, &sh->state)) {
-		set_bit(STRIPE_SYNCING, &sh->state);
-		clear_bit(STRIPE_INSYNC, &sh->state);
-	}
-	clear_bit(STRIPE_DELAYED, &sh->state);
-
 	s.syncing = test_bit(STRIPE_SYNCING, &sh->state);
 	s.expanding = test_bit(STRIPE_EXPAND_SOURCE, &sh->state);
 	s.expanded = test_bit(STRIPE_EXPAND_READY, &sh->state);
@@ -3309,12 +3303,6 @@ static void handle_stripe6(struct stripe_head *sh)
 	       atomic_read(&sh->count), pd_idx, qd_idx,
 	       sh->check_state, sh->reconstruct_state);
 	memset(&s, 0, sizeof(s));
-
-	if (test_and_clear_bit(STRIPE_SYNC_REQUESTED, &sh->state)) {
-		set_bit(STRIPE_SYNCING, &sh->state);
-		clear_bit(STRIPE_INSYNC, &sh->state);
-	}
-	clear_bit(STRIPE_DELAYED, &sh->state);
 
 	s.syncing = test_bit(STRIPE_SYNCING, &sh->state);
 	s.expanding = test_bit(STRIPE_EXPAND_SOURCE, &sh->state);
@@ -3606,6 +3594,12 @@ static void handle_stripe(struct stripe_head *sh)
 		set_bit(STRIPE_HANDLE, &sh->state);
 		return;
 	}
+
+	if (test_and_clear_bit(STRIPE_SYNC_REQUESTED, &sh->state)) {
+		set_bit(STRIPE_SYNCING, &sh->state);
+		clear_bit(STRIPE_INSYNC, &sh->state);
+	}
+	clear_bit(STRIPE_DELAYED, &sh->state);
 
 	if (sh->raid_conf->level == 6)
 		handle_stripe6(sh);
