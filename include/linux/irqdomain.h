@@ -16,6 +16,7 @@
 #define _LINUX_IRQDOMAIN_H
 
 #include <linux/irq.h>
+#include <linux/mod_devicetable.h>
 
 #ifdef CONFIG_IRQ_DOMAIN
 struct device_node;
@@ -77,5 +78,14 @@ static inline unsigned int irq_domain_to_irq(struct irq_domain *d,
 extern void irq_domain_add(struct irq_domain *domain);
 extern void irq_domain_del(struct irq_domain *domain);
 #endif /* CONFIG_IRQ_DOMAIN */
+
+#if defined(CONFIG_IRQ_DOMAIN) && defined(CONFIG_OF_IRQ)
+extern void irq_domain_add_simple(struct device_node *controller, int irq_base);
+extern void irq_domain_generate_simple(const struct of_device_id *match,
+					u64 phys_base, unsigned int irq_start);
+#else /* CONFIG_IRQ_DOMAIN && CONFIG_OF_IRQ */
+static inline void irq_domain_generate_simple(const struct of_device_id *match,
+					u64 phys_base, unsigned int irq_start) { }
+#endif /* CONFIG_IRQ_DOMAIN && CONFIG_OF_IRQ */
 
 #endif /* _LINUX_IRQDOMAIN_H */
