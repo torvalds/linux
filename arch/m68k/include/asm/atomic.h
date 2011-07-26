@@ -169,18 +169,18 @@ static inline int atomic_add_negative(int i, atomic_t *v)
 	char c;
 	__asm__ __volatile__("addl %2,%1; smi %0"
 			     : "=d" (c), "+m" (*v)
-			     : "id" (i));
+			     : ASM_DI (i));
 	return c != 0;
 }
 
 static inline void atomic_clear_mask(unsigned long mask, unsigned long *v)
 {
-	__asm__ __volatile__("andl %1,%0" : "+m" (*v) : "id" (~(mask)));
+	__asm__ __volatile__("andl %1,%0" : "+m" (*v) : ASM_DI (~(mask)));
 }
 
 static inline void atomic_set_mask(unsigned long mask, unsigned long *v)
 {
-	__asm__ __volatile__("orl %1,%0" : "+m" (*v) : "id" (mask));
+	__asm__ __volatile__("orl %1,%0" : "+m" (*v) : ASM_DI (mask));
 }
 
 static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
