@@ -91,8 +91,10 @@ EXPORT_SYMBOL_HDA(snd_hda_delete_codec_preset);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 static void hda_power_work(struct work_struct *work);
 static void hda_keep_power_on(struct hda_codec *codec);
+#define hda_codec_is_power_on(codec)	((codec)->power_on)
 #else
 static inline void hda_keep_power_on(struct hda_codec *codec) {}
+#define hda_codec_is_power_on(codec)	1
 #endif
 
 /**
@@ -4376,11 +4378,8 @@ void snd_hda_bus_reboot_notify(struct hda_bus *bus)
 	if (!bus)
 		return;
 	list_for_each_entry(codec, &bus->codec_list, list) {
-#ifdef CONFIG_SND_HDA_POWER_SAVE
-		if (!codec->power_on)
-			continue;
-#endif
-		if (codec->patch_ops.reboot_notify)
+		if (hda_codec_is_power_on(codec) &&
+		    codec->patch_ops.reboot_notify)
 			codec->patch_ops.reboot_notify(codec);
 	}
 }
@@ -5079,11 +5078,10 @@ int snd_hda_suspend(struct hda_bus *bus)
 	struct hda_codec *codec;
 
 	list_for_each_entry(codec, &bus->codec_list, list) {
-#ifdef CONFIG_SND_HDA_POWER_SAVE
-		if (!codec->power_on)
-			continue;
-#endif
-		hda_call_codec_suspend(codec);
+		if (hda_codec_is_power_on(codec))
+			hda_call_codec_suspend(codec);
+		if (codec->patch_ops.post_suspend)
+			codec->patch_ops.post_suspend(codec);
 	}
 	return 0;
 }

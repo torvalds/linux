@@ -702,6 +702,7 @@ struct hda_codec_ops {
 	void (*unsol_event)(struct hda_codec *codec, unsigned int res);
 #ifdef CONFIG_PM
 	int (*suspend)(struct hda_codec *codec, pm_message_t state);
+	int (*post_suspend)(struct hda_codec *codec);
 	int (*pre_resume)(struct hda_codec *codec);
 	int (*resume)(struct hda_codec *codec);
 #endif
