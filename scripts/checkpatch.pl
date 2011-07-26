@@ -217,6 +217,16 @@ our $logFunctions = qr{(?x:
 	MODULE_[A-Z_]+
 )};
 
+our $signature_tags = qr{(?xi:
+	Signed-off-by:|
+	Acked-by:|
+	Tested-by:|
+	Reviewed-by:|
+	Reported-by:|
+	To:|
+	Cc:
+)};
+
 our @typeList = (
 	qr{void},
 	qr{(?:unsigned\s+)?char},
@@ -354,6 +364,76 @@ sub top_of_kernel_tree {
 		}
 	}
 	return 1;
+}
+
+sub parse_email {
+	my ($formatted_email) = @_;
+
+	my $name = "";
+	my $address = "";
+	my $comment = "";
+
+	if ($formatted_email =~ /^(.*)<(\S+\@\S+)>(.*)$/) {
+		$name = $1;
+		$address = $2;
+		$comment = $3 if defined $3;
+	} elsif ($formatted_email =~ /^\s*<(\S+\@\S+)>(.*)$/) {
+		$address = $1;
+		$comment = $2 if defined $2;
+	} elsif ($formatted_email =~ /(\S+\@\S+)(.*)$/) {
+		$address = $1;
+		$comment = $2 if defined $2;
+		$formatted_email =~ s/$address.*$//;
+		$name = $formatted_email;
+		$name =~ s/^\s+|\s+$//g;
+		$name =~ s/^\"|\"$//g;
+		# If there's a name left after stripping spaces and
+		# leading quotes, and the address doesn't have both
+		# leading and trailing angle brackets, the address
+		# is invalid. ie:
+		#   "joe smith joe@smith.com" bad
+		#   "joe smith <joe@smith.com" bad
+		if ($name ne "" && $address !~ /^<[^>]+>$/) {
+			$name = "";
+			$address = "";
+			$comment = "";
+		}
+	}
+
+	$name =~ s/^\s+|\s+$//g;
+	$name =~ s/^\"|\"$//g;
+	$address =~ s/^\s+|\s+$//g;
+	$address =~ s/^\<|\>$//g;
+
+	if ($name =~ /[^\w \-]/i) { ##has "must quote" chars
+		$name =~ s/(?<!\\)"/\\"/g; ##escape quotes
+		$name = "\"$name\"";
+	}
+
+	return ($name, $address, $comment);
+}
+
+sub format_email {
+	my ($name, $address) = @_;
+
+	my $formatted_email;
+
+	$name =~ s/^\s+|\s+$//g;
+	$name =~ s/^\"|\"$//g;
+	$address =~ s/^\s+|\s+$//g;
+
+	if ($name =~ /[^\w \-]/i) { ##has "must quote" chars
+		$name =~ s/(?<!\\)"/\\"/g; ##escape quotes
+		$name = "\"$name\"";
+	}
+
+	if ("$name" eq "") {
+		$formatted_email = "$address";
+	} else {
+		$formatted_email = "$name <$address>";
+	}
+
+	return $formatted_email;
 }
 
 sub expand_tabs {
@@ -1380,17 +1460,44 @@ sub process {
 			}
 		}
 
-#check the patch for a signoff:
+# Check the patch for a signoff:
 		if ($line =~ /^\s*signed-off-by:/i) {
-			# This is a signoff, if ugly, so do not double report.
 			$signoff++;
-			if (!($line =~ /^\s*Signed-off-by:/)) {
-				WARN("Signed-off-by: is the preferred form\n" .
-					$herecurr);
+		}
+
+# Check signature styles
+		if ($line =~ /^(\s*)($signature_tags)(\s*)(.*)/) {
+			my $space_before = $1;
+			my $sign_off = $2;
+			my $space_after = $3;
+			my $email = $4;
+			my $ucfirst_sign_off = ucfirst(lc($sign_off));
+
+			if (defined $space_before && $space_before ne "") {
+				WARN("Do not use whitespace before $ucfirst_sign_off\n" . $herecurr);
 			}
-			if ($line =~ /^\s*signed-off-by:\S/i) {
-				WARN("space required after Signed-off-by:\n" .
-					$herecurr);
+			if ($sign_off =~ /-by:$/i && $sign_off ne $ucfirst_sign_off) {
+				WARN("'$ucfirst_sign_off' is the preferred signature form\n" . $herecurr);
+			}
+			if (!defined $space_after || $space_after ne " ") {
+				WARN("Use a single space after $ucfirst_sign_off\n" . $herecurr);
+			}
+
+			my ($email_name, $email_address, $comment) = parse_email($email);
+			my $suggested_email = format_email(($email_name, $email_address));
+			if ($suggested_email eq "") {
+				ERROR("Unrecognized email address: '$email'\n" . $herecurr);
+			} else {
+				my $dequoted = $suggested_email;
+				$dequoted =~ s/^"//;
+				$dequoted =~ s/" </ </;
+				# Don't force email to have quotes
+				# Allow just an angle bracketed address
+				if ("$dequoted$comment" ne $email &&
+				    "<$email_address>$comment" ne $email &&
+				    "$suggested_email$comment" ne $email) {
+					WARN("email address '$email' might be better as '$suggested_email$comment'\n" . $herecurr);
+				}
 			}
 		}
 
