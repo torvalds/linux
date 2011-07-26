@@ -393,15 +393,15 @@ armpmu_reserve_hardware(void)
 {
 	struct arm_pmu_platdata *plat;
 	irq_handler_t handle_irq;
-	int i, err = -ENODEV, irq;
+	int i, err, irq, irqs;
 
-	pmu_device = reserve_pmu(ARM_PMU_DEVICE_CPU);
-	if (IS_ERR(pmu_device)) {
+	err = reserve_pmu(ARM_PMU_DEVICE_CPU);
+	if (err) {
 		pr_warning("unable to reserve pmu\n");
-		return PTR_ERR(pmu_device);
+		return err;
 	}
 
-	init_pmu(ARM_PMU_DEVICE_CPU);
+	irqs = pmu_device->num_resources;
 
 	plat = dev_get_platdata(&pmu_device->dev);
 	if (plat && plat->handle_irq)
@@ -409,22 +409,34 @@ armpmu_reserve_hardware(void)
 	else
 		handle_irq = armpmu->handle_irq;
 
-	if (pmu_device->num_resources < 1) {
+	if (irqs < 1) {
 		pr_err("no irqs for PMUs defined\n");
 		return -ENODEV;
 	}
 
-	for (i = 0; i < pmu_device->num_resources; ++i) {
+	for (i = 0; i < irqs; ++i) {
 		irq = platform_get_irq(pmu_device, i);
 		if (irq < 0)
 			continue;
 
+		/*
+		 * If we have a single PMU interrupt that we can't shift,
+		 * assume that we're running on a uniprocessor machine and
+		 * continue.
+		 */
+		err = irq_set_affinity(irq, cpumask_of(i));
+		if (err && irqs > 1) {
+			pr_err("unable to set irq affinity (irq=%d, cpu=%u)\n",
+				irq, i);
+			break;
+		}
+
 		err = request_irq(irq, handle_irq,
 				  IRQF_DISABLED | IRQF_NOBALANCING,
-				  "armpmu", NULL);
+				  "arm-pmu", NULL);
 		if (err) {
-			pr_warning("unable to request IRQ%d for ARM perf "
-				"counters\n", irq);
+			pr_err("unable to request IRQ%d for ARM PMU counters\n",
+				irq);
 			break;
 		}
 	}
@@ -436,7 +448,6 @@ armpmu_reserve_hardware(void)
 				free_irq(irq, NULL);
 		}
 		release_pmu(ARM_PMU_DEVICE_CPU);
-		pmu_device = NULL;
 	}
 
 	return err;
@@ -455,7 +466,6 @@ armpmu_release_hardware(void)
 	armpmu->stop();
 
 	release_pmu(ARM_PMU_DEVICE_CPU);
-	pmu_device = NULL;
 }
 
 static atomic_t active_events = ATOMIC_INIT(0);
@@ -638,6 +648,46 @@ armpmu_reset(void)
 }
 arch_initcall(armpmu_reset);
 
+/*
+ * PMU platform driver and devicetree bindings.
+ */
+static struct of_device_id armpmu_of_device_ids[] = {
+	{.compatible = "arm,cortex-a9-pmu"},
+	{.compatible = "arm,cortex-a8-pmu"},
+	{.compatible = "arm,arm1136-pmu"},
+	{.compatible = "arm,arm1176-pmu"},
+	{},
+};
+
+static struct platform_device_id armpmu_plat_device_ids[] = {
+	{.name = "arm-pmu"},
+	{},
+};
+
+static int __devinit armpmu_device_probe(struct platform_device *pdev)
+{
+	pmu_device = pdev;
+	return 0;
+}
+
+static struct platform_driver armpmu_driver = {
+	.driver		= {
+		.name	= "arm-pmu",
+		.of_match_table = armpmu_of_device_ids,
+	},
+	.probe		= armpmu_device_probe,
+	.id_table	= armpmu_plat_device_ids,
+};
+
+static int __init register_pmu_driver(void)
+{
+	return platform_driver_register(&armpmu_driver);
+}
+device_initcall(register_pmu_driver);
+
+/*
+ * CPU PMU identification and registration.
+ */
 static int __init
 init_hw_perf_events(void)
 {

@@ -14,6 +14,10 @@
 
 #include <linux/interrupt.h>
 
+/*
+ * Types of PMUs that can be accessed directly and require mutual
+ * exclusion between profiling tools.
+ */
 enum arm_pmu_type {
 	ARM_PMU_DEVICE_CPU	= 0,
 	ARM_NUM_PMU_DEVICES,
@@ -37,21 +41,17 @@ struct arm_pmu_platdata {
  * reserve_pmu() - reserve the hardware performance counters
  *
  * Reserve the hardware performance counters in the system for exclusive use.
- * The platform_device for the system is returned on success, ERR_PTR()
- * encoded error on failure.
+ * Returns 0 on success or -EBUSY if the lock is already held.
  */
-extern struct platform_device *
+extern int
 reserve_pmu(enum arm_pmu_type type);
 
 /**
  * release_pmu() - Relinquish control of the performance counters
  *
  * Release the performance counters and allow someone else to use them.
- * Callers must have disabled the counters and released IRQs before calling
- * this. The platform_device returned from reserve_pmu() must be passed as
- * a cookie.
  */
-extern int
+extern void
 release_pmu(enum arm_pmu_type type);
 
 /**
@@ -68,23 +68,14 @@ init_pmu(enum arm_pmu_type type);
 
 #include <linux/err.h>
 
-static inline struct platform_device *
+static inline int
 reserve_pmu(enum arm_pmu_type type)
 {
-	return ERR_PTR(-ENODEV);
-}
-
-static inline int
-release_pmu(enum arm_pmu_type type)
-{
 	return -ENODEV;
 }
 
-static inline int
-init_pmu(enum arm_pmu_type type)
-{
-	return -ENODEV;
-}
+static inline void
+release_pmu(enum arm_pmu_type type)	{ }
 
 #endif /* CONFIG_CPU_HAS_PMU */
 
