@@ -426,6 +426,10 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 			   DP_AUX_CH_CTL_DONE |
 			   DP_AUX_CH_CTL_TIME_OUT_ERROR |
 			   DP_AUX_CH_CTL_RECEIVE_ERROR);
+
+		if (status & (DP_AUX_CH_CTL_TIME_OUT_ERROR |
+			      DP_AUX_CH_CTL_RECEIVE_ERROR))
+			continue;
 		if (status & DP_AUX_CH_CTL_DONE)
 			break;
 	}
