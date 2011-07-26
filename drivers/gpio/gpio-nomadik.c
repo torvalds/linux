@@ -28,7 +28,7 @@
 
 #include <plat/pincfg.h>
 #include <mach/hardware.h>
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 
 /*
  * The GPIO module in the Nomadik family of Systems-on-Chip is an
