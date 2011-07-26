@@ -51,6 +51,8 @@
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/xprt.h>
 
+#include "sunrpc.h"
+
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
 

@@ -273,6 +273,7 @@ struct svc_rqst {
 	/* Catering to nfsd */
 	struct auth_domain *	rq_client;	/* RPC peer info */
 	struct auth_domain *	rq_gssclient;	/* "gss/"-style peer info */
+	int			rq_cachetype;
 	struct svc_cacherep *	rq_cacherep;	/* cache info */
 	int			rq_splice_ok;   /* turned off in gss privacy
 						 * to prevent encrypting page

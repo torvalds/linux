@@ -744,6 +744,13 @@ static struct pf_desc gss_kerberos_pfs[] = {
 	},
 };
 
+MODULE_ALIAS("rpc-auth-gss-krb5");
+MODULE_ALIAS("rpc-auth-gss-krb5i");
+MODULE_ALIAS("rpc-auth-gss-krb5p");
+MODULE_ALIAS("rpc-auth-gss-390003");
+MODULE_ALIAS("rpc-auth-gss-390004");
+MODULE_ALIAS("rpc-auth-gss-390005");
+
 static struct gss_api_mech gss_kerberos_mech = {
 	.gm_name	= "krb5",
 	.gm_owner	= THIS_MODULE,
