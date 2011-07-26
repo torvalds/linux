@@ -546,5 +546,6 @@ sys_call_table:
 	PTR	compat_sys_open_by_handle_at	/* 4340 */
 	PTR	compat_sys_clock_adjtime
 	PTR	sys_syncfs
+	PTR	compat_sys_sendmmsg
 	PTR	sys_setns
 	.size	sys_call_table,.-sys_call_table
