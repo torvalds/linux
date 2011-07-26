@@ -36,8 +36,7 @@
 
 #define XEN_BUS_ID_SIZE			20
 
-struct xen_bus_type
-{
+struct xen_bus_type {
 	char *root;
 	unsigned int levels;
 	int (*get_bus_id)(char bus_id[XEN_BUS_ID_SIZE], const char *nodename);
