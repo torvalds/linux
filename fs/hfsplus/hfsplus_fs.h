@@ -402,7 +402,7 @@ void hfsplus_inode_read_fork(struct inode *, struct hfsplus_fork_raw *);
 void hfsplus_inode_write_fork(struct inode *, struct hfsplus_fork_raw *);
 int hfsplus_cat_read_inode(struct inode *, struct hfs_find_data *);
 int hfsplus_cat_write_inode(struct inode *);
-struct inode *hfsplus_new_inode(struct super_block *, int);
+struct inode *hfsplus_new_inode(struct super_block *, umode_t);
 void hfsplus_delete_inode(struct inode *);
 int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 		       int datasync);
