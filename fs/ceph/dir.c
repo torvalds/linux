@@ -1024,36 +1024,38 @@ static int dir_lease_is_valid(struct inode *dir, struct dentry *dentry)
  */
 static int ceph_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
+	int valid = 0;
 	struct inode *dir;
 
 	if (nd && nd->flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	dir = dentry->d_parent->d_inode;
-
 	dout("d_revalidate %p '%.*s' inode %p offset %lld\n", dentry,
 	     dentry->d_name.len, dentry->d_name.name, dentry->d_inode,
 	     ceph_dentry(dentry)->offset);
+
+	dir = ceph_get_dentry_parent_inode(dentry);
 
 	/* always trust cached snapped dentries, snapdir dentry */
 	if (ceph_snap(dir) != CEPH_NOSNAP) {
 		dout("d_revalidate %p '%.*s' inode %p is SNAPPED\n", dentry,
 		     dentry->d_name.len, dentry->d_name.name, dentry->d_inode);
-		goto out_touch;
+		valid = 1;
+	} else if (dentry->d_inode &&
+		   ceph_snap(dentry->d_inode) == CEPH_SNAPDIR) {
+		valid = 1;
+	} else if (dentry_lease_is_valid(dentry) ||
+		   dir_lease_is_valid(dir, dentry)) {
+		valid = 1;
 	}
-	if (dentry->d_inode && ceph_snap(dentry->d_inode) == CEPH_SNAPDIR)
-		goto out_touch;
 
-	if (dentry_lease_is_valid(dentry) ||
-	    dir_lease_is_valid(dir, dentry))
-		goto out_touch;
-
-	dout("d_revalidate %p invalid\n", dentry);
-	d_drop(dentry);
-	return 0;
-out_touch:
-	ceph_dentry_lru_touch(dentry);
-	return 1;
+	dout("d_revalidate %p %s\n", dentry, valid ? "valid" : "invalid");
+	if (valid)
+		ceph_dentry_lru_touch(dentry);
+	else
+		d_drop(dentry);
+	iput(dir);
+	return valid;
 }
 
 /*
