@@ -2326,9 +2326,8 @@ static int fetch_block5(struct stripe_head *sh, struct stripe_head_state *s,
 	    (dev->toread ||
 	     (dev->towrite && !test_bit(R5_OVERWRITE, &dev->flags)) ||
 	     s->syncing || s->expanding ||
-	     (s->failed &&
-	      (failed_dev->toread ||
-	       (failed_dev->towrite &&
+	     (s->failed && failed_dev->toread) ||
+	     (s->failed && failed_dev->towrite &&
 		!test_bit(R5_OVERWRITE, &failed_dev->flags)))))) {
 		/* We would like to get this block, possibly by computing it,
 		 * otherwise read it if the backing disk is insync
@@ -2399,10 +2398,9 @@ static int fetch_block6(struct stripe_head *sh, struct stripe_head_state *s,
 	    (dev->toread ||
 	     (dev->towrite && !test_bit(R5_OVERWRITE, &dev->flags)) ||
 	     s->syncing || s->expanding ||
-	     (s->failed >= 1 &&
-	      (fdev[0]->toread || s->to_write)) ||
-	     (s->failed >= 2 &&
-	      (fdev[1]->toread || s->to_write)))) {
+	     (s->failed >= 1 && fdev[0]->toread) ||
+	     (s->failed >= 2 && fdev[1]->toread) ||
+	     (s->failed && s->to_write)) {
 		/* we would like to get this block, possibly by computing it,
 		 * otherwise read it if the backing disk is insync
 		 */
