@@ -5901,27 +5901,16 @@ static inline int tg3_40bit_overflow_test(struct tg3 *tp, dma_addr_t mapping,
 #endif
 }
 
-static void tg3_set_txd(struct tg3_napi *tnapi, int entry,
-			dma_addr_t mapping, int len, u32 flags,
-			u32 mss_and_is_end)
+static inline void tg3_tx_set_bd(struct tg3_napi *tnapi, u32 entry,
+				 dma_addr_t mapping, u32 len, u32 flags,
+				 u32 mss, u32 vlan)
 {
-	struct tg3_tx_buffer_desc *txd = &tnapi->tx_ring[entry];
-	int is_end = (mss_and_is_end & 0x1);
-	u32 mss = (mss_and_is_end >> 1);
-	u32 vlan_tag = 0;
+	struct tg3_tx_buffer_desc *txbd = &tnapi->tx_ring[entry];
 
-	if (is_end)
-		flags |= TXD_FLAG_END;
-	if (flags & TXD_FLAG_VLAN) {
-		vlan_tag = flags >> 16;
-		flags &= 0xffff;
-	}
-	vlan_tag |= (mss << TXD_MSS_SHIFT);
-
-	txd->addr_hi = ((u64) mapping >> 32);
-	txd->addr_lo = ((u64) mapping & 0xffffffff);
-	txd->len_flags = (len << TXD_LEN_SHIFT) | flags;
-	txd->vlan_tag = vlan_tag << TXD_VLAN_TAG_SHIFT;
+	txbd->addr_hi = ((u64) mapping >> 32);
+	txbd->addr_lo = ((u64) mapping & 0xffffffff);
+	txbd->len_flags = (len << TXD_LEN_SHIFT) | (flags & 0x0000ffff);
+	txbd->vlan_tag = (mss << TXD_MSS_SHIFT) | (vlan << TXD_VLAN_TAG_SHIFT);
 }
 
 static void tg3_skb_error_unmap(struct tg3_napi *tnapi,
@@ -5950,7 +5939,7 @@ static void tg3_skb_error_unmap(struct tg3_napi *tnapi,
 /* Workaround 4GB and 40-bit hardware DMA bugs. */
 static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
 				       struct sk_buff *skb,
-				       u32 base_flags, u32 mss)
+				       u32 base_flags, u32 mss, u32 vlan)
 {
 	struct tg3 *tp = tnapi->tp;
 	struct sk_buff *new_skb;
@@ -5988,12 +5977,14 @@ static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
 			ret = -1;
 			dev_kfree_skb(new_skb);
 		} else {
+			base_flags |= TXD_FLAG_END;
+
 			tnapi->tx_buffers[entry].skb = new_skb;
 			dma_unmap_addr_set(&tnapi->tx_buffers[entry],
 					   mapping, new_addr);
 
-			tg3_set_txd(tnapi, entry, new_addr, new_skb->len,
-				    base_flags, 1 | (mss << 1));
+			tg3_tx_set_bd(tnapi, entry, new_addr, new_skb->len,
+				      base_flags, mss, vlan);
 		}
 	}
 
@@ -6051,7 +6042,7 @@ tg3_tso_bug_end:
 static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
-	u32 len, entry, base_flags, mss;
+	u32 len, entry, base_flags, mss, vlan = 0;
 	int i = -1, would_hit_hwbug;
 	dma_addr_t mapping;
 	struct tg3_napi *tnapi;
@@ -6153,9 +6144,12 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	if (vlan_tx_tag_present(skb))
-		base_flags |= (TXD_FLAG_VLAN |
-			       (vlan_tx_tag_get(skb) << 16));
+#ifdef BCM_KERNEL_SUPPORTS_8021Q
+	if (vlan_tx_tag_present(skb)) {
+		base_flags |= TXD_FLAG_VLAN;
+		vlan = vlan_tx_tag_get(skb);
+	}
+#endif
 
 	if (tg3_flag(tp, USE_JUMBO_BDFLAG) &&
 	    !mss && skb->len > VLAN_ETH_FRAME_LEN)
@@ -6186,13 +6180,21 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (tg3_flag(tp, 5701_DMA_BUG))
 		would_hit_hwbug = 1;
 
-	tg3_set_txd(tnapi, entry, mapping, len, base_flags,
-		    (skb_shinfo(skb)->nr_frags == 0) | (mss << 1));
+	tg3_tx_set_bd(tnapi, entry, mapping, len, base_flags |
+		      ((skb_shinfo(skb)->nr_frags == 0) ? TXD_FLAG_END : 0),
+		      mss, vlan);
 
 	entry = NEXT_TX(entry);
 
 	/* Now loop through additional data fragments, and queue them. */
 	if (skb_shinfo(skb)->nr_frags > 0) {
+		u32 tmp_mss = mss;
+
+		if (!tg3_flag(tp, HW_TSO_1) &&
+		    !tg3_flag(tp, HW_TSO_2) &&
+		    !tg3_flag(tp, HW_TSO_3))
+			tmp_mss = 0;
+
 		last = skb_shinfo(skb)->nr_frags - 1;
 		for (i = 0; i <= last; i++) {
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
@@ -6219,14 +6221,9 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			if (tg3_40bit_overflow_test(tp, mapping, len))
 				would_hit_hwbug = 1;
 
-			if (tg3_flag(tp, HW_TSO_1) ||
-			    tg3_flag(tp, HW_TSO_2) ||
-			    tg3_flag(tp, HW_TSO_3))
-				tg3_set_txd(tnapi, entry, mapping, len,
-					    base_flags, (i == last)|(mss << 1));
-			else
-				tg3_set_txd(tnapi, entry, mapping, len,
-					    base_flags, (i == last));
+			tg3_tx_set_bd(tnapi, entry, mapping, len, base_flags |
+				      ((i == last) ? TXD_FLAG_END : 0),
+				      tmp_mss, vlan);
 
 			entry = NEXT_TX(entry);
 		}
@@ -6238,7 +6235,8 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* If the workaround fails due to memory/mapping
 		 * failure, silently drop this packet.
 		 */
-		if (tigon3_dma_hwbug_workaround(tnapi, skb, base_flags, mss))
+		if (tigon3_dma_hwbug_workaround(tnapi, skb, base_flags,
+						mss, vlan))
 			goto out_unlock;
 
 		entry = NEXT_TX(tnapi->tx_prod);
@@ -11370,8 +11368,8 @@ static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, int loopback_mode)
 
 	rx_start_idx = rnapi->hw_status->idx[0].rx_producer;
 
-	tg3_set_txd(tnapi, tnapi->tx_prod, map, tx_len,
-		    base_flags, (mss << 1) | 1);
+	tg3_tx_set_bd(tnapi, tnapi->tx_prod, map, tx_len,
+		      base_flags | TXD_FLAG_END, mss, 0);
 
 	tnapi->tx_prod++;
 
