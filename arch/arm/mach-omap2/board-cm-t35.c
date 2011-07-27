@@ -1,8 +1,9 @@
 /*
  * board-cm-t35.c (CompuLab CM-T35 module)
  *
- * Copyright (C) 2009 CompuLab, Ltd.
- * Author: Mike Rapoport <mike@compulab.co.il>
+ * Copyright (C) 2009-2011 CompuLab, Ltd.
+ * Authors: Mike Rapoport <mike@compulab.co.il>
+ *	    Igor Grinberg <grinberg@compulab.co.il>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -12,11 +13,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  *
  */
 
@@ -149,12 +145,12 @@ static struct mtd_partition cm_t35_nand_partitions[] = {
 	},
 	{
 		.name           = "linux",
-		.offset         = MTDPART_OFS_APPEND,	/* Offset = 0x280000 */
+		.offset         = MTDPART_OFS_APPEND,	/* Offset = 0x2A0000 */
 		.size           = 32 * NAND_BLOCK_SIZE,
 	},
 	{
 		.name           = "rootfs",
-		.offset         = MTDPART_OFS_APPEND,	/* Offset = 0x680000 */
+		.offset         = MTDPART_OFS_APPEND,	/* Offset = 0x6A0000 */
 		.size           = MTDPART_SIZ_FULL,
 	},
 };
@@ -433,9 +429,9 @@ static int cm_t35_twl_gpio_setup(struct device *dev, unsigned gpio,
 	if (gpio_request_one(wlan_rst, GPIOF_OUT_INIT_HIGH, "WLAN RST") == 0) {
 		gpio_export(wlan_rst, 0);
 		udelay(10);
-		gpio_set_value(wlan_rst, 0);
+		gpio_set_value_cansleep(wlan_rst, 0);
 		udelay(10);
-		gpio_set_value(wlan_rst, 1);
+		gpio_set_value_cansleep(wlan_rst, 1);
 	} else {
 		pr_err("CM-T35: could not obtain gpio for WiFi reset\n");
 	}

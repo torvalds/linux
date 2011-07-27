@@ -453,6 +453,7 @@ int __init omap2_clk_switch_mpurate_at_boot(const char *mpurate_ck_name)
 	if (IS_ERR_VALUE(r)) {
 		WARN(1, "clock: %s: unable to set MPU rate to %d: %d\n",
 		     mpurate_ck->name, mpurate, r);
+		clk_put(mpurate_ck);
 		return -EINVAL;
 	}
 

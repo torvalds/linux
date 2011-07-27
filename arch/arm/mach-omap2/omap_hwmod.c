@@ -1656,6 +1656,33 @@ void omap_hwmod_write(u32 v, struct omap_hwmod *oh, u16 reg_offs)
 }
 
 /**
+ * omap_hwmod_softreset - reset a module via SYSCONFIG.SOFTRESET bit
+ * @oh: struct omap_hwmod *
+ *
+ * This is a public function exposed to drivers. Some drivers may need to do
+ * some settings before and after resetting the device.  Those drivers after
+ * doing the necessary settings could use this function to start a reset by
+ * setting the SYSCONFIG.SOFTRESET bit.
+ */
+int omap_hwmod_softreset(struct omap_hwmod *oh)
+{
+	u32 v;
+	int ret;
+
+	if (!oh || !(oh->_sysc_cache))
+		return -EINVAL;
+
+	v = oh->_sysc_cache;
+	ret = _set_softreset(oh, &v);
+	if (ret)
+		goto error;
+	_write_sysconfig(v, oh);
+
+error:
+	return ret;
+}
+
+/**
  * omap_hwmod_set_slave_idlemode - set the hwmod's OCP slave idlemode
  * @oh: struct omap_hwmod *
  * @idlemode: SIDLEMODE field bits (shifted to bit 0)
