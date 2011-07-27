@@ -2655,6 +2655,7 @@ struct ring_info {
 struct tg3_tx_ring_info {
 	struct sk_buff			*skb;
 	DEFINE_DMA_UNMAP_ADDR(mapping);
+	bool				fragmented;
 };
 
 struct tg3_link_config {
