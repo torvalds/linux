@@ -210,12 +210,12 @@ struct audit_context {
 		struct {
 			uid_t			uid;
 			gid_t			gid;
-			mode_t			mode;
+			umode_t			mode;
 			u32			osid;
 			int			has_perm;
 			uid_t			perm_uid;
 			gid_t			perm_gid;
-			mode_t			perm_mode;
+			umode_t			perm_mode;
 			unsigned long		qbytes;
 		} ipc;
 		struct {
@@ -1249,7 +1249,7 @@ static void show_special(struct audit_context *context, int *call_panic)
 	case AUDIT_IPC: {
 		u32 osid = context->ipc.osid;
 
-		audit_log_format(ab, "ouid=%u ogid=%u mode=%#o",
+		audit_log_format(ab, "ouid=%u ogid=%u mode=%#ho",
 			 context->ipc.uid, context->ipc.gid, context->ipc.mode);
 		if (osid) {
 			char *ctx = NULL;
@@ -1267,7 +1267,7 @@ static void show_special(struct audit_context *context, int *call_panic)
 			ab = audit_log_start(context, GFP_KERNEL,
 					     AUDIT_IPC_SET_PERM);
 			audit_log_format(ab,
-				"qbytes=%lx ouid=%u ogid=%u mode=%#o",
+				"qbytes=%lx ouid=%u ogid=%u mode=%#ho",
 				context->ipc.qbytes,
 				context->ipc.perm_uid,
 				context->ipc.perm_gid,
@@ -2260,7 +2260,7 @@ void __audit_ipc_obj(struct kern_ipc_perm *ipcp)
  *
  * Called only after audit_ipc_obj().
  */
-void __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
+void __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, umode_t mode)
 {
 	struct audit_context *context = current->audit_context;
 
