@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.32.27
-# Wed Jul 20 17:52:50 2011
+# Wed Jul 27 10:06:42 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1637,8 +1637,7 @@ CONFIG_USB_ANDROID_MASS_STORAGE=y
 #
 # CONFIG_USB_GPIO_VBUS is not set
 # CONFIG_NOP_USB_XCEIV is not set
-CONFIG_USB11_HOST=y
-CONFIG_USB11_HOST_EN=y
+# CONFIG_USB11_HOST is not set
 CONFIG_USB20_HOST=y
 CONFIG_USB20_HOST_EN=y
 CONFIG_USB20_OTG=y
