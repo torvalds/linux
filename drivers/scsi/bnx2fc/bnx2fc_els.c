@@ -253,6 +253,26 @@ int bnx2fc_send_rls(struct bnx2fc_rport *tgt, struct fc_frame *fp)
 	return rc;
 }
 
+int bnx2fc_send_rec(struct bnx2fc_cmd *orig_io_req)
+{
+	/*
+	 * Dummy function to enable compiling individual patches. Real function
+	 * is in the next patch.
+	 */
+	return 0;
+}
+
+int bnx2fc_send_srr(struct bnx2fc_cmd *orig_io_req, u32 offset, u8 r_ctl)
+{
+	/*
+	 * Dummy function to enable compiling individual patches. Real function
+	 * is in the next patch.
+	 */
+	return 0;
+}
+
+
+
 static int bnx2fc_initiate_els(struct bnx2fc_rport *tgt, unsigned int op,
 			void *data, u32 data_len,
 			void (*cb_func)(struct bnx2fc_els_cb_arg *cb_arg),

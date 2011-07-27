@@ -930,6 +930,76 @@ abts_err:
 	return rc;
 }
 
+int bnx2fc_initiate_seq_cleanup(struct bnx2fc_cmd *orig_io_req, u32 offset,
+				enum fc_rctl r_ctl)
+{
+	struct fc_lport *lport;
+	struct bnx2fc_rport *tgt = orig_io_req->tgt;
+	struct bnx2fc_interface *interface;
+	struct fcoe_port *port;
+	struct bnx2fc_cmd *seq_clnp_req;
+	struct fcoe_task_ctx_entry *task;
+	struct fcoe_task_ctx_entry *task_page;
+	struct bnx2fc_els_cb_arg *cb_arg = NULL;
+	int task_idx, index;
+	u16 xid;
+	int rc = 0;
+
+	BNX2FC_IO_DBG(orig_io_req, "bnx2fc_initiate_seq_cleanup xid = 0x%x\n",
+		   orig_io_req->xid);
+	kref_get(&orig_io_req->refcount);
+
+	port = orig_io_req->port;
+	interface = port->priv;
+	lport = port->lport;
+
+	cb_arg = kzalloc(sizeof(struct bnx2fc_els_cb_arg), GFP_ATOMIC);
+	if (!cb_arg) {
+		printk(KERN_ERR PFX "Unable to alloc cb_arg for seq clnup\n");
+		rc = -ENOMEM;
+		goto cleanup_err;
+	}
+
+	seq_clnp_req = bnx2fc_elstm_alloc(tgt, BNX2FC_SEQ_CLEANUP);
+	if (!seq_clnp_req) {
+		printk(KERN_ERR PFX "cleanup: couldnt allocate cmd\n");
+		rc = -ENOMEM;
+		kfree(cb_arg);
+		goto cleanup_err;
+	}
+	/* Initialize rest of io_req fields */
+	seq_clnp_req->sc_cmd = NULL;
+	seq_clnp_req->port = port;
+	seq_clnp_req->tgt = tgt;
+	seq_clnp_req->data_xfer_len = 0; /* No data transfer for cleanup */
+
+	xid = seq_clnp_req->xid;
+
+	task_idx = xid/BNX2FC_TASKS_PER_PAGE;
+	index = xid % BNX2FC_TASKS_PER_PAGE;
+
+	/* Initialize task context for this IO request */
+	task_page = (struct fcoe_task_ctx_entry *)
+		     interface->hba->task_ctx[task_idx];
+	task = &(task_page[index]);
+	cb_arg->aborted_io_req = orig_io_req;
+	cb_arg->io_req = seq_clnp_req;
+	cb_arg->r_ctl = r_ctl;
+	cb_arg->offset = offset;
+	seq_clnp_req->cb_arg = cb_arg;
+
+	printk(KERN_ERR PFX "call init_seq_cleanup_task\n");
+	bnx2fc_init_seq_cleanup_task(seq_clnp_req, task, orig_io_req, offset);
+
+	/* Obtain free SQ entry */
+	bnx2fc_add_2_sq(tgt, xid);
+
+	/* Ring doorbell */
+	bnx2fc_ring_doorbell(tgt);
+cleanup_err:
+	return rc;
+}
+
 int bnx2fc_initiate_cleanup(struct bnx2fc_cmd *io_req)
 {
 	struct fc_lport *lport;
@@ -1154,6 +1224,42 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	kref_put(&io_req->refcount, bnx2fc_cmd_release);
 	spin_unlock_bh(&tgt->tgt_lock);
 	return rc;
+}
+
+void bnx2fc_process_seq_cleanup_compl(struct bnx2fc_cmd *seq_clnp_req,
+				      struct fcoe_task_ctx_entry *task,
+				      u8 rx_state)
+{
+	struct bnx2fc_els_cb_arg *cb_arg = seq_clnp_req->cb_arg;
+	struct bnx2fc_cmd *orig_io_req = cb_arg->aborted_io_req;
+	u32 offset = cb_arg->offset;
+	enum fc_rctl r_ctl = cb_arg->r_ctl;
+	int rc = 0;
+	struct bnx2fc_rport *tgt = orig_io_req->tgt;
+
+	BNX2FC_IO_DBG(orig_io_req, "Entered process_cleanup_compl xid = 0x%x"
+			      "cmd_type = %d\n",
+		   seq_clnp_req->xid, seq_clnp_req->cmd_type);
+
+	if (rx_state == FCOE_TASK_RX_STATE_IGNORED_SEQUENCE_CLEANUP) {
+		printk(KERN_ERR PFX "seq cleanup ignored - xid = 0x%x\n",
+			seq_clnp_req->xid);
+		goto free_cb_arg;
+	}
+	kref_get(&orig_io_req->refcount);
+
+	spin_unlock_bh(&tgt->tgt_lock);
+	rc = bnx2fc_send_srr(orig_io_req, offset, r_ctl);
+	spin_lock_bh(&tgt->tgt_lock);
+
+	if (rc)
+		printk(KERN_ERR PFX "clnup_compl: Unable to send SRR"
+			" IO will abort\n");
+	seq_clnp_req->cb_arg = NULL;
+	kref_put(&orig_io_req->refcount, bnx2fc_cmd_release);
+free_cb_arg:
+	kfree(cb_arg);
+	return;
 }
 
 void bnx2fc_process_cleanup_compl(struct bnx2fc_cmd *io_req,

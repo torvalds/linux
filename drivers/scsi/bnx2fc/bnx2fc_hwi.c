@@ -880,6 +880,13 @@ void bnx2fc_process_cq_compl(struct bnx2fc_rport *tgt, u16 wqe)
 		kref_put(&io_req->refcount, bnx2fc_cmd_release);
 		break;
 
+	case BNX2FC_SEQ_CLEANUP:
+		BNX2FC_IO_DBG(io_req, "cq_compl(0x%x) - seq cleanup resp\n",
+			      io_req->xid);
+		bnx2fc_process_seq_cleanup_compl(io_req, task, rx_state);
+		kref_put(&io_req->refcount, bnx2fc_cmd_release);
+		break;
+
 	default:
 		printk(KERN_ERR PFX "Invalid cmd_type %d\n", cmd_type);
 		break;
@@ -1369,6 +1376,96 @@ void bnx2fc_return_rqe(struct bnx2fc_rport *tgt, u8 num_items)
 	tgt->conn_db->rq_prod = tgt->rq_prod_idx;
 }
 
+void bnx2fc_init_seq_cleanup_task(struct bnx2fc_cmd *seq_clnp_req,
+				  struct fcoe_task_ctx_entry *task,
+				  struct bnx2fc_cmd *orig_io_req,
+				  u32 offset)
+{
+	struct scsi_cmnd *sc_cmd = orig_io_req->sc_cmd;
+	struct bnx2fc_rport *tgt = seq_clnp_req->tgt;
+	struct bnx2fc_interface *interface = tgt->port->priv;
+	struct fcoe_bd_ctx *bd = orig_io_req->bd_tbl->bd_tbl;
+	struct fcoe_task_ctx_entry *orig_task;
+	struct fcoe_task_ctx_entry *task_page;
+	struct fcoe_ext_mul_sges_ctx *sgl;
+	u8 task_type = FCOE_TASK_TYPE_SEQUENCE_CLEANUP;
+	u8 orig_task_type;
+	u16 orig_xid = orig_io_req->xid;
+	u32 context_id = tgt->context_id;
+	u64 phys_addr = (u64)orig_io_req->bd_tbl->bd_tbl_dma;
+	u32 orig_offset = offset;
+	int bd_count;
+	int orig_task_idx, index;
+	int i;
+
+	memset(task, 0, sizeof(struct fcoe_task_ctx_entry));
+
+	if (sc_cmd->sc_data_direction == DMA_TO_DEVICE)
+		orig_task_type = FCOE_TASK_TYPE_WRITE;
+	else
+		orig_task_type = FCOE_TASK_TYPE_READ;
+
+	/* Tx flags */
+	task->txwr_rxrd.const_ctx.tx_flags =
+				FCOE_TASK_TX_STATE_SEQUENCE_CLEANUP <<
+				FCOE_TCE_TX_WR_RX_RD_CONST_TX_STATE_SHIFT;
+	/* init flags */
+	task->txwr_rxrd.const_ctx.init_flags = task_type <<
+				FCOE_TCE_TX_WR_RX_RD_CONST_TASK_TYPE_SHIFT;
+	task->txwr_rxrd.const_ctx.init_flags |= FCOE_TASK_CLASS_TYPE_3 <<
+				FCOE_TCE_TX_WR_RX_RD_CONST_CLASS_TYPE_SHIFT;
+	task->rxwr_txrd.const_ctx.init_flags = context_id <<
+				FCOE_TCE_RX_WR_TX_RD_CONST_CID_SHIFT;
+	task->rxwr_txrd.const_ctx.init_flags = context_id <<
+				FCOE_TCE_RX_WR_TX_RD_CONST_CID_SHIFT;
+
+	task->txwr_rxrd.union_ctx.cleanup.ctx.cleaned_task_id = orig_xid;
+
+	task->txwr_rxrd.union_ctx.cleanup.ctx.rolled_tx_seq_cnt = 0;
+	task->txwr_rxrd.union_ctx.cleanup.ctx.rolled_tx_data_offset = offset;
+
+	bd_count = orig_io_req->bd_tbl->bd_valid;
+
+	/* obtain the appropriate bd entry from relative offset */
+	for (i = 0; i < bd_count; i++) {
+		if (offset < bd[i].buf_len)
+			break;
+		offset -= bd[i].buf_len;
+	}
+	phys_addr += (i * sizeof(struct fcoe_bd_ctx));
+
+	if (orig_task_type == FCOE_TASK_TYPE_WRITE) {
+		task->txwr_only.sgl_ctx.sgl.mul_sgl.cur_sge_addr.lo =
+				(u32)phys_addr;
+		task->txwr_only.sgl_ctx.sgl.mul_sgl.cur_sge_addr.hi =
+				(u32)((u64)phys_addr >> 32);
+		task->txwr_only.sgl_ctx.sgl.mul_sgl.sgl_size =
+				bd_count;
+		task->txwr_only.sgl_ctx.sgl.mul_sgl.cur_sge_off =
+				offset; /* adjusted offset */
+		task->txwr_only.sgl_ctx.sgl.mul_sgl.cur_sge_idx = i;
+	} else {
+		orig_task_idx = orig_xid / BNX2FC_TASKS_PER_PAGE;
+		index = orig_xid % BNX2FC_TASKS_PER_PAGE;
+
+		task_page = (struct fcoe_task_ctx_entry *)
+			     interface->hba->task_ctx[orig_task_idx];
+		orig_task = &(task_page[index]);
+
+		/* Multiple SGEs were used for this IO */
+		sgl = &task->rxwr_only.union_ctx.read_info.sgl_ctx.sgl;
+		sgl->mul_sgl.cur_sge_addr.lo = (u32)phys_addr;
+		sgl->mul_sgl.cur_sge_addr.hi = (u32)((u64)phys_addr >> 32);
+		sgl->mul_sgl.sgl_size = bd_count;
+		sgl->mul_sgl.cur_sge_off = offset; /*adjusted offset */
+		sgl->mul_sgl.cur_sge_idx = i;
+
+		memset(&task->rxwr_only.rx_seq_ctx, 0,
+		       sizeof(struct fcoe_rx_seq_ctx));
+		task->rxwr_only.rx_seq_ctx.low_exp_ro = orig_offset;
+		task->rxwr_only.rx_seq_ctx.high_exp_ro = orig_offset;
+	}
+}
 void bnx2fc_init_cleanup_task(struct bnx2fc_cmd *io_req,
 			      struct fcoe_task_ctx_entry *task,
 			      u16 orig_xid)
