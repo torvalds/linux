@@ -418,7 +418,6 @@ static int bnx2fc_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	fr = fcoe_dev_from_skb(skb);
 	fr->fr_dev = lport;
-	fr->ptype = ptype;
 
 	bg = &bnx2fc_global;
 	spin_lock_bh(&bg->fcoe_rx_list.lock);

@@ -1350,7 +1350,6 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 
 	fr = fcoe_dev_from_skb(skb);
 	fr->fr_dev = lport;
-	fr->ptype = ptype;
 
 	/*
 	 * In case the incoming frame's exchange is originated from
