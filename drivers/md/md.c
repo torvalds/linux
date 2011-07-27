@@ -7130,6 +7130,8 @@ static void reap_sync_thread(mddev_t *mddev)
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	sysfs_notify_dirent_safe(mddev->sysfs_action);
 	md_new_event(mddev);
+	if (mddev->event_work.func)
+		queue_work(md_misc_wq, &mddev->event_work);
 }
 
 /*
