@@ -2073,11 +2073,7 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	 * Cancel ongoing scan to sync up with sme state machine of cfg80211.
 	 */
 	if (wl->scan_request) {
-		wl_set_drv_status(wl, SCAN_ABORTING);
-		cfg80211_scan_done(wl->scan_request, true);
-		wl->scan_request = NULL;
-		wl_clr_drv_status(wl, SCANNING);
-		wl_clr_drv_status(wl, SCAN_ABORTING);
+		wl_cfg80211_scan_abort(wl, dev);
 	}
 
 	if (IS_P2P_SSID(sme->ssid) && (dev != wl_to_prmry_ndev(wl))) {
@@ -4085,7 +4081,8 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 static bool wl_is_linkup(struct wl_priv *wl, const wl_event_msg_t *e, struct net_device *ndev)
 {
 	u32 event = ntoh32(e->event_type);
-	uint32 status =  ntoh32(e->status);
+	u32 status =  ntoh32(e->status);
+	u16 flags = ntoh16(e->flags);
 
 	WL_DBG(("event %d, status %d\n", event, status));
 	if (event == WLC_E_SET_SSID) {
@@ -4093,6 +4090,9 @@ static bool wl_is_linkup(struct wl_priv *wl, const wl_event_msg_t *e, struct net
 			if (!wl_is_ibssmode(wl, ndev))
 				return true;
 		}
+	} else if (event == WLC_E_LINK) {
+		if (flags & WLC_EVENT_MSG_LINK)
+			return true;
 	}
 
 	WL_DBG(("wl_is_linkup false\n"));
@@ -4104,7 +4104,10 @@ static bool wl_is_linkdown(struct wl_priv *wl, const wl_event_msg_t *e)
 	u32 event = ntoh32(e->event_type);
 	u16 flags = ntoh16(e->flags);
 
-	if (event == WLC_E_DEAUTH_IND || event == WLC_E_DISASSOC_IND) {
+	if (event == WLC_E_DEAUTH_IND ||
+	event == WLC_E_DISASSOC_IND ||
+	event == WLC_E_DISASSOC ||
+	event == WLC_E_DEAUTH) {
 		return true;
 	} else if (event == WLC_E_LINK) {
 		if (!(flags & WLC_EVENT_MSG_LINK))
@@ -4228,10 +4231,15 @@ wl_notify_connect_status(struct wl_priv *wl, struct net_device *ndev,
 		} else if (wl_is_linkdown(wl, e)) {
 			if (wl_get_drv_status(wl, CONNECTED)) {
 				printk("link down, call cfg80211_disconnected ");
+				rtnl_lock();
 				cfg80211_disconnected(ndev, 0, NULL, 0, GFP_KERNEL);
 				wl_clr_drv_status(wl, CONNECTED);
 				wl_link_down(wl);
 				wl_init_prof(wl->profile);
+				rtnl_unlock();
+			} else if (wl_get_drv_status(wl, CONNECTING)) {
+				printk("link down, during connecting");
+				wl_bss_connect_done(wl, ndev, e, data, false);
 			}
 		} else if (wl_is_nonetwork(wl, e)) {
 			printk("connect failed e->status 0x%x", (int)ntoh32(e->status));
@@ -4254,11 +4262,18 @@ wl_notify_roaming_status(struct wl_priv *wl, struct net_device *ndev,
 {
 	bool act;
 	s32 err = 0;
+	u32 event = be32_to_cpu(e->event_type);
+	u32 status = be32_to_cpu(e->status);
 
 	WL_DBG(("Enter \n"));
-	wl_bss_roaming_done(wl, ndev, e, data);
-	act = true;
-	wl_update_prof(wl, e, &act, WL_PROF_ACT);
+	if (event == WLC_E_ROAM && status == WLC_E_STATUS_SUCCESS) {
+		if (test_bit(WL_STATUS_CONNECTED, &wl->status))
+			wl_bss_roaming_done(wl, ndev, e, data);
+		else
+			wl_bss_connect_done(wl, ndev, e, data, true);
+		act = true;
+		wl_update_prof(wl, e, &act, WL_PROF_ACT);
+	}
 
 	return err;
 }
@@ -4508,27 +4523,12 @@ wl_bss_connect_done(struct wl_priv *wl, struct net_device *ndev,
 			GFP_KERNEL);
 		WL_DBG(("Report connect result - connection %s\n",
 			completed ? "succeeded" : "failed"));
-	} else {
-		wl_clr_drv_status(wl, CONNECTING);
-		cfg80211_roamed(ndev,
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)
-			NULL,
-#endif
-			(u8 *)&wl->bssid,
-			conn_info->req_ie, conn_info->req_ie_len,
-			conn_info->resp_ie, conn_info->resp_ie_len,
-			GFP_KERNEL);
-		WL_DBG(("Report roaming result\n"));
 	}
 	if (completed)
 		wl_set_drv_status(wl, CONNECTED);
 	else {
 		if (wl->scan_request) {
-			wl_set_drv_status(wl, SCAN_ABORTING);
-			cfg80211_scan_done(wl->scan_request, true);
-			wl->scan_request = NULL;
-			wl_clr_drv_status(wl, SCANNING);
-			wl_clr_drv_status(wl, SCAN_ABORTING);
+			wl_cfg80211_scan_abort(wl, ndev);
 		}
 	}
 
