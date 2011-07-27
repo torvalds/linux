@@ -216,22 +216,23 @@ struct stv_init {
 	u8 len;
 };
 
-static const u8 x1500[] = {	/* 0x1500 - 0x150f */
-	0x0b, 0xa7, 0xb7, 0x00, 0x00
-};
-
-static const u8 x1536[] = {	/* 0x1536 - 0x153b */
-	0x02, 0x00, 0x60, 0x01, 0x20, 0x01
-};
-
 static const struct stv_init stv_bridge_init[] = {
 	/* This reg is written twice. Some kind of reset? */
-	{NULL,  0x1620, 0x80},
-	{NULL,  0x1620, 0x00},
-	{NULL,  0x1443, 0x00},
-	{NULL,  0x1423, 0x04},
-	{x1500, 0x1500, ARRAY_SIZE(x1500)},
-	{x1536, 0x1536, ARRAY_SIZE(x1536)},
+	{NULL, STV_RESET, 0x80},
+	{NULL, STV_RESET, 0x00},
+	{NULL, STV_SCAN_RATE, 0x00},
+	{NULL, STV_I2C_FLUSH, 0x04},
+	{NULL, STV_REG00, 0x0b},
+	{NULL, STV_REG01, 0xa7},
+	{NULL, STV_REG02, 0xb7},
+	{NULL, STV_REG03, 0x00},
+	{NULL, STV_REG04, 0x00},
+	{NULL, 0x1536, 0x02},
+	{NULL, 0x1537, 0x00},
+	{NULL, 0x1538, 0x60},
+	{NULL, 0x1539, 0x01},
+	{NULL, 0x153a, 0x20},
+	{NULL, 0x153b, 0x01},
 };
 
 static const u8 vv6410_sensor_init[][2] = {
@@ -240,7 +241,7 @@ static const u8 vv6410_sensor_init[][2] = {
 	{VV6410_SETUP0,		VV6410_LOW_POWER_MODE},
 	/* Use shuffled read-out mode */
 	{VV6410_SETUP1,		BIT(6)},
-	/* All modes to 1 */
+	/* All modes to 1, FST, Fast QCK, Free running QCK, Free running LST, FST will qualify visible pixels */
 	{VV6410_FGMODES,	BIT(6) | BIT(4) | BIT(2) | BIT(0)},
 	{VV6410_PINMAPPING,	0x00},
 	/* Pre-clock generator divide off */
