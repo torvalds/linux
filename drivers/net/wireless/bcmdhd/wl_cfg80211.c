@@ -1005,10 +1005,7 @@ wl_cfg80211_del_virtual_iface(struct wiphy *wiphy, struct net_device *dev)
 	struct wl_priv *wl = WL_PRIV_GET();
 	s32 timeout = -1;
 	s32 ret = 0;
-	if (dev && dev->type == ARPHRD_IEEE80211_RADIOTAP) {
-		ret = dhd_del_monitor(dev);
-		goto exit;
-	}
+
 	if (wl->p2p_supported) {
 		memcpy(p2p_mac.octet, wl->p2p->int_addr.octet, ETHER_ADDR_LEN);
 		if (wl->p2p->vif_created) {
@@ -1029,9 +1026,9 @@ wl_cfg80211_del_virtual_iface(struct wiphy *wiphy, struct net_device *dev)
 			} else {
 				WL_ERR(("IFDEL didn't complete properly"));
 			}
+			ret = dhd_del_monitor(dev);
 		}
 	}
-exit:
 	return ret;
 }
 

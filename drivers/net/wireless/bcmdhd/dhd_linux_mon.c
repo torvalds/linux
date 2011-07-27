@@ -322,17 +322,17 @@ int dhd_del_monitor(struct net_device *ndev)
 		return -EINVAL;
 	mutex_lock(&g_monitor.lock);
 	for (i = 0; i < DHD_MAX_IFS; i++) {
-		if (g_monitor.mon_if[i].mon_ndev == ndev) {
+		if (g_monitor.mon_if[i].mon_ndev == ndev ||
+			g_monitor.mon_if[i].real_ndev == ndev) {
 			g_monitor.mon_if[i].real_ndev = NULL;
-			g_monitor.mon_if[i].mon_ndev = NULL;
 			if (rtnl_is_locked()) {
 				rtnl_unlock();
 				rollback_lock = true;
 			}
-			unregister_netdev(ndev);
-			free_netdev(ndev);
+			unregister_netdev(g_monitor.mon_if[i].mon_ndev);
+			free_netdev(g_monitor.mon_if[i].mon_ndev);
+			g_monitor.mon_if[i].mon_ndev = NULL;
 			g_monitor.monitor_state = MONITOR_STATE_INTERFACE_DELETED;
-			ndev = NULL;
 			break;
 		}
 	}
@@ -341,7 +341,8 @@ int dhd_del_monitor(struct net_device *ndev)
 		rollback_lock = false;
 	}
 
-	if (ndev)
+	if (g_monitor.monitor_state !=
+	MONITOR_STATE_INTERFACE_DELETED)
 		MON_PRINT("interface not found in monitor IF array, is this a monitor IF? 0x%p\n",
 			ndev);
 	mutex_unlock(&g_monitor.lock);
