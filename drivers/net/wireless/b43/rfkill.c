@@ -37,7 +37,7 @@ void b43_rfkill_poll(struct ieee80211_hw *hw)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct b43_wldev *dev = wl->current_dev;
-	struct ssb_bus *bus = dev->dev->bus;
+	struct ssb_bus *bus = dev->sdev->bus;
 	bool enabled;
 	bool brought_up = false;
 
@@ -47,7 +47,7 @@ void b43_rfkill_poll(struct ieee80211_hw *hw)
 			mutex_unlock(&wl->mutex);
 			return;
 		}
-		ssb_device_enable(dev->dev, 0);
+		ssb_device_enable(dev->sdev, 0);
 		brought_up = true;
 	}
 
@@ -63,7 +63,7 @@ void b43_rfkill_poll(struct ieee80211_hw *hw)
 	}
 
 	if (brought_up) {
-		ssb_device_disable(dev->dev, 0);
+		ssb_device_disable(dev->sdev, 0);
 		ssb_bus_may_powerdown(bus);
 	}
 

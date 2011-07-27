@@ -54,7 +54,7 @@ u64 start_dma_addr;
 
 static dma_addr_t xen_phys_to_bus(phys_addr_t paddr)
 {
-	return phys_to_machine(XPADDR(paddr)).maddr;;
+	return phys_to_machine(XPADDR(paddr)).maddr;
 }
 
 static phys_addr_t xen_bus_to_phys(dma_addr_t baddr)
@@ -147,9 +147,15 @@ void __init xen_swiotlb_init(int verbose)
 {
 	unsigned long bytes;
 	int rc;
+	unsigned long nr_tbl;
 
-	xen_io_tlb_nslabs = (64 * 1024 * 1024 >> IO_TLB_SHIFT);
-	xen_io_tlb_nslabs = ALIGN(xen_io_tlb_nslabs, IO_TLB_SEGSIZE);
+	nr_tbl = swioltb_nr_tbl();
+	if (nr_tbl)
+		xen_io_tlb_nslabs = nr_tbl;
+	else {
+		xen_io_tlb_nslabs = (64 * 1024 * 1024 >> IO_TLB_SHIFT);
+		xen_io_tlb_nslabs = ALIGN(xen_io_tlb_nslabs, IO_TLB_SEGSIZE);
+	}
 
 	bytes = xen_io_tlb_nslabs << IO_TLB_SHIFT;
 

@@ -65,21 +65,10 @@ SND_SOC_DAPM_OUTPUT("VOUTL"),
 SND_SOC_DAPM_OUTPUT("VOUTR"),
 };
 
-static const struct snd_soc_dapm_route intercon[] = {
+static const struct snd_soc_dapm_route wm8728_intercon[] = {
 	{"VOUTL", NULL, "DAC"},
 	{"VOUTR", NULL, "DAC"},
 };
-
-static int wm8728_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, wm8728_dapm_widgets,
-				  ARRAY_SIZE(wm8728_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
-
-	return 0;
-}
 
 static int wm8728_mute(struct snd_soc_dai *dai, int mute)
 {
@@ -255,7 +244,6 @@ static int wm8728_probe(struct snd_soc_codec *codec)
 
 	snd_soc_add_controls(codec, wm8728_snd_controls,
 				ARRAY_SIZE(wm8728_snd_controls));
-	wm8728_add_widgets(codec);
 
 	return ret;
 }
@@ -275,6 +263,10 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8728 = {
 	.reg_cache_size = ARRAY_SIZE(wm8728_reg_defaults),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8728_reg_defaults,
+	.dapm_widgets = wm8728_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8728_dapm_widgets),
+	.dapm_routes = wm8728_intercon,
+	.num_dapm_routes = ARRAY_SIZE(wm8728_intercon),
 };
 
 #if defined(CONFIG_SPI_MASTER)

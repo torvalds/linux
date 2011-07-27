@@ -560,15 +560,18 @@ static struct i2c_adapter mpc_ops = {
 	.timeout = HZ,
 };
 
+static const struct of_device_id mpc_i2c_of_match[];
 static int __devinit fsl_i2c_probe(struct platform_device *op)
 {
+	const struct of_device_id *match;
 	struct mpc_i2c *i2c;
 	const u32 *prop;
 	u32 clock = MPC_I2C_CLOCK_LEGACY;
 	int result = 0;
 	int plen;
 
-	if (!op->dev.of_match)
+	match = of_match_device(mpc_i2c_of_match, &op->dev);
+	if (!match)
 		return -EINVAL;
 
 	i2c = kzalloc(sizeof(*i2c), GFP_KERNEL);
@@ -605,8 +608,8 @@ static int __devinit fsl_i2c_probe(struct platform_device *op)
 			clock = *prop;
 	}
 
-	if (op->dev.of_match->data) {
-		struct mpc_i2c_data *data = op->dev.of_match->data;
+	if (match->data) {
+		struct mpc_i2c_data *data = match->data;
 		data->setup(op->dev.of_node, i2c, clock, data->prescaler);
 	} else {
 		/* Backwards compatibility */

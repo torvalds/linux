@@ -275,7 +275,9 @@ struct usb_sys_interface {
 #define  USB_MODE_CTRL_MODE_IDLE              0x00000000
 #define  USB_MODE_CTRL_MODE_DEVICE            0x00000002
 #define  USB_MODE_CTRL_MODE_HOST              0x00000003
+#define  USB_MODE_CTRL_MODE_MASK              0x00000003
 #define  USB_MODE_CTRL_MODE_RSV               0x00000001
+#define  USB_MODE_ES                          0x00000004 /* Endian Select */
 #define  USB_MODE_SETUP_LOCK_OFF              0x00000008
 #define  USB_MODE_STREAM_DISABLE              0x00000010
 /* Endpoint Flush Register */
@@ -461,6 +463,7 @@ struct fsl_ep {
 struct fsl_udc {
 	struct usb_gadget gadget;
 	struct usb_gadget_driver *driver;
+	struct fsl_usb2_platform_data *pdata;
 	struct completion *done;	/* to make sure release() is done */
 	struct fsl_ep *eps;
 	unsigned int max_ep;
@@ -473,6 +476,8 @@ struct fsl_udc {
 	unsigned vbus_active:1;
 	unsigned stopped:1;
 	unsigned remote_wakeup:1;
+	unsigned already_stopped:1;
+	unsigned big_endian_desc:1;
 
 	struct ep_queue_head *ep_qh;	/* Endpoints Queue-Head */
 	struct fsl_req *status_req;	/* ep0 status request */
@@ -483,6 +488,7 @@ struct fsl_udc {
 	dma_addr_t ep_qh_dma;		/* dma address of QH */
 
 	u32 max_pipes;          /* Device max pipes */
+	u32 bus_reset;		/* Device is bus resetting */
 	u32 resume_state;	/* USB state to resume */
 	u32 usb_state;		/* USB current state */
 	u32 ep0_state;		/* Endpoint zero state */

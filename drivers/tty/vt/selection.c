@@ -1,6 +1,4 @@
 /*
- * linux/drivers/char/selection.c
- *
  * This module exports the functions:
  *
  *     'int set_selection(struct tiocl_selection __user *, struct tty_struct *)'

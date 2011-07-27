@@ -63,7 +63,7 @@ void cifs_dump_detail(struct smb_hdr *smb)
 	cERROR(1, "Cmd: %d Err: 0x%x Flags: 0x%x Flgs2: 0x%x Mid: %d Pid: %d",
 		  smb->Command, smb->Status.CifsError,
 		  smb->Flags, smb->Flags2, smb->Mid, smb->Pid);
-	cERROR(1, "smb buf %p len %d", smb, smbCalcSize_LE(smb));
+	cERROR(1, "smb buf %p len %d", smb, smbCalcSize(smb));
 }
 
 
@@ -110,8 +110,8 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 	struct list_head *tmp1, *tmp2, *tmp3;
 	struct mid_q_entry *mid_entry;
 	struct TCP_Server_Info *server;
-	struct cifsSesInfo *ses;
-	struct cifsTconInfo *tcon;
+	struct cifs_ses *ses;
+	struct cifs_tcon *tcon;
 	int i, j;
 	__u32 dev_type;
 
@@ -152,7 +152,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 				    tcp_ses_list);
 		i++;
 		list_for_each(tmp2, &server->smb_ses_list) {
-			ses = list_entry(tmp2, struct cifsSesInfo,
+			ses = list_entry(tmp2, struct cifs_ses,
 					 smb_ses_list);
 			if ((ses->serverDomain == NULL) ||
 				(ses->serverOS == NULL) ||
@@ -171,7 +171,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			seq_printf(m, "TCP status: %d\n\tLocal Users To "
 				   "Server: %d SecMode: 0x%x Req On Wire: %d",
 				   server->tcpStatus, server->srv_count,
-				   server->secMode,
+				   server->sec_mode,
 				   atomic_read(&server->inFlight));
 
 #ifdef CONFIG_CIFS_STATS2
@@ -183,7 +183,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			seq_puts(m, "\n\tShares:");
 			j = 0;
 			list_for_each(tmp3, &ses->tcon_list) {
-				tcon = list_entry(tmp3, struct cifsTconInfo,
+				tcon = list_entry(tmp3, struct cifs_tcon,
 						  tcon_list);
 				++j;
 				dev_type = le32_to_cpu(tcon->fsDevInfo.DeviceType);
@@ -256,8 +256,8 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 	int rc;
 	struct list_head *tmp1, *tmp2, *tmp3;
 	struct TCP_Server_Info *server;
-	struct cifsSesInfo *ses;
-	struct cifsTconInfo *tcon;
+	struct cifs_ses *ses;
+	struct cifs_tcon *tcon;
 
 	rc = get_user(c, buffer);
 	if (rc)
@@ -273,11 +273,11 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 			server = list_entry(tmp1, struct TCP_Server_Info,
 					    tcp_ses_list);
 			list_for_each(tmp2, &server->smb_ses_list) {
-				ses = list_entry(tmp2, struct cifsSesInfo,
+				ses = list_entry(tmp2, struct cifs_ses,
 						 smb_ses_list);
 				list_for_each(tmp3, &ses->tcon_list) {
 					tcon = list_entry(tmp3,
-							  struct cifsTconInfo,
+							  struct cifs_tcon,
 							  tcon_list);
 					atomic_set(&tcon->num_smbs_sent, 0);
 					atomic_set(&tcon->num_writes, 0);
@@ -312,8 +312,8 @@ static int cifs_stats_proc_show(struct seq_file *m, void *v)
 	int i;
 	struct list_head *tmp1, *tmp2, *tmp3;
 	struct TCP_Server_Info *server;
-	struct cifsSesInfo *ses;
-	struct cifsTconInfo *tcon;
+	struct cifs_ses *ses;
+	struct cifs_tcon *tcon;
 
 	seq_printf(m,
 			"Resources in use\nCIFS Session: %d\n",
@@ -346,11 +346,11 @@ static int cifs_stats_proc_show(struct seq_file *m, void *v)
 		server = list_entry(tmp1, struct TCP_Server_Info,
 				    tcp_ses_list);
 		list_for_each(tmp2, &server->smb_ses_list) {
-			ses = list_entry(tmp2, struct cifsSesInfo,
+			ses = list_entry(tmp2, struct cifs_ses,
 					 smb_ses_list);
 			list_for_each(tmp3, &ses->tcon_list) {
 				tcon = list_entry(tmp3,
-						  struct cifsTconInfo,
+						  struct cifs_tcon,
 						  tcon_list);
 				i++;
 				seq_printf(m, "\n%d) %s", i, tcon->treeName);

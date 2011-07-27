@@ -36,13 +36,10 @@
 
 /* Hook for MIDI serial driver */
 void (*atari_MIDI_interrupt_hook) (void);
-/* Hook for mouse driver */
-void (*atari_mouse_interrupt_hook) (char *);
 /* Hook for keyboard inputdev  driver */
 void (*atari_input_keyboard_interrupt_hook) (unsigned char, char);
 /* Hook for mouse inputdev  driver */
 void (*atari_input_mouse_interrupt_hook) (char *);
-EXPORT_SYMBOL(atari_mouse_interrupt_hook);
 EXPORT_SYMBOL(atari_input_keyboard_interrupt_hook);
 EXPORT_SYMBOL(atari_input_mouse_interrupt_hook);
 
@@ -263,8 +260,8 @@ repeat:
 			kb_state.buf[kb_state.len++] = scancode;
 			if (kb_state.len == 3) {
 				kb_state.state = KEYBOARD;
-				if (atari_mouse_interrupt_hook)
-					atari_mouse_interrupt_hook(kb_state.buf);
+				if (atari_input_mouse_interrupt_hook)
+					atari_input_mouse_interrupt_hook(kb_state.buf);
 			}
 			break;
 
@@ -575,7 +572,7 @@ int atari_keyb_init(void)
 	kb_state.len = 0;
 
 	error = request_irq(IRQ_MFP_ACIA, atari_keyboard_interrupt,
-			    IRQ_TYPE_SLOW, "keyboard/mouse/MIDI",
+			    IRQ_TYPE_SLOW, "keyboard,mouse,MIDI",
 			    atari_keyboard_interrupt);
 	if (error)
 		return error;

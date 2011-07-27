@@ -148,6 +148,18 @@ config IR_ITE_CIR
 	   To compile this driver as a module, choose M here: the
 	   module will be called ite-cir.
 
+config IR_FINTEK
+	tristate "Fintek Consumer Infrared Transceiver"
+	depends on PNP
+	depends on RC_CORE
+	---help---
+	   Say Y here to enable support for integrated infrared receiver
+	   /transciever made by Fintek. This chip is found on assorted
+	   Jetway motherboards (and of course, possibly others).
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called fintek-cir.
+
 config IR_NUVOTON
 	tristate "Nuvoton w836x7hg Consumer Infrared Transceiver"
 	depends on PNP
@@ -160,6 +172,17 @@ config IR_NUVOTON
 
 	   To compile this driver as a module, choose M here: the
 	   module will be called nuvoton-cir.
+
+config IR_REDRAT3
+	tristate "RedRat3 IR Transceiver"
+	depends on USB_ARCH_HAS_HCD
+	depends on RC_CORE
+	select USB
+	---help---
+	   Say Y here if you want to use a RedRat3 Infrared Transceiver.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called redrat3.
 
 config IR_STREAMZAP
 	tristate "Streamzap PC Remote IR Receiver"

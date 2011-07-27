@@ -9,8 +9,12 @@
 #define VTD_PAGE_MASK		(((u64)-1) << VTD_PAGE_SHIFT)
 #define VTD_PAGE_ALIGN(addr)	(((addr) + VTD_PAGE_SIZE - 1) & VTD_PAGE_MASK)
 
+#define VTD_STRIDE_SHIFT        (9)
+#define VTD_STRIDE_MASK         (((u64)-1) << VTD_STRIDE_SHIFT)
+
 #define DMA_PTE_READ (1)
 #define DMA_PTE_WRITE (2)
+#define DMA_PTE_LARGE_PAGE (1 << 7)
 #define DMA_PTE_SNP (1 << 11)
 
 #define CONTEXT_TT_MULTI_LEVEL	0

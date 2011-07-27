@@ -13,6 +13,7 @@
 
 #include <linux/mm.h>
 #include <linux/prio_tree.h>
+#include <linux/prefetch.h>
 
 /*
  * See lib/prio_tree.c for details on the general radix priority search tree

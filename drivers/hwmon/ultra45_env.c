@@ -258,7 +258,7 @@ static int __devinit env_probe(struct platform_device *op)
 		goto out_sysfs_remove_group;
 	}
 
-	dev_set_drvdata(&op->dev, p);
+	platform_set_drvdata(op, p);
 	err = 0;
 
 out:
@@ -277,7 +277,7 @@ out_free:
 
 static int __devexit env_remove(struct platform_device *op)
 {
-	struct env *p = dev_get_drvdata(&op->dev);
+	struct env *p = platform_get_drvdata(op);
 
 	if (p) {
 		sysfs_remove_group(&op->dev.kobj, &env_group);

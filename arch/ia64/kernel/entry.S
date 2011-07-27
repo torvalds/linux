@@ -1775,6 +1775,8 @@ sys_call_table:
 	data8 sys_open_by_handle_at
 	data8 sys_clock_adjtime
 	data8 sys_syncfs
+	data8 sys_setns				// 1330
+	data8 sys_sendmmsg
 
 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls
 #endif /* __IA64_ASM_PARAVIRTUALIZED_NATIVE */

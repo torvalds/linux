@@ -249,13 +249,6 @@ int gen_new_estimator(struct gnet_stats_basic_packed *bstats,
 }
 EXPORT_SYMBOL(gen_new_estimator);
 
-static void __gen_kill_estimator(struct rcu_head *head)
-{
-	struct gen_estimator *e = container_of(head,
-					struct gen_estimator, e_rcu);
-	kfree(e);
-}
-
 /**
  * gen_kill_estimator - remove a rate estimator
  * @bstats: basic statistics
@@ -279,7 +272,7 @@ void gen_kill_estimator(struct gnet_stats_basic_packed *bstats,
 		write_unlock(&est_lock);
 
 		list_del_rcu(&e->list);
-		call_rcu(&e->e_rcu, __gen_kill_estimator);
+		kfree_rcu(e, e_rcu);
 	}
 	spin_unlock_bh(&est_tree_lock);
 }

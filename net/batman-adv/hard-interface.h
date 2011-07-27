@@ -45,4 +45,22 @@ static inline void hardif_free_ref(struct hard_iface *hard_iface)
 		call_rcu(&hard_iface->rcu, hardif_free_rcu);
 }
 
+static inline struct hard_iface *primary_if_get_selected(
+						struct bat_priv *bat_priv)
+{
+	struct hard_iface *hard_iface;
+
+	rcu_read_lock();
+	hard_iface = rcu_dereference(bat_priv->primary_if);
+	if (!hard_iface)
+		goto out;
+
+	if (!atomic_inc_not_zero(&hard_iface->refcount))
+		hard_iface = NULL;
+
+out:
+	rcu_read_unlock();
+	return hard_iface;
+}
+
 #endif /* _NET_BATMAN_ADV_HARD_INTERFACE_H_ */

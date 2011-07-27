@@ -298,7 +298,7 @@ static unsigned long imx074_query_bus_param(struct soc_camera_device *icd)
 static int imx074_set_bus_param(struct soc_camera_device *icd,
 				 unsigned long flags)
 {
-	return -1;
+	return -EINVAL;
 }
 
 static struct soc_camera_ops imx074_ops = {

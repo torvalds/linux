@@ -125,7 +125,7 @@
 #define HDCS_SLEEP_MODE		(1 << 1)
 
 #define HDCS_DEFAULT_EXPOSURE	48
-#define HDCS_DEFAULT_GAIN	128
+#define HDCS_DEFAULT_GAIN	50
 
 static int hdcs_probe_1x00(struct sd *sd);
 static int hdcs_probe_1020(struct sd *sd);

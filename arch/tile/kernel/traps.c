@@ -308,6 +308,7 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 	info.si_addr = (void __user *)address;
 	if (signo == SIGILL)
 		info.si_trapno = fault_num;
+	trace_unhandled_signal("trap", regs, address, signo);
 	force_sig_info(signo, &info, current);
 }
 

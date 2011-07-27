@@ -2748,11 +2748,12 @@ static void iwl3945_bg_init_alive_start(struct work_struct *data)
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, init_alive_start.work);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
 	mutex_lock(&priv->mutex);
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		goto out;
+
 	iwl3945_init_alive_start(priv);
+out:
 	mutex_unlock(&priv->mutex);
 }
 
@@ -2761,11 +2762,12 @@ static void iwl3945_bg_alive_start(struct work_struct *data)
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, alive_start.work);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
 	mutex_lock(&priv->mutex);
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		goto out;
+
 	iwl3945_alive_start(priv);
+out:
 	mutex_unlock(&priv->mutex);
 }
 
@@ -2995,10 +2997,12 @@ static void iwl3945_bg_restart(struct work_struct *data)
 	} else {
 		iwl3945_down(priv);
 
-		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-			return;
-
 		mutex_lock(&priv->mutex);
+		if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
+			mutex_unlock(&priv->mutex);
+			return;
+		}
+
 		__iwl3945_up(priv);
 		mutex_unlock(&priv->mutex);
 	}
@@ -3009,11 +3013,12 @@ static void iwl3945_bg_rx_replenish(struct work_struct *data)
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, rx_replenish);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
 	mutex_lock(&priv->mutex);
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		goto out;
+
 	iwl3945_rx_replenish(priv);
+out:
 	mutex_unlock(&priv->mutex);
 }
 
@@ -3810,7 +3815,6 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 	INIT_LIST_HEAD(&priv->free_frames);
 
 	mutex_init(&priv->mutex);
-	mutex_init(&priv->sync_cmd_mutex);
 
 	priv->ieee_channels = NULL;
 	priv->ieee_rates = NULL;
@@ -3824,10 +3828,6 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 		IWL_DELAY_NEXT_FORCE_RF_RESET;
 	priv->force_reset[IWL_FW_RESET].reset_duration =
 		IWL_DELAY_NEXT_FORCE_FW_RELOAD;
-
-
-	priv->tx_power_user_lmt = IWL_DEFAULT_TX_POWER;
-	priv->tx_power_next = IWL_DEFAULT_TX_POWER;
 
 	if (eeprom->version < EEPROM_3945_EEPROM_VERSION) {
 		IWL_WARN(priv, "Unsupported EEPROM version: 0x%04X\n",

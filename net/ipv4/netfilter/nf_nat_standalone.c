@@ -116,7 +116,7 @@ nf_nat_fn(unsigned int hooknum,
 
 	switch (ctinfo) {
 	case IP_CT_RELATED:
-	case IP_CT_RELATED+IP_CT_IS_REPLY:
+	case IP_CT_RELATED_REPLY:
 		if (ip_hdr(skb)->protocol == IPPROTO_ICMP) {
 			if (!nf_nat_icmp_reply_translation(ct, ctinfo,
 							   hooknum, skb))
@@ -144,7 +144,7 @@ nf_nat_fn(unsigned int hooknum,
 	default:
 		/* ESTABLISHED */
 		NF_CT_ASSERT(ctinfo == IP_CT_ESTABLISHED ||
-			     ctinfo == (IP_CT_ESTABLISHED+IP_CT_IS_REPLY));
+			     ctinfo == IP_CT_ESTABLISHED_REPLY);
 	}
 
 	return nf_nat_packet(ct, ctinfo, hooknum, skb);

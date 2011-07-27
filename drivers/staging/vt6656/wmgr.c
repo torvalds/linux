@@ -593,7 +593,7 @@ void vMgrDisassocBeginSta(void *hDeviceContext,
     if (*pStatus == CMD_STATUS_PENDING) {
         pMgmt->eCurrState = WMAC_STATE_IDLE;
         *pStatus = CMD_STATUS_SUCCESS;
-    };
+    }
 
     return;
 }
@@ -942,7 +942,7 @@ s_vMgrRxAssocResponse(
 	    || (sFrame.pSuppRates == NULL)) {
 		DBG_PORT80(0xCC);
 		return;
-        };
+        }
 
         pMgmt->sAssocInfo.AssocInfo.ResponseFixedIEs.Capabilities = *(sFrame.pwCapInfo);
         pMgmt->sAssocInfo.AssocInfo.ResponseFixedIEs.StatusCode = *(sFrame.pwStatus);
@@ -962,7 +962,7 @@ s_vMgrRxAssocResponse(
             if ( (pMgmt->wCurrAID >> 14) != (BIT0 | BIT1) )
             {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "AID from AP, has two msb clear.\n");
-            };
+            }
             DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "Association Successful, AID=%d.\n", pMgmt->wCurrAID & ~(BIT14|BIT15));
             pMgmt->eCurrState = WMAC_STATE_ASSOC;
 	    BSSvUpdateAPNode((void *) pDevice,
@@ -1621,7 +1621,7 @@ s_vMgrRxDisassociation(
              memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
              netif_rx(pDevice->skb);
              pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-         };
+         }
 
         //TODO: do something let upper layer know or
         //try to send associate packet again because of inactivity timeout
@@ -1636,7 +1636,7 @@ s_vMgrRxDisassociation(
 		  pDevice->byReAssocCount ++;
 		  return;       //mike add: you'll retry for many times, so it cann't be regarded as disconnected!
               }
-        };
+        }
 
    #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
   // if(pDevice->bWPASuppWextEnabled == TRUE)
@@ -1710,7 +1710,7 @@ s_vMgrRxDeauthentication(
                     pDevice->bLinkPass = FALSE;
                     ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_SLOW);
                 }
-            };
+            }
 
             if ((pDevice->bWPADEVUp) && (pDevice->skb != NULL)) {
                  wpahdr = (viawget_wpa_header *)pDevice->skb->data;
@@ -1725,7 +1725,7 @@ s_vMgrRxDeauthentication(
                  memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
                  netif_rx(pDevice->skb);
                  pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-           };
+           }
 
    #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
   // if(pDevice->bWPASuppWextEnabled == TRUE)
@@ -1845,7 +1845,7 @@ s_vMgrRxBeacon(
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Rx beacon frame error\n");
 	return;
-    };
+    }
 
     if( byCurrChannel > CB_MAX_CHANNEL_24G )
     {
@@ -1974,7 +1974,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
                    sFrame.pSSID->len
                    ) == 0) {
             bIsSSIDEqual = TRUE;
-        };
+        }
     }
 
     if ((WLAN_GET_CAP_INFO_ESS(*sFrame.pwCapInfo)== TRUE) &&
@@ -2074,8 +2074,8 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
     if (WLAN_GET_CAP_INFO_ESS(*sFrame.pwCapInfo)) {
         if (sFrame.pCFParms->wCFPDurRemaining > 0) {
             // TODO: deal with CFP period to set NAV
-        };
-    };
+        }
+    }
 
     HIDWORD(qwTimestamp) = cpu_to_le32(HIDWORD(*sFrame.pqwTimestamp));
     LODWORD(qwTimestamp) = cpu_to_le32(LODWORD(*sFrame.pqwTimestamp));
@@ -2096,7 +2096,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
     }
     else if (HIDWORD(qwTimestamp) < HIDWORD(qwLocalTSF)) {
         bTSFOffsetPostive = FALSE;
-    };
+    }
 
     if (bTSFOffsetPostive) {
         qwTSFOffset = CARDqGetTSFOffset(pRxPacket->byRxRate, (qwTimestamp), (qwLocalTSF));
@@ -2154,7 +2154,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
                 if (pMgmt->bInTIM) {
                     PSvSendPSPOLL((PSDevice)pDevice);
 //                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "BCN:PS-POLL sent..\n");
-                };
+                }
 
             }
             else {
@@ -2167,7 +2167,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
                 }
                 if(PSbConsiderPowerDown(pDevice, FALSE, FALSE)) {
                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "BCN: Power down now...\n");
-                };
+                }
             }
 
         }
@@ -2247,7 +2247,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
                 pMgmt->sNodeDBTable[0].bActive = TRUE;
                 pMgmt->sNodeDBTable[0].uInActiveCount = 0;
 
-            };
+            }
         }
         else if (bIsSSIDEqual) {
 
@@ -2292,9 +2292,9 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
                      // Prepare beacon frame
 			bMgrPrepareBeaconToSend((void *) pDevice, pMgmt);
               //  }
-            };
+            }
         }
-    };
+    }
     // endian issue ???
     // Update TSF
     if (bUpdateTSF) {
@@ -2556,7 +2556,7 @@ void vMgrCreateOwnIBSS(void *hDeviceContext,
             pMgmt->byCSSPK = KEY_CTL_WEP;
             pMgmt->byCSSGK = KEY_CTL_WEP;
         }
-    };
+    }
 
     pMgmt->byERPContext = 0;
 
@@ -2614,7 +2614,7 @@ void vMgrJoinBSSBegin(void *hDeviceContext, PCMD_STATUS pStatus)
        *pStatus = CMD_STATUS_RESOURCES;
         DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "BSS finding:BSS list is empty.\n");
        return;
-    };
+    }
 
     // memset(pMgmt->abyDesireBSSID, 0,  WLAN_BSSID_LEN);
     // Search known BSS list for prefer BSSID or SSID
@@ -2630,7 +2630,7 @@ void vMgrJoinBSSBegin(void *hDeviceContext, PCMD_STATUS pStatus)
        pItemSSID = (PWLAN_IE_SSID)pMgmt->abyDesireSSID;
        DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Scanning [%s] not found, disconnected !\n", pItemSSID->abySSID);
        return;
-    };
+    }
 
     DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "AP(BSS) finding:Found a AP(BSS)..\n");
 
@@ -3061,7 +3061,7 @@ s_vMgrSynchBSS (
         MACvRegBitsOn(pDevice, MAC_REG_RCR, RCR_BSSID);
         pDevice->byRxMode |= RCR_BSSID;
         pMgmt->bCurrBSSIDFilterOn = TRUE;
-    };
+    }
 
     if (pDevice->byBBType == BB_TYPE_11A) {
         memcpy(pMgmt->abyCurrSuppRates, &abyCurrSuppRatesA[0], sizeof(abyCurrSuppRatesA));
@@ -3167,7 +3167,7 @@ s_vMgrFormatTIM(
             }
             wEndIndex = (WORD)ii;
         }
-    };
+    }
 
 
     // Round start index down to nearest even number
@@ -4209,7 +4209,7 @@ s_vMgrRxProbeResponse(
 		pRxPacket->p80211Header);
 	DBG_PORT80(0xCC);
 	return;
-    };
+    }
 
     if(sFrame.pSSID->len == 0)
        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Rx Probe resp: SSID len = 0 \n");
@@ -4491,7 +4491,7 @@ void vMgrRxManagePacket(void *hDeviceContext,
             //DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "rx beacon\n");
             if (pMgmt->eScanState != WMAC_NO_SCANNING) {
                 bInScan = TRUE;
-            };
+            }
             s_vMgrRxBeacon(pDevice, pMgmt, pRxPacket, bInScan);
             break;
 

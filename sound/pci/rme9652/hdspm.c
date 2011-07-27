@@ -521,6 +521,7 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 #define HDSPM_DMA_AREA_KILOBYTES (HDSPM_DMA_AREA_BYTES/1024)
 
 /* revisions >= 230 indicate AES32 card */
+#define HDSPM_MADI_OLD_REV	207
 #define HDSPM_MADI_REV		210
 #define HDSPM_RAYDAT_REV	211
 #define HDSPM_AIO_REV		212
@@ -1143,7 +1144,7 @@ static int hdspm_external_sample_rate(struct hdspm *hdspm)
 
 		/* if wordclock has synced freq and wordclock is valid */
 		if ((status2 & HDSPM_wcLock) != 0 &&
-				(status & HDSPM_SelSyncRef0) == 0) {
+				(status2 & HDSPM_SelSyncRef0) == 0) {
 
 			rate_bits = status2 & HDSPM_wcFreqMask;
 
@@ -1639,12 +1640,14 @@ static int snd_hdspm_midi_input_read (struct hdspm_midi *hmidi)
 		}
 	}
 	hmidi->pending = 0;
+	spin_unlock_irqrestore(&hmidi->lock, flags);
 
+	spin_lock_irqsave(&hmidi->hdspm->lock, flags);
 	hmidi->hdspm->control_register |= hmidi->ie;
 	hdspm_write(hmidi->hdspm, HDSPM_controlRegister,
 		    hmidi->hdspm->control_register);
+	spin_unlock_irqrestore(&hmidi->hdspm->lock, flags);
 
-	spin_unlock_irqrestore (&hmidi->lock, flags);
 	return snd_hdspm_midi_output_write (hmidi);
 }
 
@@ -6377,6 +6380,7 @@ static int __devinit snd_hdspm_create(struct snd_card *card,
 
 	switch (hdspm->firmware_rev) {
 	case HDSPM_MADI_REV:
+	case HDSPM_MADI_OLD_REV:
 		hdspm->io_type = MADI;
 		hdspm->card_name = "RME MADI";
 		hdspm->midiPorts = 3;

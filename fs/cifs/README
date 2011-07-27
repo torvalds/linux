@@ -457,6 +457,9 @@ A partial list of the supported mount options follows:
 		otherwise - read from the server. All written data are stored
 		in the cache, but if the client doesn't have Exclusive Oplock,
 		it writes the data to the server.
+  rwpidforward  Forward pid of a process who opened a file to any read or write
+		operation on that file. This prevent applications like WINE
+		from failing on read and write if we use mandatory brlock style.
   acl   	Allow setfacl and getfacl to manage posix ACLs if server
 		supports them.  (default)
   noacl 	Do not allow setfacl and getfacl calls on this mount
@@ -703,18 +706,6 @@ and setting it to seven enables all three.  Finally, tracing
 the start of smb requests and responses can be enabled via:
 
 	echo 1 > /proc/fs/cifs/traceSMB
-
-Two other experimental features are under development. To test these
-requires enabling CONFIG_CIFS_EXPERIMENTAL
-
-	cifsacl support needed to retrieve approximated mode bits based on
-		the contents on the CIFS ACL.
-
-	lease support: cifs will check the oplock state before calling into
-	the vfs to see if we can grant a lease on a file.
-
-	DNOTIFY fcntl: needed for support of directory change 
-			    notification and perhaps later for file leases)
 
 Per share (per client mount) statistics are available in /proc/fs/cifs/Stats
 if the kernel was configured with cifs statistics enabled.  The statistics

@@ -15,30 +15,18 @@
 #include "iio.h"
 
 /**
- * struct iio_event_attr - event control attribute
- * @dev_attr:	underlying device attribute
- * @mask:	mask for the event when detecting
- * @listel:	list header to allow addition to list of event handlers
-*/
-struct iio_event_attr {
-	struct device_attribute dev_attr;
-	int mask;
-	struct iio_event_handler_list *listel;
-};
-
-#define to_iio_event_attr(_dev_attr) \
-	container_of(_dev_attr, struct iio_event_attr, dev_attr)
-
-/**
  * struct iio_dev_attr - iio specific device attribute
  * @dev_attr:	underlying device attribute
  * @address:	associated register address
  * @val2:	secondary attribute value
+ * @l:		list head for maintaining list of dynamically created attrs.
  */
 struct iio_dev_attr {
 	struct device_attribute dev_attr;
 	int address;
 	int val2;
+	struct list_head l;
+	struct iio_chan_spec const *c;
 };
 
 #define to_iio_dev_attr(_dev_attr)				\
@@ -99,13 +87,6 @@ struct iio_const_attr {
  **/
 #define IIO_DEV_ATTR_REV(_show)			\
 	IIO_DEVICE_ATTR(revision, S_IRUGO, _show, NULL, 0)
-
-/**
- * IIO_DEV_ATTR_NAME - chip type dependent identifier
- * @_show: output method for the attribute
- **/
-#define IIO_DEV_ATTR_NAME(_show)				\
-	IIO_DEVICE_ATTR(name, S_IRUGO, _show, NULL, 0)
 
 /**
  * IIO_DEV_ATTR_RESET: resets the device
@@ -180,104 +161,27 @@ struct iio_const_attr {
 #define IIO_CONST_ATTR_TEMP_SCALE(_string)		\
 	IIO_CONST_ATTR(temp_scale, _string)
 
-/**
- * IIO_EVENT_SH - generic shared event handler
- * @_name: event name
- * @_handler: handler function to be called
- *
- * This is used in cases where more than one event may result from a single
- * handler.  Often the case that some alarm register must be read and multiple
- * alarms may have been triggered.
- **/
-#define IIO_EVENT_SH(_name, _handler)					\
-	static struct iio_event_handler_list				\
-	iio_event_##_name = {						\
-		.handler = _handler,					\
-		.refcount = 0,						\
-		.exist_lock = __MUTEX_INITIALIZER(iio_event_##_name	\
-						  .exist_lock),		\
-		.list = {						\
-			.next = &iio_event_##_name.list,		\
-			.prev = &iio_event_##_name.list,		\
-		},							\
-	};
+/* must match our channel defs */
+#define IIO_EV_CLASS_IN			IIO_IN
+#define IIO_EV_CLASS_IN_DIFF		IIO_IN_DIFF
+#define IIO_EV_CLASS_ACCEL		IIO_ACCEL
+#define IIO_EV_CLASS_GYRO		IIO_GYRO
+#define IIO_EV_CLASS_MAGN		IIO_MAGN
+#define IIO_EV_CLASS_LIGHT		IIO_LIGHT
+#define IIO_EV_CLASS_PROXIMITY		IIO_PROXIMITY
+#define IIO_EV_CLASS_TEMP		IIO_TEMP
 
-/**
- * IIO_EVENT_ATTR_SH - generic shared event attribute
- * @_name: event name
- * @_ev_list: event handler list
- * @_show: output method for the attribute
- * @_store: input method for the attribute
- * @_mask: mask used when detecting the event
- *
- * An attribute with an associated IIO_EVENT_SH
- **/
-#define IIO_EVENT_ATTR_SH(_name, _ev_list, _show, _store, _mask)	\
-	static struct iio_event_attr					\
-	iio_event_attr_##_name						\
-	= { .dev_attr = __ATTR(_name, S_IRUGO | S_IWUSR,		\
-			       _show, _store),				\
-	    .mask = _mask,						\
-	    .listel = &_ev_list };
-
-#define IIO_EVENT_ATTR_NAMED_SH(_vname, _name, _ev_list, _show, _store, _mask) \
-	static struct iio_event_attr					\
-	iio_event_attr_##_vname						\
-	= { .dev_attr = __ATTR(_name, S_IRUGO | S_IWUSR,		\
-			       _show, _store),				\
-	    .mask = _mask,						\
-	    .listel = &_ev_list };
-
-/**
- * IIO_EVENT_ATTR - non-shared event attribute
- * @_name: event name
- * @_show: output method for the attribute
- * @_store: input method for the attribute
- * @_mask: mask used when detecting the event
- * @_handler: handler function to be called
- **/
-#define IIO_EVENT_ATTR(_name, _show, _store, _mask, _handler)		\
-	IIO_EVENT_SH(_name, _handler);					\
-	static struct							\
-	iio_event_attr							\
-	iio_event_attr_##_name						\
-	= { .dev_attr = __ATTR(_name, S_IRUGO | S_IWUSR,		\
-			       _show, _store),				\
-	    .mask = _mask,						\
-	    .listel = &iio_event_##_name };				\
-
-/**
- * IIO_EVENT_ATTR_DATA_RDY - event driven by data ready signal
- * @_show: output method for the attribute
- * @_store: input method for the attribute
- * @_mask: mask used when detecting the event
- * @_handler: handler function to be called
- *
- * Not typically implemented in devices where full triggering support
- * has been implemented.
- **/
-#define IIO_EVENT_ATTR_DATA_RDY(_show, _store, _mask, _handler) \
-	IIO_EVENT_ATTR(data_rdy, _show, _store, _mask, _handler)
-
-#define IIO_EV_CLASS_BUFFER		0
-#define IIO_EV_CLASS_IN			1
-#define IIO_EV_CLASS_ACCEL		2
-#define IIO_EV_CLASS_GYRO		3
-#define IIO_EV_CLASS_MAGN		4
-#define IIO_EV_CLASS_LIGHT		5
-#define IIO_EV_CLASS_PROXIMITY		6
-
-#define IIO_EV_MOD_X			0
-#define IIO_EV_MOD_Y			1
-#define IIO_EV_MOD_Z			2
-#define IIO_EV_MOD_X_AND_Y		3
-#define IIO_EV_MOD_X_ANX_Z		4
-#define IIO_EV_MOD_Y_AND_Z		5
-#define IIO_EV_MOD_X_AND_Y_AND_Z	6
-#define IIO_EV_MOD_X_OR_Y		7
-#define IIO_EV_MOD_X_OR_Z		8
-#define IIO_EV_MOD_Y_OR_Z		9
-#define IIO_EV_MOD_X_OR_Y_OR_Z		10
+#define IIO_EV_MOD_X			IIO_MOD_X
+#define IIO_EV_MOD_Y			IIO_MOD_Y
+#define IIO_EV_MOD_Z			IIO_MOD_Z
+#define IIO_EV_MOD_X_AND_Y		IIO_MOD_X_AND_Y
+#define IIO_EV_MOD_X_ANX_Z		IIO_MOD_X_AND_Z
+#define IIO_EV_MOD_Y_AND_Z		IIO_MOD_Y_AND_Z
+#define IIO_EV_MOD_X_AND_Y_AND_Z	IIO_MOD_X_AND_Y_AND_Z
+#define IIO_EV_MOD_X_OR_Y		IIO_MOD_X_OR_Y
+#define IIO_EV_MOD_X_OR_Z		IIO_MOD_X_OR_Z
+#define IIO_EV_MOD_Y_OR_Z		IIO_MOD_Y_OR_Z
+#define IIO_EV_MOD_X_OR_Y_OR_Z		IIO_MOD_X_OR_Y_OR_Z
 
 #define IIO_EV_TYPE_THRESH		0
 #define IIO_EV_TYPE_MAG			1
@@ -286,6 +190,10 @@ struct iio_const_attr {
 #define IIO_EV_DIR_EITHER		0
 #define IIO_EV_DIR_RISING		1
 #define IIO_EV_DIR_FALLING		2
+
+#define IIO_EV_TYPE_MAX 8
+#define IIO_EV_BIT(type, direction)			\
+	(1 << (type*IIO_EV_TYPE_MAX + direction))
 
 #define IIO_EVENT_CODE(channelclass, orient_bit, number,		\
 		       modifier, type, direction)			\
@@ -303,38 +211,12 @@ struct iio_const_attr {
 #define IIO_BUFFER_EVENT_CODE(code)		\
 	(IIO_EV_CLASS_BUFFER | (code << 8))
 
-/**
- * IIO_EVENT_ATTR_RING_50_FULL - ring buffer event to indicate 50% full
- * @_show: output method for the attribute
- * @_store: input method for the attribute
- * @_mask: mask used when detecting the event
- * @_handler: handler function to be called
- **/
-#define IIO_EVENT_ATTR_RING_50_FULL(_show, _store, _mask, _handler)	\
-	IIO_EVENT_ATTR(ring_50_full, _show, _store, _mask, _handler)
+#define IIO_EVENT_CODE_EXTRACT_DIR(mask) ((mask >> 24) & 0xf)
 
-/**
- * IIO_EVENT_ATTR_RING_50_FULL_SH - shared ring event to indicate 50% full
- * @_evlist: event handler list
- * @_show: output method for the attribute
- * @_store: input method for the attribute
- * @_mask: mask used when detecting the event
- **/
-#define IIO_EVENT_ATTR_RING_50_FULL_SH(_evlist, _show, _store, _mask)	\
-	IIO_EVENT_ATTR_SH(ring_50_full, _evlist, _show, _store, _mask)
+/* Event code number extraction depends on which type of event we have.
+ * Perhaps review this function in the future*/
+#define IIO_EVENT_CODE_EXTRACT_NUM(mask) ((mask >> 9) & 0x0f)
 
-/**
- * IIO_EVENT_ATTR_RING_75_FULL_SH - shared ring event to indicate 75% full
- * @_evlist: event handler list
- * @_show: output method for the attribute
- * @_store: input method for the attribute
- * @_mask: mask used when detecting the event
- **/
-#define IIO_EVENT_ATTR_RING_75_FULL_SH(_evlist, _show, _store, _mask)	\
-	IIO_EVENT_ATTR_SH(ring_75_full, _evlist, _show, _store, _mask)
-
-#define IIO_EVENT_CODE_RING_50_FULL	IIO_BUFFER_EVENT_CODE(0)
-#define IIO_EVENT_CODE_RING_75_FULL	IIO_BUFFER_EVENT_CODE(1)
-#define IIO_EVENT_CODE_RING_100_FULL	IIO_BUFFER_EVENT_CODE(2)
+#define IIO_EVENT_CODE_EXTRACT_MODIFIER(mask) ((mask >> 13) & 0x7)
 
 #endif /* _INDUSTRIAL_IO_SYSFS_H_ */

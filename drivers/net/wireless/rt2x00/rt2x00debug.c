@@ -63,7 +63,8 @@ struct rt2x00debug_intf {
 	 * - driver folder
 	 *   - driver file
 	 *   - chipset file
-	 *   - device flags file
+	 *   - device state flags file
+	 *   - device capability flags file
 	 *   - register folder
 	 *     - csr offset/value files
 	 *     - eeprom offset/value files
@@ -78,6 +79,7 @@ struct rt2x00debug_intf {
 	struct dentry *driver_entry;
 	struct dentry *chipset_entry;
 	struct dentry *dev_flags;
+	struct dentry *cap_flags;
 	struct dentry *register_folder;
 	struct dentry *csr_off_entry;
 	struct dentry *csr_val_entry;
@@ -553,6 +555,35 @@ static const struct file_operations rt2x00debug_fop_dev_flags = {
 	.llseek		= default_llseek,
 };
 
+static ssize_t rt2x00debug_read_cap_flags(struct file *file,
+					  char __user *buf,
+					  size_t length,
+					  loff_t *offset)
+{
+	struct rt2x00debug_intf *intf =	file->private_data;
+	char line[16];
+	size_t size;
+
+	if (*offset)
+		return 0;
+
+	size = sprintf(line, "0x%.8x\n", (unsigned int)intf->rt2x00dev->cap_flags);
+
+	if (copy_to_user(buf, line, size))
+		return -EFAULT;
+
+	*offset += size;
+	return size;
+}
+
+static const struct file_operations rt2x00debug_fop_cap_flags = {
+	.owner		= THIS_MODULE,
+	.read		= rt2x00debug_read_cap_flags,
+	.open		= rt2x00debug_file_open,
+	.release	= rt2x00debug_file_release,
+	.llseek		= default_llseek,
+};
+
 static struct dentry *rt2x00debug_create_file_driver(const char *name,
 						     struct rt2x00debug_intf
 						     *intf,
@@ -568,7 +599,6 @@ static struct dentry *rt2x00debug_create_file_driver(const char *name,
 	blob->data = data;
 	data += sprintf(data, "driver:\t%s\n", intf->rt2x00dev->ops->name);
 	data += sprintf(data, "version:\t%s\n", DRV_VERSION);
-	data += sprintf(data, "compiled:\t%s %s\n", __DATE__, __TIME__);
 	blob->size = strlen(blob->data);
 
 	return debugfs_create_blob(name, S_IRUSR, intf->driver_folder, blob);
@@ -653,6 +683,12 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 	if (IS_ERR(intf->dev_flags) || !intf->dev_flags)
 		goto exit;
 
+	intf->cap_flags = debugfs_create_file("cap_flags", S_IRUSR,
+					      intf->driver_folder, intf,
+					      &rt2x00debug_fop_cap_flags);
+	if (IS_ERR(intf->cap_flags) || !intf->cap_flags)
+		goto exit;
+
 	intf->register_folder =
 	    debugfs_create_dir("register", intf->driver_folder);
 	if (IS_ERR(intf->register_folder) || !intf->register_folder)
@@ -706,7 +742,7 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 				intf, &rt2x00debug_fop_queue_stats);
 
 #ifdef CONFIG_RT2X00_LIB_CRYPTO
-	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags))
+	if (test_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags))
 		intf->crypto_stats_entry =
 		    debugfs_create_file("crypto", S_IRUGO, intf->queue_folder,
 					intf, &rt2x00debug_fop_crypto_stats);
@@ -744,6 +780,7 @@ void rt2x00debug_deregister(struct rt2x00_dev *rt2x00dev)
 	debugfs_remove(intf->csr_off_entry);
 	debugfs_remove(intf->register_folder);
 	debugfs_remove(intf->dev_flags);
+	debugfs_remove(intf->cap_flags);
 	debugfs_remove(intf->chipset_entry);
 	debugfs_remove(intf->driver_entry);
 	debugfs_remove(intf->driver_folder);

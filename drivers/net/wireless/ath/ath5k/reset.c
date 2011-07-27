@@ -159,6 +159,11 @@ static void ath5k_hw_init_core_clock(struct ath5k_hw *ah)
 	rxlat = AR5K_REG_MS(usec_reg, AR5K_USEC_RX_LATENCY_5211);
 
 	/*
+	 * Set default Tx frame to Tx data start delay
+	 */
+	txf2txs = AR5K_INIT_TXF2TXD_START_DEFAULT;
+
+	/*
 	 * 5210 initvals don't include usec settings
 	 * so we need to use magic values here for
 	 * tx/rx latencies
@@ -1119,8 +1124,11 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 			/* Non fatal, can happen eg.
 			 * on mode change */
 			ret = 0;
-		} else
+		} else {
+			ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_RESET,
+				"fast chan change successful\n");
 			return 0;
+		}
 	}
 
 	/*

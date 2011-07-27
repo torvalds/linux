@@ -69,7 +69,6 @@ typedef	struct xfs_bmap_free
 #define XFS_BMAPI_ENTIRE	0x004	/* return entire extent, not trimmed */
 #define XFS_BMAPI_METADATA	0x008	/* mapping metadata not user data */
 #define XFS_BMAPI_ATTRFORK	0x010	/* use attribute fork not data */
-#define XFS_BMAPI_RSVBLOCKS	0x020	/* OK to alloc. reserved data blocks */
 #define	XFS_BMAPI_PREALLOC	0x040	/* preallocation op: unwritten space */
 #define	XFS_BMAPI_IGSTATE	0x080	/* Ignore state - */
 					/* combine contig. space */
@@ -87,7 +86,6 @@ typedef	struct xfs_bmap_free
 	{ XFS_BMAPI_ENTIRE,	"ENTIRE" }, \
 	{ XFS_BMAPI_METADATA,	"METADATA" }, \
 	{ XFS_BMAPI_ATTRFORK,	"ATTRFORK" }, \
-	{ XFS_BMAPI_RSVBLOCKS,	"RSVBLOCKS" }, \
 	{ XFS_BMAPI_PREALLOC,	"PREALLOC" }, \
 	{ XFS_BMAPI_IGSTATE,	"IGSTATE" }, \
 	{ XFS_BMAPI_CONTIG,	"CONTIG" }, \

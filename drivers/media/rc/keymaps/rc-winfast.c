@@ -32,8 +32,8 @@ static struct rc_map_table winfast[] = {
 	{ 0x02, KEY_TUNER },		/* TV/FM, not on Y0400052 */
 	{ 0x1e, KEY_VIDEO },		/* Video Source */
 	{ 0x16, KEY_INFO },		/* Display information */
-	{ 0x04, KEY_LEFT },
-	{ 0x08, KEY_RIGHT },
+	{ 0x04, KEY_RIGHT },
+	{ 0x08, KEY_LEFT },
 	{ 0x0c, KEY_UP },
 	{ 0x10, KEY_DOWN },
 	{ 0x03, KEY_ZOOM },		/* fullscreen */

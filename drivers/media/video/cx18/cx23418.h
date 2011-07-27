@@ -342,6 +342,12 @@
    ReturnCode */
 #define CX18_CPU_GET_ENC_PTS			(CPU_CMD_MASK_CAPTURE | 0x0022)
 
+/* Description: Set VFC parameters
+   IN[0] - task handle
+   IN[1] - VFC enable flag, 1 - enable, 0 - disable
+*/
+#define CX18_CPU_SET_VFC_PARAM                  (CPU_CMD_MASK_CAPTURE | 0x0023)
+
 /* Below is the list of commands related to the data exchange */
 #define CPU_CMD_MASK_DE 			(CPU_CMD_MASK | 0x040000)
 

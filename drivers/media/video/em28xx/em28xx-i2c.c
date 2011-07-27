@@ -332,7 +332,7 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 	struct em28xx_eeprom *em_eeprom = (void *)eedata;
 	int i, err, size = len, block;
 
-	if (dev->chip_id == CHIP_ID_EM2874) {
+	if (dev->chip_id == CHIP_ID_EM2874 || dev->chip_id == CHIP_ID_EM28174) {
 		/* Empia switched to a 16-bit addressable eeprom in newer
 		   devices.  While we could certainly write a routine to read
 		   the eeprom, there is nothing of use in there that cannot be

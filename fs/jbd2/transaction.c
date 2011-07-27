@@ -82,7 +82,7 @@ jbd2_get_transaction(journal_t *journal, transaction_t *transaction)
  */
 
 /*
- * Update transiaction's maximum wait time, if debugging is enabled.
+ * Update transaction's maximum wait time, if debugging is enabled.
  *
  * In order for t_max_wait to be reliable, it must be protected by a
  * lock.  But doing so will mean that start_this_handle() can not be
@@ -91,11 +91,10 @@ jbd2_get_transaction(journal_t *journal, transaction_t *transaction)
  * means that maximum wait time reported by the jbd2_run_stats
  * tracepoint will always be zero.
  */
-static inline void update_t_max_wait(transaction_t *transaction)
+static inline void update_t_max_wait(transaction_t *transaction,
+				     unsigned long ts)
 {
 #ifdef CONFIG_JBD2_DEBUG
-	unsigned long ts = jiffies;
-
 	if (jbd2_journal_enable_debug &&
 	    time_after(transaction->t_start, ts)) {
 		ts = jbd2_time_diff(ts, transaction->t_start);
@@ -121,6 +120,7 @@ static int start_this_handle(journal_t *journal, handle_t *handle,
 	tid_t		tid;
 	int		needed, need_to_start;
 	int		nblocks = handle->h_buffer_credits;
+	unsigned long ts = jiffies;
 
 	if (nblocks > journal->j_max_transaction_buffers) {
 		printk(KERN_ERR "JBD: %s wants too many credits (%d > %d)\n",
@@ -271,7 +271,7 @@ repeat:
 	/* OK, account for the buffers that this operation expects to
 	 * use and add the handle to the running transaction. 
 	 */
-	update_t_max_wait(transaction);
+	update_t_max_wait(transaction, ts);
 	handle->h_transaction = transaction;
 	atomic_inc(&transaction->t_updates);
 	atomic_inc(&transaction->t_handle_count);
@@ -316,7 +316,8 @@ static handle_t *new_handle(int nblocks)
  * This function is visible to journal users (like ext3fs), so is not
  * called with the journal already locked.
  *
- * Return a pointer to a newly allocated handle, or NULL on failure
+ * Return a pointer to a newly allocated handle, or an ERR_PTR() value
+ * on failure.
  */
 handle_t *jbd2__journal_start(journal_t *journal, int nblocks, int gfp_mask)
 {
@@ -921,8 +922,8 @@ int jbd2_journal_get_create_access(handle_t *handle, struct buffer_head *bh)
 	 */
 	JBUFFER_TRACE(jh, "cancelling revoke");
 	jbd2_journal_cancel_revoke(handle, jh);
-	jbd2_journal_put_journal_head(jh);
 out:
+	jbd2_journal_put_journal_head(jh);
 	return err;
 }
 
@@ -2147,6 +2148,13 @@ int jbd2_journal_file_inode(handle_t *handle, struct jbd2_inode *jinode)
 	    jinode->i_next_transaction == transaction)
 		goto done;
 
+	/*
+	 * We only ever set this variable to 1 so the test is safe. Since
+	 * t_need_data_flush is likely to be set, we do the test to save some
+	 * cacheline bouncing
+	 */
+	if (!transaction->t_need_data_flush)
+		transaction->t_need_data_flush = 1;
 	/* On some different transaction's list - should be
 	 * the committing one */
 	if (jinode->i_transaction) {

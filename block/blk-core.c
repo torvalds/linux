@@ -292,7 +292,6 @@ EXPORT_SYMBOL(blk_sync_queue);
 /**
  * __blk_run_queue - run a single device queue
  * @q:	The queue to run
- * @force_kblockd: Don't run @q->request_fn directly.  Use kblockd.
  *
  * Description:
  *    See @blk_run_queue. This variant must be called with the queue lock
@@ -303,15 +302,7 @@ void __blk_run_queue(struct request_queue *q)
 	if (unlikely(blk_queue_stopped(q)))
 		return;
 
-	/*
-	 * Only recurse once to avoid overrunning the stack, let the unplug
-	 * handling reinvoke the handler shortly if we already got there.
-	 */
-	if (!queue_flag_test_and_set(QUEUE_FLAG_REENTER, q)) {
-		q->request_fn(q);
-		queue_flag_clear(QUEUE_FLAG_REENTER, q);
-	} else
-		queue_delayed_work(kblockd_workqueue, &q->delay_work, 0);
+	q->request_fn(q);
 }
 EXPORT_SYMBOL(__blk_run_queue);
 
@@ -325,9 +316,12 @@ EXPORT_SYMBOL(__blk_run_queue);
  */
 void blk_run_queue_async(struct request_queue *q)
 {
-	if (likely(!blk_queue_stopped(q)))
+	if (likely(!blk_queue_stopped(q))) {
+		__cancel_delayed_work(&q->delay_work);
 		queue_delayed_work(kblockd_workqueue, &q->delay_work, 0);
+	}
 }
+EXPORT_SYMBOL(blk_run_queue_async);
 
 /**
  * blk_run_queue - run a single device queue
@@ -351,6 +345,7 @@ void blk_put_queue(struct request_queue *q)
 {
 	kobject_put(&q->kobj);
 }
+EXPORT_SYMBOL(blk_put_queue);
 
 /*
  * Note: If a driver supplied the queue lock, it should not zap that lock
@@ -572,11 +567,10 @@ int blk_get_queue(struct request_queue *q)
 
 	return 1;
 }
+EXPORT_SYMBOL(blk_get_queue);
 
 static inline void blk_free_request(struct request_queue *q, struct request *rq)
 {
-	BUG_ON(rq->cmd_flags & REQ_ON_PLUG);
-
 	if (rq->cmd_flags & REQ_ELVPRIV)
 		elv_put_request(q, rq);
 	mempool_free(rq, q->rq.rq_pool);
@@ -1116,14 +1110,6 @@ static bool bio_attempt_back_merge(struct request_queue *q, struct request *req,
 {
 	const int ff = bio->bi_rw & REQ_FAILFAST_MASK;
 
-	/*
-	 * Debug stuff, kill later
-	 */
-	if (!rq_mergeable(req)) {
-		blk_dump_rq_flags(req, "back");
-		return false;
-	}
-
 	if (!ll_back_merge_fn(q, req, bio))
 		return false;
 
@@ -1138,6 +1124,7 @@ static bool bio_attempt_back_merge(struct request_queue *q, struct request *req,
 	req->ioprio = ioprio_best(req->ioprio, bio_prio(bio));
 
 	drive_stat_acct(req, 0);
+	elv_bio_merged(q, req, bio);
 	return true;
 }
 
@@ -1145,15 +1132,6 @@ static bool bio_attempt_front_merge(struct request_queue *q,
 				    struct request *req, struct bio *bio)
 {
 	const int ff = bio->bi_rw & REQ_FAILFAST_MASK;
-	sector_t sector;
-
-	/*
-	 * Debug stuff, kill later
-	 */
-	if (!rq_mergeable(req)) {
-		blk_dump_rq_flags(req, "front");
-		return false;
-	}
 
 	if (!ll_front_merge_fn(q, req, bio))
 		return false;
@@ -1162,8 +1140,6 @@ static bool bio_attempt_front_merge(struct request_queue *q,
 
 	if ((req->cmd_flags & REQ_FAILFAST_MASK) != ff)
 		blk_rq_set_mixed_merge(req);
-
-	sector = bio->bi_sector;
 
 	bio->bi_next = req->bio;
 	req->bio = bio;
@@ -1179,6 +1155,7 @@ static bool bio_attempt_front_merge(struct request_queue *q,
 	req->ioprio = ioprio_best(req->ioprio, bio_prio(bio));
 
 	drive_stat_acct(req, 0);
+	elv_bio_merged(q, req, bio);
 	return true;
 }
 
@@ -1264,14 +1241,12 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 
 	el_ret = elv_merge(q, &req, bio);
 	if (el_ret == ELEVATOR_BACK_MERGE) {
-		BUG_ON(req->cmd_flags & REQ_ON_PLUG);
 		if (bio_attempt_back_merge(q, req, bio)) {
 			if (!attempt_back_merge(q, req))
 				elv_merged_request(q, req, el_ret);
 			goto out_unlock;
 		}
 	} else if (el_ret == ELEVATOR_FRONT_MERGE) {
-		BUG_ON(req->cmd_flags & REQ_ON_PLUG);
 		if (bio_attempt_front_merge(q, req, bio)) {
 			if (!attempt_front_merge(q, req))
 				elv_merged_request(q, req, el_ret);
@@ -1326,10 +1301,6 @@ get_rq:
 			if (__rq->q != q)
 				plug->should_sort = 1;
 		}
-		/*
-		 * Debug flag, kill later
-		 */
-		req->cmd_flags |= REQ_ON_PLUG;
 		list_add_tail(&req->queuelist, &plug->list);
 		drive_stat_acct(req, 1);
 	} else {
@@ -1556,7 +1527,8 @@ static inline void __generic_make_request(struct bio *bio)
 			goto end_io;
 		}
 
-		blk_throtl_bio(q, &bio);
+		if (blk_throtl_bio(q, &bio))
+			goto end_io;
 
 		/*
 		 * If bio = NULL, bio has been throttled and will be submitted
@@ -2754,7 +2726,6 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 	while (!list_empty(&list)) {
 		rq = list_entry_rq(list.next);
 		list_del_init(&rq->queuelist);
-		BUG_ON(!(rq->cmd_flags & REQ_ON_PLUG));
 		BUG_ON(!rq->q);
 		if (rq->q != q) {
 			/*
@@ -2766,8 +2737,6 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 			depth = 0;
 			spin_lock(q->queue_lock);
 		}
-		rq->cmd_flags &= ~REQ_ON_PLUG;
-
 		/*
 		 * rq is already accounted, so use raw insert
 		 */
@@ -2787,7 +2756,6 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL(blk_flush_plug_list);
 
 void blk_finish_plug(struct blk_plug *plug)
 {

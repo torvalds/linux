@@ -3,7 +3,6 @@
 #ifdef __KERNEL__
 
 #include <linux/irq.h>
-#include <linux/sysdev.h>
 #include <asm/dcr.h>
 #include <asm/msi_bitmap.h>
 
@@ -263,6 +262,7 @@ struct mpic
 #ifdef CONFIG_SMP
 	struct irq_chip		hc_ipi;
 #endif
+	struct irq_chip		hc_tm;
 	const char		*name;
 	/* Flags */
 	unsigned int		flags;
@@ -281,7 +281,7 @@ struct mpic
 
 	/* vector numbers used for internal sources (ipi/timers) */
 	unsigned int		ipi_vecs[4];
-	unsigned int		timer_vecs[4];
+	unsigned int		timer_vecs[8];
 
 	/* Spurious vector to program into unused sources */
 	unsigned int		spurious_vec;
@@ -319,8 +319,6 @@ struct mpic
 
 	/* link */
 	struct mpic		*next;
-
-	struct sys_device	sysdev;
 
 #ifdef CONFIG_PM
 	struct mpic_irq_save	*save_data;
@@ -371,6 +369,8 @@ struct mpic
  * NOTE: This flag trumps MPIC_WANTS_RESET.
  */
 #define MPIC_NO_RESET			0x00004000
+/* Freescale MPIC (compatible includes "fsl,mpic") */
+#define MPIC_FSL			0x00008000
 
 /* MPIC HW modification ID */
 #define MPIC_REGSET_MASK		0xf0000000

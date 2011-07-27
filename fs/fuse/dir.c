@@ -174,7 +174,7 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 		if (!inode)
 			return 0;
 
-		if (nd->flags & LOOKUP_RCU)
+		if (nd && (nd->flags & LOOKUP_RCU))
 			return -ECHILD;
 
 		fc = get_fuse_conn(inode);
@@ -691,6 +691,7 @@ static int fuse_rename(struct inode *olddir, struct dentry *oldent,
 	struct fuse_rename_in inarg;
 	struct fuse_conn *fc = get_fuse_conn(olddir);
 	struct fuse_req *req = fuse_get_req(fc);
+
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 

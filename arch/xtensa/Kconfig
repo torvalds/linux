@@ -20,12 +20,6 @@ config XTENSA
 config RWSEM_XCHGADD_ALGORITHM
 	def_bool y
 
-config GENERIC_FIND_NEXT_BIT
-	def_bool y
-
-config GENERIC_FIND_BIT_LE
-	def_bool y
-
 config GENERIC_HWEIGHT
 	def_bool y
 

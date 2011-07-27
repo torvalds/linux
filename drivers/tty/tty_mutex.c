@@ -1,6 +1,3 @@
-/*
- * drivers/char/tty_lock.c
- */
 #include <linux/tty.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>

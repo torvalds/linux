@@ -670,7 +670,7 @@ failed:
 	return -ENODEV;
 }
 
-static struct pcmcia_device_id serial_ids[] = {
+static const struct pcmcia_device_id serial_ids[] = {
 	PCMCIA_PFC_DEVICE_MANF_CARD(1, 0x0057, 0x0021),
 	PCMCIA_PFC_DEVICE_MANF_CARD(1, 0x0089, 0x110a),
 	PCMCIA_PFC_DEVICE_MANF_CARD(1, 0x0104, 0x000a),

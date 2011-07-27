@@ -248,7 +248,7 @@ static int __devinit bcm63xx_wdt_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	bcm63xx_wdt_device.regs = ioremap_nocache(r->start, r->end - r->start);
+	bcm63xx_wdt_device.regs = ioremap_nocache(r->start, resource_size(r));
 	if (!bcm63xx_wdt_device.regs) {
 		dev_err(&pdev->dev, "failed to remap I/O resources\n");
 		return -ENXIO;

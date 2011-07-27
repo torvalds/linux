@@ -80,12 +80,12 @@
 #define HIDP_VIRTUAL_CABLE_UNPLUG	0
 #define HIDP_BOOT_PROTOCOL_MODE		1
 #define HIDP_BLUETOOTH_VENDOR_ID	9
-#define	HIDP_WAITING_FOR_RETURN		10
+#define HIDP_WAITING_FOR_RETURN		10
 #define HIDP_WAITING_FOR_SEND_ACK	11
 
 struct hidp_connadd_req {
-	int   ctrl_sock;	// Connected control socket
-	int   intr_sock;	// Connteted interrupt socket
+	int   ctrl_sock;	/* Connected control socket */
+	int   intr_sock;	/* Connected interrupt socket */
 	__u16 parser;
 	__u16 rd_size;
 	__u8 __user *rd_data;
@@ -142,7 +142,7 @@ struct hidp_session {
 	uint ctrl_mtu;
 	uint intr_mtu;
 
-	atomic_t terminate;
+	struct task_struct *task;
 
 	unsigned char keys[8];
 	unsigned char leds;

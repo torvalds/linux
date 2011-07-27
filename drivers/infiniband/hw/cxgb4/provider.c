@@ -516,7 +516,6 @@ int c4iw_register_device(struct c4iw_dev *dev)
 		if (ret)
 			goto bail2;
 	}
-	dev->registered = 1;
 	return 0;
 bail2:
 	ib_unregister_device(&dev->ibdev);
@@ -535,6 +534,5 @@ void c4iw_unregister_device(struct c4iw_dev *dev)
 				   c4iw_class_attributes[i]);
 	ib_unregister_device(&dev->ibdev);
 	kfree(dev->ibdev.iwcm);
-	dev->registered = 0;
 	return;
 }

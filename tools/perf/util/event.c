@@ -9,21 +9,21 @@
 #include "thread_map.h"
 
 static const char *perf_event__names[] = {
-	[0]			 = "TOTAL",
-	[PERF_RECORD_MMAP]	 = "MMAP",
-	[PERF_RECORD_LOST]	 = "LOST",
-	[PERF_RECORD_COMM]	 = "COMM",
-	[PERF_RECORD_EXIT]	 = "EXIT",
-	[PERF_RECORD_THROTTLE]	 = "THROTTLE",
-	[PERF_RECORD_UNTHROTTLE] = "UNTHROTTLE",
-	[PERF_RECORD_FORK]	 = "FORK",
-	[PERF_RECORD_READ]	 = "READ",
-	[PERF_RECORD_SAMPLE]	 = "SAMPLE",
-	[PERF_RECORD_HEADER_ATTR]	 = "ATTR",
-	[PERF_RECORD_HEADER_EVENT_TYPE]	 = "EVENT_TYPE",
-	[PERF_RECORD_HEADER_TRACING_DATA]	 = "TRACING_DATA",
-	[PERF_RECORD_HEADER_BUILD_ID]	 = "BUILD_ID",
-	[PERF_RECORD_FINISHED_ROUND]	 = "FINISHED_ROUND",
+	[0]					= "TOTAL",
+	[PERF_RECORD_MMAP]			= "MMAP",
+	[PERF_RECORD_LOST]			= "LOST",
+	[PERF_RECORD_COMM]			= "COMM",
+	[PERF_RECORD_EXIT]			= "EXIT",
+	[PERF_RECORD_THROTTLE]			= "THROTTLE",
+	[PERF_RECORD_UNTHROTTLE]		= "UNTHROTTLE",
+	[PERF_RECORD_FORK]			= "FORK",
+	[PERF_RECORD_READ]			= "READ",
+	[PERF_RECORD_SAMPLE]			= "SAMPLE",
+	[PERF_RECORD_HEADER_ATTR]		= "ATTR",
+	[PERF_RECORD_HEADER_EVENT_TYPE]		= "EVENT_TYPE",
+	[PERF_RECORD_HEADER_TRACING_DATA]	= "TRACING_DATA",
+	[PERF_RECORD_HEADER_BUILD_ID]		= "BUILD_ID",
+	[PERF_RECORD_FINISHED_ROUND]		= "FINISHED_ROUND",
 };
 
 const char *perf_event__name(unsigned int id)
@@ -537,9 +537,18 @@ static int perf_event__process_kernel_mmap(union perf_event *event,
 			goto out_problem;
 
 		perf_event__set_kernel_mmap_len(event, machine->vmlinux_maps);
-		perf_session__set_kallsyms_ref_reloc_sym(machine->vmlinux_maps,
-							 symbol_name,
-							 event->mmap.pgoff);
+
+		/*
+		 * Avoid using a zero address (kptr_restrict) for the ref reloc
+		 * symbol. Effectively having zero here means that at record
+		 * time /proc/sys/kernel/kptr_restrict was non zero.
+		 */
+		if (event->mmap.pgoff != 0) {
+			perf_session__set_kallsyms_ref_reloc_sym(machine->vmlinux_maps,
+								 symbol_name,
+								 event->mmap.pgoff);
+		}
+
 		if (machine__is_default_guest(machine)) {
 			/*
 			 * preload dso of guest kernel and modules

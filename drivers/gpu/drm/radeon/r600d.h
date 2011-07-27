@@ -1309,6 +1309,9 @@
 #define     V_038004_FMT_BC3                           0x00000033
 #define     V_038004_FMT_BC4                           0x00000034
 #define     V_038004_FMT_BC5                           0x00000035
+#define     V_038004_FMT_BC6                           0x00000036
+#define     V_038004_FMT_BC7                           0x00000037
+#define     V_038004_FMT_32_AS_32_32_32_32             0x00000038
 #define R_038010_SQ_TEX_RESOURCE_WORD4_0             0x038010
 #define   S_038010_FORMAT_COMP_X(x)                    (((x) & 0x3) << 0)
 #define   G_038010_FORMAT_COMP_X(x)                    (((x) >> 0) & 0x3)

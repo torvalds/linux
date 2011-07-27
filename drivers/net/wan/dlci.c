@@ -341,10 +341,6 @@ static int dlci_add(struct dlci_add *dlci)
 		}
 	}
 
-	err = dev_alloc_name(master, master->name);
-	if (err < 0)
-		goto err2;
-
 	*(short *)(master->dev_addr) = dlci->dlci;
 
 	dlp = netdev_priv(master);

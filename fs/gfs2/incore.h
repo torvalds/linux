@@ -20,7 +20,6 @@
 
 #define DIO_WAIT	0x00000010
 #define DIO_METADATA	0x00000020
-#define DIO_ALL		0x00000100
 
 struct gfs2_log_operations;
 struct gfs2_log_element;
@@ -200,6 +199,8 @@ enum {
 	GLF_INITIAL			= 10,
 	GLF_FROZEN			= 11,
 	GLF_QUEUED			= 12,
+	GLF_LRU				= 13,
+	GLF_OBJECT			= 14, /* Used only for tracing */
 };
 
 struct gfs2_glock {
@@ -234,6 +235,7 @@ struct gfs2_glock {
 
 	struct list_head gl_ail_list;
 	atomic_t gl_ail_count;
+	atomic_t gl_revokes;
 	struct delayed_work gl_work;
 	struct work_struct gl_delete;
 	struct rcu_head gl_rcu;
@@ -374,8 +376,6 @@ struct gfs2_ail {
 	unsigned int ai_first;
 	struct list_head ai_ail1_list;
 	struct list_head ai_ail2_list;
-
-	u64 ai_sync_gen;
 };
 
 struct gfs2_journal_extent {
@@ -488,7 +488,6 @@ struct gfs2_sb_host {
 
 	char sb_lockproto[GFS2_LOCKNAME_LEN];
 	char sb_locktable[GFS2_LOCKNAME_LEN];
-	u8 sb_uuid[16];
 };
 
 /*
@@ -654,7 +653,6 @@ struct gfs2_sbd {
 	spinlock_t sd_ail_lock;
 	struct list_head sd_ail1_list;
 	struct list_head sd_ail2_list;
-	u64 sd_ail_sync_gen;
 
 	/* Replay stuff */
 

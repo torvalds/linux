@@ -53,7 +53,6 @@ const char *reserved_field_names[] = {
 	"common_preempt_count",
 	"common_pid",
 	"common_tgid",
-	"common_lock_depth",
 	FIELD_STRING_IP,
 	FIELD_STRING_RETIP,
 	FIELD_STRING_FUNC,
@@ -1871,8 +1870,12 @@ fs_initcall(init_kprobe_trace);
 
 #ifdef CONFIG_FTRACE_STARTUP_TEST
 
-static int kprobe_trace_selftest_target(int a1, int a2, int a3,
-					int a4, int a5, int a6)
+/*
+ * The "__used" keeps gcc from removing the function symbol
+ * from the kallsyms table.
+ */
+static __used int kprobe_trace_selftest_target(int a1, int a2, int a3,
+					       int a4, int a5, int a6)
 {
 	return a1 + a2 + a3 + a4 + a5 + a6;
 }

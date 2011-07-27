@@ -80,6 +80,11 @@ struct soc_camera_host_ops {
 	int (*cropcap)(struct soc_camera_device *, struct v4l2_cropcap *);
 	int (*get_crop)(struct soc_camera_device *, struct v4l2_crop *);
 	int (*set_crop)(struct soc_camera_device *, struct v4l2_crop *);
+	/*
+	 * The difference to .set_crop() is, that .set_livecrop is not allowed
+	 * to change the output sizes
+	 */
+	int (*set_livecrop)(struct soc_camera_device *, struct v4l2_crop *);
 	int (*set_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	int (*try_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	void (*init_videobuf)(struct videobuf_queue *,
@@ -104,6 +109,12 @@ struct soc_camera_host_ops {
 #define SOCAM_SENSOR_INVERT_HSYNC	(1 << 2)
 #define SOCAM_SENSOR_INVERT_VSYNC	(1 << 3)
 #define SOCAM_SENSOR_INVERT_DATA	(1 << 4)
+#define SOCAM_MIPI_1LANE		(1 << 5)
+#define SOCAM_MIPI_2LANE		(1 << 6)
+#define SOCAM_MIPI_3LANE		(1 << 7)
+#define SOCAM_MIPI_4LANE		(1 << 8)
+#define SOCAM_MIPI	(SOCAM_MIPI_1LANE | SOCAM_MIPI_2LANE | \
+			SOCAM_MIPI_3LANE | SOCAM_MIPI_4LANE)
 
 struct i2c_board_info;
 struct regulator_bulk_data;
@@ -268,6 +279,7 @@ static inline unsigned long soc_camera_bus_param_compatible(
 			unsigned long camera_flags, unsigned long bus_flags)
 {
 	unsigned long common_flags, hsync, vsync, pclk, data, buswidth, mode;
+	unsigned long mipi;
 
 	common_flags = camera_flags & bus_flags;
 
@@ -277,8 +289,9 @@ static inline unsigned long soc_camera_bus_param_compatible(
 	data = common_flags & (SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATA_ACTIVE_LOW);
 	mode = common_flags & (SOCAM_MASTER | SOCAM_SLAVE);
 	buswidth = common_flags & SOCAM_DATAWIDTH_MASK;
+	mipi = common_flags & SOCAM_MIPI;
 
-	return (!hsync || !vsync || !pclk || !data || !mode || !buswidth) ? 0 :
+	return ((!hsync || !vsync || !pclk || !data || !mode || !buswidth) && !mipi) ? 0 :
 		common_flags;
 }
 

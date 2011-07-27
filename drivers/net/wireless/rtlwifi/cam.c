@@ -23,6 +23,8 @@
  * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
  * Hsinchu 300, Taiwan.
  *
+ * Larry Finger <Larry.Finger@lwfinger.net>
+ *
  *****************************************************************************/
 
 #include "wifi.h"
@@ -49,7 +51,7 @@ static void rtl_cam_program_entry(struct ieee80211_hw *hw, u32 entry_no,
 	u32 target_content = 0;
 	u8 entry_i;
 
-	RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
+	RT_TRACE(rtlpriv, COMP_SEC, DBG_LOUD,
 		 ("key_cont_128:\n %x:%x:%x:%x:%x:%x\n",
 		  key_cont_128[0], key_cont_128[1],
 		  key_cont_128[2], key_cont_128[3],
@@ -68,15 +70,13 @@ static void rtl_cam_program_entry(struct ieee80211_hw *hw, u32 entry_no,
 			rtl_write_dword(rtlpriv, rtlpriv->cfg->maps[RWCAM],
 					target_command);
 
-			RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
-				 ("rtl_cam_program_entry(): "
-				  "WRITE %x: %x\n",
+			RT_TRACE(rtlpriv, COMP_SEC, DBG_LOUD,
+				 ("WRITE %x: %x\n",
 				  rtlpriv->cfg->maps[WCAMI], target_content));
-			RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
+			RT_TRACE(rtlpriv, COMP_SEC, DBG_LOUD,
 				 ("The Key ID is %d\n", entry_no));
-			RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
-				 ("rtl_cam_program_entry(): "
-				  "WRITE %x: %x\n",
+			RT_TRACE(rtlpriv, COMP_SEC, DBG_LOUD,
+				 ("WRITE %x: %x\n",
 				  rtlpriv->cfg->maps[RWCAM], target_command));
 
 		} else if (entry_i == 1) {
@@ -91,12 +91,10 @@ static void rtl_cam_program_entry(struct ieee80211_hw *hw, u32 entry_no,
 			rtl_write_dword(rtlpriv, rtlpriv->cfg->maps[RWCAM],
 					target_command);
 
-			RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
-				 ("rtl_cam_program_entry(): WRITE A4: %x\n",
-				  target_content));
-			RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
-				 ("rtl_cam_program_entry(): WRITE A0: %x\n",
-				  target_command));
+			RT_TRACE(rtlpriv, COMP_SEC, DBG_LOUD,
+				 ("WRITE A4: %x\n", target_content));
+			RT_TRACE(rtlpriv, COMP_SEC, DBG_LOUD,
+				 ("WRITE A0: %x\n", target_command));
 
 		} else {
 
@@ -113,16 +111,14 @@ static void rtl_cam_program_entry(struct ieee80211_hw *hw, u32 entry_no,
 					target_command);
 			udelay(100);
 
-			RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
-				 ("rtl_cam_program_entry(): WRITE A4: %x\n",
-				  target_content));
-			RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
-				 ("rtl_cam_program_entry(): WRITE A0: %x\n",
-				  target_command));
+			RT_TRACE(rtlpriv, COMP_SEC, DBG_LOUD,
+				 ("WRITE A4: %x\n", target_content));
+			RT_TRACE(rtlpriv, COMP_SEC, DBG_LOUD,
+				 ("WRITE A0: %x\n", target_command));
 		}
 	}
 
-	RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
+	RT_TRACE(rtlpriv, COMP_SEC, DBG_LOUD,
 		 ("after set key, usconfig:%x\n", us_config));
 }
 
@@ -289,3 +285,71 @@ void rtl_cam_empty_entry(struct ieee80211_hw *hw, u8 uc_index)
 
 }
 EXPORT_SYMBOL(rtl_cam_empty_entry);
+
+u8 rtl_cam_get_free_entry(struct ieee80211_hw *hw, u8 *sta_addr)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	u32 bitmap = (rtlpriv->sec.hwsec_cam_bitmap) >> 4;
+	u8 entry_idx = 0;
+	u8 i, *addr;
+
+	if (NULL == sta_addr) {
+		RT_TRACE(rtlpriv, COMP_SEC, DBG_EMERG,
+			("sta_addr is NULL.\n"));
+		return TOTAL_CAM_ENTRY;
+	}
+	/* Does STA already exist? */
+	for (i = 4; i < TOTAL_CAM_ENTRY; i++) {
+		addr = rtlpriv->sec.hwsec_cam_sta_addr[i];
+		if (memcmp(addr, sta_addr, ETH_ALEN) == 0)
+			return i;
+	}
+	/* Get a free CAM entry. */
+	for (entry_idx = 4; entry_idx < TOTAL_CAM_ENTRY; entry_idx++) {
+		if ((bitmap & BIT(0)) == 0) {
+			RT_TRACE(rtlpriv, COMP_SEC, DBG_EMERG,
+				("-----hwsec_cam_bitmap: 0x%x entry_idx=%d\n",
+				 rtlpriv->sec.hwsec_cam_bitmap, entry_idx));
+			rtlpriv->sec.hwsec_cam_bitmap |= BIT(0) << entry_idx;
+			memcpy(rtlpriv->sec.hwsec_cam_sta_addr[entry_idx],
+			       sta_addr, ETH_ALEN);
+			return entry_idx;
+		}
+		bitmap = bitmap >> 1;
+	}
+	return TOTAL_CAM_ENTRY;
+}
+EXPORT_SYMBOL(rtl_cam_get_free_entry);
+
+void rtl_cam_del_entry(struct ieee80211_hw *hw, u8 *sta_addr)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	u32 bitmap;
+	u8 i, *addr;
+
+	if (NULL == sta_addr) {
+		RT_TRACE(rtlpriv, COMP_SEC, DBG_EMERG,
+			("sta_addr is NULL.\n"));
+	}
+
+	if ((sta_addr[0]|sta_addr[1]|sta_addr[2]|sta_addr[3]|\
+				sta_addr[4]|sta_addr[5]) == 0) {
+		RT_TRACE(rtlpriv, COMP_SEC, DBG_EMERG,
+			("sta_addr is 00:00:00:00:00:00.\n"));
+		return;
+	}
+	/* Does STA already exist? */
+	for (i = 4; i < TOTAL_CAM_ENTRY; i++) {
+		addr = rtlpriv->sec.hwsec_cam_sta_addr[i];
+		bitmap = (rtlpriv->sec.hwsec_cam_bitmap) >> i;
+		if (((bitmap & BIT(0)) == BIT(0)) &&
+		    (memcmp(addr, sta_addr, ETH_ALEN) == 0)) {
+			/* Remove from HW Security CAM */
+			memset(rtlpriv->sec.hwsec_cam_sta_addr[i], 0, ETH_ALEN);
+			rtlpriv->sec.hwsec_cam_bitmap &= ~(BIT(0) << i);
+			printk(KERN_INFO "&&&&&&&&&del entry %d\n", i);
+		}
+	}
+	return;
+}
+EXPORT_SYMBOL(rtl_cam_del_entry);

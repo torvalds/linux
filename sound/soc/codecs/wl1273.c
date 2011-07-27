@@ -441,8 +441,7 @@ EXPORT_SYMBOL_GPL(wl1273_get_format);
 
 static int wl1273_probe(struct snd_soc_codec *codec)
 {
-	struct wl1273_core **core =
-			mfd_get_data(to_platform_device(codec->dev));
+	struct wl1273_core **core = codec->dev->platform_data;
 	struct wl1273_priv *wl1273;
 	int r;
 

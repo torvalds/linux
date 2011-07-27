@@ -77,11 +77,9 @@
 /*
  *	Addr scopes
  */
-#ifdef __KERNEL__
 #define IPV6_ADDR_MC_SCOPE(a)	\
 	((a)->s6_addr[1] & 0x0f)	/* nonstandard */
 #define __IPV6_ADDR_SCOPE_INVALID	-1
-#endif
 #define IPV6_ADDR_SCOPE_NODELOCAL	0x01
 #define IPV6_ADDR_SCOPE_LINKLOCAL	0x02
 #define IPV6_ADDR_SCOPE_SITELOCAL	0x05
@@ -91,14 +89,12 @@
 /*
  *	Addr flags
  */
-#ifdef __KERNEL__
 #define IPV6_ADDR_MC_FLAG_TRANSIENT(a)	\
 	((a)->s6_addr[1] & 0x10)
 #define IPV6_ADDR_MC_FLAG_PREFIX(a)	\
 	((a)->s6_addr[1] & 0x20)
 #define IPV6_ADDR_MC_FLAG_RENDEZVOUS(a)	\
 	((a)->s6_addr[1] & 0x40)
-#endif
 
 /*
  *	fragmentation header
@@ -113,8 +109,6 @@ struct frag_hdr {
 
 #define	IP6_MF	0x0001
 
-#ifdef __KERNEL__
-
 #include <net/sock.h>
 
 /* sysctls */
@@ -126,6 +120,15 @@ extern struct ctl_path net_ipv6_ctl_path[];
 	struct inet6_dev *_idev = (idev);				\
 	if (likely(_idev != NULL))					\
 		SNMP_INC_STATS##modifier((_idev)->stats.statname, (field)); \
+	SNMP_INC_STATS##modifier((net)->mib.statname##_statistics, (field));\
+})
+
+/* per device counters are atomic_long_t */
+#define _DEVINCATOMIC(net, statname, modifier, idev, field)		\
+({									\
+	struct inet6_dev *_idev = (idev);				\
+	if (likely(_idev != NULL))					\
+		SNMP_INC_STATS_ATOMIC_LONG((_idev)->stats.statname##dev, (field)); \
 	SNMP_INC_STATS##modifier((net)->mib.statname##_statistics, (field));\
 })
 
@@ -160,16 +163,16 @@ extern struct ctl_path net_ipv6_ctl_path[];
 #define IP6_UPD_PO_STATS_BH(net, idev,field,val)   \
 		_DEVUPD(net, ipv6, 64_BH, idev, field, val)
 #define ICMP6_INC_STATS(net, idev, field)	\
-		_DEVINC(net, icmpv6, , idev, field)
+		_DEVINCATOMIC(net, icmpv6, , idev, field)
 #define ICMP6_INC_STATS_BH(net, idev, field)	\
-		_DEVINC(net, icmpv6, _BH, idev, field)
+		_DEVINCATOMIC(net, icmpv6, _BH, idev, field)
 
 #define ICMP6MSGOUT_INC_STATS(net, idev, field)		\
-	_DEVINC(net, icmpv6msg, , idev, field +256)
+	_DEVINCATOMIC(net, icmpv6msg, , idev, field +256)
 #define ICMP6MSGOUT_INC_STATS_BH(net, idev, field)	\
-	_DEVINC(net, icmpv6msg, _BH, idev, field +256)
+	_DEVINCATOMIC(net, icmpv6msg, _BH, idev, field +256)
 #define ICMP6MSGIN_INC_STATS_BH(net, idev, field)	\
-	_DEVINC(net, icmpv6msg, _BH, idev, field)
+	_DEVINCATOMIC(net, icmpv6msg, _BH, idev, field)
 
 struct ip6_ra_chain {
 	struct ip6_ra_chain	*next;
@@ -376,8 +379,8 @@ enum ip6_defrag_users {
 struct ip6_create_arg {
 	__be32 id;
 	u32 user;
-	struct in6_addr *src;
-	struct in6_addr *dst;
+	const struct in6_addr *src;
+	const struct in6_addr *dst;
 };
 
 void ip6_frag_init(struct inet_frag_queue *q, void *a);
@@ -667,5 +670,4 @@ extern int ipv6_static_sysctl_register(void);
 extern void ipv6_static_sysctl_unregister(void);
 #endif
 
-#endif /* __KERNEL__ */
 #endif /* _NET_IPV6_H */

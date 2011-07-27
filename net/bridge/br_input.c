@@ -98,9 +98,10 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	}
 
 	if (skb) {
-		if (dst)
+		if (dst) {
+			dst->used = jiffies;
 			br_forward(dst->dst, skb, skb2);
-		else
+		} else
 			br_flood_forward(br, skb, skb2);
 	}
 
@@ -164,7 +165,7 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 			goto drop;
 
 		/* If STP is turned off, then forward */
-		if (p->br->stp_enabled == BR_NO_STP)
+		if (p->br->stp_enabled == BR_NO_STP && dest[5] == 0)
 			goto forward;
 
 		if (NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN, skb, skb->dev,

@@ -124,6 +124,8 @@ imx_ssi_fiq_start:
 1:
 		@ return from FIQ
 		subs	pc, lr, #4
+
+		.align
 imx_ssi_fiq_base:
 		.word 0x0
 imx_ssi_fiq_rx_buffer:

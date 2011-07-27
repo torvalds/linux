@@ -91,8 +91,6 @@ const struct ethtool_ops cvm_oct_ethtool_ops = {
 	.set_settings = cvm_oct_set_settings,
 	.nway_reset = cvm_oct_nway_reset,
 	.get_link = ethtool_op_get_link,
-	.get_sg = ethtool_op_get_sg,
-	.get_tx_csum = ethtool_op_get_tx_csum,
 };
 
 /**

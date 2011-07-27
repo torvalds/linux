@@ -195,6 +195,8 @@ static pci_power_t acpi_pci_choose_state(struct pci_dev *pdev)
 		return PCI_D2;
 	case ACPI_STATE_D3:
 		return PCI_D3hot;
+	case ACPI_STATE_D3_COLD:
+		return PCI_D3cold;
 	}
 	return PCI_POWER_ERROR;
 }

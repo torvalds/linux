@@ -143,19 +143,18 @@ struct hrtimer_sleeper {
  */
 struct hrtimer_clock_base {
 	struct hrtimer_cpu_base	*cpu_base;
-	clockid_t		index;
+	int			index;
+	clockid_t		clockid;
 	struct timerqueue_head	active;
 	ktime_t			resolution;
 	ktime_t			(*get_time)(void);
 	ktime_t			softirq_time;
-#ifdef CONFIG_HIGH_RES_TIMERS
 	ktime_t			offset;
-#endif
 };
 
 enum  hrtimer_base_type {
-	HRTIMER_BASE_REALTIME,
 	HRTIMER_BASE_MONOTONIC,
+	HRTIMER_BASE_REALTIME,
 	HRTIMER_BASE_BOOTTIME,
 	HRTIMER_MAX_CLOCK_BASES,
 };
@@ -164,7 +163,7 @@ enum  hrtimer_base_type {
  * struct hrtimer_cpu_base - the per cpu clock bases
  * @lock:		lock protecting the base and associated clock bases
  *			and timers
- * @clock_base:		array of clock bases for this cpu
+ * @active_bases:	Bitfield to mark bases with active timers
  * @expires_next:	absolute time of the next event which was scheduled
  *			via clock_set_next_event()
  * @hres_active:	State of high resolution mode
@@ -173,10 +172,11 @@ enum  hrtimer_base_type {
  * @nr_retries:		Total number of hrtimer interrupt retries
  * @nr_hangs:		Total number of hrtimer interrupt hangs
  * @max_hang_time:	Maximum time spent in hrtimer_interrupt
+ * @clock_base:		array of clock bases for this cpu
  */
 struct hrtimer_cpu_base {
 	raw_spinlock_t			lock;
-	struct hrtimer_clock_base	clock_base[HRTIMER_MAX_CLOCK_BASES];
+	unsigned long			active_bases;
 #ifdef CONFIG_HIGH_RES_TIMERS
 	ktime_t				expires_next;
 	int				hres_active;
@@ -186,6 +186,7 @@ struct hrtimer_cpu_base {
 	unsigned long			nr_hangs;
 	ktime_t				max_hang_time;
 #endif
+	struct hrtimer_clock_base	clock_base[HRTIMER_MAX_CLOCK_BASES];
 };
 
 static inline void hrtimer_set_expires(struct hrtimer *timer, ktime_t time)
@@ -256,8 +257,6 @@ static inline ktime_t hrtimer_expires_remaining(const struct hrtimer *timer)
 #ifdef CONFIG_HIGH_RES_TIMERS
 struct clock_event_device;
 
-extern void clock_was_set(void);
-extern void hres_timers_resume(void);
 extern void hrtimer_interrupt(struct clock_event_device *dev);
 
 /*
@@ -291,15 +290,7 @@ extern void hrtimer_peek_ahead_timers(void);
 # define MONOTONIC_RES_NSEC	LOW_RES_NSEC
 # define KTIME_MONOTONIC_RES	KTIME_LOW_RES
 
-/*
- * clock_was_set() is a NOP for non- high-resolution systems. The
- * time-sorted order guarantees that a timer does not expire early and
- * is expired in the next softirq when the clock was advanced.
- */
-static inline void clock_was_set(void) { }
 static inline void hrtimer_peek_ahead_timers(void) { }
-
-static inline void hres_timers_resume(void) { }
 
 /*
  * In non high resolution mode the time reference is taken from
@@ -316,10 +307,18 @@ static inline int hrtimer_is_hres_active(struct hrtimer *timer)
 }
 #endif
 
+extern void clock_was_set(void);
+#ifdef CONFIG_TIMERFD
+extern void timerfd_clock_was_set(void);
+#else
+static inline void timerfd_clock_was_set(void) { }
+#endif
+extern void hrtimers_resume(void);
+
 extern ktime_t ktime_get(void);
 extern ktime_t ktime_get_real(void);
 extern ktime_t ktime_get_boottime(void);
-
+extern ktime_t ktime_get_monotonic_offset(void);
 
 DECLARE_PER_CPU(struct tick_device, tick_cpu_device);
 

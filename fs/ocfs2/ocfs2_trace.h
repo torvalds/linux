@@ -688,6 +688,31 @@ TRACE_EVENT(ocfs2_cache_block_dealloc,
 		  __entry->blkno, __entry->bit)
 );
 
+TRACE_EVENT(ocfs2_trim_extent,
+	TP_PROTO(struct super_block *sb, unsigned long long blk,
+		 unsigned long long count),
+	TP_ARGS(sb, blk, count),
+	TP_STRUCT__entry(
+		__field(int, dev_major)
+		__field(int, dev_minor)
+		__field(unsigned long long, blk)
+		__field(__u64,	count)
+	),
+	TP_fast_assign(
+		__entry->dev_major = MAJOR(sb->s_dev);
+		__entry->dev_minor = MINOR(sb->s_dev);
+		__entry->blk = blk;
+		__entry->count = count;
+	),
+	TP_printk("%d %d %llu %llu",
+		  __entry->dev_major, __entry->dev_minor,
+		  __entry->blk, __entry->count)
+);
+
+DEFINE_OCFS2_ULL_UINT_UINT_UINT_EVENT(ocfs2_trim_group);
+
+DEFINE_OCFS2_ULL_ULL_ULL_EVENT(ocfs2_trim_fs);
+
 /* End of trace events for fs/ocfs2/alloc.c. */
 
 /* Trace events for fs/ocfs2/localalloc.c. */

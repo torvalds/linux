@@ -24,11 +24,6 @@
  * GNU General Public License for more details.
  */
 
-/*
- * TODO:
- * - add timeout on polled transfers
- */
-
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
@@ -286,6 +281,8 @@
 #define ENABLE_ALL_INTERRUPTS (~DEFAULT_SSP_REG_IMSC)
 
 #define CLEAR_ALL_INTERRUPTS  0x3
+
+#define SPI_POLLING_TIMEOUT 1000
 
 
 /*
@@ -1063,7 +1060,7 @@ static int __init pl022_dma_probe(struct pl022 *pl022)
 					    pl022->master_info->dma_filter,
 					    pl022->master_info->dma_rx_param);
 	if (!pl022->dma_rx_channel) {
-		dev_err(&pl022->adev->dev, "no RX DMA channel!\n");
+		dev_dbg(&pl022->adev->dev, "no RX DMA channel!\n");
 		goto err_no_rxchan;
 	}
 
@@ -1071,13 +1068,13 @@ static int __init pl022_dma_probe(struct pl022 *pl022)
 					    pl022->master_info->dma_filter,
 					    pl022->master_info->dma_tx_param);
 	if (!pl022->dma_tx_channel) {
-		dev_err(&pl022->adev->dev, "no TX DMA channel!\n");
+		dev_dbg(&pl022->adev->dev, "no TX DMA channel!\n");
 		goto err_no_txchan;
 	}
 
 	pl022->dummypage = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!pl022->dummypage) {
-		dev_err(&pl022->adev->dev, "no DMA dummypage!\n");
+		dev_dbg(&pl022->adev->dev, "no DMA dummypage!\n");
 		goto err_no_dummypage;
 	}
 
@@ -1093,6 +1090,8 @@ err_no_txchan:
 	dma_release_channel(pl022->dma_rx_channel);
 	pl022->dma_rx_channel = NULL;
 err_no_rxchan:
+	dev_err(&pl022->adev->dev,
+			"Failed to work in dma mode, work without dma!\n");
 	return -ENODEV;
 }
 
@@ -1378,6 +1377,7 @@ static void do_polling_transfer(struct pl022 *pl022)
 	struct spi_transfer *transfer = NULL;
 	struct spi_transfer *previous = NULL;
 	struct chip_data *chip;
+	unsigned long time, timeout;
 
 	chip = pl022->cur_chip;
 	message = pl022->cur_msg;
@@ -1415,9 +1415,19 @@ static void do_polling_transfer(struct pl022 *pl022)
 		       SSP_CR1(pl022->virtbase));
 
 		dev_dbg(&pl022->adev->dev, "polling transfer ongoing ...\n");
-		/* FIXME: insert a timeout so we don't hang here indefinitely */
-		while (pl022->tx < pl022->tx_end || pl022->rx < pl022->rx_end)
+
+		timeout = jiffies + msecs_to_jiffies(SPI_POLLING_TIMEOUT);
+		while (pl022->tx < pl022->tx_end || pl022->rx < pl022->rx_end) {
+			time = jiffies;
 			readwriter(pl022);
+			if (time_after(time, timeout)) {
+				dev_warn(&pl022->adev->dev,
+				"%s: timeout!\n", __func__);
+				message->state = STATE_ERROR;
+				goto out;
+			}
+			cpu_relax();
+		}
 
 		/* Update total byte transferred */
 		message->actual_length += pl022->cur_transfer->len;
@@ -1426,7 +1436,7 @@ static void do_polling_transfer(struct pl022 *pl022)
 		/* Move to next transfer */
 		message->state = next_transfer(pl022);
 	}
-
+out:
 	/* Handle end of message */
 	if (message->state == STATE_DONE)
 		message->status = 0;
@@ -1851,6 +1861,7 @@ static int pl022_setup(struct spi_device *spi)
 	}
 	if ((clk_freq.cpsdvsr < CPSDVR_MIN)
 	    || (clk_freq.cpsdvsr > CPSDVR_MAX)) {
+		status = -EINVAL;
 		dev_err(&spi->dev,
 			"cpsdvsr is configured incorrectly\n");
 		goto err_config_params;
@@ -2107,7 +2118,7 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	if (platform_info->enable_dma) {
 		status = pl022_dma_probe(pl022);
 		if (status != 0)
-			goto err_no_dma;
+			platform_info->enable_dma = 0;
 	}
 
 	/* Initialize and start queue */
@@ -2143,7 +2154,6 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
  err_init_queue:
 	destroy_queue(pl022);
 	pl022_dma_remove(pl022);
- err_no_dma:
 	free_irq(adev->irq[0], pl022);
  err_no_irq:
 	clk_put(pl022->clk);

@@ -68,7 +68,7 @@ static DEFINE_SPINLOCK(xfrm6_tunnel_spi_lock);
 
 static struct kmem_cache *xfrm6_tunnel_spi_kmem __read_mostly;
 
-static inline unsigned xfrm6_tunnel_spi_hash_byaddr(xfrm_address_t *addr)
+static inline unsigned xfrm6_tunnel_spi_hash_byaddr(const xfrm_address_t *addr)
 {
 	unsigned h;
 
@@ -85,7 +85,7 @@ static inline unsigned xfrm6_tunnel_spi_hash_byspi(u32 spi)
 	return spi % XFRM6_TUNNEL_SPI_BYSPI_HSIZE;
 }
 
-static struct xfrm6_tunnel_spi *__xfrm6_tunnel_spi_lookup(struct net *net, xfrm_address_t *saddr)
+static struct xfrm6_tunnel_spi *__xfrm6_tunnel_spi_lookup(struct net *net, const xfrm_address_t *saddr)
 {
 	struct xfrm6_tunnel_net *xfrm6_tn = xfrm6_tunnel_pernet(net);
 	struct xfrm6_tunnel_spi *x6spi;
@@ -101,7 +101,7 @@ static struct xfrm6_tunnel_spi *__xfrm6_tunnel_spi_lookup(struct net *net, xfrm_
 	return NULL;
 }
 
-__be32 xfrm6_tunnel_spi_lookup(struct net *net, xfrm_address_t *saddr)
+__be32 xfrm6_tunnel_spi_lookup(struct net *net, const xfrm_address_t *saddr)
 {
 	struct xfrm6_tunnel_spi *x6spi;
 	u32 spi;
@@ -237,11 +237,11 @@ static int xfrm6_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 static int xfrm6_tunnel_rcv(struct sk_buff *skb)
 {
 	struct net *net = dev_net(skb->dev);
-	struct ipv6hdr *iph = ipv6_hdr(skb);
+	const struct ipv6hdr *iph = ipv6_hdr(skb);
 	__be32 spi;
 
-	spi = xfrm6_tunnel_spi_lookup(net, (xfrm_address_t *)&iph->saddr);
-	return xfrm6_rcv_spi(skb, IPPROTO_IPV6, spi) > 0 ? : 0;
+	spi = xfrm6_tunnel_spi_lookup(net, (const xfrm_address_t *)&iph->saddr);
+	return xfrm6_rcv_spi(skb, IPPROTO_IPV6, spi);
 }
 
 static int xfrm6_tunnel_err(struct sk_buff *skb, struct inet6_skb_parm *opt,

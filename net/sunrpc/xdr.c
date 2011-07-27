@@ -638,6 +638,25 @@ void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p)
 }
 EXPORT_SYMBOL_GPL(xdr_init_decode);
 
+/**
+ * xdr_init_decode - Initialize an xdr_stream for decoding data.
+ * @xdr: pointer to xdr_stream struct
+ * @buf: pointer to XDR buffer from which to decode data
+ * @pages: list of pages to decode into
+ * @len: length in bytes of buffer in pages
+ */
+void xdr_init_decode_pages(struct xdr_stream *xdr, struct xdr_buf *buf,
+			   struct page **pages, unsigned int len)
+{
+	memset(buf, 0, sizeof(*buf));
+	buf->pages =  pages;
+	buf->page_len =  len;
+	buf->buflen =  len;
+	buf->len = len;
+	xdr_init_decode(xdr, buf, NULL);
+}
+EXPORT_SYMBOL_GPL(xdr_init_decode_pages);
+
 static __be32 * __xdr_inline_decode(struct xdr_stream *xdr, size_t nbytes)
 {
 	__be32 *p = xdr->p;

@@ -19,18 +19,19 @@
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <wlc_cfg.h>
-#include <qmath.h>
 #include <linux/pci.h>
-#include <siutils.h>
-#include <hndpmu.h>
+#include <aiutils.h>
+#include <wlc_pmu.h>
+#include <bcmnvram.h>
 
 #include <bcmdevs.h>
 #include <sbhnddma.h>
 
-#include <wlc_phy_radio.h>
-#include <wlc_phy_int.h>
-#include <wlc_phy_lcn.h>
-#include <wlc_phytbl_lcn.h>
+#include "wlc_phy_radio.h"
+#include "wlc_phy_int.h"
+#include "wlc_phy_qmath.h"
+#include "wlc_phy_lcn.h"
+#include "wlc_phytbl_lcn.h"
 
 #define PLL_2064_NDIV		90
 #define PLL_2064_LOW_END_VCO 	3000
@@ -1081,8 +1082,6 @@ wlc_lcnphy_qdiv_roundup(u32 dividend, u32 divisor, u8 precision)
 {
 	u32 quotient, remainder, roundup, rbit;
 
-	ASSERT(divisor);
-
 	quotient = dividend / divisor;
 	remainder = dividend % divisor;
 	rbit = divisor & 1;
@@ -1780,11 +1779,6 @@ void wlc_lcnphy_set_tx_pwr_ctrl(phy_info_t *pi, u16 mode)
 	s8 index;
 	phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
 
-	ASSERT((LCNPHY_TX_PWR_CTRL_OFF == mode) ||
-	       (LCNPHY_TX_PWR_CTRL_SW == mode) ||
-	       (LCNPHY_TX_PWR_CTRL_HW == mode) ||
-	       (LCNPHY_TX_PWR_CTRL_TEMPBASED == mode));
-
 	mode = wlc_lcnphy_set_tx_pwr_ctrl_mode(pi, mode);
 	old_mode = wlc_lcnphy_set_tx_pwr_ctrl_mode(pi, old_mode);
 
@@ -1904,16 +1898,14 @@ wlc_lcnphy_tx_iqlo_cal(phy_info_t *pi,
 		break;
 
 	case LCNPHY_CAL_RECAL:
-		ASSERT(pi_lcn->lcnphy_cal_results.txiqlocal_bestcoeffs_valid);
-
 		start_coeffs = syst_coeffs;
-
 		cal_cmds = commands_recal;
 		n_cal_cmds = ARRAY_SIZE(commands_recal);
 		command_nums = command_nums_recal;
 		break;
+
 	default:
-		ASSERT(false);
+		break;
 	}
 
 	wlc_lcnphy_common_write_table(pi, LCNPHY_TBL_ID_IQLOCAL,
@@ -2460,8 +2452,6 @@ void wlc_lcnphy_set_tx_pwr_by_index(phy_info_t *pi, int index)
 	lcnphy_txgains_t gains;
 	phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
 
-	ASSERT(index <= LCNPHY_MAX_TX_POWER_INDEX);
-
 	pi_lcn->lcnphy_tx_power_idx_override = (s8) index;
 	pi_lcn->lcnphy_current_index = (u8) index;
 
@@ -2760,7 +2750,6 @@ wlc_lcnphy_start_tx_tone(phy_info_t *pi, s32 f_kHz, u16 max_val,
 		do {
 			bw = phy_bw * 1000 * k;
 			num_samps = bw / ABS(f_kHz);
-			ASSERT(num_samps <= ARRAY_SIZE(data_buf));
 			k++;
 		} while ((num_samps * (u32) (ABS(f_kHz))) != bw);
 	} else
@@ -3255,7 +3244,7 @@ static bool wlc_lcnphy_calc_rx_iq_comp(phy_info_t *pi, u16 num_samps)
 	}
 	b /= temp;
 	b -= a * a;
-	b = (s32) wlc_phy_sqrt_int((u32) b);
+	b = (s32) int_sqrt((unsigned long) b);
 	b -= (1 << 10);
 	a0_new = (u16) (a & 0x3ff);
 	b0_new = (u16) (b & 0x3ff);
@@ -3298,8 +3287,6 @@ wlc_lcnphy_rx_iq_cal(phy_info_t *pi, const lcnphy_rx_iqcomp_t *iqcomp,
 		return false;
 	}
 	if (module == 2) {
-		ASSERT(iqcomp_sz);
-
 		while (iqcomp_sz--) {
 			if (iqcomp[iqcomp_sz].chan ==
 			    CHSPEC_CHANNEL(pi->radio_chanspec)) {
@@ -3313,7 +3300,6 @@ wlc_lcnphy_rx_iq_cal(phy_info_t *pi, const lcnphy_rx_iqcomp_t *iqcomp,
 				break;
 			}
 		}
-		ASSERT(result);
 		goto cal_done;
 	}
 
@@ -3583,9 +3569,6 @@ void wlc_lcnphy_calib_modes(phy_info_t *pi, uint mode)
 	case LCNPHY_PERICAL_TEMPBASED_TXPWRCTRL:
 		if (wlc_lcnphy_tempsense_based_pwr_ctrl_enabled(pi))
 			wlc_lcnphy_tx_power_adjustment((wlc_phy_t *) pi);
-		break;
-	default:
-		ASSERT(0);
 		break;
 	}
 }
@@ -5071,9 +5054,7 @@ bool wlc_phy_attach_lcnphy(phy_info_t *pi)
 		pi->hwpwrctrl_capable = true;
 	}
 
-	pi->xtalfreq = si_alp_clock(pi->sh->sih);
-	ASSERT(0 == (pi->xtalfreq % 1000));
-
+	pi->xtalfreq = si_pmu_alp_clock(pi->sh->sih);
 	pi_lcn->lcnphy_papd_rxGnCtrl_init = 0;
 
 	pi->pi_fptr.init = wlc_phy_init_lcnphy;
@@ -5293,9 +5274,7 @@ wlc_lcnphy_load_tx_iir_filter(phy_info_t *pi, bool is_ofdm, s16 filt_type)
 			}
 		}
 
-		if (filt_index == -1) {
-			ASSERT(false);
-		} else {
+		if (filt_index != -1) {
 			for (j = 0; j < LCNPHY_NUM_DIG_FILT_COEFFS; j++) {
 				write_phy_reg(pi, addr[j],
 					      LCNPHY_txdigfiltcoeffs_cck
@@ -5310,9 +5289,7 @@ wlc_lcnphy_load_tx_iir_filter(phy_info_t *pi, bool is_ofdm, s16 filt_type)
 			}
 		}
 
-		if (filt_index == -1) {
-			ASSERT(false);
-		} else {
+		if (filt_index != -1) {
 			for (j = 0; j < LCNPHY_NUM_DIG_FILT_COEFFS; j++) {
 				write_phy_reg(pi, addr_ofdm[j],
 					      LCNPHY_txdigfiltcoeffs_ofdm

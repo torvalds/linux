@@ -5,7 +5,7 @@
  *
  * env.c: ARCS environment variable routines.
  *
- * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
+ * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  */
 #include <linux/init.h>
 #include <linux/kernel.h>

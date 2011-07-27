@@ -73,8 +73,6 @@ typedef	__int32_t	xfs_tid_t;	/* transaction identifier */
 typedef	__uint32_t	xfs_dablk_t;	/* dir/attr block number (in file) */
 typedef	__uint32_t	xfs_dahash_t;	/* dir/attr hash value */
 
-typedef __uint32_t	xlog_tid_t;	/* transaction ID type */
-
 /*
  * These types are 64 bits on disk but are either 32 or 64 bits in memory.
  * Disk based types:

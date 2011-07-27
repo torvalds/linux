@@ -81,13 +81,4 @@ static inline void get_nsproxy(struct nsproxy *ns)
 	atomic_inc(&ns->count);
 }
 
-#ifdef CONFIG_CGROUP_NS
-int ns_cgroup_clone(struct task_struct *tsk, struct pid *pid);
-#else
-static inline int ns_cgroup_clone(struct task_struct *tsk, struct pid *pid)
-{
-	return 0;
-}
-#endif
-
 #endif

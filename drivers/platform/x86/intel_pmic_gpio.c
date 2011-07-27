@@ -19,6 +19,8 @@
  * Moorestown platform PMIC chip
  */
 
+#define pr_fmt(fmt) "%s: " fmt, __func__
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
@@ -90,8 +92,7 @@ static void pmic_program_irqtype(int gpio, int type)
 static int pmic_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	if (offset > 8) {
-		printk(KERN_ERR
-			"%s: only pin 0-7 support input\n", __func__);
+		pr_err("only pin 0-7 support input\n");
 		return -1;/* we only have 8 GPIO can use as input */
 	}
 	return intel_scu_ipc_update_register(GPIO0 + offset,
@@ -116,8 +117,7 @@ static int pmic_gpio_direction_output(struct gpio_chip *chip,
 				value ? 1 << (offset - 16) : 0,
 				1 << (offset - 16));
 	else {
-		printk(KERN_ERR
-			"%s: invalid PMIC GPIO pin %d!\n", __func__, offset);
+		pr_err("invalid PMIC GPIO pin %d!\n", offset);
 		WARN_ON(1);
 	}
 
@@ -260,7 +260,7 @@ static int __devinit platform_pmic_gpio_probe(struct platform_device *pdev)
 	/* setting up SRAM mapping for GPIOINT register */
 	pg->gpiointr = ioremap_nocache(pdata->gpiointr, 8);
 	if (!pg->gpiointr) {
-		printk(KERN_ERR "%s: Can not map GPIOINT.\n", __func__);
+		pr_err("Can not map GPIOINT\n");
 		retval = -EINVAL;
 		goto err2;
 	}
@@ -281,13 +281,13 @@ static int __devinit platform_pmic_gpio_probe(struct platform_device *pdev)
 	pg->chip.dev = dev;
 	retval = gpiochip_add(&pg->chip);
 	if (retval) {
-		printk(KERN_ERR "%s: Can not add pmic gpio chip.\n", __func__);
+		pr_err("Can not add pmic gpio chip\n");
 		goto err;
 	}
 
 	retval = request_irq(pg->irq, pmic_irq_handler, 0, "pmic", pg);
 	if (retval) {
-		printk(KERN_WARNING "pmic: Interrupt request failed\n");
+		pr_warn("Interrupt request failed\n");
 		goto err;
 	}
 

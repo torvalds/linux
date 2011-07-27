@@ -44,6 +44,7 @@
 #include <linux/mii.h>
 #include <linux/slab.h>
 #include <linux/dmi.h>
+#include <linux/prefetch.h>
 #include <asm/irq.h>
 
 #include "skge.h"
@@ -303,7 +304,7 @@ static int skge_get_settings(struct net_device *dev,
 
 	ecmd->advertising = skge->advertising;
 	ecmd->autoneg = skge->autoneg;
-	ecmd->speed = skge->speed;
+	ethtool_cmd_speed_set(ecmd, skge->speed);
 	ecmd->duplex = skge->duplex;
 	return 0;
 }
@@ -321,8 +322,9 @@ static int skge_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		skge->speed = -1;
 	} else {
 		u32 setting;
+		u32 speed = ethtool_cmd_speed(ecmd);
 
-		switch (ecmd->speed) {
+		switch (speed) {
 		case SPEED_1000:
 			if (ecmd->duplex == DUPLEX_FULL)
 				setting = SUPPORTED_1000baseT_Full;
@@ -355,7 +357,7 @@ static int skge_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		if ((setting & supported) == 0)
 			return -EINVAL;
 
-		skge->speed = ecmd->speed;
+		skge->speed = speed;
 		skge->duplex = ecmd->duplex;
 	}
 
@@ -534,46 +536,6 @@ static int skge_nway_reset(struct net_device *dev)
 		return -EINVAL;
 
 	skge_phy_reset(skge);
-	return 0;
-}
-
-static int skge_set_sg(struct net_device *dev, u32 data)
-{
-	struct skge_port *skge = netdev_priv(dev);
-	struct skge_hw *hw = skge->hw;
-
-	if (hw->chip_id == CHIP_ID_GENESIS && data)
-		return -EOPNOTSUPP;
-	return ethtool_op_set_sg(dev, data);
-}
-
-static int skge_set_tx_csum(struct net_device *dev, u32 data)
-{
-	struct skge_port *skge = netdev_priv(dev);
-	struct skge_hw *hw = skge->hw;
-
-	if (hw->chip_id == CHIP_ID_GENESIS && data)
-		return -EOPNOTSUPP;
-
-	return ethtool_op_set_tx_csum(dev, data);
-}
-
-static u32 skge_get_rx_csum(struct net_device *dev)
-{
-	struct skge_port *skge = netdev_priv(dev);
-
-	return skge->rx_csum;
-}
-
-/* Only Yukon supports checksum offload. */
-static int skge_set_rx_csum(struct net_device *dev, u32 data)
-{
-	struct skge_port *skge = netdev_priv(dev);
-
-	if (skge->hw->chip_id == CHIP_ID_GENESIS && data)
-		return -EOPNOTSUPP;
-
-	skge->rx_csum = data;
 	return 0;
 }
 
@@ -786,28 +748,27 @@ static void skge_led(struct skge_port *skge, enum led_mode mode)
 }
 
 /* blink LED's for finding board */
-static int skge_phys_id(struct net_device *dev, u32 data)
+static int skge_set_phys_id(struct net_device *dev,
+			    enum ethtool_phys_id_state state)
 {
 	struct skge_port *skge = netdev_priv(dev);
-	unsigned long ms;
-	enum led_mode mode = LED_MODE_TST;
 
-	if (!data || data > (u32)(MAX_SCHEDULE_TIMEOUT / HZ))
-		ms = jiffies_to_msecs(MAX_SCHEDULE_TIMEOUT / HZ) * 1000;
-	else
-		ms = data * 1000;
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		return 2;	/* cycle on/off twice per second */
 
-	while (ms > 0) {
-		skge_led(skge, mode);
-		mode ^= LED_MODE_TST;
+	case ETHTOOL_ID_ON:
+		skge_led(skge, LED_MODE_TST);
+		break;
 
-		if (msleep_interruptible(BLINK_MS))
-			break;
-		ms -= BLINK_MS;
+	case ETHTOOL_ID_OFF:
+		skge_led(skge, LED_MODE_OFF);
+		break;
+
+	case ETHTOOL_ID_INACTIVE:
+		/* back to regular LED state */
+		skge_led(skge, netif_running(dev) ? LED_MODE_ON : LED_MODE_OFF);
 	}
-
-	/* back to regular LED state */
-	skge_led(skge, netif_running(dev) ? LED_MODE_ON : LED_MODE_OFF);
 
 	return 0;
 }
@@ -925,12 +886,8 @@ static const struct ethtool_ops skge_ethtool_ops = {
 	.set_pauseparam = skge_set_pauseparam,
 	.get_coalesce	= skge_get_coalesce,
 	.set_coalesce	= skge_set_coalesce,
-	.set_sg		= skge_set_sg,
-	.set_tx_csum	= skge_set_tx_csum,
-	.get_rx_csum	= skge_get_rx_csum,
-	.set_rx_csum	= skge_set_rx_csum,
 	.get_strings	= skge_get_strings,
-	.phys_id	= skge_phys_id,
+	.set_phys_id	= skge_set_phys_id,
 	.get_sset_count = skge_get_sset_count,
 	.get_ethtool_stats = skge_get_ethtool_stats,
 };
@@ -3085,7 +3042,8 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 	}
 
 	skb_put(skb, len);
-	if (skge->rx_csum) {
+
+	if (dev->features & NETIF_F_RXCSUM) {
 		skb->csum = csum;
 		skb->ip_summed = CHECKSUM_COMPLETE;
 	}
@@ -3847,10 +3805,10 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 	setup_timer(&skge->link_timer, xm_link_timer, (unsigned long) skge);
 
 	if (hw->chip_id != CHIP_ID_GENESIS) {
-		dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
-		skge->rx_csum = 1;
+		dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
+		                   NETIF_F_RXCSUM;
+		dev->features |= dev->hw_features;
 	}
-	dev->features |= NETIF_F_GRO;
 
 	/* read the mac address */
 	memcpy_fromio(dev->dev_addr, hw->regs + B2_MAC_1 + port*8, ETH_ALEN);

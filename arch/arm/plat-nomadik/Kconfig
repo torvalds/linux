@@ -5,6 +5,7 @@
 config PLAT_NOMADIK
 	bool
 	depends on ARCH_NOMADIK || ARCH_U8500
+	select CLKSRC_MMIO
 	default y
 	help
 	  Common platform code for Nomadik and other ST-Ericsson
@@ -19,10 +20,5 @@ config HAS_MTU
 	  Support for Multi Timer Unit. MTU provides access
 	  to multiple interrupt generating programmable
 	  32-bit free running decrementing counters.
-
-config NOMADIK_GPIO
-	bool
-	help
-	  Support for the Nomadik GPIO controller.
 
 endif

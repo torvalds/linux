@@ -125,8 +125,8 @@ void pnic2_start_nway(struct net_device *dev)
         csr14 |= 0x00001184;
 
 	if (tulip_debug > 1)
-		printk(KERN_DEBUG "%s: Restarting PNIC2 autonegotiation, csr14=%08x\n",
-		       dev->name, csr14);
+		netdev_dbg(dev, "Restarting PNIC2 autonegotiation, csr14=%08x\n",
+			   csr14);
 
         /* tell pnic2_lnk_change we are doing an nway negotiation */
 	dev->if_port = 0;
@@ -137,8 +137,7 @@ void pnic2_start_nway(struct net_device *dev)
 
 	tp->csr6 = ioread32(ioaddr + CSR6);
 	if (tulip_debug > 1)
-		printk(KERN_DEBUG "%s: On Entry to Nway, csr6=%08x\n",
-		       dev->name, tp->csr6);
+		netdev_dbg(dev, "On Entry to Nway, csr6=%08x\n", tp->csr6);
 
         /* mask off any bits not to touch
          * comment at top of file explains mask value
@@ -271,9 +270,10 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
 			iowrite32(1, ioaddr + CSR13);
 
 			if (tulip_debug > 2)
-			        printk(KERN_DEBUG "%s: Setting CSR6 %08x/%x CSR12 %08x\n",
-				       dev->name, tp->csr6,
-				       ioread32(ioaddr + CSR6), ioread32(ioaddr + CSR12));
+				netdev_dbg(dev, "Setting CSR6 %08x/%x CSR12 %08x\n",
+					   tp->csr6,
+					   ioread32(ioaddr + CSR6),
+					   ioread32(ioaddr + CSR12));
 
 			/* now the following actually writes out the
 			 * new csr6 values
@@ -324,7 +324,7 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
 		/* Link blew? Maybe restart NWay. */
 
 		if (tulip_debug > 2)
-			printk(KERN_DEBUG "%s: Ugh! Link blew?\n", dev->name);
+			netdev_dbg(dev, "Ugh! Link blew?\n");
 
 		del_timer_sync(&tp->timer);
 		pnic2_start_nway(dev);

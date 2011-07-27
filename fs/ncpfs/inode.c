@@ -461,7 +461,7 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 #endif
 	struct ncp_entry_info finfo;
 
-	data.wdog_pid = NULL;
+	memset(&data, 0, sizeof(data));
 	server = kzalloc(sizeof(struct ncp_server), GFP_KERNEL);
 	if (!server)
 		return -ENOMEM;
@@ -496,7 +496,6 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 				struct ncp_mount_data_v4* md = (struct ncp_mount_data_v4*)raw_data;
 
 				data.flags = md->flags;
-				data.int_flags = 0;
 				data.mounted_uid = md->mounted_uid;
 				data.wdog_pid = find_get_pid(md->wdog_pid);
 				data.ncp_fd = md->ncp_fd;
@@ -507,7 +506,6 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 				data.file_mode = md->file_mode;
 				data.dir_mode = md->dir_mode;
 				data.info_fd = -1;
-				data.mounted_vol[0] = 0;
 			}
 			break;
 		default:

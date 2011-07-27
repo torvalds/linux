@@ -25,11 +25,11 @@
 void slide_own_bcast_window(struct hard_iface *hard_iface);
 void receive_bat_packet(struct ethhdr *ethhdr,
 				struct batman_packet *batman_packet,
-				unsigned char *hna_buff, int hna_buff_len,
+				unsigned char *tt_buff, int tt_buff_len,
 				struct hard_iface *if_incoming);
 void update_routes(struct bat_priv *bat_priv, struct orig_node *orig_node,
-		   struct neigh_node *neigh_node, unsigned char *hna_buff,
-		   int hna_buff_len);
+		   struct neigh_node *neigh_node, unsigned char *tt_buff,
+		   int tt_buff_len);
 int route_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if);
 int recv_icmp_packet(struct sk_buff *skb, struct hard_iface *recv_if);
 int recv_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if);

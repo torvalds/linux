@@ -125,7 +125,6 @@ struct fw_card {
 	struct delayed_work bm_work; /* bus manager job */
 	int bm_retries;
 	int bm_generation;
-	__be32 bm_transaction_data[2];
 	int bm_node_id;
 	bool bm_abdicate;
 
@@ -441,12 +440,15 @@ int fw_iso_context_queue(struct fw_iso_context *ctx,
 			 struct fw_iso_packet *packet,
 			 struct fw_iso_buffer *buffer,
 			 unsigned long payload);
+void fw_iso_context_queue_flush(struct fw_iso_context *ctx);
 int fw_iso_context_start(struct fw_iso_context *ctx,
 			 int cycle, int sync, int tags);
 int fw_iso_context_stop(struct fw_iso_context *ctx);
 void fw_iso_context_destroy(struct fw_iso_context *ctx);
 void fw_iso_resource_manage(struct fw_card *card, int generation,
 			    u64 channels_mask, int *channel, int *bandwidth,
-			    bool allocate, __be32 buffer[2]);
+			    bool allocate);
+
+extern struct workqueue_struct *fw_workqueue;
 
 #endif /* _LINUX_FIREWIRE_H */

@@ -22,6 +22,7 @@
 #include "extent_map.h"
 #include "extent_io.h"
 #include "ordered-data.h"
+#include "delayed-inode.h"
 
 /* in memory btrfs inode */
 struct btrfs_inode {
@@ -120,9 +121,6 @@ struct btrfs_inode {
 	 */
 	u64 index_cnt;
 
-	/* the start of block group preferred for allocations. */
-	u64 block_group;
-
 	/* the fsync log has some corner cases that mean we have to check
 	 * directories to see if any unlinks have been done before
 	 * the directory was logged.  See tree-log.c for all the
@@ -152,18 +150,32 @@ struct btrfs_inode {
 	unsigned ordered_data_close:1;
 	unsigned orphan_meta_reserved:1;
 	unsigned dummy_inode:1;
+	unsigned in_defrag:1;
 
 	/*
 	 * always compress this one file
 	 */
 	unsigned force_compress:4;
 
+	struct btrfs_delayed_node *delayed_node;
+
 	struct inode vfs_inode;
 };
+
+extern unsigned char btrfs_filetype_table[];
 
 static inline struct btrfs_inode *BTRFS_I(struct inode *inode)
 {
 	return container_of(inode, struct btrfs_inode, vfs_inode);
+}
+
+static inline u64 btrfs_ino(struct inode *inode)
+{
+	u64 ino = BTRFS_I(inode)->location.objectid;
+
+	if (ino <= BTRFS_FIRST_FREE_OBJECTID)
+		ino = inode->i_ino;
+	return ino;
 }
 
 static inline void btrfs_i_size_write(struct inode *inode, u64 size)

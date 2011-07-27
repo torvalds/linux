@@ -41,4 +41,6 @@ obj-$(CONFIG_XO1_RFKILL)	+= xo1-rfkill.o
 obj-$(CONFIG_XO15_EBOOK)	+= xo15-ebook.o
 obj-$(CONFIG_IBM_RTL)		+= ibm_rtl.o
 obj-$(CONFIG_SAMSUNG_LAPTOP)	+= samsung-laptop.o
-obj-$(CONFIG_INTEL_MFLD_THERMAL)	+= intel_mid_thermal.o
+obj-$(CONFIG_MXM_WMI)		+= mxm-wmi.o
+obj-$(CONFIG_INTEL_MID_POWER_BUTTON)	+= intel_mid_powerbtn.o
+obj-$(CONFIG_INTEL_OAKTRAIL)	+= intel_oaktrail.o

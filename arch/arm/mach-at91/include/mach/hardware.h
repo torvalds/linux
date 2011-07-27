@@ -32,12 +32,16 @@
 #include <mach/at91cap9.h>
 #elif defined(CONFIG_ARCH_AT91X40)
 #include <mach/at91x40.h>
-#elif defined(CONFIG_ARCH_AT572D940HF)
-#include <mach/at572d940hf.h>
 #else
 #error "Unsupported AT91 processor"
 #endif
 
+
+/*
+ * Peripheral identifiers/interrupts.
+ */
+#define AT91_ID_FIQ		0	/* Advanced Interrupt Controller (FIQ) */
+#define AT91_ID_SYS		1	/* System Peripherals */
 
 #ifdef CONFIG_MMU
 /*
@@ -81,13 +85,6 @@
 #define AT91_CHIPSELECT_5	0x60000000
 #define AT91_CHIPSELECT_6	0x70000000
 #define AT91_CHIPSELECT_7	0x80000000
-
-/* SDRAM */
-#ifdef CONFIG_DRAM_BASE
-#define AT91_SDRAM_BASE		CONFIG_DRAM_BASE
-#else
-#define AT91_SDRAM_BASE		AT91_CHIPSELECT_1
-#endif
 
 /* Clocks */
 #define AT91_SLOW_CLOCK		32768		/* slow clock */

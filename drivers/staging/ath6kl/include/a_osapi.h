@@ -27,35 +27,6 @@
 #ifndef _A_OSAPI_H_
 #define _A_OSAPI_H_
 
-#if defined(__linux__) && !defined(LINUX_EMULATION)
 #include "../os/linux/include/osapi_linux.h"
-#endif
-
-#ifdef UNDER_NWIFI
-#include "../os/windows/include/osapi.h"
-#include "../os/windows/include/netbuf.h"
-#endif
-
-#ifdef ATHR_CE_LEGACY
-#include "../os/windows/include/osapi.h"
-#include "../os/windows/include/netbuf.h"
-#endif
-
-#ifdef REXOS
-#include "../os/rexos/include/common/osapi_rexos.h"
-#endif
-
-#if defined ART_WIN
-#include "../os/win_art/include/osapi_win.h"
-#include "../os/win_art/include/netbuf.h"
-#endif
-
-#ifdef WIN_NWF
-#include <osapi_win.h>
-#endif 
-
-#if defined(THREADX)
-#include "../os/threadx/include/common/osapi_threadx.h"
-#endif 
 
 #endif /* _OSAPI_H_ */

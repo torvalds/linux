@@ -51,7 +51,7 @@ struct cs_spec {
 	unsigned int cur_adc_format;
 	hda_nid_t dig_in;
 
-	struct hda_bind_ctls *capture_bind[2];
+	const struct hda_bind_ctls *capture_bind[2];
 
 	unsigned int gpio_mask;
 	unsigned int gpio_dir;
@@ -231,7 +231,7 @@ static int cs_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 
 /*
  */
-static struct hda_pcm_stream cs_pcm_analog_playback = {
+static const struct hda_pcm_stream cs_pcm_analog_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -242,7 +242,7 @@ static struct hda_pcm_stream cs_pcm_analog_playback = {
 	},
 };
 
-static struct hda_pcm_stream cs_pcm_analog_capture = {
+static const struct hda_pcm_stream cs_pcm_analog_capture = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -252,7 +252,7 @@ static struct hda_pcm_stream cs_pcm_analog_capture = {
 	},
 };
 
-static struct hda_pcm_stream cs_pcm_digital_playback = {
+static const struct hda_pcm_stream cs_pcm_digital_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -264,7 +264,7 @@ static struct hda_pcm_stream cs_pcm_digital_playback = {
 	},
 };
 
-static struct hda_pcm_stream cs_pcm_digital_capture = {
+static const struct hda_pcm_stream cs_pcm_digital_capture = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -331,8 +331,8 @@ static int is_ext_mic(struct hda_codec *codec, unsigned int idx)
 	struct cs_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	hda_nid_t pin = cfg->inputs[idx].pin;
-	unsigned int val = snd_hda_query_pin_caps(codec, pin);
-	if (!(val & AC_PINCAP_PRES_DETECT))
+	unsigned int val;
+	if (!is_jack_detectable(codec, pin))
 		return 0;
 	val = snd_hda_codec_get_pincfg(codec, pin);
 	return (snd_hda_get_input_pin_attr(val) != INPUT_PIN_ATTR_INT);
@@ -349,8 +349,7 @@ static hda_nid_t get_adc(struct hda_codec *codec, hda_nid_t pin,
 		hda_nid_t pins[2];
 		unsigned int type;
 		int j, nums;
-		type = (get_wcaps(codec, nid) & AC_WCAP_TYPE)
-			>> AC_WCAP_TYPE_SHIFT;
+		type = get_wcaps_type(get_wcaps(codec, nid));
 		if (type != AC_WID_AUD_IN)
 			continue;
 		nums = snd_hda_get_connections(codec, nid, pins,
@@ -559,10 +558,10 @@ static int add_output(struct hda_codec *codec, hda_nid_t dac, int idx,
 	const char *name;
 	int err, index;
 	struct snd_kcontrol *kctl;
-	static char *speakers[] = {
+	static const char * const speakers[] = {
 		"Front Speaker", "Surround Speaker", "Bass Speaker"
 	};
-	static char *line_outs[] = {
+	static const char * const line_outs[] = {
 		"Front Line-Out", "Surround Line-Out", "Bass Line-Out"
 	};
 
@@ -642,7 +641,7 @@ static int build_output(struct hda_codec *codec)
 /*
  */
 
-static struct snd_kcontrol_new cs_capture_ctls[] = {
+static const struct snd_kcontrol_new cs_capture_ctls[] = {
 	HDA_BIND_SW("Capture Switch", 0),
 	HDA_BIND_VOL("Capture Volume", 0),
 };
@@ -710,7 +709,7 @@ static int cs_capture_source_put(struct snd_kcontrol *kcontrol,
 	return change_cur_input(codec, idx, 0);
 }
 
-static struct snd_kcontrol_new cs_capture_source = {
+static const struct snd_kcontrol_new cs_capture_source = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Capture Source",
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
@@ -719,7 +718,7 @@ static struct snd_kcontrol_new cs_capture_source = {
 	.put = cs_capture_source_put,
 };
 
-static struct hda_bind_ctls *make_bind_capture(struct hda_codec *codec,
+static const struct hda_bind_ctls *make_bind_capture(struct hda_codec *codec,
 					       struct hda_ctl_ops *ops)
 {
 	struct cs_spec *spec = codec->spec;
@@ -847,15 +846,14 @@ static void cs_automute(struct hda_codec *codec)
 {
 	struct cs_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	unsigned int caps, hp_present;
+	unsigned int hp_present;
 	hda_nid_t nid;
 	int i;
 
 	hp_present = 0;
 	for (i = 0; i < cfg->hp_outs; i++) {
 		nid = cfg->hp_pins[i];
-		caps = snd_hda_query_pin_caps(codec, nid);
-		if (!(caps & AC_PINCAP_PRES_DETECT))
+		if (!is_jack_detectable(codec, nid))
 			continue;
 		hp_present = snd_hda_jack_detect(codec, nid);
 		if (hp_present)
@@ -924,7 +922,7 @@ static void init_output(struct hda_codec *codec)
 				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP);
 		if (!cfg->speaker_outs)
 			continue;
-		if (get_wcaps(codec, nid) & AC_WCAP_UNSOL_CAP) {
+		if (is_jack_detectable(codec, nid)) {
 			snd_hda_codec_write(codec, nid, 0,
 					    AC_VERB_SET_UNSOLICITED_ENABLE,
 					    AC_USRSP_EN | HP_EVENT);
@@ -983,7 +981,7 @@ static void init_input(struct hda_codec *codec)
 	cs_vendor_coef_set(codec, IDX_ADC_CFG, coef);
 }
 
-static struct hda_verb cs_coef_init_verbs[] = {
+static const struct hda_verb cs_coef_init_verbs[] = {
 	{0x11, AC_VERB_SET_PROC_STATE, 1},
 	{0x11, AC_VERB_SET_COEF_INDEX, IDX_DAC_CFG},
 	{0x11, AC_VERB_SET_PROC_COEF,
@@ -1017,7 +1015,7 @@ static struct hda_verb cs_coef_init_verbs[] = {
  * blocks, which will alleviate the issue.
  */
 
-static struct hda_verb cs_errata_init_verbs[] = {
+static const struct hda_verb cs_errata_init_verbs[] = {
 	{0x01, AC_VERB_SET_POWER_STATE, 0x00}, /* AFG: D0 */
 	{0x11, AC_VERB_SET_PROC_STATE, 0x01},  /* VPW: processing on */
 
@@ -1126,7 +1124,7 @@ static void cs_unsol_event(struct hda_codec *codec, unsigned int res)
 	}
 }
 
-static struct hda_codec_ops cs_patch_ops = {
+static const struct hda_codec_ops cs_patch_ops = {
 	.build_controls = cs_build_controls,
 	.build_pcms = cs_build_pcms,
 	.init = cs_init,
@@ -1166,7 +1164,7 @@ static const char * const cs420x_models[CS420X_MODELS] = {
 };
 
 
-static struct snd_pci_quirk cs420x_cfg_tbl[] = {
+static const struct snd_pci_quirk cs420x_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x10de, 0x0ac0, "MacBookPro 5,3", CS420X_MBP53),
 	SND_PCI_QUIRK(0x10de, 0x0d94, "MacBookAir 3,1(2)", CS420X_MBP55),
 	SND_PCI_QUIRK(0x10de, 0xcb79, "MacBookPro 5,5", CS420X_MBP55),
@@ -1180,7 +1178,7 @@ struct cs_pincfg {
 	u32 val;
 };
 
-static struct cs_pincfg mbp53_pincfgs[] = {
+static const struct cs_pincfg mbp53_pincfgs[] = {
 	{ 0x09, 0x012b4050 },
 	{ 0x0a, 0x90100141 },
 	{ 0x0b, 0x90100140 },
@@ -1194,7 +1192,7 @@ static struct cs_pincfg mbp53_pincfgs[] = {
 	{} /* terminator */
 };
 
-static struct cs_pincfg mbp55_pincfgs[] = {
+static const struct cs_pincfg mbp55_pincfgs[] = {
 	{ 0x09, 0x012b4030 },
 	{ 0x0a, 0x90100121 },
 	{ 0x0b, 0x90100120 },
@@ -1208,7 +1206,7 @@ static struct cs_pincfg mbp55_pincfgs[] = {
 	{} /* terminator */
 };
 
-static struct cs_pincfg imac27_pincfgs[] = {
+static const struct cs_pincfg imac27_pincfgs[] = {
 	{ 0x09, 0x012b4050 },
 	{ 0x0a, 0x90100140 },
 	{ 0x0b, 0x90100142 },
@@ -1222,7 +1220,7 @@ static struct cs_pincfg imac27_pincfgs[] = {
 	{} /* terminator */
 };
 
-static struct cs_pincfg *cs_pincfgs[CS420X_MODELS] = {
+static const struct cs_pincfg *cs_pincfgs[CS420X_MODELS] = {
 	[CS420X_MBP53] = mbp53_pincfgs,
 	[CS420X_MBP55] = mbp55_pincfgs,
 	[CS420X_IMAC27] = imac27_pincfgs,
@@ -1283,7 +1281,7 @@ static int patch_cs420x(struct hda_codec *codec)
 /*
  * patch entries
  */
-static struct hda_codec_preset snd_hda_preset_cirrus[] = {
+static const struct hda_codec_preset snd_hda_preset_cirrus[] = {
 	{ .id = 0x10134206, .name = "CS4206", .patch = patch_cs420x },
 	{ .id = 0x10134207, .name = "CS4207", .patch = patch_cs420x },
 	{} /* terminator */

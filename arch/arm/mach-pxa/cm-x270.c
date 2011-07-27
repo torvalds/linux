@@ -10,7 +10,6 @@
  */
 
 #include <linux/platform_device.h>
-#include <linux/sysdev.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2008 - 2009 Nokia Corporation
  *
- * Contact: Peter Ujfalusi <peter.ujfalusi@nokia.com>
+ * Contact: Peter Ujfalusi <peter.ujfalusi@ti.com>
  *          Eduardo Valentin <eduardo.valentin@nokia.com>
  *          Jarkko Nikula <jhnikula@gmail.com>
  *

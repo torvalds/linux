@@ -76,7 +76,7 @@ struct ieee_param {
 			u8 reserved[32];
 			u8 data[0];
 		} wpa_ie;
-		struct{
+		struct {
 			int command;
 			int reason_code;
 		} mlme;
@@ -149,11 +149,11 @@ struct	ieee80211_hdr_qos {
 struct  ieee80211_hdr_3addr_qos {
 	u16 frame_ctl;
 	u16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
+	u8  addr1[ETH_ALEN];
+	u8  addr2[ETH_ALEN];
+	u8  addr3[ETH_ALEN];
 	u16 seq_ctl;
-       u16     qc;
+	u16 qc;
 }  __attribute__ ((packed));
 
 struct eapol {
@@ -461,7 +461,7 @@ struct ieee80211_stats {
 	uint rx_message_in_bad_msg_fragments;
 };
 
-struct ieee80211_softmac_stats{
+struct ieee80211_softmac_stats {
 	uint rx_ass_ok;
 	uint rx_ass_err;
 	uint rx_probe_rq;
@@ -754,15 +754,17 @@ struct registry_priv;
 u8 *r8712_set_ie(u8 *pbuf, sint index, uint len, u8 *source, uint *frlen);
 u8 *r8712_get_ie(u8*pbuf, sint index, sint *len, sint limit);
 unsigned char *r8712_get_wpa_ie(unsigned char *pie, int *rsn_ie_len, int limit);
-unsigned char *r8712_get_wpa2_ie(unsigned char *pie, int *rsn_ie_len, int limit);
+unsigned char *r8712_get_wpa2_ie(unsigned char *pie, int *rsn_ie_len,
+				 int limit);
 int r8712_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
-		       int *pairwise_cipher);
+			int *pairwise_cipher);
 int r8712_parse_wpa2_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
-		        int *pairwise_cipher);
-int r8712_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len, u8 *wpa_ie,
-	       u16 *wpa_len);
+			int *pairwise_cipher);
+int r8712_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len,
+		     u8 *wpa_ie, u16 *wpa_len);
 int r8712_get_wps_ie(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen);
-int r8712_generate_ie(struct registry_priv *pregistrypriv, struct _adapter *padapter);
+int r8712_generate_ie(struct registry_priv *pregistrypriv,
+		      struct _adapter *padapter);
 uint r8712_is_cckrates_included(u8 *rate);
 uint r8712_is_cckratesonly_included(u8 *rate);
 

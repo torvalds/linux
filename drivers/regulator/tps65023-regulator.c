@@ -466,7 +466,6 @@ static struct regulator_ops tps65023_ldo_ops = {
 static int __devinit tps_65023_probe(struct i2c_client *client,
 				     const struct i2c_device_id *id)
 {
-	static int desc_id;
 	const struct tps_info *info = (void *)id->driver_data;
 	struct regulator_init_data *init_data;
 	struct regulator_dev *rdev;
@@ -499,7 +498,7 @@ static int __devinit tps_65023_probe(struct i2c_client *client,
 		tps->info[i] = info;
 
 		tps->desc[i].name = info->name;
-		tps->desc[i].id = desc_id++;
+		tps->desc[i].id = i;
 		tps->desc[i].n_voltages = num_voltages[i];
 		tps->desc[i].ops = (i > TPS65023_DCDC_3 ?
 					&tps65023_ldo_ops : &tps65023_dcdc_ops);

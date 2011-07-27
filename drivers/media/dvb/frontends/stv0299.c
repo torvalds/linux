@@ -64,6 +64,7 @@ struct stv0299_state {
 	fe_code_rate_t fec_inner;
 	int errmode;
 	u32 ucblocks;
+	u8 mcr_reg;
 };
 
 #define STATUS_BER 0
@@ -457,6 +458,9 @@ static int stv0299_init (struct dvb_frontend* fe)
 
 	dprintk("stv0299: init chip\n");
 
+	stv0299_writeregI(state, 0x02, 0x30 | state->mcr_reg);
+	msleep(50);
+
 	for (i = 0; ; i += 2)  {
 		reg = state->config->inittab[i];
 		val = state->config->inittab[i+1];
@@ -464,6 +468,8 @@ static int stv0299_init (struct dvb_frontend* fe)
 			break;
 		if (reg == 0x0c && state->config->op0_off)
 			val &= ~0x10;
+		if (reg == 0x2)
+			state->mcr_reg = val & 0xf;
 		stv0299_writeregI(state, reg, val);
 	}
 
@@ -618,7 +624,7 @@ static int stv0299_sleep(struct dvb_frontend* fe)
 {
 	struct stv0299_state* state = fe->demodulator_priv;
 
-	stv0299_writeregI(state, 0x02, 0x80);
+	stv0299_writeregI(state, 0x02, 0xb0 | state->mcr_reg);
 	state->initialised = 0;
 
 	return 0;
@@ -680,7 +686,7 @@ struct dvb_frontend* stv0299_attach(const struct stv0299_config* config,
 	state->errmode = STATUS_BER;
 
 	/* check if the demod is there */
-	stv0299_writeregI(state, 0x02, 0x34); /* standby off */
+	stv0299_writeregI(state, 0x02, 0x30); /* standby off */
 	msleep(200);
 	id = stv0299_readreg(state, 0x00);
 

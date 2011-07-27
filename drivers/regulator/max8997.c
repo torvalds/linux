@@ -267,7 +267,6 @@ static int max8997_get_enable_register(struct regulator_dev *rdev,
 	default:
 		/* Not controllable or not exists */
 		return -EINVAL;
-		break;
 	}
 
 	return 0;
@@ -1033,11 +1032,11 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 
 	/* For the safety, set max voltage before setting up */
 	for (i = 0; i < 8; i++) {
-		max8997_update_reg(i2c, MAX8997_REG_BUCK1DVS(i + 1),
+		max8997_update_reg(i2c, MAX8997_REG_BUCK1DVS1 + i,
 				max_buck1, 0x3f);
-		max8997_update_reg(i2c, MAX8997_REG_BUCK2DVS(i + 1),
+		max8997_update_reg(i2c, MAX8997_REG_BUCK2DVS1 + i,
 				max_buck2, 0x3f);
-		max8997_update_reg(i2c, MAX8997_REG_BUCK5DVS(i + 1),
+		max8997_update_reg(i2c, MAX8997_REG_BUCK5DVS1 + i,
 				max_buck5, 0x3f);
 	}
 
@@ -1114,13 +1113,13 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 
 	/* Initialize all the DVS related BUCK registers */
 	for (i = 0; i < 8; i++) {
-		max8997_update_reg(i2c, MAX8997_REG_BUCK1DVS(i + 1),
+		max8997_update_reg(i2c, MAX8997_REG_BUCK1DVS1 + i,
 				max8997->buck1_vol[i],
 				0x3f);
-		max8997_update_reg(i2c, MAX8997_REG_BUCK2DVS(i + 1),
+		max8997_update_reg(i2c, MAX8997_REG_BUCK2DVS1 + i,
 				max8997->buck2_vol[i],
 				0x3f);
-		max8997_update_reg(i2c, MAX8997_REG_BUCK5DVS(i + 1),
+		max8997_update_reg(i2c, MAX8997_REG_BUCK5DVS1 + i,
 				max8997->buck5_vol[i],
 				0x3f);
 	}

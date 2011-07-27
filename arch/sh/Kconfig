@@ -21,10 +21,10 @@ config SUPERH
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_GENERIC_HARDIRQS
 	select HAVE_SPARSE_IRQ
+	select IRQ_FORCED_THREADING
 	select RTC_LIB
 	select GENERIC_ATOMIC64
 	select GENERIC_IRQ_SHOW
-	select ARCH_NO_SYSDEV_OPS
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
 	  and consumer electronics; it was also used in the Sega Dreamcast
@@ -70,12 +70,6 @@ config GENERIC_BUG
 config GENERIC_CSUM
 	def_bool y
 	depends on SUPERH64
-
-config GENERIC_FIND_NEXT_BIT
-	def_bool y
-
-config GENERIC_FIND_BIT_LE
-	def_bool y
 
 config GENERIC_HWEIGHT
 	def_bool y
@@ -167,7 +161,7 @@ config ARCH_HAS_CPU_IDLE_WAIT
 
 config NO_IOPORT
 	def_bool !PCI
-	depends on !SH_CAYMAN && !SH_SH4202_MICRODEV
+	depends on !SH_CAYMAN && !SH_SH4202_MICRODEV && !SH_SHMIN
 
 config IO_TRAPPED
 	bool

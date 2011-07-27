@@ -56,7 +56,6 @@
 static void hci_cmd_task(unsigned long arg);
 static void hci_rx_task(unsigned long arg);
 static void hci_tx_task(unsigned long arg);
-static void hci_notify(struct hci_dev *hdev, int event);
 
 static DEFINE_RWLOCK(hci_task_lock);
 
@@ -587,10 +586,8 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	hci_req_cancel(hdev, ENODEV);
 	hci_req_lock(hdev);
 
-	/* Stop timer, it might be running */
-	del_timer_sync(&hdev->cmd_timer);
-
 	if (!test_and_clear_bit(HCI_UP, &hdev->flags)) {
+		del_timer_sync(&hdev->cmd_timer);
 		hci_req_unlock(hdev);
 		return 0;
 	}
@@ -629,6 +626,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 
 	/* Drop last sent command */
 	if (hdev->sent_cmd) {
+		del_timer_sync(&hdev->cmd_timer);
 		kfree_skb(hdev->sent_cmd);
 		hdev->sent_cmd = NULL;
 	}
@@ -1022,18 +1020,54 @@ struct link_key *hci_find_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	return NULL;
 }
 
-int hci_add_link_key(struct hci_dev *hdev, int new_key, bdaddr_t *bdaddr,
-						u8 *val, u8 type, u8 pin_len)
+static int hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
+						u8 key_type, u8 old_key_type)
+{
+	/* Legacy key */
+	if (key_type < 0x03)
+		return 1;
+
+	/* Debug keys are insecure so don't store them persistently */
+	if (key_type == HCI_LK_DEBUG_COMBINATION)
+		return 0;
+
+	/* Changed combination key and there's no previous one */
+	if (key_type == HCI_LK_CHANGED_COMBINATION && old_key_type == 0xff)
+		return 0;
+
+	/* Security mode 3 case */
+	if (!conn)
+		return 1;
+
+	/* Neither local nor remote side had no-bonding as requirement */
+	if (conn->auth_type > 0x01 && conn->remote_auth > 0x01)
+		return 1;
+
+	/* Local side had dedicated bonding as requirement */
+	if (conn->auth_type == 0x02 || conn->auth_type == 0x03)
+		return 1;
+
+	/* Remote side had dedicated bonding as requirement */
+	if (conn->remote_auth == 0x02 || conn->remote_auth == 0x03)
+		return 1;
+
+	/* If none of the above criteria match, then don't store the key
+	 * persistently */
+	return 0;
+}
+
+int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
+				bdaddr_t *bdaddr, u8 *val, u8 type, u8 pin_len)
 {
 	struct link_key *key, *old_key;
-	u8 old_key_type;
+	u8 old_key_type, persistent;
 
 	old_key = hci_find_link_key(hdev, bdaddr);
 	if (old_key) {
 		old_key_type = old_key->type;
 		key = old_key;
 	} else {
-		old_key_type = 0xff;
+		old_key_type = conn ? conn->key_type : 0xff;
 		key = kzalloc(sizeof(*key), GFP_ATOMIC);
 		if (!key)
 			return -ENOMEM;
@@ -1042,16 +1076,37 @@ int hci_add_link_key(struct hci_dev *hdev, int new_key, bdaddr_t *bdaddr,
 
 	BT_DBG("%s key for %s type %u", hdev->name, batostr(bdaddr), type);
 
+	/* Some buggy controller combinations generate a changed
+	 * combination key for legacy pairing even when there's no
+	 * previous key */
+	if (type == HCI_LK_CHANGED_COMBINATION &&
+					(!conn || conn->remote_auth == 0xff) &&
+					old_key_type == 0xff) {
+		type = HCI_LK_COMBINATION;
+		if (conn)
+			conn->key_type = type;
+	}
+
 	bacpy(&key->bdaddr, bdaddr);
 	memcpy(key->val, val, 16);
-	key->type = type;
 	key->pin_len = pin_len;
 
-	if (new_key)
-		mgmt_new_key(hdev->id, key, old_key_type);
-
-	if (type == 0x06)
+	if (type == HCI_LK_CHANGED_COMBINATION)
 		key->type = old_key_type;
+	else
+		key->type = type;
+
+	if (!new_key)
+		return 0;
+
+	persistent = hci_persistent_key(hdev, conn, type, old_key_type);
+
+	mgmt_new_key(hdev->id, key, persistent);
+
+	if (!persistent) {
+		list_del(&key->list);
+		kfree(key);
+	}
 
 	return 0;
 }
@@ -1081,6 +1136,70 @@ static void hci_cmd_timer(unsigned long arg)
 	atomic_set(&hdev->cmd_cnt, 1);
 	clear_bit(HCI_RESET, &hdev->flags);
 	tasklet_schedule(&hdev->cmd_task);
+}
+
+struct oob_data *hci_find_remote_oob_data(struct hci_dev *hdev,
+							bdaddr_t *bdaddr)
+{
+	struct oob_data *data;
+
+	list_for_each_entry(data, &hdev->remote_oob_data, list)
+		if (bacmp(bdaddr, &data->bdaddr) == 0)
+			return data;
+
+	return NULL;
+}
+
+int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr)
+{
+	struct oob_data *data;
+
+	data = hci_find_remote_oob_data(hdev, bdaddr);
+	if (!data)
+		return -ENOENT;
+
+	BT_DBG("%s removing %s", hdev->name, batostr(bdaddr));
+
+	list_del(&data->list);
+	kfree(data);
+
+	return 0;
+}
+
+int hci_remote_oob_data_clear(struct hci_dev *hdev)
+{
+	struct oob_data *data, *n;
+
+	list_for_each_entry_safe(data, n, &hdev->remote_oob_data, list) {
+		list_del(&data->list);
+		kfree(data);
+	}
+
+	return 0;
+}
+
+int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *hash,
+								u8 *randomizer)
+{
+	struct oob_data *data;
+
+	data = hci_find_remote_oob_data(hdev, bdaddr);
+
+	if (!data) {
+		data = kmalloc(sizeof(*data), GFP_ATOMIC);
+		if (!data)
+			return -ENOMEM;
+
+		bacpy(&data->bdaddr, bdaddr);
+		list_add(&data->list, &hdev->remote_oob_data);
+	}
+
+	memcpy(data->hash, hash, sizeof(data->hash));
+	memcpy(data->randomizer, randomizer, sizeof(data->randomizer));
+
+	BT_DBG("%s for %s", hdev->name, batostr(bdaddr));
+
+	return 0;
 }
 
 /* Register HCI device */
@@ -1146,6 +1265,8 @@ int hci_register_dev(struct hci_dev *hdev)
 	INIT_LIST_HEAD(&hdev->uuids);
 
 	INIT_LIST_HEAD(&hdev->link_keys);
+
+	INIT_LIST_HEAD(&hdev->remote_oob_data);
 
 	INIT_WORK(&hdev->power_on, hci_power_on);
 	INIT_WORK(&hdev->power_off, hci_power_off);
@@ -1226,6 +1347,7 @@ int hci_unregister_dev(struct hci_dev *hdev)
 	hci_blacklist_clear(hdev);
 	hci_uuids_clear(hdev);
 	hci_link_keys_clear(hdev);
+	hci_remote_oob_data_clear(hdev);
 	hci_dev_unlock_bh(hdev);
 
 	__hci_dev_put(hdev);
@@ -1275,7 +1397,7 @@ int hci_recv_frame(struct sk_buff *skb)
 EXPORT_SYMBOL(hci_recv_frame);
 
 static int hci_reassembly(struct hci_dev *hdev, int type, void *data,
-			  int count, __u8 index, gfp_t gfp_mask)
+						  int count, __u8 index)
 {
 	int len = 0;
 	int hlen = 0;
@@ -1305,7 +1427,7 @@ static int hci_reassembly(struct hci_dev *hdev, int type, void *data,
 			break;
 		}
 
-		skb = bt_skb_alloc(len, gfp_mask);
+		skb = bt_skb_alloc(len, GFP_ATOMIC);
 		if (!skb)
 			return -ENOMEM;
 
@@ -1391,8 +1513,7 @@ int hci_recv_fragment(struct hci_dev *hdev, int type, void *data, int count)
 		return -EILSEQ;
 
 	while (count) {
-		rem = hci_reassembly(hdev, type, data, count,
-						type - 1, GFP_ATOMIC);
+		rem = hci_reassembly(hdev, type, data, count, type - 1);
 		if (rem < 0)
 			return rem;
 
@@ -1426,8 +1547,8 @@ int hci_recv_stream_fragment(struct hci_dev *hdev, void *data, int count)
 		} else
 			type = bt_cb(skb)->pkt_type;
 
-		rem = hci_reassembly(hdev, type, data,
-					count, STREAM_REASSEMBLY, GFP_ATOMIC);
+		rem = hci_reassembly(hdev, type, data, count,
+							STREAM_REASSEMBLY);
 		if (rem < 0)
 			return rem;
 

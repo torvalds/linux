@@ -920,7 +920,6 @@ xfs_iread_extents(
 	/*
 	 * We know that the size is valid (it's checked in iformat_btree)
 	 */
-	ifp->if_lastex = NULLEXTNUM;
 	ifp->if_bytes = ifp->if_real_bytes = 0;
 	ifp->if_flags |= XFS_IFEXTENTS;
 	xfs_iext_add(ifp, 0, nextents);
@@ -1354,7 +1353,7 @@ xfs_itruncate_start(
 		return 0;
 	}
 	last_byte = xfs_file_last_byte(ip);
-	trace_xfs_itruncate_start(ip, flags, new_size, toss_start, last_byte);
+	trace_xfs_itruncate_start(ip, new_size, flags, toss_start, last_byte);
 	if (last_byte > toss_start) {
 		if (flags & XFS_ITRUNC_DEFINITE) {
 			xfs_tosspages(ip, toss_start,
@@ -1470,7 +1469,7 @@ xfs_itruncate_finish(
 	 * file but the log buffers containing the free and reallocation
 	 * don't, then we'd end up with garbage in the blocks being freed.
 	 * As long as we make the new_size permanent before actually
-	 * freeing any blocks it doesn't matter if they get writtten to.
+	 * freeing any blocks it doesn't matter if they get written to.
 	 *
 	 * The callers must signal into us whether or not the size
 	 * setting here must be synchronous.  There are a few cases
@@ -2558,12 +2557,9 @@ xfs_iflush_fork(
 	case XFS_DINODE_FMT_EXTENTS:
 		ASSERT((ifp->if_flags & XFS_IFEXTENTS) ||
 		       !(iip->ili_format.ilf_fields & extflag[whichfork]));
-		ASSERT((xfs_iext_get_ext(ifp, 0) != NULL) ||
-			(ifp->if_bytes == 0));
-		ASSERT((xfs_iext_get_ext(ifp, 0) == NULL) ||
-			(ifp->if_bytes > 0));
 		if ((iip->ili_format.ilf_fields & extflag[whichfork]) &&
 		    (ifp->if_bytes > 0)) {
+			ASSERT(xfs_iext_get_ext(ifp, 0));
 			ASSERT(XFS_IFORK_NEXTENTS(ip, whichfork) > 0);
 			(void)xfs_iextents_copy(ip, (xfs_bmbt_rec_t *)cp,
 				whichfork);
@@ -3112,6 +3108,8 @@ xfs_iext_get_ext(
 	xfs_extnum_t	idx)		/* index of target extent */
 {
 	ASSERT(idx >= 0);
+	ASSERT(idx < ifp->if_bytes / sizeof(xfs_bmbt_rec_t));
+
 	if ((ifp->if_flags & XFS_IFEXTIREC) && (idx == 0)) {
 		return ifp->if_u1.if_ext_irec->er_extbuf;
 	} else if (ifp->if_flags & XFS_IFEXTIREC) {
@@ -3191,7 +3189,6 @@ xfs_iext_add(
 		}
 		ifp->if_u1.if_extents = ifp->if_u2.if_inline_ext;
 		ifp->if_real_bytes = 0;
-		ifp->if_lastex = nextents + ext_diff;
 	}
 	/*
 	 * Otherwise use a linear (direct) extent list.
@@ -3886,8 +3883,10 @@ xfs_iext_idx_to_irec(
 	xfs_extnum_t	page_idx = *idxp; /* extent index in target list */
 
 	ASSERT(ifp->if_flags & XFS_IFEXTIREC);
-	ASSERT(page_idx >= 0 && page_idx <=
-		ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t));
+	ASSERT(page_idx >= 0);
+	ASSERT(page_idx <= ifp->if_bytes / sizeof(xfs_bmbt_rec_t));
+	ASSERT(page_idx < ifp->if_bytes / sizeof(xfs_bmbt_rec_t) || realloc);
+
 	nlists = ifp->if_real_bytes / XFS_IEXT_BUFSZ;
 	erp_idx = 0;
 	low = 0;

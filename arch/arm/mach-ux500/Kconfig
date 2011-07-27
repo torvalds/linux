@@ -5,16 +5,18 @@ config UX500_SOC_COMMON
 	default y
 	select ARM_GIC
 	select HAS_MTU
-	select NOMADIK_GPIO
 	select ARM_ERRATA_753970
 
 menu "Ux500 SoC"
 
 config UX500_SOC_DB5500
 	bool "DB5500"
+	select MFD_DB5500_PRCMU
 
 config UX500_SOC_DB8500
 	bool "DB8500"
+	select MFD_DB8500_PRCMU
+	select REGULATOR_DB8500_PRCMU
 
 endmenu
 

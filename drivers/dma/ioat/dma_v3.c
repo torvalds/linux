@@ -60,6 +60,7 @@
 #include <linux/gfp.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
+#include <linux/prefetch.h>
 #include "registers.h"
 #include "hw.h"
 #include "dma.h"

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004 Sam Leffler, Errno Consulting
  * Copyright (c) 2004 Video54 Technologies, Inc.
- * Copyright (c) 2008-2009 Atheros Communications Inc.
+ * Copyright (c) 2008-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above

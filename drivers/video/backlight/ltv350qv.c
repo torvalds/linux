@@ -333,7 +333,7 @@ static void __exit ltv350qv_exit(void)
 module_init(ltv350qv_init);
 module_exit(ltv350qv_exit);
 
-MODULE_AUTHOR("Haavard Skinnemoen <hskinnemoen@atmel.com>");
+MODULE_AUTHOR("Haavard Skinnemoen (Atmel)");
 MODULE_DESCRIPTION("Samsung LTV350QV LCD Driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("spi:ltv350qv");

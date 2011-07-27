@@ -151,6 +151,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	set_fs(fs);
 	return retval;
 }
+EXPORT_SYMBOL(kernel_thread);
 
 void flush_thread(void)
 {
@@ -283,6 +284,7 @@ int dump_fpu(struct pt_regs *regs, struct user_m68kfp_struct *fpu)
 #endif
 	return 1;
 }
+EXPORT_SYMBOL(dump_fpu);
 
 /*
  *	Generic dumping code. Used for panic and debug.

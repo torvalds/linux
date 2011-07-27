@@ -67,7 +67,7 @@ struct zfcp_qdio {
  * @qdio_outb_usage: usage of outbound queue
  */
 struct zfcp_qdio_req {
-	u32	sbtype;
+	u8	sbtype;
 	u8	sbal_number;
 	u8	sbal_first;
 	u8	sbal_last;
@@ -116,7 +116,7 @@ zfcp_qdio_sbale_curr(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req)
  */
 static inline
 void zfcp_qdio_req_init(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
-			unsigned long req_id, u32 sbtype, void *data, u32 len)
+			unsigned long req_id, u8 sbtype, void *data, u32 len)
 {
 	struct qdio_buffer_element *sbale;
 	int count = min(atomic_read(&qdio->req_q_free),
@@ -131,7 +131,8 @@ void zfcp_qdio_req_init(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
 
 	sbale = zfcp_qdio_sbale_req(qdio, q_req);
 	sbale->addr = (void *) req_id;
-	sbale->flags = SBAL_FLAGS0_COMMAND | sbtype;
+	sbale->eflags = 0;
+	sbale->sflags = SBAL_SFLAGS0_COMMAND | sbtype;
 
 	if (unlikely(!data))
 		return;
@@ -173,7 +174,7 @@ void zfcp_qdio_set_sbale_last(struct zfcp_qdio *qdio,
 	struct qdio_buffer_element *sbale;
 
 	sbale = zfcp_qdio_sbale_curr(qdio, q_req);
-	sbale->flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale->eflags |= SBAL_EFLAGS_LAST_ENTRY;
 }
 
 /**

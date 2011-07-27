@@ -25,6 +25,8 @@ Other applications are described in the following papers:
 		http://xcpu.org/papers/cellfs-talk.pdf
 	* PROSE I/O: Using 9p to enable Application Partitions
 		http://plan9.escet.urjc.es/iwp9/cready/PROSE_iwp9_2006.pdf
+	* VirtFS: A Virtualization Aware File System pass-through
+		http://goo.gl/3WPDg
 
 USAGE
 =====
@@ -130,31 +132,20 @@ OPTIONS
 RESOURCES
 =========
 
-Our current recommendation is to use Inferno (http://www.vitanuova.com/nferno/index.html)
-as the 9p server.  You can start a 9p server under Inferno by issuing the
-following command:
-   ; styxlisten -A tcp!*!564 export '#U*'
+Protocol specifications are maintained on github:
+http://ericvh.github.com/9p-rfc/
 
-The -A specifies an unauthenticated export.  The 564 is the port # (you may
-have to choose a higher port number if running as a normal user).  The '#U*'
-specifies exporting the root of the Linux name space.  You may specify a
-subset of the namespace by extending the path: '#U*'/tmp would just export
-/tmp.  For more information, see the Inferno manual pages covering styxlisten
-and export.
+9p client and server implementations are listed on
+http://9p.cat-v.org/implementations
 
-A Linux version of the 9p server is now maintained under the npfs project
-on sourceforge (http://sourceforge.net/projects/npfs).  The currently
-maintained version is the single-threaded version of the server (named spfs)
-available from the same SVN repository.
+A 9p2000.L server is being developed by LLNL and can be found
+at http://code.google.com/p/diod/
 
 There are user and developer mailing lists available through the v9fs project
 on sourceforge (http://sourceforge.net/projects/v9fs).
 
-A stand-alone version of the module (which should build for any 2.6 kernel)
-is available via (http://github.com/ericvh/9p-sac/tree/master)
-
-News and other information is maintained on SWiK (http://swik.net/v9fs)
-and the Wiki (http://sf.net/apps/mediawiki/v9fs/index.php).
+News and other information is maintained on a Wiki.
+(http://sf.net/apps/mediawiki/v9fs/index.php).
 
 Bug reports may be issued through the kernel.org bugzilla 
 (http://bugzilla.kernel.org)

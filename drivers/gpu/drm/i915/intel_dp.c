@@ -59,8 +59,6 @@ struct intel_dp {
 	bool is_pch_edp;
 	uint8_t	train_set[4];
 	uint8_t link_status[DP_LINK_STATUS_SIZE];
-
-	struct drm_property *force_audio_property;
 };
 
 /**
@@ -1470,7 +1468,8 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 
 	if (!HAS_PCH_CPT(dev) &&
 	    I915_READ(intel_dp->output_reg) & DP_PIPEB_SELECT) {
-		struct intel_crtc *intel_crtc = to_intel_crtc(intel_dp->base.base.crtc);
+		struct drm_crtc *crtc = intel_dp->base.base.crtc;
+
 		/* Hardware workaround: leaving our transcoder select
 		 * set to transcoder B while it's off will prevent the
 		 * corresponding HDMI output on transcoder A.
@@ -1485,7 +1484,19 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 		/* Changes to enable or select take place the vblank
 		 * after being written.
 		 */
-		intel_wait_for_vblank(dev, intel_crtc->pipe);
+		if (crtc == NULL) {
+			/* We can arrive here never having been attached
+			 * to a CRTC, for instance, due to inheriting
+			 * random state from the BIOS.
+			 *
+			 * If the pipe is not running, play safe and
+			 * wait for the clocks to stabilise before
+			 * continuing.
+			 */
+			POSTING_READ(intel_dp->output_reg);
+			msleep(50);
+		} else
+			intel_wait_for_vblank(dev, to_intel_crtc(crtc)->pipe);
 	}
 
 	I915_WRITE(intel_dp->output_reg, DP & ~DP_PORT_EN);
@@ -1689,7 +1700,7 @@ intel_dp_set_property(struct drm_connector *connector,
 	if (ret)
 		return ret;
 
-	if (property == intel_dp->force_audio_property) {
+	if (property == dev_priv->force_audio_property) {
 		int i = val;
 		bool has_audio;
 
@@ -1828,16 +1839,7 @@ bool intel_dpd_is_edp(struct drm_device *dev)
 static void
 intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connector)
 {
-	struct drm_device *dev = connector->dev;
-
-	intel_dp->force_audio_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE, "force_audio", 2);
-	if (intel_dp->force_audio_property) {
-		intel_dp->force_audio_property->values[0] = -1;
-		intel_dp->force_audio_property->values[1] = 1;
-		drm_connector_attach_property(connector, intel_dp->force_audio_property, 0);
-	}
-
+	intel_attach_force_audio_property(connector);
 	intel_attach_broadcast_rgb_property(connector);
 }
 

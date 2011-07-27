@@ -318,17 +318,20 @@ static const struct platform_suspend_ops mpc83xx_suspend_ops = {
 	.end = mpc83xx_suspend_end,
 };
 
+static struct of_device_id pmc_match[];
 static int pmc_probe(struct platform_device *ofdev)
 {
+	const struct of_device_id *match;
 	struct device_node *np = ofdev->dev.of_node;
 	struct resource res;
 	struct pmc_type *type;
 	int ret = 0;
 
-	if (!ofdev->dev.of_match)
+	match = of_match_device(pmc_match, &ofdev->dev);
+	if (!match)
 		return -EINVAL;
 
-	type = ofdev->dev.of_match->data;
+	type = match->data;
 
 	if (!of_device_is_available(np))
 		return -ENODEV;

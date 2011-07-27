@@ -1354,7 +1354,7 @@ void cx231xx_dump_SC_reg(struct cx231xx *dev)
 {
 	u8 value[4] = { 0, 0, 0, 0 };
 	int status = 0;
-	cx231xx_info("cx231xx_dump_SC_reg %s!\n", __TIME__);
+	cx231xx_info("cx231xx_dump_SC_reg!\n");
 
 	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, BOARD_CFG_STAT,
 				 value, 4);

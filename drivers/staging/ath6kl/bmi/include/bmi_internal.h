@@ -26,11 +26,10 @@
 
 #include "a_config.h"
 #include "athdefs.h"
-#include "a_types.h"
 #include "a_osapi.h"
 #define ATH_MODULE_NAME bmi
 #include "a_debug.h"
-#include "AR6002/hw2.0/hw/mbox_host_reg.h"
+#include "hw/mbox_host_reg.h"
 #include "bmi_msg.h"
 
 #define ATH_DEBUG_BMI  ATH_DEBUG_MAKE_MODULE_MASK(0)

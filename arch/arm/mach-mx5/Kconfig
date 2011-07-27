@@ -1,11 +1,11 @@
-if ARCH_MX5
-# ARCH_MX50/51/53 are left to mark places where prevent multi-soc in single
+if ARCH_MX503 || ARCH_MX51
+# ARCH_MX5/50/53 are left to mark places where prevent multi-soc in single
 # image. So for most time, SOC_IMX50/51/53 should be used.
 
-config ARCH_MX50
+config ARCH_MX5
 	bool
 
-config ARCH_MX51
+config ARCH_MX50
 	bool
 
 config ARCH_MX53
@@ -13,27 +13,54 @@ config ARCH_MX53
 
 config SOC_IMX50
 	bool
+	select CPU_V7
+	select ARM_L1_CACHE_SHIFT_6
 	select MXC_TZIC
 	select ARCH_MXC_IOMUX_V3
 	select ARCH_MXC_AUDMUX_V2
 	select ARCH_HAS_CPUFREQ
+	select ARCH_MX5
 	select ARCH_MX50
 
 config	SOC_IMX51
 	bool
+	select CPU_V7
+	select ARM_L1_CACHE_SHIFT_6
 	select MXC_TZIC
 	select ARCH_MXC_IOMUX_V3
 	select ARCH_MXC_AUDMUX_V2
 	select ARCH_HAS_CPUFREQ
-	select ARCH_MX51
+	select ARCH_MX5
 
 config	SOC_IMX53
 	bool
+	select CPU_V7
+	select ARM_L1_CACHE_SHIFT_6
 	select MXC_TZIC
 	select ARCH_MXC_IOMUX_V3
+	select ARCH_MX5
 	select ARCH_MX53
 
-comment "MX5 platforms:"
+if ARCH_MX50_SUPPORTED
+#comment "i.MX50 machines:"
+
+config MACH_MX50_RDP
+	bool "Support MX50 reference design platform"
+	depends on BROKEN
+	select SOC_IMX50
+	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
+	select IMX_HAVE_PLATFORM_SPI_IMX
+	select IMX_HAVE_PLATFORM_FEC
+	help
+	  Include support for MX50 reference design platform (RDP) board. This
+	  includes specific configurations for the board and its peripherals.
+
+endif # ARCH_MX50_SUPPORTED
+
+if ARCH_MX51
+comment "i.MX51 machines:"
 
 config MACH_MX51_BABBAGE
 	bool "Support MX51 BABBAGE platforms"
@@ -136,6 +163,11 @@ config MACH_MX51_EFIKASB
 	  Include support for Genesi Efika Smartbook. This includes specific
 	  configurations for the board and its peripherals.
 
+endif # ARCH_MX51
+
+if ARCH_MX53_SUPPORTED
+comment "i.MX53 machines:"
+
 config MACH_MX53_EVK
 	bool "Support MX53 EVK platforms"
 	select SOC_IMX53
@@ -154,6 +186,7 @@ config MACH_MX53_SMD
 	select IMX_HAVE_PLATFORM_IMX2_WDT
 	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
 	help
 	  Include support for MX53 SMD platform. This includes specific
 	  configurations for the board and its peripherals.
@@ -170,17 +203,6 @@ config MACH_MX53_LOCO
 	  Include support for MX53 LOCO platform. This includes specific
 	  configurations for the board and its peripherals.
 
-config MACH_MX50_RDP
-	bool "Support MX50 reference design platform"
-	depends on BROKEN
-	select SOC_IMX50
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
-	select IMX_HAVE_PLATFORM_SPI_IMX
-	select IMX_HAVE_PLATFORM_FEC
-	help
-	  Include support for MX50 reference design platform (RDP) board. This
-	  includes specific configurations for the board and its peripherals.
+endif # ARCH_MX53_SUPPORTED
 
 endif

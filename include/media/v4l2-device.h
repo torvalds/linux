@@ -163,7 +163,7 @@ v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev);
 ({									\
 	struct v4l2_subdev *__sd;					\
 	__v4l2_device_call_subdevs_until_err_p(v4l2_dev, __sd, cond, o,	\
-						f, args...);		\
+						f , ##args);		\
 })
 
 /* Call the specified callback for all subdevs matching grp_id (if 0, then

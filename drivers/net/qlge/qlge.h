@@ -2134,7 +2134,7 @@ struct ql_adapter {
 	struct delayed_work mpi_idc_work;
 	struct delayed_work mpi_core_to_log;
 	struct completion ide_completion;
-	struct nic_operations *nic_ops;
+	const struct nic_operations *nic_ops;
 	u16 device_id;
 	struct timer_list timer;
 	atomic_t lb_count;

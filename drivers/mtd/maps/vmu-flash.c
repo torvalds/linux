@@ -563,7 +563,7 @@ static void vmu_queryblocks(struct mapleq *mq)
 		goto fail_cache_create;
 	part_cur->pcache = pcache;
 
-	error = add_mtd_device(mtd_cur);
+	error = mtd_device_register(mtd_cur, NULL, 0);
 	if (error)
 		goto fail_mtd_register;
 
@@ -709,7 +709,7 @@ static void __devexit vmu_disconnect(struct maple_device *mdev)
 	for (x = 0; x < card->partitions; x++) {
 		mpart = ((card->mtd)[x]).priv;
 		mpart->mdev = NULL;
-		del_mtd_device(&((card->mtd)[x]));
+		mtd_device_unregister(&((card->mtd)[x]));
 		kfree(((card->parts)[x]).name);
 	}
 	kfree(card->parts);

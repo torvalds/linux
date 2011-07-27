@@ -173,7 +173,7 @@ void jfs_evict_inode(struct inode *inode)
 	dquot_drop(inode);
 }
 
-void jfs_dirty_inode(struct inode *inode)
+void jfs_dirty_inode(struct inode *inode, int flags)
 {
 	static int noisy = 5;
 

@@ -163,7 +163,7 @@ static void mpc8xxx_irq_unmask(struct irq_data *d)
 
 	spin_lock_irqsave(&mpc8xxx_gc->lock, flags);
 
-	setbits32(mm->regs + GPIO_IMR, mpc8xxx_gpio2mask(virq_to_hw(d->irq)));
+	setbits32(mm->regs + GPIO_IMR, mpc8xxx_gpio2mask(irqd_to_hwirq(d)));
 
 	spin_unlock_irqrestore(&mpc8xxx_gc->lock, flags);
 }
@@ -176,7 +176,7 @@ static void mpc8xxx_irq_mask(struct irq_data *d)
 
 	spin_lock_irqsave(&mpc8xxx_gc->lock, flags);
 
-	clrbits32(mm->regs + GPIO_IMR, mpc8xxx_gpio2mask(virq_to_hw(d->irq)));
+	clrbits32(mm->regs + GPIO_IMR, mpc8xxx_gpio2mask(irqd_to_hwirq(d)));
 
 	spin_unlock_irqrestore(&mpc8xxx_gc->lock, flags);
 }
@@ -186,7 +186,7 @@ static void mpc8xxx_irq_ack(struct irq_data *d)
 	struct mpc8xxx_gpio_chip *mpc8xxx_gc = irq_data_get_irq_chip_data(d);
 	struct of_mm_gpio_chip *mm = &mpc8xxx_gc->mm_gc;
 
-	out_be32(mm->regs + GPIO_IER, mpc8xxx_gpio2mask(virq_to_hw(d->irq)));
+	out_be32(mm->regs + GPIO_IER, mpc8xxx_gpio2mask(irqd_to_hwirq(d)));
 }
 
 static int mpc8xxx_irq_set_type(struct irq_data *d, unsigned int flow_type)
@@ -199,14 +199,14 @@ static int mpc8xxx_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	case IRQ_TYPE_EDGE_FALLING:
 		spin_lock_irqsave(&mpc8xxx_gc->lock, flags);
 		setbits32(mm->regs + GPIO_ICR,
-			  mpc8xxx_gpio2mask(virq_to_hw(d->irq)));
+			  mpc8xxx_gpio2mask(irqd_to_hwirq(d)));
 		spin_unlock_irqrestore(&mpc8xxx_gc->lock, flags);
 		break;
 
 	case IRQ_TYPE_EDGE_BOTH:
 		spin_lock_irqsave(&mpc8xxx_gc->lock, flags);
 		clrbits32(mm->regs + GPIO_ICR,
-			  mpc8xxx_gpio2mask(virq_to_hw(d->irq)));
+			  mpc8xxx_gpio2mask(irqd_to_hwirq(d)));
 		spin_unlock_irqrestore(&mpc8xxx_gc->lock, flags);
 		break;
 
@@ -221,7 +221,7 @@ static int mpc512x_irq_set_type(struct irq_data *d, unsigned int flow_type)
 {
 	struct mpc8xxx_gpio_chip *mpc8xxx_gc = irq_data_get_irq_chip_data(d);
 	struct of_mm_gpio_chip *mm = &mpc8xxx_gc->mm_gc;
-	unsigned long gpio = virq_to_hw(d->irq);
+	unsigned long gpio = irqd_to_hwirq(d);
 	void __iomem *reg;
 	unsigned int shift;
 	unsigned long flags;

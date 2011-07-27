@@ -1,5 +1,6 @@
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
+#include "nl80211.h"
 #include "core.h"
 
 /* Default values, timeouts in ms */
@@ -53,8 +54,9 @@ const struct mesh_config default_mesh_config = {
 const struct mesh_setup default_mesh_setup = {
 	.path_sel_proto = IEEE80211_PATH_PROTOCOL_HWMP,
 	.path_metric = IEEE80211_PATH_METRIC_AIRTIME,
-	.vendor_ie = NULL,
-	.vendor_ie_len = 0,
+	.ie = NULL,
+	.ie_len = 0,
+	.is_secure = false,
 };
 
 int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
@@ -70,6 +72,10 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 	ASSERT_WDEV_LOCK(wdev);
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT)
+		return -EOPNOTSUPP;
+
+	if (!(rdev->wiphy.flags & WIPHY_FLAG_MESH_AUTH) &&
+	      setup->is_secure)
 		return -EOPNOTSUPP;
 
 	if (wdev->mesh_id_len)
@@ -104,6 +110,19 @@ int cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 
 	return err;
 }
+
+void cfg80211_notify_new_peer_candidate(struct net_device *dev,
+		const u8 *macaddr, const u8* ie, u8 ie_len, gfp_t gfp)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_MESH_POINT))
+		return;
+
+	nl80211_send_new_peer_candidate(wiphy_to_dev(wdev->wiphy), dev,
+			macaddr, ie, ie_len, gfp);
+}
+EXPORT_SYMBOL(cfg80211_notify_new_peer_candidate);
 
 static int __cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
 				 struct net_device *dev)

@@ -2045,7 +2045,7 @@ static int __devinit cx23885_initdev(struct pci_dev *pci_dev,
 	}
 
 	/* print pci info */
-	pci_read_config_byte(pci_dev, PCI_CLASS_REVISION, &dev->pci_rev);
+	dev->pci_rev = pci_dev->revision;
 	pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER,  &dev->pci_lat);
 	printk(KERN_INFO "%s/0: found at %s, rev: %d, irq: %d, "
 	       "latency: %d, mmio: 0x%llx\n", dev->name,

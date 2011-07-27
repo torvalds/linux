@@ -41,6 +41,7 @@
 #include <linux/bitops.h>
 #include <linux/mpage.h>
 #include <linux/bit_spinlock.h>
+#include <linux/cleancache.h>
 
 static int fsync_buffers_list(spinlock_t *lock, struct list_head *list);
 
@@ -269,6 +270,10 @@ void invalidate_bdev(struct block_device *bdev)
 	invalidate_bh_lrus();
 	lru_add_drain_all();	/* make sure all lru add caches are flushed */
 	invalidate_mapping_pages(mapping, 0, -1);
+	/* 99% of the time, we don't need to flush the cleancache on the bdev.
+	 * But, for the strange corners, lets be cautious
+	 */
+	cleancache_flush_inode(mapping);
 }
 EXPORT_SYMBOL(invalidate_bdev);
 
@@ -1897,10 +1902,8 @@ int __block_write_begin(struct page *page, loff_t pos, unsigned len,
 		if (!buffer_uptodate(*wait_bh))
 			err = -EIO;
 	}
-	if (unlikely(err)) {
+	if (unlikely(err))
 		page_zero_new_buffers(page, from, to);
-		ClearPageUptodate(page);
-	}
 	return err;
 }
 EXPORT_SYMBOL(__block_write_begin);
@@ -2331,24 +2334,26 @@ EXPORT_SYMBOL(block_commit_write);
  * page lock we can determine safely if the page is beyond EOF. If it is not
  * beyond EOF, then the page is guaranteed safe against truncation until we
  * unlock the page.
+ *
+ * Direct callers of this function should call vfs_check_frozen() so that page
+ * fault does not busyloop until the fs is thawed.
  */
-int
-block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
-		   get_block_t get_block)
+int __block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
+			 get_block_t get_block)
 {
 	struct page *page = vmf->page;
 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
 	unsigned long end;
 	loff_t size;
-	int ret = VM_FAULT_NOPAGE; /* make the VM retry the fault */
+	int ret;
 
 	lock_page(page);
 	size = i_size_read(inode);
 	if ((page->mapping != inode->i_mapping) ||
 	    (page_offset(page) > size)) {
-		/* page got truncated out from underneath us */
-		unlock_page(page);
-		goto out;
+		/* We overload EFAULT to mean page got truncated */
+		ret = -EFAULT;
+		goto out_unlock;
 	}
 
 	/* page is wholly or partially inside EOF */
@@ -2361,17 +2366,41 @@ block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 	if (!ret)
 		ret = block_commit_write(page, 0, end);
 
-	if (unlikely(ret)) {
-		unlock_page(page);
-		if (ret == -ENOMEM)
-			ret = VM_FAULT_OOM;
-		else /* -ENOSPC, -EIO, etc */
-			ret = VM_FAULT_SIGBUS;
-	} else
-		ret = VM_FAULT_LOCKED;
-
-out:
+	if (unlikely(ret < 0))
+		goto out_unlock;
+	/*
+	 * Freezing in progress? We check after the page is marked dirty and
+	 * with page lock held so if the test here fails, we are sure freezing
+	 * code will wait during syncing until the page fault is done - at that
+	 * point page will be dirty and unlocked so freezing code will write it
+	 * and writeprotect it again.
+	 */
+	set_page_dirty(page);
+	if (inode->i_sb->s_frozen != SB_UNFROZEN) {
+		ret = -EAGAIN;
+		goto out_unlock;
+	}
+	wait_on_page_writeback(page);
+	return 0;
+out_unlock:
+	unlock_page(page);
 	return ret;
+}
+EXPORT_SYMBOL(__block_page_mkwrite);
+
+int block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
+		   get_block_t get_block)
+{
+	int ret;
+	struct super_block *sb = vma->vm_file->f_path.dentry->d_inode->i_sb;
+
+	/*
+	 * This check is racy but catches the common case. The check in
+	 * __block_page_mkwrite() is reliable.
+	 */
+	vfs_check_frozen(sb, SB_FREEZE_WRITE);
+	ret = __block_page_mkwrite(vma, vmf, get_block);
+	return block_page_mkwrite_return(ret);
 }
 EXPORT_SYMBOL(block_page_mkwrite);
 

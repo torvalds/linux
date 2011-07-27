@@ -1752,7 +1752,7 @@ static int nsp_cs_resume(struct pcmcia_device *link)
 /*======================================================================*
  *	module entry point
  *====================================================================*/
-static struct pcmcia_device_id nsp_cs_ids[] = {
+static const struct pcmcia_device_id nsp_cs_ids[] = {
 	PCMCIA_DEVICE_PROD_ID123("IO DATA", "CBSC16       ", "1", 0x547e66dc, 0x0d63a3fd, 0x51de003a),
 	PCMCIA_DEVICE_PROD_ID123("KME    ", "SCSI-CARD-001", "1", 0x534c02bc, 0x52008408, 0x51de003a),
 	PCMCIA_DEVICE_PROD_ID123("KME    ", "SCSI-CARD-002", "1", 0x534c02bc, 0xcb09d5b2, 0x51de003a),

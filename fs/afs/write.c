@@ -84,23 +84,21 @@ void afs_put_writeback(struct afs_writeback *wb)
  * partly or wholly fill a page that's under preparation for writing
  */
 static int afs_fill_page(struct afs_vnode *vnode, struct key *key,
-			 loff_t pos, unsigned len, struct page *page)
+			 loff_t pos, struct page *page)
 {
 	loff_t i_size;
-	unsigned eof;
 	int ret;
+	int len;
 
-	_enter(",,%llu,%u", (unsigned long long)pos, len);
-
-	ASSERTCMP(len, <=, PAGE_CACHE_SIZE);
+	_enter(",,%llu", (unsigned long long)pos);
 
 	i_size = i_size_read(&vnode->vfs_inode);
-	if (pos + len > i_size)
-		eof = i_size;
+	if (pos + PAGE_CACHE_SIZE > i_size)
+		len = i_size - pos;
 	else
-		eof = PAGE_CACHE_SIZE;
+		len = PAGE_CACHE_SIZE;
 
-	ret = afs_vnode_fetch_data(vnode, key, 0, eof, page);
+	ret = afs_vnode_fetch_data(vnode, key, pos, len, page);
 	if (ret < 0) {
 		if (ret == -ENOENT) {
 			_debug("got NOENT from server"
@@ -153,9 +151,8 @@ int afs_write_begin(struct file *file, struct address_space *mapping,
 	*pagep = page;
 	/* page won't leak in error case: it eventually gets cleaned off LRU */
 
-	if (!PageUptodate(page)) {
-		_debug("not up to date");
-		ret = afs_fill_page(vnode, key, pos, len, page);
+	if (!PageUptodate(page) && len != PAGE_CACHE_SIZE) {
+		ret = afs_fill_page(vnode, key, index << PAGE_CACHE_SHIFT, page);
 		if (ret < 0) {
 			kfree(candidate);
 			_leave(" = %d [prep]", ret);

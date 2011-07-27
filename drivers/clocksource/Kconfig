@@ -1,0 +1,5 @@
+config CLKSRC_I8253
+	bool
+
+config CLKSRC_MMIO
+	bool

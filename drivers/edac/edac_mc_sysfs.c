@@ -458,13 +458,13 @@ static ssize_t mci_sdram_scrub_rate_store(struct mem_ctl_info *mci,
 		return -EINVAL;
 
 	new_bw = mci->set_sdram_scrub_rate(mci, bandwidth);
-	if (new_bw >= 0) {
-		edac_printk(KERN_DEBUG, EDAC_MC, "Scrub rate set to %d\n", new_bw);
-		return count;
+	if (new_bw < 0) {
+		edac_printk(KERN_WARNING, EDAC_MC,
+			    "Error setting scrub rate to: %lu\n", bandwidth);
+		return -EINVAL;
 	}
 
-	edac_printk(KERN_DEBUG, EDAC_MC, "Error setting scrub rate to: %lu\n", bandwidth);
-	return -EINVAL;
+	return count;
 }
 
 /*
@@ -483,7 +483,6 @@ static ssize_t mci_sdram_scrub_rate_show(struct mem_ctl_info *mci, char *data)
 		return bandwidth;
 	}
 
-	edac_printk(KERN_DEBUG, EDAC_MC, "Read scrub rate: %d\n", bandwidth);
 	return sprintf(data, "%d\n", bandwidth);
 }
 

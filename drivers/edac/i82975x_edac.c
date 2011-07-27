@@ -16,7 +16,7 @@
 #include <linux/edac.h>
 #include "edac_core.h"
 
-#define I82975X_REVISION	" Ver: 1.0.0 " __DATE__
+#define I82975X_REVISION	" Ver: 1.0.0"
 #define EDAC_MOD_STR		"i82975x_edac"
 
 #define i82975x_printk(level, fmt, arg...) \

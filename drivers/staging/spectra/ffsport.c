@@ -653,7 +653,7 @@ static int SBD_setup_device(struct spectra_nand_dev *dev, int which)
 	}
 	dev->queue->queuedata = dev;
 
-	/* As Linux block layer does't support >4KB hardware sector,  */
+	/* As Linux block layer doesn't support >4KB hardware sector,  */
 	/* Here we force report 512 byte hardware sector size to Kernel */
 	blk_queue_logical_block_size(dev->queue, 512);
 

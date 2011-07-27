@@ -625,8 +625,8 @@ static int viocd_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	blk_queue_max_hw_sectors(q, 4096 / 512);
 	gendisk->queue = q;
 	gendisk->fops = &viocd_fops;
-	gendisk->flags = GENHD_FL_CD|GENHD_FL_REMOVABLE;
-	gendisk->events = DISK_EVENT_MEDIA_CHANGE;
+	gendisk->flags = GENHD_FL_CD | GENHD_FL_REMOVABLE |
+			 GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE;
 	set_capacity(gendisk, 0);
 	gendisk->private_data = d;
 	d->viocd_disk = gendisk;

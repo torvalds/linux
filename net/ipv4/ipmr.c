@@ -1549,7 +1549,7 @@ static struct notifier_block ip_mr_notifier = {
 static void ip_encap(struct sk_buff *skb, __be32 saddr, __be32 daddr)
 {
 	struct iphdr *iph;
-	struct iphdr *old_iph = ip_hdr(skb);
+	const struct iphdr *old_iph = ip_hdr(skb);
 
 	skb_push(skb, sizeof(struct iphdr));
 	skb->transport_header = skb->network_header;
@@ -1595,6 +1595,7 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 	struct vif_device *vif = &mrt->vif_table[vifi];
 	struct net_device *dev;
 	struct rtable *rt;
+	struct flowi4 fl4;
 	int    encap = 0;
 
 	if (vif->dev == NULL)
@@ -1612,7 +1613,7 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 #endif
 
 	if (vif->flags & VIFF_TUNNEL) {
-		rt = ip_route_output_ports(net, NULL,
+		rt = ip_route_output_ports(net, &fl4, NULL,
 					   vif->remote, vif->local,
 					   0, 0,
 					   IPPROTO_IPIP,
@@ -1621,7 +1622,7 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 			goto out_free;
 		encap = sizeof(struct iphdr);
 	} else {
-		rt = ip_route_output_ports(net, NULL, iph->daddr, 0,
+		rt = ip_route_output_ports(net, &fl4, NULL, iph->daddr, 0,
 					   0, 0,
 					   IPPROTO_IPIP,
 					   RT_TOS(iph->tos), vif->link);
@@ -1788,12 +1789,14 @@ dont_forward:
 	return 0;
 }
 
-static struct mr_table *ipmr_rt_fib_lookup(struct net *net, struct rtable *rt)
+static struct mr_table *ipmr_rt_fib_lookup(struct net *net, struct sk_buff *skb)
 {
+	struct rtable *rt = skb_rtable(skb);
+	struct iphdr *iph = ip_hdr(skb);
 	struct flowi4 fl4 = {
-		.daddr = rt->rt_key_dst,
-		.saddr = rt->rt_key_src,
-		.flowi4_tos = rt->rt_tos,
+		.daddr = iph->daddr,
+		.saddr = iph->saddr,
+		.flowi4_tos = iph->tos,
 		.flowi4_oif = rt->rt_oif,
 		.flowi4_iif = rt->rt_iif,
 		.flowi4_mark = rt->rt_mark,
@@ -1825,7 +1828,7 @@ int ip_mr_input(struct sk_buff *skb)
 	if (IPCB(skb)->flags & IPSKB_FORWARDED)
 		goto dont_forward;
 
-	mrt = ipmr_rt_fib_lookup(net, skb_rtable(skb));
+	mrt = ipmr_rt_fib_lookup(net, skb);
 	if (IS_ERR(mrt)) {
 		kfree_skb(skb);
 		return PTR_ERR(mrt);
@@ -1957,7 +1960,7 @@ int pim_rcv_v1(struct sk_buff *skb)
 
 	pim = igmp_hdr(skb);
 
-	mrt = ipmr_rt_fib_lookup(net, skb_rtable(skb));
+	mrt = ipmr_rt_fib_lookup(net, skb);
 	if (IS_ERR(mrt))
 		goto drop;
 	if (!mrt->mroute_do_pim ||
@@ -1989,7 +1992,7 @@ static int pim_rcv(struct sk_buff *skb)
 	     csum_fold(skb_checksum(skb, 0, skb->len, 0))))
 		goto drop;
 
-	mrt = ipmr_rt_fib_lookup(net, skb_rtable(skb));
+	mrt = ipmr_rt_fib_lookup(net, skb);
 	if (IS_ERR(mrt))
 		goto drop;
 	if (__pim_rcv(mrt, skb, sizeof(*pim))) {
@@ -2038,20 +2041,20 @@ rtattr_failure:
 	return -EMSGSIZE;
 }
 
-int ipmr_get_route(struct net *net,
-		   struct sk_buff *skb, struct rtmsg *rtm, int nowait)
+int ipmr_get_route(struct net *net, struct sk_buff *skb,
+		   __be32 saddr, __be32 daddr,
+		   struct rtmsg *rtm, int nowait)
 {
-	int err;
-	struct mr_table *mrt;
 	struct mfc_cache *cache;
-	struct rtable *rt = skb_rtable(skb);
+	struct mr_table *mrt;
+	int err;
 
 	mrt = ipmr_get_table(net, RT_TABLE_DEFAULT);
 	if (mrt == NULL)
 		return -ENOENT;
 
 	rcu_read_lock();
-	cache = ipmr_cache_find(mrt, rt->rt_src, rt->rt_dst);
+	cache = ipmr_cache_find(mrt, saddr, daddr);
 
 	if (cache == NULL) {
 		struct sk_buff *skb2;
@@ -2084,8 +2087,8 @@ int ipmr_get_route(struct net *net,
 		skb_reset_network_header(skb2);
 		iph = ip_hdr(skb2);
 		iph->ihl = sizeof(struct iphdr) >> 2;
-		iph->saddr = rt->rt_src;
-		iph->daddr = rt->rt_dst;
+		iph->saddr = saddr;
+		iph->daddr = daddr;
 		iph->version = 0;
 		err = ipmr_cache_unresolved(mrt, vif, skb2);
 		read_unlock(&mrt_lock);

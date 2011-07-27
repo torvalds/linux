@@ -396,7 +396,7 @@ typedef struct __device_info {
 
     struct pci_dev*             pcid;
 
-#if CONFIG_PM
+#ifdef CONFIG_PM
     u32                         pci_state[16];
 #endif
 

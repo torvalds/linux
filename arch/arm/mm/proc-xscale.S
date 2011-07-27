@@ -395,7 +395,7 @@ ENTRY(xscale_dma_a0_map_area)
 	teq	r2, #DMA_TO_DEVICE
 	beq	xscale_dma_clean_range
 	b	xscale_dma_flush_range
-ENDPROC(xscsale_dma_a0_map_area)
+ENDPROC(xscale_dma_a0_map_area)
 
 /*
  *	dma_unmap_area(start, size, dir)

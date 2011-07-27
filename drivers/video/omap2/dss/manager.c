@@ -29,7 +29,7 @@
 #include <linux/spinlock.h>
 #include <linux/jiffies.h>
 
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include <plat/cpu.h>
 
 #include "dss.h"
@@ -393,6 +393,7 @@ struct overlay_cache_data {
 
 	u32 paddr;
 	void __iomem *vaddr;
+	u32 p_uv_addr; /* relevant for NV12 format only */
 	u16 screen_width;
 	u16 width;
 	u16 height;
@@ -775,10 +776,17 @@ static int configure_overlay(enum omap_plane plane)
 		}
 
 		switch (c->color_mode) {
+		case OMAP_DSS_COLOR_NV12:
+			bpp = 8;
+			break;
 		case OMAP_DSS_COLOR_RGB16:
 		case OMAP_DSS_COLOR_ARGB16:
 		case OMAP_DSS_COLOR_YUV2:
 		case OMAP_DSS_COLOR_UYVY:
+		case OMAP_DSS_COLOR_RGBA16:
+		case OMAP_DSS_COLOR_RGBX16:
+		case OMAP_DSS_COLOR_ARGB16_1555:
+		case OMAP_DSS_COLOR_XRGB16_1555:
 			bpp = 16;
 			break;
 
@@ -854,7 +862,8 @@ static int configure_overlay(enum omap_plane plane)
 			c->mirror,
 			c->global_alpha,
 			c->pre_mult_alpha,
-			c->channel);
+			c->channel,
+			c->p_uv_addr);
 
 	if (r) {
 		/* this shouldn't happen */
@@ -1269,6 +1278,7 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 
 		oc->paddr = ovl->info.paddr;
 		oc->vaddr = ovl->info.vaddr;
+		oc->p_uv_addr = ovl->info.p_uv_addr;
 		oc->screen_width = ovl->info.screen_width;
 		oc->width = ovl->info.width;
 		oc->height = ovl->info.height;

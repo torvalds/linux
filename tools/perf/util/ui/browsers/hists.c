@@ -851,7 +851,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel,
 			goto out_free_stack;
 		case 'a':
 			if (browser->selection == NULL ||
-			    browser->selection->map == NULL ||
+			    browser->selection->sym == NULL ||
 			    browser->selection->map->dso->annotate_warned)
 				continue;
 			goto do_annotate;

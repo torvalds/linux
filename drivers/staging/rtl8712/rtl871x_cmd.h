@@ -562,54 +562,54 @@ struct getratable_rsp {
 };
 
 /*to get TX,RX retry count*/
-struct gettxretrycnt_parm{
+struct gettxretrycnt_parm {
 	unsigned int rsvd;
 };
 
-struct gettxretrycnt_rsp{
+struct gettxretrycnt_rsp {
 	unsigned long tx_retrycnt;
 };
 
-struct getrxretrycnt_parm{
+struct getrxretrycnt_parm {
 	unsigned int rsvd;
 };
 
-struct getrxretrycnt_rsp{
+struct getrxretrycnt_rsp {
 	unsigned long rx_retrycnt;
 };
 
 /*to get BCNOK,BCNERR count*/
-struct getbcnokcnt_parm{
+struct getbcnokcnt_parm {
 	unsigned int rsvd;
 };
 
-struct getbcnokcnt_rsp{
-	unsigned long  bcnokcnt;
+struct getbcnokcnt_rsp {
+	unsigned long bcnokcnt;
 };
 
-struct getbcnerrcnt_parm{
+struct getbcnerrcnt_parm {
 	unsigned int rsvd;
 };
-struct getbcnerrcnt_rsp{
+struct getbcnerrcnt_rsp {
 	unsigned long bcnerrcnt;
 };
 
 /* to get current TX power level*/
-struct getcurtxpwrlevel_parm{
+struct getcurtxpwrlevel_parm {
 	unsigned int rsvd;
 };
 
-struct getcurtxpwrlevel_rsp{
+struct getcurtxpwrlevel_rsp {
 	unsigned short tx_power;
 };
 
 /*dynamic on/off DIG*/
-struct setdig_parm{
+struct setdig_parm {
 	unsigned char dig_on;	/* 1:on , 0:off */
 };
 
 /*dynamic on/off RA*/
-struct setra_parm{
+struct setra_parm {
 	unsigned char ra_on;	/* 1:on , 0:off */
 };
 

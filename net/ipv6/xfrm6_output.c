@@ -79,7 +79,7 @@ int xfrm6_prepare_output(struct xfrm_state *x, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(xfrm6_prepare_output);
 
-static int xfrm6_output_finish(struct sk_buff *skb)
+int xfrm6_output_finish(struct sk_buff *skb)
 {
 #ifdef CONFIG_NETFILTER
 	IP6CB(skb)->flags |= IP6SKB_XFRM_TRANSFORMED;
@@ -97,9 +97,9 @@ static int __xfrm6_output(struct sk_buff *skb)
 	if ((x && x->props.mode == XFRM_MODE_TUNNEL) &&
 	    ((skb->len > ip6_skb_dst_mtu(skb) && !skb_is_gso(skb)) ||
 		dst_allfrag(skb_dst(skb)))) {
-			return ip6_fragment(skb, xfrm6_output_finish);
+			return ip6_fragment(skb, x->outer_mode->afinfo->output_finish);
 	}
-	return xfrm6_output_finish(skb);
+	return x->outer_mode->afinfo->output_finish(skb);
 }
 
 int xfrm6_output(struct sk_buff *skb)

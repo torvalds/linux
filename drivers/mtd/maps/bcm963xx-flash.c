@@ -224,8 +224,8 @@ probe_ok:
 		goto err_probe;
 	}
 
-	return add_mtd_partitions(bcm963xx_mtd_info, parsed_parts,
-						parsed_nr_parts);
+	return mtd_device_register(bcm963xx_mtd_info, parsed_parts,
+				   parsed_nr_parts);
 
 err_probe:
 	iounmap(bcm963xx_map.virt);
@@ -235,7 +235,7 @@ err_probe:
 static int bcm963xx_remove(struct platform_device *pdev)
 {
 	if (bcm963xx_mtd_info) {
-		del_mtd_partitions(bcm963xx_mtd_info);
+		mtd_device_unregister(bcm963xx_mtd_info);
 		map_destroy(bcm963xx_mtd_info);
 	}
 

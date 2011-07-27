@@ -26,7 +26,6 @@
 #include <linux/etherdevice.h>
 #include <a_config.h>
 #include <athdefs.h>
-#include "a_types.h"
 #include "a_osapi.h"
 #include "htc_api.h"
 #include "wmi.h"
@@ -582,11 +581,11 @@ void  ar6000_cleanup_hci(struct ar6_softc *ar)
         } 
         
         if (pHcidevInfo->pHTCStructAlloc != NULL) {
-            A_FREE(pHcidevInfo->pHTCStructAlloc);
+            kfree(pHcidevInfo->pHTCStructAlloc);
             pHcidevInfo->pHTCStructAlloc = NULL;    
         }
         
-        A_FREE(pHcidevInfo);
+        kfree(pHcidevInfo);
 #ifndef EXPORT_HCI_BRIDGE_INTERFACE
         ar->hcidev_info = NULL;
 #endif

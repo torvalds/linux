@@ -715,8 +715,8 @@ static int ene_ub6250_probe(struct usb_interface *intf,
 
 	if (!(misc_reg03 & 0x01)) {
 		result = -ENODEV;
-		printk(KERN_NOTICE "ums_eneub6250: The driver only supports SD\
-		card. To use SM/MS card, please build driver/stagging/keucr\n");
+		printk(KERN_NOTICE "ums_eneub6250: The driver only supports SD card. "
+		       "To use SM/MS card, please build driver/staging/keucr\n");
 		usb_stor_disconnect(intf);
 	}
 

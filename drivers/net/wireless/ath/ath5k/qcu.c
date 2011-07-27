@@ -519,7 +519,7 @@ int ath5k_hw_set_ifs_intervals(struct ath5k_hw *ah, unsigned int slot_time)
 		return -EINVAL;
 
 	sifs = ath5k_hw_get_default_sifs(ah);
-	sifs_clock = ath5k_hw_htoclock(ah, sifs);
+	sifs_clock = ath5k_hw_htoclock(ah, sifs - 2);
 
 	/* EIFS
 	 * Txtime of ack at lowest rate + SIFS + DIFS
@@ -550,7 +550,7 @@ int ath5k_hw_set_ifs_intervals(struct ath5k_hw *ah, unsigned int slot_time)
 	else
 		rate = &sc->sbands[IEEE80211_BAND_2GHZ].bitrates[0];
 
-	ack_tx_time = ath5k_hw_get_frame_duration(ah, 10, rate);
+	ack_tx_time = ath5k_hw_get_frame_duration(ah, 10, rate, false);
 
 	/* ack_tx_time includes an SIFS already */
 	eifs = ack_tx_time + sifs + 2 * slot_time;

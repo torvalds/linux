@@ -175,6 +175,13 @@ int notify_change(struct dentry * dentry, struct iattr * attr)
 			return -EPERM;
 	}
 
+	if ((ia_valid & ATTR_MODE)) {
+		mode_t amode = attr->ia_mode;
+		/* Flag setting protected by i_mutex */
+		if (is_sxid(amode))
+			inode->i_flags &= ~S_NOSEC;
+	}
+
 	now = current_fs_time(inode->i_sb);
 
 	attr->ia_ctime = now;

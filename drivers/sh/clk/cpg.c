@@ -105,7 +105,7 @@ static int sh_clk_div6_set_parent(struct clk *clk, struct clk *parent)
 
 	/* Rebuild the frequency table */
 	clk_rate_table_build(clk, clk->freq_table, table->nr_divisors,
-			     table, &clk->arch_flags);
+			     table, NULL);
 
 	return 0;
 }

@@ -27,6 +27,7 @@ static inline void print_irq_desc(unsigned int irq, struct irq_desc *desc)
 	P(IRQ_PER_CPU);
 	P(IRQ_NOPROBE);
 	P(IRQ_NOREQUEST);
+	P(IRQ_NOTHREAD);
 	P(IRQ_NOAUTOEN);
 
 	PS(IRQS_AUTODETECT);

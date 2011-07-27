@@ -9,6 +9,7 @@
 #include <linux/stddef.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
+#include <linux/rculist.h>
 #include <net/caif/cfpkt.h>
 #include <net/caif/cfmuxl.h>
 #include <net/caif/cfsrvl.h>
@@ -61,111 +62,88 @@ struct cflayer *cfmuxl_create(void)
 	return &this->layer;
 }
 
-int cfmuxl_set_uplayer(struct cflayer *layr, struct cflayer *up, u8 linkid)
-{
-	struct cfmuxl *muxl = container_obj(layr);
-	spin_lock(&muxl->receive_lock);
-	cfsrvl_get(up);
-	list_add(&up->node, &muxl->srvl_list);
-	spin_unlock(&muxl->receive_lock);
-	return 0;
-}
-
-bool cfmuxl_is_phy_inuse(struct cflayer *layr, u8 phyid)
-{
-	struct list_head *node;
-	struct cflayer *layer;
-	struct cfmuxl *muxl = container_obj(layr);
-	bool match = false;
-	spin_lock(&muxl->receive_lock);
-
-	list_for_each(node, &muxl->srvl_list) {
-		layer = list_entry(node, struct cflayer, node);
-		if (cfsrvl_phyid_match(layer, phyid)) {
-			match = true;
-			break;
-		}
-
-	}
-	spin_unlock(&muxl->receive_lock);
-	return match;
-}
-
-u8 cfmuxl_get_phyid(struct cflayer *layr, u8 channel_id)
-{
-	struct cflayer *up;
-	int phyid;
-	struct cfmuxl *muxl = container_obj(layr);
-	spin_lock(&muxl->receive_lock);
-	up = get_up(muxl, channel_id);
-	if (up != NULL)
-		phyid = cfsrvl_getphyid(up);
-	else
-		phyid = 0;
-	spin_unlock(&muxl->receive_lock);
-	return phyid;
-}
-
 int cfmuxl_set_dnlayer(struct cflayer *layr, struct cflayer *dn, u8 phyid)
 {
 	struct cfmuxl *muxl = (struct cfmuxl *) layr;
-	spin_lock(&muxl->transmit_lock);
-	list_add(&dn->node, &muxl->frml_list);
-	spin_unlock(&muxl->transmit_lock);
+
+	spin_lock_bh(&muxl->transmit_lock);
+	list_add_rcu(&dn->node, &muxl->frml_list);
+	spin_unlock_bh(&muxl->transmit_lock);
 	return 0;
 }
 
 static struct cflayer *get_from_id(struct list_head *list, u16 id)
 {
-	struct list_head *node;
-	struct cflayer *layer;
-	list_for_each(node, list) {
-		layer = list_entry(node, struct cflayer, node);
-		if (layer->id == id)
-			return layer;
+	struct cflayer *lyr;
+	list_for_each_entry_rcu(lyr, list, node) {
+		if (lyr->id == id)
+			return lyr;
 	}
+
 	return NULL;
+}
+
+int cfmuxl_set_uplayer(struct cflayer *layr, struct cflayer *up, u8 linkid)
+{
+	struct cfmuxl *muxl = container_obj(layr);
+	struct cflayer *old;
+
+	spin_lock_bh(&muxl->receive_lock);
+
+	/* Two entries with same id is wrong, so remove old layer from mux */
+	old = get_from_id(&muxl->srvl_list, linkid);
+	if (old != NULL)
+		list_del_rcu(&old->node);
+
+	list_add_rcu(&up->node, &muxl->srvl_list);
+	spin_unlock_bh(&muxl->receive_lock);
+
+	return 0;
 }
 
 struct cflayer *cfmuxl_remove_dnlayer(struct cflayer *layr, u8 phyid)
 {
 	struct cfmuxl *muxl = container_obj(layr);
 	struct cflayer *dn;
-	spin_lock(&muxl->transmit_lock);
-	memset(muxl->dn_cache, 0, sizeof(muxl->dn_cache));
+	int idx = phyid % DN_CACHE_SIZE;
+
+	spin_lock_bh(&muxl->transmit_lock);
+	rcu_assign_pointer(muxl->dn_cache[idx], NULL);
 	dn = get_from_id(&muxl->frml_list, phyid);
-	if (dn == NULL) {
-		spin_unlock(&muxl->transmit_lock);
-		return NULL;
-	}
-	list_del(&dn->node);
+	if (dn == NULL)
+		goto out;
+
+	list_del_rcu(&dn->node);
 	caif_assert(dn != NULL);
-	spin_unlock(&muxl->transmit_lock);
+out:
+	spin_unlock_bh(&muxl->transmit_lock);
 	return dn;
 }
 
-/* Invariant: lock is taken */
 static struct cflayer *get_up(struct cfmuxl *muxl, u16 id)
 {
 	struct cflayer *up;
 	int idx = id % UP_CACHE_SIZE;
-	up = muxl->up_cache[idx];
+	up = rcu_dereference(muxl->up_cache[idx]);
 	if (up == NULL || up->id != id) {
+		spin_lock_bh(&muxl->receive_lock);
 		up = get_from_id(&muxl->srvl_list, id);
-		muxl->up_cache[idx] = up;
+		rcu_assign_pointer(muxl->up_cache[idx], up);
+		spin_unlock_bh(&muxl->receive_lock);
 	}
 	return up;
 }
 
-/* Invariant: lock is taken */
 static struct cflayer *get_dn(struct cfmuxl *muxl, struct dev_info *dev_info)
 {
 	struct cflayer *dn;
 	int idx = dev_info->id % DN_CACHE_SIZE;
-	dn = muxl->dn_cache[idx];
+	dn = rcu_dereference(muxl->dn_cache[idx]);
 	if (dn == NULL || dn->id != dev_info->id) {
+		spin_lock_bh(&muxl->transmit_lock);
 		dn = get_from_id(&muxl->frml_list, dev_info->id);
-		muxl->dn_cache[idx] = dn;
+		rcu_assign_pointer(muxl->dn_cache[idx], dn);
+		spin_unlock_bh(&muxl->transmit_lock);
 	}
 	return dn;
 }
@@ -174,15 +152,22 @@ struct cflayer *cfmuxl_remove_uplayer(struct cflayer *layr, u8 id)
 {
 	struct cflayer *up;
 	struct cfmuxl *muxl = container_obj(layr);
-	spin_lock(&muxl->receive_lock);
-	up = get_up(muxl, id);
+	int idx = id % UP_CACHE_SIZE;
+
+	if (id == 0) {
+		pr_warn("Trying to remove control layer\n");
+		return NULL;
+	}
+
+	spin_lock_bh(&muxl->receive_lock);
+	up = get_from_id(&muxl->srvl_list, id);
 	if (up == NULL)
 		goto out;
-	memset(muxl->up_cache, 0, sizeof(muxl->up_cache));
-	list_del(&up->node);
-	cfsrvl_put(up);
+
+	rcu_assign_pointer(muxl->up_cache[idx], NULL);
+	list_del_rcu(&up->node);
 out:
-	spin_unlock(&muxl->receive_lock);
+	spin_unlock_bh(&muxl->receive_lock);
 	return up;
 }
 
@@ -197,58 +182,92 @@ static int cfmuxl_receive(struct cflayer *layr, struct cfpkt *pkt)
 		cfpkt_destroy(pkt);
 		return -EPROTO;
 	}
-
-	spin_lock(&muxl->receive_lock);
+	rcu_read_lock();
 	up = get_up(muxl, id);
-	spin_unlock(&muxl->receive_lock);
+
 	if (up == NULL) {
-		pr_info("Received data on unknown link ID = %d (0x%x) up == NULL",
-			id, id);
+		pr_debug("Received data on unknown link ID = %d (0x%x)"
+			" up == NULL", id, id);
 		cfpkt_destroy(pkt);
 		/*
 		 * Don't return ERROR, since modem misbehaves and sends out
 		 * flow on before linksetup response.
 		 */
+
+		rcu_read_unlock();
 		return /* CFGLU_EPROT; */ 0;
 	}
+
+	/* We can't hold rcu_lock during receive, so take a ref count instead */
 	cfsrvl_get(up);
+	rcu_read_unlock();
+
 	ret = up->receive(up, pkt);
+
 	cfsrvl_put(up);
 	return ret;
 }
 
 static int cfmuxl_transmit(struct cflayer *layr, struct cfpkt *pkt)
 {
-	int ret;
 	struct cfmuxl *muxl = container_obj(layr);
+	int err;
 	u8 linkid;
 	struct cflayer *dn;
 	struct caif_payload_info *info = cfpkt_info(pkt);
-	dn = get_dn(muxl, cfpkt_info(pkt)->dev_info);
+	BUG_ON(!info);
+
+	rcu_read_lock();
+
+	dn = get_dn(muxl, info->dev_info);
 	if (dn == NULL) {
-		pr_warn("Send data on unknown phy ID = %d (0x%x)\n",
+		pr_debug("Send data on unknown phy ID = %d (0x%x)\n",
 			info->dev_info->id, info->dev_info->id);
+		rcu_read_unlock();
+		cfpkt_destroy(pkt);
 		return -ENOTCONN;
 	}
+
 	info->hdr_len += 1;
 	linkid = info->channel_id;
 	cfpkt_add_head(pkt, &linkid, 1);
-	ret = dn->transmit(dn, pkt);
-	/* Remove MUX protocol header upon error. */
-	if (ret < 0)
-		cfpkt_extr_head(pkt, &linkid, 1);
-	return ret;
+
+	/* We can't hold rcu_lock during receive, so take a ref count instead */
+	cffrml_hold(dn);
+
+	rcu_read_unlock();
+
+	err = dn->transmit(dn, pkt);
+
+	cffrml_put(dn);
+	return err;
 }
 
 static void cfmuxl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 				int phyid)
 {
 	struct cfmuxl *muxl = container_obj(layr);
-	struct list_head *node;
 	struct cflayer *layer;
-	list_for_each(node, &muxl->srvl_list) {
-		layer = list_entry(node, struct cflayer, node);
-		if (cfsrvl_phyid_match(layer, phyid))
+	int idx;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(layer, &muxl->srvl_list, node) {
+
+		if (cfsrvl_phyid_match(layer, phyid) && layer->ctrlcmd) {
+
+			if ((ctrl == _CAIF_CTRLCMD_PHYIF_DOWN_IND ||
+				ctrl == CAIF_CTRLCMD_REMOTE_SHUTDOWN_IND) &&
+					layer->id != 0) {
+
+				idx = layer->id % UP_CACHE_SIZE;
+				spin_lock_bh(&muxl->receive_lock);
+				rcu_assign_pointer(muxl->up_cache[idx], NULL);
+				list_del_rcu(&layer->node);
+				spin_unlock_bh(&muxl->receive_lock);
+			}
+			/* NOTE: ctrlcmd is not allowed to block */
 			layer->ctrlcmd(layer, ctrl, phyid);
+		}
 	}
+	rcu_read_unlock();
 }

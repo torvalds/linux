@@ -199,8 +199,12 @@ static cycle_t sh_tmu_clocksource_read(struct clocksource *cs)
 static int sh_tmu_clocksource_enable(struct clocksource *cs)
 {
 	struct sh_tmu_priv *p = cs_to_sh_tmu(cs);
+	int ret;
 
-	return sh_tmu_enable(p);
+	ret = sh_tmu_enable(p);
+	if (!ret)
+		__clocksource_updatefreq_hz(cs, p->rate);
+	return ret;
 }
 
 static void sh_tmu_clocksource_disable(struct clocksource *cs)
@@ -221,17 +225,10 @@ static int sh_tmu_register_clocksource(struct sh_tmu_priv *p,
 	cs->mask = CLOCKSOURCE_MASK(32);
 	cs->flags = CLOCK_SOURCE_IS_CONTINUOUS;
 
-	/* clk_get_rate() needs an enabled clock */
-	clk_enable(p->clk);
-	/* channel will be configured at parent clock / 4 */
-	p->rate = clk_get_rate(p->clk) / 4;
-	clk_disable(p->clk);
-	/* TODO: calculate good shift from rate and counter bit width */
-	cs->shift = 10;
-	cs->mult = clocksource_hz2mult(p->rate, cs->shift);
-
 	dev_info(&p->pdev->dev, "used as clock source\n");
-	clocksource_register(cs);
+
+	/* Register with dummy 1 Hz value, gets updated in ->enable() */
+	clocksource_register_hz(cs, 1);
 	return 0;
 }
 

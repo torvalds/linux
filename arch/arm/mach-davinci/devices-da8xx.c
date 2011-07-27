@@ -24,22 +24,25 @@
 #include "clock.h"
 
 #define DA8XX_TPCC_BASE			0x01c00000
-#define DA850_MMCSD1_BASE		0x01e1b000
-#define DA850_TPCC1_BASE		0x01e30000
 #define DA8XX_TPTC0_BASE		0x01c08000
 #define DA8XX_TPTC1_BASE		0x01c08400
-#define DA850_TPTC2_BASE		0x01e38000
 #define DA8XX_WDOG_BASE			0x01c21000 /* DA8XX_TIMER64P1_BASE */
 #define DA8XX_I2C0_BASE			0x01c22000
-#define DA8XX_RTC_BASE			0x01C23000
+#define DA8XX_RTC_BASE			0x01c23000
+#define DA8XX_MMCSD0_BASE		0x01c40000
+#define DA8XX_SPI0_BASE			0x01c41000
+#define DA830_SPI1_BASE			0x01e12000
+#define DA8XX_LCD_CNTRL_BASE		0x01e13000
+#define DA850_MMCSD1_BASE		0x01e1b000
 #define DA8XX_EMAC_CPPI_PORT_BASE	0x01e20000
 #define DA8XX_EMAC_CPGMACSS_BASE	0x01e22000
 #define DA8XX_EMAC_CPGMAC_BASE		0x01e23000
 #define DA8XX_EMAC_MDIO_BASE		0x01e24000
-#define DA8XX_GPIO_BASE			0x01e26000
 #define DA8XX_I2C1_BASE			0x01e28000
-#define DA8XX_SPI0_BASE			0x01c41000
-#define DA8XX_SPI1_BASE			0x01f0e000
+#define DA850_TPCC1_BASE		0x01e30000
+#define DA850_TPTC2_BASE		0x01e38000
+#define DA850_SPI1_BASE			0x01f0e000
+#define DA8XX_DDR2_CTL_BASE		0xb0000000
 
 #define DA8XX_EMAC_CTRL_REG_OFFSET	0x3000
 #define DA8XX_EMAC_MOD_REG_OFFSET	0x2000
@@ -491,7 +494,7 @@ static struct platform_device da850_mcasp_device = {
 	.resource	= da850_mcasp_resources,
 };
 
-struct platform_device davinci_pcm_device = {
+static struct platform_device davinci_pcm_device = {
 	.name	= "davinci-pcm-audio",
 	.id	= -1,
 };
@@ -762,8 +765,8 @@ static struct resource da8xx_spi0_resources[] = {
 
 static struct resource da8xx_spi1_resources[] = {
 	[0] = {
-		.start	= DA8XX_SPI1_BASE,
-		.end	= DA8XX_SPI1_BASE + SZ_4K - 1,
+		.start	= DA830_SPI1_BASE,
+		.end	= DA830_SPI1_BASE + SZ_4K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -831,6 +834,11 @@ int __init da8xx_register_spi(int instance, struct spi_board_info *info,
 			   " %d\n", __func__, instance, ret);
 
 	da8xx_spi_pdata[instance].num_chipselect = len;
+
+	if (instance == 1 && cpu_is_davinci_da850()) {
+		da8xx_spi1_resources[0].start = DA850_SPI1_BASE;
+		da8xx_spi1_resources[0].end = DA850_SPI1_BASE + SZ_4K - 1;
+	}
 
 	return platform_device_register(&da8xx_spi_device[instance]);
 }

@@ -1290,7 +1290,7 @@ static int do_end_io(struct multipath *m, struct request *clone,
 	if (!error && !clone->errors)
 		return 0;	/* I/O complete */
 
-	if (error == -EOPNOTSUPP || error == -EREMOTEIO)
+	if (error == -EOPNOTSUPP || error == -EREMOTEIO || error == -EILSEQ)
 		return error;
 
 	if (mpio->pgpath)

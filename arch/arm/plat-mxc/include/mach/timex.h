@@ -26,8 +26,6 @@
 #define CLOCK_TICK_RATE		16000000
 #elif defined CONFIG_ARCH_MX5
 #define CLOCK_TICK_RATE		8000000
-#elif defined CONFIG_ARCH_MXC91231
-#define CLOCK_TICK_RATE		13000000
 #endif
 
 #endif				/* __ASM_ARCH_MXC_TIMEX_H__ */

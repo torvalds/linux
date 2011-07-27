@@ -73,8 +73,6 @@ extern int viafb_hotplug_bpp;
 extern int viafb_hotplug_refresh;
 extern int viafb_primary_dev;
 
-extern unsigned int viafb_second_xres;
-extern unsigned int viafb_second_yres;
 extern int viafb_lcd_panel_id;
 
 #endif /* __GLOBAL_H__ */

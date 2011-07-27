@@ -38,9 +38,19 @@ static inline __u8 INET_ECN_encapsulate(__u8 outer, __u8 inner)
 	return outer;
 }
 
-#define	INET_ECN_xmit(sk) do { inet_sk(sk)->tos |= INET_ECN_ECT_0; } while (0)
-#define	INET_ECN_dontxmit(sk) \
-	do { inet_sk(sk)->tos &= ~INET_ECN_MASK; } while (0)
+static inline void INET_ECN_xmit(struct sock *sk)
+{
+	inet_sk(sk)->tos |= INET_ECN_ECT_0;
+	if (inet6_sk(sk) != NULL)
+		inet6_sk(sk)->tclass |= INET_ECN_ECT_0;
+}
+
+static inline void INET_ECN_dontxmit(struct sock *sk)
+{
+	inet_sk(sk)->tos &= ~INET_ECN_MASK;
+	if (inet6_sk(sk) != NULL)
+		inet6_sk(sk)->tclass &= ~INET_ECN_MASK;
+}
 
 #define IP6_ECN_flow_init(label) do {		\
       (label) &= ~htonl(INET_ECN_MASK << 20);	\

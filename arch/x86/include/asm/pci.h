@@ -135,8 +135,6 @@ void default_teardown_msi_irqs(struct pci_dev *dev);
 #include "pci_64.h"
 #endif
 
-void dma32_reserve_bootmem(void);
-
 /* implement the pci_ DMA API in terms of the generic device dma_ one */
 #include <asm-generic/pci-dma-compat.h>
 

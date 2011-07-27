@@ -562,12 +562,12 @@
 #define PORTF_SLEW              0xFFC03230      /* Port F slew control */
 #define PORTG_SLEW              0xFFC03234      /* Port G slew control */
 #define PORTH_SLEW              0xFFC03238      /* Port H slew control */
-#define PORTF_HYSTERISIS        0xFFC03240      /* Port F Schmitt trigger control */
-#define PORTG_HYSTERISIS        0xFFC03244      /* Port G Schmitt trigger control */
-#define PORTH_HYSTERISIS        0xFFC03248      /* Port H Schmitt trigger control */
+#define PORTF_HYSTERESIS        0xFFC03240      /* Port F Schmitt trigger control */
+#define PORTG_HYSTERESIS        0xFFC03244      /* Port G Schmitt trigger control */
+#define PORTH_HYSTERESIS        0xFFC03248      /* Port H Schmitt trigger control */
 #define MISCPORT_DRIVE          0xFFC03280      /* Misc Port drive strength control */
 #define MISCPORT_SLEW           0xFFC03284      /* Misc Port slew control */
-#define MISCPORT_HYSTERISIS     0xFFC03288      /* Misc Port Schmitt trigger control */
+#define MISCPORT_HYSTERESIS     0xFFC03288      /* Misc Port Schmitt trigger control */
 
 
 /***********************************************************************************

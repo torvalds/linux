@@ -827,7 +827,7 @@ void w1_reconnect_slaves(struct w1_family *f, int attach)
 	mutex_unlock(&w1_mlock);
 }
 
-static void w1_slave_found(struct w1_master *dev, u64 rn)
+void w1_slave_found(struct w1_master *dev, u64 rn)
 {
 	struct w1_slave *sl;
 	struct w1_reg_num *tmp;
@@ -933,14 +933,15 @@ void w1_search(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb
 	}
 }
 
-void w1_search_process(struct w1_master *dev, u8 search_type)
+void w1_search_process_cb(struct w1_master *dev, u8 search_type,
+	w1_slave_found_callback cb)
 {
 	struct w1_slave *sl, *sln;
 
 	list_for_each_entry(sl, &dev->slist, w1_slave_entry)
 		clear_bit(W1_SLAVE_ACTIVE, (long *)&sl->flags);
 
-	w1_search_devices(dev, search_type, w1_slave_found);
+	w1_search_devices(dev, search_type, cb);
 
 	list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry) {
 		if (!test_bit(W1_SLAVE_ACTIVE, (unsigned long *)&sl->flags) && !--sl->ttl)
@@ -951,6 +952,11 @@ void w1_search_process(struct w1_master *dev, u8 search_type)
 
 	if (dev->search_count > 0)
 		dev->search_count--;
+}
+
+static void w1_search_process(struct w1_master *dev, u8 search_type)
+{
+	w1_search_process_cb(dev, search_type, w1_slave_found);
 }
 
 int w1_process(void *data)

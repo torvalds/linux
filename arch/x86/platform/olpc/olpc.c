@@ -18,6 +18,7 @@
 #include <linux/io.h>
 #include <linux/string.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 
 #include <asm/geode.h>
 #include <asm/setup.h>
@@ -187,41 +188,43 @@ err:
 }
 EXPORT_SYMBOL_GPL(olpc_ec_cmd);
 
-static bool __init check_ofw_architecture(void)
+static bool __init check_ofw_architecture(struct device_node *root)
 {
-	size_t propsize;
-	char olpc_arch[5];
-	const void *args[] = { NULL, "architecture", olpc_arch, (void *)5 };
-	void *res[] = { &propsize };
+	const char *olpc_arch;
+	int propsize;
 
-	if (olpc_ofw("getprop", args, res)) {
-		printk(KERN_ERR "ofw: getprop call failed!\n");
-		return false;
-	}
+	olpc_arch = of_get_property(root, "architecture", &propsize);
 	return propsize == 5 && strncmp("OLPC", olpc_arch, 5) == 0;
 }
 
-static u32 __init get_board_revision(void)
+static u32 __init get_board_revision(struct device_node *root)
 {
-	size_t propsize;
-	__be32 rev;
-	const void *args[] = { NULL, "board-revision-int", &rev, (void *)4 };
-	void *res[] = { &propsize };
+	int propsize;
+	const __be32 *rev;
 
-	if (olpc_ofw("getprop", args, res) || propsize != 4) {
-		printk(KERN_ERR "ofw: getprop call failed!\n");
-		return cpu_to_be32(0);
-	}
-	return be32_to_cpu(rev);
+	rev = of_get_property(root, "board-revision-int", &propsize);
+	if (propsize != 4)
+		return 0;
+
+	return be32_to_cpu(*rev);
 }
 
 static bool __init platform_detect(void)
 {
-	if (!check_ofw_architecture())
+	struct device_node *root = of_find_node_by_path("/");
+	bool success;
+
+	if (!root)
 		return false;
-	olpc_platform_info.flags |= OLPC_F_PRESENT;
-	olpc_platform_info.boardrev = get_board_revision();
-	return true;
+
+	success = check_ofw_architecture(root);
+	if (success) {
+		olpc_platform_info.boardrev = get_board_revision(root);
+		olpc_platform_info.flags |= OLPC_F_PRESENT;
+	}
+
+	of_node_put(root);
+	return success;
 }
 
 static int __init add_xo1_platform_devices(void)

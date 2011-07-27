@@ -75,7 +75,7 @@ static int __init init_cdb89712_flash (void)
 
 	flash_mtd->owner = THIS_MODULE;
 
-	if (add_mtd_device(flash_mtd)) {
+	if (mtd_device_register(flash_mtd, NULL, 0)) {
 		printk("FLASH device addition failed\n");
 		err = -ENOMEM;
 		goto out_probe;
@@ -141,7 +141,7 @@ static int __init init_cdb89712_sram (void)
 	sram_mtd->owner = THIS_MODULE;
 	sram_mtd->erasesize = 16;
 
-	if (add_mtd_device(sram_mtd)) {
+	if (mtd_device_register(sram_mtd, NULL, 0)) {
 		printk("SRAM device addition failed\n");
 		err = -ENOMEM;
 		goto out_probe;
@@ -209,7 +209,7 @@ static int __init init_cdb89712_bootrom (void)
 	bootrom_mtd->owner = THIS_MODULE;
 	bootrom_mtd->erasesize = 0x10000;
 
-	if (add_mtd_device(bootrom_mtd)) {
+	if (mtd_device_register(bootrom_mtd, NULL, 0)) {
 		printk("BootROM device addition failed\n");
 		err = -ENOMEM;
 		goto out_probe;
@@ -249,21 +249,21 @@ static int __init init_cdb89712_maps(void)
 static void __exit cleanup_cdb89712_maps(void)
 {
 	if (sram_mtd) {
-		del_mtd_device(sram_mtd);
+		mtd_device_unregister(sram_mtd);
 		map_destroy(sram_mtd);
 		iounmap((void *)cdb89712_sram_map.virt);
 		release_resource (&cdb89712_sram_resource);
 	}
 
 	if (flash_mtd) {
-		del_mtd_device(flash_mtd);
+		mtd_device_unregister(flash_mtd);
 		map_destroy(flash_mtd);
 		iounmap((void *)cdb89712_flash_map.virt);
 		release_resource (&cdb89712_flash_resource);
 	}
 
 	if (bootrom_mtd) {
-		del_mtd_device(bootrom_mtd);
+		mtd_device_unregister(bootrom_mtd);
 		map_destroy(bootrom_mtd);
 		iounmap((void *)cdb89712_bootrom_map.virt);
 		release_resource (&cdb89712_bootrom_resource);

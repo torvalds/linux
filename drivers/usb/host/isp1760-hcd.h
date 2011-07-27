@@ -49,10 +49,9 @@ void deinit_kmem_cache(void);
 #define SW_RESET_RESET_ALL	(1 << 0)
 
 #define HC_BUFFER_STATUS_REG	0x334
-#define ATL_BUFFER		0x1
-#define INT_BUFFER		0x2
-#define ISO_BUFFER		0x4
-#define BUFFER_MAP		0x7
+#define ISO_BUF_FILL		(1 << 2)
+#define INT_BUF_FILL		(1 << 1)
+#define ATL_BUF_FILL		(1 << 0)
 
 #define HC_MEMORY_REG		0x33c
 #define ISP_BANK(x)		((x) << 16)
@@ -68,14 +67,13 @@ void deinit_kmem_cache(void);
 #define HC_INTERRUPT_REG	0x310
 
 #define HC_INTERRUPT_ENABLE	0x314
-#define INTERRUPT_ENABLE_MASK	(HC_INTL_INT | HC_ATL_INT | HC_EOT_INT)
-#define INTERRUPT_ENABLE_SOT_MASK	(HC_INTL_INT | HC_SOT_INT | HC_EOT_INT)
-
 #define HC_ISO_INT		(1 << 9)
 #define HC_ATL_INT		(1 << 8)
 #define HC_INTL_INT		(1 << 7)
 #define HC_EOT_INT		(1 << 3)
 #define HC_SOT_INT		(1 << 1)
+#define INTERRUPT_ENABLE_MASK	(HC_INTL_INT | HC_ATL_INT)
+#define INTERRUPT_ENABLE_SOT_MASK	(HC_SOT_INT)
 
 #define HC_ISO_IRQ_MASK_OR_REG	0x318
 #define HC_INT_IRQ_MASK_OR_REG	0x31C
@@ -106,7 +104,7 @@ struct ptd {
 #define ATL_PTD_OFFSET		0x0c00
 #define PAYLOAD_OFFSET		0x1000
 
-struct inter_packet_info {
+struct slotinfo {
 	struct isp1760_qh *qh;
 	struct isp1760_qtd *qtd;
 };
@@ -156,54 +154,52 @@ struct memory_chunk {
 
 /* ATL */
 /* DW0 */
-#define PTD_VALID			1
-#define PTD_LENGTH(x)			(((u32) x) << 3)
-#define PTD_MAXPACKET(x)		(((u32) x) << 18)
-#define PTD_MULTI(x)			(((u32) x) << 29)
-#define PTD_ENDPOINT(x)			(((u32)	x) << 31)
+#define DW0_VALID_BIT			1
+#define FROM_DW0_VALID(x)		((x) & 0x01)
+#define TO_DW0_LENGTH(x)		(((u32) x) << 3)
+#define TO_DW0_MAXPACKET(x)		(((u32) x) << 18)
+#define TO_DW0_MULTI(x)			(((u32) x) << 29)
+#define TO_DW0_ENDPOINT(x)		(((u32)	x) << 31)
 /* DW1 */
-#define PTD_DEVICE_ADDR(x)		(((u32) x) << 3)
-#define PTD_PID_TOKEN(x)		(((u32) x) << 10)
-#define PTD_TRANS_BULK			((u32) 2 << 12)
-#define PTD_TRANS_INT			((u32) 3 << 12)
-#define PTD_TRANS_SPLIT			((u32) 1 << 14)
-#define PTD_SE_USB_LOSPEED		((u32) 2 << 16)
-#define PTD_PORT_NUM(x)			(((u32) x) << 18)
-#define PTD_HUB_NUM(x)			(((u32) x) << 25)
-#define PTD_PING(x)			(((u32) x) << 26)
+#define TO_DW1_DEVICE_ADDR(x)		(((u32) x) << 3)
+#define TO_DW1_PID_TOKEN(x)		(((u32) x) << 10)
+#define DW1_TRANS_BULK			((u32) 2 << 12)
+#define DW1_TRANS_INT			((u32) 3 << 12)
+#define DW1_TRANS_SPLIT			((u32) 1 << 14)
+#define DW1_SE_USB_LOSPEED		((u32) 2 << 16)
+#define TO_DW1_PORT_NUM(x)		(((u32) x) << 18)
+#define TO_DW1_HUB_NUM(x)		(((u32) x) << 25)
 /* DW2 */
-#define PTD_RL_CNT(x)			(((u32) x) << 25)
-#define PTD_DATA_START_ADDR(x)		(((u32) x) << 8)
-#define BASE_ADDR			0x1000
+#define TO_DW2_DATA_START_ADDR(x)	(((u32) x) << 8)
+#define TO_DW2_RL(x)			((x) << 25)
+#define FROM_DW2_RL(x)			(((x) >> 25) & 0xf)
 /* DW3 */
-#define PTD_CERR(x)			(((u32) x) << 23)
-#define PTD_NAC_CNT(x)			(((u32) x) << 19)
-#define PTD_ACTIVE			((u32) 1 << 31)
-#define PTD_DATA_TOGGLE(x)		(((u32) x) << 25)
-
-#define DW3_HALT_BIT			(1 << 30)
+#define FROM_DW3_NRBYTESTRANSFERRED(x)		((x) & 0x7fff)
+#define FROM_DW3_SCS_NRBYTESTRANSFERRED(x)	((x) & 0x07ff)
+#define TO_DW3_NAKCOUNT(x)		((x) << 19)
+#define FROM_DW3_NAKCOUNT(x)		(((x) >> 19) & 0xf)
+#define TO_DW3_CERR(x)			((x) << 23)
+#define FROM_DW3_CERR(x)		(((x) >> 23) & 0x3)
+#define TO_DW3_DATA_TOGGLE(x)		((x) << 25)
+#define FROM_DW3_DATA_TOGGLE(x)		(((x) >> 25) & 0x1)
+#define TO_DW3_PING(x)			((x) << 26)
+#define FROM_DW3_PING(x)		(((x) >> 26) & 0x1)
 #define DW3_ERROR_BIT			(1 << 28)
-#define DW3_QTD_ACTIVE			(1 << 31)
+#define DW3_BABBLE_BIT			(1 << 29)
+#define DW3_HALT_BIT			(1 << 30)
+#define DW3_ACTIVE_BIT			(1 << 31)
 
 #define INT_UNDERRUN			(1 << 2)
 #define INT_BABBLE			(1 << 1)
 #define INT_EXACT			(1 << 0)
 
-#define DW1_GET_PID(x)			(((x) >> 10) & 0x3)
-#define PTD_XFERRED_LENGTH(x)		((x) & 0x7fff)
-#define PTD_XFERRED_LENGTH_LO(x)	((x) & 0x7ff)
-
 #define SETUP_PID	(2)
 #define IN_PID		(1)
 #define OUT_PID		(0)
-#define GET_QTD_TOKEN_TYPE(x)	((x) & 0x3)
-
-#define DATA_TOGGLE		(1 << 31)
-#define GET_DATA_TOGGLE(x)	((x) >> 31)
 
 /* Errata 1 */
 #define RL_COUNTER	(0)
 #define NAK_COUNTER	(0)
 #define ERR_COUNTER	(2)
 
-#endif
+#endif /* _ISP1760_HCD_H_ */

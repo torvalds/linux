@@ -43,7 +43,7 @@
  * set of  ~ ( MAC XOR BSSID ) for all bssids we handle.
  *
  * When you do this you are essentially computing the common bits of all your
- * BSSes. Later it is assumed the harware will "and" (&) the BSSID mask with
+ * BSSes. Later it is assumed the hardware will "and" (&) the BSSID mask with
  * the MAC address to obtain the relevant bits and compare the result with
  * (frame's BSSID & mask) to see if they match.
  *
@@ -71,8 +71,8 @@
  *             On loop iteration for BSSID-02:
  *             bssid_mask &= ~(0001   ^   1001)
  *             bssid_mask =   (1010)  & ~(0001 ^ 1001)
- *             bssid_mask =   (1010)  & ~(1001)
- *             bssid_mask =   (1010)  &  (0110)
+ *             bssid_mask =   (1010)  & ~(1000)
+ *             bssid_mask =   (1010)  &  (0111)
  *             bssid_mask =   0010
  *
  * A bssid_mask of 0010 means "only pay attention to the second least
@@ -102,11 +102,9 @@
  *
  * IFRAME-02:  0001 (we should allow)
  *
- *     allow = (0001 & 1010) == 1010
- *
  *     allow = (IFRAME-02 & bssid_mask) == (bssid_mask & MAC) ? 1 : 0;
  *  --> allow = (0001 & 0010) ==  (0010 & 0001) ? 1 :0;
- *  --> allow = (0010) == (0010)
+ *  --> allow = (0000) == (0000)
  *  --> allow = 1
  *
  * Other examples:

@@ -29,6 +29,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/crc32.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -68,6 +70,17 @@ static int debug = 3;
 
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+
+struct smsc911x_data;
+
+struct smsc911x_ops {
+	u32 (*reg_read)(struct smsc911x_data *pdata, u32 reg);
+	void (*reg_write)(struct smsc911x_data *pdata, u32 reg, u32 val);
+	void (*rx_readfifo)(struct smsc911x_data *pdata,
+				unsigned int *buf, unsigned int wordcount);
+	void (*tx_writefifo)(struct smsc911x_data *pdata,
+				unsigned int *buf, unsigned int wordcount);
+};
 
 struct smsc911x_data {
 	void __iomem *ioaddr;
@@ -116,7 +129,13 @@ struct smsc911x_data {
 	unsigned int clear_bits_mask;
 	unsigned int hashhi;
 	unsigned int hashlo;
+
+	/* register access functions */
+	const struct smsc911x_ops *ops;
 };
+
+/* Easy access to information */
+#define __smsc_shift(pdata, reg) ((reg) << ((pdata)->config.shift))
 
 static inline u32 __smsc911x_reg_read(struct smsc911x_data *pdata, u32 reg)
 {
@@ -131,13 +150,29 @@ static inline u32 __smsc911x_reg_read(struct smsc911x_data *pdata, u32 reg)
 	return 0;
 }
 
+static inline u32
+__smsc911x_reg_read_shift(struct smsc911x_data *pdata, u32 reg)
+{
+	if (pdata->config.flags & SMSC911X_USE_32BIT)
+		return readl(pdata->ioaddr + __smsc_shift(pdata, reg));
+
+	if (pdata->config.flags & SMSC911X_USE_16BIT)
+		return (readw(pdata->ioaddr +
+				__smsc_shift(pdata, reg)) & 0xFFFF) |
+			((readw(pdata->ioaddr +
+			__smsc_shift(pdata, reg + 2)) & 0xFFFF) << 16);
+
+	BUG();
+	return 0;
+}
+
 static inline u32 smsc911x_reg_read(struct smsc911x_data *pdata, u32 reg)
 {
 	u32 data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&pdata->dev_lock, flags);
-	data = __smsc911x_reg_read(pdata, reg);
+	data = pdata->ops->reg_read(pdata, reg);
 	spin_unlock_irqrestore(&pdata->dev_lock, flags);
 
 	return data;
@@ -160,13 +195,32 @@ static inline void __smsc911x_reg_write(struct smsc911x_data *pdata, u32 reg,
 	BUG();
 }
 
+static inline void
+__smsc911x_reg_write_shift(struct smsc911x_data *pdata, u32 reg, u32 val)
+{
+	if (pdata->config.flags & SMSC911X_USE_32BIT) {
+		writel(val, pdata->ioaddr + __smsc_shift(pdata, reg));
+		return;
+	}
+
+	if (pdata->config.flags & SMSC911X_USE_16BIT) {
+		writew(val & 0xFFFF,
+			pdata->ioaddr + __smsc_shift(pdata, reg));
+		writew((val >> 16) & 0xFFFF,
+			pdata->ioaddr + __smsc_shift(pdata, reg + 2));
+		return;
+	}
+
+	BUG();
+}
+
 static inline void smsc911x_reg_write(struct smsc911x_data *pdata, u32 reg,
 				      u32 val)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&pdata->dev_lock, flags);
-	__smsc911x_reg_write(pdata, reg, val);
+	pdata->ops->reg_write(pdata, reg, val);
 	spin_unlock_irqrestore(&pdata->dev_lock, flags);
 }
 
@@ -194,6 +248,40 @@ smsc911x_tx_writefifo(struct smsc911x_data *pdata, unsigned int *buf,
 	if (pdata->config.flags & SMSC911X_USE_16BIT) {
 		while (wordcount--)
 			__smsc911x_reg_write(pdata, TX_DATA_FIFO, *buf++);
+		goto out;
+	}
+
+	BUG();
+out:
+	spin_unlock_irqrestore(&pdata->dev_lock, flags);
+}
+
+/* Writes a packet to the TX_DATA_FIFO - shifted version */
+static inline void
+smsc911x_tx_writefifo_shift(struct smsc911x_data *pdata, unsigned int *buf,
+		      unsigned int wordcount)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdata->dev_lock, flags);
+
+	if (pdata->config.flags & SMSC911X_SWAP_FIFO) {
+		while (wordcount--)
+			__smsc911x_reg_write_shift(pdata, TX_DATA_FIFO,
+					     swab32(*buf++));
+		goto out;
+	}
+
+	if (pdata->config.flags & SMSC911X_USE_32BIT) {
+		writesl(pdata->ioaddr + __smsc_shift(pdata,
+						TX_DATA_FIFO), buf, wordcount);
+		goto out;
+	}
+
+	if (pdata->config.flags & SMSC911X_USE_16BIT) {
+		while (wordcount--)
+			__smsc911x_reg_write_shift(pdata,
+						 TX_DATA_FIFO, *buf++);
 		goto out;
 	}
 
@@ -234,6 +322,40 @@ out:
 	spin_unlock_irqrestore(&pdata->dev_lock, flags);
 }
 
+/* Reads a packet out of the RX_DATA_FIFO - shifted version */
+static inline void
+smsc911x_rx_readfifo_shift(struct smsc911x_data *pdata, unsigned int *buf,
+		     unsigned int wordcount)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdata->dev_lock, flags);
+
+	if (pdata->config.flags & SMSC911X_SWAP_FIFO) {
+		while (wordcount--)
+			*buf++ = swab32(__smsc911x_reg_read_shift(pdata,
+							    RX_DATA_FIFO));
+		goto out;
+	}
+
+	if (pdata->config.flags & SMSC911X_USE_32BIT) {
+		readsl(pdata->ioaddr + __smsc_shift(pdata,
+						RX_DATA_FIFO), buf, wordcount);
+		goto out;
+	}
+
+	if (pdata->config.flags & SMSC911X_USE_16BIT) {
+		while (wordcount--)
+			*buf++ = __smsc911x_reg_read_shift(pdata,
+								RX_DATA_FIFO);
+		goto out;
+	}
+
+	BUG();
+out:
+	spin_unlock_irqrestore(&pdata->dev_lock, flags);
+}
+
 /* waits for MAC not busy, with timeout.  Only called by smsc911x_mac_read
  * and smsc911x_mac_write, so assumes mac_lock is held */
 static int smsc911x_mac_complete(struct smsc911x_data *pdata)
@@ -248,8 +370,8 @@ static int smsc911x_mac_complete(struct smsc911x_data *pdata)
 		if (!(val & MAC_CSR_CMD_CSR_BUSY_))
 			return 0;
 	}
-	SMSC_WARNING(HW, "Timed out waiting for MAC not BUSY. "
-		"MAC_CSR_CMD: 0x%08X", val);
+	SMSC_WARN(pdata, hw, "Timed out waiting for MAC not BUSY. "
+		  "MAC_CSR_CMD: 0x%08X", val);
 	return -EIO;
 }
 
@@ -262,7 +384,7 @@ static u32 smsc911x_mac_read(struct smsc911x_data *pdata, unsigned int offset)
 
 	temp = smsc911x_reg_read(pdata, MAC_CSR_CMD);
 	if (unlikely(temp & MAC_CSR_CMD_CSR_BUSY_)) {
-		SMSC_WARNING(HW, "MAC busy at entry");
+		SMSC_WARN(pdata, hw, "MAC busy at entry");
 		return 0xFFFFFFFF;
 	}
 
@@ -277,7 +399,7 @@ static u32 smsc911x_mac_read(struct smsc911x_data *pdata, unsigned int offset)
 	if (likely(smsc911x_mac_complete(pdata) == 0))
 		return smsc911x_reg_read(pdata, MAC_CSR_DATA);
 
-	SMSC_WARNING(HW, "MAC busy after read");
+	SMSC_WARN(pdata, hw, "MAC busy after read");
 	return 0xFFFFFFFF;
 }
 
@@ -291,8 +413,8 @@ static void smsc911x_mac_write(struct smsc911x_data *pdata,
 
 	temp = smsc911x_reg_read(pdata, MAC_CSR_CMD);
 	if (unlikely(temp & MAC_CSR_CMD_CSR_BUSY_)) {
-		SMSC_WARNING(HW,
-			"smsc911x_mac_write failed, MAC busy at entry");
+		SMSC_WARN(pdata, hw,
+			  "smsc911x_mac_write failed, MAC busy at entry");
 		return;
 	}
 
@@ -310,8 +432,7 @@ static void smsc911x_mac_write(struct smsc911x_data *pdata,
 	if (likely(smsc911x_mac_complete(pdata) == 0))
 		return;
 
-	SMSC_WARNING(HW,
-		"smsc911x_mac_write failed, MAC busy after write");
+	SMSC_WARN(pdata, hw, "smsc911x_mac_write failed, MAC busy after write");
 }
 
 /* Get a phy register */
@@ -326,8 +447,7 @@ static int smsc911x_mii_read(struct mii_bus *bus, int phyaddr, int regidx)
 
 	/* Confirm MII not busy */
 	if (unlikely(smsc911x_mac_read(pdata, MII_ACC) & MII_ACC_MII_BUSY_)) {
-		SMSC_WARNING(HW,
-			"MII is busy in smsc911x_mii_read???");
+		SMSC_WARN(pdata, hw, "MII is busy in smsc911x_mii_read???");
 		reg = -EIO;
 		goto out;
 	}
@@ -343,7 +463,7 @@ static int smsc911x_mii_read(struct mii_bus *bus, int phyaddr, int regidx)
 			goto out;
 		}
 
-	SMSC_WARNING(HW, "Timed out waiting for MII read to finish");
+	SMSC_WARN(pdata, hw, "Timed out waiting for MII read to finish");
 	reg = -EIO;
 
 out:
@@ -364,8 +484,7 @@ static int smsc911x_mii_write(struct mii_bus *bus, int phyaddr, int regidx,
 
 	/* Confirm MII not busy */
 	if (unlikely(smsc911x_mac_read(pdata, MII_ACC) & MII_ACC_MII_BUSY_)) {
-		SMSC_WARNING(HW,
-			"MII is busy in smsc911x_mii_write???");
+		SMSC_WARN(pdata, hw, "MII is busy in smsc911x_mii_write???");
 		reg = -EIO;
 		goto out;
 	}
@@ -385,7 +504,7 @@ static int smsc911x_mii_write(struct mii_bus *bus, int phyaddr, int regidx,
 			goto out;
 		}
 
-	SMSC_WARNING(HW, "Timed out waiting for MII write to finish");
+	SMSC_WARN(pdata, hw, "Timed out waiting for MII write to finish");
 	reg = -EIO;
 
 out:
@@ -426,18 +545,20 @@ static void smsc911x_phy_initialise_external(struct smsc911x_data *pdata)
 	unsigned int hwcfg = smsc911x_reg_read(pdata, HW_CFG);
 
 	if (pdata->config.flags & SMSC911X_FORCE_INTERNAL_PHY) {
-		SMSC_TRACE(HW, "Forcing internal PHY");
+		SMSC_TRACE(pdata, hw, "Forcing internal PHY");
 		pdata->using_extphy = 0;
 	} else if (pdata->config.flags & SMSC911X_FORCE_EXTERNAL_PHY) {
-		SMSC_TRACE(HW, "Forcing external PHY");
+		SMSC_TRACE(pdata, hw, "Forcing external PHY");
 		smsc911x_phy_enable_external(pdata);
 		pdata->using_extphy = 1;
 	} else if (hwcfg & HW_CFG_EXT_PHY_DET_) {
-		SMSC_TRACE(HW, "HW_CFG EXT_PHY_DET set, using external PHY");
+		SMSC_TRACE(pdata, hw,
+			   "HW_CFG EXT_PHY_DET set, using external PHY");
 		smsc911x_phy_enable_external(pdata);
 		pdata->using_extphy = 1;
 	} else {
-		SMSC_TRACE(HW, "HW_CFG EXT_PHY_DET clear, using internal PHY");
+		SMSC_TRACE(pdata, hw,
+			   "HW_CFG EXT_PHY_DET clear, using internal PHY");
 		pdata->using_extphy = 0;
 	}
 }
@@ -499,7 +620,7 @@ static int smsc911x_phy_check_loopbackpkt(struct smsc911x_data *pdata)
 		wrsz += (u32)((ulong)pdata->loopback_tx_pkt & 0x3);
 		wrsz >>= 2;
 
-		smsc911x_tx_writefifo(pdata, (unsigned int *)bufp, wrsz);
+		pdata->ops->tx_writefifo(pdata, (unsigned int *)bufp, wrsz);
 
 		/* Wait till transmit is done */
 		i = 60;
@@ -509,13 +630,13 @@ static int smsc911x_phy_check_loopbackpkt(struct smsc911x_data *pdata)
 		} while ((i--) && (!status));
 
 		if (!status) {
-			SMSC_WARNING(HW, "Failed to transmit "
-				"during loopback test");
+			SMSC_WARN(pdata, hw,
+				  "Failed to transmit during loopback test");
 			continue;
 		}
 		if (status & TX_STS_ES_) {
-			SMSC_WARNING(HW, "Transmit encountered "
-				"errors during loopback test");
+			SMSC_WARN(pdata, hw,
+				  "Transmit encountered errors during loopback test");
 			continue;
 		}
 
@@ -527,13 +648,13 @@ static int smsc911x_phy_check_loopbackpkt(struct smsc911x_data *pdata)
 		} while ((i--) && (!status));
 
 		if (!status) {
-			SMSC_WARNING(HW,
-				"Failed to receive during loopback test");
+			SMSC_WARN(pdata, hw,
+				  "Failed to receive during loopback test");
 			continue;
 		}
 		if (status & RX_STS_ES_) {
-			SMSC_WARNING(HW, "Receive encountered "
-				"errors during loopback test");
+			SMSC_WARN(pdata, hw,
+				  "Receive encountered errors during loopback test");
 			continue;
 		}
 
@@ -543,12 +664,12 @@ static int smsc911x_phy_check_loopbackpkt(struct smsc911x_data *pdata)
 		rdsz += (u32)((ulong)pdata->loopback_rx_pkt & 0x3);
 		rdsz >>= 2;
 
-		smsc911x_rx_readfifo(pdata, (unsigned int *)bufp, rdsz);
+		pdata->ops->rx_readfifo(pdata, (unsigned int *)bufp, rdsz);
 
 		if (pktlength != (MIN_PACKET_SIZE + 4)) {
-			SMSC_WARNING(HW, "Unexpected packet size "
-				"during loop back test, size=%d, will retry",
-				pktlength);
+			SMSC_WARN(pdata, hw, "Unexpected packet size "
+				  "during loop back test, size=%d, will retry",
+				  pktlength);
 		} else {
 			unsigned int j;
 			int mismatch = 0;
@@ -560,12 +681,12 @@ static int smsc911x_phy_check_loopbackpkt(struct smsc911x_data *pdata)
 				}
 			}
 			if (!mismatch) {
-				SMSC_TRACE(HW, "Successfully verified "
+				SMSC_TRACE(pdata, hw, "Successfully verified "
 					   "loopback packet");
 				return 0;
 			} else {
-				SMSC_WARNING(HW, "Data mismatch "
-					"during loop back test, will retry");
+				SMSC_WARN(pdata, hw, "Data mismatch "
+					  "during loop back test, will retry");
 			}
 		}
 	}
@@ -582,7 +703,7 @@ static int smsc911x_phy_reset(struct smsc911x_data *pdata)
 	BUG_ON(!phy_dev);
 	BUG_ON(!phy_dev->bus);
 
-	SMSC_TRACE(HW, "Performing PHY BCR Reset");
+	SMSC_TRACE(pdata, hw, "Performing PHY BCR Reset");
 	smsc911x_mii_write(phy_dev->bus, phy_dev->addr, MII_BMCR, BMCR_RESET);
 	do {
 		msleep(1);
@@ -591,7 +712,7 @@ static int smsc911x_phy_reset(struct smsc911x_data *pdata)
 	} while ((i--) && (temp & BMCR_RESET));
 
 	if (temp & BMCR_RESET) {
-		SMSC_WARNING(HW, "PHY reset failed to complete.");
+		SMSC_WARN(pdata, hw, "PHY reset failed to complete");
 		return -EIO;
 	}
 	/* Extra delay required because the phy may not be completed with
@@ -695,11 +816,11 @@ static void smsc911x_phy_update_flowcontrol(struct smsc911x_data *pdata)
 		else
 			afc &= ~0xF;
 
-		SMSC_TRACE(HW, "rx pause %s, tx pause %s",
-			(cap & FLOW_CTRL_RX ? "enabled" : "disabled"),
-			(cap & FLOW_CTRL_TX ? "enabled" : "disabled"));
+		SMSC_TRACE(pdata, hw, "rx pause %s, tx pause %s",
+			   (cap & FLOW_CTRL_RX ? "enabled" : "disabled"),
+			   (cap & FLOW_CTRL_TX ? "enabled" : "disabled"));
 	} else {
-		SMSC_TRACE(HW, "half duplex");
+		SMSC_TRACE(pdata, hw, "half duplex");
 		flow = 0;
 		afc |= 0xF;
 	}
@@ -722,17 +843,17 @@ static void smsc911x_phy_adjust_link(struct net_device *dev)
 
 	if (phy_dev->duplex != pdata->last_duplex) {
 		unsigned int mac_cr;
-		SMSC_TRACE(HW, "duplex state has changed");
+		SMSC_TRACE(pdata, hw, "duplex state has changed");
 
 		spin_lock_irqsave(&pdata->mac_lock, flags);
 		mac_cr = smsc911x_mac_read(pdata, MAC_CR);
 		if (phy_dev->duplex) {
-			SMSC_TRACE(HW,
-				"configuring for full duplex mode");
+			SMSC_TRACE(pdata, hw,
+				   "configuring for full duplex mode");
 			mac_cr |= MAC_CR_FDPX_;
 		} else {
-			SMSC_TRACE(HW,
-				"configuring for half duplex mode");
+			SMSC_TRACE(pdata, hw,
+				   "configuring for half duplex mode");
 			mac_cr &= ~MAC_CR_FDPX_;
 		}
 		smsc911x_mac_write(pdata, MAC_CR, mac_cr);
@@ -744,9 +865,9 @@ static void smsc911x_phy_adjust_link(struct net_device *dev)
 
 	carrier = netif_carrier_ok(dev);
 	if (carrier != pdata->last_carrier) {
-		SMSC_TRACE(HW, "carrier state has changed");
+		SMSC_TRACE(pdata, hw, "carrier state has changed");
 		if (carrier) {
-			SMSC_TRACE(HW, "configuring for carrier OK");
+			SMSC_TRACE(pdata, hw, "configuring for carrier OK");
 			if ((pdata->gpio_orig_setting & GPIO_CFG_LED1_EN_) &&
 			    (!pdata->using_extphy)) {
 				/* Restore original GPIO configuration */
@@ -755,7 +876,7 @@ static void smsc911x_phy_adjust_link(struct net_device *dev)
 					pdata->gpio_setting);
 			}
 		} else {
-			SMSC_TRACE(HW, "configuring for no carrier");
+			SMSC_TRACE(pdata, hw, "configuring for no carrier");
 			/* Check global setting that LED1
 			 * usage is 10/100 indicator */
 			pdata->gpio_setting = smsc911x_reg_read(pdata,
@@ -787,25 +908,25 @@ static int smsc911x_mii_probe(struct net_device *dev)
 	/* find the first phy */
 	phydev = phy_find_first(pdata->mii_bus);
 	if (!phydev) {
-		pr_err("%s: no PHY found\n", dev->name);
+		netdev_err(dev, "no PHY found\n");
 		return -ENODEV;
 	}
 
-	SMSC_TRACE(PROBE, "PHY: addr %d, phy_id 0x%08X",
-			phydev->addr, phydev->phy_id);
+	SMSC_TRACE(pdata, probe, "PHY: addr %d, phy_id 0x%08X",
+		   phydev->addr, phydev->phy_id);
 
 	ret = phy_connect_direct(dev, phydev,
 			&smsc911x_phy_adjust_link, 0,
 			pdata->config.phy_interface);
 
 	if (ret) {
-		pr_err("%s: Could not attach to PHY\n", dev->name);
+		netdev_err(dev, "Could not attach to PHY\n");
 		return ret;
 	}
 
-	pr_info("%s: attached PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)\n",
-		dev->name, phydev->drv->name,
-		dev_name(&phydev->dev), phydev->irq);
+	netdev_info(dev,
+		    "attached PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)\n",
+		    phydev->drv->name, dev_name(&phydev->dev), phydev->irq);
 
 	/* mask with MAC supported features */
 	phydev->supported &= (PHY_BASIC_FEATURES | SUPPORTED_Pause |
@@ -818,13 +939,13 @@ static int smsc911x_mii_probe(struct net_device *dev)
 
 #ifdef USE_PHY_WORK_AROUND
 	if (smsc911x_phy_loopbacktest(dev) < 0) {
-		SMSC_WARNING(HW, "Failed Loop Back Test");
+		SMSC_WARN(pdata, hw, "Failed Loop Back Test");
 		return -ENODEV;
 	}
-	SMSC_TRACE(HW, "Passed Loop Back Test");
+	SMSC_TRACE(pdata, hw, "Passed Loop Back Test");
 #endif				/* USE_PHY_WORK_AROUND */
 
-	SMSC_TRACE(HW, "phy initialised successfully");
+	SMSC_TRACE(pdata, hw, "phy initialised successfully");
 	return 0;
 }
 
@@ -860,8 +981,8 @@ static int __devinit smsc911x_mii_init(struct platform_device *pdev,
 		smsc911x_phy_initialise_external(pdata);
 		break;
 	default:
-		SMSC_TRACE(HW, "External PHY is not supported, "
-			"using internal PHY");
+		SMSC_TRACE(pdata, hw, "External PHY is not supported, "
+			   "using internal PHY");
 		pdata->using_extphy = 0;
 		break;
 	}
@@ -872,12 +993,12 @@ static int __devinit smsc911x_mii_init(struct platform_device *pdev,
 	}
 
 	if (mdiobus_register(pdata->mii_bus)) {
-		SMSC_WARNING(PROBE, "Error registering mii bus");
+		SMSC_WARN(pdata, probe, "Error registering mii bus");
 		goto err_out_free_bus_2;
 	}
 
 	if (smsc911x_mii_probe(dev) < 0) {
-		SMSC_WARNING(PROBE, "Error registering mii bus");
+		SMSC_WARN(pdata, probe, "Error registering mii bus");
 		goto err_out_unregister_bus_3;
 	}
 
@@ -913,8 +1034,7 @@ static void smsc911x_tx_update_txcounters(struct net_device *dev)
 			 * does not reference a hardware defined reserved bit
 			 * but rather a driver defined one.
 			 */
-			SMSC_WARNING(HW,
-				"Packet tag reserved bit is high");
+			SMSC_WARN(pdata, hw, "Packet tag reserved bit is high");
 		} else {
 			if (unlikely(tx_stat & TX_STS_ES_)) {
 				dev->stats.tx_errors++;
@@ -977,8 +1097,8 @@ smsc911x_rx_fastforward(struct smsc911x_data *pdata, unsigned int pktbytes)
 		} while ((val & RX_DP_CTRL_RX_FFWD_) && --timeout);
 
 		if (unlikely(timeout == 0))
-			SMSC_WARNING(HW, "Timed out waiting for "
-				"RX FFWD to finish, RX_DP_CTRL: 0x%08X", val);
+			SMSC_WARN(pdata, hw, "Timed out waiting for "
+				  "RX FFWD to finish, RX_DP_CTRL: 0x%08X", val);
 	} else {
 		unsigned int temp;
 		while (pktwords--)
@@ -1021,8 +1141,8 @@ static int smsc911x_poll(struct napi_struct *napi, int budget)
 		smsc911x_rx_counterrors(dev, rxstat);
 
 		if (unlikely(rxstat & RX_STS_ES_)) {
-			SMSC_WARNING(RX_ERR,
-				"Discarding packet with error bit set");
+			SMSC_WARN(pdata, rx_err,
+				  "Discarding packet with error bit set");
 			/* Packet has an error, discard it and continue with
 			 * the next */
 			smsc911x_rx_fastforward(pdata, pktwords);
@@ -1032,8 +1152,8 @@ static int smsc911x_poll(struct napi_struct *napi, int budget)
 
 		skb = netdev_alloc_skb(dev, pktlength + NET_IP_ALIGN);
 		if (unlikely(!skb)) {
-			SMSC_WARNING(RX_ERR,
-				"Unable to allocate skb for rx packet");
+			SMSC_WARN(pdata, rx_err,
+				  "Unable to allocate skb for rx packet");
 			/* Drop the packet and stop this polling iteration */
 			smsc911x_rx_fastforward(pdata, pktwords);
 			dev->stats.rx_dropped++;
@@ -1046,8 +1166,8 @@ static int smsc911x_poll(struct napi_struct *napi, int budget)
 		/* Align IP on 16B boundary */
 		skb_reserve(skb, NET_IP_ALIGN);
 		skb_put(skb, pktlength - 4);
-		smsc911x_rx_readfifo(pdata, (unsigned int *)skb->head,
-				     pktwords);
+		pdata->ops->rx_readfifo(pdata,
+				 (unsigned int *)skb->head, pktwords);
 		skb->protocol = eth_type_trans(skb, dev);
 		skb_checksum_none_assert(skb);
 		netif_receive_skb(skb);
@@ -1083,8 +1203,8 @@ static void smsc911x_rx_multicast_update(struct smsc911x_data *pdata)
 	smsc911x_mac_write(pdata, MAC_CR, mac_cr);
 	smsc911x_mac_write(pdata, HASHH, pdata->hashhi);
 	smsc911x_mac_write(pdata, HASHL, pdata->hashlo);
-	SMSC_TRACE(HW, "maccr 0x%08X, HASHH 0x%08X, HASHL 0x%08X",
-		mac_cr, pdata->hashhi, pdata->hashlo);
+	SMSC_TRACE(pdata, hw, "maccr 0x%08X, HASHH 0x%08X, HASHL 0x%08X",
+		   mac_cr, pdata->hashhi, pdata->hashlo);
 }
 
 static void smsc911x_rx_multicast_update_workaround(struct smsc911x_data *pdata)
@@ -1102,7 +1222,7 @@ static void smsc911x_rx_multicast_update_workaround(struct smsc911x_data *pdata)
 
 	/* Check Rx has stopped */
 	if (smsc911x_mac_read(pdata, MAC_CR) & MAC_CR_RXEN_)
-		SMSC_WARNING(DRV, "Rx not stopped");
+		SMSC_WARN(pdata, drv, "Rx not stopped");
 
 	/* Perform the update - safe to do now Rx has stopped */
 	smsc911x_rx_multicast_update(pdata);
@@ -1131,7 +1251,7 @@ static int smsc911x_soft_reset(struct smsc911x_data *pdata)
 	} while ((--timeout) && (temp & HW_CFG_SRST_));
 
 	if (unlikely(temp & HW_CFG_SRST_)) {
-		SMSC_WARNING(DRV, "Failed to complete reset");
+		SMSC_WARN(pdata, drv, "Failed to complete reset");
 		return -EIO;
 	}
 	return 0;
@@ -1160,18 +1280,18 @@ static int smsc911x_open(struct net_device *dev)
 
 	/* if the phy is not yet registered, retry later*/
 	if (!pdata->phy_dev) {
-		SMSC_WARNING(HW, "phy_dev is NULL");
+		SMSC_WARN(pdata, hw, "phy_dev is NULL");
 		return -EAGAIN;
 	}
 
 	if (!is_valid_ether_addr(dev->dev_addr)) {
-		SMSC_WARNING(HW, "dev_addr is not a valid MAC address");
+		SMSC_WARN(pdata, hw, "dev_addr is not a valid MAC address");
 		return -EADDRNOTAVAIL;
 	}
 
 	/* Reset the LAN911x */
 	if (smsc911x_soft_reset(pdata)) {
-		SMSC_WARNING(HW, "soft reset failed");
+		SMSC_WARN(pdata, hw, "soft reset failed");
 		return -EIO;
 	}
 
@@ -1191,8 +1311,8 @@ static int smsc911x_open(struct net_device *dev)
 	}
 
 	if (unlikely(timeout == 0))
-		SMSC_WARNING(IFUP,
-			"Timed out waiting for EEPROM busy bit to clear");
+		SMSC_WARN(pdata, ifup,
+			  "Timed out waiting for EEPROM busy bit to clear");
 
 	smsc911x_reg_write(pdata, GPIO_CFG, 0x70070000);
 
@@ -1210,22 +1330,22 @@ static int smsc911x_open(struct net_device *dev)
 	intcfg = ((10 << 24) | INT_CFG_IRQ_EN_);
 
 	if (pdata->config.irq_polarity) {
-		SMSC_TRACE(IFUP, "irq polarity: active high");
+		SMSC_TRACE(pdata, ifup, "irq polarity: active high");
 		intcfg |= INT_CFG_IRQ_POL_;
 	} else {
-		SMSC_TRACE(IFUP, "irq polarity: active low");
+		SMSC_TRACE(pdata, ifup, "irq polarity: active low");
 	}
 
 	if (pdata->config.irq_type) {
-		SMSC_TRACE(IFUP, "irq type: push-pull");
+		SMSC_TRACE(pdata, ifup, "irq type: push-pull");
 		intcfg |= INT_CFG_IRQ_TYPE_;
 	} else {
-		SMSC_TRACE(IFUP, "irq type: open drain");
+		SMSC_TRACE(pdata, ifup, "irq type: open drain");
 	}
 
 	smsc911x_reg_write(pdata, INT_CFG, intcfg);
 
-	SMSC_TRACE(IFUP, "Testing irq handler using IRQ %d", dev->irq);
+	SMSC_TRACE(pdata, ifup, "Testing irq handler using IRQ %d", dev->irq);
 	pdata->software_irq_signal = 0;
 	smp_wmb();
 
@@ -1241,14 +1361,15 @@ static int smsc911x_open(struct net_device *dev)
 	}
 
 	if (!pdata->software_irq_signal) {
-		dev_warn(&dev->dev, "ISR failed signaling test (IRQ %d)\n",
-			 dev->irq);
+		netdev_warn(dev, "ISR failed signaling test (IRQ %d)\n",
+			    dev->irq);
 		return -ENODEV;
 	}
-	SMSC_TRACE(IFUP, "IRQ handler passed test using IRQ %d", dev->irq);
+	SMSC_TRACE(pdata, ifup, "IRQ handler passed test using IRQ %d",
+		   dev->irq);
 
-	dev_info(&dev->dev, "SMSC911x/921x identified at %#08lx, IRQ: %d\n",
-		 (unsigned long)pdata->ioaddr, dev->irq);
+	netdev_info(dev, "SMSC911x/921x identified at %#08lx, IRQ: %d\n",
+		    (unsigned long)pdata->ioaddr, dev->irq);
 
 	/* Reset the last known duplex and carrier */
 	pdata->last_duplex = -1;
@@ -1313,7 +1434,7 @@ static int smsc911x_stop(struct net_device *dev)
 	if (pdata->phy_dev)
 		phy_stop(pdata->phy_dev);
 
-	SMSC_TRACE(IFDOWN, "Interface stopped");
+	SMSC_TRACE(pdata, ifdown, "Interface stopped");
 	return 0;
 }
 
@@ -1331,8 +1452,8 @@ static int smsc911x_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	freespace = smsc911x_reg_read(pdata, TX_FIFO_INF) & TX_FIFO_INF_TDFREE_;
 
 	if (unlikely(freespace < TX_FIFO_LOW_THRESHOLD))
-		SMSC_WARNING(TX_ERR,
-			"Tx data fifo low, space available: %d", freespace);
+		SMSC_WARN(pdata, tx_err,
+			  "Tx data fifo low, space available: %d", freespace);
 
 	/* Word alignment adjustment */
 	tx_cmd_a = (u32)((ulong)skb->data & 0x03) << 16;
@@ -1350,7 +1471,7 @@ static int smsc911x_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	wrsz += (u32)((ulong)skb->data & 0x3);
 	wrsz >>= 2;
 
-	smsc911x_tx_writefifo(pdata, (unsigned int *)bufp, wrsz);
+	pdata->ops->tx_writefifo(pdata, (unsigned int *)bufp, wrsz);
 	freespace -= (skb->len + 32);
 	dev_kfree_skb(skb);
 
@@ -1432,7 +1553,7 @@ static void smsc911x_set_multicast_list(struct net_device *dev)
 		 * receiving data */
 		if (!pdata->multicast_update_pending) {
 			unsigned int temp;
-			SMSC_TRACE(HW, "scheduling mcast update");
+			SMSC_TRACE(pdata, hw, "scheduling mcast update");
 			pdata->multicast_update_pending = 1;
 
 			/* Request the hardware to stop, then perform the
@@ -1474,7 +1595,7 @@ static irqreturn_t smsc911x_irqhandler(int irq, void *dev_id)
 	if (unlikely(intsts & inten & INT_STS_RXSTOP_INT_)) {
 		/* Called when there is a multicast update scheduled and
 		 * it is now safe to complete the update */
-		SMSC_TRACE(INTR, "RX Stop interrupt");
+		SMSC_TRACE(pdata, intr, "RX Stop interrupt");
 		smsc911x_reg_write(pdata, INT_STS, INT_STS_RXSTOP_INT_);
 		if (pdata->multicast_update_pending)
 			smsc911x_rx_multicast_update_workaround(pdata);
@@ -1491,7 +1612,7 @@ static irqreturn_t smsc911x_irqhandler(int irq, void *dev_id)
 	}
 
 	if (unlikely(intsts & inten & INT_STS_RXE_)) {
-		SMSC_TRACE(INTR, "RX Error interrupt");
+		SMSC_TRACE(pdata, intr, "RX Error interrupt");
 		smsc911x_reg_write(pdata, INT_STS, INT_STS_RXE_);
 		serviced = IRQ_HANDLED;
 	}
@@ -1505,8 +1626,7 @@ static irqreturn_t smsc911x_irqhandler(int irq, void *dev_id)
 			/* Schedule a NAPI poll */
 			__napi_schedule(&pdata->napi);
 		} else {
-			SMSC_WARNING(RX_ERR,
-				"napi_schedule_prep failed");
+			SMSC_WARN(pdata, rx_err, "napi_schedule_prep failed");
 		}
 		serviced = IRQ_HANDLED;
 	}
@@ -1543,7 +1663,7 @@ static int smsc911x_set_mac_address(struct net_device *dev, void *p)
 	smsc911x_set_hw_mac_address(pdata, dev->dev_addr);
 	spin_unlock_irq(&pdata->mac_lock);
 
-	dev_info(&dev->dev, "MAC Address: %pM\n", dev->dev_addr);
+	netdev_info(dev, "MAC Address: %pM\n", dev->dev_addr);
 
 	return 0;
 }
@@ -1649,9 +1769,9 @@ static int smsc911x_eeprom_send_cmd(struct smsc911x_data *pdata, u32 op)
 	int timeout = 100;
 	u32 e2cmd;
 
-	SMSC_TRACE(DRV, "op 0x%08x", op);
+	SMSC_TRACE(pdata, drv, "op 0x%08x", op);
 	if (smsc911x_reg_read(pdata, E2P_CMD) & E2P_CMD_EPC_BUSY_) {
-		SMSC_WARNING(DRV, "Busy at start");
+		SMSC_WARN(pdata, drv, "Busy at start");
 		return -EBUSY;
 	}
 
@@ -1664,12 +1784,12 @@ static int smsc911x_eeprom_send_cmd(struct smsc911x_data *pdata, u32 op)
 	} while ((e2cmd & E2P_CMD_EPC_BUSY_) && (--timeout));
 
 	if (!timeout) {
-		SMSC_TRACE(DRV, "TIMED OUT");
+		SMSC_TRACE(pdata, drv, "TIMED OUT");
 		return -EAGAIN;
 	}
 
 	if (e2cmd & E2P_CMD_EPC_TIMEOUT_) {
-		SMSC_TRACE(DRV, "Error occurred during eeprom operation");
+		SMSC_TRACE(pdata, drv, "Error occurred during eeprom operation");
 		return -EINVAL;
 	}
 
@@ -1682,7 +1802,7 @@ static int smsc911x_eeprom_read_location(struct smsc911x_data *pdata,
 	u32 op = E2P_CMD_EPC_CMD_READ_ | address;
 	int ret;
 
-	SMSC_TRACE(DRV, "address 0x%x", address);
+	SMSC_TRACE(pdata, drv, "address 0x%x", address);
 	ret = smsc911x_eeprom_send_cmd(pdata, op);
 
 	if (!ret)
@@ -1698,7 +1818,7 @@ static int smsc911x_eeprom_write_location(struct smsc911x_data *pdata,
 	u32 temp;
 	int ret;
 
-	SMSC_TRACE(DRV, "address 0x%x, data 0x%x", address, data);
+	SMSC_TRACE(pdata, drv, "address 0x%x, data 0x%x", address, data);
 	ret = smsc911x_eeprom_send_cmd(pdata, op);
 
 	if (!ret) {
@@ -1811,26 +1931,26 @@ static int __devinit smsc911x_init(struct net_device *dev)
 	struct smsc911x_data *pdata = netdev_priv(dev);
 	unsigned int byte_test;
 
-	SMSC_TRACE(PROBE, "Driver Parameters:");
-	SMSC_TRACE(PROBE, "LAN base: 0x%08lX",
-		(unsigned long)pdata->ioaddr);
-	SMSC_TRACE(PROBE, "IRQ: %d", dev->irq);
-	SMSC_TRACE(PROBE, "PHY will be autodetected.");
+	SMSC_TRACE(pdata, probe, "Driver Parameters:");
+	SMSC_TRACE(pdata, probe, "LAN base: 0x%08lX",
+		   (unsigned long)pdata->ioaddr);
+	SMSC_TRACE(pdata, probe, "IRQ: %d", dev->irq);
+	SMSC_TRACE(pdata, probe, "PHY will be autodetected.");
 
 	spin_lock_init(&pdata->dev_lock);
 	spin_lock_init(&pdata->mac_lock);
 
 	if (pdata->ioaddr == 0) {
-		SMSC_WARNING(PROBE, "pdata->ioaddr: 0x00000000");
+		SMSC_WARN(pdata, probe, "pdata->ioaddr: 0x00000000");
 		return -ENODEV;
 	}
 
 	/* Check byte ordering */
 	byte_test = smsc911x_reg_read(pdata, BYTE_TEST);
-	SMSC_TRACE(PROBE, "BYTE_TEST: 0x%08X", byte_test);
+	SMSC_TRACE(pdata, probe, "BYTE_TEST: 0x%08X", byte_test);
 	if (byte_test == 0x43218765) {
-		SMSC_TRACE(PROBE, "BYTE_TEST looks swapped, "
-			"applying WORD_SWAP");
+		SMSC_TRACE(pdata, probe, "BYTE_TEST looks swapped, "
+			   "applying WORD_SWAP");
 		smsc911x_reg_write(pdata, WORD_SWAP, 0xffffffff);
 
 		/* 1 dummy read of BYTE_TEST is needed after a write to
@@ -1841,12 +1961,13 @@ static int __devinit smsc911x_init(struct net_device *dev)
 	}
 
 	if (byte_test != 0x87654321) {
-		SMSC_WARNING(DRV, "BYTE_TEST: 0x%08X", byte_test);
+		SMSC_WARN(pdata, drv, "BYTE_TEST: 0x%08X", byte_test);
 		if (((byte_test >> 16) & 0xFFFF) == (byte_test & 0xFFFF)) {
-			SMSC_WARNING(PROBE,
-				"top 16 bits equal to bottom 16 bits");
-			SMSC_TRACE(PROBE, "This may mean the chip is set "
-				"for 32 bit while the bus is reading 16 bit");
+			SMSC_WARN(pdata, probe,
+				  "top 16 bits equal to bottom 16 bits");
+			SMSC_TRACE(pdata, probe,
+				   "This may mean the chip is set "
+				   "for 32 bit while the bus is reading 16 bit");
 		}
 		return -ENODEV;
 	}
@@ -1881,17 +2002,18 @@ static int __devinit smsc911x_init(struct net_device *dev)
 		break;
 
 	default:
-		SMSC_WARNING(PROBE, "LAN911x not identified, idrev: 0x%08X",
-			pdata->idrev);
+		SMSC_WARN(pdata, probe, "LAN911x not identified, idrev: 0x%08X",
+			  pdata->idrev);
 		return -ENODEV;
 	}
 
-	SMSC_TRACE(PROBE, "LAN911x identified, idrev: 0x%08X, generation: %d",
-		pdata->idrev, pdata->generation);
+	SMSC_TRACE(pdata, probe,
+		   "LAN911x identified, idrev: 0x%08X, generation: %d",
+		   pdata->idrev, pdata->generation);
 
 	if (pdata->generation == 0)
-		SMSC_WARNING(PROBE,
-			"This driver is not intended for this chip revision");
+		SMSC_WARN(pdata, probe,
+			  "This driver is not intended for this chip revision");
 
 	/* workaround for platforms without an eeprom, where the mac address
 	 * is stored elsewhere and set by the bootloader.  This saves the
@@ -1931,7 +2053,7 @@ static int __devexit smsc911x_drv_remove(struct platform_device *pdev)
 	BUG_ON(!pdata->ioaddr);
 	BUG_ON(!pdata->phy_dev);
 
-	SMSC_TRACE(IFDOWN, "Stopping driver.");
+	SMSC_TRACE(pdata, ifdown, "Stopping driver");
 
 	phy_disconnect(pdata->phy_dev);
 	pdata->phy_dev = NULL;
@@ -1955,6 +2077,22 @@ static int __devexit smsc911x_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/* standard register acces */
+static const struct smsc911x_ops standard_smsc911x_ops = {
+	.reg_read = __smsc911x_reg_read,
+	.reg_write = __smsc911x_reg_write,
+	.rx_readfifo = smsc911x_rx_readfifo,
+	.tx_writefifo = smsc911x_tx_writefifo,
+};
+
+/* shifted register access */
+static const struct smsc911x_ops shifted_smsc911x_ops = {
+	.reg_read = __smsc911x_reg_read_shift,
+	.reg_write = __smsc911x_reg_write_shift,
+	.rx_readfifo = smsc911x_rx_readfifo_shift,
+	.tx_writefifo = smsc911x_tx_writefifo_shift,
+};
+
 static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
@@ -1965,11 +2103,11 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 	int res_size, irq_flags;
 	int retval;
 
-	pr_info("%s: Driver version %s.\n", SMSC_CHIPNAME, SMSC_DRV_VERSION);
+	pr_info("Driver version %s\n", SMSC_DRV_VERSION);
 
 	/* platform data specifies irq & dynamic bus configuration */
 	if (!pdev->dev.platform_data) {
-		pr_warning("%s: platform_data not provided\n", SMSC_CHIPNAME);
+		pr_warn("platform_data not provided\n");
 		retval = -ENODEV;
 		goto out_0;
 	}
@@ -1979,8 +2117,7 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 	if (!res)
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		pr_warning("%s: Could not allocate resource.\n",
-			SMSC_CHIPNAME);
+		pr_warn("Could not allocate resource\n");
 		retval = -ENODEV;
 		goto out_0;
 	}
@@ -1988,8 +2125,7 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq_res) {
-		pr_warning("%s: Could not allocate irq resource.\n",
-			SMSC_CHIPNAME);
+		pr_warn("Could not allocate irq resource\n");
 		retval = -ENODEV;
 		goto out_0;
 	}
@@ -2001,7 +2137,7 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 
 	dev = alloc_etherdev(sizeof(struct smsc911x_data));
 	if (!dev) {
-		pr_warning("%s: Could not allocate device.\n", SMSC_CHIPNAME);
+		pr_warn("Could not allocate device\n");
 		retval = -ENOMEM;
 		goto out_release_io_1;
 	}
@@ -2021,11 +2157,16 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 	pdata->msg_enable = ((1 << debug) - 1);
 
 	if (pdata->ioaddr == NULL) {
-		SMSC_WARNING(PROBE,
-			"Error smsc911x base address invalid");
+		SMSC_WARN(pdata, probe, "Error smsc911x base address invalid");
 		retval = -ENOMEM;
 		goto out_free_netdev_2;
 	}
+
+	/* assume standard, non-shifted, access to HW registers */
+	pdata->ops = &standard_smsc911x_ops;
+	/* apply the right access if shifting is needed */
+	if (config->shift)
+		pdata->ops = &shifted_smsc911x_ops;
 
 	retval = smsc911x_init(dev);
 	if (retval < 0)
@@ -2047,8 +2188,8 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 	retval = request_irq(dev->irq, smsc911x_irqhandler,
 			     irq_flags | IRQF_SHARED, dev->name, dev);
 	if (retval) {
-		SMSC_WARNING(PROBE,
-			"Unable to claim requested irq: %d", dev->irq);
+		SMSC_WARN(pdata, probe,
+			  "Unable to claim requested irq: %d", dev->irq);
 		goto out_unmap_io_3;
 	}
 
@@ -2056,17 +2197,16 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 
 	retval = register_netdev(dev);
 	if (retval) {
-		SMSC_WARNING(PROBE,
-			"Error %i registering device", retval);
+		SMSC_WARN(pdata, probe, "Error %i registering device", retval);
 		goto out_unset_drvdata_4;
 	} else {
-		SMSC_TRACE(PROBE, "Network interface: \"%s\"", dev->name);
+		SMSC_TRACE(pdata, probe,
+			   "Network interface: \"%s\"", dev->name);
 	}
 
 	retval = smsc911x_mii_init(pdev, dev);
 	if (retval) {
-		SMSC_WARNING(PROBE,
-			"Error %i initialising mii", retval);
+		SMSC_WARN(pdata, probe, "Error %i initialising mii", retval);
 		goto out_unregister_netdev_5;
 	}
 
@@ -2075,10 +2215,12 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 	/* Check if mac address has been specified when bringing interface up */
 	if (is_valid_ether_addr(dev->dev_addr)) {
 		smsc911x_set_hw_mac_address(pdata, dev->dev_addr);
-		SMSC_TRACE(PROBE, "MAC Address is specified by configuration");
+		SMSC_TRACE(pdata, probe,
+			   "MAC Address is specified by configuration");
 	} else if (is_valid_ether_addr(pdata->config.mac)) {
 		memcpy(dev->dev_addr, pdata->config.mac, 6);
-		SMSC_TRACE(PROBE, "MAC Address specified by platform data");
+		SMSC_TRACE(pdata, probe,
+			   "MAC Address specified by platform data");
 	} else {
 		/* Try reading mac address from device. if EEPROM is present
 		 * it will already have been set */
@@ -2086,20 +2228,20 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 
 		if (is_valid_ether_addr(dev->dev_addr)) {
 			/* eeprom values are valid  so use them */
-			SMSC_TRACE(PROBE,
-				"Mac Address is read from LAN911x EEPROM");
+			SMSC_TRACE(pdata, probe,
+				   "Mac Address is read from LAN911x EEPROM");
 		} else {
 			/* eeprom values are invalid, generate random MAC */
 			random_ether_addr(dev->dev_addr);
 			smsc911x_set_hw_mac_address(pdata, dev->dev_addr);
-			SMSC_TRACE(PROBE,
-				"MAC Address is set to random_ether_addr");
+			SMSC_TRACE(pdata, probe,
+				   "MAC Address is set to random_ether_addr");
 		}
 	}
 
 	spin_unlock_irq(&pdata->mac_lock);
 
-	dev_info(&dev->dev, "MAC Address: %pM\n", dev->dev_addr);
+	netdev_info(dev, "MAC Address: %pM\n", dev->dev_addr);
 
 	return 0;
 

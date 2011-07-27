@@ -642,7 +642,7 @@ void vRunCommand(void *hDeviceContext)
                     if (Status != CMD_STATUS_SUCCESS){
 			DBG_PRT(MSG_LEVEL_DEBUG,
 				KERN_INFO "WLAN_CMD_IBSS_CREATE fail!\n");
-                    };
+                    }
                     BSSvAddMulticastNode(pDevice);
                 }
                 s_bClearBSSID_SCAN(pDevice);
@@ -658,7 +658,7 @@ void vRunCommand(void *hDeviceContext)
                     if (Status != CMD_STATUS_SUCCESS){
 			DBG_PRT(MSG_LEVEL_DEBUG,
 				KERN_INFO "WLAN_CMD_IBSS_CREATE fail!\n");
-                    };
+                    }
                     BSSvAddMulticastNode(pDevice);
                     s_bClearBSSID_SCAN(pDevice);
 /*
@@ -793,7 +793,7 @@ void vRunCommand(void *hDeviceContext)
 		if (Status != CMD_STATUS_SUCCESS) {
 			DBG_PRT(MSG_LEVEL_DEBUG,
 				KERN_INFO "vMgrCreateOwnIBSS fail!\n");
-                };
+                }
                 // alway turn off unicast bit
                 MACvRegBitsOff(pDevice, MAC_REG_RCR, RCR_UNICAST);
                 pDevice->byRxMode &= ~RCR_UNICAST;
@@ -827,7 +827,7 @@ void vRunCommand(void *hDeviceContext)
 
                     pMgmt->sNodeDBTable[0].wEnQueueCnt--;
                 }
-            };
+            }
 
             // PS nodes tx
             for (ii = 1; ii < (MAX_NODE_NUM + 1); ii++) {

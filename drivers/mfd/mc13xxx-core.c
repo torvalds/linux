@@ -683,13 +683,14 @@ out:
 EXPORT_SYMBOL_GPL(mc13783_adc_do_conversion);
 
 static int mc13xxx_add_subdevice_pdata(struct mc13xxx *mc13xxx,
-		const char *format, void *pdata)
+		const char *format, void *pdata, size_t pdata_size)
 {
 	char buf[30];
 	const char *name = mc13xxx_get_chipname(mc13xxx);
 
 	struct mfd_cell cell = {
-		.mfd_data = pdata,
+		.platform_data = pdata,
+		.pdata_size = pdata_size,
 	};
 
 	/* there is no asnprintf in the kernel :-( */
@@ -705,7 +706,7 @@ static int mc13xxx_add_subdevice_pdata(struct mc13xxx *mc13xxx,
 
 static int mc13xxx_add_subdevice(struct mc13xxx *mc13xxx, const char *format)
 {
-	return mc13xxx_add_subdevice_pdata(mc13xxx, format, NULL);
+	return mc13xxx_add_subdevice_pdata(mc13xxx, format, NULL, 0);
 }
 
 static int mc13xxx_probe(struct spi_device *spi)
@@ -764,7 +765,7 @@ err_revision:
 
 	if (pdata->flags & MC13XXX_USE_REGULATOR) {
 		mc13xxx_add_subdevice_pdata(mc13xxx, "%s-regulator",
-				&pdata->regulators);
+				&pdata->regulators, sizeof(pdata->regulators));
 	}
 
 	if (pdata->flags & MC13XXX_USE_RTC)
@@ -774,7 +775,8 @@ err_revision:
 		mc13xxx_add_subdevice(mc13xxx, "%s-ts");
 
 	if (pdata->flags & MC13XXX_USE_LED)
-		mc13xxx_add_subdevice_pdata(mc13xxx, "%s-led", pdata->leds);
+		mc13xxx_add_subdevice_pdata(mc13xxx, "%s-led",
+				pdata->leds, sizeof(*pdata->leds));
 
 	return 0;
 }

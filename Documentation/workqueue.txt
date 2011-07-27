@@ -12,6 +12,7 @@ CONTENTS
 4. Application Programming Interface (API)
 5. Example Execution Scenarios
 6. Guidelines
+7. Debugging
 
 
 1. Introduction
@@ -379,3 +380,42 @@ If q1 has WQ_CPU_INTENSIVE set,
 * Unless work items are expected to consume a huge amount of CPU
   cycles, using a bound wq is usually beneficial due to the increased
   level of locality in wq operations and work item execution.
+
+
+7. Debugging
+
+Because the work functions are executed by generic worker threads
+there are a few tricks needed to shed some light on misbehaving
+workqueue users.
+
+Worker threads show up in the process list as:
+
+root      5671  0.0  0.0      0     0 ?        S    12:07   0:00 [kworker/0:1]
+root      5672  0.0  0.0      0     0 ?        S    12:07   0:00 [kworker/1:2]
+root      5673  0.0  0.0      0     0 ?        S    12:12   0:00 [kworker/0:0]
+root      5674  0.0  0.0      0     0 ?        S    12:13   0:00 [kworker/1:0]
+
+If kworkers are going crazy (using too much cpu), there are two types
+of possible problems:
+
+	1. Something beeing scheduled in rapid succession
+	2. A single work item that consumes lots of cpu cycles
+
+The first one can be tracked using tracing:
+
+	$ echo workqueue:workqueue_queue_work > /sys/kernel/debug/tracing/set_event
+	$ cat /sys/kernel/debug/tracing/trace_pipe > out.txt
+	(wait a few secs)
+	^C
+
+If something is busy looping on work queueing, it would be dominating
+the output and the offender can be determined with the work item
+function.
+
+For the second type of problems it should be possible to just check
+the stack trace of the offending worker thread.
+
+	$ cat /proc/THE_OFFENDING_KWORKER/stack
+
+The work item's function should be trivially visible in the stack
+trace.

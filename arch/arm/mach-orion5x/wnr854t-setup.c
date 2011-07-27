@@ -24,28 +24,28 @@
 #include "common.h"
 #include "mpp.h"
 
-static struct orion5x_mpp_mode wnr854t_mpp_modes[] __initdata = {
-	{  0, MPP_GPIO },		/* Power LED green (0=on) */
-	{  1, MPP_GPIO },		/* Reset Button (0=off) */
-	{  2, MPP_GPIO },		/* Power LED blink (0=off) */
-	{  3, MPP_GPIO },		/* WAN Status LED amber (0=off) */
-	{  4, MPP_GPIO },		/* PCI int */
-	{  5, MPP_GPIO },		/* ??? */
-	{  6, MPP_GPIO },		/* ??? */
-	{  7, MPP_GPIO },		/* ??? */
-	{  8, MPP_UNUSED },		/* ??? */
-	{  9, MPP_GIGE },		/* GE_RXERR */
-	{ 10, MPP_UNUSED },		/* ??? */
-	{ 11, MPP_UNUSED },		/* ??? */
-	{ 12, MPP_GIGE },		/* GE_TXD[4] */
-	{ 13, MPP_GIGE },		/* GE_TXD[5] */
-	{ 14, MPP_GIGE },		/* GE_TXD[6] */
-	{ 15, MPP_GIGE },		/* GE_TXD[7] */
-	{ 16, MPP_GIGE },		/* GE_RXD[4] */
-	{ 17, MPP_GIGE },		/* GE_RXD[5] */
-	{ 18, MPP_GIGE },		/* GE_RXD[6] */
-	{ 19, MPP_GIGE },		/* GE_RXD[7] */
-	{ -1 },
+static unsigned int wnr854t_mpp_modes[] __initdata = {
+	MPP0_GPIO,		/* Power LED green (0=on) */
+	MPP1_GPIO,		/* Reset Button (0=off) */
+	MPP2_GPIO,		/* Power LED blink (0=off) */
+	MPP3_GPIO,		/* WAN Status LED amber (0=off) */
+	MPP4_GPIO,		/* PCI int */
+	MPP5_GPIO,		/* ??? */
+	MPP6_GPIO,		/* ??? */
+	MPP7_GPIO,		/* ??? */
+	MPP8_UNUSED,		/* ??? */
+	MPP9_GIGE,		/* GE_RXERR */
+	MPP10_UNUSED,		/* ??? */
+	MPP11_UNUSED,		/* ??? */
+	MPP12_GIGE,		/* GE_TXD[4] */
+	MPP13_GIGE,		/* GE_TXD[5] */
+	MPP14_GIGE,		/* GE_TXD[6] */
+	MPP15_GIGE,		/* GE_TXD[7] */
+	MPP16_GIGE,		/* GE_RXD[4] */
+	MPP17_GIGE,		/* GE_RXD[5] */
+	MPP18_GIGE,		/* GE_RXD[6] */
+	MPP19_GIGE,		/* GE_RXD[7] */
+	0,
 };
 
 /*

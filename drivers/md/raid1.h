@@ -94,7 +94,9 @@ struct r1bio_s {
 	int			read_disk;
 
 	struct list_head	retry_list;
-	struct bitmap_update	*bitmap_update;
+	/* Next two are only valid when R1BIO_BehindIO is set */
+	struct page		**behind_pages;
+	int			behind_page_count;
 	/*
 	 * if the IO is in WRITE direction, then multiple bios are used.
 	 * We choose the number when they are allocated.
@@ -123,5 +125,7 @@ struct r1bio_s {
  * Record that bi_end_io was called with this flag...
  */
 #define	R1BIO_Returned 6
+
+extern int md_raid1_congested(mddev_t *mddev, int bits);
 
 #endif

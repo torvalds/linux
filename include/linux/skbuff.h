@@ -391,8 +391,8 @@ struct sk_buff {
 
 	__u32			rxhash;
 
+	__u16			queue_mapping;
 	kmemcheck_bitfield_begin(flags2);
-	__u16			queue_mapping:16;
 #ifdef CONFIG_IPV6_NDISC_NODETYPE
 	__u8			ndisc_nodetype:2;
 #endif
@@ -1256,6 +1256,11 @@ static inline void skb_reserve(struct sk_buff *skb, int len)
 	skb->tail += len;
 }
 
+static inline void skb_reset_mac_len(struct sk_buff *skb)
+{
+	skb->mac_len = skb->network_header - skb->mac_header;
+}
+
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 static inline unsigned char *skb_transport_header(const struct sk_buff *skb)
 {
@@ -1442,7 +1447,7 @@ extern int ___pskb_trim(struct sk_buff *skb, unsigned int len);
 
 static inline void __skb_trim(struct sk_buff *skb, unsigned int len)
 {
-	if (unlikely(skb->data_len)) {
+	if (unlikely(skb_is_nonlinear(skb))) {
 		WARN_ON(1);
 		return;
 	}
@@ -1782,7 +1787,7 @@ static inline int pskb_trim_rcsum(struct sk_buff *skb, unsigned int len)
 
 #define skb_queue_walk(queue, skb) \
 		for (skb = (queue)->next;					\
-		     prefetch(skb->next), (skb != (struct sk_buff *)(queue));	\
+		     skb != (struct sk_buff *)(queue);				\
 		     skb = skb->next)
 
 #define skb_queue_walk_safe(queue, skb, tmp)					\
@@ -1791,7 +1796,7 @@ static inline int pskb_trim_rcsum(struct sk_buff *skb, unsigned int len)
 		     skb = tmp, tmp = skb->next)
 
 #define skb_queue_walk_from(queue, skb)						\
-		for (; prefetch(skb->next), (skb != (struct sk_buff *)(queue));	\
+		for (; skb != (struct sk_buff *)(queue);			\
 		     skb = skb->next)
 
 #define skb_queue_walk_from_safe(queue, skb, tmp)				\
@@ -1801,7 +1806,7 @@ static inline int pskb_trim_rcsum(struct sk_buff *skb, unsigned int len)
 
 #define skb_queue_reverse_walk(queue, skb) \
 		for (skb = (queue)->prev;					\
-		     prefetch(skb->prev), (skb != (struct sk_buff *)(queue));	\
+		     skb != (struct sk_buff *)(queue);				\
 		     skb = skb->prev)
 
 #define skb_queue_reverse_walk_safe(queue, skb, tmp)				\

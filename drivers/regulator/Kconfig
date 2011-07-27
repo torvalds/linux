@@ -274,6 +274,13 @@ config REGULATOR_AB8500
 	  This driver supports the regulators found on the ST-Ericsson mixed
 	  signal AB8500 PMIC
 
+config REGULATOR_DB8500_PRCMU
+	bool "ST-Ericsson DB8500 Voltage Domain Regulators"
+	depends on MFD_DB8500_PRCMU
+	help
+	  This driver supports the voltage domain regulators controlled by the
+	  DB8500 PRCMU
+
 config REGULATOR_TPS6586X
 	tristate "TI TPS6586X Power regulators"
 	depends on MFD_TPS6586X
@@ -289,6 +296,12 @@ config REGULATOR_TPS6524X
 	  voltage regulators.  This device is interfaced using a customized
 	  serial interface currently supported on the sequencer serial
 	  port controller.
+
+config REGULATOR_TPS65910
+	tristate "TI TPS65910 Power Regulator"
+	depends on MFD_TPS65910
+	help
+	  This driver supports TPS65910 voltage regulator chips.
 
 endif
 

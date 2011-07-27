@@ -1,8 +1,8 @@
-/**
-  * This file contains definitions and data structures specific
-  * to Marvell 802.11 NIC. It contains the Device Information
-  * structure struct lbs_private..
-  */
+/*
+ * This file contains definitions and data structures specific
+ * to Marvell 802.11 NIC. It contains the Device Information
+ * structure struct lbs_private..
+ */
 #ifndef _LBS_DEV_H_
 #define _LBS_DEV_H_
 
@@ -12,7 +12,7 @@
 
 #include <linux/kfifo.h>
 
-/** sleep_params */
+/* sleep_params */
 struct sleep_params {
 	uint16_t sp_error;
 	uint16_t sp_offset;
@@ -23,7 +23,7 @@ struct sleep_params {
 };
 
 
-/** Private structure for the MV device */
+/* Private structure for the MV device */
 struct lbs_private {
 
 	/* Basic networking */
@@ -125,12 +125,12 @@ struct lbs_private {
 	/* Events sent from hardware to driver */
 	struct kfifo event_fifo;
 
-	/** thread to service interrupts */
+	/* thread to service interrupts */
 	struct task_struct *main_thread;
 	wait_queue_head_t waitq;
 	struct workqueue_struct *work_thread;
 
-	/** Encryption stuff */
+	/* Encryption stuff */
 	u8 authtype_auto;
 	u8 wep_tx_key;
 	u8 wep_key[4][WLAN_KEY_LEN_WEP104];
@@ -162,7 +162,7 @@ struct lbs_private {
 	s16 txpower_min;
 	s16 txpower_max;
 
-	/** Scanning */
+	/* Scanning */
 	struct delayed_work scan_work;
 	int scan_channel;
 	/* Queue of things waiting for scan completion */

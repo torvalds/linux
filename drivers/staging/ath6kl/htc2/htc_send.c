@@ -776,9 +776,6 @@ void HTCProcessCreditRpt(struct htc_target *target, HTC_CREDIT_REPORT *pRpt, int
         AR_DEBUG_PRINTF(ATH_DEBUG_SEND, ("  Endpoint %d got %d credits \n",
                 pRpt->EndpointID, pRpt->Credits));
 
-
-#ifdef HTC_EP_STAT_PROFILING
-
         INC_HTC_EP_STAT(pEndpoint, TxCreditRpts, 1);
         INC_HTC_EP_STAT(pEndpoint, TxCreditsReturned, pRpt->Credits);
 
@@ -796,8 +793,6 @@ void HTCProcessCreditRpt(struct htc_target *target, HTC_CREDIT_REPORT *pRpt, int
             INC_HTC_EP_STAT(pEndpoint, TxCreditsFromOther, pRpt->Credits);
             INC_HTC_EP_STAT(pEndpoint, TxCreditRptsFromOther, 1);
         }
-
-#endif
 
         if (ENDPOINT_0 == pRpt->EndpointID) {
                 /* always give endpoint 0 credits back */

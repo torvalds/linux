@@ -1627,7 +1627,7 @@ static int ni_ai_setup_MITE_dma(struct comedi_device *dev)
 	default:
 		mite_prep_dma(devpriv->ai_mite_chan, 16, 16);
 		break;
-	};
+	}
 	/*start the MITE */
 	mite_dma_arm(devpriv->ai_mite_chan);
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
@@ -2156,7 +2156,7 @@ static unsigned ni_min_ai_scan_period_ns(struct comedi_device *dev,
 	default:
 		/*  multiplexed inputs */
 		break;
-	};
+	}
 	return boardtype.ai_speed * num_channels;
 }
 
@@ -5173,7 +5173,7 @@ static void GPCT_Reset(struct comedi_device *dev, int chan)
 		devpriv->stc_writew(dev, devpriv->an_trig_etc_reg,
 				    Analog_Trigger_Etc_Register);
 		break;
-	};
+	}
 
 	devpriv->gpct_mode[chan] = 0;
 	devpriv->gpct_input_select[chan] = 0;

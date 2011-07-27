@@ -226,6 +226,7 @@ struct cnic_local {
 #define	CNIC_LCL_FL_KWQ_INIT		0x0
 #define	CNIC_LCL_FL_L2_WAIT		0x1
 #define	CNIC_LCL_FL_RINGS_INITED	0x2
+#define	CNIC_LCL_FL_STOP_ISCSI		0x4
 
 	struct cnic_dev *dev;
 

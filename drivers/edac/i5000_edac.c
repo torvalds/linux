@@ -27,7 +27,7 @@
 /*
  * Alter this version for the I5000 module when modifications are made
  */
-#define I5000_REVISION    " Ver: 2.0.12 " __DATE__
+#define I5000_REVISION    " Ver: 2.0.12"
 #define EDAC_MOD_STR      "i5000_edac"
 
 #define i5000_printk(level, fmt, arg...) \

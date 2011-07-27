@@ -804,9 +804,6 @@ struct iwl4965_scd_bc_tbl {
 
 #define IWL4965_DEFAULT_TX_RETRY  15
 
-/* Limit range of txpower output target to be between these values */
-#define IWL4965_TX_POWER_TARGET_POWER_MIN	(0)	/* 0 dBm: 1 milliwatt */
-
 /* EEPROM */
 #define IWL4965_FIRST_AMPDU_QUEUE	10
 

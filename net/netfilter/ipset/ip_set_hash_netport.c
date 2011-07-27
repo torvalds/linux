@@ -144,7 +144,8 @@ hash_netport4_kadt(struct ip_set *set, const struct sk_buff *skb,
 	const struct ip_set_hash *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netport4_elem data = {
-		.cidr = h->nets[0].cidr || HOST_MASK };
+		.cidr = h->nets[0].cidr ? h->nets[0].cidr : HOST_MASK
+	};
 
 	if (data.cidr == 0)
 		return -EINVAL;
@@ -357,7 +358,8 @@ hash_netport6_kadt(struct ip_set *set, const struct sk_buff *skb,
 	const struct ip_set_hash *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netport6_elem data = {
-		.cidr = h->nets[0].cidr || HOST_MASK };
+		.cidr = h->nets[0].cidr ? h->nets[0].cidr : HOST_MASK
+	};
 
 	if (data.cidr == 0)
 		return -EINVAL;
@@ -526,7 +528,7 @@ static struct ip_set_type hash_netport_type __read_mostly = {
 	.features	= IPSET_TYPE_IP | IPSET_TYPE_PORT,
 	.dimension	= IPSET_DIM_TWO,
 	.family		= AF_UNSPEC,
-	.revision	= 0,
+	.revision	= 1,
 	.create		= hash_netport_create,
 	.create_policy	= {
 		[IPSET_ATTR_HASHSIZE]	= { .type = NLA_U32 },

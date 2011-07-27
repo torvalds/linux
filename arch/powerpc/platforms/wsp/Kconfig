@@ -1,0 +1,28 @@
+config PPC_WSP
+	bool
+	default n
+
+menu "WSP platform selection"
+	depends on PPC_BOOK3E_64
+
+config PPC_PSR2
+	bool "PSR-2 platform"
+	select PPC_A2
+	select GENERIC_TBSYNC
+	select PPC_SCOM
+	select EPAPR_BOOT
+	select PPC_WSP
+	select PPC_XICS
+	select PPC_ICP_NATIVE
+	default y
+
+endmenu
+
+config PPC_A2_DD2
+	bool "Support for DD2 based A2/WSP systems"
+	depends on PPC_A2
+
+config WORKAROUND_ERRATUM_463
+	depends on PPC_A2_DD2
+	bool "Workaround erratum 463"
+	default y

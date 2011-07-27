@@ -23,80 +23,88 @@
 #include "gateway_client.h"
 #include "gateway_common.h"
 #include "hard-interface.h"
+#include "originator.h"
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/udp.h>
 #include <linux/if_vlan.h>
 
-static void gw_node_free_rcu(struct rcu_head *rcu)
-{
-	struct gw_node *gw_node;
-
-	gw_node = container_of(rcu, struct gw_node, rcu);
-	kfree(gw_node);
-}
-
 static void gw_node_free_ref(struct gw_node *gw_node)
 {
 	if (atomic_dec_and_test(&gw_node->refcount))
-		call_rcu(&gw_node->rcu, gw_node_free_rcu);
+		kfree_rcu(gw_node, rcu);
 }
 
-void *gw_get_selected(struct bat_priv *bat_priv)
+static struct gw_node *gw_get_selected_gw_node(struct bat_priv *bat_priv)
 {
-	struct gw_node *curr_gateway_tmp;
-	struct orig_node *orig_node = NULL;
+	struct gw_node *gw_node;
 
 	rcu_read_lock();
-	curr_gateway_tmp = rcu_dereference(bat_priv->curr_gw);
-	if (!curr_gateway_tmp)
+	gw_node = rcu_dereference(bat_priv->curr_gw);
+	if (!gw_node)
 		goto out;
 
-	orig_node = curr_gateway_tmp->orig_node;
-	if (!orig_node)
+	if (!atomic_inc_not_zero(&gw_node->refcount))
+		gw_node = NULL;
+
+out:
+	rcu_read_unlock();
+	return gw_node;
+}
+
+struct orig_node *gw_get_selected_orig(struct bat_priv *bat_priv)
+{
+	struct gw_node *gw_node;
+	struct orig_node *orig_node = NULL;
+
+	gw_node = gw_get_selected_gw_node(bat_priv);
+	if (!gw_node)
 		goto out;
+
+	rcu_read_lock();
+	orig_node = gw_node->orig_node;
+	if (!orig_node)
+		goto unlock;
 
 	if (!atomic_inc_not_zero(&orig_node->refcount))
 		orig_node = NULL;
 
-out:
+unlock:
 	rcu_read_unlock();
-	return orig_node;
-}
-
-void gw_deselect(struct bat_priv *bat_priv)
-{
-	struct gw_node *gw_node;
-
-	spin_lock_bh(&bat_priv->gw_list_lock);
-	gw_node = rcu_dereference(bat_priv->curr_gw);
-	rcu_assign_pointer(bat_priv->curr_gw, NULL);
-	spin_unlock_bh(&bat_priv->gw_list_lock);
-
+out:
 	if (gw_node)
 		gw_node_free_ref(gw_node);
+	return orig_node;
 }
 
 static void gw_select(struct bat_priv *bat_priv, struct gw_node *new_gw_node)
 {
 	struct gw_node *curr_gw_node;
 
+	spin_lock_bh(&bat_priv->gw_list_lock);
+
 	if (new_gw_node && !atomic_inc_not_zero(&new_gw_node->refcount))
 		new_gw_node = NULL;
 
-	spin_lock_bh(&bat_priv->gw_list_lock);
-	curr_gw_node = rcu_dereference(bat_priv->curr_gw);
+	curr_gw_node = bat_priv->curr_gw;
 	rcu_assign_pointer(bat_priv->curr_gw, new_gw_node);
-	spin_unlock_bh(&bat_priv->gw_list_lock);
 
 	if (curr_gw_node)
 		gw_node_free_ref(curr_gw_node);
+
+	spin_unlock_bh(&bat_priv->gw_list_lock);
+}
+
+void gw_deselect(struct bat_priv *bat_priv)
+{
+	gw_select(bat_priv, NULL);
 }
 
 void gw_election(struct bat_priv *bat_priv)
 {
 	struct hlist_node *node;
-	struct gw_node *gw_node, *curr_gw, *curr_gw_tmp = NULL;
+	struct gw_node *gw_node, *curr_gw = NULL, *curr_gw_tmp = NULL;
+	struct neigh_node *router;
 	uint8_t max_tq = 0;
 	uint32_t max_gw_factor = 0, tmp_gw_factor = 0;
 	int down, up;
@@ -110,32 +118,25 @@ void gw_election(struct bat_priv *bat_priv)
 	if (atomic_read(&bat_priv->gw_mode) != GW_MODE_CLIENT)
 		return;
 
+	curr_gw = gw_get_selected_gw_node(bat_priv);
+	if (curr_gw)
+		goto out;
+
 	rcu_read_lock();
-	curr_gw = rcu_dereference(bat_priv->curr_gw);
-	if (curr_gw) {
-		rcu_read_unlock();
-		return;
-	}
-
 	if (hlist_empty(&bat_priv->gw_list)) {
-
-		if (curr_gw) {
-			rcu_read_unlock();
-			bat_dbg(DBG_BATMAN, bat_priv,
-				"Removing selected gateway - "
-				"no gateway in range\n");
-			gw_deselect(bat_priv);
-		} else
-			rcu_read_unlock();
-
-		return;
+		bat_dbg(DBG_BATMAN, bat_priv,
+			"Removing selected gateway - "
+			"no gateway in range\n");
+		gw_deselect(bat_priv);
+		goto unlock;
 	}
 
 	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw_list, list) {
-		if (!gw_node->orig_node->router)
+		if (gw_node->deleted)
 			continue;
 
-		if (gw_node->deleted)
+		router = orig_node_get_router(gw_node->orig_node);
+		if (!router)
 			continue;
 
 		switch (atomic_read(&bat_priv->gw_sel_class)) {
@@ -143,15 +144,14 @@ void gw_election(struct bat_priv *bat_priv)
 			gw_bandwidth_to_kbit(gw_node->orig_node->gw_flags,
 					     &down, &up);
 
-			tmp_gw_factor = (gw_node->orig_node->router->tq_avg *
-					 gw_node->orig_node->router->tq_avg *
+			tmp_gw_factor = (router->tq_avg * router->tq_avg *
 					 down * 100 * 100) /
 					 (TQ_LOCAL_WINDOW_SIZE *
 					 TQ_LOCAL_WINDOW_SIZE * 64);
 
 			if ((tmp_gw_factor > max_gw_factor) ||
 			    ((tmp_gw_factor == max_gw_factor) &&
-			     (gw_node->orig_node->router->tq_avg > max_tq)))
+			     (router->tq_avg > max_tq)))
 				curr_gw_tmp = gw_node;
 			break;
 
@@ -163,19 +163,25 @@ void gw_election(struct bat_priv *bat_priv)
 			  *     soon as a better gateway appears which has
 			  *     $routing_class more tq points)
 			  **/
-			if (gw_node->orig_node->router->tq_avg > max_tq)
+			if (router->tq_avg > max_tq)
 				curr_gw_tmp = gw_node;
 			break;
 		}
 
-		if (gw_node->orig_node->router->tq_avg > max_tq)
-			max_tq = gw_node->orig_node->router->tq_avg;
+		if (router->tq_avg > max_tq)
+			max_tq = router->tq_avg;
 
 		if (tmp_gw_factor > max_gw_factor)
 			max_gw_factor = tmp_gw_factor;
+
+		neigh_node_free_ref(router);
 	}
 
 	if (curr_gw != curr_gw_tmp) {
+		router = orig_node_get_router(curr_gw_tmp->orig_node);
+		if (!router)
+			goto unlock;
+
 		if ((curr_gw) && (!curr_gw_tmp))
 			bat_dbg(DBG_BATMAN, bat_priv,
 				"Removing selected gateway - "
@@ -186,48 +192,50 @@ void gw_election(struct bat_priv *bat_priv)
 				"(gw_flags: %i, tq: %i)\n",
 				curr_gw_tmp->orig_node->orig,
 				curr_gw_tmp->orig_node->gw_flags,
-				curr_gw_tmp->orig_node->router->tq_avg);
+				router->tq_avg);
 		else
 			bat_dbg(DBG_BATMAN, bat_priv,
 				"Changing route to gateway %pM "
 				"(gw_flags: %i, tq: %i)\n",
 				curr_gw_tmp->orig_node->orig,
 				curr_gw_tmp->orig_node->gw_flags,
-				curr_gw_tmp->orig_node->router->tq_avg);
+				router->tq_avg);
 
+		neigh_node_free_ref(router);
 		gw_select(bat_priv, curr_gw_tmp);
 	}
 
+unlock:
 	rcu_read_unlock();
+out:
+	if (curr_gw)
+		gw_node_free_ref(curr_gw);
 }
 
 void gw_check_election(struct bat_priv *bat_priv, struct orig_node *orig_node)
 {
-	struct gw_node *curr_gateway_tmp;
+	struct orig_node *curr_gw_orig;
+	struct neigh_node *router_gw = NULL, *router_orig = NULL;
 	uint8_t gw_tq_avg, orig_tq_avg;
 
-	rcu_read_lock();
-	curr_gateway_tmp = rcu_dereference(bat_priv->curr_gw);
-	if (!curr_gateway_tmp)
-		goto out_rcu;
+	curr_gw_orig = gw_get_selected_orig(bat_priv);
+	if (!curr_gw_orig)
+		goto deselect;
 
-	if (!curr_gateway_tmp->orig_node)
-		goto deselect_rcu;
-
-	if (!curr_gateway_tmp->orig_node->router)
-		goto deselect_rcu;
+	router_gw = orig_node_get_router(curr_gw_orig);
+	if (!router_gw)
+		goto deselect;
 
 	/* this node already is the gateway */
-	if (curr_gateway_tmp->orig_node == orig_node)
-		goto out_rcu;
+	if (curr_gw_orig == orig_node)
+		goto out;
 
-	if (!orig_node->router)
-		goto out_rcu;
+	router_orig = orig_node_get_router(orig_node);
+	if (!router_orig)
+		goto out;
 
-	gw_tq_avg = curr_gateway_tmp->orig_node->router->tq_avg;
-	rcu_read_unlock();
-
-	orig_tq_avg = orig_node->router->tq_avg;
+	gw_tq_avg = router_gw->tq_avg;
+	orig_tq_avg = router_orig->tq_avg;
 
 	/* the TQ value has to be better */
 	if (orig_tq_avg < gw_tq_avg)
@@ -245,16 +253,17 @@ void gw_check_election(struct bat_priv *bat_priv, struct orig_node *orig_node)
 		"Restarting gateway selection: better gateway found (tq curr: "
 		"%i, tq new: %i)\n",
 		gw_tq_avg, orig_tq_avg);
-	goto deselect;
 
-out_rcu:
-	rcu_read_unlock();
-	goto out;
-deselect_rcu:
-	rcu_read_unlock();
 deselect:
 	gw_deselect(bat_priv);
 out:
+	if (curr_gw_orig)
+		orig_node_free_ref(curr_gw_orig);
+	if (router_gw)
+		neigh_node_free_ref(router_gw);
+	if (router_orig)
+		neigh_node_free_ref(router_orig);
+
 	return;
 }
 
@@ -291,7 +300,15 @@ void gw_node_update(struct bat_priv *bat_priv,
 		    struct orig_node *orig_node, uint8_t new_gwflags)
 {
 	struct hlist_node *node;
-	struct gw_node *gw_node;
+	struct gw_node *gw_node, *curr_gw;
+
+	/**
+	 * Note: We don't need a NULL check here, since curr_gw never gets
+	 * dereferenced. If curr_gw is NULL we also should not exit as we may
+	 * have this gateway in our list (duplication check!) even though we
+	 * have no currently selected gateway.
+	 */
+	curr_gw = gw_get_selected_gw_node(bat_priv);
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw_list, list) {
@@ -312,22 +329,26 @@ void gw_node_update(struct bat_priv *bat_priv,
 				"Gateway %pM removed from gateway list\n",
 				orig_node->orig);
 
-			if (gw_node == rcu_dereference(bat_priv->curr_gw)) {
-				rcu_read_unlock();
-				gw_deselect(bat_priv);
-				return;
-			}
+			if (gw_node == curr_gw)
+				goto deselect;
 		}
 
-		rcu_read_unlock();
-		return;
+		goto unlock;
 	}
-	rcu_read_unlock();
 
 	if (new_gwflags == 0)
-		return;
+		goto unlock;
 
 	gw_node_add(bat_priv, orig_node, new_gwflags);
+	goto unlock;
+
+deselect:
+	gw_deselect(bat_priv);
+unlock:
+	rcu_read_unlock();
+
+	if (curr_gw)
+		gw_node_free_ref(curr_gw);
 }
 
 void gw_node_delete(struct bat_priv *bat_priv, struct orig_node *orig_node)
@@ -337,9 +358,12 @@ void gw_node_delete(struct bat_priv *bat_priv, struct orig_node *orig_node)
 
 void gw_node_purge(struct bat_priv *bat_priv)
 {
-	struct gw_node *gw_node;
+	struct gw_node *gw_node, *curr_gw;
 	struct hlist_node *node, *node_tmp;
 	unsigned long timeout = 2 * PURGE_TIMEOUT * HZ;
+	char do_deselect = 0;
+
+	curr_gw = gw_get_selected_gw_node(bat_priv);
 
 	spin_lock_bh(&bat_priv->gw_list_lock);
 
@@ -350,41 +374,56 @@ void gw_node_purge(struct bat_priv *bat_priv)
 		    atomic_read(&bat_priv->mesh_state) == MESH_ACTIVE)
 			continue;
 
-		if (rcu_dereference(bat_priv->curr_gw) == gw_node)
-			gw_deselect(bat_priv);
+		if (curr_gw == gw_node)
+			do_deselect = 1;
 
 		hlist_del_rcu(&gw_node->list);
 		gw_node_free_ref(gw_node);
 	}
 
-
 	spin_unlock_bh(&bat_priv->gw_list_lock);
+
+	/* gw_deselect() needs to acquire the gw_list_lock */
+	if (do_deselect)
+		gw_deselect(bat_priv);
+
+	if (curr_gw)
+		gw_node_free_ref(curr_gw);
 }
 
+/**
+ * fails if orig_node has no router
+ */
 static int _write_buffer_text(struct bat_priv *bat_priv,
 			      struct seq_file *seq, struct gw_node *gw_node)
 {
 	struct gw_node *curr_gw;
-	int down, up, ret;
+	struct neigh_node *router;
+	int down, up, ret = -1;
 
 	gw_bandwidth_to_kbit(gw_node->orig_node->gw_flags, &down, &up);
 
-	rcu_read_lock();
-	curr_gw = rcu_dereference(bat_priv->curr_gw);
+	router = orig_node_get_router(gw_node->orig_node);
+	if (!router)
+		goto out;
+
+	curr_gw = gw_get_selected_gw_node(bat_priv);
 
 	ret = seq_printf(seq, "%s %pM (%3i) %pM [%10s]: %3i - %i%s/%i%s\n",
-		       (curr_gw == gw_node ? "=>" : "  "),
-		       gw_node->orig_node->orig,
-		       gw_node->orig_node->router->tq_avg,
-		       gw_node->orig_node->router->addr,
-		       gw_node->orig_node->router->if_incoming->net_dev->name,
-		       gw_node->orig_node->gw_flags,
-		       (down > 2048 ? down / 1024 : down),
-		       (down > 2048 ? "MBit" : "KBit"),
-		       (up > 2048 ? up / 1024 : up),
-		       (up > 2048 ? "MBit" : "KBit"));
+			 (curr_gw == gw_node ? "=>" : "  "),
+			 gw_node->orig_node->orig,
+			 router->tq_avg, router->addr,
+			 router->if_incoming->net_dev->name,
+			 gw_node->orig_node->gw_flags,
+			 (down > 2048 ? down / 1024 : down),
+			 (down > 2048 ? "MBit" : "KBit"),
+			 (up > 2048 ? up / 1024 : up),
+			 (up > 2048 ? "MBit" : "KBit"));
 
-	rcu_read_unlock();
+	neigh_node_free_ref(router);
+	if (curr_gw)
+		gw_node_free_ref(curr_gw);
+out:
 	return ret;
 }
 
@@ -392,40 +431,42 @@ int gw_client_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct net_device *net_dev = (struct net_device *)seq->private;
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
+	struct hard_iface *primary_if;
 	struct gw_node *gw_node;
 	struct hlist_node *node;
-	int gw_count = 0;
+	int gw_count = 0, ret = 0;
 
-	if (!bat_priv->primary_if) {
-
-		return seq_printf(seq, "BATMAN mesh %s disabled - please "
-				  "specify interfaces to enable it\n",
-				  net_dev->name);
+	primary_if = primary_if_get_selected(bat_priv);
+	if (!primary_if) {
+		ret = seq_printf(seq, "BATMAN mesh %s disabled - please "
+				 "specify interfaces to enable it\n",
+				 net_dev->name);
+		goto out;
 	}
 
-	if (bat_priv->primary_if->if_status != IF_ACTIVE) {
-
-		return seq_printf(seq, "BATMAN mesh %s disabled - "
-				       "primary interface not active\n",
-				       net_dev->name);
+	if (primary_if->if_status != IF_ACTIVE) {
+		ret = seq_printf(seq, "BATMAN mesh %s disabled - "
+				 "primary interface not active\n",
+				 net_dev->name);
+		goto out;
 	}
 
 	seq_printf(seq, "      %-12s (%s/%i) %17s [%10s]: gw_class ... "
 		   "[B.A.T.M.A.N. adv %s%s, MainIF/MAC: %s/%pM (%s)]\n",
 		   "Gateway", "#", TQ_MAX_VALUE, "Nexthop",
 		   "outgoingIF", SOURCE_VERSION, REVISION_VERSION_STR,
-		   bat_priv->primary_if->net_dev->name,
-		   bat_priv->primary_if->net_dev->dev_addr, net_dev->name);
+		   primary_if->net_dev->name,
+		   primary_if->net_dev->dev_addr, net_dev->name);
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw_list, list) {
 		if (gw_node->deleted)
 			continue;
 
-		if (!gw_node->orig_node->router)
+		/* fails if orig_node has no router */
+		if (_write_buffer_text(bat_priv, seq, gw_node) < 0)
 			continue;
 
-		_write_buffer_text(bat_priv, seq, gw_node);
 		gw_count++;
 	}
 	rcu_read_unlock();
@@ -433,7 +474,10 @@ int gw_client_seq_print_text(struct seq_file *seq, void *offset)
 	if (gw_count == 0)
 		seq_printf(seq, "No gateways in range ...\n");
 
-	return 0;
+out:
+	if (primary_if)
+		hardif_free_ref(primary_if);
+	return ret;
 }
 
 int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb)
@@ -442,6 +486,7 @@ int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb)
 	struct iphdr *iphdr;
 	struct ipv6hdr *ipv6hdr;
 	struct udphdr *udphdr;
+	struct gw_node *curr_gw;
 	unsigned int header_len = 0;
 
 	if (atomic_read(&bat_priv->gw_mode) == GW_MODE_OFF)
@@ -506,12 +551,11 @@ int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb)
 	if (atomic_read(&bat_priv->gw_mode) == GW_MODE_SERVER)
 		return -1;
 
-	rcu_read_lock();
-	if (!rcu_dereference(bat_priv->curr_gw)) {
-		rcu_read_unlock();
+	curr_gw = gw_get_selected_gw_node(bat_priv);
+	if (!curr_gw)
 		return 0;
-	}
-	rcu_read_unlock();
 
+	if (curr_gw)
+		gw_node_free_ref(curr_gw);
 	return 1;
 }

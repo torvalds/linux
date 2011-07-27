@@ -17,7 +17,7 @@
  */
 
 static struct rc_map_table kworld_plus_tv_analog[] = {
-	{ 0x0c, KEY_LEFTMETA },		/* Kworld key */
+	{ 0x0c, KEY_MEDIA },		/* Kworld key */
 	{ 0x16, KEY_CLOSECD },		/* -> ) */
 	{ 0x1d, KEY_POWER2 },
 

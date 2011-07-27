@@ -1,0 +1,10 @@
+Virtualization support in the Linux kernel.
+
+00-INDEX
+	- this file.
+kvm/
+	- Kernel Virtual Machine.  See also http://linux-kvm.org
+lguest/
+	- Extremely simple hypervisor for experimental/educational use.
+uml/
+	- User Mode Linux, builds/runs Linux kernel as a userspace program.

@@ -92,6 +92,31 @@ static ssize_t sta_inactive_ms_read(struct file *file, char __user *userbuf,
 }
 STA_OPS(inactive_ms);
 
+
+static ssize_t sta_connected_time_read(struct file *file, char __user *userbuf,
+					size_t count, loff_t *ppos)
+{
+	struct sta_info *sta = file->private_data;
+	struct timespec uptime;
+	struct tm result;
+	long connected_time_secs;
+	char buf[100];
+	int res;
+	do_posix_clock_monotonic_gettime(&uptime);
+	connected_time_secs = uptime.tv_sec - sta->last_connected;
+	time_to_tm(connected_time_secs, 0, &result);
+	result.tm_year -= 70;
+	result.tm_mday -= 1;
+	res = scnprintf(buf, sizeof(buf),
+		"years  - %ld\nmonths - %d\ndays   - %d\nclock  - %d:%d:%d\n\n",
+			result.tm_year, result.tm_mon, result.tm_mday,
+			result.tm_hour, result.tm_min, result.tm_sec);
+	return simple_read_from_buffer(userbuf, count, ppos, buf, res);
+}
+STA_OPS(connected_time);
+
+
+
 static ssize_t sta_last_seq_ctrl_read(struct file *file, char __user *userbuf,
 				      size_t count, loff_t *ppos)
 {
@@ -324,6 +349,7 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DEBUGFS_ADD(flags);
 	DEBUGFS_ADD(num_ps_buf_frames);
 	DEBUGFS_ADD(inactive_ms);
+	DEBUGFS_ADD(connected_time);
 	DEBUGFS_ADD(last_seq_ctrl);
 	DEBUGFS_ADD(agg_status);
 	DEBUGFS_ADD(dev);

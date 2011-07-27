@@ -11,6 +11,8 @@
  *  your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -20,7 +22,6 @@
 #include <acpi/acpi_drivers.h>
 
 #define MODULE_NAME "xo15-ebook"
-#define PREFIX MODULE_NAME ": "
 
 #define XO15_EBOOK_CLASS		MODULE_NAME
 #define XO15_EBOOK_TYPE_UNKNOWN	0x00
@@ -105,7 +106,7 @@ static int ebook_switch_add(struct acpi_device *device)
 	class = acpi_device_class(device);
 
 	if (strcmp(hid, XO15_EBOOK_HID)) {
-		printk(KERN_ERR PREFIX "Unsupported hid [%s]\n", hid);
+		pr_err("Unsupported hid [%s]\n", hid);
 		error = -ENODEV;
 		goto err_free_input;
 	}

@@ -116,18 +116,20 @@ struct snd_soc_dai_driver sst_platform_dai[] = {
 static inline void sst_set_stream_status(struct sst_runtime_stream *stream,
 					int state)
 {
-	spin_lock(&stream->status_lock);
+	unsigned long flags;
+	spin_lock_irqsave(&stream->status_lock, flags);
 	stream->stream_status = state;
-	spin_unlock(&stream->status_lock);
+	spin_unlock_irqrestore(&stream->status_lock, flags);
 }
 
 static inline int sst_get_stream_status(struct sst_runtime_stream *stream)
 {
 	int state;
+	unsigned long flags;
 
-	spin_lock(&stream->status_lock);
+	spin_lock_irqsave(&stream->status_lock, flags);
 	state = stream->stream_status;
-	spin_unlock(&stream->status_lock);
+	spin_unlock_irqrestore(&stream->status_lock, flags);
 	return state;
 }
 
@@ -247,10 +249,13 @@ static int sst_platform_open(struct snd_pcm_substream *substream)
 		return -ENOMEM;
 	}
 	stream->sstdrv_ops->vendor_id = MSIC_VENDOR_ID;
+	stream->sstdrv_ops->module_name = SST_CARD_NAMES;
 	/* registering with SST driver to get access to SST APIs to use */
 	ret_val = register_sst_card(stream->sstdrv_ops);
 	if (ret_val) {
 		pr_err("sst: sst card registration failed\n");
+		kfree(stream->sstdrv_ops);
+		kfree(stream);
 		return ret_val;
 	}
 	runtime->private_data = stream;
@@ -268,6 +273,7 @@ static int sst_platform_close(struct snd_pcm_substream *substream)
 	str_id = stream->stream_info.str_id;
 	if (str_id)
 		ret_val = stream->sstdrv_ops->pcm_control->close(str_id);
+	unregister_sst_card(stream->sstdrv_ops);
 	kfree(stream->sstdrv_ops);
 	kfree(stream);
 	return ret_val;
@@ -374,6 +380,11 @@ static int sst_platform_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int sst_platform_pcm_hw_free(struct snd_pcm_substream *substream)
+{
+	return snd_pcm_lib_free_pages(substream);
+}
+
 static struct snd_pcm_ops sst_platform_ops = {
 	.open = sst_platform_open,
 	.close = sst_platform_close,
@@ -382,6 +393,7 @@ static struct snd_pcm_ops sst_platform_ops = {
 	.trigger = sst_platform_pcm_trigger,
 	.pointer = sst_platform_pcm_pointer,
 	.hw_params = sst_platform_pcm_hw_params,
+	.hw_free = sst_platform_pcm_hw_free,
 };
 
 static void sst_pcm_free(struct snd_pcm *pcm)

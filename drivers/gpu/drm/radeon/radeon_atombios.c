@@ -431,7 +431,7 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 		}
 	}
 
-	/* Acer laptop (Acer TravelMate 5730G) has an HDMI port
+	/* Acer laptop (Acer TravelMate 5730/5730G) has an HDMI port
 	 * on the laptop and a DVI port on the docking station and
 	 * both share the same encoder, hpd pin, and ddc line.
 	 * So while the bios table is technically correct,
@@ -440,7 +440,7 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 	 * with different crtcs which isn't possible on the hardware
 	 * side and leaves no crtcs for LVDS or VGA.
 	 */
-	if ((dev->pdev->device == 0x95c4) &&
+	if (((dev->pdev->device == 0x95c4) || (dev->pdev->device == 0x9591)) &&
 	    (dev->pdev->subsystem_vendor == 0x1025) &&
 	    (dev->pdev->subsystem_device == 0x013c)) {
 		if ((*connector_type == DRM_MODE_CONNECTOR_DVII) &&
@@ -1246,6 +1246,10 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		}
 		*dcpll = *p1pll;
 
+		rdev->clock.max_pixel_clock = le16_to_cpu(firmware_info->info.usMaxPixelClock);
+		if (rdev->clock.max_pixel_clock == 0)
+			rdev->clock.max_pixel_clock = 40000;
+
 		return true;
 	}
 
@@ -1574,9 +1578,17 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 			ATOM_FAKE_EDID_PATCH_RECORD *fake_edid_record;
 			ATOM_PANEL_RESOLUTION_PATCH_RECORD *panel_res_record;
 			bool bad_record = false;
-			u8 *record = (u8 *)(mode_info->atom_context->bios +
-					    data_offset +
-					    le16_to_cpu(lvds_info->info.usModePatchTableOffset));
+			u8 *record;
+
+			if ((frev == 1) && (crev < 2))
+				/* absolute */
+				record = (u8 *)(mode_info->atom_context->bios +
+						le16_to_cpu(lvds_info->info.usModePatchTableOffset));
+			else
+				/* relative */
+				record = (u8 *)(mode_info->atom_context->bios +
+						data_offset +
+						le16_to_cpu(lvds_info->info.usModePatchTableOffset));
 			while (*record != ATOM_RECORD_END_TYPE) {
 				switch (*record) {
 				case LCD_MODE_PATCH_RECORD_MODE_TYPE:
@@ -1599,9 +1611,10 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 							memcpy((u8 *)edid, (u8 *)&fake_edid_record->ucFakeEDIDString[0],
 							       fake_edid_record->ucFakeEDIDLength);
 
-							if (drm_edid_is_valid(edid))
+							if (drm_edid_is_valid(edid)) {
 								rdev->mode_info.bios_hardcoded_edid = edid;
-							else
+								rdev->mode_info.bios_hardcoded_edid_size = edid_size;
+							} else
 								kfree(edid);
 						}
 					}
@@ -2592,6 +2605,10 @@ void radeon_atom_set_voltage(struct radeon_device *rdev, u16 voltage_level, u8 v
 	u8 frev, crev, volt_index = voltage_level;
 
 	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
+		return;
+
+	/* 0xff01 is a flag rather then an actual voltage */
+	if (voltage_level == 0xff01)
 		return;
 
 	switch (crev) {

@@ -145,22 +145,22 @@ static int ad1836_hw_params(struct snd_pcm_substream *substream,
 	/* bit size */
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		word_len = 3;
+		word_len = AD1836_WORD_LEN_16;
 		break;
 	case SNDRV_PCM_FORMAT_S20_3LE:
-		word_len = 1;
+		word_len = AD1836_WORD_LEN_20;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
 	case SNDRV_PCM_FORMAT_S32_LE:
-		word_len = 0;
+		word_len = AD1836_WORD_LEN_24;
 		break;
 	}
 
-	snd_soc_update_bits(codec, AD1836_DAC_CTRL1,
-		AD1836_DAC_WORD_LEN_MASK, word_len);
+	snd_soc_update_bits(codec, AD1836_DAC_CTRL1, AD1836_DAC_WORD_LEN_MASK,
+		word_len << AD1836_DAC_WORD_LEN_OFFSET);
 
-	snd_soc_update_bits(codec, AD1836_ADC_CTRL2,
-		AD1836_ADC_WORD_LEN_MASK, word_len);
+	snd_soc_update_bits(codec, AD1836_ADC_CTRL2, AD1836_ADC_WORD_LEN_MASK,
+		word_len << AD1836_ADC_WORD_OFFSET);
 
 	return 0;
 }

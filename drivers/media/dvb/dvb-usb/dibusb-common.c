@@ -408,7 +408,7 @@ struct rc_map_table rc_map_dibusb_table[] = {
 
 	{ 0x8008, KEY_DVD },
 	{ 0x8009, KEY_AUDIO },
-	{ 0x800a, KEY_MEDIA },      /* Pictures */
+	{ 0x800a, KEY_IMAGES },      /* Pictures */
 	{ 0x800b, KEY_VIDEO },
 
 	{ 0x800c, KEY_BACK },

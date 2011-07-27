@@ -463,8 +463,6 @@ static IIO_DEV_ATTR_RESET(ade7753_write_reset);
 
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("27900 14000 7000 3500");
 
-static IIO_CONST_ATTR(name, "ade7753");
-
 static struct attribute *ade7753_attributes[] = {
 	&iio_dev_attr_temp_raw.dev_attr.attr,
 	&iio_const_attr_temp_offset.dev_attr.attr,
@@ -472,7 +470,6 @@ static struct attribute *ade7753_attributes[] = {
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_reset.dev_attr.attr,
-	&iio_const_attr_name.dev_attr.attr,
 	&iio_dev_attr_phcal.dev_attr.attr,
 	&iio_dev_attr_cfden.dev_attr.attr,
 	&iio_dev_attr_aenergy.dev_attr.attr,
@@ -507,6 +504,11 @@ static const struct attribute_group ade7753_attribute_group = {
 	.attrs = ade7753_attributes,
 };
 
+static const struct iio_info ade7753_info = {
+	.attrs = &ade7753_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit ade7753_probe(struct spi_device *spi)
 {
 	int ret, regdone = 0;
@@ -532,16 +534,16 @@ static int __devinit ade7753_probe(struct spi_device *spi)
 	st->us = spi;
 	mutex_init(&st->buf_lock);
 	/* setup the industrialio driver allocated elements */
-	st->indio_dev = iio_allocate_device();
+	st->indio_dev = iio_allocate_device(0);
 	if (st->indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_free_tx;
 	}
 
+	st->indio_dev->name = spi->dev.driver->name;
 	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->attrs = &ade7753_attribute_group;
+	st->indio_dev->info = &ade7753_info;
 	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(st->indio_dev);

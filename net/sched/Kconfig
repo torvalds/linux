@@ -239,6 +239,17 @@ config NET_SCH_CHOKE
 	  To compile this code as a module, choose M here: the
 	  module will be called sch_choke.
 
+config NET_SCH_QFQ
+	tristate "Quick Fair Queueing scheduler (QFQ)"
+	help
+	  Say Y here if you want to use the Quick Fair Queueing Scheduler (QFQ)
+	  packet scheduling algorithm.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sch_qfq.
+
+	  If unsure, say N.
+
 config NET_SCH_INGRESS
 	tristate "Ingress Qdisc"
 	depends on NET_CLS_ACT
@@ -277,6 +288,7 @@ config NET_CLS_TCINDEX
 
 config NET_CLS_ROUTE4
 	tristate "Routing decision (ROUTE)"
+	depends on INET
 	select IP_ROUTE_CLASSID
 	select NET_CLS
 	---help---

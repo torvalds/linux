@@ -141,7 +141,6 @@ struct iso_resource {
 	int generation;
 	u64 channels;
 	s32 bandwidth;
-	__be32 transaction_data[2];
 	struct iso_resource_event *e_alloc, *e_dealloc;
 };
 
@@ -150,7 +149,7 @@ static void release_iso_resource(struct client *, struct client_resource *);
 static void schedule_iso_resource(struct iso_resource *r, unsigned long delay)
 {
 	client_get(r->client);
-	if (!schedule_delayed_work(&r->work, delay))
+	if (!queue_delayed_work(fw_workqueue, &r->work, delay))
 		client_put(r->client);
 }
 
@@ -1108,6 +1107,7 @@ static int ioctl_queue_iso(struct client *client, union ioctl_arg *arg)
 		payload += u.packet.payload_length;
 		count++;
 	}
+	fw_iso_context_queue_flush(ctx);
 
 	a->size    -= uptr_to_u64(p) - a->packets;
 	a->packets  = uptr_to_u64(p);
@@ -1229,8 +1229,7 @@ static void iso_resource_work(struct work_struct *work)
 			r->channels, &channel, &bandwidth,
 			todo == ISO_RES_ALLOC ||
 			todo == ISO_RES_REALLOC ||
-			todo == ISO_RES_ALLOC_ONCE,
-			r->transaction_data);
+			todo == ISO_RES_ALLOC_ONCE);
 	/*
 	 * Is this generation outdated already?  As long as this resource sticks
 	 * in the idr, it will be scheduled again for a newer generation or at

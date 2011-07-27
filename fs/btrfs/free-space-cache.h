@@ -27,6 +27,25 @@ struct btrfs_free_space {
 	struct list_head list;
 };
 
+struct btrfs_free_space_ctl {
+	spinlock_t tree_lock;
+	struct rb_root free_space_offset;
+	u64 free_space;
+	int extents_thresh;
+	int free_extents;
+	int total_bitmaps;
+	int unit;
+	u64 start;
+	struct btrfs_free_space_op *op;
+	void *private;
+};
+
+struct btrfs_free_space_op {
+	void (*recalc_thresholds)(struct btrfs_free_space_ctl *ctl);
+	bool (*use_bitmap)(struct btrfs_free_space_ctl *ctl,
+			   struct btrfs_free_space *info);
+};
+
 struct inode *lookup_free_space_inode(struct btrfs_root *root,
 				      struct btrfs_block_group_cache
 				      *block_group, struct btrfs_path *path);
@@ -45,17 +64,38 @@ int btrfs_write_out_cache(struct btrfs_root *root,
 			  struct btrfs_trans_handle *trans,
 			  struct btrfs_block_group_cache *block_group,
 			  struct btrfs_path *path);
-int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
-			 u64 bytenr, u64 size);
+
+struct inode *lookup_free_ino_inode(struct btrfs_root *root,
+				    struct btrfs_path *path);
+int create_free_ino_inode(struct btrfs_root *root,
+			  struct btrfs_trans_handle *trans,
+			  struct btrfs_path *path);
+int load_free_ino_cache(struct btrfs_fs_info *fs_info,
+			struct btrfs_root *root);
+int btrfs_write_out_ino_cache(struct btrfs_root *root,
+			      struct btrfs_trans_handle *trans,
+			      struct btrfs_path *path);
+
+void btrfs_init_free_space_ctl(struct btrfs_block_group_cache *block_group);
+int __btrfs_add_free_space(struct btrfs_free_space_ctl *ctl,
+			   u64 bytenr, u64 size);
+static inline int
+btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
+		     u64 bytenr, u64 size)
+{
+	return __btrfs_add_free_space(block_group->free_space_ctl,
+				      bytenr, size);
+}
 int btrfs_remove_free_space(struct btrfs_block_group_cache *block_group,
 			    u64 bytenr, u64 size);
+void __btrfs_remove_free_space_cache(struct btrfs_free_space_ctl *ctl);
 void btrfs_remove_free_space_cache(struct btrfs_block_group_cache
-				   *block_group);
+				     *block_group);
 u64 btrfs_find_space_for_alloc(struct btrfs_block_group_cache *block_group,
 			       u64 offset, u64 bytes, u64 empty_size);
+u64 btrfs_find_ino_for_alloc(struct btrfs_root *fs_root);
 void btrfs_dump_free_space(struct btrfs_block_group_cache *block_group,
 			   u64 bytes);
-u64 btrfs_block_group_free_space(struct btrfs_block_group_cache *block_group);
 int btrfs_find_space_cluster(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     struct btrfs_block_group_cache *block_group,

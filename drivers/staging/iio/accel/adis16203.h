@@ -59,9 +59,6 @@
 /**
  * struct adis16203_state - device instance specific data
  * @us:			actual spi_device
- * @work_trigger_to_ring: bh for triggered event handling
- * @inter:		used to check if new interrupt has been triggered
- * @last_timestamp:	passing timestamp from th to bh of interrupt handler
  * @indio_dev:		industrial I/O device structure
  * @trig:		data ready trigger registered with iio
  * @tx:			transmit buffer
@@ -70,8 +67,6 @@
  **/
 struct adis16203_state {
 	struct spi_device		*us;
-	struct work_struct		work_trigger_to_ring;
-	s64				last_timestamp;
 	struct iio_dev			*indio_dev;
 	struct iio_trigger		*trig;
 	u8				*tx;
@@ -79,9 +74,8 @@ struct adis16203_state {
 	struct mutex			buf_lock;
 };
 
-int adis16203_set_irq(struct device *dev, bool enable);
+int adis16203_set_irq(struct iio_dev *indio_dev, bool enable);
 
-#ifdef CONFIG_IIO_RING_BUFFER
 enum adis16203_scan {
 	ADIS16203_SCAN_SUPPLY,
 	ADIS16203_SCAN_AUX_ADC,
@@ -90,6 +84,7 @@ enum adis16203_scan {
 	ADIS16203_SCAN_INCLI_Y,
 };
 
+#ifdef CONFIG_IIO_RING_BUFFER
 void adis16203_remove_trigger(struct iio_dev *indio_dev);
 int adis16203_probe_trigger(struct iio_dev *indio_dev);
 
@@ -100,8 +95,6 @@ ssize_t adis16203_read_data_from_ring(struct device *dev,
 int adis16203_configure_ring(struct iio_dev *indio_dev);
 void adis16203_unconfigure_ring(struct iio_dev *indio_dev);
 
-int adis16203_initialize_ring(struct iio_ring_buffer *ring);
-void adis16203_uninitialize_ring(struct iio_ring_buffer *ring);
 #else /* CONFIG_IIO_RING_BUFFER */
 
 static inline void adis16203_remove_trigger(struct iio_dev *indio_dev)
@@ -127,15 +120,6 @@ static int adis16203_configure_ring(struct iio_dev *indio_dev)
 }
 
 static inline void adis16203_unconfigure_ring(struct iio_dev *indio_dev)
-{
-}
-
-static inline int adis16203_initialize_ring(struct iio_ring_buffer *ring)
-{
-	return 0;
-}
-
-static inline void adis16203_uninitialize_ring(struct iio_ring_buffer *ring)
 {
 }
 

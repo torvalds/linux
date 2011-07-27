@@ -1189,6 +1189,8 @@ printer_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 			else if (gadget->a_alt_hnp_support)
 				DBG(dev, "HNP needs a different root port\n");
 			value = printer_set_config(dev, wValue);
+			if (!value)
+				value = set_interface(dev, PRINTER_INTERFACE);
 			break;
 		case USB_REQ_GET_CONFIGURATION:
 			if (ctrl->bRequestType != USB_DIR_IN)

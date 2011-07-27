@@ -1530,7 +1530,7 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 	/* we always output at 1kHz just now all channels at once */
 	if (0) {		/* (this_usbduxsub->high_speed) */
 		/*
-		 * in usb-2.0 only one conversion it tranmitted but with 8kHz/n
+		 * in usb-2.0 only one conversion it transmitted but with 8kHz/n
 		 */
 		cmd->convert_src &= TRIG_TIMER;
 	} else {

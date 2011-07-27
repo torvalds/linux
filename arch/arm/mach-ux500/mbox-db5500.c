@@ -416,8 +416,7 @@ struct mbox *mbox_setup(u8 mbox_id, mbox_recv_cb_t *mbox_cb, void *priv)
 	dev_dbg(&(mbox->pdev->dev),
 		"Resource name: %s start: 0x%X, end: 0x%X\n",
 		resource->name, resource->start, resource->end);
-	mbox->virtbase_peer =
-		ioremap(resource->start, resource->end - resource->start);
+	mbox->virtbase_peer = ioremap(resource->start, resource_size(resource));
 	if (!mbox->virtbase_peer) {
 		dev_err(&(mbox->pdev->dev), "Unable to ioremap peer mbox\n");
 		mbox = NULL;
@@ -440,8 +439,7 @@ struct mbox *mbox_setup(u8 mbox_id, mbox_recv_cb_t *mbox_cb, void *priv)
 	dev_dbg(&(mbox->pdev->dev),
 		"Resource name: %s start: 0x%X, end: 0x%X\n",
 		resource->name, resource->start, resource->end);
-	mbox->virtbase_local =
-		ioremap(resource->start, resource->end - resource->start);
+	mbox->virtbase_local = ioremap(resource->start, resource_size(resource));
 	if (!mbox->virtbase_local) {
 		dev_err(&(mbox->pdev->dev), "Unable to ioremap local mbox\n");
 		mbox = NULL;

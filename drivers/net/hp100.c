@@ -1580,11 +1580,11 @@ static netdev_tx_t hp100_start_xmit_bm(struct sk_buff *skb,
 	hp100_outl(ringptr->pdl_paddr, TX_PDA_L);	/* Low Prio. Queue */
 
 	lp->txrcommit++;
-	spin_unlock_irqrestore(&lp->lock, flags);
 
-	/* Update statistics */
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
+
+	spin_unlock_irqrestore(&lp->lock, flags);
 
 	return NETDEV_TX_OK;
 

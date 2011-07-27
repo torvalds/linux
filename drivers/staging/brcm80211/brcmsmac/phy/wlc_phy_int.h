@@ -936,6 +936,7 @@ struct phy_info {
 	u8 phycal_tempdelta;
 	u32 mcs20_po;
 	u32 mcs40_po;
+	struct wiphy *wiphy;
 };
 
 typedef s32 fixed;
@@ -1024,7 +1025,6 @@ extern void wlc_phy_txpower_update_shm(phy_info_t *pi);
 
 extern void wlc_phy_cordic(fixed theta, cs32 *val);
 extern u8 wlc_phy_nbits(s32 value);
-extern u32 wlc_phy_sqrt_int(u32 value);
 extern void wlc_phy_compute_dB(u32 *cmplx_pwr, s8 *p_dB, u8 core);
 
 extern uint wlc_phy_init_radio_regs_allbands(phy_info_t *pi,
@@ -1093,8 +1093,6 @@ extern void wlc_lcnphy_epa_switch(phy_info_t *pi, bool mode);
 extern void wlc_2064_vco_cal(phy_info_t *pi);
 
 extern void wlc_phy_txpower_recalc_target(phy_info_t *pi);
-extern u32 wlc_phy_qdiv_roundup(u32 dividend, u32 divisor,
-				   u8 precision);
 
 #define LCNPHY_TBL_ID_PAPDCOMPDELTATBL	0x18
 #define LCNPHY_TX_POWER_TABLE_SIZE	128

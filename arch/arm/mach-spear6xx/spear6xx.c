@@ -148,7 +148,7 @@ void __init spear6xx_map_io(void)
 	iotable_init(spear6xx_io_desc, ARRAY_SIZE(spear6xx_io_desc));
 
 	/* This will initialize clock framework */
-	clk_init();
+	spear6xx_clk_init();
 }
 
 static void __init spear6xx_timer_init(void)

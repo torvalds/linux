@@ -10,6 +10,8 @@
 #include <linux/spi/spi.h>
 #include <linux/types.h>
 #include <linux/err.h>
+
+#include "../iio.h"
 #include "ad7606.h"
 
 #define MAX_SPI_FREQ_HZ		23500000	/* VDRIVE above 4.75 V */
@@ -39,42 +41,42 @@ static const struct ad7606_bus_ops ad7606_spi_bops = {
 
 static int __devinit ad7606_spi_probe(struct spi_device *spi)
 {
-	struct ad7606_state *st;
+	struct iio_dev *indio_dev;
 
-	st = ad7606_probe(&spi->dev, spi->irq, NULL,
+	indio_dev = ad7606_probe(&spi->dev, spi->irq, NULL,
 			   spi_get_device_id(spi)->driver_data,
 			   &ad7606_spi_bops);
 
-	if (IS_ERR(st))
-		return PTR_ERR(st);
+	if (IS_ERR(indio_dev))
+		return PTR_ERR(indio_dev);
 
-	spi_set_drvdata(spi, st);
+	spi_set_drvdata(spi, indio_dev);
 
 	return 0;
 }
 
 static int __devexit ad7606_spi_remove(struct spi_device *spi)
 {
-	struct ad7606_state *st = dev_get_drvdata(&spi->dev);
+	struct iio_dev *indio_dev = dev_get_drvdata(&spi->dev);
 
-	return ad7606_remove(st);
+	return ad7606_remove(indio_dev);
 }
 
 #ifdef CONFIG_PM
 static int ad7606_spi_suspend(struct device *dev)
 {
-	struct ad7606_state *st = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 
-	ad7606_suspend(st);
+	ad7606_suspend(indio_dev);
 
 	return 0;
 }
 
 static int ad7606_spi_resume(struct device *dev)
 {
-	struct ad7606_state *st = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 
-	ad7606_resume(st);
+	ad7606_resume(indio_dev);
 
 	return 0;
 }

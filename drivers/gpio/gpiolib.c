@@ -12,6 +12,8 @@
 #include <linux/idr.h>
 #include <linux/slab.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/gpio.h>
 
 /* Optional implementation infrastructure for GPIO interfaces.
  *
@@ -1165,6 +1167,7 @@ struct gpio_chip *gpiochip_find(void *data,
 
 	return chip;
 }
+EXPORT_SYMBOL_GPL(gpiochip_find);
 
 /* These "optional" allocation calls help prevent drivers from stomping
  * on each other, and help provide better diagnostics in debugfs.
@@ -1293,7 +1296,7 @@ EXPORT_SYMBOL_GPL(gpio_request_one);
  * @array:	array of the 'struct gpio'
  * @num:	how many GPIOs in the array
  */
-int gpio_request_array(struct gpio *array, size_t num)
+int gpio_request_array(const struct gpio *array, size_t num)
 {
 	int i, err;
 
@@ -1316,7 +1319,7 @@ EXPORT_SYMBOL_GPL(gpio_request_array);
  * @array:	array of the 'struct gpio'
  * @num:	how many GPIOs in the array
  */
-void gpio_free_array(struct gpio *array, size_t num)
+void gpio_free_array(const struct gpio *array, size_t num)
 {
 	while (num--)
 		gpio_free((array++)->gpio);
@@ -1404,6 +1407,8 @@ int gpio_direction_input(unsigned gpio)
 	status = chip->direction_input(chip, gpio);
 	if (status == 0)
 		clear_bit(FLAG_IS_OUT, &desc->flags);
+
+	trace_gpio_direction(chip->base + gpio, 1, status);
 lose:
 	return status;
 fail:
@@ -1457,6 +1462,8 @@ int gpio_direction_output(unsigned gpio, int value)
 	status = chip->direction_output(chip, gpio, value);
 	if (status == 0)
 		set_bit(FLAG_IS_OUT, &desc->flags);
+	trace_gpio_value(chip->base + gpio, 0, value);
+	trace_gpio_direction(chip->base + gpio, 0, status);
 lose:
 	return status;
 fail:
@@ -1546,10 +1553,13 @@ EXPORT_SYMBOL_GPL(gpio_set_debounce);
 int __gpio_get_value(unsigned gpio)
 {
 	struct gpio_chip	*chip;
+	int value;
 
 	chip = gpio_to_chip(gpio);
 	WARN_ON(chip->can_sleep);
-	return chip->get ? chip->get(chip, gpio - chip->base) : 0;
+	value = chip->get ? chip->get(chip, gpio - chip->base) : 0;
+	trace_gpio_value(gpio, 1, value);
+	return value;
 }
 EXPORT_SYMBOL_GPL(__gpio_get_value);
 
@@ -1568,6 +1578,7 @@ void __gpio_set_value(unsigned gpio, int value)
 
 	chip = gpio_to_chip(gpio);
 	WARN_ON(chip->can_sleep);
+	trace_gpio_value(gpio, 0, value);
 	chip->set(chip, gpio - chip->base, value);
 }
 EXPORT_SYMBOL_GPL(__gpio_set_value);
@@ -1618,10 +1629,13 @@ EXPORT_SYMBOL_GPL(__gpio_to_irq);
 int gpio_get_value_cansleep(unsigned gpio)
 {
 	struct gpio_chip	*chip;
+	int value;
 
 	might_sleep_if(extra_checks);
 	chip = gpio_to_chip(gpio);
-	return chip->get ? chip->get(chip, gpio - chip->base) : 0;
+	value = chip->get ? chip->get(chip, gpio - chip->base) : 0;
+	trace_gpio_value(gpio, 1, value);
+	return value;
 }
 EXPORT_SYMBOL_GPL(gpio_get_value_cansleep);
 
@@ -1631,6 +1645,7 @@ void gpio_set_value_cansleep(unsigned gpio, int value)
 
 	might_sleep_if(extra_checks);
 	chip = gpio_to_chip(gpio);
+	trace_gpio_value(gpio, 0, value);
 	chip->set(chip, gpio - chip->base, value);
 }
 EXPORT_SYMBOL_GPL(gpio_set_value_cansleep);

@@ -267,7 +267,7 @@ static int labpc_cs_resume(struct pcmcia_device *link)
 	return 0;
 }				/* labpc_cs_resume */
 
-static struct pcmcia_device_id labpc_cs_ids[] = {
+static const struct pcmcia_device_id labpc_cs_ids[] = {
 	/* N.B. These IDs should match those in labpc_cs_boards (ni_labpc.c) */
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x0103),	/* daqcard-1200 */
 	PCMCIA_DEVICE_NULL

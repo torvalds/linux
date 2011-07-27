@@ -74,7 +74,7 @@
  *	as we are "attached" to a local disk, which at 32 GiB for 1PiB storage
  *	seems excessive.
  *
- *	We plan to reduce the amount of in-core bitmap pages by pageing them in
+ *	We plan to reduce the amount of in-core bitmap pages by paging them in
  *	and out against their on-disk location as necessary, but need to make
  *	sure we don't cause too much meta data IO, and must not deadlock in
  *	tight memory situations. This needs some more work.
@@ -200,7 +200,7 @@ void drbd_bm_unlock(struct drbd_conf *mdev)
  * we if bits have been cleared since last IO. */
 #define BM_PAGE_LAZY_WRITEOUT	28
 
-/* store_page_idx uses non-atomic assingment. It is only used directly after
+/* store_page_idx uses non-atomic assignment. It is only used directly after
  * allocating the page.  All other bm_set_page_* and bm_clear_page_* need to
  * use atomic bit manipulation, as set_out_of_sync (and therefore bitmap
  * changes) may happen from various contexts, and wait_on_bit/wake_up_bit
@@ -318,7 +318,7 @@ static void bm_unmap(unsigned long *p_addr)
 /* word offset from start of bitmap to word number _in_page_
  * modulo longs per page
 #define MLPP(X) ((X) % (PAGE_SIZE/sizeof(long))
- hm, well, Philipp thinks gcc might not optimze the % into & (... - 1)
+ hm, well, Philipp thinks gcc might not optimize the % into & (... - 1)
  so do it explicitly:
  */
 #define MLPP(X) ((X) & ((PAGE_SIZE/sizeof(long))-1))

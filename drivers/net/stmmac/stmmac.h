@@ -21,7 +21,6 @@
 *******************************************************************************/
 
 #define DRV_MODULE_VERSION	"Nov_2010"
-#include <linux/platform_device.h>
 #include <linux/stmmac.h>
 
 #include "common.h"

@@ -44,7 +44,7 @@ ssize_t __btrfs_getxattr(struct inode *inode, const char *name,
 		return -ENOMEM;
 
 	/* lookup the xattr by name */
-	di = btrfs_lookup_xattr(NULL, root, path, inode->i_ino, name,
+	di = btrfs_lookup_xattr(NULL, root, path, btrfs_ino(inode), name,
 				strlen(name), 0);
 	if (!di) {
 		ret = -ENODATA;
@@ -103,7 +103,7 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 
 	/* first lets see if we already have this xattr */
-	di = btrfs_lookup_xattr(trans, root, path, inode->i_ino, name,
+	di = btrfs_lookup_xattr(trans, root, path, btrfs_ino(inode), name,
 				strlen(name), -1);
 	if (IS_ERR(di)) {
 		ret = PTR_ERR(di);
@@ -120,13 +120,13 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 
 		ret = btrfs_delete_one_dir_name(trans, root, path, di);
 		BUG_ON(ret);
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 
 		/* if we don't have a value then we are removing the xattr */
 		if (!value)
 			goto out;
 	} else {
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 
 		if (flags & XATTR_REPLACE) {
 			/* we couldn't find the attr to replace */
@@ -136,7 +136,7 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 	}
 
 	/* ok we have to create a completely new xattr */
-	ret = btrfs_insert_xattr_item(trans, root, path, inode->i_ino,
+	ret = btrfs_insert_xattr_item(trans, root, path, btrfs_ino(inode),
 				      name, name_len, value, size);
 	BUG_ON(ret);
 out:
@@ -157,8 +157,6 @@ int __btrfs_setxattr(struct btrfs_trans_handle *trans,
 	trans = btrfs_start_transaction(root, 2);
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
-
-	btrfs_set_trans_block_group(trans, inode);
 
 	ret = do_setxattr(trans, inode, name, value, size, flags);
 	if (ret)
@@ -190,7 +188,7 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	 * NOTE: we set key.offset = 0; because we want to start with the
 	 * first xattr that we find and walk forward
 	 */
-	key.objectid = inode->i_ino;
+	key.objectid = btrfs_ino(inode);
 	btrfs_set_key_type(&key, BTRFS_XATTR_ITEM_KEY);
 	key.offset = 0;
 

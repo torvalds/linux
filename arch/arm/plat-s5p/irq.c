@@ -64,11 +64,7 @@ void __init s5p_init_irq(u32 *vic, u32 num_vic)
 		vic_init(VA_VIC(irq), VIC_BASE(irq), vic[irq], 0);
 #endif
 
-	s3c_init_vic_timer_irq(IRQ_TIMER0_VIC, IRQ_TIMER0);
-	s3c_init_vic_timer_irq(IRQ_TIMER1_VIC, IRQ_TIMER1);
-	s3c_init_vic_timer_irq(IRQ_TIMER2_VIC, IRQ_TIMER2);
-	s3c_init_vic_timer_irq(IRQ_TIMER3_VIC, IRQ_TIMER3);
-	s3c_init_vic_timer_irq(IRQ_TIMER4_VIC, IRQ_TIMER4);
+	s3c_init_vic_timer_irq(5, IRQ_TIMER0);
 
 	s3c_init_uart_irqs(uart_irqs, ARRAY_SIZE(uart_irqs));
 }

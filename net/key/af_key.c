@@ -712,7 +712,7 @@ static unsigned int pfkey_sockaddr_fill(const xfrm_address_t *xaddr, __be16 port
 		sin6->sin6_family = AF_INET6;
 		sin6->sin6_port = port;
 		sin6->sin6_flowinfo = 0;
-		ipv6_addr_copy(&sin6->sin6_addr, (struct in6_addr *)xaddr->a6);
+		ipv6_addr_copy(&sin6->sin6_addr, (const struct in6_addr *)xaddr->a6);
 		sin6->sin6_scope_id = 0;
 		return 128;
 	    }
@@ -3656,7 +3656,7 @@ static int pfkey_seq_show(struct seq_file *f, void *v)
 	if (v == SEQ_START_TOKEN)
 		seq_printf(f ,"sk       RefCnt Rmem   Wmem   User   Inode\n");
 	else
-		seq_printf(f ,"%p %-6d %-6u %-6u %-6u %-6lu\n",
+		seq_printf(f, "%pK %-6d %-6u %-6u %-6u %-6lu\n",
 			       s,
 			       atomic_read(&s->sk_refcnt),
 			       sk_rmem_alloc_get(s),

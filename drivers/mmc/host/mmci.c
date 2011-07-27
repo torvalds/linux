@@ -51,6 +51,7 @@ static unsigned int fmax = 515633;
  *		  is asserted (likewise for RX)
  * @sdio: variant supports SDIO
  * @st_clkdiv: true if using a ST-specific clock divider algorithm
+ * @blksz_datactrl16: true if Block size is at b16..b30 position in datactrl register
  */
 struct variant_data {
 	unsigned int		clkreg;
@@ -60,6 +61,7 @@ struct variant_data {
 	unsigned int		fifohalfsize;
 	bool			sdio;
 	bool			st_clkdiv;
+	bool			blksz_datactrl16;
 };
 
 static struct variant_data variant_arm = {
@@ -77,7 +79,7 @@ static struct variant_data variant_arm_extended_fifo = {
 static struct variant_data variant_u300 = {
 	.fifosize		= 16 * 4,
 	.fifohalfsize		= 8 * 4,
-	.clkreg_enable		= 1 << 13, /* HWFCEN */
+	.clkreg_enable		= MCI_ST_U300_HWFCEN,
 	.datalength_bits	= 16,
 	.sdio			= true,
 };
@@ -86,10 +88,21 @@ static struct variant_data variant_ux500 = {
 	.fifosize		= 30 * 4,
 	.fifohalfsize		= 8 * 4,
 	.clkreg			= MCI_CLK_ENABLE,
-	.clkreg_enable		= 1 << 14, /* HWFCEN */
+	.clkreg_enable		= MCI_ST_UX500_HWFCEN,
 	.datalength_bits	= 24,
 	.sdio			= true,
 	.st_clkdiv		= true,
+};
+
+static struct variant_data variant_ux500v2 = {
+	.fifosize		= 30 * 4,
+	.fifohalfsize		= 8 * 4,
+	.clkreg			= MCI_CLK_ENABLE,
+	.clkreg_enable		= MCI_ST_UX500_HWFCEN,
+	.datalength_bits	= 24,
+	.sdio			= true,
+	.st_clkdiv		= true,
+	.blksz_datactrl16	= true,
 };
 
 /*
@@ -103,6 +116,8 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 	if (desired) {
 		if (desired >= host->mclk) {
 			clk = MCI_CLK_BYPASS;
+			if (variant->st_clkdiv)
+				clk |= MCI_ST_UX500_NEG_EDGE;
 			host->cclk = host->mclk;
 		} else if (variant->st_clkdiv) {
 			/*
@@ -463,7 +478,10 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 	blksz_bits = ffs(data->blksz) - 1;
 	BUG_ON(1 << blksz_bits != data->blksz);
 
-	datactrl = MCI_DPSM_ENABLE | blksz_bits << 4;
+	if (variant->blksz_datactrl16)
+		datactrl = MCI_DPSM_ENABLE | (data->blksz << 16);
+	else
+		datactrl = MCI_DPSM_ENABLE | blksz_bits << 4;
 
 	if (data->flags & MMC_DATA_READ)
 		datactrl |= MCI_DPSM_DIRECTION;
@@ -1126,9 +1144,17 @@ static int __devinit mmci_probe(struct amba_device *dev,
 		else if (ret != -ENOSYS)
 			goto err_gpio_cd;
 
+		/*
+		 * A gpio pin that will detect cards when inserted and removed
+		 * will most likely want to trigger on the edges if it is
+		 * 0 when ejected and 1 when inserted (or mutatis mutandis
+		 * for the inverted case) so we request triggers on both
+		 * edges.
+		 */
 		ret = request_any_context_irq(gpio_to_irq(plat->gpio_cd),
-					      mmci_cd_irq, 0,
-					      DRIVER_NAME " (cd)", host);
+				mmci_cd_irq,
+				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				DRIVER_NAME " (cd)", host);
 		if (ret >= 0)
 			host->gpio_cd_irq = gpio_to_irq(plat->gpio_cd);
 	}
@@ -1309,8 +1335,13 @@ static struct amba_id mmci_ids[] = {
 	},
 	{
 		.id     = 0x00480180,
-		.mask   = 0x00ffffff,
+		.mask   = 0xf0ffffff,
 		.data	= &variant_ux500,
+	},
+	{
+		.id     = 0x10480180,
+		.mask   = 0xf0ffffff,
+		.data	= &variant_ux500v2,
 	},
 	{ 0, 0 },
 };

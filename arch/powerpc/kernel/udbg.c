@@ -62,6 +62,8 @@ void __init udbg_early_init(void)
 	udbg_init_cpm();
 #elif defined(CONFIG_PPC_EARLY_DEBUG_USBGECKO)
 	udbg_init_usbgecko();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_WSP)
+	udbg_init_wsp();
 #endif
 
 #ifdef CONFIG_PPC_EARLY_DEBUG

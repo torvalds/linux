@@ -17,25 +17,22 @@
 #include "pcm.h"
 #include "chip.h"
 #include "comm.h"
+#include "control.h"
 
 enum {
 	OUT_N_CHANNELS = 6, IN_N_CHANNELS = 4
 };
 
 /* keep next two synced with
- * FW_EP_W_MAX_PACKET_SIZE[] and RATES_MAX_PACKET_SIZE */
+ * FW_EP_W_MAX_PACKET_SIZE[] and RATES_MAX_PACKET_SIZE
+ * and CONTROL_RATE_XXX in control.h */
 static const int rates_in_packet_size[] = { 228, 228, 420, 420, 404, 404 };
 static const int rates_out_packet_size[] = { 228, 228, 420, 420, 604, 604 };
 static const int rates[] = { 44100, 48000, 88200, 96000, 176400, 192000 };
-static const int rates_altsetting[] = { 1, 1, 2, 2, 3, 3 };
 static const int rates_alsaid[] = {
 	SNDRV_PCM_RATE_44100, SNDRV_PCM_RATE_48000,
 	SNDRV_PCM_RATE_88200, SNDRV_PCM_RATE_96000,
 	SNDRV_PCM_RATE_176400, SNDRV_PCM_RATE_192000 };
-
-/* values to write to soundcard register for all samplerates */
-static const u16 rates_6fire_vl[] = {0x00, 0x01, 0x00, 0x01, 0x00, 0x01};
-static const u16 rates_6fire_vh[] = {0x11, 0x11, 0x10, 0x10, 0x00, 0x00};
 
 enum { /* settings for pcm */
 	OUT_EP = 6, IN_EP = 2, MAX_BUFSIZE = 128 * 1024
@@ -48,15 +45,6 @@ enum { /* pcm streaming states */
 	STREAM_STOPPING
 };
 
-enum { /* pcm sample rates (also index into RATES_XXX[]) */
-	RATE_44KHZ,
-	RATE_48KHZ,
-	RATE_88KHZ,
-	RATE_96KHZ,
-	RATE_176KHZ,
-	RATE_192KHZ
-};
-
 static const struct snd_pcm_hardware pcm_hw = {
 	.info = SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_INTERLEAVED |
@@ -64,7 +52,7 @@ static const struct snd_pcm_hardware pcm_hw = {
 		SNDRV_PCM_INFO_MMAP_VALID |
 		SNDRV_PCM_INFO_BATCH,
 
-	.formats = SNDRV_PCM_FMTBIT_S24_LE,
+	.formats = SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE,
 
 	.rates = SNDRV_PCM_RATE_44100 |
 		SNDRV_PCM_RATE_48000 |
@@ -87,57 +75,34 @@ static const struct snd_pcm_hardware pcm_hw = {
 static int usb6fire_pcm_set_rate(struct pcm_runtime *rt)
 {
 	int ret;
-	struct usb_device *device = rt->chip->dev;
-	struct comm_runtime *comm_rt = rt->chip->comm;
+	struct control_runtime *ctrl_rt = rt->chip->control;
 
-	if (rt->rate >= ARRAY_SIZE(rates))
-		return -EINVAL;
-	/* disable streaming */
-	ret = comm_rt->write16(comm_rt, 0x02, 0x00, 0x00, 0x00);
+	ctrl_rt->usb_streaming = false;
+	ret = ctrl_rt->update_streaming(ctrl_rt);
 	if (ret < 0) {
 		snd_printk(KERN_ERR PREFIX "error stopping streaming while "
 				"setting samplerate %d.\n", rates[rt->rate]);
 		return ret;
 	}
 
-	ret = usb_set_interface(device, 1, rates_altsetting[rt->rate]);
-	if (ret < 0) {
-		snd_printk(KERN_ERR PREFIX "error setting interface "
-				"altsetting %d for samplerate %d.\n",
-				rates_altsetting[rt->rate], rates[rt->rate]);
-		return ret;
-	}
-
-	/* set soundcard clock */
-	ret = comm_rt->write16(comm_rt, 0x02, 0x01, rates_6fire_vl[rt->rate],
-			rates_6fire_vh[rt->rate]);
+	ret = ctrl_rt->set_rate(ctrl_rt, rt->rate);
 	if (ret < 0) {
 		snd_printk(KERN_ERR PREFIX "error setting samplerate %d.\n",
 				rates[rt->rate]);
 		return ret;
 	}
 
-	/* enable analog inputs and outputs
-	 * (one bit per stereo-channel) */
-	ret = comm_rt->write16(comm_rt, 0x02, 0x02,
-			(1 << (OUT_N_CHANNELS / 2)) - 1,
-			(1 << (IN_N_CHANNELS / 2)) - 1);
+	ret = ctrl_rt->set_channels(ctrl_rt, OUT_N_CHANNELS, IN_N_CHANNELS,
+			false, false);
 	if (ret < 0) {
-		snd_printk(KERN_ERR PREFIX "error initializing analog channels "
+		snd_printk(KERN_ERR PREFIX "error initializing channels "
 				"while setting samplerate %d.\n",
 				rates[rt->rate]);
 		return ret;
 	}
-	/* disable digital inputs and outputs */
-	ret = comm_rt->write16(comm_rt, 0x02, 0x03, 0x00, 0x00);
-	if (ret < 0) {
-		snd_printk(KERN_ERR PREFIX "error initializing digital "
-				"channels while setting samplerate %d.\n",
-				rates[rt->rate]);
-		return ret;
-	}
 
-	ret = comm_rt->write16(comm_rt, 0x02, 0x00, 0x00, 0x01);
+	ctrl_rt->usb_streaming = true;
+	ret = ctrl_rt->update_streaming(ctrl_rt);
 	if (ret < 0) {
 		snd_printk(KERN_ERR PREFIX "error starting streaming while "
 				"setting samplerate %d.\n", rates[rt->rate]);
@@ -168,12 +133,15 @@ static struct pcm_substream *usb6fire_pcm_get_substream(
 static void usb6fire_pcm_stream_stop(struct pcm_runtime *rt)
 {
 	int i;
+	struct control_runtime *ctrl_rt = rt->chip->control;
 
 	if (rt->stream_state != STREAM_DISABLED) {
 		for (i = 0; i < PCM_N_URBS; i++) {
 			usb_kill_urb(&rt->in_urbs[i].instance);
 			usb_kill_urb(&rt->out_urbs[i].instance);
 		}
+		ctrl_rt->usb_streaming = false;
+		ctrl_rt->update_streaming(ctrl_rt);
 		rt->stream_state = STREAM_DISABLED;
 	}
 }
@@ -228,7 +196,7 @@ static void usb6fire_pcm_capture(struct pcm_substream *sub, struct pcm_urb *urb)
 	unsigned int total_length = 0;
 	struct pcm_runtime *rt = snd_pcm_substream_chip(sub->instance);
 	struct snd_pcm_runtime *alsa_rt = sub->instance->runtime;
-	u32 *src = (u32 *) urb->buffer;
+	u32 *src = NULL;
 	u32 *dest = (u32 *) (alsa_rt->dma_area + sub->dma_off
 			* (alsa_rt->frame_bits >> 3));
 	u32 *dest_end = (u32 *) (alsa_rt->dma_area + alsa_rt->buffer_size
@@ -244,7 +212,12 @@ static void usb6fire_pcm_capture(struct pcm_substream *sub, struct pcm_urb *urb)
 		else
 			frame_count = 0;
 
-		src = (u32 *) (urb->buffer + total_length);
+		if (alsa_rt->format == SNDRV_PCM_FORMAT_S24_LE)
+			src = (u32 *) (urb->buffer + total_length);
+		else if (alsa_rt->format == SNDRV_PCM_FORMAT_S32_LE)
+			src = (u32 *) (urb->buffer - 1 + total_length);
+		else
+			return;
 		src++; /* skip leading 4 bytes of every packet */
 		total_length += urb->packets[i].length;
 		for (frame = 0; frame < frame_count; frame++) {
@@ -274,8 +247,17 @@ static void usb6fire_pcm_playback(struct pcm_substream *sub,
 			* (alsa_rt->frame_bits >> 3));
 	u32 *src_end = (u32 *) (alsa_rt->dma_area + alsa_rt->buffer_size
 			* (alsa_rt->frame_bits >> 3));
-	u32 *dest = (u32 *) urb->buffer;
+	u32 *dest;
 	int bytes_per_frame = alsa_rt->channels << 2;
+
+	if (alsa_rt->format == SNDRV_PCM_FORMAT_S32_LE)
+		dest = (u32 *) (urb->buffer - 1);
+	else if (alsa_rt->format == SNDRV_PCM_FORMAT_S24_LE)
+		dest = (u32 *) (urb->buffer);
+	else {
+		snd_printk(KERN_ERR PREFIX "Unknown sample format.");
+		return;
+	}
 
 	for (i = 0; i < PCM_N_PACKETS_PER_URB; i++) {
 		/* at least 4 header bytes for valid packet.
@@ -413,12 +395,12 @@ static int usb6fire_pcm_open(struct snd_pcm_substream *alsa_sub)
 	alsa_rt->hw = pcm_hw;
 
 	if (alsa_sub->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (rt->rate >= 0)
+		if (rt->rate < ARRAY_SIZE(rates))
 			alsa_rt->hw.rates = rates_alsaid[rt->rate];
 		alsa_rt->hw.channels_max = OUT_N_CHANNELS;
 		sub = &rt->playback;
 	} else if (alsa_sub->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		if (rt->rate >= 0)
+		if (rt->rate < ARRAY_SIZE(rates))
 			alsa_rt->hw.rates = rates_alsaid[rt->rate];
 		alsa_rt->hw.channels_max = IN_N_CHANNELS;
 		sub = &rt->capture;
@@ -456,7 +438,7 @@ static int usb6fire_pcm_close(struct snd_pcm_substream *alsa_sub)
 		/* all substreams closed? if so, stop streaming */
 		if (!rt->playback.instance && !rt->capture.instance) {
 			usb6fire_pcm_stream_stop(rt);
-			rt->rate = -1;
+			rt->rate = ARRAY_SIZE(rates);
 		}
 	}
 	mutex_unlock(&rt->stream_mutex);
@@ -480,7 +462,6 @@ static int usb6fire_pcm_prepare(struct snd_pcm_substream *alsa_sub)
 	struct pcm_runtime *rt = snd_pcm_substream_chip(alsa_sub);
 	struct pcm_substream *sub = usb6fire_pcm_get_substream(alsa_sub);
 	struct snd_pcm_runtime *alsa_rt = alsa_sub->runtime;
-	int i;
 	int ret;
 
 	if (rt->panic)
@@ -493,12 +474,10 @@ static int usb6fire_pcm_prepare(struct snd_pcm_substream *alsa_sub)
 	sub->period_off = 0;
 
 	if (rt->stream_state == STREAM_DISABLED) {
-		for (i = 0; i < ARRAY_SIZE(rates); i++)
-			if (alsa_rt->rate == rates[i]) {
-				rt->rate = i;
+		for (rt->rate = 0; rt->rate < ARRAY_SIZE(rates); rt->rate++)
+			if (alsa_rt->rate == rates[rt->rate])
 				break;
-			}
-		if (i == ARRAY_SIZE(rates)) {
+		if (rt->rate == ARRAY_SIZE(rates)) {
 			mutex_unlock(&rt->stream_mutex);
 			snd_printk("invalid rate %d in prepare.\n",
 					alsa_rt->rate);
@@ -613,7 +592,7 @@ int __devinit usb6fire_pcm_init(struct sfire_chip *chip)
 
 	rt->chip = chip;
 	rt->stream_state = STREAM_DISABLED;
-	rt->rate = -1;
+	rt->rate = ARRAY_SIZE(rates);
 	init_waitqueue_head(&rt->stream_wait_queue);
 	mutex_init(&rt->stream_mutex);
 

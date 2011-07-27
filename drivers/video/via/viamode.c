@@ -30,10 +30,6 @@ struct io_reg CN400_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIASR, SR1A, 0xFB, 0x08},
 {VIASR, SR1E, 0x0F, 0x01},
 {VIASR, SR2A, 0xFF, 0x00},
-{VIACR, CR0A, 0xFF, 0x1E},	/* Cursor Start                        */
-{VIACR, CR0B, 0xFF, 0x00},	/* Cursor End                          */
-{VIACR, CR0E, 0xFF, 0x00},	/* Cursor Location High                */
-{VIACR, CR0F, 0xFF, 0x00},	/* Cursor Localtion Low                */
 {VIACR, CR32, 0xFF, 0x00},
 {VIACR, CR33, 0xFF, 0x00},
 {VIACR, CR35, 0xFF, 0x00},
@@ -41,7 +37,6 @@ struct io_reg CN400_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIACR, CR69, 0xFF, 0x00},
 {VIACR, CR6A, 0xFF, 0x40},
 {VIACR, CR6B, 0xFF, 0x00},
-{VIACR, CR6C, 0xFF, 0x00},
 {VIACR, CR88, 0xFF, 0x40},	/* LCD Panel Type                      */
 {VIACR, CR89, 0xFF, 0x00},	/* LCD Timing Control 0                */
 {VIACR, CR8A, 0xFF, 0x88},	/* LCD Timing Control 1                */
@@ -87,7 +82,6 @@ struct io_reg CN700_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIACR, CR69, 0xFF, 0x00},
 {VIACR, CR6A, 0xFD, 0x40},
 {VIACR, CR6B, 0xFF, 0x00},
-{VIACR, CR6C, 0xFF, 0x00},
 {VIACR, CR77, 0xFF, 0x00},	/* LCD scaling Factor */
 {VIACR, CR78, 0xFF, 0x00},	/* LCD scaling Factor */
 {VIACR, CR79, 0xFF, 0x00},	/* LCD scaling Factor */
@@ -125,10 +119,6 @@ struct io_reg KM400_ModeXregs[] = {
 	{VIASR, SR2A, 0xFF, 0x00},	/* Power Management Control 5      */
 	{VIASR, SR2D, 0xFF, 0xFF},	/* Power Management Control 1      */
 	{VIASR, SR2E, 0xFF, 0xFF},	/* Power Management Control 2      */
-	{VIACR, CR0A, 0xFF, 0x1E},	/* Cursor Start                    */
-	{VIACR, CR0B, 0xFF, 0x00},	/* Cursor End                      */
-	{VIACR, CR0E, 0xFF, 0x00},	/* Cursor Location High            */
-	{VIACR, CR0F, 0xFF, 0x00},	/* Cursor Localtion Low            */
 	{VIACR, CR33, 0xFF, 0x00},
 	{VIACR, CR55, 0x80, 0x00},
 	{VIACR, CR5D, 0x80, 0x00},
@@ -161,11 +151,7 @@ struct io_reg CX700_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIASR, SR1B, 0xFF, 0xF0},
 {VIASR, SR1E, 0xFF, 0x01},
 {VIASR, SR2A, 0xFF, 0x00},
-{VIASR, SR2D, 0xFF, 0xFF},	/* VCK and LCK PLL power on.           */
-{VIACR, CR0A, 0xFF, 0x1E},	/* Cursor Start                        */
-{VIACR, CR0B, 0xFF, 0x00},	/* Cursor End                          */
-{VIACR, CR0E, 0xFF, 0x00},	/* Cursor Location High                */
-{VIACR, CR0F, 0xFF, 0x00},	/* Cursor Localtion Low                */
+{VIASR, SR2D, 0xC0, 0xC0},	/* delayed E3_ECK */
 {VIACR, CR32, 0xFF, 0x00},
 {VIACR, CR33, 0xFF, 0x00},
 {VIACR, CR35, 0xFF, 0x00},
@@ -174,7 +160,6 @@ struct io_reg CX700_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIACR, CR69, 0xFF, 0x00},
 {VIACR, CR6A, 0xFF, 0x40},
 {VIACR, CR6B, 0xFF, 0x00},
-{VIACR, CR6C, 0xFF, 0x00},
 {VIACR, CR88, 0xFF, 0x40},	/* LCD Panel Type                      */
 {VIACR, CR89, 0xFF, 0x00},	/* LCD Timing Control 0                */
 {VIACR, CR8A, 0xFF, 0x88},	/* LCD Timing Control 1                */
@@ -204,14 +189,7 @@ struct io_reg VX855_ModeXregs[] = {
 {VIASR, SR2A, 0xF0, 0x00},
 {VIASR, SR58, 0xFF, 0x00},
 {VIASR, SR59, 0xFF, 0x00},
-{VIASR, SR2D, 0xFF, 0xFF},	/* VCK and LCK PLL power on.           */
-{VIACR, CR09, 0xFF, 0x00},	/* Initial CR09=0*/
-{VIACR, CR11, 0x8F, 0x00},	/* IGA1 initial  Vertical end       */
-{VIACR, CR17, 0x7F, 0x00}, 	/* IGA1 CRT Mode control init   */
-{VIACR, CR0A, 0xFF, 0x1E},	/* Cursor Start                        */
-{VIACR, CR0B, 0xFF, 0x00},	/* Cursor End                          */
-{VIACR, CR0E, 0xFF, 0x00},	/* Cursor Location High                */
-{VIACR, CR0F, 0xFF, 0x00},	/* Cursor Localtion Low                */
+{VIASR, SR2D, 0xC0, 0xC0},	/* delayed E3_ECK */
 {VIACR, CR32, 0xFF, 0x00},
 {VIACR, CR33, 0x7F, 0x00},
 {VIACR, CR35, 0xFF, 0x00},
@@ -219,7 +197,6 @@ struct io_reg VX855_ModeXregs[] = {
 {VIACR, CR69, 0xFF, 0x00},
 {VIACR, CR6A, 0xFD, 0x60},
 {VIACR, CR6B, 0xFF, 0x00},
-{VIACR, CR6C, 0xFF, 0x00},
 {VIACR, CR88, 0xFF, 0x40},          /* LCD Panel Type                      */
 {VIACR, CR89, 0xFF, 0x00},          /* LCD Timing Control 0                */
 {VIACR, CR8A, 0xFF, 0x88},          /* LCD Timing Control 1                */
@@ -606,7 +583,7 @@ static struct crt_mode_table CRTM1200x720[] = {
 /* 1200x900 (DCON) */
 static struct crt_mode_table DCON1200x900[] = {
 	/* r_rate,               hsp,               vsp   */
-	{REFRESH_60, M1200X900_R60_HSP, M1200X900_R60_VSP,
+	{REFRESH_49, M1200X900_R60_HSP, M1200X900_R60_VSP,
 	/* The correct htotal is 1240, but this doesn't raster on VX855. */
 	/* Via suggested changing to a multiple of 16, hence 1264.       */
 	/*  HT,   HA,  HBS, HBE,  HSS, HSE,  VT,  VA, VBS, VBE, VSS, VSE */
@@ -877,23 +854,6 @@ static struct VideoModeTable viafb_rb_modes[] = {
 	{CRTM1920x1200_RB, ARRAY_SIZE(CRTM1920x1200_RB)}
 };
 
-struct crt_mode_table CEAM1280x720[] = {
-	{REFRESH_60, M1280X720_CEA_R60_HSP, M1280X720_CEA_R60_VSP,
-	 /* HT,    HA,   HBS,  HBE,  HSS, HSE,  VT,   VA,  VBS, VBE, VSS, VSE */
-	 {1650, 1280, 1280, 370, 1390, 40, 750, 720, 720, 30, 725, 5} }
-};
-struct crt_mode_table CEAM1920x1080[] = {
-	{REFRESH_60, M1920X1080_CEA_R60_HSP, M1920X1080_CEA_R60_VSP,
-	 /* HT,    HA,   HBS,  HBE,  HSS, HSE,  VT,  VA, VBS, VBE,  VSS, VSE */
-	 {2200, 1920, 1920, 300, 2008, 44, 1125, 1080, 1080, 45, 1084, 5} }
-};
-struct VideoModeTable CEA_HDMI_Modes[] = {
-	/* Display : 1280x720 */
-	{CEAM1280x720, ARRAY_SIZE(CEAM1280x720)},
-	{CEAM1920x1080, ARRAY_SIZE(CEAM1920x1080)}
-};
-
-int NUM_TOTAL_CEA_MODES = ARRAY_SIZE(CEA_HDMI_Modes);
 int NUM_TOTAL_CN400_ModeXregs = ARRAY_SIZE(CN400_ModeXregs);
 int NUM_TOTAL_CN700_ModeXregs = ARRAY_SIZE(CN700_ModeXregs);
 int NUM_TOTAL_KM400_ModeXregs = ARRAY_SIZE(KM400_ModeXregs);

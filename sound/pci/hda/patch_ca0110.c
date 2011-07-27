@@ -134,7 +134,7 @@ static int ca0110_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 /*
  */
 
-static char *dirstr[2] = { "Playback", "Capture" };
+static const char * const dirstr[2] = { "Playback", "Capture" };
 
 static int _add_switch(struct hda_codec *codec, hda_nid_t nid, const char *pfx,
 		       int chan, int dir)
@@ -171,7 +171,7 @@ static int ca0110_build_controls(struct hda_codec *codec)
 {
 	struct ca0110_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	static char *prefix[AUTO_CFG_MAX_OUTS] = {
+	static const char * const prefix[AUTO_CFG_MAX_OUTS] = {
 		"Front", "Surround", NULL, "Side", "Multi"
 	};
 	hda_nid_t mutenid;
@@ -259,7 +259,7 @@ static int ca0110_build_controls(struct hda_codec *codec)
 
 /*
  */
-static struct hda_pcm_stream ca0110_pcm_analog_playback = {
+static const struct hda_pcm_stream ca0110_pcm_analog_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 8,
@@ -270,7 +270,7 @@ static struct hda_pcm_stream ca0110_pcm_analog_playback = {
 	},
 };
 
-static struct hda_pcm_stream ca0110_pcm_analog_capture = {
+static const struct hda_pcm_stream ca0110_pcm_analog_capture = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -280,7 +280,7 @@ static struct hda_pcm_stream ca0110_pcm_analog_capture = {
 	},
 };
 
-static struct hda_pcm_stream ca0110_pcm_digital_playback = {
+static const struct hda_pcm_stream ca0110_pcm_digital_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -291,7 +291,7 @@ static struct hda_pcm_stream ca0110_pcm_digital_playback = {
 	},
 };
 
-static struct hda_pcm_stream ca0110_pcm_digital_capture = {
+static const struct hda_pcm_stream ca0110_pcm_digital_capture = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -389,7 +389,7 @@ static void ca0110_free(struct hda_codec *codec)
 	kfree(codec->spec);
 }
 
-static struct hda_codec_ops ca0110_patch_ops = {
+static const struct hda_codec_ops ca0110_patch_ops = {
 	.build_controls = ca0110_build_controls,
 	.build_pcms = ca0110_build_pcms,
 	.init = ca0110_init,
@@ -539,7 +539,7 @@ static int patch_ca0110(struct hda_codec *codec)
 /*
  * patch entries
  */
-static struct hda_codec_preset snd_hda_preset_ca0110[] = {
+static const struct hda_codec_preset snd_hda_preset_ca0110[] = {
 	{ .id = 0x1102000a, .name = "CA0110-IBG", .patch = patch_ca0110 },
 	{ .id = 0x1102000b, .name = "CA0110-IBG", .patch = patch_ca0110 },
 	{ .id = 0x1102000d, .name = "SB0880 X-Fi", .patch = patch_ca0110 },

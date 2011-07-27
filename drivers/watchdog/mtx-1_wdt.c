@@ -66,6 +66,7 @@ static struct {
 	int default_ticks;
 	unsigned long inuse;
 	unsigned gpio;
+	int gstate;
 } mtx1_wdt_device;
 
 static void mtx1_wdt_trigger(unsigned long unused)
@@ -75,13 +76,13 @@ static void mtx1_wdt_trigger(unsigned long unused)
 	spin_lock(&mtx1_wdt_device.lock);
 	if (mtx1_wdt_device.running)
 		ticks--;
-	/*
-	 * toggle GPIO2_15
-	 */
-	tmp = au_readl(GPIO2_DIR);
-	tmp = (tmp & ~(1 << mtx1_wdt_device.gpio)) |
-	      ((~tmp) & (1 << mtx1_wdt_device.gpio));
-	au_writel(tmp, GPIO2_DIR);
+
+	/* toggle wdt gpio */
+	mtx1_wdt_device.gstate = ~mtx1_wdt_device.gstate;
+	if (mtx1_wdt_device.gstate)
+		gpio_direction_output(mtx1_wdt_device.gpio, 1);
+	else
+		gpio_direction_input(mtx1_wdt_device.gpio);
 
 	if (mtx1_wdt_device.queue && ticks)
 		mod_timer(&mtx1_wdt_device.timer, jiffies + MTX1_WDT_INTERVAL);
@@ -103,7 +104,8 @@ static void mtx1_wdt_start(void)
 	spin_lock_irqsave(&mtx1_wdt_device.lock, flags);
 	if (!mtx1_wdt_device.queue) {
 		mtx1_wdt_device.queue = 1;
-		gpio_set_value(mtx1_wdt_device.gpio, 1);
+		mtx1_wdt_device.gstate = 1;
+		gpio_direction_output(mtx1_wdt_device.gpio, 1);
 		mod_timer(&mtx1_wdt_device.timer, jiffies + MTX1_WDT_INTERVAL);
 	}
 	mtx1_wdt_device.running++;
@@ -117,7 +119,8 @@ static int mtx1_wdt_stop(void)
 	spin_lock_irqsave(&mtx1_wdt_device.lock, flags);
 	if (mtx1_wdt_device.queue) {
 		mtx1_wdt_device.queue = 0;
-		gpio_set_value(mtx1_wdt_device.gpio, 0);
+		mtx1_wdt_device.gstate = 0;
+		gpio_direction_output(mtx1_wdt_device.gpio, 0);
 	}
 	ticks = mtx1_wdt_device.default_ticks;
 	spin_unlock_irqrestore(&mtx1_wdt_device.lock, flags);

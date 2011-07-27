@@ -888,6 +888,7 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 
 	i2c->rec = *rec;
 	i2c->adapter.owner = THIS_MODULE;
+	i2c->adapter.class = I2C_CLASS_DDC;
 	i2c->dev = dev;
 	i2c_set_adapdata(&i2c->adapter, i2c);
 	if (rec->mm_i2c ||
@@ -947,6 +948,7 @@ struct radeon_i2c_chan *radeon_i2c_create_dp(struct drm_device *dev,
 
 	i2c->rec = *rec;
 	i2c->adapter.owner = THIS_MODULE;
+	i2c->adapter.class = I2C_CLASS_DDC;
 	i2c->dev = dev;
 	snprintf(i2c->adapter.name, sizeof(i2c->adapter.name),
 		 "Radeon aux bus %s", name);
@@ -1096,6 +1098,9 @@ void radeon_router_select_ddc_port(struct radeon_connector *radeon_connector)
 	if (!radeon_connector->router.ddc_valid)
 		return;
 
+	if (!radeon_connector->router_bus)
+		return;
+
 	radeon_i2c_get_byte(radeon_connector->router_bus,
 			    radeon_connector->router.i2c_addr,
 			    0x3, &val);
@@ -1119,6 +1124,9 @@ void radeon_router_select_cd_port(struct radeon_connector *radeon_connector)
 	u8 val;
 
 	if (!radeon_connector->router.cd_valid)
+		return;
+
+	if (!radeon_connector->router_bus)
 		return;
 
 	radeon_i2c_get_byte(radeon_connector->router_bus,

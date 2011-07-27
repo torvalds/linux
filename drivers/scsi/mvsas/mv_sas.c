@@ -3,6 +3,7 @@
  *
  * Copyright 2007 Red Hat, Inc.
  * Copyright 2008 Marvell. <kewei@marvell.com>
+ * Copyright 2009-2011 Marvell. <yuxiangl@marvell.com>
  *
  * This file is licensed under GPLv2.
  *
@@ -862,178 +863,286 @@ static int mvs_task_prep_ssp(struct mvs_info *mvi,
 }
 
 #define	DEV_IS_GONE(mvi_dev)	((!mvi_dev || (mvi_dev->dev_type == NO_DEVICE)))
-static int mvs_task_exec(struct sas_task *task, const int num, gfp_t gfp_flags,
-				struct completion *completion,int is_tmf,
-				struct mvs_tmf_task *tmf)
+static int mvs_task_prep(struct sas_task *task, struct mvs_info *mvi, int is_tmf,
+				struct mvs_tmf_task *tmf, int *pass)
 {
 	struct domain_device *dev = task->dev;
-	struct mvs_device *mvi_dev = (struct mvs_device *)dev->lldd_dev;
-	struct mvs_info *mvi = mvi_dev->mvi_info;
+	struct mvs_device *mvi_dev = dev->lldd_dev;
 	struct mvs_task_exec_info tei;
-	struct sas_task *t = task;
 	struct mvs_slot_info *slot;
-	u32 tag = 0xdeadbeef, rc, n_elem = 0;
-	u32 n = num, pass = 0;
-	unsigned long flags = 0,  flags_libsas = 0;
+	u32 tag = 0xdeadbeef, n_elem = 0;
+	int rc = 0;
 
 	if (!dev->port) {
-		struct task_status_struct *tsm = &t->task_status;
+		struct task_status_struct *tsm = &task->task_status;
 
 		tsm->resp = SAS_TASK_UNDELIVERED;
 		tsm->stat = SAS_PHY_DOWN;
+		/*
+		 * libsas will use dev->port, should
+		 * not call task_done for sata
+		 */
 		if (dev->dev_type != SATA_DEV)
-			t->task_done(t);
-		return 0;
+			task->task_done(task);
+		return rc;
 	}
 
-	spin_lock_irqsave(&mvi->lock, flags);
-	do {
-		dev = t->dev;
-		mvi_dev = dev->lldd_dev;
-		if (DEV_IS_GONE(mvi_dev)) {
-			if (mvi_dev)
-				mv_dprintk("device %d not ready.\n",
-					mvi_dev->device_id);
-			else
-				mv_dprintk("device %016llx not ready.\n",
-					SAS_ADDR(dev->sas_addr));
+	if (DEV_IS_GONE(mvi_dev)) {
+		if (mvi_dev)
+			mv_dprintk("device %d not ready.\n",
+				mvi_dev->device_id);
+		else
+			mv_dprintk("device %016llx not ready.\n",
+				SAS_ADDR(dev->sas_addr));
 
 			rc = SAS_PHY_DOWN;
-			goto out_done;
-		}
+			return rc;
+	}
+	tei.port = dev->port->lldd_port;
+	if (tei.port && !tei.port->port_attached && !tmf) {
+		if (sas_protocol_ata(task->task_proto)) {
+			struct task_status_struct *ts = &task->task_status;
+			mv_dprintk("SATA/STP port %d does not attach"
+					"device.\n", dev->port->id);
+			ts->resp = SAS_TASK_COMPLETE;
+			ts->stat = SAS_PHY_DOWN;
 
-		if (dev->port->id >= mvi->chip->n_phy)
-			tei.port = &mvi->port[dev->port->id - mvi->chip->n_phy];
-		else
-			tei.port = &mvi->port[dev->port->id];
+			task->task_done(task);
 
-		if (tei.port && !tei.port->port_attached) {
-			if (sas_protocol_ata(t->task_proto)) {
-				struct task_status_struct *ts = &t->task_status;
-
-				mv_dprintk("port %d does not"
-					"attached device.\n", dev->port->id);
-				ts->stat = SAS_PROTO_RESPONSE;
-				ts->stat = SAS_PHY_DOWN;
-				spin_unlock_irqrestore(dev->sata_dev.ap->lock,
-						       flags_libsas);
-				spin_unlock_irqrestore(&mvi->lock, flags);
-				t->task_done(t);
-				spin_lock_irqsave(&mvi->lock, flags);
-				spin_lock_irqsave(dev->sata_dev.ap->lock,
-						  flags_libsas);
-				if (n > 1)
-					t = list_entry(t->list.next,
-						       struct sas_task, list);
-				continue;
-			} else {
-				struct task_status_struct *ts = &t->task_status;
-				ts->resp = SAS_TASK_UNDELIVERED;
-				ts->stat = SAS_PHY_DOWN;
-				t->task_done(t);
-				if (n > 1)
-					t = list_entry(t->list.next,
-							struct sas_task, list);
-				continue;
-			}
-		}
-
-		if (!sas_protocol_ata(t->task_proto)) {
-			if (t->num_scatter) {
-				n_elem = dma_map_sg(mvi->dev,
-						    t->scatter,
-						    t->num_scatter,
-						    t->data_dir);
-				if (!n_elem) {
-					rc = -ENOMEM;
-					goto err_out;
-				}
-			}
 		} else {
-			n_elem = t->num_scatter;
+			struct task_status_struct *ts = &task->task_status;
+			mv_dprintk("SAS port %d does not attach"
+				"device.\n", dev->port->id);
+			ts->resp = SAS_TASK_UNDELIVERED;
+			ts->stat = SAS_PHY_DOWN;
+			task->task_done(task);
 		}
+		return rc;
+	}
 
-		rc = mvs_tag_alloc(mvi, &tag);
-		if (rc)
-			goto err_out;
-
-		slot = &mvi->slot_info[tag];
-
-
-		t->lldd_task = NULL;
-		slot->n_elem = n_elem;
-		slot->slot_tag = tag;
-		memset(slot->buf, 0, MVS_SLOT_BUF_SZ);
-
-		tei.task = t;
-		tei.hdr = &mvi->slot[tag];
-		tei.tag = tag;
-		tei.n_elem = n_elem;
-		switch (t->task_proto) {
-		case SAS_PROTOCOL_SMP:
-			rc = mvs_task_prep_smp(mvi, &tei);
-			break;
-		case SAS_PROTOCOL_SSP:
-			rc = mvs_task_prep_ssp(mvi, &tei, is_tmf, tmf);
-			break;
-		case SAS_PROTOCOL_SATA:
-		case SAS_PROTOCOL_STP:
-		case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
-			rc = mvs_task_prep_ata(mvi, &tei);
-			break;
-		default:
-			dev_printk(KERN_ERR, mvi->dev,
-				   "unknown sas_task proto: 0x%x\n",
-				   t->task_proto);
-			rc = -EINVAL;
-			break;
+	if (!sas_protocol_ata(task->task_proto)) {
+		if (task->num_scatter) {
+			n_elem = dma_map_sg(mvi->dev,
+					    task->scatter,
+					    task->num_scatter,
+					    task->data_dir);
+			if (!n_elem) {
+				rc = -ENOMEM;
+				goto prep_out;
+			}
 		}
+	} else {
+		n_elem = task->num_scatter;
+	}
 
-		if (rc) {
-			mv_dprintk("rc is %x\n", rc);
-			goto err_out_tag;
-		}
-		slot->task = t;
-		slot->port = tei.port;
-		t->lldd_task = slot;
-		list_add_tail(&slot->entry, &tei.port->list);
-		/* TODO: select normal or high priority */
-		spin_lock(&t->task_state_lock);
-		t->task_state_flags |= SAS_TASK_AT_INITIATOR;
-		spin_unlock(&t->task_state_lock);
+	rc = mvs_tag_alloc(mvi, &tag);
+	if (rc)
+		goto err_out;
 
-		mvs_hba_memory_dump(mvi, tag, t->task_proto);
-		mvi_dev->running_req++;
-		++pass;
-		mvi->tx_prod = (mvi->tx_prod + 1) & (MVS_CHIP_SLOT_SZ - 1);
-		if (n > 1)
-			t = list_entry(t->list.next, struct sas_task, list);
-		if (likely(pass))
-			MVS_CHIP_DISP->start_delivery(mvi, (mvi->tx_prod - 1) &
-						      (MVS_CHIP_SLOT_SZ - 1));
+	slot = &mvi->slot_info[tag];
 
-	} while (--n);
-	rc = 0;
-	goto out_done;
+	task->lldd_task = NULL;
+	slot->n_elem = n_elem;
+	slot->slot_tag = tag;
 
+	slot->buf = pci_pool_alloc(mvi->dma_pool, GFP_ATOMIC, &slot->buf_dma);
+	if (!slot->buf)
+		goto err_out_tag;
+	memset(slot->buf, 0, MVS_SLOT_BUF_SZ);
+
+	tei.task = task;
+	tei.hdr = &mvi->slot[tag];
+	tei.tag = tag;
+	tei.n_elem = n_elem;
+	switch (task->task_proto) {
+	case SAS_PROTOCOL_SMP:
+		rc = mvs_task_prep_smp(mvi, &tei);
+		break;
+	case SAS_PROTOCOL_SSP:
+		rc = mvs_task_prep_ssp(mvi, &tei, is_tmf, tmf);
+		break;
+	case SAS_PROTOCOL_SATA:
+	case SAS_PROTOCOL_STP:
+	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
+		rc = mvs_task_prep_ata(mvi, &tei);
+		break;
+	default:
+		dev_printk(KERN_ERR, mvi->dev,
+			"unknown sas_task proto: 0x%x\n",
+			task->task_proto);
+		rc = -EINVAL;
+		break;
+	}
+
+	if (rc) {
+		mv_dprintk("rc is %x\n", rc);
+		goto err_out_slot_buf;
+	}
+	slot->task = task;
+	slot->port = tei.port;
+	task->lldd_task = slot;
+	list_add_tail(&slot->entry, &tei.port->list);
+	spin_lock(&task->task_state_lock);
+	task->task_state_flags |= SAS_TASK_AT_INITIATOR;
+	spin_unlock(&task->task_state_lock);
+
+	mvs_hba_memory_dump(mvi, tag, task->task_proto);
+	mvi_dev->running_req++;
+	++(*pass);
+	mvi->tx_prod = (mvi->tx_prod + 1) & (MVS_CHIP_SLOT_SZ - 1);
+
+	return rc;
+
+err_out_slot_buf:
+	pci_pool_free(mvi->dma_pool, slot->buf, slot->buf_dma);
 err_out_tag:
 	mvs_tag_free(mvi, tag);
 err_out:
 
-	dev_printk(KERN_ERR, mvi->dev, "mvsas exec failed[%d]!\n", rc);
-	if (!sas_protocol_ata(t->task_proto))
+	dev_printk(KERN_ERR, mvi->dev, "mvsas prep failed[%d]!\n", rc);
+	if (!sas_protocol_ata(task->task_proto))
 		if (n_elem)
-			dma_unmap_sg(mvi->dev, t->scatter, n_elem,
-				     t->data_dir);
-out_done:
+			dma_unmap_sg(mvi->dev, task->scatter, n_elem,
+				     task->data_dir);
+prep_out:
+	return rc;
+}
+
+static struct mvs_task_list *mvs_task_alloc_list(int *num, gfp_t gfp_flags)
+{
+	struct mvs_task_list *first = NULL;
+
+	for (; *num > 0; --*num) {
+		struct mvs_task_list *mvs_list = kmem_cache_zalloc(mvs_task_list_cache, gfp_flags);
+
+		if (!mvs_list)
+			break;
+
+		INIT_LIST_HEAD(&mvs_list->list);
+		if (!first)
+			first = mvs_list;
+		else
+			list_add_tail(&mvs_list->list, &first->list);
+
+	}
+
+	return first;
+}
+
+static inline void mvs_task_free_list(struct mvs_task_list *mvs_list)
+{
+	LIST_HEAD(list);
+	struct list_head *pos, *a;
+	struct mvs_task_list *mlist = NULL;
+
+	__list_add(&list, mvs_list->list.prev, &mvs_list->list);
+
+	list_for_each_safe(pos, a, &list) {
+		list_del_init(pos);
+		mlist = list_entry(pos, struct mvs_task_list, list);
+		kmem_cache_free(mvs_task_list_cache, mlist);
+	}
+}
+
+static int mvs_task_exec(struct sas_task *task, const int num, gfp_t gfp_flags,
+				struct completion *completion, int is_tmf,
+				struct mvs_tmf_task *tmf)
+{
+	struct domain_device *dev = task->dev;
+	struct mvs_info *mvi = NULL;
+	u32 rc = 0;
+	u32 pass = 0;
+	unsigned long flags = 0;
+
+	mvi = ((struct mvs_device *)task->dev->lldd_dev)->mvi_info;
+
+	if ((dev->dev_type == SATA_DEV) && (dev->sata_dev.ap != NULL))
+		spin_unlock_irq(dev->sata_dev.ap->lock);
+
+	spin_lock_irqsave(&mvi->lock, flags);
+	rc = mvs_task_prep(task, mvi, is_tmf, tmf, &pass);
+	if (rc)
+		dev_printk(KERN_ERR, mvi->dev, "mvsas exec failed[%d]!\n", rc);
+
+	if (likely(pass))
+			MVS_CHIP_DISP->start_delivery(mvi, (mvi->tx_prod - 1) &
+				(MVS_CHIP_SLOT_SZ - 1));
 	spin_unlock_irqrestore(&mvi->lock, flags);
+
+	if ((dev->dev_type == SATA_DEV) && (dev->sata_dev.ap != NULL))
+		spin_lock_irq(dev->sata_dev.ap->lock);
+
+	return rc;
+}
+
+static int mvs_collector_task_exec(struct sas_task *task, const int num, gfp_t gfp_flags,
+				struct completion *completion, int is_tmf,
+				struct mvs_tmf_task *tmf)
+{
+	struct domain_device *dev = task->dev;
+	struct mvs_prv_info *mpi = dev->port->ha->lldd_ha;
+	struct mvs_info *mvi = NULL;
+	struct sas_task *t = task;
+	struct mvs_task_list *mvs_list = NULL, *a;
+	LIST_HEAD(q);
+	int pass[2] = {0};
+	u32 rc = 0;
+	u32 n = num;
+	unsigned long flags = 0;
+
+	mvs_list = mvs_task_alloc_list(&n, gfp_flags);
+	if (n) {
+		printk(KERN_ERR "%s: mvs alloc list failed.\n", __func__);
+		rc = -ENOMEM;
+		goto free_list;
+	}
+
+	__list_add(&q, mvs_list->list.prev, &mvs_list->list);
+
+	list_for_each_entry(a, &q, list) {
+		a->task = t;
+		t = list_entry(t->list.next, struct sas_task, list);
+	}
+
+	list_for_each_entry(a, &q , list) {
+
+		t = a->task;
+		mvi = ((struct mvs_device *)t->dev->lldd_dev)->mvi_info;
+
+		spin_lock_irqsave(&mvi->lock, flags);
+		rc = mvs_task_prep(t, mvi, is_tmf, tmf, &pass[mvi->id]);
+		if (rc)
+			dev_printk(KERN_ERR, mvi->dev, "mvsas exec failed[%d]!\n", rc);
+		spin_unlock_irqrestore(&mvi->lock, flags);
+	}
+
+	if (likely(pass[0]))
+			MVS_CHIP_DISP->start_delivery(mpi->mvi[0],
+				(mpi->mvi[0]->tx_prod - 1) & (MVS_CHIP_SLOT_SZ - 1));
+
+	if (likely(pass[1]))
+			MVS_CHIP_DISP->start_delivery(mpi->mvi[1],
+				(mpi->mvi[1]->tx_prod - 1) & (MVS_CHIP_SLOT_SZ - 1));
+
+	list_del_init(&q);
+
+free_list:
+	if (mvs_list)
+		mvs_task_free_list(mvs_list);
+
 	return rc;
 }
 
 int mvs_queue_command(struct sas_task *task, const int num,
 			gfp_t gfp_flags)
 {
-	return mvs_task_exec(task, num, gfp_flags, NULL, 0, NULL);
+	struct mvs_device *mvi_dev = task->dev->lldd_dev;
+	struct sas_ha_struct *sas = mvi_dev->mvi_info->sas;
+
+	if (sas->lldd_max_execute_num < 2)
+		return mvs_task_exec(task, num, gfp_flags, NULL, 0, NULL);
+	else
+		return mvs_collector_task_exec(task, num, gfp_flags, NULL, 0, NULL);
 }
 
 static void mvs_slot_free(struct mvs_info *mvi, u32 rx_desc)
@@ -1066,6 +1175,11 @@ static void mvs_slot_task_free(struct mvs_info *mvi, struct sas_task *task,
 	default:
 		/* do nothing */
 		break;
+	}
+
+	if (slot->buf) {
+		pci_pool_free(mvi->dma_pool, slot->buf, slot->buf_dma);
+		slot->buf = NULL;
 	}
 	list_del_init(&slot->entry);
 	task->lldd_task = NULL;
@@ -1255,6 +1369,7 @@ static void mvs_port_notify_formed(struct asd_sas_phy *sas_phy, int lock)
 		spin_lock_irqsave(&mvi->lock, flags);
 	port->port_attached = 1;
 	phy->port = port;
+	sas_port->lldd_port = port;
 	if (phy->phy_type & PORT_TYPE_SAS) {
 		port->wide_port_phymap = sas_port->phy_mask;
 		mv_printk("set wide port phy map %x\n", sas_port->phy_mask);

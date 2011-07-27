@@ -40,7 +40,6 @@ static struct clocksource clocksource_uv = {
 	.rating		= 400,
 	.read		= uv_read_rtc,
 	.mask		= (cycle_t)UVH_RTC_REAL_TIME_CLOCK_MASK,
-	.shift		= 10,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -100,8 +99,12 @@ static void uv_rtc_send_IPI(int cpu)
 /* Check for an RTC interrupt pending */
 static int uv_intr_pending(int pnode)
 {
-	return uv_read_global_mmr64(pnode, UVH_EVENT_OCCURRED0) &
-		UVH_EVENT_OCCURRED0_RTC1_MASK;
+	if (is_uv1_hub())
+		return uv_read_global_mmr64(pnode, UVH_EVENT_OCCURRED0) &
+			UV1H_EVENT_OCCURRED0_RTC1_MASK;
+	else
+		return uv_read_global_mmr64(pnode, UV2H_EVENT_OCCURRED2) &
+			UV2H_EVENT_OCCURRED2_RTC_1_MASK;
 }
 
 /* Setup interrupt and return non-zero if early expiration occurred. */
@@ -115,8 +118,12 @@ static int uv_setup_intr(int cpu, u64 expires)
 		UVH_RTC1_INT_CONFIG_M_MASK);
 	uv_write_global_mmr64(pnode, UVH_INT_CMPB, -1L);
 
-	uv_write_global_mmr64(pnode, UVH_EVENT_OCCURRED0_ALIAS,
-		UVH_EVENT_OCCURRED0_RTC1_MASK);
+	if (is_uv1_hub())
+		uv_write_global_mmr64(pnode, UVH_EVENT_OCCURRED0_ALIAS,
+				UV1H_EVENT_OCCURRED0_RTC1_MASK);
+	else
+		uv_write_global_mmr64(pnode, UV2H_EVENT_OCCURRED2_ALIAS,
+				UV2H_EVENT_OCCURRED2_RTC_1_MASK);
 
 	val = (X86_PLATFORM_IPI_VECTOR << UVH_RTC1_INT_CONFIG_VECTOR_SHFT) |
 		((u64)apicid << UVH_RTC1_INT_CONFIG_APIC_ID_SHFT);
@@ -372,14 +379,11 @@ static __init int uv_rtc_setup_clock(void)
 	if (!is_uv_system())
 		return -ENODEV;
 
-	clocksource_uv.mult = clocksource_hz2mult(sn_rtc_cycles_per_second,
-				clocksource_uv.shift);
-
 	/* If single blade, prefer tsc */
 	if (uv_num_possible_blades() == 1)
 		clocksource_uv.rating = 250;
 
-	rc = clocksource_register(&clocksource_uv);
+	rc = clocksource_register_hz(&clocksource_uv, sn_rtc_cycles_per_second);
 	if (rc)
 		printk(KERN_INFO "UV RTC clocksource failed rc %d\n", rc);
 	else

@@ -93,6 +93,69 @@ void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted)
 }
 EXPORT_SYMBOL(cfg80211_scan_done);
 
+void __cfg80211_sched_scan_results(struct work_struct *wk)
+{
+	struct cfg80211_registered_device *rdev;
+
+	rdev = container_of(wk, struct cfg80211_registered_device,
+			    sched_scan_results_wk);
+
+	cfg80211_lock_rdev(rdev);
+
+	/* we don't have sched_scan_req anymore if the scan is stopping */
+	if (rdev->sched_scan_req)
+		nl80211_send_sched_scan_results(rdev,
+						rdev->sched_scan_req->dev);
+
+	cfg80211_unlock_rdev(rdev);
+}
+
+void cfg80211_sched_scan_results(struct wiphy *wiphy)
+{
+	/* ignore if we're not scanning */
+	if (wiphy_to_dev(wiphy)->sched_scan_req)
+		queue_work(cfg80211_wq,
+			   &wiphy_to_dev(wiphy)->sched_scan_results_wk);
+}
+EXPORT_SYMBOL(cfg80211_sched_scan_results);
+
+void cfg80211_sched_scan_stopped(struct wiphy *wiphy)
+{
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	cfg80211_lock_rdev(rdev);
+	__cfg80211_stop_sched_scan(rdev, true);
+	cfg80211_unlock_rdev(rdev);
+}
+EXPORT_SYMBOL(cfg80211_sched_scan_stopped);
+
+int __cfg80211_stop_sched_scan(struct cfg80211_registered_device *rdev,
+			       bool driver_initiated)
+{
+	int err;
+	struct net_device *dev;
+
+	ASSERT_RDEV_LOCK(rdev);
+
+	if (!rdev->sched_scan_req)
+		return 0;
+
+	dev = rdev->sched_scan_req->dev;
+
+	if (!driver_initiated) {
+		err = rdev->ops->sched_scan_stop(&rdev->wiphy, dev);
+		if (err)
+			return err;
+	}
+
+	nl80211_send_sched_scan(rdev, dev, NL80211_CMD_SCHED_SCAN_STOPPED);
+
+	kfree(rdev->sched_scan_req);
+	rdev->sched_scan_req = NULL;
+
+	return err;
+}
+
 static void bss_release(struct kref *ref)
 {
 	struct cfg80211_internal_bss *bss;
@@ -204,13 +267,35 @@ static bool is_bss(struct cfg80211_bss *a,
 	return memcmp(ssidie + 2, ssid, ssid_len) == 0;
 }
 
+static bool is_mesh_bss(struct cfg80211_bss *a)
+{
+	const u8 *ie;
+
+	if (!WLAN_CAPABILITY_IS_STA_BSS(a->capability))
+		return false;
+
+	ie = cfg80211_find_ie(WLAN_EID_MESH_ID,
+			      a->information_elements,
+			      a->len_information_elements);
+	if (!ie)
+		return false;
+
+	ie = cfg80211_find_ie(WLAN_EID_MESH_CONFIG,
+			      a->information_elements,
+			      a->len_information_elements);
+	if (!ie)
+		return false;
+
+	return true;
+}
+
 static bool is_mesh(struct cfg80211_bss *a,
 		    const u8 *meshid, size_t meshidlen,
 		    const u8 *meshcfg)
 {
 	const u8 *ie;
 
-	if (!is_zero_ether_addr(a->bssid))
+	if (!WLAN_CAPABILITY_IS_STA_BSS(a->capability))
 		return false;
 
 	ie = cfg80211_find_ie(WLAN_EID_MESH_ID,
@@ -248,11 +333,7 @@ static int cmp_bss(struct cfg80211_bss *a,
 	if (a->channel != b->channel)
 		return b->channel->center_freq - a->channel->center_freq;
 
-	r = memcmp(a->bssid, b->bssid, ETH_ALEN);
-	if (r)
-		return r;
-
-	if (is_zero_ether_addr(a->bssid)) {
+	if (is_mesh_bss(a) && is_mesh_bss(b)) {
 		r = cmp_ies(WLAN_EID_MESH_ID,
 			    a->information_elements,
 			    a->len_information_elements,
@@ -266,6 +347,10 @@ static int cmp_bss(struct cfg80211_bss *a,
 			       b->information_elements,
 			       b->len_information_elements);
 	}
+
+	r = memcmp(a->bssid, b->bssid, ETH_ALEN);
+	if (r)
+		return r;
 
 	return cmp_ies(WLAN_EID_SSID,
 		       a->information_elements,
@@ -394,7 +479,6 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 		    struct cfg80211_internal_bss *res)
 {
 	struct cfg80211_internal_bss *found = NULL;
-	const u8 *meshid, *meshcfg;
 
 	/*
 	 * The reference to "res" is donated to this function.
@@ -406,22 +490,6 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 	}
 
 	res->ts = jiffies;
-
-	if (is_zero_ether_addr(res->pub.bssid)) {
-		/* must be mesh, verify */
-		meshid = cfg80211_find_ie(WLAN_EID_MESH_ID,
-					  res->pub.information_elements,
-					  res->pub.len_information_elements);
-		meshcfg = cfg80211_find_ie(WLAN_EID_MESH_CONFIG,
-					   res->pub.information_elements,
-					   res->pub.len_information_elements);
-		if (!meshid || !meshcfg ||
-		    meshcfg[1] != sizeof(struct ieee80211_meshconf_ie)) {
-			/* bogus mesh */
-			kref_put(&res->ref, bss_release);
-			return NULL;
-		}
-	}
 
 	spin_lock_bh(&dev->bss_lock);
 

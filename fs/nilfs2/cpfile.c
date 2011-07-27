@@ -216,14 +216,14 @@ int nilfs_cpfile_get_checkpoint(struct inode *cpfile,
 		if (!nilfs_cpfile_is_in_first(cpfile, cno))
 			nilfs_cpfile_block_add_valid_checkpoints(cpfile, cp_bh,
 								 kaddr, 1);
-		nilfs_mdt_mark_buffer_dirty(cp_bh);
+		mark_buffer_dirty(cp_bh);
 
 		kaddr = kmap_atomic(header_bh->b_page, KM_USER0);
 		header = nilfs_cpfile_block_get_header(cpfile, header_bh,
 						       kaddr);
 		le64_add_cpu(&header->ch_ncheckpoints, 1);
 		kunmap_atomic(kaddr, KM_USER0);
-		nilfs_mdt_mark_buffer_dirty(header_bh);
+		mark_buffer_dirty(header_bh);
 		nilfs_mdt_mark_dirty(cpfile);
 	}
 
@@ -326,7 +326,7 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
 		}
 		if (nicps > 0) {
 			tnicps += nicps;
-			nilfs_mdt_mark_buffer_dirty(cp_bh);
+			mark_buffer_dirty(cp_bh);
 			nilfs_mdt_mark_dirty(cpfile);
 			if (!nilfs_cpfile_is_in_first(cpfile, cno)) {
 				count =
@@ -358,7 +358,7 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
 		header = nilfs_cpfile_block_get_header(cpfile, header_bh,
 						       kaddr);
 		le64_add_cpu(&header->ch_ncheckpoints, -(u64)tnicps);
-		nilfs_mdt_mark_buffer_dirty(header_bh);
+		mark_buffer_dirty(header_bh);
 		nilfs_mdt_mark_dirty(cpfile);
 		kunmap_atomic(kaddr, KM_USER0);
 	}
@@ -671,10 +671,10 @@ static int nilfs_cpfile_set_snapshot(struct inode *cpfile, __u64 cno)
 	le64_add_cpu(&header->ch_nsnapshots, 1);
 	kunmap_atomic(kaddr, KM_USER0);
 
-	nilfs_mdt_mark_buffer_dirty(prev_bh);
-	nilfs_mdt_mark_buffer_dirty(curr_bh);
-	nilfs_mdt_mark_buffer_dirty(cp_bh);
-	nilfs_mdt_mark_buffer_dirty(header_bh);
+	mark_buffer_dirty(prev_bh);
+	mark_buffer_dirty(curr_bh);
+	mark_buffer_dirty(cp_bh);
+	mark_buffer_dirty(header_bh);
 	nilfs_mdt_mark_dirty(cpfile);
 
 	brelse(prev_bh);
@@ -774,10 +774,10 @@ static int nilfs_cpfile_clear_snapshot(struct inode *cpfile, __u64 cno)
 	le64_add_cpu(&header->ch_nsnapshots, -1);
 	kunmap_atomic(kaddr, KM_USER0);
 
-	nilfs_mdt_mark_buffer_dirty(next_bh);
-	nilfs_mdt_mark_buffer_dirty(prev_bh);
-	nilfs_mdt_mark_buffer_dirty(cp_bh);
-	nilfs_mdt_mark_buffer_dirty(header_bh);
+	mark_buffer_dirty(next_bh);
+	mark_buffer_dirty(prev_bh);
+	mark_buffer_dirty(cp_bh);
+	mark_buffer_dirty(header_bh);
 	nilfs_mdt_mark_dirty(cpfile);
 
 	brelse(prev_bh);

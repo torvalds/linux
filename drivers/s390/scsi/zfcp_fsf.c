@@ -640,7 +640,7 @@ static struct fsf_qtcb *zfcp_qtcb_alloc(mempool_t *pool)
 }
 
 static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_qdio *qdio,
-						u32 fsf_cmd, u32 sbtype,
+						u32 fsf_cmd, u8 sbtype,
 						mempool_t *pool)
 {
 	struct zfcp_adapter *adapter = qdio->adapter;
@@ -841,7 +841,7 @@ struct zfcp_fsf_req *zfcp_fsf_abort_fcp_cmnd(struct scsi_cmnd *scmnd)
 	if (zfcp_qdio_sbal_get(qdio))
 		goto out;
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_ABORT_FCP_CMND,
-				  SBAL_FLAGS0_TYPE_READ,
+				  SBAL_SFLAGS0_TYPE_READ,
 				  qdio->adapter->pool.scsi_abort);
 	if (IS_ERR(req)) {
 		req = NULL;
@@ -1012,7 +1012,7 @@ int zfcp_fsf_send_ct(struct zfcp_fc_wka_port *wka_port,
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_SEND_GENERIC,
-				  SBAL_FLAGS0_TYPE_WRITE_READ, pool);
+				  SBAL_SFLAGS0_TYPE_WRITE_READ, pool);
 
 	if (IS_ERR(req)) {
 		ret = PTR_ERR(req);
@@ -1110,7 +1110,7 @@ int zfcp_fsf_send_els(struct zfcp_adapter *adapter, u32 d_id,
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_SEND_ELS,
-				  SBAL_FLAGS0_TYPE_WRITE_READ, NULL);
+				  SBAL_SFLAGS0_TYPE_WRITE_READ, NULL);
 
 	if (IS_ERR(req)) {
 		ret = PTR_ERR(req);
@@ -1156,7 +1156,7 @@ int zfcp_fsf_exchange_config_data(struct zfcp_erp_action *erp_action)
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_EXCHANGE_CONFIG_DATA,
-				  SBAL_FLAGS0_TYPE_READ,
+				  SBAL_SFLAGS0_TYPE_READ,
 				  qdio->adapter->pool.erp_req);
 
 	if (IS_ERR(req)) {
@@ -1198,7 +1198,7 @@ int zfcp_fsf_exchange_config_data_sync(struct zfcp_qdio *qdio,
 		goto out_unlock;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_EXCHANGE_CONFIG_DATA,
-				  SBAL_FLAGS0_TYPE_READ, NULL);
+				  SBAL_SFLAGS0_TYPE_READ, NULL);
 
 	if (IS_ERR(req)) {
 		retval = PTR_ERR(req);
@@ -1250,7 +1250,7 @@ int zfcp_fsf_exchange_port_data(struct zfcp_erp_action *erp_action)
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_EXCHANGE_PORT_DATA,
-				  SBAL_FLAGS0_TYPE_READ,
+				  SBAL_SFLAGS0_TYPE_READ,
 				  qdio->adapter->pool.erp_req);
 
 	if (IS_ERR(req)) {
@@ -1296,7 +1296,7 @@ int zfcp_fsf_exchange_port_data_sync(struct zfcp_qdio *qdio,
 		goto out_unlock;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_EXCHANGE_PORT_DATA,
-				  SBAL_FLAGS0_TYPE_READ, NULL);
+				  SBAL_SFLAGS0_TYPE_READ, NULL);
 
 	if (IS_ERR(req)) {
 		retval = PTR_ERR(req);
@@ -1412,7 +1412,7 @@ int zfcp_fsf_open_port(struct zfcp_erp_action *erp_action)
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_OPEN_PORT_WITH_DID,
-				  SBAL_FLAGS0_TYPE_READ,
+				  SBAL_SFLAGS0_TYPE_READ,
 				  qdio->adapter->pool.erp_req);
 
 	if (IS_ERR(req)) {
@@ -1478,7 +1478,7 @@ int zfcp_fsf_close_port(struct zfcp_erp_action *erp_action)
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_CLOSE_PORT,
-				  SBAL_FLAGS0_TYPE_READ,
+				  SBAL_SFLAGS0_TYPE_READ,
 				  qdio->adapter->pool.erp_req);
 
 	if (IS_ERR(req)) {
@@ -1553,7 +1553,7 @@ int zfcp_fsf_open_wka_port(struct zfcp_fc_wka_port *wka_port)
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_OPEN_PORT_WITH_DID,
-				  SBAL_FLAGS0_TYPE_READ,
+				  SBAL_SFLAGS0_TYPE_READ,
 				  qdio->adapter->pool.erp_req);
 
 	if (IS_ERR(req)) {
@@ -1606,7 +1606,7 @@ int zfcp_fsf_close_wka_port(struct zfcp_fc_wka_port *wka_port)
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_CLOSE_PORT,
-				  SBAL_FLAGS0_TYPE_READ,
+				  SBAL_SFLAGS0_TYPE_READ,
 				  qdio->adapter->pool.erp_req);
 
 	if (IS_ERR(req)) {
@@ -1698,7 +1698,7 @@ int zfcp_fsf_close_physical_port(struct zfcp_erp_action *erp_action)
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_CLOSE_PHYSICAL_PORT,
-				  SBAL_FLAGS0_TYPE_READ,
+				  SBAL_SFLAGS0_TYPE_READ,
 				  qdio->adapter->pool.erp_req);
 
 	if (IS_ERR(req)) {
@@ -1812,7 +1812,7 @@ int zfcp_fsf_open_lun(struct zfcp_erp_action *erp_action)
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_OPEN_LUN,
-				  SBAL_FLAGS0_TYPE_READ,
+				  SBAL_SFLAGS0_TYPE_READ,
 				  adapter->pool.erp_req);
 
 	if (IS_ERR(req)) {
@@ -1901,7 +1901,7 @@ int zfcp_fsf_close_lun(struct zfcp_erp_action *erp_action)
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_CLOSE_LUN,
-				  SBAL_FLAGS0_TYPE_READ,
+				  SBAL_SFLAGS0_TYPE_READ,
 				  qdio->adapter->pool.erp_req);
 
 	if (IS_ERR(req)) {
@@ -2161,7 +2161,7 @@ int zfcp_fsf_fcp_cmnd(struct scsi_cmnd *scsi_cmnd)
 {
 	struct zfcp_fsf_req *req;
 	struct fcp_cmnd *fcp_cmnd;
-	unsigned int sbtype = SBAL_FLAGS0_TYPE_READ;
+	u8 sbtype = SBAL_SFLAGS0_TYPE_READ;
 	int real_bytes, retval = -EIO, dix_bytes = 0;
 	struct scsi_device *sdev = scsi_cmnd->device;
 	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
@@ -2181,7 +2181,7 @@ int zfcp_fsf_fcp_cmnd(struct scsi_cmnd *scsi_cmnd)
 	}
 
 	if (scsi_cmnd->sc_data_direction == DMA_TO_DEVICE)
-		sbtype = SBAL_FLAGS0_TYPE_WRITE;
+		sbtype = SBAL_SFLAGS0_TYPE_WRITE;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_FCP_CMND,
 				  sbtype, adapter->pool.scsi_req);
@@ -2280,7 +2280,7 @@ struct zfcp_fsf_req *zfcp_fsf_fcp_task_mgmt(struct scsi_cmnd *scmnd,
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_FCP_CMND,
-				  SBAL_FLAGS0_TYPE_WRITE,
+				  SBAL_SFLAGS0_TYPE_WRITE,
 				  qdio->adapter->pool.scsi_req);
 
 	if (IS_ERR(req)) {
@@ -2328,17 +2328,18 @@ struct zfcp_fsf_req *zfcp_fsf_control_file(struct zfcp_adapter *adapter,
 	struct zfcp_qdio *qdio = adapter->qdio;
 	struct zfcp_fsf_req *req = NULL;
 	struct fsf_qtcb_bottom_support *bottom;
-	int direction, retval = -EIO, bytes;
+	int retval = -EIO, bytes;
+	u8 direction;
 
 	if (!(adapter->adapter_features & FSF_FEATURE_CFDC))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	switch (fsf_cfdc->command) {
 	case FSF_QTCB_DOWNLOAD_CONTROL_FILE:
-		direction = SBAL_FLAGS0_TYPE_WRITE;
+		direction = SBAL_SFLAGS0_TYPE_WRITE;
 		break;
 	case FSF_QTCB_UPLOAD_CONTROL_FILE:
-		direction = SBAL_FLAGS0_TYPE_READ;
+		direction = SBAL_SFLAGS0_TYPE_READ;
 		break;
 	default:
 		return ERR_PTR(-EINVAL);
@@ -2413,7 +2414,7 @@ void zfcp_fsf_reqid_check(struct zfcp_qdio *qdio, int sbal_idx)
 		fsf_req->qdio_req.sbal_response = sbal_idx;
 		zfcp_fsf_req_complete(fsf_req);
 
-		if (likely(sbale->flags & SBAL_FLAGS_LAST_ENTRY))
+		if (likely(sbale->eflags & SBAL_EFLAGS_LAST_ENTRY))
 			break;
 	}
 }

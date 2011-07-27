@@ -244,28 +244,28 @@ static struct mv_sata_platform_data qnap_ts209_sata_data = {
 
  * General Setup
  ****************************************************************************/
-static struct orion5x_mpp_mode ts209_mpp_modes[] __initdata = {
-	{  0, MPP_UNUSED },
-	{  1, MPP_GPIO },		/* USB copy button */
-	{  2, MPP_GPIO },		/* Load defaults button */
-	{  3, MPP_GPIO },		/* GPIO RTC */
-	{  4, MPP_UNUSED },
-	{  5, MPP_UNUSED },
-	{  6, MPP_GPIO },		/* PCI Int A */
-	{  7, MPP_GPIO },		/* PCI Int B */
-	{  8, MPP_UNUSED },
-	{  9, MPP_UNUSED },
-	{ 10, MPP_UNUSED },
-	{ 11, MPP_UNUSED },
-	{ 12, MPP_SATA_LED },		/* SATA 0 presence */
-	{ 13, MPP_SATA_LED },		/* SATA 1 presence */
-	{ 14, MPP_SATA_LED },		/* SATA 0 active */
-	{ 15, MPP_SATA_LED },		/* SATA 1 active */
-	{ 16, MPP_UART },		/* UART1 RXD */
-	{ 17, MPP_UART },		/* UART1 TXD */
-	{ 18, MPP_GPIO },		/* SW_RST */
-	{ 19, MPP_UNUSED },
-	{ -1 },
+static unsigned int ts209_mpp_modes[] __initdata = {
+	MPP0_UNUSED,
+	MPP1_GPIO,		/* USB copy button */
+	MPP2_GPIO,		/* Load defaults button */
+	MPP3_GPIO,		/* GPIO RTC */
+	MPP4_UNUSED,
+	MPP5_UNUSED,
+	MPP6_GPIO,		/* PCI Int A */
+	MPP7_GPIO,		/* PCI Int B */
+	MPP8_UNUSED,
+	MPP9_UNUSED,
+	MPP10_UNUSED,
+	MPP11_UNUSED,
+	MPP12_SATA_LED,		/* SATA 0 presence */
+	MPP13_SATA_LED,		/* SATA 1 presence */
+	MPP14_SATA_LED,		/* SATA 0 active */
+	MPP15_SATA_LED,		/* SATA 1 active */
+	MPP16_UART,		/* UART1 RXD */
+	MPP17_UART,		/* UART1 TXD */
+	MPP18_GPIO,		/* SW_RST */
+	MPP19_UNUSED,
+	0,
 };
 
 static void __init qnap_ts209_init(void)

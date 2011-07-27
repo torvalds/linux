@@ -170,7 +170,7 @@ static int fmr2_setfreq(struct fmr2 *dev)
 	return 0;
 }
 
-/* !!! not tested, in my card this does't work !!! */
+/* !!! not tested, in my card this doesn't work !!! */
 static int fmr2_setvolume(struct fmr2 *dev)
 {
 	int vol[16] = { 0x021, 0x084, 0x090, 0x104,

@@ -32,6 +32,7 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
+#include <linux/prefetch.h>
 
 #include <asm/byteorder.h>
 #include <mach/hardware.h>

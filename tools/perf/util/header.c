@@ -193,9 +193,13 @@ int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
 	     *linkname = malloc(size), *targetname;
 	int len, err = -1;
 
-	if (is_kallsyms)
+	if (is_kallsyms) {
+		if (symbol_conf.kptr_restrict) {
+			pr_debug("Not caching a kptr_restrict'ed /proc/kallsyms\n");
+			return 0;
+		}
 		realname = (char *)name;
-	else
+	} else
 		realname = realpath(name, NULL);
 
 	if (realname == NULL || filename == NULL || linkname == NULL)
@@ -932,37 +936,6 @@ out_delete_evlist:
 	perf_evlist__delete(session->evlist);
 	session->evlist = NULL;
 	return -ENOMEM;
-}
-
-u64 perf_evlist__sample_type(struct perf_evlist *evlist)
-{
-	struct perf_evsel *pos;
-	u64 type = 0;
-
-	list_for_each_entry(pos, &evlist->entries, node) {
-		if (!type)
-			type = pos->attr.sample_type;
-		else if (type != pos->attr.sample_type)
-			die("non matching sample_type");
-	}
-
-	return type;
-}
-
-bool perf_evlist__sample_id_all(const struct perf_evlist *evlist)
-{
-	bool value = false, first = true;
-	struct perf_evsel *pos;
-
-	list_for_each_entry(pos, &evlist->entries, node) {
-		if (first) {
-			value = pos->attr.sample_id_all;
-			first = false;
-		} else if (value != pos->attr.sample_id_all)
-			die("non matching sample_id_all");
-	}
-
-	return value;
 }
 
 int perf_event__synthesize_attr(struct perf_event_attr *attr, u16 ids, u64 *id,

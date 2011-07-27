@@ -40,6 +40,10 @@
 #define HARDWALL_DEACTIVATE \
  _IO(HARDWALL_IOCTL_BASE, _HARDWALL_DEACTIVATE)
 
+#define _HARDWALL_GET_ID 4
+#define HARDWALL_GET_ID \
+ _IO(HARDWALL_IOCTL_BASE, _HARDWALL_GET_ID)
+
 #ifndef __KERNEL__
 
 /* This is the canonical name expected by userspace. */
@@ -47,9 +51,14 @@
 
 #else
 
-/* Hook for /proc/tile/hardwall. */
-struct seq_file;
-int proc_tile_hardwall_show(struct seq_file *sf, void *v);
+/* /proc hooks for hardwall. */
+struct proc_dir_entry;
+#ifdef CONFIG_HARDWALL
+void proc_tile_hardwall_init(struct proc_dir_entry *root);
+int proc_pid_hardwall(struct task_struct *task, char *buffer);
+#else
+static inline void proc_tile_hardwall_init(struct proc_dir_entry *root) {}
+#endif
 
 #endif
 

@@ -385,7 +385,7 @@ u8 bnx2x_ets_strict(const struct link_params *params, const u8 strict_cos)
 	return 0;
 }
 /******************************************************************/
-/*			ETS section				  */
+/*			PFC section				  */
 /******************************************************************/
 
 static void bnx2x_bmac2_get_pfc_stat(struct link_params *params,
@@ -1301,14 +1301,12 @@ static u8 bnx2x_pbf_update(struct link_params *params, u32 flow_ctrl,
 	return 0;
 }
 
-/*
- * get_emac_base
+/**
+ * bnx2x_get_emac_base - retrive emac base address
  *
- * @param cb
- * @param mdc_mdio_access
- * @param port
- *
- * @return u32
+ * @bp:			driver handle
+ * @mdc_mdio_access:	access type
+ * @port:		port id
  *
  * This function selects the MDC/MDIO access (through emac0 or
  * emac1) depend on the mdc_mdio_access, port, port swapped. Each

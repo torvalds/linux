@@ -21,7 +21,7 @@
 #include <linux/spi/spi.h>
 #include <linux/mutex.h>
 
-#include <plat/display.h>
+#include <video/omapdss.h>
 
 struct lb035q02_data {
 	struct mutex lock;

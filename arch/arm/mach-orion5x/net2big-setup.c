@@ -339,28 +339,28 @@ static struct platform_device net2big_gpio_buttons = {
  * General Setup
  ****************************************************************************/
 
-static struct orion5x_mpp_mode net2big_mpp_modes[] __initdata = {
-	{  0, MPP_GPIO },	/* Raid mode (bit 0) */
-	{  1, MPP_GPIO },	/* USB port 2 fuse (0 = Fail, 1 = Ok) */
-	{  2, MPP_GPIO },	/* Raid mode (bit 1) */
-	{  3, MPP_GPIO },	/* Board ID (bit 0) */
-	{  4, MPP_GPIO },	/* Fan activity (0 = Off, 1 = On) */
-	{  5, MPP_GPIO },	/* Fan fail detection */
-	{  6, MPP_GPIO },	/* Red front LED (0 = Off, 1 = On) */
-	{  7, MPP_GPIO },	/* Disable initial blinking on front LED */
-	{  8, MPP_GPIO },	/* Rear power switch (on|auto) */
-	{  9, MPP_GPIO },	/* Rear power switch (auto|off) */
-	{ 10, MPP_GPIO },	/* SATA 1 red LED (0 = Off, 1 = On) */
-	{ 11, MPP_GPIO },	/* SATA 0 red LED (0 = Off, 1 = On) */
-	{ 12, MPP_GPIO },	/* Board ID (bit 1) */
-	{ 13, MPP_GPIO },	/* SATA 1 blue LED blink control */
-	{ 14, MPP_SATA_LED },
-	{ 15, MPP_SATA_LED },
-	{ 16, MPP_GPIO },	/* Blue front LED control */
-	{ 17, MPP_GPIO },	/* SATA 0 blue LED blink control */
-	{ 18, MPP_GPIO },	/* Front button (0 = Released, 1 = Pushed ) */
-	{ 19, MPP_GPIO },	/* SATA{0,1} power On/Off request */
-	{ -1 }
+static unsigned int net2big_mpp_modes[] __initdata = {
+	MPP0_GPIO,	/* Raid mode (bit 0) */
+	MPP1_GPIO,	/* USB port 2 fuse (0 = Fail, 1 = Ok) */
+	MPP2_GPIO,	/* Raid mode (bit 1) */
+	MPP3_GPIO,	/* Board ID (bit 0) */
+	MPP4_GPIO,	/* Fan activity (0 = Off, 1 = On) */
+	MPP5_GPIO,	/* Fan fail detection */
+	MPP6_GPIO,	/* Red front LED (0 = Off, 1 = On) */
+	MPP7_GPIO,	/* Disable initial blinking on front LED */
+	MPP8_GPIO,	/* Rear power switch (on|auto) */
+	MPP9_GPIO,	/* Rear power switch (auto|off) */
+	MPP10_GPIO,	/* SATA 1 red LED (0 = Off, 1 = On) */
+	MPP11_GPIO,	/* SATA 0 red LED (0 = Off, 1 = On) */
+	MPP12_GPIO,	/* Board ID (bit 1) */
+	MPP13_GPIO,	/* SATA 1 blue LED blink control */
+	MPP14_SATA_LED,
+	MPP15_SATA_LED,
+	MPP16_GPIO,	/* Blue front LED control */
+	MPP17_GPIO,	/* SATA 0 blue LED blink control */
+	MPP18_GPIO,	/* Front button (0 = Released, 1 = Pushed ) */
+	MPP19_GPIO,	/* SATA{0,1} power On/Off request */
+	0,
 	/* 22: USB port 1 fuse (0 = Fail, 1 = Ok) */
 	/* 23: SATA 0 power status */
 	/* 24: Board power off */

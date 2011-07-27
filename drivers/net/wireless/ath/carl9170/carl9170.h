@@ -286,6 +286,10 @@ struct ar9170 {
 		unsigned int tx_seq_table;
 	} fw;
 
+	/* interface configuration combinations */
+	struct ieee80211_iface_limit if_comb_limits[1];
+	struct ieee80211_iface_combination if_combs[1];
+
 	/* reset / stuck frames/queue detection */
 	struct work_struct restart_work;
 	struct work_struct ping_work;
@@ -448,6 +452,8 @@ struct carl9170_ba_stats {
 
 struct carl9170_sta_info {
 	bool ht_sta;
+	bool sleeping;
+	atomic_t pending_frames;
 	unsigned int ampdu_max_len;
 	struct carl9170_sta_tid *agg[CARL9170_NUM_TID];
 	struct carl9170_ba_stats stats[CARL9170_NUM_TID];

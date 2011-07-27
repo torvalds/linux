@@ -2,6 +2,23 @@
 
 #include <asm/btfixup.h>
 
+struct irq_bucket {
+        struct irq_bucket *next;
+        unsigned int real_irq;
+        unsigned int irq;
+        unsigned int pil;
+};
+
+#define SUN4D_MAX_BOARD 10
+#define SUN4D_MAX_IRQ ((SUN4D_MAX_BOARD + 2) << 5)
+
+/* Map between the irq identifier used in hw to the
+ * irq_bucket. The map is sufficient large to hold
+ * the sun4d hw identifiers.
+ */
+extern struct irq_bucket *irq_map[SUN4D_MAX_IRQ];
+
+
 /* sun4m specific type definitions */
 
 /* This maps direct to CPU specific interrupt registers */
@@ -35,6 +52,10 @@ struct sparc_irq_config {
 };
 extern struct sparc_irq_config sparc_irq_config;
 
+unsigned int irq_alloc(unsigned int real_irq, unsigned int pil);
+void irq_link(unsigned int irq);
+void irq_unlink(unsigned int irq);
+void handler_irq(unsigned int pil, struct pt_regs *regs);
 
 /* Dave Redman (djhr@tadpole.co.uk)
  * changed these to function pointers.. it saves cycles and will allow
@@ -44,32 +65,8 @@ extern struct sparc_irq_config sparc_irq_config;
  * Changed these to btfixup entities... It saves cycles :)
  */
 
-BTFIXUPDEF_CALL(void, disable_irq, unsigned int)
-BTFIXUPDEF_CALL(void, enable_irq, unsigned int)
-BTFIXUPDEF_CALL(void, disable_pil_irq, unsigned int)
-BTFIXUPDEF_CALL(void, enable_pil_irq, unsigned int)
 BTFIXUPDEF_CALL(void, clear_clock_irq, void)
 BTFIXUPDEF_CALL(void, load_profile_irq, int, unsigned int)
-
-static inline void __disable_irq(unsigned int irq)
-{
-	BTFIXUP_CALL(disable_irq)(irq);
-}
-
-static inline void __enable_irq(unsigned int irq)
-{
-	BTFIXUP_CALL(enable_irq)(irq);
-}
-
-static inline void disable_pil_irq(unsigned int irq)
-{
-	BTFIXUP_CALL(disable_pil_irq)(irq);
-}
-
-static inline void enable_pil_irq(unsigned int irq)
-{
-	BTFIXUP_CALL(enable_pil_irq)(irq);
-}
 
 static inline void clear_clock_irq(void)
 {
@@ -89,4 +86,10 @@ BTFIXUPDEF_CALL(void, set_irq_udt, int)
 #define set_cpu_int(cpu,level) BTFIXUP_CALL(set_cpu_int)(cpu,level)
 #define clear_cpu_int(cpu,level) BTFIXUP_CALL(clear_cpu_int)(cpu,level)
 #define set_irq_udt(cpu) BTFIXUP_CALL(set_irq_udt)(cpu)
+
+/* All SUN4D IPIs are sent on this IRQ, may be shared with hard IRQs */
+#define SUN4D_IPI_IRQ 14
+
+extern void sun4d_ipi_interrupt(void);
+
 #endif

@@ -242,28 +242,28 @@ static struct platform_device qnap_ts409_button_device = {
 /*****************************************************************************
  * General Setup
  ****************************************************************************/
-static struct orion5x_mpp_mode ts409_mpp_modes[] __initdata = {
-	{  0, MPP_UNUSED },
-	{  1, MPP_UNUSED },
-	{  2, MPP_UNUSED },
-	{  3, MPP_UNUSED },
-	{  4, MPP_GPIO },		/* HDD 1 status */
-	{  5, MPP_GPIO },		/* HDD 2 status */
-	{  6, MPP_GPIO },		/* HDD 3 status */
-	{  7, MPP_GPIO },		/* HDD 4 status */
-	{  8, MPP_UNUSED },
-	{  9, MPP_UNUSED },
-	{ 10, MPP_GPIO },		/* RTC int */
-	{ 11, MPP_UNUSED },
-	{ 12, MPP_UNUSED },
-	{ 13, MPP_UNUSED },
-	{ 14, MPP_GPIO },		/* SW_RST */
-	{ 15, MPP_GPIO },		/* USB copy button */
-	{ 16, MPP_UART },		/* UART1 RXD */
-	{ 17, MPP_UART },		/* UART1 TXD */
-	{ 18, MPP_UNUSED },
-	{ 19, MPP_UNUSED },
-	{ -1 },
+static unsigned int ts409_mpp_modes[] __initdata = {
+	MPP0_UNUSED,
+	MPP1_UNUSED,
+	MPP2_UNUSED,
+	MPP3_UNUSED,
+	MPP4_GPIO,		/* HDD 1 status */
+	MPP5_GPIO,		/* HDD 2 status */
+	MPP6_GPIO,		/* HDD 3 status */
+	MPP7_GPIO,		/* HDD 4 status */
+	MPP8_UNUSED,
+	MPP9_UNUSED,
+	MPP10_GPIO,		/* RTC int */
+	MPP11_UNUSED,
+	MPP12_UNUSED,
+	MPP13_UNUSED,
+	MPP14_GPIO,		/* SW_RST */
+	MPP15_GPIO,		/* USB copy button */
+	MPP16_UART,		/* UART1 RXD */
+	MPP17_UART,		/* UART1 TXD */
+	MPP18_UNUSED,
+	MPP19_UNUSED,
+	0,
 };
 
 static void __init qnap_ts409_init(void)

@@ -29,12 +29,12 @@ static void uhci_set_next_interrupt(struct uhci_hcd *uhci)
 {
 	if (uhci->is_stopped)
 		mod_timer(&uhci_to_hcd(uhci)->rh_timer, jiffies);
-	uhci->term_td->status |= cpu_to_le32(TD_CTRL_IOC);
+	uhci->term_td->status |= cpu_to_hc32(uhci, TD_CTRL_IOC);
 }
 
 static inline void uhci_clear_next_interrupt(struct uhci_hcd *uhci)
 {
-	uhci->term_td->status &= ~cpu_to_le32(TD_CTRL_IOC);
+	uhci->term_td->status &= ~cpu_to_hc32(uhci, TD_CTRL_IOC);
 }
 
 
@@ -53,7 +53,7 @@ static void uhci_fsbr_on(struct uhci_hcd *uhci)
 	uhci->fsbr_is_on = 1;
 	lqh = list_entry(uhci->skel_async_qh->node.prev,
 			struct uhci_qh, node);
-	lqh->link = LINK_TO_QH(uhci->skel_term_qh);
+	lqh->link = LINK_TO_QH(uhci, uhci->skel_term_qh);
 }
 
 static void uhci_fsbr_off(struct uhci_hcd *uhci)
@@ -65,7 +65,7 @@ static void uhci_fsbr_off(struct uhci_hcd *uhci)
 	uhci->fsbr_is_on = 0;
 	lqh = list_entry(uhci->skel_async_qh->node.prev,
 			struct uhci_qh, node);
-	lqh->link = UHCI_PTR_TERM;
+	lqh->link = UHCI_PTR_TERM(uhci);
 }
 
 static void uhci_add_fsbr(struct uhci_hcd *uhci, struct urb *urb)
@@ -131,12 +131,12 @@ static void uhci_free_td(struct uhci_hcd *uhci, struct uhci_td *td)
 	dma_pool_free(uhci->td_pool, td, td->dma_handle);
 }
 
-static inline void uhci_fill_td(struct uhci_td *td, u32 status,
-		u32 token, u32 buffer)
+static inline void uhci_fill_td(struct uhci_hcd *uhci, struct uhci_td *td,
+		u32 status, u32 token, u32 buffer)
 {
-	td->status = cpu_to_le32(status);
-	td->token = cpu_to_le32(token);
-	td->buffer = cpu_to_le32(buffer);
+	td->status = cpu_to_hc32(uhci, status);
+	td->token = cpu_to_hc32(uhci, token);
+	td->buffer = cpu_to_hc32(uhci, buffer);
 }
 
 static void uhci_add_td_to_urbp(struct uhci_td *td, struct urb_priv *urbp)
@@ -170,11 +170,11 @@ static inline void uhci_insert_td_in_frame_list(struct uhci_hcd *uhci,
 
 		td->link = ltd->link;
 		wmb();
-		ltd->link = LINK_TO_TD(td);
+		ltd->link = LINK_TO_TD(uhci, td);
 	} else {
 		td->link = uhci->frame[framenum];
 		wmb();
-		uhci->frame[framenum] = LINK_TO_TD(td);
+		uhci->frame[framenum] = LINK_TO_TD(uhci, td);
 		uhci->frame_cpu[framenum] = td;
 	}
 }
@@ -198,7 +198,7 @@ static inline void uhci_remove_td_from_frame_list(struct uhci_hcd *uhci,
 			ntd = list_entry(td->fl_list.next,
 					 struct uhci_td,
 					 fl_list);
-			uhci->frame[td->frame] = LINK_TO_TD(ntd);
+			uhci->frame[td->frame] = LINK_TO_TD(uhci, ntd);
 			uhci->frame_cpu[td->frame] = ntd;
 		}
 	} else {
@@ -255,8 +255,8 @@ static struct uhci_qh *uhci_alloc_qh(struct uhci_hcd *uhci,
 	memset(qh, 0, sizeof(*qh));
 	qh->dma_handle = dma_handle;
 
-	qh->element = UHCI_PTR_TERM;
-	qh->link = UHCI_PTR_TERM;
+	qh->element = UHCI_PTR_TERM(uhci);
+	qh->link = UHCI_PTR_TERM(uhci);
 
 	INIT_LIST_HEAD(&qh->queue);
 	INIT_LIST_HEAD(&qh->node);
@@ -348,9 +348,9 @@ static int uhci_cleanup_queue(struct uhci_hcd *uhci, struct uhci_qh *qh,
 
 	/* If the QH element pointer is UHCI_PTR_TERM then then currently
 	 * executing URB has already been unlinked, so this one isn't it. */
-	if (qh_element(qh) == UHCI_PTR_TERM)
+	if (qh_element(qh) == UHCI_PTR_TERM(uhci))
 		goto done;
-	qh->element = UHCI_PTR_TERM;
+	qh->element = UHCI_PTR_TERM(uhci);
 
 	/* Control pipes don't have to worry about toggles */
 	if (qh->type == USB_ENDPOINT_XFER_CONTROL)
@@ -360,7 +360,7 @@ static int uhci_cleanup_queue(struct uhci_hcd *uhci, struct uhci_qh *qh,
 	WARN_ON(list_empty(&urbp->td_list));
 	td = list_entry(urbp->td_list.next, struct uhci_td, list);
 	qh->needs_fixup = 1;
-	qh->initial_toggle = uhci_toggle(td_token(td));
+	qh->initial_toggle = uhci_toggle(td_token(uhci, td));
 
 done:
 	return ret;
@@ -370,7 +370,8 @@ done:
  * Fix up the data toggles for URBs in a queue, when one of them
  * terminates early (short transfer, error, or dequeued).
  */
-static void uhci_fixup_toggles(struct uhci_qh *qh, int skip_first)
+static void uhci_fixup_toggles(struct uhci_hcd *uhci, struct uhci_qh *qh,
+			int skip_first)
 {
 	struct urb_priv *urbp = NULL;
 	struct uhci_td *td;
@@ -384,7 +385,7 @@ static void uhci_fixup_toggles(struct uhci_qh *qh, int skip_first)
 
 	/* When starting with the first URB, if the QH element pointer is
 	 * still valid then we know the URB's toggles are okay. */
-	else if (qh_element(qh) != UHCI_PTR_TERM)
+	else if (qh_element(qh) != UHCI_PTR_TERM(uhci))
 		toggle = 2;
 
 	/* Fix up the toggle for the URBs in the queue.  Normally this
@@ -396,15 +397,15 @@ static void uhci_fixup_toggles(struct uhci_qh *qh, int skip_first)
 		/* If the first TD has the right toggle value, we don't
 		 * need to change any toggles in this URB */
 		td = list_entry(urbp->td_list.next, struct uhci_td, list);
-		if (toggle > 1 || uhci_toggle(td_token(td)) == toggle) {
+		if (toggle > 1 || uhci_toggle(td_token(uhci, td)) == toggle) {
 			td = list_entry(urbp->td_list.prev, struct uhci_td,
 					list);
-			toggle = uhci_toggle(td_token(td)) ^ 1;
+			toggle = uhci_toggle(td_token(uhci, td)) ^ 1;
 
 		/* Otherwise all the toggles in the URB have to be switched */
 		} else {
 			list_for_each_entry(td, &urbp->td_list, list) {
-				td->token ^= cpu_to_le32(
+				td->token ^= cpu_to_hc32(uhci,
 							TD_TOKEN_TOGGLE);
 				toggle ^= 1;
 			}
@@ -441,7 +442,7 @@ static void link_interrupt(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	pqh = list_entry(qh->node.prev, struct uhci_qh, node);
 	qh->link = pqh->link;
 	wmb();
-	pqh->link = LINK_TO_QH(qh);
+	pqh->link = LINK_TO_QH(uhci, qh);
 }
 
 /*
@@ -451,7 +452,7 @@ static void link_interrupt(struct uhci_hcd *uhci, struct uhci_qh *qh)
 static void link_async(struct uhci_hcd *uhci, struct uhci_qh *qh)
 {
 	struct uhci_qh *pqh;
-	__le32 link_to_new_qh;
+	__hc32 link_to_new_qh;
 
 	/* Find the predecessor QH for our new one and insert it in the list.
 	 * The list of QHs is expected to be short, so linear search won't
@@ -465,7 +466,7 @@ static void link_async(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	/* Link it into the schedule */
 	qh->link = pqh->link;
 	wmb();
-	link_to_new_qh = LINK_TO_QH(qh);
+	link_to_new_qh = LINK_TO_QH(uhci, qh);
 	pqh->link = link_to_new_qh;
 
 	/* If this is now the first FSBR QH, link the terminating skeleton
@@ -483,13 +484,13 @@ static void uhci_activate_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 
 	/* Set the element pointer if it isn't set already.
 	 * This isn't needed for Isochronous queues, but it doesn't hurt. */
-	if (qh_element(qh) == UHCI_PTR_TERM) {
+	if (qh_element(qh) == UHCI_PTR_TERM(uhci)) {
 		struct urb_priv *urbp = list_entry(qh->queue.next,
 				struct urb_priv, node);
 		struct uhci_td *td = list_entry(urbp->td_list.next,
 				struct uhci_td, list);
 
-		qh->element = LINK_TO_TD(td);
+		qh->element = LINK_TO_TD(uhci, td);
 	}
 
 	/* Treat the queue as if it has just advanced */
@@ -533,7 +534,7 @@ static void unlink_interrupt(struct uhci_hcd *uhci, struct uhci_qh *qh)
 static void unlink_async(struct uhci_hcd *uhci, struct uhci_qh *qh)
 {
 	struct uhci_qh *pqh;
-	__le32 link_to_next_qh = qh->link;
+	__hc32 link_to_next_qh = qh->link;
 
 	pqh = list_entry(qh->node.prev, struct uhci_qh, node);
 	pqh->link = link_to_next_qh;
@@ -757,8 +758,8 @@ static void uhci_free_urb_priv(struct uhci_hcd *uhci,
 /*
  * Map status to standard result codes
  *
- * <status> is (td_status(td) & 0xF60000), a.k.a.
- * uhci_status_bits(td_status(td)).
+ * <status> is (td_status(uhci, td) & 0xF60000), a.k.a.
+ * uhci_status_bits(td_status(uhci, td)).
  * Note: <status> does not include the TD_CTRL_NAK bit.
  * <dir_out> is True for output TDs and False for input TDs.
  */
@@ -794,7 +795,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	int maxsze = le16_to_cpu(qh->hep->desc.wMaxPacketSize);
 	int len = urb->transfer_buffer_length;
 	dma_addr_t data = urb->transfer_dma;
-	__le32 *plink;
+	__hc32 *plink;
 	struct urb_priv *urbp = urb->hcpriv;
 	int skel;
 
@@ -811,7 +812,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	 */
 	td = qh->dummy_td;
 	uhci_add_td_to_urbp(td, urbp);
-	uhci_fill_td(td, status, destination | uhci_explen(8),
+	uhci_fill_td(uhci, td, status, destination | uhci_explen(8),
 			urb->setup_dma);
 	plink = &td->link;
 	status |= TD_CTRL_ACTIVE;
@@ -844,14 +845,14 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 		td = uhci_alloc_td(uhci);
 		if (!td)
 			goto nomem;
-		*plink = LINK_TO_TD(td);
+		*plink = LINK_TO_TD(uhci, td);
 
 		/* Alternate Data0/1 (start with Data1) */
 		destination ^= TD_TOKEN_TOGGLE;
 
 		uhci_add_td_to_urbp(td, urbp);
-		uhci_fill_td(td, status, destination | uhci_explen(pktsze),
-				data);
+		uhci_fill_td(uhci, td, status,
+			destination | uhci_explen(pktsze), data);
 		plink = &td->link;
 
 		data += pktsze;
@@ -864,14 +865,14 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	td = uhci_alloc_td(uhci);
 	if (!td)
 		goto nomem;
-	*plink = LINK_TO_TD(td);
+	*plink = LINK_TO_TD(uhci, td);
 
 	/* Change direction for the status transaction */
 	destination ^= (USB_PID_IN ^ USB_PID_OUT);
 	destination |= TD_TOKEN_TOGGLE;		/* End in Data1 */
 
 	uhci_add_td_to_urbp(td, urbp);
-	uhci_fill_td(td, status | TD_CTRL_IOC,
+	uhci_fill_td(uhci, td, status | TD_CTRL_IOC,
 			destination | uhci_explen(0), 0);
 	plink = &td->link;
 
@@ -881,11 +882,11 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	td = uhci_alloc_td(uhci);
 	if (!td)
 		goto nomem;
-	*plink = LINK_TO_TD(td);
+	*plink = LINK_TO_TD(uhci, td);
 
-	uhci_fill_td(td, 0, USB_PID_OUT | uhci_explen(0), 0);
+	uhci_fill_td(uhci, td, 0, USB_PID_OUT | uhci_explen(0), 0);
 	wmb();
-	qh->dummy_td->status |= cpu_to_le32(TD_CTRL_ACTIVE);
+	qh->dummy_td->status |= cpu_to_hc32(uhci, TD_CTRL_ACTIVE);
 	qh->dummy_td = td;
 
 	/* Low-speed transfers get a different queue, and won't hog the bus.
@@ -921,7 +922,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 	int len = urb->transfer_buffer_length;
 	int this_sg_len;
 	dma_addr_t data;
-	__le32 *plink;
+	__hc32 *plink;
 	struct urb_priv *urbp = urb->hcpriv;
 	unsigned int toggle;
 	struct scatterlist  *sg;
@@ -974,10 +975,10 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 			td = uhci_alloc_td(uhci);
 			if (!td)
 				goto nomem;
-			*plink = LINK_TO_TD(td);
+			*plink = LINK_TO_TD(uhci, td);
 		}
 		uhci_add_td_to_urbp(td, urbp);
-		uhci_fill_td(td, status,
+		uhci_fill_td(uhci, td, status,
 				destination | uhci_explen(pktsze) |
 					(toggle << TD_TOKEN_TOGGLE_SHIFT),
 				data);
@@ -1010,10 +1011,10 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 		td = uhci_alloc_td(uhci);
 		if (!td)
 			goto nomem;
-		*plink = LINK_TO_TD(td);
+		*plink = LINK_TO_TD(uhci, td);
 
 		uhci_add_td_to_urbp(td, urbp);
-		uhci_fill_td(td, status,
+		uhci_fill_td(uhci, td, status,
 				destination | uhci_explen(0) |
 					(toggle << TD_TOKEN_TOGGLE_SHIFT),
 				data);
@@ -1028,7 +1029,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 	 * fast side but not enough to justify delaying an interrupt
 	 * more than 2 or 3 URBs, so we will ignore the URB_NO_INTERRUPT
 	 * flag setting. */
-	td->status |= cpu_to_le32(TD_CTRL_IOC);
+	td->status |= cpu_to_hc32(uhci, TD_CTRL_IOC);
 
 	/*
 	 * Build the new dummy TD and activate the old one
@@ -1036,11 +1037,11 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 	td = uhci_alloc_td(uhci);
 	if (!td)
 		goto nomem;
-	*plink = LINK_TO_TD(td);
+	*plink = LINK_TO_TD(uhci, td);
 
-	uhci_fill_td(td, 0, USB_PID_OUT | uhci_explen(0), 0);
+	uhci_fill_td(uhci, td, 0, USB_PID_OUT | uhci_explen(0), 0);
 	wmb();
-	qh->dummy_td->status |= cpu_to_le32(TD_CTRL_ACTIVE);
+	qh->dummy_td->status |= cpu_to_hc32(uhci, TD_CTRL_ACTIVE);
 	qh->dummy_td = td;
 
 	usb_settoggle(urb->dev, usb_pipeendpoint(urb->pipe),
@@ -1133,7 +1134,7 @@ static int uhci_fixup_short_transfer(struct uhci_hcd *uhci,
 		 * the queue at the status stage transaction, which is
 		 * the last TD. */
 		WARN_ON(list_empty(&urbp->td_list));
-		qh->element = LINK_TO_TD(td);
+		qh->element = LINK_TO_TD(uhci, td);
 		tmp = td->list.prev;
 		ret = -EINPROGRESS;
 
@@ -1142,8 +1143,9 @@ static int uhci_fixup_short_transfer(struct uhci_hcd *uhci,
 		/* When a bulk/interrupt transfer is short, we have to
 		 * fix up the toggles of the following URBs on the queue
 		 * before restarting the queue at the next URB. */
-		qh->initial_toggle = uhci_toggle(td_token(qh->post_td)) ^ 1;
-		uhci_fixup_toggles(qh, 1);
+		qh->initial_toggle =
+			uhci_toggle(td_token(uhci, qh->post_td)) ^ 1;
+		uhci_fixup_toggles(uhci, qh, 1);
 
 		if (list_empty(&urbp->td_list))
 			td = qh->post_td;
@@ -1178,7 +1180,7 @@ static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
 		unsigned int ctrlstat;
 		int len;
 
-		ctrlstat = td_status(td);
+		ctrlstat = td_status(uhci, td);
 		status = uhci_status_bits(ctrlstat);
 		if (status & TD_CTRL_ACTIVE)
 			return -EINPROGRESS;
@@ -1188,7 +1190,7 @@ static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
 
 		if (status) {
 			ret = uhci_map_status(status,
-					uhci_packetout(td_token(td)));
+					uhci_packetout(td_token(uhci, td)));
 			if ((debug == 1 && ret != -EPIPE) || debug > 1) {
 				/* Some debugging code */
 				dev_dbg(&urb->dev->dev,
@@ -1204,7 +1206,7 @@ static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
 			}
 
 		/* Did we receive a short packet? */
-		} else if (len < uhci_expected_length(td_token(td))) {
+		} else if (len < uhci_expected_length(td_token(uhci, td))) {
 
 			/* For control transfers, go to the status TD if
 			 * this isn't already the last data TD */
@@ -1236,10 +1238,10 @@ err:
 	if (ret < 0) {
 		/* Note that the queue has stopped and save
 		 * the next toggle value */
-		qh->element = UHCI_PTR_TERM;
+		qh->element = UHCI_PTR_TERM(uhci);
 		qh->is_stopped = 1;
 		qh->needs_fixup = (qh->type != USB_ENDPOINT_XFER_CONTROL);
-		qh->initial_toggle = uhci_toggle(td_token(td)) ^
+		qh->initial_toggle = uhci_toggle(td_token(uhci, td)) ^
 				(ret == -EREMOTEIO);
 
 	} else		/* Short packet received */
@@ -1335,14 +1337,14 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
 			return -ENOMEM;
 
 		uhci_add_td_to_urbp(td, urbp);
-		uhci_fill_td(td, status, destination |
+		uhci_fill_td(uhci, td, status, destination |
 				uhci_explen(urb->iso_frame_desc[i].length),
 				urb->transfer_dma +
 					urb->iso_frame_desc[i].offset);
 	}
 
 	/* Set the interrupt-on-completion flag on the last packet. */
-	td->status |= cpu_to_le32(TD_CTRL_IOC);
+	td->status |= cpu_to_hc32(uhci, TD_CTRL_IOC);
 
 	/* Add the TDs to the frame list */
 	frame = urb->start_frame;
@@ -1378,7 +1380,7 @@ static int uhci_result_isochronous(struct uhci_hcd *uhci, struct urb *urb)
 
 		uhci_remove_tds_from_frame(uhci, qh->iso_frame);
 
-		ctrlstat = td_status(td);
+		ctrlstat = td_status(uhci, td);
 		if (ctrlstat & TD_CTRL_ACTIVE) {
 			status = -EXDEV;	/* TD was added too late? */
 		} else {
@@ -1629,7 +1631,7 @@ restart:
 	 * queue, the QH can now be re-activated. */
 	if (!list_empty(&qh->queue)) {
 		if (qh->needs_fixup)
-			uhci_fixup_toggles(qh, 0);
+			uhci_fixup_toggles(uhci, qh, 0);
 
 		/* If the first URB on the queue wants FSBR but its time
 		 * limit has expired, set the next TD to interrupt on
@@ -1639,7 +1641,7 @@ restart:
 			struct uhci_td *td = list_entry(urbp->td_list.next,
 					struct uhci_td, list);
 
-			td->status |= __cpu_to_le32(TD_CTRL_IOC);
+			td->status |= cpu_to_hc32(uhci, TD_CTRL_IOC);
 		}
 
 		uhci_activate_qh(uhci, qh);
@@ -1686,7 +1688,7 @@ static int uhci_advance_check(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	} else {
 		urbp = list_entry(qh->queue.next, struct urb_priv, node);
 		td = list_entry(urbp->td_list.next, struct uhci_td, list);
-		status = td_status(td);
+		status = td_status(uhci, td);
 		if (!(status & TD_CTRL_ACTIVE)) {
 
 			/* We're okay, the queue has advanced */
@@ -1704,7 +1706,8 @@ static int uhci_advance_check(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	if (time_after(jiffies, qh->advance_jiffies + QH_WAIT_TIMEOUT)) {
 
 		/* Detect the Intel bug and work around it */
-		if (qh->post_td && qh_element(qh) == LINK_TO_TD(qh->post_td)) {
+		if (qh->post_td && qh_element(qh) ==
+			LINK_TO_TD(uhci, qh->post_td)) {
 			qh->element = qh->post_td->link;
 			qh->advance_jiffies = jiffies;
 			ret = 1;

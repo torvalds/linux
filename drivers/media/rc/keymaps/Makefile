@@ -77,6 +77,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-terratec-slim.o \
 			rc-terratec-slim-2.o \
 			rc-tevii-nec.o \
+			rc-tivo.o \
 			rc-total-media-in-hand.o \
 			rc-trekstor.o \
 			rc-tt-1500.o \

@@ -124,7 +124,7 @@ struct _lowcore {
 	/* Address space pointer. */
 	__u32	kernel_asce;			/* 0x02ac */
 	__u32	user_asce;			/* 0x02b0 */
-	__u32	user_exec_asce;			/* 0x02b4 */
+	__u32	current_pid;			/* 0x02b4 */
 
 	/* SMP info area */
 	__u32	cpu_nr;				/* 0x02b8 */
@@ -255,7 +255,7 @@ struct _lowcore {
 	/* Address space pointer. */
 	__u64	kernel_asce;			/* 0x0310 */
 	__u64	user_asce;			/* 0x0318 */
-	__u64	user_exec_asce;			/* 0x0320 */
+	__u64	current_pid;			/* 0x0320 */
 
 	/* SMP info area */
 	__u32	cpu_nr;				/* 0x0328 */

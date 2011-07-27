@@ -235,8 +235,8 @@ static DEFINE_PCI_DEVICE_TABLE(snd_intel8x0m_ids) = {
 	{ PCI_VDEVICE(NVIDIA, 0x0069), DEVICE_NFORCE }, /* NFORCE2 */
 	{ PCI_VDEVICE(NVIDIA, 0x0089), DEVICE_NFORCE }, /* NFORCE2s */
 	{ PCI_VDEVICE(NVIDIA, 0x00d9), DEVICE_NFORCE }, /* NFORCE3 */
+	{ PCI_VDEVICE(AMD, 0x746e), DEVICE_INTEL },	/* AMD8111 */
 #if 0
-	{ PCI_VDEVICE(AMD, 0x746d), DEVICE_INTEL },	/* AMD8111 */
 	{ PCI_VDEVICE(AL, 0x5455), DEVICE_ALI },   /* Ali5455 */
 #endif
 	{ 0, }
@@ -1261,9 +1261,9 @@ static struct shortname_table {
 	{ PCI_DEVICE_ID_NVIDIA_MCP2_MODEM, "NVidia nForce2" },
 	{ PCI_DEVICE_ID_NVIDIA_MCP2S_MODEM, "NVidia nForce2s" },
 	{ PCI_DEVICE_ID_NVIDIA_MCP3_MODEM, "NVidia nForce3" },
+	{ 0x746e, "AMD AMD8111" },
 #if 0
 	{ 0x5455, "ALi M5455" },
-	{ 0x746d, "AMD AMD8111" },
 #endif
 	{ 0 },
 };

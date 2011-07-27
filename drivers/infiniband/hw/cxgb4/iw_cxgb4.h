@@ -35,7 +35,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/idr.h>
-#include <linux/workqueue.h>
+#include <linux/completion.h>
 #include <linux/netdevice.h>
 #include <linux/sched.h>
 #include <linux/pci.h>
@@ -132,16 +132,20 @@ static inline int c4iw_num_stags(struct c4iw_rdev *rdev)
 #define C4IW_WR_TO (10*HZ)
 
 struct c4iw_wr_wait {
-	wait_queue_head_t wait;
-	int done;
+	struct completion completion;
 	int ret;
 };
 
 static inline void c4iw_init_wr_wait(struct c4iw_wr_wait *wr_waitp)
 {
 	wr_waitp->ret = 0;
-	wr_waitp->done = 0;
-	init_waitqueue_head(&wr_waitp->wait);
+	init_completion(&wr_waitp->completion);
+}
+
+static inline void c4iw_wake_up(struct c4iw_wr_wait *wr_waitp, int ret)
+{
+	wr_waitp->ret = ret;
+	complete(&wr_waitp->completion);
 }
 
 static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
@@ -150,22 +154,26 @@ static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
 				 const char *func)
 {
 	unsigned to = C4IW_WR_TO;
-	do {
+	int ret;
 
-		wait_event_timeout(wr_waitp->wait, wr_waitp->done, to);
-		if (!wr_waitp->done) {
+	do {
+		ret = wait_for_completion_timeout(&wr_waitp->completion, to);
+		if (!ret) {
 			printk(KERN_ERR MOD "%s - Device %s not responding - "
 			       "tid %u qpid %u\n", func,
 			       pci_name(rdev->lldi.pdev), hwtid, qpid);
+			if (c4iw_fatal_error(rdev)) {
+				wr_waitp->ret = -EIO;
+				break;
+			}
 			to = to << 2;
 		}
-	} while (!wr_waitp->done);
+	} while (!ret);
 	if (wr_waitp->ret)
-		printk(KERN_WARNING MOD "%s: FW reply %d tid %u qpid %u\n",
-		       pci_name(rdev->lldi.pdev), wr_waitp->ret, hwtid, qpid);
+		PDBG("%s: FW reply %d tid %u qpid %u\n",
+		     pci_name(rdev->lldi.pdev), wr_waitp->ret, hwtid, qpid);
 	return wr_waitp->ret;
 }
-
 
 struct c4iw_dev {
 	struct ib_device ibdev;
@@ -175,9 +183,7 @@ struct c4iw_dev {
 	struct idr qpidr;
 	struct idr mmidr;
 	spinlock_t lock;
-	struct list_head entry;
 	struct dentry *debugfs_root;
-	u8 registered;
 };
 
 static inline struct c4iw_dev *to_c4iw_dev(struct ib_device *ibdev)

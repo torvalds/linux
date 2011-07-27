@@ -15,7 +15,7 @@
 #include <linux/spi/spi.h>
 #include <linux/mm.h>
 #include <asm/mach-types.h>
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include <plat/vram.h>
 #include <plat/mcspi.h>
 
@@ -76,12 +76,11 @@ static int __init rx51_video_init(void)
 		return 0;
 	}
 
-	if (gpio_request(RX51_LCD_RESET_GPIO, "LCD ACX565AKM reset")) {
+	if (gpio_request_one(RX51_LCD_RESET_GPIO, GPIOF_OUT_INIT_HIGH,
+			     "LCD ACX565AKM reset")) {
 		pr_err("%s failed to get LCD Reset GPIO\n", __func__);
 		return 0;
 	}
-
-	gpio_direction_output(RX51_LCD_RESET_GPIO, 1);
 
 	omap_display_init(&rx51_dss_board_info);
 	return 0;

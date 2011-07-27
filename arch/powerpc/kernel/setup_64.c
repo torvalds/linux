@@ -62,6 +62,7 @@
 #include <asm/udbg.h>
 #include <asm/kexec.h>
 #include <asm/mmu_context.h>
+#include <asm/code-patching.h>
 
 #include "setup.h"
 
@@ -72,6 +73,7 @@
 #endif
 
 int boot_cpuid = 0;
+int __initdata boot_cpu_count;
 u64 ppc64_pft_size;
 
 /* Pick defaults since we might want to patch instructions
@@ -233,6 +235,7 @@ void early_setup_secondary(void)
 void smp_release_cpus(void)
 {
 	unsigned long *ptr;
+	int i;
 
 	DBG(" -> smp_release_cpus()\n");
 
@@ -245,7 +248,16 @@ void smp_release_cpus(void)
 	ptr  = (unsigned long *)((unsigned long)&__secondary_hold_spinloop
 			- PHYSICAL_START);
 	*ptr = __pa(generic_secondary_smp_init);
-	mb();
+
+	/* And wait a bit for them to catch up */
+	for (i = 0; i < 100000; i++) {
+		mb();
+		HMT_low();
+		if (boot_cpu_count == 0)
+			break;
+		udelay(1);
+	}
+	DBG("boot_cpu_count = %d\n", boot_cpu_count);
 
 	DBG(" <- smp_release_cpus()\n");
 }
@@ -423,17 +435,30 @@ void __init setup_system(void)
 	DBG(" <- setup_system()\n");
 }
 
-static u64 slb0_limit(void)
+/* This returns the limit below which memory accesses to the linear
+ * mapping are guarnateed not to cause a TLB or SLB miss. This is
+ * used to allocate interrupt or emergency stacks for which our
+ * exception entry path doesn't deal with being interrupted.
+ */
+static u64 safe_stack_limit(void)
 {
-	if (cpu_has_feature(CPU_FTR_1T_SEGMENT)) {
+#ifdef CONFIG_PPC_BOOK3E
+	/* Freescale BookE bolts the entire linear mapping */
+	if (mmu_has_feature(MMU_FTR_TYPE_FSL_E))
+		return linear_map_top;
+	/* Other BookE, we assume the first GB is bolted */
+	return 1ul << 30;
+#else
+	/* BookS, the first segment is bolted */
+	if (mmu_has_feature(MMU_FTR_1T_SEGMENT))
 		return 1UL << SID_SHIFT_1T;
-	}
 	return 1UL << SID_SHIFT;
+#endif
 }
 
 static void __init irqstack_early_init(void)
 {
-	u64 limit = slb0_limit();
+	u64 limit = safe_stack_limit();
 	unsigned int i;
 
 	/*
@@ -453,6 +478,9 @@ static void __init irqstack_early_init(void)
 #ifdef CONFIG_PPC_BOOK3E
 static void __init exc_lvl_early_init(void)
 {
+	extern unsigned int interrupt_base_book3e;
+	extern unsigned int exc_debug_debug_book3e;
+
 	unsigned int i;
 
 	for_each_possible_cpu(i) {
@@ -463,6 +491,10 @@ static void __init exc_lvl_early_init(void)
 		mcheckirq_ctx[i] = (struct thread_info *)
 			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
 	}
+
+	if (cpu_has_feature(CPU_FTR_DEBUG_LVL_EXC))
+		patch_branch(&interrupt_base_book3e + (0x040 / 4) + 1,
+			     (unsigned long)&exc_debug_debug_book3e, 0);
 }
 #else
 #define exc_lvl_early_init()
@@ -486,7 +518,7 @@ static void __init emergency_stack_init(void)
 	 * bringup, we need to get at them in real mode. This means they
 	 * must also be within the RMO region.
 	 */
-	limit = min(slb0_limit(), ppc64_rma_size);
+	limit = min(safe_stack_limit(), ppc64_rma_size);
 
 	for_each_possible_cpu(i) {
 		unsigned long sp;

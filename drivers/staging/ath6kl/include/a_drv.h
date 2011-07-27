@@ -27,28 +27,6 @@
 #ifndef _A_DRV_H_
 #define _A_DRV_H_
 
-#if defined(__linux__) && !defined(LINUX_EMULATION)
 #include "../os/linux/include/athdrv_linux.h"
-#endif
-
-#ifdef UNDER_NWIFI
-#include "../os/windows/include/athdrv.h"
-#endif
-
-#ifdef ATHR_CE_LEGACY
-#include "../os/windows/include/athdrv.h"
-#endif
-
-#ifdef REXOS
-#include "../os/rexos/include/common/athdrv_rexos.h"
-#endif
-
-#ifdef WIN_NWF
-#include "../os/windows/include/athdrv.h"
-#endif
-
-#ifdef THREADX
-#include "../os/threadx/include/common/athdrv_threadx.h"
-#endif
 
 #endif /* _ADRV_H_ */

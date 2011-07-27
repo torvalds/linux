@@ -201,8 +201,6 @@ static struct clocksource clocksource_mfgpt = {
 	.rating = 120, /* Functional for real use, but not desired */
 	.read = mfgpt_read,
 	.mask = CLOCKSOURCE_MASK(32),
-	.mult = 0,
-	.shift = 22,
 };
 
 int __init init_mfgpt_clocksource(void)
@@ -210,8 +208,7 @@ int __init init_mfgpt_clocksource(void)
 	if (num_possible_cpus() > 1)	/* MFGPT does not scale! */
 		return 0;
 
-	clocksource_mfgpt.mult = clocksource_hz2mult(MFGPT_TICK_RATE, 22);
-	return clocksource_register(&clocksource_mfgpt);
+	return clocksource_register_hz(&clocksource_mfgpt, MFGPT_TICK_RATE);
 }
 
 arch_initcall(init_mfgpt_clocksource);

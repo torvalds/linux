@@ -88,4 +88,6 @@ config PCI_IOAPIC
 	depends on HOTPLUG
 	default y
 
-select NLS if (DMI || ACPI)
+config PCI_LABEL
+	def_bool y if (DMI || ACPI)
+	select NLS

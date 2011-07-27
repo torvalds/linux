@@ -317,7 +317,7 @@ long compat_sys_rt_sigreturn(struct pt_regs *regs)
 	return 0;
 
 badframe:
-	force_sig(SIGSEGV, current);
+	signal_fault("bad sigreturn frame", regs, frame, 0);
 	return 0;
 }
 
@@ -431,6 +431,6 @@ int compat_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	return 0;
 
 give_sigsegv:
-	force_sigsegv(sig, current);
+	signal_fault("bad setup frame", regs, frame, sig);
 	return -EFAULT;
 }

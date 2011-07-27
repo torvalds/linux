@@ -442,7 +442,7 @@ nouveau_connector_set_property(struct drm_connector *connector,
 		}
 
 		/* LVDS always needs gpu scaling */
-		if (nv_connector->dcb->type == DCB_CONNECTOR_LVDS &&
+		if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS &&
 		    value == DRM_MODE_SCALE_NONE)
 			return -EINVAL;
 
@@ -650,6 +650,7 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 		ret = get_slave_funcs(encoder)->get_modes(encoder, connector);
 
 	if (nv_connector->dcb->type == DCB_CONNECTOR_LVDS ||
+	    nv_connector->dcb->type == DCB_CONNECTOR_LVDS_SPWG ||
 	    nv_connector->dcb->type == DCB_CONNECTOR_eDP)
 		ret += nouveau_connector_scaler_modes_add(connector);
 
@@ -810,6 +811,7 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		type = DRM_MODE_CONNECTOR_HDMIA;
 		break;
 	case DCB_CONNECTOR_LVDS:
+	case DCB_CONNECTOR_LVDS_SPWG:
 		type = DRM_MODE_CONNECTOR_LVDS;
 		funcs = &nouveau_connector_funcs_lvds;
 		break;
@@ -838,7 +840,7 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	drm_connector_helper_add(connector, &nouveau_connector_helper_funcs);
 
 	/* Check if we need dithering enabled */
-	if (dcb->type == DCB_CONNECTOR_LVDS) {
+	if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
 		bool dummy, is_24bit = false;
 
 		ret = nouveau_bios_parse_lvds_table(dev, 0, &dummy, &is_24bit);
@@ -883,7 +885,7 @@ nouveau_connector_create(struct drm_device *dev, int index)
 				nv_connector->use_dithering ?
 				DRM_MODE_DITHERING_ON : DRM_MODE_DITHERING_OFF);
 
-		if (dcb->type != DCB_CONNECTOR_LVDS) {
+		if (connector->connector_type != DRM_MODE_CONNECTOR_LVDS) {
 			if (dev_priv->card_type >= NV_50)
 				connector->polled = DRM_CONNECTOR_POLL_HPD;
 			else

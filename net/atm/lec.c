@@ -129,7 +129,6 @@ static struct net_device *dev_lec[MAX_LEC_ITF];
 #if defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)
 static void lec_handle_bridge(struct sk_buff *skb, struct net_device *dev)
 {
-	struct ethhdr *eth;
 	char *buff;
 	struct lec_priv *priv;
 
@@ -138,7 +137,6 @@ static void lec_handle_bridge(struct sk_buff *skb, struct net_device *dev)
 	 * LE_TOPOLOGY_REQUEST with the same value of Topology Change bit
 	 * as the Config BPDU has
 	 */
-	eth = (struct ethhdr *)skb->data;
 	buff = skb->data + skb->dev->hard_header_len;
 	if (*buff++ == 0x42 && *buff++ == 0x42 && *buff++ == 0x03) {
 		struct sock *sk;
@@ -1173,14 +1171,13 @@ static int __init lane_module_init(void)
 #endif
 
 	register_atm_ioctl(&lane_ioctl_ops);
-	pr_info("lec.c: " __DATE__ " " __TIME__ " initialized\n");
+	pr_info("lec.c: initialized\n");
 	return 0;
 }
 
 static void __exit lane_module_cleanup(void)
 {
 	int i;
-	struct lec_priv *priv;
 
 	remove_proc_entry("lec", atm_proc_root);
 
@@ -1188,7 +1185,6 @@ static void __exit lane_module_cleanup(void)
 
 	for (i = 0; i < MAX_LEC_ITF; i++) {
 		if (dev_lec[i] != NULL) {
-			priv = netdev_priv(dev_lec[i]);
 			unregister_netdev(dev_lec[i]);
 			free_netdev(dev_lec[i]);
 			dev_lec[i] = NULL;

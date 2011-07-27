@@ -177,7 +177,7 @@ static struct uac_format_type_i_discrete_descriptor_1 as_type_i_desc = {
 };
 
 /* Standard ISO OUT Endpoint Descriptor */
-static struct usb_endpoint_descriptor as_out_ep_desc __initdata = {
+static struct usb_endpoint_descriptor as_out_ep_desc  = {
 	.bLength =		USB_DT_ENDPOINT_AUDIO_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 	.bEndpointAddress =	USB_DIR_OUT,

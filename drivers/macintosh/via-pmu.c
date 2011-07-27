@@ -40,7 +40,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/freezer.h>
 #include <linux/syscalls.h>
 #include <linux/suspend.h>
@@ -2527,12 +2527,9 @@ void pmu_blink(int n)
 #if defined(CONFIG_SUSPEND) && defined(CONFIG_PPC32)
 int pmu_sys_suspended;
 
-static int pmu_sys_suspend(struct sys_device *sysdev, pm_message_t state)
+static int pmu_syscore_suspend(void)
 {
-	if (state.event != PM_EVENT_SUSPEND || pmu_sys_suspended)
-		return 0;
-
-	/* Suspend PMU event interrupts */\
+	/* Suspend PMU event interrupts */
 	pmu_suspend();
 	pmu_sys_suspended = 1;
 
@@ -2544,12 +2541,12 @@ static int pmu_sys_suspend(struct sys_device *sysdev, pm_message_t state)
 	return 0;
 }
 
-static int pmu_sys_resume(struct sys_device *sysdev)
+static void pmu_syscore_resume(void)
 {
 	struct adb_request req;
 
 	if (!pmu_sys_suspended)
-		return 0;
+		return;
 
 	/* Tell PMU we are ready */
 	pmu_request(&req, NULL, 2, PMU_SYSTEM_READY, 2);
@@ -2562,50 +2559,21 @@ static int pmu_sys_resume(struct sys_device *sysdev)
 	/* Resume PMU event interrupts */
 	pmu_resume();
 	pmu_sys_suspended = 0;
-
-	return 0;
 }
 
-#endif /* CONFIG_SUSPEND && CONFIG_PPC32 */
-
-static struct sysdev_class pmu_sysclass = {
-	.name = "pmu",
+static struct syscore_ops pmu_syscore_ops = {
+	.suspend = pmu_syscore_suspend,
+	.resume = pmu_syscore_resume,
 };
 
-static struct sys_device device_pmu = {
-	.cls		= &pmu_sysclass,
-};
-
-static struct sysdev_driver driver_pmu = {
-#if defined(CONFIG_SUSPEND) && defined(CONFIG_PPC32)
-	.suspend	= &pmu_sys_suspend,
-	.resume		= &pmu_sys_resume,
-#endif /* CONFIG_SUSPEND && CONFIG_PPC32 */
-};
-
-static int __init init_pmu_sysfs(void)
+static int pmu_syscore_register(void)
 {
-	int rc;
+	register_syscore_ops(&pmu_syscore_ops);
 
-	rc = sysdev_class_register(&pmu_sysclass);
-	if (rc) {
-		printk(KERN_ERR "Failed registering PMU sys class\n");
-		return -ENODEV;
-	}
-	rc = sysdev_register(&device_pmu);
-	if (rc) {
-		printk(KERN_ERR "Failed registering PMU sys device\n");
-		return -ENODEV;
-	}
-	rc = sysdev_driver_register(&pmu_sysclass, &driver_pmu);
-	if (rc) {
-		printk(KERN_ERR "Failed registering PMU sys driver\n");
-		return -ENODEV;
-	}
 	return 0;
 }
-
-subsys_initcall(init_pmu_sysfs);
+subsys_initcall(pmu_syscore_register);
+#endif /* CONFIG_SUSPEND && CONFIG_PPC32 */
 
 EXPORT_SYMBOL(pmu_request);
 EXPORT_SYMBOL(pmu_queue_request);

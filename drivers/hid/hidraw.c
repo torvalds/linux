@@ -101,8 +101,8 @@ out:
 	return ret;
 }
 
-/* the first byte is expected to be a report number */
-/* This function is to be called with the minors_lock mutex held */
+/* The first byte is expected to be a report number.
+ * This function is to be called with the minors_lock mutex held */
 static ssize_t hidraw_send_report(struct file *file, const char __user *buffer, size_t count, unsigned char report_type)
 {
 	unsigned int minor = iminor(file->f_path.dentry->d_inode);
@@ -166,11 +166,11 @@ static ssize_t hidraw_write(struct file *file, const char __user *buffer, size_t
 
 
 /* This function performs a Get_Report transfer over the control endpoint
-   per section 7.2.1 of the HID specification, version 1.1.  The first byte
-   of buffer is the report number to request, or 0x0 if the defice does not
-   use numbered reports. The report_type parameter can be HID_FEATURE_REPORT
-   or HID_INPUT_REPORT.  This function is to be called with the minors_lock
-   mutex held.  */
+ * per section 7.2.1 of the HID specification, version 1.1.  The first byte
+ * of buffer is the report number to request, or 0x0 if the defice does not
+ * use numbered reports. The report_type parameter can be HID_FEATURE_REPORT
+ * or HID_INPUT_REPORT.  This function is to be called with the minors_lock
+ *  mutex held. */
 static ssize_t hidraw_get_report(struct file *file, char __user *buffer, size_t count, unsigned char report_type)
 {
 	unsigned int minor = iminor(file->f_path.dentry->d_inode);
@@ -207,7 +207,7 @@ static ssize_t hidraw_get_report(struct file *file, char __user *buffer, size_t 
 	}
 
 	/* Read the first byte from the user. This is the report number,
-	   which is passed to dev->hid_get_raw_report(). */
+	 * which is passed to dev->hid_get_raw_report(). */
 	if (copy_from_user(&report_number, buffer, 1)) {
 		ret = -EFAULT;
 		goto out_free;
@@ -395,12 +395,7 @@ static long hidraw_ioctl(struct file *file, unsigned int cmd,
 				}
 
 				if (_IOC_NR(cmd) == _IOC_NR(HIDIOCGRAWNAME(0))) {
-					int len;
-					if (!hid->name) {
-						ret = 0;
-						break;
-					}
-					len = strlen(hid->name) + 1;
+					int len = strlen(hid->name) + 1;
 					if (len > _IOC_SIZE(cmd))
 						len = _IOC_SIZE(cmd);
 					ret = copy_to_user(user_arg, hid->name, len) ?
@@ -409,12 +404,7 @@ static long hidraw_ioctl(struct file *file, unsigned int cmd,
 				}
 
 				if (_IOC_NR(cmd) == _IOC_NR(HIDIOCGRAWPHYS(0))) {
-					int len;
-					if (!hid->phys) {
-						ret = 0;
-						break;
-					}
-					len = strlen(hid->phys) + 1;
+					int len = strlen(hid->phys) + 1;
 					if (len > _IOC_SIZE(cmd))
 						len = _IOC_SIZE(cmd);
 					ret = copy_to_user(user_arg, hid->phys, len) ?

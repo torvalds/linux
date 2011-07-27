@@ -480,10 +480,6 @@ static int logfs_read_sb(struct super_block *sb, int read_only)
 			!read_only)
 		return -EIO;
 
-	mutex_init(&super->s_dirop_mutex);
-	mutex_init(&super->s_object_alias_mutex);
-	INIT_LIST_HEAD(&super->s_freeing_list);
-
 	ret = logfs_init_rw(sb);
 	if (ret)
 		return ret;
@@ -600,6 +596,10 @@ static struct dentry *logfs_mount(struct file_system_type *type, int flags,
 	super = kzalloc(sizeof(*super), GFP_KERNEL);
 	if (!super)
 		return ERR_PTR(-ENOMEM);
+
+	mutex_init(&super->s_dirop_mutex);
+	mutex_init(&super->s_object_alias_mutex);
+	INIT_LIST_HEAD(&super->s_freeing_list);
 
 	if (!devname)
 		err = logfs_get_sb_bdev(super, type, devname);

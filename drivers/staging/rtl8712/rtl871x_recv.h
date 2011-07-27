@@ -19,9 +19,9 @@
 /* for Rx reordering buffer control */
 struct recv_reorder_ctrl {
 	struct _adapter	*padapter;
-	u16 indicate_seq;/* =wstart_b, init_value=0xffff */
+	u16 indicate_seq; /* =wstart_b, init_value=0xffff */
 	u16 wend_b;
-       u8 wsize_b;
+	u8 wsize_b;
 	struct  __queue pending_recvframe_queue;
 	struct timer_list reordering_ctrl_timer;
 };

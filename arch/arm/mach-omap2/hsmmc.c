@@ -145,6 +145,7 @@ static void omap4_hsmmc1_after_set_reg(struct device *dev, int slot,
 				 int power_on, int vdd)
 {
 	u32 reg;
+	unsigned long timeout;
 
 	if (power_on) {
 		reg = omap4_ctrl_pad_readl(control_pbias_offset);
@@ -157,9 +158,15 @@ static void omap4_hsmmc1_after_set_reg(struct device *dev, int slot,
 			OMAP4_MMC1_PWRDNZ_MASK |
 			OMAP4_USBC1_ICUSB_PWRDNZ_MASK);
 		omap4_ctrl_pad_writel(reg, control_pbias_offset);
-		/* 4 microsec delay for comparator to generate an error*/
-		udelay(4);
-		reg = omap4_ctrl_pad_readl(control_pbias_offset);
+
+		timeout = jiffies + msecs_to_jiffies(5);
+		do {
+			reg = omap4_ctrl_pad_readl(control_pbias_offset);
+			if (!(reg & OMAP4_MMC1_PBIASLITE_VMODE_ERROR_MASK))
+				break;
+			usleep_range(100, 200);
+		} while (!time_after(jiffies, timeout));
+
 		if (reg & OMAP4_MMC1_PBIASLITE_VMODE_ERROR_MASK) {
 			pr_err("Pbias Voltage is not same as LDO\n");
 			/* Caution : On VMODE_ERROR Power Down MMC IO */
@@ -330,6 +337,9 @@ static int __init omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
 
 	if (c->no_off)
 		mmc->slots[0].no_off = 1;
+
+	if (c->no_off_init)
+		mmc->slots[0].no_regulator_off_init = c->no_off_init;
 
 	if (c->vcc_aux_disable_is_sleep)
 		mmc->slots[0].vcc_aux_disable_is_sleep = 1;

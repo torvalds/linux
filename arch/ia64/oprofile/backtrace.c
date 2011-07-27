@@ -29,7 +29,7 @@ typedef struct
 	unsigned int depth;
 	struct pt_regs *regs;
 	struct unw_frame_info frame;
-	u64 *prev_pfs_loc;	/* state for WAR for old spinlock ool code */
+	unsigned long *prev_pfs_loc;	/* state for WAR for old spinlock ool code */
 } ia64_backtrace_t;
 
 /* Returns non-zero if the PC is in the Interrupt Vector Table */

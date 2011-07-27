@@ -13,7 +13,7 @@
 #include <plat/tc.h>
 #include <plat/flash.h>
 
-void omap1_set_vpp(struct map_info *map, int enable)
+void omap1_set_vpp(struct platform_device *pdev, int enable)
 {
 	static int count;
 	u32 l;

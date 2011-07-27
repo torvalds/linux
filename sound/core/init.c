@@ -342,7 +342,6 @@ static const struct file_operations snd_shutdown_f_ops =
 int snd_card_disconnect(struct snd_card *card)
 {
 	struct snd_monitor_file *mfile;
-	struct file *file;
 	int err;
 
 	if (!card)
@@ -366,8 +365,6 @@ int snd_card_disconnect(struct snd_card *card)
 	
 	spin_lock(&card->files_lock);
 	list_for_each_entry(mfile, &card->files_list, list) {
-		file = mfile->file;
-
 		/* it's critical part, use endless loop */
 		/* we have no room to fail */
 		mfile->disconnected_f_op = mfile->file->f_op;
@@ -514,7 +511,7 @@ static void snd_card_set_id_no_lock(struct snd_card *card, const char *nid)
 	id = card->id;
 	
 	if (*id == '\0')
-		strcpy(id, "default");
+		strcpy(id, "Default");
 
 	while (1) {
 	      	if (loops-- == 0) {

@@ -95,6 +95,9 @@ idtg2_route_add_entry(struct rio_mport *mport, u16 destid, u8 hopcount,
 	else
 		table++;
 
+	if (route_port == RIO_INVALID_ROUTE)
+		route_port = IDT_DEFAULT_ROUTE;
+
 	rio_mport_write_config_32(mport, destid, hopcount,
 				  LOCAL_RTE_CONF_DESTID_SEL, table);
 
@@ -410,6 +413,12 @@ static int idtg2_switch_init(struct rio_dev *rdev, int do_enum)
 	rdev->rswitch->em_init = idtg2_em_init;
 	rdev->rswitch->em_handle = idtg2_em_handler;
 	rdev->rswitch->sw_sysfs = idtg2_sysfs;
+
+	if (do_enum) {
+		/* Ensure that default routing is disabled on startup */
+		rio_write_config_32(rdev,
+				    RIO_STD_RTE_DEFAULT_PORT, IDT_NO_ROUTE);
+	}
 
 	return 0;
 }

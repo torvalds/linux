@@ -867,7 +867,7 @@ static int __devinit flctl_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	add_mtd_partitions(flctl_mtd, pdata->parts, pdata->nr_parts);
+	mtd_device_register(flctl_mtd, pdata->parts, pdata->nr_parts);
 
 	return 0;
 

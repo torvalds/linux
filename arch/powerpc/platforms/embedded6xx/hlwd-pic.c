@@ -43,7 +43,7 @@
 
 static void hlwd_pic_mask_and_ack(struct irq_data *d)
 {
-	int irq = virq_to_hw(d->irq);
+	int irq = irqd_to_hwirq(d);
 	void __iomem *io_base = irq_data_get_irq_chip_data(d);
 	u32 mask = 1 << irq;
 
@@ -53,7 +53,7 @@ static void hlwd_pic_mask_and_ack(struct irq_data *d)
 
 static void hlwd_pic_ack(struct irq_data *d)
 {
-	int irq = virq_to_hw(d->irq);
+	int irq = irqd_to_hwirq(d);
 	void __iomem *io_base = irq_data_get_irq_chip_data(d);
 
 	out_be32(io_base + HW_BROADWAY_ICR, 1 << irq);
@@ -61,7 +61,7 @@ static void hlwd_pic_ack(struct irq_data *d)
 
 static void hlwd_pic_mask(struct irq_data *d)
 {
-	int irq = virq_to_hw(d->irq);
+	int irq = irqd_to_hwirq(d);
 	void __iomem *io_base = irq_data_get_irq_chip_data(d);
 
 	clrbits32(io_base + HW_BROADWAY_IMR, 1 << irq);
@@ -69,7 +69,7 @@ static void hlwd_pic_mask(struct irq_data *d)
 
 static void hlwd_pic_unmask(struct irq_data *d)
 {
-	int irq = virq_to_hw(d->irq);
+	int irq = irqd_to_hwirq(d);
 	void __iomem *io_base = irq_data_get_irq_chip_data(d);
 
 	setbits32(io_base + HW_BROADWAY_IMR, 1 << irq);
@@ -100,15 +100,8 @@ static int hlwd_pic_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static void hlwd_pic_unmap(struct irq_host *h, unsigned int irq)
-{
-	irq_set_chip_data(irq, NULL);
-	irq_set_chip(irq, NULL);
-}
-
 static struct irq_host_ops hlwd_irq_host_ops = {
 	.map = hlwd_pic_map,
-	.unmap = hlwd_pic_unmap,
 };
 
 static unsigned int __hlwd_pic_get_irq(struct irq_host *h)

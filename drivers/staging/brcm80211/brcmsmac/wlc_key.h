@@ -115,7 +115,7 @@ typedef struct wsec_key {
 #define WSEC_IBSS_PEER_GROUP_KEY	(1 << 7)	/* Flag: group key for a IBSS PEER */
 #define WSEC_ICV_ERROR		(1 << 8)	/* Provoke deliberate ICV error */
 
-#define wlc_key_insert(a, b, c, d, e, f, g, h, i, j) (BCME_ERROR)
+#define wlc_key_insert(a, b, c, d, e, f, g, h, i, j) (-EBADE)
 #define wlc_key_update(a, b, c) do {} while (0)
 #define wlc_key_remove(a, b, c) do {} while (0)
 #define wlc_key_remove_all(a, b) do {} while (0)
@@ -126,12 +126,12 @@ typedef struct wsec_key {
 #define wlc_key_hw_init(a, b, c)  do {} while (0)
 #define wlc_key_hw_wowl_init(a, b, c, d) do {} while (0)
 #define wlc_key_sw_wowl_update(a, b, c, d, e) do {} while (0)
-#define wlc_key_sw_wowl_create(a, b, c) (BCME_ERROR)
+#define wlc_key_sw_wowl_create(a, b, c) (-EBADE)
 #define wlc_key_iv_update(a, b, c, d, e) do {(void)e; } while (0)
 #define wlc_key_iv_init(a, b, c) do {} while (0)
-#define wlc_key_set_error(a, b, c) (BCME_ERROR)
-#define wlc_key_dump_hw(a, b) (BCME_ERROR)
-#define wlc_key_dump_sw(a, b) (BCME_ERROR)
+#define wlc_key_set_error(a, b, c) (-EBADE)
+#define wlc_key_dump_hw(a, b) (-EBADE)
+#define wlc_key_dump_sw(a, b) (-EBADE)
 #define wlc_key_defkeyflag(a) (0)
 #define wlc_rcmta_add_bssid(a, b) do {} while (0)
 #define wlc_rcmta_del_bssid(a, b) do {} while (0)

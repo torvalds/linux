@@ -10,34 +10,46 @@ for rcutree and next for rcutiny.
 
 CONFIG_TREE_RCU and CONFIG_TREE_PREEMPT_RCU debugfs Files and Formats
 
-These implementations of RCU provides five debugfs files under the
-top-level directory RCU: rcu/rcudata (which displays fields in struct
-rcu_data), rcu/rcudata.csv (which is a .csv spreadsheet version of
-rcu/rcudata), rcu/rcugp (which displays grace-period counters),
-rcu/rcuhier (which displays the struct rcu_node hierarchy), and
-rcu/rcu_pending (which displays counts of the reasons that the
-rcu_pending() function decided that there was core RCU work to do).
+These implementations of RCU provides several debugfs files under the
+top-level directory "rcu":
+
+rcu/rcudata:
+	Displays fields in struct rcu_data.
+rcu/rcudata.csv:
+	Comma-separated values spreadsheet version of rcudata.
+rcu/rcugp:
+	Displays grace-period counters.
+rcu/rcuhier:
+	Displays the struct rcu_node hierarchy.
+rcu/rcu_pending:
+	Displays counts of the reasons rcu_pending() decided that RCU had
+	work to do.
+rcu/rcutorture:
+	Displays rcutorture test progress.
+rcu/rcuboost:
+	Displays RCU boosting statistics.  Only present if
+	CONFIG_RCU_BOOST=y.
 
 The output of "cat rcu/rcudata" looks as follows:
 
 rcu_sched:
-  0 c=17829 g=17829 pq=1 pqc=17829 qp=0 dt=10951/1 dn=0 df=1101 of=0 ri=36 ql=0 b=10
-  1 c=17829 g=17829 pq=1 pqc=17829 qp=0 dt=16117/1 dn=0 df=1015 of=0 ri=0 ql=0 b=10
-  2 c=17829 g=17829 pq=1 pqc=17829 qp=0 dt=1445/1 dn=0 df=1839 of=0 ri=0 ql=0 b=10
-  3 c=17829 g=17829 pq=1 pqc=17829 qp=0 dt=6681/1 dn=0 df=1545 of=0 ri=0 ql=0 b=10
-  4 c=17829 g=17829 pq=1 pqc=17829 qp=0 dt=1003/1 dn=0 df=1992 of=0 ri=0 ql=0 b=10
-  5 c=17829 g=17830 pq=1 pqc=17829 qp=1 dt=3887/1 dn=0 df=3331 of=0 ri=4 ql=2 b=10
-  6 c=17829 g=17829 pq=1 pqc=17829 qp=0 dt=859/1 dn=0 df=3224 of=0 ri=0 ql=0 b=10
-  7 c=17829 g=17830 pq=0 pqc=17829 qp=1 dt=3761/1 dn=0 df=1818 of=0 ri=0 ql=2 b=10
+  0 c=20972 g=20973 pq=1 pqc=20972 qp=0 dt=545/1/0 df=50 of=0 ri=0 ql=163 qs=NRW. kt=0/W/0 ktl=ebc3 b=10 ci=153737 co=0 ca=0
+  1 c=20972 g=20973 pq=1 pqc=20972 qp=0 dt=967/1/0 df=58 of=0 ri=0 ql=634 qs=NRW. kt=0/W/1 ktl=58c b=10 ci=191037 co=0 ca=0
+  2 c=20972 g=20973 pq=1 pqc=20972 qp=0 dt=1081/1/0 df=175 of=0 ri=0 ql=74 qs=N.W. kt=0/W/2 ktl=da94 b=10 ci=75991 co=0 ca=0
+  3 c=20942 g=20943 pq=1 pqc=20942 qp=1 dt=1846/0/0 df=404 of=0 ri=0 ql=0 qs=.... kt=0/W/3 ktl=d1cd b=10 ci=72261 co=0 ca=0
+  4 c=20972 g=20973 pq=1 pqc=20972 qp=0 dt=369/1/0 df=83 of=0 ri=0 ql=48 qs=N.W. kt=0/W/4 ktl=e0e7 b=10 ci=128365 co=0 ca=0
+  5 c=20972 g=20973 pq=1 pqc=20972 qp=0 dt=381/1/0 df=64 of=0 ri=0 ql=169 qs=NRW. kt=0/W/5 ktl=fb2f b=10 ci=164360 co=0 ca=0
+  6 c=20972 g=20973 pq=1 pqc=20972 qp=0 dt=1037/1/0 df=183 of=0 ri=0 ql=62 qs=N.W. kt=0/W/6 ktl=d2ad b=10 ci=65663 co=0 ca=0
+  7 c=20897 g=20897 pq=1 pqc=20896 qp=0 dt=1572/0/0 df=382 of=0 ri=0 ql=0 qs=.... kt=0/W/7 ktl=cf15 b=10 ci=75006 co=0 ca=0
 rcu_bh:
-  0 c=-275 g=-275 pq=1 pqc=-275 qp=0 dt=10951/1 dn=0 df=0 of=0 ri=0 ql=0 b=10
-  1 c=-275 g=-275 pq=1 pqc=-275 qp=0 dt=16117/1 dn=0 df=13 of=0 ri=0 ql=0 b=10
-  2 c=-275 g=-275 pq=1 pqc=-275 qp=0 dt=1445/1 dn=0 df=15 of=0 ri=0 ql=0 b=10
-  3 c=-275 g=-275 pq=1 pqc=-275 qp=0 dt=6681/1 dn=0 df=9 of=0 ri=0 ql=0 b=10
-  4 c=-275 g=-275 pq=1 pqc=-275 qp=0 dt=1003/1 dn=0 df=15 of=0 ri=0 ql=0 b=10
-  5 c=-275 g=-275 pq=1 pqc=-275 qp=0 dt=3887/1 dn=0 df=15 of=0 ri=0 ql=0 b=10
-  6 c=-275 g=-275 pq=1 pqc=-275 qp=0 dt=859/1 dn=0 df=15 of=0 ri=0 ql=0 b=10
-  7 c=-275 g=-275 pq=1 pqc=-275 qp=0 dt=3761/1 dn=0 df=15 of=0 ri=0 ql=0 b=10
+  0 c=1480 g=1480 pq=1 pqc=1479 qp=0 dt=545/1/0 df=6 of=0 ri=1 ql=0 qs=.... kt=0/W/0 ktl=ebc3 b=10 ci=0 co=0 ca=0
+  1 c=1480 g=1480 pq=1 pqc=1479 qp=0 dt=967/1/0 df=3 of=0 ri=1 ql=0 qs=.... kt=0/W/1 ktl=58c b=10 ci=151 co=0 ca=0
+  2 c=1480 g=1480 pq=1 pqc=1479 qp=0 dt=1081/1/0 df=6 of=0 ri=1 ql=0 qs=.... kt=0/W/2 ktl=da94 b=10 ci=0 co=0 ca=0
+  3 c=1480 g=1480 pq=1 pqc=1479 qp=0 dt=1846/0/0 df=8 of=0 ri=1 ql=0 qs=.... kt=0/W/3 ktl=d1cd b=10 ci=0 co=0 ca=0
+  4 c=1480 g=1480 pq=1 pqc=1479 qp=0 dt=369/1/0 df=6 of=0 ri=1 ql=0 qs=.... kt=0/W/4 ktl=e0e7 b=10 ci=0 co=0 ca=0
+  5 c=1480 g=1480 pq=1 pqc=1479 qp=0 dt=381/1/0 df=4 of=0 ri=1 ql=0 qs=.... kt=0/W/5 ktl=fb2f b=10 ci=0 co=0 ca=0
+  6 c=1480 g=1480 pq=1 pqc=1479 qp=0 dt=1037/1/0 df=6 of=0 ri=1 ql=0 qs=.... kt=0/W/6 ktl=d2ad b=10 ci=0 co=0 ca=0
+  7 c=1474 g=1474 pq=1 pqc=1473 qp=0 dt=1572/0/0 df=8 of=0 ri=1 ql=0 qs=.... kt=0/W/7 ktl=cf15 b=10 ci=0 co=0 ca=0
 
 The first section lists the rcu_data structures for rcu_sched, the second
 for rcu_bh.  Note that CONFIG_TREE_PREEMPT_RCU kernels will have an
@@ -52,17 +64,18 @@ o	The number at the beginning of each line is the CPU number.
 	substantially larger than the number of actual CPUs.
 
 o	"c" is the count of grace periods that this CPU believes have
-	completed.  CPUs in dynticks idle mode may lag quite a ways
-	behind, for example, CPU 4 under "rcu_sched" above, which has
-	slept through the past 25 RCU grace periods.  It is not unusual
-	to see CPUs lagging by thousands of grace periods.
+	completed.  Offlined CPUs and CPUs in dynticks idle mode may
+	lag quite a ways behind, for example, CPU 6 under "rcu_sched"
+	above, which has been offline through not quite 40,000 RCU grace
+	periods.  It is not unusual to see CPUs lagging by thousands of
+	grace periods.
 
 o	"g" is the count of grace periods that this CPU believes have
-	started.  Again, CPUs in dynticks idle mode may lag behind.
-	If the "c" and "g" values are equal, this CPU has already
-	reported a quiescent state for the last RCU grace period that
-	it is aware of, otherwise, the CPU believes that it owes RCU a
-	quiescent state.
+	started.  Again, offlined CPUs and CPUs in dynticks idle mode
+	may lag behind.  If the "c" and "g" values are equal, this CPU
+	has already reported a quiescent state for the last RCU grace
+	period that it is aware of, otherwise, the CPU believes that it
+	owes RCU a quiescent state.
 
 o	"pq" indicates that this CPU has passed through a quiescent state
 	for the current grace period.  It is possible for "pq" to be
@@ -81,22 +94,16 @@ o	"pqc" indicates which grace period the last-observed quiescent
 	the next grace period!
 
 o	"qp" indicates that RCU still expects a quiescent state from
-	this CPU.
+	this CPU.  Offlined CPUs and CPUs in dyntick idle mode might
+	well have qp=1, which is OK: RCU is still ignoring them.
 
 o	"dt" is the current value of the dyntick counter that is incremented
 	when entering or leaving dynticks idle state, either by the
-	scheduler or by irq.  The number after the "/" is the interrupt
-	nesting depth when in dyntick-idle state, or one greater than
-	the interrupt-nesting depth otherwise.
-
-	This field is displayed only for CONFIG_NO_HZ kernels.
-
-o	"dn" is the current value of the dyntick counter that is incremented
-	when entering or leaving dynticks idle state via NMI.  If both
-	the "dt" and "dn" values are even, then this CPU is in dynticks
-	idle mode and may be ignored by RCU.  If either of these two
-	counters is odd, then RCU must be alert to the possibility of
-	an RCU read-side critical section running on this CPU.
+	scheduler or by irq.  This number is even if the CPU is in
+	dyntick idle mode and odd otherwise.  The number after the first
+	"/" is the interrupt nesting depth when in dyntick-idle state,
+	or one greater than the interrupt-nesting depth otherwise.
+	The number after the second "/" is the NMI nesting depth.
 
 	This field is displayed only for CONFIG_NO_HZ kernels.
 
@@ -108,7 +115,7 @@ o	"df" is the number of times that some other CPU has forced a
 
 o	"of" is the number of times that some other CPU has forced a
 	quiescent state on behalf of this CPU due to this CPU being
-	offline.  In a perfect world, this might neve happen, but it
+	offline.  In a perfect world, this might never happen, but it
 	turns out that offlining and onlining a CPU can take several grace
 	periods, and so there is likely to be an extended period of time
 	when RCU believes that the CPU is online when it really is not.
@@ -124,6 +131,62 @@ o	"ql" is the number of RCU callbacks currently residing on
 	this CPU.  This is the total number of callbacks, regardless
 	of what state they are in (new, waiting for grace period to
 	start, waiting for grace period to end, ready to invoke).
+
+o	"qs" gives an indication of the state of the callback queue
+	with four characters:
+
+	"N"	Indicates that there are callbacks queued that are not
+		ready to be handled by the next grace period, and thus
+		will be handled by the grace period following the next
+		one.
+
+	"R"	Indicates that there are callbacks queued that are
+		ready to be handled by the next grace period.
+
+	"W"	Indicates that there are callbacks queued that are
+		waiting on the current grace period.
+
+	"D"	Indicates that there are callbacks queued that have
+		already been handled by a prior grace period, and are
+		thus waiting to be invoked.  Note that callbacks in
+		the process of being invoked are not counted here.
+		Callbacks in the process of being invoked are those
+		that have been removed from the rcu_data structures
+		queues by rcu_do_batch(), but which have not yet been
+		invoked.
+
+	If there are no callbacks in a given one of the above states,
+	the corresponding character is replaced by ".".
+
+o	"kt" is the per-CPU kernel-thread state.  The digit preceding
+	the first slash is zero if there is no work pending and 1
+	otherwise.  The character between the first pair of slashes is
+	as follows:
+
+	"S"	The kernel thread is stopped, in other words, all
+		CPUs corresponding to this rcu_node structure are
+		offline.
+
+	"R"	The kernel thread is running.
+
+	"W"	The kernel thread is waiting because there is no work
+		for it to do.
+
+	"O"	The kernel thread is waiting because it has been
+		forced off of its designated CPU or because its
+		->cpus_allowed mask permits it to run on other than
+		its designated CPU.
+
+	"Y"	The kernel thread is yielding to avoid hogging CPU.
+
+	"?"	Unknown value, indicates a bug.
+
+	The number after the final slash is the CPU that the kthread
+	is actually running on.
+
+o	"ktl" is the low-order 16 bits (in hexadecimal) of the count of
+	the number of times that this CPU's per-CPU kthread has gone
+	through its loop servicing invoke_rcu_cpu_kthread() requests.
 
 o	"b" is the batch limit for this CPU.  If more than this number
 	of RCU callbacks is ready to invoke, then the remainder will
@@ -174,14 +237,14 @@ o	"gpnum" is the number of grace periods that have started.  It is
 The output of "cat rcu/rcuhier" looks as follows, with very long lines:
 
 c=6902 g=6903 s=2 jfq=3 j=72c7 nfqs=13142/nfqsng=0(13142) fqlh=6
-1/1 .>. 0:127 ^0    
-3/3 .>. 0:35 ^0    0/0 .>. 36:71 ^1    0/0 .>. 72:107 ^2    0/0 .>. 108:127 ^3    
-3/3f .>. 0:5 ^0    2/3 .>. 6:11 ^1    0/0 .>. 12:17 ^2    0/0 .>. 18:23 ^3    0/0 .>. 24:29 ^4    0/0 .>. 30:35 ^5    0/0 .>. 36:41 ^0    0/0 .>. 42:47 ^1    0/0 .>. 48:53 ^2    0/0 .>. 54:59 ^3    0/0 .>. 60:65 ^4    0/0 .>. 66:71 ^5    0/0 .>. 72:77 ^0    0/0 .>. 78:83 ^1    0/0 .>. 84:89 ^2    0/0 .>. 90:95 ^3    0/0 .>. 96:101 ^4    0/0 .>. 102:107 ^5    0/0 .>. 108:113 ^0    0/0 .>. 114:119 ^1    0/0 .>. 120:125 ^2    0/0 .>. 126:127 ^3    
+1/1 ..>. 0:127 ^0
+3/3 ..>. 0:35 ^0    0/0 ..>. 36:71 ^1    0/0 ..>. 72:107 ^2    0/0 ..>. 108:127 ^3
+3/3f ..>. 0:5 ^0    2/3 ..>. 6:11 ^1    0/0 ..>. 12:17 ^2    0/0 ..>. 18:23 ^3    0/0 ..>. 24:29 ^4    0/0 ..>. 30:35 ^5    0/0 ..>. 36:41 ^0    0/0 ..>. 42:47 ^1    0/0 ..>. 48:53 ^2    0/0 ..>. 54:59 ^3    0/0 ..>. 60:65 ^4    0/0 ..>. 66:71 ^5    0/0 ..>. 72:77 ^0    0/0 ..>. 78:83 ^1    0/0 ..>. 84:89 ^2    0/0 ..>. 90:95 ^3    0/0 ..>. 96:101 ^4    0/0 ..>. 102:107 ^5    0/0 ..>. 108:113 ^0    0/0 ..>. 114:119 ^1    0/0 ..>. 120:125 ^2    0/0 ..>. 126:127 ^3
 rcu_bh:
 c=-226 g=-226 s=1 jfq=-5701 j=72c7 nfqs=88/nfqsng=0(88) fqlh=0
-0/1 .>. 0:127 ^0    
-0/3 .>. 0:35 ^0    0/0 .>. 36:71 ^1    0/0 .>. 72:107 ^2    0/0 .>. 108:127 ^3    
-0/3f .>. 0:5 ^0    0/3 .>. 6:11 ^1    0/0 .>. 12:17 ^2    0/0 .>. 18:23 ^3    0/0 .>. 24:29 ^4    0/0 .>. 30:35 ^5    0/0 .>. 36:41 ^0    0/0 .>. 42:47 ^1    0/0 .>. 48:53 ^2    0/0 .>. 54:59 ^3    0/0 .>. 60:65 ^4    0/0 .>. 66:71 ^5    0/0 .>. 72:77 ^0    0/0 .>. 78:83 ^1    0/0 .>. 84:89 ^2    0/0 .>. 90:95 ^3    0/0 .>. 96:101 ^4    0/0 .>. 102:107 ^5    0/0 .>. 108:113 ^0    0/0 .>. 114:119 ^1    0/0 .>. 120:125 ^2    0/0 .>. 126:127 ^3
+0/1 ..>. 0:127 ^0
+0/3 ..>. 0:35 ^0    0/0 ..>. 36:71 ^1    0/0 ..>. 72:107 ^2    0/0 ..>. 108:127 ^3
+0/3f ..>. 0:5 ^0    0/3 ..>. 6:11 ^1    0/0 ..>. 12:17 ^2    0/0 ..>. 18:23 ^3    0/0 ..>. 24:29 ^4    0/0 ..>. 30:35 ^5    0/0 ..>. 36:41 ^0    0/0 ..>. 42:47 ^1    0/0 ..>. 48:53 ^2    0/0 ..>. 54:59 ^3    0/0 ..>. 60:65 ^4    0/0 ..>. 66:71 ^5    0/0 ..>. 72:77 ^0    0/0 ..>. 78:83 ^1    0/0 ..>. 84:89 ^2    0/0 ..>. 90:95 ^3    0/0 ..>. 96:101 ^4    0/0 ..>. 102:107 ^5    0/0 ..>. 108:113 ^0    0/0 ..>. 114:119 ^1    0/0 ..>. 120:125 ^2    0/0 ..>. 126:127 ^3
 
 This is once again split into "rcu_sched" and "rcu_bh" portions,
 and CONFIG_TREE_PREEMPT_RCU kernels will again have an additional
@@ -240,13 +303,20 @@ o	Each element of the form "1/1 0:127 ^0" represents one struct
 		current grace period.
 
 	o	The characters separated by the ">" indicate the state
-		of the blocked-tasks lists.  A "T" preceding the ">"
+		of the blocked-tasks lists.  A "G" preceding the ">"
 		indicates that at least one task blocked in an RCU
 		read-side critical section blocks the current grace
-		period, while a "." preceding the ">" indicates otherwise.
-		The character following the ">" indicates similarly for
-		the next grace period.  A "T" should appear in this
-		field only for rcu-preempt.
+		period, while a "E" preceding the ">" indicates that
+		at least one task blocked in an RCU read-side critical
+		section blocks the current expedited grace period.
+		A "T" character following the ">" indicates that at
+		least one task is blocked within an RCU read-side
+		critical section, regardless of whether any current
+		grace period (expedited or normal) is inconvenienced.
+		A "." character appears if the corresponding condition
+		does not hold, so that "..>." indicates that no tasks
+		are blocked.  In contrast, "GE>T" indicates maximal
+		inconvenience from blocked tasks.
 
 	o	The numbers separated by the ":" are the range of CPUs
 		served by this struct rcu_node.  This can be helpful
@@ -328,6 +398,113 @@ o	"nn" is the number of times that this CPU needed nothing.  Alert
 	is due to short-circuit evaluation in rcu_pending().
 
 
+The output of "cat rcu/rcutorture" looks as follows:
+
+rcutorture test sequence: 0 (test in progress)
+rcutorture update version number: 615
+
+The first line shows the number of rcutorture tests that have completed
+since boot.  If a test is currently running, the "(test in progress)"
+string will appear as shown above.  The second line shows the number of
+update cycles that the current test has started, or zero if there is
+no test in progress.
+
+
+The output of "cat rcu/rcuboost" looks as follows:
+
+0:5 tasks=.... kt=W ntb=0 neb=0 nnb=0 j=2f95 bt=300f
+     balk: nt=0 egt=989 bt=0 nb=0 ny=0 nos=16
+6:7 tasks=.... kt=W ntb=0 neb=0 nnb=0 j=2f95 bt=300f
+     balk: nt=0 egt=225 bt=0 nb=0 ny=0 nos=6
+
+This information is output only for rcu_preempt.  Each two-line entry
+corresponds to a leaf rcu_node strcuture.  The fields are as follows:
+
+o	"n:m" is the CPU-number range for the corresponding two-line
+	entry.  In the sample output above, the first entry covers
+	CPUs zero through five and the second entry covers CPUs 6
+	and 7.
+
+o	"tasks=TNEB" gives the state of the various segments of the
+	rnp->blocked_tasks list:
+
+	"T"	This indicates that there are some tasks that blocked
+		while running on one of the corresponding CPUs while
+		in an RCU read-side critical section.
+
+	"N"	This indicates that some of the blocked tasks are preventing
+		the current normal (non-expedited) grace period from
+		completing.
+
+	"E"	This indicates that some of the blocked tasks are preventing
+		the current expedited grace period from completing.
+
+	"B"	This indicates that some of the blocked tasks are in
+		need of RCU priority boosting.
+
+	Each character is replaced with "." if the corresponding
+	condition does not hold.
+
+o	"kt" is the state of the RCU priority-boosting kernel
+	thread associated with the corresponding rcu_node structure.
+	The state can be one of the following:
+
+	"S"	The kernel thread is stopped, in other words, all
+		CPUs corresponding to this rcu_node structure are
+		offline.
+
+	"R"	The kernel thread is running.
+
+	"W"	The kernel thread is waiting because there is no work
+		for it to do.
+
+	"Y"	The kernel thread is yielding to avoid hogging CPU.
+
+	"?"	Unknown value, indicates a bug.
+
+o	"ntb" is the number of tasks boosted.
+
+o	"neb" is the number of tasks boosted in order to complete an
+	expedited grace period.
+
+o	"nnb" is the number of tasks boosted in order to complete a
+	normal (non-expedited) grace period.  When boosting a task
+	that was blocking both an expedited and a normal grace period,
+	it is counted against the expedited total above.
+
+o	"j" is the low-order 16 bits of the jiffies counter in
+	hexadecimal.
+
+o	"bt" is the low-order 16 bits of the value that the jiffies
+	counter will have when we next start boosting, assuming that
+	the current grace period does not end beforehand.  This is
+	also in hexadecimal.
+
+o	"balk: nt" counts the number of times we didn't boost (in
+	other words, we balked) even though it was time to boost because
+	there were no blocked tasks to boost.  This situation occurs
+	when there is one blocked task on one rcu_node structure and
+	none on some other rcu_node structure.
+
+o	"egt" counts the number of times we balked because although
+	there were blocked tasks, none of them were blocking the
+	current grace period, whether expedited or otherwise.
+
+o	"bt" counts the number of times we balked because boosting
+	had already been initiated for the current grace period.
+
+o	"nb" counts the number of times we balked because there
+	was at least one task blocking the current non-expedited grace
+	period that never had blocked.  If it is already running, it
+	just won't help to boost its priority!
+
+o	"ny" counts the number of times we balked because it was
+	not yet time to start boosting.
+
+o	"nos" counts the number of times we balked for other
+	reasons, e.g., the grace period ended first.
+
+
 CONFIG_TINY_RCU and CONFIG_TINY_PREEMPT_RCU debugfs Files and Formats
 
 These implementations of RCU provides a single debugfs file under the
@@ -394,9 +571,9 @@ o	"neb" is the number of expedited grace periods that have had
 o	"nnb" is the number of normal grace periods that have had
 	to resort to RCU priority boosting since boot.
 
-o	"j" is the low-order 12 bits of the jiffies counter in hexadecimal.
+o	"j" is the low-order 16 bits of the jiffies counter in hexadecimal.
 
-o	"bt" is the low-order 12 bits of the value that the jiffies counter
+o	"bt" is the low-order 16 bits of the value that the jiffies counter
 	will have at the next time that boosting is scheduled to begin.
 
 o	In the line beginning with "normal balk", the fields are as follows:

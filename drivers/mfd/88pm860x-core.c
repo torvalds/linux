@@ -21,13 +21,13 @@
 
 #define INT_STATUS_NUM			3
 
-static struct resource bk_resources[] __initdata = {
+static struct resource bk_resources[] __devinitdata = {
 	{PM8606_BACKLIGHT1, PM8606_BACKLIGHT1, "backlight-0", IORESOURCE_IO,},
 	{PM8606_BACKLIGHT2, PM8606_BACKLIGHT2, "backlight-1", IORESOURCE_IO,},
 	{PM8606_BACKLIGHT3, PM8606_BACKLIGHT3, "backlight-2", IORESOURCE_IO,},
 };
 
-static struct resource led_resources[] __initdata = {
+static struct resource led_resources[] __devinitdata = {
 	{PM8606_LED1_RED,   PM8606_LED1_RED,   "led0-red",   IORESOURCE_IO,},
 	{PM8606_LED1_GREEN, PM8606_LED1_GREEN, "led0-green", IORESOURCE_IO,},
 	{PM8606_LED1_BLUE,  PM8606_LED1_BLUE,  "led0-blue",  IORESOURCE_IO,},
@@ -36,7 +36,7 @@ static struct resource led_resources[] __initdata = {
 	{PM8606_LED2_BLUE,  PM8606_LED2_BLUE,  "led1-blue",  IORESOURCE_IO,},
 };
 
-static struct resource regulator_resources[] __initdata = {
+static struct resource regulator_resources[] __devinitdata = {
 	{PM8607_ID_BUCK1, PM8607_ID_BUCK1, "buck-1", IORESOURCE_IO,},
 	{PM8607_ID_BUCK2, PM8607_ID_BUCK2, "buck-2", IORESOURCE_IO,},
 	{PM8607_ID_BUCK3, PM8607_ID_BUCK3, "buck-3", IORESOURCE_IO,},
@@ -57,15 +57,15 @@ static struct resource regulator_resources[] __initdata = {
 	{PM8607_ID_LDO15, PM8607_ID_LDO15, "ldo-15", IORESOURCE_IO,},
 };
 
-static struct resource touch_resources[] __initdata = {
+static struct resource touch_resources[] __devinitdata = {
 	{PM8607_IRQ_PEN, PM8607_IRQ_PEN, "touch", IORESOURCE_IRQ,},
 };
 
-static struct resource onkey_resources[] __initdata = {
+static struct resource onkey_resources[] __devinitdata = {
 	{PM8607_IRQ_ONKEY, PM8607_IRQ_ONKEY, "onkey", IORESOURCE_IRQ,},
 };
 
-static struct resource codec_resources[] __initdata = {
+static struct resource codec_resources[] __devinitdata = {
 	/* Headset microphone insertion or removal */
 	{PM8607_IRQ_MICIN,   PM8607_IRQ_MICIN,   "micin",   IORESOURCE_IRQ,},
 	/* Hook-switch press or release */
@@ -76,12 +76,12 @@ static struct resource codec_resources[] __initdata = {
 	{PM8607_IRQ_AUDIO_SHORT, PM8607_IRQ_AUDIO_SHORT, "audio-short", IORESOURCE_IRQ,},
 };
 
-static struct resource battery_resources[] __initdata = {
+static struct resource battery_resources[] __devinitdata = {
 	{PM8607_IRQ_CC,  PM8607_IRQ_CC,  "columb counter", IORESOURCE_IRQ,},
 	{PM8607_IRQ_BAT, PM8607_IRQ_BAT, "battery",        IORESOURCE_IRQ,},
 };
 
-static struct resource charger_resources[] __initdata = {
+static struct resource charger_resources[] __devinitdata = {
 	{PM8607_IRQ_CHG,  PM8607_IRQ_CHG,  "charger detect",  IORESOURCE_IRQ,},
 	{PM8607_IRQ_CHG_DONE,  PM8607_IRQ_CHG_DONE,  "charging done",       IORESOURCE_IRQ,},
 	{PM8607_IRQ_CHG_FAULT, PM8607_IRQ_CHG_FAULT, "charging timeout",    IORESOURCE_IRQ,},
@@ -90,13 +90,17 @@ static struct resource charger_resources[] __initdata = {
 	{PM8607_IRQ_VCHG, PM8607_IRQ_VCHG, "vchg voltage",    IORESOURCE_IRQ,},
 };
 
-static struct mfd_cell bk_devs[] __initdata = {
+static struct resource rtc_resources[] __devinitdata = {
+	{PM8607_IRQ_RTC, PM8607_IRQ_RTC, "rtc", IORESOURCE_IRQ,},
+};
+
+static struct mfd_cell bk_devs[] = {
 	{"88pm860x-backlight", 0,},
 	{"88pm860x-backlight", 1,},
 	{"88pm860x-backlight", 2,},
 };
 
-static struct mfd_cell led_devs[] __initdata = {
+static struct mfd_cell led_devs[] = {
 	{"88pm860x-led", 0,},
 	{"88pm860x-led", 1,},
 	{"88pm860x-led", 2,},
@@ -105,7 +109,7 @@ static struct mfd_cell led_devs[] __initdata = {
 	{"88pm860x-led", 5,},
 };
 
-static struct mfd_cell regulator_devs[] __initdata = {
+static struct mfd_cell regulator_devs[] = {
 	{"88pm860x-regulator", 0,},
 	{"88pm860x-regulator", 1,},
 	{"88pm860x-regulator", 2,},
@@ -126,15 +130,15 @@ static struct mfd_cell regulator_devs[] __initdata = {
 	{"88pm860x-regulator", 17,},
 };
 
-static struct mfd_cell touch_devs[] __initdata = {
+static struct mfd_cell touch_devs[] = {
 	{"88pm860x-touch", -1,},
 };
 
-static struct mfd_cell onkey_devs[] __initdata = {
+static struct mfd_cell onkey_devs[] = {
 	{"88pm860x-onkey", -1,},
 };
 
-static struct mfd_cell codec_devs[] __initdata = {
+static struct mfd_cell codec_devs[] = {
 	{"88pm860x-codec", -1,},
 };
 
@@ -143,11 +147,10 @@ static struct mfd_cell power_devs[] = {
 	{"88pm860x-charger", -1,},
 };
 
-static struct pm860x_backlight_pdata bk_pdata[ARRAY_SIZE(bk_devs)];
-static struct pm860x_led_pdata led_pdata[ARRAY_SIZE(led_devs)];
-static struct regulator_init_data regulator_pdata[ARRAY_SIZE(regulator_devs)];
-static struct pm860x_touch_pdata touch_pdata;
-static struct pm860x_power_pdata power_pdata;
+static struct mfd_cell rtc_devs[] = {
+	{"88pm860x-rtc", -1,},
+};
+
 
 struct pm860x_irq_data {
 	int	reg;
@@ -501,7 +504,6 @@ static void device_irq_exit(struct pm860x_chip *chip)
 }
 
 static void __devinit device_bk_init(struct pm860x_chip *chip,
-				     struct i2c_client *i2c,
 				     struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -514,13 +516,12 @@ static void __devinit device_bk_init(struct pm860x_chip *chip,
 		pdata->num_backlights = ARRAY_SIZE(bk_devs);
 
 	for (i = 0; i < pdata->num_backlights; i++) {
-		memcpy(&bk_pdata[i], &pdata->backlight[i],
-			sizeof(struct pm860x_backlight_pdata));
-		bk_devs[i].mfd_data = &bk_pdata[i];
+		bk_devs[i].platform_data = &pdata->backlight[i];
+		bk_devs[i].pdata_size = sizeof(struct pm860x_backlight_pdata);
 
 		for (j = 0; j < ARRAY_SIZE(bk_devs); j++) {
 			id = bk_resources[j].start;
-			if (bk_pdata[i].flags != id)
+			if (pdata->backlight[i].flags != id)
 				continue;
 
 			bk_devs[i].num_resources = 1;
@@ -538,7 +539,6 @@ static void __devinit device_bk_init(struct pm860x_chip *chip,
 }
 
 static void __devinit device_led_init(struct pm860x_chip *chip,
-				      struct i2c_client *i2c,
 				      struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -551,13 +551,12 @@ static void __devinit device_led_init(struct pm860x_chip *chip,
 		pdata->num_leds = ARRAY_SIZE(led_devs);
 
 	for (i = 0; i < pdata->num_leds; i++) {
-		memcpy(&led_pdata[i], &pdata->led[i],
-			sizeof(struct pm860x_led_pdata));
-		led_devs[i].mfd_data = &led_pdata[i];
+		led_devs[i].platform_data = &pdata->led[i];
+		led_devs[i].pdata_size = sizeof(struct pm860x_led_pdata);
 
 		for (j = 0; j < ARRAY_SIZE(led_devs); j++) {
 			id = led_resources[j].start;
-			if (led_pdata[i].flags != id)
+			if (pdata->led[i].flags != id)
 				continue;
 
 			led_devs[i].num_resources = 1;
@@ -575,12 +574,11 @@ static void __devinit device_led_init(struct pm860x_chip *chip,
 }
 
 static void __devinit device_regulator_init(struct pm860x_chip *chip,
-					    struct i2c_client *i2c,
 					    struct pm860x_platform_data *pdata)
 {
 	struct regulator_init_data *initdata;
 	int ret;
-	int i, j;
+	int i, seq;
 
 	if ((pdata == NULL) || (pdata->regulator == NULL))
 		return;
@@ -588,41 +586,21 @@ static void __devinit device_regulator_init(struct pm860x_chip *chip,
 	if (pdata->num_regulators > ARRAY_SIZE(regulator_devs))
 		pdata->num_regulators = ARRAY_SIZE(regulator_devs);
 
-	for (i = 0, j = -1; i < pdata->num_regulators; i++) {
+	for (i = 0, seq = -1; i < pdata->num_regulators; i++) {
 		initdata = &pdata->regulator[i];
-		if (strstr(initdata->constraints.name, "BUCK")) {
-			sscanf(initdata->constraints.name, "BUCK%d", &j);
-			/* BUCK1 ~ BUCK3 */
-			if ((j < 1) || (j > 3)) {
-				dev_err(chip->dev, "Failed to add constraint "
-					"(%s)\n", initdata->constraints.name);
-				goto out;
-			}
-			j = (j - 1) + PM8607_ID_BUCK1;
-		}
-		if (strstr(initdata->constraints.name, "LDO")) {
-			sscanf(initdata->constraints.name, "LDO%d", &j);
-			/* LDO1 ~ LDO15 */
-			if ((j < 1) || (j > 15)) {
-				dev_err(chip->dev, "Failed to add constraint "
-					"(%s)\n", initdata->constraints.name);
-				goto out;
-			}
-			j = (j - 1) + PM8607_ID_LDO1;
-		}
-		if (j == -1) {
-			dev_err(chip->dev, "Failed to add constraint (%s)\n",
-				initdata->constraints.name);
+		seq = *(unsigned int *)initdata->driver_data;
+		if ((seq < 0) || (seq > PM8607_ID_RG_MAX)) {
+			dev_err(chip->dev, "Wrong ID(%d) on regulator(%s)\n",
+				seq, initdata->constraints.name);
 			goto out;
 		}
-		memcpy(&regulator_pdata[i], &pdata->regulator[i],
-			sizeof(struct regulator_init_data));
-		regulator_devs[i].mfd_data = &regulator_pdata[i];
+		regulator_devs[i].platform_data = &pdata->regulator[i];
+		regulator_devs[i].pdata_size = sizeof(struct regulator_init_data);
 		regulator_devs[i].num_resources = 1;
-		regulator_devs[i].resources = &regulator_resources[j];
+		regulator_devs[i].resources = &regulator_resources[seq];
 
 		ret = mfd_add_devices(chip->dev, 0, &regulator_devs[i], 1,
-				      &regulator_resources[j], 0);
+				      &regulator_resources[seq], 0);
 		if (ret < 0) {
 			dev_err(chip->dev, "Failed to add regulator subdev\n");
 			goto out;
@@ -632,17 +610,35 @@ out:
 	return;
 }
 
+static void __devinit device_rtc_init(struct pm860x_chip *chip,
+				      struct pm860x_platform_data *pdata)
+{
+	int ret;
+
+	if ((pdata == NULL))
+		return;
+
+	rtc_devs[0].platform_data = pdata->rtc;
+	rtc_devs[0].pdata_size = sizeof(struct pm860x_rtc_pdata);
+	rtc_devs[0].num_resources = ARRAY_SIZE(rtc_resources);
+	rtc_devs[0].resources = &rtc_resources[0];
+	ret = mfd_add_devices(chip->dev, 0, &rtc_devs[0],
+			      ARRAY_SIZE(rtc_devs), &rtc_resources[0],
+			      chip->irq_base);
+	if (ret < 0)
+		dev_err(chip->dev, "Failed to add rtc subdev\n");
+}
+
 static void __devinit device_touch_init(struct pm860x_chip *chip,
-					struct i2c_client *i2c,
 					struct pm860x_platform_data *pdata)
 {
 	int ret;
 
-	if ((pdata == NULL) || (pdata->touch == NULL))
+	if (pdata == NULL)
 		return;
 
-	memcpy(&touch_pdata, pdata->touch, sizeof(struct pm860x_touch_pdata));
-	touch_devs[0].mfd_data = &touch_pdata;
+	touch_devs[0].platform_data = pdata->touch;
+	touch_devs[0].pdata_size = sizeof(struct pm860x_touch_pdata);
 	touch_devs[0].num_resources = ARRAY_SIZE(touch_resources);
 	touch_devs[0].resources = &touch_resources[0];
 	ret = mfd_add_devices(chip->dev, 0, &touch_devs[0],
@@ -653,16 +649,15 @@ static void __devinit device_touch_init(struct pm860x_chip *chip,
 }
 
 static void __devinit device_power_init(struct pm860x_chip *chip,
-					struct i2c_client *i2c,
 					struct pm860x_platform_data *pdata)
 {
 	int ret;
 
-	if ((pdata == NULL) || (pdata->power == NULL))
+	if (pdata == NULL)
 		return;
 
-	memcpy(&power_pdata, pdata->power, sizeof(struct pm860x_power_pdata));
-	power_devs[0].mfd_data = &power_pdata;
+	power_devs[0].platform_data = pdata->power;
+	power_devs[0].pdata_size = sizeof(struct pm860x_power_pdata);
 	power_devs[0].num_resources = ARRAY_SIZE(battery_resources);
 	power_devs[0].resources = &battery_resources[0],
 	ret = mfd_add_devices(chip->dev, 0, &power_devs[0], 1,
@@ -670,7 +665,8 @@ static void __devinit device_power_init(struct pm860x_chip *chip,
 	if (ret < 0)
 		dev_err(chip->dev, "Failed to add battery subdev\n");
 
-	power_devs[1].mfd_data = &power_pdata;
+	power_devs[1].platform_data = pdata->power;
+	power_devs[1].pdata_size = sizeof(struct pm860x_power_pdata);
 	power_devs[1].num_resources = ARRAY_SIZE(charger_resources);
 	power_devs[1].resources = &charger_resources[0],
 	ret = mfd_add_devices(chip->dev, 0, &power_devs[1], 1,
@@ -680,7 +676,6 @@ static void __devinit device_power_init(struct pm860x_chip *chip,
 }
 
 static void __devinit device_onkey_init(struct pm860x_chip *chip,
-					struct i2c_client *i2c,
 					struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -695,7 +690,6 @@ static void __devinit device_onkey_init(struct pm860x_chip *chip,
 }
 
 static void __devinit device_codec_init(struct pm860x_chip *chip,
-					struct i2c_client *i2c,
 					struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -763,11 +757,12 @@ static void __devinit device_8607_init(struct pm860x_chip *chip,
 	if (ret < 0)
 		goto out;
 
-	device_regulator_init(chip, i2c, pdata);
-	device_onkey_init(chip, i2c, pdata);
-	device_touch_init(chip, i2c, pdata);
-	device_power_init(chip, i2c, pdata);
-	device_codec_init(chip, i2c, pdata);
+	device_regulator_init(chip, pdata);
+	device_rtc_init(chip, pdata);
+	device_onkey_init(chip, pdata);
+	device_touch_init(chip, pdata);
+	device_power_init(chip, pdata);
+	device_codec_init(chip, pdata);
 out:
 	return;
 }
@@ -779,8 +774,8 @@ int __devinit pm860x_device_init(struct pm860x_chip *chip,
 
 	switch (chip->id) {
 	case CHIP_PM8606:
-		device_bk_init(chip, chip->client, pdata);
-		device_led_init(chip, chip->client, pdata);
+		device_bk_init(chip, pdata);
+		device_led_init(chip, pdata);
 		break;
 	case CHIP_PM8607:
 		device_8607_init(chip, chip->client, pdata);
@@ -790,8 +785,8 @@ int __devinit pm860x_device_init(struct pm860x_chip *chip,
 	if (chip->companion) {
 		switch (chip->id) {
 		case CHIP_PM8607:
-			device_bk_init(chip, chip->companion, pdata);
-			device_led_init(chip, chip->companion, pdata);
+			device_bk_init(chip, pdata);
+			device_led_init(chip, pdata);
 			break;
 		case CHIP_PM8606:
 			device_8607_init(chip, chip->companion, pdata);

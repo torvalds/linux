@@ -80,12 +80,6 @@ static inline struct inode *NILFS_BTNC_I(struct address_space *btnc)
 	return &ii->vfs_inode;
 }
 
-static inline struct inode *NILFS_AS_I(struct address_space *mapping)
-{
-	return (mapping->host) ? :
-		container_of(mapping, struct inode, i_data);
-}
-
 /*
  * Dynamic state flags of NILFS on-memory inode (i_state)
  */
@@ -275,7 +269,7 @@ int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh);
 extern int nilfs_inode_dirty(struct inode *);
 int nilfs_set_file_dirty(struct inode *inode, unsigned nr_dirty);
 extern int nilfs_mark_inode_dirty(struct inode *);
-extern void nilfs_dirty_inode(struct inode *);
+extern void nilfs_dirty_inode(struct inode *, int flags);
 int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		 __u64 start, __u64 len);
 
@@ -298,6 +292,7 @@ struct nilfs_super_block **nilfs_prepare_super(struct super_block *sb,
 					       int flip);
 int nilfs_commit_super(struct super_block *sb, int flag);
 int nilfs_cleanup_super(struct super_block *sb);
+int nilfs_resize_fs(struct super_block *sb, __u64 newsize);
 int nilfs_attach_checkpoint(struct super_block *sb, __u64 cno, int curr_mnt,
 			    struct nilfs_root **root);
 int nilfs_checkpoint_is_mounted(struct super_block *sb, __u64 cno);

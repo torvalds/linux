@@ -6,7 +6,7 @@
  * 
  * This driver is based on sgicons.c and cons_newport.
  * 
- * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
+ * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1997 Miguel de Icaza (miguel@nuclecu.unam.mx)
  */
 #include <linux/init.h>

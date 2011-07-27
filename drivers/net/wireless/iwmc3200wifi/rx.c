@@ -565,7 +565,7 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 		if (!test_and_clear_bit(IWM_STATUS_SME_CONNECTING, &iwm->status)
 		    && iwm->conf.mode == UMAC_MODE_BSS) {
 			cancel_delayed_work(&iwm->disconnect);
-			cfg80211_roamed(iwm_to_ndev(iwm),
+			cfg80211_roamed(iwm_to_ndev(iwm), NULL,
 					complete->bssid,
 					iwm->req_ie, iwm->req_ie_len,
 					iwm->resp_ie, iwm->resp_ie_len,
@@ -586,7 +586,7 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 						WLAN_STATUS_SUCCESS,
 						GFP_KERNEL);
 		else
-			cfg80211_roamed(iwm_to_ndev(iwm),
+			cfg80211_roamed(iwm_to_ndev(iwm), NULL,
 					complete->bssid,
 					iwm->req_ie, iwm->req_ie_len,
 					iwm->resp_ie, iwm->resp_ie_len,
@@ -1576,7 +1576,8 @@ static void iwm_rx_process_amsdu(struct iwm_priv *iwm, struct sk_buff *skb)
 	IWM_HEXDUMP(iwm, DBG, RX, "A-MSDU: ", skb->data, skb->len);
 
 	__skb_queue_head_init(&list);
-	ieee80211_amsdu_to_8023s(skb, &list, ndev->dev_addr, wdev->iftype, 0);
+	ieee80211_amsdu_to_8023s(skb, &list, ndev->dev_addr, wdev->iftype, 0,
+									true);
 
 	while ((frame = __skb_dequeue(&list))) {
 		ndev->stats.rx_packets++;

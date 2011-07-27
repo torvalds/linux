@@ -29,6 +29,7 @@
 #include "xfs_mount.h"
 #include "xfs_error.h"
 #include "xfs_alloc.h"
+#include "xfs_discard.h"
 
 /*
  * Perform initial CIL structure initialisation. If the CIL is not
@@ -361,19 +362,28 @@ xlog_cil_committed(
 	int	abort)
 {
 	struct xfs_cil_ctx	*ctx = args;
-	struct xfs_busy_extent	*busyp, *n;
+	struct xfs_mount	*mp = ctx->cil->xc_log->l_mp;
 
 	xfs_trans_committed_bulk(ctx->cil->xc_log->l_ailp, ctx->lv_chain,
 					ctx->start_lsn, abort);
 
-	list_for_each_entry_safe(busyp, n, &ctx->busy_extents, list)
-		xfs_alloc_busy_clear(ctx->cil->xc_log->l_mp, busyp);
+	xfs_alloc_busy_sort(&ctx->busy_extents);
+	xfs_alloc_busy_clear(mp, &ctx->busy_extents,
+			     (mp->m_flags & XFS_MOUNT_DISCARD) && !abort);
 
 	spin_lock(&ctx->cil->xc_cil_lock);
 	list_del(&ctx->committing);
 	spin_unlock(&ctx->cil->xc_cil_lock);
 
 	xlog_cil_free_logvec(ctx->lv_chain);
+
+	if (!list_empty(&ctx->busy_extents)) {
+		ASSERT(mp->m_flags & XFS_MOUNT_DISCARD);
+
+		xfs_discard_extents(mp, &ctx->busy_extents);
+		xfs_alloc_busy_clear(mp, &ctx->busy_extents, false);
+	}
+
 	kmem_free(ctx);
 }
 

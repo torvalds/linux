@@ -155,8 +155,6 @@ static ssize_t adis16130_bitsmode_write(struct device *dev,
 static IIO_DEVICE_ATTR(temp_raw, S_IRUGO, adis16130_val_read, NULL,
 		      ADIS16130_TEMPDATA);
 
-static IIO_CONST_ATTR(name, "adis16130");
-
 static IIO_DEV_ATTR_GYRO_Z(adis16130_val_read, ADIS16130_RATEDATA);
 
 static IIO_DEVICE_ATTR(gyro_z_type, S_IWUSR | S_IRUGO, adis16130_bitsmode_read,
@@ -167,7 +165,6 @@ static IIO_CONST_ATTR(gyro_z_type_available, "s16 s24");
 
 static struct attribute *adis16130_attributes[] = {
 	&iio_dev_attr_temp_raw.dev_attr.attr,
-	&iio_const_attr_name.dev_attr.attr,
 	&iio_dev_attr_gyro_z_raw.dev_attr.attr,
 	&iio_dev_attr_gyro_z_type.dev_attr.attr,
 	&iio_const_attr_gyro_z_type_available.dev_attr.attr,
@@ -176,6 +173,11 @@ static struct attribute *adis16130_attributes[] = {
 
 static const struct attribute_group adis16130_attribute_group = {
 	.attrs = adis16130_attributes,
+};
+
+static const struct iio_info adis16130_info = {
+	.attrs = &adis16130_attribute_group,
+	.driver_module = THIS_MODULE,
 };
 
 static int __devinit adis16130_probe(struct spi_device *spi)
@@ -191,16 +193,16 @@ static int __devinit adis16130_probe(struct spi_device *spi)
 	st->us = spi;
 	mutex_init(&st->buf_lock);
 	/* setup the industrialio driver allocated elements */
-	st->indio_dev = iio_allocate_device();
+	st->indio_dev = iio_allocate_device(0);
 	if (st->indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_free_st;
 	}
 
+	st->indio_dev->name = spi->dev.driver->name;
 	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->attrs = &adis16130_attribute_group;
+	st->indio_dev->info = &adis16130_info;
 	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 	st->mode = 1;
 

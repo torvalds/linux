@@ -108,8 +108,6 @@ int vnic_dev_disable(struct vnic_dev *vdev);
 int vnic_dev_open(struct vnic_dev *vdev, int arg);
 int vnic_dev_open_done(struct vnic_dev *vdev, int *done);
 int vnic_dev_init(struct vnic_dev *vdev, int arg);
-int vnic_dev_init_done(struct vnic_dev *vdev, int *done, int *err);
-int vnic_dev_init_prov(struct vnic_dev *vdev, u8 *buf, u32 len);
 int vnic_dev_deinit(struct vnic_dev *vdev);
 int vnic_dev_hang_reset(struct vnic_dev *vdev, int arg);
 int vnic_dev_hang_reset_done(struct vnic_dev *vdev, int *done);
@@ -122,5 +120,9 @@ int vnic_dev_set_ig_vlan_rewrite_mode(struct vnic_dev *vdev,
 struct vnic_dev *vnic_dev_register(struct vnic_dev *vdev,
 	void *priv, struct pci_dev *pdev, struct vnic_dev_bar *bar,
 	unsigned int num_bars);
+int vnic_dev_init_prov2(struct vnic_dev *vdev, u8 *buf, u32 len);
+int vnic_dev_enable2(struct vnic_dev *vdev, int active);
+int vnic_dev_enable2_done(struct vnic_dev *vdev, int *status);
+int vnic_dev_deinit_done(struct vnic_dev *vdev, int *status);
 
 #endif /* _VNIC_DEV_H_ */

@@ -33,7 +33,7 @@ static const char *desired_serio_phys;
 static int lifebook_limit_serio3(const struct dmi_system_id *d)
 {
 	desired_serio_phys = "isa0060/serio3";
-	return 0;
+	return 1;
 }
 
 static bool lifebook_use_6byte_proto;
@@ -41,7 +41,7 @@ static bool lifebook_use_6byte_proto;
 static int lifebook_set_6byte_proto(const struct dmi_system_id *d)
 {
 	lifebook_use_6byte_proto = true;
-	return 0;
+	return 1;
 }
 
 static const struct dmi_system_id __initconst lifebook_dmi_table[] = {

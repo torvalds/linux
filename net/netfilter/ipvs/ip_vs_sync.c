@@ -1303,13 +1303,18 @@ static struct socket *make_send_sock(struct net *net)
 	struct socket *sock;
 	int result;
 
-	/* First create a socket */
-	result = __sock_create(net, PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock, 1);
+	/* First create a socket move it to right name space later */
+	result = sock_create_kern(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock);
 	if (result < 0) {
 		pr_err("Error during creation of socket; terminating\n");
 		return ERR_PTR(result);
 	}
-
+	/*
+	 * Kernel sockets that are a part of a namespace, should not
+	 * hold a reference to a namespace in order to allow to stop it.
+	 * After sk_change_net should be released using sk_release_kernel.
+	 */
+	sk_change_net(sock->sk, net);
 	result = set_mcast_if(sock->sk, ipvs->master_mcast_ifn);
 	if (result < 0) {
 		pr_err("Error setting outbound mcast interface\n");
@@ -1334,8 +1339,8 @@ static struct socket *make_send_sock(struct net *net)
 
 	return sock;
 
-  error:
-	sock_release(sock);
+error:
+	sk_release_kernel(sock->sk);
 	return ERR_PTR(result);
 }
 
@@ -1350,12 +1355,17 @@ static struct socket *make_receive_sock(struct net *net)
 	int result;
 
 	/* First create a socket */
-	result = __sock_create(net, PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock, 1);
+	result = sock_create_kern(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock);
 	if (result < 0) {
 		pr_err("Error during creation of socket; terminating\n");
 		return ERR_PTR(result);
 	}
-
+	/*
+	 * Kernel sockets that are a part of a namespace, should not
+	 * hold a reference to a namespace in order to allow to stop it.
+	 * After sk_change_net should be released using sk_release_kernel.
+	 */
+	sk_change_net(sock->sk, net);
 	/* it is equivalent to the REUSEADDR option in user-space */
 	sock->sk->sk_reuse = 1;
 
@@ -1377,8 +1387,8 @@ static struct socket *make_receive_sock(struct net *net)
 
 	return sock;
 
-  error:
-	sock_release(sock);
+error:
+	sk_release_kernel(sock->sk);
 	return ERR_PTR(result);
 }
 
@@ -1473,7 +1483,7 @@ static int sync_thread_master(void *data)
 		ip_vs_sync_buff_release(sb);
 
 	/* release the sending multicast socket */
-	sock_release(tinfo->sock);
+	sk_release_kernel(tinfo->sock->sk);
 	kfree(tinfo);
 
 	return 0;
@@ -1513,7 +1523,7 @@ static int sync_thread_backup(void *data)
 	}
 
 	/* release the sending multicast socket */
-	sock_release(tinfo->sock);
+	sk_release_kernel(tinfo->sock->sk);
 	kfree(tinfo->buf);
 	kfree(tinfo);
 
@@ -1601,7 +1611,7 @@ outtinfo:
 outbuf:
 	kfree(buf);
 outsocket:
-	sock_release(sock);
+	sk_release_kernel(sock->sk);
 out:
 	return result;
 }
@@ -1610,6 +1620,7 @@ out:
 int stop_sync_thread(struct net *net, int state)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
+	int retc = -EINVAL;
 
 	IP_VS_DBG(7, "%s(): pid %d\n", __func__, task_pid_nr(current));
 
@@ -1629,7 +1640,7 @@ int stop_sync_thread(struct net *net, int state)
 		spin_lock_bh(&ipvs->sync_lock);
 		ipvs->sync_state &= ~IP_VS_STATE_MASTER;
 		spin_unlock_bh(&ipvs->sync_lock);
-		kthread_stop(ipvs->master_thread);
+		retc = kthread_stop(ipvs->master_thread);
 		ipvs->master_thread = NULL;
 	} else if (state == IP_VS_STATE_BACKUP) {
 		if (!ipvs->backup_thread)
@@ -1639,22 +1650,20 @@ int stop_sync_thread(struct net *net, int state)
 			task_pid_nr(ipvs->backup_thread));
 
 		ipvs->sync_state &= ~IP_VS_STATE_BACKUP;
-		kthread_stop(ipvs->backup_thread);
+		retc = kthread_stop(ipvs->backup_thread);
 		ipvs->backup_thread = NULL;
-	} else {
-		return -EINVAL;
 	}
 
 	/* decrease the module use count */
 	ip_vs_use_count_dec();
 
-	return 0;
+	return retc;
 }
 
 /*
  * Initialize data struct for each netns
  */
-static int __net_init __ip_vs_sync_init(struct net *net)
+int __net_init __ip_vs_sync_init(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
@@ -1668,24 +1677,24 @@ static int __net_init __ip_vs_sync_init(struct net *net)
 	return 0;
 }
 
-static void __ip_vs_sync_cleanup(struct net *net)
+void __ip_vs_sync_cleanup(struct net *net)
 {
-	stop_sync_thread(net, IP_VS_STATE_MASTER);
-	stop_sync_thread(net, IP_VS_STATE_BACKUP);
+	int retc;
+
+	retc = stop_sync_thread(net, IP_VS_STATE_MASTER);
+	if (retc && retc != -ESRCH)
+		pr_err("Failed to stop Master Daemon\n");
+
+	retc = stop_sync_thread(net, IP_VS_STATE_BACKUP);
+	if (retc && retc != -ESRCH)
+		pr_err("Failed to stop Backup Daemon\n");
 }
-
-static struct pernet_operations ipvs_sync_ops = {
-	.init = __ip_vs_sync_init,
-	.exit = __ip_vs_sync_cleanup,
-};
-
 
 int __init ip_vs_sync_init(void)
 {
-	return register_pernet_subsys(&ipvs_sync_ops);
+	return 0;
 }
 
 void ip_vs_sync_cleanup(void)
 {
-	unregister_pernet_subsys(&ipvs_sync_ops);
 }

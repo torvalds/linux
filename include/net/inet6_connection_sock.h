@@ -41,5 +41,5 @@ extern void inet6_csk_reqsk_queue_hash_add(struct sock *sk,
 
 extern void inet6_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr);
 
-extern int inet6_csk_xmit(struct sk_buff *skb);
+extern int inet6_csk_xmit(struct sk_buff *skb, struct flowi *fl);
 #endif /* _INET6_CONNECTION_SOCK_H */

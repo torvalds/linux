@@ -23,11 +23,9 @@
 static int _mmc_select_card(struct mmc_host *host, struct mmc_card *card)
 {
 	int err;
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 
 	BUG_ON(!host);
-
-	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = MMC_SELECT_CARD;
 
@@ -60,14 +58,12 @@ int mmc_deselect_cards(struct mmc_host *host)
 
 int mmc_card_sleepawake(struct mmc_host *host, int sleep)
 {
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 	struct mmc_card *card = host->card;
 	int err;
 
 	if (sleep)
 		mmc_deselect_cards(host);
-
-	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = MMC_SLEEP_AWAKE;
 	cmd.arg = card->rca << 16;
@@ -97,7 +93,7 @@ int mmc_card_sleepawake(struct mmc_host *host, int sleep)
 int mmc_go_idle(struct mmc_host *host)
 {
 	int err;
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 
 	/*
 	 * Non-SPI hosts need to prevent chipselect going active during
@@ -112,8 +108,6 @@ int mmc_go_idle(struct mmc_host *host)
 		mmc_set_chip_select(host, MMC_CS_HIGH);
 		mmc_delay(1);
 	}
-
-	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = MMC_GO_IDLE_STATE;
 	cmd.arg = 0;
@@ -135,12 +129,10 @@ int mmc_go_idle(struct mmc_host *host)
 
 int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 {
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 	int i, err = 0;
 
 	BUG_ON(!host);
-
-	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = MMC_SEND_OP_COND;
 	cmd.arg = mmc_host_is_spi(host) ? 0 : ocr;
@@ -178,12 +170,10 @@ int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 int mmc_all_send_cid(struct mmc_host *host, u32 *cid)
 {
 	int err;
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 
 	BUG_ON(!host);
 	BUG_ON(!cid);
-
-	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = MMC_ALL_SEND_CID;
 	cmd.arg = 0;
@@ -201,12 +191,10 @@ int mmc_all_send_cid(struct mmc_host *host, u32 *cid)
 int mmc_set_relative_addr(struct mmc_card *card)
 {
 	int err;
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 
 	BUG_ON(!card);
 	BUG_ON(!card->host);
-
-	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = MMC_SET_RELATIVE_ADDR;
 	cmd.arg = card->rca << 16;
@@ -223,12 +211,10 @@ static int
 mmc_send_cxd_native(struct mmc_host *host, u32 arg, u32 *cxd, int opcode)
 {
 	int err;
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 
 	BUG_ON(!host);
 	BUG_ON(!cxd);
-
-	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = opcode;
 	cmd.arg = arg;
@@ -247,9 +233,9 @@ static int
 mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 		u32 opcode, void *buf, unsigned len)
 {
-	struct mmc_request mrq;
-	struct mmc_command cmd;
-	struct mmc_data data;
+	struct mmc_request mrq = {0};
+	struct mmc_command cmd = {0};
+	struct mmc_data data = {0};
 	struct scatterlist sg;
 	void *data_buf;
 
@@ -259,10 +245,6 @@ mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 	data_buf = kmalloc(len, GFP_KERNEL);
 	if (data_buf == NULL)
 		return -ENOMEM;
-
-	memset(&mrq, 0, sizeof(struct mmc_request));
-	memset(&cmd, 0, sizeof(struct mmc_command));
-	memset(&data, 0, sizeof(struct mmc_data));
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;
@@ -355,10 +337,8 @@ int mmc_send_ext_csd(struct mmc_card *card, u8 *ext_csd)
 
 int mmc_spi_read_ocr(struct mmc_host *host, int highcap, u32 *ocrp)
 {
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 	int err;
-
-	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = MMC_SPI_READ_OCR;
 	cmd.arg = highcap ? (1 << 30) : 0;
@@ -372,10 +352,8 @@ int mmc_spi_read_ocr(struct mmc_host *host, int highcap, u32 *ocrp)
 
 int mmc_spi_set_crc(struct mmc_host *host, int use_crc)
 {
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 	int err;
-
-	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = MMC_SPI_CRC_ON_OFF;
 	cmd.flags = MMC_RSP_SPI_R1;
@@ -387,16 +365,26 @@ int mmc_spi_set_crc(struct mmc_host *host, int use_crc)
 	return err;
 }
 
-int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value)
+/**
+ *	mmc_switch - modify EXT_CSD register
+ *	@card: the MMC card associated with the data transfer
+ *	@set: cmd set values
+ *	@index: EXT_CSD register index
+ *	@value: value to program into EXT_CSD register
+ *	@timeout_ms: timeout (ms) for operation performed by register write,
+ *                   timeout of zero implies maximum possible timeout
+ *
+ *	Modifies the EXT_CSD register for selected card.
+ */
+int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
+	       unsigned int timeout_ms)
 {
 	int err;
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 	u32 status;
 
 	BUG_ON(!card);
 	BUG_ON(!card->host);
-
-	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = MMC_SWITCH;
 	cmd.arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
@@ -404,6 +392,7 @@ int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value)
 		  (value << 8) |
 		  set;
 	cmd.flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B | MMC_CMD_AC;
+	cmd.cmd_timeout_ms = timeout_ms;
 
 	err = mmc_wait_for_cmd(card->host, &cmd, MMC_CMD_RETRIES);
 	if (err)
@@ -433,16 +422,15 @@ int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mmc_switch);
 
 int mmc_send_status(struct mmc_card *card, u32 *status)
 {
 	int err;
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 
 	BUG_ON(!card);
 	BUG_ON(!card->host);
-
-	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = MMC_SEND_STATUS;
 	if (!mmc_host_is_spi(card->host))
@@ -466,9 +454,9 @@ static int
 mmc_send_bus_test(struct mmc_card *card, struct mmc_host *host, u8 opcode,
 		  u8 len)
 {
-	struct mmc_request mrq;
-	struct mmc_command cmd;
-	struct mmc_data data;
+	struct mmc_request mrq = {0};
+	struct mmc_command cmd = {0};
+	struct mmc_data data = {0};
 	struct scatterlist sg;
 	u8 *data_buf;
 	u8 *test_buf;
@@ -496,10 +484,6 @@ mmc_send_bus_test(struct mmc_card *card, struct mmc_host *host, u8 opcode,
 
 	if (opcode == MMC_BUS_TEST_W)
 		memcpy(data_buf, test_buf, len);
-
-	memset(&mrq, 0, sizeof(struct mmc_request));
-	memset(&cmd, 0, sizeof(struct mmc_command));
-	memset(&data, 0, sizeof(struct mmc_data));
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;

@@ -175,7 +175,8 @@ static int ehci_hcd_au1xxx_drv_probe(struct platform_device *pdev)
 
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = hcd->regs;
-	ehci->regs = hcd->regs + HC_LENGTH(readl(&ehci->caps->hc_capbase));
+	ehci->regs = hcd->regs +
+		HC_LENGTH(ehci, readl(&ehci->caps->hc_capbase));
 	/* cache this readonly data; minimize chip reads */
 	ehci->hcs_params = readl(&ehci->caps->hcs_params);
 
@@ -215,10 +216,7 @@ static int ehci_hcd_au1xxx_drv_suspend(struct device *dev)
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	unsigned long flags;
-	int rc;
-
-	return 0;
-	rc = 0;
+	int rc = 0;
 
 	if (time_before(jiffies, ehci->next_statechange))
 		msleep(10);
@@ -233,12 +231,12 @@ static int ehci_hcd_au1xxx_drv_suspend(struct device *dev)
 	(void)ehci_readl(ehci, &ehci->regs->intr_enable);
 
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-
-	au1xxx_stop_ehc();
 	spin_unlock_irqrestore(&ehci->lock, flags);
 
 	// could save FLADJ in case of Vaux power loss
 	// ... we'd only use it to handle clock skew
+
+	au1xxx_stop_ehc();
 
 	return rc;
 }

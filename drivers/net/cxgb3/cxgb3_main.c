@@ -644,26 +644,6 @@ static void enable_all_napi(struct adapter *adap)
 }
 
 /**
- *	set_qset_lro - Turn a queue set's LRO capability on and off
- *	@dev: the device the qset is attached to
- *	@qset_idx: the queue set index
- *	@val: the LRO switch
- *
- *	Sets LRO on or off for a particular queue set.
- *	the device's features flag is updated to reflect the LRO
- *	capability when all queues belonging to the device are
- *	in the same state.
- */
-static void set_qset_lro(struct net_device *dev, int qset_idx, int val)
-{
-	struct port_info *pi = netdev_priv(dev);
-	struct adapter *adapter = pi->adapter;
-
-	adapter->params.sge.qset[qset_idx].lro = !!val;
-	adapter->sge.qs[qset_idx].lro_enabled = !!val;
-}
-
-/**
  *	setup_sge_qsets - configure SGE Tx/Rx/response queues
  *	@adap: the adapter
  *
@@ -685,7 +665,6 @@ static int setup_sge_qsets(struct adapter *adap)
 
 		pi->qs = &adap->sge.qs[pi->first_qset];
 		for (j = 0; j < pi->nqsets; ++j, ++qset_idx) {
-			set_qset_lro(dev, qset_idx, pi->rx_offload & T3_LRO);
 			err = t3_sge_alloc_qset(adap, qset_idx, 1,
 				(adap->flags & USING_MSIX) ? qset_idx + 1 :
 							     irq_idx,
@@ -1749,23 +1728,26 @@ static int restart_autoneg(struct net_device *dev)
 	return 0;
 }
 
-static int cxgb3_phys_id(struct net_device *dev, u32 data)
+static int set_phys_id(struct net_device *dev,
+		       enum ethtool_phys_id_state state)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
-	int i;
 
-	if (data == 0)
-		data = 2;
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		return 1;	/* cycle on/off once per second */
 
-	for (i = 0; i < data * 2; i++) {
+	case ETHTOOL_ID_OFF:
+		t3_set_reg_field(adapter, A_T3DBG_GPIO_EN, F_GPIO0_OUT_VAL, 0);
+		break;
+
+	case ETHTOOL_ID_ON:
+	case ETHTOOL_ID_INACTIVE:
 		t3_set_reg_field(adapter, A_T3DBG_GPIO_EN, F_GPIO0_OUT_VAL,
-				 (i & 1) ? F_GPIO0_OUT_VAL : 0);
-		if (msleep_interruptible(500))
-			break;
-	}
-	t3_set_reg_field(adapter, A_T3DBG_GPIO_EN, F_GPIO0_OUT_VAL,
 			 F_GPIO0_OUT_VAL);
+	}
+
 	return 0;
 }
 
@@ -1777,10 +1759,10 @@ static int get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	cmd->advertising = p->link_config.advertising;
 
 	if (netif_carrier_ok(dev)) {
-		cmd->speed = p->link_config.speed;
+		ethtool_cmd_speed_set(cmd, p->link_config.speed);
 		cmd->duplex = p->link_config.duplex;
 	} else {
-		cmd->speed = -1;
+		ethtool_cmd_speed_set(cmd, -1);
 		cmd->duplex = -1;
 	}
 
@@ -1839,7 +1821,8 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		 * being requested.
 		 */
 		if (cmd->autoneg == AUTONEG_DISABLE) {
-			int cap = speed_duplex_to_caps(cmd->speed, cmd->duplex);
+			u32 speed = ethtool_cmd_speed(cmd);
+			int cap = speed_duplex_to_caps(speed, cmd->duplex);
 			if (lc->supported & cap)
 				return 0;
 		}
@@ -1847,11 +1830,12 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	}
 
 	if (cmd->autoneg == AUTONEG_DISABLE) {
-		int cap = speed_duplex_to_caps(cmd->speed, cmd->duplex);
+		u32 speed = ethtool_cmd_speed(cmd);
+		int cap = speed_duplex_to_caps(speed, cmd->duplex);
 
-		if (!(lc->supported & cap) || cmd->speed == SPEED_1000)
+		if (!(lc->supported & cap) || (speed == SPEED_1000))
 			return -EINVAL;
-		lc->requested_speed = cmd->speed;
+		lc->requested_speed = speed;
 		lc->requested_duplex = cmd->duplex;
 		lc->advertising = 0;
 	} else {
@@ -1903,29 +1887,6 @@ static int set_pauseparam(struct net_device *dev,
 		lc->fc = lc->requested_fc & (PAUSE_RX | PAUSE_TX);
 		if (netif_running(dev))
 			t3_mac_set_speed_duplex_fc(&p->mac, -1, -1, lc->fc);
-	}
-	return 0;
-}
-
-static u32 get_rx_csum(struct net_device *dev)
-{
-	struct port_info *p = netdev_priv(dev);
-
-	return p->rx_offload & T3_RX_CSUM;
-}
-
-static int set_rx_csum(struct net_device *dev, u32 data)
-{
-	struct port_info *p = netdev_priv(dev);
-
-	if (data) {
-		p->rx_offload |= T3_RX_CSUM;
-	} else {
-		int i;
-
-		p->rx_offload &= ~(T3_RX_CSUM | T3_LRO);
-		for (i = p->first_qset; i < p->first_qset + p->nqsets; i++)
-			set_qset_lro(dev, i, 0);
 	}
 	return 0;
 }
@@ -2101,20 +2062,15 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.set_eeprom = set_eeprom,
 	.get_pauseparam = get_pauseparam,
 	.set_pauseparam = set_pauseparam,
-	.get_rx_csum = get_rx_csum,
-	.set_rx_csum = set_rx_csum,
-	.set_tx_csum = ethtool_op_set_tx_csum,
-	.set_sg = ethtool_op_set_sg,
 	.get_link = ethtool_op_get_link,
 	.get_strings = get_strings,
-	.phys_id = cxgb3_phys_id,
+	.set_phys_id = set_phys_id,
 	.nway_reset = restart_autoneg,
 	.get_sset_count = get_sset_count,
 	.get_ethtool_stats = get_stats,
 	.get_regs_len = get_regs_len,
 	.get_regs = get_regs,
 	.get_wol = get_wol,
-	.set_tso = ethtool_op_set_tso,
 };
 
 static int in_range(int val, int lo, int hi)
@@ -2161,15 +2117,6 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 		    !in_range(t.rspq_size, MIN_RSPQ_ENTRIES,
 			      MAX_RSPQ_ENTRIES))
 			return -EINVAL;
-
-		if ((adapter->flags & FULL_INIT_DONE) && t.lro > 0)
-			for_each_port(adapter, i) {
-				pi = adap2pinfo(adapter, i);
-				if (t.qset_idx >= pi->first_qset &&
-				    t.qset_idx < pi->first_qset + pi->nqsets &&
-				    !(pi->rx_offload & T3_RX_CSUM))
-					return -EINVAL;
-			}
 
 		if ((adapter->flags & FULL_INIT_DONE) &&
 			(t.rspq_size >= 0 || t.fl_size[0] >= 0 ||
@@ -2231,8 +2178,14 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 				}
 			}
 		}
-		if (t.lro >= 0)
-			set_qset_lro(dev, t.qset_idx, t.lro);
+
+		if (t.lro >= 0) {
+			if (t.lro)
+				dev->wanted_features |= NETIF_F_GRO;
+			else
+				dev->wanted_features &= ~NETIF_F_GRO;
+			netdev_update_features(dev);
+		}
 
 		break;
 	}
@@ -2266,7 +2219,7 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 		t.fl_size[0] = q->fl_size;
 		t.fl_size[1] = q->jumbo_size;
 		t.polling = q->polling;
-		t.lro = q->lro;
+		t.lro = !!(dev->features & NETIF_F_GRO);
 		t.intr_lat = q->coalesce_usecs;
 		t.cong_thres = q->cong_thres;
 		t.qnum = q1;
@@ -3304,18 +3257,18 @@ static int __devinit init_one(struct pci_dev *pdev,
 		adapter->port[i] = netdev;
 		pi = netdev_priv(netdev);
 		pi->adapter = adapter;
-		pi->rx_offload = T3_RX_CSUM | T3_LRO;
 		pi->port_id = i;
 		netif_carrier_off(netdev);
 		netdev->irq = pdev->irq;
 		netdev->mem_start = mmio_start;
 		netdev->mem_end = mmio_start + mmio_len - 1;
-		netdev->features |= NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
-		netdev->features |= NETIF_F_GRO;
+		netdev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM |
+			NETIF_F_TSO | NETIF_F_RXCSUM;
+		netdev->features |= netdev->hw_features |
+			NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 		if (pci_using_dac)
 			netdev->features |= NETIF_F_HIGHDMA;
 
-		netdev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 		netdev->netdev_ops = &cxgb_netdev_ops;
 		SET_ETHTOOL_OPS(netdev, &cxgb_ethtool_ops);
 	}

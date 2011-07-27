@@ -230,7 +230,7 @@ static int upd64031a_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	state = kmalloc(sizeof(struct upd64031a_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct upd64031a_state), GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
 	sd = &state->sd;

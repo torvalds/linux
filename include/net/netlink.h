@@ -290,7 +290,7 @@ static inline int nlmsg_padlen(int payload)
 
 /**
  * nlmsg_data - head of message payload
- * @nlh: netlink messsage header
+ * @nlh: netlink message header
  */
 static inline void *nlmsg_data(const struct nlmsghdr *nlh)
 {

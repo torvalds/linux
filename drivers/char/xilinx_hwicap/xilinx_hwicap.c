@@ -715,13 +715,13 @@ static int __devexit hwicap_remove(struct device *dev)
 }
 
 #ifdef CONFIG_OF
-static int __devinit hwicap_of_probe(struct platform_device *op)
+static int __devinit hwicap_of_probe(struct platform_device *op,
+				     const struct hwicap_driver_config *config)
 {
 	struct resource res;
 	const unsigned int *id;
 	const char *family;
 	int rc;
-	const struct hwicap_driver_config *config = op->dev.of_match->data;
 	const struct config_registers *regs;
 
 
@@ -751,20 +751,24 @@ static int __devinit hwicap_of_probe(struct platform_device *op)
 			regs);
 }
 #else
-static inline int hwicap_of_probe(struct platform_device *op)
+static inline int hwicap_of_probe(struct platform_device *op,
+				  const struct hwicap_driver_config *config)
 {
 	return -EINVAL;
 }
 #endif /* CONFIG_OF */
 
+static const struct of_device_id __devinitconst hwicap_of_match[];
 static int __devinit hwicap_drv_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *match;
 	struct resource *res;
 	const struct config_registers *regs;
 	const char *family;
 
-	if (pdev->dev.of_match)
-		return hwicap_of_probe(pdev);
+	match = of_match_device(hwicap_of_match, &pdev->dev);
+	if (match)
+		return hwicap_of_probe(pdev, match->data);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)

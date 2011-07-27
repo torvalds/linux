@@ -264,11 +264,6 @@ struct adapter {
 
 enum {                                           /* adapter flags */
 	FULL_INIT_DONE        = 1 << 0,
-	TSO_CAPABLE           = 1 << 2,
-	TCP_CSUM_CAPABLE      = 1 << 3,
-	UDP_CSUM_CAPABLE      = 1 << 4,
-	VLAN_ACCEL_CAPABLE    = 1 << 5,
-	RX_CSUM_ENABLED       = 1 << 6,
 };
 
 struct mdio_ops;

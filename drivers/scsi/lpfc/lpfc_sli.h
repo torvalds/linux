@@ -52,6 +52,7 @@ struct lpfc_iocbq {
 	struct list_head clist;
 	struct list_head dlist;
 	uint16_t iotag;         /* pre-assigned IO tag */
+	uint16_t sli4_lxritag;  /* logical pre-assigned XRI. */
 	uint16_t sli4_xritag;   /* pre-assigned XRI, (OXID) tag. */
 	struct lpfc_cq_event cq_event;
 

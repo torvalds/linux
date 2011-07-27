@@ -18,6 +18,7 @@
 
 #include <linux/nl80211.h>
 #include <linux/platform_device.h>
+#include <linux/etherdevice.h>
 #include <ar231x_platform.h>
 #include "ath5k.h"
 #include "debug.h"
@@ -62,10 +63,27 @@ int ath5k_hw_read_srev(struct ath5k_hw *ah)
 	return 0;
 }
 
+static int ath5k_ahb_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac)
+{
+	struct ath5k_softc *sc = ah->ah_sc;
+	struct platform_device *pdev = to_platform_device(sc->dev);
+	struct ar231x_board_config *bcfg = pdev->dev.platform_data;
+	u8 *cfg_mac;
+
+	if (to_platform_device(sc->dev)->id == 0)
+		cfg_mac = bcfg->config->wlan0_mac;
+	else
+		cfg_mac = bcfg->config->wlan1_mac;
+
+	memcpy(mac, cfg_mac, ETH_ALEN);
+	return 0;
+}
+
 static const struct ath_bus_ops ath_ahb_bus_ops = {
 	.ath_bus_type = ATH_AHB,
 	.read_cachesize = ath5k_ahb_read_cachesize,
 	.eeprom_read = ath5k_ahb_eeprom_read,
+	.eeprom_read_mac = ath5k_ahb_eeprom_read_mac,
 };
 
 /*Initialization*/
@@ -142,6 +160,16 @@ static int ath_ahb_probe(struct platform_device *pdev)
 		else
 			reg |= AR5K_AR5312_ENABLE_WLAN1;
 		__raw_writel(reg, (void __iomem *) AR5K_AR5312_ENABLE);
+
+		/*
+		 * On a dual-band AR5312, the multiband radio is only
+		 * used as pass-through. Disable 2 GHz support in the
+		 * driver for it
+		 */
+		if (to_platform_device(sc->dev)->id == 0 &&
+		    (bcfg->config->flags & (BD_WLAN0|BD_WLAN1)) ==
+		     (BD_WLAN1|BD_WLAN0))
+			__set_bit(ATH_STAT_2G_DISABLED, sc->status);
 	}
 
 	ret = ath5k_init_softc(sc, &ath_ahb_bus_ops);

@@ -149,6 +149,9 @@ register struct thread_info *__current_thread_info __asm__("$28");
 #define _TIF_FPUBOUND		(1<<TIF_FPUBOUND)
 #define _TIF_LOAD_WATCH		(1<<TIF_LOAD_WATCH)
 
+/* work to do in syscall_trace_leave() */
+#define _TIF_WORK_SYSCALL_EXIT	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT)
+
 /* work to do on interrupt/exception return */
 #define _TIF_WORK_MASK		(0x0000ffef &				\
 					~(_TIF_SECCOMP | _TIF_SYSCALL_AUDIT))

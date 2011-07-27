@@ -328,7 +328,7 @@ S: Haifa, Israel
 N: Johannes Berg
 E: johannes@sipsolutions.net
 W: http://johannes.sipsolutions.net/
-P: 1024D/9AB78CA5 AD02 0176 4E29 C137 1DF6 08D2 FC44 CF86 9AB7 8CA5
+P: 4096R/7BF9099A C0EB C440 F6DA 091C 884D  8532 E0F3 73F3 7BF9 099A
 D: powerpc & 802.11 hacker
 
 N: Stephen R. van den Berg (AKA BuGless)
@@ -517,6 +517,14 @@ S: The Netherlands
 N: Zach Brown
 E: zab@zabbo.net
 D: maestro pci sound
+
+M: David Brownell
+D: Kernel engineer, mentor, and friend.  Maintained USB EHCI and
+D: gadget layers, SPI subsystem, GPIO subsystem, and more than a few
+D: device drivers.  His encouragement also helped many engineers get
+D: started working on the Linux kernel.  David passed away in early
+D: 2011, and will be greatly missed.
+W: https://lkml.org/lkml/2011/4/5/36
 
 N: Gary Brubaker
 E: xavyer@ix.netcom.com
@@ -2943,6 +2951,10 @@ S: Kasarmikatu 11 A4
 S: 70110 Kuopio
 S: Finland
 
+N: Tobias Ringström
+E: tori@unhappy.mine.nu
+D: Davicom DM9102(A)/DM9132/DM9801 fast ethernet driver
+
 N: Luca Risolia
 E: luca.risolia@studio.unibo.it
 P: 1024D/FCE635A4 88E8 F32F 7244 68BA 3958  5D40 99DA 5D2A FCE6 35A4
@@ -3912,6 +3924,10 @@ D: CDROM driver "aztcd" (Aztech/Okano/Orchid/Wearnes)
 S: Flandernstrasse 101
 S: D-73732 Esslingen
 S: Germany
+
+N: Roman Zippel
+E: zippel@linux-m68k.org
+D: AFFS and HFS filesystems, m68k maintainer, new kernel configuration in 2.5
 
 N: Leonard N. Zubkoff
 W: http://www.dandelion.com/Linux/

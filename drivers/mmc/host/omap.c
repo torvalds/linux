@@ -832,7 +832,7 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	if (end_command)
+	if (end_command && host->cmd)
 		mmc_omap_cmd_done(host, host->cmd);
 	if (host->data != NULL) {
 		if (transfer_error)

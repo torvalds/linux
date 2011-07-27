@@ -235,6 +235,11 @@ restart:
 
 		irq_set_handler_data(irq, (void *)entry->handle);
 
+		/*
+		 * Set the virtual IRQ as non-threadable.
+		 */
+		irq_set_nothread(irq);
+
 		irq_set_chained_handler(entry->pirq, intc_virq_handler);
 		add_virq_to_pirq(entry->pirq, irq);
 

@@ -38,7 +38,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	struct cifs_sb_info *cifs_sb;
 #ifdef CONFIG_CIFS_POSIX
 	struct cifsFileInfo *pSMBFile = filep->private_data;
-	struct cifsTconInfo *tcon;
+	struct cifs_tcon *tcon;
 	__u64	ExtAttrBits = 0;
 	__u64	ExtAttrMask = 0;
 	__u64   caps;

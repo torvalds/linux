@@ -65,10 +65,11 @@ titan_update_irq_hw(unsigned long mask)
 	register int bcpu = boot_cpuid;
 
 #ifdef CONFIG_SMP
-	cpumask_t cpm = cpu_present_map;
+	cpumask_t cpm;
 	volatile unsigned long *dim0, *dim1, *dim2, *dim3;
 	unsigned long mask0, mask1, mask2, mask3, dummy;
 
+	cpumask_copy(&cpm, cpu_present_mask);
 	mask &= ~isa_enable;
 	mask0 = mask & titan_cpu_irq_affinity[0];
 	mask1 = mask & titan_cpu_irq_affinity[1];
@@ -84,10 +85,10 @@ titan_update_irq_hw(unsigned long mask)
 	dim1 = &cchip->dim1.csr;
 	dim2 = &cchip->dim2.csr;
 	dim3 = &cchip->dim3.csr;
-	if (!cpu_isset(0, cpm)) dim0 = &dummy;
-	if (!cpu_isset(1, cpm)) dim1 = &dummy;
-	if (!cpu_isset(2, cpm)) dim2 = &dummy;
-	if (!cpu_isset(3, cpm)) dim3 = &dummy;
+	if (!cpumask_test_cpu(0, &cpm)) dim0 = &dummy;
+	if (!cpumask_test_cpu(1, &cpm)) dim1 = &dummy;
+	if (!cpumask_test_cpu(2, &cpm)) dim2 = &dummy;
+	if (!cpumask_test_cpu(3, &cpm)) dim3 = &dummy;
 
 	*dim0 = mask0;
 	*dim1 = mask1;
@@ -137,7 +138,7 @@ titan_cpu_set_irq_affinity(unsigned int irq, cpumask_t affinity)
 	int cpu;
 
 	for (cpu = 0; cpu < 4; cpu++) {
-		if (cpu_isset(cpu, affinity))
+		if (cpumask_test_cpu(cpu, &affinity))
 			titan_cpu_irq_affinity[cpu] |= 1UL << irq;
 		else
 			titan_cpu_irq_affinity[cpu] &= ~(1UL << irq);

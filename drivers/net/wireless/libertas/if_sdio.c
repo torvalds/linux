@@ -26,6 +26,8 @@
  * if_sdio_card_to_host() to pad the data.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
@@ -409,7 +411,7 @@ static int if_sdio_card_to_host(struct if_sdio_card *card)
 
 out:
 	if (ret)
-		lbs_pr_err("problem fetching packet from firmware\n");
+		pr_err("problem fetching packet from firmware\n");
 
 	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
 
@@ -446,7 +448,7 @@ static void if_sdio_host_to_card_worker(struct work_struct *work)
 		}
 
 		if (ret)
-			lbs_pr_err("error %d sending packet to firmware\n", ret);
+			pr_err("error %d sending packet to firmware\n", ret);
 
 		sdio_release_host(card->func);
 
@@ -555,7 +557,7 @@ release:
 
 out:
 	if (ret)
-		lbs_pr_err("failed to load helper firmware\n");
+		pr_err("failed to load helper firmware\n");
 
 	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
 	return ret;
@@ -669,7 +671,7 @@ release:
 
 out:
 	if (ret)
-		lbs_pr_err("failed to load firmware\n");
+		pr_err("failed to load firmware\n");
 
 	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
 	return ret;
@@ -723,7 +725,7 @@ static int if_sdio_prog_firmware(struct if_sdio_card *card)
 	ret = lbs_get_firmware(&card->func->dev, lbs_helper_name, lbs_fw_name,
 				card->model, &fw_table[0], &helper, &mainfw);
 	if (ret) {
-		lbs_pr_err("failed to find firmware (%d)\n", ret);
+		pr_err("failed to find firmware (%d)\n", ret);
 		goto out;
 	}
 
@@ -849,7 +851,7 @@ static int if_sdio_enter_deep_sleep(struct lbs_private *priv)
 	ret = __lbs_cmd(priv, CMD_802_11_DEEP_SLEEP, &cmd, sizeof(cmd),
 			lbs_cmd_copyback, (unsigned long) &cmd);
 	if (ret)
-		lbs_pr_err("DEEP_SLEEP cmd failed\n");
+		netdev_err(priv->dev, "DEEP_SLEEP cmd failed\n");
 
 	mdelay(200);
 	return ret;
@@ -865,7 +867,7 @@ static int if_sdio_exit_deep_sleep(struct lbs_private *priv)
 
 	sdio_writeb(card->func, HOST_POWER_UP, CONFIGURATION_REG, &ret);
 	if (ret)
-		lbs_pr_err("sdio_writeb failed!\n");
+		netdev_err(priv->dev, "sdio_writeb failed!\n");
 
 	sdio_release_host(card->func);
 	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
@@ -882,7 +884,7 @@ static int if_sdio_reset_deep_sleep_wakeup(struct lbs_private *priv)
 
 	sdio_writeb(card->func, 0, CONFIGURATION_REG, &ret);
 	if (ret)
-		lbs_pr_err("sdio_writeb failed!\n");
+		netdev_err(priv->dev, "sdio_writeb failed!\n");
 
 	sdio_release_host(card->func);
 	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
@@ -905,7 +907,7 @@ static void if_sdio_interrupt(struct sdio_func *func)
 	card = sdio_get_drvdata(func);
 
 	cause = sdio_readb(card->func, IF_SDIO_H_INT_STATUS, &ret);
-	if (ret)
+	if (ret || !cause)
 		goto out;
 
 	lbs_deb_sdio("interrupt: 0x%X\n", (unsigned)cause);
@@ -961,7 +963,7 @@ static int if_sdio_probe(struct sdio_func *func,
 	}
 
 	if (i == func->card->num_info) {
-		lbs_pr_err("unable to identify card model\n");
+		pr_err("unable to identify card model\n");
 		return -ENODEV;
 	}
 
@@ -995,7 +997,7 @@ static int if_sdio_probe(struct sdio_func *func,
 			break;
 	}
 	if (i == ARRAY_SIZE(fw_table)) {
-		lbs_pr_err("unknown card model 0x%x\n", card->model);
+		pr_err("unknown card model 0x%x\n", card->model);
 		ret = -ENODEV;
 		goto free;
 	}
@@ -1005,10 +1007,6 @@ static int if_sdio_probe(struct sdio_func *func,
 	ret = sdio_enable_func(func);
 	if (ret)
 		goto release;
-
-	ret = sdio_claim_irq(func, if_sdio_interrupt);
-	if (ret)
-		goto disable;
 
 	/* For 1-bit transfers to the 8686 model, we need to enable the
 	 * interrupt flag in the CCCR register. Set the MMC_QUIRK_LENIENT_FN0
@@ -1081,6 +1079,21 @@ static int if_sdio_probe(struct sdio_func *func,
 		card->rx_unit = 0;
 
 	/*
+	 * Set up the interrupt handler late.
+	 *
+	 * If we set it up earlier, the (buggy) hardware generates a spurious
+	 * interrupt, even before the interrupt has been enabled, with
+	 * CCCR_INTx = 0.
+	 *
+	 * We register the interrupt handler late so that we can handle any
+	 * spurious interrupts, and also to avoid generation of that known
+	 * spurious interrupt in the first place.
+	 */
+	ret = sdio_claim_irq(func, if_sdio_interrupt);
+	if (ret)
+		goto disable;
+
+	/*
 	 * Enable interrupts now that everything is set up
 	 */
 	sdio_writeb(func, 0x0f, IF_SDIO_H_INT_MASK, &ret);
@@ -1101,7 +1114,7 @@ static int if_sdio_probe(struct sdio_func *func,
 		lbs_deb_sdio("send function INIT command\n");
 		if (__lbs_cmd(priv, CMD_FUNC_INIT, &cmd, sizeof(cmd),
 				lbs_cmd_copyback, (unsigned long) &cmd))
-			lbs_pr_alert("CMD_FUNC_INIT cmd failed\n");
+			netdev_alert(priv->dev, "CMD_FUNC_INIT cmd failed\n");
 	}
 
 	ret = lbs_start_card(priv);
@@ -1163,7 +1176,7 @@ static void if_sdio_remove(struct sdio_func *func)
 		if (__lbs_cmd(card->priv, CMD_FUNC_SHUTDOWN,
 				&cmd, sizeof(cmd), lbs_cmd_copyback,
 				(unsigned long) &cmd))
-			lbs_pr_alert("CMD_FUNC_SHUTDOWN cmd failed\n");
+			pr_alert("CMD_FUNC_SHUTDOWN cmd failed\n");
 	}
 
 
@@ -1202,20 +1215,19 @@ static int if_sdio_suspend(struct device *dev)
 
 	mmc_pm_flag_t flags = sdio_get_host_pm_caps(func);
 
-	lbs_pr_info("%s: suspend: PM flags = 0x%x\n",
-						sdio_func_id(func), flags);
+	dev_info(dev, "%s: suspend: PM flags = 0x%x\n",
+		 sdio_func_id(func), flags);
 
 	/* If we aren't being asked to wake on anything, we should bail out
 	 * and let the SD stack power down the card.
 	 */
 	if (card->priv->wol_criteria == EHS_REMOVE_WAKEUP) {
-		lbs_pr_info("Suspend without wake params -- "
-						"powering down card.");
+		dev_info(dev, "Suspend without wake params -- powering down card\n");
 		return -ENOSYS;
 	}
 
 	if (!(flags & MMC_PM_KEEP_POWER)) {
-		lbs_pr_err("%s: cannot remain alive while host is suspended\n",
+		dev_err(dev, "%s: cannot remain alive while host is suspended\n",
 			sdio_func_id(func));
 		return -ENOSYS;
 	}
@@ -1237,7 +1249,7 @@ static int if_sdio_resume(struct device *dev)
 	struct if_sdio_card *card = sdio_get_drvdata(func);
 	int ret;
 
-	lbs_pr_info("%s: resume: we're back\n", sdio_func_id(func));
+	dev_info(dev, "%s: resume: we're back\n", sdio_func_id(func));
 
 	ret = lbs_resume(card->priv);
 

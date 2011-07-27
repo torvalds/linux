@@ -24,77 +24,56 @@
 #ifdef CONFIG_PM_RUNTIME
 static int omap1_pm_runtime_suspend(struct device *dev)
 {
-	struct clk *iclk, *fclk;
-	int ret = 0;
+	int ret;
 
 	dev_dbg(dev, "%s\n", __func__);
 
 	ret = pm_generic_runtime_suspend(dev);
+	if (ret)
+		return ret;
 
-	fclk = clk_get(dev, "fck");
-	if (!IS_ERR(fclk)) {
-		clk_disable(fclk);
-		clk_put(fclk);
-	}
-
-	iclk = clk_get(dev, "ick");
-	if (!IS_ERR(iclk)) {
-		clk_disable(iclk);
-		clk_put(iclk);
+	ret = pm_runtime_clk_suspend(dev);
+	if (ret) {
+		pm_generic_runtime_resume(dev);
+		return ret;
 	}
 
 	return 0;
-};
+}
 
 static int omap1_pm_runtime_resume(struct device *dev)
 {
-	struct clk *iclk, *fclk;
-
 	dev_dbg(dev, "%s\n", __func__);
 
-	iclk = clk_get(dev, "ick");
-	if (!IS_ERR(iclk)) {
-		clk_enable(iclk);
-		clk_put(iclk);
-	}
-
-	fclk = clk_get(dev, "fck");
-	if (!IS_ERR(fclk)) {
-		clk_enable(fclk);
-		clk_put(fclk);
-	}
-
+	pm_runtime_clk_resume(dev);
 	return pm_generic_runtime_resume(dev);
+}
+
+static struct dev_power_domain default_power_domain = {
+	.ops = {
+		.runtime_suspend = omap1_pm_runtime_suspend,
+		.runtime_resume = omap1_pm_runtime_resume,
+		USE_PLATFORM_PM_SLEEP_OPS
+	},
+};
+#define OMAP1_PWR_DOMAIN (&default_power_domain)
+#else
+#define OMAP1_PWR_DOMAIN NULL
+#endif /* CONFIG_PM_RUNTIME */
+
+static struct pm_clk_notifier_block platform_bus_notifier = {
+	.pwr_domain = OMAP1_PWR_DOMAIN,
+	.con_ids = { "ick", "fck", NULL, },
 };
 
 static int __init omap1_pm_runtime_init(void)
 {
-	const struct dev_pm_ops *pm;
-	struct dev_pm_ops *omap_pm;
-
 	if (!cpu_class_is_omap1())
 		return -ENODEV;
 
-	pm = platform_bus_get_pm_ops();
-	if (!pm) {
-		pr_err("%s: unable to get dev_pm_ops from platform_bus\n",
-			__func__);
-		return -ENODEV;
-	}
-
-	omap_pm = kmemdup(pm, sizeof(struct dev_pm_ops), GFP_KERNEL);
-	if (!omap_pm) {
-		pr_err("%s: unable to alloc memory for new dev_pm_ops\n",
-			__func__);
-		return -ENOMEM;
-	}
-
-	omap_pm->runtime_suspend = omap1_pm_runtime_suspend;
-	omap_pm->runtime_resume = omap1_pm_runtime_resume;
-
-	platform_bus_set_pm_ops(omap_pm);
+	pm_runtime_clk_add_notifier(&platform_bus_type, &platform_bus_notifier);
 
 	return 0;
 }
 core_initcall(omap1_pm_runtime_init);
-#endif /* CONFIG_PM_RUNTIME */
+

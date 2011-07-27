@@ -34,10 +34,6 @@
 #ifndef _WMI_H_
 #define _WMI_H_
 
-#ifndef ATH_TARGET
-#include "athstartpack.h"
-#endif
-
 #include "wmix.h"
 #include "wlan_defs.h"
 
@@ -118,7 +114,7 @@ typedef enum {
 typedef enum {
     WMI_DATA_HDR_DATA_TYPE_802_3 = 0,
     WMI_DATA_HDR_DATA_TYPE_802_11,
-    WMI_DATA_HDR_DATA_TYPE_ACL,
+    WMI_DATA_HDR_DATA_TYPE_ACL, /* used to be used for the PAL */
 } WMI_DATA_HDR_DATA_TYPE;
 
 #define WMI_DATA_HDR_DATA_TYPE_MASK     0x3
@@ -159,6 +155,16 @@ typedef enum {
 #define WMI_DATA_HDR_GET_META(h)        (((h)->info2 >> WMI_DATA_HDR_META_SHIFT) & WMI_DATA_HDR_META_MASK)
 #define WMI_DATA_HDR_SET_META(h, _v)    ((h)->info2 = ((h)->info2 & ~(WMI_DATA_HDR_META_MASK << WMI_DATA_HDR_META_SHIFT)) | ((_v) << WMI_DATA_HDR_META_SHIFT))
 
+/* Macros for operating on WMI_DATA_HDR (info3) field */
+#define WMI_DATA_HDR_DEVID_MASK      0xF
+#define WMI_DATA_HDR_DEVID_SHIFT     0
+#define GET_DEVID(_v)                ((_v) & WMI_DATA_HDR_DEVID_MASK)
+
+#define WMI_DATA_HDR_GET_DEVID(h) \
+	(((h)->info3 >> WMI_DATA_HDR_DEVID_SHIFT) & WMI_DATA_HDR_DEVID_MASK)
+#define WMI_DATA_HDR_SET_DEVID(h, _v) \
+	((h)->info3 = ((h)->info3 & ~(WMI_DATA_HDR_DEVID_MASK << WMI_DATA_HDR_DEVID_SHIFT)) | (GET_DEVID(_v) << WMI_DATA_HDR_DEVID_SHIFT))
+
 typedef PREPACK struct {
     s8 rssi;
     u8 info;               /* usage of 'info' field(8-bit):
@@ -175,7 +181,7 @@ typedef PREPACK struct {
                                      * b12          - A-MSDU?
                                      * b15:b13      - META_DATA_VERSION 0 - 7
                                      */
-    u16 reserved;
+    u16 info3;
 } POSTPACK WMI_DATA_HDR;
 
 /*
@@ -259,6 +265,17 @@ typedef PREPACK struct {
 
 
 #define WMI_GET_DEVICE_ID(info1) ((info1) & 0xF)
+/* Macros for operating on WMI_CMD_HDR (info1) field */
+#define WMI_CMD_HDR_DEVID_MASK      0xF
+#define WMI_CMD_HDR_DEVID_SHIFT     0
+#define GET_CMD_DEVID(_v)           ((_v) & WMI_CMD_HDR_DEVID_MASK)
+
+#define WMI_CMD_HDR_GET_DEVID(h) \
+	(((h)->info1 >> WMI_CMD_HDR_DEVID_SHIFT) & WMI_CMD_HDR_DEVID_MASK)
+#define WMI_CMD_HDR_SET_DEVID(h, _v) \
+	((h)->info1 = ((h)->info1 & \
+		~(WMI_CMD_HDR_DEVID_MASK << WMI_CMD_HDR_DEVID_SHIFT)) | \
+		 (GET_CMD_DEVID(_v) << WMI_CMD_HDR_DEVID_SHIFT))
 
 /*
  * Control Path
@@ -433,13 +450,47 @@ typedef enum {
     WMI_SET_BTCOEX_BT_OPERATING_STATUS_CMDID,
     WMI_GET_BTCOEX_STATS_CMDID,
     WMI_GET_BTCOEX_CONFIG_CMDID,
-    WMI_GET_PMK_CMDID,
-    WMI_SET_PASSPHRASE_CMDID,
-    WMI_ENABLE_WAC_CMDID,
-    WMI_WAC_SCAN_REPLY_CMDID,
-    WMI_WAC_CTRL_REQ_CMDID,
-    WMI_SET_DIV_PARAMS_CMDID,
-    WMI_SET_EXCESS_TX_RETRY_THRES_CMDID,
+
+	WMI_SET_DFS_ENABLE_CMDID,   /* F034 */
+	WMI_SET_DFS_MINRSSITHRESH_CMDID,
+	WMI_SET_DFS_MAXPULSEDUR_CMDID,
+	WMI_DFS_RADAR_DETECTED_CMDID,
+
+	/* P2P CMDS */
+	WMI_P2P_SET_CONFIG_CMDID,    /* F038 */
+	WMI_WPS_SET_CONFIG_CMDID,
+	WMI_SET_REQ_DEV_ATTR_CMDID,
+	WMI_P2P_FIND_CMDID,
+	WMI_P2P_STOP_FIND_CMDID,
+	WMI_P2P_GO_NEG_START_CMDID,
+	WMI_P2P_LISTEN_CMDID,
+
+	WMI_CONFIG_TX_MAC_RULES_CMDID,    /* F040 */
+	WMI_SET_PROMISCUOUS_MODE_CMDID,
+	WMI_RX_FRAME_FILTER_CMDID,
+	WMI_SET_CHANNEL_CMDID,
+
+	/* WAC commands */
+	WMI_ENABLE_WAC_CMDID,
+	WMI_WAC_SCAN_REPLY_CMDID,
+	WMI_WAC_CTRL_REQ_CMDID,
+	WMI_SET_DIV_PARAMS_CMDID,
+
+	WMI_GET_PMK_CMDID,
+	WMI_SET_PASSPHRASE_CMDID,
+	WMI_SEND_ASSOC_RES_CMDID,
+	WMI_SET_ASSOC_REQ_RELAY_CMDID,
+	WMI_GET_RFKILL_MODE_CMDID,
+
+	/* ACS command, consists of sub-commands */
+	WMI_ACS_CTRL_CMDID,
+
+	/* Ultra low power store / recall commands */
+	WMI_STORERECALL_CONFIGURE_CMDID,
+	WMI_STORERECALL_RECALL_CMDID,
+	WMI_STORERECALL_HOST_READY_CMDID,
+	WMI_FORCE_TARGET_ASSERT_CMDID,
+	WMI_SET_EXCESS_TX_RETRY_THRES_CMDID,
 } WMI_COMMAND_ID;
 
 /*
@@ -469,6 +520,11 @@ typedef enum {
     SHARED_AUTH         = 0x02,
     LEAP_AUTH           = 0x04,  /* different from IEEE_AUTH_MODE definitions */
 } DOT11_AUTH_MODE;
+
+enum {
+	AUTH_IDLE,
+	AUTH_OPEN_IN_PROGRESS,
+};
 
 typedef enum {
     NONE_AUTH           = 0x01,
@@ -560,7 +616,7 @@ typedef PREPACK struct {
  * WMI_SET_EXCESS_TX_RETRY_THRES_CMDID
  */
 typedef PREPACK struct {
-    A_UINT32 threshold;
+    u32 threshold;
 } POSTPACK WMI_SET_EXCESS_TX_RETRY_THRES_CMD;
 
 /*
@@ -1969,12 +2025,47 @@ typedef enum {
 #endif
     WMI_REPORT_BTCOEX_STATS_EVENTID,
     WMI_REPORT_BTCOEX_CONFIG_EVENTID,
-    WMI_ACM_REJECT_EVENTID,
-    WMI_THIN_RESERVED_START_EVENTID = 0x8000,
-    /* Events in this range are reserved for thinmode 
-     * See wmi_thin.h for actual definitions */
-    WMI_THIN_RESERVED_END_EVENTID = 0x8fff,
+	WMI_GET_PMK_EVENTID,
 
+	/* DFS Events */
+	WMI_DFS_HOST_ATTACH_EVENTID,
+	WMI_DFS_HOST_INIT_EVENTID,
+	WMI_DFS_RESET_DELAYLINES_EVENTID,
+	WMI_DFS_RESET_RADARQ_EVENTID,
+	WMI_DFS_RESET_AR_EVENTID,
+	WMI_DFS_RESET_ARQ_EVENTID,
+	WMI_DFS_SET_DUR_MULTIPLIER_EVENTID,
+	WMI_DFS_SET_BANGRADAR_EVENTID,
+	WMI_DFS_SET_DEBUGLEVEL_EVENTID,
+	WMI_DFS_PHYERR_EVENTID,
+	/* CCX Evants */
+	WMI_CCX_RM_STATUS_EVENTID,
+
+	/* P2P Events */
+	WMI_P2P_GO_NEG_RESULT_EVENTID,
+
+	WMI_WAC_SCAN_DONE_EVENTID,
+	WMI_WAC_REPORT_BSS_EVENTID,
+	WMI_WAC_START_WPS_EVENTID,
+	WMI_WAC_CTRL_REQ_REPLY_EVENTID,
+
+	/* RFKILL Events */
+	WMI_RFKILL_STATE_CHANGE_EVENTID,
+	WMI_RFKILL_GET_MODE_CMD_EVENTID,
+	WMI_THIN_RESERVED_START_EVENTID = 0x8000,
+
+	/*
+	 * Events in this range are reserved for thinmode
+	 * See wmi_thin.h for actual definitions
+	 */
+	WMI_THIN_RESERVED_END_EVENTID = 0x8fff,
+
+	WMI_SET_CHANNEL_EVENTID,
+	WMI_ASSOC_REQ_EVENTID,
+
+	/* generic ACS event */
+	WMI_ACS_EVENTID,
+	WMI_REPORT_WMM_PARAMS_EVENTID
 } WMI_EVENT_ID;
 
 
@@ -3121,10 +3212,6 @@ typedef PREPACK struct {
 /*
  * End of AP mode definitions
  */
-
-#ifndef ATH_TARGET
-#include "athendpack.h"
-#endif
 
 #ifdef __cplusplus
 }

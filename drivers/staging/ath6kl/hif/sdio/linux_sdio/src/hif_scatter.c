@@ -309,7 +309,7 @@ int SetupHIFScatterSupport(struct hif_device *device, struct hif_device_scatter_
                                          (MAX_SCATTER_ENTRIES_PER_REQ - 1) * (sizeof(struct hif_scatter_item))); 
            
             if (NULL == pReqPriv->pHifScatterReq) {
-                A_FREE(pReqPriv);
+                kfree(pReqPriv);
                 break;      
             }           
                 /* just zero the main part of the scatter request */
@@ -319,8 +319,8 @@ int SetupHIFScatterSupport(struct hif_device *device, struct hif_device_scatter_
                 /* allocate a bus request for this scatter request */
             busrequest = hifAllocateBusRequest(device);
             if (NULL == busrequest) {
-                A_FREE(pReqPriv->pHifScatterReq);
-                A_FREE(pReqPriv);
+                kfree(pReqPriv->pHifScatterReq);
+                kfree(pReqPriv);
                 break;    
             }
                 /* assign the scatter request to this bus request */
@@ -382,11 +382,11 @@ void CleanupHIFScatterResources(struct hif_device *device)
         }
         
         if (pReqPriv->pHifScatterReq != NULL) {
-            A_FREE(pReqPriv->pHifScatterReq);   
+            kfree(pReqPriv->pHifScatterReq);   
             pReqPriv->pHifScatterReq = NULL; 
         }
                 
-        A_FREE(pReqPriv);       
+        kfree(pReqPriv);       
     }
 }
 

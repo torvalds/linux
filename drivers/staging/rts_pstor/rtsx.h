@@ -98,9 +98,6 @@ do {							\
 
 #define SCSI_LUN(srb)		((srb)->device->lun)
 
-#define rtsx_alloc_dma_buf(chip, size, flag)	kmalloc((size), (flag))
-#define rtsx_free_dma_buf(chip, ptr)		kfree((ptr))
-
 typedef unsigned long DELAY_PARA_T;
 
 struct rtsx_chip;

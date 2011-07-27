@@ -8,6 +8,7 @@
 #include <linux/sysrq.h>
 #include <linux/stop_machine.h>
 #include <linux/freezer.h>
+#include <linux/syscore_ops.h>
 
 #include <xen/xen.h>
 #include <xen/xenbus.h>
@@ -69,9 +70,9 @@ static int xen_suspend(void *data)
 
 	BUG_ON(!irqs_disabled());
 
-	err = sysdev_suspend(PMSG_FREEZE);
+	err = syscore_suspend();
 	if (err) {
-		printk(KERN_ERR "xen_suspend: sysdev_suspend failed: %d\n",
+		printk(KERN_ERR "xen_suspend: system core suspend failed: %d\n",
 			err);
 		return err;
 	}
@@ -95,7 +96,7 @@ static int xen_suspend(void *data)
 		xen_timer_resume();
 	}
 
-	sysdev_resume();
+	syscore_resume();
 
 	return 0;
 }

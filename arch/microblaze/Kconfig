@@ -33,12 +33,6 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	def_bool n
 
-config GENERIC_FIND_NEXT_BIT
-	def_bool y
-
-config GENERIC_FIND_BIT_LE
-	def_bool y
-
 config GENERIC_HWEIGHT
 	def_bool y
 

@@ -178,11 +178,11 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 		if ((status & E1000_STATUS_SPEED_1000) ||
 		    hw->phy.media_type != e1000_media_type_copper)
-			ecmd->speed = SPEED_1000;
+			ethtool_cmd_speed_set(ecmd, SPEED_1000);
 		else if (status & E1000_STATUS_SPEED_100)
-			ecmd->speed = SPEED_100;
+			ethtool_cmd_speed_set(ecmd, SPEED_100);
 		else
-			ecmd->speed = SPEED_10;
+			ethtool_cmd_speed_set(ecmd, SPEED_10);
 
 		if ((status & E1000_STATUS_FD) ||
 		    hw->phy.media_type != e1000_media_type_copper)
@@ -190,7 +190,7 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		else
 			ecmd->duplex = DUPLEX_HALF;
 	} else {
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 
@@ -223,7 +223,8 @@ static int igb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		if (adapter->fc_autoneg)
 			hw->fc.requested_mode = e1000_fc_default;
 	} else {
-		if (igb_set_spd_dplx(adapter, ecmd->speed + ecmd->duplex)) {
+		u32 speed = ethtool_cmd_speed(ecmd);
+		if (igb_set_spd_dplx(adapter, speed, ecmd->duplex)) {
 			clear_bit(__IGB_RESETTING, &adapter->state);
 			return -EINVAL;
 		}
@@ -1963,27 +1964,28 @@ static int igb_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 /* bit defines for adapter->led_status */
 #define IGB_LED_ON		0
 
-static int igb_phys_id(struct net_device *netdev, u32 data)
+static int igb_set_phys_id(struct net_device *netdev,
+			   enum ethtool_phys_id_state state)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	unsigned long timeout;
 
-	timeout = data * 1000;
-
-	/*
-	 *  msleep_interruptable only accepts unsigned int so we are limited
-	 * in how long a duration we can wait
-	 */
-	if (!timeout || timeout > UINT_MAX)
-		timeout = UINT_MAX;
-
-	igb_blink_led(hw);
-	msleep_interruptible(timeout);
-
-	igb_led_off(hw);
-	clear_bit(IGB_LED_ON, &adapter->led_status);
-	igb_cleanup_led(hw);
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		igb_blink_led(hw);
+		return 2;
+	case ETHTOOL_ID_ON:
+		igb_blink_led(hw);
+		break;
+	case ETHTOOL_ID_OFF:
+		igb_led_off(hw);
+		break;
+	case ETHTOOL_ID_INACTIVE:
+		igb_led_off(hw);
+		clear_bit(IGB_LED_ON, &adapter->led_status);
+		igb_cleanup_led(hw);
+		break;
+	}
 
 	return 0;
 }
@@ -2215,7 +2217,7 @@ static const struct ethtool_ops igb_ethtool_ops = {
 	.set_tso                = igb_set_tso,
 	.self_test              = igb_diag_test,
 	.get_strings            = igb_get_strings,
-	.phys_id                = igb_phys_id,
+	.set_phys_id            = igb_set_phys_id,
 	.get_sset_count         = igb_get_sset_count,
 	.get_ethtool_stats      = igb_get_ethtool_stats,
 	.get_coalesce           = igb_get_coalesce,

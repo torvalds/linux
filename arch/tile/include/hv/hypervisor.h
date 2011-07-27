@@ -22,8 +22,6 @@
 
 #include <arch/chip.h>
 
-#include <hv/pagesize.h>
-
 /* Linux builds want unsigned long constants, but assembler wants numbers */
 #ifdef __ASSEMBLER__
 /** One, for assembler */
@@ -44,10 +42,20 @@
  */
 #define HV_L1_SPAN (__HV_SIZE_ONE << HV_LOG2_L1_SPAN)
 
+/** The log2 of the size of small pages, in bytes. This value should
+ * be verified at runtime by calling hv_sysconf(HV_SYSCONF_PAGE_SIZE_SMALL).
+ */
+#define HV_LOG2_PAGE_SIZE_SMALL 16
+
 /** The size of small pages, in bytes. This value should be verified
  * at runtime by calling hv_sysconf(HV_SYSCONF_PAGE_SIZE_SMALL).
  */
 #define HV_PAGE_SIZE_SMALL (__HV_SIZE_ONE << HV_LOG2_PAGE_SIZE_SMALL)
+
+/** The log2 of the size of large pages, in bytes. This value should be
+ * verified at runtime by calling hv_sysconf(HV_SYSCONF_PAGE_SIZE_LARGE).
+ */
+#define HV_LOG2_PAGE_SIZE_LARGE 24
 
 /** The size of large pages, in bytes. This value should be verified
  * at runtime by calling hv_sysconf(HV_SYSCONF_PAGE_SIZE_LARGE).

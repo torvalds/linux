@@ -105,33 +105,6 @@ u16 hpi_subsys_get_version_ex(u32 *pversion_ex)
 	return hr.error;
 }
 
-u16 hpi_subsys_create_adapter(const struct hpi_resource *p_resource,
-	u16 *pw_adapter_index)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_SUBSYSTEM,
-		HPI_SUBSYS_CREATE_ADAPTER);
-	hm.u.s.resource = *p_resource;
-
-	hpi_send_recv(&hm, &hr);
-
-	*pw_adapter_index = hr.u.s.adapter_index;
-	return hr.error;
-}
-
-u16 hpi_subsys_delete_adapter(u16 adapter_index)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_SUBSYSTEM,
-		HPI_SUBSYS_DELETE_ADAPTER);
-	hm.obj_index = adapter_index;
-	hpi_send_recv(&hm, &hr);
-	return hr.error;
-}
-
 u16 hpi_subsys_get_num_adapters(int *pn_num_adapters)
 {
 	struct hpi_message hm;

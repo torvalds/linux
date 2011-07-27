@@ -288,6 +288,8 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 		 * This may be a DVI-I connector with a shared DDC
 		 * link between analog and digital outputs, so we
 		 * have to check the EDID input spec of the attached device.
+		 *
+		 * On the other hand, what should we do if it is a broken EDID?
 		 */
 		if (edid != NULL) {
 			is_digital = edid->input & DRM_EDID_INPUT_DIGITAL;
@@ -298,6 +300,8 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 		if (!is_digital) {
 			DRM_DEBUG_KMS("CRT detected via DDC:0x50 [EDID]\n");
 			return true;
+		} else {
+			DRM_DEBUG_KMS("CRT not detected via DDC:0x50 [EDID reports a digital panel]\n");
 		}
 	}
 
@@ -305,13 +309,11 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 }
 
 static enum drm_connector_status
-intel_crt_load_detect(struct drm_crtc *crtc, struct intel_crt *crt)
+intel_crt_load_detect(struct intel_crt *crt)
 {
-	struct drm_encoder *encoder = &crt->base.base;
-	struct drm_device *dev = encoder->dev;
+	struct drm_device *dev = crt->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	uint32_t pipe = intel_crtc->pipe;
+	uint32_t pipe = to_intel_crtc(crt->base.base.crtc)->pipe;
 	uint32_t save_bclrpat;
 	uint32_t save_vtotal;
 	uint32_t vtotal, vactive;
@@ -432,7 +434,6 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 	struct drm_device *dev = connector->dev;
 	struct intel_crt *crt = intel_attached_crt(connector);
 	struct drm_crtc *crtc;
-	int dpms_mode;
 	enum drm_connector_status status;
 
 	if (I915_HAS_HOTPLUG(dev)) {
@@ -454,17 +455,18 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 	/* for pre-945g platforms use load detect */
 	crtc = crt->base.base.crtc;
 	if (crtc && crtc->enabled) {
-		status = intel_crt_load_detect(crtc, crt);
+		status = intel_crt_load_detect(crt);
 	} else {
-		crtc = intel_get_load_detect_pipe(&crt->base, connector,
-						  NULL, &dpms_mode);
-		if (crtc) {
+		struct intel_load_detect_pipe tmp;
+
+		if (intel_get_load_detect_pipe(&crt->base, connector, NULL,
+					       &tmp)) {
 			if (intel_crt_detect_ddc(connector))
 				status = connector_status_connected;
 			else
-				status = intel_crt_load_detect(crtc, crt);
-			intel_release_load_detect_pipe(&crt->base,
-						       connector, dpms_mode);
+				status = intel_crt_load_detect(crt);
+			intel_release_load_detect_pipe(&crt->base, connector,
+						       &tmp);
 		} else
 			status = connector_status_unknown;
 	}

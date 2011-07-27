@@ -1033,6 +1033,11 @@ static int ncp_rmdir(struct inode *dir, struct dentry *dentry)
 	DPRINTK("ncp_rmdir: removing %s/%s\n",
 		dentry->d_parent->d_name.name, dentry->d_name.name);
 
+	/*
+	 * fail with EBUSY if there are still references to this
+	 * directory.
+	 */
+	dentry_unhash(dentry);
 	error = -EBUSY;
 	if (!d_unhashed(dentry))
 		goto out;
@@ -1138,6 +1143,17 @@ static int ncp_rename(struct inode *old_dir, struct dentry *old_dentry,
 	DPRINTK("ncp_rename: %s/%s to %s/%s\n",
 		old_dentry->d_parent->d_name.name, old_dentry->d_name.name,
 		new_dentry->d_parent->d_name.name, new_dentry->d_name.name);
+
+	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode)) {
+		/*
+		 * fail with EBUSY if there are still references to this
+		 * directory.
+		 */
+		dentry_unhash(new_dentry);
+		error = -EBUSY;
+		if (!d_unhashed(new_dentry))
+			goto out;
+	}
 
 	ncp_age_dentry(server, old_dentry);
 	ncp_age_dentry(server, new_dentry);

@@ -45,8 +45,8 @@ struct stassoc_event {
 };
 
 struct stadel_event {
- unsigned char macaddr[6];
- unsigned char rsvd[2];
+	unsigned char macaddr[6];
+	unsigned char rsvd[2];
 };
 
 struct addba_event {
@@ -61,7 +61,7 @@ struct fwevent {
 };
 
 #define C2HEVENT_SZ			32
-struct event_node{
+struct event_node {
 	unsigned char *node;
 	unsigned char evt_code;
 	unsigned short evt_sz;
@@ -85,9 +85,9 @@ struct network_queue {
 };
 
 struct ADDBA_Req_Report_parm {
- unsigned char MacAddress[ETH_ALEN];
- unsigned short StartSeqNum;
- unsigned char tid;
+	unsigned char MacAddress[ETH_ALEN];
+	unsigned short StartSeqNum;
+	unsigned char tid;
 };
 #include "rtl8712_event.h"
 

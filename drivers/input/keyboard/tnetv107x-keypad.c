@@ -337,5 +337,5 @@ module_exit(keypad_exit);
 
 MODULE_AUTHOR("Cyril Chemparathy");
 MODULE_DESCRIPTION("TNETV107X Keypad Driver");
-MODULE_ALIAS("platform: tnetv107x-keypad");
+MODULE_ALIAS("platform:tnetv107x-keypad");
 MODULE_LICENSE("GPL");

@@ -226,10 +226,6 @@ acl			Enables POSIX Access Control Lists support.
 noacl			This option disables POSIX Access Control List
 			support.
 
-reservation
-
-noreservation
-
 bsddf		(*)	Make 'df' act like BSD.
 minixdf			Make 'df' act like Minix.
 

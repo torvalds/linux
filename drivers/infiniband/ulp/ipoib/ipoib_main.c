@@ -171,6 +171,16 @@ static int ipoib_stop(struct net_device *dev)
 	return 0;
 }
 
+static u32 ipoib_fix_features(struct net_device *dev, u32 features)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+
+	if (test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags))
+		features &= ~(NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO);
+
+	return features;
+}
+
 static int ipoib_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
@@ -970,6 +980,7 @@ static const struct net_device_ops ipoib_netdev_ops = {
 	.ndo_open		 = ipoib_open,
 	.ndo_stop		 = ipoib_stop,
 	.ndo_change_mtu		 = ipoib_change_mtu,
+	.ndo_fix_features	 = ipoib_fix_features,
 	.ndo_start_xmit	 	 = ipoib_start_xmit,
 	.ndo_tx_timeout		 = ipoib_timeout,
 	.ndo_set_multicast_list	 = ipoib_set_mcast_list,
@@ -1154,18 +1165,17 @@ int ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca)
 	kfree(device_attr);
 
 	if (priv->hca_caps & IB_DEVICE_UD_IP_CSUM) {
-		set_bit(IPOIB_FLAG_CSUM, &priv->flags);
-		priv->dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
+		priv->dev->hw_features = NETIF_F_SG |
+			NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
+
+		if (priv->hca_caps & IB_DEVICE_UD_TSO)
+			priv->dev->hw_features |= NETIF_F_TSO;
+
+		priv->dev->features |= priv->dev->hw_features;
 	}
-
-	priv->dev->features |= NETIF_F_GRO;
-
-	if (priv->dev->features & NETIF_F_SG && priv->hca_caps & IB_DEVICE_UD_TSO)
-		priv->dev->features |= NETIF_F_TSO;
 
 	return 0;
 }
-
 
 static struct net_device *ipoib_add_port(const char *format,
 					 struct ib_device *hca, u8 port)

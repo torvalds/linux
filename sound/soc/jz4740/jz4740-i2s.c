@@ -133,7 +133,7 @@ static void jz4740_i2s_shutdown(struct snd_pcm_substream *substream,
 	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 	uint32_t conf;
 
-	if (!dai->active)
+	if (dai->active)
 		return;
 
 	conf = jz4740_i2s_read(i2s, JZ_REG_AIC_CONF);

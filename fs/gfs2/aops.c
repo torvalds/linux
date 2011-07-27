@@ -884,8 +884,8 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 	}
 
 	brelse(dibh);
-	gfs2_trans_end(sdp);
 failed:
+	gfs2_trans_end(sdp);
 	if (al) {
 		gfs2_inplace_release(ip);
 		gfs2_quota_unlock(ip);
@@ -1076,8 +1076,8 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 		bd = bh->b_private;
 		if (bd && bd->bd_ail)
 			goto cannot_release;
-		gfs2_assert_warn(sdp, !buffer_pinned(bh));
-		gfs2_assert_warn(sdp, !buffer_dirty(bh));
+		if (buffer_pinned(bh) || buffer_dirty(bh))
+			goto not_possible;
 		bh = bh->b_this_page;
 	} while(bh != head);
 	gfs2_log_unlock(sdp);
@@ -1107,6 +1107,10 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 	} while (bh != head);
 
 	return try_to_free_buffers(page);
+
+not_possible: /* Should never happen */
+	WARN_ON(buffer_dirty(bh));
+	WARN_ON(buffer_pinned(bh));
 cannot_release:
 	gfs2_log_unlock(sdp);
 	return 0;

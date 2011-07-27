@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 Atheros Communications Inc.
+ * Copyright (c) 2008-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -41,12 +41,16 @@ void ath_init_leds(struct ath_softc *sc)
 {
 	int ret;
 
-	if (AR_SREV_9287(sc->sc_ah))
-		sc->sc_ah->led_pin = ATH_LED_PIN_9287;
-	else if (AR_SREV_9485(sc->sc_ah))
-		sc->sc_ah->led_pin = ATH_LED_PIN_9485;
-	else
-		sc->sc_ah->led_pin = ATH_LED_PIN_DEF;
+	if (sc->sc_ah->led_pin < 0) {
+		if (AR_SREV_9287(sc->sc_ah))
+			sc->sc_ah->led_pin = ATH_LED_PIN_9287;
+		else if (AR_SREV_9485(sc->sc_ah))
+			sc->sc_ah->led_pin = ATH_LED_PIN_9485;
+		else if (AR_SREV_9300(sc->sc_ah))
+			sc->sc_ah->led_pin = ATH_LED_PIN_9300;
+		else
+			sc->sc_ah->led_pin = ATH_LED_PIN_DEF;
+	}
 
 	/* Configure gpio 1 for output */
 	ath9k_hw_cfg_output(sc->sc_ah, sc->sc_ah->led_pin,
@@ -136,10 +140,10 @@ static void ath_detect_bt_priority(struct ath_softc *sc)
 
 static void ath9k_gen_timer_start(struct ath_hw *ah,
 				  struct ath_gen_timer *timer,
-				  u32 timer_next,
+				  u32 trig_timeout,
 				  u32 timer_period)
 {
-	ath9k_hw_gen_timer_start(ah, timer, timer_next, timer_period);
+	ath9k_hw_gen_timer_start(ah, timer, trig_timeout, timer_period);
 
 	if ((ah->imask & ATH9K_INT_GENTIMER) == 0) {
 		ath9k_hw_disable_interrupts(ah);
@@ -172,17 +176,17 @@ static void ath_btcoex_period_timer(unsigned long data)
 	struct ath_softc *sc = (struct ath_softc *) data;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_btcoex *btcoex = &sc->btcoex;
-	struct ath_common *common = ath9k_hw_common(ah);
 	u32 timer_period;
 	bool is_btscan;
 
+	ath9k_ps_wakeup(sc);
 	ath_detect_bt_priority(sc);
 
 	is_btscan = sc->sc_flags & SC_OP_BT_SCAN;
 
 	spin_lock_bh(&btcoex->btcoex_lock);
 
-	ath9k_cmn_btcoex_bt_stomp(common, is_btscan ? ATH_BTCOEX_STOMP_ALL :
+	ath9k_hw_btcoex_bt_stomp(ah, is_btscan ? ATH_BTCOEX_STOMP_ALL :
 			      btcoex->bt_stomp_type);
 
 	spin_unlock_bh(&btcoex->btcoex_lock);
@@ -193,11 +197,12 @@ static void ath_btcoex_period_timer(unsigned long data)
 
 		timer_period = is_btscan ? btcoex->btscan_no_stomp :
 					   btcoex->btcoex_no_stomp;
-		ath9k_gen_timer_start(ah, btcoex->no_stomp_timer, 0,
+		ath9k_gen_timer_start(ah, btcoex->no_stomp_timer, timer_period,
 				      timer_period * 10);
 		btcoex->hw_timer_enabled = true;
 	}
 
+	ath9k_ps_restore(sc);
 	mod_timer(&btcoex->period_timer, jiffies +
 				  msecs_to_jiffies(ATH_BTCOEX_DEF_BT_PERIOD));
 }
@@ -217,14 +222,16 @@ static void ath_btcoex_no_stomp_timer(void *arg)
 	ath_dbg(common, ATH_DBG_BTCOEX,
 		"no stomp timer running\n");
 
+	ath9k_ps_wakeup(sc);
 	spin_lock_bh(&btcoex->btcoex_lock);
 
 	if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_LOW || is_btscan)
-		ath9k_cmn_btcoex_bt_stomp(common, ATH_BTCOEX_STOMP_NONE);
+		ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_NONE);
 	 else if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_ALL)
-		ath9k_cmn_btcoex_bt_stomp(common, ATH_BTCOEX_STOMP_LOW);
+		ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_LOW);
 
 	spin_unlock_bh(&btcoex->btcoex_lock);
+	ath9k_ps_restore(sc);
 }
 
 int ath_init_btcoex_timer(struct ath_softc *sc)

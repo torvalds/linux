@@ -39,8 +39,6 @@ struct cpuinfo_alpha {
 
 extern struct cpuinfo_alpha cpu_data[NR_CPUS];
 
-#define PROC_CHANGE_PENALTY     20
-
 #define hard_smp_processor_id()	__hard_smp_processor_id()
 #define raw_smp_processor_id()	(current_thread_info()->cpu)
 

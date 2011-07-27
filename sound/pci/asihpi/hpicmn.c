@@ -227,8 +227,9 @@ static unsigned int control_cache_alloc_check(struct hpi_control_cache *pC)
 			if (info->control_type) {
 				pC->p_info[info->control_index] = info;
 				cached++;
-			} else	/* dummy cache entry */
+			} else {	/* dummy cache entry */
 				pC->p_info[info->control_index] = NULL;
+			}
 
 			byte_count += info->size_in32bit_words * 4;
 
@@ -298,7 +299,7 @@ struct pad_ofs_size {
 	unsigned int field_size;
 };
 
-static struct pad_ofs_size pad_desc[] = {
+static const struct pad_ofs_size pad_desc[] = {
 	HPICMN_PAD_OFS_AND_SIZE(c_channel),	/* HPI_PAD_CHANNEL_NAME */
 	HPICMN_PAD_OFS_AND_SIZE(c_artist),	/* HPI_PAD_ARTIST */
 	HPICMN_PAD_OFS_AND_SIZE(c_title),	/* HPI_PAD_TITLE */
@@ -617,6 +618,10 @@ void hpi_cmn_control_cache_sync_to_msg(struct hpi_control_cache *p_cache,
 	}
 }
 
+/** Allocate control cache.
+
+\return Cache pointer, or NULL if allocation fails.
+*/
 struct hpi_control_cache *hpi_alloc_control_cache(const u32 control_count,
 	const u32 size_in_bytes, u8 *p_dsp_control_buffer)
 {
@@ -667,7 +672,6 @@ static void subsys_message(struct hpi_message *phm, struct hpi_response *phr)
 		phr->u.s.num_adapters = adapters.gw_num_adapters;
 		break;
 	case HPI_SUBSYS_CREATE_ADAPTER:
-	case HPI_SUBSYS_DELETE_ADAPTER:
 		break;
 	default:
 		phr->error = HPI_ERROR_INVALID_FUNC;

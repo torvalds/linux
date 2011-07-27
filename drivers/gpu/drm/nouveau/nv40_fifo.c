@@ -115,6 +115,7 @@ nv40_fifo_do_load_context(struct drm_device *dev, int chid)
 	nv_wr32(dev, 0x32e8, nv_ri32(dev, fc + 68));
 	nv_wr32(dev, 0x2088, nv_ri32(dev, fc + 76));
 	nv_wr32(dev, 0x3300, nv_ri32(dev, fc + 80));
+	nv_wr32(dev, 0x330c, nv_ri32(dev, fc + 84));
 
 	nv_wr32(dev, NV03_PFIFO_CACHE1_GET, 0);
 	nv_wr32(dev, NV03_PFIFO_CACHE1_PUT, 0);
@@ -186,6 +187,7 @@ nv40_fifo_unload_context(struct drm_device *dev)
 	tmp |= (nv_rd32(dev, NV04_PFIFO_CACHE1_PUT) << 16);
 	nv_wi32(dev, fc + 72, tmp);
 #endif
+	nv_wi32(dev, fc + 84, nv_rd32(dev, 0x330c));
 
 	nv40_fifo_do_load_context(dev, pfifo->channels - 1);
 	nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH1,

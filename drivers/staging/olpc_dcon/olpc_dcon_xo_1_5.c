@@ -24,9 +24,8 @@
 #include "olpc_dcon.h"
 
 /* Hardware setup on the XO 1.5:
- * 	DCONLOAD connects to
- *		VX855_GPIO1 (not SMBCK2)
- * 	DCONBLANK connects to VX855_GPIO8 (not SSPICLK)  unused in driver
+ *	DCONLOAD connects to VX855_GPIO1 (not SMBCK2)
+ *	DCONBLANK connects to VX855_GPIO8 (not SSPICLK)  unused in driver
  *	DCONSTAT0 connects to VX855_GPI10 (not SSPISDI)
  *	DCONSTAT1 connects to VX855_GPI11 (not nSSPISS)
  *	DCONIRQ connects to VX855_GPIO12
@@ -34,9 +33,9 @@
  *	DCONSMBCLK connects to VX855 graphics CRTSPCLK
  */
 
-#define VX855_GENL_PURPOSE_OUTPUT 0x44c // PMIO_Rx4c-4f
-#define VX855_GPI_STATUS_CHG 0x450  // PMIO_Rx50
-#define VX855_GPI_SCI_SMI 0x452  // PMIO_Rx52
+#define VX855_GENL_PURPOSE_OUTPUT 0x44c /* PMIO_Rx4c-4f */
+#define VX855_GPI_STATUS_CHG 0x450  /* PMIO_Rx50 */
+#define VX855_GPI_SCI_SMI 0x452  /* PMIO_Rx52 */
 #define BIT_GPIO12 0x40
 
 #define PREFIX "OLPC DCON:"
@@ -63,8 +62,7 @@ static int dcon_init_xo_1_5(struct dcon_priv *dcon)
 	unsigned int irq;
 	u_int8_t tmp;
 	struct pci_dev *pdev;
-	
-	
+
 	pdev = pci_get_device(PCI_VENDOR_ID_VIA,
 			      PCI_DEVICE_ID_VIA_VX855, NULL);
 	if (!pdev) {
@@ -149,7 +147,7 @@ static void dcon_wiggle_xo_1_5(void)
 	 * state machine to reset to a (sane) initial state.  Mitch Bradley
 	 * did some testing and discovered that holding for 16 SMB_CLK cycles
 	 * worked a lot more reliably, so that's what we do here.
- 	 */
+	 */
 	set_i2c_line(1, 1);
 
 	for (x = 0; x < 16; x++) {
@@ -172,13 +170,13 @@ static void dcon_set_dconload_xo_1_5(int val)
 static u8 dcon_read_status_xo_1_5(void)
 {
 	u8 status;
-	
+
 	if (!dcon_was_irq())
 		return -1;
 
-	// i believe this is the same as "inb(0x44b) & 3"
+	/* i believe this is the same as "inb(0x44b) & 3" */
 	status = gpio_get_value(VX855_GPI(10));
-	status |= gpio_get_value(VX855_GPI(11)) << 1; 
+	status |= gpio_get_value(VX855_GPI(11)) << 1;
 
 	dcon_clear_irq();
 

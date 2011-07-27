@@ -304,7 +304,7 @@ static int dio24_cs_resume(struct pcmcia_device *link)
 
 /*====================================================================*/
 
-static struct pcmcia_device_id dio24_cs_ids[] = {
+static const struct pcmcia_device_id dio24_cs_ids[] = {
 	/* N.B. These IDs should match those in dio24_boards */
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x475c),	/* daqcard-dio24 */
 	PCMCIA_DEVICE_NULL

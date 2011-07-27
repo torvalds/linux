@@ -21,6 +21,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/slab.h>
 
 #include "xhci.h"
 
@@ -105,18 +106,34 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 
 	/* Look for vendor-specific quirks */
 	if (pdev->vendor == PCI_VENDOR_ID_FRESCO_LOGIC &&
-			pdev->device == PCI_DEVICE_ID_FRESCO_LOGIC_PDK &&
-			pdev->revision == 0x0) {
+			pdev->device == PCI_DEVICE_ID_FRESCO_LOGIC_PDK) {
+		if (pdev->revision == 0x0) {
 			xhci->quirks |= XHCI_RESET_EP_QUIRK;
 			xhci_dbg(xhci, "QUIRK: Fresco Logic xHC needs configure"
 					" endpoint cmd after reset endpoint\n");
+		}
+		/* Fresco Logic confirms: all revisions of this chip do not
+		 * support MSI, even though some of them claim to in their PCI
+		 * capabilities.
+		 */
+		xhci->quirks |= XHCI_BROKEN_MSI;
+		xhci_dbg(xhci, "QUIRK: Fresco Logic revision %u "
+				"has broken MSI implementation\n",
+				pdev->revision);
 	}
+
 	if (pdev->vendor == PCI_VENDOR_ID_NEC)
 		xhci->quirks |= XHCI_NEC_HOST;
 
 	/* AMD PLL quirk */
 	if (pdev->vendor == PCI_VENDOR_ID_AMD && usb_amd_find_chipset_info())
 		xhci->quirks |= XHCI_AMD_PLL_FIX;
+	if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
+			pdev->device == PCI_DEVICE_ID_INTEL_PANTHERPOINT_XHCI) {
+		xhci->quirks |= XHCI_SPURIOUS_SUCCESS;
+		xhci->quirks |= XHCI_EP_LIMIT_QUIRK;
+		xhci->limit_active_eps = 64;
+	}
 
 	/* Make sure the HC is halted. */
 	retval = xhci_halt(xhci);
@@ -241,7 +258,27 @@ static int xhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 static int xhci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 {
 	struct xhci_hcd		*xhci = hcd_to_xhci(hcd);
+	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
 	int			retval = 0;
+
+	/* The BIOS on systems with the Intel Panther Point chipset may or may
+	 * not support xHCI natively.  That means that during system resume, it
+	 * may switch the ports back to EHCI so that users can use their
+	 * keyboard to select a kernel from GRUB after resume from hibernate.
+	 *
+	 * The BIOS is supposed to remember whether the OS had xHCI ports
+	 * enabled before resume, and switch the ports back to xHCI when the
+	 * BIOS/OS semaphore is written, but we all know we can't trust BIOS
+	 * writers.
+	 *
+	 * Unconditionally switch the ports back to xHCI after a system resume.
+	 * We can't tell whether the EHCI or xHCI controller will be resumed
+	 * first, so we have to do the port switchover in both drivers.  Writing
+	 * a '1' to the port switchover registers should have no effect if the
+	 * port was already switched over.
+	 */
+	if (usb_is_intel_switchable_xhci(pdev))
+		usb_enable_xhci_ports(pdev);
 
 	retval = xhci_resume(xhci, hibernated);
 	return retval;

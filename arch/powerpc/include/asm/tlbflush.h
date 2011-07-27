@@ -79,6 +79,8 @@ static inline void local_flush_tlb_mm(struct mm_struct *mm)
 
 #elif defined(CONFIG_PPC_STD_MMU_64)
 
+#define MMU_NO_CONTEXT		0
+
 /*
  * TLB flushing for 64-bit hash-MMU CPUs
  */

@@ -115,7 +115,7 @@
 #define INVALID_ENTRY		0xFFFF
 #define MAX_CMDS_TO_RISC	1024
 #define MAX_SRBS		MAX_CMDS_TO_RISC
-#define MBOX_AEN_REG_COUNT	5
+#define MBOX_AEN_REG_COUNT	8
 #define MAX_INIT_RETRIES	5
 
 /*
@@ -368,7 +368,6 @@ struct scsi_qla_host {
 #define AF_INIT_DONE			1 /* 0x00000002 */
 #define AF_MBOX_COMMAND			2 /* 0x00000004 */
 #define AF_MBOX_COMMAND_DONE		3 /* 0x00000008 */
-#define AF_DPC_SCHEDULED		5 /* 0x00000020 */
 #define AF_INTERRUPTS_ON		6 /* 0x00000040 */
 #define AF_GET_CRASH_RECORD		7 /* 0x00000080 */
 #define AF_LINK_UP			8 /* 0x00000100 */
@@ -584,6 +583,14 @@ struct scsi_qla_host {
 	uint32_t nx_reset_timeout;
 
 	struct completion mbx_intr_comp;
+
+	/* --- From About Firmware --- */
+	uint16_t iscsi_major;
+	uint16_t iscsi_minor;
+	uint16_t bootload_major;
+	uint16_t bootload_minor;
+	uint16_t bootload_patch;
+	uint16_t bootload_build;
 };
 
 static inline int is_ipv4_enabled(struct scsi_qla_host *ha)

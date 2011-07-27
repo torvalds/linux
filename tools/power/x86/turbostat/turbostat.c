@@ -990,7 +990,7 @@ int fork_it(char **argv)
 	if (!retval)
 		print_counters(cnt_delta);
 
-	fprintf(stderr, "%.6f sec\n", tv_delta.tv_sec + tv_delta.tv_usec/1000000.0);;
+	fprintf(stderr, "%.6f sec\n", tv_delta.tv_sec + tv_delta.tv_usec/1000000.0);
 
 	return 0;
 }

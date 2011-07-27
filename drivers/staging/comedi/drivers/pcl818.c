@@ -1662,7 +1662,7 @@ static void rtc_dropped_irq(unsigned long data)
 		tmp = (CMOS_READ(RTC_INTR_FLAGS) & 0xF0);	/* restart */
 		restore_flags(flags);
 		break;
-	};
+	}
 }
 
 /*

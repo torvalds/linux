@@ -1382,7 +1382,7 @@ static int wl1273_fm_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case  V4L2_CID_TUNE_ANTENNA_CAPACITOR:
-		ctrl->val = wl1273_fm_get_tx_ctune(radio);
+		ctrl->cur.val = wl1273_fm_get_tx_ctune(radio);
 		break;
 
 	default:
@@ -1990,7 +1990,7 @@ static int wl1273_fm_radio_remove(struct platform_device *pdev)
 
 static int __devinit wl1273_fm_radio_probe(struct platform_device *pdev)
 {
-	struct wl1273_core **core = mfd_get_data(pdev);
+	struct wl1273_core **core = pdev->dev.platform_data;
 	struct wl1273_device *radio;
 	struct v4l2_ctrl *ctrl;
 	int r = 0;

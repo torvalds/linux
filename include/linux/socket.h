@@ -333,5 +333,7 @@ struct timespec;
 
 extern int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 			  unsigned int flags, struct timespec *timeout);
+extern int __sys_sendmmsg(int fd, struct mmsghdr __user *mmsg,
+			  unsigned int vlen, unsigned int flags);
 #endif /* not kernel and not glibc */
 #endif /* _LINUX_SOCKET_H */

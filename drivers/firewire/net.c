@@ -881,7 +881,9 @@ static void fwnet_receive_broadcast(struct fw_iso_context *context,
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	if (retval < 0)
+	if (retval >= 0)
+		fw_iso_context_queue_flush(dev->broadcast_rcv_context);
+	else
 		fw_error("requeue failed\n");
 }
 

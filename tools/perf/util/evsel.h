@@ -81,11 +81,11 @@ void perf_evsel__free_id(struct perf_evsel *evsel);
 void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads);
 
 int perf_evsel__open_per_cpu(struct perf_evsel *evsel,
-			     struct cpu_map *cpus, bool group, bool inherit);
+			     struct cpu_map *cpus, bool group);
 int perf_evsel__open_per_thread(struct perf_evsel *evsel,
-				struct thread_map *threads, bool group, bool inherit);
+				struct thread_map *threads, bool group);
 int perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
-		     struct thread_map *threads, bool group, bool inherit);
+		     struct thread_map *threads, bool group);
 
 #define perf_evsel__match(evsel, t, c)		\
 	(evsel->attr.type == PERF_TYPE_##t &&	\
@@ -147,6 +147,13 @@ static inline int perf_evsel__read_scaled(struct perf_evsel *evsel,
 					  int ncpus, int nthreads)
 {
 	return __perf_evsel__read(evsel, ncpus, nthreads, true);
+}
+
+int __perf_evsel__sample_size(u64 sample_type);
+
+static inline int perf_evsel__sample_size(struct perf_evsel *evsel)
+{
+	return __perf_evsel__sample_size(evsel->attr.sample_type);
 }
 
 #endif /* __PERF_EVSEL_H */

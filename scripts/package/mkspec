@@ -22,7 +22,7 @@ if [ "`grep CONFIG_DRM=y .config | cut -f2 -d\=`" = "y" ]; then
 fi
 
 PROVIDES="$PROVIDES kernel-$KERNELRELEASE"
-__KERNELRELEASE=`echo $KERNELRELEASE | sed -e "s/-//g"`
+__KERNELRELEASE=`echo $KERNELRELEASE | sed -e "s/-/_/g"`
 
 echo "Name: kernel"
 echo "Summary: The Linux Kernel"
@@ -46,6 +46,18 @@ echo "%define debug_package %{nil}"
 echo ""
 echo "%description"
 echo "The Linux Kernel, the operating system core itself"
+echo ""
+echo "%package headers"
+echo "Summary: Header files for the Linux kernel for use by glibc"
+echo "Group: Development/System"
+echo "Obsoletes: kernel-headers"
+echo "Provides: kernel-headers = %{version}"
+echo "%description headers"
+echo "Kernel-headers includes the C header files that specify the interface"
+echo "between the Linux kernel and userspace libraries and programs.  The"
+echo "header files define structures and constants that are needed for"
+echo "building most standard programs and are also needed for rebuilding the"
+echo "glibc package."
 echo ""
 
 if ! $PREBUILT; then
@@ -83,6 +95,7 @@ echo 'cp $KBUILD_IMAGE $RPM_BUILD_ROOT'"/boot/vmlinuz-$KERNELRELEASE"
 echo "%endif"
 echo "%endif"
 
+echo 'make %{?_smp_mflags} INSTALL_HDR_PATH=$RPM_BUILD_ROOT/usr headers_install'
 echo 'cp System.map $RPM_BUILD_ROOT'"/boot/System.map-$KERNELRELEASE"
 
 echo 'cp .config $RPM_BUILD_ROOT'"/boot/config-$KERNELRELEASE"
@@ -104,4 +117,8 @@ echo "%dir /lib/modules"
 echo "/lib/modules/$KERNELRELEASE"
 echo "/lib/firmware"
 echo "/boot/*"
+echo ""
+echo "%files headers"
+echo '%defattr (-, root, root)'
+echo "/usr/include"
 echo ""

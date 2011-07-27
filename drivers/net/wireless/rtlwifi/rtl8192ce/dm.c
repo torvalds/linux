@@ -29,10 +29,12 @@
 
 #include "../wifi.h"
 #include "../base.h"
+#include "../pci.h"
 #include "reg.h"
 #include "def.h"
 #include "phy.h"
 #include "dm.h"
+#include "../rtl8192c/fw_common.h"
 
 void rtl92ce_dm_dynamic_txpower(struct ieee80211_hw *hw)
 {

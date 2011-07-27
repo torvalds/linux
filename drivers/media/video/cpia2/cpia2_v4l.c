@@ -438,7 +438,7 @@ static int cpia2_querycap(struct file *file, void *fh, struct v4l2_capability *v
 		strcat(vc->card, " (676/");
 		break;
 	default:
-		strcat(vc->card, " (???/");
+		strcat(vc->card, " (XXX/");
 		break;
 	}
 	switch (cam->params.version.sensor_flags) {
@@ -458,7 +458,7 @@ static int cpia2_querycap(struct file *file, void *fh, struct v4l2_capability *v
 		strcat(vc->card, "500)");
 		break;
 	default:
-		strcat(vc->card, "???)");
+		strcat(vc->card, "XXX)");
 		break;
 	}
 
@@ -1313,7 +1313,7 @@ static int cpia2_g_priority(struct file *file, void *_fh, enum v4l2_priority *p)
 static int cpia2_s_priority(struct file *file, void *_fh, enum v4l2_priority prio)
 {
 	struct camera_data *cam = video_drvdata(file);
-	struct cpia2_fh *fh = fh;
+	struct cpia2_fh *fh = _fh;
 
 	if (cam->streaming && prio != fh->prio &&
 			fh->prio == V4L2_PRIORITY_RECORD)

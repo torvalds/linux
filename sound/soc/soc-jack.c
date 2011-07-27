@@ -325,7 +325,7 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 					      gpio_handler,
 					      IRQF_TRIGGER_RISING |
 					      IRQF_TRIGGER_FALLING,
-					      jack->codec->dev->driver->name,
+					      gpios[i].name,
 					      &gpios[i]);
 		if (ret)
 			goto err;

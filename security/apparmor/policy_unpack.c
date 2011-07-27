@@ -12,8 +12,8 @@
  * published by the Free Software Foundation, version 2 of the
  * License.
  *
- * AppArmor uses a serialized binary format for loading policy.
- * To find policy format documentation look in Documentation/apparmor.txt
+ * AppArmor uses a serialized binary format for loading policy. To find
+ * policy format documentation look in Documentation/security/apparmor.txt
  * All policy is validated before it is used.
  */
 

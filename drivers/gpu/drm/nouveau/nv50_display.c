@@ -409,7 +409,7 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nouveau_channel *evo = dispc->sync;
 	int ret;
 
-	ret = RING_SPACE(evo, 24);
+	ret = RING_SPACE(evo, chan ? 25 : 27);
 	if (unlikely(ret))
 		return ret;
 
@@ -458,8 +458,19 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	/* queue the flip on the crtc's "display sync" channel */
 	BEGIN_RING(evo, 0, 0x0100, 1);
 	OUT_RING  (evo, 0xfffe0000);
-	BEGIN_RING(evo, 0, 0x0084, 5);
-	OUT_RING  (evo, chan ? 0x00000100 : 0x00000010);
+	if (chan) {
+		BEGIN_RING(evo, 0, 0x0084, 1);
+		OUT_RING  (evo, 0x00000100);
+	} else {
+		BEGIN_RING(evo, 0, 0x0084, 1);
+		OUT_RING  (evo, 0x00000010);
+		/* allows gamma somehow, PDISP will bitch at you if
+		 * you don't wait for vblank before changing this..
+		 */
+		BEGIN_RING(evo, 0, 0x00e0, 1);
+		OUT_RING  (evo, 0x40000000);
+	}
+	BEGIN_RING(evo, 0, 0x0088, 4);
 	OUT_RING  (evo, dispc->sem.offset);
 	OUT_RING  (evo, 0xf00d0000 | dispc->sem.value);
 	OUT_RING  (evo, 0x74b1e000);
@@ -517,13 +528,25 @@ nv50_display_script_select(struct drm_device *dev, struct dcb_entry *dcb,
 			if (bios->fp.if_is_24bit)
 				script |= 0x0200;
 		} else {
+			/* determine number of lvds links */
+			if (nv_connector && nv_connector->edid &&
+			    nv_connector->dcb->type == DCB_CONNECTOR_LVDS_SPWG) {
+				/* http://www.spwg.org */
+				if (((u8 *)nv_connector->edid)[121] == 2)
+					script |= 0x0100;
+			} else
 			if (pxclk >= bios->fp.duallink_transition_clk) {
 				script |= 0x0100;
+			}
+
+			/* determine panel depth */
+			if (script & 0x0100) {
 				if (bios->fp.strapless_is_24bit & 2)
 					script |= 0x0200;
-			} else
-			if (bios->fp.strapless_is_24bit & 1)
-				script |= 0x0200;
+			} else {
+				if (bios->fp.strapless_is_24bit & 1)
+					script |= 0x0200;
+			}
 
 			if (nv_connector && nv_connector->edid &&
 			    (nv_connector->edid->revision >= 4) &&

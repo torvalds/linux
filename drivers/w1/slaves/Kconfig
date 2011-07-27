@@ -16,6 +16,13 @@ config W1_SLAVE_SMEM
 	  Say Y here if you want to connect 1-wire
 	  simple 64bit memory rom(ds2401/ds2411/ds1990*) to your wire.
 
+config W1_SLAVE_DS2408
+        tristate "8-Channel Addressable Switch (IO Expander) 0x29 family support (DS2408)"
+        help
+          Say Y here if you want to use a 1-wire
+
+		  DS2408 8-Channel Addressable Switch device support
+
 config W1_SLAVE_DS2423
 	tristate "Counter 1-wire device (DS2423)"
 	select CRC16
@@ -53,6 +60,19 @@ config W1_SLAVE_DS2760
 	depends on W1
 	help
 	  If you enable this you will have the DS2760 battery monitor
+	  chip support.
+
+	  The battery monitor chip is used in many batteries/devices
+	  as the one who is responsible for charging/discharging/monitoring
+	  Li+ batteries.
+
+	  If you are unsure, say N.
+
+config W1_SLAVE_DS2780
+	tristate "Dallas 2780 battery monitor chip"
+	depends on W1
+	help
+	  If you enable this you will have the DS2780 battery monitor
 	  chip support.
 
 	  The battery monitor chip is used in many batteries/devices

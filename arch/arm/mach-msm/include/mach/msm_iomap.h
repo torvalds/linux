@@ -55,7 +55,7 @@
 
 #include "msm_iomap-8960.h"
 
-/* Virtual addressses shared across all MSM targets. */
+/* Virtual addresses shared across all MSM targets. */
 #define MSM_CSR_BASE		IOMEM(0xE0001000)
 #define MSM_QGIC_DIST_BASE	IOMEM(0xF0000000)
 #define MSM_QGIC_CPU_BASE	IOMEM(0xF0001000)

@@ -211,7 +211,7 @@ EXPORT_SYMBOL(vdma_free);
  */
 int vdma_remap(unsigned long laddr, unsigned long paddr, unsigned long size)
 {
-	int first, pages, npages;
+	int first, pages;
 
 	if (laddr > 0xffffff) {
 		if (vdma_debug)
@@ -228,8 +228,7 @@ int vdma_remap(unsigned long laddr, unsigned long paddr, unsigned long size)
 		return -EINVAL;	/* invalid physical address */
 	}
 
-	npages = pages =
-	    (((paddr & (VDMA_PAGESIZE - 1)) + size) >> 12) + 1;
+	pages = (((paddr & (VDMA_PAGESIZE - 1)) + size) >> 12) + 1;
 	first = laddr >> 12;
 	if (vdma_debug)
 		printk("vdma_remap: first=%x, pages=%x\n", first, pages);

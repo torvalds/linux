@@ -375,8 +375,7 @@ static struct clocksource clocksource_rpcc = {
 
 static inline void register_rpcc_clocksource(long cycle_freq)
 {
-	clocksource_calc_mult_shift(&clocksource_rpcc, cycle_freq, 4);
-	clocksource_register(&clocksource_rpcc);
+	clocksource_register_hz(&clocksource_rpcc, cycle_freq);
 }
 #else /* !CONFIG_SMP */
 static inline void register_rpcc_clocksource(long cycle_freq)

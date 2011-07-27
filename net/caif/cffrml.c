@@ -12,6 +12,7 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/crc-ccitt.h>
+#include <linux/netdevice.h>
 #include <net/caif/caif_layer.h>
 #include <net/caif/cfpkt.h>
 #include <net/caif/cffrml.h>
@@ -21,6 +22,7 @@
 struct cffrml {
 	struct cflayer layer;
 	bool dofcs;		/* !< FCS active */
+	int __percpu		*pcpu_refcnt;
 };
 
 static int cffrml_receive(struct cflayer *layr, struct cfpkt *pkt);
@@ -37,6 +39,12 @@ struct cflayer *cffrml_create(u16 phyid, bool use_fcs)
 		pr_warn("Out of memory\n");
 		return NULL;
 	}
+	this->pcpu_refcnt = alloc_percpu(int);
+	if (this->pcpu_refcnt == NULL) {
+		kfree(this);
+		return NULL;
+	}
+
 	caif_assert(offsetof(struct cffrml, layer) == 0);
 
 	memset(this, 0, sizeof(struct cflayer));
@@ -47,6 +55,13 @@ struct cflayer *cffrml_create(u16 phyid, bool use_fcs)
 	this->dofcs = use_fcs;
 	this->layer.id = phyid;
 	return (struct cflayer *) this;
+}
+
+void cffrml_free(struct cflayer *layer)
+{
+	struct cffrml *this = container_obj(layer);
+	free_percpu(this->pcpu_refcnt);
+	kfree(layer);
 }
 
 void cffrml_set_uplayer(struct cflayer *this, struct cflayer *up)
@@ -112,6 +127,13 @@ static int cffrml_receive(struct cflayer *layr, struct cfpkt *pkt)
 		cfpkt_destroy(pkt);
 		return -EPROTO;
 	}
+
+	if (layr->up == NULL) {
+		pr_err("Layr up is missing!\n");
+		cfpkt_destroy(pkt);
+		return -EINVAL;
+	}
+
 	return layr->up->receive(layr->up, pkt);
 }
 
@@ -120,7 +142,6 @@ static int cffrml_transmit(struct cflayer *layr, struct cfpkt *pkt)
 	int tmp;
 	u16 chks;
 	u16 len;
-	int ret;
 	struct cffrml *this = container_obj(layr);
 	if (this->dofcs) {
 		chks = cfpkt_iterate(pkt, cffrml_checksum, 0xffff);
@@ -135,19 +156,44 @@ static int cffrml_transmit(struct cflayer *layr, struct cfpkt *pkt)
 	cfpkt_info(pkt)->hdr_len += 2;
 	if (cfpkt_erroneous(pkt)) {
 		pr_err("Packet is erroneous!\n");
+		cfpkt_destroy(pkt);
 		return -EPROTO;
 	}
-	ret = layr->dn->transmit(layr->dn, pkt);
-	if (ret < 0) {
-		/* Remove header on faulty packet. */
-		cfpkt_extr_head(pkt, &tmp, 2);
+
+	if (layr->dn == NULL) {
+		cfpkt_destroy(pkt);
+		return -ENODEV;
+
 	}
-	return ret;
+	return layr->dn->transmit(layr->dn, pkt);
 }
 
 static void cffrml_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 					int phyid)
 {
-	if (layr->up->ctrlcmd)
+	if (layr->up && layr->up->ctrlcmd)
 		layr->up->ctrlcmd(layr->up, ctrl, layr->id);
+}
+
+void cffrml_put(struct cflayer *layr)
+{
+	struct cffrml *this = container_obj(layr);
+	if (layr != NULL && this->pcpu_refcnt != NULL)
+		irqsafe_cpu_dec(*this->pcpu_refcnt);
+}
+
+void cffrml_hold(struct cflayer *layr)
+{
+	struct cffrml *this = container_obj(layr);
+	if (layr != NULL && this->pcpu_refcnt != NULL)
+		irqsafe_cpu_inc(*this->pcpu_refcnt);
+}
+
+int cffrml_refcnt_read(struct cflayer *layr)
+{
+	int i, refcnt = 0;
+	struct cffrml *this = container_obj(layr);
+	for_each_possible_cpu(i)
+		refcnt += *per_cpu_ptr(this->pcpu_refcnt, i);
+	return refcnt;
 }

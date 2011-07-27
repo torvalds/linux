@@ -2,7 +2,7 @@
  * cpu.h: Values of the PRId register used to match up
  *        various MIPS cpu types.
  *
- * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
+ * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * Copyright (C) 2004  Maciej W. Rozycki
  */
 #ifndef _ASM_CPU_H
@@ -33,6 +33,7 @@
 #define PRID_COMP_TOSHIBA	0x070000
 #define PRID_COMP_LSI		0x080000
 #define PRID_COMP_LEXRA		0x0b0000
+#define PRID_COMP_NETLOGIC	0x0c0000
 #define PRID_COMP_CAVIUM	0x0d0000
 #define PRID_COMP_INGENIC	0xd00000
 
@@ -142,6 +143,31 @@
 #define PRID_IMP_JZRISC        0x0200
 
 /*
+ * These are the PRID's for when 23:16 == PRID_COMP_NETLOGIC
+ */
+#define PRID_IMP_NETLOGIC_XLR732	0x0000
+#define PRID_IMP_NETLOGIC_XLR716	0x0200
+#define PRID_IMP_NETLOGIC_XLR532	0x0900
+#define PRID_IMP_NETLOGIC_XLR308	0x0600
+#define PRID_IMP_NETLOGIC_XLR532C	0x0800
+#define PRID_IMP_NETLOGIC_XLR516C	0x0a00
+#define PRID_IMP_NETLOGIC_XLR508C	0x0b00
+#define PRID_IMP_NETLOGIC_XLR308C	0x0f00
+#define PRID_IMP_NETLOGIC_XLS608	0x8000
+#define PRID_IMP_NETLOGIC_XLS408	0x8800
+#define PRID_IMP_NETLOGIC_XLS404	0x8c00
+#define PRID_IMP_NETLOGIC_XLS208	0x8e00
+#define PRID_IMP_NETLOGIC_XLS204	0x8f00
+#define PRID_IMP_NETLOGIC_XLS108	0xce00
+#define PRID_IMP_NETLOGIC_XLS104	0xcf00
+#define PRID_IMP_NETLOGIC_XLS616B	0x4000
+#define PRID_IMP_NETLOGIC_XLS608B	0x4a00
+#define PRID_IMP_NETLOGIC_XLS416B	0x4400
+#define PRID_IMP_NETLOGIC_XLS412B	0x4c00
+#define PRID_IMP_NETLOGIC_XLS408B	0x4e00
+#define PRID_IMP_NETLOGIC_XLS404B	0x4f00
+
+/*
  * Definitions for 7:0 on legacy processors
  */
 
@@ -234,6 +260,7 @@ enum cpu_type_enum {
 	 */
 	CPU_5KC, CPU_20KC, CPU_25KF, CPU_SB1, CPU_SB1A, CPU_LOONGSON2,
 	CPU_CAVIUM_OCTEON, CPU_CAVIUM_OCTEON_PLUS, CPU_CAVIUM_OCTEON2,
+	CPU_XLR,
 
 	CPU_LAST
 };

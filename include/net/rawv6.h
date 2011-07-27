@@ -1,8 +1,6 @@
 #ifndef _NET_RAWV6_H
 #define _NET_RAWV6_H
 
-#ifdef __KERNEL__
-
 #include <net/protocol.h>
 
 void raw6_icmp_error(struct sk_buff *, int nexthdr,
@@ -17,8 +15,6 @@ int rawv6_mh_filter_register(int (*filter)(struct sock *sock,
 					   struct sk_buff *skb));
 int rawv6_mh_filter_unregister(int (*filter)(struct sock *sock,
 					     struct sk_buff *skb));
-#endif
-
 #endif
 
 #endif

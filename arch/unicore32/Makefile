@@ -40,50 +40,16 @@ core-y			+= arch/unicore32/mm/
 
 libs-y			+= arch/unicore32/lib/
 
-ASM_GENERATED_DIR	:= $(srctree)/arch/unicore32/include/generated
-LINUXINCLUDE		+= -I$(ASM_GENERATED_DIR)
-
-ASM_GENERIC_HEADERS	:= atomic.h auxvec.h
-ASM_GENERIC_HEADERS	+= bitsperlong.h bug.h bugs.h
-ASM_GENERIC_HEADERS	+= cputime.h current.h
-ASM_GENERIC_HEADERS	+= device.h div64.h
-ASM_GENERIC_HEADERS	+= emergency-restart.h errno.h
-ASM_GENERIC_HEADERS	+= fb.h fcntl.h ftrace.h futex.h
-ASM_GENERIC_HEADERS	+= hardirq.h hw_irq.h
-ASM_GENERIC_HEADERS	+= ioctl.h ioctls.h ipcbuf.h irq_regs.h
-ASM_GENERIC_HEADERS	+= kdebug.h kmap_types.h
-ASM_GENERIC_HEADERS	+= local.h
-ASM_GENERIC_HEADERS	+= mman.h module.h msgbuf.h
-ASM_GENERIC_HEADERS	+= param.h parport.h percpu.h poll.h posix_types.h
-ASM_GENERIC_HEADERS	+= resource.h
-ASM_GENERIC_HEADERS	+= scatterlist.h sections.h segment.h sembuf.h serial.h
-ASM_GENERIC_HEADERS	+= setup.h shmbuf.h shmparam.h
-ASM_GENERIC_HEADERS	+= siginfo.h signal.h sizes.h
-ASM_GENERIC_HEADERS	+= socket.h sockios.h stat.h statfs.h swab.h syscalls.h
-ASM_GENERIC_HEADERS	+= termbits.h termios.h topology.h types.h
-ASM_GENERIC_HEADERS	+= ucontext.h unaligned.h user.h
-ASM_GENERIC_HEADERS	+= vga.h
-ASM_GENERIC_HEADERS	+= xor.h
-
-archprepare:
-ifneq ($(ASM_GENERATED_DIR), $(wildcard $(ASM_GENERATED_DIR)))
-	$(Q)mkdir -p $(ASM_GENERATED_DIR)/asm
-	$(Q)$(foreach a, $(ASM_GENERIC_HEADERS),	\
-		echo '#include <asm-generic/$a>'	\
-			> $(ASM_GENERATED_DIR)/asm/$a; )
-endif
-
 boot			:= arch/unicore32/boot
 
-# Default target when executing plain make
+# Default defconfig and target when executing plain make
+KBUILD_DEFCONFIG	:= $(ARCH)_defconfig
 KBUILD_IMAGE		:= zImage
 
 all:	$(KBUILD_IMAGE)
 
 zImage Image uImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
-
-MRPROPER_DIRS		+= $(ASM_GENERATED_DIR)
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)

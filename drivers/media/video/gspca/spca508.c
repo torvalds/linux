@@ -1375,7 +1375,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
-	int data1, data2;
 	const u16 (*init_data)[2];
 	static const u16 (*(init_data_tb[]))[2] = {
 		spca508_vista_init_data,	/* CreativeVista 0 */
@@ -1385,6 +1384,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		spca508cs110_init_data,		/* MicroInnovationIC200 4 */
 		spca508_init_data,		/* ViewQuestVQ110 5 */
 	};
+
+#ifdef GSPCA_DEBUG
+	int data1, data2;
 
 	/* Read from global register the USB product and vendor IDs, just to
 	 * prove that we can communicate with the device.  This works, which
@@ -1400,6 +1402,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	data1 = reg_read(gspca_dev, 0x8621);
 	PDEBUG(D_PROBE, "Window 1 average luminance: %d", data1);
+#endif
 
 	cam = &gspca_dev->cam;
 	cam->cam_mode = sif_mode;

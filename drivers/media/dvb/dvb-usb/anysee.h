@@ -57,9 +57,28 @@ enum cmd {
 };
 
 struct anysee_state {
-	u8 tuner;
+	u8 hw; /* PCB ID */
 	u8 seq;
 };
+
+#define ANYSEE_HW_02     2 /* E30 */
+#define ANYSEE_HW_507CD  6 /* E30 Plus */
+#define ANYSEE_HW_507DC 10 /* E30 C Plus */
+#define ANYSEE_HW_507SI 11 /* E30 S2 Plus */
+#define ANYSEE_HW_507FA 15 /* E30 Combo Plus / E30 C Plus */
+#define ANYSEE_HW_508TC 18 /* E7 TC */
+#define ANYSEE_HW_508S2 19 /* E7 S2 */
+
+#define REG_IOA       0x80 /* Port A (bit addressable) */
+#define REG_IOB       0x90 /* Port B (bit addressable) */
+#define REG_IOC       0xa0 /* Port C (bit addressable) */
+#define REG_IOD       0xb0 /* Port D (bit addressable) */
+#define REG_IOE       0xb1 /* Port E (NOT bit addressable) */
+#define REG_OEA       0xb2 /* Port A Output Enable */
+#define REG_OEB       0xb3 /* Port B Output Enable */
+#define REG_OEC       0xb4 /* Port C Output Enable */
+#define REG_OED       0xb5 /* Port D Output Enable */
+#define REG_OEE       0xb6 /* Port E Output Enable */
 
 #endif
 
@@ -136,7 +155,7 @@ General reply packet(s) are always used if not own reply defined.
 ----------------------------------------------------------------------------
 |    04 | 0x00
 ----------------------------------------------------------------------------
-|    05 | 0x01
+|    05 | data length
 ----------------------------------------------------------------------------
 | 06-59 | don't care
 ----------------------------------------------------------------------------

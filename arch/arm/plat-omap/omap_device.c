@@ -84,6 +84,7 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
+#include <linux/pm_runtime.h>
 
 #include <plat/omap_device.h>
 #include <plat/omap_hwmod.h>
@@ -536,6 +537,42 @@ int omap_early_device_register(struct omap_device *od)
 	return 0;
 }
 
+static int _od_runtime_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	int ret;
+
+	ret = pm_generic_runtime_suspend(dev);
+
+	if (!ret)
+		omap_device_idle(pdev);
+
+	return ret;
+}
+
+static int _od_runtime_idle(struct device *dev)
+{
+	return pm_generic_runtime_idle(dev);
+}
+
+static int _od_runtime_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+
+	omap_device_enable(pdev);
+
+	return pm_generic_runtime_resume(dev);
+}
+
+static struct dev_power_domain omap_device_power_domain = {
+	.ops = {
+		.runtime_suspend = _od_runtime_suspend,
+		.runtime_idle = _od_runtime_idle,
+		.runtime_resume = _od_runtime_resume,
+		USE_PLATFORM_PM_SLEEP_OPS
+	}
+};
+
 /**
  * omap_device_register - register an omap_device with one omap_hwmod
  * @od: struct omap_device * to register
@@ -549,6 +586,7 @@ int omap_device_register(struct omap_device *od)
 	pr_debug("omap_device: %s: registering\n", od->pdev.name);
 
 	od->pdev.dev.parent = &omap_device_parent;
+	od->pdev.dev.pwr_domain = &omap_device_power_domain;
 	return platform_device_register(&od->pdev);
 }
 

@@ -52,7 +52,7 @@
 
 static unsigned int verbose;
 module_param(verbose, int, 0644);
-MODULE_PARM_DESC(verbose, "verbose startup messages, default is 1 (yes)");
+MODULE_PARM_DESC(verbose, "verbose startup messages, default is 0 (no)");
 
 static int devs;
 

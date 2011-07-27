@@ -407,13 +407,16 @@ static inline void account_sbals(struct qdio_q *q, int count)
 	q->q_stats.nr_sbals[pos]++;
 }
 
-static void announce_buffer_error(struct qdio_q *q, int count)
+static void process_buffer_error(struct qdio_q *q, int count)
 {
+	unsigned char state = (q->is_input_q) ? SLSB_P_INPUT_NOT_INIT :
+					SLSB_P_OUTPUT_NOT_INIT;
+
 	q->qdio_error |= QDIO_ERROR_SLSB_STATE;
 
 	/* special handling for no target buffer empty */
 	if ((!q->is_input_q &&
-	    (q->sbal[q->first_to_check]->element[15].flags & 0xff) == 0x10)) {
+	    (q->sbal[q->first_to_check]->element[15].sflags) == 0x10)) {
 		qperf_inc(q, target_full);
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "OUTFULL FTC:%02x",
 			      q->first_to_check);
@@ -424,8 +427,14 @@ static void announce_buffer_error(struct qdio_q *q, int count)
 	DBF_ERROR((q->is_input_q) ? "IN:%2d" : "OUT:%2d", q->nr);
 	DBF_ERROR("FTC:%3d C:%3d", q->first_to_check, count);
 	DBF_ERROR("F14:%2x F15:%2x",
-		  q->sbal[q->first_to_check]->element[14].flags & 0xff,
-		  q->sbal[q->first_to_check]->element[15].flags & 0xff);
+		  q->sbal[q->first_to_check]->element[14].sflags,
+		  q->sbal[q->first_to_check]->element[15].sflags);
+
+	/*
+	 * Interrupts may be avoided as long as the error is present
+	 * so change the buffer state immediately to avoid starvation.
+	 */
+	set_buf_states(q, q->first_to_check, state, count);
 }
 
 static inline void inbound_primed(struct qdio_q *q, int count)
@@ -506,8 +515,7 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 			account_sbals(q, count);
 		break;
 	case SLSB_P_INPUT_ERROR:
-		announce_buffer_error(q, count);
-		/* process the buffer, the upper layer will take care of it */
+		process_buffer_error(q, count);
 		q->first_to_check = add_buf(q->first_to_check, count);
 		atomic_sub(count, &q->nr_buf_used);
 		if (q->irq_ptr->perf_stat_enabled)
@@ -677,8 +685,7 @@ static int get_outbound_buffer_frontier(struct qdio_q *q)
 			account_sbals(q, count);
 		break;
 	case SLSB_P_OUTPUT_ERROR:
-		announce_buffer_error(q, count);
-		/* process the buffer, the upper layer will take care of it */
+		process_buffer_error(q, count);
 		q->first_to_check = add_buf(q->first_to_check, count);
 		atomic_sub(count, &q->nr_buf_used);
 		if (q->irq_ptr->perf_stat_enabled)
@@ -1439,7 +1446,7 @@ set:
 static int handle_outbound(struct qdio_q *q, unsigned int callflags,
 			   int bufnr, int count)
 {
-	unsigned char state;
+	unsigned char state = 0;
 	int used, rc = 0;
 
 	qperf_inc(q, outbound_call);

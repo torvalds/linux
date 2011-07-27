@@ -55,6 +55,8 @@ static u8
 acpi_ev_has_default_handler(struct acpi_namespace_node *node,
 			    acpi_adr_space_type space_id);
 
+static void acpi_ev_orphan_ec_reg_method(void);
+
 static acpi_status
 acpi_ev_reg_run(acpi_handle obj_handle,
 		u32 level, void *context, void **return_value);
@@ -561,7 +563,9 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 
 			/* Now stop region accesses by executing the _REG method */
 
-			status = acpi_ev_execute_reg_method(region_obj, 0);
+			status =
+			    acpi_ev_execute_reg_method(region_obj,
+						       ACPI_REG_DISCONNECT);
 			if (ACPI_FAILURE(status)) {
 				ACPI_EXCEPTION((AE_INFO, status,
 						"from region _REG, [%s]",
@@ -1062,6 +1066,12 @@ acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
 					ACPI_NS_WALK_UNLOCK, acpi_ev_reg_run,
 					NULL, &space_id, NULL);
 
+	/* Special case for EC: handle "orphan" _REG methods with no region */
+
+	if (space_id == ACPI_ADR_SPACE_EC) {
+		acpi_ev_orphan_ec_reg_method();
+	}
+
 	return_ACPI_STATUS(status);
 }
 
@@ -1120,6 +1130,113 @@ acpi_ev_reg_run(acpi_handle obj_handle,
 		return (AE_OK);
 	}
 
-	status = acpi_ev_execute_reg_method(obj_desc, 1);
+	status = acpi_ev_execute_reg_method(obj_desc, ACPI_REG_CONNECT);
 	return (status);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ev_orphan_ec_reg_method
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Execute an "orphan" _REG method that appears under the EC
+ *              device. This is a _REG method that has no corresponding region
+ *              within the EC device scope. The orphan _REG method appears to
+ *              have been enabled by the description of the ECDT in the ACPI
+ *              specification: "The availability of the region space can be
+ *              detected by providing a _REG method object underneath the
+ *              Embedded Controller device."
+ *
+ *              To quickly access the EC device, we use the EC_ID that appears
+ *              within the ECDT. Otherwise, we would need to perform a time-
+ *              consuming namespace walk, executing _HID methods to find the
+ *              EC device.
+ *
+ ******************************************************************************/
+
+static void acpi_ev_orphan_ec_reg_method(void)
+{
+	struct acpi_table_ecdt *table;
+	acpi_status status;
+	struct acpi_object_list args;
+	union acpi_object objects[2];
+	struct acpi_namespace_node *ec_device_node;
+	struct acpi_namespace_node *reg_method;
+	struct acpi_namespace_node *next_node;
+
+	ACPI_FUNCTION_TRACE(ev_orphan_ec_reg_method);
+
+	/* Get the ECDT (if present in system) */
+
+	status = acpi_get_table(ACPI_SIG_ECDT, 0,
+				ACPI_CAST_INDIRECT_PTR(struct acpi_table_header,
+						       &table));
+	if (ACPI_FAILURE(status)) {
+		return_VOID;
+	}
+
+	/* We need a valid EC_ID string */
+
+	if (!(*table->id)) {
+		return_VOID;
+	}
+
+	/* Namespace is currently locked, must release */
+
+	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+
+	/* Get a handle to the EC device referenced in the ECDT */
+
+	status = acpi_get_handle(NULL,
+				 ACPI_CAST_PTR(char, table->id),
+				 ACPI_CAST_PTR(acpi_handle, &ec_device_node));
+	if (ACPI_FAILURE(status)) {
+		goto exit;
+	}
+
+	/* Get a handle to a _REG method immediately under the EC device */
+
+	status = acpi_get_handle(ec_device_node,
+				 METHOD_NAME__REG, ACPI_CAST_PTR(acpi_handle,
+								 &reg_method));
+	if (ACPI_FAILURE(status)) {
+		goto exit;
+	}
+
+	/*
+	 * Execute the _REG method only if there is no Operation Region in
+	 * this scope with the Embedded Controller space ID. Otherwise, it
+	 * will already have been executed. Note, this allows for Regions
+	 * with other space IDs to be present; but the code below will then
+	 * execute the _REG method with the EC space ID argument.
+	 */
+	next_node = acpi_ns_get_next_node(ec_device_node, NULL);
+	while (next_node) {
+		if ((next_node->type == ACPI_TYPE_REGION) &&
+		    (next_node->object) &&
+		    (next_node->object->region.space_id == ACPI_ADR_SPACE_EC)) {
+			goto exit;	/* Do not execute _REG */
+		}
+		next_node = acpi_ns_get_next_node(ec_device_node, next_node);
+	}
+
+	/* Evaluate the _REG(EC,Connect) method */
+
+	args.count = 2;
+	args.pointer = objects;
+	objects[0].type = ACPI_TYPE_INTEGER;
+	objects[0].integer.value = ACPI_ADR_SPACE_EC;
+	objects[1].type = ACPI_TYPE_INTEGER;
+	objects[1].integer.value = ACPI_REG_CONNECT;
+
+	status = acpi_evaluate_object(reg_method, NULL, &args, NULL);
+
+      exit:
+	/* We ignore all errors from above, don't care */
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
+	return_VOID;
 }

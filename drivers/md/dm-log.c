@@ -449,8 +449,7 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 
 		lc->io_req.mem.type = DM_IO_VMA;
 		lc->io_req.notify.fn = NULL;
-		lc->io_req.client = dm_io_client_create(dm_div_up(buf_size,
-								   PAGE_SIZE));
+		lc->io_req.client = dm_io_client_create();
 		if (IS_ERR(lc->io_req.client)) {
 			r = PTR_ERR(lc->io_req.client);
 			DMWARN("couldn't allocate disk io client");

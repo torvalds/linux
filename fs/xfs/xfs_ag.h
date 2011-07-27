@@ -187,7 +187,9 @@ struct xfs_busy_extent {
 	xfs_agnumber_t	agno;
 	xfs_agblock_t	bno;
 	xfs_extlen_t	length;
-	xlog_tid_t	tid;		/* transaction that created this */
+	unsigned int	flags;
+#define XFS_ALLOC_BUSY_DISCARDED	0x01	/* undergoing a discard op. */
+#define XFS_ALLOC_BUSY_SKIP_DISCARD	0x02	/* do not discard */
 };
 
 /*

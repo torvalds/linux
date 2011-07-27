@@ -28,8 +28,6 @@
 #include <linux/sysdev.h>
 #include <linux/interrupt.h>
 #include <linux/amba/bus.h>
-#include <linux/clocksource.h>
-#include <linux/clockchips.h>
 #include <linux/clkdev.h>
 
 #include <mach/csp/mm_addr.h>
@@ -37,6 +35,7 @@
 #include <linux/io.h>
 #include <asm/irq.h>
 #include <asm/hardware/arm_timer.h>
+#include <asm/hardware/timer-sp.h>
 #include <asm/mach-types.h>
 
 #include <asm/mach/arch.h>
@@ -97,6 +96,35 @@ static struct clk dummy_apb_pclk = {
 	.mode = CLK_MODE_XTAL,
 };
 
+/* Timer 0 - 25 MHz, Timer3 at bus clock rate, typically  150-166 MHz */
+#if defined(CONFIG_ARCH_FPGA11107)
+/* fpga cpu/bus are currently 30 times slower so scale frequency as well to */
+/* slow down Linux's sense of time */
+#define TIMER0_FREQUENCY_MHZ  (tmrHw_LOW_FREQUENCY_MHZ * 30)
+#define TIMER1_FREQUENCY_MHZ  (tmrHw_LOW_FREQUENCY_MHZ * 30)
+#define TIMER3_FREQUENCY_MHZ  (tmrHw_HIGH_FREQUENCY_MHZ * 30)
+#define TIMER3_FREQUENCY_KHZ   (tmrHw_HIGH_FREQUENCY_HZ / 1000 * 30)
+#else
+#define TIMER0_FREQUENCY_MHZ  tmrHw_LOW_FREQUENCY_MHZ
+#define TIMER1_FREQUENCY_MHZ  tmrHw_LOW_FREQUENCY_MHZ
+#define TIMER3_FREQUENCY_MHZ  tmrHw_HIGH_FREQUENCY_MHZ
+#define TIMER3_FREQUENCY_KHZ  (tmrHw_HIGH_FREQUENCY_HZ / 1000)
+#endif
+
+static struct clk sp804_timer012_clk = {
+	.name = "sp804-timer-0,1,2",
+	.type = CLK_TYPE_PRIMARY,
+	.mode = CLK_MODE_XTAL,
+	.rate_hz = TIMER1_FREQUENCY_MHZ * 1000000,
+};
+
+static struct clk sp804_timer3_clk = {
+	.name = "sp804-timer-3",
+	.type = CLK_TYPE_PRIMARY,
+	.mode = CLK_MODE_XTAL,
+	.rate_hz = TIMER3_FREQUENCY_KHZ * 1000,
+};
+
 static struct clk_lookup lookups[] = {
 	{			/* Bus clock */
 		.con_id = "apb_pclk",
@@ -107,6 +135,18 @@ static struct clk_lookup lookups[] = {
 	}, {			/* UART1 */
 		.dev_id = "uartb",
 		.clk = &uart_clk,
+	}, {			/* SP804 timer 0 */
+		.dev_id = "sp804",
+		.con_id = "timer0",
+		.clk = &sp804_timer012_clk,
+	}, {			/* SP804 timer 1 */
+		.dev_id = "sp804",
+		.con_id = "timer1",
+		.clk = &sp804_timer012_clk,
+	}, {			/* SP804 timer 3 */
+		.dev_id = "sp804",
+		.con_id = "timer3",
+		.clk = &sp804_timer3_clk,
 	}
 };
 
@@ -151,8 +191,6 @@ void __init bcmring_amba_init(void)
 
 	chipcHw_busInterfaceClockEnable(bus_clock);
 
-	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
-
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];
 		amba_device_register(d, &iomem_resource);
@@ -162,170 +200,18 @@ void __init bcmring_amba_init(void)
 /*
  * Where is the timer (VA)?
  */
-#define TIMER0_VA_BASE		 MM_IO_BASE_TMR
-#define TIMER1_VA_BASE		(MM_IO_BASE_TMR + 0x20)
-#define TIMER2_VA_BASE		(MM_IO_BASE_TMR + 0x40)
-#define TIMER3_VA_BASE          (MM_IO_BASE_TMR + 0x60)
-
-/* Timer 0 - 25 MHz, Timer3 at bus clock rate, typically  150-166 MHz */
-#if defined(CONFIG_ARCH_FPGA11107)
-/* fpga cpu/bus are currently 30 times slower so scale frequency as well to */
-/* slow down Linux's sense of time */
-#define TIMER0_FREQUENCY_MHZ  (tmrHw_LOW_FREQUENCY_MHZ * 30)
-#define TIMER1_FREQUENCY_MHZ  (tmrHw_LOW_FREQUENCY_MHZ * 30)
-#define TIMER3_FREQUENCY_MHZ  (tmrHw_HIGH_FREQUENCY_MHZ * 30)
-#define TIMER3_FREQUENCY_KHZ   (tmrHw_HIGH_FREQUENCY_HZ / 1000 * 30)
-#else
-#define TIMER0_FREQUENCY_MHZ  tmrHw_LOW_FREQUENCY_MHZ
-#define TIMER1_FREQUENCY_MHZ  tmrHw_LOW_FREQUENCY_MHZ
-#define TIMER3_FREQUENCY_MHZ  tmrHw_HIGH_FREQUENCY_MHZ
-#define TIMER3_FREQUENCY_KHZ  (tmrHw_HIGH_FREQUENCY_HZ / 1000)
-#endif
-
-#define TICKS_PER_uSEC     TIMER0_FREQUENCY_MHZ
-
-/*
- *  These are useconds NOT ticks.
- *
- */
-#define mSEC_1                          1000
-#define mSEC_5                          (mSEC_1 * 5)
-#define mSEC_10                         (mSEC_1 * 10)
-#define mSEC_25                         (mSEC_1 * 25)
-#define SEC_1                           (mSEC_1 * 1000)
-
-/*
- * How long is the timer interval?
- */
-#define TIMER_INTERVAL	(TICKS_PER_uSEC * mSEC_10)
-#if TIMER_INTERVAL >= 0x100000
-#define TIMER_RELOAD	(TIMER_INTERVAL >> 8)
-#define TIMER_DIVISOR	(TIMER_CTRL_DIV256)
-#define TICKS2USECS(x)	(256 * (x) / TICKS_PER_uSEC)
-#elif TIMER_INTERVAL >= 0x10000
-#define TIMER_RELOAD	(TIMER_INTERVAL >> 4)	/* Divide by 16 */
-#define TIMER_DIVISOR	(TIMER_CTRL_DIV16)
-#define TICKS2USECS(x)	(16 * (x) / TICKS_PER_uSEC)
-#else
-#define TIMER_RELOAD	(TIMER_INTERVAL)
-#define TIMER_DIVISOR	(TIMER_CTRL_DIV1)
-#define TICKS2USECS(x)	((x) / TICKS_PER_uSEC)
-#endif
-
-static void timer_set_mode(enum clock_event_mode mode,
-			   struct clock_event_device *clk)
-{
-	unsigned long ctrl;
-
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		writel(TIMER_RELOAD, TIMER0_VA_BASE + TIMER_LOAD);
-
-		ctrl = TIMER_CTRL_PERIODIC;
-		ctrl |=
-		    TIMER_DIVISOR | TIMER_CTRL_32BIT | TIMER_CTRL_IE |
-		    TIMER_CTRL_ENABLE;
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		/* period set, and timer enabled in 'next_event' hook */
-		ctrl = TIMER_CTRL_ONESHOT;
-		ctrl |= TIMER_DIVISOR | TIMER_CTRL_32BIT | TIMER_CTRL_IE;
-		break;
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	default:
-		ctrl = 0;
-	}
-
-	writel(ctrl, TIMER0_VA_BASE + TIMER_CTRL);
-}
-
-static int timer_set_next_event(unsigned long evt,
-				struct clock_event_device *unused)
-{
-	unsigned long ctrl = readl(TIMER0_VA_BASE + TIMER_CTRL);
-
-	writel(evt, TIMER0_VA_BASE + TIMER_LOAD);
-	writel(ctrl | TIMER_CTRL_ENABLE, TIMER0_VA_BASE + TIMER_CTRL);
-
-	return 0;
-}
-
-static struct clock_event_device timer0_clockevent = {
-	.name = "timer0",
-	.shift = 32,
-	.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.set_mode = timer_set_mode,
-	.set_next_event = timer_set_next_event,
-};
-
-/*
- * IRQ handler for the timer
- */
-static irqreturn_t bcmring_timer_interrupt(int irq, void *dev_id)
-{
-	struct clock_event_device *evt = &timer0_clockevent;
-
-	writel(1, TIMER0_VA_BASE + TIMER_INTCLR);
-
-	evt->event_handler(evt);
-
-	return IRQ_HANDLED;
-}
-
-static struct irqaction bcmring_timer_irq = {
-	.name = "bcmring Timer Tick",
-	.flags = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
-	.handler = bcmring_timer_interrupt,
-};
-
-static cycle_t bcmring_get_cycles_timer1(struct clocksource *cs)
-{
-	return ~readl(TIMER1_VA_BASE + TIMER_VALUE);
-}
-
-static cycle_t bcmring_get_cycles_timer3(struct clocksource *cs)
-{
-	return ~readl(TIMER3_VA_BASE + TIMER_VALUE);
-}
-
-static struct clocksource clocksource_bcmring_timer1 = {
-	.name = "timer1",
-	.rating = 200,
-	.read = bcmring_get_cycles_timer1,
-	.mask = CLOCKSOURCE_MASK(32),
-	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
-static struct clocksource clocksource_bcmring_timer3 = {
-	.name = "timer3",
-	.rating = 100,
-	.read = bcmring_get_cycles_timer3,
-	.mask = CLOCKSOURCE_MASK(32),
-	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
-};
+#define TIMER0_VA_BASE		((void __iomem *)MM_IO_BASE_TMR)
+#define TIMER1_VA_BASE		((void __iomem *)(MM_IO_BASE_TMR + 0x20))
+#define TIMER2_VA_BASE		((void __iomem *)(MM_IO_BASE_TMR + 0x40))
+#define TIMER3_VA_BASE          ((void __iomem *)(MM_IO_BASE_TMR + 0x60))
 
 static int __init bcmring_clocksource_init(void)
 {
 	/* setup timer1 as free-running clocksource */
-	writel(0, TIMER1_VA_BASE + TIMER_CTRL);
-	writel(0xffffffff, TIMER1_VA_BASE + TIMER_LOAD);
-	writel(0xffffffff, TIMER1_VA_BASE + TIMER_VALUE);
-	writel(TIMER_CTRL_32BIT | TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC,
-	       TIMER1_VA_BASE + TIMER_CTRL);
-
-	clocksource_register_khz(&clocksource_bcmring_timer1,
-				 TIMER1_FREQUENCY_MHZ * 1000);
+	sp804_clocksource_init(TIMER1_VA_BASE, "timer1");
 
 	/* setup timer3 as free-running clocksource */
-	writel(0, TIMER3_VA_BASE + TIMER_CTRL);
-	writel(0xffffffff, TIMER3_VA_BASE + TIMER_LOAD);
-	writel(0xffffffff, TIMER3_VA_BASE + TIMER_VALUE);
-	writel(TIMER_CTRL_32BIT | TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC,
-	       TIMER3_VA_BASE + TIMER_CTRL);
-
-	clocksource_register_khz(&clocksource_bcmring_timer3,
-				 TIMER3_FREQUENCY_KHZ);
+	sp804_clocksource_init(TIMER3_VA_BASE, "timer3");
 
 	return 0;
 }
@@ -347,21 +233,16 @@ void __init bcmring_init_timer(void)
 	/*
 	 * Make irqs happen for the system timer
 	 */
-	setup_irq(IRQ_TIMER0, &bcmring_timer_irq);
-
 	bcmring_clocksource_init();
 
-	timer0_clockevent.mult =
-	    div_sc(1000000, NSEC_PER_SEC, timer0_clockevent.shift);
-	timer0_clockevent.max_delta_ns =
-	    clockevent_delta2ns(0xffffffff, &timer0_clockevent);
-	timer0_clockevent.min_delta_ns =
-	    clockevent_delta2ns(0xf, &timer0_clockevent);
-
-	timer0_clockevent.cpumask = cpumask_of(0);
-	clockevents_register_device(&timer0_clockevent);
+	sp804_clockevents_register(TIMER0_VA_BASE, IRQ_TIMER0, "timer0");
 }
 
 struct sys_timer bcmring_timer = {
 	.init = bcmring_init_timer,
 };
+
+void __init bcmring_init_early(void)
+{
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
+}

@@ -1,7 +1,7 @@
 /*
  * ip22-mc.c: Routines for manipulating SGI Memory Controller.
  *
- * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
+ * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1999 Andrew R. Baker (andrewb@uab.edu) - Indigo2 changes
  * Copyright (C) 2003 Ladislav Michl  (ladis@linux-mips.org)
  * Copyright (C) 2004 Peter Fuerst    (pf@net.alphadv.de) - IP28

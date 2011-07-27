@@ -97,15 +97,9 @@ struct port_info {
 	u16 rss_size;			/* size of VI's RSS table slice */
 	u8 pidx;			/* index into adapter port[] */
 	u8 port_id;			/* physical port ID */
-	u8 rx_offload;			/* CSO, etc. */
 	u8 nqsets;			/* # of "Queue Sets" */
 	u8 first_qset;			/* index of first "Queue Set" */
 	struct link_config link_cfg;	/* physical port configuration */
-};
-
-/* port_info.rx_offload flags */
-enum {
-	RX_CSO = 1 << 0,
 };
 
 /*

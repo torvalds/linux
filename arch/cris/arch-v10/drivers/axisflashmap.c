@@ -372,7 +372,7 @@ static int __init init_axis_flash(void)
 #ifdef CONFIG_ETRAX_AXISFLASHMAP_MTD0WHOLE
 	if (mymtd) {
 		main_partition.size = mymtd->size;
-		err = add_mtd_partitions(mymtd, &main_partition, 1);
+		err = mtd_device_register(mymtd, &main_partition, 1);
 		if (err)
 			panic("axisflashmap: Could not initialize "
 			      "partition for whole main mtd device!\n");
@@ -382,10 +382,12 @@ static int __init init_axis_flash(void)
         if (mymtd) {
 		if (use_default_ptable) {
 			printk(KERN_INFO " Using default partition table.\n");
-			err = add_mtd_partitions(mymtd, axis_default_partitions,
-						 NUM_DEFAULT_PARTITIONS);
+			err = mtd_device_register(mymtd,
+						  axis_default_partitions,
+						  NUM_DEFAULT_PARTITIONS);
 		} else {
-			err = add_mtd_partitions(mymtd, axis_partitions, pidx);
+			err = mtd_device_register(mymtd, axis_partitions,
+						  pidx);
 		}
 
 		if (err)

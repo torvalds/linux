@@ -14,9 +14,6 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 
-#define dprintk(msg...) \
-	cpufreq_debug_printk(CPUFREQ_DEBUG_CORE, "freq-table", msg)
-
 /*********************************************************************
  *                     FREQUENCY TABLE HELPERS                       *
  *********************************************************************/
@@ -31,11 +28,11 @@ int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
 	for (i = 0; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
 		unsigned int freq = table[i].frequency;
 		if (freq == CPUFREQ_ENTRY_INVALID) {
-			dprintk("table entry %u is invalid, skipping\n", i);
+			pr_debug("table entry %u is invalid, skipping\n", i);
 
 			continue;
 		}
-		dprintk("table entry %u: %u kHz, %u index\n",
+		pr_debug("table entry %u: %u kHz, %u index\n",
 					i, freq, table[i].index);
 		if (freq < min_freq)
 			min_freq = freq;
@@ -61,7 +58,7 @@ int cpufreq_frequency_table_verify(struct cpufreq_policy *policy,
 	unsigned int i;
 	unsigned int count = 0;
 
-	dprintk("request for verification of policy (%u - %u kHz) for cpu %u\n",
+	pr_debug("request for verification of policy (%u - %u kHz) for cpu %u\n",
 					policy->min, policy->max, policy->cpu);
 
 	if (!cpu_online(policy->cpu))
@@ -86,7 +83,7 @@ int cpufreq_frequency_table_verify(struct cpufreq_policy *policy,
 	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
 				     policy->cpuinfo.max_freq);
 
-	dprintk("verification lead to (%u - %u kHz) for cpu %u\n",
+	pr_debug("verification lead to (%u - %u kHz) for cpu %u\n",
 				policy->min, policy->max, policy->cpu);
 
 	return 0;
@@ -110,7 +107,7 @@ int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
 	};
 	unsigned int i;
 
-	dprintk("request for target %u kHz (relation: %u) for cpu %u\n",
+	pr_debug("request for target %u kHz (relation: %u) for cpu %u\n",
 					target_freq, relation, policy->cpu);
 
 	switch (relation) {
@@ -167,7 +164,7 @@ int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
 	} else
 		*index = optimal.index;
 
-	dprintk("target is %u (%u kHz, %u)\n", *index, table[*index].frequency,
+	pr_debug("target is %u (%u kHz, %u)\n", *index, table[*index].frequency,
 		table[*index].index);
 
 	return 0;
@@ -216,14 +213,14 @@ EXPORT_SYMBOL_GPL(cpufreq_freq_attr_scaling_available_freqs);
 void cpufreq_frequency_table_get_attr(struct cpufreq_frequency_table *table,
 				      unsigned int cpu)
 {
-	dprintk("setting show_table for cpu %u to %p\n", cpu, table);
+	pr_debug("setting show_table for cpu %u to %p\n", cpu, table);
 	per_cpu(cpufreq_show_table, cpu) = table;
 }
 EXPORT_SYMBOL_GPL(cpufreq_frequency_table_get_attr);
 
 void cpufreq_frequency_table_put_attr(unsigned int cpu)
 {
-	dprintk("clearing show_table for cpu %u\n", cpu);
+	pr_debug("clearing show_table for cpu %u\n", cpu);
 	per_cpu(cpufreq_show_table, cpu) = NULL;
 }
 EXPORT_SYMBOL_GPL(cpufreq_frequency_table_put_attr);

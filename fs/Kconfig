@@ -47,7 +47,7 @@ config FS_POSIX_ACL
 	def_bool n
 
 config EXPORTFS
-	bool
+	tristate
 
 config FILE_LOCKING
 	bool "Enable POSIX file locking API" if EXPERT
@@ -124,6 +124,7 @@ config TMPFS
 config TMPFS_POSIX_ACL
 	bool "Tmpfs POSIX Access Control Lists"
 	depends on TMPFS
+	select TMPFS_XATTR
 	select GENERIC_ACL
 	help
 	  POSIX Access Control Lists (ACLs) support permissions for users and
@@ -133,6 +134,22 @@ config TMPFS_POSIX_ACL
 	  Linux website <http://acl.bestbits.at/>.
 
 	  If you don't know what Access Control Lists are, say N.
+
+config TMPFS_XATTR
+	bool "Tmpfs extended attributes"
+	depends on TMPFS
+	default n
+	help
+	  Extended attributes are name:value pairs associated with inodes by
+	  the kernel or by users (see the attr(5) manual page, or visit
+	  <http://acl.bestbits.at/> for details).
+
+	  Currently this enables support for the trusted.* and
+	  security.* namespaces.
+
+	  You need this for POSIX ACL support on tmpfs.
+
+	  If unsure, say N.
 
 config HUGETLBFS
 	bool "HugeTLB file system support"

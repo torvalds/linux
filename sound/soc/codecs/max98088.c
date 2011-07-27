@@ -656,8 +656,6 @@ static const struct soc_enum max98088_exmode_enum =
                              ARRAY_SIZE(max98088_exmode_texts),
                              max98088_exmode_texts,
                              max98088_exmode_values);
-static const struct snd_kcontrol_new max98088_exmode_controls =
-       SOC_DAPM_VALUE_ENUM("Route", max98088_exmode_enum);
 
 static const char *max98088_ex_thresh[] = { /* volts PP */
        "0.6", "1.2", "1.8", "2.4", "3.0", "3.6", "4.2", "4.8"};
@@ -783,6 +781,7 @@ static const struct snd_kcontrol_new max98088_snd_controls[] = {
        SOC_SINGLE("EQ1 Switch", M98088_REG_49_CFG_LEVEL, 0, 1, 0),
        SOC_SINGLE("EQ2 Switch", M98088_REG_49_CFG_LEVEL, 1, 1, 0),
 
+       SOC_ENUM("EX Limiter Mode", max98088_exmode_enum),
        SOC_ENUM("EX Limiter Threshold", max98088_ex_thresh_enum),
 
        SOC_ENUM("DAI1 Filter Mode", max98088_filter_mode_enum),
@@ -808,10 +807,10 @@ static const struct snd_kcontrol_new max98088_snd_controls[] = {
 
 /* Left speaker mixer switch */
 static const struct snd_kcontrol_new max98088_left_speaker_mixer_controls[] = {
-       SOC_DAPM_SINGLE("Left DAC1 Switch", M98088_REG_2B_MIX_SPK_LEFT, 7, 1, 0),
-       SOC_DAPM_SINGLE("Right DAC1 Switch", M98088_REG_2B_MIX_SPK_LEFT, 0, 1, 0),
-       SOC_DAPM_SINGLE("Left DAC2 Switch", M98088_REG_2B_MIX_SPK_LEFT, 7, 1, 0),
-       SOC_DAPM_SINGLE("Right DAC2 Switch", M98088_REG_2B_MIX_SPK_LEFT, 0, 1, 0),
+       SOC_DAPM_SINGLE("Left DAC1 Switch", M98088_REG_2B_MIX_SPK_LEFT, 0, 1, 0),
+       SOC_DAPM_SINGLE("Right DAC1 Switch", M98088_REG_2B_MIX_SPK_LEFT, 7, 1, 0),
+       SOC_DAPM_SINGLE("Left DAC2 Switch", M98088_REG_2B_MIX_SPK_LEFT, 0, 1, 0),
+       SOC_DAPM_SINGLE("Right DAC2 Switch", M98088_REG_2B_MIX_SPK_LEFT, 7, 1, 0),
        SOC_DAPM_SINGLE("MIC1 Switch", M98088_REG_2B_MIX_SPK_LEFT, 5, 1, 0),
        SOC_DAPM_SINGLE("MIC2 Switch", M98088_REG_2B_MIX_SPK_LEFT, 6, 1, 0),
        SOC_DAPM_SINGLE("INA1 Switch", M98088_REG_2B_MIX_SPK_LEFT, 1, 1, 0),
@@ -836,10 +835,10 @@ static const struct snd_kcontrol_new max98088_right_speaker_mixer_controls[] = {
 
 /* Left headphone mixer switch */
 static const struct snd_kcontrol_new max98088_left_hp_mixer_controls[] = {
-       SOC_DAPM_SINGLE("Left DAC1 Switch", M98088_REG_25_MIX_HP_LEFT, 7, 1, 0),
-       SOC_DAPM_SINGLE("Right DAC1 Switch", M98088_REG_25_MIX_HP_LEFT, 0, 1, 0),
-       SOC_DAPM_SINGLE("Left DAC2 Switch", M98088_REG_25_MIX_HP_LEFT, 7, 1, 0),
-       SOC_DAPM_SINGLE("Right DAC2 Switch", M98088_REG_25_MIX_HP_LEFT, 0, 1, 0),
+       SOC_DAPM_SINGLE("Left DAC1 Switch", M98088_REG_25_MIX_HP_LEFT, 0, 1, 0),
+       SOC_DAPM_SINGLE("Right DAC1 Switch", M98088_REG_25_MIX_HP_LEFT, 7, 1, 0),
+       SOC_DAPM_SINGLE("Left DAC2 Switch", M98088_REG_25_MIX_HP_LEFT, 0, 1, 0),
+       SOC_DAPM_SINGLE("Right DAC2 Switch", M98088_REG_25_MIX_HP_LEFT, 7, 1, 0),
        SOC_DAPM_SINGLE("MIC1 Switch", M98088_REG_25_MIX_HP_LEFT, 5, 1, 0),
        SOC_DAPM_SINGLE("MIC2 Switch", M98088_REG_25_MIX_HP_LEFT, 6, 1, 0),
        SOC_DAPM_SINGLE("INA1 Switch", M98088_REG_25_MIX_HP_LEFT, 1, 1, 0),
@@ -864,10 +863,10 @@ static const struct snd_kcontrol_new max98088_right_hp_mixer_controls[] = {
 
 /* Left earpiece/receiver mixer switch */
 static const struct snd_kcontrol_new max98088_left_rec_mixer_controls[] = {
-       SOC_DAPM_SINGLE("Left DAC1 Switch", M98088_REG_28_MIX_REC_LEFT, 7, 1, 0),
-       SOC_DAPM_SINGLE("Right DAC1 Switch", M98088_REG_28_MIX_REC_LEFT, 0, 1, 0),
-       SOC_DAPM_SINGLE("Left DAC2 Switch", M98088_REG_28_MIX_REC_LEFT, 7, 1, 0),
-       SOC_DAPM_SINGLE("Right DAC2 Switch", M98088_REG_28_MIX_REC_LEFT, 0, 1, 0),
+       SOC_DAPM_SINGLE("Left DAC1 Switch", M98088_REG_28_MIX_REC_LEFT, 0, 1, 0),
+       SOC_DAPM_SINGLE("Right DAC1 Switch", M98088_REG_28_MIX_REC_LEFT, 7, 1, 0),
+       SOC_DAPM_SINGLE("Left DAC2 Switch", M98088_REG_28_MIX_REC_LEFT, 0, 1, 0),
+       SOC_DAPM_SINGLE("Right DAC2 Switch", M98088_REG_28_MIX_REC_LEFT, 7, 1, 0),
        SOC_DAPM_SINGLE("MIC1 Switch", M98088_REG_28_MIX_REC_LEFT, 5, 1, 0),
        SOC_DAPM_SINGLE("MIC2 Switch", M98088_REG_28_MIX_REC_LEFT, 6, 1, 0),
        SOC_DAPM_SINGLE("INA1 Switch", M98088_REG_28_MIX_REC_LEFT, 1, 1, 0),
@@ -1094,9 +1093,6 @@ static const struct snd_soc_dapm_widget max98088_dapm_widgets[] = {
 
        SND_SOC_DAPM_MICBIAS("MICBIAS", M98088_REG_4C_PWR_EN_IN, 3, 0),
 
-       SND_SOC_DAPM_MUX("EX Limiter Mode", SND_SOC_NOPM, 0, 0,
-               &max98088_exmode_controls),
-
        SND_SOC_DAPM_OUTPUT("HPL"),
        SND_SOC_DAPM_OUTPUT("HPR"),
        SND_SOC_DAPM_OUTPUT("SPKL"),
@@ -1112,7 +1108,7 @@ static const struct snd_soc_dapm_widget max98088_dapm_widgets[] = {
        SND_SOC_DAPM_INPUT("INB2"),
 };
 
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route max98088_audio_map[] = {
        /* Left headphone output mixer */
        {"Left HP Mixer", "Left DAC1 Switch", "DACL1"},
        {"Left HP Mixer", "Left DAC2 Switch", "DACL2"},
@@ -1225,22 +1221,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
        {"MIC1 Input", NULL, "MIC1"},
        {"MIC2 Input", NULL, "MIC2"},
 };
-
-static int max98088_add_widgets(struct snd_soc_codec *codec)
-{
-       struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-       snd_soc_dapm_new_controls(dapm, max98088_dapm_widgets,
-                                 ARRAY_SIZE(max98088_dapm_widgets));
-
-       snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
-       snd_soc_add_controls(codec, max98088_snd_controls,
-                            ARRAY_SIZE(max98088_snd_controls));
-
-       snd_soc_dapm_new_widgets(dapm);
-       return 0;
-}
 
 /* codec mclk clock divider coefficients */
 static const struct {
@@ -1586,6 +1566,36 @@ static int max98088_dai2_set_fmt(struct snd_soc_dai *codec_dai,
        return 0;
 }
 
+static int max98088_dai1_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+{
+       struct snd_soc_codec *codec = codec_dai->codec;
+       int reg;
+
+       if (mute)
+               reg = M98088_DAI_MUTE;
+       else
+               reg = 0;
+
+       snd_soc_update_bits(codec, M98088_REG_2F_LVL_DAI1_PLAY,
+                           M98088_DAI_MUTE_MASK, reg);
+       return 0;
+}
+
+static int max98088_dai2_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+{
+       struct snd_soc_codec *codec = codec_dai->codec;
+       int reg;
+
+       if (mute)
+               reg = M98088_DAI_MUTE;
+       else
+               reg = 0;
+
+       snd_soc_update_bits(codec, M98088_REG_31_LVL_DAI2_PLAY,
+                           M98088_DAI_MUTE_MASK, reg);
+       return 0;
+}
+
 static void max98088_sync_cache(struct snd_soc_codec *codec)
 {
        u16 *reg_cache = codec->reg_cache;
@@ -1647,12 +1657,14 @@ static struct snd_soc_dai_ops max98088_dai1_ops = {
        .set_sysclk = max98088_dai_set_sysclk,
        .set_fmt = max98088_dai1_set_fmt,
        .hw_params = max98088_dai1_hw_params,
+       .digital_mute = max98088_dai1_digital_mute,
 };
 
 static struct snd_soc_dai_ops max98088_dai2_ops = {
        .set_sysclk = max98088_dai_set_sysclk,
        .set_fmt = max98088_dai2_set_fmt,
        .hw_params = max98088_dai2_hw_params,
+       .digital_mute = max98088_dai2_digital_mute,
 };
 
 static struct snd_soc_dai_driver max98088_dai[] = {
@@ -2010,7 +2022,8 @@ static int max98088_probe(struct snd_soc_codec *codec)
 
        max98088_handle_pdata(codec);
 
-       max98088_add_widgets(codec);
+       snd_soc_add_controls(codec, max98088_snd_controls,
+                            ARRAY_SIZE(max98088_snd_controls));
 
 err_access:
        return ret;
@@ -2036,6 +2049,10 @@ static struct snd_soc_codec_driver soc_codec_dev_max98088 = {
        .reg_word_size = sizeof(u8),
        .reg_cache_default = max98088_reg,
        .volatile_register = max98088_volatile_register,
+	.dapm_widgets = max98088_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(max98088_dapm_widgets),
+	.dapm_routes = max98088_audio_map,
+	.num_dapm_routes = ARRAY_SIZE(max98088_audio_map),
 };
 
 static int max98088_i2c_probe(struct i2c_client *i2c,

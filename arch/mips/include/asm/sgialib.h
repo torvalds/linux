@@ -5,7 +5,7 @@
  *
  * SGI ARCS firmware interface library for the Linux kernel.
  *
- * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
+ * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * Copyright (C) 2001, 2002 Ralf Baechle (ralf@gnu.org)
  */
 #ifndef _ASM_SGIALIB_H

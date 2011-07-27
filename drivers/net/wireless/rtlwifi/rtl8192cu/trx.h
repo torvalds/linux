@@ -37,6 +37,8 @@
 #define RTL92C_SIZE_MAX_RX_BUFFER		15360   /* 8192 */
 #define RX_DRV_INFO_SIZE_UNIT			8
 
+#define RTL_AGG_ON				1
+
 enum usb_rx_agg_mode {
 	USB_RX_AGG_DISABLE,
 	USB_RX_AGG_DMA,
@@ -419,7 +421,8 @@ struct sk_buff *rtl8192c_tx_aggregate_hdl(struct ieee80211_hw *,
 void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 			  struct ieee80211_hdr *hdr, u8 *pdesc_tx,
 			  struct ieee80211_tx_info *info, struct sk_buff *skb,
-			  unsigned int queue_index);
+			  u8 queue_index,
+			  struct rtl_tcb_desc *tcb_desc);
 void rtl92cu_fill_fake_txdesc(struct ieee80211_hw *hw, u8 * pDesc,
 			      u32 buffer_len, bool bIsPsPoll);
 void rtl92cu_tx_fill_cmddesc(struct ieee80211_hw *hw,

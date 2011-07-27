@@ -497,7 +497,7 @@ static void dr_cpu_init_response(struct ds_data *resp, u64 req_num,
 	tag->num_records = ncpus;
 
 	i = 0;
-	for_each_cpu_mask(cpu, *mask) {
+	for_each_cpu(cpu, mask) {
 		ent[i].cpu = cpu;
 		ent[i].result = DR_CPU_RES_OK;
 		ent[i].stat = default_stat;
@@ -534,7 +534,7 @@ static int __cpuinit dr_cpu_configure(struct ds_info *dp,
 	int resp_len, ncpus, cpu;
 	unsigned long flags;
 
-	ncpus = cpus_weight(*mask);
+	ncpus = cpumask_weight(mask);
 	resp_len = dr_cpu_size_response(ncpus);
 	resp = kzalloc(resp_len, GFP_KERNEL);
 	if (!resp)
@@ -547,7 +547,7 @@ static int __cpuinit dr_cpu_configure(struct ds_info *dp,
 	mdesc_populate_present_mask(mask);
 	mdesc_fill_in_cpu_data(mask);
 
-	for_each_cpu_mask(cpu, *mask) {
+	for_each_cpu(cpu, mask) {
 		int err;
 
 		printk(KERN_INFO "ds-%llu: Starting cpu %d...\n",
@@ -593,7 +593,7 @@ static int dr_cpu_unconfigure(struct ds_info *dp,
 	int resp_len, ncpus, cpu;
 	unsigned long flags;
 
-	ncpus = cpus_weight(*mask);
+	ncpus = cpumask_weight(mask);
 	resp_len = dr_cpu_size_response(ncpus);
 	resp = kzalloc(resp_len, GFP_KERNEL);
 	if (!resp)
@@ -603,7 +603,7 @@ static int dr_cpu_unconfigure(struct ds_info *dp,
 			     resp_len, ncpus, mask,
 			     DR_CPU_STAT_UNCONFIGURED);
 
-	for_each_cpu_mask(cpu, *mask) {
+	for_each_cpu(cpu, mask) {
 		int err;
 
 		printk(KERN_INFO "ds-%llu: Shutting down cpu %d...\n",
@@ -649,13 +649,13 @@ static void __cpuinit dr_cpu_data(struct ds_info *dp,
 
 	purge_dups(cpu_list, tag->num_records);
 
-	cpus_clear(mask);
+	cpumask_clear(&mask);
 	for (i = 0; i < tag->num_records; i++) {
 		if (cpu_list[i] == CPU_SENTINEL)
 			continue;
 
 		if (cpu_list[i] < nr_cpu_ids)
-			cpu_set(cpu_list[i], mask);
+			cpumask_set_cpu(cpu_list[i], &mask);
 	}
 
 	if (tag->type == DR_CPU_CONFIGURE)

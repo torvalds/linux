@@ -119,7 +119,7 @@ void rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * Use the ATIM queue if appropriate and present.
 	 */
 	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM &&
-	    test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags))
+	    test_bit(REQUIRE_ATIM_QUEUE, &rt2x00dev->cap_flags))
 		qid = QID_ATIM;
 
 	queue = rt2x00queue_get_tx_queue(rt2x00dev, qid);
@@ -158,7 +158,7 @@ void rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	return;
 
  exit_fail:
-	ieee80211_stop_queue(rt2x00dev->hw, qid);
+	rt2x00queue_pause_queue(queue);
 	dev_kfree_skb_any(skb);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_tx);
@@ -411,11 +411,11 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 	 * of different types, but has no a separate filter for PS Poll frames,
 	 * FIF_CONTROL flag implies FIF_PSPOLL.
 	 */
-	if (!test_bit(DRIVER_SUPPORT_CONTROL_FILTERS, &rt2x00dev->flags)) {
+	if (!test_bit(CAPABILITY_CONTROL_FILTERS, &rt2x00dev->cap_flags)) {
 		if (*total_flags & FIF_CONTROL || *total_flags & FIF_PSPOLL)
 			*total_flags |= FIF_CONTROL | FIF_PSPOLL;
 	}
-	if (!test_bit(DRIVER_SUPPORT_CONTROL_FILTER_PSPOLL, &rt2x00dev->flags)) {
+	if (!test_bit(CAPABILITY_CONTROL_FILTER_PSPOLL, &rt2x00dev->cap_flags)) {
 		if (*total_flags & FIF_CONTROL)
 			*total_flags |= FIF_PSPOLL;
 	}
@@ -496,7 +496,7 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return 0;
-	else if (!test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags))
+	else if (!test_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags))
 		return -EOPNOTSUPP;
 	else if (key->keylen > 32)
 		return -ENOSPC;
@@ -562,7 +562,7 @@ EXPORT_SYMBOL_GPL(rt2x00mac_set_key);
 void rt2x00mac_sw_scan_start(struct ieee80211_hw *hw)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	__set_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags);
+	set_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags);
 	rt2x00link_stop_tuner(rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_sw_scan_start);
@@ -570,7 +570,7 @@ EXPORT_SYMBOL_GPL(rt2x00mac_sw_scan_start);
 void rt2x00mac_sw_scan_complete(struct ieee80211_hw *hw)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	__clear_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags);
+	clear_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags);
 	rt2x00link_start_tuner(rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_sw_scan_complete);
@@ -737,3 +737,84 @@ void rt2x00mac_flush(struct ieee80211_hw *hw, bool drop)
 		rt2x00queue_flush_queue(queue, drop);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_flush);
+
+int rt2x00mac_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct link_ant *ant = &rt2x00dev->link.ant;
+	struct antenna_setup *def = &rt2x00dev->default_ant;
+	struct antenna_setup setup;
+
+	// The antenna value is not supposed to be 0,
+	// or exceed the maximum number of antenna's.
+	if (!tx_ant || (tx_ant & ~3) || !rx_ant || (rx_ant & ~3))
+		return -EINVAL;
+
+	// When the client tried to configure the antenna to or from
+	// diversity mode, we must reset the default antenna as well
+	// as that controls the diversity switch.
+	if (ant->flags & ANTENNA_TX_DIVERSITY && tx_ant != 3)
+		ant->flags &= ~ANTENNA_TX_DIVERSITY;
+	if (ant->flags & ANTENNA_RX_DIVERSITY && rx_ant != 3)
+		ant->flags &= ~ANTENNA_RX_DIVERSITY;
+
+	// If diversity is being enabled, check if we need hardware
+	// or software diversity. In the latter case, reset the value,
+	// and make sure we update the antenna flags to have the
+	// link tuner pick up the diversity tuning.
+	if (tx_ant == 3 && def->tx == ANTENNA_SW_DIVERSITY) {
+		tx_ant = ANTENNA_SW_DIVERSITY;
+		ant->flags |= ANTENNA_TX_DIVERSITY;
+	}
+
+	if (rx_ant == 3 && def->rx == ANTENNA_SW_DIVERSITY) {
+		rx_ant = ANTENNA_SW_DIVERSITY;
+		ant->flags |= ANTENNA_RX_DIVERSITY;
+	}
+
+	setup.tx = tx_ant;
+	setup.rx = rx_ant;
+
+	rt2x00lib_config_antenna(rt2x00dev, setup);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_set_antenna);
+
+int rt2x00mac_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct link_ant *ant = &rt2x00dev->link.ant;
+	struct antenna_setup *active = &rt2x00dev->link.ant.active;
+
+	// When software diversity is active, we must report this to the
+	// client and not the current active antenna state.
+	if (ant->flags & ANTENNA_TX_DIVERSITY)
+		*tx_ant = ANTENNA_HW_DIVERSITY;
+	else
+		*tx_ant = active->tx;
+
+	if (ant->flags & ANTENNA_RX_DIVERSITY)
+		*rx_ant = ANTENNA_HW_DIVERSITY;
+	else
+		*rx_ant = active->rx;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_get_antenna);
+
+void rt2x00mac_get_ringparam(struct ieee80211_hw *hw,
+			     u32 *tx, u32 *tx_max, u32 *rx, u32 *rx_max)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct data_queue *queue;
+
+	tx_queue_for_each(rt2x00dev, queue) {
+		*tx += queue->length;
+		*tx_max += queue->limit;
+	}
+
+	*rx = rt2x00dev->rx->length;
+	*rx_max = rt2x00dev->rx->limit;
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_get_ringparam);

@@ -422,7 +422,6 @@ static int netlbl_cipsov4_add(struct sk_buff *skb, struct genl_info *info)
 
 {
 	int ret_val = -EINVAL;
-	const char *type_str = "(unknown)";
 	struct netlbl_audit audit_info;
 
 	if (!info->attrs[NLBL_CIPSOV4_A_DOI] ||
@@ -432,15 +431,12 @@ static int netlbl_cipsov4_add(struct sk_buff *skb, struct genl_info *info)
 	netlbl_netlink_auditinfo(skb, &audit_info);
 	switch (nla_get_u32(info->attrs[NLBL_CIPSOV4_A_MTYPE])) {
 	case CIPSO_V4_MAP_TRANS:
-		type_str = "trans";
 		ret_val = netlbl_cipsov4_add_std(info, &audit_info);
 		break;
 	case CIPSO_V4_MAP_PASS:
-		type_str = "pass";
 		ret_val = netlbl_cipsov4_add_pass(info, &audit_info);
 		break;
 	case CIPSO_V4_MAP_LOCAL:
-		type_str = "local";
 		ret_val = netlbl_cipsov4_add_local(info, &audit_info);
 		break;
 	}

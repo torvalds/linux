@@ -22,14 +22,6 @@
 #ifndef __SHARE_H__
 #define __SHARE_H__
 
-/* Define Return Value */
-#define FAIL        -1
-#define OK          1
-
-#ifndef NULL
-#define NULL 0
-#endif
-
 /* Define Bit Field */
 #define BIT0    0x01
 #define BIT1    0x02
@@ -290,6 +282,7 @@
 #define HW_LAYOUT_LCD_EXTERNAL_LCD2 0x10
 
 /* Definition Refresh Rate */
+#define REFRESH_49      49
 #define REFRESH_50      50
 #define REFRESH_60      60
 #define REFRESH_75      75
@@ -575,10 +568,6 @@
 #define M1280X720_R50_HSP       NEGATIVE
 #define M1280X720_R50_VSP       POSITIVE
 
-/* 1280x720@60 Sync Polarity  (CEA Mode) */
-#define M1280X720_CEA_R60_HSP       POSITIVE
-#define M1280X720_CEA_R60_VSP       POSITIVE
-
 /* 1440x900@60 Sync Polarity (CVT Mode) */
 #define M1440X900_R60_HSP       NEGATIVE
 #define M1440X900_R60_VSP       POSITIVE
@@ -618,10 +607,6 @@
 /* 1920x1200@60 Sync Polarity (CVT Reduce Blanking Mode) */
 #define M1920X1200_RB_R60_HSP  POSITIVE
 #define M1920X1200_RB_R60_VSP  NEGATIVE
-
-/* 1920x1080@60 Sync Polarity  (CEA Mode) */
-#define M1920X1080_CEA_R60_HSP       POSITIVE
-#define M1920X1080_CEA_R60_VSP       POSITIVE
 
 /* 2048x1536@60 Sync Polarity (CVT Mode) */
 #define M2048x1536_R60_HSP      NEGATIVE

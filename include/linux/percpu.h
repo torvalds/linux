@@ -259,6 +259,9 @@ extern void __bad_size_call_parameter(void);
  * Special handling for cmpxchg_double.  cmpxchg_double is passed two
  * percpu variables.  The first has to be aligned to a double word
  * boundary and the second has to follow directly thereafter.
+ * We enforce this on all architectures even if they don't support
+ * a double cmpxchg instruction, since it's a cheap requirement, and it
+ * avoids breaking the requirement for architectures with the instruction.
  */
 #define __pcpu_double_call_return_bool(stem, pcp1, pcp2, ...)		\
 ({									\
@@ -948,7 +951,7 @@ do {									\
 	irqsafe_generic_cpu_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)
 # endif
 # define irqsafe_cpu_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
-	__pcpu_double_call_return_int(irqsafe_cpu_cmpxchg_double_, (pcp1), (pcp2), (oval1), (oval2), (nval1), (nval2))
+	__pcpu_double_call_return_bool(irqsafe_cpu_cmpxchg_double_, (pcp1), (pcp2), (oval1), (oval2), (nval1), (nval2))
 #endif
 
 #endif /* __LINUX_PERCPU_H */

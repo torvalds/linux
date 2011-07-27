@@ -70,8 +70,9 @@
 #include "usbvision.h"
 #include "usbvision-cards.h"
 
-#define DRIVER_AUTHOR "Joerg Heckenbach <joerg@heckenbach-aw.de>, \
-Dwaine Garden <DwaineGarden@rogers.com>"
+#define DRIVER_AUTHOR					\
+	"Joerg Heckenbach <joerg@heckenbach-aw.de>, "	\
+	"Dwaine Garden <DwaineGarden@rogers.com>"
 #define DRIVER_NAME "usbvision"
 #define DRIVER_ALIAS "USBVision"
 #define DRIVER_DESC "USBVision USB Video Device Driver for Linux"
@@ -1470,7 +1471,8 @@ static void usbvision_configure_video(struct usb_usbvision *usbvision)
 
 	/* This should be here to make i2c clients to be able to register */
 	/* first switch off audio */
-	usbvision_audio_off(usbvision);
+	if (usbvision_device_data[model].audio_channels > 0)
+		usbvision_audio_off(usbvision);
 	if (!power_on_at_open) {
 		/* and then power up the noisy tuner */
 		usbvision_power_on(usbvision);

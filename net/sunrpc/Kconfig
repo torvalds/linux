@@ -18,14 +18,13 @@ config SUNRPC_XPRT_RDMA
 	  If unsure, say N.
 
 config RPCSEC_GSS_KRB5
-	tristate
+	tristate "Secure RPC: Kerberos V mechanism"
 	depends on SUNRPC && CRYPTO
-	prompt "Secure RPC: Kerberos V mechanism" if !(NFS_V4 || NFSD_V4)
+	depends on CRYPTO_MD5 && CRYPTO_DES && CRYPTO_CBC && CRYPTO_CTS
+	depends on CRYPTO_ECB && CRYPTO_HMAC && CRYPTO_SHA1 && CRYPTO_AES
+	depends on CRYPTO_ARC4
 	default y
 	select SUNRPC_GSS
-	select CRYPTO_MD5
-	select CRYPTO_DES
-	select CRYPTO_CBC
 	help
 	  Choose Y here to enable Secure RPC using the Kerberos version 5
 	  GSS-API mechanism (RFC 1964).

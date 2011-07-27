@@ -25,8 +25,8 @@
 #include <linux/delay.h>
 #include <media/cx25840.h>
 #include <linux/firmware.h>
-#include <staging/altera.h>
 
+#include "../../../staging/altera-stapl/altera.h"
 #include "cx23885.h"
 #include "tuner-xc2028.h"
 #include "netup-init.h"
@@ -1399,6 +1399,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		else
 			altera_init(&netup_config, fw);
 
+		release_firmware(fw);
 		break;
 	}
 	}

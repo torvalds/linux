@@ -832,6 +832,7 @@ struct fb_tile_ops {
 #define FBINFO_CAN_FORCE_OUTPUT     0x200000
 
 struct fb_info {
+	atomic_t count;
 	int node;
 	int flags;
 	struct mutex lock;		/* Lock for open/release/ioctl funcs */

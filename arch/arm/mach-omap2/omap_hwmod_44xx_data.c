@@ -885,7 +885,7 @@ static struct omap_hwmod_ocp_if *omap44xx_dma_system_masters[] = {
 static struct omap_hwmod_addr_space omap44xx_dma_system_addrs[] = {
 	{
 		.pa_start	= 0x4a056000,
-		.pa_end		= 0x4a0560ff,
+		.pa_end		= 0x4a056fff,
 		.flags		= ADDR_TYPE_RT
 	},
 };
@@ -5109,7 +5109,7 @@ static __initdata struct omap_hwmod *omap44xx_hwmods[] = {
 	&omap44xx_iva_seq1_hwmod,
 
 	/* kbd class */
-/*	&omap44xx_kbd_hwmod, */
+	&omap44xx_kbd_hwmod,
 
 	/* mailbox class */
 	&omap44xx_mailbox_hwmod,

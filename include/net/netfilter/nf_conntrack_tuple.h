@@ -104,8 +104,6 @@ struct nf_conntrack_tuple_mask {
 	} src;
 };
 
-#ifdef __KERNEL__
-
 static inline void nf_ct_dump_tuple_ip(const struct nf_conntrack_tuple *t)
 {
 #ifdef DEBUG
@@ -147,8 +145,6 @@ struct nf_conntrack_tuple_hash {
 	struct hlist_nulls_node hnnode;
 	struct nf_conntrack_tuple tuple;
 };
-
-#endif /* __KERNEL__ */
 
 static inline bool __nf_ct_tuple_src_equal(const struct nf_conntrack_tuple *t1,
 					   const struct nf_conntrack_tuple *t2)

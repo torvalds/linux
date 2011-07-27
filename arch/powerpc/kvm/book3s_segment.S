@@ -155,14 +155,20 @@ kvmppc_handler_trampoline_exit:
 	PPC_LL	r2, (SHADOW_VCPU_OFF + SVCPU_HOST_R2)(r13)
 
 	/* Save guest PC and MSR */
-	mfsrr0	r3
+	andi.	r0,r12,0x2
+	beq	1f
+	mfspr	r3,SPRN_HSRR0
+	mfspr	r4,SPRN_HSRR1
+	andi.	r12,r12,0x3ffd
+	b	2f
+1:	mfsrr0	r3
 	mfsrr1	r4
-
+2:
 	PPC_STL	r3, (SHADOW_VCPU_OFF + SVCPU_PC)(r13)
 	PPC_STL	r4, (SHADOW_VCPU_OFF + SVCPU_SHADOW_SRR1)(r13)
 
 	/* Get scratch'ed off registers */
-	mfspr	r9, SPRN_SPRG_SCRATCH0
+	GET_SCRATCH0(r9)
 	PPC_LL	r8, (SHADOW_VCPU_OFF + SVCPU_SCRATCH0)(r13)
 	lwz	r7, (SHADOW_VCPU_OFF + SVCPU_SCRATCH1)(r13)
 

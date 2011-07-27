@@ -193,28 +193,28 @@ static void mss2_power_off(void)
 /****************************************************************************
  * General Setup
  ****************************************************************************/
-static struct orion5x_mpp_mode mss2_mpp_modes[] __initdata = {
-	{  0, MPP_GPIO },		/* Power LED */
-	{  1, MPP_GPIO },		/* Error LED */
-	{  2, MPP_UNUSED },
-	{  3, MPP_GPIO },		/* RTC interrupt */
-	{  4, MPP_GPIO },		/* HDD ind. (Single/Dual)*/
-	{  5, MPP_GPIO },		/* HD0 5V control */
-	{  6, MPP_GPIO },		/* HD0 12V control */
-	{  7, MPP_GPIO },		/* HD1 5V control */
-	{  8, MPP_GPIO },		/* HD1 12V control */
-	{  9, MPP_UNUSED },
-	{ 10, MPP_GPIO },		/* Fan control */
-	{ 11, MPP_GPIO },		/* Power button */
-	{ 12, MPP_GPIO },		/* Reset button */
-	{ 13, MPP_UNUSED },
-	{ 14, MPP_SATA_LED },		/* SATA 0 active */
-	{ 15, MPP_SATA_LED },		/* SATA 1 active */
-	{ 16, MPP_UNUSED },
-	{ 17, MPP_UNUSED },
-	{ 18, MPP_UNUSED },
-	{ 19, MPP_UNUSED },
-	{ -1 },
+static unsigned int mss2_mpp_modes[] __initdata = {
+	MPP0_GPIO,		/* Power LED */
+	MPP1_GPIO,		/* Error LED */
+	MPP2_UNUSED,
+	MPP3_GPIO,		/* RTC interrupt */
+	MPP4_GPIO,		/* HDD ind. (Single/Dual)*/
+	MPP5_GPIO,		/* HD0 5V control */
+	MPP6_GPIO,		/* HD0 12V control */
+	MPP7_GPIO,		/* HD1 5V control */
+	MPP8_GPIO,		/* HD1 12V control */
+	MPP9_UNUSED,
+	MPP10_GPIO,		/* Fan control */
+	MPP11_GPIO,		/* Power button */
+	MPP12_GPIO,		/* Reset button */
+	MPP13_UNUSED,
+	MPP14_SATA_LED,		/* SATA 0 active */
+	MPP15_SATA_LED,		/* SATA 1 active */
+	MPP16_UNUSED,
+	MPP17_UNUSED,
+	MPP18_UNUSED,
+	MPP19_UNUSED,
+	0,
 };
 
 static void __init mss2_init(void)

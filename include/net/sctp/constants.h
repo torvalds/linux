@@ -150,7 +150,6 @@ SCTP_SUBTYPE_CONSTRUCTOR(OTHER,		sctp_event_other_t,	other)
 SCTP_SUBTYPE_CONSTRUCTOR(PRIMITIVE,	sctp_event_primitive_t,	primitive)
 
 
-#define sctp_chunk_is_control(a) (a->chunk_hdr->type != SCTP_CID_DATA)
 #define sctp_chunk_is_data(a) (a->chunk_hdr->type == SCTP_CID_DATA)
 
 /* Calculate the actual data size in a data chunk */
@@ -188,15 +187,14 @@ typedef enum {
 /* SCTP state defines for internal state machine */
 typedef enum {
 
-	SCTP_STATE_EMPTY		= 0,
-	SCTP_STATE_CLOSED		= 1,
-	SCTP_STATE_COOKIE_WAIT		= 2,
-	SCTP_STATE_COOKIE_ECHOED	= 3,
-	SCTP_STATE_ESTABLISHED		= 4,
-	SCTP_STATE_SHUTDOWN_PENDING	= 5,
-	SCTP_STATE_SHUTDOWN_SENT	= 6,
-	SCTP_STATE_SHUTDOWN_RECEIVED	= 7,
-	SCTP_STATE_SHUTDOWN_ACK_SENT	= 8,
+	SCTP_STATE_CLOSED		= 0,
+	SCTP_STATE_COOKIE_WAIT		= 1,
+	SCTP_STATE_COOKIE_ECHOED	= 2,
+	SCTP_STATE_ESTABLISHED		= 3,
+	SCTP_STATE_SHUTDOWN_PENDING	= 4,
+	SCTP_STATE_SHUTDOWN_SENT	= 5,
+	SCTP_STATE_SHUTDOWN_RECEIVED	= 6,
+	SCTP_STATE_SHUTDOWN_ACK_SENT	= 7,
 
 } sctp_state_t;
 

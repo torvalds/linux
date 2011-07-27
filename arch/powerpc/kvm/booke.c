@@ -569,6 +569,7 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	kvmppc_set_msr(vcpu, regs->msr);
 	vcpu->arch.shared->srr0 = regs->srr0;
 	vcpu->arch.shared->srr1 = regs->srr1;
+	kvmppc_set_pid(vcpu, regs->pid);
 	vcpu->arch.shared->sprg0 = regs->sprg0;
 	vcpu->arch.shared->sprg1 = regs->sprg1;
 	vcpu->arch.shared->sprg2 = regs->sprg2;
@@ -584,16 +585,165 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	return 0;
 }
 
+static void get_sregs_base(struct kvm_vcpu *vcpu,
+                           struct kvm_sregs *sregs)
+{
+	u64 tb = get_tb();
+
+	sregs->u.e.features |= KVM_SREGS_E_BASE;
+
+	sregs->u.e.csrr0 = vcpu->arch.csrr0;
+	sregs->u.e.csrr1 = vcpu->arch.csrr1;
+	sregs->u.e.mcsr = vcpu->arch.mcsr;
+	sregs->u.e.esr = vcpu->arch.esr;
+	sregs->u.e.dear = vcpu->arch.shared->dar;
+	sregs->u.e.tsr = vcpu->arch.tsr;
+	sregs->u.e.tcr = vcpu->arch.tcr;
+	sregs->u.e.dec = kvmppc_get_dec(vcpu, tb);
+	sregs->u.e.tb = tb;
+	sregs->u.e.vrsave = vcpu->arch.vrsave;
+}
+
+static int set_sregs_base(struct kvm_vcpu *vcpu,
+                          struct kvm_sregs *sregs)
+{
+	if (!(sregs->u.e.features & KVM_SREGS_E_BASE))
+		return 0;
+
+	vcpu->arch.csrr0 = sregs->u.e.csrr0;
+	vcpu->arch.csrr1 = sregs->u.e.csrr1;
+	vcpu->arch.mcsr = sregs->u.e.mcsr;
+	vcpu->arch.esr = sregs->u.e.esr;
+	vcpu->arch.shared->dar = sregs->u.e.dear;
+	vcpu->arch.vrsave = sregs->u.e.vrsave;
+	vcpu->arch.tcr = sregs->u.e.tcr;
+
+	if (sregs->u.e.update_special & KVM_SREGS_E_UPDATE_DEC)
+		vcpu->arch.dec = sregs->u.e.dec;
+
+	kvmppc_emulate_dec(vcpu);
+
+	if (sregs->u.e.update_special & KVM_SREGS_E_UPDATE_TSR) {
+		/*
+		 * FIXME: existing KVM timer handling is incomplete.
+		 * TSR cannot be read by the guest, and its value in
+		 * vcpu->arch is always zero.  For now, just handle
+		 * the case where the caller is trying to inject a
+		 * decrementer interrupt.
+		 */
+
+		if ((sregs->u.e.tsr & TSR_DIS) &&
+		    (vcpu->arch.tcr & TCR_DIE))
+			kvmppc_core_queue_dec(vcpu);
+	}
+
+	return 0;
+}
+
+static void get_sregs_arch206(struct kvm_vcpu *vcpu,
+                              struct kvm_sregs *sregs)
+{
+	sregs->u.e.features |= KVM_SREGS_E_ARCH206;
+
+	sregs->u.e.pir = 0;
+	sregs->u.e.mcsrr0 = vcpu->arch.mcsrr0;
+	sregs->u.e.mcsrr1 = vcpu->arch.mcsrr1;
+	sregs->u.e.decar = vcpu->arch.decar;
+	sregs->u.e.ivpr = vcpu->arch.ivpr;
+}
+
+static int set_sregs_arch206(struct kvm_vcpu *vcpu,
+                             struct kvm_sregs *sregs)
+{
+	if (!(sregs->u.e.features & KVM_SREGS_E_ARCH206))
+		return 0;
+
+	if (sregs->u.e.pir != 0)
+		return -EINVAL;
+
+	vcpu->arch.mcsrr0 = sregs->u.e.mcsrr0;
+	vcpu->arch.mcsrr1 = sregs->u.e.mcsrr1;
+	vcpu->arch.decar = sregs->u.e.decar;
+	vcpu->arch.ivpr = sregs->u.e.ivpr;
+
+	return 0;
+}
+
+void kvmppc_get_sregs_ivor(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
+{
+	sregs->u.e.features |= KVM_SREGS_E_IVOR;
+
+	sregs->u.e.ivor_low[0] = vcpu->arch.ivor[BOOKE_IRQPRIO_CRITICAL];
+	sregs->u.e.ivor_low[1] = vcpu->arch.ivor[BOOKE_IRQPRIO_MACHINE_CHECK];
+	sregs->u.e.ivor_low[2] = vcpu->arch.ivor[BOOKE_IRQPRIO_DATA_STORAGE];
+	sregs->u.e.ivor_low[3] = vcpu->arch.ivor[BOOKE_IRQPRIO_INST_STORAGE];
+	sregs->u.e.ivor_low[4] = vcpu->arch.ivor[BOOKE_IRQPRIO_EXTERNAL];
+	sregs->u.e.ivor_low[5] = vcpu->arch.ivor[BOOKE_IRQPRIO_ALIGNMENT];
+	sregs->u.e.ivor_low[6] = vcpu->arch.ivor[BOOKE_IRQPRIO_PROGRAM];
+	sregs->u.e.ivor_low[7] = vcpu->arch.ivor[BOOKE_IRQPRIO_FP_UNAVAIL];
+	sregs->u.e.ivor_low[8] = vcpu->arch.ivor[BOOKE_IRQPRIO_SYSCALL];
+	sregs->u.e.ivor_low[9] = vcpu->arch.ivor[BOOKE_IRQPRIO_AP_UNAVAIL];
+	sregs->u.e.ivor_low[10] = vcpu->arch.ivor[BOOKE_IRQPRIO_DECREMENTER];
+	sregs->u.e.ivor_low[11] = vcpu->arch.ivor[BOOKE_IRQPRIO_FIT];
+	sregs->u.e.ivor_low[12] = vcpu->arch.ivor[BOOKE_IRQPRIO_WATCHDOG];
+	sregs->u.e.ivor_low[13] = vcpu->arch.ivor[BOOKE_IRQPRIO_DTLB_MISS];
+	sregs->u.e.ivor_low[14] = vcpu->arch.ivor[BOOKE_IRQPRIO_ITLB_MISS];
+	sregs->u.e.ivor_low[15] = vcpu->arch.ivor[BOOKE_IRQPRIO_DEBUG];
+}
+
+int kvmppc_set_sregs_ivor(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
+{
+	if (!(sregs->u.e.features & KVM_SREGS_E_IVOR))
+		return 0;
+
+	vcpu->arch.ivor[BOOKE_IRQPRIO_CRITICAL] = sregs->u.e.ivor_low[0];
+	vcpu->arch.ivor[BOOKE_IRQPRIO_MACHINE_CHECK] = sregs->u.e.ivor_low[1];
+	vcpu->arch.ivor[BOOKE_IRQPRIO_DATA_STORAGE] = sregs->u.e.ivor_low[2];
+	vcpu->arch.ivor[BOOKE_IRQPRIO_INST_STORAGE] = sregs->u.e.ivor_low[3];
+	vcpu->arch.ivor[BOOKE_IRQPRIO_EXTERNAL] = sregs->u.e.ivor_low[4];
+	vcpu->arch.ivor[BOOKE_IRQPRIO_ALIGNMENT] = sregs->u.e.ivor_low[5];
+	vcpu->arch.ivor[BOOKE_IRQPRIO_PROGRAM] = sregs->u.e.ivor_low[6];
+	vcpu->arch.ivor[BOOKE_IRQPRIO_FP_UNAVAIL] = sregs->u.e.ivor_low[7];
+	vcpu->arch.ivor[BOOKE_IRQPRIO_SYSCALL] = sregs->u.e.ivor_low[8];
+	vcpu->arch.ivor[BOOKE_IRQPRIO_AP_UNAVAIL] = sregs->u.e.ivor_low[9];
+	vcpu->arch.ivor[BOOKE_IRQPRIO_DECREMENTER] = sregs->u.e.ivor_low[10];
+	vcpu->arch.ivor[BOOKE_IRQPRIO_FIT] = sregs->u.e.ivor_low[11];
+	vcpu->arch.ivor[BOOKE_IRQPRIO_WATCHDOG] = sregs->u.e.ivor_low[12];
+	vcpu->arch.ivor[BOOKE_IRQPRIO_DTLB_MISS] = sregs->u.e.ivor_low[13];
+	vcpu->arch.ivor[BOOKE_IRQPRIO_ITLB_MISS] = sregs->u.e.ivor_low[14];
+	vcpu->arch.ivor[BOOKE_IRQPRIO_DEBUG] = sregs->u.e.ivor_low[15];
+
+	return 0;
+}
+
 int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
                                   struct kvm_sregs *sregs)
 {
-	return -ENOTSUPP;
+	sregs->pvr = vcpu->arch.pvr;
+
+	get_sregs_base(vcpu, sregs);
+	get_sregs_arch206(vcpu, sregs);
+	kvmppc_core_get_sregs(vcpu, sregs);
+	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
                                   struct kvm_sregs *sregs)
 {
-	return -ENOTSUPP;
+	int ret;
+
+	if (vcpu->arch.pvr != sregs->pvr)
+		return -EINVAL;
+
+	ret = set_sregs_base(vcpu, sregs);
+	if (ret < 0)
+		return ret;
+
+	ret = set_sregs_arch206(vcpu, sregs);
+	if (ret < 0)
+		return ret;
+
+	return kvmppc_core_set_sregs(vcpu, sregs);
 }
 
 int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)

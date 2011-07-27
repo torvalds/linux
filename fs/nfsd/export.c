@@ -1354,12 +1354,6 @@ exp_pseudoroot(struct svc_rqst *rqstp, struct svc_fh *fhp)
 	if (IS_ERR(exp))
 		return nfserrno(PTR_ERR(exp));
 	rv = fh_compose(fhp, exp, exp->ex_path.dentry, NULL);
-	if (rv)
-		goto out;
-	rv = check_nfsd_access(exp, rqstp);
-	if (rv)
-		fh_put(fhp);
-out:
 	exp_put(exp);
 	return rv;
 }

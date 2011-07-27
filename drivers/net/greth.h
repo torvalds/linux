@@ -77,9 +77,6 @@
  */
 #define MAX_FRAME_SIZE		1520
 
-/* Flags */
-#define GRETH_FLAG_RX_CSUM 0x1
-
 /* GRETH APB registers */
 struct greth_regs {
 	u32 control;
@@ -133,7 +130,6 @@ struct greth_private {
 	unsigned int duplex;
 
 	u32 msg_enable;
-	u32 flags;
 
 	u8 phyaddr;
 	u8 multicast;

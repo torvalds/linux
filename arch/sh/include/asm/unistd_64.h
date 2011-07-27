@@ -394,10 +394,12 @@
 #define __NR_open_by_handle_at	371
 #define __NR_clock_adjtime	372
 #define __NR_syncfs		373
+#define __NR_sendmmsg		374
+#define __NR_setns		375
 
 #ifdef __KERNEL__
 
-#define NR_syscalls 374
+#define NR_syscalls 376
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR

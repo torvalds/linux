@@ -215,7 +215,7 @@ static struct attribute_group xen_compilation_group = {
 	.attrs = xen_compile_attrs,
 };
 
-int __init static xen_compilation_init(void)
+static int __init xen_compilation_init(void)
 {
 	return sysfs_create_group(hypervisor_kobj, &xen_compilation_group);
 }

@@ -371,10 +371,12 @@
 #define __NR_open_by_handle_at	346
 #define __NR_clock_adjtime	347
 #define __NR_syncfs		348
+#define __NR_sendmmsg		349
+#define __NR_setns		350
 
 #ifdef __KERNEL__
 
-#define __NR_syscalls		349
+#define __NR_syscalls		351
 
 #define __NR__exit __NR_exit
 #define NR_syscalls	__NR_syscalls

@@ -293,7 +293,7 @@ bitmap_ip_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	for (; !before(ip_to, ip); ip += map->hosts) {
 		id = ip_to_id(map, ip);
-		ret = adtfn(set, &id, timeout);;
+		ret = adtfn(set, &id, timeout);
 
 		if (ret && !ip_set_eexist(ret, flags))
 			return ret;

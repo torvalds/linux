@@ -59,6 +59,11 @@
 	#define USBVISION_AUDIO_RADIO		2
 	#define USBVISION_AUDIO_MUTE		3
 #define USBVISION_SER_MODE		0x07
+	#define USBVISION_CLK_OUT		(1 << 0)
+	#define USBVISION_DAT_IO		(1 << 1)
+	#define USBVISION_SENS_OUT		(1 << 2)
+	#define USBVISION_SER_MODE_SOFT		(0 << 4)
+	#define USBVISION_SER_MODE_SIO		(1 << 4)
 #define USBVISION_SER_ADRS		0x08
 #define USBVISION_SER_CONT		0x09
 #define USBVISION_SER_DAT1		0x0A
@@ -328,6 +333,7 @@ struct usbvision_frame {
 
 #define CODEC_SAA7113	7113
 #define CODEC_SAA7111	7111
+#define CODEC_WEBCAM	3000
 #define BRIDGE_NT1003	1003
 #define BRIDGE_NT1004	1004
 #define BRIDGE_NT1005   1005

@@ -383,13 +383,13 @@ static int __init nettel_init(void)
 		/* No BIOS regions when AMD boot */
 		num_intel_partitions -= 2;
 	}
-	rc = add_mtd_partitions(intel_mtd, nettel_intel_partitions,
-		num_intel_partitions);
+	rc = mtd_device_register(intel_mtd, nettel_intel_partitions,
+				 num_intel_partitions);
 #endif
 
 	if (amd_mtd) {
-		rc = add_mtd_partitions(amd_mtd, nettel_amd_partitions,
-			num_amd_partitions);
+		rc = mtd_device_register(amd_mtd, nettel_amd_partitions,
+					 num_amd_partitions);
 	}
 
 #ifdef CONFIG_MTD_CFI_INTELEXT
@@ -419,7 +419,7 @@ static void __exit nettel_cleanup(void)
 	unregister_reboot_notifier(&nettel_notifier_block);
 #endif
 	if (amd_mtd) {
-		del_mtd_partitions(amd_mtd);
+		mtd_device_unregister(amd_mtd);
 		map_destroy(amd_mtd);
 	}
 	if (nettel_mmcrp) {
@@ -432,7 +432,7 @@ static void __exit nettel_cleanup(void)
 	}
 #ifdef CONFIG_MTD_CFI_INTELEXT
 	if (intel_mtd) {
-		del_mtd_partitions(intel_mtd);
+		mtd_device_unregister(intel_mtd);
 		map_destroy(intel_mtd);
 	}
 	if (nettel_intel_map.virt) {

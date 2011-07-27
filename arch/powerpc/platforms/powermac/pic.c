@@ -21,7 +21,7 @@
 #include <linux/signal.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/adb.h>
 #include <linux/pmu.h>
 #include <linux/module.h>
@@ -84,7 +84,7 @@ static void __pmac_retrigger(unsigned int irq_nr)
 
 static void pmac_mask_and_ack_irq(struct irq_data *d)
 {
-	unsigned int src = irq_map[d->irq].hwirq;
+	unsigned int src = irqd_to_hwirq(d);
         unsigned long bit = 1UL << (src & 0x1f);
         int i = src >> 5;
         unsigned long flags;
@@ -106,7 +106,7 @@ static void pmac_mask_and_ack_irq(struct irq_data *d)
 
 static void pmac_ack_irq(struct irq_data *d)
 {
-	unsigned int src = irq_map[d->irq].hwirq;
+	unsigned int src = irqd_to_hwirq(d);
         unsigned long bit = 1UL << (src & 0x1f);
         int i = src >> 5;
         unsigned long flags;
@@ -152,7 +152,7 @@ static void __pmac_set_irq_mask(unsigned int irq_nr, int nokicklost)
 static unsigned int pmac_startup_irq(struct irq_data *d)
 {
 	unsigned long flags;
-	unsigned int src = irq_map[d->irq].hwirq;
+	unsigned int src = irqd_to_hwirq(d);
         unsigned long bit = 1UL << (src & 0x1f);
         int i = src >> 5;
 
@@ -169,7 +169,7 @@ static unsigned int pmac_startup_irq(struct irq_data *d)
 static void pmac_mask_irq(struct irq_data *d)
 {
 	unsigned long flags;
-	unsigned int src = irq_map[d->irq].hwirq;
+	unsigned int src = irqd_to_hwirq(d);
 
 	raw_spin_lock_irqsave(&pmac_pic_lock, flags);
         __clear_bit(src, ppc_cached_irq_mask);
@@ -180,7 +180,7 @@ static void pmac_mask_irq(struct irq_data *d)
 static void pmac_unmask_irq(struct irq_data *d)
 {
 	unsigned long flags;
-	unsigned int src = irq_map[d->irq].hwirq;
+	unsigned int src = irqd_to_hwirq(d);
 
 	raw_spin_lock_irqsave(&pmac_pic_lock, flags);
 	__set_bit(src, ppc_cached_irq_mask);
@@ -193,7 +193,7 @@ static int pmac_retrigger(struct irq_data *d)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&pmac_pic_lock, flags);
-	__pmac_retrigger(irq_map[d->irq].hwirq);
+	__pmac_retrigger(irqd_to_hwirq(d));
 	raw_spin_unlock_irqrestore(&pmac_pic_lock, flags);
 	return 1;
 }
@@ -239,15 +239,12 @@ static unsigned int pmac_pic_get_irq(void)
 	unsigned long bits = 0;
 	unsigned long flags;
 
-#ifdef CONFIG_SMP
-	void psurge_smp_message_recv(void);
-
-       	/* IPI's are a hack on the powersurge -- Cort */
-       	if ( smp_processor_id() != 0 ) {
-		psurge_smp_message_recv();
-		return NO_IRQ_IGNORE;	/* ignore, already handled */
+#ifdef CONFIG_PPC_PMAC32_PSURGE
+	/* IPI's are a hack on the powersurge -- Cort */
+	if (smp_processor_id() != 0) {
+		return  psurge_secondary_virq;
         }
-#endif /* CONFIG_SMP */
+#endif /* CONFIG_PPC_PMAC32_PSURGE */
 	raw_spin_lock_irqsave(&pmac_pic_lock, flags);
 	for (irq = max_real_irqs; (irq -= 32) >= 0; ) {
 		int i = irq >> 5;
@@ -677,7 +674,7 @@ not_found:
 	return viaint;
 }
 
-static int pmacpic_suspend(struct sys_device *sysdev, pm_message_t state)
+static int pmacpic_suspend(void)
 {
 	int viaint = pmacpic_find_viaint();
 
@@ -698,7 +695,7 @@ static int pmacpic_suspend(struct sys_device *sysdev, pm_message_t state)
         return 0;
 }
 
-static int pmacpic_resume(struct sys_device *sysdev)
+static void pmacpic_resume(void)
 {
 	int i;
 
@@ -709,39 +706,20 @@ static int pmacpic_resume(struct sys_device *sysdev)
 	for (i = 0; i < max_real_irqs; ++i)
 		if (test_bit(i, sleep_save_mask))
 			pmac_unmask_irq(irq_get_irq_data(i));
-
-	return 0;
 }
 
-#endif /* CONFIG_PM && CONFIG_PPC32 */
-
-static struct sysdev_class pmacpic_sysclass = {
-	.name = "pmac_pic",
+static struct syscore_ops pmacpic_syscore_ops = {
+	.suspend	= pmacpic_suspend,
+	.resume		= pmacpic_resume,
 };
 
-static struct sys_device device_pmacpic = {
-	.id		= 0,
-	.cls		= &pmacpic_sysclass,
-};
-
-static struct sysdev_driver driver_pmacpic = {
-#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
-	.suspend	= &pmacpic_suspend,
-	.resume		= &pmacpic_resume,
-#endif /* CONFIG_PM && CONFIG_PPC32 */
-};
-
-static int __init init_pmacpic_sysfs(void)
+static int __init init_pmacpic_syscore(void)
 {
-#ifdef CONFIG_PPC32
-	if (max_irqs == 0)
-		return -ENODEV;
-#endif
-	printk(KERN_DEBUG "Registering pmac pic with sysfs...\n");
-	sysdev_class_register(&pmacpic_sysclass);
-	sysdev_register(&device_pmacpic);
-	sysdev_driver_register(&pmacpic_sysclass, &driver_pmacpic);
+	if (pmac_irq_hw[0])
+		register_syscore_ops(&pmacpic_syscore_ops);
 	return 0;
 }
-machine_subsys_initcall(powermac, init_pmacpic_sysfs);
 
+machine_subsys_initcall(powermac, init_pmacpic_syscore);
+
+#endif /* CONFIG_PM && CONFIG_PPC32 */

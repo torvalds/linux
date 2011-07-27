@@ -158,7 +158,6 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 		emulated = kvmppc_booke_emulate_mtspr(vcpu, sprn, rs);
 	}
 
-	kvmppc_set_exit_type(vcpu, EMULATED_MTSPR_EXITS);
 	return emulated;
 }
 
@@ -179,7 +178,6 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 		emulated = kvmppc_booke_emulate_mfspr(vcpu, sprn, rt);
 	}
 
-	kvmppc_set_exit_type(vcpu, EMULATED_MFSPR_EXITS);
 	return emulated;
 }
 

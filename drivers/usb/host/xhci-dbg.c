@@ -147,7 +147,7 @@ static void xhci_print_op_regs(struct xhci_hcd *xhci)
 
 static void xhci_print_ports(struct xhci_hcd *xhci)
 {
-	u32 __iomem *addr;
+	__le32 __iomem *addr;
 	int i, j;
 	int ports;
 	char *names[NUM_PORT_REGS] = {
@@ -253,27 +253,27 @@ void xhci_print_trb_offsets(struct xhci_hcd *xhci, union xhci_trb *trb)
 void xhci_debug_trb(struct xhci_hcd *xhci, union xhci_trb *trb)
 {
 	u64	address;
-	u32	type = xhci_readl(xhci, &trb->link.control) & TRB_TYPE_BITMASK;
+	u32	type = le32_to_cpu(trb->link.control) & TRB_TYPE_BITMASK;
 
 	switch (type) {
 	case TRB_TYPE(TRB_LINK):
 		xhci_dbg(xhci, "Link TRB:\n");
 		xhci_print_trb_offsets(xhci, trb);
 
-		address = trb->link.segment_ptr;
+		address = le64_to_cpu(trb->link.segment_ptr);
 		xhci_dbg(xhci, "Next ring segment DMA address = 0x%llx\n", address);
 
 		xhci_dbg(xhci, "Interrupter target = 0x%x\n",
-				GET_INTR_TARGET(trb->link.intr_target));
+			 GET_INTR_TARGET(le32_to_cpu(trb->link.intr_target)));
 		xhci_dbg(xhci, "Cycle bit = %u\n",
-				(unsigned int) (trb->link.control & TRB_CYCLE));
+			 (unsigned int) (le32_to_cpu(trb->link.control) & TRB_CYCLE));
 		xhci_dbg(xhci, "Toggle cycle bit = %u\n",
-				(unsigned int) (trb->link.control & LINK_TOGGLE));
+			 (unsigned int) (le32_to_cpu(trb->link.control) & LINK_TOGGLE));
 		xhci_dbg(xhci, "No Snoop bit = %u\n",
-				(unsigned int) (trb->link.control & TRB_NO_SNOOP));
+			 (unsigned int) (le32_to_cpu(trb->link.control) & TRB_NO_SNOOP));
 		break;
 	case TRB_TYPE(TRB_TRANSFER):
-		address = trb->trans_event.buffer;
+		address = le64_to_cpu(trb->trans_event.buffer);
 		/*
 		 * FIXME: look at flags to figure out if it's an address or if
 		 * the data is directly in the buffer field.
@@ -281,11 +281,12 @@ void xhci_debug_trb(struct xhci_hcd *xhci, union xhci_trb *trb)
 		xhci_dbg(xhci, "DMA address or buffer contents= %llu\n", address);
 		break;
 	case TRB_TYPE(TRB_COMPLETION):
-		address = trb->event_cmd.cmd_trb;
+		address = le64_to_cpu(trb->event_cmd.cmd_trb);
 		xhci_dbg(xhci, "Command TRB pointer = %llu\n", address);
 		xhci_dbg(xhci, "Completion status = %u\n",
-				(unsigned int) GET_COMP_CODE(trb->event_cmd.status));
-		xhci_dbg(xhci, "Flags = 0x%x\n", (unsigned int) trb->event_cmd.flags);
+			 (unsigned int) GET_COMP_CODE(le32_to_cpu(trb->event_cmd.status)));
+		xhci_dbg(xhci, "Flags = 0x%x\n",
+			 (unsigned int) le32_to_cpu(trb->event_cmd.flags));
 		break;
 	default:
 		xhci_dbg(xhci, "Unknown TRB with TRB type ID %u\n",
@@ -311,16 +312,16 @@ void xhci_debug_trb(struct xhci_hcd *xhci, union xhci_trb *trb)
 void xhci_debug_segment(struct xhci_hcd *xhci, struct xhci_segment *seg)
 {
 	int i;
-	u32 addr = (u32) seg->dma;
+	u64 addr = seg->dma;
 	union xhci_trb *trb = seg->trbs;
 
 	for (i = 0; i < TRBS_PER_SEGMENT; ++i) {
 		trb = &seg->trbs[i];
-		xhci_dbg(xhci, "@%08x %08x %08x %08x %08x\n", addr,
-				lower_32_bits(trb->link.segment_ptr),
-				upper_32_bits(trb->link.segment_ptr),
-				(unsigned int) trb->link.intr_target,
-				(unsigned int) trb->link.control);
+		xhci_dbg(xhci, "@%016llx %08x %08x %08x %08x\n", addr,
+			 (u32)lower_32_bits(le64_to_cpu(trb->link.segment_ptr)),
+			 (u32)upper_32_bits(le64_to_cpu(trb->link.segment_ptr)),
+			 (unsigned int) le32_to_cpu(trb->link.intr_target),
+			 (unsigned int) le32_to_cpu(trb->link.control));
 		addr += sizeof(*trb);
 	}
 }
@@ -391,18 +392,18 @@ void xhci_dbg_ep_rings(struct xhci_hcd *xhci,
 
 void xhci_dbg_erst(struct xhci_hcd *xhci, struct xhci_erst *erst)
 {
-	u32 addr = (u32) erst->erst_dma_addr;
+	u64 addr = erst->erst_dma_addr;
 	int i;
 	struct xhci_erst_entry *entry;
 
 	for (i = 0; i < erst->num_entries; ++i) {
 		entry = &erst->entries[i];
-		xhci_dbg(xhci, "@%08x %08x %08x %08x %08x\n",
-				(unsigned int) addr,
-				lower_32_bits(entry->seg_addr),
-				upper_32_bits(entry->seg_addr),
-				(unsigned int) entry->seg_size,
-				(unsigned int) entry->rsvd);
+		xhci_dbg(xhci, "@%016llx %08x %08x %08x %08x\n",
+			 addr,
+			 lower_32_bits(le64_to_cpu(entry->seg_addr)),
+			 upper_32_bits(le64_to_cpu(entry->seg_addr)),
+			 (unsigned int) le32_to_cpu(entry->seg_size),
+			 (unsigned int) le32_to_cpu(entry->rsvd));
 		addr += sizeof(*entry);
 	}
 }
@@ -436,14 +437,14 @@ char *xhci_get_slot_state(struct xhci_hcd *xhci,
 {
 	struct xhci_slot_ctx *slot_ctx = xhci_get_slot_ctx(xhci, ctx);
 
-	switch (GET_SLOT_STATE(slot_ctx->dev_state)) {
-	case 0:
+	switch (GET_SLOT_STATE(le32_to_cpu(slot_ctx->dev_state))) {
+	case SLOT_STATE_ENABLED:
 		return "enabled/disabled";
-	case 1:
+	case SLOT_STATE_DEFAULT:
 		return "default";
-	case 2:
+	case SLOT_STATE_ADDRESSED:
 		return "addressed";
-	case 3:
+	case SLOT_STATE_CONFIGURED:
 		return "configured";
 	default:
 		return "reserved";

@@ -19,9 +19,6 @@
 
 #define DRIVER_NAME "bfin dpmc"
 
-#define dprintk(msg...) \
-	cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, DRIVER_NAME, msg)
-
 struct bfin_dpmc_platform_data *pdata;
 
 /**
@@ -88,10 +85,11 @@ static void bfin_wakeup_cpu(void)
 {
 	unsigned int cpu;
 	unsigned int this_cpu = smp_processor_id();
-	cpumask_t mask = cpu_online_map;
+	cpumask_t mask;
 
-	cpu_clear(this_cpu, mask);
-	for_each_cpu_mask(cpu, mask)
+	cpumask_copy(&mask, cpu_online_mask);
+	cpumask_clear_cpu(this_cpu, &mask);
+	for_each_cpu(cpu, &mask)
 		platform_send_ipi_cpu(cpu, IRQ_SUPPLE_0);
 }
 

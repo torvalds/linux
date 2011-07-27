@@ -223,9 +223,10 @@ When CONFIG_FAIR_GROUP_SCHED is defined, a "cpu.shares" file is created for each
 group created using the pseudo filesystem.  See example steps below to create
 task groups and modify their CPU share using the "cgroups" pseudo filesystem.
 
-	# mkdir /dev/cpuctl
-	# mount -t cgroup -ocpu none /dev/cpuctl
-	# cd /dev/cpuctl
+	# mount -t tmpfs cgroup_root /sys/fs/cgroup
+	# mkdir /sys/fs/cgroup/cpu
+	# mount -t cgroup -ocpu none /sys/fs/cgroup/cpu
+	# cd /sys/fs/cgroup/cpu
 
 	# mkdir multimedia	# create "multimedia" group of tasks
 	# mkdir browser		# create "browser" group of tasks

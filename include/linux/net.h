@@ -42,6 +42,7 @@
 #define SYS_RECVMSG	17		/* sys_recvmsg(2)		*/
 #define SYS_ACCEPT4	18		/* sys_accept4(2)		*/
 #define SYS_RECVMMSG	19		/* sys_recvmmsg(2)		*/
+#define SYS_SENDMMSG	20		/* sys_sendmmsg(2)		*/
 
 typedef enum {
 	SS_FREE = 0,			/* not allocated		*/
@@ -287,12 +288,6 @@ extern int kernel_sock_shutdown(struct socket *sock,
 #define MODULE_ALIAS_NET_PF_PROTO_TYPE(pf, proto, type) \
 	MODULE_ALIAS("net-pf-" __stringify(pf) "-proto-" __stringify(proto) \
 		     "-type-" __stringify(type))
-
-#ifdef CONFIG_SYSCTL
-#include <linux/sysctl.h>
-#include <linux/ratelimit.h>
-extern struct ratelimit_state net_ratelimit_state;
-#endif
 
 #endif /* __KERNEL__ */
 #endif	/* _LINUX_NET_H */

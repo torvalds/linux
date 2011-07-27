@@ -1095,13 +1095,16 @@ static int sep_lock_user_pages(struct sep_device *sep,
 	if (num_pages > 1) {
 		lli_array[num_pages - 1].block_size =
 			(app_virt_addr + data_size) & (~PAGE_MASK);
+		if (lli_array[num_pages - 1].block_size == 0)
+			lli_array[num_pages - 1].block_size = PAGE_SIZE;
 
 		dev_warn(&sep->pdev->dev,
-			"lli_array[%x].bus_address is %08lx, lli_array[%x].block_size is %x\n",
+			"lli_array[%x].bus_address is "
+			"%08lx, lli_array[%x].block_size is %x\n",
 			num_pages - 1,
-			(unsigned long)lli_array[count].bus_address,
+			(unsigned long)lli_array[num_pages -1].bus_address,
 			num_pages - 1,
-			lli_array[count].block_size);
+			lli_array[num_pages -1].block_size);
 	}
 
 	/* Set output params according to the in_out flag */

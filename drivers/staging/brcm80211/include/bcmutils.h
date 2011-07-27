@@ -74,7 +74,7 @@
 #define PKTQ_PREC_ITER(pq, prec)        for (prec = (pq)->num_prec - 1; prec >= 0; prec--)
 
 /* fn(pkt, arg).  return true if pkt belongs to if */
-	typedef bool(*ifpkt_cb_t) (void *, int);
+typedef bool(*ifpkt_cb_t) (struct sk_buff *, void *);
 
 /* operations on a specific precedence in packet queue */
 
@@ -87,30 +87,26 @@
 #define pktq_ppeek(pq, prec)            ((pq)->q[prec].head)
 #define pktq_ppeek_tail(pq, prec)       ((pq)->q[prec].tail)
 
-extern struct sk_buff *pktq_penq(struct pktq *pq, int prec,
+extern struct sk_buff *bcm_pktq_penq(struct pktq *pq, int prec,
 				 struct sk_buff *p);
-extern struct sk_buff *pktq_penq_head(struct pktq *pq, int prec,
+extern struct sk_buff *bcm_pktq_penq_head(struct pktq *pq, int prec,
 				      struct sk_buff *p);
-extern struct sk_buff *pktq_pdeq(struct pktq *pq, int prec);
-extern struct sk_buff *pktq_pdeq_tail(struct pktq *pq, int prec);
+extern struct sk_buff *bcm_pktq_pdeq(struct pktq *pq, int prec);
+extern struct sk_buff *bcm_pktq_pdeq_tail(struct pktq *pq, int prec);
 
 /* packet primitives */
-extern struct sk_buff *pkt_buf_get_skb(uint len);
-extern void pkt_buf_free_skb(struct sk_buff *skb);
+extern struct sk_buff *bcm_pkt_buf_get_skb(uint len);
+extern void bcm_pkt_buf_free_skb(struct sk_buff *skb);
 
 /* Empty the queue at particular precedence level */
-#ifdef BRCM_FULLMAC
-	extern void pktq_pflush(struct pktq *pq, int prec,
-		bool dir);
-#else
-	extern void pktq_pflush(struct pktq *pq, int prec,
-		bool dir, ifpkt_cb_t fn, int arg);
-#endif /* BRCM_FULLMAC */
+extern void bcm_pktq_pflush(struct pktq *pq, int prec,
+	bool dir, ifpkt_cb_t fn, void *arg);
 
 /* operations on a set of precedences in packet queue */
 
-extern int pktq_mlen(struct pktq *pq, uint prec_bmp);
-extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
+extern int bcm_pktq_mlen(struct pktq *pq, uint prec_bmp);
+extern struct sk_buff *bcm_pktq_mdeq(struct pktq *pq, uint prec_bmp,
+	int *prec_out);
 
 /* operations on packet queue as a whole */
 
@@ -121,46 +117,38 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 #define pktq_empty(pq)                  ((pq)->len == 0)
 
 /* operations for single precedence queues */
-#define pktenq(pq, p)		pktq_penq(((struct pktq *)pq), 0, (p))
-#define pktenq_head(pq, p)	pktq_penq_head(((struct pktq *)pq), 0, (p))
-#define pktdeq(pq)		pktq_pdeq(((struct pktq *)pq), 0)
-#define pktdeq_tail(pq)		pktq_pdeq_tail(((struct pktq *)pq), 0)
-#define pktqinit(pq, len) pktq_init(((struct pktq *)pq), 1, len)
+#define pktenq(pq, p)		bcm_pktq_penq(((struct pktq *)pq), 0, (p))
+#define pktenq_head(pq, p)	bcm_pktq_penq_head(((struct pktq *)pq), 0, (p))
+#define pktdeq(pq)		bcm_pktq_pdeq(((struct pktq *)pq), 0)
+#define pktdeq_tail(pq)		bcm_pktq_pdeq_tail(((struct pktq *)pq), 0)
+#define pktqinit(pq, len)	bcm_pktq_init(((struct pktq *)pq), 1, len)
 
-	extern void pktq_init(struct pktq *pq, int num_prec, int max_len);
+extern void bcm_pktq_init(struct pktq *pq, int num_prec, int max_len);
 /* prec_out may be NULL if caller is not interested in return value */
-	extern struct sk_buff *pktq_peek_tail(struct pktq *pq, int *prec_out);
-#ifdef BRCM_FULLMAC
-	extern void pktq_flush(struct pktq *pq, bool dir);
-#else
-	extern void pktq_flush(struct pktq *pq, bool dir,
-		ifpkt_cb_t fn, int arg);
-#endif
+extern struct sk_buff *bcm_pktq_peek_tail(struct pktq *pq, int *prec_out);
+extern void bcm_pktq_flush(struct pktq *pq, bool dir,
+	ifpkt_cb_t fn, void *arg);
 
 /* externs */
 /* packet */
-	extern uint pktfrombuf(struct sk_buff *p,
-			       uint offset, int len, unsigned char *buf);
-	extern uint pkttotlen(struct sk_buff *p);
+extern uint bcm_pktfrombuf(struct sk_buff *p,
+	uint offset, int len, unsigned char *buf);
+extern uint bcm_pkttotlen(struct sk_buff *p);
 
 /* ethernet address */
-	extern int bcm_ether_atoe(char *p, u8 *ea);
+extern int bcm_ether_atoe(char *p, u8 *ea);
 
 /* ip address */
 	struct ipv4_addr;
 	extern char *bcm_ip_ntoa(struct ipv4_addr *ia, char *buf);
 
-/* variable access */
-	extern char *getvar(char *vars, const char *name);
-	extern int getintvar(char *vars, const char *name);
 #ifdef BCMDBG
-	extern void prpkt(const char *msg, struct sk_buff *p0);
+extern void bcm_prpkt(const char *msg, struct sk_buff *p0);
 #else
-#define prpkt(a, b)
+#define bcm_prpkt(a, b)
 #endif				/* BCMDBG */
 
 #define bcm_perf_enable()
-#define bcmstats(fmt)
 #define	bcmlog(fmt, a1, a2)
 #define	bcmdumplog(buf, size)	(*buf = '\0')
 #define	bcmdumplogent(buf, idx)	-1
@@ -241,107 +229,6 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 /* ** driver/apps-shared section ** */
 
 #define BCME_STRLEN 		64	/* Max string length for BCM errors */
-#define VALID_BCMERROR(e)  ((e <= 0) && (e >= BCME_LAST))
-
-/*
- * error codes could be added but the defined ones shouldn't be changed/deleted
- * these error codes are exposed to the user code
- * when ever a new error code is added to this list
- * please update errorstring table with the related error string and
- * update osl files with os specific errorcode map
-*/
-
-#define BCME_OK				0	/* Success */
-#define BCME_ERROR			-1	/* Error generic */
-#define BCME_BADARG			-2	/* Bad Argument */
-#define BCME_BADOPTION			-3	/* Bad option */
-#define BCME_NOTUP			-4	/* Not up */
-#define BCME_NOTDOWN			-5	/* Not down */
-#define BCME_NOTAP			-6	/* Not AP */
-#define BCME_NOTSTA			-7	/* Not STA  */
-#define BCME_BADKEYIDX			-8	/* BAD Key Index */
-#define BCME_RADIOOFF 			-9	/* Radio Off */
-#define BCME_NOTBANDLOCKED		-10	/* Not  band locked */
-#define BCME_NOCLK			-11	/* No Clock */
-#define BCME_BADRATESET			-12	/* BAD Rate valueset */
-#define BCME_BADBAND			-13	/* BAD Band */
-#define BCME_BUFTOOSHORT		-14	/* Buffer too short */
-#define BCME_BUFTOOLONG			-15	/* Buffer too long */
-#define BCME_BUSY			-16	/* Busy */
-#define BCME_NOTASSOCIATED		-17	/* Not Associated */
-#define BCME_BADSSIDLEN			-18	/* Bad SSID len */
-#define BCME_OUTOFRANGECHAN		-19	/* Out of Range Channel */
-#define BCME_BADCHAN			-20	/* Bad Channel */
-#define BCME_BADADDR			-21	/* Bad Address */
-#define BCME_NORESOURCE			-22	/* Not Enough Resources */
-#define BCME_UNSUPPORTED		-23	/* Unsupported */
-#define BCME_BADLEN			-24	/* Bad length */
-#define BCME_NOTREADY			-25	/* Not Ready */
-#define BCME_EPERM			-26	/* Not Permitted */
-#define BCME_NOMEM			-27	/* No Memory */
-#define BCME_ASSOCIATED			-28	/* Associated */
-#define BCME_RANGE			-29	/* Not In Range */
-#define BCME_NOTFOUND			-30	/* Not Found */
-#define BCME_WME_NOT_ENABLED		-31	/* WME Not Enabled */
-#define BCME_TSPEC_NOTFOUND		-32	/* TSPEC Not Found */
-#define BCME_ACM_NOTSUPPORTED		-33	/* ACM Not Supported */
-#define BCME_NOT_WME_ASSOCIATION	-34	/* Not WME Association */
-#define BCME_SDIO_ERROR			-35	/* SDIO Bus Error */
-#define BCME_DONGLE_DOWN		-36	/* Dongle Not Accessible */
-#define BCME_VERSION			-37	/* Incorrect version */
-#define BCME_TXFAIL			-38	/* TX failure */
-#define BCME_RXFAIL			-39	/* RX failure */
-#define BCME_NODEVICE			-40	/* Device not present */
-#define BCME_NMODE_DISABLED		-41	/* NMODE disabled */
-#define BCME_NONRESIDENT		-42	/* access to nonresident overlay */
-#define BCME_LAST			BCME_NONRESIDENT
-
-/* These are collection of BCME Error strings */
-#define BCMERRSTRINGTABLE {		\
-	"OK",				\
-	"Undefined error",		\
-	"Bad Argument",			\
-	"Bad Option",			\
-	"Not up",			\
-	"Not down",			\
-	"Not AP",			\
-	"Not STA",			\
-	"Bad Key Index",		\
-	"Radio Off",			\
-	"Not band locked",		\
-	"No clock",			\
-	"Bad Rate valueset",		\
-	"Bad Band",			\
-	"Buffer too short",		\
-	"Buffer too long",		\
-	"Busy",				\
-	"Not Associated",		\
-	"Bad SSID len",			\
-	"Out of Range Channel",		\
-	"Bad Channel",			\
-	"Bad Address",			\
-	"Not Enough Resources",		\
-	"Unsupported",			\
-	"Bad length",			\
-	"Not Ready",			\
-	"Not Permitted",		\
-	"No Memory",			\
-	"Associated",			\
-	"Not In Range",			\
-	"Not Found",			\
-	"WME Not Enabled",		\
-	"TSPEC Not Found",		\
-	"ACM Not Supported",		\
-	"Not WME Association",		\
-	"SDIO Bus Error",		\
-	"Dongle Not Accessible",	\
-	"Incorrect version",		\
-	"TX Failure",			\
-	"RX Failure",			\
-	"Device Not Present",		\
-	"NMODE Disabled",		\
-	"Nonresident overlay access", \
-}
 
 #ifndef ABS
 #define	ABS(a)			(((a) < 0) ? -(a) : (a))
@@ -357,16 +244,6 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 #else
 #define REG_MAP(pa, size)       (void *)(0)
 #endif
-
-extern u32 g_assert_type;
-
-#if defined(BCMDBG_ASSERT)
-#define ASSERT(exp) \
-	  do { if (!(exp)) osl_assert(#exp, __FILE__, __LINE__); } while (0)
-extern void osl_assert(char *exp, char *file, int line);
-#else
-#define ASSERT(exp)	do {} while (0)
-#endif  /* defined(BCMDBG_ASSERT) */
 
 /* register access macros */
 #if defined(BCMSDIO)
@@ -399,7 +276,7 @@ extern void osl_assert(char *exp, char *file, int line);
 #define	bcopy(src, dst, len)	memcpy((dst), (src), (len))
 
 /* register access macros */
-#ifndef IL_BIGENDIAN
+#ifndef __BIG_ENDIAN
 #ifndef __mips__
 #define R_REG(r) (\
 	SELECT_BUS_READ(sizeof(*(r)) == sizeof(u8) ? \
@@ -450,7 +327,7 @@ extern void osl_assert(char *exp, char *file, int line);
 		}, \
 		(OSL_WRITE_REG(r, v))); \
 	} while (0)
-#else				/* IL_BIGENDIAN */
+#else				/* __BIG_ENDIAN */
 #define R_REG(r) (\
 	SELECT_BUS_READ( \
 		({ \
@@ -487,7 +364,7 @@ extern void osl_assert(char *exp, char *file, int line);
 		}, \
 		(OSL_WRITE_REG(r, v))); \
 	} while (0)
-#endif				/* IL_BIGENDIAN */
+#endif				/* __BIG_ENDIAN */
 
 #define AND_REG(r, v)	W_REG((r), R_REG(r) & (v))
 #define OR_REG(r, v)	W_REG((r), R_REG(r) | (v))
@@ -590,8 +467,7 @@ extern void osl_assert(char *exp, char *file, int line);
 
 /* externs */
 /* crc */
-	extern u8 hndcrc8(u8 *p, uint nbytes, u8 crc);
-	extern u16 hndcrc16(u8 *p, uint nbytes, u16 crc);
+extern u8 bcm_crc8(u8 *p, uint nbytes, u8 crc);
 /* format/print */
 #if defined(BCMDBG)
 	extern int bcm_format_flags(const bcm_bit_desc_t *bd, u32 flags,
@@ -599,12 +475,9 @@ extern void osl_assert(char *exp, char *file, int line);
 	extern int bcm_format_hex(char *str, const void *bytes, int len);
 #endif
 	extern char *bcm_chipname(uint chipid, char *buf, uint len);
-	extern void prhex(const char *msg, unsigned char *buf, uint len);
 
 	extern bcm_tlv_t *bcm_parse_tlvs(void *buf, int buflen,
 						    uint key);
-/* bcmerror */
-	extern const char *bcmerrorstr(int bcmerror);
 
 /* multi-bool data type: set of bools, mbool is true if any is set */
 	typedef u32 mbool;

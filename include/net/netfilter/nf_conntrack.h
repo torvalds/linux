@@ -14,7 +14,6 @@
 
 #include <linux/netfilter/nf_conntrack_common.h>
 
-#ifdef __KERNEL__
 #include <linux/bitops.h>
 #include <linux/compiler.h>
 #include <asm/atomic.h>
@@ -308,6 +307,12 @@ static inline int nf_ct_is_untracked(const struct nf_conn *ct)
 	return test_bit(IPS_UNTRACKED_BIT, &ct->status);
 }
 
+/* Packet is received from loopback */
+static inline bool nf_is_loopback_packet(const struct sk_buff *skb)
+{
+	return skb->dev && skb->skb_iif && skb->dev->flags & IFF_LOOPBACK;
+}
+
 extern int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp);
 extern unsigned int nf_conntrack_htable_size;
 extern unsigned int nf_conntrack_max;
@@ -326,5 +331,4 @@ do {							\
 #define MODULE_ALIAS_NFCT_HELPER(helper) \
         MODULE_ALIAS("nfct-helper-" helper)
 
-#endif /* __KERNEL__ */
 #endif /* _NF_CONNTRACK_H */

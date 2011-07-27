@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
+#include <asm/irq_handler.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -96,7 +97,7 @@ static void ipi_cpu_stop(unsigned int cpu)
 	dump_stack();
 	spin_unlock(&stop_lock);
 
-	cpu_clear(cpu, cpu_online_map);
+	set_cpu_online(cpu, false);
 
 	local_irq_disable();
 
@@ -146,7 +147,7 @@ static void ipi_call_function(unsigned int cpu, struct ipi_message *msg)
 		 */
 		resync_core_dcache();
 #endif
-		cpu_clear(cpu, *msg->call_struct.waitmask);
+		cpumask_clear_cpu(cpu, msg->call_struct.waitmask);
 	}
 }
 
@@ -177,6 +178,9 @@ static irqreturn_t ipi_handler_int1(int irq, void *dev_instance)
 	while (msg_queue->count) {
 		msg = &msg_queue->ipi_message[msg_queue->head];
 		switch (msg->type) {
+		case BFIN_IPI_RESCHEDULE:
+			scheduler_ipi();
+			break;
 		case BFIN_IPI_CALL_FUNC:
 			spin_unlock_irqrestore(&msg_queue->lock, flags);
 			ipi_call_function(cpu, msg);
@@ -219,9 +223,10 @@ static inline void smp_send_message(cpumask_t callmap, unsigned long type,
 	struct ipi_message_queue *msg_queue;
 	struct ipi_message *msg;
 	unsigned long flags, next_msg;
-	cpumask_t waitmask = callmap; /* waitmask is shared by all cpus */
+	cpumask_t waitmask; /* waitmask is shared by all cpus */
 
-	for_each_cpu_mask(cpu, callmap) {
+	cpumask_copy(&waitmask, &callmap);
+	for_each_cpu(cpu, &callmap) {
 		msg_queue = &per_cpu(ipi_msg_queue, cpu);
 		spin_lock_irqsave(&msg_queue->lock, flags);
 		if (msg_queue->count < BFIN_IPI_MSGQ_LEN) {
@@ -243,7 +248,7 @@ static inline void smp_send_message(cpumask_t callmap, unsigned long type,
 	}
 
 	if (wait) {
-		while (!cpus_empty(waitmask))
+		while (!cpumask_empty(&waitmask))
 			blackfin_dcache_invalidate_range(
 				(unsigned long)(&waitmask),
 				(unsigned long)(&waitmask));
@@ -262,9 +267,9 @@ int smp_call_function(void (*func)(void *info), void *info, int wait)
 	cpumask_t callmap;
 
 	preempt_disable();
-	callmap = cpu_online_map;
-	cpu_clear(smp_processor_id(), callmap);
-	if (!cpus_empty(callmap))
+	cpumask_copy(&callmap, cpu_online_mask);
+	cpumask_clear_cpu(smp_processor_id(), &callmap);
+	if (!cpumask_empty(&callmap))
 		smp_send_message(callmap, BFIN_IPI_CALL_FUNC, func, info, wait);
 
 	preempt_enable();
@@ -281,8 +286,8 @@ int smp_call_function_single(int cpuid, void (*func) (void *info), void *info,
 
 	if (cpu_is_offline(cpu))
 		return 0;
-	cpus_clear(callmap);
-	cpu_set(cpu, callmap);
+	cpumask_clear(&callmap);
+	cpumask_set_cpu(cpu, &callmap);
 
 	smp_send_message(callmap, BFIN_IPI_CALL_FUNC, func, info, wait);
 
@@ -305,9 +310,9 @@ void smp_send_stop(void)
 	cpumask_t callmap;
 
 	preempt_disable();
-	callmap = cpu_online_map;
-	cpu_clear(smp_processor_id(), callmap);
-	if (!cpus_empty(callmap))
+	cpumask_copy(&callmap, cpu_online_mask);
+	cpumask_clear_cpu(smp_processor_id(), &callmap);
+	if (!cpumask_empty(&callmap))
 		smp_send_message(callmap, BFIN_IPI_CPU_STOP, NULL, NULL, 0);
 
 	preempt_enable();

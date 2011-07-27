@@ -490,7 +490,8 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
 	unsigned int max_blocks = 0;
 
 	q->limits.discard_zeroes_data = sdkp->lbprz;
-	q->limits.discard_alignment = sdkp->unmap_alignment;
+	q->limits.discard_alignment = sdkp->unmap_alignment *
+		logical_block_size;
 	q->limits.discard_granularity =
 		max(sdkp->physical_block_size,
 		    sdkp->unmap_granularity * logical_block_size);
@@ -2021,16 +2022,26 @@ sd_read_cache_type(struct scsi_disk *sdkp, unsigned char *buffer)
 
 	int dbd;
 	int modepage;
+	int first_len;
 	struct scsi_mode_data data;
 	struct scsi_sense_hdr sshdr;
 	int old_wce = sdkp->WCE;
 	int old_rcd = sdkp->RCD;
 	int old_dpofua = sdkp->DPOFUA;
 
-	if (sdp->skip_ms_page_8)
-		goto defaults;
-
-	if (sdp->type == TYPE_RBC) {
+	first_len = 4;
+	if (sdp->skip_ms_page_8) {
+		if (sdp->type == TYPE_RBC)
+			goto defaults;
+		else {
+			if (sdp->skip_ms_page_3f)
+				goto defaults;
+			modepage = 0x3F;
+			if (sdp->use_192_bytes_for_3f)
+				first_len = 192;
+			dbd = 0;
+		}
+	} else if (sdp->type == TYPE_RBC) {
 		modepage = 6;
 		dbd = 8;
 	} else {
@@ -2039,13 +2050,15 @@ sd_read_cache_type(struct scsi_disk *sdkp, unsigned char *buffer)
 	}
 
 	/* cautiously ask */
-	res = sd_do_mode_sense(sdp, dbd, modepage, buffer, 4, &data, &sshdr);
+	res = sd_do_mode_sense(sdp, dbd, modepage, buffer, first_len,
+			&data, &sshdr);
 
 	if (!scsi_status_is_good(res))
 		goto bad_sense;
 
 	if (!data.header_length) {
 		modepage = 6;
+		first_len = 0;
 		sd_printk(KERN_ERR, sdkp, "Missing header in MODE_SENSE response\n");
 	}
 
@@ -2058,30 +2071,61 @@ sd_read_cache_type(struct scsi_disk *sdkp, unsigned char *buffer)
 	 */
 	if (len < 3)
 		goto bad_sense;
-	if (len > 20)
-		len = 20;
-
-	/* Take headers and block descriptors into account */
-	len += data.header_length + data.block_descriptor_length;
-	if (len > SD_BUF_SIZE)
-		goto bad_sense;
+	else if (len > SD_BUF_SIZE) {
+		sd_printk(KERN_NOTICE, sdkp, "Truncating mode parameter "
+			  "data from %d to %d bytes\n", len, SD_BUF_SIZE);
+		len = SD_BUF_SIZE;
+	}
+	if (modepage == 0x3F && sdp->use_192_bytes_for_3f)
+		len = 192;
 
 	/* Get the data */
-	res = sd_do_mode_sense(sdp, dbd, modepage, buffer, len, &data, &sshdr);
+	if (len > first_len)
+		res = sd_do_mode_sense(sdp, dbd, modepage, buffer, len,
+				&data, &sshdr);
 
 	if (scsi_status_is_good(res)) {
 		int offset = data.header_length + data.block_descriptor_length;
 
-		if (offset >= SD_BUF_SIZE - 2) {
-			sd_printk(KERN_ERR, sdkp, "Malformed MODE SENSE response\n");
-			goto defaults;
+		while (offset < len) {
+			u8 page_code = buffer[offset] & 0x3F;
+			u8 spf       = buffer[offset] & 0x40;
+
+			if (page_code == 8 || page_code == 6) {
+				/* We're interested only in the first 3 bytes.
+				 */
+				if (len - offset <= 2) {
+					sd_printk(KERN_ERR, sdkp, "Incomplete "
+						  "mode parameter data\n");
+					goto defaults;
+				} else {
+					modepage = page_code;
+					goto Page_found;
+				}
+			} else {
+				/* Go to the next page */
+				if (spf && len - offset > 3)
+					offset += 4 + (buffer[offset+2] << 8) +
+						buffer[offset+3];
+				else if (!spf && len - offset > 1)
+					offset += 2 + buffer[offset+1];
+				else {
+					sd_printk(KERN_ERR, sdkp, "Incomplete "
+						  "mode parameter data\n");
+					goto defaults;
+				}
+			}
 		}
 
-		if ((buffer[offset] & 0x3f) != modepage) {
+		if (modepage == 0x3F) {
+			sd_printk(KERN_ERR, sdkp, "No Caching mode page "
+				  "present\n");
+			goto defaults;
+		} else if ((buffer[offset] & 0x3f) != modepage) {
 			sd_printk(KERN_ERR, sdkp, "Got wrong page\n");
 			goto defaults;
 		}
-
+	Page_found:
 		if (modepage == 8) {
 			sdkp->WCE = ((buffer[offset + 2] & 0x04) != 0);
 			sdkp->RCD = ((buffer[offset + 2] & 0x01) != 0);

@@ -90,7 +90,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         if (copy_from_user(&sScanCmd, pReq->data, sizeof(SCmdScan))) {
 			result = -EFAULT;
 			break;
-		};
+		}
 
         pItemSSID = (PWLAN_IE_SSID)sScanCmd.ssid;
         if (pItemSSID->len != 0) {
@@ -124,7 +124,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         if (copy_from_user(&sZoneTypeCmd, pReq->data, sizeof(SCmdZoneTypeSet))) {
 			result = -EFAULT;
 			break;
-		};
+		}
 
           if(sZoneTypeCmd.bWrite==TRUE) {
 	  //////write zonetype
@@ -163,7 +163,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 	   if (copy_to_user(pReq->data, &sZoneTypeCmd, sizeof(SCmdZoneTypeSet))) {
 			result = -EFAULT;
 			break;
-		};
+		}
 	}
 
 	     break;
@@ -173,7 +173,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         if (copy_from_user(&sJoinCmd, pReq->data, sizeof(SCmdBSSJoin))) {
 			result = -EFAULT;
 			break;
-		};
+		}
 
         pItemSSID = (PWLAN_IE_SSID)sJoinCmd.ssid;
         memset(pMgmt->abyDesireSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
@@ -223,7 +223,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         if (copy_from_user(&sWEPCmd, pReq->data, sizeof(SCmdSetWEP))) {
 			result = -EFAULT;
 			break;
-		};
+		}
 	    if (sWEPCmd.bEnableWep != TRUE) {
 	        int uu;
 
@@ -295,7 +295,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         if (copy_to_user(pReq->data, &sLinkStatus, sizeof(SCmdLinkStatus))) {
 			result = -EFAULT;
 			break;
-		};
+		}
 
         break;
 
@@ -307,12 +307,12 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
             if (!pBSS->bActive)
                 continue;
             cbListCount++;
-        };
+        }
         sList.uItem = cbListCount;
         if (copy_to_user(pReq->data, &sList, sizeof(SBSSIDList))) {
 			result = -EFAULT;
 			break;
-		};
+		}
         pReq->wResult = 0;
         break;
 
@@ -320,7 +320,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         if (copy_from_user(&sList, pReq->data, sizeof(SBSSIDList))) {
 			result = -EFAULT;
 			break;
-		};
+		}
         pList = (PSBSSIDList)kmalloc(sizeof(SBSSIDList) + (sList.uItem * sizeof(SBSSIDItem)), (int)GFP_ATOMIC);
         if (pList == NULL) {
             result = -ENOMEM;
@@ -362,7 +362,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         if (copy_to_user(pReq->data, pList, sizeof(SBSSIDList) + (sList.uItem * sizeof(SBSSIDItem)))) {
 			result = -EFAULT;
 			break;
-		};
+		}
         kfree(pList);
         pReq->wResult = 0;
         break;
@@ -371,14 +371,14 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         if (copy_to_user(pReq->data, &(pDevice->s802_11Counter), sizeof(SDot11MIBCount))) {
 			result = -EFAULT;
 			break;
-		};
+		}
         break;
 
     case WLAN_CMD_GET_STAT:
         if (copy_to_user(pReq->data, &(pDevice->scStatistic), sizeof(SStatCounter))) {
 			result = -EFAULT;
 			break;
-		};
+		}
         break;
     case WLAN_CMD_STOP_MAC:
 
@@ -415,7 +415,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         if (copy_from_user(&sValue, pReq->data, sizeof(SCmdValue))) {
 			result = -EFAULT;
 			break;
-		};
+		}
 		if (sValue.dwValue == 1) {
             if (vt6656_hostap_set_hostapd(pDevice, 1, 1) == 0){
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enable HOSTAP\n");
@@ -443,7 +443,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         if (copy_from_user(&sValue, pReq->data, sizeof(SCmdValue))) {
 			result = -EFAULT;
 			break;
-		};
+		}
 
 		if (sValue.dwValue == 1) {
             pDevice->bEnable8021x = TRUE;
@@ -463,7 +463,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         if (copy_from_user(&sValue, pReq->data, sizeof(SCmdValue))) {
 			result = -EFAULT;
 			break;
-		};
+		}
 
 		if (sValue.dwValue == 1) {
             pDevice->bEnableHostWEP = TRUE;
@@ -482,7 +482,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         if (copy_from_user(&sValue, pReq->data, sizeof(SCmdValue))) {
 			result = -EFAULT;
 			break;
-		};
+		}
 		if (sValue.dwValue == 1) {
                      DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "up wpadev\n");
 		   memcpy(pDevice->wpadev->dev_addr,
@@ -507,7 +507,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         if (copy_from_user(&sStartAPCmd, pReq->data, sizeof(SCmdStartAP))) {
 			result = -EFAULT;
 			break;
-		};
+		}
 
 	    if (sStartAPCmd.wBSSType == AP) {
 	        pMgmt->eConfigMode = WMAC_CONFIG_AP;
@@ -594,13 +594,13 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
             if (!pNode->bActive)
                 continue;
             cbListCount++;
-        };
+        }
 
         sNodeList.uItem = cbListCount;
         if (copy_to_user(pReq->data, &sNodeList, sizeof(SNodeList))) {
 			result = -EFAULT;
 			break;
-		};
+		}
         pReq->wResult = 0;
         break;
 
@@ -609,7 +609,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         if (copy_from_user(&sNodeList, pReq->data, sizeof(SNodeList))) {
 			result = -EFAULT;
 			break;
-		};
+		}
         pNodeList = (PSNodeList)kmalloc(sizeof(SNodeList) + (sNodeList.uItem * sizeof(SNodeItem)), (int)GFP_ATOMIC);
         if (pNodeList == NULL) {
             result = -ENOMEM;
@@ -645,11 +645,11 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
     		    if (jj >= pNodeList->uItem)
     		        break;
     		}
-		};
+		}
         if (copy_to_user(pReq->data, pNodeList, sizeof(SNodeList) + (sNodeList.uItem * sizeof(SNodeItem)))) {
 			result = -EFAULT;
 			break;
-		};
+		}
         kfree(pNodeList);
         pReq->wResult = 0;
         break;

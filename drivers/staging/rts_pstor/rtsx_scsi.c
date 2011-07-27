@@ -23,6 +23,7 @@
 #include <linux/blkdev.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>
+#include <linux/vmalloc.h>
 
 #include "rtsx.h"
 #include "rtsx_transport.h"

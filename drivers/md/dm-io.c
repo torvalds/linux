@@ -19,6 +19,8 @@
 #define DM_MSG_PREFIX "io"
 
 #define DM_IO_MAX_REGIONS	BITS_PER_LONG
+#define MIN_IOS		16
+#define MIN_BIOS	16
 
 struct dm_io_client {
 	mempool_t *pool;
@@ -41,33 +43,21 @@ struct io {
 static struct kmem_cache *_dm_io_cache;
 
 /*
- * io contexts are only dynamically allocated for asynchronous
- * io.  Since async io is likely to be the majority of io we'll
- * have the same number of io contexts as bios! (FIXME: must reduce this).
- */
-
-static unsigned int pages_to_ios(unsigned int pages)
-{
-	return 4 * pages;	/* too many ? */
-}
-
-/*
  * Create a client with mempool and bioset.
  */
-struct dm_io_client *dm_io_client_create(unsigned num_pages)
+struct dm_io_client *dm_io_client_create(void)
 {
-	unsigned ios = pages_to_ios(num_pages);
 	struct dm_io_client *client;
 
 	client = kmalloc(sizeof(*client), GFP_KERNEL);
 	if (!client)
 		return ERR_PTR(-ENOMEM);
 
-	client->pool = mempool_create_slab_pool(ios, _dm_io_cache);
+	client->pool = mempool_create_slab_pool(MIN_IOS, _dm_io_cache);
 	if (!client->pool)
 		goto bad;
 
-	client->bios = bioset_create(16, 0);
+	client->bios = bioset_create(MIN_BIOS, 0);
 	if (!client->bios)
 		goto bad;
 
@@ -80,13 +70,6 @@ struct dm_io_client *dm_io_client_create(unsigned num_pages)
 	return ERR_PTR(-ENOMEM);
 }
 EXPORT_SYMBOL(dm_io_client_create);
-
-int dm_io_client_resize(unsigned num_pages, struct dm_io_client *client)
-{
-	return mempool_resize(client->pool, pages_to_ios(num_pages),
-			      GFP_KERNEL);
-}
-EXPORT_SYMBOL(dm_io_client_resize);
 
 void dm_io_client_destroy(struct dm_io_client *client)
 {

@@ -839,7 +839,7 @@ type_pf_tdel(struct ip_set *set, void *value, u32 timeout)
 	struct htable *t = h->table;
 	const struct type_pf_elem *d = value;
 	struct hbucket *n;
-	int i, ret = 0;
+	int i;
 	struct type_pf_elem *data;
 	u32 key;
 
@@ -850,7 +850,7 @@ type_pf_tdel(struct ip_set *set, void *value, u32 timeout)
 		if (!type_pf_data_equal(data, d))
 			continue;
 		if (type_pf_data_expired(data))
-			ret = -IPSET_ERR_EXIST;
+			return -IPSET_ERR_EXIST;
 		if (i != n->pos - 1)
 			/* Not last one */
 			type_pf_data_copy(data, ahash_tdata(n, n->pos - 1));

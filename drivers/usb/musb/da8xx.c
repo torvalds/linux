@@ -199,7 +199,8 @@ static void otg_timer(unsigned long _musb)
 	 * status change events (from the transceiver) otherwise.
 	 */
 	devctl = musb_readb(mregs, MUSB_DEVCTL);
-	DBG(7, "Poll devctl %02x (%s)\n", devctl, otg_state_string(musb));
+	dev_dbg(musb->controller, "Poll devctl %02x (%s)\n", devctl,
+		otg_state_string(musb->xceiv->state));
 
 	spin_lock_irqsave(&musb->lock, flags);
 	switch (musb->xceiv->state) {
@@ -273,20 +274,22 @@ static void da8xx_musb_try_idle(struct musb *musb, unsigned long timeout)
 	/* Never idle if active, or when VBUS timeout is not set as host */
 	if (musb->is_active || (musb->a_wait_bcon == 0 &&
 				musb->xceiv->state == OTG_STATE_A_WAIT_BCON)) {
-		DBG(4, "%s active, deleting timer\n", otg_state_string(musb));
+		dev_dbg(musb->controller, "%s active, deleting timer\n",
+			otg_state_string(musb->xceiv->state));
 		del_timer(&otg_workaround);
 		last_timer = jiffies;
 		return;
 	}
 
 	if (time_after(last_timer, timeout) && timer_pending(&otg_workaround)) {
-		DBG(4, "Longer idle timer already pending, ignoring...\n");
+		dev_dbg(musb->controller, "Longer idle timer already pending, ignoring...\n");
 		return;
 	}
 	last_timer = timeout;
 
-	DBG(4, "%s inactive, starting idle timer for %u ms\n",
-	    otg_state_string(musb), jiffies_to_msecs(timeout - jiffies));
+	dev_dbg(musb->controller, "%s inactive, starting idle timer for %u ms\n",
+		otg_state_string(musb->xceiv->state),
+		jiffies_to_msecs(timeout - jiffies));
 	mod_timer(&otg_workaround, timeout);
 }
 
@@ -311,7 +314,7 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 		goto eoi;
 
 	musb_writel(reg_base, DA8XX_USB_INTR_SRC_CLEAR_REG, status);
-	DBG(4, "USB IRQ %08x\n", status);
+	dev_dbg(musb->controller, "USB IRQ %08x\n", status);
 
 	musb->int_rx = (status & DA8XX_INTR_RX_MASK) >> DA8XX_INTR_RX_SHIFT;
 	musb->int_tx = (status & DA8XX_INTR_TX_MASK) >> DA8XX_INTR_TX_SHIFT;
@@ -363,9 +366,9 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 			portstate(musb->port1_status &= ~USB_PORT_STAT_POWER);
 		}
 
-		DBG(2, "VBUS %s (%s)%s, devctl %02x\n",
+		dev_dbg(musb->controller, "VBUS %s (%s)%s, devctl %02x\n",
 				drvvbus ? "on" : "off",
-				otg_state_string(musb),
+				otg_state_string(musb->xceiv->state),
 				err ? " ERROR" : "",
 				devctl);
 		ret = IRQ_HANDLED;
@@ -410,7 +413,7 @@ static int da8xx_musb_set_mode(struct musb *musb, u8 musb_mode)
 		break;
 #endif
 	default:
-		DBG(2, "Trying to set unsupported mode %u\n", musb_mode);
+		dev_dbg(musb->controller, "Trying to set unsupported mode %u\n", musb_mode);
 	}
 
 	__raw_writel(cfgchip2, CFGCHIP2);

@@ -47,7 +47,7 @@ static struct rc_map_table rc_map_haupp_table[] = {
 	{ 0x1e17, KEY_RIGHT },
 	{ 0x1e18, KEY_VIDEO },
 	{ 0x1e19, KEY_AUDIO },
-	{ 0x1e1a, KEY_MEDIA },
+	{ 0x1e1a, KEY_IMAGES },
 	{ 0x1e1b, KEY_EPG },
 	{ 0x1e1c, KEY_TV },
 	{ 0x1e1e, KEY_NEXT },

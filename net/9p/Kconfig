@@ -3,8 +3,8 @@
 #
 
 menuconfig NET_9P
-	depends on NET && EXPERIMENTAL
-	tristate "Plan 9 Resource Sharing Support (9P2000) (Experimental)"
+	depends on NET
+	tristate "Plan 9 Resource Sharing Support (9P2000)"
 	help
 	  If you say Y here, you will get experimental support for
 	  Plan 9 resource sharing via the 9P2000 protocol.
@@ -16,8 +16,8 @@ menuconfig NET_9P
 if NET_9P
 
 config NET_9P_VIRTIO
-	depends on EXPERIMENTAL && VIRTIO
-	tristate "9P Virtio Transport (Experimental)"
+	depends on VIRTIO
+	tristate "9P Virtio Transport"
 	help
 	  This builds support for a transports between
 	  guest partitions and a host partition.

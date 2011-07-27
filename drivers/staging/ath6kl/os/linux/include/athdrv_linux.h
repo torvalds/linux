@@ -620,7 +620,6 @@ typedef enum {
  */
 #define AR6000_XIOCTL_WMI_SET_TXOP                      57
 
-#ifdef USER_KEYS
 /*
  * arguments:
  * UINT32 cmd (AR6000_XIOCTL_USER_SETKEYS)
@@ -628,7 +627,6 @@ typedef enum {
  * uses struct ar6000_user_setkeys_info
  */
 #define AR6000_XIOCTL_USER_SETKEYS                      58
-#endif /* USER_KEYS */
 
 #define AR6000_XIOCTL_WMI_SET_KEEPALIVE                 59
 /*
@@ -942,7 +940,7 @@ typedef enum {
 
 #define AR6000_XIOCTL_HCI_CMD                       132
 
-#define AR6000_XIOCTL_ACL_DATA                      133
+#define AR6000_XIOCTL_ACL_DATA                      133 /* used to be used for PAL */
 
 #define AR6000_XIOCTL_WLAN_CONN_PRECEDENCE          134
 

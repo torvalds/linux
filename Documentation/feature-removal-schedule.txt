@@ -6,6 +6,42 @@ be removed from this file.
 
 ---------------------------
 
+What:	x86 floppy disable_hlt
+When:	2012
+Why:	ancient workaround of dubious utility clutters the
+	code used by everybody else.
+Who:	Len Brown <len.brown@intel.com>
+
+---------------------------
+
+What:	CONFIG_APM_CPU_IDLE, and its ability to call APM BIOS in idle
+When:	2012
+Why:	This optional sub-feature of APM is of dubious reliability,
+	and ancient APM laptops are likely better served by calling HLT.
+	Deleting CONFIG_APM_CPU_IDLE allows x86 to stop exporting
+	the pm_idle function pointer to modules.
+Who:	Len Brown <len.brown@intel.com>
+
+----------------------------
+
+What:	x86_32 "no-hlt" cmdline param
+When:	2012
+Why:	remove a branch from idle path, simplify code used by everybody.
+	This option disabled the use of HLT in idle and machine_halt()
+	for hardware that was flakey 15-years ago.  Today we have
+	"idle=poll" that removed HLT from idle, and so if such a machine
+	is still running the upstream kernel, "idle=poll" is likely sufficient.
+Who:	Len Brown <len.brown@intel.com>
+
+----------------------------
+
+What:	x86 "idle=mwait" cmdline param
+When:	2012
+Why:	simplify x86 idle code
+Who:	Len Brown <len.brown@intel.com>
+
+----------------------------
+
 What:	PRISM54
 When:	2.6.34
 
@@ -32,17 +68,6 @@ Why:	prism54 FullMAC PCI / Cardbus devices used to be supported only by the
 	http://wireless.kernel.org/en/users/Drivers/p54
 
 Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
-
----------------------------
-
-What:	AR9170USB
-When:	2.6.40
-
-Why:	This driver is deprecated and the firmware is no longer
-	maintained. The replacement driver "carl9170" has been
-	around for a while, so the devices are still supported.
-
-Who:	Christian Lamparter <chunkeey@googlemail.com>
 
 ---------------------------
 
@@ -226,7 +251,7 @@ Who:	Zhang Rui <rui.zhang@intel.com>
 What:	CONFIG_ACPI_PROCFS_POWER
 When:	2.6.39
 Why:	sysfs I/F for ACPI power devices, including AC and Battery,
-        has been working in upstream kenrel since 2.6.24, Sep 2007.
+        has been working in upstream kernel since 2.6.24, Sep 2007.
 	In 2.6.37, we make the sysfs I/F always built in and this option
 	disabled by default.
 	Remove this option and the ACPI power procfs interface in 2.6.39.
@@ -270,16 +295,6 @@ Why:	The support code for the old firmware hurts code readability/maintainabilit
 	and slightly hurts runtime performance. Bugfixes for the old firmware
 	are not provided by Broadcom anymore.
 Who:	Michael Buesch <mb@bu3sch.de>
-
----------------------------
-
-What:	/sys/o2cb symlink
-When:	January 2010
-Why:	/sys/fs/o2cb is the proper location for this information - /sys/o2cb
-	exists as a symlink for backwards compatibility for old versions of
-	ocfs2-tools. 2 years should be sufficient time to phase in new versions
-	which know to look in /sys/fs/o2cb.
-Who:	ocfs2-devel@oss.oracle.com
 
 ---------------------------
 
@@ -405,16 +420,6 @@ Who: 	anybody or Florian Mickler <florian@mickler.org>
 
 ----------------------------
 
-What:	capifs
-When:	February 2011
-Files:	drivers/isdn/capi/capifs.*
-Why:	udev fully replaces this special file system that only contains CAPI
-	NCCI TTY device nodes. User space (pppdcapiplugin) works without
-	noticing the difference.
-Who:	Jan Kiszka <jan.kiszka@web.de>
-
-----------------------------
-
 What:	KVM paravirt mmu host support
 When:	January 2011
 Why:	The paravirt mmu host support is slower than non-paravirt mmu, both
@@ -460,14 +465,6 @@ Who:	Thomas Gleixner <tglx@linutronix.de>
 
 ----------------------------
 
-What:	The acpi_sleep=s4_nonvs command line option
-When:	2.6.37
-Files:	arch/x86/kernel/acpi/sleep.c
-Why:	superseded by acpi_sleep=nonvs
-Who:	Rafael J. Wysocki <rjw@sisk.pl>
-
-----------------------------
-
 What: 	PCI DMA unmap state API
 When:	August 2012
 Why:	PCI DMA unmap state API (include/linux/pci-dma.h) was replaced
@@ -481,23 +478,6 @@ What: 	DMA_xxBIT_MASK macros
 When:	Jun 2011
 Why:	DMA_xxBIT_MASK macros were replaced with DMA_BIT_MASK() macros.
 Who:	FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-
-----------------------------
-
-What:   namespace cgroup (ns_cgroup)
-When:   2.6.38
-Why:    The ns_cgroup leads to some problems:
-	* cgroup creation is out-of-control
-	* cgroup name can conflict when pids are looping
-	* it is not possible to have a single process handling
-	a lot of namespaces without falling in a exponential creation time
-	* we may want to create a namespace without creating a cgroup
-
-	The ns_cgroup is replaced by a compatibility flag 'clone_children',
-	where a newly created cgroup will copy the parent cgroup values.
-	The userspace has to manually create a cgroup and add a task to
-	the 'tasks' file.
-Who:    Daniel Lezcano <daniel.lezcano@free.fr>
 
 ----------------------------
 
@@ -578,5 +558,28 @@ When:	September 2011
 Why:	These legacy callbacks should no longer be used as i2c-core offers
 	a variety of preferable alternative ways to instantiate I2C devices.
 Who:	Jean Delvare <khali@linux-fr.org>
+
+----------------------------
+
+What:	Support for UVCIOC_CTRL_ADD in the uvcvideo driver
+When:	2.6.42
+Why:	The information passed to the driver by this ioctl is now queried
+	dynamically from the device.
+Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+
+----------------------------
+
+What:	Support for UVCIOC_CTRL_MAP_OLD in the uvcvideo driver
+When:	2.6.42
+Why:	Used only by applications compiled against older driver versions.
+	Superseded by UVCIOC_CTRL_MAP which supports V4L2 menu controls.
+Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+
+----------------------------
+
+What:	Support for UVCIOC_CTRL_GET and UVCIOC_CTRL_SET in the uvcvideo driver
+When:	2.6.42
+Why:	Superseded by the UVCIOC_CTRL_QUERY ioctl.
+Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 
 ----------------------------

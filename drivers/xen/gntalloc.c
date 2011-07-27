@@ -427,6 +427,17 @@ static long gntalloc_ioctl(struct file *filp, unsigned int cmd,
 	return 0;
 }
 
+static void gntalloc_vma_open(struct vm_area_struct *vma)
+{
+	struct gntalloc_gref *gref = vma->vm_private_data;
+	if (!gref)
+		return;
+
+	spin_lock(&gref_lock);
+	gref->users++;
+	spin_unlock(&gref_lock);
+}
+
 static void gntalloc_vma_close(struct vm_area_struct *vma)
 {
 	struct gntalloc_gref *gref = vma->vm_private_data;
@@ -441,6 +452,7 @@ static void gntalloc_vma_close(struct vm_area_struct *vma)
 }
 
 static struct vm_operations_struct gntalloc_vmops = {
+	.open = gntalloc_vma_open,
 	.close = gntalloc_vma_close,
 };
 
@@ -471,8 +483,6 @@ static int gntalloc_mmap(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_private_data = gref;
 
 	vma->vm_flags |= VM_RESERVED;
-	vma->vm_flags |= VM_DONTCOPY;
-	vma->vm_flags |= VM_PFNMAP | VM_PFN_AT_MMAP;
 
 	vma->vm_ops = &gntalloc_vmops;
 

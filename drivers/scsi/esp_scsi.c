@@ -708,8 +708,7 @@ static void esp_maybe_execute_command(struct esp *esp)
 	tp = &esp->target[tgt];
 	lp = dev->hostdata;
 
-	list_del(&ent->list);
-	list_add(&ent->list, &esp->active_cmds);
+	list_move(&ent->list, &esp->active_cmds);
 
 	esp->active_cmd = ent;
 
@@ -1059,7 +1058,7 @@ static struct esp_cmd_entry *esp_reconnect_with_tag(struct esp *esp,
 	esp->ops->send_dma_cmd(esp, esp->command_block_dma,
 			       2, 2, 1, ESP_CMD_DMA | ESP_CMD_TI);
 
-	/* ACK the msssage.  */
+	/* ACK the message.  */
 	scsi_esp_cmd(esp, ESP_CMD_MOK);
 
 	for (i = 0; i < ESP_RESELECT_TAG_LIMIT; i++) {
@@ -1244,8 +1243,7 @@ static int esp_finish_select(struct esp *esp)
 		/* Now that the state is unwound properly, put back onto
 		 * the issue queue.  This command is no longer active.
 		 */
-		list_del(&ent->list);
-		list_add(&ent->list, &esp->queued_cmds);
+		list_move(&ent->list, &esp->queued_cmds);
 		esp->active_cmd = NULL;
 
 		/* Return value ignored by caller, it directly invokes

@@ -2000,7 +2000,7 @@ static int wl3501_resume(struct pcmcia_device *link)
 }
 
 
-static struct pcmcia_device_id wl3501_ids[] = {
+static const struct pcmcia_device_id wl3501_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0xd601, 0x0001),
 	PCMCIA_DEVICE_NULL
 };

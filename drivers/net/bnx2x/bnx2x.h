@@ -1,6 +1,6 @@
 /* bnx2x.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2010 Broadcom Corporation
+ * Copyright (c) 2007-2011 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
-#define DRV_MODULE_VERSION      "1.62.11-0"
-#define DRV_MODULE_RELDATE      "2011/01/31"
+#define DRV_MODULE_VERSION      "1.62.12-0"
+#define DRV_MODULE_RELDATE      "2011/03/20"
 #define BNX2X_BC_VER            0x040200
 
 #define BNX2X_MULTI_QUEUE
@@ -473,7 +473,8 @@ struct bnx2x_fastpath {
 #define NUM_RX_BD			(RX_DESC_CNT * NUM_RX_RINGS)
 #define MAX_RX_BD			(NUM_RX_BD - 1)
 #define MAX_RX_AVAIL			(MAX_RX_DESC_CNT * NUM_RX_RINGS - 2)
-#define MIN_RX_AVAIL			128
+#define MIN_RX_SIZE_TPA			72
+#define MIN_RX_SIZE_NONTPA		10
 #define INIT_JUMBO_RX_RING_SIZE		MAX_RX_AVAIL
 #define INIT_RX_RING_SIZE		MAX_RX_AVAIL
 #define NEXT_RX_IDX(x)		((((x) & RX_DESC_MASK) == \
@@ -893,6 +894,22 @@ typedef enum {
 	(&bp->def_status_blk->sp_sb.\
 	index_values[HC_SP_INDEX_EQ_CONS])
 
+/* This is a data that will be used to create a link report message.
+ * We will keep the data used for the last link report in order
+ * to prevent reporting the same link parameters twice.
+ */
+struct bnx2x_link_report_data {
+	u16 line_speed;			/* Effective line speed */
+	unsigned long link_report_flags;/* BNX2X_LINK_REPORT_XXX flags */
+};
+
+enum {
+	BNX2X_LINK_REPORT_FD,		/* Full DUPLEX */
+	BNX2X_LINK_REPORT_LINK_DOWN,
+	BNX2X_LINK_REPORT_RX_FC_ON,
+	BNX2X_LINK_REPORT_TX_FC_ON,
+};
+
 struct bnx2x {
 	/* Fields used in the tx and intr/napi performance paths
 	 * are grouped together in the beginning of the structure
@@ -918,7 +935,6 @@ struct bnx2x {
 
 	int			tx_ring_size;
 
-	u32			rx_csum;
 /* L2 header size + 2*VLANs (8 bytes) + LLC SNAP (8 bytes) */
 #define ETH_OVREHEAD		(ETH_HLEN + 8 + 8)
 #define ETH_MIN_PACKET_SIZE		60
@@ -1026,6 +1042,9 @@ struct bnx2x {
 
 	struct link_params	link_params;
 	struct link_vars	link_vars;
+	u32			link_cnt;
+	struct bnx2x_link_report_data last_reported_link;
+
 	struct mdio_if_info	mdio;
 
 	struct bnx2x_common	common;
@@ -1223,6 +1242,10 @@ struct bnx2x {
 	/* DCBX Negotiation results */
 	struct dcbx_features			dcbx_local_feat;
 	u32					dcbx_error;
+#ifdef BCM_DCBNL
+	struct dcbx_features			dcbx_remote_feat;
+	u32					dcbx_remote_flags;
+#endif
 	u32					pending_max;
 };
 
@@ -1441,6 +1464,8 @@ struct bnx2x_func_init_params {
 
 #define WAIT_RAMROD_POLL	0x01
 #define WAIT_RAMROD_COMMON	0x02
+
+void bnx2x_read_mf_cfg(struct bnx2x *bp);
 
 /* dmae */
 void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32);

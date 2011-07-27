@@ -44,7 +44,7 @@ int inet6_csk_bind_conflict(const struct sock *sk,
 		     !sk2->sk_bound_dev_if ||
 		     sk->sk_bound_dev_if == sk2->sk_bound_dev_if) &&
 		    (!sk->sk_reuse || !sk2->sk_reuse ||
-		     ((1 << sk2->sk_state) & (TCPF_LISTEN | TCPF_CLOSE))) &&
+		     sk2->sk_state == TCP_LISTEN) &&
 		     ipv6_rcv_saddr_equal(sk, sk2))
 			break;
 	}
@@ -203,7 +203,7 @@ struct dst_entry *__inet6_csk_dst_check(struct sock *sk, u32 cookie)
 	return dst;
 }
 
-int inet6_csk_xmit(struct sk_buff *skb)
+int inet6_csk_xmit(struct sk_buff *skb, struct flowi *fl_unused)
 {
 	struct sock *sk = skb->sk;
 	struct inet_sock *inet = inet_sk(sk);

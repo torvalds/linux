@@ -50,39 +50,13 @@ struct pismo_data {
 	struct platform_device	*dev[PISMO_NUM_CS];
 };
 
-/* FIXME: set_vpp could do with a better calling convention */
-static struct pismo_data *vpp_pismo;
-static DEFINE_MUTEX(pismo_mutex);
-
-static int pismo_setvpp_probe_fix(struct pismo_data *pismo)
+static void pismo_set_vpp(struct platform_device *pdev, int on)
 {
-	mutex_lock(&pismo_mutex);
-	if (vpp_pismo) {
-		mutex_unlock(&pismo_mutex);
-		kfree(pismo);
-		return -EBUSY;
-	}
-	vpp_pismo = pismo;
-	mutex_unlock(&pismo_mutex);
-	return 0;
-}
-
-static void pismo_setvpp_remove_fix(struct pismo_data *pismo)
-{
-	mutex_lock(&pismo_mutex);
-	if (vpp_pismo == pismo)
-		vpp_pismo = NULL;
-	mutex_unlock(&pismo_mutex);
-}
-
-static void pismo_set_vpp(struct map_info *map, int on)
-{
-	struct pismo_data *pismo = vpp_pismo;
+	struct i2c_client *client = to_i2c_client(pdev->dev.parent);
+	struct pismo_data *pismo = i2c_get_clientdata(client);
 
 	pismo->vpp(pismo->vpp_data, on);
 }
-/* end of hack */
-
 
 static unsigned int __devinit pismo_width_to_bytes(unsigned int width)
 {
@@ -231,9 +205,6 @@ static int __devexit pismo_remove(struct i2c_client *client)
 	for (i = 0; i < ARRAY_SIZE(pismo->dev); i++)
 		platform_device_unregister(pismo->dev[i]);
 
-	/* FIXME: set_vpp needs saner arguments */
-	pismo_setvpp_remove_fix(pismo);
-
 	kfree(pismo);
 
 	return 0;
@@ -256,11 +227,6 @@ static int __devinit pismo_probe(struct i2c_client *client,
 	pismo = kzalloc(sizeof(*pismo), GFP_KERNEL);
 	if (!pismo)
 		return -ENOMEM;
-
-	/* FIXME: set_vpp needs saner arguments */
-	ret = pismo_setvpp_probe_fix(pismo);
-	if (ret)
-		return ret;
 
 	pismo->client = client;
 	if (pdata) {

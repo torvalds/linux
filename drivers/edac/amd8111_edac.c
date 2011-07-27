@@ -33,7 +33,7 @@
 #include "edac_module.h"
 #include "amd8111_edac.h"
 
-#define AMD8111_EDAC_REVISION	" Ver: 1.0.0 " __DATE__
+#define AMD8111_EDAC_REVISION	" Ver: 1.0.0"
 #define AMD8111_EDAC_MOD_STR	"amd8111_edac"
 
 #define PCI_DEVICE_ID_AMD_8111_PCI	0x7460

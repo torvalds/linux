@@ -2216,7 +2216,7 @@ static noinline void trace_recursive_fail(void)
 
 	printk_once(KERN_WARNING "Tracing recursion: depth[%ld]:"
 		    "HC[%lu]:SC[%lu]:NMI[%lu]\n",
-		    current->trace_recursion,
+		    trace_recursion_buffer(),
 		    hardirq_count() >> HARDIRQ_SHIFT,
 		    softirq_count() >> SOFTIRQ_SHIFT,
 		    in_nmi());
@@ -2226,9 +2226,9 @@ static noinline void trace_recursive_fail(void)
 
 static inline int trace_recursive_lock(void)
 {
-	current->trace_recursion++;
+	trace_recursion_inc();
 
-	if (likely(current->trace_recursion < TRACE_RECURSIVE_DEPTH))
+	if (likely(trace_recursion_buffer() < TRACE_RECURSIVE_DEPTH))
 		return 0;
 
 	trace_recursive_fail();
@@ -2238,9 +2238,9 @@ static inline int trace_recursive_lock(void)
 
 static inline void trace_recursive_unlock(void)
 {
-	WARN_ON_ONCE(!current->trace_recursion);
+	WARN_ON_ONCE(!trace_recursion_buffer());
 
-	current->trace_recursion--;
+	trace_recursion_dec();
 }
 
 #else

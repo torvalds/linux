@@ -47,7 +47,7 @@ struct hypfs_dbfs_data {
 	void			*buf;
 	void			*buf_free_ptr;
 	size_t			size;
-	struct hypfs_dbfs_file	*dbfs_file;;
+	struct hypfs_dbfs_file	*dbfs_file;
 	struct kref		kref;
 };
 

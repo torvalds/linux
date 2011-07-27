@@ -16,7 +16,7 @@ on all processors in the system.  Don't let this scare you into
 thinking SMP cache/tlb flushing must be so inefficient, this is in
 fact an area where many optimizations are possible.  For example,
 if it can be proven that a user address space has never executed
-on a cpu (see vma->cpu_vm_mask), one need not perform a flush
+on a cpu (see mm_cpumask()), one need not perform a flush
 for this address space on that cpu.
 
 First, the TLB flushing interfaces, since they are the simplest.  The

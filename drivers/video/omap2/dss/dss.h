@@ -117,15 +117,6 @@ enum dss_clock {
 	DSS_CLK_VIDFCK	= 1 << 4,	/* DSS_96M_FCLK*/
 };
 
-enum dss_clk_source {
-	DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC,	/* OMAP3: DSI1_PLL_FCLK
-						 * OMAP4: PLL1_CLK1 */
-	DSS_CLK_SRC_DSI_PLL_HSDIV_DSI,		/* OMAP3: DSI2_PLL_FCLK
-						 * OMAP4: PLL1_CLK2 */
-	DSS_CLK_SRC_FCK,			/* OMAP2/3: DSS1_ALWON_FCLK
-						 * OMAP4: DSS_FCLK */
-};
-
 enum dss_hdmi_venc_clk_source_select {
 	DSS_VENC_TV_CLK = 0,
 	DSS_HDMI_M_PCLK = 1,
@@ -236,7 +227,7 @@ void dss_clk_enable(enum dss_clock clks);
 void dss_clk_disable(enum dss_clock clks);
 unsigned long dss_clk_get_rate(enum dss_clock clk);
 int dss_need_ctx_restore(void);
-const char *dss_get_generic_clk_source_name(enum dss_clk_source clk_src);
+const char *dss_get_generic_clk_source_name(enum omap_dss_clk_source clk_src);
 void dss_dump_clocks(struct seq_file *s);
 
 void dss_dump_regs(struct seq_file *s);
@@ -248,13 +239,14 @@ void dss_sdi_init(u8 datapairs);
 int dss_sdi_enable(void);
 void dss_sdi_disable(void);
 
-void dss_select_dispc_clk_source(enum dss_clk_source clk_src);
-void dss_select_dsi_clk_source(enum dss_clk_source clk_src);
+void dss_select_dispc_clk_source(enum omap_dss_clk_source clk_src);
+void dss_select_dsi_clk_source(int dsi_module,
+		enum omap_dss_clk_source clk_src);
 void dss_select_lcd_clk_source(enum omap_channel channel,
-		enum dss_clk_source clk_src);
-enum dss_clk_source dss_get_dispc_clk_source(void);
-enum dss_clk_source dss_get_dsi_clk_source(void);
-enum dss_clk_source dss_get_lcd_clk_source(enum omap_channel channel);
+		enum omap_dss_clk_source clk_src);
+enum omap_dss_clk_source dss_get_dispc_clk_source(void);
+enum omap_dss_clk_source dss_get_dsi_clk_source(int dsi_module);
+enum omap_dss_clk_source dss_get_lcd_clk_source(enum omap_channel channel);
 
 void dss_set_venc_output(enum omap_dss_venc_type type);
 void dss_set_dac_pwrdn_bgz(bool enable);
@@ -284,31 +276,39 @@ static inline void sdi_exit(void)
 
 /* DSI */
 #ifdef CONFIG_OMAP2_DSS_DSI
+
+struct dentry;
+struct file_operations;
+
 int dsi_init_platform_driver(void);
 void dsi_uninit_platform_driver(void);
 
 void dsi_dump_clocks(struct seq_file *s);
-void dsi_dump_irqs(struct seq_file *s);
-void dsi_dump_regs(struct seq_file *s);
+void dsi_create_debugfs_files_irq(struct dentry *debugfs_dir,
+		const struct file_operations *debug_fops);
+void dsi_create_debugfs_files_reg(struct dentry *debugfs_dir,
+		const struct file_operations *debug_fops);
 
 void dsi_save_context(void);
 void dsi_restore_context(void);
 
 int dsi_init_display(struct omap_dss_device *display);
 void dsi_irq_handler(void);
-unsigned long dsi_get_pll_hsdiv_dispc_rate(void);
-int dsi_pll_set_clock_div(struct dsi_clock_info *cinfo);
-int dsi_pll_calc_clock_div_pck(bool is_tft, unsigned long req_pck,
-		struct dsi_clock_info *cinfo,
+unsigned long dsi_get_pll_hsdiv_dispc_rate(struct platform_device *dsidev);
+int dsi_pll_set_clock_div(struct platform_device *dsidev,
+		struct dsi_clock_info *cinfo);
+int dsi_pll_calc_clock_div_pck(struct platform_device *dsidev, bool is_tft,
+		unsigned long req_pck, struct dsi_clock_info *cinfo,
 		struct dispc_clock_info *dispc_cinfo);
-int dsi_pll_init(struct omap_dss_device *dssdev, bool enable_hsclk,
+int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
 		bool enable_hsdiv);
-void dsi_pll_uninit(void);
+void dsi_pll_uninit(struct platform_device *dsidev, bool disconnect_lanes);
 void dsi_get_overlay_fifo_thresholds(enum omap_plane plane,
 		u32 fifo_size, enum omap_burst_size *burst_size,
 		u32 *fifo_low, u32 *fifo_high);
-void dsi_wait_pll_hsdiv_dispc_active(void);
-void dsi_wait_pll_hsdiv_dsi_active(void);
+void dsi_wait_pll_hsdiv_dispc_active(struct platform_device *dsidev);
+void dsi_wait_pll_hsdiv_dsi_active(struct platform_device *dsidev);
+struct platform_device *dsi_get_dsidev_from_id(int module);
 #else
 static inline int dsi_init_platform_driver(void)
 {
@@ -317,16 +317,46 @@ static inline int dsi_init_platform_driver(void)
 static inline void dsi_uninit_platform_driver(void)
 {
 }
-static inline unsigned long dsi_get_pll_hsdiv_dispc_rate(void)
+static inline unsigned long dsi_get_pll_hsdiv_dispc_rate(struct platform_device *dsidev)
 {
 	WARN("%s: DSI not compiled in, returning rate as 0\n", __func__);
 	return 0;
 }
-static inline void dsi_wait_pll_hsdiv_dispc_active(void)
+static inline int dsi_pll_set_clock_div(struct platform_device *dsidev,
+		struct dsi_clock_info *cinfo)
+{
+	WARN("%s: DSI not compiled in\n", __func__);
+	return -ENODEV;
+}
+static inline int dsi_pll_calc_clock_div_pck(struct platform_device *dsidev,
+		bool is_tft, unsigned long req_pck,
+		struct dsi_clock_info *dsi_cinfo,
+		struct dispc_clock_info *dispc_cinfo)
+{
+	WARN("%s: DSI not compiled in\n", __func__);
+	return -ENODEV;
+}
+static inline int dsi_pll_init(struct platform_device *dsidev,
+		bool enable_hsclk, bool enable_hsdiv)
+{
+	WARN("%s: DSI not compiled in\n", __func__);
+	return -ENODEV;
+}
+static inline void dsi_pll_uninit(struct platform_device *dsidev,
+		bool disconnect_lanes)
 {
 }
-static inline void dsi_wait_pll_hsdiv_dsi_active(void)
+static inline void dsi_wait_pll_hsdiv_dispc_active(struct platform_device *dsidev)
 {
+}
+static inline void dsi_wait_pll_hsdiv_dsi_active(struct platform_device *dsidev)
+{
+}
+static inline struct platform_device *dsi_get_dsidev_from_id(int module)
+{
+	WARN("%s: DSI not compiled in, returning platform device as NULL\n",
+			__func__);
+	return NULL;
 }
 #endif
 
@@ -391,7 +421,8 @@ int dispc_setup_plane(enum omap_plane plane,
 		      enum omap_dss_rotation_type rotation_type,
 		      u8 rotation, bool mirror,
 		      u8 global_alpha, u8 pre_mult_alpha,
-		      enum omap_channel channel);
+		      enum omap_channel channel,
+		      u32 puv_addr);
 
 bool dispc_go_busy(enum omap_channel channel);
 void dispc_go(enum omap_channel channel);
@@ -485,13 +516,6 @@ void hdmi_panel_exit(void);
 int rfbi_init_platform_driver(void);
 void rfbi_uninit_platform_driver(void);
 void rfbi_dump_regs(struct seq_file *s);
-
-int rfbi_configure(int rfbi_module, int bpp, int lines);
-void rfbi_enable_rfbi(bool enable);
-void rfbi_transfer_area(struct omap_dss_device *dssdev, u16 width,
-		u16 height, void (callback)(void *data), void *data);
-void rfbi_set_timings(int rfbi_module, struct rfbi_timings *t);
-unsigned long rfbi_get_max_tx_rate(void);
 int rfbi_init_display(struct omap_dss_device *display);
 #else
 static inline int rfbi_init_platform_driver(void)

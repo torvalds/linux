@@ -666,6 +666,8 @@ char *ip6_compressed_string(char *p, const char *addr)
 			colonpos = i;
 		}
 	}
+	if (longest == 1)		/* don't compress a single 0 */
+		colonpos = -1;
 
 	/* emit address */
 	for (i = 0; i < range; i++) {
@@ -797,7 +799,7 @@ char *uuid_string(char *buf, char *end, const u8 *addr,
 	return string(buf, end, uuid, spec);
 }
 
-int kptr_restrict = 1;
+int kptr_restrict __read_mostly;
 
 /*
  * Show a '%p' thing.  A kernel extension is that the '%p' is followed
@@ -826,7 +828,7 @@ int kptr_restrict = 1;
  *       IPv4 uses dot-separated decimal with leading 0's (010.123.045.006)
  * - '[Ii]4[hnbl]' IPv4 addresses in host, network, big or little endian order
  * - 'I6c' for IPv6 addresses printed as specified by
- *       http://tools.ietf.org/html/draft-ietf-6man-text-addr-representation-00
+ *       http://tools.ietf.org/html/rfc5952
  * - 'U' For a 16 byte UUID/GUID, it prints the UUID/GUID in the form
  *       "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
  *       Options for %pU are:
@@ -898,7 +900,7 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 	case 'U':
 		return uuid_string(buf, end, ptr, spec, fmt);
 	case 'V':
-		return buf + vsnprintf(buf, end - buf,
+		return buf + vsnprintf(buf, end > buf ? end - buf : 0,
 				       ((struct va_format *)ptr)->fmt,
 				       *(((struct va_format *)ptr)->va));
 	case 'K':
@@ -1161,8 +1163,7 @@ qualifier:
  * return is greater than or equal to @size, the resulting
  * string is truncated.
  *
- * Call this function if you are already dealing with a va_list.
- * You probably want snprintf() instead.
+ * If you're not already dealing with a va_list consider using snprintf().
  */
 int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 {
@@ -1336,8 +1337,7 @@ EXPORT_SYMBOL(vsnprintf);
  * the @buf not including the trailing '\0'. If @size is == 0 the function
  * returns 0.
  *
- * Call this function if you are already dealing with a va_list.
- * You probably want scnprintf() instead.
+ * If you're not already dealing with a va_list consider using scnprintf().
  *
  * See the vsnprintf() documentation for format string extensions over C99.
  */
@@ -1416,8 +1416,7 @@ EXPORT_SYMBOL(scnprintf);
  * into @buf. Use vsnprintf() or vscnprintf() in order to avoid
  * buffer overflows.
  *
- * Call this function if you are already dealing with a va_list.
- * You probably want sprintf() instead.
+ * If you're not already dealing with a va_list consider using sprintf().
  *
  * See the vsnprintf() documentation for format string extensions over C99.
  */

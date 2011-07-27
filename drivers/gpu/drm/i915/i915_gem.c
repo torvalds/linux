@@ -56,9 +56,7 @@ static int i915_gem_phys_pwrite(struct drm_device *dev,
 static void i915_gem_free_object_tail(struct drm_i915_gem_object *obj);
 
 static int i915_gem_inactive_shrink(struct shrinker *shrinker,
-				    int nr_to_scan,
-				    gfp_t gfp_mask);
-
+				    struct shrink_control *sc);
 
 /* some bookkeeping */
 static void i915_gem_info_add_obj(struct drm_i915_private *dev_priv,
@@ -356,7 +354,7 @@ i915_gem_shmem_pread_fast(struct drm_device *dev,
 		 * page_offset = offset within page
 		 * page_length = bytes to copy for this page
 		 */
-		page_offset = offset & (PAGE_SIZE-1);
+		page_offset = offset_in_page(offset);
 		page_length = remain;
 		if ((page_offset + remain) > PAGE_SIZE)
 			page_length = PAGE_SIZE - page_offset;
@@ -455,9 +453,9 @@ i915_gem_shmem_pread_slow(struct drm_device *dev,
 		 * data_page_offset = offset with data_page_index page.
 		 * page_length = bytes to copy for this page
 		 */
-		shmem_page_offset = offset & ~PAGE_MASK;
+		shmem_page_offset = offset_in_page(offset);
 		data_page_index = data_ptr / PAGE_SIZE - first_data_page;
-		data_page_offset = data_ptr & ~PAGE_MASK;
+		data_page_offset = offset_in_page(data_ptr);
 
 		page_length = remain;
 		if ((shmem_page_offset + page_length) > PAGE_SIZE)
@@ -467,8 +465,10 @@ i915_gem_shmem_pread_slow(struct drm_device *dev,
 
 		page = read_cache_page_gfp(mapping, offset >> PAGE_SHIFT,
 					   GFP_HIGHUSER | __GFP_RECLAIMABLE);
-		if (IS_ERR(page))
-			return PTR_ERR(page);
+		if (IS_ERR(page)) {
+			ret = PTR_ERR(page);
+			goto out;
+		}
 
 		if (do_bit17_swizzling) {
 			slow_shmem_bit17_copy(page,
@@ -640,8 +640,8 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 		 * page_offset = offset within page
 		 * page_length = bytes to copy for this page
 		 */
-		page_base = (offset & ~(PAGE_SIZE-1));
-		page_offset = offset & (PAGE_SIZE-1);
+		page_base = offset & PAGE_MASK;
+		page_offset = offset_in_page(offset);
 		page_length = remain;
 		if ((page_offset + remain) > PAGE_SIZE)
 			page_length = PAGE_SIZE - page_offset;
@@ -652,7 +652,6 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 		 */
 		if (fast_user_write(dev_priv->mm.gtt_mapping, page_base,
 				    page_offset, user_data, page_length))
-
 			return -EFAULT;
 
 		remain -= page_length;
@@ -732,9 +731,9 @@ i915_gem_gtt_pwrite_slow(struct drm_device *dev,
 		 * page_length = bytes to copy for this page
 		 */
 		gtt_page_base = offset & PAGE_MASK;
-		gtt_page_offset = offset & ~PAGE_MASK;
+		gtt_page_offset = offset_in_page(offset);
 		data_page_index = data_ptr / PAGE_SIZE - first_data_page;
-		data_page_offset = data_ptr & ~PAGE_MASK;
+		data_page_offset = offset_in_page(data_ptr);
 
 		page_length = remain;
 		if ((gtt_page_offset + page_length) > PAGE_SIZE)
@@ -793,7 +792,7 @@ i915_gem_shmem_pwrite_fast(struct drm_device *dev,
 		 * page_offset = offset within page
 		 * page_length = bytes to copy for this page
 		 */
-		page_offset = offset & (PAGE_SIZE-1);
+		page_offset = offset_in_page(offset);
 		page_length = remain;
 		if ((page_offset + remain) > PAGE_SIZE)
 			page_length = PAGE_SIZE - page_offset;
@@ -898,9 +897,9 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev,
 		 * data_page_offset = offset with data_page_index page.
 		 * page_length = bytes to copy for this page
 		 */
-		shmem_page_offset = offset & ~PAGE_MASK;
+		shmem_page_offset = offset_in_page(offset);
 		data_page_index = data_ptr / PAGE_SIZE - first_data_page;
-		data_page_offset = data_ptr & ~PAGE_MASK;
+		data_page_offset = offset_in_page(data_ptr);
 
 		page_length = remain;
 		if ((shmem_page_offset + page_length) > PAGE_SIZE)
@@ -1452,8 +1451,9 @@ i915_gem_get_unfenced_gtt_alignment(struct drm_i915_gem_object *obj)
 	 * edge of an even tile row (where tile rows are counted as if the bo is
 	 * placed in a fenced gtt region).
 	 */
-	if (IS_GEN2(dev) ||
-	    (obj->tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev)))
+	if (IS_GEN2(dev))
+		tile_height = 16;
+	else if (obj->tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev))
 		tile_height = 32;
 	else
 		tile_height = 8;
@@ -2673,6 +2673,7 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
 update:
 	obj->tiling_changed = false;
 	switch (INTEL_INFO(dev)->gen) {
+	case 7:
 	case 6:
 		ret = sandybridge_write_fence_reg(obj, pipelined);
 		break;
@@ -2706,6 +2707,7 @@ i915_gem_clear_fence_reg(struct drm_device *dev,
 	uint32_t fence_reg = reg - dev_priv->fence_regs;
 
 	switch (INTEL_INFO(dev)->gen) {
+	case 7:
 	case 6:
 		I915_WRITE64(FENCE_REG_SANDYBRIDGE_0 + fence_reg*8, 0);
 		break;
@@ -2876,6 +2878,17 @@ i915_gem_clflush_object(struct drm_i915_gem_object *obj)
 	 * again at bind time.
 	 */
 	if (obj->pages == NULL)
+		return;
+
+	/* If the GPU is snooping the contents of the CPU cache,
+	 * we do not need to manually clear the CPU cache lines.  However,
+	 * the caches are only snooped when the render cache is
+	 * flushed/invalidated.  As we always have to emit invalidations
+	 * and flushes when moving into and out of the RENDER domain, correct
+	 * snooping behaviour occurs naturally as the result of our domain
+	 * tracking.
+	 */
+	if (obj->cache_level != I915_CACHE_NONE)
 		return;
 
 	trace_i915_gem_object_clflush(obj);
@@ -3569,7 +3582,7 @@ struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
 
-	obj->agp_type = AGP_USER_MEMORY;
+	obj->cache_level = I915_CACHE_NONE;
 	obj->base.driver_private = NULL;
 	obj->fence_reg = I915_FENCE_REG_NONE;
 	INIT_LIST_HEAD(&obj->mm_list);
@@ -3845,25 +3858,10 @@ i915_gem_load(struct drm_device *dev)
 		dev_priv->num_fence_regs = 8;
 
 	/* Initialize fence registers to zero */
-	switch (INTEL_INFO(dev)->gen) {
-	case 6:
-		for (i = 0; i < 16; i++)
-			I915_WRITE64(FENCE_REG_SANDYBRIDGE_0 + (i * 8), 0);
-		break;
-	case 5:
-	case 4:
-		for (i = 0; i < 16; i++)
-			I915_WRITE64(FENCE_REG_965_0 + (i * 8), 0);
-		break;
-	case 3:
-		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
-			for (i = 0; i < 8; i++)
-				I915_WRITE(FENCE_REG_945_8 + (i * 4), 0);
-	case 2:
-		for (i = 0; i < 8; i++)
-			I915_WRITE(FENCE_REG_830_0 + (i * 4), 0);
-		break;
+	for (i = 0; i < dev_priv->num_fence_regs; i++) {
+		i915_gem_clear_fence_reg(dev, &dev_priv->fence_regs[i]);
 	}
+
 	i915_gem_detect_bit_6_swizzle(dev);
 	init_waitqueue_head(&dev_priv->pending_flip_queue);
 
@@ -4094,9 +4092,7 @@ i915_gpu_is_active(struct drm_device *dev)
 }
 
 static int
-i915_gem_inactive_shrink(struct shrinker *shrinker,
-			 int nr_to_scan,
-			 gfp_t gfp_mask)
+i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(shrinker,
@@ -4104,6 +4100,7 @@ i915_gem_inactive_shrink(struct shrinker *shrinker,
 			     mm.inactive_shrinker);
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_i915_gem_object *obj, *next;
+	int nr_to_scan = sc->nr_to_scan;
 	int cnt;
 
 	if (!mutex_trylock(&dev->struct_mutex))

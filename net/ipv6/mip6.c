@@ -126,7 +126,7 @@ static struct mip6_report_rate_limiter mip6_report_rl = {
 
 static int mip6_destopt_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct ipv6hdr *iph = ipv6_hdr(skb);
+	const struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct ipv6_destopt_hdr *destopt = (struct ipv6_destopt_hdr *)skb->data;
 	int err = destopt->nexthdr;
 
@@ -181,8 +181,8 @@ static int mip6_destopt_output(struct xfrm_state *x, struct sk_buff *skb)
 }
 
 static inline int mip6_report_rl_allow(struct timeval *stamp,
-				       struct in6_addr *dst,
-				       struct in6_addr *src, int iif)
+				       const struct in6_addr *dst,
+				       const struct in6_addr *src, int iif)
 {
 	int allow = 0;
 
@@ -349,7 +349,7 @@ static const struct xfrm_type mip6_destopt_type =
 
 static int mip6_rthdr_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct ipv6hdr *iph = ipv6_hdr(skb);
+	const struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct rt2_hdr *rt2 = (struct rt2_hdr *)skb->data;
 	int err = rt2->rt_hdr.nexthdr;
 

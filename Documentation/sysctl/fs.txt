@@ -231,13 +231,6 @@ its creation).
 
 This directory contains configuration options for the epoll(7) interface.
 
-max_user_instances
-------------------
-
-This is the maximum number of epoll file descriptors that a single user can
-have open at a given time. The default value is 128, and should be enough
-for normal users.
-
 max_user_watches
 ----------------
 

@@ -27,9 +27,8 @@ enum ppc_dbell {
 	PPC_G_DBELL_MC = 4,	/* guest mcheck doorbell */
 };
 
-extern void doorbell_message_pass(int target, int msg);
+extern void doorbell_cause_ipi(int cpu, unsigned long data);
 extern void doorbell_exception(struct pt_regs *regs);
-extern void doorbell_check_self(void);
 extern void doorbell_setup_this_cpu(void);
 
 static inline void ppc_msgsnd(enum ppc_dbell type, u32 flags, u32 tag)

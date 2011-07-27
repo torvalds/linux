@@ -1,3 +1,17 @@
+Release Date    : Wed. May 11, 2011 17:00:00 PST 2010 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+Current Version : 00.00.05.38-rc1
+Old Version     : 00.00.05.34-rc1
+    1. Remove MSI-X black list, use MFI_REG_STATE.ready.msiEnable.
+    2. Remove un-used function megasas_return_cmd_for_smid().
+    3. Check MFI_REG_STATE.fault.resetAdapter in megasas_reset_fusion().
+    4. Disable interrupts/free_irq() in megasas_shutdown().
+    5. Fix bug where AENs could be lost in probe() and resume().
+    6. Convert 6,10,12 byte CDB's to 16 byte CDB for large LBA's for FastPath
+       IO.
+    7. Add 1078 OCR support.
+-------------------------------------------------------------------------------
 Release Date    : Thu. Feb 24, 2011 17:00:00 PST 2010 -
 			(emaild-id:megaraidlinux@lsi.com)
 			Adam Radford

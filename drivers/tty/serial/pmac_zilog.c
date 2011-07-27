@@ -1,6 +1,4 @@
 /*
- * linux/drivers/serial/pmac_zilog.c
- * 
  * Driver for PowerMac Z85c30 based ESCC cell found in the
  * "macio" ASICs of various PowerMac models
  * 

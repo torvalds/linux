@@ -33,7 +33,6 @@
 #include "athdefs.h"
 #ifdef HCI_TRANSPORT_SDIO
 #include "a_config.h"
-#include "a_types.h"
 #include "a_osapi.h"
 #define ATH_MODULE_NAME misc
 #include "a_debug.h"
@@ -59,11 +58,6 @@
 
 #ifndef A_MALLOC
 #define A_MALLOC(size)  kmalloc((size),GFP_KERNEL)
-#endif /* A_MALLOC */
-
-
-#ifndef A_FREE
-#define A_FREE(addr)  kfree((addr))
 #endif /* A_MALLOC */
 #endif /* HCI_TRANSPORT_UART */
 

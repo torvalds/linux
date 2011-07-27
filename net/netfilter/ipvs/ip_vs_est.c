@@ -192,7 +192,7 @@ void ip_vs_read_estimator(struct ip_vs_stats_user *dst,
 	dst->outbps = (e->outbps + 0xF) >> 5;
 }
 
-static int __net_init __ip_vs_estimator_init(struct net *net)
+int __net_init __ip_vs_estimator_init(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
@@ -203,24 +203,16 @@ static int __net_init __ip_vs_estimator_init(struct net *net)
 	return 0;
 }
 
-static void __net_exit __ip_vs_estimator_exit(struct net *net)
+void __net_exit __ip_vs_estimator_cleanup(struct net *net)
 {
 	del_timer_sync(&net_ipvs(net)->est_timer);
 }
-static struct pernet_operations ip_vs_app_ops = {
-	.init = __ip_vs_estimator_init,
-	.exit = __ip_vs_estimator_exit,
-};
 
 int __init ip_vs_estimator_init(void)
 {
-	int rv;
-
-	rv = register_pernet_subsys(&ip_vs_app_ops);
-	return rv;
+	return 0;
 }
 
 void ip_vs_estimator_cleanup(void)
 {
-	unregister_pernet_subsys(&ip_vs_app_ops);
 }

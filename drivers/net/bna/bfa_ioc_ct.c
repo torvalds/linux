@@ -41,6 +41,7 @@ static void bfa_ioc_ct_map_port(struct bfa_ioc *ioc);
 static void bfa_ioc_ct_isr_mode_set(struct bfa_ioc *ioc, bool msix);
 static void bfa_ioc_ct_notify_fail(struct bfa_ioc *ioc);
 static void bfa_ioc_ct_ownership_reset(struct bfa_ioc *ioc);
+static bool bfa_ioc_ct_sync_start(struct bfa_ioc *ioc);
 static void bfa_ioc_ct_sync_join(struct bfa_ioc *ioc);
 static void bfa_ioc_ct_sync_leave(struct bfa_ioc *ioc);
 static void bfa_ioc_ct_sync_ack(struct bfa_ioc *ioc);
@@ -63,6 +64,7 @@ bfa_nw_ioc_set_ct_hwif(struct bfa_ioc *ioc)
 	nw_hwif_ct.ioc_isr_mode_set = bfa_ioc_ct_isr_mode_set;
 	nw_hwif_ct.ioc_notify_fail = bfa_ioc_ct_notify_fail;
 	nw_hwif_ct.ioc_ownership_reset = bfa_ioc_ct_ownership_reset;
+	nw_hwif_ct.ioc_sync_start = bfa_ioc_ct_sync_start;
 	nw_hwif_ct.ioc_sync_join = bfa_ioc_ct_sync_join;
 	nw_hwif_ct.ioc_sync_leave = bfa_ioc_ct_sync_leave;
 	nw_hwif_ct.ioc_sync_ack = bfa_ioc_ct_sync_ack;
@@ -342,6 +344,32 @@ bfa_ioc_ct_ownership_reset(struct bfa_ioc *ioc)
 	bfa_nw_ioc_hw_sem_release(ioc);
 }
 
+/**
+ * Synchronized IOC failure processing routines
+ */
+static bool
+bfa_ioc_ct_sync_start(struct bfa_ioc *ioc)
+{
+	u32 r32 = readl(ioc->ioc_regs.ioc_fail_sync);
+	u32 sync_reqd = bfa_ioc_ct_get_sync_reqd(r32);
+
+	/*
+	 * Driver load time.  If the sync required bit for this PCI fn
+	 * is set, it is due to an unclean exit by the driver for this
+	 * PCI fn in the previous incarnation. Whoever comes here first
+	 * should clean it up, no matter which PCI fn.
+	 */
+
+	if (sync_reqd & bfa_ioc_ct_sync_pos(ioc)) {
+		writel(0, ioc->ioc_regs.ioc_fail_sync);
+		writel(1, ioc->ioc_regs.ioc_usage_reg);
+		writel(BFI_IOC_UNINIT, ioc->ioc_regs.ioc_fwstate);
+		writel(BFI_IOC_UNINIT, ioc->ioc_regs.alt_ioc_fwstate);
+		return true;
+	}
+
+	return bfa_ioc_ct_sync_complete(ioc);
+}
 /**
  * Synchronized IOC failure processing routines
  */

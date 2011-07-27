@@ -3,7 +3,7 @@ menuconfig WL12XX_MENU
 	depends on MAC80211 && EXPERIMENTAL
 	---help---
 	  This will enable TI wl12xx driver support for the following chips:
-	  wl1271 and wl1273.
+	  wl1271, wl1273, wl1281 and wl1283.
 	  The drivers make use of the mac80211 stack.
 
 config WL12XX

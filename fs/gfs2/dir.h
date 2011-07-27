@@ -22,8 +22,8 @@ extern struct inode *gfs2_dir_search(struct inode *dir,
 extern int gfs2_dir_check(struct inode *dir, const struct qstr *filename,
 			  const struct gfs2_inode *ip);
 extern int gfs2_dir_add(struct inode *inode, const struct qstr *filename,
-			const struct gfs2_inode *ip, unsigned int type);
-extern int gfs2_dir_del(struct gfs2_inode *dip, const struct qstr *filename);
+			const struct gfs2_inode *ip);
+extern int gfs2_dir_del(struct gfs2_inode *dip, const struct dentry *dentry);
 extern int gfs2_dir_read(struct inode *inode, u64 *offset, void *opaque,
 			 filldir_t filldir);
 extern int gfs2_dir_mvino(struct gfs2_inode *dip, const struct qstr *filename,

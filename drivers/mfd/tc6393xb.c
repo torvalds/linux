@@ -393,7 +393,8 @@ static struct mfd_cell __devinitdata tc6393xb_cells[] = {
 		.name = "tmio-mmc",
 		.enable = tc6393xb_mmc_enable,
 		.resume = tc6393xb_mmc_resume,
-		.mfd_data = &tc6393xb_mmc_data,
+		.platform_data = &tc6393xb_mmc_data,
+		.pdata_size    = sizeof(tc6393xb_mmc_data),
 		.num_resources = ARRAY_SIZE(tc6393xb_mmc_resources),
 		.resources = tc6393xb_mmc_resources,
 	},
@@ -692,8 +693,11 @@ static int __devinit tc6393xb_probe(struct platform_device *dev)
 			goto err_setup;
 	}
 
-	tc6393xb_cells[TC6393XB_CELL_NAND].mfd_data = tcpd->nand_data;
-	tc6393xb_cells[TC6393XB_CELL_FB].mfd_data = tcpd->fb_data;
+	tc6393xb_cells[TC6393XB_CELL_NAND].platform_data = tcpd->nand_data;
+	tc6393xb_cells[TC6393XB_CELL_NAND].pdata_size =
+						sizeof(*tcpd->nand_data);
+	tc6393xb_cells[TC6393XB_CELL_FB].platform_data = tcpd->fb_data;
+	tc6393xb_cells[TC6393XB_CELL_FB].pdata_size = sizeof(*tcpd->fb_data);
 
 	ret = mfd_add_devices(&dev->dev, dev->id,
 			tc6393xb_cells, ARRAY_SIZE(tc6393xb_cells),

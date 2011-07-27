@@ -606,6 +606,16 @@ static void __init __pci_mmcfg_init(int early)
 	if (list_empty(&pci_mmcfg_list))
 		return;
 
+	if (pcibios_last_bus < 0) {
+		const struct pci_mmcfg_region *cfg;
+
+		list_for_each_entry(cfg, &pci_mmcfg_list, list) {
+			if (cfg->segment)
+				break;
+			pcibios_last_bus = cfg->end_bus;
+		}
+	}
+
 	if (pci_mmcfg_arch_init())
 		pci_probe = (pci_probe & ~PCI_PROBE_MASK) | PCI_PROBE_MMCONF;
 	else {

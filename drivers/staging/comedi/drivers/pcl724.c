@@ -209,7 +209,7 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 					 subdev_8255_cb,
 					 (unsigned long)(dev->iobase +
 							 SIZE_8255 * i));
-	};
+	}
 
 	return 0;
 }

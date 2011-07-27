@@ -2,7 +2,7 @@
  * Squashfs - a compressed read only filesystem for Linux
  *
  * Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008
- * Phillip Lougher <phillip@lougher.demon.co.uk>
+ * Phillip Lougher <phillip@squashfs.org.uk>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -121,30 +121,38 @@ static struct dentry *squashfs_get_parent(struct dentry *child)
  * Read uncompressed inode lookup table indexes off disk into memory
  */
 __le64 *squashfs_read_inode_lookup_table(struct super_block *sb,
-		u64 lookup_table_start, unsigned int inodes)
+		u64 lookup_table_start, u64 next_table, unsigned int inodes)
 {
 	unsigned int length = SQUASHFS_LOOKUP_BLOCK_BYTES(inodes);
-	__le64 *inode_lookup_table;
-	int err;
+	__le64 *table;
 
 	TRACE("In read_inode_lookup_table, length %d\n", length);
 
-	/* Allocate inode lookup table indexes */
-	inode_lookup_table = kmalloc(length, GFP_KERNEL);
-	if (inode_lookup_table == NULL) {
-		ERROR("Failed to allocate inode lookup table\n");
-		return ERR_PTR(-ENOMEM);
+	/* Sanity check values */
+
+	/* there should always be at least one inode */
+	if (inodes == 0)
+		return ERR_PTR(-EINVAL);
+
+	/* length bytes should not extend into the next table - this check
+	 * also traps instances where lookup_table_start is incorrectly larger
+	 * than the next table start
+	 */
+	if (lookup_table_start + length > next_table)
+		return ERR_PTR(-EINVAL);
+
+	table = squashfs_read_table(sb, lookup_table_start, length);
+
+	/*
+	 * table[0] points to the first inode lookup table metadata block,
+	 * this should be less than lookup_table_start
+	 */
+	if (!IS_ERR(table) && le64_to_cpu(table[0]) >= lookup_table_start) {
+		kfree(table);
+		return ERR_PTR(-EINVAL);
 	}
 
-	err = squashfs_read_table(sb, inode_lookup_table, lookup_table_start,
-			length);
-	if (err < 0) {
-		ERROR("unable to read inode lookup table\n");
-		kfree(inode_lookup_table);
-		return ERR_PTR(err);
-	}
-
-	return inode_lookup_table;
+	return table;
 }
 
 

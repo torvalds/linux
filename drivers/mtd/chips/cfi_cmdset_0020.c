@@ -296,6 +296,7 @@ static inline int do_read_onechip(struct map_info *map, struct flchip *chip, lof
 				/* make sure we're in 'read status' mode */
 				map_write(map, CMD(0x70), cmd_addr);
 				chip->state = FL_ERASING;
+				wake_up(&chip->wq);
 				mutex_unlock(&chip->mutex);
 				printk(KERN_ERR "Chip not ready after erase "
 				       "suspended: status = 0x%lx\n", status.x[0]);

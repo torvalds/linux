@@ -1,9 +1,7 @@
 /*
- * linux/fs/inode.c
- *
  * (C) 1997 Linus Torvalds
+ * (C) 1999 Andrea Arcangeli <andrea@suse.de> (dynamic inode allocation)
  */
-
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/dcache.h>
@@ -24,12 +22,14 @@
 #include <linux/mount.h>
 #include <linux/async.h>
 #include <linux/posix_acl.h>
+#include <linux/prefetch.h>
 #include <linux/ima.h>
 #include <linux/cred.h>
+#include <linux/buffer_head.h> /* for inode_has_buffers */
 #include "internal.h"
 
 /*
- * inode locking rules.
+ * Inode locking rules:
  *
  * inode->i_lock protects:
  *   inode->i_state, inode->i_hash, __iget()
@@ -59,53 +59,10 @@
  *   inode_hash_lock
  */
 
-/*
- * This is needed for the following functions:
- *  - inode_has_buffers
- *  - invalidate_bdev
- *
- * FIXME: remove all knowledge of the buffer layer from this file
- */
-#include <linux/buffer_head.h>
-
-/*
- * New inode.c implementation.
- *
- * This implementation has the basic premise of trying
- * to be extremely low-overhead and SMP-safe, yet be
- * simple enough to be "obviously correct".
- *
- * Famous last words.
- */
-
-/* inode dynamic allocation 1999, Andrea Arcangeli <andrea@suse.de> */
-
-/* #define INODE_PARANOIA 1 */
-/* #define INODE_DEBUG 1 */
-
-/*
- * Inode lookup is no longer as critical as it used to be:
- * most of the lookups are going to be through the dcache.
- */
-#define I_HASHBITS	i_hash_shift
-#define I_HASHMASK	i_hash_mask
-
 static unsigned int i_hash_mask __read_mostly;
 static unsigned int i_hash_shift __read_mostly;
 static struct hlist_head *inode_hashtable __read_mostly;
 static __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_hash_lock);
-
-/*
- * Each inode can be on two separate lists. One is
- * the hash list of the inode, used for lookups. The
- * other linked list is the "type" list:
- *  "in_use" - valid inode, i_count > 0, i_nlink > 0
- *  "dirty"  - as "in_use" but also dirty
- *  "unused" - valid inode, i_count = 0
- *
- * A "dirty" list is maintained for each super block,
- * allowing for low-overhead inode sync() operations.
- */
 
 static LIST_HEAD(inode_lru);
 static DEFINE_SPINLOCK(inode_lru_lock);
@@ -325,12 +282,11 @@ void address_space_init_once(struct address_space *mapping)
 	memset(mapping, 0, sizeof(*mapping));
 	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC);
 	spin_lock_init(&mapping->tree_lock);
-	spin_lock_init(&mapping->i_mmap_lock);
+	mutex_init(&mapping->i_mmap_mutex);
 	INIT_LIST_HEAD(&mapping->private_list);
 	spin_lock_init(&mapping->private_lock);
 	INIT_RAW_PRIO_TREE_ROOT(&mapping->i_mmap);
 	INIT_LIST_HEAD(&mapping->i_mmap_nonlinear);
-	mutex_init(&mapping->unmap_mutex);
 }
 EXPORT_SYMBOL(address_space_init_once);
 
@@ -424,8 +380,8 @@ static unsigned long hash(struct super_block *sb, unsigned long hashval)
 
 	tmp = (hashval * (unsigned long)sb) ^ (GOLDEN_RATIO_PRIME + hashval) /
 			L1_CACHE_BYTES;
-	tmp = tmp ^ ((tmp ^ GOLDEN_RATIO_PRIME) >> I_HASHBITS);
-	return tmp & I_HASHMASK;
+	tmp = tmp ^ ((tmp ^ GOLDEN_RATIO_PRIME) >> i_hash_shift);
+	return tmp & i_hash_mask;
 }
 
 /**
@@ -751,8 +707,12 @@ static void prune_icache(int nr_to_scan)
  * This function is passed the number of inodes to scan, and it returns the
  * total number of remaining possibly-reclaimable inodes.
  */
-static int shrink_icache_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
+static int shrink_icache_memory(struct shrinker *shrink,
+				struct shrink_control *sc)
 {
+	int nr = sc->nr_to_scan;
+	gfp_t gfp_mask = sc->gfp_mask;
+
 	if (nr) {
 		/*
 		 * Nasty deadlock avoidance.  We may hold various FS locks,

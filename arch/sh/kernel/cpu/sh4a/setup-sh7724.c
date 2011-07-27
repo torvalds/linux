@@ -93,6 +93,46 @@ static const struct sh_dmae_slave_config sh7724_dmae_slaves[] = {
 		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_8BIT),
 		.mid_rid	= 0x36,
 	}, {
+		.slave_id	= SHDMA_SLAVE_USB0D0_TX,
+		.addr		= 0xA4D80100,
+		.chcr		= DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL(XMIT_SZ_32BIT),
+		.mid_rid	= 0x73,
+	}, {
+		.slave_id	= SHDMA_SLAVE_USB0D0_RX,
+		.addr		= 0xA4D80100,
+		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_32BIT),
+		.mid_rid	= 0x73,
+	}, {
+		.slave_id	= SHDMA_SLAVE_USB0D1_TX,
+		.addr		= 0xA4D80120,
+		.chcr		= DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL(XMIT_SZ_32BIT),
+		.mid_rid	= 0x77,
+	}, {
+		.slave_id	= SHDMA_SLAVE_USB0D1_RX,
+		.addr		= 0xA4D80120,
+		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_32BIT),
+		.mid_rid	= 0x77,
+	}, {
+		.slave_id	= SHDMA_SLAVE_USB1D0_TX,
+		.addr		= 0xA4D90100,
+		.chcr		= DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL(XMIT_SZ_32BIT),
+		.mid_rid	= 0xab,
+	}, {
+		.slave_id	= SHDMA_SLAVE_USB1D0_RX,
+		.addr		= 0xA4D90100,
+		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_32BIT),
+		.mid_rid	= 0xab,
+	}, {
+		.slave_id	= SHDMA_SLAVE_USB1D1_TX,
+		.addr		= 0xA4D90120,
+		.chcr		= DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL(XMIT_SZ_32BIT),
+		.mid_rid	= 0xaf,
+	}, {
+		.slave_id	= SHDMA_SLAVE_USB1D1_RX,
+		.addr		= 0xA4D90120,
+		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_32BIT),
+		.mid_rid	= 0xaf,
+	}, {
 		.slave_id	= SHDMA_SLAVE_SDHI0_TX,
 		.addr		= 0x04ce0030,
 		.chcr		= DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL(XMIT_SZ_16BIT),

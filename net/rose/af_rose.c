@@ -682,10 +682,8 @@ static int rose_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if ((unsigned int) addr->srose_ndigis > ROSE_MAX_DIGIS)
 		return -EINVAL;
 
-	if ((dev = rose_dev_get(&addr->srose_addr)) == NULL) {
-		SOCK_DEBUG(sk, "ROSE: bind failed: invalid address\n");
+	if ((dev = rose_dev_get(&addr->srose_addr)) == NULL)
 		return -EADDRNOTAVAIL;
-	}
 
 	source = &addr->srose_call;
 
@@ -716,7 +714,7 @@ static int rose_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	rose_insert_socket(sk);
 
 	sock_reset_flag(sk, SOCK_ZAPPED);
-	SOCK_DEBUG(sk, "ROSE: socket is bound\n");
+
 	return 0;
 }
 
@@ -1109,10 +1107,7 @@ static int rose_sendmsg(struct kiocb *iocb, struct socket *sock,
 			srose.srose_digis[n] = rose->dest_digis[n];
 	}
 
-	SOCK_DEBUG(sk, "ROSE: sendto: Addresses built.\n");
-
 	/* Build a packet */
-	SOCK_DEBUG(sk, "ROSE: sendto: building packet.\n");
 	/* Sanity check the packet size */
 	if (len > 65535)
 		return -EMSGSIZE;
@@ -1127,7 +1122,6 @@ static int rose_sendmsg(struct kiocb *iocb, struct socket *sock,
 	/*
 	 *	Put the data on the end
 	 */
-	SOCK_DEBUG(sk, "ROSE: Appending user data\n");
 
 	skb_reset_transport_header(skb);
 	skb_put(skb, len);
@@ -1152,8 +1146,6 @@ static int rose_sendmsg(struct kiocb *iocb, struct socket *sock,
 	 */
 	asmptr = skb_push(skb, ROSE_MIN_LEN);
 
-	SOCK_DEBUG(sk, "ROSE: Building Network Header.\n");
-
 	/* Build a ROSE Network header */
 	asmptr[0] = ((rose->lci >> 8) & 0x0F) | ROSE_GFI;
 	asmptr[1] = (rose->lci >> 0) & 0xFF;
@@ -1161,10 +1153,6 @@ static int rose_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	if (qbit)
 		asmptr[0] |= ROSE_Q_BIT;
-
-	SOCK_DEBUG(sk, "ROSE: Built header.\n");
-
-	SOCK_DEBUG(sk, "ROSE: Transmitting buffer\n");
 
 	if (sk->sk_state != TCP_ESTABLISHED) {
 		kfree_skb(skb);

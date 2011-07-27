@@ -10,7 +10,7 @@
  * Maintainer: Kumar Gala
  * Modifier: Sandeep Gopalpet <sandeep.kumar@freescale.com>
  *
- * Copyright 2002-2009 Freescale Semiconductor, Inc.
+ * Copyright 2002-2009, 2011 Freescale Semiconductor, Inc.
  * Copyright 2007 MontaVista Software, Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
@@ -365,7 +365,7 @@ static void gfar_init_mac(struct net_device *ndev)
 		gfar_write(&regs->rir0, DEFAULT_RIR0);
 	}
 
-	if (priv->rx_csum_enable)
+	if (ndev->features & NETIF_F_RXCSUM)
 		rctrl |= RCTRL_CHECKSUMMING;
 
 	if (priv->extended_hash) {
@@ -463,6 +463,7 @@ static const struct net_device_ops gfar_netdev_ops = {
 	.ndo_start_xmit = gfar_start_xmit,
 	.ndo_stop = gfar_close,
 	.ndo_change_mtu = gfar_change_mtu,
+	.ndo_set_features = gfar_set_features,
 	.ndo_set_multicast_list = gfar_set_multi,
 	.ndo_tx_timeout = gfar_timeout,
 	.ndo_do_ioctl = gfar_ioctl,
@@ -474,9 +475,6 @@ static const struct net_device_ops gfar_netdev_ops = {
 	.ndo_poll_controller = gfar_netpoll,
 #endif
 };
-
-unsigned int ftp_rqfpr[MAX_FILER_IDX + 1];
-unsigned int ftp_rqfcr[MAX_FILER_IDX + 1];
 
 void lock_rx_qs(struct gfar_private *priv)
 {
@@ -513,7 +511,7 @@ void unlock_tx_qs(struct gfar_private *priv)
 /* Returns 1 if incoming frames use an FCB */
 static inline int gfar_uses_fcb(struct gfar_private *priv)
 {
-	return priv->vlgrp || priv->rx_csum_enable ||
+	return priv->vlgrp || (priv->ndev->features & NETIF_F_RXCSUM) ||
 		(priv->device_flags & FSL_GIANFAR_DEV_HAS_TIMER);
 }
 
@@ -867,28 +865,28 @@ static u32 cluster_entry_per_class(struct gfar_private *priv, u32 rqfar,
 
 	rqfar--;
 	rqfcr = RQFCR_CLE | RQFCR_PID_MASK | RQFCR_CMP_EXACT;
-	ftp_rqfpr[rqfar] = rqfpr;
-	ftp_rqfcr[rqfar] = rqfcr;
+	priv->ftp_rqfpr[rqfar] = rqfpr;
+	priv->ftp_rqfcr[rqfar] = rqfcr;
 	gfar_write_filer(priv, rqfar, rqfcr, rqfpr);
 
 	rqfar--;
 	rqfcr = RQFCR_CMP_NOMATCH;
-	ftp_rqfpr[rqfar] = rqfpr;
-	ftp_rqfcr[rqfar] = rqfcr;
+	priv->ftp_rqfpr[rqfar] = rqfpr;
+	priv->ftp_rqfcr[rqfar] = rqfcr;
 	gfar_write_filer(priv, rqfar, rqfcr, rqfpr);
 
 	rqfar--;
 	rqfcr = RQFCR_CMP_EXACT | RQFCR_PID_PARSE | RQFCR_CLE | RQFCR_AND;
 	rqfpr = class;
-	ftp_rqfcr[rqfar] = rqfcr;
-	ftp_rqfpr[rqfar] = rqfpr;
+	priv->ftp_rqfcr[rqfar] = rqfcr;
+	priv->ftp_rqfpr[rqfar] = rqfpr;
 	gfar_write_filer(priv, rqfar, rqfcr, rqfpr);
 
 	rqfar--;
 	rqfcr = RQFCR_CMP_EXACT | RQFCR_PID_MASK | RQFCR_AND;
 	rqfpr = class;
-	ftp_rqfcr[rqfar] = rqfcr;
-	ftp_rqfpr[rqfar] = rqfpr;
+	priv->ftp_rqfcr[rqfar] = rqfcr;
+	priv->ftp_rqfpr[rqfar] = rqfpr;
 	gfar_write_filer(priv, rqfar, rqfcr, rqfpr);
 
 	return rqfar;
@@ -903,8 +901,8 @@ static void gfar_init_filer_table(struct gfar_private *priv)
 
 	/* Default rule */
 	rqfcr = RQFCR_CMP_MATCH;
-	ftp_rqfcr[rqfar] = rqfcr;
-	ftp_rqfpr[rqfar] = rqfpr;
+	priv->ftp_rqfcr[rqfar] = rqfcr;
+	priv->ftp_rqfpr[rqfar] = rqfpr;
 	gfar_write_filer(priv, rqfar, rqfcr, rqfpr);
 
 	rqfar = cluster_entry_per_class(priv, rqfar, RQFPR_IPV6);
@@ -920,8 +918,8 @@ static void gfar_init_filer_table(struct gfar_private *priv)
 	/* Rest are masked rules */
 	rqfcr = RQFCR_CMP_NOMATCH;
 	for (i = 0; i < rqfar; i++) {
-		ftp_rqfcr[i] = rqfcr;
-		ftp_rqfpr[i] = rqfpr;
+		priv->ftp_rqfcr[i] = rqfcr;
+		priv->ftp_rqfpr[i] = rqfpr;
 		gfar_write_filer(priv, i, rqfcr, rqfpr);
 	}
 }
@@ -1030,10 +1028,11 @@ static int gfar_probe(struct platform_device *ofdev)
 		netif_napi_add(dev, &priv->gfargrp[i].napi, gfar_poll, GFAR_DEV_WEIGHT);
 
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM) {
-		priv->rx_csum_enable = 1;
-		dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_HIGHDMA;
-	} else
-		priv->rx_csum_enable = 0;
+		dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
+			NETIF_F_RXCSUM;
+		dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG |
+			NETIF_F_RXCSUM | NETIF_F_HIGHDMA;
+	}
 
 	priv->vlgrp = NULL;
 
@@ -2697,7 +2696,7 @@ static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
 	if (priv->padding)
 		skb_pull(skb, priv->padding);
 
-	if (priv->rx_csum_enable)
+	if (dev->features & NETIF_F_RXCSUM)
 		gfar_rx_checksum(skb, fcb);
 
 	/* Tell the skb what kind of packet this is */

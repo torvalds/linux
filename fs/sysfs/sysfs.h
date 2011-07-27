@@ -136,7 +136,7 @@ struct sysfs_addrm_cxt {
  * instance).
  */
 struct sysfs_super_info {
-	const void *ns[KOBJ_NS_TYPES];
+	void *ns[KOBJ_NS_TYPES];
 };
 #define sysfs_info(SB) ((struct sysfs_super_info *)(SB->s_fs_info))
 extern struct sysfs_dirent sysfs_root;

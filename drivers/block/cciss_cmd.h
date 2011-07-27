@@ -53,6 +53,7 @@
 #define CFGTBL_ChangeReq        0x00000001l
 #define CFGTBL_AccCmds          0x00000001l
 #define DOORBELL_CTLR_RESET     0x00000004l
+#define DOORBELL_CTLR_RESET2    0x00000020l
 
 #define CFGTBL_Trans_Simple     0x00000002l
 #define CFGTBL_Trans_Performant 0x00000004l
@@ -141,6 +142,14 @@ typedef struct _ReadCapdata_struct_16
 #define BMIC_WRITE 0x27
 #define BMIC_CACHE_FLUSH 0xc2
 #define CCISS_CACHE_FLUSH 0x01	/* C2 was already being used by CCISS */
+
+#define CCISS_ABORT_MSG 0x00
+#define CCISS_RESET_MSG 0x01
+#define CCISS_RESET_TYPE_CONTROLLER 0x00
+#define CCISS_RESET_TYPE_BUS 0x01
+#define CCISS_RESET_TYPE_TARGET 0x03
+#define CCISS_RESET_TYPE_LUN 0x04
+#define CCISS_NOOP_MSG 0x03
 
 /* Command List Structure */
 #define CTLR_LUNID "\0\0\0\0\0\0\0\0"
@@ -235,6 +244,8 @@ typedef struct _CfgTable_struct {
   u8		   reserved[0x78 - 0x58];
   u32		   misc_fw_support; /* offset 0x78 */
 #define MISC_FW_DOORBELL_RESET (0x02)
+#define MISC_FW_DOORBELL_RESET2 (0x10)
+	u8	   driver_version[32];
 } CfgTable_struct;
 
 struct TransTable_struct {

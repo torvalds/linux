@@ -148,7 +148,7 @@ static int saa7164_vbi_buffers_alloc(struct saa7164_port *port)
 		}
 	}
 
-	/* Allocate some kenrel kernel buffers for copying
+	/* Allocate some kernel buffers for copying
 	 * to userpsace.
 	 */
 	len = params->numberoflines * params->pitch;

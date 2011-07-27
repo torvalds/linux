@@ -1,0 +1,5 @@
+config NLM_COMMON
+	bool
+
+config NLM_XLR
+	bool

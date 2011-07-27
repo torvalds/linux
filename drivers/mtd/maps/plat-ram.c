@@ -94,14 +94,11 @@ static int platram_remove(struct platform_device *pdev)
 		return 0;
 
 	if (info->mtd) {
-#ifdef CONFIG_MTD_PARTITIONS
+		mtd_device_unregister(info->mtd);
 		if (info->partitions) {
-			del_mtd_partitions(info->mtd);
 			if (info->free_partitions)
 				kfree(info->partitions);
 		}
-#endif
-		del_mtd_device(info->mtd);
 		map_destroy(info->mtd);
 	}
 
@@ -231,7 +228,6 @@ static int platram_probe(struct platform_device *pdev)
 	/* check to see if there are any available partitions, or wether
 	 * to add this device whole */
 
-#ifdef CONFIG_MTD_PARTITIONS
 	if (!pdata->nr_partitions) {
 		/* try to probe using the supplied probe type */
 		if (pdata->probes) {
@@ -239,23 +235,21 @@ static int platram_probe(struct platform_device *pdev)
 					   &info->partitions, 0);
 			info->free_partitions = 1;
 			if (err > 0)
-				err = add_mtd_partitions(info->mtd,
+				err = mtd_device_register(info->mtd,
 					info->partitions, err);
 		}
 	}
 	/* use the static mapping */
 	else
-		err = add_mtd_partitions(info->mtd, pdata->partitions,
-				pdata->nr_partitions);
-#endif /* CONFIG_MTD_PARTITIONS */
-
-	if (add_mtd_device(info->mtd)) {
-		dev_err(&pdev->dev, "add_mtd_device() failed\n");
-		err = -ENOMEM;
-	}
-
+		err = mtd_device_register(info->mtd, pdata->partitions,
+					  pdata->nr_partitions);
 	if (!err)
 		dev_info(&pdev->dev, "registered mtd device\n");
+
+	/* add the whole device. */
+	err = mtd_device_register(info->mtd, NULL, 0);
+	if (err)
+		dev_err(&pdev->dev, "failed to register the entire device\n");
 
 	return err;
 

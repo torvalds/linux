@@ -1471,6 +1471,38 @@ static int find_probe_point_by_func(struct probe_finder *pf)
 	return _param.retval;
 }
 
+struct pubname_callback_param {
+	char *function;
+	char *file;
+	Dwarf_Die *cu_die;
+	Dwarf_Die *sp_die;
+	int found;
+};
+
+static int pubname_search_cb(Dwarf *dbg, Dwarf_Global *gl, void *data)
+{
+	struct pubname_callback_param *param = data;
+
+	if (dwarf_offdie(dbg, gl->die_offset, param->sp_die)) {
+		if (dwarf_tag(param->sp_die) != DW_TAG_subprogram)
+			return DWARF_CB_OK;
+
+		if (die_compare_name(param->sp_die, param->function)) {
+			if (!dwarf_offdie(dbg, gl->cu_offset, param->cu_die))
+				return DWARF_CB_OK;
+
+			if (param->file &&
+			    strtailcmp(param->file, dwarf_decl_file(param->sp_die)))
+				return DWARF_CB_OK;
+
+			param->found = 1;
+			return DWARF_CB_ABORT;
+		}
+	}
+
+	return DWARF_CB_OK;
+}
+
 /* Find probe points from debuginfo */
 static int find_probes(int fd, struct probe_finder *pf)
 {
@@ -1498,6 +1530,28 @@ static int find_probes(int fd, struct probe_finder *pf)
 
 	off = 0;
 	line_list__init(&pf->lcache);
+
+	/* Fastpath: lookup by function name from .debug_pubnames section */
+	if (pp->function) {
+		struct pubname_callback_param pubname_param = {
+			.function = pp->function,
+			.file	  = pp->file,
+			.cu_die	  = &pf->cu_die,
+			.sp_die	  = &pf->sp_die,
+			.found	  = 0,
+		};
+		struct dwarf_callback_param probe_param = {
+			.data = pf,
+		};
+
+		dwarf_getpubnames(dbg, pubname_search_cb, &pubname_param, 0);
+		if (pubname_param.found) {
+			ret = probe_point_search_cb(&pf->sp_die, &probe_param);
+			if (ret)
+				goto found;
+		}
+	}
+
 	/* Loop on CUs (Compilation Unit) */
 	while (!dwarf_nextcu(dbg, off, &noff, &cuhl, NULL, NULL, NULL)) {
 		/* Get the DIE(Debugging Information Entry) of this CU */
@@ -1525,6 +1579,8 @@ static int find_probes(int fd, struct probe_finder *pf)
 		}
 		off = noff;
 	}
+
+found:
 	line_list__free(&pf->lcache);
 	if (dwfl)
 		dwfl_end(dwfl);
@@ -1946,6 +2002,22 @@ int find_line_range(int fd, struct line_range *lr)
 		return -EBADF;
 	}
 
+	/* Fastpath: lookup by function name from .debug_pubnames section */
+	if (lr->function) {
+		struct pubname_callback_param pubname_param = {
+			.function = lr->function, .file = lr->file,
+			.cu_die = &lf.cu_die, .sp_die = &lf.sp_die, .found = 0};
+		struct dwarf_callback_param line_range_param = {
+			.data = (void *)&lf, .retval = 0};
+
+		dwarf_getpubnames(dbg, pubname_search_cb, &pubname_param, 0);
+		if (pubname_param.found) {
+			line_range_search_cb(&lf.sp_die, &line_range_param);
+			if (lf.found)
+				goto found;
+		}
+	}
+
 	/* Loop on CUs (Compilation Unit) */
 	while (!lf.found && ret >= 0) {
 		if (dwarf_nextcu(dbg, off, &noff, &cuhl, NULL, NULL, NULL) != 0)
@@ -1974,6 +2046,7 @@ int find_line_range(int fd, struct line_range *lr)
 		off = noff;
 	}
 
+found:
 	/* Store comp_dir */
 	if (lf.found) {
 		comp_dir = cu_get_comp_dir(&lf.cu_die);

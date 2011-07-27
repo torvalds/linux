@@ -295,8 +295,7 @@ enum dmfe_CR6_bits {
 /* Global variable declaration ----------------------------- */
 static int __devinitdata printed_version;
 static const char version[] __devinitconst =
-	KERN_INFO DRV_NAME ": Davicom DM9xxx net driver, version "
-	DRV_VERSION " (" DRV_RELDATE ")\n";
+	"Davicom DM9xxx net driver, version " DRV_VERSION " (" DRV_RELDATE ")";
 
 static int dmfe_debug;
 static unsigned char dmfe_media_mode = DMFE_AUTO;
@@ -381,7 +380,7 @@ static int __devinit dmfe_init_one (struct pci_dev *pdev,
 	DMFE_DBUG(0, "dmfe_init_one()", 0);
 
 	if (!printed_version++)
-		printk(version);
+		pr_info("%s\n", version);
 
 	/*
 	 *	SPARC on-board DM910x chips should be handled by the main
@@ -406,7 +405,7 @@ static int __devinit dmfe_init_one (struct pci_dev *pdev,
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
-		pr_warning("32-bit PCI DMA not available\n");
+		pr_warn("32-bit PCI DMA not available\n");
 		err = -ENODEV;
 		goto err_out_free;
 	}
@@ -2203,7 +2202,7 @@ static int __init dmfe_init_module(void)
 {
 	int rc;
 
-	printk(version);
+	pr_info("%s\n", version);
 	printed_version = 1;
 
 	DMFE_DBUG(0, "init_module() ", debug);

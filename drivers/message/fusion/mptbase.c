@@ -83,19 +83,18 @@ MODULE_VERSION(my_VERSION);
 
 static int mpt_msi_enable_spi;
 module_param(mpt_msi_enable_spi, int, 0);
-MODULE_PARM_DESC(mpt_msi_enable_spi, " Enable MSI Support for SPI \
-		controllers (default=0)");
+MODULE_PARM_DESC(mpt_msi_enable_spi,
+		 " Enable MSI Support for SPI controllers (default=0)");
 
 static int mpt_msi_enable_fc;
 module_param(mpt_msi_enable_fc, int, 0);
-MODULE_PARM_DESC(mpt_msi_enable_fc, " Enable MSI Support for FC \
-		controllers (default=0)");
+MODULE_PARM_DESC(mpt_msi_enable_fc,
+		 " Enable MSI Support for FC controllers (default=0)");
 
 static int mpt_msi_enable_sas;
 module_param(mpt_msi_enable_sas, int, 0);
-MODULE_PARM_DESC(mpt_msi_enable_sas, " Enable MSI Support for SAS \
-		controllers (default=0)");
-
+MODULE_PARM_DESC(mpt_msi_enable_sas,
+		 " Enable MSI Support for SAS controllers (default=0)");
 
 static int mpt_channel_mapping;
 module_param(mpt_channel_mapping, int, 0);
@@ -105,15 +104,14 @@ static int mpt_debug_level;
 static int mpt_set_debug_level(const char *val, struct kernel_param *kp);
 module_param_call(mpt_debug_level, mpt_set_debug_level, param_get_int,
 		  &mpt_debug_level, 0600);
-MODULE_PARM_DESC(mpt_debug_level, " debug level - refer to mptdebug.h \
-	- (default=0)");
+MODULE_PARM_DESC(mpt_debug_level,
+		 " debug level - refer to mptdebug.h - (default=0)");
 
 int mpt_fwfault_debug;
 EXPORT_SYMBOL(mpt_fwfault_debug);
 module_param(mpt_fwfault_debug, int, 0600);
-MODULE_PARM_DESC(mpt_fwfault_debug, "Enable detection of Firmware fault"
-	" and halt Firmware on fault - (default=0)");
-
+MODULE_PARM_DESC(mpt_fwfault_debug,
+		 "Enable detection of Firmware fault and halt Firmware on fault - (default=0)");
 
 static char	MptCallbacksName[MPT_MAX_PROTOCOL_DRIVERS][50];
 

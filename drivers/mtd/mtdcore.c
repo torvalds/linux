@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
+#include <linux/seq_file.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/major.h>
@@ -37,6 +38,7 @@
 #include <linux/gfp.h>
 
 #include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
 
 #include "mtdcore.h"
 /*
@@ -391,7 +393,7 @@ fail_locked:
  *	if the requested device does not appear to be present in the list.
  */
 
-int del_mtd_device (struct mtd_info *mtd)
+int del_mtd_device(struct mtd_info *mtd)
 {
 	int ret;
 	struct mtd_notifier *not;
@@ -427,6 +429,50 @@ out_error:
 }
 
 /**
+ * mtd_device_register - register an MTD device.
+ *
+ * @master: the MTD device to register
+ * @parts: the partitions to register - only valid if nr_parts > 0
+ * @nr_parts: the number of partitions in parts.  If zero then the full MTD
+ *            device is registered
+ *
+ * Register an MTD device with the system and optionally, a number of
+ * partitions.  If nr_parts is 0 then the whole device is registered, otherwise
+ * only the partitions are registered.  To register both the full device *and*
+ * the partitions, call mtd_device_register() twice, once with nr_parts == 0
+ * and once equal to the number of partitions.
+ */
+int mtd_device_register(struct mtd_info *master,
+			const struct mtd_partition *parts,
+			int nr_parts)
+{
+	return parts ? add_mtd_partitions(master, parts, nr_parts) :
+		add_mtd_device(master);
+}
+EXPORT_SYMBOL_GPL(mtd_device_register);
+
+/**
+ * mtd_device_unregister - unregister an existing MTD device.
+ *
+ * @master: the MTD device to unregister.  This will unregister both the master
+ *          and any partitions if registered.
+ */
+int mtd_device_unregister(struct mtd_info *master)
+{
+	int err;
+
+	err = del_mtd_partitions(master);
+	if (err)
+		return err;
+
+	if (!device_is_registered(&master->dev))
+		return 0;
+
+	return del_mtd_device(master);
+}
+EXPORT_SYMBOL_GPL(mtd_device_unregister);
+
+/**
  *	register_mtd_user - register a 'user' of MTD devices.
  *	@new: pointer to notifier info structure
  *
@@ -443,7 +489,7 @@ void register_mtd_user (struct mtd_notifier *new)
 
 	list_add(&new->list, &mtd_notifiers);
 
- 	__module_get(THIS_MODULE);
+	__module_get(THIS_MODULE);
 
 	mtd_for_each_device(mtd)
 		new->add(mtd);
@@ -532,7 +578,6 @@ int __get_mtd_device(struct mtd_info *mtd)
 		return -ENODEV;
 
 	if (mtd->get_device) {
-
 		err = mtd->get_device(mtd);
 
 		if (err) {
@@ -570,21 +615,13 @@ struct mtd_info *get_mtd_device_nm(const char *name)
 	if (!mtd)
 		goto out_unlock;
 
-	if (!try_module_get(mtd->owner))
+	err = __get_mtd_device(mtd);
+	if (err)
 		goto out_unlock;
 
-	if (mtd->get_device) {
-		err = mtd->get_device(mtd);
-		if (err)
-			goto out_put;
-	}
-
-	mtd->usecount++;
 	mutex_unlock(&mtd_table_mutex);
 	return mtd;
 
-out_put:
-	module_put(mtd->owner);
 out_unlock:
 	mutex_unlock(&mtd_table_mutex);
 	return ERR_PTR(err);
@@ -638,8 +675,54 @@ int default_mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	return ret;
 }
 
-EXPORT_SYMBOL_GPL(add_mtd_device);
-EXPORT_SYMBOL_GPL(del_mtd_device);
+/**
+ * mtd_kmalloc_up_to - allocate a contiguous buffer up to the specified size
+ * @size: A pointer to the ideal or maximum size of the allocation. Points
+ *        to the actual allocation size on success.
+ *
+ * This routine attempts to allocate a contiguous kernel buffer up to
+ * the specified size, backing off the size of the request exponentially
+ * until the request succeeds or until the allocation size falls below
+ * the system page size. This attempts to make sure it does not adversely
+ * impact system performance, so when allocating more than one page, we
+ * ask the memory allocator to avoid re-trying, swapping, writing back
+ * or performing I/O.
+ *
+ * Note, this function also makes sure that the allocated buffer is aligned to
+ * the MTD device's min. I/O unit, i.e. the "mtd->writesize" value.
+ *
+ * This is called, for example by mtd_{read,write} and jffs2_scan_medium,
+ * to handle smaller (i.e. degraded) buffer allocations under low- or
+ * fragmented-memory situations where such reduced allocations, from a
+ * requested ideal, are allowed.
+ *
+ * Returns a pointer to the allocated buffer on success; otherwise, NULL.
+ */
+void *mtd_kmalloc_up_to(const struct mtd_info *mtd, size_t *size)
+{
+	gfp_t flags = __GFP_NOWARN | __GFP_WAIT |
+		       __GFP_NORETRY | __GFP_NO_KSWAPD;
+	size_t min_alloc = max_t(size_t, mtd->writesize, PAGE_SIZE);
+	void *kbuf;
+
+	*size = min_t(size_t, *size, KMALLOC_MAX_SIZE);
+
+	while (*size > min_alloc) {
+		kbuf = kmalloc(*size, flags);
+		if (kbuf)
+			return kbuf;
+
+		*size >>= 1;
+		*size = ALIGN(*size, mtd->writesize);
+	}
+
+	/*
+	 * For the last resort allocation allow 'kmalloc()' to do all sorts of
+	 * things (write-back, dropping caches, etc) by using GFP_KERNEL.
+	 */
+	return kmalloc(*size, GFP_KERNEL);
+}
+
 EXPORT_SYMBOL_GPL(get_mtd_device);
 EXPORT_SYMBOL_GPL(get_mtd_device_nm);
 EXPORT_SYMBOL_GPL(__get_mtd_device);
@@ -648,6 +731,7 @@ EXPORT_SYMBOL_GPL(__put_mtd_device);
 EXPORT_SYMBOL_GPL(register_mtd_user);
 EXPORT_SYMBOL_GPL(unregister_mtd_user);
 EXPORT_SYMBOL_GPL(default_mtd_writev);
+EXPORT_SYMBOL_GPL(mtd_kmalloc_up_to);
 
 #ifdef CONFIG_PROC_FS
 
@@ -656,44 +740,32 @@ EXPORT_SYMBOL_GPL(default_mtd_writev);
 
 static struct proc_dir_entry *proc_mtd;
 
-static inline int mtd_proc_info(char *buf, struct mtd_info *this)
-{
-	return sprintf(buf, "mtd%d: %8.8llx %8.8x \"%s\"\n", this->index,
-		       (unsigned long long)this->size,
-		       this->erasesize, this->name);
-}
-
-static int mtd_read_proc (char *page, char **start, off_t off, int count,
-			  int *eof, void *data_unused)
+static int mtd_proc_show(struct seq_file *m, void *v)
 {
 	struct mtd_info *mtd;
-	int len, l;
-        off_t   begin = 0;
 
+	seq_puts(m, "dev:    size   erasesize  name\n");
 	mutex_lock(&mtd_table_mutex);
-
-	len = sprintf(page, "dev:    size   erasesize  name\n");
 	mtd_for_each_device(mtd) {
-		l = mtd_proc_info(page + len, mtd);
-                len += l;
-                if (len+begin > off+count)
-                        goto done;
-                if (len+begin < off) {
-                        begin += len;
-                        len = 0;
-                }
-        }
-
-        *eof = 1;
-
-done:
+		seq_printf(m, "mtd%d: %8.8llx %8.8x \"%s\"\n",
+			   mtd->index, (unsigned long long)mtd->size,
+			   mtd->erasesize, mtd->name);
+	}
 	mutex_unlock(&mtd_table_mutex);
-        if (off >= len+begin)
-                return 0;
-        *start = page + (off-begin);
-        return ((count < begin+len-off) ? count : begin+len-off);
+	return 0;
 }
 
+static int mtd_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, mtd_proc_show, NULL);
+}
+
+static const struct file_operations mtd_proc_ops = {
+	.open		= mtd_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 #endif /* CONFIG_PROC_FS */
 
 /*====================================================================*/
@@ -734,8 +806,7 @@ static int __init init_mtd(void)
 		goto err_bdi3;
 
 #ifdef CONFIG_PROC_FS
-	if ((proc_mtd = create_proc_entry( "mtd", 0, NULL )))
-		proc_mtd->read_proc = mtd_read_proc;
+	proc_mtd = proc_create("mtd", 0, NULL, &mtd_proc_ops);
 #endif /* CONFIG_PROC_FS */
 	return 0;
 
@@ -753,7 +824,7 @@ err_reg:
 static void __exit cleanup_mtd(void)
 {
 #ifdef CONFIG_PROC_FS
-        if (proc_mtd)
+	if (proc_mtd)
 		remove_proc_entry( "mtd", NULL);
 #endif /* CONFIG_PROC_FS */
 	class_unregister(&mtd_class);

@@ -539,6 +539,9 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_connector *connector = dev_priv->int_lvds_connector;
 
+	if (dev->switch_power_state != DRM_SWITCH_POWER_ON)
+		return NOTIFY_OK;
+
 	/*
 	 * check and update the status of LVDS connector after receiving
 	 * the LID nofication event.
@@ -722,6 +725,14 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Clientron"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "U800"),
+		},
+	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "Asus EeeBox PC EB1007",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "EB1007"),
 		},
 	},
 

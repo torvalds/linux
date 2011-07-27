@@ -806,29 +806,41 @@ static const struct file_operations oldmem_fops = {
 };
 #endif
 
-static ssize_t kmsg_write(struct file *file, const char __user *buf,
-			  size_t count, loff_t *ppos)
+static ssize_t kmsg_writev(struct kiocb *iocb, const struct iovec *iv,
+			   unsigned long count, loff_t pos)
 {
-	char *tmp;
-	ssize_t ret;
+	char *line, *p;
+	int i;
+	ssize_t ret = -EFAULT;
+	size_t len = iov_length(iv, count);
 
-	tmp = kmalloc(count + 1, GFP_KERNEL);
-	if (tmp == NULL)
+	line = kmalloc(len + 1, GFP_KERNEL);
+	if (line == NULL)
 		return -ENOMEM;
-	ret = -EFAULT;
-	if (!copy_from_user(tmp, buf, count)) {
-		tmp[count] = 0;
-		ret = printk("%s", tmp);
-		if (ret > count)
-			/* printk can add a prefix */
-			ret = count;
+
+	/*
+	 * copy all vectors into a single string, to ensure we do
+	 * not interleave our log line with other printk calls
+	 */
+	p = line;
+	for (i = 0; i < count; i++) {
+		if (copy_from_user(p, iv[i].iov_base, iv[i].iov_len))
+			goto out;
+		p += iv[i].iov_len;
 	}
-	kfree(tmp);
+	p[0] = '\0';
+
+	ret = printk("%s", line);
+	/* printk can add a prefix */
+	if (ret > len)
+		ret = len;
+out:
+	kfree(line);
 	return ret;
 }
 
 static const struct file_operations kmsg_fops = {
-	.write = kmsg_write,
+	.aio_write = kmsg_writev,
 	.llseek = noop_llseek,
 };
 

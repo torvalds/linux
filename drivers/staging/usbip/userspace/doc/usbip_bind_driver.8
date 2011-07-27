@@ -1,0 +1,42 @@
+.TH USBIP_BIND_DRIVER "8" "February 2009" "usbip" "System Administration Utilities"
+.SH NAME
+usbip_bind_driver \- change driver binding for USB/IP
+
+.SH SYNOPSIS
+.B usbip_bind_driver
+[\fIoptions\fR]
+
+.SH DESCRIPTION
+Driver bindings for USB devices can be changed using
+this program. It is used to export and unexport USB
+devices over USB/IP.
+
+.SH OPTIONS
+.TP
+\fB\-u\fR, \fB\-\-usbip\fR <busid>
+Make a device exportable
+.TP
+\fB\-o\fR, \fB\-\-other\fR <busid>
+Use a device by a local driver
+.TP
+\fB\-l\fR, \fB\-\-list\fR
+Print usb devices and their drivers
+.TP
+\fB\-L\fR, \fB\-\-list2\fR
+Print usb devices and their drivers in parseable mode
+
+.SH EXAMPLES
+
+    server:# usbip_bind_driver --list
+        - List driver assignments for usb devices.
+
+    server:# usbip_bind_driver --usbip 1-2
+        - Bind usbip-host.ko to the device of busid 1-2.
+        - A usb device 1-2 is now exportable to other hosts!
+
+    server:# usbip_bind_driver --other 1-2
+        - Shutdown exporting and use the device locally.
+
+.SH "SEE ALSO"
+\fBusbip\fP\fB(8)\fB\fP,
+\fBusbipd\fP\fB(8)\fB\fP

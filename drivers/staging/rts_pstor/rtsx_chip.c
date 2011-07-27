@@ -24,6 +24,7 @@
 #include <linux/kthread.h>
 #include <linux/sched.h>
 #include <linux/workqueue.h>
+#include <linux/vmalloc.h>
 
 #include "rtsx.h"
 #include "rtsx_transport.h"
@@ -1311,11 +1312,11 @@ void rtsx_polling_func(struct rtsx_chip *chip)
 
 #ifdef SUPPORT_OCP
 	if (CHECK_LUN_MODE(chip, SD_MS_2LUN)) {
-		#if CONFIG_RTS_PSTOR_DEBUG
+#ifdef CONFIG_RTS_PSTOR_DEBUG
 		if (chip->ocp_stat & (SD_OC_NOW | SD_OC_EVER | MS_OC_NOW | MS_OC_EVER)) {
 			RTSX_DEBUGP("Over current, OCPSTAT is 0x%x\n", chip->ocp_stat);
 		}
-		#endif
+#endif
 
 		if (chip->ocp_stat & (SD_OC_NOW | SD_OC_EVER)) {
 			if (chip->card_exist & SD_CARD) {

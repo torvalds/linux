@@ -176,7 +176,7 @@ static unsigned long index_to_estar_mode(unsigned int index)
 
 	default:
 		BUG();
-	};
+	}
 }
 
 static unsigned long index_to_divisor(unsigned int index)
@@ -199,7 +199,7 @@ static unsigned long index_to_divisor(unsigned int index)
 
 	default:
 		BUG();
-	};
+	}
 }
 
 static unsigned long estar_to_divisor(unsigned long estar)
@@ -224,7 +224,7 @@ static unsigned long estar_to_divisor(unsigned long estar)
 		break;
 	default:
 		BUG();
-	};
+	}
 
 	return ret;
 }
@@ -237,7 +237,7 @@ static unsigned int us2e_freq_get(unsigned int cpu)
 	if (!cpu_online(cpu))
 		return 0;
 
-	cpus_allowed = current->cpus_allowed;
+	cpumask_copy(&cpus_allowed, tsk_cpus_allowed(current));
 	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 
 	clock_tick = sparc64_get_clock_tick(cpu) / 1000;
@@ -258,7 +258,7 @@ static void us2e_set_cpu_divider_index(unsigned int cpu, unsigned int index)
 	if (!cpu_online(cpu))
 		return;
 
-	cpus_allowed = current->cpus_allowed;
+	cpumask_copy(&cpus_allowed, tsk_cpus_allowed(current));
 	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 
 	new_freq = clock_tick = sparc64_get_clock_tick(cpu) / 1000;

@@ -37,8 +37,6 @@
 
 #include "nuvoton-cir.h"
 
-static char *chip_id = "w836x7hg";
-
 /* write val to config reg */
 static inline void nvt_cr_write(struct nvt_dev *nvt, u8 val, u8 reg)
 {
@@ -233,6 +231,8 @@ static int nvt_hw_detect(struct nvt_dev *nvt)
 	unsigned long flags;
 	u8 chip_major, chip_minor;
 	int ret = 0;
+	char chip_id[12];
+	bool chip_unknown = false;
 
 	nvt_efm_enable(nvt);
 
@@ -246,14 +246,38 @@ static int nvt_hw_detect(struct nvt_dev *nvt)
 	}
 
 	chip_minor = nvt_cr_read(nvt, CR_CHIP_ID_LO);
-	nvt_dbg("%s: chip id: 0x%02x 0x%02x", chip_id, chip_major, chip_minor);
 
-	if (chip_major != CHIP_ID_HIGH ||
-	    (chip_minor != CHIP_ID_LOW && chip_minor != CHIP_ID_LOW2)) {
-		nvt_pr(KERN_ERR, "%s: unsupported chip, id: 0x%02x 0x%02x",
-		       chip_id, chip_major, chip_minor);
-		ret = -ENODEV;
+	/* these are the known working chip revisions... */
+	switch (chip_major) {
+	case CHIP_ID_HIGH_667:
+		strcpy(chip_id, "w83667hg\0");
+		if (chip_minor != CHIP_ID_LOW_667)
+			chip_unknown = true;
+		break;
+	case CHIP_ID_HIGH_677B:
+		strcpy(chip_id, "w83677hg\0");
+		if (chip_minor != CHIP_ID_LOW_677B2 &&
+		    chip_minor != CHIP_ID_LOW_677B3)
+			chip_unknown = true;
+		break;
+	case CHIP_ID_HIGH_677C:
+		strcpy(chip_id, "w83677hg-c\0");
+		if (chip_minor != CHIP_ID_LOW_677C)
+			chip_unknown = true;
+		break;
+	default:
+		strcpy(chip_id, "w836x7hg\0");
+		chip_unknown = true;
+		break;
 	}
+
+	/* warn, but still let the driver load, if we don't know this chip */
+	if (chip_unknown)
+		nvt_pr(KERN_WARNING, "%s: unknown chip, id: 0x%02x 0x%02x, "
+		       "it may not work...", chip_id, chip_major, chip_minor);
+	else
+		nvt_dbg("%s: chip id: 0x%02x 0x%02x",
+			chip_id, chip_major, chip_minor);
 
 	nvt_efm_disable(nvt);
 
@@ -267,13 +291,23 @@ static int nvt_hw_detect(struct nvt_dev *nvt)
 
 static void nvt_cir_ldev_init(struct nvt_dev *nvt)
 {
-	u8 val;
+	u8 val, psreg, psmask, psval;
 
-	/* output pin selection (Pin95=CIRRX, Pin96=CIRTX1, WB enabled */
-	val = nvt_cr_read(nvt, CR_OUTPUT_PIN_SEL);
-	val &= OUTPUT_PIN_SEL_MASK;
-	val |= (OUTPUT_ENABLE_CIR | OUTPUT_ENABLE_CIRWB);
-	nvt_cr_write(nvt, val, CR_OUTPUT_PIN_SEL);
+	if (nvt->chip_major == CHIP_ID_HIGH_667) {
+		psreg = CR_MULTIFUNC_PIN_SEL;
+		psmask = MULTIFUNC_PIN_SEL_MASK;
+		psval = MULTIFUNC_ENABLE_CIR | MULTIFUNC_ENABLE_CIRWB;
+	} else {
+		psreg = CR_OUTPUT_PIN_SEL;
+		psmask = OUTPUT_PIN_SEL_MASK;
+		psval = OUTPUT_ENABLE_CIR | OUTPUT_ENABLE_CIRWB;
+	}
+
+	/* output pin selection: enable CIR, with WB sensor enabled */
+	val = nvt_cr_read(nvt, psreg);
+	val &= psmask;
+	val |= psval;
+	nvt_cr_write(nvt, val, psreg);
 
 	/* Select CIR logical device and enable */
 	nvt_select_logical_dev(nvt, LOGICAL_DEV_CIR);
@@ -640,7 +674,7 @@ static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 				rawir.pulse ? "pulse" : "space",
 				rawir.duration);
 
-			ir_raw_event_store(nvt->rdev, &rawir);
+			ir_raw_event_store_with_filter(nvt->rdev, &rawir);
 		}
 
 		/*
@@ -1070,18 +1104,20 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	rdev->tx_ir = nvt_tx_ir;
 	rdev->s_tx_carrier = nvt_set_tx_carrier;
 	rdev->input_name = "Nuvoton w836x7hg Infrared Remote Transceiver";
+	rdev->input_phys = "nuvoton/cir0";
 	rdev->input_id.bustype = BUS_HOST;
 	rdev->input_id.vendor = PCI_VENDOR_ID_WINBOND2;
 	rdev->input_id.product = nvt->chip_major;
 	rdev->input_id.version = nvt->chip_minor;
+	rdev->dev.parent = &pdev->dev;
 	rdev->driver_name = NVT_DRIVER_NAME;
 	rdev->map_name = RC_MAP_RC6_MCE;
+	rdev->timeout = US_TO_NS(1000);
+	/* rx resolution is hardwired to 50us atm, 1, 25, 100 also possible */
+	rdev->rx_resolution = US_TO_NS(CIR_SAMPLE_PERIOD);
 #if 0
 	rdev->min_timeout = XYZ;
 	rdev->max_timeout = XYZ;
-	rdev->timeout = XYZ;
-	/* rx resolution is hardwired to 50us atm, 1, 25, 100 also possible */
-	rdev->rx_resolution = XYZ;
 	/* tx bits */
 	rdev->tx_resolution = XYZ;
 #endif
@@ -1090,8 +1126,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	if (ret)
 		goto failure;
 
-	device_set_wakeup_capable(&pdev->dev, 1);
-	device_set_wakeup_enable(&pdev->dev, 1);
+	device_init_wakeup(&pdev->dev, true);
 	nvt->rdev = rdev;
 	nvt_pr(KERN_NOTICE, "driver has been successfully loaded\n");
 	if (debug) {

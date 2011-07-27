@@ -46,7 +46,7 @@
 #define MOD_AUTHOR	"Jarod Wilson <jarod@wilsonet.com>"
 #define MOD_DESC	"Driver for SoundGraph iMON MultiMedia IR/Display"
 #define MOD_NAME	"imon"
-#define MOD_VERSION	"0.9.2"
+#define MOD_VERSION	"0.9.3"
 
 #define DISPLAY_MINOR_BASE	144
 #define DEVICE_NAME	"lcd%d"
@@ -443,16 +443,6 @@ static int display_close(struct inode *inode, struct file *file)
 	} else {
 		ictx->display_isopen = false;
 		dev_dbg(ictx->dev, "display port closed\n");
-		if (!ictx->dev_present_intf0) {
-			/*
-			 * Device disconnected before close and IR port is not
-			 * open. If IR port is open, context will be deleted by
-			 * ir_close.
-			 */
-			mutex_unlock(&ictx->lock);
-			free_imon_context(ictx);
-			return retval;
-		}
 	}
 
 	mutex_unlock(&ictx->lock);
@@ -460,8 +450,9 @@ static int display_close(struct inode *inode, struct file *file)
 }
 
 /**
- * Sends a packet to the device -- this function must be called
- * with ictx->lock held.
+ * Sends a packet to the device -- this function must be called with
+ * ictx->lock held, or its unlock/lock sequence while waiting for tx
+ * to complete can/will lead to a deadlock.
  */
 static int send_packet(struct imon_context *ictx)
 {
@@ -991,12 +982,21 @@ static void imon_touch_display_timeout(unsigned long data)
  * the iMON remotes, and those used by the Windows MCE remotes (which is
  * really just RC-6), but only one or the other at a time, as the signals
  * are decoded onboard the receiver.
+ *
+ * This function gets called two different ways, one way is from
+ * rc_register_device, for initial protocol selection/setup, and the other is
+ * via a userspace-initiated protocol change request, either by direct sysfs
+ * prodding or by something like ir-keytable. In the rc_register_device case,
+ * the imon context lock is already held, but when initiated from userspace,
+ * it is not, so we must acquire it prior to calling send_packet, which
+ * requires that the lock is held.
  */
 static int imon_ir_change_protocol(struct rc_dev *rc, u64 rc_type)
 {
 	int retval;
 	struct imon_context *ictx = rc->priv;
 	struct device *dev = ictx->dev;
+	bool unlock = false;
 	unsigned char ir_proto_packet[] = {
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x86 };
 
@@ -1029,6 +1029,11 @@ static int imon_ir_change_protocol(struct rc_dev *rc, u64 rc_type)
 
 	memcpy(ictx->usb_tx_buf, &ir_proto_packet, sizeof(ir_proto_packet));
 
+	if (!mutex_is_locked(&ictx->lock)) {
+		unlock = true;
+		mutex_lock(&ictx->lock);
+	}
+
 	retval = send_packet(ictx);
 	if (retval)
 		goto out;
@@ -1037,6 +1042,9 @@ static int imon_ir_change_protocol(struct rc_dev *rc, u64 rc_type)
 	ictx->pad_mouse = false;
 
 out:
+	if (unlock)
+		mutex_unlock(&ictx->lock);
+
 	return retval;
 }
 
@@ -1474,7 +1482,6 @@ static void imon_incoming_packet(struct imon_context *ictx,
 	struct device *dev = ictx->dev;
 	unsigned long flags;
 	u32 kc;
-	bool norelease = false;
 	int i;
 	u64 scancode;
 	int press_type = 0;
@@ -1542,7 +1549,6 @@ static void imon_incoming_packet(struct imon_context *ictx,
 	     !(buf[1] & 0x1 || buf[1] >> 2 & 0x1))) {
 		len = 8;
 		imon_pad_to_keys(ictx, buf);
-		norelease = true;
 	}
 
 	if (debug) {
@@ -1964,7 +1970,7 @@ static struct input_dev *imon_init_touch(struct imon_context *ictx)
 	return touch;
 
 touch_register_failed:
-	input_free_device(ictx->touch);
+	input_free_device(touch);
 
 touch_alloc_failed:
 	return NULL;
@@ -2134,6 +2140,7 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf)
 		goto rdev_setup_failed;
 	}
 
+	mutex_unlock(&ictx->lock);
 	return ictx;
 
 rdev_setup_failed:
@@ -2205,6 +2212,7 @@ static struct imon_context *imon_init_intf1(struct usb_interface *intf,
 		goto urb_submit_failed;
 	}
 
+	mutex_unlock(&ictx->lock);
 	return ictx;
 
 urb_submit_failed:
@@ -2254,13 +2262,11 @@ static int __devinit imon_probe(struct usb_interface *interface,
 	struct usb_host_interface *iface_desc = NULL;
 	struct usb_interface *first_if;
 	struct device *dev = &interface->dev;
-	int ifnum, code_length, sysfs_err;
+	int ifnum, sysfs_err;
 	int ret = 0;
 	struct imon_context *ictx = NULL;
 	struct imon_context *first_if_ctx = NULL;
 	u16 vendor, product;
-
-	code_length = BUF_CHUNK_SIZE * 8;
 
 	usbdev     = usb_get_dev(interface_to_usbdev(interface));
 	iface_desc = interface->cur_altsetting;
@@ -2299,6 +2305,8 @@ static int __devinit imon_probe(struct usb_interface *interface,
 	usb_set_intfdata(interface, ictx);
 
 	if (ifnum == 0) {
+		mutex_lock(&ictx->lock);
+
 		if (product == 0xffdc && ictx->rf_device) {
 			sysfs_err = sysfs_create_group(&interface->dev.kobj,
 						       &imon_rf_attr_group);
@@ -2309,13 +2317,14 @@ static int __devinit imon_probe(struct usb_interface *interface,
 
 		if (ictx->display_supported)
 			imon_init_display(ictx, interface);
+
+		mutex_unlock(&ictx->lock);
 	}
 
 	dev_info(dev, "iMON device (%04x:%04x, intf%d) on "
 		 "usb<%d:%d> initialized\n", vendor, product, ifnum,
 		 usbdev->bus->busnum, usbdev->devnum);
 
-	mutex_unlock(&ictx->lock);
 	mutex_unlock(&driver_lock);
 
 	return 0;
@@ -2343,8 +2352,6 @@ static void __devexit imon_disconnect(struct usb_interface *interface)
 	dev = ictx->dev;
 	ifnum = interface->cur_altsetting->desc.bInterfaceNumber;
 
-	mutex_lock(&ictx->lock);
-
 	/*
 	 * sysfs_remove_group is safe to call even if sysfs_create_group
 	 * hasn't been called
@@ -2368,24 +2375,20 @@ static void __devexit imon_disconnect(struct usb_interface *interface)
 		if (ictx->display_supported) {
 			if (ictx->display_type == IMON_DISPLAY_TYPE_LCD)
 				usb_deregister_dev(interface, &imon_lcd_class);
-			else
+			else if (ictx->display_type == IMON_DISPLAY_TYPE_VFD)
 				usb_deregister_dev(interface, &imon_vfd_class);
 		}
 	} else {
 		ictx->dev_present_intf1 = false;
 		usb_kill_urb(ictx->rx_urb_intf1);
-		if (ictx->display_type == IMON_DISPLAY_TYPE_VGA)
+		if (ictx->display_type == IMON_DISPLAY_TYPE_VGA) {
 			input_unregister_device(ictx->touch);
+			del_timer_sync(&ictx->ttimer);
+		}
 	}
 
-	if (!ictx->dev_present_intf0 && !ictx->dev_present_intf1) {
-		if (ictx->display_type == IMON_DISPLAY_TYPE_VGA)
-			del_timer_sync(&ictx->ttimer);
-		mutex_unlock(&ictx->lock);
-		if (!ictx->display_isopen)
-			free_imon_context(ictx);
-	} else
-		mutex_unlock(&ictx->lock);
+	if (!ictx->dev_present_intf0 && !ictx->dev_present_intf1)
+		free_imon_context(ictx);
 
 	mutex_unlock(&driver_lock);
 

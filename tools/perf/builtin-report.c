@@ -116,6 +116,9 @@ static int process_sample_event(union perf_event *event,
 	if (al.filtered || (hide_unresolved && al.sym == NULL))
 		return 0;
 
+	if (al.map != NULL)
+		al.map->dso->hit = 1;
+
 	if (perf_session__add_hist_entry(session, &al, sample, evsel)) {
 		pr_debug("problem incrementing symbol period, skipping event\n");
 		return -1;
@@ -249,6 +252,8 @@ static int __cmd_report(void)
 	u64 nr_samples;
 	struct perf_session *session;
 	struct perf_evsel *pos;
+	struct map *kernel_map;
+	struct kmap *kernel_kmap;
 	const char *help = "For a higher level overview, try: perf report --sort comm,dso";
 
 	signal(SIGINT, sig_handler);
@@ -267,6 +272,24 @@ static int __cmd_report(void)
 	ret = perf_session__process_events(session, &event_ops);
 	if (ret)
 		goto out_delete;
+
+	kernel_map = session->host_machine.vmlinux_maps[MAP__FUNCTION];
+	kernel_kmap = map__kmap(kernel_map);
+	if (kernel_map == NULL ||
+	    (kernel_map->dso->hit &&
+	     (kernel_kmap->ref_reloc_sym == NULL ||
+	      kernel_kmap->ref_reloc_sym->addr == 0))) {
+		const struct dso *kdso = kernel_map->dso;
+
+		ui__warning(
+"Kernel address maps (/proc/{kallsyms,modules}) were restricted.\n\n"
+"Check /proc/sys/kernel/kptr_restrict before running 'perf record'.\n\n%s\n\n"
+"Samples in kernel modules can't be resolved as well.\n\n",
+			    RB_EMPTY_ROOT(&kdso->symbols[MAP__FUNCTION]) ?
+"As no suitable kallsyms nor vmlinux was found, kernel samples\n"
+"can't be resolved." :
+"If some relocation was applied (e.g. kexec) symbols may be misresolved.");
+	}
 
 	if (dump_trace) {
 		perf_session__fprintf_nr_events(session, stdout);

@@ -417,7 +417,7 @@ static u32 cayman_get_tile_pipe_to_backend_map(struct radeon_device *rdev,
 		num_shader_engines = 1;
 	if (num_shader_engines > rdev->config.cayman.max_shader_engines)
 		num_shader_engines = rdev->config.cayman.max_shader_engines;
-	if (num_backends_per_asic > num_shader_engines)
+	if (num_backends_per_asic < num_shader_engines)
 		num_backends_per_asic = num_shader_engines;
 	if (num_backends_per_asic > (rdev->config.cayman.max_backends_per_se * num_shader_engines))
 		num_backends_per_asic = rdev->config.cayman.max_backends_per_se * num_shader_engines;
@@ -674,7 +674,7 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 
 	cc_rb_backend_disable = RREG32(CC_RB_BACKEND_DISABLE);
 	cc_gc_shader_pipe_config = RREG32(CC_GC_SHADER_PIPE_CONFIG);
-	cgts_tcc_disable = RREG32(CGTS_TCC_DISABLE);
+	cgts_tcc_disable = 0xff000000;
 	gc_user_rb_backend_disable = RREG32(GC_USER_RB_BACKEND_DISABLE);
 	gc_user_shader_pipe_config = RREG32(GC_USER_SHADER_PIPE_CONFIG);
 	cgts_user_tcc_disable = RREG32(CGTS_USER_TCC_DISABLE);
@@ -829,7 +829,7 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 	rdev->config.cayman.tile_config |=
 		((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT) << 4;
 	rdev->config.cayman.tile_config |=
-		(gb_addr_config & PIPE_INTERLEAVE_SIZE_MASK) >> PIPE_INTERLEAVE_SIZE_SHIFT;
+		((gb_addr_config & PIPE_INTERLEAVE_SIZE_MASK) >> PIPE_INTERLEAVE_SIZE_SHIFT) << 8;
 	rdev->config.cayman.tile_config |=
 		((gb_addr_config & ROW_SIZE_MASK) >> ROW_SIZE_SHIFT) << 12;
 
@@ -871,7 +871,7 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 
 	smx_dc_ctl0 = RREG32(SMX_DC_CTL0);
 	smx_dc_ctl0 &= ~NUMBER_OF_SETS(0x1ff);
-	smx_dc_ctl0 |= NUMBER_OF_SETS(rdev->config.evergreen.sx_num_of_sets);
+	smx_dc_ctl0 |= NUMBER_OF_SETS(rdev->config.cayman.sx_num_of_sets);
 	WREG32(SMX_DC_CTL0, smx_dc_ctl0);
 
 	WREG32(SPI_CONFIG_CNTL_1, VTX_DONE_DELAY(4) | CRC_SIMD_ID_WADDR_DISABLE);
@@ -887,20 +887,20 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 
 	WREG32(TA_CNTL_AUX, DISABLE_CUBE_ANISO);
 
-	WREG32(SX_EXPORT_BUFFER_SIZES, (COLOR_BUFFER_SIZE((rdev->config.evergreen.sx_max_export_size / 4) - 1) |
-					POSITION_BUFFER_SIZE((rdev->config.evergreen.sx_max_export_pos_size / 4) - 1) |
-					SMX_BUFFER_SIZE((rdev->config.evergreen.sx_max_export_smx_size / 4) - 1)));
+	WREG32(SX_EXPORT_BUFFER_SIZES, (COLOR_BUFFER_SIZE((rdev->config.cayman.sx_max_export_size / 4) - 1) |
+					POSITION_BUFFER_SIZE((rdev->config.cayman.sx_max_export_pos_size / 4) - 1) |
+					SMX_BUFFER_SIZE((rdev->config.cayman.sx_max_export_smx_size / 4) - 1)));
 
-	WREG32(PA_SC_FIFO_SIZE, (SC_PRIM_FIFO_SIZE(rdev->config.evergreen.sc_prim_fifo_size) |
-				 SC_HIZ_TILE_FIFO_SIZE(rdev->config.evergreen.sc_hiz_tile_fifo_size) |
-				 SC_EARLYZ_TILE_FIFO_SIZE(rdev->config.evergreen.sc_earlyz_tile_fifo_size)));
+	WREG32(PA_SC_FIFO_SIZE, (SC_PRIM_FIFO_SIZE(rdev->config.cayman.sc_prim_fifo_size) |
+				 SC_HIZ_TILE_FIFO_SIZE(rdev->config.cayman.sc_hiz_tile_fifo_size) |
+				 SC_EARLYZ_TILE_FIFO_SIZE(rdev->config.cayman.sc_earlyz_tile_fifo_size)));
 
 
 	WREG32(VGT_NUM_INSTANCES, 1);
 
 	WREG32(CP_PERFMON_CNTL, 0);
 
-	WREG32(SQ_MS_FIFO_SIZES, (CACHE_FIFO_SIZE(16 * rdev->config.evergreen.sq_num_cf_insts) |
+	WREG32(SQ_MS_FIFO_SIZES, (CACHE_FIFO_SIZE(16 * rdev->config.cayman.sq_num_cf_insts) |
 				  FETCH_FIFO_HIWATER(0x4) |
 				  DONE_FIFO_HIWATER(0xe0) |
 				  ALU_UPDATE_FIFO_HIWATER(0x8)));
@@ -930,6 +930,10 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 	WREG32(CB_PERF_CTR2_SEL_1, 0);
 	WREG32(CB_PERF_CTR3_SEL_0, 0);
 	WREG32(CB_PERF_CTR3_SEL_1, 0);
+
+	tmp = RREG32(HDP_MISC_CNTL);
+	tmp |= HDP_FLUSH_INVALIDATE_CACHE;
+	WREG32(HDP_MISC_CNTL, tmp);
 
 	hdp_host_path_cntl = RREG32(HDP_HOST_PATH_CNTL);
 	WREG32(HDP_HOST_PATH_CNTL, hdp_host_path_cntl);
@@ -1383,14 +1387,12 @@ static int cayman_startup(struct radeon_device *rdev)
 		return r;
 	cayman_gpu_init(rdev);
 
-#if 0
-	r = cayman_blit_init(rdev);
+	r = evergreen_blit_init(rdev);
 	if (r) {
-		cayman_blit_fini(rdev);
+		evergreen_blit_fini(rdev);
 		rdev->asic->copy = NULL;
 		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
 	}
-#endif
 
 	/* allocate wb buffer */
 	r = radeon_wb_init(rdev);
@@ -1448,7 +1450,7 @@ int cayman_resume(struct radeon_device *rdev)
 
 int cayman_suspend(struct radeon_device *rdev)
 {
-	/* int r; */
+	int r;
 
 	/* FIXME: we should wait for ring to be empty */
 	cayman_cp_enable(rdev, false);
@@ -1457,14 +1459,13 @@ int cayman_suspend(struct radeon_device *rdev)
 	radeon_wb_disable(rdev);
 	cayman_pcie_gart_disable(rdev);
 
-#if 0
 	/* unpin shaders bo */
 	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
 	if (likely(r == 0)) {
 		radeon_bo_unpin(rdev->r600_blit.shader_obj);
 		radeon_bo_unreserve(rdev->r600_blit.shader_obj);
 	}
-#endif
+
 	return 0;
 }
 
@@ -1576,7 +1577,7 @@ int cayman_init(struct radeon_device *rdev)
 
 void cayman_fini(struct radeon_device *rdev)
 {
-	/* cayman_blit_fini(rdev); */
+	evergreen_blit_fini(rdev);
 	cayman_cp_fini(rdev);
 	r600_irq_fini(rdev);
 	radeon_wb_fini(rdev);

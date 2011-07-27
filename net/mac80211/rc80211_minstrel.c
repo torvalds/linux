@@ -417,8 +417,8 @@ minstrel_rate_init(void *priv, struct ieee80211_supported_band *sband,
 			tx_time_single = mr->ack_time + mr->perfect_tx_time;
 
 			/* contention window */
-			tx_time_single += t_slot + min(cw, mp->cw_max);
-			cw = (cw << 1) | 1;
+			tx_time_single += (t_slot * cw) >> 1;
+			cw = min((cw << 1) | 1, mp->cw_max);
 
 			tx_time += tx_time_single;
 			tx_time_cts += tx_time_single + mi->sp_ack_dur;

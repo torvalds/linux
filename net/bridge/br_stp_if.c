@@ -20,7 +20,7 @@
 
 
 /* Port id is composed of priority and port number.
- * NB: least significant bits of priority are dropped to
+ * NB: some bits of priority are dropped to
  *     make room for more ports.
  */
 static inline port_id br_make_port_id(__u8 priority, __u16 port_no)
@@ -28,6 +28,8 @@ static inline port_id br_make_port_id(__u8 priority, __u16 port_no)
 	return ((u16)priority << BR_PORT_BITS)
 		| (port_no & ((1<<BR_PORT_BITS)-1));
 }
+
+#define BR_MAX_PORT_PRIORITY ((u16)~0 >> BR_PORT_BITS)
 
 /* called under bridge lock */
 void br_init_port(struct net_bridge_port *p)
@@ -255,10 +257,14 @@ void br_stp_set_bridge_priority(struct net_bridge *br, u16 newprio)
 }
 
 /* called under bridge lock */
-void br_stp_set_port_priority(struct net_bridge_port *p, u8 newprio)
+int br_stp_set_port_priority(struct net_bridge_port *p, unsigned long newprio)
 {
-	port_id new_port_id = br_make_port_id(newprio, p->port_no);
+	port_id new_port_id;
 
+	if (newprio > BR_MAX_PORT_PRIORITY)
+		return -ERANGE;
+
+	new_port_id = br_make_port_id(newprio, p->port_no);
 	if (br_is_designated_port(p))
 		p->designated_port = new_port_id;
 
@@ -269,14 +275,21 @@ void br_stp_set_port_priority(struct net_bridge_port *p, u8 newprio)
 		br_become_designated_port(p);
 		br_port_state_selection(p->br);
 	}
+
+	return 0;
 }
 
 /* called under bridge lock */
-void br_stp_set_path_cost(struct net_bridge_port *p, u32 path_cost)
+int br_stp_set_path_cost(struct net_bridge_port *p, unsigned long path_cost)
 {
+	if (path_cost < BR_MIN_PATH_COST ||
+	    path_cost > BR_MAX_PATH_COST)
+		return -ERANGE;
+
 	p->path_cost = path_cost;
 	br_configuration_update(p->br);
 	br_port_state_selection(p->br);
+	return 0;
 }
 
 ssize_t br_show_bridge_id(char *buf, const struct bridge_id *id)

@@ -28,45 +28,73 @@ struct wl_priv;
 struct wl_security;
 struct wl_ibss;
 
-#define WL_DBG_NONE	0
-#define WL_DBG_DBG 	(1 << 2)
-#define WL_DBG_INFO	(1 << 1)
-#define WL_DBG_ERR	(1 << 0)
-#define WL_DBG_MASK ((WL_DBG_DBG | WL_DBG_INFO | WL_DBG_ERR) << 1)
+#define WL_DBG_NONE		0
+#define WL_DBG_CONN		(1 << 5)
+#define WL_DBG_SCAN		(1 << 4)
+#define WL_DBG_TRACE		(1 << 3)
+#define WL_DBG_INFO		(1 << 1)
+#define WL_DBG_ERR		(1 << 0)
+#define WL_DBG_MASK		((WL_DBG_INFO | WL_DBG_ERR | WL_DBG_TRACE) | \
+				(WL_DBG_SCAN) | (WL_DBG_CONN))
 
-#define WL_DBG_LEVEL 1		/* 0 invalidates all debug messages.
-				 default is 1 */
 #define	WL_ERR(fmt, args...)					\
 do {								\
 	if (wl_dbg_level & WL_DBG_ERR) {			\
 		if (net_ratelimit()) {				\
 			printk(KERN_ERR "ERROR @%s : " fmt,	\
-			       __func__, ##args);		\
+				__func__, ##args);		\
 		}						\
 	}							\
 } while (0)
 
+#if (defined BCMDBG)
 #define	WL_INFO(fmt, args...)					\
 do {								\
 	if (wl_dbg_level & WL_DBG_INFO) {			\
 		if (net_ratelimit()) {				\
 			printk(KERN_ERR "INFO @%s : " fmt,	\
-			       __func__, ##args);		\
+				__func__, ##args);		\
 		}						\
 	}							\
 } while (0)
 
-#if (WL_DBG_LEVEL > 0)
-#define	WL_DBG(fmt, args...)					\
+#define	WL_TRACE(fmt, args...)					\
 do {								\
-	if (wl_dbg_level & WL_DBG_DBG) {			\
-		printk(KERN_ERR "DEBUG @%s :" fmt,		\
-		       __func__, ##args);			\
+	if (wl_dbg_level & WL_DBG_TRACE) {			\
+		if (net_ratelimit()) {				\
+			printk(KERN_ERR "TRACE @%s : " fmt,	\
+				__func__, ##args);		\
+		}						\
 	}							\
 } while (0)
-#else				/* !(WL_DBG_LEVEL > 0) */
-#define	WL_DBG(fmt, args...) noprintk(fmt, ##args)
-#endif				/* (WL_DBG_LEVEL > 0) */
+
+#define	WL_SCAN(fmt, args...)					\
+do {								\
+	if (wl_dbg_level & WL_DBG_SCAN) {			\
+		if (net_ratelimit()) {				\
+			printk(KERN_ERR "SCAN @%s : " fmt,	\
+				__func__, ##args);		\
+		}						\
+	}							\
+} while (0)
+
+#define	WL_CONN(fmt, args...)					\
+do {								\
+	if (wl_dbg_level & WL_DBG_CONN) {			\
+		if (net_ratelimit()) {				\
+			printk(KERN_ERR "CONN @%s : " fmt,	\
+				__func__, ##args);		\
+		}						\
+	}							\
+} while (0)
+
+#else /* (defined BCMDBG) */
+#define	WL_INFO(fmt, args...)
+#define	WL_TRACE(fmt, args...)
+#define	WL_SCAN(fmt, args...)
+#define	WL_CONN(fmt, args...)
+#endif /* (defined BCMDBG) */
+
 
 #define WL_SCAN_RETRY_MAX	3	/* used for ibss scan */
 #define WL_NUM_SCAN_MAX		1
@@ -94,6 +122,14 @@ do {								\
 				 * as kernel memory allows
 				 */
 #define WL_FILE_NAME_MAX		256
+
+#define WL_ROAM_TRIGGER_LEVEL		-75
+#define WL_ROAM_DELTA			20
+#define WL_BEACON_TIMEOUT		3
+
+#define WL_SCAN_CHANNEL_TIME		40
+#define WL_SCAN_UNASSOC_TIME		40
+#define WL_SCAN_PASSIVE_TIME		120
 
 /* dongle status */
 enum wl_status {
@@ -227,7 +263,6 @@ struct wl_profile {
 	struct wl_security sec;
 	struct wl_ibss ibss;
 	s32 band;
-	bool active;
 };
 
 /* dongle iscan event loop */
@@ -298,7 +333,6 @@ struct wl_priv {
 						 cfg80211 layer */
 	struct wl_ie ie;	/* information element object for
 					 internal purpose */
-	u8 bssid[ETH_ALEN];	/* bssid of currently engaged network */
 	struct semaphore event_sync;	/* for synchronization of main event
 					 thread */
 	struct wl_profile *profile;	/* holding dongle profile */
@@ -375,5 +409,6 @@ extern s8 *wl_cfg80211_get_fwname(void);	/* get firmware name for
 						 the dongle */
 extern s8 *wl_cfg80211_get_nvramname(void);	/* get nvram name for
 						 the dongle */
+extern void wl_os_wd_timer(struct net_device *ndev, uint wdtick);
 
 #endif				/* _wl_cfg80211_h_ */

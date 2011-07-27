@@ -119,14 +119,6 @@ static void noop_apic_write(u32 reg, u32 v)
 	WARN_ON_ONCE(cpu_has_apic && !disable_apic);
 }
 
-#ifdef CONFIG_X86_32
-static int noop_x86_32_numa_cpu_node(int cpu)
-{
-	/* we're always on node 0 */
-	return 0;
-}
-#endif
-
 struct apic apic_noop = {
 	.name				= "noop",
 	.probe				= noop_probe,
@@ -195,6 +187,5 @@ struct apic apic_noop = {
 
 #ifdef CONFIG_X86_32
 	.x86_32_early_logical_apicid	= noop_x86_32_early_logical_apicid,
-	.x86_32_numa_cpu_node		= noop_x86_32_numa_cpu_node,
 #endif
 };

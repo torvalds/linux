@@ -42,7 +42,7 @@ config SQUASHFS_LZO
 	select LZO_DECOMPRESS
 	help
 	  Saying Y here includes support for reading Squashfs file systems
-	  compressed with LZO compresssion.  LZO compression is mainly
+	  compressed with LZO compression.  LZO compression is mainly
 	  aimed at embedded systems with slower CPUs where the overheads
 	  of zlib are too high.
 
@@ -57,7 +57,7 @@ config SQUASHFS_XZ
 	select XZ_DEC
 	help
 	  Saying Y here includes support for reading Squashfs file systems
-	  compressed with XZ compresssion.  XZ gives better compression than
+	  compressed with XZ compression.  XZ gives better compression than
 	  the default zlib compression, at the expense of greater CPU and
 	  memory overhead.
 

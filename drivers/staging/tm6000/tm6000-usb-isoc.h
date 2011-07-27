@@ -39,7 +39,7 @@ struct usb_isoc_ctl {
 	int				pos, size, pktsize;
 
 		/* Last field: ODD or EVEN? */
-	int				vfield;
+	int				vfield, field;
 
 		/* Stores incomplete commands */
 	u32				tmp_buf;

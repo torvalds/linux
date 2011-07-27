@@ -793,6 +793,8 @@ static irqreturn_t iommu_fault_handler(int irq, void *data)
 	clk_enable(obj->clk);
 	errs = iommu_report_fault(obj, &da);
 	clk_disable(obj->clk);
+	if (errs == 0)
+		return IRQ_HANDLED;
 
 	/* Fault callback or TLB/PTE Dynamic loading */
 	if (obj->isr && !obj->isr(obj, da, errs, obj->isr_priv))

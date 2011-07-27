@@ -90,11 +90,8 @@ static snd_pcm_sframes_t linear_transfer(struct snd_pcm_plugin *plugin,
 			       struct snd_pcm_plugin_channel *dst_channels,
 			       snd_pcm_uframes_t frames)
 {
-	struct linear_priv *data;
-
 	if (snd_BUG_ON(!plugin || !src_channels || !dst_channels))
 		return -ENXIO;
-	data = (struct linear_priv *)plugin->extra_data;
 	if (frames == 0)
 		return 0;
 #ifdef CONFIG_SND_DEBUG

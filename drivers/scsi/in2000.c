@@ -343,7 +343,7 @@ static int in2000_queuecommand_lck(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
 	instance = cmd->device->host;
 	hostdata = (struct IN2000_hostdata *) instance->hostdata;
 
-	DB(DB_QUEUE_COMMAND, scmd_printk(KERN_DEBUG, cmd, "Q-%02x-%ld(", cmd->cmnd[0], cmd->serial_number))
+	DB(DB_QUEUE_COMMAND, scmd_printk(KERN_DEBUG, cmd, "Q-%02x(", cmd->cmnd[0]))
 
 /* Set up a few fields in the Scsi_Cmnd structure for our own use:
  *  - host_scribble is the pointer to the next cmd in the input queue
@@ -427,7 +427,7 @@ static int in2000_queuecommand_lck(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
 
 	in2000_execute(cmd->device->host);
 
-	DB(DB_QUEUE_COMMAND, printk(")Q-%ld ", cmd->serial_number))
+	DB(DB_QUEUE_COMMAND, printk(")Q "))
 	    return 0;
 }
 
@@ -705,7 +705,7 @@ static void in2000_execute(struct Scsi_Host *instance)
 	 * to search the input_Q again...
 	 */
 
-	DB(DB_EXECUTE, printk("%s%ld)EX-2 ", (cmd->SCp.phase) ? "d:" : "", cmd->serial_number))
+	DB(DB_EXECUTE, printk("%s)EX-2 ", (cmd->SCp.phase) ? "d:" : ""))
 
 }
 
@@ -1149,7 +1149,7 @@ static irqreturn_t in2000_intr(int irqnum, void *dev_id)
 	case CSR_XFER_DONE | PHS_COMMAND:
 	case CSR_UNEXP | PHS_COMMAND:
 	case CSR_SRV_REQ | PHS_COMMAND:
-		DB(DB_INTR, printk("CMND-%02x,%ld", cmd->cmnd[0], cmd->serial_number))
+		DB(DB_INTR, printk("CMND-%02x", cmd->cmnd[0]))
 		    transfer_pio(cmd->cmnd, cmd->cmd_len, DATA_OUT_DIR, hostdata);
 		hostdata->state = S_CONNECTED;
 		break;
@@ -1191,7 +1191,7 @@ static irqreturn_t in2000_intr(int irqnum, void *dev_id)
 		switch (msg) {
 
 		case COMMAND_COMPLETE:
-			DB(DB_INTR, printk("CCMP-%ld", cmd->serial_number))
+			DB(DB_INTR, printk("CCMP"))
 			    write_3393_cmd(hostdata, WD_CMD_NEGATE_ACK);
 			hostdata->state = S_PRE_CMP_DISC;
 			break;
@@ -1329,7 +1329,7 @@ static irqreturn_t in2000_intr(int irqnum, void *dev_id)
 
 		write_3393(hostdata, WD_SOURCE_ID, SRCID_ER);
 		if (phs == 0x60) {
-			DB(DB_INTR, printk("SX-DONE-%ld", cmd->serial_number))
+			DB(DB_INTR, printk("SX-DONE"))
 			    cmd->SCp.Message = COMMAND_COMPLETE;
 			lun = read_3393(hostdata, WD_TARGET_LUN);
 			DB(DB_INTR, printk(":%d.%d", cmd->SCp.Status, lun))
@@ -1350,7 +1350,7 @@ static irqreturn_t in2000_intr(int irqnum, void *dev_id)
 
 			in2000_execute(instance);
 		} else {
-			printk("%02x:%02x:%02x-%ld: Unknown SEL_XFER_DONE phase!!---", asr, sr, phs, cmd->serial_number);
+			printk("%02x:%02x:%02x: Unknown SEL_XFER_DONE phase!!---", asr, sr, phs);
 		}
 		break;
 
@@ -1417,7 +1417,7 @@ static irqreturn_t in2000_intr(int irqnum, void *dev_id)
 			spin_unlock_irqrestore(instance->host_lock, flags);
 			return IRQ_HANDLED;
 		}
-		DB(DB_INTR, printk("UNEXP_DISC-%ld", cmd->serial_number))
+		DB(DB_INTR, printk("UNEXP_DISC"))
 		    hostdata->connected = NULL;
 		hostdata->busy[cmd->device->id] &= ~(1 << cmd->device->lun);
 		hostdata->state = S_UNCONNECTED;
@@ -1442,7 +1442,7 @@ static irqreturn_t in2000_intr(int irqnum, void *dev_id)
  */
 
 		write_3393(hostdata, WD_SOURCE_ID, SRCID_ER);
-		DB(DB_INTR, printk("DISC-%ld", cmd->serial_number))
+		DB(DB_INTR, printk("DISC"))
 		    if (cmd == NULL) {
 			printk(" - Already disconnected! ");
 			hostdata->state = S_UNCONNECTED;
@@ -1575,7 +1575,6 @@ static irqreturn_t in2000_intr(int irqnum, void *dev_id)
 		} else
 			hostdata->state = S_CONNECTED;
 
-		DB(DB_INTR, printk("-%ld", cmd->serial_number))
 		    break;
 
 	default:
@@ -1704,7 +1703,7 @@ static int __in2000_abort(Scsi_Cmnd * cmd)
 				prev->host_scribble = cmd->host_scribble;
 			cmd->host_scribble = NULL;
 			cmd->result = DID_ABORT << 16;
-			printk(KERN_WARNING "scsi%d: Abort - removing command %ld from input_Q. ", instance->host_no, cmd->serial_number);
+			printk(KERN_WARNING "scsi%d: Abort - removing command from input_Q. ", instance->host_no);
 			cmd->scsi_done(cmd);
 			return SUCCESS;
 		}
@@ -1725,7 +1724,7 @@ static int __in2000_abort(Scsi_Cmnd * cmd)
 
 	if (hostdata->connected == cmd) {
 
-		printk(KERN_WARNING "scsi%d: Aborting connected command %ld - ", instance->host_no, cmd->serial_number);
+		printk(KERN_WARNING "scsi%d: Aborting connected command - ", instance->host_no);
 
 		printk("sending wd33c93 ABORT command - ");
 		write_3393(hostdata, WD_CONTROL, CTRL_IDI | CTRL_EDI | CTRL_POLLED);
@@ -2228,7 +2227,7 @@ static int in2000_proc_info(struct Scsi_Host *instance, char *buf, char **start,
 	bp = buf;
 	*bp = '\0';
 	if (hd->proc & PR_VERSION) {
-		sprintf(tbuf, "\nVersion %s - %s. Compiled %s %s", IN2000_VERSION, IN2000_DATE, __DATE__, __TIME__);
+		sprintf(tbuf, "\nVersion %s - %s.", IN2000_VERSION, IN2000_DATE);
 		strcat(bp, tbuf);
 	}
 	if (hd->proc & PR_INFO) {
@@ -2270,7 +2269,7 @@ static int in2000_proc_info(struct Scsi_Host *instance, char *buf, char **start,
 		strcat(bp, "\nconnected:     ");
 		if (hd->connected) {
 			cmd = (Scsi_Cmnd *) hd->connected;
-			sprintf(tbuf, " %ld-%d:%d(%02x)", cmd->serial_number, cmd->device->id, cmd->device->lun, cmd->cmnd[0]);
+			sprintf(tbuf, " %d:%d(%02x)", cmd->device->id, cmd->device->lun, cmd->cmnd[0]);
 			strcat(bp, tbuf);
 		}
 	}
@@ -2278,7 +2277,7 @@ static int in2000_proc_info(struct Scsi_Host *instance, char *buf, char **start,
 		strcat(bp, "\ninput_Q:       ");
 		cmd = (Scsi_Cmnd *) hd->input_Q;
 		while (cmd) {
-			sprintf(tbuf, " %ld-%d:%d(%02x)", cmd->serial_number, cmd->device->id, cmd->device->lun, cmd->cmnd[0]);
+			sprintf(tbuf, " %d:%d(%02x)", cmd->device->id, cmd->device->lun, cmd->cmnd[0]);
 			strcat(bp, tbuf);
 			cmd = (Scsi_Cmnd *) cmd->host_scribble;
 		}
@@ -2287,7 +2286,7 @@ static int in2000_proc_info(struct Scsi_Host *instance, char *buf, char **start,
 		strcat(bp, "\ndisconnected_Q:");
 		cmd = (Scsi_Cmnd *) hd->disconnected_Q;
 		while (cmd) {
-			sprintf(tbuf, " %ld-%d:%d(%02x)", cmd->serial_number, cmd->device->id, cmd->device->lun, cmd->cmnd[0]);
+			sprintf(tbuf, " %d:%d(%02x)", cmd->device->id, cmd->device->lun, cmd->cmnd[0]);
 			strcat(bp, tbuf);
 			cmd = (Scsi_Cmnd *) cmd->host_scribble;
 		}

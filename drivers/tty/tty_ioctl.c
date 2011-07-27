@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/char/tty_ioctl.c
- *
  *  Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
  *
  * Modified by Fred N. van Kempen, 01/29/93, to add line disciplines
@@ -309,7 +307,7 @@ EXPORT_SYMBOL(tty_termios_input_baud_rate);
  *	@ospeed: output speed
  *
  *	Encode the speeds set into the passed termios structure. This is
- *	used as a library helper for drivers os that they can report back
+ *	used as a library helper for drivers so that they can report back
  *	the actual speed selected when it differs from the speed requested
  *
  *	For maximal back compatibility with legacy SYS5/POSIX *nix behaviour

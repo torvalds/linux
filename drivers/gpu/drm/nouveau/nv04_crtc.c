@@ -376,7 +376,10 @@ nv_crtc_mode_set_vga(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	 */
 
 	/* framebuffer can be larger than crtc scanout area. */
-	regp->CRTC[NV_CIO_CRE_RPC0_INDEX] = XLATE(fb->pitch / 8, 8, NV_CIO_CRE_RPC0_OFFSET_10_8);
+	regp->CRTC[NV_CIO_CRE_RPC0_INDEX] =
+		XLATE(fb->pitch / 8, 8, NV_CIO_CRE_RPC0_OFFSET_10_8);
+	regp->CRTC[NV_CIO_CRE_42] =
+		XLATE(fb->pitch / 8, 11, NV_CIO_CRE_42_OFFSET_11);
 	regp->CRTC[NV_CIO_CRE_RPC1_INDEX] = mode->crtc_hdisplay < 1280 ?
 					    MASK(NV_CIO_CRE_RPC1_LARGE) : 0x00;
 	regp->CRTC[NV_CIO_CRE_LSR_INDEX] = XLATE(horizBlankEnd, 6, NV_CIO_CRE_LSR_HBE_6) |
@@ -790,8 +793,7 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	if (atomic) {
 		drm_fb = passed_fb;
 		fb = nouveau_framebuffer(passed_fb);
-	}
-	else {
+	} else {
 		/* If not atomic, we can go ahead and pin, and unpin the
 		 * old fb we were passed.
 		 */
@@ -825,8 +827,11 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	regp->CRTC[NV_CIO_CR_OFFSET_INDEX] = drm_fb->pitch >> 3;
 	regp->CRTC[NV_CIO_CRE_RPC0_INDEX] =
 		XLATE(drm_fb->pitch >> 3, 8, NV_CIO_CRE_RPC0_OFFSET_10_8);
+	regp->CRTC[NV_CIO_CRE_42] =
+		XLATE(drm_fb->pitch / 8, 11, NV_CIO_CRE_42_OFFSET_11);
 	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_RPC0_INDEX);
 	crtc_wr_cio_state(crtc, regp, NV_CIO_CR_OFFSET_INDEX);
+	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_42);
 
 	/* Update the framebuffer location. */
 	regp->fb_start = nv_crtc->fb.offset & ~3;
@@ -944,13 +949,13 @@ nv04_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	struct drm_gem_object *gem;
 	int ret = 0;
 
-	if (width != 64 || height != 64)
-		return -EINVAL;
-
 	if (!buffer_handle) {
 		nv_crtc->cursor.hide(nv_crtc, true);
 		return 0;
 	}
+
+	if (width != 64 || height != 64)
+		return -EINVAL;
 
 	gem = drm_gem_object_lookup(dev, file_priv, buffer_handle);
 	if (!gem)

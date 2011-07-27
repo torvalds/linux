@@ -69,7 +69,7 @@ int xfrm4_prepare_output(struct xfrm_state *x, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(xfrm4_prepare_output);
 
-static int xfrm4_output_finish(struct sk_buff *skb)
+int xfrm4_output_finish(struct sk_buff *skb)
 {
 #ifdef CONFIG_NETFILTER
 	if (!skb_dst(skb)->xfrm) {
@@ -86,7 +86,11 @@ static int xfrm4_output_finish(struct sk_buff *skb)
 
 int xfrm4_output(struct sk_buff *skb)
 {
+	struct dst_entry *dst = skb_dst(skb);
+	struct xfrm_state *x = dst->xfrm;
+
 	return NF_HOOK_COND(NFPROTO_IPV4, NF_INET_POST_ROUTING, skb,
-			    NULL, skb_dst(skb)->dev, xfrm4_output_finish,
+			    NULL, dst->dev,
+			    x->outer_mode->afinfo->output_finish,
 			    !(IPCB(skb)->flags & IPSKB_REROUTED));
 }

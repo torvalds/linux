@@ -36,9 +36,6 @@
 extern unsigned int wmitimeout;
 extern wait_queue_head_t arEvent;
 
-#ifdef ANDROID_ENV
-extern void android_ar6k_check_wow_status(struct ar6_softc *ar, struct sk_buff *skb, bool isEvent);
-#endif
 #undef ATH_MODULE_NAME
 #define ATH_MODULE_NAME pm
 #define  ATH_DEBUG_PM       ATH_DEBUG_MAKE_MODULE_MASK(0)
@@ -283,10 +280,6 @@ void ar6000_check_wow_status(struct ar6_softc *ar, struct sk_buff *skb, bool isE
         /* Wow resume from irq interrupt */
         AR_DEBUG_PRINTF(ATH_DEBUG_PM, ("%s: WoW resume from irq thread status %d\n", __func__, ar->arWlanPowerState));
         ar6000_wow_resume(ar);
-    } else {
-#ifdef ANDROID_ENV
-        android_ar6k_check_wow_status(ar, skb, isEvent);
-#endif
     }
 }
 
@@ -309,37 +302,6 @@ int ar6000_power_change_ev(void *context, u32 config)
     return status;
 }
 
-static int ar6000_pm_probe(struct platform_device *pdev)
-{
-    plat_setup_power(1,1);
-    return 0;
-}
-
-static int ar6000_pm_remove(struct platform_device *pdev)
-{
-    plat_setup_power(0,1);
-    return 0;
-}
-
-static int ar6000_pm_suspend(struct platform_device *pdev, pm_message_t state)
-{
-    return 0;
-}
-
-static int ar6000_pm_resume(struct platform_device *pdev)
-{
-    return 0;
-}
-
-static struct platform_driver ar6000_pm_device = {
-    .probe      = ar6000_pm_probe,
-    .remove     = ar6000_pm_remove,
-    .suspend    = ar6000_pm_suspend,
-    .resume     = ar6000_pm_resume,
-    .driver     = {
-        .name = "wlan_ar6000_pm",
-    },
-};
 #endif /* CONFIG_PM */
 
 int
@@ -359,8 +321,6 @@ ar6000_setup_cut_power_state(struct ar6_softc *ar,  AR6000_WLAN_STATE state)
                 break;
             }
 
-            plat_setup_power(1,0);
-
             /* Change the state to ON */
             ar->arWlanPowerState = WLAN_POWER_STATE_ON;
 
@@ -373,17 +333,6 @@ ar6000_setup_cut_power_state(struct ar6_softc *ar,  AR6000_WLAN_STATE state)
                                 sizeof(HIF_DEVICE_POWER_CHANGE_TYPE));
 
             if (status == A_PENDING) {
-#ifdef ANDROID_ENV
-                 /* Wait for WMI ready event */
-                u32 timeleft = wait_event_interruptible_timeout(arEvent,
-                            (ar->arWmiReady == true), wmitimeout * HZ);
-                if (!timeleft || signal_pending(current)) {
-                    AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000 : Failed to get wmi ready \n"));
-                    status = A_ERROR;
-                    break;
-                }
-#endif
-                status = 0;
             } else if (status == 0) {
                 ar6000_restart_endpoint(ar->arNetDev);
                 status = 0;
@@ -402,8 +351,6 @@ ar6000_setup_cut_power_state(struct ar6_softc *ar,  AR6000_WLAN_STATE state)
                                 HIF_DEVICE_POWER_STATE_CHANGE,
                                 &config,
                                 sizeof(HIF_DEVICE_POWER_CHANGE_TYPE));
-
-            plat_setup_power(0,0);
 
             ar->arWlanPowerState = WLAN_POWER_STATE_CUT_PWR;
         }
@@ -642,8 +589,6 @@ ar6000_update_wlan_pwr_state(struct ar6_softc *ar, AR6000_WLAN_STATE state, bool
         }
         if (pSleepEvent) {
             AR_DEBUG_PRINTF(ATH_DEBUG_PM, ("SENT WLAN Sleep Event %d\n", wmiSleepEvent.sleepState));
-            ar6000_send_event_to_app(ar, WMI_REPORT_SLEEP_STATE_EVENTID, (u8 *)pSleepEvent,
-                                     sizeof(WMI_REPORT_SLEEP_STATE_EVENTID));
         }
     }
     up(&ar->arSem);
@@ -678,26 +623,4 @@ ar6000_set_wlan_state(struct ar6_softc *ar, AR6000_WLAN_STATE state)
     ar->arWlanOff = off;
     status = ar6000_update_wlan_pwr_state(ar, state, false);
     return status;
-}
-
-void ar6000_pm_init()
-{
-    A_REGISTER_MODULE_DEBUG_INFO(pm);
-#ifdef CONFIG_PM
-    /*
-     * Register ar6000_pm_device into system.
-     * We should also add platform_device into the first item of array
-     * of devices[] in file arch/xxx/mach-xxx/board-xxxx.c
-     */
-    if (platform_driver_register(&ar6000_pm_device)) {
-        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000: fail to register the power control driver.\n"));
-    }
-#endif /* CONFIG_PM */
-}
-
-void ar6000_pm_exit()
-{
-#ifdef CONFIG_PM
-    platform_driver_unregister(&ar6000_pm_device);
-#endif /* CONFIG_PM */
 }

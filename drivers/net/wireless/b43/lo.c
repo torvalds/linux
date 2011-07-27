@@ -98,7 +98,7 @@ static u16 lo_measure_feedthrough(struct b43_wldev *dev,
 		rfover |= pga;
 		rfover |= lna;
 		rfover |= trsw_rx;
-		if ((dev->dev->bus->sprom.boardflags_lo & B43_BFL_EXTLNA)
+		if ((dev->sdev->bus->sprom.boardflags_lo & B43_BFL_EXTLNA)
 		    && phy->rev > 6)
 			rfover |= B43_PHY_RFOVERVAL_EXTLNA;
 
@@ -387,7 +387,7 @@ struct lo_g_saved_values {
 static void lo_measure_setup(struct b43_wldev *dev,
 			     struct lo_g_saved_values *sav)
 {
-	struct ssb_sprom *sprom = &dev->dev->bus->sprom;
+	struct ssb_sprom *sprom = &dev->sdev->bus->sprom;
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_g *gphy = phy->g;
 	struct b43_txpower_lo_control *lo = gphy->lo_control;

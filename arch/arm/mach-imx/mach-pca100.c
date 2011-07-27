@@ -37,7 +37,6 @@
 #include <mach/iomux-mx27.h>
 #include <asm/mach/time.h>
 #include <mach/audmux.h>
-#include <mach/mxc_nand.h>
 #include <mach/irqs.h>
 #include <mach/ulpi.h>
 

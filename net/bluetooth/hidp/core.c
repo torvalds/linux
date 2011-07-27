@@ -37,6 +37,7 @@
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/mutex.h>
+#include <linux/kthread.h>
 #include <net/sock.h>
 
 #include <linux/input.h>
@@ -55,22 +56,24 @@ static DECLARE_RWSEM(hidp_session_sem);
 static LIST_HEAD(hidp_session_list);
 
 static unsigned char hidp_keycode[256] = {
-	  0,  0,  0,  0, 30, 48, 46, 32, 18, 33, 34, 35, 23, 36, 37, 38,
-	 50, 49, 24, 25, 16, 19, 31, 20, 22, 47, 17, 45, 21, 44,  2,  3,
-	  4,  5,  6,  7,  8,  9, 10, 11, 28,  1, 14, 15, 57, 12, 13, 26,
-	 27, 43, 43, 39, 40, 41, 51, 52, 53, 58, 59, 60, 61, 62, 63, 64,
-	 65, 66, 67, 68, 87, 88, 99, 70,119,110,102,104,111,107,109,106,
-	105,108,103, 69, 98, 55, 74, 78, 96, 79, 80, 81, 75, 76, 77, 71,
-	 72, 73, 82, 83, 86,127,116,117,183,184,185,186,187,188,189,190,
-	191,192,193,194,134,138,130,132,128,129,131,137,133,135,136,113,
-	115,114,  0,  0,  0,121,  0, 89, 93,124, 92, 94, 95,  0,  0,  0,
-	122,123, 90, 91, 85,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-	 29, 42, 56,125, 97, 54,100,126,164,166,165,163,161,115,114,113,
-	150,158,159,128,136,177,178,176,142,152,173,140
+	  0,   0,   0,   0,  30,  48,  46,  32,  18,  33,  34,  35,  23,  36,
+	 37,  38,  50,  49,  24,  25,  16,  19,  31,  20,  22,  47,  17,  45,
+	 21,  44,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  28,   1,
+	 14,  15,  57,  12,  13,  26,  27,  43,  43,  39,  40,  41,  51,  52,
+	 53,  58,  59,  60,  61,  62,  63,  64,  65,  66,  67,  68,  87,  88,
+	 99,  70, 119, 110, 102, 104, 111, 107, 109, 106, 105, 108, 103,  69,
+	 98,  55,  74,  78,  96,  79,  80,  81,  75,  76,  77,  71,  72,  73,
+	 82,  83,  86, 127, 116, 117, 183, 184, 185, 186, 187, 188, 189, 190,
+	191, 192, 193, 194, 134, 138, 130, 132, 128, 129, 131, 137, 133, 135,
+	136, 113, 115, 114,   0,   0,   0, 121,   0,  89,  93, 124,  92,  94,
+	 95,   0,   0,   0, 122, 123,  90,  91,  85,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	 29,  42,  56, 125,  97,  54, 100, 126, 164, 166, 165, 163, 161, 115,
+	114, 113, 150, 158, 159, 128, 136, 177, 178, 176, 142, 152, 173, 140
 };
 
 static unsigned char hidp_mkeyspat[] = { 0x01, 0x01, 0x01, 0x01, 0x01, 0x01 };
@@ -461,8 +464,7 @@ static void hidp_idle_timeout(unsigned long arg)
 {
 	struct hidp_session *session = (struct hidp_session *) arg;
 
-	atomic_inc(&session->terminate);
-	hidp_schedule(session);
+	kthread_stop(session->task);
 }
 
 static void hidp_set_timer(struct hidp_session *session)
@@ -533,9 +535,7 @@ static void hidp_process_hid_control(struct hidp_session *session,
 		skb_queue_purge(&session->ctrl_transmit);
 		skb_queue_purge(&session->intr_transmit);
 
-		/* Kill session thread */
-		atomic_inc(&session->terminate);
-		hidp_schedule(session);
+		kthread_stop(session->task);
 	}
 }
 
@@ -694,22 +694,10 @@ static int hidp_session(void *arg)
 	struct sock *ctrl_sk = session->ctrl_sock->sk;
 	struct sock *intr_sk = session->intr_sock->sk;
 	struct sk_buff *skb;
-	int vendor = 0x0000, product = 0x0000;
 	wait_queue_t ctrl_wait, intr_wait;
 
 	BT_DBG("session %p", session);
 
-	if (session->input) {
-		vendor  = session->input->id.vendor;
-		product = session->input->id.product;
-	}
-
-	if (session->hid) {
-		vendor  = session->hid->vendor;
-		product = session->hid->product;
-	}
-
-	daemonize("khidpd_%04x%04x", vendor, product);
 	set_user_nice(current, -15);
 
 	init_waitqueue_entry(&ctrl_wait, current);
@@ -718,10 +706,11 @@ static int hidp_session(void *arg)
 	add_wait_queue(sk_sleep(intr_sk), &intr_wait);
 	session->waiting_for_startup = 0;
 	wake_up_interruptible(&session->startup_queue);
-	while (!atomic_read(&session->terminate)) {
+	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
-		if (ctrl_sk->sk_state != BT_CONNECTED || intr_sk->sk_state != BT_CONNECTED)
+		if (ctrl_sk->sk_state != BT_CONNECTED ||
+				intr_sk->sk_state != BT_CONNECTED)
 			break;
 
 		while ((skb = skb_dequeue(&ctrl_sk->sk_receive_queue))) {
@@ -965,6 +954,7 @@ fault:
 int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, struct socket *intr_sock)
 {
 	struct hidp_session *session, *s;
+	int vendor, product;
 	int err;
 
 	BT_DBG("");
@@ -989,8 +979,10 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 
 	bacpy(&session->bdaddr, &bt_sk(ctrl_sock->sk)->dst);
 
-	session->ctrl_mtu = min_t(uint, l2cap_pi(ctrl_sock->sk)->omtu, l2cap_pi(ctrl_sock->sk)->imtu);
-	session->intr_mtu = min_t(uint, l2cap_pi(intr_sock->sk)->omtu, l2cap_pi(intr_sock->sk)->imtu);
+	session->ctrl_mtu = min_t(uint, l2cap_pi(ctrl_sock->sk)->chan->omtu,
+					l2cap_pi(ctrl_sock->sk)->chan->imtu);
+	session->intr_mtu = min_t(uint, l2cap_pi(intr_sock->sk)->chan->omtu,
+					l2cap_pi(intr_sock->sk)->chan->imtu);
 
 	BT_DBG("ctrl mtu %d intr mtu %d", session->ctrl_mtu, session->intr_mtu);
 
@@ -1026,9 +1018,24 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 
 	hidp_set_timer(session);
 
-	err = kernel_thread(hidp_session, session, CLONE_KERNEL);
-	if (err < 0)
+	if (session->hid) {
+		vendor  = session->hid->vendor;
+		product = session->hid->product;
+	} else if (session->input) {
+		vendor  = session->input->id.vendor;
+		product = session->input->id.product;
+	} else {
+		vendor = 0x0000;
+		product = 0x0000;
+	}
+
+	session->task = kthread_run(hidp_session, session, "khidpd_%04x%04x",
+							vendor, product);
+	if (IS_ERR(session->task)) {
+		err = PTR_ERR(session->task);
 		goto unlink;
+	}
+
 	while (session->waiting_for_startup) {
 		wait_event_interruptible(session->startup_queue,
 			!session->waiting_for_startup);
@@ -1053,8 +1060,7 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 err_add_device:
 	hid_destroy_device(session->hid);
 	session->hid = NULL;
-	atomic_inc(&session->terminate);
-	hidp_schedule(session);
+	kthread_stop(session->task);
 
 unlink:
 	hidp_del_timer(session);
@@ -1105,13 +1111,7 @@ int hidp_del_connection(struct hidp_conndel_req *req)
 			skb_queue_purge(&session->ctrl_transmit);
 			skb_queue_purge(&session->intr_transmit);
 
-			/* Wakeup user-space polling for socket errors */
-			session->intr_sock->sk->sk_err = EUNATCH;
-			session->ctrl_sock->sk->sk_err = EUNATCH;
-
-			/* Kill session thread */
-			atomic_inc(&session->terminate);
-			hidp_schedule(session);
+			kthread_stop(session->task);
 		}
 	} else
 		err = -ENOENT;

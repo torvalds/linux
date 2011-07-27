@@ -137,7 +137,7 @@ MODULE_PARM_DESC(toneburst, "DiSEqC toneburst 0=OFF, 1=TONE CACHE, "\
 /* SNR measurements */
 static int esno_snr;
 module_param(esno_snr, int, 0644);
-MODULE_PARM_DESC(debug, "SNR return units, 0=PERCENTAGE 0-100, "\
+MODULE_PARM_DESC(esno_snr, "SNR return units, 0=PERCENTAGE 0-100, "\
 	"1=ESNO(db * 10) (default:0)");
 
 enum cmds {
@@ -566,7 +566,7 @@ static int cx24116_load_firmware(struct dvb_frontend *fe,
 {
 	struct cx24116_state *state = fe->demodulator_priv;
 	struct cx24116_cmd cmd;
-	int i, ret;
+	int i, ret, len, max, remaining;
 	unsigned char vers[4];
 
 	dprintk("%s\n", __func__);
@@ -603,8 +603,21 @@ static int cx24116_load_firmware(struct dvb_frontend *fe,
 	cx24116_writereg(state, 0xF5, 0x00);
 	cx24116_writereg(state, 0xF6, 0x00);
 
-	/* write the entire firmware as one transaction */
-	cx24116_writeregN(state, 0xF7, fw->data, fw->size);
+	/* Split firmware to the max I2C write len and write.
+	 * Writes whole firmware as one write when i2c_wr_max is set to 0. */
+	if (state->config->i2c_wr_max)
+		max = state->config->i2c_wr_max;
+	else
+		max = INT_MAX; /* enough for 32k firmware */
+
+	for (remaining = fw->size; remaining > 0; remaining -= max - 1) {
+		len = remaining;
+		if (len > max - 1)
+			len = max - 1;
+
+		cx24116_writeregN(state, 0xF7, &fw->data[fw->size - remaining],
+			len);
+	}
 
 	cx24116_writereg(state, 0xF4, 0x10);
 	cx24116_writereg(state, 0xF0, 0x00);

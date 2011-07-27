@@ -481,7 +481,7 @@ static int inode_write_alias(struct super_block *sb,
 			val = inode_val0(inode);
 			break;
 		case INODE_USED_OFS:
-			val = cpu_to_be64(li->li_used_bytes);;
+			val = cpu_to_be64(li->li_used_bytes);
 			break;
 		case INODE_SIZE_OFS:
 			val = cpu_to_be64(i_size_read(inode));

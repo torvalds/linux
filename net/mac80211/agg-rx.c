@@ -63,7 +63,8 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 
 	lockdep_assert_held(&sta->ampdu_mlme.mtx);
 
-	tid_rx = sta->ampdu_mlme.tid_rx[tid];
+	tid_rx = rcu_dereference_protected(sta->ampdu_mlme.tid_rx[tid],
+					lockdep_is_held(&sta->ampdu_mlme.mtx));
 
 	if (!tid_rx)
 		return;

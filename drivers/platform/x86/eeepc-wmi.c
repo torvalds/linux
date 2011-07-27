@@ -84,7 +84,7 @@ static const struct key_entry eeepc_wmi_keymap[] = {
 static acpi_status eeepc_wmi_parse_device(acpi_handle handle, u32 level,
 						 void *context, void **retval)
 {
-	pr_warning("Found legacy ATKD device (%s)", EEEPC_ACPI_HID);
+	pr_warn("Found legacy ATKD device (%s)\n", EEEPC_ACPI_HID);
 	*(bool *)context = true;
 	return AE_CTRL_TERMINATE;
 }
@@ -105,12 +105,12 @@ static int eeepc_wmi_check_atkd(void)
 static int eeepc_wmi_probe(struct platform_device *pdev)
 {
 	if (eeepc_wmi_check_atkd()) {
-		pr_warning("WMI device present, but legacy ATKD device is also "
-			   "present and enabled.");
-		pr_warning("You probably booted with acpi_osi=\"Linux\" or "
-			   "acpi_osi=\"!Windows 2009\"");
-		pr_warning("Can't load eeepc-wmi, use default acpi_osi "
-			   "(preferred) or eeepc-laptop");
+		pr_warn("WMI device present, but legacy ATKD device is also "
+			"present and enabled\n");
+		pr_warn("You probably booted with acpi_osi=\"Linux\" or "
+			"acpi_osi=\"!Windows 2009\"\n");
+		pr_warn("Can't load eeepc-wmi, use default acpi_osi "
+			"(preferred) or eeepc-laptop\n");
 		return -EBUSY;
 	}
 	return 0;

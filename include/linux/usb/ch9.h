@@ -579,7 +579,7 @@ struct usb_ss_ep_comp_descriptor {
 
 	__u8  bMaxBurst;
 	__u8  bmAttributes;
-	__u16 wBytesPerInterval;
+	__le16 wBytesPerInterval;
 } __attribute__ ((packed));
 
 #define USB_DT_SS_EP_COMP_SIZE		6

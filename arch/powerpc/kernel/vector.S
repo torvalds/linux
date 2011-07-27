@@ -102,7 +102,7 @@ _GLOBAL(giveup_altivec)
 	MTMSRD(r5)			/* enable use of VMX now */
 	isync
 	PPC_LCMPI	0,r3,0
-	beqlr-				/* if no previous owner, done */
+	beqlr				/* if no previous owner, done */
 	addi	r3,r3,THREAD		/* want THREAD of task */
 	PPC_LL	r5,PT_REGS(r3)
 	PPC_LCMPI	0,r5,0

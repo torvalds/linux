@@ -36,7 +36,7 @@ struct tcp_congestion_ops;
  * (i.e. things that depend on the address family)
  */
 struct inet_connection_sock_af_ops {
-	int	    (*queue_xmit)(struct sk_buff *skb);
+	int	    (*queue_xmit)(struct sk_buff *skb, struct flowi *fl);
 	void	    (*send_check)(struct sock *sk, struct sk_buff *skb);
 	int	    (*rebuild_header)(struct sock *sk);
 	int	    (*conn_request)(struct sock *sk, struct sk_buff *skb);
@@ -249,7 +249,11 @@ extern int inet_csk_bind_conflict(const struct sock *sk,
 extern int inet_csk_get_port(struct sock *sk, unsigned short snum);
 
 extern struct dst_entry* inet_csk_route_req(struct sock *sk,
+					    struct flowi4 *fl4,
 					    const struct request_sock *req);
+extern struct dst_entry* inet_csk_route_child_sock(struct sock *sk,
+						   struct sock *newsk,
+						   const struct request_sock *req);
 
 static inline void inet_csk_reqsk_queue_add(struct sock *sk,
 					    struct request_sock *req,

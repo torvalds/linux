@@ -272,11 +272,6 @@ static int conntrack_mt_check(const struct xt_mtchk_param *par)
 {
 	int ret;
 
-	if (strcmp(par->table, "raw") == 0) {
-		pr_info("state is undetermined at the time of raw table\n");
-		return -EINVAL;
-	}
-
 	ret = nf_ct_l3proto_try_module_get(par->family);
 	if (ret < 0)
 		pr_info("cannot load conntrack support for proto=%u\n",

@@ -139,9 +139,9 @@ write intent log information, three of which are mentioned here.
  * .list is on one of three lists:
  *  in_use: currently in use (refcnt > 0, lc_number != LC_FREE)
  *     lru: unused but ready to be reused or recycled
- *          (ts_refcnt == 0, lc_number != LC_FREE),
+ *          (lc_refcnt == 0, lc_number != LC_FREE),
  *    free: unused but ready to be recycled
- *          (ts_refcnt == 0, lc_number == LC_FREE),
+ *          (lc_refcnt == 0, lc_number == LC_FREE),
  *
  * an element is said to be "in the active set",
  * if either on "in_use" or "lru", i.e. lc_number != LC_FREE.
@@ -160,8 +160,8 @@ struct lc_element {
 	struct hlist_node colision;
 	struct list_head list;		 /* LRU list or free list */
 	unsigned refcnt;
-	/* back "pointer" into ts_cache->element[index],
-	 * for paranoia, and for "ts_element_to_index" */
+	/* back "pointer" into lc_cache->element[index],
+	 * for paranoia, and for "lc_element_to_index" */
 	unsigned lc_index;
 	/* if we want to track a larger set of objects,
 	 * it needs to become arch independend u64 */
@@ -190,8 +190,8 @@ struct lru_cache {
 	/* Arbitrary limit on maximum tracked objects. Practical limit is much
 	 * lower due to allocation failures, probably. For typical use cases,
 	 * nr_elements should be a few thousand at most.
-	 * This also limits the maximum value of ts_element.ts_index, allowing the
-	 * 8 high bits of .ts_index to be overloaded with flags in the future. */
+	 * This also limits the maximum value of lc_element.lc_index, allowing the
+	 * 8 high bits of .lc_index to be overloaded with flags in the future. */
 #define LC_MAX_ACTIVE	(1<<24)
 
 	/* statistics */

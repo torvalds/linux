@@ -175,6 +175,7 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	struct pptp_opt *opt = &po->proto.pptp;
 	struct pptp_gre_header *hdr;
 	unsigned int header_len = sizeof(*hdr);
+	struct flowi4 fl4;
 	int islcp;
 	int len;
 	unsigned char *data;
@@ -189,7 +190,7 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	if (sk_pppox(po)->sk_state & PPPOX_DEAD)
 		goto tx_error;
 
-	rt = ip_route_output_ports(&init_net, NULL,
+	rt = ip_route_output_ports(&init_net, &fl4, NULL,
 				   opt->dst_addr.sin_addr.s_addr,
 				   opt->src_addr.sin_addr.s_addr,
 				   0, 0, IPPROTO_GRE,
@@ -270,8 +271,8 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 		iph->frag_off	=	0;
 	iph->protocol = IPPROTO_GRE;
 	iph->tos      = 0;
-	iph->daddr    = rt->rt_dst;
-	iph->saddr    = rt->rt_src;
+	iph->daddr    = fl4.daddr;
+	iph->saddr    = fl4.saddr;
 	iph->ttl      = ip4_dst_hoplimit(&rt->dst);
 	iph->tot_len  = htons(skb->len);
 
@@ -434,6 +435,7 @@ static int pptp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	struct pppox_sock *po = pppox_sk(sk);
 	struct pptp_opt *opt = &po->proto.pptp;
 	struct rtable *rt;
+	struct flowi4 fl4;
 	int error = 0;
 
 	if (sp->sa_protocol != PX_PROTO_PPTP)
@@ -463,7 +465,7 @@ static int pptp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	po->chan.private = sk;
 	po->chan.ops = &pptp_chan_ops;
 
-	rt = ip_route_output_ports(&init_net, sk,
+	rt = ip_route_output_ports(&init_net, &fl4, sk,
 				   opt->dst_addr.sin_addr.s_addr,
 				   opt->src_addr.sin_addr.s_addr,
 				   0, 0,
