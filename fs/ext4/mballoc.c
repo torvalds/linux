@@ -1282,7 +1282,7 @@ static void mb_clear_bits(void *bm, int cur, int len)
 	}
 }
 
-static void mb_set_bits(void *bm, int cur, int len)
+void ext4_set_bits(void *bm, int cur, int len)
 {
 	__u32 *addr;
 
@@ -1511,7 +1511,7 @@ static int mb_mark_used(struct ext4_buddy *e4b, struct ext4_free_extent *ex)
 	}
 	mb_set_largest_free_order(e4b->bd_sb, e4b->bd_info);
 
-	mb_set_bits(EXT4_MB_BITMAP(e4b), ex->fe_start, len0);
+	ext4_set_bits(EXT4_MB_BITMAP(e4b), ex->fe_start, len0);
 	mb_check_buddy(e4b);
 
 	return ret;
@@ -2795,8 +2795,8 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 		 * We leak some of the blocks here.
 		 */
 		ext4_lock_group(sb, ac->ac_b_ex.fe_group);
-		mb_set_bits(bitmap_bh->b_data, ac->ac_b_ex.fe_start,
-			    ac->ac_b_ex.fe_len);
+		ext4_set_bits(bitmap_bh->b_data, ac->ac_b_ex.fe_start,
+			      ac->ac_b_ex.fe_len);
 		ext4_unlock_group(sb, ac->ac_b_ex.fe_group);
 		err = ext4_handle_dirty_metadata(handle, NULL, bitmap_bh);
 		if (!err)
@@ -2814,7 +2814,8 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 		}
 	}
 #endif
-	mb_set_bits(bitmap_bh->b_data, ac->ac_b_ex.fe_start,ac->ac_b_ex.fe_len);
+	ext4_set_bits(bitmap_bh->b_data, ac->ac_b_ex.fe_start,
+		      ac->ac_b_ex.fe_len);
 	if (gdp->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)) {
 		gdp->bg_flags &= cpu_to_le16(~EXT4_BG_BLOCK_UNINIT);
 		ext4_free_blks_set(sb, gdp,
@@ -3284,7 +3285,7 @@ static void ext4_mb_generate_from_freelist(struct super_block *sb, void *bitmap,
 
 	while (n) {
 		entry = rb_entry(n, struct ext4_free_data, node);
-		mb_set_bits(bitmap, entry->start_blk, entry->count);
+		ext4_set_bits(bitmap, entry->start_blk, entry->count);
 		n = rb_next(n);
 	}
 	return;
@@ -3326,7 +3327,7 @@ void ext4_mb_generate_from_pa(struct super_block *sb, void *bitmap,
 		if (unlikely(len == 0))
 			continue;
 		BUG_ON(groupnr != group);
-		mb_set_bits(bitmap, start, len);
+		ext4_set_bits(bitmap, start, len);
 		preallocated += len;
 		count++;
 	}
