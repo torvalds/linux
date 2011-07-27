@@ -308,7 +308,7 @@ static int audit_match_perm(struct audit_context *ctx, int mask)
 static int audit_match_filetype(struct audit_context *ctx, int which)
 {
 	unsigned index = which & ~S_IFMT;
-	mode_t mode = which & S_IFMT;
+	umode_t mode = which & S_IFMT;
 
 	if (unlikely(!ctx))
 		return 0;
@@ -1502,7 +1502,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 
 		if (n->ino != (unsigned long)-1) {
 			audit_log_format(ab, " inode=%lu"
-					 " dev=%02x:%02x mode=%#o"
+					 " dev=%02x:%02x mode=%#ho"
 					 " ouid=%u ogid=%u rdev=%02x:%02x",
 					 n->ino,
 					 MAJOR(n->dev),
