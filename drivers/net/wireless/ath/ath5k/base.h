@@ -107,8 +107,8 @@ void ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 const char *ath5k_chip_name(enum ath5k_srev_type type, u_int16_t val);
 
-int ath5k_init_softc(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops);
-void ath5k_deinit_softc(struct ath5k_hw *ah);
+int ath5k_init_ah(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops);
+void ath5k_deinit_ah(struct ath5k_hw *ah);
 
 /* Check whether BSSID mask is supported */
 #define ath5k_hw_hasbssidmask(_ah) (ah->ah_version == AR5K_AR5212)

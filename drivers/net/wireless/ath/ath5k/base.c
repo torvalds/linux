@@ -2338,7 +2338,7 @@ ath5k_tx_complete_poll_work(struct work_struct *work)
 \*************************/
 
 int __devinit
-ath5k_init_softc(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops)
+ath5k_init_ah(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops)
 {
 	struct ieee80211_hw *hw = ah->hw;
 	struct ath_common *common;
@@ -2891,7 +2891,7 @@ err:
 }
 
 void
-ath5k_deinit_softc(struct ath5k_hw *ah)
+ath5k_deinit_ah(struct ath5k_hw *ah)
 {
 	struct ieee80211_hw *hw = ah->hw;
 

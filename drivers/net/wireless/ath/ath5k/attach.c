@@ -94,7 +94,7 @@ static int ath5k_hw_post(struct ath5k_hw *ah)
 /**
  * ath5k_hw_init - Check if hw is supported and init the needed structs
  *
- * @ah: The &struct ath5k_hw we got from the driver's init_softc function
+ * @ah: The &struct ath5k_hw associated with the device
  *
  * Check if the device is supported, perform a POST and initialize the needed
  * structs. Returns -ENOMEM if we don't have memory for the needed structs,
