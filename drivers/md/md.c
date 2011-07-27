@@ -2459,7 +2459,6 @@ slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 {
 	char *e;
 	int err;
-	char nm[20];
 	int slot = simple_strtoul(buf, &e, 10);
 	if (strncmp(buf, "none", 4)==0)
 		slot = -1;
@@ -2482,8 +2481,7 @@ slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 			hot_remove_disk(rdev->mddev, rdev->raid_disk);
 		if (err)
 			return err;
-		sprintf(nm, "rd%d", rdev->raid_disk);
-		sysfs_remove_link(&rdev->mddev->kobj, nm);
+		sysfs_unlink_rdev(rdev->mddev, rdev);
 		rdev->raid_disk = -1;
 		set_bit(MD_RECOVERY_NEEDED, &rdev->mddev->recovery);
 		md_wakeup_thread(rdev->mddev->thread);
@@ -2522,8 +2520,7 @@ slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 			return err;
 		} else
 			sysfs_notify_dirent_safe(rdev->sysfs_state);
-		sprintf(nm, "rd%d", rdev->raid_disk);
-		if (sysfs_create_link(&rdev->mddev->kobj, &rdev->kobj, nm))
+		if (sysfs_link_rdev(rdev->mddev, rdev))
 			/* failure here is OK */;
 		/* don't wakeup anyone, leave that to userspace. */
 	} else {
@@ -3149,15 +3146,13 @@ level_store(mddev_t *mddev, const char *buf, size_t len)
 	}
 
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
-		char nm[20];
 		if (rdev->raid_disk < 0)
 			continue;
 		if (rdev->new_raid_disk >= mddev->raid_disks)
 			rdev->new_raid_disk = -1;
 		if (rdev->new_raid_disk == rdev->raid_disk)
 			continue;
-		sprintf(nm, "rd%d", rdev->raid_disk);
-		sysfs_remove_link(&mddev->kobj, nm);
+		sysfs_unlink_rdev(mddev, rdev);
 	}
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		if (rdev->raid_disk < 0)
@@ -3168,11 +3163,10 @@ level_store(mddev_t *mddev, const char *buf, size_t len)
 		if (rdev->raid_disk < 0)
 			clear_bit(In_sync, &rdev->flags);
 		else {
-			char nm[20];
-			sprintf(nm, "rd%d", rdev->raid_disk);
-			if(sysfs_create_link(&mddev->kobj, &rdev->kobj, nm))
-				printk("md: cannot register %s for %s after level change\n",
-				       nm, mdname(mddev));
+			if (sysfs_link_rdev(mddev, rdev))
+				printk(KERN_WARNING "md: cannot register rd%d"
+				       " for %s after level change\n",
+				       rdev->raid_disk, mdname(mddev));
 		}
 	}
 
@@ -4621,12 +4615,9 @@ int md_run(mddev_t *mddev)
 	smp_wmb();
 	mddev->ready = 1;
 	list_for_each_entry(rdev, &mddev->disks, same_set)
-		if (rdev->raid_disk >= 0) {
-			char nm[20];
-			sprintf(nm, "rd%d", rdev->raid_disk);
-			if (sysfs_create_link(&mddev->kobj, &rdev->kobj, nm))
+		if (rdev->raid_disk >= 0)
+			if (sysfs_link_rdev(mddev, rdev))
 				/* failure here is OK */;
-		}
 	
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	
@@ -4854,11 +4845,8 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 		sysfs_notify_dirent_safe(mddev->sysfs_state);
 
 		list_for_each_entry(rdev, &mddev->disks, same_set)
-			if (rdev->raid_disk >= 0) {
-				char nm[20];
-				sprintf(nm, "rd%d", rdev->raid_disk);
-				sysfs_remove_link(&mddev->kobj, nm);
-			}
+			if (rdev->raid_disk >= 0)
+				sysfs_unlink_rdev(mddev, rdev);
 
 		set_capacity(disk, 0);
 		mutex_unlock(&mddev->open_mutex);
@@ -7077,9 +7065,7 @@ static int remove_and_add_spares(mddev_t *mddev)
 		    atomic_read(&rdev->nr_pending)==0) {
 			if (mddev->pers->hot_remove_disk(
 				    mddev, rdev->raid_disk)==0) {
-				char nm[20];
-				sprintf(nm,"rd%d", rdev->raid_disk);
-				sysfs_remove_link(&mddev->kobj, nm);
+				sysfs_unlink_rdev(mddev, rdev);
 				rdev->raid_disk = -1;
 			}
 		}
@@ -7096,10 +7082,7 @@ static int remove_and_add_spares(mddev_t *mddev)
 				rdev->recovery_offset = 0;
 				if (mddev->pers->
 				    hot_add_disk(mddev, rdev) == 0) {
-					char nm[20];
-					sprintf(nm, "rd%d", rdev->raid_disk);
-					if (sysfs_create_link(&mddev->kobj,
-							      &rdev->kobj, nm))
+					if (sysfs_link_rdev(mddev, rdev))
 						/* failure here is OK */;
 					spares++;
 					md_new_event(mddev);
@@ -7219,9 +7202,7 @@ void md_check_recovery(mddev_t *mddev)
 				    atomic_read(&rdev->nr_pending)==0) {
 					if (mddev->pers->hot_remove_disk(
 						    mddev, rdev->raid_disk)==0) {
-						char nm[20];
-						sprintf(nm,"rd%d", rdev->raid_disk);
-						sysfs_remove_link(&mddev->kobj, nm);
+						sysfs_unlink_rdev(mddev, rdev);
 						rdev->raid_disk = -1;
 					}
 				}

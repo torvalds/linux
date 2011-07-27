@@ -2159,18 +2159,13 @@ static int raid1_reshape(mddev_t *mddev)
 	for (d = d2 = 0; d < conf->raid_disks; d++) {
 		mdk_rdev_t *rdev = conf->mirrors[d].rdev;
 		if (rdev && rdev->raid_disk != d2) {
-			char nm[20];
-			sprintf(nm, "rd%d", rdev->raid_disk);
-			sysfs_remove_link(&mddev->kobj, nm);
+			sysfs_unlink_rdev(mddev, rdev);
 			rdev->raid_disk = d2;
-			sprintf(nm, "rd%d", rdev->raid_disk);
-			sysfs_remove_link(&mddev->kobj, nm);
-			if (sysfs_create_link(&mddev->kobj,
-					      &rdev->kobj, nm))
+			sysfs_unlink_rdev(mddev, rdev);
+			if (sysfs_link_rdev(mddev, rdev))
 				printk(KERN_WARNING
-				       "md/raid1:%s: cannot register "
-				       "%s\n",
-				       mdname(mddev), nm);
+				       "md/raid1:%s: cannot register rd%d\n",
+				       mdname(mddev), rdev->raid_disk);
 		}
 		if (rdev)
 			newmirrors[d2++].rdev = rdev;

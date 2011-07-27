@@ -413,6 +413,20 @@ static inline char * mdname (mddev_t * mddev)
 	return mddev->gendisk ? mddev->gendisk->disk_name : "mdX";
 }
 
+static inline int sysfs_link_rdev(mddev_t *mddev, mdk_rdev_t *rdev)
+{
+	char nm[20];
+	sprintf(nm, "rd%d", rdev->raid_disk);
+	return sysfs_create_link(&mddev->kobj, &rdev->kobj, nm);
+}
+
+static inline void sysfs_unlink_rdev(mddev_t *mddev, mdk_rdev_t *rdev)
+{
+	char nm[20];
+	sprintf(nm, "rd%d", rdev->raid_disk);
+	sysfs_remove_link(&mddev->kobj, nm);
+}
+
 /*
  * iterates through some rdev ringlist. It's safe to remove the
  * current 'rdev'. Dont touch 'tmp' though.

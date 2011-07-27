@@ -5152,16 +5152,14 @@ static int raid5_start_reshape(mddev_t *mddev)
 			if (rdev->raid_disk < 0 &&
 			    !test_bit(Faulty, &rdev->flags)) {
 				if (raid5_add_disk(mddev, rdev) == 0) {
-					char nm[20];
 					if (rdev->raid_disk
 					    >= conf->previous_raid_disks) {
 						set_bit(In_sync, &rdev->flags);
 						added_devices++;
 					} else
 						rdev->recovery_offset = 0;
-					sprintf(nm, "rd%d", rdev->raid_disk);
-					if (sysfs_create_link(&mddev->kobj,
-							      &rdev->kobj, nm))
+
+					if (sysfs_link_rdev(mddev, rdev))
 						/* Failure here is OK */;
 				}
 			} else if (rdev->raid_disk >= conf->previous_raid_disks
@@ -5257,9 +5255,7 @@ static void raid5_finish_reshape(mddev_t *mddev)
 			     d++) {
 				mdk_rdev_t *rdev = conf->disks[d].rdev;
 				if (rdev && raid5_remove_disk(mddev, d) == 0) {
-					char nm[20];
-					sprintf(nm, "rd%d", rdev->raid_disk);
-					sysfs_remove_link(&mddev->kobj, nm);
+					sysfs_unlink_rdev(mddev, rdev);
 					rdev->raid_disk = -1;
 				}
 			}
