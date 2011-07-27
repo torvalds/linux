@@ -236,24 +236,24 @@ static const struct stv_init stv_bridge_init[] = {
 
 static const u8 vv6410_sensor_init[][2] = {
 	/* Setup registers */
-	{VV6410_SETUP0,		VV6410_SOFT_RESET},
-	{VV6410_SETUP0,		VV6410_LOW_POWER_MODE},
+	{VV6410_SETUP0,	VV6410_SOFT_RESET},
+	{VV6410_SETUP0,	VV6410_LOW_POWER_MODE},
 	/* Use shuffled read-out mode */
-	{VV6410_SETUP1,		BIT(6)},
+	{VV6410_SETUP1,	BIT(6)},
 	/* All modes to 1, FST, Fast QCK, Free running QCK, Free running LST, FST will qualify visible pixels */
-	{VV6410_FGMODES,	BIT(6) | BIT(4) | BIT(2) | BIT(0)},
-	{VV6410_PINMAPPING,	0x00},
+	{VV6410_FGMODES, BIT(6) | BIT(4) | BIT(2) | BIT(0)},
+	{VV6410_PINMAPPING, 0x00},
 	/* Pre-clock generator divide off */
-	{VV6410_DATAFORMAT,	BIT(7) | BIT(0)},
+	{VV6410_DATAFORMAT, BIT(7) | BIT(0)},
 
-	{VV6410_CLKDIV,		VV6410_CLK_DIV_2},
+	{VV6410_CLKDIV,	VV6410_CLK_DIV_2},
 
 	/* System registers */
 	/* Enable voltage doubler */
-	{VV6410_AS0,		BIT(6) | BIT(4) | BIT(3) | BIT(2) | BIT(1)},
-	{VV6410_AT0,		0x00},
+	{VV6410_AS0, BIT(6) | BIT(4) | BIT(3) | BIT(2) | BIT(1)},
+	{VV6410_AT0, 0x00},
 	/* Power up audio, differential */
-	{VV6410_AT1,		BIT(4)|BIT(0)},
+	{VV6410_AT1, BIT(4) | BIT(0)},
 };
 
 #endif
