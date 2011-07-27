@@ -373,27 +373,32 @@ static int soc_camera_open(struct file *file)
 				.colorspace	= icd->current_fmt->colorspace,
 			},
 		};
+        /* ddl@rock-chips.com : accelerate device open  */
+        if ((file->f_flags & O_ACCMODE) == O_RDWR) {
+    		if (icl->power) {
+    			ret = icl->power(icd->pdev, 1);
+    			if (ret < 0)
+    				goto epower;
+    		}
 
-		if (icl->power) {
-			ret = icl->power(icd->pdev, 1);
-			if (ret < 0)
-				goto epower;
-		}
-
-		/* The camera could have been already on, try to reset */
-		if (icl->reset)
-			icl->reset(icd->pdev);
+    		/* The camera could have been already on, try to reset */
+    		if (icl->reset)
+    			icl->reset(icd->pdev);
+       }
 
 		ret = ici->ops->add(icd);
 		if (ret < 0) {
 			dev_err(&icd->dev, "Couldn't activate the camera: %d\n", ret);
 			goto eiciadd;
 		}
-
+               
 		/* Try to configure with default parameters */
-		ret = soc_camera_set_fmt(icf, &f);
-		if (ret < 0)
-			goto esfmt;
+        if ((file->f_flags & O_ACCMODE) == O_RDWR) {
+    		ret = soc_camera_set_fmt(icf, &f);
+    		if (ret < 0)
+    			goto esfmt;
+        }
+        
 	}
 
 	file->private_data = icf;
@@ -435,8 +440,10 @@ static int soc_camera_close(struct file *file)
 		struct soc_camera_link *icl = to_soc_camera_link(icd);
 
 		ici->ops->remove(icd);
-		if (icl->power)
-			icl->power(icd->pdev, 0);
+        if ((file->f_flags & O_ACCMODE) == O_RDWR) {
+    		if (icl->power)
+    			icl->power(icd->pdev, 0);
+        }
 	}
 
 	mutex_unlock(&icd->video_lock);
@@ -515,7 +522,7 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 
 	mutex_lock(&icf->vb_vidq.vb_lock);
 
-	#if 0
+	#if 1
 	if (icf->vb_vidq.bufs[0]) {
 		dev_err(&icd->dev, "S_FMT denied: queue initialised\n");
 		ret = -EBUSY;
@@ -529,7 +536,7 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 	i = 0;
 	while (icf->vb_vidq.bufs[i] && (i<VIDEO_MAX_FRAME)) {
 		if (icf->vb_vidq.bufs[i]->state != VIDEOBUF_NEEDS_INIT) {
-			dev_err(&icd->dev, "S_FMT denied: queue initialised\n");
+			dev_err(&icd->dev, "S_FMT denied: queue initialised, icf->vb_vidq.bufs[%d]->state:0x%x\n",i,icf->vb_vidq.bufs[i]->state);
 			ret = -EBUSY;
 			goto unlock;
 		}
@@ -640,9 +647,8 @@ static int soc_camera_streamoff(struct file *file, void *priv,
 
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-
+    
 	mutex_lock(&icd->video_lock);
-
 	/* This calls buf_release from host driver's videobuf_queue_ops for all
 	 * remaining buffers. When the last buffer is freed, stop capture */
 	videobuf_streamoff(&icf->vb_vidq);
@@ -651,6 +657,7 @@ static int soc_camera_streamoff(struct file *file, void *priv,
     if (ici->ops->s_stream)
 		ici->ops->s_stream(icd, 0);				/* ddl@rock-chips.com : Add stream control for host */
 
+    videobuf_mmap_free(&icf->vb_vidq);          /* ddl@rock-chips.com : free video buf */
 	mutex_unlock(&icd->video_lock);
 
 	return 0;
