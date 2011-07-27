@@ -183,7 +183,7 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		u32 adapter = hm->h.adapter_index;
 		struct hpi_adapter *pa = &adapters[adapter];
 
-		if ((adapter > HPI_MAX_ADAPTERS) || (!pa->type)) {
+		if ((adapter >= HPI_MAX_ADAPTERS) || (!pa->type)) {
 			hpi_init_response(&hr->r0, HPI_OBJ_ADAPTER,
 				HPI_ADAPTER_OPEN,
 				HPI_ERROR_BAD_ADAPTER_NUMBER);
