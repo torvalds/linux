@@ -143,6 +143,7 @@
 
 #define SRR_RETRY_COUNT			5
 #define REC_RETRY_COUNT			1
+#define BNX2FC_NUM_ERR_BITS		63
 
 /* bnx2fc driver uses only one instance of fcoe_percpu_s */
 extern struct fcoe_percpu_s bnx2fc_global;
