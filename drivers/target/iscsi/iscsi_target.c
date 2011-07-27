@@ -120,7 +120,7 @@ struct iscsi_tiqn *iscsit_add_tiqn(unsigned char *buf)
 	struct iscsi_tiqn *tiqn = NULL;
 	int ret;
 
-	if (strlen(buf) > ISCSI_IQN_LEN) {
+	if (strlen(buf) >= ISCSI_IQN_LEN) {
 		pr_err("Target IQN exceeds %d bytes\n",
 				ISCSI_IQN_LEN);
 		return ERR_PTR(-EINVAL);
