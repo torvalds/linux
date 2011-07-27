@@ -181,8 +181,8 @@ static int vv6410_start(struct sd *sd)
 	} else {
 		stv06xx_write_bridge(sd, STV_Y_CTRL, 0x01);
 		stv06xx_write_bridge(sd, STV_X_CTRL, 0x0a);
+		stv06xx_write_bridge(sd, STV_SCAN_RATE, 0x00);
 
-		stv06xx_write_bridge(sd, STV_SCAN_RATE, 0x20);
 	}
 
 	/* Turn on LED */
