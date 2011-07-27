@@ -5913,12 +5913,14 @@ static inline void tg3_tx_set_bd(struct tg3_napi *tnapi, u32 entry,
 	txbd->vlan_tag = (mss << TXD_MSS_SHIFT) | (vlan << TXD_VLAN_TAG_SHIFT);
 }
 
-static void tg3_skb_error_unmap(struct tg3_napi *tnapi,
-				struct sk_buff *skb, int last)
+static void tg3_tx_skb_unmap(struct tg3_napi *tnapi, u32 entry, int last)
 {
 	int i;
-	u32 entry = tnapi->tx_prod;
+	struct sk_buff *skb;
 	struct tg3_tx_ring_info *txb = &tnapi->tx_buffers[entry];
+
+	skb = txb->skb;
+	txb->skb = NULL;
 
 	pci_unmap_single(tnapi->tp->pdev,
 			 dma_unmap_addr(txb, mapping),
@@ -6227,7 +6229,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (would_hit_hwbug) {
-		tg3_skb_error_unmap(tnapi, skb, i);
+		tg3_tx_skb_unmap(tnapi, tnapi->tx_prod, i);
 
 		/* If the workaround fails due to memory/mapping
 		 * failure, silently drop this packet.
@@ -6264,7 +6266,7 @@ out_unlock:
 	return NETDEV_TX_OK;
 
 dma_error:
-	tg3_skb_error_unmap(tnapi, skb, i);
+	tg3_tx_skb_unmap(tnapi, tnapi->tx_prod, i);
 	dev_kfree_skb(skb);
 	tnapi->tx_buffers[tnapi->tx_prod].skb = NULL;
 	return NETDEV_TX_OK;
@@ -6597,35 +6599,13 @@ static void tg3_free_rings(struct tg3 *tp)
 		if (!tnapi->tx_buffers)
 			continue;
 
-		for (i = 0; i < TG3_TX_RING_SIZE; ) {
-			struct tg3_tx_ring_info *txp;
-			struct sk_buff *skb;
-			unsigned int k;
+		for (i = 0; i < TG3_TX_RING_SIZE; i++) {
+			struct sk_buff *skb = tnapi->tx_buffers[i].skb;
 
-			txp = &tnapi->tx_buffers[i];
-			skb = txp->skb;
-
-			if (skb == NULL) {
-				i++;
+			if (!skb)
 				continue;
-			}
 
-			pci_unmap_single(tp->pdev,
-					 dma_unmap_addr(txp, mapping),
-					 skb_headlen(skb),
-					 PCI_DMA_TODEVICE);
-			txp->skb = NULL;
-
-			i++;
-
-			for (k = 0; k < skb_shinfo(skb)->nr_frags; k++) {
-				txp = &tnapi->tx_buffers[i & (TG3_TX_RING_SIZE - 1)];
-				pci_unmap_page(tp->pdev,
-					       dma_unmap_addr(txp, mapping),
-					       skb_shinfo(skb)->frags[k].size,
-					       PCI_DMA_TODEVICE);
-				i++;
-			}
+			tg3_tx_skb_unmap(tnapi, i, skb_shinfo(skb)->nr_frags);
 
 			dev_kfree_skb_any(skb);
 		}
@@ -11358,6 +11338,10 @@ static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, int loopback_mode)
 		return -EIO;
 	}
 
+	val = tnapi->tx_prod;
+	tnapi->tx_buffers[val].skb = skb;
+	dma_unmap_addr_set(&tnapi->tx_buffers[val], mapping, map);
+
 	tw32_f(HOSTCC_MODE, tp->coalesce_mode | HOSTCC_MODE_ENABLE |
 	       rnapi->coal_now);
 
@@ -11389,7 +11373,7 @@ static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, int loopback_mode)
 			break;
 	}
 
-	pci_unmap_single(tp->pdev, map, tx_len, PCI_DMA_TODEVICE);
+	tg3_tx_skb_unmap(tnapi, tnapi->tx_prod - 1, 0);
 	dev_kfree_skb(skb);
 
 	if (tx_idx != tnapi->tx_prod)
