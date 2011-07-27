@@ -4667,7 +4667,7 @@ error_return:
 }
 
 /**
- * ext4_add_groupblocks() -- Add given blocks to an existing group
+ * ext4_group_add_blocks() -- Add given blocks to an existing group
  * @handle:			handle to this transaction
  * @sb:				super block
  * @block:			start physcial block to add to the block group
@@ -4675,7 +4675,7 @@ error_return:
  *
  * This marks the blocks as free in the bitmap and buddy.
  */
-void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
+void ext4_group_add_blocks(handle_t *handle, struct super_block *sb,
 			 ext4_fsblk_t block, unsigned long count)
 {
 	struct buffer_head *bitmap_bh = NULL;
