@@ -6168,9 +6168,6 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	would_hit_hwbug = 0;
 
-	if (tg3_flag(tp, SHORT_DMA_BUG) && len <= 8)
-		would_hit_hwbug = 1;
-
 	if (tg3_4g_overflow_test(mapping, len))
 		would_hit_hwbug = 1;
 
