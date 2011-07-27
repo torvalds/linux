@@ -1194,9 +1194,14 @@ xfs_setup_inode(
 		break;
 	}
 
-	/* if there is no attribute fork no ACL can exist on this inode */
-	if (!XFS_IFORK_Q(ip))
+	/*
+	 * If there is no attribute fork no ACL can exist on this inode,
+	 * and it can't have any file capabilities attached to it either.
+	 */
+	if (!XFS_IFORK_Q(ip)) {
+		inode_has_no_xattr(inode);
 		cache_no_acl(inode);
+	}
 
 	xfs_iflags_clear(ip, XFS_INEW);
 	barrier();
