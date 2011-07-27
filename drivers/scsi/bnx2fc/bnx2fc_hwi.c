@@ -1070,8 +1070,10 @@ unlock:
 				1 - tgt->cq_curr_toggle_bit;
 		}
 	}
-	bnx2fc_arm_cq(tgt);
-	atomic_add(num_free_sqes, &tgt->free_sqes);
+	if (num_free_sqes) {
+		bnx2fc_arm_cq(tgt);
+		atomic_add(num_free_sqes, &tgt->free_sqes);
+	}
 	spin_unlock_bh(&tgt->cq_lock);
 	return 0;
 }
