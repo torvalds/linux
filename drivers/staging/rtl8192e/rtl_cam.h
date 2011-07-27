@@ -28,11 +28,13 @@
 #include <linux/types.h>
 struct net_device;
 
-void CamResetAllEntry(struct net_device* dev);
+void CamResetAllEntry(struct net_device *dev);
 void EnableHWSecurityConfig8192(struct net_device *dev);
-void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, u8 *MacAddr, u8 DefaultKey, u32 *KeyContent );
-void set_swcam(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, u8 *MacAddr, u8 DefaultKey, u32 *KeyContent, u8 is_mesh);
-void CamPrintDbgReg(struct net_device* dev);
+void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
+	    u8 *MacAddr, u8 DefaultKey, u32 *KeyContent);
+void set_swcam(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
+	       u8 *MacAddr, u8 DefaultKey, u32 *KeyContent, u8 is_mesh);
+void CamPrintDbgReg(struct net_device *dev);
 
 u32 read_cam(struct net_device *dev, u8 addr);
 void write_cam(struct net_device *dev, u8 addr, u32 data);
