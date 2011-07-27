@@ -335,7 +335,7 @@ static int queue_dtd(struct mv_ep *ep, struct mv_req *req)
 	} else {
 		/* Write dQH next pointer and terminate bit to 0 */
 		dqh->next_dtd_ptr = req->head->td_dma
-			& EP_QUEUE_HEAD_NEXT_POINTER_MASK;;
+			& EP_QUEUE_HEAD_NEXT_POINTER_MASK;
 		dqh->size_ioc_int_sts = 0;
 
 		/* Ensure that updates to the QH will occur before priming. */
@@ -376,7 +376,7 @@ static int queue_dtd(struct mv_ep *ep, struct mv_req *req)
 		}
 	}
 done:
-	return retval;;
+	return retval;
 }
 
 static struct mv_dtd *build_dtd(struct mv_req *req, unsigned *length,
