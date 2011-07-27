@@ -300,7 +300,6 @@ struct ov2640_win_size {
 
 struct ov2640_priv {
 	struct v4l2_subdev		subdev;
-	struct ov2640_camera_info	*info;
 	enum v4l2_mbus_pixelcode	cfmt_code;
 	const struct ov2640_win_size	*win;
 	int				model;
@@ -1152,8 +1151,6 @@ static int ov2640_probe(struct i2c_client *client,
 			"Failed to allocate memory for private data!\n");
 		return -ENOMEM;
 	}
-
-	priv->info = icl->priv;
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &ov2640_subdev_ops);
 
