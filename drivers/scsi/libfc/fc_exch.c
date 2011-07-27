@@ -2465,8 +2465,11 @@ int fc_setup_exch_mgr(void)
 
 	fc_exch_workqueue = create_singlethread_workqueue("fc_exch_workqueue");
 	if (!fc_exch_workqueue)
-		return -ENOMEM;
+		goto err;
 	return 0;
+err:
+	kmem_cache_destroy(fc_em_cachep);
+	return -ENOMEM;
 }
 
 /**
