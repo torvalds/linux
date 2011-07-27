@@ -2386,7 +2386,7 @@ static int alc_suspend(struct hda_codec *codec, pm_message_t state)
 }
 #endif
 
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 static int alc_resume(struct hda_codec *codec)
 {
 	msleep(150); /* to avoid pop noise */
@@ -2406,7 +2406,7 @@ static const struct hda_codec_ops alc_patch_ops = {
 	.init = alc_init,
 	.free = alc_free,
 	.unsol_event = alc_unsol_event,
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 	.resume = alc_resume,
 #endif
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -2801,7 +2801,8 @@ static int alc_auto_fill_dac_nids(struct hda_codec *codec)
 	int i;
 
  again:
-	spec->multiout.num_dacs = 0;
+	/* set num_dacs once to full for alc_auto_look_for_dac() */
+	spec->multiout.num_dacs = cfg->line_outs;
 	spec->multiout.hp_nid = 0;
 	spec->multiout.extra_out_nid[0] = 0;
 	memset(spec->private_dac_nids, 0, sizeof(spec->private_dac_nids));
@@ -2834,6 +2835,8 @@ static int alc_auto_fill_dac_nids(struct hda_codec *codec)
 		}
 	}
 
+	/* re-count num_dacs and squash invalid entries */
+	spec->multiout.num_dacs = 0;
 	for (i = 0; i < cfg->line_outs; i++) {
 		if (spec->private_dac_nids[i])
 			spec->multiout.num_dacs++;
@@ -4410,7 +4413,7 @@ static void alc269_shutup(struct hda_codec *codec)
 	}
 }
 
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 static int alc269_resume(struct hda_codec *codec)
 {
 	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x018) {
@@ -4433,7 +4436,7 @@ static int alc269_resume(struct hda_codec *codec)
 	hda_call_check_power_status(codec, 0x01);
 	return 0;
 }
-#endif /* SND_HDA_NEEDS_RESUME */
+#endif /* CONFIG_PM */
 
 static void alc269_fixup_hweq(struct hda_codec *codec,
 			       const struct alc_fixup *fix, int action)
@@ -4725,7 +4728,7 @@ static int patch_alc269(struct hda_codec *codec)
 	spec->vmaster_nid = 0x02;
 
 	codec->patch_ops = alc_patch_ops;
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 	codec->patch_ops.resume = alc269_resume;
 #endif
 	if (board_config == ALC_MODEL_AUTO)
