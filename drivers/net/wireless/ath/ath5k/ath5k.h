@@ -287,17 +287,6 @@ enum ath5k_radio {
  * Common silicon revision/version values
  */
 
-enum ath5k_srev_type {
-	AR5K_VERSION_MAC,
-	AR5K_VERSION_RAD,
-};
-
-struct ath5k_srev_name {
-	const char		*sr_name;
-	enum ath5k_srev_type	sr_type;
-	u_int			sr_val;
-};
-
 #define AR5K_SREV_UNKNOWN	0xffff
 
 #define AR5K_SREV_AR5210	0x00 /* Crete */
@@ -1271,36 +1260,13 @@ struct ath_bus_ops {
 extern const struct ieee80211_ops ath5k_hw_ops;
 
 /* Initialization and detach functions */
-int ath5k_init_softc(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops);
-void ath5k_deinit_softc(struct ath5k_hw *ah);
 int ath5k_hw_init(struct ath5k_hw *ah);
 void ath5k_hw_deinit(struct ath5k_hw *ah);
 
 int ath5k_sysfs_register(struct ath5k_hw *ah);
 void ath5k_sysfs_unregister(struct ath5k_hw *ah);
 
-/* base.c */
-struct ath5k_buf;
-struct ath5k_txq;
-
-void ath5k_set_beacon_filter(struct ieee80211_hw *hw, bool enable);
-bool ath5k_any_vif_assoc(struct ath5k_hw *ah);
-void ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
-		    struct ath5k_txq *txq);
-int ath5k_start(struct ieee80211_hw *hw);
-void ath5k_stop(struct ieee80211_hw *hw);
-void ath5k_mode_setup(struct ath5k_hw *ah, struct ieee80211_vif *vif);
-void ath5k_update_bssid_mask_and_opmode(struct ath5k_hw *ah,
-					struct ieee80211_vif *vif);
-int ath5k_chan_set(struct ath5k_hw *ah, struct ieee80211_channel *chan);
-void ath5k_beacon_update_timers(struct ath5k_hw *ah, u64 bc_tsf);
-int ath5k_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
-void ath5k_beacon_config(struct ath5k_hw *ah);
-void ath5k_txbuf_free_skb(struct ath5k_hw *ah, struct ath5k_buf *bf);
-void ath5k_rxbuf_free_skb(struct ath5k_hw *ah, struct ath5k_buf *bf);
-
 /*Chip id helper functions */
-const char *ath5k_chip_name(enum ath5k_srev_type type, u_int16_t val);
 int ath5k_hw_read_srev(struct ath5k_hw *ah);
 
 /* LED functions */

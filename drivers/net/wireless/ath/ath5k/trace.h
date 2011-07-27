@@ -2,7 +2,6 @@
 #define __TRACE_ATH5K_H
 
 #include <linux/tracepoint.h>
-#include "base.h"
 
 #ifndef CONFIG_ATH5K_TRACER
 #undef TRACE_EVENT
@@ -11,6 +10,8 @@ static inline void trace_ ## name(proto) {}
 #endif
 
 struct sk_buff;
+struct ath5k_txq;
+struct ath5k_tx_status;
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM ath5k

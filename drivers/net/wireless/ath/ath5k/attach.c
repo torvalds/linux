@@ -25,7 +25,6 @@
 #include "ath5k.h"
 #include "reg.h"
 #include "debug.h"
-#include "base.h"
 
 /**
  * ath5k_hw_post - Power On Self Test helper function

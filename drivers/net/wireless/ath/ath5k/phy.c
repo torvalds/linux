@@ -26,9 +26,9 @@
 
 #include "ath5k.h"
 #include "reg.h"
-#include "base.h"
 #include "rfbuffer.h"
 #include "rfgain.h"
+#include "../regd.h"
 
 
 /******************\

@@ -41,8 +41,10 @@
  *
  */
 
+#include <net/mac80211.h>
 #include <asm/unaligned.h>
 
+#include "ath5k.h"
 #include "base.h"
 #include "reg.h"
 

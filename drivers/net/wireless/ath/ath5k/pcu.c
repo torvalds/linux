@@ -29,7 +29,6 @@
 #include "ath5k.h"
 #include "reg.h"
 #include "debug.h"
-#include "base.h"
 
 /*
  * AR5212+ can use higher rates for ack transmission

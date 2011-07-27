@@ -52,6 +52,7 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/etherdevice.h>
+#include <linux/nl80211.h>
 
 #include <net/ieee80211_radiotap.h>
 
@@ -61,6 +62,8 @@
 #include "reg.h"
 #include "debug.h"
 #include "ani.h"
+#include "ath5k.h"
+#include "../regd.h"
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"

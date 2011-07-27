@@ -30,7 +30,6 @@
 #include <linux/platform_device.h>
 #include "ath5k.h"
 #include "reg.h"
-#include "base.h"
 #include "debug.h"
 
 
