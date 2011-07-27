@@ -420,7 +420,7 @@ static efi_status_t gsmi_get_next_variable(unsigned long *name_size,
 
 static efi_status_t gsmi_set_variable(efi_char16_t *name,
 				      efi_guid_t *vendor,
-				      unsigned long attr,
+				      u32 attr,
 				      unsigned long data_size,
 				      void *data)
 {
