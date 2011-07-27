@@ -18,8 +18,6 @@ static int bnx2fc_split_bd(struct bnx2fc_cmd *io_req, u64 addr, int sg_len,
 			   int bd_index);
 static int bnx2fc_map_sg(struct bnx2fc_cmd *io_req);
 static void bnx2fc_build_bd_list_from_sg(struct bnx2fc_cmd *io_req);
-static int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
-			       struct bnx2fc_cmd *io_req);
 static void bnx2fc_unmap_sg_list(struct bnx2fc_cmd *io_req);
 static void bnx2fc_free_mp_resc(struct bnx2fc_cmd *io_req);
 static void bnx2fc_parse_fcp_rsp(struct bnx2fc_cmd *io_req,
@@ -218,6 +216,11 @@ static void bnx2fc_scsi_done(struct bnx2fc_cmd *io_req, int err_code)
 		return;
 
 	BNX2FC_IO_DBG(io_req, "scsi_done. err_code = 0x%x\n", err_code);
+	if (test_bit(BNX2FC_FLAG_CMD_LOST, &io_req->req_flags)) {
+		/* Do not call scsi done for this IO */
+		return;
+	}
+
 	bnx2fc_unmap_sg_list(io_req);
 	io_req->sc_cmd = NULL;
 	if (!sc_cmd) {
@@ -1902,7 +1905,7 @@ void bnx2fc_process_scsi_cmd_compl(struct bnx2fc_cmd *io_req,
 	kref_put(&io_req->refcount, bnx2fc_cmd_release);
 }
 
-static int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
+int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 			       struct bnx2fc_cmd *io_req)
 {
 	struct fcoe_task_ctx_entry *task;
