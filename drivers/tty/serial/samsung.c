@@ -1225,15 +1225,19 @@ static const struct dev_pm_ops s3c24xx_serial_pm_ops = {
 	.suspend = s3c24xx_serial_suspend,
 	.resume = s3c24xx_serial_resume,
 };
+#define SERIAL_SAMSUNG_PM_OPS	(&s3c24xx_serial_pm_ops)
+
 #else /* !CONFIG_PM_SLEEP */
-#define s3c24xx_serial_pm_ops	NULL
+
+#define SERIAL_SAMSUNG_PM_OPS	NULL
 #endif /* CONFIG_PM_SLEEP */
 
 int s3c24xx_serial_init(struct platform_driver *drv,
 			struct s3c24xx_uart_info *info)
 {
 	dbg("s3c24xx_serial_init(%p,%p)\n", drv, info);
-	drv->driver.pm = &s3c24xx_serial_pm_ops;
+
+	drv->driver.pm = SERIAL_SAMSUNG_PM_OPS;
 
 	return platform_driver_register(drv);
 }
