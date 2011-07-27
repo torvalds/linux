@@ -406,7 +406,7 @@ err_free_dev:
 	return error;
 }
 
-static void __devexit ideapad_input_exit(struct ideapad_private *priv)
+static void ideapad_input_exit(struct ideapad_private *priv)
 {
 	sparse_keymap_free(priv->inputdev);
 	input_unregister_device(priv->inputdev);
@@ -563,6 +563,7 @@ static int __devinit ideapad_acpi_add(struct acpi_device *adevice)
 backlight_failed:
 	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
 		ideapad_unregister_rfkill(adevice, i);
+	ideapad_input_exit(priv);
 input_failed:
 	ideapad_platform_exit(priv);
 platform_failed:
