@@ -1828,7 +1828,7 @@ static int fb1_set_par(struct fb_info *info)
         printk("LCDC not support rotate!\n");
         return -EINVAL;
       #endif
-    }else{
+    } else{
         xpos = (xpos * screen->x_res) / inf->panel1_info.x_res;
         ypos = (ypos * screen->y_res) / inf->panel1_info.y_res;
         xsize = (xsize * screen->x_res) / inf->panel1_info.x_res;
@@ -1924,7 +1924,11 @@ static int fb1_set_par(struct fb_info *info)
 		yuv_phy[1] = last_yuv_phy[1];
 		yuv_phy[0] += par->y_offset;
 		yuv_phy[1] += par->c_offset;
+        #if 0
 		if((var->rotate == 90) ||(var->rotate == 270))
+        #else
+        if(var->rotate%360 != 0)
+        #endif
 			{
 				dstoffset = (dstoffset+1)%2;
 				ipp_req.src0.fmt = 3;
@@ -1941,8 +1945,8 @@ static int fb1_set_par(struct fb_info *info)
 				ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
 				//   if(var->xres > screen->x_res)
 				//   {
-					ipp_req.dst0.w = screen->x_res;
-					ipp_req.dst0.h = screen->y_res;
+					ipp_req.dst0.w = var->xres;
+					ipp_req.dst0.h = var->yres;
 				//  }   else	{
 				//	  ipp_req.dst0.w = var->yres;
 				// 	  ipp_req.dst0.h = var->xres;
@@ -1952,9 +1956,10 @@ static int fb1_set_par(struct fb_info *info)
 				ipp_req.timeout = 100;
 				if(var->rotate == 90)
 					ipp_req.flag = IPP_ROT_90;
+                else if (var->rotate == 180)
+					ipp_req.flag = IPP_ROT_180;
 				else if(var->rotate == 270)
 					ipp_req.flag = IPP_ROT_270;
-
 				//ipp_do_blit(&ipp_req);
 				ipp_blit_sync(&ipp_req);
 				fbprintk("yaddr=0x%x,uvaddr=0x%x\n",ipp_req.dst0.YrgbMst,ipp_req.dst0.CbrMst);
@@ -2123,7 +2128,11 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
             yuv_phy[0] += par->y_offset;
             yuv_phy[1] += par->c_offset;
          
-            if((var->rotate == 270)||(var->rotate == 90))
+            #if 0
+    		if((var->rotate == 90) ||(var->rotate == 270))
+            #else
+            if(var->rotate%360 != 0)
+            #endif
             {
                 #ifdef CONFIG_FB_ROTATE_VIDEO 
                 dstoffset = (dstoffset+1)%2;
@@ -2140,8 +2149,8 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
                 ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
              //   if(var->xres > screen->x_res)
              //   {
-                    ipp_req.dst0.w = screen->x_res;
-                    ipp_req.dst0.h = screen->y_res;
+                    ipp_req.dst0.w = var->xres;
+                    ipp_req.dst0.h = var->yres;
               //  }   else  {
               //      ipp_req.dst0.w = var->yres;
              //       ipp_req.dst0.h = var->xres;
@@ -2151,6 +2160,8 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
                 ipp_req.timeout = 100;
                 if(var->rotate == 90)
                     ipp_req.flag = IPP_ROT_90;
+                else if(var->rotate == 180)
+                    ipp_req.flag = IPP_ROT_180;
                 else if(var->rotate == 270)
                     ipp_req.flag = IPP_ROT_270;
                 //ipp_do_blit(&ipp_req);
