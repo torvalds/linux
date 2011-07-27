@@ -980,7 +980,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	ext4_grpblk_t add;
 	struct buffer_head *bh;
 	handle_t *handle;
-	int err;
+	int err, err2;
 	ext4_group_t group;
 
 	o_blocks_count = ext4_blocks_count(es);
@@ -1056,11 +1056,15 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	ext4_debug("freeing blocks %llu through %llu\n", o_blocks_count,
 		   o_blocks_count + add);
 	/* We add the blocks to the bitmap and set the group need init bit */
-	ext4_group_add_blocks(handle, sb, o_blocks_count, add);
+	err = ext4_group_add_blocks(handle, sb, o_blocks_count, add);
 	ext4_handle_dirty_super(handle, sb);
 	ext4_debug("freed blocks %llu through %llu\n", o_blocks_count,
 		   o_blocks_count + add);
-	if ((err = ext4_journal_stop(handle)))
+	err2 = ext4_journal_stop(handle);
+	if (!err && err2)
+		err = err2;
+
+	if (err)
 		goto exit_put;
 
 	if (test_opt(sb, DEBUG))
