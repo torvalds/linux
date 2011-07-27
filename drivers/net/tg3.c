@@ -5924,7 +5924,7 @@ static inline void tg3_tx_set_bd(struct tg3_tx_buffer_desc *txbd,
 	txbd->vlan_tag = (mss << TXD_MSS_SHIFT) | (vlan << TXD_VLAN_TAG_SHIFT);
 }
 
-static bool tg3_tx_frag_set(struct tg3_napi *tnapi, u32 entry,
+static bool tg3_tx_frag_set(struct tg3_napi *tnapi, u32 *entry, u32 *budget,
 			    dma_addr_t map, u32 len, u32 flags,
 			    u32 mss, u32 vlan)
 {
@@ -5940,7 +5940,14 @@ static bool tg3_tx_frag_set(struct tg3_napi *tnapi, u32 entry,
 	if (tg3_40bit_overflow_test(tp, map, len))
 		hwbug = 1;
 
-	tg3_tx_set_bd(&tnapi->tx_ring[entry], map, len, flags, mss, vlan);
+	if (*budget) {
+		tg3_tx_set_bd(&tnapi->tx_ring[*entry], map,
+			      len, flags, mss, vlan);
+		(*budget)--;
+	} else
+		hwbug = 1;
+
+	*entry = NEXT_TX(*entry);
 
 	return hwbug;
 }
@@ -5986,12 +5993,12 @@ static void tg3_tx_skb_unmap(struct tg3_napi *tnapi, u32 entry, int last)
 /* Workaround 4GB and 40-bit hardware DMA bugs. */
 static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
 				       struct sk_buff *skb,
+				       u32 *entry, u32 *budget,
 				       u32 base_flags, u32 mss, u32 vlan)
 {
 	struct tg3 *tp = tnapi->tp;
 	struct sk_buff *new_skb;
 	dma_addr_t new_addr = 0;
-	u32 entry = tnapi->tx_prod;
 	int ret = 0;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5701)
@@ -6017,14 +6024,14 @@ static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
 		} else {
 			base_flags |= TXD_FLAG_END;
 
-			tnapi->tx_buffers[entry].skb = new_skb;
-			dma_unmap_addr_set(&tnapi->tx_buffers[entry],
+			tnapi->tx_buffers[*entry].skb = new_skb;
+			dma_unmap_addr_set(&tnapi->tx_buffers[*entry],
 					   mapping, new_addr);
 
-			if (tg3_tx_frag_set(tnapi, entry, new_addr,
+			if (tg3_tx_frag_set(tnapi, entry, budget, new_addr,
 					    new_skb->len, base_flags,
 					    mss, vlan)) {
-				tg3_tx_skb_unmap(tnapi, entry, 0);
+				tg3_tx_skb_unmap(tnapi, *entry, 0);
 				dev_kfree_skb(new_skb);
 				ret = -1;
 			}
@@ -6086,6 +6093,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
 	u32 len, entry, base_flags, mss, vlan = 0;
+	u32 budget;
 	int i = -1, would_hit_hwbug;
 	dma_addr_t mapping;
 	struct tg3_napi *tnapi;
@@ -6097,12 +6105,14 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (tg3_flag(tp, ENABLE_TSS))
 		tnapi++;
 
+	budget = tg3_tx_avail(tnapi);
+
 	/* We are running in BH disabled context with netif_tx_lock
 	 * and TX reclaim runs via tp->napi.poll inside of a software
 	 * interrupt.  Furthermore, IRQ processing runs lockless so we have
 	 * no IRQ context deadlocks to worry about either.  Rejoice!
 	 */
-	if (unlikely(tg3_tx_avail(tnapi) <= (skb_shinfo(skb)->nr_frags + 1))) {
+	if (unlikely(budget <= (skb_shinfo(skb)->nr_frags + 1))) {
 		if (!netif_tx_queue_stopped(txq)) {
 			netif_tx_stop_queue(txq);
 
@@ -6214,12 +6224,10 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (tg3_flag(tp, 5701_DMA_BUG))
 		would_hit_hwbug = 1;
 
-	if (tg3_tx_frag_set(tnapi, entry, mapping, len, base_flags |
+	if (tg3_tx_frag_set(tnapi, &entry, &budget, mapping, len, base_flags |
 			  ((skb_shinfo(skb)->nr_frags == 0) ? TXD_FLAG_END : 0),
 			    mss, vlan))
 		would_hit_hwbug = 1;
-
-	entry = NEXT_TX(entry);
 
 	/* Now loop through additional data fragments, and queue them. */
 	if (skb_shinfo(skb)->nr_frags > 0) {
@@ -6246,12 +6254,11 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			if (pci_dma_mapping_error(tp->pdev, mapping))
 				goto dma_error;
 
-			if (tg3_tx_frag_set(tnapi, entry, mapping, len,
-				  base_flags | ((i == last) ? TXD_FLAG_END : 0),
+			if (tg3_tx_frag_set(tnapi, &entry, &budget, mapping,
+					    len, base_flags |
+					    ((i == last) ? TXD_FLAG_END : 0),
 					    tmp_mss, vlan))
 				would_hit_hwbug = 1;
-
-			entry = NEXT_TX(entry);
 		}
 	}
 
@@ -6261,11 +6268,11 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* If the workaround fails due to memory/mapping
 		 * failure, silently drop this packet.
 		 */
-		if (tigon3_dma_hwbug_workaround(tnapi, skb, base_flags,
-						mss, vlan))
+		entry = tnapi->tx_prod;
+		budget = tg3_tx_avail(tnapi);
+		if (tigon3_dma_hwbug_workaround(tnapi, skb, &entry, &budget,
+						base_flags, mss, vlan))
 			goto out_unlock;
-
-		entry = NEXT_TX(tnapi->tx_prod);
 	}
 
 	skb_tx_timestamp(skb);
@@ -11206,6 +11213,7 @@ static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, int loopback_mode)
 {
 	u32 mac_mode, rx_start_idx, rx_idx, tx_idx, opaque_key;
 	u32 base_flags = 0, mss = 0, desc_idx, coal_now, data_off, val;
+	u32 budget;
 	struct sk_buff *skb, *rx_skb;
 	u8 *tx_data;
 	dma_addr_t map;
@@ -11376,7 +11384,8 @@ static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, int loopback_mode)
 
 	rx_start_idx = rnapi->hw_status->idx[0].rx_producer;
 
-	if (tg3_tx_frag_set(tnapi, tnapi->tx_prod, map, tx_len,
+	budget = tg3_tx_avail(tnapi);
+	if (tg3_tx_frag_set(tnapi, &val, &budget, map, tx_len,
 			    base_flags | TXD_FLAG_END, mss, 0)) {
 		tnapi->tx_buffers[val].skb = NULL;
 		dev_kfree_skb(skb);
