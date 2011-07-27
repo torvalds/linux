@@ -3500,7 +3500,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 
 	INIT_LIST_HEAD(&sbi->s_orphan); /* unlinked but open files */
 	mutex_init(&sbi->s_orphan_lock);
-	mutex_init(&sbi->s_resize_lock);
+	sbi->s_resize_flags = 0;
 
 	sb->s_root = NULL;
 
