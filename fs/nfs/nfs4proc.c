@@ -80,7 +80,10 @@ static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
 static int nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
 			    struct nfs_fattr *fattr, struct iattr *sattr,
 			    struct nfs4_state *state);
-
+#ifdef CONFIG_NFS_V4_1
+static int nfs41_test_stateid(struct nfs_server *, struct nfs4_state *);
+static int nfs41_free_stateid(struct nfs_server *, struct nfs4_state *);
+#endif
 /* Prevent leaks of NFSv4 errors into userland */
 static int nfs4_map_errors(int err)
 {
@@ -1689,6 +1692,20 @@ static int nfs4_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *sta
 	return ret;
 }
 
+#if defined(CONFIG_NFS_V4_1)
+static int nfs41_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *state)
+{
+	int status;
+	struct nfs_server *server = NFS_SERVER(state->inode);
+
+	status = nfs41_test_stateid(server, state);
+	if (status == NFS_OK)
+		return 0;
+	nfs41_free_stateid(server, state);
+	return nfs4_open_expired(sp, state);
+}
+#endif
+
 /*
  * on an EXCLUSIVE create, the server should send back a bitmask with FATTR4-*
  * fields corresponding to attributes that were used to store the verifier.
@@ -2252,13 +2269,14 @@ static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 static int nfs4_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
 			      struct nfs_fsinfo *info)
 {
+	int minor_version = server->nfs_client->cl_minorversion;
 	int status = nfs4_lookup_root(server, fhandle, info);
 	if ((status == -NFS4ERR_WRONGSEC) && !(server->flags & NFS_MOUNT_SECFLAVOUR))
 		/*
 		 * A status of -NFS4ERR_WRONGSEC will be mapped to -EPERM
 		 * by nfs4_map_errors() as this function exits.
 		 */
-		status = nfs4_find_root_sec(server, fhandle, info);
+		status = nfs_v4_minor_ops[minor_version]->find_root_sec(server, fhandle, info);
 	if (status == 0)
 		status = nfs4_server_capabilities(server, fhandle);
 	if (status == 0)
@@ -4441,6 +4459,20 @@ out:
 	return err;
 }
 
+#if defined(CONFIG_NFS_V4_1)
+static int nfs41_lock_expired(struct nfs4_state *state, struct file_lock *request)
+{
+	int status;
+	struct nfs_server *server = NFS_SERVER(state->inode);
+
+	status = nfs41_test_stateid(server, state);
+	if (status == NFS_OK)
+		return 0;
+	nfs41_free_stateid(server, state);
+	return nfs4_lock_expired(state, request);
+}
+#endif
+
 static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
 	struct nfs_inode *nfsi = NFS_I(state->inode);
@@ -4779,6 +4811,16 @@ out_inval:
 	return -NFS4ERR_INVAL;
 }
 
+static bool
+nfs41_same_server_scope(struct server_scope *a, struct server_scope *b)
+{
+	if (a->server_scope_sz == b->server_scope_sz &&
+	    memcmp(a->server_scope, b->server_scope, a->server_scope_sz) == 0)
+		return true;
+
+	return false;
+}
+
 /*
  * nfs4_proc_exchange_id()
  *
@@ -4821,9 +4863,31 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 				init_utsname()->domainname,
 				clp->cl_rpcclient->cl_auth->au_flavor);
 
+	res.server_scope = kzalloc(sizeof(struct server_scope), GFP_KERNEL);
+	if (unlikely(!res.server_scope))
+		return -ENOMEM;
+
 	status = rpc_call_sync(clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT);
 	if (!status)
 		status = nfs4_check_cl_exchange_flags(clp->cl_exchange_flags);
+
+	if (!status) {
+		if (clp->server_scope &&
+		    !nfs41_same_server_scope(clp->server_scope,
+					     res.server_scope)) {
+			dprintk("%s: server_scope mismatch detected\n",
+				__func__);
+			set_bit(NFS4CLNT_SERVER_SCOPE_MISMATCH, &clp->cl_state);
+			kfree(clp->server_scope);
+			clp->server_scope = NULL;
+		}
+
+		if (!clp->server_scope)
+			clp->server_scope = res.server_scope;
+		else
+			kfree(res.server_scope);
+	}
+
 	dprintk("<-- %s status= %d\n", __func__, status);
 	return status;
 }
@@ -5704,7 +5768,7 @@ static void nfs4_layoutreturn_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_layoutreturn *lrp = calldata;
 	struct nfs_server *server;
-	struct pnfs_layout_hdr *lo = NFS_I(lrp->args.inode)->layout;
+	struct pnfs_layout_hdr *lo = lrp->args.layout;
 
 	dprintk("--> %s\n", __func__);
 
@@ -5733,7 +5797,7 @@ static void nfs4_layoutreturn_release(void *calldata)
 	struct nfs4_layoutreturn *lrp = calldata;
 
 	dprintk("--> %s\n", __func__);
-	put_layout_hdr(NFS_I(lrp->args.inode)->layout);
+	put_layout_hdr(lrp->args.layout);
 	kfree(calldata);
 	dprintk("<-- %s\n", __func__);
 }
@@ -5901,6 +5965,143 @@ out:
 	rpc_put_task(task);
 	return status;
 }
+
+static int
+_nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
+		    struct nfs_fsinfo *info, struct nfs4_secinfo_flavors *flavors)
+{
+	struct nfs41_secinfo_no_name_args args = {
+		.style = SECINFO_STYLE_CURRENT_FH,
+	};
+	struct nfs4_secinfo_res res = {
+		.flavors = flavors,
+	};
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_SECINFO_NO_NAME],
+		.rpc_argp = &args,
+		.rpc_resp = &res,
+	};
+	return nfs4_call_sync(server->client, server, &msg, &args.seq_args, &res.seq_res, 0);
+}
+
+static int
+nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
+			   struct nfs_fsinfo *info, struct nfs4_secinfo_flavors *flavors)
+{
+	struct nfs4_exception exception = { };
+	int err;
+	do {
+		err = _nfs41_proc_secinfo_no_name(server, fhandle, info, flavors);
+		switch (err) {
+		case 0:
+		case -NFS4ERR_WRONGSEC:
+		case -NFS4ERR_NOTSUPP:
+			break;
+		default:
+			err = nfs4_handle_exception(server, err, &exception);
+		}
+	} while (exception.retry);
+	return err;
+}
+
+static int
+nfs41_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
+		    struct nfs_fsinfo *info)
+{
+	int err;
+	struct page *page;
+	rpc_authflavor_t flavor;
+	struct nfs4_secinfo_flavors *flavors;
+
+	page = alloc_page(GFP_KERNEL);
+	if (!page) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	flavors = page_address(page);
+	err = nfs41_proc_secinfo_no_name(server, fhandle, info, flavors);
+
+	/*
+	 * Fall back on "guess and check" method if
+	 * the server doesn't support SECINFO_NO_NAME
+	 */
+	if (err == -NFS4ERR_WRONGSEC || err == -NFS4ERR_NOTSUPP) {
+		err = nfs4_find_root_sec(server, fhandle, info);
+		goto out_freepage;
+	}
+	if (err)
+		goto out_freepage;
+
+	flavor = nfs_find_best_sec(flavors);
+	if (err == 0)
+		err = nfs4_lookup_root_sec(server, fhandle, info, flavor);
+
+out_freepage:
+	put_page(page);
+	if (err == -EACCES)
+		return -EPERM;
+out:
+	return err;
+}
+static int _nfs41_test_stateid(struct nfs_server *server, struct nfs4_state *state)
+{
+	int status;
+	struct nfs41_test_stateid_args args = {
+		.stateid = &state->stateid,
+	};
+	struct nfs41_test_stateid_res res;
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_TEST_STATEID],
+		.rpc_argp = &args,
+		.rpc_resp = &res,
+	};
+	args.seq_args.sa_session = res.seq_res.sr_session = NULL;
+	status = nfs4_call_sync_sequence(server->client, server, &msg, &args.seq_args, &res.seq_res, 0, 1);
+	return status;
+}
+
+static int nfs41_test_stateid(struct nfs_server *server, struct nfs4_state *state)
+{
+	struct nfs4_exception exception = { };
+	int err;
+	do {
+		err = nfs4_handle_exception(server,
+				_nfs41_test_stateid(server, state),
+				&exception);
+	} while (exception.retry);
+	return err;
+}
+
+static int _nfs4_free_stateid(struct nfs_server *server, struct nfs4_state *state)
+{
+	int status;
+	struct nfs41_free_stateid_args args = {
+		.stateid = &state->stateid,
+	};
+	struct nfs41_free_stateid_res res;
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_FREE_STATEID],
+		.rpc_argp = &args,
+		.rpc_resp = &res,
+	};
+
+	args.seq_args.sa_session = res.seq_res.sr_session = NULL;
+	status = nfs4_call_sync_sequence(server->client, server, &msg, &args.seq_args, &res.seq_res, 0, 1);
+	return status;
+}
+
+static int nfs41_free_stateid(struct nfs_server *server, struct nfs4_state *state)
+{
+	struct nfs4_exception exception = { };
+	int err;
+	do {
+		err = nfs4_handle_exception(server,
+				_nfs4_free_stateid(server, state),
+				&exception);
+	} while (exception.retry);
+	return err;
+}
 #endif /* CONFIG_NFS_V4_1 */
 
 struct nfs4_state_recovery_ops nfs40_reboot_recovery_ops = {
@@ -5937,8 +6138,8 @@ struct nfs4_state_recovery_ops nfs40_nograce_recovery_ops = {
 struct nfs4_state_recovery_ops nfs41_nograce_recovery_ops = {
 	.owner_flag_bit = NFS_OWNER_RECLAIM_NOGRACE,
 	.state_flag_bit	= NFS_STATE_RECLAIM_NOGRACE,
-	.recover_open	= nfs4_open_expired,
-	.recover_lock	= nfs4_lock_expired,
+	.recover_open	= nfs41_open_expired,
+	.recover_lock	= nfs41_lock_expired,
 	.establish_clid = nfs41_init_clientid,
 	.get_clid_cred	= nfs4_get_exchange_id_cred,
 };
@@ -5962,6 +6163,7 @@ static const struct nfs4_minor_version_ops nfs_v4_0_minor_ops = {
 	.minor_version = 0,
 	.call_sync = _nfs4_call_sync,
 	.validate_stateid = nfs4_validate_delegation_stateid,
+	.find_root_sec = nfs4_find_root_sec,
 	.reboot_recovery_ops = &nfs40_reboot_recovery_ops,
 	.nograce_recovery_ops = &nfs40_nograce_recovery_ops,
 	.state_renewal_ops = &nfs40_state_renewal_ops,
@@ -5972,6 +6174,7 @@ static const struct nfs4_minor_version_ops nfs_v4_1_minor_ops = {
 	.minor_version = 1,
 	.call_sync = _nfs4_call_sync_session,
 	.validate_stateid = nfs41_validate_delegation_stateid,
+	.find_root_sec = nfs41_find_root_sec,
 	.reboot_recovery_ops = &nfs41_reboot_recovery_ops,
 	.nograce_recovery_ops = &nfs41_nograce_recovery_ops,
 	.state_renewal_ops = &nfs41_state_renewal_ops,

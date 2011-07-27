@@ -188,9 +188,6 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	cred = rpc_lookup_machine_cred();
 	if (!IS_ERR(cred))
 		clp->cl_machine_cred = cred;
-#if defined(CONFIG_NFS_V4_1)
-	INIT_LIST_HEAD(&clp->cl_layouts);
-#endif
 	nfs_fscache_get_client_cookie(clp);
 
 	return clp;
@@ -293,6 +290,7 @@ static void nfs_free_client(struct nfs_client *clp)
 	nfs4_deviceid_purge_client(clp);
 
 	kfree(clp->cl_hostname);
+	kfree(clp->server_scope);
 	kfree(clp);
 
 	dprintk("<-- nfs_free_client()\n");
@@ -1062,6 +1060,7 @@ static struct nfs_server *nfs_alloc_server(void)
 	INIT_LIST_HEAD(&server->client_link);
 	INIT_LIST_HEAD(&server->master_link);
 	INIT_LIST_HEAD(&server->delegations);
+	INIT_LIST_HEAD(&server->layouts);
 
 	atomic_set(&server->active, 0);
 
@@ -1464,7 +1463,7 @@ struct nfs_client *nfs4_set_ds_client(struct nfs_client* mds_clp,
 	dprintk("<-- %s %p\n", __func__, clp);
 	return clp;
 }
-EXPORT_SYMBOL(nfs4_set_ds_client);
+EXPORT_SYMBOL_GPL(nfs4_set_ds_client);
 
 /*
  * Session has been established, and the client marked ready.

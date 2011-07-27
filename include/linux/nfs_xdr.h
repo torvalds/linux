@@ -269,9 +269,10 @@ struct nfs4_layoutcommit_data {
 };
 
 struct nfs4_layoutreturn_args {
-	__u32   layout_type;
+	struct pnfs_layout_hdr *layout;
 	struct inode *inode;
 	nfs4_stateid stateid;
+	__u32   layout_type;
 	struct nfs4_sequence_args seq_args;
 };
 
@@ -1060,6 +1061,7 @@ struct server_scope {
 struct nfs41_exchange_id_res {
 	struct nfs_client		*client;
 	u32				flags;
+	struct server_scope		*server_scope;
 };
 
 struct nfs41_create_session_args {
@@ -1083,6 +1085,34 @@ struct nfs41_reclaim_complete_args {
 struct nfs41_reclaim_complete_res {
 	struct nfs4_sequence_res	seq_res;
 };
+
+#define SECINFO_STYLE_CURRENT_FH 0
+#define SECINFO_STYLE_PARENT 1
+struct nfs41_secinfo_no_name_args {
+	int				style;
+	struct nfs4_sequence_args	seq_args;
+};
+
+struct nfs41_test_stateid_args {
+	nfs4_stateid			*stateid;
+	struct nfs4_sequence_args	seq_args;
+};
+
+struct nfs41_test_stateid_res {
+	unsigned int			status;
+	struct nfs4_sequence_res	seq_res;
+};
+
+struct nfs41_free_stateid_args {
+	nfs4_stateid			*stateid;
+	struct nfs4_sequence_args	seq_args;
+};
+
+struct nfs41_free_stateid_res {
+	unsigned int			status;
+	struct nfs4_sequence_res	seq_res;
+};
+
 #endif /* CONFIG_NFS_V4_1 */
 
 struct nfs_page;
@@ -1096,6 +1126,7 @@ struct nfs_read_data {
 	struct rpc_cred		*cred;
 	struct nfs_fattr	fattr;	/* fattr storage */
 	struct list_head	pages;	/* Coalesced read requests */
+	struct list_head	list;	/* lists of struct nfs_read_data */
 	struct nfs_page		*req;	/* multi ops per nfs_page */
 	struct page		**pagevec;
 	unsigned int		npages;	/* Max length of pagevec */
@@ -1119,6 +1150,7 @@ struct nfs_write_data {
 	struct nfs_fattr	fattr;
 	struct nfs_writeverf	verf;
 	struct list_head	pages;		/* Coalesced requests we wish to flush */
+	struct list_head	list;		/* lists of struct nfs_write_data */
 	struct nfs_page		*req;		/* multi ops per nfs_page */
 	struct page		**pagevec;
 	unsigned int		npages;		/* Max length of pagevec */

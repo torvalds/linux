@@ -111,6 +111,7 @@ int nfs4_validate_delegation_stateid(struct nfs_delegation *delegation, const nf
 static u32 initiate_file_draining(struct nfs_client *clp,
 				  struct cb_layoutrecallargs *args)
 {
+	struct nfs_server *server;
 	struct pnfs_layout_hdr *lo;
 	struct inode *ino;
 	bool found = false;
@@ -118,21 +119,28 @@ static u32 initiate_file_draining(struct nfs_client *clp,
 	LIST_HEAD(free_me_list);
 
 	spin_lock(&clp->cl_lock);
-	list_for_each_entry(lo, &clp->cl_layouts, plh_layouts) {
-		if (nfs_compare_fh(&args->cbl_fh,
-				   &NFS_I(lo->plh_inode)->fh))
-			continue;
-		ino = igrab(lo->plh_inode);
-		if (!ino)
-			continue;
-		found = true;
-		/* Without this, layout can be freed as soon
-		 * as we release cl_lock.
-		 */
-		get_layout_hdr(lo);
-		break;
+	rcu_read_lock();
+	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
+		list_for_each_entry(lo, &server->layouts, plh_layouts) {
+			if (nfs_compare_fh(&args->cbl_fh,
+					   &NFS_I(lo->plh_inode)->fh))
+				continue;
+			ino = igrab(lo->plh_inode);
+			if (!ino)
+				continue;
+			found = true;
+			/* Without this, layout can be freed as soon
+			 * as we release cl_lock.
+			 */
+			get_layout_hdr(lo);
+			break;
+		}
+		if (found)
+			break;
 	}
+	rcu_read_unlock();
 	spin_unlock(&clp->cl_lock);
+
 	if (!found)
 		return NFS4ERR_NOMATCHING_LAYOUT;
 
@@ -154,6 +162,7 @@ static u32 initiate_file_draining(struct nfs_client *clp,
 static u32 initiate_bulk_draining(struct nfs_client *clp,
 				  struct cb_layoutrecallargs *args)
 {
+	struct nfs_server *server;
 	struct pnfs_layout_hdr *lo;
 	struct inode *ino;
 	u32 rv = NFS4ERR_NOMATCHING_LAYOUT;
@@ -167,18 +176,24 @@ static u32 initiate_bulk_draining(struct nfs_client *clp,
 	};
 
 	spin_lock(&clp->cl_lock);
-	list_for_each_entry(lo, &clp->cl_layouts, plh_layouts) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
 		if ((args->cbl_recall_type == RETURN_FSID) &&
-		    memcmp(&NFS_SERVER(lo->plh_inode)->fsid,
-			   &args->cbl_fsid, sizeof(struct nfs_fsid)))
+		    memcmp(&server->fsid, &args->cbl_fsid,
+			   sizeof(struct nfs_fsid)))
 			continue;
-		if (!igrab(lo->plh_inode))
-			continue;
-		get_layout_hdr(lo);
-		BUG_ON(!list_empty(&lo->plh_bulk_recall));
-		list_add(&lo->plh_bulk_recall, &recall_list);
+
+		list_for_each_entry(lo, &server->layouts, plh_layouts) {
+			if (!igrab(lo->plh_inode))
+				continue;
+			get_layout_hdr(lo);
+			BUG_ON(!list_empty(&lo->plh_bulk_recall));
+			list_add(&lo->plh_bulk_recall, &recall_list);
+		}
 	}
+	rcu_read_unlock();
 	spin_unlock(&clp->cl_lock);
+
 	list_for_each_entry_safe(lo, tmp,
 				 &recall_list, plh_bulk_recall) {
 		ino = lo->plh_inode;
