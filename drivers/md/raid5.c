@@ -2998,7 +2998,7 @@ static void handle_stripe_expansion(raid5_conf_t *conf, struct stripe_head *sh)
  *
  */
 
-static void handle_stripe5(struct stripe_head *sh, struct stripe_head_state *s)
+static int handle_stripe5(struct stripe_head *sh, struct stripe_head_state *s)
 {
 	raid5_conf_t *conf = sh->raid_conf;
 	int disks = sh->disks, i;
@@ -3080,7 +3080,7 @@ static void handle_stripe5(struct stripe_head *sh, struct stripe_head_state *s)
 		if (s->syncing || s->expanding || s->expanded ||
 		    s->to_write || s->written) {
 			set_bit(STRIPE_HANDLE, &sh->state);
-			return;
+			return 1;
 		}
 		/* There is nothing for the blocked_rdev to block */
 		rdev_dec_pending(s->blocked_rdev, conf->mddev);
@@ -3204,54 +3204,10 @@ static void handle_stripe5(struct stripe_head *sh, struct stripe_head_state *s)
 			s->locked++;
 		}
 	}
-
-	/* Finish reconstruct operations initiated by the expansion process */
-	if (sh->reconstruct_state == reconstruct_state_result) {
-		struct stripe_head *sh2
-			= get_active_stripe(conf, sh->sector, 1, 1, 1);
-		if (sh2 && test_bit(STRIPE_EXPAND_SOURCE, &sh2->state)) {
-			/* sh cannot be written until sh2 has been read.
-			 * so arrange for sh to be delayed a little
-			 */
-			set_bit(STRIPE_DELAYED, &sh->state);
-			set_bit(STRIPE_HANDLE, &sh->state);
-			if (!test_and_set_bit(STRIPE_PREREAD_ACTIVE,
-					      &sh2->state))
-				atomic_inc(&conf->preread_active_stripes);
-			release_stripe(sh2);
-			return;
-		}
-		if (sh2)
-			release_stripe(sh2);
-
-		sh->reconstruct_state = reconstruct_state_idle;
-		clear_bit(STRIPE_EXPANDING, &sh->state);
-		for (i = conf->raid_disks; i--; ) {
-			set_bit(R5_Wantwrite, &sh->dev[i].flags);
-			set_bit(R5_LOCKED, &sh->dev[i].flags);
-			s->locked++;
-		}
-	}
-
-	if (s->expanded && test_bit(STRIPE_EXPANDING, &sh->state) &&
-	    !sh->reconstruct_state) {
-		/* Need to write out all blocks after computing parity */
-		sh->disks = conf->raid_disks;
-		stripe_set_idx(sh->sector, conf, 0, sh);
-		schedule_reconstruction(sh, s, 1, 1);
-	} else if (s->expanded && !sh->reconstruct_state && s->locked == 0) {
-		clear_bit(STRIPE_EXPAND_READY, &sh->state);
-		atomic_dec(&conf->reshape_stripes);
-		wake_up(&conf->wait_for_overlap);
-		md_done_sync(conf->mddev, STRIPE_SECTORS, 1);
-	}
-
-	if (s->expanding && s->locked == 0 &&
-	    !test_bit(STRIPE_COMPUTE_RUN, &sh->state))
-		handle_stripe_expansion(conf, sh);
+	return 0;
 }
 
-static void handle_stripe6(struct stripe_head *sh, struct stripe_head_state *s)
+static int handle_stripe6(struct stripe_head *sh, struct stripe_head_state *s)
 {
 	raid5_conf_t *conf = sh->raid_conf;
 	int disks = sh->disks;
@@ -3334,7 +3290,7 @@ static void handle_stripe6(struct stripe_head *sh, struct stripe_head_state *s)
 		if (s->syncing || s->expanding || s->expanded ||
 		    s->to_write || s->written) {
 			set_bit(STRIPE_HANDLE, &sh->state);
-			return;
+			return 1;
 		}
 		/* There is nothing for the blocked_rdev to block */
 		rdev_dec_pending(s->blocked_rdev, conf->mddev);
@@ -3467,56 +3423,14 @@ static void handle_stripe6(struct stripe_head *sh, struct stripe_head_state *s)
 				}
 			}
 		}
-
-	/* Finish reconstruct operations initiated by the expansion process */
-	if (sh->reconstruct_state == reconstruct_state_result) {
-		sh->reconstruct_state = reconstruct_state_idle;
-		clear_bit(STRIPE_EXPANDING, &sh->state);
-		for (i = conf->raid_disks; i--; ) {
-			set_bit(R5_Wantwrite, &sh->dev[i].flags);
-			set_bit(R5_LOCKED, &sh->dev[i].flags);
-			s->locked++;
-		}
-	}
-
-	if (s->expanded && test_bit(STRIPE_EXPANDING, &sh->state) &&
-	    !sh->reconstruct_state) {
-		struct stripe_head *sh2
-			= get_active_stripe(conf, sh->sector, 1, 1, 1);
-		if (sh2 && test_bit(STRIPE_EXPAND_SOURCE, &sh2->state)) {
-			/* sh cannot be written until sh2 has been read.
-			 * so arrange for sh to be delayed a little
-			 */
-			set_bit(STRIPE_DELAYED, &sh->state);
-			set_bit(STRIPE_HANDLE, &sh->state);
-			if (!test_and_set_bit(STRIPE_PREREAD_ACTIVE,
-					      &sh2->state))
-				atomic_inc(&conf->preread_active_stripes);
-			release_stripe(sh2);
-			return;
-		}
-		if (sh2)
-			release_stripe(sh2);
-
-		/* Need to write out all blocks after computing P&Q */
-		sh->disks = conf->raid_disks;
-		stripe_set_idx(sh->sector, conf, 0, sh);
-		schedule_reconstruction(sh, s, 1, 1);
-	} else if (s->expanded && !sh->reconstruct_state && s->locked == 0) {
-		clear_bit(STRIPE_EXPAND_READY, &sh->state);
-		atomic_dec(&conf->reshape_stripes);
-		wake_up(&conf->wait_for_overlap);
-		md_done_sync(conf->mddev, STRIPE_SECTORS, 1);
-	}
-
-	if (s->expanding && s->locked == 0 &&
-	    !test_bit(STRIPE_COMPUTE_RUN, &sh->state))
-		handle_stripe_expansion(conf, sh);
+	return 0;
 }
 
 static void handle_stripe(struct stripe_head *sh)
 {
 	struct stripe_head_state s;
+	int done;
+	int i;
 	raid5_conf_t *conf = sh->raid_conf;
 
 	clear_bit(STRIPE_HANDLE, &sh->state);
@@ -3545,11 +3459,58 @@ static void handle_stripe(struct stripe_head *sh)
 	s.expanded = test_bit(STRIPE_EXPAND_READY, &sh->state);
 
 	if (conf->level == 6)
-		handle_stripe6(sh, &s);
+		done = handle_stripe6(sh, &s);
 	else
-		handle_stripe5(sh, &s);
+		done = handle_stripe5(sh, &s);
 
+	if (done)
+		goto finish;
+	/* Finish reconstruct operations initiated by the expansion process */
+	if (sh->reconstruct_state == reconstruct_state_result) {
+		struct stripe_head *sh_src
+			= get_active_stripe(conf, sh->sector, 1, 1, 1);
+		if (sh_src && test_bit(STRIPE_EXPAND_SOURCE, &sh_src->state)) {
+			/* sh cannot be written until sh_src has been read.
+			 * so arrange for sh to be delayed a little
+			 */
+			set_bit(STRIPE_DELAYED, &sh->state);
+			set_bit(STRIPE_HANDLE, &sh->state);
+			if (!test_and_set_bit(STRIPE_PREREAD_ACTIVE,
+					      &sh_src->state))
+				atomic_inc(&conf->preread_active_stripes);
+			release_stripe(sh_src);
+			goto finish;
+		}
+		if (sh_src)
+			release_stripe(sh_src);
 
+		sh->reconstruct_state = reconstruct_state_idle;
+		clear_bit(STRIPE_EXPANDING, &sh->state);
+		for (i = conf->raid_disks; i--; ) {
+			set_bit(R5_Wantwrite, &sh->dev[i].flags);
+			set_bit(R5_LOCKED, &sh->dev[i].flags);
+			s.locked++;
+		}
+	}
+
+	if (s.expanded && test_bit(STRIPE_EXPANDING, &sh->state) &&
+	    !sh->reconstruct_state) {
+		/* Need to write out all blocks after computing parity */
+		sh->disks = conf->raid_disks;
+		stripe_set_idx(sh->sector, conf, 0, sh);
+		schedule_reconstruction(sh, &s, 1, 1);
+	} else if (s.expanded && !sh->reconstruct_state && s.locked == 0) {
+		clear_bit(STRIPE_EXPAND_READY, &sh->state);
+		atomic_dec(&conf->reshape_stripes);
+		wake_up(&conf->wait_for_overlap);
+		md_done_sync(conf->mddev, STRIPE_SECTORS, 1);
+	}
+
+	if (s.expanding && s.locked == 0 &&
+	    !test_bit(STRIPE_COMPUTE_RUN, &sh->state))
+		handle_stripe_expansion(conf, sh);
+
+finish:
 	/* wait for this device to become unblocked */
 	if (unlikely(s.blocked_rdev))
 		md_wait_for_blocked_rdev(s.blocked_rdev, conf->mddev);
