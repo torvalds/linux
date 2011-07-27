@@ -1385,27 +1385,113 @@ static void at_dma_shutdown(struct platform_device *pdev)
 	clk_disable(atdma->clk);
 }
 
+static int at_dma_prepare(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct at_dma *atdma = platform_get_drvdata(pdev);
+	struct dma_chan *chan, *_chan;
+
+	list_for_each_entry_safe(chan, _chan, &atdma->dma_common.channels,
+			device_node) {
+		struct at_dma_chan *atchan = to_at_dma_chan(chan);
+		/* wait for transaction completion (except in cyclic case) */
+		if (atc_chan_is_enabled(atchan) &&
+		   !test_bit(ATC_IS_CYCLIC, &atchan->status))
+			return -EAGAIN;
+	}
+	return 0;
+}
+
+static void atc_suspend_cyclic(struct at_dma_chan *atchan)
+{
+	struct dma_chan	*chan = &atchan->chan_common;
+
+	/* Channel should be paused by user
+	 * do it anyway even if it is not done already */
+	if (!test_bit(ATC_IS_PAUSED, &atchan->status)) {
+		dev_warn(chan2dev(chan),
+		"cyclic channel not paused, should be done by channel user\n");
+		atc_control(chan, DMA_PAUSE, 0);
+	}
+
+	/* now preserve additional data for cyclic operations */
+	/* next descriptor address in the cyclic list */
+	atchan->save_dscr = channel_readl(atchan, DSCR);
+
+	vdbg_dump_regs(atchan);
+}
+
 static int at_dma_suspend_noirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct at_dma *atdma = platform_get_drvdata(pdev);
+	struct dma_chan *chan, *_chan;
 
-	at_dma_off(platform_get_drvdata(pdev));
+	/* preserve data */
+	list_for_each_entry_safe(chan, _chan, &atdma->dma_common.channels,
+			device_node) {
+		struct at_dma_chan *atchan = to_at_dma_chan(chan);
+
+		if (test_bit(ATC_IS_CYCLIC, &atchan->status))
+			atc_suspend_cyclic(atchan);
+		atchan->save_cfg = channel_readl(atchan, CFG);
+	}
+	atdma->save_imr = dma_readl(atdma, EBCIMR);
+
+	/* disable DMA controller */
+	at_dma_off(atdma);
 	clk_disable(atdma->clk);
 	return 0;
+}
+
+static void atc_resume_cyclic(struct at_dma_chan *atchan)
+{
+	struct at_dma	*atdma = to_at_dma(atchan->chan_common.device);
+
+	/* restore channel status for cyclic descriptors list:
+	 * next descriptor in the cyclic list at the time of suspend */
+	channel_writel(atchan, SADDR, 0);
+	channel_writel(atchan, DADDR, 0);
+	channel_writel(atchan, CTRLA, 0);
+	channel_writel(atchan, CTRLB, 0);
+	channel_writel(atchan, DSCR, atchan->save_dscr);
+	dma_writel(atdma, CHER, atchan->mask);
+
+	/* channel pause status should be removed by channel user
+	 * We cannot take the initiative to do it here */
+
+	vdbg_dump_regs(atchan);
 }
 
 static int at_dma_resume_noirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct at_dma *atdma = platform_get_drvdata(pdev);
+	struct dma_chan *chan, *_chan;
 
+	/* bring back DMA controller */
 	clk_enable(atdma->clk);
 	dma_writel(atdma, EN, AT_DMA_ENABLE);
+
+	/* clear any pending interrupt */
+	while (dma_readl(atdma, EBCISR))
+		cpu_relax();
+
+	/* restore saved data */
+	dma_writel(atdma, EBCIER, atdma->save_imr);
+	list_for_each_entry_safe(chan, _chan, &atdma->dma_common.channels,
+			device_node) {
+		struct at_dma_chan *atchan = to_at_dma_chan(chan);
+
+		channel_writel(atchan, CFG, atchan->save_cfg);
+		if (test_bit(ATC_IS_CYCLIC, &atchan->status))
+			atc_resume_cyclic(atchan);
+	}
 	return 0;
 }
 
 static const struct dev_pm_ops at_dma_dev_pm_ops = {
+	.prepare = at_dma_prepare,
 	.suspend_noirq = at_dma_suspend_noirq,
 	.resume_noirq = at_dma_resume_noirq,
 };
