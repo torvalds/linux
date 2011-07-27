@@ -369,6 +369,9 @@ static int __init cns3xxx_pcie_init(void)
 {
 	int i;
 
+	pcibios_min_io = 0;
+	pcibios_min_mem = 0;
+
 	hook_fault_code(16 + 6, cns3xxx_pcie_abort_handler, SIGBUS, 0,
 			"imprecise external abort");
 

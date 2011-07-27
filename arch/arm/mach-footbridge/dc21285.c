@@ -295,6 +295,9 @@ void __init dc21285_preinit(void)
 	unsigned int mem_size, mem_mask;
 	int cfn_mode;
 
+	pcibios_min_mem = 0x81000000;
+	vga_base = PCIMEM_BASE;
+
 	mem_size = (unsigned int)high_memory - PAGE_OFFSET;
 	for (mem_mask = 0x00100000; mem_mask < 0x10000000; mem_mask <<= 1)
 		if (mem_mask >= mem_size)
