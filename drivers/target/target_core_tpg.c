@@ -298,8 +298,16 @@ struct se_node_acl *core_tpg_check_initiator_node_acl(
 		tpg->se_tpg_tfo->tpg_release_fabric_acl(tpg, acl);
 		return NULL;
 	}
-
-	core_tpg_add_node_to_devs(acl, tpg);
+	/*
+	 * Here we only create demo-mode MappedLUNs from the active
+	 * TPG LUNs if the fabric is not explictly asking for
+	 * tpg_check_demo_mode_login_only() == 1.
+	 */
+	if ((tpg->se_tpg_tfo->tpg_check_demo_mode_login_only != NULL) &&
+	    (tpg->se_tpg_tfo->tpg_check_demo_mode_login_only(tpg) == 1))
+		do { ; } while (0);
+	else
+		core_tpg_add_node_to_devs(acl, tpg);
 
 	spin_lock_bh(&tpg->acl_node_lock);
 	list_add_tail(&acl->acl_list, &tpg->acl_node_list);

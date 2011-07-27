@@ -27,6 +27,12 @@ struct target_core_fabric_ops {
 	int (*tpg_check_demo_mode_cache)(struct se_portal_group *);
 	int (*tpg_check_demo_mode_write_protect)(struct se_portal_group *);
 	int (*tpg_check_prod_mode_write_protect)(struct se_portal_group *);
+	/*
+	 * Optionally used by fabrics to allow demo-mode login, but not
+	 * expose any TPG LUNs, and return 'not connected' in standard
+	 * inquiry response
+	 */
+	int (*tpg_check_demo_mode_login_only)(struct se_portal_group *);
 	struct se_node_acl *(*tpg_alloc_fabric_acl)(
 					struct se_portal_group *);
 	void (*tpg_release_fabric_acl)(struct se_portal_group *,

@@ -67,6 +67,7 @@ target_emulate_inquiry_std(struct se_cmd *cmd)
 {
 	struct se_lun *lun = cmd->se_lun;
 	struct se_device *dev = cmd->se_dev;
+	struct se_portal_group *tpg = lun->lun_sep->sep_tpg;
 	unsigned char *buf;
 
 	/*
@@ -81,9 +82,13 @@ target_emulate_inquiry_std(struct se_cmd *cmd)
 
 	buf = transport_kmap_first_data_page(cmd);
 
-	buf[0] = dev->transport->get_device_type(dev);
-	if (buf[0] == TYPE_TAPE)
-		buf[1] = 0x80;
+	if (dev == tpg->tpg_virt_lun0.lun_se_dev) {
+		buf[0] = 0x3f; /* Not connected */
+	} else {
+		buf[0] = dev->transport->get_device_type(dev);
+		if (buf[0] == TYPE_TAPE)
+			buf[1] = 0x80;
+	}
 	buf[2] = dev->transport->get_device_rev(dev);
 
 	/*
