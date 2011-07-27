@@ -307,8 +307,7 @@ static void ar9287_eeprom_olpc_set_pdadcs(struct ath_hw *ah,
 }
 
 static void ath9k_hw_set_ar9287_power_cal_table(struct ath_hw *ah,
-						struct ath9k_channel *chan,
-						int16_t *pTxPowerIndexOffset)
+						struct ath9k_channel *chan)
 {
 	struct cal_data_per_freq_ar9287 *pRawDataset;
 	struct cal_data_op_loop_ar9287 *pRawDatasetOpenLoop;
@@ -444,8 +443,6 @@ static void ath9k_hw_set_ar9287_power_cal_table(struct ath_hw *ah,
 			REGWRITE_BUFFER_FLUSH(ah);
 		}
 	}
-
-	*pTxPowerIndexOffset = 0;
 }
 
 static void ath9k_hw_set_ar9287_power_per_rate_table(struct ath_hw *ah,
@@ -720,7 +717,6 @@ static void ath9k_hw_ar9287_set_txpower(struct ath_hw *ah,
 	struct ar9287_eeprom *pEepData = &ah->eeprom.map9287;
 	struct modal_eep_ar9287_header *pModal = &pEepData->modalHeader;
 	int16_t ratesArray[Ar5416RateSize];
-	int16_t txPowerIndexOffset = 0;
 	u8 ht40PowerIncForPdadc = 2;
 	int i;
 
@@ -736,11 +732,10 @@ static void ath9k_hw_ar9287_set_txpower(struct ath_hw *ah,
 						 twiceMaxRegulatoryPower,
 						 powerLimit);
 
-	ath9k_hw_set_ar9287_power_cal_table(ah, chan, &txPowerIndexOffset);
+	ath9k_hw_set_ar9287_power_cal_table(ah, chan);
 
 	regulatory->max_power_level = 0;
 	for (i = 0; i < ARRAY_SIZE(ratesArray); i++) {
-		ratesArray[i] = (int16_t)(txPowerIndexOffset + ratesArray[i]);
 		if (ratesArray[i] > MAX_RATE_POWER)
 			ratesArray[i] = MAX_RATE_POWER;
 
