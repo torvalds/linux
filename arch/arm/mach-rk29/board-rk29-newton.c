@@ -647,10 +647,10 @@ int gt819_platform_wakeup(void)
 {
 	printk("gt819_platform_wakeup\n");
 	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
-	msleep(5);
-	gpio_set_value(TOUCH_INT_PIN, GPIO_LOW); 
-	msleep(20);
-	gpio_set_value(TOUCH_INT_PIN, GPIO_HIGH);
+	//msleep(5);
+	//gpio_set_value(TOUCH_INT_PIN, GPIO_LOW); 
+	//msleep(20);
+	//gpio_set_value(TOUCH_INT_PIN, GPIO_HIGH);
 	return 0;
 }
 struct goodix_platform_data goodix_info = {

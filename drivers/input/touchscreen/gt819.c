@@ -155,34 +155,59 @@ int gt819_printf(char *buf, int len)
 	return 0;
 }
 
-int gt189_wait_for_slave(struct i2c_client *client)
+int gt189_wait_for_slave(struct i2c_client *client, u8 status)
 {
 	unsigned char i2c_state_buf[2];
 	int ret,i = 0;
 	while(i < MAX_I2C_RETRIES)
 	{
 		ret = gt819_read_regs(client,ADDR_STA, i2c_state_buf, 1);
+		printk("i2c read state byte:0x%x\n",i2c_state_buf[0]);
 		if(ret < 0)
 			return ERROR_I2C_TRANSFER;
-		if((i2c_state_buf[0] & SLAVE_READY) || (i2c_state_buf[0] & UPDATE_START))
+		if(i2c_state_buf[0] & status)
 			return i2c_state_buf[0];
 		msleep(10);
 		i++;
 	}
-	return ERROR_TIMEOUT;
+	return -ERROR_TIMEOUT;
 }
 
 int gt819_update_write_config(struct i2c_client *client)
-{
-	int i,ret,len = sizeof(config_info);
-	ret = gt819_set_regs(client, 101, config_info, len);
-	if(ret < 0)
-		return ret;
-	for (i=0; i<len; i++) {
-		//printk("buf[%d] = 0x%x \n", i, config_info[i]);
+	{
+		int i,ret,len = sizeof(config_info)-1;			//byte[0] is the reg addr in the gt819.cfg
+		u8 cfg_rd_buf[len];
+		u8 cfg_cmd_buf = 0x03;
+		u8 retries = 0;
+		
+	reconfig:	
+		ret = gt819_set_regs(client, 101, &config_info[1], len);
+		if(ret < 0)
+			return ret;
+		gt819_printf(config_info, len);
+		ret = gt819_read_regs(client, 101, cfg_rd_buf, len);
+		if(ret < 0)
+			return ret;
+		if(memcmp(cfg_rd_buf, &config_info[1], len))
+		{	
+			dev_info(&client->dev, "config info check error!\n");
+			if(retries < 5)
+			{
+				retries++;
+				ret = gt819_set_regs(client, ADDR_CMD, &cfg_cmd_buf, 1);
+				if(ret < 0)
+					return ret;
+				goto reconfig;
+			}
+			return -1;
+		}
+		cfg_cmd_buf = 0x04;
+		ret = gt819_set_regs(client, ADDR_CMD, &cfg_cmd_buf, 1);
+		if(ret < 0)
+			return ret;
+		return 0;
 	}
-	return 0;
-}
+
 
 static int  gt819_read_version(struct i2c_client *client)
 {
@@ -210,15 +235,21 @@ int gt819_update_write_fw(struct i2c_client *client, char *fw_buf, int len)
 {
 	int ret,data_len,i,check_len,frame_checksum,frame_number = 0;
 	unsigned char *p,i2c_data_buf[PACK_SIZE+8];
+	u8 i2c_rd_buf[PACK_SIZE+8];
+	
+	u8 retries = 0;
+	u8 check_state = 0;
+	
 	if(!client || !fw_buf)
 		return -1;
 
 	while(len){
 		frame_checksum = 0;
+		retries = 0;
 		check_len = (len >= PACK_SIZE) ? PACK_SIZE : len;
 		data_len = check_len+8;
-		dev_info(&client->dev, "PACK[%d]:prepare data,len = %d\n",frame_number,check_len);
-		p = fw_buf;
+		dev_info(&client->dev, "PACK[%d]:prepare data,remained len = %d\n",frame_number,len);
+		p = &fw_buf[frame_number*PACK_SIZE];
 		for(i=0; i<check_len; i++)
 			frame_checksum += *p++;
 		frame_checksum = 0 - frame_checksum;
@@ -227,38 +258,63 @@ int gt819_update_write_fw(struct i2c_client *client, char *fw_buf, int len)
 		*p++ = (frame_number>>16)&0xff;
 		*p++ = (frame_number>>8)&0xff;
 		*p++ = frame_number&0xff;
-		memcpy(p,fw_buf,check_len);
+		memcpy(p, &fw_buf[frame_number*PACK_SIZE],check_len);
 		p += check_len;
 		*p++ = frame_checksum&0xff;
 		*p++ = (frame_checksum>>8)&0xff;
 		*p++ = (frame_checksum>>16)&0xff;
 		*p++ = (frame_checksum>>24)&0xff;
-		gt819_printf(i2c_data_buf, data_len);
+		//gt819_printf(i2c_data_buf, data_len);
 		dev_info(&client->dev, "PACK[%d]:write to slave\n",frame_number);
+resend:
 		ret = gt819_set_regs(client,ADDR_DAT, i2c_data_buf, data_len);
 		if(ret < 0)
 			return ret;
-		gt819_printf(i2c_data_buf, data_len);
+		//gt819_printf(i2c_data_buf, data_len);
 		dev_info(&client->dev, "PACK[%d]:read data\n",frame_number);
-		memset(i2c_data_buf, 0, sizeof(i2c_data_buf));
-		ret = gt819_read_regs(client,ADDR_DAT, i2c_data_buf, data_len);
+		memset(i2c_rd_buf, 0, sizeof(i2c_rd_buf));
+		ret = gt819_read_regs(client,ADDR_DAT, i2c_rd_buf, data_len);
 		if(ret < 0)
 			return ret;
-		gt819_printf(i2c_data_buf, data_len);
+		//gt819_printf(i2c_data_buf, data_len);
 		dev_info(&client->dev, "PACK[%d]:check data\n",frame_number);
-		if(memcmp(&i2c_data_buf[4],&fw_buf[frame_number*PACK_SIZE],data_len))
-			return -1;
-		//if(frame_number != (*((int*)i2c_data_buf)))
-		//	return -1;
-		dev_info(&client->dev, "PACK[%d]:tell slave check data pass\n",frame_number);
-		i2c_data_buf[0] = 0x04;
-		ret = gt819_set_regs(client,ADDR_CMD, i2c_data_buf, 1);
-		if(ret < 0)
+		if(memcmp(&i2c_rd_buf[4],&fw_buf[frame_number*PACK_SIZE],check_len))
+		{
+            dev_info(&client->dev, "PACK[%d]:File Data Frame readback check Error!\n",frame_number);
+		    i2c_rd_buf[0] = 0x03;
+			ret = gt819_set_regs(client, ADDR_CMD, i2c_rd_buf, 1);
+			if(ret < 0)
+			    return ret;
+			check_state = 0x01;
+		}
+		else
+		{
+    		dev_info(&client->dev, "PACK[%d]:tell slave check data pass\n",frame_number);
+    		i2c_rd_buf[0] = 0x04;
+    		ret = gt819_set_regs(client,ADDR_CMD, i2c_rd_buf, 1);
+    		if(ret < 0)
+    			return ret;
+    		dev_info(&client->dev, "PACK[%d]:wait for slave to start next frame\n",frame_number);
+		}
+		
+		ret = gt189_wait_for_slave(client, SLAVE_READY);
+		if((ret & CHECKSUM_ERROR) || (ret & FRAME_ERROR) || (ret == ERROR_I2C_TRANSFER) || (ret < 0) || (check_state == 0x01))
+		{
+			
+			if(((ret & CHECKSUM_ERROR) || (ret & FRAME_ERROR) || (check_state == 0x01))&&(retries < 5))
+			{
+				if(check_state != 0x01)
+				{
+				    printk("checksum error or miss frame error!\n");
+				}
+				check_state = 0x00;
+				retries++;
+				msleep(20);
+				goto resend;
+			}
+			printk("wait slave return state:%d\n", ret);
 			return ret;
-		dev_info(&client->dev, "PACK[%d]:wait for slave to start next frame\n",frame_number);
-		ret = gt189_wait_for_slave(client);
-		if((ret & CHECKSUM_ERROR) || (ret & FRAME_ERROR) || (ret & ERROR_I2C_TRANSFER) || (ret & ERROR_TIMEOUT))
-			return ret;
+		}
 		dev_info(&client->dev, "PACK[%d]:frame transfer finished\n",frame_number);
 		if(len < PACK_SIZE)
 			return 0;
@@ -291,7 +347,7 @@ int gt819_update_fw(struct i2c_client *client)
 	msleep(1000);
 	dev_info(&client->dev, "done!\n");
 	dev_info(&client->dev, "step 4:wait for slave start...\n");
-	ret = gt189_wait_for_slave(client);
+	ret = gt189_wait_for_slave(client, UPDATE_START);
 	if(ret < 0)
 		return ret;
 	if(!(ret & UPDATE_START))
@@ -301,6 +357,7 @@ int gt819_update_fw(struct i2c_client *client)
 	dev_info(&client->dev, "done!\n");
 	dev_info(&client->dev, "step 5:write the fw length...\n");
 	file_len = sizeof(gt819_fw) + 4;
+	dev_info(&client->dev, "file length is:%d\n", file_len);
 	i2c_control_buf[0] = (file_len>>24) & 0xff;
 	i2c_control_buf[1] = (file_len>>16) & 0xff;
 	i2c_control_buf[2] = (file_len>>8) & 0xff;
@@ -310,7 +367,7 @@ int gt819_update_fw(struct i2c_client *client)
 		return ret;
 	dev_info(&client->dev, "done!\n");
 	dev_info(&client->dev, "step 6:wait for slave ready\n");
-	ret = gt189_wait_for_slave(client);
+	ret = gt189_wait_for_slave(client, SLAVE_READY);
 	if(ret < 0)
 		return ret;
 	dev_info(&client->dev, "done!\n");
@@ -325,7 +382,7 @@ int gt819_update_fw(struct i2c_client *client)
 		return ret;
 	dev_info(&client->dev, "done!\n");
 	dev_info(&client->dev, "step 9:wait for slave ready\n");
-	ret = gt189_wait_for_slave(client);
+	ret = gt189_wait_for_slave(client,SLAVE_READY);
 	if(ret < 0)
 		return ret;
 	if(ret & SLAVE_READY)
@@ -333,6 +390,7 @@ int gt819_update_fw(struct i2c_client *client)
 	dev_info(&client->dev, "step 10:enable irq...\n");
 	enable_irq(client->irq);
 	dev_info(&client->dev, "done!\n");
+	msleep(1000);						//wait slave reset
 	dev_info(&client->dev, "step 11:read version...\n");
 	ret = gt819_read_version(client);
 	if (ret < 0) 
