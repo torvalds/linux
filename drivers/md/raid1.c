@@ -956,7 +956,7 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 		 * However don't try a recovery from this drive as
 		 * it is very likely to fail.
 		 */
-		mddev->recovery_disabled = 1;
+		conf->recovery_disabled = mddev->recovery_disabled;
 		return;
 	}
 	if (test_and_clear_bit(In_sync, &rdev->flags)) {
@@ -1052,6 +1052,9 @@ static int raid1_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 	int first = 0;
 	int last = mddev->raid_disks - 1;
 
+	if (mddev->recovery_disabled == conf->recovery_disabled)
+		return -EBUSY;
+
 	if (rdev->raid_disk >= 0)
 		first = last = rdev->raid_disk;
 
@@ -1107,7 +1110,7 @@ static int raid1_remove_disk(mddev_t *mddev, int number)
 		 * is not possible.
 		 */
 		if (!test_bit(Faulty, &rdev->flags) &&
-		    !mddev->recovery_disabled &&
+		    mddev->recovery_disabled != conf->recovery_disabled &&
 		    mddev->degraded < conf->raid_disks) {
 			err = -EBUSY;
 			goto abort;

@@ -48,6 +48,12 @@ struct r1_private_data_s {
 					    * (fresh device added).
 					    * Cleared when a sync completes.
 					    */
+	int			recovery_disabled; /* when the same as
+						    * mddev->recovery_disabled
+						    * we don't allow recovery
+						    * to be attempted as we
+						    * expect a read error
+						    */
 
 	wait_queue_head_t	wait_barrier;
 
