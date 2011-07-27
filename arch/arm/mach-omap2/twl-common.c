@@ -80,11 +80,11 @@ static struct twl4030_madc_platform_data omap3_madc_pdata = {
 	.irq_line	= 1,
 };
 
-static struct twl4030_codec_audio_data omap3_audio;
+static struct twl4030_codec_data omap3_codec;
 
-static struct twl4030_codec_data omap3_codec_pdata = {
+static struct twl4030_audio_data omap3_audio_pdata = {
 	.audio_mclk = 26000000,
-	.audio = &omap3_audio,
+	.codec = &omap3_codec,
 };
 
 static struct regulator_consumer_supply omap3_vdda_dac_supplies[] = {
@@ -292,8 +292,8 @@ void __init omap3_pmic_get_config(struct twl4030_platform_data *pmic_data,
 	if (pdata_flags & TWL_COMMON_PDATA_MADC && !pmic_data->madc)
 		pmic_data->madc = &omap3_madc_pdata;
 
-	if (pdata_flags & TWL_COMMON_PDATA_AUDIO && !pmic_data->codec)
-		pmic_data->codec = &omap3_codec_pdata;
+	if (pdata_flags & TWL_COMMON_PDATA_AUDIO && !pmic_data->audio)
+		pmic_data->audio = &omap3_audio_pdata;
 
 	/* Common regulator configurations */
 	if (regulators_flags & TWL_COMMON_REGULATOR_VDAC && !pmic_data->vdac)
