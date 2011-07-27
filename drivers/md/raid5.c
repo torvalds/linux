@@ -3176,34 +3176,6 @@ static int handle_stripe5(struct stripe_head *sh, struct stripe_head_state *s)
 	     !test_bit(STRIPE_COMPUTE_RUN, &sh->state) &&
 	     !test_bit(STRIPE_INSYNC, &sh->state)))
 		handle_parity_checks5(conf, sh, s, disks);
-
-	if (s->syncing && s->locked == 0
-	    && test_bit(STRIPE_INSYNC, &sh->state)) {
-		md_done_sync(conf->mddev, STRIPE_SECTORS,1);
-		clear_bit(STRIPE_SYNCING, &sh->state);
-	}
-
-	/* If the failed drive is just a ReadError, then we might need to progress
-	 * the repair/check process
-	 */
-	if (s->failed == 1 && !conf->mddev->ro &&
-	    test_bit(R5_ReadError, &sh->dev[s->failed_num[0]].flags)
-	    && !test_bit(R5_LOCKED, &sh->dev[s->failed_num[0]].flags)
-	    && test_bit(R5_UPTODATE, &sh->dev[s->failed_num[0]].flags)
-		) {
-		dev = &sh->dev[s->failed_num[0]];
-		if (!test_bit(R5_ReWrite, &dev->flags)) {
-			set_bit(R5_Wantwrite, &dev->flags);
-			set_bit(R5_ReWrite, &dev->flags);
-			set_bit(R5_LOCKED, &dev->flags);
-			s->locked++;
-		} else {
-			/* let's read it back */
-			set_bit(R5_Wantread, &dev->flags);
-			set_bit(R5_LOCKED, &dev->flags);
-			s->locked++;
-		}
-	}
 	return 0;
 }
 
@@ -3393,36 +3365,6 @@ static int handle_stripe6(struct stripe_head *sh, struct stripe_head_state *s)
 	     !test_bit(STRIPE_COMPUTE_RUN, &sh->state) &&
 	     !test_bit(STRIPE_INSYNC, &sh->state)))
 		handle_parity_checks6(conf, sh, s, disks);
-
-	if (s->syncing && s->locked == 0
-	    && test_bit(STRIPE_INSYNC, &sh->state)) {
-		md_done_sync(conf->mddev, STRIPE_SECTORS,1);
-		clear_bit(STRIPE_SYNCING, &sh->state);
-	}
-
-	/* If the failed drives are just a ReadError, then we might need
-	 * to progress the repair/check process
-	 */
-	if (s->failed <= 2 && !conf->mddev->ro)
-		for (i = 0; i < s->failed; i++) {
-			dev = &sh->dev[s->failed_num[i]];
-			if (test_bit(R5_ReadError, &dev->flags)
-			    && !test_bit(R5_LOCKED, &dev->flags)
-			    && test_bit(R5_UPTODATE, &dev->flags)
-				) {
-				if (!test_bit(R5_ReWrite, &dev->flags)) {
-					set_bit(R5_Wantwrite, &dev->flags);
-					set_bit(R5_ReWrite, &dev->flags);
-					set_bit(R5_LOCKED, &dev->flags);
-					s->locked++;
-				} else {
-					/* let's read it back */
-					set_bit(R5_Wantread, &dev->flags);
-					set_bit(R5_LOCKED, &dev->flags);
-					s->locked++;
-				}
-			}
-		}
 	return 0;
 }
 
@@ -3465,6 +3407,38 @@ static void handle_stripe(struct stripe_head *sh)
 
 	if (done)
 		goto finish;
+
+
+	if (s.syncing && s.locked == 0 && test_bit(STRIPE_INSYNC, &sh->state)) {
+		md_done_sync(conf->mddev, STRIPE_SECTORS, 1);
+		clear_bit(STRIPE_SYNCING, &sh->state);
+	}
+
+	/* If the failed drives are just a ReadError, then we might need
+	 * to progress the repair/check process
+	 */
+	if (s.failed <= conf->max_degraded && !conf->mddev->ro)
+		for (i = 0; i < s.failed; i++) {
+			struct r5dev *dev = &sh->dev[s.failed_num[i]];
+			if (test_bit(R5_ReadError, &dev->flags)
+			    && !test_bit(R5_LOCKED, &dev->flags)
+			    && test_bit(R5_UPTODATE, &dev->flags)
+				) {
+				if (!test_bit(R5_ReWrite, &dev->flags)) {
+					set_bit(R5_Wantwrite, &dev->flags);
+					set_bit(R5_ReWrite, &dev->flags);
+					set_bit(R5_LOCKED, &dev->flags);
+					s.locked++;
+				} else {
+					/* let's read it back */
+					set_bit(R5_Wantread, &dev->flags);
+					set_bit(R5_LOCKED, &dev->flags);
+					s.locked++;
+				}
+			}
+		}
+
+
 	/* Finish reconstruct operations initiated by the expansion process */
 	if (sh->reconstruct_state == reconstruct_state_result) {
 		struct stripe_head *sh_src
