@@ -133,6 +133,11 @@
 #define IS_FLOCK(fl)	(fl->fl_flags & FL_FLOCK)
 #define IS_LEASE(fl)	(fl->fl_flags & FL_LEASE)
 
+static bool lease_breaking(struct file_lock *fl)
+{
+	return fl->fl_type & F_INPROGRESS;
+}
+
 int leases_enable = 1;
 int lease_break_time = 45;
 
@@ -1141,7 +1146,7 @@ static void time_out_leases(struct inode *inode)
 	struct file_lock *fl;
 
 	before = &inode->i_flock;
-	while ((fl = *before) && IS_LEASE(fl) && (fl->fl_type & F_INPROGRESS)) {
+	while ((fl = *before) && IS_LEASE(fl) && lease_breaking(fl)) {
 		if ((fl->fl_break_time == 0)
 				|| time_before(jiffies, fl->fl_break_time)) {
 			before = &fl->fl_next;
@@ -1189,7 +1194,7 @@ int __break_lease(struct inode *inode, unsigned int mode)
 	if (want_write) {
 		/* If we want write access, we have to revoke any lease. */
 		future = F_UNLCK | F_INPROGRESS;
-	} else if (flock->fl_type & F_INPROGRESS) {
+	} else if (lease_breaking(flock)) {
 		/* If the lease is already being broken, we just leave it */
 		future = flock->fl_type;
 	} else if (flock->fl_type & F_WRLCK) {
@@ -1246,7 +1251,7 @@ restart:
 		/* Wait for the next lease that has not been broken yet */
 		for (flock = inode->i_flock; flock && IS_LEASE(flock);
 				flock = flock->fl_next) {
-			if (flock->fl_type & F_INPROGRESS)
+			if (lease_breaking(flock))
 				goto restart;
 		}
 		error = 0;
@@ -2126,7 +2131,7 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 		}
 	} else if (IS_LEASE(fl)) {
 		seq_printf(f, "LEASE  ");
-		if (fl->fl_type & F_INPROGRESS)
+		if (lease_breaking(fl))
 			seq_printf(f, "BREAKING  ");
 		else if (fl->fl_file)
 			seq_printf(f, "ACTIVE    ");
@@ -2142,7 +2147,7 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 			       : (fl->fl_type & LOCK_WRITE) ? "WRITE" : "NONE ");
 	} else {
 		seq_printf(f, "%s ",
-			       (fl->fl_type & F_INPROGRESS)
+			       (lease_breaking(fl))
 			       ? (fl->fl_type & F_UNLCK) ? "UNLCK" : "READ "
 			       : (fl->fl_type & F_WRLCK) ? "WRITE" : "READ ");
 	}
