@@ -340,7 +340,7 @@ static void init_stripe(struct stripe_head *sh, sector_t sector, int previous)
 			       (unsigned long long)sh->sector, i, dev->toread,
 			       dev->read, dev->towrite, dev->written,
 			       test_bit(R5_LOCKED, &dev->flags));
-			BUG();
+			WARN_ON(1);
 		}
 		dev->flags = 0;
 		raid5_build_block(sh, i, previous);
@@ -2301,6 +2301,10 @@ handle_failed_stripe(raid5_conf_t *conf, struct stripe_head *sh,
 		if (bitmap_end)
 			bitmap_endwrite(conf->mddev->bitmap, sh->sector,
 					STRIPE_SECTORS, 0, 0);
+		/* If we were in the middle of a write the parity block might
+		 * still be locked - so just clear all R5_LOCKED flags
+		 */
+		clear_bit(R5_LOCKED, &sh->dev[i].flags);
 	}
 
 	if (test_and_clear_bit(STRIPE_FULL_WRITE, &sh->state))
