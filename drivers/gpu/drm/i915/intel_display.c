@@ -5273,6 +5273,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	drm_vblank_post_modeset(dev, pipe);
 
+	intel_crtc->dpms_mode = DRM_MODE_DPMS_ON;
+
 	return ret;
 }
 
