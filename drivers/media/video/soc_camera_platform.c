@@ -115,6 +115,17 @@ static int soc_camera_platform_cropcap(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int soc_camera_platform_g_mbus_config(struct v4l2_subdev *sd,
+					     struct v4l2_mbus_config *cfg)
+{
+	struct soc_camera_platform_info *p = v4l2_get_subdevdata(sd);
+
+	cfg->flags = p->mbus_param;
+	cfg->type = p->mbus_type;
+
+	return 0;
+}
+
 static struct v4l2_subdev_video_ops platform_subdev_video_ops = {
 	.s_stream	= soc_camera_platform_s_stream,
 	.enum_mbus_fmt	= soc_camera_platform_enum_fmt,
@@ -123,6 +134,7 @@ static struct v4l2_subdev_video_ops platform_subdev_video_ops = {
 	.try_mbus_fmt	= soc_camera_platform_fill_fmt,
 	.g_mbus_fmt	= soc_camera_platform_fill_fmt,
 	.s_mbus_fmt	= soc_camera_platform_fill_fmt,
+	.g_mbus_config	= soc_camera_platform_g_mbus_config,
 };
 
 static struct v4l2_subdev_ops platform_subdev_ops = {

@@ -13,6 +13,7 @@
 
 #include <linux/videodev2.h>
 #include <media/soc_camera.h>
+#include <media/v4l2-mediabus.h>
 
 struct device;
 
@@ -21,6 +22,8 @@ struct soc_camera_platform_info {
 	unsigned long format_depth;
 	struct v4l2_mbus_framefmt format;
 	unsigned long bus_param;
+	unsigned long mbus_param;
+	enum v4l2_mbus_type mbus_type;
 	struct soc_camera_device *icd;
 	int (*set_capture)(struct soc_camera_platform_info *info, int enable);
 };
