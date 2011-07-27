@@ -158,6 +158,7 @@ struct rdac_controller {
 	} mode_select;
 	u8	index;
 	u8	array_name[ARRAY_LABEL_LEN];
+	struct Scsi_Host	*host;
 	spinlock_t		ms_lock;
 	int			ms_queued;
 	struct work_struct	ms_work;
@@ -370,7 +371,7 @@ static void release_controller(struct kref *kref)
 }
 
 static struct rdac_controller *get_controller(int index, char *array_name,
-						u8 *array_id)
+			u8 *array_id, struct scsi_device *sdev)
 {
 	struct rdac_controller *ctlr, *tmp;
 
@@ -378,7 +379,8 @@ static struct rdac_controller *get_controller(int index, char *array_name,
 
 	list_for_each_entry(tmp, &ctlr_list, node) {
 		if ((memcmp(tmp->array_id, array_id, UNIQUE_ID_LEN) == 0) &&
-			  (tmp->index == index)) {
+			  (tmp->index == index) &&
+			  (tmp->host == sdev->host)) {
 			kref_get(&tmp->kref);
 			spin_unlock(&list_lock);
 			return tmp;
@@ -391,6 +393,7 @@ static struct rdac_controller *get_controller(int index, char *array_name,
 	/* initialize fields of controller */
 	memcpy(ctlr->array_id, array_id, UNIQUE_ID_LEN);
 	ctlr->index = index;
+	ctlr->host = sdev->host;
 	memcpy(ctlr->array_name, array_name, ARRAY_LABEL_LEN);
 
 	kref_init(&ctlr->kref);
@@ -513,7 +516,7 @@ static int initialize_controller(struct scsi_device *sdev,
 			index = 0;
 		else
 			index = 1;
-		h->ctlr = get_controller(index, array_name, array_id);
+		h->ctlr = get_controller(index, array_name, array_id, sdev);
 		if (!h->ctlr)
 			err = SCSI_DH_RES_TEMP_UNAVAIL;
 	}
