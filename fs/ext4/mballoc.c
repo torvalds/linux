@@ -4691,6 +4691,9 @@ int ext4_group_add_blocks(handle_t *handle, struct super_block *sb,
 
 	ext4_debug("Adding block(s) %llu-%llu\n", block, block + count - 1);
 
+	if (count == 0)
+		return 0;
+
 	ext4_get_group_no_and_offset(sb, block, &block_group, &bit);
 	/*
 	 * Check to see if we are freeing blocks across a group
