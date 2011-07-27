@@ -8406,7 +8406,7 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	/* Program the jumbo buffer descriptor ring control
 	 * blocks on those devices that have them.
 	 */
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5719_A0 ||
 	    (tg3_flag(tp, JUMBO_CAPABLE) && !tg3_flag(tp, 5780_CLASS))) {
 
 		if (tg3_flag(tp, JUMBO_RING_ENABLE)) {
@@ -13873,7 +13873,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tg3_flag_set(tp, 5705_PLUS);
 
 	/* Determine TSO capabilities */
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719)
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5719_A0)
 		; /* Do nothing. HW bug. */
 	else if (tg3_flag(tp, 57765_PLUS))
 		tg3_flag_set(tp, HW_TSO_3);
@@ -13943,7 +13943,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tg3_flag_set(tp, LRG_PROD_RING_CAP);
 
 	if (tg3_flag(tp, 57765_PLUS) &&
-	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5719)
+	    tp->pci_chip_rev_id != CHIPREV_ID_5719_A0)
 		tg3_flag_set(tp, USE_JUMBO_BDFLAG);
 
 	if (!tg3_flag(tp, 5705_PLUS) ||
