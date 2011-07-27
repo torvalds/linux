@@ -3474,6 +3474,8 @@ again:
 	if (ret < 0)
 		goto out;
 
+	ret = 0;
+
 	/*
 	 * So if we were overcommitted it's possible that somebody else flushed
 	 * out enough space and we simply didn't have enough space to reclaim,
@@ -3496,10 +3498,13 @@ again:
 		goto out;
 
 	ret = -EAGAIN;
-	if (trans || committed)
+	if (trans)
 		goto out;
 
 	ret = -ENOSPC;
+	if (committed)
+		goto out;
+
 	trans = btrfs_join_transaction(root);
 	if (IS_ERR(trans))
 		goto out;
