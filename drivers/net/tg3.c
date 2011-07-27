@@ -4824,7 +4824,7 @@ static void tg3_tx(struct tg3_napi *tnapi)
 	txq = netdev_get_tx_queue(tp->dev, index);
 
 	while (sw_idx != hw_idx) {
-		struct ring_info *ri = &tnapi->tx_buffers[sw_idx];
+		struct tg3_tx_ring_info *ri = &tnapi->tx_buffers[sw_idx];
 		struct sk_buff *skb = ri->skb;
 		int i, tx_bug = 0;
 
@@ -5929,7 +5929,7 @@ static void tg3_skb_error_unmap(struct tg3_napi *tnapi,
 {
 	int i;
 	u32 entry = tnapi->tx_prod;
-	struct ring_info *txb = &tnapi->tx_buffers[entry];
+	struct tg3_tx_ring_info *txb = &tnapi->tx_buffers[entry];
 
 	pci_unmap_single(tnapi->tp->pdev,
 			 dma_unmap_addr(txb, mapping),
@@ -6603,7 +6603,7 @@ static void tg3_free_rings(struct tg3 *tp)
 			continue;
 
 		for (i = 0; i < TG3_TX_RING_SIZE; ) {
-			struct ring_info *txp;
+			struct tg3_tx_ring_info *txp;
 			struct sk_buff *skb;
 			unsigned int k;
 
@@ -6762,9 +6762,9 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 		 */
 		if ((!i && !tg3_flag(tp, ENABLE_TSS)) ||
 		    (i && tg3_flag(tp, ENABLE_TSS))) {
-			tnapi->tx_buffers = kzalloc(sizeof(struct ring_info) *
-						    TG3_TX_RING_SIZE,
-						    GFP_KERNEL);
+			tnapi->tx_buffers = kzalloc(
+					       sizeof(struct tg3_tx_ring_info) *
+					       TG3_TX_RING_SIZE, GFP_KERNEL);
 			if (!tnapi->tx_buffers)
 				goto err_out;
 
