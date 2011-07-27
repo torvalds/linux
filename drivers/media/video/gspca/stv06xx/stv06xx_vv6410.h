@@ -211,28 +211,27 @@ const struct stv06xx_sensor stv06xx_sensor_vv6410 = {
 
 /* If NULL, only single value to write, stored in len */
 struct stv_init {
-	const u8 *data;
-	u16 start;
-	u8 len;
+	u16 addr;
+	u8 data;
 };
 
 static const struct stv_init stv_bridge_init[] = {
 	/* This reg is written twice. Some kind of reset? */
-	{NULL, STV_RESET, 0x80},
-	{NULL, STV_RESET, 0x00},
-	{NULL, STV_SCAN_RATE, 0x00},
-	{NULL, STV_I2C_FLUSH, 0x04},
-	{NULL, STV_REG00, 0x0b},
-	{NULL, STV_REG01, 0xa7},
-	{NULL, STV_REG02, 0xb7},
-	{NULL, STV_REG03, 0x00},
-	{NULL, STV_REG04, 0x00},
-	{NULL, 0x1536, 0x02},
-	{NULL, 0x1537, 0x00},
-	{NULL, 0x1538, 0x60},
-	{NULL, 0x1539, 0x01},
-	{NULL, 0x153a, 0x20},
-	{NULL, 0x153b, 0x01},
+	{STV_RESET, 0x80},
+	{STV_RESET, 0x00},
+	{STV_SCAN_RATE, 0x00},
+	{STV_I2C_FLUSH, 0x04},
+	{STV_REG00, 0x0b},
+	{STV_REG01, 0xa7},
+	{STV_REG02, 0xb7},
+	{STV_REG03, 0x00},
+	{STV_REG04, 0x00},
+	{0x1536, 0x02},
+	{0x1537, 0x00},
+	{0x1538, 0x60},
+	{0x1539, 0x01},
+	{0x153a, 0x20},
+	{0x153b, 0x01},
 };
 
 static const u8 vv6410_sensor_init[][2] = {

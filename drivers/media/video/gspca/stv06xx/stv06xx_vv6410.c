@@ -138,18 +138,7 @@ static int vv6410_init(struct sd *sd)
 	s32 *sensor_settings = sd->sensor_priv;
 
 	for (i = 0; i < ARRAY_SIZE(stv_bridge_init); i++) {
-		/* if NULL then len contains single value */
-		if (stv_bridge_init[i].data == NULL) {
-			err = stv06xx_write_bridge(sd,
-				stv_bridge_init[i].start,
-				stv_bridge_init[i].len);
-		} else {
-			int j;
-			for (j = 0; j < stv_bridge_init[i].len; j++)
-				err = stv06xx_write_bridge(sd,
-					stv_bridge_init[i].start + j,
-					stv_bridge_init[i].data[j]);
-		}
+		stv06xx_write_bridge(sd, stv_bridge_init[i].addr, stv_bridge_init[i].data);
 	}
 
 	if (err < 0)
