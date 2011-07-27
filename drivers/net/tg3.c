@@ -5914,16 +5914,35 @@ static inline int tg3_40bit_overflow_test(struct tg3 *tp, dma_addr_t mapping,
 #endif
 }
 
-static inline void tg3_tx_set_bd(struct tg3_napi *tnapi, u32 entry,
+static inline void tg3_tx_set_bd(struct tg3_tx_buffer_desc *txbd,
 				 dma_addr_t mapping, u32 len, u32 flags,
 				 u32 mss, u32 vlan)
 {
-	struct tg3_tx_buffer_desc *txbd = &tnapi->tx_ring[entry];
-
 	txbd->addr_hi = ((u64) mapping >> 32);
 	txbd->addr_lo = ((u64) mapping & 0xffffffff);
 	txbd->len_flags = (len << TXD_LEN_SHIFT) | (flags & 0x0000ffff);
 	txbd->vlan_tag = (mss << TXD_MSS_SHIFT) | (vlan << TXD_VLAN_TAG_SHIFT);
+}
+
+static bool tg3_tx_frag_set(struct tg3_napi *tnapi, u32 entry,
+			    dma_addr_t map, u32 len, u32 flags,
+			    u32 mss, u32 vlan)
+{
+	struct tg3 *tp = tnapi->tp;
+	bool hwbug = false;
+
+	if (tg3_flag(tp, SHORT_DMA_BUG) && len <= 8)
+		hwbug = 1;
+
+	if (tg3_4g_overflow_test(map, len))
+		hwbug = 1;
+
+	if (tg3_40bit_overflow_test(tp, map, len))
+		hwbug = 1;
+
+	tg3_tx_set_bd(&tnapi->tx_ring[entry], map, len, flags, mss, vlan);
+
+	return hwbug;
 }
 
 static void tg3_tx_skb_unmap(struct tg3_napi *tnapi, u32 entry, int last)
@@ -5993,17 +6012,8 @@ static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
 					  PCI_DMA_TODEVICE);
 		/* Make sure the mapping succeeded */
 		if (pci_dma_mapping_error(tp->pdev, new_addr)) {
-			ret = -1;
 			dev_kfree_skb(new_skb);
-
-		/* Make sure new skb does not cross any 4G boundaries.
-		 * Drop the packet if it does.
-		 */
-		} else if (tg3_4g_overflow_test(new_addr, new_skb->len)) {
-			pci_unmap_single(tp->pdev, new_addr, new_skb->len,
-					 PCI_DMA_TODEVICE);
 			ret = -1;
-			dev_kfree_skb(new_skb);
 		} else {
 			base_flags |= TXD_FLAG_END;
 
@@ -6011,8 +6021,13 @@ static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
 			dma_unmap_addr_set(&tnapi->tx_buffers[entry],
 					   mapping, new_addr);
 
-			tg3_tx_set_bd(tnapi, entry, new_addr, new_skb->len,
-				      base_flags, mss, vlan);
+			if (tg3_tx_frag_set(tnapi, entry, new_addr,
+					    new_skb->len, base_flags,
+					    mss, vlan)) {
+				tg3_tx_skb_unmap(tnapi, entry, 0);
+				dev_kfree_skb(new_skb);
+				ret = -1;
+			}
 		}
 	}
 
@@ -6196,18 +6211,13 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	would_hit_hwbug = 0;
 
-	if (tg3_4g_overflow_test(mapping, len))
-		would_hit_hwbug = 1;
-
-	if (tg3_40bit_overflow_test(tp, mapping, len))
-		would_hit_hwbug = 1;
-
 	if (tg3_flag(tp, 5701_DMA_BUG))
 		would_hit_hwbug = 1;
 
-	tg3_tx_set_bd(tnapi, entry, mapping, len, base_flags |
-		      ((skb_shinfo(skb)->nr_frags == 0) ? TXD_FLAG_END : 0),
-		      mss, vlan);
+	if (tg3_tx_frag_set(tnapi, entry, mapping, len, base_flags |
+			  ((skb_shinfo(skb)->nr_frags == 0) ? TXD_FLAG_END : 0),
+			    mss, vlan))
+		would_hit_hwbug = 1;
 
 	entry = NEXT_TX(entry);
 
@@ -6236,19 +6246,10 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			if (pci_dma_mapping_error(tp->pdev, mapping))
 				goto dma_error;
 
-			if (tg3_flag(tp, SHORT_DMA_BUG) &&
-			    len <= 8)
+			if (tg3_tx_frag_set(tnapi, entry, mapping, len,
+				  base_flags | ((i == last) ? TXD_FLAG_END : 0),
+					    tmp_mss, vlan))
 				would_hit_hwbug = 1;
-
-			if (tg3_4g_overflow_test(mapping, len))
-				would_hit_hwbug = 1;
-
-			if (tg3_40bit_overflow_test(tp, mapping, len))
-				would_hit_hwbug = 1;
-
-			tg3_tx_set_bd(tnapi, entry, mapping, len, base_flags |
-				      ((i == last) ? TXD_FLAG_END : 0),
-				      tmp_mss, vlan);
 
 			entry = NEXT_TX(entry);
 		}
@@ -11375,8 +11376,12 @@ static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, int loopback_mode)
 
 	rx_start_idx = rnapi->hw_status->idx[0].rx_producer;
 
-	tg3_tx_set_bd(tnapi, tnapi->tx_prod, map, tx_len,
-		      base_flags | TXD_FLAG_END, mss, 0);
+	if (tg3_tx_frag_set(tnapi, tnapi->tx_prod, map, tx_len,
+			    base_flags | TXD_FLAG_END, mss, 0)) {
+		tnapi->tx_buffers[val].skb = NULL;
+		dev_kfree_skb(skb);
+		return -EIO;
+	}
 
 	tnapi->tx_prod++;
 
