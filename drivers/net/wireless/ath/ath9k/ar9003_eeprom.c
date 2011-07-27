@@ -4922,25 +4922,7 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 			"TPC[%02d] 0x%08x\n", i, targetPowerValT2[i]);
 	}
 
-	/*
-	 * This is the TX power we send back to driver core,
-	 * and it can use to pass to userspace to display our
-	 * currently configured TX power setting.
-	 *
-	 * Since power is rate dependent, use one of the indices
-	 * from the AR9300_Rates enum to select an entry from
-	 * targetPowerValT2[] to report. Currently returns the
-	 * power for HT40 MCS 0, HT20 MCS 0, or OFDM 6 Mbps
-	 * as CCK power is less interesting (?).
-	 */
-	i = ALL_TARGET_LEGACY_6_24; /* legacy */
-	if (IS_CHAN_HT40(chan))
-		i = ALL_TARGET_HT40_0_8_16; /* ht40 */
-	else if (IS_CHAN_HT20(chan))
-		i = ALL_TARGET_HT20_0_8_16; /* ht20 */
-
-	ah->txpower_limit = targetPowerValT2[i];
-	regulatory->max_power_level = targetPowerValT2[i];
+	ah->txpower_limit = regulatory->max_power_level;
 
 	/* Write target power array to registers */
 	ar9003_hw_tx_power_regwrite(ah, targetPowerValT2);

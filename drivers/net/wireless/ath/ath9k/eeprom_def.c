@@ -1167,17 +1167,6 @@ static void ath9k_hw_def_set_txpower(struct ath_hw *ah,
 			regulatory->max_power_level = ratesArray[i];
 	}
 
-	if (!test) {
-		i = rate6mb;
-
-		if (IS_CHAN_HT40(chan))
-			i = rateHt40_0;
-		else if (IS_CHAN_HT20(chan))
-			i = rateHt20_0;
-
-		regulatory->max_power_level = ratesArray[i];
-	}
-
 	switch(ar5416_get_ntxchains(ah->txchainmask)) {
 	case 1:
 		break;

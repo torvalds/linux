@@ -746,13 +746,6 @@ static void ath9k_hw_ar9287_set_txpower(struct ath_hw *ah,
 	if (test)
 		return;
 
-	if (IS_CHAN_2GHZ(chan))
-		i = rate1l;
-	else
-		i = rate6mb;
-
-	regulatory->max_power_level = ratesArray[i];
-
 	if (AR_SREV_9280_20_OR_LATER(ah)) {
 		for (i = 0; i < Ar5416RateSize; i++)
 			ratesArray[i] -= AR9287_PWR_TABLE_OFFSET_DB * 2;
