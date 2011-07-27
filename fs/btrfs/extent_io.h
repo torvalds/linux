@@ -120,8 +120,6 @@ struct extent_state {
 struct extent_buffer {
 	u64 start;
 	unsigned long len;
-	char *map_token;
-	char *kaddr;
 	unsigned long map_start;
 	unsigned long map_len;
 	struct page *first_page;
@@ -130,14 +128,26 @@ struct extent_buffer {
 	struct rcu_head rcu_head;
 	atomic_t refs;
 
-	/* the spinlock is used to protect most operations */
-	spinlock_t lock;
+	/* count of read lock holders on the extent buffer */
+	atomic_t write_locks;
+	atomic_t read_locks;
+	atomic_t blocking_writers;
+	atomic_t blocking_readers;
+	atomic_t spinning_readers;
+	atomic_t spinning_writers;
 
-	/*
-	 * when we keep the lock held while blocking, waiters go onto
-	 * the wq
+	/* protects write locks */
+	rwlock_t lock;
+
+	/* readers use lock_wq while they wait for the write
+	 * lock holders to unlock
 	 */
-	wait_queue_head_t lock_wq;
+	wait_queue_head_t write_lock_wq;
+
+	/* writers use read_lock_wq while they wait for readers
+	 * to unlock
+	 */
+	wait_queue_head_t read_lock_wq;
 };
 
 static inline void extent_set_compress_type(unsigned long *bio_flags,
@@ -279,15 +289,10 @@ int clear_extent_buffer_uptodate(struct extent_io_tree *tree,
 int extent_buffer_uptodate(struct extent_io_tree *tree,
 			   struct extent_buffer *eb,
 			   struct extent_state *cached_state);
-int map_extent_buffer(struct extent_buffer *eb, unsigned long offset,
-		      unsigned long min_len, char **token, char **map,
-		      unsigned long *map_start,
-		      unsigned long *map_len, int km);
 int map_private_extent_buffer(struct extent_buffer *eb, unsigned long offset,
-		      unsigned long min_len, char **token, char **map,
+		      unsigned long min_len, char **map,
 		      unsigned long *map_start,
-		      unsigned long *map_len, int km);
-void unmap_extent_buffer(struct extent_buffer *eb, char *token, int km);
+		      unsigned long *map_len);
 int extent_range_uptodate(struct extent_io_tree *tree,
 			  u64 start, u64 end);
 int extent_clear_unlock_delalloc(struct inode *inode,
