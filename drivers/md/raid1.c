@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include <linux/blkdev.h>
 #include <linux/seq_file.h>
+#include <linux/ratelimit.h>
 #include "md.h"
 #include "raid1.h"
 #include "bitmap.h"
@@ -287,10 +288,13 @@ static void raid1_end_read_request(struct bio *bio, int error)
 		 * oops, read error:
 		 */
 		char b[BDEVNAME_SIZE];
-		if (printk_ratelimit())
-			printk(KERN_ERR "md/raid1:%s: %s: rescheduling sector %llu\n",
-			       mdname(conf->mddev),
-			       bdevname(conf->mirrors[mirror].rdev->bdev,b), (unsigned long long)r1_bio->sector);
+		printk_ratelimited(
+			KERN_ERR "md/raid1:%s: %s: "
+			"rescheduling sector %llu\n",
+			mdname(conf->mddev),
+			bdevname(conf->mirrors[mirror].rdev->bdev,
+				 b),
+			(unsigned long long)r1_bio->sector);
 		reschedule_retry(r1_bio);
 	}
 
@@ -1580,12 +1584,13 @@ static void raid1d(mddev_t *mddev)
 						      GFP_NOIO, mddev);
 				r1_bio->bios[r1_bio->read_disk] = bio;
 				rdev = conf->mirrors[disk].rdev;
-				if (printk_ratelimit())
-					printk(KERN_ERR "md/raid1:%s: redirecting sector %llu to"
-					       " other mirror: %s\n",
-					       mdname(mddev),
-					       (unsigned long long)r1_bio->sector,
-					       bdevname(rdev->bdev,b));
+				printk_ratelimited(
+					KERN_ERR
+					"md/raid1:%s: redirecting sector %llu"
+					" to other mirror: %s\n",
+					mdname(mddev),
+					(unsigned long long)r1_bio->sector,
+					bdevname(rdev->bdev, b));
 				bio->bi_sector = r1_bio->sector + rdev->data_offset;
 				bio->bi_bdev = rdev->bdev;
 				bio->bi_end_io = raid1_end_read_request;

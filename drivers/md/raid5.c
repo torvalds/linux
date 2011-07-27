@@ -51,6 +51,7 @@
 #include <linux/seq_file.h>
 #include <linux/cpu.h>
 #include <linux/slab.h>
+#include <linux/ratelimit.h>
 #include "md.h"
 #include "raid5.h"
 #include "raid0.h"
@@ -95,8 +96,6 @@
 #define inline
 #define __inline__
 #endif
-
-#define printk_rl(args...) ((void) (printk_ratelimit() && printk(args)))
 
 /*
  * We maintain a biased count of active stripes in the bottom 16 bits of
@@ -1583,12 +1582,14 @@ static void raid5_end_read_request(struct bio * bi, int error)
 		set_bit(R5_UPTODATE, &sh->dev[i].flags);
 		if (test_bit(R5_ReadError, &sh->dev[i].flags)) {
 			rdev = conf->disks[i].rdev;
-			printk_rl(KERN_INFO "md/raid:%s: read error corrected"
-				  " (%lu sectors at %llu on %s)\n",
-				  mdname(conf->mddev), STRIPE_SECTORS,
-				  (unsigned long long)(sh->sector
-						       + rdev->data_offset),
-				  bdevname(rdev->bdev, b));
+			printk_ratelimited(
+				KERN_INFO
+				"md/raid:%s: read error corrected"
+				" (%lu sectors at %llu on %s)\n",
+				mdname(conf->mddev), STRIPE_SECTORS,
+				(unsigned long long)(sh->sector
+						     + rdev->data_offset),
+				bdevname(rdev->bdev, b));
 			clear_bit(R5_ReadError, &sh->dev[i].flags);
 			clear_bit(R5_ReWrite, &sh->dev[i].flags);
 		}
@@ -1602,22 +1603,24 @@ static void raid5_end_read_request(struct bio * bi, int error)
 		clear_bit(R5_UPTODATE, &sh->dev[i].flags);
 		atomic_inc(&rdev->read_errors);
 		if (conf->mddev->degraded >= conf->max_degraded)
-			printk_rl(KERN_WARNING
-				  "md/raid:%s: read error not correctable "
-				  "(sector %llu on %s).\n",
-				  mdname(conf->mddev),
-				  (unsigned long long)(sh->sector
-						       + rdev->data_offset),
-				  bdn);
+			printk_ratelimited(
+				KERN_WARNING
+				"md/raid:%s: read error not correctable "
+				"(sector %llu on %s).\n",
+				mdname(conf->mddev),
+				(unsigned long long)(sh->sector
+						     + rdev->data_offset),
+				bdn);
 		else if (test_bit(R5_ReWrite, &sh->dev[i].flags))
 			/* Oh, no!!! */
-			printk_rl(KERN_WARNING
-				  "md/raid:%s: read error NOT corrected!! "
-				  "(sector %llu on %s).\n",
-				  mdname(conf->mddev),
-				  (unsigned long long)(sh->sector
-						       + rdev->data_offset),
-				  bdn);
+			printk_ratelimited(
+				KERN_WARNING
+				"md/raid:%s: read error NOT corrected!! "
+				"(sector %llu on %s).\n",
+				mdname(conf->mddev),
+				(unsigned long long)(sh->sector
+						     + rdev->data_offset),
+				bdn);
 		else if (atomic_read(&rdev->read_errors)
 			 > conf->max_nr_stripes)
 			printk(KERN_WARNING
