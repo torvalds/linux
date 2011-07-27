@@ -4497,7 +4497,8 @@ int md_run(mddev_t *mddev)
 	}
 
 	if (mddev->bio_set == NULL)
-		mddev->bio_set = bioset_create(BIO_POOL_SIZE, sizeof(mddev));
+		mddev->bio_set = bioset_create(BIO_POOL_SIZE,
+					       sizeof(mddev_t *));
 
 	spin_lock(&pers_lock);
 	pers = find_pers(mddev->level, mddev->clevel);
