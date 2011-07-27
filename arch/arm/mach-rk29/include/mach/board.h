@@ -22,6 +22,22 @@
 #include <linux/timer.h>
 #include <linux/notifier.h>
 
+struct led_newton_pwm {
+	const char	*name;
+	unsigned int	pwm_id;
+	unsigned	 	pwm_gpio;
+	char*			pwm_iomux_name;
+	unsigned int 	pwm_iomux_pwm;
+	unsigned int 	pwm_iomux_gpio;
+	unsigned int	freq;/**/
+	unsigned int	period;/*1-100*/
+};
+
+struct led_newton_pwm_platform_data {
+	int			num_leds;
+	struct led_newton_pwm* leds;
+};
+
 struct irda_info{
     u32 intr_pin;
     int (*iomux_init)(void);
