@@ -1099,7 +1099,6 @@ static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 	conf_t *conf = mddev->private;
 	int err = -EEXIST;
 	int mirror;
-	mirror_info_t *p;
 	int first = 0;
 	int last = conf->raid_disks - 1;
 
@@ -1119,31 +1118,35 @@ static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 		mirror = rdev->saved_raid_disk;
 	else
 		mirror = first;
-	for ( ; mirror <= last ; mirror++)
-		if ( !(p=conf->mirrors+mirror)->rdev) {
+	for ( ; mirror <= last ; mirror++) {
+		mirror_info_t *p = &conf->mirrors[mirror];
+		if (p->recovery_disabled == mddev->recovery_disabled)
+			continue;
+		if (!p->rdev)
+			continue;
 
-			disk_stack_limits(mddev->gendisk, rdev->bdev,
-					  rdev->data_offset << 9);
-			/* as we don't honour merge_bvec_fn, we must
-			 * never risk violating it, so limit
-			 * ->max_segments to one lying with a single
-			 * page, as a one page request is never in
-			 * violation.
-			 */
-			if (rdev->bdev->bd_disk->queue->merge_bvec_fn) {
-				blk_queue_max_segments(mddev->queue, 1);
-				blk_queue_segment_boundary(mddev->queue,
-							   PAGE_CACHE_SIZE - 1);
-			}
-
-			p->head_position = 0;
-			rdev->raid_disk = mirror;
-			err = 0;
-			if (rdev->saved_raid_disk != mirror)
-				conf->fullsync = 1;
-			rcu_assign_pointer(p->rdev, rdev);
-			break;
+		disk_stack_limits(mddev->gendisk, rdev->bdev,
+				  rdev->data_offset << 9);
+		/* as we don't honour merge_bvec_fn, we must
+		 * never risk violating it, so limit
+		 * ->max_segments to one lying with a single
+		 * page, as a one page request is never in
+		 * violation.
+		 */
+		if (rdev->bdev->bd_disk->queue->merge_bvec_fn) {
+			blk_queue_max_segments(mddev->queue, 1);
+			blk_queue_segment_boundary(mddev->queue,
+						   PAGE_CACHE_SIZE - 1);
 		}
+
+		p->head_position = 0;
+		rdev->raid_disk = mirror;
+		err = 0;
+		if (rdev->saved_raid_disk != mirror)
+			conf->fullsync = 1;
+		rcu_assign_pointer(p->rdev, rdev);
+		break;
+	}
 
 	md_integrity_add_rdev(rdev, mddev);
 	print_conf(conf);
@@ -1169,6 +1172,7 @@ static int raid10_remove_disk(mddev_t *mddev, int number)
 		 * is not possible.
 		 */
 		if (!test_bit(Faulty, &rdev->flags) &&
+		    mddev->recovery_disabled != p->recovery_disabled &&
 		    enough(conf)) {
 			err = -EBUSY;
 			goto abort;
@@ -1383,8 +1387,14 @@ static void recovery_request_write(mddev_t *mddev, r10bio_t *r10_bio)
 	md_sync_acct(conf->mirrors[d].rdev->bdev, wbio->bi_size >> 9);
 	if (test_bit(R10BIO_Uptodate, &r10_bio->state))
 		generic_make_request(wbio);
-	else
-		bio_endio(wbio, -EIO);
+	else {
+		printk(KERN_NOTICE
+		       "md/raid10:%s: recovery aborted due to read error\n",
+		       mdname(mddev));
+		conf->mirrors[d].recovery_disabled = mddev->recovery_disabled;
+		set_bit(MD_RECOVERY_INTR, &mddev->recovery);
+		bio_endio(wbio, 0);
+	}
 }
 
 
