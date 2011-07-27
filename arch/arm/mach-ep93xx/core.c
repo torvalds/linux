@@ -492,11 +492,15 @@ static struct resource ep93xx_spi_resources[] = {
 	},
 };
 
+static u64 ep93xx_spi_dma_mask = DMA_BIT_MASK(32);
+
 static struct platform_device ep93xx_spi_device = {
 	.name		= "ep93xx-spi",
 	.id		= 0,
 	.dev		= {
-		.platform_data = &ep93xx_spi_master_data,
+		.platform_data		= &ep93xx_spi_master_data,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.dma_mask		= &ep93xx_spi_dma_mask,
 	},
 	.num_resources	= ARRAY_SIZE(ep93xx_spi_resources),
 	.resource	= ep93xx_spi_resources,
