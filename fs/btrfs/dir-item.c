@@ -89,13 +89,8 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
 	data_size = sizeof(*dir_item) + name_len + data_len;
 	dir_item = insert_with_overflow(trans, root, path, &key, data_size,
 					name, name_len);
-	/*
-	 * FIXME: at some point we should handle xattr's that are larger than
-	 * what we can fit in our leaf.  We set location to NULL b/c we arent
-	 * pointing at anything else, that will change if we store the xattr
-	 * data in a separate inode.
-	 */
-	BUG_ON(IS_ERR(dir_item));
+	if (IS_ERR(dir_item))
+		return PTR_ERR(dir_item);
 	memset(&location, 0, sizeof(location));
 
 	leaf = path->nodes[0];
