@@ -172,15 +172,6 @@ static int vv6410_start(struct sd *sd)
 	struct cam *cam = &sd->gspca_dev.cam;
 	u32 priv = cam->cam_mode[sd->gspca_dev.curr_mode].priv;
 
-	if (priv & VV6410_CROP_TO_QVGA) {
-		PDEBUG(D_CONF, "Cropping to QVGA");
-		stv06xx_write_sensor(sd, VV6410_XENDH, 320 - 1);
-		stv06xx_write_sensor(sd, VV6410_YENDH, 240 - 1);
-	} else {
-		stv06xx_write_sensor(sd, VV6410_XENDH, 360 - 1);
-		stv06xx_write_sensor(sd, VV6410_YENDH, 294 - 1);
-	}
-
 	if (priv & VV6410_SUBSAMPLE) {
 		PDEBUG(D_CONF, "Enabling subsampling");
 		stv06xx_write_bridge(sd, STV_Y_CTRL, 0x02);
