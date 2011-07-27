@@ -970,6 +970,30 @@ static void status(struct seq_file *seq, mddev_t *mddev)
 	seq_printf(seq, "]");
 }
 
+/* check if there are enough drives for
+ * every block to appear on atleast one.
+ * Don't consider the device numbered 'ignore'
+ * as we might be about to remove it.
+ */
+static int enough(conf_t *conf, int ignore)
+{
+	int first = 0;
+
+	do {
+		int n = conf->copies;
+		int cnt = 0;
+		while (n--) {
+			if (conf->mirrors[first].rdev &&
+			    first != ignore)
+				cnt++;
+			first = (first+1) % conf->raid_disks;
+		}
+		if (cnt == 0)
+			return 0;
+	} while (first != 0);
+	return 1;
+}
+
 static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 {
 	char b[BDEVNAME_SIZE];
@@ -982,13 +1006,9 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 	 * else mark the drive as failed
 	 */
 	if (test_bit(In_sync, &rdev->flags)
-	    && conf->raid_disks-mddev->degraded == 1)
+	    && !enough(conf, rdev->raid_disk))
 		/*
 		 * Don't fail the drive, just return an IO error.
-		 * The test should really be more sophisticated than
-		 * "working_disks == 1", but it isn't critical, and
-		 * can wait until we do more sophisticated "is the drive
-		 * really dead" tests...
 		 */
 		return;
 	if (test_and_clear_bit(In_sync, &rdev->flags)) {
@@ -1043,27 +1063,6 @@ static void close_sync(conf_t *conf)
 	conf->r10buf_pool = NULL;
 }
 
-/* check if there are enough drives for
- * every block to appear on atleast one
- */
-static int enough(conf_t *conf)
-{
-	int first = 0;
-
-	do {
-		int n = conf->copies;
-		int cnt = 0;
-		while (n--) {
-			if (conf->mirrors[first].rdev)
-				cnt++;
-			first = (first+1) % conf->raid_disks;
-		}
-		if (cnt == 0)
-			return 0;
-	} while (first != 0);
-	return 1;
-}
-
 static int raid10_spare_active(mddev_t *mddev)
 {
 	int i;
@@ -1107,7 +1106,7 @@ static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 		 * very different from resync
 		 */
 		return -EBUSY;
-	if (!enough(conf))
+	if (!enough(conf, -1))
 		return -EINVAL;
 
 	if (rdev->raid_disk >= 0)
@@ -1173,7 +1172,7 @@ static int raid10_remove_disk(mddev_t *mddev, int number)
 		 */
 		if (!test_bit(Faulty, &rdev->flags) &&
 		    mddev->recovery_disabled != p->recovery_disabled &&
-		    enough(conf)) {
+		    enough(conf, -1)) {
 			err = -EBUSY;
 			goto abort;
 		}
@@ -2286,7 +2285,7 @@ static int run(mddev_t *mddev)
 		disk->head_position = 0;
 	}
 	/* need to check that every block has at least one working mirror */
-	if (!enough(conf)) {
+	if (!enough(conf, -1)) {
 		printk(KERN_ERR "md/raid10:%s: not enough operational mirrors.\n",
 		       mdname(mddev));
 		goto out_free_conf;
