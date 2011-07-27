@@ -529,6 +529,7 @@ static void ixgbe_get_regs(struct net_device *netdev,
 			regs_buff[43 + i] = IXGBE_READ_REG(hw, IXGBE_FCRTH(i));
 			break;
 		case ixgbe_mac_82599EB:
+		case ixgbe_mac_X540:
 			regs_buff[35 + i] = IXGBE_READ_REG(hw, IXGBE_FCRTL_82599(i));
 			regs_buff[43 + i] = IXGBE_READ_REG(hw, IXGBE_FCRTH_82599(i));
 			break;
