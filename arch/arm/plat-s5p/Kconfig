@@ -39,6 +39,7 @@ config S5P_GPIO_INT
 
 config S5P_HRT
 	bool
+	select SAMSUNG_DEV_PWM
 	help
 	  Use the High Resolution timer support
 
@@ -69,6 +70,16 @@ config S5P_DEV_FIMC3
 	bool
 	help
 	  Compile in platform device definitions for FIMC controller 3
+
+config S5P_DEV_FIMD0
+	bool
+	help
+	  Compile in platform device definitions for FIMD controller 0
+
+config S5P_DEV_MFC
+	bool
+	help
+	  Compile in platform device definitions for MFC
 
 config S5P_DEV_ONENAND
 	bool

@@ -18,6 +18,7 @@
 #include <mach/map.h>
 #include <mach/dma.h>
 #include <mach/irqs.h>
+#include <mach/regs-audss.h>
 
 static const char *rclksrc[] = {
 	[0] = "busclk",
@@ -52,6 +53,7 @@ static struct s3c_audio_pdata i2sv5_pdata = {
 			.quirks = QUIRK_PRI_6CHAN | QUIRK_SEC_DAI
 					 | QUIRK_NEED_RSTCLR,
 			.src_clk = rclksrc,
+			.idma_addr = S5PV210_AUDSS_INT_MEM,
 		},
 	},
 };

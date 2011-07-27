@@ -27,7 +27,6 @@
 #include <mach/reset.h>
 #include <mach/pm.h>
 #include <mach/dma.h>
-#include <mach/regs-intc.h>
 
 #include "generic.h"
 #include "devices.h"

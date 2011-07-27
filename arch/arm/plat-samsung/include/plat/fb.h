@@ -74,6 +74,14 @@ struct s3c_fb_platdata {
 extern void s3c_fb_set_platdata(struct s3c_fb_platdata *pd);
 
 /**
+ * s5p_fimd0_set_platdata() - Setup the FB device with platform data.
+ * @pd: The platform data to set. The data is copied from the passed structure
+ *      so the machine data can mark the data __initdata so that any unused
+ *      machines will end up dumping their data at runtime.
+ */
+extern void s5p_fimd0_set_platdata(struct s3c_fb_platdata *pd);
+
+/**
  * s3c64xx_fb_gpio_setup_24bpp() - S3C64XX setup function for 24bpp LCD
  *
  * Initialise the GPIO for an 24bpp LCD display on the RGB interface.
@@ -93,5 +101,12 @@ extern void s5pc100_fb_gpio_setup_24bpp(void);
  * Initialise the GPIO for an 24bpp LCD display on the RGB interface.
  */
 extern void s5pv210_fb_gpio_setup_24bpp(void);
+
+/**
+ * exynos4_fimd0_gpio_setup_24bpp() - Exynos4 setup function for 24bpp LCD0
+ *
+ * Initialise the GPIO for an 24bpp LCD display on the RGB interface 0.
+ */
+extern void exynos4_fimd0_gpio_setup_24bpp(void);
 
 #endif /* __PLAT_S3C_FB_H */

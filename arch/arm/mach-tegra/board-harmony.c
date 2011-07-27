@@ -25,7 +25,6 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
-#include <linux/i2c-tegra.h>
 
 #include <sound/wm8903.h>
 
@@ -83,22 +82,6 @@ static struct platform_device harmony_audio_device = {
 	},
 };
 
-static struct tegra_i2c_platform_data harmony_i2c1_platform_data = {
-	.bus_clk_rate   = 400000,
-};
-
-static struct tegra_i2c_platform_data harmony_i2c2_platform_data = {
-	.bus_clk_rate   = 400000,
-};
-
-static struct tegra_i2c_platform_data harmony_i2c3_platform_data = {
-	.bus_clk_rate   = 400000,
-};
-
-static struct tegra_i2c_platform_data harmony_dvc_platform_data = {
-	.bus_clk_rate   = 400000,
-};
-
 static struct wm8903_platform_data harmony_wm8903_pdata = {
 	.irq_active_low = 0,
 	.micdet_cfg = 0,
@@ -121,11 +104,6 @@ static struct i2c_board_info __initdata wm8903_board_info = {
 
 static void __init harmony_i2c_init(void)
 {
-	tegra_i2c_device1.dev.platform_data = &harmony_i2c1_platform_data;
-	tegra_i2c_device2.dev.platform_data = &harmony_i2c2_platform_data;
-	tegra_i2c_device3.dev.platform_data = &harmony_i2c3_platform_data;
-	tegra_i2c_device4.dev.platform_data = &harmony_dvc_platform_data;
-
 	platform_device_register(&tegra_i2c_device1);
 	platform_device_register(&tegra_i2c_device2);
 	platform_device_register(&tegra_i2c_device3);
