@@ -3468,7 +3468,12 @@ static inline void iscsit_thread_check_cpumask(
 }
 
 #else
-#define iscsit_thread_get_cpumask(X) ({})
+
+void iscsit_thread_get_cpumask(struct iscsi_conn *conn)
+{
+	return;
+}
+
 #define iscsit_thread_check_cpumask(X, Y, Z) ({})
 #endif /* CONFIG_SMP */
 
