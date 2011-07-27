@@ -1373,6 +1373,10 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 		} else
 			cpu = smp_processor_id();
 	}
+
+	if (cpu >= nr_cpu_ids)
+		goto err;
+
 	fps = &per_cpu(fcoe_percpu, cpu);
 	spin_lock_bh(&fps->fcoe_rx_list.lock);
 	if (unlikely(!fps->thread)) {
