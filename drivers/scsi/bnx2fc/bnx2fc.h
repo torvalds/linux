@@ -2,7 +2,7 @@
 #define _BNX2FC_H_
 /* bnx2fc.h: Broadcom NetXtreme II Linux FCoE offload driver.
  *
- * Copyright (c) 2008 - 2010 Broadcom Corporation
+ * Copyright (c) 2008 - 2011 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -62,7 +62,7 @@
 #include "bnx2fc_constants.h"
 
 #define BNX2FC_NAME		"bnx2fc"
-#define BNX2FC_VERSION		"1.0.3"
+#define BNX2FC_VERSION		"1.0.4"
 
 #define PFX			"bnx2fc: "
 
