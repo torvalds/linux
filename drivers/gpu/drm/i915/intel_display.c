@@ -1323,8 +1323,8 @@ static void intel_enable_plane(struct drm_i915_private *dev_priv,
 static void intel_flush_display_plane(struct drm_i915_private *dev_priv,
 				      enum plane plane)
 {
-	u32 reg = DSPADDR(plane);
-	I915_WRITE(reg, I915_READ(reg));
+	I915_WRITE(DSPADDR(plane), I915_READ(DSPADDR(plane)));
+	I915_WRITE(DSPSURF(plane), I915_READ(DSPSURF(plane)));
 }
 
 /**
