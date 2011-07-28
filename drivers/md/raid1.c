@@ -327,9 +327,9 @@ static void r1_bio_write_done(r1bio_t *r1_bio)
 			/* free extra copy of the data pages */
 			int i = r1_bio->behind_page_count;
 			while (i--)
-				safe_put_page(r1_bio->behind_pages[i]);
-			kfree(r1_bio->behind_pages);
-			r1_bio->behind_pages = NULL;
+				safe_put_page(r1_bio->behind_bvecs[i].bv_page);
+			kfree(r1_bio->behind_bvecs);
+			r1_bio->behind_bvecs = NULL;
 		}
 		/* clear the bitmap if all writes complete successfully */
 		bitmap_endwrite(r1_bio->mddev->bitmap, r1_bio->sector,
@@ -748,30 +748,31 @@ static void alloc_behind_pages(struct bio *bio, r1bio_t *r1_bio)
 {
 	int i;
 	struct bio_vec *bvec;
-	struct page **pages = kzalloc(bio->bi_vcnt * sizeof(struct page*),
+	struct bio_vec *bvecs = kzalloc(bio->bi_vcnt * sizeof(struct bio_vec),
 					GFP_NOIO);
-	if (unlikely(!pages))
+	if (unlikely(!bvecs))
 		return;
 
 	bio_for_each_segment(bvec, bio, i) {
-		pages[i] = alloc_page(GFP_NOIO);
-		if (unlikely(!pages[i]))
+		bvecs[i] = *bvec;
+		bvecs[i].bv_page = alloc_page(GFP_NOIO);
+		if (unlikely(!bvecs[i].bv_page))
 			goto do_sync_io;
-		memcpy(kmap(pages[i]) + bvec->bv_offset,
-			kmap(bvec->bv_page) + bvec->bv_offset, bvec->bv_len);
-		kunmap(pages[i]);
+		memcpy(kmap(bvecs[i].bv_page) + bvec->bv_offset,
+		       kmap(bvec->bv_page) + bvec->bv_offset, bvec->bv_len);
+		kunmap(bvecs[i].bv_page);
 		kunmap(bvec->bv_page);
 	}
-	r1_bio->behind_pages = pages;
+	r1_bio->behind_bvecs = bvecs;
 	r1_bio->behind_page_count = bio->bi_vcnt;
 	set_bit(R1BIO_BehindIO, &r1_bio->state);
 	return;
 
 do_sync_io:
 	for (i = 0; i < bio->bi_vcnt; i++)
-		if (pages[i])
-			put_page(pages[i]);
-	kfree(pages);
+		if (bvecs[i].bv_page)
+			put_page(bvecs[i].bv_page);
+	kfree(bvecs);
 	PRINTK("%dB behind alloc failed, doing sync I/O\n", bio->bi_size);
 }
 
@@ -1058,7 +1059,7 @@ read_again:
 						   &r1_bio->state));
 			first_clone = 0;
 		}
-		if (r1_bio->behind_pages) {
+		if (r1_bio->behind_bvecs) {
 			struct bio_vec *bvec;
 			int j;
 
@@ -1070,7 +1071,7 @@ read_again:
 			 * them all
 			 */
 			__bio_for_each_segment(bvec, mbio, j, 0)
-				bvec->bv_page = r1_bio->behind_pages[j];
+				bvec->bv_page = r1_bio->behind_bvecs[j].bv_page;
 			if (test_bit(WriteMostly, &conf->mirrors[i].rdev->flags))
 				atomic_inc(&r1_bio->behind_remaining);
 		}

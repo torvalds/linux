@@ -101,7 +101,7 @@ struct r1bio_s {
 
 	struct list_head	retry_list;
 	/* Next two are only valid when R1BIO_BehindIO is set */
-	struct page		**behind_pages;
+	struct bio_vec		*behind_bvecs;
 	int			behind_page_count;
 	/*
 	 * if the IO is in WRITE direction, then multiple bios are used.
