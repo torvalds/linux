@@ -1418,13 +1418,12 @@ static void end_sync_read(struct bio *bio, int error)
 
 	if (test_bit(BIO_UPTODATE, &bio->bi_flags))
 		set_bit(R10BIO_Uptodate, &r10_bio->state);
-	else {
+	else
+		/* The write handler will notice the lack of
+		 * R10BIO_Uptodate and record any errors etc
+		 */
 		atomic_add(r10_bio->sectors,
 			   &conf->mirrors[d].rdev->corrected_errors);
-		if (!test_bit(MD_RECOVERY_SYNC, &conf->mddev->recovery))
-			md_error(r10_bio->mddev,
-				 conf->mirrors[d].rdev);
-	}
 
 	/* for reconstruct, we always reschedule after a read.
 	 * for resync, only after all reads
