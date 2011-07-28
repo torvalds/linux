@@ -526,6 +526,36 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 			atomic_inc(&rdev->nr_pending);
 		rcu_read_unlock();
 
+		/* We have already checked bad blocks for reads.  Now
+		 * need to check for writes.
+		 */
+		while ((rw & WRITE) && rdev &&
+		       test_bit(WriteErrorSeen, &rdev->flags)) {
+			sector_t first_bad;
+			int bad_sectors;
+			int bad = is_badblock(rdev, sh->sector, STRIPE_SECTORS,
+					      &first_bad, &bad_sectors);
+			if (!bad)
+				break;
+
+			if (bad < 0) {
+				set_bit(BlockedBadBlocks, &rdev->flags);
+				if (!conf->mddev->external &&
+				    conf->mddev->flags) {
+					/* It is very unlikely, but we might
+					 * still need to write out the
+					 * bad block log - better give it
+					 * a chance*/
+					md_check_recovery(conf->mddev);
+				}
+				md_wait_for_blocked_rdev(rdev, conf->mddev);
+			} else {
+				/* Acknowledged bad block - skip the write */
+				rdev_dec_pending(rdev, conf->mddev);
+				rdev = NULL;
+			}
+		}
+
 		if (rdev) {
 			if (s->syncing || s->expanding || s->expanded)
 				md_sync_acct(rdev->bdev, STRIPE_SECTORS);
@@ -3316,7 +3346,6 @@ finish:
 		raid_run_ops(sh, s.ops_request);
 
 	ops_run_io(sh, &s);
-
 
 	if (s.dec_preread_active) {
 		/* We delay this until after ops_run_io so that if make_request
