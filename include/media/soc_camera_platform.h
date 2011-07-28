@@ -21,7 +21,6 @@ struct soc_camera_platform_info {
 	const char *format_name;
 	unsigned long format_depth;
 	struct v4l2_mbus_framefmt format;
-	unsigned long bus_param;
 	unsigned long mbus_param;
 	enum v4l2_mbus_type mbus_type;
 	struct soc_camera_device *icd;
