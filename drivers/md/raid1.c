@@ -1392,7 +1392,12 @@ static void end_sync_write(struct bio *bio, int error)
 	} else if (is_badblock(conf->mirrors[mirror].rdev,
 			       r1_bio->sector,
 			       r1_bio->sectors,
-			       &first_bad, &bad_sectors))
+			       &first_bad, &bad_sectors) &&
+		   !is_badblock(conf->mirrors[r1_bio->read_disk].rdev,
+				r1_bio->sector,
+				r1_bio->sectors,
+				&first_bad, &bad_sectors)
+		)
 		set_bit(R1BIO_MadeGood, &r1_bio->state);
 
 	update_head_pos(mirror, r1_bio);
@@ -1473,16 +1478,36 @@ static int fix_sync_read_error(r1bio_t *r1_bio)
 
 		if (!success) {
 			char b[BDEVNAME_SIZE];
-			/* Cannot read from anywhere, array is toast */
-			md_error(mddev, conf->mirrors[r1_bio->read_disk].rdev);
+			int abort = 0;
+			/* Cannot read from anywhere, this block is lost.
+			 * Record a bad block on each device.  If that doesn't
+			 * work just disable and interrupt the recovery.
+			 * Don't fail devices as that won't really help.
+			 */
 			printk(KERN_ALERT "md/raid1:%s: %s: unrecoverable I/O read error"
 			       " for block %llu\n",
 			       mdname(mddev),
 			       bdevname(bio->bi_bdev, b),
 			       (unsigned long long)r1_bio->sector);
-			md_done_sync(mddev, r1_bio->sectors, 0);
-			put_buf(r1_bio);
-			return 0;
+			for (d = 0; d < conf->raid_disks; d++) {
+				rdev = conf->mirrors[d].rdev;
+				if (!rdev || test_bit(Faulty, &rdev->flags))
+					continue;
+				if (!rdev_set_badblocks(rdev, sect, s, 0))
+					abort = 1;
+			}
+			if (abort) {
+				mddev->recovery_disabled = 1;
+				set_bit(MD_RECOVERY_INTR, &mddev->recovery);
+				md_done_sync(mddev, r1_bio->sectors, 0);
+				put_buf(r1_bio);
+				return 0;
+			}
+			/* Try next page */
+			sectors -= s;
+			sect += s;
+			idx++;
+			continue;
 		}
 
 		start = d;
@@ -1879,7 +1904,9 @@ static void raid1d(mddev_t *mddev)
 					if (bio->bi_end_io == NULL)
 						continue;
 					if (test_bit(BIO_UPTODATE,
-						     &bio->bi_flags)) {
+						     &bio->bi_flags) &&
+					    test_bit(R1BIO_MadeGood,
+						     &r1_bio->state)) {
 						rdev_clear_badblocks(
 							rdev,
 							r1_bio->sector,
