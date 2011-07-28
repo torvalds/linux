@@ -889,26 +889,6 @@ static struct v4l2_subdev_ops ov5642_subdev_ops = {
 	.video	= &ov5642_subdev_video_ops,
 };
 
-/*
- * We have to provide soc-camera operations, but we don't have anything to say
- * there. The MIPI CSI2 driver will provide .query_bus_param and .set_bus_param
- */
-static unsigned long soc_ov5642_query_bus_param(struct soc_camera_device *icd)
-{
-	return 0;
-}
-
-static int soc_ov5642_set_bus_param(struct soc_camera_device *icd,
-				 unsigned long flags)
-{
-	return -EINVAL;
-}
-
-static struct soc_camera_ops soc_ov5642_ops = {
-	.query_bus_param	= soc_ov5642_query_bus_param,
-	.set_bus_param		= soc_ov5642_set_bus_param,
-};
-
 static int ov5642_video_probe(struct soc_camera_device *icd,
 			      struct i2c_client *client)
 {
@@ -962,7 +942,7 @@ static int ov5642_probe(struct i2c_client *client,
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &ov5642_subdev_ops);
 
-	icd->ops	= &soc_ov5642_ops;
+	icd->ops	= NULL;
 	priv->fmt	= &ov5642_colour_fmts[0];
 
 	ret = ov5642_video_probe(icd, client);
@@ -972,7 +952,6 @@ static int ov5642_probe(struct i2c_client *client,
 	return 0;
 
 error:
-	icd->ops = NULL;
 	kfree(priv);
 	return ret;
 }
@@ -983,7 +962,6 @@ static int ov5642_remove(struct i2c_client *client)
 	struct soc_camera_device *icd = client->dev.platform_data;
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
 
-	icd->ops = NULL;
 	if (icl->free_bus)
 		icl->free_bus(icl);
 	kfree(priv);
