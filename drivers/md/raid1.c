@@ -1059,6 +1059,7 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 		conf->recovery_disabled = mddev->recovery_disabled;
 		return;
 	}
+	set_bit(Blocked, &rdev->flags);
 	if (test_and_clear_bit(In_sync, &rdev->flags)) {
 		unsigned long flags;
 		spin_lock_irqsave(&conf->device_lock, flags);
@@ -1751,6 +1752,8 @@ read_more:
 			generic_make_request(r1_bio->bios[r1_bio->read_disk]);
 		}
 		cond_resched();
+		if (mddev->flags & ~(1<<MD_CHANGE_PENDING))
+			md_check_recovery(mddev);
 	}
 	blk_finish_plug(&plug);
 }

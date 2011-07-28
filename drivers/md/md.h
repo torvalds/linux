@@ -81,11 +81,28 @@ struct mdk_rdev_s
 #define	In_sync		2		/* device is in_sync with rest of array */
 #define	WriteMostly	4		/* Avoid reading if at all possible */
 #define	AutoDetected	7		/* added by auto-detect */
-#define Blocked		8		/* An error occurred on an externally
-					 * managed array, don't allow writes
+#define Blocked		8		/* An error occurred but has not yet
+					 * been acknowledged by the metadata
+					 * handler, so don't allow writes
 					 * until it is cleared */
 #define WriteErrorSeen	9		/* A write error has been seen on this
 					 * device
+					 */
+#define FaultRecorded	10		/* Intermediate state for clearing
+					 * Blocked.  The Fault is/will-be
+					 * recorded in the metadata, but that
+					 * metadata hasn't been stored safely
+					 * on disk yet.
+					 */
+#define BlockedBadBlocks 11		/* A writer is blocked because they
+					 * found an unacknowledged bad-block.
+					 * This can safely be cleared at any
+					 * time, and the writer will re-check.
+					 * It may be set at any time, and at
+					 * worst the writer will timeout and
+					 * re-check.  So setting it as
+					 * accurately as possible is good, but
+					 * not absolutely critical.
 					 */
 	wait_queue_head_t blocked_wait;
 
@@ -124,6 +141,10 @@ struct mdk_rdev_s
 
 	struct badblocks {
 		int	count;		/* count of bad blocks */
+		int	unacked_exist;	/* there probably are unacknowledged
+					 * bad blocks.  This is only cleared
+					 * when a read discovers none
+					 */
 		int	shift;		/* shift from sectors to block size
 					 * a -ve shift means badblocks are
 					 * disabled.*/

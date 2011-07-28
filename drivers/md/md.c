@@ -2341,8 +2341,18 @@ repeat:
 	if (!mddev->persistent) {
 		clear_bit(MD_CHANGE_CLEAN, &mddev->flags);
 		clear_bit(MD_CHANGE_DEVS, &mddev->flags);
-		if (!mddev->external)
+		if (!mddev->external) {
 			clear_bit(MD_CHANGE_PENDING, &mddev->flags);
+			list_for_each_entry(rdev, &mddev->disks, same_set) {
+				if (rdev->badblocks.changed) {
+					md_ack_all_badblocks(&rdev->badblocks);
+					md_error(mddev, rdev);
+				}
+				clear_bit(Blocked, &rdev->flags);
+				clear_bit(BlockedBadBlocks, &rdev->flags);
+				wake_up(&rdev->blocked_wait);
+			}
+		}
 		wake_up(&mddev->sb_wait);
 		return;
 	}
@@ -2399,9 +2409,12 @@ repeat:
 		mddev->events --;
 	}
 
-	list_for_each_entry(rdev, &mddev->disks, same_set)
+	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		if (rdev->badblocks.changed)
 			any_badblocks_changed++;
+		if (test_bit(Faulty, &rdev->flags))
+			set_bit(FaultRecorded, &rdev->flags);
+	}
 
 	sync_sbs(mddev, nospares);
 	spin_unlock_irq(&mddev->write_lock);
@@ -2458,9 +2471,15 @@ repeat:
 	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
 		sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 
-	if (any_badblocks_changed)
-		list_for_each_entry(rdev, &mddev->disks, same_set)
+	list_for_each_entry(rdev, &mddev->disks, same_set) {
+		if (test_and_clear_bit(FaultRecorded, &rdev->flags))
+			clear_bit(Blocked, &rdev->flags);
+
+		if (any_badblocks_changed)
 			md_ack_all_badblocks(&rdev->badblocks);
+		clear_bit(BlockedBadBlocks, &rdev->flags);
+		wake_up(&rdev->blocked_wait);
+	}
 }
 
 /* words written to sysfs files may, or may not, be \n terminated.
@@ -2495,7 +2514,8 @@ state_show(mdk_rdev_t *rdev, char *page)
 	char *sep = "";
 	size_t len = 0;
 
-	if (test_bit(Faulty, &rdev->flags)) {
+	if (test_bit(Faulty, &rdev->flags) ||
+	    rdev->badblocks.unacked_exist) {
 		len+= sprintf(page+len, "%sfaulty",sep);
 		sep = ",";
 	}
@@ -2507,7 +2527,8 @@ state_show(mdk_rdev_t *rdev, char *page)
 		len += sprintf(page+len, "%swrite_mostly",sep);
 		sep = ",";
 	}
-	if (test_bit(Blocked, &rdev->flags)) {
+	if (test_bit(Blocked, &rdev->flags) ||
+	    rdev->badblocks.unacked_exist) {
 		len += sprintf(page+len, "%sblocked", sep);
 		sep = ",";
 	}
@@ -2527,12 +2548,12 @@ static ssize_t
 state_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 {
 	/* can write
-	 *  faulty  - simulates and error
+	 *  faulty  - simulates an error
 	 *  remove  - disconnects the device
 	 *  writemostly - sets write_mostly
 	 *  -writemostly - clears write_mostly
-	 *  blocked - sets the Blocked flag
-	 *  -blocked - clears the Blocked flag
+	 *  blocked - sets the Blocked flags
+	 *  -blocked - clears the Blocked and possibly simulates an error
 	 *  insync - sets Insync providing device isn't active
 	 *  write_error - sets WriteErrorSeen
 	 *  -write_error - clears WriteErrorSeen
@@ -2562,7 +2583,15 @@ state_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 		set_bit(Blocked, &rdev->flags);
 		err = 0;
 	} else if (cmd_match(buf, "-blocked")) {
+		if (!test_bit(Faulty, &rdev->flags) &&
+		    test_bit(BlockedBadBlocks, &rdev->flags)) {
+			/* metadata handler doesn't understand badblocks,
+			 * so we need to fail the device
+			 */
+			md_error(rdev->mddev, rdev);
+		}
 		clear_bit(Blocked, &rdev->flags);
+		clear_bit(BlockedBadBlocks, &rdev->flags);
 		wake_up(&rdev->blocked_wait);
 		set_bit(MD_RECOVERY_NEEDED, &rdev->mddev->recovery);
 		md_wakeup_thread(rdev->mddev->thread);
@@ -2881,7 +2910,11 @@ static ssize_t bb_show(mdk_rdev_t *rdev, char *page)
 }
 static ssize_t bb_store(mdk_rdev_t *rdev, const char *page, size_t len)
 {
-	return badblocks_store(&rdev->badblocks, page, len, 0);
+	int rv = badblocks_store(&rdev->badblocks, page, len, 0);
+	/* Maybe that ack was all we needed */
+	if (test_and_clear_bit(BlockedBadBlocks, &rdev->flags))
+		wake_up(&rdev->blocked_wait);
+	return rv;
 }
 static struct rdev_sysfs_entry rdev_bad_blocks =
 __ATTR(bad_blocks, S_IRUGO|S_IWUSR, bb_show, bb_store);
@@ -6398,18 +6431,7 @@ void md_error(mddev_t *mddev, mdk_rdev_t *rdev)
 	if (!rdev || test_bit(Faulty, &rdev->flags))
 		return;
 
-	if (mddev->external)
-		set_bit(Blocked, &rdev->flags);
-/*
-	dprintk("md_error dev:%s, rdev:(%d:%d), (caller: %p,%p,%p,%p).\n",
-		mdname(mddev),
-		MAJOR(rdev->bdev->bd_dev), MINOR(rdev->bdev->bd_dev),
-		__builtin_return_address(0),__builtin_return_address(1),
-		__builtin_return_address(2),__builtin_return_address(3));
-*/
-	if (!mddev->pers)
-		return;
-	if (!mddev->pers->error_handler)
+	if (!mddev->pers || !mddev->pers->error_handler)
 		return;
 	mddev->pers->error_handler(mddev,rdev);
 	if (mddev->degraded)
@@ -7286,8 +7308,7 @@ static int remove_and_add_spares(mddev_t *mddev)
 		list_for_each_entry(rdev, &mddev->disks, same_set) {
 			if (rdev->raid_disk >= 0 &&
 			    !test_bit(In_sync, &rdev->flags) &&
-			    !test_bit(Faulty, &rdev->flags) &&
-			    !test_bit(Blocked, &rdev->flags))
+			    !test_bit(Faulty, &rdev->flags))
 				spares++;
 			if (rdev->raid_disk < 0
 			    && !test_bit(Faulty, &rdev->flags)) {
@@ -7533,7 +7554,8 @@ void md_wait_for_blocked_rdev(mdk_rdev_t *rdev, mddev_t *mddev)
 {
 	sysfs_notify_dirent_safe(rdev->sysfs_state);
 	wait_event_timeout(rdev->blocked_wait,
-			   !test_bit(Blocked, &rdev->flags),
+			   !test_bit(Blocked, &rdev->flags) &&
+			   !test_bit(BlockedBadBlocks, &rdev->flags),
 			   msecs_to_jiffies(5000));
 	rdev_dec_pending(rdev, mddev);
 }
@@ -7779,6 +7801,8 @@ static int md_set_badblocks(struct badblocks *bb, sector_t s, int sectors,
 	}
 
 	bb->changed = 1;
+	if (!acknowledged)
+		bb->unacked_exist = 1;
 	write_sequnlock_irq(&bb->lock);
 
 	return rv;
@@ -7923,6 +7947,7 @@ void md_ack_all_badblocks(struct badblocks *bb)
 				p[i] = BB_MAKE(start, len, 1);
 			}
 		}
+		bb->unacked_exist = 0;
 	}
 	write_sequnlock_irq(&bb->lock);
 }
@@ -7970,6 +7995,8 @@ retry:
 				(unsigned long long)s << bb->shift,
 				length << bb->shift);
 	}
+	if (unack && len == 0)
+		bb->unacked_exist = 0;
 
 	if (read_seqretry(&bb->lock, seq))
 		goto retry;
