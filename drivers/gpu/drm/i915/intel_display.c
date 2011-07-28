@@ -4972,7 +4972,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	} else if (is_sdvo && is_tv)
 		factor = 20;
 
-	if (clock.m1 < factor * clock.n)
+	if (clock.m < factor * clock.n)
 		fp |= FP_CB_TUNE;
 
 	dpll = 0;
