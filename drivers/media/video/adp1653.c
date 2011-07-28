@@ -429,12 +429,19 @@ static int adp1653_probe(struct i2c_client *client,
 	flash->subdev.internal_ops = &adp1653_internal_ops;
 	flash->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
-	adp1653_init_controls(flash);
+	ret = adp1653_init_controls(flash);
+	if (ret)
+		goto free_and_quit;
 
 	ret = media_entity_init(&flash->subdev.entity, 0, NULL, 0);
 	if (ret < 0)
-		kfree(flash);
+		goto free_and_quit;
 
+	return 0;
+
+free_and_quit:
+	v4l2_ctrl_handler_free(&flash->ctrls);
+	kfree(flash);
 	return ret;
 }
 
