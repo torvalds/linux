@@ -3324,7 +3324,7 @@ static int transport_generic_cmd_sequencer(
 			goto out_invalid_cdb_field;
 		}
 
-		cmd->t_task_lba = get_unaligned_be16(&cdb[2]);
+		cmd->t_task_lba = get_unaligned_be64(&cdb[2]);
 		passthrough = (dev->transport->transport_type ==
 				TRANSPORT_PLUGIN_PHBA_PDEV);
 		/*
