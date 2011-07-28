@@ -2711,6 +2711,35 @@ static ssize_t recovery_start_store(mdk_rdev_t *rdev, const char *buf, size_t le
 static struct rdev_sysfs_entry rdev_recovery_start =
 __ATTR(recovery_start, S_IRUGO|S_IWUSR, recovery_start_show, recovery_start_store);
 
+
+static ssize_t
+badblocks_show(struct badblocks *bb, char *page, int unack);
+static ssize_t
+badblocks_store(struct badblocks *bb, const char *page, size_t len, int unack);
+
+static ssize_t bb_show(mdk_rdev_t *rdev, char *page)
+{
+	return badblocks_show(&rdev->badblocks, page, 0);
+}
+static ssize_t bb_store(mdk_rdev_t *rdev, const char *page, size_t len)
+{
+	return badblocks_store(&rdev->badblocks, page, len, 0);
+}
+static struct rdev_sysfs_entry rdev_bad_blocks =
+__ATTR(bad_blocks, S_IRUGO|S_IWUSR, bb_show, bb_store);
+
+
+static ssize_t ubb_show(mdk_rdev_t *rdev, char *page)
+{
+	return badblocks_show(&rdev->badblocks, page, 1);
+}
+static ssize_t ubb_store(mdk_rdev_t *rdev, const char *page, size_t len)
+{
+	return badblocks_store(&rdev->badblocks, page, len, 1);
+}
+static struct rdev_sysfs_entry rdev_unack_bad_blocks =
+__ATTR(unacknowledged_bad_blocks, S_IRUGO|S_IWUSR, ubb_show, ubb_store);
+
 static struct attribute *rdev_default_attrs[] = {
 	&rdev_state.attr,
 	&rdev_errors.attr,
@@ -2718,6 +2747,8 @@ static struct attribute *rdev_default_attrs[] = {
 	&rdev_offset.attr,
 	&rdev_size.attr,
 	&rdev_recovery_start.attr,
+	&rdev_bad_blocks.attr,
+	&rdev_unack_bad_blocks.attr,
 	NULL,
 };
 static ssize_t
@@ -7735,6 +7766,98 @@ void md_ack_all_badblocks(struct badblocks *bb)
 	write_sequnlock_irq(&bb->lock);
 }
 EXPORT_SYMBOL_GPL(md_ack_all_badblocks);
+
+/* sysfs access to bad-blocks list.
+ * We present two files.
+ * 'bad-blocks' lists sector numbers and lengths of ranges that
+ *    are recorded as bad.  The list is truncated to fit within
+ *    the one-page limit of sysfs.
+ *    Writing "sector length" to this file adds an acknowledged
+ *    bad block list.
+ * 'unacknowledged-bad-blocks' lists bad blocks that have not yet
+ *    been acknowledged.  Writing to this file adds bad blocks
+ *    without acknowledging them.  This is largely for testing.
+ */
+
+static ssize_t
+badblocks_show(struct badblocks *bb, char *page, int unack)
+{
+	size_t len;
+	int i;
+	u64 *p = bb->page;
+	unsigned seq;
+
+	if (bb->shift < 0)
+		return 0;
+
+retry:
+	seq = read_seqbegin(&bb->lock);
+
+	len = 0;
+	i = 0;
+
+	while (len < PAGE_SIZE && i < bb->count) {
+		sector_t s = BB_OFFSET(p[i]);
+		unsigned int length = BB_LEN(p[i]);
+		int ack = BB_ACK(p[i]);
+		i++;
+
+		if (unack && ack)
+			continue;
+
+		len += snprintf(page+len, PAGE_SIZE-len, "%llu %u\n",
+				(unsigned long long)s << bb->shift,
+				length << bb->shift);
+	}
+
+	if (read_seqretry(&bb->lock, seq))
+		goto retry;
+
+	return len;
+}
+
+#define DO_DEBUG 1
+
+static ssize_t
+badblocks_store(struct badblocks *bb, const char *page, size_t len, int unack)
+{
+	unsigned long long sector;
+	int length;
+	char newline;
+#ifdef DO_DEBUG
+	/* Allow clearing via sysfs *only* for testing/debugging.
+	 * Normally only a successful write may clear a badblock
+	 */
+	int clear = 0;
+	if (page[0] == '-') {
+		clear = 1;
+		page++;
+	}
+#endif /* DO_DEBUG */
+
+	switch (sscanf(page, "%llu %d%c", &sector, &length, &newline)) {
+	case 3:
+		if (newline != '\n')
+			return -EINVAL;
+	case 2:
+		if (length <= 0)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+#ifdef DO_DEBUG
+	if (clear) {
+		md_clear_badblocks(bb, sector, length);
+		return len;
+	}
+#endif /* DO_DEBUG */
+	if (md_set_badblocks(bb, sector, length, !unack))
+		return len;
+	else
+		return -ENOSPC;
+}
 
 static int md_notify_reboot(struct notifier_block *this,
 			    unsigned long code, void *x)
