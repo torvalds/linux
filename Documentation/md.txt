@@ -360,18 +360,20 @@ Each directory contains:
         A file recording the current state of the device in the array
 	which can be a comma separated list of
 	      faulty   - device has been kicked from active use due to
-                         a detected fault
+                         a detected fault or it has unacknowledged bad
+                         blocks
 	      in_sync  - device is a fully in-sync member of the array
 	      writemostly - device will only be subject to read
 		         requests if there are no other options.
 			 This applies only to raid1 arrays.
-	      blocked  - device has failed, metadata is "external",
-	                 and the failure hasn't been acknowledged yet.
+	      blocked  - device has failed, and the failure hasn't been
+			 acknowledged yet by the metadata handler.
 			 Writes that would write to this device if
 			 it were not faulty are blocked.
 	      spare    - device is working, but not a full member.
 			 This includes spares that are in the process
 			 of being recovered to
+	      write_error - device has ever seen a write error.
 	This list may grow in future.
 	This can be written to.
 	Writing "faulty"  simulates a failure on the device.
@@ -379,9 +381,11 @@ Each directory contains:
 	Writing "writemostly" sets the writemostly flag.
 	Writing "-writemostly" clears the writemostly flag.
 	Writing "blocked" sets the "blocked" flag.
-	Writing "-blocked" clears the "blocked" flag and allows writes
-		to complete.
+	Writing "-blocked" clears the "blocked" flags and allows writes
+		to complete and possibly simulates an error.
 	Writing "in_sync" sets the in_sync flag.
+	Writing "write_error" sets writeerrorseen flag.
+	Writing "-write_error" clears writeerrorseen flag.
 
 	This file responds to select/poll. Any change to 'faulty'
 	or 'blocked' causes an event.
