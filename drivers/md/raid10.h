@@ -139,4 +139,5 @@ struct r10bio_s {
  * known-bad-block records, we set this flag.
  */
 #define	R10BIO_MadeGood 5
+#define	R10BIO_WriteError 6
 #endif
