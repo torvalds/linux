@@ -26,6 +26,7 @@
 #include <linux/list.h>
 #include <linux/kvm_host.h>
 #include <linux/pci.h>
+#include <linux/stat.h>
 #include <linux/dmar.h>
 #include <linux/iommu.h>
 #include <linux/intel-iommu.h>
