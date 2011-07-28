@@ -84,12 +84,6 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc *ioc)
 	struct bfi_ioc_image_hdr fwhdr;
 
 	/**
-	 * Firmware match check is relevant only for CNA.
-	 */
-	if (!ioc->cna)
-		return true;
-
-	/**
 	 * If bios boot (flash based) -- do not increment usage count
 	 */
 	if (bfa_cb_image_get_size(BFA_IOC_FWIMG_TYPE(ioc)) <
@@ -138,12 +132,6 @@ static void
 bfa_ioc_ct_firmware_unlock(struct bfa_ioc *ioc)
 {
 	u32 usecnt;
-
-	/**
-	 * Firmware lock is relevant only for CNA.
-	 */
-	if (!ioc->cna)
-		return;
 
 	/**
 	 * If bios boot (flash based) -- do not decrement usage count
