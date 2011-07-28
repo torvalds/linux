@@ -609,7 +609,7 @@ static void unregister_dvb(struct em28xx_dvb *dvb)
 
 static int dvb_init(struct em28xx *dev)
 {
-	int result = 0;
+	int result = 0, mfe_shared = 0;
 	struct em28xx_dvb *dvb;
 
 	if (!dev->board.has_dvb) {
@@ -772,6 +772,8 @@ static int dvb_init(struct em28xx *dev)
 				dvb_frontend_detach(dvb->fe[1]);
 				/* leave FE 0 still active */
 			}
+
+			mfe_shared = 1;
 		}
 		break;
 	case EM2884_BOARD_TERRATEC_H5:
@@ -827,6 +829,9 @@ static int dvb_init(struct em28xx *dev)
 
 	if (result < 0)
 		goto out_free;
+
+	/* MFE lock */
+	dvb->adapter.mfe_shared = mfe_shared;
 
 	em28xx_info("Successfully loaded em28xx-dvb\n");
 ret:
