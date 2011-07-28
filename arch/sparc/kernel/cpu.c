@@ -479,6 +479,7 @@ static void __init sun4v_cpu_probe(void)
 		       prom_cpu_compatible);
 		sparc_cpu_type = "Unknown SUN4V CPU";
 		sparc_fpu_type = "Unknown SUN4V FPU";
+		sparc_pmu_type = "Unknown SUN4V PMU";
 		break;
 	}
 }
