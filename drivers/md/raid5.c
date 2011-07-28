@@ -2232,9 +2232,18 @@ handle_failed_stripe(raid5_conf_t *conf, struct stripe_head *sh,
 			rcu_read_lock();
 			rdev = rcu_dereference(conf->disks[i].rdev);
 			if (rdev && test_bit(In_sync, &rdev->flags))
-				/* multiple read failures in one stripe */
-				md_error(conf->mddev, rdev);
+				atomic_inc(&rdev->nr_pending);
+			else
+				rdev = NULL;
 			rcu_read_unlock();
+			if (rdev) {
+				if (!rdev_set_badblocks(
+					    rdev,
+					    sh->sector,
+					    STRIPE_SECTORS, 0))
+					md_error(conf->mddev, rdev);
+				rdev_dec_pending(rdev, conf->mddev);
+			}
 		}
 		spin_lock_irq(&conf->device_lock);
 		/* fail all writes first */
@@ -2311,6 +2320,41 @@ handle_failed_stripe(raid5_conf_t *conf, struct stripe_head *sh,
 	if (test_and_clear_bit(STRIPE_FULL_WRITE, &sh->state))
 		if (atomic_dec_and_test(&conf->pending_full_writes))
 			md_wakeup_thread(conf->mddev->thread);
+}
+
+static void
+handle_failed_sync(raid5_conf_t *conf, struct stripe_head *sh,
+		   struct stripe_head_state *s)
+{
+	int abort = 0;
+	int i;
+
+	md_done_sync(conf->mddev, STRIPE_SECTORS, 0);
+	clear_bit(STRIPE_SYNCING, &sh->state);
+	s->syncing = 0;
+	/* There is nothing more to do for sync/check/repair.
+	 * For recover we need to record a bad block on all
+	 * non-sync devices, or abort the recovery
+	 */
+	if (!test_bit(MD_RECOVERY_RECOVER, &conf->mddev->recovery))
+		return;
+	/* During recovery devices cannot be removed, so locking and
+	 * refcounting of rdevs is not needed
+	 */
+	for (i = 0; i < conf->raid_disks; i++) {
+		mdk_rdev_t *rdev = conf->disks[i].rdev;
+		if (!rdev
+		    || test_bit(Faulty, &rdev->flags)
+		    || test_bit(In_sync, &rdev->flags))
+			continue;
+		if (!rdev_set_badblocks(rdev, sh->sector,
+					STRIPE_SECTORS, 0))
+			abort = 1;
+	}
+	if (abort) {
+		conf->recovery_disabled = conf->mddev->recovery_disabled;
+		set_bit(MD_RECOVERY_INTR, &conf->mddev->recovery);
+	}
 }
 
 /* fetch_block - checks the given member device to see if its data needs
@@ -3067,11 +3111,8 @@ static void handle_stripe(struct stripe_head *sh)
 	 */
 	if (s.failed > conf->max_degraded && s.to_read+s.to_write+s.written)
 		handle_failed_stripe(conf, sh, &s, disks, &s.return_bi);
-	if (s.failed > conf->max_degraded && s.syncing) {
-		md_done_sync(conf->mddev, STRIPE_SECTORS, 0);
-		clear_bit(STRIPE_SYNCING, &sh->state);
-		s.syncing = 0;
-	}
+	if (s.failed > conf->max_degraded && s.syncing)
+		handle_failed_sync(conf, sh, &s);
 
 	/*
 	 * might be able to return some write requests if the parity blocks
@@ -4976,6 +5017,7 @@ static int raid5_remove_disk(mddev_t *mddev, int number)
 		 * isn't possible.
 		 */
 		if (!test_bit(Faulty, &rdev->flags) &&
+		    mddev->recovery_disabled != conf->recovery_disabled &&
 		    !has_failed(conf) &&
 		    number < conf->raid_disks) {
 			err = -EBUSY;
@@ -5003,6 +5045,9 @@ static int raid5_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 	struct disk_info *p;
 	int first = 0;
 	int last = conf->raid_disks - 1;
+
+	if (mddev->recovery_disabled == conf->recovery_disabled)
+		return -EBUSY;
 
 	if (has_failed(conf))
 		/* no point adding a device */
