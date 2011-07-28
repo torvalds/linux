@@ -64,6 +64,12 @@ nouveau_pm_perflvl_set(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 	if (perflvl == pm->cur)
 		return 0;
 
+	if (pm->fanspeed_set && perflvl->fanspeed) {
+		ret = pm->fanspeed_set(dev, perflvl->fanspeed);
+		if (ret)
+			NV_ERROR(dev, "set fanspeed failed: %d\n", ret);
+	}
+
 	if (pm->voltage.supported && pm->voltage_set && perflvl->volt_min) {
 		ret = pm->voltage_set(dev, perflvl->volt_min);
 		if (ret) {
@@ -160,6 +166,9 @@ nouveau_pm_perflvl_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 			perflvl->volt_max = ret;
 		}
 	}
+
+	if (pm->fanspeed_get)
+		perflvl->fanspeed = pm->fanspeed_get(dev);
 
 	return 0;
 }
