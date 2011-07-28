@@ -145,7 +145,8 @@ struct r1bio_s {
 /* If a write for this request means we can clear some
  * known-bad-block records, we set this flag
  */
-#define R1BIO_MadeGood 7
+#define	R1BIO_MadeGood 7
+#define	R1BIO_WriteError 8
 
 extern int md_raid1_congested(mddev_t *mddev, int bits);
 
