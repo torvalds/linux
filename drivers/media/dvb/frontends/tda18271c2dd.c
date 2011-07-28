@@ -1123,6 +1123,21 @@ static int release(struct dvb_frontend *fe)
 	return 0;
 }
 
+/*
+ * As defined on EN 300 429 Annex A and on ITU-T J.83 annex A, the DVB-C
+ * roll-off factor is 0.15.
+ * According with the specs, the amount of the needed bandwith is given by:
+ *	Bw = Symbol_rate * (1 + 0.15)
+ * As such, the maximum symbol rate supported by 6 MHz is
+ *	max_symbol_rate = 6 MHz / 1.15 = 5217391 Bauds
+ *NOTE: For ITU-T J.83 Annex C, the roll-off factor is 0.13. So:
+ *	max_symbol_rate = 6 MHz / 1.13 = 5309735 Baud
+ *	That means that an adjustment is needed for Japan,
+ *	but, as currently DRX-K is hardcoded to Annex A, let's stick
+ *	with 0.15 roll-off factor.
+ */
+#define MAX_SYMBOL_RATE_6MHz	5217391
+
 static int set_params(struct dvb_frontend *fe,
 		      struct dvb_frontend_parameters *params)
 {
@@ -1146,7 +1161,10 @@ static int set_params(struct dvb_frontend *fe,
 			break;
 		}
 	else if (fe->ops.info.type == FE_QAM) {
-		Standard = HF_DVBC_8MHZ;
+		if (params->u.qam.symbol_rate <= MAX_SYMBOL_RATE_6MHz)
+			Standard = HF_DVBC_6MHZ;
+		else
+			Standard = HF_DVBC_8MHZ;
 	} else
 		return -EINVAL;
 	do {
