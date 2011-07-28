@@ -766,9 +766,9 @@ static inline void ace_unmask_irq(struct net_device *dev)
  * Prototypes
  */
 static int ace_init(struct net_device *dev);
-static void ace_load_std_rx_ring(struct ace_private *ap, int nr_bufs);
-static void ace_load_mini_rx_ring(struct ace_private *ap, int nr_bufs);
-static void ace_load_jumbo_rx_ring(struct ace_private *ap, int nr_bufs);
+static void ace_load_std_rx_ring(struct net_device *dev, int nr_bufs);
+static void ace_load_mini_rx_ring(struct net_device *dev, int nr_bufs);
+static void ace_load_jumbo_rx_ring(struct net_device *dev, int nr_bufs);
 static irqreturn_t ace_interrupt(int irq, void *dev_id);
 static int ace_load_firmware(struct net_device *dev);
 static int ace_open(struct net_device *dev);
