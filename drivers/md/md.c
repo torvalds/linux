@@ -2516,6 +2516,10 @@ state_show(mdk_rdev_t *rdev, char *page)
 		len += sprintf(page+len, "%sspare", sep);
 		sep = ",";
 	}
+	if (test_bit(WriteErrorSeen, &rdev->flags)) {
+		len += sprintf(page+len, "%swrite_error", sep);
+		sep = ",";
+	}
 	return len+sprintf(page+len, "\n");
 }
 
@@ -2530,6 +2534,8 @@ state_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 	 *  blocked - sets the Blocked flag
 	 *  -blocked - clears the Blocked flag
 	 *  insync - sets Insync providing device isn't active
+	 *  write_error - sets WriteErrorSeen
+	 *  -write_error - clears WriteErrorSeen
 	 */
 	int err = -EINVAL;
 	if (cmd_match(buf, "faulty") && rdev->mddev->pers) {
@@ -2564,6 +2570,12 @@ state_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 		err = 0;
 	} else if (cmd_match(buf, "insync") && rdev->raid_disk == -1) {
 		set_bit(In_sync, &rdev->flags);
+		err = 0;
+	} else if (cmd_match(buf, "write_error")) {
+		set_bit(WriteErrorSeen, &rdev->flags);
+		err = 0;
+	} else if (cmd_match(buf, "-write_error")) {
+		clear_bit(WriteErrorSeen, &rdev->flags);
 		err = 0;
 	}
 	if (!err)
