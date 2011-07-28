@@ -1675,6 +1675,8 @@ static void raid5_end_write_request(struct bio *bi, int error)
 	raid5_conf_t *conf = sh->raid_conf;
 	int disks = sh->disks, i;
 	int uptodate = test_bit(BIO_UPTODATE, &bi->bi_flags);
+	sector_t first_bad;
+	int bad_sectors;
 
 	for (i=0 ; i<disks; i++)
 		if (bi == &sh->dev[i].req)
@@ -1691,7 +1693,9 @@ static void raid5_end_write_request(struct bio *bi, int error)
 	if (!uptodate) {
 		set_bit(WriteErrorSeen, &conf->disks[i].rdev->flags);
 		set_bit(R5_WriteError, &sh->dev[i].flags);
-	}
+	} else if (is_badblock(conf->disks[i].rdev, sh->sector, STRIPE_SECTORS,
+			       &first_bad, &bad_sectors))
+		set_bit(R5_MadeGood, &sh->dev[i].flags);
 
 	rdev_dec_pending(conf->disks[i].rdev, conf->mddev);
 	
@@ -3078,6 +3082,13 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 			} else
 				clear_bit(R5_WriteError, &dev->flags);
 		}
+		if (test_bit(R5_MadeGood, &dev->flags)) {
+			if (!test_bit(Faulty, &rdev->flags)) {
+				s->handle_bad_blocks = 1;
+				atomic_inc(&rdev->nr_pending);
+			} else
+				clear_bit(R5_MadeGood, &dev->flags);
+		}
 		if (!test_bit(R5_Insync, &dev->flags)) {
 			/* The ReadError flag will just be confusing now */
 			clear_bit(R5_ReadError, &dev->flags);
@@ -3338,6 +3349,12 @@ finish:
 				if (!rdev_set_badblocks(rdev, sh->sector,
 							STRIPE_SECTORS, 0))
 					md_error(conf->mddev, rdev);
+				rdev_dec_pending(rdev, conf->mddev);
+			}
+			if (test_and_clear_bit(R5_MadeGood, &dev->flags)) {
+				rdev = conf->disks[i].rdev;
+				rdev_clear_badblocks(rdev, sh->sector,
+						     STRIPE_SECTORS);
 				rdev_dec_pending(rdev, conf->mddev);
 			}
 		}
