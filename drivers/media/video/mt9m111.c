@@ -364,21 +364,6 @@ static int mt9m111_reset(struct mt9m111 *mt9m111)
 	return ret;
 }
 
-static unsigned long mt9m111_query_bus_param(struct soc_camera_device *icd)
-{
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-	unsigned long flags = SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING |
-		SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_HIGH |
-		SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8;
-
-	return soc_camera_apply_sensor_flags(icl, flags);
-}
-
-static int mt9m111_set_bus_param(struct soc_camera_device *icd, unsigned long f)
-{
-	return 0;
-}
-
 static int mt9m111_make_rect(struct mt9m111 *mt9m111,
 			     struct v4l2_rect *rect)
 {
@@ -699,8 +684,6 @@ static const struct v4l2_queryctrl mt9m111_controls[] = {
 };
 
 static struct soc_camera_ops mt9m111_ops = {
-	.query_bus_param	= mt9m111_query_bus_param,
-	.set_bus_param		= mt9m111_set_bus_param,
 	.controls		= mt9m111_controls,
 	.num_controls		= ARRAY_SIZE(mt9m111_controls),
 };
