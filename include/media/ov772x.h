@@ -15,7 +15,6 @@
 /* for flags */
 #define OV772X_FLAG_VFLIP	(1 << 0) /* Vertical flip image */
 #define OV772X_FLAG_HFLIP	(1 << 1) /* Horizontal flip image */
-#define OV772X_FLAG_8BIT	(1 << 2) /* default 10 bit */
 
 /*
  * for Edge ctrl

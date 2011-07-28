@@ -621,29 +621,6 @@ static int ov772x_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static int ov772x_set_bus_param(struct soc_camera_device *icd,
-				unsigned long		  flags)
-{
-	return 0;
-}
-
-static unsigned long ov772x_query_bus_param(struct soc_camera_device *icd)
-{
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct ov772x_priv *priv = i2c_get_clientdata(client);
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-	unsigned long flags = SOCAM_PCLK_SAMPLE_RISING | SOCAM_MASTER |
-		SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_HIGH |
-		SOCAM_DATA_ACTIVE_HIGH;
-
-	if (priv->info->flags & OV772X_FLAG_8BIT)
-		flags |= SOCAM_DATAWIDTH_8;
-	else
-		flags |= SOCAM_DATAWIDTH_10;
-
-	return soc_camera_apply_sensor_flags(icl, flags);
-}
-
 static int ov772x_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	struct ov772x_priv *priv = container_of(sd, struct ov772x_priv, subdev);
@@ -1070,8 +1047,6 @@ static int ov772x_video_probe(struct soc_camera_device *icd,
 }
 
 static struct soc_camera_ops ov772x_ops = {
-	.set_bus_param		= ov772x_set_bus_param,
-	.query_bus_param	= ov772x_query_bus_param,
 	.controls		= ov772x_controls,
 	.num_controls		= ARRAY_SIZE(ov772x_controls),
 };
