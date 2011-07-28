@@ -50,11 +50,6 @@ static struct sys_device balloon_sysdev;
 
 static int register_balloon(struct sys_device *sysdev);
 
-static struct xenbus_watch target_watch =
-{
-	.node = "memory/target"
-};
-
 /* React to a change in the target key */
 static void watch_target(struct xenbus_watch *watch,
 			 const char **vec, unsigned int len)
@@ -73,6 +68,11 @@ static void watch_target(struct xenbus_watch *watch,
 	 */
 	balloon_set_new_target(new_target >> (PAGE_SHIFT - 10));
 }
+static struct xenbus_watch target_watch = {
+	.node = "memory/target",
+	.callback = watch_target,
+};
+
 
 static int balloon_init_watcher(struct notifier_block *notifier,
 				unsigned long event,
@@ -87,7 +87,9 @@ static int balloon_init_watcher(struct notifier_block *notifier,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block xenstore_notifier;
+static struct notifier_block xenstore_notifier = {
+	.notifier_call = balloon_init_watcher,
+};
 
 static int __init balloon_init(void)
 {
@@ -99,9 +101,6 @@ static int __init balloon_init(void)
 	register_balloon(&balloon_sysdev);
 
 	register_xen_selfballooning(&balloon_sysdev);
-
-	target_watch.callback = watch_target;
-	xenstore_notifier.notifier_call = balloon_init_watcher;
 
 	register_xenstore_notifier(&xenstore_notifier);
 
