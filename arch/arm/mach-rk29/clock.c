@@ -209,6 +209,7 @@ volatile u32 cru_clkgate3_con_mirror;
 
 static int gate_mode(struct clk *clk, int on)
 {
+	unsigned long flags;
 	u32 reg;
 	int idx = clk->gate_idx;
 	u32 v;
@@ -219,6 +220,9 @@ static int gate_mode(struct clk *clk, int on)
 	reg = CRU_CLKGATE0_CON;
 	reg += (idx >> 5) << 2;
 	idx &= 0x1F;
+
+	/* ddr reconfig may change gate */
+	local_irq_save(flags);
 
 	if (reg == CRU_CLKGATE3_CON)
 		v = cru_clkgate3_con_mirror;
@@ -234,6 +238,7 @@ static int gate_mode(struct clk *clk, int on)
 		cru_clkgate3_con_mirror = v;
 	cru_writel(v, reg);
 
+	local_irq_restore(flags);
 	return 0;
 }
 

@@ -52,6 +52,16 @@ static struct map_desc rk29_io_desc[] __initdata = {
 	RK29_DEVICE(NANDC),
 	RK29_DEVICE(SPI0),
 	RK29_DEVICE(SPI1),
+#ifdef CONFIG_DDR_RECONFIG
+	RK29_DEVICE(LCDC),
+	RK29_DEVICE(GPU),
+	RK29_DEVICE(VCODEC),
+	RK29_DEVICE(VIP),
+	RK29_DEVICE(IPP),
+	RK29_DEVICE(DMAC0),
+	RK29_DEVICE(DMAC1),
+	RK29_DEVICE(SDMAC0),
+#endif
 };
 
 void __init rk29_map_common_io(void)

@@ -150,6 +150,9 @@ config DDR_SDRAM_FREQ
 	int "DDR SDRAM frequence (in MHz)"
 	default 400
 
+config DDR_RECONFIG
+	bool "Enable dynamic DDR reconfiguration (EXPERIMENTAL)"
+
 config WIFI_CONTROL_FUNC
         bool "Enable WiFi control function abstraction"
         help

@@ -57,6 +57,7 @@
 #include <mach/rk29_iomap.h>
 #include <mach/pmu.h>
 #include <mach/rk29-ipp.h>
+#include <mach/ddr.h>
 
 #include "./display/screen/screen.h"
 
@@ -973,12 +974,16 @@ static int win0_blank(int blank_mode, struct fb_info *info)
     {
     case FB_BLANK_UNBLANK:
         LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE(1));
+	LcdWrReg(inf, REG_CFG_DONE, 0x01);
         break;
     default:
         LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE(0));
+	LcdWrReg(inf, REG_CFG_DONE, 0x01);
+#ifdef CONFIG_DDR_RECONFIG
+	msleep(40);
+#endif
         break;
     }
-    LcdWrReg(inf, REG_CFG_DONE, 0x01);
 
 	mcu_refresh(inf);
     return 0;
@@ -2401,6 +2406,7 @@ static irqreturn_t rk29fb_irq(int irq, void *dev_id)
 	wq_condition = 1;
  	wake_up_interruptible(&wq);
 
+	rk29fb_irq_notify_ddr();
 	return IRQ_HANDLED;
 }
 
