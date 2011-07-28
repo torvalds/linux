@@ -163,7 +163,7 @@ retry_walk:
 
 #if PTTYPE == 64
 	if (walker->level == PT32E_ROOT_LEVEL) {
-		pte = kvm_pdptr_read_mmu(vcpu, mmu, (addr >> 30) & 3);
+		pte = mmu->get_pdptr(vcpu, (addr >> 30) & 3);
 		trace_kvm_mmu_paging_element(pte, walker->level);
 		if (!is_present_gpte(pte))
 			goto error;

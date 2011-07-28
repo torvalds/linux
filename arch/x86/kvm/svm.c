@@ -1844,6 +1844,20 @@ static unsigned long nested_svm_get_tdp_cr3(struct kvm_vcpu *vcpu)
 	return svm->nested.nested_cr3;
 }
 
+static u64 nested_svm_get_tdp_pdptr(struct kvm_vcpu *vcpu, int index)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	u64 cr3 = svm->nested.nested_cr3;
+	u64 pdpte;
+	int ret;
+
+	ret = kvm_read_guest_page(vcpu->kvm, gpa_to_gfn(cr3), &pdpte,
+				  offset_in_page(cr3) + index * 8, 8);
+	if (ret)
+		return 0;
+	return pdpte;
+}
+
 static void nested_svm_set_tdp_cr3(struct kvm_vcpu *vcpu,
 				   unsigned long root)
 {
@@ -1875,6 +1889,7 @@ static int nested_svm_init_mmu_context(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.mmu.set_cr3           = nested_svm_set_tdp_cr3;
 	vcpu->arch.mmu.get_cr3           = nested_svm_get_tdp_cr3;
+	vcpu->arch.mmu.get_pdptr         = nested_svm_get_tdp_pdptr;
 	vcpu->arch.mmu.inject_page_fault = nested_svm_inject_npf_exit;
 	vcpu->arch.mmu.shadow_root_level = get_npt_level();
 	vcpu->arch.walk_mmu              = &vcpu->arch.nested_mmu;
