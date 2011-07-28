@@ -2101,8 +2101,6 @@ ext4_ext_in_cache(struct inode *inode, ext4_lblk_t block,
 /*
  * ext4_ext_rm_idx:
  * removes index from the index block.
- * It's used in truncate case only, thus all requests are for
- * last index in the block only.
  */
 static int ext4_ext_rm_idx(handle_t *handle, struct inode *inode,
 			struct ext4_ext_path *path)
@@ -2120,6 +2118,13 @@ static int ext4_ext_rm_idx(handle_t *handle, struct inode *inode,
 	err = ext4_ext_get_access(handle, inode, path);
 	if (err)
 		return err;
+
+	if (path->p_idx != EXT_LAST_INDEX(path->p_hdr)) {
+		int len = EXT_LAST_INDEX(path->p_hdr) - path->p_idx;
+		len *= sizeof(struct ext4_extent_idx);
+		memmove(path->p_idx, path->p_idx + 1, len);
+	}
+
 	le16_add_cpu(&path->p_hdr->eh_entries, -1);
 	err = ext4_ext_dirty(handle, inode, path);
 	if (err)
