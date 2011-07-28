@@ -116,7 +116,14 @@ struct r1bio_s {
  * correct the read error.  To keep track of bad blocks on a per-bio
  * level, we store IO_BLOCKED in the appropriate 'bios' pointer
  */
-#define IO_BLOCKED ((struct bio*)1)
+#define IO_BLOCKED ((struct bio *)1)
+/* When we successfully write to a known bad-block, we need to remove the
+ * bad-block marking which must be done from process context.  So we record
+ * the success by setting bios[n] to IO_MADE_GOOD
+ */
+#define IO_MADE_GOOD ((struct bio *)2)
+
+#define BIO_SPECIAL(bio) ((unsigned long)bio <= 2)
 
 /* bits for r1bio.state */
 #define	R1BIO_Uptodate	0
@@ -135,6 +142,10 @@ struct r1bio_s {
  * Record that bi_end_io was called with this flag...
  */
 #define	R1BIO_Returned 6
+/* If a write for this request means we can clear some
+ * known-bad-block records, we set this flag
+ */
+#define R1BIO_MadeGood 7
 
 extern int md_raid1_congested(mddev_t *mddev, int bits);
 
