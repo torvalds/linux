@@ -66,13 +66,14 @@ struct exofs_layout {
 	enum exofs_inode_layout_gen_functions lay_func;
 
 	unsigned	s_numdevs;		/* Num of devices in array    */
-	struct osd_dev	*s_ods[0];		/* Variable length            */
+	struct osd_dev	**s_ods;		/* osd_dev array              */
 };
 
 /*
  * our extension to the in-memory superblock
  */
 struct exofs_sb_info {
+	struct backing_dev_info bdi;		/* register our bdi with VFS  */
 	struct exofs_sb_stats s_ess;		/* Written often, pre-allocate*/
 	int		s_timeout;		/* timeout for OSD operations */
 	uint64_t	s_nextid;		/* highest object ID used     */
@@ -81,15 +82,11 @@ struct exofs_sb_info {
 	u32		s_next_generation;	/* next gen # to use          */
 	atomic_t	s_curr_pending;		/* number of pending commands */
 	uint8_t		s_cred[OSD_CAP_LEN];	/* credential for the fscb    */
-	struct 		backing_dev_info bdi;	/* register our bdi with VFS  */
 
 	struct pnfs_osd_data_map data_map;	/* Default raid to use
 						 * FIXME: Needed ?
 						 */
-/*	struct exofs_layout	dir_layout;*/	/* Default dir layout */
-	struct exofs_layout	layout;		/* Default files layout,
-						 * contains the variable osd_dev
-						 * array. Keep last */
+	struct exofs_layout	layout;		/* Default files layout       */
 	struct osd_dev	*_min_one_dev[1];	/* Place holder for one dev   */
 };
 

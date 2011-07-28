@@ -393,6 +393,8 @@ void exofs_free_sbi(struct exofs_sb_info *sbi)
 			osduld_put_device(od);
 		}
 	}
+	if (sbi->layout.s_ods != sbi->_min_one_dev)
+		kfree(sbi->layout.s_ods);
 	kfree(sbi);
 }
 
@@ -501,6 +503,15 @@ static int _read_and_match_data_map(struct exofs_sb_info *sbi, unsigned numdevs,
 		return -EINVAL;
 	}
 
+	EXOFS_DBGMSG("exofs: layout: "
+		"num_comps=%u stripe_unit=0x%x group_width=%u "
+		"group_depth=0x%llx mirrors_p1=%u raid_algorithm=%u\n",
+		numdevs,
+		sbi->layout.stripe_unit,
+		sbi->layout.group_width,
+		_LLU(sbi->layout.group_depth),
+		sbi->layout.mirrors_p1,
+		sbi->data_map.odm_raid_algorithm);
 	return 0;
 }
 
@@ -547,11 +558,10 @@ static int exofs_devs_2_odi(struct exofs_dt_device_info *dt_dev,
 	return !(odi->systemid_len || odi->osdname_len);
 }
 
-static int exofs_read_lookup_dev_table(struct exofs_sb_info **psbi,
+static int exofs_read_lookup_dev_table(struct exofs_sb_info *sbi,
+				       struct osd_dev *fscb_od,
 				       unsigned table_count)
 {
-	struct exofs_sb_info *sbi = *psbi;
-	struct osd_dev *fscb_od;
 	struct osd_obj_id obj = {.partition = sbi->layout.s_pid,
 				 .id = EXOFS_DEVTABLE_ID};
 	struct exofs_device_table *dt;
@@ -567,8 +577,6 @@ static int exofs_read_lookup_dev_table(struct exofs_sb_info **psbi,
 		return -ENOMEM;
 	}
 
-	fscb_od = sbi->layout.s_ods[0];
-	sbi->layout.s_ods[0] = NULL;
 	sbi->layout.s_numdevs = 0;
 	ret = exofs_read_kern(fscb_od, sbi->s_cred, &obj, 0, dt, table_bytes);
 	if (unlikely(ret)) {
@@ -590,14 +598,13 @@ static int exofs_read_lookup_dev_table(struct exofs_sb_info **psbi,
 	if (likely(numdevs > 1)) {
 		unsigned size = numdevs * sizeof(sbi->layout.s_ods[0]);
 
-		sbi = krealloc(sbi, sizeof(*sbi) + size, GFP_KERNEL);
-		if (unlikely(!sbi)) {
+		sbi->layout.s_ods = kzalloc(size, GFP_KERNEL);
+		if (unlikely(!sbi->layout.s_ods)) {
+			EXOFS_ERR("ERROR: faild allocating Device array[%d]\n",
+				  numdevs);
 			ret = -ENOMEM;
 			goto out;
 		}
-		memset(&sbi->layout.s_ods[1], 0,
-		       size - sizeof(sbi->layout.s_ods[0]));
-		*psbi = sbi;
 	}
 
 	for (i = 0; i < numdevs; i++) {
@@ -684,10 +691,6 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sbi)
 		return -ENOMEM;
 
-	ret = bdi_setup_and_register(&sbi->bdi, "exofs", BDI_CAP_MAP_COPY);
-	if (ret)
-		goto free_bdi;
-
 	/* use mount options to fill superblock */
 	if (opts->is_osdname) {
 		struct osd_dev_info odi = {.systemid_len = 0};
@@ -709,7 +712,7 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->layout.group_width = 1;
 	sbi->layout.group_depth = -1;
 	sbi->layout.group_count = 1;
-	sbi->layout.s_ods[0] = od;
+	sbi->layout.s_ods = sbi->_min_one_dev;
 	sbi->layout.s_numdevs = 1;
 	sbi->layout.s_pid = opts->pid;
 	sbi->s_timeout = opts->timeout;
@@ -757,9 +760,11 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 
 	table_count = le64_to_cpu(fscb.s_dev_table_count);
 	if (table_count) {
-		ret = exofs_read_lookup_dev_table(&sbi, table_count);
+		ret = exofs_read_lookup_dev_table(sbi, od, table_count);
 		if (unlikely(ret))
 			goto free_sbi;
+	} else {
+		sbi->layout.s_ods[0] = od;
 	}
 
 	__sbi_read_stats(sbi);
@@ -793,6 +798,12 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 		goto free_sbi;
 	}
 
+	ret = bdi_setup_and_register(&sbi->bdi, "exofs", BDI_CAP_MAP_COPY);
+	if (ret) {
+		EXOFS_DBGMSG("Failed to bdi_setup_and_register\n");
+		goto free_sbi;
+	}
+
 	_exofs_print_device("Mounting", opts->dev_name, sbi->layout.s_ods[0],
 			    sbi->layout.s_pid);
 	if (opts->is_osdname)
@@ -800,8 +811,6 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 
 free_sbi:
-	bdi_destroy(&sbi->bdi);
-free_bdi:
 	EXOFS_ERR("Unable to mount exofs on %s pid=0x%llx err=%d\n",
 		  opts->dev_name, sbi->layout.s_pid, ret);
 	exofs_free_sbi(sbi);
