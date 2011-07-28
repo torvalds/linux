@@ -1486,6 +1486,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		memset(caldata, 0, sizeof(*caldata));
 		ath9k_init_nfcal_hist_buffer(ah, chan);
 	}
+	ah->noise = ath9k_hw_getchan_noise(ah, chan);
 
 	if (bChannelChange &&
 	    (ah->chip_fullsleep != true) &&

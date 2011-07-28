@@ -63,6 +63,19 @@ static s16 ath9k_hw_get_default_nf(struct ath_hw *ah,
 	return ath9k_hw_get_nf_limits(ah, chan)->nominal;
 }
 
+s16 ath9k_hw_getchan_noise(struct ath_hw *ah, struct ath9k_channel *chan)
+{
+	s8 noise = ATH_DEFAULT_NOISE_FLOOR;
+
+	if (chan && chan->noisefloor) {
+		s8 delta = chan->noisefloor -
+			   ath9k_hw_get_default_nf(ah, chan);
+		if (delta > 0)
+			noise += delta;
+	}
+	return noise;
+}
+EXPORT_SYMBOL(ath9k_hw_getchan_noise);
 
 static void ath9k_hw_update_nfcal_hist_buffer(struct ath_hw *ah,
 					      struct ath9k_hw_cal_data *cal,
@@ -378,6 +391,7 @@ bool ath9k_hw_getnf(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	if (!caldata) {
 		chan->noisefloor = nf;
+		ah->noise = ath9k_hw_getchan_noise(ah, chan);
 		return false;
 	}
 
@@ -385,6 +399,7 @@ bool ath9k_hw_getnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	caldata->nfcal_pending = false;
 	ath9k_hw_update_nfcal_hist_buffer(ah, caldata, nfarray);
 	chan->noisefloor = h[0].privNF;
+	ah->noise = ath9k_hw_getchan_noise(ah, chan);
 	return true;
 }
 
