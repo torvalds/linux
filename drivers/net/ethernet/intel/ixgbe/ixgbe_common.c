@@ -2121,8 +2121,8 @@ static s32 ixgbe_fc_autoneg_fiber(struct ixgbe_hw *hw)
 	 */
 
 	linkstat = IXGBE_READ_REG(hw, IXGBE_PCS1GLSTA);
-	if (((linkstat & IXGBE_PCS1GLSTA_AN_COMPLETE) == 0) ||
-	    ((linkstat & IXGBE_PCS1GLSTA_AN_TIMED_OUT) == 1)) {
+	if ((!!(linkstat & IXGBE_PCS1GLSTA_AN_COMPLETE) == 0) ||
+	    (!!(linkstat & IXGBE_PCS1GLSTA_AN_TIMED_OUT) == 1)) {
 		ret_val = IXGBE_ERR_FC_NOT_NEGOTIATED;
 		goto out;
 	}
