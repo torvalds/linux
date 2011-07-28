@@ -40,8 +40,6 @@ struct sh_csi2 {
 	void __iomem			*base;
 	struct platform_device		*pdev;
 	struct sh_csi2_client_config	*client;
-	unsigned long (*query_bus_param)(struct soc_camera_device *);
-	int (*set_bus_param)(struct soc_camera_device *, unsigned long);
 };
 
 static int sh_csi2_try_fmt(struct v4l2_subdev *sd,
@@ -200,22 +198,6 @@ static void sh_csi2_hwinit(struct sh_csi2 *priv)
 	iowrite32(tmp, priv->base + SH_CSI2_CHKSUM);
 }
 
-static int sh_csi2_set_bus_param(struct soc_camera_device *icd,
-				 unsigned long flags)
-{
-	return 0;
-}
-
-static unsigned long sh_csi2_query_bus_param(struct soc_camera_device *icd)
-{
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-	const unsigned long flags = SOCAM_PCLK_SAMPLE_RISING |
-		SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_HIGH |
-		SOCAM_MASTER | SOCAM_DATAWIDTH_8 | SOCAM_DATA_ACTIVE_HIGH;
-
-	return soc_camera_apply_sensor_flags(icl, flags);
-}
-
 static int sh_csi2_client_connect(struct sh_csi2 *priv)
 {
 	struct sh_csi2_pdata *pdata = priv->pdev->dev.platform_data;
@@ -280,11 +262,6 @@ static int sh_csi2_client_connect(struct sh_csi2 *priv)
 	priv->mipi_flags = common_flags;
 	priv->client = pdata->clients + i;
 
-	priv->set_bus_param		= icd->ops->set_bus_param;
-	priv->query_bus_param		= icd->ops->query_bus_param;
-	icd->ops->set_bus_param		= sh_csi2_set_bus_param;
-	icd->ops->query_bus_param	= sh_csi2_query_bus_param;
-
 	csi2_sd->grp_id = (long)icd;
 
 	pm_runtime_get_sync(dev);
@@ -296,16 +273,8 @@ static int sh_csi2_client_connect(struct sh_csi2 *priv)
 
 static void sh_csi2_client_disconnect(struct sh_csi2 *priv)
 {
-	struct soc_camera_device *icd = (struct soc_camera_device *)priv->subdev.grp_id;
-
 	priv->client = NULL;
 	priv->subdev.grp_id = 0;
-
-	/* Driver is about to be unbound */
-	icd->ops->set_bus_param		= priv->set_bus_param;
-	icd->ops->query_bus_param	= priv->query_bus_param;
-	priv->set_bus_param		= NULL;
-	priv->query_bus_param		= NULL;
 
 	pm_runtime_put(v4l2_get_subdevdata(&priv->subdev));
 }
