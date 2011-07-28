@@ -453,7 +453,7 @@ static const struct tw9910_scale_ctrl *tw9910_select_norm(struct soc_camera_devi
 }
 
 /*
- * soc_camera_ops function
+ * subdevice operations
  */
 static int tw9910_s_stream(struct v4l2_subdev *sd, int enable)
 {
@@ -493,44 +493,6 @@ static int tw9910_s_stream(struct v4l2_subdev *sd, int enable)
 		return ret;
 
 	return tw9910_power(client, enable);
-}
-
-static int tw9910_set_bus_param(struct soc_camera_device *icd,
-				unsigned long flags)
-{
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	u8 val = VSSL_VVALID | HSSL_DVALID;
-
-	flags = soc_camera_apply_sensor_flags(icl, flags);
-
-	/*
-	 * set OUTCTR1
-	 *
-	 * We use VVALID and DVALID signals to control VSYNC and HSYNC
-	 * outputs, in this mode their polarity is inverted.
-	 */
-	if (flags & SOCAM_HSYNC_ACTIVE_LOW)
-		val |= HSP_HI;
-
-	if (flags & SOCAM_VSYNC_ACTIVE_LOW)
-		val |= VSP_HI;
-
-	return i2c_smbus_write_byte_data(client, OUTCTR1, val);
-}
-
-static unsigned long tw9910_query_bus_param(struct soc_camera_device *icd)
-{
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct tw9910_priv *priv = to_tw9910(client);
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-	unsigned long flags = SOCAM_PCLK_SAMPLE_RISING | SOCAM_MASTER |
-		SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_HIGH |
-		SOCAM_VSYNC_ACTIVE_LOW  | SOCAM_HSYNC_ACTIVE_LOW  |
-		SOCAM_DATA_ACTIVE_HIGH | priv->info->buswidth;
-
-	return soc_camera_apply_sensor_flags(icl, flags);
 }
 
 static int tw9910_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
@@ -840,11 +802,6 @@ static int tw9910_video_probe(struct soc_camera_device *icd,
 	return 0;
 }
 
-static struct soc_camera_ops tw9910_ops = {
-	.set_bus_param		= tw9910_set_bus_param,
-	.query_bus_param	= tw9910_query_bus_param,
-};
-
 static struct v4l2_subdev_core_ops tw9910_subdev_core_ops = {
 	.g_chip_ident	= tw9910_g_chip_ident,
 	.s_std		= tw9910_s_std,
@@ -964,14 +921,12 @@ static int tw9910_probe(struct i2c_client *client,
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &tw9910_subdev_ops);
 
-	icd->ops     = &tw9910_ops;
+	icd->ops     = NULL;
 	icd->iface   = icl->bus_id;
 
 	ret = tw9910_video_probe(icd, client);
-	if (ret) {
-		icd->ops = NULL;
+	if (ret)
 		kfree(priv);
-	}
 
 	return ret;
 }
@@ -979,9 +934,7 @@ static int tw9910_probe(struct i2c_client *client,
 static int tw9910_remove(struct i2c_client *client)
 {
 	struct tw9910_priv *priv = to_tw9910(client);
-	struct soc_camera_device *icd = client->dev.platform_data;
 
-	icd->ops = NULL;
 	kfree(priv);
 	return 0;
 }
