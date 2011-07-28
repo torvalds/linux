@@ -4600,7 +4600,9 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 			if (connector->encoder != encoder)
 				continue;
 
-			if (connector->display_info.bpc < display_bpc) {
+			/* Don't use an invalid EDID bpc value */
+			if (connector->display_info.bpc &&
+			    connector->display_info.bpc < display_bpc) {
 				DRM_DEBUG_DRIVER("clamping display bpc (was %d) to EDID reported max of %d\n", display_bpc, connector->display_info.bpc);
 				display_bpc = connector->display_info.bpc;
 			}
@@ -5215,7 +5217,8 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		temp |= PIPE_12BPC;
 		break;
 	default:
-		WARN(1, "intel_choose_pipe_bpp returned invalid value\n");
+		WARN(1, "intel_choose_pipe_bpp returned invalid value %d\n",
+			pipe_bpp);
 		temp |= PIPE_8BPC;
 		pipe_bpp = 24;
 		break;
