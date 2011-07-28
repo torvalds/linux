@@ -141,40 +141,6 @@ unsigned long soc_camera_apply_board_flags(struct soc_camera_link *icl,
 }
 EXPORT_SYMBOL(soc_camera_apply_board_flags);
 
-/**
- * soc_camera_apply_sensor_flags() - apply platform SOCAM_SENSOR_INVERT_* flags
- * @icl:	camera platform parameters
- * @flags:	flags to be inverted according to platform configuration
- * @return:	resulting flags
- */
-unsigned long soc_camera_apply_sensor_flags(struct soc_camera_link *icl,
-					    unsigned long flags)
-{
-	unsigned long f;
-
-	/* If only one of the two polarities is supported, switch to the opposite */
-	if (icl->flags & SOCAM_SENSOR_INVERT_HSYNC) {
-		f = flags & (SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_LOW);
-		if (f == SOCAM_HSYNC_ACTIVE_HIGH || f == SOCAM_HSYNC_ACTIVE_LOW)
-			flags ^= SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_LOW;
-	}
-
-	if (icl->flags & SOCAM_SENSOR_INVERT_VSYNC) {
-		f = flags & (SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW);
-		if (f == SOCAM_VSYNC_ACTIVE_HIGH || f == SOCAM_VSYNC_ACTIVE_LOW)
-			flags ^= SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW;
-	}
-
-	if (icl->flags & SOCAM_SENSOR_INVERT_PCLK) {
-		f = flags & (SOCAM_PCLK_SAMPLE_RISING | SOCAM_PCLK_SAMPLE_FALLING);
-		if (f == SOCAM_PCLK_SAMPLE_RISING || f == SOCAM_PCLK_SAMPLE_FALLING)
-			flags ^= SOCAM_PCLK_SAMPLE_RISING | SOCAM_PCLK_SAMPLE_FALLING;
-	}
-
-	return flags;
-}
-EXPORT_SYMBOL(soc_camera_apply_sensor_flags);
-
 #define pixfmtstr(x) (x) & 0xff, ((x) >> 8) & 0xff, ((x) >> 16) & 0xff, \
 	((x) >> 24) & 0xff
 

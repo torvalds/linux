@@ -12,6 +12,7 @@
 #ifndef SOC_CAMERA_H
 #define SOC_CAMERA_H
 
+#include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/pm.h>
@@ -194,8 +195,6 @@ struct soc_camera_format_xlate {
 };
 
 struct soc_camera_ops {
-	unsigned long (*query_bus_param)(struct soc_camera_device *);
-	int (*set_bus_param)(struct soc_camera_device *, unsigned long);
 	const struct v4l2_queryctrl *controls;
 	int num_controls;
 };
@@ -238,52 +237,17 @@ static inline struct v4l2_queryctrl const *soc_camera_find_qctrl(
 	return NULL;
 }
 
-#define SOCAM_MASTER			(1 << 0)
-#define SOCAM_SLAVE			(1 << 1)
-#define SOCAM_HSYNC_ACTIVE_HIGH		(1 << 2)
-#define SOCAM_HSYNC_ACTIVE_LOW		(1 << 6)
-#define SOCAM_VSYNC_ACTIVE_HIGH		(1 << 4)
-#define SOCAM_VSYNC_ACTIVE_LOW		(1 << 5)
-#define SOCAM_DATAWIDTH_4		(1 << 3)
-#define SOCAM_DATAWIDTH_8		(1 << 7)
-#define SOCAM_DATAWIDTH_9		(1 << 8)
-#define SOCAM_DATAWIDTH_10		(1 << 9)
-#define SOCAM_DATAWIDTH_15		(1 << 14)
-#define SOCAM_DATAWIDTH_16		(1 << 15)
-#define SOCAM_PCLK_SAMPLE_RISING	(1 << 12)
-#define SOCAM_PCLK_SAMPLE_FALLING	(1 << 13)
-#define SOCAM_DATA_ACTIVE_HIGH		(1 << 10)
-#define SOCAM_DATA_ACTIVE_LOW		(1 << 11)
-#define SOCAM_MIPI_1LANE		(1 << 16)
-#define SOCAM_MIPI_2LANE		(1 << 17)
-#define SOCAM_MIPI_3LANE		(1 << 18)
-#define SOCAM_MIPI_4LANE		(1 << 19)
-#define SOCAM_MIPI	(SOCAM_MIPI_1LANE | SOCAM_MIPI_2LANE | \
-			SOCAM_MIPI_3LANE | SOCAM_MIPI_4LANE)
+#define SOCAM_DATAWIDTH(x)	BIT((x) - 1)
+#define SOCAM_DATAWIDTH_4	SOCAM_DATAWIDTH(4)
+#define SOCAM_DATAWIDTH_8	SOCAM_DATAWIDTH(8)
+#define SOCAM_DATAWIDTH_9	SOCAM_DATAWIDTH(9)
+#define SOCAM_DATAWIDTH_10	SOCAM_DATAWIDTH(10)
+#define SOCAM_DATAWIDTH_15	SOCAM_DATAWIDTH(15)
+#define SOCAM_DATAWIDTH_16	SOCAM_DATAWIDTH(16)
 
 #define SOCAM_DATAWIDTH_MASK (SOCAM_DATAWIDTH_4 | SOCAM_DATAWIDTH_8 | \
 			      SOCAM_DATAWIDTH_9 | SOCAM_DATAWIDTH_10 | \
 			      SOCAM_DATAWIDTH_15 | SOCAM_DATAWIDTH_16)
-
-static inline unsigned long soc_camera_bus_param_compatible(
-			unsigned long camera_flags, unsigned long bus_flags)
-{
-	unsigned long common_flags, hsync, vsync, pclk, data, buswidth, mode;
-	unsigned long mipi;
-
-	common_flags = camera_flags & bus_flags;
-
-	hsync = common_flags & (SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_LOW);
-	vsync = common_flags & (SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW);
-	pclk = common_flags & (SOCAM_PCLK_SAMPLE_RISING | SOCAM_PCLK_SAMPLE_FALLING);
-	data = common_flags & (SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATA_ACTIVE_LOW);
-	mode = common_flags & (SOCAM_MASTER | SOCAM_SLAVE);
-	buswidth = common_flags & SOCAM_DATAWIDTH_MASK;
-	mipi = common_flags & SOCAM_MIPI;
-
-	return ((!hsync || !vsync || !pclk || !data || !mode || !buswidth) && !mipi) ? 0 :
-		common_flags;
-}
 
 static inline void soc_camera_limit_side(int *start, int *length,
 		unsigned int start_min,
