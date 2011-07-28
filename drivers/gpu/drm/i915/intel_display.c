@@ -1290,6 +1290,17 @@ static void intel_disable_pipe(struct drm_i915_private *dev_priv,
 	intel_wait_for_pipe_off(dev_priv->dev, pipe);
 }
 
+/*
+ * Plane regs are double buffered, going from enabled->disabled needs a
+ * trigger in order to latch.  The display address reg provides this.
+ */
+static void intel_flush_display_plane(struct drm_i915_private *dev_priv,
+				      enum plane plane)
+{
+	I915_WRITE(DSPADDR(plane), I915_READ(DSPADDR(plane)));
+	I915_WRITE(DSPSURF(plane), I915_READ(DSPSURF(plane)));
+}
+
 /**
  * intel_enable_plane - enable a display plane on a given pipe
  * @dev_priv: i915 private structure
@@ -1313,18 +1324,8 @@ static void intel_enable_plane(struct drm_i915_private *dev_priv,
 		return;
 
 	I915_WRITE(reg, val | DISPLAY_PLANE_ENABLE);
+	intel_flush_display_plane(dev_priv, plane);
 	intel_wait_for_vblank(dev_priv->dev, pipe);
-}
-
-/*
- * Plane regs are double buffered, going from enabled->disabled needs a
- * trigger in order to latch.  The display address reg provides this.
- */
-static void intel_flush_display_plane(struct drm_i915_private *dev_priv,
-				      enum plane plane)
-{
-	I915_WRITE(DSPADDR(plane), I915_READ(DSPADDR(plane)));
-	I915_WRITE(DSPSURF(plane), I915_READ(DSPSURF(plane)));
 }
 
 /**
@@ -7418,10 +7419,12 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 		   ILK_DPARB_CLK_GATE  |
 		   ILK_DPFD_CLK_GATE);
 
-	for_each_pipe(pipe)
+	for_each_pipe(pipe) {
 		I915_WRITE(DSPCNTR(pipe),
 			   I915_READ(DSPCNTR(pipe)) |
 			   DISPPLANE_TRICKLE_FEED_DISABLE);
+		intel_flush_display_plane(dev_priv, pipe);
+	}
 }
 
 static void ivybridge_init_clock_gating(struct drm_device *dev)
@@ -7438,10 +7441,12 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 
 	I915_WRITE(ILK_DSPCLK_GATE, IVB_VRHUNIT_CLK_GATE);
 
-	for_each_pipe(pipe)
+	for_each_pipe(pipe) {
 		I915_WRITE(DSPCNTR(pipe),
 			   I915_READ(DSPCNTR(pipe)) |
 			   DISPPLANE_TRICKLE_FEED_DISABLE);
+		intel_flush_display_plane(dev_priv, pipe);
+	}
 }
 
 static void g4x_init_clock_gating(struct drm_device *dev)
