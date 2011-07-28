@@ -499,31 +499,6 @@ static int rj54n1_s_stream(struct v4l2_subdev *sd, int enable)
 	return reg_set(client, RJ54N1_STILL_CONTROL, (!enable) << 7, 0x80);
 }
 
-static int rj54n1_set_bus_param(struct soc_camera_device *icd,
-				unsigned long flags)
-{
-	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	/* Figures 2.5-1 to 2.5-3 - default falling pixclk edge */
-
-	if (flags & SOCAM_PCLK_SAMPLE_RISING)
-		return reg_write(client, RJ54N1_OUT_SIGPO, 1 << 4);
-	else
-		return reg_write(client, RJ54N1_OUT_SIGPO, 0);
-}
-
-static unsigned long rj54n1_query_bus_param(struct soc_camera_device *icd)
-{
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-	const unsigned long flags =
-		SOCAM_PCLK_SAMPLE_RISING | SOCAM_PCLK_SAMPLE_FALLING |
-		SOCAM_MASTER | SOCAM_DATAWIDTH_8 |
-		SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_HIGH |
-		SOCAM_DATA_ACTIVE_HIGH;
-
-	return soc_camera_apply_sensor_flags(icl, flags);
-}
-
 static int rj54n1_set_rect(struct i2c_client *client,
 			   u16 reg_x, u16 reg_y, u16 reg_xy,
 			   u32 width, u32 height)
@@ -1240,8 +1215,6 @@ static const struct v4l2_queryctrl rj54n1_controls[] = {
 };
 
 static struct soc_camera_ops rj54n1_ops = {
-	.set_bus_param		= rj54n1_set_bus_param,
-	.query_bus_param	= rj54n1_query_bus_param,
 	.controls		= rj54n1_controls,
 	.num_controls		= ARRAY_SIZE(rj54n1_controls),
 };
