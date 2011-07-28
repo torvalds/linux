@@ -109,6 +109,10 @@ static int __init register_perf_hsvc(void)
 			perf_hsvc_group = HV_GRP_N2_CPU;
 			break;
 
+		case SUN4V_CHIP_NIAGARA3:
+			perf_hsvc_group = HV_GRP_KT_CPU;
+			break;
+
 		default:
 			return -ENODEV;
 		}
