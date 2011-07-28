@@ -58,11 +58,6 @@
 #define MT9T031_COLUMN_SKIP		32
 #define MT9T031_ROW_SKIP		20
 
-#define MT9T031_BUS_PARAM	(SOCAM_PCLK_SAMPLE_RISING |	\
-	SOCAM_PCLK_SAMPLE_FALLING | SOCAM_HSYNC_ACTIVE_HIGH |	\
-	SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_DATA_ACTIVE_HIGH |	\
-	SOCAM_MASTER | SOCAM_DATAWIDTH_10)
-
 struct mt9t031 {
 	struct v4l2_subdev subdev;
 	struct v4l2_rect rect;	/* Sensor window */
@@ -180,30 +175,6 @@ static int mt9t031_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static int mt9t031_set_bus_param(struct soc_camera_device *icd,
-				 unsigned long flags)
-{
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-
-	/* The caller should have queried our parameters, check anyway */
-	if (flags & ~MT9T031_BUS_PARAM)
-		return -EINVAL;
-
-	if (flags & SOCAM_PCLK_SAMPLE_FALLING)
-		reg_clear(client, MT9T031_PIXEL_CLOCK_CONTROL, 0x8000);
-	else
-		reg_set(client, MT9T031_PIXEL_CLOCK_CONTROL, 0x8000);
-
-	return 0;
-}
-
-static unsigned long mt9t031_query_bus_param(struct soc_camera_device *icd)
-{
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-
-	return soc_camera_apply_sensor_flags(icl, MT9T031_BUS_PARAM);
-}
-
 enum {
 	MT9T031_CTRL_VFLIP,
 	MT9T031_CTRL_HFLIP,
@@ -263,8 +234,6 @@ static const struct v4l2_queryctrl mt9t031_controls[] = {
 };
 
 static struct soc_camera_ops mt9t031_ops = {
-	.set_bus_param		= mt9t031_set_bus_param,
-	.query_bus_param	= mt9t031_query_bus_param,
 	.controls		= mt9t031_controls,
 	.num_controls		= ARRAY_SIZE(mt9t031_controls),
 };
