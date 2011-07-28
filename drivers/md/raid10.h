@@ -118,6 +118,13 @@ struct r10bio_s {
  * level, we store IO_BLOCKED in the appropriate 'bios' pointer
  */
 #define IO_BLOCKED ((struct bio*)1)
+/* When we successfully write to a known bad-block, we need to remove the
+ * bad-block marking which must be done from process context.  So we record
+ * the success by setting devs[n].bio to IO_MADE_GOOD
+ */
+#define IO_MADE_GOOD ((struct bio *)2)
+
+#define BIO_SPECIAL(bio) ((unsigned long)bio <= 2)
 
 /* bits for r10bio.state */
 #define	R10BIO_Uptodate	0
@@ -128,4 +135,8 @@ struct r10bio_s {
  * so that raid10d knows what to do with them.
  */
 #define	R10BIO_ReadError 4
+/* If a write for this request means we can clear some
+ * known-bad-block records, we set this flag.
+ */
+#define	R10BIO_MadeGood 5
 #endif
