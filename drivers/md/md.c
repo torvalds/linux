@@ -7165,11 +7165,14 @@ void md_do_sync(mddev_t *mddev)
 			atomic_add(sectors, &mddev->recovery_active);
 		}
 
+		if (test_bit(MD_RECOVERY_INTR, &mddev->recovery))
+			break;
+
 		j += sectors;
 		if (j>1) mddev->curr_resync = j;
 		mddev->curr_mark_cnt = io_sectors;
 		if (last_check == 0)
-			/* this is the earliers that rebuilt will be
+			/* this is the earliest that rebuild will be
 			 * visible in /proc/mdstat
 			 */
 			md_new_event(mddev);
@@ -7178,10 +7181,6 @@ void md_do_sync(mddev_t *mddev)
 			continue;
 
 		last_check = io_sectors;
-
-		if (test_bit(MD_RECOVERY_INTR, &mddev->recovery))
-			break;
-
 	repeat:
 		if (time_after_eq(jiffies, mark[last_mark] + SYNC_MARK_STEP )) {
 			/* step marks */
