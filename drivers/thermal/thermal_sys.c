@@ -469,6 +469,22 @@ temp_crit_show(struct device *dev, struct device_attribute *attr,
 }
 
 
+static struct thermal_hwmon_device *
+thermal_hwmon_lookup_by_type(const struct thermal_zone_device *tz)
+{
+	struct thermal_hwmon_device *hwmon;
+
+	mutex_lock(&thermal_list_lock);
+	list_for_each_entry(hwmon, &thermal_hwmon_list, node)
+		if (!strcmp(hwmon->type, tz->type)) {
+			mutex_unlock(&thermal_list_lock);
+			return hwmon;
+		}
+	mutex_unlock(&thermal_list_lock);
+
+	return NULL;
+}
+
 static int
 thermal_add_hwmon_sysfs(struct thermal_zone_device *tz)
 {
@@ -476,14 +492,11 @@ thermal_add_hwmon_sysfs(struct thermal_zone_device *tz)
 	int new_hwmon_device = 1;
 	int result;
 
-	mutex_lock(&thermal_list_lock);
-	list_for_each_entry(hwmon, &thermal_hwmon_list, node)
-		if (!strcmp(hwmon->type, tz->type)) {
-			new_hwmon_device = 0;
-			mutex_unlock(&thermal_list_lock);
-			goto register_sys_interface;
-		}
-	mutex_unlock(&thermal_list_lock);
+	hwmon = thermal_hwmon_lookup_by_type(tz);
+	if (hwmon) {
+		new_hwmon_device = 0;
+		goto register_sys_interface;
+	}
 
 	hwmon = kzalloc(sizeof(struct thermal_hwmon_device), GFP_KERNEL);
 	if (!hwmon)
