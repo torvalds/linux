@@ -200,78 +200,6 @@ static int mt9v022_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static int mt9v022_set_bus_param(struct soc_camera_device *icd,
-				 unsigned long flags)
-{
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct mt9v022 *mt9v022 = to_mt9v022(client);
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-	unsigned int width_flag = flags & SOCAM_DATAWIDTH_MASK;
-	int ret;
-	u16 pixclk = 0;
-
-	/* Only one width bit may be set */
-	if (!is_power_of_2(width_flag))
-		return -EINVAL;
-
-	if (icl->set_bus_param) {
-		ret = icl->set_bus_param(icl, width_flag);
-		if (ret)
-			return ret;
-	} else {
-		/*
-		 * Without board specific bus width settings we only support the
-		 * sensors native bus width
-		 */
-		if (width_flag != SOCAM_DATAWIDTH_10)
-			return -EINVAL;
-	}
-
-	flags = soc_camera_apply_sensor_flags(icl, flags);
-
-	if (flags & SOCAM_PCLK_SAMPLE_FALLING)
-		pixclk |= 0x10;
-
-	if (!(flags & SOCAM_HSYNC_ACTIVE_HIGH))
-		pixclk |= 0x1;
-
-	if (!(flags & SOCAM_VSYNC_ACTIVE_HIGH))
-		pixclk |= 0x2;
-
-	ret = reg_write(client, MT9V022_PIXCLK_FV_LV, pixclk);
-	if (ret < 0)
-		return ret;
-
-	if (!(flags & SOCAM_MASTER))
-		mt9v022->chip_control &= ~0x8;
-
-	ret = reg_write(client, MT9V022_CHIP_CONTROL, mt9v022->chip_control);
-	if (ret < 0)
-		return ret;
-
-	dev_dbg(&client->dev, "Calculated pixclk 0x%x, chip control 0x%x\n",
-		pixclk, mt9v022->chip_control);
-
-	return 0;
-}
-
-static unsigned long mt9v022_query_bus_param(struct soc_camera_device *icd)
-{
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-	unsigned int flags = SOCAM_MASTER | SOCAM_SLAVE |
-		SOCAM_PCLK_SAMPLE_RISING | SOCAM_PCLK_SAMPLE_FALLING |
-		SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_LOW |
-		SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW |
-		SOCAM_DATA_ACTIVE_HIGH;
-
-	if (icl->query_bus_param)
-		flags |= icl->query_bus_param(icl) & SOCAM_DATAWIDTH_MASK;
-	else
-		flags |= SOCAM_DATAWIDTH_10;
-
-	return soc_camera_apply_sensor_flags(icl, flags);
-}
-
 static int mt9v022_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -558,8 +486,6 @@ static const struct v4l2_queryctrl mt9v022_controls[] = {
 };
 
 static struct soc_camera_ops mt9v022_ops = {
-	.set_bus_param		= mt9v022_set_bus_param,
-	.query_bus_param	= mt9v022_query_bus_param,
 	.controls		= mt9v022_controls,
 	.num_controls		= ARRAY_SIZE(mt9v022_controls),
 };
