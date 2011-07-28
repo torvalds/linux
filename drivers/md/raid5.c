@@ -2923,6 +2923,9 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 	spin_lock_irq(&conf->device_lock);
 	for (i=disks; i--; ) {
 		mdk_rdev_t *rdev;
+		sector_t first_bad;
+		int bad_sectors;
+		int is_bad = 0;
 
 		dev = &sh->dev[i];
 
@@ -2959,15 +2962,32 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 		if (dev->written)
 			s->written++;
 		rdev = rcu_dereference(conf->disks[i].rdev);
-		if (s->blocked_rdev == NULL &&
-		    rdev && unlikely(test_bit(Blocked, &rdev->flags))) {
-			s->blocked_rdev = rdev;
-			atomic_inc(&rdev->nr_pending);
+		if (rdev) {
+			is_bad = is_badblock(rdev, sh->sector, STRIPE_SECTORS,
+					     &first_bad, &bad_sectors);
+			if (s->blocked_rdev == NULL
+			    && (test_bit(Blocked, &rdev->flags)
+				|| is_bad < 0)) {
+				if (is_bad < 0)
+					set_bit(BlockedBadBlocks,
+						&rdev->flags);
+				s->blocked_rdev = rdev;
+				atomic_inc(&rdev->nr_pending);
+			}
 		}
 		clear_bit(R5_Insync, &dev->flags);
 		if (!rdev)
 			/* Not in-sync */;
-		else if (test_bit(In_sync, &rdev->flags))
+		else if (is_bad) {
+			/* also not in-sync */
+			if (!test_bit(WriteErrorSeen, &rdev->flags)) {
+				/* treat as in-sync, but with a read error
+				 * which we can now try to correct
+				 */
+				set_bit(R5_Insync, &dev->flags);
+				set_bit(R5_ReadError, &dev->flags);
+			}
+		} else if (test_bit(In_sync, &rdev->flags))
 			set_bit(R5_Insync, &dev->flags);
 		else {
 			/* in sync if before recovery_offset */
@@ -3471,6 +3491,9 @@ static int chunk_aligned_read(mddev_t *mddev, struct bio * raid_bio)
 	rcu_read_lock();
 	rdev = rcu_dereference(conf->disks[dd_idx].rdev);
 	if (rdev && test_bit(In_sync, &rdev->flags)) {
+		sector_t first_bad;
+		int bad_sectors;
+
 		atomic_inc(&rdev->nr_pending);
 		rcu_read_unlock();
 		raid_bio->bi_next = (void*)rdev;
@@ -3478,8 +3501,10 @@ static int chunk_aligned_read(mddev_t *mddev, struct bio * raid_bio)
 		align_bi->bi_flags &= ~(1 << BIO_SEG_VALID);
 		align_bi->bi_sector += rdev->data_offset;
 
-		if (!bio_fits_rdev(align_bi)) {
-			/* too big in some way */
+		if (!bio_fits_rdev(align_bi) ||
+		    is_badblock(rdev, align_bi->bi_sector, align_bi->bi_size>>9,
+				&first_bad, &bad_sectors)) {
+			/* too big in some way, or has a known bad block */
 			bio_put(align_bi);
 			rdev_dec_pending(rdev, mddev);
 			return 0;
@@ -4671,10 +4696,6 @@ static int run(mddev_t *mddev)
 	 * 0 for a fully functional array, 1 or 2 for a degraded array.
 	 */
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
-		if (rdev->badblocks.count) {
-			printk(KERN_ERR "md/raid5: cannot handle bad blocks yet\n");
-			goto abort;
-		}
 		if (rdev->raid_disk < 0)
 			continue;
 		if (test_bit(In_sync, &rdev->flags)) {
@@ -4982,9 +5003,6 @@ static int raid5_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 	struct disk_info *p;
 	int first = 0;
 	int last = conf->raid_disks - 1;
-
-	if (rdev->badblocks.count)
-		return -EINVAL;
 
 	if (has_failed(conf))
 		/* no point adding a device */
