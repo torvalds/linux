@@ -2861,6 +2861,38 @@ static int transport_cmd_get_valid_sectors(struct se_cmd *cmd)
 	return sectors;
 }
 
+static int target_check_write_same_discard(unsigned char *flags, struct se_device *dev)
+{
+	/*
+	 * Determine if the received WRITE_SAME is used to for direct
+	 * passthrough into Linux/SCSI with struct request via TCM/pSCSI
+	 * or we are signaling the use of internal WRITE_SAME + UNMAP=1
+	 * emulation for -> Linux/BLOCK disbard with TCM/IBLOCK code.
+	 */
+	int passthrough = (dev->transport->transport_type ==
+				TRANSPORT_PLUGIN_PHBA_PDEV);
+
+	if (!passthrough) {
+		if ((flags[0] & 0x04) || (flags[0] & 0x02)) {
+			pr_err("WRITE_SAME PBDATA and LBDATA"
+				" bits not supported for Block Discard"
+				" Emulation\n");
+			return -ENOSYS;
+		}
+		/*
+		 * Currently for the emulated case we only accept
+		 * tpws with the UNMAP=1 bit set.
+		 */
+		if (!(flags[0] & 0x08)) {
+			pr_err("WRITE_SAME w/o UNMAP bit not"
+				" supported for Block Discard Emulation\n");
+			return -ENOSYS;
+		}
+	}
+
+	return 0;
+}
+
 /*	transport_generic_cmd_sequencer():
  *
  *	Generic Command Sequencer that should work for most DAS transport
@@ -3081,27 +3113,9 @@ static int transport_generic_cmd_sequencer(
 			cmd->t_task_lba = get_unaligned_be64(&cdb[12]);
 			cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 
-			/*
-			 * Skip the remaining assignments for TCM/PSCSI passthrough
-			 */
-			if (passthrough)
-				break;
+			if (target_check_write_same_discard(&cdb[10], dev) < 0)
+				goto out_invalid_cdb_field;
 
-			if ((cdb[10] & 0x04) || (cdb[10] & 0x02)) {
-				pr_err("WRITE_SAME PBDATA and LBDATA"
-					" bits not supported for Block Discard"
-					" Emulation\n");
-				goto out_invalid_cdb_field;
-			}
-			/*
-			 * Currently for the emulated case we only accept
-			 * tpws with the UNMAP=1 bit set.
-			 */
-			if (!(cdb[10] & 0x08)) {
-				pr_err("WRITE_SAME w/o UNMAP bit not"
-					" supported for Block Discard Emulation\n");
-				goto out_invalid_cdb_field;
-			}
 			break;
 		default:
 			pr_err("VARIABLE_LENGTH_CMD service action"
@@ -3358,33 +3372,31 @@ static int transport_generic_cmd_sequencer(
 		}
 
 		cmd->t_task_lba = get_unaligned_be64(&cdb[2]);
-		passthrough = (dev->transport->transport_type ==
-				TRANSPORT_PLUGIN_PHBA_PDEV);
-		/*
-		 * Determine if the received WRITE_SAME_16 is used to for direct
-		 * passthrough into Linux/SCSI with struct request via TCM/pSCSI
-		 * or we are signaling the use of internal WRITE_SAME + UNMAP=1
-		 * emulation for -> Linux/BLOCK disbard with TCM/IBLOCK and
-		 * TCM/FILEIO subsystem plugin backstores.
-		 */
-		if (!passthrough) {
-			if ((cdb[1] & 0x04) || (cdb[1] & 0x02)) {
-				pr_err("WRITE_SAME PBDATA and LBDATA"
-					" bits not supported for Block Discard"
-					" Emulation\n");
-				goto out_invalid_cdb_field;
-			}
-			/*
-			 * Currently for the emulated case we only accept
-			 * tpws with the UNMAP=1 bit set.
-			 */
-			if (!(cdb[1] & 0x08)) {
-				pr_err("WRITE_SAME w/o UNMAP bit not "
-					" supported for Block Discard Emulation\n");
-				goto out_invalid_cdb_field;
-			}
-		}
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
+
+		if (target_check_write_same_discard(&cdb[1], dev) < 0)
+			goto out_invalid_cdb_field;
+		break;
+	case WRITE_SAME:
+		sectors = transport_get_sectors_10(cdb, cmd, &sector_ret);
+		if (sector_ret)
+			goto out_unsupported_cdb;
+
+		if (sectors)
+			size = transport_get_size(sectors, cdb, cmd);
+		else {
+			pr_err("WSNZ=1, WRITE_SAME w/sectors=0 not supported\n");
+			goto out_invalid_cdb_field;
+		}
+
+		cmd->t_task_lba = get_unaligned_be32(&cdb[2]);
+		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
+		/*
+		 * Follow sbcr26 with WRITE_SAME (10) and check for the existence
+		 * of byte 1 bit 3 UNMAP instead of original reserved field
+		 */
+		if (target_check_write_same_discard(&cdb[1], dev) < 0)
+			goto out_invalid_cdb_field;
 		break;
 	case ALLOW_MEDIUM_REMOVAL:
 	case GPCMD_CLOSE_TRACK:
