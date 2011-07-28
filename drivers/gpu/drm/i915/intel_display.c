@@ -7892,6 +7892,9 @@ struct intel_quirk intel_quirks[] = {
 
 	/* Lenovo U160 cannot use SSC on LVDS */
 	{ 0x0046, 0x17aa, 0x3920, quirk_ssc_force_disable },
+
+	/* Sony Vaio Y cannot use SSC on LVDS */
+	{ 0x0046, 0x104d, 0x9076, quirk_ssc_force_disable },
 };
 
 static void intel_init_quirks(struct drm_device *dev)
