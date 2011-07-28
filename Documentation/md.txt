@@ -419,7 +419,6 @@ Each directory contains:
         written, it will be rejected.
 
       recovery_start
-
         When the device is not 'in_sync', this records the number of
 	sectors from the start of the device which are known to be
 	correct.  This is normally zero, but during a recovery
@@ -435,6 +434,20 @@ Each directory contains:
 	Setting this to 'none' is equivalent to setting 'in_sync'.
 	Setting to any other value also clears the 'in_sync' flag.
 	
+      bad_blocks
+	This gives the list of all known bad blocks in the form of
+	start address and length (in sectors respectively). If output
+	is too big to fit in a page, it will be truncated. Writing
+	"sector length" to this file adds new acknowledged (i.e.
+	recorded to disk safely) bad blocks.
+
+      unacknowledged_bad_blocks
+	This gives the list of known-but-not-yet-saved-to-disk bad
+	blocks in the same form of 'bad_blocks'. If output is too big
+	to fit in a page, it will be truncated. Writing to this file
+	adds bad blocks without acknowledging them. This is largely
+	for testing.
+
 
 
 An active md device will also contain and entry for each active device
