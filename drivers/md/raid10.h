@@ -124,4 +124,8 @@ struct r10bio_s {
 #define	R10BIO_IsSync	1
 #define	R10BIO_IsRecover 2
 #define	R10BIO_Degraded 3
+/* Set ReadError on bios that experience a read error
+ * so that raid10d knows what to do with them.
+ */
+#define	R10BIO_ReadError 4
 #endif
