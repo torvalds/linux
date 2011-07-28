@@ -42,7 +42,7 @@
 
 #include <linux/wait.h> 		/* wait_queue_head_t, etc */
 #include <linux/spinlock.h> 		/* spinlock_t, etc */
-#include <asm/atomic.h>			/* atomic_t, etc */
+#include <linux/atomic.h>			/* atomic_t, etc */
 
 #include <rdma/rdma_cm.h>		/* RDMA connection api */
 #include <rdma/ib_verbs.h>		/* RDMA verbs api */

@@ -54,7 +54,7 @@
 #include <scsi/libsas.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/sas_ata.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include "pm8001_defs.h"
 
 #define DRV_NAME		"pm8001"

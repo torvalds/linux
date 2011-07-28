@@ -70,7 +70,7 @@
 
 #include <trace/events/kmem.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 /*
  * slob_block has a field 'units', which indicates size of block if +ve,

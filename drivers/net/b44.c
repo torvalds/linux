@@ -5,7 +5,7 @@
  * Copyright (C) 2004 Florian Schirmer (jolt@tuxbox.org)
  * Copyright (C) 2006 Felix Fietkau (nbd@openwrt.org)
  * Copyright (C) 2006 Broadcom Corporation.
- * Copyright (C) 2007 Michael Buesch <mb@bu3sch.de>
+ * Copyright (C) 2007 Michael Buesch <m@bues.ch>
  *
  * Distribute under GPL.
  */

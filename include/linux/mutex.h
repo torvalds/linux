@@ -15,7 +15,7 @@
 #include <linux/linkage.h>
 #include <linux/lockdep.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 /*
  * Simple, straightforward mutexes with strict semantics:

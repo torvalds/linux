@@ -252,6 +252,9 @@ int __init pci_nanoengine_setup(int nr, struct pci_sys_data *sys)
 {
 	int ret = 0;
 
+	pcibios_min_io = 0;
+	pcibios_min_mem = 0;
+
 	if (nr == 0) {
 		sys->mem_offset = NANO_PCI_MEM_RW_PHYS;
 		sys->io_offset = 0x400;

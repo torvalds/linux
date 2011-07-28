@@ -10,7 +10,7 @@
 
 #include <linux/interrupt.h>
 #include <mach/dma.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/blackfin.h>
 #include <asm/page.h>
 #include <asm-generic/dma.h>

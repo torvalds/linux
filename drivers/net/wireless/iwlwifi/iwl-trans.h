@@ -60,46 +60,166 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-static inline int trans_rx_init(struct iwl_priv *priv)
+#ifndef __iwl_trans_h__
+#define __iwl_trans_h__
+
+ /*This file includes the declaration that are exported from the transport
+ * layer */
+
+struct iwl_priv;
+struct iwl_rxon_context;
+struct iwl_host_cmd;
+
+/**
+ * struct iwl_trans_ops - transport specific operations
+ * @start_device: allocates and inits all the resources for the transport
+ *                layer.
+ * @prepare_card_hw: claim the ownership on the HW. Will be called during
+ *                   probe.
+ * @tx_start: starts and configures all the Tx fifo - usually done once the fw
+ *           is alive.
+ * @stop_device:stops the whole device (embedded CPU put to reset)
+ * @rx_free: frees the rx memory
+ * @tx_free: frees the tx memory
+ * @send_cmd:send a host command
+ * @send_cmd_pdu:send a host command: flags can be CMD_*
+ * @get_tx_cmd: returns a pointer to a new Tx cmd for the upper layer use
+ * @tx: send an skb
+ * @txq_agg_setup: setup a tx queue for AMPDU - will be called once the HW is
+ *                 ready and a successful ADDBA response has been received.
+ * @txq_agg_disable: de-configure a Tx queue to send AMPDUs
+ * @kick_nic: remove the RESET from the embedded CPU and let it run
+ * @sync_irq: the upper layer will typically disable interrupt and call this
+ *            handler. After this handler returns, it is guaranteed that all
+ *            the ISR / tasklet etc... have finished running and the transport
+ *            layer shall not pass any Rx.
+ * @free: release all the ressource for the transport layer itself such as
+ *        irq, tasklet etc...
+ */
+struct iwl_trans_ops {
+
+	int (*start_device)(struct iwl_priv *priv);
+	int (*prepare_card_hw)(struct iwl_priv *priv);
+	void (*stop_device)(struct iwl_priv *priv);
+	void (*tx_start)(struct iwl_priv *priv);
+	void (*tx_free)(struct iwl_priv *priv);
+	void (*rx_free)(struct iwl_priv *priv);
+
+	int (*send_cmd)(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
+
+	int (*send_cmd_pdu)(struct iwl_priv *priv, u8 id, u32 flags, u16 len,
+		     const void *data);
+	struct iwl_tx_cmd * (*get_tx_cmd)(struct iwl_priv *priv, int txq_id);
+	int (*tx)(struct iwl_priv *priv, struct sk_buff *skb,
+		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu,
+		struct iwl_rxon_context *ctx);
+
+	int (*txq_agg_disable)(struct iwl_priv *priv, u16 txq_id,
+				  u16 ssn_idx, u8 tx_fifo);
+	void (*txq_agg_setup)(struct iwl_priv *priv, int sta_id, int tid,
+						int frame_limit);
+
+	void (*kick_nic)(struct iwl_priv *priv);
+
+	void (*sync_irq)(struct iwl_priv *priv);
+	void (*free)(struct iwl_priv *priv);
+};
+
+struct iwl_trans {
+	const struct iwl_trans_ops *ops;
+	struct iwl_priv *priv;
+};
+
+static inline int trans_start_device(struct iwl_trans *trans)
 {
-	return priv->trans.ops->rx_init(priv);
+	return trans->ops->start_device(trans->priv);
 }
 
-static inline int trans_rx_stop(struct iwl_priv *priv)
+static inline int trans_prepare_card_hw(struct iwl_trans *trans)
 {
-	return priv->trans.ops->rx_stop(priv);
+	return trans->ops->prepare_card_hw(trans->priv);
 }
 
-static inline void trans_rx_free(struct iwl_priv *priv)
+static inline void trans_stop_device(struct iwl_trans *trans)
 {
-	priv->trans.ops->rx_free(priv);
+	trans->ops->stop_device(trans->priv);
 }
 
-static inline int trans_tx_init(struct iwl_priv *priv)
+static inline void trans_tx_start(struct iwl_trans *trans)
 {
-	return priv->trans.ops->tx_init(priv);
+	trans->ops->tx_start(trans->priv);
 }
 
-static inline int trans_tx_stop(struct iwl_priv *priv)
+static inline void trans_rx_free(struct iwl_trans *trans)
 {
-	return priv->trans.ops->tx_stop(priv);
+	trans->ops->rx_free(trans->priv);
 }
 
-static inline void trans_tx_free(struct iwl_priv *priv)
+static inline void trans_tx_free(struct iwl_trans *trans)
 {
-	priv->trans.ops->tx_free(priv);
+	trans->ops->tx_free(trans->priv);
 }
 
-static inline int trans_send_cmd(struct iwl_priv *priv,
+static inline int trans_send_cmd(struct iwl_trans *trans,
 				struct iwl_host_cmd *cmd)
 {
-	return priv->trans.ops->send_cmd(priv, cmd);
+	return trans->ops->send_cmd(trans->priv, cmd);
 }
 
-static inline int trans_send_cmd_pdu(struct iwl_priv *priv, u8 id, u32 flags,
+static inline int trans_send_cmd_pdu(struct iwl_trans *trans, u8 id, u32 flags,
 					u16 len, const void *data)
 {
-	return priv->trans.ops->send_cmd_pdu(priv, id, flags, len, data);
+	return trans->ops->send_cmd_pdu(trans->priv, id, flags, len, data);
 }
 
-void iwl_trans_register(struct iwl_trans *trans);
+static inline struct iwl_tx_cmd *trans_get_tx_cmd(struct iwl_trans *trans,
+					int txq_id)
+{
+	return trans->ops->get_tx_cmd(trans->priv, txq_id);
+}
+
+static inline int trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
+		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu,
+		struct iwl_rxon_context *ctx)
+{
+	return trans->ops->tx(trans->priv, skb, tx_cmd, txq_id, fc, ampdu, ctx);
+}
+
+static inline int trans_txq_agg_disable(struct iwl_trans *trans, u16 txq_id,
+			  u16 ssn_idx, u8 tx_fifo)
+{
+	return trans->ops->txq_agg_disable(trans->priv, txq_id,
+					   ssn_idx, tx_fifo);
+}
+
+static inline void trans_txq_agg_setup(struct iwl_trans *trans, int sta_id,
+						int tid, int frame_limit)
+{
+	trans->ops->txq_agg_setup(trans->priv, sta_id, tid, frame_limit);
+}
+
+static inline void trans_kick_nic(struct iwl_trans *trans)
+{
+	trans->ops->kick_nic(trans->priv);
+}
+
+static inline void trans_sync_irq(struct iwl_trans *trans)
+{
+	trans->ops->sync_irq(trans->priv);
+}
+
+static inline void trans_free(struct iwl_trans *trans)
+{
+	trans->ops->free(trans->priv);
+}
+
+int iwl_trans_register(struct iwl_trans *trans, struct iwl_priv *priv);
+
+/*TODO: this functions should NOT be exported from trans module - export it
+ * until the reclaim flow will be brought to the transport module too */
+
+struct iwl_tx_queue;
+void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
+					  struct iwl_tx_queue *txq);
+
+#endif /* __iwl_trans_h__ */

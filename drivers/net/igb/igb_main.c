@@ -47,7 +47,6 @@
 #include <linux/if_ether.h>
 #include <linux/aer.h>
 #include <linux/prefetch.h>
-#include <linux/if_vlan.h>
 #ifdef CONFIG_IGB_DCA
 #include <linux/dca.h>
 #endif

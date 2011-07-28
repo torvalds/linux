@@ -2,7 +2,7 @@
  * linux/sound/soc/ep93xx-i2s.c
  * EP93xx I2S driver
  *
- * Copyright (C) 2010 Ryan Mallon <ryan@bluewatersys.com>
+ * Copyright (C) 2010 Ryan Mallon
  *
  * Based on the original driver by:
  *   Copyright (C) 2007 Chase Douglas <chasedouglas@gmail>
@@ -477,6 +477,6 @@ module_init(ep93xx_i2s_init);
 module_exit(ep93xx_i2s_exit);
 
 MODULE_ALIAS("platform:ep93xx-i2s");
-MODULE_AUTHOR("Ryan Mallon <ryan@bluewatersys.com>");
+MODULE_AUTHOR("Ryan Mallon");
 MODULE_DESCRIPTION("EP93XX I2S driver");
 MODULE_LICENSE("GPL");

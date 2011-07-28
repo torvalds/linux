@@ -27,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/hwmon.h>
+#include <linux/hwmon-vid.h>
 #include <linux/sysfs.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
@@ -48,8 +49,10 @@ enum { SHOW_TEMP, SHOW_LABEL, SHOW_NAME };
 struct via_cputemp_data {
 	struct device *hwmon_dev;
 	const char *name;
+	u8 vrm;
 	u32 id;
-	u32 msr;
+	u32 msr_temp;
+	u32 msr_vid;
 };
 
 /*
@@ -77,11 +80,25 @@ static ssize_t show_temp(struct device *dev,
 	u32 eax, edx;
 	int err;
 
-	err = rdmsr_safe_on_cpu(data->id, data->msr, &eax, &edx);
+	err = rdmsr_safe_on_cpu(data->id, data->msr_temp, &eax, &edx);
 	if (err)
 		return -EAGAIN;
 
 	return sprintf(buf, "%lu\n", ((unsigned long)eax & 0xffffff) * 1000);
+}
+
+static ssize_t show_cpu_vid(struct device *dev,
+			    struct device_attribute *devattr, char *buf)
+{
+	struct via_cputemp_data *data = dev_get_drvdata(dev);
+	u32 eax, edx;
+	int err;
+
+	err = rdmsr_safe_on_cpu(data->id, data->msr_vid, &eax, &edx);
+	if (err)
+		return -EAGAIN;
+
+	return sprintf(buf, "%d\n", vid_from_reg(~edx & 0x7f, data->vrm));
 }
 
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL,
@@ -99,6 +116,9 @@ static struct attribute *via_cputemp_attributes[] = {
 static const struct attribute_group via_cputemp_group = {
 	.attrs = via_cputemp_attributes,
 };
+
+/* Optional attributes */
+static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_cpu_vid, NULL);
 
 static int __devinit via_cputemp_probe(struct platform_device *pdev)
 {
@@ -122,11 +142,12 @@ static int __devinit via_cputemp_probe(struct platform_device *pdev)
 		/* C7 A */
 	case 0xD:
 		/* C7 D */
-		data->msr = 0x1169;
+		data->msr_temp = 0x1169;
+		data->msr_vid = 0x198;
 		break;
 	case 0xF:
 		/* Nano */
-		data->msr = 0x1423;
+		data->msr_temp = 0x1423;
 		break;
 	default:
 		err = -ENODEV;
@@ -134,7 +155,7 @@ static int __devinit via_cputemp_probe(struct platform_device *pdev)
 	}
 
 	/* test if we can access the TEMPERATURE MSR */
-	err = rdmsr_safe_on_cpu(data->id, data->msr, &eax, &edx);
+	err = rdmsr_safe_on_cpu(data->id, data->msr_temp, &eax, &edx);
 	if (err) {
 		dev_err(&pdev->dev,
 			"Unable to access TEMPERATURE MSR, giving up\n");
@@ -147,6 +168,15 @@ static int __devinit via_cputemp_probe(struct platform_device *pdev)
 	if (err)
 		goto exit_free;
 
+	if (data->msr_vid)
+		data->vrm = vid_which_vrm();
+
+	if (data->vrm) {
+		err = device_create_file(&pdev->dev, &dev_attr_cpu0_vid);
+		if (err)
+			goto exit_remove;
+	}
+
 	data->hwmon_dev = hwmon_device_register(&pdev->dev);
 	if (IS_ERR(data->hwmon_dev)) {
 		err = PTR_ERR(data->hwmon_dev);
@@ -158,6 +188,8 @@ static int __devinit via_cputemp_probe(struct platform_device *pdev)
 	return 0;
 
 exit_remove:
+	if (data->vrm)
+		device_remove_file(&pdev->dev, &dev_attr_cpu0_vid);
 	sysfs_remove_group(&pdev->dev.kobj, &via_cputemp_group);
 exit_free:
 	platform_set_drvdata(pdev, NULL);
@@ -171,6 +203,8 @@ static int __devexit via_cputemp_remove(struct platform_device *pdev)
 	struct via_cputemp_data *data = platform_get_drvdata(pdev);
 
 	hwmon_device_unregister(data->hwmon_dev);
+	if (data->vrm)
+		device_remove_file(&pdev->dev, &dev_attr_cpu0_vid);
 	sysfs_remove_group(&pdev->dev.kobj, &via_cputemp_group);
 	platform_set_drvdata(pdev, NULL);
 	kfree(data);

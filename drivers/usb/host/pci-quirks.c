@@ -35,6 +35,8 @@
 #define OHCI_INTRSTATUS		0x0c
 #define OHCI_INTRENABLE		0x10
 #define OHCI_INTRDISABLE	0x14
+#define OHCI_FMINTERVAL		0x34
+#define OHCI_HCR		(1 << 0)	/* host controller reset */
 #define OHCI_OCR		(1 << 3)	/* ownership change request */
 #define OHCI_CTRL_RWC		(1 << 9)	/* remote wakeup connected */
 #define OHCI_CTRL_IR		(1 << 8)	/* interrupt routing */
@@ -497,6 +499,32 @@ static void __devinit quirk_usb_handoff_ohci(struct pci_dev *pdev)
 
 	/* reset controller, preserving RWC (and possibly IR) */
 	writel(control & OHCI_CTRL_MASK, base + OHCI_CONTROL);
+	readl(base + OHCI_CONTROL);
+
+	/* Some NVIDIA controllers stop working if kept in RESET for too long */
+	if (pdev->vendor == PCI_VENDOR_ID_NVIDIA) {
+		u32 fminterval;
+		int cnt;
+
+		/* drive reset for at least 50 ms (7.1.7.5) */
+		msleep(50);
+
+		/* software reset of the controller, preserving HcFmInterval */
+		fminterval = readl(base + OHCI_FMINTERVAL);
+		writel(OHCI_HCR, base + OHCI_CMDSTATUS);
+
+		/* reset requires max 10 us delay */
+		for (cnt = 30; cnt > 0; --cnt) {	/* ... allow extra time */
+			if ((readl(base + OHCI_CMDSTATUS) & OHCI_HCR) == 0)
+				break;
+			udelay(1);
+		}
+		writel(fminterval, base + OHCI_FMINTERVAL);
+
+		/* Now we're in the SUSPEND state with all devices reset
+		 * and wakeups and interrupts disabled
+		 */
+	}
 
 	/*
 	 * disable interrupts
@@ -507,20 +535,34 @@ static void __devinit quirk_usb_handoff_ohci(struct pci_dev *pdev)
 	iounmap(base);
 }
 
+static const struct dmi_system_id __initconst ehci_dmi_nohandoff_table[] = {
+	{
+		/*  Pegatron Lucid (ExoPC) */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "EXOPG06411"),
+			DMI_MATCH(DMI_BIOS_VERSION, "Lucid-CE-133"),
+		},
+	},
+	{
+		/*  Pegatron Lucid (Ordissimo AIRIS) */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "M11JB"),
+			DMI_MATCH(DMI_BIOS_VERSION, "Lucid-GE-133"),
+		},
+	},
+	{ }
+};
+
 static void __devinit ehci_bios_handoff(struct pci_dev *pdev,
 					void __iomem *op_reg_base,
 					u32 cap, u8 offset)
 {
 	int try_handoff = 1, tried_handoff = 0;
 
-	/* The Pegatron Lucid (ExoPC) tablet sporadically waits for 90
-	 * seconds trying the handoff on its unused controller.  Skip
-	 * it. */
+	/* The Pegatron Lucid tablet sporadically waits for 98 seconds trying
+	 * the handoff on its unused controller.  Skip it. */
 	if (pdev->vendor == 0x8086 && pdev->device == 0x283a) {
-		const char *dmi_bn = dmi_get_system_info(DMI_BOARD_NAME);
-		const char *dmi_bv = dmi_get_system_info(DMI_BIOS_VERSION);
-		if (dmi_bn && !strcmp(dmi_bn, "EXOPG06411") &&
-		    dmi_bv && !strcmp(dmi_bv, "Lucid-CE-133"))
+		if (dmi_check_system(ehci_dmi_nohandoff_table))
 			try_handoff = 0;
 	}
 

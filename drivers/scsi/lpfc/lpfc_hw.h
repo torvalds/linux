@@ -2955,18 +2955,18 @@ typedef struct _SLI2_RDSC {
 typedef struct _PCB {
 #ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t type:8;
-#define TYPE_NATIVE_SLI2       0x01;
+#define TYPE_NATIVE_SLI2       0x01
 	uint32_t feature:8;
-#define FEATURE_INITIAL_SLI2   0x01;
+#define FEATURE_INITIAL_SLI2   0x01
 	uint32_t rsvd:12;
 	uint32_t maxRing:4;
 #else	/*  __LITTLE_ENDIAN_BITFIELD */
 	uint32_t maxRing:4;
 	uint32_t rsvd:12;
 	uint32_t feature:8;
-#define FEATURE_INITIAL_SLI2   0x01;
+#define FEATURE_INITIAL_SLI2   0x01
 	uint32_t type:8;
-#define TYPE_NATIVE_SLI2       0x01;
+#define TYPE_NATIVE_SLI2       0x01
 #endif
 
 	uint32_t mailBoxSize;

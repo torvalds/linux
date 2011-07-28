@@ -315,14 +315,11 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 		return -EFAULT;
 	}
 
-	return trans_send_cmd(priv, &hcmd);
+	return trans_send_cmd(&priv->trans, &hcmd);
 }
 
 static struct iwl_lib_ops iwl5000_lib = {
 	.set_hw_params = iwl5000_hw_set_hw_params,
-	.rx_handler_setup = iwlagn_rx_handler_setup,
-	.setup_deferred_work = iwlagn_setup_deferred_work,
-	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
 	.set_channel_switch = iwl5000_hw_channel_switch,
 	.nic_config = iwl5000_nic_config,
 	.eeprom_ops = {
@@ -341,9 +338,6 @@ static struct iwl_lib_ops iwl5000_lib = {
 
 static struct iwl_lib_ops iwl5150_lib = {
 	.set_hw_params = iwl5150_hw_set_hw_params,
-	.rx_handler_setup = iwlagn_rx_handler_setup,
-	.setup_deferred_work = iwlagn_setup_deferred_work,
-	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
 	.set_channel_switch = iwl5000_hw_channel_switch,
 	.nic_config = iwl5000_nic_config,
 	.eeprom_ops = {
@@ -358,14 +352,6 @@ static struct iwl_lib_ops iwl5150_lib = {
 		},
 	},
 	.temperature = iwl5150_temperature,
-};
-
-static const struct iwl_ops iwl5000_ops = {
-	.lib = &iwl5000_lib,
-};
-
-static const struct iwl_ops iwl5150_ops = {
-	.lib = &iwl5150_lib,
 };
 
 static struct iwl_base_params iwl5000_base_params = {
@@ -390,7 +376,7 @@ static struct iwl_ht_params iwl5000_ht_params = {
 	.ucode_api_min = IWL5000_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,	\
-	.ops = &iwl5000_ops,					\
+	.lib = &iwl5000_lib,					\
 	.base_params = &iwl5000_base_params,			\
 	.led_mode = IWL_LED_BLINK
 
@@ -433,7 +419,7 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
-	.ops = &iwl5000_ops,
+	.lib = &iwl5000_lib,
 	.base_params = &iwl5000_base_params,
 	.ht_params = &iwl5000_ht_params,
 	.led_mode = IWL_LED_BLINK,
@@ -446,7 +432,7 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.ucode_api_min = IWL5150_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,	\
-	.ops = &iwl5150_ops,					\
+	.lib = &iwl5150_lib,					\
 	.base_params = &iwl5000_base_params,			\
 	.need_dc_calib = true,					\
 	.led_mode = IWL_LED_BLINK,				\

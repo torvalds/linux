@@ -41,38 +41,6 @@
 #include "iwl-agn-calib.h"
 #include "iwl-trans.h"
 
-#define IWL_AC_UNSET -1
-
-struct queue_to_fifo_ac {
-	s8 fifo, ac;
-};
-
-static const struct queue_to_fifo_ac iwlagn_default_queue_to_tx_fifo[] = {
-	{ IWL_TX_FIFO_VO, IEEE80211_AC_VO, },
-	{ IWL_TX_FIFO_VI, IEEE80211_AC_VI, },
-	{ IWL_TX_FIFO_BE, IEEE80211_AC_BE, },
-	{ IWL_TX_FIFO_BK, IEEE80211_AC_BK, },
-	{ IWLAGN_CMD_FIFO_NUM, IWL_AC_UNSET, },
-	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
-	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
-	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
-	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
-	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
-};
-
-static const struct queue_to_fifo_ac iwlagn_ipan_queue_to_tx_fifo[] = {
-	{ IWL_TX_FIFO_VO, IEEE80211_AC_VO, },
-	{ IWL_TX_FIFO_VI, IEEE80211_AC_VI, },
-	{ IWL_TX_FIFO_BE, IEEE80211_AC_BE, },
-	{ IWL_TX_FIFO_BK, IEEE80211_AC_BK, },
-	{ IWL_TX_FIFO_BK_IPAN, IEEE80211_AC_BK, },
-	{ IWL_TX_FIFO_BE_IPAN, IEEE80211_AC_BE, },
-	{ IWL_TX_FIFO_VI_IPAN, IEEE80211_AC_VI, },
-	{ IWL_TX_FIFO_VO_IPAN, IEEE80211_AC_VO, },
-	{ IWL_TX_FIFO_BE_IPAN, 2, },
-	{ IWLAGN_CMD_FIFO_NUM, IWL_AC_UNSET, },
-};
-
 static struct iwl_wimax_coex_event_entry cu_priorities[COEX_NUM_OF_EVENTS] = {
 	{COEX_CU_UNASSOC_IDLE_RP, COEX_CU_UNASSOC_IDLE_WP,
 	 0, COEX_UNASSOC_IDLE_FLAGS},
@@ -199,12 +167,12 @@ static int iwlagn_set_temperature_offset_calib(struct iwl_priv *priv)
 
 	memset(&cmd, 0, sizeof(cmd));
 	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD);
-	cmd.radio_sensor_offset = le16_to_cpu(offset_calib[1]);
+	memcpy(&cmd.radio_sensor_offset, offset_calib, sizeof(offset_calib));
 	if (!(cmd.radio_sensor_offset))
 		cmd.radio_sensor_offset = DEFAULT_RADIO_SENSOR_OFFSET;
 
 	IWL_DEBUG_CALIB(priv, "Radio sensor offset: %d\n",
-			cmd.radio_sensor_offset);
+			le16_to_cpu(cmd.radio_sensor_offset));
 	return iwl_calib_set(&priv->calib_results[IWL_CALIB_TEMP_OFFSET],
 			     (u8 *)&cmd, sizeof(cmd));
 }
@@ -222,9 +190,10 @@ static int iwlagn_send_calib_cfg(struct iwl_priv *priv)
 	calib_cfg_cmd.ucd_calib_cfg.once.is_enable = IWL_CALIB_INIT_CFG_ALL;
 	calib_cfg_cmd.ucd_calib_cfg.once.start = IWL_CALIB_INIT_CFG_ALL;
 	calib_cfg_cmd.ucd_calib_cfg.once.send_res = IWL_CALIB_INIT_CFG_ALL;
-	calib_cfg_cmd.ucd_calib_cfg.flags = IWL_CALIB_INIT_CFG_ALL;
+	calib_cfg_cmd.ucd_calib_cfg.flags =
+		IWL_CALIB_CFG_FLAG_SEND_COMPLETE_NTFY_MSK;
 
-	return trans_send_cmd(priv, &cmd);
+	return trans_send_cmd(&priv->trans, &cmd);
 }
 
 void iwlagn_rx_calib_result(struct iwl_priv *priv,
@@ -322,7 +291,7 @@ static int iwlagn_send_wimax_coex(struct iwl_priv *priv)
 		/* coexistence is disabled */
 		memset(&coex_cmd, 0, sizeof(coex_cmd));
 	}
-	return trans_send_cmd_pdu(priv,
+	return trans_send_cmd_pdu(&priv->trans,
 				COEX_PRIORITY_TABLE_CMD, CMD_SYNC,
 				sizeof(coex_cmd), &coex_cmd);
 }
@@ -355,7 +324,7 @@ void iwlagn_send_prio_tbl(struct iwl_priv *priv)
 
 	memcpy(prio_tbl_cmd.prio_tbl, iwlagn_bt_prio_tbl,
 		sizeof(iwlagn_bt_prio_tbl));
-	if (trans_send_cmd_pdu(priv,
+	if (trans_send_cmd_pdu(&priv->trans,
 				REPLY_BT_COEX_PRIO_TABLE, CMD_SYNC,
 				sizeof(prio_tbl_cmd), &prio_tbl_cmd))
 		IWL_ERR(priv, "failed to send BT prio tbl command\n");
@@ -368,7 +337,7 @@ int iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
 
 	env_cmd.action = action;
 	env_cmd.type = type;
-	ret = trans_send_cmd_pdu(priv,
+	ret = trans_send_cmd_pdu(&priv->trans,
 			       REPLY_BT_COEX_PROT_ENV, CMD_SYNC,
 			       sizeof(env_cmd), &env_cmd);
 	if (ret)
@@ -379,111 +348,9 @@ int iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
 
 static int iwlagn_alive_notify(struct iwl_priv *priv)
 {
-	const struct queue_to_fifo_ac *queue_to_fifo;
-	struct iwl_rxon_context *ctx;
-	u32 a;
-	unsigned long flags;
-	int i, chan;
-	u32 reg_val;
 	int ret;
 
-	spin_lock_irqsave(&priv->lock, flags);
-
-	priv->scd_base_addr = iwl_read_prph(priv, IWLAGN_SCD_SRAM_BASE_ADDR);
-	a = priv->scd_base_addr + IWLAGN_SCD_CONTEXT_MEM_LOWER_BOUND;
-	/* reset conext data memory */
-	for (; a < priv->scd_base_addr + IWLAGN_SCD_CONTEXT_MEM_UPPER_BOUND;
-		a += 4)
-		iwl_write_targ_mem(priv, a, 0);
-	/* reset tx status memory */
-	for (; a < priv->scd_base_addr + IWLAGN_SCD_TX_STTS_MEM_UPPER_BOUND;
-		a += 4)
-		iwl_write_targ_mem(priv, a, 0);
-	for (; a < priv->scd_base_addr +
-	       IWLAGN_SCD_TRANSLATE_TBL_OFFSET_QUEUE(priv->hw_params.max_txq_num); a += 4)
-		iwl_write_targ_mem(priv, a, 0);
-
-	iwl_write_prph(priv, IWLAGN_SCD_DRAM_BASE_ADDR,
-		       priv->scd_bc_tbls.dma >> 10);
-
-	/* Enable DMA channel */
-	for (chan = 0; chan < FH_TCSR_CHNL_NUM ; chan++)
-		iwl_write_direct32(priv, FH_TCSR_CHNL_TX_CONFIG_REG(chan),
-				FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
-				FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE);
-
-	/* Update FH chicken bits */
-	reg_val = iwl_read_direct32(priv, FH_TX_CHICKEN_BITS_REG);
-	iwl_write_direct32(priv, FH_TX_CHICKEN_BITS_REG,
-			   reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
-
-	iwl_write_prph(priv, IWLAGN_SCD_QUEUECHAIN_SEL,
-		IWLAGN_SCD_QUEUECHAIN_SEL_ALL(priv));
-	iwl_write_prph(priv, IWLAGN_SCD_AGGR_SEL, 0);
-
-	/* initiate the queues */
-	for (i = 0; i < priv->hw_params.max_txq_num; i++) {
-		iwl_write_prph(priv, IWLAGN_SCD_QUEUE_RDPTR(i), 0);
-		iwl_write_direct32(priv, HBUS_TARG_WRPTR, 0 | (i << 8));
-		iwl_write_targ_mem(priv, priv->scd_base_addr +
-				IWLAGN_SCD_CONTEXT_QUEUE_OFFSET(i), 0);
-		iwl_write_targ_mem(priv, priv->scd_base_addr +
-				IWLAGN_SCD_CONTEXT_QUEUE_OFFSET(i) +
-				sizeof(u32),
-				((SCD_WIN_SIZE <<
-				IWLAGN_SCD_QUEUE_CTX_REG2_WIN_SIZE_POS) &
-				IWLAGN_SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK) |
-				((SCD_FRAME_LIMIT <<
-				IWLAGN_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
-				IWLAGN_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
-	}
-
-	iwl_write_prph(priv, IWLAGN_SCD_INTERRUPT_MASK,
-			IWL_MASK(0, priv->hw_params.max_txq_num));
-
-	/* Activate all Tx DMA/FIFO channels */
-	iwlagn_txq_set_sched(priv, IWL_MASK(0, 7));
-
-	/* map queues to FIFOs */
-	if (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS))
-		queue_to_fifo = iwlagn_ipan_queue_to_tx_fifo;
-	else
-		queue_to_fifo = iwlagn_default_queue_to_tx_fifo;
-
-	iwlagn_set_wr_ptrs(priv, priv->cmd_queue, 0);
-
-	/* make sure all queue are not stopped */
-	memset(&priv->queue_stopped[0], 0, sizeof(priv->queue_stopped));
-	for (i = 0; i < 4; i++)
-		atomic_set(&priv->queue_stop_count[i], 0);
-	for_each_context(priv, ctx)
-		ctx->last_tx_rejected = false;
-
-	/* reset to 0 to enable all the queue first */
-	priv->txq_ctx_active_msk = 0;
-
-	BUILD_BUG_ON(ARRAY_SIZE(iwlagn_default_queue_to_tx_fifo) != 10);
-	BUILD_BUG_ON(ARRAY_SIZE(iwlagn_ipan_queue_to_tx_fifo) != 10);
-
-	for (i = 0; i < 10; i++) {
-		int fifo = queue_to_fifo[i].fifo;
-		int ac = queue_to_fifo[i].ac;
-
-		iwl_txq_ctx_activate(priv, i);
-
-		if (fifo == IWL_TX_FIFO_UNUSED)
-			continue;
-
-		if (ac != IWL_AC_UNSET)
-			iwl_set_swq_id(&priv->txq[i], ac, i);
-		iwlagn_tx_queue_set_status(priv, &priv->txq[i], fifo, 0);
-	}
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	/* Enable L1-Active */
-	iwl_clear_bits_prph(priv, APMG_PCIDEV_STT_REG,
-			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
+	trans_tx_start(&priv->trans);
 
 	ret = iwlagn_send_wimax_coex(priv);
 	if (ret)
@@ -611,7 +478,7 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 	int ret;
 	enum iwlagn_ucode_type old_type;
 
-	ret = iwlagn_start_device(priv);
+	ret = trans_start_device(&priv->trans);
 	if (ret)
 		return ret;
 
@@ -628,8 +495,7 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 		return ret;
 	}
 
-	/* Remove all resets to allow NIC to operate */
-	iwl_write32(priv, CSR_RESET, 0);
+	trans_kick_nic(&priv->trans);
 
 	/*
 	 * Some things may run in the background now, but we
@@ -647,14 +513,21 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 		return -EIO;
 	}
 
-	ret = iwl_verify_ucode(priv, image);
-	if (ret) {
-		priv->ucode_type = old_type;
-		return ret;
-	}
+	/*
+	 * This step takes a long time (60-80ms!!) and
+	 * WoWLAN image should be loaded quickly, so
+	 * skip it for WoWLAN.
+	 */
+	if (ucode_type != IWL_UCODE_WOWLAN) {
+		ret = iwl_verify_ucode(priv, image);
+		if (ret) {
+			priv->ucode_type = old_type;
+			return ret;
+		}
 
-	/* delay a bit to give rfkill time to run */
-	msleep(5);
+		/* delay a bit to give rfkill time to run */
+		msleep(5);
+	}
 
 	ret = iwlagn_alive_notify(priv);
 	if (ret) {
@@ -707,6 +580,6 @@ int iwlagn_run_init_ucode(struct iwl_priv *priv)
 	iwlagn_remove_notification(priv, &calib_wait);
  out:
 	/* Whatever happened, stop the device */
-	iwlagn_stop_device(priv);
+	trans_stop_device(&priv->trans);
 	return ret;
 }

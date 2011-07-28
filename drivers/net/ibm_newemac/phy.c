@@ -28,12 +28,15 @@
 #include "emac.h"
 #include "phy.h"
 
-static inline int phy_read(struct mii_phy *phy, int reg)
+#define phy_read _phy_read
+#define phy_write _phy_write
+
+static inline int _phy_read(struct mii_phy *phy, int reg)
 {
 	return phy->mdio_read(phy->dev, phy->address, reg);
 }
 
-static inline void phy_write(struct mii_phy *phy, int reg, int val)
+static inline void _phy_write(struct mii_phy *phy, int reg, int val)
 {
 	phy->mdio_write(phy->dev, phy->address, reg, val);
 }

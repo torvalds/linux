@@ -1172,7 +1172,7 @@ static int __init macb_probe(struct platform_device *pdev)
 	clk_enable(bp->hclk);
 #endif
 
-	bp->regs = ioremap(regs->start, regs->end - regs->start + 1);
+	bp->regs = ioremap(regs->start, resource_size(regs));
 	if (!bp->regs) {
 		dev_err(&pdev->dev, "failed to map registers, aborting.\n");
 		err = -ENOMEM;

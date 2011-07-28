@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/mbus.h>
+#include <video/vga.h>
 #include <asm/mach/pci.h>
 #include <asm/mach/arch.h>
 #include <asm/setup.h>
@@ -228,6 +229,8 @@ static void __init add_pcie_port(int index, unsigned long base)
 
 void __init dove_pcie_init(int init_port0, int init_port1)
 {
+	vga_base = DOVE_PCIE0_MEM_PHYS_BASE;
+
 	if (init_port0)
 		add_pcie_port(0, DOVE_PCIE0_VIRT_BASE);
 

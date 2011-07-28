@@ -188,6 +188,8 @@ static int br_rtm_setlink(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
 
 	p->state = new_state;
 	br_log_state(p);
+	br_ifinfo_notify(RTM_NEWLINK, p);
+
 	return 0;
 }
 

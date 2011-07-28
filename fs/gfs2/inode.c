@@ -1846,7 +1846,7 @@ const struct inode_operations gfs2_file_iops = {
 	.listxattr = gfs2_listxattr,
 	.removexattr = gfs2_removexattr,
 	.fiemap = gfs2_fiemap,
-	.check_acl = gfs2_check_acl,
+	.get_acl = gfs2_get_acl,
 };
 
 const struct inode_operations gfs2_dir_iops = {
@@ -1867,7 +1867,7 @@ const struct inode_operations gfs2_dir_iops = {
 	.listxattr = gfs2_listxattr,
 	.removexattr = gfs2_removexattr,
 	.fiemap = gfs2_fiemap,
-	.check_acl = gfs2_check_acl,
+	.get_acl = gfs2_get_acl,
 };
 
 const struct inode_operations gfs2_symlink_iops = {
@@ -1882,6 +1882,6 @@ const struct inode_operations gfs2_symlink_iops = {
 	.listxattr = gfs2_listxattr,
 	.removexattr = gfs2_removexattr,
 	.fiemap = gfs2_fiemap,
-	.check_acl = gfs2_check_acl,
+	.get_acl = gfs2_get_acl,
 };
 

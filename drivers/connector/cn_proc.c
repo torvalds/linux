@@ -29,7 +29,8 @@
 #include <linux/connector.h>
 #include <linux/gfp.h>
 #include <linux/ptrace.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
+
 #include <asm/unaligned.h>
 
 #include <linux/cn_proc.h>
@@ -173,7 +174,6 @@ void proc_ptrace_connector(struct task_struct *task, int ptrace_id)
 	struct proc_event *ev;
 	struct timespec ts;
 	__u8 buffer[CN_PROC_MSG_SIZE];
-	struct task_struct *tracer;
 
 	if (atomic_read(&proc_event_num_listeners) < 1)
 		return;

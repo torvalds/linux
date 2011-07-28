@@ -38,7 +38,7 @@
 #include <linux/ihex.h>
 #include <linux/slab.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
 

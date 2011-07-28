@@ -749,7 +749,6 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 	char *buf;
 	unsigned int len = 0, size = 8000;
 	ssize_t retval = 0;
-	const char *tmp;
 	unsigned int reg;
 	struct ath9k_vif_iter_data iter_data;
 
@@ -759,31 +758,14 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	switch (sc->sc_ah->opmode) {
-	case  NL80211_IFTYPE_ADHOC:
-		tmp = "ADHOC";
-		break;
-	case  NL80211_IFTYPE_MESH_POINT:
-		tmp = "MESH";
-		break;
-	case  NL80211_IFTYPE_AP:
-		tmp = "AP";
-		break;
-	case  NL80211_IFTYPE_STATION:
-		tmp = "STATION";
-		break;
-	default:
-		tmp = "???";
-		break;
-	}
-
 	ath9k_ps_wakeup(sc);
 	len += snprintf(buf + len, size - len,
 			"curbssid: %pM\n"
 			"OP-Mode: %s(%i)\n"
 			"Beacon-Timer-Register: 0x%x\n",
 			common->curbssid,
-			tmp, (int)(sc->sc_ah->opmode),
+			ath_opmode_to_string(sc->sc_ah->opmode),
+			(int)(sc->sc_ah->opmode),
 			REG_READ(ah, AR_BEACON_PERIOD));
 
 	reg = REG_READ(ah, AR_TIMER_MODE);

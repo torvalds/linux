@@ -228,7 +228,7 @@ _sparc_ioremap(struct resource *res, u32 bus, u32 pa, int sz)
 	}
 
 	pa &= PAGE_MASK;
-	sparc_mapiorange(bus, pa, res->start, res->end - res->start + 1);
+	sparc_mapiorange(bus, pa, res->start, resource_size(res));
 
 	return (void __iomem *)(unsigned long)(res->start + offset);
 }
@@ -240,7 +240,7 @@ static void _sparc_free_io(struct resource *res)
 {
 	unsigned long plen;
 
-	plen = res->end - res->start + 1;
+	plen = resource_size(res);
 	BUG_ON((plen & (PAGE_SIZE-1)) != 0);
 	sparc_unmapiorange(res->start, plen);
 	release_resource(res);
@@ -331,9 +331,9 @@ static void sbus_free_coherent(struct device *dev, size_t n, void *p,
 	}
 
 	n = PAGE_ALIGN(n);
-	if ((res->end-res->start)+1 != n) {
+	if (resource_size(res) != n) {
 		printk("sbus_free_consistent: region 0x%lx asked 0x%zx\n",
-		    (long)((res->end-res->start)+1), n);
+		    (long)resource_size(res), n);
 		return;
 	}
 
@@ -504,9 +504,9 @@ static void pci32_free_coherent(struct device *dev, size_t n, void *p,
 	}
 
 	n = PAGE_ALIGN(n);
-	if ((res->end-res->start)+1 != n) {
+	if (resource_size(res) != n) {
 		printk("pci_free_consistent: region 0x%lx asked 0x%lx\n",
-		    (long)((res->end-res->start)+1), (long)n);
+		    (long)resource_size(res), (long)n);
 		return;
 	}
 

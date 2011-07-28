@@ -2597,7 +2597,7 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	if (msp == NULL)
 		goto out;
 
-	msp->base = ioremap(res->start, res->end - res->start + 1);
+	msp->base = ioremap(res->start, resource_size(res));
 	if (msp->base == NULL)
 		goto out_free;
 

@@ -94,7 +94,7 @@ static inline int try_stop_cpus(const struct cpumask *cpumask,
  * stop_machine "Bogolock": stop the entire machine, disable
  * interrupts.  This is a very heavy lock, which is equivalent to
  * grabbing every spinlock (and more).  So the "read" side to such a
- * lock is anything which disables preeempt.
+ * lock is anything which disables preemption.
  */
 #if defined(CONFIG_STOP_MACHINE) && defined(CONFIG_SMP)
 

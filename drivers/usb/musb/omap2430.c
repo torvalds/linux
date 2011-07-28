@@ -51,9 +51,7 @@ static void musb_do_idle(unsigned long _musb)
 {
 	struct musb	*musb = (void *)_musb;
 	unsigned long	flags;
-#ifdef CONFIG_USB_MUSB_HDRC_HCD
 	u8	power;
-#endif
 	u8	devctl;
 
 	spin_lock_irqsave(&musb->lock, flags);
@@ -70,7 +68,6 @@ static void musb_do_idle(unsigned long _musb)
 			MUSB_HST_MODE(musb);
 		}
 		break;
-#ifdef CONFIG_USB_MUSB_HDRC_HCD
 	case OTG_STATE_A_SUSPEND:
 		/* finish RESUME signaling? */
 		if (musb->port1_status & MUSB_PORT_STAT_RESUME) {
@@ -87,15 +84,12 @@ static void musb_do_idle(unsigned long _musb)
 			musb->xceiv->state = OTG_STATE_A_HOST;
 		}
 		break;
-#endif
-#ifdef CONFIG_USB_MUSB_HDRC_HCD
 	case OTG_STATE_A_HOST:
 		devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
 		if (devctl &  MUSB_DEVCTL_BDEVICE)
 			musb->xceiv->state = OTG_STATE_B_IDLE;
 		else
 			musb->xceiv->state = OTG_STATE_A_WAIT_BCON;
-#endif
 	default:
 		break;
 	}
@@ -243,13 +237,11 @@ static int musb_otg_notifications(struct notifier_block *nb,
 		dev_dbg(musb->controller, "ID GND\n");
 
 		if (is_otg_enabled(musb)) {
-#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 			if (musb->gadget_driver) {
 				pm_runtime_get_sync(musb->controller);
 				otg_init(musb->xceiv);
 				omap2430_musb_set_vbus(musb, 1);
 			}
-#endif
 		} else {
 			pm_runtime_get_sync(musb->controller);
 			otg_init(musb->xceiv);
@@ -260,21 +252,16 @@ static int musb_otg_notifications(struct notifier_block *nb,
 	case USB_EVENT_VBUS:
 		dev_dbg(musb->controller, "VBUS Connect\n");
 
-#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 		if (musb->gadget_driver)
 			pm_runtime_get_sync(musb->controller);
-#endif
 		otg_init(musb->xceiv);
 		break;
 
 	case USB_EVENT_NONE:
 		dev_dbg(musb->controller, "VBUS Disconnect\n");
 
-#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 		if (is_otg_enabled(musb) || is_peripheral_enabled(musb))
-			if (musb->gadget_driver)
-#endif
-			{
+			if (musb->gadget_driver) {
 				pm_runtime_mark_last_busy(musb->controller);
 				pm_runtime_put_autosuspend(musb->controller);
 			}

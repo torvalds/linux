@@ -20,7 +20,7 @@
  * Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/crc32.h>
 #include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>

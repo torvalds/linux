@@ -65,7 +65,7 @@ static void orinoco_cs_release(struct pcmcia_device *link);
 static void orinoco_cs_detach(struct pcmcia_device *p_dev);
 
 /********************************************************************/
-/* Device methods     						    */
+/* Device methods						    */
 /********************************************************************/
 
 static int
@@ -89,7 +89,7 @@ orinoco_cs_hard_reset(struct orinoco_private *priv)
 }
 
 /********************************************************************/
-/* PCMCIA stuff     						    */
+/* PCMCIA stuff							    */
 /********************************************************************/
 
 static int
@@ -134,7 +134,7 @@ static int
 orinoco_cs_config(struct pcmcia_device *link)
 {
 	struct orinoco_private *priv = link->priv;
-	hermes_t *hw = &priv->hw;
+	struct hermes *hw = &priv->hw;
 	int ret;
 	void __iomem *mem;
 

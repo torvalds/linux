@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
-#include <asm/delay.h>
+#include <linux/delay.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -255,7 +255,7 @@ static int tm6000_fillbuf(struct tm6000_core *core, char *buf, int size)
 			length * stride);
 
 #ifndef NO_PCM_LOCK
-       snd_pcm_stream_lock(substream);
+	snd_pcm_stream_lock(substream);
 #endif
 
 	chip->buf_pos += length;
@@ -269,7 +269,7 @@ static int tm6000_fillbuf(struct tm6000_core *core, char *buf, int size)
 	}
 
 #ifndef NO_PCM_LOCK
-       snd_pcm_stream_unlock(substream);
+	snd_pcm_stream_unlock(substream);
 #endif
 
 	if (period_elapsed)
@@ -461,7 +461,7 @@ int tm6000_audio_init(struct tm6000_core *dev)
 	if (rc < 0)
 		goto error_chip;
 
-	dprintk(1,"Registered audio driver for %s\n", card->longname);
+	dprintk(1, "Registered audio driver for %s\n", card->longname);
 
 	return 0;
 

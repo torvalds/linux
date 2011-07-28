@@ -63,11 +63,10 @@
 #include <linux/pci.h>
 #include <linux/pci-aspm.h>
 
-#include "iwl-pci.h"
+#include "iwl-bus.h"
 #include "iwl-agn.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
-#include "iwl-trans.h"
 
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
@@ -121,30 +120,20 @@ static void iwl_pci_apm_config(struct iwl_bus *bus)
 	if ((lctl & PCI_CFG_LINK_CTRL_VAL_L1_EN) ==
 				PCI_CFG_LINK_CTRL_VAL_L1_EN) {
 		/* L1-ASPM enabled; disable(!) L0S */
-		iwl_set_bit(bus->priv, CSR_GIO_REG,
+		iwl_set_bit(bus->drv_data, CSR_GIO_REG,
 				CSR_GIO_REG_VAL_L0S_ENABLED);
-		IWL_DEBUG_POWER(bus->priv, "L1 Enabled; Disabling L0S\n");
+		dev_printk(KERN_INFO, bus->dev, "L1 Enabled; Disabling L0S\n");
 	} else {
 		/* L1-ASPM disabled; enable(!) L0S */
-		iwl_clear_bit(bus->priv, CSR_GIO_REG,
+		iwl_clear_bit(bus->drv_data, CSR_GIO_REG,
 				CSR_GIO_REG_VAL_L0S_ENABLED);
-		IWL_DEBUG_POWER(bus->priv, "L1 Disabled; Enabling L0S\n");
+		dev_printk(KERN_INFO, bus->dev, "L1 Disabled; Enabling L0S\n");
 	}
 }
 
-static void iwl_pci_set_drv_data(struct iwl_bus *bus, void *drv_priv)
+static void iwl_pci_set_drv_data(struct iwl_bus *bus, void *drv_data)
 {
-	pci_set_drvdata(IWL_BUS_GET_PCI_DEV(bus), drv_priv);
-}
-
-static struct device *iwl_pci_get_dev(const struct iwl_bus *bus)
-{
-	return &(IWL_BUS_GET_PCI_DEV(bus)->dev);
-}
-
-static unsigned int iwl_pci_get_irq(const struct iwl_bus *bus)
-{
-	return IWL_BUS_GET_PCI_DEV(bus)->irq;
+	bus->drv_data = drv_data;
 }
 
 static void iwl_pci_get_hw_id(struct iwl_bus *bus, char buf[],
@@ -176,8 +165,6 @@ static struct iwl_bus_ops pci_ops = {
 	.get_pm_support = iwl_pci_is_pm_supported,
 	.apm_config = iwl_pci_apm_config,
 	.set_drv_data = iwl_pci_set_drv_data,
-	.get_dev = iwl_pci_get_dev,
-	.get_irq = iwl_pci_get_irq,
 	.get_hw_id = iwl_pci_get_hw_id,
 	.write8 = iwl_pci_write8,
 	.write32 = iwl_pci_write32,
@@ -383,18 +370,21 @@ MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
-	struct iwl_pci_bus *bus;
+	struct iwl_bus *bus;
+	struct iwl_pci_bus *pci_bus;
 	u16 pci_cmd;
 	int err;
 
-	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
+	bus = kzalloc(sizeof(*bus) + sizeof(*pci_bus), GFP_KERNEL);
 	if (!bus) {
-		pr_err("Couldn't allocate iwl_pci_bus");
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "Couldn't allocate iwl_pci_bus");
 		err = -ENOMEM;
 		goto out_no_pci;
 	}
 
-	bus->pci_dev = pdev;
+	pci_bus = IWL_BUS_GET_PCI_BUS(bus);
+	pci_bus->pci_dev = pdev;
 
 	/* W/A - seems to solve weird behavior. We need to remove this if we
 	 * don't want to stay in L1 all the time. This wastes a lot of power */
@@ -418,29 +408,33 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 							DMA_BIT_MASK(32));
 		/* both attempts failed: */
 		if (err) {
-			pr_err("No suitable DMA available.\n");
+			dev_printk(KERN_ERR, bus->dev,
+				   "No suitable DMA available.\n");
 			goto out_pci_disable_device;
 		}
 	}
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
-		pr_err("pci_request_regions failed");
+		dev_printk(KERN_ERR, bus->dev, "pci_request_regions failed");
 		goto out_pci_disable_device;
 	}
 
-	bus->hw_base = pci_iomap(pdev, 0, 0);
-	if (!bus->hw_base) {
-		pr_err("pci_iomap failed");
+	pci_bus->hw_base = pci_iomap(pdev, 0, 0);
+	if (!pci_bus->hw_base) {
+		dev_printk(KERN_ERR, bus->dev, "pci_iomap failed");
 		err = -ENODEV;
 		goto out_pci_release_regions;
 	}
 
-	pr_info("pci_resource_len = 0x%08llx\n",
+	dev_printk(KERN_INFO, &pdev->dev,
+		"pci_resource_len = 0x%08llx\n",
 		(unsigned long long) pci_resource_len(pdev, 0));
-	pr_info("pci_resource_base = %p\n", bus->hw_base);
+	dev_printk(KERN_INFO, &pdev->dev,
+		"pci_resource_base = %p\n", pci_bus->hw_base);
 
-	pr_info("HW Revision ID = 0x%X\n", pdev->revision);
+	dev_printk(KERN_INFO, &pdev->dev,
+		"HW Revision ID = 0x%X\n", pdev->revision);
 
 	/* We disable the RETRY_TIMEOUT register (0x41) to keep
 	 * PCI Tx retries from interfering with C3 CPU state */
@@ -448,7 +442,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = pci_enable_msi(pdev);
 	if (err) {
-		pr_err("pci_enable_msi failed");
+		dev_printk(KERN_ERR, &pdev->dev, "pci_enable_msi failed");
 		goto out_iounmap;
 	}
 
@@ -460,7 +454,13 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		pci_write_config_word(pdev, PCI_COMMAND, pci_cmd);
 	}
 
-	err = iwl_probe((void *) bus, &pci_ops, cfg);
+	pci_set_drvdata(pdev, bus);
+
+	bus->dev = &pdev->dev;
+	bus->irq = pdev->irq;
+	bus->ops = &pci_ops;
+
+	err = iwl_probe(bus, cfg);
 	if (err)
 		goto out_disable_msi;
 	return 0;
@@ -468,7 +468,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 out_disable_msi:
 	pci_disable_msi(pdev);
 out_iounmap:
-	pci_iounmap(pdev, bus->hw_base);
+	pci_iounmap(pdev, pci_bus->hw_base);
 out_pci_release_regions:
 	pci_set_drvdata(pdev, NULL);
 	pci_release_regions(pdev);
@@ -479,9 +479,9 @@ out_no_pci:
 	return err;
 }
 
-static void iwl_pci_down(void *bus)
+static void iwl_pci_down(struct iwl_bus *bus)
 {
-	struct iwl_pci_bus *pci_bus = (struct iwl_pci_bus *) bus;
+	struct iwl_pci_bus *pci_bus = (struct iwl_pci_bus *) bus->bus_specific;
 
 	pci_disable_msi(pci_bus->pci_dev);
 	pci_iounmap(pci_bus->pci_dev, pci_bus->hw_base);
@@ -489,17 +489,16 @@ static void iwl_pci_down(void *bus)
 	pci_disable_device(pci_bus->pci_dev);
 	pci_set_drvdata(pci_bus->pci_dev, NULL);
 
-	kfree(pci_bus);
+	kfree(bus);
 }
 
 static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 {
-	struct iwl_priv *priv = pci_get_drvdata(pdev);
-	void *bus_specific = priv->bus.bus_specific;
+	struct iwl_bus *bus = pci_get_drvdata(pdev);
 
-	iwl_remove(priv);
+	iwl_remove(bus->drv_data);
 
-	iwl_pci_down(bus_specific);
+	iwl_pci_down(bus);
 }
 
 #ifdef CONFIG_PM
@@ -507,15 +506,25 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 static int iwl_pci_suspend(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
-	struct iwl_priv *priv = pci_get_drvdata(pdev);
+	struct iwl_bus *bus = pci_get_drvdata(pdev);
 
-	return iwl_suspend(priv);
+	/* Before you put code here, think about WoWLAN. You cannot check here
+	 * whether WoWLAN is enabled or not, and your code will run even if
+	 * WoWLAN is enabled - don't kill the NIC, someone may need it in Sx.
+	 */
+
+	return iwl_suspend(bus->drv_data);
 }
 
 static int iwl_pci_resume(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
-	struct iwl_priv *priv = pci_get_drvdata(pdev);
+	struct iwl_bus *bus = pci_get_drvdata(pdev);
+
+	/* Before you put code here, think about WoWLAN. You cannot check here
+	 * whether WoWLAN is enabled or not, and your code will run even if
+	 * WoWLAN is enabled - the NIC may be alive.
+	 */
 
 	/*
 	 * We disable the RETRY_TIMEOUT register (0x41) to keep
@@ -523,7 +532,7 @@ static int iwl_pci_resume(struct device *device)
 	 */
 	pci_write_config_byte(pdev, PCI_CFG_RETRY_TIMEOUT, 0x00);
 
-	return iwl_resume(priv);
+	return iwl_resume(bus->drv_data);
 }
 
 static SIMPLE_DEV_PM_OPS(iwl_dev_pm_ops, iwl_pci_suspend, iwl_pci_resume);

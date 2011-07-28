@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <video/vga.h>
 
 #include <asm/irq.h>
 #include <asm/mach/pci.h>
@@ -37,8 +38,15 @@ static struct hw_pci shark_pci __initdata = {
 
 static int __init shark_pci_init(void)
 {
-	if (machine_is_shark())
-		pci_common_init(&shark_pci);
+	if (!machine_is_shark())
+		return;
+
+	pcibios_min_io = 0x6000;
+	pcibios_min_mem = 0x50000000;
+	vga_base = 0xe8000000;
+
+	pci_common_init(&shark_pci);
+
 	return 0;
 }
 

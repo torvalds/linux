@@ -97,16 +97,17 @@ struct eth_dev {
 
 static unsigned qmult = 5;
 module_param(qmult, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(qmult, "queue length multiplier at high speed");
+MODULE_PARM_DESC(qmult, "queue length multiplier at high/super speed");
 
 #else	/* full speed (low speed doesn't do bulk) */
 #define qmult		1
 #endif
 
-/* for dual-speed hardware, use deeper queues at highspeed */
+/* for dual-speed hardware, use deeper queues at high/super speed */
 static inline int qlen(struct usb_gadget *gadget)
 {
-	if (gadget_is_dualspeed(gadget) && gadget->speed == USB_SPEED_HIGH)
+	if (gadget_is_dualspeed(gadget) && (gadget->speed == USB_SPEED_HIGH ||
+					    gadget->speed == USB_SPEED_SUPER))
 		return qmult * DEFAULT_QLEN;
 	else
 		return DEFAULT_QLEN;
@@ -598,9 +599,10 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 
 	req->length = length;
 
-	/* throttle highspeed IRQ rate back slightly */
+	/* throttle high/super speed IRQ rate back slightly */
 	if (gadget_is_dualspeed(dev->gadget))
-		req->no_interrupt = (dev->gadget->speed == USB_SPEED_HIGH)
+		req->no_interrupt = (dev->gadget->speed == USB_SPEED_HIGH ||
+				     dev->gadget->speed == USB_SPEED_SUPER)
 			? ((atomic_read(&dev->tx_qlen) % qmult) != 0)
 			: 0;
 
@@ -693,8 +695,8 @@ static int eth_stop(struct net_device *net)
 		usb_ep_disable(link->out_ep);
 		if (netif_carrier_ok(net)) {
 			DBG(dev, "host still using in/out endpoints\n");
-			usb_ep_enable(link->in_ep, link->in);
-			usb_ep_enable(link->out_ep, link->out);
+			usb_ep_enable(link->in_ep);
+			usb_ep_enable(link->out_ep);
 		}
 	}
 	spin_unlock_irqrestore(&dev->lock, flags);
@@ -871,7 +873,7 @@ struct net_device *gether_connect(struct gether *link)
 		return ERR_PTR(-EINVAL);
 
 	link->in_ep->driver_data = dev;
-	result = usb_ep_enable(link->in_ep, link->in);
+	result = usb_ep_enable(link->in_ep);
 	if (result != 0) {
 		DBG(dev, "enable %s --> %d\n",
 			link->in_ep->name, result);
@@ -879,7 +881,7 @@ struct net_device *gether_connect(struct gether *link)
 	}
 
 	link->out_ep->driver_data = dev;
-	result = usb_ep_enable(link->out_ep, link->out);
+	result = usb_ep_enable(link->out_ep);
 	if (result != 0) {
 		DBG(dev, "enable %s --> %d\n",
 			link->out_ep->name, result);
@@ -969,7 +971,7 @@ void gether_disconnect(struct gether *link)
 	}
 	spin_unlock(&dev->req_lock);
 	link->in_ep->driver_data = NULL;
-	link->in = NULL;
+	link->in_ep->desc = NULL;
 
 	usb_ep_disable(link->out_ep);
 	spin_lock(&dev->req_lock);
@@ -984,7 +986,7 @@ void gether_disconnect(struct gether *link)
 	}
 	spin_unlock(&dev->req_lock);
 	link->out_ep->driver_data = NULL;
-	link->out = NULL;
+	link->out_ep->desc = NULL;
 
 	/* finish forgetting about this USB link episode */
 	dev->header_len = 0;

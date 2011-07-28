@@ -31,7 +31,7 @@
 #include <linux/spinlock.h>
 #include <linux/of.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/eeh.h>
 #include <asm/eeh_event.h>
 #include <asm/io.h>

@@ -180,7 +180,7 @@ held by the process (struct file) */
 /* offset of the caller id area */
 #define SEP_CALLER_ID_OFFSET_BYTES \
 	(SEP_DRIVER_SYSTEM_RAR_MEMORY_OFFSET_IN_BYTES + \
-    SEP_DRIVER_SYSTEM_RAR_MEMORY_SIZE_IN_BYTES)
+	SEP_DRIVER_SYSTEM_RAR_MEMORY_SIZE_IN_BYTES)
 
 /* offset of the DCB area */
 #define SEP_DRIVER_SYSTEM_DCB_MEMORY_OFFSET_IN_BYTES \

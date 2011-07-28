@@ -6,7 +6,7 @@
  * Copyright 2006-2010 Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2008 Michael Wu <flamingice@sourmilk.net>
  * Copyright 2008 Luis Carlos Cobo <luisca@cozybit.com>
- * Copyright 2008 Michael Buesch <mb@bu3sch.de>
+ * Copyright 2008 Michael Buesch <m@bues.ch>
  * Copyright 2008, 2009 Luis R. Rodriguez <lrodriguez@atheros.com>
  * Copyright 2008 Jouni Malinen <jouni.malinen@atheros.com>
  * Copyright 2008 Colin McCabe <colin@cozybit.com>
@@ -756,8 +756,12 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_MAX_NUM_SCAN_SSIDS: number of SSIDs you can scan with
  *	a single scan request, a wiphy attribute.
+ * @NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS: number of SSIDs you can
+ *	scan with a single scheduled scan request, a wiphy attribute.
  * @NL80211_ATTR_MAX_SCAN_IE_LEN: maximum length of information elements
  *	that can be added to a scan request
+ * @NL80211_ATTR_MAX_SCHED_SCAN_IE_LEN: maximum length of information
+ *	elements that can be added to a scheduled scan request
  *
  * @NL80211_ATTR_SCAN_FREQUENCIES: nested attribute with frequencies (in MHz)
  * @NL80211_ATTR_SCAN_SSIDS: nested attribute with SSIDs, leave out for passive
@@ -989,8 +993,8 @@ enum nl80211_commands {
  *	driving the peer link management state machine.
  *	@NL80211_MESH_SETUP_USERSPACE_AMPE must be enabled.
  *
- * @NL80211_ATTR_WOWLAN_SUPPORTED: indicates, as part of the wiphy capabilities,
- *	the supported WoWLAN triggers
+ * @NL80211_ATTR_WOWLAN_TRIGGERS_SUPPORTED: indicates, as part of the wiphy
+ *	capabilities, the supported WoWLAN triggers
  * @NL80211_ATTR_WOWLAN_TRIGGERS: used by %NL80211_CMD_SET_WOWLAN to
  *	indicate which WoW triggers should be enabled. This is also
  *	used by %NL80211_CMD_GET_WOWLAN to get the currently enabled WoWLAN
@@ -1009,6 +1013,11 @@ enum nl80211_commands {
  *
  * @%NL80211_ATTR_REKEY_DATA: nested attribute containing the information
  *	necessary for GTK rekeying in the device, see &enum nl80211_rekey_data.
+ *
+ * @NL80211_ATTR_SCAN_SUPP_RATES: rates per to be advertised as supported in scan,
+ *	nested array attribute containing an entry for each band, with the entry
+ *	being a list of supported rates as defined by IEEE 802.11 7.3.2.2 but
+ *	without the length restriction (at most %NL80211_MAX_SUPP_RATES).
  *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -1209,6 +1218,11 @@ enum nl80211_attrs {
 	NL80211_ATTR_SOFTWARE_IFTYPES,
 
 	NL80211_ATTR_REKEY_DATA,
+
+	NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS,
+	NL80211_ATTR_MAX_SCHED_SCAN_IE_LEN,
+
+	NL80211_ATTR_SCAN_SUPP_RATES,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -2255,6 +2269,16 @@ struct nl80211_wowlan_pattern_support {
  *
  *	In %NL80211_ATTR_WOWLAN_TRIGGERS_SUPPORTED, it is a binary attribute
  *	carrying a &struct nl80211_wowlan_pattern_support.
+ * @NL80211_WOWLAN_TRIG_GTK_REKEY_SUPPORTED: Not a real trigger, and cannot be
+ *	used when setting, used only to indicate that GTK rekeying is supported
+ *	by the device (flag)
+ * @NL80211_WOWLAN_TRIG_GTK_REKEY_FAILURE: wake up on GTK rekey failure (if
+ *	done by the device) (flag)
+ * @NL80211_WOWLAN_TRIG_EAP_IDENT_REQUEST: wake up on EAP Identity Request
+ *	packet (flag)
+ * @NL80211_WOWLAN_TRIG_4WAY_HANDSHAKE: wake up on 4-way handshake (flag)
+ * @NL80211_WOWLAN_TRIG_RFKILL_RELEASE: wake up when rfkill is released
+ *	(on devices that have rfkill in the device) (flag)
  * @NUM_NL80211_WOWLAN_TRIG: number of wake on wireless triggers
  * @MAX_NL80211_WOWLAN_TRIG: highest wowlan trigger attribute number
  */
@@ -2264,6 +2288,11 @@ enum nl80211_wowlan_triggers {
 	NL80211_WOWLAN_TRIG_DISCONNECT,
 	NL80211_WOWLAN_TRIG_MAGIC_PKT,
 	NL80211_WOWLAN_TRIG_PKT_PATTERN,
+	NL80211_WOWLAN_TRIG_GTK_REKEY_SUPPORTED,
+	NL80211_WOWLAN_TRIG_GTK_REKEY_FAILURE,
+	NL80211_WOWLAN_TRIG_EAP_IDENT_REQUEST,
+	NL80211_WOWLAN_TRIG_4WAY_HANDSHAKE,
+	NL80211_WOWLAN_TRIG_RFKILL_RELEASE,
 
 	/* keep last */
 	NUM_NL80211_WOWLAN_TRIG,

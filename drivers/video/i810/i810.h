@@ -137,7 +137,7 @@
 #define DRAM_ON                     0x08            
 #define DRAM_OFF                    0xE7
 #define PG_ENABLE_MASK              0x01
-#define RING_SIZE_MASK              (RINGBUFFER_SIZE - 1);
+#define RING_SIZE_MASK              (RINGBUFFER_SIZE - 1)
 
 /* defines for restoring registers partially */
 #define ADDR_MAP_MASK               (0x07 << 5)

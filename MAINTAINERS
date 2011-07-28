@@ -696,7 +696,7 @@ T:	git git://git.infradead.org/users/cbou/linux-cns3xxx.git
 
 ARM/CIRRUS LOGIC EP93XX ARM ARCHITECTURE
 M:	Hartley Sweeten <hsweeten@visionengravers.com>
-M:	Ryan Mallon <ryan@bluewatersys.com>
+M:	Ryan Mallon <rmallon@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-ep93xx/
@@ -733,6 +733,12 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://git.berlios.de/gemini-board
 S:	Maintained
 F:	arch/arm/mach-gemini/
+
+ARM/CSR SIRFPRIMA2 MACHINE SUPPORT
+M:	Barry Song <baohua.song@csr.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-prima2/
 
 ARM/EBSA110 MACHINE SUPPORT
 M:	Russell King <linux@arm.linux.org.uk>
@@ -1546,9 +1552,10 @@ F:	drivers/net/tg3.*
 BROADCOM BRCM80211 IEEE802.11n WIRELESS DRIVER
 M:	Brett Rudley <brudley@broadcom.com>
 M:	Henry Ptasinski <henryp@broadcom.com>
-M:	Dowan Kim <dowan@broadcom.com>
 M:	Roland Vossen <rvossen@broadcom.com>
 M:	Arend van Spriel <arend@broadcom.com>
+M:	Franky (Zhenhui) Lin <frankyl@broadcom.com>
+M:	Kan Yan	<kanyan@broadcom.com>
 L:	linux-wireless@vger.kernel.org
 S:	Supported
 F:	drivers/staging/brcm80211/
@@ -1588,7 +1595,7 @@ F:	Documentation/sound/alsa/Bt87x.txt
 F:	sound/pci/bt87x.c
 
 BT8XXGPIO DRIVER
-M:	Michael Buesch <mb@bu3sch.de>
+M:	Michael Buesch <m@bues.ch>
 W:	http://bu3sch.de/btgpio.php
 S:	Maintained
 F:	drivers/gpio/bt8xxgpio.c
@@ -3012,7 +3019,7 @@ F:	kernel/hrtimer.c
 F:	kernel/time/clockevents.c
 F:	kernel/time/tick*.*
 F:	kernel/time/timer_*.c
-F:	include/linux/clockevents.h
+F:	include/linux/clockchips.h
 F:	include/linux/hrtimer.h
 
 HIGH-SPEED SCC DRIVER FOR AX.25
@@ -3895,7 +3902,7 @@ F:	arch/powerpc/platforms/512x/
 F:	arch/powerpc/platforms/52xx/
 
 LINUX FOR POWERPC EMBEDDED PPC4XX
-M:	Josh Boyer <jwboyer@linux.vnet.ibm.com>
+M:	Josh Boyer <jwboyer@gmail.com>
 M:	Matt Porter <mporter@kernel.crashing.org>
 W:	http://www.penguinppc.org/
 L:	linuxppc-dev@lists.ozlabs.org
@@ -3927,6 +3934,7 @@ W:	http://www.penguinppc.org/
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
 F:	arch/powerpc/platforms/83xx/
+F:	arch/powerpc/platforms/85xx/
 
 LINUX FOR POWERPC PA SEMI PWRFICIENT
 M:	Olof Johansson <olof@lixom.net>
@@ -3959,6 +3967,13 @@ M:	Guillaume Ligneul <guillaume.ligneul@gmail.com>
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	drivers/hwmon/lm73.c
+
+LM78 HARDWARE MONITOR DRIVER
+M:	Jean Delvare <khali@linux-fr.org>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/lm78
+F:	drivers/hwmon/lm78.c
 
 LM83 HARDWARE MONITOR DRIVER
 M:	Jean Delvare <khali@linux-fr.org>
@@ -4106,6 +4121,12 @@ S:	Maintained
 F:	drivers/net/mv643xx_eth.*
 F:	include/linux/mv643xx.h
 
+MARVELL MWIFIEX WIRELESS DRIVER
+M:	Bing Zhao <bzhao@marvell.com>
+L:	linux-wireless@vger.kernel.org
+S:	Maintained
+F:	drivers/net/wireless/mwifiex/
+
 MARVELL MWL8K WIRELESS DRIVER
 M:	Lennert Buytenhek <buytenh@wantstofly.org>
 L:	linux-wireless@vger.kernel.org
@@ -4202,9 +4223,10 @@ F:	drivers/usb/image/microtek.*
 
 MIPS
 M:	Ralf Baechle <ralf@linux-mips.org>
-W:	http://www.linux-mips.org/
 L:	linux-mips@linux-mips.org
+W:	http://www.linux-mips.org/
 T:	git git://git.linux-mips.org/pub/scm/linux.git
+Q:	http://patchwork.linux-mips.org/project/linux-mips/list/
 S:	Supported
 F:	Documentation/mips/
 F:	arch/mips/
@@ -5904,7 +5926,7 @@ S:	Maintained
 F:	drivers/net/sonic.*
 
 SONICS SILICON BACKPLANE DRIVER (SSB)
-M:	Michael Buesch <mb@bu3sch.de>
+M:	Michael Buesch <m@bues.ch>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/ssb/
@@ -6077,6 +6099,145 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/staging-2.6.git
 L:	devel@driverdev.osuosl.org
 S:	Maintained
 F:	drivers/staging/
+
+STAGING - AGERE HERMES II and II.5 WIRELESS DRIVERS
+M:	Henk de Groot <pe1dnn@amsat.org>
+S:	Odd Fixes
+F:	drivers/staging/wlags49_h2/
+F:	drivers/staging/wlags49_h25/
+
+STAGING - ASUS OLED
+M:	Jakub Schmidtke <sjakub@gmail.com>
+S:	Odd Fixes
+F:	drivers/staging/asus_oled/
+
+STAGING - ATHEROS ATH6KL WIRELESS DRIVER
+M:	Luis R. Rodriguez <mcgrof@gmail.com>
+M:	Naveen Singh <nsingh@atheros.com>
+S:	Odd Fixes
+F:	drivers/staging/ath6kl/
+
+STAGING - COMEDI
+M:	Ian Abbott <abbotti@mev.co.uk>
+M:	Mori Hess <fmhess@users.sourceforge.net>
+S:	Odd Fixes
+F:	drivers/staging/comedi/
+
+STAGING - CRYSTAL HD VIDEO DECODER
+M:	Naren Sankar <nsankar@broadcom.com>
+M:	Jarod Wilson <jarod@wilsonet.com>
+M:	Scott Davilla <davilla@4pi.com>
+M:	Manu Abraham <abraham.manu@gmail.com>
+S:	Odd Fixes
+F:	drivers/staging/crystalhd/
+
+STAGING - CYPRESS WESTBRIDGE SUPPORT
+M:	David Cross <david.cross@cypress.com>
+S:	Odd Fixes
+F:	drivers/staging/westbridge/
+
+STAGING - ECHO CANCELLER
+M:	Steve Underwood <steveu@coppice.org>
+M:	David Rowe <david@rowetel.com>
+S:	Odd Fixes
+F:	drivers/staging/echo/
+
+STAGING - FLARION FT1000 DRIVERS
+M:	Marek Belisko <marek.belisko@gmail.com>
+S:	Odd Fixes
+F:	drivers/staging/ft1000/
+
+STAGING - FRONTIER TRANZPORT AND ALPHATRACK
+M:	David Täht <d@teklibre.com>
+S:	Odd Fixes
+F:	drivers/staging/frontier/
+
+STAGING - HYPER-V (MICROSOFT)
+M:	Hank Janssen <hjanssen@microsoft.com>
+M:	Haiyang Zhang <haiyangz@microsoft.com>
+S:	Odd Fixes
+F:	drivers/staging/hv/
+
+STAGING - INDUSTRIAL IO
+M:	Jonathan Cameron <jic23@cam.ac.uk>
+L:	linux-iio@vger.kernel.org
+S:	Odd Fixes
+F:	drivers/staging/iio/
+
+STAGING - LIRC (LINUX INFRARED REMOTE CONTROL) DRIVERS
+M:	Jarod Wilson <jarod@wilsonet.com>
+W:	http://www.lirc.org/
+S:	Odd Fixes
+F:	drivers/staging/lirc/
+
+STAGING - OLPC SECONDARY DISPLAY CONTROLLER (DCON)
+M:	Andres Salomon <dilinger@queued.net>
+M:	Chris Ball <cjb@laptop.org>
+M:	Jon Nettleton <jon.nettleton@gmail.com>
+W:	http://wiki.laptop.org/go/DCON
+S:	Odd Fixes
+F:	drivers/staging/olpc_dcon/
+
+STAGING - PARALLEL LCD/KEYPAD PANEL DRIVER
+M:	Willy Tarreau <willy@meta-x.org>
+S:	Odd Fixes
+F:	drivers/staging/panel/
+
+STAGING - REALTEK RTL8712U DRIVERS
+M:	Larry Finger <Larry.Finger@lwfinger.net>
+M:	Florian Schilhabel <florian.c.schilhabel@googlemail.com>.
+S:	Odd Fixes
+F:	drivers/staging/rtl8712/
+
+STAGING - SILICON MOTION SM7XX FRAME BUFFER DRIVER
+M:	Teddy Wang <teddy.wang@siliconmotion.com.cn>
+S:	Odd Fixes
+F:	drivers/staging/sm7xx/
+
+STAGING - SOFTLOGIC 6x10 MPEG CODEC
+M:	Ben Collins <bcollins@bluecherry.net>
+S:	Odd Fixes
+F:	drivers/staging/solo6x10/
+
+STAGING - SPEAKUP CONSOLE SPEECH DRIVER
+M:	William Hubbs <w.d.hubbs@gmail.com>
+M:	Chris Brannon <chris@the-brannons.com>
+M:	Kirk Reiser <kirk@braille.uwo.ca>
+M:	Samuel Thibault <samuel.thibault@ens-lyon.org>
+L:	speakup@braille.uwo.ca
+W:	http://www.linux-speakup.org/
+S:	Odd Fixes
+F:	drivers/staging/speakup/
+
+STAGING - TI DSP BRIDGE DRIVERS
+M:	Omar Ramirez Luna <omar.ramirez@ti.com>
+S:	Odd Fixes
+F:	drivers/staging/tidspbridge/
+
+STAGING - TRIDENT TVMASTER TMxxxx USB VIDEO CAPTURE DRIVERS
+L:	linux-media@vger.kernel.org
+S:	Odd Fixes
+F:	drivers/staging/tm6000/
+
+STAGING - USB ENE SM/MS CARD READER DRIVER
+M:	Al Cho <acho@novell.com>
+S:	Odd Fixes
+F:	drivers/staging/keucr/
+
+STAGING - VIA VT665X DRIVERS
+M:	Forest Bond <forest@alittletooquiet.net>
+S:	Odd Fixes
+F:	drivers/staging/vt665?/
+
+STAGING - WINBOND IS89C35 WLAN USB DRIVER
+M:	Pavel Machek <pavel@ucw.cz>
+S:	Odd Fixes
+F:	drivers/staging/winbond/
+
+STAGING - XGI Z7,Z9,Z11 PCI DISPLAY DRIVER
+M:	Arnaud Patard <apatard@mandriva.com>
+S:	Odd Fixes
+F:	drivers/staging/xgifb/
 
 STARFIRE/DURALAN NETWORK DRIVER
 M:	Ion Badulescu <ionut@badula.org>
@@ -6580,13 +6741,6 @@ W:	http://pegasus2.sourceforge.net/
 S:	Maintained
 F:	drivers/net/usb/rtl8150.c
 
-USB SE401 DRIVER
-L:	linux-usb@vger.kernel.org
-W:	http://www.chello.nl/~j.vreeken/se401/
-S:	Orphan
-F:	Documentation/video4linux/se401.txt
-F:	drivers/staging/se401/
-
 USB SERIAL BELKIN F5U103 DRIVER
 M:	William Greathouse <wgreathouse@smva.com>
 L:	linux-usb@vger.kernel.org
@@ -6972,9 +7126,9 @@ S:	Maintained
 F:	drivers/input/misc/wistron_btns.c
 
 WL1251 WIRELESS DRIVER
-M:	Kalle Valo <kvalo@adurom.com>
+M:	Luciano Coelho <coelho@ti.com>
 L:	linux-wireless@vger.kernel.org
-W:	http://wireless.kernel.org
+W:	http://wireless.kernel.org/en/users/Drivers/wl1251
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
 S:	Maintained
 F:	drivers/net/wireless/wl1251/*

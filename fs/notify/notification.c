@@ -43,7 +43,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <linux/fsnotify_backend.h>
 #include "fsnotify.h"

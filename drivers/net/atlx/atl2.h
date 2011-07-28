@@ -25,7 +25,7 @@
 #ifndef _ATL2_H_
 #define _ATL2_H_
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/netdevice.h>
 
 #ifndef _ATL2_HW_H_

@@ -130,6 +130,37 @@ static inline void drv_bss_info_changed(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
+static inline int drv_tx_sync(struct ieee80211_local *local,
+			      struct ieee80211_sub_if_data *sdata,
+			      const u8 *bssid,
+			      enum ieee80211_tx_sync_type type)
+{
+	int ret = 0;
+
+	might_sleep();
+
+	trace_drv_tx_sync(local, sdata, bssid, type);
+	if (local->ops->tx_sync)
+		ret = local->ops->tx_sync(&local->hw, &sdata->vif,
+					  bssid, type);
+	trace_drv_return_int(local, ret);
+	return ret;
+}
+
+static inline void drv_finish_tx_sync(struct ieee80211_local *local,
+				      struct ieee80211_sub_if_data *sdata,
+				      const u8 *bssid,
+				      enum ieee80211_tx_sync_type type)
+{
+	might_sleep();
+
+	trace_drv_finish_tx_sync(local, sdata, bssid, type);
+	if (local->ops->finish_tx_sync)
+		local->ops->finish_tx_sync(&local->hw, &sdata->vif,
+					   bssid, type);
+	trace_drv_return_void(local);
+}
+
 static inline u64 drv_prepare_multicast(struct ieee80211_local *local,
 					struct netdev_hw_addr_list *mc_list)
 {

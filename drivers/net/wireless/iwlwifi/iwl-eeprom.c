@@ -543,7 +543,7 @@ static void iwl_init_band_reference(const struct iwl_priv *priv,
 			const struct iwl_eeprom_channel **eeprom_ch_info,
 			const u8 **eeprom_ch_index)
 {
-	u32 offset = priv->cfg->ops->lib->
+	u32 offset = priv->cfg->lib->
 			eeprom_ops.regulatory_bands[eep_band - 1];
 	switch (eep_band) {
 	case 1:		/* 2.4GHz band */
@@ -749,9 +749,9 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 	}
 
 	/* Check if we do have HT40 channels */
-	if (priv->cfg->ops->lib->eeprom_ops.regulatory_bands[5] ==
+	if (priv->cfg->lib->eeprom_ops.regulatory_bands[5] ==
 	    EEPROM_REGULATORY_BAND_NO_HT40 &&
-	    priv->cfg->ops->lib->eeprom_ops.regulatory_bands[6] ==
+	    priv->cfg->lib->eeprom_ops.regulatory_bands[6] ==
 	    EEPROM_REGULATORY_BAND_NO_HT40)
 		return 0;
 
@@ -787,8 +787,8 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 	 * driver need to process addition information
 	 * to determine the max channel tx power limits
 	 */
-	if (priv->cfg->ops->lib->eeprom_ops.update_enhanced_txpower)
-		priv->cfg->ops->lib->eeprom_ops.update_enhanced_txpower(priv);
+	if (priv->cfg->lib->eeprom_ops.update_enhanced_txpower)
+		priv->cfg->lib->eeprom_ops.update_enhanced_txpower(priv);
 
 	return 0;
 }

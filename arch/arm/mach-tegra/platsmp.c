@@ -21,7 +21,6 @@
 
 #include <asm/cacheflush.h>
 #include <asm/hardware/gic.h>
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/smp_scu.h>
 
@@ -122,7 +121,7 @@ void __init smp_init_cpus(void)
 	}
 
 	for (i = 0; i < ncores; i++)
-		cpu_set(i, cpu_possible_map);
+		set_cpu_possible(i, true);
 
 	set_smp_cross_call(gic_raise_softirq);
 }

@@ -98,7 +98,7 @@
 
 #include <net/checksum.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>

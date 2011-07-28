@@ -133,6 +133,9 @@ mwifiex_sdio_remove(struct sdio_func *func)
 					adapter->priv[i]->media_connected)
 				mwifiex_deauthenticate(adapter->priv[i], NULL);
 
+		mwifiex_disable_auto_ds(mwifiex_get_priv(adapter,
+							 MWIFIEX_BSS_ROLE_ANY));
+
 		mwifiex_init_shutdown_fw(mwifiex_get_priv(adapter,
 						MWIFIEX_BSS_ROLE_ANY),
 					 MWIFIEX_FUNC_SHUTDOWN);
@@ -1319,7 +1322,7 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 				if (!(card->mp_wr_bitmap &
 						(1 << card->curr_wr_port))
 						|| !MP_TX_AGGR_BUF_HAS_ROOM(
-							card, next_pkt_len))
+						card, pkt_len + next_pkt_len))
 					f_send_aggr_buf = 1;
 			} else {
 				/* No room in Aggr buf, send it */

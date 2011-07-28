@@ -117,6 +117,14 @@ config LCD_LD9040
 	  If you have an LD9040 Panel, say Y to enable its
 	  control driver.
 
+config LCD_AMS369FG06
+	tristate "AMS369FG06 AMOLED LCD Driver"
+	depends on SPI && BACKLIGHT_CLASS_DEVICE
+	default n
+	help
+	  If you have an AMS369FG06 AMOLED Panel, say Y to enable its
+	  LCD control driver.
+
 endif # LCD_CLASS_DEVICE
 
 #

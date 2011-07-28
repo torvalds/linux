@@ -73,7 +73,7 @@ static int ath5k_hw_stop_rx_dma(struct ath5k_hw *ah)
 		udelay(100);
 
 	if (!i)
-		ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_DMA,
+		ATH5K_DBG(ah, ATH5K_DEBUG_DMA,
 				"failed to stop RX DMA !\n");
 
 	return i ? 0 : -EBUSY;
@@ -100,7 +100,7 @@ u32 ath5k_hw_get_rxdp(struct ath5k_hw *ah)
 int ath5k_hw_set_rxdp(struct ath5k_hw *ah, u32 phys_addr)
 {
 	if (ath5k_hw_reg_read(ah, AR5K_CR) & AR5K_CR_RXE) {
-		ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_DMA,
+		ATH5K_DBG(ah, ATH5K_DEBUG_DMA,
 				"tried to set RXDP while rx was active !\n");
 		return -EIO;
 	}
@@ -243,7 +243,7 @@ static int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 			udelay(100);
 
 		if (AR5K_REG_READ_Q(ah, AR5K_QCU_TXE, queue))
-			ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_DMA,
+			ATH5K_DBG(ah, ATH5K_DEBUG_DMA,
 				"queue %i didn't stop !\n", queue);
 
 		/* Check for pending frames */
@@ -295,7 +295,7 @@ static int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 					AR5K_DIAG_SW_CHANNEL_IDLE_HIGH);
 
 			if (pending)
-				ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_DMA,
+				ATH5K_DBG(ah, ATH5K_DEBUG_DMA,
 					"quiet mechanism didn't work q:%i !\n",
 					queue);
 		}
@@ -309,7 +309,7 @@ static int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 		/* Clear register */
 		ath5k_hw_reg_write(ah, 0, AR5K_QCU_TXD);
 		if (pending) {
-			ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_DMA,
+			ATH5K_DBG(ah, ATH5K_DEBUG_DMA,
 					"tx dma didn't stop (q:%i, frm:%i) !\n",
 					queue, pending);
 			return -EBUSY;
@@ -333,7 +333,7 @@ int ath5k_hw_stop_beacon_queue(struct ath5k_hw *ah, unsigned int queue)
 	int ret;
 	ret = ath5k_hw_stop_tx_dma(ah, queue);
 	if (ret) {
-		ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_DMA,
+		ATH5K_DBG(ah, ATH5K_DEBUG_DMA,
 				"beacon queue didn't stop !\n");
 		return -EIO;
 	}

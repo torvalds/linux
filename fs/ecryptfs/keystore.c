@@ -2248,7 +2248,7 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 		       auth_tok->token.password.session_key_encryption_key,
 		       crypt_stat->key_size);
 		ecryptfs_printk(KERN_DEBUG,
-				"Cached session key " "encryption key: \n");
+				"Cached session key encryption key:\n");
 		if (ecryptfs_verbosity > 0)
 			ecryptfs_dump_hex(session_key_encryption_key, 16);
 	}

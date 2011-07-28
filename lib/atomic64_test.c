@@ -10,7 +10,7 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #define INIT(c) do { atomic64_set(&v, c); r = c; } while (0)
 static __init int test_atomic64(void)

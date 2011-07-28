@@ -125,6 +125,9 @@ static void cmx2xx_pci_preinit(void)
 {
 	pr_info("Initializing CM-X2XX PCI subsystem\n");
 
+	pcibios_min_io = 0;
+	pcibios_min_mem = 0;
+
 	__raw_writel(0x800, IT8152_PCI_CFG_ADDR);
 	if (__raw_readl(IT8152_PCI_CFG_DATA) == 0x81521283) {
 		pr_info("PCI Bridge found.\n");

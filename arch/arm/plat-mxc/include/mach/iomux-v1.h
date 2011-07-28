@@ -85,9 +85,6 @@
 #define GPIO_BOUT_0	(2 << GPIO_BOUT_SHIFT)
 #define GPIO_BOUT_1	(3 << GPIO_BOUT_SHIFT)
 
-/* decode irq number to use with IMR(x), ISR(x) and friends */
-#define IRQ_TO_REG(irq) ((irq - MXC_INTERNAL_IRQS) >> 5)
-
 #define IRQ_GPIOA(x)  (MXC_GPIO_IRQ_START + x)
 #define IRQ_GPIOB(x)  (IRQ_GPIOA(32) + x)
 #define IRQ_GPIOC(x)  (IRQ_GPIOB(32) + x)
@@ -98,7 +95,6 @@
 extern int mxc_gpio_mode(int gpio_mode);
 extern int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
 		const char *label);
-extern void mxc_gpio_release_multiple_pins(const int *pin_list, int count);
 
 extern int __init imx_iomuxv1_init(void __iomem *base, int numports);
 

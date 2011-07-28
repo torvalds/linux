@@ -867,33 +867,6 @@ out:
 	return err;
 }
 
-int reiserfs_check_acl(struct inode *inode, int mask)
-{
-	struct posix_acl *acl;
-	int error = -EAGAIN; /* do regular unix permission checks by default */
-
-	/*
-	 * Stat data v1 doesn't support ACLs.
-	 */
-	if (get_inode_sd_version(inode) == STAT_DATA_V1)
-		return -EAGAIN;
-
-	if (mask & MAY_NOT_BLOCK)
-		return -ECHILD;
-
-	acl = reiserfs_get_acl(inode, ACL_TYPE_ACCESS);
-
-	if (acl) {
-		if (!IS_ERR(acl)) {
-			error = posix_acl_permission(inode, acl, mask);
-			posix_acl_release(acl);
-		} else if (PTR_ERR(acl) != -ENODATA)
-			error = PTR_ERR(acl);
-	}
-
-	return error;
-}
-
 static int create_privroot(struct dentry *dentry)
 {
 	int err;

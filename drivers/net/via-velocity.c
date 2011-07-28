@@ -77,7 +77,6 @@
 #include <linux/udp.h>
 #include <linux/crc-ccitt.h>
 #include <linux/crc32.h>
-#include <linux/if_vlan.h>
 
 #include "via-velocity.h"
 

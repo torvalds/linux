@@ -384,7 +384,7 @@ static inline void assert_spin_locked(spinlock_t *lock)
  * Pull the atomic_t declaration:
  * (asm-mips/atomic.h needs above definitions)
  */
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 /**
  * atomic_dec_and_lock - lock on reaching reference count zero
  * @atomic: the atomic counter

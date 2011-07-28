@@ -1825,7 +1825,7 @@ static int dw_mci_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&host->queue);
 
 	ret = -ENOMEM;
-	host->regs = ioremap(regs->start, regs->end - regs->start + 1);
+	host->regs = ioremap(regs->start, resource_size(regs));
 	if (!host->regs)
 		goto err_freehost;
 

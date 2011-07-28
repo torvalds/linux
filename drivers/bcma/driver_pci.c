@@ -3,7 +3,7 @@
  * PCI Core
  *
  * Copyright 2005, Broadcom Corporation
- * Copyright 2006, 2007, Michael Buesch <mb@bu3sch.de>
+ * Copyright 2006, 2007, Michael Buesch <m@bues.ch>
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */
@@ -172,8 +172,10 @@ static bool bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc)
 	    chipid_top != 0x5300)
 		return false;
 
+#ifdef CONFIG_SSB_DRIVER_PCICORE
 	if (bus->sprom.boardflags_lo & SSB_PCICORE_BFL_NOPCI)
 		return false;
+#endif /* CONFIG_SSB_DRIVER_PCICORE */
 
 #if 0
 	/* TODO: on BCMA we use address from EROM instead of magic formula */

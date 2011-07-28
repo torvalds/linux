@@ -1768,14 +1768,13 @@ static int __devinit omap24xxcam_probe(struct platform_device *pdev)
 		dev_err(cam->dev, "no mem resource?\n");
 		goto err;
 	}
-	if (!request_mem_region(mem->start, (mem->end - mem->start) + 1,
-				pdev->name)) {
+	if (!request_mem_region(mem->start, resource_size(mem), pdev->name)) {
 		dev_err(cam->dev,
 			"cannot reserve camera register I/O region\n");
 		goto err;
 	}
 	cam->mmio_base_phys = mem->start;
-	cam->mmio_size = (mem->end - mem->start) + 1;
+	cam->mmio_size = resource_size(mem);
 
 	/* map the region */
 	cam->mmio_base = (unsigned long)

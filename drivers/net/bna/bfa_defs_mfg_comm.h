@@ -192,14 +192,14 @@ do {								\
  * VPD vendor tag
  */
 enum {
-	BFA_MFG_VPD_UNKNOWN	= 0,     /*!< vendor unknown 		*/
-	BFA_MFG_VPD_IBM 	= 1,     /*!< vendor IBM 		*/
-	BFA_MFG_VPD_HP  	= 2,     /*!< vendor HP  		*/
-	BFA_MFG_VPD_DELL  	= 3,     /*!< vendor DELL  		*/
-	BFA_MFG_VPD_PCI_IBM 	= 0x08,  /*!< PCI VPD IBM     		*/
-	BFA_MFG_VPD_PCI_HP  	= 0x10,  /*!< PCI VPD HP		*/
-	BFA_MFG_VPD_PCI_DELL  	= 0x20,  /*!< PCI VPD DELL		*/
-	BFA_MFG_VPD_PCI_BRCD 	= 0xf8,  /*!< PCI VPD Brocade 		*/
+	BFA_MFG_VPD_UNKNOWN	= 0,     /*!< vendor unknown		*/
+	BFA_MFG_VPD_IBM		= 1,     /*!< vendor IBM		*/
+	BFA_MFG_VPD_HP		= 2,     /*!< vendor HP			*/
+	BFA_MFG_VPD_DELL	= 3,     /*!< vendor DELL		*/
+	BFA_MFG_VPD_PCI_IBM	= 0x08,  /*!< PCI VPD IBM		*/
+	BFA_MFG_VPD_PCI_HP	= 0x10,  /*!< PCI VPD HP		*/
+	BFA_MFG_VPD_PCI_DELL	= 0x20,  /*!< PCI VPD DELL		*/
+	BFA_MFG_VPD_PCI_BRCD	= 0xf8,  /*!< PCI VPD Brocade		*/
 };
 
 /**
@@ -212,8 +212,8 @@ struct bfa_mfg_vpd {
 	u8		vpd_sig[3];	/*!< characters 'V', 'P', 'D' */
 	u8		chksum;		/*!< u8 checksum */
 	u8		vendor;		/*!< vendor */
-	u8 	len;		/*!< vpd data length excluding header */
-	u8 	rsv;
+	u8	len;		/*!< vpd data length excluding header */
+	u8	rsv;
 	u8		data[BFA_MFG_VPD_LEN];	/*!< vpd data */
 };
 

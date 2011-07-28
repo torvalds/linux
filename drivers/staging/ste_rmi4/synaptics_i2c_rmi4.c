@@ -926,17 +926,19 @@ static int __devinit synaptics_rmi4_probe
 		goto err_input;
 	}
 
-	if (platformdata->regulator_en) {
-		rmi4_data->regulator = regulator_get(&client->dev, "vdd");
-		if (IS_ERR(rmi4_data->regulator)) {
-			dev_err(&client->dev, "%s:get regulator failed\n",
-								__func__);
-			retval = PTR_ERR(rmi4_data->regulator);
-			goto err_regulator;
-		}
-		regulator_enable(rmi4_data->regulator);
+	rmi4_data->regulator = regulator_get(&client->dev, "vdd");
+	if (IS_ERR(rmi4_data->regulator)) {
+		dev_err(&client->dev, "%s:get regulator failed\n",
+							__func__);
+		retval = PTR_ERR(rmi4_data->regulator);
+		goto err_get_regulator;
 	}
-
+	retval = regulator_enable(rmi4_data->regulator);
+	if (retval < 0) {
+		dev_err(&client->dev, "%s:regulator enable failed\n",
+							__func__);
+		goto err_regulator_enable;
+	}
 	init_waitqueue_head(&rmi4_data->wait);
 	/*
 	 * Copy i2c_client pointer into RTID's i2c_client pointer for
@@ -1011,11 +1013,10 @@ static int __devinit synaptics_rmi4_probe
 err_free_irq:
 	free_irq(platformdata->irq_number, rmi4_data);
 err_query_dev:
-	if (platformdata->regulator_en) {
-		regulator_disable(rmi4_data->regulator);
-		regulator_put(rmi4_data->regulator);
-	}
-err_regulator:
+	regulator_disable(rmi4_data->regulator);
+err_regulator_enable:
+	regulator_put(rmi4_data->regulator);
+err_get_regulator:
 	input_free_device(rmi4_data->input_dev);
 	rmi4_data->input_dev = NULL;
 err_input:
@@ -1039,10 +1040,8 @@ static int __devexit synaptics_rmi4_remove(struct i2c_client *client)
 	wake_up(&rmi4_data->wait);
 	free_irq(pdata->irq_number, rmi4_data);
 	input_unregister_device(rmi4_data->input_dev);
-	if (pdata->regulator_en) {
-		regulator_disable(rmi4_data->regulator);
-		regulator_put(rmi4_data->regulator);
-	}
+	regulator_disable(rmi4_data->regulator);
+	regulator_put(rmi4_data->regulator);
 	kfree(rmi4_data);
 
 	return 0;
@@ -1080,8 +1079,7 @@ static int synaptics_rmi4_suspend(struct device *dev)
 	if (retval < 0)
 		return retval;
 
-	if (pdata->regulator_en)
-		regulator_disable(rmi4_data->regulator);
+	regulator_disable(rmi4_data->regulator);
 
 	return 0;
 }
@@ -1099,8 +1097,7 @@ static int synaptics_rmi4_resume(struct device *dev)
 	struct synaptics_rmi4_data *rmi4_data = dev_get_drvdata(dev);
 	const struct synaptics_rmi4_platform_data *pdata = rmi4_data->board;
 
-	if (pdata->regulator_en)
-		regulator_enable(rmi4_data->regulator);
+	regulator_enable(rmi4_data->regulator);
 
 	enable_irq(pdata->irq_number);
 	rmi4_data->touch_stopped = false;

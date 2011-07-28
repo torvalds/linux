@@ -2645,9 +2645,9 @@ do {								\
 
 /* acl.c */
 #ifdef CONFIG_BTRFS_FS_POSIX_ACL
-int btrfs_check_acl(struct inode *inode, int mask);
+struct posix_acl *btrfs_get_acl(struct inode *inode, int type);
 #else
-#define btrfs_check_acl NULL
+#define btrfs_get_acl NULL
 #endif
 int btrfs_init_acl(struct btrfs_trans_handle *trans,
 		   struct inode *inode, struct inode *dir);

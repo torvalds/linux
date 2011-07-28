@@ -186,7 +186,7 @@ static inline unsigned int sparc64_elf_hwcap(void)
 	return cap;
 }
 
-#define ELF_HWCAP	sparc64_elf_hwcap();
+#define ELF_HWCAP	sparc64_elf_hwcap()
 
 /* This yields a string that ld.so will use to load implementation
    specific libraries for optimization.  This is more specific in

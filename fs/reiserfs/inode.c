@@ -1475,6 +1475,11 @@ void reiserfs_read_locked_inode(struct inode *inode,
 
 	reiserfs_check_path(&path_to_sd);	/* init inode should be relsing */
 
+	/*
+	 * Stat data v1 doesn't support ACLs.
+	 */
+	if (get_inode_sd_version(inode) == STAT_DATA_V1)
+		cache_no_acl(inode);
 }
 
 /**
