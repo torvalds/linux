@@ -575,4 +575,5 @@ extern struct bio *bio_clone_mddev(struct bio *bio, gfp_t gfp_mask,
 extern struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
 				   mddev_t *mddev);
 extern int mddev_check_plugged(mddev_t *mddev);
+extern void md_trim_bio(struct bio *bio, int offset, int size);
 #endif /* _MD_MD_H */

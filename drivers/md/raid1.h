@@ -123,6 +123,10 @@ struct r1bio_s {
 #define	R1BIO_IsSync	1
 #define	R1BIO_Degraded	2
 #define	R1BIO_BehindIO	3
+/* Set ReadError on bios that experience a readerror so that
+ * raid1d knows what to do with them.
+ */
+#define R1BIO_ReadError 4
 /* For write-behind requests, we call bi_end_io when
  * the last non-write-behind device completes, providing
  * any write was successful.  Otherwise we call when
