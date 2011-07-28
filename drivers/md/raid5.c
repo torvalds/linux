@@ -4667,6 +4667,10 @@ static int run(mddev_t *mddev)
 	 * 0 for a fully functional array, 1 or 2 for a degraded array.
 	 */
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
+		if (rdev->badblocks.count) {
+			printk(KERN_ERR "md/raid5: cannot handle bad blocks yet\n");
+			goto abort;
+		}
 		if (rdev->raid_disk < 0)
 			continue;
 		if (test_bit(In_sync, &rdev->flags)) {
@@ -4974,6 +4978,9 @@ static int raid5_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 	struct disk_info *p;
 	int first = 0;
 	int last = conf->raid_disks - 1;
+
+	if (rdev->badblocks.count)
+		return -EINVAL;
 
 	if (has_failed(conf))
 		/* no point adding a device */

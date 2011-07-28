@@ -1055,6 +1055,9 @@ static int raid1_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 	if (mddev->recovery_disabled == conf->recovery_disabled)
 		return -EBUSY;
 
+	if (rdev->badblocks.count)
+		return -EINVAL;
+
 	if (rdev->raid_disk >= 0)
 		first = last = rdev->raid_disk;
 
@@ -1993,6 +1996,10 @@ static int run(mddev_t *mddev)
 			blk_queue_max_segments(mddev->queue, 1);
 			blk_queue_segment_boundary(mddev->queue,
 						   PAGE_CACHE_SIZE - 1);
+		}
+		if (rdev->badblocks.count) {
+			printk(KERN_ERR "md/raid1: Cannot handle bad blocks yet\n");
+			return -EINVAL;
 		}
 	}
 
