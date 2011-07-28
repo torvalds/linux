@@ -292,6 +292,15 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.voltage_get		= nouveau_voltage_gpio_get;
 		engine->pm.voltage_set		= nouveau_voltage_gpio_set;
 		engine->pm.temp_get		= nv40_temp_get;
+		switch (dev_priv->chipset) {
+		case 0x40:
+		case 0x49:
+			engine->pm.fanspeed_get	= nv40_pm_fanspeed_get;
+			engine->pm.fanspeed_set	= nv40_pm_fanspeed_set;
+			break;
+		default:
+			break;
+		}
 		engine->vram.init		= nouveau_mem_detect;
 		engine->vram.takedown		= nouveau_stub_takedown;
 		engine->vram.flags_valid	= nouveau_mem_flags_valid;
