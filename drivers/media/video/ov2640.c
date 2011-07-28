@@ -701,44 +701,6 @@ static int ov2640_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static int ov2640_set_bus_param(struct soc_camera_device *icd,
-				unsigned long flags)
-{
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-	unsigned long width_flag = flags & SOCAM_DATAWIDTH_MASK;
-
-	/* Only one width bit may be set */
-	if (!is_power_of_2(width_flag))
-		return -EINVAL;
-
-	if (icl->set_bus_param)
-		return icl->set_bus_param(icl, width_flag);
-
-	/*
-	 * Without board specific bus width settings we support only the
-	 * sensors native bus width witch are tested working
-	 */
-	if (width_flag & (SOCAM_DATAWIDTH_10 | SOCAM_DATAWIDTH_8))
-		return 0;
-
-	return 0;
-}
-
-static unsigned long ov2640_query_bus_param(struct soc_camera_device *icd)
-{
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-	unsigned long flags = SOCAM_PCLK_SAMPLE_RISING | SOCAM_MASTER |
-		SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_HIGH |
-		SOCAM_DATA_ACTIVE_HIGH;
-
-	if (icl->query_bus_param)
-		flags |= icl->query_bus_param(icl) & SOCAM_DATAWIDTH_MASK;
-	else
-		flags |= SOCAM_DATAWIDTH_10;
-
-	return soc_camera_apply_sensor_flags(icl, flags);
-}
-
 static int ov2640_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	struct i2c_client  *client = v4l2_get_subdevdata(sd);
@@ -1067,8 +1029,6 @@ err:
 }
 
 static struct soc_camera_ops ov2640_ops = {
-	.set_bus_param		= ov2640_set_bus_param,
-	.query_bus_param	= ov2640_query_bus_param,
 	.controls		= ov2640_controls,
 	.num_controls		= ARRAY_SIZE(ov2640_controls),
 };
