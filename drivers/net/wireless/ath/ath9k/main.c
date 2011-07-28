@@ -163,7 +163,7 @@ static void ath_update_survey_nf(struct ath_softc *sc, int channel)
 
 	if (chan->noisefloor) {
 		survey->filled |= SURVEY_INFO_NOISE_DBM;
-		survey->noise = chan->noisefloor;
+		survey->noise = ath9k_hw_getchan_noise(ah, chan);
 	}
 }
 
