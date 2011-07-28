@@ -546,7 +546,7 @@ exit_bh:
  * backup GDT blocks are stored in their reserved primary GDT block.
  */
 static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
-			      struct ext4_new_group_data *input)
+			      ext4_group_t group)
 {
 	struct super_block *sb = inode->i_sb;
 	int reserved_gdb =le16_to_cpu(EXT4_SB(sb)->s_es->s_reserved_gdt_blocks);
@@ -617,7 +617,7 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 	 * Finally we can add each of the reserved backup GDT blocks from
 	 * the new group to its reserved primary GDT block.
 	 */
-	blk = input->group * EXT4_BLOCKS_PER_GROUP(sb);
+	blk = group * EXT4_BLOCKS_PER_GROUP(sb);
 	for (i = 0; i < reserved_gdb; i++) {
 		int err2;
 		data = (__le32 *)primary[i]->b_data;
@@ -831,9 +831,11 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 		if ((err = ext4_journal_get_write_access(handle, primary)))
 			goto exit_journal;
 
-		if (reserved_gdb && ext4_bg_num_gdb(sb, input->group) &&
-		    (err = reserve_backup_gdb(handle, inode, input)))
-			goto exit_journal;
+		if (reserved_gdb && ext4_bg_num_gdb(sb, input->group)) {
+			err = reserve_backup_gdb(handle, inode, input->group);
+			if (err)
+				goto exit_journal;
+		}
 	} else {
 		/*
 		 * Note that we can access new group descriptor block safely
