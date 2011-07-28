@@ -107,7 +107,7 @@ static void mark_open_files_invalid(struct cifs_tcon *pTcon)
 static int
 cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 {
-	int rc = 0;
+	int rc;
 	struct cifs_ses *ses;
 	struct TCP_Server_Info *server;
 	struct nls_table *nls_codepage;
