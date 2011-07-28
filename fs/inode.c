@@ -1330,7 +1330,8 @@ static void iput_final(struct inode *inode)
 	}
 
 	inode->i_state |= I_FREEING;
-	inode_lru_list_del(inode);
+	if (!list_empty(&inode->i_lru))
+		inode_lru_list_del(inode);
 	spin_unlock(&inode->i_lock);
 
 	evict(inode);
