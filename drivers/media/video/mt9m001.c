@@ -166,45 +166,6 @@ static int mt9m001_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static int mt9m001_set_bus_param(struct soc_camera_device *icd,
-				 unsigned long flags)
-{
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-	unsigned long width_flag = flags & SOCAM_DATAWIDTH_MASK;
-
-	/* Only one width bit may be set */
-	if (!is_power_of_2(width_flag))
-		return -EINVAL;
-
-	if (icl->set_bus_param)
-		return icl->set_bus_param(icl, width_flag);
-
-	/*
-	 * Without board specific bus width settings we only support the
-	 * sensors native bus width
-	 */
-	if (width_flag == SOCAM_DATAWIDTH_10)
-		return 0;
-
-	return -EINVAL;
-}
-
-static unsigned long mt9m001_query_bus_param(struct soc_camera_device *icd)
-{
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-	/* MT9M001 has all capture_format parameters fixed */
-	unsigned long flags = SOCAM_PCLK_SAMPLE_FALLING |
-		SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_HIGH |
-		SOCAM_DATA_ACTIVE_HIGH | SOCAM_MASTER;
-
-	if (icl->query_bus_param)
-		flags |= icl->query_bus_param(icl) & SOCAM_DATAWIDTH_MASK;
-	else
-		flags |= SOCAM_DATAWIDTH_10;
-
-	return soc_camera_apply_sensor_flags(icl, flags);
-}
-
 static int mt9m001_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -461,8 +422,6 @@ static const struct v4l2_queryctrl mt9m001_controls[] = {
 };
 
 static struct soc_camera_ops mt9m001_ops = {
-	.set_bus_param		= mt9m001_set_bus_param,
-	.query_bus_param	= mt9m001_query_bus_param,
 	.controls		= mt9m001_controls,
 	.num_controls		= ARRAY_SIZE(mt9m001_controls),
 };
