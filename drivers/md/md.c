@@ -757,6 +757,10 @@ static void free_disk_sb(mdk_rdev_t * rdev)
 		rdev->sb_start = 0;
 		rdev->sectors = 0;
 	}
+	if (rdev->bb_page) {
+		put_page(rdev->bb_page);
+		rdev->bb_page = NULL;
+	}
 }
 
 
@@ -1395,6 +1399,8 @@ static __le32 calc_sb_1_csum(struct mdp_superblock_1 * sb)
 	return cpu_to_le32(csum);
 }
 
+static int md_set_badblocks(struct badblocks *bb, sector_t s, int sectors,
+			    int acknowledged);
 static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 {
 	struct mdp_superblock_1 *sb;
@@ -1472,6 +1478,47 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 		rdev->desc_nr = -1;
 	else
 		rdev->desc_nr = le32_to_cpu(sb->dev_number);
+
+	if (!rdev->bb_page) {
+		rdev->bb_page = alloc_page(GFP_KERNEL);
+		if (!rdev->bb_page)
+			return -ENOMEM;
+	}
+	if ((le32_to_cpu(sb->feature_map) & MD_FEATURE_BAD_BLOCKS) &&
+	    rdev->badblocks.count == 0) {
+		/* need to load the bad block list.
+		 * Currently we limit it to one page.
+		 */
+		s32 offset;
+		sector_t bb_sector;
+		u64 *bbp;
+		int i;
+		int sectors = le16_to_cpu(sb->bblog_size);
+		if (sectors > (PAGE_SIZE / 512))
+			return -EINVAL;
+		offset = le32_to_cpu(sb->bblog_offset);
+		if (offset == 0)
+			return -EINVAL;
+		bb_sector = (long long)offset;
+		if (!sync_page_io(rdev, bb_sector, sectors << 9,
+				  rdev->bb_page, READ, true))
+			return -EIO;
+		bbp = (u64 *)page_address(rdev->bb_page);
+		rdev->badblocks.shift = sb->bblog_shift;
+		for (i = 0 ; i < (sectors << (9-3)) ; i++, bbp++) {
+			u64 bb = le64_to_cpu(*bbp);
+			int count = bb & (0x3ff);
+			u64 sector = bb >> 10;
+			sector <<= sb->bblog_shift;
+			count <<= sb->bblog_shift;
+			if (bb + 1 == 0)
+				break;
+			if (md_set_badblocks(&rdev->badblocks,
+					     sector, count, 1) == 0)
+				return -EINVAL;
+		}
+	} else if (sb->bblog_offset == 0)
+		rdev->badblocks.shift = -1;
 
 	if (!refdev) {
 		ret = 1;
@@ -1624,7 +1671,6 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 	sb->pad0 = 0;
 	sb->recovery_offset = cpu_to_le64(0);
 	memset(sb->pad1, 0, sizeof(sb->pad1));
-	memset(sb->pad2, 0, sizeof(sb->pad2));
 	memset(sb->pad3, 0, sizeof(sb->pad3));
 
 	sb->utime = cpu_to_le64((__u64)mddev->utime);
@@ -1662,6 +1708,40 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 		sb->delta_disks = cpu_to_le32(mddev->delta_disks);
 		sb->new_level = cpu_to_le32(mddev->new_level);
 		sb->new_chunk = cpu_to_le32(mddev->new_chunk_sectors);
+	}
+
+	if (rdev->badblocks.count == 0)
+		/* Nothing to do for bad blocks*/ ;
+	else if (sb->bblog_offset == 0)
+		/* Cannot record bad blocks on this device */
+		md_error(mddev, rdev);
+	else {
+		struct badblocks *bb = &rdev->badblocks;
+		u64 *bbp = (u64 *)page_address(rdev->bb_page);
+		u64 *p = bb->page;
+		sb->feature_map |= cpu_to_le32(MD_FEATURE_BAD_BLOCKS);
+		if (bb->changed) {
+			unsigned seq;
+
+retry:
+			seq = read_seqbegin(&bb->lock);
+
+			memset(bbp, 0xff, PAGE_SIZE);
+
+			for (i = 0 ; i < bb->count ; i++) {
+				u64 internal_bb = *p++;
+				u64 store_bb = ((BB_OFFSET(internal_bb) << 10)
+						| BB_LEN(internal_bb));
+				*bbp++ = cpu_to_le64(store_bb);
+			}
+			if (read_seqretry(&bb->lock, seq))
+				goto retry;
+
+			bb->sector = (rdev->sb_start +
+				      (int)le32_to_cpu(sb->bblog_offset));
+			bb->size = le16_to_cpu(sb->bblog_size);
+			bb->changed = 0;
+		}
 	}
 
 	max_dev = 0;
@@ -2196,6 +2276,7 @@ static void md_update_sb(mddev_t * mddev, int force_change)
 	mdk_rdev_t *rdev;
 	int sync_req;
 	int nospares = 0;
+	int any_badblocks_changed = 0;
 
 repeat:
 	/* First make sure individual recovery_offsets are correct */
@@ -2267,6 +2348,11 @@ repeat:
 		MD_BUG();
 		mddev->events --;
 	}
+
+	list_for_each_entry(rdev, &mddev->disks, same_set)
+		if (rdev->badblocks.changed)
+			any_badblocks_changed++;
+
 	sync_sbs(mddev, nospares);
 	spin_unlock_irq(&mddev->write_lock);
 
@@ -2292,6 +2378,13 @@ repeat:
 				bdevname(rdev->bdev,b),
 				(unsigned long long)rdev->sb_start);
 			rdev->sb_events = mddev->events;
+			if (rdev->badblocks.size) {
+				md_super_write(mddev, rdev,
+					       rdev->badblocks.sector,
+					       rdev->badblocks.size << 9,
+					       rdev->bb_page);
+				rdev->badblocks.size = 0;
+			}
 
 		} else
 			dprintk(")\n");
@@ -2315,6 +2408,9 @@ repeat:
 	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
 		sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 
+	if (any_badblocks_changed)
+		list_for_each_entry(rdev, &mddev->disks, same_set)
+			md_ack_all_badblocks(&rdev->badblocks);
 }
 
 /* words written to sysfs files may, or may not, be \n terminated.
@@ -2822,6 +2918,8 @@ int md_rdev_init(mdk_rdev_t *rdev)
 	rdev->sb_events = 0;
 	rdev->last_read_error.tv_sec  = 0;
 	rdev->last_read_error.tv_nsec = 0;
+	rdev->sb_loaded = 0;
+	rdev->bb_page = NULL;
 	atomic_set(&rdev->nr_pending, 0);
 	atomic_set(&rdev->read_errors, 0);
 	atomic_set(&rdev->corrected_errors, 0);
@@ -2910,11 +3008,9 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 	return rdev;
 
 abort_free:
-	if (rdev->sb_page) {
-		if (rdev->bdev)
-			unlock_rdev(rdev);
-		free_disk_sb(rdev);
-	}
+	if (rdev->bdev)
+		unlock_rdev(rdev);
+	free_disk_sb(rdev);
 	kfree(rdev->badblocks.page);
 	kfree(rdev);
 	return ERR_PTR(err);

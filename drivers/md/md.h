@@ -55,7 +55,7 @@ struct mdk_rdev_s
 	struct block_device *meta_bdev;
 	struct block_device *bdev;	/* block device handle */
 
-	struct page	*sb_page;
+	struct page	*sb_page, *bb_page;
 	int		sb_loaded;
 	__u64		sb_events;
 	sector_t	data_offset;	/* start of data in array */
@@ -127,6 +127,9 @@ struct mdk_rdev_s
 		u64	*page;		/* badblock list */
 		int	changed;
 		seqlock_t lock;
+
+		sector_t sector;
+		sector_t size;		/* in sectors */
 	} badblocks;
 };
 
