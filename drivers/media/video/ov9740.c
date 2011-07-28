@@ -562,25 +562,6 @@ static int ov9740_s_stream(struct v4l2_subdev *sd, int enable)
 	return ret;
 }
 
-/* Alter bus settings on camera side */
-static int ov9740_set_bus_param(struct soc_camera_device *icd,
-				unsigned long flags)
-{
-	return 0;
-}
-
-/* Request bus settings on camera side */
-static unsigned long ov9740_query_bus_param(struct soc_camera_device *icd)
-{
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-
-	unsigned long flags = SOCAM_PCLK_SAMPLE_RISING | SOCAM_MASTER |
-		SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_HIGH |
-		SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8;
-
-	return soc_camera_apply_sensor_flags(icl, flags);
-}
-
 /* select nearest higher resolution for capture */
 static void ov9740_res_roundup(u32 *width, u32 *height)
 {
@@ -945,12 +926,11 @@ err:
 }
 
 static struct soc_camera_ops ov9740_ops = {
-	.set_bus_param		= ov9740_set_bus_param,
-	.query_bus_param	= ov9740_query_bus_param,
 	.controls		= ov9740_controls,
 	.num_controls		= ARRAY_SIZE(ov9740_controls),
 };
 
+/* Request bus settings on camera side */
 static int ov9740_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *cfg)
 {
