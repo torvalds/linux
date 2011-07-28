@@ -482,7 +482,7 @@ static int soc_camera_open(struct file *file)
 	struct soc_camera_host *ici;
 	int ret;
 
-	if (!icd->ops)
+	if (!to_soc_camera_control(icd))
 		/* No device driver attached */
 		return -ENODEV;
 
@@ -834,6 +834,9 @@ static int soc_camera_queryctrl(struct file *file, void *priv,
 				sizeof(*qc));
 			return 0;
 		}
+
+	if (!icd->ops)
+		return -EINVAL;
 
 	/* Then device controls */
 	for (i = 0; i < icd->ops->num_controls; i++)
@@ -1460,11 +1463,6 @@ static int soc_camera_video_start(struct soc_camera_device *icd)
 
 	if (!icd->parent)
 		return -ENODEV;
-
-	if (!icd->ops ||
-	    !icd->ops->query_bus_param ||
-	    !icd->ops->set_bus_param)
-		return -EINVAL;
 
 	ret = video_register_device(icd->vdev, VFL_TYPE_GRABBER, -1);
 	if (ret < 0) {
