@@ -4,15 +4,7 @@
 
 menu "Headset device support"
 
-config HEADSET_DET
-	depends on ARCH_RK2818
-	tristate "RK2818 headset detech support"
-	---help---
-		only use on the rk2818
-
 config RK_HEADSET_DET
-	depends on !ARCH_RK2818
-	default n
 	tristate "RK headset detech support"
 	---help---
 		Universal headphone driver(write begin rk29)

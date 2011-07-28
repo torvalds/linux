@@ -38,7 +38,6 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <mach/gpio.h>
-#include <mach/iomux.h>
 
 #include "dm9000.h"
 
@@ -105,12 +104,6 @@ typedef struct board_info {
 	int		debug_level;
 
 	enum dm9000_type type;
-	
-#ifdef CONFIG_DM9000_USE_NAND_CONTROL
-    void *dev_id;
-    struct work_struct dm9k_work;
-	struct workqueue_struct *dm9000_wq;
-#endif
 
 	void (*inblk)(void __iomem *port, void *data, int length);
 	void (*outblk)(void __iomem *port, void *data, int length);
@@ -146,16 +139,6 @@ typedef struct board_info {
 		dev_dbg(db->dev, msg);			\
 	}						\
 } while (0)
-
-#if defined(CONFIG_DM9000_USE_NAND_CONTROL) && defined(CONFIG_MTD_NAND_RK2818)
-extern void rk2818_nand_status_mutex_lock(void);
-extern	int rk2818_nand_status_mutex_trylock(void);
-extern	void rk2818_nand_status_mutex_unlock(void);
-#else
-static void rk2818_nand_status_mutex_lock(void){return;}
-static int rk2818_nand_status_mutex_trylock(void) {return 1;}
-static void rk2818_nand_status_mutex_unlock(void) {return;}
-#endif
 
 static inline board_info_t *to_dm9000_board(struct net_device *dev)
 {
@@ -323,14 +306,10 @@ dm9000_read_locked(board_info_t *db, int reg)
 {
 	unsigned long flags;
 	unsigned int ret;
-	
-	rk2818_nand_status_mutex_lock();
 
 	spin_lock_irqsave(&db->lock, flags);	
 	ret = ior(db, reg);
 	spin_unlock_irqrestore(&db->lock, flags);
-
-	rk2818_nand_status_mutex_unlock();
 
 	return ret;
 }
@@ -384,8 +363,6 @@ dm9000_read_eeprom(board_info_t *db, int offset, u8 *to)
 
 	mutex_lock(&db->addr_lock);
 	
-	rk2818_nand_status_mutex_lock();
-
 	spin_lock_irqsave(&db->lock, flags);
 		
 	iow(db, DM9000_EPAR, offset);
@@ -393,15 +370,11 @@ dm9000_read_eeprom(board_info_t *db, int offset, u8 *to)
 
 	spin_unlock_irqrestore(&db->lock, flags);
 
-	rk2818_nand_status_mutex_unlock();
-
 	dm9000_wait_eeprom(db);
 
 	/* delay for at-least 150uS */
 	msleep(1);
 	
-	rk2818_nand_status_mutex_lock();
-
 	spin_lock_irqsave(&db->lock, flags);
 	
 	iow(db, DM9000_EPCR, 0x0);
@@ -410,8 +383,6 @@ dm9000_read_eeprom(board_info_t *db, int offset, u8 *to)
 	to[1] = ior(db, DM9000_EPDRH);
 
 	spin_unlock_irqrestore(&db->lock, flags);
-
-	rk2818_nand_status_mutex_unlock();
 
 	mutex_unlock(&db->addr_lock);
 }
@@ -429,8 +400,6 @@ dm9000_write_eeprom(board_info_t *db, int offset, u8 *data)
 
 	mutex_lock(&db->addr_lock);
 	
-	rk2818_nand_status_mutex_lock();
-
 	spin_lock_irqsave(&db->lock, flags);	
 	iow(db, DM9000_EPAR, offset);
 	iow(db, DM9000_EPDRH, data[1]);
@@ -438,19 +407,13 @@ dm9000_write_eeprom(board_info_t *db, int offset, u8 *data)
 	iow(db, DM9000_EPCR, EPCR_WEP | EPCR_ERPRW);
 	spin_unlock_irqrestore(&db->lock, flags);
 
-	rk2818_nand_status_mutex_unlock();
-
 	dm9000_wait_eeprom(db);
 
 	mdelay(1);	/* wait at least 150uS to clear */
 	
-	rk2818_nand_status_mutex_lock();
-
 	spin_lock_irqsave(&db->lock, flags);
 	iow(db, DM9000_EPCR, 0);
 	spin_unlock_irqrestore(&db->lock, flags);
-
-	rk2818_nand_status_mutex_unlock();
 
 	mutex_unlock(&db->addr_lock);
 }
@@ -514,13 +477,7 @@ static int dm9000_set_rx_csum_unlocked(struct net_device *dev, uint32_t data)
 
 	if (dm->can_csum) {
 		dm->rx_csum = data;
-
-		rk2818_nand_status_mutex_lock();
-		
-		spin_lock_irqsave(&dm->lock, flags);
 		iow(dm, DM9000_RCSR, dm->rx_csum ? RCSR_CSUM : 0);
-		spin_unlock_irqrestore(&dm->lock, flags);
-		rk2818_nand_status_mutex_unlock();
 
 		return 0;
 	}
@@ -731,8 +688,6 @@ dm9000_hash_table_unlocked(struct net_device *dev)
 
 	dm9000_dbg(db, 1, "entering %s\n", __func__);
 	
-	rk2818_nand_status_mutex_lock();
-
 	for (i = 0, oft = DM9000_PAR; i < 6; i++, oft++)
 		iow(db, oft, dev->dev_addr[i]);
 
@@ -773,8 +728,6 @@ dm9000_hash_table(struct net_device *dev)
 	spin_lock_irqsave(&db->lock, flags);
 	dm9000_hash_table_unlocked(dev);
 	spin_unlock_irqrestore(&db->lock, flags);
-	
-	rk2818_nand_status_mutex_unlock();
 }
 
 /*
@@ -838,9 +791,6 @@ static void dm9000_timeout(struct net_device *dev)
 
 	/* Save previous register address */
 	reg_save = readb(db->io_addr);
-	
-	rk2818_nand_status_mutex_lock();
-	
 	spin_lock_irqsave(&db->lock, flags);
 
 	netif_stop_queue(dev);
@@ -853,8 +803,6 @@ static void dm9000_timeout(struct net_device *dev)
 	/* Restore previous register address */
 	writeb(reg_save, db->io_addr);
 	spin_unlock_irqrestore(&db->lock, flags);
-	
-	rk2818_nand_status_mutex_unlock();
 }
 
 static void dm9000_send_packet(struct net_device *dev,
@@ -892,15 +840,9 @@ dm9000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dm9000_dbg(db, 3, "%s:\n", __func__);
 
-	if (db->tx_pkt_cnt > 1) {
-		dev_dbg(db->dev, "netdev tx busy\n");
+	if (db->tx_pkt_cnt > 1)
 		return NETDEV_TX_BUSY;
-	}
 
-	if (!rk2818_nand_status_mutex_trylock()) {
-		dev_dbg(db->dev, "fun:%s, nand busy\n", __func__);
-		return NETDEV_TX_BUSY;
-	}
 	spin_lock_irqsave(&db->lock, flags);
 	
 	/* Move data to DM9000 TX RAM */
@@ -922,8 +864,6 @@ dm9000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock_irqrestore(&db->lock, flags);
 	
-	rk2818_nand_status_mutex_unlock();
-
 	/* free this SKB */
 	dev_kfree_skb(skb);
 
@@ -992,17 +932,15 @@ dm9000_rx(struct net_device *dev)
 			dev_warn(db->dev, "status check fail: %d\n", rxbyte);
 			#if 0
 			iow(db, DM9000_RCR, 0x00);	/* Stop Device */
-			iow(db, DM9000_IMR, IMR_PAR);	/* Stop INT request */
+			iow(db, DM9000_ISR, IMR_PAR);	/* Stop INT request */
 			#else
 			dm9000_reset(db);
 			#endif			
 			return;
 		}
 
-		if (!(rxbyte & DM9000_PKT_RDY)) {
-			//printk("packet not ready to receive\n");
+		if (!(rxbyte & DM9000_PKT_RDY))
 			return;
-		}
 		
 		/* A packet ready now  & Get status/length */
 		GoodPacket = true;
@@ -1079,81 +1017,6 @@ dm9000_rx(struct net_device *dev)
 	} while (rxbyte & DM9000_PKT_RDY);
 }
 
-#ifdef CONFIG_DM9000_USE_NAND_CONTROL
-static void dm9000_interrupt_work(struct work_struct *work)
-{
-	board_info_t *db = container_of(work, board_info_t, dm9k_work);	
-	struct net_device *dev = db->dev_id;
-	int int_status;
-	unsigned long flags;
-	u8 reg_save;
-	
-	//printk("entering %s\n", __FUNCTION__);
-	
-	/* A real interrupt coming */
-
-	/* holders of db->lock must always block IRQs */
-	
-	rk2818_nand_status_mutex_lock();
-	
-	spin_lock_irqsave(&db->lock, flags);
-
-	/* Save previous register address */
-	reg_save = readb(db->io_addr);
-
-	/* Disable all interrupts */
-	iow(db, DM9000_IMR, IMR_PAR);
-
-	/* Got DM9000 interrupt status */
-	int_status = ior(db, DM9000_ISR);	/* Got ISR */
-	iow(db, DM9000_ISR, int_status);	/* Clear ISR status */
-
-	if (netif_msg_intr(db))
-		dev_dbg(db->dev, "interrupt status %02x\n", int_status);
-
-	/* Received the coming packet */
-	if (int_status & ISR_PRS)
-		dm9000_rx(dev);
-
-	/* Trnasmit Interrupt check */
-	if (int_status & ISR_PTS)
-		dm9000_tx_done(dev, db);
-
-	if (db->type != TYPE_DM9000E) {
-		if (int_status & ISR_LNKCHNG) {
-			/* fire a link-change request */
-			schedule_delayed_work(&db->phy_poll, 1);
-		}
-	}
-
-	/* Re-enable interrupt mask */
-	iow(db, DM9000_IMR, db->imr_all);
-
-	/* Restore previous register address */
-	writeb(reg_save, db->io_addr);
-
-	spin_unlock_irqrestore(&db->lock, flags);
-	
-	rk2818_nand_status_mutex_unlock();
-
-	enable_irq(dev->irq);
-	
-}
-
-static irqreturn_t dm9000_interrupt(int irq, void *dev_id)
-{
-	struct net_device *dev = dev_id;
-	board_info_t *db = netdev_priv(dev);
-
-	//printk("enter : %s\n", __FUNCTION__);
-	
-	db->dev_id = dev_id;
-	disable_irq_nosync(irq);
-	queue_work(db->dm9000_wq, &(db->dm9k_work));
-	
-	return IRQ_HANDLED;
-}
-#else
 static irqreturn_t dm9000_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
@@ -1207,7 +1070,6 @@ static irqreturn_t dm9000_interrupt(int irq, void *dev_id)
 	
 	return IRQ_HANDLED;
 }
-#endif
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
@@ -1231,11 +1093,6 @@ dm9000_open(struct net_device *dev)
 	board_info_t *db = netdev_priv(dev);
 	unsigned long irqflags = db->irq_res->flags & IRQF_TRIGGER_MASK;
 
-	#ifdef CONFIG_DM9000_USE_NAND_CONTROL
-	db->dm9000_wq = create_workqueue("dm9000 wq");
-	INIT_WORK(&(db->dm9k_work), dm9000_interrupt_work);
-	#endif
-	
 	if (netif_msg_ifup(db))
 		dev_dbg(db->dev, "enabling %s\n", dev->name);
 
@@ -1290,8 +1147,6 @@ dm9000_phy_read(struct net_device *dev, int phy_reg_unused, int reg)
 
 	mutex_lock(&db->addr_lock);
 
-	rk2818_nand_status_mutex_lock();
-
 	spin_lock_irqsave(&db->lock,flags);
 	
 	/* Save previous register address */
@@ -1304,15 +1159,10 @@ dm9000_phy_read(struct net_device *dev, int phy_reg_unused, int reg)
 
 	writeb(reg_save, db->io_addr);
 	spin_unlock_irqrestore(&db->lock,flags);
-	
-	rk2818_nand_status_mutex_unlock();
 
 	dm9000_msleep(db, 1);		/* Wait read complete */
 
-	rk2818_nand_status_mutex_lock();
-
 	spin_lock_irqsave(&db->lock,flags);
-	
 	reg_save = readb(db->io_addr);
 
 	iow(db, DM9000_EPCR, 0x0);	/* Clear phyxcer read command */
@@ -1323,8 +1173,6 @@ dm9000_phy_read(struct net_device *dev, int phy_reg_unused, int reg)
 	/* restore the previous address */
 	writeb(reg_save, db->io_addr);
 	spin_unlock_irqrestore(&db->lock,flags);
-	
-	rk2818_nand_status_mutex_unlock();
 
 	mutex_unlock(&db->addr_lock);
 
@@ -1346,8 +1194,6 @@ dm9000_phy_write(struct net_device *dev,
 	dm9000_dbg(db, 5, "phy_write[%02x] = %04x\n", reg, value);
 	mutex_lock(&db->addr_lock);
 
-	rk2818_nand_status_mutex_lock();
-
 	spin_lock_irqsave(&db->lock,flags);
 	
 	/* Save previous register address */
@@ -1364,15 +1210,10 @@ dm9000_phy_write(struct net_device *dev,
 
 	writeb(reg_save, db->io_addr);
 	spin_unlock_irqrestore(&db->lock, flags);
-	
-	rk2818_nand_status_mutex_unlock();
 
 	dm9000_msleep(db, 1);		/* Wait write complete */
 
-	rk2818_nand_status_mutex_lock();
-
-	spin_lock_irqsave(&db->lock,flags);
-	
+	spin_lock_irqsave(&db->lock,flags);	
 	reg_save = readb(db->io_addr);
 
 	iow(db, DM9000_EPCR, 0x0);	/* Clear phyxcer write command */
@@ -1381,8 +1222,6 @@ dm9000_phy_write(struct net_device *dev,
 	writeb(reg_save, db->io_addr);
 
 	spin_unlock_irqrestore(&db->lock, flags);
-	
-	rk2818_nand_status_mutex_unlock();
 	mutex_unlock(&db->addr_lock);
 }
 
@@ -1419,10 +1258,6 @@ dm9000_stop(struct net_device *ndev)
 	free_irq(ndev->irq, ndev);
 
 	dm9000_shutdown(ndev);
-
-	#ifdef CONFIG_DM9000_USE_NAND_CONTROL
-	destroy_workqueue(db->dm9000_wq);
-	#endif
 
 	return 0;
 }

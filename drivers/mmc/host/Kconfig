@@ -4,29 +4,6 @@
 
 comment "MMC/SD/SDIO Host Controller Drivers"
 
-config SDMMC_RK2818
-	tristate "RK2818 SDMMC controller suppport"
-	depends on ARCH_RK2818
-	help
-		This selects the RK2818 SDMMC controller.
-		SDMMC0 used for sd/mmc card, and SDMMC1 used for sdio.
-if SDMMC_RK2818
-    comment "Now, there are two SDMMC controllers selected, SDMMC0 and SDMMC1."
-	config SDMMC0_RK2818
-		tristate "RK2818 SDMMC0 controller support(sdmmc)"
-		default y
-		depends on ARCH_RK2818
-		help
-			This supports the use of the SDMMC0 controller on rk2818 processors.
-	
-	config SDMMC1_RK2818
-		tristate "RK2818 SDMMC1 controller support(sdio)"
-		default y
-		depends on ARCH_RK2818
-		help
-			This supports the use of the SDMMC1 controller on rk2818 processors.
-endif
-
 config SDMMC_RK29
 	tristate "RK29 SDMMC controller suppport"
 	depends on ARCH_RK29

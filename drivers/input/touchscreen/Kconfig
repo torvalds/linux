@@ -63,31 +63,6 @@ config TOUCHSCREEN_XPT2046_SPI
 		tristate "320X480 resolution"
 		depends on TOUCHSCREEN_XPT2046_CBN_SPI
 
-#choice 
-#  prompt "XPT2046 based touchscreens: SPI Interface"
-#  default TOUCHSCREEN_XPT2046_CBN_SPI
-	  
-#  config TOUCHSCREEN_XPT2046_SPI_NOCHOOSE
-#    bool "DO NOT CHOOSE TOUCHSCREEN_XPT2046"
-  
-#  config TOUCHSCREEN_XPT2046_SPI
-#    bool "800X480 TOUCHSCREEN"
-#   depends on SPIM_RK2818 || SPIM_RK29
-
-#  config TOUCHSCREEN_XPT2046_CBN_SPI
-#    bool "800X480 CALIBRATION TOUCHSCREEN"
-#    depends on SPIM_RK2818 || SPIM_RK29
-  
-#  config TOUCHSCREEN_XPT2046_320X480_SPI
-#    bool "320X480 TOUCHSCREEN"
-#    depends on SPIM_RK2818 || SPIM_RK29
-  
-#  config TOUCHSCREEN_XPT2046_320X480_CBN_SPI
-#	bool "320X480 CALIBRATION TOUCHSCREEN"
-#	depends on SPIM_RK2818 || SPIM_RK29	
-#endchoice
-
-
 config TOUCHSCREEN_ADS7846
 	tristate "ADS7846/TSC2046 and ADS7843 based touchscreens"
 	depends on SPI_MASTER

@@ -449,35 +449,5 @@ config KEYBOARD_W90P910
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called w90p910_keypad.
-config KEYBOARD_RK28ADC	 
-	tristate "RK2818 ADC Keypad support"
-	depends on RK28_ADC
-	default y
-	help
-	  Say Y here to enable the adc keypad on SDK board
-	  based on RK2818.
-	
-	  To compile this driver as a module, choose M here: the
-	  module will be called rk2818_adckey.
 
-config HEADSET_KEY 
-	tristate "RK2818 headset Keypad support"
-	depends on RK28_ADC
-	default y
-	help
-	  Say Y here to enable the headset adc keypad on SDK board
-	  based on RK2818.
-	
-	  To compile this driver as a module, choose M here: the
-	  module will be called rk2818_hskey.
-	  
-config KEYBOARD_RK28ADC_IT50	 
-	tristate "RK2818 ADC Keypad it50 support"
-	depends on RK28_ADC
-	help
-	  Say Y here to enable the adc keypad on SDK board
-	  based on RK2818.
-	 
-	  To compile this driver as a module, choose M here: the
-	  module will be called rk2818_adckey.
 endif

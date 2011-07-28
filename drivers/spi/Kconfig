@@ -248,12 +248,6 @@ config SPI_XILINX
 # Add new SPI master controllers in alphabetical order above this line
 #
 
-config SPIM_RK2818
-	tristate "RK2818 SPI master controller core support"
-	depends on ARCH_RK2818 && SPI_MASTER
-	help
-	  general driver for SPI controller core from DesignWare
-	  
 config SPIM_RK29
 	tristate "RK29 SPI master controller core support"
 	depends on ARCH_RK29 && SPI_MASTER

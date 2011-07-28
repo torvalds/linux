@@ -203,7 +203,7 @@ void adc_core_irq_handle(struct adc_host *adc)
 {
 	struct adc_request *req;
 	int head, res;
-	spin_lock(adc->lock);
+	spin_lock(&adc->lock);
 	head = adc->queue_head;
 
 	req = adc->queue[head];

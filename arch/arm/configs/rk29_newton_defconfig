@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.32.27
-# Wed Jul 27 10:06:42 2011
+# Wed Jul 27 17:48:19 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1687,6 +1687,7 @@ CONFIG_LEDS_CLASS=y
 # CONFIG_LEDS_PCA9532 is not set
 CONFIG_LEDS_GPIO=y
 CONFIG_LEDS_GPIO_PLATFORM=y
+CONFIG_LEDS_NEWTON_PWM=y
 # CONFIG_LEDS_LP3944 is not set
 # CONFIG_LEDS_PCA955X is not set
 # CONFIG_LEDS_BD2802 is not set
