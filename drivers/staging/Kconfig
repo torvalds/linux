@@ -123,12 +123,6 @@ source "drivers/staging/sep/Kconfig"
 
 source "drivers/staging/iio/Kconfig"
 
-source "drivers/staging/rk2818/rk2818_dsp/Kconfig"
-
-source "drivers/staging/rk2818/rk1000_control/Kconfig"
-
-source "drivers/staging/rk2818/rk2818_power/Kconfig"
-
 source "drivers/staging/rk29/vivante/Kconfig"
 source "drivers/staging/rk29/ipp/Kconfig"
 endif # !STAGING_EXCLUDE_BUILD

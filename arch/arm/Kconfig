@@ -707,20 +707,6 @@ config ARCH_BCMRING
 	help
 	  Support for Broadcom's BCMRing platform.
 	  
-config ARCH_RK2818
-	bool "Rockchip soc rk2818"
-	select CPU_ARM926T
-	select CPU_CP15_MMU
-	select HAVE_TCM
-	select HAVE_CLK
-	select COMMON_CLKDEV
-	select ARCH_HAS_CPUFREQ
-	select GENERIC_TIME
-	select GENERIC_CLOCKEVENTS
-	select ARCH_REQUIRE_GPIOLIB
-	help
-		Support for Rockchip RK2818 soc.
-          
 config ARCH_RK29
 	bool "Rockchip Soc Rk29"
 	select CPU_V7
@@ -839,8 +825,6 @@ source "arch/arm/mach-u300/Kconfig"
 source "arch/arm/mach-w90x900/Kconfig"
 
 source "arch/arm/mach-bcmring/Kconfig"
-
-source "arch/arm/mach-rk2818/Kconfig"
 
 source "arch/arm/mach-rk29/Kconfig"
 

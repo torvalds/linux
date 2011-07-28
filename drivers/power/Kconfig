@@ -148,6 +148,7 @@ config BATTERY_BQ3060
 	depends on I2C && ARCH_RK29
 	help
 	  Say Y here to enable support for batteries with BQ3060(I2C) chip.  
+
 config CHECK_BATT_CAPACITY
 	tristate "check the capacity in BQ27510 battery if 1000mah write capacity for BATT_CAPACITY_MAH"
 	depends on BATTERY_BQ27510 || BATTERY_BQ3060
@@ -157,17 +158,12 @@ config BATT_CAPACITY_MAH
 	depends on CHECK_BATT_CAPACITY
 	int "battery capacity (in mah)"
 	default 2200
-		
+
 config NO_BATTERY_IC
 	tristate "no BQ27510 battery ic in board"
 	depends on BATTERY_BQ27510 || BATTERY_BQ3060 
 	default n
 	help
 	  Say no BQ27510(I2C) chip in board .
-	  
-config BATTERY_RK2818
-	tristate "RK2818 battery"
-	depends on RK28_ADC
-	help
-	  Say Y to enable support for the battery on the RK2818.
+
 endif # POWER_SUPPLY

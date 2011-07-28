@@ -54,8 +54,6 @@ source "drivers/spi/Kconfig"
 
 source "drivers/adc/Kconfig"
 
-source "drivers/fpga/Kconfig"
-
 source "drivers/headset_observe/Kconfig"
 
 source "drivers/pps/Kconfig"
