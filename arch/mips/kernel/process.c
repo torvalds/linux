@@ -15,6 +15,7 @@
 #include <linux/mm.h>
 #include <linux/stddef.h>
 #include <linux/unistd.h>
+#include <linux/export.h>
 #include <linux/ptrace.h>
 #include <linux/mman.h>
 #include <linux/personality.h>

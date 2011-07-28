@@ -9,6 +9,7 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/pci.h>
 #include <linux/smp.h>
 #include <asm/sn/arch.h>
