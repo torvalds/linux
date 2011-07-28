@@ -1113,17 +1113,19 @@ EXPORT_SYMBOL_GPL(em28xx_init_isoc);
 int em28xx_isoc_dvb_max_packetsize(struct em28xx *dev)
 {
 	unsigned int chip_cfg2;
-	unsigned int packet_size = 564;
+	unsigned int packet_size;
 
-	if (dev->chip_id == CHIP_ID_EM2874 || dev->chip_id == CHIP_ID_EM2884) {
-		/* FIXME - for now assume 564 like it was before, but the
-		   em2874 code should be added to return the proper value... */
-		packet_size = 564;
-	} else if (dev->chip_id == CHIP_ID_EM28174) {
-		/* FIXME same as em2874. 564 was enough for 22 Mbit DVB-T
-		   but too much for 44 Mbit DVB-C. */
-		packet_size = 752;
-	} else {
+	switch (dev->chip_id) {
+	case CHIP_ID_EM2710:
+	case CHIP_ID_EM2750:
+	case CHIP_ID_EM2800:
+	case CHIP_ID_EM2820:
+	case CHIP_ID_EM2840:
+	case CHIP_ID_EM2860:
+		/* No DVB support */
+		return -EINVAL;
+	case CHIP_ID_EM2870:
+	case CHIP_ID_EM2883:
 		/* TS max packet size stored in bits 1-0 of R01 */
 		chip_cfg2 = em28xx_read_reg(dev, EM28XX_R01_CHIPCFG2);
 		switch (chip_cfg2 & EM28XX_CHIPCFG2_TS_PACKETSIZE_MASK) {
@@ -1140,9 +1142,24 @@ int em28xx_isoc_dvb_max_packetsize(struct em28xx *dev)
 			packet_size = 752;
 			break;
 		}
+		break;
+	case CHIP_ID_EM2874:
+		/*
+		 * FIXME: for now assumes 564 like it was before, but the
+		 * em2874 code should be added to return the proper value
+		 */
+		packet_size = 564;
+		break;
+	case CHIP_ID_EM2884:
+	case CHIP_ID_EM28174:
+	default:
+		/*
+		 * FIXME: same as em2874. 564 was enough for 22 Mbit DVB-T
+		 * but not enough for 44 Mbit DVB-C.
+		 */
+		packet_size = 752;
 	}
 
-	em28xx_coredbg("dvb max packet size=%d\n", packet_size);
 	return packet_size;
 }
 EXPORT_SYMBOL_GPL(em28xx_isoc_dvb_max_packetsize);
