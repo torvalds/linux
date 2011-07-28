@@ -525,6 +525,7 @@ struct nouveau_pm_engine {
 	struct nouveau_pm_memtimings memtimings;
 	struct nouveau_pm_temp_sensor_constants sensor_constants;
 	struct nouveau_pm_threshold_temp threshold_temp;
+	u32 pwm_divisor;
 
 	struct nouveau_pm_level boot;
 	struct nouveau_pm_level *cur;

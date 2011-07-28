@@ -210,6 +210,9 @@ nouveau_perf_init(struct drm_device *dev)
 			recordlen = perf[2] + (perf[3] * perf[4]);
 			entries   = perf[5];
 		}
+
+		if (version < 0x30)
+			pm->pwm_divisor = ROM16(perf[6]);
 	} else {
 		if (bios->data[bios->offset + 6] < 0x25) {
 			legacy_perf_init(dev);
@@ -283,7 +286,6 @@ nouveau_perf_init(struct drm_device *dev)
 				perflvl->memory = ROM16(entry[11]) * 1000;
 			else
 				perflvl->memory = ROM16(entry[11]) * 2000;
-
 			break;
 		case 0x25:
 			perflvl->fanspeed = entry[4];
