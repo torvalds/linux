@@ -29,6 +29,13 @@
 typedef struct mddev_s mddev_t;
 typedef struct mdk_rdev_s mdk_rdev_t;
 
+/* Bad block numbers are stored sorted in a single page.
+ * 64bits is used for each block or extent.
+ * 54 bits are sector number, 9 bits are extent size,
+ * 1 bit is an 'acknowledged' flag.
+ */
+#define MD_MAX_BADBLOCKS	(PAGE_SIZE/8)
+
 /*
  * MD's 'extended' device
  */
@@ -111,7 +118,46 @@ struct mdk_rdev_s
 
 	struct sysfs_dirent *sysfs_state; /* handle for 'state'
 					   * sysfs entry */
+
+	struct badblocks {
+		int	count;		/* count of bad blocks */
+		int	shift;		/* shift from sectors to block size
+					 * a -ve shift means badblocks are
+					 * disabled.*/
+		u64	*page;		/* badblock list */
+		int	changed;
+		seqlock_t lock;
+	} badblocks;
 };
+
+#define BB_LEN_MASK	(0x00000000000001FFULL)
+#define BB_OFFSET_MASK	(0x7FFFFFFFFFFFFE00ULL)
+#define BB_ACK_MASK	(0x8000000000000000ULL)
+#define BB_MAX_LEN	512
+#define BB_OFFSET(x)	(((x) & BB_OFFSET_MASK) >> 9)
+#define BB_LEN(x)	(((x) & BB_LEN_MASK) + 1)
+#define BB_ACK(x)	(!!((x) & BB_ACK_MASK))
+#define BB_MAKE(a, l, ack) (((a)<<9) | ((l)-1) | ((u64)(!!(ack)) << 63))
+
+extern int md_is_badblock(struct badblocks *bb, sector_t s, int sectors,
+			  sector_t *first_bad, int *bad_sectors);
+static inline int is_badblock(mdk_rdev_t *rdev, sector_t s, int sectors,
+			      sector_t *first_bad, int *bad_sectors)
+{
+	if (unlikely(rdev->badblocks.count)) {
+		int rv = md_is_badblock(&rdev->badblocks, rdev->data_offset + s,
+					sectors,
+					first_bad, bad_sectors);
+		if (rv)
+			*first_bad -= rdev->data_offset;
+		return rv;
+	}
+	return 0;
+}
+extern int rdev_set_badblocks(mdk_rdev_t *rdev, sector_t s, int sectors,
+			      int acknowledged);
+extern int rdev_clear_badblocks(mdk_rdev_t *rdev, sector_t s, int sectors);
+extern void md_ack_all_badblocks(struct badblocks *bb);
 
 struct mddev_s
 {
@@ -517,7 +563,7 @@ extern void mddev_init(mddev_t *mddev);
 extern int md_run(mddev_t *mddev);
 extern void md_stop(mddev_t *mddev);
 extern void md_stop_writes(mddev_t *mddev);
-extern void md_rdev_init(mdk_rdev_t *rdev);
+extern int md_rdev_init(mdk_rdev_t *rdev);
 
 extern void mddev_suspend(mddev_t *mddev);
 extern void mddev_resume(mddev_t *mddev);
