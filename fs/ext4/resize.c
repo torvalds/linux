@@ -147,10 +147,8 @@ static struct buffer_head *bclean(handle_t *handle, struct super_block *sb,
 		brelse(bh);
 		bh = ERR_PTR(err);
 	} else {
-		lock_buffer(bh);
 		memset(bh->b_data, 0, sb->s_blocksize);
 		set_buffer_uptodate(bh);
-		unlock_buffer(bh);
 	}
 
 	return bh;
@@ -229,10 +227,8 @@ static int setup_new_group_blocks(struct super_block *sb,
 			brelse(gdb);
 			goto exit_journal;
 		}
-		lock_buffer(gdb);
 		memcpy(gdb->b_data, sbi->s_group_desc[i]->b_data, gdb->b_size);
 		set_buffer_uptodate(gdb);
-		unlock_buffer(gdb);
 		err = ext4_handle_dirty_metadata(handle, NULL, gdb);
 		if (unlikely(err)) {
 			brelse(gdb);
