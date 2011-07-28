@@ -22,6 +22,7 @@
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 
+#include <asm/system.h>
 #include <asm/unaligned.h>
 
 #include "fault.h"
@@ -913,9 +914,16 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	if (ai_usermode & UM_FIXUP)
 		goto fixup;
 
-	if (ai_usermode & UM_SIGNAL)
-		force_sig(SIGBUS, current);
-	else {
+	if (ai_usermode & UM_SIGNAL) {
+		siginfo_t si;
+
+		si.si_signo = SIGBUS;
+		si.si_errno = 0;
+		si.si_code = BUS_ADRALN;
+		si.si_addr = (void __user *)addr;
+
+		force_sig_info(si.si_signo, &si, current);
+	} else {
 		/*
 		 * We're about to disable the alignment trap and return to
 		 * user space.  But if an interrupt occurs before actually
