@@ -249,6 +249,7 @@ struct stripe_head_state {
 
 	struct bio *return_bi;
 	mdk_rdev_t *blocked_rdev;
+	int handle_bad_blocks;
 };
 
 /* Flags */
@@ -264,14 +265,15 @@ struct stripe_head_state {
 #define	R5_ReWrite	9	/* have tried to over-write the readerror */
 
 #define	R5_Expanded	10	/* This block now has post-expand data */
-#define	R5_Wantcompute	11 /* compute_block in progress treat as
-				    * uptodate
-				    */
-#define	R5_Wantfill	12 /* dev->toread contains a bio that needs
-				    * filling
-				    */
-#define R5_Wantdrain	13 /* dev->towrite needs to be drained */
-#define R5_WantFUA	14	/* Write should be FUA */
+#define	R5_Wantcompute	11	/* compute_block in progress treat as
+				 * uptodate
+				 */
+#define	R5_Wantfill	12	/* dev->toread contains a bio that needs
+				 * filling
+				 */
+#define	R5_Wantdrain	13	/* dev->towrite needs to be drained */
+#define	R5_WantFUA	14	/* Write should be FUA */
+#define	R5_WriteError	15	/* got a write error - need to record it */
 /*
  * Write method
  */

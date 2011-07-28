@@ -1658,8 +1658,10 @@ static void raid5_end_write_request(struct bio *bi, int error)
 		return;
 	}
 
-	if (!uptodate)
-		md_error(conf->mddev, conf->disks[i].rdev);
+	if (!uptodate) {
+		set_bit(WriteErrorSeen, &conf->disks[i].rdev->flags);
+		set_bit(R5_WriteError, &sh->dev[i].flags);
+	}
 
 	rdev_dec_pending(conf->disks[i].rdev, conf->mddev);
 	
@@ -3038,6 +3040,14 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 			if (sh->sector + STRIPE_SECTORS <= rdev->recovery_offset)
 				set_bit(R5_Insync, &dev->flags);
 		}
+		if (test_bit(R5_WriteError, &dev->flags)) {
+			clear_bit(R5_Insync, &dev->flags);
+			if (!test_bit(Faulty, &rdev->flags)) {
+				s->handle_bad_blocks = 1;
+				atomic_inc(&rdev->nr_pending);
+			} else
+				clear_bit(R5_WriteError, &dev->flags);
+		}
 		if (!test_bit(R5_Insync, &dev->flags)) {
 			/* The ReadError flag will just be confusing now */
 			clear_bit(R5_ReadError, &dev->flags);
@@ -3085,6 +3095,11 @@ static void handle_stripe(struct stripe_head *sh)
 	       sh->check_state, sh->reconstruct_state);
 
 	analyse_stripe(sh, &s);
+
+	if (s.handle_bad_blocks) {
+		set_bit(STRIPE_HANDLE, &sh->state);
+		goto finish;
+	}
 
 	if (unlikely(s.blocked_rdev)) {
 		if (s.syncing || s.expanding || s.expanded ||
@@ -3282,6 +3297,20 @@ finish:
 	/* wait for this device to become unblocked */
 	if (unlikely(s.blocked_rdev))
 		md_wait_for_blocked_rdev(s.blocked_rdev, conf->mddev);
+
+	if (s.handle_bad_blocks)
+		for (i = disks; i--; ) {
+			mdk_rdev_t *rdev;
+			struct r5dev *dev = &sh->dev[i];
+			if (test_and_clear_bit(R5_WriteError, &dev->flags)) {
+				/* We own a safe reference to the rdev */
+				rdev = conf->disks[i].rdev;
+				if (!rdev_set_badblocks(rdev, sh->sector,
+							STRIPE_SECTORS, 0))
+					md_error(conf->mddev, rdev);
+				rdev_dec_pending(rdev, conf->mddev);
+			}
+		}
 
 	if (s.ops_request)
 		raid_run_ops(sh, s.ops_request);
