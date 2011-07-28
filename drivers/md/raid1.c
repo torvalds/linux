@@ -1386,7 +1386,9 @@ static void end_sync_write(struct bio *bio, int error)
 			s += sync_blocks;
 			sectors_to_go -= sync_blocks;
 		} while (sectors_to_go > 0);
-		md_error(mddev, conf->mirrors[mirror].rdev);
+		set_bit(WriteErrorSeen,
+			&conf->mirrors[mirror].rdev->flags);
+		set_bit(R1BIO_WriteError, &r1_bio->state);
 	} else if (is_badblock(conf->mirrors[mirror].rdev,
 			       r1_bio->sector,
 			       r1_bio->sectors,
@@ -1397,13 +1399,28 @@ static void end_sync_write(struct bio *bio, int error)
 
 	if (atomic_dec_and_test(&r1_bio->remaining)) {
 		int s = r1_bio->sectors;
-		if (test_bit(R1BIO_MadeGood, &r1_bio->state))
+		if (test_bit(R1BIO_MadeGood, &r1_bio->state) ||
+		    test_bit(R1BIO_WriteError, &r1_bio->state))
 			reschedule_retry(r1_bio);
 		else {
 			put_buf(r1_bio);
 			md_done_sync(mddev, s, uptodate);
 		}
 	}
+}
+
+static int r1_sync_page_io(mdk_rdev_t *rdev, sector_t sector,
+			    int sectors, struct page *page, int rw)
+{
+	if (sync_page_io(rdev, sector, sectors << 9, page, rw, false))
+		/* success */
+		return 1;
+	if (rw == WRITE)
+		set_bit(WriteErrorSeen, &rdev->flags);
+	/* need to record an error - either for the block or the device */
+	if (!rdev_set_badblocks(rdev, sector, sectors, 0))
+		md_error(rdev->mddev, rdev);
+	return 0;
 }
 
 static int fix_sync_read_error(r1bio_t *r1_bio)
@@ -1477,12 +1494,11 @@ static int fix_sync_read_error(r1bio_t *r1_bio)
 			if (r1_bio->bios[d]->bi_end_io != end_sync_read)
 				continue;
 			rdev = conf->mirrors[d].rdev;
-			if (sync_page_io(rdev, sect, s<<9,
-					 bio->bi_io_vec[idx].bv_page,
-					 WRITE, false) == 0) {
+			if (r1_sync_page_io(rdev, sect, s,
+					    bio->bi_io_vec[idx].bv_page,
+					    WRITE) == 0) {
 				r1_bio->bios[d]->bi_end_io = NULL;
 				rdev_dec_pending(rdev, mddev);
-				md_error(mddev, rdev);
 			}
 		}
 		d = start;
@@ -1493,11 +1509,9 @@ static int fix_sync_read_error(r1bio_t *r1_bio)
 			if (r1_bio->bios[d]->bi_end_io != end_sync_read)
 				continue;
 			rdev = conf->mirrors[d].rdev;
-			if (sync_page_io(rdev, sect, s<<9,
-					 bio->bi_io_vec[idx].bv_page,
-					 READ, false) == 0)
-				md_error(mddev, rdev);
-			else
+			if (r1_sync_page_io(rdev, sect, s,
+					    bio->bi_io_vec[idx].bv_page,
+					    READ) != 0)
 				atomic_add(s, &rdev->corrected_errors);
 		}
 		sectors -= s;
@@ -1682,8 +1696,10 @@ static void fix_read_error(conf_t *conf, int read_disk,
 		} while (!success && d != read_disk);
 
 		if (!success) {
-			/* Cannot read from anywhere -- bye bye array */
-			md_error(mddev, conf->mirrors[read_disk].rdev);
+			/* Cannot read from anywhere - mark it bad */
+			mdk_rdev_t *rdev = conf->mirrors[read_disk].rdev;
+			if (!rdev_set_badblocks(rdev, sect, s, 0))
+				md_error(mddev, rdev);
 			break;
 		}
 		/* write it back and re-read */
@@ -1694,13 +1710,9 @@ static void fix_read_error(conf_t *conf, int read_disk,
 			d--;
 			rdev = conf->mirrors[d].rdev;
 			if (rdev &&
-			    test_bit(In_sync, &rdev->flags)) {
-				if (sync_page_io(rdev, sect, s<<9,
-						 conf->tmppage, WRITE, false)
-				    == 0)
-					/* Well, this device is dead */
-					md_error(mddev, rdev);
-			}
+			    test_bit(In_sync, &rdev->flags))
+				r1_sync_page_io(rdev, sect, s,
+						conf->tmppage, WRITE);
 		}
 		d = start;
 		while (d != read_disk) {
@@ -1711,12 +1723,8 @@ static void fix_read_error(conf_t *conf, int read_disk,
 			rdev = conf->mirrors[d].rdev;
 			if (rdev &&
 			    test_bit(In_sync, &rdev->flags)) {
-				if (sync_page_io(rdev, sect, s<<9,
-						 conf->tmppage, READ, false)
-				    == 0)
-					/* Well, this device is dead */
-					md_error(mddev, rdev);
-				else {
+				if (r1_sync_page_io(rdev, sect, s,
+						    conf->tmppage, READ)) {
 					atomic_add(s, &rdev->corrected_errors);
 					printk(KERN_INFO
 					       "md/raid1:%s: read error corrected "
@@ -1860,19 +1868,32 @@ static void raid1d(mddev_t *mddev)
 		mddev = r1_bio->mddev;
 		conf = mddev->private;
 		if (test_bit(R1BIO_IsSync, &r1_bio->state)) {
-			if (test_bit(R1BIO_MadeGood, &r1_bio->state)) {
+			if (test_bit(R1BIO_MadeGood, &r1_bio->state) ||
+			    test_bit(R1BIO_WriteError, &r1_bio->state)) {
 				int m;
 				int s = r1_bio->sectors;
 				for (m = 0; m < conf->raid_disks ; m++) {
+					mdk_rdev_t *rdev
+						= conf->mirrors[m].rdev;
 					struct bio *bio = r1_bio->bios[m];
-					if (bio->bi_end_io != NULL &&
-					    test_bit(BIO_UPTODATE,
+					if (bio->bi_end_io == NULL)
+						continue;
+					if (test_bit(BIO_UPTODATE,
 						     &bio->bi_flags)) {
-						rdev = conf->mirrors[m].rdev;
 						rdev_clear_badblocks(
 							rdev,
 							r1_bio->sector,
 							r1_bio->sectors);
+					}
+					if (!test_bit(BIO_UPTODATE,
+						      &bio->bi_flags) &&
+					    test_bit(R1BIO_WriteError,
+						     &r1_bio->state)) {
+						if (!rdev_set_badblocks(
+							    rdev,
+							    r1_bio->sector,
+							    r1_bio->sectors, 0))
+							md_error(mddev, rdev);
 					}
 				}
 				put_buf(r1_bio);
