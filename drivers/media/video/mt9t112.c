@@ -743,46 +743,6 @@ static int mt9t112_init_camera(const struct i2c_client *client)
 }
 
 /************************************************************************
-			soc_camera_ops
-************************************************************************/
-static int mt9t112_set_bus_param(struct soc_camera_device *icd,
-				 unsigned long	flags)
-{
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct mt9t112_priv *priv = to_mt9t112(client);
-
-	if (soc_camera_apply_sensor_flags(icl, flags) & SOCAM_PCLK_SAMPLE_RISING)
-		priv->flags |= PCLK_RISING;
-
-	return 0;
-}
-
-static unsigned long mt9t112_query_bus_param(struct soc_camera_device *icd)
-{
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct mt9t112_priv *priv = to_mt9t112(client);
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-	unsigned long flags = SOCAM_MASTER | SOCAM_VSYNC_ACTIVE_HIGH |
-		SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_DATA_ACTIVE_HIGH;
-
-	flags |= (priv->info->flags & MT9T112_FLAG_PCLK_RISING_EDGE) ?
-		SOCAM_PCLK_SAMPLE_RISING : SOCAM_PCLK_SAMPLE_FALLING;
-
-	if (priv->info->flags & MT9T112_FLAG_DATAWIDTH_8)
-		flags |= SOCAM_DATAWIDTH_8;
-	else
-		flags |= SOCAM_DATAWIDTH_10;
-
-	return soc_camera_apply_sensor_flags(icl, flags);
-}
-
-static struct soc_camera_ops mt9t112_ops = {
-	.set_bus_param		= mt9t112_set_bus_param,
-	.query_bus_param	= mt9t112_query_bus_param,
-};
-
-/************************************************************************
 			v4l2_subdev_core_ops
 ************************************************************************/
 static int mt9t112_g_chip_ident(struct v4l2_subdev *sd,
@@ -1117,13 +1077,11 @@ static int mt9t112_probe(struct i2c_client *client,
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &mt9t112_subdev_ops);
 
-	icd->ops = &mt9t112_ops;
+	icd->ops = NULL;
 
 	ret = mt9t112_camera_probe(icd, client);
-	if (ret) {
-		icd->ops = NULL;
+	if (ret)
 		kfree(priv);
-	}
 
 	return ret;
 }
@@ -1131,9 +1089,7 @@ static int mt9t112_probe(struct i2c_client *client,
 static int mt9t112_remove(struct i2c_client *client)
 {
 	struct mt9t112_priv *priv = to_mt9t112(client);
-	struct soc_camera_device *icd = client->dev.platform_data;
 
-	icd->ops = NULL;
 	kfree(priv);
 	return 0;
 }
