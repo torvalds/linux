@@ -372,3 +372,30 @@ nv40_pm_fanspeed_set(struct drm_device *dev, int percent)
 	nv_wr32(dev, 0x0010f0, 0x80000000 | (duty << 16) | divs);
 	return 0;
 }
+
+int
+nv41_pm_fanspeed_get(struct drm_device *dev)
+{
+	u32 reg = nv_rd32(dev, 0x0015f4);
+	if (reg & 0x80000000) {
+		u32 divs = nv_rd32(dev, 0x0015f8);
+		u32 duty = (reg & 0x7fffffff);
+		if (divs && divs >= duty)
+			return ((divs - duty) * 100) / divs;
+	}
+
+	return 100;
+}
+
+int
+nv41_pm_fanspeed_set(struct drm_device *dev, int percent)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	u32 divs = pm->pwm_divisor;
+	u32 duty = ((100 - percent) * divs) / 100;
+
+	nv_wr32(dev, 0x0015f8, divs);
+	nv_wr32(dev, 0x0015f4, duty | 0x80000000);
+	return 0;
+}

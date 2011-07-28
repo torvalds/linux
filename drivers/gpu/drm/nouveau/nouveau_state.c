@@ -298,6 +298,13 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 			engine->pm.fanspeed_get	= nv40_pm_fanspeed_get;
 			engine->pm.fanspeed_set	= nv40_pm_fanspeed_set;
 			break;
+		case 0x42:
+		case 0x43:
+		case 0x47:
+		case 0x4b:
+			engine->pm.fanspeed_get	= nv41_pm_fanspeed_get;
+			engine->pm.fanspeed_set	= nv41_pm_fanspeed_set;
+			break;
 		default:
 			break;
 		}
