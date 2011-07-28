@@ -166,7 +166,7 @@ static int create_path(const char *nodepath)
 {
 	char *path;
 	char *s;
-	int err;
+	int err = 0;
 
 	/* parent directories do not exist, create them */
 	path = kstrdup(nodepath, GFP_KERNEL);
