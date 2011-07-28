@@ -2397,6 +2397,30 @@ static void drbd_init_workqueue(struct drbd_work_queue* wq)
 	init_waitqueue_head(&wq->q_wait);
 }
 
+struct completion_work {
+	struct drbd_work w;
+	struct completion done;
+};
+
+static int w_complete(struct drbd_work *w, int cancel)
+{
+	struct completion_work *completion_work =
+		container_of(w, struct completion_work, w);
+
+	complete(&completion_work->done);
+	return 0;
+}
+
+void drbd_flush_workqueue(struct drbd_work_queue *work_queue)
+{
+	struct completion_work completion_work;
+
+	completion_work.w.cb = w_complete;
+	init_completion(&completion_work.done);
+	drbd_queue_work(work_queue, &completion_work.w);
+	wait_for_completion(&completion_work.done);
+}
+
 struct drbd_resource *drbd_find_resource(const char *name)
 {
 	struct drbd_resource *resource;

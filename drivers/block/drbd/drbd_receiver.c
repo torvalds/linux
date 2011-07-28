@@ -4485,24 +4485,6 @@ static void drbdd(struct drbd_connection *connection)
 	conn_request_state(connection, NS(conn, C_PROTOCOL_ERROR), CS_HARD);
 }
 
-static int w_complete(struct drbd_work *w, int cancel)
-{
-	struct drbd_wq_barrier *b = container_of(w, struct drbd_wq_barrier, w);
-
-	complete(&b->done);
-	return 0;
-}
-
-void conn_flush_workqueue(struct drbd_connection *connection)
-{
-	struct drbd_wq_barrier barr;
-
-	barr.w.cb = w_complete;
-	init_completion(&barr.done);
-	drbd_queue_work(&connection->sender_work, &barr.w);
-	wait_for_completion(&barr.done);
-}
-
 static void conn_disconnect(struct drbd_connection *connection)
 {
 	struct drbd_peer_device *peer_device;
@@ -4590,14 +4572,14 @@ static int drbd_disconnected(struct drbd_peer_device *peer_device)
 	/* wait for all w_e_end_data_req, w_e_end_rsdata_req, w_send_barrier,
 	 * w_make_resync_request etc. which may still be on the worker queue
 	 * to be "canceled" */
-	drbd_flush_workqueue(device);
+	drbd_flush_workqueue(&peer_device->connection->sender_work);
 
 	drbd_finish_peer_reqs(device);
 
 	/* This second workqueue flush is necessary, since drbd_finish_peer_reqs()
 	   might have issued a work again. The one before drbd_finish_peer_reqs() is
 	   necessary to reclain net_ee in drbd_finish_peer_reqs(). */
-	drbd_flush_workqueue(device);
+	drbd_flush_workqueue(&peer_device->connection->sender_work);
 
 	/* need to do it again, drbd_finish_peer_reqs() may have populated it
 	 * again via drbd_try_clear_on_disk_bm(). */

@@ -351,11 +351,6 @@ enum epoch_event {
 	EV_CLEANUP = 32, /* used as flag */
 };
 
-struct drbd_wq_barrier {
-	struct drbd_work w;
-	struct completion done;
-};
-
 struct digest_info {
 	int digest_size;
 	void *digest;
@@ -1354,12 +1349,7 @@ extern void __drbd_free_peer_req(struct drbd_device *, struct drbd_peer_request 
 extern struct page *drbd_alloc_pages(struct drbd_peer_device *, unsigned int, bool);
 extern void drbd_set_recv_tcq(struct drbd_device *device, int tcq_enabled);
 extern void _drbd_clear_done_ee(struct drbd_device *device, struct list_head *to_be_freed);
-extern void conn_flush_workqueue(struct drbd_connection *connection);
 extern int drbd_connected(struct drbd_peer_device *);
-static inline void drbd_flush_workqueue(struct drbd_device *device)
-{
-	conn_flush_workqueue(first_peer_device(device)->connection);
-}
 
 /* Yes, there is kernel_setsockopt, but only since 2.6.18.
  * So we have our own copy of it here. */
@@ -1713,6 +1703,8 @@ drbd_queue_work(struct drbd_work_queue *q, struct drbd_work *w)
 	spin_unlock_irqrestore(&q->q_lock, flags);
 	wake_up(&q->q_wait);
 }
+
+extern void drbd_flush_workqueue(struct drbd_work_queue *work_queue);
 
 static inline void wake_asender(struct drbd_connection *connection)
 {

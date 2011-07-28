@@ -1181,7 +1181,7 @@ void drbd_reconsider_max_bio_size(struct drbd_device *device)
 static void conn_reconfig_start(struct drbd_connection *connection)
 {
 	drbd_thread_start(&connection->worker);
-	conn_flush_workqueue(connection);
+	drbd_flush_workqueue(&connection->sender_work);
 }
 
 /* if still unconfigured, stops worker again. */
@@ -1600,7 +1600,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	 */
 	wait_event(device->misc_wait, !atomic_read(&device->ap_pending_cnt) || drbd_suspended(device));
 	/* and for any other previously queued work */
-	drbd_flush_workqueue(device);
+	drbd_flush_workqueue(&first_peer_device(device)->connection->sender_work);
 
 	rv = _drbd_request_state(device, NS(disk, D_ATTACHING), CS_VERBOSE);
 	retcode = rv;  /* FIXME: Type mismatch. */
@@ -2249,7 +2249,7 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 
 	((char *)new_net_conf->shared_secret)[SHARED_SECRET_MAX-1] = 0;
 
-	conn_flush_workqueue(connection);
+	drbd_flush_workqueue(&connection->sender_work);
 
 	mutex_lock(&adm_ctx.resource->conf_update);
 	old_net_conf = connection->net_conf;
@@ -2589,7 +2589,7 @@ int drbd_adm_invalidate(struct sk_buff *skb, struct genl_info *info)
 	 * Also wait for it's after_state_ch(). */
 	drbd_suspend_io(device);
 	wait_event(device->misc_wait, !test_bit(BITMAP_IO, &device->flags));
-	drbd_flush_workqueue(device);
+	drbd_flush_workqueue(&first_peer_device(device)->connection->sender_work);
 
 	/* If we happen to be C_STANDALONE R_SECONDARY, just change to
 	 * D_INCONSISTENT, and set all bits in the bitmap.  Otherwise,
@@ -2655,7 +2655,7 @@ int drbd_adm_invalidate_peer(struct sk_buff *skb, struct genl_info *info)
 	 * Also wait for it's after_state_ch(). */
 	drbd_suspend_io(device);
 	wait_event(device->misc_wait, !test_bit(BITMAP_IO, &device->flags));
-	drbd_flush_workqueue(device);
+	drbd_flush_workqueue(&first_peer_device(device)->connection->sender_work);
 
 	/* If we happen to be C_STANDALONE R_PRIMARY, just set all bits
 	 * in the bitmap.  Otherwise, try to start a resync handshake
