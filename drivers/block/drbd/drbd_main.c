@@ -312,7 +312,7 @@ void tl_abort_disk_io(struct drbd_device *device)
 	list_for_each_entry_safe(req, r, &connection->transfer_log, tl_requests) {
 		if (!(req->rq_state & RQ_LOCAL_PENDING))
 			continue;
-		if (req->w.device != device)
+		if (req->device != device)
 			continue;
 		_req_mod(req, ABORT_DISK_IO);
 	}
@@ -1917,13 +1917,6 @@ void drbd_init_set_defaults(struct drbd_device *device)
 	device->bm_io_work.w.cb = w_bitmap_io;
 	device->start_resync_work.cb = w_start_resync;
 
-	device->resync_work.device  = device;
-	device->unplug_work.device  = device;
-	device->go_diskless.device  = device;
-	device->md_sync_work.device = device;
-	device->bm_io_work.w.device = device;
-	device->start_resync_work.device = device;
-
 	init_timer(&device->resync_timer);
 	init_timer(&device->md_sync_timer);
 	init_timer(&device->start_resync_timer);
@@ -2222,12 +2215,12 @@ static void do_retry(struct work_struct *ws)
 	spin_unlock_irq(&retry->lock);
 
 	list_for_each_entry_safe(req, tmp, &writes, tl_requests) {
-		struct drbd_device *device = req->w.device;
+		struct drbd_device *device = req->device;
 		struct bio *bio = req->master_bio;
 		unsigned long start_time = req->start_time;
 		bool expected;
 
-		expected = 
+		expected =
 			expect(atomic_read(&req->completion_ref) == 0) &&
 			expect(req->rq_state & RQ_POSTPONED) &&
 			expect((req->rq_state & RQ_LOCAL_PENDING) == 0 ||
@@ -2273,7 +2266,7 @@ void drbd_restart_request(struct drbd_request *req)
 	/* Drop the extra reference that would otherwise
 	 * have been dropped by complete_master_bio.
 	 * do_retry() needs to grab a new one. */
-	dec_ap_bio(req->w.device);
+	dec_ap_bio(req->device);
 
 	queue_work(retry.wq, &retry.worker);
 }
@@ -3468,8 +3461,9 @@ int drbd_bmio_clear_n_write(struct drbd_device *device)
 
 static int w_bitmap_io(struct drbd_work *w, int unused)
 {
-	struct bm_io_work *work = container_of(w, struct bm_io_work, w);
-	struct drbd_device *device = w->device;
+	struct drbd_device *device =
+		container_of(w, struct drbd_device, bm_io_work.w);
+	struct bm_io_work *work = &device->bm_io_work;
 	int rv = -EIO;
 
 	D_ASSERT(device, atomic_read(&device->ap_bio_cnt) == 0);
@@ -3509,7 +3503,8 @@ void drbd_ldev_destroy(struct drbd_device *device)
 
 static int w_go_diskless(struct drbd_work *w, int unused)
 {
-	struct drbd_device *device = w->device;
+	struct drbd_device *device =
+		container_of(w, struct drbd_device, go_diskless);
 
 	D_ASSERT(device, device->state.disk == D_FAILED);
 	/* we cannot assert local_cnt == 0 here, as get_ldev_if_state will
@@ -3583,7 +3578,8 @@ void drbd_queue_bitmap_io(struct drbd_device *device,
 	set_bit(BITMAP_IO, &device->flags);
 	if (atomic_read(&device->ap_bio_cnt) == 0) {
 		if (!test_and_set_bit(BITMAP_IO_QUEUED, &device->flags))
-			drbd_queue_work(&first_peer_device(device)->connection->sender_work, &device->bm_io_work.w);
+			drbd_queue_work(&first_peer_device(device)->connection->sender_work,
+					&device->bm_io_work.w);
 	}
 	spin_unlock_irq(&device->resource->req_lock);
 }
@@ -3643,12 +3639,14 @@ static void md_sync_timer_fn(unsigned long data)
 
 	/* must not double-queue! */
 	if (list_empty(&device->md_sync_work.list))
-		drbd_queue_work_front(&first_peer_device(device)->connection->sender_work, &device->md_sync_work);
+		drbd_queue_work_front(&first_peer_device(device)->connection->sender_work,
+				      &device->md_sync_work);
 }
 
 static int w_md_sync(struct drbd_work *w, int unused)
 {
-	struct drbd_device *device = w->device;
+	struct drbd_device *device =
+		container_of(w, struct drbd_device, md_sync_work);
 
 	drbd_warn(device, "md_sync_timer expired! Worker calls drbd_md_sync().\n");
 #ifdef DEBUG

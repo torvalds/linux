@@ -32,6 +32,7 @@
 
 struct after_state_chg_work {
 	struct drbd_work w;
+	struct drbd_device *device;
 	union drbd_state os;
 	union drbd_state ns;
 	enum chg_state_flags flags;
@@ -1145,9 +1146,10 @@ __drbd_set_state(struct drbd_device *device, union drbd_state ns,
 		ascw->ns = ns;
 		ascw->flags = flags;
 		ascw->w.cb = w_after_state_ch;
-		ascw->w.device = device;
+		ascw->device = device;
 		ascw->done = done;
-		drbd_queue_work(&first_peer_device(device)->connection->sender_work, &ascw->w);
+		drbd_queue_work(&first_peer_device(device)->connection->sender_work,
+				&ascw->w);
 	} else {
 		drbd_err(device, "Could not kmalloc an ascw\n");
 	}
@@ -1159,7 +1161,7 @@ static int w_after_state_ch(struct drbd_work *w, int unused)
 {
 	struct after_state_chg_work *ascw =
 		container_of(w, struct after_state_chg_work, w);
-	struct drbd_device *device = w->device;
+	struct drbd_device *device = ascw->device;
 
 	after_state_ch(device, ascw->os, ascw->ns, ascw->flags);
 	if (ascw->flags & CS_WAIT_COMPLETE)
@@ -1528,18 +1530,19 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 }
 
 struct after_conn_state_chg_work {
-	struct drbd_work w;
+	struct drbd_device_work dw;
 	enum drbd_conns oc;
 	union drbd_state ns_min;
 	union drbd_state ns_max; /* new, max state, over all devices */
 	enum chg_state_flags flags;
+	struct drbd_connection *connection;
 };
 
 static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 {
 	struct after_conn_state_chg_work *acscw =
-		container_of(w, struct after_conn_state_chg_work, w);
-	struct drbd_connection *connection = w->connection;
+		container_of(w, struct after_conn_state_chg_work, dw.w);
+	struct drbd_connection *connection = acscw->connection;
 	enum drbd_conns oc = acscw->oc;
 	union drbd_state ns_max = acscw->ns_max;
 	struct drbd_peer_device *peer_device;
@@ -1840,10 +1843,10 @@ _conn_request_state(struct drbd_connection *connection, union drbd_state mask, u
 		acscw->ns_min = ns_min;
 		acscw->ns_max = ns_max;
 		acscw->flags = flags;
-		acscw->w.cb = w_after_conn_state_ch;
+		acscw->dw.w.cb = w_after_conn_state_ch;
 		kref_get(&connection->kref);
-		acscw->w.connection = connection;
-		drbd_queue_work(&connection->sender_work, &acscw->w);
+		acscw->connection = connection;
+		drbd_queue_work(&connection->sender_work, &acscw->dw.w);
 	} else {
 		drbd_err(connection, "Could not kmalloc an acscw\n");
 	}

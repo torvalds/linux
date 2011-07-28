@@ -281,10 +281,11 @@ static inline enum drbd_thread_state get_t_state(struct drbd_thread *thi)
 struct drbd_work {
 	struct list_head list;
 	int (*cb)(struct drbd_work *, int cancel);
-	union {
-		struct drbd_device *device;
-		struct drbd_connection *connection;
-	};
+};
+
+struct drbd_device_work {
+	struct drbd_work w;
+	struct drbd_device *device;
 };
 
 #include "drbd_interval.h"
@@ -293,6 +294,7 @@ extern int drbd_wait_misc(struct drbd_device *, struct drbd_interval *);
 
 struct drbd_request {
 	struct drbd_work w;
+	struct drbd_device *device;
 
 	/* if local IO is not allowed, will be NULL.
 	 * if local IO _is_ allowed, holds the locally submitted bio clone,
@@ -360,7 +362,7 @@ struct digest_info {
 };
 
 struct drbd_peer_request {
-	struct drbd_work w;
+	struct drbd_device_work dw;
 	struct drbd_epoch *epoch; /* for writes */
 	struct page *pages;
 	atomic_t pending_bios;
@@ -686,11 +688,11 @@ struct drbd_device {
 	struct gendisk	    *vdisk;
 
 	unsigned long last_reattach_jif;
-	struct drbd_work  resync_work,
-			  unplug_work,
-			  go_diskless,
-			  md_sync_work,
-			  start_resync_work;
+	struct drbd_work resync_work;
+	struct drbd_work unplug_work;
+	struct drbd_work go_diskless;
+	struct drbd_work md_sync_work;
+	struct drbd_work start_resync_work;
 	struct timer_list resync_timer;
 	struct timer_list md_sync_timer;
 	struct timer_list start_resync_timer;
@@ -1865,7 +1867,8 @@ static inline void put_ldev(struct drbd_device *device)
 		if (device->state.disk == D_FAILED) {
 			/* all application IO references gone. */
 			if (!test_and_set_bit(GO_DISKLESS, &device->flags))
-				drbd_queue_work(&first_peer_device(device)->connection->sender_work, &device->go_diskless);
+				drbd_queue_work(&first_peer_device(device)->connection->sender_work,
+						&device->go_diskless);
 		}
 		wake_up(&device->misc_wait);
 	}
@@ -2092,7 +2095,9 @@ static inline void dec_ap_bio(struct drbd_device *device)
 
 	if (ap_bio == 0 && test_bit(BITMAP_IO, &device->flags)) {
 		if (!test_and_set_bit(BITMAP_IO_QUEUED, &device->flags))
-			drbd_queue_work(&first_peer_device(device)->connection->sender_work, &device->bm_io_work.w);
+			drbd_queue_work(&first_peer_device(device)->
+				connection->sender_work,
+				&device->bm_io_work.w);
 	}
 
 	/* this currently does wake_up for every dec_ap_bio!

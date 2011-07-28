@@ -95,11 +95,13 @@ struct __packed al_transaction_on_disk {
 
 struct update_odbm_work {
 	struct drbd_work w;
+	struct drbd_device *device;
 	unsigned int enr;
 };
 
 struct update_al_work {
 	struct drbd_work w;
+	struct drbd_device *device;
 	struct completion event;
 	int err;
 };
@@ -594,7 +596,7 @@ _al_write_transaction(struct drbd_device *device)
 static int w_al_write_transaction(struct drbd_work *w, int unused)
 {
 	struct update_al_work *aw = container_of(w, struct update_al_work, w);
-	struct drbd_device *device = w->device;
+	struct drbd_device *device = aw->device;
 	int err;
 
 	err = _al_write_transaction(device);
@@ -613,8 +615,9 @@ static int al_write_transaction(struct drbd_device *device, bool delegate)
 		struct update_al_work al_work;
 		init_completion(&al_work.event);
 		al_work.w.cb = w_al_write_transaction;
-		al_work.w.device = device;
-		drbd_queue_work_front(&first_peer_device(device)->connection->sender_work, &al_work.w);
+		al_work.device = device;
+		drbd_queue_work_front(&first_peer_device(device)->connection->sender_work,
+				      &al_work.w);
 		wait_for_completion(&al_work.event);
 		return al_work.err;
 	} else
@@ -684,7 +687,7 @@ int drbd_initialize_al(struct drbd_device *device, void *buffer)
 static int w_update_odbm(struct drbd_work *w, int unused)
 {
 	struct update_odbm_work *udw = container_of(w, struct update_odbm_work, w);
-	struct drbd_device *device = w->device;
+	struct drbd_device *device = udw->device;
 	struct sib_info sib = { .sib_reason = SIB_SYNC_PROGRESS, };
 
 	if (!get_ldev(device)) {
@@ -795,8 +798,9 @@ static void drbd_try_clear_on_disk_bm(struct drbd_device *device, sector_t secto
 			if (udw) {
 				udw->enr = ext->lce.lc_number;
 				udw->w.cb = w_update_odbm;
-				udw->w.device = device;
-				drbd_queue_work_front(&first_peer_device(device)->connection->sender_work, &udw->w);
+				udw->device = device;
+				drbd_queue_work_front(&first_peer_device(device)->connection->sender_work,
+						      &udw->w);
 			} else {
 				drbd_warn(device, "Could not kmalloc an udw\n");
 			}
