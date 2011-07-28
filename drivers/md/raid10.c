@@ -1594,10 +1594,15 @@ static void fix_read_error(conf_t *conf, mddev_t *mddev, r10bio_t *r10_bio)
 
 		rcu_read_lock();
 		do {
+			sector_t first_bad;
+			int bad_sectors;
+
 			d = r10_bio->devs[sl].devnum;
 			rdev = rcu_dereference(conf->mirrors[d].rdev);
 			if (rdev &&
-			    test_bit(In_sync, &rdev->flags)) {
+			    test_bit(In_sync, &rdev->flags) &&
+			    is_badblock(rdev, r10_bio->devs[sl].addr + sect, s,
+					&first_bad, &bad_sectors) == 0) {
 				atomic_inc(&rdev->nr_pending);
 				rcu_read_unlock();
 				success = sync_page_io(rdev,
