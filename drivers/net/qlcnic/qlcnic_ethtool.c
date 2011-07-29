@@ -1105,7 +1105,10 @@ qlcnic_get_dump_flag(struct net_device *netdev, struct ethtool_dump *dump)
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
 
-	dump->len = fw_dump->tmpl_hdr->size + fw_dump->size;
+	if (fw_dump->clr)
+		dump->len = fw_dump->tmpl_hdr->size + fw_dump->size;
+	else
+		dump->len = 0;
 	dump->flag = fw_dump->tmpl_hdr->drv_cap_mask;
 	dump->version = adapter->fw_version;
 	return 0;
@@ -1152,7 +1155,8 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
 
-	if (val->flag == QLCNIC_FORCE_FW_DUMP_KEY) {
+	switch (val->flag) {
+	case QLCNIC_FORCE_FW_DUMP_KEY:
 		if (!fw_dump->enable) {
 			netdev_info(netdev, "FW dump not enabled\n");
 			return ret;
@@ -1164,17 +1168,25 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 		}
 		netdev_info(netdev, "Forcing a FW dump\n");
 		qlcnic_dev_request_reset(adapter);
-	} else if (val->flag == QLCNIC_DISABLE_FW_DUMP) {
+		break;
+	case QLCNIC_DISABLE_FW_DUMP:
 		if (fw_dump->enable) {
 			netdev_info(netdev, "Disabling FW dump\n");
 			fw_dump->enable = 0;
 		}
-	} else if (val->flag == QLCNIC_ENABLE_FW_DUMP) {
+		break;
+	case QLCNIC_ENABLE_FW_DUMP:
 		if (!fw_dump->enable && fw_dump->tmpl_hdr) {
 			netdev_info(netdev, "Enabling FW dump\n");
 			fw_dump->enable = 1;
 		}
-	} else {
+		break;
+	case QLCNIC_FORCE_FW_RESET:
+		netdev_info(netdev, "Forcing a FW reset\n");
+		qlcnic_dev_request_reset(adapter);
+		adapter->flags &= ~QLCNIC_FW_RESET_OWNER;
+		break;
+	default:
 		if (val->flag > QLCNIC_DUMP_MASK_MAX ||
 			val->flag < QLCNIC_DUMP_MASK_MIN) {
 				netdev_info(netdev,
