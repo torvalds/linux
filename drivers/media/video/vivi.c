@@ -852,6 +852,11 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 		(f->fmt.pix.width * dev->fmt->depth) >> 3;
 	f->fmt.pix.sizeimage =
 		f->fmt.pix.height * f->fmt.pix.bytesperline;
+	if (dev->fmt->fourcc == V4L2_PIX_FMT_YUYV ||
+	    dev->fmt->fourcc == V4L2_PIX_FMT_UYVY)
+		f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
+	else
+		f->fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
 	return 0;
 }
 
@@ -885,6 +890,11 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		(f->fmt.pix.width * fmt->depth) >> 3;
 	f->fmt.pix.sizeimage =
 		f->fmt.pix.height * f->fmt.pix.bytesperline;
+	if (fmt->fourcc == V4L2_PIX_FMT_YUYV ||
+	    fmt->fourcc == V4L2_PIX_FMT_UYVY)
+		f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
+	else
+		f->fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
 	return 0;
 }
 
