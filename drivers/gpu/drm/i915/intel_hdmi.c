@@ -112,6 +112,40 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder)
 		   VIDEO_DIP_ENABLE_AVI);
 }
 
+static void intel_ironlake_hdmi_set_avi_infoframe(struct drm_encoder *encoder)
+{
+	struct dip_infoframe avi_if = {
+		.type = DIP_TYPE_AVI,
+		.ver = DIP_VERSION_AVI,
+		.len = DIP_LEN_AVI,
+	};
+	uint32_t *data = (uint32_t *)&avi_if;
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	struct drm_crtc *crtc = encoder->crtc;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int reg = TVIDEO_DIP_CTL(intel_crtc->pipe);
+	unsigned i;
+
+	if (!intel_hdmi->has_hdmi_sink)
+		return;
+
+	intel_wait_for_vblank(dev, intel_crtc->pipe);
+
+	I915_WRITE(reg, VIDEO_DIP_SELECT_AVI);
+
+	intel_dip_infoframe_csum(&avi_if);
+	for (i = 0; i < sizeof(avi_if); i += 4) {
+		I915_WRITE(TVIDEO_DIP_DATA(intel_crtc->pipe), *data);
+		data++;
+	}
+
+	I915_WRITE(reg, VIDEO_DIP_ENABLE | VIDEO_DIP_SELECT_AVI |
+		   VIDEO_DIP_FREQ_VSYNC | (DIP_LEN_AVI << 8) |
+		   VIDEO_DIP_ENABLE_AVI);
+}
+
 static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
@@ -155,7 +189,10 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	I915_WRITE(intel_hdmi->sdvox_reg, sdvox);
 	POSTING_READ(intel_hdmi->sdvox_reg);
 
-	intel_hdmi_set_avi_infoframe(encoder);
+	if (HAS_PCH_SPLIT(dev))
+		intel_ironlake_hdmi_set_avi_infoframe(encoder);
+	else
+		intel_hdmi_set_avi_infoframe(encoder);
 }
 
 static void intel_hdmi_dpms(struct drm_encoder *encoder, int mode)

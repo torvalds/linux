@@ -3021,6 +3021,20 @@
 #define _TRANSA_DP_LINK_M2       0xe0048
 #define _TRANSA_DP_LINK_N2       0xe004c
 
+/* Per-transcoder DIP controls */
+
+#define _VIDEO_DIP_CTL_A         0xe0200
+#define _VIDEO_DIP_DATA_A        0xe0208
+#define _VIDEO_DIP_GCP_A         0xe0210
+
+#define _VIDEO_DIP_CTL_B         0xe1200
+#define _VIDEO_DIP_DATA_B        0xe1208
+#define _VIDEO_DIP_GCP_B         0xe1210
+
+#define TVIDEO_DIP_CTL(pipe) _PIPE(pipe, _VIDEO_DIP_CTL_A, _VIDEO_DIP_CTL_B)
+#define TVIDEO_DIP_DATA(pipe) _PIPE(pipe, _VIDEO_DIP_DATA_A, _VIDEO_DIP_DATA_B)
+#define TVIDEO_DIP_GCP(pipe) _PIPE(pipe, _VIDEO_DIP_GCP_A, _VIDEO_DIP_GCP_B)
+
 #define _TRANS_HTOTAL_B          0xe1000
 #define _TRANS_HBLANK_B          0xe1004
 #define _TRANS_HSYNC_B           0xe1008
@@ -3078,6 +3092,11 @@
 #define TRANS_CHICKEN2(pipe) _PIPE(pipe, _TRANSA_CHICKEN2, _TRANSB_CHICKEN2)
 #define   TRANS_AUTOTRAIN_GEN_STALL_DIS	(1<<31)
 
+#define SOUTH_CHICKEN1		0xc2000
+#define  FDIA_PHASE_SYNC_SHIFT_OVR	19
+#define  FDIA_PHASE_SYNC_SHIFT_EN	18
+#define FDI_PHASE_SYNC_OVR(pipe) (1<<(FDIA_PHASE_SYNC_SHIFT_OVR - ((pipe) * 2)))
+#define FDI_PHASE_SYNC_EN(pipe) (1<<(FDIA_PHASE_SYNC_SHIFT_EN - ((pipe) * 2)))
 #define SOUTH_CHICKEN2		0xc2004
 #define  DPLS_EDP_PPS_FIX_DIS	(1<<0)
 
