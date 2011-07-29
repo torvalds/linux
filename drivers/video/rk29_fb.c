@@ -1019,7 +1019,7 @@ static int win0_set_par(struct fb_info *info)
 
 	CHK_SUSPEND(inf);
 
-    if(((var->rotate == 270)||(var->rotate == 90)) && (inf->video_mode))
+    if(((var->rotate == 270)||(var->rotate == 90) || (var->rotate == 180)) && (inf->video_mode))
     {
       #ifdef CONFIG_FB_ROTATE_VIDEO  
     //    if(xact > screen->x_res)
@@ -2154,8 +2154,8 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
                 ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
              //   if(var->xres > screen->x_res)
              //   {
-                    ipp_req.dst0.w = var->xres;
-                    ipp_req.dst0.h = var->yres;
+                    ipp_req.dst0.w = screen->x_res;
+                    ipp_req.dst0.h = screen->y_res;
               //  }   else  {
               //      ipp_req.dst0.w = var->yres;
              //       ipp_req.dst0.h = var->xres;
