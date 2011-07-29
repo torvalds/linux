@@ -41,6 +41,7 @@
 #include <mach/rk29-ipp.h>
 #include <linux/time.h>
 #include <asm/cacheflush.h>
+#include <linux/slab.h>
 
 //#define IPP_TEST
 #ifdef IPP_TEST
@@ -1509,7 +1510,7 @@ static struct miscdevice ipp_dev ={
     .fops  = &ipp_fops,
 };
 
-static int __init ipp_drv_probe(struct platform_device *pdev)
+static int __devinit ipp_drv_probe(struct platform_device *pdev)
 {
 	struct ipp_drvdata *data;
 	int ret = 0;
@@ -1665,7 +1666,7 @@ err_clock:
 	return ret;
 }
 
-static int ipp_drv_remove(struct platform_device *pdev)
+static int __devexit ipp_drv_remove(struct platform_device *pdev)
 {
 	struct ipp_drvdata *data = platform_get_drvdata(pdev);
     DBG("%s [%d]\n",__FUNCTION__,__LINE__);
@@ -1716,7 +1717,7 @@ static int ipp_drv_remove(struct platform_device *pdev)
 
 static struct platform_driver rk29_ipp_driver = {
 	.probe		= ipp_drv_probe,
-	.remove		= ipp_drv_remove,
+	.remove		= __devexit_p(ipp_drv_remove),
 	.suspend    = ipp_suspend,
 	.resume     = ipp_resume,
 	.driver		= {
