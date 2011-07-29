@@ -42,45 +42,11 @@ extern void change_bit(unsigned long nr, volatile unsigned long *addr);
  * of bits set) of a N-bit word
  */
 
-#ifdef ULTRA_HAS_POPULATION_COUNT
+extern unsigned long __arch_hweight64(__u64 w);
+extern unsigned int __arch_hweight32(unsigned int w);
+extern unsigned int __arch_hweight16(unsigned int w);
+extern unsigned int __arch_hweight8(unsigned int w);
 
-static inline unsigned int __arch_hweight64(unsigned long w)
-{
-	unsigned int res;
-
-	__asm__ ("popc %1,%0" : "=r" (res) : "r" (w));
-	return res;
-}
-
-static inline unsigned int __arch_hweight32(unsigned int w)
-{
-	unsigned int res;
-
-	__asm__ ("popc %1,%0" : "=r" (res) : "r" (w & 0xffffffff));
-	return res;
-}
-
-static inline unsigned int __arch_hweight16(unsigned int w)
-{
-	unsigned int res;
-
-	__asm__ ("popc %1,%0" : "=r" (res) : "r" (w & 0xffff));
-	return res;
-}
-
-static inline unsigned int __arch_hweight8(unsigned int w)
-{
-	unsigned int res;
-
-	__asm__ ("popc %1,%0" : "=r" (res) : "r" (w & 0xff));
-	return res;
-}
-
-#else
-
-#include <asm-generic/bitops/arch_hweight.h>
-
-#endif
 #include <asm-generic/bitops/const_hweight.h>
 #include <asm-generic/bitops/lock.h>
 #endif /* __KERNEL__ */

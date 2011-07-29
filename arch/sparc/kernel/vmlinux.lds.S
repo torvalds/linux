@@ -107,7 +107,11 @@ SECTIONS
 		*(.sun4v_2insn_patch)
 		__sun4v_2insn_patch_end = .;
 	}
-
+	.popc_3insn_patch : {
+		__popc_3insn_patch = .;
+		*(.popc_3insn_patch)
+		__popc_3insn_patch_end = .;
+	}
 	PERCPU_SECTION(SMP_CACHE_BYTES)
 
 	. = ALIGN(PAGE_SIZE);
