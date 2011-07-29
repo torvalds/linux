@@ -225,8 +225,9 @@ s32 ixgbe_clear_hw_cntrs_generic(struct ixgbe_hw *hw)
 	IXGBE_READ_REG(hw, IXGBE_GORCH);
 	IXGBE_READ_REG(hw, IXGBE_GOTCL);
 	IXGBE_READ_REG(hw, IXGBE_GOTCH);
-	for (i = 0; i < 8; i++)
-		IXGBE_READ_REG(hw, IXGBE_RNBC(i));
+	if (hw->mac.type == ixgbe_mac_82598EB)
+		for (i = 0; i < 8; i++)
+			IXGBE_READ_REG(hw, IXGBE_RNBC(i));
 	IXGBE_READ_REG(hw, IXGBE_RUC);
 	IXGBE_READ_REG(hw, IXGBE_RFC);
 	IXGBE_READ_REG(hw, IXGBE_ROC);
