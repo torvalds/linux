@@ -49,7 +49,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 #define AZ6007_I2C_WR		0xbd
 #define FX2_SCON1		0xc0
 #define AZ6007_TS_THROUGH	0xc7
-#define AZ6007_READ_IR		0xc5
+#define AZ6007_READ_IR		0xb4
 
 struct az6007_device_state {
 	struct			dvb_ca_en50221 ca;
@@ -172,30 +172,45 @@ static struct rc_map_table rc_map_az6007_table[] = {
 /* remote control stuff (does not work with my box) */
 static int az6007_rc_query(struct dvb_usb_device *d, u32 * event, int *state)
 {
-	return 0;
-#if 0
+	struct rc_map_table *keymap = d->props.rc.legacy.rc_map_table;
 	u8 key[10];
 	int i;
 
-	/* remove the following return to enabled remote querying */
+	/*
+	 * FIXME: remove the following return to enabled remote querying
+	 * The driver likely needs proper locking to avoid troubles between
+	 * this call and other concurrent calls.
+	 */
+	return 0;
 
 	az6007_read(d->udev, AZ6007_READ_IR, 0, 0, key, 10);
-
-	deb_rc("remote query key: %x %d\n", key[1], key[1]);
 
 	if (key[1] == 0x44) {
 		*state = REMOTE_NO_KEY_PRESSED;
 		return 0;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(az6007_rc_keys); i++)
-		if (az6007_rc_keys[i].custom == key[1]) {
+	/*
+	 * FIXME: need to make something useful with the keycodes and to
+	 * convert it to the non-legacy mode. Yet, it is producing some
+	 * debug info already, like:
+	 * 88 04 eb 02 fd ff 00 82 63 82 (terratec IR)
+	 * 88 04 eb 03 fc 00 00 82 63 82 (terratec IR)
+	 * 88 80 7e 0d f2 ff 00 82 63 82 (another NEC-extended based IR)
+	 * I suspect that the IR data is at bytes 1 to 4, and byte 5 is parity
+	 */
+	deb_rc("remote query key: %x %d\n", key[1], key[1]);
+	print_hex_dump_bytes("Remote: ", DUMP_PREFIX_NONE, key, 10);
+
+	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++) {
+		if (rc5_custom(&keymap[i]) == key[1]) {
+			*event = keymap[i].keycode;
 			*state = REMOTE_KEY_PRESSED;
-			*event = az6007_rc_keys[i].event;
-			break;
+
+			return 0;
 		}
+	}
 	return 0;
-#endif
 }
 
 #if 0
