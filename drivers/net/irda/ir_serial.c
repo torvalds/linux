@@ -21,35 +21,34 @@
 #include <mach/board.h>
 #include <linux/irq.h>
 #include <mach/gpio.h>
+#include <asm/uaccess.h>
+#include <asm/atomic.h>
 
 #include "bu92725guw.h"
+#include "ir_serial.h"
 
 struct bu92747_port {
 	struct device		*dev;
 	struct irda_info *pdata;
 	struct uart_port port;
-	
-	int cts;	        /* last CTS received for flow ctrl */
+
+	/*for FIR fream read*/
+	unsigned long last_frame_length;
+	unsigned long cur_frame_length; 
+	wait_queue_head_t data_ready_wq;
+	atomic_t data_ready;
+
 	int tx_empty;		/* last TX empty bit */
 
 	spinlock_t conf_lock;	/* shared data */
-	int conf_commit;	/* need to make changes */
-	int conf;		/* configuration for the MAX31000
-				 * (bits 0-7, bits 8-11 are irqs) */
-	int rts_commit;	        /* need to change rts */
-	int rts;		/* rts status */
 	int baud;		/* current baud rate */
 
-	int parity;		/* keeps track if we should send parity */
 	int rx_enabled;	        /* if we should rx chars */
 
 	int irq;		/* irq assigned to the bu92747 */
 
 	int minor;		/* minor number */
-	int crystal;		/* 1 if 3.6864Mhz crystal 0 for 1.8432 */
-	int loopback;		/* 1 if we are in loopback mode */
 
-	/* for handling irqs: need workqueue since we do spi_sync */
 	struct workqueue_struct *workqueue;
 	struct work_struct work;
 	/* set to 1 to make the workhandler exit as soon as possible */
@@ -57,10 +56,6 @@ struct bu92747_port {
 	/* need to know we are suspending to avoid deadlock on workqueue */
 	int suspending;
 
-	/* poll time (in ms) for ctrl lines */
-	int poll_time;
-	/* and its timer */
-	struct timer_list	timer;
 };
 
 #define MAX_BU92747 1
@@ -128,12 +123,14 @@ static int bu92747_irda_do_tx(struct bu92747_port *s)
 	}
 	BU92747_IRDA_DBG("\n");
 	
+	if (len>0) {		
+		s->tx_empty = 0;
+	}
+	
 	BU92725GUW_send_data(xmit->buf+xmit->tail, len, NULL, 0);
 	s->port.icount.tx += len;
 	xmit->tail = (xmit->tail + len) & (UART_XMIT_SIZE - 1);
 
-	if (len>0)		
-		s->tx_empty = 0;
 	
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&s->port);
@@ -151,7 +148,6 @@ static void bu92747_irda_dowork(struct bu92747_port *s)
 static void bu92747_irda_work(struct work_struct *w)
 {
 	struct bu92747_port *s = container_of(w, struct bu92747_port, work);
-	u32 irq_src = 0;	
 	struct circ_buf *xmit = &s->port.state->xmit;
 
 	dev_dbg(s->dev, "%s\n", __func__);
@@ -172,7 +168,8 @@ static void bu92747_irda_work(struct work_struct *w)
 static irqreturn_t bu92747_irda_irq(int irqno, void *dev_id)
 {
 	struct bu92747_port *s = dev_id;
-	u32 irq_src = 0;	
+	u32 irq_src = 0;
+	unsigned long len;
 
 	dev_dbg(s->dev, "%s\n", __func__);
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
@@ -183,19 +180,30 @@ static irqreturn_t bu92747_irda_irq(int irqno, void *dev_id)
 		| REG_INT_AC | REG_INT_DECE | REG_INT_RDOE | REG_INT_DEX)) {
 		BU92747_IRDA_DBG("[%s][%d]: do err\n", __FUNCTION__, __LINE__);
 		//BU92725GUW_dump_register();
-		//BU92725GUW_clr_fifo();
+		BU92725GUW_clr_fifo();
 		BU92725GUW_reset();
+		if ((BU92725GUW_SEND==irda_hw_get_mode())
+			|| (BU92725GUW_MULTI_SEND==irda_hw_get_mode())) {
+			s->tx_empty = 1;
+		}
 	}
 	
 	if (irq_src & (REG_INT_DRX | FRM_EVT_RX_EOFRX | FRM_EVT_RX_RDE)) {
-		bu92747_irda_do_rx(s);
+		len = bu92747_irda_do_rx(s);
 		if (!IS_FIR(s))
 			tty_flip_buffer_push(s->port.state->port.tty);
-
+		else
+			s->cur_frame_length += len;
 	}
 	
 	if ((irq_src & REG_INT_EOF) && (s->port.state->port.tty != NULL)) {
 		tty_flip_buffer_push(s->port.state->port.tty);
+		if (IS_FIR(s)) {
+			s->last_frame_length = s->cur_frame_length;
+			s->cur_frame_length = 0;
+			atomic_set(&(s->data_ready), 1);
+			wake_up(&(s->data_ready_wq) );
+		}
 	}
 	
 	if (irq_src & (FRM_EVT_TX_TXE | FRM_EVT_TX_WRE)) {
@@ -225,6 +233,10 @@ static void bu92747_irda_start_tx(struct uart_port *port)
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
 
 	dev_dbg(s->dev, "%s\n", __func__);
+
+	//wait for start cmd
+	if (IS_FIR(s))
+		return	;
 
 	if (s->tx_empty)
 		bu92747_irda_do_tx(s);
@@ -256,7 +268,7 @@ static unsigned int bu92747_irda_tx_empty(struct uart_port *port)
 	dev_dbg(s->dev, "%s\n", __func__);
 
 	/* may not be truly up-to-date */
-	bu92747_irda_dowork(s);
+	//bu92747_irda_dowork(s);
 	return s->tx_empty;
 }
 
@@ -331,6 +343,11 @@ static void bu92747_irda_shutdown(struct uart_port *port)
 		destroy_workqueue(s->workqueue);
 		s->workqueue = NULL;
 	}
+	
+	atomic_set(&(s->data_ready), 0);
+	s->last_frame_length = 0;
+	s->cur_frame_length = 0;
+		
 	if (s->irq)
 		free_irq(s->irq, s);
 	
@@ -352,6 +369,8 @@ static int bu92747_irda_startup(struct uart_port *port)
 
 	s->baud = 9600;
 	s->rx_enabled = 1;
+	s->last_frame_length = 0;
+	s->cur_frame_length = 0;
 
 	if (s->suspending)
 		return 0;
@@ -366,6 +385,8 @@ static int bu92747_irda_startup(struct uart_port *port)
 		return -EBUSY;
 	}
 	INIT_WORK(&s->work, bu92747_irda_work);
+
+	atomic_set(&(s->data_ready), 0);
 
 	if (request_irq(s->irq, bu92747_irda_irq,
 			IRQ_TYPE_LEVEL_LOW, "bu92747_irda", s) < 0) {
@@ -426,7 +447,6 @@ static void bu92747_irda_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	struct bu92747_port *s = container_of(port,
 						  struct bu92747_port,
 						  port);
-	int rts;
 
 	dev_dbg(s->dev, "%s\n", __func__);
 	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
@@ -472,6 +492,57 @@ bu92747_irda_set_termios(struct uart_port *port, struct ktermios *termios,
 
 }
 
+static int bu92747_get_frame_length(struct bu92747_port *s)
+{
+	unsigned long len;
+	wait_event_interruptible_timeout(s->data_ready_wq, 
+									 atomic_read(&(s->data_ready) ),
+									 msecs_to_jiffies(1000) );
+	if ( 0 == atomic_read(&(s->data_ready)) ) {
+		printk("waiting 'data_ready_wq' timed out.");
+		return -1;
+	}
+
+	len = s->last_frame_length;
+	s->last_frame_length = 0;
+	
+	atomic_set(&(s->data_ready), 0);
+	
+	return len;
+}
+
+static int bu92747_irda_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg)
+{
+	struct bu92747_port *s = container_of(port,
+						  struct bu92747_port,
+						  port);
+	void __user *argp = (void __user *)arg;
+	unsigned long len = 0;
+	int ret = 0;
+	BU92747_IRDA_DBG("line %d, enter %s \n", __LINE__, __FUNCTION__);
+
+	switch (cmd) {
+	case TTYIR_GETLENGTH:
+		len = bu92747_get_frame_length(s);
+		if (len > 0) {
+			if (copy_to_user(argp, &len, sizeof(len)))
+				ret = -EFAULT;
+		}
+		else
+			ret = -EFAULT;
+		break;
+		
+	case TTYIR_STARTSEND:		
+		bu92747_irda_dowork(s);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+	
+	return ret;
+}
+
 static struct uart_ops bu92747_irda_ops = {
 	.tx_empty	= bu92747_irda_tx_empty,
 	.set_mctrl	= bu92747_irda_set_mctrl,
@@ -489,6 +560,7 @@ static struct uart_ops bu92747_irda_ops = {
 	.request_port   = bu92747_irda_request_port,
 	.config_port	= bu92747_irda_config_port,
 	.verify_port	= bu92747_irda_verify_port,
+	.ioctl			= bu92747_irda_ioctl,
 };
 
 static struct uart_driver bu92747_irda_uart_driver = {
@@ -565,6 +637,8 @@ static int __devinit bu92747_irda_probe(struct platform_device *pdev)
 	/* set shutdown mode to save power. Will be woken-up on open */
 	if (bu92747s[i]->pdata->irda_pwr_ctl)
 		bu92747s[i]->pdata->irda_pwr_ctl(0);
+	
+	init_waitqueue_head(&(bu92747s[i]->data_ready_wq));
 
 	mutex_unlock(&bu92747s_lock);
 	
