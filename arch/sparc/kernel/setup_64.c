@@ -272,6 +272,30 @@ void __init sun4v_patch(void)
 	sun4v_hvapi_init();
 }
 
+static void __init popc_patch(void)
+{
+	struct popc_3insn_patch_entry *p3;
+
+	p3 = &__popc_3insn_patch;
+	while (p3 < &__popc_3insn_patch_end) {
+		unsigned long addr = p3->addr;
+
+		*(unsigned int *) (addr +  0) = p3->insns[0];
+		wmb();
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
+
+		*(unsigned int *) (addr +  4) = p3->insns[1];
+		wmb();
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  4));
+
+		*(unsigned int *) (addr +  8) = p3->insns[2];
+		wmb();
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  4));
+
+		p3++;
+	}
+}
+
 #ifdef CONFIG_SMP
 void __init boot_cpu_id_too_large(int cpu)
 {
@@ -424,6 +448,9 @@ static void __init init_sparc64_elf_hwcap(void)
 	sparc64_elf_hwcap = cap | mdesc_caps;
 
 	report_hwcaps(sparc64_elf_hwcap);
+
+	if (sparc64_elf_hwcap & AV_SPARC_POPC)
+		popc_patch();
 }
 
 void __init setup_arch(char **cmdline_p)
