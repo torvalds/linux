@@ -467,34 +467,8 @@ static int disable_higher_order_debug;
  */
 static void print_section(char *text, u8 *addr, unsigned int length)
 {
-	int i, offset;
-	int newline = 1;
-	char ascii[17];
-
-	ascii[16] = 0;
-
-	for (i = 0; i < length; i++) {
-		if (newline) {
-			printk(KERN_ERR "%8s 0x%p: ", text, addr + i);
-			newline = 0;
-		}
-		printk(KERN_CONT " %02x", addr[i]);
-		offset = i % 16;
-		ascii[offset] = isgraph(addr[i]) ? addr[i] : '.';
-		if (offset == 15) {
-			printk(KERN_CONT " %s\n", ascii);
-			newline = 1;
-		}
-	}
-	if (!newline) {
-		i %= 16;
-		while (i < 16) {
-			printk(KERN_CONT "   ");
-			ascii[i] = ' ';
-			i++;
-		}
-		printk(KERN_CONT " %s\n", ascii);
-	}
+	print_hex_dump(KERN_ERR, text, DUMP_PREFIX_ADDRESS, 16, 1, addr,
+			length, 1);
 }
 
 static struct track *get_track(struct kmem_cache *s, void *object,
@@ -625,12 +599,12 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
 			p, p - addr, get_freepointer(s, p));
 
 	if (p > addr + 16)
-		print_section("Bytes b4", p - 16, 16);
+		print_section("Bytes b4 ", p - 16, 16);
 
-	print_section("Object", p, min_t(unsigned long, s->objsize, PAGE_SIZE));
-
+	print_section("Object ", p, min_t(unsigned long, s->objsize,
+				PAGE_SIZE));
 	if (s->flags & SLAB_RED_ZONE)
-		print_section("Redzone", p + s->objsize,
+		print_section("Redzone ", p + s->objsize,
 			s->inuse - s->objsize);
 
 	if (s->offset)
@@ -643,7 +617,7 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
 
 	if (off != s->size)
 		/* Beginning of the filler is the free pointer */
-		print_section("Padding", p + off, s->size - off);
+		print_section("Padding ", p + off, s->size - off);
 
 	dump_stack();
 }
@@ -838,7 +812,7 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
 		end--;
 
 	slab_err(s, page, "Padding overwritten. 0x%p-0x%p", fault, end - 1);
-	print_section("Padding", end - remainder, remainder);
+	print_section("Padding ", end - remainder, remainder);
 
 	restore_bytes(s, "slab padding", POISON_INUSE, end - remainder, end);
 	return 0;
@@ -987,7 +961,7 @@ static void trace(struct kmem_cache *s, struct page *page, void *object,
 			page->freelist);
 
 		if (!alloc)
-			print_section("Object", (void *)object, s->objsize);
+			print_section("Object ", (void *)object, s->objsize);
 
 		dump_stack();
 	}
