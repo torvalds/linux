@@ -81,7 +81,7 @@ static struct ipu_irq_map irq_map[CONFIG_MX3_IPU_IRQS];
 /* Protects allocations from the above array of maps */
 static DEFINE_MUTEX(map_lock);
 /* Protects register accesses and individual mappings */
-static DEFINE_SPINLOCK(bank_lock);
+static DEFINE_RAW_SPINLOCK(bank_lock);
 
 static struct ipu_irq_map *src2map(unsigned int src)
 {
@@ -101,11 +101,11 @@ static void ipu_irq_unmask(struct irq_data *d)
 	uint32_t reg;
 	unsigned long lock_flags;
 
-	spin_lock_irqsave(&bank_lock, lock_flags);
+	raw_spin_lock_irqsave(&bank_lock, lock_flags);
 
 	bank = map->bank;
 	if (!bank) {
-		spin_unlock_irqrestore(&bank_lock, lock_flags);
+		raw_spin_unlock_irqrestore(&bank_lock, lock_flags);
 		pr_err("IPU: %s(%u) - unmapped!\n", __func__, d->irq);
 		return;
 	}
@@ -114,7 +114,7 @@ static void ipu_irq_unmask(struct irq_data *d)
 	reg |= (1UL << (map->source & 31));
 	ipu_write_reg(bank->ipu, reg, bank->control);
 
-	spin_unlock_irqrestore(&bank_lock, lock_flags);
+	raw_spin_unlock_irqrestore(&bank_lock, lock_flags);
 }
 
 static void ipu_irq_mask(struct irq_data *d)
@@ -124,11 +124,11 @@ static void ipu_irq_mask(struct irq_data *d)
 	uint32_t reg;
 	unsigned long lock_flags;
 
-	spin_lock_irqsave(&bank_lock, lock_flags);
+	raw_spin_lock_irqsave(&bank_lock, lock_flags);
 
 	bank = map->bank;
 	if (!bank) {
-		spin_unlock_irqrestore(&bank_lock, lock_flags);
+		raw_spin_unlock_irqrestore(&bank_lock, lock_flags);
 		pr_err("IPU: %s(%u) - unmapped!\n", __func__, d->irq);
 		return;
 	}
@@ -137,7 +137,7 @@ static void ipu_irq_mask(struct irq_data *d)
 	reg &= ~(1UL << (map->source & 31));
 	ipu_write_reg(bank->ipu, reg, bank->control);
 
-	spin_unlock_irqrestore(&bank_lock, lock_flags);
+	raw_spin_unlock_irqrestore(&bank_lock, lock_flags);
 }
 
 static void ipu_irq_ack(struct irq_data *d)
@@ -146,17 +146,17 @@ static void ipu_irq_ack(struct irq_data *d)
 	struct ipu_irq_bank *bank;
 	unsigned long lock_flags;
 
-	spin_lock_irqsave(&bank_lock, lock_flags);
+	raw_spin_lock_irqsave(&bank_lock, lock_flags);
 
 	bank = map->bank;
 	if (!bank) {
-		spin_unlock_irqrestore(&bank_lock, lock_flags);
+		raw_spin_unlock_irqrestore(&bank_lock, lock_flags);
 		pr_err("IPU: %s(%u) - unmapped!\n", __func__, d->irq);
 		return;
 	}
 
 	ipu_write_reg(bank->ipu, 1UL << (map->source & 31), bank->status);
-	spin_unlock_irqrestore(&bank_lock, lock_flags);
+	raw_spin_unlock_irqrestore(&bank_lock, lock_flags);
 }
 
 /**
@@ -172,11 +172,11 @@ bool ipu_irq_status(unsigned int irq)
 	unsigned long lock_flags;
 	bool ret;
 
-	spin_lock_irqsave(&bank_lock, lock_flags);
+	raw_spin_lock_irqsave(&bank_lock, lock_flags);
 	bank = map->bank;
 	ret = bank && ipu_read_reg(bank->ipu, bank->status) &
 		(1UL << (map->source & 31));
-	spin_unlock_irqrestore(&bank_lock, lock_flags);
+	raw_spin_unlock_irqrestore(&bank_lock, lock_flags);
 
 	return ret;
 }
@@ -213,10 +213,10 @@ int ipu_irq_map(unsigned int source)
 		if (irq_map[i].source < 0) {
 			unsigned long lock_flags;
 
-			spin_lock_irqsave(&bank_lock, lock_flags);
+			raw_spin_lock_irqsave(&bank_lock, lock_flags);
 			irq_map[i].source = source;
 			irq_map[i].bank = irq_bank + source / 32;
-			spin_unlock_irqrestore(&bank_lock, lock_flags);
+			raw_spin_unlock_irqrestore(&bank_lock, lock_flags);
 
 			ret = irq_map[i].irq;
 			pr_debug("IPU: mapped source %u to IRQ %u\n",
@@ -252,10 +252,10 @@ int ipu_irq_unmap(unsigned int source)
 			pr_debug("IPU: unmapped source %u from IRQ %u\n",
 				 source, irq_map[i].irq);
 
-			spin_lock_irqsave(&bank_lock, lock_flags);
+			raw_spin_lock_irqsave(&bank_lock, lock_flags);
 			irq_map[i].source = -EINVAL;
 			irq_map[i].bank = NULL;
-			spin_unlock_irqrestore(&bank_lock, lock_flags);
+			raw_spin_unlock_irqrestore(&bank_lock, lock_flags);
 
 			ret = 0;
 			break;
@@ -276,7 +276,7 @@ static void ipu_irq_err(unsigned int irq, struct irq_desc *desc)
 	for (i = IPU_IRQ_NR_FN_BANKS; i < IPU_IRQ_NR_BANKS; i++) {
 		struct ipu_irq_bank *bank = irq_bank + i;
 
-		spin_lock(&bank_lock);
+		raw_spin_lock(&bank_lock);
 		status = ipu_read_reg(ipu, bank->status);
 		/*
 		 * Don't think we have to clear all interrupts here, they will
@@ -284,18 +284,18 @@ static void ipu_irq_err(unsigned int irq, struct irq_desc *desc)
 		 * might want to clear unhandled interrupts after the loop...
 		 */
 		status &= ipu_read_reg(ipu, bank->control);
-		spin_unlock(&bank_lock);
+		raw_spin_unlock(&bank_lock);
 		while ((line = ffs(status))) {
 			struct ipu_irq_map *map;
 
 			line--;
 			status &= ~(1UL << line);
 
-			spin_lock(&bank_lock);
+			raw_spin_lock(&bank_lock);
 			map = src2map(32 * i + line);
 			if (map)
 				irq = map->irq;
-			spin_unlock(&bank_lock);
+			raw_spin_unlock(&bank_lock);
 
 			if (!map) {
 				pr_err("IPU: Interrupt on unmapped source %u bank %d\n",
@@ -317,22 +317,22 @@ static void ipu_irq_fn(unsigned int irq, struct irq_desc *desc)
 	for (i = 0; i < IPU_IRQ_NR_FN_BANKS; i++) {
 		struct ipu_irq_bank *bank = irq_bank + i;
 
-		spin_lock(&bank_lock);
+		raw_spin_lock(&bank_lock);
 		status = ipu_read_reg(ipu, bank->status);
 		/* Not clearing all interrupts, see above */
 		status &= ipu_read_reg(ipu, bank->control);
-		spin_unlock(&bank_lock);
+		raw_spin_unlock(&bank_lock);
 		while ((line = ffs(status))) {
 			struct ipu_irq_map *map;
 
 			line--;
 			status &= ~(1UL << line);
 
-			spin_lock(&bank_lock);
+			raw_spin_lock(&bank_lock);
 			map = src2map(32 * i + line);
 			if (map)
 				irq = map->irq;
-			spin_unlock(&bank_lock);
+			raw_spin_unlock(&bank_lock);
 
 			if (!map) {
 				pr_err("IPU: Interrupt on unmapped source %u bank %d\n",
