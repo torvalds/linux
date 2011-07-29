@@ -324,10 +324,14 @@ static int ixgbe_set_settings(struct net_device *netdev,
 
 	if ((hw->phy.media_type == ixgbe_media_type_copper) ||
 	    (hw->phy.multispeed_fiber)) {
-		/* 10000/copper and 1000/copper must autoneg
-		 * this function does not support any duplex forcing, but can
-		 * limit the advertising of the adapter to only 10000 or 1000 */
+		/*
+		 * this function does not support duplex forcing, but can
+		 * limit the advertising of the adapter to the specified speed
+		 */
 		if (ecmd->autoneg == AUTONEG_DISABLE)
+			return -EINVAL;
+
+		if (ecmd->advertising & ~ecmd->supported)
 			return -EINVAL;
 
 		old = hw->phy.autoneg_advertised;
