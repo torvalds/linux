@@ -110,16 +110,15 @@ static struct mt2063_config az6007_mt2063_config = {
 static int az6007_read(struct usb_device *udev, u8 req, u16 value,
 			    u16 index, u8 *b, int blen)
 {
-	int ret = -1;
+	int ret;
 
 	ret = usb_control_msg(udev,
 			      usb_rcvctrlpipe(udev, 0),
 			      req,
 			      USB_TYPE_VENDOR | USB_DIR_IN,
 			      value, index, b, blen, 5000);
-
 	if (ret < 0) {
-		warn("usb in operation failed. (%d)", ret);
+		warn("usb read operation failed. (%d)", ret);
 		return -EIO;
 	}
 
@@ -151,7 +150,7 @@ static int az6007_write(struct usb_device *udev, u8 req, u16 value,
 			      USB_TYPE_VENDOR | USB_DIR_OUT,
 			      value, index, b, blen, 5000);
 	if (ret != blen) {
-		err("usb out operation failed. (%d)", ret);
+		err("usb write operation failed. (%d)", ret);
 		return -EIO;
 	}
 
