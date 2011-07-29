@@ -270,7 +270,7 @@ config AVERAGE
 	  If unsure, say N.
 
 config CORDIC
-	tristate "CORDIC function"
+	tristate "CORDIC algorithm"
 	help
 	  The option provides arithmetic function using CORDIC algorithm
 	  so its calculations are in fixed point. Modules can select this
