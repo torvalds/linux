@@ -24,6 +24,8 @@
 #include <linux/device.h>
 #include <linux/uio.h>
 #include <linux/dma-direction.h>
+#include <linux/bitmap.h>
+#include <asm/page.h>
 
 struct scatterlist;
 
