@@ -531,17 +531,18 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 
 	/* TODO: byte swap on big endian for ar9300_10 */
 
-	if ((rxsp->status11 & AR_RxDone) == 0)
-		return -EINPROGRESS;
+	if (!rxs) {
+		if ((rxsp->status11 & AR_RxDone) == 0)
+			return -EINPROGRESS;
 
-	if (MS(rxsp->ds_info, AR_DescId) != 0x168c)
-		return -EINVAL;
+		if (MS(rxsp->ds_info, AR_DescId) != 0x168c)
+			return -EINVAL;
 
-	if ((rxsp->ds_info & (AR_TxRxDesc | AR_CtrlStat)) != 0)
-		return -EINPROGRESS;
+		if ((rxsp->ds_info & (AR_TxRxDesc | AR_CtrlStat)) != 0)
+			return -EINPROGRESS;
 
-	if (!rxs)
 		return 0;
+	}
 
 	rxs->rs_status = 0;
 	rxs->rs_flags =  0;
