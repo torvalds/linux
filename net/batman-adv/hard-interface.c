@@ -131,7 +131,7 @@ static void primary_if_select(struct bat_priv *bat_priv,
 			      struct hard_iface *new_hard_iface)
 {
 	struct hard_iface *curr_hard_iface;
-	struct batman_packet *batman_packet;
+	struct batman_ogm_packet *batman_ogm_packet;
 
 	ASSERT_RTNL();
 
@@ -147,9 +147,10 @@ static void primary_if_select(struct bat_priv *bat_priv,
 	if (!new_hard_iface)
 		return;
 
-	batman_packet = (struct batman_packet *)(new_hard_iface->packet_buff);
-	batman_packet->flags = PRIMARIES_FIRST_HOP;
-	batman_packet->ttl = TTL;
+	batman_ogm_packet = (struct batman_ogm_packet *)
+						(new_hard_iface->packet_buff);
+	batman_ogm_packet->flags = PRIMARIES_FIRST_HOP;
+	batman_ogm_packet->ttl = TTL;
 
 	primary_if_update_addr(bat_priv);
 }
@@ -164,9 +165,12 @@ static bool hardif_is_iface_up(const struct hard_iface *hard_iface)
 
 static void update_mac_addresses(struct hard_iface *hard_iface)
 {
-	memcpy(((struct batman_packet *)(hard_iface->packet_buff))->orig,
+	struct batman_ogm_packet *batman_ogm_packet;
+
+	batman_ogm_packet = (struct batman_ogm_packet *)hard_iface->packet_buff;
+	memcpy(batman_ogm_packet->orig,
 	       hard_iface->net_dev->dev_addr, ETH_ALEN);
-	memcpy(((struct batman_packet *)(hard_iface->packet_buff))->prev_sender,
+	memcpy(batman_ogm_packet->prev_sender,
 	       hard_iface->net_dev->dev_addr, ETH_ALEN);
 }
 
@@ -283,7 +287,7 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 			    const char *iface_name)
 {
 	struct bat_priv *bat_priv;
-	struct batman_packet *batman_packet;
+	struct batman_ogm_packet *batman_ogm_packet;
 	struct net_device *soft_iface;
 	int ret;
 
@@ -318,7 +322,7 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 
 	hard_iface->soft_iface = soft_iface;
 	bat_priv = netdev_priv(hard_iface->soft_iface);
-	hard_iface->packet_len = BAT_PACKET_LEN;
+	hard_iface->packet_len = BATMAN_OGM_LEN;
 	hard_iface->packet_buff = kmalloc(hard_iface->packet_len, GFP_ATOMIC);
 
 	if (!hard_iface->packet_buff) {
@@ -328,14 +332,15 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 		goto err;
 	}
 
-	batman_packet = (struct batman_packet *)(hard_iface->packet_buff);
-	batman_packet->packet_type = BAT_PACKET;
-	batman_packet->version = COMPAT_VERSION;
-	batman_packet->flags = NO_FLAGS;
-	batman_packet->ttl = 2;
-	batman_packet->tq = TQ_MAX_VALUE;
-	batman_packet->tt_num_changes = 0;
-	batman_packet->ttvn = 0;
+	batman_ogm_packet = (struct batman_ogm_packet *)
+						(hard_iface->packet_buff);
+	batman_ogm_packet->packet_type = BAT_OGM;
+	batman_ogm_packet->version = COMPAT_VERSION;
+	batman_ogm_packet->flags = NO_FLAGS;
+	batman_ogm_packet->ttl = 2;
+	batman_ogm_packet->tq = TQ_MAX_VALUE;
+	batman_ogm_packet->tt_num_changes = 0;
+	batman_ogm_packet->ttvn = 0;
 
 	hard_iface->if_num = bat_priv->num_ifaces;
 	bat_priv->num_ifaces++;
@@ -580,7 +585,7 @@ static int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 			   struct net_device *orig_dev)
 {
 	struct bat_priv *bat_priv;
-	struct batman_packet *batman_packet;
+	struct batman_ogm_packet *batman_ogm_packet;
 	struct hard_iface *hard_iface;
 	int ret;
 
@@ -612,21 +617,21 @@ static int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	if (hard_iface->if_status != IF_ACTIVE)
 		goto err_free;
 
-	batman_packet = (struct batman_packet *)skb->data;
+	batman_ogm_packet = (struct batman_ogm_packet *)skb->data;
 
-	if (batman_packet->version != COMPAT_VERSION) {
+	if (batman_ogm_packet->version != COMPAT_VERSION) {
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"Drop packet: incompatible batman version (%i)\n",
-			batman_packet->version);
+			batman_ogm_packet->version);
 		goto err_free;
 	}
 
 	/* all receive handlers return whether they received or reused
 	 * the supplied skb. if not, we have to free the skb. */
 
-	switch (batman_packet->packet_type) {
+	switch (batman_ogm_packet->packet_type) {
 		/* batman originator packet */
-	case BAT_PACKET:
+	case BAT_OGM:
 		ret = recv_bat_packet(skb, hard_iface);
 		break;
 

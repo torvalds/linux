@@ -24,7 +24,7 @@
 
 void slide_own_bcast_window(struct hard_iface *hard_iface);
 void receive_bat_packet(const struct ethhdr *ethhdr,
-			struct batman_packet *batman_packet,
+			struct batman_ogm_packet *batman_ogm_packet,
 			const unsigned char *tt_buff,
 			struct hard_iface *if_incoming);
 void update_routes(struct bat_priv *bat_priv, struct orig_node *orig_node,

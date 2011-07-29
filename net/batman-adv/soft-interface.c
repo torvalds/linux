@@ -445,30 +445,31 @@ static void softif_batman_recv(struct sk_buff *skb, struct net_device *dev,
 {
 	struct bat_priv *bat_priv = netdev_priv(dev);
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
-	struct batman_packet *batman_packet;
+	struct batman_ogm_packet *batman_ogm_packet;
 	struct softif_neigh *softif_neigh = NULL;
 	struct hard_iface *primary_if = NULL;
 	struct softif_neigh *curr_softif_neigh = NULL;
 
 	if (ntohs(ethhdr->h_proto) == ETH_P_8021Q)
-		batman_packet = (struct batman_packet *)
+		batman_ogm_packet = (struct batman_ogm_packet *)
 					(skb->data + ETH_HLEN + VLAN_HLEN);
 	else
-		batman_packet = (struct batman_packet *)(skb->data + ETH_HLEN);
+		batman_ogm_packet = (struct batman_ogm_packet *)
+							(skb->data + ETH_HLEN);
 
-	if (batman_packet->version != COMPAT_VERSION)
+	if (batman_ogm_packet->version != COMPAT_VERSION)
 		goto out;
 
-	if (batman_packet->packet_type != BAT_PACKET)
+	if (batman_ogm_packet->packet_type != BAT_OGM)
 		goto out;
 
-	if (!(batman_packet->flags & PRIMARIES_FIRST_HOP))
+	if (!(batman_ogm_packet->flags & PRIMARIES_FIRST_HOP))
 		goto out;
 
-	if (is_my_mac(batman_packet->orig))
+	if (is_my_mac(batman_ogm_packet->orig))
 		goto out;
 
-	softif_neigh = softif_neigh_get(bat_priv, batman_packet->orig, vid);
+	softif_neigh = softif_neigh_get(bat_priv, batman_ogm_packet->orig, vid);
 	if (!softif_neigh)
 		goto out;
 

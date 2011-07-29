@@ -27,7 +27,7 @@ int send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
 void schedule_own_packet(struct hard_iface *hard_iface);
 void schedule_forward_packet(struct orig_node *orig_node,
 			     const struct ethhdr *ethhdr,
-			     struct batman_packet *batman_packet,
+			     struct batman_ogm_packet *batman_ogm_packet,
 			     int directlink,
 			     struct hard_iface *if_outgoing);
 int add_bcast_packet_to_list(struct bat_priv *bat_priv,

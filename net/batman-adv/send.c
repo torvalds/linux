@@ -107,7 +107,7 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 	char *fwd_str;
 	uint8_t packet_num;
 	int16_t buff_pos;
-	struct batman_packet *batman_packet;
+	struct batman_ogm_packet *batman_ogm_packet;
 	struct sk_buff *skb;
 
 	if (hard_iface->if_status != IF_ACTIVE)
@@ -115,20 +115,20 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 
 	packet_num = 0;
 	buff_pos = 0;
-	batman_packet = (struct batman_packet *)forw_packet->skb->data;
+	batman_ogm_packet = (struct batman_ogm_packet *)forw_packet->skb->data;
 
 	/* adjust all flags and log packets */
 	while (aggregated_packet(buff_pos,
 				 forw_packet->packet_len,
-				 batman_packet->tt_num_changes)) {
+				 batman_ogm_packet->tt_num_changes)) {
 
 		/* we might have aggregated direct link packets with an
 		 * ordinary base packet */
 		if ((forw_packet->direct_link_flags & (1 << packet_num)) &&
 		    (forw_packet->if_incoming == hard_iface))
-			batman_packet->flags |= DIRECTLINK;
+			batman_ogm_packet->flags |= DIRECTLINK;
 		else
-			batman_packet->flags &= ~DIRECTLINK;
+			batman_ogm_packet->flags &= ~DIRECTLINK;
 
 		fwd_str = (packet_num > 0 ? "Forwarding" : (forw_packet->own ?
 							    "Sending own" :
@@ -137,18 +137,19 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 			"%s %spacket (originator %pM, seqno %d, TQ %d, TTL %d,"
 			" IDF %s, ttvn %d) on interface %s [%pM]\n",
 			fwd_str, (packet_num > 0 ? "aggregated " : ""),
-			batman_packet->orig, ntohl(batman_packet->seqno),
-			batman_packet->tq, batman_packet->ttl,
-			(batman_packet->flags & DIRECTLINK ?
+			batman_ogm_packet->orig,
+			ntohl(batman_ogm_packet->seqno),
+			batman_ogm_packet->tq, batman_ogm_packet->ttl,
+			(batman_ogm_packet->flags & DIRECTLINK ?
 			 "on" : "off"),
-			batman_packet->ttvn, hard_iface->net_dev->name,
+			batman_ogm_packet->ttvn, hard_iface->net_dev->name,
 			hard_iface->net_dev->dev_addr);
 
-		buff_pos += sizeof(*batman_packet) +
-			tt_len(batman_packet->tt_num_changes);
+		buff_pos += BATMAN_OGM_LEN +
+				tt_len(batman_ogm_packet->tt_num_changes);
 		packet_num++;
-		batman_packet = (struct batman_packet *)
-			(forw_packet->skb->data + buff_pos);
+		batman_ogm_packet = (struct batman_ogm_packet *)
+					(forw_packet->skb->data + buff_pos);
 	}
 
 	/* create clone because function is called more than once */
@@ -164,9 +165,11 @@ static void send_packet(struct forw_packet *forw_packet)
 	struct net_device *soft_iface;
 	struct bat_priv *bat_priv;
 	struct hard_iface *primary_if = NULL;
-	struct batman_packet *batman_packet =
-		(struct batman_packet *)(forw_packet->skb->data);
-	int directlink = (batman_packet->flags & DIRECTLINK ? 1 : 0);
+	struct batman_ogm_packet *batman_ogm_packet =
+			(struct batman_ogm_packet *)(forw_packet->skb->data);
+	unsigned char directlink;
+
+	directlink = (batman_ogm_packet->flags & DIRECTLINK ? 1 : 0);
 
 	if (!forw_packet->if_incoming) {
 		pr_err("Error - can't forward packet: incoming iface not "
@@ -186,7 +189,7 @@ static void send_packet(struct forw_packet *forw_packet)
 
 	/* multihomed peer assumed */
 	/* non-primary OGMs are only broadcasted on their interface */
-	if ((directlink && (batman_packet->ttl == 1)) ||
+	if ((directlink && (batman_ogm_packet->ttl == 1)) ||
 	    (forw_packet->own && (forw_packet->if_incoming != primary_if))) {
 
 		/* FIXME: what about aggregated packets ? */
@@ -194,8 +197,9 @@ static void send_packet(struct forw_packet *forw_packet)
 			"%s packet (originator %pM, seqno %d, TTL %d) "
 			"on interface %s [%pM]\n",
 			(forw_packet->own ? "Sending own" : "Forwarding"),
-			batman_packet->orig, ntohl(batman_packet->seqno),
-			batman_packet->ttl,
+			batman_ogm_packet->orig,
+			ntohl(batman_ogm_packet->seqno),
+			batman_ogm_packet->ttl,
 			forw_packet->if_incoming->net_dev->name,
 			forw_packet->if_incoming->net_dev->dev_addr);
 
@@ -223,17 +227,16 @@ out:
 }
 
 static void realloc_packet_buffer(struct hard_iface *hard_iface,
-				int new_len)
+				  int new_len)
 {
 	unsigned char *new_buff;
-	struct batman_packet *batman_packet;
 
 	new_buff = kmalloc(new_len, GFP_ATOMIC);
 
 	/* keep old buffer if kmalloc should fail */
 	if (new_buff) {
 		memcpy(new_buff, hard_iface->packet_buff,
-		       sizeof(*batman_packet));
+		       BATMAN_OGM_LEN);
 
 		kfree(hard_iface->packet_buff);
 		hard_iface->packet_buff = new_buff;
@@ -246,39 +249,39 @@ static void prepare_packet_buffer(struct bat_priv *bat_priv,
 				  struct hard_iface *hard_iface)
 {
 	int new_len;
-	struct batman_packet *batman_packet;
+	struct batman_ogm_packet *batman_ogm_packet;
 
-	new_len = BAT_PACKET_LEN +
+	new_len = BATMAN_OGM_LEN +
 		  tt_len((uint8_t)atomic_read(&bat_priv->tt_local_changes));
 
 	/* if we have too many changes for one packet don't send any
 	 * and wait for the tt table request which will be fragmented */
 	if (new_len > hard_iface->soft_iface->mtu)
-		new_len = BAT_PACKET_LEN;
+		new_len = BATMAN_OGM_LEN;
 
 	realloc_packet_buffer(hard_iface, new_len);
-	batman_packet = (struct batman_packet *)hard_iface->packet_buff;
+	batman_ogm_packet = (struct batman_ogm_packet *)hard_iface->packet_buff;
 
 	atomic_set(&bat_priv->tt_crc, tt_local_crc(bat_priv));
 
 	/* reset the sending counter */
 	atomic_set(&bat_priv->tt_ogm_append_cnt, TT_OGM_APPEND_MAX);
 
-	batman_packet->tt_num_changes = tt_changes_fill_buffer(bat_priv,
-				hard_iface->packet_buff + BAT_PACKET_LEN,
-				hard_iface->packet_len - BAT_PACKET_LEN);
+	batman_ogm_packet->tt_num_changes = tt_changes_fill_buffer(bat_priv,
+				hard_iface->packet_buff + BATMAN_OGM_LEN,
+				hard_iface->packet_len - BATMAN_OGM_LEN);
 
 }
 
 static void reset_packet_buffer(struct bat_priv *bat_priv,
-	struct hard_iface *hard_iface)
+				struct hard_iface *hard_iface)
 {
-	struct batman_packet *batman_packet;
+	struct batman_ogm_packet *batman_ogm_packet;
 
-	realloc_packet_buffer(hard_iface, BAT_PACKET_LEN);
+	realloc_packet_buffer(hard_iface, BATMAN_OGM_LEN);
 
-	batman_packet = (struct batman_packet *)hard_iface->packet_buff;
-	batman_packet->tt_num_changes = 0;
+	batman_ogm_packet = (struct batman_ogm_packet *)hard_iface->packet_buff;
+	batman_ogm_packet->tt_num_changes = 0;
 }
 
 void schedule_own_packet(struct hard_iface *hard_iface)
@@ -286,7 +289,7 @@ void schedule_own_packet(struct hard_iface *hard_iface)
 	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct hard_iface *primary_if;
 	unsigned long send_time;
-	struct batman_packet *batman_packet;
+	struct batman_ogm_packet *batman_ogm_packet;
 	int vis_server;
 
 	if ((hard_iface->if_status == IF_NOT_IN_USE) ||
@@ -322,26 +325,27 @@ void schedule_own_packet(struct hard_iface *hard_iface)
 	 * NOTE: packet_buff might just have been re-allocated in
 	 * prepare_packet_buffer() or in reset_packet_buffer()
 	 */
-	batman_packet = (struct batman_packet *)hard_iface->packet_buff;
+	batman_ogm_packet = (struct batman_ogm_packet *)hard_iface->packet_buff;
 
 	/* change sequence number to network order */
-	batman_packet->seqno =
-		htonl((uint32_t)atomic_read(&hard_iface->seqno));
+	batman_ogm_packet->seqno =
+			htonl((uint32_t)atomic_read(&hard_iface->seqno));
 
-	batman_packet->ttvn = atomic_read(&bat_priv->ttvn);
-	batman_packet->tt_crc = htons((uint16_t)atomic_read(&bat_priv->tt_crc));
+	batman_ogm_packet->ttvn = atomic_read(&bat_priv->ttvn);
+	batman_ogm_packet->tt_crc = htons((uint16_t)
+						atomic_read(&bat_priv->tt_crc));
 
 	if (vis_server == VIS_TYPE_SERVER_SYNC)
-		batman_packet->flags |= VIS_SERVER;
+		batman_ogm_packet->flags |= VIS_SERVER;
 	else
-		batman_packet->flags &= ~VIS_SERVER;
+		batman_ogm_packet->flags &= ~VIS_SERVER;
 
 	if ((hard_iface == primary_if) &&
 	    (atomic_read(&bat_priv->gw_mode) == GW_MODE_SERVER))
-		batman_packet->gw_flags =
+		batman_ogm_packet->gw_flags =
 				(uint8_t)atomic_read(&bat_priv->gw_bandwidth);
 	else
-		batman_packet->gw_flags = NO_FLAGS;
+		batman_ogm_packet->gw_flags = NO_FLAGS;
 
 	atomic_inc(&hard_iface->seqno);
 
@@ -358,7 +362,7 @@ void schedule_own_packet(struct hard_iface *hard_iface)
 
 void schedule_forward_packet(struct orig_node *orig_node,
 			     const struct ethhdr *ethhdr,
-			     struct batman_packet *batman_packet,
+			     struct batman_ogm_packet *batman_ogm_packet,
 			     int directlink,
 			     struct hard_iface *if_incoming)
 {
@@ -368,19 +372,19 @@ void schedule_forward_packet(struct orig_node *orig_node,
 	unsigned long send_time;
 	uint8_t tt_num_changes;
 
-	if (batman_packet->ttl <= 1) {
+	if (batman_ogm_packet->ttl <= 1) {
 		bat_dbg(DBG_BATMAN, bat_priv, "ttl exceeded\n");
 		return;
 	}
 
 	router = orig_node_get_router(orig_node);
 
-	in_tq = batman_packet->tq;
-	in_ttl = batman_packet->ttl;
-	tt_num_changes = batman_packet->tt_num_changes;
+	in_tq = batman_ogm_packet->tq;
+	in_ttl = batman_ogm_packet->ttl;
+	tt_num_changes = batman_ogm_packet->tt_num_changes;
 
-	batman_packet->ttl--;
-	memcpy(batman_packet->prev_sender, ethhdr->h_source, ETH_ALEN);
+	batman_ogm_packet->ttl--;
+	memcpy(batman_ogm_packet->prev_sender, ethhdr->h_source, ETH_ALEN);
 
 	/* rebroadcast tq of our best ranking neighbor to ensure the rebroadcast
 	 * of our best tq value */
@@ -388,10 +392,10 @@ void schedule_forward_packet(struct orig_node *orig_node,
 
 		/* rebroadcast ogm of best ranking neighbor as is */
 		if (!compare_eth(router->addr, ethhdr->h_source)) {
-			batman_packet->tq = router->tq_avg;
+			batman_ogm_packet->tq = router->tq_avg;
 
 			if (router->last_ttl)
-				batman_packet->ttl = router->last_ttl - 1;
+				batman_ogm_packet->ttl = router->last_ttl - 1;
 		}
 
 		tq_avg = router->tq_avg;
@@ -401,28 +405,28 @@ void schedule_forward_packet(struct orig_node *orig_node,
 		neigh_node_free_ref(router);
 
 	/* apply hop penalty */
-	batman_packet->tq = hop_penalty(batman_packet->tq, bat_priv);
+	batman_ogm_packet->tq = hop_penalty(batman_ogm_packet->tq, bat_priv);
 
 	bat_dbg(DBG_BATMAN, bat_priv,
 		"Forwarding packet: tq_orig: %i, tq_avg: %i, "
 		"tq_forw: %i, ttl_orig: %i, ttl_forw: %i\n",
-		in_tq, tq_avg, batman_packet->tq, in_ttl - 1,
-		batman_packet->ttl);
+		in_tq, tq_avg, batman_ogm_packet->tq, in_ttl - 1,
+		batman_ogm_packet->ttl);
 
-	batman_packet->seqno = htonl(batman_packet->seqno);
-	batman_packet->tt_crc = htons(batman_packet->tt_crc);
+	batman_ogm_packet->seqno = htonl(batman_ogm_packet->seqno);
+	batman_ogm_packet->tt_crc = htons(batman_ogm_packet->tt_crc);
 
 	/* switch of primaries first hop flag when forwarding */
-	batman_packet->flags &= ~PRIMARIES_FIRST_HOP;
+	batman_ogm_packet->flags &= ~PRIMARIES_FIRST_HOP;
 	if (directlink)
-		batman_packet->flags |= DIRECTLINK;
+		batman_ogm_packet->flags |= DIRECTLINK;
 	else
-		batman_packet->flags &= ~DIRECTLINK;
+		batman_ogm_packet->flags &= ~DIRECTLINK;
 
 	send_time = forward_send_time();
 	add_bat_packet_to_list(bat_priv,
-			       (unsigned char *)batman_packet,
-			       sizeof(*batman_packet) + tt_len(tt_num_changes),
+			       (unsigned char *)batman_ogm_packet,
+			       BATMAN_OGM_LEN + tt_len(tt_num_changes),
 			       if_incoming, 0, send_time);
 }
 
