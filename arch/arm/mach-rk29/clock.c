@@ -135,13 +135,17 @@ static int clksel_set_rate_div(struct clk *clk, unsigned long rate)
 	return -ENOENT;
 }
 
-static long clksel_round_rate_div(struct clk *clk, unsigned long rate)
+static long clksel_round_rate_div_by_parent(struct clk *clk, unsigned long rate, struct clk *parent, unsigned long max_rate)
 {
 	u32 div;
 	unsigned long prev = ULONG_MAX, actual;
 
+	if (max_rate < rate)
+		max_rate = rate;
 	for (div = 0; div <= clk->clksel_mask; div++) {
-		actual = clk->parent->rate / (div + 1);
+		actual = parent->rate / (div + 1);
+		if (actual > max_rate)
+			continue;
 		if (actual > rate)
 			prev = actual;
 		if (actual && actual <= rate) {
@@ -154,10 +158,17 @@ static long clksel_round_rate_div(struct clk *clk, unsigned long rate)
 	}
 	if (div > clk->clksel_mask)
 		div = clk->clksel_mask;
-	pr_debug("clock %s, target rate %ld, rounded rate %ld (div %d)\n", clk->name, rate, actual, div + 1);
+	pr_debug("clock %s, target rate %ld, max rate %ld, rounded rate %ld (div %d)\n", clk->name, rate, max_rate, actual, div + 1);
 
 	return actual;
 }
+
+#if 0
+static long clksel_round_rate_div(struct clk *clk, unsigned long rate)
+{
+	return clksel_round_rate_div_by_parent(clk, rate, clk->parent, ULONG_MAX);
+}
+#endif
 
 static int clksel_set_rate_shift(struct clk *clk, unsigned long rate)
 {
@@ -589,9 +600,11 @@ static const struct codec_pll_set codec_pll[] = {
 	//        rate parent band NR  NF NO
 	CODEC_PLL(108000, 24,  LOW, 1, 18, 4),	// for TV
 	CODEC_PLL(648000, 24, HIGH, 1, 27, 1),
-	CODEC_PLL(297000, 27,  LOW, 1, 22, 2),	// for HDMI
+	CODEC_PLL(148500, 27,  LOW, 1, 22, 4),	// for HDMI
+	CODEC_PLL(297000, 27,  LOW, 1, 22, 2),
 	CODEC_PLL(445500, 27,  LOW, 2, 33, 1),
 	CODEC_PLL(594000, 27, HIGH, 1, 22, 1),
+	CODEC_PLL(891000, 27, HIGH, 1, 33, 1),
 	CODEC_PLL(300000, 24,  LOW, 1, 25, 2),	// for GPU
 	CODEC_PLL(360000, 24,  LOW, 1, 15, 1),
 	CODEC_PLL(408000, 24,  LOW, 1, 17, 1),
@@ -1708,12 +1721,31 @@ static struct clk hclk_vdpu = {
 
 static int clk_gpu_set_rate(struct clk *clk, unsigned long rate)
 {
-	if (clk->parent == &codec_pll_clk && rate != codec_pll_clk.rate && rate == general_pll_clk.rate) {
-		clk_set_parent_nolock(clk, &general_pll_clk);
-	} else if (clk->parent == &general_pll_clk && rate != general_pll_clk.rate) {
-		clk_set_parent_nolock(clk, &codec_pll_clk);
+	unsigned long max_rate = rate / 100 * 105;	/* +5% */
+	struct clk *parents[] = { &general_pll_clk, &codec_pll_clk, &ddr_pll_clk };
+	int i;
+	unsigned long best_rate = 0;
+	struct clk *best_parent = clk->parent;
+
+	for (i = 0; i < ARRAY_SIZE(parents); i++) {
+		unsigned long new_rate = clksel_round_rate_div_by_parent(clk, rate, parents[i], max_rate);
+		if (new_rate == rate) {
+			best_rate = new_rate;
+			best_parent = parents[i];
+			break;
+		}
+		if (new_rate > max_rate)
+			continue;
+		if (new_rate > best_rate) {
+			best_rate = new_rate;
+			best_parent = parents[i];
+		}
 	}
-	return clksel_set_rate_div(clk, clksel_round_rate_div(clk, rate));
+	if (!best_rate)
+		return -ENOENT;
+	if (best_parent != clk->parent)
+		clk_set_parent_nolock(clk, best_parent);
+	return clksel_set_rate_div(clk, best_rate);
 }
 
 static struct clk clk_gpu = {
@@ -2645,14 +2677,14 @@ void __init rk29_clock_init2(enum periph_pll ppll_rate, enum codec_pll cpll_rate
 	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/gpll/core/aclk_cpu/hclk_cpu/pclk_cpu/aclk_periph/hclk_periph/pclk_periph): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz",
 	       arm_pll_clk.rate / MHZ, ddr_pll_clk.rate / MHZ, codec_pll_clk.rate / MHZ, general_pll_clk.rate / MHZ, clk_core.rate / MHZ,
 	       aclk_cpu.rate / MHZ, hclk_cpu.rate / MHZ, pclk_cpu.rate / MHZ, aclk_periph.rate / MHZ, hclk_periph.rate / MHZ, pclk_periph.rate / MHZ);
-	printk(KERN_CONT " (20110725)\n");
+	printk(KERN_CONT " (20110729)\n");
 
 	preset_lpj = loops_per_jiffy;
 }
 
 void __init rk29_clock_init(enum periph_pll ppll_rate)
 {
-	rk29_clock_init2(ppll_rate, codec_pll_445mhz, true);
+	rk29_clock_init2(ppll_rate, codec_pll_297mhz, true);
 }
 
 #ifdef CONFIG_PROC_FS
