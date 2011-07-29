@@ -1056,7 +1056,8 @@ qlcnic_check_fw_hearbeat(struct qlcnic_adapter *adapter)
 int
 qlcnic_need_fw_reset(struct qlcnic_adapter *adapter)
 {
-	if (qlcnic_check_fw_hearbeat(adapter)) {
+	if ((adapter->flags & QLCNIC_FW_HANG) ||
+			qlcnic_check_fw_hearbeat(adapter)) {
 		qlcnic_rom_lock_recovery(adapter);
 		return 1;
 	}

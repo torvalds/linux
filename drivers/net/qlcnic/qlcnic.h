@@ -911,6 +911,7 @@ struct qlcnic_ipaddr {
 #define QLCNIC_PROMISC_DISABLED		0x800
 #define QLCNIC_NEED_FLR			0x1000
 #define QLCNIC_FW_RESET_OWNER		0x2000
+#define QLCNIC_FW_HANG			0x4000
 #define QLCNIC_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED))
 

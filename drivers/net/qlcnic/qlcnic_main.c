@@ -2682,6 +2682,7 @@ qlcnic_clr_all_drv_state(struct qlcnic_adapter *adapter, u8 failed)
 	qlcnic_api_unlock(adapter);
 err:
 	adapter->fw_fail_cnt = 0;
+	adapter->flags &= ~QLCNIC_FW_HANG;
 	clear_bit(__QLCNIC_START_FW, &adapter->state);
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
 }
@@ -2859,6 +2860,7 @@ skip_ack_check:
 		    (adapter->flags & QLCNIC_FW_RESET_OWNER)) {
 			QLCDB(adapter, DRV, "Take FW dump\n");
 			qlcnic_dump_fw(adapter);
+			adapter->flags |= QLCNIC_FW_HANG;
 		}
 		rtnl_unlock();
 
@@ -3046,6 +3048,7 @@ attach:
 done:
 	netif_device_attach(netdev);
 	adapter->fw_fail_cnt = 0;
+	adapter->flags &= ~QLCNIC_FW_HANG;
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
 
 	if (!qlcnic_clr_drv_state(adapter))
@@ -3089,6 +3092,8 @@ qlcnic_check_health(struct qlcnic_adapter *adapter)
 
 	if (++adapter->fw_fail_cnt < FW_FAIL_THRESH)
 		return 0;
+
+	adapter->flags |= QLCNIC_FW_HANG;
 
 	qlcnic_dev_request_reset(adapter);
 
