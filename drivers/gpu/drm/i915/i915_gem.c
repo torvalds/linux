@@ -3019,7 +3019,7 @@ i915_gem_object_set_to_display_plane(struct drm_i915_gem_object *obj,
 	/* Currently, we are always called from an non-interruptible context. */
 	if (pipelined != obj->ring) {
 		ret = i915_gem_object_wait_rendering(obj);
-		if (ret)
+		if (ret == -ERESTARTSYS)
 			return ret;
 	}
 
