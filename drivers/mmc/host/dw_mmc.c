@@ -62,7 +62,7 @@ struct idmac_desc {
 
 	u32		des1;	/* Buffer sizes */
 #define IDMAC_SET_BUFFER1_SIZE(d, s) \
-	((d)->des1 = ((d)->des1 & 0x03ffc000) | ((s) & 0x3fff))
+	((d)->des1 = ((d)->des1 & 0x03ffe000) | ((s) & 0x1fff))
 
 	u32		des2;	/* buffer 1 physical address */
 
