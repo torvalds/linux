@@ -1773,8 +1773,8 @@ int qlcnic_dump_fw(struct qlcnic_adapter *adapter)
 		goto error;
 	} else {
 		fw_dump->clr = 1;
-		snprintf(mesg, sizeof(mesg), "FW dump for device: %d\n",
-			adapter->pdev->devfn);
+		snprintf(mesg, sizeof(mesg), "FW_DUMP=%s",
+			adapter->netdev->name);
 		dev_info(&adapter->pdev->dev, "Dump data, %d bytes captured\n",
 			fw_dump->size);
 		/* Send a udev event to notify availability of FW dump */
