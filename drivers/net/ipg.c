@@ -70,7 +70,7 @@ MODULE_LICENSE("GPL");
  * Variable record -- index by leading revision/length
  * Revision/Length(=N*4), Address1, Data1, Address2, Data2,...,AddressN,DataN
  */
-static unsigned short DefaultPhyParam[] = {
+static const unsigned short DefaultPhyParam[] = {
 	/* 11/12/03 IP1000A v1-3 rev=0x40 */
 	/*--------------------------------------------------------------------------
 	(0x4000|(15*4)), 31, 0x0001, 27, 0x01e0, 31, 0x0002, 22, 0x85bd, 24, 0xfff2,
@@ -88,7 +88,7 @@ static unsigned short DefaultPhyParam[] = {
 	0x0000
 };
 
-static const char *ipg_brand_name[] = {
+static const char * const ipg_brand_name[] = {
 	"IC PLUS IP1000 1000/100/10 based NIC",
 	"Sundance Technology ST2021 based NIC",
 	"Tamarack Microelectronics TC9020/9021 based NIC",
@@ -1961,7 +1961,7 @@ static void ipg_set_phy_default_param(unsigned char rev,
 {
 	unsigned short length;
 	unsigned char revision;
-	unsigned short *phy_param;
+	const unsigned short *phy_param;
 	unsigned short address, value;
 
 	phy_param = &DefaultPhyParam[0];
