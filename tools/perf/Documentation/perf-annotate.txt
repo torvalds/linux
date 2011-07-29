@@ -80,6 +80,9 @@ OPTIONS
 	Interleave source code with assembly code. Enabled by default,
 	disable with --no-source.
 
+--symfs=<directory>::
+        Look for files with symbols relative to this directory.
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-report[1]
