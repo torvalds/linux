@@ -28,8 +28,7 @@
 static inline int aggregated_packet(int buff_pos, int packet_len,
 				    int tt_num_changes)
 {
-	int next_buff_pos = buff_pos + BAT_PACKET_LEN + (tt_num_changes *
-						sizeof(struct tt_change));
+	int next_buff_pos = buff_pos + BAT_PACKET_LEN + tt_len(tt_num_changes);
 
 	return (next_buff_pos <= packet_len) &&
 		(next_buff_pos <= MAX_AGGREGATION_BYTES);
