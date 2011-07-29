@@ -1421,10 +1421,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     char value;
     int ret;
 
-    SENSOR_DG("\n-------------%s..%s.. %d,val = %d\n",SENSOR_NAME_STRING(),__FUNCTION__,__LINE__,val);
-
 	if (sensor_ioctrl(icd, Sensor_PowerDown, 0) < 0) {
-		 SENSOR_DG("\n-------------%s..%s.. %d\n",SENSOR_NAME_STRING(),__FUNCTION__,__LINE__);
 		ret = -ENODEV;
 		goto sensor_INIT_ERR;
 	}
@@ -1439,7 +1436,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
         ret = -ENODEV;
 		goto sensor_INIT_ERR;
     }
-SENSOR_DG("--------------------%s  ,  %s,  %d\n",SENSOR_NAME_STRING(),__FUNCTION__,__LINE__);
+
     mdelay(5);  //delay 5 microseconds
 	/* check if it is an sensor sensor */
     ret = sensor_read(client, 0x00, &value);
@@ -1448,7 +1445,7 @@ SENSOR_DG("--------------------%s  ,  %s,  %d\n",SENSOR_NAME_STRING(),__FUNCTION
         ret = -ENODEV;
         goto sensor_INIT_ERR;
     }
-	SENSOR_DG("--------------------%s  ,  %s,  %d\n",SENSOR_NAME_STRING(),__FUNCTION__,__LINE__);
+
     if (value == SENSOR_ID) {
         sensor->model = SENSOR_V4L2_IDENT;
     } else {
@@ -1456,7 +1453,7 @@ SENSOR_DG("--------------------%s  ,  %s,  %d\n",SENSOR_NAME_STRING(),__FUNCTION
         ret = -ENODEV;
         goto sensor_INIT_ERR;
     }
-SENSOR_DG("--------------------%s  ,  %s,  %d\n",SENSOR_NAME_STRING(),__FUNCTION__,__LINE__);
+
     ret = sensor_write_array(client, sensor_init_data);
     if (ret != 0)
     {
@@ -1468,7 +1465,7 @@ SENSOR_DG("--------------------%s  ,  %s,  %d\n",SENSOR_NAME_STRING(),__FUNCTION
     //icd->user_height = SENSOR_INIT_HEIGHT;
     sensor->info_priv.winseqe_cur_addr  = (int)SENSOR_INIT_WINSEQADR;
 	sensor->info_priv.pixfmt = SENSOR_INIT_PIXFMT;
-SENSOR_DG("--------------------%s  ,  %s,  %d\n",SENSOR_NAME_STRING(),__FUNCTION__,__LINE__);
+
     /* sensor sensor information for initialization  */
 	qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_DO_WHITE_BALANCE);
 	if (qctrl)
@@ -1509,7 +1506,7 @@ SENSOR_DG("--------------------%s  ,  %s,  %d\n",SENSOR_NAME_STRING(),__FUNCTION
 	if (qctrl)
         sensor->info_priv.focus = qctrl->default_value;
 	#endif
-SENSOR_DG("--------------------%s  ,  %s,  %d\n",SENSOR_NAME_STRING(),__FUNCTION__,__LINE__);
+
 	#if CONFIG_SENSOR_Flash	
 	qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FLASH);
 	if (qctrl)
@@ -1528,7 +1525,6 @@ sensor_INIT_ERR:
 static int sensor_deactivate(struct i2c_client *client)
 {
 	struct soc_camera_device *icd = client->dev.platform_data;
-	SENSOR_DG("\n----------------------------%s..%s.. Enter\n",SENSOR_NAME_STRING(),__FUNCTION__);
 
 	/* ddl@rock-chips.com : all sensor output pin must change to input for other sensor */
 	sensor_ioctrl(icd, Sensor_PowerDown, 1);
@@ -1726,7 +1722,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
         set_h = SENSOR_INIT_HEIGHT;
 		SENSOR_TR("\n %s..%s Format is Invalidate. pix->width = %d.. pix->height = %d\n",SENSOR_NAME_STRING(),__FUNCTION__,pix->width,pix->height);
     }
-	SENSOR_TR("------------------------------%s,    %s   ,%d,\n",SENSOR_NAME_STRING(),__FUNCTION__,__LINE__);
+	
     	if ((int)winseqe_set_addr  != sensor->info_priv.winseqe_cur_addr) {
         	ret |= sensor_write_array(client, winseqe_set_addr);
         	if (ret != 0) {
@@ -2492,8 +2488,6 @@ static int sensor_video_probe(struct soc_camera_device *icd,
     int ret;
     struct sensor *sensor = to_sensor(client);
 
-	SENSOR_DG("--------------------%s  ,  %s,  %d\n",SENSOR_NAME_STRING(),__FUNCTION__,__LINE__);
-
     /* We must have a parent by now. And it cannot be a wrong one.
      * So this entire test is completely redundant. */
     if (!icd->dev.parent ||
@@ -2504,7 +2498,7 @@ static int sensor_video_probe(struct soc_camera_device *icd,
 		ret = -ENODEV;
 		goto sensor_video_probe_err;
 	}
-	SENSOR_DG("--------------------%s  ,  %s,  %d\n",SENSOR_NAME_STRING(),__FUNCTION__,__LINE__);
+	
     /* soft reset */
     ret = sensor_write(client, 0xfe, 0x80);
     if (ret != 0)
@@ -2513,7 +2507,7 @@ static int sensor_video_probe(struct soc_camera_device *icd,
         return -ENODEV;
     }
     mdelay(5);          //delay 5 microseconds
-SENSOR_DG("--------------------%s  ,  %s,  %d\n",SENSOR_NAME_STRING(),__FUNCTION__,__LINE__);
+
     /* check if it is an sensor sensor */
     ret = sensor_read(client, 0x00, &value);
     if (ret != 0) {
@@ -2521,7 +2515,7 @@ SENSOR_DG("--------------------%s  ,  %s,  %d\n",SENSOR_NAME_STRING(),__FUNCTION
         ret = -ENODEV;
         goto sensor_video_probe_err;
     }
-SENSOR_DG("--------------------%s  ,  %s,  %d\n",SENSOR_NAME_STRING(),__FUNCTION__,__LINE__);
+
     if (value == SENSOR_ID) {
         sensor->model = SENSOR_V4L2_IDENT;
 		SENSOR_TR("chip id:0x%x\n",value);
@@ -2533,7 +2527,6 @@ SENSOR_DG("--------------------%s  ,  %s,  %d\n",SENSOR_NAME_STRING(),__FUNCTION
 	
     icd->formats = sensor_colour_formats;
     icd->num_formats = ARRAY_SIZE(sensor_colour_formats);
-SENSOR_DG("--------------------%s  ,  %s,  %d\n",SENSOR_NAME_STRING(),__FUNCTION__,__LINE__);
     return 0;
 
 sensor_video_probe_err:
