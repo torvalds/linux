@@ -22,6 +22,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/kmsg_dump.h>
 #include <linux/time.h>
