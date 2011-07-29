@@ -58,12 +58,12 @@ static struct snd_soc_codec_driver soc_codec_dev_wm1250_ev1 = {
 static int __devinit wm1250_ev1_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *i2c_id)
 {
-	int ret, id, board, rev;
+	int id, board, rev;
 
 	board = i2c_smbus_read_byte_data(i2c, 0);
 	if (board < 0) {
-		dev_err(&i2c->dev, "Failed to read ID: %d\n", ret);
-		return ret;
+		dev_err(&i2c->dev, "Failed to read ID: %d\n", board);
+		return board;
 	}
 
 	id = (board & 0xfe) >> 2;
