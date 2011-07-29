@@ -1777,7 +1777,6 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 		INIT_LIST_HEAD(&bf_head);
 		list_add_tail(&bf->list, &bf_head);
 
-		bf->bf_state.bfs_ftype = txctl->frame_type;
 		bf->bf_state.bfs_paprd = txctl->paprd;
 
 		if (bf->bf_state.bfs_paprd)
@@ -1876,7 +1875,7 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 /*****************/
 
 static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
-			    int tx_flags, int ftype, struct ath_txq *txq)
+			    int tx_flags, struct ath_txq *txq)
 {
 	struct ieee80211_hw *hw = sc->hw;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
@@ -1961,8 +1960,7 @@ static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
 			complete(&sc->paprd_complete);
 	} else {
 		ath_debug_stat_tx(sc, bf, ts, txq);
-		ath_tx_complete(sc, skb, tx_flags,
-				bf->bf_state.bfs_ftype, txq);
+		ath_tx_complete(sc, skb, tx_flags, txq);
 	}
 	/* At this point, skb (bf->bf_mpdu) is consumed...make sure we don't
 	 * accidentally reference it later.

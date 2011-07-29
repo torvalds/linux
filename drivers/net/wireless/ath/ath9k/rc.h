@@ -221,12 +221,6 @@ struct ath_rate_priv {
 	struct ath_rc_stats rcstats[RATE_TABLE_SIZE];
 };
 
-enum ath9k_internal_frame_type {
-	ATH9K_IFT_NOT_INTERNAL,
-	ATH9K_IFT_PAUSE,
-	ATH9K_IFT_UNPAUSE
-};
-
 #ifdef CONFIG_ATH9K_RATE_CONTROL
 int ath_rate_control_register(void);
 void ath_rate_control_unregister(void);
