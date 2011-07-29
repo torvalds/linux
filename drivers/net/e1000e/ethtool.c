@@ -28,8 +28,8 @@
 
 /* ethtool support for e1000 */
 
-#include <linux/interrupt.h>
 #include <linux/netdevice.h>
+#include <linux/interrupt.h>
 #include <linux/ethtool.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
