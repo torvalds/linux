@@ -28,6 +28,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/highmem.h>

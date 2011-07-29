@@ -27,6 +27,7 @@
 #include <linux/msi.h>
 #include <linux/of_platform.h>
 #include <linux/interrupt.h>
+#include <linux/export.h>
 #include <asm/prom.h>
 #include <asm/hw_irq.h>
 #include <asm/ppc-pci.h>
