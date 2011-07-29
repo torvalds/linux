@@ -21,6 +21,7 @@
 #include <linux/rtc.h>
 #include <linux/delay.h>
 #include <linux/wakelock.h>
+#include <linux/slab.h>
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include "rtc-HYM8563.h"
