@@ -35,7 +35,7 @@ struct cordic_iq {
  * @theta: angle in degrees for which i/q coordinate is to be calculated.
  * @coord: function output parameter holding the i/q coordinate.
  *
- * The function calculates the i/q coordinate for a given angle using
+ * The function calculates the i/q coordinate for a given angle using the
  * CORDIC algorithm. The coordinate consists of a real (i) and an
  * imaginary (q) part. The real part is essentially the cosine of the
  * angle and the imaginary part is the sine of the angle. The returned
