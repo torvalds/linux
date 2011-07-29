@@ -156,6 +156,12 @@ struct bq27510_platform_data {
 	unsigned int bat_num;
 };
 
+struct bq27541_platform_data {	
+	int (*init_dc_check_pin)(void);	
+	unsigned int dc_check_pin;	
+	unsigned int bat_num;
+};
+
 /*i2s*/
 struct rk29_i2s_platform_data {
 	int (*io_init)(void);
