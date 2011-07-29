@@ -838,6 +838,25 @@ struct bq27510_platform_data bq27510_info = {
 };
 #endif
 
+#if defined (CONFIG_BATTERY_BQ27541)
+#define	DC_CHECK_PIN	RK29_PIN4_PA1
+#define	LI_LION_BAT_NUM	1
+static int bq27541_init_dc_check_pin(void){	
+	if(gpio_request(DC_CHECK_PIN,"dc_check") != 0){      
+		gpio_free(DC_CHECK_PIN);      
+		printk("bq27541 init dc check pin request error\n");      
+		return -EIO;    
+	}	
+	gpio_direction_input(DC_CHECK_PIN);	
+	return 0;
+}
+
+struct bq27541_platform_data bq27541_info = {	
+	.init_dc_check_pin = bq27541_init_dc_check_pin,	
+	.dc_check_pin =  DC_CHECK_PIN,		
+	.bat_num = LI_LION_BAT_NUM,
+};
+#endif
 
 /*****************************************************************************************
  * i2c devices
@@ -1143,6 +1162,14 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
 
 #ifdef CONFIG_I2C3_RK29
 static struct i2c_board_info __initdata board_i2c3_devices[] = {
+	#if defined (CONFIG_BATTERY_BQ27541)
+	{
+		.type    		= "bq27541",
+		.addr           = 0x55,
+		.flags			= 0,
+		.platform_data  = &bq27541_info,
+	},
+#endif
 };
 #endif
 
