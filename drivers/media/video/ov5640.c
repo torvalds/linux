@@ -3615,6 +3615,7 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
             /* ddl@rock-chips.com : if gpio_flash havn't been set in board-xxx.c, sensor driver must notify is not support flash control 
                for this project */
             #if CONFIG_SENSOR_Flash	
+            int i;
         	if (sensor->sensor_gpio_res) {
                 printk("flash io:%d\n",sensor->sensor_gpio_res->gpio_flash);
                 if (sensor->sensor_gpio_res->gpio_flash == INVALID_GPIO) {
