@@ -649,6 +649,8 @@ struct eeprom_ops {
 	int (*check_eeprom)(struct ath_hw *hw);
 	u32 (*get_eeprom)(struct ath_hw *hw, enum eeprom_param param);
 	bool (*fill_eeprom)(struct ath_hw *hw);
+	u32 (*dump_eeprom)(struct ath_hw *hw, bool dump_base_hdr, u8 *buf,
+			   u32 len, u32 size);
 	int (*get_eeprom_ver)(struct ath_hw *hw);
 	int (*get_eeprom_rev)(struct ath_hw *hw);
 	void (*set_board_values)(struct ath_hw *hw, struct ath9k_channel *chan);

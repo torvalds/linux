@@ -93,6 +93,12 @@
 			(_ah)->reg_ops.write_flush((_ah));	\
 	} while (0)
 
+#define PR_EEP(_s, _val)						\
+	do {								\
+		len += snprintf(buf + len, size - len, "%20s : %10d\n",	\
+				_s, (_val));				\
+	} while (0)
+
 #define SM(_v, _f)  (((_v) << _f##_S) & _f)
 #define MS(_v, _f)  (((_v) & _f) >> _f##_S)
 #define REG_RMW_FIELD(_a, _r, _f, _v) \
