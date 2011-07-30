@@ -477,8 +477,6 @@ static int set_config(struct usb_composite_dev *cdev,
 
 		if (!f)
 			break;
-		if (f->hidden)
-			continue;
 
 		result = f->set_alt(f, tmp, 0);
 		if (result < 0) {
