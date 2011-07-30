@@ -44,7 +44,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -1538,8 +1537,6 @@ static int zoran_querycap(struct file *file, void *__fh, struct v4l2_capability 
 	strncpy(cap->driver, "zoran", sizeof(cap->driver)-1);
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s",
 		 pci_name(zr->pci_dev));
-	cap->version = KERNEL_VERSION(MAJOR_VERSION, MINOR_VERSION,
-			   RELEASE_VERSION);
 	cap->capabilities = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_CAPTURE |
 			    V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_VIDEO_OVERLAY;
 	return 0;

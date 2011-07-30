@@ -22,7 +22,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/font.h>
-#include <linux/version.h>
 #include <linux/mutex.h>
 #include <linux/videodev2.h>
 #include <linux/kthread.h>
@@ -32,6 +31,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fh.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-common.h>
 
 #define VIVI_MODULE_NAME "vivi"
@@ -44,15 +44,12 @@
 #define MAX_WIDTH 1920
 #define MAX_HEIGHT 1200
 
-#define VIVI_MAJOR_VERSION 0
-#define VIVI_MINOR_VERSION 8
-#define VIVI_RELEASE 0
-#define VIVI_VERSION \
-	KERNEL_VERSION(VIVI_MAJOR_VERSION, VIVI_MINOR_VERSION, VIVI_RELEASE)
+#define VIVI_VERSION "0.8.1"
 
 MODULE_DESCRIPTION("Video Technology Magazine Virtual Video Capture Board");
 MODULE_AUTHOR("Mauro Carvalho Chehab, Ted Walther and John Sokol");
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_VERSION(VIVI_VERSION);
 
 static unsigned video_nr = -1;
 module_param(video_nr, uint, 0644);
@@ -167,6 +164,11 @@ struct vivi_dev {
 	struct v4l2_ctrl	   *contrast;
 	struct v4l2_ctrl	   *saturation;
 	struct v4l2_ctrl	   *hue;
+	struct {
+		/* autogain/gain cluster */
+		struct v4l2_ctrl	   *autogain;
+		struct v4l2_ctrl	   *gain;
+	};
 	struct v4l2_ctrl	   *volume;
 	struct v4l2_ctrl	   *button;
 	struct v4l2_ctrl	   *boolean;
@@ -174,6 +176,7 @@ struct vivi_dev {
 	struct v4l2_ctrl	   *int64;
 	struct v4l2_ctrl	   *menu;
 	struct v4l2_ctrl	   *string;
+	struct v4l2_ctrl	   *bitmask;
 
 	spinlock_t                 slock;
 	struct mutex		   mutex;
@@ -457,6 +460,7 @@ static void vivi_fillbuff(struct vivi_dev *dev, struct vivi_buffer *buf)
 	unsigned ms;
 	char str[100];
 	int h, line = 1;
+	s32 gain;
 
 	if (!vbuf)
 		return;
@@ -479,6 +483,7 @@ static void vivi_fillbuff(struct vivi_dev *dev, struct vivi_buffer *buf)
 			dev->width, dev->height, dev->input);
 	gen_text(dev, vbuf, line++ * 16, 16, str);
 
+	gain = v4l2_ctrl_g_ctrl(dev->gain);
 	mutex_lock(&dev->ctrl_handler.lock);
 	snprintf(str, sizeof(str), " brightness %3d, contrast %3d, saturation %3d, hue %d ",
 			dev->brightness->cur.val,
@@ -486,11 +491,13 @@ static void vivi_fillbuff(struct vivi_dev *dev, struct vivi_buffer *buf)
 			dev->saturation->cur.val,
 			dev->hue->cur.val);
 	gen_text(dev, vbuf, line++ * 16, 16, str);
-	snprintf(str, sizeof(str), " volume %3d ", dev->volume->cur.val);
+	snprintf(str, sizeof(str), " autogain %d, gain %3d, volume %3d ",
+			dev->autogain->cur.val, gain, dev->volume->cur.val);
 	gen_text(dev, vbuf, line++ * 16, 16, str);
-	snprintf(str, sizeof(str), " int32 %d, int64 %lld ",
+	snprintf(str, sizeof(str), " int32 %d, int64 %lld, bitmask %08x ",
 			dev->int32->cur.val,
-			dev->int64->cur.val64);
+			dev->int64->cur.val64,
+			dev->bitmask->cur.val);
 	gen_text(dev, vbuf, line++ * 16, 16, str);
 	snprintf(str, sizeof(str), " boolean %d, menu %s, string \"%s\" ",
 			dev->boolean->cur.val,
@@ -524,11 +531,13 @@ static void vivi_thread_tick(struct vivi_dev *dev)
 	spin_lock_irqsave(&dev->slock, flags);
 	if (list_empty(&dma_q->active)) {
 		dprintk(dev, 1, "No active queue to serve\n");
-		goto unlock;
+		spin_unlock_irqrestore(&dev->slock, flags);
+		return;
 	}
 
 	buf = list_entry(dma_q->active.next, struct vivi_buffer, list);
 	list_del(&buf->list);
+	spin_unlock_irqrestore(&dev->slock, flags);
 
 	do_gettimeofday(&buf->vb.v4l2_buf.timestamp);
 
@@ -538,8 +547,6 @@ static void vivi_thread_tick(struct vivi_dev *dev)
 
 	vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
 	dprintk(dev, 2, "[%p/%d] done\n", buf, buf->vb.v4l2_buf.index);
-unlock:
-	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
 #define frames_to_ms(frames)					\
@@ -812,7 +819,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	strcpy(cap->driver, "vivi");
 	strcpy(cap->card, "vivi");
 	strlcpy(cap->bus_info, dev->v4l2_dev.name, sizeof(cap->bus_info));
-	cap->version = VIVI_VERSION;
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING | \
 			    V4L2_CAP_READWRITE;
 	return 0;
@@ -975,13 +981,36 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	if (i >= NUM_INPUTS)
 		return -EINVAL;
 
+	if (i == dev->input)
+		return 0;
+
 	dev->input = i;
 	precalculate_bars(dev);
 	precalculate_line(dev);
 	return 0;
 }
 
+static int vidioc_subscribe_event(struct v4l2_fh *fh,
+				struct v4l2_event_subscription *sub)
+{
+	switch (sub->type) {
+	case V4L2_EVENT_CTRL:
+		return v4l2_event_subscribe(fh, sub, 0);
+	default:
+		return -EINVAL;
+	}
+}
+
 /* --- controls ---------------------------------------------- */
+
+static int vivi_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct vivi_dev *dev = container_of(ctrl->handler, struct vivi_dev, ctrl_handler);
+
+	if (ctrl == dev->autogain)
+		dev->gain->val = jiffies & 0xff;
+	return 0;
+}
 
 static int vivi_s_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -1010,10 +1039,17 @@ static unsigned int
 vivi_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct vivi_dev *dev = video_drvdata(file);
+	struct v4l2_fh *fh = file->private_data;
 	struct vb2_queue *q = &dev->vb_vidq;
+	unsigned int res;
 
 	dprintk(dev, 1, "%s\n", __func__);
-	return vb2_poll(q, file, wait);
+	res = vb2_poll(q, file, wait);
+	if (v4l2_event_pending(fh))
+		res |= POLLPRI;
+	else
+		poll_wait(file, &fh->wait, wait);
+	return res;
 }
 
 static int vivi_close(struct file *file)
@@ -1045,6 +1081,7 @@ static int vivi_mmap(struct file *file, struct vm_area_struct *vma)
 }
 
 static const struct v4l2_ctrl_ops vivi_ctrl_ops = {
+	.g_volatile_ctrl = vivi_g_volatile_ctrl,
 	.s_ctrl = vivi_s_ctrl,
 };
 
@@ -1117,9 +1154,20 @@ static const struct v4l2_ctrl_config vivi_ctrl_string = {
 	.step = 1,
 };
 
+static const struct v4l2_ctrl_config vivi_ctrl_bitmask = {
+	.ops = &vivi_ctrl_ops,
+	.id = VIVI_CID_CUSTOM_BASE + 6,
+	.name = "Bitmask",
+	.type = V4L2_CTRL_TYPE_BITMASK,
+	.def = 0x80002000,
+	.min = 0,
+	.max = 0x80402010,
+	.step = 0,
+};
+
 static const struct v4l2_file_operations vivi_fops = {
 	.owner		= THIS_MODULE,
-	.open		= v4l2_fh_open,
+	.open           = v4l2_fh_open,
 	.release        = vivi_close,
 	.read           = vivi_read,
 	.poll		= vivi_poll,
@@ -1143,6 +1191,8 @@ static const struct v4l2_ioctl_ops vivi_ioctl_ops = {
 	.vidioc_s_input       = vidioc_s_input,
 	.vidioc_streamon      = vidioc_streamon,
 	.vidioc_streamoff     = vidioc_streamoff,
+	.vidioc_subscribe_event = vidioc_subscribe_event,
+	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
 static struct video_device vivi_template = {
@@ -1213,16 +1263,22 @@ static int __init vivi_create_instance(int inst)
 			V4L2_CID_SATURATION, 0, 255, 1, 127);
 	dev->hue = v4l2_ctrl_new_std(hdl, &vivi_ctrl_ops,
 			V4L2_CID_HUE, -128, 127, 1, 0);
+	dev->autogain = v4l2_ctrl_new_std(hdl, &vivi_ctrl_ops,
+			V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
+	dev->gain = v4l2_ctrl_new_std(hdl, &vivi_ctrl_ops,
+			V4L2_CID_GAIN, 0, 255, 1, 100);
 	dev->button = v4l2_ctrl_new_custom(hdl, &vivi_ctrl_button, NULL);
 	dev->int32 = v4l2_ctrl_new_custom(hdl, &vivi_ctrl_int32, NULL);
 	dev->int64 = v4l2_ctrl_new_custom(hdl, &vivi_ctrl_int64, NULL);
 	dev->boolean = v4l2_ctrl_new_custom(hdl, &vivi_ctrl_boolean, NULL);
 	dev->menu = v4l2_ctrl_new_custom(hdl, &vivi_ctrl_menu, NULL);
 	dev->string = v4l2_ctrl_new_custom(hdl, &vivi_ctrl_string, NULL);
+	dev->bitmask = v4l2_ctrl_new_custom(hdl, &vivi_ctrl_bitmask, NULL);
 	if (hdl->error) {
 		ret = hdl->error;
 		goto unreg_dev;
 	}
+	v4l2_ctrl_auto_cluster(2, &dev->autogain, 0, true);
 	dev->v4l2_dev.ctrl_handler = hdl;
 
 	/* initialize locks */
@@ -1325,9 +1381,8 @@ static int __init vivi_init(void)
 	}
 
 	printk(KERN_INFO "Video Technology Magazine Virtual Video "
-			"Capture Board ver %u.%u.%u successfully loaded.\n",
-			(VIVI_VERSION >> 16) & 0xFF, (VIVI_VERSION >> 8) & 0xFF,
-			VIVI_VERSION & 0xFF);
+			"Capture Board ver %s successfully loaded.\n",
+			VIVI_VERSION);
 
 	/* n_devs will reflect the actual number of allocated devices */
 	n_devs = i;

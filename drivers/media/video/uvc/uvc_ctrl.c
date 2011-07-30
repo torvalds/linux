@@ -1664,8 +1664,8 @@ int uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 		return -EINVAL;
 	}
 
-	/* Search for the matching (GUID/CS) control in the given device */
-	list_for_each_entry(entity, &dev->entities, list) {
+	/* Search for the matching (GUID/CS) control on the current chain */
+	list_for_each_entry(entity, &chain->entities, chain) {
 		unsigned int i;
 
 		if (UVC_ENTITY_TYPE(entity) != UVC_VC_EXTENSION_UNIT ||

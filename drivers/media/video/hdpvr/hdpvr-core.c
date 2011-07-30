@@ -474,5 +474,6 @@ module_init(hdpvr_init);
 module_exit(hdpvr_exit);
 
 MODULE_LICENSE("GPL");
+MODULE_VERSION("0.2.1");
 MODULE_AUTHOR("Janne Grunau");
 MODULE_DESCRIPTION("Hauppauge HD PVR driver");

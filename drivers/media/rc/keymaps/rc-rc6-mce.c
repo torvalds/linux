@@ -29,7 +29,7 @@ static struct rc_map_table rc6_mce[] = {
 
 	{ 0x800f040a, KEY_DELETE },
 	{ 0x800f040b, KEY_ENTER },
-	{ 0x800f040c, KEY_POWER },		/* PC Power */
+	{ 0x800f040c, KEY_SLEEP },		/* Formerly PC Power */
 	{ 0x800f040d, KEY_MEDIA },		/* Windows MCE button */
 	{ 0x800f040e, KEY_MUTE },
 	{ 0x800f040f, KEY_INFO },
@@ -44,7 +44,6 @@ static struct rc_map_table rc6_mce[] = {
 	{ 0x800f0416, KEY_PLAY },
 	{ 0x800f0417, KEY_RECORD },
 	{ 0x800f0418, KEY_PAUSE },
-	{ 0x800f046e, KEY_PLAYPAUSE },
 	{ 0x800f0419, KEY_STOP },
 	{ 0x800f041a, KEY_NEXT },
 	{ 0x800f041b, KEY_PREVIOUS },
