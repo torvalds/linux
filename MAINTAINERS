@@ -4150,6 +4150,13 @@ S:	Orphan
 F:	drivers/video/matrox/matroxfb_*
 F:	include/linux/matroxfb.h
 
+MAX1668 TEMPERATURE SENSOR DRIVER
+M:	"David George" <david.george@ska.ac.za>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/max1668
+F:	drivers/hwmon/max1668.c
+
 MAX6650 HARDWARE MONITOR AND FAN CONTROLLER DRIVER
 M:	"Hans J. Koch" <hjk@hansjkoch.de>
 L:	lm-sensors@lm-sensors.org
@@ -4998,6 +5005,17 @@ F:	drivers/input/serio/i8042-unicore32io.h
 F:	drivers/i2c/busses/i2c-puv3.c
 F:	drivers/video/fb-puv3.c
 F:	drivers/rtc/rtc-puv3.c
+
+PMBUS HARDWARE MONITORING DRIVERS
+M:	Guenter Roeck <guenter.roeck@ericsson.com>
+L:	lm-sensors@lm-sensors.org
+W:	http://www.lm-sensors.org/
+W:	http://www.roeck-us.net/linux/drivers/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/groeck/linux-staging.git
+S:	Maintained
+F:	Documentation/hwmon/pmbus
+F:	drivers/hwmon/pmbus/
+F:	include/linux/i2c/pmbus.h
 
 PMC SIERRA MaxRAID DRIVER
 M:	Anil Ravindranath <anil_ravindranath@pmc-sierra.com>

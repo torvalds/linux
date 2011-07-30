@@ -96,6 +96,8 @@ static void pmbus_find_sensor_groups(struct i2c_client *client,
 static int pmbus_identify(struct i2c_client *client,
 			  struct pmbus_driver_info *info)
 {
+	int ret = 0;
+
 	if (!info->pages) {
 		/*
 		 * Check if the PAGE command is supported. If it is,
@@ -117,6 +119,27 @@ static int pmbus_identify(struct i2c_client *client,
 		}
 	}
 
+	if (pmbus_check_byte_register(client, 0, PMBUS_VOUT_MODE)) {
+		int vout_mode;
+
+		vout_mode = pmbus_read_byte_data(client, 0, PMBUS_VOUT_MODE);
+		if (vout_mode >= 0 && vout_mode != 0xff) {
+			switch (vout_mode >> 5) {
+			case 0:
+				break;
+			case 1:
+				info->format[PSC_VOLTAGE_OUT] = vid;
+				break;
+			case 2:
+				info->format[PSC_VOLTAGE_OUT] = direct;
+				break;
+			default:
+				ret = -ENODEV;
+				goto abort;
+			}
+		}
+	}
+
 	/*
 	 * We should check if the COEFFICIENTS register is supported.
 	 * If it is, and the chip is configured for direct mode, we can read
@@ -125,13 +148,18 @@ static int pmbus_identify(struct i2c_client *client,
 	 *
 	 * To do this, we will need access to a chip which actually supports the
 	 * COEFFICIENTS command, since the command is too complex to implement
-	 * without testing it.
+	 * without testing it. Until then, abort if a chip configured for direct
+	 * mode was detected.
 	 */
+	if (info->format[PSC_VOLTAGE_OUT] == direct) {
+		ret = -ENODEV;
+		goto abort;
+	}
 
 	/* Try to find sensor groups  */
 	pmbus_find_sensor_groups(client, info);
-
-	return 0;
+abort:
+	return ret;
 }
 
 static int pmbus_probe(struct i2c_client *client,
@@ -172,11 +200,14 @@ static int pmbus_remove(struct i2c_client *client)
  * Use driver_data to set the number of pages supported by the chip.
  */
 static const struct i2c_device_id pmbus_id[] = {
+	{"adp4000", 1},
 	{"bmr450", 1},
 	{"bmr451", 1},
 	{"bmr453", 1},
 	{"bmr454", 1},
 	{"ltc2978", 8},
+	{"ncp4200", 1},
+	{"ncp4208", 1},
 	{"pmbus", 0},
 	{}
 };

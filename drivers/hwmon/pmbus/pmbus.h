@@ -126,6 +126,42 @@
 #define PMBUS_MFR_SERIAL		0x9E
 
 /*
+ * Virtual registers.
+ * Useful to support attributes which are not supported by standard PMBus
+ * registers but exist as manufacturer specific registers on individual chips.
+ * Must be mapped to real registers in device specific code.
+ *
+ * Semantics:
+ * Virtual registers are all word size.
+ * READ registers are read-only; writes are either ignored or return an error.
+ * RESET registers are read/write. Reading returns zero (used for detection),
+ * writing any value causes the associated history to be reset.
+ */
+#define PMBUS_VIRT_BASE			0x100
+#define PMBUS_VIRT_READ_TEMP_MIN	(PMBUS_VIRT_BASE + 0)
+#define PMBUS_VIRT_READ_TEMP_MAX	(PMBUS_VIRT_BASE + 1)
+#define PMBUS_VIRT_RESET_TEMP_HISTORY	(PMBUS_VIRT_BASE + 2)
+#define PMBUS_VIRT_READ_VIN_AVG		(PMBUS_VIRT_BASE + 3)
+#define PMBUS_VIRT_READ_VIN_MIN		(PMBUS_VIRT_BASE + 4)
+#define PMBUS_VIRT_READ_VIN_MAX		(PMBUS_VIRT_BASE + 5)
+#define PMBUS_VIRT_RESET_VIN_HISTORY	(PMBUS_VIRT_BASE + 6)
+#define PMBUS_VIRT_READ_IIN_AVG		(PMBUS_VIRT_BASE + 7)
+#define PMBUS_VIRT_READ_IIN_MIN		(PMBUS_VIRT_BASE + 8)
+#define PMBUS_VIRT_READ_IIN_MAX		(PMBUS_VIRT_BASE + 9)
+#define PMBUS_VIRT_RESET_IIN_HISTORY	(PMBUS_VIRT_BASE + 10)
+#define PMBUS_VIRT_READ_PIN_AVG		(PMBUS_VIRT_BASE + 11)
+#define PMBUS_VIRT_READ_PIN_MAX		(PMBUS_VIRT_BASE + 12)
+#define PMBUS_VIRT_RESET_PIN_HISTORY	(PMBUS_VIRT_BASE + 13)
+#define PMBUS_VIRT_READ_VOUT_AVG	(PMBUS_VIRT_BASE + 14)
+#define PMBUS_VIRT_READ_VOUT_MIN	(PMBUS_VIRT_BASE + 15)
+#define PMBUS_VIRT_READ_VOUT_MAX	(PMBUS_VIRT_BASE + 16)
+#define PMBUS_VIRT_RESET_VOUT_HISTORY	(PMBUS_VIRT_BASE + 17)
+#define PMBUS_VIRT_READ_IOUT_AVG	(PMBUS_VIRT_BASE + 18)
+#define PMBUS_VIRT_READ_IOUT_MIN	(PMBUS_VIRT_BASE + 19)
+#define PMBUS_VIRT_READ_IOUT_MAX	(PMBUS_VIRT_BASE + 20)
+#define PMBUS_VIRT_RESET_IOUT_HISTORY	(PMBUS_VIRT_BASE + 21)
+
+/*
  * CAPABILITY
  */
 #define PB_CAPABILITY_SMBALERT		(1<<4)
@@ -266,11 +302,11 @@ enum pmbus_sensor_classes {
 #define PMBUS_HAVE_STATUS_FAN12	(1 << 16)
 #define PMBUS_HAVE_STATUS_FAN34	(1 << 17)
 
+enum pmbus_data_format { linear = 0, direct, vid };
+
 struct pmbus_driver_info {
 	int pages;		/* Total number of pages */
-	bool direct[PSC_NUM_CLASSES];
-				/* true if device uses direct data format
-				   for the given sensor class */
+	enum pmbus_data_format format[PSC_NUM_CLASSES];
 	/*
 	 * Support one set of coefficients for each sensor type
 	 * Used for chips providing data in direct mode.
@@ -286,6 +322,9 @@ struct pmbus_driver_info {
 	 * necessary.
 	 */
 	int (*read_byte_data)(struct i2c_client *client, int page, int reg);
+	int (*read_word_data)(struct i2c_client *client, int page, int reg);
+	int (*write_word_data)(struct i2c_client *client, int page, int reg,
+			       u16 word);
 	/*
 	 * The identify function determines supported PMBus functionality.
 	 * This function is only necessary if a chip driver supports multiple
@@ -299,6 +338,9 @@ struct pmbus_driver_info {
 
 int pmbus_set_page(struct i2c_client *client, u8 page);
 int pmbus_read_word_data(struct i2c_client *client, u8 page, u8 reg);
+int pmbus_write_word_data(struct i2c_client *client, u8 page, u8 reg, u16 word);
+int pmbus_read_byte_data(struct i2c_client *client, int page, u8 reg);
+int pmbus_write_byte(struct i2c_client *client, int page, u8 value);
 void pmbus_clear_faults(struct i2c_client *client);
 bool pmbus_check_byte_register(struct i2c_client *client, int page, int reg);
 bool pmbus_check_word_register(struct i2c_client *client, int page, int reg);
