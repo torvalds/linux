@@ -36,7 +36,6 @@
 #include <linux/platform_device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/log2.h>
-#include <linux/pm.h>
 
 /* this is for "generic access to PC-style RTC" using CMOS_READ/CMOS_WRITE */
 #include <asm-generic/rtc.h>
@@ -856,7 +855,7 @@ static void __exit cmos_do_remove(struct device *dev)
 
 #ifdef	CONFIG_PM
 
-static int cmos_suspend(struct device *dev)
+static int cmos_suspend(struct device *dev, pm_message_t mesg)
 {
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
 	unsigned char	tmp;
@@ -903,7 +902,7 @@ static int cmos_suspend(struct device *dev)
  */
 static inline int cmos_poweroff(struct device *dev)
 {
-	return cmos_suspend(dev);
+	return cmos_suspend(dev, PMSG_HIBERNATE);
 }
 
 static int cmos_resume(struct device *dev)
@@ -950,9 +949,9 @@ static int cmos_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(cmos_pm_ops, cmos_suspend, cmos_resume);
-
 #else
+#define	cmos_suspend	NULL
+#define	cmos_resume	NULL
 
 static inline int cmos_poweroff(struct device *dev)
 {
@@ -1088,7 +1087,7 @@ static void __exit cmos_pnp_remove(struct pnp_dev *pnp)
 
 static int cmos_pnp_suspend(struct pnp_dev *pnp, pm_message_t mesg)
 {
-	return cmos_suspend(&pnp->dev);
+	return cmos_suspend(&pnp->dev, mesg);
 }
 
 static int cmos_pnp_resume(struct pnp_dev *pnp)
@@ -1168,9 +1167,8 @@ static struct platform_driver cmos_platform_driver = {
 	.shutdown	= cmos_platform_shutdown,
 	.driver = {
 		.name		= (char *) driver_name,
-#ifdef CONFIG_PM
-		.pm		= &cmos_pm_ops,
-#endif
+		.suspend	= cmos_suspend,
+		.resume		= cmos_resume,
 	}
 };
 

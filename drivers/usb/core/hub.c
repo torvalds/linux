@@ -648,8 +648,6 @@ static void hub_init_func3(struct work_struct *ws);
 static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 {
 	struct usb_device *hdev = hub->hdev;
-	struct usb_hcd *hcd;
-	int ret;
 	int port1;
 	int status;
 	bool need_debounce_delay = false;
@@ -688,25 +686,6 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 			atomic_set(&to_usb_interface(hub->intfdev)->
 					pm_usage_cnt, 1);
 			return;		/* Continues at init2: below */
-		} else if (type == HUB_RESET_RESUME) {
-			/* The internal host controller state for the hub device
-			 * may be gone after a host power loss on system resume.
-			 * Update the device's info so the HW knows it's a hub.
-			 */
-			hcd = bus_to_hcd(hdev->bus);
-			if (hcd->driver->update_hub_device) {
-				ret = hcd->driver->update_hub_device(hcd, hdev,
-						&hub->tt, GFP_NOIO);
-				if (ret < 0) {
-					dev_err(hub->intfdev, "Host not "
-							"accepting hub info "
-							"update.\n");
-					dev_err(hub->intfdev, "LS/FS devices "
-							"and hubs may not work "
-							"under this hub\n.");
-				}
-			}
-			hub_power_on(hub, true);
 		} else {
 			hub_power_on(hub, true);
 		}
@@ -1427,11 +1406,11 @@ void usb_set_device_state(struct usb_device *udev,
 					|| new_state == USB_STATE_SUSPENDED)
 				;	/* No change to wakeup settings */
 			else if (new_state == USB_STATE_CONFIGURED)
-				device_set_wakeup_capable(&udev->dev,
+				device_init_wakeup(&udev->dev,
 					(udev->actconfig->desc.bmAttributes
 					 & USB_CONFIG_ATT_WAKEUP));
 			else
-				device_set_wakeup_capable(&udev->dev, 0);
+				device_init_wakeup(&udev->dev, 0);
 		}
 		if (udev->state == USB_STATE_SUSPENDED &&
 			new_state != USB_STATE_SUSPENDED)
@@ -1790,16 +1769,9 @@ int usb_new_device(struct usb_device *udev)
 {
 	int err;
 
-	if (udev->parent) {
-		/* Increment the parent's count of unsuspended children */
+	/* Increment the parent's count of unsuspended children */
+	if (udev->parent)
 		usb_autoresume_device(udev->parent);
-
-		/* Initialize non-root-hub device wakeup to disabled;
-		 * device (un)configuration controls wakeup capable
-		 * sysfs power/wakeup controls wakeup enabled/disabled
-		 */
-		device_init_wakeup(&udev->dev, 0);
-	}
 
 	err = usb_enumerate_device(udev);	/* Read descriptors */
 	if (err < 0)
@@ -2715,17 +2687,6 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 		udev->ttport = hdev->ttport;
 	} else if (udev->speed != USB_SPEED_HIGH
 			&& hdev->speed == USB_SPEED_HIGH) {
-			
-	/* yk@rk 20110617
-	 * parent hub has no TT would not be error in rk29
-	 */
-		#if 0
-		if (!hub->tt.hub) {
-			dev_err(&udev->dev, "parent hub has no TT\n");
-			retval = -EINVAL;
-			goto fail;
-		}
-		#endif
 		udev->tt = &hub->tt;
 		udev->ttport = port1;
 	}

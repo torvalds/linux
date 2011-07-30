@@ -77,21 +77,11 @@ void wakeup_softirqd(void)
 }
 
 /*
- * preempt_count and SOFTIRQ_OFFSET usage:
- * - preempt_count is changed by SOFTIRQ_OFFSET on entering or leaving
- *   softirq processing.
- * - preempt_count is changed by SOFTIRQ_DISABLE_OFFSET (= 2 * SOFTIRQ_OFFSET)
- *   on local_bh_disable or local_bh_enable.
- * This lets us distinguish between whether we are currently processing
- * softirq and whether we just have bh disabled.
- */
-
-/*
  * This one is for softirq.c-internal use,
  * where hardirqs are disabled legitimately:
  */
 #ifdef CONFIG_TRACE_IRQFLAGS
-static void __local_bh_disable(unsigned long ip, unsigned int cnt)
+static void __local_bh_disable(unsigned long ip)
 {
 	unsigned long flags;
 
@@ -105,42 +95,31 @@ static void __local_bh_disable(unsigned long ip, unsigned int cnt)
 	 * We must manually increment preempt_count here and manually
 	 * call the trace_preempt_off later.
 	 */
-	preempt_count() += cnt;
+	preempt_count() += SOFTIRQ_OFFSET;
 	/*
 	 * Were softirqs turned off above:
 	 */
-	if (softirq_count() == cnt)
+	if (softirq_count() == SOFTIRQ_OFFSET)
 		trace_softirqs_off(ip);
 	raw_local_irq_restore(flags);
 
-	if (preempt_count() == cnt)
+	if (preempt_count() == SOFTIRQ_OFFSET)
 		trace_preempt_off(CALLER_ADDR0, get_parent_ip(CALLER_ADDR1));
 }
 #else /* !CONFIG_TRACE_IRQFLAGS */
-static inline void __local_bh_disable(unsigned long ip, unsigned int cnt)
+static inline void __local_bh_disable(unsigned long ip)
 {
-	add_preempt_count(cnt);
+	add_preempt_count(SOFTIRQ_OFFSET);
 	barrier();
 }
 #endif /* CONFIG_TRACE_IRQFLAGS */
 
 void local_bh_disable(void)
 {
-	__local_bh_disable((unsigned long)__builtin_return_address(0),
-				SOFTIRQ_DISABLE_OFFSET);
+	__local_bh_disable((unsigned long)__builtin_return_address(0));
 }
 
 EXPORT_SYMBOL(local_bh_disable);
-
-static void __local_bh_enable(unsigned int cnt)
-{
-	WARN_ON_ONCE(in_irq());
-	WARN_ON_ONCE(!irqs_disabled());
-
-	if (softirq_count() == cnt)
-		trace_softirqs_on((unsigned long)__builtin_return_address(0));
-	sub_preempt_count(cnt);
-}
 
 /*
  * Special-case - softirqs can safely be enabled in
@@ -149,7 +128,12 @@ static void __local_bh_enable(unsigned int cnt)
  */
 void _local_bh_enable(void)
 {
-	__local_bh_enable(SOFTIRQ_DISABLE_OFFSET);
+	WARN_ON_ONCE(in_irq());
+	WARN_ON_ONCE(!irqs_disabled());
+
+	if (softirq_count() == SOFTIRQ_OFFSET)
+		trace_softirqs_on((unsigned long)__builtin_return_address(0));
+	sub_preempt_count(SOFTIRQ_OFFSET);
 }
 
 EXPORT_SYMBOL(_local_bh_enable);
@@ -163,13 +147,13 @@ static inline void _local_bh_enable_ip(unsigned long ip)
 	/*
 	 * Are softirqs going to be turned on now:
 	 */
-	if (softirq_count() == SOFTIRQ_DISABLE_OFFSET)
+	if (softirq_count() == SOFTIRQ_OFFSET)
 		trace_softirqs_on(ip);
 	/*
 	 * Keep preemption disabled until we are done with
 	 * softirq processing:
  	 */
-	sub_preempt_count(SOFTIRQ_DISABLE_OFFSET - 1);
+ 	sub_preempt_count(SOFTIRQ_OFFSET - 1);
 
 	if (unlikely(!in_interrupt() && local_softirq_pending()))
 		do_softirq();
@@ -214,8 +198,7 @@ asmlinkage void __do_softirq(void)
 	pending = local_softirq_pending();
 	account_system_vtime(current);
 
-	__local_bh_disable((unsigned long)__builtin_return_address(0),
-				SOFTIRQ_OFFSET);
+	__local_bh_disable((unsigned long)__builtin_return_address(0));
 	lockdep_softirq_enter();
 
 	cpu = smp_processor_id();
@@ -262,7 +245,7 @@ restart:
 	lockdep_softirq_exit();
 
 	account_system_vtime(current);
-	__local_bh_enable(SOFTIRQ_OFFSET);
+	_local_bh_enable();
 }
 
 #ifndef __ARCH_HAS_DO_SOFTIRQ
@@ -296,16 +279,10 @@ void irq_enter(void)
 
 	rcu_irq_enter();
 	if (idle_cpu(cpu) && !in_interrupt()) {
-		/*
-		 * Prevent raise_softirq from needlessly waking up ksoftirqd
-		 * here, as softirq will be serviced on return from interrupt.
-		 */
-		local_bh_disable();
+		__irq_enter();
 		tick_check_idle(cpu);
-		_local_bh_enable();
-	}
-
-	__irq_enter();
+	} else
+		__irq_enter();
 }
 
 #ifdef __ARCH_IRQ_EXIT_IRQS_DISABLED
@@ -724,7 +701,6 @@ static int ksoftirqd(void * __bind_cpu)
 {
 	set_current_state(TASK_INTERRUPTIBLE);
 
-	current->flags |= PF_KSOFTIRQD;
 	while (!kthread_should_stop()) {
 		preempt_disable();
 		if (!local_softirq_pending()) {

@@ -1466,8 +1466,11 @@ static int
 swsusp_alloc(struct memory_bitmap *orig_bm, struct memory_bitmap *copy_bm,
 		unsigned int nr_pages, unsigned int nr_highmem)
 {
+	int error = 0;
+
 	if (nr_highmem > 0) {
-		if (get_highmem_buffer(PG_ANY))
+		error = get_highmem_buffer(PG_ANY);
+		if (error)
 			goto err_out;
 		if (nr_highmem > alloc_highmem) {
 			nr_highmem -= alloc_highmem;
@@ -1490,7 +1493,7 @@ swsusp_alloc(struct memory_bitmap *orig_bm, struct memory_bitmap *copy_bm,
 
  err_out:
 	swsusp_free();
-	return -ENOMEM;
+	return error;
 }
 
 asmlinkage int swsusp_save(void)

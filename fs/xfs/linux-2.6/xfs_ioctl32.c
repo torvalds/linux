@@ -235,12 +235,15 @@ xfs_bulkstat_one_compat(
 	xfs_ino_t	ino,		/* inode number to get data for */
 	void		__user *buffer,	/* buffer to place output in */
 	int		ubsize,		/* size of buffer */
+	void		*private_data,	/* my private data */
+	xfs_daddr_t	bno,		/* starting bno of inode cluster */
 	int		*ubused,	/* bytes used by me */
+	void		*dibuff,	/* on-disk inode buffer */
 	int		*stat)		/* BULKSTAT_RV_... */
 {
 	return xfs_bulkstat_one_int(mp, ino, buffer, ubsize,
-				    xfs_bulkstat_one_fmt_compat,
-				    ubused, stat);
+				    xfs_bulkstat_one_fmt_compat, bno,
+				    ubused, dibuff, stat);
 }
 
 /* copied from xfs_ioctl.c */
@@ -293,11 +296,13 @@ xfs_compat_ioc_bulkstat(
 		int res;
 
 		error = xfs_bulkstat_one_compat(mp, inlast, bulkreq.ubuffer,
-				sizeof(compat_xfs_bstat_t), 0, &res);
+				sizeof(compat_xfs_bstat_t),
+				NULL, 0, NULL, NULL, &res);
 	} else if (cmd == XFS_IOC_FSBULKSTAT_32) {
 		error = xfs_bulkstat(mp, &inlast, &count,
-			xfs_bulkstat_one_compat, sizeof(compat_xfs_bstat_t),
-			bulkreq.ubuffer, &done);
+			xfs_bulkstat_one_compat, NULL,
+			sizeof(compat_xfs_bstat_t), bulkreq.ubuffer,
+			BULKSTAT_FG_QUICK, &done);
 	} else
 		error = XFS_ERROR(EINVAL);
 	if (error)

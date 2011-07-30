@@ -15,7 +15,6 @@
 #include <linux/thread_info.h>
 #include <linux/init_task.h>
 #include <linux/errno.h>
-#include <linux/cpu.h>
 
 #include <asm/page.h>
 #include <asm/current.h>
@@ -156,62 +155,33 @@ void kexec_copy_flush(struct kimage *image)
 
 #ifdef CONFIG_SMP
 
-static int kexec_all_irq_disabled;
-
+/* FIXME: we should schedule this function to be called on all cpus based
+ * on calling the interrupts, but we would like to call it off irq level
+ * so that the interrupt controller is clean.
+ */
 static void kexec_smp_down(void *arg)
 {
-	local_irq_disable();
-	mb(); /* make sure our irqs are disabled before we say they are */
-	get_paca()->kexec_state = KEXEC_STATE_IRQS_OFF;
-	while (kexec_all_irq_disabled == 0)
-		cpu_relax();
-	mb(); /* make sure all irqs are disabled before this */
-	/*
-	 * Now every CPU has IRQs off, we can clear out any pending
-	 * IPIs and be sure that no more will come in after this.
-	 */
 	if (ppc_md.kexec_cpu_down)
 		ppc_md.kexec_cpu_down(0, 1);
 
+	local_irq_disable();
 	kexec_smp_wait();
 	/* NOTREACHED */
 }
 
-/*
- * We need to make sure each present CPU is online.  The next kernel will scan
- * the device tree and assume primary threads are online and query secondary
- * threads via RTAS to online them if required.  If we don't online primary
- * threads, they will be stuck.  However, we also online secondary threads as we
- * may be using 'cede offline'.  In this case RTAS doesn't see the secondary
- * threads as offline -- and again, these CPUs will be stuck.
- *
- * So, we online all CPUs that should be running, including secondary threads.
- */
-static void wake_offline_cpus(void)
-{
-	int cpu = 0;
-
-	for_each_present_cpu(cpu) {
-		if (!cpu_online(cpu)) {
-			printk(KERN_INFO "kexec: Waking offline cpu %d.\n",
-					cpu);
-			cpu_up(cpu);
-		}
-	}
-}
-
-static void kexec_prepare_cpus_wait(int wait_state)
+static void kexec_prepare_cpus(void)
 {
 	int my_cpu, i, notified=-1;
 
-	wake_offline_cpus();
+	smp_call_function(kexec_smp_down, NULL, /* wait */0);
 	my_cpu = get_cpu();
-	/* Make sure each CPU has atleast made it to the state we need */
+
+	/* check the others cpus are now down (via paca hw cpu id == -1) */
 	for (i=0; i < NR_CPUS; i++) {
 		if (i == my_cpu)
 			continue;
 
-		while (paca[i].kexec_state < wait_state) {
+		while (paca[i].hw_cpu_id != -1) {
 			barrier();
 			if (!cpu_possible(i)) {
 				printk("kexec: cpu %d hw_cpu_id %d is not"
@@ -231,35 +201,20 @@ static void kexec_prepare_cpus_wait(int wait_state)
 			}
 			if (i != notified) {
 				printk( "kexec: waiting for cpu %d (physical"
-						" %d) to enter %i state\n",
-					i, paca[i].hw_cpu_id, wait_state);
+						" %d) to go down\n",
+						i, paca[i].hw_cpu_id);
 				notified = i;
 			}
 		}
 	}
-	mb();
-}
-
-static void kexec_prepare_cpus(void)
-{
-
-	smp_call_function(kexec_smp_down, NULL, /* wait */0);
-	local_irq_disable();
-	mb(); /* make sure IRQs are disabled before we say they are */
-	get_paca()->kexec_state = KEXEC_STATE_IRQS_OFF;
-
-	kexec_prepare_cpus_wait(KEXEC_STATE_IRQS_OFF);
-	/* we are sure every CPU has IRQs off at this point */
-	kexec_all_irq_disabled = 1;
 
 	/* after we tell the others to go down */
 	if (ppc_md.kexec_cpu_down)
 		ppc_md.kexec_cpu_down(0, 0);
 
-/* Before removing MMU mapings make sure all CPUs have entered real mode */
-	kexec_prepare_cpus_wait(KEXEC_STATE_REAL_MODE);
-
 	put_cpu();
+
+	local_irq_disable();
 }
 
 #else /* ! SMP */

@@ -15,6 +15,7 @@
 #include <linux/syscalls.h>
 #include <linux/pid_namespace.h>
 #include <asm/uaccess.h>
+#include "cred-internals.h"
 
 /*
  * Leveraged for setting/resetting capabilities

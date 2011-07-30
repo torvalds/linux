@@ -41,42 +41,6 @@ static int ehci_pci_reinit(struct ehci_hcd *ehci, struct pci_dev *pdev)
 	return 0;
 }
 
-static int ehci_quirk_amd_hudson(struct ehci_hcd *ehci)
-{
-	struct pci_dev *amd_smbus_dev;
-	u8 rev = 0;
-
-	amd_smbus_dev = pci_get_device(PCI_VENDOR_ID_ATI, 0x4385, NULL);
-	if (amd_smbus_dev) {
-		pci_read_config_byte(amd_smbus_dev, PCI_REVISION_ID, &rev);
-		if (rev < 0x40) {
-			pci_dev_put(amd_smbus_dev);
-			amd_smbus_dev = NULL;
-			return 0;
-		}
-	} else {
-		amd_smbus_dev = pci_get_device(PCI_VENDOR_ID_AMD, 0x780b, NULL);
-		if (!amd_smbus_dev)
-			return 0;
-		pci_read_config_byte(amd_smbus_dev, PCI_REVISION_ID, &rev);
-		if (rev < 0x11 || rev > 0x18) {
-			pci_dev_put(amd_smbus_dev);
-			amd_smbus_dev = NULL;
-			return 0;
-		}
-	}
-
-	if (!amd_nb_dev)
-		amd_nb_dev = pci_get_device(PCI_VENDOR_ID_AMD, 0x1510, NULL);
-
-	ehci_info(ehci, "QUIRK: Enable exception for AMD Hudson ASPM\n");
-
-	pci_dev_put(amd_smbus_dev);
-	amd_smbus_dev = NULL;
-
-	return 1;
-}
-
 /* called during probe() after chip reset completes */
 static int ehci_pci_setup(struct usb_hcd *hcd)
 {
@@ -134,9 +98,6 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 
 	/* cache this readonly data; minimize chip reads */
 	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
-
-	if (ehci_quirk_amd_hudson(ehci))
-		ehci->amd_l1_fix = 1;
 
 	retval = ehci_halt(ehci);
 	if (retval)

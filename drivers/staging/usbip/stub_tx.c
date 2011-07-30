@@ -167,6 +167,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 	struct stub_priv *priv, *tmp;
 
 	struct msghdr msg;
+	struct kvec iov[3];
 	size_t txsize;
 
 	size_t total_size = 0;
@@ -176,73 +177,28 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 		struct urb *urb = priv->urb;
 		struct usbip_header pdu_header;
 		void *iso_buffer = NULL;
-		struct kvec *iov = NULL;
-		int iovnum = 0;
 
 		txsize = 0;
 		memset(&pdu_header, 0, sizeof(pdu_header));
 		memset(&msg, 0, sizeof(msg));
+		memset(&iov, 0, sizeof(iov));
 
-		if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS)
-			iovnum = 2 + urb->number_of_packets;
-		else
-			iovnum = 2;
+		usbip_dbg_stub_tx("setup txdata urb %p\n", urb);
 
-		iov = kzalloc(iovnum * sizeof(struct kvec), GFP_KERNEL);
-
-		if (!iov) {
-			usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_MALLOC);
-			return -1;
-		}
-
-		iovnum = 0;
 
 		/* 1. setup usbip_header */
 		setup_ret_submit_pdu(&pdu_header, urb);
-		usbip_dbg_stub_tx("setup txdata seqnum: %d urb: %p\n",
-						pdu_header.base.seqnum, urb);
-		/*usbip_dump_header(pdu_header);*/
 		usbip_header_correct_endian(&pdu_header, 1);
 
-		iov[iovnum].iov_base = &pdu_header;
-		iov[iovnum].iov_len  = sizeof(pdu_header);
-		iovnum++;
+		iov[0].iov_base = &pdu_header;
+		iov[0].iov_len  = sizeof(pdu_header);
 		txsize += sizeof(pdu_header);
 
 		/* 2. setup transfer buffer */
-		if (usb_pipein(urb->pipe) &&
-				usb_pipetype(urb->pipe) != PIPE_ISOCHRONOUS &&
-					urb->actual_length > 0) {
-			iov[iovnum].iov_base = urb->transfer_buffer;
-			iov[iovnum].iov_len  = urb->actual_length;
-			iovnum++;
+		if (usb_pipein(urb->pipe) && urb->actual_length > 0) {
+			iov[1].iov_base = urb->transfer_buffer;
+			iov[1].iov_len  = urb->actual_length;
 			txsize += urb->actual_length;
-		} else if (usb_pipein(urb->pipe) &&
-				usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
-			/*
-			 * For isochronous packets: actual length is the sum of
-			 * the actual length of the individual, packets, but as
-			 * the packet offsets are not changed there will be
-			 * padding between the packets. To optimally use the
-			 * bandwidth the padding is not transmitted.
-			 */
-
-			int i;
-			for (i = 0; i < urb->number_of_packets; i++) {
-				iov[iovnum].iov_base = urb->transfer_buffer + urb->iso_frame_desc[i].offset;
-				iov[iovnum].iov_len = urb->iso_frame_desc[i].actual_length;
-				iovnum++;
-				txsize += urb->iso_frame_desc[i].actual_length;
-			}
-
-			if (txsize != sizeof(pdu_header) + urb->actual_length) {
-				dev_err(&sdev->interface->dev,
-					"actual length of urb (%d) does not match iso packet sizes (%d)\n",
-					urb->actual_length, txsize-sizeof(pdu_header));
-				kfree(iov);
-				usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_TCP);
-			   return -1;
-			}
 		}
 
 		/* 3. setup iso_packet_descriptor */
@@ -253,33 +209,31 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 			if (!iso_buffer) {
 				usbip_event_add(&sdev->ud,
 						SDEV_EVENT_ERROR_MALLOC);
-				kfree(iov);
 				return -1;
 			}
 
-			iov[iovnum].iov_base = iso_buffer;
-			iov[iovnum].iov_len  = len;
+			iov[2].iov_base = iso_buffer;
+			iov[2].iov_len  = len;
 			txsize += len;
-			iovnum++;
 		}
 
-		ret = kernel_sendmsg(sdev->ud.tcp_socket, &msg,
-						iov,  iovnum, txsize);
+		ret = kernel_sendmsg(sdev->ud.tcp_socket, &msg, iov,
+				     3, txsize);
 		if (ret != txsize) {
 			dev_err(&sdev->interface->dev,
 				"sendmsg failed!, retval %d for %zd\n",
 				ret, txsize);
-			kfree(iov);
 			kfree(iso_buffer);
 			usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_TCP);
 			return -1;
 		}
 
-		kfree(iov);
 		kfree(iso_buffer);
+		usbip_dbg_stub_tx("send txdata\n");
 
 		total_size += txsize;
 	}
+
 
 	spin_lock_irqsave(&sdev->priv_lock, flags);
 

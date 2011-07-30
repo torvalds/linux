@@ -111,7 +111,6 @@ int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
 		SetPageDirty(page);
 
 		unlock_page(page);
-		put_page(page);
 	}
 
 	return 0;

@@ -18,7 +18,7 @@
 #include <asm/mmu.h>
 
 _GLOBAL(__setup_cpu_603)
-	mflr	r5
+	mflr	r4
 BEGIN_MMU_FTR_SECTION
 	li	r10,0
 	mtspr	SPRN_SPRG_603_LRU,r10		/* init SW LRU tracking */
@@ -27,60 +27,60 @@ BEGIN_FTR_SECTION
 	bl	__init_fpu_registers
 END_FTR_SECTION_IFCLR(CPU_FTR_FPU_UNAVAILABLE)
 	bl	setup_common_caches
-	mtlr	r5
+	mtlr	r4
 	blr
 _GLOBAL(__setup_cpu_604)
-	mflr	r5
+	mflr	r4
 	bl	setup_common_caches
 	bl	setup_604_hid0
-	mtlr	r5
+	mtlr	r4
 	blr
 _GLOBAL(__setup_cpu_750)
-	mflr	r5
+	mflr	r4
 	bl	__init_fpu_registers
 	bl	setup_common_caches
 	bl	setup_750_7400_hid0
-	mtlr	r5
+	mtlr	r4
 	blr
 _GLOBAL(__setup_cpu_750cx)
-	mflr	r5
+	mflr	r4
 	bl	__init_fpu_registers
 	bl	setup_common_caches
 	bl	setup_750_7400_hid0
 	bl	setup_750cx
-	mtlr	r5
+	mtlr	r4
 	blr
 _GLOBAL(__setup_cpu_750fx)
-	mflr	r5
+	mflr	r4
 	bl	__init_fpu_registers
 	bl	setup_common_caches
 	bl	setup_750_7400_hid0
 	bl	setup_750fx
-	mtlr	r5
+	mtlr	r4
 	blr
 _GLOBAL(__setup_cpu_7400)
-	mflr	r5
+	mflr	r4
 	bl	__init_fpu_registers
 	bl	setup_7400_workarounds
 	bl	setup_common_caches
 	bl	setup_750_7400_hid0
-	mtlr	r5
+	mtlr	r4
 	blr
 _GLOBAL(__setup_cpu_7410)
-	mflr	r5
+	mflr	r4
 	bl	__init_fpu_registers
 	bl	setup_7410_workarounds
 	bl	setup_common_caches
 	bl	setup_750_7400_hid0
 	li	r3,0
 	mtspr	SPRN_L2CR2,r3
-	mtlr	r5
+	mtlr	r4
 	blr
 _GLOBAL(__setup_cpu_745x)
-	mflr	r5
+	mflr	r4
 	bl	setup_common_caches
 	bl	setup_745x_specifics
-	mtlr	r5
+	mtlr	r4
 	blr
 
 /* Enable caches for 603's, 604, 750 & 7400 */
@@ -194,10 +194,10 @@ setup_750cx:
 	cror	4*cr0+eq,4*cr0+eq,4*cr1+eq
 	cror	4*cr0+eq,4*cr0+eq,4*cr2+eq
 	bnelr
-	lwz	r6,CPU_SPEC_FEATURES(r4)
+	lwz	r6,CPU_SPEC_FEATURES(r5)
 	li	r7,CPU_FTR_CAN_NAP
 	andc	r6,r6,r7
-	stw	r6,CPU_SPEC_FEATURES(r4)
+	stw	r6,CPU_SPEC_FEATURES(r5)
 	blr
 
 /* 750fx specific
@@ -225,12 +225,12 @@ BEGIN_FTR_SECTION
 	andis.	r11,r11,L3CR_L3E@h
 	beq	1f
 END_FTR_SECTION_IFSET(CPU_FTR_L3CR)
-	lwz	r6,CPU_SPEC_FEATURES(r4)
+	lwz	r6,CPU_SPEC_FEATURES(r5)
 	andi.	r0,r6,CPU_FTR_L3_DISABLE_NAP
 	beq	1f
 	li	r7,CPU_FTR_CAN_NAP
 	andc	r6,r6,r7
-	stw	r6,CPU_SPEC_FEATURES(r4)
+	stw	r6,CPU_SPEC_FEATURES(r5)
 1:
 	mfspr	r11,SPRN_HID0
 

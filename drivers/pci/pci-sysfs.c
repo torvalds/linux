@@ -939,12 +939,7 @@ static ssize_t reset_store(struct device *dev,
 
 	if (val != 1)
 		return -EINVAL;
-
-	result = pci_reset_function(pdev);
-	if (result < 0)
-		return result;
-
-	return count;
+	return pci_reset_function(pdev);
 }
 
 static struct device_attribute reset_attr = __ATTR(reset, 0200, NULL, reset_store);
@@ -967,7 +962,7 @@ static int pci_create_capabilities_sysfs(struct pci_dev *dev)
 		attr->write = write_vpd_attr;
 		retval = sysfs_create_bin_file(&dev->dev.kobj, attr);
 		if (retval) {
-			kfree(attr);
+			kfree(dev->vpd->attr);
 			return retval;
 		}
 		dev->vpd->attr = attr;

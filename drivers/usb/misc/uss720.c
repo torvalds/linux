@@ -176,11 +176,12 @@ static struct uss720_async_request *submit_async_request(struct parport_uss720_p
 	spin_lock_irqsave(&priv->asynclock, flags);
 	list_add_tail(&rq->asynclist, &priv->asynclist);
 	spin_unlock_irqrestore(&priv->asynclock, flags);
-	kref_get(&rq->ref_count);
 	ret = usb_submit_urb(rq->urb, mem_flags);
-	if (!ret)
+	if (!ret) {
+		kref_get(&rq->ref_count);
 		return rq;
-	destroy_async(&rq->ref_count);
+	}
+	kref_put(&rq->ref_count, destroy_async);
 	err("submit_async_request submit_urb failed with %d", ret);
 	return NULL;
 }

@@ -370,10 +370,6 @@ static int rlb_arp_recv(struct sk_buff *skb, struct net_device *bond_dev, struct
 		goto out;
 	}
 
-	skb = skb_share_check(skb, GFP_ATOMIC);
-	if (!skb)
-		goto out;
-
 	if (!pskb_may_pull(skb, arp_hdr_len(bond_dev)))
 		goto out;
 

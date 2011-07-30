@@ -110,7 +110,7 @@ static int cls_cgroup_classify(struct sk_buff *skb, struct tcf_proto *tp,
 	 * calls by looking at the number of nested bh disable calls because
 	 * softirqs always disables bh.
 	 */
-	if (in_serving_softirq())
+	if (softirq_count() != SOFTIRQ_OFFSET)
 		return -1;
 
 	rcu_read_lock();

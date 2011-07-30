@@ -540,6 +540,10 @@ extern void reloc_got2(unsigned long);
 
 #define PTRRELOC(x)	((typeof(x)) add_reloc_offset((unsigned long)(x)))
 
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+extern void account_system_vtime(struct task_struct *);
+#endif
+
 extern struct dentry *powerpc_debugfs_root;
 
 #endif /* __KERNEL__ */

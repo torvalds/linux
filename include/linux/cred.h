@@ -153,7 +153,6 @@ struct cred {
 extern void __put_cred(struct cred *);
 extern void exit_creds(struct task_struct *);
 extern int copy_creds(struct task_struct *, unsigned long);
-extern const struct cred *get_task_cred(struct task_struct *);
 extern struct cred *cred_alloc_blank(void);
 extern struct cred *prepare_creds(void);
 extern struct cred *prepare_exec_creds(void);
@@ -282,6 +281,26 @@ static inline void put_cred(const struct cred *_cred)
  */
 #define __task_cred(task) \
 	((const struct cred *)(rcu_dereference((task)->real_cred)))
+
+/**
+ * get_task_cred - Get another task's objective credentials
+ * @task: The task to query
+ *
+ * Get the objective credentials of a task, pinning them so that they can't go
+ * away.  Accessing a task's credentials directly is not permitted.
+ *
+ * The caller must make sure task doesn't go away, either by holding a ref on
+ * task or by holding tasklist_lock to prevent it from being unlinked.
+ */
+#define get_task_cred(task)				\
+({							\
+	struct cred *__cred;				\
+	rcu_read_lock();				\
+	__cred = (struct cred *) __task_cred((task));	\
+	get_cred(__cred);				\
+	rcu_read_unlock();				\
+	__cred;						\
+})
 
 /**
  * get_current_cred - Get the current task's subjective credentials

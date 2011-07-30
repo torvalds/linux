@@ -398,14 +398,7 @@ ohci_shutdown (struct usb_hcd *hcd)
 
 	ohci = hcd_to_ohci (hcd);
 	ohci_writel (ohci, OHCI_INTR_MIE, &ohci->regs->intrdisable);
-	ohci->hc_control = ohci_readl(ohci, &ohci->regs->control);
-
-	/* If the SHUTDOWN quirk is set, don't put the controller in RESET */
-	ohci->hc_control &= (ohci->flags & OHCI_QUIRK_SHUTDOWN ?
-			OHCI_CTRL_RWC | OHCI_CTRL_HCFS :
-			OHCI_CTRL_RWC);
-	ohci_writel(ohci, ohci->hc_control, &ohci->regs->control);
-
+	ohci_usb_reset (ohci);
 	/* flush the writes */
 	(void) ohci_readl (ohci, &ohci->regs->control);
 }

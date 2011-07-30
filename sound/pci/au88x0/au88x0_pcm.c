@@ -42,7 +42,11 @@ static struct snd_pcm_hardware snd_vortex_playback_hw_adb = {
 	.rate_min = 5000,
 	.rate_max = 48000,
 	.channels_min = 1,
+#ifdef CHIP_AU8830
+	.channels_max = 4,
+#else
 	.channels_max = 2,
+#endif
 	.buffer_bytes_max = 0x10000,
 	.period_bytes_min = 0x1,
 	.period_bytes_max = 0x1000,
@@ -111,17 +115,6 @@ static struct snd_pcm_hardware snd_vortex_playback_hw_wt = {
 	.periods_max = 64,
 };
 #endif
-#ifdef CHIP_AU8830
-static unsigned int au8830_channels[3] = {
-	1, 2, 4,
-};
-
-static struct snd_pcm_hw_constraint_list hw_constraints_au8830_channels = {
-	.count = ARRAY_SIZE(au8830_channels),
-	.list = au8830_channels,
-	.mask = 0,
-};
-#endif
 /* open callback */
 static int snd_vortex_pcm_open(struct snd_pcm_substream *substream)
 {
@@ -163,15 +156,6 @@ static int snd_vortex_pcm_open(struct snd_pcm_substream *substream)
 		if (VORTEX_PCM_TYPE(substream->pcm) == VORTEX_PCM_ADB
 		    || VORTEX_PCM_TYPE(substream->pcm) == VORTEX_PCM_I2S)
 			runtime->hw = snd_vortex_playback_hw_adb;
-#ifdef CHIP_AU8830
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
-			VORTEX_PCM_TYPE(substream->pcm) == VORTEX_PCM_ADB) {
-			runtime->hw.channels_max = 4;
-			snd_pcm_hw_constraint_list(runtime, 0,
-				SNDRV_PCM_HW_PARAM_CHANNELS,
-				&hw_constraints_au8830_channels);
-		}
-#endif
 		substream->runtime->private_data = NULL;
 	}
 #ifndef CHIP_AU8810

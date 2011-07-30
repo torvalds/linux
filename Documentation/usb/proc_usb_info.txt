@@ -1,16 +1,11 @@
 /proc/bus/usb filesystem output
 ===============================
-(version 2010.09.13)
+(version 2003.05.30)
 
 
 The usbfs filesystem for USB devices is traditionally mounted at
 /proc/bus/usb.  It provides the /proc/bus/usb/devices file, as well as
 the /proc/bus/usb/BBB/DDD files.
-
-In many modern systems the usbfs filsystem isn't used at all.  Instead
-USB device nodes are created under /dev/usb/ or someplace similar.  The
-"devices" file is available in debugfs, typically as
-/sys/kernel/debug/usb/devices.
 
 
 **NOTE**: If /proc/bus/usb appears empty, and a host controller
@@ -111,8 +106,8 @@ Legend:
 
 Topology info:
 
-T:  Bus=dd Lev=dd Prnt=dd Port=dd Cnt=dd Dev#=ddd Spd=dddd MxCh=dd
-|   |      |      |       |       |      |        |        |__MaxChildren
+T:  Bus=dd Lev=dd Prnt=dd Port=dd Cnt=dd Dev#=ddd Spd=ddd MxCh=dd
+|   |      |      |       |       |      |        |       |__MaxChildren
 |   |      |      |       |       |      |        |__Device Speed in Mbps
 |   |      |      |       |       |      |__DeviceNumber
 |   |      |      |       |       |__Count of devices at this level
@@ -125,13 +120,8 @@ T:  Bus=dd Lev=dd Prnt=dd Port=dd Cnt=dd Dev#=ddd Spd=dddd MxCh=dd
     Speed may be:
     	1.5	Mbit/s for low speed USB
 	12	Mbit/s for full speed USB
-	480	Mbit/s for high speed USB (added for USB 2.0);
-		  also used for Wireless USB, which has no fixed speed
-	5000	Mbit/s for SuperSpeed USB (added for USB 3.0)
+	480	Mbit/s for high speed USB (added for USB 2.0)
 
-    For reasons lost in the mists of time, the Port number is always
-    too low by 1.  For example, a device plugged into port 4 will
-    show up with "Port=03".
 
 Bandwidth info:
 B:  Alloc=ddd/ddd us (xx%), #Int=ddd, #Iso=ddd
@@ -301,7 +291,7 @@ Here's an example, from a system which has a UHCI root hub,
 an external hub connected to the root hub, and a mouse and
 a serial converter connected to the external hub.
 
-T:  Bus=00 Lev=00 Prnt=00 Port=00 Cnt=00 Dev#=  1 Spd=12   MxCh= 2
+T:  Bus=00 Lev=00 Prnt=00 Port=00 Cnt=00 Dev#=  1 Spd=12  MxCh= 2
 B:  Alloc= 28/900 us ( 3%), #Int=  2, #Iso=  0
 D:  Ver= 1.00 Cls=09(hub  ) Sub=00 Prot=00 MxPS= 8 #Cfgs=  1
 P:  Vendor=0000 ProdID=0000 Rev= 0.00
@@ -311,21 +301,21 @@ C:* #Ifs= 1 Cfg#= 1 Atr=40 MxPwr=  0mA
 I:  If#= 0 Alt= 0 #EPs= 1 Cls=09(hub  ) Sub=00 Prot=00 Driver=hub
 E:  Ad=81(I) Atr=03(Int.) MxPS=   8 Ivl=255ms
 
-T:  Bus=00 Lev=01 Prnt=01 Port=00 Cnt=01 Dev#=  2 Spd=12   MxCh= 4
+T:  Bus=00 Lev=01 Prnt=01 Port=00 Cnt=01 Dev#=  2 Spd=12  MxCh= 4
 D:  Ver= 1.00 Cls=09(hub  ) Sub=00 Prot=00 MxPS= 8 #Cfgs=  1
 P:  Vendor=0451 ProdID=1446 Rev= 1.00
 C:* #Ifs= 1 Cfg#= 1 Atr=e0 MxPwr=100mA
 I:  If#= 0 Alt= 0 #EPs= 1 Cls=09(hub  ) Sub=00 Prot=00 Driver=hub
 E:  Ad=81(I) Atr=03(Int.) MxPS=   1 Ivl=255ms
 
-T:  Bus=00 Lev=02 Prnt=02 Port=00 Cnt=01 Dev#=  3 Spd=1.5  MxCh= 0
+T:  Bus=00 Lev=02 Prnt=02 Port=00 Cnt=01 Dev#=  3 Spd=1.5 MxCh= 0
 D:  Ver= 1.00 Cls=00(>ifc ) Sub=00 Prot=00 MxPS= 8 #Cfgs=  1
 P:  Vendor=04b4 ProdID=0001 Rev= 0.00
 C:* #Ifs= 1 Cfg#= 1 Atr=80 MxPwr=100mA
 I:  If#= 0 Alt= 0 #EPs= 1 Cls=03(HID  ) Sub=01 Prot=02 Driver=mouse
 E:  Ad=81(I) Atr=03(Int.) MxPS=   3 Ivl= 10ms
 
-T:  Bus=00 Lev=02 Prnt=02 Port=02 Cnt=02 Dev#=  4 Spd=12   MxCh= 0
+T:  Bus=00 Lev=02 Prnt=02 Port=02 Cnt=02 Dev#=  4 Spd=12  MxCh= 0
 D:  Ver= 1.00 Cls=00(>ifc ) Sub=00 Prot=00 MxPS= 8 #Cfgs=  1
 P:  Vendor=0565 ProdID=0001 Rev= 1.08
 S:  Manufacturer=Peracom Networks, Inc.
@@ -340,12 +330,12 @@ E:  Ad=82(I) Atr=03(Int.) MxPS=   8 Ivl=  8ms
 Selecting only the "T:" and "I:" lines from this (for example, by using
 "procusb ti"), we have:
 
-T:  Bus=00 Lev=00 Prnt=00 Port=00 Cnt=00 Dev#=  1 Spd=12   MxCh= 2
-T:  Bus=00 Lev=01 Prnt=01 Port=00 Cnt=01 Dev#=  2 Spd=12   MxCh= 4
+T:  Bus=00 Lev=00 Prnt=00 Port=00 Cnt=00 Dev#=  1 Spd=12  MxCh= 2
+T:  Bus=00 Lev=01 Prnt=01 Port=00 Cnt=01 Dev#=  2 Spd=12  MxCh= 4
 I:  If#= 0 Alt= 0 #EPs= 1 Cls=09(hub  ) Sub=00 Prot=00 Driver=hub
-T:  Bus=00 Lev=02 Prnt=02 Port=00 Cnt=01 Dev#=  3 Spd=1.5  MxCh= 0
+T:  Bus=00 Lev=02 Prnt=02 Port=00 Cnt=01 Dev#=  3 Spd=1.5 MxCh= 0
 I:  If#= 0 Alt= 0 #EPs= 1 Cls=03(HID  ) Sub=01 Prot=02 Driver=mouse
-T:  Bus=00 Lev=02 Prnt=02 Port=02 Cnt=02 Dev#=  4 Spd=12   MxCh= 0
+T:  Bus=00 Lev=02 Prnt=02 Port=02 Cnt=02 Dev#=  4 Spd=12  MxCh= 0
 I:  If#= 0 Alt= 0 #EPs= 3 Cls=00(>ifc ) Sub=00 Prot=00 Driver=serial
 
 

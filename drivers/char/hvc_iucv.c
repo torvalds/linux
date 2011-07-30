@@ -139,8 +139,6 @@ struct hvc_iucv_private *hvc_iucv_get_private(uint32_t num)
  *
  * This function allocates a new struct iucv_tty_buffer element and, optionally,
  * allocates an internal data buffer with the specified size @size.
- * The internal data buffer is always allocated with GFP_DMA which is
- * required for receiving and sending data with IUCV.
  * Note: The total message size arises from the internal buffer size and the
  *	 members of the iucv_tty_msg structure.
  * The function returns NULL if memory allocation has failed.
@@ -156,7 +154,7 @@ static struct iucv_tty_buffer *alloc_tty_buffer(size_t size, gfp_t flags)
 
 	if (size > 0) {
 		bufp->msg.length = MSG_SIZE(size);
-		bufp->mbuf = kmalloc(bufp->msg.length, flags | GFP_DMA);
+		bufp->mbuf = kmalloc(bufp->msg.length, flags);
 		if (!bufp->mbuf) {
 			mempool_free(bufp, hvc_iucv_mempool);
 			return NULL;
@@ -239,7 +237,7 @@ static int hvc_iucv_write(struct hvc_iucv_private *priv,
 	if (!rb->mbuf) { /* message not yet received ... */
 		/* allocate mem to store msg data; if no memory is available
 		 * then leave the buffer on the list and re-try later */
-		rb->mbuf = kmalloc(rb->msg.length, GFP_ATOMIC | GFP_DMA);
+		rb->mbuf = kmalloc(rb->msg.length, GFP_ATOMIC);
 		if (!rb->mbuf)
 			return -ENOMEM;
 

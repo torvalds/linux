@@ -229,7 +229,6 @@ MODULE_PARM_DESC(lineio, "Line In to Rear Out (0 = auto, 1 = force).");
 #define ES_REG_1371_CODEC 0x14	/* W/R: Codec Read/Write register address */
 #define   ES_1371_CODEC_RDY	   (1<<31)	/* codec ready */
 #define   ES_1371_CODEC_WIP	   (1<<30)	/* codec register access in progress */
-#define   EV_1938_CODEC_MAGIC	   (1<<26)
 #define   ES_1371_CODEC_PIRD	   (1<<23)	/* codec read/write select register */
 #define   ES_1371_CODEC_WRITE(a,d) ((((a)&0x7f)<<16)|(((d)&0xffff)<<0))
 #define   ES_1371_CODEC_READS(a)   ((((a)&0x7f)<<16)|ES_1371_CODEC_PIRD)
@@ -604,18 +603,12 @@ static void snd_es1370_codec_write(struct snd_ak4531 *ak4531,
 
 #ifdef CHIP1371
 
-static inline bool is_ev1938(struct ensoniq *ensoniq)
-{
-	return ensoniq->pci->device == 0x8938;
-}
-
 static void snd_es1371_codec_write(struct snd_ac97 *ac97,
 				   unsigned short reg, unsigned short val)
 {
 	struct ensoniq *ensoniq = ac97->private_data;
-	unsigned int t, x, flag;
+	unsigned int t, x;
 
-	flag = is_ev1938(ensoniq) ? EV_1938_CODEC_MAGIC : 0;
 	mutex_lock(&ensoniq->src_mutex);
 	for (t = 0; t < POLL_COUNT; t++) {
 		if (!(inl(ES_REG(ensoniq, 1371_CODEC)) & ES_1371_CODEC_WIP)) {
@@ -637,8 +630,7 @@ static void snd_es1371_codec_write(struct snd_ac97 *ac97,
 				    0x00010000)
 					break;
 			}
-			outl(ES_1371_CODEC_WRITE(reg, val) | flag,
-			     ES_REG(ensoniq, 1371_CODEC));
+			outl(ES_1371_CODEC_WRITE(reg, val), ES_REG(ensoniq, 1371_CODEC));
 			/* restore SRC reg */
 			snd_es1371_wait_src_ready(ensoniq);
 			outl(x, ES_REG(ensoniq, 1371_SMPRATE));
@@ -655,9 +647,8 @@ static unsigned short snd_es1371_codec_read(struct snd_ac97 *ac97,
 					    unsigned short reg)
 {
 	struct ensoniq *ensoniq = ac97->private_data;
-	unsigned int t, x, flag, fail = 0;
+	unsigned int t, x, fail = 0;
 
-	flag = is_ev1938(ensoniq) ? EV_1938_CODEC_MAGIC : 0;
       __again:
 	mutex_lock(&ensoniq->src_mutex);
 	for (t = 0; t < POLL_COUNT; t++) {
@@ -680,8 +671,7 @@ static unsigned short snd_es1371_codec_read(struct snd_ac97 *ac97,
 				    0x00010000)
 					break;
 			}
-			outl(ES_1371_CODEC_READS(reg) | flag,
-			     ES_REG(ensoniq, 1371_CODEC));
+			outl(ES_1371_CODEC_READS(reg), ES_REG(ensoniq, 1371_CODEC));
 			/* restore SRC reg */
 			snd_es1371_wait_src_ready(ensoniq);
 			outl(x, ES_REG(ensoniq, 1371_SMPRATE));
@@ -693,11 +683,6 @@ static unsigned short snd_es1371_codec_read(struct snd_ac97 *ac97,
 			/* now wait for the stinkin' data (RDY) */
 			for (t = 0; t < POLL_COUNT; t++) {
 				if ((x = inl(ES_REG(ensoniq, 1371_CODEC))) & ES_1371_CODEC_RDY) {
-					if (is_ev1938(ensoniq)) {
-						for (t = 0; t < 100; t++)
-							inl(ES_REG(ensoniq, CONTROL));
-						x = inl(ES_REG(ensoniq, 1371_CODEC));
-					}
 					mutex_unlock(&ensoniq->src_mutex);
 					return ES_1371_CODEC_READ(x);
 				}

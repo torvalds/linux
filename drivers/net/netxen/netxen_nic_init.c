@@ -673,10 +673,7 @@ netxen_need_fw_reset(struct netxen_adapter *adapter)
 }
 
 static char *fw_name[] = {
-	NX_P2_MN_ROMIMAGE_NAME,
-	NX_P3_CT_ROMIMAGE_NAME,
-	NX_P3_MN_ROMIMAGE_NAME,
-	NX_FLASH_ROMIMAGE_NAME,
+	"nxromimg.bin", "nx3fwct.bin", "nx3fwmn.bin", "flash",
 };
 
 int

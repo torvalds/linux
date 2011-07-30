@@ -66,7 +66,7 @@ static unsigned long __cpuinit calibrate_delay_direct(void)
 		pre_start = 0;
 		read_current_timer(&start);
 		start_jiffies = jiffies;
-		while (time_before_eq(jiffies, start_jiffies + 1)) {
+		while (jiffies <= (start_jiffies + 1)) {
 			pre_start = start;
 			read_current_timer(&start);
 		}
@@ -74,8 +74,8 @@ static unsigned long __cpuinit calibrate_delay_direct(void)
 
 		pre_end = 0;
 		end = post_start;
-		while (time_before_eq(jiffies, start_jiffies + 1 +
-					       DELAY_CALIBRATION_TICKS)) {
+		while (jiffies <=
+		       (start_jiffies + 1 + DELAY_CALIBRATION_TICKS)) {
 			pre_end = end;
 			read_current_timer(&end);
 		}

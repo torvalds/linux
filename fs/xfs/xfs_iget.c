@@ -295,6 +295,7 @@ xfs_iget_cache_miss(
 	xfs_trans_t		*tp,
 	xfs_ino_t		ino,
 	struct xfs_inode	**ipp,
+	xfs_daddr_t		bno,
 	int			flags,
 	int			lock_flags) __releases(pag->pag_ici_lock)
 {
@@ -307,7 +308,7 @@ xfs_iget_cache_miss(
 	if (!ip)
 		return ENOMEM;
 
-	error = xfs_iread(mp, tp, ip, flags);
+	error = xfs_iread(mp, tp, ip, bno, flags);
 	if (error)
 		goto out_destroy;
 
@@ -391,6 +392,8 @@ out_destroy:
  *        within the file system for the inode being requested.
  * lock_flags -- flags indicating how to lock the inode.  See the comment
  *		 for xfs_ilock() for a list of valid values.
+ * bno -- the block number starting the buffer containing the inode,
+ *	  if known (as by bulkstat), else 0.
  */
 int
 xfs_iget(
@@ -399,7 +402,8 @@ xfs_iget(
 	xfs_ino_t	ino,
 	uint		flags,
 	uint		lock_flags,
-	xfs_inode_t	**ipp)
+	xfs_inode_t	**ipp,
+	xfs_daddr_t	bno)
 {
 	xfs_inode_t	*ip;
 	int		error;
@@ -430,7 +434,7 @@ again:
 		read_unlock(&pag->pag_ici_lock);
 		XFS_STATS_INC(xs_ig_missed);
 
-		error = xfs_iget_cache_miss(mp, pag, tp, ino, &ip,
+		error = xfs_iget_cache_miss(mp, pag, tp, ino, &ip, bno,
 							flags, lock_flags);
 		if (error)
 			goto out_error_or_again;

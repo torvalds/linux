@@ -53,27 +53,6 @@ struct apple_key_translation {
 	u8 flags;
 };
 
-static const struct apple_key_translation macbookair_fn_keys[] = {
-	{ KEY_BACKSPACE, KEY_DELETE },
-	{ KEY_ENTER,	KEY_INSERT },
-	{ KEY_F1,	KEY_BRIGHTNESSDOWN, APPLE_FLAG_FKEY },
-	{ KEY_F2,	KEY_BRIGHTNESSUP,   APPLE_FLAG_FKEY },
-	{ KEY_F3,	KEY_SCALE,          APPLE_FLAG_FKEY },
-	{ KEY_F4,	KEY_DASHBOARD,      APPLE_FLAG_FKEY },
-	{ KEY_F6,	KEY_PREVIOUSSONG,   APPLE_FLAG_FKEY },
-	{ KEY_F7,	KEY_PLAYPAUSE,      APPLE_FLAG_FKEY },
-	{ KEY_F8,	KEY_NEXTSONG,       APPLE_FLAG_FKEY },
-	{ KEY_F9,	KEY_MUTE,           APPLE_FLAG_FKEY },
-	{ KEY_F10,	KEY_VOLUMEDOWN,     APPLE_FLAG_FKEY },
-	{ KEY_F11,	KEY_VOLUMEUP,       APPLE_FLAG_FKEY },
-	{ KEY_F12,	KEY_EJECTCD,        APPLE_FLAG_FKEY },
-	{ KEY_UP,	KEY_PAGEUP },
-	{ KEY_DOWN,	KEY_PAGEDOWN },
-	{ KEY_LEFT,	KEY_HOME },
-	{ KEY_RIGHT,	KEY_END },
-	{ }
-};
-
 static const struct apple_key_translation apple_fn_keys[] = {
 	{ KEY_BACKSPACE, KEY_DELETE },
 	{ KEY_ENTER,	KEY_INSERT },
@@ -172,15 +151,10 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 	if (fnmode) {
 		int do_translate;
 
-		if(hid->product >= USB_DEVICE_ID_APPLE_WELLSPRING4_ANSI &&
-				hid->product <= USB_DEVICE_ID_APPLE_WELLSPRING4A_JIS) {
-			trans = apple_find_translation(macbookair_fn_keys, usage->code);
-		} else if (hid->product < 0x21d || hid->product >= 0x300) {
-			trans = apple_find_translation(powerbook_fn_keys, usage->code);
-		} else {
-			trans = apple_find_translation(apple_fn_keys, usage->code);
-		}
-
+		trans = apple_find_translation((hid->product < 0x21d ||
+					hid->product >= 0x300) ?
+					powerbook_fn_keys : apple_fn_keys,
+					usage->code);
 		if (trans) {
 			if (test_bit(usage->code, asc->pressed_fn))
 				do_translate = 1;
@@ -456,18 +430,6 @@ static const struct hid_device_id apple_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING3_ISO),
 		.driver_data = APPLE_HAS_FN | APPLE_ISO_KEYBOARD },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING3_JIS),
-		.driver_data = APPLE_HAS_FN | APPLE_RDESC_JIS },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING4_ANSI),
-		.driver_data = APPLE_HAS_FN },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING4_ISO),
-		.driver_data = APPLE_HAS_FN | APPLE_ISO_KEYBOARD },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING4_JIS),
-		.driver_data = APPLE_HAS_FN | APPLE_RDESC_JIS },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING4A_ANSI),
-		.driver_data = APPLE_HAS_FN },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING4A_ISO),
-		.driver_data = APPLE_HAS_FN | APPLE_ISO_KEYBOARD },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING4A_JIS),
 		.driver_data = APPLE_HAS_FN | APPLE_RDESC_JIS },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ALU_WIRELESS_2009_ANSI),
 		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN },

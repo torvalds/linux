@@ -127,12 +127,13 @@ xfs_nfs_get_inode(
 		return ERR_PTR(-ESTALE);
 
 	/*
-	 * The XFS_IGET_UNTRUSTED means that an invalid inode number is just
-	 * fine and not an indication of a corrupted filesystem as clients can
-	 * send invalid file handles and we have to handle it gracefully..
+	 * The XFS_IGET_BULKSTAT means that an invalid inode number is just
+	 * fine and not an indication of a corrupted filesystem.  Because
+	 * clients can send any kind of invalid file handle, e.g. after
+	 * a restore on the server we have to deal with this case gracefully.
 	 */
-	error = xfs_iget(mp, NULL, ino, XFS_IGET_UNTRUSTED,
-			 XFS_ILOCK_SHARED, &ip);
+	error = xfs_iget(mp, NULL, ino, XFS_IGET_BULKSTAT,
+			 XFS_ILOCK_SHARED, &ip, 0);
 	if (error) {
 		/*
 		 * EINVAL means the inode cluster doesn't exist anymore.

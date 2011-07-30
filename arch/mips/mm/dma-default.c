@@ -43,39 +43,27 @@ static inline int cpu_is_noncoherent_r10000(struct device *dev)
 
 static gfp_t massage_gfp_flags(const struct device *dev, gfp_t gfp)
 {
-	gfp_t dma_flag;
-
 	/* ignore region specifiers */
 	gfp &= ~(__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM);
 
-#ifdef CONFIG_ISA
+#ifdef CONFIG_ZONE_DMA
 	if (dev == NULL)
-		dma_flag = __GFP_DMA;
+		gfp |= __GFP_DMA;
+	else if (dev->coherent_dma_mask < DMA_BIT_MASK(24))
+		gfp |= __GFP_DMA;
 	else
 #endif
-#if defined(CONFIG_ZONE_DMA32) && defined(CONFIG_ZONE_DMA)
+#ifdef CONFIG_ZONE_DMA32
 	     if (dev->coherent_dma_mask < DMA_BIT_MASK(32))
-			dma_flag = __GFP_DMA;
-	else if (dev->coherent_dma_mask < DMA_BIT_MASK(64))
-			dma_flag = __GFP_DMA32;
+		gfp |= __GFP_DMA32;
 	else
 #endif
-#if defined(CONFIG_ZONE_DMA32) && !defined(CONFIG_ZONE_DMA)
-	     if (dev->coherent_dma_mask < DMA_BIT_MASK(64))
-		dma_flag = __GFP_DMA32;
-	else
-#endif
-#if defined(CONFIG_ZONE_DMA) && !defined(CONFIG_ZONE_DMA32)
-	     if (dev->coherent_dma_mask < DMA_BIT_MASK(64))
-		dma_flag = __GFP_DMA;
-	else
-#endif
-		dma_flag = 0;
+		;
 
 	/* Don't invoke OOM killer */
 	gfp |= __GFP_NORETRY;
 
-	return gfp | dma_flag;
+	return gfp;
 }
 
 void *dma_alloc_noncoherent(struct device *dev, size_t size,

@@ -489,11 +489,9 @@ static int inet_csk_diag_dump(struct sock *sk,
 {
 	struct inet_diag_req *r = NLMSG_DATA(cb->nlh);
 
-	if (nlmsg_attrlen(cb->nlh, sizeof(*r))) {
+	if (cb->nlh->nlmsg_len > 4 + NLMSG_SPACE(sizeof(*r))) {
 		struct inet_diag_entry entry;
-		const struct nlattr *bc = nlmsg_find_attr(cb->nlh,
-							  sizeof(*r),
-							  INET_DIAG_REQ_BYTECODE);
+		struct rtattr *bc = (struct rtattr *)(r + 1);
 		struct inet_sock *inet = inet_sk(sk);
 
 		entry.family = sk->sk_family;
@@ -513,7 +511,7 @@ static int inet_csk_diag_dump(struct sock *sk,
 		entry.dport = ntohs(inet->dport);
 		entry.userlocks = sk->sk_userlocks;
 
-		if (!inet_diag_bc_run(nla_data(bc), nla_len(bc), &entry))
+		if (!inet_diag_bc_run(RTA_DATA(bc), RTA_PAYLOAD(bc), &entry))
 			return 0;
 	}
 
@@ -528,11 +526,9 @@ static int inet_twsk_diag_dump(struct inet_timewait_sock *tw,
 {
 	struct inet_diag_req *r = NLMSG_DATA(cb->nlh);
 
-	if (nlmsg_attrlen(cb->nlh, sizeof(*r))) {
+	if (cb->nlh->nlmsg_len > 4 + NLMSG_SPACE(sizeof(*r))) {
 		struct inet_diag_entry entry;
-		const struct nlattr *bc = nlmsg_find_attr(cb->nlh,
-							  sizeof(*r),
-							  INET_DIAG_REQ_BYTECODE);
+		struct rtattr *bc = (struct rtattr *)(r + 1);
 
 		entry.family = tw->tw_family;
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
@@ -551,7 +547,7 @@ static int inet_twsk_diag_dump(struct inet_timewait_sock *tw,
 		entry.dport = ntohs(tw->tw_dport);
 		entry.userlocks = 0;
 
-		if (!inet_diag_bc_run(nla_data(bc), nla_len(bc), &entry))
+		if (!inet_diag_bc_run(RTA_DATA(bc), RTA_PAYLOAD(bc), &entry))
 			return 0;
 	}
 
@@ -621,7 +617,7 @@ static int inet_diag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 	struct inet_diag_req *r = NLMSG_DATA(cb->nlh);
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct listen_sock *lopt;
-	const struct nlattr *bc = NULL;
+	struct rtattr *bc = NULL;
 	struct inet_sock *inet = inet_sk(sk);
 	int j, s_j;
 	int reqnum, s_reqnum;
@@ -641,9 +637,8 @@ static int inet_diag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 	if (!lopt || !lopt->qlen)
 		goto out;
 
-	if (nlmsg_attrlen(cb->nlh, sizeof(*r))) {
-		bc = nlmsg_find_attr(cb->nlh, sizeof(*r),
-				     INET_DIAG_REQ_BYTECODE);
+	if (cb->nlh->nlmsg_len > 4 + NLMSG_SPACE(sizeof(*r))) {
+		bc = (struct rtattr *)(r + 1);
 		entry.sport = inet->num;
 		entry.userlocks = sk->sk_userlocks;
 	}
@@ -676,8 +671,8 @@ static int inet_diag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 					&ireq->rmt_addr;
 				entry.dport = ntohs(ireq->rmt_port);
 
-				if (!inet_diag_bc_run(nla_data(bc),
-						      nla_len(bc), &entry))
+				if (!inet_diag_bc_run(RTA_DATA(bc),
+						    RTA_PAYLOAD(bc), &entry))
 					continue;
 			}
 

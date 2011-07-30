@@ -688,10 +688,8 @@ struct inode *cifs_root_iget(struct super_block *sb, unsigned long ino)
 		rc = cifs_get_inode_info(&inode, full_path, NULL, sb,
 						xid, NULL);
 
-	if (!inode) {
-		inode = ERR_PTR(rc);
-		goto out;
-	}
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
 
 	if (rc && cifs_sb->tcon->ipc) {
 		cFYI(1, ("ipc connection - fake read inode"));
@@ -702,11 +700,13 @@ struct inode *cifs_root_iget(struct super_block *sb, unsigned long ino)
 		inode->i_uid = cifs_sb->mnt_uid;
 		inode->i_gid = cifs_sb->mnt_gid;
 	} else if (rc) {
+		kfree(full_path);
+		_FreeXid(xid);
 		iget_failed(inode);
-		inode = ERR_PTR(rc);
+		return ERR_PTR(rc);
 	}
 
-out:
+
 	kfree(full_path);
 	/* can not call macro FreeXid here since in a void func
 	 * TODO: This is no longer true

@@ -248,11 +248,11 @@ static ssize_t ep93xx_pwm_set_invert(struct device *dev,
 
 static DEVICE_ATTR(min_freq, S_IRUGO, ep93xx_pwm_get_min_freq, NULL);
 static DEVICE_ATTR(max_freq, S_IRUGO, ep93xx_pwm_get_max_freq, NULL);
-static DEVICE_ATTR(freq, S_IWUSR | S_IRUGO,
+static DEVICE_ATTR(freq, S_IWUGO | S_IRUGO,
 		   ep93xx_pwm_get_freq, ep93xx_pwm_set_freq);
-static DEVICE_ATTR(duty_percent, S_IWUSR | S_IRUGO,
+static DEVICE_ATTR(duty_percent, S_IWUGO | S_IRUGO,
 		   ep93xx_pwm_get_duty_percent, ep93xx_pwm_set_duty_percent);
-static DEVICE_ATTR(invert, S_IWUSR | S_IRUGO,
+static DEVICE_ATTR(invert, S_IWUGO | S_IRUGO,
 		   ep93xx_pwm_get_invert, ep93xx_pwm_set_invert);
 
 static struct attribute *ep93xx_pwm_attrs[] = {
