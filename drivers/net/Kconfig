@@ -623,14 +623,6 @@ config YELLOWFIN
 	  To compile this driver as a module, choose M here: the module
 	  will be called yellowfin.  This is recommended.
 
-config TSI108_ETH
-	tristate "Tundra TSI108 gigabit Ethernet support"
-	depends on TSI108_BRIDGE
-	help
-	  This driver supports Tundra TSI108 gigabit Ethernet ports.
-	  To compile this driver as a module, choose M here: the module
-	  will be called tsi108_eth.
-
 config XILINX_LL_TEMAC
 	tristate "Xilinx LL TEMAC (LocalLink Tri-mode Ethernet MAC) driver"
 	depends on PPC || MICROBLAZE
