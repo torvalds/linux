@@ -101,7 +101,7 @@ static int max8688_read_byte_data(struct i2c_client *client, int page, int reg)
 	int ret = 0;
 	int mfg_status;
 
-	if (page)
+	if (page > 0)
 		return -ENXIO;
 
 	switch (reg) {

@@ -166,8 +166,8 @@ static int lm25066_write_byte(struct i2c_client *client, int page, u8 value)
 	if (page > 1)
 		return -ENXIO;
 
-	if (page == 0)
-		return pmbus_write_byte(client, 0, value);
+	if (page <= 0)
+		return pmbus_write_byte(client, page, value);
 
 	return 0;
 }

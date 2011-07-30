@@ -144,7 +144,7 @@ static int adm1275_read_byte_data(struct i2c_client *client, int page, int reg)
 	const struct adm1275_data *data = to_adm1275_data(info);
 	int mfr_status, ret;
 
-	if (page)
+	if (page > 0)
 		return -ENXIO;
 
 	switch (reg) {
