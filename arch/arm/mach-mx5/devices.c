@@ -40,8 +40,8 @@ static u64 usb_dma_mask = DMA_BIT_MASK(32);
 
 static struct resource usbotg_resources[] = {
 	{
-		.start = MX51_OTG_BASE_ADDR,
-		.end = MX51_OTG_BASE_ADDR + 0x1ff,
+		.start = MX51_USB_OTG_BASE_ADDR,
+		.end = MX51_USB_OTG_BASE_ADDR + 0x1ff,
 		.flags = IORESOURCE_MEM,
 	},
 	{
@@ -59,62 +59,5 @@ struct platform_device mxc_usbdr_udc_device = {
 	.dev		= {
 		.dma_mask		= &usb_dma_mask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-
-struct platform_device mxc_usbdr_host_device = {
-	.name = "mxc-ehci",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(usbotg_resources),
-	.resource = usbotg_resources,
-	.dev = {
-		.dma_mask = &usb_dma_mask,
-		.coherent_dma_mask = DMA_BIT_MASK(32),
-	},
-};
-
-static struct resource usbh1_resources[] = {
-	{
-		.start = MX51_OTG_BASE_ADDR + 0x200,
-		.end = MX51_OTG_BASE_ADDR + 0x200 + 0x1ff,
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.start = MX51_INT_USB_H1,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_usbh1_device = {
-	.name = "mxc-ehci",
-	.id = 1,
-	.num_resources = ARRAY_SIZE(usbh1_resources),
-	.resource = usbh1_resources,
-	.dev = {
-		.dma_mask = &usb_dma_mask,
-		.coherent_dma_mask = DMA_BIT_MASK(32),
-	},
-};
-
-static struct resource usbh2_resources[] = {
-	{
-		.start = MX51_OTG_BASE_ADDR + 0x400,
-		.end = MX51_OTG_BASE_ADDR + 0x400 + 0x1ff,
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.start = MX51_INT_USB_H2,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_usbh2_device = {
-	.name = "mxc-ehci",
-	.id = 2,
-	.num_resources = ARRAY_SIZE(usbh2_resources),
-	.resource = usbh2_resources,
-	.dev = {
-		.dma_mask = &usb_dma_mask,
-		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 };
