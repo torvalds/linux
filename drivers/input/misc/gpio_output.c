@@ -18,9 +18,8 @@
 #include <linux/gpio_event.h>
 
 int gpio_event_output_event(
-	struct gpio_event_input_devs *input_devs, struct gpio_event_info *info,
-	void **data, unsigned int dev, unsigned int type,
-	unsigned int code, int value)
+	struct input_dev *input_dev, struct gpio_event_info *info, void **data,
+	unsigned int type, unsigned int code, int value)
 {
 	int i;
 	struct gpio_event_output_info *oi;
@@ -30,14 +29,14 @@ int gpio_event_output_event(
 	if (!(oi->flags & GPIOEDF_ACTIVE_HIGH))
 		value = !value;
 	for (i = 0; i < oi->keymap_size; i++)
-		if (dev == oi->keymap[i].dev && code == oi->keymap[i].code)
+		if (code == oi->keymap[i].code)
 			gpio_set_value(oi->keymap[i].gpio, value);
 	return 0;
 }
 
 int gpio_event_output_func(
-	struct gpio_event_input_devs *input_devs, struct gpio_event_info *info,
-	void **data, int func)
+	struct input_dev *input_dev, struct gpio_event_info *info, void **data,
+	int func)
 {
 	int ret;
 	int i;
@@ -49,20 +48,9 @@ int gpio_event_output_func(
 
 	if (func == GPIO_EVENT_FUNC_INIT) {
 		int output_level = !(oi->flags & GPIOEDF_ACTIVE_HIGH);
-
-		for (i = 0; i < oi->keymap_size; i++) {
-			int dev = oi->keymap[i].dev;
-			if (dev >= input_devs->count) {
-				pr_err("gpio_event_output_func: bad device "
-					"index %d >= %d for key code %d\n",
-					dev, input_devs->count,
-					oi->keymap[i].code);
-				ret = -EINVAL;
-				goto err_bad_keymap;
-			}
-			input_set_capability(input_devs->dev[dev], oi->type,
+		for (i = 0; i < oi->keymap_size; i++)
+			input_set_capability(input_dev, oi->type,
 					     oi->keymap[i].code);
-		}
 
 		for (i = 0; i < oi->keymap_size; i++) {
 			ret = gpio_request(oi->keymap[i].gpio,
@@ -91,7 +79,6 @@ err_gpio_direction_output_failed:
 err_gpio_request_failed:
 		;
 	}
-err_bad_keymap:
 	return ret;
 }
 
