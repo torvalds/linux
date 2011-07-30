@@ -235,7 +235,6 @@ static int __init create_bulk_endpoints(struct adb_dev *dev,
 		return -ENODEV;
 	}
 	DBG(cdev, "usb_ep_autoconfig for ep_in got %s\n", ep->name);
-	ep->driver_data = dev;		/* claim the endpoint */
 	dev->ep_in = ep;
 
 	ep = usb_ep_autoconfig(cdev->gadget, out_desc);
@@ -244,7 +243,6 @@ static int __init create_bulk_endpoints(struct adb_dev *dev,
 		return -ENODEV;
 	}
 	DBG(cdev, "usb_ep_autoconfig for adb ep_out got %s\n", ep->name);
-	ep->driver_data = dev;		/* claim the endpoint */
 	dev->ep_out = ep;
 
 	/* now allocate requests for our endpoints */
