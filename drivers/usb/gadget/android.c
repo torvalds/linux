@@ -299,7 +299,6 @@ static struct usb_composite_driver android_usb_driver = {
 	.dev		= &device_desc,
 	.strings	= dev_strings,
 	.bind		= android_bind,
-	.enable_function = android_enable_function,
 };
 
 void android_register_function(struct android_usb_function *f)
