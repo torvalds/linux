@@ -732,12 +732,20 @@ sci_io_request_terminate(struct isci_request *ireq)
 		sci_change_state(&ireq->sm, SCI_REQ_ABORTING);
 		return SCI_SUCCESS;
 	case SCI_REQ_TASK_WAIT_TC_RESP:
+		/* The task frame was already confirmed to have been
+		 * sent by the SCU HW.  Since the state machine is
+		 * now only waiting for the task response itself,
+		 * abort the request and complete it immediately
+		 * and don't wait for the task response.
+		 */
 		sci_change_state(&ireq->sm, SCI_REQ_ABORTING);
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		return SCI_SUCCESS;
 	case SCI_REQ_ABORTING:
-		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
-		return SCI_SUCCESS;
+		/* If a request has a termination requested twice, return
+		 * a failure indication, since HW confirmation of the first
+		 * abort is still outstanding.
+		 */
 	case SCI_REQ_COMPLETED:
 	default:
 		dev_warn(&ireq->owning_controller->pdev->dev,
