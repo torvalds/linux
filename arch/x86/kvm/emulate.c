@@ -702,9 +702,9 @@ static int do_insn_fetch(struct x86_emulate_ctxt *ctxt,
 }
 
 /* Fetch next part of the instruction being emulated. */
-#define insn_fetch(_type, _size, _ctxt)					\
+#define insn_fetch(_type, _ctxt)					\
 ({	unsigned long _x;						\
-	rc = do_insn_fetch(_ctxt, &_x, (_size));			\
+	rc = do_insn_fetch(_ctxt, &_x, sizeof(_type));			\
 	if (rc != X86EMUL_CONTINUE)					\
 		goto done;						\
 	(_type)_x;							\
@@ -901,7 +901,7 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 		ctxt->modrm_rm = base_reg = (ctxt->rex_prefix & 1) << 3; /* REG.B */
 	}
 
-	ctxt->modrm = insn_fetch(u8, 1, ctxt);
+	ctxt->modrm = insn_fetch(u8, ctxt);
 	ctxt->modrm_mod |= (ctxt->modrm & 0xc0) >> 6;
 	ctxt->modrm_reg |= (ctxt->modrm & 0x38) >> 3;
 	ctxt->modrm_rm |= (ctxt->modrm & 0x07);
@@ -935,13 +935,13 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 		switch (ctxt->modrm_mod) {
 		case 0:
 			if (ctxt->modrm_rm == 6)
-				modrm_ea += insn_fetch(u16, 2, ctxt);
+				modrm_ea += insn_fetch(u16, ctxt);
 			break;
 		case 1:
-			modrm_ea += insn_fetch(s8, 1, ctxt);
+			modrm_ea += insn_fetch(s8, ctxt);
 			break;
 		case 2:
-			modrm_ea += insn_fetch(u16, 2, ctxt);
+			modrm_ea += insn_fetch(u16, ctxt);
 			break;
 		}
 		switch (ctxt->modrm_rm) {
@@ -978,13 +978,13 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 	} else {
 		/* 32/64-bit ModR/M decode. */
 		if ((ctxt->modrm_rm & 7) == 4) {
-			sib = insn_fetch(u8, 1, ctxt);
+			sib = insn_fetch(u8, ctxt);
 			index_reg |= (sib >> 3) & 7;
 			base_reg |= sib & 7;
 			scale = sib >> 6;
 
 			if ((base_reg & 7) == 5 && ctxt->modrm_mod == 0)
-				modrm_ea += insn_fetch(s32, 4, ctxt);
+				modrm_ea += insn_fetch(s32, ctxt);
 			else
 				modrm_ea += ctxt->regs[base_reg];
 			if (index_reg != 4)
@@ -997,13 +997,13 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 		switch (ctxt->modrm_mod) {
 		case 0:
 			if (ctxt->modrm_rm == 5)
-				modrm_ea += insn_fetch(s32, 4, ctxt);
+				modrm_ea += insn_fetch(s32, ctxt);
 			break;
 		case 1:
-			modrm_ea += insn_fetch(s8, 1, ctxt);
+			modrm_ea += insn_fetch(s8, ctxt);
 			break;
 		case 2:
-			modrm_ea += insn_fetch(s32, 4, ctxt);
+			modrm_ea += insn_fetch(s32, ctxt);
 			break;
 		}
 	}
@@ -1020,13 +1020,13 @@ static int decode_abs(struct x86_emulate_ctxt *ctxt,
 	op->type = OP_MEM;
 	switch (ctxt->ad_bytes) {
 	case 2:
-		op->addr.mem.ea = insn_fetch(u16, 2, ctxt);
+		op->addr.mem.ea = insn_fetch(u16, ctxt);
 		break;
 	case 4:
-		op->addr.mem.ea = insn_fetch(u32, 4, ctxt);
+		op->addr.mem.ea = insn_fetch(u32, ctxt);
 		break;
 	case 8:
-		op->addr.mem.ea = insn_fetch(u64, 8, ctxt);
+		op->addr.mem.ea = insn_fetch(u64, ctxt);
 		break;
 	}
 done:
@@ -3316,13 +3316,13 @@ static int decode_imm(struct x86_emulate_ctxt *ctxt, struct operand *op,
 	/* NB. Immediates are sign-extended as necessary. */
 	switch (op->bytes) {
 	case 1:
-		op->val = insn_fetch(s8, 1, ctxt);
+		op->val = insn_fetch(s8, ctxt);
 		break;
 	case 2:
-		op->val = insn_fetch(s16, 2, ctxt);
+		op->val = insn_fetch(s16, ctxt);
 		break;
 	case 4:
-		op->val = insn_fetch(s32, 4, ctxt);
+		op->val = insn_fetch(s32, ctxt);
 		break;
 	}
 	if (!sign_extension) {
@@ -3381,7 +3381,7 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
 
 	/* Legacy prefixes. */
 	for (;;) {
-		switch (ctxt->b = insn_fetch(u8, 1, ctxt)) {
+		switch (ctxt->b = insn_fetch(u8, ctxt)) {
 		case 0x66:	/* operand-size override */
 			op_prefix = true;
 			/* switch between 2/4 bytes */
@@ -3437,7 +3437,7 @@ done_prefixes:
 	/* Two-byte opcode? */
 	if (ctxt->b == 0x0f) {
 		ctxt->twobyte = 1;
-		ctxt->b = insn_fetch(u8, 1, ctxt);
+		ctxt->b = insn_fetch(u8, ctxt);
 		opcode = twobyte_table[ctxt->b];
 	}
 	ctxt->d = opcode.flags;
@@ -3445,13 +3445,13 @@ done_prefixes:
 	while (ctxt->d & GroupMask) {
 		switch (ctxt->d & GroupMask) {
 		case Group:
-			ctxt->modrm = insn_fetch(u8, 1, ctxt);
+			ctxt->modrm = insn_fetch(u8, ctxt);
 			--ctxt->_eip;
 			goffset = (ctxt->modrm >> 3) & 7;
 			opcode = opcode.u.group[goffset];
 			break;
 		case GroupDual:
-			ctxt->modrm = insn_fetch(u8, 1, ctxt);
+			ctxt->modrm = insn_fetch(u8, ctxt);
 			--ctxt->_eip;
 			goffset = (ctxt->modrm >> 3) & 7;
 			if ((ctxt->modrm >> 6) == 3)
@@ -3637,7 +3637,7 @@ done_prefixes:
 		ctxt->dst.type = OP_IMM;
 		ctxt->dst.addr.mem.ea = ctxt->_eip;
 		ctxt->dst.bytes = 1;
-		ctxt->dst.val = insn_fetch(u8, 1, ctxt);
+		ctxt->dst.val = insn_fetch(u8, ctxt);
 		break;
 	case DstMem:
 	case DstMem64:
