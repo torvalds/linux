@@ -209,14 +209,14 @@ int nandmtd_EraseBlockInNAND(yaffs_Device *dev, int blockNumber)
 {
 	struct mtd_info *mtd = (struct mtd_info *)(dev->genericDevice);
 	__u32 addr =
-	    ((loff_t) blockNumber) * dev->totalBytesPerChunk
+	    ((loff_t) blockNumber) * dev->nDataBytesPerChunk
 		* dev->nChunksPerBlock;
 	struct erase_info ei;
 	int retval = 0;
 
 	ei.mtd = mtd;
 	ei.addr = addr;
-	ei.len = dev->totalBytesPerChunk * dev->nChunksPerBlock;
+	ei.len = dev->nDataBytesPerChunk * dev->nChunksPerBlock;
 	ei.time = 1000;
 	ei.retries = 2;
 	ei.callback = NULL;
