@@ -7436,9 +7436,6 @@ int yaffs_GutsInitialise(yaffs_Device *dev)
 	yaffs_VerifyFreeChunks(dev);
 	yaffs_VerifyBlocks(dev);
 
-	/* Clean up any aborted checkpoint data */
-	if (!dev->isCheckpointed && dev->blocksInCheckpoint > 0)
-		yaffs_InvalidateCheckpoint(dev);
 
 	T(YAFFS_TRACE_TRACING,
 	  (TSTR("yaffs: yaffs_GutsInitialise() done.\n" TENDSTR)));
