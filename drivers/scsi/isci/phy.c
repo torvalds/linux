@@ -104,6 +104,7 @@ sci_phy_link_layer_initialization(struct isci_phy *iphy,
 	u32 parity_count = 0;
 	u32 llctl, link_rate;
 	u32 clksm_value = 0;
+	u32 sp_timeouts = 0;
 
 	iphy->link_layer_registers = reg;
 
@@ -210,6 +211,18 @@ sci_phy_link_layer_initialization(struct isci_phy *iphy,
 	}
 	llctl |= SCU_SAS_LLCTL_GEN_VAL(MAX_LINK_RATE, link_rate);
 	writel(llctl, &iphy->link_layer_registers->link_layer_control);
+
+	sp_timeouts = readl(&iphy->link_layer_registers->sas_phy_timeouts);
+
+	/* Clear the default 0x36 (54us) RATE_CHANGE timeout value. */
+	sp_timeouts &= ~SCU_SAS_PHYTOV_GEN_VAL(RATE_CHANGE, 0xFF);
+
+	/* Set RATE_CHANGE timeout value to 0x3B (59us).  This ensures SCU can
+	 * lock with 3Gb drive when SCU max rate is set to 1.5Gb.
+	 */
+	sp_timeouts |= SCU_SAS_PHYTOV_GEN_VAL(RATE_CHANGE, 0x3B);
+
+	writel(sp_timeouts, &iphy->link_layer_registers->sas_phy_timeouts);
 
 	if (is_a2(ihost->pdev)) {
 		/* Program the max ARB time for the PHY to 700us so we inter-operate with
