@@ -726,6 +726,8 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 	down_read(&current->mm->mmap_sem);
 	ret = get_user_pages(current, current->mm, uaddr, pagecount,
 			     1, 0, pages, NULL);
+	up_read(&current->mm->mmap_sem);
+
 	if (ret < 0)
 		goto out_free;
 
@@ -774,7 +776,6 @@ out_pages:
 		page_cache_release(page);
 	}
 out_free:
-	up_read(&current->mm->mmap_sem);
 	kfree(pages);
 out_mm:
 	mmput(mm);
