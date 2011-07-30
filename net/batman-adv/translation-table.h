@@ -49,14 +49,8 @@ void tt_save_orig_buffer(struct bat_priv *bat_priv, struct orig_node *orig_node,
 uint16_t tt_local_crc(struct bat_priv *bat_priv);
 uint16_t tt_global_crc(struct bat_priv *bat_priv, struct orig_node *orig_node);
 void tt_free(struct bat_priv *bat_priv);
-int send_tt_request(struct bat_priv *bat_priv,
-		    struct orig_node *dst_orig_node, uint8_t ttvn,
-		    uint16_t tt_crc, bool full_table);
 bool send_tt_response(struct bat_priv *bat_priv,
 		      struct tt_query_packet *tt_request);
-void tt_update_changes(struct bat_priv *bat_priv, struct orig_node *orig_node,
-		       uint16_t tt_num_changes, uint8_t ttvn,
-		       struct tt_change *tt_change);
 bool is_my_client(struct bat_priv *bat_priv, const uint8_t *addr);
 void handle_tt_response(struct bat_priv *bat_priv,
 			struct tt_query_packet *tt_response);
@@ -64,5 +58,8 @@ void send_roam_adv(struct bat_priv *bat_priv, uint8_t *client,
 		   struct orig_node *orig_node);
 void tt_commit_changes(struct bat_priv *bat_priv);
 bool is_ap_isolated(struct bat_priv *bat_priv, uint8_t *src, uint8_t *dst);
+void tt_update_orig(struct bat_priv *bat_priv, struct orig_node *orig_node,
+		    const unsigned char *tt_buff, uint8_t tt_num_changes,
+		    uint8_t ttvn, uint16_t tt_crc);
 
 #endif /* _NET_BATMAN_ADV_TRANSLATION_TABLE_H_ */
