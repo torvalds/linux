@@ -24,6 +24,9 @@
 
 #include "main.h"
 
+void bat_ogm_init(struct hard_iface *hard_iface);
+void bat_ogm_init_primary(struct hard_iface *hard_iface);
+void bat_ogm_update_mac(struct hard_iface *hard_iface);
 void bat_ogm_receive(const struct ethhdr *ethhdr, unsigned char *packet_buff,
 		     int packet_len, struct hard_iface *if_incoming);
 

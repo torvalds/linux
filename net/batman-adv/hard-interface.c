@@ -28,6 +28,7 @@
 #include "bat_sysfs.h"
 #include "originator.h"
 #include "hash.h"
+#include "bat_ogm.h"
 
 #include <linux/if_arp.h>
 
@@ -131,7 +132,6 @@ static void primary_if_select(struct bat_priv *bat_priv,
 			      struct hard_iface *new_hard_iface)
 {
 	struct hard_iface *curr_hard_iface;
-	struct batman_ogm_packet *batman_ogm_packet;
 
 	ASSERT_RTNL();
 
@@ -147,11 +147,7 @@ static void primary_if_select(struct bat_priv *bat_priv,
 	if (!new_hard_iface)
 		return;
 
-	batman_ogm_packet = (struct batman_ogm_packet *)
-						(new_hard_iface->packet_buff);
-	batman_ogm_packet->flags = PRIMARIES_FIRST_HOP;
-	batman_ogm_packet->ttl = TTL;
-
+	bat_ogm_init_primary(new_hard_iface);
 	primary_if_update_addr(bat_priv);
 }
 
@@ -161,17 +157,6 @@ static bool hardif_is_iface_up(const struct hard_iface *hard_iface)
 		return true;
 
 	return false;
-}
-
-static void update_mac_addresses(struct hard_iface *hard_iface)
-{
-	struct batman_ogm_packet *batman_ogm_packet;
-
-	batman_ogm_packet = (struct batman_ogm_packet *)hard_iface->packet_buff;
-	memcpy(batman_ogm_packet->orig,
-	       hard_iface->net_dev->dev_addr, ETH_ALEN);
-	memcpy(batman_ogm_packet->prev_sender,
-	       hard_iface->net_dev->dev_addr, ETH_ALEN);
 }
 
 static void check_known_mac_addr(const struct net_device *net_dev)
@@ -248,7 +233,7 @@ static void hardif_activate_interface(struct hard_iface *hard_iface)
 
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
-	update_mac_addresses(hard_iface);
+	bat_ogm_update_mac(hard_iface);
 	hard_iface->if_status = IF_TO_BE_ACTIVATED;
 
 	/**
@@ -287,7 +272,6 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 			    const char *iface_name)
 {
 	struct bat_priv *bat_priv;
-	struct batman_ogm_packet *batman_ogm_packet;
 	struct net_device *soft_iface;
 	int ret;
 
@@ -322,8 +306,8 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 
 	hard_iface->soft_iface = soft_iface;
 	bat_priv = netdev_priv(hard_iface->soft_iface);
-	hard_iface->packet_len = BATMAN_OGM_LEN;
-	hard_iface->packet_buff = kmalloc(hard_iface->packet_len, GFP_ATOMIC);
+
+	bat_ogm_init(hard_iface);
 
 	if (!hard_iface->packet_buff) {
 		bat_err(hard_iface->soft_iface, "Can't add interface packet "
@@ -331,16 +315,6 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 		ret = -ENOMEM;
 		goto err;
 	}
-
-	batman_ogm_packet = (struct batman_ogm_packet *)
-						(hard_iface->packet_buff);
-	batman_ogm_packet->packet_type = BAT_OGM;
-	batman_ogm_packet->version = COMPAT_VERSION;
-	batman_ogm_packet->flags = NO_FLAGS;
-	batman_ogm_packet->ttl = 2;
-	batman_ogm_packet->tq = TQ_MAX_VALUE;
-	batman_ogm_packet->tt_num_changes = 0;
-	batman_ogm_packet->ttvn = 0;
 
 	hard_iface->if_num = bat_priv->num_ifaces;
 	bat_priv->num_ifaces++;
@@ -556,7 +530,7 @@ static int hard_if_event(struct notifier_block *this,
 			goto hardif_put;
 
 		check_known_mac_addr(hard_iface->net_dev);
-		update_mac_addresses(hard_iface);
+		bat_ogm_update_mac(hard_iface);
 
 		bat_priv = netdev_priv(hard_iface->soft_iface);
 		primary_if = primary_if_get_selected(bat_priv);

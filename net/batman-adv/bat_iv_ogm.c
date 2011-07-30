@@ -30,6 +30,43 @@
 #include "hard-interface.h"
 #include "send.h"
 
+void bat_ogm_init(struct hard_iface *hard_iface)
+{
+	struct batman_ogm_packet *batman_ogm_packet;
+
+	hard_iface->packet_len = BATMAN_OGM_LEN;
+	hard_iface->packet_buff = kmalloc(hard_iface->packet_len, GFP_ATOMIC);
+
+	batman_ogm_packet = (struct batman_ogm_packet *)hard_iface->packet_buff;
+	batman_ogm_packet->packet_type = BAT_OGM;
+	batman_ogm_packet->version = COMPAT_VERSION;
+	batman_ogm_packet->flags = NO_FLAGS;
+	batman_ogm_packet->ttl = 2;
+	batman_ogm_packet->tq = TQ_MAX_VALUE;
+	batman_ogm_packet->tt_num_changes = 0;
+	batman_ogm_packet->ttvn = 0;
+}
+
+void bat_ogm_init_primary(struct hard_iface *hard_iface)
+{
+	struct batman_ogm_packet *batman_ogm_packet;
+
+	batman_ogm_packet = (struct batman_ogm_packet *)hard_iface->packet_buff;
+	batman_ogm_packet->flags = PRIMARIES_FIRST_HOP;
+	batman_ogm_packet->ttl = TTL;
+}
+
+void bat_ogm_update_mac(struct hard_iface *hard_iface)
+{
+	struct batman_ogm_packet *batman_ogm_packet;
+
+	batman_ogm_packet = (struct batman_ogm_packet *)hard_iface->packet_buff;
+	memcpy(batman_ogm_packet->orig,
+	       hard_iface->net_dev->dev_addr, ETH_ALEN);
+	memcpy(batman_ogm_packet->prev_sender,
+	       hard_iface->net_dev->dev_addr, ETH_ALEN);
+}
+
 /* is there another aggregated packet here? */
 static int bat_ogm_aggr_packet(int buff_pos, int packet_len,
 			       int tt_num_changes)
