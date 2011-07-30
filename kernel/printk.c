@@ -1083,8 +1083,6 @@ void printk_tick(void)
 
 int printk_needs_cpu(int cpu)
 {
-	if (unlikely(cpu_is_offline(cpu)))
-		printk_tick();
 	return per_cpu(printk_pending, cpu);
 }
 

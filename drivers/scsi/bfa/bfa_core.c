@@ -84,30 +84,9 @@ bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo)
 	for (i = 0; hal_mods[i]; i++)
 		hal_mods[i]->meminfo(cfg, &km_len, &dm_len);
 
-	dm_len += bfa_port_meminfo();
 
 	meminfo->meminfo[BFA_MEM_TYPE_KVA - 1].mem_len = km_len;
 	meminfo->meminfo[BFA_MEM_TYPE_DMA - 1].mem_len = dm_len;
-}
-
-static void
-bfa_com_port_attach(struct bfa_s *bfa, struct bfa_meminfo_s *mi)
-{
-	struct bfa_port_s       *port = &bfa->modules.port;
-	uint32_t                dm_len;
-	uint8_t                 *dm_kva;
-	uint64_t                dm_pa;
-
-	dm_len = bfa_port_meminfo();
-	dm_kva = bfa_meminfo_dma_virt(mi);
-	dm_pa  = bfa_meminfo_dma_phys(mi);
-
-	memset(port, 0, sizeof(struct bfa_port_s));
-	bfa_port_attach(port, &bfa->ioc, bfa, bfa->trcmod, bfa->logm);
-	bfa_port_mem_claim(port, dm_kva, dm_pa);
-
-	bfa_meminfo_dma_virt(mi) = dm_kva + dm_len;
-	bfa_meminfo_dma_phys(mi) = dm_pa + dm_len;
 }
 
 /**
@@ -161,7 +140,6 @@ bfa_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	for (i = 0; hal_mods[i]; i++)
 		hal_mods[i]->attach(bfa, bfad, cfg, meminfo, pcidev);
 
-	bfa_com_port_attach(bfa, meminfo);
 }
 
 /**

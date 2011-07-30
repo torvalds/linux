@@ -22,7 +22,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 		return 0;
 
 	fbio = bio;
-	cluster = blk_queue_cluster(q);
+	cluster = test_bit(QUEUE_FLAG_CLUSTER, &q->queue_flags);
 	seg_size = 0;
 	phys_size = nr_phys_segs = 0;
 	for_each_bio(bio) {
@@ -88,7 +88,7 @@ EXPORT_SYMBOL(blk_recount_segments);
 static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
 				   struct bio *nxt)
 {
-	if (!blk_queue_cluster(q))
+	if (!test_bit(QUEUE_FLAG_CLUSTER, &q->queue_flags))
 		return 0;
 
 	if (bio->bi_seg_back_size + nxt->bi_seg_front_size >
@@ -124,7 +124,7 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	int nsegs, cluster;
 
 	nsegs = 0;
-	cluster = blk_queue_cluster(q);
+	cluster = test_bit(QUEUE_FLAG_CLUSTER, &q->queue_flags);
 
 	/*
 	 * for each bio in rq

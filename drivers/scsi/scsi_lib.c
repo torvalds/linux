@@ -1636,8 +1636,9 @@ struct request_queue *__scsi_alloc_queue(struct Scsi_Host *shost,
 
 	blk_queue_max_segment_size(q, dma_get_max_seg_size(dev));
 
+	/* New queue, no concurrency on queue_flags */
 	if (!shost->use_clustering)
-		q->limits.cluster = 0;
+		queue_flag_clear_unlocked(QUEUE_FLAG_CLUSTER, q);
 
 	/*
 	 * set a reasonable default alignment on word boundaries: the
