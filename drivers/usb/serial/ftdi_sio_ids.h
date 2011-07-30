@@ -351,7 +351,6 @@
  */
 #define FTDI_4N_GALAXY_DE_1_PID	0xF3C0
 #define FTDI_4N_GALAXY_DE_2_PID	0xF3C1
-#define FTDI_4N_GALAXY_DE_3_PID	0xF3C2
 
 /*
  * Linx Technologies product ids
@@ -491,11 +490,6 @@
 #define FTDI_IBS_PROD_PID	0xff3f  /* future device */
 /* www.canusb.com Lawicel CANUSB device (FTDI_VID) */
 #define FTDI_CANUSB_PID 0xFFA8 /* Product Id */
-
-/*
- * TavIR AVR product ids (FTDI_VID)
- */
-#define FTDI_TAVIR_STK500_PID	0xFA33	/* STK500 AVR programmer */
 
 
 

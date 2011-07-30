@@ -261,28 +261,6 @@ static int get_kernel(unsigned long pc, unsigned long mmcra)
 	return is_kernel;
 }
 
-static bool pmc_overflow(unsigned long val)
-{
-	if ((int)val < 0)
-		return true;
-
-	/*
-	 * Events on POWER7 can roll back if a speculative event doesn't
-	 * eventually complete. Unfortunately in some rare cases they will
-	 * raise a performance monitor exception. We need to catch this to
-	 * ensure we reset the PMC. In all cases the PMC will be 256 or less
-	 * cycles from overflow.
-	 *
-	 * We only do this if the first pass fails to find any overflowing
-	 * PMCs because a user might set a period of less than 256 and we
-	 * don't want to mistakenly reset them.
-	 */
-	if (__is_processor(PV_POWER7) && ((0x80000000 - val) <= 256))
-		return true;
-
-	return false;
-}
-
 static void power4_handle_interrupt(struct pt_regs *regs,
 				    struct op_counter_config *ctr)
 {
@@ -303,7 +281,7 @@ static void power4_handle_interrupt(struct pt_regs *regs,
 
 	for (i = 0; i < cur_cpu_spec->num_pmcs; ++i) {
 		val = classic_ctr_read(i);
-		if (pmc_overflow(val)) {
+		if (val < 0) {
 			if (oprofile_running && ctr[i].enabled) {
 				oprofile_add_ext_sample(pc, regs, i, is_kernel);
 				classic_ctr_write(i, reset_value[i]);

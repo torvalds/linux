@@ -665,7 +665,6 @@ out_free:
 
 out_release:
 	release_head(c, BASEHD);
-	kfree(dent);
 out_ro:
 	ubifs_ro_mode(c, err);
 	if (last_reference)

@@ -711,22 +711,14 @@ xfs_inode_set_reclaim_tag(
 }
 
 void
-__xfs_inode_clear_reclaim(
+__xfs_inode_clear_reclaim_tag(
+	xfs_mount_t	*mp,
 	xfs_perag_t	*pag,
 	xfs_inode_t	*ip)
 {
+	radix_tree_tag_clear(&pag->pag_ici_root,
+			XFS_INO_TO_AGINO(mp, ip->i_ino), XFS_ICI_RECLAIM_TAG);
 	pag->pag_ici_reclaimable--;
-}
-
-void
-__xfs_inode_clear_reclaim_tag(
-       xfs_mount_t     *mp,
-       xfs_perag_t     *pag,
-       xfs_inode_t     *ip)
-{
-       radix_tree_tag_clear(&pag->pag_ici_root,
-                       XFS_INO_TO_AGINO(mp, ip->i_ino), XFS_ICI_RECLAIM_TAG);
-       __xfs_inode_clear_reclaim(pag, ip);
 }
 
 STATIC int

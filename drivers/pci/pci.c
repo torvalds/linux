@@ -373,12 +373,8 @@ pci_find_parent_resource(const struct pci_dev *dev, struct resource *res)
 			continue;	/* Wrong type */
 		if (!((res->flags ^ r->flags) & IORESOURCE_PREFETCH))
 			return r;	/* Exact match */
-		/* We can't insert a non-prefetch resource inside a prefetchable parent .. */
-		if (r->flags & IORESOURCE_PREFETCH)
-			continue;
-		/* .. but we can put a prefetchable resource inside a non-prefetchable one */
-		if (!best)
-			best = r;
+		if ((res->flags & IORESOURCE_PREFETCH) && !(r->flags & IORESOURCE_PREFETCH))
+			best = r;	/* Approximating prefetchable by non-prefetchable */
 	}
 	return best;
 }
