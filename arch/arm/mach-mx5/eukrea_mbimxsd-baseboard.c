@@ -41,7 +41,6 @@
 #include <mach/audmux.h>
 
 #include "devices-imx51.h"
-#include "devices.h"
 
 static iomux_v3_cfg_t eukrea_mbimxsd_pads[] = {
 	/* LED */

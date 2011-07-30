@@ -28,7 +28,6 @@
 #include <asm/mach/arch.h>
 
 #include "devices-imx51.h"
-#include "devices.h"
 
 #define MBIMX51_TSC2007_GPIO	IMX_GPIO_NR(3, 30)
 #define MBIMX51_LED0		IMX_GPIO_NR(3, 5)

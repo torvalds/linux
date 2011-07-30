@@ -39,7 +39,6 @@
 #include <asm/mach/time.h>
 
 #include "devices-imx51.h"
-#include "devices.h"
 #include "efika.h"
 
 #define EFIKAMX_PCBID0		IMX_GPIO_NR(3, 16)
