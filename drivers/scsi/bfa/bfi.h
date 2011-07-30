@@ -784,6 +784,17 @@ enum bfi_sfp_i2h_e {
 };
 
 /*
+ *	SFP state change notification
+ */
+struct bfi_sfp_scn_s {
+	struct bfi_mhdr_s mhr;	/* host msg header        */
+	u8	event;
+	u8	sfpid;
+	u8	pomlvl;	/* pom level: normal/warning/alarm */
+	u8	is_elb;	/* e-loopback */
+};
+
+/*
  *	SFP state
  */
 enum bfa_sfp_stat_e {
@@ -923,6 +934,15 @@ struct bfi_flash_erase_rsp_s {
 	u8	instance;	/* partition instance */
 	u8	rsv[3];
 	u32	status;
+};
+
+/*
+ * Flash event notification
+ */
+struct bfi_flash_event_s {
+	struct bfi_mhdr_s	mh;	/* Common msg header */
+	bfa_status_t		status;
+	u32			param;
 };
 
 /*
