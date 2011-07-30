@@ -7510,7 +7510,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 			   NETIF_F_HW_VLAN_FILTER |
 			   NETIF_F_TSO |
 			   NETIF_F_TSO6 |
-			   NETIF_F_GRO |
 			   NETIF_F_RXHASH |
 			   NETIF_F_RXCSUM;
 
