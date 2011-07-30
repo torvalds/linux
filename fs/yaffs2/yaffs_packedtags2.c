@@ -37,9 +37,6 @@
 #define EXTRA_OBJECT_TYPE_SHIFT (28)
 #define EXTRA_OBJECT_TYPE_MASK  ((0x0F) << EXTRA_OBJECT_TYPE_SHIFT)
 
-#ifndef CONFIG_YAFFS_DOES_ECC
-#define YAFFS_IGNORE_TAGS_ECC 1
-#endif
 
 static void yaffs_DumpPackedTags2TagsPart(const yaffs_PackedTags2TagsPart *ptt)
 {
