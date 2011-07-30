@@ -13,6 +13,10 @@ extern const struct imx_fec_data imx51_fec_data;
 #define imx51_add_fec(pdata)	\
 	imx_add_fec(&imx51_fec_data, pdata)
 
+extern const struct imx_fsl_usb2_udc_data imx51_fsl_usb2_udc_data;
+#define imx51_add_fsl_usb2_udc(pdata)	\
+	imx_add_fsl_usb2_udc(&imx51_fsl_usb2_udc_data, pdata)
+
 extern const struct imx_imx_i2c_data imx51_imx_i2c_data[];
 #define imx51_add_imx_i2c(id, pdata)	\
 	imx_add_imx_i2c(&imx51_imx_i2c_data[id], pdata)

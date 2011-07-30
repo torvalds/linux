@@ -293,7 +293,7 @@ static const struct mxc_usbh_platform_data dr_utmi_config __initconst = {
 	.portsc	= MXC_EHCI_UTMI_16BIT,
 };
 
-static struct fsl_usb2_platform_data usb_pdata = {
+static const struct fsl_usb2_platform_data usb_pdata __initconst = {
 	.operating_mode	= FSL_USB2_DR_DEVICE,
 	.phy_mode	= FSL_USB2_PHY_UTMI_WIDE,
 };
@@ -387,7 +387,7 @@ static void __init mx51_babbage_init(void)
 		imx51_add_mxc_ehci_otg(&dr_utmi_config);
 	else {
 		initialize_otg_port(NULL);
-		mxc_register_device(&mxc_usbdr_udc_device, &usb_pdata);
+		imx51_add_fsl_usb2_udc(&usb_pdata);
 	}
 
 	gpio_usbh1_active();

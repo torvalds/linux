@@ -35,29 +35,3 @@ struct platform_device mxc_hsi2c_device = {
 	.num_resources = ARRAY_SIZE(mxc_hsi2c_resources),
 	.resource = mxc_hsi2c_resources
 };
-
-static u64 usb_dma_mask = DMA_BIT_MASK(32);
-
-static struct resource usbotg_resources[] = {
-	{
-		.start = MX51_USB_OTG_BASE_ADDR,
-		.end = MX51_USB_OTG_BASE_ADDR + 0x1ff,
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.start = MX51_INT_USB_OTG,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-/* OTG gadget device */
-struct platform_device mxc_usbdr_udc_device = {
-	.name		= "fsl-usb2-udc",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(usbotg_resources),
-	.resource	= usbotg_resources,
-	.dev		= {
-		.dma_mask		= &usb_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
