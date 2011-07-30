@@ -336,8 +336,7 @@ static bool purge_orig_node(struct bat_priv *bat_priv,
 	} else {
 		if (purge_orig_neighbors(bat_priv, orig_node,
 							&best_neigh_node)) {
-			update_routes(bat_priv, orig_node,
-				      best_neigh_node);
+			update_route(bat_priv, orig_node, best_neigh_node);
 		}
 	}
 

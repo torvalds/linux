@@ -19,24 +19,12 @@
  *
  */
 
-#ifndef _NET_BATMAN_ADV_AGGREGATION_H_
-#define _NET_BATMAN_ADV_AGGREGATION_H_
+#ifndef _NET_BATMAN_ADV_OGM_H_
+#define _NET_BATMAN_ADV_OGM_H_
 
 #include "main.h"
 
-/* is there another aggregated packet here? */
-static inline int aggregated_packet(int buff_pos, int packet_len,
-				    int tt_num_changes)
-{
-	int next_buff_pos = buff_pos + BATMAN_OGM_LEN + tt_len(tt_num_changes);
+void bat_ogm_receive(const struct ethhdr *ethhdr, unsigned char *packet_buff,
+		     int packet_len, struct hard_iface *if_incoming);
 
-	return (next_buff_pos <= packet_len) &&
-		(next_buff_pos <= MAX_AGGREGATION_BYTES);
-}
-
-void add_bat_packet_to_list(struct bat_priv *bat_priv,
-			    unsigned char *packet_buff, int packet_len,
-			    struct hard_iface *if_incoming, int own_packet,
-			    unsigned long send_time);
-
-#endif /* _NET_BATMAN_ADV_AGGREGATION_H_ */
+#endif /* _NET_BATMAN_ADV_OGM_H_ */

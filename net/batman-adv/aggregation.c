@@ -264,34 +264,3 @@ void add_bat_packet_to_list(struct bat_priv *bat_priv,
 		spin_unlock_bh(&bat_priv->forw_bat_list_lock);
 	}
 }
-
-/* unpack the aggregated packets and process them one by one */
-void receive_aggr_bat_packet(const struct ethhdr *ethhdr,
-			     unsigned char *packet_buff, int packet_len,
-			     struct hard_iface *if_incoming)
-{
-	struct batman_ogm_packet *batman_ogm_packet;
-	int buff_pos = 0;
-	unsigned char *tt_buff;
-
-	batman_ogm_packet = (struct batman_ogm_packet *)packet_buff;
-
-	do {
-		/* network to host order for our 32bit seqno and the
-		   orig_interval */
-		batman_ogm_packet->seqno = ntohl(batman_ogm_packet->seqno);
-		batman_ogm_packet->tt_crc = ntohs(batman_ogm_packet->tt_crc);
-
-		tt_buff = packet_buff + buff_pos + BATMAN_OGM_LEN;
-
-		receive_bat_packet(ethhdr, batman_ogm_packet,
-				   tt_buff, if_incoming);
-
-		buff_pos += BATMAN_OGM_LEN +
-				tt_len(batman_ogm_packet->tt_num_changes);
-
-		batman_ogm_packet = (struct batman_ogm_packet *)
-						(packet_buff + buff_pos);
-	} while (aggregated_packet(buff_pos, packet_len,
-				   batman_ogm_packet->tt_num_changes));
-}
