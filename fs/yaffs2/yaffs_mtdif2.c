@@ -176,8 +176,6 @@ int nandmtd2_ReadChunkWithTagsFromNAND(yaffs_Device *dev, int chunkInNAND,
 
 	if (tags && retval == -EBADMSG && tags->eccResult == YAFFS_ECC_RESULT_NO_ERROR)
 		tags->eccResult = YAFFS_ECC_RESULT_UNFIXED;
-	if (tags && retval == -EUCLEAN && tags->eccResult == YAFFS_ECC_RESULT_NO_ERROR)
-		tags->eccResult = YAFFS_ECC_RESULT_FIXED;
 	if (retval == 0)
 		return YAFFS_OK;
 	else
