@@ -11,13 +11,11 @@
  *  Richard Purdie <rpurdie@openedhand.com>
  */
 
-#ifndef STATIC
 #include <linux/module.h>
 #include <linux/kernel.h>
-#endif
-
-#include <asm/unaligned.h>
 #include <linux/lzo.h>
+#include <asm/byteorder.h>
+#include <asm/unaligned.h>
 #include "lzodefs.h"
 
 #define HAVE_IP(x, ip_end, ip) ((size_t)(ip_end - ip) < (x))
@@ -246,10 +244,9 @@ lookbehind_overrun:
 	*out_len = op - out;
 	return LZO_E_LOOKBEHIND_OVERRUN;
 }
-#ifndef STATIC
+
 EXPORT_SYMBOL_GPL(lzo1x_decompress_safe);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("LZO1X Decompressor");
 
-#endif
