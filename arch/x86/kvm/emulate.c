@@ -672,11 +672,11 @@ static int do_insn_fetch_byte(struct x86_emulate_ctxt *ctxt, u8 *dest)
 		size = min(15UL - cur_size,
 			   PAGE_SIZE - offset_in_page(ctxt->_eip));
 		rc = __linearize(ctxt, addr, size, false, true, &linear);
-		if (rc != X86EMUL_CONTINUE)
+		if (unlikely(rc != X86EMUL_CONTINUE))
 			return rc;
 		rc = ctxt->ops->fetch(ctxt, linear, fc->data + cur_size,
 				      size, &ctxt->exception);
-		if (rc != X86EMUL_CONTINUE)
+		if (unlikely(rc != X86EMUL_CONTINUE))
 			return rc;
 		fc->end += size;
 	}
@@ -691,7 +691,7 @@ static int do_insn_fetch(struct x86_emulate_ctxt *ctxt,
 	int rc;
 
 	/* x86 instructions are limited to 15 bytes. */
-	if (ctxt->_eip + size - ctxt->eip > 15)
+	if (unlikely(ctxt->_eip + size - ctxt->eip > 15))
 		return X86EMUL_UNHANDLEABLE;
 	while (size--) {
 		rc = do_insn_fetch_byte(ctxt, dest++);
