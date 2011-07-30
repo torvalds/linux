@@ -29,8 +29,6 @@ int yaffs_ReadChunkWithTagsFromNAND(yaffs_Device *dev, int chunkInNAND,
 
 	int realignedChunkInNAND = chunkInNAND - dev->chunkOffset;
 
-	dev->nPageReads++;
-
 	/* If there are no tags provided, use local tags to get prioritised gc working */
 	if (!tags)
 		tags = &localTags;
@@ -58,9 +56,6 @@ int yaffs_WriteChunkWithTagsToNAND(yaffs_Device *dev,
 						   const __u8 *buffer,
 						   yaffs_ExtendedTags *tags)
 {
-
-	dev->nPageWrites++;
-
 	chunkInNAND -= dev->chunkOffset;
 
 
@@ -94,7 +89,7 @@ int yaffs_MarkBlockBad(yaffs_Device *dev, int blockNo)
 {
 	blockNo -= dev->blockOffset;
 
-
+;
 	if (dev->markNANDBlockBad)
 		return dev->markNANDBlockBad(dev, blockNo);
 	else
@@ -124,8 +119,8 @@ int yaffs_EraseBlockInNAND(struct yaffs_DeviceStruct *dev,
 
 	blockInNAND -= dev->blockOffset;
 
-	dev->nBlockErasures++;
 
+	dev->nBlockErasures++;
 	result = dev->eraseBlockInNAND(dev, blockInNAND);
 
 	return result;

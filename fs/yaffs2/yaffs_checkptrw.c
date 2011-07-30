@@ -43,9 +43,6 @@ static int yaffs_CheckpointErase(yaffs_Device *dev)
 		yaffs_BlockInfo *bi = yaffs_GetBlockInfo(dev, i);
 		if (bi->blockState == YAFFS_BLOCK_STATE_CHECKPOINT) {
 			T(YAFFS_TRACE_CHECKPOINT, (TSTR("erasing checkpt block %d"TENDSTR), i));
-
-			dev->nBlockErasures++;
-
 			if (dev->eraseBlockInNAND(dev, i - dev->blockOffset /* realign */)) {
 				bi->blockState = YAFFS_BLOCK_STATE_EMPTY;
 				dev->nErasedBlocks++;
@@ -171,9 +168,6 @@ int yaffs_CheckpointOpen(yaffs_Device *dev, int forWriting)
 		dev->blocksInCheckpoint = 0;
 		dev->checkpointMaxBlocks = (dev->internalEndBlock - dev->internalStartBlock)/16 + 2;
 		dev->checkpointBlockList = YMALLOC(sizeof(int) * dev->checkpointMaxBlocks);
-		if(!dev->checkpointBlockList)
-			return 0;
-
 		for (i = 0; i < dev->checkpointMaxBlocks; i++)
 			dev->checkpointBlockList[i] = -1;
 	}
@@ -224,8 +218,6 @@ static int yaffs_CheckpointFlushBuffer(yaffs_Device *dev)
 		chunk, dev->checkpointCurrentBlock, dev->checkpointCurrentChunk, tags.objectId, tags.chunkId));
 
 	realignedChunk = chunk - dev->chunkOffset;
-
-	dev->nPageWrites++;
 
 	dev->writeChunkWithTagsToNAND(dev, realignedChunk,
 			dev->checkpointBuffer, &tags);
@@ -314,8 +306,6 @@ int yaffs_CheckpointRead(yaffs_Device *dev, void *data, int nBytes)
 					dev->checkpointCurrentChunk;
 
 				realignedChunk = chunk - dev->chunkOffset;
-				
-				dev->nPageReads++;
 
 				/* read in the next chunk */
 				/* printf("read checkpoint page %d\n",dev->checkpointPage); */
