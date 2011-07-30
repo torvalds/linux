@@ -160,5 +160,6 @@ source "drivers/net/ethernet/toshiba/Kconfig"
 source "drivers/net/ethernet/tundra/Kconfig"
 source "drivers/net/ethernet/via/Kconfig"
 source "drivers/net/ethernet/xilinx/Kconfig"
+source "drivers/net/ethernet/xircom/Kconfig"
 
 endif # ETHERNET

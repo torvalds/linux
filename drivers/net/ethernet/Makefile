@@ -69,3 +69,4 @@ obj-$(CONFIG_NET_VENDOR_TOSHIBA) += toshiba/
 obj-$(CONFIG_NET_VENDOR_TUNDRA) += tundra/
 obj-$(CONFIG_NET_VENDOR_VIA) += via/
 obj-$(CONFIG_NET_VENDOR_XILINX) += xilinx/
+obj-$(CONFIG_NET_VENDOR_XIRCOM) += xircom/

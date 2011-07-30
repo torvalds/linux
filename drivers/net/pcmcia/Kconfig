@@ -21,15 +21,6 @@ menuconfig NET_PCMCIA
 
 if NET_PCMCIA && PCMCIA
 
-config PCMCIA_XIRC2PS
-	tristate "Xircom 16-bit PCMCIA support"
-	help
-	  Say Y here if you intend to attach a Xircom 16-bit PCMCIA (PC-card)
-	  Ethernet or Fast Ethernet card to your computer.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called xirc2ps_cs.  If unsure, say N.
-
 config ARCNET_COM20020_CS
 	tristate "COM20020 ARCnet PCMCIA support"
 	depends on ARCNET_COM20020
