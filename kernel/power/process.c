@@ -84,20 +84,22 @@ static int try_to_freeze_tasks(bool sig_only)
 		 * and caller must call thaw_processes() if something fails),
 		 * but it cleans up leftover PF_FREEZE requests.
 		 */
-		printk("\n");
-		printk(KERN_ERR "Freezing of tasks %s after %d.%02d seconds "
-				"(%d tasks refusing to freeze):\n",
-				wakeup ? "aborted" : "failed",
-				elapsed_csecs / 100, elapsed_csecs % 100, todo);
-		if(!wakeup)
+		if(wakeup) {
+			printk("\n");
+			printk(KERN_ERR "Freezing of %s aborted\n",
+					sig_only ? "user space " : "tasks ");
+		}
+		else {
+			printk("\n");
+			printk(KERN_ERR "Freezing of tasks failed after %d.%02d seconds "
+					"(%d tasks refusing to freeze):\n",
+					elapsed_csecs / 100, elapsed_csecs % 100, todo);
 			show_state();
-		else
-			print_active_wake_locks(WAKE_LOCK_SUSPEND);
+		}
 		read_lock(&tasklist_lock);
 		do_each_thread(g, p) {
 			task_lock(p);
-			if (freezing(p) && !freezer_should_skip(p) &&
-							elapsed_csecs > 100)
+			if (freezing(p) && !freezer_should_skip(p))
 				printk(KERN_ERR " %s\n", p->comm);
 			cancel_freezing(p);
 			task_unlock(p);
