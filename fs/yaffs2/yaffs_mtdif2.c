@@ -52,7 +52,6 @@ int nandmtd2_WriteChunkWithTagsToNAND(yaffs_Device *dev, int chunkInNAND,
 	   ("nandmtd2_WriteChunkWithTagsToNAND chunk %d data %p tags %p"
 	    TENDSTR), chunkInNAND, data, tags));
 
-	dev->nPageWrites++;
 
 	addr  = ((loff_t) chunkInNAND) * dev->totalBytesPerChunk;
 
@@ -116,8 +115,6 @@ int nandmtd2_ReadChunkWithTagsFromNAND(yaffs_Device *dev, int chunkInNAND,
 	   ("nandmtd2_ReadChunkWithTagsFromNAND chunk %d data %p tags %p"
 	    TENDSTR), chunkInNAND, data, tags));
 
-	dev->nPageReads++;
-
 	if (dev->inbandTags) {
 
 		if (!data) {
@@ -177,14 +174,10 @@ int nandmtd2_ReadChunkWithTagsFromNAND(yaffs_Device *dev, int chunkInNAND,
 	if (localData)
 		yaffs_ReleaseTempBuffer(dev, data, __LINE__);
 
-	if (tags && retval == -EBADMSG && tags->eccResult == YAFFS_ECC_RESULT_NO_ERROR) {
+	if (tags && retval == -EBADMSG && tags->eccResult == YAFFS_ECC_RESULT_NO_ERROR)
 		tags->eccResult = YAFFS_ECC_RESULT_UNFIXED;
-		dev->eccUnfixed++;
-	}
-	if (tags && retval == -EUCLEAN && tags->eccResult == YAFFS_ECC_RESULT_NO_ERROR) {
+	if (tags && retval == -EUCLEAN && tags->eccResult == YAFFS_ECC_RESULT_NO_ERROR)
 		tags->eccResult = YAFFS_ECC_RESULT_FIXED;
-		dev->eccFixed++;
-	}
 	if (retval == 0)
 		return YAFFS_OK;
 	else
