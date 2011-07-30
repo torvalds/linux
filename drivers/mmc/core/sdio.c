@@ -241,13 +241,7 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 	 */
 	err = mmc_send_io_op_cond(host, host->ocr, &ocr);
 	if (err)
-	{
-#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)  	
-	    printk("%s..%d..  ====*Identify the card as SDIO , but OCR error, so fail to initialize.===xbw[%s]===\n", \
-	        __FUNCTION__, __LINE__, mmc_hostname(host));
-#endif	        
 		goto err;
-	}
 
 	/*
 	 * For SPI, enable CRC as appropriate.
@@ -268,13 +262,6 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 	}
 
 	card->type = MMC_TYPE_SDIO;
-        
-         /*
-         * Call the optional HC's init_card function to handle quirks.
-         */
-        if (host->ops->init_card)
-                host->ops->init_card(host, card);
-
 
 	/*
 	 * For native busses:  set card RCA and quit open drain mode.
@@ -283,16 +270,6 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 		err = mmc_send_relative_addr(host, &card->rca);
 		if (err)
 			goto remove;
-
-#if defined(CONFIG_SDMMC_RK29) && defined(CONFIG_SDMMC_RK29_OLD)  //old driver add the code ,reform to kernel2.6.38  
-		/*
-		 * Update oldcard with the new RCA received from the SDIO
-		 * device -- we're doing this so that it's updated in the
-		 * "card" struct when oldcard overwrites that later.
-		 */
-		if (oldcard)
-			oldcard->rca = card->rca;
-#endif
 
 		mmc_set_bus_mode(host, MMC_BUSMODE_PUSHPULL);
 	}
