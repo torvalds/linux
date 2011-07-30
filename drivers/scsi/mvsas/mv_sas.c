@@ -1387,28 +1387,6 @@ void mvs_dev_gone(struct domain_device *dev)
 	mvs_dev_gone_notify(dev);
 }
 
-static  struct sas_task *mvs_alloc_task(void)
-{
-	struct sas_task *task = kzalloc(sizeof(struct sas_task), GFP_KERNEL);
-
-	if (task) {
-		INIT_LIST_HEAD(&task->list);
-		spin_lock_init(&task->task_state_lock);
-		task->task_state_flags = SAS_TASK_STATE_PENDING;
-		init_timer(&task->timer);
-		init_completion(&task->completion);
-	}
-	return task;
-}
-
-static  void mvs_free_task(struct sas_task *task)
-{
-	if (task) {
-		BUG_ON(!list_empty(&task->list));
-		kfree(task);
-	}
-}
-
 static void mvs_task_done(struct sas_task *task)
 {
 	if (!del_timer(&task->timer))
@@ -1432,7 +1410,7 @@ static int mvs_exec_internal_tmf_task(struct domain_device *dev,
 	struct sas_task *task = NULL;
 
 	for (retry = 0; retry < 3; retry++) {
-		task = mvs_alloc_task();
+		task = sas_alloc_task(GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
 
@@ -1490,15 +1468,14 @@ static int mvs_exec_internal_tmf_task(struct domain_device *dev,
 				    SAS_ADDR(dev->sas_addr),
 				    task->task_status.resp,
 				    task->task_status.stat);
-			mvs_free_task(task);
+			sas_free_task(task);
 			task = NULL;
 
 		}
 	}
 ex_err:
 	BUG_ON(retry == 3 && task != NULL);
-	if (task != NULL)
-		mvs_free_task(task);
+	sas_free_task(task);
 	return res;
 }
 

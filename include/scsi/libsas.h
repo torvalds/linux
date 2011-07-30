@@ -555,36 +555,14 @@ struct sas_task {
 	struct work_struct abort_work;
 };
 
-extern struct kmem_cache *sas_task_cache;
-
 #define SAS_TASK_STATE_PENDING      1
 #define SAS_TASK_STATE_DONE         2
 #define SAS_TASK_STATE_ABORTED      4
 #define SAS_TASK_NEED_DEV_RESET     8
 #define SAS_TASK_AT_INITIATOR       16
 
-static inline struct sas_task *sas_alloc_task(gfp_t flags)
-{
-	struct sas_task *task = kmem_cache_zalloc(sas_task_cache, flags);
-
-	if (task) {
-		INIT_LIST_HEAD(&task->list);
-		spin_lock_init(&task->task_state_lock);
-		task->task_state_flags = SAS_TASK_STATE_PENDING;
-		init_timer(&task->timer);
-		init_completion(&task->completion);
-	}
-
-	return task;
-}
-
-static inline void sas_free_task(struct sas_task *task)
-{
-	if (task) {
-		BUG_ON(!list_empty(&task->list));
-		kmem_cache_free(sas_task_cache, task);
-	}
-}
+extern struct sas_task *sas_alloc_task(gfp_t flags);
+extern void sas_free_task(struct sas_task *task);
 
 struct sas_domain_function_template {
 	/* The class calls these to notify the LLDD of an event. */

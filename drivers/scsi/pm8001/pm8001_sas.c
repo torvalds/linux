@@ -669,30 +669,6 @@ int pm8001_dev_found(struct domain_device *dev)
 	return pm8001_dev_found_notify(dev);
 }
 
-/**
-  * pm8001_alloc_task - allocate a task structure for TMF
-  */
-static struct sas_task *pm8001_alloc_task(void)
-{
-	struct sas_task *task = kzalloc(sizeof(*task), GFP_KERNEL);
-	if (task) {
-		INIT_LIST_HEAD(&task->list);
-		spin_lock_init(&task->task_state_lock);
-		task->task_state_flags = SAS_TASK_STATE_PENDING;
-		init_timer(&task->timer);
-		init_completion(&task->completion);
-	}
-	return task;
-}
-
-static void pm8001_free_task(struct sas_task *task)
-{
-	if (task) {
-		BUG_ON(!list_empty(&task->list));
-		kfree(task);
-	}
-}
-
 static void pm8001_task_done(struct sas_task *task)
 {
 	if (!del_timer(&task->timer))
@@ -728,7 +704,7 @@ static int pm8001_exec_internal_tmf_task(struct domain_device *dev,
 	struct pm8001_hba_info *pm8001_ha = pm8001_find_ha_by_dev(dev);
 
 	for (retry = 0; retry < 3; retry++) {
-		task = pm8001_alloc_task();
+		task = sas_alloc_task(GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
 
@@ -789,14 +765,13 @@ static int pm8001_exec_internal_tmf_task(struct domain_device *dev,
 				SAS_ADDR(dev->sas_addr),
 				task->task_status.resp,
 				task->task_status.stat));
-			pm8001_free_task(task);
+			sas_free_task(task);
 			task = NULL;
 		}
 	}
 ex_err:
 	BUG_ON(retry == 3 && task != NULL);
-	if (task != NULL)
-		pm8001_free_task(task);
+	sas_free_task(task);
 	return res;
 }
 
@@ -811,7 +786,7 @@ pm8001_exec_internal_task_abort(struct pm8001_hba_info *pm8001_ha,
 	struct sas_task *task = NULL;
 
 	for (retry = 0; retry < 3; retry++) {
-		task = pm8001_alloc_task();
+		task = sas_alloc_task(GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
 
@@ -864,14 +839,13 @@ pm8001_exec_internal_task_abort(struct pm8001_hba_info *pm8001_ha,
 				SAS_ADDR(dev->sas_addr),
 				task->task_status.resp,
 				task->task_status.stat));
-			pm8001_free_task(task);
+			sas_free_task(task);
 			task = NULL;
 		}
 	}
 ex_err:
 	BUG_ON(retry == 3 && task != NULL);
-	if (task != NULL)
-		pm8001_free_task(task);
+	sas_free_task(task);
 	return res;
 }
 

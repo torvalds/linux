@@ -1345,29 +1345,6 @@ static void isci_smp_task_done(struct sas_task *task)
 	complete(&task->completion);
 }
 
-static struct sas_task *isci_alloc_task(void)
-{
-	struct sas_task *task = kzalloc(sizeof(*task), GFP_KERNEL);
-
-	if (task) {
-		INIT_LIST_HEAD(&task->list);
-		spin_lock_init(&task->task_state_lock);
-		task->task_state_flags = SAS_TASK_STATE_PENDING;
-		init_timer(&task->timer);
-		init_completion(&task->completion);
-	}
-
-	return task;
-}
-
-static void isci_free_task(struct isci_host *ihost, struct sas_task  *task)
-{
-	if (task) {
-		BUG_ON(!list_empty(&task->list));
-		kfree(task);
-	}
-}
-
 static int isci_smp_execute_task(struct isci_host *ihost,
 				 struct domain_device *dev, void *req,
 				 int req_size, void *resp, int resp_size)
@@ -1376,7 +1353,7 @@ static int isci_smp_execute_task(struct isci_host *ihost,
 	struct sas_task *task = NULL;
 
 	for (retry = 0; retry < 3; retry++) {
-		task = isci_alloc_task();
+		task = sas_alloc_task(GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
 
@@ -1439,13 +1416,13 @@ static int isci_smp_execute_task(struct isci_host *ihost,
 				SAS_ADDR(dev->sas_addr),
 				task->task_status.resp,
 				task->task_status.stat);
-			isci_free_task(ihost, task);
+			sas_free_task(task);
 			task = NULL;
 		}
 	}
 ex_err:
 	BUG_ON(retry == 3 && task != NULL);
-	isci_free_task(ihost, task);
+	sas_free_task(task);
 	return res;
 }
 

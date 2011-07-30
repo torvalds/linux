@@ -37,7 +37,32 @@
 
 #include "../scsi_sas_internal.h"
 
-struct kmem_cache *sas_task_cache;
+static struct kmem_cache *sas_task_cache;
+
+struct sas_task *sas_alloc_task(gfp_t flags)
+{
+	struct sas_task *task = kmem_cache_zalloc(sas_task_cache, flags);
+
+	if (task) {
+		INIT_LIST_HEAD(&task->list);
+		spin_lock_init(&task->task_state_lock);
+		task->task_state_flags = SAS_TASK_STATE_PENDING;
+		init_timer(&task->timer);
+		init_completion(&task->completion);
+	}
+
+	return task;
+}
+EXPORT_SYMBOL_GPL(sas_alloc_task);
+
+void sas_free_task(struct sas_task *task)
+{
+	if (task) {
+		BUG_ON(!list_empty(&task->list));
+		kmem_cache_free(sas_task_cache, task);
+	}
+}
+EXPORT_SYMBOL_GPL(sas_free_task);
 
 /*------------ SAS addr hash -----------*/
 void sas_hash_addr(u8 *hashed, const u8 *sas_addr)
@@ -293,8 +318,7 @@ EXPORT_SYMBOL_GPL(sas_domain_release_transport);
 
 static int __init sas_class_init(void)
 {
-	sas_task_cache = kmem_cache_create("sas_task", sizeof(struct sas_task),
-					   0, SLAB_HWCACHE_ALIGN, NULL);
+	sas_task_cache = KMEM_CACHE(sas_task, SLAB_HWCACHE_ALIGN);
 	if (!sas_task_cache)
 		return -ENOMEM;
 
