@@ -478,11 +478,6 @@ config FORCEDETH
 	  To compile this driver as a module, choose M here. The module
 	  will be called forcedeth.
 
-config TC35815
-	tristate "TOSHIBA TC35815 Ethernet support"
-	depends on NET_PCI && PCI && MIPS
-	select PHYLIB
-
 config FEALNX
 	tristate "Myson MTD-8xx PCI Ethernet support"
 	depends on NET_PCI && PCI
@@ -658,15 +653,6 @@ config SIS190
 	  To compile this driver as a module, choose M here: the module
 	  will be called sis190.  This is recommended.
 
-config SPIDER_NET
-	tristate "Spider Gigabit Ethernet driver"
-	depends on PCI && (PPC_IBM_CELL_BLADE || PPC_CELLEB)
-	select FW_LOADER
-	select SUNGEM_PHY
-	help
-	  This driver supports the Gigabit Ethernet chips present on the
-	  Cell Processor-Based Blades from IBM.
-
 config TSI108_ETH
 	tristate "Tundra TSI108 gigabit Ethernet support"
 	depends on TSI108_BRIDGE
@@ -674,29 +660,6 @@ config TSI108_ETH
 	  This driver supports Tundra TSI108 gigabit Ethernet ports.
 	  To compile this driver as a module, choose M here: the module
 	  will be called tsi108_eth.
-
-config GELIC_NET
-	tristate "PS3 Gigabit Ethernet driver"
-	depends on PPC_PS3
-	select PS3_SYS_MANAGER
-	help
-	  This driver supports the network device on the PS3 game
-	  console.  This driver has built-in support for Ethernet.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ps3_gelic.
-
-config GELIC_WIRELESS
-	bool "PS3 Wireless support"
-	depends on WLAN
-	depends on GELIC_NET
-	select WIRELESS_EXT
-	help
-	  This option adds the support for the wireless feature of PS3.
-	  If you have the wireless-less model of PS3 or have no plan to
-	  use wireless feature, disabling this option saves memory.  As
-	  the driver automatically distinguishes the models, you can
-	  safely enable this option even if you have a wireless-less model.
 
 config XILINX_LL_TEMAC
 	tristate "Xilinx LL TEMAC (LocalLink Tri-mode Ethernet MAC) driver"

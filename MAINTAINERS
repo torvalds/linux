@@ -5127,7 +5127,7 @@ M:	Geoff Levand <geoff@infradead.org>
 L:	netdev@vger.kernel.org
 L:	cbe-oss-dev@lists.ozlabs.org
 S:	Maintained
-F:	drivers/net/ps3_gelic_net.*
+F:	drivers/net/ethernet/toshiba/ps3_gelic_net.*
 
 PS3 PLATFORM SUPPORT
 M:	Geoff Levand <geoff@infradead.org>
@@ -6084,7 +6084,7 @@ M:	Jens Osterkamp <jens@de.ibm.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/networking/spider_net.txt
-F:	drivers/net/spider_net*
+F:	drivers/net/ethernet/toshiba/spider_net*
 
 SPU FILE SYSTEM
 M:	Jeremy Kerr <jk@ozlabs.org>
