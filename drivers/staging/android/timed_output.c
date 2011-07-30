@@ -41,9 +41,7 @@ static ssize_t enable_store(
 	struct timed_output_dev *tdev = dev_get_drvdata(dev);
 	int value;
 
-	if (sscanf(buf, "%d", &value) != 1)
-		return -EINVAL;
-
+	sscanf(buf, "%d", &value);
 	tdev->enable(tdev, value);
 
 	return size;
