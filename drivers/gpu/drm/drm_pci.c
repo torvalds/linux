@@ -47,7 +47,8 @@
 /**
  * \brief Allocate a PCI consistent memory block, for DMA.
  */
-drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size, size_t align)
+drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size, size_t align,
+				dma_addr_t maxaddr)
 {
 	drm_dma_handle_t *dmah;
 #if 1
@@ -61,6 +62,11 @@ drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size, size_t ali
 	 */
 	if (align > size)
 		return NULL;
+
+	if (pci_set_dma_mask(dev->pdev, maxaddr) != 0) {
+		DRM_ERROR("Setting pci dma mask failed\n");
+		return NULL;
+	}
 
 	dmah = kmalloc(sizeof(drm_dma_handle_t), GFP_KERNEL);
 	if (!dmah)

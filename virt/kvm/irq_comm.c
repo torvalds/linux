@@ -205,17 +205,16 @@ int kvm_request_irq_source_id(struct kvm *kvm)
 	int irq_source_id;
 
 	mutex_lock(&kvm->irq_lock);
-	irq_source_id = find_first_zero_bit(bitmap, BITS_PER_LONG);
+	irq_source_id = find_first_zero_bit(bitmap,
+				sizeof(kvm->arch.irq_sources_bitmap));
 
-	if (irq_source_id >= BITS_PER_LONG) {
+	if (irq_source_id >= sizeof(kvm->arch.irq_sources_bitmap)) {
 		printk(KERN_WARNING "kvm: exhaust allocatable IRQ sources!\n");
-		irq_source_id = -EFAULT;
-		goto unlock;
+		return -EFAULT;
 	}
 
 	ASSERT(irq_source_id != KVM_USERSPACE_IRQ_SOURCE_ID);
 	set_bit(irq_source_id, bitmap);
-unlock:
 	mutex_unlock(&kvm->irq_lock);
 
 	return irq_source_id;
@@ -229,17 +228,13 @@ void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id)
 
 	mutex_lock(&kvm->irq_lock);
 	if (irq_source_id < 0 ||
-	    irq_source_id >= BITS_PER_LONG) {
+	    irq_source_id >= sizeof(kvm->arch.irq_sources_bitmap)) {
 		printk(KERN_ERR "kvm: IRQ source ID out of range!\n");
-		goto unlock;
+		return;
 	}
-	clear_bit(irq_source_id, &kvm->arch.irq_sources_bitmap);
-	if (!irqchip_in_kernel(kvm))
-		goto unlock;
-
 	for (i = 0; i < KVM_IOAPIC_NUM_PINS; i++)
 		clear_bit(irq_source_id, &kvm->arch.irq_states[i]);
-unlock:
+	clear_bit(irq_source_id, &kvm->arch.irq_sources_bitmap);
 	mutex_unlock(&kvm->irq_lock);
 }
 

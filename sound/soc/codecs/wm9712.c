@@ -464,8 +464,7 @@ static int ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 {
 	u16 *cache = codec->reg_cache;
 
-	if (reg < 0x7c)
-		soc_ac97_ops.write(codec->ac97, reg, val);
+	soc_ac97_ops.write(codec->ac97, reg, val);
 	reg = reg >> 1;
 	if (reg < (ARRAY_SIZE(wm9712_reg)))
 		cache[reg] = val;

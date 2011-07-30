@@ -216,8 +216,7 @@ int dm_exception_store_create(struct dm_target *ti, int argc, char **argv,
 		type = get_type("N");
 	else {
 		ti->error = "Persistent flag is not P or N";
-		r = -EINVAL;
-		goto bad_type;
+		return -EINVAL;
 	}
 
 	if (!type) {

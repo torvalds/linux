@@ -192,8 +192,7 @@ static int __init cpuid_init(void)
 	int i, err = 0;
 	i = 0;
 
-	if (__register_chrdev(CPUID_MAJOR, 0, NR_CPUS,
-			      "cpu/cpuid", &cpuid_fops)) {
+	if (register_chrdev(CPUID_MAJOR, "cpu/cpuid", &cpuid_fops)) {
 		printk(KERN_ERR "cpuid: unable to get major %d for cpuid\n",
 		       CPUID_MAJOR);
 		err = -EBUSY;
@@ -222,7 +221,7 @@ out_class:
 	}
 	class_destroy(cpuid_class);
 out_chrdev:
-	__unregister_chrdev(CPUID_MAJOR, 0, NR_CPUS, "cpu/cpuid");
+	unregister_chrdev(CPUID_MAJOR, "cpu/cpuid");
 out:
 	return err;
 }
@@ -234,7 +233,7 @@ static void __exit cpuid_exit(void)
 	for_each_online_cpu(cpu)
 		cpuid_device_destroy(cpu);
 	class_destroy(cpuid_class);
-	__unregister_chrdev(CPUID_MAJOR, 0, NR_CPUS, "cpu/cpuid");
+	unregister_chrdev(CPUID_MAJOR, "cpu/cpuid");
 	unregister_hotcpu_notifier(&cpuid_class_cpu_notifier);
 }
 

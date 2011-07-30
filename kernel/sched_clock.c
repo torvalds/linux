@@ -236,18 +236,6 @@ void sched_clock_idle_wakeup_event(u64 delta_ns)
 }
 EXPORT_SYMBOL_GPL(sched_clock_idle_wakeup_event);
 
-unsigned long long cpu_clock(int cpu)
-{
-	unsigned long long clock;
-	unsigned long flags;
-
-	local_irq_save(flags);
-	clock = sched_clock_cpu(cpu);
-	local_irq_restore(flags);
-
-	return clock;
-}
-
 #else /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
 
 void sched_clock_init(void)
@@ -263,12 +251,17 @@ u64 sched_clock_cpu(int cpu)
 	return sched_clock();
 }
 
+#endif /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
 
 unsigned long long cpu_clock(int cpu)
 {
-	return sched_clock_cpu(cpu);
+	unsigned long long clock;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	clock = sched_clock_cpu(cpu);
+	local_irq_restore(flags);
+
+	return clock;
 }
-
-#endif /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
-
 EXPORT_SYMBOL_GPL(cpu_clock);

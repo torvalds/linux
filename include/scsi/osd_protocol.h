@@ -17,7 +17,6 @@
 #define __OSD_PROTOCOL_H__
 
 #include <linux/types.h>
-#include <linux/kernel.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi.h>
 

@@ -873,7 +873,6 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	brelse(bh);
 
       unacquire_priv_sbp:
-	kfree(befs_sb->mount_opts.iocharset);
 	kfree(sb->s_fs_info);
 
       unacquire_none:

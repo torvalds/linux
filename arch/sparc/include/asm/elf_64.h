@@ -196,10 +196,17 @@ static inline unsigned int sparc64_elf_hwcap(void)
 #define ELF_PLATFORM	(NULL)
 
 #define SET_PERSONALITY(ex)				\
-do {	if ((ex).e_ident[EI_CLASS] == ELFCLASS32)	\
-		set_thread_flag(TIF_32BIT);		\
+do {	unsigned long new_flags = current_thread_info()->flags; \
+	new_flags &= _TIF_32BIT;			\
+	if ((ex).e_ident[EI_CLASS] == ELFCLASS32)	\
+		new_flags |= _TIF_32BIT;		\
 	else						\
-		clear_thread_flag(TIF_32BIT);		\
+		new_flags &= ~_TIF_32BIT;		\
+	if ((current_thread_info()->flags & _TIF_32BIT) \
+	    != new_flags)				\
+		set_thread_flag(TIF_ABI_PENDING);	\
+	else						\
+		clear_thread_flag(TIF_ABI_PENDING);	\
 	/* flush_thread will update pgd cache */	\
 	if (personality(current->personality) != PER_LINUX32)	\
 		set_personality(PER_LINUX |		\

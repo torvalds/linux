@@ -289,7 +289,6 @@ struct mddev_s
 								* hot-adding a bitmap.  It should
 								* eventually be settable by sysfs.
 								*/
-	struct mutex			bitmap_mutex;
 
 	struct list_head		all_mddevs;
 };

@@ -186,9 +186,8 @@ struct mesh_rmc {
  */
 #define MESH_PREQ_MIN_INT	10
 #define MESH_DIAM_TRAVERSAL_TIME 50
-/* A path will be refreshed if it is used PATH_REFRESH_TIME milliseconds before
- * timing out.  This way it will remain ACTIVE and no data frames will be
- * unnecesarily held in the pending queue.
+/* Paths will be refreshed if they are closer than PATH_REFRESH_TIME to their
+ * expiration
  */
 #define MESH_PATH_REFRESH_TIME			1000
 #define MESH_MIN_DISCOVERY_TIMEOUT (2 * MESH_DIAM_TRAVERSAL_TIME)

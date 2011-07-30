@@ -123,26 +123,23 @@ void __cpuinit calibrate_delay(void)
 {
 	unsigned long ticks, loopbit;
 	int lps_precision = LPS_PREC;
-	static bool printed;
 
 	if (preset_lpj) {
 		loops_per_jiffy = preset_lpj;
-		if (!printed)
-			pr_info("Calibrating delay loop (skipped) "
-				"preset value.. ");
-	} else if ((!printed) && lpj_fine) {
+		printk(KERN_INFO
+			"Calibrating delay loop (skipped) preset value.. ");
+	} else if ((smp_processor_id() == 0) && lpj_fine) {
 		loops_per_jiffy = lpj_fine;
-		pr_info("Calibrating delay loop (skipped), "
+		printk(KERN_INFO
+			"Calibrating delay loop (skipped), "
 			"value calculated using timer frequency.. ");
 	} else if ((loops_per_jiffy = calibrate_delay_direct()) != 0) {
-		if (!printed)
-			pr_info("Calibrating delay using timer "
-				"specific routine.. ");
+		printk(KERN_INFO
+			"Calibrating delay using timer specific routine.. ");
 	} else {
 		loops_per_jiffy = (1<<12);
 
-		if (!printed)
-			pr_info("Calibrating delay loop... ");
+		printk(KERN_INFO "Calibrating delay loop... ");
 		while ((loops_per_jiffy <<= 1) != 0) {
 			/* wait for "start of" clock tick */
 			ticks = jiffies;
@@ -173,10 +170,7 @@ void __cpuinit calibrate_delay(void)
 				loops_per_jiffy &= ~loopbit;
 		}
 	}
-	if (!printed)
-		pr_cont("%lu.%02lu BogoMIPS (lpj=%lu)\n",
+	printk(KERN_CONT "%lu.%02lu BogoMIPS (lpj=%lu)\n",
 			loops_per_jiffy/(500000/HZ),
 			(loops_per_jiffy/(5000/HZ)) % 100, loops_per_jiffy);
-
-	printed = true;
 }

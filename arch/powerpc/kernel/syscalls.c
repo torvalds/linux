@@ -140,6 +140,7 @@ static inline unsigned long do_mmap2(unsigned long addr, size_t len,
 			unsigned long prot, unsigned long flags,
 			unsigned long fd, unsigned long off, int shift)
 {
+	struct file * file = NULL;
 	unsigned long ret = -EINVAL;
 
 	if (!arch_validate_prot(prot))
@@ -150,8 +151,20 @@ static inline unsigned long do_mmap2(unsigned long addr, size_t len,
 			goto out;
 		off >>= shift;
 	}
+		
+	ret = -EBADF;
+	if (!(flags & MAP_ANONYMOUS)) {
+		if (!(file = fget(fd)))
+			goto out;
+	}
 
-	ret = sys_mmap_pgoff(addr, len, prot, flags, fd, off);
+	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
+
+	down_write(&current->mm->mmap_sem);
+	ret = do_mmap_pgoff(file, addr, len, prot, flags, off);
+	up_write(&current->mm->mmap_sem);
+	if (file)
+		fput(file);
 out:
 	return ret;
 }

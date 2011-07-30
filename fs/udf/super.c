@@ -1078,39 +1078,21 @@ static int udf_fill_partdesc_info(struct super_block *sb,
 	return 0;
 }
 
-static void udf_find_vat_block(struct super_block *sb, int p_index,
-			       int type1_index, sector_t start_block)
-{
-	struct udf_sb_info *sbi = UDF_SB(sb);
-	struct udf_part_map *map = &sbi->s_partmaps[p_index];
-	sector_t vat_block;
-	struct kernel_lb_addr ino;
-
-	/*
-	 * VAT file entry is in the last recorded block. Some broken disks have
-	 * it a few blocks before so try a bit harder...
-	 */
-	ino.partitionReferenceNum = type1_index;
-	for (vat_block = start_block;
-	     vat_block >= map->s_partition_root &&
-	     vat_block >= start_block - 3 &&
-	     !sbi->s_vat_inode; vat_block--) {
-		ino.logicalBlockNum = vat_block - map->s_partition_root;
-		sbi->s_vat_inode = udf_iget(sb, &ino);
-	}
-}
-
 static int udf_load_vat(struct super_block *sb, int p_index, int type1_index)
 {
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct udf_part_map *map = &sbi->s_partmaps[p_index];
+	struct kernel_lb_addr ino;
 	struct buffer_head *bh = NULL;
 	struct udf_inode_info *vati;
 	uint32_t pos;
 	struct virtualAllocationTable20 *vat20;
 	sector_t blocks = sb->s_bdev->bd_inode->i_size >> sb->s_blocksize_bits;
 
-	udf_find_vat_block(sb, p_index, type1_index, sbi->s_last_block);
+	/* VAT file entry is in the last recorded block */
+	ino.partitionReferenceNum = type1_index;
+	ino.logicalBlockNum = sbi->s_last_block - map->s_partition_root;
+	sbi->s_vat_inode = udf_iget(sb, &ino);
 	if (!sbi->s_vat_inode &&
 	    sbi->s_last_block != blocks - 1) {
 		printk(KERN_NOTICE "UDF-fs: Failed to read VAT inode from the"
@@ -1118,7 +1100,9 @@ static int udf_load_vat(struct super_block *sb, int p_index, int type1_index)
 		       "block of the device (%lu).\n",
 		       (unsigned long)sbi->s_last_block,
 		       (unsigned long)blocks - 1);
-		udf_find_vat_block(sb, p_index, type1_index, blocks - 1);
+		ino.partitionReferenceNum = type1_index;
+		ino.logicalBlockNum = blocks - 1 - map->s_partition_root;
+		sbi->s_vat_inode = udf_iget(sb, &ino);
 	}
 	if (!sbi->s_vat_inode)
 		return 1;

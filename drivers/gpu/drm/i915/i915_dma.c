@@ -123,7 +123,7 @@ static int i915_init_phys_hws(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	/* Program Hardware Status Page */
 	dev_priv->status_page_dmah =
-		drm_pci_alloc(dev, PAGE_SIZE, PAGE_SIZE);
+		drm_pci_alloc(dev, PAGE_SIZE, PAGE_SIZE, 0xffffffff);
 
 	if (!dev_priv->status_page_dmah) {
 		DRM_ERROR("Can not allocate hardware status page\n");
@@ -1111,8 +1111,7 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_mm_node *compressed_fb, *compressed_llb;
-	unsigned long cfb_base;
-	unsigned long ll_base = 0;
+	unsigned long cfb_base, ll_base;
 
 	/* Leave 1M for line length buffer & misc. */
 	compressed_fb = drm_mm_search_free(&dev_priv->vram, size, 4096, 0);
@@ -1252,8 +1251,6 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	if (ret)
 		goto destroy_ringbuffer;
 
-	intel_modeset_init(dev);
-
 	ret = drm_irq_install(dev);
 	if (ret)
 		goto destroy_ringbuffer;
@@ -1267,6 +1264,8 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	 */
 
 	I915_WRITE(INSTPM, (1 << 5) | (1 << 21));
+
+	intel_modeset_init(dev);
 
 	drm_helper_initial_config(dev);
 

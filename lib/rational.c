@@ -7,7 +7,6 @@
  */
 
 #include <linux/rational.h>
-#include <linux/module.h>
 
 /*
  * calculate best rational approximation for a given fraction

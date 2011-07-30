@@ -214,7 +214,7 @@ int __ref cb_alloc(struct pcmcia_socket * s)
 	unsigned int max, pass;
 
 	s->functions = pci_scan_slot(bus, PCI_DEVFN(0, 0));
-	pci_fixup_cardbus(bus);
+//	pcibios_fixup_bus(bus);
 
 	max = bus->secondary;
 	for (pass = 0; pass < 2; pass++)

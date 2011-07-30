@@ -145,7 +145,6 @@ enum fc_rport_state {
 	RPORT_ST_LOGO,		/* port logout sent */
 	RPORT_ST_ADISC,		/* Discover Address sent */
 	RPORT_ST_DELETE,	/* port being deleted */
-	RPORT_ST_RESTART,       /* remote port being deleted and will restart */
 };
 
 /**

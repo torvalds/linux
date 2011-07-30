@@ -328,7 +328,15 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	/* U.S. Robotics 56K Voice INT PnP*/
 	{	"USR9190",		0	},
 	/* Wacom tablets */
-	{	"WACFXXX",		0	},
+	{	"WACF004",		0	},
+	{	"WACF005",		0	},
+	{       "WACF006",              0       },
+	{       "WACF007",              0       },
+	{       "WACF008",              0       },
+	{       "WACF009",              0       },
+	{       "WACF00A",              0       },
+	{       "WACF00B",              0       },
+	{       "WACF00C",              0       },
 	/* Compaq touchscreen */
 	{       "FPI2002",              0 },
 	/* Fujitsu Stylistic touchscreens */
@@ -346,8 +354,6 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"FUJ02E5",		0	},
 	/* Fujitsu P-series tablet PC device */
 	{	"FUJ02E6",		0	},
-	/* Fujitsu Wacom 2FGT Tablet PC device */
-	{	"FUJ02E7",		0	},
 	/*
 	 * LG C1 EXPRESS DUAL (C1-PB11A3) touch screen (actually a FUJ02E6 in
 	 * disguise)

@@ -662,6 +662,27 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 			if (elf_interpreter[elf_ppnt->p_filesz - 1] != '\0')
 				goto out_free_interp;
 
+			/*
+			 * The early SET_PERSONALITY here is so that the lookup
+			 * for the interpreter happens in the namespace of the 
+			 * to-be-execed image.  SET_PERSONALITY can select an
+			 * alternate root.
+			 *
+			 * However, SET_PERSONALITY is NOT allowed to switch
+			 * this task into the new images's memory mapping
+			 * policy - that is, TASK_SIZE must still evaluate to
+			 * that which is appropriate to the execing application.
+			 * This is because exit_mmap() needs to have TASK_SIZE
+			 * evaluate to the size of the old image.
+			 *
+			 * So if (say) a 64-bit application is execing a 32-bit
+			 * application it is the architecture's responsibility
+			 * to defer changing the value of TASK_SIZE until the
+			 * switch really is going to happen - do this in
+			 * flush_thread().	- akpm
+			 */
+			SET_PERSONALITY(loc->elf_ex);
+
 			interpreter = open_exec(elf_interpreter);
 			retval = PTR_ERR(interpreter);
 			if (IS_ERR(interpreter))
@@ -709,6 +730,9 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 		/* Verify the interpreter has a valid arch */
 		if (!elf_check_arch(&loc->interp_elf_ex))
 			goto out_free_dentry;
+	} else {
+		/* Executables without an interpreter also need a personality  */
+		SET_PERSONALITY(loc->elf_ex);
 	}
 
 	/* Flush all traces of the currently running executable */
@@ -728,8 +752,7 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 
 	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
 		current->flags |= PF_RANDOMIZE;
-
-	setup_new_exec(bprm);
+	arch_pick_mmap_layout(current->mm);
 
 	/* Do this so that we can load the interpreter, if need be.  We will
 	   change some of these later */

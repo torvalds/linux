@@ -202,8 +202,6 @@ static struct smu_fan_control *smu_fan_create(struct device_node *node,
 		fct->ctrl.name = "cpu-front-fan-1";
 	else if (!strcmp(l, "CPU A PUMP"))
 		fct->ctrl.name = "cpu-pump-0";
-	else if (!strcmp(l, "CPU B PUMP"))
-		fct->ctrl.name = "cpu-pump-1";
 	else if (!strcmp(l, "Slots Fan") || !strcmp(l, "Slots fan") ||
 		 !strcmp(l, "EXPANSION SLOTS INTAKE"))
 		fct->ctrl.name = "slots-fan";

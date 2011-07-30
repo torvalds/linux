@@ -417,12 +417,12 @@ sys_mmap2:
 		tst	r5, #PGOFF_MASK
 		moveq	r5, r5, lsr #PAGE_SHIFT - 12
 		streq	r5, [sp, #4]
-		beq	sys_mmap_pgoff
+		beq	do_mmap2
 		mov	r0, #-EINVAL
 		mov	pc, lr
 #else
 		str	r5, [sp, #4]
-		b	sys_mmap_pgoff
+		b	do_mmap2
 #endif
 ENDPROC(sys_mmap2)
 

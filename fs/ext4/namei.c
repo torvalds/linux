@@ -1292,6 +1292,9 @@ errout:
  * add_dirent_to_buf will attempt search the directory block for
  * space.  It will return -ENOSPC if no space is available, and -EIO
  * and -EEXIST if directory entry already exists.
+ *
+ * NOTE!  bh is NOT released in the case where ENOSPC is returned.  In
+ * all other cases bh is released.
  */
 static int add_dirent_to_buf(handle_t *handle, struct dentry *dentry,
 			     struct inode *inode, struct ext4_dir_entry_2 *de,
@@ -1312,10 +1315,14 @@ static int add_dirent_to_buf(handle_t *handle, struct dentry *dentry,
 		top = bh->b_data + blocksize - reclen;
 		while ((char *) de <= top) {
 			if (!ext4_check_dir_entry("ext4_add_entry", dir, de,
-						  bh, offset))
+						  bh, offset)) {
+				brelse(bh);
 				return -EIO;
-			if (ext4_match(namelen, name, de))
+			}
+			if (ext4_match(namelen, name, de)) {
+				brelse(bh);
 				return -EEXIST;
+			}
 			nlen = EXT4_DIR_REC_LEN(de->name_len);
 			rlen = ext4_rec_len_from_disk(de->rec_len, blocksize);
 			if ((de->inode? rlen - nlen: rlen) >= reclen)
@@ -1330,6 +1337,7 @@ static int add_dirent_to_buf(handle_t *handle, struct dentry *dentry,
 	err = ext4_journal_get_write_access(handle, bh);
 	if (err) {
 		ext4_std_error(dir->i_sb, err);
+		brelse(bh);
 		return err;
 	}
 
@@ -1369,6 +1377,7 @@ static int add_dirent_to_buf(handle_t *handle, struct dentry *dentry,
 	err = ext4_handle_dirty_metadata(handle, dir, bh);
 	if (err)
 		ext4_std_error(dir->i_sb, err);
+	brelse(bh);
 	return 0;
 }
 
@@ -1462,9 +1471,7 @@ static int make_indexed_dir(handle_t *handle, struct dentry *dentry,
 	if (!(de))
 		return retval;
 
-	retval = add_dirent_to_buf(handle, dentry, inode, de, bh);
-	brelse(bh);
-	return retval;
+	return add_dirent_to_buf(handle, dentry, inode, de, bh);
 }
 
 /*
@@ -1507,10 +1514,8 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 		if(!bh)
 			return retval;
 		retval = add_dirent_to_buf(handle, dentry, inode, NULL, bh);
-		if (retval != -ENOSPC) {
-			brelse(bh);
+		if (retval != -ENOSPC)
 			return retval;
-		}
 
 		if (blocks == 1 && !dx_fallback &&
 		    EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_DIR_INDEX))
@@ -1523,9 +1528,7 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 	de = (struct ext4_dir_entry_2 *) bh->b_data;
 	de->inode = 0;
 	de->rec_len = ext4_rec_len_to_disk(blocksize, blocksize);
-	retval = add_dirent_to_buf(handle, dentry, inode, de, bh);
-	brelse(bh);
-	return retval;
+	return add_dirent_to_buf(handle, dentry, inode, de, bh);
 }
 
 /*
@@ -1558,8 +1561,10 @@ static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
 		goto journal_error;
 
 	err = add_dirent_to_buf(handle, dentry, inode, NULL, bh);
-	if (err != -ENOSPC)
+	if (err != -ENOSPC) {
+		bh = NULL;
 		goto cleanup;
+	}
 
 	/* Block full, should compress but for now just split */
 	dxtrace(printk(KERN_DEBUG "using %u of %u node entries\n",
@@ -1652,6 +1657,7 @@ static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
 	if (!de)
 		goto cleanup;
 	err = add_dirent_to_buf(handle, dentry, inode, de, bh);
+	bh = NULL;
 	goto cleanup;
 
 journal_error:
@@ -1769,7 +1775,7 @@ static int ext4_create(struct inode *dir, struct dentry *dentry, int mode,
 retry:
 	handle = ext4_journal_start(dir, EXT4_DATA_TRANS_BLOCKS(dir->i_sb) +
 					EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3 +
-					EXT4_MAXQUOTAS_INIT_BLOCKS(dir->i_sb));
+					2*EXT4_QUOTA_INIT_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -1803,7 +1809,7 @@ static int ext4_mknod(struct inode *dir, struct dentry *dentry,
 retry:
 	handle = ext4_journal_start(dir, EXT4_DATA_TRANS_BLOCKS(dir->i_sb) +
 					EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3 +
-					EXT4_MAXQUOTAS_INIT_BLOCKS(dir->i_sb));
+					2*EXT4_QUOTA_INIT_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -1840,7 +1846,7 @@ static int ext4_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 retry:
 	handle = ext4_journal_start(dir, EXT4_DATA_TRANS_BLOCKS(dir->i_sb) +
 					EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3 +
-					EXT4_MAXQUOTAS_INIT_BLOCKS(dir->i_sb));
+					2*EXT4_QUOTA_INIT_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -2253,7 +2259,7 @@ static int ext4_symlink(struct inode *dir,
 retry:
 	handle = ext4_journal_start(dir, EXT4_DATA_TRANS_BLOCKS(dir->i_sb) +
 					EXT4_INDEX_EXTRA_TRANS_BLOCKS + 5 +
-					EXT4_MAXQUOTAS_INIT_BLOCKS(dir->i_sb));
+					2*EXT4_QUOTA_INIT_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 

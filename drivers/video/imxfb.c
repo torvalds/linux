@@ -593,8 +593,7 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
  */
 static int imxfb_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct fb_info *info = platform_get_drvdata(dev);
-	struct imxfb_info *fbi = info->par;
+	struct imxfb_info *fbi = platform_get_drvdata(dev);
 
 	pr_debug("%s\n", __func__);
 
@@ -604,8 +603,7 @@ static int imxfb_suspend(struct platform_device *dev, pm_message_t state)
 
 static int imxfb_resume(struct platform_device *dev)
 {
-	struct fb_info *info = platform_get_drvdata(dev);
-	struct imxfb_info *fbi = info->par;
+	struct imxfb_info *fbi = platform_get_drvdata(dev);
 
 	pr_debug("%s\n", __func__);
 

@@ -229,11 +229,9 @@ update_nodes_add(int node, unsigned long start, unsigned long end)
 			printk(KERN_ERR "SRAT: Hotplug zone not continuous. Partly ignored\n");
 	}
 
-	if (changed) {
-		node_set(node, cpu_nodes_parsed);
+	if (changed)
 		printk(KERN_INFO "SRAT: hot plug zone found %Lx - %Lx\n",
 				 nd->start, nd->end);
-	}
 }
 
 /* Callback for parsing of the Proximity Domain <-> Memory Area mappings */

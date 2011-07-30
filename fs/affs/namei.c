@@ -341,13 +341,10 @@ affs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	p  = (char *)AFFS_HEAD(bh)->table;
 	lc = '/';
 	if (*symname == '/') {
-		struct affs_sb_info *sbi = AFFS_SB(sb);
 		while (*symname == '/')
 			symname++;
-		spin_lock(&sbi->symlink_lock);
-		while (sbi->s_volume[i])	/* Cannot overflow */
-			*p++ = sbi->s_volume[i++];
-		spin_unlock(&sbi->symlink_lock);
+		while (AFFS_SB(sb)->s_volume[i])	/* Cannot overflow */
+			*p++ = AFFS_SB(sb)->s_volume[i++];
 	}
 	while (i < maxlen && (c = *symname++)) {
 		if (c == '.' && lc == '/' && *symname == '.' && symname[1] == '/') {

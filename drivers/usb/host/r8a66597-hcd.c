@@ -35,9 +35,7 @@
 #include <linux/usb.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/mm.h>
 #include <linux/irq.h>
-#include <asm/cacheflush.h>
 
 #include "../core/hcd.h"
 #include "r8a66597.h"
@@ -218,17 +216,8 @@ static void disable_controller(struct r8a66597 *r8a66597)
 {
 	int port;
 
-	/* disable interrupts */
 	r8a66597_write(r8a66597, 0, INTENB0);
-	r8a66597_write(r8a66597, 0, INTENB1);
-	r8a66597_write(r8a66597, 0, BRDYENB);
-	r8a66597_write(r8a66597, 0, BEMPENB);
-	r8a66597_write(r8a66597, 0, NRDYENB);
-
-	/* clear status */
-	r8a66597_write(r8a66597, 0, BRDYSTS);
-	r8a66597_write(r8a66597, 0, NRDYSTS);
-	r8a66597_write(r8a66597, 0, BEMPSTS);
+	r8a66597_write(r8a66597, 0, INTSTS0);
 
 	for (port = 0; port < r8a66597->max_root_hub; port++)
 		r8a66597_disable_port(r8a66597, port);
@@ -822,26 +811,6 @@ static void enable_r8a66597_pipe(struct r8a66597 *r8a66597, struct urb *urb,
 	enable_r8a66597_pipe_dma(r8a66597, dev, pipe, urb);
 }
 
-static void r8a66597_urb_done(struct r8a66597 *r8a66597, struct urb *urb,
-			      int status)
-__releases(r8a66597->lock)
-__acquires(r8a66597->lock)
-{
-	if (usb_pipein(urb->pipe) && usb_pipetype(urb->pipe) != PIPE_CONTROL) {
-		void *ptr;
-
-		for (ptr = urb->transfer_buffer;
-		     ptr < urb->transfer_buffer + urb->transfer_buffer_length;
-		     ptr += PAGE_SIZE)
-			flush_dcache_page(virt_to_page(ptr));
-	}
-
-	usb_hcd_unlink_urb_from_ep(r8a66597_to_hcd(r8a66597), urb);
-	spin_unlock(&r8a66597->lock);
-	usb_hcd_giveback_urb(r8a66597_to_hcd(r8a66597), urb, status);
-	spin_lock(&r8a66597->lock);
-}
-
 /* this function must be called with interrupt disabled */
 static void force_dequeue(struct r8a66597 *r8a66597, u16 pipenum, u16 address)
 {
@@ -862,9 +831,15 @@ static void force_dequeue(struct r8a66597 *r8a66597, u16 pipenum, u16 address)
 		list_del(&td->queue);
 		kfree(td);
 
-		if (urb)
-			r8a66597_urb_done(r8a66597, urb, -ENODEV);
+		if (urb) {
+			usb_hcd_unlink_urb_from_ep(r8a66597_to_hcd(r8a66597),
+					urb);
 
+			spin_unlock(&r8a66597->lock);
+			usb_hcd_giveback_urb(r8a66597_to_hcd(r8a66597), urb,
+					-ENODEV);
+			spin_lock(&r8a66597->lock);
+		}
 		break;
 	}
 }
@@ -1301,7 +1276,10 @@ __releases(r8a66597->lock) __acquires(r8a66597->lock)
 		if (usb_pipeisoc(urb->pipe))
 			urb->start_frame = r8a66597_get_frame(hcd);
 
-		r8a66597_urb_done(r8a66597, urb, status);
+		usb_hcd_unlink_urb_from_ep(r8a66597_to_hcd(r8a66597), urb);
+		spin_unlock(&r8a66597->lock);
+		usb_hcd_giveback_urb(hcd, urb, status);
+		spin_lock(&r8a66597->lock);
 	}
 
 	if (restart) {
@@ -2491,12 +2469,6 @@ static int __devinit r8a66597_probe(struct platform_device *pdev)
 	r8a66597->rh_timer.function = r8a66597_timer;
 	r8a66597->rh_timer.data = (unsigned long)r8a66597;
 	r8a66597->reg = (unsigned long)reg;
-
-	/* make sure no interrupts are pending */
-	ret = r8a66597_clock_enable(r8a66597);
-	if (ret < 0)
-		goto clean_up3;
-	disable_controller(r8a66597);
 
 	for (i = 0; i < R8A66597_MAX_NUM_PIPE; i++) {
 		INIT_LIST_HEAD(&r8a66597->pipe_queue[i]);

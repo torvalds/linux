@@ -247,7 +247,7 @@ static int setup_new_group_blocks(struct super_block *sb,
 			goto exit_bh;
 
 		if (IS_ERR(gdb = bclean(handle, sb, block))) {
-			err = PTR_ERR(gdb);
+			err = PTR_ERR(bh);
 			goto exit_bh;
 		}
 		ext4_handle_dirty_metadata(handle, NULL, gdb);

@@ -194,11 +194,9 @@ static ssize_t set_enabled(struct device *dev, struct device_attribute *attr,
 {
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct asus_oled_dev *odev = usb_get_intfdata(intf);
-	unsigned long value;
-	if (strict_strtoul(buf, 10, &value))
-		return -EINVAL;
+	int temp = strict_strtoul(buf, 10, NULL);
 
-	enable_oled(odev, value);
+	enable_oled(odev, temp);
 
 	return count;
 }
@@ -209,12 +207,10 @@ static ssize_t class_set_enabled(struct device *device,
 {
 	struct asus_oled_dev *odev =
 		(struct asus_oled_dev *) dev_get_drvdata(device);
-	unsigned long value;
 
-	if (strict_strtoul(buf, 10, &value))
-		return -EINVAL;
+	int temp = strict_strtoul(buf, 10, NULL);
 
-	enable_oled(odev, value);
+	enable_oled(odev, temp);
 
 	return count;
 }

@@ -789,14 +789,7 @@ static struct davinci_id dm646x_ids[] = {
 		.part_no	= 0xb770,
 		.manufacturer	= 0x017,
 		.cpu_id		= DAVINCI_CPU_ID_DM6467,
-		.name		= "dm6467_rev1.x",
-	},
-	{
-		.variant	= 0x1,
-		.part_no	= 0xb770,
-		.manufacturer	= 0x017,
-		.cpu_id		= DAVINCI_CPU_ID_DM6467,
-		.name		= "dm6467_rev3.x",
+		.name		= "dm6467",
 	},
 };
 

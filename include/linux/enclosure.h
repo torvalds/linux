@@ -42,8 +42,6 @@ enum enclosure_status {
 	ENCLOSURE_STATUS_NOT_INSTALLED,
 	ENCLOSURE_STATUS_UNKNOWN,
 	ENCLOSURE_STATUS_UNAVAILABLE,
-	/* last element for counting purposes */
-	ENCLOSURE_STATUS_MAX
 };
 
 /* SFF-8485 activity light settings */

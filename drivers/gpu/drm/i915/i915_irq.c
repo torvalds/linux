@@ -255,6 +255,7 @@ irqreturn_t igdng_irq_handler(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int ret = IRQ_NONE;
 	u32 de_iir, gt_iir, de_ier;
+	u32 new_de_iir, new_gt_iir;
 	struct drm_i915_master_private *master_priv;
 
 	/* disable master interrupt before clearing iir  */
@@ -265,31 +266,35 @@ irqreturn_t igdng_irq_handler(struct drm_device *dev)
 	de_iir = I915_READ(DEIIR);
 	gt_iir = I915_READ(GTIIR);
 
-	if (de_iir == 0 && gt_iir == 0)
-		goto done;
+	for (;;) {
+		if (de_iir == 0 && gt_iir == 0)
+			break;
 
-	ret = IRQ_HANDLED;
+		ret = IRQ_HANDLED;
 
-	if (dev->primary->master) {
-		master_priv = dev->primary->master->driver_priv;
-		if (master_priv->sarea_priv)
-			master_priv->sarea_priv->last_dispatch =
-				READ_BREADCRUMB(dev_priv);
+		I915_WRITE(DEIIR, de_iir);
+		new_de_iir = I915_READ(DEIIR);
+		I915_WRITE(GTIIR, gt_iir);
+		new_gt_iir = I915_READ(GTIIR);
+
+		if (dev->primary->master) {
+			master_priv = dev->primary->master->driver_priv;
+			if (master_priv->sarea_priv)
+				master_priv->sarea_priv->last_dispatch =
+					READ_BREADCRUMB(dev_priv);
+		}
+
+		if (gt_iir & GT_USER_INTERRUPT) {
+			u32 seqno = i915_get_gem_seqno(dev);
+			dev_priv->mm.irq_gem_seqno = seqno;
+			trace_i915_gem_request_complete(dev, seqno);
+			DRM_WAKEUP(&dev_priv->irq_queue);
+		}
+
+		de_iir = new_de_iir;
+		gt_iir = new_gt_iir;
 	}
 
-	if (gt_iir & GT_USER_INTERRUPT) {
-		u32 seqno = i915_get_gem_seqno(dev);
-		dev_priv->mm.irq_gem_seqno = seqno;
-		trace_i915_gem_request_complete(dev, seqno);
-		DRM_WAKEUP(&dev_priv->irq_queue);
-		dev_priv->hangcheck_count = 0;
-		mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);
-	}
-
-	I915_WRITE(GTIIR, gt_iir);
-	I915_WRITE(DEIIR, de_iir);
-
-done:
 	I915_WRITE(DEIER, de_ier);
 	(void)I915_READ(DEIER);
 
@@ -1044,10 +1049,6 @@ void i915_driver_irq_preinstall(struct drm_device * dev)
 	(void) I915_READ(IER);
 }
 
-/*
- * Must be called after intel_modeset_init or hotplug interrupts won't be
- * enabled correctly.
- */
 int i915_driver_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -1070,23 +1071,19 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 	if (I915_HAS_HOTPLUG(dev)) {
 		u32 hotplug_en = I915_READ(PORT_HOTPLUG_EN);
 
-		/* Note HDMI and DP share bits */
-		if (dev_priv->hotplug_supported_mask & HDMIB_HOTPLUG_INT_STATUS)
-			hotplug_en |= HDMIB_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & HDMIC_HOTPLUG_INT_STATUS)
-			hotplug_en |= HDMIC_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & HDMID_HOTPLUG_INT_STATUS)
-			hotplug_en |= HDMID_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS)
-			hotplug_en |= SDVOC_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS)
-			hotplug_en |= SDVOB_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & CRT_HOTPLUG_INT_STATUS)
-			hotplug_en |= CRT_HOTPLUG_INT_EN;
-		/* Ignore TV since it's buggy */
-
+		/* Leave other bits alone */
+		hotplug_en |= HOTPLUG_EN_MASK;
 		I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
 
+		dev_priv->hotplug_supported_mask = CRT_HOTPLUG_INT_STATUS |
+			TV_HOTPLUG_INT_STATUS | SDVOC_HOTPLUG_INT_STATUS |
+			SDVOB_HOTPLUG_INT_STATUS;
+		if (IS_G4X(dev)) {
+			dev_priv->hotplug_supported_mask |=
+				HDMIB_HOTPLUG_INT_STATUS |
+				HDMIC_HOTPLUG_INT_STATUS |
+				HDMID_HOTPLUG_INT_STATUS;
+		}
 		/* Enable in IER... */
 		enable_mask |= I915_DISPLAY_PORT_INTERRUPT;
 		/* and unmask in IMR */

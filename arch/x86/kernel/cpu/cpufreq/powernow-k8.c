@@ -1351,7 +1351,6 @@ static int __devexit powernowk8_cpu_exit(struct cpufreq_policy *pol)
 
 	kfree(data->powernow_table);
 	kfree(data);
-	per_cpu(powernow_data, pol->cpu) = NULL;
 
 	return 0;
 }
@@ -1371,7 +1370,7 @@ static unsigned int powernowk8_get(unsigned int cpu)
 	int err;
 
 	if (!data)
-		return 0;
+		return -EINVAL;
 
 	smp_call_function_single(cpu, query_values_on_cpu, &err, true);
 	if (err)

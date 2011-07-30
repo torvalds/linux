@@ -13,7 +13,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/module.h>
-#include <linux/types.h>
 
 /* include interfaces to usb layer */
 #include <linux/usb.h>
@@ -32,8 +31,8 @@
 #define CMD_I2C_IO_END		(1<<1)
 
 /* i2c bit delay, default is 10us -> 100kHz */
-static unsigned short delay = 10;
-module_param(delay, ushort, 0);
+static int delay = 10;
+module_param(delay, int, 0);
 MODULE_PARM_DESC(delay, "bit delay in microseconds, "
 		 "e.g. 10 for 100kHz (default is 100kHz)");
 
@@ -110,7 +109,7 @@ static int usb_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 
 static u32 usb_func(struct i2c_adapter *adapter)
 {
-	__le32 func;
+	u32 func;
 
 	/* get functionality from adapter */
 	if (usb_read(adapter, CMD_GET_FUNC, 0, 0, &func, sizeof(func)) !=
@@ -119,7 +118,7 @@ static u32 usb_func(struct i2c_adapter *adapter)
 		return 0;
 	}
 
-	return le32_to_cpu(func);
+	return func;
 }
 
 /* This is the actual algorithm we define */
@@ -217,7 +216,8 @@ static int i2c_tiny_usb_probe(struct usb_interface *interface,
 		 "i2c-tiny-usb at bus %03d device %03d",
 		 dev->usb_dev->bus->busnum, dev->usb_dev->devnum);
 
-	if (usb_write(&dev->adapter, CMD_SET_DELAY, delay, 0, NULL, 0) != 0) {
+	if (usb_write(&dev->adapter, CMD_SET_DELAY,
+		      cpu_to_le16(delay), 0, NULL, 0) != 0) {
 		dev_err(&dev->adapter.dev,
 			"failure setting delay to %dus\n", delay);
 		retval = -EIO;

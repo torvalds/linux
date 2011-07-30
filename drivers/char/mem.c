@@ -35,19 +35,6 @@
 # include <linux/efi.h>
 #endif
 
-static inline unsigned long size_inside_page(unsigned long start,
-					     unsigned long size)
-{
-	unsigned long sz;
-
-	if (-start & (PAGE_SIZE - 1))
-		sz = -start & (PAGE_SIZE - 1);
-	else
-		sz = PAGE_SIZE;
-
-	return min_t(unsigned long, sz, size);
-}
-
 /*
  * Architectures vary in how they handle caching for addresses
  * outside of main memory.
@@ -428,7 +415,6 @@ static ssize_t read_kmem(struct file *file, char __user *buf,
 	unsigned long p = *ppos;
 	ssize_t low_count, read, sz;
 	char * kbuf; /* k-addr because vread() takes vmlist_lock rwlock */
-	int err = 0;
 
 	read = 0;
 	if (p < (unsigned long) high_memory) {
@@ -451,7 +437,15 @@ static ssize_t read_kmem(struct file *file, char __user *buf,
 		}
 #endif
 		while (low_count > 0) {
-			sz = size_inside_page(p, low_count);
+			/*
+			 * Handle first page in case it's not aligned
+			 */
+			if (-p & (PAGE_SIZE - 1))
+				sz = -p & (PAGE_SIZE - 1);
+			else
+				sz = PAGE_SIZE;
+
+			sz = min_t(unsigned long, sz, low_count);
 
 			/*
 			 * On ia64 if a page has been mapped somewhere as
@@ -475,18 +469,16 @@ static ssize_t read_kmem(struct file *file, char __user *buf,
 		if (!kbuf)
 			return -ENOMEM;
 		while (count > 0) {
-			int len = size_inside_page(p, count);
+			int len = count;
 
-			if (!is_vmalloc_or_module_addr((void *)p)) {
-				err = -ENXIO;
-				break;
-			}
+			if (len > PAGE_SIZE)
+				len = PAGE_SIZE;
 			len = vread(kbuf, (char *)p, len);
 			if (!len)
 				break;
 			if (copy_to_user(buf, kbuf, len)) {
-				err = -EFAULT;
-				break;
+				free_page((unsigned long)kbuf);
+				return -EFAULT;
 			}
 			count -= len;
 			buf += len;
@@ -495,8 +487,8 @@ static ssize_t read_kmem(struct file *file, char __user *buf,
 		}
 		free_page((unsigned long)kbuf);
 	}
-	*ppos = p;
-	return read ? read : err;
+ 	*ppos = p;
+ 	return read;
 }
 
 
@@ -525,8 +517,15 @@ do_write_kmem(void *p, unsigned long realp, const char __user * buf,
 
 	while (count > 0) {
 		char *ptr;
+		/*
+		 * Handle first page in case it's not aligned
+		 */
+		if (-realp & (PAGE_SIZE - 1))
+			sz = -realp & (PAGE_SIZE - 1);
+		else
+			sz = PAGE_SIZE;
 
-		sz = size_inside_page(realp, count);
+		sz = min_t(unsigned long, sz, count);
 
 		/*
 		 * On ia64 if a page has been mapped somewhere as
@@ -565,7 +564,6 @@ static ssize_t write_kmem(struct file * file, const char __user * buf,
 	ssize_t virtr = 0;
 	ssize_t written;
 	char * kbuf; /* k-addr because vwrite() takes vmlist_lock rwlock */
-	int err = 0;
 
 	if (p < (unsigned long) high_memory) {
 
@@ -587,20 +585,20 @@ static ssize_t write_kmem(struct file * file, const char __user * buf,
 		if (!kbuf)
 			return wrote ? wrote : -ENOMEM;
 		while (count > 0) {
-			int len = size_inside_page(p, count);
+			int len = count;
 
-			if (!is_vmalloc_or_module_addr((void *)p)) {
-				err = -ENXIO;
-				break;
-			}
+			if (len > PAGE_SIZE)
+				len = PAGE_SIZE;
 			if (len) {
 				written = copy_from_user(kbuf, buf, len);
 				if (written) {
-					err = -EFAULT;
-					break;
+					if (wrote + virtr)
+						break;
+					free_page((unsigned long)kbuf);
+					return -EFAULT;
 				}
 			}
-			vwrite(kbuf, (char *)p, len);
+			len = vwrite(kbuf, (char *)p, len);
 			count -= len;
 			buf += len;
 			virtr += len;
@@ -609,8 +607,8 @@ static ssize_t write_kmem(struct file * file, const char __user * buf,
 		free_page((unsigned long)kbuf);
 	}
 
-	*ppos = p;
-	return virtr + wrote ? : err;
+ 	*ppos = p;
+ 	return virtr + wrote;
 }
 #endif
 

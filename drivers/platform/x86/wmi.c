@@ -510,8 +510,8 @@ EXPORT_SYMBOL_GPL(wmi_remove_notify_handler);
 /**
  * wmi_get_event_data - Get WMI data associated with an event
  *
- * @event: Event to find
- * @out: Buffer to hold event data. out->pointer should be freed with kfree()
+ * @event - Event to find
+ * &out - Buffer to hold event data
  *
  * Returns extra data associated with an event in WMI.
  */
