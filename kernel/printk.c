@@ -285,8 +285,8 @@ int log_buf_copy(char *dest, int idx, int len)
 	if (idx < 0 || idx >= max) {
 		ret = -1;
 	} else {
-		if (len > max - idx)
-			len = max - idx;
+		if (len > max)
+			len = max;
 		ret = len;
 		idx += (log_end - max);
 		while (len-- > 0)
