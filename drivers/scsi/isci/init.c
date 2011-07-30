@@ -64,6 +64,14 @@
 #include "task.h"
 #include "probe_roms.h"
 
+#define MAJ 1
+#define MIN 0
+#define BUILD 0
+#define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
+	__stringify(BUILD)
+
+MODULE_VERSION(DRV_VERSION);
+
 static struct scsi_transport_template *isci_transport_template;
 
 static DEFINE_PCI_DEVICE_TABLE(isci_id_table) = {
@@ -540,7 +548,8 @@ static __init int isci_init(void)
 {
 	int err;
 
-	pr_info("%s: Intel(R) C600 SAS Controller Driver\n", DRV_NAME);
+	pr_info("%s: Intel(R) C600 SAS Controller Driver - version %s\n",
+		DRV_NAME, DRV_VERSION);
 
 	isci_transport_template = sas_domain_attach_transport(&isci_transport_ops);
 	if (!isci_transport_template)
