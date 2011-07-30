@@ -21,7 +21,7 @@
 
 #if defined(CONFIG_DEBUG_ICEDCC)
 
-#ifdef defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V7)
+#ifdef CONFIG_CPU_V6
 		.macro	loadsp, rb
 		.endm
 		.macro	writeb, ch, rb
