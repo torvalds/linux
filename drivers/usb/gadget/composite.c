@@ -113,7 +113,7 @@ void usb_composite_force_reset(struct usb_composite_dev *cdev)
 	if (cdev && cdev->gadget &&
 			cdev->gadget->speed != USB_SPEED_UNKNOWN) {
 		/* avoid sending a disconnect switch event until after we disconnect */
-//		cdev->mute_switch = 1;// yk 20110505 rk29 don't need to mute switch
+		cdev->mute_switch = 1;
 		spin_unlock_irqrestore(&cdev->lock, flags);
 
 		usb_gadget_disconnect(cdev->gadget);
@@ -307,6 +307,7 @@ static int config_buf(struct usb_configuration *config,
 	int				status;
 	int				interfaceCount = 0;
 	u8 *dest;
+
 	/* write the config descriptor */
 	c = buf;
 	c->bLength = USB_DT_CONFIG_SIZE;
@@ -559,11 +560,11 @@ int __init usb_add_config(struct usb_composite_dev *cdev,
 	/* Prevent duplicate configuration identifiers */
 	list_for_each_entry(c, &cdev->configs, list) {
 		if (c->bConfigurationValue == config->bConfigurationValue) {
-			printk("usb_add_config, already configed,everest\n");
 			status = -EBUSY;
 			goto done;
 		}
 	}
+
 	config->cdev = cdev;
 	list_add_tail(&config->list, &cdev->configs);
 
@@ -787,6 +788,7 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	req->complete = composite_setup_complete;
 	req->length = USB_BUFSIZ;
 	gadget->ep0->driver_data = cdev;
+
 	switch (ctrl->bRequest) {
 
 	/* we handle all standard USB descriptors */
@@ -1208,7 +1210,7 @@ static struct usb_gadget_driver composite_driver = {
 	.speed		= USB_SPEED_HIGH,
 
 	.bind		= composite_bind,
-	.unbind		= composite_unbind,//__exit_p(composite_unbind),
+	.unbind		= __exit_p(composite_unbind),
 
 	.setup		= composite_setup,
 	.disconnect	= composite_disconnect,

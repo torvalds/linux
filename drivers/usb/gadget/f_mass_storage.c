@@ -68,11 +68,6 @@
 #include <linux/utsname.h>
 #include <linux/wakelock.h>
 #include <linux/platform_device.h>
-#include <linux/power_supply.h>
-#ifdef CONFIG_ARCH_RK29
-#include <linux/reboot.h>
-#include <linux/syscalls.h>
-#endif
 
 #include <linux/usb.h>
 #include <linux/usb_usual.h>
@@ -81,7 +76,8 @@
 
 #include "gadget_chips.h"
 
-#define BULK_BUFFER_SIZE           16384 * 4//4096
+
+#define BULK_BUFFER_SIZE           4096
 
 /* flush after every 4 meg of writes to avoid excessive block level caching */
 #define MAX_UNFLUSHED_BYTES (4 * 1024 * 1024)
@@ -226,7 +222,7 @@ struct bulk_cs_wrap {
 #define ASC(x)		((u8) ((x) >> 8))
 #define ASCQ(x)		((u8) (x))
 
-static  int usb_msc_connected;	/*usb charge status*/
+
 /*-------------------------------------------------------------------------*/
 
 struct lun {
@@ -470,20 +466,6 @@ static void put_be32(u8 *buf, u32 val)
 	buf[2] = val >> 8;
 	buf[3] = val & 0xff;
 }
-
-static void set_msc_connect_flag( int connected )
-{
-    printk("%s status = %d 20101216\n" , __func__, connected);	
-    if( usb_msc_connected == connected )
-            return;
-	usb_msc_connected = connected;//usb mass storage is ok
-}
-
-int get_msc_connect_flag( void )
-{
-	return usb_msc_connected;
-}
-EXPORT_SYMBOL(get_msc_connect_flag);
 
 /*-------------------------------------------------------------------------*/
 
@@ -1151,7 +1133,6 @@ static int do_synchronize_cache(struct fsg_dev *fsg)
 
 /*-------------------------------------------------------------------------*/
 
-#if 0
 static void invalidate_sub(struct lun *curlun)
 {
 	struct file	*filp = curlun->filp;
@@ -1257,7 +1238,7 @@ static int do_verify(struct fsg_dev *fsg)
 	}
 	return 0;
 }
-#endif
+
 
 /*-------------------------------------------------------------------------*/
 
@@ -1830,15 +1811,6 @@ static int check_command(struct fsg_dev *fsg, int cmnd_size,
 }
 
 
-#ifdef CONFIG_ARCH_RK29
-static void deferred_restart(struct work_struct *dummy)
-{
-	sys_sync();
-	kernel_restart("loader");
-}
-static DECLARE_WORK(restart_work, deferred_restart);
-#endif
-
 static int do_scsi_command(struct fsg_dev *fsg)
 {
 	struct fsg_buffhd	*bh;
@@ -1989,7 +1961,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		if ((reply = check_command(fsg, 10, DATA_DIR_NONE,
 				(1<<1) | (0xf<<2) | (3<<7), 1,
 				"VERIFY")) == 0)
-			reply = 0;//do_verify(fsg);//zyf 20100302
+			reply = do_verify(fsg);
 		break;
 
 	case SC_WRITE_6:
@@ -2036,15 +2008,6 @@ static int do_scsi_command(struct fsg_dev *fsg)
 			reply = -EINVAL;
 		}
 		break;
-#ifdef CONFIG_ARCH_RK29
-	case 0xff:
-		if (fsg->cmnd_size >= 6 && fsg->cmnd[1] == 0xe0 &&
-		    fsg->cmnd[2] == 0xff && fsg->cmnd[3] == 0xff &&
-		    fsg->cmnd[4] == 0xff && fsg->cmnd[5] == 0xfe) {
-			schedule_work(&restart_work);
-		}
-		break;
-#endif
 	}
 	up_read(&fsg->filesem);
 
@@ -2311,8 +2274,6 @@ static int do_set_config(struct fsg_dev *fsg, u8 new_config)
 		fsg->config = new_config;
 		if ((rc = do_set_interface(fsg, 0)) != 0)
 			fsg->config = 0;	// Reset on errors
-		else
-			set_msc_connect_flag( 1 );
 	}
 
 	switch_set_state(&fsg->sdev, new_config);
@@ -2322,6 +2283,7 @@ static int do_set_config(struct fsg_dev *fsg, u8 new_config)
 
 
 /*-------------------------------------------------------------------------*/
+
 static void handle_exception(struct fsg_dev *fsg)
 {
 	siginfo_t		info;
@@ -2671,7 +2633,6 @@ static ssize_t store_file(struct device *dev, struct device_attribute *attr,
 	int		rc = 0;
 
 	DBG(fsg, "store_file: \"%s\"\n", buf);
-	printk("store_file: \"%s\"\n", buf);
 #if 0
 	/* disabled because we need to allow closing the backing file if the media was removed */
 	if (curlun->prevent_medium_removal && backing_file_is_open(curlun)) {
@@ -2955,67 +2916,12 @@ static void fsg_function_disable(struct usb_function *f)
 	DBG(fsg, "fsg_function_disable\n");
 	fsg->new_config = 0;
 	raise_exception(fsg, FSG_STATE_CONFIG_CHANGE);
-	// yk 201009
-	set_msc_connect_flag(0);
-}
-
-static enum power_supply_property usb_props[] = {
-//	POWER_SUPPLY_PROP_STATUS,
-	POWER_SUPPLY_PROP_ONLINE,
-};
-
-static int usb_get_property(struct power_supply *psy,
-					enum power_supply_property psp,
-					union power_supply_propval *val)
-{
-	int ret = 0;
-
-	switch (psp) {
-	case POWER_SUPPLY_PROP_ONLINE:
-        #ifndef CONFIG_DWC_OTG_HOST_ONLY
-	    val->intval = get_msc_connect_flag();
-	    #else
-	    val->intval = 0;
-	    #endif
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return ret;
-}
-
-int usb_power_supply_register(struct device* parent)
-{
-	struct power_supply *ps;
-	int retval = 0;
-
-    ps = kzalloc(sizeof(*ps), GFP_KERNEL);
-	if (!ps) {
-		dev_err(parent, "failed to allocate power supply data\n");
-		retval = -ENOMEM;
-		goto out;
-	}
-	ps->name = "usb";
-	ps->type = POWER_SUPPLY_TYPE_USB;
-	ps->properties = usb_props;
-	ps->num_properties = ARRAY_SIZE(usb_props);
-	ps->get_property = usb_get_property;
-	ps->external_power_changed = NULL;
-    retval = power_supply_register(parent, ps);
-    if (retval) {
-        dev_err(parent, "failed to register battery\n");
-        goto out;
-    }
-out:
-    return retval;
 }
 
 static int __init fsg_probe(struct platform_device *pdev)
 {
 	struct usb_mass_storage_platform_data *pdata = pdev->dev.platform_data;
 	struct fsg_dev *fsg = the_fsg;
-	int retval = 0;
 
 	fsg->pdev = pdev;
 	printk(KERN_INFO "fsg_probe pdata: %p\n", pdata);
@@ -3032,16 +2938,7 @@ static int __init fsg_probe(struct platform_device *pdev)
 		fsg->nluns = pdata->nluns;
 	}
 
-    /*
-     * Initialize usb power supply
-     */
-    retval = usb_power_supply_register(&pdev->dev);
-	if (retval != 0) 
-	{
-		dev_err(&pdev->dev, "usb_power_supply_register failed\n");
-	}
-
-	return retval;
+	return 0;
 }
 
 static struct platform_driver fsg_platform_driver = {
@@ -3054,7 +2951,7 @@ int mass_storage_bind_config(struct usb_configuration *c)
 	int		rc;
 	struct fsg_dev	*fsg;
 
-	printk("mass_storage_bind_config\n");
+	printk(KERN_INFO "mass_storage_bind_config\n");
 	rc = fsg_alloc();
 	if (rc)
 		return rc;

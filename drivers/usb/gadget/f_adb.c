@@ -77,7 +77,7 @@ static struct usb_endpoint_descriptor adb_highspeed_in_desc = {
 	.bDescriptorType        = USB_DT_ENDPOINT,
 	.bEndpointAddress       = USB_DIR_IN,
 	.bmAttributes           = USB_ENDPOINT_XFER_BULK,
-	.wMaxPacketSize         = __constant_cpu_to_le16(64),
+	.wMaxPacketSize         = __constant_cpu_to_le16(512),
 };
 
 static struct usb_endpoint_descriptor adb_highspeed_out_desc = {
@@ -486,6 +486,7 @@ adb_function_bind(struct usb_configuration *c, struct usb_function *f)
 
 	dev->cdev = cdev;
 	DBG(cdev, "adb_function_bind dev: %p\n", dev);
+
 	/* allocate interface ID(s) */
 	id = usb_interface_id(c, f);
 	if (id < 0)
