@@ -455,8 +455,7 @@ static char * __init unpack_to_rootfs(char *buf, unsigned len)
 					 compress_name);
 				message = msg_buf;
 			}
-		} else
-			error("junk in compressed archive");
+		}
 		if (state != Reset)
 			error("junk in compressed archive");
 		else

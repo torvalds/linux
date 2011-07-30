@@ -37,11 +37,15 @@ static void ppro_fill_in_addresses(struct op_msrs * const msrs)
 	for (i = 0; i < num_counters; i++) {
 		if (reserve_perfctr_nmi(MSR_P6_PERFCTR0 + i))
 			msrs->counters[i].addr = MSR_P6_PERFCTR0 + i;
+		else
+			msrs->counters[i].addr = 0;
 	}
 
 	for (i = 0; i < num_counters; i++) {
 		if (reserve_evntsel_nmi(MSR_P6_EVNTSEL0 + i))
 			msrs->controls[i].addr = MSR_P6_EVNTSEL0 + i;
+		else
+			msrs->controls[i].addr = 0;
 	}
 }
 
@@ -53,7 +57,7 @@ static void ppro_setup_ctrs(struct op_x86_model_spec const *model,
 	int i;
 
 	if (!reset_value) {
-		reset_value = kzalloc(sizeof(reset_value[0]) * num_counters,
+		reset_value = kmalloc(sizeof(reset_value[0]) * num_counters,
 					GFP_ATOMIC);
 		if (!reset_value)
 			return;

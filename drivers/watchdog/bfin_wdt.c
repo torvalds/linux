@@ -1,8 +1,9 @@
 /*
  * Blackfin On-Chip Watchdog Driver
+ *  Supports BF53[123]/BF53[467]/BF54[2489]/BF561
  *
  * Originally based on softdog.c
- * Copyright 2006-2010 Analog Devices Inc.
+ * Copyright 2006-2007 Analog Devices Inc.
  * Copyright 2006-2007 Michele d'Amico
  * Copyright 1996 Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
@@ -136,15 +137,13 @@ static int bfin_wdt_running(void)
  */
 static int bfin_wdt_set_timeout(unsigned long t)
 {
-	u32 cnt, max_t, sclk;
+	u32 cnt;
 	unsigned long flags;
 
-	sclk = get_sclk();
-	max_t = -1 / sclk;
-	cnt = t * sclk;
-	stamp("maxtimeout=%us newtimeout=%lus (cnt=%#x)", max_t, t, cnt);
+	stampit();
 
-	if (t > max_t) {
+	cnt = t * get_sclk();
+	if (cnt < get_sclk()) {
 		printk(KERN_WARNING PFX "timeout value is too large\n");
 		return -EINVAL;
 	}

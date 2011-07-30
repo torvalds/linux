@@ -36,9 +36,6 @@ SECTIONS
 
   _etext = .;
 
-  /* Assume size of decompressed image is 4x the compressed image */
-  _image_size = (_etext - _text) * 4;
-
   _got_start = .;
   .got			: { *(.got) }
   _got_end = .;

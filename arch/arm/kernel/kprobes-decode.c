@@ -583,14 +583,13 @@ static void __kprobes emulate_ldr(struct kprobe *p, struct pt_regs *regs)
 {
 	insn_llret_3arg_fn_t *i_fn = (insn_llret_3arg_fn_t *)&p->ainsn.insn[0];
 	kprobe_opcode_t insn = p->opcode;
-	long ppc = (long)p->addr + 8;
 	union reg_pair fnr;
 	int rd = (insn >> 12) & 0xf;
 	int rn = (insn >> 16) & 0xf;
 	int rm = insn & 0xf;
 	long rdv;
-	long rnv = (rn == 15) ? ppc : regs->uregs[rn];
-	long rmv = (rm == 15) ? ppc : regs->uregs[rm];
+	long rnv  = regs->uregs[rn];
+	long rmv  = regs->uregs[rm]; /* rm/rmv may be invalid, don't care. */
 	long cpsr = regs->ARM_cpsr;
 
 	fnr.dr = insnslot_llret_3arg_rflags(rnv, 0, rmv, cpsr, i_fn);

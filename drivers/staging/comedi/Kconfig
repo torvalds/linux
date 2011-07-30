@@ -16,7 +16,6 @@ config COMEDI_DEBUG
 config COMEDI_PCI_DRIVERS
 	tristate "Comedi PCI drivers"
 	depends on COMEDI && PCI
-	select COMEDI_8255
 	default N
 	---help---
 	  Enable lots of comedi PCI drivers to be built
@@ -24,7 +23,6 @@ config COMEDI_PCI_DRIVERS
 config COMEDI_PCMCIA_DRIVERS
 	tristate "Comedi PCMCIA drivers"
 	depends on COMEDI && PCMCIA && PCCARD
-	select COMEDI_8255
 	default N
 	---help---
 	  Enable lots of comedi PCMCIA and PCCARD drivers to be built
@@ -35,6 +33,3 @@ config COMEDI_USB_DRIVERS
 	default N
 	---help---
 	  Enable lots of comedi USB drivers to be built
-
-config COMEDI_8255
-	tristate

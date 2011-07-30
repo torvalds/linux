@@ -164,8 +164,7 @@ static __init int dccpprobe_init(void)
 	if (!proc_net_fops_create(&init_net, procname, S_IRUSR, &dccpprobe_fops))
 		goto err0;
 
-	ret = try_then_request_module((register_jprobe(&dccp_send_probe) == 0),
-					"dccp");
+	ret = register_jprobe(&dccp_send_probe);
 	if (ret)
 		goto err1;
 

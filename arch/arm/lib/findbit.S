@@ -174,8 +174,8 @@ ENDPROC(_find_next_bit_be)
  */
 .L_found:
 #if __LINUX_ARM_ARCH__ >= 5
-		rsb	r0, r3, #0
-		and	r3, r3, r0
+		rsb	r1, r3, #0
+		and	r3, r3, r1
 		clz	r3, r3
 		rsb	r3, r3, #31
 		add	r0, r2, r3
@@ -190,7 +190,5 @@ ENDPROC(_find_next_bit_be)
 		addeq	r2, r2, #1
 		mov	r0, r2
 #endif
-		cmp	r1, r0			@ Clamp to maxbit
-		movlo	r0, r1
 		mov	pc, lr
 

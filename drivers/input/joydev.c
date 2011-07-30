@@ -481,9 +481,6 @@ static int joydev_handle_JSIOCSAXMAP(struct joydev *joydev,
 
 	memcpy(joydev->abspam, abspam, len);
 
-	for (i = 0; i < joydev->nabs; i++)
-		joydev->absmap[joydev->abspam[i]] = i;
-
  out:
 	kfree(abspam);
 	return retval;

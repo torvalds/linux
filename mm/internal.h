@@ -59,7 +59,7 @@ extern void prep_compound_page(struct page *page, unsigned long order);
  */
 static inline unsigned long page_order(struct page *page)
 {
-	/* PageBuddy() must be checked by the caller */
+	VM_BUG_ON(!PageBuddy(page));
 	return page_private(page);
 }
 

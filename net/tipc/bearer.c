@@ -45,10 +45,10 @@
 
 #define MAX_ADDR_STR 32
 
-static struct media media_list[MAX_MEDIA];
+static struct media *media_list = NULL;
 static u32 media_count = 0;
 
-struct bearer tipc_bearers[MAX_BEARERS];
+struct bearer *tipc_bearers = NULL;
 
 /**
  * media_name_valid - validate media name
@@ -108,11 +108,9 @@ int  tipc_register_media(u32 media_type,
 	int res = -EINVAL;
 
 	write_lock_bh(&tipc_net_lock);
-
-	if (tipc_mode != TIPC_NET_MODE) {
-		warn("Media <%s> rejected, not in networked mode yet\n", name);
+	if (!media_list)
 		goto exit;
-	}
+
 	if (!media_name_valid(name)) {
 		warn("Media <%s> rejected, illegal name\n", name);
 		goto exit;
@@ -662,9 +660,32 @@ int tipc_disable_bearer(const char *name)
 
 
 
+int tipc_bearer_init(void)
+{
+	int res;
+
+	write_lock_bh(&tipc_net_lock);
+	tipc_bearers = kcalloc(MAX_BEARERS, sizeof(struct bearer), GFP_ATOMIC);
+	media_list = kcalloc(MAX_MEDIA, sizeof(struct media), GFP_ATOMIC);
+	if (tipc_bearers && media_list) {
+		res = 0;
+	} else {
+		kfree(tipc_bearers);
+		kfree(media_list);
+		tipc_bearers = NULL;
+		media_list = NULL;
+		res = -ENOMEM;
+	}
+	write_unlock_bh(&tipc_net_lock);
+	return res;
+}
+
 void tipc_bearer_stop(void)
 {
 	u32 i;
+
+	if (!tipc_bearers)
+		return;
 
 	for (i = 0; i < MAX_BEARERS; i++) {
 		if (tipc_bearers[i].active)
@@ -674,6 +695,10 @@ void tipc_bearer_stop(void)
 		if (tipc_bearers[i].active)
 			bearer_disable(tipc_bearers[i].publ.name);
 	}
+	kfree(tipc_bearers);
+	kfree(media_list);
+	tipc_bearers = NULL;
+	media_list = NULL;
 	media_count = 0;
 }
 

@@ -243,33 +243,7 @@ static inline int rfcomm_check_security(struct rfcomm_dlc *d)
 	return hci_conn_security(l2cap_pi(sk)->conn->hcon, d->sec_level,
 								auth_type);
 }
-#if 0  //cz@rock-chips.com
-static void rfcomm_session_timeout(unsigned long arg)
-{
-	struct rfcomm_session *s = (void *) arg;
 
-	BT_DBG("session %p state %ld", s, s->state);
-
-	set_bit(RFCOMM_TIMED_OUT, &s->flags);
-	rfcomm_schedule(RFCOMM_SCHED_TIMEO);
-}
-
-static void rfcomm_session_set_timer(struct rfcomm_session *s, long timeout)
-{
-	BT_DBG("session %p state %ld timeout %ld", s, s->state, timeout);
-
-	if (!mod_timer(&s->timer, jiffies + timeout))
-		rfcomm_session_hold(s);
-}
-
-static void rfcomm_session_clear_timer(struct rfcomm_session *s)
-{
-	BT_DBG("session %p state %ld", s, s->state);
-
-	if (timer_pending(&s->timer) && del_timer(&s->timer))
-		rfcomm_session_put(s);
-}
-#endif
 /* ---- RFCOMM DLCs ---- */
 static void rfcomm_dlc_timeout(unsigned long arg)
 {
@@ -1891,14 +1865,7 @@ static inline void rfcomm_process_sessions(void)
 	list_for_each_safe(p, n, &session_list) {
 		struct rfcomm_session *s;
 		s = list_entry(p, struct rfcomm_session, list);
-#if 0   //cz@rock-chips.com
-		if (test_and_clear_bit(RFCOMM_TIMED_OUT, &s->flags)) {
-			s->state = BT_DISCONN;
-			rfcomm_send_disc(s, 0);
-			rfcomm_session_put(s);
-			continue;
-		}
-#endif
+
 		if (s->state == BT_LISTEN) {
 			rfcomm_accept_connection(s);
 			continue;
@@ -2075,7 +2042,6 @@ static ssize_t rfcomm_dlc_sysfs_show(struct class *dev, char *buf)
 	struct rfcomm_session *s;
 	struct list_head *pp, *p;
 	char *str = buf;
-	int size = PAGE_SIZE;
 
 	rfcomm_lock();
 
@@ -2084,21 +2050,11 @@ static ssize_t rfcomm_dlc_sysfs_show(struct class *dev, char *buf)
 		list_for_each(pp, &s->dlcs) {
 			struct sock *sk = s->sock->sk;
 			struct rfcomm_dlc *d = list_entry(pp, struct rfcomm_dlc, list);
-			int len;
 
-			len = snprintf(str, size, "%s %s %ld %d %d %d %d\n",
+			str += sprintf(str, "%s %s %ld %d %d %d %d\n",
 					batostr(&bt_sk(sk)->src), batostr(&bt_sk(sk)->dst),
 					d->state, d->dlci, d->mtu, d->rx_credits, d->tx_credits);
-
-			size -= len;
-			if (size <= 0)
-				break;
-
-			str += len;
 		}
-
-		if (size <= 0)
-			break;
 	}
 
 	rfcomm_unlock();

@@ -21,22 +21,14 @@ extern int prom_stdin, prom_stdout;
 inline int
 prom_nbgetchar(void)
 {
-	unsigned long args[7];
 	char inc;
 
-	args[0] = (unsigned long) "read";
-	args[1] = 3;
-	args[2] = 1;
-	args[3] = (unsigned int) prom_stdin;
-	args[4] = (unsigned long) &inc;
-	args[5] = 1;
-	args[6] = (unsigned long) -1;
-
-	p1275_cmd_direct(args);
-
-	if (args[6] == 1)
+	if (p1275_cmd("read", P1275_ARG(1,P1275_ARG_OUT_BUF)|
+			      P1275_INOUT(3,1),
+			      prom_stdin, &inc, P1275_SIZE(1)) == 1)
 		return inc;
-	return -1;
+	else
+		return -1;
 }
 
 /* Non blocking put character to console device, returns -1 if
@@ -45,22 +37,12 @@ prom_nbgetchar(void)
 inline int
 prom_nbputchar(char c)
 {
-	unsigned long args[7];
 	char outc;
 	
 	outc = c;
-
-	args[0] = (unsigned long) "write";
-	args[1] = 3;
-	args[2] = 1;
-	args[3] = (unsigned int) prom_stdout;
-	args[4] = (unsigned long) &outc;
-	args[5] = 1;
-	args[6] = (unsigned long) -1;
-
-	p1275_cmd_direct(args);
-
-	if (args[6] == 1)
+	if (p1275_cmd("write", P1275_ARG(1,P1275_ARG_IN_BUF)|
+			       P1275_INOUT(3,1),
+			       prom_stdout, &outc, P1275_SIZE(1)) == 1)
 		return 0;
 	else
 		return -1;
@@ -86,15 +68,7 @@ prom_putchar(char c)
 void
 prom_puts(const char *s, int len)
 {
-	unsigned long args[7];
-
-	args[0] = (unsigned long) "write";
-	args[1] = 3;
-	args[2] = 1;
-	args[3] = (unsigned int) prom_stdout;
-	args[4] = (unsigned long) s;
-	args[5] = len;
-	args[6] = (unsigned long) -1;
-
-	p1275_cmd_direct(args);
+	p1275_cmd("write", P1275_ARG(1,P1275_ARG_IN_BUF)|
+			   P1275_INOUT(3,1),
+			   prom_stdout, s, P1275_SIZE(len));
 }

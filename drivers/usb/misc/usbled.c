@@ -94,7 +94,7 @@ static ssize_t set_##value(struct device *dev, struct device_attribute *attr, co
 	change_color(led);						\
 	return count;							\
 }									\
-static DEVICE_ATTR(value, S_IRUGO | S_IWUSR, show_##value, set_##value);
+static DEVICE_ATTR(value, S_IWUGO | S_IRUGO, show_##value, set_##value);
 show_set(blue);
 show_set(red);
 show_set(green);

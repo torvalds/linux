@@ -267,17 +267,15 @@ static inline void __user *get_sigframe(struct sigaction *sa, struct pt_regs *re
 			sp = current->sas_ss_sp + current->sas_ss_size;
 	}
 
-	sp -= framesize;
-
 	/* Always align the stack frame.  This handles two cases.  First,
 	 * sigaltstack need not be mindful of platform specific stack
 	 * alignment.  Second, if we took this signal because the stack
 	 * is not aligned properly, we'd like to take the signal cleanly
 	 * and report that.
 	 */
-	sp &= ~15UL;
+	sp &= ~7UL;
 
-	return (void __user *) sp;
+	return (void __user *)(sp - framesize);
 }
 
 static inline int
@@ -315,8 +313,8 @@ save_fpu_state(struct pt_regs *regs, __siginfo_fpu_t __user *fpu)
 	return err;
 }
 
-static int setup_frame(struct k_sigaction *ka, struct pt_regs *regs,
-		       int signo, sigset_t *oldset)
+static void setup_frame(struct k_sigaction *ka, struct pt_regs *regs,
+			int signo, sigset_t *oldset)
 {
 	struct signal_frame __user *sf;
 	int sigframe_size, err;
@@ -384,19 +382,16 @@ static int setup_frame(struct k_sigaction *ka, struct pt_regs *regs,
 		/* Flush instruction space. */
 		flush_sig_insns(current->mm, (unsigned long) &(sf->insns[0]));
 	}
-	return 0;
+	return;
 
 sigill_and_return:
 	do_exit(SIGILL);
-	return -EINVAL;
-
 sigsegv:
 	force_sigsegv(signo, current);
-	return -EFAULT;
 }
 
-static int setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
-			  int signo, sigset_t *oldset, siginfo_t *info)
+static void setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
+			   int signo, sigset_t *oldset, siginfo_t *info)
 {
 	struct rt_signal_frame __user *sf;
 	int sigframe_size;
@@ -469,30 +464,22 @@ static int setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
 		/* Flush instruction space. */
 		flush_sig_insns(current->mm, (unsigned long) &(sf->insns[0]));
 	}
-	return 0;
+	return;
 
 sigill:
 	do_exit(SIGILL);
-	return -EINVAL;
-
 sigsegv:
 	force_sigsegv(signo, current);
-	return -EFAULT;
 }
 
-static inline int
+static inline void
 handle_signal(unsigned long signr, struct k_sigaction *ka,
 	      siginfo_t *info, sigset_t *oldset, struct pt_regs *regs)
 {
-	int err;
-
 	if (ka->sa.sa_flags & SA_SIGINFO)
-		err = setup_rt_frame(ka, regs, signr, oldset, info);
+		setup_rt_frame(ka, regs, signr, oldset, info);
 	else
-		err = setup_frame(ka, regs, signr, oldset);
-
-	if (err)
-		return err;
+		setup_frame(ka, regs, signr, oldset);
 
 	spin_lock_irq(&current->sighand->siglock);
 	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
@@ -500,10 +487,6 @@ handle_signal(unsigned long signr, struct k_sigaction *ka,
 		sigaddset(&current->blocked, signr);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
-
-	tracehook_signal_handler(signr, info, ka, regs, 0);
-
-	return 0;
 }
 
 static inline void syscall_restart(unsigned long orig_i0, struct pt_regs *regs,
@@ -561,15 +544,17 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	if (signr > 0) {
 		if (restart_syscall)
 			syscall_restart(orig_i0, regs, &ka.sa);
-		if (handle_signal(signr, &ka, &info, oldset, regs) == 0) {
-			/* a signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TIF_RESTORE_SIGMASK flag.
-			 */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-		}
+		handle_signal(signr, &ka, &info, oldset, regs);
+
+		/* a signal was successfully delivered; the saved
+		 * sigmask will have been stored in the signal frame,
+		 * and will be restored by sigreturn, so we can simply
+		 * clear the TIF_RESTORE_SIGMASK flag.
+		 */
+		if (test_thread_flag(TIF_RESTORE_SIGMASK))
+			clear_thread_flag(TIF_RESTORE_SIGMASK);
+
+		tracehook_signal_handler(signr, &info, &ka, regs, 0);
 		return;
 	}
 	if (restart_syscall &&
@@ -580,14 +565,12 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 		regs->u_regs[UREG_I0] = orig_i0;
 		regs->pc -= 4;
 		regs->npc -= 4;
-		pt_regs_clear_syscall(regs);
 	}
 	if (restart_syscall &&
 	    regs->u_regs[UREG_I0] == ERESTART_RESTARTBLOCK) {
 		regs->u_regs[UREG_G1] = __NR_restart_syscall;
 		regs->pc -= 4;
 		regs->npc -= 4;
-		pt_regs_clear_syscall(regs);
 	}
 
 	/* if there's no signal to deliver, we just put the saved sigmask

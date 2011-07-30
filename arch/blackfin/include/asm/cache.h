@@ -15,8 +15,6 @@
 #define L1_CACHE_BYTES	(1 << L1_CACHE_SHIFT)
 #define SMP_CACHE_BYTES	L1_CACHE_BYTES
 
-#define ARCH_KMALLOC_MINALIGN	L1_CACHE_BYTES
-
 #ifdef CONFIG_SMP
 #define __cacheline_aligned
 #else

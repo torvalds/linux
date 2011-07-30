@@ -22,7 +22,7 @@ SECTIONS
   _text = .;
   _stext = .;
   __init_begin = .;
-  INIT_TEXT_SECTION(0)
+  INIT_TEXT_SECTION(PAGE_SIZE)
   . = ALIGN(PAGE_SIZE);
 
   .text      :

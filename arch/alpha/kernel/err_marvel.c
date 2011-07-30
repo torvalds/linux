@@ -109,7 +109,7 @@ marvel_print_err_cyc(u64 err_cyc)
 #define IO7__ERR_CYC__CYCLE__M	(0x7)
 
 	printk("%s        Packet In Error: %s\n"
-	       "%s        Error in %s, cycle %lld%s%s\n",
+	       "%s        Error in %s, cycle %ld%s%s\n",
 	       err_print_prefix, 
 	       packet_desc[EXTRACT(err_cyc, IO7__ERR_CYC__PACKET)],
 	       err_print_prefix,
@@ -313,7 +313,7 @@ marvel_print_po7_ugbge_sym(u64 ugbge_sym)
 	}
 
 	printk("%s      Up Hose Garbage Symptom:\n"
-	       "%s        Source Port: %lld - Dest PID: %lld - OpCode: %s\n",
+	       "%s        Source Port: %ld - Dest PID: %ld - OpCode: %s\n", 
 	       err_print_prefix,
 	       err_print_prefix, 
 	       EXTRACT(ugbge_sym, IO7__PO7_UGBGE_SYM__UPH_SRC_PORT),
@@ -552,7 +552,7 @@ marvel_print_pox_spl_cmplt(u64 spl_cmplt)
 #define IO7__POX_SPLCMPLT__REM_BYTE_COUNT__M	(0xfff)
 
 	printk("%s      Split Completion Error:\n"	
-	       "%s         Source (Bus:Dev:Func): %lld:%lld:%lld\n",
+	       "%s         Source (Bus:Dev:Func): %ld:%ld:%ld\n",
 	       err_print_prefix,
 	       err_print_prefix,
 	       EXTRACT(spl_cmplt, IO7__POX_SPLCMPLT__SOURCE_BUS),

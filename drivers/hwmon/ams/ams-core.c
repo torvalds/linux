@@ -213,13 +213,16 @@ int __init ams_init(void)
 	return -ENODEV;
 }
 
-void ams_sensor_detach(void)
+void ams_exit(void)
 {
 	/* Remove input device */
 	ams_input_exit();
 
 	/* Remove attributes */
 	device_remove_file(&ams_info.of_dev->dev, &dev_attr_current);
+
+	/* Shut down implementation */
+	ams_info.exit();
 
 	/* Flush interrupt worker
 	 *
@@ -234,12 +237,6 @@ void ams_sensor_detach(void)
 	/* Remove handler */
 	pmf_unregister_irq_client(&ams_shock_client);
 	pmf_unregister_irq_client(&ams_freefall_client);
-}
-
-static void __exit ams_exit(void)
-{
-	/* Shut down implementation */
-	ams_info.exit();
 }
 
 MODULE_AUTHOR("Stelian Pop, Michael Hanselmann");

@@ -345,8 +345,7 @@ static void kobil_close(struct usb_serial_port *port)
 
 	/* FIXME: Add rts/dtr methods */
 	if (port->write_urb) {
-		usb_poison_urb(port->write_urb);
-		kfree(port->write_urb->transfer_buffer);
+		usb_kill_urb(port->write_urb);
 		usb_free_urb(port->write_urb);
 		port->write_urb = NULL;
 	}

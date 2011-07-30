@@ -298,8 +298,6 @@ static int irda_extract_string(void *self, __u8 *buf, int len, __u8 pi,
 
 	p.pi = pi;     /* In case handler needs to know */
 	p.pl = buf[1]; /* Extract length of value */
-	if (p.pl > 32)
-		p.pl = 32;
 
 	IRDA_DEBUG(2, "%s(), pi=%#x, pl=%d\n", __func__,
 		   p.pi, p.pl);
@@ -320,7 +318,7 @@ static int irda_extract_string(void *self, __u8 *buf, int len, __u8 pi,
 		   (__u8) str[0], (__u8) str[1]);
 
 	/* Null terminate string */
-	str[p.pl] = '\0';
+	str[p.pl+1] = '\0';
 
 	p.pv.c = str; /* Handler will need to take a copy */
 

@@ -99,7 +99,7 @@ struct flex_array *flex_array_alloc(int element_size, unsigned int total,
 	ret->element_size = element_size;
 	ret->total_nr_elements = total;
 	if (elements_fit_in_base(ret) && !(flags & __GFP_ZERO))
-		memset(&ret->parts[0], FLEX_ARRAY_FREE,
+		memset(ret->parts[0], FLEX_ARRAY_FREE,
 						FLEX_ARRAY_BASE_BYTES_LEFT);
 	return ret;
 }

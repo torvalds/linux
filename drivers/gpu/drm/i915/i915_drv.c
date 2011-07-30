@@ -192,7 +192,6 @@ int i965_reset(struct drm_device *dev, u8 flags)
 		}
 	} else {
 		DRM_ERROR("Error occurred. Don't know how to reset this chip.\n");
-		mutex_unlock(&dev->struct_mutex);
 		return -ENODEV;
 	}
 

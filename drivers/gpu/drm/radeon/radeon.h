@@ -448,7 +448,6 @@ struct radeon_cs_chunk {
 };
 
 struct radeon_cs_parser {
-	struct device		*dev;
 	struct radeon_device	*rdev;
 	struct drm_file		*filp;
 	/* chunks */

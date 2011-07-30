@@ -1330,13 +1330,12 @@ static void mspro_block_remove(struct memstick_dev *card)
 	struct mspro_block_data *msb = memstick_get_drvdata(card);
 	unsigned long flags;
 
+	del_gendisk(msb->disk);
+	dev_dbg(&card->dev, "mspro block remove\n");
 	spin_lock_irqsave(&msb->q_lock, flags);
 	msb->eject = 1;
 	blk_start_queue(msb->queue);
 	spin_unlock_irqrestore(&msb->q_lock, flags);
-
-	del_gendisk(msb->disk);
-	dev_dbg(&card->dev, "mspro block remove\n");
 
 	blk_cleanup_queue(msb->queue);
 	msb->queue = NULL;

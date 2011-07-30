@@ -526,7 +526,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 			 * Set some valid stack frames to give to the child.
 			 */
 			childstack = (struct sparc_stackf __user *)
-				(sp & ~0xfUL);
+				(sp & ~0x7UL);
 			parentstack = (struct sparc_stackf __user *)
 				regs->u_regs[UREG_FP];
 

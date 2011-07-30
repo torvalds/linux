@@ -8,10 +8,8 @@ obj-$(CONFIG_COMEDI)			+= comedi_test.o
 obj-$(CONFIG_COMEDI)			+= comedi_parport.o
 obj-$(CONFIG_COMEDI)			+= pcm_common.o
 
-# Comedi 8255 module
-obj-$(CONFIG_COMEDI_8255)		+= 8255.o
-
 # Comedi PCI drivers
+obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= 8255.o
 obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= acl7225b.o
 obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= addi_apci_035.o
 obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= addi_apci_1032.o

@@ -105,14 +105,10 @@ out:
 static ssize_t hidraw_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
 {
 	unsigned int minor = iminor(file->f_path.dentry->d_inode);
-	struct hid_device *dev;
+	/* FIXME: What stops hidraw_table going NULL */
+	struct hid_device *dev = hidraw_table[minor]->hid;
 	__u8 *buf;
 	int ret = 0;
-
-	if (!hidraw_table[minor])
-		return -ENODEV;
-
-	dev = hidraw_table[minor]->hid;
 
 	if (!dev->hid_output_raw_report)
 		return -ENODEV;
@@ -241,16 +237,11 @@ static long hidraw_ioctl(struct file *file, unsigned int cmd,
 	struct inode *inode = file->f_path.dentry->d_inode;
 	unsigned int minor = iminor(inode);
 	long ret = 0;
-	struct hidraw *dev;
+	/* FIXME: What stops hidraw_table going NULL */
+	struct hidraw *dev = hidraw_table[minor];
 	void __user *user_arg = (void __user*) arg;
 
 	lock_kernel();
-	dev = hidraw_table[minor];
-	if (!dev) {
-		ret = -ENODEV;
-		goto out;
-	}
-
 	switch (cmd) {
 		case HIDIOCGRDESCSIZE:
 			if (put_user(dev->hid->rsize, (int __user *)arg))
@@ -323,7 +314,6 @@ static long hidraw_ioctl(struct file *file, unsigned int cmd,
 
 		ret = -ENOTTY;
 	}
-out:
 	unlock_kernel();
 	return ret;
 }

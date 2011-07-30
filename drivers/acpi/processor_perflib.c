@@ -356,11 +356,7 @@ static int acpi_processor_get_performance_info(struct acpi_processor *pr)
 	if (result)
 		goto update_bios;
 
-	/* We need to call _PPC once when cpufreq starts */
-	if (ignore_ppc != 1)
-		result = acpi_processor_get_platform_limit(pr);
-
-	return result;
+	return 0;
 
 	/*
 	 * Having _PPC but missing frequencies (_PSS, _PCT) is a very good hint that

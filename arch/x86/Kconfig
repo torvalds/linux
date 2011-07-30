@@ -227,11 +227,6 @@ config X86_32_LAZY_GS
 
 config KTIME_SCALAR
 	def_bool X86_32
-
-config ARCH_CPU_PROBE_RELEASE
-	def_bool y
-	depends on HOTPLUG_CPU
-
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
 
@@ -627,7 +622,7 @@ config GART_IOMMU
 	bool "GART IOMMU support" if EMBEDDED
 	default y
 	select SWIOTLB
-	depends on X86_64 && PCI && K8_NB
+	depends on X86_64 && PCI
 	---help---
 	  Support for full DMA access of devices with 32bit memory access only
 	  on systems with more than 3GB. This is usually needed for USB,
@@ -1240,11 +1235,6 @@ config ARCH_SELECT_MEMORY_MODEL
 config ARCH_MEMORY_PROBE
 	def_bool X86_64
 	depends on MEMORY_HOTPLUG
-
-config ILLEGAL_POINTER_VALUE
-       hex
-       default 0 if X86_32
-       default 0xdead000000000000 if X86_64
 
 source "mm/Kconfig"
 
@@ -2032,7 +2022,7 @@ endif # X86_32
 
 config K8_NB
 	def_bool y
-	depends on CPU_SUP_AMD && PCI
+	depends on AGP_AMD64 || (X86_64 && (GART_IOMMU || (PCI && NUMA)))
 
 source "drivers/pcmcia/Kconfig"
 

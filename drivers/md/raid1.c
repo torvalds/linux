@@ -417,7 +417,7 @@ static void raid1_end_write_request(struct bio *bio, int error)
  */
 static int read_balance(conf_t *conf, r1bio_t *r1_bio)
 {
-	const sector_t this_sector = r1_bio->sector;
+	const unsigned long this_sector = r1_bio->sector;
 	int new_disk = conf->last_used, disk = new_disk;
 	int wonly_disk = -1;
 	const int sectors = r1_bio->sectors;
@@ -433,7 +433,7 @@ static int read_balance(conf_t *conf, r1bio_t *r1_bio)
  retry:
 	if (conf->mddev->recovery_cp < MaxSector &&
 	    (this_sector + sectors >= conf->next_resync)) {
-		/* Choose the first operational device, for consistancy */
+		/* Choose the first operation device, for consistancy */
 		new_disk = 0;
 
 		for (rdev = rcu_dereference(conf->mirrors[new_disk].rdev);
@@ -845,15 +845,6 @@ static int make_request(struct request_queue *q, struct bio * bio)
 		}
 		mirror = conf->mirrors + rdisk;
 
-		if (test_bit(WriteMostly, &mirror->rdev->flags) &&
-		    bitmap) {
-			/* Reading from a write-mostly device must
-			 * take care not to over-take any writes
-			 * that are 'behind'
-			 */
-			wait_event(bitmap->behind_wait,
-				   atomic_read(&bitmap->behind_writes) == 0);
-		}
 		r1_bio->read_disk = rdisk;
 
 		read_bio = bio_clone(bio, GFP_NOIO);
@@ -900,10 +891,9 @@ static int make_request(struct request_queue *q, struct bio * bio)
 			if (test_bit(Faulty, &rdev->flags)) {
 				rdev_dec_pending(rdev, mddev);
 				r1_bio->bios[i] = NULL;
-			} else {
+			} else
 				r1_bio->bios[i] = bio;
-				targets++;
-			}
+			targets++;
 		} else
 			r1_bio->bios[i] = NULL;
 	}
@@ -931,13 +921,9 @@ static int make_request(struct request_queue *q, struct bio * bio)
 		set_bit(R1BIO_Degraded, &r1_bio->state);
 	}
 
-	/* do behind I/O ?
-	 * Not if there are too many, or cannot allocate memory,
-	 * or a reader on WriteMostly is waiting for behind writes
-	 * to flush */
+	/* do behind I/O ? */
 	if (bitmap &&
 	    atomic_read(&bitmap->behind_writes) < bitmap->max_write_behind &&
-	    !waitqueue_active(&bitmap->behind_wait) &&
 	    (behind_pages = alloc_behind_pages(bio)) != NULL)
 		set_bit(R1BIO_BehindIO, &r1_bio->state);
 
@@ -1188,7 +1174,6 @@ static int raid1_remove_disk(mddev_t *mddev, int number)
 		 * is not possible.
 		 */
 		if (!test_bit(Faulty, &rdev->flags) &&
-		    !mddev->recovery_disabled &&
 		    mddev->degraded < conf->raid_disks) {
 			err = -EBUSY;
 			goto abort;
@@ -2119,13 +2104,15 @@ static int stop(mddev_t *mddev)
 {
 	conf_t *conf = mddev->private;
 	struct bitmap *bitmap = mddev->bitmap;
+	int behind_wait = 0;
 
 	/* wait for behind writes to complete */
-	if (bitmap && atomic_read(&bitmap->behind_writes) > 0) {
-		printk(KERN_INFO "raid1: behind writes in progress on device %s, waiting to stop.\n", mdname(mddev));
+	while (bitmap && atomic_read(&bitmap->behind_writes) > 0) {
+		behind_wait++;
+		printk(KERN_INFO "raid1: behind writes in progress on device %s, waiting to stop (%d)\n", mdname(mddev), behind_wait);
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(HZ); /* wait a second */
 		/* need to kick something here to make sure I/O goes? */
-		wait_event(bitmap->behind_wait,
-			   atomic_read(&bitmap->behind_writes) == 0);
 	}
 
 	raise_barrier(conf);

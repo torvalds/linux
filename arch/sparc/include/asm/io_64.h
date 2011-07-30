@@ -468,14 +468,10 @@ static inline void iounmap(volatile void __iomem *addr)
 
 #define ioread8(X)			readb(X)
 #define ioread16(X)			readw(X)
-#define ioread16be(X)			__raw_readw(X)
 #define ioread32(X)			readl(X)
-#define ioread32be(X)			__raw_readl(X)
 #define iowrite8(val,X)			writeb(val,X)
 #define iowrite16(val,X)		writew(val,X)
-#define iowrite16be(val,X)		__raw_writew(val,X)
 #define iowrite32(val,X)		writel(val,X)
-#define iowrite32be(val,X)		__raw_writel(val,X)
 
 /* Create a virtual mapping cookie for an IO port range */
 extern void __iomem *ioport_map(unsigned long port, unsigned int nr);

@@ -160,7 +160,6 @@ struct ubd {
 	struct scatterlist sg[MAX_SG];
 	struct request *request;
 	int start_sg, end_sg;
-	sector_t rq_pos;
 };
 
 #define DEFAULT_COW { \
@@ -185,7 +184,6 @@ struct ubd {
 	.request =		NULL, \
 	.start_sg =		0, \
 	.end_sg =		0, \
-	.rq_pos =		0, \
 }
 
 /* Protected by ubd_lock */
@@ -1224,6 +1222,7 @@ static void do_ubd_request(struct request_queue *q)
 {
 	struct io_thread_req *io_req;
 	struct request *req;
+	sector_t sector;
 	int n;
 
 	while(1){
@@ -1234,12 +1233,12 @@ static void do_ubd_request(struct request_queue *q)
 				return;
 
 			dev->request = req;
-			dev->rq_pos = blk_rq_pos(req);
 			dev->start_sg = 0;
 			dev->end_sg = blk_rq_map_sg(q, req, dev->sg);
 		}
 
 		req = dev->request;
+		sector = blk_rq_pos(req);
 		while(dev->start_sg < dev->end_sg){
 			struct scatterlist *sg = &dev->sg[dev->start_sg];
 
@@ -1251,9 +1250,10 @@ static void do_ubd_request(struct request_queue *q)
 				return;
 			}
 			prepare_request(req, io_req,
-					(unsigned long long)dev->rq_pos << 9,
+					(unsigned long long)sector << 9,
 					sg->offset, sg->length, sg_page(sg));
 
+			sector += sg->length >> 9;
 			n = os_write_file(thread_fd, &io_req,
 					  sizeof(struct io_thread_req *));
 			if(n != sizeof(struct io_thread_req *)){
@@ -1266,7 +1266,6 @@ static void do_ubd_request(struct request_queue *q)
 				return;
 			}
 
-			dev->rq_pos += sg->length >> 9;
 			dev->start_sg++;
 		}
 		dev->end_sg = 0;

@@ -406,7 +406,7 @@ static loff_t block_llseek(struct file *file, loff_t offset, int origin)
  *	NULL first argument is nfsd_sync_dir() and that's not a directory.
  */
  
-int block_fsync(struct file *filp, struct dentry *dentry, int datasync)
+static int block_fsync(struct file *filp, struct dentry *dentry, int datasync)
 {
 	return sync_blockdev(I_BDEV(filp->f_mapping->host));
 }
@@ -425,7 +425,6 @@ static struct inode *bdev_alloc_inode(struct super_block *sb)
 		return NULL;
 	return &ei->vfs_inode;
 }
-EXPORT_SYMBOL(block_fsync);
 
 static void bdev_destroy_inode(struct inode *inode)
 {
@@ -1177,12 +1176,10 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 	/*
 	 * hooks: /n/, see "layering violations".
 	 */
-	if (!for_part) {
-		ret = devcgroup_inode_permission(bdev->bd_inode, perm);
-		if (ret != 0) {
-			bdput(bdev);
-			return ret;
-		}
+	ret = devcgroup_inode_permission(bdev->bd_inode, perm);
+	if (ret != 0) {
+		bdput(bdev);
+		return ret;
 	}
 
 	lock_kernel();

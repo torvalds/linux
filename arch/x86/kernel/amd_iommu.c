@@ -544,7 +544,7 @@ static void flush_devices_by_domain(struct protection_domain *domain)
 
 	for (i = 0; i <= amd_iommu_last_bdf; ++i) {
 		if ((domain == NULL && amd_iommu_pd_table[i] == NULL) ||
-		    (domain != NULL && amd_iommu_pd_table[i] != domain))
+		    (amd_iommu_pd_table[i] != domain))
 			continue;
 
 		iommu = amd_iommu_rlookup_table[i];
@@ -1688,7 +1688,6 @@ static void __unmap_single(struct amd_iommu *iommu,
 			   size_t size,
 			   int dir)
 {
-	dma_addr_t flush_addr;
 	dma_addr_t i, start;
 	unsigned int pages;
 
@@ -1696,7 +1695,6 @@ static void __unmap_single(struct amd_iommu *iommu,
 	    (dma_addr + size > dma_dom->aperture_size))
 		return;
 
-	flush_addr = dma_addr;
 	pages = iommu_num_pages(dma_addr, size, PAGE_SIZE);
 	dma_addr &= PAGE_MASK;
 	start = dma_addr;
@@ -1711,7 +1709,7 @@ static void __unmap_single(struct amd_iommu *iommu,
 	dma_ops_free_addresses(dma_dom, dma_addr, pages);
 
 	if (amd_iommu_unmap_flush || dma_dom->need_flush) {
-		iommu_flush_pages(iommu, dma_dom->domain.id, flush_addr, size);
+		iommu_flush_pages(iommu, dma_dom->domain.id, dma_addr, size);
 		dma_dom->need_flush = false;
 	}
 }
@@ -2241,7 +2239,9 @@ static void amd_iommu_domain_destroy(struct iommu_domain *dom)
 
 	free_pagetable(domain);
 
-	protection_domain_free(domain);
+	domain_id_free(domain->id);
+
+	kfree(domain);
 
 	dom->priv = NULL;
 }

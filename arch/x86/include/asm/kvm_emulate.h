@@ -54,23 +54,13 @@ struct x86_emulate_ctxt;
 struct x86_emulate_ops {
 	/*
 	 * read_std: Read bytes of standard (non-emulated/special) memory.
-	 *           Used for descriptor reading.
+	 *           Used for instruction fetch, stack operations, and others.
 	 *  @addr:  [IN ] Linear address from which to read.
 	 *  @val:   [OUT] Value read from memory, zero-extended to 'u_long'.
 	 *  @bytes: [IN ] Number of bytes to read from memory.
 	 */
 	int (*read_std)(unsigned long addr, void *val,
-			unsigned int bytes, struct kvm_vcpu *vcpu, u32 *error);
-
-	/*
-	 * fetch: Read bytes of standard (non-emulated/special) memory.
-	 *        Used for instruction fetch.
-	 *  @addr:  [IN ] Linear address from which to read.
-	 *  @val:   [OUT] Value read from memory, zero-extended to 'u_long'.
-	 *  @bytes: [IN ] Number of bytes to read from memory.
-	 */
-	int (*fetch)(unsigned long addr, void *val,
-			unsigned int bytes, struct kvm_vcpu *vcpu, u32 *error);
+			unsigned int bytes, struct kvm_vcpu *vcpu);
 
 	/*
 	 * read_emulated: Read bytes from emulated/special memory area.
@@ -178,7 +168,6 @@ struct x86_emulate_ctxt {
 
 /* Execution mode, passed to the emulator. */
 #define X86EMUL_MODE_REAL     0	/* Real mode.             */
-#define X86EMUL_MODE_VM86     1	/* Virtual 8086 mode.     */
 #define X86EMUL_MODE_PROT16   2	/* 16-bit protected mode. */
 #define X86EMUL_MODE_PROT32   4	/* 32-bit protected mode. */
 #define X86EMUL_MODE_PROT64   8	/* 64-bit (long) mode.    */

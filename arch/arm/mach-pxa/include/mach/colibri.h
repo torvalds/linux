@@ -2,7 +2,6 @@
 #define _COLIBRI_H_
 
 #include <net/ax88796.h>
-#include <mach/mfp.h>
 
 /*
  * common settings for all modules

@@ -280,10 +280,13 @@ snd_seq_oss_open(struct file *file, int level)
 	return 0;
 
  _error:
+	snd_seq_oss_writeq_delete(dp->writeq);
+	snd_seq_oss_readq_delete(dp->readq);
 	snd_seq_oss_synth_cleanup(dp);
 	snd_seq_oss_midi_cleanup(dp);
-	delete_seq_queue(dp->queue);
 	delete_port(dp);
+	delete_seq_queue(dp->queue);
+	kfree(dp);
 
 	return rc;
 }
@@ -346,10 +349,8 @@ create_port(struct seq_oss_devinfo *dp)
 static int
 delete_port(struct seq_oss_devinfo *dp)
 {
-	if (dp->port < 0) {
-		kfree(dp);
+	if (dp->port < 0)
 		return 0;
-	}
 
 	debug_printk(("delete_port %i\n", dp->port));
 	return snd_seq_event_port_detach(dp->cseq, dp->port);

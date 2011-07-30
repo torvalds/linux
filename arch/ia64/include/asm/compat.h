@@ -198,7 +198,7 @@ ptr_to_compat(void __user *uptr)
 }
 
 static __inline__ void __user *
-arch_compat_alloc_user_space (long len)
+compat_alloc_user_space (long len)
 {
 	struct pt_regs *regs = task_pt_regs(current);
 	return (void __user *) (((regs->r12 & 0xffffffff) & -16) - len);

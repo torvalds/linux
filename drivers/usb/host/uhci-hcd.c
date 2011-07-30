@@ -735,7 +735,6 @@ static void uhci_stop(struct usb_hcd *hcd)
 		uhci_hc_died(uhci);
 	uhci_scan_schedule(uhci);
 	spin_unlock_irq(&uhci->lock);
-	synchronize_irq(hcd->irq);
 
 	del_timer_sync(&uhci->fsbr_timer);
 	release_uhci(uhci);

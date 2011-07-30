@@ -44,9 +44,7 @@ all:
 
 Makefile:;
 
-\$(all): all
+\$(all) %/: all
 	@:
 
-%/: all
-	@:
 EOF

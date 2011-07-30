@@ -33,11 +33,10 @@
  * @children: child nodes
  * @all: list head for list of all nodes
  * @parent: parent node
- * @loaded_info: array of pointers to profiling data sets for loaded object
- *   files.
- * @num_loaded: number of profiling data sets for loaded object files.
- * @unloaded_info: accumulated copy of profiling data sets for unloaded
- *   object files. Used only when gcov_persist=1.
+ * @info: associated profiling data structure if not a directory
+ * @ghost: when an object file containing profiling data is unloaded we keep a
+ *         copy of the profiling data here to allow collecting coverage data
+ *         for cleanup code. Such a node is called a "ghost".
  * @dentry: main debugfs entry, either a directory or data file
  * @links: associated symbolic links
  * @name: data file basename
@@ -52,11 +51,10 @@ struct gcov_node {
 	struct list_head children;
 	struct list_head all;
 	struct gcov_node *parent;
-	struct gcov_info **loaded_info;
-	struct gcov_info *unloaded_info;
+	struct gcov_info *info;
+	struct gcov_info *ghost;
 	struct dentry *dentry;
 	struct dentry **links;
-	int num_loaded;
 	char name[0];
 };
 
@@ -138,37 +136,16 @@ static const struct seq_operations gcov_seq_ops = {
 };
 
 /*
- * Return a profiling data set associated with the given node. This is
- * either a data set for a loaded object file or a data set copy in case
- * all associated object files have been unloaded.
+ * Return the profiling data set for a given node. This can either be the
+ * original profiling data structure or a duplicate (also called "ghost")
+ * in case the associated object file has been unloaded.
  */
 static struct gcov_info *get_node_info(struct gcov_node *node)
 {
-	if (node->num_loaded > 0)
-		return node->loaded_info[0];
+	if (node->info)
+		return node->info;
 
-	return node->unloaded_info;
-}
-
-/*
- * Return a newly allocated profiling data set which contains the sum of
- * all profiling data associated with the given node.
- */
-static struct gcov_info *get_accumulated_info(struct gcov_node *node)
-{
-	struct gcov_info *info;
-	int i = 0;
-
-	if (node->unloaded_info)
-		info = gcov_info_dup(node->unloaded_info);
-	else
-		info = gcov_info_dup(node->loaded_info[i++]);
-	if (!info)
-		return NULL;
-	for (; i < node->num_loaded; i++)
-		gcov_info_add(info, node->loaded_info[i]);
-
-	return info;
+	return node->ghost;
 }
 
 /*
@@ -186,10 +163,9 @@ static int gcov_seq_open(struct inode *inode, struct file *file)
 	mutex_lock(&node_lock);
 	/*
 	 * Read from a profiling data copy to minimize reference tracking
-	 * complexity and concurrent access and to keep accumulating multiple
-	 * profiling data sets associated with one node simple.
+	 * complexity and concurrent access.
 	 */
-	info = get_accumulated_info(node);
+	info = gcov_info_dup(get_node_info(node));
 	if (!info)
 		goto out_unlock;
 	iter = gcov_iter_new(info);
@@ -249,25 +225,12 @@ static struct gcov_node *get_node_by_name(const char *name)
 	return NULL;
 }
 
-/*
- * Reset all profiling data associated with the specified node.
- */
-static void reset_node(struct gcov_node *node)
-{
-	int i;
-
-	if (node->unloaded_info)
-		gcov_info_reset(node->unloaded_info);
-	for (i = 0; i < node->num_loaded; i++)
-		gcov_info_reset(node->loaded_info[i]);
-}
-
 static void remove_node(struct gcov_node *node);
 
 /*
  * write() implementation for gcov data files. Reset profiling data for the
- * corresponding file. If all associated object files have been unloaded,
- * remove the debug fs node as well.
+ * associated file. If the object file has been unloaded (i.e. this is
+ * a "ghost" node), remove the debug fs node as well.
  */
 static ssize_t gcov_seq_write(struct file *file, const char __user *addr,
 			      size_t len, loff_t *pos)
@@ -282,10 +245,10 @@ static ssize_t gcov_seq_write(struct file *file, const char __user *addr,
 	node = get_node_by_name(info->filename);
 	if (node) {
 		/* Reset counts or remove node for unloaded modules. */
-		if (node->num_loaded == 0)
+		if (node->ghost)
 			remove_node(node);
 		else
-			reset_node(node);
+			gcov_info_reset(node->info);
 	}
 	/* Reset counts for open file. */
 	gcov_info_reset(info);
@@ -415,10 +378,7 @@ static void init_node(struct gcov_node *node, struct gcov_info *info,
 	INIT_LIST_HEAD(&node->list);
 	INIT_LIST_HEAD(&node->children);
 	INIT_LIST_HEAD(&node->all);
-	if (node->loaded_info) {
-		node->loaded_info[0] = info;
-		node->num_loaded = 1;
-	}
+	node->info = info;
 	node->parent = parent;
 	if (name)
 		strcpy(node->name, name);
@@ -434,13 +394,9 @@ static struct gcov_node *new_node(struct gcov_node *parent,
 	struct gcov_node *node;
 
 	node = kzalloc(sizeof(struct gcov_node) + strlen(name) + 1, GFP_KERNEL);
-	if (!node)
-		goto err_nomem;
-	if (info) {
-		node->loaded_info = kcalloc(1, sizeof(struct gcov_info *),
-					   GFP_KERNEL);
-		if (!node->loaded_info)
-			goto err_nomem;
+	if (!node) {
+		pr_warning("out of memory\n");
+		return NULL;
 	}
 	init_node(node, info, name, parent);
 	/* Differentiate between gcov data file nodes and directory nodes. */
@@ -460,11 +416,6 @@ static struct gcov_node *new_node(struct gcov_node *parent,
 	list_add(&node->all, &all_head);
 
 	return node;
-
-err_nomem:
-	kfree(node);
-	pr_warning("out of memory\n");
-	return NULL;
 }
 
 /* Remove symbolic links associated with node. */
@@ -490,9 +441,8 @@ static void release_node(struct gcov_node *node)
 	list_del(&node->all);
 	debugfs_remove(node->dentry);
 	remove_links(node);
-	kfree(node->loaded_info);
-	if (node->unloaded_info)
-		gcov_info_free(node->unloaded_info);
+	if (node->ghost)
+		gcov_info_free(node->ghost);
 	kfree(node);
 }
 
@@ -527,7 +477,7 @@ static struct gcov_node *get_child_by_name(struct gcov_node *parent,
 
 /*
  * write() implementation for reset file. Reset all profiling data to zero
- * and remove nodes for which all associated object files are unloaded.
+ * and remove ghost nodes.
  */
 static ssize_t reset_write(struct file *file, const char __user *addr,
 			   size_t len, loff_t *pos)
@@ -537,8 +487,8 @@ static ssize_t reset_write(struct file *file, const char __user *addr,
 	mutex_lock(&node_lock);
 restart:
 	list_for_each_entry(node, &all_head, all) {
-		if (node->num_loaded > 0)
-			reset_node(node);
+		if (node->info)
+			gcov_info_reset(node->info);
 		else if (list_empty(&node->children)) {
 			remove_node(node);
 			/* Several nodes may have gone - restart loop. */
@@ -614,115 +564,37 @@ err_remove:
 }
 
 /*
- * Associate a profiling data set with an existing node. Needs to be called
- * with node_lock held.
+ * The profiling data set associated with this node is being unloaded. Store a
+ * copy of the profiling data and turn this node into a "ghost".
  */
-static void add_info(struct gcov_node *node, struct gcov_info *info)
+static int ghost_node(struct gcov_node *node)
 {
-	struct gcov_info **loaded_info;
-	int num = node->num_loaded;
+	node->ghost = gcov_info_dup(node->info);
+	if (!node->ghost) {
+		pr_warning("could not save data for '%s' (out of memory)\n",
+			   node->info->filename);
+		return -ENOMEM;
+	}
+	node->info = NULL;
 
-	/*
-	 * Prepare new array. This is done first to simplify cleanup in
-	 * case the new data set is incompatible, the node only contains
-	 * unloaded data sets and there's not enough memory for the array.
-	 */
-	loaded_info = kcalloc(num + 1, sizeof(struct gcov_info *), GFP_KERNEL);
-	if (!loaded_info) {
-		pr_warning("could not add '%s' (out of memory)\n",
-			   info->filename);
-		return;
-	}
-	memcpy(loaded_info, node->loaded_info,
-	       num * sizeof(struct gcov_info *));
-	loaded_info[num] = info;
-	/* Check if the new data set is compatible. */
-	if (num == 0) {
-		/*
-		 * A module was unloaded, modified and reloaded. The new
-		 * data set replaces the copy of the last one.
-		 */
-		if (!gcov_info_is_compatible(node->unloaded_info, info)) {
-			pr_warning("discarding saved data for %s "
-				   "(incompatible version)\n", info->filename);
-			gcov_info_free(node->unloaded_info);
-			node->unloaded_info = NULL;
-		}
-	} else {
-		/*
-		 * Two different versions of the same object file are loaded.
-		 * The initial one takes precedence.
-		 */
-		if (!gcov_info_is_compatible(node->loaded_info[0], info)) {
-			pr_warning("could not add '%s' (incompatible "
-				   "version)\n", info->filename);
-			kfree(loaded_info);
-			return;
-		}
-	}
-	/* Overwrite previous array. */
-	kfree(node->loaded_info);
-	node->loaded_info = loaded_info;
-	node->num_loaded = num + 1;
+	return 0;
 }
 
 /*
- * Return the index of a profiling data set associated with a node.
+ * Profiling data for this node has been loaded again. Add profiling data
+ * from previous instantiation and turn this node into a regular node.
  */
-static int get_info_index(struct gcov_node *node, struct gcov_info *info)
+static void revive_node(struct gcov_node *node, struct gcov_info *info)
 {
-	int i;
-
-	for (i = 0; i < node->num_loaded; i++) {
-		if (node->loaded_info[i] == info)
-			return i;
-	}
-	return -ENOENT;
-}
-
-/*
- * Save the data of a profiling data set which is being unloaded.
- */
-static void save_info(struct gcov_node *node, struct gcov_info *info)
-{
-	if (node->unloaded_info)
-		gcov_info_add(node->unloaded_info, info);
+	if (gcov_info_is_compatible(node->ghost, info))
+		gcov_info_add(info, node->ghost);
 	else {
-		node->unloaded_info = gcov_info_dup(info);
-		if (!node->unloaded_info) {
-			pr_warning("could not save data for '%s' "
-				   "(out of memory)\n", info->filename);
-		}
-	}
-}
-
-/*
- * Disassociate a profiling data set from a node. Needs to be called with
- * node_lock held.
- */
-static void remove_info(struct gcov_node *node, struct gcov_info *info)
-{
-	int i;
-
-	i = get_info_index(node, info);
-	if (i < 0) {
-		pr_warning("could not remove '%s' (not found)\n",
+		pr_warning("discarding saved data for '%s' (version changed)\n",
 			   info->filename);
-		return;
 	}
-	if (gcov_persist)
-		save_info(node, info);
-	/* Shrink array. */
-	node->loaded_info[i] = node->loaded_info[node->num_loaded - 1];
-	node->num_loaded--;
-	if (node->num_loaded > 0)
-		return;
-	/* Last loaded data set was removed. */
-	kfree(node->loaded_info);
-	node->loaded_info = NULL;
-	node->num_loaded = 0;
-	if (!node->unloaded_info)
-		remove_node(node);
+	gcov_info_free(node->ghost);
+	node->ghost = NULL;
+	node->info = info;
 }
 
 /*
@@ -737,18 +609,30 @@ void gcov_event(enum gcov_action action, struct gcov_info *info)
 	node = get_node_by_name(info->filename);
 	switch (action) {
 	case GCOV_ADD:
-		if (node)
-			add_info(node, info);
-		else
+		/* Add new node or revive ghost. */
+		if (!node) {
 			add_node(info);
-		break;
-	case GCOV_REMOVE:
-		if (node)
-			remove_info(node, info);
+			break;
+		}
+		if (gcov_persist)
+			revive_node(node, info);
 		else {
-			pr_warning("could not remove '%s' (not found)\n",
+			pr_warning("could not add '%s' (already exists)\n",
 				   info->filename);
 		}
+		break;
+	case GCOV_REMOVE:
+		/* Remove node or turn into ghost. */
+		if (!node) {
+			pr_warning("could not remove '%s' (not found)\n",
+				   info->filename);
+			break;
+		}
+		if (gcov_persist) {
+			if (!ghost_node(node))
+				break;
+		}
+		remove_node(node);
 		break;
 	}
 	mutex_unlock(&node_lock);

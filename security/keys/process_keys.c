@@ -509,7 +509,7 @@ try_again:
 
 			ret = install_thread_keyring();
 			if (ret < 0) {
-				key_ref = ERR_PTR(ret);
+				key = ERR_PTR(ret);
 				goto error;
 			}
 			goto reget_creds;
@@ -527,7 +527,7 @@ try_again:
 
 			ret = install_process_keyring();
 			if (ret < 0) {
-				key_ref = ERR_PTR(ret);
+				key = ERR_PTR(ret);
 				goto error;
 			}
 			goto reget_creds;
@@ -586,7 +586,7 @@ try_again:
 
 	case KEY_SPEC_GROUP_KEYRING:
 		/* group keyrings are not yet supported */
-		key_ref = ERR_PTR(-EINVAL);
+		key = ERR_PTR(-EINVAL);
 		goto error;
 
 	case KEY_SPEC_REQKEY_AUTH_KEY:

@@ -347,7 +347,7 @@ static int maya_gpio_sw_put(struct snd_kcontrol *kcontrol,
 
 /* known working input slots (0-4) */
 #define MAYA_LINE_IN	1	/* in-2 */
-#define MAYA_MIC_IN	3	/* in-4 */
+#define MAYA_MIC_IN	4	/* in-5 */
 
 static void wm8776_select_input(struct snd_maya44 *chip, int idx, int line)
 {
@@ -393,8 +393,8 @@ static int maya_rec_src_put(struct snd_kcontrol *kcontrol,
 	int changed;
 
 	mutex_lock(&chip->mutex);
-	changed = maya_set_gpio_bits(chip->ice, 1 << GPIO_MIC_RELAY,
-				     sel ? (1 << GPIO_MIC_RELAY) : 0);
+	changed = maya_set_gpio_bits(chip->ice, GPIO_MIC_RELAY,
+				     sel ? GPIO_MIC_RELAY : 0);
 	wm8776_select_input(chip, 0, sel ? MAYA_MIC_IN : MAYA_LINE_IN);
 	mutex_unlock(&chip->mutex);
 	return changed;

@@ -632,10 +632,12 @@ static void cmd640_init_dev(ide_drive_t *drive)
 
 static int cmd640_test_irq(ide_hwif_t *hwif)
 {
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	int irq_reg		= hwif->channel ? ARTTIM23 : CFR;
-	u8  irq_mask		= hwif->channel ? ARTTIM23_IDE23INTR :
+	u8  irq_stat, irq_mask	= hwif->channel ? ARTTIM23_IDE23INTR :
 						  CFR_IDE01INTR;
-	u8  irq_stat		= get_cmd640_reg(irq_reg);
+
+	pci_read_config_byte(dev, irq_reg, &irq_stat);
 
 	return (irq_stat & irq_mask) ? 1 : 0;
 }

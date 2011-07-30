@@ -1123,6 +1123,7 @@ static char __attribute__((aligned(64))) iodc_dbuf[4096];
  */
 int pdc_iodc_print(const unsigned char *str, unsigned count)
 {
+	static int posx;        /* for simple TAB-Simulation... */
 	unsigned int i;
 	unsigned long flags;
 
@@ -1132,12 +1133,19 @@ int pdc_iodc_print(const unsigned char *str, unsigned count)
 			iodc_dbuf[i+0] = '\r';
 			iodc_dbuf[i+1] = '\n';
 			i += 2;
+			posx = 0;
 			goto print;
+		case '\t':
+			while (posx & 7) {
+				iodc_dbuf[i] = ' ';
+				i++, posx++;
+			}
+			break;
 		case '\b':	/* BS */
-			i--; /* overwrite last */
+			posx -= 2;
 		default:
 			iodc_dbuf[i] = str[i];
-			i++;
+			i++, posx++;
 			break;
 		}
 	}

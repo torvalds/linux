@@ -195,9 +195,11 @@ static ssize_t get_port1_handler(struct device *dev,
 	return read_port(dev, attr, buf, 1, CYPRESS_READ_PORT_ID1);
 }
 
-static DEVICE_ATTR(port0, S_IRUGO | S_IWUSR, get_port0_handler, set_port0_handler);
+static DEVICE_ATTR(port0, S_IWUGO | S_IRUGO,
+		   get_port0_handler, set_port0_handler);
 
-static DEVICE_ATTR(port1, S_IRUGO | S_IWUSR, get_port1_handler, set_port1_handler);
+static DEVICE_ATTR(port1, S_IWUGO | S_IRUGO,
+		   get_port1_handler, set_port1_handler);
 
 
 static int cypress_probe(struct usb_interface *interface,

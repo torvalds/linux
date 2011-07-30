@@ -199,8 +199,16 @@ static cycle_t sh_tmu_clocksource_read(struct clocksource *cs)
 static int sh_tmu_clocksource_enable(struct clocksource *cs)
 {
 	struct sh_tmu_priv *p = cs_to_sh_tmu(cs);
+	int ret;
 
-	return sh_tmu_enable(p);
+	ret = sh_tmu_enable(p);
+	if (ret)
+		return ret;
+
+	/* TODO: calculate good shift from rate and counter bit width */
+	cs->shift = 10;
+	cs->mult = clocksource_hz2mult(p->rate, cs->shift);
+	return 0;
 }
 
 static void sh_tmu_clocksource_disable(struct clocksource *cs)
@@ -220,16 +228,6 @@ static int sh_tmu_register_clocksource(struct sh_tmu_priv *p,
 	cs->disable = sh_tmu_clocksource_disable;
 	cs->mask = CLOCKSOURCE_MASK(32);
 	cs->flags = CLOCK_SOURCE_IS_CONTINUOUS;
-
-	/* clk_get_rate() needs an enabled clock */
-	clk_enable(p->clk);
-	/* channel will be configured at parent clock / 4 */
-	p->rate = clk_get_rate(p->clk) / 4;
-	clk_disable(p->clk);
-	/* TODO: calculate good shift from rate and counter bit width */
-	cs->shift = 10;
-	cs->mult = clocksource_hz2mult(p->rate, cs->shift);
-
 	pr_info("sh_tmu: %s used as clock source\n", cs->name);
 	clocksource_register(cs);
 	return 0;
@@ -325,15 +323,15 @@ static void sh_tmu_register_clockevent(struct sh_tmu_priv *p,
 	ced->set_next_event = sh_tmu_clock_event_next;
 	ced->set_mode = sh_tmu_clock_event_mode;
 
-	pr_info("sh_tmu: %s used for clock events\n", ced->name);
-	clockevents_register_device(ced);
-
 	ret = setup_irq(p->irqaction.irq, &p->irqaction);
 	if (ret) {
 		pr_err("sh_tmu: failed to request irq %d\n",
 		       p->irqaction.irq);
 		return;
 	}
+
+	pr_info("sh_tmu: %s used for clock events\n", ced->name);
+	clockevents_register_device(ced);
 }
 
 static int sh_tmu_register(struct sh_tmu_priv *p, char *name,

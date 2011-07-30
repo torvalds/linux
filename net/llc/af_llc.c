@@ -977,8 +977,7 @@ static int llc_ui_setsockopt(struct socket *sock, int level, int optname,
 {
 	struct sock *sk = sock->sk;
 	struct llc_sock *llc = llc_sk(sk);
-	unsigned int opt;
-	int rc = -EINVAL;
+	int rc = -EINVAL, opt;
 
 	lock_sock(sk);
 	if (unlikely(level != SOL_LLC || optlen != sizeof(int)))

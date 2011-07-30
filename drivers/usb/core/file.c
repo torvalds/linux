@@ -159,9 +159,9 @@ void usb_major_cleanup(void)
 int usb_register_dev(struct usb_interface *intf,
 		     struct usb_class_driver *class_driver)
 {
-	int retval;
+	int retval = -EINVAL;
 	int minor_base = class_driver->minor_base;
-	int minor;
+	int minor = 0;
 	char name[20];
 	char *temp;
 
@@ -173,17 +173,12 @@ int usb_register_dev(struct usb_interface *intf,
 	 */
 	minor_base = 0;
 #endif
+	intf->minor = -1;
+
+	dbg ("looking for a minor, starting at %d", minor_base);
 
 	if (class_driver->fops == NULL)
-		return -EINVAL;
-	if (intf->minor >= 0)
-		return -EADDRINUSE;
-
-	retval = init_usb_class();
-	if (retval)
-		return retval;
-
-	dev_dbg(&intf->dev, "looking for a minor, starting at %d", minor_base);
+		goto exit;
 
 	down_write(&minor_rwsem);
 	for (minor = minor_base; minor < MAX_USB_MINORS; ++minor) {
@@ -191,12 +186,20 @@ int usb_register_dev(struct usb_interface *intf,
 			continue;
 
 		usb_minors[minor] = class_driver->fops;
-		intf->minor = minor;
+
+		retval = 0;
 		break;
 	}
 	up_write(&minor_rwsem);
-	if (intf->minor < 0)
-		return -EXFULL;
+
+	if (retval)
+		goto exit;
+
+	retval = init_usb_class();
+	if (retval)
+		goto exit;
+
+	intf->minor = minor;
 
 	/* create a usb class device for this usb interface */
 	snprintf(name, sizeof(name), class_driver->name, minor - minor_base);
@@ -210,11 +213,11 @@ int usb_register_dev(struct usb_interface *intf,
 				      "%s", temp);
 	if (IS_ERR(intf->usb_dev)) {
 		down_write(&minor_rwsem);
-		usb_minors[minor] = NULL;
-		intf->minor = -1;
+		usb_minors[intf->minor] = NULL;
 		up_write(&minor_rwsem);
 		retval = PTR_ERR(intf->usb_dev);
 	}
+exit:
 	return retval;
 }
 EXPORT_SYMBOL_GPL(usb_register_dev);

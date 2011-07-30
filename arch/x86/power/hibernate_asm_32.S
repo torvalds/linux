@@ -27,17 +27,10 @@ ENTRY(swsusp_arch_suspend)
 	ret
 
 ENTRY(restore_image)
-	movl	mmu_cr4_features, %ecx
 	movl	resume_pg_dir, %eax
 	subl	$__PAGE_OFFSET, %eax
 	movl	%eax, %cr3
 
-	jecxz	1f	# cr4 Pentium and higher, skip if zero
-	andl	$~(X86_CR4_PGE), %ecx
-	movl	%ecx, %cr4;  # turn off PGE
-	movl	%cr3, %eax;  # flush TLB
-	movl	%eax, %cr3
-1:
 	movl	restore_pblist, %edx
 	.p2align 4,,7
 
@@ -61,7 +54,15 @@ done:
 	movl	$swapper_pg_dir, %eax
 	subl	$__PAGE_OFFSET, %eax
 	movl	%eax, %cr3
+	/* Flush TLB, including "global" things (vmalloc) */
 	movl	mmu_cr4_features, %ecx
+	jecxz	1f	# cr4 Pentium and higher, skip if zero
+	movl	%ecx, %edx
+	andl	$~(X86_CR4_PGE), %edx
+	movl	%edx, %cr4;  # turn off PGE
+1:
+	movl	%cr3, %eax;  # flush TLB
+	movl	%eax, %cr3
 	jecxz	1f	# cr4 Pentium and higher, skip if zero
 	movl	%ecx, %cr4;  # turn PGE back on
 1:

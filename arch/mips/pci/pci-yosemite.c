@@ -54,7 +54,6 @@ static int __init pmc_yosemite_setup(void)
 		panic(ioremap_failed);
 
 	set_io_port_base(io_v_base);
-	py_controller.io_map_base = io_v_base;
 	TITAN_WRITE(RM9000x2_OCD_LKM7, TITAN_READ(RM9000x2_OCD_LKM7) | 1);
 
 	ioport_resource.end = TITAN_IO_SIZE - 1;

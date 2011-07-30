@@ -447,7 +447,7 @@ static struct rds_rdma_op *rds_rdma_prepare(struct rds_sock *rs,
 		goto out;
 	}
 
-	if (args->nr_local > UIO_MAXIOV) {
+	if (args->nr_local > (u64)UINT_MAX) {
 		ret = -EMSGSIZE;
 		goto out;
 	}

@@ -638,15 +638,11 @@ failed:
 
 static void qla_do_work(struct work_struct *work)
 {
-	unsigned long flags;
 	struct rsp_que *rsp = container_of(work, struct rsp_que, q_work);
 	struct scsi_qla_host *vha;
-	struct qla_hw_data *ha = rsp->hw;
 
-	spin_lock_irqsave(&rsp->hw->hardware_lock, flags);
-	vha = pci_get_drvdata(ha->pdev);
+	vha = qla25xx_get_host(rsp);
 	qla24xx_process_response_queue(vha, rsp);
-	spin_unlock_irqrestore(&rsp->hw->hardware_lock, flags);
 }
 
 /* create response queue */

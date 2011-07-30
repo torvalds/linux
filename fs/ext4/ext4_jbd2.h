@@ -282,7 +282,7 @@ static inline int ext4_should_journal_data(struct inode *inode)
 		return 1;
 	if (test_opt(inode->i_sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA)
 		return 1;
-	if (ext4_test_inode_flag(inode, EXT4_INODE_JOURNAL_DATA))
+	if (EXT4_I(inode)->i_flags & EXT4_JOURNAL_DATA_FL)
 		return 1;
 	return 0;
 }
@@ -293,7 +293,7 @@ static inline int ext4_should_order_data(struct inode *inode)
 		return 0;
 	if (!S_ISREG(inode->i_mode))
 		return 0;
-	if (ext4_test_inode_flag(inode, EXT4_INODE_JOURNAL_DATA))
+	if (EXT4_I(inode)->i_flags & EXT4_JOURNAL_DATA_FL)
 		return 0;
 	if (test_opt(inode->i_sb, DATA_FLAGS) == EXT4_MOUNT_ORDERED_DATA)
 		return 1;
@@ -306,7 +306,7 @@ static inline int ext4_should_writeback_data(struct inode *inode)
 		return 0;
 	if (EXT4_JOURNAL(inode) == NULL)
 		return 1;
-	if (ext4_test_inode_flag(inode, EXT4_INODE_JOURNAL_DATA))
+	if (EXT4_I(inode)->i_flags & EXT4_JOURNAL_DATA_FL)
 		return 0;
 	if (test_opt(inode->i_sb, DATA_FLAGS) == EXT4_MOUNT_WRITEBACK_DATA)
 		return 1;

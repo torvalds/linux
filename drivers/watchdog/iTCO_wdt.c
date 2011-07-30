@@ -115,37 +115,8 @@ enum iTCO_chipsets {
 	TCO_3420,	/* 3420 */
 	TCO_3450,	/* 3450 */
 	TCO_EP80579,	/* EP80579 */
-	TCO_CPT1,	/* Cougar Point */
-	TCO_CPT2,	/* Cougar Point Desktop */
-	TCO_CPT3,	/* Cougar Point Mobile */
-	TCO_CPT4,	/* Cougar Point */
-	TCO_CPT5,	/* Cougar Point */
-	TCO_CPT6,	/* Cougar Point */
-	TCO_CPT7,	/* Cougar Point */
-	TCO_CPT8,	/* Cougar Point */
-	TCO_CPT9,	/* Cougar Point */
-	TCO_CPT10,	/* Cougar Point */
-	TCO_CPT11,	/* Cougar Point */
-	TCO_CPT12,	/* Cougar Point */
-	TCO_CPT13,	/* Cougar Point */
-	TCO_CPT14,	/* Cougar Point */
-	TCO_CPT15,	/* Cougar Point */
-	TCO_CPT16,	/* Cougar Point */
-	TCO_CPT17,	/* Cougar Point */
-	TCO_CPT18,	/* Cougar Point */
-	TCO_CPT19,	/* Cougar Point */
-	TCO_CPT20,	/* Cougar Point */
-	TCO_CPT21,	/* Cougar Point */
-	TCO_CPT22,	/* Cougar Point */
-	TCO_CPT23,	/* Cougar Point */
-	TCO_CPT24,	/* Cougar Point */
-	TCO_CPT25,	/* Cougar Point */
-	TCO_CPT26,	/* Cougar Point */
-	TCO_CPT27,	/* Cougar Point */
-	TCO_CPT28,	/* Cougar Point */
-	TCO_CPT29,	/* Cougar Point */
-	TCO_CPT30,	/* Cougar Point */
-	TCO_CPT31,	/* Cougar Point */
+	TCO_CPTD,	/* CPT Desktop */
+	TCO_CPTM,	/* CPT Mobile */
 };
 
 static struct {
@@ -202,37 +173,8 @@ static struct {
 	{"3420", 2},
 	{"3450", 2},
 	{"EP80579", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
+	{"CPT Desktop", 2},
+	{"CPT Mobile", 2},
 	{NULL, 0}
 };
 
@@ -317,37 +259,8 @@ static struct pci_device_id iTCO_wdt_pci_tbl[] = {
 	{ ITCO_PCI_DEVICE(0x3b14,				TCO_3420)},
 	{ ITCO_PCI_DEVICE(0x3b16,				TCO_3450)},
 	{ ITCO_PCI_DEVICE(0x5031,				TCO_EP80579)},
-	{ ITCO_PCI_DEVICE(0x1c41,				TCO_CPT1)},
-	{ ITCO_PCI_DEVICE(0x1c42,				TCO_CPT2)},
-	{ ITCO_PCI_DEVICE(0x1c43,				TCO_CPT3)},
-	{ ITCO_PCI_DEVICE(0x1c44,				TCO_CPT4)},
-	{ ITCO_PCI_DEVICE(0x1c45,				TCO_CPT5)},
-	{ ITCO_PCI_DEVICE(0x1c46,				TCO_CPT6)},
-	{ ITCO_PCI_DEVICE(0x1c47,				TCO_CPT7)},
-	{ ITCO_PCI_DEVICE(0x1c48,				TCO_CPT8)},
-	{ ITCO_PCI_DEVICE(0x1c49,				TCO_CPT9)},
-	{ ITCO_PCI_DEVICE(0x1c4a,				TCO_CPT10)},
-	{ ITCO_PCI_DEVICE(0x1c4b,				TCO_CPT11)},
-	{ ITCO_PCI_DEVICE(0x1c4c,				TCO_CPT12)},
-	{ ITCO_PCI_DEVICE(0x1c4d,				TCO_CPT13)},
-	{ ITCO_PCI_DEVICE(0x1c4e,				TCO_CPT14)},
-	{ ITCO_PCI_DEVICE(0x1c4f,				TCO_CPT15)},
-	{ ITCO_PCI_DEVICE(0x1c50,				TCO_CPT16)},
-	{ ITCO_PCI_DEVICE(0x1c51,				TCO_CPT17)},
-	{ ITCO_PCI_DEVICE(0x1c52,				TCO_CPT18)},
-	{ ITCO_PCI_DEVICE(0x1c53,				TCO_CPT19)},
-	{ ITCO_PCI_DEVICE(0x1c54,				TCO_CPT20)},
-	{ ITCO_PCI_DEVICE(0x1c55,				TCO_CPT21)},
-	{ ITCO_PCI_DEVICE(0x1c56,				TCO_CPT22)},
-	{ ITCO_PCI_DEVICE(0x1c57,				TCO_CPT23)},
-	{ ITCO_PCI_DEVICE(0x1c58,				TCO_CPT24)},
-	{ ITCO_PCI_DEVICE(0x1c59,				TCO_CPT25)},
-	{ ITCO_PCI_DEVICE(0x1c5a,				TCO_CPT26)},
-	{ ITCO_PCI_DEVICE(0x1c5b,				TCO_CPT27)},
-	{ ITCO_PCI_DEVICE(0x1c5c,				TCO_CPT28)},
-	{ ITCO_PCI_DEVICE(0x1c5d,				TCO_CPT29)},
-	{ ITCO_PCI_DEVICE(0x1c5e,				TCO_CPT30)},
-	{ ITCO_PCI_DEVICE(0x1c5f,				TCO_CPT31)},
+	{ ITCO_PCI_DEVICE(0x1c42,				TCO_CPTD)},
+	{ ITCO_PCI_DEVICE(0x1c43,				TCO_CPTM)},
 	{ 0, },			/* End of list */
 };
 MODULE_DEVICE_TABLE(pci, iTCO_wdt_pci_tbl);

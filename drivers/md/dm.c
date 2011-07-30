@@ -614,10 +614,8 @@ static void dec_pending(struct dm_io *io, int error)
 			if (!md->barrier_error && io_error != -EOPNOTSUPP)
 				md->barrier_error = io_error;
 			end_io_acct(io);
-			free_io(md, io);
 		} else {
 			end_io_acct(io);
-			free_io(md, io);
 
 			if (io_error != DM_ENDIO_REQUEUE) {
 				trace_block_bio_complete(md->queue, bio);
@@ -625,6 +623,8 @@ static void dec_pending(struct dm_io *io, int error)
 				bio_endio(bio, io_error);
 			}
 		}
+
+		free_io(md, io);
 	}
 }
 
@@ -1487,15 +1487,10 @@ static int dm_prep_fn(struct request_queue *q, struct request *rq)
 	return BLKPREP_OK;
 }
 
-/*
- * Returns:
- * 0  : the request has been processed (not requeued)
- * !0 : the request has been requeued
- */
-static int map_request(struct dm_target *ti, struct request *rq,
-		       struct mapped_device *md)
+static void map_request(struct dm_target *ti, struct request *rq,
+			struct mapped_device *md)
 {
-	int r, requeued = 0;
+	int r;
 	struct request *clone = rq->special;
 	struct dm_rq_target_io *tio = clone->end_io_data;
 
@@ -1521,7 +1516,6 @@ static int map_request(struct dm_target *ti, struct request *rq,
 	case DM_MAPIO_REQUEUE:
 		/* The target wants to requeue the I/O */
 		dm_requeue_unmapped_request(clone);
-		requeued = 1;
 		break;
 	default:
 		if (r > 0) {
@@ -1533,8 +1527,6 @@ static int map_request(struct dm_target *ti, struct request *rq,
 		dm_kill_unmapped_request(clone, r);
 		break;
 	}
-
-	return requeued;
 }
 
 /*
@@ -1576,16 +1568,11 @@ static void dm_request_fn(struct request_queue *q)
 
 		blk_start_request(rq);
 		spin_unlock(q->queue_lock);
-		if (map_request(ti, rq, md))
-			goto requeued;
-
+		map_request(ti, rq, md);
 		spin_lock_irq(q->queue_lock);
 	}
 
 	goto out;
-
-requeued:
-	spin_lock_irq(q->queue_lock);
 
 plug_and_out:
 	if (!elv_queue_empty(q))

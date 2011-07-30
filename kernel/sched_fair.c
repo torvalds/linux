@@ -488,7 +488,6 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 	curr->sum_exec_runtime += delta_exec;
 	schedstat_add(cfs_rq, exec_clock, delta_exec);
 	delta_exec_weighted = calc_delta_fair(delta_exec, curr);
-
 	curr->vruntime += delta_exec_weighted;
 	update_min_vruntime(cfs_rq);
 }
@@ -744,26 +743,16 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 	se->vruntime = vruntime;
 }
 
-#define ENQUEUE_WAKEUP	1
-#define ENQUEUE_MIGRATE 2
-
 static void
-enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
+enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 {
-	/*
-	 * Update the normalized vruntime before updating min_vruntime
-	 * through callig update_curr().
-	 */
-	if (!(flags & ENQUEUE_WAKEUP) || (flags & ENQUEUE_MIGRATE))
-		se->vruntime += cfs_rq->min_vruntime;
-
 	/*
 	 * Update run-time statistics of the 'current'.
 	 */
 	update_curr(cfs_rq);
 	account_entity_enqueue(cfs_rq, se);
 
-	if (flags & ENQUEUE_WAKEUP) {
+	if (wakeup) {
 		place_entity(cfs_rq, se, 0);
 		enqueue_sleeper(cfs_rq, se);
 	}
@@ -817,14 +806,6 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 		__dequeue_entity(cfs_rq, se);
 	account_entity_dequeue(cfs_rq, se);
 	update_min_vruntime(cfs_rq);
-
-	/*
-	 * Normalize the entity after updating the min_vruntime because the
-	 * update can refer to the ->curr item and we need to reflect this
-	 * movement in our normalized position.
-	 */
-	if (!sleep)
-		se->vruntime -= cfs_rq->min_vruntime;
 }
 
 /*
@@ -1031,24 +1012,17 @@ static inline void hrtick_update(struct rq *rq)
  * increased. Here we update the fair scheduling stats and
  * then put the task into the rbtree:
  */
-static void
-enqueue_task_fair(struct rq *rq, struct task_struct *p, int wakeup, bool head)
+static void enqueue_task_fair(struct rq *rq, struct task_struct *p, int wakeup)
 {
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se = &p->se;
-	int flags = 0;
-
-	if (wakeup)
-		flags |= ENQUEUE_WAKEUP;
-	if (p->state == TASK_WAKING)
-		flags |= ENQUEUE_MIGRATE;
 
 	for_each_sched_entity(se) {
 		if (se->on_rq)
 			break;
 		cfs_rq = cfs_rq_of(se);
-		enqueue_entity(cfs_rq, se, flags);
-		flags = ENQUEUE_WAKEUP;
+		enqueue_entity(cfs_rq, se, wakeup);
+		wakeup = 1;
 	}
 
 	hrtick_update(rq);
@@ -1123,14 +1097,6 @@ static void yield_task_fair(struct rq *rq)
 }
 
 #ifdef CONFIG_SMP
-
-static void task_waking_fair(struct rq *rq, struct task_struct *p)
-{
-	struct sched_entity *se = &p->se;
-	struct cfs_rq *cfs_rq = cfs_rq_of(se);
-
-	se->vruntime -= cfs_rq->min_vruntime;
-}
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 /*
@@ -1250,7 +1216,6 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p, int sync)
 	 * effect of the currently running task from the load
 	 * of the current CPU:
 	 */
-	rcu_read_lock();
 	if (sync) {
 		tg = task_group(current);
 		weight = current->se.load.weight;
@@ -1276,7 +1241,6 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p, int sync)
 	balanced = !this_load ||
 		100*(this_load + effective_load(tg, this_cpu, weight, weight)) <=
 		imbalance*(load + effective_load(tg, prev_cpu, 0, weight));
-	rcu_read_unlock();
 
 	/*
 	 * If the currently running task will sleep within
@@ -1384,56 +1348,6 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
 }
 
 /*
- * Try and locate an idle CPU in the sched_domain.
- */
-static int select_idle_sibling(struct task_struct *p, int target)
-{
-	int cpu = smp_processor_id();
-	int prev_cpu = task_cpu(p);
-	struct sched_domain *sd;
-	int i;
-
-	/*
-	 * If the task is going to be woken-up on this cpu and if it is
-	 * already idle, then it is the right target.
-	 */
-	if (target == cpu && idle_cpu(cpu))
-		return cpu;
-
-	/*
-	 * If the task is going to be woken-up on the cpu where it previously
-	 * ran and if it is currently idle, then it the right target.
-	 */
-	if (target == prev_cpu && idle_cpu(prev_cpu))
-		return prev_cpu;
-
-	/*
-	 * Otherwise, iterate the domains and find an elegible idle cpu.
-	 */
-	for_each_domain(target, sd) {
-		if (!(sd->flags & SD_SHARE_PKG_RESOURCES))
-			break;
-
-		for_each_cpu_and(i, sched_domain_span(sd), &p->cpus_allowed) {
-			if (idle_cpu(i)) {
-				target = i;
-				break;
-			}
-		}
-
-		/*
-		 * Lets stop looking for an idle sibling when we reached
-		 * the domain that spans the current cpu and prev_cpu.
-		 */
-		if (cpumask_test_cpu(cpu, sched_domain_span(sd)) &&
-		    cpumask_test_cpu(prev_cpu, sched_domain_span(sd)))
-			break;
-	}
-
-	return target;
-}
-
-/*
  * sched_balance_self: balance the current task (running on cpu) in domains
  * that have the 'flag' flag set. In practice, this is SD_BALANCE_FORK and
  * SD_BALANCE_EXEC.
@@ -1444,8 +1358,7 @@ static int select_idle_sibling(struct task_struct *p, int target)
  *
  * preempt must be disabled.
  */
-static int
-select_task_rq_fair(struct rq *rq, struct task_struct *p, int sd_flag, int wake_flags)
+static int select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
 {
 	struct sched_domain *tmp, *affine_sd = NULL, *sd = NULL;
 	int cpu = smp_processor_id();
@@ -1462,6 +1375,7 @@ select_task_rq_fair(struct rq *rq, struct task_struct *p, int sd_flag, int wake_
 		new_cpu = prev_cpu;
 	}
 
+	rcu_read_lock();
 	for_each_domain(cpu, tmp) {
 		if (!(tmp->flags & SD_LOAD_BALANCE))
 			continue;
@@ -1490,14 +1404,38 @@ select_task_rq_fair(struct rq *rq, struct task_struct *p, int sd_flag, int wake_
 				want_sd = 0;
 		}
 
-		/*
-		 * If both cpu and prev_cpu are part of this domain,
-		 * cpu is a valid SD_WAKE_AFFINE target.
-		 */
-		if (want_affine && (tmp->flags & SD_WAKE_AFFINE) &&
-		    cpumask_test_cpu(prev_cpu, sched_domain_span(tmp))) {
-			affine_sd = tmp;
-			want_affine = 0;
+		if (want_affine && (tmp->flags & SD_WAKE_AFFINE)) {
+			int candidate = -1, i;
+
+			if (cpumask_test_cpu(prev_cpu, sched_domain_span(tmp)))
+				candidate = cpu;
+
+			/*
+			 * Check for an idle shared cache.
+			 */
+			if (tmp->flags & SD_PREFER_SIBLING) {
+				if (candidate == cpu) {
+					if (!cpu_rq(prev_cpu)->cfs.nr_running)
+						candidate = prev_cpu;
+				}
+
+				if (candidate == -1 || candidate == cpu) {
+					for_each_cpu(i, sched_domain_span(tmp)) {
+						if (!cpumask_test_cpu(i, &p->cpus_allowed))
+							continue;
+						if (!cpu_rq(i)->cfs.nr_running) {
+							candidate = i;
+							break;
+						}
+					}
+				}
+			}
+
+			if (candidate >= 0) {
+				affine_sd = tmp;
+				want_affine = 0;
+				cpu = candidate;
+			}
 		}
 
 		if (!want_sd && !want_affine)
@@ -1510,28 +1448,23 @@ select_task_rq_fair(struct rq *rq, struct task_struct *p, int sd_flag, int wake_
 			sd = tmp;
 	}
 
-#ifdef CONFIG_FAIR_GROUP_SCHED
 	if (sched_feat(LB_SHARES_UPDATE)) {
 		/*
 		 * Pick the largest domain to update shares over
 		 */
 		tmp = sd;
-		if (affine_sd && (!tmp || affine_sd->span_weight > sd->span_weight))
+		if (affine_sd && (!tmp ||
+				  cpumask_weight(sched_domain_span(affine_sd)) >
+				  cpumask_weight(sched_domain_span(sd))))
 			tmp = affine_sd;
 
-		if (tmp) {
-			spin_unlock(&rq->lock);
+		if (tmp)
 			update_shares(tmp);
-			spin_lock(&rq->lock);
-		}
 	}
-#endif
 
-	if (affine_sd) {
-		if (cpu == prev_cpu || wake_affine(affine_sd, p, sync))
-			return select_idle_sibling(p, cpu);
-		else
-			return select_idle_sibling(p, prev_cpu);
+	if (affine_sd && wake_affine(affine_sd, p, sync)) {
+		new_cpu = cpu;
+		goto out;
 	}
 
 	while (sd) {
@@ -1562,10 +1495,10 @@ select_task_rq_fair(struct rq *rq, struct task_struct *p, int sd_flag, int wake_
 
 		/* Now try balancing at a lower domain level of new_cpu */
 		cpu = new_cpu;
-		weight = sd->span_weight;
+		weight = cpumask_weight(sched_domain_span(sd));
 		sd = NULL;
 		for_each_domain(cpu, tmp) {
-			if (weight <= tmp->span_weight)
+			if (weight <= cpumask_weight(sched_domain_span(tmp)))
 				break;
 			if (tmp->flags & sd_flag)
 				sd = tmp;
@@ -1573,6 +1506,8 @@ select_task_rq_fair(struct rq *rq, struct task_struct *p, int sd_flag, int wake_
 		/* while loop will break here if sd == NULL */
 	}
 
+out:
+	rcu_read_unlock();
 	return new_cpu;
 }
 #endif /* CONFIG_SMP */
@@ -1976,32 +1911,28 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
 }
 
 /*
- * called on fork with the child task as argument from the parent's context
- *  - child not yet on the tasklist
- *  - preemption disabled
+ * Share the fairness runtime between parent and child, thus the
+ * total amount of pressure for CPU stays equal - new tasks
+ * get a chance to run but frequent forkers are not allowed to
+ * monopolize the CPU. Note: the parent runqueue is locked,
+ * the child is not running yet.
  */
-static void task_fork_fair(struct task_struct *p)
+static void task_new_fair(struct rq *rq, struct task_struct *p)
 {
-	struct cfs_rq *cfs_rq = task_cfs_rq(current);
+	struct cfs_rq *cfs_rq = task_cfs_rq(p);
 	struct sched_entity *se = &p->se, *curr = cfs_rq->curr;
 	int this_cpu = smp_processor_id();
-	struct rq *rq = this_rq();
-	unsigned long flags;
 
-	spin_lock_irqsave(&rq->lock, flags);
-
-	update_rq_clock(rq);
-
-	if (unlikely(task_cpu(p) != this_cpu))
-		__set_task_cpu(p, this_cpu);
+	sched_info_queued(p);
 
 	update_curr(cfs_rq);
-
 	if (curr)
 		se->vruntime = curr->vruntime;
 	place_entity(cfs_rq, se, 1);
 
-	if (sysctl_sched_child_runs_first && curr && entity_before(curr, se)) {
+	/* 'curr' will be NULL if the child belongs to a different group */
+	if (sysctl_sched_child_runs_first && this_cpu == task_cpu(p) &&
+			curr && entity_before(curr, se)) {
 		/*
 		 * Upon rescheduling, sched_class::put_prev_task() will place
 		 * 'current' within the tree based on its new key value.
@@ -2010,9 +1941,7 @@ static void task_fork_fair(struct task_struct *p)
 		resched_task(rq->curr);
 	}
 
-	se->vruntime -= cfs_rq->min_vruntime;
-
-	spin_unlock_irqrestore(&rq->lock, flags);
+	enqueue_task_fair(rq, p, 0);
 }
 
 /*
@@ -2065,27 +1994,30 @@ static void set_curr_task_fair(struct rq *rq)
 }
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
-static void moved_group_fair(struct task_struct *p, int on_rq)
+static void moved_group_fair(struct task_struct *p)
 {
 	struct cfs_rq *cfs_rq = task_cfs_rq(p);
 
 	update_curr(cfs_rq);
-	if (!on_rq)
-		place_entity(cfs_rq, &p->se, 1);
+	place_entity(cfs_rq, &p->se, 1);
 }
 #endif
 
-unsigned int get_rr_interval_fair(struct rq *rq, struct task_struct *task)
+unsigned int get_rr_interval_fair(struct task_struct *task)
 {
 	struct sched_entity *se = &task->se;
+	unsigned long flags;
+	struct rq *rq;
 	unsigned int rr_interval = 0;
 
 	/*
 	 * Time slice is 0 for SCHED_OTHER tasks that are on an otherwise
 	 * idle runqueue:
 	 */
+	rq = task_rq_lock(task, &flags);
 	if (rq->cfs.load.weight)
 		rr_interval = NS_TO_JIFFIES(sched_slice(&rq->cfs, se));
+	task_rq_unlock(rq, &flags);
 
 	return rr_interval;
 }
@@ -2111,13 +2043,11 @@ static const struct sched_class fair_sched_class = {
 	.move_one_task		= move_one_task_fair,
 	.rq_online		= rq_online_fair,
 	.rq_offline		= rq_offline_fair,
-
-	.task_waking		= task_waking_fair,
 #endif
 
 	.set_curr_task          = set_curr_task_fair,
 	.task_tick		= task_tick_fair,
-	.task_fork		= task_fork_fair,
+	.task_new		= task_new_fair,
 
 	.prio_changed		= prio_changed_fair,
 	.switched_to		= switched_to_fair,

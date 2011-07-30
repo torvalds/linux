@@ -463,7 +463,6 @@ static int read_bus_info_block(struct fw_device *device, int generation)
 		return -ENOMEM;
 
 	stack = &rom[READ_BIB_ROM_SIZE];
-	memset(rom, 0, sizeof(*rom) * READ_BIB_ROM_SIZE);
 
 	device->max_speed = SCODE_100;
 

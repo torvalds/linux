@@ -68,8 +68,6 @@ static int addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *attr)
 	int err;
 	u8 pnaddr;
 
-	if (!net_eq(net, &init_net))
-		return -EOPNOTSUPP;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
@@ -126,16 +124,12 @@ nla_put_failure:
 
 static int getaddr_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct net *net = sock_net(skb->sk);
 	struct phonet_device_list *pndevs;
 	struct phonet_device *pnd;
 	int dev_idx = 0, dev_start_idx = cb->args[0];
 	int addr_idx = 0, addr_start_idx = cb->args[1];
 
-	if (!net_eq(net, &init_net))
-		goto skip;
-
-	pndevs = phonet_device_list(net);
+	pndevs = phonet_device_list(sock_net(skb->sk));
 	spin_lock_bh(&pndevs->lock);
 	list_for_each_entry(pnd, &pndevs->list, list) {
 		u8 addr;
@@ -160,7 +154,6 @@ static int getaddr_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 
 out:
 	spin_unlock_bh(&pndevs->lock);
-skip:
 	cb->args[0] = dev_idx;
 	cb->args[1] = addr_idx;
 

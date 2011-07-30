@@ -697,7 +697,7 @@ static int ohci_hub_control (
 	u16		wLength
 ) {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
-	int		ports = ohci->num_ports;
+	int		ports = hcd_to_bus (hcd)->root_hub->maxchild;
 	u32		temp;
 	int		retval = 0;
 

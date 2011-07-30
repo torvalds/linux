@@ -179,18 +179,3 @@ const struct ssb_sprom *ssb_get_fallback_sprom(void)
 {
 	return fallback_sprom;
 }
-
-/* http://bcm-v4.sipsolutions.net/802.11/IsSpromAvailable */
-bool ssb_is_sprom_available(struct ssb_bus *bus)
-{
-	/* status register only exists on chipcomon rev >= 11 and we need check
-	   for >= 31 only */
-	/* this routine differs from specs as we do not access SPROM directly
-	   on PCMCIA */
-	if (bus->bustype == SSB_BUSTYPE_PCI &&
-	    bus->chipco.dev &&	/* can be unavailible! */
-	    bus->chipco.dev->id.revision >= 31)
-		return bus->chipco.capabilities & SSB_CHIPCO_CAP_SPROM;
-
-	return true;
-}

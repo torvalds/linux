@@ -291,13 +291,9 @@ gen_ndis_query_resp (int configNr, u32 OID, u8 *buf, unsigned buf_len,
 	/* mandatory */
 	case OID_GEN_VENDOR_DESCRIPTION:
 		pr_debug("%s: OID_GEN_VENDOR_DESCRIPTION\n", __func__);
-		if ( rndis_per_dev_params [configNr].vendorDescr ) {
-			length = strlen (rndis_per_dev_params [configNr].vendorDescr);
-			memcpy (outbuf,
-				rndis_per_dev_params [configNr].vendorDescr, length);
-		} else {
-			outbuf[0] = 0;
-		}
+		length = strlen (rndis_per_dev_params [configNr].vendorDescr);
+		memcpy (outbuf,
+			rndis_per_dev_params [configNr].vendorDescr, length);
 		retval = 0;
 		break;
 
