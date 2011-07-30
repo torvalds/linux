@@ -53,6 +53,10 @@
 #include <linux/phy.h>
 #include <linux/smsc911x.h>
 #include <linux/device.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
+#include <linux/of_net.h>
 #include "smsc911x.h"
 
 #define SMSC_CHIPNAME		"smsc911x"
@@ -2095,8 +2099,58 @@ static const struct smsc911x_ops shifted_smsc911x_ops = {
 	.tx_writefifo = smsc911x_tx_writefifo_shift,
 };
 
+#ifdef CONFIG_OF
+static int __devinit smsc911x_probe_config_dt(
+				struct smsc911x_platform_config *config,
+				struct device_node *np)
+{
+	const char *mac;
+	u32 width = 0;
+
+	if (!np)
+		return -ENODEV;
+
+	config->phy_interface = of_get_phy_mode(np);
+
+	mac = of_get_mac_address(np);
+	if (mac)
+		memcpy(config->mac, mac, ETH_ALEN);
+
+	of_property_read_u32(np, "reg-shift", &config->shift);
+
+	of_property_read_u32(np, "reg-io-width", &width);
+	if (width == 4)
+		config->flags |= SMSC911X_USE_32BIT;
+
+	if (of_get_property(np, "smsc,irq-active-high", NULL))
+		config->irq_polarity = SMSC911X_IRQ_POLARITY_ACTIVE_HIGH;
+
+	if (of_get_property(np, "smsc,irq-push-pull", NULL))
+		config->irq_type = SMSC911X_IRQ_TYPE_PUSH_PULL;
+
+	if (of_get_property(np, "smsc,force-internal-phy", NULL))
+		config->flags |= SMSC911X_FORCE_INTERNAL_PHY;
+
+	if (of_get_property(np, "smsc,force-external-phy", NULL))
+		config->flags |= SMSC911X_FORCE_EXTERNAL_PHY;
+
+	if (of_get_property(np, "smsc,save-mac-address", NULL))
+		config->flags |= SMSC911X_SAVE_MAC_ADDRESS;
+
+	return 0;
+}
+#else
+static inline int smsc911x_probe_config_dt(
+				struct smsc911x_platform_config *config,
+				struct device_node *np)
+{
+	return -ENODEV;
+}
+#endif /* CONFIG_OF */
+
 static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct net_device *dev;
 	struct smsc911x_data *pdata;
 	struct smsc911x_platform_config *config = pdev->dev.platform_data;
@@ -2106,13 +2160,6 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 	int retval;
 
 	pr_info("Driver version %s\n", SMSC_DRV_VERSION);
-
-	/* platform data specifies irq & dynamic bus configuration */
-	if (!pdev->dev.platform_data) {
-		pr_warn("platform_data not provided\n");
-		retval = -ENODEV;
-		goto out_0;
-	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   "smsc911x-memory");
@@ -2152,9 +2199,6 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 	irq_flags = irq_res->flags & IRQF_TRIGGER_MASK;
 	pdata->ioaddr = ioremap_nocache(res->start, res_size);
 
-	/* copy config parameters across to pdata */
-	memcpy(&pdata->config, config, sizeof(pdata->config));
-
 	pdata->dev = dev;
 	pdata->msg_enable = ((1 << debug) - 1);
 
@@ -2164,10 +2208,22 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 		goto out_free_netdev_2;
 	}
 
+	retval = smsc911x_probe_config_dt(&pdata->config, np);
+	if (retval && config) {
+		/* copy config parameters across to pdata */
+		memcpy(&pdata->config, config, sizeof(pdata->config));
+		retval = 0;
+	}
+
+	if (retval) {
+		SMSC_WARN(pdata, probe, "Error smsc911x config not found");
+		goto out_unmap_io_3;
+	}
+
 	/* assume standard, non-shifted, access to HW registers */
 	pdata->ops = &standard_smsc911x_ops;
 	/* apply the right access if shifting is needed */
-	if (config->shift)
+	if (pdata->config.shift)
 		pdata->ops = &shifted_smsc911x_ops;
 
 	retval = smsc911x_init(dev);
@@ -2314,6 +2370,12 @@ static const struct dev_pm_ops smsc911x_pm_ops = {
 #define SMSC911X_PM_OPS NULL
 #endif
 
+static const struct of_device_id smsc911x_dt_ids[] = {
+	{ .compatible = "smsc,lan9115", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, smsc911x_dt_ids);
+
 static struct platform_driver smsc911x_driver = {
 	.probe = smsc911x_drv_probe,
 	.remove = __devexit_p(smsc911x_drv_remove),
@@ -2321,6 +2383,7 @@ static struct platform_driver smsc911x_driver = {
 		.name	= SMSC_CHIPNAME,
 		.owner	= THIS_MODULE,
 		.pm	= SMSC911X_PM_OPS,
+		.of_match_table = smsc911x_dt_ids,
 	},
 };
 
