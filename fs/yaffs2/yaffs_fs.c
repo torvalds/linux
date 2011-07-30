@@ -1075,7 +1075,7 @@ static ssize_t yaffs_file_write(struct file *f, const char *buf, size_t n,
 
 	}
 	yaffs_GrossUnlock(dev);
-	return (!nWritten && n) ? -ENOSPC : nWritten;
+	return nWritten == 0 ? -ENOSPC : nWritten;
 }
 
 /* Space holding and freeing is done to ensure we have space available for write_begin/end */
