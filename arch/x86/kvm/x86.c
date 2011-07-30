@@ -4837,7 +4837,7 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 
 		trace_kvm_emulate_insn_start(vcpu);
 		++vcpu->stat.insn_emulation;
-		if (r)  {
+		if (r != EMULATION_OK)  {
 			if (emulation_type & EMULTYPE_TRAP_UD)
 				return EMULATE_FAIL;
 			if (reexecute_instruction(vcpu, cr2))

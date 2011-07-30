@@ -3373,7 +3373,7 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
 		break;
 #endif
 	default:
-		return -1;
+		return EMULATION_FAILED;
 	}
 
 	ctxt->op_bytes = def_op_bytes;
@@ -3465,7 +3465,7 @@ done_prefixes:
 			break;
 		case Prefix:
 			if (ctxt->rep_prefix && op_prefix)
-				return X86EMUL_UNHANDLEABLE;
+				return EMULATION_FAILED;
 			simd_prefix = op_prefix ? 0x66 : ctxt->rep_prefix;
 			switch (simd_prefix) {
 			case 0x00: opcode = opcode.u.gprefix->pfx_no; break;
@@ -3475,7 +3475,7 @@ done_prefixes:
 			}
 			break;
 		default:
-			return X86EMUL_UNHANDLEABLE;
+			return EMULATION_FAILED;
 		}
 
 		ctxt->d &= ~GroupMask;
@@ -3488,10 +3488,10 @@ done_prefixes:
 
 	/* Unrecognised? */
 	if (ctxt->d == 0 || (ctxt->d & Undefined))
-		return -1;
+		return EMULATION_FAILED;
 
 	if (!(ctxt->d & VendorSpecific) && ctxt->only_vendor_specific_insn)
-		return -1;
+		return EMULATION_FAILED;
 
 	if (mode == X86EMUL_MODE_PROT64 && (ctxt->d & Stack))
 		ctxt->op_bytes = 8;
@@ -3683,7 +3683,7 @@ done:
 	if (memopp && memopp->type == OP_MEM && ctxt->rip_relative)
 		memopp->addr.mem.ea += ctxt->_eip;
 
-	return (rc == X86EMUL_UNHANDLEABLE) ? EMULATION_FAILED : EMULATION_OK;
+	return (rc != X86EMUL_CONTINUE) ? EMULATION_FAILED : EMULATION_OK;
 }
 
 static bool string_insn_completed(struct x86_emulate_ctxt *ctxt)
