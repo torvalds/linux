@@ -21,6 +21,5 @@
 #define AID_NET_BT       3002
 #define AID_INET         3003
 #define AID_NET_RAW      3004
-#define AID_NET_ADMIN    3005
 
 #endif
