@@ -483,7 +483,7 @@ static int gpio_keys_get_devtree_pdata(struct device *dev,
 
 	buttons = kzalloc(pdata->nbuttons * (sizeof *buttons), GFP_KERNEL);
 	if (!buttons)
-		return -ENODEV;
+		return -ENOMEM;
 
 	pp = NULL;
 	i = 0;
