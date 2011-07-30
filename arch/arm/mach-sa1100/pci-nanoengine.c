@@ -122,7 +122,8 @@ static struct pci_ops pci_nano_ops = {
 	.write	= nanoengine_write_config,
 };
 
-static int __init pci_nanoengine_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init pci_nanoengine_map_irq(const struct pci_dev *dev, u8 slot,
+	u8 pin)
 {
 	return NANOENGINE_IRQ_GPIO_PCI;
 }

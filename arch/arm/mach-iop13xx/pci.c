@@ -388,7 +388,7 @@ static int iop13xx_atue_pci_status(int clear)
 }
 
 static int
-iop13xx_pcie_map_irq(struct pci_dev *dev, u8 idsel, u8 pin)
+iop13xx_pcie_map_irq(const struct pci_dev *dev, u8 idsel, u8 pin)
 {
 	WARN_ON(idsel != 0);
 

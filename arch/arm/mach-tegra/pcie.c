@@ -449,7 +449,7 @@ static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
 	return 1;
 }
 
-static int tegra_pcie_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int tegra_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	return INT_PCIE_INTR;
 }

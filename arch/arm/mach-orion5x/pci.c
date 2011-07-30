@@ -589,7 +589,7 @@ struct pci_bus __init *orion5x_pci_sys_scan_bus(int nr, struct pci_sys_data *sys
 	return bus;
 }
 
-int __init orion5x_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+int __init orion5x_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int bus = dev->bus->number;
 

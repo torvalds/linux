@@ -462,7 +462,7 @@ static void __init gmlr_pci_postinit(void)
 	}
 }
 
-static int __init gmlr_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init gmlr_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	switch(slot) {
 	case SLOT_ETHA:	return IXP4XX_GPIO_IRQ(GPIO_IRQ_ETHA);

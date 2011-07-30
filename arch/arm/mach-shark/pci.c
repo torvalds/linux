@@ -14,7 +14,7 @@
 #include <asm/mach/pci.h>
 #include <asm/mach-types.h>
 
-static int __init shark_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init shark_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	if (dev->bus->number == 0)
 		if (dev->devfn == 0)

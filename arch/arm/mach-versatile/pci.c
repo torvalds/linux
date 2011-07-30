@@ -328,7 +328,7 @@ void __init pci_versatile_preinit(void)
 /*
  * map the specified device/slot/pin to an IRQ.   Different backplanes may need to modify this.
  */
-static int __init versatile_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init versatile_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;
 	int devslot = PCI_SLOT(dev->devfn);

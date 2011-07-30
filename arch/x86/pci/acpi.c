@@ -246,10 +246,9 @@ static void add_resources(struct pci_root_info *info)
 
 		conflict = insert_resource_conflict(root, res);
 		if (conflict)
-			dev_err(&info->bridge->dev,
-				"address space collision: host bridge window %pR "
-				"conflicts with %s %pR\n",
-				res, conflict->name, conflict);
+			dev_info(&info->bridge->dev,
+				 "ignoring host bridge window %pR (conflicts with %s %pR)\n",
+				 res, conflict->name, conflict);
 		else
 			pci_bus_add_resource(info->bus, res, 0);
 	}
