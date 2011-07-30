@@ -20,7 +20,6 @@
 #include <linux/syscalls.h> /* sys_sync */
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
-#include <linux/kallsyms.h>
 
 #include "power.h"
 
@@ -28,11 +27,7 @@ enum {
 	DEBUG_USER_STATE = 1U << 0,
 	DEBUG_SUSPEND = 1U << 2,
 };
-#ifdef DEBUG
-static int debug_mask = DEBUG_USER_STATE | DEBUG_SUSPEND;
-#else
 static int debug_mask = DEBUG_USER_STATE;
-#endif
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static DEFINE_MUTEX(early_suspend_lock);
@@ -99,8 +94,6 @@ static void early_suspend(struct work_struct *work)
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("early_suspend: call handlers\n");
 	list_for_each_entry(pos, &early_suspend_handlers, link) {
-		if (debug_mask & DEBUG_SUSPEND)
-			print_symbol("early_suspend: call %s\n", (unsigned long)pos->suspend);
 		if (pos->suspend != NULL)
 			pos->suspend(pos);
 	}
@@ -138,12 +131,9 @@ static void late_resume(struct work_struct *work)
 	}
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("late_resume: call handlers\n");
-	list_for_each_entry_reverse(pos, &early_suspend_handlers, link) {
-		if (debug_mask & DEBUG_SUSPEND)
-			print_symbol("late_resume: call %s\n", (unsigned long)pos->resume);
+	list_for_each_entry_reverse(pos, &early_suspend_handlers, link)
 		if (pos->resume != NULL)
 			pos->resume(pos);
-	}
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("late_resume: done\n");
 abort:
