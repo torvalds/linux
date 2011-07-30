@@ -1796,8 +1796,6 @@ typedef struct {
 	int skip_checkpoint_read;
 	int skip_checkpoint_write;
 	int no_cache;
-	int empty_lost_and_found_overridden;
-	int empty_lost_and_found;
 } yaffs_options;
 
 #define MAX_OPT_LEN 20
@@ -1812,9 +1810,6 @@ static int yaffs_parse_options(yaffs_options *options, const char *options_str)
 	while (options_str && *options_str && !error) {
 		memset(cur_opt, 0, MAX_OPT_LEN + 1);
 		p = 0;
-
-		while (*options_str == ',')
-			options_str++;
 
 		while (*options_str && *options_str != ',') {
 			if (p < MAX_OPT_LEN) {
@@ -1835,12 +1830,6 @@ static int yaffs_parse_options(yaffs_options *options, const char *options_str)
 		else if (!strcmp(cur_opt, "no-checkpoint")) {
 			options->skip_checkpoint_read = 1;
 			options->skip_checkpoint_write = 1;
-		} else if (!strcmp(cur_opt, "empty-lost-and-found-disable")) {
-			options->empty_lost_and_found = 0;
-			options->empty_lost_and_found_overridden = 1;
-		} else if (!strcmp(cur_opt, "empty-lost-and-found-enable")) {
-			options->empty_lost_and_found = 1;
-			options->empty_lost_and_found_overridden = 1;
 		} else {
 			printk(KERN_INFO "yaffs: Bad mount option \"%s\"\n",
 					cur_opt);
@@ -1945,13 +1934,6 @@ static struct super_block *yaffs_internal_read_super(int yaffsVersion,
 #else
 	T(YAFFS_TRACE_OS, (" size %lld\n", mtd->size));
 #endif
-
-
-#ifdef CONFIG_YAFFS_EMPTY_LOST_AND_FOUND
-	dev->emptyLostAndFound = 1;
-#endif
-	if(options.empty_lost_and_found_overridden)
-		dev->emptyLostAndFound = options.empty_lost_and_found;
 
 #ifdef CONFIG_YAFFS_AUTO_YAFFS2
 
