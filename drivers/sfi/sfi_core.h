@@ -55,6 +55,9 @@
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
+
+#include <linux/sysfs.h>
+
 struct sfi_table_key{
 	char	*sig;
 	char	*oem_id;
