@@ -636,9 +636,6 @@ int cx88_reset(struct cx88_core *core)
 	cx_write(MO_PCI_INTSTAT,   0xFFFFFFFF); // Clear PCI int
 	cx_write(MO_INT1_STAT,     0xFFFFFFFF); // Clear RISC int
 
-	/* set default notch filter */
-	cx_andor(MO_HTOTAL, 0x1800, (HLNotchFilter4xFsc << 11));
-
 	/* Reset on-board parts */
 	cx_write(MO_SRST_IO, 0);
 	msleep(10);
