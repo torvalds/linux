@@ -179,7 +179,12 @@ int nandmtd2_ReadChunkWithTagsFromNAND(yaffs_Device *dev, int chunkInNAND,
 	if (localData)
 		yaffs_ReleaseTempBuffer(dev, data, __LINE__);
 
+#ifdef CONFIG_MTD_NAND_RK29
+    //dxj 20101221@ if return -EBADMSG then i think the page is badchunk so just set the eccResult=YAFFS_ECC_RESULT_NO_ERROR
+    if (tags && retval == -EBADMSG /*&& tags->eccResult == YAFFS_ECC_RESULT_NO_ERROR*/) {
+#else    
 	if (tags && retval == -EBADMSG && tags->eccResult == YAFFS_ECC_RESULT_NO_ERROR) {
+#endif	
 		tags->eccResult = YAFFS_ECC_RESULT_UNFIXED;
 		dev->eccUnfixed++;
 	}
