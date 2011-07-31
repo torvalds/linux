@@ -38,6 +38,11 @@
 
 #include "../pnfs.h"
 
+struct block_mount_id {
+	spinlock_t			bm_lock;    /* protects list */
+	struct list_head		bm_devlist; /* holds pnfs_block_dev */
+};
+
 struct pnfs_block_dev {
 	struct list_head		bm_node;
 	struct nfs4_deviceid		bm_mdevid;    /* associated devid */
@@ -99,7 +104,10 @@ struct pnfs_block_layout {
 	sector_t		bl_blocksize;  /* Server blocksize in sectors */
 };
 
-static inline struct pnfs_block_layout *BLK_LO2EXT(struct pnfs_layout_hdr *lo)
+#define BLK_ID(lo) ((struct block_mount_id *)(NFS_SERVER(lo->plh_inode)->pnfs_ld_data))
+
+static inline struct pnfs_block_layout *
+BLK_LO2EXT(struct pnfs_layout_hdr *lo)
 {
 	return container_of(lo, struct pnfs_block_layout, bl_layout);
 }
@@ -137,8 +145,7 @@ void bl_pipe_destroy_msg(struct rpc_pipe_msg *);
 struct block_device *nfs4_blkdev_get(dev_t dev);
 int nfs4_blkdev_put(struct block_device *bdev);
 struct pnfs_block_dev *nfs4_blk_decode_device(struct nfs_server *server,
-						struct pnfs_device *dev,
-						struct list_head *sdlist);
+						struct pnfs_device *dev);
 int nfs4_blk_process_layoutget(struct pnfs_layout_hdr *lo,
 				struct nfs4_layoutget_res *lgr, gfp_t gfp_flags);
 

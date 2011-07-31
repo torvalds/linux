@@ -116,8 +116,7 @@ void bl_pipe_destroy_msg(struct rpc_pipe_msg *msg)
  */
 struct pnfs_block_dev *
 nfs4_blk_decode_device(struct nfs_server *server,
-		       struct pnfs_device *dev,
-		       struct list_head *sdlist)
+		       struct pnfs_device *dev)
 {
 	struct pnfs_block_dev *rv = NULL;
 	struct block_device *bd = NULL;
@@ -129,6 +128,7 @@ nfs4_blk_decode_device(struct nfs_server *server,
 	uint8_t *dataptr;
 	DECLARE_WAITQUEUE(wq, current);
 	struct bl_dev_msg *reply = &bl_mount_reply;
+	int offset, len, i;
 
 	dprintk("%s CREATING PIPEFS MESSAGE\n", __func__);
 	dprintk("%s: deviceid: %s, mincount: %d\n", __func__, dev->dev_id.data,
@@ -143,7 +143,14 @@ nfs4_blk_decode_device(struct nfs_server *server,
 
 	memcpy(msg.data, &bl_msg, sizeof(bl_msg));
 	dataptr = (uint8_t *) msg.data;
-	memcpy(&dataptr[sizeof(bl_msg)], dev->area, dev->mincount);
+	len = dev->mincount;
+	offset = sizeof(bl_msg);
+	for (i = 0; len > 0; i++) {
+		memcpy(&dataptr[offset], page_address(dev->pages[i]),
+				len < PAGE_CACHE_SIZE ? len : PAGE_CACHE_SIZE);
+		len -= PAGE_CACHE_SIZE;
+		offset += PAGE_CACHE_SIZE;
+	}
 	msg.len = sizeof(bl_msg) + dev->mincount;
 
 	dprintk("%s CALLING USERSPACE DAEMON\n", __func__);
