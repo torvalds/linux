@@ -400,7 +400,7 @@ static void tick_nohz_stop_sched_tick(struct tick_sched *ts, ktime_t now)
 		if (!ts->tick_stopped) {
 			select_nohz_load_balancer(1);
 
-			ts->idle_tick = hrtimer_get_expires(&ts->sched_timer);
+			ts->last_tick = hrtimer_get_expires(&ts->sched_timer);
 			ts->tick_stopped = 1;
 		}
 
@@ -526,7 +526,7 @@ ktime_t tick_nohz_get_sleep_length(void)
 static void tick_nohz_restart(struct tick_sched *ts, ktime_t now)
 {
 	hrtimer_cancel(&ts->sched_timer);
-	hrtimer_set_expires(&ts->sched_timer, ts->idle_tick);
+	hrtimer_set_expires(&ts->sched_timer, ts->last_tick);
 
 	while (1) {
 		/* Forward the time to expire in the future */
