@@ -217,6 +217,48 @@ int bl_is_sector_init(struct pnfs_inval_markings *marks, sector_t isect)
 	return rv;
 }
 
+/* Assume start, end already sector aligned */
+static int
+_range_has_tag(struct my_tree *tree, u64 start, u64 end, int32_t tag)
+{
+	struct pnfs_inval_tracking *pos;
+	u64 expect = 0;
+
+	dprintk("%s(%llu, %llu, %i) enter\n", __func__, start, end, tag);
+	list_for_each_entry_reverse(pos, &tree->mtt_stub, it_link) {
+		if (pos->it_sector >= end)
+			continue;
+		if (!expect) {
+			if ((pos->it_sector == end - tree->mtt_step_size) &&
+			    (pos->it_tags & (1 << tag))) {
+				expect = pos->it_sector - tree->mtt_step_size;
+				if (pos->it_sector < tree->mtt_step_size || expect < start)
+					return 1;
+				continue;
+			} else {
+				return 0;
+			}
+		}
+		if (pos->it_sector != expect || !(pos->it_tags & (1 << tag)))
+			return 0;
+		expect -= tree->mtt_step_size;
+		if (expect < start)
+			return 1;
+	}
+	return 0;
+}
+
+static int is_range_written(struct pnfs_inval_markings *marks,
+			    sector_t start, sector_t end)
+{
+	int rv;
+
+	spin_lock(&marks->im_lock);
+	rv = _range_has_tag(&marks->im_tree, start, end, EXTENT_WRITTEN);
+	spin_unlock(&marks->im_lock);
+	return rv;
+}
+
 /* Marks sectors in [offest, offset_length) as having been initialized.
  * All lengths are step-aligned, where step is min(pagesize, blocksize).
  * Notes where partial block is initialized, and helps prepare it for
@@ -394,6 +436,59 @@ static void add_to_commitlist(struct pnfs_block_layout *bl,
 	}
 	dprintk("%s: after merging\n", __func__);
 	print_clist(clist, bl->bl_count);
+}
+
+/* Note the range described by offset, length is guaranteed to be contained
+ * within be.
+ */
+int bl_mark_for_commit(struct pnfs_block_extent *be,
+		    sector_t offset, sector_t length)
+{
+	sector_t new_end, end = offset + length;
+	struct pnfs_block_short_extent *new;
+	struct pnfs_block_layout *bl = container_of(be->be_inval,
+						    struct pnfs_block_layout,
+						    bl_inval);
+
+	new = kmalloc(sizeof(*new), GFP_NOFS);
+	if (!new)
+		return -ENOMEM;
+
+	mark_written_sectors(be->be_inval, offset, length);
+	/* We want to add the range to commit list, but it must be
+	 * block-normalized, and verified that the normalized range has
+	 * been entirely written to disk.
+	 */
+	new->bse_f_offset = offset;
+	offset = normalize(offset, bl->bl_blocksize);
+	if (offset < new->bse_f_offset) {
+		if (is_range_written(be->be_inval, offset, new->bse_f_offset))
+			new->bse_f_offset = offset;
+		else
+			new->bse_f_offset = offset + bl->bl_blocksize;
+	}
+	new_end = normalize_up(end, bl->bl_blocksize);
+	if (end < new_end) {
+		if (is_range_written(be->be_inval, end, new_end))
+			end = new_end;
+		else
+			end = new_end - bl->bl_blocksize;
+	}
+	if (end <= new->bse_f_offset) {
+		kfree(new);
+		return 0;
+	}
+	new->bse_length = end - new->bse_f_offset;
+	new->bse_devid = be->be_devid;
+	new->bse_mdev = be->be_mdev;
+
+	spin_lock(&bl->bl_ext_lock);
+	/* new will be freed, either by add_to_commitlist if it decides not
+	 * to use it, or after LAYOUTCOMMIT uses it in the commitlist.
+	 */
+	add_to_commitlist(bl, new);
+	spin_unlock(&bl->bl_ext_lock);
+	return 0;
 }
 
 static void print_bl_extent(struct pnfs_block_extent *be)

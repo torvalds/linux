@@ -329,6 +329,30 @@ out:
 	return PNFS_NOT_ATTEMPTED;
 }
 
+static void mark_extents_written(struct pnfs_block_layout *bl,
+				 __u64 offset, __u32 count)
+{
+	sector_t isect, end;
+	struct pnfs_block_extent *be;
+
+	dprintk("%s(%llu, %u)\n", __func__, offset, count);
+	if (count == 0)
+		return;
+	isect = (offset & (long)(PAGE_CACHE_MASK)) >> SECTOR_SHIFT;
+	end = (offset + count + PAGE_CACHE_SIZE - 1) & (long)(PAGE_CACHE_MASK);
+	end >>= SECTOR_SHIFT;
+	while (isect < end) {
+		sector_t len;
+		be = bl_find_get_extent(bl, isect, NULL);
+		BUG_ON(!be); /* FIXME */
+		len = min(end, be->be_f_offset + be->be_length) - isect;
+		if (be->be_state == PNFS_BLOCK_INVALID_DATA)
+			bl_mark_for_commit(be, isect, len); /* What if fails? */
+		isect += len;
+		bl_put_extent(be);
+	}
+}
+
 /* This is basically copied from mpage_end_io_read */
 static void bl_end_io_write(struct bio *bio, int err)
 {
@@ -355,6 +379,14 @@ static void bl_write_cleanup(struct work_struct *work)
 	dprintk("%s enter\n", __func__);
 	task = container_of(work, struct rpc_task, u.tk_work);
 	wdata = container_of(task, struct nfs_write_data, task);
+	if (!wdata->task.tk_status) {
+		/* Marks for LAYOUTCOMMIT */
+		/* BUG - this should be called after each bio, not after
+		 * all finish, unless have some way of storing success/failure
+		 */
+		mark_extents_written(BLK_LSEG2EXT(wdata->lseg),
+				     wdata->args.offset, wdata->args.count);
+	}
 	pnfs_ld_write_done(wdata);
 }
 

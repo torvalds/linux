@@ -201,5 +201,7 @@ void clean_pnfs_block_layoutupdate(struct pnfs_block_layout *bl,
 				   int status);
 int bl_add_merge_extent(struct pnfs_block_layout *bl,
 			 struct pnfs_block_extent *new);
+int bl_mark_for_commit(struct pnfs_block_extent *be,
+			sector_t offset, sector_t length);
 
 #endif /* FS_NFS_NFS4BLOCKLAYOUT_H */
