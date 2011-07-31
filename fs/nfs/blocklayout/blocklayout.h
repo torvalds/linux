@@ -153,6 +153,9 @@ int nfs4_blk_process_layoutget(struct pnfs_layout_hdr *lo,
 void bl_free_block_dev(struct pnfs_block_dev *bdev);
 
 /* extents.c */
+struct pnfs_block_extent *
+bl_find_get_extent(struct pnfs_block_layout *bl, sector_t isect,
+		struct pnfs_block_extent **cow_read);
 void bl_put_extent(struct pnfs_block_extent *be);
 struct pnfs_block_extent *bl_alloc_extent(void);
 int bl_add_merge_extent(struct pnfs_block_layout *bl,
