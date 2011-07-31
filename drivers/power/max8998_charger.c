@@ -153,6 +153,7 @@ static __devinit int max8998_battery_probe(struct platform_device *pdev)
 	case 0:
 		dev_dbg(max8998->dev,
 			"Full Timeout not set: leave it unchanged.\n");
+		break;
 	default:
 		dev_err(max8998->dev, "Invalid Full Timeout value\n");
 		ret = -EINVAL;
