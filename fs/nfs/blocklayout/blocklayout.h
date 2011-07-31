@@ -38,6 +38,9 @@
 
 #include "../pnfs.h"
 
+#define PAGE_CACHE_SECTORS (PAGE_CACHE_SIZE >> SECTOR_SHIFT)
+#define PAGE_CACHE_SECTOR_SHIFT (PAGE_CACHE_SHIFT - SECTOR_SHIFT)
+
 struct block_mount_id {
 	spinlock_t			bm_lock;    /* protects list */
 	struct list_head		bm_devlist; /* holds pnfs_block_dev */
@@ -56,8 +59,23 @@ enum exstate4 {
 	PNFS_BLOCK_NONE_DATA		= 3  /* unmapped, it's a hole */
 };
 
+#define MY_MAX_TAGS (15) /* tag bitnums used must be less than this */
+
+struct my_tree {
+	sector_t		mtt_step_size;	/* Internal sector alignment */
+	struct list_head	mtt_stub; /* Should be a radix tree */
+};
+
 struct pnfs_inval_markings {
-	/* STUB */
+	spinlock_t	im_lock;
+	struct my_tree	im_tree;	/* Sectors that need LAYOUTCOMMIT */
+	sector_t	im_block_size;	/* Server blocksize in sectors */
+};
+
+struct pnfs_inval_tracking {
+	struct list_head it_link;
+	int		 it_sector;
+	int		 it_tags;
 };
 
 /* sector_t fields are all in 512-byte sectors */
@@ -76,7 +94,11 @@ struct pnfs_block_extent {
 static inline void
 BL_INIT_INVAL_MARKS(struct pnfs_inval_markings *marks, sector_t blocksize)
 {
-	/* STUB */
+	spin_lock_init(&marks->im_lock);
+	INIT_LIST_HEAD(&marks->im_tree.mtt_stub);
+	marks->im_block_size = blocksize;
+	marks->im_tree.mtt_step_size = min((sector_t)PAGE_CACHE_SECTORS,
+					   blocksize);
 }
 
 enum extentclass4 {
@@ -156,8 +178,12 @@ void bl_free_block_dev(struct pnfs_block_dev *bdev);
 struct pnfs_block_extent *
 bl_find_get_extent(struct pnfs_block_layout *bl, sector_t isect,
 		struct pnfs_block_extent **cow_read);
+int bl_mark_sectors_init(struct pnfs_inval_markings *marks,
+			     sector_t offset, sector_t length,
+			     sector_t **pages);
 void bl_put_extent(struct pnfs_block_extent *be);
 struct pnfs_block_extent *bl_alloc_extent(void);
+int bl_is_sector_init(struct pnfs_inval_markings *marks, sector_t isect);
 int bl_add_merge_extent(struct pnfs_block_layout *bl,
 			 struct pnfs_block_extent *new);
 

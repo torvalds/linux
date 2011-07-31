@@ -78,10 +78,15 @@ release_extents(struct pnfs_block_layout *bl, struct pnfs_layout_range *range)
 	spin_unlock(&bl->bl_ext_lock);
 }
 
-/* STUB */
 static void
 release_inval_marks(struct pnfs_inval_markings *marks)
 {
+	struct pnfs_inval_tracking *pos, *temp;
+
+	list_for_each_entry_safe(pos, temp, &marks->im_tree.mtt_stub, it_link) {
+		list_del(&pos->it_link);
+		kfree(pos);
+	}
 	return;
 }
 
