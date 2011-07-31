@@ -286,6 +286,49 @@ int bl_mark_sectors_init(struct pnfs_inval_markings *marks,
 	return -ENOMEM;
 }
 
+/* Marks sectors in [offest, offset+length) as having been written to disk.
+ * All lengths should be block aligned.
+ */
+static int mark_written_sectors(struct pnfs_inval_markings *marks,
+				sector_t offset, sector_t length)
+{
+	int status;
+
+	dprintk("%s(offset=%llu,len=%llu) enter\n", __func__,
+		(u64)offset, (u64)length);
+	spin_lock(&marks->im_lock);
+	status = _set_range(&marks->im_tree, EXTENT_WRITTEN, offset, length);
+	spin_unlock(&marks->im_lock);
+	return status;
+}
+
+static void print_short_extent(struct pnfs_block_short_extent *be)
+{
+	dprintk("PRINT SHORT EXTENT extent %p\n", be);
+	if (be) {
+		dprintk("        be_f_offset %llu\n", (u64)be->bse_f_offset);
+		dprintk("        be_length   %llu\n", (u64)be->bse_length);
+	}
+}
+
+static void print_clist(struct list_head *list, unsigned int count)
+{
+	struct pnfs_block_short_extent *be;
+	unsigned int i = 0;
+
+	ifdebug(FACILITY) {
+		printk(KERN_DEBUG "****************\n");
+		printk(KERN_DEBUG "Extent list looks like:\n");
+		list_for_each_entry(be, list, bse_node) {
+			i++;
+			print_short_extent(be);
+		}
+		if (i != count)
+			printk(KERN_DEBUG "\n\nExpected %u entries\n\n\n", count);
+		printk(KERN_DEBUG "****************\n");
+	}
+}
+
 static void print_bl_extent(struct pnfs_block_extent *be)
 {
 	dprintk("PRINT EXTENT extent %p\n", be);
@@ -378,64 +421,66 @@ bl_add_merge_extent(struct pnfs_block_layout *bl,
 	/* Scan for proper place to insert, extending new to the left
 	 * as much as possible.
 	 */
-	list_for_each_entry_safe(be, tmp, list, be_node) {
-		if (new->be_f_offset < be->be_f_offset)
+	list_for_each_entry_safe_reverse(be, tmp, list, be_node) {
+		if (new->be_f_offset >= be->be_f_offset + be->be_length)
 			break;
-		if (end <= be->be_f_offset + be->be_length) {
-			/* new is a subset of existing be*/
-			if (extents_consistent(be, new)) {
-				dprintk("%s: new is subset, ignoring\n",
-					__func__);
-				bl_put_extent(new);
-				return 0;
-			} else
-				goto out_err;
-		} else if (new->be_f_offset <=
-				be->be_f_offset + be->be_length) {
-			/* new overlaps or abuts existing be */
+		if (new->be_f_offset >= be->be_f_offset) {
+			if (end <= be->be_f_offset + be->be_length) {
+				/* new is a subset of existing be*/
+				if (extents_consistent(be, new)) {
+					dprintk("%s: new is subset, ignoring\n",
+						__func__);
+					bl_put_extent(new);
+					return 0;
+				} else {
+					goto out_err;
+				}
+			} else {
+				/* |<--   be   -->|
+				 *          |<--   new   -->| */
+				if (extents_consistent(be, new)) {
+					/* extend new to fully replace be */
+					new->be_length += new->be_f_offset -
+						be->be_f_offset;
+					new->be_f_offset = be->be_f_offset;
+					new->be_v_offset = be->be_v_offset;
+					dprintk("%s: removing %p\n", __func__, be);
+					list_del(&be->be_node);
+					bl_put_extent(be);
+				} else {
+					goto out_err;
+				}
+			}
+		} else if (end >= be->be_f_offset + be->be_length) {
+			/* new extent overlap existing be */
 			if (extents_consistent(be, new)) {
 				/* extend new to fully replace be */
-				new->be_length += new->be_f_offset -
-						  be->be_f_offset;
-				new->be_f_offset = be->be_f_offset;
-				new->be_v_offset = be->be_v_offset;
 				dprintk("%s: removing %p\n", __func__, be);
 				list_del(&be->be_node);
 				bl_put_extent(be);
-			} else if (new->be_f_offset !=
-				   be->be_f_offset + be->be_length)
+			} else {
 				goto out_err;
+			}
+		} else if (end > be->be_f_offset) {
+			/*           |<--   be   -->|
+			 *|<--   new   -->| */
+			if (extents_consistent(new, be)) {
+				/* extend new to fully replace be */
+				new->be_length += be->be_f_offset + be->be_length -
+					new->be_f_offset - new->be_length;
+				dprintk("%s: removing %p\n", __func__, be);
+				list_del(&be->be_node);
+				bl_put_extent(be);
+			} else {
+				goto out_err;
+			}
 		}
 	}
 	/* Note that if we never hit the above break, be will not point to a
 	 * valid extent.  However, in that case &be->be_node==list.
 	 */
-	list_add_tail(&new->be_node, &be->be_node);
+	list_add(&new->be_node, &be->be_node);
 	dprintk("%s: inserting new\n", __func__);
-	print_elist(list);
-	/* Scan forward for overlaps.  If we find any, extend new and
-	 * remove the overlapped extent.
-	 */
-	be = list_prepare_entry(new, list, be_node);
-	list_for_each_entry_safe_continue(be, tmp, list, be_node) {
-		if (end < be->be_f_offset)
-			break;
-		/* new overlaps or abuts existing be */
-		if (extents_consistent(be, new)) {
-			if (end < be->be_f_offset + be->be_length) {
-				/* extend new to fully cover be */
-				end = be->be_f_offset + be->be_length;
-				new->be_length = end - new->be_f_offset;
-			}
-			dprintk("%s: removing %p\n", __func__, be);
-			list_del(&be->be_node);
-			bl_put_extent(be);
-		} else if (end != be->be_f_offset) {
-			list_del(&new->be_node);
-			goto out_err;
-		}
-	}
-	dprintk("%s: after merging\n", __func__);
 	print_elist(list);
 	/* FIXME - The per-list consistency checks have all been done,
 	 * should now check cross-list consistency.
@@ -492,6 +537,49 @@ bl_find_get_extent(struct pnfs_block_layout *bl, sector_t isect,
 		*cow_read = cow;
 	print_bl_extent(ret);
 	return ret;
+}
+
+int
+encode_pnfs_block_layoutupdate(struct pnfs_block_layout *bl,
+			       struct xdr_stream *xdr,
+			       const struct nfs4_layoutcommit_args *arg)
+{
+	struct pnfs_block_short_extent *lce, *save;
+	unsigned int count = 0;
+	__be32 *p, *xdr_start;
+
+	dprintk("%s enter\n", __func__);
+	/* BUG - creation of bl_commit is buggy - need to wait for
+	 * entire block to be marked WRITTEN before it can be added.
+	 */
+	spin_lock(&bl->bl_ext_lock);
+	/* Want to adjust for possible truncate */
+	/* We now want to adjust argument range */
+
+	/* XDR encode the ranges found */
+	xdr_start = xdr_reserve_space(xdr, 8);
+	if (!xdr_start)
+		goto out;
+	list_for_each_entry_safe(lce, save, &bl->bl_commit, bse_node) {
+		p = xdr_reserve_space(xdr, 7 * 4 + sizeof(lce->bse_devid.data));
+		if (!p)
+			break;
+		p = xdr_encode_opaque_fixed(p, lce->bse_devid.data, NFS4_DEVICEID4_SIZE);
+		p = xdr_encode_hyper(p, lce->bse_f_offset << SECTOR_SHIFT);
+		p = xdr_encode_hyper(p, lce->bse_length << SECTOR_SHIFT);
+		p = xdr_encode_hyper(p, 0LL);
+		*p++ = cpu_to_be32(PNFS_BLOCK_READWRITE_DATA);
+		list_del(&lce->bse_node);
+		list_add_tail(&lce->bse_node, &bl->bl_committing);
+		bl->bl_count--;
+		count++;
+	}
+	xdr_start[0] = cpu_to_be32((xdr->p - xdr_start - 1) * 4);
+	xdr_start[1] = cpu_to_be32(count);
+out:
+	spin_unlock(&bl->bl_ext_lock);
+	dprintk("%s found %i ranges\n", __func__, count);
+	return 0;
 }
 
 /* Helper function to set_to_rw that initialize a new extent */

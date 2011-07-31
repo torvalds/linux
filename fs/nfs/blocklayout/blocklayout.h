@@ -91,6 +91,15 @@ struct pnfs_block_extent {
 	struct pnfs_inval_markings *be_inval; /* tracks INVAL->RW transition */
 };
 
+/* Shortened extent used by LAYOUTCOMMIT */
+struct pnfs_block_short_extent {
+	struct list_head bse_node;
+	struct nfs4_deviceid bse_devid;
+	struct block_device *bse_mdev;
+	sector_t	bse_f_offset;	/* the starting offset in the file */
+	sector_t	bse_length;	/* the size of the extent */
+};
+
 static inline void
 BL_INIT_INVAL_MARKS(struct pnfs_inval_markings *marks, sector_t blocksize)
 {
@@ -184,6 +193,9 @@ int bl_mark_sectors_init(struct pnfs_inval_markings *marks,
 void bl_put_extent(struct pnfs_block_extent *be);
 struct pnfs_block_extent *bl_alloc_extent(void);
 int bl_is_sector_init(struct pnfs_inval_markings *marks, sector_t isect);
+int encode_pnfs_block_layoutupdate(struct pnfs_block_layout *bl,
+				   struct xdr_stream *xdr,
+				   const struct nfs4_layoutcommit_args *arg);
 int bl_add_merge_extent(struct pnfs_block_layout *bl,
 			 struct pnfs_block_extent *new);
 
