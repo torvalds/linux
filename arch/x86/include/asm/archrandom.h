@@ -70,4 +70,6 @@ GET_RANDOM(arch_get_random_int, unsigned int, RDRAND_INT, ASM_NOP3);
 
 #endif  /* CONFIG_ARCH_RANDOM */
 
+extern void x86_init_rdrand(struct cpuinfo_x86 *c);
+
 #endif /* ASM_X86_ARCHRANDOM_H */
