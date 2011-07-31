@@ -54,8 +54,8 @@ MODULE_VERSION("1.0");
 static const char longname[] = "Gadget Android";
 
 /* Default vendor and product IDs, overridden by platform data */
-#define VENDOR_ID		0x18D1
-#define PRODUCT_ID		0x0001
+#define VENDOR_ID		0x2207//0x18D1
+#define PRODUCT_ID		0x2910
 
 struct android_dev {
 	struct usb_composite_dev *cdev;
@@ -187,7 +187,7 @@ static int android_bind_config(struct usb_configuration *c)
 {
 	struct android_dev *dev = _android_dev;
 
-	printk(KERN_DEBUG "android_bind_config\n");
+	printk("android_bind_config\n");
 	dev->config = c;
 
 	if (should_bind_functions(dev))

@@ -302,6 +302,28 @@
 #define FUNCTION_NAME		"usb_mass_storage"
 #endif
 
+#ifdef CONFIG_ARCH_RK29
+#include <linux/power_supply.h>
+#include <linux/reboot.h>
+#include <linux/syscalls.h>
+
+static int usb_msc_connected;	/*usb charge status*/
+
+static void set_msc_connect_flag( int connected )
+{
+	printk("%s status = %d 20101216\n" , __func__, connected);
+	if( usb_msc_connected == connected )
+		return;
+	usb_msc_connected = connected;//usb mass storage is ok
+}
+
+int get_msc_connect_flag( void )
+{
+	return usb_msc_connected;
+}
+EXPORT_SYMBOL(get_msc_connect_flag);
+#endif
+
 /*------------------------------------------------------------------------*/
 
 #define FSG_DRIVER_DESC		"Mass Storage Function"
@@ -1940,6 +1962,15 @@ static int check_command(struct fsg_common *common, int cmnd_size,
 }
 
 
+#ifdef CONFIG_ARCH_RK29
+static void deferred_restart(struct work_struct *dummy)
+{
+	sys_sync();
+	kernel_restart("loader");
+}
+static DECLARE_WORK(restart_work, deferred_restart);
+#endif
+
 static int do_scsi_command(struct fsg_common *common)
 {
 	struct fsg_buffhd	*bh;
@@ -2135,7 +2166,11 @@ static int do_scsi_command(struct fsg_common *common)
 				      (1<<1) | (0xf<<2) | (3<<7), 1,
 				      "VERIFY");
 		if (reply == 0)
+#ifdef CONFIG_ARCH_RK29
+			reply = 0; //zyf 20100302
+#else
 			reply = do_verify(common);
+#endif
 		break;
 
 	case SC_WRITE_6:
@@ -2189,6 +2224,15 @@ unknown_cmnd:
 			reply = -EINVAL;
 		}
 		break;
+#ifdef CONFIG_ARCH_RK29
+	case 0xff:
+		if (fsg->cmnd_size >= 6 && fsg->cmnd[1] == 0xe0 &&
+		    fsg->cmnd[2] == 0xff && fsg->cmnd[3] == 0xff &&
+		    fsg->cmnd[4] == 0xff && fsg->cmnd[5] == 0xfe) {
+			schedule_work(&restart_work);
+		}
+		break;
+#endif
 	}
 	up_read(&common->filesem);
 
@@ -2443,6 +2487,8 @@ static void fsg_disable(struct usb_function *f)
 	struct fsg_dev *fsg = fsg_from_func(f);
 	fsg->common->new_fsg = NULL;
 	raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE);
+	// yk 201009
+	set_msc_connect_flag(0);
 }
 
 
@@ -3174,6 +3220,60 @@ fsg_common_from_params(struct fsg_common *common,
 
 #ifdef CONFIG_USB_ANDROID_MASS_STORAGE
 
+#ifdef CONFIG_ARCH_RK29
+static enum power_supply_property usb_props[] = {
+//	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_ONLINE,
+};
+
+static int usb_get_property(struct power_supply *psy,
+				enum power_supply_property psp,
+					union power_supply_propval *val)
+{
+	int ret = 0;
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+#ifndef CONFIG_DWC_OTG_HOST_ONLY
+		val->intval = get_msc_connect_flag();
+#else
+		val->intval = 0;
+#endif
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+static int usb_power_supply_register(struct device* parent)
+{
+	struct power_supply *ps;
+	int retval = 0;
+
+	ps = kzalloc(sizeof(*ps), GFP_KERNEL);
+	if (!ps) {
+		dev_err(parent, "failed to allocate power supply data\n");
+		retval = -ENOMEM;
+		goto out;
+	}
+	ps->name = "usb";
+	ps->type = POWER_SUPPLY_TYPE_USB;
+	ps->properties = usb_props;
+	ps->num_properties = ARRAY_SIZE(usb_props);
+	ps->get_property = usb_get_property;
+	ps->external_power_changed = NULL;
+	retval = power_supply_register(parent, ps);
+	if (retval) {
+		dev_err(parent, "failed to register battery\n");
+		goto out;
+	}
+out:
+	return retval;
+}
+#endif
+
 static struct fsg_config fsg_cfg;
 
 static int fsg_probe(struct platform_device *pdev)
@@ -3198,7 +3298,21 @@ static int fsg_probe(struct platform_device *pdev)
 	fsg_cfg.can_stall = 0;
 	fsg_cfg.pdev = pdev;
 
+#ifdef CONFIG_ARCH_RK29
+{
+	/*
+	 * Initialize usb power supply
+	 */
+	int retval = usb_power_supply_register(&pdev->dev);
+	if (retval != 0) {
+		dev_err(&pdev->dev, "usb_power_supply_register failed\n");
+	}
+
+	return retval;
+}
+#else
 	return 0;
+#endif
 }
 
 static struct platform_driver fsg_platform_driver = {

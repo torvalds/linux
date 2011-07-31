@@ -599,6 +599,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 	/* Prevent duplicate configuration identifiers */
 	list_for_each_entry(c, &cdev->configs, list) {
 		if (c->bConfigurationValue == config->bConfigurationValue) {
+			printk("usb_add_config, already configed,everest\n");
 			status = -EBUSY;
 			goto done;
 		}
