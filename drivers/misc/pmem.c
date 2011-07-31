@@ -1086,8 +1086,8 @@ static long pmem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				region.offset = pmem_start_addr(id, data);
 				region.len = pmem_len(id, data);
 			}
-			printk(KERN_INFO "pmem: request for physical address of pmem region "
-					"from process %d.\n", current->pid);
+			//printk(KERN_INFO "pmem: request for physical address of pmem region "
+			//		"from process %d.\n", current->pid);
 			if (copy_to_user((void __user *)arg, &region,
 						sizeof(struct pmem_region)))
 				return -EFAULT;
