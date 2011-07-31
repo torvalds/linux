@@ -1379,9 +1379,11 @@ pnfs_set_layoutcommit(struct nfs_write_data *wdata)
 		dprintk("%s: Set layoutcommit for inode %lu ",
 			__func__, wdata->inode->i_ino);
 	}
-	if (end_pos > wdata->lseg->pls_end_pos)
-		wdata->lseg->pls_end_pos = end_pos;
+	if (end_pos > nfsi->layout->plh_lwb)
+		nfsi->layout->plh_lwb = end_pos;
 	spin_unlock(&nfsi->vfs_inode.i_lock);
+	dprintk("%s: lseg %p end_pos %llu\n",
+		__func__, wdata->lseg, nfsi->layout->plh_lwb);
 
 	/* if pnfs_layoutcommit_inode() runs between inode locks, the next one
 	 * will be a noop because NFS_INO_LAYOUTCOMMIT will not be set */
@@ -1433,9 +1435,9 @@ pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 	 */
 	lseg = pnfs_list_write_lseg(inode);
 
-	end_pos = lseg->pls_end_pos;
+	end_pos = nfsi->layout->plh_lwb;
 	cred = lseg->pls_lc_cred;
-	lseg->pls_end_pos = 0;
+	nfsi->layout->plh_lwb = 0;
 	lseg->pls_lc_cred = NULL;
 
 	memcpy(&data->args.stateid.data, nfsi->layout->plh_stateid.data,
