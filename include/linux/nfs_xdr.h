@@ -122,6 +122,7 @@ struct nfs_fsinfo {
 	struct timespec		time_delta; /* server time granularity */
 	__u32			lease_time; /* in seconds */
 	__u32			layouttype; /* supported pnfs layout driver */
+	__u32			blksize; /* preferred pnfs io block size */
 };
 
 struct nfs_fsstat {
@@ -954,7 +955,7 @@ struct nfs4_server_caps_arg {
 };
 
 struct nfs4_server_caps_res {
-	u32				attr_bitmask[2];
+	u32				attr_bitmask[3];
 	u32				acl_bitmask;
 	u32				has_links;
 	u32				has_symlinks;
