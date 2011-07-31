@@ -32,6 +32,7 @@
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/mtd/sharpsl.h>
 #include <linux/input/matrix_keypad.h>
+#include <linux/module.h>
 #include <video/w100fb.h>
 
 #include <asm/setup.h>
