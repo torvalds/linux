@@ -30,6 +30,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/radix-tree.h>
+#include <linux/export.h>
 #include "internals.h"
 
 LIST_HEAD(intc_list);

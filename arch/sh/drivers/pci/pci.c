@@ -20,6 +20,7 @@
 #include <linux/io.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
+#include <linux/export.h>
 
 unsigned long PCIBIOS_MIN_IO = 0x0000;
 unsigned long PCIBIOS_MIN_MEM = 0;
