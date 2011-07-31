@@ -115,16 +115,35 @@ static struct pnfs_layout_hdr *bl_alloc_layout_hdr(struct inode *inode,
 	return &bl->bl_layout;
 }
 
-static void
-bl_free_lseg(struct pnfs_layout_segment *lseg)
+static void bl_free_lseg(struct pnfs_layout_segment *lseg)
 {
+	dprintk("%s enter\n", __func__);
+	kfree(lseg);
 }
 
-static struct pnfs_layout_segment *
-bl_alloc_lseg(struct pnfs_layout_hdr *lo,
-	      struct nfs4_layoutget_res *lgr, gfp_t gfp_flags)
+/* We pretty much ignore lseg, and store all data layout wide, so we
+ * can correctly merge.
+ */
+static struct pnfs_layout_segment *bl_alloc_lseg(struct pnfs_layout_hdr *lo,
+						 struct nfs4_layoutget_res *lgr,
+						 gfp_t gfp_flags)
 {
-	return NULL;
+	struct pnfs_layout_segment *lseg;
+	int status;
+
+	dprintk("%s enter\n", __func__);
+	lseg = kzalloc(sizeof(*lseg), gfp_flags);
+	if (!lseg)
+		return ERR_PTR(-ENOMEM);
+	status = nfs4_blk_process_layoutget(lo, lgr, gfp_flags);
+	if (status) {
+		/* We don't want to call the full-blown bl_free_lseg,
+		 * since on error extents were not touched.
+		 */
+		kfree(lseg);
+		return ERR_PTR(status);
+	}
+	return lseg;
 }
 
 static void
