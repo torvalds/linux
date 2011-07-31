@@ -86,8 +86,10 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	init_waitqueue_head(&host->wq);
 	INIT_DELAYED_WORK(&host->detect, mmc_rescan);
 	INIT_DELAYED_WORK_DEFERRABLE(&host->disable, mmc_host_deeper_disable);
+#if defined(CONFIG_SDMMC_RK29) && defined(CONFIG_SDMMC_RK29_OLD)  // old driver, add pm reform to kernel2.6.38	
 #ifdef CONFIG_PM
 	host->pm_notify.notifier_call = mmc_pm_notify;
+#endif
 #endif
 
 	/*
@@ -140,6 +142,11 @@ int mmc_add_host(struct mmc_host *host)
 	if (!(host->pm_flags & MMC_PM_IGNORE_PM_NOTIFY))
 		register_pm_notifier(&host->pm_notify);
 
+#if defined(CONFIG_SDMMC_RK29) && defined(CONFIG_SDMMC_RK29_OLD)  // old driver, add pm reform to kernel2.6.38		
+        if (!(host->pm_flags & MMC_PM_IGNORE_PM_NOTIFY))
+	   register_pm_notifier(&host->pm_notify);
+#endif
+
 	return 0;
 }
 
@@ -155,8 +162,10 @@ EXPORT_SYMBOL(mmc_add_host);
  */
 void mmc_remove_host(struct mmc_host *host)
 {
+#if defined(CONFIG_SDMMC_RK29) && defined(CONFIG_SDMMC_RK29_OLD)  // old driver, add pm reform to kernel2.6.38	
 	if (!(host->pm_flags & MMC_PM_IGNORE_PM_NOTIFY))
 		unregister_pm_notifier(&host->pm_notify);
+#endif
 
 	mmc_stop_host(host);
 
