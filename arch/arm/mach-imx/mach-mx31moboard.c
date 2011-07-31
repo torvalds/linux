@@ -18,6 +18,7 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/moduleparam.h>
 #include <linux/leds.h>
 #include <linux/memory.h>
 #include <linux/mtd/physmap.h>
