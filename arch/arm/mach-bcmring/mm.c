@@ -14,6 +14,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <asm/page.h>
 #include <asm/mach/map.h>
 
 #include <mach/hardware.h>
