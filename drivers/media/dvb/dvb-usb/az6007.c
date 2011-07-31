@@ -59,7 +59,7 @@ struct az6007_device_state {
 	/* Due to DRX-K - probably need changes */
 	int			(*gate_ctrl) (struct dvb_frontend *, int);
 	struct			semaphore pll_mutex;
-	bool			dont_attach_fe1;
+	bool			tuner_attached;
 };
 
 static struct drxk_config terratec_h7_drxk = {
@@ -290,56 +290,56 @@ static int az6007_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	struct az6007_device_state *st = adap->priv;
 
-	int result;
+	/* FIXME: dvb-usb will call this function twice! */
+	if (adap->fe[0])
+		return 0;
 
 	BUG_ON(!st);
 
 	az6007_frontend_poweron(adap);
 
-	info("az6007: attaching demod drxk");
-	adap->fe = dvb_attach(drxk_attach, &terratec_h7_drxk,
-			      &adap->dev->i2c_adap, &adap->fe2);
-	if (!adap->fe) {
-		result = -EINVAL;
-		goto out_free;
-	}
+	info("attaching demod drxk");
+	adap->fe[0] = dvb_attach(drxk_attach, &terratec_h7_drxk,
+			         &adap->dev->i2c_adap, &adap->fe[1]);
+	if (!adap->fe[0])
+		return -EINVAL;
 
-	deb_info("Setting hacks\n");
-
+	adap->fe[0]->sec_priv = adap;
 	/* FIXME: do we need a pll semaphore? */
-	adap->fe->sec_priv = adap;
 	sema_init(&st->pll_mutex, 1);
-	st->gate_ctrl = adap->fe->ops.i2c_gate_ctrl;
-	adap->fe->ops.i2c_gate_ctrl = drxk_gate_ctrl;
-	adap->fe2->id = 1;
-
-	info("az6007: attaching tuner mt2063");
-	/* Attach mt2063 to DVB-C frontend */
-	if (adap->fe->ops.i2c_gate_ctrl)
-		adap->fe->ops.i2c_gate_ctrl(adap->fe, 1);
-	if (!dvb_attach(mt2063_attach, adap->fe, &az6007_mt2063_config,
-			&adap->dev->i2c_adap)) {
-		result = -EINVAL;
-
-		goto out_free;
-	}
-	if (adap->fe->ops.i2c_gate_ctrl)
-		adap->fe->ops.i2c_gate_ctrl(adap->fe, 0);
-
-	/* Hack - needed due to drxk */
-	adap->fe2->tuner_priv = adap->fe->tuner_priv;
-	memcpy(&adap->fe2->ops.tuner_ops,
-	       &adap->fe->ops.tuner_ops, sizeof(adap->fe->ops.tuner_ops));
+	st->gate_ctrl = adap->fe[0]->ops.i2c_gate_ctrl;
+	adap->fe[0]->ops.i2c_gate_ctrl = drxk_gate_ctrl;
+	adap->dont_attach_fe[1] = true;
 
 	return 0;
+}
 
-out_free:
-	if (adap->fe)
-		dvb_frontend_detach(adap->fe);
-	adap->fe = NULL;
-	adap->fe2 = NULL;
+static int az6007_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	struct az6007_device_state *st = adap->priv;
 
-	return result;
+	if (st->tuner_attached)
+		return 0;
+
+	st->tuner_attached = true;
+
+	info("attaching tuner mt2063");
+	/* Attach mt2063 to DVB-C frontend */
+	if (adap->fe[0]->ops.i2c_gate_ctrl)
+		adap->fe[0]->ops.i2c_gate_ctrl(adap->fe[0], 1);
+	if (!dvb_attach(mt2063_attach, adap->fe[0], &az6007_mt2063_config,
+			&adap->dev->i2c_adap))
+		return -EINVAL;
+
+	if (adap->fe[0]->ops.i2c_gate_ctrl)
+		adap->fe[0]->ops.i2c_gate_ctrl(adap->fe[0], 0);
+
+	/* Hack - needed due to drxk */
+	adap->fe[1]->tuner_priv = adap->fe[0]->tuner_priv;
+	memcpy(&adap->fe[1]->ops.tuner_ops,
+	       &adap->fe[0]->ops.tuner_ops, sizeof(adap->fe[0]->ops.tuner_ops));
+
+	return 0;
 }
 
 int az6007_power_ctrl(struct dvb_usb_device *d, int onoff)
@@ -530,7 +530,9 @@ static struct dvb_usb_device_properties az6007_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+			.num_frontends    = 2,
 			.streaming_ctrl   = az6007_streaming_ctrl,
+			.tuner_attach     = az6007_tuner_attach,
 			.frontend_attach  = az6007_frontend_attach,
 
 			/* parameter for the MPEG2-data transfer */
