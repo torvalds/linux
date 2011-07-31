@@ -6411,7 +6411,7 @@ W:	http://www.tilera.com/scm/
 S:	Supported
 F:	arch/tile/
 F:	drivers/tty/hvc/hvc_tile.c
-F:	drivers/net/tile/
+F:	drivers/net/ethernet/tile/
 F:	drivers/edac/tile_edac.c
 
 TLAN NETWORK DRIVER
