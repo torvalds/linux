@@ -22,6 +22,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/stat.h>
 #include <linux/interrupt.h>
 #include <linux/sh_intc.h>
 #include <linux/sysdev.h>

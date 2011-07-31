@@ -11,6 +11,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/stat.h>
 #include <linux/sysdev.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
