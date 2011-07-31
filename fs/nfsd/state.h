@@ -337,14 +337,11 @@ struct nfs4_replay {
 *         reaped (when so_perfilestate is empty) to hold the last close replay.
 *         reaped by laundramat thread after lease period.
 */
+
 struct nfs4_stateowner {
 	struct list_head        so_idhash;   /* hash by so_id */
 	struct list_head        so_strhash;   /* hash by op_name */
-	struct list_head        so_perclient;
 	struct list_head        so_stateids;
-	struct list_head        so_perstateid; /* for lockowners only */
-	struct list_head	so_close_lru; /* tail queue */
-	time_t			so_time; /* time of placement on so_close_lru */
 	int			so_is_open_owner; /* 1=openowner,0=lockowner */
 	u32                     so_id;
 	struct nfs4_client *    so_client;
@@ -352,9 +349,32 @@ struct nfs4_stateowner {
 	 * sequence id expected from the client: */
 	u32                     so_seqid;
 	struct xdr_netobj       so_owner;     /* open owner name */
-	int                     so_confirmed; /* successful OPEN_CONFIRM? */
 	struct nfs4_replay	so_replay;
 };
+
+struct nfs4_openowner {
+	struct nfs4_stateowner	oo_owner; /* must be first field */
+	struct list_head        oo_perclient;
+	struct list_head	oo_close_lru; /* tail queue */
+	time_t			oo_time; /* time of placement on so_close_lru */
+	int                     oo_confirmed; /* successful OPEN_CONFIRM? */
+};
+
+struct nfs4_lockowner {
+	struct nfs4_stateowner	lo_owner; /* must be first element */
+	struct list_head        lo_perstateid; /* for lockowners only */
+	struct list_head	lo_list; /* for temporary uses */
+};
+
+static inline struct nfs4_openowner * openowner(struct nfs4_stateowner *so)
+{
+	return container_of(so, struct nfs4_openowner, oo_owner);
+}
+
+static inline struct nfs4_lockowner * lockowner(struct nfs4_stateowner *so)
+{
+	return container_of(so, struct nfs4_lockowner, lo_owner);
+}
 
 /*
 *  nfs4_file: a file opened by some number of (open) nfs4_stateowners.
@@ -457,7 +477,8 @@ extern void nfs4_lock_state(void);
 extern void nfs4_unlock_state(void);
 extern int nfs4_in_grace(void);
 extern __be32 nfs4_check_open_reclaim(clientid_t *clid);
-extern void nfs4_free_stateowner(struct nfs4_stateowner *sop);
+extern void nfs4_free_openowner(struct nfs4_openowner *);
+extern void nfs4_free_lockowner(struct nfs4_lockowner *);
 extern int set_callback_cred(void);
 extern void nfsd4_probe_callback(struct nfs4_client *clp);
 extern void nfsd4_probe_callback_sync(struct nfs4_client *clp);

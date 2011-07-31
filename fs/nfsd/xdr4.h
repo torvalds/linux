@@ -227,7 +227,7 @@ struct nfsd4_open {
 	struct nfsd4_change_info  op_cinfo; /* response */
 	u32		op_rflags;          /* response */
 	int		op_truncate;        /* used during processing */
-	struct nfs4_stateowner *op_stateowner; /* used during processing */
+	struct nfs4_openowner *op_openowner; /* used during processing */
 	struct nfs4_acl *op_acl;
 };
 #define op_iattr	iattr

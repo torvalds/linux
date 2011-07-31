@@ -250,7 +250,7 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 	fh_dup2(current_fh, &resfh);
 
 	/* set reply cache */
-	fh_copy_shallow(&open->op_stateowner->so_replay.rp_openfh,
+	fh_copy_shallow(&open->op_openowner->oo_owner.so_replay.rp_openfh,
 			&resfh.fh_handle);
 	if (!created)
 		status = do_open_permission(rqstp, current_fh, open,
@@ -277,7 +277,7 @@ do_open_fhandle(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_
 	memset(&open->op_cinfo, 0, sizeof(struct nfsd4_change_info));
 
 	/* set replay cache */
-	fh_copy_shallow(&open->op_stateowner->so_replay.rp_openfh,
+	fh_copy_shallow(&open->op_openowner->oo_owner.so_replay.rp_openfh,
 			&current_fh->fh_handle);
 
 	open->op_truncate = (open->op_iattr.ia_valid & ATTR_SIZE) &&
@@ -306,9 +306,9 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	__be32 status;
 	struct nfsd4_compoundres *resp;
 
-	dprintk("NFSD: nfsd4_open filename %.*s op_stateowner %p\n",
+	dprintk("NFSD: nfsd4_open filename %.*s op_openowner %p\n",
 		(int)open->op_fname.len, open->op_fname.data,
-		open->op_stateowner);
+		open->op_openowner);
 
 	/* This check required by spec. */
 	if (open->op_create && open->op_claim_type != NFS4_OPEN_CLAIM_NULL)
@@ -332,7 +332,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	resp = rqstp->rq_resp;
 	status = nfsd4_process_open1(&resp->cstate, open);
 	if (status == nfserr_replay_me) {
-		struct nfs4_replay *rp = &open->op_stateowner->so_replay;
+		struct nfs4_replay *rp = &open->op_openowner->oo_owner.so_replay;
 		fh_put(&cstate->current_fh);
 		fh_copy_shallow(&cstate->current_fh.fh_handle,
 				&rp->rp_openfh);
@@ -374,7 +374,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 				goto out;
 			break;
 		case NFS4_OPEN_CLAIM_PREVIOUS:
-			open->op_stateowner->so_confirmed = 1;
+			open->op_openowner->oo_confirmed = 1;
 			/*
 			 * The CURRENT_FH is already set to the file being
 			 * opened.  (1) set open->op_cinfo, (2) set
@@ -387,7 +387,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 				goto out;
 			break;
              	case NFS4_OPEN_CLAIM_DELEGATE_PREV:
-			open->op_stateowner->so_confirmed = 1;
+			open->op_openowner->oo_confirmed = 1;
 			dprintk("NFSD: unsupported OPEN claim type %d\n",
 				open->op_claim_type);
 			status = nfserr_notsupp;
@@ -405,8 +405,8 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	 */
 	status = nfsd4_process_open2(rqstp, &cstate->current_fh, open);
 out:
-	if (open->op_stateowner)
-		cstate->replay_owner = open->op_stateowner;
+	if (open->op_openowner)
+		cstate->replay_owner = &open->op_openowner->oo_owner;
 	else
 		nfs4_unlock_state();
 	return status;
