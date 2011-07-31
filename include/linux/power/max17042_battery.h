@@ -23,8 +23,99 @@
 #ifndef __MAX17042_BATTERY_H_
 #define __MAX17042_BATTERY_H_
 
+#define MAX17042_STATUS_BattAbsent	(1 << 3)
+#define MAX17042_BATTERY_FULL	(100)
+#define MAX17042_DEFAULT_SNS_RESISTOR	(10000)
+
+enum max17042_register {
+	MAX17042_STATUS		= 0x00,
+	MAX17042_VALRT_Th	= 0x01,
+	MAX17042_TALRT_Th	= 0x02,
+	MAX17042_SALRT_Th	= 0x03,
+	MAX17042_AtRate		= 0x04,
+	MAX17042_RepCap		= 0x05,
+	MAX17042_RepSOC		= 0x06,
+	MAX17042_Age		= 0x07,
+	MAX17042_TEMP		= 0x08,
+	MAX17042_VCELL		= 0x09,
+	MAX17042_Current	= 0x0A,
+	MAX17042_AvgCurrent	= 0x0B,
+	MAX17042_Qresidual	= 0x0C,
+	MAX17042_SOC		= 0x0D,
+	MAX17042_AvSOC		= 0x0E,
+	MAX17042_RemCap		= 0x0F,
+	MAX17402_FullCAP	= 0x10,
+	MAX17042_TTE		= 0x11,
+	MAX17042_V_empty	= 0x12,
+
+	MAX17042_RSLOW		= 0x14,
+
+	MAX17042_AvgTA		= 0x16,
+	MAX17042_Cycles		= 0x17,
+	MAX17042_DesignCap	= 0x18,
+	MAX17042_AvgVCELL	= 0x19,
+	MAX17042_MinMaxTemp	= 0x1A,
+	MAX17042_MinMaxVolt	= 0x1B,
+	MAX17042_MinMaxCurr	= 0x1C,
+	MAX17042_CONFIG		= 0x1D,
+	MAX17042_ICHGTerm	= 0x1E,
+	MAX17042_AvCap		= 0x1F,
+	MAX17042_ManName	= 0x20,
+	MAX17042_DevName	= 0x21,
+	MAX17042_DevChem	= 0x22,
+
+	MAX17042_TempNom	= 0x24,
+	MAX17042_TempCold	= 0x25,
+	MAX17042_TempHot	= 0x26,
+	MAX17042_AIN		= 0x27,
+	MAX17042_LearnCFG	= 0x28,
+	MAX17042_SHFTCFG	= 0x29,
+	MAX17042_RelaxCFG	= 0x2A,
+	MAX17042_MiscCFG	= 0x2B,
+	MAX17042_TGAIN		= 0x2C,
+	MAx17042_TOFF		= 0x2D,
+	MAX17042_CGAIN		= 0x2E,
+	MAX17042_COFF		= 0x2F,
+
+	MAX17042_Q_empty	= 0x33,
+	MAX17042_T_empty	= 0x34,
+
+	MAX17042_RCOMP0		= 0x38,
+	MAX17042_TempCo		= 0x39,
+	MAX17042_Rx		= 0x3A,
+	MAX17042_T_empty0	= 0x3B,
+	MAX17042_TaskPeriod	= 0x3C,
+	MAX17042_FSTAT		= 0x3D,
+
+	MAX17042_SHDNTIMER	= 0x3F,
+
+	MAX17042_VFRemCap	= 0x4A,
+
+	MAX17042_QH		= 0x4D,
+	MAX17042_QL		= 0x4E,
+};
+
+/*
+ * used for setting a register to a desired value
+ * addr : address for a register
+ * data : setting value for the register
+ */
+struct max17042_reg_data {
+	u8 addr;
+	u16 data;
+};
+
 struct max17042_platform_data {
+	struct max17042_reg_data *init_data;
+	int num_init_data; /* Number of enties in init_data array */
 	bool enable_current_sense;
+
+	/*
+	 * R_sns in micro-ohms.
+	 * default 10000 (if r_sns = 0) as it is the recommended value by
+	 * the datasheet although it can be changed by board designers.
+	 */
+	unsigned int r_sns;
 };
 
 #endif /* __MAX17042_BATTERY_H_ */
