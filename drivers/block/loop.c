@@ -1793,21 +1793,6 @@ static int __init loop_init(void)
 	struct loop_device *lo;
 	int err;
 
-	/*
-	 * loop module now has a feature to instantiate underlying device
-	 * structure on-demand, provided that there is an access dev node.
-	 * However, this will not work well with user space tool that doesn't
-	 * know about such "feature".  In order to not break any existing
-	 * tool, we do the following:
-	 *
-	 * (1) if max_loop is specified, create that many upfront, and this
-	 *     also becomes a hard limit.
-	 * (2) if max_loop is not specified, create 8 loop device on module
-	 *     load, user can further extend loop device by create dev node
-	 *     themselves and have kernel automatically instantiate actual
-	 *     device on-demand.
-	 */
-
 	err = misc_register(&loop_misc);
 	if (err < 0)
 		return err;
@@ -1833,11 +1818,19 @@ static int __init loop_init(void)
 	if (max_loop > 1UL << (MINORBITS - part_shift))
 		return -EINVAL;
 
+	/*
+	 * If max_loop is specified, create that many devices upfront.
+	 * This also becomes a hard limit. If max_loop is not specified,
+	 * create CONFIG_BLK_DEV_LOOP_MIN_COUNT loop devices at module
+	 * init time. Loop devices can be requested on-demand with the
+	 * /dev/loop-control interface, or be instantiated by accessing
+	 * a 'dead' device node.
+	 */
 	if (max_loop) {
 		nr = max_loop;
 		range = max_loop << part_shift;
 	} else {
-		nr = 8;
+		nr = CONFIG_BLK_DEV_LOOP_MIN_COUNT;
 		range = 1UL << MINORBITS;
 	}
 
@@ -1847,7 +1840,7 @@ static int __init loop_init(void)
 	blk_register_region(MKDEV(LOOP_MAJOR, 0), range,
 				  THIS_MODULE, loop_probe, NULL, NULL);
 
-	/* pre-create number devices of devices given by config or max_loop */
+	/* pre-create number of devices given by config or max_loop */
 	mutex_lock(&loop_index_mutex);
 	for (i = 0; i < nr; i++)
 		loop_add(&lo, i);
