@@ -31,6 +31,8 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/mount.h>
+#include <linux/namei.h>
 
 #include "blocklayout.h"
 
@@ -39,6 +41,9 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andy Adamson <andros@citi.umich.edu>");
 MODULE_DESCRIPTION("The NFSv4.1 pNFS Block layout driver");
+
+struct dentry *bl_device_pipe;
+wait_queue_head_t bl_wq;
 
 static enum pnfs_try_status
 bl_read_pagelist(struct nfs_read_data *rdata)
@@ -176,13 +181,49 @@ static struct pnfs_layoutdriver_type blocklayout_type = {
 	.pg_write_ops			= &bl_pg_write_ops,
 };
 
+static const struct rpc_pipe_ops bl_upcall_ops = {
+	.upcall		= bl_pipe_upcall,
+	.downcall	= bl_pipe_downcall,
+	.destroy_msg	= bl_pipe_destroy_msg,
+};
+
 static int __init nfs4blocklayout_init(void)
 {
+	struct vfsmount *mnt;
+	struct path path;
 	int ret;
 
 	dprintk("%s: NFSv4 Block Layout Driver Registering...\n", __func__);
 
 	ret = pnfs_register_layoutdriver(&blocklayout_type);
+	if (ret)
+		goto out;
+
+	init_waitqueue_head(&bl_wq);
+
+	mnt = rpc_get_mount();
+	if (IS_ERR(mnt)) {
+		ret = PTR_ERR(mnt);
+		goto out_remove;
+	}
+
+	ret = vfs_path_lookup(mnt->mnt_root,
+			      mnt,
+			      NFS_PIPE_DIRNAME, 0, &path);
+	if (ret)
+		goto out_remove;
+
+	bl_device_pipe = rpc_mkpipe(path.dentry, "blocklayout", NULL,
+				    &bl_upcall_ops, 0);
+	if (IS_ERR(bl_device_pipe)) {
+		ret = PTR_ERR(bl_device_pipe);
+		goto out_remove;
+	}
+out:
+	return ret;
+
+out_remove:
+	pnfs_unregister_layoutdriver(&blocklayout_type);
 	return ret;
 }
 
@@ -192,6 +233,7 @@ static void __exit nfs4blocklayout_exit(void)
 	       __func__);
 
 	pnfs_unregister_layoutdriver(&blocklayout_type);
+	rpc_unlink(bl_device_pipe);
 }
 
 MODULE_ALIAS("nfs-layouttype4-3");

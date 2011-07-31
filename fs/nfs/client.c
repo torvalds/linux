@@ -105,7 +105,7 @@ struct rpc_program nfs_program = {
 	.nrvers			= ARRAY_SIZE(nfs_version),
 	.version		= nfs_version,
 	.stats			= &nfs_rpcstat,
-	.pipe_dir_name		= "/nfs",
+	.pipe_dir_name		= NFS_PIPE_DIRNAME,
 };
 
 struct rpc_stat nfs_rpcstat = {

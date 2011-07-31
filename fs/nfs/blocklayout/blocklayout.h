@@ -34,7 +34,15 @@
 
 #include <linux/device-mapper.h>
 #include <linux/nfs_fs.h>
+#include <linux/sunrpc/rpc_pipe_fs.h>
+
 #include "../pnfs.h"
+
+struct pnfs_block_dev {
+	struct list_head		bm_node;
+	struct nfs4_deviceid		bm_mdevid;    /* associated devid */
+	struct block_device		*bm_mdev;     /* meta device itself */
+};
 
 enum exstate4 {
 	PNFS_BLOCK_READWRITE_DATA	= 0,
@@ -87,6 +95,38 @@ static inline struct pnfs_block_layout *BLK_LO2EXT(struct pnfs_layout_hdr *lo)
 {
 	return container_of(lo, struct pnfs_block_layout, bl_layout);
 }
+
+struct bl_dev_msg {
+	int status;
+	uint32_t major, minor;
+};
+
+struct bl_msg_hdr {
+	u8  type;
+	u16 totallen; /* length of entire message, including hdr itself */
+};
+
+extern struct dentry *bl_device_pipe;
+extern wait_queue_head_t bl_wq;
+
+#define BL_DEVICE_UMOUNT               0x0 /* Umount--delete devices */
+#define BL_DEVICE_MOUNT                0x1 /* Mount--create devices*/
+#define BL_DEVICE_REQUEST_INIT         0x0 /* Start request */
+#define BL_DEVICE_REQUEST_PROC         0x1 /* User level process succeeds */
+#define BL_DEVICE_REQUEST_ERR          0x2 /* User level process fails */
+
+/* blocklayoutdev.c */
+ssize_t bl_pipe_upcall(struct file *, struct rpc_pipe_msg *,
+		       char __user *, size_t);
+ssize_t bl_pipe_downcall(struct file *, const char __user *, size_t);
+void bl_pipe_destroy_msg(struct rpc_pipe_msg *);
+struct block_device *nfs4_blkdev_get(dev_t dev);
+int nfs4_blkdev_put(struct block_device *bdev);
+struct pnfs_block_dev *nfs4_blk_decode_device(struct nfs_server *server,
+						struct pnfs_device *dev,
+						struct list_head *sdlist);
+int nfs4_blk_process_layoutget(struct pnfs_layout_hdr *lo,
+				struct nfs4_layoutget_res *lgr, gfp_t gfp_flags);
 
 void bl_put_extent(struct pnfs_block_extent *be);
 #endif /* FS_NFS_NFS4BLOCKLAYOUT_H */
