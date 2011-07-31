@@ -70,8 +70,6 @@ static int __init ttm_init(void)
 	if (unlikely(ret != 0))
 		return ret;
 
-	ttm_global_init();
-
 	atomic_set(&device_released, 0);
 	ret = drm_class_device_register(&ttm_drm_class_device);
 	if (unlikely(ret != 0))
@@ -81,7 +79,6 @@ static int __init ttm_init(void)
 out_no_dev_reg:
 	atomic_set(&device_released, 1);
 	wake_up_all(&exit_q);
-	ttm_global_release();
 	return ret;
 }
 
@@ -95,7 +92,6 @@ static void __exit ttm_exit(void)
 	 */
 
 	wait_event(exit_q, atomic_read(&device_released) == 1);
-	ttm_global_release();
 }
 
 module_init(ttm_init);

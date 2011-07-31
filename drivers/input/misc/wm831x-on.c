@@ -254,7 +254,7 @@ static int __devinit wm831x_on_probe(struct platform_device *pdev)
 	g_wm831x_on = wm831x_on;
 
 	wm831x_on_pm_init();
-	
+
 	ret = request_threaded_irq(irq, NULL, wm831x_on_irq,
 				   IRQF_TRIGGER_RISING, "wm831x_on",
 				   wm831x_on);

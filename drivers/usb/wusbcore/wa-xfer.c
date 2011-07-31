@@ -76,11 +76,12 @@
  *     xfers-per-ripe, blocks-per-rpipe, rpipes-per-host), at the end
  *     we are going to have to rebuild all this based on an scheduler,
  *     to where we have a list of transactions to do and based on the
- *     availability of the different requried components (blocks,
+ *     availability of the different required components (blocks,
  *     rpipes, segment slots, etc), we go scheduling them. Painful.
  */
 #include <linux/init.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <linux/hash.h>
 
 #include "wa-hc.h"
@@ -473,8 +474,6 @@ static void __wa_xfer_setup_hdr0(struct wa_xfer *xfer,
 		struct wa_xfer_ctl *xfer_ctl =
 			container_of(xfer_hdr0, struct wa_xfer_ctl, hdr);
 		xfer_ctl->bmAttribute = xfer->is_inbound ? 1 : 0;
-		BUG_ON(xfer->urb->transfer_flags & URB_NO_SETUP_DMA_MAP
-		       && xfer->urb->setup_packet == NULL);
 		memcpy(&xfer_ctl->baSetupData, xfer->urb->setup_packet,
 		       sizeof(xfer_ctl->baSetupData));
 		break;
@@ -558,7 +557,7 @@ static void wa_seg_dto_cb(struct urb *urb)
 /*
  * Callback for the segment request
  *
- * If succesful transition state (unless already transitioned or
+ * If successful transition state (unless already transitioned or
  * outbound transfer); otherwise, take a note of the error, mark this
  * segment done and try completion.
  *
@@ -1364,7 +1363,7 @@ segment_aborted:
 /*
  * Callback for the IN data phase
  *
- * If succesful transition state; otherwise, take a note of the
+ * If successful transition state; otherwise, take a note of the
  * error, mark this segment done and try completion.
  *
  * Note we don't access until we are sure that the transfer hasn't

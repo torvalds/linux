@@ -23,7 +23,6 @@
 
 #include <sound/vx_core.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -43,7 +42,6 @@ struct snd_vxpocket {
 
 	/* pcmcia stuff */
 	struct pcmcia_device	*p_dev;
-	dev_node_t node;
 };
 
 extern struct snd_vx_ops snd_vxpocket_ops;

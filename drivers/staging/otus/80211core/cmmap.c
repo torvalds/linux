@@ -141,7 +141,8 @@ u16_t zfApGetSTAInfo(zdev_t* dev, u16_t* addr, u16_t* state, u8_t* vap)
 
     zmw_enter_critical_section(dev);
 
-    if ((id = zfApFindSta(dev, addr)) != 0xffff)
+    id = zfApFindSta(dev, addr);
+    if (id != 0xffff)
     {
         *vap = wd->ap.staTable[id].vap;
         *state = wd->ap.staTable[id++].state;
@@ -163,7 +164,8 @@ void zfApGetStaQosType(zdev_t* dev, u16_t* addr, u8_t* qosType)
 
     zmw_enter_critical_section(dev);
 
-    if ((id = zfApFindSta(dev, addr)) != 0xffff)
+    id = zfApFindSta(dev, addr);
+    if (id != 0xffff)
     {
         *qosType = wd->ap.staTable[id].qosType;
     }
@@ -189,7 +191,8 @@ void zfApGetStaTxRateAndQosType(zdev_t* dev, u16_t* addr, u32_t* phyCtrl,
 
     zmw_enter_critical_section(dev);
 
-    if ((id = zfApFindSta(dev, addr)) != 0xffff)
+    id = zfApFindSta(dev, addr);
+    if (id != 0xffff)
     {
         rate = (u8_t)zfRateCtrlGetTxRate(dev, &wd->ap.staTable[id].rcCell, rcProbingFlag);
 #ifdef ZM_AP_DEBUG
@@ -234,7 +237,8 @@ void zfApGetStaEncryType(zdev_t* dev, u16_t* addr, u8_t* encryType)
 
     zmw_enter_critical_section(dev);
 
-    if ((id = zfApFindSta(dev, addr)) != 0xffff)
+    id = zfApFindSta(dev, addr);
+    if (id != 0xffff)
     {
         *encryType = wd->ap.staTable[id].encryMode;
     }
@@ -260,7 +264,8 @@ void zfApGetStaWpaIv(zdev_t* dev, u16_t* addr, u16_t* iv16, u32_t* iv32)
 
     zmw_enter_critical_section(dev);
 
-    if ((id = zfApFindSta(dev, addr)) != 0xffff)
+    id = zfApFindSta(dev, addr);
+    if (id != 0xffff)
     {
         *iv16 = wd->ap.staTable[id].iv16;
         *iv32 = wd->ap.staTable[id].iv32;
@@ -289,7 +294,8 @@ void zfApSetStaWpaIv(zdev_t* dev, u16_t* addr, u16_t iv16, u32_t iv32)
 
     zmw_enter_critical_section(dev);
 
-    if ((id = zfApFindSta(dev, addr)) != 0xffff)
+    id = zfApFindSta(dev, addr);
+    if (id != 0xffff)
     {
         wd->ap.staTable[id].iv16 = iv16;
         wd->ap.staTable[id].iv32 = iv32;
@@ -321,7 +327,8 @@ void zfApClearStaKey(zdev_t* dev, u16_t* addr)
 
         zmw_enter_critical_section(dev);
 
-        if ((id = zfApFindSta(dev, addr)) != 0xffff)
+        id = zfApFindSta(dev, addr);
+        if (id != 0xffff)
         {
             /* Turn off STA's key information */
             zfHpRemoveKey(dev, id+1);
@@ -348,7 +355,8 @@ void zfApGetStaCencIvAndKeyIdx(zdev_t* dev, u16_t* addr, u32_t *iv, u8_t *keyIdx
 
     zmw_enter_critical_section(dev);
 
-    if ((id = zfApFindSta(dev, addr)) != 0xffff)
+    id = zfApFindSta(dev, addr);
+    if (id != 0xffff)
     {
         *iv++ = wd->ap.staTable[id].txiv[0];
         *iv++ = wd->ap.staTable[id].txiv[1];
@@ -379,7 +387,8 @@ void zfApSetStaCencIv(zdev_t* dev, u16_t* addr, u32_t *iv)
 
     zmw_enter_critical_section(dev);
 
-    if ((id = zfApFindSta(dev, addr)) != 0xffff)
+    id = zfApFindSta(dev, addr);
+    if (id != 0xffff)
     {
         wd->ap.staTable[id].txiv[0] = *iv++;
         wd->ap.staTable[id].txiv[1] = *iv++;
@@ -539,7 +548,8 @@ u16_t zfApBufferPsFrame(zdev_t* dev, zbuf_t* buf, u16_t port)
     {
         zmw_enter_critical_section(dev);
 
-        if ((id = zfApFindSta(dev, addr)) != 0xffff)
+        id = zfApFindSta(dev, addr);
+        if (id != 0xffff)
         {
             if (wd->ap.staTable[id].psMode == 1)
             {
@@ -603,7 +613,8 @@ u16_t zfApGetSTAInfoAndUpdatePs(zdev_t* dev, u16_t* addr, u16_t* state,
     //psMode=0;
 #endif
 
-    if ((id = zfApFindSta(dev, addr)) != 0xffff)
+    id = zfApFindSta(dev, addr);
+    if (id != 0xffff)
     {
         if (psMode != 0)
         {
@@ -648,7 +659,8 @@ u16_t zfApGetSTAInfoAndUpdatePs(zdev_t* dev, u16_t* addr, u16_t* state,
 
         while (1)
         {
-            if ((psBuf = zfQueueGetWithMac(dev, wd->ap.uapsdQ, (u8_t*)addr, &mb)) != NULL)
+            psBuf = zfQueueGetWithMac(dev, wd->ap.uapsdQ, (u8_t*)addr, &mb);
+            if (psBuf != NULL)
             {
                 zfTxSendEth(dev, psBuf, 0, ZM_EXTERNAL_ALLOC_BUF, 0);
             }
@@ -730,7 +742,8 @@ u16_t zfApAddSta(zdev_t* dev, u16_t* addr, u16_t state, u16_t apId, u8_t type,
 
     zmw_enter_critical_section(dev);
 
-    if ((index = zfApFindSta(dev, addr)) != 0xffff)
+    index = zfApFindSta(dev, addr);
+    if (index != 0xffff)
     {
         zm_msg0_mm(ZM_LV_2, "found");
         /* Update STA state */
@@ -963,7 +976,8 @@ void zfApProcessBeacon(zdev_t* dev, zbuf_t* buf)
     zm_msg0_mm(ZM_LV_3, "Rx beacon");
 
     /* update Non-ERP flag(wd->ap.nonErpObss) */
-    if ((offset = zfFindElement(dev, buf, ZM_WLAN_EID_ERP)) == 0xffff)
+    offset = zfFindElement(dev, buf, ZM_WLAN_EID_ERP);
+    if (offset == 0xffff)
     {
         /* 11b OBSS */
         wd->ap.protectedObss++;
@@ -1046,7 +1060,8 @@ void zfApProcessAuth(zdev_t* dev, zbuf_t* buf, u16_t* src, u16_t apId)
             if (seq == 1)
             {
                 /* AP : update STA to auth */
-                if ((ret = zfApAddSta(dev, src, ZM_STATE_AUTH, apId, 0, 0, 0)) != 0xffff)
+                ret = zfApAddSta(dev, src, ZM_STATE_AUTH, apId, 0, 0, 0);
+                if (ret != 0xffff)
                 {
                     /* AP : call zfwAuthNotify() for host to judge */
                     //zfwAuthNotify(dev, src);
@@ -1177,12 +1192,14 @@ void zfApProcessAsocReq(zdev_t* dev, zbuf_t* buf, u16_t* src, u16_t apId)
 
     zmw_get_wlan_dev(dev);
     /* AP : check SSID */
-    if ((offset = zfFindElement(dev, buf, ZM_WLAN_EID_SSID)) != 0xffff)
+    offset = zfFindElement(dev, buf, ZM_WLAN_EID_SSID);
+    if (offset != 0xffff)
     {
         k = 0;
         for (j = 0; j < wd->ap.vapNumber; j++)
         {
-            if ((tmp = zmw_buf_readb(dev, buf, offset+1))
+            tmp = zmw_buf_readb(dev, buf, offset+1);
+            if (tmp
                         != wd->ap.ssidLen[j])
             {
                 k++;
@@ -1198,7 +1215,8 @@ void zfApProcessAsocReq(zdev_t* dev, zbuf_t* buf, u16_t* src, u16_t apId)
         {
             for (i=0; i<wd->ap.ssidLen[j]; i++)
             {
-                if ((tmp = zmw_buf_readb(dev, buf, offset+2+i))
+                tmp = zmw_buf_readb(dev, buf, offset+2+i);
+                if (tmp
                         != wd->ap.ssid[j][i])
                 {
                     break;
@@ -1222,13 +1240,15 @@ void zfApProcessAsocReq(zdev_t* dev, zbuf_t* buf, u16_t* src, u16_t apId)
     /* TODO : check capability */
 
     /* AP : check support rate */
-    if ((offset = zfFindElement(dev, buf, ZM_WLAN_EID_EXTENDED_RATE)) != 0xffff)
+    offset = zfFindElement(dev, buf, ZM_WLAN_EID_EXTENDED_RATE);
+    if (offset != 0xffff)
     {
         /* 11g STA */
         staType = 1;
     }
     //CWYang(+)
-    if ((offset = zfFindElement(dev, buf, ZM_WLAN_EID_HT_CAPABILITY)) != 0xffff)
+    offset = zfFindElement(dev, buf, ZM_WLAN_EID_HT_CAPABILITY);
+    if (offset != 0xffff)
     {
         /* 11n STA */
         staType = 2;
@@ -1251,7 +1271,8 @@ void zfApProcessAsocReq(zdev_t* dev, zbuf_t* buf, u16_t* src, u16_t apId)
     /* AP : check 11h */
 
     /* AP : check WME */
-    if ((offset = zfFindWifiElement(dev, buf, 2, 0)) != 0xffff)
+    offset = zfFindWifiElement(dev, buf, 2, 0);
+    if (offset != 0xffff)
     {
         /* WME STA */
         qosType = 1;
@@ -1265,7 +1286,8 @@ void zfApProcessAsocReq(zdev_t* dev, zbuf_t* buf, u16_t* src, u16_t apId)
 
     if (wd->ap.wpaSupport[apId] == 1)
     {
-        if ( (offset = zfFindElement(dev, buf, ZM_WLAN_EID_WPA_IE)) != 0xffff )
+        offset = zfFindElement(dev, buf, ZM_WLAN_EID_WPA_IE);
+        if (offset != 0xffff)
         {
             /* get WPA IE */
             u8_t length = zmw_rx_buf_readb(dev, buf, offset+1);
@@ -1406,12 +1428,14 @@ void zfApStoreAsocReqIe(zdev_t* dev, zbuf_t* buf, u16_t aid)
     offset = 28;
 
     /* supported rates */
-    if ((offset = zfFindElement(dev, buf, ZM_WLAN_EID_SUPPORT_RATE)) == 0xffff)
+    offset = zfFindElement(dev, buf, ZM_WLAN_EID_SUPPORT_RATE);
+    if (offset == 0xffff)
         return;
     length = zmw_rx_buf_readb(dev, buf, offset + 1);
 
     /* extended supported rates */
-    if ((offset = zfFindElement(dev, buf, ZM_WLAN_EID_EXTENDED_RATE)) == 0xffff)
+    offset = zfFindElement(dev, buf, ZM_WLAN_EID_EXTENDED_RATE);
+    if (offset == 0xffff)
         return;
     length = zmw_rx_buf_readb(dev, buf, offset + 1);
 
@@ -1426,7 +1450,8 @@ void zfApStoreAsocReqIe(zdev_t* dev, zbuf_t* buf, u16_t aid)
     /* QoS */
 
     /* HT capabilities: 28 octets */
-    if ((offset = zfFindElement(dev, buf, ZM_WLAN_EID_HT_CAPABILITY)) != 0xffff) {
+    offset = zfFindElement(dev, buf, ZM_WLAN_EID_HT_CAPABILITY);
+    if (offset != 0xffff) {
         /* atheros pre n */
         htcap = (u8_t *)&wd->ap.ie[aid].HtCap;
         htcap[0] = zmw_rx_buf_readb(dev, buf, offset);
@@ -1479,7 +1504,8 @@ void zfApProcessDeauth(zdev_t* dev, zbuf_t* buf, u16_t* src, u16_t apId)
 
     zmw_enter_critical_section(dev);
     /* AP : if SA=associated STA then deauthenticate STA */
-    if ((aid = zfApFindSta(dev, src)) != 0xffff)
+    aid = zfApFindSta(dev, src);
+    if (aid != 0xffff)
     {
         /* Clear STA table */
         wd->ap.staTable[aid].valid = 0;
@@ -1500,7 +1526,8 @@ void zfApProcessDisasoc(zdev_t* dev, zbuf_t* buf, u16_t* src, u16_t apId)
 
     zmw_enter_critical_section(dev);
     /* AP : if SA=associated STA then deauthenticate STA */
-    if ((aid = zfApFindSta(dev, src)) != 0xffff)
+    aid = zfApFindSta(dev, src);
+    if (aid != 0xffff)
     {
         /* Clear STA table */
         wd->ap.staTable[aid].valid = 0;
@@ -1674,7 +1701,8 @@ u16_t zfApAddIeTim(zdev_t* dev, zbuf_t* buf, u16_t offset, u16_t vap)
         dst[0] = zmw_tx_buf_readh(dev, psBuf, 0);
         dst[1] = zmw_tx_buf_readh(dev, psBuf, 2);
         dst[2] = zmw_tx_buf_readh(dev, psBuf, 4);
-        if ((aid = zfApFindSta(dev, dst)) != 0xffff)
+        aid = zfApFindSta(dev, dst);
+        if (aid != 0xffff)
         {
             if (wd->ap.staTable[aid].psMode != 0)
             {
@@ -1896,7 +1924,8 @@ void zfApSendBeacon(zdev_t* dev)
     zm_msg1_mm(ZM_LV_2, "Send beacon, vap=", vap);
 
     /* TBD : Maximum size of beacon */
-    if ((buf = zfwBufAllocate(dev, 1024)) == NULL)
+    buf = zfwBufAllocate(dev, 1024);
+    if (buf == NULL)
     {
         zm_msg0_mm(ZM_LV_0, "Alloc beacon buf Fail!");
         return;
@@ -2101,8 +2130,8 @@ u16_t zfIntrabssForward(zdev_t* dev, zbuf_t* buf, u8_t srcVap)
     if ((asocFlag == 1) || ((dst[0]&0x1) == 0x1))
     {
         /* Allocate frame */
-        if ((txBuf = zfwBufAllocate(dev, ZM_RX_FRAME_SIZE))
-                == NULL)
+        txBuf = zfwBufAllocate(dev, ZM_RX_FRAME_SIZE);
+        if (txBuf == NULL)
         {
             zm_msg0_rx(ZM_LV_1, "Alloc intra-bss buf Fail!");
             goto zlAllocError;
@@ -2133,7 +2162,8 @@ u16_t zfIntrabssForward(zdev_t* dev, zbuf_t* buf, u8_t srcVap)
 
         /* Transmit frame */
         /* Return error if port is disabled */
-        if ((err = zfTxPortControl(dev, txBuf, vap)) == ZM_PORT_DISABLED)
+        err = zfTxPortControl(dev, txBuf, vap);
+        if (err == ZM_PORT_DISABLED)
         {
             err = ZM_ERR_TX_PORT_DISABLED;
             goto zlTxError;
@@ -2141,7 +2171,8 @@ u16_t zfIntrabssForward(zdev_t* dev, zbuf_t* buf, u8_t srcVap)
 
 #if 1
         /* AP : Buffer frame for power saving STA */
-        if ((ret = zfApBufferPsFrame(dev, txBuf, vap)) == 0)
+        ret = zfApBufferPsFrame(dev, txBuf, vap);
+        if (ret == 0)
         {
             /* forward frame if not been buffered */
             #if 1
@@ -2177,7 +2208,8 @@ struct zsMicVar* zfApGetRxMicKey(zdev_t* dev, zbuf_t* buf)
     macAddr[1] = sa[2] + (sa[3] << 8);
     macAddr[2] = sa[4] + (sa[5] << 8);
 
-    if ((id = zfApFindSta(dev, macAddr)) != 0xffff)
+    id = zfApFindSta(dev, macAddr);
+    if (id != 0xffff)
         return (&wd->ap.staTable[id].rxMicKey);
 
     return NULL;
@@ -2369,7 +2401,8 @@ void zfApSendFailure(zdev_t* dev, u8_t* addr)
     staAddr[1] = addr[2] + (((u16_t)addr[3])<<8);
     staAddr[2] = addr[4] + (((u16_t)addr[5])<<8);
     zmw_enter_critical_section(dev);
-    if ((id = zfApFindSta(dev, staAddr)) != 0xffff)
+    id = zfApFindSta(dev, staAddr);
+    if (id != 0xffff)
     {
         /* Send failture : Add 3 minutes to inactive time that will */
         /*                 will make STA been kicked out soon */

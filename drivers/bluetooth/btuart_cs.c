@@ -41,7 +41,6 @@
 #include <asm/system.h>
 #include <asm/io.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
@@ -67,7 +66,6 @@ MODULE_LICENSE("GPL");
 
 typedef struct btuart_info_t {
 	struct pcmcia_device *p_dev;
-	dev_node_t node;
 
 	struct hci_dev *hdev;
 
@@ -144,7 +142,7 @@ static void btuart_write_wakeup(btuart_info_t *info)
 	}
 
 	do {
-		register unsigned int iobase = info->p_dev->io.BasePort1;
+		register unsigned int iobase = info->p_dev->resource[0]->start;
 		register struct sk_buff *skb;
 		register int len;
 
@@ -185,7 +183,7 @@ static void btuart_receive(btuart_info_t *info)
 		return;
 	}
 
-	iobase = info->p_dev->io.BasePort1;
+	iobase = info->p_dev->resource[0]->start;
 
 	do {
 		info->hdev->stat.byte_rx++;
@@ -295,9 +293,11 @@ static irqreturn_t btuart_interrupt(int irq, void *dev_inst)
 	int iir, lsr;
 	irqreturn_t r = IRQ_NONE;
 
-	BUG_ON(!info->hdev);
+	if (!info || !info->hdev)
+		/* our irq handler is shared */
+		return IRQ_NONE;
 
-	iobase = info->p_dev->io.BasePort1;
+	iobase = info->p_dev->resource[0]->start;
 
 	spin_lock(&(info->lock));
 
@@ -354,7 +354,7 @@ static void btuart_change_speed(btuart_info_t *info, unsigned int speed)
 		return;
 	}
 
-	iobase = info->p_dev->io.BasePort1;
+	iobase = info->p_dev->resource[0]->start;
 
 	spin_lock_irqsave(&(info->lock), flags);
 
@@ -478,7 +478,7 @@ static int btuart_hci_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned lon
 static int btuart_open(btuart_info_t *info)
 {
 	unsigned long flags;
-	unsigned int iobase = info->p_dev->io.BasePort1;
+	unsigned int iobase = info->p_dev->resource[0]->start;
 	struct hci_dev *hdev;
 
 	spin_lock_init(&(info->lock));
@@ -498,7 +498,7 @@ static int btuart_open(btuart_info_t *info)
 
 	info->hdev = hdev;
 
-	hdev->type = HCI_PCCARD;
+	hdev->bus = HCI_PCCARD;
 	hdev->driver_data = info;
 	SET_HCIDEV_DEV(hdev, &info->p_dev->dev);
 
@@ -548,7 +548,7 @@ static int btuart_open(btuart_info_t *info)
 static int btuart_close(btuart_info_t *info)
 {
 	unsigned long flags;
-	unsigned int iobase = info->p_dev->io.BasePort1;
+	unsigned int iobase = info->p_dev->resource[0]->start;
 	struct hci_dev *hdev = info->hdev;
 
 	if (!hdev)
@@ -586,13 +586,8 @@ static int btuart_probe(struct pcmcia_device *link)
 	info->p_dev = link;
 	link->priv = info;
 
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	link->io.NumPorts1 = 8;
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
-	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
-
-	link->irq.Handler = btuart_interrupt;
-	link->irq.Instance = info;
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+	link->resource[0]->end = 8;
 
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
@@ -617,14 +612,14 @@ static int btuart_check_config(struct pcmcia_device *p_dev,
 {
 	int *try = priv_data;
 
+	p_dev->io_lines = (try == 0) ? 16 : cf->io.flags & CISTPL_IO_LINES_MASK;
+
 	if (cf->vpp1.present & (1 << CISTPL_POWER_VNOM))
 		p_dev->conf.Vpp = cf->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 	if ((cf->io.nwin > 0) && (cf->io.win[0].len == 8) &&
 	    (cf->io.win[0].base != 0)) {
-		p_dev->io.BasePort1 = cf->io.win[0].base;
-		p_dev->io.IOAddrLines = (*try == 0) ? 16 :
-			cf->io.flags & CISTPL_IO_LINES_MASK;
-		if (!pcmcia_request_io(p_dev, &p_dev->io))
+		p_dev->resource[0]->start = cf->io.win[0].base;
+		if (!pcmcia_request_io(p_dev))
 			return 0;
 	}
 	return -ENODEV;
@@ -641,9 +636,9 @@ static int btuart_check_config_notpicky(struct pcmcia_device *p_dev,
 
 	if ((cf->io.nwin > 0) && ((cf->io.flags & CISTPL_IO_LINES_MASK) <= 3)) {
 		for (j = 0; j < 5; j++) {
-			p_dev->io.BasePort1 = base[j];
-			p_dev->io.IOAddrLines = base[j] ? 16 : 3;
-			if (!pcmcia_request_io(p_dev, &p_dev->io))
+			p_dev->resource[0]->start = base[j];
+			p_dev->io_lines = base[j] ? 16 : 3;
+			if (!pcmcia_request_io(p_dev))
 				return 0;
 		}
 	}
@@ -669,27 +664,19 @@ static int btuart_config(struct pcmcia_device *link)
 		goto found_port;
 
 	BT_ERR("No usable port range found");
-	cs_error(link, RequestIO, -ENODEV);
 	goto failed;
 
 found_port:
-	i = pcmcia_request_irq(link, &link->irq);
-	if (i != 0) {
-		cs_error(link, RequestIRQ, i);
-		link->irq.AssignedIRQ = 0;
-	}
+	i = pcmcia_request_irq(link, btuart_interrupt);
+	if (i != 0)
+		goto failed;
 
 	i = pcmcia_request_configuration(link, &link->conf);
-	if (i != 0) {
-		cs_error(link, RequestConfiguration, i);
+	if (i != 0)
 		goto failed;
-	}
 
 	if (btuart_open(info) != 0)
 		goto failed;
-
-	strcpy(info->node.dev_name, info->hdev->name);
-	link->dev_node = &info->node;
 
 	return 0;
 

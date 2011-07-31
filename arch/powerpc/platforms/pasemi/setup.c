@@ -28,6 +28,7 @@
 #include <linux/console.h>
 #include <linux/pci.h>
 #include <linux/of_platform.h>
+#include <linux/gfp.h>
 
 #include <asm/prom.h>
 #include <asm/system.h>
@@ -71,7 +72,7 @@ static void pas_restart(char *cmd)
 }
 
 #ifdef CONFIG_SMP
-static raw_spinlock_t timebase_lock;
+static arch_spinlock_t timebase_lock;
 static unsigned long timebase;
 
 static void __devinit pas_give_timebase(void)
@@ -80,11 +81,11 @@ static void __devinit pas_give_timebase(void)
 
 	local_irq_save(flags);
 	hard_irq_disable();
-	__raw_spin_lock(&timebase_lock);
+	arch_spin_lock(&timebase_lock);
 	mtspr(SPRN_TBCTL, TBCTL_FREEZE);
 	isync();
 	timebase = get_tb();
-	__raw_spin_unlock(&timebase_lock);
+	arch_spin_unlock(&timebase_lock);
 
 	while (timebase)
 		barrier();
@@ -97,10 +98,10 @@ static void __devinit pas_take_timebase(void)
 	while (!timebase)
 		smp_rmb();
 
-	__raw_spin_lock(&timebase_lock);
+	arch_spin_lock(&timebase_lock);
 	set_tb(timebase >> 32, timebase & 0xffffffff);
 	timebase = 0;
-	__raw_spin_unlock(&timebase_lock);
+	arch_spin_unlock(&timebase_lock);
 }
 
 struct smp_ops_t pas_smp_ops = {
@@ -359,10 +360,10 @@ static int pcmcia_notify(struct notifier_block *nb, unsigned long action,
 	/* We know electra_cf devices will always have of_node set, since
 	 * electra_cf is an of_platform driver.
 	 */
-	if (!parent->archdata.of_node)
+	if (!parent->of_node)
 		return 0;
 
-	if (!of_device_is_compatible(parent->archdata.of_node, "electra-cf"))
+	if (!of_device_is_compatible(parent->of_node, "electra-cf"))
 		return 0;
 
 	/* We use the direct ops for localbus */

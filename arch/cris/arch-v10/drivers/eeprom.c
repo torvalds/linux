@@ -28,7 +28,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/smp_lock.h>
 #include <linux/wait.h>
 #include <asm/uaccess.h>
 #include "i2c.h"
@@ -73,8 +72,7 @@ struct eeprom_type
   int adapt_state; /* 1 = To high , 0 = Even, -1 = To low */
   
   /* this one is to keep the read/write operations atomic */
-  wait_queue_head_t wait_q;
-  volatile int busy;
+  struct mutex lock;
   int retry_cnt_addr; /* Used to keep track of number of retries for
                          adaptive timing adjustments */
   int retry_cnt_read;
@@ -115,8 +113,7 @@ const struct file_operations eeprom_fops =
 
 int __init eeprom_init(void)
 {
-  init_waitqueue_head(&eeprom.wait_q);
-  eeprom.busy = 0;
+  mutex_init(&eeprom.lock);
 
 #ifdef CONFIG_ETRAX_I2C_EEPROM_PROBE
 #define EETEXT "Found"
@@ -378,7 +375,6 @@ int __init eeprom_init(void)
 /* Opens the device. */
 static int eeprom_open(struct inode * inode, struct file * file)
 {
-  cycle_kernel_lock();
   if(iminor(inode) != EEPROM_MINOR_NR)
      return -ENXIO;
   if(imajor(inode) != EEPROM_MAJOR_NR)
@@ -439,10 +435,7 @@ static loff_t eeprom_lseek(struct file * file, loff_t offset, int orig)
 
 static int eeprom_read_buf(loff_t addr, char * buf, int count)
 {
-  struct file f;
-
-  f.f_pos = addr;
-  return eeprom_read(&f, buf, count, &addr);
+  return eeprom_read(NULL, buf, count, &addr);
 }
 
 
@@ -452,7 +445,7 @@ static int eeprom_read_buf(loff_t addr, char * buf, int count)
 static ssize_t eeprom_read(struct file * file, char * buf, size_t count, loff_t *off)
 {
   int read=0;
-  unsigned long p = file->f_pos;
+  unsigned long p = *off;
 
   unsigned char page;
 
@@ -461,11 +454,8 @@ static ssize_t eeprom_read(struct file * file, char * buf, size_t count, loff_t 
     return -EFAULT;
   }
   
-  wait_event_interruptible(eeprom.wait_q, !eeprom.busy);
-  if (signal_pending(current))
+  if (mutex_lock_interruptible(&eeprom.lock))
     return -EINTR;
-
-  eeprom.busy++;
 
   page = (unsigned char) (p >> 8);
   
@@ -476,8 +466,7 @@ static ssize_t eeprom_read(struct file * file, char * buf, size_t count, loff_t 
     i2c_stop();
     
     /* don't forget to wake them up */
-    eeprom.busy--;
-    wake_up_interruptible(&eeprom.wait_q);  
+    mutex_unlock(&eeprom.lock);
     return -EFAULT;
   }
 
@@ -501,11 +490,10 @@ static ssize_t eeprom_read(struct file * file, char * buf, size_t count, loff_t 
   
   if(read > 0)
   {
-    file->f_pos += read;
+    *off += read;
   }
 
-  eeprom.busy--;
-  wake_up_interruptible(&eeprom.wait_q);
+  mutex_unlock(&eeprom.lock);
   return read;
 }
 
@@ -513,11 +501,7 @@ static ssize_t eeprom_read(struct file * file, char * buf, size_t count, loff_t 
 
 static int eeprom_write_buf(loff_t addr, const char * buf, int count)
 {
-  struct file f;
-
-  f.f_pos = addr;
-  
-  return eeprom_write(&f, buf, count, &addr);
+  return eeprom_write(NULL, buf, count, &addr);
 }
 
 
@@ -534,16 +518,14 @@ static ssize_t eeprom_write(struct file * file, const char * buf, size_t count,
     return -EFAULT;
   }
 
-  wait_event_interruptible(eeprom.wait_q, !eeprom.busy);
   /* bail out if we get interrupted */
-  if (signal_pending(current))
+  if (mutex_lock_interruptible(&eeprom.lock))
     return -EINTR;
-  eeprom.busy++;
   for(i = 0; (i < EEPROM_RETRIES) && (restart > 0); i++)
   {
     restart = 0;
     written = 0;
-    p = file->f_pos;
+    p = *off;
    
     
     while( (written < count) && (p < eeprom.size))
@@ -556,8 +538,7 @@ static ssize_t eeprom_write(struct file * file, const char * buf, size_t count,
         i2c_stop();
         
         /* don't forget to wake them up */
-        eeprom.busy--;
-        wake_up_interruptible(&eeprom.wait_q);
+        mutex_unlock(&eeprom.lock);
         return -EFAULT;
       }
 #ifdef EEPROM_ADAPTIVE_TIMING      
@@ -669,12 +650,11 @@ static ssize_t eeprom_write(struct file * file, const char * buf, size_t count,
     } /* while */
   } /* for  */
 
-  eeprom.busy--;
-  wake_up_interruptible(&eeprom.wait_q);
-  if (written == 0 && file->f_pos >= eeprom.size){
+  mutex_unlock(&eeprom.lock);
+  if (written == 0 && p >= eeprom.size){
     return -ENOSPC;
   }
-  file->f_pos += written;
+  *off = p;
   return written;
 }
 

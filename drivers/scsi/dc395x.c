@@ -57,6 +57,7 @@
 #include <linux/pci.h>
 #include <linux/list.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 
 #include <scsi/scsi.h>
@@ -1509,7 +1510,7 @@ static u8 start_scsi(struct AdapterCtlBlk* acb, struct DeviceCtlBlk* dcb,
 		 * Try anyway?
 		 *
 		 * We could, BUT: Sometimes the TRM_S1040 misses to produce a Selection
-		 * Timeout, a Disconnect or a Reselction IRQ, so we would be screwed!
+		 * Timeout, a Disconnect or a Reselection IRQ, so we would be screwed!
 		 * (This is likely to be a bug in the hardware. Obviously, most people
 		 *  only have one initiator per SCSI bus.)
 		 * Instead let this fail and have the timer make sure the command is 
@@ -1596,7 +1597,7 @@ static u8 start_scsi(struct AdapterCtlBlk* acb, struct DeviceCtlBlk* dcb,
 		u32 tag_mask = 1;
 		u8 tag_number = 0;
 		while (tag_mask & dcb->tag_mask
-		       && tag_number <= dcb->max_command) {
+		       && tag_number < dcb->max_command) {
 			tag_mask = tag_mask << 1;
 			tag_number++;
 		}

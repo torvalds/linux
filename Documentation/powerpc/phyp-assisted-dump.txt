@@ -19,7 +19,7 @@ dump offers several strong, practical advantages:
    immediately available to the system for normal use.
 -- After the dump is completed, no further reboots are
    required; the system will be fully usable, and running
-   in it's normal, production mode on it normal kernel.
+   in its normal, production mode on its normal kernel.
 
 The above can only be accomplished by coordination with,
 and assistance from the hypervisor. The procedure is

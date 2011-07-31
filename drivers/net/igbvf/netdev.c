@@ -35,6 +35,7 @@
 #include <linux/netdevice.h>
 #include <linux/tcp.h>
 #include <linux/ipv6.h>
+#include <linux/slab.h>
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
 #include <linux/mii.h>
@@ -47,6 +48,7 @@
 #define DRV_VERSION "1.0.0-k0"
 char igbvf_driver_name[] = "igbvf";
 const char igbvf_driver_version[] = DRV_VERSION;
+static struct pm_qos_request_list igbvf_driver_pm_qos_req;
 static const char igbvf_driver_string[] =
 				"Intel(R) Virtual Function Network Driver";
 static const char igbvf_copyright[] = "Copyright (c) 2009 Intel Corporation.";
@@ -163,29 +165,23 @@ static void igbvf_alloc_rx_buffers(struct igbvf_ring *rx_ring,
 				buffer_info->page_offset ^= PAGE_SIZE / 2;
 			}
 			buffer_info->page_dma =
-				pci_map_page(pdev, buffer_info->page,
+				dma_map_page(&pdev->dev, buffer_info->page,
 				             buffer_info->page_offset,
 				             PAGE_SIZE / 2,
-				             PCI_DMA_FROMDEVICE);
+					     DMA_FROM_DEVICE);
 		}
 
 		if (!buffer_info->skb) {
-			skb = netdev_alloc_skb(netdev, bufsz + NET_IP_ALIGN);
+			skb = netdev_alloc_skb_ip_align(netdev, bufsz);
 			if (!skb) {
 				adapter->alloc_rx_buff_failed++;
 				goto no_buffers;
 			}
 
-			/* Make buffer alignment 2 beyond a 16 byte boundary
-			 * this will result in a 16 byte aligned IP header after
-			 * the 14 byte MAC header is removed
-			 */
-			skb_reserve(skb, NET_IP_ALIGN);
-
 			buffer_info->skb = skb;
-			buffer_info->dma = pci_map_single(pdev, skb->data,
+			buffer_info->dma = dma_map_single(&pdev->dev, skb->data,
 			                                  bufsz,
-			                                  PCI_DMA_FROMDEVICE);
+							  DMA_FROM_DEVICE);
 		}
 		/* Refresh the desc even if buffer_addrs didn't change because
 		 * each write-back erases this info. */
@@ -252,6 +248,7 @@ static bool igbvf_clean_rx_irq(struct igbvf_adapter *adapter,
 		if (*work_done >= work_to_do)
 			break;
 		(*work_done)++;
+		rmb(); /* read descriptor and rx_buffer_info after status DD */
 
 		buffer_info = &rx_ring->buffer_info[i];
 
@@ -273,28 +270,28 @@ static bool igbvf_clean_rx_irq(struct igbvf_adapter *adapter,
 		prefetch(skb->data - NET_IP_ALIGN);
 		buffer_info->skb = NULL;
 		if (!adapter->rx_ps_hdr_size) {
-			pci_unmap_single(pdev, buffer_info->dma,
+			dma_unmap_single(&pdev->dev, buffer_info->dma,
 			                 adapter->rx_buffer_len,
-			                 PCI_DMA_FROMDEVICE);
+					 DMA_FROM_DEVICE);
 			buffer_info->dma = 0;
 			skb_put(skb, length);
 			goto send_up;
 		}
 
 		if (!skb_shinfo(skb)->nr_frags) {
-			pci_unmap_single(pdev, buffer_info->dma,
+			dma_unmap_single(&pdev->dev, buffer_info->dma,
 			                 adapter->rx_ps_hdr_size,
-			                 PCI_DMA_FROMDEVICE);
+					 DMA_FROM_DEVICE);
 			skb_put(skb, hlen);
 		}
 
 		if (length) {
-			pci_unmap_page(pdev, buffer_info->page_dma,
+			dma_unmap_page(&pdev->dev, buffer_info->page_dma,
 			               PAGE_SIZE / 2,
-			               PCI_DMA_FROMDEVICE);
+				       DMA_FROM_DEVICE);
 			buffer_info->page_dma = 0;
 
-			skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags++,
+			skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
 			                   buffer_info->page,
 			                   buffer_info->page_offset,
 			                   length);
@@ -372,10 +369,20 @@ next_desc:
 static void igbvf_put_txbuf(struct igbvf_adapter *adapter,
                             struct igbvf_buffer *buffer_info)
 {
-	buffer_info->dma = 0;
+	if (buffer_info->dma) {
+		if (buffer_info->mapped_as_page)
+			dma_unmap_page(&adapter->pdev->dev,
+				       buffer_info->dma,
+				       buffer_info->length,
+				       DMA_TO_DEVICE);
+		else
+			dma_unmap_single(&adapter->pdev->dev,
+					 buffer_info->dma,
+					 buffer_info->length,
+					 DMA_TO_DEVICE);
+		buffer_info->dma = 0;
+	}
 	if (buffer_info->skb) {
-		skb_dma_unmap(&adapter->pdev->dev, buffer_info->skb,
-		              DMA_TO_DEVICE);
 		dev_kfree_skb_any(buffer_info->skb);
 		buffer_info->skb = NULL;
 	}
@@ -433,8 +440,8 @@ int igbvf_setup_tx_resources(struct igbvf_adapter *adapter,
 	tx_ring->size = tx_ring->count * sizeof(union e1000_adv_tx_desc);
 	tx_ring->size = ALIGN(tx_ring->size, 4096);
 
-	tx_ring->desc = pci_alloc_consistent(pdev, tx_ring->size,
-					     &tx_ring->dma);
+	tx_ring->desc = dma_alloc_coherent(&pdev->dev, tx_ring->size,
+					   &tx_ring->dma, GFP_KERNEL);
 
 	if (!tx_ring->desc)
 		goto err;
@@ -475,8 +482,8 @@ int igbvf_setup_rx_resources(struct igbvf_adapter *adapter,
 	rx_ring->size = rx_ring->count * desc_len;
 	rx_ring->size = ALIGN(rx_ring->size, 4096);
 
-	rx_ring->desc = pci_alloc_consistent(pdev, rx_ring->size,
-	                                     &rx_ring->dma);
+	rx_ring->desc = dma_alloc_coherent(&pdev->dev, rx_ring->size,
+					   &rx_ring->dma, GFP_KERNEL);
 
 	if (!rx_ring->desc)
 		goto err;
@@ -544,7 +551,8 @@ void igbvf_free_tx_resources(struct igbvf_ring *tx_ring)
 	vfree(tx_ring->buffer_info);
 	tx_ring->buffer_info = NULL;
 
-	pci_free_consistent(pdev, tx_ring->size, tx_ring->desc, tx_ring->dma);
+	dma_free_coherent(&pdev->dev, tx_ring->size, tx_ring->desc,
+			  tx_ring->dma);
 
 	tx_ring->desc = NULL;
 }
@@ -569,13 +577,13 @@ static void igbvf_clean_rx_ring(struct igbvf_ring *rx_ring)
 		buffer_info = &rx_ring->buffer_info[i];
 		if (buffer_info->dma) {
 			if (adapter->rx_ps_hdr_size){
-				pci_unmap_single(pdev, buffer_info->dma,
+				dma_unmap_single(&pdev->dev, buffer_info->dma,
 				                 adapter->rx_ps_hdr_size,
-				                 PCI_DMA_FROMDEVICE);
+						 DMA_FROM_DEVICE);
 			} else {
-				pci_unmap_single(pdev, buffer_info->dma,
+				dma_unmap_single(&pdev->dev, buffer_info->dma,
 				                 adapter->rx_buffer_len,
-				                 PCI_DMA_FROMDEVICE);
+						 DMA_FROM_DEVICE);
 			}
 			buffer_info->dma = 0;
 		}
@@ -587,9 +595,10 @@ static void igbvf_clean_rx_ring(struct igbvf_ring *rx_ring)
 
 		if (buffer_info->page) {
 			if (buffer_info->page_dma)
-				pci_unmap_page(pdev, buffer_info->page_dma,
+				dma_unmap_page(&pdev->dev,
+					       buffer_info->page_dma,
 				               PAGE_SIZE / 2,
-				               PCI_DMA_FROMDEVICE);
+					       DMA_FROM_DEVICE);
 			put_page(buffer_info->page);
 			buffer_info->page = NULL;
 			buffer_info->page_dma = 0;
@@ -772,6 +781,7 @@ static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 
 	while ((eop_desc->wb.status & cpu_to_le32(E1000_TXD_STAT_DD)) &&
 	       (count < tx_ring->count)) {
+		rmb();	/* read buffer_info after eop_desc status */
 		for (cleaned = false; !cleaned; count++) {
 			tx_desc = IGBVF_TX_DESC_ADV(*tx_ring, i);
 			buffer_info = &tx_ring->buffer_info[i];
@@ -823,8 +833,8 @@ static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 		adapter->detect_tx_hung = false;
 		if (tx_ring->buffer_info[i].time_stamp &&
 		    time_after(jiffies, tx_ring->buffer_info[i].time_stamp +
-		               (adapter->tx_timeout_factor * HZ))
-		    && !(er32(STATUS) & E1000_STATUS_TXOFF)) {
+		               (adapter->tx_timeout_factor * HZ)) &&
+		    !(er32(STATUS) & E1000_STATUS_TXOFF)) {
 
 			tx_desc = IGBVF_TX_DESC_ADV(*tx_ring, i);
 			/* detected Tx unit hang */
@@ -1049,7 +1059,7 @@ static int igbvf_request_msix(struct igbvf_adapter *adapter)
 	}
 
 	err = request_irq(adapter->msix_entries[vector].vector,
-	                  &igbvf_intr_msix_tx, 0, adapter->tx_ring->name,
+	                  igbvf_intr_msix_tx, 0, adapter->tx_ring->name,
 	                  netdev);
 	if (err)
 		goto out;
@@ -1059,7 +1069,7 @@ static int igbvf_request_msix(struct igbvf_adapter *adapter)
 	vector++;
 
 	err = request_irq(adapter->msix_entries[vector].vector,
-	                  &igbvf_intr_msix_rx, 0, adapter->rx_ring->name,
+	                  igbvf_intr_msix_rx, 0, adapter->rx_ring->name,
 	                  netdev);
 	if (err)
 		goto out;
@@ -1069,7 +1079,7 @@ static int igbvf_request_msix(struct igbvf_adapter *adapter)
 	vector++;
 
 	err = request_irq(adapter->msix_entries[vector].vector,
-	                  &igbvf_msix_other, 0, netdev->name, netdev);
+	                  igbvf_msix_other, 0, netdev->name, netdev);
 	if (err)
 		goto out;
 
@@ -1300,8 +1310,6 @@ static void igbvf_configure_tx(struct igbvf_adapter *adapter)
 
 	/* enable Report Status bit */
 	adapter->txd_cmd |= E1000_ADVTXD_DCMD_RS;
-
-	adapter->tx_queue_len = adapter->netdev->tx_queue_len;
 }
 
 /**
@@ -1395,12 +1403,12 @@ static void igbvf_set_multi(struct net_device *netdev)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u8  *mta_list = NULL;
 	int i;
 
-	if (netdev->mc_count) {
-		mta_list = kmalloc(netdev->mc_count * 6, GFP_ATOMIC);
+	if (!netdev_mc_empty(netdev)) {
+		mta_list = kmalloc(netdev_mc_count(netdev) * 6, GFP_ATOMIC);
 		if (!mta_list) {
 			dev_err(&adapter->pdev->dev,
 			        "failed to allocate multicast filter list\n");
@@ -1409,15 +1417,9 @@ static void igbvf_set_multi(struct net_device *netdev)
 	}
 
 	/* prepare a packed array of only addresses. */
-	mc_ptr = netdev->mc_list;
-
-	for (i = 0; i < netdev->mc_count; i++) {
-		if (!mc_ptr)
-			break;
-		memcpy(mta_list + (i*ETH_ALEN), mc_ptr->dmi_addr,
-		       ETH_ALEN);
-		mc_ptr = mc_ptr->next;
-	}
+	i = 0;
+	netdev_for_each_mc_addr(ha, netdev)
+		memcpy(mta_list + (i++ * ETH_ALEN), ha->addr, ETH_ALEN);
 
 	hw->mac.ops.update_mc_addr_list(hw, mta_list, i, 0, 0);
 	kfree(mta_list);
@@ -1465,6 +1467,8 @@ static void igbvf_reset(struct igbvf_adapter *adapter)
 		memcpy(netdev->perm_addr, adapter->hw.mac.addr,
 		       netdev->addr_len);
 	}
+
+	adapter->last_reset = jiffies;
 }
 
 int igbvf_up(struct igbvf_adapter *adapter)
@@ -1524,7 +1528,6 @@ void igbvf_down(struct igbvf_adapter *adapter)
 
 	del_timer_sync(&adapter->watchdog_timer);
 
-	netdev->tx_queue_len = adapter->tx_queue_len;
 	netif_carrier_off(netdev);
 
 	/* record the stats before reset*/
@@ -1808,11 +1811,15 @@ static bool igbvf_has_link(struct igbvf_adapter *adapter)
 	s32 ret_val = E1000_SUCCESS;
 	bool link_active;
 
+	/* If interface is down, stay link down */
+	if (test_bit(__IGBVF_DOWN, &adapter->state))
+		return false;
+
 	ret_val = hw->mac.ops.check_for_link(hw);
 	link_active = !hw->mac.get_link_status;
 
 	/* if check for link returns error we will need to reset */
-	if (ret_val)
+	if (ret_val && time_after(jiffies, adapter->last_reset + (10 * HZ)))
 		schedule_work(&adapter->reset_task);
 
 	return link_active;
@@ -1853,21 +1860,15 @@ static void igbvf_watchdog_task(struct work_struct *work)
 			                          &adapter->link_duplex);
 			igbvf_print_link_info(adapter);
 
-			/*
-			 * tweak tx_queue_len according to speed/duplex
-			 * and adjust the timeout factor
-			 */
-			netdev->tx_queue_len = adapter->tx_queue_len;
+			/* adjust timeout factor according to speed/duplex */
 			adapter->tx_timeout_factor = 1;
 			switch (adapter->link_speed) {
 			case SPEED_10:
 				txb2b = 0;
-				netdev->tx_queue_len = 10;
 				adapter->tx_timeout_factor = 16;
 				break;
 			case SPEED_100:
 				txb2b = 0;
-				netdev->tx_queue_len = 100;
 				/* maybe add some timeout factor ? */
 				break;
 			}
@@ -1953,7 +1954,7 @@ static int igbvf_tso(struct igbvf_adapter *adapter,
 		                                         iph->daddr, 0,
 		                                         IPPROTO_TCP,
 		                                         0);
-	} else if (skb_shinfo(skb)->gso_type == SKB_GSO_TCPV6) {
+	} else if (skb_is_gso_v6(skb)) {
 		ipv6_hdr(skb)->payload_len = 0;
 		tcp_hdr(skb)->check = ~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
 		                                       &ipv6_hdr(skb)->daddr,
@@ -2094,19 +2095,12 @@ static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
                                    unsigned int first)
 {
 	struct igbvf_buffer *buffer_info;
+	struct pci_dev *pdev = adapter->pdev;
 	unsigned int len = skb_headlen(skb);
 	unsigned int count = 0, i;
 	unsigned int f;
-	dma_addr_t *map;
 
 	i = tx_ring->next_to_use;
-
-	if (skb_dma_map(&adapter->pdev->dev, skb, DMA_TO_DEVICE)) {
-		dev_err(&adapter->pdev->dev, "TX DMA map failed\n");
-		return 0;
-	}
-
-	map = skb_shinfo(skb)->dma_maps;
 
 	buffer_info = &tx_ring->buffer_info[i];
 	BUG_ON(len >= IGBVF_MAX_DATA_PER_TXD);
@@ -2114,11 +2108,17 @@ static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 	/* set time_stamp *before* dma to help avoid a possible race */
 	buffer_info->time_stamp = jiffies;
 	buffer_info->next_to_watch = i;
-	buffer_info->dma = skb_shinfo(skb)->dma_head;
+	buffer_info->mapped_as_page = false;
+	buffer_info->dma = dma_map_single(&pdev->dev, skb->data, len,
+					  DMA_TO_DEVICE);
+	if (dma_mapping_error(&pdev->dev, buffer_info->dma))
+		goto dma_error;
+
 
 	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++) {
 		struct skb_frag_struct *frag;
 
+		count++;
 		i++;
 		if (i == tx_ring->count)
 			i = 0;
@@ -2131,14 +2131,43 @@ static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 		buffer_info->length = len;
 		buffer_info->time_stamp = jiffies;
 		buffer_info->next_to_watch = i;
-		buffer_info->dma = map[count];
-		count++;
+		buffer_info->mapped_as_page = true;
+		buffer_info->dma = dma_map_page(&pdev->dev,
+						frag->page,
+						frag->page_offset,
+						len,
+						DMA_TO_DEVICE);
+		if (dma_mapping_error(&pdev->dev, buffer_info->dma))
+			goto dma_error;
 	}
 
 	tx_ring->buffer_info[i].skb = skb;
 	tx_ring->buffer_info[first].next_to_watch = i;
 
-	return count + 1;
+	return ++count;
+
+dma_error:
+	dev_err(&pdev->dev, "TX DMA map failed\n");
+
+	/* clear timestamp and dma mappings for failed buffer_info mapping */
+	buffer_info->dma = 0;
+	buffer_info->time_stamp = 0;
+	buffer_info->length = 0;
+	buffer_info->next_to_watch = 0;
+	buffer_info->mapped_as_page = false;
+	if (count)
+		count--;
+
+	/* clear timestamp and dma mappings for remaining portion of packet */
+	while (count--) {
+		if (i==0)
+			i += tx_ring->count;
+		i--;
+		buffer_info = &tx_ring->buffer_info[i];
+		igbvf_put_txbuf(adapter, buffer_info);
+	}
+
+	return 0;
 }
 
 static inline void igbvf_tx_queue_adv(struct igbvf_adapter *adapter,
@@ -2571,11 +2600,7 @@ static void igbvf_print_device_info(struct igbvf_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 
 	dev_info(&pdev->dev, "Intel(R) 82576 Virtual Function\n");
-	dev_info(&pdev->dev, "Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
-	         /* MAC address */
-	         netdev->dev_addr[0], netdev->dev_addr[1],
-	         netdev->dev_addr[2], netdev->dev_addr[3],
-	         netdev->dev_addr[4], netdev->dev_addr[5]);
+	dev_info(&pdev->dev, "Address: %pM\n", netdev->dev_addr);
 	dev_info(&pdev->dev, "MAC: %d\n", hw->mac.type);
 }
 
@@ -2624,16 +2649,16 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 		return err;
 
 	pci_using_dac = 0;
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
 	if (!err) {
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
+		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
 		if (!err)
 			pci_using_dac = 1;
 	} else {
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
-			err = pci_set_consistent_dma_mask(pdev,
-							  DMA_BIT_MASK(32));
+			err = dma_set_coherent_mask(&pdev->dev,
+						    DMA_BIT_MASK(32));
 			if (err) {
 				dev_err(&pdev->dev, "No usable DMA "
 				        "configuration, aborting\n");
@@ -2726,8 +2751,9 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 	err = hw->mac.ops.reset_hw(hw);
 	if (err) {
 		dev_info(&pdev->dev,
-		         "PF still in reset state, assigning new address\n");
-		random_ether_addr(hw->mac.addr);
+			 "PF still in reset state, assigning new address."
+			 " Is the PF interface up?\n");
+		dev_hw_addr_random(adapter->netdev, hw->mac.addr);
 	} else {
 		err = hw->mac.ops.read_mac_addr(hw);
 		if (err) {
@@ -2740,11 +2766,8 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 	memcpy(netdev->perm_addr, adapter->hw.mac.addr, netdev->addr_len);
 
 	if (!is_valid_ether_addr(netdev->perm_addr)) {
-		dev_err(&pdev->dev, "Invalid MAC Address: "
-		        "%02x:%02x:%02x:%02x:%02x:%02x\n",
-		        netdev->dev_addr[0], netdev->dev_addr[1],
-		        netdev->dev_addr[2], netdev->dev_addr[3],
-		        netdev->dev_addr[4], netdev->dev_addr[5]);
+		dev_err(&pdev->dev, "Invalid MAC Address: %pM\n",
+		        netdev->dev_addr);
 		err = -EIO;
 		goto err_hw_init;
 	}
@@ -2846,7 +2869,7 @@ static struct pci_error_handlers igbvf_err_handler = {
 	.resume = igbvf_io_resume,
 };
 
-static struct pci_device_id igbvf_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(igbvf_pci_tbl) = {
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_VF), board_vf },
 	{ } /* terminate list */
 };
@@ -2881,8 +2904,8 @@ static int __init igbvf_init_module(void)
 	printk(KERN_INFO "%s\n", igbvf_copyright);
 
 	ret = pci_register_driver(&igbvf_driver);
-	pm_qos_add_requirement(PM_QOS_CPU_DMA_LATENCY, igbvf_driver_name,
-	                       PM_QOS_DEFAULT_VALUE);
+	pm_qos_add_request(&igbvf_driver_pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
+			   PM_QOS_DEFAULT_VALUE);
 
 	return ret;
 }
@@ -2897,7 +2920,7 @@ module_init(igbvf_init_module);
 static void __exit igbvf_exit_module(void)
 {
 	pci_unregister_driver(&igbvf_driver);
-	pm_qos_remove_requirement(PM_QOS_CPU_DMA_LATENCY, igbvf_driver_name);
+	pm_qos_remove_request(&igbvf_driver_pm_qos_req);
 }
 module_exit(igbvf_exit_module);
 

@@ -62,15 +62,6 @@ dma_set_mask(struct device *dev, u64 mask)
 	return 0;
 }
 
-static inline int
-dma_get_cache_alignment(void)
-{
-	/* XXX Largest on any MIPS */
-	return 128;
-}
-
-extern int dma_is_consistent(struct device *dev, dma_addr_t dma_addr);
-
 extern void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	       enum dma_data_direction direction);
 

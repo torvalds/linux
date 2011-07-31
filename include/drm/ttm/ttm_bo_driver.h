@@ -34,6 +34,7 @@
 #include "ttm/ttm_memory.h"
 #include "ttm/ttm_module.h"
 #include "drm_mm.h"
+#include "drm_global.h"
 #include "linux/workqueue.h"
 #include "linux/fs.h"
 #include "linux/spinlock.h"
@@ -115,7 +116,6 @@ struct ttm_backend {
 	struct ttm_backend_func *func;
 };
 
-#define TTM_PAGE_FLAG_VMALLOC         (1 << 0)
 #define TTM_PAGE_FLAG_USER            (1 << 1)
 #define TTM_PAGE_FLAG_USER_DIRTY      (1 << 2)
 #define TTM_PAGE_FLAG_WRITE           (1 << 3)
@@ -177,8 +177,6 @@ struct ttm_tt {
 
 #define TTM_MEMTYPE_FLAG_FIXED         (1 << 0)	/* Fixed (on-card) PCI memory */
 #define TTM_MEMTYPE_FLAG_MAPPABLE      (1 << 1)	/* Memory mappable */
-#define TTM_MEMTYPE_FLAG_NEEDS_IOREMAP (1 << 2)	/* Fixed memory needs ioremap
-						   before kernel access. */
 #define TTM_MEMTYPE_FLAG_CMA           (1 << 3)	/* Can't map aperture */
 
 /**
@@ -190,13 +188,6 @@ struct ttm_tt {
  * managed by this memory type.
  * @gpu_offset: If used, the GPU offset of the first managed page of
  * fixed memory or the first managed location in an aperture.
- * @io_offset: The io_offset of the first managed page of IO memory or
- * the first managed location in an aperture. For TTM_MEMTYPE_FLAG_CMA
- * memory, this should be set to NULL.
- * @io_size: The size of a managed IO region (fixed memory or aperture).
- * @io_addr: Virtual kernel address if the io region is pre-mapped. For
- * TTM_MEMTYPE_FLAG_NEEDS_IOREMAP there is no pre-mapped io map and
- * @io_addr should be set to NULL.
  * @size: Size of the managed region.
  * @available_caching: A mask of available caching types, TTM_PL_FLAG_XX,
  * as defined in ttm_placement_common.h
@@ -222,9 +213,6 @@ struct ttm_mem_type_manager {
 	bool use_type;
 	uint32_t flags;
 	unsigned long gpu_offset;
-	unsigned long io_offset;
-	unsigned long io_size;
-	void *io_addr;
 	uint64_t size;
 	uint32_t available_caching;
 	uint32_t default_caching;
@@ -242,12 +230,6 @@ struct ttm_mem_type_manager {
 /**
  * struct ttm_bo_driver
  *
- * @mem_type_prio: Priority array of memory types to place a buffer object in
- * if it fits without evicting buffers from any of these memory types.
- * @mem_busy_prio: Priority array of memory types to place a buffer object in
- * if it needs to evict buffers to make room.
- * @num_mem_type_prio: Number of elements in the @mem_type_prio array.
- * @num_mem_busy_prio: Number of elements in the @num_mem_busy_prio array.
  * @create_ttm_backend_entry: Callback to create a struct ttm_backend.
  * @invalidate_caches: Callback to invalidate read caches when a buffer object
  * has been evicted.
@@ -265,11 +247,6 @@ struct ttm_mem_type_manager {
  */
 
 struct ttm_bo_driver {
-	const uint32_t *mem_type_prio;
-	const uint32_t *mem_busy_prio;
-	uint32_t num_mem_type_prio;
-	uint32_t num_mem_busy_prio;
-
 	/**
 	 * struct ttm_bo_driver member create_ttm_backend_entry
 	 *
@@ -306,7 +283,8 @@ struct ttm_bo_driver {
 	 * finished, they'll end up in bo->mem.flags
 	 */
 
-	 uint32_t(*evict_flags) (struct ttm_buffer_object *bo);
+	 void(*evict_flags) (struct ttm_buffer_object *bo,
+				struct ttm_placement *placement);
 	/**
 	 * struct ttm_bo_driver member move:
 	 *
@@ -322,7 +300,8 @@ struct ttm_bo_driver {
 	 */
 	int (*move) (struct ttm_buffer_object *bo,
 		     bool evict, bool interruptible,
-		     bool no_wait, struct ttm_mem_reg *new_mem);
+		     bool no_wait_reserve, bool no_wait_gpu,
+		     struct ttm_mem_reg *new_mem);
 
 	/**
 	 * struct ttm_bo_driver_member verify_access
@@ -362,7 +341,21 @@ struct ttm_bo_driver {
 			    struct ttm_mem_reg *new_mem);
 	/* notify the driver we are taking a fault on this BO
 	 * and have reserved it */
-	void (*fault_reserve_notify)(struct ttm_buffer_object *bo);
+	int (*fault_reserve_notify)(struct ttm_buffer_object *bo);
+
+	/**
+	 * notify the driver that we're about to swap out this bo
+	 */
+	void (*swap_notify) (struct ttm_buffer_object *bo);
+
+	/**
+	 * Driver callback on when mapping io memory (for bo_move_memcpy
+	 * for instance). TTM will take care to call io_mem_free whenever
+	 * the mapping is not use anymore. io_mem_reserve & io_mem_free
+	 * are balanced.
+	 */
+	int (*io_mem_reserve)(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem);
+	void (*io_mem_free)(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem);
 };
 
 /**
@@ -370,7 +363,7 @@ struct ttm_bo_driver {
  */
 
 struct ttm_bo_global_ref {
-	struct ttm_global_reference ref;
+	struct drm_global_reference ref;
 	struct ttm_mem_global *mem_glob;
 };
 
@@ -545,6 +538,15 @@ extern int ttm_tt_set_user(struct ttm_tt *ttm,
 extern int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem);
 
 /**
+ * ttm_tt_populate:
+ *
+ * @ttm: The struct ttm_tt to contain the backing pages.
+ *
+ * Add backing pages to all of @ttm
+ */
+extern int ttm_tt_populate(struct ttm_tt *ttm);
+
+/**
  * ttm_ttm_destroy:
  *
  * @ttm: The struct ttm_tt.
@@ -630,7 +632,8 @@ extern bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev,
  * @proposed_placement: Proposed new placement for the buffer object.
  * @mem: A struct ttm_mem_reg.
  * @interruptible: Sleep interruptible when sliping.
- * @no_wait: Don't sleep waiting for space to become available.
+ * @no_wait_reserve: Return immediately if other buffers are busy.
+ * @no_wait_gpu: Return immediately if the GPU is busy.
  *
  * Allocate memory space for the buffer object pointed to by @bo, using
  * the placement flags in @mem, potentially evicting other idle buffer objects.
@@ -639,12 +642,13 @@ extern bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev,
  * -EBUSY: No space available (only if no_wait == 1).
  * -ENOMEM: Could not allocate memory for the buffer object, either due to
  * fragmentation or concurrent allocators.
- * -ERESTART: An interruptible sleep was interrupted by a signal.
+ * -ERESTARTSYS: An interruptible sleep was interrupted by a signal.
  */
 extern int ttm_bo_mem_space(struct ttm_buffer_object *bo,
-			    uint32_t proposed_placement,
-			    struct ttm_mem_reg *mem,
-			    bool interruptible, bool no_wait);
+				struct ttm_placement *placement,
+				struct ttm_mem_reg *mem,
+				bool interruptible,
+				bool no_wait_reserve, bool no_wait_gpu);
 /**
  * ttm_bo_wait_for_cpu
  *
@@ -654,7 +658,7 @@ extern int ttm_bo_mem_space(struct ttm_buffer_object *bo,
  * Wait until a buffer object is no longer sync'ed for CPU access.
  * Returns:
  * -EBUSY: Buffer object was sync'ed for CPU access. (only if no_wait == 1).
- * -ERESTART: An interruptible sleep was interrupted by a signal.
+ * -ERESTARTSYS: An interruptible sleep was interrupted by a signal.
  */
 
 extern int ttm_bo_wait_cpu(struct ttm_buffer_object *bo, bool no_wait);
@@ -679,8 +683,13 @@ extern int ttm_bo_pci_offset(struct ttm_bo_device *bdev,
 			     unsigned long *bus_offset,
 			     unsigned long *bus_size);
 
-extern void ttm_bo_global_release(struct ttm_global_reference *ref);
-extern int ttm_bo_global_init(struct ttm_global_reference *ref);
+extern int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
+				struct ttm_mem_reg *mem);
+extern void ttm_mem_io_free(struct ttm_bo_device *bdev,
+				struct ttm_mem_reg *mem);
+
+extern void ttm_bo_global_release(struct drm_global_reference *ref);
+extern int ttm_bo_global_init(struct drm_global_reference *ref);
 
 extern int ttm_bo_device_release(struct ttm_bo_device *bdev);
 
@@ -758,7 +767,7 @@ extern void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo);
  * -EAGAIN: The reservation may cause a deadlock.
  * Release all buffer reservations, wait for @bo to become unreserved and
  * try again. (only if use_sequence == 1).
- * -ERESTART: A wait for the buffer to become unreserved was interrupted by
+ * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
  * a signal. Release all buffer reservations and return to user-space.
  */
 extern int ttm_bo_reserve(struct ttm_buffer_object *bo,
@@ -786,34 +795,6 @@ extern void ttm_bo_unreserve(struct ttm_buffer_object *bo);
 extern int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo,
 				  bool interruptible);
 
-/**
- * ttm_bo_block_reservation
- *
- * @bo: A pointer to a struct ttm_buffer_object.
- * @interruptible: Use interruptible sleep when waiting.
- * @no_wait: Don't sleep, but rather return -EBUSY.
- *
- * Block reservation for validation by simply reserving the buffer.
- * This is intended for single buffer use only without eviction,
- * and thus needs no deadlock protection.
- *
- * Returns:
- * -EBUSY: If no_wait == 1 and the buffer is already reserved.
- * -ERESTART: If interruptible == 1 and the process received a signal
- * while sleeping.
- */
-extern int ttm_bo_block_reservation(struct ttm_buffer_object *bo,
-				    bool interruptible, bool no_wait);
-
-/**
- * ttm_bo_unblock_reservation
- *
- * @bo: A pointer to a struct ttm_buffer_object.
- *
- * Unblocks reservation leaving lru lists untouched.
- */
-extern void ttm_bo_unblock_reservation(struct ttm_buffer_object *bo);
-
 /*
  * ttm_bo_util.c
  */
@@ -823,7 +804,8 @@ extern void ttm_bo_unblock_reservation(struct ttm_buffer_object *bo);
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @evict: 1: This is an eviction. Don't try to pipeline.
- * @no_wait: Never sleep, but rather return with -EBUSY.
+ * @no_wait_reserve: Return immediately if other buffers are busy.
+ * @no_wait_gpu: Return immediately if the GPU is busy.
  * @new_mem: struct ttm_mem_reg indicating where to move.
  *
  * Optimized move function for a buffer object with both old and
@@ -837,15 +819,16 @@ extern void ttm_bo_unblock_reservation(struct ttm_buffer_object *bo);
  */
 
 extern int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
-			   bool evict, bool no_wait,
-			   struct ttm_mem_reg *new_mem);
+			   bool evict, bool no_wait_reserve,
+			   bool no_wait_gpu, struct ttm_mem_reg *new_mem);
 
 /**
  * ttm_bo_move_memcpy
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @evict: 1: This is an eviction. Don't try to pipeline.
- * @no_wait: Never sleep, but rather return with -EBUSY.
+ * @no_wait_reserve: Return immediately if other buffers are busy.
+ * @no_wait_gpu: Return immediately if the GPU is busy.
  * @new_mem: struct ttm_mem_reg indicating where to move.
  *
  * Fallback move function for a mappable buffer object in mappable memory.
@@ -859,8 +842,8 @@ extern int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
  */
 
 extern int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
-			      bool evict,
-			      bool no_wait, struct ttm_mem_reg *new_mem);
+			      bool evict, bool no_wait_reserve,
+			      bool no_wait_gpu, struct ttm_mem_reg *new_mem);
 
 /**
  * ttm_bo_free_old_node
@@ -879,7 +862,8 @@ extern void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
  * @sync_obj_arg: An argument to pass to the sync object idle / wait
  * functions.
  * @evict: This is an evict move. Don't return until the buffer is idle.
- * @no_wait: Never sleep, but rather return with -EBUSY.
+ * @no_wait_reserve: Return immediately if other buffers are busy.
+ * @no_wait_gpu: Return immediately if the GPU is busy.
  * @new_mem: struct ttm_mem_reg indicating where to move.
  *
  * Accelerated move function to be called when an accelerated move
@@ -893,7 +877,8 @@ extern void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
 extern int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 				     void *sync_obj,
 				     void *sync_obj_arg,
-				     bool evict, bool no_wait,
+				     bool evict, bool no_wait_reserve,
+				     bool no_wait_gpu,
 				     struct ttm_mem_reg *new_mem);
 /**
  * ttm_io_prot
@@ -904,7 +889,7 @@ extern int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
  * Utility function that returns the pgprot_t that should be used for
  * setting up a PTE with the caching model indicated by @c_state.
  */
-extern pgprot_t ttm_io_prot(enum ttm_caching_state c_state, pgprot_t tmp);
+extern pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
 
 #if (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE)))
 #define TTM_HAS_AGP

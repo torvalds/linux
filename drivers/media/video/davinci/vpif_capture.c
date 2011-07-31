@@ -34,6 +34,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/version.h>
+#include <linux/slab.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 
@@ -868,7 +869,7 @@ static int vpif_release(struct file *filep)
 	mutex_unlock(&common->lock);
 
 	/* Close the priority */
-	v4l2_prio_close(&ch->prio, &fh->prio);
+	v4l2_prio_close(&ch->prio, fh->prio);
 
 	if (fh->initialized)
 		ch->initialized = 0;
@@ -1443,7 +1444,7 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 		}
 	}
 
-	ret = v4l2_prio_check(&ch->prio, &fh->prio);
+	ret = v4l2_prio_check(&ch->prio, fh->prio);
 	if (0 != ret)
 		return ret;
 
@@ -1553,7 +1554,7 @@ static int vpif_s_input(struct file *file, void *priv, unsigned int index)
 		}
 	}
 
-	ret = v4l2_prio_check(&ch->prio, &fh->prio);
+	ret = v4l2_prio_check(&ch->prio, fh->prio);
 	if (0 != ret)
 		return ret;
 
@@ -1709,7 +1710,7 @@ static int vpif_s_fmt_vid_cap(struct file *file, void *priv,
 		}
 	}
 
-	ret = v4l2_prio_check(&ch->prio, &fh->prio);
+	ret = v4l2_prio_check(&ch->prio, fh->prio);
 	if (0 != ret)
 		return ret;
 
@@ -2107,7 +2108,7 @@ vpif_resume(struct device *dev)
 	return -1;
 }
 
-static struct dev_pm_ops vpif_dev_pm_ops = {
+static const struct dev_pm_ops vpif_dev_pm_ops = {
 	.suspend = vpif_suspend,
 	.resume = vpif_resume,
 };

@@ -339,6 +339,7 @@ extern short xp_partition_id;
 extern u8 xp_region_size;
 
 extern unsigned long (*xp_pa) (void *);
+extern unsigned long (*xp_socket_pa) (unsigned long);
 extern enum xp_retval (*xp_remote_memcpy) (unsigned long, const unsigned long,
 		       size_t);
 extern int (*xp_cpu_to_nasid) (int);

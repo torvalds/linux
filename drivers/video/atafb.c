@@ -52,7 +52,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -2240,6 +2239,9 @@ static int ext_setcolreg(unsigned int regno, unsigned int red,
 	unsigned char colmask = (1 << external_bitspercol) - 1;
 
 	if (!external_vgaiobase)
+		return 1;
+
+	if (regno > 255)
 		return 1;
 
 	switch (external_card_type) {

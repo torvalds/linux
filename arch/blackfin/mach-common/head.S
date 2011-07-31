@@ -144,8 +144,8 @@ ENTRY(__start)
 #endif
 
 	/* Initialize stack pointer */
-	sp.l = _init_thread_union;
-	sp.h = _init_thread_union;
+	sp.l = _init_thread_union + THREAD_SIZE;
+	sp.h = _init_thread_union + THREAD_SIZE;
 	fp = sp;
 	usp = sp;
 
@@ -186,6 +186,11 @@ ENTRY(__start)
 
 	/* Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM */
 	call _bfin_relocate_l1_mem;
+
+#ifdef CONFIG_ROMKERNEL
+	call _bfin_relocate_xip_data;
+#endif
+
 #ifdef CONFIG_BFIN_KERNEL_CLOCK
 	/* Only use on-chip scratch space for stack when absolutely required
 	 * to avoid Anomaly 05000227 ... we know the init_clocks() func only
@@ -257,12 +262,7 @@ ENTRY(_real_start)
 	R0 = R7;
 	call _cmdline_init;
 
-	/* Load the current thread pointer and stack */
-	p1 = THREAD_SIZE + 4 (z);	/* +4 is for reti loading */
-	sp = sp + p1;
-	usp = sp;
-	fp = sp;
-	sp += -12;
+	sp += -12 + 4; /* +4 is for reti loading above */
 	call _init_pda
 	sp += 12;
 	jump.l _start_kernel;

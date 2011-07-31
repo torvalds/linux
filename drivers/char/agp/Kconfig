@@ -56,9 +56,8 @@ config AGP_AMD
 	  X on AMD Irongate, 761, and 762 chipsets.
 
 config AGP_AMD64
-	tristate "AMD Opteron/Athlon64 on-CPU GART support" if !GART_IOMMU
-	depends on AGP && X86
-	default y if GART_IOMMU
+	tristate "AMD Opteron/Athlon64 on-CPU GART support"
+	depends on AGP && X86 && K8_NB
 	help
 	  This option gives you AGP support for the GLX component of
 	  X using the on-CPU northbridge of the AMD Athlon64/Opteron CPUs.

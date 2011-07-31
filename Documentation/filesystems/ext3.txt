@@ -32,8 +32,8 @@ journal_dev=devnum	When the external journal device's major/minor numbers
 			identified through its new major/minor numbers encoded
 			in devnum.
 
-noload			Don't load the journal on mounting. Note that this forces
-			mount of inconsistent filesystem, which can lead to
+norecovery		Don't load the journal on mounting. Note that this forces
+noload			mount of inconsistent filesystem, which can lead to
 			various problems.
 
 data=journal		All data are committed into the journal prior to being
@@ -59,8 +59,19 @@ commit=nrsec	(*)	Ext3 can be told to sync all its data and metadata
 			Setting it to very large values will improve
 			performance.
 
-barrier=1		This enables/disables barriers.  barrier=0 disables
-			it, barrier=1 enables it.
+barrier=<0(*)|1>	This enables/disables the use of write barriers in
+barrier			the jbd code.  barrier=0 disables, barrier=1 enables.
+nobarrier	(*)	This also requires an IO stack which can support
+			barriers, and if jbd gets an error on a barrier
+			write, it will disable again with a warning.
+			Write barriers enforce proper on-disk ordering
+			of journal commits, making volatile disk write caches
+			safe to use, at some performance penalty.  If
+			your disks are battery-backed in one way or another,
+			disabling barriers may safely improve performance.
+			The mount options "barrier" and "nobarrier" can
+			also be used to enable or disable barriers, for
+			consistency with other ext3 mount options.
 
 orlov		(*)	This enables the new Orlov block allocator. It is
 			enabled by default.

@@ -31,8 +31,8 @@
 
 #include <asm/mach-types.h>
 
-#include <mach/board-ams-delta.h>
-#include <mach/mcbsp.h>
+#include <plat/board-ams-delta.h>
+#include <plat/mcbsp.h>
 
 #include "omap-mcbsp.h"
 #include "omap-pcm.h"
@@ -40,7 +40,7 @@
 
 
 /* Board specific DAPM widgets */
- const struct snd_soc_dapm_widget ams_delta_dapm_widgets[] = {
+static const struct snd_soc_dapm_widget ams_delta_dapm_widgets[] = {
 	/* Handset */
 	SND_SOC_DAPM_MIC("Mouthpiece", NULL),
 	SND_SOC_DAPM_HP("Earpiece", NULL),
@@ -81,7 +81,7 @@ static const char *ams_delta_audio_mode[] =
 						(1 << AMS_DELTA_SPEAKER))
 #define AMS_DELTA_SPEAKERPHONE	(AMS_DELTA_HANDSFREE | (1 << AMS_DELTA_AGC))
 
-unsigned short ams_delta_audio_mode_pins[] = {
+static const unsigned short ams_delta_audio_mode_pins[] = {
 	AMS_DELTA_MIXED,
 	AMS_DELTA_HANDSET,
 	AMS_DELTA_HANDSFREE,

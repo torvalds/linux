@@ -1,19 +1,16 @@
 /*
- * linux/fs/nfsd/nfs2acl.c
- *
  * Process version 2 NFSACL requests.
  *
  * Copyright (C) 2002-2003 Andreas Gruenbacher <agruen@suse.de>
  */
 
-#include <linux/sunrpc/svc.h>
-#include <linux/nfs.h>
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/cache.h>
-#include <linux/nfsd/xdr.h>
-#include <linux/nfsd/xdr3.h>
-#include <linux/posix_acl.h>
+#include "nfsd.h"
+/* FIXME: nfsacl.h is a broken header */
 #include <linux/nfsacl.h>
+#include <linux/gfp.h>
+#include "cache.h"
+#include "xdr3.h"
+#include "vfs.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_PROC
 #define RETURN_STATUS(st)	{ resp->status = (st); return (st); }
@@ -217,6 +214,16 @@ static int nfsaclsvc_decode_accessargs(struct svc_rqst *rqstp, __be32 *p,
  * XDR encode functions
  */
 
+/*
+ * There must be an encoding function for void results so svc_process
+ * will work properly.
+ */
+int
+nfsaclsvc_encode_voidres(struct svc_rqst *rqstp, __be32 *p, void *dummy)
+{
+	return xdr_ressize_check(rqstp, p);
+}
+
 /* GETACL */
 static int nfsaclsvc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_getaclres *resp)
@@ -308,7 +315,6 @@ static int nfsaclsvc_release_access(struct svc_rqst *rqstp, __be32 *p,
 }
 
 #define nfsaclsvc_decode_voidargs	NULL
-#define nfsaclsvc_encode_voidres	NULL
 #define nfsaclsvc_release_void		NULL
 #define nfsd3_fhandleargs	nfsd_fhandle
 #define nfsd3_attrstatres	nfsd_attrstat
@@ -346,5 +352,5 @@ struct svc_version	nfsd_acl_version2 = {
 		.vs_proc	= nfsd_acl_procedures2,
 		.vs_dispatch	= nfsd_dispatch,
 		.vs_xdrsize	= NFS3_SVC_XDRSIZE,
-		.vs_hidden	= 1,
+		.vs_hidden	= 0,
 };

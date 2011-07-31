@@ -33,7 +33,7 @@
 #include "irq_impl.h"
 #include "pci_impl.h"
 #include "machvec_impl.h"
-
+#include "pc873xx.h"
 
 /* Note mask bit is true for DISABLED irqs.  */
 static unsigned long cached_irq_mask = ~0UL;
@@ -236,17 +236,30 @@ cabriolet_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 }
 
 static inline void __init
+cabriolet_enable_ide(void)
+{
+	if (pc873xx_probe() == -1) {
+		printk(KERN_ERR "Probing for PC873xx Super IO chip failed.\n");
+	 } else {
+		printk(KERN_INFO "Found %s Super IO chip at 0x%x\n",
+			pc873xx_get_model(), pc873xx_get_base());
+
+		pc873xx_enable_ide();
+	}
+}
+
+static inline void __init
 cabriolet_init_pci(void)
 {
 	common_init_pci();
-	ns87312_enable_ide(0x398);
+	cabriolet_enable_ide();
 }
 
 static inline void __init
 cia_cab_init_pci(void)
 {
 	cia_init_pci();
-	ns87312_enable_ide(0x398);
+	cabriolet_enable_ide();
 }
 
 /*

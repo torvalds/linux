@@ -173,6 +173,7 @@ static struct smu_fan_control *smu_fan_create(struct device_node *node,
 
 	fct->fan_type = pwm_fan;
 	fct->ctrl.type = pwm_fan ? WF_CONTROL_PWM_FAN : WF_CONTROL_RPM_FAN;
+	sysfs_attr_init(&fct->ctrl.attr.attr);
 
 	/* We use the name & location here the same way we do for SMU sensors,
 	 * see the comment in windfarm_smu_sensors.c. The locations are a bit
@@ -202,6 +203,8 @@ static struct smu_fan_control *smu_fan_create(struct device_node *node,
 		fct->ctrl.name = "cpu-front-fan-1";
 	else if (!strcmp(l, "CPU A PUMP"))
 		fct->ctrl.name = "cpu-pump-0";
+	else if (!strcmp(l, "CPU B PUMP"))
+		fct->ctrl.name = "cpu-pump-1";
 	else if (!strcmp(l, "Slots Fan") || !strcmp(l, "Slots fan") ||
 		 !strcmp(l, "EXPANSION SLOTS INTAKE"))
 		fct->ctrl.name = "slots-fan";

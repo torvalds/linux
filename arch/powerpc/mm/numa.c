@@ -17,7 +17,7 @@
 #include <linux/nodemask.h>
 #include <linux/cpu.h>
 #include <linux/notifier.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <linux/of.h>
 #include <linux/pfn.h>
 #include <asm/sparsemem.h>
@@ -33,15 +33,46 @@ static int numa_debug;
 #define dbg(args...) if (numa_debug) { printk(KERN_INFO args); }
 
 int numa_cpu_lookup_table[NR_CPUS];
-cpumask_t numa_cpumask_lookup_table[MAX_NUMNODES];
+cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];
 struct pglist_data *node_data[MAX_NUMNODES];
 
 EXPORT_SYMBOL(numa_cpu_lookup_table);
-EXPORT_SYMBOL(numa_cpumask_lookup_table);
+EXPORT_SYMBOL(node_to_cpumask_map);
 EXPORT_SYMBOL(node_data);
 
 static int min_common_depth;
 static int n_mem_addr_cells, n_mem_size_cells;
+static int form1_affinity;
+
+#define MAX_DISTANCE_REF_POINTS 4
+static int distance_ref_points_depth;
+static const unsigned int *distance_ref_points;
+static int distance_lookup_table[MAX_NUMNODES][MAX_DISTANCE_REF_POINTS];
+
+/*
+ * Allocate node_to_cpumask_map based on number of available nodes
+ * Requires node_possible_map to be valid.
+ *
+ * Note: node_to_cpumask() is not valid until after this is done.
+ */
+static void __init setup_node_to_cpumask_map(void)
+{
+	unsigned int node, num = 0;
+
+	/* setup nr_node_ids if not done yet */
+	if (nr_node_ids == MAX_NUMNODES) {
+		for_each_node_mask(node, node_possible_map)
+			num = node;
+		nr_node_ids = num + 1;
+	}
+
+	/* allocate the map */
+	for (node = 0; node < nr_node_ids; node++)
+		alloc_bootmem_cpumask_var(&node_to_cpumask_map[node]);
+
+	/* cpumask_of_node() will now work */
+	dbg("Node to cpumask map for %d nodes\n", nr_node_ids);
+}
 
 static int __cpuinit fake_numa_create_new_node(unsigned long end_pfn,
 						unsigned int *nid)
@@ -138,8 +169,8 @@ static void __cpuinit map_cpu_to_node(int cpu, int node)
 
 	dbg("adding cpu %d to node %d\n", cpu, node);
 
-	if (!(cpu_isset(cpu, numa_cpumask_lookup_table[node])))
-		cpu_set(cpu, numa_cpumask_lookup_table[node]);
+	if (!(cpumask_test_cpu(cpu, node_to_cpumask_map[node])))
+		cpumask_set_cpu(cpu, node_to_cpumask_map[node]);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -149,8 +180,8 @@ static void unmap_cpu_from_node(unsigned long cpu)
 
 	dbg("removing cpu %lu from node %d\n", cpu, node);
 
-	if (cpu_isset(cpu, numa_cpumask_lookup_table[node])) {
-		cpu_clear(cpu, numa_cpumask_lookup_table[node]);
+	if (cpumask_test_cpu(cpu, node_to_cpumask_map[node])) {
+		cpumask_set_cpu(cpu, node_to_cpumask_map[node]);
 	} else {
 		printk(KERN_ERR "WARNING: cpu %lu not found in node %d\n",
 		       cpu, node);
@@ -179,6 +210,39 @@ static const u32 *of_get_usable_memory(struct device_node *memory)
 	return prop;
 }
 
+int __node_distance(int a, int b)
+{
+	int i;
+	int distance = LOCAL_DISTANCE;
+
+	if (!form1_affinity)
+		return distance;
+
+	for (i = 0; i < distance_ref_points_depth; i++) {
+		if (distance_lookup_table[a][i] == distance_lookup_table[b][i])
+			break;
+
+		/* Double the distance for each NUMA level */
+		distance *= 2;
+	}
+
+	return distance;
+}
+
+static void initialize_distance_lookup_table(int nid,
+		const unsigned int *associativity)
+{
+	int i;
+
+	if (!form1_affinity)
+		return;
+
+	for (i = 0; i < distance_ref_points_depth; i++) {
+		distance_lookup_table[nid][i] =
+			associativity[distance_ref_points[i]];
+	}
+}
+
 /* Returns nid in the range [0..MAX_NUMNODES-1], or -1 if no useful numa
  * info is found.
  */
@@ -200,6 +264,10 @@ static int of_node_to_nid_single(struct device_node *device)
 	/* POWER4 LPAR uses 0xffff as invalid node */
 	if (nid == 0xffff || nid >= MAX_NUMNODES)
 		nid = -1;
+
+	if (nid > 0 && tmp[0] >= distance_ref_points_depth)
+		initialize_distance_lookup_table(nid, tmp);
+
 out:
 	return nid;
 }
@@ -226,26 +294,12 @@ int of_node_to_nid(struct device_node *device)
 }
 EXPORT_SYMBOL_GPL(of_node_to_nid);
 
-/*
- * In theory, the "ibm,associativity" property may contain multiple
- * associativity lists because a resource may be multiply connected
- * into the machine.  This resource then has different associativity
- * characteristics relative to its multiple connections.  We ignore
- * this for now.  We also assume that all cpu and memory sets have
- * their distances represented at a common level.  This won't be
- * true for hierarchical NUMA.
- *
- * In any case the ibm,associativity-reference-points should give
- * the correct depth for a normal NUMA system.
- *
- * - Dave Hansen <haveblue@us.ibm.com>
- */
 static int __init find_min_common_depth(void)
 {
 	int depth;
-	const unsigned int *ref_points;
 	struct device_node *rtas_root;
-	unsigned int len;
+	struct device_node *chosen;
+	const char *vec5;
 
 	rtas_root = of_find_node_by_path("/rtas");
 
@@ -253,23 +307,67 @@ static int __init find_min_common_depth(void)
 		return -1;
 
 	/*
-	 * this property is 2 32-bit integers, each representing a level of
-	 * depth in the associativity nodes.  The first is for an SMP
-	 * configuration (should be all 0's) and the second is for a normal
-	 * NUMA configuration.
+	 * This property is a set of 32-bit integers, each representing
+	 * an index into the ibm,associativity nodes.
+	 *
+	 * With form 0 affinity the first integer is for an SMP configuration
+	 * (should be all 0's) and the second is for a normal NUMA
+	 * configuration. We have only one level of NUMA.
+	 *
+	 * With form 1 affinity the first integer is the most significant
+	 * NUMA boundary and the following are progressively less significant
+	 * boundaries. There can be more than one level of NUMA.
 	 */
-	ref_points = of_get_property(rtas_root,
-			"ibm,associativity-reference-points", &len);
+	distance_ref_points = of_get_property(rtas_root,
+					"ibm,associativity-reference-points",
+					&distance_ref_points_depth);
 
-	if ((len >= 2 * sizeof(unsigned int)) && ref_points) {
-		depth = ref_points[1];
-	} else {
+	if (!distance_ref_points) {
 		dbg("NUMA: ibm,associativity-reference-points not found.\n");
-		depth = -1;
+		goto err;
 	}
-	of_node_put(rtas_root);
 
+	distance_ref_points_depth /= sizeof(int);
+
+#define VEC5_AFFINITY_BYTE	5
+#define VEC5_AFFINITY		0x80
+	chosen = of_find_node_by_path("/chosen");
+	if (chosen) {
+		vec5 = of_get_property(chosen, "ibm,architecture-vec-5", NULL);
+		if (vec5 && (vec5[VEC5_AFFINITY_BYTE] & VEC5_AFFINITY)) {
+			dbg("Using form 1 affinity\n");
+			form1_affinity = 1;
+		}
+	}
+
+	if (form1_affinity) {
+		depth = distance_ref_points[0];
+	} else {
+		if (distance_ref_points_depth < 2) {
+			printk(KERN_WARNING "NUMA: "
+				"short ibm,associativity-reference-points\n");
+			goto err;
+		}
+
+		depth = distance_ref_points[1];
+	}
+
+	/*
+	 * Warn and cap if the hardware supports more than
+	 * MAX_DISTANCE_REF_POINTS domains.
+	 */
+	if (distance_ref_points_depth > MAX_DISTANCE_REF_POINTS) {
+		printk(KERN_WARNING "NUMA: distance array capped at "
+			"%d entries\n", MAX_DISTANCE_REF_POINTS);
+		distance_ref_points_depth = MAX_DISTANCE_REF_POINTS;
+	}
+
+	of_node_put(rtas_root);
 	return depth;
+
+err:
+	of_node_put(rtas_root);
+	return -1;
 }
 
 static void __init get_n_mem_cells(int *n_addr_cells, int *n_size_cells)
@@ -309,7 +407,7 @@ struct of_drconf_cell {
 #define DRCONF_MEM_RESERVED	0x00000080
 
 /*
- * Read the next lmb list entry from the ibm,dynamic-memory property
+ * Read the next memblock list entry from the ibm,dynamic-memory property
  * and return the information in the provided of_drconf_cell structure.
  */
 static void read_drconf_cell(struct of_drconf_cell *drmem, const u32 **cellp)
@@ -330,8 +428,8 @@ static void read_drconf_cell(struct of_drconf_cell *drmem, const u32 **cellp)
 /*
  * Retreive and validate the ibm,dynamic-memory property of the device tree.
  *
- * The layout of the ibm,dynamic-memory property is a number N of lmb
- * list entries followed by N lmb list entries.  Each lmb list entry
+ * The layout of the ibm,dynamic-memory property is a number N of memblock
+ * list entries followed by N memblock list entries.  Each memblock list entry
  * contains information as layed out in the of_drconf_cell struct above.
  */
 static int of_get_drconf_memory(struct device_node *memory, const u32 **dm)
@@ -451,7 +549,7 @@ static int __cpuinit numa_setup_cpu(unsigned long lcpu)
 	nid = of_node_to_nid_single(cpu);
 
 	if (nid < 0 || !node_online(nid))
-		nid = any_online_node(NODE_MASK_ALL);
+		nid = first_online_node;
 out:
 	map_cpu_to_node(lcpu, nid);
 
@@ -498,19 +596,19 @@ static unsigned long __init numa_enforce_memory_limit(unsigned long start,
 						      unsigned long size)
 {
 	/*
-	 * We use lmb_end_of_DRAM() in here instead of memory_limit because
+	 * We use memblock_end_of_DRAM() in here instead of memory_limit because
 	 * we've already adjusted it for the limit and it takes care of
 	 * having memory holes below the limit.  Also, in the case of
 	 * iommu_is_off, memory_limit is not set but is implicitly enforced.
 	 */
 
-	if (start + size <= lmb_end_of_DRAM())
+	if (start + size <= memblock_end_of_DRAM())
 		return size;
 
-	if (start >= lmb_end_of_DRAM())
+	if (start >= memblock_end_of_DRAM())
 		return 0;
 
-	return lmb_end_of_DRAM() - start;
+	return memblock_end_of_DRAM() - start;
 }
 
 /*
@@ -689,7 +787,7 @@ new_range:
 	}
 
 	/*
-	 * Now do the same thing for each LMB listed in the ibm,dynamic-memory
+	 * Now do the same thing for each MEMBLOCK listed in the ibm,dynamic-memory
 	 * property in the ibm,dynamic-reconfiguration-memory node.
 	 */
 	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
@@ -701,8 +799,8 @@ new_range:
 
 static void __init setup_nonnuma(void)
 {
-	unsigned long top_of_ram = lmb_end_of_DRAM();
-	unsigned long total_ram = lmb_phys_mem_size();
+	unsigned long top_of_ram = memblock_end_of_DRAM();
+	unsigned long total_ram = memblock_phys_mem_size();
 	unsigned long start_pfn, end_pfn;
 	unsigned int i, nid = 0;
 
@@ -711,9 +809,9 @@ static void __init setup_nonnuma(void)
 	printk(KERN_DEBUG "Memory hole size: %ldMB\n",
 	       (top_of_ram - total_ram) >> 20);
 
-	for (i = 0; i < lmb.memory.cnt; ++i) {
-		start_pfn = lmb.memory.region[i].base >> PAGE_SHIFT;
-		end_pfn = start_pfn + lmb_size_pages(&lmb.memory, i);
+	for (i = 0; i < memblock.memory.cnt; ++i) {
+		start_pfn = memblock.memory.region[i].base >> PAGE_SHIFT;
+		end_pfn = start_pfn + memblock_size_pages(&memblock.memory, i);
 
 		fake_numa_create_new_node(end_pfn, &nid);
 		add_active_range(nid, start_pfn, end_pfn);
@@ -737,8 +835,9 @@ void __init dump_numa_cpu_topology(void)
 		 * If we used a CPU iterator here we would miss printing
 		 * the holes in the cpumap.
 		 */
-		for (cpu = 0; cpu < NR_CPUS; cpu++) {
-			if (cpu_isset(cpu, numa_cpumask_lookup_table[node])) {
+		for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
+			if (cpumask_test_cpu(cpu,
+					node_to_cpumask_map[node])) {
 				if (count == 0)
 					printk(" %u", cpu);
 				++count;
@@ -750,7 +849,7 @@ void __init dump_numa_cpu_topology(void)
 		}
 
 		if (count > 1)
-			printk("-%u", NR_CPUS - 1);
+			printk("-%u", nr_cpu_ids - 1);
 		printk("\n");
 	}
 }
@@ -770,7 +869,7 @@ static void __init dump_numa_memory_topology(void)
 
 		count = 0;
 
-		for (i = 0; i < lmb_end_of_DRAM();
+		for (i = 0; i < memblock_end_of_DRAM();
 		     i += (1 << SECTION_SIZE_BITS)) {
 			if (early_pfn_to_nid(i >> PAGE_SHIFT) == node) {
 				if (count == 0)
@@ -790,7 +889,7 @@ static void __init dump_numa_memory_topology(void)
 }
 
 /*
- * Allocate some memory, satisfying the lmb or bootmem allocator where
+ * Allocate some memory, satisfying the memblock or bootmem allocator where
  * required. nid is the preferred node and end is the physical address of
  * the highest address in the node.
  *
@@ -804,11 +903,11 @@ static void __init *careful_zallocation(int nid, unsigned long size,
 	int new_nid;
 	unsigned long ret_paddr;
 
-	ret_paddr = __lmb_alloc_base(size, align, end_pfn << PAGE_SHIFT);
+	ret_paddr = __memblock_alloc_base(size, align, end_pfn << PAGE_SHIFT);
 
 	/* retry over all memory */
 	if (!ret_paddr)
-		ret_paddr = __lmb_alloc_base(size, align, lmb_end_of_DRAM());
+		ret_paddr = __memblock_alloc_base(size, align, memblock_end_of_DRAM());
 
 	if (!ret_paddr)
 		panic("numa.c: cannot allocate %lu bytes for node %d",
@@ -818,14 +917,14 @@ static void __init *careful_zallocation(int nid, unsigned long size,
 
 	/*
 	 * We initialize the nodes in numeric order: 0, 1, 2...
-	 * and hand over control from the LMB allocator to the
+	 * and hand over control from the MEMBLOCK allocator to the
 	 * bootmem allocator.  If this function is called for
 	 * node 5, then we know that all nodes <5 are using the
-	 * bootmem allocator instead of the LMB allocator.
+	 * bootmem allocator instead of the MEMBLOCK allocator.
 	 *
 	 * So, check the nid from which this allocation came
 	 * and double check to see if we need to use bootmem
-	 * instead of the LMB.  We don't free the LMB memory
+	 * instead of the MEMBLOCK.  We don't free the MEMBLOCK memory
 	 * since it would be useless.
 	 */
 	new_nid = early_pfn_to_nid(ret_paddr >> PAGE_SHIFT);
@@ -850,9 +949,9 @@ static void mark_reserved_regions_for_nid(int nid)
 	struct pglist_data *node = NODE_DATA(nid);
 	int i;
 
-	for (i = 0; i < lmb.reserved.cnt; i++) {
-		unsigned long physbase = lmb.reserved.region[i].base;
-		unsigned long size = lmb.reserved.region[i].size;
+	for (i = 0; i < memblock.reserved.cnt; i++) {
+		unsigned long physbase = memblock.reserved.region[i].base;
+		unsigned long size = memblock.reserved.region[i].size;
 		unsigned long start_pfn = physbase >> PAGE_SHIFT;
 		unsigned long end_pfn = PFN_UP(physbase + size);
 		struct node_active_region node_ar;
@@ -860,7 +959,7 @@ static void mark_reserved_regions_for_nid(int nid)
 					     node->node_spanned_pages;
 
 		/*
-		 * Check to make sure that this lmb.reserved area is
+		 * Check to make sure that this memblock.reserved area is
 		 * within the bounds of the node that we care about.
 		 * Checking the nid of the start and end points is not
 		 * sufficient because the reserved area could span the
@@ -918,17 +1017,13 @@ void __init do_init_bootmem(void)
 	int nid;
 
 	min_low_pfn = 0;
-	max_low_pfn = lmb_end_of_DRAM() >> PAGE_SHIFT;
+	max_low_pfn = memblock_end_of_DRAM() >> PAGE_SHIFT;
 	max_pfn = max_low_pfn;
 
 	if (parse_numa_properties())
 		setup_nonnuma();
 	else
 		dump_numa_memory_topology();
-
-	register_cpu_notifier(&ppc64_numa_nb);
-	cpu_numa_callback(&ppc64_numa_nb, CPU_UP_PREPARE,
-			  (void *)(unsigned long)boot_cpuid);
 
 	for_each_online_node(nid) {
 		unsigned long start_pfn, end_pfn;
@@ -983,13 +1078,23 @@ void __init do_init_bootmem(void)
 	}
 
 	init_bootmem_done = 1;
+
+	/*
+	 * Now bootmem is initialised we can create the node to cpumask
+	 * lookup tables and setup the cpu callback to populate them.
+	 */
+	setup_node_to_cpumask_map();
+
+	register_cpu_notifier(&ppc64_numa_nb);
+	cpu_numa_callback(&ppc64_numa_nb, CPU_UP_PREPARE,
+			  (void *)(unsigned long)boot_cpuid);
 }
 
 void __init paging_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
-	max_zone_pfns[ZONE_DMA] = lmb_end_of_DRAM() >> PAGE_SHIFT;
+	max_zone_pfns[ZONE_DMA] = memblock_end_of_DRAM() >> PAGE_SHIFT;
 	free_area_init_nodes(max_zone_pfns);
 }
 
@@ -1064,7 +1169,7 @@ static int hot_add_drconf_scn_to_nid(struct device_node *memory,
 /*
  * Find the node associated with a hot added memory section for memory
  * represented in the device tree as a node (i.e. memory@XXXX) for
- * each lmb.
+ * each memblock.
  */
 int hot_add_node_scn_to_nid(unsigned long scn_addr)
 {
@@ -1105,8 +1210,8 @@ int hot_add_node_scn_to_nid(unsigned long scn_addr)
 
 /*
  * Find the node associated with a hot added memory section.  Section
- * corresponds to a SPARSEMEM section, not an LMB.  It is assumed that
- * sections are fully contained within a single LMB.
+ * corresponds to a SPARSEMEM section, not an MEMBLOCK.  It is assumed that
+ * sections are fully contained within a single MEMBLOCK.
  */
 int hot_add_scn_to_nid(unsigned long scn_addr)
 {
@@ -1114,7 +1219,7 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
 	int nid, found = 0;
 
 	if (!numa_enabled || (min_common_depth < 0))
-		return any_online_node(NODE_MASK_ALL);
+		return first_online_node;
 
 	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (memory) {
@@ -1125,7 +1230,7 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
 	}
 
 	if (nid < 0 || !node_online(nid))
-		nid = any_online_node(NODE_MASK_ALL);
+		nid = first_online_node;
 
 	if (NODE_DATA(nid)->node_spanned_pages)
 		return nid;

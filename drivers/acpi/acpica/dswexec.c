@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -140,7 +140,7 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 
 	if (local_obj_desc->common.type != ACPI_TYPE_INTEGER) {
 		ACPI_ERROR((AE_INFO,
-			    "Bad predicate (not an integer) ObjDesc=%p State=%p Type=%X",
+			    "Bad predicate (not an integer) ObjDesc=%p State=%p Type=0x%X",
 			    obj_desc, walk_state, obj_desc->common.type));
 
 		status = AE_AML_OPERAND_TYPE;
@@ -300,10 +300,25 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 			 * we must enter this object into the namespace.  The created
 			 * object is temporary and will be deleted upon completion of
 			 * the execution of this method.
+			 *
+			 * Note 10/2010: Except for the Scope() op. This opcode does
+			 * not actually create a new object, it refers to an existing
+			 * object. However, for Scope(), we want to indeed open a
+			 * new scope.
 			 */
-			status = acpi_ds_load2_begin_op(walk_state, NULL);
+			if (op->common.aml_opcode != AML_SCOPE_OP) {
+				status =
+				    acpi_ds_load2_begin_op(walk_state, NULL);
+			} else {
+				status =
+				    acpi_ds_scope_stack_push(op->named.node,
+							     op->named.node->
+							     type, walk_state);
+				if (ACPI_FAILURE(status)) {
+					return_ACPI_STATUS(status);
+				}
+			}
 		}
-
 		break;
 
 	case AML_CLASS_EXECUTE:
@@ -354,7 +369,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 	op_class = walk_state->op_info->class;
 
 	if (op_class == AML_CLASS_UNKNOWN) {
-		ACPI_ERROR((AE_INFO, "Unknown opcode %X",
+		ACPI_ERROR((AE_INFO, "Unknown opcode 0x%X",
 			    op->common.aml_opcode));
 		return_ACPI_STATUS(AE_NOT_IMPLEMENTED);
 	}
@@ -678,7 +693,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 		default:
 
 			ACPI_ERROR((AE_INFO,
-				    "Unimplemented opcode, class=%X type=%X Opcode=%X Op=%p",
+				    "Unimplemented opcode, class=0x%X type=0x%X Opcode=-0x%X Op=%p",
 				    op_class, op_type, op->common.aml_opcode,
 				    op));
 

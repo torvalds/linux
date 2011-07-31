@@ -33,6 +33,7 @@
 #include <linux/fs.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/time.h>
 #include <linux/version.h>
@@ -4068,7 +4069,6 @@ static struct video_device vdev_template = {
 	.fops		= &vino_fops,
 	.ioctl_ops 	= &vino_ioctl_ops,
 	.tvnorms 	= V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
-	.minor		= -1,
 };
 
 static void vino_module_cleanup(int stage)

@@ -20,7 +20,6 @@ static int affs_symlink_readpage(struct file *file, struct page *page)
 	int			 i, j;
 	char			 c;
 	char			 lc;
-	char			*pf;
 
 	pr_debug("AFFS: follow_link(ino=%lu)\n",inode->i_ino);
 
@@ -32,11 +31,15 @@ static int affs_symlink_readpage(struct file *file, struct page *page)
 	j  = 0;
 	lf = (struct slink_front *)bh->b_data;
 	lc = 0;
-	pf = AFFS_SB(inode->i_sb)->s_prefix ? AFFS_SB(inode->i_sb)->s_prefix : "/";
 
 	if (strchr(lf->symname,':')) {	/* Handle assign or volume name */
+		struct affs_sb_info *sbi = AFFS_SB(inode->i_sb);
+		char *pf;
+		spin_lock(&sbi->symlink_lock);
+		pf = sbi->s_prefix ? sbi->s_prefix : "/";
 		while (i < 1023 && (c = pf[i]))
 			link[i++] = c;
+		spin_unlock(&sbi->symlink_lock);
 		while (i < 1023 && lf->symname[j] != ':')
 			link[i++] = lf->symname[j++];
 		if (i < 1023)

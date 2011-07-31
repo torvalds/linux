@@ -58,8 +58,12 @@ EXPORT_SYMBOL(mips_machtype);
 
 struct boot_mem_map boot_mem_map;
 
-static char command_line[CL_SIZE];
-       char arcs_cmdline[CL_SIZE]=CONFIG_CMDLINE;
+static char __initdata command_line[COMMAND_LINE_SIZE];
+char __initdata arcs_cmdline[COMMAND_LINE_SIZE];
+
+#ifdef CONFIG_CMDLINE_BOOL
+static char __initdata builtin_cmdline[COMMAND_LINE_SIZE] = CONFIG_CMDLINE;
+#endif
 
 /*
  * mips_io_port_base is the begin of the address space to which x86 style
@@ -166,26 +170,8 @@ static unsigned long __init init_initrd(void)
 	 * already set up initrd_start and initrd_end. In these cases
 	 * perfom sanity checks and use them if all looks good.
 	 */
-	if (!initrd_start || initrd_end <= initrd_start) {
-#ifdef CONFIG_PROBE_INITRD_HEADER
-		u32 *initrd_header;
-
-		/*
-		 * See if initrd has been added to the kernel image by
-		 * arch/mips/boot/addinitrd.c. In that case a header is
-		 * prepended to initrd and is made up by 8 bytes. The first
-		 * word is a magic number and the second one is the size of
-		 * initrd.  Initrd start must be page aligned in any cases.
-		 */
-		initrd_header = __va(PAGE_ALIGN(__pa_symbol(&_end) + 8)) - 8;
-		if (initrd_header[0] != 0x494E5244)
-			goto disable;
-		initrd_start = (unsigned long)(initrd_header + 2);
-		initrd_end = initrd_start + initrd_header[1];
-#else
+	if (!initrd_start || initrd_end <= initrd_start)
 		goto disable;
-#endif
-	}
 
 	if (initrd_start & ~PAGE_MASK) {
 		pr_err("initrd start must be page aligned\n");
@@ -476,8 +462,20 @@ static void __init arch_mem_init(char **cmdline_p)
 	pr_info("Determined physical RAM map:\n");
 	print_memory_map();
 
-	strlcpy(command_line, arcs_cmdline, sizeof(command_line));
-	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
+#ifdef CONFIG_CMDLINE_BOOL
+#ifdef CONFIG_CMDLINE_OVERRIDE
+	strlcpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
+#else
+	if (builtin_cmdline[0]) {
+		strlcat(arcs_cmdline, " ", COMMAND_LINE_SIZE);
+		strlcat(arcs_cmdline, builtin_cmdline, COMMAND_LINE_SIZE);
+	}
+	strlcpy(boot_command_line, arcs_cmdline, COMMAND_LINE_SIZE);
+#endif
+#else
+	strlcpy(boot_command_line, arcs_cmdline, COMMAND_LINE_SIZE);
+#endif
+	strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 
 	*cmdline_p = command_line;
 
@@ -570,27 +568,6 @@ void __init setup_arch(char **cmdline_p)
 	resource_init();
 	plat_smp_setup();
 }
-
-static int __init fpu_disable(char *s)
-{
-	int i;
-
-	for (i = 0; i < NR_CPUS; i++)
-		cpu_data[i].options &= ~MIPS_CPU_FPU;
-
-	return 1;
-}
-
-__setup("nofpu", fpu_disable);
-
-static int __init dsp_disable(char *s)
-{
-	cpu_data[0].ases &= ~MIPS_ASE_DSP;
-
-	return 1;
-}
-
-__setup("nodsp", dsp_disable);
 
 unsigned long kernelsp[NR_CPUS];
 unsigned long fw_arg0, fw_arg1, fw_arg2, fw_arg3;

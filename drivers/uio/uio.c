@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/idr.h>
 #include <linux/sched.h>
@@ -129,7 +130,7 @@ static ssize_t map_type_show(struct kobject *kobj, struct attribute *attr,
 	return entry->show(mem, buf);
 }
 
-static struct sysfs_ops map_sysfs_ops = {
+static const struct sysfs_ops map_sysfs_ops = {
 	.show = map_type_show,
 };
 
@@ -217,7 +218,7 @@ static ssize_t portio_type_show(struct kobject *kobj, struct attribute *attr,
 	return entry->show(port, buf);
 }
 
-static struct sysfs_ops portio_sysfs_ops = {
+static const struct sysfs_ops portio_sysfs_ops = {
 	.show = portio_type_show,
 };
 

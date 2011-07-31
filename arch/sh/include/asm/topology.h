@@ -35,10 +35,18 @@
 
 #define pcibus_to_node(bus)	((void)(bus), -1)
 #define cpumask_of_pcibus(bus)	(pcibus_to_node(bus) == -1 ? \
-					CPU_MASK_ALL_PTR : \
+					cpu_all_mask : \
 					cpumask_of_node(pcibus_to_node(bus)))
 
 #endif
+
+#define mc_capable()    (1)
+
+const struct cpumask *cpu_coregroup_mask(unsigned int cpu);
+
+extern cpumask_t cpu_core_map[NR_CPUS];
+
+#define topology_core_cpumask(cpu)	(&cpu_core_map[cpu])
 
 #include <asm-generic/topology.h>
 

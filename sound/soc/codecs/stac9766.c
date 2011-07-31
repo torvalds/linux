@@ -15,6 +15,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <sound/core.h>
@@ -191,6 +192,7 @@ static int ac97_analog_prepare(struct snd_pcm_substream *substream,
 	vra = stac9766_ac97_read(codec, AC97_EXTENDED_STATUS);
 
 	vra |= 0x1; /* enable variable rate audio */
+	vra &= ~0x4; /* disable SPDIF output */
 
 	stac9766_ac97_write(codec, AC97_EXTENDED_STATUS, vra);
 
@@ -219,22 +221,6 @@ static int ac97_digital_prepare(struct snd_pcm_substream *substream,
 	reg = AC97_PCM_FRONT_DAC_RATE;
 
 	return stac9766_ac97_write(codec, reg, runtime->rate);
-}
-
-static int ac97_digital_trigger(struct snd_pcm_substream *substream,
-				int cmd, struct snd_soc_dai *dai)
-{
-	struct snd_soc_codec *codec = dai->codec;
-	unsigned short vra;
-
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_STOP:
-		vra = stac9766_ac97_read(codec, AC97_EXTENDED_STATUS);
-		vra &= !0x04;
-		stac9766_ac97_write(codec, AC97_EXTENDED_STATUS, vra);
-		break;
-	}
-	return 0;
 }
 
 static int stac9766_set_bias_level(struct snd_soc_codec *codec,
@@ -303,9 +289,6 @@ reset:
 	}
 	stac9766_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	if (codec->suspend_bias_level == SND_SOC_BIAS_ON)
-		stac9766_set_bias_level(codec, SND_SOC_BIAS_ON);
-
 	return 0;
 }
 
@@ -315,7 +298,6 @@ static struct snd_soc_dai_ops stac9766_dai_ops_analog = {
 
 static struct snd_soc_dai_ops stac9766_dai_ops_digital = {
 	.prepare = ac97_digital_prepare,
-	.trigger = ac97_digital_trigger,
 };
 
 struct snd_soc_dai stac9766_dai[] = {
@@ -418,9 +400,6 @@ static int stac9766_codec_probe(struct platform_device *pdev)
 	snd_soc_add_controls(codec, stac9766_snd_ac97_controls,
 			     ARRAY_SIZE(stac9766_snd_ac97_controls));
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0)
-		goto reset_err;
 	return 0;
 
 reset_err:
@@ -428,7 +407,7 @@ reset_err:
 pcm_err:
 	snd_soc_free_ac97_codec(codec);
 codec_err:
-	kfree(codec->private_data);
+	kfree(snd_soc_codec_get_drvdata(codec));
 cache_err:
 	kfree(socdev->card->codec);
 	socdev->card->codec = NULL;

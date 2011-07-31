@@ -22,6 +22,7 @@
  * for old compat code for I/O offseting to SuperIOs, all of which are
  * better handled through the machvec ioport mapping routines these days.
  */
+#include <linux/errno.h>
 #include <asm/cache.h>
 #include <asm/system.h>
 #include <asm/addrspace.h>
@@ -37,6 +38,8 @@
 #define __IO_PREFIX	generic
 #include <asm/io_generic.h>
 #include <asm/io_trapped.h>
+
+#ifdef CONFIG_HAS_IOPORT
 
 #define inb(p)			sh_mv.mv_inb((p))
 #define inw(p)			sh_mv.mv_inw((p))
@@ -59,6 +62,8 @@
 #define outsw(p,b,c)		sh_mv.mv_outsw((p), (b), (c))
 #define outsl(p,b,c)		sh_mv.mv_outsl((p), (b), (c))
 
+#endif
+
 #define __raw_writeb(v,a)	(__chk_io_ptr(a), *(volatile u8  __force *)(a) = (v))
 #define __raw_writew(v,a)	(__chk_io_ptr(a), *(volatile u16 __force *)(a) = (v))
 #define __raw_writel(v,a)	(__chk_io_ptr(a), *(volatile u32 __force *)(a) = (v))
@@ -79,27 +84,80 @@
 #define writel(v,a)		({ __raw_writel((v),(a)); mb(); })
 #define writeq(v,a)		({ __raw_writeq((v),(a)); mb(); })
 
-/* SuperH on-chip I/O functions */
-#define ctrl_inb		__raw_readb
-#define ctrl_inw		__raw_readw
-#define ctrl_inl		__raw_readl
-#define ctrl_inq		__raw_readq
+/*
+ * Legacy SuperH on-chip I/O functions
+ *
+ * These are all deprecated, all new (and especially cross-platform) code
+ * should be using the __raw_xxx() routines directly.
+ */
+static inline u8 __deprecated ctrl_inb(unsigned long addr)
+{
+	return __raw_readb(addr);
+}
 
-#define ctrl_outb		__raw_writeb
-#define ctrl_outw		__raw_writew
-#define ctrl_outl		__raw_writel
-#define ctrl_outq		__raw_writeq
+static inline u16 __deprecated ctrl_inw(unsigned long addr)
+{
+	return __raw_readw(addr);
+}
+
+static inline u32 __deprecated ctrl_inl(unsigned long addr)
+{
+	return __raw_readl(addr);
+}
+
+static inline u64 __deprecated ctrl_inq(unsigned long addr)
+{
+	return __raw_readq(addr);
+}
+
+static inline void __deprecated ctrl_outb(u8 v, unsigned long addr)
+{
+	__raw_writeb(v, addr);
+}
+
+static inline void __deprecated ctrl_outw(u16 v, unsigned long addr)
+{
+	__raw_writew(v, addr);
+}
+
+static inline void __deprecated ctrl_outl(u32 v, unsigned long addr)
+{
+	__raw_writel(v, addr);
+}
+
+static inline void __deprecated ctrl_outq(u64 v, unsigned long addr)
+{
+	__raw_writeq(v, addr);
+}
+
+extern unsigned long generic_io_base;
 
 static inline void ctrl_delay(void)
 {
-#ifdef CONFIG_CPU_SH4
-	__raw_readw(CCN_PVR);
-#elif defined(P2SEG)
-	__raw_readw(P2SEG);
-#else
-#error "Need a dummy address for delay"
-#endif
+	__raw_readw(generic_io_base);
 }
+
+#define __BUILD_UNCACHED_IO(bwlq, type)					\
+static inline type read##bwlq##_uncached(unsigned long addr)		\
+{									\
+	type ret;							\
+	jump_to_uncached();						\
+	ret = __raw_read##bwlq(addr);					\
+	back_to_cached();						\
+	return ret;							\
+}									\
+									\
+static inline void write##bwlq##_uncached(type v, unsigned long addr)	\
+{									\
+	jump_to_uncached();						\
+	__raw_write##bwlq(v, addr);					\
+	back_to_cached();						\
+}
+
+__BUILD_UNCACHED_IO(b, u8)
+__BUILD_UNCACHED_IO(w, u16)
+__BUILD_UNCACHED_IO(l, u32)
+__BUILD_UNCACHED_IO(q, u64)
 
 #define __BUILD_MEMORY_STRING(bwlq, type)				\
 									\
@@ -186,7 +244,7 @@ __BUILD_MEMORY_STRING(q, u64)
 
 #define IO_SPACE_LIMIT 0xffffffff
 
-extern unsigned long generic_io_base;
+#ifdef CONFIG_HAS_IOPORT
 
 /*
  * This function provides a method for the generic case where a
@@ -202,6 +260,8 @@ static inline void __set_io_port_base(unsigned long pbase)
 }
 
 #define __ioport_map(p, n) sh_mv.mv_ioport_map((p), (n))
+
+#endif
 
 /* We really want to try and get these to memcpy etc */
 void memcpy_fromio(void *, const volatile void __iomem *, unsigned long);
@@ -239,23 +299,22 @@ unsigned long long poke_real_address_q(unsigned long long addr,
  * doesn't exist, so everything must go through page tables.
  */
 #ifdef CONFIG_MMU
-void __iomem *__ioremap(unsigned long offset, unsigned long size,
-			unsigned long flags);
+void __iomem *__ioremap_caller(phys_addr_t offset, unsigned long size,
+			       pgprot_t prot, void *caller);
 void __iounmap(void __iomem *addr);
 
 static inline void __iomem *
-__ioremap_mode(unsigned long offset, unsigned long size, unsigned long flags)
+__ioremap(phys_addr_t offset, unsigned long size, pgprot_t prot)
 {
-#if defined(CONFIG_SUPERH32) && !defined(CONFIG_PMB_FIXED)
-	unsigned long last_addr = offset + size - 1;
-#endif
-	void __iomem *ret;
+	return __ioremap_caller(offset, size, prot, __builtin_return_address(0));
+}
 
-	ret = __ioremap_trapped(offset, size);
-	if (ret)
-		return ret;
+static inline void __iomem *
+__ioremap_29bit(phys_addr_t offset, unsigned long size, pgprot_t prot)
+{
+#ifdef CONFIG_29BIT
+	phys_addr_t last_addr = offset + size - 1;
 
-#if defined(CONFIG_SUPERH32) && !defined(CONFIG_PMB_FIXED)
 	/*
 	 * For P1 and P2 space this is trivial, as everything is already
 	 * mapped. Uncached access for P1 addresses are done through P2.
@@ -263,7 +322,7 @@ __ioremap_mode(unsigned long offset, unsigned long size, unsigned long flags)
 	 * mapping must be done by the PMB or by using page tables.
 	 */
 	if (likely(PXSEG(offset) < P3SEG && PXSEG(last_addr) < P3SEG)) {
-		if (unlikely(flags & _PAGE_CACHABLE))
+		if (unlikely(pgprot_val(prot) & _PAGE_CACHABLE))
 			return (void __iomem *)P1SEGADDR(offset);
 
 		return (void __iomem *)P2SEGADDR(offset);
@@ -274,25 +333,67 @@ __ioremap_mode(unsigned long offset, unsigned long size, unsigned long flags)
 		return (void __iomem *)P4SEGADDR(offset);
 #endif
 
-	return __ioremap(offset, size, flags);
+	return NULL;
+}
+
+static inline void __iomem *
+__ioremap_mode(phys_addr_t offset, unsigned long size, pgprot_t prot)
+{
+	void __iomem *ret;
+
+	ret = __ioremap_trapped(offset, size);
+	if (ret)
+		return ret;
+
+	ret = __ioremap_29bit(offset, size, prot);
+	if (ret)
+		return ret;
+
+	return __ioremap(offset, size, prot);
 }
 #else
-#define __ioremap_mode(offset, size, flags)	((void __iomem *)(offset))
+#define __ioremap(offset, size, prot)		((void __iomem *)(offset))
+#define __ioremap_mode(offset, size, prot)	((void __iomem *)(offset))
 #define __iounmap(addr)				do { } while (0)
 #endif /* CONFIG_MMU */
 
-#define ioremap(offset, size)				\
-	__ioremap_mode((offset), (size), 0)
-#define ioremap_nocache(offset, size)			\
-	__ioremap_mode((offset), (size), 0)
-#define ioremap_cache(offset, size)			\
-	__ioremap_mode((offset), (size), _PAGE_CACHABLE)
-#define p3_ioremap(offset, size, flags)			\
-	__ioremap((offset), (size), (flags))
-#define ioremap_prot(offset, size, flags)		\
-	__ioremap_mode((offset), (size), (flags))
-#define iounmap(addr)					\
-	__iounmap((addr))
+static inline void __iomem *ioremap(phys_addr_t offset, unsigned long size)
+{
+	return __ioremap_mode(offset, size, PAGE_KERNEL_NOCACHE);
+}
+
+static inline void __iomem *
+ioremap_cache(phys_addr_t offset, unsigned long size)
+{
+	return __ioremap_mode(offset, size, PAGE_KERNEL);
+}
+
+#ifdef CONFIG_HAVE_IOREMAP_PROT
+static inline void __iomem *
+ioremap_prot(phys_addr_t offset, unsigned long size, unsigned long flags)
+{
+	return __ioremap_mode(offset, size, __pgprot(flags));
+}
+#endif
+
+#ifdef CONFIG_IOREMAP_FIXED
+extern void __iomem *ioremap_fixed(phys_addr_t, unsigned long, pgprot_t);
+extern int iounmap_fixed(void __iomem *);
+extern void ioremap_fixed_init(void);
+#else
+static inline void __iomem *
+ioremap_fixed(phys_addr_t phys_addr, unsigned long size, pgprot_t prot)
+{
+	BUG();
+	return NULL;
+}
+
+static inline void ioremap_fixed_init(void) { }
+static inline int iounmap_fixed(void __iomem *addr) { return -EINVAL; }
+#endif
+
+#define ioremap_nocache	ioremap
+#define iounmap		__iounmap
 
 #define maybebadio(port) \
 	printk(KERN_ERR "bad PC-like io %s:%u for port 0x%lx at 0x%08x\n", \

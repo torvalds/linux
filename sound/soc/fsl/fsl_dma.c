@@ -19,6 +19,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/gfp.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>

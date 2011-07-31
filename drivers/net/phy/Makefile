@@ -20,3 +20,5 @@ obj-$(CONFIG_MDIO_BITBANG)	+= mdio-bitbang.o
 obj-$(CONFIG_MDIO_GPIO)		+= mdio-gpio.o
 obj-$(CONFIG_NATIONAL_PHY)	+= national.o
 obj-$(CONFIG_STE10XP)		+= ste10Xp.o
+obj-$(CONFIG_MICREL_PHY)	+= micrel.o
+obj-$(CONFIG_MDIO_OCTEON)	+= mdio-octeon.o

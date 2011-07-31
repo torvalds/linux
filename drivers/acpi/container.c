@@ -29,6 +29,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/acpi.h>
 #include <acpi/acpi_bus.h>
@@ -258,7 +259,7 @@ static int __init acpi_container_init(void)
 	acpi_walk_namespace(ACPI_TYPE_DEVICE,
 			    ACPI_ROOT_OBJECT,
 			    ACPI_UINT32_MAX,
-			    container_walk_namespace_cb, &action, NULL);
+			    container_walk_namespace_cb, NULL, &action, NULL);
 
 	return (0);
 }
@@ -271,7 +272,7 @@ static void __exit acpi_container_exit(void)
 	acpi_walk_namespace(ACPI_TYPE_DEVICE,
 			    ACPI_ROOT_OBJECT,
 			    ACPI_UINT32_MAX,
-			    container_walk_namespace_cb, &action, NULL);
+			    container_walk_namespace_cb, NULL, &action, NULL);
 
 	acpi_bus_unregister_driver(&acpi_container_driver);
 

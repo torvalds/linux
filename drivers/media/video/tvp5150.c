@@ -6,6 +6,7 @@
  */
 
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <linux/delay.h>
 #include <media/v4l2-device.h>
@@ -890,29 +891,26 @@ static int tvp5150_s_routing(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int tvp5150_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
+static int tvp5150_s_raw_fmt(struct v4l2_subdev *sd, struct v4l2_vbi_format *fmt)
 {
-	struct v4l2_sliced_vbi_format *svbi;
+	/* this is for capturing 36 raw vbi lines
+	   if there's a way to cut off the beginning 2 vbi lines
+	   with the tvp5150 then the vbi line count could be lowered
+	   to 17 lines/field again, although I couldn't find a register
+	   which could do that cropping */
+	if (fmt->sample_format == V4L2_PIX_FMT_GREY)
+		tvp5150_write(sd, TVP5150_LUMA_PROC_CTL_1, 0x70);
+	if (fmt->count[0] == 18 && fmt->count[1] == 18) {
+		tvp5150_write(sd, TVP5150_VERT_BLANKING_START, 0x00);
+		tvp5150_write(sd, TVP5150_VERT_BLANKING_STOP, 0x01);
+	}
+	return 0;
+}
+
+static int tvp5150_s_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *svbi)
+{
 	int i;
 
-	/* raw vbi */
-	if (fmt->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
-		/* this is for capturing 36 raw vbi lines
-		   if there's a way to cut off the beginning 2 vbi lines
-		   with the tvp5150 then the vbi line count could be lowered
-		   to 17 lines/field again, although I couldn't find a register
-		   which could do that cropping */
-		if (fmt->fmt.vbi.sample_format == V4L2_PIX_FMT_GREY)
-			tvp5150_write(sd, TVP5150_LUMA_PROC_CTL_1, 0x70);
-		if (fmt->fmt.vbi.count[0] == 18 && fmt->fmt.vbi.count[1] == 18) {
-			tvp5150_write(sd, TVP5150_VERT_BLANKING_START, 0x00);
-			tvp5150_write(sd, TVP5150_VERT_BLANKING_STOP, 0x01);
-		}
-		return 0;
-	}
-	if (fmt->type != V4L2_BUF_TYPE_SLICED_VBI_CAPTURE)
-		return -EINVAL;
-	svbi = &fmt->fmt.sliced;
 	if (svbi->service_set != 0) {
 		for (i = 0; i <= 23; i++) {
 			svbi->service_lines[1][i] = 0;
@@ -936,14 +934,10 @@ static int tvp5150_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 	return 0;
 }
 
-static int tvp5150_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
+static int tvp5150_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *svbi)
 {
-	struct v4l2_sliced_vbi_format *svbi;
 	int i, mask = 0;
 
-	if (fmt->type != V4L2_BUF_TYPE_SLICED_VBI_CAPTURE)
-		return -EINVAL;
-	svbi = &fmt->fmt.sliced;
 	memset(svbi, 0, sizeof(*svbi));
 
 	for (i = 0; i <= 23; i++) {
@@ -954,7 +948,6 @@ static int tvp5150_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 	svbi->service_set = mask;
 	return 0;
 }
-
 
 static int tvp5150_g_chip_ident(struct v4l2_subdev *sd,
 				struct v4l2_dbg_chip_ident *chip)
@@ -1043,15 +1036,20 @@ static const struct v4l2_subdev_tuner_ops tvp5150_tuner_ops = {
 
 static const struct v4l2_subdev_video_ops tvp5150_video_ops = {
 	.s_routing = tvp5150_s_routing,
-	.g_fmt = tvp5150_g_fmt,
-	.s_fmt = tvp5150_s_fmt,
+};
+
+static const struct v4l2_subdev_vbi_ops tvp5150_vbi_ops = {
 	.g_sliced_vbi_cap = tvp5150_g_sliced_vbi_cap,
+	.g_sliced_fmt = tvp5150_g_sliced_fmt,
+	.s_sliced_fmt = tvp5150_s_sliced_fmt,
+	.s_raw_fmt = tvp5150_s_raw_fmt,
 };
 
 static const struct v4l2_subdev_ops tvp5150_ops = {
 	.core = &tvp5150_core_ops,
 	.tuner = &tvp5150_tuner_ops,
 	.video = &tvp5150_video_ops,
+	.vbi = &tvp5150_vbi_ops,
 };
 
 

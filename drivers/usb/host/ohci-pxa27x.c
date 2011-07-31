@@ -203,7 +203,7 @@ static inline void pxa27x_reset_hc(struct pxa27x_ohci *ohci)
 	__raw_writel(uhchr & ~UHCHR_FHR, ohci->mmio_base + UHCHR);
 }
 
-#ifdef CONFIG_CPU_PXA27x
+#ifdef CONFIG_PXA27x
 extern void pxa27x_clear_otgph(void);
 #else
 #define pxa27x_clear_otgph()	do {} while (0)
@@ -518,7 +518,7 @@ static int ohci_hcd_pxa27x_drv_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops ohci_hcd_pxa27x_pm_ops = {
+static const struct dev_pm_ops ohci_hcd_pxa27x_pm_ops = {
 	.suspend	= ohci_hcd_pxa27x_drv_suspend,
 	.resume		= ohci_hcd_pxa27x_drv_resume,
 };

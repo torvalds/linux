@@ -65,7 +65,6 @@ static int max_interrupt_work = 20;
 #include <linux/errno.h>
 #include <linux/in.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/etherdevice.h>
 #include <linux/interrupt.h>
@@ -764,13 +763,14 @@ static int corkscrew_open(struct net_device *dev)
 	/* Use the now-standard shared IRQ implementation. */
 	if (vp->capabilities == 0x11c7) {
 		/* Corkscrew: Cannot share ISA resources. */
-		if (dev->irq == 0
-		    || dev->dma == 0
-		    || request_irq(dev->irq, &corkscrew_interrupt, 0,
-				   vp->product_name, dev)) return -EAGAIN;
+		if (dev->irq == 0 ||
+		    dev->dma == 0 ||
+		    request_irq(dev->irq, corkscrew_interrupt, 0,
+				vp->product_name, dev))
+			return -EAGAIN;
 		enable_dma(dev->dma);
 		set_dma_mode(dev->dma, DMA_MODE_CASCADE);
-	} else if (request_irq(dev->irq, &corkscrew_interrupt, IRQF_SHARED,
+	} else if (request_irq(dev->irq, corkscrew_interrupt, IRQF_SHARED,
 			       vp->product_name, dev)) {
 		return -EAGAIN;
 	}
@@ -958,7 +958,6 @@ static void corkscrew_timer(unsigned long data)
 		       dev->name, media_tbl[dev->if_port].name);
 
 #endif				/* AUTOMEDIA */
-	return;
 }
 
 static void corkscrew_timeout(struct net_device *dev)
@@ -992,7 +991,7 @@ static void corkscrew_timeout(struct net_device *dev)
 		if (!(inw(ioaddr + EL3_STATUS) & CmdInProgress))
 			break;
 	outw(TxEnable, ioaddr + EL3_CMD);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	dev->stats.tx_errors++;
 	dev->stats.tx_dropped++;
 	netif_wake_queue(dev);
@@ -1055,7 +1054,6 @@ static netdev_tx_t corkscrew_start_xmit(struct sk_buff *skb,
 				prev_entry->status &= ~0x80000000;
 			netif_wake_queue(dev);
 		}
-		dev->trans_start = jiffies;
 		return NETDEV_TX_OK;
 	}
 	/* Put out the doubleword header... */
@@ -1091,7 +1089,6 @@ static netdev_tx_t corkscrew_start_xmit(struct sk_buff *skb,
 		outw(SetTxThreshold + (1536 >> 2), ioaddr + EL3_CMD);
 #endif				/* bus master */
 
-	dev->trans_start = jiffies;
 
 	/* Clear the Tx status stack. */
 	{
@@ -1368,8 +1365,8 @@ static int boomerang_rx(struct net_device *dev)
 
 			/* Check if the packet is long enough to just accept without
 			   copying to a properly sized skbuff. */
-			if (pkt_len < rx_copybreak
-			    && (skb = dev_alloc_skb(pkt_len + 4)) != NULL) {
+			if (pkt_len < rx_copybreak &&
+			    (skb = dev_alloc_skb(pkt_len + 4)) != NULL) {
 				skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 				/* 'skb_put()' points to the start of sk_buff data area. */
 				memcpy(skb_put(skb, pkt_len),
@@ -1518,7 +1515,6 @@ static void update_stats(int ioaddr, struct net_device *dev)
 
 	/* We change back to window 7 (not 1) with the Vortex. */
 	EL3WINDOW(7);
-	return;
 }
 
 /* This new version of set_rx_mode() supports v1.4 kernels.
@@ -1535,7 +1531,7 @@ static void set_rx_mode(struct net_device *dev)
 			pr_debug("%s: Setting promiscuous mode.\n",
 			       dev->name);
 		new_mode = SetRxFilter | RxStation | RxMulticast | RxBroadcast | RxProm;
-	} else if ((dev->mc_list) || (dev->flags & IFF_ALLMULTI)) {
+	} else if (!netdev_mc_empty(dev) || dev->flags & IFF_ALLMULTI) {
 		new_mode = SetRxFilter | RxStation | RxMulticast | RxBroadcast;
 	} else
 		new_mode = SetRxFilter | RxStation | RxBroadcast;

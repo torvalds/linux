@@ -16,7 +16,7 @@
 #define ACCOUNT_SYS_ENTER
 #endif
 
-.section ".data.patch.rse", "a"
+.section ".data..patch.rse", "a"
 .previous
 
 /*
@@ -215,7 +215,7 @@
 (pUStk) extr.u r17=r18,3,6;			\
 (pUStk)	sub r16=r18,r22;			\
 [1:](pKStk)	br.cond.sptk.many 1f;		\
-	.xdata4 ".data.patch.rse",1b-.		\
+	.xdata4 ".data..patch.rse",1b-.		\
 	;;					\
 	cmp.ge p6,p7 = 33,r17;			\
 	;;					\

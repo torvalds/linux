@@ -74,7 +74,7 @@ struct gelic_eurus_common_cfg {
 	u16 bss_type;    /* infra or adhoc */
 	u16 auth_method; /* shared key or open */
 	u16 op_mode; /* B/G */
-} __attribute__((packed));
+} __packed;
 
 
 /* for GELIC_EURUS_CMD_WEP_CFG */
@@ -88,7 +88,7 @@ struct gelic_eurus_wep_cfg {
 	/* all fields are big endian */
 	u16 security;
 	u8 key[4][16];
-} __attribute__((packed));
+} __packed;
 
 /* for GELIC_EURUS_CMD_WPA_CFG */
 enum gelic_eurus_wpa_security {
@@ -120,7 +120,7 @@ struct gelic_eurus_wpa_cfg {
 	u16 security;
 	u16 psk_type; /* psk key encoding type */
 	u8 psk[GELIC_WL_EURUS_PSK_MAX_LEN]; /* psk key; hex or passphrase */
-} __attribute__((packed));
+} __packed;
 
 /* for GELIC_EURUS_CMD_{START,GET}_SCAN */
 enum gelic_eurus_scan_capability {
@@ -171,7 +171,7 @@ struct gelic_eurus_scan_info {
 	__be32 reserved3;
 	__be32 reserved4;
 	u8 elements[0]; /* ie */
-} __attribute__ ((packed));
+} __packed;
 
 /* the hypervisor returns bbs up to 16 */
 #define GELIC_EURUS_MAX_SCAN  (16)
@@ -193,13 +193,13 @@ struct gelic_wl_scan_info {
 struct gelic_eurus_rssi_info {
 	/* big endian */
 	__be16 rssi;
-} __attribute__ ((packed));
+} __packed;
 
 
 /* for 'stat' member of gelic_wl_info */
 enum gelic_wl_info_status_bit {
 	GELIC_WL_STAT_CONFIGURED,
-	GELIC_WL_STAT_CH_INFO,   /* ch info aquired */
+	GELIC_WL_STAT_CH_INFO,   /* ch info acquired */
 	GELIC_WL_STAT_ESSID_SET, /* ESSID specified by userspace */
 	GELIC_WL_STAT_BSSID_SET, /* BSSID specified by userspace */
 	GELIC_WL_STAT_WPA_PSK_SET, /* PMK specified by userspace */

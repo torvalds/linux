@@ -8,28 +8,28 @@
 #include <linux/reiserfs_fs.h>
 #include <linux/stat.h>
 #include <linux/buffer_head.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 
 extern const struct reiserfs_key MIN_KEY;
 
 static int reiserfs_readdir(struct file *, void *, filldir_t);
-static int reiserfs_dir_fsync(struct file *filp, struct dentry *dentry,
-			      int datasync);
+static int reiserfs_dir_fsync(struct file *filp, int datasync);
 
 const struct file_operations reiserfs_dir_operations = {
+	.llseek = generic_file_llseek,
 	.read = generic_read_dir,
 	.readdir = reiserfs_readdir,
 	.fsync = reiserfs_dir_fsync,
-	.ioctl = reiserfs_ioctl,
+	.unlocked_ioctl = reiserfs_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = reiserfs_compat_ioctl,
 #endif
 };
 
-static int reiserfs_dir_fsync(struct file *filp, struct dentry *dentry,
-			      int datasync)
+static int reiserfs_dir_fsync(struct file *filp, int datasync)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = filp->f_mapping->host;
 	int err;
 	reiserfs_write_lock(inode->i_sb);
 	err = reiserfs_commit_for_inode(inode);
@@ -45,8 +45,6 @@ static inline bool is_privroot_deh(struct dentry *dir,
 				   struct reiserfs_de_head *deh)
 {
 	struct dentry *privroot = REISERFS_SB(dir->d_sb)->priv_root;
-	if (reiserfs_expose_privroot(dir->d_sb))
-		return 0;
 	return (dir == dir->d_parent && privroot->d_inode &&
 	        deh->deh_objectid == INODE_PKEY(privroot->d_inode)->k_objectid);
 }
@@ -174,14 +172,22 @@ int reiserfs_readdir_dentry(struct dentry *dentry, void *dirent,
 				// user space buffer is swapped out. At that time
 				// entry can move to somewhere else
 				memcpy(local_buf, d_name, d_reclen);
+
+				/*
+				 * Since filldir might sleep, we can release
+				 * the write lock here for other waiters
+				 */
+				reiserfs_write_unlock(inode->i_sb);
 				if (filldir
 				    (dirent, local_buf, d_reclen, d_off, d_ino,
 				     DT_UNKNOWN) < 0) {
+					reiserfs_write_lock(inode->i_sb);
 					if (local_buf != small_buf) {
 						kfree(local_buf);
 					}
 					goto end;
 				}
+				reiserfs_write_lock(inode->i_sb);
 				if (local_buf != small_buf) {
 					kfree(local_buf);
 				}

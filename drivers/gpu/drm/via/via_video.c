@@ -29,7 +29,7 @@
 #include "via_drm.h"
 #include "via_drv.h"
 
-void via_init_futex(drm_via_private_t * dev_priv)
+void via_init_futex(drm_via_private_t *dev_priv)
 {
 	unsigned int i;
 
@@ -41,11 +41,11 @@ void via_init_futex(drm_via_private_t * dev_priv)
 	}
 }
 
-void via_cleanup_futex(drm_via_private_t * dev_priv)
+void via_cleanup_futex(drm_via_private_t *dev_priv)
 {
 }
 
-void via_release_futex(drm_via_private_t * dev_priv, int context)
+void via_release_futex(drm_via_private_t *dev_priv, int context)
 {
 	unsigned int i;
 	volatile int *lock;
@@ -75,7 +75,7 @@ int via_decoder_futex(struct drm_device *dev, void *data, struct drm_file *file_
 
 	DRM_DEBUG("\n");
 
-	if (fx->lock > VIA_NR_XVMC_LOCKS)
+	if (fx->lock >= VIA_NR_XVMC_LOCKS)
 		return -EFAULT;
 
 	lock = (volatile int *)XVMCLOCKPTR(sAPriv, fx->lock);

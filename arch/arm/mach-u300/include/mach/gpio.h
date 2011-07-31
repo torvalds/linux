@@ -273,6 +273,9 @@ extern void gpio_pullup(unsigned gpio, int value);
 extern int gpio_get_value(unsigned gpio);
 extern void gpio_set_value(unsigned gpio, int value);
 
+#define gpio_get_value_cansleep gpio_get_value
+#define gpio_set_value_cansleep gpio_set_value
+
 /* wrappers to sleep-enable the previous two functions */
 static inline unsigned gpio_to_irq(unsigned gpio)
 {

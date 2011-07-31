@@ -374,7 +374,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 
 #ifdef CONFIG_X86_64
 
-__initcall(sysenter_setup);
+subsys_initcall(sysenter_setup);
 
 #ifdef CONFIG_SYSCTL
 /* Register vsyscall32 into the ABI table */
@@ -393,7 +393,6 @@ static ctl_table abi_table2[] = {
 
 static ctl_table abi_root_table2[] = {
 	{
-		.ctl_name = CTL_ABI,
 		.procname = "abi",
 		.mode = 0555,
 		.child = abi_table2

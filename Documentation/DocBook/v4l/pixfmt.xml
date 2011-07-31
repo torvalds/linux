@@ -770,6 +770,11 @@ kernel sources in the file <filename>Documentation/video4linux/cx2341x/README.hm
 	    <entry>'S920'</entry>
 	    <entry>YUV 4:2:0 format of the gspca sn9c20x driver.</entry>
 	  </row>
+	  <row id="V4L2-PIX-FMT-STV0680">
+	    <entry><constant>V4L2_PIX_FMT_STV0680</constant></entry>
+	    <entry>'S680'</entry>
+	    <entry>Bayer format of the gspca stv0680 driver.</entry>
+	  </row>
 	  <row id="V4L2-PIX-FMT-WNVA">
 	    <entry><constant>V4L2_PIX_FMT_WNVA</constant></entry>
 	    <entry>'WNVA'</entry>
@@ -786,6 +791,18 @@ http://www.thedirks.org/winnov/</ulink></para></entry>
 	    <entry><constant>V4L2_PIX_FMT_YYUV</constant></entry>
 	    <entry>'YYUV'</entry>
 	    <entry>unknown</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-Y4">
+	    <entry><constant>V4L2_PIX_FMT_Y4</constant></entry>
+	    <entry>'Y04 '</entry>
+	    <entry>Old 4-bit greyscale format. Only the least significant 4 bits of each byte are used,
+the other bits are set to 0.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-Y6">
+	    <entry><constant>V4L2_PIX_FMT_Y6</constant></entry>
+	    <entry>'Y06 '</entry>
+	    <entry>Old 6-bit greyscale format. Only the least significant 6 bits of each byte are used,
+the other bits are set to 0.</entry>
 	  </row>
 	</tbody>
       </tgroup>

@@ -13,6 +13,7 @@
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
+#include <linux/slab.h>
 
 #include <asm/portmux.h>
 #include <asm/bfin_rotary.h>
@@ -247,7 +248,7 @@ static int bfin_rotary_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops bfin_rotary_pm_ops = {
+static const struct dev_pm_ops bfin_rotary_pm_ops = {
 	.suspend	= bfin_rotary_suspend,
 	.resume		= bfin_rotary_resume,
 };

@@ -34,7 +34,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/gameport.h>
-#include <linux/slab.h>
 
 #define L4_PORT			0x201
 #define L4_SELECT_ANALOG	0xa4

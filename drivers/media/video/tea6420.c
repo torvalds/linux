@@ -6,7 +6,7 @@
 
     The tea6420 is a bus controlled audio-matrix with 5 stereo inputs,
     4 stereo outputs and gain control for each output.
-    It is cascadable, i.e. it can be found at the adresses 0x98
+    It is cascadable, i.e. it can be found at the addresses 0x98
     and 0x9a on the i2c-bus.
 
     For detailed informations download the specifications directly
@@ -30,6 +30,7 @@
 
 #include <linux/module.h>
 #include <linux/ioctl.h>
+#include <linux/slab.h>
 #include <linux/i2c.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>

@@ -32,7 +32,7 @@
 
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-device.h>
-#include <media/ir-kbd-i2c.h>
+#include <media/ir-core.h>
 #if defined(CONFIG_VIDEO_CX231XX_DVB) || \
 	defined(CONFIG_VIDEO_CX231XX_DVB_MODULE)
 #include <media/videobuf-dvb.h>
@@ -689,8 +689,6 @@ void cx231xx_release_analog_resources(struct cx231xx *dev);
 int cx231xx_register_analog_devices(struct cx231xx *dev);
 void cx231xx_remove_from_devlist(struct cx231xx *dev);
 void cx231xx_add_into_devlist(struct cx231xx *dev);
-struct cx231xx *cx231xx_get_device(int minor,
-				   enum v4l2_buf_type *fh_type, int *has_radio);
 void cx231xx_init_extension(struct cx231xx *dev);
 void cx231xx_close_extension(struct cx231xx *dev);
 

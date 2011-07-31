@@ -21,6 +21,8 @@
 #define disk_to_dev(disk)	(&(disk)->part0.__dev)
 #define part_to_dev(part)	(&((part)->__dev))
 
+#define GENHD_PART_NAME_SIZE	128
+
 extern struct device_type part_type;
 extern struct kobject *block_depr;
 extern struct class block_class;
@@ -91,6 +93,7 @@ struct hd_struct {
 	sector_t start_sect;
 	sector_t nr_sects;
 	sector_t alignment_offset;
+	unsigned int discard_alignment;
 	struct device __dev;
 	struct kobject *holder_dir;
 	int policy, partno;
@@ -100,15 +103,16 @@ struct hd_struct {
 	unsigned long stamp;
 	int in_flight[2];
 #ifdef	CONFIG_SMP
-	struct disk_stats *dkstats;
+	struct disk_stats __percpu *dkstats;
 #else
 	struct disk_stats dkstats;
 #endif
 	struct rcu_head rcu_head;
+	char partition_name[GENHD_PART_NAME_SIZE];
 };
 
 #define GENHD_FL_REMOVABLE			1
-#define GENHD_FL_DRIVERFS			2
+/* 2 is unused */
 #define GENHD_FL_MEDIA_CHANGE_NOTIFY		4
 #define GENHD_FL_CD				8
 #define GENHD_FL_UP				16
@@ -255,9 +259,9 @@ extern struct hd_struct *disk_map_sector_rcu(struct gendisk *disk,
 #define part_stat_read(part, field)					\
 ({									\
 	typeof((part)->dkstats->field) res = 0;				\
-	int i;								\
-	for_each_possible_cpu(i)					\
-		res += per_cpu_ptr((part)->dkstats, i)->field;		\
+	unsigned int _cpu;						\
+	for_each_possible_cpu(_cpu)					\
+		res += per_cpu_ptr((part)->dkstats, _cpu)->field;	\
 	res;								\
 })
 

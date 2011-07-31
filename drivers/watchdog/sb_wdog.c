@@ -1,7 +1,7 @@
 /*
  * Watchdog driver for SiByte SB1 SoCs
  *
- * Copyright (C) 2007 OnStor, Inc. * Andrew Sharp <andy.sharp@onstor.com>
+ * Copyright (C) 2007 OnStor, Inc. * Andrew Sharp <andy.sharp@lsi.com>
  *
  * This driver is intended to make the second of two hardware watchdogs
  * on the Sibyte 12XX and 11XX SoCs available to the user.  There are two
@@ -67,8 +67,8 @@ static DEFINE_SPINLOCK(sbwd_lock);
 void sbwdog_set(char __iomem *wdog, unsigned long t)
 {
 	spin_lock(&sbwd_lock);
-	__raw_writeb(0, wdog - 0x10);
-	__raw_writeq(t & 0x7fffffUL, wdog);
+	__raw_writeb(0, wdog);
+	__raw_writeq(t & 0x7fffffUL, wdog - 0x10);
 	spin_unlock(&sbwd_lock);
 }
 
@@ -305,7 +305,7 @@ static int __init sbwdog_init(void)
 	if (ret) {
 		printk(KERN_ERR "%s: failed to request irq 1 - %d\n",
 						ident.identity, ret);
-		return ret;
+		goto out;
 	}
 
 	ret = misc_register(&sbwdog_miscdev);
@@ -313,20 +313,26 @@ static int __init sbwdog_init(void)
 		printk(KERN_INFO "%s: timeout is %ld.%ld secs\n",
 				ident.identity,
 				timeout / 1000000, (timeout / 100000) % 10);
-	} else
-		free_irq(1, (void *)user_dog);
+		return 0;
+	}
+	free_irq(1, (void *)user_dog);
+out:
+	unregister_reboot_notifier(&sbwdog_notifier);
+
 	return ret;
 }
 
 static void __exit sbwdog_exit(void)
 {
 	misc_deregister(&sbwdog_miscdev);
+	free_irq(1, (void *)user_dog);
+	unregister_reboot_notifier(&sbwdog_notifier);
 }
 
 module_init(sbwdog_init);
 module_exit(sbwdog_exit);
 
-MODULE_AUTHOR("Andrew Sharp <andy.sharp@onstor.com>");
+MODULE_AUTHOR("Andrew Sharp <andy.sharp@lsi.com>");
 MODULE_DESCRIPTION("SiByte Watchdog");
 
 module_param(timeout, ulong, 0);

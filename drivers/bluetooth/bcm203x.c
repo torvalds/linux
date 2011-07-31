@@ -39,7 +39,7 @@
 
 #define VERSION "1.2"
 
-static struct usb_device_id bcm203x_table[] = {
+static const struct usb_device_id bcm203x_table[] = {
 	/* Broadcom Blutonium (BCM2033) */
 	{ USB_DEVICE(0x0a5c, 0x2033) },
 
@@ -224,7 +224,7 @@ static int bcm203x_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	BT_DBG("firmware data %p size %zu", firmware->data, firmware->size);
 
-	data->fw_data = kmalloc(firmware->size, GFP_KERNEL);
+	data->fw_data = kmemdup(firmware->data, firmware->size, GFP_KERNEL);
 	if (!data->fw_data) {
 		BT_ERR("Can't allocate memory for firmware image");
 		release_firmware(firmware);
@@ -234,7 +234,6 @@ static int bcm203x_probe(struct usb_interface *intf, const struct usb_device_id 
 		return -ENOMEM;
 	}
 
-	memcpy(data->fw_data, firmware->data, firmware->size);
 	data->fw_size = firmware->size;
 	data->fw_sent = 0;
 

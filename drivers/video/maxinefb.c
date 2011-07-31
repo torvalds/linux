@@ -28,7 +28,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/fb.h>
@@ -91,6 +90,9 @@ static int maxinefb_setcolreg(unsigned regno, unsigned red, unsigned green,
 {
 	/* value to be written into the palette reg. */
 	unsigned long hw_colorvalue = 0;
+
+	if (regno > 255)
+		return 1;
 
 	red   >>= 8;    /* The cmap fields are 16 bits    */
 	green >>= 8;    /* wide, but the harware colormap */

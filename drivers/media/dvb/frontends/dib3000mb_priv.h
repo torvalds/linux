@@ -37,12 +37,8 @@
 
 /* debug */
 
-#ifdef CONFIG_DVB_DIBCOM_DEBUG
 #define dprintk(level,args...) \
     do { if ((debug & level)) { printk(args); } } while (0)
-#else
-#define dprintk(args...) do { } while (0)
-#endif
 
 /* mask for enabling a specific pid for the pid_filter */
 #define DIB3000_ACTIVATE_PID_FILTERING	(0x2000)

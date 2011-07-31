@@ -62,7 +62,7 @@
  * Called when wanting to reset the device for any reason. Device is
  * taken back to power on status.
  *
- * This call blocks; on succesful return, the device has completed the
+ * This call blocks; on successful return, the device has completed the
  * reset process and is ready to operate.
  */
 int wimax_reset(struct wimax_dev *wimax_dev)
@@ -91,8 +91,7 @@ int wimax_reset(struct wimax_dev *wimax_dev)
 EXPORT_SYMBOL(wimax_reset);
 
 
-static const
-struct nla_policy wimax_gnl_reset_policy[WIMAX_GNL_ATTR_MAX + 1] = {
+static const struct nla_policy wimax_gnl_reset_policy[WIMAX_GNL_ATTR_MAX + 1] = {
 	[WIMAX_GNL_RESET_IFIDX] = {
 		.type = NLA_U32,
 	},
@@ -111,7 +110,6 @@ int wimax_gnl_doit_reset(struct sk_buff *skb, struct genl_info *info)
 {
 	int result, ifindex;
 	struct wimax_dev *wimax_dev;
-	struct device *dev;
 
 	d_fnstart(3, NULL, "(skb %p info %p)\n", skb, info);
 	result = -ENODEV;
@@ -124,7 +122,6 @@ int wimax_gnl_doit_reset(struct sk_buff *skb, struct genl_info *info)
 	wimax_dev = wimax_dev_get_by_genl_info(info, ifindex);
 	if (wimax_dev == NULL)
 		goto error_no_wimax_dev;
-	dev = wimax_dev_to_dev(wimax_dev);
 	/* Execute the operation and send the result back to user space */
 	result = wimax_reset(wimax_dev);
 	dev_put(wimax_dev->net_dev);

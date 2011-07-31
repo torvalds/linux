@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2009 LSI Corporation.
+ *  Copyright (c) 2000-2010 LSI Corporation.
  *
  *
  *           Name:  mpi2_tool.h
  *          Title:  MPI diagnostic tool structures and definitions
  *  Creation Date:  March 26, 2007
  *
- *    mpi2_tool.h Version:  02.00.03
+ *    mpi2_tool.h Version:  02.00.04
  *
  *  Version History
  *  ---------------
@@ -18,6 +18,10 @@
  *                      structures and defines.
  *  02-29-08  02.00.02  Modified various names to make them 32-character unique.
  *  05-06-09  02.00.03  Added ISTWI Read Write Tool and Diagnostic CLI Tool.
+ *  07-30-09  02.00.04  Added ExtendedType field to DiagnosticBufferPost request
+ *                      and reply messages.
+ *                      Added MPI2_DIAG_BUF_TYPE_EXTENDED.
+ *                      Incremented MPI2_DIAG_BUF_TYPE_COUNT.
  *  --------------------------------------------------------------------------
  */
 
@@ -282,7 +286,7 @@ typedef struct _MPI2_TOOLBOX_DIAGNOSTIC_CLI_REPLY {
 
 typedef struct _MPI2_DIAG_BUFFER_POST_REQUEST
 {
-    U8                      Reserved1;                  /* 0x00 */
+    U8                      ExtendedType;               /* 0x00 */
     U8                      BufferType;                 /* 0x01 */
     U8                      ChainOffset;                /* 0x02 */
     U8                      Function;                   /* 0x03 */
@@ -301,11 +305,15 @@ typedef struct _MPI2_DIAG_BUFFER_POST_REQUEST
 } MPI2_DIAG_BUFFER_POST_REQUEST, MPI2_POINTER PTR_MPI2_DIAG_BUFFER_POST_REQUEST,
   Mpi2DiagBufferPostRequest_t, MPI2_POINTER pMpi2DiagBufferPostRequest_t;
 
+/* values for the ExtendedType field */
+#define MPI2_DIAG_EXTENDED_TYPE_UTILIZATION         (0x02)
+
 /* values for the BufferType field */
 #define MPI2_DIAG_BUF_TYPE_TRACE                    (0x00)
 #define MPI2_DIAG_BUF_TYPE_SNAPSHOT                 (0x01)
+#define MPI2_DIAG_BUF_TYPE_EXTENDED                 (0x02)
 /* count of the number of buffer types */
-#define MPI2_DIAG_BUF_TYPE_COUNT                    (0x02)
+#define MPI2_DIAG_BUF_TYPE_COUNT                    (0x03)
 
 
 /****************************************************************************
@@ -314,7 +322,7 @@ typedef struct _MPI2_DIAG_BUFFER_POST_REQUEST
 
 typedef struct _MPI2_DIAG_BUFFER_POST_REPLY
 {
-    U8                      Reserved1;                  /* 0x00 */
+    U8                      ExtendedType;               /* 0x00 */
     U8                      BufferType;                 /* 0x01 */
     U8                      MsgLength;                  /* 0x02 */
     U8                      Function;                   /* 0x03 */

@@ -1,7 +1,6 @@
-
 /* arch/arm/mach-s3c2410/include/mach/uncompress.h
  *
- * Copyright (c) 2003, 2007 Simtec Electronics
+ * Copyright (c) 2003-2007 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
@@ -41,7 +40,9 @@ static void arch_detect_cpu(void)
 	cpuid &= S3C2410_GSTATUS1_IDMASK;
 
 	if (is_arm926() || cpuid == S3C2410_GSTATUS1_2440 ||
-	    cpuid == S3C2410_GSTATUS1_2442) {
+	    cpuid == S3C2410_GSTATUS1_2442 ||
+	    cpuid == S3C2410_GSTATUS1_2416 ||
+	    cpuid == S3C2410_GSTATUS1_2450) {
 		fifo_mask = S3C2440_UFSTAT_TXMASK;
 		fifo_max = 63 << S3C2440_UFSTAT_TXSHIFT;
 	} else {

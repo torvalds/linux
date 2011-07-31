@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v2.2"
+#define DRIVER_VERSION "v2.4"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "Stirling/ITL USB-DUX -- Bernd.Porr@f2s.com"
 /*
@@ -80,6 +80,9 @@ sampling rate. If you sample two channels you get 4kHz and so on.
  * 2.0:  PWM seems to be stable and is not interfering with the other functions
  * 2.1:  changed PWM API
  * 2.2:  added firmware kernel request to fix an udev problem
+ * 2.3:  corrected a bug in bulk timeouts which were far too short
+ * 2.4:  fixed a bug which causes the driver to hang when it ran out of data.
+ *       Thanks to Jan-Matthias Braun and Ian to spot the bug and fix it.
  *
  */
 
@@ -92,7 +95,6 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/usb.h>
-#include <linux/smp_lock.h>
 #include <linux/fcntl.h>
 #include <linux/compiler.h>
 #include <linux/firmware.h>
@@ -101,15 +103,15 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 
 #define BOARDNAME "usbdux"
 
-/* timeout for the USB-transfer */
-#define EZTIMEOUT 30
+/* timeout for the USB-transfer in ms*/
+#define BULK_TIMEOUT 1000
 
 /* constants for "firmware" upload and download */
 #define USBDUXSUB_FIRMWARE 0xA0
 #define VENDOR_DIR_IN  0xC0
 #define VENDOR_DIR_OUT 0x40
 
-/* internal adresses of the 8051 processor */
+/* internal addresses of the 8051 processor */
 #define USBDUXSUB_CPUCS 0xE600
 
 /*
@@ -286,7 +288,7 @@ struct usbduxsub {
 	/* continous aquisition */
 	short int ai_continous;
 	short int ao_continous;
-	/* number of samples to aquire */
+	/* number of samples to acquire */
 	int ai_sample_count;
 	int ao_sample_count;
 	/* time between samples in units of the timer */
@@ -349,8 +351,7 @@ static int usbdux_ai_stop(struct usbduxsub *this_usbduxsub, int do_unlink)
 	int ret = 0;
 
 	if (!this_usbduxsub) {
-		dev_err(&this_usbduxsub->interface->dev,
-			"comedi?: usbdux_ai_stop: this_usbduxsub=NULL!\n");
+		pr_err("comedi?: usbdux_ai_stop: this_usbduxsub=NULL!\n");
 		return -EFAULT;
 	}
 	dev_dbg(&this_usbduxsub->interface->dev, "comedi: usbdux_ai_stop\n");
@@ -531,6 +532,7 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb)
 		}
 	}
 	/* tell comedi that data is there */
+	s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
 	comedi_event(this_usbduxsub->comedidev, s);
 }
 
@@ -750,7 +752,7 @@ static int usbduxsub_start(struct usbduxsub *usbduxsub)
 				  /* Length */
 				  1,
 				  /* Timeout */
-				  EZTIMEOUT);
+				  BULK_TIMEOUT);
 	if (errcode < 0) {
 		dev_err(&usbduxsub->interface->dev,
 			"comedi_: control msg failed (start)\n");
@@ -780,7 +782,7 @@ static int usbduxsub_stop(struct usbduxsub *usbduxsub)
 				  /* Length */
 				  1,
 				  /* Timeout */
-				  EZTIMEOUT);
+				  BULK_TIMEOUT);
 	if (errcode < 0) {
 		dev_err(&usbduxsub->interface->dev,
 			"comedi_: control msg failed (stop)\n");
@@ -790,7 +792,7 @@ static int usbduxsub_stop(struct usbduxsub *usbduxsub)
 }
 
 static int usbduxsub_upload(struct usbduxsub *usbduxsub,
-			    uint8_t * local_transfer_buffer,
+			    uint8_t *local_transfer_buffer,
 			    unsigned int startAddr, unsigned int len)
 {
 	int errcode;
@@ -810,7 +812,7 @@ static int usbduxsub_upload(struct usbduxsub *usbduxsub,
 				  /* length */
 				  len,
 				  /* timeout */
-				  EZTIMEOUT);
+				  BULK_TIMEOUT);
 	dev_dbg(&usbduxsub->interface->dev, "comedi_: result=%d\n", errcode);
 	if (errcode < 0) {
 		dev_err(&usbduxsub->interface->dev, "comedi_: upload failed\n");
@@ -822,7 +824,7 @@ static int usbduxsub_upload(struct usbduxsub *usbduxsub,
 #define FIRMWARE_MAX_LEN 0x2000
 
 static int firmwareUpload(struct usbduxsub *usbduxsub,
-			  const u8 * firmwareBinary, int sizeFirmware)
+			  const u8 *firmwareBinary, int sizeFirmware)
 {
 	int ret;
 	uint8_t *fwBuf;
@@ -832,18 +834,17 @@ static int firmwareUpload(struct usbduxsub *usbduxsub,
 
 	if (sizeFirmware > FIRMWARE_MAX_LEN) {
 		dev_err(&usbduxsub->interface->dev,
-			"comedi_: usbdux firmware binary it too large for FX2.\n");
+			"usbdux firmware binary it too large for FX2.\n");
 		return -ENOMEM;
 	}
 
 	/* we generate a local buffer for the firmware */
-	fwBuf = kzalloc(sizeFirmware, GFP_KERNEL);
+	fwBuf = kmemdup(firmwareBinary, sizeFirmware, GFP_KERNEL);
 	if (!fwBuf) {
 		dev_err(&usbduxsub->interface->dev,
 			"comedi_: mem alloc for firmware failed\n");
 		return -ENOMEM;
 	}
-	memcpy(fwBuf, firmwareBinary, sizeFirmware);
 
 	ret = usbduxsub_stop(usbduxsub);
 	if (ret < 0) {
@@ -979,7 +980,7 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 
 	/*
 	 * step 2: make sure trigger sources are unique and mutually compatible
-	 * note that mutual compatiblity is not an issue here
+	 * note that mutual compatibility is not an issue here
 	 */
 	if (cmd->scan_begin_src != TRIG_FOLLOW &&
 	    cmd->scan_begin_src != TRIG_EXT &&
@@ -1110,7 +1111,7 @@ static int send_dux_commands(struct usbduxsub *this_usbduxsub, int cmd_type)
 			      usb_sndbulkpipe(this_usbduxsub->usbdev,
 					      COMMAND_OUT_EP),
 			      this_usbduxsub->dux_commands, SIZEOFDUXBUFFER,
-			      &nsent, 10);
+			      &nsent, BULK_TIMEOUT);
 	if (result < 0)
 		dev_err(&this_usbduxsub->interface->dev, "comedi%d: "
 			"could not transmit dux_command to the usb-device, "
@@ -1130,7 +1131,7 @@ static int receive_dux_commands(struct usbduxsub *this_usbduxsub, int command)
 				      usb_rcvbulkpipe(this_usbduxsub->usbdev,
 						      COMMAND_IN_EP),
 				      this_usbduxsub->insnBuffer, SIZEINSNBUF,
-				      &nrec, 1);
+				      &nrec, BULK_TIMEOUT);
 		if (result < 0) {
 			dev_err(&this_usbduxsub->interface->dev, "comedi%d: "
 				"insn: USB error %d while receiving DUX command"
@@ -1261,8 +1262,8 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			    (this_usbduxsub->ai_interval) * 2;
 		}
 		this_usbduxsub->ai_timer = cmd->scan_begin_arg / (125000 *
-								  (this_usbduxsub->
-								   ai_interval));
+							  (this_usbduxsub->
+							   ai_interval));
 	} else {
 		/* interval always 1ms */
 		this_usbduxsub->ai_interval = 1;
@@ -1557,7 +1558,7 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 
 	/*
 	 * step 2: make sure trigger sources are unique and mutually compatible
-	 * note that mutual compatiblity is not an issue here
+	 * note that mutual compatibility is not an issue here
 	 */
 	if (cmd->scan_begin_src != TRIG_FOLLOW &&
 	    cmd->scan_begin_src != TRIG_EXT &&
@@ -2084,7 +2085,7 @@ static int usbdux_pwm_start(struct comedi_device *dev,
 	if (ret < 0)
 		return ret;
 
-	/* initalise the buffer */
+	/* initialise the buffer */
 	for (i = 0; i < this_usbduxsub->sizePwmBuf; i++)
 		((char *)(this_usbduxsub->urbPwm->transfer_buffer))[i] = 0;
 
@@ -2327,9 +2328,11 @@ static void usbdux_firmware_request_complete_handler(const struct firmware *fw,
 	if (ret) {
 		dev_err(&usbdev->dev,
 			"Could not upload firmware (err=%d)\n", ret);
-		return;
+		goto out;
 	}
 	comedi_usb_auto_config(usbdev, BOARDNAME);
+ out:
+	release_firmware(fw);
 }
 
 /* allocate memory for the urbs and initialise them */
@@ -2580,6 +2583,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 				      FW_ACTION_HOTPLUG,
 				      "usbdux_firmware.bin",
 				      &udev->dev,
+				      GFP_KERNEL,
 				      usbduxsub + index,
 				      usbdux_firmware_request_complete_handler);
 
@@ -2826,7 +2830,7 @@ static struct comedi_driver driver_usbdux = {
 };
 
 /* Table with the USB-devices: just now only testing IDs */
-static struct usb_device_id usbduxsub_table[] = {
+static const struct usb_device_id usbduxsub_table[] = {
 	{USB_DEVICE(0x13d8, 0x0001)},
 	{USB_DEVICE(0x13d8, 0x0002)},
 	{}			/* Terminating entry */

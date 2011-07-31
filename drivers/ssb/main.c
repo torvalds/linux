@@ -18,8 +18,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/slab.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -140,6 +140,19 @@ static void ssb_device_put(struct ssb_device *dev)
 		put_device(dev->dev);
 }
 
+static inline struct ssb_driver *ssb_driver_get(struct ssb_driver *drv)
+{
+	if (drv)
+		get_driver(&drv->drv);
+	return drv;
+}
+
+static inline void ssb_driver_put(struct ssb_driver *drv)
+{
+	if (drv)
+		put_driver(&drv->drv);
+}
+
 static int ssb_device_resume(struct device *dev)
 {
 	struct ssb_device *ssb_dev = dev_to_ssb_dev(dev);
@@ -210,90 +223,81 @@ int ssb_bus_suspend(struct ssb_bus *bus)
 EXPORT_SYMBOL(ssb_bus_suspend);
 
 #ifdef CONFIG_SSB_SPROM
-int ssb_devices_freeze(struct ssb_bus *bus)
+/** ssb_devices_freeze - Freeze all devices on the bus.
+ *
+ * After freezing no device driver will be handling a device
+ * on this bus anymore. ssb_devices_thaw() must be called after
+ * a successful freeze to reactivate the devices.
+ *
+ * @bus: The bus.
+ * @ctx: Context structure. Pass this to ssb_devices_thaw().
+ */
+int ssb_devices_freeze(struct ssb_bus *bus, struct ssb_freeze_context *ctx)
 {
-	struct ssb_device *dev;
-	struct ssb_driver *drv;
-	int err = 0;
-	int i;
-	pm_message_t state = PMSG_FREEZE;
+	struct ssb_device *sdev;
+	struct ssb_driver *sdrv;
+	unsigned int i;
 
-	/* First check that we are capable to freeze all devices. */
+	memset(ctx, 0, sizeof(*ctx));
+	ctx->bus = bus;
+	SSB_WARN_ON(bus->nr_devices > ARRAY_SIZE(ctx->device_frozen));
+
 	for (i = 0; i < bus->nr_devices; i++) {
-		dev = &(bus->devices[i]);
-		if (!dev->dev ||
-		    !dev->dev->driver ||
-		    !device_is_registered(dev->dev))
+		sdev = ssb_device_get(&bus->devices[i]);
+
+		if (!sdev->dev || !sdev->dev->driver ||
+		    !device_is_registered(sdev->dev)) {
+			ssb_device_put(sdev);
 			continue;
-		drv = drv_to_ssb_drv(dev->dev->driver);
-		if (!drv)
-			continue;
-		if (!drv->suspend) {
-			/* Nope, can't suspend this one. */
-			return -EOPNOTSUPP;
 		}
-	}
-	/* Now suspend all devices */
-	for (i = 0; i < bus->nr_devices; i++) {
-		dev = &(bus->devices[i]);
-		if (!dev->dev ||
-		    !dev->dev->driver ||
-		    !device_is_registered(dev->dev))
+		sdrv = ssb_driver_get(drv_to_ssb_drv(sdev->dev->driver));
+		if (!sdrv || SSB_WARN_ON(!sdrv->remove)) {
+			ssb_device_put(sdev);
 			continue;
-		drv = drv_to_ssb_drv(dev->dev->driver);
-		if (!drv)
-			continue;
-		err = drv->suspend(dev, state);
-		if (err) {
-			ssb_printk(KERN_ERR PFX "Failed to freeze device %s\n",
-				   dev_name(dev->dev));
-			goto err_unwind;
 		}
+		sdrv->remove(sdev);
+		ctx->device_frozen[i] = 1;
 	}
 
 	return 0;
-err_unwind:
-	for (i--; i >= 0; i--) {
-		dev = &(bus->devices[i]);
-		if (!dev->dev ||
-		    !dev->dev->driver ||
-		    !device_is_registered(dev->dev))
-			continue;
-		drv = drv_to_ssb_drv(dev->dev->driver);
-		if (!drv)
-			continue;
-		if (drv->resume)
-			drv->resume(dev);
-	}
-	return err;
 }
 
-int ssb_devices_thaw(struct ssb_bus *bus)
+/** ssb_devices_thaw - Unfreeze all devices on the bus.
+ *
+ * This will re-attach the device drivers and re-init the devices.
+ *
+ * @ctx: The context structure from ssb_devices_freeze()
+ */
+int ssb_devices_thaw(struct ssb_freeze_context *ctx)
 {
-	struct ssb_device *dev;
-	struct ssb_driver *drv;
-	int err;
-	int i;
+	struct ssb_bus *bus = ctx->bus;
+	struct ssb_device *sdev;
+	struct ssb_driver *sdrv;
+	unsigned int i;
+	int err, result = 0;
 
 	for (i = 0; i < bus->nr_devices; i++) {
-		dev = &(bus->devices[i]);
-		if (!dev->dev ||
-		    !dev->dev->driver ||
-		    !device_is_registered(dev->dev))
+		if (!ctx->device_frozen[i])
 			continue;
-		drv = drv_to_ssb_drv(dev->dev->driver);
-		if (!drv)
+		sdev = &bus->devices[i];
+
+		if (SSB_WARN_ON(!sdev->dev || !sdev->dev->driver))
 			continue;
-		if (SSB_WARN_ON(!drv->resume))
+		sdrv = drv_to_ssb_drv(sdev->dev->driver);
+		if (SSB_WARN_ON(!sdrv || !sdrv->probe))
 			continue;
-		err = drv->resume(dev);
+
+		err = sdrv->probe(sdev, &sdev->id);
 		if (err) {
 			ssb_printk(KERN_ERR PFX "Failed to thaw device %s\n",
-				   dev_name(dev->dev));
+				   dev_name(sdev->dev));
+			result = err;
 		}
+		ssb_driver_put(sdrv);
+		ssb_device_put(sdev);
 	}
 
-	return 0;
+	return result;
 }
 #endif /* CONFIG_SSB_SPROM */
 
@@ -481,22 +485,23 @@ static int ssb_devices_register(struct ssb_bus *bus)
 #ifdef CONFIG_SSB_PCIHOST
 			sdev->irq = bus->host_pci->irq;
 			dev->parent = &bus->host_pci->dev;
+			sdev->dma_dev = dev->parent;
 #endif
 			break;
 		case SSB_BUSTYPE_PCMCIA:
 #ifdef CONFIG_SSB_PCMCIAHOST
-			sdev->irq = bus->host_pcmcia->irq.AssignedIRQ;
+			sdev->irq = bus->host_pcmcia->irq;
 			dev->parent = &bus->host_pcmcia->dev;
 #endif
 			break;
 		case SSB_BUSTYPE_SDIO:
-#ifdef CONFIG_SSB_SDIO
-			sdev->irq = bus->host_sdio->dev.irq;
+#ifdef CONFIG_SSB_SDIOHOST
 			dev->parent = &bus->host_sdio->dev;
 #endif
 			break;
 		case SSB_BUSTYPE_SSB:
 			dev->dma_mask = &dev->coherent_dma_mask;
+			sdev->dma_dev = dev;
 			break;
 		}
 
@@ -830,6 +835,9 @@ int ssb_bus_pcibus_register(struct ssb_bus *bus,
 	if (!err) {
 		ssb_printk(KERN_INFO PFX "Sonics Silicon Backplane found on "
 			   "PCI device %s\n", dev_name(&host_pci->dev));
+	} else {
+		ssb_printk(KERN_ERR PFX "Failed to register PCI version"
+			   " of SSB with error %d\n", err);
 	}
 
 	return err;
@@ -1218,80 +1226,6 @@ u32 ssb_dma_translation(struct ssb_device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(ssb_dma_translation);
-
-int ssb_dma_set_mask(struct ssb_device *dev, u64 mask)
-{
-#ifdef CONFIG_SSB_PCIHOST
-	int err;
-#endif
-
-	switch (dev->bus->bustype) {
-	case SSB_BUSTYPE_PCI:
-#ifdef CONFIG_SSB_PCIHOST
-		err = pci_set_dma_mask(dev->bus->host_pci, mask);
-		if (err)
-			return err;
-		err = pci_set_consistent_dma_mask(dev->bus->host_pci, mask);
-		return err;
-#endif
-	case SSB_BUSTYPE_SSB:
-		return dma_set_mask(dev->dev, mask);
-	default:
-		__ssb_dma_not_implemented(dev);
-	}
-	return -ENOSYS;
-}
-EXPORT_SYMBOL(ssb_dma_set_mask);
-
-void * ssb_dma_alloc_consistent(struct ssb_device *dev, size_t size,
-				dma_addr_t *dma_handle, gfp_t gfp_flags)
-{
-	switch (dev->bus->bustype) {
-	case SSB_BUSTYPE_PCI:
-#ifdef CONFIG_SSB_PCIHOST
-		if (gfp_flags & GFP_DMA) {
-			/* Workaround: The PCI API does not support passing
-			 * a GFP flag. */
-			return dma_alloc_coherent(&dev->bus->host_pci->dev,
-						  size, dma_handle, gfp_flags);
-		}
-		return pci_alloc_consistent(dev->bus->host_pci, size, dma_handle);
-#endif
-	case SSB_BUSTYPE_SSB:
-		return dma_alloc_coherent(dev->dev, size, dma_handle, gfp_flags);
-	default:
-		__ssb_dma_not_implemented(dev);
-	}
-	return NULL;
-}
-EXPORT_SYMBOL(ssb_dma_alloc_consistent);
-
-void ssb_dma_free_consistent(struct ssb_device *dev, size_t size,
-			     void *vaddr, dma_addr_t dma_handle,
-			     gfp_t gfp_flags)
-{
-	switch (dev->bus->bustype) {
-	case SSB_BUSTYPE_PCI:
-#ifdef CONFIG_SSB_PCIHOST
-		if (gfp_flags & GFP_DMA) {
-			/* Workaround: The PCI API does not support passing
-			 * a GFP flag. */
-			dma_free_coherent(&dev->bus->host_pci->dev,
-					  size, vaddr, dma_handle);
-			return;
-		}
-		pci_free_consistent(dev->bus->host_pci, size,
-				    vaddr, dma_handle);
-		return;
-#endif
-	case SSB_BUSTYPE_SSB:
-		dma_free_coherent(dev->dev, size, vaddr, dma_handle);
-		return;
-	default:
-		__ssb_dma_not_implemented(dev);
-	}
-}
-EXPORT_SYMBOL(ssb_dma_free_consistent);
 
 int ssb_bus_may_powerdown(struct ssb_bus *bus)
 {

@@ -1,0 +1,32 @@
+# All platforms listed in alphabetic order
+
+platforms += alchemy
+platforms += ar7
+platforms += bcm47xx
+platforms += bcm63xx
+platforms += cavium-octeon
+platforms += cobalt
+platforms += dec
+platforms += emma
+platforms += jazz
+platforms += jz4740
+platforms += lasat
+platforms += loongson
+platforms += mipssim
+platforms += mti-malta
+platforms += pmc-sierra
+platforms += pnx833x
+platforms += pnx8550
+platforms += powertv
+platforms += rb532
+platforms += sgi-ip22
+platforms += sgi-ip27
+platforms += sgi-ip32
+platforms += sibyte
+platforms += sni
+platforms += txx9
+platforms += vr41xx
+platforms += wrppmc
+
+# include the platform specific files
+include $(patsubst %, $(srctree)/arch/mips/%/Platform, $(platforms))

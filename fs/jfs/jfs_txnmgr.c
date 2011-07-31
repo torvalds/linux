@@ -1292,7 +1292,7 @@ int txCommit(tid_t tid,		/* transaction identifier */
 		 */
 		/*
 		 * I believe this code is no longer needed.  Splitting I_LOCK
-		 * into two bits, I_LOCK and I_SYNC should prevent this
+		 * into two bits, I_NEW and I_SYNC should prevent this
 		 * deadlock as well.  But since I don't have a JFS testload
 		 * to verify this, only a trivial s/I_LOCK/I_SYNC/ was done.
 		 * Joern

@@ -50,6 +50,11 @@ struct fchs_s {
 
 	u32        ro;		/* relative offset */
 };
+
+#define FC_SOF_LEN      4
+#define FC_EOF_LEN      4
+#define FC_CRC_LEN      4
+
 /*
  * Fibre Channel BB_E Header Structure
  */
@@ -486,14 +491,14 @@ struct fc_rsi_s {
  * see FC-PH-X table 113 & 115 for explanation also FCP table 8
  */
 struct fc_prli_params_s{
-	u32        reserved: 16;
+	u32        reserved:16;
 #ifdef __BIGENDIAN
-	u32        reserved1: 5;
-	u32        rec_support : 1;
-	u32        task_retry_id : 1;
-	u32        retry : 1;
+	u32        reserved1:5;
+	u32        rec_support:1;
+	u32        task_retry_id:1;
+	u32        retry:1;
 
-	u32        confirm : 1;
+	u32        confirm:1;
 	u32        doverlay:1;
 	u32        initiator:1;
 	u32        target:1;
@@ -502,10 +507,10 @@ struct fc_prli_params_s{
 	u32        rxrdisab:1;
 	u32        wxrdisab:1;
 #else
-	u32        retry : 1;
-	u32        task_retry_id : 1;
-	u32        rec_support : 1;
-	u32        reserved1: 5;
+	u32        retry:1;
+	u32        task_retry_id:1;
+	u32        rec_support:1;
+	u32        reserved1:5;
 
 	u32        wxrdisab:1;
 	u32        rxrdisab:1;
@@ -514,7 +519,7 @@ struct fc_prli_params_s{
 	u32        target:1;
 	u32        initiator:1;
 	u32        doverlay:1;
-	u32        confirm : 1;
+	u32        confirm:1;
 #endif
 };
 
@@ -1075,6 +1080,7 @@ struct fc_alpabm_s{
 #define FC_REC_TOV		(FC_ED_TOV + 1)
 #define FC_RA_TOV		10
 #define FC_ELS_TOV		(2 * FC_RA_TOV)
+#define FC_FCCT_TOV		(3 * FC_RA_TOV)
 
 /*
  * virtual fabric related defines

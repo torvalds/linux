@@ -49,6 +49,7 @@ static void __init bootmem_init(void)
 
 	min_low_pfn = PFN_UP(MEMORY_START);
 	max_low_pfn = PFN_UP(MEMORY_START + MEMORY_SIZE);
+	max_mapnr = max_low_pfn - min_low_pfn;
 
 	/* Initialize the boot-time allocator with low memory only. */
 	bootmap_size = init_bootmem_node(NODE_DATA(0), start_pfn,

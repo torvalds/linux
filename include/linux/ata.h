@@ -75,6 +75,7 @@ enum {
 	ATA_ID_EIDE_DMA_TIME	= 66,
 	ATA_ID_EIDE_PIO		= 67,
 	ATA_ID_EIDE_PIO_IORDY	= 68,
+	ATA_ID_ADDITIONAL_SUPP	= 69,
 	ATA_ID_QUEUE_DEPTH	= 75,
 	ATA_ID_MAJOR_VER	= 80,
 	ATA_ID_COMMAND_SET_1	= 82,
@@ -87,6 +88,7 @@ enum {
 	ATA_ID_HW_CONFIG	= 93,
 	ATA_ID_SPG		= 98,
 	ATA_ID_LBA_CAPACITY_2	= 100,
+	ATA_ID_SECTOR_SIZE	= 106,
 	ATA_ID_LAST_LUN		= 126,
 	ATA_ID_DLF		= 128,
 	ATA_ID_CSFO		= 129,
@@ -465,7 +467,7 @@ enum ata_ioctls {
 
 /* core structures */
 
-struct ata_prd {
+struct ata_bmdma_prd {
 	__le32			addr;
 	__le32			flags_len;
 };
@@ -638,6 +640,18 @@ static inline int ata_id_flush_ext_enabled(const u16 *id)
 	return (id[ATA_ID_CFS_ENABLE_2] & 0x2400) == 0x2400;
 }
 
+static inline int ata_id_has_large_logical_sectors(const u16 *id)
+{
+	if ((id[ATA_ID_SECTOR_SIZE] & 0xc000) != 0x4000)
+		return 0;
+	return id[ATA_ID_SECTOR_SIZE] & (1 << 13);
+}
+
+static inline u16 ata_id_logical_per_physical_sectors(const u16 *id)
+{
+	return 1 << (id[ATA_ID_SECTOR_SIZE] & 0xf);
+}
+
 static inline int ata_id_has_lba48(const u16 *id)
 {
 	if ((id[ATA_ID_COMMAND_SET_2] & 0xC000) != 0x4000)
@@ -803,6 +817,16 @@ static inline int ata_id_has_trim(const u16 *id)
 	return 0;
 }
 
+static inline int ata_id_has_zero_after_trim(const u16 *id)
+{
+	/* DSM supported, deterministic read, and read zero after trim set */
+	if (ata_id_has_trim(id) &&
+	    (id[ATA_ID_ADDITIONAL_SUPP] & 0x4020) == 0x4020)
+		return 1;
+
+	return 0;
+}
+
 static inline int ata_id_current_chs_valid(const u16 *id)
 {
 	/* For ATA-1 devices, if the INITIALIZE DEVICE PARAMETERS command
@@ -817,7 +841,8 @@ static inline int ata_id_current_chs_valid(const u16 *id)
 
 static inline int ata_id_is_cfa(const u16 *id)
 {
-	if (id[ATA_ID_CONFIG] == 0x848A)	/* Traditional CF */
+	if ((id[ATA_ID_CONFIG] == 0x848A) ||	/* Traditional CF */
+	    (id[ATA_ID_CONFIG] == 0x844A))	/* Delkin Devices CF */
 		return 1;
 	/*
 	 * CF specs don't require specific value in the word 0 anymore and yet
@@ -958,17 +983,17 @@ static inline void ata_id_to_hd_driveid(u16 *id)
 }
 
 /*
- * Write up to 'max' LBA Range Entries to the buffer that will cover the
- * extent from sector to sector + count.  This is used for TRIM and for
- * ADD LBA(S) TO NV CACHE PINNED SET.
+ * Write LBA Range Entries to the buffer that will cover the extent from
+ * sector to sector + count.  This is used for TRIM and for ADD LBA(S)
+ * TO NV CACHE PINNED SET.
  */
-static inline unsigned ata_set_lba_range_entries(void *_buffer, unsigned max,
-						u64 sector, unsigned long count)
+static inline unsigned ata_set_lba_range_entries(void *_buffer,
+		unsigned buf_size, u64 sector, unsigned long count)
 {
 	__le64 *buffer = _buffer;
-	unsigned i = 0;
+	unsigned i = 0, used_bytes;
 
-	while (i < max) {
+	while (i < buf_size / 8 ) { /* 6-byte LBA + 2-byte range per entry */
 		u64 entry = sector |
 			((u64)(count > 0xffff ? 0xffff : count) << 48);
 		buffer[i++] = __cpu_to_le64(entry);
@@ -978,9 +1003,9 @@ static inline unsigned ata_set_lba_range_entries(void *_buffer, unsigned max,
 		sector += 0xffff;
 	}
 
-	max = ALIGN(i * 8, 512);
-	memset(buffer + i, 0, max - i * 8);
-	return max;
+	used_bytes = ALIGN(i * 8, 512);
+	memset(buffer + i, 0, used_bytes - i * 8);
+	return used_bytes;
 }
 
 static inline int is_multi_taskfile(struct ata_taskfile *tf)
@@ -1000,8 +1025,8 @@ static inline int ata_ok(u8 status)
 
 static inline int lba_28_ok(u64 block, u32 n_block)
 {
-	/* check the ending block number */
-	return ((block + n_block) < ((u64)1 << 28)) && (n_block <= 256);
+	/* check the ending block number: must be LESS THAN 0x0fffffff */
+	return ((block + n_block) < ((1 << 28) - 1)) && (n_block <= 256);
 }
 
 static inline int lba_48_ok(u64 block, u32 n_block)

@@ -7,7 +7,7 @@
 
 # Object file lists.
 
-obj-y			+= clock.o timer.o gpio.o
+obj-y			+= clock.o
 
 # Cpu revision
 obj-$(CONFIG_NOMADIK_8815) += cpu-8815.o

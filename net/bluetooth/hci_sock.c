@@ -165,6 +165,84 @@ static int hci_sock_release(struct socket *sock)
 	return 0;
 }
 
+struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev, bdaddr_t *bdaddr)
+{
+	struct list_head *p;
+
+	list_for_each(p, &hdev->blacklist) {
+		struct bdaddr_list *b;
+
+		b = list_entry(p, struct bdaddr_list, list);
+
+		if (bacmp(bdaddr, &b->bdaddr) == 0)
+			return b;
+	}
+
+	return NULL;
+}
+
+static int hci_blacklist_add(struct hci_dev *hdev, void __user *arg)
+{
+	bdaddr_t bdaddr;
+	struct bdaddr_list *entry;
+
+	if (copy_from_user(&bdaddr, arg, sizeof(bdaddr)))
+		return -EFAULT;
+
+	if (bacmp(&bdaddr, BDADDR_ANY) == 0)
+		return -EBADF;
+
+	if (hci_blacklist_lookup(hdev, &bdaddr))
+		return -EEXIST;
+
+	entry = kzalloc(sizeof(struct bdaddr_list), GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
+
+	bacpy(&entry->bdaddr, &bdaddr);
+
+	list_add(&entry->list, &hdev->blacklist);
+
+	return 0;
+}
+
+int hci_blacklist_clear(struct hci_dev *hdev)
+{
+	struct list_head *p, *n;
+
+	list_for_each_safe(p, n, &hdev->blacklist) {
+		struct bdaddr_list *b;
+
+		b = list_entry(p, struct bdaddr_list, list);
+
+		list_del(p);
+		kfree(b);
+	}
+
+	return 0;
+}
+
+static int hci_blacklist_del(struct hci_dev *hdev, void __user *arg)
+{
+	bdaddr_t bdaddr;
+	struct bdaddr_list *entry;
+
+	if (copy_from_user(&bdaddr, arg, sizeof(bdaddr)))
+		return -EFAULT;
+
+	if (bacmp(&bdaddr, BDADDR_ANY) == 0)
+		return hci_blacklist_clear(hdev);
+
+	entry = hci_blacklist_lookup(hdev, &bdaddr);
+	if (!entry)
+		return -ENOENT;
+
+	list_del(&entry->list);
+	kfree(entry);
+
+	return 0;
+}
+
 /* Ioctls that require bound socket */
 static inline int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd, unsigned long arg)
 {
@@ -193,6 +271,16 @@ static inline int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd, unsign
 
 	case HCIGETAUTHINFO:
 		return hci_get_auth_info(hdev, (void __user *) arg);
+
+	case HCIBLOCKADDR:
+		if (!capable(CAP_NET_ADMIN))
+			return -EACCES;
+		return hci_blacklist_add(hdev, (void __user *) arg);
+
+	case HCIUNBLOCKADDR:
+		if (!capable(CAP_NET_ADMIN))
+			return -EACCES;
+		return hci_blacklist_del(hdev, (void __user *) arg);
 
 	default:
 		if (hdev->ioctl)
@@ -329,6 +417,9 @@ static inline void hci_sock_cmsg(struct sock *sk, struct msghdr *msg, struct sk_
 	}
 
 	if (mask & HCI_CMSG_TSTAMP) {
+#ifdef CONFIG_COMPAT
+		struct compat_timeval ctv;
+#endif
 		struct timeval tv;
 		void *data;
 		int len;
@@ -339,7 +430,6 @@ static inline void hci_sock_cmsg(struct sock *sk, struct msghdr *msg, struct sk_
 		len = sizeof(tv);
 #ifdef CONFIG_COMPAT
 		if (msg->msg_flags & MSG_CMSG_COMPAT) {
-			struct compat_timeval ctv;
 			ctv.tv_sec = tv.tv_sec;
 			ctv.tv_usec = tv.tv_usec;
 			data = &ctv;
@@ -414,6 +504,11 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 		goto done;
 	}
 
+	if (!test_bit(HCI_UP, &hdev->flags)) {
+		err = -ENETDOWN;
+		goto done;
+	}
+
 	if (!(skb = bt_skb_send_alloc(sk, len, msg->msg_flags & MSG_DONTWAIT, &err)))
 		goto done;
 
@@ -440,10 +535,10 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 		if (test_bit(HCI_RAW, &hdev->flags) || (ogf == 0x3f)) {
 			skb_queue_tail(&hdev->raw_q, skb);
-			hci_sched_tx(hdev);
+			tasklet_schedule(&hdev->tx_task);
 		} else {
 			skb_queue_tail(&hdev->cmd_q, skb);
-			hci_sched_cmd(hdev);
+			tasklet_schedule(&hdev->cmd_task);
 		}
 	} else {
 		if (!capable(CAP_NET_RAW)) {
@@ -452,7 +547,7 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 		}
 
 		skb_queue_tail(&hdev->raw_q, skb);
-		hci_sched_tx(hdev);
+		tasklet_schedule(&hdev->tx_task);
 	}
 
 	err = len;
@@ -621,7 +716,8 @@ static struct proto hci_sk_proto = {
 	.obj_size	= sizeof(struct hci_pinfo)
 };
 
-static int hci_sock_create(struct net *net, struct socket *sock, int protocol)
+static int hci_sock_create(struct net *net, struct socket *sock, int protocol,
+			   int kern)
 {
 	struct sock *sk;
 
@@ -687,7 +783,7 @@ static int hci_sock_dev_event(struct notifier_block *this, unsigned long event, 
 	return NOTIFY_DONE;
 }
 
-static struct net_proto_family hci_sock_family_ops = {
+static const struct net_proto_family hci_sock_family_ops = {
 	.family	= PF_BLUETOOTH,
 	.owner	= THIS_MODULE,
 	.create	= hci_sock_create,

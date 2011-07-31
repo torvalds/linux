@@ -1,0 +1,13 @@
+
+* camera driver uses old V4L API
+
+* coding style in some places is lacking
+
+* gpio_input.c has some features matrix_keypad lacks. They should be
+merged to gpio_input, with gpio_input.c removed
+
+* pmem provides interface for userspace. Needs to be reviewed at least.
+
+* it is probably possible to simplify touchscreen driver using threaded_irq's.
+
+* touchscreen driver should be switched to oficial multitouch API

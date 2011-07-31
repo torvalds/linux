@@ -65,4 +65,3 @@
 const char rts = TIOCM_RTS;
 const char dtr = TIOCM_DTR;
 int fd;
-

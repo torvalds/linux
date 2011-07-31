@@ -16,6 +16,7 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/hrtimer.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
@@ -106,10 +107,17 @@ static int timed_gpio_probe(struct platform_device *pdev)
 		gpio_dat->dev.name = cur_gpio->name;
 		gpio_dat->dev.get_time = gpio_get_time;
 		gpio_dat->dev.enable = gpio_enable;
-		ret = timed_output_dev_register(&gpio_dat->dev);
+		ret = gpio_request(cur_gpio->gpio, cur_gpio->name);
+		if (ret >= 0) {
+			ret = timed_output_dev_register(&gpio_dat->dev);
+			if (ret < 0)
+				gpio_free(cur_gpio->gpio);
+		}
 		if (ret < 0) {
-			for (j = 0; j < i; j++)
+			for (j = 0; j < i; j++) {
 				timed_output_dev_unregister(&gpio_data[i].dev);
+				gpio_free(gpio_data[i].gpio);
+			}
 			kfree(gpio_data);
 			return ret;
 		}
@@ -131,8 +139,10 @@ static int timed_gpio_remove(struct platform_device *pdev)
 	struct timed_gpio_data *gpio_data = platform_get_drvdata(pdev);
 	int i;
 
-	for (i = 0; i < pdata->num_gpios; i++)
+	for (i = 0; i < pdata->num_gpios; i++) {
 		timed_output_dev_unregister(&gpio_data[i].dev);
+		gpio_free(gpio_data[i].gpio);
+	}
 
 	kfree(gpio_data);
 

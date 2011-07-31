@@ -453,6 +453,10 @@ static inline void cmx2xx_init_ac97(void) {}
 
 static void __init cmx2xx_init(void)
 {
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	cmx2xx_pm_init();
 
 	if (cpu_is_pxa25x())

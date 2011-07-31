@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/dio.h>
 #include <linux/console.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 
 #include "8250.h"

@@ -116,7 +116,7 @@ int tipc_multicast(u32 ref, struct tipc_name_seq const *seq, u32 domain,
 	msg_set_namelower(hdr, seq->lower);
 	msg_set_nameupper(hdr, seq->upper);
 	msg_set_hdr_sz(hdr, MCAST_H_SIZE);
-	res = msg_build(hdr, msg_sect, num_sect, MAX_MSG_SIZE,
+	res = tipc_msg_build(hdr, msg_sect, num_sect, MAX_MSG_SIZE,
 			!oport->user_port, &buf);
 	if (unlikely(!buf))
 		return res;
@@ -241,13 +241,12 @@ struct tipc_port *tipc_createport_raw(void *usr_handle,
 	p_ptr->publ.max_pkt = MAX_PKT_DEFAULT;
 	p_ptr->publ.ref = ref;
 	msg = &p_ptr->publ.phdr;
-	msg_init(msg, importance, TIPC_NAMED_MSG, LONG_H_SIZE, 0);
+	tipc_msg_init(msg, importance, TIPC_NAMED_MSG, LONG_H_SIZE, 0);
 	msg_set_origport(msg, ref);
 	p_ptr->last_in_seqno = 41;
 	p_ptr->sent = 1;
 	INIT_LIST_HEAD(&p_ptr->wait_list);
 	INIT_LIST_HEAD(&p_ptr->subscription.nodesub_list);
-	p_ptr->congested_link = NULL;
 	p_ptr->dispatcher = dispatcher;
 	p_ptr->wakeup = wakeup;
 	p_ptr->user_port = NULL;
@@ -396,7 +395,7 @@ static struct sk_buff *port_build_proto_msg(u32 destport, u32 destnode,
 	buf = buf_acquire(LONG_H_SIZE);
 	if (buf) {
 		msg = buf_msg(buf);
-		msg_init(msg, usr, type, LONG_H_SIZE, destnode);
+		tipc_msg_init(msg, usr, type, LONG_H_SIZE, destnode);
 		msg_set_errcode(msg, err);
 		msg_set_destport(msg, destport);
 		msg_set_origport(msg, origport);
@@ -440,7 +439,7 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 		return data_sz;
 	}
 	rmsg = buf_msg(rbuf);
-	msg_init(rmsg, imp, msg_type(msg), hdr_sz, msg_orignode(msg));
+	tipc_msg_init(rmsg, imp, msg_type(msg), hdr_sz, msg_orignode(msg));
 	msg_set_errcode(rmsg, err);
 	msg_set_destport(rmsg, msg_origport(msg));
 	msg_set_origport(rmsg, msg_destport(msg));
@@ -481,7 +480,7 @@ int tipc_port_reject_sections(struct port *p_ptr, struct tipc_msg *hdr,
 	struct sk_buff *buf;
 	int res;
 
-	res = msg_build(hdr, msg_sect, num_sect, MAX_MSG_SIZE,
+	res = tipc_msg_build(hdr, msg_sect, num_sect, MAX_MSG_SIZE,
 			!p_ptr->user_port, &buf);
 	if (!buf)
 		return res;
@@ -1344,7 +1343,7 @@ int tipc_port_recv_sections(struct port *sender, unsigned int num_sect,
 	struct sk_buff *buf;
 	int res;
 
-	res = msg_build(&sender->publ.phdr, msg_sect, num_sect,
+	res = tipc_msg_build(&sender->publ.phdr, msg_sect, num_sect,
 			MAX_MSG_SIZE, !sender->user_port, &buf);
 	if (likely(buf))
 		tipc_port_recv_msg(buf);
@@ -1384,7 +1383,7 @@ int tipc_send(u32 ref, unsigned int num_sect, struct iovec const *msg_sect)
 	if (port_unreliable(p_ptr)) {
 		p_ptr->publ.congested = 0;
 		/* Just calculate msg length and return */
-		return msg_calc_data_size(msg_sect, num_sect);
+		return tipc_msg_calc_data_size(msg_sect, num_sect);
 	}
 	return -ELINKCONG;
 }
@@ -1453,7 +1452,7 @@ int tipc_forward2name(u32 ref,
 	struct port *p_ptr;
 	struct tipc_msg *msg;
 	u32 destnode = domain;
-	u32 destport = 0;
+	u32 destport;
 	int res;
 
 	p_ptr = tipc_port_deref(ref);
@@ -1467,7 +1466,7 @@ int tipc_forward2name(u32 ref,
 	msg_set_hdr_sz(msg, LONG_H_SIZE);
 	msg_set_nametype(msg, name->type);
 	msg_set_nameinst(msg, name->instance);
-	msg_set_lookup_scope(msg, addr_scope(domain));
+	msg_set_lookup_scope(msg, tipc_addr_scope(domain));
 	if (importance <= TIPC_CRITICAL_IMPORTANCE)
 		msg_set_importance(msg,importance);
 	destport = tipc_nametbl_translate(name->type, name->instance, &destnode);
@@ -1484,7 +1483,7 @@ int tipc_forward2name(u32 ref,
 			return res;
 		if (port_unreliable(p_ptr)) {
 			/* Just calculate msg length and return */
-			return msg_calc_data_size(msg_sect, num_sect);
+			return tipc_msg_calc_data_size(msg_sect, num_sect);
 		}
 		return -ELINKCONG;
 	}
@@ -1525,7 +1524,7 @@ int tipc_forward_buf2name(u32 ref,
 	struct port *p_ptr;
 	struct tipc_msg *msg;
 	u32 destnode = domain;
-	u32 destport = 0;
+	u32 destport;
 	int res;
 
 	p_ptr = (struct port *)tipc_ref_deref(ref);
@@ -1540,7 +1539,7 @@ int tipc_forward_buf2name(u32 ref,
 	msg_set_origport(msg, orig->ref);
 	msg_set_nametype(msg, name->type);
 	msg_set_nameinst(msg, name->instance);
-	msg_set_lookup_scope(msg, addr_scope(domain));
+	msg_set_lookup_scope(msg, tipc_addr_scope(domain));
 	msg_set_hdr_sz(msg, LONG_H_SIZE);
 	msg_set_size(msg, LONG_H_SIZE + dsz);
 	destport = tipc_nametbl_translate(name->type, name->instance, &destnode);
@@ -1620,7 +1619,7 @@ int tipc_forward2port(u32 ref,
 		return res;
 	if (port_unreliable(p_ptr)) {
 		/* Just calculate msg length and return */
-		return msg_calc_data_size(msg_sect, num_sect);
+		return tipc_msg_calc_data_size(msg_sect, num_sect);
 	}
 	return -ELINKCONG;
 }

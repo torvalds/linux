@@ -29,9 +29,6 @@ config MMU
 config GENERIC_CMOS_UPDATE
 	def_bool y
 
-config GENERIC_TIME
-	def_bool y
-
 config GENERIC_TIME_VSYSCALL
 	def_bool y
 
@@ -55,6 +52,16 @@ config NEED_PER_CPU_EMBED_FIRST_CHUNK
 config IRQ_PER_CPU
 	bool
 	default y
+
+config NR_IRQS
+	int "Number of virtual interrupt numbers"
+	range 32 32768
+	default "512"
+	help
+	  This defines the number of virtual interrupt numbers the kernel
+	  can manage. Virtual interrupt numbers are what you see in
+	  /proc/interrupts. If you configure your system to have too few,
+	  drivers will fail to load or worse - handle with care.
 
 config STACKTRACE_SUPPORT
 	bool
@@ -110,6 +117,8 @@ config ARCH_NO_VIRT_TO_BUS
 config PPC
 	bool
 	default y
+	select OF
+	select OF_FLATTREE
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FUNCTION_TRACER
@@ -122,7 +131,7 @@ config PPC
 	select HAVE_ARCH_KGDB
 	select HAVE_KRETPROBES
 	select HAVE_ARCH_TRACEHOOK
-	select HAVE_LMB
+	select HAVE_MEMBLOCK
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
 	select USE_GENERIC_SMP_HELPERS if SMP
@@ -130,6 +139,8 @@ config PPC
 	select HAVE_SYSCALL_WRAPPERS if PPC64
 	select GENERIC_ATOMIC64 if PPC32
 	select HAVE_PERF_EVENTS
+	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_HW_BREAKPOINT if PERF_EVENTS && PPC_BOOK3S_64
 
 config EARLY_PRINTK
 	bool
@@ -161,9 +172,6 @@ config ARCH_MAY_HAVE_PC_FDC
 config PPC_OF
 	def_bool y
 
-config OF
-	def_bool y
-
 config PPC_UDBG_16550
 	bool
 	default n
@@ -186,10 +194,6 @@ config SYS_SUPPORTS_APM_EMULATION
 	default y if PMAC_APM_EMU
 	bool
 
-config DTC
-       bool
-       default y
-
 config DEFAULT_UIMAGE
 	bool
 	help
@@ -199,24 +203,14 @@ config DEFAULT_UIMAGE
 config REDBOOT
 	bool
 
-config HIBERNATE_32
-	bool
-	depends on (PPC_PMAC && !SMP) || BROKEN
-	default y
-
-config HIBERNATE_64
-	bool
-	depends on BROKEN || (PPC_PMAC64 && EXPERIMENTAL)
-	default y
-
 config ARCH_HIBERNATION_POSSIBLE
 	bool
-	depends on (PPC64 && HIBERNATE_64) || (PPC32 && HIBERNATE_32)
 	default y
 
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
-	depends on ADB_PMU || PPC_EFIKA || PPC_LITE5200 || PPC_83xx
+	depends on ADB_PMU || PPC_EFIKA || PPC_LITE5200 || PPC_83xx || \
+		   PPC_85xx || PPC_86xx || PPC_PSERIES
 
 config PPC_DCR_NATIVE
 	bool
@@ -239,6 +233,33 @@ config PPC_OF_PLATFORM_PCI
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
+
+config PPC_ADV_DEBUG_REGS
+	bool
+	depends on 40x || BOOKE
+	default y
+
+config PPC_ADV_DEBUG_IACS
+	int
+	depends on PPC_ADV_DEBUG_REGS
+	default 4 if 44x
+	default 2
+
+config PPC_ADV_DEBUG_DACS
+	int
+	depends on PPC_ADV_DEBUG_REGS
+	default 2
+
+config PPC_ADV_DEBUG_DVCS
+	int
+	depends on PPC_ADV_DEBUG_REGS
+	default 2 if 44x
+	default 0
+
+config PPC_ADV_DEBUG_DAC_RANGE
+	bool
+	depends on PPC_ADV_DEBUG_REGS && 44x
+	default y
 
 source "init/Kconfig"
 
@@ -285,19 +306,6 @@ config 8XX_MINIMAL_FPEMU
 
 	  It is recommended that you build a soft-float userspace instead.
 
-config IOMMU_VMERGE
-	bool "Enable IOMMU virtual merging"
-	depends on PPC64
-	default y
-	help
-	  Cause IO segments sent to a device for DMA to be merged virtually
-	  by the IOMMU when they happen to have been allocated contiguously.
-	  This doesn't add pressure to the IOMMU allocator. However, some
-	  drivers don't support getting large merged segments coming back
-	  from *_map_sg().
-
-	  Most drivers don't have this problem; it is safe to say Y here.
-
 config IOMMU_HELPER
 	def_bool PPC64
 
@@ -320,6 +328,10 @@ config HOTPLUG_CPU
 
 	  Say N if you are unsure.
 
+config ARCH_CPU_PROBE_RELEASE
+	def_bool y
+	depends on HOTPLUG_CPU
+
 config ARCH_ENABLE_MEMORY_HOTPLUG
 	def_bool y
 
@@ -331,7 +343,7 @@ config ARCH_ENABLE_MEMORY_HOTREMOVE
 
 config KEXEC
 	bool "kexec system call (EXPERIMENTAL)"
-	depends on PPC_BOOK3S && EXPERIMENTAL
+	depends on (PPC_BOOK3S || FSL_BOOKE) && EXPERIMENTAL
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -348,8 +360,8 @@ config KEXEC
 
 config CRASH_DUMP
 	bool "Build a kdump crash kernel"
-	depends on PPC64 || 6xx
-	select RELOCATABLE if PPC64
+	depends on PPC64 || 6xx || FSL_BOOKE
+	select RELOCATABLE if PPC64 || FSL_BOOKE
 	help
 	  Build a kernel suitable for use as a kdump capture kernel.
 	  The same kernel binary can be used as production kernel and dump
@@ -377,6 +389,19 @@ config IRQ_ALL_CPUS
 	  multiple CPUs.  Saying N here will route all IRQs to the first
 	  CPU.  Generally saying Y is safe, although some problems have been
 	  reported with SMP Power Macintoshes with this option enabled.
+
+config SPARSE_IRQ
+	bool "Support sparse irq numbering"
+	default n
+	help
+	  This enables support for sparse irqs. This is useful for distro
+	  kernels that want to define a high CONFIG_NR_CPUS value but still
+	  want to have low kernel memory footprint on smaller machines.
+
+	  ( Sparse IRQs can also be beneficial on NUMA boxes, as they spread
+	    out the irq_desc[] array in a more NUMA-friendly way. )
+
+	  If you don't know what to do here, say N.
 
 config NUMA
 	bool "NUMA support"
@@ -545,14 +570,6 @@ config SCHED_SMT
 	  when dealing with POWER5 cpus at a cost of slightly increased
 	  overhead in some places. If unsure say N here.
 
-config PROC_DEVICETREE
-	bool "Support for device tree in /proc"
-	depends on PROC_FS
-	help
-	  This option adds a device-tree directory under /proc which contains
-	  an image of the device tree that the kernel copies from Open
-	  Firmware or other boot firmware. If unsure, say Y here.
-
 config CMDLINE_BOOL
 	bool "Default bootloader kernel arguments"
 
@@ -627,9 +644,15 @@ config ZONE_DMA
 	bool
 	default y
 
+config NEED_DMA_MAP_STATE
+	def_bool (PPC64 || NOT_COHERENT_CACHE)
+
+config NEED_SG_DMA_LENGTH
+	def_bool y
+
 config GENERIC_ISA_DMA
 	bool
-	depends on PPC64 || POWER4 || 6xx && !CPM2
+	depends on ISA_DMA_API
 	default y
 
 config PPC_INDIRECT_PCI
@@ -651,6 +674,14 @@ config FSL_PCI
  	bool
 	select PPC_INDIRECT_PCI
 	select PCI_QUIRKS
+
+config FSL_PMC
+	bool
+	default y
+	depends on SUSPEND && (PPC_85xx || PPC_86xx)
+	help
+	  Freescale MPC85xx/MPC86xx power management controller support
+	  (suspend/resume). For MPC83xx see platforms/83xx/suspend.c
 
 config 4xx_SOC
 	bool
@@ -679,7 +710,7 @@ config PPC_PCI_CHOICE
 config PCI
 	bool "PCI support" if PPC_PCI_CHOICE
 	default y if !40x && !CPM2 && !8xx && !PPC_83xx \
-		&& !PPC_85xx && !PPC_86xx
+		&& !PPC_85xx && !PPC_86xx && !GAMECUBE_COMMON
 	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx
 	default PCI_QSPAN if !4xx && !CPM2 && 8xx
 	select ARCH_SUPPORTS_MSI
@@ -850,7 +881,7 @@ config KERNEL_START_BOOL
 config KERNEL_START
 	hex "Virtual address of kernel base" if KERNEL_START_BOOL
 	default PAGE_OFFSET if PAGE_OFFSET_BOOL
-	default "0xc2000000" if CRASH_DUMP
+	default "0xc2000000" if CRASH_DUMP && !RELOCATABLE
 	default "0xc0000000"
 
 config PHYSICAL_START_BOOL
@@ -863,7 +894,7 @@ config PHYSICAL_START_BOOL
 
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if PHYSICAL_START_BOOL
-	default "0x02000000" if PPC_STD_MMU && CRASH_DUMP
+	default "0x02000000" if PPC_STD_MMU && CRASH_DUMP && !RELOCATABLE
 	default "0x00000000"
 
 config PHYSICAL_ALIGN

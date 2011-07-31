@@ -345,7 +345,7 @@ static int run_io_job(struct kcopyd_job *job)
 {
 	int r;
 	struct dm_io_request io_req = {
-		.bi_rw = job->rw | (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_UNPLUG),
+		.bi_rw = job->rw | REQ_SYNC | REQ_UNPLUG,
 		.mem.type = DM_IO_PAGE_LIST,
 		.mem.ptr.pl = job->pages,
 		.mem.offset = job->offset,
@@ -450,7 +450,10 @@ static void dispatch_job(struct kcopyd_job *job)
 {
 	struct dm_kcopyd_client *kc = job->kc;
 	atomic_inc(&kc->nr_jobs);
-	push(&kc->pages_jobs, job);
+	if (unlikely(!job->source.count))
+		push(&kc->complete_jobs, job);
+	else
+		push(&kc->pages_jobs, job);
 	wake(kc);
 }
 

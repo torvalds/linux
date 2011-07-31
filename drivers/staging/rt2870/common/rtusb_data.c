@@ -36,113 +36,137 @@
 	Jan            03-25-2006    created
 
 */
+
+#ifdef RTMP_MAC_USB
+
 #include "../rt_config.h"
 
-extern  UCHAR Phy11BGNextRateUpward[]; // defined in mlme.c
-extern UCHAR	EpToQueue[];
+extern u8 Phy11BGNextRateUpward[];	/* defined in mlme.c */
+extern u8 EpToQueue[];
 
-VOID REPORT_AMSDU_FRAMES_TO_LLC(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PUCHAR			pData,
-	IN	ULONG			DataSize)
+void REPORT_AMSDU_FRAMES_TO_LLC(struct rt_rtmp_adapter *pAd,
+				u8 *pData, unsigned long DataSize)
 {
-	PNDIS_PACKET	pPacket;
-	UINT			nMSDU;
-	struct			sk_buff *pSkb;
+	void *pPacket;
+	u32 nMSDU;
+	struct sk_buff *pSkb;
 
 	nMSDU = 0;
 	/* allocate a rx packet */
 	pSkb = dev_alloc_skb(RX_BUFFER_AGGRESIZE);
-	pPacket = (PNDIS_PACKET)OSPKT_TO_RTPKT(pSkb);
-	if (pSkb)
-	{
+	pPacket = (void *)OSPKT_TO_RTPKT(pSkb);
+	if (pSkb) {
 
 		/* convert 802.11 to 802.3 packet */
 		pSkb->dev = get_netdev_from_bssid(pAd, BSS0);
 		RTMP_SET_PACKET_SOURCE(pPacket, PKTSRC_NDIS);
 		deaggregate_AMSDU_announce(pAd, pPacket, pData, DataSize);
-	}
-	else
-	{
-		DBGPRINT(RT_DEBUG_ERROR,("Can't allocate skb\n"));
+	} else {
+		DBGPRINT(RT_DEBUG_ERROR, ("Can't allocate skb\n"));
 	}
 }
 
-NDIS_STATUS	RTUSBFreeDescriptorRequest(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	UCHAR			BulkOutPipeId,
-	IN	UINT32			NumberRequired)
-{
-//	UCHAR			FreeNumber = 0;
-//	UINT			Index;
-	NDIS_STATUS		Status = NDIS_STATUS_FAILURE;
-	unsigned long   IrqFlags;
-	HT_TX_CONTEXT	*pHTTXContext;
+/*
+	========================================================================
 
+	Routine	Description:
+		This subroutine will scan through releative ring descriptor to find
+		out avaliable free ring descriptor and compare with request size.
+
+	Arguments:
+		pAd	Pointer	to our adapter
+		RingType	Selected Ring
+
+	Return Value:
+		NDIS_STATUS_FAILURE		Not enough free descriptor
+		NDIS_STATUS_SUCCESS		Enough free descriptor
+
+	Note:
+
+	========================================================================
+*/
+int RTUSBFreeDescriptorRequest(struct rt_rtmp_adapter *pAd,
+				       u8 BulkOutPipeId,
+				       u32 NumberRequired)
+{
+/*      u8                   FreeNumber = 0; */
+/*      u32                    Index; */
+	int Status = NDIS_STATUS_FAILURE;
+	unsigned long IrqFlags;
+	struct rt_ht_tx_context *pHTTXContext;
 
 	pHTTXContext = &pAd->TxContext[BulkOutPipeId];
 	RTMP_IRQ_LOCK(&pAd->TxContextQueueLock[BulkOutPipeId], IrqFlags);
-	if ((pHTTXContext->CurWritePosition < pHTTXContext->NextBulkOutPosition) && ((pHTTXContext->CurWritePosition + NumberRequired + LOCAL_TXBUF_SIZE) > pHTTXContext->NextBulkOutPosition))
-	{
+	if ((pHTTXContext->CurWritePosition < pHTTXContext->NextBulkOutPosition)
+	    &&
+	    ((pHTTXContext->CurWritePosition + NumberRequired +
+	      LOCAL_TXBUF_SIZE) > pHTTXContext->NextBulkOutPosition)) {
 
-		RTUSB_SET_BULK_FLAG(pAd, (fRTUSB_BULK_OUT_DATA_NORMAL << BulkOutPipeId));
-	}
-	else if ((pHTTXContext->CurWritePosition == 8) && (pHTTXContext->NextBulkOutPosition < (NumberRequired + LOCAL_TXBUF_SIZE)))
-	{
-		RTUSB_SET_BULK_FLAG(pAd, (fRTUSB_BULK_OUT_DATA_NORMAL << BulkOutPipeId));
-	}
-	else if (pHTTXContext->bCurWriting == TRUE)
-	{
-		DBGPRINT(RT_DEBUG_TRACE,("RTUSBFreeD c3 --> QueIdx=%d, CWPos=%ld, NBOutPos=%ld!\n", BulkOutPipeId, pHTTXContext->CurWritePosition, pHTTXContext->NextBulkOutPosition));
-		RTUSB_SET_BULK_FLAG(pAd, (fRTUSB_BULK_OUT_DATA_NORMAL << BulkOutPipeId));
-	}
-	else
-	{
+		RTUSB_SET_BULK_FLAG(pAd,
+				    (fRTUSB_BULK_OUT_DATA_NORMAL <<
+				     BulkOutPipeId));
+	} else if ((pHTTXContext->CurWritePosition == 8)
+		   && (pHTTXContext->NextBulkOutPosition <
+		       (NumberRequired + LOCAL_TXBUF_SIZE))) {
+		RTUSB_SET_BULK_FLAG(pAd,
+				    (fRTUSB_BULK_OUT_DATA_NORMAL <<
+				     BulkOutPipeId));
+	} else if (pHTTXContext->bCurWriting == TRUE) {
+		DBGPRINT(RT_DEBUG_TRACE,
+			 ("RTUSBFreeD c3 --> QueIdx=%d, CWPos=%ld, NBOutPos=%ld!\n",
+			  BulkOutPipeId, pHTTXContext->CurWritePosition,
+			  pHTTXContext->NextBulkOutPosition));
+		RTUSB_SET_BULK_FLAG(pAd,
+				    (fRTUSB_BULK_OUT_DATA_NORMAL <<
+				     BulkOutPipeId));
+	} else {
 		Status = NDIS_STATUS_SUCCESS;
 	}
 	RTMP_IRQ_UNLOCK(&pAd->TxContextQueueLock[BulkOutPipeId], IrqFlags);
 
-
-	return (Status);
+	return Status;
 }
 
-NDIS_STATUS RTUSBFreeDescriptorRelease(
-	IN RTMP_ADAPTER *pAd,
-	IN UCHAR		BulkOutPipeId)
+int RTUSBFreeDescriptorRelease(struct rt_rtmp_adapter *pAd,
+				       u8 BulkOutPipeId)
 {
-	unsigned long   IrqFlags;
-	HT_TX_CONTEXT	*pHTTXContext;
+	unsigned long IrqFlags;
+	struct rt_ht_tx_context *pHTTXContext;
 
 	pHTTXContext = &pAd->TxContext[BulkOutPipeId];
 	RTMP_IRQ_LOCK(&pAd->TxContextQueueLock[BulkOutPipeId], IrqFlags);
 	pHTTXContext->bCurWriting = FALSE;
 	RTMP_IRQ_UNLOCK(&pAd->TxContextQueueLock[BulkOutPipeId], IrqFlags);
 
-	return (NDIS_STATUS_SUCCESS);
+	return NDIS_STATUS_SUCCESS;
 }
 
-
-BOOLEAN	RTUSBNeedQueueBackForAgg(
-	IN RTMP_ADAPTER *pAd,
-	IN UCHAR		BulkOutPipeId)
+BOOLEAN RTUSBNeedQueueBackForAgg(struct rt_rtmp_adapter *pAd, u8 BulkOutPipeId)
 {
-	unsigned long   IrqFlags;
-	HT_TX_CONTEXT	*pHTTXContext;
-	BOOLEAN			needQueBack = FALSE;
+	unsigned long IrqFlags;
+	struct rt_ht_tx_context *pHTTXContext;
+	BOOLEAN needQueBack = FALSE;
 
 	pHTTXContext = &pAd->TxContext[BulkOutPipeId];
 
 	RTMP_IRQ_LOCK(&pAd->TxContextQueueLock[BulkOutPipeId], IrqFlags);
-	if ((pHTTXContext->IRPPending == TRUE)  /*&& (pAd->TxSwQueue[BulkOutPipeId].Number == 0) */)
-	{
-		if ((pHTTXContext->CurWritePosition < pHTTXContext->ENextBulkOutPosition) &&
-			(((pHTTXContext->ENextBulkOutPosition+MAX_AGGREGATION_SIZE) < MAX_TXBULK_LIMIT) || (pHTTXContext->CurWritePosition > MAX_AGGREGATION_SIZE)))
-		{
+	if ((pHTTXContext->IRPPending ==
+	     TRUE) /*&& (pAd->TxSwQueue[BulkOutPipeId].Number == 0) */) {
+		if ((pHTTXContext->CurWritePosition <
+		     pHTTXContext->ENextBulkOutPosition)
+		    &&
+		    (((pHTTXContext->ENextBulkOutPosition +
+		       MAX_AGGREGATION_SIZE) < MAX_TXBULK_LIMIT)
+		     || (pHTTXContext->CurWritePosition >
+			 MAX_AGGREGATION_SIZE))) {
 			needQueBack = TRUE;
-		}
-		else if ((pHTTXContext->CurWritePosition > pHTTXContext->ENextBulkOutPosition) &&
-				 ((pHTTXContext->ENextBulkOutPosition + MAX_AGGREGATION_SIZE) < pHTTXContext->CurWritePosition))
-		{
+		} else
+		    if ((pHTTXContext->CurWritePosition >
+			 pHTTXContext->ENextBulkOutPosition)
+			&&
+			((pHTTXContext->ENextBulkOutPosition +
+			  MAX_AGGREGATION_SIZE) <
+			 pHTTXContext->CurWritePosition)) {
 			needQueBack = TRUE;
 		}
 	}
@@ -151,7 +175,6 @@ BOOLEAN	RTUSBNeedQueueBackForAgg(
 	return needQueBack;
 
 }
-
 
 /*
 	========================================================================
@@ -168,21 +191,17 @@ BOOLEAN	RTUSBNeedQueueBackForAgg(
 
 	========================================================================
 */
-VOID	RTUSBRejectPendingPackets(
-	IN	PRTMP_ADAPTER	pAd)
+void RTUSBRejectPendingPackets(struct rt_rtmp_adapter *pAd)
 {
-	UCHAR			Index;
-	PQUEUE_ENTRY	pEntry;
-	PNDIS_PACKET	pPacket;
-	PQUEUE_HEADER	pQueue;
+	u8 Index;
+	struct rt_queue_entry *pEntry;
+	void *pPacket;
+	struct rt_queue_header *pQueue;
 
-
-	for (Index = 0; Index < 4; Index++)
-	{
+	for (Index = 0; Index < 4; Index++) {
 		NdisAcquireSpinLock(&pAd->TxSwQueueLock[Index]);
-		while (pAd->TxSwQueue[Index].Head != NULL)
-		{
-			pQueue = (PQUEUE_HEADER) &(pAd->TxSwQueue[Index]);
+		while (pAd->TxSwQueue[Index].Head != NULL) {
+			pQueue = (struct rt_queue_header *)&(pAd->TxSwQueue[Index]);
 			pEntry = RemoveHeadQueue(pQueue);
 			pPacket = QUEUE_ENTRY_TO_PACKET(pEntry);
 			RELEASE_NDIS_PACKET(pAd, pPacket, NDIS_STATUS_FAILURE);
@@ -193,20 +212,46 @@ VOID	RTUSBRejectPendingPackets(
 
 }
 
-VOID RTMPWriteTxInfo(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PTXINFO_STRUC 	pTxInfo,
-	IN	  USHORT		USBDMApktLen,
-	IN	  BOOLEAN		bWiv,
-	IN	  UCHAR			QueueSel,
-	IN	  UCHAR			NextValid,
-	IN	  UCHAR			TxBurst)
+/*
+	========================================================================
+
+	Routine	Description:
+		Calculates the duration which is required to transmit out frames
+	with given size and specified rate.
+
+	Arguments:
+		pTxD		Pointer to transmit descriptor
+		Ack			Setting for Ack requirement bit
+		Fragment	Setting for Fragment bit
+		RetryMode	Setting for retry mode
+		Ifs			Setting for IFS gap
+		Rate		Setting for transmit rate
+		Service		Setting for service
+		Length		Frame length
+		TxPreamble  Short or Long preamble when using CCK rates
+		QueIdx - 0-3, according to 802.11e/d4.4 June/2003
+
+	Return Value:
+		None
+
+	IRQL = PASSIVE_LEVEL
+	IRQL = DISPATCH_LEVEL
+
+	========================================================================
+*/
+
+void RTMPWriteTxInfo(struct rt_rtmp_adapter *pAd,
+		     struct rt_txinfo *pTxInfo,
+		     u16 USBDMApktLen,
+		     IN BOOLEAN bWiv,
+		     u8 QueueSel, u8 NextValid, u8 TxBurst)
 {
 	pTxInfo->USBDMATxPktLen = USBDMApktLen;
 	pTxInfo->QSEL = QueueSel;
 	if (QueueSel != FIFO_EDCA)
-		DBGPRINT(RT_DEBUG_TRACE, ("====> QueueSel != FIFO_EDCA<============\n"));
-	pTxInfo->USBDMANextVLD = FALSE; //NextValid;  // Need to check with Jan about this.
+		DBGPRINT(RT_DEBUG_TRACE,
+			 ("====> QueueSel != FIFO_EDCA<============\n"));
+	pTxInfo->USBDMANextVLD = FALSE;	/*NextValid;  // Need to check with Jan about this. */
 	pTxInfo->USBDMATxburst = TxBurst;
 	pTxInfo->WIV = bWiv;
 	pTxInfo->SwUseLastRound = 0;
@@ -214,3 +259,4 @@ VOID RTMPWriteTxInfo(
 	pTxInfo->rsv2 = 0;
 }
 
+#endif /* RTMP_MAC_USB // */

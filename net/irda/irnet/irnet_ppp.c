@@ -14,12 +14,13 @@
  */
 
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include "irnet_ppp.h"		/* Private header */
 /* Please put other headers in irnet.h - Thanks */
 
 /* Generic PPP callbacks (to call us) */
-static struct ppp_channel_ops irnet_ppp_ops = {
+static const struct ppp_channel_ops irnet_ppp_ops = {
 	.start_xmit = ppp_irnet_send,
 	.ioctl = ppp_irnet_ioctl
 };
@@ -76,9 +77,8 @@ irnet_ctrl_write(irnet_socket *	ap,
       /* Look at the next command */
       start = next;
 
-      /* Scrap whitespaces before the command */
-      while(isspace(*start))
-	start++;
+	/* Scrap whitespaces before the command */
+	start = skip_spaces(start);
 
       /* ',' is our command separator */
       next = strchr(start, ',');
@@ -133,8 +133,7 @@ irnet_ctrl_write(irnet_socket *	ap,
 	      char *	endp;
 
 	      /* Scrap whitespaces before the command */
-	      while(isspace(*begp))
-		begp++;
+	      begp = skip_spaces(begp);
 
 	      /* Convert argument to a number (last arg is the base) */
 	      addr = simple_strtoul(begp, &endp, 16);
@@ -528,7 +527,7 @@ static int
 dev_irnet_close(struct inode *	inode,
 		struct file *	file)
 {
-  irnet_socket *	ap = (struct irnet_socket *) file->private_data;
+  irnet_socket *	ap = file->private_data;
 
   DENTER(FS_TRACE, "(file=0x%p, ap=0x%p)\n",
 	 file, ap);
@@ -565,7 +564,7 @@ dev_irnet_write(struct file *	file,
 		size_t		count,
 		loff_t *	ppos)
 {
-  irnet_socket *	ap = (struct irnet_socket *) file->private_data;
+  irnet_socket *	ap = file->private_data;
 
   DPASS(FS_TRACE, "(file=0x%p, ap=0x%p, count=%Zd)\n",
 	file, ap, count);
@@ -589,7 +588,7 @@ dev_irnet_read(struct file *	file,
 	       size_t		count,
 	       loff_t *		ppos)
 {
-  irnet_socket *	ap = (struct irnet_socket *) file->private_data;
+  irnet_socket *	ap = file->private_data;
 
   DPASS(FS_TRACE, "(file=0x%p, ap=0x%p, count=%Zd)\n",
 	file, ap, count);
@@ -610,7 +609,7 @@ static unsigned int
 dev_irnet_poll(struct file *	file,
 	       poll_table *	wait)
 {
-  irnet_socket *	ap = (struct irnet_socket *) file->private_data;
+  irnet_socket *	ap = file->private_data;
   unsigned int		mask;
 
   DENTER(FS_TRACE, "(file=0x%p, ap=0x%p)\n",
@@ -639,7 +638,7 @@ dev_irnet_ioctl(
 		unsigned int	cmd,
 		unsigned long	arg)
 {
-  irnet_socket *	ap = (struct irnet_socket *) file->private_data;
+  irnet_socket *	ap = file->private_data;
   int			err;
   int			val;
   void __user *argp = (void __user *)arg;
@@ -700,15 +699,18 @@ dev_irnet_ioctl(
 
       /* Query PPP channel and unit number */
     case PPPIOCGCHAN:
+      lock_kernel();
       if(ap->ppp_open && !put_user(ppp_channel_index(&ap->chan),
 						(int __user *)argp))
 	err = 0;
+      unlock_kernel();
       break;
     case PPPIOCGUNIT:
       lock_kernel();
       if(ap->ppp_open && !put_user(ppp_unit_number(&ap->chan),
 						(int __user *)argp))
-      err = 0;
+        err = 0;
+      unlock_kernel();
       break;
 
       /* All these ioctls can be passed both directly and from ppp_generic,

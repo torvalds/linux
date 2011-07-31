@@ -25,16 +25,19 @@
 #include <linux/module.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <asm/atomic.h>
 #include "crc32defs.h"
 #if CRC_LE_BITS == 8
-#define tole(x) __constant_cpu_to_le32(x)
-#define tobe(x) __constant_cpu_to_be32(x)
+# define tole(x) __constant_cpu_to_le32(x)
 #else
-#define tole(x) (x)
-#define tobe(x) (x)
+# define tole(x) (x)
+#endif
+
+#if CRC_BE_BITS == 8
+# define tobe(x) __constant_cpu_to_be32(x)
+#else
+# define tobe(x) (x)
 #endif
 #include "crc32table.h"
 
@@ -42,6 +45,54 @@ MODULE_AUTHOR("Matt Domsch <Matt_Domsch@dell.com>");
 MODULE_DESCRIPTION("Ethernet CRC32 calculations");
 MODULE_LICENSE("GPL");
 
+#if CRC_LE_BITS == 8 || CRC_BE_BITS == 8
+
+static inline u32
+crc32_body(u32 crc, unsigned char const *buf, size_t len, const u32 (*tab)[256])
+{
+# ifdef __LITTLE_ENDIAN
+#  define DO_CRC(x) crc = tab[0][(crc ^ (x)) & 255] ^ (crc >> 8)
+#  define DO_CRC4 crc = tab[3][(crc) & 255] ^ \
+		tab[2][(crc >> 8) & 255] ^ \
+		tab[1][(crc >> 16) & 255] ^ \
+		tab[0][(crc >> 24) & 255]
+# else
+#  define DO_CRC(x) crc = tab[0][((crc >> 24) ^ (x)) & 255] ^ (crc << 8)
+#  define DO_CRC4 crc = tab[0][(crc) & 255] ^ \
+		tab[1][(crc >> 8) & 255] ^ \
+		tab[2][(crc >> 16) & 255] ^ \
+		tab[3][(crc >> 24) & 255]
+# endif
+	const u32 *b;
+	size_t    rem_len;
+
+	/* Align it */
+	if (unlikely((long)buf & 3 && len)) {
+		do {
+			DO_CRC(*buf++);
+		} while ((--len) && ((long)buf)&3);
+	}
+	rem_len = len & 3;
+	/* load data 32 bits wide, xor data 32 bits wide. */
+	len = len >> 2;
+	b = (const u32 *)buf;
+	for (--b; len; --len) {
+		crc ^= *++b; /* use pre increment for speed */
+		DO_CRC4;
+	}
+	len = rem_len;
+	/* And the last few bytes */
+	if (len) {
+		u8 *p = (u8 *)(b + 1) - 1;
+		do {
+			DO_CRC(*++p); /* use pre increment for speed */
+		} while (--len);
+	}
+	return crc;
+#undef DO_CRC
+#undef DO_CRC4
+}
+#endif
 /**
  * crc32_le() - Calculate bitwise little-endian Ethernet AUTODIN II CRC32
  * @crc: seed value for computation.  ~0 for Ethernet, sometimes 0 for
@@ -72,52 +123,11 @@ u32 __pure crc32_le(u32 crc, unsigned char const *p, size_t len)
 u32 __pure crc32_le(u32 crc, unsigned char const *p, size_t len)
 {
 # if CRC_LE_BITS == 8
-	const u32      *b =(u32 *)p;
-	const u32      *tab = crc32table_le;
-
-# ifdef __LITTLE_ENDIAN
-#  define DO_CRC(x) crc = tab[ (crc ^ (x)) & 255 ] ^ (crc>>8)
-# else
-#  define DO_CRC(x) crc = tab[ ((crc >> 24) ^ (x)) & 255] ^ (crc<<8)
-# endif
+	const u32      (*tab)[] = crc32table_le;
 
 	crc = __cpu_to_le32(crc);
-	/* Align it */
-	if(unlikely(((long)b)&3 && len)){
-		do {
-			u8 *p = (u8 *)b;
-			DO_CRC(*p++);
-			b = (void *)p;
-		} while ((--len) && ((long)b)&3 );
-	}
-	if(likely(len >= 4)){
-		/* load data 32 bits wide, xor data 32 bits wide. */
-		size_t save_len = len & 3;
-	        len = len >> 2;
-		--b; /* use pre increment below(*++b) for speed */
-		do {
-			crc ^= *++b;
-			DO_CRC(0);
-			DO_CRC(0);
-			DO_CRC(0);
-			DO_CRC(0);
-		} while (--len);
-		b++; /* point to next byte(s) */
-		len = save_len;
-	}
-	/* And the last few bytes */
-	if(len){
-		do {
-			u8 *p = (u8 *)b;
-			DO_CRC(*p++);
-			b = (void *)p;
-		} while (--len);
-	}
-
+	crc = crc32_body(crc, p, len, tab);
 	return __le32_to_cpu(crc);
-#undef ENDIAN_SHIFT
-#undef DO_CRC
-
 # elif CRC_LE_BITS == 4
 	while (len--) {
 		crc ^= *p++;
@@ -170,51 +180,11 @@ u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len)
 u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len)
 {
 # if CRC_BE_BITS == 8
-	const u32      *b =(u32 *)p;
-	const u32      *tab = crc32table_be;
-
-# ifdef __LITTLE_ENDIAN
-#  define DO_CRC(x) crc = tab[ (crc ^ (x)) & 255 ] ^ (crc>>8)
-# else
-#  define DO_CRC(x) crc = tab[ ((crc >> 24) ^ (x)) & 255] ^ (crc<<8)
-# endif
+	const u32      (*tab)[] = crc32table_be;
 
 	crc = __cpu_to_be32(crc);
-	/* Align it */
-	if(unlikely(((long)b)&3 && len)){
-		do {
-			u8 *p = (u8 *)b;
-			DO_CRC(*p++);
-			b = (u32 *)p;
-		} while ((--len) && ((long)b)&3 );
-	}
-	if(likely(len >= 4)){
-		/* load data 32 bits wide, xor data 32 bits wide. */
-		size_t save_len = len & 3;
-	        len = len >> 2;
-		--b; /* use pre increment below(*++b) for speed */
-		do {
-			crc ^= *++b;
-			DO_CRC(0);
-			DO_CRC(0);
-			DO_CRC(0);
-			DO_CRC(0);
-		} while (--len);
-		b++; /* point to next byte(s) */
-		len = save_len;
-	}
-	/* And the last few bytes */
-	if(len){
-		do {
-			u8 *p = (u8 *)b;
-			DO_CRC(*p++);
-			b = (void *)p;
-		} while (--len);
-	}
+	crc = crc32_body(crc, p, len, tab);
 	return __be32_to_cpu(crc);
-#undef ENDIAN_SHIFT
-#undef DO_CRC
-
 # elif CRC_BE_BITS == 4
 	while (len--) {
 		crc ^= *p++ << 24;

@@ -27,6 +27,12 @@ static void store_cursor_position(void)
 
 	boot_params.screen_info.orig_x = oreg.dl;
 	boot_params.screen_info.orig_y = oreg.dh;
+
+	if (oreg.ch & 0x20)
+		boot_params.screen_info.flags |= VIDEO_FLAGS_NOCURSOR;
+
+	if ((oreg.ch & 0x1f) > (oreg.cl & 0x1f))
+		boot_params.screen_info.flags |= VIDEO_FLAGS_NOCURSOR;
 }
 
 static void store_video_mode(void)
@@ -292,11 +298,18 @@ static void restore_screen(void)
 	}
 
 	/* Restore cursor position */
+	if (saved.curx >= xs)
+		saved.curx = xs-1;
+	if (saved.cury >= ys)
+		saved.cury = ys-1;
+
 	initregs(&ireg);
 	ireg.ah = 0x02;		/* Set cursor position */
 	ireg.dh = saved.cury;
 	ireg.dl = saved.curx;
 	intcall(0x10, &ireg, NULL);
+
+	store_cursor_position();
 }
 
 void set_video(void)

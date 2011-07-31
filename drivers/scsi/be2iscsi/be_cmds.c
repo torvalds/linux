@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2009 ServerEngines
+ * Copyright (C) 2005 - 2010 ServerEngines
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -18,6 +18,135 @@
 #include "be.h"
 #include "be_mgmt.h"
 #include "be_main.h"
+
+int beiscsi_pci_soft_reset(struct beiscsi_hba *phba)
+{
+	u32 sreset;
+	u8 *pci_reset_offset = 0;
+	u8 *pci_online0_offset = 0;
+	u8 *pci_online1_offset = 0;
+	u32 pconline0 = 0;
+	u32 pconline1 = 0;
+	u32 i;
+
+	pci_reset_offset = (u8 *)phba->pci_va + BE2_SOFT_RESET;
+	pci_online0_offset = (u8 *)phba->pci_va + BE2_PCI_ONLINE0;
+	pci_online1_offset = (u8 *)phba->pci_va + BE2_PCI_ONLINE1;
+	sreset = readl((void *)pci_reset_offset);
+	sreset |= BE2_SET_RESET;
+	writel(sreset, (void *)pci_reset_offset);
+
+	i = 0;
+	while (sreset & BE2_SET_RESET) {
+		if (i > 64)
+			break;
+		msleep(100);
+		sreset = readl((void *)pci_reset_offset);
+		i++;
+	}
+
+	if (sreset & BE2_SET_RESET) {
+		printk(KERN_ERR "Soft Reset  did not deassert\n");
+		return -EIO;
+	}
+	pconline1 = BE2_MPU_IRAM_ONLINE;
+	writel(pconline0, (void *)pci_online0_offset);
+	writel(pconline1, (void *)pci_online1_offset);
+
+	sreset = BE2_SET_RESET;
+	writel(sreset, (void *)pci_reset_offset);
+
+	i = 0;
+	while (sreset & BE2_SET_RESET) {
+		if (i > 64)
+			break;
+		msleep(1);
+		sreset = readl((void *)pci_reset_offset);
+		i++;
+	}
+	if (sreset & BE2_SET_RESET) {
+		printk(KERN_ERR "MPU Online Soft Reset did not deassert\n");
+		return -EIO;
+	}
+	return 0;
+}
+
+int be_chk_reset_complete(struct beiscsi_hba *phba)
+{
+	unsigned int num_loop;
+	u8 *mpu_sem = 0;
+	u32 status;
+
+	num_loop = 1000;
+	mpu_sem = (u8 *)phba->csr_va + MPU_EP_SEMAPHORE;
+	msleep(5000);
+
+	while (num_loop) {
+		status = readl((void *)mpu_sem);
+
+		if ((status & 0x80000000) || (status & 0x0000FFFF) == 0xC000)
+			break;
+		msleep(60);
+		num_loop--;
+	}
+
+	if ((status & 0x80000000) || (!num_loop)) {
+		printk(KERN_ERR "Failed in be_chk_reset_complete"
+		"status = 0x%x\n", status);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+void be_mcc_notify(struct beiscsi_hba *phba)
+{
+	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
+	u32 val = 0;
+
+	val |= mccq->id & DB_MCCQ_RING_ID_MASK;
+	val |= 1 << DB_MCCQ_NUM_POSTED_SHIFT;
+	iowrite32(val, phba->db_va + DB_MCCQ_OFFSET);
+}
+
+unsigned int alloc_mcc_tag(struct beiscsi_hba *phba)
+{
+	unsigned int tag = 0;
+
+	if (phba->ctrl.mcc_tag_available) {
+		tag = phba->ctrl.mcc_tag[phba->ctrl.mcc_alloc_index];
+		phba->ctrl.mcc_tag[phba->ctrl.mcc_alloc_index] = 0;
+		phba->ctrl.mcc_numtag[tag] = 0;
+	}
+	if (tag) {
+		phba->ctrl.mcc_tag_available--;
+		if (phba->ctrl.mcc_alloc_index == (MAX_MCC_CMD - 1))
+			phba->ctrl.mcc_alloc_index = 0;
+		else
+			phba->ctrl.mcc_alloc_index++;
+	}
+	return tag;
+}
+
+void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag)
+{
+	spin_lock(&ctrl->mbox_lock);
+	tag = tag & 0x000000FF;
+	ctrl->mcc_tag[ctrl->mcc_free_index] = tag;
+	if (ctrl->mcc_free_index == (MAX_MCC_CMD - 1))
+		ctrl->mcc_free_index = 0;
+	else
+		ctrl->mcc_free_index++;
+	ctrl->mcc_tag_available++;
+	spin_unlock(&ctrl->mbox_lock);
+}
+
+bool is_link_state_evt(u32 trailer)
+{
+	return (((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
+		  ASYNC_TRAILER_EVENT_CODE_MASK) ==
+		  ASYNC_EVENT_CODE_LINK_STATE);
+}
 
 static inline bool be_mcc_compl_is_new(struct be_mcc_compl *compl)
 {
@@ -49,18 +178,79 @@ static int be_mcc_compl_process(struct be_ctrl_info *ctrl,
 		dev_err(&ctrl->pdev->dev,
 			"error in cmd completion: status(compl/extd)=%d/%d\n",
 			compl_status, extd_status);
-		return -1;
+		return -EBUSY;
 	}
 	return 0;
 }
 
-static inline bool is_link_state_evt(u32 trailer)
+int be_mcc_compl_process_isr(struct be_ctrl_info *ctrl,
+				    struct be_mcc_compl *compl)
 {
-	return (((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
-		ASYNC_TRAILER_EVENT_CODE_MASK) == ASYNC_EVENT_CODE_LINK_STATE);
+	u16 compl_status, extd_status;
+	unsigned short tag;
+
+	be_dws_le_to_cpu(compl, 4);
+
+	compl_status = (compl->status >> CQE_STATUS_COMPL_SHIFT) &
+					CQE_STATUS_COMPL_MASK;
+	/* The ctrl.mcc_numtag[tag] is filled with
+	 * [31] = valid, [30:24] = Rsvd, [23:16] = wrb, [15:8] = extd_status,
+	 * [7:0] = compl_status
+	 */
+	tag = (compl->tag0 & 0x000000FF);
+	extd_status = (compl->status >> CQE_STATUS_EXTD_SHIFT) &
+					CQE_STATUS_EXTD_MASK;
+
+	ctrl->mcc_numtag[tag]  = 0x80000000;
+	ctrl->mcc_numtag[tag] |= (compl->tag0 & 0x00FF0000);
+	ctrl->mcc_numtag[tag] |= (extd_status & 0x000000FF) << 8;
+	ctrl->mcc_numtag[tag] |= (compl_status & 0x000000FF);
+	wake_up_interruptible(&ctrl->mcc_wait[tag]);
+	return 0;
 }
 
-void beiscsi_cq_notify(struct be_ctrl_info *ctrl, u16 qid, bool arm,
+static struct be_mcc_compl *be_mcc_compl_get(struct beiscsi_hba *phba)
+{
+	struct be_queue_info *mcc_cq = &phba->ctrl.mcc_obj.cq;
+	struct be_mcc_compl *compl = queue_tail_node(mcc_cq);
+
+	if (be_mcc_compl_is_new(compl)) {
+		queue_tail_inc(mcc_cq);
+		return compl;
+	}
+	return NULL;
+}
+
+static void be2iscsi_fail_session(struct iscsi_cls_session *cls_session)
+{
+	iscsi_session_failure(cls_session->dd_data, ISCSI_ERR_CONN_FAILED);
+}
+
+void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
+		struct be_async_event_link_state *evt)
+{
+	switch (evt->port_link_status) {
+	case ASYNC_EVENT_LINK_DOWN:
+		SE_DEBUG(DBG_LVL_1, "Link Down on Physical Port %d\n",
+				     evt->physical_port);
+		phba->state |= BE_ADAPTER_LINK_DOWN;
+		iscsi_host_for_each_session(phba->shost,
+					    be2iscsi_fail_session);
+		break;
+	case ASYNC_EVENT_LINK_UP:
+		phba->state = BE_ADAPTER_UP;
+		SE_DEBUG(DBG_LVL_1, "Link UP on Physical Port %d\n",
+						evt->physical_port);
+		break;
+	default:
+		SE_DEBUG(DBG_LVL_1, "Unexpected Async Notification %d on"
+				    "Physical Port %d\n",
+				     evt->port_link_status,
+				     evt->physical_port);
+	}
+}
+
+static void beiscsi_cq_notify(struct beiscsi_hba *phba, u16 qid, bool arm,
 		       u16 num_popped)
 {
 	u32 val = 0;
@@ -68,7 +258,69 @@ void beiscsi_cq_notify(struct be_ctrl_info *ctrl, u16 qid, bool arm,
 	if (arm)
 		val |= 1 << DB_CQ_REARM_SHIFT;
 	val |= num_popped << DB_CQ_NUM_POPPED_SHIFT;
-	iowrite32(val, ctrl->db + DB_CQ_OFFSET);
+	iowrite32(val, phba->db_va + DB_CQ_OFFSET);
+}
+
+
+int beiscsi_process_mcc(struct beiscsi_hba *phba)
+{
+	struct be_mcc_compl *compl;
+	int num = 0, status = 0;
+	struct be_ctrl_info *ctrl = &phba->ctrl;
+
+	spin_lock_bh(&phba->ctrl.mcc_cq_lock);
+	while ((compl = be_mcc_compl_get(phba))) {
+		if (compl->flags & CQE_FLAGS_ASYNC_MASK) {
+			/* Interpret flags as an async trailer */
+			if (is_link_state_evt(compl->flags))
+				/* Interpret compl as a async link evt */
+				beiscsi_async_link_state_process(phba,
+				   (struct be_async_event_link_state *) compl);
+			else
+				SE_DEBUG(DBG_LVL_1,
+					 " Unsupported Async Event, flags"
+					 " = 0x%08x\n", compl->flags);
+
+		} else if (compl->flags & CQE_FLAGS_COMPLETED_MASK) {
+				status = be_mcc_compl_process(ctrl, compl);
+				atomic_dec(&phba->ctrl.mcc_obj.q.used);
+		}
+		be_mcc_compl_use(compl);
+		num++;
+	}
+
+	if (num)
+		beiscsi_cq_notify(phba, phba->ctrl.mcc_obj.cq.id, true, num);
+
+	spin_unlock_bh(&phba->ctrl.mcc_cq_lock);
+	return status;
+}
+
+/* Wait till no more pending mcc requests are present */
+static int be_mcc_wait_compl(struct beiscsi_hba *phba)
+{
+	int i, status;
+	for (i = 0; i < mcc_timeout; i++) {
+		status = beiscsi_process_mcc(phba);
+		if (status)
+			return status;
+
+		if (atomic_read(&phba->ctrl.mcc_obj.q.used) == 0)
+			break;
+		udelay(100);
+	}
+	if (i == mcc_timeout) {
+		dev_err(&phba->pcidev->dev, "mccq poll timed out\n");
+		return -EBUSY;
+	}
+	return 0;
+}
+
+/* Notify MCC requests and wait for completion */
+int be_mcc_notify_wait(struct beiscsi_hba *phba)
+{
+	be_mcc_notify(phba);
+	return be_mcc_wait_compl(phba);
 }
 
 static int be_mbox_db_ready_wait(struct be_ctrl_info *ctrl)
@@ -85,7 +337,7 @@ static int be_mbox_db_ready_wait(struct be_ctrl_info *ctrl)
 
 		if (cnt > 6000000) {
 			dev_err(&ctrl->pdev->dev, "mbox_db poll timed out\n");
-			return -1;
+			return -EBUSY;
 		}
 
 		if (cnt > 50) {
@@ -114,7 +366,7 @@ int be_mbox_notify(struct be_ctrl_info *ctrl)
 
 	status = be_mbox_db_ready_wait(ctrl);
 	if (status != 0) {
-		SE_DEBUG(DBG_LVL_1, " be_mbox_db_ready_wait failed 1\n");
+		SE_DEBUG(DBG_LVL_1, " be_mbox_db_ready_wait failed\n");
 		return status;
 	}
 	val = 0;
@@ -125,19 +377,65 @@ int be_mbox_notify(struct be_ctrl_info *ctrl)
 
 	status = be_mbox_db_ready_wait(ctrl);
 	if (status != 0) {
-		SE_DEBUG(DBG_LVL_1, " be_mbox_db_ready_wait failed 2\n");
+		SE_DEBUG(DBG_LVL_1, " be_mbox_db_ready_wait failed\n");
 		return status;
 	}
 	if (be_mcc_compl_is_new(compl)) {
 		status = be_mcc_compl_process(ctrl, &mbox->compl);
 		be_mcc_compl_use(compl);
 		if (status) {
-			SE_DEBUG(DBG_LVL_1, "After be_mcc_compl_process \n");
+			SE_DEBUG(DBG_LVL_1, "After be_mcc_compl_process\n");
 			return status;
 		}
 	} else {
 		dev_err(&ctrl->pdev->dev, "invalid mailbox completion\n");
-		return -1;
+		return -EBUSY;
+	}
+	return 0;
+}
+
+/*
+ * Insert the mailbox address into the doorbell in two steps
+ * Polls on the mbox doorbell till a command completion (or a timeout) occurs
+ */
+static int be_mbox_notify_wait(struct beiscsi_hba *phba)
+{
+	int status;
+	u32 val = 0;
+	void __iomem *db = phba->ctrl.db + MPU_MAILBOX_DB_OFFSET;
+	struct be_dma_mem *mbox_mem = &phba->ctrl.mbox_mem;
+	struct be_mcc_mailbox *mbox = mbox_mem->va;
+	struct be_mcc_compl *compl = &mbox->compl;
+	struct be_ctrl_info *ctrl = &phba->ctrl;
+
+	val |= MPU_MAILBOX_DB_HI_MASK;
+	/* at bits 2 - 31 place mbox dma addr msb bits 34 - 63 */
+	val |= (upper_32_bits(mbox_mem->dma) >> 2) << 2;
+	iowrite32(val, db);
+
+	/* wait for ready to be set */
+	status = be_mbox_db_ready_wait(ctrl);
+	if (status != 0)
+		return status;
+
+	val = 0;
+	/* at bits 2 - 31 place mbox dma addr lsb bits 4 - 33 */
+	val |= (u32)(mbox_mem->dma >> 4) << 2;
+	iowrite32(val, db);
+
+	status = be_mbox_db_ready_wait(ctrl);
+	if (status != 0)
+		return status;
+
+	/* A cq entry has been made now */
+	if (be_mcc_compl_is_new(compl)) {
+		status = be_mcc_compl_process(ctrl, &mbox->compl);
+		be_mcc_compl_use(compl);
+		if (status)
+			return status;
+	} else {
+		dev_err(&phba->pcidev->dev, "invalid mailbox completion\n");
+		return -EBUSY;
 	}
 	return 0;
 }
@@ -203,6 +501,21 @@ struct be_mcc_wrb *wrb_from_mbox(struct be_dma_mem *mbox_mem)
 	return &((struct be_mcc_mailbox *)(mbox_mem->va))->wrb;
 }
 
+struct be_mcc_wrb *wrb_from_mccq(struct beiscsi_hba *phba)
+{
+	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
+	struct be_mcc_wrb *wrb;
+
+	BUG_ON(atomic_read(&mccq->used) >= mccq->len);
+	wrb = queue_head_node(mccq);
+	memset(wrb, 0, sizeof(*wrb));
+	wrb->tag0 = (mccq->head & 0x000000FF) << 16;
+	queue_head_inc(mccq);
+	atomic_inc(&mccq->used);
+	return wrb;
+}
+
+
 int beiscsi_cmd_eq_create(struct be_ctrl_info *ctrl,
 			  struct be_queue_info *eq, int eq_delay)
 {
@@ -212,6 +525,7 @@ int beiscsi_cmd_eq_create(struct be_ctrl_info *ctrl,
 	struct be_dma_mem *q_mem = &eq->dma_mem;
 	int status;
 
+	SE_DEBUG(DBG_LVL_8, "In beiscsi_cmd_eq_create\n");
 	spin_lock(&ctrl->mbox_lock);
 	memset(wrb, 0, sizeof(*wrb));
 
@@ -249,6 +563,7 @@ int be_cmd_fw_initialize(struct be_ctrl_info *ctrl)
 	int status;
 	u8 *endian_check;
 
+	SE_DEBUG(DBG_LVL_8, "In be_cmd_fw_initialize\n");
 	spin_lock(&ctrl->mbox_lock);
 	memset(wrb, 0, sizeof(*wrb));
 
@@ -265,7 +580,7 @@ int be_cmd_fw_initialize(struct be_ctrl_info *ctrl)
 
 	status = be_mbox_notify(ctrl);
 	if (status)
-		SE_DEBUG(DBG_LVL_1, "be_cmd_fw_initialize Failed \n");
+		SE_DEBUG(DBG_LVL_1, "be_cmd_fw_initialize Failed\n");
 
 	spin_unlock(&ctrl->mbox_lock);
 	return status;
@@ -282,6 +597,7 @@ int beiscsi_cmd_cq_create(struct be_ctrl_info *ctrl,
 	void *ctxt = &req->context;
 	int status;
 
+	SE_DEBUG(DBG_LVL_8, "In beiscsi_cmd_cq_create\n");
 	spin_lock(&ctrl->mbox_lock);
 	memset(wrb, 0, sizeof(*wrb));
 
@@ -289,7 +605,6 @@ int beiscsi_cmd_cq_create(struct be_ctrl_info *ctrl,
 
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 			OPCODE_COMMON_CQ_CREATE, sizeof(*req));
-
 	if (!q_mem->va)
 		SE_DEBUG(DBG_LVL_1, "uninitialized q_mem->va\n");
 
@@ -315,7 +630,7 @@ int beiscsi_cmd_cq_create(struct be_ctrl_info *ctrl,
 		cq->id = le16_to_cpu(resp->cq_id);
 		cq->created = true;
 	} else
-		SE_DEBUG(DBG_LVL_1, "In be_cmd_cq_create, status=ox%08x \n",
+		SE_DEBUG(DBG_LVL_1, "In be_cmd_cq_create, status=ox%08x\n",
 			status);
 	spin_unlock(&ctrl->mbox_lock);
 
@@ -329,6 +644,53 @@ static u32 be_encoded_q_len(int q_len)
 		len_encoded = 0;
 	return len_encoded;
 }
+
+int beiscsi_cmd_mccq_create(struct beiscsi_hba *phba,
+			struct be_queue_info *mccq,
+			struct be_queue_info *cq)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_mcc_create *req;
+	struct be_dma_mem *q_mem = &mccq->dma_mem;
+	struct be_ctrl_info *ctrl;
+	void *ctxt;
+	int status;
+
+	spin_lock(&phba->ctrl.mbox_lock);
+	ctrl = &phba->ctrl;
+	wrb = wrb_from_mbox(&ctrl->mbox_mem);
+	req = embedded_payload(wrb);
+	ctxt = &req->context;
+
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
+
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			OPCODE_COMMON_MCC_CREATE, sizeof(*req));
+
+	req->num_pages = PAGES_4K_SPANNED(q_mem->va, q_mem->size);
+
+	AMAP_SET_BITS(struct amap_mcc_context, fid, ctxt,
+		      PCI_FUNC(phba->pcidev->devfn));
+	AMAP_SET_BITS(struct amap_mcc_context, valid, ctxt, 1);
+	AMAP_SET_BITS(struct amap_mcc_context, ring_size, ctxt,
+		be_encoded_q_len(mccq->len));
+	AMAP_SET_BITS(struct amap_mcc_context, cq_id, ctxt, cq->id);
+
+	be_dws_cpu_to_le(ctxt, sizeof(req->context));
+
+	be_cmd_page_addrs_prepare(req->pages, ARRAY_SIZE(req->pages), q_mem);
+
+	status = be_mbox_notify_wait(phba);
+	if (!status) {
+		struct be_cmd_resp_mcc_create *resp = embedded_payload(wrb);
+		mccq->id = le16_to_cpu(resp->id);
+		mccq->created = true;
+	}
+	spin_unlock(&phba->ctrl.mbox_lock);
+
+	return status;
+}
+
 int beiscsi_cmd_q_destroy(struct be_ctrl_info *ctrl, struct be_queue_info *q,
 			  int queue_type)
 {
@@ -337,6 +699,7 @@ int beiscsi_cmd_q_destroy(struct be_ctrl_info *ctrl, struct be_queue_info *q,
 	u8 subsys = 0, opcode = 0;
 	int status;
 
+	SE_DEBUG(DBG_LVL_8, "In beiscsi_cmd_q_destroy\n");
 	spin_lock(&ctrl->mbox_lock);
 	memset(wrb, 0, sizeof(*wrb));
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
@@ -349,6 +712,10 @@ int beiscsi_cmd_q_destroy(struct be_ctrl_info *ctrl, struct be_queue_info *q,
 	case QTYPE_CQ:
 		subsys = CMD_SUBSYSTEM_COMMON;
 		opcode = OPCODE_COMMON_CQ_DESTROY;
+		break;
+	case QTYPE_MCCQ:
+		subsys = CMD_SUBSYSTEM_COMMON;
+		opcode = OPCODE_COMMON_MCC_DESTROY;
 		break;
 	case QTYPE_WRBQ:
 		subsys = CMD_SUBSYSTEM_ISCSI;
@@ -365,37 +732,13 @@ int beiscsi_cmd_q_destroy(struct be_ctrl_info *ctrl, struct be_queue_info *q,
 	default:
 		spin_unlock(&ctrl->mbox_lock);
 		BUG();
-		return -1;
+		return -ENXIO;
 	}
 	be_cmd_hdr_prepare(&req->hdr, subsys, opcode, sizeof(*req));
 	if (queue_type != QTYPE_SGL)
 		req->id = cpu_to_le16(q->id);
 
 	status = be_mbox_notify(ctrl);
-
-	spin_unlock(&ctrl->mbox_lock);
-	return status;
-}
-
-int be_cmd_get_mac_addr(struct be_ctrl_info *ctrl, u8 *mac_addr)
-{
-	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
-	struct be_cmd_req_get_mac_addr *req = embedded_payload(wrb);
-	int status;
-
-	spin_lock(&ctrl->mbox_lock);
-	memset(wrb, 0, sizeof(*wrb));
-	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
-	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
-			   OPCODE_COMMON_ISCSI_NTWK_GET_NIC_CONFIG,
-			   sizeof(*req));
-
-	status = be_mbox_notify(ctrl);
-	if (!status) {
-		struct be_cmd_resp_get_mac_addr *resp = embedded_payload(wrb);
-
-		memcpy(mac_addr, resp->mac_address, ETH_ALEN);
-	}
 
 	spin_unlock(&ctrl->mbox_lock);
 	return status;
@@ -412,6 +755,7 @@ int be_cmd_create_default_pdu_queue(struct be_ctrl_info *ctrl,
 	void *ctxt = &req->context;
 	int status;
 
+	SE_DEBUG(DBG_LVL_8, "In be_cmd_create_default_pdu_queue\n");
 	spin_lock(&ctrl->mbox_lock);
 	memset(wrb, 0, sizeof(*wrb));
 
@@ -468,8 +812,10 @@ int be_cmd_wrbq_create(struct be_ctrl_info *ctrl, struct be_dma_mem *q_mem,
 	be_cmd_page_addrs_prepare(req->pages, ARRAY_SIZE(req->pages), q_mem);
 
 	status = be_mbox_notify(ctrl);
-	if (!status)
+	if (!status) {
 		wrbq->id = le16_to_cpu(resp->cid);
+		wrbq->created = true;
+	}
 	spin_unlock(&ctrl->mbox_lock);
 	return status;
 }

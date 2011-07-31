@@ -203,6 +203,17 @@ scaling_cur_freq :		Current frequency of the CPU as determined by
 				the frequency the kernel thinks the CPU runs
 				at.
 
+bios_limit :			If the BIOS tells the OS to limit a CPU to
+				lower frequencies, the user can read out the
+				maximum available frequency from this file.
+				This typically can happen through (often not
+				intended) BIOS settings, restrictions
+				triggered through a service processor or other
+				BIOS/HW based implementations.
+				This does not cover thermal ACPI limitations
+				which can be detected through the generic
+				thermal driver.
+
 If you have selected the "userspace" governor which allows you to
 set the CPU operating frequency to a specific value, you can read out
 the current frequency in

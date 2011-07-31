@@ -362,7 +362,7 @@ void __init efi_init(void)
 		printk(KERN_ERR PFX "Could not map the firmware vendor!\n");
 	early_iounmap(tmp, 2);
 
-	printk(KERN_INFO "EFI v%u.%.02u by %s \n",
+	printk(KERN_INFO "EFI v%u.%.02u by %s\n",
 	       efi.systab->hdr.revision >> 16,
 	       efi.systab->hdr.revision & 0xffff, vendor);
 

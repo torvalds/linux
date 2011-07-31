@@ -111,6 +111,13 @@
 #define RSR_CE              (1<<1)
 #define RSR_FOE             (1<<0)
 
+#define WCR_LINKEN		(1 << 5)
+#define WCR_SAMPLEEN		(1 << 4)
+#define WCR_MAGICEN		(1 << 3)
+#define WCR_LINKST		(1 << 2)
+#define WCR_SAMPLEST		(1 << 1)
+#define WCR_MAGICST		(1 << 0)
+
 #define FCTR_HWOT(ot)	(( ot & 0xf ) << 4 )
 #define FCTR_LWOT(ot)	( ot & 0xf )
 

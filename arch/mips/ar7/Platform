@@ -1,0 +1,6 @@
+#
+# Texas Instruments AR7
+#
+platform-$(CONFIG_AR7)          += ar7/
+cflags-$(CONFIG_AR7)            += -I$(srctree)/arch/mips/include/asm/mach-ar7
+load-$(CONFIG_AR7)              += 0xffffffff94100000

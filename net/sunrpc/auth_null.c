@@ -75,7 +75,7 @@ nul_marshal(struct rpc_task *task, __be32 *p)
 static int
 nul_refresh(struct rpc_task *task)
 {
-	set_bit(RPCAUTH_CRED_UPTODATE, &task->tk_msg.rpc_cred->cr_flags);
+	set_bit(RPCAUTH_CRED_UPTODATE, &task->tk_rqstp->rq_cred->cr_flags);
 	return 0;
 }
 

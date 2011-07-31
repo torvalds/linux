@@ -5,31 +5,23 @@ Supported chips:
   * IT8705F
     Prefix: 'it87'
     Addresses scanned: from Super I/O config space (8 I/O ports)
-    Datasheet: Publicly available at the ITE website
-               http://www.ite.com.tw/product_info/file/pc/IT8705F_V.0.4.1.pdf
+    Datasheet: Once publicly available at the ITE website, but no longer
   * IT8712F
     Prefix: 'it8712'
     Addresses scanned: from Super I/O config space (8 I/O ports)
-    Datasheet: Publicly available at the ITE website
-               http://www.ite.com.tw/product_info/file/pc/IT8712F_V0.9.1.pdf
-               http://www.ite.com.tw/product_info/file/pc/Errata%20V0.1%20for%20IT8712F%20V0.9.1.pdf
-               http://www.ite.com.tw/product_info/file/pc/IT8712F_V0.9.3.pdf
+    Datasheet: Once publicly available at the ITE website, but no longer
   * IT8716F/IT8726F
     Prefix: 'it8716'
     Addresses scanned: from Super I/O config space (8 I/O ports)
-    Datasheet: Publicly available at the ITE website
-               http://www.ite.com.tw/product_info/file/pc/IT8716F_V0.3.ZIP
-               http://www.ite.com.tw/product_info/file/pc/IT8726F_V0.3.pdf
+    Datasheet: Once publicly available at the ITE website, but no longer
   * IT8718F
     Prefix: 'it8718'
     Addresses scanned: from Super I/O config space (8 I/O ports)
-    Datasheet: Publicly available at the ITE website
-               http://www.ite.com.tw/product_info/file/pc/IT8718F_V0.2.zip
-               http://www.ite.com.tw/product_info/file/pc/IT8718F_V0%203_(for%20C%20version).zip
+    Datasheet: Once publicly available at the ITE website, but no longer
   * IT8720F
     Prefix: 'it8720'
     Addresses scanned: from Super I/O config space (8 I/O ports)
-    Datasheet: Not yet publicly available.
+    Datasheet: Not publicly available
   * SiS950   [clone of IT8705F]
     Prefix: 'it87'
     Addresses scanned: from Super I/O config space (8 I/O ports)
@@ -86,7 +78,6 @@ The IT8712F and IT8716F additionally feature VID inputs, used to report
 the Vcore voltage of the processor. The early IT8712F have 5 VID pins,
 the IT8716F and late IT8712F have 6. They are shared with other functions
 though, so the functionality may not be available on a given system.
-The driver dumbly assume it is there.
 
 The IT8718F and IT8720F also features VID inputs (up to 8 pins) but the value
 is stored in the Super-I/O configuration space. Due to technical limitations,
@@ -137,6 +128,10 @@ registers are read whenever any data is read (unless it is less than 1.5
 seconds since the last update). This means that you can easily miss
 once-only alarms.
 
+Out-of-limit readings can also result in beeping, if the chip is properly
+wired and configured. Beeping can be enabled or disabled per sensor type
+(temperatures, voltages and fans.)
+
 The IT87xx only updates its values each 1.5 seconds; reading it more often
 will do no harm, but will return 'old' values.
 
@@ -151,11 +146,38 @@ Fan speed control
 -----------------
 
 The fan speed control features are limited to manual PWM mode. Automatic
-"Smart Guardian" mode control handling is not implemented. However
-if you want to go for "manual mode" just write 1 to pwmN_enable.
+"Smart Guardian" mode control handling is only implemented for older chips
+(see below.) However if you want to go for "manual mode" just write 1 to
+pwmN_enable.
 
 If you are only able to control the fan speed with very small PWM values,
 try lowering the PWM base frequency (pwm1_freq). Depending on the fan,
 it may give you a somewhat greater control range. The same frequency is
 used to drive all fan outputs, which is why pwm2_freq and pwm3_freq are
 read-only.
+
+
+Automatic fan speed control (old interface)
+-------------------------------------------
+
+The driver supports the old interface to automatic fan speed control
+which is implemented by IT8705F chips up to revision F and IT8712F
+chips up to revision G.
+
+This interface implements 4 temperature vs. PWM output trip points.
+The PWM output of trip point 4 is always the maximum value (fan running
+at full speed) while the PWM output of the other 3 trip points can be
+freely chosen. The temperature of all 4 trip points can be freely chosen.
+Additionally, trip point 1 has an hysteresis temperature attached, to
+prevent fast switching between fan on and off.
+
+The chip automatically computes the PWM output value based on the input
+temperature, based on this simple rule: if the temperature value is
+between trip point N and trip point N+1 then the PWM output value is
+the one of trip point N. The automatic control mode is less flexible
+than the manual control mode, but it reacts faster, is more robust and
+doesn't use CPU cycles.
+
+Trip points must be set properly before switching to automatic fan speed
+control mode. The driver will perform basic integrity checks before
+actually switching to automatic control mode.

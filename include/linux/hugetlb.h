@@ -2,6 +2,7 @@
 #define _LINUX_HUGETLB_H
 
 #include <linux/fs.h>
+#include <linux/hugetlb_inline.h>
 
 struct ctl_table;
 struct user_struct;
@@ -14,15 +15,16 @@ struct user_struct;
 
 int PageHuge(struct page *page);
 
-static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
-{
-	return vma->vm_flags & VM_HUGETLB;
-}
-
 void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
 int hugetlb_sysctl_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
 int hugetlb_overcommit_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
 int hugetlb_treat_movable_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+
+#ifdef CONFIG_NUMA
+int hugetlb_mempolicy_sysctl_handler(struct ctl_table *, int,
+					void __user *, size_t *, loff_t *);
+#endif
+
 int copy_hugetlb_page_range(struct mm_struct *, struct mm_struct *, struct vm_area_struct *);
 int follow_hugetlb_page(struct mm_struct *, struct vm_area_struct *,
 			struct page **, struct vm_area_struct **,
@@ -41,6 +43,7 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to,
 						struct vm_area_struct *vma,
 						int acctflags);
 void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
+void __isolate_hwpoisoned_huge_page(struct page *page);
 
 extern unsigned long hugepages_treat_as_movable;
 extern const unsigned long hugetlb_zero, hugetlb_infinity;
@@ -71,11 +74,6 @@ static inline int PageHuge(struct page *page)
 	return 0;
 }
 
-static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
-{
-	return 0;
-}
-
 static inline void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
 {
 }
@@ -102,6 +100,8 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
 #define is_hugepage_only_range(mm, addr, len)	0
 #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
 #define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
+#define huge_pte_offset(mm, address)	0
+#define __isolate_hwpoisoned_huge_page(page)	0
 
 #define hugetlb_change_protection(vma, address, end, newprot)
 

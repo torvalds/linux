@@ -142,13 +142,12 @@ BTFIXUPDEF_CALL_CONST(unsigned long, pgd_page_vaddr, pgd_t)
 #define pmd_page(pmd) BTFIXUP_CALL(pmd_page)(pmd)
 #define pgd_page_vaddr(pgd) BTFIXUP_CALL(pgd_page_vaddr)(pgd)
 
-BTFIXUPDEF_SETHI(none_mask)
 BTFIXUPDEF_CALL_CONST(int, pte_present, pte_t)
 BTFIXUPDEF_CALL(void, pte_clear, pte_t *)
 
 static inline int pte_none(pte_t pte)
 {
-	return !(pte_val(pte) & ~BTFIXUP_SETHI(none_mask));
+	return !pte_val(pte);
 }
 
 #define pte_present(pte) BTFIXUP_CALL(pte_present)(pte)
@@ -160,7 +159,7 @@ BTFIXUPDEF_CALL(void, pmd_clear, pmd_t *)
 
 static inline int pmd_none(pmd_t pmd)
 {
-	return !(pmd_val(pmd) & ~BTFIXUP_SETHI(none_mask));
+	return !pmd_val(pmd);
 }
 
 #define pmd_bad(pmd) BTFIXUP_CALL(pmd_bad)(pmd)
@@ -330,9 +329,9 @@ BTFIXUPDEF_CALL(void, mmu_info, struct seq_file *)
 #define FAULT_CODE_WRITE    0x2
 #define FAULT_CODE_USER     0x4
 
-BTFIXUPDEF_CALL(void, update_mmu_cache, struct vm_area_struct *, unsigned long, pte_t)
+BTFIXUPDEF_CALL(void, update_mmu_cache, struct vm_area_struct *, unsigned long, pte_t *)
 
-#define update_mmu_cache(vma,addr,pte) BTFIXUP_CALL(update_mmu_cache)(vma,addr,pte)
+#define update_mmu_cache(vma,addr,ptep) BTFIXUP_CALL(update_mmu_cache)(vma,addr,ptep)
 
 BTFIXUPDEF_CALL(void, sparc_mapiorange, unsigned int, unsigned long,
     unsigned long, unsigned int)

@@ -54,15 +54,17 @@ static int progearbl_get_intensity(struct backlight_device *bd)
 	return intensity - HW_LEVEL_MIN;
 }
 
-static struct backlight_ops progearbl_ops = {
+static const struct backlight_ops progearbl_ops = {
 	.get_brightness = progearbl_get_intensity,
 	.update_status = progearbl_set_intensity,
 };
 
 static int progearbl_probe(struct platform_device *pdev)
 {
+	struct backlight_properties props;
 	u8 temp;
 	struct backlight_device *progear_backlight_device;
+	int ret;
 
 	pmu_dev = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M7101, NULL);
 	if (!pmu_dev) {
@@ -73,28 +75,37 @@ static int progearbl_probe(struct platform_device *pdev)
 	sb_dev = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, NULL);
 	if (!sb_dev) {
 		printk("ALI 1533 SB not found.\n");
-		pci_dev_put(pmu_dev);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto put_pmu;
 	}
 
 	/*     Set SB_MPS1 to enable brightness control. */
 	pci_read_config_byte(sb_dev, SB_MPS1, &temp);
 	pci_write_config_byte(sb_dev, SB_MPS1, temp | 0x20);
 
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = HW_LEVEL_MAX - HW_LEVEL_MIN;
 	progear_backlight_device = backlight_device_register("progear-bl",
 							     &pdev->dev, NULL,
-							     &progearbl_ops);
-	if (IS_ERR(progear_backlight_device))
-		return PTR_ERR(progear_backlight_device);
+							     &progearbl_ops,
+							     &props);
+	if (IS_ERR(progear_backlight_device)) {
+		ret = PTR_ERR(progear_backlight_device);
+		goto put_sb;
+	}
 
 	platform_set_drvdata(pdev, progear_backlight_device);
 
 	progear_backlight_device->props.power = FB_BLANK_UNBLANK;
 	progear_backlight_device->props.brightness = HW_LEVEL_MAX - HW_LEVEL_MIN;
-	progear_backlight_device->props.max_brightness = HW_LEVEL_MAX - HW_LEVEL_MIN;
 	progearbl_set_intensity(progear_backlight_device);
 
 	return 0;
+put_sb:
+	pci_dev_put(sb_dev);
+put_pmu:
+	pci_dev_put(pmu_dev);
+	return ret;
 }
 
 static int progearbl_remove(struct platform_device *pdev)

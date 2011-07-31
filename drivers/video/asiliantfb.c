@@ -34,7 +34,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -140,7 +139,7 @@ static void asiliant_calc_dclk2(u32 *ppixclock, u8 *dclk2_m, u8 *dclk2_n, u8 *dc
 
 		/* 3 <= m <= 257 */
 		if (m >= 3 && m <= 257) {
-			unsigned new_error = ((Ftarget * n) - (Fref * m)) >= 0 ?
+			unsigned new_error = Ftarget * n >= Fref * m ?
 					       ((Ftarget * n) - (Fref * m)) : ((Fref * m) - (Ftarget * n));
 			if (new_error < best_error) {
 				best_n = n;
@@ -152,7 +151,7 @@ static void asiliant_calc_dclk2(u32 *ppixclock, u8 *dclk2_m, u8 *dclk2_n, u8 *dc
 		else if (m <= 1028) {
 			/* remember there are still only 8-bits of precision in m, so
 			 * avoid over-optimistic error calculations */
-			unsigned new_error = ((Ftarget * n) - (Fref * (m & ~3))) >= 0 ?
+			unsigned new_error = Ftarget * n >= Fref * (m & ~3) ?
 					       ((Ftarget * n) - (Fref * (m & ~3))) : ((Fref * (m & ~3)) - (Ftarget * n));
 			if (new_error < best_error) {
 				best_n = n;

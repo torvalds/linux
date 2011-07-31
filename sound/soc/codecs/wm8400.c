@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
@@ -76,7 +77,7 @@ struct wm8400_priv {
 static inline unsigned int wm8400_read(struct snd_soc_codec *codec,
 				       unsigned int reg)
 {
-	struct wm8400_priv *wm8400 = codec->private_data;
+	struct wm8400_priv *wm8400 = snd_soc_codec_get_drvdata(codec);
 
 	if (reg == WM8400_INTDRIVBITS)
 		return wm8400->fake_register;
@@ -90,7 +91,7 @@ static inline unsigned int wm8400_read(struct snd_soc_codec *codec,
 static int wm8400_write(struct snd_soc_codec *codec, unsigned int reg,
 	unsigned int value)
 {
-	struct wm8400_priv *wm8400 = codec->private_data;
+	struct wm8400_priv *wm8400 = snd_soc_codec_get_drvdata(codec);
 
 	if (reg == WM8400_INTDRIVBITS) {
 		wm8400->fake_register = value;
@@ -101,26 +102,26 @@ static int wm8400_write(struct snd_soc_codec *codec, unsigned int reg,
 
 static void wm8400_codec_reset(struct snd_soc_codec *codec)
 {
-	struct wm8400_priv *wm8400 = codec->private_data;
+	struct wm8400_priv *wm8400 = snd_soc_codec_get_drvdata(codec);
 
 	wm8400_reset_codec_reg_cache(wm8400->wm8400);
 }
 
-static const DECLARE_TLV_DB_LINEAR(rec_mix_tlv, -1500, 600);
+static const DECLARE_TLV_DB_SCALE(rec_mix_tlv, -1500, 600, 0);
 
-static const DECLARE_TLV_DB_LINEAR(in_pga_tlv, -1650, 3000);
+static const DECLARE_TLV_DB_SCALE(in_pga_tlv, -1650, 3000, 0);
 
-static const DECLARE_TLV_DB_LINEAR(out_mix_tlv, -2100, 0);
+static const DECLARE_TLV_DB_SCALE(out_mix_tlv, -2100, 0, 0);
 
-static const DECLARE_TLV_DB_LINEAR(out_pga_tlv, -7300, 600);
+static const DECLARE_TLV_DB_SCALE(out_pga_tlv, -7300, 600, 0);
 
-static const DECLARE_TLV_DB_LINEAR(out_omix_tlv, -600, 0);
+static const DECLARE_TLV_DB_SCALE(out_omix_tlv, -600, 0, 0);
 
-static const DECLARE_TLV_DB_LINEAR(out_dac_tlv, -7163, 0);
+static const DECLARE_TLV_DB_SCALE(out_dac_tlv, -7163, 0, 0);
 
-static const DECLARE_TLV_DB_LINEAR(in_adc_tlv, -7163, 1763);
+static const DECLARE_TLV_DB_SCALE(in_adc_tlv, -7163, 1763, 0);
 
-static const DECLARE_TLV_DB_LINEAR(out_sidetone_tlv, -3600, 0);
+static const DECLARE_TLV_DB_SCALE(out_sidetone_tlv, -3600, 0, 0);
 
 static int wm8400_outpga_put_volsw_vu(struct snd_kcontrol *kcontrol,
         struct snd_ctl_elem_value *ucontrol)
@@ -439,7 +440,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 /* INMIX dB values */
 static const unsigned int in_mix_tlv[] = {
 	TLV_DB_RANGE_HEAD(1),
-	0,7, TLV_DB_LINEAR_ITEM(-1200, 600),
+	0,7, TLV_DB_SCALE_ITEM(-1200, 600, 0),
 };
 
 /* Left In PGA Connections */
@@ -915,7 +916,6 @@ static int wm8400_add_widgets(struct snd_soc_codec *codec)
 
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_new_widgets(codec);
 	return 0;
 }
 
@@ -926,7 +926,7 @@ static int wm8400_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8400_priv *wm8400 = codec->private_data;
+	struct wm8400_priv *wm8400 = snd_soc_codec_get_drvdata(codec);
 
 	wm8400->sysclk = freq;
 	return 0;
@@ -1011,10 +1011,11 @@ static int fll_factors(struct wm8400_priv *wm8400, struct fll_factors *factors,
 }
 
 static int wm8400_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
-			      unsigned int freq_in, unsigned int freq_out)
+			      int source, unsigned int freq_in,
+			      unsigned int freq_out)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8400_priv *wm8400 = codec->private_data;
+	struct wm8400_priv *wm8400 = snd_soc_codec_get_drvdata(codec);
 	struct fll_factors factors;
 	int ret;
 	u16 reg;
@@ -1203,7 +1204,7 @@ static int wm8400_mute(struct snd_soc_dai *dai, int mute)
 static int wm8400_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
-	struct wm8400_priv *wm8400 = codec->private_data;
+	struct wm8400_priv *wm8400 = snd_soc_codec_get_drvdata(codec);
 	u16 val;
 	int ret;
 
@@ -1399,17 +1400,6 @@ static int wm8400_probe(struct platform_device *pdev)
 	wm8400_add_controls(codec);
 	wm8400_add_widgets(codec);
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to register card\n");
-		goto card_err;
-	}
-
-	return ret;
-
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 pcm_err:
 	return ret;
 }
@@ -1477,7 +1467,7 @@ static int wm8400_codec_probe(struct platform_device *dev)
 		return -ENOMEM;
 
 	codec = &priv->codec;
-	codec->private_data = priv;
+	snd_soc_codec_set_drvdata(codec, priv);
 	codec->control_data = dev_get_drvdata(&dev->dev);
 	priv->wm8400 = dev_get_drvdata(&dev->dev);
 
@@ -1540,7 +1530,7 @@ err:
 
 static int __exit wm8400_codec_remove(struct platform_device *dev)
 {
-	struct wm8400_priv *priv = wm8400_codec->private_data;
+	struct wm8400_priv *priv = snd_soc_codec_get_drvdata(wm8400_codec);
 	u16 reg;
 
 	snd_soc_unregister_dai(&wm8400_dai);
@@ -1558,21 +1548,6 @@ static int __exit wm8400_codec_remove(struct platform_device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8400_pdev_suspend(struct platform_device *pdev, pm_message_t msg)
-{
-	return snd_soc_suspend_device(&pdev->dev);
-}
-
-static int wm8400_pdev_resume(struct platform_device *pdev)
-{
-	return snd_soc_resume_device(&pdev->dev);
-}
-#else
-#define wm8400_pdev_suspend NULL
-#define wm8400_pdev_resume NULL
-#endif
-
 static struct platform_driver wm8400_codec_driver = {
 	.driver = {
 		.name = "wm8400-codec",
@@ -1580,8 +1555,6 @@ static struct platform_driver wm8400_codec_driver = {
 	},
 	.probe = wm8400_codec_probe,
 	.remove	= __exit_p(wm8400_codec_remove),
-	.suspend = wm8400_pdev_suspend,
-	.resume = wm8400_pdev_resume,
 };
 
 static int __init wm8400_codec_init(void)

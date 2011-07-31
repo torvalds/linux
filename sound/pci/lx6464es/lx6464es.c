@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include <sound/initval.h>
 #include <sound/control.h>
@@ -55,7 +56,7 @@ static const char card_name[] = "LX6464ES";
 
 #define PCI_DEVICE_ID_PLX_LX6464ES		PCI_DEVICE_ID_PLX_9056
 
-static struct pci_device_id snd_lx6464es_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_lx6464es_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_LX6464ES),
 	  .subvendor = PCI_VENDOR_ID_DIGIGRAM,
 	  .subdevice = PCI_SUBDEVICE_ID_DIGIGRAM_LX6464ES_SERIAL_SUBSYSTEM

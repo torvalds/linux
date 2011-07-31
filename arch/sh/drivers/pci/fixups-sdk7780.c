@@ -31,22 +31,3 @@ int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)
 {
        return sdk7780_irq_tab[pin-1][slot];
 }
-int pci_fixup_pcic(struct pci_channel *chan)
-{
-	/* Enable all interrupts, so we know what to fix */
-	pci_write_reg(chan, 0x0000C3FF, SH7780_PCIIMR);
-
-	/* Set up standard PCI config registers */
-	pci_write_reg(chan, 0x08000000, SH7780_PCIMBAR0);	/* PCI */
-	pci_write_reg(chan, 0x08000000, SH4_PCILAR0);	/* SHwy */
-	pci_write_reg(chan, 0x07F00001, SH4_PCILSR0);	/* size 128M w/ MBAR */
-
-	pci_write_reg(chan, 0x00000000, SH7780_PCIMBAR1);
-	pci_write_reg(chan, 0x00000000, SH4_PCILAR1);
-	pci_write_reg(chan, 0x00000000, SH4_PCILSR1);
-
-	pci_write_reg(chan, 0xAB000801, SH7780_PCIIBAR);
-	pci_write_reg(chan, 0xA5000C01, SH4_PCICR);
-
-	return 0;
-}

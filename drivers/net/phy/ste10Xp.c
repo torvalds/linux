@@ -132,6 +132,14 @@ static void __exit ste10Xp_exit(void)
 module_init(ste10Xp_init);
 module_exit(ste10Xp_exit);
 
+static struct mdio_device_id ste10Xp_tbl[] = {
+	{ STE101P_PHY_ID, 0xfffffff0 },
+	{ STE100P_PHY_ID, 0xffffffff },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(mdio, ste10Xp_tbl);
+
 MODULE_DESCRIPTION("STMicroelectronics STe10Xp PHY driver");
 MODULE_AUTHOR("Giuseppe Cavallaro <peppe.cavallaro@st.com>");
 MODULE_LICENSE("GPL");

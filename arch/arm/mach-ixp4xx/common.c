@@ -21,7 +21,6 @@
 #include <linux/tty.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
-#include <linux/bootmem.h>
 #include <linux/interrupt.h>
 #include <linux/bitops.h>
 #include <linux/time.h>
@@ -117,7 +116,7 @@ int gpio_to_irq(int gpio)
 }
 EXPORT_SYMBOL(gpio_to_irq);
 
-int irq_to_gpio(int irq)
+int irq_to_gpio(unsigned int irq)
 {
 	int gpio = (irq < 32) ? irq2gpio[irq] : -EINVAL;
 
@@ -424,6 +423,17 @@ static void __init ixp4xx_clocksource_init(void)
 		clocksource_hz2mult(ixp4xx_timer_freq,
 				    clocksource_ixp4xx.shift);
 	clocksource_register(&clocksource_ixp4xx);
+}
+
+/*
+ * sched_clock()
+ */
+unsigned long long sched_clock(void)
+{
+	cycle_t cyc = ixp4xx_get_cycles(NULL);
+	struct clocksource *cs = &clocksource_ixp4xx;
+
+	return clocksource_cyc2ns(cyc, cs->mult, cs->shift);
 }
 
 /*

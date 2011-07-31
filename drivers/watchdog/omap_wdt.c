@@ -42,8 +42,9 @@
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 #include <mach/hardware.h>
-#include <mach/prcm.h>
+#include <plat/prcm.h>
 
 #include "omap_wdt.h"
 
@@ -277,8 +278,7 @@ static int __devinit omap_wdt_probe(struct platform_device *pdev)
 		goto err_busy;
 	}
 
-	mem = request_mem_region(res->start, res->end - res->start + 1,
-				 pdev->name);
+	mem = request_mem_region(res->start, resource_size(res), pdev->name);
 	if (!mem) {
 		ret = -EBUSY;
 		goto err_busy;
@@ -306,7 +306,7 @@ static int __devinit omap_wdt_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	wdev->base = ioremap(res->start, res->end - res->start + 1);
+	wdev->base = ioremap(res->start, resource_size(res));
 	if (!wdev->base) {
 		ret = -ENOMEM;
 		goto err_ioremap;
@@ -358,7 +358,7 @@ err_clk:
 	kfree(wdev);
 
 err_kzalloc:
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 
 err_busy:
 err_get_resource:
@@ -383,7 +383,7 @@ static int __devexit omap_wdt_remove(struct platform_device *pdev)
 		return -ENOENT;
 
 	misc_deregister(&(wdev->omap_wdt_miscdev));
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 	platform_set_drvdata(pdev, NULL);
 
 	clk_put(wdev->ick);

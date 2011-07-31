@@ -1,9 +1,4 @@
 /*
- * The list_sort function is (presumably) licensed under the GPL (see the
- * top level "COPYING" file for details).
- *
- * The remainder of this file is:
- *
  * Copyright © 1997-2003 by The XFree86 Project, Inc.
  * Copyright © 2007 Dave Airlie
  * Copyright © 2007-2008 Intel Corporation
@@ -36,6 +31,7 @@
  */
 
 #include <linux/list.h>
+#include <linux/list_sort.h>
 #include "drmP.h"
 #include "drm.h"
 #include "drm_crtc.h"
@@ -255,15 +251,20 @@ struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 		drm_mode->htotal = drm_mode->hdisplay + CVT_RB_H_BLANK;
 		/* Fill in HSync values */
 		drm_mode->hsync_end = drm_mode->hdisplay + CVT_RB_H_BLANK / 2;
-		drm_mode->hsync_start = drm_mode->hsync_end = CVT_RB_H_SYNC;
+		drm_mode->hsync_start = drm_mode->hsync_end - CVT_RB_H_SYNC;
+		/* Fill in VSync values */
+		drm_mode->vsync_start = drm_mode->vdisplay + CVT_RB_VFPORCH;
+		drm_mode->vsync_end = drm_mode->vsync_start + vsync;
 	}
 	/* 15/13. Find pixel clock frequency (kHz for xf86) */
 	drm_mode->clock = drm_mode->htotal * HV_FACTOR * 1000 / hperiod;
 	drm_mode->clock -= drm_mode->clock % CVT_CLOCK_STEP;
 	/* 18/16. Find actual vertical frame frequency */
 	/* ignore - just set the mode flag for interlaced */
-	if (interlaced)
+	if (interlaced) {
 		drm_mode->vtotal *= 2;
+		drm_mode->flags |= DRM_MODE_FLAG_INTERLACE;
+	}
 	/* Fill the mode line name */
 	drm_mode_set_name(drm_mode);
 	if (reduced)
@@ -272,43 +273,35 @@ struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 	else
 		drm_mode->flags |= (DRM_MODE_FLAG_PVSYNC |
 					DRM_MODE_FLAG_NHSYNC);
-	if (interlaced)
-		drm_mode->flags |= DRM_MODE_FLAG_INTERLACE;
 
-    return drm_mode;
+	return drm_mode;
 }
 EXPORT_SYMBOL(drm_cvt_mode);
 
 /**
- * drm_gtf_mode - create the modeline based on GTF algorithm
+ * drm_gtf_mode_complex - create the modeline based on full GTF algorithm
  *
  * @dev		:drm device
  * @hdisplay	:hdisplay size
  * @vdisplay	:vdisplay size
  * @vrefresh	:vrefresh rate.
  * @interlaced	:whether the interlace is supported
- * @margins	:whether the margin is supported
+ * @margins	:desired margin size
+ * @GTF_[MCKJ]  :extended GTF formula parameters
  *
  * LOCKING.
  * none.
  *
- * return the modeline based on GTF algorithm
+ * return the modeline based on full GTF algorithm.
  *
- * This function is to create the modeline based on the GTF algorithm.
- * Generalized Timing Formula is derived from:
- *	GTF Spreadsheet by Andy Morrish (1/5/97)
- *	available at http://www.vesa.org
- *
- * And it is copied from the file of xserver/hw/xfree86/modes/xf86gtf.c.
- * What I have done is to translate it by using integer calculation.
- * I also refer to the function of fb_get_mode in the file of
- * drivers/video/fbmon.c
+ * GTF feature blocks specify C and J in multiples of 0.5, so we pass them
+ * in here multiplied by two.  For a C of 40, pass in 80.
  */
-struct drm_display_mode *drm_gtf_mode(struct drm_device *dev, int hdisplay,
-				      int vdisplay, int vrefresh,
-				      bool interlaced, int margins)
-{
-	/* 1) top/bottom margin size (% of height) - default: 1.8, */
+struct drm_display_mode *
+drm_gtf_mode_complex(struct drm_device *dev, int hdisplay, int vdisplay,
+		     int vrefresh, bool interlaced, int margins,
+		     int GTF_M, int GTF_2C, int GTF_K, int GTF_2J)
+{	/* 1) top/bottom margin size (% of height) - default: 1.8, */
 #define	GTF_MARGIN_PERCENTAGE		18
 	/* 2) character cell horizontal granularity (pixels) - default 8 */
 #define	GTF_CELL_GRAN			8
@@ -320,17 +313,9 @@ struct drm_display_mode *drm_gtf_mode(struct drm_device *dev, int hdisplay,
 #define H_SYNC_PERCENT			8
 	/* min time of vsync + back porch (microsec) */
 #define MIN_VSYNC_PLUS_BP		550
-	/* blanking formula gradient */
-#define GTF_M				600
-	/* blanking formula offset */
-#define GTF_C				40
-	/* blanking formula scaling factor */
-#define GTF_K				128
-	/* blanking formula scaling factor */
-#define GTF_J				20
 	/* C' and M' are part of the Blanking Duty Cycle computation */
-#define GTF_C_PRIME		(((GTF_C - GTF_J) * GTF_K / 256) + GTF_J)
-#define GTF_M_PRIME		(GTF_K * GTF_M / 256)
+#define GTF_C_PRIME	((((GTF_2C - GTF_2J) * GTF_K / 256) + GTF_2J) / 2)
+#define GTF_M_PRIME	(GTF_K * GTF_M / 256)
 	struct drm_display_mode *drm_mode;
 	unsigned int hdisplay_rnd, vdisplay_rnd, vfieldrate_rqd;
 	int top_margin, bottom_margin;
@@ -464,17 +449,61 @@ struct drm_display_mode *drm_gtf_mode(struct drm_device *dev, int hdisplay,
 
 	drm_mode->clock = pixel_freq;
 
-	drm_mode_set_name(drm_mode);
-	drm_mode->flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC;
-
 	if (interlaced) {
 		drm_mode->vtotal *= 2;
 		drm_mode->flags |= DRM_MODE_FLAG_INTERLACE;
 	}
 
+	drm_mode_set_name(drm_mode);
+	if (GTF_M == 600 && GTF_2C == 80 && GTF_K == 128 && GTF_2J == 40)
+		drm_mode->flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC;
+	else
+		drm_mode->flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC;
+
 	return drm_mode;
 }
+EXPORT_SYMBOL(drm_gtf_mode_complex);
+
+/**
+ * drm_gtf_mode - create the modeline based on GTF algorithm
+ *
+ * @dev		:drm device
+ * @hdisplay	:hdisplay size
+ * @vdisplay	:vdisplay size
+ * @vrefresh	:vrefresh rate.
+ * @interlaced	:whether the interlace is supported
+ * @margins	:whether the margin is supported
+ *
+ * LOCKING.
+ * none.
+ *
+ * return the modeline based on GTF algorithm
+ *
+ * This function is to create the modeline based on the GTF algorithm.
+ * Generalized Timing Formula is derived from:
+ *	GTF Spreadsheet by Andy Morrish (1/5/97)
+ *	available at http://www.vesa.org
+ *
+ * And it is copied from the file of xserver/hw/xfree86/modes/xf86gtf.c.
+ * What I have done is to translate it by using integer calculation.
+ * I also refer to the function of fb_get_mode in the file of
+ * drivers/video/fbmon.c
+ *
+ * Standard GTF parameters:
+ * M = 600
+ * C = 40
+ * K = 128
+ * J = 20
+ */
+struct drm_display_mode *
+drm_gtf_mode(struct drm_device *dev, int hdisplay, int vdisplay, int vrefresh,
+	     bool lace, int margins)
+{
+	return drm_gtf_mode_complex(dev, hdisplay, vdisplay, vrefresh, lace,
+				    margins, 600, 40 * 2, 128, 20 * 2);
+}
 EXPORT_SYMBOL(drm_gtf_mode);
+
 /**
  * drm_mode_set_name - set the name on a mode
  * @mode: name will be set in this mode
@@ -486,8 +515,11 @@ EXPORT_SYMBOL(drm_gtf_mode);
  */
 void drm_mode_set_name(struct drm_display_mode *mode)
 {
-	snprintf(mode->name, DRM_DISPLAY_MODE_LEN, "%dx%d", mode->hdisplay,
-		 mode->vdisplay);
+	bool interlaced = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
+
+	snprintf(mode->name, DRM_DISPLAY_MODE_LEN, "%dx%d%s",
+		 mode->hdisplay, mode->vdisplay,
+		 interlaced ? "i" : "");
 }
 EXPORT_SYMBOL(drm_mode_set_name);
 
@@ -553,6 +585,32 @@ int drm_mode_height(struct drm_display_mode *mode)
 }
 EXPORT_SYMBOL(drm_mode_height);
 
+/** drm_mode_hsync - get the hsync of a mode
+ * @mode: mode
+ *
+ * LOCKING:
+ * None.
+ *
+ * Return @modes's hsync rate in kHz, rounded to the nearest int.
+ */
+int drm_mode_hsync(struct drm_display_mode *mode)
+{
+	unsigned int calc_val;
+
+	if (mode->hsync)
+		return mode->hsync;
+
+	if (mode->htotal < 0)
+		return 0;
+
+	calc_val = (mode->clock * 1000) / mode->htotal; /* hsync in Hz */
+	calc_val += 500;				/* round to 1000Hz */
+	calc_val /= 1000;				/* truncate to kHz */
+
+	return calc_val;
+}
+EXPORT_SYMBOL(drm_mode_hsync);
+
 /**
  * drm_mode_vrefresh - get the vrefresh of a mode
  * @mode: mode
@@ -560,7 +618,7 @@ EXPORT_SYMBOL(drm_mode_height);
  * LOCKING:
  * None.
  *
- * Return @mode's vrefresh rate or calculate it if necessary.
+ * Return @mode's vrefresh rate in Hz or calculate it if necessary.
  *
  * FIXME: why is this needed?  shouldn't vrefresh be set already?
  *
@@ -829,6 +887,7 @@ EXPORT_SYMBOL(drm_mode_prune_invalid);
 
 /**
  * drm_mode_compare - compare modes for favorability
+ * @priv: unused
  * @lh_a: list_head for first mode
  * @lh_b: list_head for second mode
  *
@@ -842,7 +901,7 @@ EXPORT_SYMBOL(drm_mode_prune_invalid);
  * Negative if @lh_a is better than @lh_b, zero if they're equivalent, or
  * positive if @lh_b is better than @lh_a.
  */
-static int drm_mode_compare(struct list_head *lh_a, struct list_head *lh_b)
+static int drm_mode_compare(void *priv, struct list_head *lh_a, struct list_head *lh_b)
 {
 	struct drm_display_mode *a = list_entry(lh_a, struct drm_display_mode, head);
 	struct drm_display_mode *b = list_entry(lh_b, struct drm_display_mode, head);
@@ -859,85 +918,6 @@ static int drm_mode_compare(struct list_head *lh_a, struct list_head *lh_b)
 	return diff;
 }
 
-/* FIXME: what we don't have a list sort function? */
-/* list sort from Mark J Roberts (mjr@znex.org) */
-void list_sort(struct list_head *head,
-	       int (*cmp)(struct list_head *a, struct list_head *b))
-{
-	struct list_head *p, *q, *e, *list, *tail, *oldhead;
-	int insize, nmerges, psize, qsize, i;
-
-	list = head->next;
-	list_del(head);
-	insize = 1;
-	for (;;) {
-		p = oldhead = list;
-		list = tail = NULL;
-		nmerges = 0;
-
-		while (p) {
-			nmerges++;
-			q = p;
-			psize = 0;
-			for (i = 0; i < insize; i++) {
-				psize++;
-				q = q->next == oldhead ? NULL : q->next;
-				if (!q)
-					break;
-			}
-
-			qsize = insize;
-			while (psize > 0 || (qsize > 0 && q)) {
-				if (!psize) {
-					e = q;
-					q = q->next;
-					qsize--;
-					if (q == oldhead)
-						q = NULL;
-				} else if (!qsize || !q) {
-					e = p;
-					p = p->next;
-					psize--;
-					if (p == oldhead)
-						p = NULL;
-				} else if (cmp(p, q) <= 0) {
-					e = p;
-					p = p->next;
-					psize--;
-					if (p == oldhead)
-						p = NULL;
-				} else {
-					e = q;
-					q = q->next;
-					qsize--;
-					if (q == oldhead)
-						q = NULL;
-				}
-				if (tail)
-					tail->next = e;
-				else
-					list = e;
-				e->prev = tail;
-				tail = e;
-			}
-			p = q;
-		}
-
-		tail->next = list;
-		list->prev = tail;
-
-		if (nmerges <= 1)
-			break;
-
-		insize *= 2;
-	}
-
-	head->next = list;
-	head->prev = list->prev;
-	list->prev->next = head;
-	list->prev = head;
-}
-
 /**
  * drm_mode_sort - sort mode list
  * @mode_list: list to sort
@@ -949,7 +929,7 @@ void list_sort(struct list_head *head,
  */
 void drm_mode_sort(struct list_head *mode_list)
 {
-	list_sort(mode_list, drm_mode_compare);
+	list_sort(NULL, mode_list, drm_mode_compare);
 }
 EXPORT_SYMBOL(drm_mode_sort);
 

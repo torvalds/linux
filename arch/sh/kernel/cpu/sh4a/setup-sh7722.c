@@ -7,18 +7,221 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
-#include <linux/platform_device.h>
 #include <linux/init.h>
+#include <linux/mm.h>
+#include <linux/platform_device.h>
 #include <linux/serial.h>
 #include <linux/serial_sci.h>
-#include <linux/mm.h>
+#include <linux/sh_timer.h>
 #include <linux/uio_driver.h>
 #include <linux/usb/m66592.h>
-#include <linux/sh_timer.h>
+
 #include <asm/clock.h>
 #include <asm/mmzone.h>
-#include <asm/dma-sh.h>
+#include <asm/siu.h>
+
+#include <cpu/dma-register.h>
 #include <cpu/sh7722.h>
+
+static const struct sh_dmae_slave_config sh7722_dmae_slaves[] = {
+	{
+		.slave_id	= SHDMA_SLAVE_SCIF0_TX,
+		.addr		= 0xffe0000c,
+		.chcr		= DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x21,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SCIF0_RX,
+		.addr		= 0xffe00014,
+		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x22,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SCIF1_TX,
+		.addr		= 0xffe1000c,
+		.chcr		= DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x25,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SCIF1_RX,
+		.addr		= 0xffe10014,
+		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x26,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SCIF2_TX,
+		.addr		= 0xffe2000c,
+		.chcr		= DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x29,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SCIF2_RX,
+		.addr		= 0xffe20014,
+		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x2a,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SIUA_TX,
+		.addr		= 0xa454c098,
+		.chcr		= DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL(XMIT_SZ_32BIT),
+		.mid_rid	= 0xb1,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SIUA_RX,
+		.addr		= 0xa454c090,
+		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_32BIT),
+		.mid_rid	= 0xb2,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SIUB_TX,
+		.addr		= 0xa454c09c,
+		.chcr		= DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL(XMIT_SZ_32BIT),
+		.mid_rid	= 0xb5,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SIUB_RX,
+		.addr		= 0xa454c094,
+		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_32BIT),
+		.mid_rid	= 0xb6,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SDHI0_TX,
+		.addr		= 0x04ce0030,
+		.chcr		= DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL(XMIT_SZ_16BIT),
+		.mid_rid	= 0xc1,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SDHI0_RX,
+		.addr		= 0x04ce0030,
+		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_16BIT),
+		.mid_rid	= 0xc2,
+	},
+};
+
+static const struct sh_dmae_channel sh7722_dmae_channels[] = {
+	{
+		.offset = 0,
+		.dmars = 0,
+		.dmars_bit = 0,
+	}, {
+		.offset = 0x10,
+		.dmars = 0,
+		.dmars_bit = 8,
+	}, {
+		.offset = 0x20,
+		.dmars = 4,
+		.dmars_bit = 0,
+	}, {
+		.offset = 0x30,
+		.dmars = 4,
+		.dmars_bit = 8,
+	}, {
+		.offset = 0x50,
+		.dmars = 8,
+		.dmars_bit = 0,
+	}, {
+		.offset = 0x60,
+		.dmars = 8,
+		.dmars_bit = 8,
+	}
+};
+
+static const unsigned int ts_shift[] = TS_SHIFT;
+
+static struct sh_dmae_pdata dma_platform_data = {
+	.slave		= sh7722_dmae_slaves,
+	.slave_num	= ARRAY_SIZE(sh7722_dmae_slaves),
+	.channel	= sh7722_dmae_channels,
+	.channel_num	= ARRAY_SIZE(sh7722_dmae_channels),
+	.ts_low_shift	= CHCR_TS_LOW_SHIFT,
+	.ts_low_mask	= CHCR_TS_LOW_MASK,
+	.ts_high_shift	= CHCR_TS_HIGH_SHIFT,
+	.ts_high_mask	= CHCR_TS_HIGH_MASK,
+	.ts_shift	= ts_shift,
+	.ts_shift_num	= ARRAY_SIZE(ts_shift),
+	.dmaor_init	= DMAOR_INIT,
+};
+
+static struct resource sh7722_dmae_resources[] = {
+	[0] = {
+		/* Channel registers and DMAOR */
+		.start	= 0xfe008020,
+		.end	= 0xfe00808f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		/* DMARSx */
+		.start	= 0xfe009000,
+		.end	= 0xfe00900b,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		/* DMA error IRQ */
+		.start	= 78,
+		.end	= 78,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		/* IRQ for channels 0-3 */
+		.start	= 48,
+		.end	= 51,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		/* IRQ for channels 4-5 */
+		.start	= 76,
+		.end	= 77,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device dma_device = {
+	.name		= "sh-dma-engine",
+	.id		= -1,
+	.resource	= sh7722_dmae_resources,
+	.num_resources	= ARRAY_SIZE(sh7722_dmae_resources),
+	.dev		= {
+		.platform_data	= &dma_platform_data,
+	},
+	.archdata = {
+		.hwblk_id = HWBLK_DMAC,
+	},
+};
+
+/* Serial */
+static struct plat_sci_port scif0_platform_data = {
+	.mapbase        = 0xffe00000,
+	.flags          = UPF_BOOT_AUTOCONF,
+	.type           = PORT_SCIF,
+	.irqs           = { 80, 80, 80, 80 },
+};
+
+static struct platform_device scif0_device = {
+	.name		= "sh-sci",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &scif0_platform_data,
+	},
+};
+
+static struct plat_sci_port scif1_platform_data = {
+	.mapbase        = 0xffe10000,
+	.flags          = UPF_BOOT_AUTOCONF,
+	.type           = PORT_SCIF,
+	.irqs           = { 81, 81, 81, 81 },
+};
+
+static struct platform_device scif1_device = {
+	.name		= "sh-sci",
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &scif1_platform_data,
+	},
+};
+
+static struct plat_sci_port scif2_platform_data = {
+	.mapbase        = 0xffe20000,
+	.flags          = UPF_BOOT_AUTOCONF,
+	.type           = PORT_SCIF,
+	.irqs           = { 82, 82, 82, 82 },
+};
+
+static struct platform_device scif2_device = {
+	.name		= "sh-sci",
+	.id		= 2,
+	.dev		= {
+		.platform_data	= &scif2_platform_data,
+	},
+};
 
 static struct resource rtc_resources[] = {
 	[0] = {
@@ -204,17 +407,14 @@ static struct platform_device jpu_device = {
 };
 
 static struct sh_timer_config cmt_platform_data = {
-	.name = "CMT",
 	.channel_offset = 0x60,
 	.timer_bit = 5,
-	.clk = "cmt0",
 	.clockevent_rating = 125,
 	.clocksource_rating = 125,
 };
 
 static struct resource cmt_resources[] = {
 	[0] = {
-		.name	= "CMT",
 		.start	= 0x044a0060,
 		.end	= 0x044a006b,
 		.flags	= IORESOURCE_MEM,
@@ -239,16 +439,13 @@ static struct platform_device cmt_device = {
 };
 
 static struct sh_timer_config tmu0_platform_data = {
-	.name = "TMU0",
 	.channel_offset = 0x04,
 	.timer_bit = 0,
-	.clk = "tmu0",
 	.clockevent_rating = 200,
 };
 
 static struct resource tmu0_resources[] = {
 	[0] = {
-		.name	= "TMU0",
 		.start	= 0xffd80008,
 		.end	= 0xffd80013,
 		.flags	= IORESOURCE_MEM,
@@ -273,16 +470,13 @@ static struct platform_device tmu0_device = {
 };
 
 static struct sh_timer_config tmu1_platform_data = {
-	.name = "TMU1",
 	.channel_offset = 0x10,
 	.timer_bit = 1,
-	.clk = "tmu0",
 	.clocksource_rating = 200,
 };
 
 static struct resource tmu1_resources[] = {
 	[0] = {
-		.name	= "TMU1",
 		.start	= 0xffd80014,
 		.end	= 0xffd8001f,
 		.flags	= IORESOURCE_MEM,
@@ -307,15 +501,12 @@ static struct platform_device tmu1_device = {
 };
 
 static struct sh_timer_config tmu2_platform_data = {
-	.name = "TMU2",
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
-	.clk = "tmu0",
 };
 
 static struct resource tmu2_resources[] = {
 	[0] = {
-		.name	= "TMU2",
 		.start	= 0xffd80020,
 		.end	= 0xffd8002b,
 		.flags	= IORESOURCE_MEM,
@@ -339,54 +530,43 @@ static struct platform_device tmu2_device = {
 	},
 };
 
-static struct plat_sci_port sci_platform_data[] = {
-	{
-		.mapbase	= 0xffe00000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 80, 80, 80, 80 },
-		.clk		= "scif0",
-	},
-	{
-		.mapbase	= 0xffe10000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 81, 81, 81, 81 },
-		.clk		= "scif1",
-	},
-	{
-		.mapbase	= 0xffe20000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 82, 82, 82, 82 },
-		.clk		= "scif2",
-	},
-	{
-		.flags = 0,
-	}
+static struct siu_platform siu_platform_data = {
+	.dma_dev	= &dma_device.dev,
+	.dma_slave_tx_a	= SHDMA_SLAVE_SIUA_TX,
+	.dma_slave_rx_a	= SHDMA_SLAVE_SIUA_RX,
+	.dma_slave_tx_b	= SHDMA_SLAVE_SIUB_TX,
+	.dma_slave_rx_b	= SHDMA_SLAVE_SIUB_RX,
 };
 
-static struct platform_device sci_device = {
-	.name		= "sh-sci",
+static struct resource siu_resources[] = {
+	[0] = {
+		.start	= 0xa4540000,
+		.end	= 0xa454c10f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 108,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device siu_device = {
+	.name		= "sh_siu",
 	.id		= -1,
-	.dev		= {
-		.platform_data	= sci_platform_data,
+	.dev = {
+		.platform_data	= &siu_platform_data,
 	},
-};
-
-static struct sh_dmae_pdata dma_platform_data = {
-	.mode = 0,
-};
-
-static struct platform_device dma_device = {
-	.name		= "sh-dma-engine",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &dma_platform_data,
+	.resource	= siu_resources,
+	.num_resources	= ARRAY_SIZE(siu_resources),
+	.archdata = {
+		.hwblk_id = HWBLK_SIU,
 	},
 };
 
 static struct platform_device *sh7722_devices[] __initdata = {
+	&scif0_device,
+	&scif1_device,
+	&scif2_device,
 	&cmt_device,
 	&tmu0_device,
 	&tmu1_device,
@@ -394,10 +574,10 @@ static struct platform_device *sh7722_devices[] __initdata = {
 	&rtc_device,
 	&usbf_device,
 	&iic_device,
-	&sci_device,
 	&vpu_device,
 	&veu_device,
 	&jpu_device,
+	&siu_device,
 	&dma_device,
 };
 
@@ -413,6 +593,9 @@ static int __init sh7722_devices_setup(void)
 arch_initcall(sh7722_devices_setup);
 
 static struct platform_device *sh7722_early_devices[] __initdata = {
+	&scif0_device,
+	&scif1_device,
+	&scif2_device,
 	&cmt_device,
 	&tmu0_device,
 	&tmu1_device,
@@ -427,6 +610,8 @@ void __init plat_early_device_setup(void)
 
 enum {
 	UNUSED=0,
+	ENABLED,
+	DISABLED,
 
 	/* interrupt sources */
 	IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7,
@@ -442,7 +627,6 @@ enum {
 	SCIF0, SCIF1, SCIF2, SIOF0, SIOF1, SIO,
 	FLCTL_FLSTEI, FLCTL_FLENDI, FLCTL_FLTREQ0I, FLCTL_FLTREQ1I,
 	I2C_ALI, I2C_TACKI, I2C_WAITI, I2C_DTEI,
-	SDHI0, SDHI1, SDHI2, SDHI3,
 	CMT, TSIF, SIU, TWODG,
 	TMU0, TMU1, TMU2,
 	IRDA, JPU, LCDC,
@@ -475,8 +659,8 @@ static struct intc_vect vectors[] __initdata = {
 	INTC_VECT(FLCTL_FLTREQ0I, 0xdc0), INTC_VECT(FLCTL_FLTREQ1I, 0xde0),
 	INTC_VECT(I2C_ALI, 0xe00), INTC_VECT(I2C_TACKI, 0xe20),
 	INTC_VECT(I2C_WAITI, 0xe40), INTC_VECT(I2C_DTEI, 0xe60),
-	INTC_VECT(SDHI0, 0xe80), INTC_VECT(SDHI1, 0xea0),
-	INTC_VECT(SDHI2, 0xec0), INTC_VECT(SDHI3, 0xee0),
+	INTC_VECT(SDHI, 0xe80), INTC_VECT(SDHI, 0xea0),
+	INTC_VECT(SDHI, 0xec0), INTC_VECT(SDHI, 0xee0),
 	INTC_VECT(CMT, 0xf00), INTC_VECT(TSIF, 0xf20),
 	INTC_VECT(SIU, 0xf80), INTC_VECT(TWODG, 0xfa0),
 	INTC_VECT(TMU0, 0x400), INTC_VECT(TMU1, 0x420),
@@ -494,7 +678,6 @@ static struct intc_group groups[] __initdata = {
 	INTC_GROUP(FLCTL, FLCTL_FLSTEI, FLCTL_FLENDI,
 		   FLCTL_FLTREQ0I, FLCTL_FLTREQ1I),
 	INTC_GROUP(I2C, I2C_ALI, I2C_TACKI, I2C_WAITI, I2C_DTEI),
-	INTC_GROUP(SDHI, SDHI0, SDHI1, SDHI2, SDHI3),
 };
 
 static struct intc_mask_reg mask_registers[] __initdata = {
@@ -516,7 +699,7 @@ static struct intc_mask_reg mask_registers[] __initdata = {
 	  { I2C_DTEI, I2C_WAITI, I2C_TACKI, I2C_ALI,
 	    FLCTL_FLTREQ1I, FLCTL_FLTREQ0I, FLCTL_FLENDI, FLCTL_FLSTEI } },
 	{ 0xa40800a0, 0xa40800e0, 8, /* IMR8 / IMCR8 */
-	  { SDHI3, SDHI2, SDHI1, SDHI0, 0, 0, TWODG, SIU } },
+	  { DISABLED, DISABLED, ENABLED, ENABLED, 0, 0, TWODG, SIU } },
 	{ 0xa40800a4, 0xa40800e4, 8, /* IMR9 / IMCR9 */
 	  { 0, 0, 0, CMT, 0, USB_USBI1, USB_USBI0, } },
 	{ 0xa40800a8, 0xa40800e8, 8, /* IMR10 / IMCR10 */
@@ -554,9 +737,13 @@ static struct intc_mask_reg ack_registers[] __initdata = {
 	  { IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7 } },
 };
 
-static DECLARE_INTC_DESC_ACK(intc_desc, "sh7722", vectors, groups,
-			     mask_registers, prio_registers, sense_registers,
-			     ack_registers);
+static struct intc_desc intc_desc __initdata = {
+	.name = "sh7722",
+	.force_enable = ENABLED,
+	.force_disable = DISABLED,
+	.hw = INTC_HW_DESC(vectors, groups, mask_registers,
+			   prio_registers, sense_registers, ack_registers),
+};
 
 void __init plat_irq_setup(void)
 {

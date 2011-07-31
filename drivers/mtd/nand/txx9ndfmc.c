@@ -274,7 +274,7 @@ static int txx9ndfmc_nand_scan(struct mtd_info *mtd)
 	struct nand_chip *chip = mtd->priv;
 	int ret;
 
-	ret = nand_scan_ident(mtd, 1);
+	ret = nand_scan_ident(mtd, 1, NULL);
 	if (!ret) {
 		if (mtd->writesize >= 512) {
 			chip->ecc.size = mtd->writesize;
@@ -429,11 +429,10 @@ static int __exit txx9ndfmc_remove(struct platform_device *dev)
 		chip = mtd->priv;
 		txx9_priv = chip->priv;
 
+		nand_release(mtd);
 #ifdef CONFIG_MTD_PARTITIONS
-		del_mtd_partitions(mtd);
 		kfree(drvdata->parts[i]);
 #endif
-		del_mtd_device(mtd);
 		kfree(txx9_priv->mtdname);
 		kfree(txx9_priv);
 	}

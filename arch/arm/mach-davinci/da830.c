@@ -8,22 +8,18 @@
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
  */
-#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/clk.h>
-#include <linux/platform_device.h>
 
 #include <asm/mach/map.h>
 
-#include <mach/clock.h>
 #include <mach/psc.h>
-#include <mach/mux.h>
 #include <mach/irqs.h>
 #include <mach/cputype.h>
 #include <mach/common.h>
 #include <mach/time.h>
 #include <mach/da8xx.h>
-#include <mach/asp.h>
+#include <mach/gpio.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -193,14 +189,14 @@ static struct clk uart1_clk = {
 	.name		= "uart1",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_UART1,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk uart2_clk = {
 	.name		= "uart2",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_UART2,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk spi0_clk = {
@@ -213,98 +209,98 @@ static struct clk spi1_clk = {
 	.name		= "spi1",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_SPI1,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk ecap0_clk = {
 	.name		= "ecap0",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_ECAP,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk ecap1_clk = {
 	.name		= "ecap1",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_ECAP,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk ecap2_clk = {
 	.name		= "ecap2",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_ECAP,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk pwm0_clk = {
 	.name		= "pwm0",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_PWM,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk pwm1_clk = {
 	.name		= "pwm1",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_PWM,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk pwm2_clk = {
 	.name		= "pwm2",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_PWM,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk eqep0_clk = {
 	.name		= "eqep0",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA830_LPSC1_EQEP,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk eqep1_clk = {
 	.name		= "eqep1",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA830_LPSC1_EQEP,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk lcdc_clk = {
 	.name		= "lcdc",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_LCDC,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk mcasp0_clk = {
 	.name		= "mcasp0",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_McASP0,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk mcasp1_clk = {
 	.name		= "mcasp1",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA830_LPSC1_McASP1,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk mcasp2_clk = {
 	.name		= "mcasp2",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA830_LPSC1_McASP2,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk usb20_clk = {
 	.name		= "usb20",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_USB20,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk aemif_clk = {
@@ -332,36 +328,36 @@ static struct clk emac_clk = {
 	.name		= "emac",
 	.parent		= &pll0_sysclk4,
 	.lpsc		= DA8XX_LPSC1_CPGMAC,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk gpio_clk = {
 	.name		= "gpio",
 	.parent		= &pll0_sysclk4,
 	.lpsc		= DA8XX_LPSC1_GPIO,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk i2c1_clk = {
 	.name		= "i2c1",
 	.parent		= &pll0_sysclk4,
 	.lpsc		= DA8XX_LPSC1_I2C,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk usb11_clk = {
 	.name		= "usb11",
 	.parent		= &pll0_sysclk4,
 	.lpsc		= DA8XX_LPSC1_USB11,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk emif3_clk = {
 	.name		= "emif3",
 	.parent		= &pll0_sysclk5,
 	.lpsc		= DA8XX_LPSC1_EMIF3C,
+	.gpsc		= 1,
 	.flags		= ALWAYS_ENABLED,
-	.psc_ctlr	= 1,
 };
 
 static struct clk arm_clk = {
@@ -376,7 +372,7 @@ static struct clk rmii_clk = {
 	.parent		= &pll0_sysclk7,
 };
 
-static struct davinci_clk da830_clks[] = {
+static struct clk_lookup da830_clks[] = {
 	CLK(NULL,		"ref",		&ref_clk),
 	CLK(NULL,		"pll0",		&pll0_clk),
 	CLK(NULL,		"pll0_aux",	&pll0_aux_clk),
@@ -411,11 +407,11 @@ static struct davinci_clk da830_clks[] = {
 	CLK(NULL,		"pwm2",		&pwm2_clk),
 	CLK("eqep.0",		NULL,		&eqep0_clk),
 	CLK("eqep.1",		NULL,		&eqep1_clk),
-	CLK("da830_lcdc",	NULL,		&lcdc_clk),
+	CLK("da8xx_lcdc.0",	NULL,		&lcdc_clk),
 	CLK("davinci-mcasp.0",	NULL,		&mcasp0_clk),
 	CLK("davinci-mcasp.1",	NULL,		&mcasp1_clk),
 	CLK("davinci-mcasp.2",	NULL,		&mcasp2_clk),
-	CLK("musb_hdrc",	NULL,		&usb20_clk),
+	CLK(NULL,		"usb20",	&usb20_clk),
 	CLK(NULL,		"aemif",	&aemif_clk),
 	CLK(NULL,		"aintc",	&aintc_clk),
 	CLK(NULL,		"secu_mgr",	&secu_mgr_clk),
@@ -1028,7 +1024,6 @@ static u8 da830_default_priorities[DA830_N_CP_INTC_IRQ] = {
 	[IRQ_DA8XX_EVTOUT4]		= 7,
 	[IRQ_DA8XX_EVTOUT5]		= 7,
 	[IRQ_DA8XX_EVTOUT6]		= 7,
-	[IRQ_DA8XX_EVTOUT6]		= 7,
 	[IRQ_DA8XX_EVTOUT7]		= 7,
 	[IRQ_DA8XX_CCINT0]		= 7,
 	[IRQ_DA8XX_CCERRINT]		= 7,
@@ -1046,11 +1041,7 @@ static u8 da830_default_priorities[DA830_N_CP_INTC_IRQ] = {
 	[IRQ_DA8XX_TINT34_1]		= 7,
 	[IRQ_DA8XX_UARTINT0]		= 7,
 	[IRQ_DA8XX_KEYMGRINT]		= 7,
-	[IRQ_DA8XX_SECINT]		= 7,
-	[IRQ_DA8XX_SECKEYERR]		= 7,
 	[IRQ_DA830_MPUERR]		= 7,
-	[IRQ_DA830_IOPUERR]		= 7,
-	[IRQ_DA830_BOOTCFGERR]		= 7,
 	[IRQ_DA8XX_CHIPINT0]		= 7,
 	[IRQ_DA8XX_CHIPINT1]		= 7,
 	[IRQ_DA8XX_CHIPINT2]		= 7,
@@ -1131,10 +1122,7 @@ static struct map_desc da830_io_desc[] = {
 	},
 };
 
-static void __iomem *da830_psc_bases[] = {
-	IO_ADDRESS(DA8XX_PSC0_BASE),
-	IO_ADDRESS(DA8XX_PSC1_BASE),
-};
+static u32 da830_psc_bases[] = { DA8XX_PSC0_BASE, DA8XX_PSC1_BASE };
 
 /* Contents of JTAG ID register used to identify exact cpu type */
 static struct davinci_id da830_ids[] = {
@@ -1143,20 +1131,34 @@ static struct davinci_id da830_ids[] = {
 		.part_no	= 0xb7df,
 		.manufacturer	= 0x017,	/* 0x02f >> 1 */
 		.cpu_id		= DAVINCI_CPU_ID_DA830,
-		.name		= "da830/omap l137",
+		.name		= "da830/omap-l137 rev1.0",
+	},
+	{
+		.variant	= 0x8,
+		.part_no	= 0xb7df,
+		.manufacturer	= 0x017,
+		.cpu_id		= DAVINCI_CPU_ID_DA830,
+		.name		= "da830/omap-l137 rev1.1",
+	},
+	{
+		.variant	= 0x9,
+		.part_no	= 0xb7df,
+		.manufacturer	= 0x017,
+		.cpu_id		= DAVINCI_CPU_ID_DA830,
+		.name		= "da830/omap-l137 rev2.0",
 	},
 };
 
 static struct davinci_timer_instance da830_timer_instance[2] = {
 	{
-		.base		= IO_ADDRESS(DA8XX_TIMER64P0_BASE),
+		.base		= DA8XX_TIMER64P0_BASE,
 		.bottom_irq	= IRQ_DA8XX_TINT12_0,
 		.top_irq	= IRQ_DA8XX_TINT34_0,
 		.cmp_off	= DA830_CMP12_0,
 		.cmp_irq	= IRQ_DA830_T12CMPINT0_0,
 	},
 	{
-		.base		= IO_ADDRESS(DA8XX_TIMER64P1_BASE),
+		.base		= DA8XX_TIMER64P1_BASE,
 		.bottom_irq	= IRQ_DA8XX_TINT12_1,
 		.top_irq	= IRQ_DA8XX_TINT34_1,
 		.cmp_off	= DA830_CMP12_0,
@@ -1178,28 +1180,33 @@ static struct davinci_timer_info da830_timer_info = {
 static struct davinci_soc_info davinci_soc_info_da830 = {
 	.io_desc		= da830_io_desc,
 	.io_desc_num		= ARRAY_SIZE(da830_io_desc),
-	.jtag_id_base		= IO_ADDRESS(DA8XX_JTAG_ID_REG),
+	.jtag_id_reg		= DA8XX_SYSCFG0_BASE + DA8XX_JTAG_ID_REG,
 	.ids			= da830_ids,
 	.ids_num		= ARRAY_SIZE(da830_ids),
 	.cpu_clks		= da830_clks,
 	.psc_bases		= da830_psc_bases,
 	.psc_bases_num		= ARRAY_SIZE(da830_psc_bases),
-	.pinmux_base		= IO_ADDRESS(DA8XX_BOOT_CFG_BASE + 0x120),
+	.pinmux_base		= DA8XX_SYSCFG0_BASE + 0x120,
 	.pinmux_pins		= da830_pins,
 	.pinmux_pins_num	= ARRAY_SIZE(da830_pins),
-	.intc_base		= (void __iomem *)DA8XX_CP_INTC_VIRT,
+	.intc_base		= DA8XX_CP_INTC_BASE,
 	.intc_type		= DAVINCI_INTC_TYPE_CP_INTC,
 	.intc_irq_prios		= da830_default_priorities,
 	.intc_irq_num		= DA830_N_CP_INTC_IRQ,
 	.timer_info		= &da830_timer_info,
-	.gpio_base		= IO_ADDRESS(DA8XX_GPIO_BASE),
+	.gpio_type		= GPIO_TYPE_DAVINCI,
+	.gpio_base		= DA8XX_GPIO_BASE,
 	.gpio_num		= 128,
 	.gpio_irq		= IRQ_DA8XX_GPIO0,
 	.serial_dev		= &da8xx_serial_device,
 	.emac_pdata		= &da8xx_emac_pdata,
+	.reset_device		= &da8xx_wdt_device,
 };
 
 void __init da830_init(void)
 {
 	davinci_common_init(&davinci_soc_info_da830);
+
+	da8xx_syscfg0_base = ioremap(DA8XX_SYSCFG0_BASE, SZ_4K);
+	WARN(!da8xx_syscfg0_base, "Unable to map syscfg0 module");
 }

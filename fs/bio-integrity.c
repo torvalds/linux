@@ -24,6 +24,7 @@
 #include <linux/mempool.h>
 #include <linux/bio.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 
 struct integrity_slab {
 	struct kmem_cache *slab;
@@ -61,7 +62,7 @@ static inline unsigned int vecs_to_idx(unsigned int nr)
 
 static inline int use_bip_pool(unsigned int idx)
 {
-	if (idx == BIOVEC_NR_POOLS)
+	if (idx == BIOVEC_MAX_IDX)
 		return 1;
 
 	return 0;
@@ -95,6 +96,7 @@ struct bio_integrity_payload *bio_integrity_alloc_bioset(struct bio *bio,
 
 	/* Use mempool if lower order alloc failed or max vecs were requested */
 	if (bip == NULL) {
+		idx = BIOVEC_MAX_IDX;  /* so we free the payload properly later */
 		bip = mempool_alloc(bs->bio_integrity_pool, gfp_mask);
 
 		if (unlikely(bip == NULL)) {
@@ -411,10 +413,10 @@ int bio_integrity_prep(struct bio *bio)
 
 	/* Allocate kernel buffer for protection data */
 	len = sectors * blk_integrity_tuple_size(bi);
-	buf = kmalloc(len, GFP_NOIO | __GFP_NOFAIL | q->bounce_gfp);
+	buf = kmalloc(len, GFP_NOIO | q->bounce_gfp);
 	if (unlikely(buf == NULL)) {
 		printk(KERN_ERR "could not allocate integrity buffer\n");
-		return -EIO;
+		return -ENOMEM;
 	}
 
 	end = (((unsigned long) buf) + len + PAGE_SIZE - 1) >> PAGE_SHIFT;

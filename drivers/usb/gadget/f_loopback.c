@@ -21,6 +21,7 @@
 
 /* #define VERBOSE_DEBUG */
 
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 
@@ -323,7 +324,7 @@ static void loopback_disable(struct usb_function *f)
 
 /*-------------------------------------------------------------------------*/
 
-static int __init loopback_bind_config(struct usb_configuration *c)
+static int __ref loopback_bind_config(struct usb_configuration *c)
 {
 	struct f_loopback	*loop;
 	int			status;
@@ -345,7 +346,7 @@ static int __init loopback_bind_config(struct usb_configuration *c)
 	return status;
 }
 
-static struct usb_configuration loopback_driver = {
+static  struct usb_configuration loopback_driver = {
 	.label		= "loopback",
 	.strings	= loopback_strings,
 	.bind		= loopback_bind_config,

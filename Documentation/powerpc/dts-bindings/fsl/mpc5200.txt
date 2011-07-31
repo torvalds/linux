@@ -103,7 +103,22 @@ fsl,mpc5200-gpt nodes
 ---------------------
 On the mpc5200 and 5200b, GPT0 has a watchdog timer function.  If the board
 design supports the internal wdt, then the device node for GPT0 should
-include the empty property 'fsl,has-wdt'.
+include the empty property 'fsl,has-wdt'.  Note that this does not activate
+the watchdog.  The timer will function as a GPT if the timer api is used, and
+it will function as watchdog if the watchdog device is used.  The watchdog
+mode has priority over the gpt mode, i.e. if the watchdog is activated, any
+gpt api call to this timer will fail with -EBUSY.
+
+If you add the property
+	fsl,wdt-on-boot = <n>;
+GPT0 will be marked as in-use watchdog, i.e. blocking every gpt access to it.
+If n>0, the watchdog is started with a timeout of n seconds.  If n=0, the
+configuration of the watchdog is not touched.  This is useful in two cases:
+- just mark GPT0 as watchdog, blocking gpt accesses, and configure it later;
+- do not touch a configuration assigned by the boot loader which supervises
+  the boot process itself.
+
+The watchdog will respect the CONFIG_WATCHDOG_NOWAYOUT option.
 
 An mpc5200-gpt can be used as a single line GPIO controller.  To do so,
 add the following properties to the gpt node:
@@ -178,3 +193,6 @@ External interrupts:
 	external irq3:	interrupts = <1 3 n>;
 'n' is sense (0: level high, 1: edge rising, 2: edge falling 3: level low)
 
+fsl,mpc5200-mscan nodes
+-----------------------
+See file can.txt in this directory.

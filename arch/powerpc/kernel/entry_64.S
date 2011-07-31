@@ -551,19 +551,10 @@ restore:
 BEGIN_FW_FTR_SECTION
 	ld	r5,SOFTE(r1)
 FW_FTR_SECTION_ELSE
-	b	iseries_check_pending_irqs
+	b	.Liseries_check_pending_irqs
 ALT_FW_FTR_SECTION_END_IFCLR(FW_FEATURE_ISERIES)
 2:
 	TRACE_AND_RESTORE_IRQ(r5);
-
-#ifdef CONFIG_PERF_EVENTS
-	/* check paca->perf_event_pending if we're enabling ints */
-	lbz	r3,PACAPERFPEND(r13)
-	and.	r3,r3,r5
-	beq	27f
-	bl	.perf_event_do_pending
-27:
-#endif /* CONFIG_PERF_EVENTS */
 
 	/* extract EE bit and use it to restore paca->hard_enabled */
 	ld	r3,_MSR(r1)
@@ -623,7 +614,7 @@ ALT_FW_FTR_SECTION_END_IFCLR(FW_FEATURE_ISERIES)
 
 #endif /* CONFIG_PPC_BOOK3E */
 
-iseries_check_pending_irqs:
+.Liseries_check_pending_irqs:
 #ifdef CONFIG_PPC_ISERIES
 	ld	r5,SOFTE(r1)
 	cmpdi	0,r5,0
@@ -791,9 +782,8 @@ _GLOBAL(enter_rtas)
 	
         li      r9,1
         rldicr  r9,r9,MSR_SF_LG,(63-MSR_SF_LG)
-	ori	r9,r9,MSR_IR|MSR_DR|MSR_FE0|MSR_FE1|MSR_FP
+	ori	r9,r9,MSR_IR|MSR_DR|MSR_FE0|MSR_FE1|MSR_FP|MSR_RI
 	andc	r6,r0,r9
-	ori	r6,r6,MSR_RI
 	sync				/* disable interrupts so SRR0/1 */
 	mtmsrd	r0			/* don't get trashed */
 

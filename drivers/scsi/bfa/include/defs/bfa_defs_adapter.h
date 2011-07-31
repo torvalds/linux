@@ -39,7 +39,7 @@ enum {
 struct bfa_adapter_attr_s {
 	char            manufacturer[BFA_ADAPTER_MFG_NAME_LEN];
 	char            serial_num[BFA_ADAPTER_SERIAL_NUM_LEN];
-	u32	rsvd1;
+	u32		card_type;
 	char            model[BFA_ADAPTER_MODEL_NAME_LEN];
 	char            model_descr[BFA_ADAPTER_MODEL_DESCR_LEN];
 	wwn_t           pwwn;
@@ -60,6 +60,7 @@ struct bfa_adapter_attr_s {
 	u8         pcie_lanes_orig;
 	u8         pcie_lanes;
 	u8	        cna_capable;
+	u8         is_mezz;
 };
 
 /**

@@ -102,7 +102,7 @@ args:		unsigned long
 see also:	include/linux/kvm.h
 This ioctl stores the state of the cpu at the guest real address given as
 argument, unless one of the following values defined in include/linux/kvm.h
-is given as arguement:
+is given as argument:
 KVM_S390_STORE_STATUS_NOADDR - the CPU stores its status to the save area in
 absolute lowcore as defined by the principles of operation
 KVM_S390_STORE_STATUS_PREFIXED - the CPU stores its status to the save area in

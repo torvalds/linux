@@ -25,6 +25,8 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/module.h>
+#include <linux/ftrace.h>
+#include <linux/slab.h>
 
 #include <asm/cpu.h>
 #include <asm/processor.h>
@@ -180,7 +182,7 @@ static int vpemask[2][8] = {
 	{0, 0, 0, 0, 0, 0, 0, 1}
 };
 int tcnoprog[NR_CPUS];
-static atomic_t idle_hook_initialized = {0};
+static atomic_t idle_hook_initialized = ATOMIC_INIT(0);
 static int clock_hang_reported[NR_CPUS];
 
 #endif /* CONFIG_SMTC_IDLE_HOOK_DEBUG */
@@ -939,23 +941,29 @@ static void ipi_call_interrupt(void)
 
 DECLARE_PER_CPU(struct clock_event_device, mips_clockevent_device);
 
-void ipi_decode(struct smtc_ipi *pipi)
+static void __irq_entry smtc_clock_tick_interrupt(void)
 {
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *cd;
+	int irq = MIPS_CPU_IRQ_BASE + 1;
+
+	irq_enter();
+	kstat_incr_irqs_this_cpu(irq, irq_to_desc(irq));
+	cd = &per_cpu(mips_clockevent_device, cpu);
+	cd->event_handler(cd);
+	irq_exit();
+}
+
+void ipi_decode(struct smtc_ipi *pipi)
+{
 	void *arg_copy = pipi->arg;
 	int type_copy = pipi->type;
-	int irq = MIPS_CPU_IRQ_BASE + 1;
 
 	smtc_ipi_nq(&freeIPIq, pipi);
 
 	switch (type_copy) {
 	case SMTC_CLOCK_TICK:
-		irq_enter();
-		kstat_incr_irqs_this_cpu(irq, irq_to_desc(irq));
-		cd = &per_cpu(mips_clockevent_device, cpu);
-		cd->event_handler(cd);
-		irq_exit();
+		smtc_clock_tick_interrupt();
 		break;
 
 	case LINUX_SMP_IPI:
@@ -967,8 +975,7 @@ void ipi_decode(struct smtc_ipi *pipi)
 			ipi_call_interrupt();
 			break;
 		default:
-			printk("Impossible SMTC IPI Argument 0x%x\n",
-				(int)arg_copy);
+			printk("Impossible SMTC IPI Argument %p\n", arg_copy);
 			break;
 		}
 		break;
@@ -1331,7 +1338,7 @@ void smtc_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
 		if (!((asid += ASID_INC) & ASID_MASK) ) {
 			if (cpu_has_vtag_icache)
 				flush_icache_all();
-			/* Traverse all online CPUs (hack requires contigous range) */
+			/* Traverse all online CPUs (hack requires contiguous range) */
 			for_each_online_cpu(i) {
 				/*
 				 * We don't need to worry about our own CPU, nor those of

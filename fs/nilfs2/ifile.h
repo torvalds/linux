@@ -49,4 +49,6 @@ int nilfs_ifile_create_inode(struct inode *, ino_t *, struct buffer_head **);
 int nilfs_ifile_delete_inode(struct inode *, ino_t);
 int nilfs_ifile_get_inode_block(struct inode *, ino_t, struct buffer_head **);
 
+struct inode *nilfs_ifile_new(struct nilfs_sb_info *sbi, size_t inode_size);
+
 #endif	/* _NILFS_IFILE_H */

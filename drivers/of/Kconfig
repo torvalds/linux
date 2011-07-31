@@ -1,27 +1,61 @@
+config DTC
+	bool
+
+config OF
+	bool
+
+menu "Flattened Device Tree and Open Firmware support"
+	depends on OF
+
+config PROC_DEVICETREE
+	bool "Support for device tree in /proc"
+	depends on PROC_FS && !SPARC
+	help
+	  This option adds a device-tree directory under /proc which contains
+	  an image of the device tree that the kernel copies from Open
+	  Firmware or other boot firmware. If unsure, say Y here.
+
+config OF_FLATTREE
+	bool
+	select DTC
+
+config OF_DYNAMIC
+	def_bool y
+	depends on PPC_OF
+
+config OF_ADDRESS
+	def_bool y
+	depends on !SPARC
+
+config OF_IRQ
+	def_bool y
+	depends on !SPARC
+
 config OF_DEVICE
 	def_bool y
-	depends on OF && (SPARC || PPC_OF || MICROBLAZE)
 
 config OF_GPIO
 	def_bool y
-	depends on OF && (PPC_OF || MICROBLAZE) && GPIOLIB
+	depends on GPIOLIB && !SPARC
 	help
 	  OpenFirmware GPIO accessors
 
 config OF_I2C
 	def_tristate I2C
-	depends on (PPC_OF || MICROBLAZE) && I2C
+	depends on I2C && !SPARC
 	help
 	  OpenFirmware I2C accessors
 
 config OF_SPI
 	def_tristate SPI
-	depends on OF && (PPC_OF || MICROBLAZE) && SPI
+	depends on SPI && !SPARC
 	help
 	  OpenFirmware SPI accessors
 
 config OF_MDIO
 	def_tristate PHYLIB
-	depends on OF && PHYLIB
+	depends on PHYLIB
 	help
 	  OpenFirmware MDIO bus (Ethernet PHY) accessors
+
+endmenu # OF

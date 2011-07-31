@@ -58,49 +58,16 @@ static const u8   port_loop_alpa_map[] = {
 /*
  * Local Functions
  */
-bfa_status_t    bfa_fcs_port_loop_send_plogi(struct bfa_fcs_port_s *port,
-					     u8 alpa);
+static bfa_status_t bfa_fcs_port_loop_send_plogi(struct bfa_fcs_port_s *port,
+					u8 alpa);
 
-void            bfa_fcs_port_loop_plogi_response(void *fcsarg,
-						 struct bfa_fcxp_s *fcxp,
-						 void *cbarg,
-						 bfa_status_t req_status,
-						 u32 rsp_len,
-						 u32 resid_len,
-						 struct fchs_s *rsp_fchs);
-
-bfa_status_t    bfa_fcs_port_loop_send_adisc(struct bfa_fcs_port_s *port,
-					     u8 alpa);
-
-void            bfa_fcs_port_loop_adisc_response(void *fcsarg,
-						 struct bfa_fcxp_s *fcxp,
-						 void *cbarg,
-						 bfa_status_t req_status,
-						 u32 rsp_len,
-						 u32 resid_len,
-						 struct fchs_s *rsp_fchs);
-
-bfa_status_t    bfa_fcs_port_loop_send_plogi_acc(struct bfa_fcs_port_s *port,
-						 u8 alpa);
-
-void            bfa_fcs_port_loop_plogi_acc_response(void *fcsarg,
-						     struct bfa_fcxp_s *fcxp,
-						     void *cbarg,
-						     bfa_status_t req_status,
-						     u32 rsp_len,
-						     u32 resid_len,
-						     struct fchs_s *rsp_fchs);
-
-bfa_status_t    bfa_fcs_port_loop_send_adisc_acc(struct bfa_fcs_port_s *port,
-						 u8 alpa);
-
-void            bfa_fcs_port_loop_adisc_acc_response(void *fcsarg,
-						     struct bfa_fcxp_s *fcxp,
-						     void *cbarg,
-						     bfa_status_t req_status,
-						     u32 rsp_len,
-						     u32 resid_len,
-						     struct fchs_s *rsp_fchs);
+static void bfa_fcs_port_loop_plogi_response(void *fcsarg,
+					struct bfa_fcxp_s *fcxp,
+					void *cbarg,
+					bfa_status_t req_status,
+					u32 rsp_len,
+					u32 resid_len,
+					struct fchs_s *rsp_fchs);
 /**
  *   Called by port to initializar in provate LOOP topology.
  */
@@ -179,7 +146,7 @@ bfa_fcs_port_loop_lip(struct bfa_fcs_port_s *port)
 /**
  * Local Functions.
  */
-bfa_status_t
+static bfa_status_t
 bfa_fcs_port_loop_send_plogi(struct bfa_fcs_port_s *port, u8 alpa)
 {
 	struct fchs_s          fchs;
@@ -195,7 +162,7 @@ bfa_fcs_port_loop_send_plogi(struct bfa_fcs_port_s *port, u8 alpa)
 	len = fc_plogi_build(&fchs, bfa_fcxp_get_reqbuf(fcxp), alpa,
 			     bfa_fcs_port_get_fcid(port), 0,
 			     port->port_cfg.pwwn, port->port_cfg.nwwn,
-				 bfa_pport_get_maxfrsize(port->fcs->bfa));
+				 bfa_fcport_get_maxfrsize(port->fcs->bfa));
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 			  FC_CLASS_3, len, &fchs,
@@ -208,7 +175,7 @@ bfa_fcs_port_loop_send_plogi(struct bfa_fcs_port_s *port, u8 alpa)
 /**
  *   Called by fcxp to notify the Plogi response
  */
-void
+static void
 bfa_fcs_port_loop_plogi_response(void *fcsarg, struct bfa_fcxp_s *fcxp,
 				 void *cbarg, bfa_status_t req_status,
 				 u32 rsp_len, u32 resid_len,
@@ -242,181 +209,5 @@ bfa_fcs_port_loop_plogi_response(void *fcsarg, struct bfa_fcxp_s *fcxp,
 	} else {
 		bfa_trc(port->fcs, plogi_resp->els_cmd.els_code);
 		bfa_assert(0);
-	}
-}
-
-bfa_status_t
-bfa_fcs_port_loop_send_plogi_acc(struct bfa_fcs_port_s *port, u8 alpa)
-{
-	struct fchs_s          fchs;
-	struct bfa_fcxp_s *fcxp;
-	int             len;
-
-	bfa_trc(port->fcs, alpa);
-
-	fcxp = bfa_fcxp_alloc(NULL, port->fcs->bfa, 0, 0, NULL, NULL, NULL,
-				  NULL);
-	bfa_assert(fcxp);
-
-	len = fc_plogi_acc_build(&fchs, bfa_fcxp_get_reqbuf(fcxp), alpa,
-				 bfa_fcs_port_get_fcid(port), 0,
-				 port->port_cfg.pwwn, port->port_cfg.nwwn,
-				 bfa_pport_get_maxfrsize(port->fcs->bfa));
-
-	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
-				 FC_CLASS_3, len, &fchs,
-				 bfa_fcs_port_loop_plogi_acc_response,
-				 (void *)port, FC_MAX_PDUSZ, 0); /* No response
-								  * expected
-								  */
-
-	return BFA_STATUS_OK;
-}
-
-/*
- *  Plogi Acc Response
- * We donot do any processing here.
- */
-void
-bfa_fcs_port_loop_plogi_acc_response(void *fcsarg, struct bfa_fcxp_s *fcxp,
-				     void *cbarg, bfa_status_t req_status,
-				     u32 rsp_len, u32 resid_len,
-				     struct fchs_s *rsp_fchs)
-{
-
-	struct bfa_fcs_port_s *port = (struct bfa_fcs_port_s *) cbarg;
-
-	bfa_trc(port->fcs, port->pid);
-
-	/*
-	 * Sanity Checks
-	 */
-	if (req_status != BFA_STATUS_OK) {
-		bfa_trc(port->fcs, req_status);
-		return;
-	}
-}
-
-bfa_status_t
-bfa_fcs_port_loop_send_adisc(struct bfa_fcs_port_s *port, u8 alpa)
-{
-	struct fchs_s          fchs;
-	struct bfa_fcxp_s *fcxp;
-	int             len;
-
-	bfa_trc(port->fcs, alpa);
-
-	fcxp = bfa_fcxp_alloc(NULL, port->fcs->bfa, 0, 0, NULL, NULL, NULL,
-				  NULL);
-	bfa_assert(fcxp);
-
-	len = fc_adisc_build(&fchs, bfa_fcxp_get_reqbuf(fcxp), alpa,
-			     bfa_fcs_port_get_fcid(port), 0,
-			     port->port_cfg.pwwn, port->port_cfg.nwwn);
-
-	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
-			  FC_CLASS_3, len, &fchs,
-			  bfa_fcs_port_loop_adisc_response, (void *)port,
-			  FC_MAX_PDUSZ, FC_RA_TOV);
-
-	return BFA_STATUS_OK;
-}
-
-/**
- *   Called by fcxp to notify the ADISC response
- */
-void
-bfa_fcs_port_loop_adisc_response(void *fcsarg, struct bfa_fcxp_s *fcxp,
-				 void *cbarg, bfa_status_t req_status,
-				 u32 rsp_len, u32 resid_len,
-				 struct fchs_s *rsp_fchs)
-{
-	struct bfa_fcs_port_s *port = (struct bfa_fcs_port_s *) cbarg;
-	struct bfa_fcs_rport_s *rport;
-	struct fc_adisc_s     *adisc_resp;
-	struct fc_els_cmd_s   *els_cmd;
-	u32        pid = rsp_fchs->s_id;
-
-	bfa_trc(port->fcs, req_status);
-
-	/*
-	 * Sanity Checks
-	 */
-	if (req_status != BFA_STATUS_OK) {
-		/*
-		 * TBD : we may need to retry certain requests
-		 */
-		bfa_fcxp_free(fcxp);
-		return;
-	}
-
-	els_cmd = (struct fc_els_cmd_s *) BFA_FCXP_RSP_PLD(fcxp);
-	adisc_resp = (struct fc_adisc_s *) els_cmd;
-
-	if (els_cmd->els_code == FC_ELS_ACC) {
-	} else {
-		bfa_trc(port->fcs, adisc_resp->els_cmd.els_code);
-
-		/*
-		 * TBD: we may need to check for reject codes and retry
-		 */
-		rport = bfa_fcs_port_get_rport_by_pid(port, pid);
-		if (rport) {
-			list_del(&rport->qe);
-			bfa_fcs_rport_delete(rport);
-		}
-
-	}
-	return;
-}
-
-bfa_status_t
-bfa_fcs_port_loop_send_adisc_acc(struct bfa_fcs_port_s *port, u8 alpa)
-{
-	struct fchs_s          fchs;
-	struct bfa_fcxp_s *fcxp;
-	int             len;
-
-	bfa_trc(port->fcs, alpa);
-
-	fcxp = bfa_fcxp_alloc(NULL, port->fcs->bfa, 0, 0, NULL, NULL, NULL,
-				  NULL);
-	bfa_assert(fcxp);
-
-	len = fc_adisc_acc_build(&fchs, bfa_fcxp_get_reqbuf(fcxp), alpa,
-				 bfa_fcs_port_get_fcid(port), 0,
-				 port->port_cfg.pwwn, port->port_cfg.nwwn);
-
-	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
-				FC_CLASS_3, len, &fchs,
-				bfa_fcs_port_loop_adisc_acc_response,
-				(void *)port, FC_MAX_PDUSZ, 0); /* no reponse
-								 * expected
-								 */
-
-	return BFA_STATUS_OK;
-}
-
-/*
- *  Adisc Acc Response
- * We donot do any processing here.
- */
-void
-bfa_fcs_port_loop_adisc_acc_response(void *fcsarg, struct bfa_fcxp_s *fcxp,
-				     void *cbarg, bfa_status_t req_status,
-				     u32 rsp_len, u32 resid_len,
-				     struct fchs_s *rsp_fchs)
-{
-
-	struct bfa_fcs_port_s *port = (struct bfa_fcs_port_s *) cbarg;
-
-	bfa_trc(port->fcs, port->pid);
-
-	/*
-	 * Sanity Checks
-	 */
-	if (req_status != BFA_STATUS_OK) {
-		bfa_trc(port->fcs, req_status);
-		return;
 	}
 }

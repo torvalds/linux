@@ -16,9 +16,8 @@ EXTRA_CFLAGS += -DENABLE_LPS
 
 #EXTRA_CFLAGS += -mhard-float -DCONFIG_FORCE_HARD_FLOAT=y
 
-rtl8187se-objs :=			\
+r8187se-objs :=			\
 		r8180_core.o		\
-		r8180_93cx6.o		\
 		r8180_wx.o		\
 		r8180_rtl8225z2.o	\
 		r8185b_init.o		\
@@ -35,5 +34,5 @@ rtl8187se-objs :=			\
 		ieee80211/ieee80211_crypt_ccmp.o	\
 		ieee80211/ieee80211_crypt_wep.o
 
-obj-$(CONFIG_RTL8187SE)	+= rtl8187se.o
+obj-$(CONFIG_R8187SE)	+= r8187se.o
 

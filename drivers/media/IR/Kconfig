@@ -1,0 +1,142 @@
+menuconfig IR_CORE
+	tristate "Infrared remote controller adapters"
+	depends on INPUT
+	default INPUT
+	---help---
+	  Enable support for Remote Controllers on Linux. This is
+	  needed in order to support several video capture adapters.
+
+	  Enable this option if you have a video capture board even
+	  if you don't need IR, as otherwise, you may not be able to
+	  compile the driver for your adapter.
+
+config VIDEO_IR
+	tristate
+	depends on IR_CORE
+	default IR_CORE
+
+if IR_CORE
+
+config LIRC
+	tristate
+	default y
+
+	---help---
+	   Enable this option to build the Linux Infrared Remote
+	   Control (LIRC) core device interface driver. The LIRC
+	   interface passes raw IR to and from userspace, where the
+	   LIRC daemon handles protocol decoding for IR reception and
+	   encoding for IR transmitting (aka "blasting").
+
+source "drivers/media/IR/keymaps/Kconfig"
+
+config IR_NEC_DECODER
+	tristate "Enable IR raw decoder for the NEC protocol"
+	depends on IR_CORE
+	select BITREVERSE
+	default y
+
+	---help---
+	   Enable this option if you have IR with NEC protocol, and
+	   if the IR is decoded in software
+
+config IR_RC5_DECODER
+	tristate "Enable IR raw decoder for the RC-5 protocol"
+	depends on IR_CORE
+	select BITREVERSE
+	default y
+
+	---help---
+	   Enable this option if you have IR with RC-5 protocol, and
+	   if the IR is decoded in software
+
+config IR_RC6_DECODER
+	tristate "Enable IR raw decoder for the RC6 protocol"
+	depends on IR_CORE
+	select BITREVERSE
+	default y
+
+	---help---
+	   Enable this option if you have an infrared remote control which
+	   uses the RC6 protocol, and you need software decoding support.
+
+config IR_JVC_DECODER
+	tristate "Enable IR raw decoder for the JVC protocol"
+	depends on IR_CORE
+	select BITREVERSE
+	default y
+
+	---help---
+	   Enable this option if you have an infrared remote control which
+	   uses the JVC protocol, and you need software decoding support.
+
+config IR_SONY_DECODER
+	tristate "Enable IR raw decoder for the Sony protocol"
+	depends on IR_CORE
+	default y
+
+	---help---
+	   Enable this option if you have an infrared remote control which
+	   uses the Sony protocol, and you need software decoding support.
+
+config IR_LIRC_CODEC
+	tristate "Enable IR to LIRC bridge"
+	depends on IR_CORE
+	depends on LIRC
+	default y
+
+	---help---
+	   Enable this option to pass raw IR to and from userspace via
+	   the LIRC interface.
+
+config IR_IMON
+	tristate "SoundGraph iMON Receiver and Display"
+	depends on USB_ARCH_HAS_HCD
+	depends on IR_CORE
+	select USB
+	---help---
+	   Say Y here if you want to use a SoundGraph iMON (aka Antec Veris)
+	   IR Receiver and/or LCD/VFD/VGA display.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called imon.
+
+config IR_MCEUSB
+	tristate "Windows Media Center Ed. eHome Infrared Transceiver"
+	depends on USB_ARCH_HAS_HCD
+	depends on IR_CORE
+	select USB
+	---help---
+	   Say Y here if you want to use a Windows Media Center Edition
+	   eHome Infrared Transceiver.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called mceusb.
+
+config IR_ENE
+	tristate "ENE eHome Receiver/Transciever (pnp id: ENE0100/ENE02xxx)"
+	depends on PNP
+	depends on IR_CORE
+	---help---
+	   Say Y here to enable support for integrated infrared receiver
+	   /transciever made by ENE.
+
+	   You can see if you have it by looking at lspnp output.
+	   Output should include ENE0100 ENE0200 or something similiar.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called ene_ir.
+
+config IR_STREAMZAP
+	tristate "Streamzap PC Remote IR Receiver"
+	depends on USB_ARCH_HAS_HCD
+	depends on IR_CORE
+	select USB
+	---help---
+	   Say Y here if you want to use a Streamzap PC Remote
+	   Infrared Receiver.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called streamzap.
+
+endif #IR_CORE

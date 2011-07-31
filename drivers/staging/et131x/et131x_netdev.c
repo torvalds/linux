@@ -65,7 +65,6 @@
 
 #include <linux/sched.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/timer.h>
@@ -85,14 +84,9 @@
 #include <linux/ioport.h>
 
 #include "et1310_phy.h"
-#include "et1310_pm.h"
-#include "et1310_jagcore.h"
-#include "et1310_mac.h"
 #include "et1310_tx.h"
-
 #include "et131x_adapter.h"
-#include "et131x_isr.h"
-#include "et131x_initpci.h"
+#include "et131x.h"
 
 struct net_device_stats *et131x_stats(struct net_device *netdev);
 int et131x_open(struct net_device *netdev);
@@ -339,66 +333,64 @@ int et131x_ioctl(struct net_device *netdev, struct ifreq *reqbuf, int cmd)
  * et131x_set_packet_filter - Configures the Rx Packet filtering on the device
  * @adapter: pointer to our private adapter structure
  *
+ * FIXME: lot of dups with MAC code
+ *
  * Returns 0 on success, errno on failure
  */
 int et131x_set_packet_filter(struct et131x_adapter *adapter)
 {
 	int status = 0;
 	uint32_t filter = adapter->PacketFilter;
-	RXMAC_CTRL_t ctrl;
-	RXMAC_PF_CTRL_t pf_ctrl;
+	u32 ctrl;
+	u32 pf_ctrl;
 
-	ctrl.value = readl(&adapter->regs->rxmac.ctrl.value);
-	pf_ctrl.value = readl(&adapter->regs->rxmac.pf_ctrl.value);
+	ctrl = readl(&adapter->regs->rxmac.ctrl);
+	pf_ctrl = readl(&adapter->regs->rxmac.pf_ctrl);
 
 	/* Default to disabled packet filtering.  Enable it in the individual
 	 * case statements that require the device to filter something
 	 */
-	ctrl.bits.pkt_filter_disable = 1;
+	ctrl |= 0x04;
 
 	/* Set us to be in promiscuous mode so we receive everything, this
 	 * is also true when we get a packet filter of 0
 	 */
-	if ((filter & ET131X_PACKET_TYPE_PROMISCUOUS) || filter == 0) {
-		pf_ctrl.bits.filter_broad_en = 0;
-		pf_ctrl.bits.filter_multi_en = 0;
-		pf_ctrl.bits.filter_uni_en = 0;
-	} else {
+	if ((filter & ET131X_PACKET_TYPE_PROMISCUOUS) || filter == 0)
+		pf_ctrl &= ~7;	/* Clear filter bits */
+	else {
 		/*
 		 * Set us up with Multicast packet filtering.  Three cases are
 		 * possible - (1) we have a multi-cast list, (2) we receive ALL
 		 * multicast entries or (3) we receive none.
 		 */
-		if (filter & ET131X_PACKET_TYPE_ALL_MULTICAST) {
-			pf_ctrl.bits.filter_multi_en = 0;
-		} else {
+		if (filter & ET131X_PACKET_TYPE_ALL_MULTICAST)
+			pf_ctrl &= ~2;	/* Multicast filter bit */
+		else {
 			SetupDeviceForMulticast(adapter);
-			pf_ctrl.bits.filter_multi_en = 1;
-			ctrl.bits.pkt_filter_disable = 0;
+			pf_ctrl |= 2;
+			ctrl &= ~0x04;
 		}
 
 		/* Set us up with Unicast packet filtering */
 		if (filter & ET131X_PACKET_TYPE_DIRECTED) {
 			SetupDeviceForUnicast(adapter);
-			pf_ctrl.bits.filter_uni_en = 1;
-			ctrl.bits.pkt_filter_disable = 0;
+			pf_ctrl |= 4;
+			ctrl &= ~0x04;
 		}
 
 		/* Set us up with Broadcast packet filtering */
 		if (filter & ET131X_PACKET_TYPE_BROADCAST) {
-			pf_ctrl.bits.filter_broad_en = 1;
-			ctrl.bits.pkt_filter_disable = 0;
-		} else {
-			pf_ctrl.bits.filter_broad_en = 0;
-		}
+			pf_ctrl |= 1;	/* Broadcast filter bit */
+			ctrl &= ~0x04;
+		} else
+			pf_ctrl &= ~1;
 
 		/* Setup the receive mac configuration registers - Packet
 		 * Filter control + the enable / disable for packet filter
 		 * in the control reg.
 		 */
-		writel(pf_ctrl.value,
-		       &adapter->regs->rxmac.pf_ctrl.value);
-		writel(ctrl.value, &adapter->regs->rxmac.ctrl.value);
+		writel(pf_ctrl, &adapter->regs->rxmac.pf_ctrl);
+		writel(ctrl, &adapter->regs->rxmac.ctrl);
 	}
 	return status;
 }
@@ -411,9 +403,9 @@ void et131x_multicast(struct net_device *netdev)
 {
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	uint32_t PacketFilter = 0;
-	uint32_t count;
 	unsigned long flags;
-	struct dev_mc_list *mclist = netdev->mc_list;
+	struct netdev_hw_addr *ha;
+	int i;
 
 	spin_lock_irqsave(&adapter->Lock, flags);
 
@@ -434,34 +426,31 @@ void et131x_multicast(struct net_device *netdev)
 	 * accordingly
 	 */
 
-	if (netdev->flags & IFF_PROMISC) {
+	if (netdev->flags & IFF_PROMISC)
 		adapter->PacketFilter |= ET131X_PACKET_TYPE_PROMISCUOUS;
-	} else {
+	else
 		adapter->PacketFilter &= ~ET131X_PACKET_TYPE_PROMISCUOUS;
-	}
 
-	if (netdev->flags & IFF_ALLMULTI) {
+	if (netdev->flags & IFF_ALLMULTI)
 		adapter->PacketFilter |= ET131X_PACKET_TYPE_ALL_MULTICAST;
-	}
 
-	if (netdev->mc_count > NIC_MAX_MCAST_LIST) {
+	if (netdev_mc_count(netdev) > NIC_MAX_MCAST_LIST)
 		adapter->PacketFilter |= ET131X_PACKET_TYPE_ALL_MULTICAST;
-	}
 
-	if (netdev->mc_count < 1) {
+	if (netdev_mc_count(netdev) < 1) {
 		adapter->PacketFilter &= ~ET131X_PACKET_TYPE_ALL_MULTICAST;
 		adapter->PacketFilter &= ~ET131X_PACKET_TYPE_MULTICAST;
-	} else {
+	} else
 		adapter->PacketFilter |= ET131X_PACKET_TYPE_MULTICAST;
-	}
 
 	/* Set values in the private adapter struct */
-	adapter->MCAddressCount = netdev->mc_count;
-
-	if (netdev->mc_count) {
-		count = netdev->mc_count - 1;
-		memcpy(adapter->MCList[count], mclist->dmi_addr, ETH_ALEN);
+	i = 0;
+	netdev_for_each_mc_addr(ha, netdev) {
+		if (i == NIC_MAX_MCAST_LIST)
+			break;
+		memcpy(adapter->MCList[i++], ha->addr, ETH_ALEN);
 	}
+	adapter->MCAddressCount = i;
 
 	/* Are the new flags different from the previous ones? If not, then no
 	 * action is required
@@ -519,7 +508,7 @@ int et131x_tx(struct sk_buff *skb, struct net_device *netdev)
 void et131x_tx_timeout(struct net_device *netdev)
 {
 	struct et131x_adapter *etdev = netdev_priv(netdev);
-	PMP_TCB pMpTcb;
+	struct tcb *tcb;
 	unsigned long flags;
 
 	/* Just skip this part if the adapter is doing link detection */
@@ -541,28 +530,19 @@ void et131x_tx_timeout(struct net_device *netdev)
 	/* Is send stuck? */
 	spin_lock_irqsave(&etdev->TCBSendQLock, flags);
 
-	pMpTcb = etdev->TxRing.CurrSendHead;
+	tcb = etdev->tx_ring.send_head;
 
-	if (pMpTcb != NULL) {
-		pMpTcb->Count++;
+	if (tcb != NULL) {
+		tcb->count++;
 
-		if (pMpTcb->Count > NIC_SEND_HANG_THRESHOLD) {
-			TX_DESC_ENTRY_t StuckDescriptors[10];
-
-			if (INDEX10(pMpTcb->WrIndex) > 7) {
-				memcpy(StuckDescriptors,
-				       etdev->TxRing.pTxDescRingVa +
-				       INDEX10(pMpTcb->WrIndex) - 6,
-				       sizeof(TX_DESC_ENTRY_t) * 10);
-			}
-
+		if (tcb->count > NIC_SEND_HANG_THRESHOLD) {
 			spin_unlock_irqrestore(&etdev->TCBSendQLock,
 					       flags);
 
 			dev_warn(&etdev->pdev->dev,
-				"Send stuck - reset.  pMpTcb->WrIndex %x, Flags 0x%08x\n",
-				pMpTcb->WrIndex,
-				pMpTcb->Flags);
+				"Send stuck - reset.  tcb->WrIndex %x, Flags 0x%08x\n",
+				tcb->index,
+				tcb->flags);
 
 			et131x_close(netdev);
 			et131x_open(netdev);
@@ -622,7 +602,7 @@ int et131x_change_mtu(struct net_device *netdev, int new_mtu)
 
 	et131x_init_send(adapter);
 
-	et131x_setup_hardware_properties(adapter);
+	et131x_hwaddr_init(adapter);
 	memcpy(netdev->dev_addr, adapter->CurrentAddress, ETH_ALEN);
 
 	/* Init the device with the new settings */
@@ -683,12 +663,8 @@ int et131x_set_mac_addr(struct net_device *netdev, void *new_mac)
 
 	memcpy(netdev->dev_addr, address->sa_data, netdev->addr_len);
 
-	printk(KERN_INFO
-		"%s: Setting MAC address to %02x:%02x:%02x:%02x:%02x:%02x\n",
-			netdev->name,
-			netdev->dev_addr[0], netdev->dev_addr[1],
-			netdev->dev_addr[2], netdev->dev_addr[3],
-			netdev->dev_addr[4], netdev->dev_addr[5]);
+	printk(KERN_INFO "%s: Setting MAC address to %pM\n",
+			netdev->name, netdev->dev_addr);
 
 	/* Free Rx DMA memory */
 	et131x_adapter_memory_free(adapter);
@@ -709,9 +685,7 @@ int et131x_set_mac_addr(struct net_device *netdev, void *new_mac)
 
 	et131x_init_send(adapter);
 
-	et131x_setup_hardware_properties(adapter);
-	/* memcpy( netdev->dev_addr, adapter->CurrentAddress, ETH_ALEN ); */
-	/* blux: no, do not override our nice address */
+	et131x_hwaddr_init(adapter);
 
 	/* Init the device with the new settings */
 	et131x_adapter_setup(adapter);

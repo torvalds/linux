@@ -26,7 +26,7 @@ typedef sector_t chunk_t;
  * of chunks that follow contiguously.  Remaining bits hold the number of the
  * chunk within the device.
  */
-struct dm_snap_exception {
+struct dm_exception {
 	struct list_head hash_list;
 
 	chunk_t old_chunk;
@@ -64,15 +64,32 @@ struct dm_exception_store_type {
 	 * Find somewhere to store the next exception.
 	 */
 	int (*prepare_exception) (struct dm_exception_store *store,
-				  struct dm_snap_exception *e);
+				  struct dm_exception *e);
 
 	/*
 	 * Update the metadata with this exception.
 	 */
 	void (*commit_exception) (struct dm_exception_store *store,
-				  struct dm_snap_exception *e,
+				  struct dm_exception *e,
 				  void (*callback) (void *, int success),
 				  void *callback_context);
+
+	/*
+	 * Returns 0 if the exception store is empty.
+	 *
+	 * If there are exceptions still to be merged, sets
+	 * *last_old_chunk and *last_new_chunk to the most recent
+	 * still-to-be-merged chunk and returns the number of
+	 * consecutive previous ones.
+	 */
+	int (*prepare_merge) (struct dm_exception_store *store,
+			      chunk_t *last_old_chunk, chunk_t *last_new_chunk);
+
+	/*
+	 * Clear the last n exceptions.
+	 * nr_merged must be <= the value returned by prepare_merge.
+	 */
+	int (*commit_merge) (struct dm_exception_store *store, int nr_merged);
 
 	/*
 	 * The snapshot is invalid, note this in the metadata.
@@ -86,19 +103,19 @@ struct dm_exception_store_type {
 	/*
 	 * Return how full the snapshot is.
 	 */
-	void (*fraction_full) (struct dm_exception_store *store,
-			       sector_t *numerator,
-			       sector_t *denominator);
+	void (*usage) (struct dm_exception_store *store,
+		       sector_t *total_sectors, sector_t *sectors_allocated,
+		       sector_t *metadata_sectors);
 
 	/* For internal device-mapper use only. */
 	struct list_head list;
 };
 
+struct dm_snapshot;
+
 struct dm_exception_store {
 	struct dm_exception_store_type *type;
-	struct dm_target *ti;
-
-	struct dm_dev *cow;
+	struct dm_snapshot *snap;
 
 	/* Size of data blocks saved - must be a power of 2 */
 	unsigned chunk_size;
@@ -107,6 +124,12 @@ struct dm_exception_store {
 
 	void *context;
 };
+
+/*
+ * Obtain the origin or cow device used by a given snapshot.
+ */
+struct dm_dev *dm_snap_origin(struct dm_snapshot *snap);
+struct dm_dev *dm_snap_cow(struct dm_snapshot *snap);
 
 /*
  * Funtions to manipulate consecutive chunks
@@ -120,16 +143,23 @@ static inline chunk_t dm_chunk_number(chunk_t chunk)
 	return chunk & (chunk_t)((1ULL << DM_CHUNK_NUMBER_BITS) - 1ULL);
 }
 
-static inline unsigned dm_consecutive_chunk_count(struct dm_snap_exception *e)
+static inline unsigned dm_consecutive_chunk_count(struct dm_exception *e)
 {
 	return e->new_chunk >> DM_CHUNK_NUMBER_BITS;
 }
 
-static inline void dm_consecutive_chunk_count_inc(struct dm_snap_exception *e)
+static inline void dm_consecutive_chunk_count_inc(struct dm_exception *e)
 {
 	e->new_chunk += (1ULL << DM_CHUNK_NUMBER_BITS);
 
 	BUG_ON(!dm_consecutive_chunk_count(e));
+}
+
+static inline void dm_consecutive_chunk_count_dec(struct dm_exception *e)
+{
+	BUG_ON(!dm_consecutive_chunk_count(e));
+
+	e->new_chunk -= (1ULL << DM_CHUNK_NUMBER_BITS);
 }
 
 #  else
@@ -140,12 +170,16 @@ static inline chunk_t dm_chunk_number(chunk_t chunk)
 	return chunk;
 }
 
-static inline unsigned dm_consecutive_chunk_count(struct dm_snap_exception *e)
+static inline unsigned dm_consecutive_chunk_count(struct dm_exception *e)
 {
 	return 0;
 }
 
-static inline void dm_consecutive_chunk_count_inc(struct dm_snap_exception *e)
+static inline void dm_consecutive_chunk_count_inc(struct dm_exception *e)
+{
+}
+
+static inline void dm_consecutive_chunk_count_dec(struct dm_exception *e)
 {
 }
 
@@ -162,7 +196,7 @@ static inline sector_t get_dev_size(struct block_device *bdev)
 static inline chunk_t sector_to_chunk(struct dm_exception_store *store,
 				      sector_t sector)
 {
-	return (sector & ~store->chunk_mask) >> store->chunk_shift;
+	return sector >> store->chunk_shift;
 }
 
 int dm_exception_store_type_register(struct dm_exception_store_type *type);
@@ -173,6 +207,7 @@ int dm_exception_store_set_chunk_size(struct dm_exception_store *store,
 				      char **error);
 
 int dm_exception_store_create(struct dm_target *ti, int argc, char **argv,
+			      struct dm_snapshot *snap,
 			      unsigned *args_used,
 			      struct dm_exception_store **store);
 void dm_exception_store_destroy(struct dm_exception_store *store);

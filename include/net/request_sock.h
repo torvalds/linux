@@ -27,18 +27,26 @@ struct sk_buff;
 struct dst_entry;
 struct proto;
 
+/* empty to "strongly type" an otherwise void parameter.
+ */
+struct request_values {
+};
+
 struct request_sock_ops {
 	int		family;
 	int		obj_size;
 	struct kmem_cache	*slab;
 	char		*slab_name;
 	int		(*rtx_syn_ack)(struct sock *sk,
-				       struct request_sock *req);
+				       struct request_sock *req,
+				       struct request_values *rvp);
 	void		(*send_ack)(struct sock *sk, struct sk_buff *skb,
 				    struct request_sock *req);
 	void		(*send_reset)(struct sock *sk,
 				      struct sk_buff *skb);
 	void		(*destructor)(struct request_sock *req);
+	void		(*syn_ack_timeout)(struct sock *sk,
+					   struct request_sock *req);
 };
 
 /* struct request_sock - mini sock to represent a connection request

@@ -109,6 +109,7 @@
 #define ETH_P_TRAILER	0x001C		/* Trailer switch tagging	*/
 #define ETH_P_PHONET	0x00F5		/* Nokia Phonet frames          */
 #define ETH_P_IEEE802154 0x00F6		/* IEEE802.15.4 frame		*/
+#define ETH_P_CAIF	0x00F7		/* ST-Ericsson CAIF protocol	*/
 
 /*
  *	This is an Ethernet frame header.
@@ -136,13 +137,7 @@ extern struct ctl_table ether_table[];
 
 extern ssize_t sysfs_format_mac(char *buf, const unsigned char *addr, int len);
 
-/*
- *	Display a 6 byte device address (MAC) in a readable format.
- */
-extern char *print_mac(char *buf, const unsigned char *addr) __deprecated;
 #define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-#define MAC_BUF_SIZE	18
-#define DECLARE_MAC_BUF(var) char var[MAC_BUF_SIZE]
 
 #endif
 

@@ -30,6 +30,8 @@
 #include <linux/phy.h>
 #include <linux/cache.h>
 #include <linux/io.h>
+#include <linux/pm_runtime.h>
+#include <linux/slab.h>
 #include <asm/cacheflush.h>
 
 #include "sh_eth.h"
@@ -83,6 +85,57 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.mpr		= 1,
 	.tpauser	= 1,
 	.hw_swap	= 1,
+	.rpadir		= 1,
+	.rpadir_value	= 0x00020000, /* NET_IP_ALIGN assumed to be 2 */
+};
+#elif defined(CONFIG_CPU_SUBTYPE_SH7757)
+#define SH_ETH_RESET_DEFAULT	1
+static void sh_eth_set_duplex(struct net_device *ndev)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	u32 ioaddr = ndev->base_addr;
+
+	if (mdp->duplex) /* Full */
+		ctrl_outl(ctrl_inl(ioaddr + ECMR) | ECMR_DM, ioaddr + ECMR);
+	else		/* Half */
+		ctrl_outl(ctrl_inl(ioaddr + ECMR) & ~ECMR_DM, ioaddr + ECMR);
+}
+
+static void sh_eth_set_rate(struct net_device *ndev)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	u32 ioaddr = ndev->base_addr;
+
+	switch (mdp->speed) {
+	case 10: /* 10BASE */
+		ctrl_outl(0, ioaddr + RTRATE);
+		break;
+	case 100:/* 100BASE */
+		ctrl_outl(1, ioaddr + RTRATE);
+		break;
+	default:
+		break;
+	}
+}
+
+/* SH7757 */
+static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
+	.set_duplex		= sh_eth_set_duplex,
+	.set_rate		= sh_eth_set_rate,
+
+	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
+	.rmcr_value	= 0x00000001,
+
+	.tx_check	= EESR_FTC | EESR_CND | EESR_DLC | EESR_CD | EESR_RTO,
+	.eesr_err_check	= EESR_TWB | EESR_TABT | EESR_RABT | EESR_RDE |
+			  EESR_RFRMER | EESR_TFE | EESR_TDE | EESR_ECI,
+	.tx_error_check	= EESR_TWB | EESR_TABT | EESR_TDE | EESR_TFE,
+
+	.apr		= 1,
+	.mpr		= 1,
+	.tpauser	= 1,
+	.hw_swap	= 1,
+	.no_ade		= 1,
 };
 
 #elif defined(CONFIG_CPU_SUBTYPE_SH7763)
@@ -107,7 +160,7 @@ static void sh_eth_reset(struct net_device *ndev)
 		mdelay(1);
 		cnt--;
 	}
-	if (cnt < 0)
+	if (cnt == 0)
 		printk(KERN_ERR "Device reset fail\n");
 
 	/* Table Init */
@@ -174,7 +227,6 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.tpauser	= 1,
 	.bculr		= 1,
 	.hw_swap	= 1,
-	.rpadir		= 1,
 	.no_trimd	= 1,
 	.no_ade		= 1,
 };
@@ -299,16 +351,20 @@ static void update_mac_address(struct net_device *ndev)
  * When you want use this device, you must set MAC address in bootloader.
  *
  */
-static void read_mac_address(struct net_device *ndev)
+static void read_mac_address(struct net_device *ndev, unsigned char *mac)
 {
 	u32 ioaddr = ndev->base_addr;
 
-	ndev->dev_addr[0] = (ctrl_inl(ioaddr + MAHR) >> 24);
-	ndev->dev_addr[1] = (ctrl_inl(ioaddr + MAHR) >> 16) & 0xFF;
-	ndev->dev_addr[2] = (ctrl_inl(ioaddr + MAHR) >> 8) & 0xFF;
-	ndev->dev_addr[3] = (ctrl_inl(ioaddr + MAHR) & 0xFF);
-	ndev->dev_addr[4] = (ctrl_inl(ioaddr + MALR) >> 8) & 0xFF;
-	ndev->dev_addr[5] = (ctrl_inl(ioaddr + MALR) & 0xFF);
+	if (mac[0] || mac[1] || mac[2] || mac[3] || mac[4] || mac[5]) {
+		memcpy(ndev->dev_addr, mac, 6);
+	} else {
+		ndev->dev_addr[0] = (ctrl_inl(ioaddr + MAHR) >> 24);
+		ndev->dev_addr[1] = (ctrl_inl(ioaddr + MAHR) >> 16) & 0xFF;
+		ndev->dev_addr[2] = (ctrl_inl(ioaddr + MAHR) >> 8) & 0xFF;
+		ndev->dev_addr[3] = (ctrl_inl(ioaddr + MAHR) & 0xFF);
+		ndev->dev_addr[4] = (ctrl_inl(ioaddr + MALR) >> 8) & 0xFF;
+		ndev->dev_addr[5] = (ctrl_inl(ioaddr + MALR) & 0xFF);
+	}
 }
 
 struct bb_info {
@@ -496,6 +552,8 @@ static int sh_eth_ring_init(struct net_device *ndev)
 	 */
 	mdp->rx_buf_sz = (ndev->mtu <= 1492 ? PKT_BUF_SZ :
 			  (((ndev->mtu + 26 + 7) & ~7) + 2 + 16));
+	if (mdp->cd->rpadir)
+		mdp->rx_buf_sz += NET_IP_ALIGN;
 
 	/* Allocate RX and TX skb rings */
 	mdp->rx_skbuff = kmalloc(sizeof(*mdp->rx_skbuff) * RX_RING_SIZE,
@@ -710,6 +768,8 @@ static int sh_eth_rx(struct net_device *ndev)
 					pkt_len + 2);
 			skb = mdp->rx_skbuff[entry];
 			mdp->rx_skbuff[entry] = NULL;
+			if (mdp->cd->rpadir)
+				skb_reserve(skb, NET_IP_ALIGN);
 			skb_put(skb, pkt_len);
 			skb->protocol = eth_type_trans(skb, ndev);
 			netif_rx(skb);
@@ -1009,8 +1069,12 @@ static int sh_eth_open(struct net_device *ndev)
 	int ret = 0;
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
-	ret = request_irq(ndev->irq, &sh_eth_interrupt,
-#if defined(CONFIG_CPU_SUBTYPE_SH7763) || defined(CONFIG_CPU_SUBTYPE_SH7764)
+	pm_runtime_get_sync(&mdp->pdev->dev);
+
+	ret = request_irq(ndev->irq, sh_eth_interrupt,
+#if defined(CONFIG_CPU_SUBTYPE_SH7763) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7764) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7757)
 				IRQF_SHARED,
 #else
 				0,
@@ -1045,6 +1109,7 @@ static int sh_eth_open(struct net_device *ndev)
 
 out_free_irq:
 	free_irq(ndev->irq, ndev);
+	pm_runtime_put_sync(&mdp->pdev->dev);
 	return ret;
 }
 
@@ -1134,8 +1199,6 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (!(ctrl_inl(ndev->base_addr + EDTRR) & EDTRR_TRNS))
 		ctrl_outl(EDTRR_TRNS, ndev->base_addr + EDTRR);
 
-	ndev->trans_start = jiffies;
-
 	return NETDEV_TX_OK;
 }
 
@@ -1176,6 +1239,8 @@ static int sh_eth_close(struct net_device *ndev)
 	ringsize = sizeof(struct sh_eth_txdesc) * TX_RING_SIZE;
 	dma_free_coherent(NULL, ringsize, mdp->tx_ring, mdp->tx_desc_dma);
 
+	pm_runtime_put_sync(&mdp->pdev->dev);
+
 	return 0;
 }
 
@@ -1183,6 +1248,8 @@ static struct net_device_stats *sh_eth_get_stats(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	u32 ioaddr = ndev->base_addr;
+
+	pm_runtime_get_sync(&mdp->pdev->dev);
 
 	mdp->stats.tx_dropped += ctrl_inl(ioaddr + TROCR);
 	ctrl_outl(0, ioaddr + TROCR);	/* (write clear) */
@@ -1199,6 +1266,8 @@ static struct net_device_stats *sh_eth_get_stats(struct net_device *ndev)
 	mdp->stats.tx_carrier_errors += ctrl_inl(ioaddr + CNDCR);
 	ctrl_outl(0, ioaddr + CNDCR);	/* (write clear) */
 #endif
+	pm_runtime_put_sync(&mdp->pdev->dev);
+
 	return &mdp->stats;
 }
 
@@ -1215,7 +1284,7 @@ static int sh_eth_do_ioctl(struct net_device *ndev, struct ifreq *rq,
 	if (!phydev)
 		return -ENODEV;
 
-	return phy_mii_ioctl(phydev, if_mii(rq), cmd);
+	return phy_mii_ioctl(phydev, rq, cmd);
 }
 
 #if defined(SH_ETH_HAS_TSU)
@@ -1276,6 +1345,9 @@ static int sh_mdio_release(struct net_device *ndev)
 	/* remove mdio bus info from net_device */
 	dev_set_drvdata(&ndev->dev, NULL);
 
+	/* free interrupts memory */
+	kfree(bus->irq);
+
 	/* free bitbang info */
 	free_mdio_bitbang(bus);
 
@@ -1304,7 +1376,7 @@ static int sh_mdio_init(struct net_device *ndev, int id)
 	bitbang->mdc_msk = 0x01;
 	bitbang->ctrl.ops = &bb_ops;
 
-	/* MII contorller setting */
+	/* MII controller setting */
 	mdp->mii_bus = alloc_mdio_bitbang(&bitbang->ctrl);
 	if (!mdp->mii_bus) {
 		ret = -ENOMEM;
@@ -1365,7 +1437,7 @@ static const struct net_device_ops sh_eth_netdev_ops = {
 
 static int sh_eth_drv_probe(struct platform_device *pdev)
 {
-	int ret, i, devno = 0;
+	int ret, devno = 0;
 	struct resource *res;
 	struct net_device *ndev = NULL;
 	struct sh_eth_private *mdp;
@@ -1407,6 +1479,9 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 
 	mdp = netdev_priv(ndev);
 	spin_lock_init(&mdp->lock);
+	mdp->pdev = pdev;
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_resume(&pdev->dev);
 
 	pd = (struct sh_eth_plat_data *)(pdev->dev.platform_data);
 	/* get PHY ID */
@@ -1428,7 +1503,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	mdp->post_fw = POST_FW >> (devno << 1);
 
 	/* read and set MAC address */
-	read_mac_address(ndev);
+	read_mac_address(ndev, pd->mac_addr);
 
 	/* First device only init */
 	if (!devno) {
@@ -1451,13 +1526,9 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_unregister;
 
-	/* pritnt device infomation */
-	pr_info("Base address at 0x%x, ",
-	       (u32)ndev->base_addr);
-
-	for (i = 0; i < 5; i++)
-		printk("%02X:", ndev->dev_addr[i]);
-	printk("%02X, IRQ %d.\n", ndev->dev_addr[i], ndev->irq);
+	/* print device infomation */
+	pr_info("Base address at 0x%x, %pM, IRQ %d.\n",
+	       (u32)ndev->base_addr, ndev->dev_addr, ndev->irq);
 
 	platform_set_drvdata(pdev, ndev);
 
@@ -1482,18 +1553,37 @@ static int sh_eth_drv_remove(struct platform_device *pdev)
 	sh_mdio_release(ndev);
 	unregister_netdev(ndev);
 	flush_scheduled_work();
-
+	pm_runtime_disable(&pdev->dev);
 	free_netdev(ndev);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
 
+static int sh_eth_runtime_nop(struct device *dev)
+{
+	/*
+	 * Runtime PM callback shared between ->runtime_suspend()
+	 * and ->runtime_resume(). Simply returns success.
+	 *
+	 * This driver re-initializes all registers after
+	 * pm_runtime_get_sync() anyway so there is no need
+	 * to save and restore registers here.
+	 */
+	return 0;
+}
+
+static struct dev_pm_ops sh_eth_dev_pm_ops = {
+	.runtime_suspend = sh_eth_runtime_nop,
+	.runtime_resume = sh_eth_runtime_nop,
+};
+
 static struct platform_driver sh_eth_driver = {
 	.probe = sh_eth_drv_probe,
 	.remove = sh_eth_drv_remove,
 	.driver = {
 		   .name = CARDNAME,
+		   .pm = &sh_eth_dev_pm_ops,
 	},
 };
 

@@ -142,8 +142,9 @@ u16_t zfHpInit(zdev_t* dev, u32_t frequency)
     if (wd->modeMDKEnable)
     {
         /* download the MDK firmware */
-        if ((ret = zfFirmwareDownload(dev, (u32_t*)zcDKFwImage,
-                (u32_t)zcDKFwImageSize, ZM_FIRMWARE_WLAN_ADDR)) != ZM_SUCCESS)
+        ret = zfFirmwareDownload(dev, (u32_t*)zcDKFwImage,
+                (u32_t)zcDKFwImageSize, ZM_FIRMWARE_WLAN_ADDR);
+        if (ret != ZM_SUCCESS)
         {
             /* TODO : exception handling */
             //return 1;
@@ -153,8 +154,9 @@ u16_t zfHpInit(zdev_t* dev, u32_t frequency)
     {
     #ifndef ZM_OTUS_LINUX_PHASE_2
         /* download the normal firmware */
-        if ((ret = zfFirmwareDownload(dev, (u32_t*)zcFwImage,
-                (u32_t)zcFwImageSize, ZM_FIRMWARE_WLAN_ADDR)) != ZM_SUCCESS)
+        ret = zfFirmwareDownload(dev, (u32_t*)zcFwImage,
+                (u32_t)zcFwImageSize, ZM_FIRMWARE_WLAN_ADDR);
+        if (ret != ZM_SUCCESS)
         {
             /* TODO : exception handling */
             //return 1;
@@ -162,16 +164,18 @@ u16_t zfHpInit(zdev_t* dev, u32_t frequency)
     #else
 
         // 1-PH fw: ReadMac() store some global variable
-        if ((ret = zfFirmwareDownloadNotJump(dev, (u32_t*)zcFwBufImage,
-                (u32_t)zcFwBufImageSize, 0x102800)) != ZM_SUCCESS)
+        ret = zfFirmwareDownloadNotJump(dev, (u32_t*)zcFwBufImage,
+                (u32_t)zcFwBufImageSize, 0x102800);
+        if (ret != ZM_SUCCESS)
         {
             DbgPrint("Dl zcFwBufImage failed!");
         }
 
         zfwSleep(dev, 1000);
 
-        if ((ret = zfFirmwareDownload(dev, (u32_t*)zcFwImage,
-                (u32_t)zcFwImageSize, ZM_FIRMWARE_WLAN_ADDR)) != ZM_SUCCESS)
+        ret = zfFirmwareDownload(dev, (u32_t*)zcFwImage,
+                (u32_t)zcFwImageSize, ZM_FIRMWARE_WLAN_ADDR);
+        if (ret != ZM_SUCCESS)
         {
             DbgPrint("Dl zcFwBufImage failed!");
         }
@@ -249,15 +253,17 @@ u16_t zfHpReinit(zdev_t* dev, u32_t frequency)
 
     #ifndef ZM_OTUS_LINUX_PHASE_2
     /* Download firmware */
-    if ((ret = zfFirmwareDownload(dev, (u32_t*)zcFwImage,
-            (u32_t)zcFwImageSize, ZM_FIRMWARE_WLAN_ADDR)) != ZM_SUCCESS)
+    ret = zfFirmwareDownload(dev, (u32_t*)zcFwImage,
+            (u32_t)zcFwImageSize, ZM_FIRMWARE_WLAN_ADDR);
+    if (ret != ZM_SUCCESS)
     {
         /* TODO : exception handling */
         //return 1;
     }
     #else
-    if ((ret = zfFirmwareDownload(dev, (u32_t*)zcP2FwImage,
-            (u32_t)zcP2FwImageSize, ZM_FIRMWARE_WLAN_ADDR)) != ZM_SUCCESS)
+    ret = zfFirmwareDownload(dev, (u32_t*)zcP2FwImage,
+            (u32_t)zcP2FwImageSize, ZM_FIRMWARE_WLAN_ADDR);
+    if (ret != ZM_SUCCESS)
     {
         /* TODO : exception handling */
         //return 1;
@@ -424,7 +430,7 @@ void zfInitPhy(zdev_t* dev,  u32_t frequency, u8_t bw40)
      * Register setting by mode
      */
 
-    entries = sizeof(ar5416Modes) / sizeof(*ar5416Modes);
+    entries = ARRAY_SIZE(ar5416Modes);
     zm_msg1_scan(ZM_LV_2, "Modes register setting entries=", entries);
     for (i=0; i<entries; i++)
     {
@@ -490,7 +496,7 @@ void zfInitPhy(zdev_t* dev,  u32_t frequency, u8_t bw40)
     /*
      * Common Register setting
      */
-    entries = sizeof(ar5416Common) / sizeof(*ar5416Common);
+    entries = ARRAY_SIZE(ar5416Common);
     for (i=0; i<entries; i++)
     {
         reg_write(ar5416Common[i][0], ar5416Common[i][1]);
@@ -500,7 +506,7 @@ void zfInitPhy(zdev_t* dev,  u32_t frequency, u8_t bw40)
     /*
      * RF Gain setting by freqIndex
      */
-    entries = sizeof(ar5416BB_RfGain) / sizeof(*ar5416BB_RfGain);
+    entries = ARRAY_SIZE(ar5416BB_RfGain);
     for (i=0; i<entries; i++)
     {
         reg_write(ar5416BB_RfGain[i][0], ar5416BB_RfGain[i][freqIndex]);
@@ -957,7 +963,6 @@ u32_t reverse_bits(u32_t chan_sel)
 /* Bank 0 1 2 3 5 6 7 */
 void zfSetRfRegs(zdev_t* dev, u32_t frequency)
 {
-    u16_t entries;
     u16_t freqIndex = 0;
     u16_t i;
 
@@ -978,33 +983,28 @@ void zfSetRfRegs(zdev_t* dev, u32_t frequency)
     }
 
 #if 1
-    entries = sizeof(otusBank) / sizeof(*otusBank);
-    for (i=0; i<entries; i++)
+    for (i=0; i<ARRAY_SIZE(otusBank); i++)
     {
         reg_write(otusBank[i][0], otusBank[i][freqIndex]);
     }
 #else
     /* Bank0 */
-    entries = sizeof(ar5416Bank0) / sizeof(*ar5416Bank0);
-    for (i=0; i<entries; i++)
+    for (i=0; i<ARRAY_SIZE(ar5416Bank0); i++)
     {
         reg_write(ar5416Bank0[i][0], ar5416Bank0[i][1]);
     }
     /* Bank1 */
-    entries = sizeof(ar5416Bank1) / sizeof(*ar5416Bank1);
-    for (i=0; i<entries; i++)
+    for (i=0; i<ARRAY_SIZE(ar5416Bank1); i++)
     {
         reg_write(ar5416Bank1[i][0], ar5416Bank1[i][1]);
     }
     /* Bank2 */
-    entries = sizeof(ar5416Bank2) / sizeof(*ar5416Bank2);
-    for (i=0; i<entries; i++)
+    for (i=0; i<ARRAY_SIZE(ar5416Bank2); i++)
     {
         reg_write(ar5416Bank2[i][0], ar5416Bank2[i][1]);
     }
     /* Bank3 */
-    entries = sizeof(ar5416Bank3) / sizeof(*ar5416Bank3);
-    for (i=0; i<entries; i++)
+    for (i=0; i<ARRAY_SIZE(ar5416Bank3); i++)
     {
         reg_write(ar5416Bank3[i][0], ar5416Bank3[i][freqIndex]);
     }
@@ -1012,14 +1012,12 @@ void zfSetRfRegs(zdev_t* dev, u32_t frequency)
     reg_write (0x98b0,  0x00000013);
     reg_write (0x98e4,  0x00000002);
     /* Bank6 */
-    entries = sizeof(ar5416Bank6) / sizeof(*ar5416Bank6);
-    for (i=0; i<entries; i++)
+    for (i=0; i<ARRAY_SIZE(ar5416Bank6); i++)
     {
         reg_write(ar5416Bank6[i][0], ar5416Bank6[i][freqIndex]);
     }
     /* Bank7 */
-    entries = sizeof(ar5416Bank7) / sizeof(*ar5416Bank7);
-    for (i=0; i<entries; i++)
+    for (i=0; i<ARRAY_SIZE(ar5416Bank7); i++)
     {
         reg_write(ar5416Bank7[i][0], ar5416Bank7[i][1]);
     }
@@ -1316,7 +1314,6 @@ void zfHpSetFrequencyEx(zdev_t* dev, u32_t frequency, u8_t bw40,
         u8_t extOffset, u8_t initRF)
 {
     u32_t cmd[9];
-    u32_t cmdB[3];
     u16_t ret;
     u8_t old_band;
     u8_t new_band;
@@ -3434,7 +3431,6 @@ void zfSetPowerCalTable(zdev_t* dev, u32_t frequency, u8_t bw40, u8_t extOffset)
     /* Write PHY regs 672-703 */
     for (i=0; i<128; i+=4)
     {
-        u32_t regAddr = 0x9800 + (672 * 4);
         u32_t val;
 
         val = ((u32_t)vpd_chain1[i+3]<<24) |
@@ -3485,7 +3481,6 @@ void zfSetPowerCalTable(zdev_t* dev, u32_t frequency, u8_t bw40, u8_t extOffset)
     /* Write PHY regs 672-703 + 0x1000 */
     for (i=0; i<128; i+=4)
     {
-        u32_t regAddr = 0x9800 + (672 * 4) + 0x1000;
         u32_t val;
 
         val = ((u32_t)vpd_chain3[i+3]<<24) |
@@ -4584,7 +4579,6 @@ void zfHpSetRollCallTable(zdev_t* dev)
 void zfHpSetTTSIFSTime(zdev_t* dev, u8_t sifs_time)
 {
     u32_t reg_value = 0;
-    zmw_get_wlan_dev(dev);
 
     sifs_time &= 0x3f;
     reg_value = 0x14400b | (((u32_t)sifs_time)<<24);

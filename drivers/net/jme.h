@@ -25,7 +25,7 @@
 #define __JME_H_INCLUDED__
 
 #define DRV_NAME	"jme"
-#define DRV_VERSION	"1.0.5"
+#define DRV_VERSION	"1.0.6"
 #define PFX		DRV_NAME ": "
 
 #define PCI_DEVICE_ID_JMICRON_JMC250	0x0250
@@ -45,42 +45,15 @@
 	printk(KERN_ERR PFX fmt, ## args)
 
 #ifdef TX_DEBUG
-#define tx_dbg(priv, fmt, args...) \
-	printk(KERN_DEBUG "%s: " fmt, (priv)->dev->name, ## args)
+#define tx_dbg(priv, fmt, args...)					\
+	printk(KERN_DEBUG "%s: " fmt, (priv)->dev->name, ##args)
 #else
-#define tx_dbg(priv, fmt, args...)
+#define tx_dbg(priv, fmt, args...)					\
+do {									\
+	if (0)								\
+		printk(KERN_DEBUG "%s: " fmt, (priv)->dev->name, ##args); \
+} while (0)
 #endif
-
-#define jme_msg(msglvl, type, priv, fmt, args...) \
-	if (netif_msg_##type(priv)) \
-		printk(msglvl "%s: " fmt, (priv)->dev->name, ## args)
-
-#define msg_probe(priv, fmt, args...) \
-	jme_msg(KERN_INFO, probe, priv, fmt, ## args)
-
-#define msg_link(priv, fmt, args...) \
-	jme_msg(KERN_INFO, link, priv, fmt, ## args)
-
-#define msg_intr(priv, fmt, args...) \
-	jme_msg(KERN_INFO, intr, priv, fmt, ## args)
-
-#define msg_rx_err(priv, fmt, args...) \
-	jme_msg(KERN_ERR, rx_err, priv, fmt, ## args)
-
-#define msg_rx_status(priv, fmt, args...) \
-	jme_msg(KERN_INFO, rx_status, priv, fmt, ## args)
-
-#define msg_tx_err(priv, fmt, args...) \
-	jme_msg(KERN_ERR, tx_err, priv, fmt, ## args)
-
-#define msg_tx_done(priv, fmt, args...) \
-	jme_msg(KERN_INFO, tx_done, priv, fmt, ## args)
-
-#define msg_tx_queued(priv, fmt, args...) \
-	jme_msg(KERN_INFO, tx_queued, priv, fmt, ## args)
-
-#define msg_hw(priv, fmt, args...) \
-	jme_msg(KERN_ERR, hw, priv, fmt, ## args)
 
 /*
  * Extra PCI Configuration space interface

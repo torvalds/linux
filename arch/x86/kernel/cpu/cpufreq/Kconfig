@@ -10,6 +10,20 @@ if CPU_FREQ
 
 comment "CPUFreq processor drivers"
 
+config X86_PCC_CPUFREQ
+	tristate "Processor Clocking Control interface driver"
+	depends on ACPI && ACPI_PROCESSOR
+	help
+	  This driver adds support for the PCC interface.
+
+	  For details, take a look at:
+	  <file:Documentation/cpu-freq/pcc-cpufreq.txt>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pcc-cpufreq.
+
+	  If in doubt, say N.
+
 config X86_ACPI_CPUFREQ
 	tristate "ACPI Processor P-States driver"
 	select CPU_FREQ_TABLE

@@ -40,6 +40,8 @@
 #ifndef _LINUX_SUNRPC_RPC_RDMA_H
 #define _LINUX_SUNRPC_RPC_RDMA_H
 
+#include <linux/types.h>
+
 struct rpcrdma_segment {
 	__be32 rs_handle;	/* Registered memory handle */
 	__be32 rs_length;	/* Length of the chunk in bytes */

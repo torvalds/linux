@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 #include <linux/input.h>
+#include <linux/input/sh_keysc.h>
 #include <linux/smc91x.h>
 #include <mach-se/mach/se7722.h>
 #include <mach-se/mach/mrshpc.h>
@@ -21,30 +22,20 @@
 #include <asm/clock.h>
 #include <asm/io.h>
 #include <asm/heartbeat.h>
-#include <asm/sh_keysc.h>
 #include <cpu/sh7722.h>
 
 /* Heartbeat */
-static struct heartbeat_data heartbeat_data = {
-	.regsize = 16,
-};
-
-static struct resource heartbeat_resources[] = {
-	[0] = {
-		.start  = PA_LED,
-		.end    = PA_LED,
-		.flags  = IORESOURCE_MEM,
-	},
+static struct resource heartbeat_resource = {
+	.start  = PA_LED,
+	.end    = PA_LED,
+	.flags  = IORESOURCE_MEM | IORESOURCE_MEM_16BIT,
 };
 
 static struct platform_device heartbeat_device = {
 	.name           = "heartbeat",
 	.id             = -1,
-	.dev = {
-		.platform_data = &heartbeat_data,
-	},
-	.num_resources  = ARRAY_SIZE(heartbeat_resources),
-	.resource       = heartbeat_resources,
+	.num_resources  = 1,
+	.resource       = &heartbeat_resource,
 };
 
 /* SMC91x */
@@ -60,8 +51,7 @@ static struct resource smc91x_eth_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = SMC_IRQ,
-		.end    = SMC_IRQ,
+		/* Filled in later */
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -90,8 +80,7 @@ static struct resource cf_ide_resources[] = {
 		.flags  = IORESOURCE_IO,
 	},
 	[2] = {
-		.start  = MRSHPC_IRQ0,
-		.end    = MRSHPC_IRQ0,
+		/* Filled in later */
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -153,38 +142,46 @@ static struct platform_device *se7722_devices[] __initdata = {
 static int __init se7722_devices_setup(void)
 {
 	mrshpc_setup_windows();
+
+	/* Wire-up dynamic vectors */
+	cf_ide_resources[2].start = cf_ide_resources[2].end =
+		se7722_fpga_irq[SE7722_FPGA_IRQ_MRSHPC0];
+
+	smc91x_eth_resources[1].start = smc91x_eth_resources[1].end =
+		se7722_fpga_irq[SE7722_FPGA_IRQ_SMC];
+
 	return platform_add_devices(se7722_devices, ARRAY_SIZE(se7722_devices));
 }
 device_initcall(se7722_devices_setup);
 
 static void __init se7722_setup(char **cmdline_p)
 {
-	ctrl_outw(0x010D, FPGA_OUT);    /* FPGA */
+	__raw_writew(0x010D, FPGA_OUT);    /* FPGA */
 
-	ctrl_outw(0x0000, PORT_PECR);   /* PORT E 1 = IRQ5 ,E 0 = BS */
-	ctrl_outw(0x1000, PORT_PJCR);   /* PORT J 1 = IRQ1,J 0 =IRQ0 */
+	__raw_writew(0x0000, PORT_PECR);   /* PORT E 1 = IRQ5 ,E 0 = BS */
+	__raw_writew(0x1000, PORT_PJCR);   /* PORT J 1 = IRQ1,J 0 =IRQ0 */
 
 	/* LCDC I/O */
-	ctrl_outw(0x0020, PORT_PSELD);
+	__raw_writew(0x0020, PORT_PSELD);
 
 	/* SIOF1*/
-	ctrl_outw(0x0003, PORT_PSELB);
-	ctrl_outw(0xe000, PORT_PSELC);
-	ctrl_outw(0x0000, PORT_PKCR);
+	__raw_writew(0x0003, PORT_PSELB);
+	__raw_writew(0xe000, PORT_PSELC);
+	__raw_writew(0x0000, PORT_PKCR);
 
 	/* LCDC */
-	ctrl_outw(0x4020, PORT_PHCR);
-	ctrl_outw(0x0000, PORT_PLCR);
-	ctrl_outw(0x0000, PORT_PMCR);
-	ctrl_outw(0x0002, PORT_PRCR);
-	ctrl_outw(0x0000, PORT_PXCR);   /* LCDC,CS6A */
+	__raw_writew(0x4020, PORT_PHCR);
+	__raw_writew(0x0000, PORT_PLCR);
+	__raw_writew(0x0000, PORT_PMCR);
+	__raw_writew(0x0002, PORT_PRCR);
+	__raw_writew(0x0000, PORT_PXCR);   /* LCDC,CS6A */
 
 	/* KEYSC */
-	ctrl_outw(0x0A10, PORT_PSELA); /* BS,SHHID2 */
-	ctrl_outw(0x0000, PORT_PYCR);
-	ctrl_outw(0x0000, PORT_PZCR);
-	ctrl_outw(ctrl_inw(PORT_HIZCRA) & ~0x4000, PORT_HIZCRA);
-	ctrl_outw(ctrl_inw(PORT_HIZCRC) & ~0xc000, PORT_HIZCRC);
+	__raw_writew(0x0A10, PORT_PSELA); /* BS,SHHID2 */
+	__raw_writew(0x0000, PORT_PYCR);
+	__raw_writew(0x0000, PORT_PZCR);
+	__raw_writew(__raw_readw(PORT_HIZCRA) & ~0x4000, PORT_HIZCRA);
+	__raw_writew(__raw_readw(PORT_HIZCRC) & ~0xc000, PORT_HIZCRC);
 }
 
 /*
@@ -193,6 +190,5 @@ static void __init se7722_setup(char **cmdline_p)
 static struct sh_machine_vector mv_se7722 __initmv = {
 	.mv_name                = "Solution Engine 7722" ,
 	.mv_setup               = se7722_setup ,
-	.mv_nr_irqs		= SE7722_FPGA_IRQ_BASE + SE7722_FPGA_IRQ_NR,
 	.mv_init_irq		= init_se7722_IRQ,
 };

@@ -309,7 +309,7 @@ static int vfat_create_shortname(struct inode *dir, struct nls_table *nls,
 {
 	struct fat_mount_options *opts = &MSDOS_SB(dir->i_sb)->options;
 	wchar_t *ip, *ext_start, *end, *name_start;
-	unsigned char base[9], ext[4], buf[8], *p;
+	unsigned char base[9], ext[4], buf[5], *p;
 	unsigned char charbuf[NLS_MAX_CHARSET_SIZE];
 	int chl, chi;
 	int sz = 0, extlen, baselen, i, numtail_baselen, numtail2_baselen;
@@ -467,7 +467,7 @@ static int vfat_create_shortname(struct inode *dir, struct nls_table *nls,
 			return 0;
 	}
 
-	i = jiffies & 0xffff;
+	i = jiffies;
 	sz = (jiffies >> 16) & 0x7;
 	if (baselen > 2) {
 		baselen = numtail2_baselen;
@@ -476,7 +476,7 @@ static int vfat_create_shortname(struct inode *dir, struct nls_table *nls,
 	name_res[baselen + 4] = '~';
 	name_res[baselen + 5] = '1' + sz;
 	while (1) {
-		sprintf(buf, "%04X", i);
+		snprintf(buf, sizeof(buf), "%04X", i & 0xffff);
 		memcpy(&name_res[baselen], buf, 4);
 		if (vfat_find_form(dir, name_res) < 0)
 			break;
@@ -502,14 +502,14 @@ xlate_to_uni(const unsigned char *name, int len, unsigned char *outname,
 		*outlen = utf8s_to_utf16s(name, len, (wchar_t *)outname);
 		if (*outlen < 0)
 			return *outlen;
-		else if (*outlen > 255)
+		else if (*outlen > FAT_LFN_LEN)
 			return -ENAMETOOLONG;
 
 		op = &outname[*outlen * sizeof(wchar_t)];
 	} else {
 		if (nls) {
 			for (i = 0, ip = name, op = outname, *outlen = 0;
-			     i < len && *outlen <= 255;
+			     i < len && *outlen <= FAT_LFN_LEN;
 			     *outlen += 1)
 			{
 				if (escape && (*ip == ':')) {
@@ -549,7 +549,7 @@ xlate_to_uni(const unsigned char *name, int len, unsigned char *outname,
 				return -ENAMETOOLONG;
 		} else {
 			for (i = 0, ip = name, op = outname, *outlen = 0;
-			     i < len && *outlen <= 255;
+			     i < len && *outlen <= FAT_LFN_LEN;
 			     i++, *outlen += 1)
 			{
 				*op++ = *ip++;
@@ -701,6 +701,15 @@ static int vfat_find(struct inode *dir, struct qstr *qname,
 	return fat_search_long(dir, qname->name, len, sinfo);
 }
 
+/*
+ * (nfsd's) anonymous disconnected dentry?
+ * NOTE: !IS_ROOT() is not anonymous (I.e. d_splice_alias() did the job).
+ */
+static int vfat_d_anon_disconn(struct dentry *dentry)
+{
+	return IS_ROOT(dentry) && (dentry->d_flags & DCACHE_DISCONNECTED);
+}
+
 static struct dentry *vfat_lookup(struct inode *dir, struct dentry *dentry,
 				  struct nameidata *nd)
 {
@@ -729,11 +738,11 @@ static struct dentry *vfat_lookup(struct inode *dir, struct dentry *dentry,
 	}
 
 	alias = d_find_alias(inode);
-	if (alias && !(alias->d_flags & DCACHE_DISCONNECTED)) {
+	if (alias && !vfat_d_anon_disconn(alias)) {
 		/*
-		 * This inode has non DCACHE_DISCONNECTED dentry. This
-		 * means, the user did ->lookup() by an another name
-		 * (longname vs 8.3 alias of it) in past.
+		 * This inode has non anonymous-DCACHE_DISCONNECTED
+		 * dentry. This means, the user did ->lookup() by an
+		 * another name (longname vs 8.3 alias of it) in past.
 		 *
 		 * Switch to new one for reason of locality if possible.
 		 */
@@ -743,7 +752,9 @@ static struct dentry *vfat_lookup(struct inode *dir, struct dentry *dentry,
 		iput(inode);
 		unlock_super(sb);
 		return alias;
-	}
+	} else
+		dput(alias);
+
 out:
 	unlock_super(sb);
 	dentry->d_op = sb->s_root->d_op;

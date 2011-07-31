@@ -36,6 +36,7 @@
 #include <linux/compiler.h>
 #include <linux/rbtree.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 
@@ -1105,7 +1106,7 @@ htb_dump_class_stats(struct Qdisc *sch, unsigned long arg, struct gnet_dump *d)
 	cl->xstats.ctokens = cl->ctokens;
 
 	if (gnet_stats_copy_basic(d, &cl->bstats) < 0 ||
-	    gnet_stats_copy_rate_est(d, &cl->rate_est) < 0 ||
+	    gnet_stats_copy_rate_est(d, NULL, &cl->rate_est) < 0 ||
 	    gnet_stats_copy_queue(d, &cl->qstats) < 0)
 		return -1;
 
@@ -1344,8 +1345,8 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		};
 
 		/* check for valid classid */
-		if (!classid || TC_H_MAJ(classid ^ sch->handle)
-		    || htb_find(classid, sch))
+		if (!classid || TC_H_MAJ(classid ^ sch->handle) ||
+		    htb_find(classid, sch))
 			goto failure;
 
 		/* check maximal depth */
@@ -1549,7 +1550,6 @@ static const struct Qdisc_class_ops htb_class_ops = {
 };
 
 static struct Qdisc_ops htb_qdisc_ops __read_mostly = {
-	.next		=	NULL,
 	.cl_ops		=	&htb_class_ops,
 	.id		=	"htb",
 	.priv_size	=	sizeof(struct htb_sched),
@@ -1560,7 +1560,6 @@ static struct Qdisc_ops htb_qdisc_ops __read_mostly = {
 	.init		=	htb_init,
 	.reset		=	htb_reset,
 	.destroy	=	htb_destroy,
-	.change		=	NULL /* htb_change */,
 	.dump		=	htb_dump,
 	.owner		=	THIS_MODULE,
 };

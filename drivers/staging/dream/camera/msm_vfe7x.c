@@ -5,7 +5,9 @@
 #include <linux/msm_adsp.h>
 #include <linux/uaccess.h>
 #include <linux/fs.h>
+#include <linux/sched.h>
 #include <linux/android_pmem.h>
+#include <linux/slab.h>
 #include <mach/msm_adsp.h>
 #include <linux/delay.h>
 #include <linux/wait.h>
@@ -254,8 +256,7 @@ static int vfe_7x_init(struct msm_vfe_callback *presp,
 
 	extlen = sizeof(struct vfe_frame_extra);
 
-	extdata =
-		kmalloc(sizeof(extlen), GFP_ATOMIC);
+	extdata = kmalloc(extlen, GFP_ATOMIC);
 	if (!extdata) {
 		rc = -ENOMEM;
 		goto init_fail;

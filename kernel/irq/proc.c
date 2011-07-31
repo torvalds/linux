@@ -7,6 +7,7 @@
  */
 
 #include <linux/irq.h>
+#include <linux/gfp.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
@@ -28,6 +29,27 @@ static int irq_affinity_proc_show(struct seq_file *m, void *v)
 #endif
 	seq_cpumask(m, mask);
 	seq_putc(m, '\n');
+	return 0;
+}
+
+static int irq_affinity_hint_proc_show(struct seq_file *m, void *v)
+{
+	struct irq_desc *desc = irq_to_desc((long)m->private);
+	unsigned long flags;
+	cpumask_var_t mask;
+
+	if (!zalloc_cpumask_var(&mask, GFP_KERNEL))
+		return -ENOMEM;
+
+	raw_spin_lock_irqsave(&desc->lock, flags);
+	if (desc->affinity_hint)
+		cpumask_copy(mask, desc->affinity_hint);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
+
+	seq_cpumask(m, mask);
+	seq_putc(m, '\n');
+	free_cpumask_var(mask);
+
 	return 0;
 }
 
@@ -83,12 +105,24 @@ static int irq_affinity_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, irq_affinity_proc_show, PDE(inode)->data);
 }
 
+static int irq_affinity_hint_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, irq_affinity_hint_proc_show, PDE(inode)->data);
+}
+
 static const struct file_operations irq_affinity_proc_fops = {
 	.open		= irq_affinity_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
 	.write		= irq_affinity_proc_write,
+};
+
+static const struct file_operations irq_affinity_hint_proc_fops = {
+	.open		= irq_affinity_hint_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
 };
 
 static int default_affinity_show(struct seq_file *m, void *v)
@@ -136,7 +170,7 @@ out:
 
 static int default_affinity_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, default_affinity_show, NULL);
+	return single_open(file, default_affinity_show, PDE(inode)->data);
 }
 
 static const struct file_operations default_affinity_proc_fops = {
@@ -146,19 +180,49 @@ static const struct file_operations default_affinity_proc_fops = {
 	.release	= single_release,
 	.write		= default_affinity_write,
 };
+
+static int irq_node_proc_show(struct seq_file *m, void *v)
+{
+	struct irq_desc *desc = irq_to_desc((long) m->private);
+
+	seq_printf(m, "%d\n", desc->node);
+	return 0;
+}
+
+static int irq_node_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, irq_node_proc_show, PDE(inode)->data);
+}
+
+static const struct file_operations irq_node_proc_fops = {
+	.open		= irq_node_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 #endif
 
-static int irq_spurious_read(char *page, char **start, off_t off,
-				  int count, int *eof, void *data)
+static int irq_spurious_proc_show(struct seq_file *m, void *v)
 {
-	struct irq_desc *desc = irq_to_desc((long) data);
-	return sprintf(page, "count %u\n"
-			     "unhandled %u\n"
-			     "last_unhandled %u ms\n",
-			desc->irq_count,
-			desc->irqs_unhandled,
-			jiffies_to_msecs(desc->last_unhandled));
+	struct irq_desc *desc = irq_to_desc((long) m->private);
+
+	seq_printf(m, "count %u\n" "unhandled %u\n" "last_unhandled %u ms\n",
+		   desc->irq_count, desc->irqs_unhandled,
+		   jiffies_to_msecs(desc->last_unhandled));
+	return 0;
 }
+
+static int irq_spurious_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, irq_spurious_proc_show, PDE(inode)->data);
+}
+
+static const struct file_operations irq_spurious_proc_fops = {
+	.open		= irq_spurious_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 #define MAX_NAMELEN 128
 
@@ -169,7 +233,7 @@ static int name_unique(unsigned int irq, struct irqaction *new_action)
 	unsigned long flags;
 	int ret = 1;
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	for (action = desc->action ; action; action = action->next) {
 		if ((action != new_action) && action->name &&
 				!strcmp(new_action->name, action->name)) {
@@ -177,7 +241,7 @@ static int name_unique(unsigned int irq, struct irqaction *new_action)
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	return ret;
 }
 
@@ -204,7 +268,6 @@ void register_handler_proc(unsigned int irq, struct irqaction *action)
 void register_irq_proc(unsigned int irq, struct irq_desc *desc)
 {
 	char name [MAX_NAMELEN];
-	struct proc_dir_entry *entry;
 
 	if (!root_irq_dir || (desc->chip == &no_irq_chip) || desc->dir)
 		return;
@@ -214,18 +277,24 @@ void register_irq_proc(unsigned int irq, struct irq_desc *desc)
 
 	/* create /proc/irq/1234 */
 	desc->dir = proc_mkdir(name, root_irq_dir);
+	if (!desc->dir)
+		return;
 
 #ifdef CONFIG_SMP
 	/* create /proc/irq/<irq>/smp_affinity */
 	proc_create_data("smp_affinity", 0600, desc->dir,
 			 &irq_affinity_proc_fops, (void *)(long)irq);
+
+	/* create /proc/irq/<irq>/affinity_hint */
+	proc_create_data("affinity_hint", 0400, desc->dir,
+			 &irq_affinity_hint_proc_fops, (void *)(long)irq);
+
+	proc_create_data("node", 0444, desc->dir,
+			 &irq_node_proc_fops, (void *)(long)irq);
 #endif
 
-	entry = create_proc_entry("spurious", 0444, desc->dir);
-	if (entry) {
-		entry->data = (void *)(long)irq;
-		entry->read_proc = irq_spurious_read;
-	}
+	proc_create_data("spurious", 0444, desc->dir,
+			 &irq_spurious_proc_fops, (void *)(long)irq);
 }
 
 #undef MAX_NAMELEN

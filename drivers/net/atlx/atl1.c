@@ -84,7 +84,7 @@
 
 #define ATLX_DRIVER_VERSION "2.1.3"
 MODULE_AUTHOR("Xiong Huang <xiong.huang@atheros.com>, \
-	Chris Snook <csnook@redhat.com>, Jay Cliburn <jcliburn@gmail.com>");
+Chris Snook <csnook@redhat.com>, Jay Cliburn <jcliburn@gmail.com>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(ATLX_DRIVER_VERSION);
 
@@ -232,7 +232,7 @@ static void __devinit atl1_check_options(struct atl1_adapter *adapter)
 /*
  * atl1_pci_tbl - PCI Device ID Table
  */
-static const struct pci_device_id atl1_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(atl1_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATTANSIC_L1)},
 	/* required last entry */
 	{0,}
@@ -1251,6 +1251,12 @@ static void atl1_free_ring_resources(struct atl1_adapter *adapter)
 
 	rrd_ring->desc = NULL;
 	rrd_ring->dma = 0;
+
+	adapter->cmb.dma = 0;
+	adapter->cmb.cmb = NULL;
+
+	adapter->smb.dma = 0;
+	adapter->smb.smb = NULL;
 }
 
 static void atl1_setup_mac_ctrl(struct atl1_adapter *adapter)
@@ -1344,8 +1350,8 @@ static u32 atl1_check_link(struct atl1_adapter *adapter)
 
 	/* link result is our setting */
 	if (!reconfig) {
-		if (adapter->link_speed != speed
-		    || adapter->link_duplex != duplex) {
+		if (adapter->link_speed != speed ||
+		    adapter->link_duplex != duplex) {
 			adapter->link_speed = speed;
 			adapter->link_duplex = duplex;
 			atl1_setup_mac_ctrl(adapter);
@@ -1830,8 +1836,6 @@ static void atl1_rx_checksum(struct atl1_adapter *adapter,
 		adapter->hw_csum_good++;
 		return;
 	}
-
-	return;
 }
 
 /*
@@ -1864,20 +1868,13 @@ static u16 atl1_alloc_rx_buffers(struct atl1_adapter *adapter)
 
 		rfd_desc = ATL1_RFD_DESC(rfd_ring, rfd_next_to_use);
 
-		skb = netdev_alloc_skb(adapter->netdev,
-				       adapter->rx_buffer_len + NET_IP_ALIGN);
+		skb = netdev_alloc_skb_ip_align(adapter->netdev,
+						adapter->rx_buffer_len);
 		if (unlikely(!skb)) {
 			/* Better luck next round */
 			adapter->netdev->stats.rx_dropped++;
 			break;
 		}
-
-		/*
-		 * Make buffer alignment 2 beyond a 16 byte boundary
-		 * this will result in a 16 byte aligned IP header after
-		 * the 14 byte MAC header is removed
-		 */
-		skb_reserve(skb, NET_IP_ALIGN);
 
 		buffer_info->alloced = 1;
 		buffer_info->skb = skb;
@@ -2094,8 +2091,8 @@ static void atl1_intr_tx(struct atl1_adapter *adapter)
 	}
 	atomic_set(&tpd_ring->next_to_clean, sw_tpd_next_to_clean);
 
-	if (netif_queue_stopped(adapter->netdev)
-	    && netif_carrier_ok(adapter->netdev))
+	if (netif_queue_stopped(adapter->netdev) &&
+	    netif_carrier_ok(adapter->netdev))
 		netif_wake_queue(adapter->netdev);
 }
 
@@ -2354,7 +2351,7 @@ static netdev_tx_t atl1_xmit_frame(struct sk_buff *skb,
 {
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 	struct atl1_tpd_ring *tpd_ring = &adapter->tpd_ring;
-	int len = skb->len;
+	int len;
 	int tso;
 	int count = 1;
 	int ret_val;
@@ -2366,7 +2363,7 @@ static netdev_tx_t atl1_xmit_frame(struct sk_buff *skb,
 	unsigned int f;
 	unsigned int proto_hdr_len;
 
-	len -= skb->data_len;
+	len = skb_headlen(skb);
 
 	if (unlikely(skb->len <= 0)) {
 		dev_kfree_skb_any(skb);
@@ -2596,7 +2593,7 @@ static s32 atl1_up(struct atl1_adapter *adapter)
 		irq_flags |= IRQF_SHARED;
 	}
 
-	err = request_irq(adapter->pdev->irq, &atl1_intr, irq_flags,
+	err = request_irq(adapter->pdev->irq, atl1_intr, irq_flags,
 			netdev->name, netdev);
 	if (unlikely(err))
 		goto err_up;
@@ -2856,10 +2853,11 @@ static int atl1_resume(struct pci_dev *pdev)
 	pci_enable_wake(pdev, PCI_D3cold, 0);
 
 	atl1_reset_hw(&adapter->hw);
-	adapter->cmb.cmb->int_stats = 0;
 
-	if (netif_running(netdev))
+	if (netif_running(netdev)) {
+		adapter->cmb.cmb->int_stats = 0;
 		atl1_up(adapter);
+	}
 	netif_device_attach(netdev);
 
 	return 0;
@@ -3397,7 +3395,6 @@ static void atl1_get_wol(struct net_device *netdev,
 	wol->wolopts = 0;
 	if (adapter->wol & ATLX_WUFC_MAG)
 		wol->wolopts |= WAKE_MAGIC;
-	return;
 }
 
 static int atl1_set_wol(struct net_device *netdev,

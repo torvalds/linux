@@ -11,6 +11,8 @@
 
 #include "driver.h"
 
+#include <linux/slab.h>
+
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
@@ -156,7 +158,8 @@ static int snd_line6_new_pcm(struct snd_line6_pcm *line6pcm)
 	strcpy(pcm->name, line6pcm->line6->properties->name);
 
 	/* set operators */
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_line6_playback_ops);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+			&snd_line6_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_line6_capture_ops);
 
 	/* pre-allocation of buffers */

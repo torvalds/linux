@@ -33,8 +33,10 @@
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/compat.h>
 #include <linux/smp_lock.h>
+#include <linux/slab.h>
 #include <asm/atomic.h>
 #include <asm/uaccess.h>
 #include <linux/hw_random.h>
@@ -299,10 +301,8 @@ static ssize_t zcrypt_write(struct file *filp, const char __user *buf,
  */
 static int zcrypt_open(struct inode *inode, struct file *filp)
 {
-	lock_kernel();
 	atomic_inc(&zcrypt_open_count);
-	unlock_kernel();
-	return 0;
+	return nonseekable_open(inode, filp);
 }
 
 /**
@@ -395,10 +395,12 @@ static long zcrypt_rsa_crt(struct ica_rsa_modexpo_crt *crt)
 			 * u_mult_inv > 128 bytes.
 			 */
 			if (copied == 0) {
-				int len;
+				unsigned int len;
 				spin_unlock_bh(&zcrypt_device_lock);
 				/* len is max 256 / 2 - 120 = 8 */
 				len = crt->inputdatalength / 2 - 120;
+				if (len > sizeof(z1))
+					return -EFAULT;
 				z1 = z2 = z3 = 0;
 				if (copy_from_user(&z1, crt->np_prime, len) ||
 				    copy_from_user(&z2, crt->bp_key, len) ||
@@ -912,122 +914,105 @@ static struct miscdevice zcrypt_misc_device = {
  */
 static struct proc_dir_entry *zcrypt_entry;
 
-static int sprintcl(unsigned char *outaddr, unsigned char *addr,
-		    unsigned int len)
+static void sprintcl(struct seq_file *m, unsigned char *addr, unsigned int len)
 {
-	int hl, i;
+	int i;
 
-	hl = 0;
 	for (i = 0; i < len; i++)
-		hl += sprintf(outaddr+hl, "%01x", (unsigned int) addr[i]);
-	hl += sprintf(outaddr+hl, " ");
-	return hl;
+		seq_printf(m, "%01x", (unsigned int) addr[i]);
+	seq_putc(m, ' ');
 }
 
-static int sprintrw(unsigned char *outaddr, unsigned char *addr,
-		    unsigned int len)
+static void sprintrw(struct seq_file *m, unsigned char *addr, unsigned int len)
 {
-	int hl, inl, c, cx;
+	int inl, c, cx;
 
-	hl = sprintf(outaddr, "	   ");
+	seq_printf(m, "	   ");
 	inl = 0;
 	for (c = 0; c < (len / 16); c++) {
-		hl += sprintcl(outaddr+hl, addr+inl, 16);
+		sprintcl(m, addr+inl, 16);
 		inl += 16;
 	}
 	cx = len%16;
 	if (cx) {
-		hl += sprintcl(outaddr+hl, addr+inl, cx);
+		sprintcl(m, addr+inl, cx);
 		inl += cx;
 	}
-	hl += sprintf(outaddr+hl, "\n");
-	return hl;
+	seq_putc(m, '\n');
 }
 
-static int sprinthx(unsigned char *title, unsigned char *outaddr,
-		    unsigned char *addr, unsigned int len)
+static void sprinthx(unsigned char *title, struct seq_file *m,
+		     unsigned char *addr, unsigned int len)
 {
-	int hl, inl, r, rx;
+	int inl, r, rx;
 
-	hl = sprintf(outaddr, "\n%s\n", title);
+	seq_printf(m, "\n%s\n", title);
 	inl = 0;
 	for (r = 0; r < (len / 64); r++) {
-		hl += sprintrw(outaddr+hl, addr+inl, 64);
+		sprintrw(m, addr+inl, 64);
 		inl += 64;
 	}
 	rx = len % 64;
 	if (rx) {
-		hl += sprintrw(outaddr+hl, addr+inl, rx);
+		sprintrw(m, addr+inl, rx);
 		inl += rx;
 	}
-	hl += sprintf(outaddr+hl, "\n");
-	return hl;
+	seq_putc(m, '\n');
 }
 
-static int sprinthx4(unsigned char *title, unsigned char *outaddr,
-		     unsigned int *array, unsigned int len)
+static void sprinthx4(unsigned char *title, struct seq_file *m,
+		      unsigned int *array, unsigned int len)
 {
-	int hl, r;
+	int r;
 
-	hl = sprintf(outaddr, "\n%s\n", title);
+	seq_printf(m, "\n%s\n", title);
 	for (r = 0; r < len; r++) {
 		if ((r % 8) == 0)
-			hl += sprintf(outaddr+hl, "    ");
-		hl += sprintf(outaddr+hl, "%08X ", array[r]);
+			seq_printf(m, "    ");
+		seq_printf(m, "%08X ", array[r]);
 		if ((r % 8) == 7)
-			hl += sprintf(outaddr+hl, "\n");
+			seq_putc(m, '\n');
 	}
-	hl += sprintf(outaddr+hl, "\n");
-	return hl;
+	seq_putc(m, '\n');
 }
 
-static int zcrypt_status_read(char *resp_buff, char **start, off_t offset,
-			      int count, int *eof, void *data)
+static int zcrypt_proc_show(struct seq_file *m, void *v)
 {
-	unsigned char *workarea;
-	int len;
+	char workarea[sizeof(int) * AP_DEVICES];
 
-	len = 0;
-
-	/* resp_buff is a page. Use the right half for a work area */
-	workarea = resp_buff + 2000;
-	len += sprintf(resp_buff + len, "\nzcrypt version: %d.%d.%d\n",
-		ZCRYPT_VERSION, ZCRYPT_RELEASE, ZCRYPT_VARIANT);
-	len += sprintf(resp_buff + len, "Cryptographic domain: %d\n",
-		       ap_domain_index);
-	len += sprintf(resp_buff + len, "Total device count: %d\n",
-		       zcrypt_device_count);
-	len += sprintf(resp_buff + len, "PCICA count: %d\n",
-		       zcrypt_count_type(ZCRYPT_PCICA));
-	len += sprintf(resp_buff + len, "PCICC count: %d\n",
-		       zcrypt_count_type(ZCRYPT_PCICC));
-	len += sprintf(resp_buff + len, "PCIXCC MCL2 count: %d\n",
-		       zcrypt_count_type(ZCRYPT_PCIXCC_MCL2));
-	len += sprintf(resp_buff + len, "PCIXCC MCL3 count: %d\n",
-		       zcrypt_count_type(ZCRYPT_PCIXCC_MCL3));
-	len += sprintf(resp_buff + len, "CEX2C count: %d\n",
-		       zcrypt_count_type(ZCRYPT_CEX2C));
-	len += sprintf(resp_buff + len, "CEX2A count: %d\n",
-		       zcrypt_count_type(ZCRYPT_CEX2A));
-	len += sprintf(resp_buff + len, "requestq count: %d\n",
-		       zcrypt_requestq_count());
-	len += sprintf(resp_buff + len, "pendingq count: %d\n",
-		       zcrypt_pendingq_count());
-	len += sprintf(resp_buff + len, "Total open handles: %d\n\n",
-		       atomic_read(&zcrypt_open_count));
+	seq_printf(m, "\nzcrypt version: %d.%d.%d\n",
+		   ZCRYPT_VERSION, ZCRYPT_RELEASE, ZCRYPT_VARIANT);
+	seq_printf(m, "Cryptographic domain: %d\n", ap_domain_index);
+	seq_printf(m, "Total device count: %d\n", zcrypt_device_count);
+	seq_printf(m, "PCICA count: %d\n", zcrypt_count_type(ZCRYPT_PCICA));
+	seq_printf(m, "PCICC count: %d\n", zcrypt_count_type(ZCRYPT_PCICC));
+	seq_printf(m, "PCIXCC MCL2 count: %d\n",
+		   zcrypt_count_type(ZCRYPT_PCIXCC_MCL2));
+	seq_printf(m, "PCIXCC MCL3 count: %d\n",
+		   zcrypt_count_type(ZCRYPT_PCIXCC_MCL3));
+	seq_printf(m, "CEX2C count: %d\n", zcrypt_count_type(ZCRYPT_CEX2C));
+	seq_printf(m, "CEX2A count: %d\n", zcrypt_count_type(ZCRYPT_CEX2A));
+	seq_printf(m, "CEX3C count: %d\n", zcrypt_count_type(ZCRYPT_CEX3C));
+	seq_printf(m, "CEX3A count: %d\n", zcrypt_count_type(ZCRYPT_CEX3A));
+	seq_printf(m, "requestq count: %d\n", zcrypt_requestq_count());
+	seq_printf(m, "pendingq count: %d\n", zcrypt_pendingq_count());
+	seq_printf(m, "Total open handles: %d\n\n",
+		   atomic_read(&zcrypt_open_count));
 	zcrypt_status_mask(workarea);
-	len += sprinthx("Online devices: 1=PCICA 2=PCICC 3=PCIXCC(MCL2) "
-			"4=PCIXCC(MCL3) 5=CEX2C 6=CEX2A",
-			resp_buff+len, workarea, AP_DEVICES);
+	sprinthx("Online devices: 1=PCICA 2=PCICC 3=PCIXCC(MCL2) "
+		 "4=PCIXCC(MCL3) 5=CEX2C 6=CEX2A 7=CEX3C 8=CEX3A",
+		 m, workarea, AP_DEVICES);
 	zcrypt_qdepth_mask(workarea);
-	len += sprinthx("Waiting work element counts",
-			resp_buff+len, workarea, AP_DEVICES);
+	sprinthx("Waiting work element counts", m, workarea, AP_DEVICES);
 	zcrypt_perdev_reqcnt((int *) workarea);
-	len += sprinthx4("Per-device successfully completed request counts",
-			 resp_buff+len,(unsigned int *) workarea, AP_DEVICES);
-	*eof = 1;
-	memset((void *) workarea, 0x00, AP_DEVICES * sizeof(unsigned int));
-	return len;
+	sprinthx4("Per-device successfully completed request counts",
+		  m, (unsigned int *) workarea, AP_DEVICES);
+	return 0;
+}
+
+static int zcrypt_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, zcrypt_proc_show, NULL);
 }
 
 static void zcrypt_disable_card(int index)
@@ -1057,11 +1042,11 @@ static void zcrypt_enable_card(int index)
 	spin_unlock_bh(&zcrypt_device_lock);
 }
 
-static int zcrypt_status_write(struct file *file, const char __user *buffer,
-			       unsigned long count, void *data)
+static ssize_t zcrypt_proc_write(struct file *file, const char __user *buffer,
+				 size_t count, loff_t *pos)
 {
 	unsigned char *lbuf, *ptr;
-	unsigned long local_count;
+	size_t local_count;
 	int j;
 
 	if (count <= 0)
@@ -1095,8 +1080,9 @@ static int zcrypt_status_write(struct file *file, const char __user *buffer,
 		 * '0' for no device, '1' for PCICA, '2' for PCICC,
 		 * '3' for PCIXCC_MCL2, '4' for PCIXCC_MCL3,
 		 * '5' for CEX2C and '6' for CEX2A'
+		 * '7' for CEX3C and '8' for CEX3A
 		 */
-		if (*ptr >= '0' && *ptr <= '6')
+		if (*ptr >= '0' && *ptr <= '8')
 			j++;
 		else if (*ptr == 'd' || *ptr == 'D')
 			zcrypt_disable_card(j++);
@@ -1109,6 +1095,15 @@ out:
 	kfree(lbuf);
 	return count;
 }
+
+static const struct file_operations zcrypt_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= zcrypt_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= zcrypt_proc_write,
+};
 
 static int zcrypt_rng_device_count;
 static u32 *zcrypt_rng_buffer;
@@ -1192,14 +1187,11 @@ int __init zcrypt_api_init(void)
 		goto out;
 
 	/* Set up the proc file system */
-	zcrypt_entry = create_proc_entry("driver/z90crypt", 0644, NULL);
+	zcrypt_entry = proc_create("driver/z90crypt", 0644, NULL, &zcrypt_proc_fops);
 	if (!zcrypt_entry) {
 		rc = -ENOMEM;
 		goto out_misc;
 	}
-	zcrypt_entry->data = NULL;
-	zcrypt_entry->read_proc = zcrypt_status_read;
-	zcrypt_entry->write_proc = zcrypt_status_write;
 
 	return 0;
 

@@ -35,8 +35,7 @@
     (typeof(ptr)) (__ptr + (off)); })
 
 /* &a[0] degrades to a pointer: a different type from an array */
-#define __must_be_array(a) \
-  BUILD_BUG_ON_ZERO(__builtin_types_compatible_p(typeof(a), typeof(&a[0])))
+#define __must_be_array(a) BUILD_BUG_ON_ZERO(__same_type((a), &(a)[0]))
 
 /*
  * Force always-inline if the user requests it so via the .config,
@@ -58,8 +57,12 @@
  * naked functions because then mcount is called without stack and frame pointer
  * being set up and there is no chance to restore the lr register to the value
  * before mcount was called.
+ *
+ * The asm() bodies of naked functions often depend on standard calling conventions,
+ * therefore they must be noinline and noclone.  GCC 4.[56] currently fail to enforce
+ * this, so we must do so ourselves.  See GCC PR44290.
  */
-#define __naked				__attribute__((naked)) notrace
+#define __naked				__attribute__((naked)) noinline __noclone notrace
 
 #define __noreturn			__attribute__((noreturn))
 
@@ -79,8 +82,13 @@
 #define  noinline			__attribute__((noinline))
 #define __attribute_const__		__attribute__((__const__))
 #define __maybe_unused			__attribute__((unused))
+#define __always_unused			__attribute__((unused))
 
 #define __gcc_header(x) #x
 #define _gcc_header(x) __gcc_header(linux/compiler-gcc##x.h)
 #define gcc_header(x) _gcc_header(x)
 #include gcc_header(__GNUC__)
+
+#if !defined(__noclone)
+#define __noclone	/* not needed */
+#endif

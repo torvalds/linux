@@ -17,6 +17,7 @@
 #include <linux/irq.h>
 #include <linux/types.h>
 #include <linux/bootmem.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/prom.h>
@@ -24,7 +25,7 @@
 
 #include "pq2.h"
 
-static DEFINE_SPINLOCK(pci_pic_lock);
+static DEFINE_RAW_SPINLOCK(pci_pic_lock);
 
 struct pq2ads_pci_pic {
 	struct device_node *node;
@@ -45,12 +46,12 @@ static void pq2ads_pci_mask_irq(unsigned int virq)
 
 	if (irq != -1) {
 		unsigned long flags;
-		spin_lock_irqsave(&pci_pic_lock, flags);
+		raw_spin_lock_irqsave(&pci_pic_lock, flags);
 
 		setbits32(&priv->regs->mask, 1 << irq);
 		mb();
 
-		spin_unlock_irqrestore(&pci_pic_lock, flags);
+		raw_spin_unlock_irqrestore(&pci_pic_lock, flags);
 	}
 }
 
@@ -62,14 +63,13 @@ static void pq2ads_pci_unmask_irq(unsigned int virq)
 	if (irq != -1) {
 		unsigned long flags;
 
-		spin_lock_irqsave(&pci_pic_lock, flags);
+		raw_spin_lock_irqsave(&pci_pic_lock, flags);
 		clrbits32(&priv->regs->mask, 1 << irq);
-		spin_unlock_irqrestore(&pci_pic_lock, flags);
+		raw_spin_unlock_irqrestore(&pci_pic_lock, flags);
 	}
 }
 
 static struct irq_chip pq2ads_pci_ic = {
-	.typename = "PQ2 ADS PCI",
 	.name = "PQ2 ADS PCI",
 	.end = pq2ads_pci_unmask_irq,
 	.mask = pq2ads_pci_mask_irq,
@@ -107,7 +107,7 @@ static void pq2ads_pci_irq_demux(unsigned int irq, struct irq_desc *desc)
 static int pci_pic_host_map(struct irq_host *h, unsigned int virq,
 			    irq_hw_number_t hw)
 {
-	get_irq_desc(virq)->status |= IRQ_LEVEL;
+	irq_to_desc(virq)->status |= IRQ_LEVEL;
 	set_irq_chip_data(virq, h->host_data);
 	set_irq_chip_and_handler(virq, &pq2ads_pci_ic, handle_level_irq);
 	return 0;

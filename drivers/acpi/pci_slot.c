@@ -26,6 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/acpi.h>
@@ -219,12 +220,12 @@ walk_p2p_bridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 	dbg("p2p bridge walk, pci_bus = %x\n", dev->subordinate->number);
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
-				     user_function, &child_context, NULL);
+				     user_function, NULL, &child_context, NULL);
 	if (ACPI_FAILURE(status))
 		goto out;
 
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
-				     walk_p2p_bridge, &child_context, NULL);
+				     walk_p2p_bridge, NULL, &child_context, NULL);
 out:
 	pci_dev_put(dev);
 	return AE_OK;
@@ -277,12 +278,12 @@ walk_root_bridge(acpi_handle handle, acpi_walk_callback user_function)
 
 	dbg("root bridge walk, pci_bus = %x\n", pci_bus->number);
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
-				     user_function, &context, NULL);
+				     user_function, NULL, &context, NULL);
 	if (ACPI_FAILURE(status))
 		return status;
 
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
-				     walk_p2p_bridge, &context, NULL);
+				     walk_p2p_bridge, NULL, &context, NULL);
 	if (ACPI_FAILURE(status))
 		err("%s: walk_p2p_bridge failure - %d\n", __func__, status);
 

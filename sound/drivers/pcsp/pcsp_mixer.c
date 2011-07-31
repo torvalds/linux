@@ -119,24 +119,43 @@ static int pcsp_pcspkr_put(struct snd_kcontrol *kcontrol,
 	.put =		pcsp_##ctl_type##_put, \
 }
 
-static struct snd_kcontrol_new __devinitdata snd_pcsp_controls[] = {
+static struct snd_kcontrol_new __devinitdata snd_pcsp_controls_pcm[] = {
 	PCSP_MIXER_CONTROL(enable, "Master Playback Switch"),
 	PCSP_MIXER_CONTROL(treble, "BaseFRQ Playback Volume"),
-	PCSP_MIXER_CONTROL(pcspkr, "PC Speaker Playback Switch"),
 };
 
-int __devinit snd_pcsp_new_mixer(struct snd_pcsp *chip)
-{
-	struct snd_card *card = chip->card;
-	int i, err;
+static struct snd_kcontrol_new __devinitdata snd_pcsp_controls_spkr[] = {
+	PCSP_MIXER_CONTROL(pcspkr, "Beep Playback Switch"),
+};
 
-	for (i = 0; i < ARRAY_SIZE(snd_pcsp_controls); i++) {
-		err = snd_ctl_add(card,
-				 snd_ctl_new1(snd_pcsp_controls + i,
-					      chip));
+static int __devinit snd_pcsp_ctls_add(struct snd_pcsp *chip,
+	struct snd_kcontrol_new *ctls, int num)
+{
+	int i, err;
+	struct snd_card *card = chip->card;
+	for (i = 0; i < num; i++) {
+		err = snd_ctl_add(card, snd_ctl_new1(ctls + i, chip));
 		if (err < 0)
 			return err;
 	}
+	return 0;
+}
+
+int __devinit snd_pcsp_new_mixer(struct snd_pcsp *chip, int nopcm)
+{
+	int err;
+	struct snd_card *card = chip->card;
+
+	if (!nopcm) {
+		err = snd_pcsp_ctls_add(chip, snd_pcsp_controls_pcm,
+			ARRAY_SIZE(snd_pcsp_controls_pcm));
+		if (err < 0)
+			return err;
+	}
+	err = snd_pcsp_ctls_add(chip, snd_pcsp_controls_spkr,
+		ARRAY_SIZE(snd_pcsp_controls_spkr));
+	if (err < 0)
+		return err;
 
 	strcpy(card->mixername, "PC-Speaker");
 

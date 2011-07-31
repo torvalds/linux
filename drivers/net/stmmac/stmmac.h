@@ -20,12 +20,8 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
-#define DRV_MODULE_VERSION	"Oct_09"
-
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-#define STMMAC_VLAN_TAG_USED
-#include <linux/if_vlan.h>
-#endif
+#define DRV_MODULE_VERSION	"Apr_2010"
+#include <linux/stmmac.h>
 
 #include "common.h"
 #ifdef CONFIG_STMMAC_TIMER
@@ -57,7 +53,7 @@ struct stmmac_priv {
 	int rx_csum;
 	unsigned int dma_buf_sz;
 	struct device *device;
-	struct mac_device_info *mac_type;
+	struct mac_device_info *hw;
 
 	struct stmmac_extra_stats xstats;
 	struct napi_struct napi;
@@ -69,6 +65,7 @@ struct stmmac_priv {
 	int phy_mask;
 	int (*phy_reset) (void *priv);
 	void (*fix_mac_speed) (void *priv, unsigned int speed);
+	void (*bus_setup)(unsigned long ioaddr);
 	void *bsp_priv;
 
 	int phy_irq;
@@ -91,8 +88,33 @@ struct stmmac_priv {
 #ifdef STMMAC_VLAN_TAG_USED
 	struct vlan_group *vlgrp;
 #endif
+	int enh_desc;
 };
+
+#ifdef CONFIG_STM_DRIVERS
+#include <linux/stm/pad.h>
+static inline int stmmac_claim_resource(struct platform_device *pdev)
+{
+	int ret = 0;
+	struct plat_stmmacenet_data *plat_dat = pdev->dev.platform_data;
+
+	/* Pad routing setup */
+	if (IS_ERR(devm_stm_pad_claim(&pdev->dev, plat_dat->pad_config,
+			dev_name(&pdev->dev)))) {
+		printk(KERN_ERR "%s: Failed to request pads!\n", __func__);
+		ret = -ENODEV;
+	}
+	return ret;
+}
+#else
+static inline int stmmac_claim_resource(struct platform_device *pdev)
+{
+	return 0;
+}
+#endif
 
 extern int stmmac_mdio_unregister(struct net_device *ndev);
 extern int stmmac_mdio_register(struct net_device *ndev);
 extern void stmmac_set_ethtool_ops(struct net_device *netdev);
+extern struct stmmac_desc_ops enh_desc_ops;
+extern struct stmmac_desc_ops ndesc_ops;

@@ -97,7 +97,7 @@
 #define TTP_MAX_SDU_SIZE 0x01
 
 /*
- *  This structure contains all data assosiated with one instance of a TTP 
+ *  This structure contains all data associated with one instance of a TTP 
  *  connection.
  */
 struct tsap_cb {

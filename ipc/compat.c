@@ -26,7 +26,6 @@
 #include <linux/init.h>
 #include <linux/msg.h>
 #include <linux/shm.h>
-#include <linux/slab.h>
 #include <linux/syscalls.h>
 
 #include <linux/mutex.h>
@@ -242,6 +241,8 @@ long compat_sys_semctl(int first, int second, int third, void __user *uptr)
 	struct semid64_ds __user *up64;
 	int version = compat_ipc_parse_version(&third);
 
+	memset(&s64, 0, sizeof(s64));
+
 	if (!uptr)
 		return -EINVAL;
 	if (get_user(pad, (u32 __user *) uptr))
@@ -422,6 +423,8 @@ long compat_sys_msgctl(int first, int second, void __user *uptr)
 	int version = compat_ipc_parse_version(&second);
 	void __user *p;
 
+	memset(&m64, 0, sizeof(m64));
+
 	switch (second & (~IPC_64)) {
 	case IPC_INFO:
 	case IPC_RMID:
@@ -594,6 +597,8 @@ long compat_sys_shmctl(int first, int second, void __user *uptr)
 	struct shminfo64 smi;
 	int err, err2;
 	int version = compat_ipc_parse_version(&second);
+
+	memset(&s64, 0, sizeof(s64));
 
 	switch (second & (~IPC_64)) {
 	case IPC_RMID:

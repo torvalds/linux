@@ -294,7 +294,7 @@ static int mxb_init_done(struct saa7146_dev* dev)
 	/* select tuner-output on saa7111a */
 	i = 0;
 	saa7111a_call(mxb, video, s_routing, SAA7115_COMPOSITE0,
-		SAA7111_FMT_CCIR | SAA7111_VBI_BYPASS, 0);
+		SAA7111_FMT_CCIR, 0);
 
 	/* select a tuner type */
 	tun_setup.mode_mask = T_ANALOG_TV;
@@ -478,7 +478,7 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 
 	DEB_EE(("VIDIOC_S_INPUT %d.\n", input));
 
-	if (input < 0 || input >= MXB_INPUTS)
+	if (input >= MXB_INPUTS)
 		return -EINVAL;
 
 	mxb->cur_input = input;
@@ -518,8 +518,8 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 		return err;
 
 	/* switch video in saa7111a */
-	if (saa7111a_call(mxb, video, s_routing, i, 0, 0))
-		printk(KERN_ERR "VIDIOC_S_INPUT: could not address saa7111a #1.\n");
+	if (saa7111a_call(mxb, video, s_routing, i, SAA7111_FMT_CCIR, 0))
+		printk(KERN_ERR "VIDIOC_S_INPUT: could not address saa7111a.\n");
 
 	/* switch the audio-source only if necessary */
 	if (0 == mxb->cur_mute)
@@ -695,14 +695,17 @@ static struct saa7146_ext_vv vv_data;
 /* this function only gets called when the probing was successful */
 static int mxb_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_data *info)
 {
-	struct mxb *mxb = (struct mxb *)dev->ext_priv;
+	struct mxb *mxb;
 
 	DEB_EE(("dev:%p\n", dev));
 
-	/* checking for i2c-devices can be omitted here, because we
-	   already did this in "mxb_vl42_probe" */
-
 	saa7146_vv_init(dev, &vv_data);
+	if (mxb_probe(dev)) {
+		saa7146_vv_release(dev);
+		return -1;
+	}
+	mxb = (struct mxb *)dev->ext_priv;
+
 	vv_data.ops.vidioc_queryctrl = vidioc_queryctrl;
 	vv_data.ops.vidioc_g_ctrl = vidioc_g_ctrl;
 	vv_data.ops.vidioc_s_ctrl = vidioc_s_ctrl;
@@ -722,6 +725,7 @@ static int mxb_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_data
 	vv_data.ops.vidioc_default = vidioc_default;
 	if (saa7146_register_device(&mxb->video_dev, dev, "mxb", VFL_TYPE_GRABBER)) {
 		ERR(("cannot register capture v4l2 device. skipping.\n"));
+		saa7146_vv_release(dev);
 		return -1;
 	}
 
@@ -842,7 +846,6 @@ static struct saa7146_extension extension = {
 	.pci_tbl	= &pci_tbl[0],
 	.module		= THIS_MODULE,
 
-	.probe		= mxb_probe,
 	.attach		= mxb_attach,
 	.detach		= mxb_detach,
 

@@ -33,6 +33,16 @@
 #define NILFS_CNO_MIN	((__u64)1)
 #define NILFS_CNO_MAX	(~(__u64)0)
 
+struct nilfs_dat_info {
+	struct nilfs_mdt_info mi;
+	struct nilfs_palloc_cache palloc_cache;
+};
+
+static inline struct nilfs_dat_info *NILFS_DAT_I(struct inode *dat)
+{
+	return (struct nilfs_dat_info *)NILFS_MDT(dat);
+}
+
 static int nilfs_dat_prepare_entry(struct inode *dat,
 				   struct nilfs_palloc_req *req, int create)
 {
@@ -278,7 +288,7 @@ int nilfs_dat_mark_dirty(struct inode *dat, __u64 vblocknr)
  * @vblocknrs and @nitems.
  *
  * Return Value: On success, 0 is returned. On error, one of the following
- * nagative error codes is returned.
+ * negative error codes is returned.
  *
  * %-EIO - I/O error.
  *
@@ -378,8 +388,7 @@ int nilfs_dat_translate(struct inode *dat, __u64 vblocknr, sector_t *blocknrp)
 		ret = -ENOENT;
 		goto out;
 	}
-	if (blocknrp != NULL)
-		*blocknrp = blocknr;
+	*blocknrp = blocknr;
 
  out:
 	kunmap_atomic(kaddr, KM_USER0);
@@ -424,4 +433,41 @@ ssize_t nilfs_dat_get_vinfo(struct inode *dat, void *buf, unsigned visz,
 	}
 
 	return nvi;
+}
+
+/**
+ * nilfs_dat_read - read dat inode
+ * @dat: dat inode
+ * @raw_inode: on-disk dat inode
+ */
+int nilfs_dat_read(struct inode *dat, struct nilfs_inode *raw_inode)
+{
+	return nilfs_read_inode_common(dat, raw_inode);
+}
+
+/**
+ * nilfs_dat_new - create dat file
+ * @nilfs: nilfs object
+ * @entry_size: size of a dat entry
+ */
+struct inode *nilfs_dat_new(struct the_nilfs *nilfs, size_t entry_size)
+{
+	static struct lock_class_key dat_lock_key;
+	struct inode *dat;
+	struct nilfs_dat_info *di;
+	int err;
+
+	dat = nilfs_mdt_new(nilfs, NULL, NILFS_DAT_INO, sizeof(*di));
+	if (dat) {
+		err = nilfs_palloc_init_blockgroup(dat, entry_size);
+		if (unlikely(err)) {
+			nilfs_mdt_destroy(dat);
+			return NULL;
+		}
+
+		di = NILFS_DAT_I(dat);
+		lockdep_set_class(&di->mi.mi_sem, &dat_lock_key);
+		nilfs_palloc_setup_cache(dat, &di->palloc_cache);
+	}
+	return dat;
 }

@@ -9,6 +9,7 @@
 #include <linux/rtc.h>
 #include <linux/platform_device.h>
 #include <linux/bcd.h>
+#include <linux/slab.h>
 
 #define DRV_VERSION "0.2"
 

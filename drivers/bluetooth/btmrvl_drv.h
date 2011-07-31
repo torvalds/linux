@@ -21,6 +21,7 @@
 
 #include <linux/kthread.h>
 #include <linux/bitops.h>
+#include <linux/slab.h>
 #include <net/bluetooth/bluetooth.h>
 
 #define BTM_HEADER_LEN			4
@@ -40,6 +41,8 @@ struct btmrvl_thread {
 struct btmrvl_device {
 	void *card;
 	struct hci_dev *hcidev;
+
+	u8 dev_type;
 
 	u8 tx_dnld_rdy;
 
@@ -73,6 +76,7 @@ struct btmrvl_private {
 	int (*hw_host_to_card) (struct btmrvl_private *priv,
 				u8 *payload, u16 nb);
 	int (*hw_wakeup_firmware) (struct btmrvl_private *priv);
+	int (*hw_process_int_status) (struct btmrvl_private *priv);
 	spinlock_t driver_lock;		/* spinlock used by driver */
 #ifdef CONFIG_DEBUG_FS
 	void *debugfs_data;
@@ -87,8 +91,11 @@ struct btmrvl_private {
 #define BT_CMD_HOST_SLEEP_ENABLE	0x5A
 #define BT_CMD_MODULE_CFG_REQ		0x5B
 
-/* Sub-commands: Module Bringup/Shutdown Request */
+/* Sub-commands: Module Bringup/Shutdown Request/Response */
 #define MODULE_BRINGUP_REQ		0xF1
+#define MODULE_BROUGHT_UP		0x00
+#define MODULE_ALREADY_UP		0x0C
+
 #define MODULE_SHUTDOWN_REQ		0xF2
 
 #define BT_EVENT_POWER_STATE		0x20
@@ -112,16 +119,17 @@ struct btmrvl_cmd {
 	__le16 ocf_ogf;
 	u8 length;
 	u8 data[4];
-} __attribute__ ((packed));
+} __packed;
 
 struct btmrvl_event {
 	u8 ec;		/* event counter */
 	u8 length;
 	u8 data[4];
-} __attribute__ ((packed));
+} __packed;
 
 /* Prototype of global function */
 
+int btmrvl_register_hdev(struct btmrvl_private *priv);
 struct btmrvl_private *btmrvl_add_card(void *card);
 int btmrvl_remove_card(struct btmrvl_private *priv);
 
@@ -131,6 +139,7 @@ void btmrvl_check_evtpkt(struct btmrvl_private *priv, struct sk_buff *skb);
 int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb);
 
 int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, int subcmd);
+int btmrvl_enable_ps(struct btmrvl_private *priv);
 int btmrvl_prepare_command(struct btmrvl_private *priv);
 
 #ifdef CONFIG_DEBUG_FS

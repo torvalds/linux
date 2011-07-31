@@ -52,7 +52,6 @@ static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 						I2C_CLIENT_END };
 
 /* Insmod parameters */
-I2C_CLIENT_INSMOD_1(w83791d);
 
 static unsigned short force_subclients[4];
 module_param_array(force_subclients, short, NULL, 0);
@@ -326,7 +325,7 @@ struct w83791d_data {
 
 static int w83791d_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int w83791d_detect(struct i2c_client *client, int kind,
+static int w83791d_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static int w83791d_remove(struct i2c_client *client);
 
@@ -341,7 +340,7 @@ static void w83791d_print_debug(struct w83791d_data *data, struct device *dev);
 static void w83791d_init_client(struct i2c_client *client);
 
 static const struct i2c_device_id w83791d_id[] = {
-	{ "w83791d", w83791d },
+	{ "w83791d", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, w83791d_id);
@@ -355,7 +354,7 @@ static struct i2c_driver w83791d_driver = {
 	.remove		= w83791d_remove,
 	.id_table	= w83791d_id,
 	.detect		= w83791d_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /* following are the sysfs callback functions */
@@ -1259,7 +1258,7 @@ error_sc_0:
 
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int w83791d_detect(struct i2c_client *client, int kind,
+static int w83791d_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
@@ -1270,56 +1269,32 @@ static int w83791d_detect(struct i2c_client *client, int kind,
 		return -ENODEV;
 	}
 
-	/* The w83791d may be stuck in some other bank than bank 0. This may
-	   make reading other information impossible. Specify a force=...
-	   parameter, and the Winbond will be reset to the right bank. */
-	if (kind < 0) {
-		if (w83791d_read(client, W83791D_REG_CONFIG) & 0x80) {
-			return -ENODEV;
-		}
-		val1 = w83791d_read(client, W83791D_REG_BANK);
-		val2 = w83791d_read(client, W83791D_REG_CHIPMAN);
-		/* Check for Winbond ID if in bank 0 */
-		if (!(val1 & 0x07)) {
-			/* yes it is Bank0 */
-			if (((!(val1 & 0x80)) && (val2 != 0xa3)) ||
-			    ((val1 & 0x80) && (val2 != 0x5c))) {
-				return -ENODEV;
-			}
-		}
-		/* If Winbond chip, address of chip and W83791D_REG_I2C_ADDR
-		   should match */
-		if (w83791d_read(client, W83791D_REG_I2C_ADDR) != address) {
+	if (w83791d_read(client, W83791D_REG_CONFIG) & 0x80)
+		return -ENODEV;
+
+	val1 = w83791d_read(client, W83791D_REG_BANK);
+	val2 = w83791d_read(client, W83791D_REG_CHIPMAN);
+	/* Check for Winbond ID if in bank 0 */
+	if (!(val1 & 0x07)) {
+		if ((!(val1 & 0x80) && val2 != 0xa3) ||
+		    ( (val1 & 0x80) && val2 != 0x5c)) {
 			return -ENODEV;
 		}
 	}
+	/* If Winbond chip, address of chip and W83791D_REG_I2C_ADDR
+	   should match */
+	if (w83791d_read(client, W83791D_REG_I2C_ADDR) != address)
+		return -ENODEV;
 
-	/* We either have a force parameter or we have reason to
-	   believe it is a Winbond chip. Either way, we want bank 0 and
-	   Vendor ID high byte */
+	/* We want bank 0 and Vendor ID high byte */
 	val1 = w83791d_read(client, W83791D_REG_BANK) & 0x78;
 	w83791d_write(client, W83791D_REG_BANK, val1 | 0x80);
 
 	/* Verify it is a Winbond w83791d */
-	if (kind <= 0) {
-		/* get vendor ID */
-		val2 = w83791d_read(client, W83791D_REG_CHIPMAN);
-		if (val2 != 0x5c) {	/* the vendor is NOT Winbond */
-			return -ENODEV;
-		}
-		val1 = w83791d_read(client, W83791D_REG_WCHIPID);
-		if (val1 == 0x71) {
-			kind = w83791d;
-		} else {
-			if (kind == 0)
-				dev_warn(&adapter->dev,
-					"w83791d: Ignoring 'force' parameter "
-					"for unknown chip at adapter %d, "
-					"address 0x%02x\n",
-					i2c_adapter_id(adapter), address);
-			return -ENODEV;
-		}
-	}
+	val1 = w83791d_read(client, W83791D_REG_WCHIPID);
+	val2 = w83791d_read(client, W83791D_REG_CHIPMAN);
+	if (val1 != 0x71 || val2 != 0x5c)
+		return -ENODEV;
 
 	strlcpy(info->type, "w83791d", I2C_NAME_SIZE);
 

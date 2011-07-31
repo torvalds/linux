@@ -48,7 +48,6 @@ enum osd_std_version {
  */
 struct osd_dev {
 	struct scsi_device *scsi_device;
-	struct file *file;
 	unsigned def_timeout;
 
 #ifdef OSD_VER1_SUPPORT
@@ -56,9 +55,23 @@ struct osd_dev {
 #endif
 };
 
-/* Retrieve/return osd_dev(s) for use by Kernel clients */
-struct osd_dev *osduld_path_lookup(const char *dev_name); /*Use IS_ERR/ERR_PTR*/
+/* Unique Identification of an OSD device */
+struct osd_dev_info {
+	unsigned systemid_len;
+	u8 systemid[OSD_SYSTEMID_LEN];
+	unsigned osdname_len;
+	u8 *osdname;
+};
+
+/* Retrieve/return osd_dev(s) for use by Kernel clients
+ * Use IS_ERR/ERR_PTR on returned "osd_dev *".
+ */
+struct osd_dev *osduld_path_lookup(const char *dev_name);
+struct osd_dev *osduld_info_lookup(const struct osd_dev_info *odi);
 void osduld_put_device(struct osd_dev *od);
+
+const struct osd_dev_info *osduld_device_info(struct osd_dev *od);
+bool osduld_device_same(struct osd_dev *od, const struct osd_dev_info *odi);
 
 /* Add/remove test ioctls from external modules */
 typedef int (do_test_fn)(struct osd_dev *od, unsigned cmd, unsigned long arg);
@@ -69,8 +82,24 @@ void osduld_unregister_test(unsigned ioctl);
 void osd_dev_init(struct osd_dev *od, struct scsi_device *scsi_device);
 void osd_dev_fini(struct osd_dev *od);
 
-/* some hi level device operations */
-int osd_auto_detect_ver(struct osd_dev *od, void *caps);    /* GFP_KERNEL */
+/**
+ * osd_auto_detect_ver - Detect the OSD version, return Unique Identification
+ *
+ * @od:     OSD target lun handle
+ * @caps:   Capabilities authorizing OSD root read attributes access
+ * @odi:    Retrieved information uniquely identifying the osd target lun
+ *          Note: odi->osdname must be kfreed by caller.
+ *
+ * Auto detects the OSD version of the OSD target and sets the @od
+ * accordingly. Meanwhile also returns the "system id" and "osd name" root
+ * attributes which uniquely identify the OSD target. This member is usually
+ * called by the ULD. ULD users should call osduld_device_info().
+ * This rutine allocates osd requests and memory at GFP_KERNEL level and might
+ * sleep.
+ */
+int osd_auto_detect_ver(struct osd_dev *od,
+	void *caps, struct osd_dev_info *odi);
+
 static inline struct request_queue *osd_request_queue(struct osd_dev *od)
 {
 	return od->scsi_device->request_queue;
@@ -81,6 +110,15 @@ static inline void osd_dev_set_ver(struct osd_dev *od, enum osd_std_version v)
 {
 #ifdef OSD_VER1_SUPPORT
 	od->version = v;
+#endif
+}
+
+static inline bool osd_dev_is_ver1(struct osd_dev *od)
+{
+#ifdef OSD_VER1_SUPPORT
+	return od->version == OSD_VER1;
+#else
+	return false;
 #endif
 }
 
@@ -104,6 +142,7 @@ struct osd_request {
 	struct _osd_io_info {
 		struct bio *bio;
 		u64 total_bytes;
+		u64 residual;
 		struct request *req;
 		struct _osd_req_data_segment *last_seg;
 		u8 *pad_buff;
@@ -112,22 +151,19 @@ struct osd_request {
 	gfp_t alloc_flags;
 	unsigned timeout;
 	unsigned retries;
+	unsigned sense_len;
 	u8 sense[OSD_MAX_SENSE_LEN];
 	enum osd_attributes_mode attributes_mode;
 
 	osd_req_done_fn *async_done;
 	void *async_private;
 	int async_error;
+	int req_errors;
 };
 
-/* OSD Version control */
 static inline bool osd_req_is_ver1(struct osd_request *or)
 {
-#ifdef OSD_VER1_SUPPORT
-	return or->osd_dev->version == OSD_VER1;
-#else
-	return false;
-#endif
+	return osd_dev_is_ver1(or->osd_dev);
 }
 
 /*
@@ -234,7 +270,7 @@ int osd_execute_request_async(struct osd_request *or,
  * @bad_attr_list - List of failing attributes (optional)
  * @max_attr      - Size of @bad_attr_list.
  *
- * After execution, sense + return code can be analyzed using this function. The
+ * After execution, osd_request results are analyzed using this function. The
  * return code is the final disposition on the error. So it is possible that a
  * CHECK_CONDITION was returned from target but this will return NO_ERROR, for
  * example on recovered errors. All parameters are optional if caller does
@@ -243,7 +279,29 @@ int osd_execute_request_async(struct osd_request *or,
  * of the SCSI_OSD_DPRINT_SENSE Kconfig value. Set @silent if you know the
  * command would routinely fail, to not spam the dmsg file.
  */
+
+/**
+ * osd_err_priority - osd categorized return codes in ascending severity.
+ *
+ * The categories are borrowed from the pnfs_osd_errno enum.
+ * See comments for translated Linux codes returned by osd_req_decode_sense.
+ */
+enum osd_err_priority {
+	OSD_ERR_PRI_NO_ERROR	= 0,
+	/* Recoverable, caller should clear_highpage() all pages */
+	OSD_ERR_PRI_CLEAR_PAGES = 1, /* -EFAULT */
+	OSD_ERR_PRI_RESOURCE	= 2, /* -ENOMEM */
+	OSD_ERR_PRI_BAD_CRED	= 3, /* -EINVAL */
+	OSD_ERR_PRI_NO_ACCESS	= 4, /* -EACCES */
+	OSD_ERR_PRI_UNREACHABLE	= 5, /* any other */
+	OSD_ERR_PRI_NOT_FOUND	= 6, /* -ENOENT */
+	OSD_ERR_PRI_NO_SPACE	= 7, /* -ENOSPC */
+	OSD_ERR_PRI_EIO		= 8, /* -EIO    */
+};
+
 struct osd_sense_info {
+	enum osd_err_priority osd_err_pri;
+
 	int key;		/* one of enum scsi_sense_keys */
 	int additional_code ;	/* enum osd_additional_sense_codes */
 	union { /* Sense specific information */

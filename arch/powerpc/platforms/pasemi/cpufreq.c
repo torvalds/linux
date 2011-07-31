@@ -213,7 +213,7 @@ static int pas_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	pr_debug("current astate is at %d\n",cur_astate);
 
 	policy->cur = pas_freqs[cur_astate].frequency;
-	cpumask_copy(policy->cpus, &cpu_online_map);
+	cpumask_copy(policy->cpus, cpu_online_mask);
 
 	ppc_proc_freq = policy->cur * 1000ul;
 
@@ -304,8 +304,8 @@ static struct cpufreq_driver pas_cpufreq_driver = {
 
 static int __init pas_cpufreq_init(void)
 {
-	if (!machine_is_compatible("PA6T-1682M") &&
-	    !machine_is_compatible("pasemi,pwrficient"))
+	if (!of_machine_is_compatible("PA6T-1682M") &&
+	    !of_machine_is_compatible("pasemi,pwrficient"))
 		return -ENODEV;
 
 	return cpufreq_register_driver(&pas_cpufreq_driver);

@@ -142,7 +142,7 @@ static int usb_mouse_probe(struct usb_interface *intf, const struct usb_device_i
 	if (!mouse || !input_dev)
 		goto fail1;
 
-	mouse->data = usb_buffer_alloc(dev, 8, GFP_ATOMIC, &mouse->data_dma);
+	mouse->data = usb_alloc_coherent(dev, 8, GFP_ATOMIC, &mouse->data_dma);
 	if (!mouse->data)
 		goto fail1;
 
@@ -205,7 +205,7 @@ static int usb_mouse_probe(struct usb_interface *intf, const struct usb_device_i
 fail3:	
 	usb_free_urb(mouse->irq);
 fail2:	
-	usb_buffer_free(dev, 8, mouse->data, mouse->data_dma);
+	usb_free_coherent(dev, 8, mouse->data, mouse->data_dma);
 fail1:	
 	input_free_device(input_dev);
 	kfree(mouse);
@@ -221,7 +221,7 @@ static void usb_mouse_disconnect(struct usb_interface *intf)
 		usb_kill_urb(mouse->irq);
 		input_unregister_device(mouse->dev);
 		usb_free_urb(mouse->irq);
-		usb_buffer_free(interface_to_usbdev(intf), 8, mouse->data, mouse->data_dma);
+		usb_free_coherent(interface_to_usbdev(intf), 8, mouse->data, mouse->data_dma);
 		kfree(mouse);
 	}
 }

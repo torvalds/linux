@@ -12,16 +12,18 @@
 
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
+#include <linux/mm.h>
 #include <asm/ebcdic.h>
 #include "hypfs.h"
 
 #define LPAR_NAME_LEN 8		/* lpar name len in diag 204 data */
 #define CPU_NAME_LEN 16		/* type name len of cpus in diag224 name table */
 #define TMP_SIZE 64		/* size of temporary buffers */
+
+#define DBFS_D204_HDR_VERSION	0
 
 /* diag 204 subcodes */
 enum diag204_sc {
@@ -47,6 +49,8 @@ static enum diag204_format diag204_info_type;	/* used diag 204 data format */
 static void *diag204_buf;		/* 4K aligned buffer for diag204 data */
 static void *diag204_buf_vmalloc;	/* vmalloc pointer for diag204 data */
 static int diag204_buf_pages;		/* number of pages for diag204 data */
+
+static struct dentry *dbfs_d204_file;
 
 /*
  * DIAG 204 data structures and member access functions.
@@ -164,7 +168,7 @@ static inline void part_hdr__part_name(enum diag204_format type, void *hdr,
 		       LPAR_NAME_LEN);
 	EBCASC(name, LPAR_NAME_LEN);
 	name[LPAR_NAME_LEN] = 0;
-	strstrip(name);
+	strim(name);
 }
 
 struct cpu_info {
@@ -365,8 +369,12 @@ static void diag204_free_buffer(void)
 	} else {
 		free_pages((unsigned long) diag204_buf, 0);
 	}
-	diag204_buf_pages = 0;
 	diag204_buf = NULL;
+}
+
+static void *page_align_ptr(void *ptr)
+{
+	return (void *) PAGE_ALIGN((unsigned long) ptr);
 }
 
 static void *diag204_alloc_vbuf(int pages)
@@ -375,8 +383,7 @@ static void *diag204_alloc_vbuf(int pages)
 	diag204_buf_vmalloc = vmalloc(PAGE_SIZE * (pages + 1));
 	if (!diag204_buf_vmalloc)
 		return ERR_PTR(-ENOMEM);
-	diag204_buf = (void*)((unsigned long)diag204_buf_vmalloc
-				& ~0xfffUL) + 0x1000;
+	diag204_buf = page_align_ptr(diag204_buf_vmalloc);
 	diag204_buf_pages = pages;
 	return diag204_buf;
 }
@@ -469,17 +476,26 @@ fail_alloc:
 	return rc;
 }
 
+static int diag204_do_store(void *buf, int pages)
+{
+	int rc;
+
+	rc = diag204((unsigned long) diag204_store_sc |
+		     (unsigned long) diag204_info_type, pages, buf);
+	return rc < 0 ? -ENOSYS : 0;
+}
+
 static void *diag204_store(void)
 {
 	void *buf;
-	int pages;
+	int pages, rc;
 
 	buf = diag204_get_buffer(diag204_info_type, &pages);
 	if (IS_ERR(buf))
 		goto out;
-	if (diag204((unsigned long)diag204_store_sc |
-		    (unsigned long)diag204_info_type, pages, buf) < 0)
-		return ERR_PTR(-ENOSYS);
+	rc = diag204_do_store(buf, pages);
+	if (rc)
+		return ERR_PTR(rc);
 out:
 	return buf;
 }
@@ -488,7 +504,7 @@ out:
 
 static int diag224(void *ptr)
 {
-	int rc = -ENOTSUPP;
+	int rc = -EOPNOTSUPP;
 
 	asm volatile(
 		"	diag	%1,%2,0x224\n"
@@ -507,7 +523,7 @@ static int diag224_get_name_table(void)
 		return -ENOMEM;
 	if (diag224(diag224_cpu_names)) {
 		kfree(diag224_cpu_names);
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 	EBCASC(diag224_cpu_names + 16, (*diag224_cpu_names + 1) * 16);
 	return 0;
@@ -523,7 +539,93 @@ static int diag224_idx2name(int index, char *name)
 	memcpy(name, diag224_cpu_names + ((index + 1) * CPU_NAME_LEN),
 		CPU_NAME_LEN);
 	name[CPU_NAME_LEN] = 0;
-	strstrip(name);
+	strim(name);
+	return 0;
+}
+
+struct dbfs_d204_hdr {
+	u64	len;		/* Length of d204 buffer without header */
+	u16	version;	/* Version of header */
+	u8	sc;		/* Used subcode */
+	char	reserved[53];
+} __attribute__ ((packed));
+
+struct dbfs_d204 {
+	struct dbfs_d204_hdr	hdr;	/* 64 byte header */
+	char			buf[];	/* d204 buffer */
+} __attribute__ ((packed));
+
+struct dbfs_d204_private {
+	struct dbfs_d204	*d204;	/* Aligned d204 data with header */
+	void			*base;	/* Base pointer (needed for vfree) */
+};
+
+static int dbfs_d204_open(struct inode *inode, struct file *file)
+{
+	struct dbfs_d204_private *data;
+	struct dbfs_d204 *d204;
+	int rc, buf_size;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+	buf_size = PAGE_SIZE * (diag204_buf_pages + 1) + sizeof(d204->hdr);
+	data->base = vmalloc(buf_size);
+	if (!data->base) {
+		rc = -ENOMEM;
+		goto fail_kfree_data;
+	}
+	memset(data->base, 0, buf_size);
+	d204 = page_align_ptr(data->base + sizeof(d204->hdr))
+		- sizeof(d204->hdr);
+	rc = diag204_do_store(&d204->buf, diag204_buf_pages);
+	if (rc)
+		goto fail_vfree_base;
+	d204->hdr.version = DBFS_D204_HDR_VERSION;
+	d204->hdr.len = PAGE_SIZE * diag204_buf_pages;
+	d204->hdr.sc = diag204_store_sc;
+	data->d204 = d204;
+	file->private_data = data;
+	return nonseekable_open(inode, file);
+
+fail_vfree_base:
+	vfree(data->base);
+fail_kfree_data:
+	kfree(data);
+	return rc;
+}
+
+static int dbfs_d204_release(struct inode *inode, struct file *file)
+{
+	struct dbfs_d204_private *data = file->private_data;
+
+	vfree(data->base);
+	kfree(data);
+	return 0;
+}
+
+static ssize_t dbfs_d204_read(struct file *file, char __user *buf,
+			      size_t size, loff_t *ppos)
+{
+	struct dbfs_d204_private *data = file->private_data;
+
+	return simple_read_from_buffer(buf, size, ppos, data->d204,
+				       data->d204->hdr.len +
+				       sizeof(data->d204->hdr));
+}
+
+static const struct file_operations dbfs_d204_ops = {
+	.open		= dbfs_d204_open,
+	.read		= dbfs_d204_read,
+	.release	= dbfs_d204_release,
+};
+
+static int hypfs_dbfs_init(void)
+{
+	dbfs_d204_file = debugfs_create_file("diag_204", 0400, hypfs_dbfs_dir,
+					     NULL, &dbfs_d204_ops);
+	if (IS_ERR(dbfs_d204_file))
+		return PTR_ERR(dbfs_d204_file);
 	return 0;
 }
 
@@ -541,11 +643,17 @@ __init int hypfs_diag_init(void)
 		pr_err("The hardware system does not provide all "
 		       "functions required by hypfs\n");
 	}
+	if (diag204_info_type == INFO_EXT) {
+		rc = hypfs_dbfs_init();
+		if (rc)
+			diag204_free_buffer();
+	}
 	return rc;
 }
 
 void hypfs_diag_exit(void)
 {
+	debugfs_remove(dbfs_d204_file);
 	diag224_delete_name_table();
 	diag204_free_buffer();
 }

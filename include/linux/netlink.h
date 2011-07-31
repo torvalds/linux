@@ -27,18 +27,14 @@
 
 #define MAX_LINKS 32		
 
-struct net;
-
-struct sockaddr_nl
-{
+struct sockaddr_nl {
 	sa_family_t	nl_family;	/* AF_NETLINK	*/
 	unsigned short	nl_pad;		/* zero		*/
 	__u32		nl_pid;		/* port ID	*/
        	__u32		nl_groups;	/* multicast groups mask */
 };
 
-struct nlmsghdr
-{
+struct nlmsghdr {
 	__u32		nlmsg_len;	/* Length of message including header */
 	__u16		nlmsg_type;	/* Message content */
 	__u16		nlmsg_flags;	/* Additional flags */
@@ -94,8 +90,7 @@ struct nlmsghdr
 
 #define NLMSG_MIN_TYPE		0x10	/* < 0x10: reserved control messages */
 
-struct nlmsgerr
-{
+struct nlmsgerr {
 	int		error;
 	struct nlmsghdr msg;
 };
@@ -106,8 +101,7 @@ struct nlmsgerr
 #define NETLINK_BROADCAST_ERROR	4
 #define NETLINK_NO_ENOBUFS	5
 
-struct nl_pktinfo
-{
+struct nl_pktinfo {
 	__u32	group;
 };
 
@@ -127,8 +121,7 @@ enum {
  *  <-------------- nlattr->nla_len -------------->
  */
 
-struct nlattr
-{
+struct nlattr {
 	__u16           nla_len;
 	__u16           nla_type;
 };
@@ -156,13 +149,14 @@ struct nlattr
 #include <linux/capability.h>
 #include <linux/skbuff.h>
 
+struct net;
+
 static inline struct nlmsghdr *nlmsg_hdr(const struct sk_buff *skb)
 {
 	return (struct nlmsghdr *)skb->data;
 }
 
-struct netlink_skb_parms
-{
+struct netlink_skb_parms {
 	struct ucred		creds;		/* Skb credentials	*/
 	__u32			pid;
 	__u32			dst_group;
@@ -194,7 +188,11 @@ extern int netlink_has_listeners(struct sock *sk, unsigned int group);
 extern int netlink_unicast(struct sock *ssk, struct sk_buff *skb, __u32 pid, int nonblock);
 extern int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, __u32 pid,
 			     __u32 group, gfp_t allocation);
-extern void netlink_set_err(struct sock *ssk, __u32 pid, __u32 group, int code);
+extern int netlink_broadcast_filtered(struct sock *ssk, struct sk_buff *skb,
+	__u32 pid, __u32 group, gfp_t allocation,
+	int (*filter)(struct sock *dsk, struct sk_buff *skb, void *data),
+	void *filter_data);
+extern int netlink_set_err(struct sock *ssk, __u32 pid, __u32 group, int code);
 extern int netlink_register_notifier(struct notifier_block *nb);
 extern int netlink_unregister_notifier(struct notifier_block *nb);
 
@@ -220,8 +218,7 @@ int netlink_sendskb(struct sock *sk, struct sk_buff *skb);
 #define NLMSG_DEFAULT_SIZE (NLMSG_GOODSIZE - NLMSG_HDRLEN)
 
 
-struct netlink_callback
-{
+struct netlink_callback {
 	struct sk_buff		*skb;
 	const struct nlmsghdr	*nlh;
 	int			(*dump)(struct sk_buff * skb,
@@ -231,8 +228,7 @@ struct netlink_callback
 	long			args[6];
 };
 
-struct netlink_notify
-{
+struct netlink_notify {
 	struct net *net;
 	int pid;
 	int protocol;

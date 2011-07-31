@@ -1,5 +1,3 @@
-# arch/arm/mach-s3c2412/Kconfig
-#
 # Copyright 2007 Simtec Electronics
 #
 # Licensed under GPLv2
@@ -18,7 +16,8 @@ config CPU_S3C2412
 config CPU_S3C2412_ONLY
 	bool
 	depends on ARCH_S3C2410 && !CPU_S3C2400 && !CPU_S3C2410 && \
-		   !CPU_S3C2440 && !CPU_S3C2442 && !CPU_S3C2443 && CPU_S3C2412
+		   !CPU_2416 && !CPU_S3C2440 && !CPU_S3C2442 && \
+		   !CPU_S3C2443 && CPU_S3C2412
 	default y if CPU_S3C2412
 
 config S3C2412_DMA
@@ -90,6 +89,4 @@ config MACH_VSTMS
 	help
 	  Say Y here if you are using an VSTMS board
 
-
 endmenu
-

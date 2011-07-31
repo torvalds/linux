@@ -9,6 +9,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <asm/pgtable.h>
 #include <asm/addrspace.h>

@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/power_supply.h>
@@ -21,6 +22,8 @@
 /* exported for the APM Power driver, APM emulation */
 struct class *power_supply_class;
 EXPORT_SYMBOL_GPL(power_supply_class);
+
+static struct device_type power_supply_dev_type;
 
 static int __power_supply_changed_work(struct device *dev, void *data)
 {
@@ -38,23 +41,40 @@ static int __power_supply_changed_work(struct device *dev, void *data)
 
 static void power_supply_changed_work(struct work_struct *work)
 {
+	unsigned long flags;
 	struct power_supply *psy = container_of(work, struct power_supply,
 						changed_work);
 
 	dev_dbg(psy->dev, "%s\n", __func__);
 
-	class_for_each_device(power_supply_class, NULL, psy,
-			      __power_supply_changed_work);
+	spin_lock_irqsave(&psy->changed_lock, flags);
+	if (psy->changed) {
+		psy->changed = false;
+		spin_unlock_irqrestore(&psy->changed_lock, flags);
 
-	power_supply_update_leds(psy);
+		class_for_each_device(power_supply_class, NULL, psy,
+				      __power_supply_changed_work);
 
-	kobject_uevent(&psy->dev->kobj, KOBJ_CHANGE);
+		power_supply_update_leds(psy);
+
+		kobject_uevent(&psy->dev->kobj, KOBJ_CHANGE);
+		spin_lock_irqsave(&psy->changed_lock, flags);
+	}
+	if (!psy->changed)
+		wake_unlock(&psy->work_wake_lock);
+	spin_unlock_irqrestore(&psy->changed_lock, flags);
 }
 
 void power_supply_changed(struct power_supply *psy)
 {
+	unsigned long flags;
+
 	dev_dbg(psy->dev, "%s\n", __func__);
 
+	spin_lock_irqsave(&psy->changed_lock, flags);
+	psy->changed = true;
+	wake_lock(&psy->work_wake_lock);
+	spin_unlock_irqrestore(&psy->changed_lock, flags);
 	schedule_work(&psy->changed_work);
 }
 EXPORT_SYMBOL_GPL(power_supply_changed);
@@ -144,22 +164,41 @@ struct power_supply *power_supply_get_by_name(char *name)
 }
 EXPORT_SYMBOL_GPL(power_supply_get_by_name);
 
+static void power_supply_dev_release(struct device *dev)
+{
+	pr_debug("device: '%s': %s\n", dev_name(dev), __func__);
+	kfree(dev);
+}
+
 int power_supply_register(struct device *parent, struct power_supply *psy)
 {
-	int rc = 0;
+	struct device *dev;
+	int rc;
 
-	psy->dev = device_create(power_supply_class, parent, 0, psy,
-				 "%s", psy->name);
-	if (IS_ERR(psy->dev)) {
-		rc = PTR_ERR(psy->dev);
-		goto dev_create_failed;
-	}
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return -ENOMEM;
+
+	device_initialize(dev);
+
+	dev->class = power_supply_class;
+	dev->type = &power_supply_dev_type;
+	dev->parent = parent;
+	dev->release = power_supply_dev_release;
+	dev_set_drvdata(dev, psy);
+	psy->dev = dev;
+
+	rc = kobject_set_name(&dev->kobj, "%s", psy->name);
+	if (rc)
+		goto kobject_set_name_failed;
+
+	rc = device_add(dev);
+	if (rc)
+		goto device_add_failed;
 
 	INIT_WORK(&psy->changed_work, power_supply_changed_work);
-
-	rc = power_supply_create_attrs(psy);
-	if (rc)
-		goto create_attrs_failed;
+	spin_lock_init(&psy->changed_lock);
+	wake_lock_init(&psy->work_wake_lock, WAKE_LOCK_SUSPEND, "power-supply");
 
 	rc = power_supply_create_triggers(psy);
 	if (rc)
@@ -170,10 +209,11 @@ int power_supply_register(struct device *parent, struct power_supply *psy)
 	goto success;
 
 create_triggers_failed:
-	power_supply_remove_attrs(psy);
-create_attrs_failed:
+	wake_lock_destroy(&psy->work_wake_lock);
 	device_unregister(psy->dev);
-dev_create_failed:
+kobject_set_name_failed:
+device_add_failed:
+	kfree(dev);
 success:
 	return rc;
 }
@@ -183,7 +223,7 @@ void power_supply_unregister(struct power_supply *psy)
 {
 	flush_scheduled_work();
 	power_supply_remove_triggers(psy);
-	power_supply_remove_attrs(psy);
+	wake_lock_destroy(&psy->work_wake_lock);
 	device_unregister(psy->dev);
 }
 EXPORT_SYMBOL_GPL(power_supply_unregister);
@@ -196,6 +236,7 @@ static int __init power_supply_class_init(void)
 		return PTR_ERR(power_supply_class);
 
 	power_supply_class->dev_uevent = power_supply_uevent;
+	power_supply_init_attrs(&power_supply_dev_type);
 
 	return 0;
 }

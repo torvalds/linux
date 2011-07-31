@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-ixp4xx/ixdp425-setup.c
  *
- * IXDP425/IXCDP1100 board-setup 
+ * IXDP425/IXCDP1100 board-setup
  *
  * Copyright (C) 2003-2005 MontaVista Software, Inc.
  *
@@ -14,14 +14,12 @@
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/serial_8250.h>
-#include <linux/slab.h>
 #include <linux/i2c-gpio.h>
 #include <linux/io.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/delay.h>
-
 #include <asm/types.h>
 #include <asm/setup.h>
 #include <asm/memory.h>
@@ -30,6 +28,15 @@
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
+
+#define IXDP425_SDA_PIN		7
+#define IXDP425_SCL_PIN		6
+
+/* NAND Flash pins */
+#define IXDP425_NAND_NCE_PIN	12
+
+#define IXDP425_NAND_CMD_BYTE	0x01
+#define IXDP425_NAND_ADDR_BYTE	0x02
 
 static struct flash_platform_data ixdp425_flash_data = {
 	.map_name	= "cfi_probe",
@@ -93,6 +100,7 @@ ixdp425_flash_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 
 static struct platform_nand_data ixdp425_flash_nand_data = {
 	.chip = {
+		.nr_chips		= 1,
 		.chip_delay		= 30,
 		.options		= NAND_NO_AUTOINCR,
 #ifdef CONFIG_MTD_PARTITIONS

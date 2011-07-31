@@ -59,8 +59,8 @@ static struct mcp_plat_data shannon_mcp_data = {
 
 static void __init shannon_init(void)
 {
-	sa11x0_set_flash_data(&shannon_flash_data, &shannon_flash_resource, 1);
-	sa11x0_set_mcp_data(&shannon_mcp_data);
+	sa11x0_register_mtd(&shannon_flash_data, &shannon_flash_resource, 1);
+	sa11x0_register_mcp(&shannon_mcp_data);
 }
 
 static void __init shannon_map_io(void)

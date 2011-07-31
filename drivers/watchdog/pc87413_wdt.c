@@ -53,7 +53,9 @@
 #define WDTO                0x11	/* Watchdog timeout register */
 #define WDCFG               0x12	/* Watchdog config register */
 
-static int io = 0x2E;			/* Address used on Portwell Boards */
+#define IO_DEFAULT	0x2E		/* Address used on Portwell Boards */
+
+static int io = IO_DEFAULT;
 
 static int timeout = DEFAULT_TIMEOUT;	/* timeout value */
 static unsigned long timer_enabled;	/* is the timer enabled? */
@@ -407,7 +409,7 @@ static long pc87413_ioctl(struct file *file, unsigned int cmd,
 		int __user *i;
 	} uarg;
 
-	static struct watchdog_info ident = {
+	static const struct watchdog_info ident = {
 		.options          = WDIOF_KEEPALIVEPING |
 				    WDIOF_SETTIMEOUT |
 				    WDIOF_MAGICCLOSE,
@@ -583,12 +585,13 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 
 module_param(io, int, 0);
-MODULE_PARM_DESC(io, MODNAME " I/O port (default: " __MODULE_STRING(io) ").");
+MODULE_PARM_DESC(io, MODNAME " I/O port (default: "
+					__MODULE_STRING(IO_DEFAULT) ").");
 
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout,
 		"Watchdog timeout in minutes (default="
-				__MODULE_STRING(timeout) ").");
+				__MODULE_STRING(DEFAULT_TIMEOUT) ").");
 
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout,

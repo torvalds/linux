@@ -193,6 +193,10 @@ struct mmu_psize_def
 {
 	unsigned int	shift;	/* number of bits */
 	unsigned int	enc;	/* PTE encoding */
+	unsigned int    ind;    /* Corresponding indirect page size shift */
+	unsigned int	flags;
+#define MMU_PAGE_SIZE_DIRECT	0x1	/* Supported as a direct size */
+#define MMU_PAGE_SIZE_INDIRECT	0x2	/* Supported as an indirect size */
 };
 extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 

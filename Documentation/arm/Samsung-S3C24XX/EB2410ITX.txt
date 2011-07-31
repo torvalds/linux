@@ -55,4 +55,4 @@ Maintainers
   This board is maintained by Simtec Electronics.
 
 
-(c) 2004 Ben Dooks, Simtec Electronics
+Copyright 2004 Ben Dooks, Simtec Electronics

@@ -1,5 +1,5 @@
 perf-trace(1)
-==============
+=============
 
 NAME
 ----
@@ -8,11 +8,36 @@ perf-trace - Read perf.data (created by perf record) and display trace output
 SYNOPSIS
 --------
 [verse]
-'perf trace' [-i <file> | --input=file] symbol_name
+'perf trace' {record <script> | report <script> [args] }
 
 DESCRIPTION
 -----------
 This command reads the input file and displays the trace recorded.
+
+There are several variants of perf trace:
+
+  'perf trace' to see a detailed trace of the workload that was
+  recorded.
+
+  You can also run a set of pre-canned scripts that aggregate and
+  summarize the raw trace data in various ways (the list of scripts is
+  available via 'perf trace -l').  The following variants allow you to
+  record and run those scripts:
+
+  'perf trace record <script>' to record the events required for 'perf
+  trace report'.  <script> is the name displayed in the output of
+  'perf trace --list' i.e. the actual script name minus any language
+  extension.
+
+  'perf trace report <script>' to run and display the results of
+  <script>.  <script> is the name displayed in the output of 'perf
+  trace --list' i.e. the actual script name minus any language
+  extension.  The perf.data output from a previous run of 'perf trace
+  record <script>' is used and should be present for this command to
+  succeed.
+
+  See the 'SEE ALSO' section for links to language-specific
+  information on how to write and run your own trace scripts.
 
 OPTIONS
 -------
@@ -20,6 +45,26 @@ OPTIONS
 --dump-raw-trace=::
         Display verbose dump of the trace data.
 
+-L::
+--Latency=::
+        Show latency attributes (irqs/preemption disabled, etc).
+
+-l::
+--list=::
+        Display a list of available trace scripts.
+
+-s ['lang']::
+--script=::
+        Process trace data with the given script ([lang]:script[.ext]).
+	If the string 'lang' is specified in place of a script name, a
+        list of supported languages will be displayed instead.
+
+-g::
+--gen-script=::
+        Generate perf-trace.[ext] starter script for given language,
+        using current perf.data.
+
 SEE ALSO
 --------
-linkperf:perf-record[1]
+linkperf:perf-record[1], linkperf:perf-trace-perl[1],
+linkperf:perf-trace-python[1]

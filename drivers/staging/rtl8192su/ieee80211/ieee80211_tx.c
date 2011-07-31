@@ -32,7 +32,6 @@
 ******************************************************************************/
 
 #include <linux/compiler.h>
-//#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
@@ -47,7 +46,6 @@
 #include <linux/slab.h>
 #include <linux/tcp.h>
 #include <linux/types.h>
-#include <linux/version.h>
 #include <linux/wireless.h>
 #include <linux/etherdevice.h>
 #include <asm/uaccess.h>
@@ -200,8 +198,8 @@ int ieee80211_encrypt_fragment(
 		header = (struct rtl_ieee80211_hdr *)frag->data;
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
-			       "TX packet to " MAC_FMT "\n",
-			       ieee->dev->name, MAC_ARG(header->addr1));
+			       "TX packet to %pM\n",
+			       ieee->dev->name, header->addr1);
 		}
 		return -1;
 	}
@@ -209,7 +207,6 @@ int ieee80211_encrypt_fragment(
 	/* To encrypt, frame format is:
 	 * IV (4 bytes), clear payload (including SNAP), ICV (4 bytes) */
 
-	// PR: FIXME: Copied from hostap. Check fragmentation/MSDU/MPDU encryption.
 	/* Host-based IEEE 802.11 fragmentation for TX is not yet supported, so
 	 * call both MSDU and MPDU encryption functions from here. */
 	atomic_inc(&crypt->refcnt);
@@ -232,7 +229,6 @@ int ieee80211_encrypt_fragment(
 
 
 void ieee80211_txb_free(struct ieee80211_txb *txb) {
-	//int i;
 	if (unlikely(!txb))
 		return;
 	kfree(txb);
@@ -281,7 +277,6 @@ ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 	if (eth->h_proto != htons(ETH_P_IP))
 		return 0;
 
-//	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, skb->data, skb->len);
 	ip = ip_hdr(skb);
 
 	switch (ip->tos & 0xfc) {
@@ -605,7 +600,7 @@ void ieee80211_query_seqnum(struct ieee80211_device*ieee, struct sk_buff* skb, u
 	}
 }
 
-int rtl8192_ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
+int rtl8192_ieee80211_rtl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee80211_device *ieee = netdev_priv(dev);
 	struct ieee80211_txb *txb = NULL;
@@ -682,10 +677,8 @@ int rtl8192_ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (encrypt)
 			fc = IEEE80211_FTYPE_DATA | IEEE80211_FCTL_WEP;
 		else
-
                         fc = IEEE80211_FTYPE_DATA;
 
-		//if(ieee->current_network.QoS_Enable)
 		if(qos_actived)
 			fc |= IEEE80211_STYPE_QOS_DATA;
 		else
@@ -766,7 +759,6 @@ int rtl8192_ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		txb->encrypted = encrypt;
 		txb->payload_size = bytes;
 
-		//if (ieee->current_network.QoS_Enable)
 		if(qos_actived)
 		{
 			txb->queue_index = UP2AC(skb->priority);
@@ -813,7 +805,6 @@ int rtl8192_ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 				/* The last fragment takes the remaining length */
 				bytes = bytes_last_frag;
 			}
-			//if(ieee->current_network.QoS_Enable)
 			if(qos_actived)
 			{
 				// add 1 only indicate to corresponding seq number control 2006/7/12
@@ -890,7 +881,6 @@ int rtl8192_ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		if ( tcb_desc->bMulticast ||  tcb_desc->bBroadcast)
 			tcb_desc->data_rate = ieee->basic_rate;
 		else
-			//tcb_desc->data_rate = CURRENT_RATE(ieee->current_network.mode, ieee->rate, ieee->HTCurrentOperaRate);
 			tcb_desc->data_rate = CURRENT_RATE(ieee->mode, ieee->rate, ieee->HTCurrentOperaRate);
 		ieee80211_qurey_ShortPreambleMode(ieee, tcb_desc);
 		ieee80211_tx_query_agg_cap(ieee, txb->fragments[0], tcb_desc);
@@ -898,8 +888,6 @@ int rtl8192_ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		ieee80211_query_BandwidthMode(ieee, tcb_desc);
 		ieee80211_query_protectionmode(ieee, tcb_desc, txb->fragments[0]);
 		ieee80211_query_seqnum(ieee, txb->fragments[0], header.addr1);
-//		IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, txb->fragments[0]->data, txb->fragments[0]->len);
-		//IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, tcb_desc, sizeof(cb_desc));
 #endif
 	}
 	spin_unlock_irqrestore(&ieee->lock, flags);

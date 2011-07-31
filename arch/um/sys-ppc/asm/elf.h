@@ -17,8 +17,6 @@ extern long elf_aux_hwcap;
 #define ELF_CLASS ELFCLASS32
 #endif
 
-#define USE_ELF_CORE_DUMP
-
 #define R_386_NONE	0
 #define R_386_32	1
 #define R_386_PC32	2

@@ -22,6 +22,29 @@
 
 #include "tick-internal.h"
 
+/* Limit min_delta to a jiffie */
+#define MIN_DELTA_LIMIT		(NSEC_PER_SEC / HZ)
+
+static int tick_increase_min_delta(struct clock_event_device *dev)
+{
+	/* Nothing to do if we already reached the limit */
+	if (dev->min_delta_ns >= MIN_DELTA_LIMIT)
+		return -ETIME;
+
+	if (dev->min_delta_ns < 5000)
+		dev->min_delta_ns = 5000;
+	else
+		dev->min_delta_ns += dev->min_delta_ns >> 1;
+
+	if (dev->min_delta_ns > MIN_DELTA_LIMIT)
+		dev->min_delta_ns = MIN_DELTA_LIMIT;
+
+	printk(KERN_WARNING "CE: %s increased min_delta_ns to %llu nsec\n",
+	       dev->name ? dev->name : "?",
+	       (unsigned long long) dev->min_delta_ns);
+	return 0;
+}
+
 /**
  * tick_program_event internal worker function
  */
@@ -37,23 +60,28 @@ int tick_dev_program_event(struct clock_event_device *dev, ktime_t expires,
 		if (!ret || !force)
 			return ret;
 
+		dev->retries++;
 		/*
-		 * We tried 2 times to program the device with the given
-		 * min_delta_ns. If that's not working then we double it
+		 * We tried 3 times to program the device with the given
+		 * min_delta_ns. If that's not working then we increase it
 		 * and emit a warning.
 		 */
 		if (++i > 2) {
 			/* Increase the min. delta and try again */
-			if (!dev->min_delta_ns)
-				dev->min_delta_ns = 5000;
-			else
-				dev->min_delta_ns += dev->min_delta_ns >> 1;
-
-			printk(KERN_WARNING
-			       "CE: %s increasing min_delta_ns to %lu nsec\n",
-			       dev->name ? dev->name : "?",
-			       dev->min_delta_ns << 1);
-
+			if (tick_increase_min_delta(dev)) {
+				/*
+				 * Get out of the loop if min_delta_ns
+				 * hit the limit already. That's
+				 * better than staying here forever.
+				 *
+				 * We clear next_event so we have a
+				 * chance that the box survives.
+				 */
+				printk(KERN_WARNING
+				       "CE: Reprogramming failure. Giving up\n");
+				dev->next_event.tv64 = KTIME_MAX;
+				return -ETIME;
+			}
 			i = 0;
 		}
 

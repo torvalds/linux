@@ -21,6 +21,7 @@
 #include <linux/of_device.h>
 #include <linux/spinlock.h>
 #include <linux/of.h>
+#include <linux/slab.h>
 
 #include <asm/udbg.h>
 #include <asm/io.h>
@@ -72,7 +73,7 @@ static phys_addr_t muram_pbase;
 /* Max address size we deal with */
 #define OF_MAX_ADDR_CELLS	4
 
-int __init cpm_muram_init(void)
+int cpm_muram_init(void)
 {
 	struct device_node *np;
 	struct resource r;
@@ -80,6 +81,9 @@ int __init cpm_muram_init(void)
 	resource_size_t max = 0;
 	int i = 0;
 	int ret = 0;
+
+	if (muram_pbase)
+		return 0;
 
 	spin_lock_init(&cpm_muram_lock);
 	/* initialize the info header */
@@ -321,7 +325,6 @@ int cpm2_gpiochip_add32(struct device_node *np)
 {
 	struct cpm2_gpio32_chip *cpm2_gc;
 	struct of_mm_gpio_chip *mm_gc;
-	struct of_gpio_chip *of_gc;
 	struct gpio_chip *gc;
 
 	cpm2_gc = kzalloc(sizeof(*cpm2_gc), GFP_KERNEL);
@@ -331,11 +334,9 @@ int cpm2_gpiochip_add32(struct device_node *np)
 	spin_lock_init(&cpm2_gc->lock);
 
 	mm_gc = &cpm2_gc->mm_gc;
-	of_gc = &mm_gc->of_gc;
-	gc = &of_gc->gc;
+	gc = &mm_gc->gc;
 
 	mm_gc->save_regs = cpm2_gpio32_save_regs;
-	of_gc->gpio_cells = 2;
 	gc->ngpio = 32;
 	gc->direction_input = cpm2_gpio32_dir_in;
 	gc->direction_output = cpm2_gpio32_dir_out;

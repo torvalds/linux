@@ -113,6 +113,7 @@
 
 #define MCF_GPIO_PAR_UART                   (0xA4036)
 #define MCF_GPIO_PAR_FECI2C                 (0xA4033)
+#define MCF_GPIO_PAR_QSPI                   (0xA4034)
 #define MCF_GPIO_PAR_FEC                    (0xA4038)
 
 #define MCF_GPIO_PAR_UART_PAR_URXD0         (0x0001)

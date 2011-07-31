@@ -29,14 +29,14 @@ enum help_format {
 	HELP_FORMAT_WEB,
 };
 
-static int show_all = 0;
+static bool show_all = false;
 static enum help_format help_format = HELP_FORMAT_MAN;
 static struct option builtin_help_options[] = {
 	OPT_BOOLEAN('a', "all", &show_all, "print all available commands"),
-	OPT_SET_INT('m', "man", &help_format, "show man page", HELP_FORMAT_MAN),
-	OPT_SET_INT('w', "web", &help_format, "show manual in web browser",
+	OPT_SET_UINT('m', "man", &help_format, "show man page", HELP_FORMAT_MAN),
+	OPT_SET_UINT('w', "web", &help_format, "show manual in web browser",
 			HELP_FORMAT_WEB),
-	OPT_SET_INT('i', "info", &help_format, "show info page",
+	OPT_SET_UINT('i', "info", &help_format, "show info page",
 			HELP_FORMAT_INFO),
 	OPT_END(),
 };
@@ -61,8 +61,7 @@ static const char *get_man_viewer_info(const char *name)
 {
 	struct man_viewer_info_list *viewer;
 
-	for (viewer = man_viewer_info_list; viewer; viewer = viewer->next)
-	{
+	for (viewer = man_viewer_info_list; viewer; viewer = viewer->next) {
 		if (!strcasecmp(name, viewer->name))
 			return viewer->info;
 	}
@@ -115,7 +114,7 @@ static int check_emacsclient_version(void)
 	return 0;
 }
 
-static void exec_woman_emacs(const char* path, const char *page)
+static void exec_woman_emacs(const char *path, const char *page)
 {
 	if (!check_emacsclient_version()) {
 		/* This works only with emacsclient version >= 22. */
@@ -129,7 +128,7 @@ static void exec_woman_emacs(const char* path, const char *page)
 	}
 }
 
-static void exec_man_konqueror(const char* path, const char *page)
+static void exec_man_konqueror(const char *path, const char *page)
 {
 	const char *display = getenv("DISPLAY");
 	if (display && *display) {
@@ -157,7 +156,7 @@ static void exec_man_konqueror(const char* path, const char *page)
 	}
 }
 
-static void exec_man_man(const char* path, const char *page)
+static void exec_man_man(const char *path, const char *page)
 {
 	if (!path)
 		path = "man";
@@ -180,7 +179,7 @@ static void add_man_viewer(const char *name)
 
 	while (*p)
 		p = &((*p)->next);
-	*p = calloc(1, (sizeof(**p) + len + 1));
+	*p = zalloc(sizeof(**p) + len + 1);
 	strncpy((*p)->name, name, len);
 }
 
@@ -195,7 +194,7 @@ static void do_add_man_viewer_info(const char *name,
 				   size_t len,
 				   const char *value)
 {
-	struct man_viewer_info_list *new = calloc(1, sizeof(*new) + len + 1);
+	struct man_viewer_info_list *new = zalloc(sizeof(*new) + len + 1);
 
 	strncpy(new->name, name, len);
 	new->info = strdup(value);
@@ -287,8 +286,7 @@ void list_common_cmds_help(void)
 
 	puts(" The most commonly used perf commands are:");
 	for (i = 0; i < ARRAY_SIZE(common_cmds); i++) {
-		printf("   %s   ", common_cmds[i].name);
-		mput_char(' ', longest - strlen(common_cmds[i].name));
+		printf("   %-*s   ", longest, common_cmds[i].name);
 		puts(common_cmds[i].help);
 	}
 }
@@ -315,8 +313,6 @@ static const char *cmd_to_page(const char *perf_cmd)
 		return "perf";
 	else if (!prefixcmp(perf_cmd, "perf"))
 		return perf_cmd;
-	else if (is_perf_command(perf_cmd))
-		return prepend("perf-", perf_cmd);
 	else
 		return prepend("perf-", perf_cmd);
 }
@@ -364,9 +360,8 @@ static void show_man_page(const char *perf_cmd)
 
 	setup_man_path();
 	for (viewer = man_viewer_list; viewer; viewer = viewer->next)
-	{
 		exec_viewer(viewer->name, page); /* will return when unable */
-	}
+
 	if (fallback)
 		exec_viewer(fallback, page);
 	exec_viewer("man", page);

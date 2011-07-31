@@ -3289,7 +3289,7 @@ typedef ii_icrb0_e_u_t icrbe_t;
 #define IIO_IIDSR_LVL_SHIFT     0
 #define IIO_IIDSR_LVL_MASK      0x000000ff
 
-/* Xtalk timeout threshhold register (IIO_IXTT) */
+/* Xtalk timeout threshold register (IIO_IXTT) */
 #define IXTT_RRSP_TO_SHFT	55	/* read response timeout */
 #define IXTT_RRSP_TO_MASK	(0x1FULL << IXTT_RRSP_TO_SHFT)
 #define IXTT_RRSP_PS_SHFT	32	/* read responsed TO prescalar */

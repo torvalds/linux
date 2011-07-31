@@ -19,6 +19,7 @@
 
 #include <linux/timecompare.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/math64.h>
 
 /*
@@ -40,7 +41,7 @@ ktime_t timecompare_transform(struct timecompare *sync,
 
 	return ns_to_ktime(nsec);
 }
-EXPORT_SYMBOL(timecompare_transform);
+EXPORT_SYMBOL_GPL(timecompare_transform);
 
 int timecompare_offset(struct timecompare *sync,
 		       s64 *offset,
@@ -89,7 +90,7 @@ int timecompare_offset(struct timecompare *sync,
 			 * source time
 			 */
 			sample.offset =
-				ktime_to_ns(ktime_add(end, start)) / 2 -
+				(ktime_to_ns(end) + ktime_to_ns(start)) / 2 -
 				ts;
 
 			/* simple insertion sort based on duration */
@@ -131,7 +132,7 @@ int timecompare_offset(struct timecompare *sync,
 
 	return used;
 }
-EXPORT_SYMBOL(timecompare_offset);
+EXPORT_SYMBOL_GPL(timecompare_offset);
 
 void __timecompare_update(struct timecompare *sync,
 			  u64 source_tstamp)
@@ -188,4 +189,4 @@ void __timecompare_update(struct timecompare *sync,
 		}
 	}
 }
-EXPORT_SYMBOL(__timecompare_update);
+EXPORT_SYMBOL_GPL(__timecompare_update);

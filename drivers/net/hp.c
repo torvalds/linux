@@ -240,7 +240,6 @@ hp_reset_8390(struct net_device *dev)
 		printk("%s: hp_reset_8390() did not complete.\n", dev->name);
 
 	if (ei_debug > 1) printk("8390 reset done (%ld).", jiffies);
-	return;
 }
 
 static void
@@ -360,7 +359,6 @@ hp_block_output(struct net_device *dev, int count,
 			   dev->name, (start_page << 8) + count, addr);
 	}
 	outb_p(saved_config & (~HP_DATAON), nic_base - NIC_OFFSET + HP_CONFIGURE);
-	return;
 }
 
 /* This function resets the ethercard if something screws up. */
@@ -371,7 +369,6 @@ hp_init_card(struct net_device *dev)
 	NS8390p_init(dev, 0);
 	outb_p(irqmap[irq&0x0f] | HP_RUN,
 		   dev->base_addr - NIC_OFFSET + HP_CONFIGURE);
-	return;
 }
 
 #ifdef MODULE

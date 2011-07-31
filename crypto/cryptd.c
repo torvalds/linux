@@ -31,7 +31,7 @@ struct cryptd_cpu_queue {
 };
 
 struct cryptd_queue {
-	struct cryptd_cpu_queue *cpu_queue;
+	struct cryptd_cpu_queue __percpu *cpu_queue;
 };
 
 struct cryptd_instance_ctx {
@@ -99,7 +99,7 @@ static int cryptd_enqueue_request(struct cryptd_queue *queue,
 	struct cryptd_cpu_queue *cpu_queue;
 
 	cpu = get_cpu();
-	cpu_queue = per_cpu_ptr(queue->cpu_queue, cpu);
+	cpu_queue = this_cpu_ptr(queue->cpu_queue);
 	err = crypto_enqueue_request(&cpu_queue->queue, request);
 	queue_work_on(cpu, kcrypto_wq, &cpu_queue->work);
 	put_cpu();
@@ -710,6 +710,13 @@ struct crypto_shash *cryptd_ahash_child(struct cryptd_ahash *tfm)
 	return ctx->child;
 }
 EXPORT_SYMBOL_GPL(cryptd_ahash_child);
+
+struct shash_desc *cryptd_shash_desc(struct ahash_request *req)
+{
+	struct cryptd_hash_request_ctx *rctx = ahash_request_ctx(req);
+	return &rctx->desc;
+}
+EXPORT_SYMBOL_GPL(cryptd_shash_desc);
 
 void cryptd_free_ahash(struct cryptd_ahash *tfm)
 {

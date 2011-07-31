@@ -19,145 +19,345 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/via-core.h>
 #include "global.h"
 
 static struct pll_map pll_value[] = {
-	{CLK_25_175M, CLE266_PLL_25_175M, K800_PLL_25_175M,
-	 CX700_25_175M, VX855_25_175M},
-	{CLK_29_581M, CLE266_PLL_29_581M, K800_PLL_29_581M,
-	 CX700_29_581M, VX855_29_581M},
-	{CLK_26_880M, CLE266_PLL_26_880M, K800_PLL_26_880M,
-	 CX700_26_880M, VX855_26_880M},
-	{CLK_31_490M, CLE266_PLL_31_490M, K800_PLL_31_490M,
-	 CX700_31_490M, VX855_31_490M},
-	{CLK_31_500M, CLE266_PLL_31_500M, K800_PLL_31_500M,
-	 CX700_31_500M, VX855_31_500M},
-	{CLK_31_728M, CLE266_PLL_31_728M, K800_PLL_31_728M,
-	 CX700_31_728M, VX855_31_728M},
-	{CLK_32_668M, CLE266_PLL_32_668M, K800_PLL_32_668M,
-	 CX700_32_668M, VX855_32_668M},
-	{CLK_36_000M, CLE266_PLL_36_000M, K800_PLL_36_000M,
-	 CX700_36_000M, VX855_36_000M},
-	{CLK_40_000M, CLE266_PLL_40_000M, K800_PLL_40_000M,
-	 CX700_40_000M, VX855_40_000M},
-	{CLK_41_291M, CLE266_PLL_41_291M, K800_PLL_41_291M,
-	 CX700_41_291M, VX855_41_291M},
-	{CLK_43_163M, CLE266_PLL_43_163M, K800_PLL_43_163M,
-	 CX700_43_163M, VX855_43_163M},
-	{CLK_45_250M, CLE266_PLL_45_250M, K800_PLL_45_250M,
-	 CX700_45_250M, VX855_45_250M},
-	{CLK_46_000M, CLE266_PLL_46_000M, K800_PLL_46_000M,
-	 CX700_46_000M, VX855_46_000M},
-	{CLK_46_996M, CLE266_PLL_46_996M, K800_PLL_46_996M,
-	 CX700_46_996M, VX855_46_996M},
-	{CLK_48_000M, CLE266_PLL_48_000M, K800_PLL_48_000M,
-	 CX700_48_000M, VX855_48_000M},
-	{CLK_48_875M, CLE266_PLL_48_875M, K800_PLL_48_875M,
-	 CX700_48_875M, VX855_48_875M},
-	{CLK_49_500M, CLE266_PLL_49_500M, K800_PLL_49_500M,
-	 CX700_49_500M, VX855_49_500M},
-	{CLK_52_406M, CLE266_PLL_52_406M, K800_PLL_52_406M,
-	 CX700_52_406M, VX855_52_406M},
-	{CLK_52_977M, CLE266_PLL_52_977M, K800_PLL_52_977M,
-	 CX700_52_977M,	VX855_52_977M},
-	{CLK_56_250M, CLE266_PLL_56_250M, K800_PLL_56_250M,
-	 CX700_56_250M, VX855_56_250M},
-	{CLK_60_466M, CLE266_PLL_60_466M, K800_PLL_60_466M,
-	 CX700_60_466M, VX855_60_466M},
-	{CLK_61_500M, CLE266_PLL_61_500M, K800_PLL_61_500M,
-	 CX700_61_500M, VX855_61_500M},
-	{CLK_65_000M, CLE266_PLL_65_000M, K800_PLL_65_000M,
-	 CX700_65_000M, VX855_65_000M},
-	{CLK_65_178M, CLE266_PLL_65_178M, K800_PLL_65_178M,
-	 CX700_65_178M, VX855_65_178M},
-	{CLK_66_750M, CLE266_PLL_66_750M, K800_PLL_66_750M,
-	 CX700_66_750M, VX855_66_750M},
-	{CLK_68_179M, CLE266_PLL_68_179M, K800_PLL_68_179M,
-	 CX700_68_179M, VX855_68_179M},
-	{CLK_69_924M, CLE266_PLL_69_924M, K800_PLL_69_924M,
-	 CX700_69_924M, VX855_69_924M},
-	{CLK_70_159M, CLE266_PLL_70_159M, K800_PLL_70_159M,
-	 CX700_70_159M, VX855_70_159M},
-	{CLK_72_000M, CLE266_PLL_72_000M, K800_PLL_72_000M,
-	 CX700_72_000M, VX855_72_000M},
-	{CLK_78_750M, CLE266_PLL_78_750M, K800_PLL_78_750M,
-	 CX700_78_750M, VX855_78_750M},
-	{CLK_80_136M, CLE266_PLL_80_136M, K800_PLL_80_136M,
-	 CX700_80_136M, VX855_80_136M},
-	{CLK_83_375M, CLE266_PLL_83_375M, K800_PLL_83_375M,
-	 CX700_83_375M, VX855_83_375M},
-	{CLK_83_950M, CLE266_PLL_83_950M, K800_PLL_83_950M,
-	 CX700_83_950M, VX855_83_950M},
-	{CLK_84_750M, CLE266_PLL_84_750M, K800_PLL_84_750M,
-	 CX700_84_750M, VX855_84_750M},
-	{CLK_85_860M, CLE266_PLL_85_860M, K800_PLL_85_860M,
-	 CX700_85_860M, VX855_85_860M},
-	{CLK_88_750M, CLE266_PLL_88_750M, K800_PLL_88_750M,
-	 CX700_88_750M, VX855_88_750M},
-	{CLK_94_500M, CLE266_PLL_94_500M, K800_PLL_94_500M,
-	 CX700_94_500M, VX855_94_500M},
-	{CLK_97_750M, CLE266_PLL_97_750M, K800_PLL_97_750M,
-	 CX700_97_750M, VX855_97_750M},
-	{CLK_101_000M, CLE266_PLL_101_000M, K800_PLL_101_000M,
-	 CX700_101_000M, VX855_101_000M},
-	{CLK_106_500M, CLE266_PLL_106_500M, K800_PLL_106_500M,
-	 CX700_106_500M, VX855_106_500M},
-	{CLK_108_000M, CLE266_PLL_108_000M, K800_PLL_108_000M,
-	 CX700_108_000M, VX855_108_000M},
-	{CLK_113_309M, CLE266_PLL_113_309M, K800_PLL_113_309M,
-	 CX700_113_309M, VX855_113_309M},
-	{CLK_118_840M, CLE266_PLL_118_840M, K800_PLL_118_840M,
-	 CX700_118_840M, VX855_118_840M},
-	{CLK_119_000M, CLE266_PLL_119_000M, K800_PLL_119_000M,
-	 CX700_119_000M, VX855_119_000M},
-	{CLK_121_750M, CLE266_PLL_121_750M, K800_PLL_121_750M,
-	 CX700_121_750M, 0},
-	{CLK_125_104M, CLE266_PLL_125_104M, K800_PLL_125_104M,
-	 CX700_125_104M, 0},
-	{CLK_133_308M, CLE266_PLL_133_308M, K800_PLL_133_308M,
-	 CX700_133_308M, 0},
-	{CLK_135_000M, CLE266_PLL_135_000M, K800_PLL_135_000M,
-	 CX700_135_000M, VX855_135_000M},
-	{CLK_136_700M, CLE266_PLL_136_700M, K800_PLL_136_700M,
-	 CX700_136_700M, VX855_136_700M},
-	{CLK_138_400M, CLE266_PLL_138_400M, K800_PLL_138_400M,
-	 CX700_138_400M, VX855_138_400M},
-	{CLK_146_760M, CLE266_PLL_146_760M, K800_PLL_146_760M,
-	 CX700_146_760M, VX855_146_760M},
-	{CLK_153_920M, CLE266_PLL_153_920M, K800_PLL_153_920M,
-	 CX700_153_920M, VX855_153_920M},
-	{CLK_156_000M, CLE266_PLL_156_000M, K800_PLL_156_000M,
-	 CX700_156_000M, VX855_156_000M},
-	{CLK_157_500M, CLE266_PLL_157_500M, K800_PLL_157_500M,
-	 CX700_157_500M, VX855_157_500M},
-	{CLK_162_000M, CLE266_PLL_162_000M, K800_PLL_162_000M,
-	 CX700_162_000M, VX855_162_000M},
-	{CLK_187_000M, CLE266_PLL_187_000M, K800_PLL_187_000M,
-	 CX700_187_000M, VX855_187_000M},
-	{CLK_193_295M, CLE266_PLL_193_295M, K800_PLL_193_295M,
-	 CX700_193_295M, VX855_193_295M},
-	{CLK_202_500M, CLE266_PLL_202_500M, K800_PLL_202_500M,
-	 CX700_202_500M, VX855_202_500M},
-	{CLK_204_000M, CLE266_PLL_204_000M, K800_PLL_204_000M,
-	 CX700_204_000M, VX855_204_000M},
-	{CLK_218_500M, CLE266_PLL_218_500M, K800_PLL_218_500M,
-	 CX700_218_500M, VX855_218_500M},
-	{CLK_234_000M, CLE266_PLL_234_000M, K800_PLL_234_000M,
-	 CX700_234_000M, VX855_234_000M},
-	{CLK_267_250M, CLE266_PLL_267_250M, K800_PLL_267_250M,
-	 CX700_267_250M, VX855_267_250M},
-	{CLK_297_500M, CLE266_PLL_297_500M, K800_PLL_297_500M,
-	 CX700_297_500M, VX855_297_500M},
-	{CLK_74_481M, CLE266_PLL_74_481M, K800_PLL_74_481M,
-	 CX700_74_481M, VX855_74_481M},
-	{CLK_172_798M, CLE266_PLL_172_798M, K800_PLL_172_798M,
-	 CX700_172_798M, VX855_172_798M},
-	{CLK_122_614M, CLE266_PLL_122_614M, K800_PLL_122_614M,
-	 CX700_122_614M, VX855_122_614M},
-	{CLK_74_270M, CLE266_PLL_74_270M, K800_PLL_74_270M,
-	 CX700_74_270M, 0},
-	{CLK_148_500M, CLE266_PLL_148_500M, K800_PLL_148_500M,
-	 CX700_148_500M, VX855_148_500M}
+	{25175000,
+		{99, 7, 3},
+		{85, 3, 4},	/* ignoring bit difference: 0x00008000 */
+		{141, 5, 4},
+		{141, 5, 4} },
+	{29581000,
+		{33, 4, 2},
+		{66, 2, 4},	/* ignoring bit difference: 0x00808000 */
+		{166, 5, 4},	/* ignoring bit difference: 0x00008000 */
+		{165, 5, 4} },
+	{26880000,
+		{15, 4, 1},
+		{30, 2, 3},	/* ignoring bit difference: 0x00808000 */
+		{150, 5, 4},
+		{150, 5, 4} },
+	{31500000,
+		{53, 3, 3},	/* ignoring bit difference: 0x00008000 */
+		{141, 4, 4},	/* ignoring bit difference: 0x00008000 */
+		{176, 5, 4},
+		{176, 5, 4} },
+	{31728000,
+		{31, 7, 1},
+		{177, 5, 4},	/* ignoring bit difference: 0x00008000 */
+		{177, 5, 4},
+		{142, 4, 4} },
+	{32688000,
+		{73, 4, 3},
+		{146, 4, 4},	/* ignoring bit difference: 0x00008000 */
+		{183, 5, 4},
+		{146, 4, 4} },
+	{36000000,
+		{101, 5, 3},	/* ignoring bit difference: 0x00008000 */
+		{161, 4, 4},	/* ignoring bit difference: 0x00008000 */
+		{202, 5, 4},
+		{161, 4, 4} },
+	{40000000,
+		{89, 4, 3},
+		{89, 4, 3},	/* ignoring bit difference: 0x00008000 */
+		{112, 5, 3},
+		{112, 5, 3} },
+	{41291000,
+		{23, 4, 1},
+		{69, 3, 3},	/* ignoring bit difference: 0x00008000 */
+		{115, 5, 3},
+		{115, 5, 3} },
+	{43163000,
+		{121, 5, 3},
+		{121, 5, 3},	/* ignoring bit difference: 0x00008000 */
+		{121, 5, 3},
+		{121, 5, 3} },
+	{45250000,
+		{127, 5, 3},
+		{127, 5, 3},	/* ignoring bit difference: 0x00808000 */
+		{127, 5, 3},
+		{127, 5, 3} },
+	{46000000,
+		{90, 7, 2},
+		{103, 4, 3},	/* ignoring bit difference: 0x00008000 */
+		{129, 5, 3},
+		{103, 4, 3} },
+	{46996000,
+		{105, 4, 3},	/* ignoring bit difference: 0x00008000 */
+		{131, 5, 3},	/* ignoring bit difference: 0x00808000 */
+		{131, 5, 3},	/* ignoring bit difference: 0x00808000 */
+		{105, 4, 3} },
+	{48000000,
+		{67, 20, 0},
+		{134, 5, 3},	/* ignoring bit difference: 0x00808000 */
+		{134, 5, 3},
+		{134, 5, 3} },
+	{48875000,
+		{99, 29, 0},
+		{82, 3, 3},	/* ignoring bit difference: 0x00808000 */
+		{82, 3, 3},	/* ignoring bit difference: 0x00808000 */
+		{137, 5, 3} },
+	{49500000,
+		{83, 6, 2},
+		{83, 3, 3},	/* ignoring bit difference: 0x00008000 */
+		{138, 5, 3},
+		{83, 3, 3} },
+	{52406000,
+		{117, 4, 3},
+		{117, 4, 3},	/* ignoring bit difference: 0x00008000 */
+		{117, 4, 3},
+		{88, 3, 3} },
+	{52977000,
+		{37, 5, 1},
+		{148, 5, 3},	/* ignoring bit difference: 0x00808000 */
+		{148, 5, 3},
+		{148, 5, 3} },
+	{56250000,
+		{55, 7, 1},	/* ignoring bit difference: 0x00008000 */
+		{126, 4, 3},	/* ignoring bit difference: 0x00008000 */
+		{157, 5, 3},
+		{157, 5, 3} },
+	{57275000,
+		{0, 0, 0},
+		{2, 2, 0},
+		{2, 2, 0},
+		{157, 5, 3} },	/* ignoring bit difference: 0x00808000 */
+	{60466000,
+		{76, 9, 1},
+		{169, 5, 3},	/* ignoring bit difference: 0x00808000 */
+		{169, 5, 3},	/* FIXED: old = {72, 2, 3} */
+		{169, 5, 3} },
+	{61500000,
+		{86, 20, 0},
+		{172, 5, 3},	/* ignoring bit difference: 0x00808000 */
+		{172, 5, 3},
+		{172, 5, 3} },
+	{65000000,
+		{109, 6, 2},	/* ignoring bit difference: 0x00008000 */
+		{109, 3, 3},	/* ignoring bit difference: 0x00008000 */
+		{109, 3, 3},
+		{109, 3, 3} },
+	{65178000,
+		{91, 5, 2},
+		{182, 5, 3},	/* ignoring bit difference: 0x00808000 */
+		{109, 3, 3},
+		{182, 5, 3} },
+	{66750000,
+		{75, 4, 2},
+		{150, 4, 3},	/* ignoring bit difference: 0x00808000 */
+		{150, 4, 3},
+		{112, 3, 3} },
+	{68179000,
+		{19, 4, 0},
+		{114, 3, 3},	/* ignoring bit difference: 0x00008000 */
+		{190, 5, 3},
+		{191, 5, 3} },
+	{69924000,
+		{83, 17, 0},
+		{195, 5, 3},	/* ignoring bit difference: 0x00808000 */
+		{195, 5, 3},
+		{195, 5, 3} },
+	{70159000,
+		{98, 20, 0},
+		{196, 5, 3},	/* ignoring bit difference: 0x00808000 */
+		{196, 5, 3},
+		{195, 5, 3} },
+	{72000000,
+		{121, 24, 0},
+		{161, 4, 3},	/* ignoring bit difference: 0x00808000 */
+		{161, 4, 3},
+		{161, 4, 3} },
+	{78750000,
+		{33, 3, 1},
+		{66, 3, 2},	/* ignoring bit difference: 0x00008000 */
+		{110, 5, 2},
+		{110, 5, 2} },
+	{80136000,
+		{28, 5, 0},
+		{68, 3, 2},	/* ignoring bit difference: 0x00008000 */
+		{112, 5, 2},
+		{112, 5, 2} },
+	{83375000,
+		{93, 2, 3},
+		{93, 4, 2},	/* ignoring bit difference: 0x00800000 */
+		{93, 4, 2},	/* ignoring bit difference: 0x00800000 */
+		{117, 5, 2} },
+	{83950000,
+		{41, 7, 0},
+		{117, 5, 2},	/* ignoring bit difference: 0x00008000 */
+		{117, 5, 2},
+		{117, 5, 2} },
+	{84750000,
+		{118, 5, 2},
+		{118, 5, 2},	/* ignoring bit difference: 0x00808000 */
+		{118, 5, 2},
+		{118, 5, 2} },
+	{85860000,
+		{84, 7, 1},
+		{120, 5, 2},	/* ignoring bit difference: 0x00808000 */
+		{120, 5, 2},
+		{118, 5, 2} },
+	{88750000,
+		{31, 5, 0},
+		{124, 5, 2},	/* ignoring bit difference: 0x00808000 */
+		{174, 7, 2},	/* ignoring bit difference: 0x00808000 */
+		{124, 5, 2} },
+	{94500000,
+		{33, 5, 0},
+		{132, 5, 2},	/* ignoring bit difference: 0x00008000 */
+		{132, 5, 2},
+		{132, 5, 2} },
+	{97750000,
+		{82, 6, 1},
+		{137, 5, 2},	/* ignoring bit difference: 0x00808000 */
+		{137, 5, 2},
+		{137, 5, 2} },
+	{101000000,
+		{127, 9, 1},
+		{141, 5, 2},	/* ignoring bit difference: 0x00808000 */
+		{141, 5, 2},
+		{141, 5, 2} },
+	{106500000,
+		{119, 4, 2},
+		{119, 4, 2},	/* ignoring bit difference: 0x00808000 */
+		{119, 4, 2},
+		{149, 5, 2} },
+	{108000000,
+		{121, 4, 2},
+		{121, 4, 2},	/* ignoring bit difference: 0x00808000 */
+		{151, 5, 2},
+		{151, 5, 2} },
+	{113309000,
+		{95, 12, 0},
+		{95, 3, 2},	/* ignoring bit difference: 0x00808000 */
+		{95, 3, 2},
+		{159, 5, 2} },
+	{118840000,
+		{83, 5, 1},
+		{166, 5, 2},	/* ignoring bit difference: 0x00808000 */
+		{166, 5, 2},
+		{166, 5, 2} },
+	{119000000,
+		{108, 13, 0},
+		{133, 4, 2},	/* ignoring bit difference: 0x00808000 */
+		{133, 4, 2},
+		{167, 5, 2} },
+	{121750000,
+		{85, 5, 1},
+		{170, 5, 2},	/* ignoring bit difference: 0x00808000 */
+		{68, 2, 2},
+		{0, 0, 0} },
+	{125104000,
+		{53, 6, 0},	/* ignoring bit difference: 0x00008000 */
+		{106, 3, 2},	/* ignoring bit difference: 0x00008000 */
+		{175, 5, 2},
+		{0, 0, 0} },
+	{135000000,
+		{94, 5, 1},
+		{28, 3, 0},	/* ignoring bit difference: 0x00804000 */
+		{151, 4, 2},
+		{189, 5, 2} },
+	{136700000,
+		{115, 12, 0},
+		{191, 5, 2},	/* ignoring bit difference: 0x00808000 */
+		{191, 5, 2},
+		{191, 5, 2} },
+	{138400000,
+		{87, 9, 0},
+		{116, 3, 2},	/* ignoring bit difference: 0x00808000 */
+		{116, 3, 2},
+		{194, 5, 2} },
+	{146760000,
+		{103, 5, 1},
+		{206, 5, 2},	/* ignoring bit difference: 0x00808000 */
+		{206, 5, 2},
+		{206, 5, 2} },
+	{153920000,
+		{86, 8, 0},
+		{86, 4, 1},	/* ignoring bit difference: 0x00808000 */
+		{86, 4, 1},
+		{86, 4, 1} },	/* FIXED: old = {84, 2, 1} */
+	{156000000,
+		{109, 5, 1},
+		{109, 5, 1},	/* ignoring bit difference: 0x00808000 */
+		{109, 5, 1},
+		{108, 5, 1} },
+	{157500000,
+		{55, 5, 0},	/* ignoring bit difference: 0x00008000 */
+		{22, 2, 0},	/* ignoring bit difference: 0x00802000 */
+		{110, 5, 1},
+		{110, 5, 1} },
+	{162000000,
+		{113, 5, 1},
+		{113, 5, 1},	/* ignoring bit difference: 0x00808000 */
+		{113, 5, 1},
+		{113, 5, 1} },
+	{187000000,
+		{118, 9, 0},
+		{131, 5, 1},	/* ignoring bit difference: 0x00808000 */
+		{131, 5, 1},
+		{131, 5, 1} },
+	{193295000,
+		{108, 8, 0},
+		{81, 3, 1},	/* ignoring bit difference: 0x00808000 */
+		{135, 5, 1},
+		{135, 5, 1} },
+	{202500000,
+		{99, 7, 0},
+		{85, 3, 1},	/* ignoring bit difference: 0x00808000 */
+		{142, 5, 1},
+		{142, 5, 1} },
+	{204000000,
+		{100, 7, 0},
+		{143, 5, 1},	/* ignoring bit difference: 0x00808000 */
+		{143, 5, 1},
+		{143, 5, 1} },
+	{218500000,
+		{92, 6, 0},
+		{153, 5, 1},	/* ignoring bit difference: 0x00808000 */
+		{153, 5, 1},
+		{153, 5, 1} },
+	{234000000,
+		{98, 6, 0},
+		{98, 3, 1},	/* ignoring bit difference: 0x00008000 */
+		{98, 3, 1},
+		{164, 5, 1} },
+	{267250000,
+		{112, 6, 0},
+		{112, 3, 1},	/* ignoring bit difference: 0x00808000 */
+		{187, 5, 1},
+		{187, 5, 1} },
+	{297500000,
+		{102, 5, 0},	/* ignoring bit difference: 0x00008000 */
+		{166, 4, 1},	/* ignoring bit difference: 0x00008000 */
+		{208, 5, 1},
+		{208, 5, 1} },
+	{74481000,
+		{26, 5, 0},
+		{125, 3, 3},	/* ignoring bit difference: 0x00808000 */
+		{208, 5, 3},
+		{209, 5, 3} },
+	{172798000,
+		{121, 5, 1},
+		{121, 5, 1},	/* ignoring bit difference: 0x00808000 */
+		{121, 5, 1},
+		{121, 5, 1} },
+	{122614000,
+		{60, 7, 0},
+		{137, 4, 2},	/* ignoring bit difference: 0x00808000 */
+		{137, 4, 2},
+		{172, 5, 2} },
+	{74270000,
+		{83, 8, 1},
+		{208, 5, 3},
+		{208, 5, 3},
+		{0, 0, 0} },
+	{148500000,
+		{83, 8, 0},
+		{208, 5, 2},
+		{166, 4, 2},
+		{208, 5, 2} }
 };
 
 static struct fifo_depth_select display_fifo_depth_reg = {
@@ -524,10 +724,8 @@ static void dvi_patch_skew_dvp1(void);
 static void dvi_patch_skew_dvp_low(void);
 static void set_dvi_output_path(int set_iga, int output_interface);
 static void set_lcd_output_path(int set_iga, int output_interface);
-static int search_mode_setting(int ModeInfoIndex);
 static void load_fix_bit_crtc_reg(void);
-static void init_gfx_chip_info(struct pci_dev *pdev,
-				const struct pci_device_id *pdi);
+static void init_gfx_chip_info(int chip_type);
 static void init_tmds_chip_info(void);
 static void init_lvds_chip_info(void);
 static void device_screen_off(void);
@@ -538,18 +736,6 @@ static void device_on(void);
 static void enable_second_display_channel(void);
 static void disable_second_display_channel(void);
 
-void viafb_write_reg(u8 index, u16 io_port, u8 data)
-{
-	outb(index, io_port);
-	outb(data, io_port + 1);
-	/*DEBUG_MSG(KERN_INFO "\nIndex=%2d Value=%2d", index, data); */
-}
-u8 viafb_read_reg(int io_port, u8 index)
-{
-	outb(index, io_port);
-	return inb(io_port + 1);
-}
-
 void viafb_lock_crt(void)
 {
 	viafb_write_reg_mask(CR11, VIACR, BIT7, BIT7);
@@ -559,16 +745,6 @@ void viafb_unlock_crt(void)
 {
 	viafb_write_reg_mask(CR11, VIACR, 0, BIT7);
 	viafb_write_reg_mask(CR47, VIACR, 0, BIT0);
-}
-
-void viafb_write_reg_mask(u8 index, int io_port, u8 data, u8 mask)
-{
-	u8 tmp;
-
-	outb(index, io_port);
-	tmp = inb(io_port + 1);
-	outb((data & mask) | (tmp & (~mask)), io_port + 1);
-	/*DEBUG_MSG(KERN_INFO "\nIndex=%2d Value=%2d", index, tmp); */
 }
 
 void write_dac_reg(u8 index, u8 r, u8 g, u8 b)
@@ -647,43 +823,25 @@ void viafb_set_iga_path(void)
 	}
 }
 
-void viafb_set_primary_address(u32 addr)
+static void set_color_register(u8 index, u8 red, u8 green, u8 blue)
 {
-	DEBUG_MSG(KERN_DEBUG "viafb_set_primary_address(0x%08X)\n", addr);
-	viafb_write_reg(CR0D, VIACR, addr & 0xFF);
-	viafb_write_reg(CR0C, VIACR, (addr >> 8) & 0xFF);
-	viafb_write_reg(CR34, VIACR, (addr >> 16) & 0xFF);
-	viafb_write_reg_mask(CR48, VIACR, (addr >> 24) & 0x1F, 0x1F);
+	outb(0xFF, 0x3C6); /* bit mask of palette */
+	outb(index, 0x3C8);
+	outb(red, 0x3C9);
+	outb(green, 0x3C9);
+	outb(blue, 0x3C9);
 }
 
-void viafb_set_secondary_address(u32 addr)
+void viafb_set_primary_color_register(u8 index, u8 red, u8 green, u8 blue)
 {
-	DEBUG_MSG(KERN_DEBUG "viafb_set_secondary_address(0x%08X)\n", addr);
-	/* secondary display supports only quadword aligned memory */
-	viafb_write_reg_mask(CR62, VIACR, (addr >> 2) & 0xFE, 0xFE);
-	viafb_write_reg(CR63, VIACR, (addr >> 10) & 0xFF);
-	viafb_write_reg(CR64, VIACR, (addr >> 18) & 0xFF);
-	viafb_write_reg_mask(CRA3, VIACR, (addr >> 26) & 0x07, 0x07);
+	viafb_write_reg_mask(0x1A, VIASR, 0x00, 0x01);
+	set_color_register(index, red, green, blue);
 }
 
-void viafb_set_primary_pitch(u32 pitch)
+void viafb_set_secondary_color_register(u8 index, u8 red, u8 green, u8 blue)
 {
-	DEBUG_MSG(KERN_DEBUG "viafb_set_primary_pitch(0x%08X)\n", pitch);
-	/* spec does not say that first adapter skips 3 bits but old
-	 * code did it and seems to be reasonable in analogy to 2nd adapter
-	 */
-	pitch = pitch >> 3;
-	viafb_write_reg(0x13, VIACR, pitch & 0xFF);
-	viafb_write_reg_mask(0x35, VIACR, (pitch >> (8 - 5)) & 0xE0, 0xE0);
-}
-
-void viafb_set_secondary_pitch(u32 pitch)
-{
-	DEBUG_MSG(KERN_DEBUG "viafb_set_secondary_pitch(0x%08X)\n", pitch);
-	pitch = pitch >> 3;
-	viafb_write_reg(0x66, VIACR, pitch & 0xFF);
-	viafb_write_reg_mask(0x67, VIACR, (pitch >> 8) & 0x03, 0x03);
-	viafb_write_reg_mask(0x71, VIACR, (pitch >> (10 - 7)) & 0x80, 0x80);
+	viafb_write_reg_mask(0x1A, VIASR, 0x01, 0x01);
+	set_color_register(index, red, green, blue);
 }
 
 void viafb_set_output_path(int device, int set_iga, int output_interface)
@@ -710,11 +868,8 @@ static void set_crt_output_path(int set_iga)
 		viafb_write_reg_mask(SR16, VIASR, 0x00, BIT6);
 		break;
 	case IGA2:
-	case IGA1_IGA2:
 		viafb_write_reg_mask(CR6A, VIACR, 0xC0, BIT6 + BIT7);
 		viafb_write_reg_mask(SR16, VIASR, 0x40, BIT6);
-		if (set_iga == IGA1_IGA2)
-			viafb_write_reg_mask(CR6B, VIACR, 0x08, BIT3);
 		break;
 	}
 }
@@ -904,13 +1059,6 @@ static void set_lcd_output_path(int set_iga, int output_interface)
 
 		enable_second_display_channel();
 		break;
-
-	case IGA1_IGA2:
-		viafb_write_reg_mask(CR6B, VIACR, 0x08, BIT3);
-		viafb_write_reg_mask(CR6A, VIACR, 0x08, BIT3);
-
-		disable_second_display_channel();
-		break;
 	}
 
 	switch (output_interface) {
@@ -987,49 +1135,6 @@ static void set_lcd_output_path(int set_iga, int output_interface)
 	}
 }
 
-/* Search Mode Index */
-static int search_mode_setting(int ModeInfoIndex)
-{
-	int i = 0;
-
-	while ((i < NUM_TOTAL_MODETABLE) &&
-			(ModeInfoIndex != CLE266Modes[i].ModeIndex))
-		i++;
-	if (i >= NUM_TOTAL_MODETABLE)
-		i = 0;
-	return i;
-
-}
-
-struct VideoModeTable *viafb_get_modetbl_pointer(int Index)
-{
-	struct VideoModeTable *TmpTbl = NULL;
-	TmpTbl = &CLE266Modes[search_mode_setting(Index)];
-	return TmpTbl;
-}
-
-struct VideoModeTable *viafb_get_cea_mode_tbl_pointer(int Index)
-{
-	struct VideoModeTable *TmpTbl = NULL;
-	int i = 0;
-	while ((i < NUM_TOTAL_CEA_MODES) &&
-			(Index != CEA_HDMI_Modes[i].ModeIndex))
-		i++;
-	if ((i < NUM_TOTAL_CEA_MODES))
-		TmpTbl = &CEA_HDMI_Modes[i];
-	 else {
-		/*Still use general timing if don't find CEA timing */
-		i = 0;
-		while ((i < NUM_TOTAL_MODETABLE) &&
-				(Index != CLE266Modes[i].ModeIndex))
-		       i++;
-		if (i >= NUM_TOTAL_MODETABLE)
-			i = 0;
-		TmpTbl = &CLE266Modes[i];
-	}
-	return TmpTbl;
-}
-
 static void load_fix_bit_crtc_reg(void)
 {
 	/* always set to 1 */
@@ -1102,16 +1207,12 @@ void viafb_load_reg(int timing_value, int viafb_load_reg_num,
 void viafb_write_regx(struct io_reg RegTable[], int ItemNum)
 {
 	int i;
-	unsigned char RegTemp;
 
 	/*DEBUG_MSG(KERN_INFO "Table Size : %x!!\n",ItemNum ); */
 
-	for (i = 0; i < ItemNum; i++) {
-		outb(RegTable[i].index, RegTable[i].port);
-		RegTemp = inb(RegTable[i].port + 1);
-		RegTemp = (RegTemp & (~RegTable[i].mask)) | RegTable[i].value;
-		outb(RegTemp, RegTable[i].port + 1);
-	}
+	for (i = 0; i < ItemNum; i++)
+		via_write_reg_mask(RegTable[i].port, RegTable[i].index,
+			RegTable[i].value, RegTable[i].mask);
 }
 
 void viafb_load_fetch_count_reg(int h_addr, int bpp_byte, int set_iga)
@@ -1121,15 +1222,13 @@ void viafb_load_fetch_count_reg(int h_addr, int bpp_byte, int set_iga)
 	struct io_register *reg = NULL;
 
 	switch (set_iga) {
-	case IGA1_IGA2:
 	case IGA1:
 		reg_value = IGA1_FETCH_COUNT_FORMULA(h_addr, bpp_byte);
 		viafb_load_reg_num = fetch_count_reg.
 			iga1_fetch_count_reg.reg_num;
 		reg = fetch_count_reg.iga1_fetch_count_reg.reg;
 		viafb_load_reg(reg_value, viafb_load_reg_num, reg, VIASR);
-		if (set_iga == IGA1)
-			break;
+		break;
 	case IGA2:
 		reg_value = IGA2_FETCH_COUNT_FORMULA(h_addr, bpp_byte);
 		viafb_load_reg_num = fetch_count_reg.
@@ -1459,96 +1558,122 @@ void viafb_load_FIFO_reg(int set_iga, int hor_active, int ver_active)
 
 }
 
+static u32 cle266_encode_pll(struct pll_config pll)
+{
+	return (pll.multiplier << 8)
+		| (pll.rshift << 6)
+		| pll.divisor;
+}
+
+static u32 k800_encode_pll(struct pll_config pll)
+{
+	return ((pll.divisor - 2) << 16)
+		| (pll.rshift << 10)
+		| (pll.multiplier - 2);
+}
+
+static u32 vx855_encode_pll(struct pll_config pll)
+{
+	return (pll.divisor << 16)
+		| (pll.rshift << 10)
+		| pll.multiplier;
+}
+
 u32 viafb_get_clk_value(int clk)
 {
-	int i;
+	u32 value = 0;
+	int i = 0;
 
-	for (i = 0; i < NUM_TOTAL_PLL_TABLE; i++) {
-		if (clk == pll_value[i].clk) {
-			switch (viaparinfo->chip_info->gfx_chip_name) {
-			case UNICHROME_CLE266:
-			case UNICHROME_K400:
-				return pll_value[i].cle266_pll;
+	while (i < NUM_TOTAL_PLL_TABLE && clk != pll_value[i].clk)
+		i++;
 
-			case UNICHROME_K800:
-			case UNICHROME_PM800:
-			case UNICHROME_CN700:
-				return pll_value[i].k800_pll;
+	if (i == NUM_TOTAL_PLL_TABLE) {
+		printk(KERN_WARNING "viafb_get_clk_value: PLL lookup failed!");
+	} else {
+		switch (viaparinfo->chip_info->gfx_chip_name) {
+		case UNICHROME_CLE266:
+		case UNICHROME_K400:
+			value = cle266_encode_pll(pll_value[i].cle266_pll);
+			break;
 
-			case UNICHROME_CX700:
-			case UNICHROME_K8M890:
-			case UNICHROME_P4M890:
-			case UNICHROME_P4M900:
-			case UNICHROME_VX800:
-				return pll_value[i].cx700_pll;
-			case UNICHROME_VX855:
-				return pll_value[i].vx855_pll;
-			}
+		case UNICHROME_K800:
+		case UNICHROME_PM800:
+		case UNICHROME_CN700:
+			value = k800_encode_pll(pll_value[i].k800_pll);
+			break;
+
+		case UNICHROME_CX700:
+		case UNICHROME_CN750:
+		case UNICHROME_K8M890:
+		case UNICHROME_P4M890:
+		case UNICHROME_P4M900:
+		case UNICHROME_VX800:
+			value = k800_encode_pll(pll_value[i].cx700_pll);
+			break;
+
+		case UNICHROME_VX855:
+			value = vx855_encode_pll(pll_value[i].vx855_pll);
+			break;
 		}
 	}
 
-	DEBUG_MSG(KERN_INFO "Can't find match PLL value\n\n");
-	return 0;
+	return value;
 }
 
 /* Set VCLK*/
-void viafb_set_vclock(u32 CLK, int set_iga)
+void viafb_set_vclock(u32 clk, int set_iga)
 {
-	unsigned char RegTemp;
-
 	/* H.W. Reset : ON */
 	viafb_write_reg_mask(CR17, VIACR, 0x00, BIT7);
 
-	if ((set_iga == IGA1) || (set_iga == IGA1_IGA2)) {
+	if (set_iga == IGA1) {
 		/* Change D,N FOR VCLK */
 		switch (viaparinfo->chip_info->gfx_chip_name) {
 		case UNICHROME_CLE266:
 		case UNICHROME_K400:
-			viafb_write_reg(SR46, VIASR, CLK / 0x100);
-			viafb_write_reg(SR47, VIASR, CLK % 0x100);
+			via_write_reg(VIASR, SR46, (clk & 0x00FF));
+			via_write_reg(VIASR, SR47, (clk & 0xFF00) >> 8);
 			break;
 
 		case UNICHROME_K800:
 		case UNICHROME_PM800:
 		case UNICHROME_CN700:
 		case UNICHROME_CX700:
+		case UNICHROME_CN750:
 		case UNICHROME_K8M890:
 		case UNICHROME_P4M890:
 		case UNICHROME_P4M900:
 		case UNICHROME_VX800:
 		case UNICHROME_VX855:
-			viafb_write_reg(SR44, VIASR, CLK / 0x10000);
-			DEBUG_MSG(KERN_INFO "\nSR44=%x", CLK / 0x10000);
-			viafb_write_reg(SR45, VIASR, (CLK & 0xFFFF) / 0x100);
-			DEBUG_MSG(KERN_INFO "\nSR45=%x",
-				  (CLK & 0xFFFF) / 0x100);
-			viafb_write_reg(SR46, VIASR, CLK % 0x100);
-			DEBUG_MSG(KERN_INFO "\nSR46=%x", CLK % 0x100);
+			via_write_reg(VIASR, SR44, (clk & 0x0000FF));
+			via_write_reg(VIASR, SR45, (clk & 0x00FF00) >> 8);
+			via_write_reg(VIASR, SR46, (clk & 0xFF0000) >> 16);
 			break;
 		}
 	}
 
-	if ((set_iga == IGA2) || (set_iga == IGA1_IGA2)) {
+	if (set_iga == IGA2) {
 		/* Change D,N FOR LCK */
 		switch (viaparinfo->chip_info->gfx_chip_name) {
 		case UNICHROME_CLE266:
 		case UNICHROME_K400:
-			viafb_write_reg(SR44, VIASR, CLK / 0x100);
-			viafb_write_reg(SR45, VIASR, CLK % 0x100);
+			via_write_reg(VIASR, SR44, (clk & 0x00FF));
+			via_write_reg(VIASR, SR45, (clk & 0xFF00) >> 8);
 			break;
 
 		case UNICHROME_K800:
 		case UNICHROME_PM800:
 		case UNICHROME_CN700:
 		case UNICHROME_CX700:
+		case UNICHROME_CN750:
 		case UNICHROME_K8M890:
 		case UNICHROME_P4M890:
 		case UNICHROME_P4M900:
 		case UNICHROME_VX800:
 		case UNICHROME_VX855:
-			viafb_write_reg(SR4A, VIASR, CLK / 0x10000);
-			viafb_write_reg(SR4B, VIASR, (CLK & 0xFFFF) / 0x100);
-			viafb_write_reg(SR4C, VIASR, CLK % 0x100);
+			via_write_reg(VIASR, SR4A, (clk & 0x0000FF));
+			via_write_reg(VIASR, SR4B, (clk & 0x00FF00) >> 8);
+			via_write_reg(VIASR, SR4C, (clk & 0xFF0000) >> 16);
 			break;
 		}
 	}
@@ -1557,19 +1682,18 @@ void viafb_set_vclock(u32 CLK, int set_iga)
 	viafb_write_reg_mask(CR17, VIACR, 0x80, BIT7);
 
 	/* Reset PLL */
-	if ((set_iga == IGA1) || (set_iga == IGA1_IGA2)) {
+	if (set_iga == IGA1) {
 		viafb_write_reg_mask(SR40, VIASR, 0x02, BIT1);
 		viafb_write_reg_mask(SR40, VIASR, 0x00, BIT1);
 	}
 
-	if ((set_iga == IGA2) || (set_iga == IGA1_IGA2)) {
+	if (set_iga == IGA2) {
 		viafb_write_reg_mask(SR40, VIASR, 0x01, BIT0);
 		viafb_write_reg_mask(SR40, VIASR, 0x00, BIT0);
 	}
 
 	/* Fire! */
-	RegTemp = inb(VIARMisc);
-	outb(RegTemp | (BIT2 + BIT3), VIAWMisc);
+	via_write_misc_reg_mask(0x0C, 0x0C); /* select external clock */
 }
 
 void viafb_load_crtc_timing(struct display_timing device_timing,
@@ -1805,46 +1929,15 @@ void viafb_load_crtc_timing(struct display_timing device_timing,
 	viafb_lock_crt();
 }
 
-void viafb_set_color_depth(int bpp_byte, int set_iga)
-{
-	if (set_iga == IGA1) {
-		switch (bpp_byte) {
-		case MODE_8BPP:
-			viafb_write_reg_mask(SR15, VIASR, 0x22, 0x7E);
-			break;
-		case MODE_16BPP:
-			viafb_write_reg_mask(SR15, VIASR, 0xB6, 0xFE);
-			break;
-		case MODE_32BPP:
-			viafb_write_reg_mask(SR15, VIASR, 0xAE, 0xFE);
-			break;
-		}
-	} else {
-		switch (bpp_byte) {
-		case MODE_8BPP:
-			viafb_write_reg_mask(CR67, VIACR, 0x00, BIT6 + BIT7);
-			break;
-		case MODE_16BPP:
-			viafb_write_reg_mask(CR67, VIACR, 0x40, BIT6 + BIT7);
-			break;
-		case MODE_32BPP:
-			viafb_write_reg_mask(CR67, VIACR, 0xC0, BIT6 + BIT7);
-			break;
-		}
-	}
-}
-
 void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
-	int mode_index, int bpp_byte, int set_iga)
+	struct VideoModeTable *video_mode, int bpp_byte, int set_iga)
 {
-	struct VideoModeTable *video_mode;
 	struct display_timing crt_reg;
 	int i;
 	int index = 0;
 	int h_addr, v_addr;
 	u32 pll_D_N;
-
-	video_mode = &CLE266Modes[search_mode_setting(mode_index)];
+	u8 polarity = 0;
 
 	for (i = 0; i < video_mode->mode_array; i++) {
 		index = i;
@@ -1858,8 +1951,10 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 
 	/* Mode 640x480 has border, but LCD/DFP didn't have border. */
 	/* So we would delete border. */
-	if ((viafb_LCD_ON | viafb_DVI_ON) && (mode_index == VIA_RES_640X480)
-	    && (viaparinfo->crt_setting_info->refresh_rate == 60)) {
+	if ((viafb_LCD_ON | viafb_DVI_ON)
+	    && video_mode->crtc[0].crtc.hor_addr == 640
+	    && video_mode->crtc[0].crtc.ver_addr == 480
+	    && viaparinfo->crt_setting_info->refresh_rate == 60) {
 		/* The border is 8 pixels. */
 		crt_reg.hor_blank_start = crt_reg.hor_blank_start - 8;
 
@@ -1871,20 +1966,11 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 	v_addr = crt_reg.ver_addr;
 
 	/* update polarity for CRT timing */
-	if (crt_table[index].h_sync_polarity == NEGATIVE) {
-		if (crt_table[index].v_sync_polarity == NEGATIVE)
-			outb((inb(VIARMisc) & (~(BIT6 + BIT7))) |
-			     (BIT6 + BIT7), VIAWMisc);
-		else
-			outb((inb(VIARMisc) & (~(BIT6 + BIT7))) | (BIT6),
-			     VIAWMisc);
-	} else {
-		if (crt_table[index].v_sync_polarity == NEGATIVE)
-			outb((inb(VIARMisc) & (~(BIT6 + BIT7))) | (BIT7),
-			     VIAWMisc);
-		else
-			outb((inb(VIARMisc) & (~(BIT6 + BIT7))), VIAWMisc);
-	}
+	if (crt_table[index].h_sync_polarity == NEGATIVE)
+		polarity |= BIT6;
+	if (crt_table[index].v_sync_polarity == NEGATIVE)
+		polarity |= BIT7;
+	via_write_misc_reg_mask(polarity, BIT6 | BIT7);
 
 	if (set_iga == IGA1) {
 		viafb_unlock_crt();
@@ -1912,19 +1998,15 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 	    && (viaparinfo->chip_info->gfx_chip_name != UNICHROME_K400))
 		viafb_load_FIFO_reg(set_iga, h_addr, v_addr);
 
-	/* load SR Register About Memory and Color part */
-	viafb_set_color_depth(bpp_byte, set_iga);
-
 	pll_D_N = viafb_get_clk_value(crt_table[index].clk);
 	DEBUG_MSG(KERN_INFO "PLL=%x", pll_D_N);
 	viafb_set_vclock(pll_D_N, set_iga);
 
 }
 
-void viafb_init_chip_info(struct pci_dev *pdev,
-			  const struct pci_device_id *pdi)
+void viafb_init_chip_info(int chip_type)
 {
-	init_gfx_chip_info(pdev, pdi);
+	init_gfx_chip_info(chip_type);
 	init_tmds_chip_info();
 	init_lvds_chip_info();
 
@@ -1935,8 +2017,6 @@ void viafb_init_chip_info(struct pci_dev *pdev,
 	viafb_set_iga_path();
 
 	viaparinfo->lvds_setting_info->display_method = viafb_lcd_dsp_method;
-	viaparinfo->lvds_setting_info->get_lcd_size_method =
-		GET_LCD_SIZE_BY_USER_SETTING;
 	viaparinfo->lvds_setting_info->lcd_mode = viafb_lcd_mode;
 	viaparinfo->lvds_setting_info2->display_method =
 		viaparinfo->lvds_setting_info->display_method;
@@ -1956,9 +2036,6 @@ void viafb_update_device_setting(int hres, int vres,
 
 		viaparinfo->tmds_setting_info->h_active = hres;
 		viaparinfo->tmds_setting_info->v_active = vres;
-		viaparinfo->tmds_setting_info->bpp = bpp;
-		viaparinfo->tmds_setting_info->refresh_rate =
-			vmode_refresh;
 
 		viaparinfo->lvds_setting_info->h_active = hres;
 		viaparinfo->lvds_setting_info->v_active = vres;
@@ -1975,9 +2052,6 @@ void viafb_update_device_setting(int hres, int vres,
 		if (viaparinfo->tmds_setting_info->iga_path == IGA2) {
 			viaparinfo->tmds_setting_info->h_active = hres;
 			viaparinfo->tmds_setting_info->v_active = vres;
-			viaparinfo->tmds_setting_info->bpp = bpp;
-			viaparinfo->tmds_setting_info->refresh_rate =
-				vmode_refresh;
 		}
 
 		if (viaparinfo->lvds_setting_info->iga_path == IGA2) {
@@ -1997,12 +2071,11 @@ void viafb_update_device_setting(int hres, int vres,
 	}
 }
 
-static void init_gfx_chip_info(struct pci_dev *pdev,
-			       const struct pci_device_id *pdi)
+static void init_gfx_chip_info(int chip_type)
 {
 	u8 tmp;
 
-	viaparinfo->chip_info->gfx_chip_name = pdi->driver_data;
+	viaparinfo->chip_info->gfx_chip_name = chip_type;
 
 	/* Check revision of CLE266 Chip */
 	if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266) {
@@ -2032,6 +2105,21 @@ static void init_gfx_chip_info(struct pci_dev *pdev,
 			viaparinfo->chip_info->gfx_chip_revision =
 				CX700_REVISION_700;
 		}
+	}
+
+	/* Determine which 2D engine we have */
+	switch (viaparinfo->chip_info->gfx_chip_name) {
+	case UNICHROME_VX800:
+	case UNICHROME_VX855:
+		viaparinfo->chip_info->twod_engine = VIA_2D_ENG_M1;
+		break;
+	case UNICHROME_K8M890:
+	case UNICHROME_P4M900:
+		viaparinfo->chip_info->twod_engine = VIA_2D_ENG_H5;
+		break;
+	default:
+		viaparinfo->chip_info->twod_engine = VIA_2D_ENG_H2;
+		break;
 	}
 }
 
@@ -2076,20 +2164,12 @@ static void init_tmds_chip_info(void)
 
 	DEBUG_MSG(KERN_INFO "TMDS Chip = %d\n",
 		  viaparinfo->chip_info->tmds_chip_info.tmds_chip_name);
-	viaparinfo->tmds_setting_info->get_dvi_size_method =
-		GET_DVI_SIZE_BY_VGA_BIOS;
-	viafb_init_dvi_size();
+	viafb_init_dvi_size(&viaparinfo->shared->chip_info.tmds_chip_info,
+		&viaparinfo->shared->tmds_setting_info);
 }
 
 static void init_lvds_chip_info(void)
 {
-	if (viafb_lcd_panel_id > LCD_PANEL_ID_MAXIMUM)
-		viaparinfo->lvds_setting_info->get_lcd_size_method =
-		    GET_LCD_SIZE_BY_VGA_BIOS;
-	else
-		viaparinfo->lvds_setting_info->get_lcd_size_method =
-		    GET_LCD_SIZE_BY_USER_SETTING;
-
 	viafb_lvds_trasmitter_identify();
 	viafb_init_lcd_size();
 	viafb_init_lvds_output_interface(&viaparinfo->chip_info->lvds_chip_info,
@@ -2195,28 +2275,19 @@ static void set_display_channel(void)
 	}
 }
 
-int viafb_setmode(int vmode_index, int hor_res, int ver_res, int video_bpp,
-	int vmode_index1, int hor_res1, int ver_res1, int video_bpp1)
+int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
+	struct VideoModeTable *vmode_tbl1, int video_bpp1)
 {
 	int i, j;
 	int port;
 	u8 value, index, mask;
-	struct VideoModeTable *vmode_tbl;
 	struct crt_mode_table *crt_timing;
-	struct VideoModeTable *vmode_tbl1 = NULL;
 	struct crt_mode_table *crt_timing1 = NULL;
 
-	DEBUG_MSG(KERN_INFO "Set Mode!!\n");
-	DEBUG_MSG(KERN_INFO
-		  "vmode_index=%d hor_res=%d ver_res=%d video_bpp=%d\n",
-		  vmode_index, hor_res, ver_res, video_bpp);
-
 	device_screen_off();
-	vmode_tbl = &CLE266Modes[search_mode_setting(vmode_index)];
 	crt_timing = vmode_tbl->crtc;
 
 	if (viafb_SAMM_ON == 1) {
-		vmode_tbl1 = &CLE266Modes[search_mode_setting(vmode_index1)];
 		crt_timing1 = vmode_tbl1->crtc;
 	}
 
@@ -2259,26 +2330,21 @@ int viafb_setmode(int vmode_index, int hor_res, int ver_res, int video_bpp,
 
 	/* Fill VPIT Parameters */
 	/* Write Misc Register */
-	outb(VPIT.Misc, VIAWMisc);
+	outb(VPIT.Misc, VIA_MISC_REG_WRITE);
 
 	/* Write Sequencer */
-	for (i = 1; i <= StdSR; i++) {
-		outb(i, VIASR);
-		outb(VPIT.SR[i - 1], VIASR + 1);
-	}
+	for (i = 1; i <= StdSR; i++)
+		via_write_reg(VIASR, i, VPIT.SR[i - 1]);
 
-	viafb_set_primary_address(0);
-	viafb_set_secondary_address(viafb_SAMM_ON ? viafb_second_offset : 0);
+	viafb_write_reg_mask(0x15, VIASR, 0xA2, 0xA2);
 	viafb_set_iga_path();
 
 	/* Write CRTC */
-	viafb_fill_crtc_timing(crt_timing, vmode_index, video_bpp / 8, IGA1);
+	viafb_fill_crtc_timing(crt_timing, vmode_tbl, video_bpp / 8, IGA1);
 
 	/* Write Graphic Controller */
-	for (i = 0; i < StdGR; i++) {
-		outb(i, VIAGR);
-		outb(VPIT.GR[i], VIAGR + 1);
-	}
+	for (i = 0; i < StdGR; i++)
+		via_write_reg(VIAGR, i, VPIT.GR[i]);
 
 	/* Write Attribute Controller */
 	for (i = 0; i < StdAR; i++) {
@@ -2292,65 +2358,25 @@ int viafb_setmode(int vmode_index, int hor_res, int ver_res, int video_bpp,
 
 	/* Update Patch Register */
 
-	if ((viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266)
-	    || (viaparinfo->chip_info->gfx_chip_name == UNICHROME_K400)) {
-		for (i = 0; i < NUM_TOTAL_PATCH_MODE; i++) {
-			if (res_patch_table[i].mode_index == vmode_index) {
-				for (j = 0;
-				     j < res_patch_table[i].table_length; j++) {
-					index =
-					    res_patch_table[i].
-					    io_reg_table[j].index;
-					port =
-					    res_patch_table[i].
-					    io_reg_table[j].port;
-					value =
-					    res_patch_table[i].
-					    io_reg_table[j].value;
-					mask =
-					    res_patch_table[i].
-					    io_reg_table[j].mask;
-					viafb_write_reg_mask(index, port, value,
-						       mask);
-				}
-			}
+	if ((viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266
+	    || viaparinfo->chip_info->gfx_chip_name == UNICHROME_K400)
+	    && vmode_tbl->crtc[0].crtc.hor_addr == 1024
+	    && vmode_tbl->crtc[0].crtc.ver_addr == 768) {
+		for (j = 0; j < res_patch_table[0].table_length; j++) {
+			index = res_patch_table[0].io_reg_table[j].index;
+			port = res_patch_table[0].io_reg_table[j].port;
+			value = res_patch_table[0].io_reg_table[j].value;
+			mask = res_patch_table[0].io_reg_table[j].mask;
+			viafb_write_reg_mask(index, port, value, mask);
 		}
 	}
 
-	if (viafb_SAMM_ON == 1) {
-		if ((viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266)
-		    || (viaparinfo->chip_info->gfx_chip_name ==
-		    UNICHROME_K400)) {
-			for (i = 0; i < NUM_TOTAL_PATCH_MODE; i++) {
-				if (res_patch_table[i].mode_index ==
-				    vmode_index1) {
-					for (j = 0;
-					     j <
-					     res_patch_table[i].
-					     table_length; j++) {
-						index =
-						    res_patch_table[i].
-						    io_reg_table[j].index;
-						port =
-						    res_patch_table[i].
-						    io_reg_table[j].port;
-						value =
-						    res_patch_table[i].
-						    io_reg_table[j].value;
-						mask =
-						    res_patch_table[i].
-						    io_reg_table[j].mask;
-						viafb_write_reg_mask(index,
-							port, value, mask);
-					}
-				}
-			}
-		}
-	}
-
-	viafb_set_primary_pitch(viafbinfo->fix.line_length);
-	viafb_set_secondary_pitch(viafb_dual_fb ? viafbinfo1->fix.line_length
+	via_set_primary_pitch(viafbinfo->fix.line_length);
+	via_set_secondary_pitch(viafb_dual_fb ? viafbinfo1->fix.line_length
 		: viafbinfo->fix.line_length);
+	via_set_primary_color_depth(viaparinfo->depth);
+	via_set_secondary_color_depth(viafb_dual_fb ? viaparinfo1->depth
+		: viaparinfo->depth);
 	/* Update Refresh Rate Setting */
 
 	/* Clear On Screen */
@@ -2359,11 +2385,11 @@ int viafb_setmode(int vmode_index, int hor_res, int ver_res, int video_bpp,
 	if (viafb_CRT_ON) {
 		if (viafb_SAMM_ON && (viaparinfo->crt_setting_info->iga_path ==
 			IGA2)) {
-			viafb_fill_crtc_timing(crt_timing1, vmode_index1,
+			viafb_fill_crtc_timing(crt_timing1, vmode_tbl1,
 				video_bpp1 / 8,
 				viaparinfo->crt_setting_info->iga_path);
 		} else {
-			viafb_fill_crtc_timing(crt_timing, vmode_index,
+			viafb_fill_crtc_timing(crt_timing, vmode_tbl,
 				video_bpp / 8,
 				viaparinfo->crt_setting_info->iga_path);
 		}
@@ -2373,7 +2399,7 @@ int viafb_setmode(int vmode_index, int hor_res, int ver_res, int video_bpp,
 		/* Patch if set_hres is not 8 alignment (1366) to viafb_setmode
 		to 8 alignment (1368),there is several pixels (2 pixels)
 		on right side of screen. */
-		if (hor_res % 8) {
+		if (vmode_tbl->crtc[0].crtc.hor_addr % 8) {
 			viafb_unlock_crt();
 			viafb_write_reg(CR02, VIACR,
 				viafb_read_reg(VIACR, CR02) - 1);
@@ -2384,14 +2410,14 @@ int viafb_setmode(int vmode_index, int hor_res, int ver_res, int video_bpp,
 	if (viafb_DVI_ON) {
 		if (viafb_SAMM_ON &&
 			(viaparinfo->tmds_setting_info->iga_path == IGA2)) {
-			viafb_dvi_set_mode(viafb_get_mode_index
+			viafb_dvi_set_mode(viafb_get_mode
 				     (viaparinfo->tmds_setting_info->h_active,
 				      viaparinfo->tmds_setting_info->
 				      v_active),
 				     video_bpp1, viaparinfo->
 				     tmds_setting_info->iga_path);
 		} else {
-			viafb_dvi_set_mode(viafb_get_mode_index
+			viafb_dvi_set_mode(viafb_get_mode
 				     (viaparinfo->tmds_setting_info->h_active,
 				      viaparinfo->
 				      tmds_setting_info->v_active),
@@ -2445,8 +2471,8 @@ int viafb_setmode(int vmode_index, int hor_res, int ver_res, int video_bpp,
 
 	/* If set mode normally, save resolution information for hot-plug . */
 	if (!viafb_hotplug) {
-		viafb_hotplug_Xres = hor_res;
-		viafb_hotplug_Yres = ver_res;
+		viafb_hotplug_Xres = vmode_tbl->crtc[0].crtc.hor_addr;
+		viafb_hotplug_Yres = vmode_tbl->crtc[0].crtc.ver_addr;
 		viafb_hotplug_bpp = video_bpp;
 		viafb_hotplug_refresh = viafb_refresh;
 
@@ -2541,108 +2567,6 @@ static void disable_second_display_channel(void)
 	viafb_write_reg_mask(CR6A, VIACR, BIT6, BIT6);
 }
 
-int viafb_get_fb_size_from_pci(void)
-{
-	unsigned long configid, deviceid, FBSize = 0;
-	int VideoMemSize;
-	int DeviceFound = false;
-
-	for (configid = 0x80000000; configid < 0x80010800; configid += 0x100) {
-		outl(configid, (unsigned long)0xCF8);
-		deviceid = (inl((unsigned long)0xCFC) >> 16) & 0xffff;
-
-		switch (deviceid) {
-		case CLE266:
-		case KM400:
-			outl(configid + 0xE0, (unsigned long)0xCF8);
-			FBSize = inl((unsigned long)0xCFC);
-			DeviceFound = true;	/* Found device id */
-			break;
-
-		case CN400_FUNCTION3:
-		case CN700_FUNCTION3:
-		case CX700_FUNCTION3:
-		case KM800_FUNCTION3:
-		case KM890_FUNCTION3:
-		case P4M890_FUNCTION3:
-		case P4M900_FUNCTION3:
-		case VX800_FUNCTION3:
-		case VX855_FUNCTION3:
-			/*case CN750_FUNCTION3: */
-			outl(configid + 0xA0, (unsigned long)0xCF8);
-			FBSize = inl((unsigned long)0xCFC);
-			DeviceFound = true;	/* Found device id */
-			break;
-
-		default:
-			break;
-		}
-
-		if (DeviceFound)
-			break;
-	}
-
-	DEBUG_MSG(KERN_INFO "Device ID = %lx\n", deviceid);
-
-	FBSize = FBSize & 0x00007000;
-	DEBUG_MSG(KERN_INFO "FB Size = %x\n", FBSize);
-
-	if (viaparinfo->chip_info->gfx_chip_name < UNICHROME_CX700) {
-		switch (FBSize) {
-		case 0x00004000:
-			VideoMemSize = (16 << 20);	/*16M */
-			break;
-
-		case 0x00005000:
-			VideoMemSize = (32 << 20);	/*32M */
-			break;
-
-		case 0x00006000:
-			VideoMemSize = (64 << 20);	/*64M */
-			break;
-
-		default:
-			VideoMemSize = (32 << 20);	/*32M */
-			break;
-		}
-	} else {
-		switch (FBSize) {
-		case 0x00001000:
-			VideoMemSize = (8 << 20);	/*8M */
-			break;
-
-		case 0x00002000:
-			VideoMemSize = (16 << 20);	/*16M */
-			break;
-
-		case 0x00003000:
-			VideoMemSize = (32 << 20);	/*32M */
-			break;
-
-		case 0x00004000:
-			VideoMemSize = (64 << 20);	/*64M */
-			break;
-
-		case 0x00005000:
-			VideoMemSize = (128 << 20);	/*128M */
-			break;
-
-		case 0x00006000:
-			VideoMemSize = (256 << 20);	/*256M */
-			break;
-
-		case 0x00007000:	/* Only on VX855/875 */
-			VideoMemSize = (512 << 20);	/*512M */
-			break;
-
-		default:
-			VideoMemSize = (32 << 20);	/*32M */
-			break;
-		}
-	}
-
-	return VideoMemSize;
-}
 
 void viafb_set_dpa_gfx(int output_interface, struct GFX_DPA_SETTING\
 					*p_gfx_dpa_setting)
@@ -2706,13 +2630,11 @@ void viafb_set_dpa_gfx(int output_interface, struct GFX_DPA_SETTING\
 
 /*According var's xres, yres fill var's other timing information*/
 void viafb_fill_var_timing_info(struct fb_var_screeninfo *var, int refresh,
-			  int mode_index)
+	struct VideoModeTable *vmode_tbl)
 {
-	struct VideoModeTable *vmode_tbl = NULL;
 	struct crt_mode_table *crt_timing = NULL;
 	struct display_timing crt_reg;
 	int i = 0, index = 0;
-	vmode_tbl = &CLE266Modes[search_mode_setting(mode_index)];
 	crt_timing = vmode_tbl->crtc;
 	for (i = 0; i < vmode_tbl->mode_array; i++) {
 		index = i;
@@ -2721,36 +2643,6 @@ void viafb_fill_var_timing_info(struct fb_var_screeninfo *var, int refresh,
 	}
 
 	crt_reg = crt_timing[index].crtc;
-	switch (var->bits_per_pixel) {
-	case 8:
-		var->red.offset = 0;
-		var->green.offset = 0;
-		var->blue.offset = 0;
-		var->red.length = 6;
-		var->green.length = 6;
-		var->blue.length = 6;
-		break;
-	case 16:
-		var->red.offset = 11;
-		var->green.offset = 5;
-		var->blue.offset = 0;
-		var->red.length = 5;
-		var->green.length = 6;
-		var->blue.length = 5;
-		break;
-	case 32:
-		var->red.offset = 16;
-		var->green.offset = 8;
-		var->blue.offset = 0;
-		var->red.length = 8;
-		var->green.length = 8;
-		var->blue.length = 8;
-		break;
-	default:
-		/* never happed, put here to keep consistent */
-		break;
-	}
-
 	var->pixclock = viafb_get_pixclock(var->xres, var->yres, refresh);
 	var->left_margin =
 	    crt_reg.hor_total - (crt_reg.hor_sync_start + crt_reg.hor_sync_end);

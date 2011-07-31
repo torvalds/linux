@@ -16,8 +16,6 @@
 
 #define PCI_IRQ_NONE		0xffffffff
 
-#define PCI_CACHE_LINE_BYTES	64
-
 static inline void pcibios_set_master(struct pci_dev *dev)
 {
 	/* No special bus mastering setup handling */
@@ -33,20 +31,6 @@ static inline void pcibios_penalize_isa_irq(int irq, int active)
  * this boolean for bounce buffer decisions.
  */
 #define PCI_DMA_BUS_IS_PHYS	(0)
-
-/* pci_unmap_{single,page} is not a nop, thus... */
-#define DECLARE_PCI_UNMAP_ADDR(ADDR_NAME)	\
-	dma_addr_t ADDR_NAME;
-#define DECLARE_PCI_UNMAP_LEN(LEN_NAME)		\
-	__u32 LEN_NAME;
-#define pci_unmap_addr(PTR, ADDR_NAME)			\
-	((PTR)->ADDR_NAME)
-#define pci_unmap_addr_set(PTR, ADDR_NAME, VAL)		\
-	(((PTR)->ADDR_NAME) = (VAL))
-#define pci_unmap_len(PTR, LEN_NAME)			\
-	((PTR)->LEN_NAME)
-#define pci_unmap_len_set(PTR, LEN_NAME, VAL)		\
-	(((PTR)->LEN_NAME) = (VAL))
 
 /* PCI IOMMU mapping bypass support. */
 

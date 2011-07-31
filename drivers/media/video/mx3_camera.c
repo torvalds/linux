@@ -23,6 +23,7 @@
 #include <media/v4l2-dev.h>
 #include <media/videobuf-dma-contig.h>
 #include <media/soc_camera.h>
+#include <media/soc_mediabus.h>
 
 #include <mach/ipu.h>
 #include <mach/mx3_camera.h>
@@ -63,7 +64,7 @@
 struct mx3_camera_buffer {
 	/* common v4l buffer stuff -- must be first */
 	struct videobuf_buffer			vb;
-	const struct soc_camera_data_format	*fmt;
+	enum v4l2_mbus_pixelcode		code;
 
 	/* One descriptot per scatterlist (per frame) */
 	struct dma_async_tx_descriptor		*txd;
@@ -117,8 +118,6 @@ struct dma_chan_request {
 	struct mx3_camera_dev	*mx3_cam;
 	enum ipu_channel	id;
 };
-
-static int mx3_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt);
 
 static u32 csi_reg_read(struct mx3_camera_dev *mx3, off_t reg)
 {
@@ -211,17 +210,16 @@ static int mx3_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 	struct soc_camera_device *icd = vq->priv_data;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
-	/*
-	 * bits-per-pixel (depth) as specified in camera's pixel format does
-	 * not necessarily match what the camera interface writes to RAM, but
-	 * it should be good enough for now.
-	 */
-	unsigned int bpp = DIV_ROUND_UP(icd->current_fmt->depth, 8);
+	int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
+						icd->current_fmt->host_fmt);
+
+	if (bytes_per_line < 0)
+		return bytes_per_line;
 
 	if (!mx3_cam->idmac_channel[0])
 		return -EINVAL;
 
-	*size = icd->user_width * icd->user_height * bpp;
+	*size = bytes_per_line * icd->user_height;
 
 	if (!*count)
 		*count = 32;
@@ -241,21 +239,26 @@ static int mx3_videobuf_prepare(struct videobuf_queue *vq,
 	struct mx3_camera_dev *mx3_cam = ici->priv;
 	struct mx3_camera_buffer *buf =
 		container_of(vb, struct mx3_camera_buffer, vb);
-	/* current_fmt _must_ always be set */
-	size_t new_size = icd->user_width * icd->user_height *
-		((icd->current_fmt->depth + 7) >> 3);
+	size_t new_size;
 	int ret;
+	int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
+						icd->current_fmt->host_fmt);
+
+	if (bytes_per_line < 0)
+		return bytes_per_line;
+
+	new_size = bytes_per_line * icd->user_height;
 
 	/*
 	 * I think, in buf_prepare you only have to protect global data,
 	 * the actual buffer is yours
 	 */
 
-	if (buf->fmt	!= icd->current_fmt ||
+	if (buf->code	!= icd->current_fmt->code ||
 	    vb->width	!= icd->user_width ||
 	    vb->height	!= icd->user_height ||
 	    vb->field	!= field) {
-		buf->fmt	= icd->current_fmt;
+		buf->code	= icd->current_fmt->code;
 		vb->width	= icd->user_width;
 		vb->height	= icd->user_height;
 		vb->field	= field;
@@ -348,13 +351,13 @@ static void mx3_videobuf_queue(struct videobuf_queue *vq,
 	struct dma_async_tx_descriptor *txd = buf->txd;
 	struct idmac_channel *ichan = to_idmac_chan(txd->chan);
 	struct idmac_video_param *video = &ichan->params.video;
-	const struct soc_camera_data_format *data_fmt = icd->current_fmt;
 	dma_cookie_t cookie;
+	u32 fourcc = icd->current_fmt->host_fmt->fourcc;
 
 	BUG_ON(!irqs_disabled());
 
 	/* This is the configuration of one sg-element */
-	video->out_pixel_fmt	= fourcc_to_ipu_pix(data_fmt->fourcc);
+	video->out_pixel_fmt	= fourcc_to_ipu_pix(fourcc);
 	video->out_width	= icd->user_width;
 	video->out_height	= icd->user_height;
 	video->out_stride	= icd->user_width;
@@ -564,30 +567,37 @@ static int test_platform_param(struct mx3_camera_dev *mx3_cam,
 		SOCAM_DATA_ACTIVE_HIGH |
 		SOCAM_DATA_ACTIVE_LOW;
 
-	/* If requested data width is supported by the platform, use it or any
-	 * possible lower value - i.MX31 is smart enough to schift bits */
-	switch (buswidth) {
-	case 15:
-		if (!(mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_15))
-			return -EINVAL;
+	/*
+	 * If requested data width is supported by the platform, use it or any
+	 * possible lower value - i.MX31 is smart enough to schift bits
+	 */
+	if (mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_15)
 		*flags |= SOCAM_DATAWIDTH_15 | SOCAM_DATAWIDTH_10 |
 			SOCAM_DATAWIDTH_8 | SOCAM_DATAWIDTH_4;
-		break;
-	case 10:
-		if (!(mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_10))
-			return -EINVAL;
+	else if (mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_10)
 		*flags |= SOCAM_DATAWIDTH_10 | SOCAM_DATAWIDTH_8 |
 			SOCAM_DATAWIDTH_4;
+	else if (mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_8)
+		*flags |= SOCAM_DATAWIDTH_8 | SOCAM_DATAWIDTH_4;
+	else if (mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_4)
+		*flags |= SOCAM_DATAWIDTH_4;
+
+	switch (buswidth) {
+	case 15:
+		if (!(*flags & SOCAM_DATAWIDTH_15))
+			return -EINVAL;
+		break;
+	case 10:
+		if (!(*flags & SOCAM_DATAWIDTH_10))
+			return -EINVAL;
 		break;
 	case 8:
-		if (!(mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_8))
+		if (!(*flags & SOCAM_DATAWIDTH_8))
 			return -EINVAL;
-		*flags |= SOCAM_DATAWIDTH_8 | SOCAM_DATAWIDTH_4;
 		break;
 	case 4:
-		if (!(mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_4))
+		if (!(*flags & SOCAM_DATAWIDTH_4))
 			return -EINVAL;
-		*flags |= SOCAM_DATAWIDTH_4;
 		break;
 	default:
 		dev_warn(mx3_cam->soc_host.v4l2_dev.dev,
@@ -636,91 +646,92 @@ static bool chan_filter(struct dma_chan *chan, void *arg)
 		pdata->dma_dev == chan->device->dev;
 }
 
-static const struct soc_camera_data_format mx3_camera_formats[] = {
+static const struct soc_mbus_pixelfmt mx3_camera_formats[] = {
 	{
-		.name		= "Bayer (sRGB) 8 bit",
-		.depth		= 8,
-		.fourcc		= V4L2_PIX_FMT_SBGGR8,
-		.colorspace	= V4L2_COLORSPACE_SRGB,
+		.fourcc			= V4L2_PIX_FMT_SBGGR8,
+		.name			= "Bayer BGGR (sRGB) 8 bit",
+		.bits_per_sample	= 8,
+		.packing		= SOC_MBUS_PACKING_NONE,
+		.order			= SOC_MBUS_ORDER_LE,
 	}, {
-		.name		= "Monochrome 8 bit",
-		.depth		= 8,
-		.fourcc		= V4L2_PIX_FMT_GREY,
-		.colorspace	= V4L2_COLORSPACE_JPEG,
+		.fourcc			= V4L2_PIX_FMT_GREY,
+		.name			= "Monochrome 8 bit",
+		.bits_per_sample	= 8,
+		.packing		= SOC_MBUS_PACKING_NONE,
+		.order			= SOC_MBUS_ORDER_LE,
 	},
 };
 
-static bool buswidth_supported(struct soc_camera_host *ici, int depth)
+/* This will be corrected as we get more formats */
+static bool mx3_camera_packing_supported(const struct soc_mbus_pixelfmt *fmt)
 {
-	struct mx3_camera_dev *mx3_cam = ici->priv;
-
-	switch (depth) {
-	case 4:
-		return !!(mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_4);
-	case 8:
-		return !!(mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_8);
-	case 10:
-		return !!(mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_10);
-	case 15:
-		return !!(mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_15);
-	}
-	return false;
+	return	fmt->packing == SOC_MBUS_PACKING_NONE ||
+		(fmt->bits_per_sample == 8 &&
+		 fmt->packing == SOC_MBUS_PACKING_2X8_PADHI) ||
+		(fmt->bits_per_sample > 8 &&
+		 fmt->packing == SOC_MBUS_PACKING_EXTEND16);
 }
 
-static int mx3_camera_get_formats(struct soc_camera_device *icd, int idx,
+static int mx3_camera_get_formats(struct soc_camera_device *icd, unsigned int idx,
 				  struct soc_camera_format_xlate *xlate)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	int formats = 0, buswidth, ret;
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+	struct device *dev = icd->dev.parent;
+	int formats = 0, ret;
+	enum v4l2_mbus_pixelcode code;
+	const struct soc_mbus_pixelfmt *fmt;
 
-	buswidth = icd->formats[idx].depth;
-
-	if (!buswidth_supported(ici, buswidth))
+	ret = v4l2_subdev_call(sd, video, enum_mbus_fmt, idx, &code);
+	if (ret < 0)
+		/* No more formats */
 		return 0;
 
-	ret = mx3_camera_try_bus_param(icd, buswidth);
+	fmt = soc_mbus_get_fmtdesc(code);
+	if (!fmt) {
+		dev_err(icd->dev.parent,
+			"Invalid format code #%u: %d\n", idx, code);
+		return 0;
+	}
+
+	/* This also checks support for the requested bits-per-sample */
+	ret = mx3_camera_try_bus_param(icd, fmt->bits_per_sample);
 	if (ret < 0)
 		return 0;
 
-	switch (icd->formats[idx].fourcc) {
-	case V4L2_PIX_FMT_SGRBG10:
+	switch (code) {
+	case V4L2_MBUS_FMT_SBGGR10_1X10:
 		formats++;
 		if (xlate) {
-			xlate->host_fmt = &mx3_camera_formats[0];
-			xlate->cam_fmt = icd->formats + idx;
-			xlate->buswidth = buswidth;
+			xlate->host_fmt	= &mx3_camera_formats[0];
+			xlate->code	= code;
 			xlate++;
-			dev_dbg(icd->dev.parent,
-				"Providing format %s using %s\n",
-				mx3_camera_formats[0].name,
-				icd->formats[idx].name);
+			dev_dbg(dev, "Providing format %s using code %d\n",
+				mx3_camera_formats[0].name, code);
 		}
-		goto passthrough;
-	case V4L2_PIX_FMT_Y16:
+		break;
+	case V4L2_MBUS_FMT_Y10_1X10:
 		formats++;
 		if (xlate) {
-			xlate->host_fmt = &mx3_camera_formats[1];
-			xlate->cam_fmt = icd->formats + idx;
-			xlate->buswidth = buswidth;
+			xlate->host_fmt	= &mx3_camera_formats[1];
+			xlate->code	= code;
 			xlate++;
-			dev_dbg(icd->dev.parent,
-				"Providing format %s using %s\n",
-				mx3_camera_formats[0].name,
-				icd->formats[idx].name);
+			dev_dbg(dev, "Providing format %s using code %d\n",
+				mx3_camera_formats[1].name, code);
 		}
+		break;
 	default:
-passthrough:
-		/* Generic pass-through */
-		formats++;
-		if (xlate) {
-			xlate->host_fmt = icd->formats + idx;
-			xlate->cam_fmt = icd->formats + idx;
-			xlate->buswidth = buswidth;
-			xlate++;
-			dev_dbg(icd->dev.parent,
-				"Providing format %s in pass-through mode\n",
-				icd->formats[idx].name);
-		}
+		if (!mx3_camera_packing_supported(fmt))
+			return 0;
+	}
+
+	/* Generic pass-through */
+	formats++;
+	if (xlate) {
+		xlate->host_fmt	= fmt;
+		xlate->code	= code;
+		xlate++;
+		dev_dbg(dev, "Providing format %x in pass-through mode\n",
+			xlate->host_fmt->fourcc);
 	}
 
 	return formats;
@@ -785,7 +796,7 @@ static int acquire_dma_channel(struct mx3_camera_dev *mx3_cam)
  * FIXME: learn to use stride != width, then we can keep stride properly aligned
  * and support arbitrary (even) widths.
  */
-static inline void stride_align(__s32 *width)
+static inline void stride_align(__u32 *width)
 {
 	if (((*width + 7) &  ~7) < 4096)
 		*width = (*width + 7) &  ~7;
@@ -804,8 +815,7 @@ static int mx3_camera_set_crop(struct soc_camera_device *icd,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	struct v4l2_format f = {.type = V4L2_BUF_TYPE_VIDEO_CAPTURE};
-	struct v4l2_pix_format *pix = &f.fmt.pix;
+	struct v4l2_mbus_framefmt mf;
 	int ret;
 
 	soc_camera_limit_side(&rect->left, &rect->width, 0, 2, 4096);
@@ -816,37 +826,37 @@ static int mx3_camera_set_crop(struct soc_camera_device *icd,
 		return ret;
 
 	/* The capture device might have changed its output  */
-	ret = v4l2_subdev_call(sd, video, g_fmt, &f);
+	ret = v4l2_subdev_call(sd, video, g_mbus_fmt, &mf);
 	if (ret < 0)
 		return ret;
 
-	if (pix->width & 7) {
+	if (mf.width & 7) {
 		/* Ouch! We can only handle 8-byte aligned width... */
-		stride_align(&pix->width);
-		ret = v4l2_subdev_call(sd, video, s_fmt, &f);
+		stride_align(&mf.width);
+		ret = v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
 		if (ret < 0)
 			return ret;
 	}
 
-	if (pix->width != icd->user_width || pix->height != icd->user_height) {
+	if (mf.width != icd->user_width || mf.height != icd->user_height) {
 		/*
 		 * We now know pixel formats and can decide upon DMA-channel(s)
 		 * So far only direct camera-to-memory is supported
 		 */
 		if (channel_change_requested(icd, rect)) {
-			int ret = acquire_dma_channel(mx3_cam);
+			ret = acquire_dma_channel(mx3_cam);
 			if (ret < 0)
 				return ret;
 		}
 
-		configure_geometry(mx3_cam, pix->width, pix->height);
+		configure_geometry(mx3_cam, mf.width, mf.height);
 	}
 
 	dev_dbg(icd->dev.parent, "Sensor cropped %dx%d\n",
-		pix->width, pix->height);
+		mf.width, mf.height);
 
-	icd->user_width = pix->width;
-	icd->user_height = pix->height;
+	icd->user_width		= mf.width;
+	icd->user_height	= mf.height;
 
 	return ret;
 }
@@ -859,6 +869,7 @@ static int mx3_camera_set_fmt(struct soc_camera_device *icd,
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
+	struct v4l2_mbus_framefmt mf;
 	int ret;
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
@@ -883,11 +894,24 @@ static int mx3_camera_set_fmt(struct soc_camera_device *icd,
 
 	configure_geometry(mx3_cam, pix->width, pix->height);
 
-	ret = v4l2_subdev_call(sd, video, s_fmt, f);
-	if (!ret) {
-		icd->buswidth = xlate->buswidth;
-		icd->current_fmt = xlate->host_fmt;
-	}
+	mf.width	= pix->width;
+	mf.height	= pix->height;
+	mf.field	= pix->field;
+	mf.colorspace	= pix->colorspace;
+	mf.code		= xlate->code;
+
+	ret = v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
+	if (ret < 0)
+		return ret;
+
+	if (mf.code != xlate->code)
+		return -EINVAL;
+
+	pix->width		= mf.width;
+	pix->height		= mf.height;
+	pix->field		= mf.field;
+	pix->colorspace		= mf.colorspace;
+	icd->current_fmt	= xlate;
 
 	dev_dbg(icd->dev.parent, "Sensor set %dx%d\n", pix->width, pix->height);
 
@@ -900,8 +924,8 @@ static int mx3_camera_try_fmt(struct soc_camera_device *icd,
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
+	struct v4l2_mbus_framefmt mf;
 	__u32 pixfmt = pix->pixelformat;
-	enum v4l2_field field;
 	int ret;
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
@@ -916,23 +940,37 @@ static int mx3_camera_try_fmt(struct soc_camera_device *icd,
 	if (pix->width > 4096)
 		pix->width = 4096;
 
-	pix->bytesperline = pix->width *
-		DIV_ROUND_UP(xlate->host_fmt->depth, 8);
+	pix->bytesperline = soc_mbus_bytes_per_line(pix->width,
+						    xlate->host_fmt);
+	if (pix->bytesperline < 0)
+		return pix->bytesperline;
 	pix->sizeimage = pix->height * pix->bytesperline;
 
-	/* camera has to see its format, but the user the original one */
-	pix->pixelformat = xlate->cam_fmt->fourcc;
 	/* limit to sensor capabilities */
-	ret = v4l2_subdev_call(sd, video, try_fmt, f);
-	pix->pixelformat = xlate->host_fmt->fourcc;
+	mf.width	= pix->width;
+	mf.height	= pix->height;
+	mf.field	= pix->field;
+	mf.colorspace	= pix->colorspace;
+	mf.code		= xlate->code;
 
-	field = pix->field;
+	ret = v4l2_subdev_call(sd, video, try_mbus_fmt, &mf);
+	if (ret < 0)
+		return ret;
 
-	if (field == V4L2_FIELD_ANY) {
+	pix->width	= mf.width;
+	pix->height	= mf.height;
+	pix->colorspace	= mf.colorspace;
+
+	switch (mf.field) {
+	case V4L2_FIELD_ANY:
 		pix->field = V4L2_FIELD_NONE;
-	} else if (field != V4L2_FIELD_NONE) {
-		dev_err(icd->dev.parent, "Field type %d unsupported.\n", field);
-		return -EINVAL;
+		break;
+	case V4L2_FIELD_NONE:
+		break;
+	default:
+		dev_err(icd->dev.parent, "Field type %d unsupported.\n",
+			mf.field);
+		ret = -EINVAL;
 	}
 
 	return ret;
@@ -968,9 +1006,18 @@ static int mx3_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 	struct mx3_camera_dev *mx3_cam = ici->priv;
 	unsigned long bus_flags, camera_flags, common_flags;
 	u32 dw, sens_conf;
-	int ret = test_platform_param(mx3_cam, icd->buswidth, &bus_flags);
+	const struct soc_mbus_pixelfmt *fmt;
+	int buswidth;
+	int ret;
 	const struct soc_camera_format_xlate *xlate;
 	struct device *dev = icd->dev.parent;
+
+	fmt = soc_mbus_get_fmtdesc(icd->current_fmt->code);
+	if (!fmt)
+		return -EINVAL;
+
+	buswidth = fmt->bits_per_sample;
+	ret = test_platform_param(mx3_cam, buswidth, &bus_flags);
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
 	if (!xlate) {
@@ -978,8 +1025,7 @@ static int mx3_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 		return -EINVAL;
 	}
 
-	dev_dbg(dev, "requested bus width %d bit: %d\n",
-		icd->buswidth, ret);
+	dev_dbg(dev, "requested bus width %d bit: %d\n", buswidth, ret);
 
 	if (ret < 0)
 		return ret;
@@ -1027,8 +1073,10 @@ static int mx3_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 			common_flags &= ~SOCAM_PCLK_SAMPLE_FALLING;
 	}
 
-	/* Make the camera work in widest common mode, we'll take care of
-	 * the rest */
+	/*
+	 * Make the camera work in widest common mode, we'll take care of
+	 * the rest
+	 */
 	if (common_flags & SOCAM_DATAWIDTH_15)
 		common_flags = (common_flags & ~SOCAM_DATAWIDTH_MASK) |
 			SOCAM_DATAWIDTH_15;
@@ -1078,7 +1126,7 @@ static int mx3_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 		sens_conf |= 1 << CSI_SENS_CONF_DATA_POL_SHIFT;
 
 	/* Just do what we're asked to do */
-	switch (xlate->host_fmt->depth) {
+	switch (xlate->host_fmt->bits_per_sample) {
 	case 4:
 		dw = 0 << CSI_SENS_CONF_DATA_WIDTH_SHIFT;
 		break;
@@ -1152,8 +1200,10 @@ static int __devinit mx3_camera_probe(struct platform_device *pdev)
 	if (!(mx3_cam->platform_flags & (MX3_CAMERA_DATAWIDTH_4 |
 			MX3_CAMERA_DATAWIDTH_8 | MX3_CAMERA_DATAWIDTH_10 |
 			MX3_CAMERA_DATAWIDTH_15))) {
-		/* Platform hasn't set available data widths. This is bad.
-		 * Warn and use a default. */
+		/*
+		 * Platform hasn't set available data widths. This is bad.
+		 * Warn and use a default.
+		 */
 		dev_warn(&pdev->dev, "WARNING! Platform hasn't set available "
 			 "data widths, using default 8 bit\n");
 		mx3_cam->platform_flags |= MX3_CAMERA_DATAWIDTH_8;

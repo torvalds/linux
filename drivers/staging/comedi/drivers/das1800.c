@@ -101,6 +101,7 @@ TODO:
 */
 
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include "../comedidev.h"
 
 #include <linux/ioport.h>
@@ -530,7 +531,18 @@ static struct comedi_driver driver_das1800 = {
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_INITCLEANUP(driver_das1800);
+static int __init driver_das1800_init_module(void)
+{
+	return comedi_driver_register(&driver_das1800);
+}
+
+static void __exit driver_das1800_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_das1800);
+}
+
+module_init(driver_das1800_init_module);
+module_exit(driver_das1800_cleanup_module);
 
 static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,
 			    unsigned int dma1)
@@ -796,10 +808,8 @@ static int das1800_detach(struct comedi_device *dev)
 			free_dma(devpriv->dma0);
 		if (devpriv->dma1)
 			free_dma(devpriv->dma1);
-		if (devpriv->ai_buf0)
-			kfree(devpriv->ai_buf0);
-		if (devpriv->ai_buf1)
-			kfree(devpriv->ai_buf1);
+		kfree(devpriv->ai_buf0);
+		kfree(devpriv->ai_buf1);
 	}
 
 	printk("comedi%d: %s: remove\n", dev->minor,
@@ -1638,7 +1648,8 @@ static int das1800_ai_rinsn(struct comedi_device *dev,
 		}
 		if (i == timeout) {
 			comedi_error(dev, "timeout");
-			return -ETIME;
+			n = -ETIME;
+			goto exit;
 		}
 		dpnt = inw(dev->iobase + DAS1800_FIFO);
 		/* shift data to offset binary for bipolar ranges */
@@ -1646,6 +1657,7 @@ static int das1800_ai_rinsn(struct comedi_device *dev,
 			dpnt += 1 << (thisboard->resolution - 1);
 		data[n] = dpnt;
 	}
+exit:
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	return n;
@@ -1799,3 +1811,7 @@ static unsigned int suggest_transfer_size(struct comedi_cmd *cmd)
 
 	return size;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

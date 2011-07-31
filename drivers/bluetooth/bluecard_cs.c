@@ -37,9 +37,8 @@
 #include <linux/wait.h>
 
 #include <linux/skbuff.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
@@ -65,7 +64,6 @@ MODULE_LICENSE("GPL");
 
 typedef struct bluecard_info_t {
 	struct pcmcia_device *p_dev;
-	dev_node_t node;
 
 	struct hci_dev *hdev;
 
@@ -161,7 +159,7 @@ static void bluecard_detach(struct pcmcia_device *p_dev);
 static void bluecard_activity_led_timeout(u_long arg)
 {
 	bluecard_info_t *info = (bluecard_info_t *)arg;
-	unsigned int iobase = info->p_dev->io.BasePort1;
+	unsigned int iobase = info->p_dev->resource[0]->start;
 
 	if (!test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state)))
 		return;
@@ -178,7 +176,7 @@ static void bluecard_activity_led_timeout(u_long arg)
 
 static void bluecard_enable_activity_led(bluecard_info_t *info)
 {
-	unsigned int iobase = info->p_dev->io.BasePort1;
+	unsigned int iobase = info->p_dev->resource[0]->start;
 
 	if (!test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state)))
 		return;
@@ -234,7 +232,7 @@ static void bluecard_write_wakeup(bluecard_info_t *info)
 	}
 
 	do {
-		register unsigned int iobase = info->p_dev->io.BasePort1;
+		register unsigned int iobase = info->p_dev->resource[0]->start;
 		register unsigned int offset;
 		register unsigned char command;
 		register unsigned long ready_bit;
@@ -381,7 +379,7 @@ static void bluecard_receive(bluecard_info_t *info, unsigned int offset)
 		return;
 	}
 
-	iobase = info->p_dev->io.BasePort1;
+	iobase = info->p_dev->resource[0]->start;
 
 	if (test_bit(XMIT_SENDING_READY, &(info->tx_state)))
 		bluecard_enable_activity_led(info);
@@ -503,12 +501,14 @@ static irqreturn_t bluecard_interrupt(int irq, void *dev_inst)
 	unsigned int iobase;
 	unsigned char reg;
 
-	BUG_ON(!info->hdev);
+	if (!info || !info->hdev)
+		/* our irq handler is shared */
+		return IRQ_NONE;
 
 	if (!test_bit(CARD_READY, &(info->hw_state)))
 		return IRQ_HANDLED;
 
-	iobase = info->p_dev->io.BasePort1;
+	iobase = info->p_dev->resource[0]->start;
 
 	spin_lock(&(info->lock));
 
@@ -622,7 +622,7 @@ static int bluecard_hci_flush(struct hci_dev *hdev)
 static int bluecard_hci_open(struct hci_dev *hdev)
 {
 	bluecard_info_t *info = (bluecard_info_t *)(hdev->driver_data);
-	unsigned int iobase = info->p_dev->io.BasePort1;
+	unsigned int iobase = info->p_dev->resource[0]->start;
 
 	if (test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state)))
 		bluecard_hci_set_baud_rate(hdev, DEFAULT_BAUD_RATE);
@@ -642,7 +642,7 @@ static int bluecard_hci_open(struct hci_dev *hdev)
 static int bluecard_hci_close(struct hci_dev *hdev)
 {
 	bluecard_info_t *info = (bluecard_info_t *)(hdev->driver_data);
-	unsigned int iobase = info->p_dev->io.BasePort1;
+	unsigned int iobase = info->p_dev->resource[0]->start;
 
 	if (!test_and_clear_bit(HCI_RUNNING, &(hdev->flags)))
 		return 0;
@@ -709,7 +709,7 @@ static int bluecard_hci_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned l
 
 static int bluecard_open(bluecard_info_t *info)
 {
-	unsigned int iobase = info->p_dev->io.BasePort1;
+	unsigned int iobase = info->p_dev->resource[0]->start;
 	struct hci_dev *hdev;
 	unsigned char id;
 
@@ -734,7 +734,7 @@ static int bluecard_open(bluecard_info_t *info)
 
 	info->hdev = hdev;
 
-	hdev->type = HCI_PCCARD;
+	hdev->bus = HCI_PCCARD;
 	hdev->driver_data = info;
 	SET_HCIDEV_DEV(hdev, &info->p_dev->dev);
 
@@ -828,7 +828,7 @@ static int bluecard_open(bluecard_info_t *info)
 
 static int bluecard_close(bluecard_info_t *info)
 {
-	unsigned int iobase = info->p_dev->io.BasePort1;
+	unsigned int iobase = info->p_dev->resource[0]->start;
 	struct hci_dev *hdev = info->hdev;
 
 	if (!hdev)
@@ -865,14 +865,6 @@ static int bluecard_probe(struct pcmcia_device *link)
 	info->p_dev = link;
 	link->priv = info;
 
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	link->io.NumPorts1 = 8;
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
-	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
-
-	link->irq.Handler = bluecard_interrupt;
-	link->irq.Instance = info;
-
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -895,38 +887,31 @@ static int bluecard_config(struct pcmcia_device *link)
 	int i, n;
 
 	link->conf.ConfigIndex = 0x20;
-	link->io.NumPorts1 = 64;
-	link->io.IOAddrLines = 6;
+
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+	link->resource[0]->end = 64;
+	link->io_lines = 6;
 
 	for (n = 0; n < 0x400; n += 0x40) {
-		link->io.BasePort1 = n ^ 0x300;
-		i = pcmcia_request_io(link, &link->io);
+		link->resource[0]->start = n ^ 0x300;
+		i = pcmcia_request_io(link);
 		if (i == 0)
 			break;
 	}
 
-	if (i != 0) {
-		cs_error(link, RequestIO, i);
+	if (i != 0)
 		goto failed;
-	}
 
-	i = pcmcia_request_irq(link, &link->irq);
-	if (i != 0) {
-		cs_error(link, RequestIRQ, i);
-		link->irq.AssignedIRQ = 0;
-	}
+	i = pcmcia_request_irq(link, bluecard_interrupt);
+	if (i != 0)
+		goto failed;
 
 	i = pcmcia_request_configuration(link, &link->conf);
-	if (i != 0) {
-		cs_error(link, RequestConfiguration, i);
+	if (i != 0)
 		goto failed;
-	}
 
 	if (bluecard_open(info) != 0)
 		goto failed;
-
-	strcpy(info->node.dev_name, info->hdev->name);
-	link->dev_node = &info->node;
 
 	return 0;
 

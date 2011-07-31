@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/list.h>
@@ -87,6 +88,7 @@ static int signalfd_copyinfo(struct signalfd_siginfo __user *uinfo,
 		 err |= __put_user(kinfo->si_tid, &uinfo->ssi_tid);
 		 err |= __put_user(kinfo->si_overrun, &uinfo->ssi_overrun);
 		 err |= __put_user((long) kinfo->si_ptr, &uinfo->ssi_ptr);
+		 err |= __put_user(kinfo->si_int, &uinfo->ssi_int);
 		break;
 	case __SI_POLL:
 		err |= __put_user(kinfo->si_band, &uinfo->ssi_band);
@@ -110,6 +112,7 @@ static int signalfd_copyinfo(struct signalfd_siginfo __user *uinfo,
 		err |= __put_user(kinfo->si_pid, &uinfo->ssi_pid);
 		err |= __put_user(kinfo->si_uid, &uinfo->ssi_uid);
 		err |= __put_user((long) kinfo->si_ptr, &uinfo->ssi_ptr);
+		err |= __put_user(kinfo->si_int, &uinfo->ssi_int);
 		break;
 	default:
 		/*
@@ -236,7 +239,7 @@ SYSCALL_DEFINE4(signalfd4, int, ufd, sigset_t __user *, user_mask,
 		 * anon_inode_getfd() will install the fd.
 		 */
 		ufd = anon_inode_getfd("[signalfd]", &signalfd_fops, ctx,
-				       flags & (O_CLOEXEC | O_NONBLOCK));
+				       O_RDWR | (flags & (O_CLOEXEC | O_NONBLOCK)));
 		if (ufd < 0)
 			kfree(ctx);
 	} else {

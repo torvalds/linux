@@ -378,7 +378,7 @@ extern struct macio_chip* macio_find(struct device_node* child, int type);
  * Those are exported by pmac feature for internal use by arch code
  * only like the platform function callbacks, do not use directly in drivers
  */
-extern spinlock_t feature_lock;
+extern raw_spinlock_t feature_lock;
 extern struct device_node *uninorth_node;
 extern u32 __iomem *uninorth_base;
 

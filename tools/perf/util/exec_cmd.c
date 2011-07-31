@@ -53,8 +53,8 @@ const char *perf_extract_argv0_path(const char *argv0)
 		slash--;
 
 	if (slash >= argv0) {
-		argv0_path = xstrndup(argv0, slash - argv0);
-		return slash + 1;
+		argv0_path = strndup(argv0, slash - argv0);
+		return argv0_path ? slash + 1 : NULL;
 	}
 
 	return argv0;
@@ -116,7 +116,7 @@ void setup_path(void)
 	strbuf_release(&new_path);
 }
 
-const char **prepare_perf_cmd(const char **argv)
+static const char **prepare_perf_cmd(const char **argv)
 {
 	int argc;
 	const char **nargv;

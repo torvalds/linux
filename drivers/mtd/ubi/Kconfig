@@ -1,5 +1,3 @@
-# drivers/mtd/ubi/Kconfig
-
 menu "UBI - Unsorted block images"
 	depends on MTD
 
@@ -29,7 +27,7 @@ config MTD_UBI_WL_THRESHOLD
 	  The default value should be OK for SLC NAND flashes, NOR flashes and
 	  other flashes which have eraseblock life-cycle 100000 or more.
 	  However, in case of MLC NAND flashes which typically have eraseblock
-	  life-cycle less then 10000, the threshold should be lessened (e.g.,
+	  life-cycle less than 10000, the threshold should be lessened (e.g.,
 	  to 128 or 256, although it does not have to be power of 2).
 
 config MTD_UBI_BEB_RESERVE

@@ -2,7 +2,7 @@
 
 		 Alan Stern <stern@rowland.harvard.edu>
 
-			    October 5, 2007
+			    December 11, 2009
 
 
 
@@ -29,9 +29,9 @@ covered to some extent (see Documentation/power/*.txt for more
 information about system PM).
 
 Note: Dynamic PM support for USB is present only if the kernel was
-built with CONFIG_USB_SUSPEND enabled.  System PM support is present
-only if the kernel was built with CONFIG_SUSPEND or CONFIG_HIBERNATION
-enabled.
+built with CONFIG_USB_SUSPEND enabled (which depends on
+CONFIG_PM_RUNTIME).  System PM support is present only if the kernel
+was built with CONFIG_SUSPEND or CONFIG_HIBERNATION enabled.
 
 
 	What is Remote Wakeup?
@@ -71,12 +71,10 @@ being accessed through sysfs, then it definitely is idle.
 	Forms of dynamic PM
 	-------------------
 
-Dynamic suspends can occur in two ways: manual and automatic.
-"Manual" means that the user has told the kernel to suspend a device,
-whereas "automatic" means that the kernel has decided all by itself to
-suspend a device.  Automatic suspend is called "autosuspend" for
-short.  In general, a device won't be autosuspended unless it has been
-idle for some minimum period of time, the so-called idle-delay time.
+Dynamic suspends occur when the kernel decides to suspend an idle
+device.  This is called "autosuspend" for short.  In general, a device
+won't be autosuspended unless it has been idle for some minimum period
+of time, the so-called idle-delay time.
 
 Of course, nothing the kernel does on its own initiative should
 prevent the computer or its devices from working properly.  If a
@@ -96,10 +94,11 @@ idle.
 We can categorize power management events in two broad classes:
 external and internal.  External events are those triggered by some
 agent outside the USB stack: system suspend/resume (triggered by
-userspace), manual dynamic suspend/resume (also triggered by
-userspace), and remote wakeup (triggered by the device).  Internal
-events are those triggered within the USB stack: autosuspend and
-autoresume.
+userspace), manual dynamic resume (also triggered by userspace), and
+remote wakeup (triggered by the device).  Internal events are those
+triggered within the USB stack: autosuspend and autoresume.  Note that
+all dynamic suspend events are internal; external agents are not
+allowed to issue dynamic suspends.
 
 
 	The user interface for dynamic PM
@@ -108,7 +107,9 @@ autoresume.
 The user interface for controlling dynamic PM is located in the power/
 subdirectory of each USB device's sysfs directory, that is, in
 /sys/bus/usb/devices/.../power/ where "..." is the device's ID.  The
-relevant attribute files are: wakeup, level, and autosuspend.
+relevant attribute files are: wakeup, control, and autosuspend.
+(There may also be a file named "level"; this file was deprecated
+as of the 2.6.35 kernel and replaced by the "control" file.)
 
 	power/wakeup
 
@@ -121,11 +122,11 @@ relevant attribute files are: wakeup, level, and autosuspend.
 		while the device is suspended, the change won't take
 		effect until the following suspend.)
 
-	power/level
+	power/control
 
-		This file contains one of three words: "on", "auto",
-		or "suspend".  You can write those words to the file
-		to change the device's setting.
+		This file contains one of two words: "on" or "auto".
+		You can write those words to the file to change the
+		device's setting.
 
 		"on" means that the device should be resumed and
 		autosuspend is not allowed.  (Of course, system
@@ -134,10 +135,10 @@ relevant attribute files are: wakeup, level, and autosuspend.
 		"auto" is the normal state in which the kernel is
 		allowed to autosuspend and autoresume the device.
 
-		"suspend" means that the device should remain
-		suspended, and autoresume is not allowed.  (But remote
-		wakeup may still be allowed, since it is controlled
-		separately by the power/wakeup attribute.)
+		(In kernels up to 2.6.32, you could also specify
+		"suspend", meaning that the device should remain
+		suspended and autoresume was not allowed.  This
+		setting is no longer supported.)
 
 	power/autosuspend
 
@@ -145,18 +146,19 @@ relevant attribute files are: wakeup, level, and autosuspend.
 		number of seconds the device should remain idle before
 		the kernel will autosuspend it (the idle-delay time).
 		The default is 2.  0 means to autosuspend as soon as
-		the device becomes idle, and -1 means never to
-		autosuspend.  You can write a number to the file to
-		change the autosuspend idle-delay time.
+		the device becomes idle, and negative values mean
+		never to autosuspend.  You can write a number to the
+		file to change the autosuspend idle-delay time.
 
-Writing "-1" to power/autosuspend and writing "on" to power/level do
+Writing "-1" to power/autosuspend and writing "on" to power/control do
 essentially the same thing -- they both prevent the device from being
 autosuspended.  Yes, this is a redundancy in the API.
 
 (In 2.6.21 writing "0" to power/autosuspend would prevent the device
 from being autosuspended; the behavior was changed in 2.6.22.  The
 power/autosuspend attribute did not exist prior to 2.6.21, and the
-power/level attribute did not exist prior to 2.6.22.)
+power/level attribute did not exist prior to 2.6.22.  power/control
+was added in 2.6.34.)
 
 
 	Changing the default idle-delay time
@@ -213,7 +215,7 @@ among printers and scanners, but plenty of other types of device have
 the same deficiency.
 
 For this reason, by default the kernel disables autosuspend (the
-power/level attribute is initialized to "on") for all devices other
+power/control attribute is initialized to "on") for all devices other
 than hubs.  Hubs, at least, appear to be reasonably well-behaved in
 this regard.
 
@@ -229,6 +231,11 @@ responsibility.  In the meantime you can always carry out the
 necessary operations by hand or add them to a udev script.  You can
 also change the idle-delay time; 2 seconds is not the best choice for
 every device.
+
+If a driver knows that its device has proper suspend/resume support,
+it can enable autosuspend all by itself.  For example, the video
+driver for a laptop's webcam might do this, since these devices are
+rarely used and so should normally be autosuspended.
 
 Sometimes it turns out that even when a device does work okay with
 autosuspend there are still problems.  For example, there are
@@ -313,81 +320,89 @@ three of the methods listed above.  In addition, a driver indicates
 that it supports autosuspend by setting the .supports_autosuspend flag
 in its usb_driver structure.  It is then responsible for informing the
 USB core whenever one of its interfaces becomes busy or idle.  The
-driver does so by calling these five functions:
+driver does so by calling these six functions:
 
 	int  usb_autopm_get_interface(struct usb_interface *intf);
 	void usb_autopm_put_interface(struct usb_interface *intf);
-	int  usb_autopm_set_interface(struct usb_interface *intf);
 	int  usb_autopm_get_interface_async(struct usb_interface *intf);
 	void usb_autopm_put_interface_async(struct usb_interface *intf);
+	void usb_autopm_get_interface_no_resume(struct usb_interface *intf);
+	void usb_autopm_put_interface_no_suspend(struct usb_interface *intf);
 
-The functions work by maintaining a counter in the usb_interface
-structure.  When intf->pm_usage_count is > 0 then the interface is
-deemed to be busy, and the kernel will not autosuspend the interface's
-device.  When intf->pm_usage_count is <= 0 then the interface is
-considered to be idle, and the kernel may autosuspend the device.
+The functions work by maintaining a usage counter in the
+usb_interface's embedded device structure.  When the counter is > 0
+then the interface is deemed to be busy, and the kernel will not
+autosuspend the interface's device.  When the usage counter is = 0
+then the interface is considered to be idle, and the kernel may
+autosuspend the device.
 
-(There is a similar pm_usage_count field in struct usb_device,
+(There is a similar usage counter field in struct usb_device,
 associated with the device itself rather than any of its interfaces.
-This field is used only by the USB core.)
+This counter is used only by the USB core.)
 
-The driver owns intf->pm_usage_count; it can modify the value however
-and whenever it likes.  A nice aspect of the non-async usb_autopm_*
-routines is that the changes they make are protected by the usb_device
-structure's PM mutex (udev->pm_mutex); however drivers may change
-pm_usage_count without holding the mutex.  Drivers using the async
-routines are responsible for their own synchronization and mutual
-exclusion.
+Drivers need not be concerned about balancing changes to the usage
+counter; the USB core will undo any remaining "get"s when a driver
+is unbound from its interface.  As a corollary, drivers must not call
+any of the usb_autopm_* functions after their diconnect() routine has
+returned.
 
-	usb_autopm_get_interface() increments pm_usage_count and
-	attempts an autoresume if the new value is > 0 and the
-	device is suspended.
+Drivers using the async routines are responsible for their own
+synchronization and mutual exclusion.
 
-	usb_autopm_put_interface() decrements pm_usage_count and
-	attempts an autosuspend if the new value is <= 0 and the
-	device isn't suspended.
+	usb_autopm_get_interface() increments the usage counter and
+	does an autoresume if the device is suspended.  If the
+	autoresume fails, the counter is decremented back.
 
-	usb_autopm_set_interface() leaves pm_usage_count alone.
-	It attempts an autoresume if the value is > 0 and the device
-	is suspended, and it attempts an autosuspend if the value is
-	<= 0 and the device isn't suspended.
+	usb_autopm_put_interface() decrements the usage counter and
+	attempts an autosuspend if the new value is = 0.
 
 	usb_autopm_get_interface_async() and
 	usb_autopm_put_interface_async() do almost the same things as
-	their non-async counterparts.  The differences are: they do
-	not acquire the PM mutex, and they use a workqueue to do their
+	their non-async counterparts.  The big difference is that they
+	use a workqueue to do the resume or suspend part of their
 	jobs.  As a result they can be called in an atomic context,
 	such as an URB's completion handler, but when they return the
-	device will not generally not yet be in the desired state.
+	device will generally not yet be in the desired state.
 
-There also are a couple of utility routines drivers can use:
+	usb_autopm_get_interface_no_resume() and
+	usb_autopm_put_interface_no_suspend() merely increment or
+	decrement the usage counter; they do not attempt to carry out
+	an autoresume or an autosuspend.  Hence they can be called in
+	an atomic context.
 
-	usb_autopm_enable() sets pm_usage_cnt to 0 and then calls
-	usb_autopm_set_interface(), which will attempt an autosuspend.
-
-	usb_autopm_disable() sets pm_usage_cnt to 1 and then calls
-	usb_autopm_set_interface(), which will attempt an autoresume.
-
-The conventional usage pattern is that a driver calls
+The simplest usage pattern is that a driver calls
 usb_autopm_get_interface() in its open routine and
-usb_autopm_put_interface() in its close or release routine.  But
-other patterns are possible.
+usb_autopm_put_interface() in its close or release routine.  But other
+patterns are possible.
 
 The autosuspend attempts mentioned above will often fail for one
-reason or another.  For example, the power/level attribute might be
+reason or another.  For example, the power/control attribute might be
 set to "on", or another interface in the same device might not be
 idle.  This is perfectly normal.  If the reason for failure was that
-the device hasn't been idle for long enough, a delayed workqueue
-routine is automatically set up to carry out the operation when the
-autosuspend idle-delay has expired.
+the device hasn't been idle for long enough, a timer is scheduled to
+carry out the operation automatically when the autosuspend idle-delay
+has expired.
 
-Autoresume attempts also can fail.  This will happen if power/level is
-set to "suspend" or if the device doesn't manage to resume properly.
-Unlike autosuspend, there's no delay for an autoresume.
+Autoresume attempts also can fail, although failure would mean that
+the device is no longer present or operating properly.  Unlike
+autosuspend, there's no idle-delay for an autoresume.
 
 
 	Other parts of the driver interface
 	-----------------------------------
+
+Drivers can enable autosuspend for their devices by calling
+
+	usb_enable_autosuspend(struct usb_device *udev);
+
+in their probe() routine, if they know that the device is capable of
+suspending and resuming correctly.  This is exactly equivalent to
+writing "auto" to the device's power/control attribute.  Likewise,
+drivers can disable autosuspend by calling
+
+	usb_disable_autosuspend(struct usb_device *udev);
+
+This is exactly the same as writing "on" to the power/control attribute.
 
 Sometimes a driver needs to make sure that remote wakeup is enabled
 during autosuspend.  For example, there's not much point
@@ -400,101 +415,51 @@ though, setting this flag won't cause the kernel to autoresume it.
 Normally a driver would set this flag in its probe method, at which
 time the device is guaranteed not to be autosuspended.)
 
-The usb_autopm_* routines have to run in a sleepable process context;
-they must not be called from an interrupt handler or while holding a
-spinlock.  In fact, the entire autosuspend mechanism is not well geared
-toward interrupt-driven operation.  However there is one thing a
-driver can do in an interrupt handler:
+If a driver does its I/O asynchronously in interrupt context, it
+should call usb_autopm_get_interface_async() before starting output and
+usb_autopm_put_interface_async() when the output queue drains.  When
+it receives an input event, it should call
 
 	usb_mark_last_busy(struct usb_device *udev);
 
-This sets udev->last_busy to the current time.  udev->last_busy is the
-field used for idle-delay calculations; updating it will cause any
-pending autosuspend to be moved back.  The usb_autopm_* routines will
-also set the last_busy field to the current time.
+in the event handler.  This sets udev->last_busy to the current time.
+udev->last_busy is the field used for idle-delay calculations;
+updating it will cause any pending autosuspend to be moved back.  Most
+of the usb_autopm_* routines will also set the last_busy field to the
+current time.
 
-Calling urb_mark_last_busy() from within an URB completion handler is
-subject to races: The kernel may have just finished deciding the
-device has been idle for long enough but not yet gotten around to
-calling the driver's suspend method.  The driver would have to be
-responsible for synchronizing its suspend method with its URB
-completion handler and causing the autosuspend to fail with -EBUSY if
-an URB had completed too recently.
+Asynchronous operation is always subject to races.  For example, a
+driver may call one of the usb_autopm_*_interface_async() routines at
+a time when the core has just finished deciding the device has been
+idle for long enough but not yet gotten around to calling the driver's
+suspend method.  The suspend method must be responsible for
+synchronizing with the output request routine and the URB completion
+handler; it should cause autosuspends to fail with -EBUSY if the
+driver needs to use the device.
 
 External suspend calls should never be allowed to fail in this way,
 only autosuspend calls.  The driver can tell them apart by checking
-udev->auto_pm; this flag will be set to 1 for internal PM events
-(autosuspend or autoresume) and 0 for external PM events.
-
-Many of the ingredients in the autosuspend framework are oriented
-towards interfaces: The usb_interface structure contains the
-pm_usage_cnt field, and the usb_autopm_* routines take an interface
-pointer as their argument.  But somewhat confusingly, a few of the
-pieces (usb_mark_last_busy() and udev->auto_pm) use the usb_device
-structure instead.  Drivers need to keep this straight; they can call
-interface_to_usbdev() to find the device structure for a given
-interface.
+the PM_EVENT_AUTO bit in the message.event argument to the suspend
+method; this bit will be set for internal PM events (autosuspend) and
+clear for external PM events.
 
 
-	Locking requirements
-	--------------------
+	Mutual exclusion
+	----------------
 
-All three suspend/resume methods are always called while holding the
-usb_device's PM mutex.  For external events -- but not necessarily for
-autosuspend or autoresume -- the device semaphore (udev->dev.sem) will
-also be held.  This implies that external suspend/resume events are
-mutually exclusive with calls to probe, disconnect, pre_reset, and
-post_reset; the USB core guarantees that this is true of internal
-suspend/resume events as well.
+For external events -- but not necessarily for autosuspend or
+autoresume -- the device semaphore (udev->dev.sem) will be held when a
+suspend or resume method is called.  This implies that external
+suspend/resume events are mutually exclusive with calls to probe,
+disconnect, pre_reset, and post_reset; the USB core guarantees that
+this is true of autosuspend/autoresume events as well.
 
 If a driver wants to block all suspend/resume calls during some
-critical section, it can simply acquire udev->pm_mutex. Note that
-calls to resume may be triggered indirectly. Block IO due to memory
-allocations can make the vm subsystem resume a device. Thus while
-holding this lock you must not allocate memory with GFP_KERNEL or
-GFP_NOFS.
-
-Alternatively, if the critical section might call some of the
-usb_autopm_* routines, the driver can avoid deadlock by doing:
-
-	down(&udev->dev.sem);
-	rc = usb_autopm_get_interface(intf);
-
-and at the end of the critical section:
-
-	if (!rc)
-		usb_autopm_put_interface(intf);
-	up(&udev->dev.sem);
-
-Holding the device semaphore will block all external PM calls, and the
-usb_autopm_get_interface() will prevent any internal PM calls, even if
-it fails.  (Exercise: Why?)
-
-The rules for locking order are:
-
-	Never acquire any device semaphore while holding any PM mutex.
-
-	Never acquire udev->pm_mutex while holding the PM mutex for
-	a device that isn't a descendant of udev.
-
-In other words, PM mutexes should only be acquired going up the device
-tree, and they should be acquired only after locking all the device
-semaphores you need to hold.  These rules don't matter to drivers very
-much; they usually affect just the USB core.
-
-Still, drivers do need to be careful.  For example, many drivers use a
-private mutex to synchronize their normal I/O activities with their
-disconnect method.  Now if the driver supports autosuspend then it
-must call usb_autopm_put_interface() from somewhere -- maybe from its
-close method.  It should make the call while holding the private mutex,
-since a driver shouldn't call any of the usb_autopm_* functions for an
-interface from which it has been unbound.
-
-But the usb_autpm_* routines always acquire the device's PM mutex, and
-consequently the locking order has to be: private mutex first, PM
-mutex second.  Since the suspend method is always called with the PM
-mutex held, it mustn't try to acquire the private mutex.  It has to
-synchronize with the driver's I/O activities in some other way.
+critical section, the best way is to lock the device and call
+usb_autopm_get_interface() (and do the reverse at the end of the
+critical section).  Holding the device semaphore will block all
+external PM calls, and the usb_autopm_get_interface() will prevent any
+internal PM calls, even if it fails.  (Exercise: Why?)
 
 
 	Interaction between dynamic PM and system PM
@@ -503,22 +468,11 @@ synchronize with the driver's I/O activities in some other way.
 Dynamic power management and system power management can interact in
 a couple of ways.
 
-Firstly, a device may already be manually suspended or autosuspended
-when a system suspend occurs.  Since system suspends are supposed to
-be as transparent as possible, the device should remain suspended
-following the system resume.  The 2.6.23 kernel obeys this principle
-for manually suspended devices but not for autosuspended devices; they
-do get resumed when the system wakes up.  (Presumably they will be
-autosuspended again after their idle-delay time expires.)  In later
-kernels this behavior will be fixed.
-
-(There is an exception.  If a device would undergo a reset-resume
-instead of a normal resume, and the device is enabled for remote
-wakeup, then the reset-resume takes place even if the device was
-already suspended when the system suspend began.  The justification is
-that a reset-resume is a kind of remote-wakeup event.  Or to put it
-another way, a device which needs a reset won't be able to generate
-normal remote-wakeup signals, so it ought to be resumed immediately.)
+Firstly, a device may already be autosuspended when a system suspend
+occurs.  Since system suspends are supposed to be as transparent as
+possible, the device should remain suspended following the system
+resume.  But this theory may not work out well in practice; over time
+the kernel's behavior in this regard has changed.
 
 Secondly, a dynamic power-management event may occur as a system
 suspend is underway.  The window for this is short, since system
@@ -530,13 +484,3 @@ succeed, it may still remain active and thus cause the system to
 resume as soon as the system suspend is complete.  Or the remote
 wakeup may fail and get lost.  Which outcome occurs depends on timing
 and on the hardware and firmware design.
-
-More interestingly, a device might undergo a manual resume or
-autoresume during system suspend.  With current kernels this shouldn't
-happen, because manual resumes must be initiated by userspace and
-autoresumes happen in response to I/O requests, but all user processes
-and I/O should be quiescent during a system suspend -- thanks to the
-freezer.  However there are plans to do away with the freezer, which
-would mean these things would become possible.  If and when this comes
-about, the USB core will carefully arrange matters so that either type
-of resume will block until the entire system has resumed.

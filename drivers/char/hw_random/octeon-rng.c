@@ -15,6 +15,7 @@
 #include <linux/device.h>
 #include <linux/hw_random.h>
 #include <linux/io.h>
+#include <linux/gfp.h>
 
 #include <asm/octeon/octeon.h>
 #include <asm/octeon/cvmx-rnm-defs.h>

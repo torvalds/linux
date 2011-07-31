@@ -36,7 +36,7 @@ bool CheckHighPower(struct net_device *dev)
 //
 //	Note:
 //		The reason why we udpate Tx power level here instead of DoRxHighPower()
-//		is the number of IO to change Tx power is much more than chane TR switch
+//		is the number of IO to change Tx power is much more than channel TR switch
 //		and they are related to OFDM and MAC registers.
 //		So, we don't want to update it so frequently in per-Rx packet base.
 //
@@ -197,7 +197,6 @@ DIG_Zebra(
 	{ // Advised from SD3 DZ
 		priv->InitialGain = 4; // In 87B, m74dBm means State 4 (m82dBm)
 	}
-	//if(pHalData->VersionID != VERSION_8187B_B)
 	{ // Advised from SD3 DZ
 		OfdmFA1 =  0x20;
 	}
@@ -283,30 +282,13 @@ DIG_Zebra(
 //		Dispatch DIG implementation according to RF.
 //
 void
-DynamicInitGain(
-	struct net_device *dev
-	)
+DynamicInitGain(struct net_device *dev)
 {
-	struct r8180_priv *priv = ieee80211_priv(dev);
-
-	switch(priv->rf_chip)
-	{
-		case RF_ZEBRA2:  // [AnnieWorkaround] For Zebra2, 2005-08-01.
-		case RF_ZEBRA4:
-			DIG_Zebra( dev );
-			break;
-
-		default:
-			printk("DynamicInitGain(): unknown RFChipID(%d) !!!\n", priv->rf_chip);
-			break;
-	}
+	DIG_Zebra(dev);
 }
 
 void rtl8180_hw_dig_wq (struct work_struct *work)
 {
-//      struct r8180_priv *priv = container_of(work, struct r8180_priv, watch_dog_wq);
-//      struct ieee80211_device * ieee = (struct ieee80211_device*)
-//                                             container_of(work, struct ieee80211_device, watch_dog_wq);
 	struct delayed_work *dwork = to_delayed_work(work);
         struct ieee80211_device *ieee = container_of(dwork,struct ieee80211_device,hw_dig_wq);
         struct net_device *dev = ieee->dev;
@@ -1311,48 +1293,28 @@ SetAntenna8185(
 	switch(u1bAntennaIndex)
 	{
 	case 0:
-		switch(priv->rf_chip)
-		{
-		case RF_ZEBRA2:
-		case RF_ZEBRA4:
-			// Mac register, main antenna
-			write_nic_byte(dev, ANTSEL, 0x03);
-			//base band
-			write_phy_cck(dev,0x11, 0x9b); // Config CCK RX antenna.
-			write_phy_ofdm(dev, 0x0d, 0x5c); // Config OFDM RX antenna.
+		/* Mac register, main antenna */
+		write_nic_byte(dev, ANTSEL, 0x03);
+		/* base band */
+		write_phy_cck(dev, 0x11, 0x9b); /* Config CCK RX antenna. */
+		write_phy_ofdm(dev, 0x0d, 0x5c); /* Config OFDM RX antenna. */
 
-
-			bAntennaSwitched = true;
-			break;
-
-		default:
-			printk("SetAntenna8185: unkown RFChipID(%d)\n", priv->rf_chip);
-			break;
-		}
+		bAntennaSwitched = true;
 		break;
 
 	case 1:
-		switch(priv->rf_chip)
-		{
-		case RF_ZEBRA2:
-		case RF_ZEBRA4:
-			// Mac register, aux antenna
-			write_nic_byte(dev, ANTSEL, 0x00);
-			//base band
-			write_phy_cck(dev, 0x11, 0xbb); // Config CCK RX antenna.
-			write_phy_ofdm(dev, 0x0d, 0x54); // Config OFDM RX antenna.
+		/* Mac register, aux antenna */
+		write_nic_byte(dev, ANTSEL, 0x00);
+		/* base band */
+		write_phy_cck(dev, 0x11, 0xbb); /* Config CCK RX antenna. */
+		write_phy_ofdm(dev, 0x0d, 0x54); /* Config OFDM RX antenna. */
 
-			bAntennaSwitched = true;
-			break;
+		bAntennaSwitched = true;
 
-		default:
-			printk("SetAntenna8185: unkown RFChipID(%d)\n", priv->rf_chip);
-			break;
-		}
 		break;
 
 	default:
-		printk("SetAntenna8185: unkown u1bAntennaIndex(%d)\n", u1bAntennaIndex);
+		printk("SetAntenna8185: unknown u1bAntennaIndex(%d)\n", u1bAntennaIndex);
 		break;
 	}
 
@@ -1448,7 +1410,7 @@ SwAntennaDiversity(
 
 		priv->bAdSwitchedChecking = false;
 
-		// Adjust Rx signal strength threashold.
+		// Adjust Rx signal strength threshold.
 		priv->AdRxSsThreshold = (priv->AdRxSignalStrength + priv->AdRxSsBeforeSwitched) / 2;
 
 		priv->AdRxSsThreshold = (priv->AdRxSsThreshold > priv->AdMaxRxSsThreshold) ?
@@ -1562,7 +1524,7 @@ SwAntennaDiversity(
 //				priv->AdRxSignalStrength, priv->AdRxSsThreshold);
 
 			priv->bAdSwitchedChecking = false;
-			// Increase Rx signal strength threashold if necessary.
+			// Increase Rx signal strength threshold if necessary.
 			if(	(priv->AdRxSignalStrength > (priv->AdRxSsThreshold + 10)) && // Signal is much stronger than current threshold
 				priv->AdRxSsThreshold <= priv->AdMaxRxSsThreshold) // Current threhold is not yet reach upper limit.
 			{

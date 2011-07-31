@@ -39,6 +39,7 @@ static inline struct cryptd_ahash *__cryptd_ahash_cast(
 struct cryptd_ahash *cryptd_alloc_ahash(const char *alg_name,
 					u32 type, u32 mask);
 struct crypto_shash *cryptd_ahash_child(struct cryptd_ahash *tfm);
+struct shash_desc *cryptd_shash_desc(struct ahash_request *req);
 void cryptd_free_ahash(struct cryptd_ahash *tfm);
 
 #endif

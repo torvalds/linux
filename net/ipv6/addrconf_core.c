@@ -72,7 +72,7 @@ int __ipv6_addr_type(const struct in6_addr *addr)
 				IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_GLOBAL));	/* addr-select 3.3 */
 	}
 
-	return (IPV6_ADDR_RESERVED |
+	return (IPV6_ADDR_UNICAST |
 		IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_GLOBAL));	/* addr-select 3.4 */
 }
 EXPORT_SYMBOL(__ipv6_addr_type);

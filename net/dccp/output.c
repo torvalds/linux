@@ -13,6 +13,7 @@
 #include <linux/dccp.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 
 #include <net/inet_sock.h>
 #include <net/sock.h>
@@ -99,8 +100,8 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		/* Build DCCP header and checksum it. */
 		dh = dccp_zeroed_hdr(skb, dccp_header_size);
 		dh->dccph_type	= dcb->dccpd_type;
-		dh->dccph_sport	= inet->sport;
-		dh->dccph_dport	= inet->dport;
+		dh->dccph_sport	= inet->inet_sport;
+		dh->dccph_dport	= inet->inet_dport;
 		dh->dccph_doff	= (dccp_header_size + dcb->dccpd_opt_len) / 4;
 		dh->dccph_ccval	= dcb->dccpd_ccval;
 		dh->dccph_cscov = dp->dccps_pcslen;
@@ -128,14 +129,14 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 			break;
 		}
 
-		icsk->icsk_af_ops->send_check(sk, 0, skb);
+		icsk->icsk_af_ops->send_check(sk, skb);
 
 		if (set_ack)
 			dccp_event_ack_sent(sk);
 
 		DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
 
-		err = icsk->icsk_af_ops->queue_xmit(skb, 0);
+		err = icsk->icsk_af_ops->queue_xmit(skb);
 		return net_xmit_eval(err);
 	}
 	return -ENOBUFS;
@@ -194,15 +195,17 @@ EXPORT_SYMBOL_GPL(dccp_sync_mss);
 
 void dccp_write_space(struct sock *sk)
 {
-	read_lock(&sk->sk_callback_lock);
+	struct socket_wq *wq;
 
-	if (sk_has_sleeper(sk))
-		wake_up_interruptible(sk->sk_sleep);
+	rcu_read_lock();
+	wq = rcu_dereference(sk->sk_wq);
+	if (wq_has_sleeper(wq))
+		wake_up_interruptible(&wq->wait);
 	/* Should agree with poll, otherwise some programs break */
 	if (sock_writeable(sk))
 		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
 
-	read_unlock(&sk->sk_callback_lock);
+	rcu_read_unlock();
 }
 
 /**
@@ -224,7 +227,7 @@ static int dccp_wait_for_ccid(struct sock *sk, struct sk_buff *skb, int delay)
 		dccp_pr_debug("delayed send by %d msec\n", delay);
 		jiffdelay = msecs_to_jiffies(delay);
 
-		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
 		sk->sk_write_pending++;
 		release_sock(sk);
@@ -240,7 +243,7 @@ static int dccp_wait_for_ccid(struct sock *sk, struct sk_buff *skb, int delay)
 		rc = ccid_hc_tx_send_packet(dp->dccps_hc_tx_ccid, sk, skb);
 	} while ((delay = rc) > 0);
 out:
-	finish_wait(sk->sk_sleep, &wait);
+	finish_wait(sk_sleep(sk), &wait);
 	return rc;
 
 do_error:

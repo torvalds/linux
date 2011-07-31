@@ -30,18 +30,16 @@
  * atomic_read - read atomic variable
  * @v: pointer of type atomic_t
  *
- * Atomically reads the value of @v.  Note that the guaranteed
- * useful range of an atomic_t is only 24 bits.
+ * Atomically reads the value of @v.
  */
-#define atomic_read(v)	((v)->counter)
+#define atomic_read(v)	(*(volatile int *)&(v)->counter)
 
 /**
  * atomic_set - set atomic variable
  * @v: pointer of type atomic_t
  * @i: required value
  *
- * Atomically sets the value of @v to @i.  Note that the guaranteed
- * useful range of an atomic_t is only 24 bits.
+ * Atomically sets the value of @v to @i.
  */
 #define atomic_set(v, i) (((v)->counter) = (i))
 
@@ -53,18 +51,17 @@
  * @v: pointer of type atomic_t
  *
  * Atomically adds @i to @v and returns the result
- * Note that the guaranteed useful range of an atomic_t is only 24 bits.
  */
 static inline int atomic_add_return(int i, atomic_t *v)
 {
 	unsigned long flags;
 	int temp;
 
-	local_irq_save(flags);
+	raw_local_irq_save(flags); /* Don't trace it in a irqsoff handler */
 	temp = v->counter;
 	temp += i;
 	v->counter = temp;
-	local_irq_restore(flags);
+	raw_local_irq_restore(flags);
 
 	return temp;
 }
@@ -75,18 +72,17 @@ static inline int atomic_add_return(int i, atomic_t *v)
  * @v: pointer of type atomic_t
  *
  * Atomically subtracts @i from @v and returns the result
- * Note that the guaranteed useful range of an atomic_t is only 24 bits.
  */
 static inline int atomic_sub_return(int i, atomic_t *v)
 {
 	unsigned long flags;
 	int temp;
 
-	local_irq_save(flags);
+	raw_local_irq_save(flags); /* Don't trace it in a irqsoff handler */
 	temp = v->counter;
 	temp -= i;
 	v->counter = temp;
-	local_irq_restore(flags);
+	raw_local_irq_restore(flags);
 
 	return temp;
 }
@@ -139,9 +135,9 @@ static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 	unsigned long flags;
 
 	mask = ~mask;
-	local_irq_save(flags);
+	raw_local_irq_save(flags); /* Don't trace it in a irqsoff handler */
 	*addr &= mask;
-	local_irq_restore(flags);
+	raw_local_irq_restore(flags);
 }
 
 #define atomic_xchg(ptr, v)		(xchg(&(ptr)->counter, (v)))

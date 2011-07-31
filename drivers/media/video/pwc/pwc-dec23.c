@@ -30,6 +30,7 @@
 #include <media/pwc-ioctl.h>
 
 #include <linux/string.h>
+#include <linux/slab.h>
 
 /*
  * USE_LOOKUP_TABLE_TO_CLAMP

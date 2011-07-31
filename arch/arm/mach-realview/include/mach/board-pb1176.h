@@ -26,6 +26,7 @@
 /*
  * Peripheral addresses
  */
+#define REALVIEW_PB1176_UART4_BASE		0x10009000 /* UART 4 */
 #define REALVIEW_PB1176_SCTL_BASE		0x10100000 /* System controller */
 #define REALVIEW_PB1176_SMC_BASE		0x10111000 /* SMC */
 #define REALVIEW_PB1176_DMC_BASE		0x10109000 /* DMC configuration */
@@ -74,8 +75,8 @@
 #define REALVIEW_PB1176_L220_BASE		0x10110000 /* L220 registers */
 
 /*
- * Control register SYS_RESETCTL is set to 1 to force a soft reset
+ * Control register SYS_RESETCTL Bit 8 is set to 1 to force a soft reset
  */
-#define REALVIEW_PB1176_SYS_LOCKVAL_RSTCTL    0x0100
+#define REALVIEW_PB1176_SYS_SOFT_RESET    0x0100
 
 #endif	/* __ASM_ARCH_BOARD_PB1176_H */

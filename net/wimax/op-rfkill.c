@@ -43,7 +43,7 @@
  *   wimax_rfkill()             Kernel calling wimax_rfkill()
  *     __wimax_rf_toggle_radio()
  *
- * wimax_rfkill_set_radio_block()  RF-Kill subsytem calling
+ * wimax_rfkill_set_radio_block()  RF-Kill subsystem calling
  *   __wimax_rf_toggle_radio()
  *
  * __wimax_rf_toggle_radio()
@@ -107,8 +107,8 @@ void wimax_report_rfkill_hw(struct wimax_dev *wimax_dev,
 
 	if (state != wimax_dev->rf_hw) {
 		wimax_dev->rf_hw = state;
-		if (wimax_dev->rf_hw == WIMAX_RF_ON
-		    && wimax_dev->rf_sw == WIMAX_RF_ON)
+		if (wimax_dev->rf_hw == WIMAX_RF_ON &&
+		    wimax_dev->rf_sw == WIMAX_RF_ON)
 			wimax_state = WIMAX_ST_READY;
 		else
 			wimax_state = WIMAX_ST_RADIO_OFF;
@@ -163,8 +163,8 @@ void wimax_report_rfkill_sw(struct wimax_dev *wimax_dev,
 
 	if (state != wimax_dev->rf_sw) {
 		wimax_dev->rf_sw = state;
-		if (wimax_dev->rf_hw == WIMAX_RF_ON
-		    && wimax_dev->rf_sw == WIMAX_RF_ON)
+		if (wimax_dev->rf_hw == WIMAX_RF_ON &&
+		    wimax_dev->rf_sw == WIMAX_RF_ON)
 			wimax_state = WIMAX_ST_READY;
 		else
 			wimax_state = WIMAX_ST_RADIO_OFF;
@@ -305,8 +305,15 @@ int wimax_rfkill(struct wimax_dev *wimax_dev, enum wimax_rf_state state)
 	d_fnstart(3, dev, "(wimax_dev %p state %u)\n", wimax_dev, state);
 	mutex_lock(&wimax_dev->mutex);
 	result = wimax_dev_is_ready(wimax_dev);
-	if (result < 0)
+	if (result < 0) {
+		/* While initializing, < 1.4.3 wimax-tools versions use
+		 * this call to check if the device is a valid WiMAX
+		 * device; so we allow it to proceed always,
+		 * considering the radios are all off. */
+		if (result == -ENOMEDIUM && state == WIMAX_RF_QUERY)
+			result = WIMAX_RF_OFF << 1 | WIMAX_RF_OFF;
 		goto error_not_ready;
+	}
 	switch (state) {
 	case WIMAX_RF_ON:
 	case WIMAX_RF_OFF:
@@ -355,6 +362,7 @@ int wimax_rfkill_add(struct wimax_dev *wimax_dev)
 
 	wimax_dev->rfkill = rfkill;
 
+	rfkill_init_sw_state(rfkill, 1);
 	result = rfkill_register(wimax_dev->rfkill);
 	if (result < 0)
 		goto error_rfkill_register;
@@ -402,8 +410,7 @@ void wimax_rfkill_rm(struct wimax_dev *wimax_dev)
  * just query).
  */
 
-static const
-struct nla_policy wimax_gnl_rfkill_policy[WIMAX_GNL_ATTR_MAX + 1] = {
+static const struct nla_policy wimax_gnl_rfkill_policy[WIMAX_GNL_ATTR_MAX + 1] = {
 	[WIMAX_GNL_RFKILL_IFIDX] = {
 		.type = NLA_U32,
 	},

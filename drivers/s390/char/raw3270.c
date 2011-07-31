@@ -373,7 +373,7 @@ raw3270_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 		rq->rc = ccw_device_start(rp->cdev, &rq->ccw,
 					  (unsigned long) rq, 0, 0);
 		if (rq->rc == 0)
-			return;	/* Sucessfully restarted. */
+			return;	/* Successfully restarted. */
 		break;
 	case RAW3270_IO_STOP:
 		if (!rq)

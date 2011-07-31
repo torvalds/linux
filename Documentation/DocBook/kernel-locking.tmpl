@@ -1922,9 +1922,12 @@ machines due to caching.
       <function>mutex_lock()</function>
       </para>
       <para>
-       There is a <function>mutex_trylock()</function> which can be
-       used inside interrupt context, as it will not sleep.
+       There is a <function>mutex_trylock()</function> which does not
+       sleep.  Still, it must not be used inside interrupt context since
+       its implementation is not safe for that.
        <function>mutex_unlock()</function> will also never sleep.
+       It cannot be used in interrupt context either since a mutex
+       must be released by the same task that acquired it.
       </para>
      </listitem>
     </itemizedlist>
@@ -1956,6 +1959,12 @@ machines due to caching.
      </listitem>
     </itemizedlist>
    </sect1>
+  </chapter>
+
+  <chapter id="apiref">
+   <title>Mutex API reference</title>
+!Iinclude/linux/mutex.h
+!Ekernel/mutex.c
   </chapter>
 
   <chapter id="references">

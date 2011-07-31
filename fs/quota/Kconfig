@@ -17,7 +17,7 @@ config QUOTA
 
 config QUOTA_NETLINK_INTERFACE
 	bool "Report quota messages through netlink interface"
-	depends on QUOTA && NET
+	depends on QUOTACTL && NET
 	help
 	  If you say Y here, quota warnings (about exceeding softlimit, reaching
 	  hardlimit, etc.) will be reported through netlink interface. If unsure,
@@ -33,6 +33,14 @@ config PRINT_QUOTA_WARNING
 	  Note that this behavior is currently deprecated and may go away in
 	  future. Please use notification via netlink socket instead.
 
+config QUOTA_DEBUG
+	bool "Additional quota sanity checks"
+	depends on QUOTA
+	default n
+	help
+	  If you say Y here, quota subsystem will perform some additional
+	  sanity checks of quota internal structures. If unsure, say N.
+
 # Generic support for tree structured quota files. Selected when needed.
 config QUOTA_TREE
 	 tristate
@@ -46,14 +54,21 @@ config QFMT_V1
 	  format say Y here.
 
 config QFMT_V2
-	tristate "Quota format v2 support"
+	tristate "Quota format vfsv0 and vfsv1 support"
 	depends on QUOTA
 	select QUOTA_TREE
 	help
-	  This quota format allows using quotas with 32-bit UIDs/GIDs. If you
-	  need this functionality say Y here.
+	  This config option enables kernel support for vfsv0 and vfsv1 quota
+	  formats. Both these formats support 32-bit UIDs/GIDs and vfsv1 format
+	  also supports 64-bit inode and block quota limits. If you need this
+	  functionality say Y here.
 
 config QUOTACTL
 	bool
 	depends on XFS_QUOTA || QUOTA
+	default y
+
+config QUOTACTL_COMPAT
+	bool
+	depends on QUOTACTL && COMPAT_FOR_U64_ALIGNMENT
 	default y

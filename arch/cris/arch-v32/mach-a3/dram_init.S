@@ -24,10 +24,20 @@
 
 	;; Refer to ddr2 MDS for initialization sequence
 
+	; 2. Wait 200us
+	move.d   10000, $r2
+1:	bne      1b
+	subq     1, $r2
+
 	; Start clock
 	move.d   REG_ADDR(ddr2, regi_ddr2_ctrl, rw_phy_cfg), $r0
 	move.d   REG_STATE(ddr2, rw_phy_cfg, en, yes), $r1
 	move.d   $r1, [$r0]
+
+	; 2. Wait 200us
+	move.d   10000, $r2
+1:	bne      1b
+	subq     1, $r2
 
 	; Reset phy and start calibration
 	move.d   REG_ADDR(ddr2, regi_ddr2_ctrl, rw_phy_ctrl), $r0
@@ -52,6 +62,10 @@ do_cmd:
 	lslq     16, $r1
 	or.d     $r3, $r1
 	move.d   $r1, [$r0]
+	; 2. Wait 200us
+	move.d   10000, $r4
+1:	bne      1b
+	subq     1, $r4
 	cmp.d    sdram_commands_end, $r2
 	blo      command_loop
 	nop
@@ -63,7 +77,7 @@ do_cmd:
 
 	; Set latency
 	move.d   REG_ADDR(ddr2, regi_ddr2_ctrl, rw_latency), $r0
-	move.d   0x13, $r1
+	move.d   CONFIG_ETRAX_DDR2_LATENCY, $r1
 	move.d   $r1, [$r0]
 
 	; Set configuration

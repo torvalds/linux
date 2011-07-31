@@ -48,7 +48,7 @@ struct tah_instance {
 	int				users;
 
 	/* OF device instance */
-	struct of_device		*ofdev;
+	struct platform_device		*ofdev;
 };
 
 
@@ -74,11 +74,11 @@ struct tah_instance {
 
 extern int tah_init(void);
 extern void tah_exit(void);
-extern int tah_attach(struct of_device *ofdev, int channel);
-extern void tah_detach(struct of_device *ofdev, int channel);
-extern void tah_reset(struct of_device *ofdev);
-extern int tah_get_regs_len(struct of_device *ofdev);
-extern void *tah_dump_regs(struct of_device *ofdev, void *buf);
+extern int tah_attach(struct platform_device *ofdev, int channel);
+extern void tah_detach(struct platform_device *ofdev, int channel);
+extern void tah_reset(struct platform_device *ofdev);
+extern int tah_get_regs_len(struct platform_device *ofdev);
+extern void *tah_dump_regs(struct platform_device *ofdev, void *buf);
 
 #else
 

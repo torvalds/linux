@@ -88,7 +88,7 @@ int cn_netlink_send(struct cn_msg *msg, u32 __groups, int gfp_mask);
  int gfp_mask			- GFP mask.
 
  Note: When registering new callback user, connector core assigns
- netlink group to the user which is equal to it's id.idx.
+ netlink group to the user which is equal to its id.idx.
 
 /*****************************************/
 Protocol description.

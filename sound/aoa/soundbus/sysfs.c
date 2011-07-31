@@ -9,14 +9,14 @@ field##_show (struct device *dev, struct device_attribute *attr,	\
               char *buf)						\
 {									\
 	struct soundbus_dev *mdev = to_soundbus_device (dev);		\
-	return sprintf (buf, format_string, mdev->ofdev.node->field);	\
+	return sprintf (buf, format_string, mdev->ofdev.dev.of_node->field); \
 }
 
 static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct soundbus_dev *sdev = to_soundbus_device(dev);
-	struct of_device *of = &sdev->ofdev;
+	struct platform_device *of = &sdev->ofdev;
 	int length;
 
 	if (*sdev->modalias) {
@@ -25,7 +25,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 		length = strlen(buf);
 	} else {
 		length = sprintf(buf, "of:N%sT%s\n",
-				 of->node->name, of->node->type);
+				 of->dev.of_node->name, of->dev.of_node->type);
 	}
 
 	return length;

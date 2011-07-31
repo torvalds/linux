@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/clk.h>
@@ -611,7 +612,6 @@ static void davinci_hw_common_param(struct davinci_audio_dev *dev, int stream)
 								NUMDMA_MASK);
 		mcasp_mod_bits(dev->base + DAVINCI_MCASP_WFIFOCTL,
 				((dev->txnumevt * tx_ser) << 8), NUMEVT_MASK);
-		mcasp_set_bits(dev->base + DAVINCI_MCASP_WFIFOCTL, FIFO_ENABLE);
 	}
 
 	if (dev->rxnumevt && stream == SNDRV_PCM_STREAM_CAPTURE) {
@@ -622,7 +622,6 @@ static void davinci_hw_common_param(struct davinci_audio_dev *dev, int stream)
 								NUMDMA_MASK);
 		mcasp_mod_bits(dev->base + DAVINCI_MCASP_RFIFOCTL,
 				((dev->rxnumevt * rx_ser) << 8), NUMEVT_MASK);
-		mcasp_set_bits(dev->base + DAVINCI_MCASP_RFIFOCTL, FIFO_ENABLE);
 	}
 }
 
@@ -714,16 +713,13 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 	struct davinci_pcm_dma_params *dma_params =
 					&dev->dma_params[substream->stream];
 	int word_length;
-	u8 numevt;
+	u8 fifo_level;
 
 	davinci_hw_common_param(dev, substream->stream);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		numevt = dev->txnumevt;
+		fifo_level = dev->txnumevt;
 	else
-		numevt = dev->rxnumevt;
-
-	if (!numevt)
-		numevt = 1;
+		fifo_level = dev->rxnumevt;
 
 	if (dev->op_mode == DAVINCI_MCASP_DIT_MODE)
 		davinci_hw_dit_param(dev);
@@ -751,12 +747,12 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	if (dev->version == MCASP_VERSION_2) {
-		dma_params->data_type *= numevt;
-		dma_params->acnt = 4 * numevt;
-	} else
+	if (dev->version == MCASP_VERSION_2 && !fifo_level)
+		dma_params->acnt = 4;
+	else
 		dma_params->acnt = dma_params->data_type;
 
+	dma_params->fifo_level = fifo_level;
 	davinci_config_channel_size(dev, word_length);
 
 	return 0;
@@ -770,14 +766,26 @@ static int davinci_mcasp_trigger(struct snd_pcm_substream *substream,
 	int ret = 0;
 
 	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		if (!dev->clk_active) {
+			clk_enable(dev->clk);
+			dev->clk_active = 1;
+		}
 		davinci_mcasp_start(dev, substream->stream);
 		break;
 
-	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
+		davinci_mcasp_stop(dev, substream->stream);
+		if (dev->clk_active) {
+			clk_disable(dev->clk);
+			dev->clk_active = 0;
+		}
+
+		break;
+
+	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		davinci_mcasp_stop(dev, substream->stream);
 		break;
@@ -869,6 +877,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	}
 
 	clk_enable(dev->clk);
+	dev->clk_active = 1;
 
 	dev->base = (void __iomem *)IO_ADDRESS(mem->start);
 	dev->op_mode = pdata->op_mode;
@@ -881,7 +890,8 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	dev->rxnumevt = pdata->rxnumevt;
 
 	dma_data = &dev->dma_params[SNDRV_PCM_STREAM_PLAYBACK];
-	dma_data->eventq_no = pdata->eventq_no;
+	dma_data->asp_chan_q = pdata->asp_chan_q;
+	dma_data->ram_chan_q = pdata->ram_chan_q;
 	dma_data->dma_addr = (dma_addr_t) (pdata->tx_dma_offset +
 							io_v2p(dev->base));
 
@@ -895,7 +905,8 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	dma_data->channel = res->start;
 
 	dma_data = &dev->dma_params[SNDRV_PCM_STREAM_CAPTURE];
-	dma_data->eventq_no = pdata->eventq_no;
+	dma_data->asp_chan_q = pdata->asp_chan_q;
+	dma_data->ram_chan_q = pdata->ram_chan_q;
 	dma_data->dma_addr = (dma_addr_t)(pdata->rx_dma_offset +
 							io_v2p(dev->base));
 
@@ -907,6 +918,8 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 
 	dma_data->channel = res->start;
 	davinci_mcasp_dai[pdata->op_mode].private_data = dev;
+	davinci_mcasp_dai[pdata->op_mode].capture.dma_data = dev->dma_params;
+	davinci_mcasp_dai[pdata->op_mode].playback.dma_data = dev->dma_params;
 	davinci_mcasp_dai[pdata->op_mode].dev = &pdev->dev;
 	ret = snd_soc_register_dai(&davinci_mcasp_dai[pdata->op_mode]);
 

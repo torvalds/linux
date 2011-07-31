@@ -72,6 +72,21 @@
 #define	TPS_VDCDC1		0x0c
 #	define	TPS_ENABLE_LP		(1 << 3)
 #define	TPS_VDCDC2		0x0d
+#	define	TPS_LP_COREOFF	(1 << 7)
+#	define 	TPS_VCORE_1_8V	(7<<4)
+#	define 	TPS_VCORE_1_5V	(6 << 4)
+#	define 	TPS_VCORE_1_4V	(5 << 4)
+#	define 	TPS_VCORE_1_3V	(4 << 4)
+#	define 	TPS_VCORE_1_2V	(3 << 4)
+#	define 	TPS_VCORE_1_1V	(2 << 4)
+#	define 	TPS_VCORE_1_0V	(1 << 4)
+#	define 	TPS_VCORE_0_85V	(0 << 4)
+#	define	TPS_VCORE_LP_1_2V (3 << 2)
+#	define	TPS_VCORE_LP_1_1V (2 << 2)
+#	define	TPS_VCORE_LP_1_0V (1 << 2)
+#	define	TPS_VCORE_LP_0_85V (0 << 2)
+#	define	TPS_VIB		(1 << 1)
+#	define	TPS_VCORE_DISCH	(1 << 0)
 #define	TPS_VREGS1		0x0e
 #	define	TPS_LDO2_ENABLE	(1 << 7)
 #	define	TPS_LDO2_OFF	(1 << 6)
@@ -152,6 +167,10 @@ extern int tps65010_config_vregs1(unsigned value);
  */
 extern int tps65013_set_low_pwr(unsigned mode);
 
+/* tps65010_set_vdcdc2
+ *  value to be written to VDCDC2
+ */
+extern int tps65010_config_vdcdc2(unsigned value);
 
 struct i2c_client;
 

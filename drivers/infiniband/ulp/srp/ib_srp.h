@@ -60,7 +60,6 @@ enum {
 	SRP_RQ_SHIFT    	= 6,
 	SRP_RQ_SIZE		= 1 << SRP_RQ_SHIFT,
 	SRP_SQ_SIZE		= SRP_RQ_SIZE - 1,
-	SRP_CQ_SIZE		= SRP_SQ_SIZE + SRP_RQ_SIZE,
 
 	SRP_TAG_TSK_MGMT	= 1 << (SRP_RQ_SHIFT + 1),
 
@@ -68,8 +67,6 @@ enum {
 	SRP_FMR_POOL_SIZE	= 1024,
 	SRP_FMR_DIRTY_SIZE	= SRP_FMR_POOL_SIZE / 4
 };
-
-#define SRP_OP_RECV		(1 << 31)
 
 enum srp_target_state {
 	SRP_TARGET_LIVE,
@@ -133,7 +130,8 @@ struct srp_target_port {
 	int			path_query_id;
 
 	struct ib_cm_id	       *cm_id;
-	struct ib_cq	       *cq;
+	struct ib_cq	       *recv_cq;
+	struct ib_cq	       *send_cq;
 	struct ib_qp	       *qp;
 
 	int			max_ti_iu_len;

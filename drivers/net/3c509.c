@@ -76,7 +76,6 @@
 #include <linux/interrupt.h>
 #include <linux/errno.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
@@ -253,9 +252,9 @@ static int el3_isa_id_sequence(__be16 *phys_addr)
 		   This check is needed in order not to register them twice. */
 		for (i = 0; i < el3_cards; i++) {
 			struct el3_private *lp = netdev_priv(el3_devs[i]);
-			if (lp->type == EL3_PNP
-			    && !memcmp(phys_addr, el3_devs[i]->dev_addr,
-				       ETH_ALEN)) {
+			if (lp->type == EL3_PNP &&
+			    !memcmp(phys_addr, el3_devs[i]->dev_addr,
+				    ETH_ALEN)) {
 				if (el3_debug > 3)
 					pr_debug("3c509 with address %02x %02x %02x %02x %02x %02x was found by ISAPnP\n",
 						phys_addr[0] & 0xff, phys_addr[0] >> 8,
@@ -780,7 +779,7 @@ el3_open(struct net_device *dev)
 	outw(RxReset, ioaddr + EL3_CMD);
 	outw(SetStatusEnb | 0x00, ioaddr + EL3_CMD);
 
-	i = request_irq(dev->irq, &el3_interrupt, 0, dev->name, dev);
+	i = request_irq(dev->irq, el3_interrupt, 0, dev->name, dev);
 	if (i)
 		return i;
 
@@ -808,7 +807,7 @@ el3_tx_timeout (struct net_device *dev)
 		   dev->name, inb(ioaddr + TX_STATUS), inw(ioaddr + EL3_STATUS),
 		   inw(ioaddr + TX_FREE));
 	dev->stats.tx_errors++;
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	/* Issue TX_RESET and TX_START commands. */
 	outw(TxReset, ioaddr + EL3_CMD);
 	outw(TxEnable, ioaddr + EL3_CMD);
@@ -835,8 +834,8 @@ el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 #ifndef final_version
 	{	/* Error-checking code, delete someday. */
 		ushort status = inw(ioaddr + EL3_STATUS);
-		if (status & 0x0001 		/* IRQ line active, missed one. */
-			&& inw(ioaddr + EL3_STATUS) & 1) { 			/* Make sure. */
+		if (status & 0x0001 && 		/* IRQ line active, missed one. */
+		    inw(ioaddr + EL3_STATUS) & 1) { 			/* Make sure. */
 			pr_debug("%s: Missed interrupt, status then %04x now %04x"
 				   "  Tx %2.2x Rx %4.4x.\n", dev->name, status,
 				   inw(ioaddr + EL3_STATUS), inb(ioaddr + TX_STATUS),
@@ -869,7 +868,6 @@ el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* ... and the packet rounded to a doubleword. */
 	outsl(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 2);
 
-	dev->trans_start = jiffies;
 	if (inw(ioaddr + TX_FREE) > 1536)
 		netif_start_queue(dev);
 	else
@@ -1039,7 +1037,6 @@ static void update_stats(struct net_device *dev)
 	/* Back to window 1, and turn statistics back on. */
 	EL3WINDOW(1);
 	outw(StatsEnable, ioaddr + EL3_CMD);
-	return;
 }
 
 static int
@@ -1111,12 +1108,14 @@ set_multicast_list(struct net_device *dev)
 	unsigned long flags;
 	struct el3_private *lp = netdev_priv(dev);
 	int ioaddr = dev->base_addr;
+	int mc_count = netdev_mc_count(dev);
 
 	if (el3_debug > 1) {
 		static int old;
-		if (old != dev->mc_count) {
-			old = dev->mc_count;
-			pr_debug("%s: Setting Rx mode to %d addresses.\n", dev->name, dev->mc_count);
+		if (old != mc_count) {
+			old = mc_count;
+			pr_debug("%s: Setting Rx mode to %d addresses.\n",
+				 dev->name, mc_count);
 		}
 	}
 	spin_lock_irqsave(&lp->lock, flags);
@@ -1124,7 +1123,7 @@ set_multicast_list(struct net_device *dev)
 		outw(SetRxFilter | RxStation | RxMulticast | RxBroadcast | RxProm,
 			 ioaddr + EL3_CMD);
 	}
-	else if (dev->mc_count || (dev->flags&IFF_ALLMULTI)) {
+	else if (mc_count || (dev->flags&IFF_ALLMULTI)) {
 		outw(SetRxFilter | RxStation | RxMulticast | RxBroadcast, ioaddr + EL3_CMD);
 	}
 	else

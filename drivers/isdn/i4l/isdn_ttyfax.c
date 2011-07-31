@@ -470,7 +470,7 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info * info)
 		}
 		return 0;
 	}
-	/* BADMUL=value - dummy 0=disable errorchk disabled (treshold multiplier) */
+	/* BADMUL=value - dummy 0=disable errorchk disabled (threshold multiplier) */
 	if (!strncmp(p[0], "BADMUL", 6)) {
 		p[0] += 6;
 		switch (*p[0]) {

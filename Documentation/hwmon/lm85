@@ -9,15 +9,15 @@ Supported chips:
   * Analog Devices ADM1027
     Prefix: 'adm1027'
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
-    Datasheet: http://www.analog.com/en/prod/0,,766_825_ADM1027,00.html
+    Datasheet: http://www.onsemi.com/PowerSolutions/product.do?id=ADM1027
   * Analog Devices ADT7463
     Prefix: 'adt7463'
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
-    Datasheet: http://www.analog.com/en/prod/0,,766_825_ADT7463,00.html
+    Datasheet: http://www.onsemi.com/PowerSolutions/product.do?id=ADT7463
   * SMSC EMC6D100, SMSC EMC6D101
     Prefix: 'emc6d100'
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
-    Datasheet: http://www.smsc.com/main/tools/discontinued/6d100.pdf
+    Datasheet: http://www.smsc.com/media/Downloads_Public/discontinued/6d100.pdf 
   * SMSC EMC6D102
     Prefix: 'emc6d102'
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
@@ -157,7 +157,7 @@ temperature configuration points:
 
 There are three PWM outputs. The LM85 datasheet suggests that the
 pwm3 output control both fan3 and fan4. Each PWM can be individually
-configured and assigned to a zone for it's control value. Each PWM can be
+configured and assigned to a zone for its control value. Each PWM can be
 configured individually according to the following options.
 
 * pwm#_auto_pwm_min - this specifies the PWM value for temp#_auto_temp_off

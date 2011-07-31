@@ -114,7 +114,7 @@ struct bearer_name {
 
 struct link;
 
-extern struct bearer *tipc_bearers;
+extern struct bearer tipc_bearers[];
 
 void tipc_media_addr_printf(struct print_buf *pb, struct tipc_media_addr *a);
 struct sk_buff *tipc_media_get_names(void);
@@ -125,6 +125,7 @@ void tipc_bearer_remove_dest(struct bearer *b_ptr, u32 dest);
 void tipc_bearer_schedule(struct bearer *b_ptr, struct link *l_ptr);
 struct bearer *tipc_bearer_find_interface(const char *if_name);
 int tipc_bearer_resolve_congestion(struct bearer *b_ptr, struct link *l_ptr);
+int tipc_bearer_congested(struct bearer *b_ptr, struct link *l_ptr);
 int tipc_bearer_init(void);
 void tipc_bearer_stop(void);
 void tipc_bearer_lock_push(struct bearer *b_ptr);
@@ -154,17 +155,4 @@ static inline int tipc_bearer_send(struct bearer *b_ptr, struct sk_buff *buf,
 	return !b_ptr->media->send_msg(buf, &b_ptr->publ, dest);
 }
 
-/**
- * tipc_bearer_congested - determines if bearer is currently congested
- */
-
-static inline int tipc_bearer_congested(struct bearer *b_ptr, struct link *l_ptr)
-{
-	if (unlikely(b_ptr->publ.blocked))
-		return 1;
-	if (likely(list_empty(&b_ptr->cong_links)))
-		return 0;
-	return !tipc_bearer_resolve_congestion(b_ptr, l_ptr);
-}
-
-#endif
+#endif	/* _TIPC_BEARER_H */

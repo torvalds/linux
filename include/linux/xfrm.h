@@ -10,8 +10,7 @@
 /* Structure to encapsulate addresses. I do not want to use
  * "standard" structure. My apologies.
  */
-typedef union
-{
+typedef union {
 	__be32		a4;
 	__be32		a6[4];
 } xfrm_address_t;
@@ -20,8 +19,7 @@ typedef union
  * the state by (spi,daddr,ah/esp) or to store information about
  * spi, protocol and tunnel address on output.
  */
-struct xfrm_id
-{
+struct xfrm_id {
 	xfrm_address_t	daddr;
 	__be32		spi;
 	__u8		proto;
@@ -45,8 +43,7 @@ struct xfrm_sec_ctx {
 
 /* Selector, used as selector both on policy rules (SPD) and SAs. */
 
-struct xfrm_selector
-{
+struct xfrm_selector {
 	xfrm_address_t	daddr;
 	xfrm_address_t	saddr;
 	__be16	dport;
@@ -63,8 +60,7 @@ struct xfrm_selector
 
 #define XFRM_INF (~(__u64)0)
 
-struct xfrm_lifetime_cfg
-{
+struct xfrm_lifetime_cfg {
 	__u64	soft_byte_limit;
 	__u64	hard_byte_limit;
 	__u64	soft_packet_limit;
@@ -75,16 +71,14 @@ struct xfrm_lifetime_cfg
 	__u64	hard_use_expires_seconds;
 };
 
-struct xfrm_lifetime_cur
-{
+struct xfrm_lifetime_cur {
 	__u64	bytes;
 	__u64	packets;
 	__u64	add_time;
 	__u64	use_time;
 };
 
-struct xfrm_replay_state
-{
+struct xfrm_replay_state {
 	__u32	oseq;
 	__u32	seq;
 	__u32	bitmap;
@@ -93,6 +87,13 @@ struct xfrm_replay_state
 struct xfrm_algo {
 	char		alg_name[64];
 	unsigned int	alg_key_len;    /* in bits */
+	char		alg_key[0];
+};
+
+struct xfrm_algo_auth {
+	char		alg_name[64];
+	unsigned int	alg_key_len;    /* in bits */
+	unsigned int	alg_trunc_len;  /* in bits */
 	char		alg_key[0];
 };
 
@@ -109,16 +110,14 @@ struct xfrm_stats {
 	__u32	integrity_failed;
 };
 
-enum
-{
+enum {
 	XFRM_POLICY_TYPE_MAIN	= 0,
 	XFRM_POLICY_TYPE_SUB	= 1,
 	XFRM_POLICY_TYPE_MAX	= 2,
 	XFRM_POLICY_TYPE_ANY	= 255
 };
 
-enum
-{
+enum {
 	XFRM_POLICY_IN	= 0,
 	XFRM_POLICY_OUT	= 1,
 	XFRM_POLICY_FWD	= 2,
@@ -126,8 +125,7 @@ enum
 	XFRM_POLICY_MAX	= 3
 };
 
-enum
-{
+enum {
 	XFRM_SHARE_ANY,		/* No limitations */
 	XFRM_SHARE_SESSION,	/* For this session only */
 	XFRM_SHARE_USER,	/* For this user only */
@@ -269,8 +267,8 @@ enum xfrm_attr_type_t {
 	XFRMA_ALG_COMP,		/* struct xfrm_algo */
 	XFRMA_ENCAP,		/* struct xfrm_algo + struct xfrm_encap_tmpl */
 	XFRMA_TMPL,		/* 1 or more struct xfrm_user_tmpl */
-	XFRMA_SA,
-	XFRMA_POLICY,
+	XFRMA_SA,		/* struct xfrm_usersa_info  */
+	XFRMA_POLICY,		/*struct xfrm_userpolicy_info */
 	XFRMA_SEC_CTX,		/* struct xfrm_sec_ctx */
 	XFRMA_LTIME_VAL,
 	XFRMA_REPLAY_VAL,
@@ -278,14 +276,21 @@ enum xfrm_attr_type_t {
 	XFRMA_ETIMER_THRESH,
 	XFRMA_SRCADDR,		/* xfrm_address_t */
 	XFRMA_COADDR,		/* xfrm_address_t */
-	XFRMA_LASTUSED,
+	XFRMA_LASTUSED,		/* unsigned long  */
 	XFRMA_POLICY_TYPE,	/* struct xfrm_userpolicy_type */
 	XFRMA_MIGRATE,
 	XFRMA_ALG_AEAD,		/* struct xfrm_algo_aead */
 	XFRMA_KMADDRESS,        /* struct xfrm_user_kmaddress */
+	XFRMA_ALG_AUTH_TRUNC,	/* struct xfrm_algo_auth */
+	XFRMA_MARK,		/* struct xfrm_mark */
 	__XFRMA_MAX
 
 #define XFRMA_MAX (__XFRMA_MAX - 1)
+};
+
+struct xfrm_mark {
+	__u32           v; /* value */
+	__u32           m; /* mask */
 };
 
 enum xfrm_sadattr_type_t {

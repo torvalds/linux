@@ -17,9 +17,9 @@
 #include <linux/io.h>
 #include <linux/smc91x.h>
 
-#include <mach/board.h>
-#include <mach/gpmc.h>
-#include <mach/gpmc-smc91x.h>
+#include <plat/board.h>
+#include <plat/gpmc.h>
+#include <plat/gpmc-smc91x.h>
 
 static struct omap_smc91x_platform_data *gpmc_cfg;
 
@@ -33,17 +33,19 @@ static struct resource gpmc_smc91x_resources[] = {
 };
 
 static struct smc91x_platdata gpmc_smc91x_info = {
-	.flags  = SMC91X_USE_16BIT | SMC91X_NOWAIT | SMC91X_IO_SHIFT_0,
+	.flags	= SMC91X_USE_16BIT | SMC91X_NOWAIT | SMC91X_IO_SHIFT_0,
+	.leda	= RPC_LED_100_10,
+	.ledb	= RPC_LED_TX_RX,
 };
 
 static struct platform_device gpmc_smc91x_device = {
 	.name		= "smc91x",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(gpmc_smc91x_resources),
-	.resource	= gpmc_smc91x_resources,
 	.dev		= {
 		.platform_data = &gpmc_smc91x_info,
 	},
+	.num_resources	= ARRAY_SIZE(gpmc_smc91x_resources),
+	.resource	= gpmc_smc91x_resources,
 };
 
 /*

@@ -978,6 +978,7 @@ static struct tda18271_cid_target_map tda18271_cid_target[] = {
 int tda18271_lookup_cid_target(struct dvb_frontend *fe,
 			       u32 *freq, u8 *cid_target, u16 *count_limit)
 {
+	struct tda18271_priv *priv = fe->tuner_priv;
 	int i = 0;
 
 	while ((tda18271_cid_target[i].rfmax * 1000) < *freq) {

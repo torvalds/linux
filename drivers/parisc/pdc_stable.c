@@ -481,7 +481,7 @@ pdcspath_attr_store(struct kobject *kobj, struct attribute *attr,
 	return ret;
 }
 
-static struct sysfs_ops pdcspath_attr_ops = {
+static const struct sysfs_ops pdcspath_attr_ops = {
 	.show = pdcspath_attr_show,
 	.store = pdcspath_attr_store,
 };
@@ -779,12 +779,9 @@ static ssize_t pdcs_auto_write(struct kobject *kobj,
 	read_unlock(&pathentry->rw_lock);
 	
 	DPRINTK("%s: flags before: 0x%X\n", __func__, flags);
-			
-	temp = in;
-	
-	while (*temp && isspace(*temp))
-		temp++;
-	
+
+	temp = skip_spaces(in);
+
 	c = *temp++ - '0';
 	if ((c != 0) && (c != 1))
 		goto parse_error;

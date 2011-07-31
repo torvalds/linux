@@ -2,7 +2,7 @@
 
     drivers/mtd/afs.c: ARM Flash Layout/Partitioning
 
-    Copyright (C) 2000 ARM Limited
+    Copyright © 2000 ARM Limited
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

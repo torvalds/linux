@@ -1,0 +1,10 @@
+config SAMSUNG_LAPTOP
+	tristate "Samsung Laptop driver"
+	default n
+	depends on RFKILL && BACKLIGHT_CLASS_DEVICE && X86
+	help
+	  This module implements a driver for the N128 Samsung Laptop
+	  providing control over the Wireless LED and the LCD backlight
+
+	  To compile this driver as a module, choose
+	  M here: the module will be called samsung-laptop.

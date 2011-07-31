@@ -12,6 +12,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/ssb/ssb.h>
 
 

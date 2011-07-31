@@ -38,7 +38,8 @@ struct macio_dev
 {
 	struct macio_bus	*bus;		/* macio bus this device is on */
 	struct macio_dev	*media_bay;	/* Device is part of a media bay */
-	struct of_device	ofdev;
+	struct platform_device	ofdev;
+	struct device_dma_parameters dma_parms; /* ide needs that */
 	int			n_resources;
 	struct resource		resource[MACIO_DEV_COUNT_RESOURCES];
 	int			n_interrupts;
@@ -78,6 +79,8 @@ static inline unsigned long macio_resource_len(struct macio_dev *dev, int resour
 	return res->end - res->start + 1;
 }
 
+extern int macio_enable_devres(struct macio_dev *dev);
+
 extern int macio_request_resource(struct macio_dev *dev, int resource_no, const char *name);
 extern void macio_release_resource(struct macio_dev *dev, int resource_no);
 extern int macio_request_resources(struct macio_dev *dev, const char *name);
@@ -105,7 +108,7 @@ static inline void* macio_get_drvdata(struct macio_dev *dev)
 
 static inline struct device_node *macio_get_of_node(struct macio_dev *mdev)
 {
-	return mdev->ofdev.node;
+	return mdev->ofdev.dev.of_node;
 }
 
 #ifdef CONFIG_PCI
@@ -120,10 +123,6 @@ static inline struct pci_dev *macio_get_pci_dev(struct macio_dev *mdev)
  */
 struct macio_driver
 {
-	char			*name;
-	struct of_device_id	*match_table;
-	struct module		*owner;
-
 	int	(*probe)(struct macio_dev* dev, const struct of_device_id *match);
 	int	(*remove)(struct macio_dev* dev);
 
@@ -131,6 +130,9 @@ struct macio_driver
 	int	(*resume)(struct macio_dev* dev);
 	int	(*shutdown)(struct macio_dev* dev);
 
+#ifdef CONFIG_PMAC_MEDIABAY
+	void	(*mediabay_event)(struct macio_dev* dev, int mb_state);
+#endif
 	struct device_driver	driver;
 };
 #define	to_macio_driver(drv) container_of(drv,struct macio_driver, driver)

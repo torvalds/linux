@@ -19,39 +19,45 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/irq.h>
-
 #include <asm/mach/pci.h>
 #include <asm/mach-types.h>
 
+#define MAX_DEV		4
+#define IRQ_LINES	3
+
+/* PCI controller GPIO to IRQ pin mappings */
+#define INTA		11
+#define INTB		10
+#define INTC		9
+#define INTD		8
+#define INTE		7
+#define INTF		6
+
 void __init dsmg600_pci_preinit(void)
 {
-	set_irq_type(IRQ_DSMG600_PCI_INTA, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IRQ_DSMG600_PCI_INTB, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IRQ_DSMG600_PCI_INTC, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IRQ_DSMG600_PCI_INTD, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IRQ_DSMG600_PCI_INTE, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IRQ_DSMG600_PCI_INTF, IRQ_TYPE_LEVEL_LOW);
-
+	set_irq_type(IXP4XX_GPIO_IRQ(INTA), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(INTB), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(INTC), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(INTD), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(INTE), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(INTF), IRQ_TYPE_LEVEL_LOW);
 	ixp4xx_pci_preinit();
 }
 
 static int __init dsmg600_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
-	static int pci_irq_table[DSMG600_PCI_MAX_DEV][DSMG600_PCI_IRQ_LINES] =
-	{
-		{ IRQ_DSMG600_PCI_INTE, -1, -1 },
-		{ IRQ_DSMG600_PCI_INTA, -1, -1 },
-		{ IRQ_DSMG600_PCI_INTB, IRQ_DSMG600_PCI_INTC, IRQ_DSMG600_PCI_INTD },
-		{ IRQ_DSMG600_PCI_INTF, -1, -1 },
+	static int pci_irq_table[MAX_DEV][IRQ_LINES] = {
+		{ IXP4XX_GPIO_IRQ(INTE), -1, -1 },
+		{ IXP4XX_GPIO_IRQ(INTA), -1, -1 },
+		{ IXP4XX_GPIO_IRQ(INTB), IXP4XX_GPIO_IRQ(INTC),
+		  IXP4XX_GPIO_IRQ(INTD) },
+		{ IXP4XX_GPIO_IRQ(INTF), -1, -1 },
 	};
 
-	int irq = -1;
+	if (slot >= 1 && slot <= MAX_DEV && pin >= 1 && pin <= IRQ_LINES)
+		return pci_irq_table[slot - 1][pin - 1];
 
-	if (slot >= 1 && slot <= DSMG600_PCI_MAX_DEV &&
-		pin >= 1 && pin <= DSMG600_PCI_IRQ_LINES)
-		irq = pci_irq_table[slot-1][pin-1];
-
-	return irq;
+	return -1;
 }
 
 struct hw_pci __initdata dsmg600_pci = {

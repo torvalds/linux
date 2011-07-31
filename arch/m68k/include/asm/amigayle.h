@@ -104,4 +104,10 @@ struct GAYLE {
 #define GAYLE_CFG_250NS		0x00
 #define GAYLE_CFG_720NS		0x0c
 
+struct gayle_ide_platform_data {
+	unsigned long base;
+	unsigned long irqport;
+	int explicit_ack;	/* A1200 IDE needs explicit ack */
+};
+
 #endif /* asm-m68k/amigayle.h */

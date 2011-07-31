@@ -177,7 +177,7 @@ static ssize_t wm8350_wdt_write(struct file *file,
 	return count;
 }
 
-static struct watchdog_info ident = {
+static const struct watchdog_info ident = {
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 	.identity = "WM8350 Watchdog",
 };
@@ -284,7 +284,7 @@ static int __devinit wm8350_wdt_probe(struct platform_device *pdev)
 	struct wm8350 *wm8350 = platform_get_drvdata(pdev);
 
 	if (!wm8350) {
-		dev_err(wm8350->dev, "No driver data supplied\n");
+		pr_err("No driver data supplied\n");
 		return -ENODEV;
 	}
 

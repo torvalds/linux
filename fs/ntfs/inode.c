@@ -530,7 +530,7 @@ err_corrupt_attr:
  * the ntfs inode.
  *
  * Q: What locks are held when the function is called?
- * A: i_state has I_LOCK set, hence the inode is locked, also
+ * A: i_state has I_NEW set, hence the inode is locked, also
  *    i_count is set to 1, so it is not going to go away
  *    i_flags is set to 0 and we have no business touching it.  Only an ioctl()
  *    is allowed to write to them. We should of course be honouring them but
@@ -1207,7 +1207,7 @@ err_out:
  * necessary fields in @vi as well as initializing the ntfs inode.
  *
  * Q: What locks are held when the function is called?
- * A: i_state has I_LOCK set, hence the inode is locked, also
+ * A: i_state has I_NEW set, hence the inode is locked, also
  *    i_count is set to 1, so it is not going to go away
  *
  * Return 0 on success and -errno on error.  In the error case, the inode will
@@ -1474,7 +1474,7 @@ err_out:
  * normal directory inodes.
  *
  * Q: What locks are held when the function is called?
- * A: i_state has I_LOCK set, hence the inode is locked, also
+ * A: i_state has I_NEW set, hence the inode is locked, also
  *    i_count is set to 1, so it is not going to go away
  *
  * Return 0 on success and -errno on error.  In the error case, the inode will
@@ -2238,7 +2238,7 @@ void ntfs_clear_extent_inode(ntfs_inode *ni)
 }
 
 /**
- * ntfs_clear_big_inode - clean up the ntfs specific part of an inode
+ * ntfs_evict_big_inode - clean up the ntfs specific part of an inode
  * @vi:		vfs inode pending annihilation
  *
  * When the VFS is going to remove an inode from memory, ntfs_clear_big_inode()
@@ -2247,9 +2247,12 @@ void ntfs_clear_extent_inode(ntfs_inode *ni)
  *
  * If the MFT record is dirty, we commit it before doing anything else.
  */
-void ntfs_clear_big_inode(struct inode *vi)
+void ntfs_evict_big_inode(struct inode *vi)
 {
 	ntfs_inode *ni = NTFS_I(vi);
+
+	truncate_inode_pages(&vi->i_data, 0);
+	end_writeback(vi);
 
 #ifdef NTFS_RW
 	if (NInoDirty(ni)) {
@@ -2879,9 +2882,6 @@ void ntfs_truncate_vfs(struct inode *vi) {
  *
  * Called with ->i_mutex held.  For the ATTR_SIZE (i.e. ->truncate) case, also
  * called with ->i_alloc_sem held for writing.
- *
- * Basically this is a copy of generic notify_change() and inode_setattr()
- * functionality, except we intercept and abort changes in i_size.
  */
 int ntfs_setattr(struct dentry *dentry, struct iattr *attr)
 {
@@ -2957,7 +2957,7 @@ out:
  *
  * Return 0 on success and -errno on error.
  */
-int ntfs_write_inode(struct inode *vi, int sync)
+int __ntfs_write_inode(struct inode *vi, int sync)
 {
 	sle64 nt;
 	ntfs_inode *ni = NTFS_I(vi);

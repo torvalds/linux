@@ -9,10 +9,9 @@ comment "Enable Host or Gadget support to see Inventra options"
 # (M)HDRC = (Multipoint) Highspeed Dual-Role Controller
 config USB_MUSB_HDRC
 	depends on (USB || USB_GADGET)
-	depends on (ARM || BLACKFIN)
-	select NOP_USB_XCEIV if ARCH_DAVINCI
+	depends on (ARM || (BF54x && !BF544) || (BF52x && !BF522 && !BF523))
+	select NOP_USB_XCEIV if (ARCH_DAVINCI || MACH_OMAP3EVM || BLACKFIN)
 	select TWL4030_USB if MACH_OMAP_3430SDP
-	select NOP_USB_XCEIV if MACH_OMAP3EVM
 	select USB_OTG_UTILS
 	tristate 'Inventra Highspeed Dual Role Controller (TI, ADI, ...)'
 	help
@@ -38,18 +37,22 @@ config USB_MUSB_SOC
 	depends on USB_MUSB_HDRC
 	default y if ARCH_DAVINCI
 	default y if ARCH_OMAP2430
-	default y if ARCH_OMAP34XX
+	default y if ARCH_OMAP3
+	default y if ARCH_OMAP4
 	default y if (BF54x && !BF544)
 	default y if (BF52x && !BF522 && !BF523)
 
 comment "DaVinci 35x and 644x USB support"
-	depends on USB_MUSB_HDRC && ARCH_DAVINCI
+	depends on USB_MUSB_HDRC && ARCH_DAVINCI_DMx
 
 comment "OMAP 243x high speed USB support"
 	depends on USB_MUSB_HDRC && ARCH_OMAP2430
 
 comment "OMAP 343x high speed USB support"
-	depends on USB_MUSB_HDRC && ARCH_OMAP34XX
+	depends on USB_MUSB_HDRC && ARCH_OMAP3
+
+comment "OMAP 44xx high speed USB support"
+	depends on USB_MUSB_HDRC && ARCH_OMAP4
 
 comment "Blackfin high speed USB Support"
 	depends on USB_MUSB_HDRC && ((BF54x && !BF544) || (BF52x && !BF522 && !BF523))
@@ -154,7 +157,7 @@ config MUSB_PIO_ONLY
 config USB_INVENTRA_DMA
 	bool
 	depends on USB_MUSB_HDRC && !MUSB_PIO_ONLY
-	default ARCH_OMAP2430 || ARCH_OMAP34XX || BLACKFIN
+	default ARCH_OMAP2430 || ARCH_OMAP3 || BLACKFIN || ARCH_OMAP4
 	help
 	  Enable DMA transfers using Mentor's engine.
 

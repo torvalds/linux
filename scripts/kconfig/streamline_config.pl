@@ -113,14 +113,19 @@ find_config;
 # Get the build source and top level Kconfig file (passed in)
 my $ksource = $ARGV[0];
 my $kconfig = $ARGV[1];
+my $lsmod_file = $ARGV[2];
 
-my @makefiles = `find $ksource -name Makefile`;
+my @makefiles = `find $ksource -name Makefile 2>/dev/null`;
+chomp @makefiles;
+
 my %depends;
 my %selects;
 my %prompts;
 my %objects;
 my $var;
 my $cont = 0;
+my $iflevel = 0;
+my @ifdeps;
 
 # prevent recursion
 my %read_kconfigs;
@@ -146,6 +151,15 @@ sub read_kconfig {
 	    $state = "NEW";
 	    $config = $1;
 
+	    for (my $i = 0; $i < $iflevel; $i++) {
+		if ($i) {
+		    $depends{$config} .= " " . $ifdeps[$i];
+		} else {
+		    $depends{$config} = $ifdeps[$i];
+		}
+		$state = "DEP";
+	    }
+
 	# collect the depends for the config
 	} elsif ($state eq "NEW" && /^\s*depends\s+on\s+(.*)$/) {
 	    $state = "DEP";
@@ -165,6 +179,21 @@ sub read_kconfig {
 	} elsif ($state ne "NONE" && /^\s*tristate\s\S/) {
 	    # note if the config has a prompt
 	    $prompt{$config} = 1;
+
+	# Check for if statements
+	} elsif (/^if\s+(.*\S)\s*$/) {
+	    my $deps = $1;
+	    # remove beginning and ending non text
+	    $deps =~ s/^[^a-zA-Z0-9_]*//;
+	    $deps =~ s/[^a-zA-Z0-9_]*$//;
+
+	    my @deps = split /[^a-zA-Z0-9_]+/, $deps;
+
+	    $ifdeps[$iflevel++] = join ':', @deps;
+
+	} elsif (/^endif/) {
+
+	    $iflevel-- if ($iflevel);
 
 	# stop on "help"
 	} elsif (/^\s*help\s*$/) {
@@ -188,7 +217,6 @@ if ($kconfig) {
 
 # Read all Makefiles to map the configs to the objects
 foreach my $makefile (@makefiles) {
-    chomp $makefile;
 
     open(MIN,$makefile) || die "Can't open $makefile";
     while (<MIN>) {
@@ -215,7 +243,7 @@ foreach my $makefile (@makefiles) {
 	    foreach my $obj (split /\s+/,$objs) {
 		$obj =~ s/-/_/g;
 		if ($obj =~ /(.*)\.o$/) {
-		    # Objects may bes enabled by more than one config.
+		    # Objects may be enabled by more than one config.
 		    # Store configs in an array.
 		    my @arr;
 
@@ -237,8 +265,36 @@ foreach my $makefile (@makefiles) {
 
 my %modules;
 
-# see what modules are loaded on this system
-open(LIN,"/sbin/lsmod|") || die "Cant lsmod";
+if (defined($lsmod_file)) {
+    if ( ! -f $lsmod_file) {
+	die "$lsmod_file not found";
+    }
+    if ( -x $lsmod_file) {
+	# the file is executable, run it
+	open(LIN, "$lsmod_file|");
+    } else {
+	# Just read the contents
+	open(LIN, "$lsmod_file");
+    }
+} else {
+
+    # see what modules are loaded on this system
+    my $lsmod;
+
+    foreach $dir ( ("/sbin", "/bin", "/usr/sbin", "/usr/bin") ) {
+	if ( -x "$dir/lsmod" ) {
+	    $lsmod = "$dir/lsmod";
+	    last;
+	}
+}
+    if (!defined($lsmod)) {
+	# try just the path
+	$lsmod = "lsmod";
+    }
+
+    open(LIN,"$lsmod|") || die "Can not call lsmod with $lsmod";
+}
+
 while (<LIN>) {
 	next if (/^Module/);  # Skip the first line.
 	if (/^(\S+)/) {
@@ -252,7 +308,7 @@ close (LIN);
 my %configs;
 foreach my $module (keys(%modules)) {
     if (defined($objects{$module})) {
-	@arr = @{$objects{$module}};
+	my @arr = @{$objects{$module}};
 	foreach my $conf (@arr) {
 	    $configs{$conf} = $module;
 	}

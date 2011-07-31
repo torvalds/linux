@@ -16,6 +16,7 @@
 #include <linux/hardirq.h>
 #include <linux/thread_info.h>
 #include <linux/kbuild.h>
+#include <asm/cpuinfo.h>
 
 int main(int argc, char *argv[])
 {
@@ -90,6 +91,7 @@ int main(int argc, char *argv[])
 	DEFINE(TI_FLAGS, offsetof(struct thread_info, flags));
 	DEFINE(TI_ADDR_LIMIT, offsetof(struct thread_info, addr_limit));
 	DEFINE(TI_CPU_CONTEXT, offsetof(struct thread_info, cpu_context));
+	DEFINE(TI_PREEMPT_COUNT, offsetof(struct thread_info, preempt_count));
 	BLANK();
 
 	/* struct cpu_context */

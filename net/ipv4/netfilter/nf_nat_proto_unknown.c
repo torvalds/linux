@@ -26,14 +26,14 @@ static bool unknown_in_range(const struct nf_conntrack_tuple *tuple,
 	return true;
 }
 
-static bool unknown_unique_tuple(struct nf_conntrack_tuple *tuple,
+static void unknown_unique_tuple(struct nf_conntrack_tuple *tuple,
 				 const struct nf_nat_range *range,
 				 enum nf_nat_manip_type maniptype,
 				 const struct nf_conn *ct)
 {
 	/* Sorry: we can't help you; if it's not unique, we can't frob
 	   anything. */
-	return false;
+	return;
 }
 
 static bool

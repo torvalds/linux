@@ -73,10 +73,9 @@ static inline unsigned long cputime_to_jiffies(const cputime_t ct)
 static inline cputime_t cputime_to_scaled(const cputime_t ct)
 {
 	if (cpu_has_feature(CPU_FTR_SPURR) &&
-	    per_cpu(cputime_last_delta, smp_processor_id()))
-		return ct *
-			per_cpu(cputime_scaled_last_delta, smp_processor_id())/
-			per_cpu(cputime_last_delta, smp_processor_id());
+	    __get_cpu_var(cputime_last_delta))
+		return ct * __get_cpu_var(cputime_scaled_last_delta) /
+			    __get_cpu_var(cputime_last_delta);
 	return ct;
 }
 

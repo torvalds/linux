@@ -8,9 +8,9 @@
 #ifndef _QL4XNVRM_H_
 #define _QL4XNVRM_H_
 
-/*
+/**
  * AM29LV Flash definitions
- */
+ **/
 #define FM93C56A_SIZE_8	 0x100
 #define FM93C56A_SIZE_16 0x80
 #define FM93C66A_SIZE_8	 0x200
@@ -19,7 +19,7 @@
 
 #define	 FM93C56A_START	      0x1
 
-// Commands
+/* Commands */
 #define	 FM93C56A_READ	      0x2
 #define	 FM93C56A_WEN	      0x0
 #define	 FM93C56A_WRITE	      0x1
@@ -62,9 +62,9 @@
 #define	 AUBURN_EEPROM_CLK_RISE	    0x1
 #define	 AUBURN_EEPROM_CLK_FALL	    0x0
 
-/* */
+/**/
 /* EEPROM format */
-/* */
+/**/
 struct bios_params {
 	uint16_t SpinUpDelay:1;
 	uint16_t BIOSDisable:1;

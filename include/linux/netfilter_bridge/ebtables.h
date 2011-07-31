@@ -34,14 +34,12 @@
 struct xt_match;
 struct xt_target;
 
-struct ebt_counter
-{
+struct ebt_counter {
 	uint64_t pcnt;
 	uint64_t bcnt;
 };
 
-struct ebt_replace
-{
+struct ebt_replace {
 	char name[EBT_TABLE_MAXNAMELEN];
 	unsigned int valid_hooks;
 	/* nr of rules in the table */
@@ -57,8 +55,7 @@ struct ebt_replace
 	char __user *entries;
 };
 
-struct ebt_replace_kernel
-{
+struct ebt_replace_kernel {
 	char name[EBT_TABLE_MAXNAMELEN];
 	unsigned int valid_hooks;
 	/* nr of rules in the table */
@@ -120,8 +117,7 @@ struct ebt_entries {
 #define EBT_INV_MASK (EBT_IPROTO | EBT_IIN | EBT_IOUT | EBT_ILOGICALIN \
    | EBT_ILOGICALOUT | EBT_ISOURCE | EBT_IDEST)
 
-struct ebt_entry_match
-{
+struct ebt_entry_match {
 	union {
 		char name[EBT_FUNCTION_MAXNAMELEN];
 		struct xt_match *match;
@@ -131,8 +127,7 @@ struct ebt_entry_match
 	unsigned char data[0] __attribute__ ((aligned (__alignof__(struct ebt_replace))));
 };
 
-struct ebt_entry_watcher
-{
+struct ebt_entry_watcher {
 	union {
 		char name[EBT_FUNCTION_MAXNAMELEN];
 		struct xt_target *watcher;
@@ -142,8 +137,7 @@ struct ebt_entry_watcher
 	unsigned char data[0] __attribute__ ((aligned (__alignof__(struct ebt_replace))));
 };
 
-struct ebt_entry_target
-{
+struct ebt_entry_target {
 	union {
 		char name[EBT_FUNCTION_MAXNAMELEN];
 		struct xt_target *target;
@@ -154,8 +148,7 @@ struct ebt_entry_target
 };
 
 #define EBT_STANDARD_TARGET "standard"
-struct ebt_standard_target
-{
+struct ebt_standard_target {
 	struct ebt_entry_target target;
 	int verdict;
 };
@@ -206,8 +199,7 @@ struct ebt_entry {
 #define EBT_MATCH 0
 #define EBT_NOMATCH 1
 
-struct ebt_match
-{
+struct ebt_match {
 	struct list_head list;
 	const char name[EBT_FUNCTION_MAXNAMELEN];
 	bool (*match)(const struct sk_buff *skb, const struct net_device *in,
@@ -224,8 +216,7 @@ struct ebt_match
 	struct module *me;
 };
 
-struct ebt_watcher
-{
+struct ebt_watcher {
 	struct list_head list;
 	const char name[EBT_FUNCTION_MAXNAMELEN];
 	unsigned int (*target)(struct sk_buff *skb,
@@ -242,8 +233,7 @@ struct ebt_watcher
 	struct module *me;
 };
 
-struct ebt_target
-{
+struct ebt_target {
 	struct list_head list;
 	const char name[EBT_FUNCTION_MAXNAMELEN];
 	/* returns one of the standard EBT_* verdicts */
@@ -262,15 +252,13 @@ struct ebt_target
 };
 
 /* used for jumping from and into user defined chains (udc) */
-struct ebt_chainstack
-{
+struct ebt_chainstack {
 	struct ebt_entries *chaininfo; /* pointer to chain data */
 	struct ebt_entry *e; /* pointer to entry data */
 	unsigned int n; /* n'th entry */
 };
 
-struct ebt_table_info
-{
+struct ebt_table_info {
 	/* total size of the entries */
 	unsigned int entries_size;
 	unsigned int nentries;
@@ -282,8 +270,7 @@ struct ebt_table_info
 	struct ebt_counter counters[0] ____cacheline_aligned;
 };
 
-struct ebt_table
-{
+struct ebt_table {
 	struct list_head list;
 	char name[EBT_TABLE_MAXNAMELEN];
 	struct ebt_replace_kernel *table;
@@ -302,7 +289,7 @@ struct ebt_table
 		     ~(__alignof__(struct ebt_replace)-1))
 extern struct ebt_table *ebt_register_table(struct net *net,
 					    const struct ebt_table *table);
-extern void ebt_unregister_table(struct ebt_table *table);
+extern void ebt_unregister_table(struct net *net, struct ebt_table *table);
 extern unsigned int ebt_do_table(unsigned int hook, struct sk_buff *skb,
    const struct net_device *in, const struct net_device *out,
    struct ebt_table *table);

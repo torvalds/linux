@@ -23,7 +23,7 @@
 #include <asm/heartbeat.h>
 #include <cpu/sh7720.h>
 
-#define LAN9115_READY	(ctrl_inl(0xA8000084UL) & 0x00000001UL)
+#define LAN9115_READY	(__raw_readl(0xA8000084UL) & 0x00000001UL)
 
 /* Prefer cmdline over RedBoot */
 static const char *probes[] = { "cmdlinepart", "RedBoot", NULL };
@@ -60,33 +60,33 @@ static void __init setup_chip_select(void)
 {
 	/* CS2: LAN (0x08000000 - 0x0bffffff) */
 	/* no idle cycles, normal space, 8 bit data bus */
-	ctrl_outl(0x36db0400, CS2BCR);
+	__raw_writel(0x36db0400, CS2BCR);
 	/* (SW:1.5 WR:3 HW:1.5), ext. wait */
-	ctrl_outl(0x000003c0, CS2WCR);
+	__raw_writel(0x000003c0, CS2WCR);
 
 	/* CS4: CAN1 (0xb0000000 - 0xb3ffffff) */
 	/* no idle cycles, normal space, 8 bit data bus */
-	ctrl_outl(0x00000200, CS4BCR);
+	__raw_writel(0x00000200, CS4BCR);
 	/* (SW:1.5 WR:3 HW:1.5), ext. wait */
-	ctrl_outl(0x00100981, CS4WCR);
+	__raw_writel(0x00100981, CS4WCR);
 
 	/* CS5a: CAN2 (0xb4000000 - 0xb5ffffff) */
 	/* no idle cycles, normal space, 8 bit data bus */
-	ctrl_outl(0x00000200, CS5ABCR);
+	__raw_writel(0x00000200, CS5ABCR);
 	/* (SW:1.5 WR:3 HW:1.5), ext. wait */
-	ctrl_outl(0x00100981, CS5AWCR);
+	__raw_writel(0x00100981, CS5AWCR);
 
 	/* CS5b: CAN3 (0xb6000000 - 0xb7ffffff) */
 	/* no idle cycles, normal space, 8 bit data bus */
-	ctrl_outl(0x00000200, CS5BBCR);
+	__raw_writel(0x00000200, CS5BBCR);
 	/* (SW:1.5 WR:3 HW:1.5), ext. wait */
-	ctrl_outl(0x00100981, CS5BWCR);
+	__raw_writel(0x00100981, CS5BWCR);
 
 	/* CS6a: Rotary (0xb8000000 - 0xb9ffffff) */
 	/* no idle cycles, normal space, 8 bit data bus */
-	ctrl_outl(0x00000200, CS6ABCR);
+	__raw_writel(0x00000200, CS6ABCR);
 	/* (SW:1.5 WR:3 HW:1.5), no ext. wait */
-	ctrl_outl(0x001009C1, CS6AWCR);
+	__raw_writel(0x001009C1, CS6AWCR);
 }
 
 static void __init setup_port_multiplexing(void)
@@ -94,71 +94,71 @@ static void __init setup_port_multiplexing(void)
 	/* A7 GPO(LED8);     A6 GPO(LED7);     A5 GPO(LED6);	  A4 GPO(LED5);
 	 * A3 GPO(LED4);     A2 GPO(LED3);     A1 GPO(LED2);	  A0 GPO(LED1);
 	 */
-	ctrl_outw(0x5555, PORT_PACR);	/* 01 01 01 01 01 01 01 01 */
+	__raw_writew(0x5555, PORT_PACR);	/* 01 01 01 01 01 01 01 01 */
 
 	/* B7 GPO(RST4);   B6 GPO(RST3);  B5 GPO(RST2);    B4 GPO(RST1);
 	 * B3 GPO(PB3);	   B2 GPO(PB2);	  B1 GPO(PB1);	   B0 GPO(PB0);
 	 */
-	ctrl_outw(0x5555, PORT_PBCR);	/* 01 01 01 01 01 01 01 01 */
+	__raw_writew(0x5555, PORT_PBCR);	/* 01 01 01 01 01 01 01 01 */
 
 	/* C7 GPO(PC7);	  C6 GPO(PC6);	  C5 GPO(PC5);	   C4 GPO(PC4);
 	 * C3 LCD_DATA3;  C2 LCD_DATA2;   C1 LCD_DATA1;	   C0 LCD_DATA0;
 	 */
-	ctrl_outw(0x5500, PORT_PCCR);	/* 01 01 01 01 00 00 00 00 */
+	__raw_writew(0x5500, PORT_PCCR);	/* 01 01 01 01 00 00 00 00 */
 
 	/* D7 GPO(PD7);	D6 GPO(PD6);	D5 GPO(PD5);	   D4 GPO(PD4);
 	 * D3 GPO(PD3);	D2 GPO(PD2);	D1 GPO(PD1);	   D0 GPO(PD0);
 	 */
-	ctrl_outw(0x5555, PORT_PDCR);	/* 01 01 01 01 01 01 01 01 */
+	__raw_writew(0x5555, PORT_PDCR);	/* 01 01 01 01 01 01 01 01 */
 
 	/* E7 (x);	  E6 GPI(nu);	 E5 GPI(nu);	  E4 LCD_M_DISP;
 	 * E3 LCD_CL1;	  E2 LCD_CL2;	 E1 LCD_DON;	  E0 LCD_FLM;
 	 */
-	ctrl_outw(0x3C00, PORT_PECR);	/* 00 11 11 00 00 00 00 00 */
+	__raw_writew(0x3C00, PORT_PECR);	/* 00 11 11 00 00 00 00 00 */
 
 	/* F7 (x);	     F6 DA1(VLCD);     F5 DA0(nc);	  F4 AN3;
 	 * F3 AN2(MID_AD);   F2 AN1(EARTH_AD); F1 AN0(TEMP);	  F0 GPI+(nc);
 	 */
-	ctrl_outw(0x0002, PORT_PFCR);	/* 00 00 00 00 00 00 00 10 */
+	__raw_writew(0x0002, PORT_PFCR);	/* 00 00 00 00 00 00 00 10 */
 
 	/* G7 (x);	  G6 IRQ5(TOUCH_BUSY); G5 IRQ4(TOUCH_IRQ); G4 GPI(KEY2);
 	 * G3 GPI(KEY1);  G2 GPO(LED11);	G1 GPO(LED10);     G0 GPO(LED9);
 	 */
-	ctrl_outw(0x03D5, PORT_PGCR);	/* 00 00 00 11 11 01 01 01 */
+	__raw_writew(0x03D5, PORT_PGCR);	/* 00 00 00 11 11 01 01 01 */
 
 	/* H7 (x);	      H6 /RAS(BRAS);	  H5 /CAS(BCAS); H4 CKE(BCKE);
 	 * H3 GPO(EARTH_OFF); H2 GPO(EARTH_TEST); H1 USB2_PWR;	 H0 USB1_PWR;
 	 */
-	ctrl_outw(0x0050, PORT_PHCR);	/* 00 00 00 00 01 01 00 00 */
+	__raw_writew(0x0050, PORT_PHCR);	/* 00 00 00 00 01 01 00 00 */
 
 	/* J7 (x);	  J6 AUDCK;	   J5 ASEBRKAK;	    J4 AUDATA3;
 	 * J3 AUDATA2;	  J2 AUDATA1;	   J1 AUDATA0;	    J0 AUDSYNC;
 	 */
-	ctrl_outw(0x0000, PORT_PJCR);	/* 00 00 00 00 00 00 00 00 */
+	__raw_writew(0x0000, PORT_PJCR);	/* 00 00 00 00 00 00 00 00 */
 
 	/* K7 (x);	    K6 (x);	     K5 (x);	   K4 (x);
 	 * K3 PINT7(/PWR2); K2 PINT6(/PWR1); K1 PINT5(nu); K0 PINT4(FLASH_READY)
 	 */
-	ctrl_outw(0x00FF, PORT_PKCR);	/* 00 00 00 00 11 11 11 11 */
+	__raw_writew(0x00FF, PORT_PKCR);	/* 00 00 00 00 11 11 11 11 */
 
 	/* L7 TRST;	   L6 TMS;	     L5 TDO;		  L4 TDI;
 	 * L3 TCK;	   L2 (x);	     L1 (x);		  L0 (x);
 	 */
-	ctrl_outw(0x0000, PORT_PLCR);	/* 00 00 00 00 00 00 00 00 */
+	__raw_writew(0x0000, PORT_PLCR);	/* 00 00 00 00 00 00 00 00 */
 
 	/* M7 GPO(CURRENT_SINK);    M6 GPO(PWR_SWITCH);     M5 GPO(LAN_SPEED);
 	 * M4 GPO(LAN_RESET);       M3 GPO(BUZZER);	    M2 GPO(LCD_BL);
 	 * M1 CS5B(CAN3_CS);	    M0 GPI+(nc);
 	 */
-	ctrl_outw(0x5552, PORT_PMCR);	   /* 01 01 01 01 01 01 00 10 */
+	__raw_writew(0x5552, PORT_PMCR);	   /* 01 01 01 01 01 01 00 10 */
 
 	/* CURRENT_SINK=off,	PWR_SWITCH=off, LAN_SPEED=100MBit,
 	 * LAN_RESET=off,	BUZZER=off,	LCD_BL=off
 	 */
 #if CONFIG_SH_MAGIC_PANEL_R2_VERSION == 2
-	ctrl_outb(0x30, PORT_PMDR);
+	__raw_writeb(0x30, PORT_PMDR);
 #elif CONFIG_SH_MAGIC_PANEL_R2_VERSION == 3
-	ctrl_outb(0xF0, PORT_PMDR);
+	__raw_writeb(0xF0, PORT_PMDR);
 #else
 #error Unknown revision of PLATFORM_MP_R2
 #endif
@@ -167,8 +167,8 @@ static void __init setup_port_multiplexing(void)
 	 * P4 GPO(nu);	       P3 IRQ3(LAN_IRQ);  P2 IRQ2(CAN3_IRQ);
 	 * P1 IRQ1(CAN2_IRQ);  P0 IRQ0(CAN1_IRQ)
 	 */
-	ctrl_outw(0x0100, PORT_PPCR);	/* 00 00 00 01 00 00 00 00 */
-	ctrl_outb(0x10, PORT_PPDR);
+	__raw_writew(0x0100, PORT_PPCR);	/* 00 00 00 01 00 00 00 00 */
+	__raw_writeb(0x10, PORT_PPDR);
 
 	/* R7 A25;	     R6 A24;	     R5 A23;		  R4 A22;
 	 * R3 A21;	     R2 A20;	     R1 A19;		  R0 A0;
@@ -185,22 +185,22 @@ static void __init setup_port_multiplexing(void)
 	/* S7 (x);		S6 (x);        S5 (x);	     S4 GPO(EEPROM_CS2);
 	 * S3 GPO(EEPROM_CS1);  S2 SIOF0_TXD;  S1 SIOF0_RXD; S0 SIOF0_SCK;
 	 */
-	ctrl_outw(0x0140, PORT_PSCR);	/* 00 00 00 01 01 00 00 00 */
+	__raw_writew(0x0140, PORT_PSCR);	/* 00 00 00 01 01 00 00 00 */
 
 	/* T7 (x);	   T6 (x);	  T5 (x);	  T4 COM1_CTS;
 	 * T3 COM1_RTS;	   T2 COM1_TXD;	  T1 COM1_RXD;	  T0 GPO(WDOG)
 	 */
-	ctrl_outw(0x0001, PORT_PTCR);	/* 00 00 00 00 00 00 00 01 */
+	__raw_writew(0x0001, PORT_PTCR);	/* 00 00 00 00 00 00 00 01 */
 
 	/* U7 (x);	     U6 (x);	   U5 (x);	  U4 GPI+(/AC_FAULT);
 	 * U3 GPO(TOUCH_CS); U2 TOUCH_TXD; U1 TOUCH_RXD;  U0 TOUCH_SCK;
 	 */
-	ctrl_outw(0x0240, PORT_PUCR);	/* 00 00 00 10 01 00 00 00 */
+	__raw_writew(0x0240, PORT_PUCR);	/* 00 00 00 10 01 00 00 00 */
 
 	/* V7 (x);	  V6 (x);	V5 (x);		  V4 GPO(MID2);
 	 * V3 GPO(MID1);  V2 CARD_TxD;	V1 CARD_RxD;	  V0 GPI+(/BAT_FAULT);
 	 */
-	ctrl_outw(0x0142, PORT_PVCR);	/* 00 00 00 01 01 00 00 10 */
+	__raw_writew(0x0142, PORT_PVCR);	/* 00 00 00 01 01 00 00 10 */
 }
 
 static void __init mpr2_setup(char **cmdline_p)
@@ -209,24 +209,24 @@ static void __init mpr2_setup(char **cmdline_p)
 	 * /PCC_CD1, /PCC_CD2,  PCC_BVD1, PCC_BVD2,
 	 * /IOIS16,  IRQ4,	IRQ5,	  USB1d_SUSPEND
 	 */
-	ctrl_outw(0xAABC, PORT_PSELA);
+	__raw_writew(0xAABC, PORT_PSELA);
 	/* set Pin Select Register B:
 	 * /SCIF0_RTS, /SCIF0_CTS, LCD_VCPWC,
 	 * LCD_VEPWC,  IIC_SDA,    IIC_SCL, Reserved
 	 */
-	ctrl_outw(0x3C00, PORT_PSELB);
+	__raw_writew(0x3C00, PORT_PSELB);
 	/* set Pin Select Register C:
 	 * SIOF1_SCK, SIOF1_RxD, SCIF1_RxD, SCIF1_TxD, Reserved
 	 */
-	ctrl_outw(0x0000, PORT_PSELC);
+	__raw_writew(0x0000, PORT_PSELC);
 	/* set Pin Select Register D: Reserved, SIOF1_TxD, Reserved, SIOF1_MCLK,
 	 * Reserved, SIOF1_SYNC, Reserved, SCIF1_SCK, Reserved
 	 */
-	ctrl_outw(0x0000, PORT_PSELD);
+	__raw_writew(0x0000, PORT_PSELD);
 	/* set USB TxRx Control: Reserved, DRV, Reserved, USB_TRANS, USB_SEL */
-	ctrl_outw(0x0101, PORT_UTRCTL);
+	__raw_writew(0x0101, PORT_UTRCTL);
 	/* set USB Clock Control: USSCS, USSTB, Reserved (HighByte always A5) */
-	ctrl_outw(0xA5C0, PORT_UCLKCR_W);
+	__raw_writew(0xA5C0, PORT_UCLKCR_W);
 
 	setup_chip_select();
 

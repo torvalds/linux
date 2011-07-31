@@ -117,16 +117,30 @@
  * well as i2400m->wimax_dev.net_dev and call i2400m_setup(). The
  * i2400m driver will only register with the WiMAX and network stacks;
  * the only access done to the device is to read the MAC address so we
- * can register a network device. This calls i2400m_dev_start() to
- * load firmware, setup communication with the device and configure it
- * for operation.
+ * can register a network device.
+ *
+ * The high-level call flow is:
+ *
+ * bus_probe()
+ *   i2400m_setup()
+ *     i2400m->bus_setup()
+ *     boot rom initialization / read mac addr
+ *     network / WiMAX stacks registration
+ *     i2400m_dev_start()
+ *       i2400m->bus_dev_start()
+ *       i2400m_dev_initialize()
+ *
+ * The reverse applies for a disconnect() call:
+ *
+ * bus_disconnect()
+ *   i2400m_release()
+ *     i2400m_dev_stop()
+ *       i2400m_dev_shutdown()
+ *       i2400m->bus_dev_stop()
+ *     network / WiMAX stack unregistration
+ *     i2400m->bus_release()
  *
  * At this point, control and data communications are possible.
- *
- * On disconnect/driver unload, the bus-specific disconnect function
- * calls i2400m_release() to undo i2400m_setup(). i2400m_dev_stop()
- * shuts the firmware down and releases resources uses to communicate
- * with the device.
  *
  * While the device is up, it might reset. The bus-specific driver has
  * to catch that situation and call i2400m_dev_reset_handle() to deal
@@ -146,14 +160,26 @@
 #include <linux/wimax/i2400m.h>
 #include <asm/byteorder.h>
 
+enum {
+/* netdev interface */
+	/*
+	 * Out of NWG spec (R1_v1.2.2), 3.3.3 ASN Bearer Plane MTU Size
+	 *
+	 * The MTU is 1400 or less
+	 */
+	I2400M_MAX_MTU = 1400,
+};
+
 /* Misc constants */
 enum {
-	/* Firmware uploading */
-	I2400M_BOOT_RETRIES = 3,
-	I3200_BOOT_RETRIES = 3,
 	/* Size of the Boot Mode Command buffer */
 	I2400M_BM_CMD_BUF_SIZE = 16 * 1024,
 	I2400M_BM_ACK_BUF_SIZE = 256,
+};
+
+enum {
+	/* Maximum number of bus reset can be retried */
+	I2400M_BUS_RESET_RETRIES = 3,
 };
 
 /**
@@ -197,6 +223,7 @@ enum i2400m_reset_type {
 
 struct i2400m_reset_ctx;
 struct i2400m_roq;
+struct i2400m_barker_db;
 
 /**
  * struct i2400m - descriptor for an Intel 2400m
@@ -204,25 +231,53 @@ struct i2400m_roq;
  * Members marked with [fill] must be filled out/initialized before
  * calling i2400m_setup().
  *
+ * Note the @bus_setup/@bus_release, @bus_dev_start/@bus_dev_release
+ * call pairs are very much doing almost the same, and depending on
+ * the underlying bus, some stuff has to be put in one or the
+ * other. The idea of setup/release is that they setup the minimal
+ * amount needed for loading firmware, where us dev_start/stop setup
+ * the rest needed to do full data/control traffic.
+ *
  * @bus_tx_block_size: [fill] SDIO imposes a 256 block size, USB 16,
  *     so we have a tx_blk_size variable that the bus layer sets to
  *     tell the engine how much of that we need.
  *
+ * @bus_tx_room_min: [fill] Minimum room required while allocating
+ *     TX queue's buffer space for message header. SDIO requires
+ *     224 bytes and USB 16 bytes. Refer bus specific driver code
+ *     for details.
+ *
  * @bus_pl_size_max: [fill] Maximum payload size.
  *
- * @bus_dev_start: [fill] Function called by the bus-generic code
- *     [i2400m_dev_start()] to setup the bus-specific communications
- *     to the the device. See LIFE CYCLE above.
+ * @bus_setup: [optional fill] Function called by the bus-generic code
+ *     [i2400m_setup()] to setup the basic bus-specific communications
+ *     to the the device needed to load firmware. See LIFE CYCLE above.
  *
  *     NOTE: Doesn't need to upload the firmware, as that is taken
  *     care of by the bus-generic code.
  *
- * @bus_dev_stop: [fill] Function called by the bus-generic code
- *     [i2400m_dev_stop()] to shutdown the bus-specific communications
- *     to the the device. See LIFE CYCLE above.
+ * @bus_release: [optional fill] Function called by the bus-generic
+ *     code [i2400m_release()] to shutdown the basic bus-specific
+ *     communications to the the device needed to load firmware. See
+ *     LIFE CYCLE above.
  *
  *     This function does not need to reset the device, just tear down
  *     all the host resources created to  handle communication with
+ *     the device.
+ *
+ * @bus_dev_start: [optional fill] Function called by the bus-generic
+ *     code [i2400m_dev_start()] to do things needed to start the
+ *     device. See LIFE CYCLE above.
+ *
+ *     NOTE: Doesn't need to upload the firmware, as that is taken
+ *     care of by the bus-generic code.
+ *
+ * @bus_dev_stop: [optional fill] Function called by the bus-generic
+ *     code [i2400m_dev_stop()] to do things needed for stopping the
+ *     device. See LIFE CYCLE above.
+ *
+ *     This function does not need to reset the device, just tear down
+ *     all the host resources created to handle communication with
  *     the device.
  *
  * @bus_tx_kick: [fill] Function called by the bus-generic code to let
@@ -245,6 +300,9 @@ struct i2400m_roq;
  *     IMPORTANT: this is called very early in the device setup
  *     process, so it cannot rely on common infrastructure being laid
  *     out.
+ *
+ *     IMPORTANT: don't call reset on RT_BUS with i2400m->init_mutex
+ *     held, as the .pre/.post reset handlers will deadlock.
  *
  * @bus_bm_retries: [fill] How many times shall a firmware upload /
  *     device initialization be retried? Different models of the same
@@ -297,6 +355,27 @@ struct i2400m_roq;
  *     force this to be the first field so that we can get from
  *     netdev_priv() the right pointer.
  *
+ * @updown: the device is up and ready for transmitting control and
+ *     data packets. This implies @ready (communication infrastructure
+ *     with the device is ready) and the device's firmware has been
+ *     loaded and the device initialized.
+ *
+ *     Write to it only inside a i2400m->init_mutex protected area
+ *     followed with a wmb(); rmb() before accesing (unless locked
+ *     inside i2400m->init_mutex). Read access can be loose like that
+ *     [just using rmb()] because the paths that use this also do
+ *     other error checks later on.
+ *
+ * @ready: Communication infrastructure with the device is ready, data
+ *     frames can start to be passed around (this is lighter than
+ *     using the WiMAX state for certain hot paths).
+ *
+ *     Write to it only inside a i2400m->init_mutex protected area
+ *     followed with a wmb(); rmb() before accesing (unless locked
+ *     inside i2400m->init_mutex). Read access can be loose like that
+ *     [just using rmb()] because the paths that use this also do
+ *     other error checks later on.
+ *
  * @rx_reorder: 1 if RX reordering is enabled; this can only be
  *     set at probe time.
  *
@@ -338,7 +417,7 @@ struct i2400m_roq;
  *
  * @tx_size_max: biggest TX message sent.
  *
- * @rx_lock: spinlock to protect RX members
+ * @rx_lock: spinlock to protect RX members and rx_roq_refcount.
  *
  * @rx_pl_num: total number of payloads received
  *
@@ -361,6 +440,17 @@ struct i2400m_roq;
  *     packets until the ones that are received out of order can be
  *     delivered. Then the driver can release them to the host. See
  *     drivers/net/i2400m/rx.c for details.
+ *
+ * @rx_roq_refcount: refcount rx_roq. This refcounts any access to
+ *     rx_roq thus preventing rx_roq being destroyed when rx_roq
+ *     is being accessed. rx_roq_refcount is protected by rx_lock.
+ *
+ * @rx_reports: reports received from the device that couldn't be
+ *     processed because the driver wasn't still ready; when ready,
+ *     they are pulled from here and chewed.
+ *
+ * @rx_reports_ws: Work struct used to kick a scan of the RX reports
+ *     list and to process each.
  *
  * @src_mac_addr: MAC address used to make ethernet packets be coming
  *     from. This is generated at i2400m_setup() time and used during
@@ -422,6 +512,57 @@ struct i2400m_roq;
  *
  * @fw_version: version of the firmware interface, Major.minor,
  *     encoded in the high word and low word (major << 16 | minor).
+ *
+ * @fw_hdrs: NULL terminated array of pointers to the firmware
+ *     headers. This is only available during firmware load time.
+ *
+ * @fw_cached: Used to cache firmware when the system goes to
+ *     suspend/standby/hibernation (as on resume we can't read it). If
+ *     NULL, no firmware was cached, read it. If ~0, you can't read
+ *     any firmware files (the system still didn't come out of suspend
+ *     and failed to cache one), so abort; otherwise, a valid cached
+ *     firmware to be used. Access to this variable is protected by
+ *     the spinlock i2400m->rx_lock.
+ *
+ * @barker: barker type that the device uses; this is initialized by
+ *     i2400m_is_boot_barker() the first time it is called. Then it
+ *     won't change during the life cycle of the device and everytime
+ *     a boot barker is received, it is just verified for it being the
+ *     same.
+ *
+ * @pm_notifier: used to register for PM events
+ *
+ * @bus_reset_retries: counter for the number of bus resets attempted for
+ *	this boot. It's not for tracking the number of bus resets during
+ *	the whole driver life cycle (from insmod to rmmod) but for the
+ *	number of dev_start() executed until dev_start() returns a success
+ *	(ie: a good boot means a dev_stop() followed by a successful
+ *	dev_start()). dev_reset_handler() increments this counter whenever
+ *	it is triggering a bus reset. It checks this counter to decide if a
+ *	subsequent bus reset should be retried. dev_reset_handler() retries
+ *	the bus reset until dev_start() succeeds or the counter reaches
+ *	I2400M_BUS_RESET_RETRIES. The counter is cleared to 0 in
+ *	dev_reset_handle() when dev_start() returns a success,
+ *	ie: a successul boot is completed.
+ *
+ * @alive: flag to denote if the device *should* be alive. This flag is
+ *	everything like @updown (see doc for @updown) except reflecting
+ *	the device state *we expect* rather than the actual state as denoted
+ *	by @updown. It is set 1 whenever @updown is set 1 in dev_start().
+ *	Then the device is expected to be alive all the time
+ *	(i2400m->alive remains 1) until the driver is removed. Therefore
+ *	all the device reboot events detected can be still handled properly
+ *	by either dev_reset_handle() or .pre_reset/.post_reset as long as
+ *	the driver presents. It is set 0 along with @updown in dev_stop().
+ *
+ * @error_recovery: flag to denote if we are ready to take an error recovery.
+ *	0 for ready to take an error recovery; 1 for not ready. It is
+ *	initialized to 1 while probe() since we don't tend to take any error
+ *	recovery during probe(). It is decremented by 1 whenever dev_start()
+ *	succeeds to indicate we are ready to take error recovery from now on.
+ *	It is checked every time we wanna schedule an error recovery. If an
+ *	error recovery is already in place (error_recovery was set 1), we
+ *	should not schedule another one until the last one is done.
  */
 struct i2400m {
 	struct wimax_dev wimax_dev;	/* FIRST! See doc */
@@ -429,7 +570,7 @@ struct i2400m {
 	unsigned updown:1;		/* Network device is up or down */
 	unsigned boot_mode:1;		/* is the device in boot mode? */
 	unsigned sboot:1;		/* signed or unsigned fw boot */
-	unsigned ready:1;		/* all probing steps done */
+	unsigned ready:1;		/* Device comm infrastructure ready */
 	unsigned rx_reorder:1;		/* RX reorder is enabled */
 	u8 trace_msg_from_user;		/* echo rx msgs to 'trace' pipe */
 					/* typed u8 so /sys/kernel/debug/u8 can tweak */
@@ -437,11 +578,14 @@ struct i2400m {
 	wait_queue_head_t state_wq;	/* Woken up when on state updates */
 
 	size_t bus_tx_block_size;
+	size_t bus_tx_room_min;
 	size_t bus_pl_size_max;
 	unsigned bus_bm_retries;
 
+	int (*bus_setup)(struct i2400m *);
 	int (*bus_dev_start)(struct i2400m *);
 	void (*bus_dev_stop)(struct i2400m *);
+	void (*bus_release)(struct i2400m *);
 	void (*bus_tx_kick)(struct i2400m *);
 	int (*bus_reset)(struct i2400m *, enum i2400m_reset_type);
 	ssize_t (*bus_bm_cmd_send)(struct i2400m *,
@@ -463,11 +607,15 @@ struct i2400m {
 		tx_num, tx_size_acc, tx_size_min, tx_size_max;
 
 	/* RX stuff */
-	spinlock_t rx_lock;		/* protect RX state */
+	/* protect RX state and rx_roq_refcount */
+	spinlock_t rx_lock;
 	unsigned rx_pl_num, rx_pl_max, rx_pl_min,
 		rx_num, rx_size_acc, rx_size_min, rx_size_max;
-	struct i2400m_roq *rx_roq;	/* not under rx_lock! */
+	struct i2400m_roq *rx_roq;	/* access is refcounted */
+	struct kref rx_roq_refcount;	/* refcount access to rx_roq */
 	u8 src_mac_addr[ETH_HLEN];
+	struct list_head rx_reports;	/* under rx_lock! */
+	struct work_struct rx_report_ws;
 
 	struct mutex msg_mutex;		/* serialize command execution */
 	struct completion msg_completion;
@@ -487,37 +635,22 @@ struct i2400m {
 	struct dentry *debugfs_dentry;
 	const char *fw_name;		/* name of the current firmware image */
 	unsigned long fw_version;	/* version of the firmware interface */
+	const struct i2400m_bcf_hdr **fw_hdrs;
+	struct i2400m_fw *fw_cached;	/* protected by rx_lock */
+	struct i2400m_barker_db *barker;
+
+	struct notifier_block pm_notifier;
+
+	/* counting bus reset retries in this boot */
+	atomic_t bus_reset_retries;
+
+	/* if the device is expected to be alive */
+	unsigned alive;
+
+	/* 0 if we are ready for error recovery; 1 if not ready  */
+	atomic_t error_recovery;
+
 };
-
-
-/*
- * Initialize a 'struct i2400m' from all zeroes
- *
- * This is a bus-generic API call.
- */
-static inline
-void i2400m_init(struct i2400m *i2400m)
-{
-	wimax_dev_init(&i2400m->wimax_dev);
-
-	i2400m->boot_mode = 1;
-	i2400m->rx_reorder = 1;
-	init_waitqueue_head(&i2400m->state_wq);
-
-	spin_lock_init(&i2400m->tx_lock);
-	i2400m->tx_pl_min = UINT_MAX;
-	i2400m->tx_size_min = UINT_MAX;
-
-	spin_lock_init(&i2400m->rx_lock);
-	i2400m->rx_pl_min = UINT_MAX;
-	i2400m->rx_size_min = UINT_MAX;
-
-	mutex_init(&i2400m->msg_mutex);
-	init_completion(&i2400m->msg_completion);
-
-	mutex_init(&i2400m->init_mutex);
-	/* wake_tx_ws is initialized in i2400m_tx_setup() */
-}
 
 
 /*
@@ -563,7 +696,7 @@ enum i2400m_bm_cmd_flags {
  * @I2400M_BRI_NO_REBOOT: Do not reboot the device and proceed
  *     directly to wait for a reboot barker from the device.
  * @I2400M_BRI_MAC_REINIT: We need to reinitialize the boot
- *     rom after reading the MAC adress. This is quite a dirty hack,
+ *     rom after reading the MAC address. This is quite a dirty hack,
  *     if you ask me -- the device requires the bootrom to be
  *     intialized after reading the MAC address.
  */
@@ -577,6 +710,14 @@ extern void i2400m_bm_cmd_prepare(struct i2400m_bootrom_header *);
 extern int i2400m_dev_bootstrap(struct i2400m *, enum i2400m_bri);
 extern int i2400m_read_mac_addr(struct i2400m *);
 extern int i2400m_bootrom_init(struct i2400m *, enum i2400m_bri);
+extern int i2400m_is_boot_barker(struct i2400m *, const void *, size_t);
+static inline
+int i2400m_is_d2h_barker(const void *buf)
+{
+	const __le32 *barker = buf;
+	return le32_to_cpu(*barker) == I2400M_D2H_MSG_BARKER;
+}
+extern void i2400m_unknown_barker(struct i2400m *, const void *, size_t);
 
 /* Make/grok boot-rom header commands */
 
@@ -644,6 +785,8 @@ unsigned i2400m_brh_get_signature(const struct i2400m_bootrom_header *hdr)
 /*
  * Driver / device setup and internal functions
  */
+extern void i2400m_init(struct i2400m *);
+extern int i2400m_reset(struct i2400m *, enum i2400m_reset_type);
 extern void i2400m_netdev_setup(struct net_device *net_dev);
 extern int i2400m_sysfs_setup(struct device_driver *);
 extern void i2400m_sysfs_release(struct device_driver *);
@@ -654,10 +797,14 @@ extern void i2400m_tx_release(struct i2400m *);
 extern int i2400m_rx_setup(struct i2400m *);
 extern void i2400m_rx_release(struct i2400m *);
 
+extern void i2400m_fw_cache(struct i2400m *);
+extern void i2400m_fw_uncache(struct i2400m *);
+
 extern void i2400m_net_rx(struct i2400m *, struct sk_buff *, unsigned,
 			  const void *, int);
 extern void i2400m_net_erx(struct i2400m *, struct sk_buff *,
 			   enum i2400m_cs);
+extern void i2400m_net_wake_stop(struct i2400m *);
 enum i2400m_pt;
 extern int i2400m_tx(struct i2400m *, const void *, size_t, enum i2400m_pt);
 
@@ -672,14 +819,12 @@ static inline int i2400m_debugfs_add(struct i2400m *i2400m)
 static inline void i2400m_debugfs_rm(struct i2400m *i2400m) {}
 #endif
 
-/* Called by _dev_start()/_dev_stop() to initialize the device itself */
+/* Initialize/shutdown the device */
 extern int i2400m_dev_initialize(struct i2400m *);
 extern void i2400m_dev_shutdown(struct i2400m *);
 
 extern struct attribute_group i2400m_dev_attr_group;
 
-extern int i2400m_schedule_work(struct i2400m *,
-				void (*)(struct work_struct *), gfp_t);
 
 /* HDI message's payload description handling */
 
@@ -724,7 +869,10 @@ void i2400m_put(struct i2400m *i2400m)
 	dev_put(i2400m->wimax_dev.net_dev);
 }
 
-extern int i2400m_dev_reset_handle(struct i2400m *);
+extern int i2400m_dev_reset_handle(struct i2400m *, const char *);
+extern int i2400m_pre_reset(struct i2400m *);
+extern int i2400m_post_reset(struct i2400m *);
+extern void i2400m_error_recovery(struct i2400m *);
 
 /*
  * _setup()/_release() are called by the probe/disconnect functions of
@@ -737,21 +885,6 @@ extern int i2400m_rx(struct i2400m *, struct sk_buff *);
 extern struct i2400m_msg_hdr *i2400m_tx_msg_get(struct i2400m *, size_t *);
 extern void i2400m_tx_msg_sent(struct i2400m *);
 
-static const __le32 i2400m_NBOOT_BARKER[4] = {
-	cpu_to_le32(I2400M_NBOOT_BARKER),
-	cpu_to_le32(I2400M_NBOOT_BARKER),
-	cpu_to_le32(I2400M_NBOOT_BARKER),
-	cpu_to_le32(I2400M_NBOOT_BARKER)
-};
-
-static const __le32 i2400m_SBOOT_BARKER[4] = {
-	cpu_to_le32(I2400M_SBOOT_BARKER),
-	cpu_to_le32(I2400M_SBOOT_BARKER),
-	cpu_to_le32(I2400M_SBOOT_BARKER),
-	cpu_to_le32(I2400M_SBOOT_BARKER)
-};
-
-extern int i2400m_power_save_disabled;
 
 /*
  * Utility functions
@@ -773,10 +906,12 @@ struct device *i2400m_dev(struct i2400m *i2400m)
 struct i2400m_work {
 	struct work_struct ws;
 	struct i2400m *i2400m;
+	size_t pl_size;
 	u8 pl[0];
 };
-extern int i2400m_queue_work(struct i2400m *,
-			     void (*)(struct work_struct *), gfp_t,
+
+extern int i2400m_schedule_work(struct i2400m *,
+				void (*)(struct work_struct *), gfp_t,
 				const void *, size_t);
 
 extern int i2400m_msg_check_status(const struct i2400m_l3l4_hdr *,
@@ -789,6 +924,7 @@ extern void i2400m_msg_ack_hook(struct i2400m *,
 				const struct i2400m_l3l4_hdr *, size_t);
 extern void i2400m_report_hook(struct i2400m *,
 			       const struct i2400m_l3l4_hdr *, size_t);
+extern void i2400m_report_hook_work(struct work_struct *);
 extern int i2400m_cmd_enter_powersave(struct i2400m *);
 extern int i2400m_cmd_get_state(struct i2400m *);
 extern int i2400m_cmd_exit_idle(struct i2400m *);
@@ -849,10 +985,11 @@ void __i2400m_msleep(unsigned ms)
 #endif
 }
 
-/* Module parameters */
 
-extern int i2400m_idle_mode_disabled;
-extern int i2400m_rx_reorder_disabled;
+/* module initialization helpers */
+extern int i2400m_barker_db_init(const char *);
+extern void i2400m_barker_db_exit(void);
+
 
 
 #endif /* #ifndef __I2400M_H__ */

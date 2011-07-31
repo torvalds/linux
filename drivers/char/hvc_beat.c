@@ -84,7 +84,7 @@ static int hvc_beat_put_chars(uint32_t vtermno, const char *buf, int cnt)
 	return cnt;
 }
 
-static struct hv_ops hvc_beat_get_put_ops = {
+static const struct hv_ops hvc_beat_get_put_ops = {
 	.get_chars = hvc_beat_get_chars,
 	.put_chars = hvc_beat_put_chars,
 };
@@ -99,7 +99,7 @@ static int hvc_beat_config(char *p)
 
 static int __init hvc_beat_console_init(void)
 {
-	if (hvc_beat_useit && machine_is_compatible("Beat")) {
+	if (hvc_beat_useit && of_machine_is_compatible("Beat")) {
 		hvc_instantiate(0, 0, &hvc_beat_get_put_ops);
 	}
 	return 0;

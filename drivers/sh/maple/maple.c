@@ -106,7 +106,7 @@ static void maple_dma_reset(void)
 	* max delay is 11
 	*/
 	ctrl_outl(MAPLE_2MBPS | MAPLE_TIMEOUT(0xFFFF), MAPLE_SPEED);
-	ctrl_outl(PHYSADDR(maple_sendbuf), MAPLE_DMAADDR);
+	ctrl_outl(virt_to_phys(maple_sendbuf), MAPLE_DMAADDR);
 	ctrl_outl(1, MAPLE_ENABLE);
 }
 
@@ -258,7 +258,7 @@ static void maple_build_block(struct mapleq *mq)
 	maple_lastptr = maple_sendptr;
 
 	*maple_sendptr++ = (port << 16) | len | 0x80000000;
-	*maple_sendptr++ = PHYSADDR(mq->recvbuf->buf);
+	*maple_sendptr++ = virt_to_phys(mq->recvbuf->buf);
 	*maple_sendptr++ =
 	    mq->command | (to << 8) | (from << 16) | (len << 24);
 	while (len-- > 0)

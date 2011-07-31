@@ -224,7 +224,7 @@ static void
 dp264_device_interrupt(unsigned long vector)
 {
 #if 1
-	printk("dp264_device_interrupt: NOT IMPLEMENTED YET!! \n");
+	printk("dp264_device_interrupt: NOT IMPLEMENTED YET!!\n");
 #else
 	unsigned long pld;
 	unsigned int i;

@@ -54,6 +54,7 @@
 #define TIOCGPTN	_IOR('T', 0x30, unsigned int) /* Get Pty Number
 						       * (of pty-mux device) */
 #define TIOCSPTLCK	_IOW('T', 0x31, int)  /* Lock/unlock Pty */
+#define TIOCSIG		_IOW('T', 0x36, int)  /* Generate signal on Pty slave */
 
 #define FIONCLEX	0x5450
 #define FIOCLEX		0x5451
@@ -70,8 +71,6 @@
 
 #define TIOCMIWAIT	0x545C	/* wait for a change on serial input line(s) */
 #define TIOCGICOUNT	0x545D	/* read serial port inline interrupt counts */
-#define TIOCGHAYESESP   0x545E  /* Get Hayes ESP configuration */
-#define TIOCSHAYESESP   0x545F  /* Set Hayes ESP configuration */
 #define FIOQSIZE	0x5460
 
 /* Used for packet mode */
@@ -82,6 +81,7 @@
 #define TIOCPKT_START		 8
 #define TIOCPKT_NOSTOP		16
 #define TIOCPKT_DOSTOP		32
+#define TIOCPKT_IOCTL		64
 
 #define TIOCSER_TEMT    0x01	/* Transmitter physically empty */
 

@@ -519,13 +519,13 @@ static struct console sunhv_console = {
 	.data	=	&sunhv_reg,
 };
 
-static int __devinit hv_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit hv_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct uart_port *port;
 	unsigned long minor;
 	int err;
 
-	if (op->irqs[0] == 0xffffffff)
+	if (op->archdata.irqs[0] == 0xffffffff)
 		return -ENODEV;
 
 	port = kzalloc(sizeof(struct uart_port), GFP_KERNEL);
@@ -557,7 +557,7 @@ static int __devinit hv_probe(struct of_device *op, const struct of_device_id *m
 
 	port->membase = (unsigned char __iomem *) __pa(port);
 
-	port->irq = op->irqs[0];
+	port->irq = op->archdata.irqs[0];
 
 	port->dev = &op->dev;
 
@@ -565,7 +565,7 @@ static int __devinit hv_probe(struct of_device *op, const struct of_device_id *m
 	if (err)
 		goto out_free_con_read_page;
 
-	sunserial_console_match(&sunhv_console, op->node,
+	sunserial_console_match(&sunhv_console, op->dev.of_node,
 				&sunhv_reg, port->line, false);
 
 	err = uart_add_one_port(&sunhv_reg, port);
@@ -598,7 +598,7 @@ out_free_port:
 	return err;
 }
 
-static int __devexit hv_remove(struct of_device *dev)
+static int __devexit hv_remove(struct platform_device *dev)
 {
 	struct uart_port *port = dev_get_drvdata(&dev->dev);
 
@@ -630,8 +630,11 @@ static const struct of_device_id hv_match[] = {
 MODULE_DEVICE_TABLE(of, hv_match);
 
 static struct of_platform_driver hv_driver = {
-	.name		= "hv",
-	.match_table	= hv_match,
+	.driver = {
+		.name = "hv",
+		.owner = THIS_MODULE,
+		.of_match_table = hv_match,
+	},
 	.probe		= hv_probe,
 	.remove		= __devexit_p(hv_remove),
 };
@@ -641,12 +644,12 @@ static int __init sunhv_init(void)
 	if (tlb_type != hypervisor)
 		return -ENODEV;
 
-	return of_register_driver(&hv_driver, &of_bus_type);
+	return of_register_platform_driver(&hv_driver);
 }
 
 static void __exit sunhv_exit(void)
 {
-	of_unregister_driver(&hv_driver);
+	of_unregister_platform_driver(&hv_driver);
 }
 
 module_init(sunhv_init);

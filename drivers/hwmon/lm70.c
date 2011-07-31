@@ -34,6 +34,7 @@
 #include <linux/mutex.h>
 #include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
+#include <linux/slab.h>
 
 
 #define DRVNAME		"lm70"

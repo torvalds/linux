@@ -22,39 +22,6 @@
 #include <asm/cacheflush.h>
 #include <asm/dma.h>
 
-/* common code for old and new mmaps */
-static inline long
-do_mmap2(unsigned long addr, unsigned long len,
-	 unsigned long prot, unsigned long flags,
-	 unsigned long fd, unsigned long pgoff)
-{
-	int error = -EBADF;
-	struct file *file = NULL;
-
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file)
-			goto out;
-	}
-
-	down_write(&current->mm->mmap_sem);
-	error = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-	up_write(&current->mm->mmap_sem);
-
-	if (file)
-		fput(file);
- out:
-	return error;
-}
-
-asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
-			  unsigned long prot, unsigned long flags,
-			  unsigned long fd, unsigned long pgoff)
-{
-	return do_mmap2(addr, len, prot, flags, fd, pgoff);
-}
-
 asmlinkage void *sys_sram_alloc(size_t size, unsigned long flags)
 {
 	return sram_alloc_with_lsl(size, flags);
@@ -80,3 +47,26 @@ unsigned long get_fb_unmapped_area(struct file *filp, unsigned long orig_addr,
 }
 EXPORT_SYMBOL(get_fb_unmapped_area);
 #endif
+
+/* Needed for legacy userspace atomic emulation */
+static DEFINE_SPINLOCK(bfin_spinlock_lock);
+
+#ifdef CONFIG_SYS_BFIN_SPINLOCK_L1
+__attribute__((l1_text))
+#endif
+asmlinkage int sys_bfin_spinlock(int *p)
+{
+	int ret, tmp = 0;
+
+	spin_lock(&bfin_spinlock_lock); /* This would also hold kernel preemption. */
+	ret = get_user(tmp, p);
+	if (likely(ret == 0)) {
+		if (unlikely(tmp))
+			ret = 1;
+		else
+			put_user(1, p);
+	}
+	spin_unlock(&bfin_spinlock_lock);
+
+	return ret;
+}

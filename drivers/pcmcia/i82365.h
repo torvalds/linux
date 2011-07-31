@@ -77,8 +77,8 @@
 #define I365_VPP2_5V	0x04	/* Vpp2 = 5.0v */
 #define I365_VPP2_12V	0x08	/* Vpp2 = 12.0v */
 #define I365_VPP1_MASK	0x03	/* Mask for turning off Vpp1 */
-#define I365_VPP1_5V	0x01	/* Vpp2 = 5.0v */
-#define I365_VPP1_12V	0x02	/* Vpp2 = 12.0v */
+#define I365_VPP1_5V	0x01	/* Vpp1 = 5.0v */
+#define I365_VPP1_12V	0x02	/* Vpp1 = 12.0v */
 
 /* Flags for I365_INTCTL */
 #define I365_RING_ENA	0x80
@@ -95,6 +95,7 @@
 #define I365_CSC_DETECT	0x08
 #define I365_CSC_ANY	0x0F
 #define I365_CSC_GPI	0x10
+#define I365_CSC_IRQ_MASK	0xF0
 
 /* Flags for I365_ADDRWIN */
 #define I365_ENA_IO(map)	(0x40 << (map))

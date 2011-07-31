@@ -56,6 +56,7 @@
 /* deprecated: RDS_BARRIER 4 */
 #define RDS_RECVERR			5
 #define RDS_CONG_MONITOR		6
+#define RDS_GET_MR_FOR_DEST		7
 
 /*
  * Control message types for SOL_RDS.
@@ -99,7 +100,7 @@
 struct rds_info_counter {
 	u_int8_t	name[32];
 	u_int64_t	value;
-} __attribute__((packed));
+} __packed;
 
 #define RDS_INFO_CONNECTION_FLAG_SENDING	0x01
 #define RDS_INFO_CONNECTION_FLAG_CONNECTING	0x02
@@ -114,7 +115,7 @@ struct rds_info_connection {
 	__be32		faddr;
 	u_int8_t	transport[TRANSNAMSIZ];		/* null term ascii */
 	u_int8_t	flags;
-} __attribute__((packed));
+} __packed;
 
 struct rds_info_flow {
 	__be32		laddr;
@@ -122,7 +123,7 @@ struct rds_info_flow {
 	u_int32_t	bytes;
 	__be16		lport;
 	__be16		fport;
-} __attribute__((packed));
+} __packed;
 
 #define RDS_INFO_MESSAGE_FLAG_ACK               0x01
 #define RDS_INFO_MESSAGE_FLAG_FAST_ACK          0x02
@@ -135,7 +136,7 @@ struct rds_info_message {
 	__be16		lport;
 	__be16		fport;
 	u_int8_t	flags;
-} __attribute__((packed));
+} __packed;
 
 struct rds_info_socket {
 	u_int32_t	sndbuf;
@@ -145,7 +146,7 @@ struct rds_info_socket {
 	__be16		connected_port;
 	u_int32_t	rcvbuf;
 	u_int64_t	inum;
-} __attribute__((packed));
+} __packed;
 
 struct rds_info_tcp_socket {
 	__be32          local_addr;
@@ -157,7 +158,7 @@ struct rds_info_tcp_socket {
 	u_int32_t       last_sent_nxt;
 	u_int32_t       last_expected_una;
 	u_int32_t       last_seen_una;
-} __attribute__((packed));
+} __packed;
 
 #define RDS_IB_GID_LEN	16
 struct rds_info_rdma_connection {
@@ -222,6 +223,13 @@ struct rds_get_mr_args {
 	struct rds_iovec vec;
 	u_int64_t	cookie_addr;
 	uint64_t	flags;
+};
+
+struct rds_get_mr_for_dest_args {
+	struct sockaddr_storage	dest_addr;
+	struct rds_iovec 	vec;
+	u_int64_t		cookie_addr;
+	uint64_t		flags;
 };
 
 struct rds_free_mr_args {

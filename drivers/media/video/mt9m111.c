@@ -1,5 +1,5 @@
 /*
- * Driver for MT9M111/MT9M112 CMOS Image Sensor from Micron
+ * Driver for MT9M111/MT9M112/MT9M131 CMOS Image Sensor from Micron/Aptina
  *
  * Copyright (C) 2008, Robert Jarzmik <robert.jarzmik@free.fr>
  *
@@ -19,11 +19,14 @@
 #include <media/soc_camera.h>
 
 /*
- * mt9m111 and mt9m112 i2c address is 0x5d or 0x48 (depending on SAddr pin)
+ * MT9M111, MT9M112 and MT9M131:
+ * i2c address is 0x48 or 0x5d (depending on SADDR pin)
  * The platform has to define i2c_board_info and call i2c_register_board_info()
  */
 
-/* mt9m111: Sensor register addresses */
+/*
+ * Sensor core register addresses (0x000..0x0ff)
+ */
 #define MT9M111_CHIP_VERSION		0x000
 #define MT9M111_ROW_START		0x001
 #define MT9M111_COLUMN_START		0x002
@@ -72,8 +75,9 @@
 #define MT9M111_CTXT_CTRL_LED_FLASH_EN	(1 << 2)
 #define MT9M111_CTXT_CTRL_VBLANK_SEL_B	(1 << 1)
 #define MT9M111_CTXT_CTRL_HBLANK_SEL_B	(1 << 0)
+
 /*
- * mt9m111: Colorpipe register addresses (0x100..0x1ff)
+ * Colorpipe register addresses (0x100..0x1ff)
  */
 #define MT9M111_OPER_MODE_CTRL		0x106
 #define MT9M111_OUTPUT_FORMAT_CTRL	0x108
@@ -109,8 +113,9 @@
 #define MT9M111_OUTFMT_SWAP_YCbCr_C_Y	(1 << 1)
 #define MT9M111_OUTFMT_SWAP_RGB_EVEN	(1 << 1)
 #define MT9M111_OUTFMT_SWAP_YCbCr_Cb_Cr	(1 << 0)
+
 /*
- * mt9m111: Camera control register addresses (0x200..0x2ff not implemented)
+ * Camera control register addresses (0x200..0x2ff not implemented)
  */
 
 #define reg_read(reg) mt9m111_reg_read(client, MT9M111_##reg)
@@ -123,23 +128,34 @@
 #define MT9M111_MAX_HEIGHT	1024
 #define MT9M111_MAX_WIDTH	1280
 
-#define COL_FMT(_name, _depth, _fourcc, _colorspace) \
-	{ .name = _name, .depth = _depth, .fourcc = _fourcc, \
-	.colorspace = _colorspace }
-#define RGB_FMT(_name, _depth, _fourcc) \
-	COL_FMT(_name, _depth, _fourcc, V4L2_COLORSPACE_SRGB)
-#define JPG_FMT(_name, _depth, _fourcc) \
-	COL_FMT(_name, _depth, _fourcc, V4L2_COLORSPACE_JPEG)
+/* MT9M111 has only one fixed colorspace per pixelcode */
+struct mt9m111_datafmt {
+	enum v4l2_mbus_pixelcode	code;
+	enum v4l2_colorspace		colorspace;
+};
 
-static const struct soc_camera_data_format mt9m111_colour_formats[] = {
-	JPG_FMT("CbYCrY 16 bit", 16, V4L2_PIX_FMT_UYVY),
-	JPG_FMT("CrYCbY 16 bit", 16, V4L2_PIX_FMT_VYUY),
-	JPG_FMT("YCbYCr 16 bit", 16, V4L2_PIX_FMT_YUYV),
-	JPG_FMT("YCrYCb 16 bit", 16, V4L2_PIX_FMT_YVYU),
-	RGB_FMT("RGB 565", 16, V4L2_PIX_FMT_RGB565),
-	RGB_FMT("RGB 555", 16, V4L2_PIX_FMT_RGB555),
-	RGB_FMT("Bayer (sRGB) 10 bit", 10, V4L2_PIX_FMT_SBGGR16),
-	RGB_FMT("Bayer (sRGB) 8 bit", 8, V4L2_PIX_FMT_SBGGR8),
+/* Find a data format by a pixel code in an array */
+static const struct mt9m111_datafmt *mt9m111_find_datafmt(
+	enum v4l2_mbus_pixelcode code, const struct mt9m111_datafmt *fmt,
+	int n)
+{
+	int i;
+	for (i = 0; i < n; i++)
+		if (fmt[i].code == code)
+			return fmt + i;
+
+	return NULL;
+}
+
+static const struct mt9m111_datafmt mt9m111_colour_fmts[] = {
+	{V4L2_MBUS_FMT_YUYV8_2X8, V4L2_COLORSPACE_JPEG},
+	{V4L2_MBUS_FMT_YVYU8_2X8, V4L2_COLORSPACE_JPEG},
+	{V4L2_MBUS_FMT_UYVY8_2X8, V4L2_COLORSPACE_JPEG},
+	{V4L2_MBUS_FMT_VYUY8_2X8, V4L2_COLORSPACE_JPEG},
+	{V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE, V4L2_COLORSPACE_SRGB},
+	{V4L2_MBUS_FMT_RGB565_2X8_LE, V4L2_COLORSPACE_SRGB},
+	{V4L2_MBUS_FMT_SBGGR8_1X8, V4L2_COLORSPACE_SRGB},
+	{V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_LE, V4L2_COLORSPACE_SRGB},
 };
 
 enum mt9m111_context {
@@ -149,10 +165,11 @@ enum mt9m111_context {
 
 struct mt9m111 {
 	struct v4l2_subdev subdev;
-	int model;	/* V4L2_IDENT_MT9M11x* codes from v4l2-chip-ident.h */
+	int model;	/* V4L2_IDENT_MT9M111 or V4L2_IDENT_MT9M112 code
+			 * from v4l2-chip-ident.h */
 	enum mt9m111_context context;
 	struct v4l2_rect rect;
-	u32 pixfmt;
+	const struct mt9m111_datafmt *fmt;
 	unsigned int gain;
 	unsigned char autoexposure;
 	unsigned char datawidth;
@@ -258,8 +275,8 @@ static int mt9m111_setup_rect(struct i2c_client *client,
 	int width = rect->width;
 	int height = rect->height;
 
-	if (mt9m111->pixfmt == V4L2_PIX_FMT_SBGGR8 ||
-	    mt9m111->pixfmt == V4L2_PIX_FMT_SBGGR16)
+	if (mt9m111->fmt->code == V4L2_MBUS_FMT_SBGGR8_1X8 ||
+	    mt9m111->fmt->code == V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_LE)
 		is_raw_format = 1;
 	else
 		is_raw_format = 0;
@@ -307,7 +324,8 @@ static int mt9m111_setup_pixfmt(struct i2c_client *client, u16 outfmt)
 
 static int mt9m111_setfmt_bayer8(struct i2c_client *client)
 {
-	return mt9m111_setup_pixfmt(client, MT9M111_OUTFMT_PROCESSED_BAYER);
+	return mt9m111_setup_pixfmt(client, MT9M111_OUTFMT_PROCESSED_BAYER |
+				    MT9M111_OUTFMT_RGB);
 }
 
 static int mt9m111_setfmt_bayer10(struct i2c_client *client)
@@ -401,8 +419,8 @@ static int mt9m111_make_rect(struct i2c_client *client,
 {
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
 
-	if (mt9m111->pixfmt == V4L2_PIX_FMT_SBGGR8 ||
-	    mt9m111->pixfmt == V4L2_PIX_FMT_SBGGR16) {
+	if (mt9m111->fmt->code == V4L2_MBUS_FMT_SBGGR8_1X8 ||
+	    mt9m111->fmt->code == V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_LE) {
 		/* Bayer format - even size lengths */
 		rect->width	= ALIGN(rect->width, 2);
 		rect->height	= ALIGN(rect->height, 2);
@@ -429,6 +447,9 @@ static int mt9m111_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	dev_dbg(&client->dev, "%s left=%d, top=%d, width=%d, height=%d\n",
 		__func__, rect.left, rect.top, rect.width, rect.height);
 
+	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
 	ret = mt9m111_make_rect(client, &rect);
 	if (!ret)
 		mt9m111->rect = rect;
@@ -448,132 +469,154 @@ static int mt9m111_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 
 static int mt9m111_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 {
+	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
 	a->bounds.left			= MT9M111_MIN_DARK_COLS;
 	a->bounds.top			= MT9M111_MIN_DARK_ROWS;
 	a->bounds.width			= MT9M111_MAX_WIDTH;
 	a->bounds.height		= MT9M111_MAX_HEIGHT;
 	a->defrect			= a->bounds;
-	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	a->pixelaspect.numerator	= 1;
 	a->pixelaspect.denominator	= 1;
 
 	return 0;
 }
 
-static int mt9m111_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int mt9m111_g_fmt(struct v4l2_subdev *sd,
+			 struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = sd->priv;
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
-	struct v4l2_pix_format *pix = &f->fmt.pix;
 
-	pix->width		= mt9m111->rect.width;
-	pix->height		= mt9m111->rect.height;
-	pix->pixelformat	= mt9m111->pixfmt;
-	pix->field		= V4L2_FIELD_NONE;
-	pix->colorspace		= V4L2_COLORSPACE_SRGB;
+	mf->width	= mt9m111->rect.width;
+	mf->height	= mt9m111->rect.height;
+	mf->code	= mt9m111->fmt->code;
+	mf->colorspace	= mt9m111->fmt->colorspace;
+	mf->field	= V4L2_FIELD_NONE;
 
 	return 0;
 }
 
-static int mt9m111_set_pixfmt(struct i2c_client *client, u32 pixfmt)
+static int mt9m111_set_pixfmt(struct i2c_client *client,
+			      enum v4l2_mbus_pixelcode code)
 {
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	int ret;
 
-	switch (pixfmt) {
-	case V4L2_PIX_FMT_SBGGR8:
+	switch (code) {
+	case V4L2_MBUS_FMT_SBGGR8_1X8:
 		ret = mt9m111_setfmt_bayer8(client);
 		break;
-	case V4L2_PIX_FMT_SBGGR16:
+	case V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_LE:
 		ret = mt9m111_setfmt_bayer10(client);
 		break;
-	case V4L2_PIX_FMT_RGB555:
+	case V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE:
 		ret = mt9m111_setfmt_rgb555(client);
 		break;
-	case V4L2_PIX_FMT_RGB565:
+	case V4L2_MBUS_FMT_RGB565_2X8_LE:
 		ret = mt9m111_setfmt_rgb565(client);
 		break;
-	case V4L2_PIX_FMT_UYVY:
+	case V4L2_MBUS_FMT_UYVY8_2X8:
 		mt9m111->swap_yuv_y_chromas = 0;
 		mt9m111->swap_yuv_cb_cr = 0;
 		ret = mt9m111_setfmt_yuv(client);
 		break;
-	case V4L2_PIX_FMT_VYUY:
+	case V4L2_MBUS_FMT_VYUY8_2X8:
 		mt9m111->swap_yuv_y_chromas = 0;
 		mt9m111->swap_yuv_cb_cr = 1;
 		ret = mt9m111_setfmt_yuv(client);
 		break;
-	case V4L2_PIX_FMT_YUYV:
+	case V4L2_MBUS_FMT_YUYV8_2X8:
 		mt9m111->swap_yuv_y_chromas = 1;
 		mt9m111->swap_yuv_cb_cr = 0;
 		ret = mt9m111_setfmt_yuv(client);
 		break;
-	case V4L2_PIX_FMT_YVYU:
+	case V4L2_MBUS_FMT_YVYU8_2X8:
 		mt9m111->swap_yuv_y_chromas = 1;
 		mt9m111->swap_yuv_cb_cr = 1;
 		ret = mt9m111_setfmt_yuv(client);
 		break;
 	default:
 		dev_err(&client->dev, "Pixel format not handled : %x\n",
-			pixfmt);
+			code);
 		ret = -EINVAL;
 	}
 
-	if (!ret)
-		mt9m111->pixfmt = pixfmt;
-
 	return ret;
 }
 
-static int mt9m111_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int mt9m111_s_fmt(struct v4l2_subdev *sd,
+			 struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = sd->priv;
+	const struct mt9m111_datafmt *fmt;
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
-	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct v4l2_rect rect = {
 		.left	= mt9m111->rect.left,
 		.top	= mt9m111->rect.top,
-		.width	= pix->width,
-		.height	= pix->height,
+		.width	= mf->width,
+		.height	= mf->height,
 	};
 	int ret;
 
+	fmt = mt9m111_find_datafmt(mf->code, mt9m111_colour_fmts,
+				   ARRAY_SIZE(mt9m111_colour_fmts));
+	if (!fmt)
+		return -EINVAL;
+
 	dev_dbg(&client->dev,
-		"%s fmt=%x left=%d, top=%d, width=%d, height=%d\n", __func__,
-		pix->pixelformat, rect.left, rect.top, rect.width, rect.height);
+		"%s code=%x left=%d, top=%d, width=%d, height=%d\n", __func__,
+		mf->code, rect.left, rect.top, rect.width, rect.height);
 
 	ret = mt9m111_make_rect(client, &rect);
 	if (!ret)
-		ret = mt9m111_set_pixfmt(client, pix->pixelformat);
-	if (!ret)
-		mt9m111->rect = rect;
+		ret = mt9m111_set_pixfmt(client, mf->code);
+	if (!ret) {
+		mt9m111->rect	= rect;
+		mt9m111->fmt	= fmt;
+		mf->colorspace	= fmt->colorspace;
+	}
+
 	return ret;
 }
 
-static int mt9m111_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int mt9m111_try_fmt(struct v4l2_subdev *sd,
+			   struct v4l2_mbus_framefmt *mf)
 {
-	struct v4l2_pix_format *pix = &f->fmt.pix;
-	bool bayer = pix->pixelformat == V4L2_PIX_FMT_SBGGR8 ||
-		pix->pixelformat == V4L2_PIX_FMT_SBGGR16;
+	struct i2c_client *client = sd->priv;
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
+	const struct mt9m111_datafmt *fmt;
+	bool bayer = mf->code == V4L2_MBUS_FMT_SBGGR8_1X8 ||
+		mf->code == V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_LE;
+
+	fmt = mt9m111_find_datafmt(mf->code, mt9m111_colour_fmts,
+				   ARRAY_SIZE(mt9m111_colour_fmts));
+	if (!fmt) {
+		fmt = mt9m111->fmt;
+		mf->code = fmt->code;
+	}
 
 	/*
 	 * With Bayer format enforce even side lengths, but let the user play
 	 * with the starting pixel
 	 */
 
-	if (pix->height > MT9M111_MAX_HEIGHT)
-		pix->height = MT9M111_MAX_HEIGHT;
-	else if (pix->height < 2)
-		pix->height = 2;
+	if (mf->height > MT9M111_MAX_HEIGHT)
+		mf->height = MT9M111_MAX_HEIGHT;
+	else if (mf->height < 2)
+		mf->height = 2;
 	else if (bayer)
-		pix->height = ALIGN(pix->height, 2);
+		mf->height = ALIGN(mf->height, 2);
 
-	if (pix->width > MT9M111_MAX_WIDTH)
-		pix->width = MT9M111_MAX_WIDTH;
-	else if (pix->width < 2)
-		pix->width = 2;
+	if (mf->width > MT9M111_MAX_WIDTH)
+		mf->width = MT9M111_MAX_WIDTH;
+	else if (mf->width < 2)
+		mf->width = 2;
 	else if (bayer)
-		pix->width = ALIGN(pix->width, 2);
+		mf->width = ALIGN(mf->width, 2);
+
+	mf->colorspace = fmt->colorspace;
 
 	return 0;
 }
@@ -863,7 +906,7 @@ static int mt9m111_restore_state(struct i2c_client *client)
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
 
 	mt9m111_set_context(client, mt9m111->context);
-	mt9m111_set_pixfmt(client, mt9m111->pixfmt);
+	mt9m111_set_pixfmt(client, mt9m111->fmt->code);
 	mt9m111_setup_rect(client, &mt9m111->rect);
 	mt9m111_set_flip(client, mt9m111->hflip, MT9M111_RMB_MIRROR_COLS);
 	mt9m111_set_flip(client, mt9m111->vflip, MT9M111_RMB_MIRROR_ROWS);
@@ -903,7 +946,7 @@ static int mt9m111_init(struct i2c_client *client)
 	if (!ret)
 		ret = mt9m111_set_autoexposure(client, mt9m111->autoexposure);
 	if (ret)
-		dev_err(&client->dev, "mt9m11x init failed: %d\n", ret);
+		dev_err(&client->dev, "mt9m111 init failed: %d\n", ret);
 	return ret;
 }
 
@@ -932,30 +975,27 @@ static int mt9m111_video_probe(struct soc_camera_device *icd,
 	mt9m111->swap_rgb_even_odd = 1;
 	mt9m111->swap_rgb_red_blue = 1;
 
-	ret = mt9m111_init(client);
-	if (ret)
-		goto ei2c;
-
 	data = reg_read(CHIP_VERSION);
 
 	switch (data) {
-	case 0x143a: /* MT9M111 */
+	case 0x143a: /* MT9M111 or MT9M131 */
 		mt9m111->model = V4L2_IDENT_MT9M111;
+		dev_info(&client->dev,
+			"Detected a MT9M111/MT9M131 chip ID %x\n", data);
 		break;
 	case 0x148c: /* MT9M112 */
 		mt9m111->model = V4L2_IDENT_MT9M112;
+		dev_info(&client->dev, "Detected a MT9M112 chip ID %x\n", data);
 		break;
 	default:
 		ret = -ENODEV;
 		dev_err(&client->dev,
-			"No MT9M11x chip detected, register read %x\n", data);
+			"No MT9M111/MT9M112/MT9M131 chip detected register read %x\n",
+			data);
 		goto ei2c;
 	}
 
-	icd->formats = mt9m111_colour_formats;
-	icd->num_formats = ARRAY_SIZE(mt9m111_colour_formats);
-
-	dev_info(&client->dev, "Detected a MT9M11x chip ID %x\n", data);
+	ret = mt9m111_init(client);
 
 ei2c:
 	return ret;
@@ -971,13 +1011,24 @@ static struct v4l2_subdev_core_ops mt9m111_subdev_core_ops = {
 #endif
 };
 
+static int mt9m111_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
+			    enum v4l2_mbus_pixelcode *code)
+{
+	if (index >= ARRAY_SIZE(mt9m111_colour_fmts))
+		return -EINVAL;
+
+	*code = mt9m111_colour_fmts[index].code;
+	return 0;
+}
+
 static struct v4l2_subdev_video_ops mt9m111_subdev_video_ops = {
-	.s_fmt		= mt9m111_s_fmt,
-	.g_fmt		= mt9m111_g_fmt,
-	.try_fmt	= mt9m111_try_fmt,
+	.s_mbus_fmt	= mt9m111_s_fmt,
+	.g_mbus_fmt	= mt9m111_g_fmt,
+	.try_mbus_fmt	= mt9m111_try_fmt,
 	.s_crop		= mt9m111_s_crop,
 	.g_crop		= mt9m111_g_crop,
 	.cropcap	= mt9m111_cropcap,
+	.enum_mbus_fmt	= mt9m111_enum_fmt,
 };
 
 static struct v4l2_subdev_ops mt9m111_subdev_ops = {
@@ -995,13 +1046,13 @@ static int mt9m111_probe(struct i2c_client *client,
 	int ret;
 
 	if (!icd) {
-		dev_err(&client->dev, "MT9M11x: missing soc-camera data!\n");
+		dev_err(&client->dev, "mt9m111: soc-camera data missing!\n");
 		return -EINVAL;
 	}
 
 	icl = to_soc_camera_link(icd);
 	if (!icl) {
-		dev_err(&client->dev, "MT9M11x driver needs platform data\n");
+		dev_err(&client->dev, "mt9m111: driver needs platform data\n");
 		return -EINVAL;
 	}
 
@@ -1019,17 +1070,16 @@ static int mt9m111_probe(struct i2c_client *client,
 
 	/* Second stage probe - when a capture adapter is there */
 	icd->ops		= &mt9m111_ops;
-	icd->y_skip_top		= 0;
 
 	mt9m111->rect.left	= MT9M111_MIN_DARK_COLS;
 	mt9m111->rect.top	= MT9M111_MIN_DARK_ROWS;
 	mt9m111->rect.width	= MT9M111_MAX_WIDTH;
 	mt9m111->rect.height	= MT9M111_MAX_HEIGHT;
+	mt9m111->fmt		= &mt9m111_colour_fmts[0];
 
 	ret = mt9m111_video_probe(icd, client);
 	if (ret) {
 		icd->ops = NULL;
-		i2c_set_clientdata(client, NULL);
 		kfree(mt9m111);
 	}
 
@@ -1042,7 +1092,6 @@ static int mt9m111_remove(struct i2c_client *client)
 	struct soc_camera_device *icd = client->dev.platform_data;
 
 	icd->ops = NULL;
-	i2c_set_clientdata(client, NULL);
 	client->driver = NULL;
 	kfree(mt9m111);
 
@@ -1077,6 +1126,6 @@ static void __exit mt9m111_mod_exit(void)
 module_init(mt9m111_mod_init);
 module_exit(mt9m111_mod_exit);
 
-MODULE_DESCRIPTION("Micron MT9M111/MT9M112 Camera driver");
+MODULE_DESCRIPTION("Micron/Aptina MT9M111/MT9M112/MT9M131 Camera driver");
 MODULE_AUTHOR("Robert Jarzmik");
 MODULE_LICENSE("GPL");

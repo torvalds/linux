@@ -17,7 +17,7 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-You shoud also find the complete GPL in the COPYING file accompanying this source code.
+You should also find the complete GPL in the COPYING file accompanying this source code.
 
 @endverbatim
 */
@@ -461,7 +461,7 @@ int i_APCI3200_GetChannelCalibrationValue(struct comedi_device *dev,
 	if (s_BoardInfos[dev->minor].i_ConnectionType == 1) {
 		/* if diff */
 
-		if ((ui_Channel_num >= 0) && (ui_Channel_num <= 1))
+		if (ui_Channel_num <= 1)
 			i_DiffChannel = ui_Channel_num, i_Module = 0;
 		else if ((ui_Channel_num >= 2) && (ui_Channel_num <= 3))
 			i_DiffChannel = ui_Channel_num - 2, i_Module = 1;

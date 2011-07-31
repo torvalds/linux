@@ -8,7 +8,7 @@
 #####
 # 1) Generate bounds.h
 
-bounds-file := include/linux/bounds.h
+bounds-file := include/generated/bounds.h
 
 always  := $(bounds-file)
 targets := $(bounds-file) kernel/bounds.s
@@ -43,7 +43,7 @@ $(obj)/$(bounds-file): kernel/bounds.s Kbuild
 # 2) Generate asm-offsets.h
 #
 
-offsets-file := include/asm/asm-offsets.h
+offsets-file := include/generated/asm-offsets.h
 
 always  += $(offsets-file)
 targets += $(offsets-file)

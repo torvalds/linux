@@ -86,6 +86,20 @@ static inline int put_reg(struct task_struct *task, int regno,
 	return 0;
 }
 
+void user_enable_single_step(struct task_struct *task)
+{
+	unsigned long srflags;
+	srflags = get_reg(task, PT_SR) | (TRACE_BITS << 16);
+	put_reg(task, PT_SR, srflags);
+}
+
+void user_disable_single_step(struct task_struct *task)
+{
+	unsigned long srflags;
+	srflags = get_reg(task, PT_SR) & ~(TRACE_BITS << 16);
+	put_reg(task, PT_SR, srflags);
+}
+
 /*
  * Called by kernel/ptrace.c when detaching..
  *
@@ -93,10 +107,8 @@ static inline int put_reg(struct task_struct *task, int regno,
  */
 void ptrace_disable(struct task_struct *child)
 {
-	unsigned long tmp;
 	/* make sure the single step bit is not set. */
-	tmp = get_reg(child, PT_SR) & ~(TRACE_BITS << 16);
-	put_reg(child, PT_SR, tmp);
+	user_disable_single_step(child);
 }
 
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
@@ -104,12 +116,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	int ret;
 
 	switch (request) {
-		/* when I and D space are separate, these will need to be fixed. */
-		case PTRACE_PEEKTEXT: /* read word at location addr. */ 
-		case PTRACE_PEEKDATA:
-			ret = generic_ptrace_peekdata(child, addr, data);
-			break;
-
 		/* read the word at location addr in the USER area. */
 		case PTRACE_PEEKUSR: {
 			unsigned long tmp;
@@ -148,12 +154,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			break;
 		}
 
-		/* when I and D space are separate, this will have to be fixed. */
-		case PTRACE_POKETEXT: /* write the word at location addr. */
-		case PTRACE_POKEDATA:
-			ret = generic_ptrace_pokedata(child, addr, data);
-			break;
-
 		case PTRACE_POKEUSR: /* write the word at location addr in the USER area */
 			ret = -EIO;
 			if ((addr & 3) || addr < 0 ||
@@ -188,66 +188,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				child->thread.fp[addr - 21] = data;
 				ret = 0;
 			}
-			break;
-
-		case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */
-		case PTRACE_CONT: { /* restart after signal. */
-			long tmp;
-
-			ret = -EIO;
-			if (!valid_signal(data))
-				break;
-			if (request == PTRACE_SYSCALL)
-				set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-			else
-				clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-			child->exit_code = data;
-			/* make sure the single step bit is not set. */
-			tmp = get_reg(child, PT_SR) & ~(TRACE_BITS << 16);
-			put_reg(child, PT_SR, tmp);
-			wake_up_process(child);
-			ret = 0;
-			break;
-		}
-
-		/*
-		 * make the child exit.  Best I can do is send it a sigkill. 
-		 * perhaps it should be put in the status that it wants to 
-		 * exit.
-		 */
-		case PTRACE_KILL: {
-			long tmp;
-
-			ret = 0;
-			if (child->exit_state == EXIT_ZOMBIE) /* already dead */
-				break;
-			child->exit_code = SIGKILL;
-			/* make sure the single step bit is not set. */
-			tmp = get_reg(child, PT_SR) & ~(TRACE_BITS << 16);
-			put_reg(child, PT_SR, tmp);
-			wake_up_process(child);
-			break;
-		}
-
-		case PTRACE_SINGLESTEP: {  /* set the trap flag. */
-			long tmp;
-
-			ret = -EIO;
-			if (!valid_signal(data))
-				break;
-			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-			tmp = get_reg(child, PT_SR) | (TRACE_BITS << 16);
-			put_reg(child, PT_SR, tmp);
-
-			child->exit_code = data;
-			/* give it a chance to run. */
-			wake_up_process(child);
-			ret = 0;
-			break;
-		}
-
-		case PTRACE_DETACH:	/* detach a process that was attached. */
-			ret = ptrace_detach(child, data);
 			break;
 
 		case PTRACE_GETREGS: { /* Get all gp regs from the child. */
@@ -307,8 +247,13 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		}
 #endif
 
+	case PTRACE_GET_THREAD_AREA:
+		ret = put_user(task_thread_info(child)->tp_value,
+			       (unsigned long __user *)data);
+		break;
+
 		default:
-			ret = -EIO;
+			ret = ptrace_request(child, request, addr, data);
 			break;
 	}
 	return ret;

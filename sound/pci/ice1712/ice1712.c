@@ -106,7 +106,7 @@ module_param_array(dxr_enable, int, NULL, 0444);
 MODULE_PARM_DESC(dxr_enable, "Enable DXR support for Terratec DMX6FIRE.");
 
 
-static const struct pci_device_id snd_ice1712_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_ice1712_ids) = {
 	{ PCI_VDEVICE(ICE, PCI_DEVICE_ID_ICE_1712), 0 },   /* ICE1712 */
 	{ 0, }
 };
@@ -296,6 +296,16 @@ static void snd_ice1712_set_gpio_dir(struct snd_ice1712 *ice, unsigned int data)
 {
 	snd_ice1712_write(ice, ICE1712_IREG_GPIO_DIRECTION, data);
 	inb(ICEREG(ice, DATA)); /* dummy read for pci-posting */
+}
+
+static unsigned int snd_ice1712_get_gpio_dir(struct snd_ice1712 *ice)
+{
+	return snd_ice1712_read(ice, ICE1712_IREG_GPIO_DIRECTION);
+}
+
+static unsigned int snd_ice1712_get_gpio_mask(struct snd_ice1712 *ice)
+{
+	return snd_ice1712_read(ice, ICE1712_IREG_GPIO_WRITE_MASK);
 }
 
 static void snd_ice1712_set_gpio_mask(struct snd_ice1712 *ice, unsigned int data)
@@ -1170,6 +1180,10 @@ static int snd_ice1712_playback_pro_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 	snd_pcm_hw_constraint_msbits(runtime, 0, 32, 24);
 	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE, &hw_constraints_rates);
+	if (is_pro_rate_locked(ice)) {
+		runtime->hw.rate_min = PRO_RATE_DEFAULT;
+		runtime->hw.rate_max = PRO_RATE_DEFAULT;
+	}
 
 	if (ice->spdif.ops.open)
 		ice->spdif.ops.open(ice, substream);
@@ -1187,6 +1201,11 @@ static int snd_ice1712_capture_pro_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 	snd_pcm_hw_constraint_msbits(runtime, 0, 32, 24);
 	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE, &hw_constraints_rates);
+	if (is_pro_rate_locked(ice)) {
+		runtime->hw.rate_min = PRO_RATE_DEFAULT;
+		runtime->hw.rate_max = PRO_RATE_DEFAULT;
+	}
+
 	return 0;
 }
 
@@ -2557,7 +2576,9 @@ static int __devinit snd_ice1712_create(struct snd_card *card,
 	mutex_init(&ice->i2c_mutex);
 	mutex_init(&ice->open_mutex);
 	ice->gpio.set_mask = snd_ice1712_set_gpio_mask;
+	ice->gpio.get_mask = snd_ice1712_get_gpio_mask;
 	ice->gpio.set_dir = snd_ice1712_set_gpio_dir;
+	ice->gpio.get_dir = snd_ice1712_get_gpio_dir;
 	ice->gpio.set_data = snd_ice1712_set_gpio_data;
 	ice->gpio.get_data = snd_ice1712_get_gpio_data;
 

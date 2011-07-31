@@ -123,7 +123,7 @@ struct drm_display_mode {
 	int type;
 
 	/* Proposed mode values */
-	int clock;
+	int clock;		/* in kHz */
 	int hdisplay;
 	int hsync_start;
 	int hsync_end;
@@ -164,8 +164,8 @@ struct drm_display_mode {
 	int *private;
 	int private_flags;
 
-	int vrefresh;
-	float hsync;
+	int vrefresh;		/* in Hz */
+	int hsync;		/* in kHz */
 };
 
 enum drm_connector_status {
@@ -189,48 +189,15 @@ enum subpixel_order {
  */
 struct drm_display_info {
 	char name[DRM_DISPLAY_INFO_LEN];
-	/* Input info */
-	bool serration_vsync;
-	bool sync_on_green;
-	bool composite_sync;
-	bool separate_syncs;
-	bool blank_to_black;
-	unsigned char video_level;
-	bool digital;
+
 	/* Physical size */
         unsigned int width_mm;
 	unsigned int height_mm;
-
-	/* Display parameters */
-	unsigned char gamma; /* FIXME: storage format */
-	bool gtf_supported;
-	bool standard_color;
-	enum {
-		monochrome = 0,
-		rgb,
-		other,
-		unknown,
-	} display_type;
-	bool active_off_supported;
-	bool suspend_supported;
-	bool standby_supported;
-
-	/* Color info FIXME: storage format */
-	unsigned short redx, redy;
-	unsigned short greenx, greeny;
-	unsigned short bluex, bluey;
-	unsigned short whitex, whitey;
 
 	/* Clock limits FIXME: storage format */
 	unsigned int min_vfreq, max_vfreq;
 	unsigned int min_hfreq, max_hfreq;
 	unsigned int pixel_clock;
-
-	/* White point indices FIXME: storage format */
-	unsigned int wpx1, wpy1;
-	unsigned int wpgamma1;
-	unsigned int wpx2, wpy2;
-	unsigned int wpgamma2;
 
 	enum subpixel_order subpixel_order;
 
@@ -242,6 +209,21 @@ struct drm_framebuffer_funcs {
 	int (*create_handle)(struct drm_framebuffer *fb,
 			     struct drm_file *file_priv,
 			     unsigned int *handle);
+	/**
+	 * Optinal callback for the dirty fb ioctl.
+	 *
+	 * Userspace can notify the driver via this callback
+	 * that a area of the framebuffer has changed and should
+	 * be flushed to the display hardware.
+	 *
+	 * See documentation in drm_mode.h for the struct
+	 * drm_mode_fb_dirty_cmd for more information as all
+	 * the semantics and arguments have a one to one mapping
+	 * on this function.
+	 */
+	int (*dirty)(struct drm_framebuffer *framebuffer, unsigned flags,
+		     unsigned color, struct drm_clip_rect *clips,
+		     unsigned num_clips);
 };
 
 struct drm_framebuffer {
@@ -256,8 +238,6 @@ struct drm_framebuffer {
 	unsigned int depth;
 	int bits_per_pixel;
 	int flags;
-	void *fbdev;
-	u32 pseudo_palette[17];
 	struct list_head filp_head;
 	/* if you are using the helper */
 	void *helper_private;
@@ -290,6 +270,7 @@ struct drm_property {
 struct drm_crtc;
 struct drm_connector;
 struct drm_encoder;
+struct drm_pending_vblank_event;
 
 /**
  * drm_crtc_funcs - control CRTCs for a given device
@@ -328,11 +309,24 @@ struct drm_crtc_funcs {
 
 	/* Set gamma on the CRTC */
 	void (*gamma_set)(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-			  uint32_t size);
+			  uint32_t start, uint32_t size);
 	/* Object destroy routine */
 	void (*destroy)(struct drm_crtc *crtc);
 
 	int (*set_config)(struct drm_mode_set *set);
+
+	/*
+	 * Flip to the given framebuffer.  This implements the page
+	 * flip ioctl descibed in drm_mode.h, specifically, the
+	 * implementation must return immediately and block all
+	 * rendering to the current fb until the flip has completed.
+	 * If userspace set the event flag in the ioctl, the event
+	 * argument will point to an event to send back when the flip
+	 * completes, otherwise it will be NULL.
+	 */
+	int (*page_flip)(struct drm_crtc *crtc,
+			 struct drm_framebuffer *fb,
+			 struct drm_pending_vblank_event *event);
 };
 
 /**
@@ -340,9 +334,6 @@ struct drm_crtc_funcs {
  * @enabled: is this CRTC enabled?
  * @x: x position on screen
  * @y: y position on screen
- * @desired_mode: new desired mode
- * @desired_x: desired x for desired_mode
- * @desired_y: desired y for desired_mode
  * @funcs: CRTC control functions
  *
  * Each CRTC may have one or more connectors associated with it.  This structure
@@ -362,8 +353,6 @@ struct drm_crtc {
 	struct drm_display_mode mode;
 
 	int x, y;
-	struct drm_display_mode *desired_mode;
-	int desired_x, desired_y;
 	const struct drm_crtc_funcs *funcs;
 
 	/* CRTC gamma size for reporting to userspace */
@@ -397,7 +386,15 @@ struct drm_connector_funcs {
 	void (*dpms)(struct drm_connector *connector, int mode);
 	void (*save)(struct drm_connector *connector);
 	void (*restore)(struct drm_connector *connector);
-	enum drm_connector_status (*detect)(struct drm_connector *connector);
+
+	/* Check to see if anything is attached to the connector.
+	 * @force is set to false whilst polling, true when checking the
+	 * connector due to user request. @force can be used by the driver
+	 * to avoid expensive, destructive operations during automated
+	 * probing.
+	 */
+	enum drm_connector_status (*detect)(struct drm_connector *connector,
+					    bool force);
 	int (*fill_modes)(struct drm_connector *connector, uint32_t max_width, uint32_t max_height);
 	int (*set_property)(struct drm_connector *connector, struct drm_property *property,
 			     uint64_t val);
@@ -437,6 +434,15 @@ enum drm_connector_force {
 	DRM_FORCE_ON,         /* force on analog part normally */
 	DRM_FORCE_ON_DIGITAL, /* for DVI-I use digital connector */
 };
+
+/* should we poll this connector for connects and disconnects */
+/* hot plug detectable */
+#define DRM_CONNECTOR_POLL_HPD (1 << 0)
+/* poll for connections */
+#define DRM_CONNECTOR_POLL_CONNECT (1 << 1)
+/* can cleanly poll for disconnections without flickering the screen */
+/* DACs should rarely do this without a lot of testing */
+#define DRM_CONNECTOR_POLL_DISCONNECT (1 << 2)
 
 /**
  * drm_connector - central DRM connector control structure
@@ -482,6 +488,8 @@ struct drm_connector {
 	u32 property_ids[DRM_CONNECTOR_MAX_PROPERTY];
 	uint64_t property_values[DRM_CONNECTOR_MAX_PROPERTY];
 
+	uint8_t polled; /* DRM_CONNECTOR_POLL_* */
+
 	/* requested DPMS state */
 	int dpms;
 
@@ -492,7 +500,6 @@ struct drm_connector {
 	uint32_t encoder_ids[DRM_CONNECTOR_MAX_ENCODER];
 	uint32_t force_encoder_id;
 	struct drm_encoder *encoder; /* currently active encoder */
-	void *fb_helper_private;
 };
 
 /**
@@ -519,16 +526,10 @@ struct drm_mode_set {
 
 /**
  * struct drm_mode_config_funcs - configure CRTCs for a given screen layout
- * @resize: adjust CRTCs as necessary for the proposed layout
- *
- * Currently only a resize hook is available.  DRM will call back into the
- * driver with a new screen width and height.  If the driver can't support
- * the proposed size, it can return false.  Otherwise it should adjust
- * the CRTC<->connector mappings as needed and update its view of the screen.
  */
 struct drm_mode_config_funcs {
 	struct drm_framebuffer *(*fb_create)(struct drm_device *dev, struct drm_file *file_priv, struct drm_mode_fb_cmd *mode_cmd);
-	int (*fb_changed)(struct drm_device *dev);
+	void (*output_poll_changed)(struct drm_device *dev);
 };
 
 struct drm_mode_group {
@@ -561,13 +562,14 @@ struct drm_mode_config {
 
 	struct list_head property_list;
 
-	/* in-kernel framebuffers - hung of filp_head in drm_framebuffer */
-	struct list_head fb_kernel_list;
-
 	int min_width, min_height;
 	int max_width, max_height;
 	struct drm_mode_config_funcs *funcs;
 	resource_size_t fb_base;
+
+	/* output poll support */
+	bool poll_enabled;
+	struct delayed_work output_poll_work;
 
 	/* pointers to standard properties */
 	struct list_head property_blob_list;
@@ -596,6 +598,7 @@ struct drm_mode_config {
 	/* Optional properties */
 	struct drm_property *scaling_mode_property;
 	struct drm_property *dithering_mode_property;
+	struct drm_property *dirty_info_property;
 };
 
 #define obj_to_crtc(x) container_of(x, struct drm_crtc, base)
@@ -636,8 +639,6 @@ extern void drm_fb_release(struct drm_file *file_priv);
 extern int drm_mode_group_init_legacy_group(struct drm_device *dev, struct drm_mode_group *group);
 extern struct edid *drm_get_edid(struct drm_connector *connector,
 				 struct i2c_adapter *adapter);
-extern int drm_do_probe_ddc_edid(struct i2c_adapter *adapter,
-				 unsigned char *buf, int len);
 extern int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
 extern void drm_mode_probed_add(struct drm_connector *connector, struct drm_display_mode *mode);
 extern void drm_mode_remove(struct drm_connector *connector, struct drm_display_mode *mode);
@@ -667,6 +668,7 @@ extern void drm_mode_validate_size(struct drm_device *dev,
 extern void drm_mode_prune_invalid(struct drm_device *dev,
 				   struct list_head *mode_list, bool verbose);
 extern void drm_mode_sort(struct list_head *mode_list);
+extern int drm_mode_hsync(struct drm_display_mode *mode);
 extern int drm_mode_vrefresh(struct drm_display_mode *mode);
 extern void drm_mode_set_crtcinfo(struct drm_display_mode *p,
 				  int adjust_flags);
@@ -703,6 +705,7 @@ extern int drm_mode_create_tv_properties(struct drm_device *dev, int num_formats
 				     char *formats[]);
 extern int drm_mode_create_scaling_mode_property(struct drm_device *dev);
 extern int drm_mode_create_dithering_property(struct drm_device *dev);
+extern int drm_mode_create_dirty_info_property(struct drm_device *dev);
 extern char *drm_get_encoder_name(struct drm_encoder *encoder);
 
 extern int drm_mode_connector_attach_encoder(struct drm_connector *connector,
@@ -711,7 +714,8 @@ extern void drm_mode_connector_detach_encoder(struct drm_connector *connector,
 					   struct drm_encoder *encoder);
 extern bool drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 					 int gamma_size);
-extern void *drm_mode_object_find(struct drm_device *dev, uint32_t id, uint32_t type);
+extern struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
+		uint32_t id, uint32_t type);
 /* IOCTLs */
 extern int drm_mode_getresources(struct drm_device *dev,
 				 void *data, struct drm_file *file_priv);
@@ -730,6 +734,8 @@ extern int drm_mode_rmfb(struct drm_device *dev,
 			 void *data, struct drm_file *file_priv);
 extern int drm_mode_getfb(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv);
+extern int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
+				  void *data, struct drm_file *file_priv);
 extern int drm_mode_addmode_ioctl(struct drm_device *dev,
 				  void *data, struct drm_file *file_priv);
 extern int drm_mode_rmmode_ioctl(struct drm_device *dev,
@@ -756,12 +762,22 @@ extern int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 extern int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
 extern bool drm_detect_hdmi_monitor(struct edid *edid);
+extern int drm_mode_page_flip_ioctl(struct drm_device *dev,
+				    void *data, struct drm_file *file_priv);
 extern struct drm_display_mode *drm_cvt_mode(struct drm_device *dev,
 				int hdisplay, int vdisplay, int vrefresh,
 				bool reduced, bool interlaced, bool margins);
 extern struct drm_display_mode *drm_gtf_mode(struct drm_device *dev,
 				int hdisplay, int vdisplay, int vrefresh,
 				bool interlaced, int margins);
+extern struct drm_display_mode *drm_gtf_mode_complex(struct drm_device *dev,
+				int hdisplay, int vdisplay, int vrefresh,
+				bool interlaced, int margins, int GTF_M,
+				int GTF_2C, int GTF_K, int GTF_2J);
 extern int drm_add_modes_noedid(struct drm_connector *connector,
 				int hdisplay, int vdisplay);
+
+extern bool drm_edid_is_valid(struct edid *edid);
+struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
+					   int hsize, int vsize, int fresh);
 #endif /* __DRM_CRTC_H__ */

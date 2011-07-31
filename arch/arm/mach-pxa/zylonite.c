@@ -31,13 +31,10 @@
 #include <mach/mmc.h>
 #include <mach/ohci.h>
 #include <mach/pxa27x_keypad.h>
-#include <mach/pxa3xx_nand.h>
+#include <plat/pxa3xx_nand.h>
 
 #include "devices.h"
 #include "generic.h"
-
-#define MAX_SLOTS	3
-struct platform_mmc_slot zylonite_mmc_slot[MAX_SLOTS];
 
 int gpio_eth_irq;
 int gpio_debug_led1;
@@ -220,84 +217,28 @@ static inline void zylonite_init_lcd(void) {}
 #endif
 
 #if defined(CONFIG_MMC)
-static int zylonite_mci_ro(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-
-	return gpio_get_value(zylonite_mmc_slot[pdev->id].gpio_wp);
-}
-
-static int zylonite_mci_init(struct device *dev,
-			     irq_handler_t zylonite_detect_int,
-			     void *data)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	int err, cd_irq, gpio_cd, gpio_wp;
-
-	cd_irq = gpio_to_irq(zylonite_mmc_slot[pdev->id].gpio_cd);
-	gpio_cd = zylonite_mmc_slot[pdev->id].gpio_cd;
-	gpio_wp = zylonite_mmc_slot[pdev->id].gpio_wp;
-
-	/*
-	 * setup GPIO for Zylonite MMC controller
-	 */
-	err = gpio_request(gpio_cd, "mmc card detect");
-	if (err)
-		goto err_request_cd;
-	gpio_direction_input(gpio_cd);
-
-	err = gpio_request(gpio_wp, "mmc write protect");
-	if (err)
-		goto err_request_wp;
-	gpio_direction_input(gpio_wp);
-
-	err = request_irq(cd_irq, zylonite_detect_int,
-			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			  "MMC card detect", data);
-	if (err) {
-		printk(KERN_ERR "%s: MMC/SD/SDIO: "
-				"can't request card detect IRQ\n", __func__);
-		goto err_request_irq;
-	}
-
-	return 0;
-
-err_request_irq:
-	gpio_free(gpio_wp);
-err_request_wp:
-	gpio_free(gpio_cd);
-err_request_cd:
-	return err;
-}
-
-static void zylonite_mci_exit(struct device *dev, void *data)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	int cd_irq, gpio_cd, gpio_wp;
-
-	cd_irq = gpio_to_irq(zylonite_mmc_slot[pdev->id].gpio_cd);
-	gpio_cd = zylonite_mmc_slot[pdev->id].gpio_cd;
-	gpio_wp = zylonite_mmc_slot[pdev->id].gpio_wp;
-
-	free_irq(cd_irq, data);
-	gpio_free(gpio_cd);
-	gpio_free(gpio_wp);
-}
-
 static struct pxamci_platform_data zylonite_mci_platform_data = {
-	.detect_delay	= 20,
+	.detect_delay_ms= 200,
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.init 		= zylonite_mci_init,
-	.exit		= zylonite_mci_exit,
-	.get_ro		= zylonite_mci_ro,
-	.gpio_card_detect = -1,
-	.gpio_card_ro	= -1,
+	.gpio_card_detect = EXT_GPIO(0),
+	.gpio_card_ro	= EXT_GPIO(2),
 	.gpio_power	= -1,
 };
 
 static struct pxamci_platform_data zylonite_mci2_platform_data = {
-	.detect_delay	= 20,
+	.detect_delay_ms= 200,
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
+	.gpio_card_detect = EXT_GPIO(1),
+	.gpio_card_ro	= EXT_GPIO(3),
+	.gpio_power	= -1,
+};
+
+static struct pxamci_platform_data zylonite_mci3_platform_data = {
+	.detect_delay_ms= 200,
+	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
+	.gpio_card_detect = EXT_GPIO(30),
+	.gpio_card_ro	= EXT_GPIO(31),
+	.gpio_power	= -1,
 };
 
 static void __init zylonite_init_mmc(void)
@@ -305,7 +246,7 @@ static void __init zylonite_init_mmc(void)
 	pxa_set_mci_info(&zylonite_mci_platform_data);
 	pxa3xx_set_mci2_info(&zylonite_mci2_platform_data);
 	if (cpu_is_pxa310())
-		pxa3xx_set_mci3_info(&zylonite_mci_platform_data);
+		pxa3xx_set_mci3_info(&zylonite_mci3_platform_data);
 }
 #else
 static inline void zylonite_init_mmc(void) {}
@@ -444,6 +385,10 @@ static inline void zylonite_init_ohci(void) {}
 
 static void __init zylonite_init(void)
 {
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	/* board-processor specific initialization */
 	zylonite_pxa300_init();
 	zylonite_pxa320_init();

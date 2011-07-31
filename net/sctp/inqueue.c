@@ -46,6 +46,7 @@
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 
 /* Initialize an SCTP inqueue.  */
 void sctp_inq_init(struct sctp_inq *queue)

@@ -30,6 +30,7 @@
 #include <linux/semaphore.h>
 #include <linux/uaccess.h>
 #include <linux/unistd.h>
+#include <linux/slab.h>
 
 #include <asm/syscalls.h>
 
@@ -46,8 +47,10 @@ asmlinkage long microblaze_clone(int flags, unsigned long stack, struct pt_regs 
 	return do_fork(flags, stack, regs, 0, NULL, NULL);
 }
 
-asmlinkage long microblaze_execve(char __user *filenamei, char __user *__user *argv,
-			char __user *__user *envp, struct pt_regs *regs)
+asmlinkage long microblaze_execve(const char __user *filenamei,
+				  const char __user *const __user *argv,
+				  const char __user *const __user *envp,
+				  struct pt_regs *regs)
 {
 	int error;
 	char *filename;
@@ -62,53 +65,23 @@ out:
 	return error;
 }
 
-asmlinkage long
-sys_mmap2(unsigned long addr, unsigned long len,
-	unsigned long prot, unsigned long flags,
-	unsigned long fd, unsigned long pgoff)
-{
-	struct file *file = NULL;
-	int ret = -EBADF;
-
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file) {
-			printk(KERN_INFO "no fd in mmap\r\n");
-			goto out;
-		}
-	}
-
-	down_write(&current->mm->mmap_sem);
-	ret = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-	up_write(&current->mm->mmap_sem);
-	if (file)
-		fput(file);
-out:
-	return ret;
-}
-
 asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 			unsigned long prot, unsigned long flags,
 			unsigned long fd, off_t pgoff)
 {
-	int err = -EINVAL;
+	if (pgoff & ~PAGE_MASK)
+		return -EINVAL;
 
-	if (pgoff & ~PAGE_MASK) {
-		printk(KERN_INFO "no pagemask in mmap\r\n");
-		goto out;
-	}
-
-	err = sys_mmap2(addr, len, prot, flags, fd, pgoff >> PAGE_SHIFT);
-out:
-	return err;
+	return sys_mmap_pgoff(addr, len, prot, flags, fd, pgoff >> PAGE_SHIFT);
 }
 
 /*
  * Do a system call from kernel instead of calling sys_execve so we
  * end up with proper pt_regs.
  */
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
 {
 	register const char *__a __asm__("r5") = filename;
 	register const void *__b __asm__("r6") = argv;

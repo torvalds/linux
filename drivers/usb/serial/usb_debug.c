@@ -8,6 +8,7 @@
  *	2 as published by the Free Software Foundation.
  */
 
+#include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/tty.h>
@@ -15,7 +16,6 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-#define URB_DEBUG_MAX_IN_FLIGHT_URBS	4000
 #define USB_DEBUG_MAX_PACKET_SIZE	8
 #define USB_DEBUG_BRK_SIZE		8
 static char USB_DEBUG_BRK[USB_DEBUG_BRK_SIZE] = {
@@ -29,7 +29,7 @@ static char USB_DEBUG_BRK[USB_DEBUG_BRK_SIZE] = {
 	0xff,
 };
 
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x0525, 0x127a) },
 	{ },
 };
@@ -42,12 +42,6 @@ static struct usb_driver debug_driver = {
 	.id_table =	id_table,
 	.no_dynamic_id = 	1,
 };
-
-static int usb_debug_open(struct tty_struct *tty, struct usb_serial_port *port)
-{
-	port->bulk_out_size = USB_DEBUG_MAX_PACKET_SIZE;
-	return usb_serial_generic_open(tty, port);
-}
 
 /* This HW really does not support a serial break, so one will be
  * emulated when ever the break state is set to true.
@@ -68,7 +62,7 @@ static void usb_debug_read_bulk_callback(struct urb *urb)
 	    memcmp(urb->transfer_buffer, USB_DEBUG_BRK,
 		   USB_DEBUG_BRK_SIZE) == 0) {
 		usb_serial_handle_break(port);
-		usb_serial_generic_resubmit_read_urb(port, GFP_ATOMIC);
+		usb_serial_generic_submit_read_urb(port, GFP_ATOMIC);
 		return;
 	}
 
@@ -82,8 +76,7 @@ static struct usb_serial_driver debug_device = {
 	},
 	.id_table =		id_table,
 	.num_ports =		1,
-	.open =			usb_debug_open,
-	.max_in_flight_urbs =	URB_DEBUG_MAX_IN_FLIGHT_URBS,
+	.bulk_out_size =	USB_DEBUG_MAX_PACKET_SIZE,
 	.break_ctl =		usb_debug_break_ctl,
 	.read_bulk_callback =	usb_debug_read_bulk_callback,
 };

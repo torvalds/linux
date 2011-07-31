@@ -27,10 +27,8 @@
  *	IPv6 address structure
  */
 
-struct in6_addr
-{
-	union 
-	{
+struct in6_addr {
+	union {
 		__u8		u6_addr8[16];
 		__be16		u6_addr16[8];
 		__be32		u6_addr32[4];
@@ -75,8 +73,7 @@ struct ipv6_mreq {
 
 #define ipv6mr_acaddr	ipv6mr_multiaddr
 
-struct in6_flowlabel_req
-{
+struct in6_flowlabel_req {
 	struct in6_addr	flr_dst;
 	__be32	flr_label;
 	__u8	flr_action;
@@ -113,7 +110,7 @@ struct in6_flowlabel_req
 #define IPV6_FLOWINFO_FLOWLABEL		0x000fffff
 #define IPV6_FLOWINFO_PRIORITY		0x0ff00000
 
-/* These defintions are obsolete */
+/* These definitions are obsolete */
 #define IPV6_PRIORITY_UNCHARACTERIZED	0x0000
 #define IPV6_PRIORITY_FILLER		0x0100
 #define IPV6_PRIORITY_UNATTENDED	0x0200
@@ -224,10 +221,10 @@ struct in6_flowlabel_req
 #define IPV6_RTHDR		57
 #define IPV6_RECVDSTOPTS	58
 #define IPV6_DSTOPTS		59
-#if 0	/* not yet */
 #define IPV6_RECVPATHMTU	60
 #define IPV6_PATHMTU		61
 #define IPV6_DONTFRAG		62
+#if 0	/* not yet */
 #define IPV6_USE_MIN_MTU	63
 #endif
 
@@ -267,6 +264,9 @@ struct in6_flowlabel_req
 #define IPV6_PREFER_SRC_HOME		0x0400
 #define IPV6_PREFER_SRC_CGA		0x0008
 #define IPV6_PREFER_SRC_NONCGA		0x0800
+
+/* RFC5082: Generalized Ttl Security Mechanism */
+#define IPV6_MINHOPCOUNT		73
 
 /*
  * Multicast Routing:

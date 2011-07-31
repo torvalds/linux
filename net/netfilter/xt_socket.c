@@ -9,7 +9,7 @@
  * published by the Free Software Foundation.
  *
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/netfilter/x_tables.h>
@@ -88,7 +88,7 @@ extract_icmp_fields(const struct sk_buff *skb,
 
 
 static bool
-socket_match(const struct sk_buff *skb, const struct xt_match_param *par,
+socket_match(const struct sk_buff *skb, struct xt_action_param *par,
 	     const struct xt_socket_mtinfo1 *info)
 {
 	const struct iphdr *iph = ip_hdr(skb);
@@ -127,7 +127,7 @@ socket_match(const struct sk_buff *skb, const struct xt_match_param *par,
 	 * reply packet of an established SNAT-ted connection. */
 
 	ct = nf_ct_get(skb, &ctinfo);
-	if (ct && (ct != &nf_conntrack_untracked) &&
+	if (ct && !nf_ct_is_untracked(ct) &&
 	    ((iph->protocol != IPPROTO_ICMP &&
 	      ctinfo == IP_CT_IS_REPLY + IP_CT_ESTABLISHED) ||
 	     (iph->protocol == IPPROTO_ICMP &&
@@ -149,7 +149,7 @@ socket_match(const struct sk_buff *skb, const struct xt_match_param *par,
 
 		/* Ignore sockets listening on INADDR_ANY */
 		wildcard = (sk->sk_state != TCP_TIME_WAIT &&
-			    inet_sk(sk)->rcv_saddr == 0);
+			    inet_sk(sk)->inet_rcv_saddr == 0);
 
 		/* Ignore non-transparent sockets,
 		   if XT_SOCKET_TRANSPARENT is used */
@@ -165,8 +165,7 @@ socket_match(const struct sk_buff *skb, const struct xt_match_param *par,
 			sk = NULL;
 	}
 
-	pr_debug("socket match: proto %u %08x:%u -> %08x:%u "
-		 "(orig %08x:%u) sock %p\n",
+	pr_debug("proto %u %08x:%u -> %08x:%u (orig %08x:%u) sock %p\n",
 		 protocol, ntohl(saddr), ntohs(sport),
 		 ntohl(daddr), ntohs(dport),
 		 ntohl(iph->daddr), hp ? ntohs(hp->dest) : 0, sk);
@@ -175,13 +174,13 @@ socket_match(const struct sk_buff *skb, const struct xt_match_param *par,
 }
 
 static bool
-socket_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
+socket_mt_v0(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	return socket_match(skb, par, NULL);
 }
 
 static bool
-socket_mt_v1(const struct sk_buff *skb, const struct xt_match_param *par)
+socket_mt_v1(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	return socket_match(skb, par, par->matchinfo);
 }
@@ -192,7 +191,8 @@ static struct xt_match socket_mt_reg[] __read_mostly = {
 		.revision	= 0,
 		.family		= NFPROTO_IPV4,
 		.match		= socket_mt_v0,
-		.hooks		= 1 << NF_INET_PRE_ROUTING,
+		.hooks		= (1 << NF_INET_PRE_ROUTING) |
+				  (1 << NF_INET_LOCAL_IN),
 		.me		= THIS_MODULE,
 	},
 	{
@@ -201,7 +201,8 @@ static struct xt_match socket_mt_reg[] __read_mostly = {
 		.family		= NFPROTO_IPV4,
 		.match		= socket_mt_v1,
 		.matchsize	= sizeof(struct xt_socket_mtinfo1),
-		.hooks		= 1 << NF_INET_PRE_ROUTING,
+		.hooks		= (1 << NF_INET_PRE_ROUTING) |
+				  (1 << NF_INET_LOCAL_IN),
 		.me		= THIS_MODULE,
 	},
 };

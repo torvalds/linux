@@ -347,7 +347,18 @@ static int das800_probe(struct comedi_device *dev)
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_INITCLEANUP(driver_das800);
+static int __init driver_das800_init_module(void)
+{
+	return comedi_driver_register(&driver_das800);
+}
+
+static void __exit driver_das800_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_das800);
+}
+
+module_init(driver_das800_init_module);
+module_exit(driver_das800_cleanup_module);
 
 /* interrupt service routine */
 static irqreturn_t das800_interrupt(int irq, void *d)
@@ -399,9 +410,8 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 		} else {
 			fifo_empty = 0;	/*  cio-das802/16 has no fifo empty status bit */
 		}
-		if (fifo_empty) {
+		if (fifo_empty)
 			break;
-		}
 		/* strip off extraneous bits for 12 bit cards */
 		if (thisboard->resolution == 12)
 			dataPoint = (dataPoint >> 4) & 0xfff;
@@ -457,9 +467,8 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int board;
 
 	printk("comedi%d: das800: io 0x%lx", dev->minor, iobase);
-	if (irq) {
+	if (irq)
 		printk(", irq %u", irq);
-	}
 	printk("\n");
 
 	/* allocate and initialize dev->private */
@@ -907,3 +916,7 @@ static int das800_set_frequency(struct comedi_device *dev)
 
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

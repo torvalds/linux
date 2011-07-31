@@ -9,7 +9,7 @@ compatible with the USB 1.1 standard. It defines three transfer speeds:
     - "Low Speed" 1.5 Mbit/sec
 
 USB 1.1 only addressed full speed and low speed.  High speed devices
-can be used on USB 1.1 systems, but they slow down to USB 1.1 speeds. 
+can be used on USB 1.1 systems, but they slow down to USB 1.1 speeds.
 
 USB 1.1 devices may also be used on USB 2.0 systems.  When plugged
 into an EHCI controller, they are given to a USB 1.1 "companion"

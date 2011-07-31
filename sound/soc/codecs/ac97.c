@@ -13,6 +13,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <sound/core.h>
@@ -80,9 +81,11 @@ static int ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 static int ac97_soc_probe(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_card *card = socdev->card;
 	struct snd_soc_codec *codec;
 	struct snd_ac97_bus *ac97_bus;
 	struct snd_ac97_template ac97_template;
+	int i;
 	int ret = 0;
 
 	printk(KERN_INFO "AC97 SoC Audio Codec %s\n", AC97_VERSION);
@@ -117,9 +120,13 @@ static int ac97_soc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto bus_err;
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0)
-		goto bus_err;
+	for (i = 0; i < card->num_links; i++) {
+		if (card->dai_link[i].codec_dai->ac97_control) {
+			snd_ac97_dev_add_pdata(codec->ac97,
+				card->dai_link[i].cpu_dai->ac97_pdata);
+		}
+	}
+
 	return 0;
 
 bus_err:

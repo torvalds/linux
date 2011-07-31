@@ -25,6 +25,7 @@ struct physmap_flash_data {
 	void			(*set_vpp)(struct map_info *, int);
 	unsigned int		nr_parts;
 	unsigned int		pfow_base;
+	char                    *probe_type;
 	struct mtd_partition	*parts;
 };
 

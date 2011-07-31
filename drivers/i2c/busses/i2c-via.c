@@ -25,7 +25,7 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 /* Power management registers */
 #define PM_CFG_REVID	0x08	/* silicon revision code */
@@ -89,7 +89,7 @@ static struct i2c_adapter vt586b_adapter = {
 };
 
 
-static struct pci_device_id vt586b_ids[] __devinitdata = {
+static const struct pci_device_id vt586b_ids[] __devinitconst = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_3) },
 	{ 0, }
 };

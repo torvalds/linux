@@ -24,21 +24,17 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
 #include "xfs_btree.h"
 #include "xfs_btree_trace.h"
-#include "xfs_ialloc.h"
 #include "xfs_error.h"
+#include "xfs_trace.h"
 
 /*
  * Cursor allocation zone.
@@ -81,7 +77,7 @@ xfs_btree_check_lblock(
 			XFS_ERRTAG_BTREE_CHECK_LBLOCK,
 			XFS_RANDOM_BTREE_CHECK_LBLOCK))) {
 		if (bp)
-			xfs_buftrace("LBTREE ERROR", bp);
+			trace_xfs_btree_corrupt(bp, _RET_IP_);
 		XFS_ERROR_REPORT("xfs_btree_check_lblock", XFS_ERRLEVEL_LOW,
 				 mp);
 		return XFS_ERROR(EFSCORRUPTED);
@@ -119,7 +115,7 @@ xfs_btree_check_sblock(
 			XFS_ERRTAG_BTREE_CHECK_SBLOCK,
 			XFS_RANDOM_BTREE_CHECK_SBLOCK))) {
 		if (bp)
-			xfs_buftrace("SBTREE ERROR", bp);
+			trace_xfs_btree_corrupt(bp, _RET_IP_);
 		XFS_CORRUPTION_ERROR("xfs_btree_check_sblock",
 			XFS_ERRLEVEL_LOW, cur->bc_mp, block);
 		return XFS_ERROR(EFSCORRUPTED);
@@ -976,7 +972,7 @@ xfs_btree_get_buf_block(
 	xfs_daddr_t		d;
 
 	/* need to sort out how callers deal with failures first */
-	ASSERT(!(flags & XFS_BUF_TRYLOCK));
+	ASSERT(!(flags & XBF_TRYLOCK));
 
 	d = xfs_btree_ptr_to_daddr(cur, ptr);
 	*bpp = xfs_trans_get_buf(cur->bc_tp, mp->m_ddev_targp, d,
@@ -1007,7 +1003,7 @@ xfs_btree_read_buf_block(
 	int			error;
 
 	/* need to sort out how callers deal with failures first */
-	ASSERT(!(flags & XFS_BUF_TRYLOCK));
+	ASSERT(!(flags & XBF_TRYLOCK));
 
 	d = xfs_btree_ptr_to_daddr(cur, ptr);
 	error = xfs_trans_read_buf(mp, cur->bc_tp, mp->m_ddev_targp, d,

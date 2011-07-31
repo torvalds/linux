@@ -7,4 +7,11 @@ struct ioapic_scope {
 	unsigned int devfn;	/* PCI devfn number */
 };
 
+struct hpet_scope {
+	struct intel_iommu *iommu;
+	u8 id;
+	unsigned int bus;
+	unsigned int devfn;
+};
+
 #define IR_X2APIC_MODE(mode) (mode ? (1 << 11) : 0)

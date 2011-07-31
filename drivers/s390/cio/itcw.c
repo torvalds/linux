@@ -42,7 +42,7 @@
  * size_t size;
  *
  * size = itcw_calc_size(1, 2, 0);
- * buffer = kmalloc(size, GFP_DMA);
+ * buffer = kmalloc(size, GFP_KERNEL | GFP_DMA);
  * if (!buffer)
  *	return -ENOMEM;
  * itcw = itcw_init(buffer, size, ITCW_OP_READ, 1, 2, 0);

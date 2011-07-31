@@ -12,10 +12,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/writeback.h>
+#include <linux/gfp.h>
 #include "internal.h"
 
 static int afs_readpage(struct file *file, struct page *page);
@@ -121,33 +121,18 @@ static void afs_file_readpage_read_complete(struct page *page,
 #endif
 
 /*
- * AFS read page from file, directory or symlink
+ * read page from file, directory or symlink, given a key to use
  */
-static int afs_readpage(struct file *file, struct page *page)
+int afs_page_filler(void *data, struct page *page)
 {
-	struct afs_vnode *vnode;
-	struct inode *inode;
-	struct key *key;
+	struct inode *inode = page->mapping->host;
+	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct key *key = data;
 	size_t len;
 	off_t offset;
 	int ret;
 
-	inode = page->mapping->host;
-
-	if (file) {
-		key = file->private_data;
-		ASSERT(key != NULL);
-	} else {
-		key = afs_request_key(AFS_FS_S(inode->i_sb)->volume->cell);
-		if (IS_ERR(key)) {
-			ret = PTR_ERR(key);
-			goto error_nokey;
-		}
-	}
-
 	_enter("{%x},{%lu},{%lu}", key_serial(key), inode->i_ino, page->index);
-
-	vnode = AFS_FS_I(inode);
 
 	BUG_ON(!PageLocked(page));
 
@@ -214,18 +199,39 @@ static int afs_readpage(struct file *file, struct page *page)
 		unlock_page(page);
 	}
 
-	if (!file)
-		key_put(key);
 	_leave(" = 0");
 	return 0;
 
 error:
 	SetPageError(page);
 	unlock_page(page);
-	if (!file)
-		key_put(key);
-error_nokey:
 	_leave(" = %d", ret);
+	return ret;
+}
+
+/*
+ * read page from file, directory or symlink, given a file to nominate the key
+ * to be used
+ */
+static int afs_readpage(struct file *file, struct page *page)
+{
+	struct key *key;
+	int ret;
+
+	if (file) {
+		key = file->private_data;
+		ASSERT(key != NULL);
+		ret = afs_page_filler(key, page);
+	} else {
+		struct inode *inode = page->mapping->host;
+		key = afs_request_key(AFS_FS_S(inode->i_sb)->volume->cell);
+		if (IS_ERR(key)) {
+			ret = PTR_ERR(key);
+		} else {
+			ret = afs_page_filler(key, page);
+			key_put(key);
+		}
+	}
 	return ret;
 }
 
@@ -235,10 +241,14 @@ error_nokey:
 static int afs_readpages(struct file *file, struct address_space *mapping,
 			 struct list_head *pages, unsigned nr_pages)
 {
+	struct key *key = file->private_data;
 	struct afs_vnode *vnode;
 	int ret = 0;
 
-	_enter(",{%lu},,%d", mapping->host->i_ino, nr_pages);
+	_enter("{%d},{%lu},,%d",
+	       key_serial(key), mapping->host->i_ino, nr_pages);
+
+	ASSERT(key != NULL);
 
 	vnode = AFS_FS_I(mapping->host);
 	if (vnode->flags & AFS_VNODE_DELETED) {
@@ -279,7 +289,7 @@ static int afs_readpages(struct file *file, struct address_space *mapping,
 	}
 
 	/* load the missing pages from the network */
-	ret = read_cache_pages(mapping, pages, (void *) afs_readpage, file);
+	ret = read_cache_pages(mapping, pages, afs_page_filler, key);
 
 	_leave(" = %d [netting]", ret);
 	return ret;

@@ -25,6 +25,7 @@
 #include <linux/edac.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/gfp.h>
 
 #include "edac_core.h"
 #include "edac_module.h"

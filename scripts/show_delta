@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 #
 # show_deltas: Read list of printk messages instrumented with
 # time data, and format with time deltas.

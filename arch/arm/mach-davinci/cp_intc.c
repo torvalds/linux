@@ -10,24 +10,20 @@
  */
 
 #include <linux/init.h>
-#include <linux/sched.h>
-#include <linux/interrupt.h>
-#include <linux/kernel.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 
+#include <mach/common.h>
 #include <mach/cp_intc.h>
-
-static void __iomem *cp_intc_base;
 
 static inline unsigned int cp_intc_read(unsigned offset)
 {
-	return __raw_readl(cp_intc_base + offset);
+	return __raw_readl(davinci_intc_base + offset);
 }
 
 static inline void cp_intc_write(unsigned long value, unsigned offset)
 {
-	__raw_writel(value, cp_intc_base + offset);
+	__raw_writel(value, davinci_intc_base + offset);
 }
 
 static void cp_intc_ack_irq(unsigned int irq)
@@ -84,21 +80,37 @@ static int cp_intc_set_irq_type(unsigned int irq, unsigned int flow_type)
 	return 0;
 }
 
+/*
+ * Faking this allows us to to work with suspend functions of
+ * generic drivers which call {enable|disable}_irq_wake for
+ * wake up interrupt sources (eg RTC on DA850).
+ */
+static int cp_intc_set_wake(unsigned int irq, unsigned int on)
+{
+	return 0;
+}
+
 static struct irq_chip cp_intc_irq_chip = {
 	.name		= "cp_intc",
 	.ack		= cp_intc_ack_irq,
 	.mask		= cp_intc_mask_irq,
 	.unmask		= cp_intc_unmask_irq,
 	.set_type	= cp_intc_set_irq_type,
+	.set_wake	= cp_intc_set_wake,
 };
 
-void __init cp_intc_init(void __iomem *base, unsigned short num_irq,
-			 u8 *irq_prio)
+void __init cp_intc_init(void)
 {
+	unsigned long num_irq	= davinci_soc_info.intc_irq_num;
+	u8 *irq_prio		= davinci_soc_info.intc_irq_prios;
+	u32 *host_map		= davinci_soc_info.intc_host_map;
 	unsigned num_reg	= BITS_TO_LONGS(num_irq);
 	int i;
 
-	cp_intc_base = base;
+	davinci_intc_type = DAVINCI_INTC_TYPE_CP_INTC;
+	davinci_intc_base = ioremap(davinci_soc_info.intc_base, SZ_8K);
+	if (WARN_ON(!davinci_intc_base))
+		return;
 
 	cp_intc_write(0, CP_INTC_GLOBAL_ENABLE);
 
@@ -148,6 +160,10 @@ void __init cp_intc_init(void __iomem *base, unsigned short num_irq,
 		for (i = 0; i < num_reg; i++)
 			cp_intc_write(0x0f0f0f0f, CP_INTC_CHAN_MAP(i));
 	}
+
+	if (host_map)
+		for (i = 0; host_map[i] != -1; i++)
+			cp_intc_write(host_map[i], CP_INTC_HOST_MAP(i));
 
 	/* Set up genirq dispatching for cp_intc */
 	for (i = 0; i < num_irq; i++) {

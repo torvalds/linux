@@ -128,6 +128,29 @@ struct usbdevfs_hub_portinfo {
 #ifdef __KERNEL__
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
+
+struct usbdevfs_ctrltransfer32 {
+        u8 bRequestType;
+        u8 bRequest;
+        u16 wValue;
+        u16 wIndex;
+        u16 wLength;
+        u32 timeout;  /* in milliseconds */
+        compat_caddr_t data;
+};
+
+struct usbdevfs_bulktransfer32 {
+        compat_uint_t ep;
+        compat_uint_t len;
+        compat_uint_t timeout; /* in milliseconds */
+        compat_caddr_t data;
+};
+
+struct usbdevfs_disconnectsignal32 {
+        compat_int_t signr;
+        compat_caddr_t context;
+};
+
 struct usbdevfs_urb32 {
 	unsigned char type;
 	unsigned char endpoint;
@@ -153,7 +176,9 @@ struct usbdevfs_ioctl32 {
 #endif /* __KERNEL__ */
 
 #define USBDEVFS_CONTROL           _IOWR('U', 0, struct usbdevfs_ctrltransfer)
+#define USBDEVFS_CONTROL32           _IOWR('U', 0, struct usbdevfs_ctrltransfer32)
 #define USBDEVFS_BULK              _IOWR('U', 2, struct usbdevfs_bulktransfer)
+#define USBDEVFS_BULK32              _IOWR('U', 2, struct usbdevfs_bulktransfer32)
 #define USBDEVFS_RESETEP           _IOR('U', 3, unsigned int)
 #define USBDEVFS_SETINTERFACE      _IOR('U', 4, struct usbdevfs_setinterface)
 #define USBDEVFS_SETCONFIGURATION  _IOR('U', 5, unsigned int)
@@ -166,6 +191,7 @@ struct usbdevfs_ioctl32 {
 #define USBDEVFS_REAPURBNDELAY     _IOW('U', 13, void *)
 #define USBDEVFS_REAPURBNDELAY32   _IOW('U', 13, __u32)
 #define USBDEVFS_DISCSIGNAL        _IOR('U', 14, struct usbdevfs_disconnectsignal)
+#define USBDEVFS_DISCSIGNAL32      _IOR('U', 14, struct usbdevfs_disconnectsignal32)
 #define USBDEVFS_CLAIMINTERFACE    _IOR('U', 15, unsigned int)
 #define USBDEVFS_RELEASEINTERFACE  _IOR('U', 16, unsigned int)
 #define USBDEVFS_CONNECTINFO       _IOW('U', 17, struct usbdevfs_connectinfo)

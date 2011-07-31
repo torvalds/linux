@@ -23,9 +23,6 @@
  *
  *   Integrator address map
  *
- * 	NOTE: This is a multi-hosted header file for use with uHAL and
- * 	      supported debuggers.
- *
  * ***********************************************************************/
 
 #ifndef __address_h
@@ -290,12 +287,14 @@
 #define INTEGRATOR_DBG_LEDS             (INTEGRATOR_DBG_BASE + INTEGRATOR_DBG_LEDS_OFFSET)
 #define INTEGRATOR_DBG_SWITCH           (INTEGRATOR_DBG_BASE + INTEGRATOR_DBG_SWITCH_OFFSET)
 
+#define INTEGRATOR_AP_GPIO_BASE		0x1B000000	/* GPIO */
 
-#if defined(CONFIG_ARCH_INTEGRATOR_AP)
-#define INTEGRATOR_GPIO_BASE            0x1B000000	 /*  GPIO */
-#elif defined(CONFIG_ARCH_INTEGRATOR_CP)
-#define INTEGRATOR_GPIO_BASE            0xC9000000	 /*  GPIO */
-#endif
+#define INTEGRATOR_CP_MMC_BASE		0x1C000000	/* MMC */
+#define INTEGRATOR_CP_AACI_BASE		0x1D000000	/* AACI */
+#define INTEGRATOR_CP_ETH_BASE		0xC8000000	/* Ethernet */
+#define INTEGRATOR_CP_GPIO_BASE		0xC9000000	/* GPIO */
+#define INTEGRATOR_CP_SIC_BASE		0xCA000000	/* SIC */
+#define INTEGRATOR_CP_CTL_BASE		0xCB000000	/* CP system control */
 
 /* ------------------------------------------------------------------------
  *  KMI keyboard/mouse definitions
@@ -327,20 +326,6 @@
 /*  unused ((128-16)M - 64K) from XXX
  */
 #define PHYS_PCI_V3_BASE                0x62000000
-
-#define PCI_DRAMSIZE                    INTEGRATOR_SSRAM_SIZE
-
-/* 'export' these to UHAL */
-#define UHAL_PCI_IO                     PCI_IO_BASE
-#define UHAL_PCI_MEM                    PCI_MEM_BASE
-#define UHAL_PCI_ALLOC_IO_BASE          0x00004000
-#define UHAL_PCI_ALLOC_MEM_BASE         PCI_MEM_BASE
-#define UHAL_PCI_MAX_SLOT               20
-
-/* ========================================================================
- *  Start of uHAL definitions
- * ========================================================================
- */
 
 /* ------------------------------------------------------------------------
  *  Integrator Interrupt Controllers
@@ -389,7 +374,7 @@
  */
 
 /* ------------------------------------------------------------------------
- *  LED's - The header LED is not accessible via the uHAL API
+ *  LED's
  * ------------------------------------------------------------------------
  *
  */
@@ -402,34 +387,18 @@
 #define LED_BANK                        INTEGRATOR_DBG_LEDS
 
 /*
- *  Memory definitions - run uHAL out of SSRAM.
- *
- */
-#define uHAL_MEMORY_SIZE                INTEGRATOR_SSRAM_SIZE
-
-/*
- *  Clean base - dummy
- *
- */
-#define CLEAN_BASE                      INTEGRATOR_BOOT_ROM_HI
-
-/*
  *  Timer definitions
  *
  *  Only use timer 1 & 2
  *  (both run at 24MHz and will need the clock divider set to 16).
  *
- *  Timer 0 runs at bus frequency and therefore could vary and currently
- *  uHAL can't handle that.
- *
+ *  Timer 0 runs at bus frequency
  */
 
 #define INTEGRATOR_TIMER0_BASE          INTEGRATOR_CT_BASE
 #define INTEGRATOR_TIMER1_BASE          (INTEGRATOR_CT_BASE + 0x100)
 #define INTEGRATOR_TIMER2_BASE          (INTEGRATOR_CT_BASE + 0x200)
 
-#define MAX_TIMER                       2
-#define MAX_PERIOD                      699050
 #define TICKS_PER_uSEC                  24
 
 /*
@@ -437,14 +406,9 @@
  *
  */
 #define mSEC_1                          1000
-#define mSEC_5                          (mSEC_1 * 5)
 #define mSEC_10                         (mSEC_1 * 10)
-#define mSEC_25                         (mSEC_1 * 25)
-#define SEC_1                           (mSEC_1 * 1000)
 
 #define INTEGRATOR_CSR_BASE             0x10000000
 #define INTEGRATOR_CSR_SIZE             0x10000000
 
 #endif
-
-/* 	END */

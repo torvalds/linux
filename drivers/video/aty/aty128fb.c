@@ -52,7 +52,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -1802,6 +1801,7 @@ static void aty128_bl_set_power(struct fb_info *info, int power)
 
 static void aty128_bl_init(struct aty128fb_par *par)
 {
+	struct backlight_properties props;
 	struct fb_info *info = pci_get_drvdata(par->pdev);
 	struct backlight_device *bd;
 	char name[12];
@@ -1817,7 +1817,10 @@ static void aty128_bl_init(struct aty128fb_par *par)
 
 	snprintf(name, sizeof(name), "aty128bl%d", info->node);
 
-	bd = backlight_device_register(name, info->dev, par, &aty128_bl_data);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
+	bd = backlight_device_register(name, info->dev, par, &aty128_bl_data,
+				       &props);
 	if (IS_ERR(bd)) {
 		info->bl_dev = NULL;
 		printk(KERN_WARNING "aty128: Backlight registration failed\n");
@@ -1829,7 +1832,6 @@ static void aty128_bl_init(struct aty128fb_par *par)
 		 63 * FB_BACKLIGHT_MAX / MAX_LEVEL,
 		219 * FB_BACKLIGHT_MAX / MAX_LEVEL);
 
-	bd->props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
 	bd->props.brightness = bd->props.max_brightness;
 	bd->props.power = FB_BLANK_UNBLANK;
 	backlight_update_status(bd);
@@ -1931,22 +1933,22 @@ static int __devinit aty128_init(struct pci_dev *pdev, const struct pci_device_i
 			 * PowerMac2,2 summer 2000 iMacs
 			 * PowerMac4,1 january 2001 iMacs "flower power"
 			 */
-			if (machine_is_compatible("PowerMac2,1") ||
-			    machine_is_compatible("PowerMac2,2") ||
-			    machine_is_compatible("PowerMac4,1"))
+			if (of_machine_is_compatible("PowerMac2,1") ||
+			    of_machine_is_compatible("PowerMac2,2") ||
+			    of_machine_is_compatible("PowerMac4,1"))
 				default_vmode = VMODE_1024_768_75;
 
 			/* iBook SE */
-			if (machine_is_compatible("PowerBook2,2"))
+			if (of_machine_is_compatible("PowerBook2,2"))
 				default_vmode = VMODE_800_600_60;
 
 			/* PowerBook Firewire (Pismo), iBook Dual USB */
-			if (machine_is_compatible("PowerBook3,1") ||
-			    machine_is_compatible("PowerBook4,1"))
+			if (of_machine_is_compatible("PowerBook3,1") ||
+			    of_machine_is_compatible("PowerBook4,1"))
 				default_vmode = VMODE_1024_768_60;
 
 			/* PowerBook Titanium */
-			if (machine_is_compatible("PowerBook3,2"))
+			if (of_machine_is_compatible("PowerBook3,2"))
 				default_vmode = VMODE_1152_768_60;
 	
 			if (default_cmode > 16) 

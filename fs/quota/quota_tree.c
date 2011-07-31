@@ -60,9 +60,16 @@ static ssize_t read_blk(struct qtree_mem_dqinfo *info, uint blk, char *buf)
 static ssize_t write_blk(struct qtree_mem_dqinfo *info, uint blk, char *buf)
 {
 	struct super_block *sb = info->dqi_sb;
+	ssize_t ret;
 
-	return sb->s_op->quota_write(sb, info->dqi_type, buf,
+	ret = sb->s_op->quota_write(sb, info->dqi_type, buf,
 	       info->dqi_usable_bs, blk << info->dqi_blocksize_bits);
+	if (ret != info->dqi_usable_bs) {
+		quota_error(sb, "dquota write failed");
+		if (ret >= 0)
+			ret = -EIO;
+	}
+	return ret;
 }
 
 /* Remove empty block from list and return it */
@@ -152,9 +159,8 @@ static int remove_free_dqentry(struct qtree_mem_dqinfo *info, char *buf,
 	dh->dqdh_next_free = dh->dqdh_prev_free = cpu_to_le32(0);
 	/* No matter whether write succeeds block is out of list */
 	if (write_blk(info, blk, buf) < 0)
-		printk(KERN_ERR
-		       "VFS: Can't write block (%u) with free entries.\n",
-		       blk);
+		quota_error(info->dqi_sb, "Can't write block (%u) "
+			    "with free entries", blk);
 	return 0;
 out_buf:
 	kfree(tmpbuf);
@@ -244,9 +250,8 @@ static uint find_free_dqentry(struct qtree_mem_dqinfo *info,
 	if (le16_to_cpu(dh->dqdh_entries) + 1 >= qtree_dqstr_in_blk(info)) {
 		*err = remove_free_dqentry(info, buf, blk);
 		if (*err < 0) {
-			printk(KERN_ERR "VFS: find_free_dqentry(): Can't "
-			       "remove block (%u) from entry free list.\n",
-			       blk);
+			quota_error(dquot->dq_sb, "Can't remove block (%u) "
+				    "from entry free list", blk);
 			goto out_buf;
 		}
 	}
@@ -260,16 +265,15 @@ static uint find_free_dqentry(struct qtree_mem_dqinfo *info,
 	}
 #ifdef __QUOTA_QT_PARANOIA
 	if (i == qtree_dqstr_in_blk(info)) {
-		printk(KERN_ERR "VFS: find_free_dqentry(): Data block full "
-				"but it shouldn't.\n");
+		quota_error(dquot->dq_sb, "Data block full but it shouldn't");
 		*err = -EIO;
 		goto out_buf;
 	}
 #endif
 	*err = write_blk(info, blk, buf);
 	if (*err < 0) {
-		printk(KERN_ERR "VFS: find_free_dqentry(): Can't write quota "
-				"data block %u.\n", blk);
+		quota_error(dquot->dq_sb, "Can't write quota data block %u",
+			    blk);
 		goto out_buf;
 	}
 	dquot->dq_off = (blk << info->dqi_blocksize_bits) +
@@ -303,8 +307,8 @@ static int do_insert_tree(struct qtree_mem_dqinfo *info, struct dquot *dquot,
 	} else {
 		ret = read_blk(info, *treeblk, buf);
 		if (ret < 0) {
-			printk(KERN_ERR "VFS: Can't read tree quota block "
-					"%u.\n", *treeblk);
+			quota_error(dquot->dq_sb, "Can't read tree quota "
+				    "block %u", *treeblk);
 			goto out_buf;
 		}
 	}
@@ -315,9 +319,9 @@ static int do_insert_tree(struct qtree_mem_dqinfo *info, struct dquot *dquot,
 	if (depth == info->dqi_qtree_depth - 1) {
 #ifdef __QUOTA_QT_PARANOIA
 		if (newblk) {
-			printk(KERN_ERR "VFS: Inserting already present quota "
-					"entry (block %u).\n",
-			       le32_to_cpu(ref[get_index(info,
+			quota_error(dquot->dq_sb, "Inserting already present "
+				    "quota entry (block %u)",
+				    le32_to_cpu(ref[get_index(info,
 						dquot->dq_id, depth)]));
 			ret = -EIO;
 			goto out_buf;
@@ -365,8 +369,8 @@ int qtree_write_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 	if (!dquot->dq_off) {
 		ret = dq_insert_tree(info, dquot);
 		if (ret < 0) {
-			printk(KERN_ERR "VFS: Error %zd occurred while "
-					"creating quota.\n", ret);
+			quota_error(sb, "Error %zd occurred while creating "
+				    "quota", ret);
 			kfree(ddquot);
 			return ret;
 		}
@@ -377,14 +381,13 @@ int qtree_write_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 	ret = sb->s_op->quota_write(sb, type, ddquot, info->dqi_entry_size,
 				    dquot->dq_off);
 	if (ret != info->dqi_entry_size) {
-		printk(KERN_WARNING "VFS: dquota write failed on dev %s\n",
-		       sb->s_id);
+		quota_error(sb, "dquota write failed");
 		if (ret >= 0)
 			ret = -ENOSPC;
 	} else {
 		ret = 0;
 	}
-	dqstats.writes++;
+	dqstats_inc(DQST_WRITES);
 	kfree(ddquot);
 
 	return ret;
@@ -402,14 +405,15 @@ static int free_dqentry(struct qtree_mem_dqinfo *info, struct dquot *dquot,
 	if (!buf)
 		return -ENOMEM;
 	if (dquot->dq_off >> info->dqi_blocksize_bits != blk) {
-		printk(KERN_ERR "VFS: Quota structure has offset to other "
-		  "block (%u) than it should (%u).\n", blk,
-		  (uint)(dquot->dq_off >> info->dqi_blocksize_bits));
+		quota_error(dquot->dq_sb, "Quota structure has offset to "
+			"other block (%u) than it should (%u)", blk,
+			(uint)(dquot->dq_off >> info->dqi_blocksize_bits));
 		goto out_buf;
 	}
 	ret = read_blk(info, blk, buf);
 	if (ret < 0) {
-		printk(KERN_ERR "VFS: Can't read quota data block %u\n", blk);
+		quota_error(dquot->dq_sb, "Can't read quota data block %u",
+			    blk);
 		goto out_buf;
 	}
 	dh = (struct qt_disk_dqdbheader *)buf;
@@ -419,8 +423,8 @@ static int free_dqentry(struct qtree_mem_dqinfo *info, struct dquot *dquot,
 		if (ret >= 0)
 			ret = put_free_dqblk(info, buf, blk);
 		if (ret < 0) {
-			printk(KERN_ERR "VFS: Can't move quota data block (%u) "
-			  "to free list.\n", blk);
+			quota_error(dquot->dq_sb, "Can't move quota data block "
+				    "(%u) to free list", blk);
 			goto out_buf;
 		}
 	} else {
@@ -432,15 +436,15 @@ static int free_dqentry(struct qtree_mem_dqinfo *info, struct dquot *dquot,
 			/* Insert will write block itself */
 			ret = insert_free_dqentry(info, buf, blk);
 			if (ret < 0) {
-				printk(KERN_ERR "VFS: Can't insert quota data "
-				       "block (%u) to free entry list.\n", blk);
+				quota_error(dquot->dq_sb, "Can't insert quota "
+				    "data block (%u) to free entry list", blk);
 				goto out_buf;
 			}
 		} else {
 			ret = write_blk(info, blk, buf);
 			if (ret < 0) {
-				printk(KERN_ERR "VFS: Can't write quota data "
-				  "block %u\n", blk);
+				quota_error(dquot->dq_sb, "Can't write quota "
+					    "data block %u", blk);
 				goto out_buf;
 			}
 		}
@@ -464,7 +468,8 @@ static int remove_tree(struct qtree_mem_dqinfo *info, struct dquot *dquot,
 		return -ENOMEM;
 	ret = read_blk(info, *blk, buf);
 	if (ret < 0) {
-		printk(KERN_ERR "VFS: Can't read quota data block %u\n", *blk);
+		quota_error(dquot->dq_sb, "Can't read quota data "
+			    "block %u", blk);
 		goto out_buf;
 	}
 	newblk = le32_to_cpu(ref[get_index(info, dquot->dq_id, depth)]);
@@ -488,8 +493,8 @@ static int remove_tree(struct qtree_mem_dqinfo *info, struct dquot *dquot,
 		} else {
 			ret = write_blk(info, *blk, buf);
 			if (ret < 0)
-				printk(KERN_ERR "VFS: Can't write quota tree "
-				  "block %u.\n", *blk);
+				quota_error(dquot->dq_sb, "Can't write quota "
+					    "tree block %u", blk);
 		}
 	}
 out_buf:
@@ -521,7 +526,8 @@ static loff_t find_block_dqentry(struct qtree_mem_dqinfo *info,
 		return -ENOMEM;
 	ret = read_blk(info, blk, buf);
 	if (ret < 0) {
-		printk(KERN_ERR "VFS: Can't read quota tree block %u.\n", blk);
+		quota_error(dquot->dq_sb, "Can't read quota tree "
+			    "block %u", blk);
 		goto out_buf;
 	}
 	ddquot = buf + sizeof(struct qt_disk_dqdbheader);
@@ -531,8 +537,8 @@ static loff_t find_block_dqentry(struct qtree_mem_dqinfo *info,
 		ddquot += info->dqi_entry_size;
 	}
 	if (i == qtree_dqstr_in_blk(info)) {
-		printk(KERN_ERR "VFS: Quota for id %u referenced "
-		  "but not present.\n", dquot->dq_id);
+		quota_error(dquot->dq_sb, "Quota for id %u referenced "
+			    "but not present", dquot->dq_id);
 		ret = -EIO;
 		goto out_buf;
 	} else {
@@ -556,7 +562,8 @@ static loff_t find_tree_dqentry(struct qtree_mem_dqinfo *info,
 		return -ENOMEM;
 	ret = read_blk(info, blk, buf);
 	if (ret < 0) {
-		printk(KERN_ERR "VFS: Can't read quota tree block %u.\n", blk);
+		quota_error(dquot->dq_sb, "Can't read quota tree block %u",
+			    blk);
 		goto out_buf;
 	}
 	ret = 0;
@@ -590,7 +597,7 @@ int qtree_read_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 #ifdef __QUOTA_QT_PARANOIA
 	/* Invalidated quota? */
 	if (!sb_dqopt(dquot->dq_sb)->files[type]) {
-		printk(KERN_ERR "VFS: Quota invalidated while reading!\n");
+		quota_error(sb, "Quota invalidated while reading!");
 		return -EIO;
 	}
 #endif
@@ -599,8 +606,8 @@ int qtree_read_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 		offset = find_dqentry(info, dquot);
 		if (offset <= 0) {	/* Entry not present? */
 			if (offset < 0)
-				printk(KERN_ERR "VFS: Can't read quota "
-				  "structure for id %u.\n", dquot->dq_id);
+				quota_error(sb, "Can't read quota structure "
+					    "for id %u", dquot->dq_id);
 			dquot->dq_off = 0;
 			set_bit(DQ_FAKE_B, &dquot->dq_flags);
 			memset(&dquot->dq_dqb, 0, sizeof(struct mem_dqblk));
@@ -617,8 +624,8 @@ int qtree_read_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 	if (ret != info->dqi_entry_size) {
 		if (ret >= 0)
 			ret = -EIO;
-		printk(KERN_ERR "VFS: Error while reading quota "
-				"structure for id %u.\n", dquot->dq_id);
+		quota_error(sb, "Error while reading quota structure for id %u",
+			    dquot->dq_id);
 		set_bit(DQ_FAKE_B, &dquot->dq_flags);
 		memset(&dquot->dq_dqb, 0, sizeof(struct mem_dqblk));
 		kfree(ddquot);
@@ -634,7 +641,7 @@ int qtree_read_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 	spin_unlock(&dq_data_lock);
 	kfree(ddquot);
 out:
-	dqstats.reads++;
+	dqstats_inc(DQST_READS);
 	return ret;
 }
 EXPORT_SYMBOL(qtree_read_dquot);

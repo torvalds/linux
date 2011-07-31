@@ -20,6 +20,7 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/smp_lock.h>
+#include <linux/gfp.h>
 
 #include <asm/uaccess.h>
 
@@ -120,13 +121,17 @@ static int raw_release(struct inode *inode, struct file *filp)
 /*
  * Forward ioctls to the underlying block device.
  */
-static int
-raw_ioctl(struct inode *inode, struct file *filp,
-		  unsigned int command, unsigned long arg)
+static long
+raw_ioctl(struct file *filp, unsigned int command, unsigned long arg)
 {
 	struct block_device *bdev = filp->private_data;
+	int ret;
 
-	return blkdev_ioctl(bdev, 0, command, arg);
+	lock_kernel();
+	ret = blkdev_ioctl(bdev, 0, command, arg);
+	unlock_kernel();
+
+	return ret;
 }
 
 static void bind_device(struct raw_config_request *rq)
@@ -140,13 +145,14 @@ static void bind_device(struct raw_config_request *rq)
  * Deal with ioctls against the raw-device control interface, to bind
  * and unbind other raw devices.
  */
-static int raw_ctl_ioctl(struct inode *inode, struct file *filp,
-			unsigned int command, unsigned long arg)
+static long raw_ctl_ioctl(struct file *filp, unsigned int command,
+			  unsigned long arg)
 {
 	struct raw_config_request rq;
 	struct raw_device_data *rawdev;
 	int err = 0;
 
+	lock_kernel();
 	switch (command) {
 	case RAW_SETBIND:
 	case RAW_GETBIND:
@@ -239,24 +245,26 @@ static int raw_ctl_ioctl(struct inode *inode, struct file *filp,
 		break;
 	}
 out:
+	unlock_kernel();
 	return err;
 }
 
 static const struct file_operations raw_fops = {
-	.read	=	do_sync_read,
-	.aio_read = 	generic_file_aio_read,
-	.write	=	do_sync_write,
-	.aio_write =	blkdev_aio_write,
-	.open	=	raw_open,
-	.release=	raw_release,
-	.ioctl	=	raw_ioctl,
-	.owner	=	THIS_MODULE,
+	.read		= do_sync_read,
+	.aio_read	= generic_file_aio_read,
+	.write		= do_sync_write,
+	.aio_write	= blkdev_aio_write,
+	.fsync		= blkdev_fsync,
+	.open		= raw_open,
+	.release	= raw_release,
+	.unlocked_ioctl = raw_ioctl,
+	.owner		= THIS_MODULE,
 };
 
 static const struct file_operations raw_ctl_fops = {
-	.ioctl	=	raw_ctl_ioctl,
-	.open	=	raw_open,
-	.owner	=	THIS_MODULE,
+	.unlocked_ioctl = raw_ctl_ioctl,
+	.open		= raw_open,
+	.owner		= THIS_MODULE,
 };
 
 static struct cdev raw_cdev;

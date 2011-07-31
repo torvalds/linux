@@ -43,6 +43,9 @@ gzip=.gz
 # cross-compilation prefix
 CROSS=
 
+# mkimage wrapper script
+MKIMAGE=$srctree/scripts/mkuboot.sh
+
 # directory for object and other files used by this script
 object=arch/powerpc/boot
 objbin=$object
@@ -146,6 +149,10 @@ pseries)
     platformo=$object/of.o
     link_address='0x4000000'
     ;;
+maple)
+    platformo=$object/of.o
+    link_address='0x400000'
+    ;;
 pmac|chrp)
     platformo=$object/of.o
     ;;
@@ -230,6 +237,13 @@ xpedite52*)
     link_address='0x1400000'
     platformo=$object/cuboot-85xx.o
     ;;
+gamecube|wii)
+    link_address='0x600000'
+    platformo="$object/$platform-head.o $object/$platform.o"
+    ;;
+treeboot-iss4xx-mpic)
+    platformo="$object/treeboot-iss4xx.o"
+    ;;
 esac
 
 vmz="$tmpdir/`basename \"$kernel\"`.$ext"
@@ -263,7 +277,7 @@ membase=`${CROSS}objdump -p "$kernel" | grep -m 1 LOAD | awk '{print $7}'`
 case "$platform" in
 uboot)
     rm -f "$ofile"
-    mkimage -A ppc -O linux -T kernel -C gzip -a $membase -e $membase \
+    ${MKIMAGE} -A ppc -O linux -T kernel -C gzip -a $membase -e $membase \
 	$uboot_version -d "$vmz" "$ofile"
     if [ -z "$cacheit" ]; then
 	rm -f "$vmz"
@@ -314,7 +328,7 @@ fi
 
 # post-processing needed for some platforms
 case "$platform" in
-pseries|chrp)
+pseries|chrp|maple)
     $objbin/addnote "$ofile"
     ;;
 coff)
@@ -323,7 +337,7 @@ coff)
     ;;
 cuboot*)
     gzip -f -9 "$ofile"
-    mkimage -A ppc -O linux -T kernel -C gzip -a "$base" -e "$entry" \
+    ${MKIMAGE} -A ppc -O linux -T kernel -C gzip -a "$base" -e "$entry" \
             $uboot_version -d "$ofile".gz "$ofile"
     ;;
 treeboot*)

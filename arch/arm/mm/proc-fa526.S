@@ -39,17 +39,13 @@ ENTRY(cpu_fa526_proc_init)
  * cpu_fa526_proc_fin()
  */
 ENTRY(cpu_fa526_proc_fin)
-	stmfd	sp!, {lr}
-	mov	ip, #PSR_F_BIT | PSR_I_BIT | SVC_MODE
-	msr	cpsr_c, ip
-	bl	fa_flush_kern_cache_all
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x1000			@ ...i............
 	bic	r0, r0, #0x000e			@ ............wca.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
 	nop
 	nop
-	ldmfd	sp!, {pc}
+	mov	pc, lr
 
 /*
  * cpu_fa526_reset(loc)

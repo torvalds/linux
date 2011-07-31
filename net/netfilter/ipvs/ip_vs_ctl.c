@@ -31,6 +31,7 @@
 #include <linux/workqueue.h>
 #include <linux/swap.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
@@ -1706,12 +1707,12 @@ static struct ctl_table vs_vars[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 const struct ctl_path net_vs_ctl_path[] = {
-	{ .procname = "net", .ctl_name = CTL_NET, },
-	{ .procname = "ipv4", .ctl_name = NET_IPV4, },
+	{ .procname = "net", },
+	{ .procname = "ipv4", },
 	{ .procname = "vs", },
 	{ }
 };
@@ -1843,7 +1844,7 @@ static int ip_vs_info_seq_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN) {
 		seq_printf(seq,
 			"IP Virtual Server version %d.%d.%d (size=%d)\n",
-			NVERSION(IP_VS_VERSION_CODE), IP_VS_CONN_TAB_SIZE);
+			NVERSION(IP_VS_VERSION_CODE), ip_vs_conn_tab_size);
 		seq_puts(seq,
 			 "Prot LocalAddress:Port Scheduler Flags\n");
 		seq_puts(seq,
@@ -1863,14 +1864,16 @@ static int ip_vs_info_seq_show(struct seq_file *seq, void *v)
 					   svc->scheduler->name);
 			else
 #endif
-				seq_printf(seq, "%s  %08X:%04X %s ",
+				seq_printf(seq, "%s  %08X:%04X %s %s ",
 					   ip_vs_proto_name(svc->protocol),
 					   ntohl(svc->addr.ip),
 					   ntohs(svc->port),
-					   svc->scheduler->name);
+					   svc->scheduler->name,
+					   (svc->flags & IP_VS_SVC_F_ONEPACKET)?"ops ":"");
 		} else {
-			seq_printf(seq, "FWM  %08X %s ",
-				   svc->fwmark, svc->scheduler->name);
+			seq_printf(seq, "FWM  %08X %s %s",
+				   svc->fwmark, svc->scheduler->name,
+				   (svc->flags & IP_VS_SVC_F_ONEPACKET)?"ops ":"");
 		}
 
 		if (svc->flags & IP_VS_SVC_F_PERSISTENT)
@@ -2077,6 +2080,10 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
+	if (cmd < IP_VS_BASE_CTL || cmd > IP_VS_SO_SET_MAX)
+		return -EINVAL;
+	if (len < 0 || len >  MAX_ARG_LEN)
+		return -EINVAL;
 	if (len != set_arglen[SET_CMDID(cmd)]) {
 		pr_err("set_ctl: len %u != %u\n",
 		       len, set_arglen[SET_CMDID(cmd)]);
@@ -2128,8 +2135,9 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 		}
 	}
 
-	/* Check for valid protocol: TCP or UDP, even for fwmark!=0 */
-	if (usvc.protocol != IPPROTO_TCP && usvc.protocol != IPPROTO_UDP) {
+	/* Check for valid protocol: TCP or UDP or SCTP, even for fwmark!=0 */
+	if (usvc.protocol != IPPROTO_TCP && usvc.protocol != IPPROTO_UDP &&
+	    usvc.protocol != IPPROTO_SCTP) {
 		pr_err("set_ctl: invalid protocol: %d %pI4:%d %s\n",
 		       usvc.protocol, &usvc.addr.ip,
 		       ntohs(usvc.port), usvc.sched_name);
@@ -2352,9 +2360,13 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 {
 	unsigned char arg[128];
 	int ret = 0;
+	unsigned int copylen;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
+
+	if (cmd < IP_VS_BASE_CTL || cmd > IP_VS_SO_GET_MAX)
+		return -EINVAL;
 
 	if (*len < get_arglen[GET_CMDID(cmd)]) {
 		pr_err("get_ctl: len %u < %u\n",
@@ -2362,7 +2374,11 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 		return -EINVAL;
 	}
 
-	if (copy_from_user(arg, user, get_arglen[GET_CMDID(cmd)]) != 0)
+	copylen = get_arglen[GET_CMDID(cmd)];
+	if (copylen > 128)
+		return -EINVAL;
+
+	if (copy_from_user(arg, user, copylen) != 0)
 		return -EFAULT;
 
 	if (mutex_lock_interruptible(&__ip_vs_mutex))
@@ -2374,7 +2390,7 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 		char buf[64];
 
 		sprintf(buf, "IP Virtual Server version %d.%d.%d (size=%d)",
-			NVERSION(IP_VS_VERSION_CODE), IP_VS_CONN_TAB_SIZE);
+			NVERSION(IP_VS_VERSION_CODE), ip_vs_conn_tab_size);
 		if (copy_to_user(user, buf, strlen(buf)+1) != 0) {
 			ret = -EFAULT;
 			goto out;
@@ -2387,7 +2403,7 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 	{
 		struct ip_vs_getinfo info;
 		info.version = IP_VS_VERSION_CODE;
-		info.size = IP_VS_CONN_TAB_SIZE;
+		info.size = ip_vs_conn_tab_size;
 		info.num_services = ip_vs_num_services;
 		if (copy_to_user(user, &info, sizeof(info)) != 0)
 			ret = -EFAULT;
@@ -2714,6 +2730,8 @@ static int ip_vs_genl_parse_service(struct ip_vs_service_user_kern *usvc,
 	if (!(nla_af && (nla_fwmark || (nla_port && nla_protocol && nla_addr))))
 		return -EINVAL;
 
+	memset(usvc, 0, sizeof(*usvc));
+
 	usvc->af = nla_get_u16(nla_af);
 #ifdef CONFIG_IP_VS_IPV6
 	if (usvc->af != AF_INET && usvc->af != AF_INET6)
@@ -2900,6 +2918,8 @@ static int ip_vs_genl_parse_dest(struct ip_vs_dest_user_kern *udest,
 
 	if (!(nla_addr && nla_port))
 		return -EINVAL;
+
+	memset(udest, 0, sizeof(*udest));
 
 	nla_memcpy(&udest->addr, nla_addr, sizeof(udest->addr));
 	udest->port = nla_get_u16(nla_port);
@@ -3227,7 +3247,7 @@ static int ip_vs_genl_get_cmd(struct sk_buff *skb, struct genl_info *info)
 	case IPVS_CMD_GET_INFO:
 		NLA_PUT_U32(msg, IPVS_INFO_ATTR_VERSION, IP_VS_VERSION_CODE);
 		NLA_PUT_U32(msg, IPVS_INFO_ATTR_CONN_TAB_SIZE,
-			    IP_VS_CONN_TAB_SIZE);
+			    ip_vs_conn_tab_size);
 		break;
 	}
 

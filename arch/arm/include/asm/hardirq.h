@@ -12,7 +12,9 @@ typedef struct {
 
 #include <linux/irq_cpustat.h>	/* Standard mappings for irq_cpustat_t above */
 
-#if NR_IRQS > 256
+#if NR_IRQS > 512
+#define HARDIRQ_BITS	10
+#elif NR_IRQS > 256
 #define HARDIRQ_BITS	9
 #else
 #define HARDIRQ_BITS	8

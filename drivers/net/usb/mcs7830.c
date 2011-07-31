@@ -1,12 +1,26 @@
 /*
- * MosChips MCS7830 based USB 2.0 Ethernet Devices
+ * MOSCHIP MCS7830 based USB 2.0 Ethernet Devices
  *
  * based on usbnet.c, asix.c and the vendor provided mcs7830 driver
  *
+ * Copyright (C) 2010 Andreas Mohr <andi@lisas.de>
  * Copyright (C) 2006 Arnd Bergmann <arnd@arndb.de>
  * Copyright (C) 2003-2005 David Hollis <dhollis@davehollis.com>
  * Copyright (C) 2005 Phil Chang <pchang23@sbcglobal.net>
  * Copyright (c) 2002-2003 TiVo Inc.
+ *
+ * Definitions gathered from MOSCHIP, Data Sheet_7830DA.pdf (thanks!).
+ *
+ * TODO:
+ * - support HIF_REG_CONFIG_SLEEPMODE/HIF_REG_CONFIG_TXENABLE (via autopm?)
+ * - implement ethtool_ops get_pauseparam/set_pauseparam
+ *   via HIF_REG_PAUSE_THRESHOLD (>= revision C only!)
+ * - implement get_eeprom/[set_eeprom]
+ * - switch PHY on/off on ifup/ifdown (perhaps in usbnet.c, via MII)
+ * - mcs7830_get_regs() handling is weird: for rev 2 we return 32 regs,
+ *   can access only ~ 24, remaining user buffer is uninitialized garbage
+ * - anything else?
+ *
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +44,7 @@
 #include <linux/mii.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/usb/usbnet.h>
 
@@ -55,7 +70,7 @@
 				 ADVERTISE_100HALF | ADVERTISE_10FULL | \
 				 ADVERTISE_10HALF | ADVERTISE_CSMA)
 
-/* HIF_REG_XX coressponding index value */
+/* HIF_REG_XX corresponding index value */
 enum {
 	HIF_REG_MULTICAST_HASH			= 0x00,
 	HIF_REG_PACKET_GAP1			= 0x08,
@@ -69,6 +84,7 @@ enum {
 	   HIF_REG_PHY_CMD2_PEND_FLAG_BIT	= 0x80,
 	   HIF_REG_PHY_CMD2_READY_FLAG_BIT	= 0x40,
 	HIF_REG_CONFIG				= 0x0e,
+	/* hmm, spec sez: "R/W", "Except bit 3" (likely TXENABLE). */
 	   HIF_REG_CONFIG_CFG			= 0x80,
 	   HIF_REG_CONFIG_SPEED100		= 0x40,
 	   HIF_REG_CONFIG_FULLDUPLEX_ENABLE	= 0x20,
@@ -76,11 +92,22 @@ enum {
 	   HIF_REG_CONFIG_TXENABLE		= 0x08,
 	   HIF_REG_CONFIG_SLEEPMODE		= 0x04,
 	   HIF_REG_CONFIG_ALLMULTICAST		= 0x02,
-	   HIF_REG_CONFIG_PROMISCIOUS		= 0x01,
+	   HIF_REG_CONFIG_PROMISCUOUS		= 0x01,
 	HIF_REG_ETHERNET_ADDR			= 0x0f,
-	HIF_REG_22				= 0x15,
+	HIF_REG_FRAME_DROP_COUNTER		= 0x15, /* 0..ff; reset: 0 */
 	HIF_REG_PAUSE_THRESHOLD			= 0x16,
 	   HIF_REG_PAUSE_THRESHOLD_DEFAULT	= 0,
+};
+
+/* Trailing status byte in Ethernet Rx frame */
+enum {
+	MCS7830_RX_SHORT_FRAME		= 0x01, /* < 64 bytes */
+	MCS7830_RX_LENGTH_ERROR		= 0x02, /* framelen != Ethernet length field */
+	MCS7830_RX_ALIGNMENT_ERROR	= 0x04, /* non-even number of nibbles */
+	MCS7830_RX_CRC_ERROR		= 0x08,
+	MCS7830_RX_LARGE_FRAME		= 0x10, /* > 1518 bytes */
+	MCS7830_RX_FRAME_CORRECT	= 0x20, /* frame is correct */
+	/* [7:6] reserved */
 };
 
 struct mcs7830_data {
@@ -109,17 +136,15 @@ static int mcs7830_get_reg(struct usbnet *dev, u16 index, u16 size, void *data)
 	return ret;
 }
 
-static int mcs7830_set_reg(struct usbnet *dev, u16 index, u16 size, void *data)
+static int mcs7830_set_reg(struct usbnet *dev, u16 index, u16 size, const void *data)
 {
 	struct usb_device *xdev = dev->udev;
 	int ret;
 	void *buffer;
 
-	buffer = kmalloc(size, GFP_NOIO);
+	buffer = kmemdup(data, size, GFP_NOIO);
 	if (buffer == NULL)
 		return -ENOMEM;
-
-	memcpy(buffer, data, size);
 
 	ret = usb_control_msg(xdev, usb_sndctrlpipe(xdev, 0), MCS7830_WR_BREQ,
 			      MCS7830_WR_BMREQ, 0x0000, index, buffer,
@@ -183,13 +208,43 @@ out:
 	usb_free_urb(urb);
 }
 
-static int mcs7830_get_address(struct usbnet *dev)
+static int mcs7830_hif_get_mac_address(struct usbnet *dev, unsigned char *addr)
 {
-	int ret;
-	ret = mcs7830_get_reg(dev, HIF_REG_ETHERNET_ADDR, ETH_ALEN,
-				   dev->net->dev_addr);
+	int ret = mcs7830_get_reg(dev, HIF_REG_ETHERNET_ADDR, ETH_ALEN, addr);
 	if (ret < 0)
 		return ret;
+	return 0;
+}
+
+static int mcs7830_hif_set_mac_address(struct usbnet *dev, unsigned char *addr)
+{
+	int ret = mcs7830_set_reg(dev, HIF_REG_ETHERNET_ADDR, ETH_ALEN, addr);
+
+	if (ret < 0)
+		return ret;
+	return 0;
+}
+
+static int mcs7830_set_mac_address(struct net_device *netdev, void *p)
+{
+	int ret;
+	struct usbnet *dev = netdev_priv(netdev);
+	struct sockaddr *addr = p;
+
+	if (netif_running(netdev))
+		return -EBUSY;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
+
+	ret = mcs7830_hif_set_mac_address(dev, addr->sa_data);
+
+	if (ret < 0)
+		return ret;
+
+	/* it worked --> adopt it on netdev side */
+	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+
 	return 0;
 }
 
@@ -307,7 +362,7 @@ static int mcs7830_get_rev(struct usbnet *dev)
 {
 	u8 dummy[2];
 	int ret;
-	ret = mcs7830_get_reg(dev, HIF_REG_22, 2, dummy);
+	ret = mcs7830_get_reg(dev, HIF_REG_FRAME_DROP_COUNTER, 2, dummy);
 	if (ret > 0)
 		return 2; /* Rev C or later */
 	return 1; /* earlier revision */
@@ -331,33 +386,6 @@ static void mcs7830_rev_C_fixup(struct usbnet *dev)
 	}
 }
 
-static int mcs7830_init_dev(struct usbnet *dev)
-{
-	int ret;
-	int retry;
-
-	/* Read MAC address from EEPROM */
-	ret = -EINVAL;
-	for (retry = 0; retry < 5 && ret; retry++)
-		ret = mcs7830_get_address(dev);
-	if (ret) {
-		dev_warn(&dev->udev->dev, "Cannot read MAC address\n");
-		goto out;
-	}
-
-	/* Set up PHY */
-	ret = mcs7830_set_autoneg(dev, 0);
-	if (ret) {
-		dev_info(&dev->udev->dev, "Cannot set autoneg\n");
-		goto out;
-	}
-
-	mcs7830_rev_C_fixup(dev);
-	ret = 0;
-out:
-	return ret;
-}
-
 static int mcs7830_mdio_read(struct net_device *netdev, int phy_id,
 			     int location)
 {
@@ -378,11 +406,33 @@ static int mcs7830_ioctl(struct net_device *net, struct ifreq *rq, int cmd)
 	return generic_mii_ioctl(&dev->mii, if_mii(rq), cmd, NULL);
 }
 
-/* credits go to asix_set_multicast */
-static void mcs7830_set_multicast(struct net_device *net)
+static inline struct mcs7830_data *mcs7830_get_data(struct usbnet *dev)
+{
+	return (struct mcs7830_data *)&dev->data;
+}
+
+static void mcs7830_hif_update_multicast_hash(struct usbnet *dev)
+{
+	struct mcs7830_data *data = mcs7830_get_data(dev);
+	mcs7830_set_reg_async(dev, HIF_REG_MULTICAST_HASH,
+				sizeof data->multi_filter,
+				data->multi_filter);
+}
+
+static void mcs7830_hif_update_config(struct usbnet *dev)
+{
+	/* implementation specific to data->config
+           (argument needs to be heap-based anyway - USB DMA!) */
+	struct mcs7830_data *data = mcs7830_get_data(dev);
+	mcs7830_set_reg_async(dev, HIF_REG_CONFIG, 1, &data->config);
+}
+
+static void mcs7830_data_set_multicast(struct net_device *net)
 {
 	struct usbnet *dev = netdev_priv(net);
-	struct mcs7830_data *data = (struct mcs7830_data *)&dev->data;
+	struct mcs7830_data *data = mcs7830_get_data(dev);
+
+	memset(data->multi_filter, 0, sizeof data->multi_filter);
 
 	data->config = HIF_REG_CONFIG_TXENABLE;
 
@@ -390,36 +440,64 @@ static void mcs7830_set_multicast(struct net_device *net)
 	data->config |= HIF_REG_CONFIG_ALLMULTICAST;
 
 	if (net->flags & IFF_PROMISC) {
-		data->config |= HIF_REG_CONFIG_PROMISCIOUS;
-	} else if (net->flags & IFF_ALLMULTI
-		   || net->mc_count > MCS7830_MAX_MCAST) {
+		data->config |= HIF_REG_CONFIG_PROMISCUOUS;
+	} else if (net->flags & IFF_ALLMULTI ||
+		   netdev_mc_count(net) > MCS7830_MAX_MCAST) {
 		data->config |= HIF_REG_CONFIG_ALLMULTICAST;
-	} else if (net->mc_count == 0) {
+	} else if (netdev_mc_empty(net)) {
 		/* just broadcast and directed */
 	} else {
 		/* We use the 20 byte dev->data
 		 * for our 8 byte filter buffer
 		 * to avoid allocating memory that
 		 * is tricky to free later */
-		struct dev_mc_list *mc_list = net->mc_list;
+		struct netdev_hw_addr *ha;
 		u32 crc_bits;
-		int i;
-
-		memset(data->multi_filter, 0, sizeof data->multi_filter);
 
 		/* Build the multicast hash filter. */
-		for (i = 0; i < net->mc_count; i++) {
-			crc_bits = ether_crc(ETH_ALEN, mc_list->dmi_addr) >> 26;
+		netdev_for_each_mc_addr(ha, net) {
+			crc_bits = ether_crc(ETH_ALEN, ha->addr) >> 26;
 			data->multi_filter[crc_bits >> 3] |= 1 << (crc_bits & 7);
-			mc_list = mc_list->next;
 		}
+	}
+}
 
-		mcs7830_set_reg_async(dev, HIF_REG_MULTICAST_HASH,
-				sizeof data->multi_filter,
-				data->multi_filter);
+static int mcs7830_apply_base_config(struct usbnet *dev)
+{
+	int ret;
+
+	/* re-configure known MAC (suspend case etc.) */
+	ret = mcs7830_hif_set_mac_address(dev, dev->net->dev_addr);
+	if (ret) {
+		dev_info(&dev->udev->dev, "Cannot set MAC address\n");
+		goto out;
 	}
 
-	mcs7830_set_reg_async(dev, HIF_REG_CONFIG, 1, &data->config);
+	/* Set up PHY */
+	ret = mcs7830_set_autoneg(dev, 0);
+	if (ret) {
+		dev_info(&dev->udev->dev, "Cannot set autoneg\n");
+		goto out;
+	}
+
+	mcs7830_hif_update_multicast_hash(dev);
+	mcs7830_hif_update_config(dev);
+
+	mcs7830_rev_C_fixup(dev);
+	ret = 0;
+out:
+	return ret;
+}
+
+/* credits go to asix_set_multicast */
+static void mcs7830_set_multicast(struct net_device *net)
+{
+	struct usbnet *dev = netdev_priv(net);
+
+	mcs7830_data_set_multicast(net);
+
+	mcs7830_hif_update_multicast_hash(dev);
+	mcs7830_hif_update_config(dev);
 }
 
 static int mcs7830_get_regs_len(struct net_device *net)
@@ -463,29 +541,6 @@ static const struct ethtool_ops mcs7830_ethtool_ops = {
 	.nway_reset		= usbnet_nway_reset,
 };
 
-static int mcs7830_set_mac_address(struct net_device *netdev, void *p)
-{
-	int ret;
-	struct usbnet *dev = netdev_priv(netdev);
-	struct sockaddr *addr = p;
-
-	if (netif_running(netdev))
-		return -EBUSY;
-
-	if (!is_valid_ether_addr(addr->sa_data))
-		return -EINVAL;
-
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
-
-	ret = mcs7830_set_reg(dev, HIF_REG_ETHERNET_ADDR, ETH_ALEN,
-			netdev->dev_addr);
-
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
 static const struct net_device_ops mcs7830_netdev_ops = {
 	.ndo_open		= usbnet_open,
 	.ndo_stop		= usbnet_stop,
@@ -495,21 +550,32 @@ static const struct net_device_ops mcs7830_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl 		= mcs7830_ioctl,
 	.ndo_set_multicast_list = mcs7830_set_multicast,
-	.ndo_set_mac_address	 = mcs7830_set_mac_address,
+	.ndo_set_mac_address	= mcs7830_set_mac_address,
 };
 
 static int mcs7830_bind(struct usbnet *dev, struct usb_interface *udev)
 {
 	struct net_device *net = dev->net;
 	int ret;
+	int retry;
 
-	ret = mcs7830_init_dev(dev);
+	/* Initial startup: Gather MAC address setting from EEPROM */
+	ret = -EINVAL;
+	for (retry = 0; retry < 5 && ret; retry++)
+		ret = mcs7830_hif_get_mac_address(dev, net->dev_addr);
+	if (ret) {
+		dev_warn(&dev->udev->dev, "Cannot read MAC address\n");
+		goto out;
+	}
+
+	mcs7830_data_set_multicast(net);
+
+	ret = mcs7830_apply_base_config(dev);
 	if (ret)
 		goto out;
 
 	net->ethtool_ops = &mcs7830_ethtool_ops;
 	net->netdev_ops = &mcs7830_netdev_ops;
-	mcs7830_set_multicast(net);
 
 	/* reserve space for the status byte on rx */
 	dev->rx_urb_size = ETH_FRAME_LEN + 1;
@@ -526,7 +592,7 @@ out:
 	return ret;
 }
 
-/* The chip always appends a status bytes that we need to strip */
+/* The chip always appends a status byte that we need to strip */
 static int mcs7830_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
 	u8 status;
@@ -539,8 +605,22 @@ static int mcs7830_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	skb_trim(skb, skb->len - 1);
 	status = skb->data[skb->len];
 
-	if (status != 0x20)
+	if (status != MCS7830_RX_FRAME_CORRECT) {
 		dev_dbg(&dev->udev->dev, "rx fixup status %x\n", status);
+
+		/* hmm, perhaps usbnet.c already sees a globally visible
+		   frame error and increments rx_errors on its own already? */
+		dev->net->stats.rx_errors++;
+
+		if (status &	(MCS7830_RX_SHORT_FRAME
+				|MCS7830_RX_LENGTH_ERROR
+				|MCS7830_RX_LARGE_FRAME))
+			dev->net->stats.rx_length_errors++;
+		if (status & MCS7830_RX_ALIGNMENT_ERROR)
+			dev->net->stats.rx_frame_errors++;
+		if (status & MCS7830_RX_CRC_ERROR)
+			dev->net->stats.rx_crc_errors++;
+	}
 
 	return skb->len > 0;
 }
@@ -580,6 +660,20 @@ static const struct usb_device_id products[] = {
 };
 MODULE_DEVICE_TABLE(usb, products);
 
+static int mcs7830_reset_resume (struct usb_interface *intf)
+{
+ 	/* YES, this function is successful enough that ethtool -d
+           does show same output pre-/post-suspend */
+
+	struct usbnet		*dev = usb_get_intfdata(intf);
+
+	mcs7830_apply_base_config(dev);
+
+	usbnet_resume(intf);
+
+	return 0;
+}
+
 static struct usb_driver mcs7830_driver = {
 	.name = driver_name,
 	.id_table = products,
@@ -587,6 +681,7 @@ static struct usb_driver mcs7830_driver = {
 	.disconnect = usbnet_disconnect,
 	.suspend = usbnet_suspend,
 	.resume = usbnet_resume,
+	.reset_resume = mcs7830_reset_resume,
 };
 
 static int __init mcs7830_init(void)

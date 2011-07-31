@@ -3,6 +3,7 @@
 
 #include <linux/swap.h>
 #include <linux/mempolicy.h>
+#include <linux/percpu_counter.h>
 
 /* inode in-kernel data */
 
@@ -23,7 +24,7 @@ struct shmem_inode_info {
 
 struct shmem_sb_info {
 	unsigned long max_blocks;   /* How many blocks are allowed */
-	unsigned long free_blocks;  /* How many are left for allocation */
+	struct percpu_counter used_blocks;  /* How many are allocated */
 	unsigned long max_inodes;   /* How many inodes are allowed */
 	unsigned long free_inodes;  /* How many are left for allocation */
 	spinlock_t stat_lock;	    /* Serialize shmem_sb_info changes */
@@ -40,21 +41,5 @@ static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
 
 extern int init_tmpfs(void);
 extern int shmem_fill_super(struct super_block *sb, void *data, int silent);
-
-#ifdef CONFIG_TMPFS_POSIX_ACL
-int shmem_check_acl(struct inode *, int);
-int shmem_acl_init(struct inode *, struct inode *);
-
-extern struct xattr_handler shmem_xattr_acl_access_handler;
-extern struct xattr_handler shmem_xattr_acl_default_handler;
-
-extern struct generic_acl_operations shmem_acl_ops;
-
-#else
-static inline int shmem_acl_init(struct inode *inode, struct inode *dir)
-{
-	return 0;
-}
-#endif  /* CONFIG_TMPFS_POSIX_ACL */
 
 #endif

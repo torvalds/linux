@@ -34,6 +34,7 @@
 
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/kfifo.h>
 
 #include "t3_cpl.h"
 #include "t3cdev.h"
@@ -52,7 +53,7 @@
 #define T3_MAX_PBL_SIZE 256
 #define T3_MAX_RQ_SIZE 1024
 #define T3_MAX_QP_DEPTH (T3_MAX_RQ_SIZE-1)
-#define T3_MAX_CQ_DEPTH 8192
+#define T3_MAX_CQ_DEPTH 65536
 #define T3_MAX_NUM_STAG (1<<15)
 #define T3_MAX_MR_SIZE 0x100000000ULL
 #define T3_PAGESIZE_MASK 0xffff000  /* 4KB-128MB */
@@ -70,18 +71,18 @@ struct cxio_hal_ctrl_qp {
 	wait_queue_head_t waitq;/* wait for RspQ/CQE msg */
 	union t3_wr *workq;	/* the work request queue */
 	dma_addr_t dma_addr;	/* pci bus address of the workq */
-	DECLARE_PCI_UNMAP_ADDR(mapping)
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 	void __iomem *doorbell;
 };
 
 struct cxio_hal_resource {
-	struct kfifo *tpt_fifo;
+	struct kfifo tpt_fifo;
 	spinlock_t tpt_fifo_lock;
-	struct kfifo *qpid_fifo;
+	struct kfifo qpid_fifo;
 	spinlock_t qpid_fifo_lock;
-	struct kfifo *cqid_fifo;
+	struct kfifo cqid_fifo;
 	spinlock_t cqid_fifo_lock;
-	struct kfifo *pdid_fifo;
+	struct kfifo pdid_fifo;
 	spinlock_t pdid_fifo_lock;
 };
 
@@ -156,7 +157,7 @@ int cxio_rdev_open(struct cxio_rdev *rdev);
 void cxio_rdev_close(struct cxio_rdev *rdev);
 int cxio_hal_cq_op(struct cxio_rdev *rdev, struct t3_cq *cq,
 		   enum t3_cq_opcode op, u32 credit);
-int cxio_create_cq(struct cxio_rdev *rdev, struct t3_cq *cq);
+int cxio_create_cq(struct cxio_rdev *rdev, struct t3_cq *cq, int kernel);
 int cxio_destroy_cq(struct cxio_rdev *rdev, struct t3_cq *cq);
 int cxio_resize_cq(struct cxio_rdev *rdev, struct t3_cq *cq);
 void cxio_release_ucontext(struct cxio_rdev *rdev, struct cxio_ucontext *uctx);

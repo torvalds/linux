@@ -31,8 +31,8 @@ extern int jffs2_acl_chmod(struct inode *);
 extern int jffs2_init_acl_pre(struct inode *, struct inode *, int *);
 extern int jffs2_init_acl_post(struct inode *);
 
-extern struct xattr_handler jffs2_acl_access_xattr_handler;
-extern struct xattr_handler jffs2_acl_default_xattr_handler;
+extern const struct xattr_handler jffs2_acl_access_xattr_handler;
+extern const struct xattr_handler jffs2_acl_default_xattr_handler;
 
 #else
 

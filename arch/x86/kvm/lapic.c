@@ -5,6 +5,7 @@
  * Copyright (C) 2006 Qumranet, Inc.
  * Copyright (C) 2007 Novell
  * Copyright (C) 2007 Intel
+ * Copyright 2009 Red Hat, Inc. and/or its affilates.
  *
  * Authors:
  *   Dor Laor <dor.laor@qumranet.com>
@@ -26,13 +27,13 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/math64.h>
+#include <linux/slab.h>
 #include <asm/processor.h>
 #include <asm/msr.h>
 #include <asm/page.h>
 #include <asm/current.h>
 #include <asm/apicdef.h>
 #include <asm/atomic.h>
-#include <asm/apicdef.h>
 #include "kvm_cache_regs.h"
 #include "irq.h"
 #include "trace.h"
@@ -328,7 +329,7 @@ int kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 		   "dest_mode 0x%x, short_hand 0x%x\n",
 		   target, source, dest, dest_mode, short_hand);
 
-	ASSERT(!target);
+	ASSERT(target);
 	switch (short_hand) {
 	case APIC_DEST_NOSHORT:
 		if (dest_mode == 0)
@@ -374,6 +375,12 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 		if (unlikely(!apic_enabled(apic)))
 			break;
 
+		if (trig_mode) {
+			apic_debug("level trig mode for vector %d", vector);
+			apic_set_vector(vector, apic->regs + APIC_TMR);
+		} else
+			apic_clear_vector(vector, apic->regs + APIC_TMR);
+
 		result = !apic_test_and_set_irr(vector, apic);
 		trace_kvm_apic_accept_irq(vcpu->vcpu_id, delivery_mode,
 					  trig_mode, vector, !result);
@@ -384,11 +391,6 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 			break;
 		}
 
-		if (trig_mode) {
-			apic_debug("level trig mode for vector %d", vector);
-			apic_set_vector(vector, apic->regs + APIC_TMR);
-		} else
-			apic_clear_vector(vector, apic->regs + APIC_TMR);
 		kvm_vcpu_kick(vcpu);
 		break;
 
@@ -471,11 +473,8 @@ static void apic_set_eoi(struct kvm_lapic *apic)
 		trigger_mode = IOAPIC_LEVEL_TRIG;
 	else
 		trigger_mode = IOAPIC_EDGE_TRIG;
-	if (!(apic_get_reg(apic, APIC_SPIV) & APIC_SPIV_DIRECTED_EOI)) {
-		mutex_lock(&apic->vcpu->kvm->irq_lock);
+	if (!(apic_get_reg(apic, APIC_SPIV) & APIC_SPIV_DIRECTED_EOI))
 		kvm_ioapic_update_eoi(apic->vcpu->kvm, vector, trigger_mode);
-		mutex_unlock(&apic->vcpu->kvm->irq_lock);
-	}
 }
 
 static void apic_send_ipi(struct kvm_lapic *apic)
@@ -504,9 +503,7 @@ static void apic_send_ipi(struct kvm_lapic *apic)
 		   irq.trig_mode, irq.level, irq.dest_mode, irq.delivery_mode,
 		   irq.vector);
 
-	mutex_lock(&apic->vcpu->kvm->irq_lock);
 	kvm_irq_delivery_to_apic(apic->vcpu->kvm, apic, &irq);
-	mutex_unlock(&apic->vcpu->kvm->irq_lock);
 }
 
 static u32 apic_get_tmcct(struct kvm_lapic *apic)
@@ -537,7 +534,7 @@ static void __report_tpr_access(struct kvm_lapic *apic, bool write)
 	struct kvm_vcpu *vcpu = apic->vcpu;
 	struct kvm_run *run = vcpu->run;
 
-	set_bit(KVM_REQ_REPORT_TPR_ACCESS, &vcpu->requests);
+	kvm_make_request(KVM_REQ_REPORT_TPR_ACCESS, vcpu);
 	run->tpr_access.rip = kvm_rip_read(vcpu);
 	run->tpr_access.is_write = write;
 }
@@ -1110,13 +1107,11 @@ int kvm_apic_accept_pic_intr(struct kvm_vcpu *vcpu)
 	u32 lvt0 = apic_get_reg(vcpu->arch.apic, APIC_LVT0);
 	int r = 0;
 
-	if (kvm_vcpu_is_bsp(vcpu)) {
-		if (!apic_hw_enabled(vcpu->arch.apic))
-			r = 1;
-		if ((lvt0 & APIC_LVT_MASKED) == 0 &&
-		    GET_APIC_DELIVERY_MODE(lvt0) == APIC_MODE_EXTINT)
-			r = 1;
-	}
+	if (!apic_hw_enabled(vcpu->arch.apic))
+		r = 1;
+	if ((lvt0 & APIC_LVT_MASKED) == 0 &&
+	    GET_APIC_DELIVERY_MODE(lvt0) == APIC_MODE_EXTINT)
+		r = 1;
 	return r;
 }
 
@@ -1156,6 +1151,7 @@ void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu)
 	hrtimer_cancel(&apic->lapic_timer.timer);
 	update_divide_count(apic);
 	start_apic_timer(apic);
+	apic->irr_pending = true;
 }
 
 void __kvm_migrate_apic_timer(struct kvm_vcpu *vcpu)
@@ -1244,6 +1240,37 @@ int kvm_x2apic_msr_read(struct kvm_vcpu *vcpu, u32 msr, u64 *data)
 	if (apic_reg_read(apic, reg, 4, &low))
 		return 1;
 	if (msr == 0x830)
+		apic_reg_read(apic, APIC_ICR2, 4, &high);
+
+	*data = (((u64)high) << 32) | low;
+
+	return 0;
+}
+
+int kvm_hv_vapic_msr_write(struct kvm_vcpu *vcpu, u32 reg, u64 data)
+{
+	struct kvm_lapic *apic = vcpu->arch.apic;
+
+	if (!irqchip_in_kernel(vcpu->kvm))
+		return 1;
+
+	/* if this is ICR write vector before command */
+	if (reg == APIC_ICR)
+		apic_reg_write(apic, APIC_ICR2, (u32)(data >> 32));
+	return apic_reg_write(apic, reg, (u32)data);
+}
+
+int kvm_hv_vapic_msr_read(struct kvm_vcpu *vcpu, u32 reg, u64 *data)
+{
+	struct kvm_lapic *apic = vcpu->arch.apic;
+	u32 low, high = 0;
+
+	if (!irqchip_in_kernel(vcpu->kvm))
+		return 1;
+
+	if (apic_reg_read(apic, reg, 4, &low))
+		return 1;
+	if (reg == APIC_ICR)
 		apic_reg_read(apic, APIC_ICR2, 4, &high);
 
 	*data = (((u64)high) << 32) | low;

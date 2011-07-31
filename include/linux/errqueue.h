@@ -3,8 +3,7 @@
 
 #include <linux/types.h>
 
-struct sock_extended_err
-{
+struct sock_extended_err {
 	__u32	ee_errno;	
 	__u8	ee_origin;
 	__u8	ee_type;
@@ -31,8 +30,7 @@ struct sock_extended_err
 
 #define SKB_EXT_ERR(skb) ((struct sock_exterr_skb *) ((skb)->cb))
 
-struct sock_exterr_skb
-{
+struct sock_exterr_skb {
 	union {
 		struct inet_skb_parm	h4;
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)

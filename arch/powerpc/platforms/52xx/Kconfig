@@ -62,3 +62,8 @@ config PPC_MPC5200_GPIO
 	select GENERIC_GPIO
 	help
 	  Enable gpiolib support for mpc5200 based boards
+
+config PPC_MPC5200_LPBFIFO
+	tristate "MPC5200 LocalPlus bus FIFO driver"
+	depends on PPC_MPC52xx
+	select PPC_BESTCOMM_GEN_BD

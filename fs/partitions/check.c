@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <linux/kmod.h>
 #include <linux/ctype.h>
 #include <linux/genhd.h>
@@ -37,6 +38,7 @@
 #include "efi.h"
 #include "karma.h"
 #include "sysv68.h"
+#include "cmdline.h"
 
 #ifdef CONFIG_BLK_DEV_MD
 extern void md_autodetect_dev(dev_t dev);
@@ -44,7 +46,10 @@ extern void md_autodetect_dev(dev_t dev);
 
 int warn_no_part = 1; /*This is ugly: should make genhd removable media aware*/
 
-static int (*check_part[])(struct parsed_partitions *, struct block_device *) = {
+static int (*check_part[])(struct parsed_partitions *) = {
+#ifdef CONFIG_CMDLINE_PARTITION
+	cmdline_partition,
+#endif
 	/*
 	 * Probe partition formats with tables at disk address 0
 	 * that also have an ADFS boot block at 0xdc0.
@@ -160,12 +165,19 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 	struct parsed_partitions *state;
 	int i, res, err;
 
-	state = kmalloc(sizeof(struct parsed_partitions), GFP_KERNEL);
+	state = kzalloc(sizeof(struct parsed_partitions), GFP_KERNEL);
 	if (!state)
 		return NULL;
+	state->pp_buf = (char *)__get_free_page(GFP_KERNEL);
+	if (!state->pp_buf) {
+		kfree(state);
+		return NULL;
+	}
+	state->pp_buf[0] = '\0';
 
+	state->bdev = bdev;
 	disk_name(hd, 0, state->name);
-	printk(KERN_INFO " %s:", state->name);
+	snprintf(state->pp_buf, PAGE_SIZE, " %s:", state->name);
 	if (isdigit(state->name[strlen(state->name)-1]))
 		sprintf(state->name, "p");
 
@@ -173,7 +185,7 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 	i = res = err = 0;
 	while (!res && check_part[i]) {
 		memset(&state->parts, 0, sizeof(state->parts));
-		res = check_part[i++](state, bdev);
+		res = check_part[i++](state);
 		if (res < 0) {
 			/* We have hit an I/O error which we don't report now.
 		 	* But record it, and let the others do their job.
@@ -183,15 +195,25 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 		}
 
 	}
-	if (res > 0)
+	if (res > 0) {
+		printk(KERN_INFO "%s", state->pp_buf);
+
+		free_page((unsigned long)state->pp_buf);
 		return state;
+	}
+	if (state->access_beyond_eod)
+		err = -ENOSPC;
 	if (err)
 	/* The partition is unrecognized. So report I/O errors if there were any */
 		res = err;
 	if (!res)
-		printk(" unknown partition table\n");
+		strlcat(state->pp_buf, " unknown partition table\n", PAGE_SIZE);
 	else if (warn_no_part)
-		printk(" unable to read partition table\n");
+		strlcat(state->pp_buf, " unable to read partition table\n", PAGE_SIZE);
+
+	printk(KERN_INFO "%s", state->pp_buf);
+
+	free_page((unsigned long)state->pp_buf);
 	kfree(state);
 	return ERR_PTR(res);
 }
@@ -224,6 +246,13 @@ ssize_t part_alignment_offset_show(struct device *dev,
 {
 	struct hd_struct *p = dev_to_part(dev);
 	return sprintf(buf, "%llu\n", (unsigned long long)p->alignment_offset);
+}
+
+ssize_t part_discard_alignment_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct hd_struct *p = dev_to_part(dev);
+	return sprintf(buf, "%u\n", p->discard_alignment);
 }
 
 ssize_t part_stat_show(struct device *dev,
@@ -261,6 +290,13 @@ ssize_t part_inflight_show(struct device *dev,
 	return sprintf(buf, "%8u %8u\n", p->in_flight[0], p->in_flight[1]);
 }
 
+ssize_t part_partition_name_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct hd_struct *p = dev_to_part(dev);
+	return sprintf(buf, "%s\n", p->partition_name);
+}
+
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 ssize_t part_fail_show(struct device *dev,
 		       struct device_attribute *attr, char *buf)
@@ -288,8 +324,12 @@ static DEVICE_ATTR(partition, S_IRUGO, part_partition_show, NULL);
 static DEVICE_ATTR(start, S_IRUGO, part_start_show, NULL);
 static DEVICE_ATTR(size, S_IRUGO, part_size_show, NULL);
 static DEVICE_ATTR(alignment_offset, S_IRUGO, part_alignment_offset_show, NULL);
+static DEVICE_ATTR(discard_alignment, S_IRUGO, part_discard_alignment_show,
+		   NULL);
 static DEVICE_ATTR(stat, S_IRUGO, part_stat_show, NULL);
 static DEVICE_ATTR(inflight, S_IRUGO, part_inflight_show, NULL);
+static DEVICE_ATTR(partition_name, S_IRUGO, part_partition_name_show, NULL);
+
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 static struct device_attribute dev_attr_fail =
 	__ATTR(make-it-fail, S_IRUGO|S_IWUSR, part_fail_show, part_fail_store);
@@ -300,8 +340,10 @@ static struct attribute *part_attrs[] = {
 	&dev_attr_start.attr,
 	&dev_attr_size.attr,
 	&dev_attr_alignment_offset.attr,
+	&dev_attr_discard_alignment.attr,
 	&dev_attr_stat.attr,
 	&dev_attr_inflight.attr,
+	&dev_attr_partition_name.attr,
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 	&dev_attr_fail.attr,
 #endif
@@ -327,10 +369,21 @@ static void part_release(struct device *dev)
 	kfree(p);
 }
 
+static int part_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct hd_struct *part = dev_to_part(dev);
+
+	add_uevent_var(env, "PARTN=%u", part->partno);
+	if (part->partition_name)
+		add_uevent_var(env, "PARTNAME=%s", part->partition_name);
+	return 0;
+}
+
 struct device_type part_type = {
 	.name		= "partition",
 	.groups		= part_attr_groups,
 	.release	= part_release,
+	.uevent		= part_uevent,
 };
 
 static void delete_partition_rcu_cb(struct rcu_head *head)
@@ -372,6 +425,11 @@ static ssize_t whole_disk_show(struct device *dev,
 static DEVICE_ATTR(whole_disk, S_IRUSR | S_IRGRP | S_IROTH,
 		   whole_disk_show, NULL);
 
+static void name_partition(struct hd_struct *p, const char *name)
+{
+	strlcpy(p->partition_name, name, GENHD_PART_NAME_SIZE);
+}
+
 struct hd_struct *add_partition(struct gendisk *disk, int partno,
 				sector_t start, sector_t len, int flags)
 {
@@ -402,7 +460,10 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	pdev = part_to_dev(p);
 
 	p->start_sect = start;
-	p->alignment_offset = queue_sector_alignment_offset(disk->queue, start);
+	p->alignment_offset =
+		queue_limit_alignment_offset(&disk->queue->limits, start);
+	p->discard_alignment =
+		queue_limit_discard_alignment(&disk->queue->limits, start);
 	p->nr_sects = len;
 	p->partno = partno;
 	p->policy = get_disk_ro(disk);
@@ -442,7 +503,6 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	}
 
 	/* everything is up and running, commence */
-	INIT_RCU_HEAD(&p->rcu_head);
 	rcu_assign_pointer(ptbl->part[partno], p);
 
 	/* suppress uevent if the disk supresses it */
@@ -524,12 +584,33 @@ exit:
 	disk_part_iter_exit(&piter);
 }
 
+static bool disk_unlock_native_capacity(struct gendisk *disk)
+{
+	const struct block_device_operations *bdops = disk->fops;
+
+	if (bdops->unlock_native_capacity &&
+	    !(disk->flags & GENHD_FL_NATIVE_CAPACITY)) {
+		printk(KERN_CONT "enabling native capacity\n");
+		bdops->unlock_native_capacity(disk);
+		disk->flags |= GENHD_FL_NATIVE_CAPACITY;
+		return true;
+	} else {
+		printk(KERN_CONT "truncated\n");
+		return false;
+	}
+}
+
 int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 {
+	struct parsed_partitions *state = NULL;
 	struct disk_part_iter piter;
 	struct hd_struct *part;
-	struct parsed_partitions *state;
 	int p, highest, res;
+rescan:
+	if (state && !IS_ERR(state)) {
+		kfree(state);
+		state = NULL;
+	}
 
 	if (bdev->bd_part_count)
 	{
@@ -565,8 +646,32 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 	 #endif   	    
 		return 0;
 	}
-	if (IS_ERR(state))	/* I/O error reading the partition table */
+	if (IS_ERR(state)) {
+		/*
+		 * I/O error reading the partition table.  If any
+		 * partition code tried to read beyond EOD, retry
+		 * after unlocking native capacity.
+		 */
+		if (PTR_ERR(state) == -ENOSPC) {
+			printk(KERN_WARNING "%s: partition table beyond EOD, ",
+			       disk->disk_name);
+			if (disk_unlock_native_capacity(disk))
+				goto rescan;
+		}
 		return -EIO;
+	}
+	/*
+	 * If any partition code tried to read beyond EOD, try
+	 * unlocking native capacity even if partition table is
+	 * sucessfully read as we could be missing some partitions.
+	 */
+	if (state->access_beyond_eod) {
+		printk(KERN_WARNING
+		       "%s: partition table partially beyond EOD, ",
+		       disk->disk_name);
+		if (disk_unlock_native_capacity(disk))
+			goto rescan;
+	}
 
 	/* tell userspace that the media / partition table may have changed */
 	kobject_uevent(&disk_to_dev(disk)->kobj, KOBJ_CHANGE);
@@ -584,7 +689,7 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 	/* add partitions */
 	for (p = 1; p < state->limit; p++) {
 		sector_t size, from;
-try_scan:
+
 		size = state->parts[p].size;
 		if (!size)
 			continue;
@@ -592,30 +697,21 @@ try_scan:
 		from = state->parts[p].from;
 		if (from >= get_capacity(disk)) {
 			printk(KERN_WARNING
-			       "%s: p%d ignored, start %llu is behind the end of the disk\n",
+			       "%s: p%d start %llu is beyond EOD, ",
 			       disk->disk_name, p, (unsigned long long) from);
+			if (disk_unlock_native_capacity(disk))
+				goto rescan;
 			continue;
 		}
 
 		if (from + size > get_capacity(disk)) {
-			const struct block_device_operations *bdops = disk->fops;
-			unsigned long long capacity;
-
 			printk(KERN_WARNING
-			       "%s: p%d size %llu exceeds device capacity, ",
+			       "%s: p%d size %llu extends beyond EOD, ",
 			       disk->disk_name, p, (unsigned long long) size);
 
-			if (bdops->set_capacity &&
-			    (disk->flags & GENHD_FL_NATIVE_CAPACITY) == 0) {
-				printk(KERN_CONT "enabling native capacity\n");
-				capacity = bdops->set_capacity(disk, ~0ULL);
-				disk->flags |= GENHD_FL_NATIVE_CAPACITY;
-				if (capacity > get_capacity(disk)) {
-					set_capacity(disk, capacity);
-					check_disk_size_change(disk, bdev);
-					bdev->bd_invalidated = 0;
-				}
-				goto try_scan;
+			if (disk_unlock_native_capacity(disk)) {
+				/* free state and restart */
+				goto rescan;
 			} else {
 				/*
 				 * we can not ignore partitions of broken tables
@@ -623,7 +719,6 @@ try_scan:
 				 * we limit them to the end of the disk to avoid
 				 * creating invalid block devices
 				 */
-				printk(KERN_CONT "limited to end of disk\n");
 				size = get_capacity(disk) - from;
 			}
 		}
@@ -634,6 +729,7 @@ try_scan:
 			       disk->disk_name, p, -PTR_ERR(part));
 			continue;
 		}
+		name_partition(part, state->parts[p].name);
 #ifdef CONFIG_BLK_DEV_MD
 		if (state->parts[p].flags & ADDPART_FLAG_RAID)
 			md_autodetect_dev(part_to_dev(part)->devt);

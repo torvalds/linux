@@ -5,7 +5,7 @@
 # mode may be any of: tags, TAGS, cscope
 #
 # Uses the following environment variables:
-# ARCH, SUBARCH, srctree, src, obj
+# ARCH, SUBARCH, SRCARCH, srctree, src, obj
 
 if [ "$KBUILD_VERBOSE" = "1" ]; then
 	set -x
@@ -17,28 +17,48 @@ ignore="( -name SCCS -o -name BitKeeper -o -name .svn -o \
           -name .git )                                   \
           -prune -o"
 
-# Do not use full path is we do not use O=.. builds
+# Do not use full path if we do not use O=.. builds
+# Use make O=. {tags|cscope}
+# to force full paths for a non-O= build
 if [ "${KBUILD_SRC}" = "" ]; then
 	tree=
 else
 	tree=${srctree}/
 fi
 
+# Find all available archs
+find_all_archs()
+{
+	ALLSOURCE_ARCHS=""
+	for arch in `ls ${tree}arch`; do
+		ALLSOURCE_ARCHS="${ALLSOURCE_ARCHS} "${arch##\/}
+	done
+}
+
 # Detect if ALLSOURCE_ARCHS is set. If not, we assume SRCARCH
 if [ "${ALLSOURCE_ARCHS}" = "" ]; then
 	ALLSOURCE_ARCHS=${SRCARCH}
+elif [ "${ALLSOURCE_ARCHS}" = "all" ]; then
+	find_all_archs
 fi
 
 # find sources in arch/$ARCH
 find_arch_sources()
 {
-	find ${tree}arch/$1 $ignore -name "$2" -print;
+	for i in $archincludedir; do
+		prune="$prune -wholename $i -prune -o"
+	done
+	find ${tree}arch/$1 $ignore $prune -name "$2" -print;
 }
 
 # find sources in arch/$1/include
 find_arch_include_sources()
 {
-	find ${tree}arch/$1/include $ignore -name "$2" -print;
+	include=$(find ${tree}arch/$1/ -name include -type d);
+	if [ -n "$include" ]; then
+		archincludedir="$archincludedir $include"
+		find $include $ignore -name "$2" -print;
+	fi
 }
 
 # find sources in include/
@@ -63,14 +83,15 @@ find_sources()
 
 all_sources()
 {
-	for arch in $ALLSOURCE_ARCHS
-	do
-		find_sources $arch '*.[chS]'
-	done
+	find_arch_include_sources ${SRCARCH} '*.[chS]'
 	if [ ! -z "$archinclude" ]; then
 		find_arch_include_sources $archinclude '*.[chS]'
 	fi
 	find_include_sources '*.[chS]'
+	for arch in $ALLSOURCE_ARCHS
+	do
+		find_sources $arch '*.[chS]'
+	done
 	find_other_sources '*.[chS]'
 }
 

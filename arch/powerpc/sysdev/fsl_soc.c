@@ -372,7 +372,7 @@ err:
 
 arch_initcall(fsl_usb_of_init);
 
-#if defined(CONFIG_PPC_85xx) || defined(CONFIG_PPC_86xx)
+#if defined(CONFIG_FSL_SOC_BOOKE) || defined(CONFIG_PPC_86xx)
 static __be32 __iomem *rstcr;
 
 static int __init setup_rstcr(void)

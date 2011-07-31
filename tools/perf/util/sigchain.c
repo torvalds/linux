@@ -16,7 +16,7 @@ static void check_signum(int sig)
 		die("BUG: signal out of range: %d", sig);
 }
 
-int sigchain_push(int sig, sigchain_fun f)
+static int sigchain_push(int sig, sigchain_fun f)
 {
 	struct sigchain_signal *s = signals + sig;
 	check_signum(sig);

@@ -22,6 +22,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #define BUTTONS_POLL_INTERVAL	30	/* msec */
 #define BUTTONS_COUNT_THRESHOLD	3

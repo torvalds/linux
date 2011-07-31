@@ -9,7 +9,7 @@
  * It is based on demo code originally Copyright 2001 by Intel Corp, taken from
  * http://www.embedded.com/showArticle.jhtml?articleID=19205567
  *
- * Attempts were made, unsuccesfully, to contact the original
+ * Attempts were made, unsuccessfully, to contact the original
  * author of this code (Michael Morrow, Intel).  Below is the original
  * copyright notice.
  *
@@ -53,7 +53,7 @@ void *memcpy(void *v_dst, const void *v_src, __kernel_size_t c)
 	const uint32_t *i_src;
 	uint32_t *i_dst;
 
-	if (c >= 4) {
+	if (likely(c >= 4)) {
 		unsigned  value, buf_hold;
 
 		/* Align the dstination to a word boundry. */

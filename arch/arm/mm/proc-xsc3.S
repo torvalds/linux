@@ -90,15 +90,11 @@ ENTRY(cpu_xsc3_proc_init)
  * cpu_xsc3_proc_fin()
  */
 ENTRY(cpu_xsc3_proc_fin)
-	str	lr, [sp, #-4]!
-	mov	r0, #PSR_F_BIT|PSR_I_BIT|SVC_MODE
-	msr	cpsr_c, r0
-	bl	xsc3_flush_kern_cache_all	@ clean caches
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x1800			@ ...IZ...........
 	bic	r0, r0, #0x0006			@ .............CA.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
-	ldr	pc, [sp], #4
+	mov	pc, lr
 
 /*
  * cpu_xsc3_reset(loc)
@@ -226,15 +222,16 @@ ENTRY(xsc3_coherent_user_range)
 	mov	pc, lr
 
 /*
- *	flush_kern_dcache_page(void *page)
+ *	flush_kern_dcache_area(void *addr, size_t size)
  *
  *	Ensure no D cache aliasing occurs, either with itself or
  *	the I cache.
  *
- *	- addr	- page aligned address
+ *	- addr	- kernel address
+ *	- size	- region size
  */
-ENTRY(xsc3_flush_kern_dcache_page)
-	add	r1, r0, #PAGE_SZ
+ENTRY(xsc3_flush_kern_dcache_area)
+	add	r1, r0, r1
 1:	mcr	p15, 0, r0, c7, c14, 1		@ clean/invalidate L1 D line
 	add	r0, r0, #CACHELINESIZE
 	cmp	r0, r1
@@ -256,7 +253,7 @@ ENTRY(xsc3_flush_kern_dcache_page)
  *	- start  - virtual start address
  *	- end	 - virtual end address
  */
-ENTRY(xsc3_dma_inv_range)
+xsc3_dma_inv_range:
 	tst	r0, #CACHELINESIZE - 1
 	bic	r0, r0, #CACHELINESIZE - 1
 	mcrne	p15, 0, r0, c7, c10, 1		@ clean L1 D line
@@ -277,7 +274,7 @@ ENTRY(xsc3_dma_inv_range)
  *	- start  - virtual start address
  *	- end	 - virtual end address
  */
-ENTRY(xsc3_dma_clean_range)
+xsc3_dma_clean_range:
 	bic	r0, r0, #CACHELINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean L1 D line
 	add	r0, r0, #CACHELINESIZE
@@ -303,15 +300,39 @@ ENTRY(xsc3_dma_flush_range)
 	mcr	p15, 0, r0, c7, c10, 4		@ data write barrier
 	mov	pc, lr
 
+/*
+ *	dma_map_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(xsc3_dma_map_area)
+	add	r1, r1, r0
+	cmp	r2, #DMA_TO_DEVICE
+	beq	xsc3_dma_clean_range
+	bcs	xsc3_dma_inv_range
+	b	xsc3_dma_flush_range
+ENDPROC(xsc3_dma_map_area)
+
+/*
+ *	dma_unmap_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(xsc3_dma_unmap_area)
+	mov	pc, lr
+ENDPROC(xsc3_dma_unmap_area)
+
 ENTRY(xsc3_cache_fns)
 	.long	xsc3_flush_kern_cache_all
 	.long	xsc3_flush_user_cache_all
 	.long	xsc3_flush_user_cache_range
 	.long	xsc3_coherent_kern_range
 	.long	xsc3_coherent_user_range
-	.long	xsc3_flush_kern_dcache_page
-	.long	xsc3_dma_inv_range
-	.long	xsc3_dma_clean_range
+	.long	xsc3_flush_kern_dcache_area
+	.long	xsc3_dma_map_area
+	.long	xsc3_dma_unmap_area
 	.long	xsc3_dma_flush_range
 
 ENTRY(cpu_xsc3_dcache_clean_area)
@@ -352,7 +373,7 @@ cpu_xsc3_mt_table:
 	.long	PTE_EXT_TEX(5) | PTE_CACHEABLE			@ L_PTE_MT_WRITETHROUGH
 	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_WRITEBACK
 	.long	PTE_EXT_TEX(1) | PTE_BUFFERABLE			@ L_PTE_MT_DEV_SHARED
-	.long	0x00						@ unused
+	.long	PTE_EXT_TEX(4) | PTE_BUFFERABLE			@ L_PTE_MT_INNER_WB (not present?)
 	.long	0x00						@ L_PTE_MT_MINICACHE (not present)
 	.long	PTE_EXT_TEX(5) | PTE_CACHEABLE | PTE_BUFFERABLE	@ L_PTE_MT_WRITEALLOC (not present?)
 	.long	0x00						@ unused
@@ -396,7 +417,7 @@ __xsc3_setup:
 	orr	r4, r4, #0x18			@ cache the page table in L2
 	mcr	p15, 0, r4, c2, c0, 0		@ load page table pointer
 
-	mov	r0, #0				@ don't allow CP access
+	mov	r0, #1 << 6			@ cp6 access for early sched_clock
 	mcr	p15, 0, r0, c15, c1, 0		@ write CP access register
 
 	mrc	p15, 0, r0, c1, c0, 1		@ get auxiliary control reg
@@ -406,6 +427,13 @@ __xsc3_setup:
 
 	adr	r5, xsc3_crval
 	ldmia	r5, {r5, r6}
+
+#ifdef CONFIG_CACHE_XSC3L2
+	mrc	p15, 1, r0, c0, c0, 1		@ get L2 present information
+	ands	r0, r0, #0xf8
+	orrne	r6, r6, #(1 << 26)		@ enable L2 if present
+#endif
+
 	mrc	p15, 0, r0, c1, c0, 0		@ get control register
 	bic	r0, r0, r5			@ ..V. ..R. .... ..A.
 	orr	r0, r0, r6			@ ..VI Z..S .... .C.M (mmu)

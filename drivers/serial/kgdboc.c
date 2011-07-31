@@ -14,7 +14,10 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/kgdb.h>
+#include <linux/kdb.h>
 #include <linux/tty.h>
+#include <linux/console.h>
+#include <linux/vt_kern.h>
 
 #define MAX_CONFIG_LEN		40
 
@@ -29,8 +32,43 @@ static struct kparam_string kps = {
 	.maxlen			= MAX_CONFIG_LEN,
 };
 
+static int kgdboc_use_kms;  /* 1 if we use kernel mode switching */
 static struct tty_driver	*kgdb_tty_driver;
 static int			kgdb_tty_line;
+
+#ifdef CONFIG_KDB_KEYBOARD
+static int kgdboc_register_kbd(char **cptr)
+{
+	if (strncmp(*cptr, "kbd", 3) == 0) {
+		if (kdb_poll_idx < KDB_POLL_FUNC_MAX) {
+			kdb_poll_funcs[kdb_poll_idx] = kdb_get_kbd_char;
+			kdb_poll_idx++;
+			if (cptr[0][3] == ',')
+				*cptr += 4;
+			else
+				return 1;
+		}
+	}
+	return 0;
+}
+
+static void kgdboc_unregister_kbd(void)
+{
+	int i;
+
+	for (i = 0; i < kdb_poll_idx; i++) {
+		if (kdb_poll_funcs[i] == kdb_get_kbd_char) {
+			kdb_poll_idx--;
+			kdb_poll_funcs[i] = kdb_poll_funcs[kdb_poll_idx];
+			kdb_poll_funcs[kdb_poll_idx] = NULL;
+			i--;
+		}
+	}
+}
+#else /* ! CONFIG_KDB_KEYBOARD */
+#define kgdboc_register_kbd(x) 0
+#define kgdboc_unregister_kbd()
+#endif /* ! CONFIG_KDB_KEYBOARD */
 
 static int kgdboc_option_setup(char *opt)
 {
@@ -45,25 +83,57 @@ static int kgdboc_option_setup(char *opt)
 
 __setup("kgdboc=", kgdboc_option_setup);
 
+static void cleanup_kgdboc(void)
+{
+	kgdboc_unregister_kbd();
+	if (configured == 1)
+		kgdb_unregister_io_module(&kgdboc_io_ops);
+}
+
 static int configure_kgdboc(void)
 {
 	struct tty_driver *p;
 	int tty_line = 0;
 	int err;
+	char *cptr = config;
+	struct console *cons;
 
 	err = kgdboc_option_setup(config);
 	if (err || !strlen(config) || isspace(config[0]))
 		goto noconfig;
 
 	err = -ENODEV;
+	kgdboc_io_ops.is_console = 0;
+	kgdb_tty_driver = NULL;
 
-	p = tty_find_polling_driver(config, &tty_line);
+	kgdboc_use_kms = 0;
+	if (strncmp(cptr, "kms,", 4) == 0) {
+		cptr += 4;
+		kgdboc_use_kms = 1;
+	}
+
+	if (kgdboc_register_kbd(&cptr))
+		goto do_register;
+
+	p = tty_find_polling_driver(cptr, &tty_line);
 	if (!p)
 		goto noconfig;
+
+	cons = console_drivers;
+	while (cons) {
+		int idx;
+		if (cons->device && cons->device(cons, &idx) == p &&
+		    idx == tty_line) {
+			kgdboc_io_ops.is_console = 1;
+			break;
+		}
+		cons = cons->next;
+	}
 
 	kgdb_tty_driver = p;
 	kgdb_tty_line = tty_line;
 
+do_register:
 	err = kgdb_register_io_module(&kgdboc_io_ops);
 	if (err)
 		goto noconfig;
@@ -75,6 +145,7 @@ static int configure_kgdboc(void)
 noconfig:
 	config[0] = 0;
 	configured = 0;
+	cleanup_kgdboc();
 
 	return err;
 }
@@ -88,20 +159,18 @@ static int __init init_kgdboc(void)
 	return configure_kgdboc();
 }
 
-static void cleanup_kgdboc(void)
-{
-	if (configured == 1)
-		kgdb_unregister_io_module(&kgdboc_io_ops);
-}
-
 static int kgdboc_get_char(void)
 {
+	if (!kgdb_tty_driver)
+		return -1;
 	return kgdb_tty_driver->ops->poll_get_char(kgdb_tty_driver,
 						kgdb_tty_line);
 }
 
 static void kgdboc_put_char(u8 chr)
 {
+	if (!kgdb_tty_driver)
+		return;
 	kgdb_tty_driver->ops->poll_put_char(kgdb_tty_driver,
 					kgdb_tty_line, chr);
 }
@@ -140,8 +209,14 @@ static int param_set_kgdboc_var(const char *kmessage, struct kernel_param *kp)
 	return configure_kgdboc();
 }
 
+static int dbg_restore_graphics;
+
 static void kgdboc_pre_exp_handler(void)
 {
+	if (!dbg_restore_graphics && kgdboc_use_kms) {
+		dbg_restore_graphics = 1;
+		con_debug_enter(vc_cons[fg_console].d);
+	}
 	/* Increment the module count when the debugger is active */
 	if (!kgdb_connected)
 		try_module_get(THIS_MODULE);
@@ -152,6 +227,10 @@ static void kgdboc_post_exp_handler(void)
 	/* decrement the module count when the debugger detaches */
 	if (!kgdb_connected)
 		module_put(THIS_MODULE);
+	if (kgdboc_use_kms && dbg_restore_graphics) {
+		dbg_restore_graphics = 0;
+		con_debug_leave();
+	}
 }
 
 static struct kgdb_io kgdboc_io_ops = {
@@ -161,6 +240,25 @@ static struct kgdb_io kgdboc_io_ops = {
 	.pre_exception		= kgdboc_pre_exp_handler,
 	.post_exception		= kgdboc_post_exp_handler,
 };
+
+#ifdef CONFIG_KGDB_SERIAL_CONSOLE
+/* This is only available if kgdboc is a built in for early debugging */
+int __init kgdboc_early_init(char *opt)
+{
+	/* save the first character of the config string because the
+	 * init routine can destroy it.
+	 */
+	char save_ch;
+
+	kgdboc_option_setup(opt);
+	save_ch = config[0];
+	init_kgdboc();
+	config[0] = save_ch;
+	return 0;
+}
+
+early_param("ekgdboc", kgdboc_early_init);
+#endif /* CONFIG_KGDB_SERIAL_CONSOLE */
 
 module_init(init_kgdboc);
 module_exit(cleanup_kgdboc);

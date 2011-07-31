@@ -37,6 +37,7 @@
 #include <linux/errno.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/gfp.h>
 
 #include "mthca_dev.h"
 #include "mthca_config_reg.h"

@@ -31,12 +31,13 @@
 #include <linux/spinlock.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <asm/string.h>
 
 #define PPP_VERSION	"2.4.2"
 
-#define OBUFSIZE	256
+#define OBUFSIZE	4096
 
 /* Structure for storing local state. */
 struct asyncppp {
@@ -99,7 +100,7 @@ static int ppp_async_send(struct ppp_channel *chan, struct sk_buff *skb);
 static int ppp_async_push(struct asyncppp *ap);
 static void ppp_async_flush_output(struct asyncppp *ap);
 static void ppp_async_input(struct asyncppp *ap, const unsigned char *buf,
-			    char *flags, int count);
+			    char *flags, int count, struct sk_buff *skbuf);
 static int ppp_async_ioctl(struct ppp_channel *chan, unsigned int cmd,
 			   unsigned long arg);
 static void ppp_async_process(unsigned long arg);
@@ -107,9 +108,9 @@ static void ppp_async_process(unsigned long arg);
 static void async_lcp_peek(struct asyncppp *ap, unsigned char *data,
 			   int len, int inbound);
 
-static struct ppp_channel_ops async_ops = {
-	ppp_async_send,
-	ppp_async_ioctl
+static const struct ppp_channel_ops async_ops = {
+	.start_xmit = ppp_async_send,
+	.ioctl      = ppp_async_ioctl,
 };
 
 /*
@@ -337,21 +338,24 @@ ppp_asynctty_poll(struct tty_struct *tty, struct file *file, poll_table *wait)
 	return 0;
 }
 
-/*
- * This can now be called from hard interrupt level as well
- * as soft interrupt level or mainline.
- */
+/* May sleep, don't call from interrupt level or with interrupts disabled */
 static void
 ppp_asynctty_receive(struct tty_struct *tty, const unsigned char *buf,
 		  char *cflags, int count)
 {
 	struct asyncppp *ap = ap_get(tty);
+	struct sk_buff *skb;
 	unsigned long flags;
 
 	if (!ap)
 		return;
+
+	skb = __dev_alloc_skb(ap->mru + PPP_HDRLEN + 2, GFP_KERNEL);
+	if (!skb)
+		return;
+
 	spin_lock_irqsave(&ap->recv_lock, flags);
-	ppp_async_input(ap, buf, cflags, count);
+	ppp_async_input(ap, buf, cflags, count, skb);
 	spin_unlock_irqrestore(&ap->recv_lock, flags);
 	if (!skb_queue_empty(&ap->rqueue))
 		tasklet_schedule(&ap->tsk);
@@ -561,8 +565,8 @@ ppp_async_encode(struct asyncppp *ap)
 		 * Start of a new packet - insert the leading FLAG
 		 * character if necessary.
 		 */
-		if (islcp || flag_time == 0
-		    || time_after_eq(jiffies, ap->last_xmit + flag_time))
+		if (islcp || flag_time == 0 ||
+		    time_after_eq(jiffies, ap->last_xmit + flag_time))
 			*buf++ = PPP_FLAG;
 		ap->last_xmit = jiffies;
 		fcs = PPP_INITFCS;
@@ -699,8 +703,8 @@ ppp_async_push(struct asyncppp *ap)
 		 */
 		clear_bit(XMIT_BUSY, &ap->xmit_flags);
 		/* any more work to do? if not, exit the loop */
-		if (!(test_bit(XMIT_WAKEUP, &ap->xmit_flags)
-		      || (!tty_stuffed && ap->tpkt)))
+		if (!(test_bit(XMIT_WAKEUP, &ap->xmit_flags) ||
+		      (!tty_stuffed && ap->tpkt)))
 			break;
 		/* more work to do, see if we can do it now */
 		if (test_and_set_bit(XMIT_BUSY, &ap->xmit_flags))
@@ -757,8 +761,8 @@ scan_ordinary(struct asyncppp *ap, const unsigned char *buf, int count)
 
 	for (i = 0; i < count; ++i) {
 		c = buf[i];
-		if (c == PPP_ESCAPE || c == PPP_FLAG
-		    || (c < 0x20 && (ap->raccm & (1 << c)) != 0))
+		if (c == PPP_ESCAPE || c == PPP_FLAG ||
+		    (c < 0x20 && (ap->raccm & (1 << c)) != 0))
 			break;
 	}
 	return i;
@@ -833,7 +837,7 @@ process_input_packet(struct asyncppp *ap)
 
 static void
 ppp_async_input(struct asyncppp *ap, const unsigned char *buf,
-		char *flags, int count)
+		char *flags, int count, struct sk_buff *skbuf)
 {
 	struct sk_buff *skb;
 	int c, i, j, n, s, f;
@@ -875,9 +879,14 @@ ppp_async_input(struct asyncppp *ap, const unsigned char *buf,
 			/* stuff the chars in the skb */
 			skb = ap->rpkt;
 			if (!skb) {
-				skb = dev_alloc_skb(ap->mru + PPP_HDRLEN + 2);
-				if (!skb)
-					goto nomem;
+				if (skbuf) {
+					skb = skbuf;
+					skbuf = NULL;
+				} else {
+					skb = dev_alloc_skb(ap->mru + PPP_HDRLEN + 2);
+					if (!skb)
+						goto nomem;
+				}
  				ap->rpkt = skb;
  			}
  			if (skb->len == 0) {
@@ -927,11 +936,13 @@ ppp_async_input(struct asyncppp *ap, const unsigned char *buf,
 			flags += n;
 		count -= n;
 	}
+	kfree(skbuf);
 	return;
 
  nomem:
 	printk(KERN_ERR "PPPasync: no memory (input pkt)\n");
 	ap->state |= SC_TOSS;
+	kfree(skbuf);
 }
 
 /*

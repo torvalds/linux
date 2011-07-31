@@ -1,3 +1,7 @@
+config BF52x
+	def_bool y
+	depends on (BF522 || BF523 || BF524 || BF525 || BF526 || BF527)
+
 if (BF52x)
 
 source "arch/blackfin/mach-bf527/boards/Kconfig"
@@ -74,6 +78,72 @@ config BF527_NAND_D_PORTH
 	help
 	  PORT H
 endchoice
+
+comment "Hysteresis/Schmitt Trigger Control"
+config BFIN_HYSTERESIS_CONTROL
+	bool "Enable Hysteresis Control"
+	help
+	  The ADSP-BF52x allows to control input hysteresis for Port F,
+	  Port G and Port H and other processor signal inputs.
+	  The Schmitt trigger enables can be set only for pin groups.
+	  Saying Y will overwrite the default reset or boot loader
+	  initialization.
+
+menu "PORT F"
+	depends on BFIN_HYSTERESIS_CONTROL
+config GPIO_HYST_PORTF_0_7
+	bool "Enable Hysteresis on PORTF {0...7}"
+config GPIO_HYST_PORTF_8_9
+	bool "Enable Hysteresis on PORTF {8, 9}"
+config GPIO_HYST_PORTF_10
+	bool "Enable Hysteresis on PORTF 10"
+config GPIO_HYST_PORTF_11
+	bool "Enable Hysteresis on PORTF 11"
+config GPIO_HYST_PORTF_12_13
+	bool "Enable Hysteresis on PORTF {12, 13}"
+config GPIO_HYST_PORTF_14_15
+	bool "Enable Hysteresis on PORTF {14, 15}"
+endmenu
+
+menu "PORT G"
+	depends on BFIN_HYSTERESIS_CONTROL
+config GPIO_HYST_PORTG_0
+	bool "Enable Hysteresis on PORTG 0"
+config GPIO_HYST_PORTG_1_4
+	bool "Enable Hysteresis on PORTG {1...4}"
+config GPIO_HYST_PORTG_5_6
+	bool "Enable Hysteresis on PORTG {5, 6}"
+config GPIO_HYST_PORTG_7_8
+	bool "Enable Hysteresis on PORTG {7, 8}"
+config GPIO_HYST_PORTG_9
+	bool "Enable Hysteresis on PORTG 9"
+config GPIO_HYST_PORTG_10
+	bool "Enable Hysteresis on PORTG 10"
+config GPIO_HYST_PORTG_11_13
+	bool "Enable Hysteresis on PORTG {11...13}"
+config GPIO_HYST_PORTG_14_15
+	bool "Enable Hysteresis on PORTG {14, 15}"
+endmenu
+
+menu "PORT H"
+	depends on BFIN_HYSTERESIS_CONTROL
+config GPIO_HYST_PORTH_0_7
+	bool "Enable Hysteresis on PORTH {0...7}"
+config GPIO_HYST_PORTH_8
+	bool "Enable Hysteresis on PORTH 8"
+config GPIO_HYST_PORTH_9_15
+	bool "Enable Hysteresis on PORTH {9...15}"
+endmenu
+
+menu "None-GPIO"
+	depends on BFIN_HYSTERESIS_CONTROL
+config NONEGPIO_HYST_TMR0_FS1_PPICLK
+	bool "Enable Hysteresis on {TMR0, PPI_FS1, PPI_CLK}"
+config NONEGPIO_HYST_NMI_RST_BMODE
+	bool "Enable Hysteresis on {NMI, RESET, BMODE}"
+config NONEGPIO_HYST_JTAG
+	bool "Enable Hysteresis on JTAG"
+endmenu
 
 comment "Interrupt Priority Assignment"
 menu "Priority"

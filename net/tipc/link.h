@@ -292,4 +292,39 @@ static inline u32 lesser(u32 left, u32 right)
 	return less_eq(left, right) ? left : right;
 }
 
+
+/*
+ * Link status checking routines
+ */
+
+static inline int link_working_working(struct link *l_ptr)
+{
+	return (l_ptr->state == WORKING_WORKING);
+}
+
+static inline int link_working_unknown(struct link *l_ptr)
+{
+	return (l_ptr->state == WORKING_UNKNOWN);
+}
+
+static inline int link_reset_unknown(struct link *l_ptr)
+{
+	return (l_ptr->state == RESET_UNKNOWN);
+}
+
+static inline int link_reset_reset(struct link *l_ptr)
+{
+	return (l_ptr->state == RESET_RESET);
+}
+
+static inline int link_blocked(struct link *l_ptr)
+{
+	return (l_ptr->exp_msg_count || l_ptr->blocked);
+}
+
+static inline int link_congested(struct link *l_ptr)
+{
+	return (l_ptr->out_queue_size >= l_ptr->queue_limit[0]);
+}
+
 #endif

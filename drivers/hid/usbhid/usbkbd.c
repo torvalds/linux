@@ -74,7 +74,6 @@ struct usb_kbd {
 	unsigned char *new;
 	struct usb_ctrlrequest *cr;
 	unsigned char *leds;
-	dma_addr_t cr_dma;
 	dma_addr_t new_dma;
 	dma_addr_t leds_dma;
 };
@@ -197,11 +196,11 @@ static int usb_kbd_alloc_mem(struct usb_device *dev, struct usb_kbd *kbd)
 		return -1;
 	if (!(kbd->led = usb_alloc_urb(0, GFP_KERNEL)))
 		return -1;
-	if (!(kbd->new = usb_buffer_alloc(dev, 8, GFP_ATOMIC, &kbd->new_dma)))
+	if (!(kbd->new = usb_alloc_coherent(dev, 8, GFP_ATOMIC, &kbd->new_dma)))
 		return -1;
-	if (!(kbd->cr = usb_buffer_alloc(dev, sizeof(struct usb_ctrlrequest), GFP_ATOMIC, &kbd->cr_dma)))
+	if (!(kbd->cr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_KERNEL)))
 		return -1;
-	if (!(kbd->leds = usb_buffer_alloc(dev, 1, GFP_ATOMIC, &kbd->leds_dma)))
+	if (!(kbd->leds = usb_alloc_coherent(dev, 1, GFP_ATOMIC, &kbd->leds_dma)))
 		return -1;
 
 	return 0;
@@ -211,9 +210,9 @@ static void usb_kbd_free_mem(struct usb_device *dev, struct usb_kbd *kbd)
 {
 	usb_free_urb(kbd->irq);
 	usb_free_urb(kbd->led);
-	usb_buffer_free(dev, 8, kbd->new, kbd->new_dma);
-	usb_buffer_free(dev, sizeof(struct usb_ctrlrequest), kbd->cr, kbd->cr_dma);
-	usb_buffer_free(dev, 1, kbd->leds, kbd->leds_dma);
+	usb_free_coherent(dev, 8, kbd->new, kbd->new_dma);
+	kfree(kbd->cr);
+	usb_free_coherent(dev, 1, kbd->leds, kbd->leds_dma);
 }
 
 static int usb_kbd_probe(struct usb_interface *iface,
@@ -266,7 +265,7 @@ static int usb_kbd_probe(struct usb_interface *iface,
 			 le16_to_cpu(dev->descriptor.idProduct));
 
 	usb_make_path(dev, kbd->phys, sizeof(kbd->phys));
-	strlcpy(kbd->phys, "/input0", sizeof(kbd->phys));
+	strlcat(kbd->phys, "/input0", sizeof(kbd->phys));
 
 	input_dev->name = kbd->name;
 	input_dev->phys = kbd->phys;
@@ -304,15 +303,15 @@ static int usb_kbd_probe(struct usb_interface *iface,
 	usb_fill_control_urb(kbd->led, dev, usb_sndctrlpipe(dev, 0),
 			     (void *) kbd->cr, kbd->leds, 1,
 			     usb_kbd_led, kbd);
-	kbd->led->setup_dma = kbd->cr_dma;
 	kbd->led->transfer_dma = kbd->leds_dma;
-	kbd->led->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP);
+	kbd->led->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	error = input_register_device(kbd->dev);
 	if (error)
 		goto fail2;
 
 	usb_set_intfdata(iface, kbd);
+	device_set_wakeup_enable(&dev->dev, 1);
 	return 0;
 
 fail2:	

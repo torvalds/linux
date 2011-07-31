@@ -35,7 +35,6 @@
 #include <linux/string.h>
 #include <linux/types.h>
 
-#include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
 
@@ -221,38 +220,6 @@ static inline void set_mb_mode(const struct at91_priv *priv, unsigned int mb,
 	set_mb_mode_prio(priv, mb, mode, 0);
 }
 
-static struct sk_buff *alloc_can_skb(struct net_device *dev,
-		struct can_frame **cf)
-{
-	struct sk_buff *skb;
-
-	skb = netdev_alloc_skb(dev, sizeof(struct can_frame));
-	if (unlikely(!skb))
-		return NULL;
-
-	skb->protocol = htons(ETH_P_CAN);
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
-	*cf = (struct can_frame *)skb_put(skb, sizeof(struct can_frame));
-
-	return skb;
-}
-
-static struct sk_buff *alloc_can_err_skb(struct net_device *dev,
-		struct can_frame **cf)
-{
-	struct sk_buff *skb;
-
-	skb = alloc_can_skb(dev, cf);
-	if (unlikely(!skb))
-		return NULL;
-
-	memset(*cf, 0, sizeof(struct can_frame));
-	(*cf)->can_id = CAN_ERR_FLAG;
-	(*cf)->can_dlc = CAN_ERR_DLC;
-
-	return skb;
-}
-
 /*
  * Swtich transceiver on or off
  */
@@ -374,6 +341,9 @@ static netdev_tx_t at91_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int mb, prio;
 	u32 reg_mid, reg_mcr;
 
+	if (can_dropped_invalid_skb(dev, skb))
+		return NETDEV_TX_OK;
+
 	mb = get_tx_next_mb(priv);
 	prio = get_tx_next_prio(priv);
 
@@ -405,7 +375,6 @@ static netdev_tx_t at91_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	at91_write(priv, AT91_MCR(mb), reg_mcr);
 
 	stats->tx_bytes += cf->can_dlc;
-	dev->trans_start = jiffies;
 
 	/* _NOTE_: substract AT91_MB_TX_FIRST offset from mb! */
 	can_put_echo_skb(skb, dev, mb - AT91_MB_TX_FIRST);
@@ -506,7 +475,7 @@ static void at91_read_mb(struct net_device *dev, unsigned int mb,
 	reg_msr = at91_read(priv, AT91_MSR(mb));
 	if (reg_msr & AT91_MSR_MRTR)
 		cf->can_id |= CAN_RTR_FLAG;
-	cf->can_dlc = min_t(__u8, (reg_msr >> 16) & 0xf, 8);
+	cf->can_dlc = get_can_dlc((reg_msr >> 16) & 0xf);
 
 	*(u32 *)(cf->data + 0) = at91_read(priv, AT91_MDL(mb));
 	*(u32 *)(cf->data + 4) = at91_read(priv, AT91_MDH(mb));
@@ -691,7 +660,6 @@ static int at91_poll_err(struct net_device *dev, int quota, u32 reg_sr)
 	at91_poll_err_frame(dev, cf, reg_sr);
 	netif_receive_skb(skb);
 
-	dev->last_rx = jiffies;
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += cf->can_dlc;
 
@@ -928,7 +896,6 @@ static void at91_irq_err(struct net_device *dev)
 	at91_irq_err_state(dev, cf, new_state);
 	netif_rx(skb);
 
-	dev->last_rx = jiffies;
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += cf->can_dlc;
 
@@ -1069,7 +1036,7 @@ static int __init at91_can_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	if (!res || !irq) {
+	if (!res || irq <= 0) {
 		err = -ENODEV;
 		goto exit_put;
 	}
@@ -1087,7 +1054,7 @@ static int __init at91_can_probe(struct platform_device *pdev)
 		goto exit_release;
 	}
 
-	dev = alloc_candev(sizeof(struct at91_priv));
+	dev = alloc_candev(sizeof(struct at91_priv), AT91_MB_TX_NUM);
 	if (!dev) {
 		err = -ENOMEM;
 		goto exit_iounmap;
@@ -1102,6 +1069,7 @@ static int __init at91_can_probe(struct platform_device *pdev)
 	priv->can.bittiming_const = &at91_bittiming_const;
 	priv->can.do_set_bittiming = at91_set_bittiming;
 	priv->can.do_set_mode = at91_set_mode;
+	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES;
 	priv->reg_base = addr;
 	priv->dev = dev;
 	priv->clk = clk;

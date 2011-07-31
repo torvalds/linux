@@ -2,6 +2,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
+#include <linux/gfp.h>
 #include <scsi/scsi_host.h>
 #include <linux/ata.h>
 #include <linux/libata.h>
@@ -320,7 +321,7 @@ static void pata_icside_postreset(struct ata_link *link, unsigned int *classes)
 }
 
 static struct ata_port_operations pata_icside_port_ops = {
-	.inherits		= &ata_sff_port_ops,
+	.inherits		= &ata_bmdma_port_ops,
 	/* no need to build any PRD tables for DMA */
 	.qc_prep		= ata_noop_qc_prep,
 	.sff_data_xfer		= ata_sff_data_xfer_noirq,
@@ -332,7 +333,8 @@ static struct ata_port_operations pata_icside_port_ops = {
 	.cable_detect		= ata_cable_40wire,
 	.set_dmamode		= pata_icside_set_dmamode,
 	.postreset		= pata_icside_postreset,
-	.post_internal_cmd	= pata_icside_bmdma_stop,
+
+	.port_start		= ATA_OP_NULL,	/* don't need PRD table */
 };
 
 static void __devinit
@@ -468,7 +470,7 @@ static int __devinit pata_icside_add_ports(struct pata_icside_info *info)
 		pata_icside_setup_ioaddr(ap, info->base, info, info->port[i]);
 	}
 
-	return ata_host_activate(host, ec->irq, ata_sff_interrupt, 0,
+	return ata_host_activate(host, ec->irq, ata_bmdma_interrupt, 0,
 				 &pata_icside_sht);
 }
 

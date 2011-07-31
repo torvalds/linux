@@ -165,9 +165,8 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 				 * every other rtt.
 				 */
 				if (tp->snd_cwnd_cnt >= tp->snd_cwnd) {
-					if (veno->inc
-					    && tp->snd_cwnd <
-					    tp->snd_cwnd_clamp) {
+					if (veno->inc &&
+					    tp->snd_cwnd < tp->snd_cwnd_clamp) {
 						tp->snd_cwnd++;
 						veno->inc = 0;
 					} else

@@ -18,6 +18,7 @@
 #include <linux/gpio.h>
 #include <linux/fb.h>
 #include <linux/backlight.h>
+#include <linux/slab.h>
 
 #include <asm/mach/sharpsl_param.h>
 
@@ -72,7 +73,7 @@ static int tosa_bl_get_brightness(struct backlight_device *dev)
 	return props->brightness;
 }
 
-static struct backlight_ops bl_ops = {
+static const struct backlight_ops bl_ops = {
 	.get_brightness		= tosa_bl_get_brightness,
 	.update_status		= tosa_bl_update_status,
 };
@@ -80,6 +81,7 @@ static struct backlight_ops bl_ops = {
 static int __devinit tosa_bl_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
+	struct backlight_properties props;
 	struct tosa_bl_data *data = kzalloc(sizeof(struct tosa_bl_data), GFP_KERNEL);
 	int ret = 0;
 	if (!data)
@@ -99,15 +101,16 @@ static int __devinit tosa_bl_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, data);
 	data->i2c = client;
 
-	data->bl = backlight_device_register("tosa-bl", &client->dev,
-			data, &bl_ops);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 512 - 1;
+	data->bl = backlight_device_register("tosa-bl", &client->dev, data,
+					     &bl_ops, &props);
 	if (IS_ERR(data->bl)) {
 		ret = PTR_ERR(data->bl);
 		goto err_reg;
 	}
 
 	data->bl->props.brightness = 69;
-	data->bl->props.max_brightness = 512 - 1;
 	data->bl->props.power = FB_BLANK_UNBLANK;
 
 	backlight_update_status(data->bl);
@@ -116,7 +119,6 @@ static int __devinit tosa_bl_probe(struct i2c_client *client,
 
 err_reg:
 	data->bl = NULL;
-	i2c_set_clientdata(client, NULL);
 err_gpio_dir:
 	gpio_free(TOSA_GPIO_BL_C20MA);
 err_gpio_bl:
@@ -130,7 +132,6 @@ static int __devexit tosa_bl_remove(struct i2c_client *client)
 
 	backlight_device_unregister(data->bl);
 	data->bl = NULL;
-	i2c_set_clientdata(client, NULL);
 
 	gpio_free(TOSA_GPIO_BL_C20MA);
 

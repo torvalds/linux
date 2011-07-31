@@ -41,6 +41,21 @@ config ISP1301_OMAP
 	  This driver can also be built as a module.  If so, the module
 	  will be called isp1301_omap.
 
+config USB_ULPI
+	bool "Generic ULPI Transceiver Driver"
+	depends on ARM
+	select USB_OTG_UTILS
+	help
+	  Enable this to support ULPI connected USB OTG transceivers which
+	  are likely found on embedded boards.
+
+config USB_ULPI_VIEWPORT
+	bool
+	depends on USB_ULPI
+	help
+	  Provides read/write operations to the ULPI phy register set for
+	  controllers with a viewport register (e.g. Chipidea/ARC controllers).
+
 config TWL4030_USB
 	tristate "TWL4030 USB Transceiver Driver"
 	depends on TWL4030_CORE && REGULATOR_TWL4030
@@ -58,5 +73,24 @@ config NOP_USB_XCEIV
 	 this driver is to be used by all the usb transceiver which are either
 	 built-in with usb ip or which are autonomous and doesn't require any
 	 phy programming such as ISP1x04 etc.
+
+
+config USB_TEGRA_OTG
+	boolean "Tegra OTG Driver"
+	depends on USB && ARCH_TEGRA
+	select USB_OTG_UTILS
+	help
+	  Enable this driver on boards which use the internal VBUS and ID
+	  sensing of the Tegra USB PHY.
+
+config USB_CPCAP_OTG
+	boolean "Motorola CPCAP OTG Driver"
+	depends on USB && ARCH_TEGRA && MFD_CPCAP
+	select USB_OTG_UTILS
+	help
+	  Enable this driver on boards that use the CPCAP sensors for
+	  ID and VBUS sensing. The driver receives notifications from
+	  cpcap-whisper and emulates the same behavior as when the VBUS
+	  and ID pins are connected to the app processor.
 
 endif # USB || OTG

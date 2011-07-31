@@ -34,9 +34,8 @@
 
 #define DRV_NAME "triflex"
 
-static void triflex_set_mode(ide_drive_t *drive, const u8 speed)
+static void triflex_set_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u32 triflex_timings = 0;
 	u16 timing = 0;
@@ -44,7 +43,7 @@ static void triflex_set_mode(ide_drive_t *drive, const u8 speed)
 
 	pci_read_config_dword(dev, channel_offset, &triflex_timings);
 
-	switch(speed) {
+	switch (drive->dma_mode) {
 		case XFER_MW_DMA_2:
 			timing = 0x0103; 
 			break;
@@ -82,9 +81,10 @@ static void triflex_set_mode(ide_drive_t *drive, const u8 speed)
 	pci_write_config_dword(dev, channel_offset, triflex_timings);
 }
 
-static void triflex_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void triflex_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	triflex_set_mode(drive, XFER_PIO_0 + pio);
+	drive->dma_mode = drive->pio_mode;
+	triflex_set_mode(hwif, drive);
 }
 
 static const struct ide_port_ops triflex_port_ops = {

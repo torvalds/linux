@@ -117,7 +117,8 @@ MODULE_DEVICE_TABLE(pci, pc263_pci_table);
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the struct comedi_device struct.  */
+   feel free to suggest moving the variable to the struct comedi_device struct.
+*/
 #ifdef CONFIG_COMEDI_PCI
 struct pc263_private {
 	/* PCI device. */
@@ -281,7 +282,8 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		ret = comedi_pci_enable(pci_dev, PC263_DRIVER_NAME);
 		if (ret < 0) {
 			printk(KERN_ERR
-			       "comedi%d: error! cannot enable PCI device and request regions!\n",
+			       "comedi%d: error! cannot enable PCI device and "
+				"request regions!\n",
 			       dev->minor);
 			return ret;
 		}
@@ -290,9 +292,8 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #endif
 	{
 		ret = pc263_request_region(dev->minor, iobase, PC263_IO_SIZE);
-		if (ret < 0) {
+		if (ret < 0)
 			return ret;
-		}
 	}
 	dev->iobase = iobase;
 
@@ -350,21 +351,18 @@ static int pc263_detach(struct comedi_device *dev)
 	       PC263_DRIVER_NAME);
 
 #ifdef CONFIG_COMEDI_PCI
-	if (devpriv)
+	if (devpriv) {
 #endif
-	{
 #ifdef CONFIG_COMEDI_PCI
 		if (devpriv->pci_dev) {
-			if (dev->iobase) {
+			if (dev->iobase)
 				comedi_pci_disable(devpriv->pci_dev);
-			}
 			pci_dev_put(devpriv->pci_dev);
 		} else
 #endif
 		{
-			if (dev->iobase) {
+			if (dev->iobase)
 				release_region(dev->iobase, PC263_IO_SIZE);
-			}
 		}
 	}
 	if (dev->board_name) {
@@ -434,7 +432,60 @@ static int pc263_dio_insn_config(struct comedi_device *dev,
  * as necessary.
  */
 #ifdef CONFIG_COMEDI_PCI
-COMEDI_PCI_INITCLEANUP(driver_amplc_pc263, pc263_pci_table);
+static int __devinit driver_amplc_pc263_pci_probe(struct pci_dev *dev,
+						  const struct pci_device_id
+						  *ent)
+{
+	return comedi_pci_auto_config(dev, driver_amplc_pc263.driver_name);
+}
+
+static void __devexit driver_amplc_pc263_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_amplc_pc263_pci_driver = {
+	.id_table = pc263_pci_table,
+	.probe = &driver_amplc_pc263_pci_probe,
+	.remove = __devexit_p(&driver_amplc_pc263_pci_remove)
+};
+
+static int __init driver_amplc_pc263_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_amplc_pc263);
+	if (retval < 0)
+		return retval;
+
+	driver_amplc_pc263_pci_driver.name =
+	    (char *)driver_amplc_pc263.driver_name;
+	return pci_register_driver(&driver_amplc_pc263_pci_driver);
+}
+
+static void __exit driver_amplc_pc263_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_amplc_pc263_pci_driver);
+	comedi_driver_unregister(&driver_amplc_pc263);
+}
+
+module_init(driver_amplc_pc263_init_module);
+module_exit(driver_amplc_pc263_cleanup_module);
 #else
-COMEDI_INITCLEANUP(driver_amplc_pc263);
+static int __init driver_amplc_pc263_init_module(void)
+{
+	return comedi_driver_register(&driver_amplc_pc263);
+}
+
+static void __exit driver_amplc_pc263_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_amplc_pc263);
+}
+
+module_init(driver_amplc_pc263_init_module);
+module_exit(driver_amplc_pc263_cleanup_module);
 #endif
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

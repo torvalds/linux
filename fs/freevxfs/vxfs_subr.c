@@ -33,7 +33,6 @@
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/pagemap.h>
 
 #include "vxfs_extern.h"

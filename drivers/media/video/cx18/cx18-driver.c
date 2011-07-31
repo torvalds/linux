@@ -4,7 +4,7 @@
  *  Derived from ivtv-driver.c
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
- *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -47,6 +47,10 @@
    setting this to 1 you ensure that radio0 is now also radio1. */
 int cx18_first_minor;
 
+/* Callback for registering extensions */
+int (*cx18_ext_init)(struct cx18 *);
+EXPORT_SYMBOL(cx18_ext_init);
+
 /* add your revision and whatnot here */
 static struct pci_device_id cx18_pci_tbl[] __devinitdata = {
 	{PCI_VENDOR_ID_CX, PCI_DEVICE_ID_CX23418,
@@ -87,12 +91,11 @@ static int enc_ts_bufsize = CX18_DEFAULT_ENC_TS_BUFSIZE;
 static int enc_mpg_bufsize = CX18_DEFAULT_ENC_MPG_BUFSIZE;
 static int enc_idx_bufsize = CX18_DEFAULT_ENC_IDX_BUFSIZE;
 static int enc_yuv_bufsize = CX18_DEFAULT_ENC_YUV_BUFSIZE;
-/* VBI bufsize based on standards supported by card tuner for now */
 static int enc_pcm_bufsize = CX18_DEFAULT_ENC_PCM_BUFSIZE;
 
 static int enc_ts_bufs = -1;
 static int enc_mpg_bufs = -1;
-static int enc_idx_bufs = -1;
+static int enc_idx_bufs = CX18_MAX_FW_MDLS_PER_STREAM;
 static int enc_yuv_bufs = -1;
 static int enc_vbi_bufs = -1;
 static int enc_pcm_bufs = -1;
@@ -128,7 +131,6 @@ module_param(enc_ts_bufsize, int, 0644);
 module_param(enc_mpg_bufsize, int, 0644);
 module_param(enc_idx_bufsize, int, 0644);
 module_param(enc_yuv_bufsize, int, 0644);
-/* VBI bufsize based on standards supported by card tuner for now */
 module_param(enc_pcm_bufsize, int, 0644);
 
 module_param(enc_ts_bufs, int, 0644);
@@ -198,20 +200,25 @@ MODULE_PARM_DESC(enc_mpg_bufs,
 		 "Number of encoder MPG buffers\n"
 		 "\t\t\tDefault is computed from other enc_mpg_* parameters");
 MODULE_PARM_DESC(enc_idx_buffers,
-		 "Encoder IDX buffer memory (MB). (enc_idx_bufs can override)\n"
-		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_IDX_BUFFERS));
+		 "(Deprecated) Encoder IDX buffer memory (MB)\n"
+		 "\t\t\tIgnored, except 0 disables IDX buffer allocations\n"
+		 "\t\t\tDefault: 1 [Enabled]");
 MODULE_PARM_DESC(enc_idx_bufsize,
 		 "Size of an encoder IDX buffer (kB)\n"
-		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_IDX_BUFSIZE));
+		 "\t\t\tAllowed values are multiples of 1.5 kB rounded up\n"
+		 "\t\t\t(multiples of size required for 64 index entries)\n"
+		 "\t\t\tDefault: 2");
 MODULE_PARM_DESC(enc_idx_bufs,
 		 "Number of encoder IDX buffers\n"
-		 "\t\t\tDefault is computed from other enc_idx_* parameters");
+		 "\t\t\tDefault: " __stringify(CX18_MAX_FW_MDLS_PER_STREAM));
 MODULE_PARM_DESC(enc_yuv_buffers,
 		 "Encoder YUV buffer memory (MB). (enc_yuv_bufs can override)\n"
 		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_YUV_BUFFERS));
 MODULE_PARM_DESC(enc_yuv_bufsize,
 		 "Size of an encoder YUV buffer (kB)\n"
-		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_YUV_BUFSIZE));
+		 "\t\t\tAllowed values are multiples of 33.75 kB rounded up\n"
+		 "\t\t\t(multiples of size required for 32 screen lines)\n"
+		 "\t\t\tDefault: 102");
 MODULE_PARM_DESC(enc_yuv_bufs,
 		 "Number of encoder YUV buffers\n"
 		 "\t\t\tDefault is computed from other enc_yuv_* parameters");
@@ -220,7 +227,7 @@ MODULE_PARM_DESC(enc_vbi_buffers,
 		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_VBI_BUFFERS));
 MODULE_PARM_DESC(enc_vbi_bufs,
 		 "Number of encoder VBI buffers\n"
-		 "\t\t\tDefault is computed from enc_vbi_buffers & tuner std");
+		 "\t\t\tDefault is computed from enc_vbi_buffers");
 MODULE_PARM_DESC(enc_pcm_buffers,
 		 "Encoder PCM buffer memory (MB). (enc_pcm_bufs can override)\n"
 		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_PCM_BUFFERS));
@@ -231,7 +238,8 @@ MODULE_PARM_DESC(enc_pcm_bufs,
 		 "Number of encoder PCM buffers\n"
 		 "\t\t\tDefault is computed from other enc_pcm_* parameters");
 
-MODULE_PARM_DESC(cx18_first_minor, "Set device node number assigned to first card");
+MODULE_PARM_DESC(cx18_first_minor,
+		 "Set device node number assigned to first card");
 
 MODULE_AUTHOR("Hans Verkuil");
 MODULE_DESCRIPTION("CX23418 driver");
@@ -239,6 +247,28 @@ MODULE_SUPPORTED_DEVICE("CX23418 MPEG2 encoder");
 MODULE_LICENSE("GPL");
 
 MODULE_VERSION(CX18_VERSION);
+
+#if defined(CONFIG_MODULES) && defined(MODULE)
+static void request_module_async(struct work_struct *work)
+{
+	struct cx18 *dev = container_of(work, struct cx18, request_module_wk);
+
+	/* Make sure cx18-alsa module is loaded */
+	request_module("cx18-alsa");
+
+	/* Initialize cx18-alsa for this instance of the cx18 device */
+	if (cx18_ext_init != NULL)
+		cx18_ext_init(dev);
+}
+
+static void request_modules(struct cx18 *dev)
+{
+	INIT_WORK(&dev->request_module_wk, request_module_async);
+	schedule_work(&dev->request_module_wk);
+}
+#else
+#define request_modules(dev)
+#endif /* CONFIG_MODULES */
 
 /* Generic utility functions */
 int cx18_msleep_timeout(unsigned int msecs, int intr)
@@ -499,10 +529,41 @@ static void cx18_process_options(struct cx18 *cx)
 			continue;
 		}
 		/*
+		 * YUV is a special case where the stream_buf_size needs to be
+		 * an integral multiple of 33.75 kB (storage for 32 screens
+		 * lines to maintain alignment in case of lost buffers).
+		 *
+		 * IDX is a special case where the stream_buf_size should be
+		 * an integral multiple of 1.5 kB (storage for 64 index entries
+		 * to maintain alignment in case of lost buffers).
+		 *
+		 */
+		if (i == CX18_ENC_STREAM_TYPE_YUV) {
+			cx->stream_buf_size[i] *= 1024;
+			cx->stream_buf_size[i] -=
+			   (cx->stream_buf_size[i] % CX18_UNIT_ENC_YUV_BUFSIZE);
+
+			if (cx->stream_buf_size[i] < CX18_UNIT_ENC_YUV_BUFSIZE)
+				cx->stream_buf_size[i] =
+						CX18_UNIT_ENC_YUV_BUFSIZE;
+		} else if (i == CX18_ENC_STREAM_TYPE_IDX) {
+			cx->stream_buf_size[i] *= 1024;
+			cx->stream_buf_size[i] -=
+			   (cx->stream_buf_size[i] % CX18_UNIT_ENC_IDX_BUFSIZE);
+
+			if (cx->stream_buf_size[i] < CX18_UNIT_ENC_IDX_BUFSIZE)
+				cx->stream_buf_size[i] =
+						CX18_UNIT_ENC_IDX_BUFSIZE;
+		}
+		/*
+		 * YUV and IDX are special cases where the stream_buf_size is
+		 * now in bytes.
 		 * VBI is a special case where the stream_buf_size is fixed
 		 * and already in bytes
 		 */
-		if (i == CX18_ENC_STREAM_TYPE_VBI) {
+		if (i == CX18_ENC_STREAM_TYPE_VBI ||
+		    i == CX18_ENC_STREAM_TYPE_YUV ||
+		    i == CX18_ENC_STREAM_TYPE_IDX) {
 			if (cx->stream_buffers[i] < 0) {
 				cx->stream_buffers[i] =
 					cx->options.megabytes[i] * 1024 * 1024
@@ -513,18 +574,24 @@ static void cx18_process_options(struct cx18 *cx)
 					cx->stream_buffers[i]
 					* cx->stream_buf_size[i]/(1024 * 1024);
 			}
-			continue;
-		}
-		/* All other streams have stream_buf_size in kB at this point */
-		if (cx->stream_buffers[i] < 0) {
-			cx->stream_buffers[i] = cx->options.megabytes[i] * 1024
-						/ cx->stream_buf_size[i];
 		} else {
-			/* N.B. This might round down to 0 */
-			cx->options.megabytes[i] =
-			  cx->stream_buffers[i] * cx->stream_buf_size[i] / 1024;
+			/* All other streams have stream_buf_size in kB here */
+			if (cx->stream_buffers[i] < 0) {
+				cx->stream_buffers[i] =
+						cx->options.megabytes[i] * 1024
+						/ cx->stream_buf_size[i];
+			} else {
+				/* N.B. This might round down to 0 */
+				cx->options.megabytes[i] =
+						cx->stream_buffers[i]
+						* cx->stream_buf_size[i] / 1024;
+			}
+			/* convert from kB to bytes */
+			cx->stream_buf_size[i] *= 1024;
 		}
-		cx->stream_buf_size[i] *= 1024; /* convert from kB to bytes */
+		CX18_DEBUG_INFO("Stream type %d options: %d MB, %d buffers, "
+				"%d bytes\n", i, cx->options.megabytes[i],
+				cx->stream_buffers[i], cx->stream_buf_size[i]);
 	}
 
 	cx->options.cardtype = cardtype[cx->instance];
@@ -669,6 +736,12 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 	cx->vbi.in.type = V4L2_BUF_TYPE_VBI_CAPTURE;
 	cx->vbi.sliced_in = &cx->vbi.in.fmt.sliced;
 
+	/* IVTV style VBI insertion into MPEG streams */
+	INIT_LIST_HEAD(&cx->vbi.sliced_mpeg_buf.list);
+	INIT_LIST_HEAD(&cx->vbi.sliced_mpeg_mdl.list);
+	INIT_LIST_HEAD(&cx->vbi.sliced_mpeg_mdl.buf_list);
+	list_add(&cx->vbi.sliced_mpeg_buf.list,
+		 &cx->vbi.sliced_mpeg_mdl.buf_list);
 	return 0;
 }
 
@@ -883,7 +956,6 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 		CX18_ERR("Could not register A/V decoder subdevice\n");
 		goto free_map;
 	}
-	cx18_call_hw(cx, CX18_HW_418_AV, core, init, 0);
 
 	/* Initialize GPIO Reset Controller to do chip resets during i2c init */
 	if (cx->card->hw_all & CX18_HW_GPIO_RESET_CTRL) {
@@ -1004,6 +1076,10 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 	}
 
 	CX18_INFO("Initialized card: %s\n", cx->card_name);
+
+	/* Load cx18 submodules (cx18-alsa) */
+	request_modules(cx);
+
 	return 0;
 
 free_streams:
@@ -1192,6 +1268,7 @@ static void cx18_remove(struct pci_dev *pci_dev)
 	kfree(cx);
 }
 
+
 /* define a pci_driver for card detection */
 static struct pci_driver cx18_pci_driver = {
       .name =     "cx18",
@@ -1200,9 +1277,10 @@ static struct pci_driver cx18_pci_driver = {
       .remove =   cx18_remove,
 };
 
-static int module_start(void)
+static int __init module_start(void)
 {
-	printk(KERN_INFO "cx18:  Start initialization, version %s\n", CX18_VERSION);
+	printk(KERN_INFO "cx18:  Start initialization, version %s\n",
+	       CX18_VERSION);
 
 	/* Validate parameters */
 	if (cx18_first_minor < 0 || cx18_first_minor >= CX18_MAX_CARDS) {
@@ -1224,7 +1302,7 @@ static int module_start(void)
 	return 0;
 }
 
-static void module_cleanup(void)
+static void __exit module_cleanup(void)
 {
 	pci_unregister_driver(&cx18_pci_driver);
 }

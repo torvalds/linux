@@ -364,6 +364,30 @@ void xhci_debug_ring(struct xhci_hcd *xhci, struct xhci_ring *ring)
 		xhci_debug_segment(xhci, seg);
 }
 
+void xhci_dbg_ep_rings(struct xhci_hcd *xhci,
+		unsigned int slot_id, unsigned int ep_index,
+		struct xhci_virt_ep *ep)
+{
+	int i;
+	struct xhci_ring *ring;
+
+	if (ep->ep_state & EP_HAS_STREAMS) {
+		for (i = 1; i < ep->stream_info->num_streams; i++) {
+			ring = ep->stream_info->stream_rings[i];
+			xhci_dbg(xhci, "Dev %d endpoint %d stream ID %d:\n",
+				slot_id, ep_index, i);
+			xhci_debug_segment(xhci, ring->deq_seg);
+		}
+	} else {
+		ring = ep->ring;
+		if (!ring)
+			return;
+		xhci_dbg(xhci, "Dev %d endpoint ring %d:\n",
+				slot_id, ep_index);
+		xhci_debug_segment(xhci, ring->deq_seg);
+	}
+}
+
 void xhci_dbg_erst(struct xhci_hcd *xhci, struct xhci_erst *erst)
 {
 	u32 addr = (u32) erst->erst_dma_addr;
@@ -403,6 +427,25 @@ static void dbg_rsvd64(struct xhci_hcd *xhci, u64 *ctx, dma_addr_t dma)
 			 &ctx[4 + i], (unsigned long long)dma,
 			 ctx[4 + i], i);
 		dma += 8;
+	}
+}
+
+char *xhci_get_slot_state(struct xhci_hcd *xhci,
+		struct xhci_container_ctx *ctx)
+{
+	struct xhci_slot_ctx *slot_ctx = xhci_get_slot_ctx(xhci, ctx);
+
+	switch (GET_SLOT_STATE(slot_ctx->dev_state)) {
+	case 0:
+		return "enabled/disabled";
+	case 1:
+		return "default";
+	case 2:
+		return "addressed";
+	case 3:
+		return "configured";
+	default:
+		return "reserved";
 	}
 }
 

@@ -38,6 +38,7 @@
 #include <net/tipc/tipc_bearer.h>
 #include <net/tipc/tipc_msg.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 
 #define MAX_ETH_BEARERS		2

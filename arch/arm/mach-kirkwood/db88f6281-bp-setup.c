@@ -51,6 +51,14 @@ static struct mvsdio_platform_data db88f6281_mvsdio_data = {
 };
 
 static unsigned int db88f6281_mpp_config[] __initdata = {
+	MPP0_NF_IO2,
+	MPP1_NF_IO3,
+	MPP2_NF_IO4,
+	MPP3_NF_IO5,
+	MPP4_NF_IO6,
+	MPP5_NF_IO7,
+	MPP18_NF_IO0,
+	MPP19_NF_IO1,
 	MPP37_GPIO,
 	MPP38_GPIO,
 	0
@@ -74,9 +82,15 @@ static void __init db88f6281_init(void)
 
 static int __init db88f6281_pci_init(void)
 {
-	if (machine_is_db88f6281_bp())
-		kirkwood_pcie_init();
+	if (machine_is_db88f6281_bp()) {
+		u32 dev, rev;
 
+		kirkwood_pcie_id(&dev, &rev);
+		if (dev == MV88F6282_DEV_ID)
+			kirkwood_pcie_init(KW_PCIE1 | KW_PCIE0);
+		else
+			kirkwood_pcie_init(KW_PCIE0);
+	}
 	return 0;
 }
 subsys_initcall(db88f6281_pci_init);

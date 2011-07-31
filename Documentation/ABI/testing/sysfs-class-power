@@ -1,0 +1,20 @@
+What:		/sys/class/power/ds2760-battery.*/charge_now
+Date:		May 2010
+KernelVersion:	2.6.35
+Contact:	Daniel Mack <daniel@caiaq.de>
+Description:
+		This file is writeable and can be used to set the current
+		coloumb counter value inside the battery monitor chip. This
+		is needed for unavoidable corrections of aging batteries.
+		A userspace daemon can monitor the battery charging logic
+		and once the counter drops out of considerable bounds, take
+		appropriate action.
+
+What:		/sys/class/power/ds2760-battery.*/charge_full
+Date:		May 2010
+KernelVersion:	2.6.35
+Contact:	Daniel Mack <daniel@caiaq.de>
+Description:
+		This file is writeable and can be used to set the assumed
+		battery 'full level'. As batteries age, this value has to be
+		amended over time.

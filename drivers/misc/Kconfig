@@ -13,6 +13,50 @@ menuconfig MISC_DEVICES
 
 if MISC_DEVICES
 
+config AD525X_DPOT
+	tristate "Analog Devices Digital Potentiometers"
+	depends on (I2C || SPI) && SYSFS
+	help
+	  If you say yes here, you get support for the Analog Devices
+	  AD5258, AD5259, AD5251, AD5252, AD5253, AD5254, AD5255
+	  AD5160, AD5161, AD5162, AD5165, AD5200, AD5201, AD5203,
+	  AD5204, AD5206, AD5207, AD5231, AD5232, AD5233, AD5235,
+	  AD5260, AD5262, AD5263, AD5290, AD5291, AD5292, AD5293,
+	  AD7376, AD8400, AD8402, AD8403, ADN2850, AD5241, AD5242,
+	  AD5243, AD5245, AD5246, AD5247, AD5248, AD5280, AD5282,
+	  ADN2860, AD5273, AD5171, AD5170, AD5172, AD5173
+	  digital potentiometer chips.
+
+	  See Documentation/misc-devices/ad525x_dpot.txt for the
+	  userspace interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ad525x_dpot.
+
+config AD525X_DPOT_I2C
+	tristate "support I2C bus connection"
+	depends on AD525X_DPOT && I2C
+	help
+	  Say Y here if you have a digital potentiometers hooked to an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad525x_dpot-i2c.
+
+config AD525X_DPOT_SPI
+	tristate "support SPI bus connection"
+	depends on AD525X_DPOT && SPI_MASTER
+	help
+	  Say Y here if you have a digital potentiometers hooked to an SPI bus.
+
+	  If unsure, say N (but it's safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad525x_dpot-spi.
+
+config ANDROID_PMEM
+	bool "Android pmem allocator"
+	default y
+
 config ATMEL_PWM
 	tristate "Atmel AT32/AT91 PWM support"
 	depends on AVR32 || ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || ARCH_AT91CAP9
@@ -32,7 +76,7 @@ config ATMEL_TCLIB
 
 config ATMEL_TCB_CLKSRC
 	bool "TC Block Clocksource"
-	depends on ATMEL_TCLIB && GENERIC_TIME
+	depends on ATMEL_TCLIB
 	default y
 	help
 	  Select this to get a high precision clocksource based on a
@@ -159,6 +203,13 @@ config ENCLOSURE_SERVICES
 	  driver (SCSI/ATA) which supports enclosures
 	  or a SCSI enclosure device (SES) to use these services.
 
+config KERNEL_DEBUGGER_CORE
+	bool "Kernel Debugger Core"
+	default n
+	---help---
+	  Generic kernel debugging command processor used by low level
+	  (interrupt context) platform-specific debuggers.
+
 config SGI_XP
 	tristate "Support communication between SGI SSIs"
 	depends on NET
@@ -172,6 +223,40 @@ config SGI_XP
 	  hardware based memory protection from the others.  Enabling
 	  this feature will allow for direct communication between SSIs
 	  based on a network adapter and DMA messaging.
+
+config CS5535_MFGPT
+	tristate "CS5535/CS5536 Geode Multi-Function General Purpose Timer (MFGPT) support"
+	depends on PCI
+	depends on X86
+	default n
+	help
+	  This driver provides access to MFGPT functionality for other
+	  drivers that need timers.  MFGPTs are available in the CS5535 and
+	  CS5536 companion chips that are found in AMD Geode and several
+	  other platforms.  They have a better resolution and max interval
+	  than the generic PIT, and are suitable for use as high-res timers.
+	  You probably don't want to enable this manually; other drivers that
+	  make use of it should enable it.
+
+config CS5535_MFGPT_DEFAULT_IRQ
+	int
+	depends on CS5535_MFGPT
+	default 7
+	help
+	  MFGPTs on the CS5535 require an interrupt.  The selected IRQ
+	  can be overridden as a module option as well as by driver that
+	  use the cs5535_mfgpt_ API; however, different architectures might
+	  want to use a different IRQ by default.  This is here for
+	  architectures to set as necessary.
+
+config CS5535_CLOCK_EVENT_SRC
+	tristate "CS5535/CS5536 high-res timer (MFGPT) events"
+	depends on GENERIC_CLOCKEVENTS && CS5535_MFGPT
+	help
+	  This driver provides a clock event source based on the MFGPT
+	  timer(s) in the CS5535 and CS5536 companion chips.
+	  MFGPTs have a better resolution and max interval than the
+	  generic PIT, and are suitable for use as high-res timers.
 
 config HP_ILO
 	tristate "Channel interface driver for HP iLO/iLO2 processor"
@@ -210,19 +295,6 @@ config SGI_GRU_DEBUG
 	This option enables addition debugging code for the SGI GRU driver. If
 	you are unsure, say N.
 
-config DELL_LAPTOP
-	tristate "Dell Laptop Extras (EXPERIMENTAL)"
-	depends on X86
-	depends on DCDBAS
-	depends on EXPERIMENTAL
-	depends on BACKLIGHT_CLASS_DEVICE
-	depends on RFKILL
-	depends on POWER_SUPPLY
-	default n
-	---help---
-	This driver adds support for rfkill and backlight control to Dell
-	laptops.
-
 config ISL29003
 	tristate "Intersil ISL29003 ambient light sensor"
 	depends on I2C && SYSFS
@@ -232,6 +304,89 @@ config ISL29003
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called isl29003.
+
+config SENSORS_TSL2550
+	tristate "Taos TSL2550 ambient light sensor"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get support for the Taos TSL2550
+	  ambient light sensor.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tsl2550.
+
+config SENSORS_BH1780
+	tristate "ROHM BH1780GLI ambient light sensor"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get support for the ROHM BH1780GLI
+	  ambient light sensor.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called bh1780gli.
+
+config HMC6352
+	tristate "Honeywell HMC6352 compass"
+	depends on I2C
+	help
+	  This driver provides support for the Honeywell HMC6352 compass,
+	  providing configuration and heading data via sysfs.
+
+config SENSORS_AK8975
+	tristate "AK8975 compass support"
+	default n
+	depends on I2C
+	help
+	  If you say yes here you get support for Asahi Kasei's
+	  orientation sensor AK8975.
+
+config SENSORS_CAP_PROX
+	tristate "Motorola Capacitive Proximity Sensor"
+	default n
+	depends on I2C
+	help
+	 Say yes here if you wish to include the Motorola
+	 Capacitive Proximity Sensor driver.
+
+config SENSORS_KXTF9
+	tristate "KXTF9 Accelerometer"
+	default n
+	depends on I2C
+	help
+	 Say yes here if you wish to include the Kionix
+	 KXTF9 accelerometer driver.
+
+config SENSORS_L3G4200D
+	tristate "ST Micro Gyroscope"
+	default n
+	depends on I2C
+	help
+	 Say yes here if you wish to include the ST Micro
+	 L3G4200D gyroscope driver.
+
+config SENSORS_MAX9635
+	tristate "Maxim Ambient Light Sensor"
+	default n
+	depends on I2C
+	help
+	 Say yes here if you wish to include the Maxim
+	 MAX9635 ambient light sensor driver.
+
+config SENSORS_NCT1008
+	tristate "ON Semiconductor Temperature Sensor"
+	default n
+	depends on I2C
+	help
+	 Say yes here if you wish to include the ON Semiconductor
+	 NCT1008 Temperature sensor.
+
+config SENSORS_MOTO_BMP085
+	tristate "BMP085 Barometer (moto driver)"
+	default n
+	depends on I2C
+	help
+	 Say yes here if you wish to include the Bosch
+	 BMP085 barometer driver.
 
 config EP93XX_PWM
 	tristate "EP93xx PWM support"
@@ -248,23 +403,113 @@ config EP93XX_PWM
 
 config STE
 	bool "STE modem control driver"
-	default n
 	
 config MTK23D
 	bool "MTK6223D modem control driver"
-	default n	
 
 config FM580X
 	bool "FM rda580x driver"
-	default n	
 	
 config MU509
 	bool "MU509 modem control driver"
-	default n
 	
 config RK29_NEWTON
 	bool "RK29_NEWTON misc driver"
+
+config DS1682
+	tristate "Dallas DS1682 Total Elapsed Time Recorder with Alarm"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for Dallas Semiconductor
+	  DS1682 Total Elapsed Time Recorder.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ds1682.
+
+config TI_DAC7512
+	tristate "Texas Instruments DAC7512"
+	depends on SPI && SYSFS
+	help
+	  If you say yes here you get support for the Texas Instruments
+	  DAC7512 16-bit digital-to-analog converter.
+
+	  This driver can also be built as a module. If so, the module
+	  will be calles ti_dac7512.
+
+config UID_STAT
+	bool "UID based statistics tracking exported to /proc/uid_stat"
 	default n
+
+config VMWARE_BALLOON
+	tristate "VMware Balloon Driver"
+	depends on X86
+	help
+	  This is VMware physical memory management driver which acts
+	  like a "balloon" that can be inflated to reclaim physical pages
+	  by reserving them in the guest and invalidating them in the
+	  monitor, freeing up the underlying machine pages so they can
+	  be allocated to other guests. The balloon can also be deflated
+	  to allow the guest to use more physical memory.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called vmw_balloon.
+
+config ARM_CHARLCD
+	bool "ARM Ltd. Character LCD Driver"
+	depends on PLAT_VERSATILE
+	help
+	  This is a driver for the character LCD found on the ARM Ltd.
+	  Versatile and RealView Platform Baseboards. It doesn't do
+	  very much more than display the text "ARM Linux" on the first
+	  line and the Linux version on the second line, but that's
+	  still useful.
+
+config BMP085
+	tristate "BMP085 digital pressure sensor"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get support for the Bosch Sensortec
+	  BMP086 digital pressure sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bmp085.
+
+config WL127X_RFKILL
+	tristate "Bluetooth power control driver for TI wl127x"
+	depends on RFKILL
+	default n
+	---help---
+	 Creates an rfkill entry in sysfs for power control of Bluetooth
+	 TI wl127x chips.
+
+config APANIC
+	bool "Android kernel panic diagnostics driver"
+	default n
+	---help---
+	 Driver which handles kernel panics and attempts to write
+	 critical debugging data to flash.
+
+config APANIC_PLABEL
+	string "Android panic dump flash partition label"
+	depends on APANIC
+	default "kpanic"
+	---help---
+	 If your platform uses a different flash partition label for storing
+ 	 crashdumps, enter it here.
+
+config GPS_GPIO_BRCM4750
+	bool "Enable gpio controller for GPS brcm 4750"
+	default y
+	---help---
+	Adds GPIO controller driver for GPS Broadcom 4750 chipset
+
+config TEGRA_CRYPTO_DEV
+	bool "Device node to access tegra aes hardware"
+	---help---
+	Dev node /dev/tegra-crypto in order to get access to tegra aes
+	hardware from user space
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
@@ -272,4 +517,8 @@ source "drivers/misc/cb710/Kconfig"
 source "drivers/misc/rk29_modem/Kconfig"
 source "drivers/misc/gps/Kconfig"
 source "drivers/misc/mpu3050/Kconfig"
+source "drivers/misc/ts27010mux/Kconfig"
+source "drivers/misc/iwmc3200top/Kconfig"
+source "drivers/misc/radio_ctrl/Kconfig"
+
 endif # MISC_DEVICES

@@ -19,6 +19,7 @@
 #include <linux/mutex.h>
 #include <linux/smp_lock.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
@@ -536,7 +537,6 @@ static int dasd_eer_open(struct inode *inp, struct file *filp)
 	eerb = kzalloc(sizeof(struct eerbuffer), GFP_KERNEL);
 	if (!eerb)
 		return -ENOMEM;
-	lock_kernel();
 	eerb->buffer_page_count = eer_pages;
 	if (eerb->buffer_page_count < 1 ||
 	    eerb->buffer_page_count > INT_MAX / PAGE_SIZE) {
@@ -544,7 +544,6 @@ static int dasd_eer_open(struct inode *inp, struct file *filp)
 		DBF_EVENT(DBF_WARNING, "can't open device since module "
 			"parameter eer_pages is smaller than 1 or"
 			" bigger than %d", (int)(INT_MAX / PAGE_SIZE));
-		unlock_kernel();
 		return -EINVAL;
 	}
 	eerb->buffersize = eerb->buffer_page_count * PAGE_SIZE;
@@ -552,14 +551,12 @@ static int dasd_eer_open(struct inode *inp, struct file *filp)
 			       GFP_KERNEL);
         if (!eerb->buffer) {
 		kfree(eerb);
-		unlock_kernel();
                 return -ENOMEM;
 	}
 	if (dasd_eer_allocate_buffer_pages(eerb->buffer,
 					   eerb->buffer_page_count)) {
 		kfree(eerb->buffer);
 		kfree(eerb);
-		unlock_kernel();
 		return -ENOMEM;
 	}
 	filp->private_data = eerb;
@@ -567,7 +564,6 @@ static int dasd_eer_open(struct inode *inp, struct file *filp)
 	list_add(&eerb->list, &bufferlist);
 	spin_unlock_irqrestore(&bufferlock, flags);
 
-	unlock_kernel();
 	return nonseekable_open(inp,filp);
 }
 
@@ -705,7 +701,7 @@ int __init dasd_eer_init(void)
 void dasd_eer_exit(void)
 {
 	if (dasd_eer_dev) {
-		WARN_ON(misc_deregister(dasd_eer_dev) != 0);
+		misc_deregister(dasd_eer_dev);
 		kfree(dasd_eer_dev);
 		dasd_eer_dev = NULL;
 	}

@@ -104,9 +104,19 @@ static int of_bus_pci_map(u32 *addr, const u32 *range,
 	int i;
 
 	/* Check address type match */
-	if ((addr[0] ^ range[0]) & 0x03000000)
-		return -EINVAL;
+	if (!((addr[0] ^ range[0]) & 0x03000000))
+		goto type_match;
 
+	/* Special exception, we can map a 64-bit address into
+	 * a 32-bit range.
+	 */
+	if ((addr[0] & 0x03000000) == 0x03000000 &&
+	    (range[0] & 0x03000000) == 0x02000000)
+		goto type_match;
+
+	return -EINVAL;
+
+type_match:
 	if (of_out_of_range(addr + 1, range + 1, range + na + pna,
 			    na - 1, ns))
 		return -EINVAL;
@@ -300,10 +310,10 @@ static int __init use_1to1_mapping(struct device_node *pp)
 
 static int of_resource_verbose;
 
-static void __init build_device_resources(struct of_device *op,
+static void __init build_device_resources(struct platform_device *op,
 					  struct device *parent)
 {
-	struct of_device *p_op;
+	struct platform_device *p_op;
 	struct of_bus *bus;
 	int na, ns;
 	int index, num_reg;
@@ -312,11 +322,11 @@ static void __init build_device_resources(struct of_device *op,
 	if (!parent)
 		return;
 
-	p_op = to_of_device(parent);
-	bus = of_match_bus(p_op->node);
-	bus->count_cells(op->node, &na, &ns);
+	p_op = to_platform_device(parent);
+	bus = of_match_bus(p_op->dev.of_node);
+	bus->count_cells(op->dev.of_node, &na, &ns);
 
-	preg = of_get_property(op->node, bus->addr_prop_name, &num_reg);
+	preg = of_get_property(op->dev.of_node, bus->addr_prop_name, &num_reg);
 	if (!preg || num_reg == 0)
 		return;
 
@@ -330,16 +340,18 @@ static void __init build_device_resources(struct of_device *op,
 	if (num_reg > PROMREG_MAX) {
 		printk(KERN_WARNING "%s: Too many regs (%d), "
 		       "limiting to %d.\n",
-		       op->node->full_name, num_reg, PROMREG_MAX);
+		       op->dev.of_node->full_name, num_reg, PROMREG_MAX);
 		num_reg = PROMREG_MAX;
 	}
 
+	op->resource = op->archdata.resource;
+	op->num_resources = num_reg;
 	for (index = 0; index < num_reg; index++) {
 		struct resource *r = &op->resource[index];
 		u32 addr[OF_MAX_ADDR_CELLS];
 		const u32 *reg = (preg + (index * ((na + ns) * 4)));
-		struct device_node *dp = op->node;
-		struct device_node *pp = p_op->node;
+		struct device_node *dp = op->dev.of_node;
+		struct device_node *pp = p_op->dev.of_node;
 		struct of_bus *pbus, *dbus;
 		u64 size, result = OF_BAD_ADDR;
 		unsigned long flags;
@@ -387,7 +399,7 @@ static void __init build_device_resources(struct of_device *op,
 
 		if (of_resource_verbose)
 			printk("%s reg[%d] -> %llx\n",
-			       op->node->full_name, index,
+			       op->dev.of_node->full_name, index,
 			       result);
 
 		if (result != OF_BAD_ADDR) {
@@ -398,7 +410,7 @@ static void __init build_device_resources(struct of_device *op,
 			r->end = result + size - 1;
 			r->flags = flags;
 		}
-		r->name = op->node->name;
+		r->name = op->dev.of_node->name;
 	}
 }
 
@@ -516,11 +528,11 @@ static unsigned int __init pci_irq_swizzle(struct device_node *dp,
 
 static int of_irq_verbose;
 
-static unsigned int __init build_one_device_irq(struct of_device *op,
+static unsigned int __init build_one_device_irq(struct platform_device *op,
 						struct device *parent,
 						unsigned int irq)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct device_node *pp, *ip;
 	unsigned int orig_irq = irq;
 	int nid;
@@ -565,7 +577,7 @@ static unsigned int __init build_one_device_irq(struct of_device *op,
 
 			if (of_irq_verbose)
 				printk("%s: Apply [%s:%x] imap --> [%s:%x]\n",
-				       op->node->full_name,
+				       op->dev.of_node->full_name,
 				       pp->full_name, this_orig_irq,
 				       (iret ? iret->full_name : "NULL"), irq);
 
@@ -584,7 +596,7 @@ static unsigned int __init build_one_device_irq(struct of_device *op,
 				if (of_irq_verbose)
 					printk("%s: PCI swizzle [%s] "
 					       "%x --> %x\n",
-					       op->node->full_name,
+					       op->dev.of_node->full_name,
 					       pp->full_name, this_orig_irq,
 					       irq);
 
@@ -601,11 +613,11 @@ static unsigned int __init build_one_device_irq(struct of_device *op,
 	if (!ip)
 		return orig_irq;
 
-	irq = ip->irq_trans->irq_build(op->node, irq,
+	irq = ip->irq_trans->irq_build(op->dev.of_node, irq,
 				       ip->irq_trans->data);
 	if (of_irq_verbose)
 		printk("%s: Apply IRQ trans [%s] %x --> %x\n",
-		       op->node->full_name, ip->full_name, orig_irq, irq);
+		      op->dev.of_node->full_name, ip->full_name, orig_irq, irq);
 
 out:
 	nid = of_node_to_nid(dp);
@@ -618,10 +630,10 @@ out:
 	return irq;
 }
 
-static struct of_device * __init scan_one_device(struct device_node *dp,
+static struct platform_device * __init scan_one_device(struct device_node *dp,
 						 struct device *parent)
 {
-	struct of_device *op = kzalloc(sizeof(*op), GFP_KERNEL);
+	struct platform_device *op = kzalloc(sizeof(*op), GFP_KERNEL);
 	const unsigned int *irq;
 	struct dev_archdata *sd;
 	int len, i;
@@ -630,43 +642,36 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 		return NULL;
 
 	sd = &op->dev.archdata;
-	sd->prom_node = dp;
 	sd->op = op;
 
-	op->node = dp;
-
-	op->clock_freq = of_getintprop_default(dp, "clock-frequency",
-					       (25*1000*1000));
-	op->portid = of_getintprop_default(dp, "upa-portid", -1);
-	if (op->portid == -1)
-		op->portid = of_getintprop_default(dp, "portid", -1);
+	op->dev.of_node = dp;
 
 	irq = of_get_property(dp, "interrupts", &len);
 	if (irq) {
-		op->num_irqs = len / 4;
+		op->archdata.num_irqs = len / 4;
 
 		/* Prevent overrunning the op->irqs[] array.  */
-		if (op->num_irqs > PROMINTR_MAX) {
+		if (op->archdata.num_irqs > PROMINTR_MAX) {
 			printk(KERN_WARNING "%s: Too many irqs (%d), "
 			       "limiting to %d.\n",
-			       dp->full_name, op->num_irqs, PROMINTR_MAX);
-			op->num_irqs = PROMINTR_MAX;
+			       dp->full_name, op->archdata.num_irqs, PROMINTR_MAX);
+			op->archdata.num_irqs = PROMINTR_MAX;
 		}
-		memcpy(op->irqs, irq, op->num_irqs * 4);
+		memcpy(op->archdata.irqs, irq, op->archdata.num_irqs * 4);
 	} else {
-		op->num_irqs = 0;
+		op->archdata.num_irqs = 0;
 	}
 
 	build_device_resources(op, parent);
-	for (i = 0; i < op->num_irqs; i++)
-		op->irqs[i] = build_one_device_irq(op, parent, op->irqs[i]);
+	for (i = 0; i < op->archdata.num_irqs; i++)
+		op->archdata.irqs[i] = build_one_device_irq(op, parent, op->archdata.irqs[i]);
 
 	op->dev.parent = parent;
-	op->dev.bus = &of_platform_bus_type;
+	op->dev.bus = &platform_bus_type;
 	if (!parent)
 		dev_set_name(&op->dev, "root");
 	else
-		dev_set_name(&op->dev, "%08x", dp->node);
+		dev_set_name(&op->dev, "%08x", dp->phandle);
 
 	if (of_device_register(op)) {
 		printk("%s: Could not register of device.\n",
@@ -681,7 +686,7 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 static void __init scan_tree(struct device_node *dp, struct device *parent)
 {
 	while (dp) {
-		struct of_device *op = scan_one_device(dp, parent);
+		struct platform_device *op = scan_one_device(dp, parent);
 
 		if (op)
 			scan_tree(dp->child, &op->dev);
@@ -690,30 +695,19 @@ static void __init scan_tree(struct device_node *dp, struct device *parent)
 	}
 }
 
-static void __init scan_of_devices(void)
+static int __init scan_of_devices(void)
 {
 	struct device_node *root = of_find_node_by_path("/");
-	struct of_device *parent;
+	struct platform_device *parent;
 
 	parent = scan_one_device(root, NULL);
 	if (!parent)
-		return;
+		return 0;
 
 	scan_tree(root->child, &parent->dev);
+	return 0;
 }
-
-static int __init of_bus_driver_init(void)
-{
-	int err;
-
-	err = of_bus_type_init(&of_platform_bus_type, "of");
-	if (!err)
-		scan_of_devices();
-
-	return err;
-}
-
-postcore_initcall(of_bus_driver_init);
+postcore_initcall(scan_of_devices);
 
 static int __init of_debug(char *str)
 {

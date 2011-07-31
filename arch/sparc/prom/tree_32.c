@@ -173,7 +173,6 @@ void prom_getstring(int node, char *prop, char *user_buf, int ubuf_size)
 	len = prom_getproperty(node, prop, user_buf, ubuf_size);
 	if(len != -1) return;
 	user_buf[0] = 0;
-	return;
 }
 EXPORT_SYMBOL(prom_getstring);
 
@@ -339,21 +338,6 @@ int prom_inst2pkg(int inst)
 	node = (*romvec->pv_v2devops.v2_inst2pkg)(inst);
 	restore_current();
 	spin_unlock_irqrestore(&prom_lock, flags);
-	if (node == -1) return 0;
-	return node;
-}
-
-/* Return 'node' assigned to a particular prom 'path'
- * FIXME: Should work for v0 as well
- */
-int prom_pathtoinode(char *path)
-{
-	int node, inst;
-	
-	inst = prom_devopen (path);
-	if (inst == -1) return 0;
-	node = prom_inst2pkg (inst);
-	prom_devclose (inst);
 	if (node == -1) return 0;
 	return node;
 }

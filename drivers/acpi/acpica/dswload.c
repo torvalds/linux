@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -212,18 +212,19 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 		case ACPI_TYPE_BUFFER:
 
 			/*
-			 * These types we will allow, but we will change the type. This
-			 * enables some existing code of the form:
+			 * These types we will allow, but we will change the type.
+			 * This enables some existing code of the form:
 			 *
 			 *  Name (DEB, 0)
 			 *  Scope (DEB) { ... }
 			 *
-			 * Note: silently change the type here. On the second pass, we will report
-			 * a warning
+			 * Note: silently change the type here. On the second pass,
+			 * we will report a warning
 			 */
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-					  "Type override - [%4.4s] had invalid type (%s) for Scope operator, changed to (Scope)\n",
-					  path,
+					  "Type override - [%4.4s] had invalid type (%s) "
+					  "for Scope operator, changed to type ANY\n",
+					  acpi_ut_get_node_name(node),
 					  acpi_ut_get_type_name(node->type)));
 
 			node->type = ACPI_TYPE_ANY;
@@ -235,8 +236,10 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 			/* All other types are an error */
 
 			ACPI_ERROR((AE_INFO,
-				    "Invalid type (%s) for target of Scope operator [%4.4s] (Cannot override)",
-				    acpi_ut_get_type_name(node->type), path));
+				    "Invalid type (%s) for target of "
+				    "Scope operator [%4.4s] (Cannot override)",
+				    acpi_ut_get_type_name(node->type),
+				    acpi_ut_get_node_name(node)));
 
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
@@ -639,26 +642,42 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 		break;
 
 	case AML_SCOPE_OP:
-		/*
-		 * The Path is an object reference to an existing object.
-		 * Don't enter the name into the namespace, but look it up
-		 * for use later.
-		 */
-		status =
-		    acpi_ns_lookup(walk_state->scope_info, buffer_ptr,
-				   object_type, ACPI_IMODE_EXECUTE,
-				   ACPI_NS_SEARCH_PARENT, walk_state, &(node));
-		if (ACPI_FAILURE(status)) {
-#ifdef ACPI_ASL_COMPILER
-			if (status == AE_NOT_FOUND) {
-				status = AE_OK;
-			} else {
-				ACPI_ERROR_NAMESPACE(buffer_ptr, status);
+
+		/* Special case for Scope(\) -> refers to the Root node */
+
+		if (op && (op->named.node == acpi_gbl_root_node)) {
+			node = op->named.node;
+
+			status =
+			    acpi_ds_scope_stack_push(node, object_type,
+						     walk_state);
+			if (ACPI_FAILURE(status)) {
+				return_ACPI_STATUS(status);
 			}
+		} else {
+			/*
+			 * The Path is an object reference to an existing object.
+			 * Don't enter the name into the namespace, but look it up
+			 * for use later.
+			 */
+			status =
+			    acpi_ns_lookup(walk_state->scope_info, buffer_ptr,
+					   object_type, ACPI_IMODE_EXECUTE,
+					   ACPI_NS_SEARCH_PARENT, walk_state,
+					   &(node));
+			if (ACPI_FAILURE(status)) {
+#ifdef ACPI_ASL_COMPILER
+				if (status == AE_NOT_FOUND) {
+					status = AE_OK;
+				} else {
+					ACPI_ERROR_NAMESPACE(buffer_ptr,
+							     status);
+				}
 #else
-			ACPI_ERROR_NAMESPACE(buffer_ptr, status);
+				ACPI_ERROR_NAMESPACE(buffer_ptr, status);
 #endif
-			return_ACPI_STATUS(status);
+				return_ACPI_STATUS(status);
+			}
 		}
 
 		/*
@@ -681,15 +700,16 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 		case ACPI_TYPE_BUFFER:
 
 			/*
-			 * These types we will allow, but we will change the type. This
-			 * enables some existing code of the form:
+			 * These types we will allow, but we will change the type.
+			 * This enables some existing code of the form:
 			 *
 			 *  Name (DEB, 0)
 			 *  Scope (DEB) { ... }
 			 */
 			ACPI_WARNING((AE_INFO,
-				      "Type override - [%4.4s] had invalid type (%s) for Scope operator, changed to (Scope)",
-				      buffer_ptr,
+				      "Type override - [%4.4s] had invalid type (%s) "
+				      "for Scope operator, changed to type ANY\n",
+				      acpi_ut_get_node_name(node),
 				      acpi_ut_get_type_name(node->type)));
 
 			node->type = ACPI_TYPE_ANY;
@@ -701,9 +721,10 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 			/* All other types are an error */
 
 			ACPI_ERROR((AE_INFO,
-				    "Invalid type (%s) for target of Scope operator [%4.4s]",
+				    "Invalid type (%s) for target of "
+				    "Scope operator [%4.4s] (Cannot override)",
 				    acpi_ut_get_type_name(node->type),
-				    buffer_ptr));
+				    acpi_ut_get_node_name(node)));
 
 			return (AE_AML_OPERAND_TYPE);
 		}
@@ -1031,9 +1052,22 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 			}
 
 			/*
-			 * If we are executing a method, initialize the region
+			 * The op_region is not fully parsed at this time. The only valid
+			 * argument is the space_id. (We must save the address of the
+			 * AML of the address and length operands)
+			 *
+			 * If we have a valid region, initialize it. The namespace is
+			 * unlocked at this point.
+			 *
+			 * Need to unlock interpreter if it is locked (if we are running
+			 * a control method), in order to allow _REG methods to be run
+			 * during acpi_ev_initialize_region.
 			 */
 			if (walk_state->method_node) {
+				/*
+				 * Executing a method: initialize the region and unlock
+				 * the interpreter
+				 */
 				status =
 				    acpi_ex_create_region(op->named.data,
 							  op->named.length,
@@ -1042,21 +1076,17 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 				if (ACPI_FAILURE(status)) {
 					return (status);
 				}
+
+				acpi_ex_exit_interpreter();
 			}
 
-			/*
-			 * The op_region is not fully parsed at this time. Only valid
-			 * argument is the space_id. (We must save the address of the
-			 * AML of the address and length operands)
-			 */
-
-			/*
-			 * If we have a valid region, initialize it
-			 * Namespace is NOT locked at this point.
-			 */
 			status =
 			    acpi_ev_initialize_region
 			    (acpi_ns_get_attached_object(node), FALSE);
+			if (walk_state->method_node) {
+				acpi_ex_enter_interpreter();
+			}
+
 			if (ACPI_FAILURE(status)) {
 				/*
 				 *  If AE_NOT_EXIST is returned, it is not fatal

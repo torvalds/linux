@@ -26,6 +26,7 @@
 #define _LINUX_SUNRPC_METRICS_H
 
 #include <linux/seq_file.h>
+#include <linux/ktime.h>
 
 #define RPC_IOSTATS_VERS	"1.0"
 
@@ -58,9 +59,9 @@ struct rpc_iostats {
 	 * and the total time the request spent from init to release
 	 * are measured.
 	 */
-	unsigned long long	om_queue,	/* jiffies queued for xmit */
-				om_rtt,		/* jiffies for RPC RTT */
-				om_execute;	/* jiffies for RPC execution */
+	ktime_t			om_queue,	/* queued for xmit */
+				om_rtt,		/* RPC RTT */
+				om_execute;	/* RPC execution */
 } ____cacheline_aligned;
 
 struct rpc_task;

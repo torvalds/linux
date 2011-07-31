@@ -28,7 +28,6 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/types.h>
-#include <linux/slab.h>
 #include <linux/highmem.h>
 #include <linux/init.h>
 #include <linux/sysctl.h>
@@ -391,12 +390,14 @@ static enum dlm_status dlm_send_remote_convert_request(struct dlm_ctxt *dlm,
 		} else if (ret != DLM_NORMAL && ret != DLM_NOTQUEUED)
 			dlm_error(ret);
 	} else {
-		mlog_errno(tmpret);
+		mlog(ML_ERROR, "Error %d when sending message %u (key 0x%x) to "
+		     "node %u\n", tmpret, DLM_CONVERT_LOCK_MSG, dlm->key,
+		     res->owner);
 		if (dlm_is_host_down(tmpret)) {
 			/* instead of logging the same network error over
 			 * and over, sleep here and wait for the heartbeat
 			 * to notice the node is dead.  times out after 5s. */
-			dlm_wait_for_node_death(dlm, res->owner, 
+			dlm_wait_for_node_death(dlm, res->owner,
 						DLM_NODE_DEATH_WAIT_MAX);
 			ret = DLM_RECOVERING;
 			mlog(0, "node %u died so returning DLM_RECOVERING "

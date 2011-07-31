@@ -177,10 +177,15 @@ static inline void *__memcpy3d(void *to, const void *from, size_t len)
  */
 
 #ifndef CONFIG_KMEMCHECK
+
+#if (__GNUC__ >= 4)
+#define memcpy(t, f, n) __builtin_memcpy(t, f, n)
+#else
 #define memcpy(t, f, n)				\
 	(__builtin_constant_p((n))		\
 	 ? __constant_memcpy((t), (f), (n))	\
 	 : __memcpy((t), (f), (n)))
+#endif
 #else
 /*
  * kmemcheck becomes very happy if we use the REP instructions unconditionally,
@@ -316,11 +321,15 @@ void *__constant_c_and_count_memset(void *s, unsigned long pattern,
 	 : __memset_generic((s), (c), (count)))
 
 #define __HAVE_ARCH_MEMSET
+#if (__GNUC__ >= 4)
+#define memset(s, c, count) __builtin_memset(s, c, count)
+#else
 #define memset(s, c, count)						\
 	(__builtin_constant_p(c)					\
 	 ? __constant_c_x_memset((s), (0x01010101UL * (unsigned char)(c)), \
 				 (count))				\
 	 : __memset((s), (c), (count)))
+#endif
 
 /*
  * find the first occurrence of byte 'c', or 1 past the area if none

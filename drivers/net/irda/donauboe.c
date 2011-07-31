@@ -184,7 +184,7 @@
 #define CONFIG0H_DMA_ON_NORX CONFIG0H_DMA_OFF| OBOE_CONFIG0H_ENDMAC
 #define CONFIG0H_DMA_ON CONFIG0H_DMA_ON_NORX | OBOE_CONFIG0H_ENRX
 
-static struct pci_device_id toshoboe_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(toshoboe_pci_tbl) = {
 	{ PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_FIR701, PCI_ANY_ID, PCI_ANY_ID, },
 	{ PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_FIRD01, PCI_ANY_ID, PCI_ANY_ID, },
 	{ }			/* Terminating entry */
@@ -1001,8 +1001,6 @@ toshoboe_hard_xmit (struct sk_buff *skb, struct net_device *dev)
       return NETDEV_TX_BUSY;
 
   toshoboe_checkstuck (self);
-
-  dev->trans_start = jiffies;
 
  /* Check if we need to change the speed */
   /* But not now. Wait after transmission if mtt not required */

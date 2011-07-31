@@ -321,524 +321,524 @@
 
 /* screenservice message */
 typedef struct {                               
-    ulong32     msg_handle;                     /* message handle */
-    ulong32     msg_len;                        /* size of message */
-    ulong32     msg_alen;                       /* answer length */
-    unchar      msg_answer;                     /* answer flag */
-    unchar      msg_ext;                        /* more messages */
-    unchar      msg_reserved[2];
+    u32     msg_handle;                     /* message handle */
+    u32     msg_len;                        /* size of message */
+    u32     msg_alen;                       /* answer length */
+    u8      msg_answer;                     /* answer flag */
+    u8      msg_ext;                        /* more messages */
+    u8      msg_reserved[2];
     char        msg_text[MSGLEN+2];             /* the message text */
-} PACKED gdth_msg_str;
+} __attribute__((packed)) gdth_msg_str;
 
 
 /* IOCTL data structures */
 
 /* Status coalescing buffer for returning multiple requests per interrupt */
 typedef struct {
-    ulong32     status;
-    ulong32     ext_status;
-    ulong32     info0;
-    ulong32     info1;
-} PACKED gdth_coal_status;
+    u32     status;
+    u32     ext_status;
+    u32     info0;
+    u32     info1;
+} __attribute__((packed)) gdth_coal_status;
 
 /* performance mode data structure */
 typedef struct {
-    ulong32     version;            /* The version of this IOCTL structure. */
-    ulong32     st_mode;            /* 0=dis., 1=st_buf_addr1 valid, 2=both  */
-    ulong32     st_buff_addr1;      /* physical address of status buffer 1 */
-    ulong32     st_buff_u_addr1;    /* reserved for 64 bit addressing */
-    ulong32     st_buff_indx1;      /* reserved command idx. for this buffer */
-    ulong32     st_buff_addr2;      /* physical address of status buffer 1 */
-    ulong32     st_buff_u_addr2;    /* reserved for 64 bit addressing */
-    ulong32     st_buff_indx2;      /* reserved command idx. for this buffer */
-    ulong32     st_buff_size;       /* size of each buffer in bytes */
-    ulong32     cmd_mode;           /* 0 = mode disabled, 1 = cmd_buff_addr1 */ 
-    ulong32     cmd_buff_addr1;     /* physical address of cmd buffer 1 */   
-    ulong32     cmd_buff_u_addr1;   /* reserved for 64 bit addressing */
-    ulong32     cmd_buff_indx1;     /* cmd buf addr1 unique identifier */
-    ulong32     cmd_buff_addr2;     /* physical address of cmd buffer 1 */   
-    ulong32     cmd_buff_u_addr2;   /* reserved for 64 bit addressing */
-    ulong32     cmd_buff_indx2;     /* cmd buf addr1 unique identifier */
-    ulong32     cmd_buff_size;      /* size of each cmd bufer in bytes */
-    ulong32     reserved1;
-    ulong32     reserved2;
-} PACKED gdth_perf_modes;
+    u32     version;            /* The version of this IOCTL structure. */
+    u32     st_mode;            /* 0=dis., 1=st_buf_addr1 valid, 2=both  */
+    u32     st_buff_addr1;      /* physical address of status buffer 1 */
+    u32     st_buff_u_addr1;    /* reserved for 64 bit addressing */
+    u32     st_buff_indx1;      /* reserved command idx. for this buffer */
+    u32     st_buff_addr2;      /* physical address of status buffer 1 */
+    u32     st_buff_u_addr2;    /* reserved for 64 bit addressing */
+    u32     st_buff_indx2;      /* reserved command idx. for this buffer */
+    u32     st_buff_size;       /* size of each buffer in bytes */
+    u32     cmd_mode;           /* 0 = mode disabled, 1 = cmd_buff_addr1 */ 
+    u32     cmd_buff_addr1;     /* physical address of cmd buffer 1 */   
+    u32     cmd_buff_u_addr1;   /* reserved for 64 bit addressing */
+    u32     cmd_buff_indx1;     /* cmd buf addr1 unique identifier */
+    u32     cmd_buff_addr2;     /* physical address of cmd buffer 1 */   
+    u32     cmd_buff_u_addr2;   /* reserved for 64 bit addressing */
+    u32     cmd_buff_indx2;     /* cmd buf addr1 unique identifier */
+    u32     cmd_buff_size;      /* size of each cmd bufer in bytes */
+    u32     reserved1;
+    u32     reserved2;
+} __attribute__((packed)) gdth_perf_modes;
 
 /* SCSI drive info */
 typedef struct {
-    unchar      vendor[8];                      /* vendor string */
-    unchar      product[16];                    /* product string */
-    unchar      revision[4];                    /* revision */
-    ulong32     sy_rate;                        /* current rate for sync. tr. */
-    ulong32     sy_max_rate;                    /* max. rate for sync. tr. */
-    ulong32     no_ldrive;                      /* belongs to this log. drv.*/
-    ulong32     blkcnt;                         /* number of blocks */
-    ushort      blksize;                        /* size of block in bytes */
-    unchar      available;                      /* flag: access is available */
-    unchar      init;                           /* medium is initialized */
-    unchar      devtype;                        /* SCSI devicetype */
-    unchar      rm_medium;                      /* medium is removable */
-    unchar      wp_medium;                      /* medium is write protected */
-    unchar      ansi;                           /* SCSI I/II or III? */
-    unchar      protocol;                       /* same as ansi */
-    unchar      sync;                           /* flag: sync. transfer enab. */
-    unchar      disc;                           /* flag: disconnect enabled */
-    unchar      queueing;                       /* flag: command queing enab. */
-    unchar      cached;                         /* flag: caching enabled */
-    unchar      target_id;                      /* target ID of device */
-    unchar      lun;                            /* LUN id of device */
-    unchar      orphan;                         /* flag: drive fragment */
-    ulong32     last_error;                     /* sense key or drive state */
-    ulong32     last_result;                    /* result of last command */
-    ulong32     check_errors;                   /* err. in last surface check */
-    unchar      percent;                        /* progress for surface check */
-    unchar      last_check;                     /* IOCTRL operation */
-    unchar      res[2];
-    ulong32     flags;                          /* from 1.19/2.19: raw reserv.*/
-    unchar      multi_bus;                      /* multi bus dev? (fibre ch.) */
-    unchar      mb_status;                      /* status: available? */
-    unchar      res2[2];
-    unchar      mb_alt_status;                  /* status on second bus */
-    unchar      mb_alt_bid;                     /* number of second bus */
-    unchar      mb_alt_tid;                     /* target id on second bus */
-    unchar      res3;
-    unchar      fc_flag;                        /* from 1.22/2.22: info valid?*/
-    unchar      res4;
-    ushort      fc_frame_size;                  /* frame size (bytes) */
+    u8      vendor[8];                      /* vendor string */
+    u8      product[16];                    /* product string */
+    u8      revision[4];                    /* revision */
+    u32     sy_rate;                        /* current rate for sync. tr. */
+    u32     sy_max_rate;                    /* max. rate for sync. tr. */
+    u32     no_ldrive;                      /* belongs to this log. drv.*/
+    u32     blkcnt;                         /* number of blocks */
+    u16      blksize;                        /* size of block in bytes */
+    u8      available;                      /* flag: access is available */
+    u8      init;                           /* medium is initialized */
+    u8      devtype;                        /* SCSI devicetype */
+    u8      rm_medium;                      /* medium is removable */
+    u8      wp_medium;                      /* medium is write protected */
+    u8      ansi;                           /* SCSI I/II or III? */
+    u8      protocol;                       /* same as ansi */
+    u8      sync;                           /* flag: sync. transfer enab. */
+    u8      disc;                           /* flag: disconnect enabled */
+    u8      queueing;                       /* flag: command queing enab. */
+    u8      cached;                         /* flag: caching enabled */
+    u8      target_id;                      /* target ID of device */
+    u8      lun;                            /* LUN id of device */
+    u8      orphan;                         /* flag: drive fragment */
+    u32     last_error;                     /* sense key or drive state */
+    u32     last_result;                    /* result of last command */
+    u32     check_errors;                   /* err. in last surface check */
+    u8      percent;                        /* progress for surface check */
+    u8      last_check;                     /* IOCTRL operation */
+    u8      res[2];
+    u32     flags;                          /* from 1.19/2.19: raw reserv.*/
+    u8      multi_bus;                      /* multi bus dev? (fibre ch.) */
+    u8      mb_status;                      /* status: available? */
+    u8      res2[2];
+    u8      mb_alt_status;                  /* status on second bus */
+    u8      mb_alt_bid;                     /* number of second bus */
+    u8      mb_alt_tid;                     /* target id on second bus */
+    u8      res3;
+    u8      fc_flag;                        /* from 1.22/2.22: info valid?*/
+    u8      res4;
+    u16      fc_frame_size;                  /* frame size (bytes) */
     char        wwn[8];                         /* world wide name */
-} PACKED gdth_diskinfo_str;
+} __attribute__((packed)) gdth_diskinfo_str;
 
 /* get SCSI channel count  */
 typedef struct {
-    ulong32     channel_no;                     /* number of channel */
-    ulong32     drive_cnt;                      /* drive count */
-    unchar      siop_id;                        /* SCSI processor ID */
-    unchar      siop_state;                     /* SCSI processor state */ 
-} PACKED gdth_getch_str;
+    u32     channel_no;                     /* number of channel */
+    u32     drive_cnt;                      /* drive count */
+    u8      siop_id;                        /* SCSI processor ID */
+    u8      siop_state;                     /* SCSI processor state */ 
+} __attribute__((packed)) gdth_getch_str;
 
 /* get SCSI drive numbers */
 typedef struct {
-    ulong32     sc_no;                          /* SCSI channel */
-    ulong32     sc_cnt;                         /* sc_list[] elements */
-    ulong32     sc_list[MAXID];                 /* minor device numbers */
-} PACKED gdth_drlist_str;
+    u32     sc_no;                          /* SCSI channel */
+    u32     sc_cnt;                         /* sc_list[] elements */
+    u32     sc_list[MAXID];                 /* minor device numbers */
+} __attribute__((packed)) gdth_drlist_str;
 
 /* get grown/primary defect count */
 typedef struct {
-    unchar      sddc_type;                      /* 0x08: grown, 0x10: prim. */
-    unchar      sddc_format;                    /* list entry format */
-    unchar      sddc_len;                       /* list entry length */
-    unchar      sddc_res;
-    ulong32     sddc_cnt;                       /* entry count */
-} PACKED gdth_defcnt_str;
+    u8      sddc_type;                      /* 0x08: grown, 0x10: prim. */
+    u8      sddc_format;                    /* list entry format */
+    u8      sddc_len;                       /* list entry length */
+    u8      sddc_res;
+    u32     sddc_cnt;                       /* entry count */
+} __attribute__((packed)) gdth_defcnt_str;
 
 /* disk statistics */
 typedef struct {
-    ulong32     bid;                            /* SCSI channel */
-    ulong32     first;                          /* first SCSI disk */
-    ulong32     entries;                        /* number of elements */
-    ulong32     count;                          /* (R) number of init. el. */
-    ulong32     mon_time;                       /* time stamp */
+    u32     bid;                            /* SCSI channel */
+    u32     first;                          /* first SCSI disk */
+    u32     entries;                        /* number of elements */
+    u32     count;                          /* (R) number of init. el. */
+    u32     mon_time;                       /* time stamp */
     struct {
-        unchar  tid;                            /* target ID */
-        unchar  lun;                            /* LUN */
-        unchar  res[2];
-        ulong32 blk_size;                       /* block size in bytes */
-        ulong32 rd_count;                       /* bytes read */
-        ulong32 wr_count;                       /* bytes written */
-        ulong32 rd_blk_count;                   /* blocks read */
-        ulong32 wr_blk_count;                   /* blocks written */
-        ulong32 retries;                        /* retries */
-        ulong32 reassigns;                      /* reassigns */
-    } PACKED list[1];
-} PACKED gdth_dskstat_str;
+        u8  tid;                            /* target ID */
+        u8  lun;                            /* LUN */
+        u8  res[2];
+        u32 blk_size;                       /* block size in bytes */
+        u32 rd_count;                       /* bytes read */
+        u32 wr_count;                       /* bytes written */
+        u32 rd_blk_count;                   /* blocks read */
+        u32 wr_blk_count;                   /* blocks written */
+        u32 retries;                        /* retries */
+        u32 reassigns;                      /* reassigns */
+    } __attribute__((packed)) list[1];
+} __attribute__((packed)) gdth_dskstat_str;
 
 /* IO channel header */
 typedef struct {
-    ulong32     version;                        /* version (-1UL: newest) */
-    unchar      list_entries;                   /* list entry count */
-    unchar      first_chan;                     /* first channel number */
-    unchar      last_chan;                      /* last channel number */
-    unchar      chan_count;                     /* (R) channel count */
-    ulong32     list_offset;                    /* offset of list[0] */
-} PACKED gdth_iochan_header;
+    u32     version;                        /* version (-1UL: newest) */
+    u8      list_entries;                   /* list entry count */
+    u8      first_chan;                     /* first channel number */
+    u8      last_chan;                      /* last channel number */
+    u8      chan_count;                     /* (R) channel count */
+    u32     list_offset;                    /* offset of list[0] */
+} __attribute__((packed)) gdth_iochan_header;
 
 /* get IO channel description */
 typedef struct {
     gdth_iochan_header  hdr;
     struct {
-        ulong32         address;                /* channel address */
-        unchar          type;                   /* type (SCSI, FCAL) */
-        unchar          local_no;               /* local number */
-        ushort          features;               /* channel features */
-    } PACKED list[MAXBUS];
-} PACKED gdth_iochan_str;
+        u32         address;                /* channel address */
+        u8          type;                   /* type (SCSI, FCAL) */
+        u8          local_no;               /* local number */
+        u16          features;               /* channel features */
+    } __attribute__((packed)) list[MAXBUS];
+} __attribute__((packed)) gdth_iochan_str;
 
 /* get raw IO channel description */
 typedef struct {
     gdth_iochan_header  hdr;
     struct {
-        unchar      proc_id;                    /* processor id */
-        unchar      proc_defect;                /* defect ? */
-        unchar      reserved[2];
-    } PACKED list[MAXBUS];
-} PACKED gdth_raw_iochan_str;
+        u8      proc_id;                    /* processor id */
+        u8      proc_defect;                /* defect ? */
+        u8      reserved[2];
+    } __attribute__((packed)) list[MAXBUS];
+} __attribute__((packed)) gdth_raw_iochan_str;
 
 /* array drive component */
 typedef struct {
-    ulong32     al_controller;                  /* controller ID */
-    unchar      al_cache_drive;                 /* cache drive number */
-    unchar      al_status;                      /* cache drive state */
-    unchar      al_res[2];     
-} PACKED gdth_arraycomp_str;
+    u32     al_controller;                  /* controller ID */
+    u8      al_cache_drive;                 /* cache drive number */
+    u8      al_status;                      /* cache drive state */
+    u8      al_res[2];     
+} __attribute__((packed)) gdth_arraycomp_str;
 
 /* array drive information */
 typedef struct {
-    unchar      ai_type;                        /* array type (RAID0,4,5) */
-    unchar      ai_cache_drive_cnt;             /* active cachedrives */
-    unchar      ai_state;                       /* array drive state */
-    unchar      ai_master_cd;                   /* master cachedrive */
-    ulong32     ai_master_controller;           /* ID of master controller */
-    ulong32     ai_size;                        /* user capacity [sectors] */
-    ulong32     ai_striping_size;               /* striping size [sectors] */
-    ulong32     ai_secsize;                     /* sector size [bytes] */
-    ulong32     ai_err_info;                    /* failed cache drive */
-    unchar      ai_name[8];                     /* name of the array drive */
-    unchar      ai_controller_cnt;              /* number of controllers */
-    unchar      ai_removable;                   /* flag: removable */
-    unchar      ai_write_protected;             /* flag: write protected */
-    unchar      ai_devtype;                     /* type: always direct access */
+    u8      ai_type;                        /* array type (RAID0,4,5) */
+    u8      ai_cache_drive_cnt;             /* active cachedrives */
+    u8      ai_state;                       /* array drive state */
+    u8      ai_master_cd;                   /* master cachedrive */
+    u32     ai_master_controller;           /* ID of master controller */
+    u32     ai_size;                        /* user capacity [sectors] */
+    u32     ai_striping_size;               /* striping size [sectors] */
+    u32     ai_secsize;                     /* sector size [bytes] */
+    u32     ai_err_info;                    /* failed cache drive */
+    u8      ai_name[8];                     /* name of the array drive */
+    u8      ai_controller_cnt;              /* number of controllers */
+    u8      ai_removable;                   /* flag: removable */
+    u8      ai_write_protected;             /* flag: write protected */
+    u8      ai_devtype;                     /* type: always direct access */
     gdth_arraycomp_str  ai_drives[35];          /* drive components: */
-    unchar      ai_drive_entries;               /* number of drive components */
-    unchar      ai_protected;                   /* protection flag */
-    unchar      ai_verify_state;                /* state of a parity verify */
-    unchar      ai_ext_state;                   /* extended array drive state */
-    unchar      ai_expand_state;                /* array expand state (>=2.18)*/
-    unchar      ai_reserved[3];
-} PACKED gdth_arrayinf_str;
+    u8      ai_drive_entries;               /* number of drive components */
+    u8      ai_protected;                   /* protection flag */
+    u8      ai_verify_state;                /* state of a parity verify */
+    u8      ai_ext_state;                   /* extended array drive state */
+    u8      ai_expand_state;                /* array expand state (>=2.18)*/
+    u8      ai_reserved[3];
+} __attribute__((packed)) gdth_arrayinf_str;
 
 /* get array drive list */
 typedef struct {
-    ulong32     controller_no;                  /* controller no. */
-    unchar      cd_handle;                      /* master cachedrive */
-    unchar      is_arrayd;                      /* Flag: is array drive? */
-    unchar      is_master;                      /* Flag: is array master? */
-    unchar      is_parity;                      /* Flag: is parity drive? */
-    unchar      is_hotfix;                      /* Flag: is hotfix drive? */
-    unchar      res[3];
-} PACKED gdth_alist_str;
+    u32     controller_no;                  /* controller no. */
+    u8      cd_handle;                      /* master cachedrive */
+    u8      is_arrayd;                      /* Flag: is array drive? */
+    u8      is_master;                      /* Flag: is array master? */
+    u8      is_parity;                      /* Flag: is parity drive? */
+    u8      is_hotfix;                      /* Flag: is hotfix drive? */
+    u8      res[3];
+} __attribute__((packed)) gdth_alist_str;
 
 typedef struct {
-    ulong32     entries_avail;                  /* allocated entries */
-    ulong32     entries_init;                   /* returned entries */
-    ulong32     first_entry;                    /* first entry number */
-    ulong32     list_offset;                    /* offset of following list */
+    u32     entries_avail;                  /* allocated entries */
+    u32     entries_init;                   /* returned entries */
+    u32     first_entry;                    /* first entry number */
+    u32     list_offset;                    /* offset of following list */
     gdth_alist_str list[1];                     /* list */
-} PACKED gdth_arcdl_str;
+} __attribute__((packed)) gdth_arcdl_str;
 
 /* cache info/config IOCTL */
 typedef struct {
-    ulong32     version;                        /* firmware version */
-    ushort      state;                          /* cache state (on/off) */
-    ushort      strategy;                       /* cache strategy */
-    ushort      write_back;                     /* write back state (on/off) */
-    ushort      block_size;                     /* cache block size */
-} PACKED gdth_cpar_str;
+    u32     version;                        /* firmware version */
+    u16      state;                          /* cache state (on/off) */
+    u16      strategy;                       /* cache strategy */
+    u16      write_back;                     /* write back state (on/off) */
+    u16      block_size;                     /* cache block size */
+} __attribute__((packed)) gdth_cpar_str;
 
 typedef struct {
-    ulong32     csize;                          /* cache size */
-    ulong32     read_cnt;                       /* read/write counter */
-    ulong32     write_cnt;
-    ulong32     tr_hits;                        /* hits */
-    ulong32     sec_hits;
-    ulong32     sec_miss;                       /* misses */
-} PACKED gdth_cstat_str;
+    u32     csize;                          /* cache size */
+    u32     read_cnt;                       /* read/write counter */
+    u32     write_cnt;
+    u32     tr_hits;                        /* hits */
+    u32     sec_hits;
+    u32     sec_miss;                       /* misses */
+} __attribute__((packed)) gdth_cstat_str;
 
 typedef struct {
     gdth_cpar_str   cpar;
     gdth_cstat_str  cstat;
-} PACKED gdth_cinfo_str;
+} __attribute__((packed)) gdth_cinfo_str;
 
 /* cache drive info */
 typedef struct {
-    unchar      cd_name[8];                     /* cache drive name */
-    ulong32     cd_devtype;                     /* SCSI devicetype */
-    ulong32     cd_ldcnt;                       /* number of log. drives */
-    ulong32     cd_last_error;                  /* last error */
-    unchar      cd_initialized;                 /* drive is initialized */
-    unchar      cd_removable;                   /* media is removable */
-    unchar      cd_write_protected;             /* write protected */
-    unchar      cd_flags;                       /* Pool Hot Fix? */
-    ulong32     ld_blkcnt;                      /* number of blocks */
-    ulong32     ld_blksize;                     /* blocksize */
-    ulong32     ld_dcnt;                        /* number of disks */
-    ulong32     ld_slave;                       /* log. drive index */
-    ulong32     ld_dtype;                       /* type of logical drive */
-    ulong32     ld_last_error;                  /* last error */
-    unchar      ld_name[8];                     /* log. drive name */
-    unchar      ld_error;                       /* error */
-} PACKED gdth_cdrinfo_str;
+    u8      cd_name[8];                     /* cache drive name */
+    u32     cd_devtype;                     /* SCSI devicetype */
+    u32     cd_ldcnt;                       /* number of log. drives */
+    u32     cd_last_error;                  /* last error */
+    u8      cd_initialized;                 /* drive is initialized */
+    u8      cd_removable;                   /* media is removable */
+    u8      cd_write_protected;             /* write protected */
+    u8      cd_flags;                       /* Pool Hot Fix? */
+    u32     ld_blkcnt;                      /* number of blocks */
+    u32     ld_blksize;                     /* blocksize */
+    u32     ld_dcnt;                        /* number of disks */
+    u32     ld_slave;                       /* log. drive index */
+    u32     ld_dtype;                       /* type of logical drive */
+    u32     ld_last_error;                  /* last error */
+    u8      ld_name[8];                     /* log. drive name */
+    u8      ld_error;                       /* error */
+} __attribute__((packed)) gdth_cdrinfo_str;
 
 /* OEM string */
 typedef struct {
-    ulong32     ctl_version;
-    ulong32     file_major_version;
-    ulong32     file_minor_version;
-    ulong32     buffer_size;
-    ulong32     cpy_count;
-    ulong32     ext_error;
-    ulong32     oem_id;
-    ulong32     board_id;
-} PACKED gdth_oem_str_params;
+    u32     ctl_version;
+    u32     file_major_version;
+    u32     file_minor_version;
+    u32     buffer_size;
+    u32     cpy_count;
+    u32     ext_error;
+    u32     oem_id;
+    u32     board_id;
+} __attribute__((packed)) gdth_oem_str_params;
 
 typedef struct {
-    unchar      product_0_1_name[16];
-    unchar      product_4_5_name[16];
-    unchar      product_cluster_name[16];
-    unchar      product_reserved[16];
-    unchar      scsi_cluster_target_vendor_id[16];
-    unchar      cluster_raid_fw_name[16];
-    unchar      oem_brand_name[16];
-    unchar      oem_raid_type[16];
-    unchar      bios_type[13];
-    unchar      bios_title[50];
-    unchar      oem_company_name[37];
-    ulong32     pci_id_1;
-    ulong32     pci_id_2;
-    unchar      validation_status[80];
-    unchar      reserved_1[4];
-    unchar      scsi_host_drive_inquiry_vendor_id[16];
-    unchar      library_file_template[16];
-    unchar      reserved_2[16];
-    unchar      tool_name_1[32];
-    unchar      tool_name_2[32];
-    unchar      tool_name_3[32];
-    unchar      oem_contact_1[84];
-    unchar      oem_contact_2[84];
-    unchar      oem_contact_3[84];
-} PACKED gdth_oem_str;
+    u8      product_0_1_name[16];
+    u8      product_4_5_name[16];
+    u8      product_cluster_name[16];
+    u8      product_reserved[16];
+    u8      scsi_cluster_target_vendor_id[16];
+    u8      cluster_raid_fw_name[16];
+    u8      oem_brand_name[16];
+    u8      oem_raid_type[16];
+    u8      bios_type[13];
+    u8      bios_title[50];
+    u8      oem_company_name[37];
+    u32     pci_id_1;
+    u32     pci_id_2;
+    u8      validation_status[80];
+    u8      reserved_1[4];
+    u8      scsi_host_drive_inquiry_vendor_id[16];
+    u8      library_file_template[16];
+    u8      reserved_2[16];
+    u8      tool_name_1[32];
+    u8      tool_name_2[32];
+    u8      tool_name_3[32];
+    u8      oem_contact_1[84];
+    u8      oem_contact_2[84];
+    u8      oem_contact_3[84];
+} __attribute__((packed)) gdth_oem_str;
 
 typedef struct {
     gdth_oem_str_params params;
     gdth_oem_str        text;
-} PACKED gdth_oem_str_ioctl;
+} __attribute__((packed)) gdth_oem_str_ioctl;
 
 /* board features */
 typedef struct {
-    unchar      chaining;                       /* Chaining supported */
-    unchar      striping;                       /* Striping (RAID-0) supp. */
-    unchar      mirroring;                      /* Mirroring (RAID-1) supp. */
-    unchar      raid;                           /* RAID-4/5/10 supported */
-} PACKED gdth_bfeat_str;
+    u8      chaining;                       /* Chaining supported */
+    u8      striping;                       /* Striping (RAID-0) supp. */
+    u8      mirroring;                      /* Mirroring (RAID-1) supp. */
+    u8      raid;                           /* RAID-4/5/10 supported */
+} __attribute__((packed)) gdth_bfeat_str;
 
 /* board info IOCTL */
 typedef struct {
-    ulong32     ser_no;                         /* serial no. */
-    unchar      oem_id[2];                      /* OEM ID */
-    ushort      ep_flags;                       /* eprom flags */
-    ulong32     proc_id;                        /* processor ID */
-    ulong32     memsize;                        /* memory size (bytes) */
-    unchar      mem_banks;                      /* memory banks */
-    unchar      chan_type;                      /* channel type */
-    unchar      chan_count;                     /* channel count */
-    unchar      rdongle_pres;                   /* dongle present? */
-    ulong32     epr_fw_ver;                     /* (eprom) firmware version */
-    ulong32     upd_fw_ver;                     /* (update) firmware version */
-    ulong32     upd_revision;                   /* update revision */
+    u32     ser_no;                         /* serial no. */
+    u8      oem_id[2];                      /* OEM ID */
+    u16      ep_flags;                       /* eprom flags */
+    u32     proc_id;                        /* processor ID */
+    u32     memsize;                        /* memory size (bytes) */
+    u8      mem_banks;                      /* memory banks */
+    u8      chan_type;                      /* channel type */
+    u8      chan_count;                     /* channel count */
+    u8      rdongle_pres;                   /* dongle present? */
+    u32     epr_fw_ver;                     /* (eprom) firmware version */
+    u32     upd_fw_ver;                     /* (update) firmware version */
+    u32     upd_revision;                   /* update revision */
     char        type_string[16];                /* controller name */
     char        raid_string[16];                /* RAID firmware name */
-    unchar      update_pres;                    /* update present? */
-    unchar      xor_pres;                       /* XOR engine present? */
-    unchar      prom_type;                      /* ROM type (eprom/flash) */
-    unchar      prom_count;                     /* number of ROM devices */
-    ulong32     dup_pres;                       /* duplexing module present? */
-    ulong32     chan_pres;                      /* number of expansion chn. */
-    ulong32     mem_pres;                       /* memory expansion inst. ? */
-    unchar      ft_bus_system;                  /* fault bus supported? */
-    unchar      subtype_valid;                  /* board_subtype valid? */
-    unchar      board_subtype;                  /* subtype/hardware level */
-    unchar      ramparity_pres;                 /* RAM parity check hardware? */
-} PACKED gdth_binfo_str; 
+    u8      update_pres;                    /* update present? */
+    u8      xor_pres;                       /* XOR engine present? */
+    u8      prom_type;                      /* ROM type (eprom/flash) */
+    u8      prom_count;                     /* number of ROM devices */
+    u32     dup_pres;                       /* duplexing module present? */
+    u32     chan_pres;                      /* number of expansion chn. */
+    u32     mem_pres;                       /* memory expansion inst. ? */
+    u8      ft_bus_system;                  /* fault bus supported? */
+    u8      subtype_valid;                  /* board_subtype valid? */
+    u8      board_subtype;                  /* subtype/hardware level */
+    u8      ramparity_pres;                 /* RAM parity check hardware? */
+} __attribute__((packed)) gdth_binfo_str; 
 
 /* get host drive info */
 typedef struct {
     char        name[8];                        /* host drive name */
-    ulong32     size;                           /* size (sectors) */
-    unchar      host_drive;                     /* host drive number */
-    unchar      log_drive;                      /* log. drive (master) */
-    unchar      reserved;
-    unchar      rw_attribs;                     /* r/w attribs */
-    ulong32     start_sec;                      /* start sector */
-} PACKED gdth_hentry_str;
+    u32     size;                           /* size (sectors) */
+    u8      host_drive;                     /* host drive number */
+    u8      log_drive;                      /* log. drive (master) */
+    u8      reserved;
+    u8      rw_attribs;                     /* r/w attribs */
+    u32     start_sec;                      /* start sector */
+} __attribute__((packed)) gdth_hentry_str;
 
 typedef struct {
-    ulong32     entries;                        /* entry count */
-    ulong32     offset;                         /* offset of entries */
-    unchar      secs_p_head;                    /* sectors/head */
-    unchar      heads_p_cyl;                    /* heads/cylinder */
-    unchar      reserved;
-    unchar      clust_drvtype;                  /* cluster drive type */
-    ulong32     location;                       /* controller number */
+    u32     entries;                        /* entry count */
+    u32     offset;                         /* offset of entries */
+    u8      secs_p_head;                    /* sectors/head */
+    u8      heads_p_cyl;                    /* heads/cylinder */
+    u8      reserved;
+    u8      clust_drvtype;                  /* cluster drive type */
+    u32     location;                       /* controller number */
     gdth_hentry_str entry[MAX_HDRIVES];         /* entries */
-} PACKED gdth_hget_str;    
+} __attribute__((packed)) gdth_hget_str;    
 
 
 /* DPRAM structures */
 
 /* interface area ISA/PCI */
 typedef struct {
-    unchar              S_Cmd_Indx;             /* special command */
-    unchar volatile     S_Status;               /* status special command */
-    ushort              reserved1;
-    ulong32             S_Info[4];              /* add. info special command */
-    unchar volatile     Sema0;                  /* command semaphore */
-    unchar              reserved2[3];
-    unchar              Cmd_Index;              /* command number */
-    unchar              reserved3[3];
-    ushort volatile     Status;                 /* command status */
-    ushort              Service;                /* service(for async.events) */
-    ulong32             Info[2];                /* additional info */
+    u8              S_Cmd_Indx;             /* special command */
+    u8 volatile     S_Status;               /* status special command */
+    u16              reserved1;
+    u32             S_Info[4];              /* add. info special command */
+    u8 volatile     Sema0;                  /* command semaphore */
+    u8              reserved2[3];
+    u8              Cmd_Index;              /* command number */
+    u8              reserved3[3];
+    u16 volatile     Status;                 /* command status */
+    u16              Service;                /* service(for async.events) */
+    u32             Info[2];                /* additional info */
     struct {
-        ushort          offset;                 /* command offs. in the DPRAM*/
-        ushort          serv_id;                /* service */
-    } PACKED comm_queue[MAXOFFSETS];            /* command queue */
-    ulong32             bios_reserved[2];
-    unchar              gdt_dpr_cmd[1];         /* commands */
-} PACKED gdt_dpr_if;
+        u16          offset;                 /* command offs. in the DPRAM*/
+        u16          serv_id;                /* service */
+    } __attribute__((packed)) comm_queue[MAXOFFSETS];            /* command queue */
+    u32             bios_reserved[2];
+    u8              gdt_dpr_cmd[1];         /* commands */
+} __attribute__((packed)) gdt_dpr_if;
 
 /* SRAM structure PCI controllers */
 typedef struct {
-    ulong32     magic;                          /* controller ID from BIOS */
-    ushort      need_deinit;                    /* switch betw. BIOS/driver */
-    unchar      switch_support;                 /* see need_deinit */
-    unchar      padding[9];
-    unchar      os_used[16];                    /* OS code per service */
-    unchar      unused[28];
-    unchar      fw_magic;                       /* contr. ID from firmware */
-} PACKED gdt_pci_sram;
+    u32     magic;                          /* controller ID from BIOS */
+    u16      need_deinit;                    /* switch betw. BIOS/driver */
+    u8      switch_support;                 /* see need_deinit */
+    u8      padding[9];
+    u8      os_used[16];                    /* OS code per service */
+    u8      unused[28];
+    u8      fw_magic;                       /* contr. ID from firmware */
+} __attribute__((packed)) gdt_pci_sram;
 
 /* SRAM structure EISA controllers (but NOT GDT3000/3020) */
 typedef struct {
-    unchar      os_used[16];                    /* OS code per service */
-    ushort      need_deinit;                    /* switch betw. BIOS/driver */
-    unchar      switch_support;                 /* see need_deinit */
-    unchar      padding;
-} PACKED gdt_eisa_sram;
+    u8      os_used[16];                    /* OS code per service */
+    u16      need_deinit;                    /* switch betw. BIOS/driver */
+    u8      switch_support;                 /* see need_deinit */
+    u8      padding;
+} __attribute__((packed)) gdt_eisa_sram;
 
 
 /* DPRAM ISA controllers */
 typedef struct {
     union {
         struct {
-            unchar      bios_used[0x3c00-32];   /* 15KB - 32Bytes BIOS */
-            ulong32     magic;                  /* controller (EISA) ID */
-            ushort      need_deinit;            /* switch betw. BIOS/driver */
-            unchar      switch_support;         /* see need_deinit */
-            unchar      padding[9];
-            unchar      os_used[16];            /* OS code per service */
-        } PACKED dp_sram;
-        unchar          bios_area[0x4000];      /* 16KB reserved for BIOS */
+            u8      bios_used[0x3c00-32];   /* 15KB - 32Bytes BIOS */
+            u32     magic;                  /* controller (EISA) ID */
+            u16      need_deinit;            /* switch betw. BIOS/driver */
+            u8      switch_support;         /* see need_deinit */
+            u8      padding[9];
+            u8      os_used[16];            /* OS code per service */
+        } __attribute__((packed)) dp_sram;
+        u8          bios_area[0x4000];      /* 16KB reserved for BIOS */
     } bu;
     union {
         gdt_dpr_if      ic;                     /* interface area */
-        unchar          if_area[0x3000];        /* 12KB for interface */
+        u8          if_area[0x3000];        /* 12KB for interface */
     } u;
     struct {
-        unchar          memlock;                /* write protection DPRAM */
-        unchar          event;                  /* release event */
-        unchar          irqen;                  /* board interrupts enable */
-        unchar          irqdel;                 /* acknowledge board int. */
-        unchar volatile Sema1;                  /* status semaphore */
-        unchar          rq;                     /* IRQ/DRQ configuration */
-    } PACKED io;
-} PACKED gdt2_dpram_str;
+        u8          memlock;                /* write protection DPRAM */
+        u8          event;                  /* release event */
+        u8          irqen;                  /* board interrupts enable */
+        u8          irqdel;                 /* acknowledge board int. */
+        u8 volatile Sema1;                  /* status semaphore */
+        u8          rq;                     /* IRQ/DRQ configuration */
+    } __attribute__((packed)) io;
+} __attribute__((packed)) gdt2_dpram_str;
 
 /* DPRAM PCI controllers */
 typedef struct {
     union {
         gdt_dpr_if      ic;                     /* interface area */
-        unchar          if_area[0xff0-sizeof(gdt_pci_sram)];
+        u8          if_area[0xff0-sizeof(gdt_pci_sram)];
     } u;
     gdt_pci_sram        gdt6sr;                 /* SRAM structure */
     struct {
-        unchar          unused0[1];
-        unchar volatile Sema1;                  /* command semaphore */
-        unchar          unused1[3];
-        unchar          irqen;                  /* board interrupts enable */
-        unchar          unused2[2];
-        unchar          event;                  /* release event */
-        unchar          unused3[3];
-        unchar          irqdel;                 /* acknowledge board int. */
-        unchar          unused4[3];
-    } PACKED io;
-} PACKED gdt6_dpram_str;
+        u8          unused0[1];
+        u8 volatile Sema1;                  /* command semaphore */
+        u8          unused1[3];
+        u8          irqen;                  /* board interrupts enable */
+        u8          unused2[2];
+        u8          event;                  /* release event */
+        u8          unused3[3];
+        u8          irqdel;                 /* acknowledge board int. */
+        u8          unused4[3];
+    } __attribute__((packed)) io;
+} __attribute__((packed)) gdt6_dpram_str;
 
 /* PLX register structure (new PCI controllers) */
 typedef struct {
-    unchar              cfg_reg;        /* DPRAM cfg.(2:below 1MB,0:anywhere)*/
-    unchar              unused1[0x3f];
-    unchar volatile     sema0_reg;              /* command semaphore */
-    unchar volatile     sema1_reg;              /* status semaphore */
-    unchar              unused2[2];
-    ushort volatile     status;                 /* command status */
-    ushort              service;                /* service */
-    ulong32             info[2];                /* additional info */
-    unchar              unused3[0x10];
-    unchar              ldoor_reg;              /* PCI to local doorbell */
-    unchar              unused4[3];
-    unchar volatile     edoor_reg;              /* local to PCI doorbell */
-    unchar              unused5[3];
-    unchar              control0;               /* control0 register(unused) */
-    unchar              control1;               /* board interrupts enable */
-    unchar              unused6[0x16];
-} PACKED gdt6c_plx_regs;
+    u8              cfg_reg;        /* DPRAM cfg.(2:below 1MB,0:anywhere)*/
+    u8              unused1[0x3f];
+    u8 volatile     sema0_reg;              /* command semaphore */
+    u8 volatile     sema1_reg;              /* status semaphore */
+    u8              unused2[2];
+    u16 volatile     status;                 /* command status */
+    u16              service;                /* service */
+    u32             info[2];                /* additional info */
+    u8              unused3[0x10];
+    u8              ldoor_reg;              /* PCI to local doorbell */
+    u8              unused4[3];
+    u8 volatile     edoor_reg;              /* local to PCI doorbell */
+    u8              unused5[3];
+    u8              control0;               /* control0 register(unused) */
+    u8              control1;               /* board interrupts enable */
+    u8              unused6[0x16];
+} __attribute__((packed)) gdt6c_plx_regs;
 
 /* DPRAM new PCI controllers */
 typedef struct {
     union {
         gdt_dpr_if      ic;                     /* interface area */
-        unchar          if_area[0x4000-sizeof(gdt_pci_sram)];
+        u8          if_area[0x4000-sizeof(gdt_pci_sram)];
     } u;
     gdt_pci_sram        gdt6sr;                 /* SRAM structure */
-} PACKED gdt6c_dpram_str;
+} __attribute__((packed)) gdt6c_dpram_str;
 
 /* i960 register structure (PCI MPR controllers) */
 typedef struct {
-    unchar              unused1[16];
-    unchar volatile     sema0_reg;              /* command semaphore */
-    unchar              unused2;
-    unchar volatile     sema1_reg;              /* status semaphore */
-    unchar              unused3;
-    ushort volatile     status;                 /* command status */
-    ushort              service;                /* service */
-    ulong32             info[2];                /* additional info */
-    unchar              ldoor_reg;              /* PCI to local doorbell */
-    unchar              unused4[11];
-    unchar volatile     edoor_reg;              /* local to PCI doorbell */
-    unchar              unused5[7];
-    unchar              edoor_en_reg;           /* board interrupts enable */
-    unchar              unused6[27];
-    ulong32             unused7[939];         
-    ulong32             severity;       
+    u8              unused1[16];
+    u8 volatile     sema0_reg;              /* command semaphore */
+    u8              unused2;
+    u8 volatile     sema1_reg;              /* status semaphore */
+    u8              unused3;
+    u16 volatile     status;                 /* command status */
+    u16              service;                /* service */
+    u32             info[2];                /* additional info */
+    u8              ldoor_reg;              /* PCI to local doorbell */
+    u8              unused4[11];
+    u8 volatile     edoor_reg;              /* local to PCI doorbell */
+    u8              unused5[7];
+    u8              edoor_en_reg;           /* board interrupts enable */
+    u8              unused6[27];
+    u32             unused7[939];         
+    u32             severity;       
     char                evt_str[256];           /* event string */
-} PACKED gdt6m_i960_regs;
+} __attribute__((packed)) gdt6m_i960_regs;
 
 /* DPRAM PCI MPR controllers */
 typedef struct {
     gdt6m_i960_regs     i960r;                  /* 4KB i960 registers */
     union {
         gdt_dpr_if      ic;                     /* interface area */
-        unchar          if_area[0x3000-sizeof(gdt_pci_sram)];
+        u8          if_area[0x3000-sizeof(gdt_pci_sram)];
     } u;
     gdt_pci_sram        gdt6sr;                 /* SRAM structure */
-} PACKED gdt6m_dpram_str;
+} __attribute__((packed)) gdt6m_dpram_str;
 
 
 /* PCI resources */
 typedef struct {
     struct pci_dev      *pdev;
-    ulong               dpmem;                  /* DPRAM address */
-    ulong               io;                     /* IO address */
+    unsigned long               dpmem;                  /* DPRAM address */
+    unsigned long               io;                     /* IO address */
 } gdth_pci_str;
 
 
@@ -846,93 +846,93 @@ typedef struct {
 typedef struct {
     struct Scsi_Host    *shost;
     struct list_head    list;
-    ushort      	hanum;
-    ushort              oem_id;                 /* OEM */
-    ushort              type;                   /* controller class */
-    ulong32             stype;                  /* subtype (PCI: device ID) */
-    ushort              fw_vers;                /* firmware version */
-    ushort              cache_feat;             /* feat. cache serv. (s/g,..)*/
-    ushort              raw_feat;               /* feat. raw service (s/g,..)*/
-    ushort              screen_feat;            /* feat. raw service (s/g,..)*/
-    ushort              bmic;                   /* BMIC address (EISA) */
+    u16      	hanum;
+    u16              oem_id;                 /* OEM */
+    u16              type;                   /* controller class */
+    u32             stype;                  /* subtype (PCI: device ID) */
+    u16              fw_vers;                /* firmware version */
+    u16              cache_feat;             /* feat. cache serv. (s/g,..)*/
+    u16              raw_feat;               /* feat. raw service (s/g,..)*/
+    u16              screen_feat;            /* feat. raw service (s/g,..)*/
+    u16              bmic;                   /* BMIC address (EISA) */
     void __iomem        *brd;                   /* DPRAM address */
-    ulong32             brd_phys;               /* slot number/BIOS address */
+    u32             brd_phys;               /* slot number/BIOS address */
     gdt6c_plx_regs      *plx;                   /* PLX regs (new PCI contr.) */
     gdth_cmd_str        cmdext;
     gdth_cmd_str        *pccb;                  /* address command structure */
-    ulong32             ccb_phys;               /* phys. address */
+    u32             ccb_phys;               /* phys. address */
 #ifdef INT_COAL
     gdth_coal_status    *coal_stat;             /* buffer for coalescing int.*/
-    ulong64             coal_stat_phys;         /* phys. address */
+    u64             coal_stat_phys;         /* phys. address */
 #endif
     char                *pscratch;              /* scratch (DMA) buffer */
-    ulong64             scratch_phys;           /* phys. address */
-    unchar              scratch_busy;           /* in use? */
-    unchar              dma64_support;          /* 64-bit DMA supported? */
+    u64             scratch_phys;           /* phys. address */
+    u8              scratch_busy;           /* in use? */
+    u8              dma64_support;          /* 64-bit DMA supported? */
     gdth_msg_str        *pmsg;                  /* message buffer */
-    ulong64             msg_phys;               /* phys. address */
-    unchar              scan_mode;              /* current scan mode */
-    unchar              irq;                    /* IRQ */
-    unchar              drq;                    /* DRQ (ISA controllers) */
-    ushort              status;                 /* command status */
-    ushort              service;                /* service/firmware ver./.. */
-    ulong32             info;
-    ulong32             info2;                  /* additional info */
+    u64             msg_phys;               /* phys. address */
+    u8              scan_mode;              /* current scan mode */
+    u8              irq;                    /* IRQ */
+    u8              drq;                    /* DRQ (ISA controllers) */
+    u16              status;                 /* command status */
+    u16              service;                /* service/firmware ver./.. */
+    u32             info;
+    u32             info2;                  /* additional info */
     Scsi_Cmnd           *req_first;             /* top of request queue */
     struct {
-        unchar          present;                /* Flag: host drive present? */
-        unchar          is_logdrv;              /* Flag: log. drive (master)? */
-        unchar          is_arraydrv;            /* Flag: array drive? */
-        unchar          is_master;              /* Flag: array drive master? */
-        unchar          is_parity;              /* Flag: parity drive? */
-        unchar          is_hotfix;              /* Flag: hotfix drive? */
-        unchar          master_no;              /* number of master drive */
-        unchar          lock;                   /* drive locked? (hot plug) */
-        unchar          heads;                  /* mapping */
-        unchar          secs;
-        ushort          devtype;                /* further information */
-        ulong64         size;                   /* capacity */
-        unchar          ldr_no;                 /* log. drive no. */
-        unchar          rw_attribs;             /* r/w attributes */
-        unchar          cluster_type;           /* cluster properties */
-        unchar          media_changed;          /* Flag:MOUNT/UNMOUNT occured */
-        ulong32         start_sec;              /* start sector */
+        u8          present;                /* Flag: host drive present? */
+        u8          is_logdrv;              /* Flag: log. drive (master)? */
+        u8          is_arraydrv;            /* Flag: array drive? */
+        u8          is_master;              /* Flag: array drive master? */
+        u8          is_parity;              /* Flag: parity drive? */
+        u8          is_hotfix;              /* Flag: hotfix drive? */
+        u8          master_no;              /* number of master drive */
+        u8          lock;                   /* drive locked? (hot plug) */
+        u8          heads;                  /* mapping */
+        u8          secs;
+        u16          devtype;                /* further information */
+        u64         size;                   /* capacity */
+        u8          ldr_no;                 /* log. drive no. */
+        u8          rw_attribs;             /* r/w attributes */
+        u8          cluster_type;           /* cluster properties */
+        u8          media_changed;          /* Flag:MOUNT/UNMOUNT occured */
+        u32         start_sec;              /* start sector */
     } hdr[MAX_LDRIVES];                         /* host drives */
     struct {
-        unchar          lock;                   /* channel locked? (hot plug) */
-        unchar          pdev_cnt;               /* physical device count */
-        unchar          local_no;               /* local channel number */
-        unchar          io_cnt[MAXID];          /* current IO count */
-        ulong32         address;                /* channel address */
-        ulong32         id_list[MAXID];         /* IDs of the phys. devices */
+        u8          lock;                   /* channel locked? (hot plug) */
+        u8          pdev_cnt;               /* physical device count */
+        u8          local_no;               /* local channel number */
+        u8          io_cnt[MAXID];          /* current IO count */
+        u32         address;                /* channel address */
+        u32         id_list[MAXID];         /* IDs of the phys. devices */
     } raw[MAXBUS];                              /* SCSI channels */
     struct {
         Scsi_Cmnd       *cmnd;                  /* pending request */
-        ushort          service;                /* service */
+        u16          service;                /* service */
     } cmd_tab[GDTH_MAXCMDS];                    /* table of pend. requests */
     struct gdth_cmndinfo {                      /* per-command private info */
         int index;
         int internal_command;                   /* don't call scsi_done */
         gdth_cmd_str *internal_cmd_str;         /* crier for internal messages*/
         dma_addr_t sense_paddr;                 /* sense dma-addr */
-        unchar priority;
+        u8 priority;
 	int timeout_count;			/* # of timeout calls */
         volatile int wait_for_completion;
-        ushort status;
-        ulong32 info;
+        u16 status;
+        u32 info;
         enum dma_data_direction dma_dir;
         int phase;                              /* ???? */
         int OpCode;
     } cmndinfo[GDTH_MAXCMDS];                   /* index==0 is free */
-    unchar              bus_cnt;                /* SCSI bus count */
-    unchar              tid_cnt;                /* Target ID count */
-    unchar              bus_id[MAXBUS];         /* IOP IDs */
-    unchar              virt_bus;               /* number of virtual bus */
-    unchar              more_proc;              /* more /proc info supported */
-    ushort              cmd_cnt;                /* command count in DPRAM */
-    ushort              cmd_len;                /* length of actual command */
-    ushort              cmd_offs_dpmem;         /* actual offset in DPRAM */
-    ushort              ic_all_size;            /* sizeof DPRAM interf. area */
+    u8              bus_cnt;                /* SCSI bus count */
+    u8              tid_cnt;                /* Target ID count */
+    u8              bus_id[MAXBUS];         /* IOP IDs */
+    u8              virt_bus;               /* number of virtual bus */
+    u8              more_proc;              /* more /proc info supported */
+    u16              cmd_cnt;                /* command count in DPRAM */
+    u16              cmd_len;                /* length of actual command */
+    u16              cmd_offs_dpmem;         /* actual offset in DPRAM */
+    u16              ic_all_size;            /* sizeof DPRAM interf. area */
     gdth_cpar_str       cpar;                   /* controller cache par. */
     gdth_bfeat_str      bfeat;                  /* controller features */
     gdth_binfo_str      binfo;                  /* controller info */
@@ -941,7 +941,7 @@ typedef struct {
     struct pci_dev      *pdev;
     char                oem_name[8];
 #ifdef GDTH_DMA_STATISTICS
-    ulong               dma32_cnt, dma64_cnt;   /* statistics: DMA buffer */
+    unsigned long               dma32_cnt, dma64_cnt;   /* statistics: DMA buffer */
 #endif
     struct scsi_device         *sdev;
 } gdth_ha_str;
@@ -953,65 +953,65 @@ static inline struct gdth_cmndinfo *gdth_cmnd_priv(struct scsi_cmnd* cmd)
 
 /* INQUIRY data format */
 typedef struct {
-    unchar      type_qual;
-    unchar      modif_rmb;
-    unchar      version;
-    unchar      resp_aenc;
-    unchar      add_length;
-    unchar      reserved1;
-    unchar      reserved2;
-    unchar      misc;
-    unchar      vendor[8];
-    unchar      product[16];
-    unchar      revision[4];
-} PACKED gdth_inq_data;
+    u8      type_qual;
+    u8      modif_rmb;
+    u8      version;
+    u8      resp_aenc;
+    u8      add_length;
+    u8      reserved1;
+    u8      reserved2;
+    u8      misc;
+    u8      vendor[8];
+    u8      product[16];
+    u8      revision[4];
+} __attribute__((packed)) gdth_inq_data;
 
 /* READ_CAPACITY data format */
 typedef struct {
-    ulong32     last_block_no;
-    ulong32     block_length;
-} PACKED gdth_rdcap_data;
+    u32     last_block_no;
+    u32     block_length;
+} __attribute__((packed)) gdth_rdcap_data;
 
 /* READ_CAPACITY (16) data format */
 typedef struct {
-    ulong64     last_block_no;
-    ulong32     block_length;
-} PACKED gdth_rdcap16_data;
+    u64     last_block_no;
+    u32     block_length;
+} __attribute__((packed)) gdth_rdcap16_data;
 
 /* REQUEST_SENSE data format */
 typedef struct {
-    unchar      errorcode;
-    unchar      segno;
-    unchar      key;
-    ulong32     info;
-    unchar      add_length;
-    ulong32     cmd_info;
-    unchar      adsc;
-    unchar      adsq;
-    unchar      fruc;
-    unchar      key_spec[3];
-} PACKED gdth_sense_data;
+    u8      errorcode;
+    u8      segno;
+    u8      key;
+    u32     info;
+    u8      add_length;
+    u32     cmd_info;
+    u8      adsc;
+    u8      adsq;
+    u8      fruc;
+    u8      key_spec[3];
+} __attribute__((packed)) gdth_sense_data;
 
 /* MODE_SENSE data format */
 typedef struct {
     struct {
-        unchar  data_length;
-        unchar  med_type;
-        unchar  dev_par;
-        unchar  bd_length;
-    } PACKED hd;
+        u8  data_length;
+        u8  med_type;
+        u8  dev_par;
+        u8  bd_length;
+    } __attribute__((packed)) hd;
     struct {
-        unchar  dens_code;
-        unchar  block_count[3];
-        unchar  reserved;
-        unchar  block_length[3];
-    } PACKED bd;
-} PACKED gdth_modep_data;
+        u8  dens_code;
+        u8  block_count[3];
+        u8  reserved;
+        u8  block_length[3];
+    } __attribute__((packed)) bd;
+} __attribute__((packed)) gdth_modep_data;
 
 /* stack frame */
 typedef struct {
-    ulong       b[10];                          /* 32/64 bit compiler ! */
-} PACKED gdth_stackframe;
+    unsigned long       b[10];                          /* 32/64 bit compiler ! */
+} __attribute__((packed)) gdth_stackframe;
 
 
 /* function prototyping */

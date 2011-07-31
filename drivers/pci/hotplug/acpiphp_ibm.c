@@ -26,6 +26,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <acpi/acpi_bus.h>
@@ -107,7 +108,7 @@ static int ibm_set_attention_status(struct hotplug_slot *slot, u8 status);
 static int ibm_get_attention_status(struct hotplug_slot *slot, u8 *status);
 static void ibm_handle_events(acpi_handle handle, u32 event, void *context);
 static int ibm_get_table_from_acpi(char **bufp);
-static ssize_t ibm_read_apci_table(struct kobject *kobj,
+static ssize_t ibm_read_apci_table(struct file *filp, struct kobject *kobj,
 				   struct bin_attribute *bin_attr,
 				   char *buffer, loff_t pos, size_t size);
 static acpi_status __init ibm_find_acpi_device(acpi_handle handle,
@@ -350,6 +351,7 @@ read_table_done:
 
 /**
  * ibm_read_apci_table - callback for the sysfs apci_table file
+ * @filp: the open sysfs file
  * @kobj: the kobject this binary attribute is a part of
  * @bin_attr: struct bin_attribute for this file
  * @buffer: the kernel space buffer to fill
@@ -363,7 +365,7 @@ read_table_done:
  * things get really tricky here...
  * our solution is to only allow reading the table in all at once.
  */
-static ssize_t ibm_read_apci_table(struct kobject *kobj,
+static ssize_t ibm_read_apci_table(struct file *filp, struct kobject *kobj,
 				   struct bin_attribute *bin_attr,
 				   char *buffer, loff_t pos, size_t size)
 {
@@ -434,7 +436,7 @@ static int __init ibm_acpiphp_init(void)
 	dbg("%s\n", __func__);
 
 	if (acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-			ACPI_UINT32_MAX, ibm_find_acpi_device,
+			ACPI_UINT32_MAX, ibm_find_acpi_device, NULL,
 			&ibm_acpi_handle, NULL) != FOUND_APCI) {
 		err("%s: acpi_walk_namespace failed\n", __func__);
 		retval = -ENODEV;

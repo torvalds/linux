@@ -43,7 +43,7 @@ static void program_hpp_type0(struct pci_dev *dev, struct hpp_type0 *hpp)
 		 * Perhaps we *should* use default settings for PCIe, but
 		 * pciehp didn't, so we won't either.
 		 */
-		if (dev->is_pcie)
+		if (pci_is_pcie(dev))
 			return;
 		dev_info(&dev->dev, "using default PCI settings\n");
 		hpp = &pci_default_type0;
@@ -102,7 +102,7 @@ static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
 		return;
 
 	/* Find PCI Express capability */
-	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(dev);
 	if (!pos)
 		return;
 

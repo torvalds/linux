@@ -121,6 +121,7 @@
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
+#include <linux/slab.h>
 
 #include <net/net_namespace.h>
 #include <net/checksum.h>
@@ -146,7 +147,7 @@
 static char version[] = "LanStreamer.c v0.4.0 03/08/01 - Mike Sullivan\n"
                         "              v0.5.3 11/13/02 - Kent Yoder";
 
-static struct pci_device_id streamer_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(streamer_pci_tbl) = {
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_TR, PCI_ANY_ID, PCI_ANY_ID,},
 	{}	/* terminating entry */
 };
@@ -357,7 +358,7 @@ static int __devinit streamer_init_one(struct pci_dev *pdev,
 	pcr |= PCI_COMMAND_SERR;
 	pci_write_config_word (pdev, PCI_COMMAND, pcr);
 
-	printk("%s \n", version);
+	printk("%s\n", version);
 	printk("%s: %s. I/O at %hx, MMIO at %p, using irq %d\n",dev->name,
 		streamer_priv->streamer_card_name,
 		(unsigned int) dev->base_addr,
@@ -596,7 +597,7 @@ static int streamer_open(struct net_device *dev)
 	        rc=streamer_reset(dev);
 	}
 
-	if (request_irq(dev->irq, &streamer_interrupt, IRQF_SHARED, "lanstreamer", dev)) {
+	if (request_irq(dev->irq, streamer_interrupt, IRQF_SHARED, "lanstreamer", dev)) {
 		return -EAGAIN;
 	}
 #if STREAMER_DEBUG
@@ -650,7 +651,7 @@ static int streamer_open(struct net_device *dev)
 #if STREAMER_DEBUG
 		writew(readw(streamer_mmio + LAPWWO),
 		       streamer_mmio + LAPA);
-		printk("srb open request: \n");
+		printk("srb open request:\n");
 		for (i = 0; i < 16; i++) {
 			printk("%x:", ntohs(readw(streamer_mmio + LAPDINC)));
 		}
@@ -700,7 +701,7 @@ static int streamer_open(struct net_device *dev)
 		if (srb_word != 0) {
 			if (srb_word == 0x07) {
 				if (!streamer_priv->streamer_ring_speed && open_finished) {	/* Autosense , first time around */
-					printk(KERN_WARNING "%s: Retrying at different ring speed \n",
+					printk(KERN_WARNING "%s: Retrying at different ring speed\n",
 					       dev->name);
 					open_finished = 0;
 				} else {
@@ -712,11 +713,11 @@ static int streamer_open(struct net_device *dev)
 					strcat(open_error, " - ");
 					strcat(open_error, open_min_error[(error_code & 0x0f)]);
 
-					if (!streamer_priv->streamer_ring_speed
-					    && ((error_code & 0x0f) == 0x0d)) 
+					if (!streamer_priv->streamer_ring_speed &&
+					    ((error_code & 0x0f) == 0x0d))
 					{
 						printk(KERN_WARNING "%s: Tried to autosense ring speed with no monitors present\n", dev->name);
-						printk(KERN_WARNING "%s: Please try again with a specified ring speed \n", dev->name);
+						printk(KERN_WARNING "%s: Please try again with a specified ring speed\n", dev->name);
 						free_irq(dev->irq, dev);
 						return -EIO;
 					}
@@ -922,7 +923,7 @@ static void streamer_rx(struct net_device *dev)
 
 		if (rx_desc->status & 0x7E830000) {	/* errors */
 			if (streamer_priv->streamer_message_level) {
-				printk(KERN_WARNING "%s: Rx Error %x \n",
+				printk(KERN_WARNING "%s: Rx Error %x\n",
 				       dev->name, rx_desc->status);
 			}
 		} else {	/* received without errors */
@@ -935,7 +936,7 @@ static void streamer_rx(struct net_device *dev)
 
 			if (skb == NULL) 
 			{
-				printk(KERN_WARNING "%s: Not enough memory to copy packet to upper layers. \n",	dev->name);
+				printk(KERN_WARNING "%s: Not enough memory to copy packet to upper layers.\n",	dev->name);
 				dev->stats.rx_dropped++;
 			} else {	/* we allocated an skb OK */
 				if (buffer_cnt == 1) {
@@ -1032,8 +1033,8 @@ static irqreturn_t streamer_interrupt(int irq, void *dev_id)
 	sisr = readw(streamer_mmio + SISR);
 
 	while((sisr & (SISR_MI | SISR_SRB_REPLY | SISR_ADAPTER_CHECK | SISR_ASB_FREE | 
-		       SISR_ARB_CMD | SISR_TRB_REPLY | SISR_PAR_ERR | SISR_SERR_ERR))
-               && (max_intr > 0)) {
+		       SISR_ARB_CMD | SISR_TRB_REPLY | SISR_PAR_ERR | SISR_SERR_ERR)) &&
+	      (max_intr > 0)) {
 
 		if(sisr & SISR_PAR_ERR) {
 			writew(~SISR_PAR_ERR, streamer_mmio + SISR_RUM);
@@ -1266,9 +1267,8 @@ static void streamer_set_rx_mode(struct net_device *dev)
 	    netdev_priv(dev);
 	__u8 __iomem *streamer_mmio = streamer_priv->streamer_mmio;
 	__u8 options = 0;
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	unsigned char dev_mc_address[5];
-	int i;
 
 	writel(streamer_priv->srb, streamer_mmio + LAPA);
 	options = streamer_priv->streamer_copy_all_options;
@@ -1303,12 +1303,11 @@ static void streamer_set_rx_mode(struct net_device *dev)
 	writel(streamer_priv->srb,streamer_mmio+LAPA);
 	dev_mc_address[0] = dev_mc_address[1] = dev_mc_address[2] = dev_mc_address[3] = 0 ; 
   
-	for (i=0,dmi=dev->mc_list;i < dev->mc_count; i++,dmi = dmi->next) 
-	{ 
-   	        dev_mc_address[0] |= dmi->dmi_addr[2] ; 
-		dev_mc_address[1] |= dmi->dmi_addr[3] ; 
-		dev_mc_address[2] |= dmi->dmi_addr[4] ; 
-		dev_mc_address[3] |= dmi->dmi_addr[5] ; 
+	netdev_for_each_mc_addr(ha, dev) {
+		dev_mc_address[0] |= ha->addr[2];
+		dev_mc_address[1] |= ha->addr[3];
+		dev_mc_address[2] |= ha->addr[4];
+		dev_mc_address[3] |= ha->addr[5];
 	}
   
 	writew(htons(SRB_SET_FUNC_ADDRESS << 8),streamer_mmio+LAPDINC);
@@ -1365,7 +1364,7 @@ static void streamer_srb_bh(struct net_device *dev)
 		case 0x00:
 		        break;
 		case 0x01:
-			printk(KERN_WARNING "%s: Unrecognized srb command \n",dev->name);
+			printk(KERN_WARNING "%s: Unrecognized srb command\n",dev->name);
 			break;
 		case 0x04:
 			printk(KERN_WARNING "%s: Adapter must be open for this operation, doh!!\n", dev->name);
@@ -1393,13 +1392,13 @@ static void streamer_srb_bh(struct net_device *dev)
 		case 0x00:
 		        break;
 		case 0x01:
-			printk(KERN_WARNING "%s: Unrecognized srb command \n", dev->name);
+			printk(KERN_WARNING "%s: Unrecognized srb command\n", dev->name);
 			break;
 		case 0x04:
 			printk(KERN_WARNING "%s: Adapter must be open for this operation, doh!!\n", dev->name);
 			break;
 		case 0x39:	/* Must deal with this if individual multicast addresses used */
-			printk(KERN_INFO "%s: Group address not found \n", dev->name);
+			printk(KERN_INFO "%s: Group address not found\n", dev->name);
 			break;
 		default:
 			break;
@@ -1415,10 +1414,10 @@ static void streamer_srb_bh(struct net_device *dev)
 		switch (srb_word) {
 		case 0x00:
 			if (streamer_priv->streamer_message_level)
-				printk(KERN_INFO "%s: Functional Address Mask Set \n", dev->name);
+				printk(KERN_INFO "%s: Functional Address Mask Set\n", dev->name);
 			break;
 		case 0x01:
-			printk(KERN_WARNING "%s: Unrecognized srb command \n", dev->name);
+			printk(KERN_WARNING "%s: Unrecognized srb command\n", dev->name);
 			break;
 		case 0x04:
 			printk(KERN_WARNING "%s: Adapter must be open for this operation, doh!!\n", dev->name);
@@ -1449,7 +1448,7 @@ static void streamer_srb_bh(struct net_device *dev)
 			}
 			break;
 		case 0x01:
-			printk(KERN_WARNING "%s: Unrecognized srb command \n", dev->name);
+			printk(KERN_WARNING "%s: Unrecognized srb command\n", dev->name);
 			break;
 		case 0x04:
 			printk(KERN_WARNING "%s: Adapter must be open for this operation, doh!!\n", dev->name);
@@ -1468,7 +1467,7 @@ static void streamer_srb_bh(struct net_device *dev)
 				printk(KERN_INFO "%s: Read Source Routing Counters issued\n", dev->name);
 			break;
 		case 0x01:
-			printk(KERN_WARNING "%s: Unrecognized srb command \n", dev->name);
+			printk(KERN_WARNING "%s: Unrecognized srb command\n", dev->name);
 			break;
 		case 0x04:
 			printk(KERN_WARNING "%s: Adapter must be open for this operation, doh!!\n", dev->name);
@@ -1557,7 +1556,7 @@ static void streamer_arb_cmd(struct net_device *dev)
 					     (streamer_mmio + LAPDINC)));
 			}
 
-			printk("next %04x, fs %02x, len %04x \n", next,
+			printk("next %04x, fs %02x, len %04x\n", next,
 			       status, len);
 		}
 #endif
@@ -1594,7 +1593,7 @@ static void streamer_arb_cmd(struct net_device *dev)
 
 		mac_frame->protocol = tr_type_trans(mac_frame, dev);
 #if STREAMER_NETWORK_MONITOR
-		printk(KERN_WARNING "%s: Received MAC Frame, details: \n",
+		printk(KERN_WARNING "%s: Received MAC Frame, details:\n",
 		       dev->name);
 		mac_hdr = tr_hdr(mac_frame);
 		printk(KERN_WARNING
@@ -1670,15 +1669,15 @@ drop_frame:
 		/* If serious error */
 		if (streamer_priv->streamer_message_level) {
 			if (lan_status_diff & LSC_SIG_LOSS)
-				printk(KERN_WARNING "%s: No receive signal detected \n", dev->name);
+				printk(KERN_WARNING "%s: No receive signal detected\n", dev->name);
 			if (lan_status_diff & LSC_HARD_ERR) 
-				printk(KERN_INFO "%s: Beaconing \n", dev->name);
+				printk(KERN_INFO "%s: Beaconing\n", dev->name);
 			if (lan_status_diff & LSC_SOFT_ERR)
-				printk(KERN_WARNING "%s: Adapter transmitted Soft Error Report Mac Frame \n", dev->name);
+				printk(KERN_WARNING "%s: Adapter transmitted Soft Error Report Mac Frame\n", dev->name);
 			if (lan_status_diff & LSC_TRAN_BCN)
 				printk(KERN_INFO "%s: We are tranmitting the beacon, aaah\n", dev->name);
 			if (lan_status_diff & LSC_SS)
-				printk(KERN_INFO "%s: Single Station on the ring \n", dev->name);
+				printk(KERN_INFO "%s: Single Station on the ring\n", dev->name);
 			if (lan_status_diff & LSC_RING_REC)
 				printk(KERN_INFO "%s: Ring recovery ongoing\n", dev->name);
 			if (lan_status_diff & LSC_FDX_MODE)
@@ -1687,7 +1686,7 @@ drop_frame:
 
 		if (lan_status_diff & LSC_CO) {
 			if (streamer_priv->streamer_message_level)
-				printk(KERN_INFO "%s: Counter Overflow \n", dev->name);
+				printk(KERN_INFO "%s: Counter Overflow\n", dev->name);
 
 			/* Issue READ.LOG command */
 
@@ -1717,7 +1716,7 @@ drop_frame:
 		streamer_priv->streamer_lan_status = lan_status;
 	} /* Lan.change.status */
 	else
-		printk(KERN_WARNING "%s: Unknown arb command \n", dev->name);
+		printk(KERN_WARNING "%s: Unknown arb command\n", dev->name);
 }
 
 static void streamer_asb_bh(struct net_device *dev)
@@ -1748,10 +1747,10 @@ static void streamer_asb_bh(struct net_device *dev)
 		rc=ntohs(readw(streamer_mmio+LAPD)) >> 8;
 		switch (rc) {
 		case 0x01:
-			printk(KERN_WARNING "%s: Unrecognized command code \n", dev->name);
+			printk(KERN_WARNING "%s: Unrecognized command code\n", dev->name);
 			break;
 		case 0x26:
-			printk(KERN_WARNING "%s: Unrecognized buffer address \n", dev->name);
+			printk(KERN_WARNING "%s: Unrecognized buffer address\n", dev->name);
 			break;
 		case 0xFF:
 			/* Valid response, everything should be ok again */

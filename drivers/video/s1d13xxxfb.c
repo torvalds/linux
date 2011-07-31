@@ -31,6 +31,7 @@
 #include <linux/fb.h>
 #include <linux/spinlock_types.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 
@@ -517,12 +518,12 @@ s1d13xxxfb_bitblt_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 		src = (sy * stride) + (bpp * sx);
 	}
 
-	/* set source adress */
+	/* set source address */
 	s1d13xxxfb_writereg(info->par, S1DREG_BBLT_SRC_START0, (src & 0xff));
 	s1d13xxxfb_writereg(info->par, S1DREG_BBLT_SRC_START1, (src >> 8) & 0x00ff);
 	s1d13xxxfb_writereg(info->par, S1DREG_BBLT_SRC_START2, (src >> 16) & 0x00ff);
 
-	/* set destination adress */
+	/* set destination address */
 	s1d13xxxfb_writereg(info->par, S1DREG_BBLT_DST_START0, (dst & 0xff));
 	s1d13xxxfb_writereg(info->par, S1DREG_BBLT_DST_START1, (dst >> 8) & 0x00ff);
 	s1d13xxxfb_writereg(info->par, S1DREG_BBLT_DST_START2, (dst >> 16) & 0x00ff);

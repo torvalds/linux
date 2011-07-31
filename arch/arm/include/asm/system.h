@@ -60,6 +60,8 @@
 #include <linux/linkage.h>
 #include <linux/irqflags.h>
 
+#include <asm/outercache.h>
+
 #define __exception	__attribute__((section(".exception.text")))
 
 struct thread_info;
@@ -73,8 +75,7 @@ extern unsigned int mem_fclk_21285;
 
 struct pt_regs;
 
-void die(const char *msg, struct pt_regs *regs, int err)
-		__attribute__((noreturn));
+void die(const char *msg, struct pt_regs *regs, int err);
 
 struct siginfo;
 void arm_notify_die(const char *str, struct pt_regs *regs, struct siginfo *info,
@@ -82,7 +83,7 @@ void arm_notify_die(const char *str, struct pt_regs *regs, struct siginfo *info,
 
 void hook_fault_code(int nr, int (*fn)(unsigned long, unsigned int,
 				       struct pt_regs *),
-		     int sig, const char *name);
+		     int sig, int code, const char *name);
 
 #define xchg(ptr,x) \
 	((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
@@ -96,6 +97,8 @@ extern void __show_regs(struct pt_regs *);
 
 extern int cpu_architecture(void);
 extern void cpu_init(void);
+extern void cpu_idle_wait(void);
+extern void default_idle(void);
 
 void arm_machine_restart(char mode, const char *cmd);
 extern void (*arm_pm_restart)(char str, const char *cmd);
@@ -138,21 +141,28 @@ extern unsigned int user_debug;
 #define dmb() __asm__ __volatile__ ("" : : : "memory")
 #endif
 
-#ifndef CONFIG_SMP
+#ifdef CONFIG_ARCH_HAS_BARRIERS
+#include <mach/barriers.h>
+#elif defined(CONFIG_ARM_DMA_MEM_BUFFERABLE) || defined(CONFIG_SMP)
+#define mb()		do { dsb(); outer_sync(); } while (0)
+#define rmb()		dmb()
+#define wmb()		mb()
+#else
 #define mb()	do { if (arch_is_coherent()) dmb(); else barrier(); } while (0)
 #define rmb()	do { if (arch_is_coherent()) dmb(); else barrier(); } while (0)
 #define wmb()	do { if (arch_is_coherent()) dmb(); else barrier(); } while (0)
+#endif
+
+#ifndef CONFIG_SMP
 #define smp_mb()	barrier()
 #define smp_rmb()	barrier()
 #define smp_wmb()	barrier()
 #else
-#define mb()		dmb()
-#define rmb()		dmb()
-#define wmb()		dmb()
 #define smp_mb()	dmb()
 #define smp_rmb()	dmb()
 #define smp_wmb()	dmb()
 #endif
+
 #define read_barrier_depends()		do { } while(0)
 #define smp_read_barrier_depends()	do { } while(0)
 

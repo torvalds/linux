@@ -4,7 +4,7 @@
  *  Derived from ivtv-cards.c
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
- *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -370,6 +370,7 @@ static const struct cx18_card cx18_card_leadtek_pvr2100 = {
 		{ CX18_CARD_INPUT_SVIDEO1,    1,
 			CX18_AV_SVIDEO_LUMA3 | CX18_AV_SVIDEO_CHROMA4 },
 		{ CX18_CARD_INPUT_COMPOSITE1, 1, CX18_AV_COMPOSITE7 },
+		{ CX18_CARD_INPUT_COMPONENT1, 1, CX18_AV_COMPONENT1 },
 	},
 	.audio_inputs = {
 		{ CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO5, 	    0 },
@@ -393,7 +394,7 @@ static const struct cx18_card cx18_card_leadtek_pvr2100 = {
 	.gpio_init.direction = 0x7,
 	.gpio_audio_input = { .mask   = 0x7,
 			      .tuner  = 0x6, .linein = 0x2, .radio  = 0x2 },
-	.xceive_pin = 15,
+	.xceive_pin = 1,
 	.pci_list = cx18_pci_leadtek_pvr2100,
 	.i2c = &cx18_i2c_std,
 };
@@ -422,6 +423,7 @@ static const struct cx18_card cx18_card_leadtek_dvr3100h = {
 		{ CX18_CARD_INPUT_SVIDEO1,    1,
 			CX18_AV_SVIDEO_LUMA3 | CX18_AV_SVIDEO_CHROMA4 },
 		{ CX18_CARD_INPUT_COMPOSITE1, 1, CX18_AV_COMPOSITE7 },
+		{ CX18_CARD_INPUT_COMPONENT1, 1, CX18_AV_COMPONENT1 },
 	},
 	.audio_inputs = {
 		{ CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO5, 	    0 },
@@ -480,7 +482,7 @@ int cx18_get_input(struct cx18 *cx, u16 index, struct v4l2_input *input)
 		"S-Video 2",
 		"Composite 1",
 		"Composite 2",
-		"Composite 3"
+		"Component 1"
 	};
 
 	memset(input, 0, sizeof(*input));

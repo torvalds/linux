@@ -12,6 +12,7 @@
 #undef ISDN_TTY_STAT_DEBUG
 
 #include <linux/isdn.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/smp_lock.h>
 #include "isdn_common.h"
@@ -2635,12 +2636,6 @@ isdn_tty_modem_result(int code, modem_info * info)
 		if ((info->flags & ISDN_ASYNC_CLOSING) || (!info->tty)) {
 			return;
 		}
-#ifdef CONFIG_ISDN_AUDIO
-		if ( !info->vonline )
-			tty_ldisc_flush(info->tty);
-#else
-		tty_ldisc_flush(info->tty);
-#endif
 		if ((info->flags & ISDN_ASYNC_CHECK_CD) &&
 		    (!((info->flags & ISDN_ASYNC_CALLOUT_ACTIVE) &&
 		       (info->flags & ISDN_ASYNC_CALLOUT_NOHUP)))) {

@@ -33,9 +33,11 @@
 #include <linux/irq.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
+#include <linux/smc91x.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 
 #include <linux/i2c/tps65010.h>
 
@@ -45,12 +47,12 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/mach/flash.h>
 
-#include <mach/usb.h>
-#include <mach/mux.h>
-#include <mach/tc.h>
-#include <mach/common.h>
+#include <plat/flash.h>
+#include <plat/usb.h>
+#include <plat/mux.h>
+#include <plat/tc.h>
+#include <plat/common.h>
 
 /* At OMAP5912 OSK the Ethernet is directly connected to CS1 */
 #define OMAP_OSK_ETHR_START		0x04800300
@@ -93,9 +95,9 @@ static struct mtd_partition osk_partitions[] = {
 	}
 };
 
-static struct flash_platform_data osk_flash_data = {
-	.map_name	= "cfi_probe",
+static struct physmap_flash_data osk_flash_data = {
 	.width		= 2,
+	.set_vpp	= omap1_set_vpp,
 	.parts		= osk_partitions,
 	.nr_parts	= ARRAY_SIZE(osk_partitions),
 };
@@ -106,13 +108,19 @@ static struct resource osk_flash_resource = {
 };
 
 static struct platform_device osk5912_flash_device = {
-	.name		= "omapflash",
+	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
 		.platform_data	= &osk_flash_data,
 	},
 	.num_resources	= 1,
 	.resource	= &osk_flash_resource,
+};
+
+static struct smc91x_platdata osk5912_smc91x_info = {
+	.flags	= SMC91X_USE_16BIT | SMC91X_NOWAIT,
+	.leda	= RPC_LED_100_10,
+	.ledb	= RPC_LED_TX_RX,
 };
 
 static struct resource osk5912_smc91x_resources[] = {
@@ -131,6 +139,9 @@ static struct resource osk5912_smc91x_resources[] = {
 static struct platform_device osk5912_smc91x_device = {
 	.name		= "smc91x",
 	.id		= -1,
+	.dev	= {
+		.platform_data	= &osk5912_smc91x_info,
+	},
 	.num_resources	= ARRAY_SIZE(osk5912_smc91x_resources),
 	.resource	= osk5912_smc91x_resources,
 };
@@ -312,7 +323,7 @@ static struct omap_board_config_kernel osk_config[] __initdata = {
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
-#include <mach/keypad.h>
+#include <plat/keypad.h>
 
 static struct at24_platform_data at24c04 = {
 	.byte_len	= SZ_4K / 8,
@@ -549,7 +560,7 @@ static void __init osk_init(void)
 	l |= (3 << 1);
 	omap_writel(l, USB_TRANSCEIVER_CTRL);
 
-	omap_usb_init(&osk_usb_config);
+	omap1_usb_init(&osk_usb_config);
 
 	/* irq for tps65010 chip */
 	/* bootloader effectively does:  omap_cfg_reg(U19_1610_MPUIO1); */
@@ -573,6 +584,7 @@ MACHINE_START(OMAP_OSK, "TI-OSK")
 	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,
 	.map_io		= osk_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= osk_init_irq,
 	.init_machine	= osk_init,
 	.timer		= &omap_timer,

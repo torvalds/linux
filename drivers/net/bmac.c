@@ -20,6 +20,7 @@
 #include <linux/crc32.h>
 #include <linux/bitrev.h>
 #include <linux/ethtool.h>
+#include <linux/slab.h>
 #include <asm/prom.h>
 #include <asm/dbdma.h>
 #include <asm/io.h>
@@ -166,7 +167,6 @@ static inline void
 dbdma_st32(volatile __u32 __iomem *a, unsigned long x)
 {
 	__asm__ volatile( "stwbrx %0,0,%1" : : "r" (x), "r" (a) : "memory");
-	return;
 }
 
 static inline unsigned long
@@ -381,8 +381,6 @@ bmac_init_registers(struct net_device *dev)
 	bmwrite(dev, RXCFG, RxCRCNoStrip | RxHashFilterEnable | RxRejectOwnPackets);
 
 	bmwrite(dev, INTDISABLE, EnableNormal);
-
-	return;
 }
 
 #if 0
@@ -438,8 +436,8 @@ bmac_init_phy(struct net_device *dev)
 
 		ctrl = bmac_mif_read(dev, 0);
 		capable = ((bmac_mif_read(dev, 1) & 0xf800) >> 6) | 1;
-		if (bmac_mif_read(dev, 4) != capable
-		    || (ctrl & 0x1000) == 0) {
+		if (bmac_mif_read(dev, 4) != capable ||
+		    (ctrl & 0x1000) == 0) {
 			bmac_mif_write(dev, 4, capable);
 			bmac_mif_write(dev, 0, 0x1200);
 		} else
@@ -971,9 +969,9 @@ bmac_remove_multi(struct net_device *dev,
  */
 static void bmac_set_multicast(struct net_device *dev)
 {
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	struct bmac_data *bp = netdev_priv(dev);
-	int num_addrs = dev->mc_count;
+	int num_addrs = netdev_mc_count(dev);
 	unsigned short rx_cfg;
 	int i;
 
@@ -982,7 +980,7 @@ static void bmac_set_multicast(struct net_device *dev)
 
 	XXDEBUG(("bmac: enter bmac_set_multicast, n_addrs=%d\n", num_addrs));
 
-	if((dev->flags & IFF_ALLMULTI) || (dev->mc_count > 64)) {
+	if((dev->flags & IFF_ALLMULTI) || (netdev_mc_count(dev) > 64)) {
 		for (i=0; i<4; i++) bp->hash_table_mask[i] = 0xffff;
 		bmac_update_hash_table_mask(dev, bp);
 		rx_cfg = bmac_rx_on(dev, 1, 0);
@@ -1000,8 +998,8 @@ static void bmac_set_multicast(struct net_device *dev)
 			rx_cfg = bmac_rx_on(dev, 0, 0);
 			XXDEBUG(("bmac: multi disabled, rx_cfg=%#08x\n", rx_cfg));
 		} else {
-			for (dmi=dev->mc_list; dmi!=NULL; dmi=dmi->next)
-				bmac_addhash(bp, dmi->dmi_addr);
+			netdev_for_each_mc_addr(ha, dev)
+				bmac_addhash(bp, ha->addr);
 			bmac_update_hash_table_mask(dev, bp);
 			rx_cfg = bmac_rx_on(dev, 1, 0);
 			XXDEBUG(("bmac: multi enabled, rx_cfg=%#08x\n", rx_cfg));
@@ -1015,13 +1013,13 @@ static void bmac_set_multicast(struct net_device *dev)
 
 static void bmac_set_multicast(struct net_device *dev)
 {
-	struct dev_mc_list *dmi = dev->mc_list;
+	struct netdev_hw_addr *ha;
 	char *addrs;
 	int i;
 	unsigned short rx_cfg;
 	u32 crc;
 
-	if((dev->flags & IFF_ALLMULTI) || (dev->mc_count > 64)) {
+	if((dev->flags & IFF_ALLMULTI) || (netdev_mc_count(dev) > 64)) {
 		bmwrite(dev, BHASH0, 0xffff);
 		bmwrite(dev, BHASH1, 0xffff);
 		bmwrite(dev, BHASH2, 0xffff);
@@ -1039,9 +1037,8 @@ static void bmac_set_multicast(struct net_device *dev)
 
 		for(i = 0; i < 4; i++) hash_table[i] = 0;
 
-		for(i = 0; i < dev->mc_count; i++) {
-			addrs = dmi->dmi_addr;
-			dmi = dmi->next;
+		netdev_for_each_mc_addr(ha, dev) {
+			addrs = ha->addr;
 
 			if(!(*addrs & 1))
 				continue;
@@ -1657,8 +1654,11 @@ MODULE_DEVICE_TABLE (of, bmac_match);
 
 static struct macio_driver bmac_driver =
 {
-	.name 		= "bmac",
-	.match_table	= bmac_match,
+	.driver = {
+		.name 		= "bmac",
+		.owner		= THIS_MODULE,
+		.of_match_table	= bmac_match,
+	},
 	.probe		= bmac_probe,
 	.remove		= bmac_remove,
 #ifdef CONFIG_PM

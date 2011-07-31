@@ -16,7 +16,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
@@ -305,7 +304,7 @@ int __init pci_versatile_setup(int nr, struct pci_sys_data *sys)
 }
 
 
-struct pci_bus *pci_versatile_scan_bus(int nr, struct pci_sys_data *sys)
+struct pci_bus * __init pci_versatile_scan_bus(int nr, struct pci_sys_data *sys)
 {
 	return pci_scan_bus(sys->busnr, &pci_versatile_ops, sys);
 }

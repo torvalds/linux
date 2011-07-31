@@ -26,6 +26,7 @@
 #include <linux/pci.h>
 #include <linux/videodev2.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 
@@ -200,6 +201,8 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 {
 	struct maestro *dev = video_drvdata(file);
 
+	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
+		return -EINVAL;
 	if (f->frequency < FREQ_LO || f->frequency > FREQ_HI)
 		return -EINVAL;
 	mutex_lock(&dev->lock);
@@ -213,6 +216,8 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 {
 	struct maestro *dev = video_drvdata(file);
 
+	if (f->tuner != 0)
+		return -EINVAL;
 	f->type = V4L2_TUNER_RADIO;
 	mutex_lock(&dev->lock);
 	f->frequency = BITS2FREQ(radio_bits_get(dev));

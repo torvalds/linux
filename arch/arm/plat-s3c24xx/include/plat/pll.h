@@ -35,3 +35,28 @@ s3c24xx_get_pll(unsigned int pllval, unsigned int baseclk)
 
 	return (unsigned int)fvco;
 }
+
+#define S3C2416_PLL_M_SHIFT	(14)
+#define S3C2416_PLL_P_SHIFT	(5)
+#define S3C2416_PLL_S_MASK	(7)
+#define S3C2416_PLL_M_MASK	((1 << 10) - 1)
+#define S3C2416_PLL_P_MASK	(63)
+
+static inline unsigned int
+s3c2416_get_pll(unsigned int pllval, unsigned int baseclk)
+{
+	unsigned int m, p, s;
+	uint64_t fvco;
+
+	m = pllval >> S3C2416_PLL_M_SHIFT;
+	p = pllval >> S3C2416_PLL_P_SHIFT;
+
+	s = pllval & S3C2416_PLL_S_MASK;
+	m &= S3C2416_PLL_M_MASK;
+	p &= S3C2416_PLL_P_MASK;
+
+	fvco = (uint64_t)baseclk * m;
+	do_div(fvco, (p << s));
+
+	return (unsigned int)fvco;
+}

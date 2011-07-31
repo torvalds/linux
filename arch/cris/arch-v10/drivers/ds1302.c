@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/miscdevice.h>
 #include <linux/delay.h>
+#include <linux/smp_lock.h>
 #include <linux/bcd.h>
 #include <linux/capability.h>
 
@@ -238,9 +239,7 @@ static unsigned char days_in_mo[] =
 
 /* ioctl that supports RTC_RD_TIME and RTC_SET_TIME (read and set time/date). */
 
-static int
-rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-	  unsigned long arg) 
+static int rtc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	unsigned long flags;
 
@@ -354,6 +353,17 @@ rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	}
 }
 
+static long rtc_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = rtc_ioctl(file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
+
 static void
 print_rtc_status(void)
 {
@@ -375,8 +385,8 @@ print_rtc_status(void)
 /* The various file operations we support. */
 
 static const struct file_operations rtc_fops = {
-	.owner =	THIS_MODULE,
-	.ioctl =	rtc_ioctl,
+	.owner		= THIS_MODULE,
+	.unlocked_ioctl = rtc_unlocked_ioctl,
 }; 
 
 /* Probe for the chip by writing something to its RAM and try reading it back. */

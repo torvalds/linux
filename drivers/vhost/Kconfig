@@ -1,0 +1,11 @@
+config VHOST_NET
+	tristate "Host kernel accelerator for virtio net (EXPERIMENTAL)"
+	depends on NET && EVENTFD && (TUN || !TUN) && (MACVTAP || !MACVTAP) && EXPERIMENTAL
+	---help---
+	  This kernel module can be loaded in host kernel to accelerate
+	  guest networking with virtio_net. Not to be confused with virtio_net
+	  module itself which needs to be loaded in guest kernel.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called vhost_net.
+

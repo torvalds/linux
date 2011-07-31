@@ -42,6 +42,7 @@
 
 unsigned long ioremap_base;
 unsigned long ioremap_bot;
+EXPORT_SYMBOL(ioremap_bot);
 
 /* The maximum lowmem defaults to 768Mb, but this can be configured to
  * another value.
@@ -103,7 +104,7 @@ static void __iomem *__ioremap(phys_addr_t addr, unsigned long size,
 		area = get_vm_area(size, VM_IOREMAP);
 		if (area == NULL)
 			return NULL;
-		v = VMALLOC_VMADDR(area->addr);
+		v = (unsigned long) area->addr;
 	} else {
 		v = (ioremap_bot -= size);
 	}
@@ -144,7 +145,6 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
 	pmd_t *pd;
 	pte_t *pg;
 	int err = -ENOMEM;
-	/* spin_lock(&init_mm.page_table_lock); */
 	/* Use upper 10 bits of VA to index the first level map */
 	pd = pmd_offset(pgd_offset_k(va), va);
 	/* Use middle 10 bits of VA to index the second-level map */
@@ -155,37 +155,11 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
 		err = 0;
 		set_pte_at(&init_mm, va, pg, pfn_pte(pa >> PAGE_SHIFT,
 				__pgprot(flags)));
-		if (mem_init_done)
+		if (unlikely(mem_init_done))
 			flush_HPTE(0, va, pmd_val(*pd));
 			/* flush_HPTE(0, va, pg); */
-
 	}
-	/* spin_unlock(&init_mm.page_table_lock); */
 	return err;
-}
-
-void __init adjust_total_lowmem(void)
-{
-/* TBD */
-#if 0
-	unsigned long max_low_mem = MAX_LOW_MEM;
-
-	if (total_lowmem > max_low_mem) {
-		total_lowmem = max_low_mem;
-#ifndef CONFIG_HIGHMEM
-		printk(KERN_INFO "Warning, memory limited to %ld Mb, use "
-				"CONFIG_HIGHMEM to reach %ld Mb\n",
-				max_low_mem >> 20, total_memory >> 20);
-		total_memory = total_lowmem;
-#endif /* CONFIG_HIGHMEM */
-	}
-#endif
-}
-
-static void show_tmem(unsigned long tmem)
-{
-	volatile unsigned long a;
-	a = a + tmem;
 }
 
 /*
@@ -197,7 +171,6 @@ void __init mapin_ram(void)
 
 	v = CONFIG_KERNEL_START;
 	p = memory_start;
-	show_tmem(memory_size);
 	for (s = 0; s < memory_size; s += PAGE_SIZE) {
 		f = _PAGE_PRESENT | _PAGE_ACCESSED |
 				_PAGE_SHARED | _PAGE_HWEXEC;
@@ -215,24 +188,6 @@ void __init mapin_ram(void)
 
 /* is x a power of 2? */
 #define is_power_of_2(x)	((x) != 0 && (((x) & ((x) - 1)) == 0))
-
-/*
- * Set up a mapping for a block of I/O.
- * virt, phys, size must all be page-aligned.
- * This should only be called before ioremap is called.
- */
-void __init io_block_mapping(unsigned long virt, phys_addr_t phys,
-			     unsigned int size, int flags)
-{
-	int i;
-
-	if (virt > CONFIG_KERNEL_START && virt < ioremap_bot)
-		ioremap_bot = ioremap_base = virt;
-
-	/* Put it in the page tables. */
-	for (i = 0; i < size; i += PAGE_SIZE)
-		map_page(virt + i, phys + i, flags);
-}
 
 /* Scan the real Linux page tables and return a PTE pointer for
  * a virtual address in a context.
@@ -283,4 +238,19 @@ unsigned long iopa(unsigned long addr)
 		pa = (pte_val(*pte) & PAGE_MASK) | (addr & ~PAGE_MASK);
 
 	return pa;
+}
+
+__init_refok pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+		unsigned long address)
+{
+	pte_t *pte;
+	if (mem_init_done) {
+		pte = (pte_t *)__get_free_page(GFP_KERNEL |
+					__GFP_REPEAT | __GFP_ZERO);
+	} else {
+		pte = (pte_t *)early_get_page();
+		if (pte)
+			clear_page(pte);
+	}
+	return pte;
 }

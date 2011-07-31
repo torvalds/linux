@@ -16,7 +16,7 @@ extern struct files_struct init_files;
 extern struct fs_struct init_fs;
 
 #define INIT_SIGNALS(sig) {						\
-	.count		= ATOMIC_INIT(1), 				\
+	.nr_threads	= 1,						\
 	.wait_chldexit	= __WAIT_QUEUE_HEAD_INITIALIZER(sig.wait_chldexit),\
 	.shared_pending	= { 						\
 		.list = LIST_HEAD_INIT(sig.shared_pending.list),	\
@@ -32,18 +32,10 @@ extern struct fs_struct init_fs;
 }
 
 extern struct nsproxy init_nsproxy;
-#define INIT_NSPROXY(nsproxy) {						\
-	.pid_ns		= &init_pid_ns,					\
-	.count		= ATOMIC_INIT(1),				\
-	.uts_ns		= &init_uts_ns,					\
-	.mnt_ns		= NULL,						\
-	INIT_NET_NS(net_ns)                                             \
-	INIT_IPC_NS(ipc_ns)						\
-}
 
 #define INIT_SIGHAND(sighand) {						\
 	.count		= ATOMIC_INIT(1), 				\
-	.action		= { { { .sa_handler = NULL, } }, },		\
+	.action		= { { { .sa_handler = SIG_DFL, } }, },		\
 	.siglock	= __SPIN_LOCK_UNLOCKED(sighand.siglock),	\
 	.signalfd_wqh	= __WAIT_QUEUE_HEAD_INITIALIZER(sighand.signalfd_wqh),	\
 }
@@ -53,11 +45,10 @@ extern struct group_info init_groups;
 #define INIT_STRUCT_PID {						\
 	.count 		= ATOMIC_INIT(1),				\
 	.tasks		= {						\
-		{ .first = &init_task.pids[PIDTYPE_PID].node },		\
-		{ .first = &init_task.pids[PIDTYPE_PGID].node },	\
-		{ .first = &init_task.pids[PIDTYPE_SID].node },		\
+		{ .first = NULL },					\
+		{ .first = NULL },					\
+		{ .first = NULL },					\
 	},								\
-	.rcu		= RCU_HEAD_INIT,				\
 	.level		= 0,						\
 	.numbers	= { {						\
 		.nr		= 0,					\
@@ -70,7 +61,7 @@ extern struct group_info init_groups;
 {								\
 	.node = {						\
 		.next = NULL,					\
-		.pprev = &init_struct_pid.tasks[type].first,	\
+		.pprev = NULL,					\
 	},							\
 	.pid = &init_struct_pid,				\
 }
@@ -83,16 +74,12 @@ extern struct group_info init_groups;
 #define INIT_IDS
 #endif
 
-#ifdef CONFIG_SECURITY_FILE_CAPABILITIES
 /*
  * Because of the reduced scope of CAP_SETPCAP when filesystem
  * capabilities are in effect, it is safe to allow CAP_SETPCAP to
  * be available in the default configuration.
  */
 # define CAP_INIT_BSET  CAP_FULL_SET
-#else
-# define CAP_INIT_BSET  CAP_INIT_EFF_SET
-#endif
 
 #ifdef CONFIG_TREE_PREEMPT_RCU
 #define INIT_TASK_RCU_PREEMPT(tsk)					\
@@ -169,13 +156,14 @@ extern struct cred init_cred;
 	.journal_info	= NULL,						\
 	.cpu_timers	= INIT_CPU_TIMERS(tsk.cpu_timers),		\
 	.fs_excl	= ATOMIC_INIT(0),				\
-	.pi_lock	= __SPIN_LOCK_UNLOCKED(tsk.pi_lock),		\
+	.pi_lock	= __RAW_SPIN_LOCK_UNLOCKED(tsk.pi_lock),	\
 	.timer_slack_ns = 50000, /* 50 usec default slack */		\
 	.pids = {							\
 		[PIDTYPE_PID]  = INIT_PID_LINK(PIDTYPE_PID),		\
 		[PIDTYPE_PGID] = INIT_PID_LINK(PIDTYPE_PGID),		\
 		[PIDTYPE_SID]  = INIT_PID_LINK(PIDTYPE_SID),		\
 	},								\
+	.thread_group	= LIST_HEAD_INIT(tsk.thread_group),		\
 	.dirties = INIT_PROP_LOCAL_SINGLE(dirties),			\
 	INIT_IDS							\
 	INIT_PERF_EVENTS(tsk)						\
@@ -195,7 +183,7 @@ extern struct cred init_cred;
 }
 
 /* Attach to the init_task data structure for proper alignment */
-#define __init_task_data __attribute__((__section__(".data.init_task")))
+#define __init_task_data __attribute__((__section__(".data..init_task")))
 
 
 #endif

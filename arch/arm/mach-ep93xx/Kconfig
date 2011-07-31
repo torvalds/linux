@@ -161,6 +161,20 @@ config MACH_MICRO9S
 	  Say 'Y' here if you want your kernel to support the
 	  Contec Micro9-Slim board.
 
+config MACH_SIM_ONE
+        bool "Support Simplemachines Sim.One board"
+        depends on EP93XX_SDCE0_PHYS_OFFSET
+        help
+          Say 'Y' here if you want your kernel to support the
+          Simplemachines Sim.One board.
+
+config MACH_SNAPPER_CL15
+	bool "Support Bluewater Systems Snapper CL15 Module"
+	depends on EP93XX_SDCE0_PHYS_OFFSET
+	help
+	  Say 'Y' here if you want your kernel to support the Bluewater
+	  Systems Snapper CL15 Module.
+
 config MACH_TS72XX
 	bool "Support Technologic Systems TS-72xx SBC"
 	depends on EP93XX_SDCE3_SYNC_PHYS_OFFSET

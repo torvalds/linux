@@ -4,7 +4,7 @@
 
 # Object file lists.
 
-obj-y			:= common.o dc21285.o dma.o isa-irq.o time.o
+obj-y			:= common.o dc21285.o dma.o isa-irq.o
 obj-m			:=
 obj-n			:=
 obj-			:=
@@ -25,4 +25,4 @@ obj-$(CONFIG_ARCH_PERSONAL_SERVER) += personal.o dc21285-timer.o
 obj-$(CONFIG_PCI)	+=$(pci-y)
 obj-$(CONFIG_LEDS)	+=$(leds-y)
 
-obj-$(CONFIG_ISA)	+= isa.o
+obj-$(CONFIG_ISA)	+= isa.o isa-rtc.o

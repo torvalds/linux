@@ -20,6 +20,7 @@
 #include <asm/txx9/pci.h>
 #ifdef CONFIG_TOSHIBA_FPCIB0
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <asm/i8259.h>
 #include <asm/txx9/smsc_fdc37m81x.h>
 #endif

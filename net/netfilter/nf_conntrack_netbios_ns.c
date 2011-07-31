@@ -61,7 +61,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 		goto out;
 
 	rcu_read_lock();
-	in_dev = __in_dev_get_rcu(rt->u.dst.dev);
+	in_dev = __in_dev_get_rcu(rt->dst.dev);
 	if (in_dev != NULL) {
 		for_primary_ifa(in_dev) {
 			if (ifa->ifa_broadcast == iph->daddr) {

@@ -36,6 +36,7 @@
 #include <linux/backlight.h>
 #include <linux/lcd.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 
 /* The LVDS- and panel power controls sits on the
  * GPIO port of the ISA bridge.
@@ -108,7 +109,7 @@ static int cr_backlight_get_intensity(struct backlight_device *bd)
 	return intensity;
 }
 
-static struct backlight_ops cr_backlight_ops = {
+static const struct backlight_ops cr_backlight_ops = {
 	.get_brightness = cr_backlight_get_intensity,
 	.update_status = cr_backlight_set_intensity,
 };
@@ -170,6 +171,7 @@ static struct lcd_ops cr_lcd_ops = {
 
 static int cr_backlight_probe(struct platform_device *pdev)
 {
+	struct backlight_properties props;
 	struct backlight_device *bdp;
 	struct lcd_device *ldp;
 	struct cr_panel *crp;
@@ -190,8 +192,9 @@ static int cr_backlight_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	bdp = backlight_device_register("cr-backlight",
-					&pdev->dev, NULL, &cr_backlight_ops);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	bdp = backlight_device_register("cr-backlight", &pdev->dev, NULL,
+					&cr_backlight_ops, &props);
 	if (IS_ERR(bdp)) {
 		pci_dev_put(lpc_dev);
 		return PTR_ERR(bdp);
@@ -201,7 +204,7 @@ static int cr_backlight_probe(struct platform_device *pdev)
 	if (IS_ERR(ldp)) {
 		backlight_device_unregister(bdp);
 		pci_dev_put(lpc_dev);
-		return PTR_ERR(bdp);
+		return PTR_ERR(ldp);
 	}
 
 	pci_read_config_dword(lpc_dev, CRVML_REG_GPIOBAR,
@@ -220,9 +223,7 @@ static int cr_backlight_probe(struct platform_device *pdev)
 	crp->cr_lcd_device = ldp;
 	crp->cr_backlight_device->props.power = FB_BLANK_UNBLANK;
 	crp->cr_backlight_device->props.brightness = 0;
-	crp->cr_backlight_device->props.max_brightness = 0;
 	cr_backlight_set_intensity(crp->cr_backlight_device);
-
 	cr_lcd_set_power(crp->cr_lcd_device, FB_BLANK_UNBLANK);
 
 	platform_set_drvdata(pdev, crp);

@@ -92,9 +92,9 @@ policy->cpuinfo.max_freq -	the minimum and maximum frequency
 				(in kHz) which is supported by 
 				this CPU
 policy->cpuinfo.transition_latency   the time it takes on this CPU to
-				switch between two frequencies (if
-				appropriate, else specify
-				CPUFREQ_ETERNAL)
+				switch between two frequencies in
+				nanoseconds (if appropriate, else
+				specify CPUFREQ_ETERNAL)
 
 policy->cur			The current operating frequency of
 				this CPU (if appropriate)

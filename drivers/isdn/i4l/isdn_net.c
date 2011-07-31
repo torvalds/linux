@@ -23,6 +23,7 @@
  */
 
 #include <linux/isdn.h>
+#include <linux/slab.h>
 #include <net/arp.h>
 #include <net/dst.h>
 #include <net/pkt_sched.h>
@@ -1563,7 +1564,7 @@ isdn_net_ciscohdlck_slarp_send_keepalive(unsigned long data)
 	*(__be32 *)(p +  4) = cpu_to_be32(CISCO_SLARP_KEEPALIVE);
 	*(__be32 *)(p +  8) = cpu_to_be32(lp->cisco_myseq);
 	*(__be32 *)(p + 12) = cpu_to_be32(lp->cisco_yourseq);
-	*(__be16 *)(p + 16) = cpu_to_be16(0xffff); // reliablity, always 0xffff
+	*(__be16 *)(p + 16) = cpu_to_be16(0xffff); // reliability, always 0xffff
 	p += 18;
 
 	isdn_net_write_super(lp, skb);
@@ -2923,16 +2924,17 @@ isdn_net_getcfg(isdn_net_ioctl_cfg * cfg)
 		cfg->dialtimeout = lp->dialtimeout >= 0 ? lp->dialtimeout / HZ : -1;
 		cfg->dialwait = lp->dialwait / HZ;
 		if (lp->slave) {
-			if (strlen(lp->slave->name) > 8)
+			if (strlen(lp->slave->name) >= 10)
 				strcpy(cfg->slave, "too-long");
 			else
 				strcpy(cfg->slave, lp->slave->name);
 		} else
 			cfg->slave[0] = '\0';
 		if (lp->master) {
-			if (strlen(lp->master->name) > 8)
+			if (strlen(lp->master->name) >= 10)
 				strcpy(cfg->master, "too-long");
-			strcpy(cfg->master, lp->master->name);
+			else
+				strcpy(cfg->master, lp->master->name);
 		} else
 			cfg->master[0] = '\0';
 		return 0;

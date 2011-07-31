@@ -3,10 +3,8 @@
 #include <linux/init.h>
 
 #include <asm/pgtable.h>
+#include <asm/proto.h>
 
-int nx_enabled;
-
-#if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
 static int disable_nx __cpuinitdata;
 
 /*
@@ -22,48 +20,41 @@ static int __init noexec_setup(char *str)
 	if (!str)
 		return -EINVAL;
 	if (!strncmp(str, "on", 2)) {
-		__supported_pte_mask |= _PAGE_NX;
 		disable_nx = 0;
 	} else if (!strncmp(str, "off", 3)) {
 		disable_nx = 1;
-		__supported_pte_mask &= ~_PAGE_NX;
 	}
+	x86_configure_nx();
 	return 0;
 }
 early_param("noexec", noexec_setup);
-#endif
 
-#ifdef CONFIG_X86_PAE
-void __init set_nx(void)
+void __cpuinit x86_configure_nx(void)
 {
-	unsigned int v[4], l, h;
-
-	if (cpu_has_pae && (cpuid_eax(0x80000000) > 0x80000001)) {
-		cpuid(0x80000001, &v[0], &v[1], &v[2], &v[3]);
-
-		if ((v[3] & (1 << 20)) && !disable_nx) {
-			rdmsr(MSR_EFER, l, h);
-			l |= EFER_NX;
-			wrmsr(MSR_EFER, l, h);
-			nx_enabled = 1;
-			__supported_pte_mask |= _PAGE_NX;
-		}
-	}
-}
-#else
-void set_nx(void)
-{
-}
-#endif
-
-#ifdef CONFIG_X86_64
-void __cpuinit check_efer(void)
-{
-	unsigned long efer;
-
-	rdmsrl(MSR_EFER, efer);
-	if (!(efer & EFER_NX) || disable_nx)
+	if (cpu_has_nx && !disable_nx)
+		__supported_pte_mask |= _PAGE_NX;
+	else
 		__supported_pte_mask &= ~_PAGE_NX;
 }
-#endif
 
+void __init x86_report_nx(void)
+{
+	if (!cpu_has_nx) {
+		printk(KERN_NOTICE "Notice: NX (Execute Disable) protection "
+		       "missing in CPU or disabled in BIOS!\n");
+	} else {
+#if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
+		if (disable_nx) {
+			printk(KERN_INFO "NX (Execute Disable) protection: "
+			       "disabled by kernel command line option\n");
+		} else {
+			printk(KERN_INFO "NX (Execute Disable) protection: "
+			       "active\n");
+		}
+#else
+		/* 32bit non-PAE kernel, NX cannot be used */
+		printk(KERN_NOTICE "Notice: NX (Execute Disable) protection "
+		       "cannot be enabled: non-PAE kernel!\n");
+#endif
+	}
+}

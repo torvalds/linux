@@ -54,7 +54,7 @@ static struct hlist_head tracepoint_table[TRACEPOINT_TABLE_SIZE];
  */
 struct tracepoint_entry {
 	struct hlist_node hlist;
-	void **funcs;
+	struct tracepoint_func *funcs;
 	int refcount;	/* Number of times armed. 0 if disarmed. */
 	char name[0];
 };
@@ -64,12 +64,12 @@ struct tp_probes {
 		struct rcu_head rcu;
 		struct list_head list;
 	} u;
-	void *probes[0];
+	struct tracepoint_func probes[0];
 };
 
 static inline void *allocate_probes(int count)
 {
-	struct tp_probes *p  = kmalloc(count * sizeof(void *)
+	struct tp_probes *p  = kmalloc(count * sizeof(struct tracepoint_func)
 			+ sizeof(struct tp_probes), GFP_KERNEL);
 	return p == NULL ? NULL : p->probes;
 }
@@ -79,7 +79,7 @@ static void rcu_free_old_probes(struct rcu_head *head)
 	kfree(container_of(head, struct tp_probes, u.rcu));
 }
 
-static inline void release_probes(void *old)
+static inline void release_probes(struct tracepoint_func *old)
 {
 	if (old) {
 		struct tp_probes *tp_probes = container_of(old,
@@ -95,15 +95,16 @@ static void debug_print_probes(struct tracepoint_entry *entry)
 	if (!tracepoint_debug || !entry->funcs)
 		return;
 
-	for (i = 0; entry->funcs[i]; i++)
-		printk(KERN_DEBUG "Probe %d : %p\n", i, entry->funcs[i]);
+	for (i = 0; entry->funcs[i].func; i++)
+		printk(KERN_DEBUG "Probe %d : %p\n", i, entry->funcs[i].func);
 }
 
-static void *
-tracepoint_entry_add_probe(struct tracepoint_entry *entry, void *probe)
+static struct tracepoint_func *
+tracepoint_entry_add_probe(struct tracepoint_entry *entry,
+			   void *probe, void *data)
 {
 	int nr_probes = 0;
-	void **old, **new;
+	struct tracepoint_func *old, *new;
 
 	WARN_ON(!probe);
 
@@ -111,8 +112,9 @@ tracepoint_entry_add_probe(struct tracepoint_entry *entry, void *probe)
 	old = entry->funcs;
 	if (old) {
 		/* (N -> N+1), (N != 0, 1) probes */
-		for (nr_probes = 0; old[nr_probes]; nr_probes++)
-			if (old[nr_probes] == probe)
+		for (nr_probes = 0; old[nr_probes].func; nr_probes++)
+			if (old[nr_probes].func == probe &&
+			    old[nr_probes].data == data)
 				return ERR_PTR(-EEXIST);
 	}
 	/* + 2 : one for new probe, one for NULL func */
@@ -120,9 +122,10 @@ tracepoint_entry_add_probe(struct tracepoint_entry *entry, void *probe)
 	if (new == NULL)
 		return ERR_PTR(-ENOMEM);
 	if (old)
-		memcpy(new, old, nr_probes * sizeof(void *));
-	new[nr_probes] = probe;
-	new[nr_probes + 1] = NULL;
+		memcpy(new, old, nr_probes * sizeof(struct tracepoint_func));
+	new[nr_probes].func = probe;
+	new[nr_probes].data = data;
+	new[nr_probes + 1].func = NULL;
 	entry->refcount = nr_probes + 1;
 	entry->funcs = new;
 	debug_print_probes(entry);
@@ -130,10 +133,11 @@ tracepoint_entry_add_probe(struct tracepoint_entry *entry, void *probe)
 }
 
 static void *
-tracepoint_entry_remove_probe(struct tracepoint_entry *entry, void *probe)
+tracepoint_entry_remove_probe(struct tracepoint_entry *entry,
+			      void *probe, void *data)
 {
 	int nr_probes = 0, nr_del = 0, i;
-	void **old, **new;
+	struct tracepoint_func *old, *new;
 
 	old = entry->funcs;
 
@@ -142,8 +146,10 @@ tracepoint_entry_remove_probe(struct tracepoint_entry *entry, void *probe)
 
 	debug_print_probes(entry);
 	/* (N -> M), (N > 1, M >= 0) probes */
-	for (nr_probes = 0; old[nr_probes]; nr_probes++) {
-		if ((!probe || old[nr_probes] == probe))
+	for (nr_probes = 0; old[nr_probes].func; nr_probes++) {
+		if (!probe ||
+		    (old[nr_probes].func == probe &&
+		     old[nr_probes].data == data))
 			nr_del++;
 	}
 
@@ -160,10 +166,11 @@ tracepoint_entry_remove_probe(struct tracepoint_entry *entry, void *probe)
 		new = allocate_probes(nr_probes - nr_del + 1);
 		if (new == NULL)
 			return ERR_PTR(-ENOMEM);
-		for (i = 0; old[i]; i++)
-			if ((probe && old[i] != probe))
+		for (i = 0; old[i].func; i++)
+			if (probe &&
+			    (old[i].func != probe || old[i].data != data))
 				new[j++] = old[i];
-		new[nr_probes - nr_del] = NULL;
+		new[nr_probes - nr_del].func = NULL;
 		entry->refcount = nr_probes - nr_del;
 		entry->funcs = new;
 	}
@@ -315,18 +322,19 @@ static void tracepoint_update_probes(void)
 	module_update_tracepoints();
 }
 
-static void *tracepoint_add_probe(const char *name, void *probe)
+static struct tracepoint_func *
+tracepoint_add_probe(const char *name, void *probe, void *data)
 {
 	struct tracepoint_entry *entry;
-	void *old;
+	struct tracepoint_func *old;
 
 	entry = get_tracepoint(name);
 	if (!entry) {
 		entry = add_tracepoint(name);
 		if (IS_ERR(entry))
-			return entry;
+			return (struct tracepoint_func *)entry;
 	}
-	old = tracepoint_entry_add_probe(entry, probe);
+	old = tracepoint_entry_add_probe(entry, probe, data);
 	if (IS_ERR(old) && !entry->refcount)
 		remove_tracepoint(entry);
 	return old;
@@ -340,12 +348,12 @@ static void *tracepoint_add_probe(const char *name, void *probe)
  * Returns 0 if ok, error value on error.
  * The probe address must at least be aligned on the architecture pointer size.
  */
-int tracepoint_probe_register(const char *name, void *probe)
+int tracepoint_probe_register(const char *name, void *probe, void *data)
 {
-	void *old;
+	struct tracepoint_func *old;
 
 	mutex_lock(&tracepoints_mutex);
-	old = tracepoint_add_probe(name, probe);
+	old = tracepoint_add_probe(name, probe, data);
 	mutex_unlock(&tracepoints_mutex);
 	if (IS_ERR(old))
 		return PTR_ERR(old);
@@ -356,15 +364,16 @@ int tracepoint_probe_register(const char *name, void *probe)
 }
 EXPORT_SYMBOL_GPL(tracepoint_probe_register);
 
-static void *tracepoint_remove_probe(const char *name, void *probe)
+static struct tracepoint_func *
+tracepoint_remove_probe(const char *name, void *probe, void *data)
 {
 	struct tracepoint_entry *entry;
-	void *old;
+	struct tracepoint_func *old;
 
 	entry = get_tracepoint(name);
 	if (!entry)
 		return ERR_PTR(-ENOENT);
-	old = tracepoint_entry_remove_probe(entry, probe);
+	old = tracepoint_entry_remove_probe(entry, probe, data);
 	if (IS_ERR(old))
 		return old;
 	if (!entry->refcount)
@@ -382,12 +391,12 @@ static void *tracepoint_remove_probe(const char *name, void *probe)
  * itself uses stop_machine(), which insures that every preempt disabled section
  * have finished.
  */
-int tracepoint_probe_unregister(const char *name, void *probe)
+int tracepoint_probe_unregister(const char *name, void *probe, void *data)
 {
-	void *old;
+	struct tracepoint_func *old;
 
 	mutex_lock(&tracepoints_mutex);
-	old = tracepoint_remove_probe(name, probe);
+	old = tracepoint_remove_probe(name, probe, data);
 	mutex_unlock(&tracepoints_mutex);
 	if (IS_ERR(old))
 		return PTR_ERR(old);
@@ -418,12 +427,13 @@ static void tracepoint_add_old_probes(void *old)
  *
  * caller must call tracepoint_probe_update_all()
  */
-int tracepoint_probe_register_noupdate(const char *name, void *probe)
+int tracepoint_probe_register_noupdate(const char *name, void *probe,
+				       void *data)
 {
-	void *old;
+	struct tracepoint_func *old;
 
 	mutex_lock(&tracepoints_mutex);
-	old = tracepoint_add_probe(name, probe);
+	old = tracepoint_add_probe(name, probe, data);
 	if (IS_ERR(old)) {
 		mutex_unlock(&tracepoints_mutex);
 		return PTR_ERR(old);
@@ -441,12 +451,13 @@ EXPORT_SYMBOL_GPL(tracepoint_probe_register_noupdate);
  *
  * caller must call tracepoint_probe_update_all()
  */
-int tracepoint_probe_unregister_noupdate(const char *name, void *probe)
+int tracepoint_probe_unregister_noupdate(const char *name, void *probe,
+					 void *data)
 {
-	void *old;
+	struct tracepoint_func *old;
 
 	mutex_lock(&tracepoints_mutex);
-	old = tracepoint_remove_probe(name, probe);
+	old = tracepoint_remove_probe(name, probe, data);
 	if (IS_ERR(old)) {
 		mutex_unlock(&tracepoints_mutex);
 		return PTR_ERR(old);

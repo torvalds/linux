@@ -26,121 +26,101 @@ static struct ctl_table_header *rose_table_header;
 
 static ctl_table rose_table[] = {
 	{
-		.ctl_name	= NET_ROSE_RESTART_REQUEST_TIMEOUT,
 		.procname	= "restart_request_timeout",
 		.data		= &sysctl_rose_restart_request_timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.strategy	= sysctl_intvec,
 		.extra1		= &min_timer,
 		.extra2		= &max_timer
 	},
 	{
-		.ctl_name	= NET_ROSE_CALL_REQUEST_TIMEOUT,
 		.procname	= "call_request_timeout",
 		.data		= &sysctl_rose_call_request_timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.strategy	= sysctl_intvec,
 		.extra1		= &min_timer,
 		.extra2		= &max_timer
 	},
 	{
-		.ctl_name	= NET_ROSE_RESET_REQUEST_TIMEOUT,
 		.procname	= "reset_request_timeout",
 		.data		= &sysctl_rose_reset_request_timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.strategy	= sysctl_intvec,
 		.extra1		= &min_timer,
 		.extra2		= &max_timer
 	},
 	{
-		.ctl_name	= NET_ROSE_CLEAR_REQUEST_TIMEOUT,
 		.procname	= "clear_request_timeout",
 		.data		= &sysctl_rose_clear_request_timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.strategy	= sysctl_intvec,
 		.extra1		= &min_timer,
 		.extra2		= &max_timer
 	},
 	{
-		.ctl_name	= NET_ROSE_NO_ACTIVITY_TIMEOUT,
 		.procname	= "no_activity_timeout",
 		.data		= &sysctl_rose_no_activity_timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.strategy	= sysctl_intvec,
 		.extra1		= &min_idle,
 		.extra2		= &max_idle
 	},
 	{
-		.ctl_name	= NET_ROSE_ACK_HOLD_BACK_TIMEOUT,
 		.procname	= "acknowledge_hold_back_timeout",
 		.data		= &sysctl_rose_ack_hold_back_timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.strategy	= sysctl_intvec,
 		.extra1		= &min_timer,
 		.extra2		= &max_timer
 	},
 	{
-		.ctl_name	= NET_ROSE_ROUTING_CONTROL,
 		.procname	= "routing_control",
 		.data		= &sysctl_rose_routing_control,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.strategy	= sysctl_intvec,
 		.extra1		= &min_route,
 		.extra2		= &max_route
 	},
 	{
-		.ctl_name	= NET_ROSE_LINK_FAIL_TIMEOUT,
 		.procname	= "link_fail_timeout",
 		.data		= &sysctl_rose_link_fail_timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.strategy	= sysctl_intvec,
 		.extra1		= &min_ftimer,
 		.extra2		= &max_ftimer
 	},
 	{
-		.ctl_name	= NET_ROSE_MAX_VCS,
 		.procname	= "maximum_virtual_circuits",
 		.data		= &sysctl_rose_maximum_vcs,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.strategy	= sysctl_intvec,
 		.extra1		= &min_maxvcs,
 		.extra2		= &max_maxvcs
 	},
 	{
-		.ctl_name	= NET_ROSE_WINDOW_SIZE,
 		.procname	= "window_size",
 		.data		= &sysctl_rose_window_size,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.strategy	= sysctl_intvec,
 		.extra1		= &min_window,
 		.extra2		= &max_window
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static struct ctl_path rose_path[] = {
-	{ .procname = "net", .ctl_name = CTL_NET, },
-	{ .procname = "rose", .ctl_name = NET_ROSE, },
+	{ .procname = "net", },
+	{ .procname = "rose", },
 	{ }
 };
 

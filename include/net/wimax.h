@@ -79,7 +79,7 @@
  * drivers have to only report state changes due to external
  * conditions.
  *
- * All API operations are 'atomic', serialized thorough a mutex in the
+ * All API operations are 'atomic', serialized through a mutex in the
  * `struct wimax_dev`.
  *
  * EXPORTING TO USER SPACE THROUGH GENERIC NETLINK
@@ -194,6 +194,12 @@
  *  - the `struct genl_family` requires a maximum attribute id; when
  *    defining the `struct nla_policy` for each message, it has to have
  *    an array size of WIMAX_GNL_ATTR_MAX+1.
+ *
+ * The op_*() function pointers will not be called if the wimax_dev is
+ * in a state <= %WIMAX_ST_UNINITIALIZED. The exception is:
+ *
+ * - op_reset: can be called at any time after wimax_dev_add() has
+ *   been called.
  *
  * THE PIPE INTERFACE:
  *

@@ -30,6 +30,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -298,7 +299,6 @@ static int wm8940_add_widgets(struct snd_soc_codec *codec)
 	ret = snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 	if (ret)
 		goto error_ret;
-	ret = snd_soc_dapm_new_widgets(codec);
 
 error_ret:
 	return ret;
@@ -379,23 +379,23 @@ static int wm8940_i2s_hw_params(struct snd_pcm_substream *substream,
 		iface |= (1 << 9);
 
 	switch (params_rate(params)) {
-	case SNDRV_PCM_RATE_8000:
+	case 8000:
 		addcntrl |= (0x5 << 1);
 		break;
-	case SNDRV_PCM_RATE_11025:
+	case 11025:
 		addcntrl |= (0x4 << 1);
 		break;
-	case SNDRV_PCM_RATE_16000:
+	case 16000:
 		addcntrl |= (0x3 << 1);
 		break;
-	case SNDRV_PCM_RATE_22050:
+	case 22050:
 		addcntrl |= (0x2 << 1);
 		break;
-	case SNDRV_PCM_RATE_32000:
+	case 32000:
 		addcntrl |= (0x1 << 1);
 		break;
-	case SNDRV_PCM_RATE_44100:
-	case SNDRV_PCM_RATE_48000:
+	case 44100:
+	case 48000:
 		break;
 	}
 	ret = snd_soc_write(codec, WM8940_ADDCNTRL, addcntrl);
@@ -536,8 +536,8 @@ static void pll_factors(unsigned int target, unsigned int source)
 }
 
 /* Untested at the moment */
-static int wm8940_set_dai_pll(struct snd_soc_dai *codec_dai,
-		int pll_id, unsigned int freq_in, unsigned int freq_out)
+static int wm8940_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
+		int source, unsigned int freq_in, unsigned int freq_out)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	u16 reg;
@@ -581,7 +581,7 @@ static int wm8940_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				 int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8940_priv *wm8940 = codec->private_data;
+	struct wm8940_priv *wm8940 = snd_soc_codec_get_drvdata(codec);
 
 	switch (freq) {
 	case 11289600:
@@ -692,7 +692,6 @@ static int wm8940_resume(struct platform_device *pdev)
 	ret = wm8940_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	if (ret)
 		goto error_ret;
-	ret = wm8940_set_bias_level(codec, codec->suspend_bias_level);
 
 error_ret:
 	return ret;
@@ -730,12 +729,6 @@ static int wm8940_probe(struct platform_device *pdev)
 	ret = wm8940_add_widgets(codec);
 	if (ret)
 		goto error_free_pcms;
-
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to register card: %d\n", ret);
-		goto error_free_pcms;
-	}
 
 	return ret;
 
@@ -779,7 +772,7 @@ static int wm8940_register(struct wm8940_priv *wm8940,
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data = wm8940;
+	snd_soc_codec_set_drvdata(codec, wm8940);
 	codec->name = "WM8940";
 	codec->owner = THIS_MODULE;
 	codec->bias_level = SND_SOC_BIAS_OFF;
@@ -852,6 +845,7 @@ static void wm8940_unregister(struct wm8940_priv *wm8940)
 static int wm8940_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
+	int ret;
 	struct wm8940_priv *wm8940;
 	struct snd_soc_codec *codec;
 
@@ -865,7 +859,11 @@ static int wm8940_i2c_probe(struct i2c_client *i2c,
 	codec->control_data = i2c;
 	codec->dev = &i2c->dev;
 
-	return wm8940_register(wm8940, SND_SOC_I2C);
+	ret = wm8940_register(wm8940, SND_SOC_I2C);
+	if (ret < 0)
+		kfree(wm8940);
+
+	return ret;
 }
 
 static int __devexit wm8940_i2c_remove(struct i2c_client *client)
@@ -876,21 +874,6 @@ static int __devexit wm8940_i2c_remove(struct i2c_client *client)
 
 	return 0;
 }
-
-#ifdef CONFIG_PM
-static int wm8940_i2c_suspend(struct i2c_client *client, pm_message_t msg)
-{
-	return snd_soc_suspend_device(&client->dev);
-}
-
-static int wm8940_i2c_resume(struct i2c_client *client)
-{
-	return snd_soc_resume_device(&client->dev);
-}
-#else
-#define wm8940_i2c_suspend NULL
-#define wm8940_i2c_resume NULL
-#endif
 
 static const struct i2c_device_id wm8940_i2c_id[] = {
 	{ "wm8940", 0 },
@@ -905,8 +888,6 @@ static struct i2c_driver wm8940_i2c_driver = {
 	},
 	.probe = wm8940_i2c_probe,
 	.remove = __devexit_p(wm8940_i2c_remove),
-	.suspend = wm8940_i2c_suspend,
-	.resume = wm8940_i2c_resume,
 	.id_table = wm8940_i2c_id,
 };
 

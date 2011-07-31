@@ -50,9 +50,88 @@ static struct clocksource clocksource_mips = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
+unsigned long long notrace sched_clock(void)
+{
+	/* 64-bit arithmatic can overflow, so use 128-bit.  */
+	u64 t1, t2, t3;
+	unsigned long long rv;
+	u64 mult = clocksource_mips.mult;
+	u64 shift = clocksource_mips.shift;
+	u64 cnt = read_c0_cvmcount();
+
+	asm (
+		"dmultu\t%[cnt],%[mult]\n\t"
+		"nor\t%[t1],$0,%[shift]\n\t"
+		"mfhi\t%[t2]\n\t"
+		"mflo\t%[t3]\n\t"
+		"dsll\t%[t2],%[t2],1\n\t"
+		"dsrlv\t%[rv],%[t3],%[shift]\n\t"
+		"dsllv\t%[t1],%[t2],%[t1]\n\t"
+		"or\t%[rv],%[t1],%[rv]\n\t"
+		: [rv] "=&r" (rv), [t1] "=&r" (t1), [t2] "=&r" (t2), [t3] "=&r" (t3)
+		: [cnt] "r" (cnt), [mult] "r" (mult), [shift] "r" (shift)
+		: "hi", "lo");
+	return rv;
+}
+
 void __init plat_time_init(void)
 {
 	clocksource_mips.rating = 300;
 	clocksource_set_clock(&clocksource_mips, mips_hpt_frequency);
 	clocksource_register(&clocksource_mips);
 }
+
+static u64 octeon_udelay_factor;
+static u64 octeon_ndelay_factor;
+
+void __init octeon_setup_delays(void)
+{
+	octeon_udelay_factor = octeon_get_clock_rate() / 1000000;
+	/*
+	 * For __ndelay we divide by 2^16, so the factor is multiplied
+	 * by the same amount.
+	 */
+	octeon_ndelay_factor = (octeon_udelay_factor * 0x10000ull) / 1000ull;
+
+	preset_lpj = octeon_get_clock_rate() / HZ;
+}
+
+void __udelay(unsigned long us)
+{
+	u64 cur, end, inc;
+
+	cur = read_c0_cvmcount();
+
+	inc = us * octeon_udelay_factor;
+	end = cur + inc;
+
+	while (end > cur)
+		cur = read_c0_cvmcount();
+}
+EXPORT_SYMBOL(__udelay);
+
+void __ndelay(unsigned long ns)
+{
+	u64 cur, end, inc;
+
+	cur = read_c0_cvmcount();
+
+	inc = ((ns * octeon_ndelay_factor) >> 16);
+	end = cur + inc;
+
+	while (end > cur)
+		cur = read_c0_cvmcount();
+}
+EXPORT_SYMBOL(__ndelay);
+
+void __delay(unsigned long loops)
+{
+	u64 cur, end;
+
+	cur = read_c0_cvmcount();
+	end = cur + loops;
+
+	while (end > cur)
+		cur = read_c0_cvmcount();
+}
+EXPORT_SYMBOL(__delay);

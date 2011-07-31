@@ -23,7 +23,9 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/net.h>
+#include <linux/gcd.h>
 
 #include <net/ip_vs.h>
 
@@ -37,20 +39,6 @@ struct ip_vs_wrr_mark {
 	int di;			/* decreasing interval */
 };
 
-
-/*
- *    Get the gcd of server weights
- */
-static int gcd(int a, int b)
-{
-	int c;
-
-	while ((c = a % b)) {
-		a = b;
-		b = c;
-	}
-	return b;
-}
 
 static int ip_vs_wrr_gcd_weight(struct ip_vs_service *svc)
 {

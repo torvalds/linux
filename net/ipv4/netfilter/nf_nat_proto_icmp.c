@@ -27,7 +27,7 @@ icmp_in_range(const struct nf_conntrack_tuple *tuple,
 	       ntohs(tuple->src.u.icmp.id) <= ntohs(max->icmp.id);
 }
 
-static bool
+static void
 icmp_unique_tuple(struct nf_conntrack_tuple *tuple,
 		  const struct nf_nat_range *range,
 		  enum nf_nat_manip_type maniptype,
@@ -42,13 +42,13 @@ icmp_unique_tuple(struct nf_conntrack_tuple *tuple,
 	if (!(range->flags & IP_NAT_RANGE_PROTO_SPECIFIED))
 		range_size = 0xFFFF;
 
-	for (i = 0; i < range_size; i++, id++) {
+	for (i = 0; ; ++id) {
 		tuple->src.u.icmp.id = htons(ntohs(range->min.icmp.id) +
 					     (id % range_size));
-		if (!nf_nat_used_tuple(tuple, ct))
-			return true;
+		if (++i == range_size || !nf_nat_used_tuple(tuple, ct))
+			return;
 	}
-	return false;
+	return;
 }
 
 static bool

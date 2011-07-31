@@ -22,8 +22,6 @@ extern int (*pci_config_read)(int seg, int bus, int dev, int fn,
 extern int (*pci_config_write)(int seg, int bus, int dev, int fn,
 			       int reg, int len, u32 value);
 
-extern void dma32_reserve_bootmem(void);
-
 #endif /* __KERNEL__ */
 
 #endif /* _ASM_X86_PCI_64_H */

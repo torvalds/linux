@@ -51,6 +51,7 @@
 */
 
 #include <linux/delay.h>
+#include <linux/gfp.h>
 #include "usbusx2yaudio.c"
 
 #if defined(USX2Y_NRPACKS_VARIABLE) || (!defined(USX2Y_NRPACKS_VARIABLE) &&  USX2Y_NRPACKS == 1)
@@ -234,7 +235,7 @@ static void i_usX2Y_usbpcm_urb_complete(struct urb *urb)
 
 	if (unlikely(atomic_read(&subs->state) < state_PREPARED)) {
 		snd_printdd("hcd_frame=%i ep=%i%s status=%i start_frame=%i\n",
-			    usb_get_current_frame_number(usX2Y->chip.dev),
+			    usb_get_current_frame_number(usX2Y->dev),
 			    subs->endpoint, usb_pipein(urb->pipe) ? "in" : "out",
 			    urb->status, urb->start_frame);
 		return;
@@ -318,7 +319,7 @@ static int usX2Y_usbpcm_urbs_allocate(struct snd_usX2Y_substream *subs)
 	int i;
 	unsigned int pipe;
 	int is_playback = subs == subs->usX2Y->subs[SNDRV_PCM_STREAM_PLAYBACK];
-	struct usb_device *dev = subs->usX2Y->chip.dev;
+	struct usb_device *dev = subs->usX2Y->dev;
 
 	pipe = is_playback ? usb_sndisocpipe(dev, subs->endpoint) :
 			usb_rcvisocpipe(dev, subs->endpoint);
@@ -441,7 +442,7 @@ static int usX2Y_usbpcm_urbs_start(struct snd_usX2Y_substream *subs)
 					unsigned long pack;
 					if (0 == u)
 						atomic_set(&subs->state, state_STARTING3);
-					urb->dev = usX2Y->chip.dev;
+					urb->dev = usX2Y->dev;
 					urb->transfer_flags = URB_ISO_ASAP;
 					for (pack = 0; pack < nr_of_packs(); pack++) {
 						urb->iso_frame_desc[pack].offset = subs->maxpacksize * (pack + u * nr_of_packs());
@@ -741,7 +742,7 @@ int usX2Y_hwdep_pcm_new(struct snd_card *card)
 	int err;
 	struct snd_hwdep *hw;
 	struct snd_pcm *pcm;
-	struct usb_device *dev = usX2Y(card)->chip.dev;
+	struct usb_device *dev = usX2Y(card)->dev;
 	if (1 != nr_of_packs())
 		return 0;
 

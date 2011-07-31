@@ -51,7 +51,7 @@ bfad_int_to_lun(u32 luno)
 	lun.bfa_lun     = 0;
 	lun.scsi_lun[0] = bfa_os_htons(luno);
 
-	return (lun.bfa_lun);
+	return lun.bfa_lun;
 }
 
 /**
@@ -68,7 +68,7 @@ bfa_cb_ioim_get_cdb(struct bfad_ioim_s *dio)
 {
 	struct scsi_cmnd *cmnd = (struct scsi_cmnd *)dio;
 
-	return ((u8 *) cmnd->cmnd);
+	return (u8 *) cmnd->cmnd;
 }
 
 /**
@@ -97,7 +97,7 @@ bfa_cb_ioim_get_size(struct bfad_ioim_s *dio)
 {
 	struct scsi_cmnd *cmnd = (struct scsi_cmnd *)dio;
 
-	return (scsi_bufflen(cmnd));
+	return scsi_bufflen(cmnd);
 }
 
 /**
@@ -114,35 +114,6 @@ bfa_cb_ioim_get_timeout(struct bfad_ioim_s *dio)
 		return 4;
 
 	return 0;
-}
-
-/**
- * Get SG element for the I/O request given the SG element index
- */
-static inline union bfi_addr_u
-bfa_cb_ioim_get_sgaddr(struct bfad_ioim_s *dio, int sgeid)
-{
-	struct scsi_cmnd *cmnd = (struct scsi_cmnd *)dio;
-	struct scatterlist *sge;
-	u64        addr;
-
-	sge = (struct scatterlist *)scsi_sglist(cmnd) + sgeid;
-	addr = (u64) sg_dma_address(sge);
-
-	return (*(union bfi_addr_u *) &addr);
-}
-
-static inline u32
-bfa_cb_ioim_get_sglen(struct bfad_ioim_s *dio, int sgeid)
-{
-	struct scsi_cmnd *cmnd = (struct scsi_cmnd *)dio;
-	struct scatterlist *sge;
-	u32        len;
-
-	sge = (struct scatterlist *)scsi_sglist(cmnd) + sgeid;
-	len = sg_dma_len(sge);
-
-	return len;
 }
 
 /**
@@ -197,9 +168,14 @@ bfa_cb_ioim_get_cdblen(struct bfad_ioim_s *dio)
 {
 	struct scsi_cmnd *cmnd = (struct scsi_cmnd *)dio;
 
-	return (cmnd->cmd_len);
+	return cmnd->cmd_len;
 }
 
-
+/**
+ * Assign queue to be used for the I/O request. This value depends on whether
+ * the driver wants to use the queues via any specific algorithm. Currently,
+ * this is not supported.
+ */
+#define bfa_cb_ioim_get_reqq(__dio) BFA_FALSE
 
 #endif /* __BFA_HCB_IOIM_MACROS_H__ */

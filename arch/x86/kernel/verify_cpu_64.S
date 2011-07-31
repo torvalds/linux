@@ -31,6 +31,7 @@
  */
 
 #include <asm/cpufeature.h>
+#include <asm/msr-index.h>
 
 verify_cpu:
 	pushfl				# Save caller passed flags
@@ -88,7 +89,7 @@ verify_cpu_sse_test:
 	je	verify_cpu_sse_ok
 	test	%di,%di
 	jz	verify_cpu_no_longmode	# only try to force SSE on AMD
-	movl	$0xc0010015,%ecx	# HWCR
+	movl	$MSR_K7_HWCR,%ecx
 	rdmsr
 	btr	$15,%eax		# enable SSE
 	wrmsr

@@ -20,13 +20,14 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/watchdog.h>
 #include <linux/platform_device.h>
 #include <linux/miscdevice.h>
 #include <linux/uaccess.h>
-#include <linux/i2c/twl4030.h>
+#include <linux/i2c/twl.h>
 
 #define TWL4030_WATCHDOG_CFG_REG_OFFS	0x3
 
@@ -48,7 +49,7 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
 
 static int twl4030_wdt_write(unsigned char val)
 {
-	return twl4030_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER, val,
+	return twl_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER, val,
 					TWL4030_WATCHDOG_CFG_REG_OFFS);
 }
 
@@ -188,6 +189,8 @@ static int __devinit twl4030_wdt_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, wdt);
 
 	twl4030_wdt_dev = pdev;
+
+	twl4030_wdt_disable(wdt);
 
 	ret = misc_register(&wdt->miscdev);
 	if (ret) {

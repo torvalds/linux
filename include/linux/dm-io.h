@@ -37,14 +37,14 @@ enum dm_io_mem_type {
 struct dm_io_memory {
 	enum dm_io_mem_type type;
 
+	unsigned offset;
+
 	union {
 		struct page_list *pl;
 		struct bio_vec *bvec;
 		void *vma;
 		void *addr;
 	} ptr;
-
-	unsigned offset;
 };
 
 struct dm_io_notify {

@@ -21,7 +21,6 @@ int xfs_setattr(struct xfs_inode *ip, struct iattr *vap, int flags);
 #define XFS_ATTR_NOACL		0x08	/* Don't call xfs_acl_chmod */
 
 int xfs_readlink(struct xfs_inode *ip, char *link);
-int xfs_fsync(struct xfs_inode *ip);
 int xfs_release(struct xfs_inode *ip);
 int xfs_inactive(struct xfs_inode *ip);
 int xfs_lookup(struct xfs_inode *dp, struct xfs_name *name,
@@ -38,31 +37,18 @@ int xfs_symlink(struct xfs_inode *dp, struct xfs_name *link_name,
 		const char *target_path, mode_t mode, struct xfs_inode **ipp,
 		cred_t *credp);
 int xfs_set_dmattrs(struct xfs_inode *ip, u_int evmask, u_int16_t state);
-int xfs_reclaim(struct xfs_inode *ip);
 int xfs_change_file_space(struct xfs_inode *ip, int cmd,
 		xfs_flock64_t *bf, xfs_off_t offset, int attr_flags);
 int xfs_rename(struct xfs_inode *src_dp, struct xfs_name *src_name,
 		struct xfs_inode *src_ip, struct xfs_inode *target_dp,
 		struct xfs_name *target_name, struct xfs_inode *target_ip);
-int xfs_attr_get(struct xfs_inode *ip, const char *name, char *value,
-		int *valuelenp, int flags);
-int xfs_attr_set(struct xfs_inode *dp, const char *name, char *value,
-		int valuelen, int flags);
-int xfs_attr_remove(struct xfs_inode *dp, const char *name, int flags);
+int xfs_attr_get(struct xfs_inode *ip, const unsigned char *name,
+		unsigned char *value, int *valuelenp, int flags);
+int xfs_attr_set(struct xfs_inode *dp, const unsigned char *name,
+		unsigned char *value, int valuelen, int flags);
+int xfs_attr_remove(struct xfs_inode *dp, const unsigned char *name, int flags);
 int xfs_attr_list(struct xfs_inode *dp, char *buffer, int bufsize,
 		int flags, struct attrlist_cursor_kern *cursor);
-ssize_t xfs_read(struct xfs_inode *ip, struct kiocb *iocb,
-		const struct iovec *iovp, unsigned int segs,
-		loff_t *offset, int ioflags);
-ssize_t xfs_splice_read(struct xfs_inode *ip, struct file *infilp,
-		loff_t *ppos, struct pipe_inode_info *pipe, size_t count,
-		int flags, int ioflags);
-ssize_t xfs_splice_write(struct xfs_inode *ip,
-		struct pipe_inode_info *pipe, struct file *outfilp,
-		loff_t *ppos, size_t count, int flags, int ioflags);
-ssize_t xfs_write(struct xfs_inode *xip, struct kiocb *iocb,
-		const struct iovec *iovp, unsigned int nsegs,
-		loff_t *offset, int ioflags);
 int xfs_bmap(struct xfs_inode *ip, xfs_off_t offset, ssize_t count,
 		int flags, struct xfs_iomap *iomapp, int *niomaps);
 void xfs_tosspages(struct xfs_inode *inode, xfs_off_t first,
@@ -72,5 +58,7 @@ int xfs_flushinval_pages(struct xfs_inode *ip, xfs_off_t first,
 int xfs_flush_pages(struct xfs_inode *ip, xfs_off_t first,
 		xfs_off_t last, uint64_t flags, int fiopt);
 int xfs_wait_on_pages(struct xfs_inode *ip, xfs_off_t first, xfs_off_t last);
+
+int xfs_zero_eof(struct xfs_inode *, xfs_off_t, xfs_fsize_t);
 
 #endif /* _XFS_VNODEOPS_H */

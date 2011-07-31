@@ -615,7 +615,7 @@ ultra2_dmafifoflush:
 			 * went empty and the next bit of data is copied from
 			 * the SCSI fifo into the PCI fifo.  It should only
 			 * come on when both FIFOs (meaning the entire FIFO
-			 * chain) are emtpy.  Since it can take up to 4 cycles
+			 * chain) are empty.  Since it can take up to 4 cycles
 			 * for new data to be copied from the SCSI fifo into
 			 * the PCI fifo, testing for FIFOEMP status for 4
 			 * extra times gives the needed time for any

@@ -16,6 +16,7 @@
  */
 
 #include <linux/mISDNif.h>
+#include <linux/slab.h>
 #include "core.h"
 
 static u_int	*debug;
@@ -779,7 +780,7 @@ base_sock_create(struct net *net, struct socket *sock, int protocol)
 }
 
 static int
-mISDN_sock_create(struct net *net, struct socket *sock, int proto)
+mISDN_sock_create(struct net *net, struct socket *sock, int proto, int kern)
 {
 	int err = -EPROTONOSUPPORT;
 
@@ -808,8 +809,7 @@ mISDN_sock_create(struct net *net, struct socket *sock, int proto)
 	return err;
 }
 
-static struct
-net_proto_family mISDN_sock_family_ops = {
+static const struct net_proto_family mISDN_sock_family_ops = {
 	.owner  = THIS_MODULE,
 	.family = PF_ISDN,
 	.create = mISDN_sock_create,

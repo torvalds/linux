@@ -32,8 +32,8 @@
 #define MAX_ENTRY 80
 
 struct env_var {
-	char *name;
-	char *value;
+	char	*name;
+	char	*value;
 };
 
 static struct env_var adam2_env[MAX_ENTRY];
@@ -41,6 +41,7 @@ static struct env_var adam2_env[MAX_ENTRY];
 char *prom_getenv(const char *name)
 {
 	int i;
+
 	for (i = 0; (i < MAX_ENTRY) && adam2_env[i].name; i++)
 		if (!strcmp(name, adam2_env[i].name))
 			return adam2_env[i].value;
@@ -49,65 +50,50 @@ char *prom_getenv(const char *name)
 }
 EXPORT_SYMBOL(prom_getenv);
 
-char * __init prom_getcmdline(void)
-{
-	return &(arcs_cmdline[0]);
-}
-
 static void  __init ar7_init_cmdline(int argc, char *argv[])
 {
-	char *cp;
-	int actr;
+	int i;
 
-	actr = 1; /* Always ignore argv[0] */
-
-	cp = &(arcs_cmdline[0]);
-	while (actr < argc) {
-		strcpy(cp, argv[actr]);
-		cp += strlen(argv[actr]);
-		*cp++ = ' ';
-		actr++;
-	}
-	if (cp != &(arcs_cmdline[0])) {
-		/* get rid of trailing space */
-		--cp;
-		*cp = '\0';
+	for (i = 1; i < argc; i++) {
+		strlcat(arcs_cmdline, argv[i], COMMAND_LINE_SIZE);
+		if (i < (argc - 1))
+			strlcat(arcs_cmdline, " ", COMMAND_LINE_SIZE);
 	}
 }
 
 struct psbl_rec {
-	u32 psbl_size;
-	u32 env_base;
-	u32 env_size;
-	u32 ffs_base;
-	u32 ffs_size;
+	u32	psbl_size;
+	u32	env_base;
+	u32	env_size;
+	u32	ffs_base;
+	u32	ffs_size;
 };
 
 static __initdata char psp_env_version[] = "TIENV0.8";
 
 struct psp_env_chunk {
-	u8 num;
-	u8 ctrl;
-	u16 csum;
-	u8 len;
-	char data[11];
+	u8	num;
+	u8	ctrl;
+	u16	csum;
+	u8	len;
+	char	data[11];
 } __attribute__ ((packed));
 
 struct psp_var_map_entry {
-	u8 num;
-	char *value;
+	u8	num;
+	char	*value;
 };
 
 static struct psp_var_map_entry psp_var_map[] = {
-	{ 1, "cpufrequency" },
-	{ 2, "memsize" },
-	{ 3, "flashsize" },
-	{ 4, "modetty0" },
-	{ 5, "modetty1" },
-	{ 8, "maca" },
-	{ 9, "macb" },
-	{ 28, "sysfrequency" },
-	{ 38, "mipsfrequency" },
+	{  1,	"cpufrequency" },
+	{  2,	"memsize" },
+	{  3,	"flashsize" },
+	{  4,	"modetty0" },
+	{  5,	"modetty1" },
+	{  8,	"maca" },
+	{  9,	"macb" },
+	{ 28,	"sysfrequency" },
+	{ 38,	"mipsfrequency" },
 };
 
 /*
@@ -154,6 +140,7 @@ static char * __init lookup_psp_var_map(u8 num)
 static void __init add_adam2_var(char *name, char *value)
 {
 	int i;
+
 	for (i = 0; i < MAX_ENTRY; i++) {
 		if (!adam2_env[i].name) {
 			adam2_env[i].name = name;
@@ -216,16 +203,8 @@ static void __init console_config(void)
 	char parity = '\0', bits = '\0', flow = '\0';
 	char *s, *p;
 
-	if (strstr(prom_getcmdline(), "console="))
+	if (strstr(arcs_cmdline, "console="))
 		return;
-
-#ifdef CONFIG_KGDB
-	if (!strstr(prom_getcmdline(), "nokgdb")) {
-		strcat(prom_getcmdline(), " console=kgdb");
-		kgdb_enabled = 1;
-		return;
-	}
-#endif
 
 	s = prom_getenv("modetty0");
 	if (s) {
@@ -258,7 +237,7 @@ static void __init console_config(void)
 	else
 		sprintf(console_string, " console=ttyS0,%d%c%c", baud, parity,
 			bits);
-	strcat(prom_getcmdline(), console_string);
+	strlcat(arcs_cmdline, console_string, COMMAND_LINE_SIZE);
 #endif
 }
 
@@ -280,13 +259,6 @@ static inline void serial_out(int offset, int value)
 	writel(value, (void *)PORT(offset));
 }
 
-char prom_getchar(void)
-{
-	while (!(serial_in(UART_LSR) & UART_LSR_DR))
-		;
-	return serial_in(UART_RX);
-}
-
 int prom_putchar(char c)
 {
 	while ((serial_in(UART_LSR) & UART_LSR_TEMT) == 0)
@@ -294,4 +266,3 @@ int prom_putchar(char c)
 	serial_out(UART_TX, c);
 	return 1;
 }
-

@@ -56,14 +56,14 @@ static pgprot_t dvma_prot;		/* Consistent mapping pte flags */
 #define IOPERM        (IOPTE_CACHE | IOPTE_WRITE | IOPTE_VALID)
 #define MKIOPTE(pfn, perm) (((((pfn)<<8) & IOPTE_PAGE) | (perm)) & ~IOPTE_WAZ)
 
-static void __init sbus_iommu_init(struct of_device *op)
+static void __init sbus_iommu_init(struct platform_device *op)
 {
 	struct iommu_struct *iommu;
 	unsigned int impl, vers;
 	unsigned long *bitmap;
 	unsigned long tmp;
 
-	iommu = kmalloc(sizeof(struct iommu_struct), GFP_ATOMIC);
+	iommu = kmalloc(sizeof(struct iommu_struct), GFP_KERNEL);
 	if (!iommu) {
 		prom_printf("Unable to allocate iommu structure\n");
 		prom_halt();
@@ -132,7 +132,7 @@ static int __init iommu_init(void)
 	struct device_node *dp;
 
 	for_each_node_by_name(dp, "iommu") {
-		struct of_device *op = of_find_device_by_node(dp);
+		struct platform_device *op = of_find_device_by_node(dp);
 
 		sbus_iommu_init(op);
 		of_propagate_archdata(op);

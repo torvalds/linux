@@ -17,7 +17,7 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-You shoud also find the complete GPL in the COPYING file accompanying this source code.
+You should also find the complete GPL in the COPYING file accompanying this source code.
 
 @endverbatim
 */
@@ -56,8 +56,8 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #include "hwdrv_apci1564.h"
 
 /* Global variables */
-unsigned int ui_InterruptStatus_1564 = 0;
-unsigned int ui_InterruptData, ui_Type;
+static unsigned int ui_InterruptStatus_1564 = 0;
+static unsigned int ui_InterruptData, ui_Type;
 
 /*
 +----------------------------------------------------------------------------+
@@ -154,7 +154,7 @@ int i_APCI1564_Read1DigitalInput(struct comedi_device *dev, struct comedi_subdev
 	unsigned int ui_Channel;
 
 	ui_Channel = CR_CHAN(insn->chanspec);
-	if (ui_Channel >= 0 && ui_Channel <= 31) {
+	if (ui_Channel <= 31) {
 		ui_TmpValue =
 			(unsigned int) inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP);
 /*

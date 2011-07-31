@@ -54,6 +54,8 @@
 	module_param_array(adapter_nr, short, NULL, 0444); \
 	MODULE_PARM_DESC(adapter_nr, "DVB adapter numbers")
 
+struct dvb_frontend;
+
 struct dvb_adapter {
 	int num;
 	struct list_head list_head;
@@ -69,6 +71,32 @@ struct dvb_adapter {
 	int mfe_shared;			/* indicates mutually exclusive frontends */
 	struct dvb_device *mfe_dvbdev;	/* frontend device in use */
 	struct mutex mfe_lock;		/* access lock for thread creation */
+
+	/* Allow the adapter/bridge driver to perform an action before and/or
+	 * after the core handles an ioctl:
+	 *
+	 * DVB_FE_IOCTL_PRE indicates that the ioctl has not yet been handled.
+	 * DVB_FE_IOCTL_POST indicates that the ioctl has been handled.
+	 *
+	 * When DVB_FE_IOCTL_PRE is passed to the callback as the stage arg:
+	 *
+	 * return 0 to allow dvb-core to handle the ioctl.
+	 * return a positive int to prevent dvb-core from handling the ioctl,
+	 * 	and exit without error.
+	 * return a negative int to prevent dvb-core from handling the ioctl,
+	 * 	and return that value as an error.
+	 *
+	 * When DVB_FE_IOCTL_POST is passed to the callback as the stage arg:
+	 *
+	 * return 0 to allow the dvb_frontend ioctl handler to exit normally.
+	 * return a negative int to cause the dvb_frontend ioctl handler to
+	 * 	return that value as an error.
+	 */
+#define DVB_FE_IOCTL_PRE 0
+#define DVB_FE_IOCTL_POST 1
+	int (*fe_ioctl_override)(struct dvb_frontend *fe,
+				 unsigned int cmd, void *parg,
+				 unsigned int stage);
 };
 
 
@@ -88,8 +116,7 @@ struct dvb_device {
 
 	wait_queue_head_t	  wait_queue;
 	/* don't really need those !? -- FIXME: use video_usercopy  */
-	int (*kernel_ioctl)(struct inode *inode, struct file *file,
-			    unsigned int cmd, void *arg);
+	int (*kernel_ioctl)(struct file *file, unsigned int cmd, void *arg);
 
 	void *priv;
 };
@@ -110,17 +137,15 @@ extern void dvb_unregister_device (struct dvb_device *dvbdev);
 
 extern int dvb_generic_open (struct inode *inode, struct file *file);
 extern int dvb_generic_release (struct inode *inode, struct file *file);
-extern int dvb_generic_ioctl (struct inode *inode, struct file *file,
+extern long dvb_generic_ioctl (struct file *file,
 			      unsigned int cmd, unsigned long arg);
 
 /* we don't mess with video_usercopy() any more,
 we simply define out own dvb_usercopy(), which will hopefully become
 generic_usercopy()  someday... */
 
-extern int dvb_usercopy(struct inode *inode, struct file *file,
-			    unsigned int cmd, unsigned long arg,
-			    int (*func)(struct inode *inode, struct file *file,
-			    unsigned int cmd, void *arg));
+extern int dvb_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
+			    int (*func)(struct file *file, unsigned int cmd, void *arg));
 
 /** generic DVB attach function. */
 #ifdef CONFIG_MEDIA_ATTACH

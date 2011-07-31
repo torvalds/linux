@@ -19,6 +19,7 @@
 #include <linux/nls.h>
 #include <linux/parser.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/vfs.h>
 
@@ -180,7 +181,7 @@ static const struct super_operations hfs_super_operations = {
 	.alloc_inode	= hfs_alloc_inode,
 	.destroy_inode	= hfs_destroy_inode,
 	.write_inode	= hfs_write_inode,
-	.clear_inode	= hfs_clear_inode,
+	.evict_inode	= hfs_evict_inode,
 	.put_super	= hfs_put_super,
 	.write_super	= hfs_write_super,
 	.sync_fs	= hfs_sync_fs,
@@ -409,8 +410,13 @@ static int hfs_fill_super(struct super_block *sb, void *data, int silent)
 	/* try to get the root inode */
 	hfs_find_init(HFS_SB(sb)->cat_tree, &fd);
 	res = hfs_cat_find_brec(sb, HFS_ROOT_CNID, &fd);
-	if (!res)
+	if (!res) {
+		if (fd.entrylength > sizeof(rec) || fd.entrylength < 0) {
+			res =  -EIO;
+			goto bail;
+		}
 		hfs_bnode_read(fd.bnode, &rec, fd.entryoffset, fd.entrylength);
+	}
 	if (res) {
 		hfs_find_exit(&fd);
 		goto bail_no_root;

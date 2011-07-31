@@ -268,9 +268,9 @@ static int __init ultramca_probe(struct device *gen_dev)
 		}
 	}
 
-	if(!tirq || !tbase
-	   || (irq && irq != tirq)
-	   || (base_addr && tbase != base_addr))
+	if(!tirq || !tbase ||
+	   (irq && irq != tirq) ||
+	   (base_addr && tbase != base_addr))
 		/* FIXME: we're trying to force the ordering of the
 		 * devices here, there should be a way of getting this
 		 * to happen */
@@ -460,7 +460,6 @@ static void ultramca_reset_8390(struct net_device *dev)
 
 	if (ei_debug > 1)
 		printk("reset done\n");
-	return;
 }
 
 /* Grab the 8390 specific header. Similar to the block_input routine, but

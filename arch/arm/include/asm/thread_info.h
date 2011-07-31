@@ -115,7 +115,8 @@ extern void iwmmxt_task_restore(struct thread_info *, void *);
 extern void iwmmxt_task_release(struct thread_info *);
 extern void iwmmxt_task_switch(struct thread_info *);
 
-extern void vfp_sync_state(struct thread_info *thread);
+extern void vfp_sync_hwstate(struct thread_info *);
+extern void vfp_flush_hwstate(struct thread_info *);
 
 #endif
 
@@ -140,7 +141,7 @@ extern void vfp_sync_state(struct thread_info *thread);
 #define TIF_SYSCALL_TRACE	8
 #define TIF_POLLING_NRFLAG	16
 #define TIF_USING_IWMMXT	17
-#define TIF_MEMDIE		18
+#define TIF_MEMDIE		18	/* is terminating due to OOM killer */
 #define TIF_FREEZE		19
 #define TIF_RESTORE_SIGMASK	20
 

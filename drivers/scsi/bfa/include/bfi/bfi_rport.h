@@ -38,10 +38,10 @@ struct bfi_rport_create_req_s {
 	struct bfi_mhdr_s  mh;		/*  common msg header		*/
 	u16        bfa_handle;	/*  host rport handle		*/
 	u16        max_frmsz;	/*  max rcv pdu size		*/
-	u32        pid       : 24,	/*  remote port ID		*/
-			lp_tag    : 8;	/*  local port tag		*/
-	u32        local_pid : 24,	/*  local port ID		*/
-			cisc      : 8;
+	u32        pid:24,		/*  remote port ID		*/
+			lp_tag:8;	/*  local port tag		*/
+	u32        local_pid:24,	/*  local port ID		*/
+			cisc:8;
 	u8         fc_class;	/*  supported FC classes	*/
 	u8         vf_en;		/*  virtual fabric enable	*/
 	u16        vf_id;		/*  virtual fabric ID		*/

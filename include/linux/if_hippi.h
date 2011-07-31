@@ -51,8 +51,7 @@
  *	HIPPI statistics collection data. 
  */
  
-struct hipnet_statistics
-{
+struct hipnet_statistics {
 	int	rx_packets;		/* total packets received	*/
 	int	tx_packets;		/* total packets transmitted	*/
 	int	rx_errors;		/* bad packets received		*/
@@ -77,8 +76,7 @@ struct hipnet_statistics
 };
 
 
-struct hippi_fp_hdr
-{
+struct hippi_fp_hdr {
 #if 0
 	__u8		ulp;				/* must contain 4 */
 #if defined (__BIG_ENDIAN_BITFIELD)
@@ -106,10 +104,9 @@ struct hippi_fp_hdr
 	__be32		fixed;
 #endif
 	__be32		d2_size;
-} __attribute__ ((packed));
+} __attribute__((packed));
 
-struct hippi_le_hdr
-{
+struct hippi_le_hdr {
 #if defined (__BIG_ENDIAN_BITFIELD)
 	__u8		fc:3;
 	__u8		double_wide:1;
@@ -132,27 +129,25 @@ struct hippi_le_hdr
 	__u8		daddr[HIPPI_ALEN];
 	__u16		locally_administered;
 	__u8		saddr[HIPPI_ALEN];
-} __attribute__ ((packed));
+} __attribute__((packed));
 
 #define HIPPI_OUI_LEN	3
 /*
  * Looks like the dsap and ssap fields have been swapped by mistake in
  * RFC 2067 "IP over HIPPI".
  */
-struct hippi_snap_hdr
-{
+struct hippi_snap_hdr {
 	__u8	dsap;			/* always 0xAA */
 	__u8	ssap;			/* always 0xAA */
 	__u8	ctrl;			/* always 0x03 */
 	__u8	oui[HIPPI_OUI_LEN];	/* organizational universal id (zero)*/
 	__be16	ethertype;		/* packet type ID field */
-} __attribute__ ((packed));
+} __attribute__((packed));
 
-struct hippi_hdr
-{
+struct hippi_hdr {
 	struct hippi_fp_hdr	fp;
 	struct hippi_le_hdr	le;
 	struct hippi_snap_hdr	snap;
-} __attribute__ ((packed));
+} __attribute__((packed));
 
 #endif	/* _LINUX_IF_HIPPI_H */

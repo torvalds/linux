@@ -1832,14 +1832,12 @@ u16_t zfAggRxClear(zdev_t* dev, u32_t time)
 
 struct agg_tid_rx* zfAggRxEnabled(zdev_t* dev, zbuf_t* buf)
 {
-    u16_t   dst0, src[3], ac, aid, fragOff;
-    u8_t    up;
+    u16_t   dst0, src[3], aid;
     u16_t   offset = 0;
     u16_t   seq_no;
     u16_t frameType;
     u16_t frameCtrl;
     u16_t frameSubtype;
-    u32_t tcp_seq;
     //struct aggSta *agg_sta;
 #if ZM_AGG_FPGA_REORDERING
     struct agg_tid_rx *tid_rx;
@@ -1864,13 +1862,17 @@ struct agg_tid_rx* zfAggRxEnabled(zdev_t* dev, zbuf_t* buf)
         return NULL;
     }
 #ifdef ZM_ENABLE_PERFORMANCE_EVALUATION
-    tcp_seq = zmw_rx_buf_readb(dev, buf, 22+36) << 24;
-    tcp_seq += zmw_rx_buf_readb(dev, buf, 22+37) << 16;
-    tcp_seq += zmw_rx_buf_readb(dev, buf, 22+38) << 8;
-    tcp_seq += zmw_rx_buf_readb(dev, buf, 22+39);
+    {
+        u32_t tcp_seq;
+
+        tcp_seq = zmw_rx_buf_readb(dev, buf, 22+36) << 24;
+        tcp_seq += zmw_rx_buf_readb(dev, buf, 22+37) << 16;
+        tcp_seq += zmw_rx_buf_readb(dev, buf, 22+38) << 8;
+        tcp_seq += zmw_rx_buf_readb(dev, buf, 22+39);
+        ZM_SEQ_DEBUG("In                   %5d, %12u\n", seq_no, tcp_seq);
+    }
 #endif
 
-    ZM_SEQ_DEBUG("In                   %5d, %12u\n", seq_no, tcp_seq);
     dst0 = zmw_rx_buf_readh(dev, buf, offset+4);
 
     src[0] = zmw_rx_buf_readh(dev, buf, offset+10);
@@ -2483,7 +2485,7 @@ void zfAggTxRetransmit(zdev_t* dev, struct bufInfo *buf_info, struct aggControl 
         BAW->insert(dev, buf_info->buf, tid_tx->bar_ssn >> 4, aggControl->tid_baw, buf_info->baw_retransmit, &header_r);
     }*/
 
-    if ((err = zfHpSend(dev,
+    err = zfHpSend(dev,
                     buf_info->baw_header->header,
                     buf_info->baw_header->headerLen,
                     buf_info->baw_header->snap,
@@ -2494,7 +2496,8 @@ void zfAggTxRetransmit(zdev_t* dev, struct bufInfo *buf_info, struct aggControl 
                     buf_info->baw_header->removeLen,
                     ZM_EXTERNAL_ALLOC_BUF,
                     (u8_t)tid_tx->ac,
-                    buf_info->baw_header->keyIdx)) != ZM_SUCCESS)
+                    buf_info->baw_header->keyIdx);
+    if (err != ZM_SUCCESS)
     {
         goto zlError;
     }
@@ -2795,9 +2798,10 @@ u16_t zfAggTxSendEth(zdev_t* dev, zbuf_t* buf, u16_t port, u16_t bufType, u8_t f
             BAW->insert(dev, buf, tid_tx->bar_ssn >> 4, aggControl->tid_baw, 0, &header_r);
         }*/
 
-        if ((err = zfHpSend(dev, header, headerLen, snap, snapLen,
+        err = zfHpSend(dev, header, headerLen, snap, snapLen,
                              mic, micLen, frag.buf[i], removeLen,
-                             frag.bufType[i], zcUpToAc[up&0x7], keyIdx)) != ZM_SUCCESS)
+                             frag.bufType[i], zcUpToAc[up&0x7], keyIdx);
+        if (err != ZM_SUCCESS)
         {
             goto zlError;
         }
@@ -2847,7 +2851,8 @@ u16_t   zfAggSendAddbaRequest(zdev_t* dev, u16_t *dst, u16_t ac, u16_t up)
     /*
      * TBD : Maximum size of management frame
      */
-    if ((buf = zfwBufAllocate(dev, 1024)) == NULL)
+    buf = zfwBufAllocate(dev, 1024);
+    if (buf == NULL)
     {
         zm_msg0_mm(ZM_LV_0, "Alloc mm buf Fail!");
         return ZM_SUCCESS;
@@ -2890,8 +2895,9 @@ u16_t   zfAggSendAddbaRequest(zdev_t* dev, u16_t *dst, u16_t ac, u16_t up)
     //zm_msg2_mm(ZM_LV_2, "buf->data=", buf->data);
 
     #if 0
-    if ((err = zfHpSend(dev, NULL, 0, NULL, 0, NULL, 0, buf, 0,
-            ZM_INTERNAL_ALLOC_BUF, 0, 0xff)) != ZM_SUCCESS)
+    err = zfHpSend(dev, NULL, 0, NULL, 0, NULL, 0, buf, 0,
+		   ZM_INTERNAL_ALLOC_BUF, 0, 0xff);
+    if (err != ZM_SUCCESS)
     {
         goto zlError;
     }
@@ -3288,7 +3294,8 @@ u16_t   zfAggSendAddbaResponse(zdev_t* dev, struct aggBaFrameParameter *bf)
     /*
      * TBD : Maximum size of management frame
      */
-    if ((buf = zfwBufAllocate(dev, 1024)) == NULL)
+    buf = zfwBufAllocate(dev, 1024);
+    if (buf == NULL)
     {
         zm_msg0_mm(ZM_LV_0, "Alloc mm buf Fail!");
         return ZM_SUCCESS;
@@ -3335,8 +3342,9 @@ u16_t   zfAggSendAddbaResponse(zdev_t* dev, struct aggBaFrameParameter *bf)
     //zm_msg2_mm(ZM_LV_2, "buf->data=", buf->data);
 
     #if 0
-    if ((err = zfHpSend(dev, NULL, 0, NULL, 0, NULL, 0, buf, 0,
-            ZM_INTERNAL_ALLOC_BUF, 0, 0xff)) != ZM_SUCCESS)
+    err = zfHpSend(dev, NULL, 0, NULL, 0, NULL, 0, buf, 0,
+		   ZM_INTERNAL_ALLOC_BUF, 0, 0xff);
+    if (err != ZM_SUCCESS)
     {
         goto zlError;
     }
@@ -3441,7 +3449,8 @@ u16_t   zfAggSendBar(zdev_t* dev, TID_TX tid_tx, struct aggBarControl *aggBarCon
     /*
      * TBD : Maximum size of management frame
      */
-    if ((buf = zfwBufAllocate(dev, 1024)) == NULL)
+    buf = zfwBufAllocate(dev, 1024);
+    if (buf == NULL)
     {
         zm_msg0_mm(ZM_LV_0, "Alloc mm buf Fail!");
         return ZM_SUCCESS;
@@ -3484,8 +3493,9 @@ u16_t   zfAggSendBar(zdev_t* dev, TID_TX tid_tx, struct aggBarControl *aggBarCon
     //zm_msg2_mm(ZM_LV_2, "buf->data=", buf->data);
 
     #if 0
-    if ((err = zfHpSend(dev, NULL, 0, NULL, 0, NULL, 0, buf, 0,
-            ZM_INTERNAL_ALLOC_BUF, 0, 0xff)) != ZM_SUCCESS)
+    err = zfHpSend(dev, NULL, 0, NULL, 0, NULL, 0, buf, 0,
+		   ZM_INTERNAL_ALLOC_BUF, 0, 0xff);
+    if (err != ZM_SUCCESS)
     {
         goto zlError;
     }

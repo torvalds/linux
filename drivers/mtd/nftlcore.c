@@ -1,11 +1,22 @@
-/* Linux driver for NAND Flash Translation Layer      */
-/* (c) 1999 Machine Vision Holdings, Inc.             */
-/* Author: David Woodhouse <dwmw2@infradead.org>      */
-
 /*
-  The contents of this file are distributed under the GNU General
-  Public License version 2. The author places no additional
-  restrictions of any kind on it.
+ * Linux driver for NAND Flash Translation Layer
+ *
+ * Copyright © 1999 Machine Vision Holdings, Inc.
+ * Copyright © 1999-2010 David Woodhouse <dwmw2@infradead.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #define PRERELEASE
@@ -126,7 +137,6 @@ static void nftl_remove_dev(struct mtd_blktrans_dev *dev)
 	del_mtd_blktrans_dev(dev);
 	kfree(nftl->ReplUnitTable);
 	kfree(nftl->EUNtable);
-	kfree(nftl);
 }
 
 /*

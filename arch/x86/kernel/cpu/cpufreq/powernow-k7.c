@@ -569,7 +569,7 @@ static int powernow_verify(struct cpufreq_policy *policy)
  * We will then get the same kind of behaviour already tested under
  * the "well-known" other OS.
  */
-static int __init fixup_sgtc(void)
+static int __cpuinit fixup_sgtc(void)
 {
 	unsigned int sgtc;
 	unsigned int m;
@@ -603,7 +603,7 @@ static unsigned int powernow_get(unsigned int cpu)
 }
 
 
-static int __init acer_cpufreq_pst(const struct dmi_system_id *d)
+static int __cpuinit acer_cpufreq_pst(const struct dmi_system_id *d)
 {
 	printk(KERN_WARNING PFX
 		"%s laptop with broken PST tables in BIOS detected.\n",
@@ -621,7 +621,7 @@ static int __init acer_cpufreq_pst(const struct dmi_system_id *d)
  * A BIOS update is all that can save them.
  * Mention this, and disable cpufreq.
  */
-static struct dmi_system_id __initdata powernow_dmi_table[] = {
+static struct dmi_system_id __cpuinitdata powernow_dmi_table[] = {
 	{
 		.callback = acer_cpufreq_pst,
 		.ident = "Acer Aspire",
@@ -633,7 +633,7 @@ static struct dmi_system_id __initdata powernow_dmi_table[] = {
 	{ }
 };
 
-static int __init powernow_cpu_init(struct cpufreq_policy *policy)
+static int __cpuinit powernow_cpu_init(struct cpufreq_policy *policy)
 {
 	union msr_fidvidstatus fidvidstatus;
 	int result;
@@ -714,14 +714,17 @@ static struct freq_attr *powernow_table_attr[] = {
 };
 
 static struct cpufreq_driver powernow_driver = {
-	.verify	= powernow_verify,
-	.target	= powernow_target,
-	.get	= powernow_get,
-	.init	= powernow_cpu_init,
-	.exit	= powernow_cpu_exit,
-	.name	= "powernow-k7",
-	.owner	= THIS_MODULE,
-	.attr	= powernow_table_attr,
+	.verify		= powernow_verify,
+	.target		= powernow_target,
+	.get		= powernow_get,
+#ifdef CONFIG_X86_POWERNOW_K7_ACPI
+	.bios_limit	= acpi_processor_get_bios_limit,
+#endif
+	.init		= powernow_cpu_init,
+	.exit		= powernow_cpu_exit,
+	.name		= "powernow-k7",
+	.owner		= THIS_MODULE,
+	.attr		= powernow_table_attr,
 };
 
 static int __init powernow_init(void)

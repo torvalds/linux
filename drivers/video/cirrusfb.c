@@ -39,7 +39,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/init.h>
@@ -300,6 +299,7 @@ static const struct zorro_device_id cirrusfb_zorro_table[] = {
 	},
 	{ 0 }
 };
+MODULE_DEVICE_TABLE(zorro, cirrusfb_zorro_table);
 
 static const struct {
 	zorro_id id2;

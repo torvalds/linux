@@ -332,6 +332,12 @@ static void ssb_pmu_pll_init(struct ssb_chipcommon *cc)
 	case 0x5354:
 		ssb_pmu0_pllinit_r0(cc, crystalfreq);
 		break;
+	case 0x4322:
+		if (cc->pmu.rev == 2) {
+			chipco_write32(cc, SSB_CHIPCO_PLLCTL_ADDR, 0x0000000A);
+			chipco_write32(cc, SSB_CHIPCO_PLLCTL_DATA, 0x380005C0);
+		}
+		break;
 	default:
 		ssb_printk(KERN_ERR PFX
 			   "ERROR: PLL init unknown for device %04X\n",
@@ -417,6 +423,7 @@ static void ssb_pmu_resources_init(struct ssb_chipcommon *cc)
 
 	switch (bus->chip_id) {
 	case 0x4312:
+	case 0x4322:
 		/* We keep the default settings:
 		 * min_msk = 0xCBB
 		 * max_msk = 0x7FFFF
@@ -495,9 +502,9 @@ static void ssb_pmu_resources_init(struct ssb_chipcommon *cc)
 		chipco_write32(cc, SSB_CHIPCO_PMU_MAXRES_MSK, max_msk);
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/SSB/PmuInit */
 void ssb_pmu_init(struct ssb_chipcommon *cc)
 {
-	struct ssb_bus *bus = cc->dev->bus;
 	u32 pmucap;
 
 	if (!(cc->capabilities & SSB_CHIPCO_CAP_PMU))
@@ -509,15 +516,12 @@ void ssb_pmu_init(struct ssb_chipcommon *cc)
 	ssb_dprintk(KERN_DEBUG PFX "Found rev %u PMU (capabilities 0x%08X)\n",
 		    cc->pmu.rev, pmucap);
 
-	if (cc->pmu.rev >= 1) {
-		if ((bus->chip_id == 0x4325) && (bus->chip_rev < 2)) {
-			chipco_mask32(cc, SSB_CHIPCO_PMU_CTL,
-				      ~SSB_CHIPCO_PMU_CTL_NOILPONW);
-		} else {
-			chipco_set32(cc, SSB_CHIPCO_PMU_CTL,
-				     SSB_CHIPCO_PMU_CTL_NOILPONW);
-		}
-	}
+	if (cc->pmu.rev == 1)
+		chipco_mask32(cc, SSB_CHIPCO_PMU_CTL,
+			      ~SSB_CHIPCO_PMU_CTL_NOILPONW);
+	else
+		chipco_set32(cc, SSB_CHIPCO_PMU_CTL,
+			     SSB_CHIPCO_PMU_CTL_NOILPONW);
 	ssb_pmu_pll_init(cc);
 	ssb_pmu_resources_init(cc);
 }

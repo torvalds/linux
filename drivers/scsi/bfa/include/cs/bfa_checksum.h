@@ -31,7 +31,7 @@ bfa_checksum_u32(u32 *buf, int sz)
 	for (i = 0; i < m; i++)
 		sum ^= buf[i];
 
-	return (sum);
+	return sum;
 }
 
 static inline u16
@@ -43,7 +43,7 @@ bfa_checksum_u16(u16 *buf, int sz)
 	for (i = 0; i < m; i++)
 		sum ^= buf[i];
 
-	return (sum);
+	return sum;
 }
 
 static inline u8
@@ -55,6 +55,6 @@ bfa_checksum_u8(u8 *buf, int sz)
 	for (i = 0; i < sz; i++)
 		sum ^= buf[i];
 
-	return (sum);
+	return sum;
 }
 #endif

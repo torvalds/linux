@@ -1,5 +1,5 @@
 /*
- * Procedure:    Init boot code/firmware code/data session
+ * Procedure: Init boot code/firmware code/data session
  *
  * Description: This routine will intialize firmware. If any error occurs
  *		during the initialization process, the routine shall terminate
@@ -7,19 +7,21 @@
  *		NdisOpenFile only from MiniportInitialize.
  *
  * Arguments:   The pointer of the adapter
-
+ *
  * Returns:
  *		NDIS_STATUS_FAILURE - the following initialization process
  *				      should be terminated
  *		NDIS_STATUS_SUCCESS - if firmware initialization process
  *				      success
  */
+
 #include "r8192E.h"
 #include "r8192E_hw.h"
+
 #include <linux/firmware.h>
 
 /* It should be double word alignment */
-#define GET_COMMAND_PACKET_FRAG_THRESHOLD(v)	(4 * (v / 4) - 8)
+#define GET_COMMAND_PACKET_FRAG_THRESHOLD(v) (4 * (v / 4) - 8)
 
 enum firmware_init_step {
 	FW_INIT_STEP0_BOOT = 0,
@@ -47,17 +49,17 @@ void firmware_init_param(struct net_device *dev)
 static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 			     u32 buffer_len)
 {
-	struct r8192_priv   *priv = ieee80211_priv(dev);
-	bool 		    rt_status = true;
-	u16		    frag_threshold;
-	u16		    frag_length, frag_offset = 0;
-	int		    i;
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	bool rt_status = true;
+	u16 frag_threshold;
+	u16 frag_length, frag_offset = 0;
+	int i;
 
-	rt_firmware	    *pfirmware = priv->pFirmware;
-	struct sk_buff	    *skb;
-	unsigned char	    *seg_ptr;
-	cb_desc		    *tcb_desc;
-	u8                  bLastIniPkt;
+	rt_firmware *pfirmware = priv->pFirmware;
+	struct sk_buff *skb;
+	unsigned char *seg_ptr;
+	cb_desc *tcb_desc;
+	u8 bLastIniPkt;
 
 	firmware_init_param(dev);
 
@@ -89,10 +91,17 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 		 * Transform from little endian to big endian and pending zero
 		 */
 		for (i = 0; i < frag_length; i += 4) {
-			*seg_ptr++ = ((i+0) < frag_length) ? code_virtual_address[i+3] : 0;
-			*seg_ptr++ = ((i+1) < frag_length) ? code_virtual_address[i+2] : 0;
-			*seg_ptr++ = ((i+2) < frag_length) ? code_virtual_address[i+1] : 0;
-			*seg_ptr++ = ((i+3) < frag_length) ? code_virtual_address[i+0] : 0;
+			*seg_ptr++ = ((i+0) < frag_length) ? \
+					code_virtual_address[i+3] : 0;
+
+			*seg_ptr++ = ((i+1) < frag_length) ? \
+					code_virtual_address[i+2] : 0;
+
+			*seg_ptr++ = ((i+2) < frag_length) ? \
+					code_virtual_address[i+1] : 0;
+
+			*seg_ptr++ = ((i+3) < frag_length) ? \
+					code_virtual_address[i+0] : 0;
 		}
 		tcb_desc->txbuf_size = (u16)i;
 		skb_put(skb, i);
@@ -204,16 +213,16 @@ CPUCheckFirmwareReady_Fail:
 
 bool init_firmware(struct net_device *dev)
 {
-	struct r8192_priv 	*priv = ieee80211_priv(dev);
-	bool			rt_status = TRUE;
-	u32			file_length = 0;
-	u8			*mapped_file = NULL;
-	u32			init_step = 0;
-	enum opt_rst_type	rst_opt = OPT_SYSTEM_RESET;
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	bool rt_status = true;
+	u32 file_length = 0;
+	u8 *mapped_file = NULL;
+	u32 init_step = 0;
+	enum opt_rst_type rst_opt = OPT_SYSTEM_RESET;
 	enum firmware_init_step	starting_state = FW_INIT_STEP0_BOOT;
 
-	rt_firmware		*pfirmware = priv->pFirmware;
-	const struct firmware 	*fw_entry;
+	rt_firmware *pfirmware = priv->pFirmware;
+	const struct firmware *fw_entry;
 	const char *fw_name[3] = { "RTL8192E/boot.img",
 				   "RTL8192E/main.img",
 				   "RTL8192E/data.img"};
@@ -240,31 +249,37 @@ bool init_firmware(struct net_device *dev)
 	 * Download boot, main, and data image for System reset.
 	 * Download data image for firmware reseta
 	 */
-	for (init_step = starting_state; init_step <= FW_INIT_STEP2_DATA; init_step++) {
+	for (init_step = starting_state; init_step <= FW_INIT_STEP2_DATA; \
+			init_step++) {
 		/*
 		 * Open Image file, and map file to contineous memory if open file success.
 		 * or read image file from array. Default load from IMG file
 		 */
 		if (rst_opt == OPT_SYSTEM_RESET) {
 			if (pfirmware->firmware_buf_size[init_step] == 0) {
-				rc = request_firmware(&fw_entry, fw_name[init_step], &priv->pdev->dev);
+				rc = request_firmware(&fw_entry,
+					fw_name[init_step], &priv->pdev->dev);
+
 				if (rc < 0) {
 					RT_TRACE(COMP_FIRMWARE, "request firmware fail!\n");
 					goto download_firmware_fail;
 				}
 
 				if (fw_entry->size > sizeof(pfirmware->firmware_buf[init_step])) {
-					RT_TRACE(COMP_FIRMWARE, "img file size exceed the container buffer fail!\n");
+					RT_TRACE(COMP_FIRMWARE, \
+						"img file size exceed the container buffer fail!\n");
 					goto download_firmware_fail;
 				}
 
 				if (init_step != FW_INIT_STEP1_MAIN) {
-					memcpy(pfirmware->firmware_buf[init_step], fw_entry->data, fw_entry->size);
+					memcpy(pfirmware->firmware_buf[init_step],
+							fw_entry->data, fw_entry->size);
 					pfirmware->firmware_buf_size[init_step] = fw_entry->size;
 
 				} else {
 					memset(pfirmware->firmware_buf[init_step], 0, 128);
-					memcpy(&pfirmware->firmware_buf[init_step][128], fw_entry->data, fw_entry->size);
+					memcpy(&pfirmware->firmware_buf[init_step][128], fw_entry->data,
+									fw_entry->size);
 					pfirmware->firmware_buf_size[init_step] = fw_entry->size+128;
 				}
 
@@ -273,6 +288,7 @@ bool init_firmware(struct net_device *dev)
 			}
 			mapped_file = pfirmware->firmware_buf[init_step];
 			file_length = pfirmware->firmware_buf_size[init_step];
+
 		} else if (rst_opt == OPT_FIRMWARE_RESET) {
 			/* we only need to download data.img here */
 			mapped_file = pfirmware->firmware_buf[init_step];
@@ -346,7 +362,10 @@ bool init_firmware(struct net_device *dev)
 
 download_firmware_fail:
 	RT_TRACE(COMP_ERR, "ERR in %s()\n", __func__);
-	rt_status = FALSE;
+	rt_status = false;
 	return rt_status;
-
 }
+
+MODULE_FIRMWARE("RTL8192E/boot.img");
+MODULE_FIRMWARE("RTL8192E/main.img");
+MODULE_FIRMWARE("RTL8192E/data.img");

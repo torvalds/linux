@@ -27,7 +27,7 @@ static inline void mac_fix_string(char *stg, int len)
 		stg[i] = 0;
 }
 
-int mac_partition(struct parsed_partitions *state, struct block_device *bdev)
+int mac_partition(struct parsed_partitions *state)
 {
 	int slot = 1;
 	Sector sect;
@@ -42,7 +42,7 @@ int mac_partition(struct parsed_partitions *state, struct block_device *bdev)
 	struct mac_driver_desc *md;
 
 	/* Get 0th block and look at the first partition map entry. */
-	md = (struct mac_driver_desc *) read_dev_sector(bdev, 0, &sect);
+	md = read_part_sector(state, 0, &sect);
 	if (!md)
 		return -1;
 	if (be16_to_cpu(md->signature) != MAC_DRIVER_MAGIC) {
@@ -51,7 +51,7 @@ int mac_partition(struct parsed_partitions *state, struct block_device *bdev)
 	}
 	secsize = be16_to_cpu(md->block_size);
 	put_dev_sector(sect);
-	data = read_dev_sector(bdev, secsize/512, &sect);
+	data = read_part_sector(state, secsize/512, &sect);
 	if (!data)
 		return -1;
 	part = (struct mac_partition *) (data + secsize%512);
@@ -59,12 +59,12 @@ int mac_partition(struct parsed_partitions *state, struct block_device *bdev)
 		put_dev_sector(sect);
 		return 0;		/* not a MacOS disk */
 	}
-	printk(" [mac]");
+	strlcat(state->pp_buf, " [mac]", PAGE_SIZE);
 	blocks_in_map = be32_to_cpu(part->map_count);
 	for (blk = 1; blk <= blocks_in_map; ++blk) {
 		int pos = blk * secsize;
 		put_dev_sector(sect);
-		data = read_dev_sector(bdev, pos/512, &sect);
+		data = read_part_sector(state, pos/512, &sect);
 		if (!data)
 			return -1;
 		part = (struct mac_partition *) (data + pos%512);
@@ -75,7 +75,7 @@ int mac_partition(struct parsed_partitions *state, struct block_device *bdev)
 			be32_to_cpu(part->block_count) * (secsize/512));
 
 		if (!strnicmp(part->type, "Linux_RAID", 10))
-			state->parts[slot].flags = 1;
+			state->parts[slot].flags = ADDPART_FLAG_RAID;
 #ifdef CONFIG_PPC_PMAC
 		/*
 		 * If this is the first bootable partition, tell the
@@ -123,10 +123,11 @@ int mac_partition(struct parsed_partitions *state, struct block_device *bdev)
 	}
 #ifdef CONFIG_PPC_PMAC
 	if (found_root_goodness)
-		note_bootable_part(bdev->bd_dev, found_root, found_root_goodness);
+		note_bootable_part(state->bdev->bd_dev, found_root,
+				   found_root_goodness);
 #endif
 
 	put_dev_sector(sect);
-	printk("\n");
+	strlcat(state->pp_buf, "\n", PAGE_SIZE);
 	return 1;
 }

@@ -461,7 +461,7 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(wm831x_rtc->rtc);
 		goto err;
 	}
-	//printk("1wm831x_rtc_probe=%d\n",per_irq);
+
 	ret = request_threaded_irq(per_irq, NULL, wm831x_per_irq,
 				   IRQF_TRIGGER_RISING, "RTC period",
 				   wm831x_rtc);
@@ -469,8 +469,8 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to request periodic IRQ %d: %d\n",
 			per_irq, ret);
 	}
-	//printk("2wm831x_rtc_probe=%d\n",alm_irq);
-	ret = request_threaded_irq(alm_irq, NULL, wm831x_alm_irq, 
+
+	ret = request_threaded_irq(alm_irq, NULL, wm831x_alm_irq,
 				   IRQF_TRIGGER_RISING, "RTC alarm",
 				   wm831x_rtc);
 	if (ret != 0) {

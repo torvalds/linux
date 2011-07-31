@@ -37,7 +37,8 @@ struct tl_cpu {
 };
 
 struct tl_container {
-	unsigned char reserved[8];
+	unsigned char reserved[7];
+	unsigned char id;
 };
 
 union tl_entry {
@@ -58,6 +59,7 @@ struct tl_info {
 
 struct core_info {
 	struct core_info *next;
+	unsigned char id;
 	cpumask_t mask;
 };
 
@@ -73,6 +75,7 @@ static DECLARE_WORK(topology_work, topology_work_fn);
 static DEFINE_SPINLOCK(topology_lock);
 
 cpumask_t cpu_core_map[NR_CPUS];
+unsigned char cpu_core_id[NR_CPUS];
 
 static cpumask_t cpu_coregroup_map(unsigned int cpu)
 {
@@ -114,8 +117,9 @@ static void add_cpus_to_core(struct tl_cpu *tl_cpu, struct core_info *core)
 
 		rcpu = CPU_BITS - 1 - cpu + tl_cpu->origin;
 		for_each_present_cpu(lcpu) {
-			if (__cpu_logical_map[lcpu] == rcpu) {
+			if (cpu_logical_map(lcpu) == rcpu) {
 				cpu_set(lcpu, core->mask);
+				cpu_core_id[lcpu] = core->id;
 				smp_cpu_polarization[lcpu] = tl_cpu->pp;
 			}
 		}
@@ -158,6 +162,7 @@ static void tl_to_cores(struct tl_info *info)
 			break;
 		case 1:
 			core = core->next;
+			core->id = tle->container.id;
 			break;
 		case 0:
 			add_cpus_to_core(&tle->cpu, core);
@@ -165,10 +170,11 @@ static void tl_to_cores(struct tl_info *info)
 		default:
 			clear_cores();
 			machine_has_topology = 0;
-			return;
+			goto out;
 		}
 		tle = next_tle(tle);
 	}
+out:
 	spin_unlock_irq(&topology_lock);
 }
 

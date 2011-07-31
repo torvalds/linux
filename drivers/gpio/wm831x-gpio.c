@@ -85,17 +85,17 @@ static int wm831x_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return !((ret>>offset)^gpn_pol);
 }
 
-static int wm831x_gpio_direction_out(struct gpio_chip *chip,
-				     unsigned offset, int value)
+static void wm831x_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct wm831x_gpio *wm831x_gpio = to_wm831x_gpio(chip);
 	struct wm831x *wm831x = wm831x_gpio->wm831x;
 
-	return wm831x_set_bits(wm831x, WM831X_GPIO1_CONTROL + offset,
-			       WM831X_GPN_DIR | WM831X_GPN_TRI, 0);
+	wm831x_set_bits(wm831x, WM831X_GPIO_LEVEL, 1 << offset,
+			value << offset);
 }
 
-static void wm831x_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static int wm831x_gpio_direction_out(struct gpio_chip *chip,
+				     unsigned offset, int value)
 {
 	struct wm831x_gpio *wm831x_gpio = to_wm831x_gpio(chip);
 	struct wm831x *wm831x = wm831x_gpio->wm831x;
@@ -114,8 +114,7 @@ static void wm831x_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	/* Can only set GPIO state once it's in output mode */
 	wm831x_gpio_set(chip, offset, value);
 
-	wm831x_set_bits(wm831x, WM831X_GPIO_LEVEL, 1 << offset,
-			value << offset);
+	return 0;
 }
 
 static int wm831x_gpio_to_irq(struct gpio_chip *chip, unsigned offset)

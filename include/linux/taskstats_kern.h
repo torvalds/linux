@@ -9,15 +9,11 @@
 
 #include <linux/taskstats.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_TASKSTATS
 extern struct kmem_cache *taskstats_cache;
 extern struct mutex taskstats_exit_mutex;
-
-static inline void taskstats_tgid_init(struct signal_struct *sig)
-{
-	sig->stats = NULL;
-}
 
 static inline void taskstats_tgid_free(struct signal_struct *sig)
 {
@@ -29,8 +25,6 @@ extern void taskstats_exit(struct task_struct *, int group_dead);
 extern void taskstats_init_early(void);
 #else
 static inline void taskstats_exit(struct task_struct *tsk, int group_dead)
-{}
-static inline void taskstats_tgid_init(struct signal_struct *sig)
 {}
 static inline void taskstats_tgid_free(struct signal_struct *sig)
 {}

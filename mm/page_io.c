@@ -12,6 +12,7 @@
 
 #include <linux/mm.h>
 #include <linux/kernel_stat.h>
+#include <linux/gfp.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>
 #include <linux/bio.h>
@@ -19,20 +20,15 @@
 #include <linux/writeback.h>
 #include <asm/pgtable.h>
 
-static struct bio *get_swap_bio(gfp_t gfp_flags, pgoff_t index,
+static struct bio *get_swap_bio(gfp_t gfp_flags,
 				struct page *page, bio_end_io_t end_io)
 {
 	struct bio *bio;
 
 	bio = bio_alloc(gfp_flags, 1);
 	if (bio) {
-		struct swap_info_struct *sis;
-		swp_entry_t entry = { .val = index, };
-
-		sis = get_swap_info_struct(swp_type(entry));
-		bio->bi_sector = map_swap_page(sis, swp_offset(entry)) *
-					(PAGE_SIZE >> 9);
-		bio->bi_bdev = sis->bdev;
+		bio->bi_sector = map_swap_page(page, &bio->bi_bdev);
+		bio->bi_sector <<= PAGE_SHIFT - 9;
 		bio->bi_io_vec[0].bv_page = page;
 		bio->bi_io_vec[0].bv_len = PAGE_SIZE;
 		bio->bi_io_vec[0].bv_offset = 0;
@@ -102,8 +98,7 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
 		unlock_page(page);
 		goto out;
 	}
-	bio = get_swap_bio(GFP_NOIO, page_private(page), page,
-				end_swap_bio_write);
+	bio = get_swap_bio(GFP_NOIO, page, end_swap_bio_write);
 	if (bio == NULL) {
 		set_page_dirty(page);
 		unlock_page(page);
@@ -111,7 +106,7 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
 		goto out;
 	}
 	if (wbc->sync_mode == WB_SYNC_ALL)
-		rw |= (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_UNPLUG);
+		rw |= REQ_SYNC | REQ_UNPLUG;
 	count_vm_event(PSWPOUT);
 	set_page_writeback(page);
 	unlock_page(page);
@@ -127,8 +122,7 @@ int swap_readpage(struct page *page)
 
 	VM_BUG_ON(!PageLocked(page));
 	VM_BUG_ON(PageUptodate(page));
-	bio = get_swap_bio(GFP_KERNEL, page_private(page), page,
-				end_swap_bio_read);
+	bio = get_swap_bio(GFP_KERNEL, page, end_swap_bio_read);
 	if (bio == NULL) {
 		unlock_page(page);
 		ret = -ENOMEM;

@@ -37,34 +37,8 @@
 #include <xen/interface/xen.h>
 #include <xen/interface/version.h>	/* to compile feature.c */
 #include <xen/features.h>		/* to comiple xen-netfront.c */
+#include <xen/xen.h>
 #include <asm/xen/hypercall.h>
-
-/* xen_domain_type is set before executing any C code by early_xen_setup */
-enum xen_domain_type {
-	XEN_NATIVE,	/* running on bare hardware */
-	XEN_PV_DOMAIN,	/* running in a PV domain */
-	XEN_HVM_DOMAIN,	/* running in a Xen hvm domain*/
-};
-
-#ifdef CONFIG_XEN
-extern enum xen_domain_type xen_domain_type;
-#else
-#define xen_domain_type		XEN_NATIVE
-#endif
-
-#define xen_domain()		(xen_domain_type != XEN_NATIVE)
-#define xen_pv_domain()		(xen_domain() &&			\
-				 xen_domain_type == XEN_PV_DOMAIN)
-#define xen_hvm_domain()	(xen_domain() &&			\
-				 xen_domain_type == XEN_HVM_DOMAIN)
-
-#ifdef CONFIG_XEN_DOM0
-#define xen_initial_domain()	(xen_pv_domain() &&			\
-				 (xen_start_info->flags & SIF_INITDOMAIN))
-#else
-#define xen_initial_domain()	(0)
-#endif
-
 
 #ifdef CONFIG_XEN
 extern struct shared_info *HYPERVISOR_shared_info;

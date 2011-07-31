@@ -40,7 +40,9 @@
 #include <linux/nodemask.h>
 #include <linux/module.h>
 #include <linux/poison.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
+#include <linux/hugetlb.h>
+#include <linux/slab.h>
 
 #include <asm/pgalloc.h>
 #include <asm/page.h>
@@ -77,7 +79,9 @@
 #endif /* CONFIG_PPC_STD_MMU_64 */
 
 phys_addr_t memstart_addr = ~0;
+EXPORT_SYMBOL_GPL(memstart_addr);
 phys_addr_t kernstart_addr;
+EXPORT_SYMBOL_GPL(kernstart_addr);
 
 void free_initmem(void)
 {
@@ -119,30 +123,63 @@ static void pmd_ctor(void *addr)
 	memset(addr, 0, PMD_TABLE_SIZE);
 }
 
-static const unsigned int pgtable_cache_size[2] = {
-	PGD_TABLE_SIZE, PMD_TABLE_SIZE
-};
-static const char *pgtable_cache_name[ARRAY_SIZE(pgtable_cache_size)] = {
-#ifdef CONFIG_PPC_64K_PAGES
-	"pgd_cache", "pmd_cache",
-#else
-	"pgd_cache", "pud_pmd_cache",
-#endif /* CONFIG_PPC_64K_PAGES */
-};
+struct kmem_cache *pgtable_cache[MAX_PGTABLE_INDEX_SIZE];
 
-#ifdef CONFIG_HUGETLB_PAGE
-/* Hugepages need an extra cache per hugepagesize, initialized in
- * hugetlbpage.c.  We can't put into the tables above, because HPAGE_SHIFT
- * is not compile time constant. */
-struct kmem_cache *pgtable_cache[ARRAY_SIZE(pgtable_cache_size)+MMU_PAGE_COUNT];
-#else
-struct kmem_cache *pgtable_cache[ARRAY_SIZE(pgtable_cache_size)];
-#endif
+/*
+ * Create a kmem_cache() for pagetables.  This is not used for PTE
+ * pages - they're linked to struct page, come from the normal free
+ * pages pool and have a different entry size (see real_pte_t) to
+ * everything else.  Caches created by this function are used for all
+ * the higher level pagetables, and for hugepage pagetables.
+ */
+void pgtable_cache_add(unsigned shift, void (*ctor)(void *))
+{
+	char *name;
+	unsigned long table_size = sizeof(void *) << shift;
+	unsigned long align = table_size;
+
+	/* When batching pgtable pointers for RCU freeing, we store
+	 * the index size in the low bits.  Table alignment must be
+	 * big enough to fit it.
+	 *
+	 * Likewise, hugeapge pagetable pointers contain a (different)
+	 * shift value in the low bits.  All tables must be aligned so
+	 * as to leave enough 0 bits in the address to contain it. */
+	unsigned long minalign = max(MAX_PGTABLE_INDEX_SIZE + 1,
+				     HUGEPD_SHIFT_MASK + 1);
+	struct kmem_cache *new;
+
+	/* It would be nice if this was a BUILD_BUG_ON(), but at the
+	 * moment, gcc doesn't seem to recognize is_power_of_2 as a
+	 * constant expression, so so much for that. */
+	BUG_ON(!is_power_of_2(minalign));
+	BUG_ON((shift < 1) || (shift > MAX_PGTABLE_INDEX_SIZE));
+
+	if (PGT_CACHE(shift))
+		return; /* Already have a cache of this size */
+
+	align = max_t(unsigned long, align, minalign);
+	name = kasprintf(GFP_KERNEL, "pgtable-2^%d", shift);
+	new = kmem_cache_create(name, table_size, align, 0, ctor);
+	PGT_CACHE(shift) = new;
+
+	pr_debug("Allocated pgtable cache for order %d\n", shift);
+}
+
 
 void pgtable_cache_init(void)
 {
-	pgtable_cache[0] = kmem_cache_create(pgtable_cache_name[0], PGD_TABLE_SIZE, PGD_TABLE_SIZE, SLAB_PANIC, pgd_ctor);
-	pgtable_cache[1] = kmem_cache_create(pgtable_cache_name[1], PMD_TABLE_SIZE, PMD_TABLE_SIZE, SLAB_PANIC, pmd_ctor);
+	pgtable_cache_add(PGD_INDEX_SIZE, pgd_ctor);
+	pgtable_cache_add(PMD_INDEX_SIZE, pmd_ctor);
+	if (!PGT_CACHE(PGD_INDEX_SIZE) || !PGT_CACHE(PMD_INDEX_SIZE))
+		panic("Couldn't allocate pgtable caches");
+
+	/* In all current configs, when the PUD index exists it's the
+	 * same size as either the pgd or pmd index.  Verify that the
+	 * initialization above has also created a PUD cache.  This
+	 * will need re-examiniation if we add new possibilities for
+	 * the pagetable layout. */
+	BUG_ON(PUD_INDEX_SIZE && !PGT_CACHE(PUD_INDEX_SIZE));
 }
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
@@ -217,6 +254,47 @@ static void __meminit vmemmap_create_mapping(unsigned long start,
 }
 #endif /* CONFIG_PPC_BOOK3E */
 
+struct vmemmap_backing *vmemmap_list;
+
+static __meminit struct vmemmap_backing * vmemmap_list_alloc(int node)
+{
+	static struct vmemmap_backing *next;
+	static int num_left;
+
+	/* allocate a page when required and hand out chunks */
+	if (!next || !num_left) {
+		next = vmemmap_alloc_block(PAGE_SIZE, node);
+		if (unlikely(!next)) {
+			WARN_ON(1);
+			return NULL;
+		}
+		num_left = PAGE_SIZE / sizeof(struct vmemmap_backing);
+	}
+
+	num_left--;
+
+	return next++;
+}
+
+static __meminit void vmemmap_list_populate(unsigned long phys,
+					    unsigned long start,
+					    int node)
+{
+	struct vmemmap_backing *vmem_back;
+
+	vmem_back = vmemmap_list_alloc(node);
+	if (unlikely(!vmem_back)) {
+		WARN_ON(1);
+		return;
+	}
+
+	vmem_back->phys = phys;
+	vmem_back->virt_addr = start;
+	vmem_back->list = vmemmap_list;
+
+	vmemmap_list = vmem_back;
+}
+
 int __meminit vmemmap_populate(struct page *start_page,
 			       unsigned long nr_pages, int node)
 {
@@ -240,6 +318,8 @@ int __meminit vmemmap_populate(struct page *start_page,
 		p = vmemmap_alloc_block(page_size, node);
 		if (!p)
 			return -ENOMEM;
+
+		vmemmap_list_populate(__pa(p), start, node);
 
 		pr_debug("      * %016lx..%016lx allocated at %p\n",
 			 start, start + page_size, p);

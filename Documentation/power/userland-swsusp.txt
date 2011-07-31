@@ -24,6 +24,10 @@ assumed to be in the resume mode.  The device cannot be open for simultaneous
 reading and writing.  It is also impossible to have the device open more than
 once at a time.
 
+Even opening the device has side effects. Data structures are
+allocated, and PM_HIBERNATION_PREPARE / PM_RESTORE_PREPARE chains are
+called.
+
 The ioctl() commands recognized by the device are:
 
 SNAPSHOT_FREEZE - freeze user space processes (the current process is

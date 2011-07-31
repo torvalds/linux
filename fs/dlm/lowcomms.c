@@ -51,6 +51,7 @@
 #include <linux/file.h>
 #include <linux/mutex.h>
 #include <linux/sctp.h>
+#include <linux/slab.h>
 #include <net/sctp/user.h>
 #include <net/ipv6.h>
 
@@ -247,7 +248,7 @@ static struct connection *assoc2con(int assoc_id)
 
 	for (i = 0 ; i < CONN_HASH_SIZE; i++) {
 		hlist_for_each_entry(con, h, &connection_hash[i], list) {
-			if (con && con->sctp_assoc == assoc_id) {
+			if (con->sctp_assoc == assoc_id) {
 				mutex_unlock(&connections_lock);
 				return con;
 			}
@@ -1060,7 +1061,7 @@ static void init_local(void)
 		if (dlm_our_addr(&sas, i))
 			break;
 
-		addr = kmalloc(sizeof(*addr), GFP_KERNEL);
+		addr = kmalloc(sizeof(*addr), GFP_NOFS);
 		if (!addr)
 			break;
 		memcpy(addr, &sas, sizeof(*addr));
@@ -1099,7 +1100,7 @@ static int sctp_listen_for_all(void)
 	struct sockaddr_storage localaddr;
 	struct sctp_event_subscribe subscribe;
 	int result = -EINVAL, num = 1, i, addr_len;
-	struct connection *con = nodeid2con(0, GFP_KERNEL);
+	struct connection *con = nodeid2con(0, GFP_NOFS);
 	int bufsize = NEEDED_RMEM;
 
 	if (!con)
@@ -1171,7 +1172,7 @@ out:
 static int tcp_listen_for_all(void)
 {
 	struct socket *sock = NULL;
-	struct connection *con = nodeid2con(0, GFP_KERNEL);
+	struct connection *con = nodeid2con(0, GFP_NOFS);
 	int result = -EINVAL;
 
 	if (!con)

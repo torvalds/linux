@@ -7,6 +7,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/gfp.h>
 #include <linux/io.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
@@ -37,7 +38,7 @@ struct adx_wdt {
 	spinlock_t lock;
 };
 
-static struct watchdog_info adx_wdt_info = {
+static const struct watchdog_info adx_wdt_info = {
 	.identity = "Avionic Design Xanthos Watchdog",
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
 };
@@ -242,14 +243,14 @@ static int __devinit adx_wdt_probe(struct platform_device *pdev)
 	}
 
 	res = devm_request_mem_region(&pdev->dev, res->start,
-			res->end - res->start + 1, res->name);
+			resource_size(res), res->name);
 	if (!res) {
 		dev_err(&pdev->dev, "cannot request I/O memory region\n");
 		return -ENXIO;
 	}
 
 	wdt->base = devm_ioremap_nocache(&pdev->dev, res->start,
-			res->end - res->start + 1);
+			resource_size(res));
 	if (!wdt->base) {
 		dev_err(&pdev->dev, "cannot remap I/O memory region\n");
 		return -ENXIO;
@@ -314,7 +315,7 @@ static int adx_wdt_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops adx_wdt_pm_ops = {
+static const struct dev_pm_ops adx_wdt_pm_ops = {
 	.suspend = adx_wdt_suspend,
 	.resume = adx_wdt_resume,
 };

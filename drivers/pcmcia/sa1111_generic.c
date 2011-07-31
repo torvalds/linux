@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <pcmcia/ss.h>
 
@@ -21,30 +22,34 @@
 
 #include "sa1111_generic.h"
 
+#define IDX_IRQ_S0_READY_NINT	(0)
+#define IDX_IRQ_S0_CD_VALID	(1)
+#define IDX_IRQ_S0_BVD1_STSCHG	(2)
+#define IDX_IRQ_S1_READY_NINT	(3)
+#define IDX_IRQ_S1_CD_VALID	(4)
+#define IDX_IRQ_S1_BVD1_STSCHG	(5)
+
 static struct pcmcia_irqs irqs[] = {
-	{ 0, IRQ_S0_CD_VALID,    "SA1111 PCMCIA card detect" },
-	{ 0, IRQ_S0_BVD1_STSCHG, "SA1111 PCMCIA BVD1"        },
-	{ 1, IRQ_S1_CD_VALID,    "SA1111 CF card detect"     },
-	{ 1, IRQ_S1_BVD1_STSCHG, "SA1111 CF BVD1"            },
+	{ 0, NO_IRQ, "SA1111 PCMCIA card detect" },
+	{ 0, NO_IRQ, "SA1111 PCMCIA BVD1"        },
+	{ 1, NO_IRQ, "SA1111 CF card detect"     },
+	{ 1, NO_IRQ, "SA1111 CF BVD1"            },
 };
 
-int sa1111_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
+static int sa1111_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
-	if (skt->irq == NO_IRQ)
-		skt->irq = skt->nr ? IRQ_S1_READY_NINT : IRQ_S0_READY_NINT;
-
 	return soc_pcmcia_request_irqs(skt, irqs, ARRAY_SIZE(irqs));
 }
 
-void sa1111_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
+static void sa1111_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
 {
 	soc_pcmcia_free_irqs(skt, irqs, ARRAY_SIZE(irqs));
 }
 
 void sa1111_pcmcia_socket_state(struct soc_pcmcia_socket *skt, struct pcmcia_state *state)
 {
-	struct sa1111_dev *sadev = SA1111_DEV(skt->dev);
-	unsigned long status = sa1111_readl(sadev->mapbase + SA1111_PCSR);
+	struct sa1111_pcmcia_socket *s = to_skt(skt);
+	unsigned long status = sa1111_readl(s->dev->mapbase + SA1111_PCSR);
 
 	switch (skt->nr) {
 	case 0:
@@ -71,7 +76,7 @@ void sa1111_pcmcia_socket_state(struct soc_pcmcia_socket *skt, struct pcmcia_sta
 
 int sa1111_pcmcia_configure_socket(struct soc_pcmcia_socket *skt, const socket_state_t *state)
 {
-	struct sa1111_dev *sadev = SA1111_DEV(skt->dev);
+	struct sa1111_pcmcia_socket *s = to_skt(skt);
 	unsigned int pccr_skt_mask, pccr_set_mask, val;
 	unsigned long flags;
 
@@ -100,10 +105,10 @@ int sa1111_pcmcia_configure_socket(struct soc_pcmcia_socket *skt, const socket_s
 		pccr_set_mask |= PCCR_S0_FLT|PCCR_S1_FLT;
 
 	local_irq_save(flags);
-	val = sa1111_readl(sadev->mapbase + SA1111_PCCR);
+	val = sa1111_readl(s->dev->mapbase + SA1111_PCCR);
 	val &= ~pccr_skt_mask;
 	val |= pccr_set_mask & pccr_skt_mask;
-	sa1111_writel(val, sadev->mapbase + SA1111_PCCR);
+	sa1111_writel(val, s->dev->mapbase + SA1111_PCCR);
 	local_irq_restore(flags);
 
 	return 0;
@@ -114,20 +119,64 @@ void sa1111_pcmcia_socket_init(struct soc_pcmcia_socket *skt)
 	soc_pcmcia_enable_irqs(skt, irqs, ARRAY_SIZE(irqs));
 }
 
-void sa1111_pcmcia_socket_suspend(struct soc_pcmcia_socket *skt)
+static void sa1111_pcmcia_socket_suspend(struct soc_pcmcia_socket *skt)
 {
 	soc_pcmcia_disable_irqs(skt, irqs, ARRAY_SIZE(irqs));
+}
+
+int sa1111_pcmcia_add(struct sa1111_dev *dev, struct pcmcia_low_level *ops,
+	int (*add)(struct soc_pcmcia_socket *))
+{
+	struct sa1111_pcmcia_socket *s;
+	int i, ret = 0;
+
+	ops->hw_init = sa1111_pcmcia_hw_init;
+	ops->hw_shutdown = sa1111_pcmcia_hw_shutdown;
+	ops->socket_state = sa1111_pcmcia_socket_state;
+	ops->socket_suspend = sa1111_pcmcia_socket_suspend;
+
+	for (i = 0; i < ops->nr; i++) {
+		s = kzalloc(sizeof(*s), GFP_KERNEL);
+		if (!s)
+			return -ENOMEM;
+
+		s->soc.nr = ops->first + i;
+		s->soc.ops = ops;
+		s->soc.socket.owner = ops->owner;
+		s->soc.socket.dev.parent = &dev->dev;
+		s->soc.socket.pci_irq = s->soc.nr ?
+				dev->irq[IDX_IRQ_S0_READY_NINT] :
+				dev->irq[IDX_IRQ_S1_READY_NINT];
+		s->dev = dev;
+
+		ret = add(&s->soc);
+		if (ret == 0) {
+			s->next = dev_get_drvdata(&dev->dev);
+			dev_set_drvdata(&dev->dev, s);
+		} else
+			kfree(s);
+	}
+
+	return ret;
 }
 
 static int pcmcia_probe(struct sa1111_dev *dev)
 {
 	void __iomem *base;
 
+	dev_set_drvdata(&dev->dev, NULL);
+
 	if (!request_mem_region(dev->res.start, 512,
 				SA1111_DRIVER_NAME(dev)))
 		return -EBUSY;
 
 	base = dev->mapbase;
+
+	/* Initialize PCMCIA IRQs */
+	irqs[0].irq = dev->irq[IDX_IRQ_S0_CD_VALID];
+	irqs[1].irq = dev->irq[IDX_IRQ_S0_BVD1_STSCHG];
+	irqs[2].irq = dev->irq[IDX_IRQ_S1_CD_VALID];
+	irqs[3].irq = dev->irq[IDX_IRQ_S1_BVD1_STSCHG];
 
 	/*
 	 * Initialise the suspend state.
@@ -152,19 +201,17 @@ static int pcmcia_probe(struct sa1111_dev *dev)
 
 static int __devexit pcmcia_remove(struct sa1111_dev *dev)
 {
-	soc_common_drv_pcmcia_remove(&dev->dev);
+	struct sa1111_pcmcia_socket *next, *s = dev_get_drvdata(&dev->dev);
+
+	dev_set_drvdata(&dev->dev, NULL);
+
+	for (; next = s->next, s; s = next) {
+		soc_pcmcia_remove_one(&s->soc);
+		kfree(s);
+	}
+
 	release_mem_region(dev->res.start, 512);
 	return 0;
-}
-
-static int pcmcia_suspend(struct sa1111_dev *dev, pm_message_t state)
-{
-	return pcmcia_socket_dev_suspend(&dev->dev);
-}
-
-static int pcmcia_resume(struct sa1111_dev *dev)
-{
-	return pcmcia_socket_dev_resume(&dev->dev);
 }
 
 static struct sa1111_driver pcmcia_driver = {
@@ -174,8 +221,6 @@ static struct sa1111_driver pcmcia_driver = {
 	.devid		= SA1111_DEVID_PCMCIA,
 	.probe		= pcmcia_probe,
 	.remove		= __devexit_p(pcmcia_remove),
-	.suspend	= pcmcia_suspend,
-	.resume		= pcmcia_resume,
 };
 
 static int __init sa1111_drv_pcmcia_init(void)

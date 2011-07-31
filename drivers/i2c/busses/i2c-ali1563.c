@@ -87,9 +87,9 @@ static int ali1563_transaction(struct i2c_adapter * a, int size)
 	outb_p(inb_p(SMB_HST_CNTL2) | HST_CNTL2_START, SMB_HST_CNTL2);
 
 	timeout = ALI1563_MAX_TIMEOUT;
-	do
+	do {
 		msleep(1);
-	while (((data = inb_p(SMB_HST_STS)) & HST_STS_BUSY) && --timeout);
+	} while (((data = inb_p(SMB_HST_STS)) & HST_STS_BUSY) && --timeout);
 
 	dev_dbg(&a->dev, "Transaction (post): STS=%02x, CNTL1=%02x, "
 		"CNTL2=%02x, CMD=%02x, ADD=%02x, DAT0=%02x, DAT1=%02x\n",
@@ -157,9 +157,9 @@ static int ali1563_block_start(struct i2c_adapter * a)
 	outb_p(inb_p(SMB_HST_CNTL2) | HST_CNTL2_START, SMB_HST_CNTL2);
 
 	timeout = ALI1563_MAX_TIMEOUT;
-	do
+	do {
 		msleep(1);
-	while (!((data = inb_p(SMB_HST_STS)) & HST_STS_DONE) && --timeout);
+	} while (!((data = inb_p(SMB_HST_STS)) & HST_STS_DONE) && --timeout);
 
 	dev_dbg(&a->dev, "Block (post): STS=%02x, CNTL1=%02x, "
 		"CNTL2=%02x, CMD=%02x, ADD=%02x, DAT0=%02x, DAT1=%02x\n",
@@ -417,7 +417,7 @@ static void __devexit ali1563_remove(struct pci_dev * dev)
 	ali1563_shutdown(dev);
 }
 
-static struct pci_device_id __devinitdata ali1563_id_table[] = {
+static const struct pci_device_id ali1563_id_table[] __devinitconst = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1563) },
 	{},
 };

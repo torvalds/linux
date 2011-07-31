@@ -78,11 +78,3 @@ const struct clkops clk_cken_ops = {
 	.enable		= clk_cken_enable,
 	.disable	= clk_cken_disable,
 };
-
-void clks_register(struct clk_lookup *clks, size_t num)
-{
-	int i;
-
-	for (i = 0; i < num; i++)
-		clkdev_add(&clks[i]);
-}

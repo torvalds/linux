@@ -1032,7 +1032,7 @@ static void tifm_sd_remove(struct tifm_dev *sock)
 
 static int tifm_sd_suspend(struct tifm_dev *sock, pm_message_t state)
 {
-	return mmc_suspend_host(tifm_get_drvdata(sock), state);
+	return mmc_suspend_host(tifm_get_drvdata(sock));
 }
 
 static int tifm_sd_resume(struct tifm_dev *sock)

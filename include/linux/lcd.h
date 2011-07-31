@@ -69,6 +69,29 @@ struct lcd_device {
 	struct device dev;
 };
 
+struct lcd_platform_data {
+	/* reset lcd panel device. */
+	int (*reset)(struct lcd_device *ld);
+	/* on or off to lcd panel. if 'enable' is 0 then
+	   lcd power off and 1, lcd power on. */
+	int (*power_on)(struct lcd_device *ld, int enable);
+
+	/* it indicates whether lcd panel was enabled
+	   from bootloader or not. */
+	int lcd_enabled;
+	/* it means delay for stable time when it becomes low to high
+	   or high to low that is dependent on whether reset gpio is
+	   low active or high active. */
+	unsigned int reset_delay;
+	/* stable time needing to become lcd power on. */
+	unsigned int power_on_delay;
+	/* stable time needing to become lcd power off. */
+	unsigned int power_off_delay;
+
+	/* it could be used for any purpose. */
+	void *pdata;
+};
+
 static inline void lcd_set_power(struct lcd_device *ld, int power)
 {
 	mutex_lock(&ld->update_lock);

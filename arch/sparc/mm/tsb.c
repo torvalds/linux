@@ -5,6 +5,7 @@
 
 #include <linux/kernel.h>
 #include <linux/preempt.h>
+#include <linux/slab.h>
 #include <asm/system.h>
 #include <asm/page.h>
 #include <asm/tlbflush.h>

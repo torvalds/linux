@@ -36,6 +36,7 @@
 
 #include <linux/in.h>
 #include <linux/in6.h>
+#include <linux/if_arp.h>
 #include <linux/netdevice.h>
 #include <linux/socket.h>
 #include <rdma/ib_verbs.h>
@@ -60,8 +61,8 @@ struct rdma_dev_addr {
 	unsigned char src_dev_addr[MAX_ADDR_LEN];
 	unsigned char dst_dev_addr[MAX_ADDR_LEN];
 	unsigned char broadcast[MAX_ADDR_LEN];
-	enum rdma_node_type dev_type;
-	struct net_device *src_dev;
+	unsigned short dev_type;
+	int bound_dev_if;
 };
 
 /**
@@ -121,40 +122,29 @@ static inline void ib_addr_get_mgid(struct rdma_dev_addr *dev_addr,
 	memcpy(gid, dev_addr->broadcast + 4, sizeof *gid);
 }
 
-static inline void ib_addr_get_sgid(struct rdma_dev_addr *dev_addr,
-				    union ib_gid *gid)
+static inline int rdma_addr_gid_offset(struct rdma_dev_addr *dev_addr)
 {
-	memcpy(gid, dev_addr->src_dev_addr + 4, sizeof *gid);
+	return dev_addr->dev_type == ARPHRD_INFINIBAND ? 4 : 0;
 }
 
-static inline void ib_addr_set_sgid(struct rdma_dev_addr *dev_addr,
-				    union ib_gid *gid)
+static inline void rdma_addr_get_sgid(struct rdma_dev_addr *dev_addr, union ib_gid *gid)
 {
-	memcpy(dev_addr->src_dev_addr + 4, gid, sizeof *gid);
+	memcpy(gid, dev_addr->src_dev_addr + rdma_addr_gid_offset(dev_addr), sizeof *gid);
 }
 
-static inline void ib_addr_get_dgid(struct rdma_dev_addr *dev_addr,
-				    union ib_gid *gid)
+static inline void rdma_addr_set_sgid(struct rdma_dev_addr *dev_addr, union ib_gid *gid)
 {
-	memcpy(gid, dev_addr->dst_dev_addr + 4, sizeof *gid);
+	memcpy(dev_addr->src_dev_addr + rdma_addr_gid_offset(dev_addr), gid, sizeof *gid);
 }
 
-static inline void ib_addr_set_dgid(struct rdma_dev_addr *dev_addr,
-				    union ib_gid *gid)
+static inline void rdma_addr_get_dgid(struct rdma_dev_addr *dev_addr, union ib_gid *gid)
 {
-	memcpy(dev_addr->dst_dev_addr + 4, gid, sizeof *gid);
+	memcpy(gid, dev_addr->dst_dev_addr + rdma_addr_gid_offset(dev_addr), sizeof *gid);
 }
 
-static inline void iw_addr_get_sgid(struct rdma_dev_addr *dev_addr,
-				    union ib_gid *gid)
+static inline void rdma_addr_set_dgid(struct rdma_dev_addr *dev_addr, union ib_gid *gid)
 {
-	memcpy(gid, dev_addr->src_dev_addr, sizeof *gid);
-}
-
-static inline void iw_addr_get_dgid(struct rdma_dev_addr *dev_addr,
-				    union ib_gid *gid)
-{
-	memcpy(gid, dev_addr->dst_dev_addr, sizeof *gid);
+	memcpy(dev_addr->dst_dev_addr + rdma_addr_gid_offset(dev_addr), gid, sizeof *gid);
 }
 
 #endif /* IB_ADDR_H */

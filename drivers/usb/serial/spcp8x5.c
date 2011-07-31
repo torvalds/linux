@@ -1,6 +1,7 @@
 /*
  * spcp8x5 USB to serial adaptor driver
  *
+ * Copyright (C) 2010 Johan Hovold (jhovold@gmail.com)
  * Copyright (C) 2006 Linxb (xubin.lin@worldplus.com.cn)
  * Copyright (C) 2006 S1 Corp.
  *
@@ -29,7 +30,7 @@
 
 
 /* Version Information */
-#define DRIVER_VERSION 	"v0.04"
+#define DRIVER_VERSION	"v0.10"
 #define DRIVER_DESC 	"SPCP8x5 USB to serial adaptor driver"
 
 static int debug;
@@ -45,7 +46,7 @@ static int debug;
 #define SPCP8x5_835_VID		0x04fc
 #define SPCP8x5_835_PID		0x0231
 
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(SPCP8x5_PHILIPS_VID , SPCP8x5_PHILIPS_PID)},
 	{ USB_DEVICE(SPCP8x5_INTERMATIC_VID, SPCP8x5_INTERMATIC_PID)},
 	{ USB_DEVICE(SPCP8x5_835_VID, SPCP8x5_835_PID)},
@@ -63,11 +64,6 @@ struct spcp8x5_usb_ctrl_arg {
 	u16	index;
 	u16	length;
 };
-
-/* wait 30s before close */
-#define SPCP8x5_CLOSING_WAIT	(30*HZ)
-
-#define SPCP8x5_BUF_SIZE	1024
 
 
 /* spcp8x5 spec register define */
@@ -155,133 +151,6 @@ enum spcp8x5_type {
 	SPCP835_TYPE,
 };
 
-/* 1st in 1st out buffer 4 driver */
-struct ringbuf {
-	unsigned int	buf_size;
-	char		*buf_buf;
-	char		*buf_get;
-	char		*buf_put;
-};
-
-/* alloc the ring buf and alloc the buffer itself */
-static inline struct ringbuf *alloc_ringbuf(unsigned int size)
-{
-	struct ringbuf *pb;
-
-	if (size == 0)
-		return NULL;
-
-	pb = kmalloc(sizeof(*pb), GFP_KERNEL);
-	if (pb == NULL)
-		return NULL;
-
-	pb->buf_buf = kmalloc(size, GFP_KERNEL);
-	if (pb->buf_buf == NULL) {
-		kfree(pb);
-		return NULL;
-	}
-
-	pb->buf_size = size;
-	pb->buf_get = pb->buf_put = pb->buf_buf;
-
-	return pb;
-}
-
-/* free the ring buf and the buffer itself */
-static inline void free_ringbuf(struct ringbuf *pb)
-{
-	if (pb != NULL) {
-		kfree(pb->buf_buf);
-		kfree(pb);
-	}
-}
-
-/* clear pipo , juest repoint the pointer here */
-static inline void clear_ringbuf(struct ringbuf *pb)
-{
-	if (pb != NULL)
-		pb->buf_get = pb->buf_put;
-}
-
-/* get the number of data in the pipo */
-static inline unsigned int ringbuf_avail_data(struct ringbuf *pb)
-{
-	if (pb == NULL)
-		return 0;
-	return (pb->buf_size + pb->buf_put - pb->buf_get) % pb->buf_size;
-}
-
-/* get the number of space in the pipo */
-static inline unsigned int ringbuf_avail_space(struct ringbuf *pb)
-{
-	if (pb == NULL)
-		return 0;
-	return (pb->buf_size + pb->buf_get - pb->buf_put - 1) % pb->buf_size;
-}
-
-/* put count data into pipo */
-static unsigned int put_ringbuf(struct ringbuf *pb, const char *buf,
-				unsigned int count)
-{
-	unsigned int len;
-
-	if (pb == NULL)
-		return 0;
-
-	len  = ringbuf_avail_space(pb);
-	if (count > len)
-		count = len;
-
-	if (count == 0)
-		return 0;
-
-	len = pb->buf_buf + pb->buf_size - pb->buf_put;
-	if (count > len) {
-		memcpy(pb->buf_put, buf, len);
-		memcpy(pb->buf_buf, buf+len, count - len);
-		pb->buf_put = pb->buf_buf + count - len;
-	} else {
-		memcpy(pb->buf_put, buf, count);
-		if (count < len)
-			pb->buf_put += count;
-		else /* count == len */
-			pb->buf_put = pb->buf_buf;
-	}
-	return count;
-}
-
-/* get count data from pipo */
-static unsigned int get_ringbuf(struct ringbuf *pb, char *buf,
-				unsigned int count)
-{
-	unsigned int len;
-
-	if (pb == NULL || buf == NULL)
-		return 0;
-
-	len = ringbuf_avail_data(pb);
-	if (count > len)
-		count = len;
-
-	if (count == 0)
-		return 0;
-
-	len = pb->buf_buf + pb->buf_size - pb->buf_get;
-	if (count > len) {
-		memcpy(buf, pb->buf_get, len);
-		memcpy(buf+len, pb->buf_buf, count - len);
-		pb->buf_get = pb->buf_buf + count - len;
-	} else {
-		memcpy(buf, pb->buf_get, count);
-		if (count < len)
-			pb->buf_get += count;
-		else /* count == len */
-			pb->buf_get = pb->buf_buf;
-	}
-
-	return count;
-}
-
 static struct usb_driver spcp8x5_driver = {
 	.name =			"spcp8x5",
 	.probe =		usb_serial_probe,
@@ -293,8 +162,6 @@ static struct usb_driver spcp8x5_driver = {
 
 struct spcp8x5_private {
 	spinlock_t 	lock;
-	struct ringbuf	*buf;
-	int 		write_urb_in_use;
 	enum spcp8x5_type	type;
 	wait_queue_head_t	delta_msr_wait;
 	u8 			line_control;
@@ -330,24 +197,15 @@ static int spcp8x5_startup(struct usb_serial *serial)
 			goto cleanup;
 
 		spin_lock_init(&priv->lock);
-		priv->buf = alloc_ringbuf(SPCP8x5_BUF_SIZE);
-		if (priv->buf == NULL)
-			goto cleanup2;
-
 		init_waitqueue_head(&priv->delta_msr_wait);
 		priv->type = type;
 		usb_set_serial_port_data(serial->port[i] , priv);
-
 	}
 
 	return 0;
-
-cleanup2:
-	kfree(priv);
 cleanup:
 	for (--i; i >= 0; --i) {
 		priv = usb_get_serial_port_data(serial->port[i]);
-		free_ringbuf(priv->buf);
 		kfree(priv);
 		usb_set_serial_port_data(serial->port[i] , NULL);
 	}
@@ -358,15 +216,9 @@ cleanup:
 static void spcp8x5_release(struct usb_serial *serial)
 {
 	int i;
-	struct spcp8x5_private *priv;
 
-	for (i = 0; i < serial->num_ports; i++) {
-		priv = usb_get_serial_port_data(serial->port[i]);
-		if (priv) {
-			free_ringbuf(priv->buf);
-			kfree(priv);
-		}
-	}
+	for (i = 0; i < serial->num_ports; i++)
+		kfree(usb_get_serial_port_data(serial->port[i]));
 }
 
 /* set the modem control line of the device.
@@ -468,33 +320,6 @@ static void spcp8x5_dtr_rts(struct usb_serial_port *port, int on)
 	control = priv->line_control;
 	spin_unlock_irqrestore(&priv->lock, flags);
 	spcp8x5_set_ctrlLine(port->serial->dev, control , priv->type);
-}
-
-/* close the serial port. We should wait for data sending to device 1st and
- * then kill all urb. */
-static void spcp8x5_close(struct usb_serial_port *port)
-{
-	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
-	int result;
-
-	dbg("%s - port %d", __func__, port->number);
-
-	spin_lock_irqsave(&priv->lock, flags);
-	/* clear out any remaining data in the buffer */
-	clear_ringbuf(priv->buf);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	/* kill urb */
-	if (port->write_urb != NULL) {
-		result = usb_unlink_urb(port->write_urb);
-		if (result)
-			dev_dbg(&port->dev,
-				"usb_unlink_urb(write_urb) = %d\n", result);
-	}
-	result = usb_unlink_urb(port->read_urb);
-	if (result)
-		dev_dbg(&port->dev, "usb_unlink_urb(read_urb) = %d\n", result);
 }
 
 static void spcp8x5_init_termios(struct tty_struct *tty)
@@ -609,7 +434,7 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 	if (i < 0)
 		dev_err(&port->dev, "Set UART format %#x failed (error = %d)\n",
 			uartdata, i);
-	dbg("0x21:0x40:0:0  %d\n", i);
+	dbg("0x21:0x40:0:0  %d", i);
 
 	if (cflag & CRTSCTS) {
 		/* enable hardware flow control */
@@ -620,7 +445,7 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 }
 
 /* open the serial port. do some usb system call. set termios and get the line
- * status of the device. then submit the read urb */
+ * status of the device. */
 static int spcp8x5_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct ktermios tmp_termios;
@@ -655,54 +480,20 @@ static int spcp8x5_open(struct tty_struct *tty, struct usb_serial_port *port)
 	priv->line_status = status & 0xf0 ;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	dbg("%s - submitting read urb", __func__);
-	port->read_urb->dev = serial->dev;
-	ret = usb_submit_urb(port->read_urb, GFP_KERNEL);
-	if (ret) {
-		spcp8x5_close(port);
-		return -EPROTO;
-	}
 	port->port.drain_delay = 256;
-	return 0;
+
+	return usb_serial_generic_open(tty, port);
 }
 
-/* bulk read call back function. check the status of the urb. if transfer
- * failed return. then update the status and the tty send data to tty subsys.
- * submit urb again.
- */
-static void spcp8x5_read_bulk_callback(struct urb *urb)
+static void spcp8x5_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	unsigned long flags;
-	int i;
-	int result = urb->status;
 	u8 status;
 	char tty_flag;
-
-	dev_dbg(&port->dev, "start, result = %d, urb->actual_length = %d\n,",
-		result, urb->actual_length);
-
-	/* check the urb status */
-	if (result) {
-		if (!port->port.count)
-			return;
-		if (result == -EPROTO) {
-			/* spcp8x5 mysteriously fails with -EPROTO */
-			/* reschedule the read */
-			urb->dev = port->serial->dev;
-			result = usb_submit_urb(urb , GFP_ATOMIC);
-			if (result)
-				dev_dbg(&port->dev,
-					"failed submitting read urb %d\n",
-					result);
-			return;
-		}
-		dev_dbg(&port->dev, "unable to handle the error, exiting.\n");
-		return;
-	}
 
 	/* get tty_flag from status */
 	tty_flag = TTY_NORMAL;
@@ -714,147 +505,33 @@ static void spcp8x5_read_bulk_callback(struct urb *urb)
 	/* wake up the wait for termios */
 	wake_up_interruptible(&priv->delta_msr_wait);
 
-	/* break takes precedence over parity, which takes precedence over
-	 * framing errors */
-	if (status & UART_BREAK_ERROR)
-		tty_flag = TTY_BREAK;
-	else if (status & UART_PARITY_ERROR)
-		tty_flag = TTY_PARITY;
-	else if (status & UART_FRAME_ERROR)
-		tty_flag = TTY_FRAME;
-	dev_dbg(&port->dev, "tty_flag = %d\n", tty_flag);
+	if (!urb->actual_length)
+		return;
 
 	tty = tty_port_tty_get(&port->port);
-	if (tty && urb->actual_length) {
-		tty_buffer_request_room(tty, urb->actual_length + 1);
+	if (!tty)
+		return;
+
+	if (status & UART_STATE_TRANSIENT_MASK) {
+		/* break takes precedence over parity, which takes precedence
+		 * over framing errors */
+		if (status & UART_BREAK_ERROR)
+			tty_flag = TTY_BREAK;
+		else if (status & UART_PARITY_ERROR)
+			tty_flag = TTY_PARITY;
+		else if (status & UART_FRAME_ERROR)
+			tty_flag = TTY_FRAME;
+		dev_dbg(&port->dev, "tty_flag = %d\n", tty_flag);
+
 		/* overrun is special, not associated with a char */
 		if (status & UART_OVERRUN_ERROR)
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-		for (i = 0; i < urb->actual_length; ++i)
-			tty_insert_flip_char(tty, data[i], tty_flag);
-		tty_flip_buffer_push(tty);
 	}
+
+	tty_insert_flip_string_fixed_flag(tty, data, tty_flag,
+							urb->actual_length);
+	tty_flip_buffer_push(tty);
 	tty_kref_put(tty);
-
-	/* Schedule the next read _if_ we are still open */
-	if (port->port.count) {
-		urb->dev = port->serial->dev;
-		result = usb_submit_urb(urb , GFP_ATOMIC);
-		if (result)
-			dev_dbg(&port->dev, "failed submitting read urb %d\n",
-				result);
-	}
-
-	return;
-}
-
-/* get data from ring buffer and then write to usb bus */
-static void spcp8x5_send(struct usb_serial_port *port)
-{
-	int count, result;
-	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	if (priv->write_urb_in_use) {
-		dev_dbg(&port->dev, "write urb still used\n");
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return;
-	}
-
-	/* send the 1st urb for writting */
-	memset(port->write_urb->transfer_buffer , 0x00 , port->bulk_out_size);
-	count = get_ringbuf(priv->buf, port->write_urb->transfer_buffer,
-		port->bulk_out_size);
-
-	if (count == 0) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return;
-	}
-
-	/* update the urb status */
-	priv->write_urb_in_use = 1;
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	port->write_urb->transfer_buffer_length = count;
-	port->write_urb->dev = port->serial->dev;
-
-	result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
-	if (result) {
-		dev_dbg(&port->dev, "failed submitting write urb, error %d\n",
-			result);
-		priv->write_urb_in_use = 0;
-		/* TODO: reschedule spcp8x5_send */
-	}
-
-
-	schedule_work(&port->work);
-}
-
-/* this is the call back function for write urb. NOTE we should not sleep in
- * this routine. check the urb return code and then submit the write urb again
- * to hold the write loop */
-static void spcp8x5_write_bulk_callback(struct urb *urb)
-{
-	struct usb_serial_port *port = urb->context;
-	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
-	int result;
-	int status = urb->status;
-
-	switch (status) {
-	case 0:
-		/* success */
-		break;
-	case -ECONNRESET:
-	case -ENOENT:
-	case -ESHUTDOWN:
-		/* this urb is terminated, clean up */
-		dev_dbg(&port->dev, "urb shutting down with status: %d\n",
-			status);
-		priv->write_urb_in_use = 0;
-		return;
-	default:
-		/* error in the urb, so we have to resubmit it */
-		dbg("%s - Overflow in write", __func__);
-		dbg("%s - nonzero write bulk status received: %d",
-			__func__, status);
-		port->write_urb->transfer_buffer_length = 1;
-		port->write_urb->dev = port->serial->dev;
-		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
-		if (result)
-			dev_dbg(&port->dev,
-				"failed resubmitting write urb %d\n", result);
-		else
-			return;
-	}
-
-	priv->write_urb_in_use = 0;
-
-	/* send any buffered data */
-	spcp8x5_send(port);
-}
-
-/* write data to ring buffer. and then start the write transfer */
-static int spcp8x5_write(struct tty_struct *tty, struct usb_serial_port *port,
-			 const unsigned char *buf, int count)
-{
-	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
-
-	dev_dbg(&port->dev, "%d bytes\n", count);
-
-	if (!count)
-		return count;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	count = put_ringbuf(priv->buf, buf, count);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	spcp8x5_send(port);
-
-	return count;
 }
 
 static int spcp8x5_wait_modem_info(struct usb_serial_port *port,
@@ -962,36 +639,6 @@ static int spcp8x5_tiocmget(struct tty_struct *tty, struct file *file)
 	return result;
 }
 
-/* get the avail space room in ring buffer */
-static int spcp8x5_write_room(struct tty_struct *tty)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
-	int room = 0;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	room = ringbuf_avail_space(priv->buf);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	return room;
-}
-
-/* get the number of avail data in write ring buffer */
-static int spcp8x5_chars_in_buffer(struct tty_struct *tty)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
-	int chars = 0;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	chars = ringbuf_avail_data(priv->buf);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	return chars;
-}
-
 /* All of the device info needed for the spcp8x5 SIO serial converter */
 static struct usb_serial_driver spcp8x5_device = {
 	.driver = {
@@ -1001,21 +648,16 @@ static struct usb_serial_driver spcp8x5_device = {
 	.id_table		= id_table,
 	.num_ports		= 1,
 	.open 			= spcp8x5_open,
-	.close 			= spcp8x5_close,
 	.dtr_rts		= spcp8x5_dtr_rts,
 	.carrier_raised		= spcp8x5_carrier_raised,
-	.write 			= spcp8x5_write,
 	.set_termios 		= spcp8x5_set_termios,
 	.init_termios		= spcp8x5_init_termios,
 	.ioctl 			= spcp8x5_ioctl,
 	.tiocmget 		= spcp8x5_tiocmget,
 	.tiocmset 		= spcp8x5_tiocmset,
-	.write_room 		= spcp8x5_write_room,
-	.read_bulk_callback 	= spcp8x5_read_bulk_callback,
-	.write_bulk_callback	= spcp8x5_write_bulk_callback,
-	.chars_in_buffer 	= spcp8x5_chars_in_buffer,
 	.attach 		= spcp8x5_startup,
 	.release 		= spcp8x5_release,
+	.process_read_urb	= spcp8x5_process_read_urb,
 };
 
 static int __init spcp8x5_init(void)

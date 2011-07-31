@@ -76,7 +76,8 @@ struct pxafb_mode_info {
 	u_char		bpp;
 	u_int		cmap_greyscale:1,
 			depth:8,
-			unused:23;
+			transparency:1,
+			unused:22;
 
 	/* Parallel Mode Timing */
 	u_char		hsync_len;

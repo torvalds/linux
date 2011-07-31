@@ -72,12 +72,13 @@ int file_write_dep(const char *name)
 }
 
 
-/* Allocate initial growable sting */
+/* Allocate initial growable string */
 struct gstr str_new(void)
 {
 	struct gstr gs;
 	gs.s = malloc(sizeof(char) * 64);
 	gs.len = 64;
+	gs.max_width = 0;
 	strcpy(gs.s, "\0");
 	return gs;
 }
@@ -88,6 +89,7 @@ struct gstr str_assign(const char *s)
 	struct gstr gs;
 	gs.s = strdup(s);
 	gs.len = strlen(s) + 1;
+	gs.max_width = 0;
 	return gs;
 }
 

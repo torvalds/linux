@@ -20,6 +20,7 @@
 #include <linux/if_arp.h>
 #include <linux/init.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <net/checksum.h>
 
 #include <net/inet_sock.h>
@@ -278,7 +279,7 @@ int dccp_disconnect(struct sock *sk, int flags)
 		sk->sk_send_head = NULL;
 	}
 
-	inet->dport = 0;
+	inet->inet_dport = 0;
 
 	if (!(sk->sk_userlocks & SOCK_BINDADDR_LOCK))
 		inet_reset_saddr(sk);
@@ -290,7 +291,7 @@ int dccp_disconnect(struct sock *sk, int flags)
 	inet_csk_delack_init(sk);
 	__sk_dst_reset(sk);
 
-	WARN_ON(inet->num && !icsk->icsk_bind_hash);
+	WARN_ON(inet->inet_num && !icsk->icsk_bind_hash);
 
 	sk->sk_error_report(sk);
 	return err;
@@ -311,7 +312,7 @@ unsigned int dccp_poll(struct file *file, struct socket *sock,
 	unsigned int mask;
 	struct sock *sk = sock->sk;
 
-	sock_poll_wait(file, sk->sk_sleep, wait);
+	sock_poll_wait(file, sk_sleep(sk), wait);
 	if (sk->sk_state == DCCP_LISTEN)
 		return inet_csk_listen_poll(sk);
 
@@ -472,14 +473,9 @@ static int dccp_setsockopt_ccid(struct sock *sk, int type,
 	if (optlen < 1 || optlen > DCCP_FEAT_MAX_SP_VALS)
 		return -EINVAL;
 
-	val = kmalloc(optlen, GFP_KERNEL);
-	if (val == NULL)
-		return -ENOMEM;
-
-	if (copy_from_user(val, optval, optlen)) {
-		kfree(val);
-		return -EFAULT;
-	}
+	val = memdup_user(optval, optlen);
+	if (IS_ERR(val))
+		return PTR_ERR(val);
 
 	lock_sock(sk);
 	if (type == DCCP_SOCKOPT_TX_CCID || type == DCCP_SOCKOPT_CCID)
@@ -835,6 +831,8 @@ verify_sock_status:
 			len = -EFAULT;
 			break;
 		}
+		if (flags & MSG_TRUNC)
+			len = skb->len;
 	found_fin_ok:
 		if (!(flags & MSG_PEEK))
 			sk_eat_skb(sk, skb, 0);
@@ -1003,12 +1001,14 @@ EXPORT_SYMBOL_GPL(dccp_shutdown);
 
 static inline int dccp_mib_init(void)
 {
-	return snmp_mib_init((void**)dccp_statistics, sizeof(struct dccp_mib));
+	return snmp_mib_init((void __percpu **)dccp_statistics,
+			     sizeof(struct dccp_mib),
+			     __alignof__(struct dccp_mib));
 }
 
 static inline void dccp_mib_exit(void)
 {
-	snmp_mib_free((void**)dccp_statistics);
+	snmp_mib_free((void __percpu **)dccp_statistics);
 }
 
 static int thash_entries;
@@ -1033,7 +1033,7 @@ static int __init dccp_init(void)
 		     FIELD_SIZEOF(struct sk_buff, cb));
 	rc = percpu_counter_init(&dccp_orphan_count, 0);
 	if (rc)
-		goto out;
+		goto out_fail;
 	rc = -ENOBUFS;
 	inet_hashinfo_init(&dccp_hashinfo);
 	dccp_hashinfo.bind_bucket_cachep =
@@ -1060,11 +1060,12 @@ static int __init dccp_init(void)
 	for (ehash_order = 0; (1UL << ehash_order) < goal; ehash_order++)
 		;
 	do {
-		dccp_hashinfo.ehash_size = (1UL << ehash_order) * PAGE_SIZE /
+		unsigned long hash_size = (1UL << ehash_order) * PAGE_SIZE /
 					sizeof(struct inet_ehash_bucket);
-		while (dccp_hashinfo.ehash_size &
-		       (dccp_hashinfo.ehash_size - 1))
-			dccp_hashinfo.ehash_size--;
+
+		while (hash_size & (hash_size - 1))
+			hash_size--;
+		dccp_hashinfo.ehash_mask = hash_size - 1;
 		dccp_hashinfo.ehash = (struct inet_ehash_bucket *)
 			__get_free_pages(GFP_ATOMIC|__GFP_NOWARN, ehash_order);
 	} while (!dccp_hashinfo.ehash && --ehash_order > 0);
@@ -1074,7 +1075,7 @@ static int __init dccp_init(void)
 		goto out_free_bind_bucket_cachep;
 	}
 
-	for (i = 0; i < dccp_hashinfo.ehash_size; i++) {
+	for (i = 0; i <= dccp_hashinfo.ehash_mask; i++) {
 		INIT_HLIST_NULLS_HEAD(&dccp_hashinfo.ehash[i].chain, i);
 		INIT_HLIST_NULLS_HEAD(&dccp_hashinfo.ehash[i].twchain, i);
 	}
@@ -1121,8 +1122,9 @@ static int __init dccp_init(void)
 		goto out_sysctl_exit;
 
 	dccp_timestamping_init();
-out:
-	return rc;
+
+	return 0;
+
 out_sysctl_exit:
 	dccp_sysctl_exit();
 out_ackvec_exit:
@@ -1131,18 +1133,19 @@ out_free_dccp_mib:
 	dccp_mib_exit();
 out_free_dccp_bhash:
 	free_pages((unsigned long)dccp_hashinfo.bhash, bhash_order);
-	dccp_hashinfo.bhash = NULL;
 out_free_dccp_locks:
 	inet_ehash_locks_free(&dccp_hashinfo);
 out_free_dccp_ehash:
 	free_pages((unsigned long)dccp_hashinfo.ehash, ehash_order);
-	dccp_hashinfo.ehash = NULL;
 out_free_bind_bucket_cachep:
 	kmem_cache_destroy(dccp_hashinfo.bind_bucket_cachep);
-	dccp_hashinfo.bind_bucket_cachep = NULL;
 out_free_percpu:
 	percpu_counter_destroy(&dccp_orphan_count);
-	goto out;
+out_fail:
+	dccp_hashinfo.bhash = NULL;
+	dccp_hashinfo.ehash = NULL;
+	dccp_hashinfo.bind_bucket_cachep = NULL;
+	return rc;
 }
 
 static void __exit dccp_fini(void)
@@ -1153,7 +1156,7 @@ static void __exit dccp_fini(void)
 		   get_order(dccp_hashinfo.bhash_size *
 			     sizeof(struct inet_bind_hashbucket)));
 	free_pages((unsigned long)dccp_hashinfo.ehash,
-		   get_order(dccp_hashinfo.ehash_size *
+		   get_order((dccp_hashinfo.ehash_mask + 1) *
 			     sizeof(struct inet_ehash_bucket)));
 	inet_ehash_locks_free(&dccp_hashinfo);
 	kmem_cache_destroy(dccp_hashinfo.bind_bucket_cachep);

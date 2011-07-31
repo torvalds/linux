@@ -1,225 +1,106 @@
 #ifndef UDLFB_H
 #define UDLFB_H
 
-#define MAX_VMODES	4
-#define FB_BPP		16
+/*
+ * TODO: Propose standard fb.h ioctl for reporting damage,
+ * using _IOWR() and one of the existing area structs from fb.h
+ * Consider these ioctls deprecated, but they're still used by the
+ * DisplayLink X server as yet - need both to be modified in tandem
+ * when new ioctl(s) are ready.
+ */
+#define DLFB_IOCTL_RETURN_EDID	 0xAD
+#define DLFB_IOCTL_REPORT_DAMAGE 0xAA
+struct dloarea {
+	int x, y;
+	int w, h;
+	int x2, y2;
+};
 
-#define STD_CHANNEL	"\x57\xCD\xDC\xA7\x1C\x88\x5E\x15"	\
-			"\x60\xFE\xC6\x97\x16\x3D\x47\xF2"
+struct urb_node {
+	struct list_head entry;
+	struct dlfb_data *dev;
+	struct urb *urb;
+};
 
-/* as libdlo */
-#define BUF_HIGH_WATER_MARK	1024
-#define BUF_SIZE		(64*1024)
+struct urb_list {
+	struct list_head list;
+	spinlock_t lock;
+	struct semaphore limit_sem;
+	int available;
+	int count;
+	size_t size;
+};
 
 struct dlfb_data {
 	struct usb_device *udev;
-	struct usb_interface *interface;
-	struct urb *tx_urb, *ctrl_urb;
-	struct usb_ctrlrequest dr;
+	struct device *gdev; /* &udev->dev */
 	struct fb_info *info;
-	char *buf;
-	char *bufend;
+	struct urb_list urbs;
+	struct kref kref;
 	char *backing_buffer;
-	struct mutex bulk_mutex;
+	struct delayed_work deferred_work;
+	struct mutex fb_open_lock;
+	int fb_count;
+	atomic_t usb_active; /* 0 = update virtual buffer, but no usb traffic */
+	atomic_t lost_pixels; /* 1 = a render op failed. Need screen refresh */
+	atomic_t use_defio; /* 0 = rely on ioctls and blit/copy/fill rects */
 	char edid[128];
-	int screen_size;
-	int line_length;
-	struct completion done;
+	int sku_pixel_limit;
 	int base16;
-	int base16d;
 	int base8;
-	int base8d;
+	u32 pseudo_palette[256];
+	/* blit-only rendering path metrics, exposed through sysfs */
+	atomic_t bytes_rendered; /* raw pixel-bytes driver asked to render */
+	atomic_t bytes_identical; /* saved effort with backbuffer comparison */
+	atomic_t bytes_sent; /* to usb, after compression including overhead */
+	atomic_t cpu_kcycles_used; /* transpired during pixel processing */
+	/* interface usage metrics. Clients can call driver via several */
+	atomic_t blit_count;
+	atomic_t copy_count;
+	atomic_t fill_count;
+	atomic_t damage_count;
+	atomic_t defio_fault_count;
 };
 
-struct dlfb_video_mode {
-	uint8_t col;
-	uint32_t hclock;
-	uint32_t vclock;
-	uint8_t unknown1[6];
-	uint16_t xres;
-	uint8_t unknown2[6];
-	uint16_t yres;
-	uint8_t unknown3[4];
-} __attribute__ ((__packed__));
+#define NR_USB_REQUEST_I2C_SUB_IO 0x02
+#define NR_USB_REQUEST_CHANNEL 0x12
 
-static struct dlfb_video_mode dlfb_video_modes[MAX_VMODES];
+/* -BULK_SIZE as per usb-skeleton. Can we get full page and avoid overhead? */
+#define BULK_SIZE 512
+#define MAX_TRANSFER (PAGE_SIZE*16 - BULK_SIZE)
+#define WRITES_IN_FLIGHT (4)
 
-static void dlfb_bulk_callback(struct urb *urb)
-{
-	struct dlfb_data *dev_info = urb->context;
-	complete(&dev_info->done);
-}
+#define GET_URB_TIMEOUT	HZ
+#define FREE_URB_TIMEOUT (HZ*2)
 
-static void dlfb_edid(struct dlfb_data *dev_info)
-{
-	int i;
-	int ret;
-	char rbuf[2];
+#define BPP                     2
+#define MAX_CMD_PIXELS		255
 
-	for (i = 0; i < 128; i++) {
-		ret =
-		    usb_control_msg(dev_info->udev,
-				    usb_rcvctrlpipe(dev_info->udev, 0), (0x02),
-				    (0x80 | (0x02 << 5)), i << 8, 0xA1, rbuf, 2,
-				    0);
-		/*printk("ret control msg edid %d: %d [%d]\n",i, ret, rbuf[1]); */
-		dev_info->edid[i] = rbuf[1];
-	}
+#define RLX_HEADER_BYTES	7
+#define MIN_RLX_PIX_BYTES       4
+#define MIN_RLX_CMD_BYTES	(RLX_HEADER_BYTES + MIN_RLX_PIX_BYTES)
 
-}
+#define RLE_HEADER_BYTES	6
+#define MIN_RLE_PIX_BYTES	3
+#define MIN_RLE_CMD_BYTES	(RLE_HEADER_BYTES + MIN_RLE_PIX_BYTES)
 
-static int dlfb_bulk_msg(struct dlfb_data *dev_info, int len)
-{
-	int ret;
+#define RAW_HEADER_BYTES	6
+#define MIN_RAW_PIX_BYTES	2
+#define MIN_RAW_CMD_BYTES	(RAW_HEADER_BYTES + MIN_RAW_PIX_BYTES)
 
-	init_completion(&dev_info->done);
+/* remove these once align.h patch is taken into kernel */
+#define DL_ALIGN_UP(x, a) ALIGN(x, a)
+#define DL_ALIGN_DOWN(x, a) ALIGN(x-(a-1), a)
 
-	dev_info->tx_urb->actual_length = 0;
-	dev_info->tx_urb->transfer_buffer_length = len;
+/* remove once this gets added to sysfs.h */
+#define __ATTR_RW(attr) __ATTR(attr, 0644, attr##_show, attr##_store)
 
-	ret = usb_submit_urb(dev_info->tx_urb, GFP_KERNEL);
-	if (!wait_for_completion_timeout(&dev_info->done, 1000)) {
-		usb_kill_urb(dev_info->tx_urb);
-		printk("usb timeout !!!\n");
-	}
-
-	return dev_info->tx_urb->actual_length;
-}
-
-static void dlfb_init_modes(void)
-{
-	dlfb_video_modes[0].col = 0;
-	memcpy(&dlfb_video_modes[0].hclock, "\x20\x3C\x7A\xC9", 4);
-	memcpy(&dlfb_video_modes[0].vclock, "\xF2\x6C\x48\xF9", 4);
-	memcpy(&dlfb_video_modes[0].unknown1, "\x70\x53\xFF\xFF\x21\x27", 6);
-	dlfb_video_modes[0].xres = 800;
-	memcpy(&dlfb_video_modes[0].unknown2, "\x91\xF3\xFF\xFF\xFF\xF9", 6);
-	dlfb_video_modes[0].yres = 480;
-	memcpy(&dlfb_video_modes[0].unknown3, "\x01\x02\xC8\x19", 4);
-
-	dlfb_video_modes[1].col = 0;
-	memcpy(&dlfb_video_modes[1].hclock, "\x36\x18\xD5\x10", 4);
-	memcpy(&dlfb_video_modes[1].vclock, "\x60\xA9\x7B\x33", 4);
-	memcpy(&dlfb_video_modes[1].unknown1, "\xA1\x2B\x27\x32\xFF\xFF", 6);
-	dlfb_video_modes[1].xres = 1024;
-	memcpy(&dlfb_video_modes[1].unknown2, "\xD9\x9A\xFF\xCA\xFF\xFF", 6);
-	dlfb_video_modes[1].yres = 768;
-	memcpy(&dlfb_video_modes[1].unknown3, "\x04\x03\xC8\x32", 4);
-
-	dlfb_video_modes[2].col = 0;
-	memcpy(&dlfb_video_modes[2].hclock, "\x98\xF8\x0D\x57", 4);
-	memcpy(&dlfb_video_modes[2].vclock, "\x2A\x55\x4D\x54", 4);
-	memcpy(&dlfb_video_modes[2].unknown1, "\xCA\x0D\xFF\xFF\x94\x43", 6);
-	dlfb_video_modes[2].xres = 1280;
-	memcpy(&dlfb_video_modes[2].unknown2, "\x9A\xA8\xFF\xFF\xFF\xF9", 6);
-	dlfb_video_modes[2].yres = 1024;
-	memcpy(&dlfb_video_modes[2].unknown3, "\x04\x02\x60\x54", 4);
-
-	dlfb_video_modes[3].col = 0;
-	memcpy(&dlfb_video_modes[3].hclock, "\x42\x24\x38\x36", 4);
-	memcpy(&dlfb_video_modes[3].vclock, "\xC1\x52\xD9\x29", 4);
-	memcpy(&dlfb_video_modes[3].unknown1, "\xEA\xB8\x32\x60\xFF\xFF", 6);
-	dlfb_video_modes[3].xres = 1400;
-	memcpy(&dlfb_video_modes[3].unknown2, "\xC9\x4E\xFF\xFF\xFF\xF2", 6);
-	dlfb_video_modes[3].yres = 1050;
-	memcpy(&dlfb_video_modes[3].unknown3, "\x04\x02\x1E\x5F", 4);
-}
-
-static char *dlfb_set_register(char *bufptr, uint8_t reg, uint8_t val)
-{
-	*bufptr++ = 0xAF;
-	*bufptr++ = 0x20;
-	*bufptr++ = reg;
-	*bufptr++ = val;
-
-	return bufptr;
-}
-
-static int dlfb_set_video_mode(struct dlfb_data *dev_info, int width, int height)
-{
-	int i, ret;
-	unsigned char j;
-	char *bufptr = dev_info->buf;
-	uint8_t *vdata;
-
-	for (i = 0; i < MAX_VMODES; i++) {
-		printk("INIT VIDEO %d %d %d\n", i, dlfb_video_modes[i].xres,
-		       dlfb_video_modes[i].yres);
-		if (dlfb_video_modes[i].xres == width
-		    && dlfb_video_modes[i].yres == height) {
-
-			dev_info->base16 = 0;
-			dev_info->base16d = width * height * (FB_BPP / 8);
-
-			//dev_info->base8 = width * height * (FB_BPP / 8);
-
-			dev_info->base8 = dev_info->base16;
-			dev_info->base8d = dev_info->base16d;
-
-			/* set encryption key (null) */
-			memcpy(dev_info->buf, STD_CHANNEL, 16);
-			ret =
-			    usb_control_msg(dev_info->udev,
-					    usb_sndctrlpipe(dev_info->udev, 0),
-					    0x12, (0x02 << 5), 0, 0,
-					    dev_info->buf, 16, 0);
-			printk("ret control msg 1 (STD_CHANNEL): %d\n", ret);
-
-			/* set registers */
-			bufptr = dlfb_set_register(bufptr, 0xFF, 0x00);
-
-			/* set color depth */
-			bufptr = dlfb_set_register(bufptr, 0x00, 0x00);
-
-			/* set addresses */
-			bufptr =
-			    dlfb_set_register(bufptr, 0x20,
-					      (char)(dev_info->base16 >> 16));
-			bufptr =
-			    dlfb_set_register(bufptr, 0x21,
-					      (char)(dev_info->base16 >> 8));
-			bufptr =
-			    dlfb_set_register(bufptr, 0x22,
-					      (char)(dev_info->base16));
-
-			bufptr =
-			    dlfb_set_register(bufptr, 0x26,
-					      (char)(dev_info->base8 >> 16));
-			bufptr =
-			    dlfb_set_register(bufptr, 0x27,
-					      (char)(dev_info->base8 >> 8));
-			bufptr =
-			    dlfb_set_register(bufptr, 0x28,
-					      (char)(dev_info->base8));
-
-			/* set video mode */
-			vdata = (uint8_t *)&dlfb_video_modes[i];
-			for (j = 0; j < 29; j++)
-				bufptr = dlfb_set_register(bufptr, j, vdata[j]);
-
-			/* blank */
-			bufptr = dlfb_set_register(bufptr, 0x1F, 0x00);
-
-			/* end registers */
-			bufptr = dlfb_set_register(bufptr, 0xFF, 0xFF);
-
-			/* send */
-			ret = dlfb_bulk_msg(dev_info, bufptr - dev_info->buf);
-			printk("ret bulk 2: %d %td\n", ret,
-			       bufptr - dev_info->buf);
-
-			/* flush */
-			ret = dlfb_bulk_msg(dev_info, 0);
-			printk("ret bulk 3: %d\n", ret);
-
-			dev_info->screen_size = width * height * (FB_BPP / 8);
-			dev_info->line_length = width * (FB_BPP / 8);
-
-			return 0;
-		}
-	}
-
-	return -1;
-}
-
+#define dl_err(format, arg...) \
+	dev_err(dev->gdev, "dlfb: " format, ## arg)
+#define dl_warn(format, arg...) \
+	dev_warn(dev->gdev, "dlfb: " format, ## arg)
+#define dl_notice(format, arg...) \
+	dev_notice(dev->gdev, "dlfb: " format, ## arg)
+#define dl_info(format, arg...) \
+	dev_info(dev->gdev, "dlfb: " format, ## arg)
 #endif

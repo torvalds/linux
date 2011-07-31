@@ -37,6 +37,7 @@ int snd_soc_jack_new(struct snd_soc_card *card, const char *id, int type,
 {
 	jack->card = card;
 	INIT_LIST_HEAD(&jack->pins);
+	BLOCKING_INIT_NOTIFIER_HEAD(&jack->notifier);
 
 	return snd_jack_new(card->codec->card, id, type, &jack->jack);
 }
@@ -58,15 +59,15 @@ EXPORT_SYMBOL_GPL(snd_soc_jack_new);
  */
 void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 {
-	struct snd_soc_codec *codec = jack->card->codec;
+	struct snd_soc_codec *codec;
 	struct snd_soc_jack_pin *pin;
 	int enable;
 	int oldstatus;
 
-	if (!jack) {
-		WARN_ON_ONCE(!jack);
+	if (!jack)
 		return;
-	}
+
+	codec = jack->card->codec;
 
 	mutex_lock(&codec->mutex);
 
@@ -91,6 +92,9 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 		else
 			snd_soc_dapm_disable_pin(codec, pin->pin);
 	}
+
+	/* Report before the DAPM sync to help users updating micbias status */
+	blocking_notifier_call_chain(&jack->notifier, status, NULL);
 
 	snd_soc_dapm_sync(codec);
 
@@ -142,6 +146,40 @@ int snd_soc_jack_add_pins(struct snd_soc_jack *jack, int count,
 }
 EXPORT_SYMBOL_GPL(snd_soc_jack_add_pins);
 
+/**
+ * snd_soc_jack_notifier_register - Register a notifier for jack status
+ *
+ * @jack:  ASoC jack
+ * @nb:    Notifier block to register
+ *
+ * Register for notification of the current status of the jack.  Note
+ * that it is not possible to report additional jack events in the
+ * callback from the notifier, this is intended to support
+ * applications such as enabling electrical detection only when a
+ * mechanical detection event has occurred.
+ */
+void snd_soc_jack_notifier_register(struct snd_soc_jack *jack,
+				    struct notifier_block *nb)
+{
+	blocking_notifier_chain_register(&jack->notifier, nb);
+}
+EXPORT_SYMBOL_GPL(snd_soc_jack_notifier_register);
+
+/**
+ * snd_soc_jack_notifier_unregister - Unregister a notifier for jack status
+ *
+ * @jack:  ASoC jack
+ * @nb:    Notifier block to unregister
+ *
+ * Stop notifying for status changes.
+ */
+void snd_soc_jack_notifier_unregister(struct snd_soc_jack *jack,
+				      struct notifier_block *nb)
+{
+	blocking_notifier_chain_unregister(&jack->notifier, nb);
+}
+EXPORT_SYMBOL_GPL(snd_soc_jack_notifier_unregister);
+
 #ifdef CONFIG_GPIOLIB
 /* gpio detect */
 static void snd_soc_jack_gpio_detect(struct snd_soc_jack_gpio *gpio)
@@ -161,6 +199,9 @@ static void snd_soc_jack_gpio_detect(struct snd_soc_jack_gpio *gpio)
 		report = gpio->report;
 	else
 		report = 0;
+
+	if (gpio->jack_status_check)
+		report = gpio->jack_status_check();
 
 	snd_soc_jack_report(jack, report, gpio->report);
 }

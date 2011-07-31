@@ -56,7 +56,6 @@ static const char *version =
 #include <linux/ptrace.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -120,7 +119,7 @@ static int irq = 5;		/* Default IRQ */
  *      DAYNA driver mode:
  *              Dayna DL2000/DaynaTalk PC (Half Length), COPS LT-95, 
  *		Farallon PhoneNET PC III, Farallon PhoneNET PC II
- *	Other cards possibly supported mode unkown though:
+ *	Other cards possibly supported mode unknown though:
  *		Dayna DL2000 (Full length), COPS LT/M (Micro-Channel)
  *
  *	Cards NOT supported by this driver but supported by the ltpc.c
@@ -328,7 +327,7 @@ static int __init cops_probe1(struct net_device *dev, int ioaddr)
 
 	/* Reserve any actual interrupt. */
 	if (dev->irq) {
-		retval = request_irq(dev->irq, &cops_interrupt, 0, dev->name, dev);
+		retval = request_irq(dev->irq, cops_interrupt, 0, dev->name, dev);
 		if (retval)
 			goto err_out;
 	}
@@ -594,8 +593,6 @@ static void cops_load (struct net_device *dev)
                 tangent_wait_reset(ioaddr);
                 inb(ioaddr);	/* Clear initial ready signal. */
         }
-
-        return;
 }
 
 /*
@@ -702,8 +699,6 @@ static void cops_poll(unsigned long ltdev)
 	/* poll 20 times per second */
 	cops_timer.expires = jiffies + HZ/20;
 	add_timer(&cops_timer);
-
-	return;
 }
 
 /*
@@ -867,7 +862,7 @@ static void cops_timeout(struct net_device *dev)
 	}
 	printk(KERN_WARNING "%s: Transmit timed out.\n", dev->name);
 	cops_jumpstart(dev);	/* Restart the card. */
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 }
 
@@ -920,9 +915,8 @@ static netdev_tx_t cops_send_packet(struct sk_buff *skb,
 	/* Done sending packet, update counters and cleanup. */
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
-	dev->trans_start = jiffies;
 	dev_kfree_skb (skb);
-        return NETDEV_TX_OK;
+	return NETDEV_TX_OK;
 }
 
 /*

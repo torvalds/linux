@@ -34,6 +34,7 @@
 #include <linux/crc32.h>
 #include <linux/time.h>
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 
 #include "heartbeat.h"
 #include "tcp.h"
@@ -78,7 +79,7 @@ static struct o2hb_callback *hbcall_from_type(enum o2hb_callback_type type);
 
 unsigned int o2hb_dead_threshold = O2HB_DEFAULT_DEAD_THRESHOLD;
 
-/* Only sets a new threshold if there are no active regions. 
+/* Only sets a new threshold if there are no active regions.
  *
  * No locking or otherwise interesting code is required for reading
  * o2hb_dead_threshold as it can't change once regions are active and
@@ -170,13 +171,14 @@ static void o2hb_write_timeout(struct work_struct *work)
 
 	mlog(ML_ERROR, "Heartbeat write timeout to device %s after %u "
 	     "milliseconds\n", reg->hr_dev_name,
-	     jiffies_to_msecs(jiffies - reg->hr_last_timeout_start)); 
+	     jiffies_to_msecs(jiffies - reg->hr_last_timeout_start));
 	o2quo_disk_timeout();
 }
 
 static void o2hb_arm_write_timeout(struct o2hb_region *reg)
 {
-	mlog(0, "Queue write timeout for %u ms\n", O2HB_MAX_WRITE_TIMEOUT_MS);
+	mlog(ML_HEARTBEAT, "Queue write timeout for %u ms\n",
+	     O2HB_MAX_WRITE_TIMEOUT_MS);
 
 	cancel_delayed_work(&reg->hr_write_timeout_work);
 	reg->hr_last_timeout_start = jiffies;
@@ -623,7 +625,7 @@ static int o2hb_check_slot(struct o2hb_region *reg,
 	     "seq %llu last %llu changed %u equal %u\n",
 	     slot->ds_node_num, (long long)slot->ds_last_generation,
 	     le32_to_cpu(hb_block->hb_cksum),
-	     (unsigned long long)le64_to_cpu(hb_block->hb_seq), 
+	     (unsigned long long)le64_to_cpu(hb_block->hb_seq),
 	     (unsigned long long)slot->ds_last_time, slot->ds_changed_samples,
 	     slot->ds_equal_samples);
 
@@ -874,7 +876,8 @@ static int o2hb_thread(void *data)
 		do_gettimeofday(&after_hb);
 		elapsed_msec = o2hb_elapsed_msecs(&before_hb, &after_hb);
 
-		mlog(0, "start = %lu.%lu, end = %lu.%lu, msec = %u\n",
+		mlog(ML_HEARTBEAT,
+		     "start = %lu.%lu, end = %lu.%lu, msec = %u\n",
 		     before_hb.tv_sec, (unsigned long) before_hb.tv_usec,
 		     after_hb.tv_sec, (unsigned long) after_hb.tv_usec,
 		     elapsed_msec);

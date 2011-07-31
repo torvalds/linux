@@ -23,7 +23,6 @@
 /* Developer notes:
  *
  * VBI support is not yet working
- * Saturation and hue setting are not yet working
  * Enough is implemented here for CVBS and S-Video inputs, but the actual
  *  analog demodulator code isn't implemented (not needed for xc5000 since it
  *  has its own demodulator and outputs CVBS)
@@ -63,7 +62,7 @@ struct au8522_register_config {
    The values are as follows from left to right
    0="ATV RF" 1="ATV RF13" 2="CVBS" 3="S-Video" 4="PAL" 5=CVBS13" 6="SVideo13"
 */
-struct au8522_register_config filter_coef[] = {
+static const struct au8522_register_config filter_coef[] = {
 	{AU8522_FILTER_COEF_R410, {0x25, 0x00, 0x25, 0x25, 0x00, 0x00, 0x00} },
 	{AU8522_FILTER_COEF_R411, {0x20, 0x00, 0x20, 0x20, 0x00, 0x00, 0x00} },
 	{AU8522_FILTER_COEF_R412, {0x03, 0x00, 0x03, 0x03, 0x00, 0x00, 0x00} },
@@ -105,7 +104,7 @@ struct au8522_register_config filter_coef[] = {
    0="SIF" 1="ATVRF/ATVRF13"
    Note: the "ATVRF/ATVRF13" mode has never been tested
 */
-struct au8522_register_config lpfilter_coef[] = {
+static const struct au8522_register_config lpfilter_coef[] = {
 	{0x060b, {0x21, 0x0b} },
 	{0x060c, {0xad, 0xad} },
 	{0x060d, {0x70, 0xf0} },
@@ -236,8 +235,10 @@ static void setup_decoder_defaults(struct au8522_state *state, u8 input_mode)
 	state->contrast = 0x79;
 	au8522_writereg(state, AU8522_TVDEC_SATURATION_CB_REG00CH, 0x80);
 	au8522_writereg(state, AU8522_TVDEC_SATURATION_CR_REG00DH, 0x80);
+	state->saturation = 0x80;
 	au8522_writereg(state, AU8522_TVDEC_HUE_H_REG00EH, 0x00);
 	au8522_writereg(state, AU8522_TVDEC_HUE_L_REG00FH, 0x00);
+	state->hue = 0x00;
 
 	/* Other decoder registers */
 	au8522_writereg(state, AU8522_TVDEC_INT_MASK_REG010H, 0x00);
@@ -315,7 +316,7 @@ static void setup_decoder_defaults(struct au8522_state *state, u8 input_mode)
 	if (input_mode == AU8522_INPUT_CONTROL_REG081H_SVIDEO_CH13 ||
 	    input_mode == AU8522_INPUT_CONTROL_REG081H_SVIDEO_CH24) {
 		/* Despite what the table says, for the HVR-950q we still need
-		   to be in CVBS mode for the S-Video input (reason uknown). */
+		   to be in CVBS mode for the S-Video input (reason unknown). */
 		/* filter_coef_type = 3; */
 		filter_coef_type = 5;
 	} else {
@@ -504,7 +505,19 @@ static int au8522_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 				ctrl->value);
 		break;
 	case V4L2_CID_SATURATION:
+		state->saturation = ctrl->value;
+		au8522_writereg(state, AU8522_TVDEC_SATURATION_CB_REG00CH,
+				ctrl->value);
+		au8522_writereg(state, AU8522_TVDEC_SATURATION_CR_REG00DH,
+				ctrl->value);
+		break;
 	case V4L2_CID_HUE:
+		state->hue = ctrl->value;
+		au8522_writereg(state, AU8522_TVDEC_HUE_H_REG00EH,
+				ctrl->value >> 8);
+		au8522_writereg(state, AU8522_TVDEC_HUE_L_REG00FH,
+				ctrl->value & 0xFF);
+		break;
 	case V4L2_CID_AUDIO_VOLUME:
 	case V4L2_CID_AUDIO_BASS:
 	case V4L2_CID_AUDIO_TREBLE:
@@ -534,37 +547,17 @@ static int au8522_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		ctrl->value = state->contrast;
 		break;
 	case V4L2_CID_SATURATION:
+		ctrl->value = state->saturation;
+		break;
 	case V4L2_CID_HUE:
+		ctrl->value = state->hue;
+		break;
 	case V4L2_CID_AUDIO_VOLUME:
 	case V4L2_CID_AUDIO_BASS:
 	case V4L2_CID_AUDIO_TREBLE:
 	case V4L2_CID_AUDIO_BALANCE:
 	case V4L2_CID_AUDIO_MUTE:
 		/* Not yet supported */
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-/* ----------------------------------------------------------------------- */
-
-static int au8522_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
-{
-	switch (fmt->type) {
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static int au8522_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
-{
-	switch (fmt->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		/* Not yet implemented */
-		break;
 	default:
 		return -EINVAL;
 	}
@@ -632,8 +625,9 @@ static int au8522_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 	case V4L2_CID_BRIGHTNESS:
 		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 128);
 	case V4L2_CID_SATURATION:
+		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 128);
 	case V4L2_CID_HUE:
-		/* Not yet implemented */
+		return v4l2_ctrl_query_fill(qc, -32768, 32768, 1, 0);
 	default:
 		break;
 	}
@@ -645,6 +639,13 @@ static int au8522_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 static int au8522_reset(struct v4l2_subdev *sd, u32 val)
 {
 	struct au8522_state *state = to_state(sd);
+
+	state->operational_mode = AU8522_ANALOG_MODE;
+
+	/* Clear out any state associated with the digital side of the
+	   chip, so that when it gets powered back up it won't think
+	   that it is already tuned */
+	state->current_frequency = 0;
 
 	au8522_writereg(state, 0xa4, 1 << 5);
 
@@ -747,8 +748,6 @@ static const struct v4l2_subdev_audio_ops au8522_audio_ops = {
 
 static const struct v4l2_subdev_video_ops au8522_video_ops = {
 	.s_routing = au8522_s_video_routing,
-	.g_fmt = au8522_g_fmt,
-	.s_fmt = au8522_s_fmt,
 	.s_stream = au8522_s_stream,
 };
 

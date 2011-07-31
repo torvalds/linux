@@ -19,6 +19,7 @@
  *
  */
 
+#include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>

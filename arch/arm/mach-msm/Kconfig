@@ -1,13 +1,109 @@
 if ARCH_MSM
 
-comment "MSM Board Type"
-	depends on ARCH_MSM
+choice
+	prompt "Qualcomm MSM SoC Type"
+	default ARCH_MSM7X00A
+
+config ARCH_MSM7X00A
+	bool "MSM7x00A / MSM7x01A"
+	select ARCH_MSM_ARM11
+	select MSM_SMD
+	select MSM_SMD_PKG3
+	select CPU_V6
+
+config ARCH_MSM7X30
+	bool "MSM7x30"
+	select ARCH_MSM_SCORPION
+	select MSM_SMD
+	select MSM_VIC
+	select CPU_V7
+	select MSM_REMOTE_SPINLOCK_DEKKERS
+
+config ARCH_QSD8X50
+	bool "QSD8X50"
+	select ARCH_MSM_SCORPION
+	select MSM_SMD
+	select MSM_VIC
+	select CPU_V7
+	select MSM_REMOTE_SPINLOCK_LDREX
+endchoice
+
+config MSM_SOC_REV_A
+	bool
+
+config  ARCH_MSM_ARM11
+	bool
+config  ARCH_MSM_SCORPION
+	bool
+
+config  MSM_VIC
+	bool
+
+menu "Qualcomm MSM Board Type"
 
 config MACH_HALIBUT
 	depends on ARCH_MSM
-	default y
+	depends on ARCH_MSM7X00A
 	bool "Halibut Board (QCT SURF7201A)"
 	help
 	  Support for the Qualcomm SURF7201A eval board.
+
+config MACH_TROUT
+	depends on ARCH_MSM
+	depends on ARCH_MSM7X00A
+	bool "HTC Dream (aka trout)"
+	help
+	  Support for the HTC Dream, T-Mobile G1, Android ADP1 devices.
+
+config MACH_MSM7X30_SURF
+	depends on ARCH_MSM7X30
+	bool "MSM7x30 SURF"
+	help
+	  Support for the Qualcomm MSM7x30 SURF eval board.
+
+config MACH_QSD8X50_SURF
+	depends on ARCH_QSD8X50
+	bool "QSD8x50 SURF"
+	help
+	  Support for the Qualcomm QSD8x50 SURF eval board.
+
+config MACH_QSD8X50A_ST1_5
+	depends on ARCH_QSD8X50
+	select MSM_SOC_REV_A
+	bool "QSD8x50A ST1.5"
+	help
+	  Support for the Qualcomm ST1.5.
+
+endmenu
+
+config MSM_DEBUG_UART
+	int
+	default 1 if MSM_DEBUG_UART1
+	default 2 if MSM_DEBUG_UART2
+	default 3 if MSM_DEBUG_UART3
+
+choice
+	prompt "Debug UART"
+
+	default MSM_DEBUG_UART_NONE
+
+	config MSM_DEBUG_UART_NONE
+		bool "None"
+
+	config MSM_DEBUG_UART1
+		bool "UART1"
+
+	config MSM_DEBUG_UART2
+		bool "UART2"
+
+	config MSM_DEBUG_UART3
+		bool "UART3"
+endchoice
+
+config MSM_SMD_PKG3
+	bool
+
+config MSM_SMD
+	bool
 
 endif

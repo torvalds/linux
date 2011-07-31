@@ -60,13 +60,13 @@ do {								\
 	u32 t = lo & ((1 << n) - 1);				\
 	lo = (lo >> n) | ((hi & ((1 << n) - 1)) << (32 - n));	\
 	hi = (hi >> n) | (t << (24-n));				\
-} while(0)
+} while (0)
 
 /* Rotate right one 64 bit number as a 56 bit number */
 #define ror56_64(k, n)						\
 do {								\
 	k = (k >> n) | ((k & ((1 << n) - 1)) << (56 - n));	\
-} while(0)
+} while (0)
 
 /*
  * Sboxes for Feistel network derived from
@@ -228,7 +228,7 @@ do {									\
 	union lc4 { __be32 l; u8 c[4]; } u;				\
 	u.l = sched ^ R;						\
 	L ^= sbox0[u.c[0]] ^ sbox1[u.c[1]] ^ sbox2[u.c[2]] ^ sbox3[u.c[3]]; \
-} while(0)
+} while (0)
 
 /*
  * encryptor

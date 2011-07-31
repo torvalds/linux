@@ -31,8 +31,7 @@
 
 static int read_dsp(struct echoaudio *chip, u32 *data);
 static int set_professional_spdif(struct echoaudio *chip, char prof);
-static int load_asic_generic(struct echoaudio *chip, u32 cmd,
-			     const struct firmware *asic);
+static int load_asic_generic(struct echoaudio *chip, u32 cmd, short asic);
 static int check_asic_status(struct echoaudio *chip);
 static int update_flags(struct echoaudio *chip);
 
@@ -54,7 +53,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	chip->subdevice_id = subdevice_id;
 	chip->bad_board = TRUE;
 	chip->has_midi = TRUE;
-	chip->dsp_code_to_load = &card_fw[FW_LAYLA20_DSP];
+	chip->dsp_code_to_load = FW_LAYLA20_DSP;
 	chip->input_clock_types =
 		ECHO_CLOCK_BIT_INTERNAL | ECHO_CLOCK_BIT_SPDIF |
 		ECHO_CLOCK_BIT_WORD | ECHO_CLOCK_BIT_SUPER;
@@ -65,13 +64,16 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 		return err;
 	chip->bad_board = FALSE;
 
-	if ((err = init_line_levels(chip)) < 0)
-		return err;
-
-	err = set_professional_spdif(chip, TRUE);
-
 	DE_INIT(("init_hw done\n"));
 	return err;
+}
+
+
+
+static int set_mixer_defaults(struct echoaudio *chip)
+{
+	chip->professional_spdif = FALSE;
+	return init_line_levels(chip);
 }
 
 
@@ -144,7 +146,7 @@ static int load_asic(struct echoaudio *chip)
 		return 0;
 
 	err = load_asic_generic(chip, DSP_FNC_LOAD_LAYLA_ASIC,
-				&card_fw[FW_LAYLA20_ASIC]);
+				FW_LAYLA20_ASIC);
 	if (err < 0)
 		return err;
 

@@ -64,10 +64,4 @@
 #define OFFSET_THR              0x28	/* Transmit Holding register            */
 #define OFFSET_RBR              0x2C	/* Receive Buffer register              */
 
-/* PLL_DIV Masks */
-#define CCLK_DIV1 CSEL_DIV1	/* CCLK = VCO / 1 */
-#define CCLK_DIV2 CSEL_DIV2	/* CCLK = VCO / 2 */
-#define CCLK_DIV4 CSEL_DIV4	/* CCLK = VCO / 4 */
-#define CCLK_DIV8 CSEL_DIV8	/* CCLK = VCO / 8 */
-
 #endif

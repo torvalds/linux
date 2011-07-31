@@ -102,7 +102,6 @@ struct cm109_dev {
 	struct cm109_ctl_packet *ctl_data;
 	dma_addr_t ctl_dma;
 	struct usb_ctrlrequest *ctl_req;
-	dma_addr_t ctl_req_dma;
 	struct urb *urb_ctl;
 	/*
 	 * The 3 bitfields below are protected by ctl_submit_lock.
@@ -629,15 +628,13 @@ static const struct usb_device_id cm109_usb_table[] = {
 
 static void cm109_usb_cleanup(struct cm109_dev *dev)
 {
-	if (dev->ctl_req)
-		usb_buffer_free(dev->udev, sizeof(*(dev->ctl_req)),
-				dev->ctl_req, dev->ctl_req_dma);
+	kfree(dev->ctl_req);
 	if (dev->ctl_data)
-		usb_buffer_free(dev->udev, USB_PKT_LEN,
-				dev->ctl_data, dev->ctl_dma);
+		usb_free_coherent(dev->udev, USB_PKT_LEN,
+				  dev->ctl_data, dev->ctl_dma);
 	if (dev->irq_data)
-		usb_buffer_free(dev->udev, USB_PKT_LEN,
-				dev->irq_data, dev->irq_dma);
+		usb_free_coherent(dev->udev, USB_PKT_LEN,
+				  dev->irq_data, dev->irq_dma);
 
 	usb_free_urb(dev->urb_irq);	/* parameter validation in core/urb */
 	usb_free_urb(dev->urb_ctl);	/* parameter validation in core/urb */
@@ -686,18 +683,17 @@ static int cm109_usb_probe(struct usb_interface *intf,
 		goto err_out;
 
 	/* allocate usb buffers */
-	dev->irq_data = usb_buffer_alloc(udev, USB_PKT_LEN,
-					 GFP_KERNEL, &dev->irq_dma);
+	dev->irq_data = usb_alloc_coherent(udev, USB_PKT_LEN,
+					   GFP_KERNEL, &dev->irq_dma);
 	if (!dev->irq_data)
 		goto err_out;
 
-	dev->ctl_data = usb_buffer_alloc(udev, USB_PKT_LEN,
-					 GFP_KERNEL, &dev->ctl_dma);
+	dev->ctl_data = usb_alloc_coherent(udev, USB_PKT_LEN,
+					   GFP_KERNEL, &dev->ctl_dma);
 	if (!dev->ctl_data)
 		goto err_out;
 
-	dev->ctl_req = usb_buffer_alloc(udev, sizeof(*(dev->ctl_req)),
-					GFP_KERNEL, &dev->ctl_req_dma);
+	dev->ctl_req = kmalloc(sizeof(*(dev->ctl_req)), GFP_KERNEL);
 	if (!dev->ctl_req)
 		goto err_out;
 
@@ -735,10 +731,8 @@ static int cm109_usb_probe(struct usb_interface *intf,
 	usb_fill_control_urb(dev->urb_ctl, udev, usb_sndctrlpipe(udev, 0),
 			     (void *)dev->ctl_req, dev->ctl_data, USB_PKT_LEN,
 			     cm109_urb_ctl_callback, dev);
-	dev->urb_ctl->setup_dma = dev->ctl_req_dma;
 	dev->urb_ctl->transfer_dma = dev->ctl_dma;
-	dev->urb_ctl->transfer_flags |= URB_NO_SETUP_DMA_MAP |
-					URB_NO_TRANSFER_DMA_MAP;
+	dev->urb_ctl->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	dev->urb_ctl->dev = udev;
 
 	/* find out the physical bus location */

@@ -6,8 +6,8 @@ Supported chips:
     Prefix: 'ds2482'
     Addresses scanned: None
     Datasheets:
-        http://pdfserv.maxim-ic.com/en/ds/DS2482-100-DS2482S-100.pdf
-        http://pdfserv.maxim-ic.com/en/ds/DS2482-800-DS2482S-800.pdf
+        http://datasheets.maxim-ic.com/en/ds/DS2482-100.pdf
+        http://datasheets.maxim-ic.com/en/ds/DS2482-800.pdf
 
 Author: Ben Gardner <bgardner@wabtec.com>
 

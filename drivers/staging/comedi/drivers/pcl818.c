@@ -50,7 +50,7 @@ A word or two about DMA. Driver support DMA operations at two ways:
           1, 10=A/D input -10V..+10V
     [5] - 0,  5=D/A output 0-5V  (internal reference -5V)
           1, 10=D/A output 0-10V (internal reference -10V)
-	  2    =D/A output unknow (external reference)
+	  2    =D/A output unknown (external reference)
 
    Options for PCL-818, PCL-818H:
     [0] - IO Base
@@ -60,7 +60,7 @@ A word or two about DMA. Driver support DMA operations at two ways:
               1= 1MHz clock for 8254
     [4] - 0,  5=D/A output 0-5V  (internal reference -5V)
           1, 10=D/A output 0-10V (internal reference -10V)
-	  2    =D/A output unknow (external reference)
+	  2    =D/A output unknown (external reference)
 
    Options for PCL-818HD, PCL-818HG:
     [0] - IO Base
@@ -71,7 +71,7 @@ A word or two about DMA. Driver support DMA operations at two ways:
               1= 1MHz clock for 8254
     [4] - 0,  5=D/A output 0-5V  (internal reference -5V)
           1, 10=D/A output 0-10V (internal reference -10V)
-   	  2    =D/A output unknow (external reference)
+   	  2    =D/A output unknown (external reference)
 
    Options for PCL-718:
     [0] - IO Base
@@ -92,7 +92,7 @@ A word or two about DMA. Driver support DMA operations at two ways:
 	     10=	     user defined unipolar
     [5] - 0,  5=D/A outputs 0-5V  (internal reference -5V)
           1, 10=D/A outputs 0-10V (internal reference -10V)
-	      2=D/A outputs unknow (external reference)
+	      2=D/A outputs unknown (external reference)
     [6] - 0, 60=max  60kHz A/D sampling
           1,100=max 100kHz A/D sampling (PCL-718 with Option 001 installed)
 
@@ -102,6 +102,7 @@ A word or two about DMA. Driver support DMA operations at two ways:
 
 #include <linux/ioport.h>
 #include <linux/mc146818rtc.h>
+#include <linux/gfp.h>
 #include <linux/delay.h>
 #include <asm/dma.h>
 
@@ -312,7 +313,18 @@ static struct comedi_driver driver_pcl818 = {
 	.offset = sizeof(struct pcl818_board),
 };
 
-COMEDI_INITCLEANUP(driver_pcl818);
+static int __init driver_pcl818_init_module(void)
+{
+	return comedi_driver_register(&driver_pcl818);
+}
+
+static void __exit driver_pcl818_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_pcl818);
+}
+
+module_init(driver_pcl818_init_module);
+module_exit(driver_pcl818_cleanup_module);
 
 struct pcl818_private {
 
@@ -557,8 +569,14 @@ conv_finish:
 		comedi_event(dev, s);
 		return IRQ_HANDLED;
 	}
-	if (s->async->cur_chan == 0) {
+	devpriv->act_chanlist_pos++;
+	if (devpriv->act_chanlist_pos >= devpriv->act_chanlist_len) {
+		devpriv->act_chanlist_pos = 0;
+	}
+	s->async->cur_chan++;
+	if (s->async->cur_chan >= devpriv->ai_n_chan) {
 		/*  printk("E"); */
+		s->async->cur_chan = 0;
 		devpriv->ai_act_scan--;
 	}
 
@@ -627,8 +645,12 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 
 		devpriv->act_chanlist_pos++;
 		if (devpriv->act_chanlist_pos >= devpriv->act_chanlist_len) {
-			devpriv->ai_act_scan--;
 			devpriv->act_chanlist_pos = 0;
+		}
+		s->async->cur_chan++;
+		if (s->async->cur_chan >= devpriv->ai_n_chan) {
+			s->async->cur_chan = 0;
+			devpriv->ai_act_scan--;
 		}
 
 		if (!devpriv->neverending_ai)
@@ -717,7 +739,14 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d)
 			comedi_buf_put(s->async, dmabuf[bufptr++] >> 4);	/*  get one sample */
 			bufptr &= (devpriv->dmasamplsize - 1);
 
-			if (s->async->cur_chan == 0) {
+			devpriv->act_chanlist_pos++;
+			if (devpriv->act_chanlist_pos >=
+					devpriv->act_chanlist_len) {
+				devpriv->act_chanlist_pos = 0;
+			}
+			s->async->cur_chan++;
+			if (s->async->cur_chan >= devpriv->ai_n_chan) {
+				s->async->cur_chan = 0;
 				devpriv->ai_act_scan--;
 			}
 
@@ -796,7 +825,13 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 
 		comedi_buf_put(s->async, (lo >> 4) | (inb(dev->iobase + PCL818_FI_DATAHI) << 4));	/*  get one sample */
 
-		if (s->async->cur_chan == 0) {
+		devpriv->act_chanlist_pos++;
+		if (devpriv->act_chanlist_pos >= devpriv->act_chanlist_len) {
+			devpriv->act_chanlist_pos = 0;
+		}
+		s->async->cur_chan++;
+		if (s->async->cur_chan >= devpriv->ai_n_chan) {
+			s->async->cur_chan = 0;
 			devpriv->ai_act_scan--;
 		}
 
@@ -876,7 +911,7 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 		return IRQ_NONE;
 	}
 
-	comedi_error(dev, "IRQ from unknow source!");
+	comedi_error(dev, "IRQ from unknown source!");
 	return IRQ_NONE;
 }
 
@@ -970,7 +1005,7 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
-	int divisor1, divisor2;
+	int divisor1 = 0, divisor2 = 0;
 	unsigned int seglen;
 
 	printk("pcl818_ai_cmd_mode()\n");
@@ -1089,7 +1124,7 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 static int pcl818_ao_mode13(int mode, struct comedi_device *dev,
 			    struct comedi_subdevice *s, comedi_trig * it)
 {
-	int divisor1, divisor2;
+	int divisor1 = 0, divisor2 = 0;
 
 	if (!dev->irq) {
 		comedi_error(dev, "IRQ not defined!");
@@ -1287,7 +1322,7 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		      struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp, divisor1, divisor2;
+	int tmp, divisor1 = 0, divisor2 = 0;
 
 	/* step 1: make sure trigger sources are trivially valid */
 
@@ -1369,14 +1404,6 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		}
 	}
 
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 1;
-		err++;
-	}
-	if (cmd->chanlist_len > s->n_chan) {
-		cmd->chanlist_len = s->n_chan;
-		err++;
-	}
 	if (cmd->scan_end_arg != cmd->chanlist_len) {
 		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
@@ -2020,3 +2047,7 @@ static int pcl818_detach(struct comedi_device *dev)
 	free_resources(dev);
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

@@ -26,7 +26,7 @@ struct x86_init_mpparse {
 	void (*smp_read_mpc_oem)(struct mpc_table *mpc);
 	void (*mpc_oem_pci_bus)(struct mpc_bus *m);
 	void (*mpc_oem_bus_info)(struct mpc_bus *m, char *name);
-	void (*find_smp_config)(unsigned int reserve);
+	void (*find_smp_config)(void);
 	void (*get_smp_config)(unsigned int early);
 };
 
@@ -91,6 +91,28 @@ struct x86_init_timers {
 };
 
 /**
+ * struct x86_init_iommu - platform specific iommu setup
+ * @iommu_init:			platform specific iommu setup
+ */
+struct x86_init_iommu {
+	int (*iommu_init)(void);
+};
+
+/**
+ * struct x86_init_pci - platform specific pci init functions
+ * @arch_init:			platform specific pci arch init call
+ * @init:			platform specific pci subsystem init
+ * @init_irq:			platform specific pci irq init
+ * @fixup_irqs:			platform specific pci irq fixup
+ */
+struct x86_init_pci {
+	int (*arch_init)(void);
+	int (*init)(void);
+	void (*init_irq)(void);
+	void (*fixup_irqs)(void);
+};
+
+/**
  * struct x86_init_ops - functions for platform specific setup
  *
  */
@@ -101,6 +123,8 @@ struct x86_init_ops {
 	struct x86_init_oem		oem;
 	struct x86_init_paging		paging;
 	struct x86_init_timers		timers;
+	struct x86_init_iommu		iommu;
+	struct x86_init_pci		pci;
 };
 
 /**
@@ -116,11 +140,18 @@ struct x86_cpuinit_ops {
  * @calibrate_tsc:		calibrate TSC
  * @get_wallclock:		get time from HW clock like RTC etc.
  * @set_wallclock:		set time back to HW clock
+ * @is_untracked_pat_range	exclude from PAT logic
+ * @nmi_init			enable NMI on cpus
+ * @i8042_detect		pre-detect if i8042 controller exists
  */
 struct x86_platform_ops {
 	unsigned long (*calibrate_tsc)(void);
 	unsigned long (*get_wallclock)(void);
 	int (*set_wallclock)(unsigned long nowtime);
+	void (*iommu_shutdown)(void);
+	bool (*is_untracked_pat_range)(u64 start, u64 end);
+	void (*nmi_init)(void);
+	int (*i8042_detect)(void);
 };
 
 extern struct x86_init_ops x86_init;

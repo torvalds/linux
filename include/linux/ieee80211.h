@@ -115,11 +115,30 @@
 #define IEEE80211_MAX_SSID_LEN		32
 
 #define IEEE80211_MAX_MESH_ID_LEN	32
-#define IEEE80211_MESH_CONFIG_LEN	24
 
 #define IEEE80211_QOS_CTL_LEN		2
 #define IEEE80211_QOS_CTL_TID_MASK	0x000F
 #define IEEE80211_QOS_CTL_TAG1D_MASK	0x0007
+
+/* U-APSD queue for WMM IEs sent by AP */
+#define IEEE80211_WMM_IE_AP_QOSINFO_UAPSD	(1<<7)
+
+/* U-APSD queues for WMM IEs sent by STA */
+#define IEEE80211_WMM_IE_STA_QOSINFO_AC_VO	(1<<0)
+#define IEEE80211_WMM_IE_STA_QOSINFO_AC_VI	(1<<1)
+#define IEEE80211_WMM_IE_STA_QOSINFO_AC_BK	(1<<2)
+#define IEEE80211_WMM_IE_STA_QOSINFO_AC_BE	(1<<3)
+#define IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK	0x0f
+
+/* U-APSD max SP length for WMM IEs sent by STA */
+#define IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL	0x00
+#define IEEE80211_WMM_IE_STA_QOSINFO_SP_2	0x01
+#define IEEE80211_WMM_IE_STA_QOSINFO_SP_4	0x02
+#define IEEE80211_WMM_IE_STA_QOSINFO_SP_6	0x03
+#define IEEE80211_WMM_IE_STA_QOSINFO_SP_MASK	0x03
+#define IEEE80211_WMM_IE_STA_QOSINFO_SP_SHIFT	5
+
+#define IEEE80211_HT_CTL_LEN		4
 
 struct ieee80211_hdr {
 	__le16 frame_control;
@@ -129,6 +148,25 @@ struct ieee80211_hdr {
 	u8 addr3[6];
 	__le16 seq_ctrl;
 	u8 addr4[6];
+} __attribute__ ((packed));
+
+struct ieee80211_hdr_3addr {
+	__le16 frame_control;
+	__le16 duration_id;
+	u8 addr1[6];
+	u8 addr2[6];
+	u8 addr3[6];
+	__le16 seq_ctrl;
+} __attribute__ ((packed));
+
+struct ieee80211_qos_hdr {
+	__le16 frame_control;
+	__le16 duration_id;
+	u8 addr1[6];
+	u8 addr2[6];
+	u8 addr3[6];
+	__le16 seq_ctrl;
+	__le16 qos_ctrl;
 } __attribute__ ((packed));
 
 /**
@@ -472,13 +510,23 @@ static inline int ieee80211_is_cfendack(__le16 fc)
 }
 
 /**
- * ieee80211_is_nullfunc - check if FTYPE=IEEE80211_FTYPE_DATA and STYPE=IEEE80211_STYPE_NULLFUNC
+ * ieee80211_is_nullfunc - check if frame is a regular (non-QoS) nullfunc frame
  * @fc: frame control bytes in little-endian byteorder
  */
 static inline int ieee80211_is_nullfunc(__le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_NULLFUNC);
+}
+
+/**
+ * ieee80211_is_qos_nullfunc - check if frame is a QoS nullfunc frame
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee80211_is_qos_nullfunc(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_QOS_NULLFUNC);
 }
 
 struct ieee80211s_hdr {
@@ -542,6 +590,35 @@ struct ieee80211_tim_ie {
 	u8 bitmap_ctrl;
 	/* variable size: 1 - 251 bytes */
 	u8 virtual_map[1];
+} __attribute__ ((packed));
+
+/**
+ * struct ieee80211_meshconf_ie
+ *
+ * This structure refers to "Mesh Configuration information element"
+ */
+struct ieee80211_meshconf_ie {
+	u8 meshconf_psel;
+	u8 meshconf_pmetric;
+	u8 meshconf_congest;
+	u8 meshconf_synch;
+	u8 meshconf_auth;
+	u8 meshconf_form;
+	u8 meshconf_cap;
+} __attribute__ ((packed));
+
+/**
+ * struct ieee80211_rann_ie
+ *
+ * This structure refers to "Root Announcement information element"
+ */
+struct ieee80211_rann_ie {
+	u8 rann_flags;
+	u8 rann_hopcount;
+	u8 rann_ttl;
+	u8 rann_addr[6];
+	u32 rann_seq;
+	u32 rann_metric;
 } __attribute__ ((packed));
 
 #define WLAN_SA_QUERY_TR_ID_LEN 2
@@ -669,6 +746,10 @@ struct ieee80211_mgmt {
 					u8 action;
 					u8 trans_id[WLAN_SA_QUERY_TR_ID_LEN];
 				} __attribute__ ((packed)) sa_query;
+				struct {
+					u8 action;
+					u8 smps_control;
+				} __attribute__ ((packed)) ht_smps;
 			} u;
 		} __attribute__ ((packed)) action;
 	} u;
@@ -733,7 +814,10 @@ struct ieee80211_bar {
 /**
  * struct ieee80211_mcs_info - MCS information
  * @rx_mask: RX mask
- * @rx_highest: highest supported RX rate
+ * @rx_highest: highest supported RX rate. If set represents
+ *	the highest supported RX data rate in units of 1 Mbps.
+ *	If this field is 0 this value should not be used to
+ *	consider the highest RX data rate supported.
  * @tx_params: TX parameters
  */
 struct ieee80211_mcs_info {
@@ -786,21 +870,24 @@ struct ieee80211_ht_cap {
 #define IEEE80211_HT_CAP_LDPC_CODING		0x0001
 #define IEEE80211_HT_CAP_SUP_WIDTH_20_40	0x0002
 #define IEEE80211_HT_CAP_SM_PS			0x000C
+#define		IEEE80211_HT_CAP_SM_PS_SHIFT	2
 #define IEEE80211_HT_CAP_GRN_FLD		0x0010
 #define IEEE80211_HT_CAP_SGI_20			0x0020
 #define IEEE80211_HT_CAP_SGI_40			0x0040
 #define IEEE80211_HT_CAP_TX_STBC		0x0080
 #define IEEE80211_HT_CAP_RX_STBC		0x0300
+#define		IEEE80211_HT_CAP_RX_STBC_SHIFT	8
 #define IEEE80211_HT_CAP_DELAY_BA		0x0400
 #define IEEE80211_HT_CAP_MAX_AMSDU		0x0800
 #define IEEE80211_HT_CAP_DSSSCCK40		0x1000
-#define IEEE80211_HT_CAP_PSMP_SUPPORT		0x2000
+#define IEEE80211_HT_CAP_RESERVED		0x2000
 #define IEEE80211_HT_CAP_40MHZ_INTOLERANT	0x4000
 #define IEEE80211_HT_CAP_LSIG_TXOP_PROT		0x8000
 
 /* 802.11n HT capability AMPDU settings (for ampdu_params_info) */
 #define IEEE80211_HT_AMPDU_PARM_FACTOR		0x03
 #define IEEE80211_HT_AMPDU_PARM_DENSITY		0x1C
+#define		IEEE80211_HT_AMPDU_PARM_DENSITY_SHIFT	2
 
 /*
  * Maximum length of AMPDU that the STA can receive.
@@ -884,11 +971,16 @@ struct ieee80211_ht_info {
 #define IEEE80211_MAX_AMPDU_BUF 0x40
 
 
-/* Spatial Multiplexing Power Save Modes */
+/* Spatial Multiplexing Power Save Modes (for capability) */
 #define WLAN_HT_CAP_SM_PS_STATIC	0
 #define WLAN_HT_CAP_SM_PS_DYNAMIC	1
 #define WLAN_HT_CAP_SM_PS_INVALID	2
 #define WLAN_HT_CAP_SM_PS_DISABLED	3
+
+/* for SM power control field lower two bits */
+#define WLAN_HT_SMPS_CONTROL_DISABLED	0
+#define WLAN_HT_SMPS_CONTROL_STATIC	1
+#define WLAN_HT_SMPS_CONTROL_DYNAMIC	3
 
 /* Authentication algorithms */
 #define WLAN_AUTH_OPEN 0
@@ -1033,12 +1125,12 @@ enum ieee80211_eid {
 	WLAN_EID_TIM = 5,
 	WLAN_EID_IBSS_PARAMS = 6,
 	WLAN_EID_CHALLENGE = 16,
-	/* 802.11d */
+
 	WLAN_EID_COUNTRY = 7,
 	WLAN_EID_HP_PARAMS = 8,
 	WLAN_EID_HP_TABLE = 9,
 	WLAN_EID_REQUEST = 10,
-	/* 802.11e */
+
 	WLAN_EID_QBSS_LOAD = 11,
 	WLAN_EID_EDCA_PARAM_SET = 12,
 	WLAN_EID_TSPEC = 13,
@@ -1060,7 +1152,8 @@ enum ieee80211_eid {
 	WLAN_EID_PREQ = 68,
 	WLAN_EID_PREP = 69,
 	WLAN_EID_PERR = 70,
-	/* 802.11h */
+	WLAN_EID_RANN = 49,	/* compatible with FreeBSD */
+
 	WLAN_EID_PWR_CONSTRAINT = 32,
 	WLAN_EID_PWR_CAPABILITY = 33,
 	WLAN_EID_TPC_REQUEST = 34,
@@ -1071,20 +1164,41 @@ enum ieee80211_eid {
 	WLAN_EID_MEASURE_REPORT = 39,
 	WLAN_EID_QUIET = 40,
 	WLAN_EID_IBSS_DFS = 41,
-	/* 802.11g */
+
 	WLAN_EID_ERP_INFO = 42,
 	WLAN_EID_EXT_SUPP_RATES = 50,
-	/* 802.11n */
+
 	WLAN_EID_HT_CAPABILITY = 45,
 	WLAN_EID_HT_INFORMATION = 61,
-	/* 802.11i */
+
 	WLAN_EID_RSN = 48,
-	WLAN_EID_TIMEOUT_INTERVAL = 56,
-	WLAN_EID_MMIE = 76 /* 802.11w */,
+	WLAN_EID_MMIE = 76,
 	WLAN_EID_WPA = 221,
 	WLAN_EID_GENERIC = 221,
 	WLAN_EID_VENDOR_SPECIFIC = 221,
-	WLAN_EID_QOS_PARAMETER = 222
+	WLAN_EID_QOS_PARAMETER = 222,
+
+	WLAN_EID_AP_CHAN_REPORT = 51,
+	WLAN_EID_NEIGHBOR_REPORT = 52,
+	WLAN_EID_RCPI = 53,
+	WLAN_EID_BSS_AVG_ACCESS_DELAY = 63,
+	WLAN_EID_ANTENNA_INFO = 64,
+	WLAN_EID_RSNI = 65,
+	WLAN_EID_MEASUREMENT_PILOT_TX_INFO = 66,
+	WLAN_EID_BSS_AVAILABLE_CAPACITY = 67,
+	WLAN_EID_BSS_AC_ACCESS_DELAY = 68,
+	WLAN_EID_RRM_ENABLED_CAPABILITIES = 70,
+	WLAN_EID_MULTIPLE_BSSID = 71,
+
+	WLAN_EID_MOBILITY_DOMAIN = 54,
+	WLAN_EID_FAST_BSS_TRANSITION = 55,
+	WLAN_EID_TIMEOUT_INTERVAL = 56,
+	WLAN_EID_RIC_DATA = 57,
+	WLAN_EID_RIC_DESCRIPTOR = 75,
+
+	WLAN_EID_DSE_REGISTERED_LOCATION = 58,
+	WLAN_EID_SUPPORTED_REGULATORY_CLASSES = 59,
+	WLAN_EID_EXT_CHANSWITCH_ANN = 60,
 };
 
 /* Action category code */
@@ -1098,6 +1212,8 @@ enum ieee80211_category {
 	WLAN_CATEGORY_SA_QUERY = 8,
 	WLAN_CATEGORY_PROTECTED_DUAL_OF_ACTION = 9,
 	WLAN_CATEGORY_WMM = 17,
+	WLAN_CATEGORY_MESH_PLINK = 30,		/* Pending ANA approval */
+	WLAN_CATEGORY_MESH_PATH_SEL = 32,	/* Pending ANA approval */
 	WLAN_CATEGORY_VENDOR_SPECIFIC_PROTECTED = 126,
 	WLAN_CATEGORY_VENDOR_SPECIFIC = 127,
 };
@@ -1109,6 +1225,18 @@ enum ieee80211_spectrum_mgmt_actioncode {
 	WLAN_ACTION_SPCT_TPC_REQ = 2,
 	WLAN_ACTION_SPCT_TPC_RPRT = 3,
 	WLAN_ACTION_SPCT_CHL_SWITCH = 4,
+};
+
+/* HT action codes */
+enum ieee80211_ht_actioncode {
+	WLAN_HT_ACTION_NOTIFY_CHANWIDTH = 0,
+	WLAN_HT_ACTION_SMPS = 1,
+	WLAN_HT_ACTION_PSMP = 2,
+	WLAN_HT_ACTION_PCO_PHASE = 3,
+	WLAN_HT_ACTION_CSI = 4,
+	WLAN_HT_ACTION_NONCOMPRESSED_BF = 5,
+	WLAN_HT_ACTION_COMPRESSED_BF = 6,
+	WLAN_HT_ACTION_ASEL_IDX_FEEDBACK = 7,
 };
 
 /* Security key length */
@@ -1199,7 +1327,6 @@ enum ieee80211_back_actioncode {
 enum ieee80211_back_parties {
 	WLAN_BACK_RECIPIENT = 0,
 	WLAN_BACK_INITIATOR = 1,
-	WLAN_BACK_TIMER = 2,
 };
 
 /* SA Query action */
@@ -1226,6 +1353,8 @@ enum ieee80211_sa_query_action {
 #define WLAN_AKM_SUITE_PSK		0x000FAC02
 
 #define WLAN_MAX_KEY_LEN		32
+
+#define WLAN_PMKID_LEN			16
 
 /**
  * ieee80211_get_qos_ctl - get pointer to qos control bytes

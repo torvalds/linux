@@ -140,7 +140,7 @@
  *     SYS_CLD, SYS_BOOTCS
  */
 #define REALVIEW_SYS_LOCK_LOCKED    (1 << 16)
-#define REALVIEW_SYS_LOCKVAL_MASK	0xA05F	       /* Enable write access */
+#define REALVIEW_SYS_LOCK_VAL	0xA05F	       /* Enable write access */
 
 /*
  * REALVIEW_SYS_FLASH
@@ -231,12 +231,6 @@
 #define REALVIEW_INTREG_OFFSET		0x8	/* Interrupt control */
 #define REALVIEW_DECODE_OFFSET		0xC	/* Fitted logic modules */
 
-/* 
- *  Clean base - dummy
- * 
- */
-#define CLEAN_BASE                      REALVIEW_BOOT_ROM_HI
-
 /*
  * System controller bit assignment
  */
@@ -248,20 +242,6 @@
 #define REALVIEW_TIMER3_EnSel	19
 #define REALVIEW_TIMER4_EnSel	21
 
-
-#define MAX_TIMER                       2
-#define MAX_PERIOD                      699050
-#define TICKS_PER_uSEC                  1
-
-/* 
- *  These are useconds NOT ticks.  
- * 
- */
-#define mSEC_1                          1000
-#define mSEC_5                          (mSEC_1 * 5)
-#define mSEC_10                         (mSEC_1 * 10)
-#define mSEC_25                         (mSEC_1 * 25)
-#define SEC_1                           (mSEC_1 * 1000)
 
 #define REALVIEW_CSR_BASE             0x10000000
 #define REALVIEW_CSR_SIZE             0x10000000

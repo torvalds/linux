@@ -76,6 +76,7 @@ int __percpu_counter_init(struct percpu_counter *fbc, s64 amount,
 	if (!fbc->counters)
 		return -ENOMEM;
 #ifdef CONFIG_HOTPLUG_CPU
+	INIT_LIST_HEAD(&fbc->list);
 	mutex_lock(&percpu_counters_lock);
 	list_add(&fbc->list, &percpu_counters);
 	mutex_unlock(&percpu_counters_lock);
@@ -136,6 +137,33 @@ static int __cpuinit percpu_counter_hotcpu_callback(struct notifier_block *nb,
 #endif
 	return NOTIFY_OK;
 }
+
+/*
+ * Compare counter against given value.
+ * Return 1 if greater, 0 if equal and -1 if less
+ */
+int percpu_counter_compare(struct percpu_counter *fbc, s64 rhs)
+{
+	s64	count;
+
+	count = percpu_counter_read(fbc);
+	/* Check to see if rough count will be sufficient for comparison */
+	if (abs(count - rhs) > (percpu_counter_batch*num_online_cpus())) {
+		if (count > rhs)
+			return 1;
+		else
+			return -1;
+	}
+	/* Need to use precise count */
+	count = percpu_counter_sum(fbc);
+	if (count > rhs)
+		return 1;
+	else if (count < rhs)
+		return -1;
+	else
+		return 0;
+}
+EXPORT_SYMBOL(percpu_counter_compare);
 
 static int __init percpu_counter_startup(void)
 {

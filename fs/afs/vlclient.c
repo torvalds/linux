@@ -9,6 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include "internal.h"

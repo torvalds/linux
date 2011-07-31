@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 #include <sound/core.h>
 #include <sound/tea575x-tuner.h>
@@ -225,7 +226,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	case V4L2_CID_AUDIO_MUTE:
 		if (tea->ops->mute) {
 			tea->ops->mute(tea, ctrl->value);
-			tea->mute = 1;
+			tea->mute = ctrl->value;
 			return 0;
 		}
 	}

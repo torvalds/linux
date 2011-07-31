@@ -16,6 +16,51 @@
 #include <linux/io.h>
 #include <linux/serial_sci.h>
 
+static struct plat_sci_port scif0_platform_data = {
+	.mapbase	= 0xffe00000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 40, 40, 40, 40 },
+};
+
+static struct platform_device scif0_device = {
+	.name		= "sh-sci",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &scif0_platform_data,
+	},
+};
+
+static struct plat_sci_port scif1_platform_data = {
+	.mapbase	= 0xffe08000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 76, 76, 76, 76 },
+};
+
+static struct platform_device scif1_device = {
+	.name		= "sh-sci",
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &scif1_platform_data,
+	},
+};
+
+static struct plat_sci_port scif2_platform_data = {
+	.mapbase	= 0xffe10000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 104, 104, 104, 104 },
+};
+
+static struct platform_device scif2_device = {
+	.name		= "sh-sci",
+	.id		= 2,
+	.dev		= {
+		.platform_data	= &scif2_platform_data,
+	},
+};
+
 static struct resource rtc_resources[] = {
 	[0] = {
 		.start	= 0xffe80000,
@@ -34,35 +79,6 @@ static struct platform_device rtc_device = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(rtc_resources),
 	.resource	= rtc_resources,
-};
-
-static struct plat_sci_port sci_platform_data[] = {
-	{
-		.mapbase	= 0xffe00000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 40, 40, 40, 40 },
-	}, {
-		.mapbase	= 0xffe08000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 76, 76, 76, 76 },
-	}, {
-		.mapbase	= 0xffe10000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 104, 104, 104, 104 },
-	}, {
-		.flags = 0,
-	}
-};
-
-static struct platform_device sci_device = {
-	.name		= "sh-sci",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= sci_platform_data,
-	},
 };
 
 static struct resource usb_ohci_resources[] = {
@@ -115,16 +131,13 @@ static struct platform_device usbf_device = {
 };
 
 static struct sh_timer_config tmu0_platform_data = {
-	.name = "TMU0",
 	.channel_offset = 0x04,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
 static struct resource tmu0_resources[] = {
 	[0] = {
-		.name	= "TMU0",
 		.start	= 0xffd80008,
 		.end	= 0xffd80013,
 		.flags	= IORESOURCE_MEM,
@@ -146,16 +159,13 @@ static struct platform_device tmu0_device = {
 };
 
 static struct sh_timer_config tmu1_platform_data = {
-	.name = "TMU1",
 	.channel_offset = 0x10,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 	.clocksource_rating = 200,
 };
 
 static struct resource tmu1_resources[] = {
 	[0] = {
-		.name	= "TMU1",
 		.start	= 0xffd80014,
 		.end	= 0xffd8001f,
 		.flags	= IORESOURCE_MEM,
@@ -177,15 +187,12 @@ static struct platform_device tmu1_device = {
 };
 
 static struct sh_timer_config tmu2_platform_data = {
-	.name = "TMU2",
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu2_resources[] = {
 	[0] = {
-		.name	= "TMU2",
 		.start	= 0xffd80020,
 		.end	= 0xffd8002f,
 		.flags	= IORESOURCE_MEM,
@@ -207,15 +214,12 @@ static struct platform_device tmu2_device = {
 };
 
 static struct sh_timer_config tmu3_platform_data = {
-	.name = "TMU3",
 	.channel_offset = 0x04,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu3_resources[] = {
 	[0] = {
-		.name	= "TMU3",
 		.start	= 0xffd88008,
 		.end	= 0xffd88013,
 		.flags	= IORESOURCE_MEM,
@@ -237,15 +241,12 @@ static struct platform_device tmu3_device = {
 };
 
 static struct sh_timer_config tmu4_platform_data = {
-	.name = "TMU4",
 	.channel_offset = 0x10,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu4_resources[] = {
 	[0] = {
-		.name	= "TMU4",
 		.start	= 0xffd88014,
 		.end	= 0xffd8801f,
 		.flags	= IORESOURCE_MEM,
@@ -267,15 +268,12 @@ static struct platform_device tmu4_device = {
 };
 
 static struct sh_timer_config tmu5_platform_data = {
-	.name = "TMU5",
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu5_resources[] = {
 	[0] = {
-		.name	= "TMU5",
 		.start	= 0xffd88020,
 		.end	= 0xffd8802b,
 		.flags	= IORESOURCE_MEM,
@@ -297,6 +295,9 @@ static struct platform_device tmu5_device = {
 };
 
 static struct platform_device *sh7763_devices[] __initdata = {
+	&scif0_device,
+	&scif1_device,
+	&scif2_device,
 	&tmu0_device,
 	&tmu1_device,
 	&tmu2_device,
@@ -304,7 +305,6 @@ static struct platform_device *sh7763_devices[] __initdata = {
 	&tmu4_device,
 	&tmu5_device,
 	&rtc_device,
-	&sci_device,
 	&usb_ohci_device,
 	&usbf_device,
 };
@@ -317,6 +317,9 @@ static int __init sh7763_devices_setup(void)
 arch_initcall(sh7763_devices_setup);
 
 static struct platform_device *sh7763_early_devices[] __initdata = {
+	&scif0_device,
+	&scif1_device,
+	&scif2_device,
 	&tmu0_device,
 	&tmu1_device,
 	&tmu2_device,
@@ -517,11 +520,11 @@ static DECLARE_INTC_DESC(intc_irl3210_desc, "sh7763-irl3210", irl_vectors,
 void __init plat_irq_setup(void)
 {
 	/* disable IRQ7-0 */
-	ctrl_outl(0xff000000, INTC_INTMSK0);
+	__raw_writel(0xff000000, INTC_INTMSK0);
 
 	/* disable IRL3-0 + IRL7-4 */
-	ctrl_outl(0xc0000000, INTC_INTMSK1);
-	ctrl_outl(0xfffefffe, INTC_INTMSK2);
+	__raw_writel(0xc0000000, INTC_INTMSK1);
+	__raw_writel(0xfffefffe, INTC_INTMSK2);
 
 	register_intc_controller(&intc_desc);
 }
@@ -531,27 +534,27 @@ void __init plat_irq_setup_pins(int mode)
 	switch (mode) {
 	case IRQ_MODE_IRQ:
 		/* select IRQ mode for IRL3-0 + IRL7-4 */
-		ctrl_outl(ctrl_inl(INTC_ICR0) | 0x00c00000, INTC_ICR0);
+		__raw_writel(__raw_readl(INTC_ICR0) | 0x00c00000, INTC_ICR0);
 		register_intc_controller(&intc_irq_desc);
 		break;
 	case IRQ_MODE_IRL7654:
 		/* enable IRL7-4 but don't provide any masking */
-		ctrl_outl(0x40000000, INTC_INTMSKCLR1);
-		ctrl_outl(0x0000fffe, INTC_INTMSKCLR2);
+		__raw_writel(0x40000000, INTC_INTMSKCLR1);
+		__raw_writel(0x0000fffe, INTC_INTMSKCLR2);
 		break;
 	case IRQ_MODE_IRL3210:
 		/* enable IRL0-3 but don't provide any masking */
-		ctrl_outl(0x80000000, INTC_INTMSKCLR1);
-		ctrl_outl(0xfffe0000, INTC_INTMSKCLR2);
+		__raw_writel(0x80000000, INTC_INTMSKCLR1);
+		__raw_writel(0xfffe0000, INTC_INTMSKCLR2);
 		break;
 	case IRQ_MODE_IRL7654_MASK:
 		/* enable IRL7-4 and mask using cpu intc controller */
-		ctrl_outl(0x40000000, INTC_INTMSKCLR1);
+		__raw_writel(0x40000000, INTC_INTMSKCLR1);
 		register_intc_controller(&intc_irl7654_desc);
 		break;
 	case IRQ_MODE_IRL3210_MASK:
 		/* enable IRL0-3 and mask using cpu intc controller */
-		ctrl_outl(0x80000000, INTC_INTMSKCLR1);
+		__raw_writel(0x80000000, INTC_INTMSKCLR1);
 		register_intc_controller(&intc_irl3210_desc);
 		break;
 	default:

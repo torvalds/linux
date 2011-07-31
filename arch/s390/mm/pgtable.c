@@ -6,11 +6,11 @@
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/swap.h>
 #include <linux/smp.h>
 #include <linux/highmem.h>
-#include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
@@ -269,7 +269,7 @@ int s390_enable_sie(void)
 	struct mm_struct *mm, *old_mm;
 
 	/* Do we have switched amode? If no, we cannot do sie */
-	if (!switch_amode)
+	if (user_mode == HOME_SPACE_MODE)
 		return -EINVAL;
 
 	/* Do we have pgstes? if yes, we are done */

@@ -17,7 +17,6 @@
 #include <linux/pci.h>
 #include <linux/io.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -354,7 +353,7 @@ int ssb_bus_scan(struct ssb_bus *bus,
 		dev->bus = bus;
 		dev->ops = bus->ops;
 
-		ssb_dprintk(KERN_INFO PFX
+		printk(KERN_DEBUG PFX
 			    "Core %d found: %s "
 			    "(cc 0x%03X, rev 0x%02X, vendor 0x%04X)\n",
 			    i, ssb_core_name(dev->id.coreid),

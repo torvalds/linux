@@ -24,6 +24,7 @@
 #include <linux/device.h>
 #include <linux/etherdevice.h>
 #include <linux/crc32.h>
+#include <linux/slab.h>
 
 #include "u_ether.h"
 
@@ -358,7 +359,7 @@ done:
 	 * b15:		bmType (0 == data)
 	 */
 	len = skb->len;
-	put_unaligned_le16((len & 0x3FFF) | BIT(14), skb_push(skb, 2));
+	put_unaligned_le16(len & 0x3FFF, skb_push(skb, 2));
 
 	/* add a zero-length EEM packet, if needed */
 	if (padlen)
@@ -464,13 +465,11 @@ static int eem_unwrap(struct gether *port,
 			}
 
 			/* validate CRC */
-			crc = get_unaligned_le32(skb->data + len - ETH_FCS_LEN);
 			if (header & BIT(14)) {
 				crc = get_unaligned_le32(skb->data + len
 							- ETH_FCS_LEN);
 				crc2 = ~crc32_le(~0,
-						skb->data,
-						skb->len - ETH_FCS_LEN);
+						skb->data, len - ETH_FCS_LEN);
 			} else {
 				crc = get_unaligned_be32(skb->data + len
 							- ETH_FCS_LEN);

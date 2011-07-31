@@ -83,7 +83,8 @@ u16_t zfFindElement(zdev_t* dev, zbuf_t* buf, u8_t eid)
 
     /* Get offset of first element */
     subType = (zmw_rx_buf_readb(dev, buf, 0) >> 4);
-    if ((offset = zgElementOffsetTable[subType]) == 0xff)
+    offset = zgElementOffsetTable[subType];
+    if (offset == 0xff)
     {
         zm_assert(0);
     }
@@ -107,10 +108,12 @@ u16_t zfFindElement(zdev_t* dev, zbuf_t* buf, u8_t eid)
     while ((offset+2)<bufLen)                   // including element ID and length (2bytes)
     {
         /* Search target element */
-        if ((id = zmw_rx_buf_readb(dev, buf, offset)) == eid)
+        id = zmw_rx_buf_readb(dev, buf, offset);
+        if (id == eid)
         {
             /* Bingo */
-            if ((elen = zmw_rx_buf_readb(dev, buf, offset+1))>(bufLen - offset))
+            elen = zmw_rx_buf_readb(dev, buf, offset+1);
+            if (elen > bufLen - offset)
             {
                 /* Element length error */
                 return 0xffff;
@@ -151,7 +154,8 @@ u16_t zfFindElement(zdev_t* dev, zbuf_t* buf, u8_t eid)
         #if 1
         elen = zmw_rx_buf_readb(dev, buf, offset+1);
         #else
-        if ((elen = zmw_rx_buf_readb(dev, buf, offset+1)) == 0)
+        elen = zmw_rx_buf_readb(dev, buf, offset+1);
+        if (elen == 0)
         {
             return 0xffff;
         }
@@ -194,7 +198,8 @@ u16_t zfFindWifiElement(zdev_t* dev, zbuf_t* buf, u8_t type, u8_t subtype)
     /* Get offset of first element */
     subType = (zmw_rx_buf_readb(dev, buf, 0) >> 4);
 
-    if ((offset = zgElementOffsetTable[subType]) == 0xff)
+    offset = zgElementOffsetTable[subType];
+    if (offset == 0xff)
     {
         zm_assert(0);
     }
@@ -207,10 +212,12 @@ u16_t zfFindWifiElement(zdev_t* dev, zbuf_t* buf, u8_t type, u8_t subtype)
     while ((offset+2)<bufLen)                   // including element ID and length (2bytes)
     {
         /* Search target element */
-        if ((id = zmw_rx_buf_readb(dev, buf, offset)) == ZM_WLAN_EID_WIFI_IE)
+        id = zmw_rx_buf_readb(dev, buf, offset);
+        if (id == ZM_WLAN_EID_WIFI_IE)
         {
             /* Bingo */
-            if ((elen = zmw_rx_buf_readb(dev, buf, offset+1))>(bufLen - offset))
+            elen = zmw_rx_buf_readb(dev, buf, offset+1);
+            if (elen > bufLen - offset)
             {
                 /* Element length error */
                 return 0xffff;
@@ -229,7 +236,8 @@ u16_t zfFindWifiElement(zdev_t* dev, zbuf_t* buf, u8_t type, u8_t subtype)
             {
                 if ( subtype != 0xff )
                 {
-                    if ( (tmp = zmw_rx_buf_readb(dev, buf, offset+6)) == subtype  )
+                    tmp = zmw_rx_buf_readb(dev, buf, offset+6);
+                    if (tmp == subtype)
                     {
                         return offset;
                     }
@@ -241,7 +249,8 @@ u16_t zfFindWifiElement(zdev_t* dev, zbuf_t* buf, u8_t type, u8_t subtype)
             }
         }
         /* Advance to next element */
-        if ((elen = zmw_rx_buf_readb(dev, buf, offset+1)) == 0)
+        elen = zmw_rx_buf_readb(dev, buf, offset+1);
+        if (elen == 0)
         {
             return 0xffff;
         }
@@ -346,11 +355,10 @@ u16_t zfFindSuperGElement(zdev_t* dev, zbuf_t* buf, u8_t type)
     u8_t super_feature;
     u8_t ouiSuperG[6] = {0x00,0x03,0x7f,0x01, 0x01, 0x00};
 
-    zmw_get_wlan_dev(dev);
-
     /* Get offset of first element */
     subType = (zmw_rx_buf_readb(dev, buf, 0) >> 4);
-    if ((offset = zgElementOffsetTable[subType]) == 0xff)
+    offset = zgElementOffsetTable[subType];
+    if (offset == 0xff)
     {
         zm_assert(0);
     }
@@ -363,10 +371,12 @@ u16_t zfFindSuperGElement(zdev_t* dev, zbuf_t* buf, u8_t type)
     while ((offset+2)<bufLen)                   // including element ID and length (2bytes)
     {
         /* Search target element */
-        if ((id = zmw_rx_buf_readb(dev, buf, offset)) == ZM_WLAN_EID_VENDOR_PRIVATE)
+        id = zmw_rx_buf_readb(dev, buf, offset);
+        if (id == ZM_WLAN_EID_VENDOR_PRIVATE)
         {
             /* Bingo */
-            if ((elen = zmw_rx_buf_readb(dev, buf, offset+1))>(bufLen - offset))
+            elen = zmw_rx_buf_readb(dev, buf, offset+1);
+            if (elen > bufLen - offset)
             {
                 /* Element length error */
                 return 0xffff;
@@ -391,7 +401,8 @@ u16_t zfFindSuperGElement(zdev_t* dev, zbuf_t* buf, u8_t type)
         #if 1
         elen = zmw_rx_buf_readb(dev, buf, offset+1);
         #else
-        if ((elen = zmw_rx_buf_readb(dev, buf, offset+1)) == 0)
+        elen = zmw_rx_buf_readb(dev, buf, offset+1);
+        if (elen == 0)
         {
             return 0xffff;
         }
@@ -411,11 +422,10 @@ u16_t zfFindXRElement(zdev_t* dev, zbuf_t* buf, u8_t type)
     u8_t id;
     u8_t ouixr[6] = {0x00,0x03,0x7f,0x03, 0x01, 0x00};
 
-    zmw_get_wlan_dev(dev);
-
     /* Get offset of first element */
     subType = (zmw_rx_buf_readb(dev, buf, 0) >> 4);
-    if ((offset = zgElementOffsetTable[subType]) == 0xff)
+    offset = zgElementOffsetTable[subType];
+    if (offset == 0xff)
     {
         zm_assert(0);
     }
@@ -428,10 +438,12 @@ u16_t zfFindXRElement(zdev_t* dev, zbuf_t* buf, u8_t type)
     while ((offset+2)<bufLen)                   // including element ID and length (2bytes)
     {
         /* Search target element */
-        if ((id = zmw_rx_buf_readb(dev, buf, offset)) == ZM_WLAN_EID_VENDOR_PRIVATE)
+        id = zmw_rx_buf_readb(dev, buf, offset);
+        if (id == ZM_WLAN_EID_VENDOR_PRIVATE)
         {
             /* Bingo */
-            if ((elen = zmw_rx_buf_readb(dev, buf, offset+1))>(bufLen - offset))
+            elen = zmw_rx_buf_readb(dev, buf, offset+1);
+            if (elen > bufLen - offset)
             {
                 /* Element length error */
                 return 0xffff;
@@ -451,7 +463,8 @@ u16_t zfFindXRElement(zdev_t* dev, zbuf_t* buf, u8_t type)
         #if 1
         elen = zmw_rx_buf_readb(dev, buf, offset+1);
         #else
-        if ((elen = zmw_rx_buf_readb(dev, buf, offset+1)) == 0)
+        elen = zmw_rx_buf_readb(dev, buf, offset+1);
+        if (elen == 0)
         {
             return 0xffff;
         }
@@ -872,7 +885,8 @@ void zfSendMmFrame(zdev_t* dev, u8_t frameType, u16_t* dst,
 
     zm_msg2_mm(ZM_LV_2, "Send mm frame, type=", frameType);
     /* TBD : Maximum size of management frame */
-    if ((buf = zfwBufAllocate(dev, 1024)) == NULL)
+    buf = zfwBufAllocate(dev, 1024);
+    if (buf == NULL)
     {
         zm_msg0_mm(ZM_LV_0, "Alloc mm buf Fail!");
         return;
@@ -1261,7 +1275,8 @@ void zfSendMmFrame(zdev_t* dev, u8_t frameType, u16_t* dst,
             {
               vap = (u16_t) p3;
 
-              if ((aid = zfApFindSta(dev, dst)) != 0xffff)
+              aid = zfApFindSta(dev, dst);
+              if (aid != 0xffff)
               {
                   zmw_enter_critical_section(dev);
                   /* Clear STA table */
@@ -1307,8 +1322,9 @@ void zfSendMmFrame(zdev_t* dev, u8_t frameType, u16_t* dst,
     //zm_msg2_mm(ZM_LV_2, "buf->data=", buf->data);
 
     #if 0
-    if ((err = zfHpSend(dev, NULL, 0, NULL, 0, NULL, 0, buf, 0,
-            ZM_INTERNAL_ALLOC_BUF, 0, 0xff)) != ZM_SUCCESS)
+    err = zfHpSend(dev, NULL, 0, NULL, 0, NULL, 0, buf, 0,
+		   ZM_INTERNAL_ALLOC_BUF, 0, 0xff);
+    if (err != ZM_SUCCESS)
     {
         goto zlError;
     }
@@ -1370,7 +1386,8 @@ void zfProcessManagement(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo* AddInf
         if ((ra[0] & 0x1) != 1)
         {
             /* AP : Find virtual AP */
-            if ((index = zfApFindSta(dev, ta)) != 0xffff)
+            index = zfApFindSta(dev, ta);
+            if (index != 0xffff)
             {
                 vap = wd->ap.staTable[index].vap;
             }
@@ -1428,7 +1445,7 @@ void zfProcessManagement(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo* AddInf
         {
                 /* Beacon */
             case ZM_WLAN_FRAME_TYPE_BEACON :
-                /* if enable 802.11h and current chanel is silent but receive beacon from other AP */
+                /* if enable 802.11h and current channel is silent but receive beacon from other AP */
                 if (((wd->regulationTable.allowChannel[wd->regulationTable.CurChIndex].channelFlags
                         & ZM_REG_FLAG_CHANNEL_CSA) != 0) && wd->sta.DFSEnable)
                 {
@@ -1469,7 +1486,7 @@ void zfProcessManagement(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo* AddInf
                 break;
                 /* Probe response */
             case ZM_WLAN_FRAME_TYPE_PROBERSP :
-                /* if enable 802.11h and current chanel is silent but receive probe response from other AP */
+                /* if enable 802.11h and current channel is silent but receive probe response from other AP */
                 if (((wd->regulationTable.allowChannel[wd->regulationTable.CurChIndex].channelFlags
                         & ZM_REG_FLAG_CHANNEL_CSA) != 0) && wd->sta.DFSEnable)
                 {
@@ -1538,7 +1555,8 @@ void zfProcessProbeReq(zdev_t* dev, zbuf_t* buf, u16_t* src)
     }
 
     /* check SSID */
-    if ((offset = zfFindElement(dev, buf, ZM_WLAN_EID_SSID)) == 0xffff)
+    offset = zfFindElement(dev, buf, ZM_WLAN_EID_SSID);
+    if (offset == 0xffff)
     {
         zm_msg0_mm(ZM_LV_3, "probe req SSID not found");
         return;
@@ -1565,8 +1583,8 @@ void zfProcessProbeReq(zdev_t* dev, zbuf_t* buf, u16_t* src)
             {
                 for (j=0; j<len; j++)
                 {
-                    if ((ch = zmw_rx_buf_readb(dev, buf, offset+2+j))
-                            != wd->ap.ssid[i][j])
+                    ch = zmw_rx_buf_readb(dev, buf, offset+2+j);
+                    if (ch != wd->ap.ssid[i][j])
                     {
                         break;
                     }
@@ -1818,7 +1836,8 @@ u16_t zfFindATHExtCap(zdev_t* dev, zbuf_t* buf, u8_t type, u8_t subtype)
     /* Get offset of first element */
     subType = (zmw_rx_buf_readb(dev, buf, 0) >> 4);
 
-    if ((offset = zgElementOffsetTable[subType]) == 0xff)
+    offset = zgElementOffsetTable[subType];
+    if (offset == 0xff)
     {
         zm_assert(0);
     }
@@ -1832,10 +1851,12 @@ u16_t zfFindATHExtCap(zdev_t* dev, zbuf_t* buf, u8_t type, u8_t subtype)
     while ((offset+2)<bufLen)                   // including element ID and length (2bytes)
     {
         /* Search target element */
-        if ((id = zmw_rx_buf_readb(dev, buf, offset)) == ZM_WLAN_EID_WIFI_IE)
+        id = zmw_rx_buf_readb(dev, buf, offset);
+        if (id == ZM_WLAN_EID_WIFI_IE)
         {
             /* Bingo */
-            if ((elen = zmw_rx_buf_readb(dev, buf, offset+1))>(bufLen - offset))
+            elen = zmw_rx_buf_readb(dev, buf, offset+1);
+            if (elen > bufLen - offset)
             {
                 /* Element length error */
                 return 0xffff;
@@ -1854,7 +1875,8 @@ u16_t zfFindATHExtCap(zdev_t* dev, zbuf_t* buf, u8_t type, u8_t subtype)
             {
                 if ( subtype != 0xff )
                 {
-                    if ( (tmp = zmw_rx_buf_readb(dev, buf, offset+6)) == subtype  )
+                    tmp = zmw_rx_buf_readb(dev, buf, offset+6);
+                    if (tmp == subtype  )
                     {
                         return offset;
                     }
@@ -1867,7 +1889,8 @@ u16_t zfFindATHExtCap(zdev_t* dev, zbuf_t* buf, u8_t type, u8_t subtype)
         }
 
         /* Advance to next element */
-        if ((elen = zmw_rx_buf_readb(dev, buf, offset+1)) == 0)
+        elen = zmw_rx_buf_readb(dev, buf, offset+1);
+        if (elen == 0)
         {
             return 0xffff;
         }
@@ -1888,7 +1911,8 @@ u16_t zfFindBrdcmMrvlRlnkExtCap(zdev_t* dev, zbuf_t* buf)
     /* Get offset of first element */
     subType = (zmw_rx_buf_readb(dev, buf, 0) >> 4);
 
-    if ((offset = zgElementOffsetTable[subType]) == 0xff)
+    offset = zgElementOffsetTable[subType];
+    if (offset == 0xff)
     {
         zm_assert(0);
     }
@@ -1902,10 +1926,12 @@ u16_t zfFindBrdcmMrvlRlnkExtCap(zdev_t* dev, zbuf_t* buf)
     while ((offset+2)<bufLen)                   // including element ID and length (2bytes)
     {
         /* Search target element */
-        if ((id = zmw_rx_buf_readb(dev, buf, offset)) == ZM_WLAN_EID_WIFI_IE)
+        id = zmw_rx_buf_readb(dev, buf, offset);
+        if (id == ZM_WLAN_EID_WIFI_IE)
         {
             /* Bingo */
-            if ((elen = zmw_rx_buf_readb(dev, buf, offset+1))>(bufLen - offset))
+            elen = zmw_rx_buf_readb(dev, buf, offset+1);
+            if (elen > bufLen - offset)
             {
                 /* Element length error */
                 return 0xffff;
@@ -1934,7 +1960,8 @@ u16_t zfFindBrdcmMrvlRlnkExtCap(zdev_t* dev, zbuf_t* buf)
         else if ((id = zmw_rx_buf_readb(dev, buf, offset)) == 0x7F)
         {
             /* Bingo */
-            if ((elen = zmw_rx_buf_readb(dev, buf, offset+1))>(bufLen - offset))
+            elen = zmw_rx_buf_readb(dev, buf, offset+1);
+            if (elen > bufLen - offset)
             {
                 /* Element length error */
                 return 0xffff;
@@ -1945,7 +1972,8 @@ u16_t zfFindBrdcmMrvlRlnkExtCap(zdev_t* dev, zbuf_t* buf)
                 return 0xffff;
             }
 
-            if ((tmp = zmw_rx_buf_readb(dev, buf, offset+2)) == 0x01)
+            tmp = zmw_rx_buf_readb(dev, buf, offset+2);
+            if (tmp == 0x01)
 
             {
                 return offset;
@@ -1953,7 +1981,8 @@ u16_t zfFindBrdcmMrvlRlnkExtCap(zdev_t* dev, zbuf_t* buf)
         }
 
         /* Advance to next element */
-        if ((elen = zmw_rx_buf_readb(dev, buf, offset+1)) == 0)
+        elen = zmw_rx_buf_readb(dev, buf, offset+1);
+        if (elen == 0)
         {
             return 0xffff;
         }
@@ -1974,7 +2003,8 @@ u16_t zfFindMarvelExtCap(zdev_t* dev, zbuf_t* buf)
     /* Get offset of first element */
     subType = (zmw_rx_buf_readb(dev, buf, 0) >> 4);
 
-    if ((offset = zgElementOffsetTable[subType]) == 0xff)
+    offset = zgElementOffsetTable[subType];
+    if (offset == 0xff)
     {
         zm_assert(0);
     }
@@ -1988,10 +2018,12 @@ u16_t zfFindMarvelExtCap(zdev_t* dev, zbuf_t* buf)
     while ((offset+2)<bufLen)                   // including element ID and length (2bytes)
     {
         /* Search target element */
-        if ((id = zmw_rx_buf_readb(dev, buf, offset)) == ZM_WLAN_EID_WIFI_IE)
+        id = zmw_rx_buf_readb(dev, buf, offset);
+        if (id == ZM_WLAN_EID_WIFI_IE)
         {
             /* Bingo */
-            if ((elen = zmw_rx_buf_readb(dev, buf, offset+1))>(bufLen - offset))
+            elen = zmw_rx_buf_readb(dev, buf, offset+1);
+            if (elen>(bufLen - offset))
             {
                 /* Element length error */
                 return 0xffff;
@@ -2012,7 +2044,8 @@ u16_t zfFindMarvelExtCap(zdev_t* dev, zbuf_t* buf)
         }
 
         /* Advance to next element */
-        if ((elen = zmw_rx_buf_readb(dev, buf, offset+1)) == 0)
+        elen = zmw_rx_buf_readb(dev, buf, offset+1);
+        if (elen == 0)
         {
             return 0xffff;
         }
@@ -2033,7 +2066,8 @@ u16_t zfFindBroadcomExtCap(zdev_t* dev, zbuf_t* buf)
     /* Get offset of first element */
     subType = (zmw_rx_buf_readb(dev, buf, 0) >> 4);
 
-    if ((offset = zgElementOffsetTable[subType]) == 0xff)
+    offset = zgElementOffsetTable[subType];
+    if (offset == 0xff)
     {
         zm_assert(0);
     }
@@ -2047,10 +2081,12 @@ u16_t zfFindBroadcomExtCap(zdev_t* dev, zbuf_t* buf)
     while((offset+2) < bufLen)                   // including element ID and length (2bytes)
     {
         /* Search target element */
-        if ((id = zmw_rx_buf_readb(dev, buf, offset)) == ZM_WLAN_EID_WIFI_IE)
+        id = zmw_rx_buf_readb(dev, buf, offset);
+        if (id == ZM_WLAN_EID_WIFI_IE)
         {
             /* Bingo */
-            if ((elen = zmw_rx_buf_readb(dev, buf, offset+1)) > (bufLen - offset))
+            elen = zmw_rx_buf_readb(dev, buf, offset+1);
+            if (elen > (bufLen - offset))
             {
                 /* Element length error */
                 return 0xffff;
@@ -2070,7 +2106,8 @@ u16_t zfFindBroadcomExtCap(zdev_t* dev, zbuf_t* buf)
         }
 
         /* Advance to next element */
-        if ((elen = zmw_rx_buf_readb(dev, buf, offset+1)) == 0)
+        elen = zmw_rx_buf_readb(dev, buf, offset+1);
+        if (elen == 0)
         {
             return 0xffff;
         }
@@ -2093,7 +2130,8 @@ u16_t zfFindRlnkExtCap(zdev_t* dev, zbuf_t* buf)
     /* Get offset of first element */
     subType = (zmw_rx_buf_readb(dev, buf, 0) >> 4);
 
-    if ((offset = zgElementOffsetTable[subType]) == 0xff)
+    offset = zgElementOffsetTable[subType];
+    if (offset == 0xff)
     {
         zm_assert(0);
     }
@@ -2107,10 +2145,12 @@ u16_t zfFindRlnkExtCap(zdev_t* dev, zbuf_t* buf)
     while((offset+2) < bufLen)                   // including element ID and length (2bytes)
     {
         /* Search target element */
-        if ((id = zmw_rx_buf_readb(dev, buf, offset)) == 0x7F)
+        id = zmw_rx_buf_readb(dev, buf, offset);
+        if (id == 0x7F)
         {
             /* Bingo */
-            if ((elen = zmw_rx_buf_readb(dev, buf, offset+1)) > (bufLen - offset))
+            elen = zmw_rx_buf_readb(dev, buf, offset+1);
+            if (elen > bufLen - offset)
             {
                 /* Element length error */
                 return 0xffff;
@@ -2121,7 +2161,8 @@ u16_t zfFindRlnkExtCap(zdev_t* dev, zbuf_t* buf)
                 return 0xffff;
             }
 
-            if ((tmp = zmw_rx_buf_readb(dev, buf, offset+2)) == 0x01)
+            tmp = zmw_rx_buf_readb(dev, buf, offset+2);
+            if (tmp == 0x01)
 
             {
                 return offset;
@@ -2129,7 +2170,8 @@ u16_t zfFindRlnkExtCap(zdev_t* dev, zbuf_t* buf)
         }
 
         /* Advance to next element */
-        if ((elen = zmw_rx_buf_readb(dev, buf, offset+1)) == 0)
+        elen = zmw_rx_buf_readb(dev, buf, offset+1);
+        if (elen == 0)
         {
             return 0xffff;
         }

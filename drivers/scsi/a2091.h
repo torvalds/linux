@@ -12,39 +12,39 @@
 #include <linux/types.h>
 
 #ifndef CMD_PER_LUN
-#define CMD_PER_LUN 2
+#define CMD_PER_LUN		2
 #endif
 
 #ifndef CAN_QUEUE
-#define CAN_QUEUE 16
+#define CAN_QUEUE		16
 #endif
 
 /*
  * if the transfer address ANDed with this results in a non-zero
  * result, then we can't use DMA.
  */
-#define A2091_XFER_MASK  (0xff000001)
+#define A2091_XFER_MASK		(0xff000001)
 
-typedef struct {
-             unsigned char      pad1[64];
-    volatile unsigned short     ISTR;
-    volatile unsigned short     CNTR;
-             unsigned char      pad2[60];
-    volatile unsigned int       WTC;
-    volatile unsigned long      ACR;
-             unsigned char      pad3[6];
-    volatile unsigned short     DAWR;
-             unsigned char      pad4;
-    volatile unsigned char      SASR;
-             unsigned char      pad5;
-    volatile unsigned char      SCMD;
-             unsigned char      pad6[76];
-    volatile unsigned short     ST_DMA;
-    volatile unsigned short     SP_DMA;
-    volatile unsigned short     CINT;
-             unsigned char      pad7[2];
-    volatile unsigned short     FLUSH;
-} a2091_scsiregs;
+struct a2091_scsiregs {
+		 unsigned char	pad1[64];
+	volatile unsigned short	ISTR;
+	volatile unsigned short	CNTR;
+		 unsigned char	pad2[60];
+	volatile unsigned int	WTC;
+	volatile unsigned long	ACR;
+		 unsigned char	pad3[6];
+	volatile unsigned short	DAWR;
+		 unsigned char	pad4;
+	volatile unsigned char	SASR;
+		 unsigned char	pad5;
+	volatile unsigned char	SCMD;
+		 unsigned char	pad6[76];
+	volatile unsigned short	ST_DMA;
+	volatile unsigned short	SP_DMA;
+	volatile unsigned short	CINT;
+		 unsigned char	pad7[2];
+	volatile unsigned short	FLUSH;
+};
 
 #define DAWR_A2091		(3)
 

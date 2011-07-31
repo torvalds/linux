@@ -23,6 +23,7 @@
 #include <linux/hdlc.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <net/arp.h>
 
 #include <asm/irq.h>
@@ -84,8 +85,7 @@ static int sealevel_open(struct net_device *d)
 	 *	Link layer up.
 	 */
 
-	switch (unit)
-	{
+	switch (unit) {
 		case 0:
 			err = z8530_sync_dma_open(d, slvl->chan);
 			break;
@@ -133,8 +133,7 @@ static int sealevel_close(struct net_device *d)
 	hdlc_close(d);
 	netif_stop_queue(d);
 
-	switch (unit)
-	{
+	switch (unit) {
 		case 0:
 			z8530_sync_dma_close(d, slvl->chan);
 			break;
@@ -266,7 +265,7 @@ static __init struct slvl_board *slvl_init(int iobase, int irq,
 	/* We want a fast IRQ for this device. Actually we'd like an even faster
 	   IRQ ;) - This is one driver RtLinux is made for */
 
-	if (request_irq(irq, &z8530_interrupt, IRQF_DISABLED,
+	if (request_irq(irq, z8530_interrupt, IRQF_DISABLED,
 			"SeaLevel", dev) < 0) {
 		printk(KERN_WARNING "sealevel: IRQ %d already in use.\n", irq);
 		goto err_request_irq;
@@ -342,8 +341,7 @@ static void __exit slvl_shutdown(struct slvl_board *b)
 
 	z8530_shutdown(&b->board);
 
-	for (u = 0; u < 2; u++)
-	{
+	for (u = 0; u < 2; u++) {
 		struct net_device *d = b->dev[u].chan->netdevice;
 		unregister_hdlc_device(d);
 		free_netdev(d);
@@ -391,7 +389,7 @@ static int __init slvl_init_module(void)
 
 static void __exit slvl_cleanup_module(void)
 {
-	if(slvl_unit)
+	if (slvl_unit)
 		slvl_shutdown(slvl_unit);
 }
 

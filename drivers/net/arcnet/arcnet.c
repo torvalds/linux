@@ -301,8 +301,8 @@ static int choose_mtu(void)
 
 	/* choose the smallest MTU of all available encaps */
 	for (count = 0; count < 256; count++) {
-		if (arc_proto_map[count] != &arc_proto_null
-		    && arc_proto_map[count]->mtu < mtu) {
+		if (arc_proto_map[count] != &arc_proto_null &&
+		    arc_proto_map[count]->mtu < mtu) {
 			mtu = arc_proto_map[count]->mtu;
 		}
 	}
@@ -654,7 +654,6 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 			}
 		}
 		retval = NETDEV_TX_OK;
-		dev->trans_start = jiffies;
 		lp->next_tx = txbuf;
 	} else {
 		retval = NETDEV_TX_BUSY;
@@ -953,13 +952,13 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 				 *    > RECON_THRESHOLD/min;
 				 * then print a warning message.
 				 */
-				if (!lp->network_down
-				    && (lp->last_recon - lp->first_recon) <= HZ * 60
-				  && lp->num_recons >= RECON_THRESHOLD) {
+				if (!lp->network_down &&
+				    (lp->last_recon - lp->first_recon) <= HZ * 60 &&
+				    lp->num_recons >= RECON_THRESHOLD) {
 					lp->network_down = 1;
 					BUGMSG(D_NORMAL, "many reconfigurations detected: cabling problem?\n");
-				} else if (!lp->network_down
-					   && lp->last_recon - lp->first_recon > HZ * 60) {
+				} else if (!lp->network_down &&
+					   lp->last_recon - lp->first_recon > HZ * 60) {
 					/* reset counters if we've gone for over a minute. */
 					lp->first_recon = lp->last_recon;
 					lp->num_recons = 1;

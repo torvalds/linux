@@ -1,4 +1,5 @@
-/* ov772x Camera
+/*
+ * ov772x Camera
  *
  * Copyright (C) 2008 Renesas Solutions Corp.
  * Kuninori Morimoto <morimoto.kuninori@renesas.com>
@@ -14,8 +15,9 @@
 #include <media/soc_camera.h>
 
 /* for flags */
-#define OV772X_FLAG_VFLIP     0x00000001 /* Vertical flip image */
-#define OV772X_FLAG_HFLIP     0x00000002 /* Horizontal flip image */
+#define OV772X_FLAG_VFLIP	(1 << 0) /* Vertical flip image */
+#define OV772X_FLAG_HFLIP	(1 << 1) /* Horizontal flip image */
+#define OV772X_FLAG_8BIT	(1 << 2) /* default 10 bit */
 
 /*
  * for Edge ctrl
@@ -52,10 +54,8 @@ struct ov772x_edge_ctrl {
  * ov772x camera info
  */
 struct ov772x_camera_info {
-	unsigned long          buswidth;
-	unsigned long          flags;
-	struct soc_camera_link link;
-	struct ov772x_edge_ctrl edgectrl;
+	unsigned long		flags;
+	struct ov772x_edge_ctrl	edgectrl;
 };
 
 #endif /* __OV772X_H__ */

@@ -13,7 +13,7 @@ KBUILD_DEFCONFIG	:= atstk1002_defconfig
 
 KBUILD_CFLAGS	+= -pipe -fno-builtin -mno-pic
 KBUILD_AFLAGS	+= -mrelax -mno-pic
-CFLAGS_MODULE	+= -mno-relax
+KBUILD_CFLAGS_MODULE += -mno-relax
 LDFLAGS_vmlinux	+= --relax
 
 cpuflags-$(CONFIG_PLATFORM_AT32AP)	+= -march=ap
@@ -32,7 +32,7 @@ head-$(CONFIG_LOADER_U_BOOT)		+= arch/avr32/boot/u-boot/head.o
 head-y					+= arch/avr32/kernel/head.o
 core-y					+= $(machdirs)
 core-$(CONFIG_BOARD_ATSTK1000)		+= arch/avr32/boards/atstk1000/
-core-$(CONFIG_BOARD_ATNGW100)		+= arch/avr32/boards/atngw100/
+core-$(CONFIG_BOARD_ATNGW100_COMMON)	+= arch/avr32/boards/atngw100/
 core-$(CONFIG_BOARD_HAMMERHEAD)		+= arch/avr32/boards/hammerhead/
 core-$(CONFIG_BOARD_FAVR_32)		+= arch/avr32/boards/favr-32/
 core-$(CONFIG_BOARD_MERISC)		+= arch/avr32/boards/merisc/

@@ -18,9 +18,9 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"00.00.04.01"
-#define MEGASAS_RELDATE				"July 24, 2008"
-#define MEGASAS_EXT_VERSION			"Thu July 24 11:41:51 PST 2008"
+#define MEGASAS_VERSION			"00.00.04.17.1-rc1"
+#define MEGASAS_RELDATE			"Oct. 29, 2009"
+#define MEGASAS_EXT_VERSION		"Thu. Oct. 29, 11:41:51 PST 2009"
 
 /*
  * Device IDs
@@ -30,6 +30,8 @@
 #define	PCI_DEVICE_ID_LSI_VERDE_ZCR		0x0413
 #define	PCI_DEVICE_ID_LSI_SAS1078GEN2		0x0078
 #define	PCI_DEVICE_ID_LSI_SAS0079GEN2		0x0079
+#define	PCI_DEVICE_ID_LSI_SAS0073SKINNY		0x0073
+#define	PCI_DEVICE_ID_LSI_SAS0071SKINNY		0x0071
 
 /*
  * =====================================
@@ -94,6 +96,7 @@
 #define MFI_FRAME_DIR_WRITE			0x0008
 #define MFI_FRAME_DIR_READ			0x0010
 #define MFI_FRAME_DIR_BOTH			0x0018
+#define MFI_FRAME_IEEE                          0x0020
 
 /*
  * Definition for cmd_status
@@ -114,6 +117,7 @@
 #define MFI_CMD_STP				0x08
 
 #define MR_DCMD_CTRL_GET_INFO			0x01010000
+#define MR_DCMD_LD_GET_LIST			0x03010000
 
 #define MR_DCMD_CTRL_CACHE_FLUSH		0x01101000
 #define MR_FLUSH_CTRL_CACHE			0x01
@@ -131,6 +135,7 @@
 #define MR_DCMD_CLUSTER				0x08000000
 #define MR_DCMD_CLUSTER_RESET_ALL		0x08010100
 #define MR_DCMD_CLUSTER_RESET_LD		0x08010200
+#define MR_DCMD_PD_LIST_QUERY                   0x02010100
 
 /*
  * MFI command completion codes
@@ -251,8 +256,125 @@ enum MR_EVT_ARGS {
 	MR_EVT_ARGS_STR,
 	MR_EVT_ARGS_TIME,
 	MR_EVT_ARGS_ECC,
-
+	MR_EVT_ARGS_LD_PROP,
+	MR_EVT_ARGS_PD_SPARE,
+	MR_EVT_ARGS_PD_INDEX,
+	MR_EVT_ARGS_DIAG_PASS,
+	MR_EVT_ARGS_DIAG_FAIL,
+	MR_EVT_ARGS_PD_LBA_LBA,
+	MR_EVT_ARGS_PORT_PHY,
+	MR_EVT_ARGS_PD_MISSING,
+	MR_EVT_ARGS_PD_ADDRESS,
+	MR_EVT_ARGS_BITMAP,
+	MR_EVT_ARGS_CONNECTOR,
+	MR_EVT_ARGS_PD_PD,
+	MR_EVT_ARGS_PD_FRU,
+	MR_EVT_ARGS_PD_PATHINFO,
+	MR_EVT_ARGS_PD_POWER_STATE,
+	MR_EVT_ARGS_GENERIC,
 };
+
+/*
+ * define constants for device list query options
+ */
+enum MR_PD_QUERY_TYPE {
+	MR_PD_QUERY_TYPE_ALL                = 0,
+	MR_PD_QUERY_TYPE_STATE              = 1,
+	MR_PD_QUERY_TYPE_POWER_STATE        = 2,
+	MR_PD_QUERY_TYPE_MEDIA_TYPE         = 3,
+	MR_PD_QUERY_TYPE_SPEED              = 4,
+	MR_PD_QUERY_TYPE_EXPOSED_TO_HOST    = 5,
+};
+
+#define MR_EVT_CFG_CLEARED                              0x0004
+#define MR_EVT_LD_STATE_CHANGE                          0x0051
+#define MR_EVT_PD_INSERTED                              0x005b
+#define MR_EVT_PD_REMOVED                               0x0070
+#define MR_EVT_LD_CREATED                               0x008a
+#define MR_EVT_LD_DELETED                               0x008b
+#define MR_EVT_FOREIGN_CFG_IMPORTED                     0x00db
+#define MR_EVT_LD_OFFLINE                               0x00fc
+#define MR_EVT_CTRL_HOST_BUS_SCAN_REQUESTED             0x0152
+#define MAX_LOGICAL_DRIVES				64
+
+enum MR_PD_STATE {
+	MR_PD_STATE_UNCONFIGURED_GOOD   = 0x00,
+	MR_PD_STATE_UNCONFIGURED_BAD    = 0x01,
+	MR_PD_STATE_HOT_SPARE           = 0x02,
+	MR_PD_STATE_OFFLINE             = 0x10,
+	MR_PD_STATE_FAILED              = 0x11,
+	MR_PD_STATE_REBUILD             = 0x14,
+	MR_PD_STATE_ONLINE              = 0x18,
+	MR_PD_STATE_COPYBACK            = 0x20,
+	MR_PD_STATE_SYSTEM              = 0x40,
+ };
+
+
+ /*
+ * defines the physical drive address structure
+ */
+struct MR_PD_ADDRESS {
+	u16     deviceId;
+	u16     enclDeviceId;
+
+	union {
+		struct {
+			u8  enclIndex;
+			u8  slotNumber;
+		} mrPdAddress;
+		struct {
+			u8  enclPosition;
+			u8  enclConnectorIndex;
+		} mrEnclAddress;
+	};
+	u8      scsiDevType;
+	union {
+		u8      connectedPortBitmap;
+		u8      connectedPortNumbers;
+	};
+	u64     sasAddr[2];
+} __packed;
+
+/*
+ * defines the physical drive list structure
+ */
+struct MR_PD_LIST {
+	u32             size;
+	u32             count;
+	struct MR_PD_ADDRESS   addr[1];
+} __packed;
+
+struct megasas_pd_list {
+	u16             tid;
+	u8             driveType;
+	u8             driveState;
+} __packed;
+
+ /*
+ * defines the logical drive reference structure
+ */
+union  MR_LD_REF {
+	struct {
+		u8      targetId;
+		u8      reserved;
+		u16     seqNum;
+	};
+	u32     ref;
+} __packed;
+
+/*
+ * defines the logical drive list structure
+ */
+struct MR_LD_LIST {
+	u32     ldCount;
+	u32     reserved;
+	struct {
+		union MR_LD_REF   ref;
+		u8          state;
+		u8          reserved[3];
+		u64         size;
+	} ldList[MAX_LOGICAL_DRIVES];
+} __packed;
 
 /*
  * SAS controller properties
@@ -282,7 +404,7 @@ struct megasas_ctrl_prop {
 	u8 expose_encl_devices;
 	u8 reserved[38];
 
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * SAS controller information
@@ -525,7 +647,7 @@ struct megasas_ctrl_info {
 
 	u8 pad[0x800 - 0x6a0];
 
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * ===============================
@@ -540,6 +662,10 @@ struct megasas_ctrl_info {
 #define MEGASAS_DEFAULT_INIT_ID			-1
 #define MEGASAS_MAX_LUN				8
 #define MEGASAS_MAX_LD				64
+#define MEGASAS_MAX_PD                          (MEGASAS_MAX_PD_CHANNELS * \
+						MEGASAS_MAX_DEV_PER_CHANNEL)
+#define MEGASAS_MAX_LD_IDS			(MEGASAS_MAX_LD_CHANNELS * \
+						MEGASAS_MAX_DEV_PER_CHANNEL)
 
 #define MEGASAS_DBG_LVL				1
 
@@ -570,6 +696,7 @@ struct megasas_ctrl_info {
  * is shown below
  */
 #define MEGASAS_INT_CMDS			32
+#define MEGASAS_SKINNY_INT_CMDS			5
 
 /*
  * FW can accept both 32 and 64 bit SGLs. We want to allocate 32/64 bit
@@ -584,6 +711,8 @@ struct megasas_ctrl_info {
 #define MFI_REPLY_1078_MESSAGE_INTERRUPT	0x80000000
 #define MFI_REPLY_GEN2_MESSAGE_INTERRUPT	0x00000001
 #define MFI_GEN2_ENABLE_INTERRUPT_MASK		(0x00000001 | 0x00000004)
+#define MFI_REPLY_SKINNY_MESSAGE_INTERRUPT	0x40000000
+#define MFI_SKINNY_ENABLE_INTERRUPT_MASK	(0x00000001)
 
 /*
 * register set for both 1068 and 1078 controllers
@@ -644,10 +773,17 @@ struct megasas_sge64 {
 
 } __attribute__ ((packed));
 
+struct megasas_sge_skinny {
+	u64 phys_addr;
+	u32 length;
+	u32 flag;
+} __packed;
+
 union megasas_sgl {
 
 	struct megasas_sge32 sge32[1];
 	struct megasas_sge64 sge64[1];
+	struct megasas_sge_skinny sge_skinny[1];
 
 } __attribute__ ((packed));
 
@@ -1061,16 +1197,10 @@ struct megasas_evt_detail {
 
 } __attribute__ ((packed));
 
- struct megasas_instance_template {
-	void (*fire_cmd)(dma_addr_t ,u32 ,struct megasas_register_set __iomem *);
-
-	void (*enable_intr)(struct megasas_register_set __iomem *) ;
-	void (*disable_intr)(struct megasas_register_set __iomem *);
-
-	int (*clear_intr)(struct megasas_register_set __iomem *);
-
-	u32 (*read_fw_status_reg)(struct megasas_register_set __iomem *);
- };
+struct megasas_aen_event {
+	struct work_struct hotplug_work;
+	struct megasas_instance *instance;
+};
 
 struct megasas_instance {
 
@@ -1085,17 +1215,22 @@ struct megasas_instance {
 	unsigned long base_addr;
 	struct megasas_register_set __iomem *reg_set;
 
+	struct megasas_pd_list          pd_list[MEGASAS_MAX_PD];
+	u8     ld_ids[MEGASAS_MAX_LD_IDS];
 	s8 init_id;
 
 	u16 max_num_sge;
 	u16 max_fw_cmds;
 	u32 max_sectors_per_req;
+	struct megasas_aen_event *ev;
 
 	struct megasas_cmd **cmd_list;
 	struct list_head cmd_pool;
 	spinlock_t cmd_pool_lock;
 	/* used to synch producer, consumer ptrs in dpc */
 	spinlock_t completion_lock;
+	/* used to sync fire the cmd to fw */
+	spinlock_t fire_lock;
 	struct dma_pool *frame_dma_pool;
 	struct dma_pool *sense_dma_pool;
 
@@ -1120,9 +1255,23 @@ struct megasas_instance {
 	struct tasklet_struct isr_tasklet;
 
 	u8 flag;
+	u8 unload;
+	u8 flag_ieee;
 	unsigned long last_time;
 
 	struct timer_list io_completion_timer;
+};
+
+struct megasas_instance_template {
+	void (*fire_cmd)(struct megasas_instance *, dma_addr_t, \
+		u32, struct megasas_register_set __iomem *);
+
+	void (*enable_intr)(struct megasas_register_set __iomem *) ;
+	void (*disable_intr)(struct megasas_register_set __iomem *);
+
+	int (*clear_intr)(struct megasas_register_set __iomem *);
+
+	u32 (*read_fw_status_reg)(struct megasas_register_set __iomem *);
 };
 
 #define MEGASAS_IS_LOGICAL(scp)						\

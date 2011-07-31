@@ -1,24 +1,20 @@
 /*
-    Copyright (C) 1998, 1999  Frodo Looijaard <frodol@dds.nl> and
-			       Philip Edelbrock <phil@netroedge.com>
-    Copyright (C) 2003 Greg Kroah-Hartman <greg@kroah.com>
-    Copyright (C) 2003 IBM Corp.
-    Copyright (C) 2004 Jean Delvare <khali@linux-fr.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
+ * Copyright (C) 1998, 1999  Frodo Looijaard <frodol@dds.nl> and
+ *                           Philip Edelbrock <phil@netroedge.com>
+ * Copyright (C) 2003 Greg Kroah-Hartman <greg@kroah.com>
+ * Copyright (C) 2003 IBM Corp.
+ * Copyright (C) 2004 Jean Delvare <khali@linux-fr.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -31,9 +27,6 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x50, 0x51, 0x52, 0x53, 0x54,
 					0x55, 0x56, 0x57, I2C_CLIENT_END };
-
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(eeprom);
 
 
 /* Size of EEPROM in bytes */
@@ -88,7 +81,8 @@ exit:
 	mutex_unlock(&data->update_lock);
 }
 
-static ssize_t eeprom_read(struct kobject *kobj, struct bin_attribute *bin_attr,
+static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
+			   struct bin_attribute *bin_attr,
 			   char *buf, loff_t off, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(container_of(kobj, struct device, kobj));
@@ -135,8 +129,7 @@ static struct bin_attribute eeprom_attr = {
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int eeprom_detect(struct i2c_client *client, int kind,
-			 struct i2c_board_info *info)
+static int eeprom_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 
@@ -233,7 +226,7 @@ static struct i2c_driver eeprom_driver = {
 
 	.class		= I2C_CLASS_DDC | I2C_CLASS_SPD,
 	.detect		= eeprom_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static int __init eeprom_init(void)

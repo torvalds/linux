@@ -38,6 +38,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <linux/slab.h>
+
 #include "ehca_tools.h"
 #include "ehca_iverbs.h"
 

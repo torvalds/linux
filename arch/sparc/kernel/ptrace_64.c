@@ -23,6 +23,7 @@
 #include <linux/signal.h>
 #include <linux/regset.h>
 #include <linux/tracehook.h>
+#include <trace/syscall.h>
 #include <linux/compat.h>
 #include <linux/elf.h>
 
@@ -36,6 +37,9 @@
 #include <asm/page.h>
 #include <asm/cpudata.h>
 #include <asm/cacheflush.h>
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/syscalls.h>
 
 #include "entry.h"
 
@@ -488,6 +492,7 @@ static int genregs32_get(struct task_struct *target,
 			*k++ = regs->u_regs[pos++];
 
 		reg_window = (compat_ulong_t __user *) regs->u_regs[UREG_I6];
+		reg_window -= 16;
 		if (target == current) {
 			for (; count > 0 && pos < 32; count--) {
 				if (get_user(*k++, &reg_window[pos++]))
@@ -512,6 +517,7 @@ static int genregs32_get(struct task_struct *target,
 		}
 
 		reg_window = (compat_ulong_t __user *) regs->u_regs[UREG_I6];
+		reg_window -= 16;
 		if (target == current) {
 			for (; count > 0 && pos < 32; count--) {
 				if (get_user(reg, &reg_window[pos++]) ||
@@ -595,6 +601,7 @@ static int genregs32_set(struct task_struct *target,
 			regs->u_regs[pos++] = *k++;
 
 		reg_window = (compat_ulong_t __user *) regs->u_regs[UREG_I6];
+		reg_window -= 16;
 		if (target == current) {
 			for (; count > 0 && pos < 32; count--) {
 				if (put_user(*k++, &reg_window[pos++]))
@@ -621,6 +628,7 @@ static int genregs32_set(struct task_struct *target,
 		}
 
 		reg_window = (compat_ulong_t __user *) regs->u_regs[UREG_I6];
+		reg_window -= 16;
 		if (target == current) {
 			for (; count > 0 && pos < 32; count--) {
 				if (get_user(reg, u++) ||
@@ -1059,6 +1067,9 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		ret = tracehook_report_syscall_entry(regs);
 
+	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
+		trace_sys_enter(regs, regs->u_regs[UREG_G1]);
+
 	if (unlikely(current->audit_context) && !ret)
 		audit_syscall_entry((test_thread_flag(TIF_32BIT) ?
 				     AUDIT_ARCH_SPARC :
@@ -1083,6 +1094,9 @@ asmlinkage void syscall_trace_leave(struct pt_regs *regs)
 
 		audit_syscall_exit(result, regs->u_regs[UREG_I0]);
 	}
+
+	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
+		trace_sys_exit(regs, regs->u_regs[UREG_G1]);
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		tracehook_report_syscall_exit(regs, 0);

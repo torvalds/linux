@@ -3,6 +3,8 @@
  *
  * Assembler-only file containing VFP macros and register definitions.
  */
+#include <asm/hwcap.h>
+
 #include "vfp.h"
 
 @ Macros to allow building with old toolkits (with no VFP support)
@@ -22,11 +24,19 @@
 	LDC	p11, cr0, [\base],#32*4		    @ FLDMIAD \base!, {d0-d15}
 #endif
 #ifdef CONFIG_VFPv3
+#if __LINUX_ARM_ARCH__ <= 6
+	ldr	\tmp, =elf_hwcap		    @ may not have MVFR regs
+	ldr	\tmp, [\tmp, #0]
+	tst	\tmp, #HWCAP_VFPv3D16
+	ldceq	p11, cr0, [\base],#32*4		    @ FLDMIAD \base!, {d16-d31}
+	addne	\base, \base, #32*4		    @ step over unused register space
+#else
 	VFPFMRX	\tmp, MVFR0			    @ Media and VFP Feature Register 0
 	and	\tmp, \tmp, #MVFR0_A_SIMD_MASK	    @ A_SIMD field
 	cmp	\tmp, #2			    @ 32 x 64bit registers?
 	ldceql	p11, cr0, [\base],#32*4		    @ FLDMIAD \base!, {d16-d31}
 	addne	\base, \base, #32*4		    @ step over unused register space
+#endif
 #endif
 	.endm
 
@@ -38,10 +48,18 @@
 	STC	p11, cr0, [\base],#32*4		    @ FSTMIAD \base!, {d0-d15}
 #endif
 #ifdef CONFIG_VFPv3
+#if __LINUX_ARM_ARCH__ <= 6
+	ldr	\tmp, =elf_hwcap		    @ may not have MVFR regs
+	ldr	\tmp, [\tmp, #0]
+	tst	\tmp, #HWCAP_VFPv3D16
+	stceq	p11, cr0, [\base],#32*4		    @ FSTMIAD \base!, {d16-d31}
+	addne	\base, \base, #32*4		    @ step over unused register space
+#else
 	VFPFMRX	\tmp, MVFR0			    @ Media and VFP Feature Register 0
 	and	\tmp, \tmp, #MVFR0_A_SIMD_MASK	    @ A_SIMD field
 	cmp	\tmp, #2			    @ 32 x 64bit registers?
 	stceql	p11, cr0, [\base],#32*4		    @ FSTMIAD \base!, {d16-d31}
 	addne	\base, \base, #32*4		    @ step over unused register space
+#endif
 #endif
 	.endm

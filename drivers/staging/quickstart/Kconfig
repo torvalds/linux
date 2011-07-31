@@ -1,0 +1,10 @@
+config ACPI_QUICKSTART
+	tristate "ACPI Quickstart key driver"
+	depends on ACPI && INPUT
+	help
+	  Say Y here if you have a platform that supports the ACPI
+	  quickstart key protocol.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called quickstart.
+

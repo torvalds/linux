@@ -35,11 +35,11 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
+#include <linux/gfp.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/nubus.h>
@@ -50,6 +50,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/bitrev.h>
+#include <linux/slab.h>
 
 #include <asm/bootinfo.h>
 #include <asm/system.h>
@@ -62,7 +63,6 @@
 #include <asm/mac_via.h>
 
 static char mac_sonic_string[] = "macsonic";
-static struct platform_device *mac_sonic_device;
 
 #include "sonic.h"
 
@@ -140,21 +140,40 @@ static irqreturn_t macsonic_interrupt(int irq, void *dev_id)
 
 static int macsonic_open(struct net_device* dev)
 {
-	if (request_irq(dev->irq, &sonic_interrupt, IRQ_FLG_FAST, "sonic", dev)) {
-		printk(KERN_ERR "%s: unable to get IRQ %d.\n", dev->name, dev->irq);
-		return -EAGAIN;
+	int retval;
+
+	retval = request_irq(dev->irq, sonic_interrupt, IRQ_FLG_FAST,
+				"sonic", dev);
+	if (retval) {
+		printk(KERN_ERR "%s: unable to get IRQ %d.\n",
+				dev->name, dev->irq);
+		goto err;
 	}
 	/* Under the A/UX interrupt scheme, the onboard SONIC interrupt comes
 	 * in at priority level 3. However, we sometimes get the level 2 inter-
 	 * rupt as well, which must prevent re-entrance of the sonic handler.
 	 */
-	if (dev->irq == IRQ_AUTO_3)
-		if (request_irq(IRQ_NUBUS_9, &macsonic_interrupt, IRQ_FLG_FAST, "sonic", dev)) {
-			printk(KERN_ERR "%s: unable to get IRQ %d.\n", dev->name, IRQ_NUBUS_9);
-			free_irq(dev->irq, dev);
-			return -EAGAIN;
+	if (dev->irq == IRQ_AUTO_3) {
+		retval = request_irq(IRQ_NUBUS_9, macsonic_interrupt,
+					IRQ_FLG_FAST, "sonic", dev);
+		if (retval) {
+			printk(KERN_ERR "%s: unable to get IRQ %d.\n",
+					dev->name, IRQ_NUBUS_9);
+			goto err_irq;
 		}
-	return sonic_open(dev);
+	}
+	retval = sonic_open(dev);
+	if (retval)
+		goto err_irq_nubus;
+	return 0;
+
+err_irq_nubus:
+	if (dev->irq == IRQ_AUTO_3)
+		free_irq(IRQ_NUBUS_9, dev);
+err_irq:
+	free_irq(dev->irq, dev);
+err:
+	return retval;
 }
 
 static int macsonic_close(struct net_device* dev)
@@ -607,6 +626,7 @@ out:
 MODULE_DESCRIPTION("Macintosh SONIC ethernet driver");
 module_param(sonic_debug, int, 0);
 MODULE_PARM_DESC(sonic_debug, "macsonic debug level (1-4)");
+MODULE_ALIAS("platform:macsonic");
 
 #include "sonic.c"
 
@@ -627,44 +647,19 @@ static struct platform_driver mac_sonic_driver = {
 	.probe  = mac_sonic_probe,
 	.remove = __devexit_p(mac_sonic_device_remove),
 	.driver	= {
-		.name = mac_sonic_string,
+		.name	= mac_sonic_string,
+		.owner	= THIS_MODULE,
 	},
 };
 
 static int __init mac_sonic_init_module(void)
 {
-	int err;
-
-	if ((err = platform_driver_register(&mac_sonic_driver))) {
-		printk(KERN_ERR "Driver registration failed\n");
-		return err;
-	}
-
-	mac_sonic_device = platform_device_alloc(mac_sonic_string, 0);
-	if (!mac_sonic_device)
-		goto out_unregister;
-
-	if (platform_device_add(mac_sonic_device)) {
-		platform_device_put(mac_sonic_device);
-		mac_sonic_device = NULL;
-	}
-
-	return 0;
-
-out_unregister:
-	platform_driver_unregister(&mac_sonic_driver);
-
-	return -ENOMEM;
+	return platform_driver_register(&mac_sonic_driver);
 }
 
 static void __exit mac_sonic_cleanup_module(void)
 {
 	platform_driver_unregister(&mac_sonic_driver);
-
-	if (mac_sonic_device) {
-		platform_device_unregister(mac_sonic_device);
-		mac_sonic_device = NULL;
-	}
 }
 
 module_init(mac_sonic_init_module);

@@ -91,10 +91,14 @@ int register_trapped_io(struct trapped_io *tiop)
 	tiop->magic = IO_TRAPPED_MAGIC;
 	INIT_LIST_HEAD(&tiop->list);
 	spin_lock_irq(&trapped_lock);
+#ifdef CONFIG_HAS_IOPORT
 	if (flags & IORESOURCE_IO)
 		list_add(&tiop->list, &trapped_io);
+#endif
+#ifdef CONFIG_HAS_IOMEM
 	if (flags & IORESOURCE_MEM)
 		list_add(&tiop->list, &trapped_mem);
+#endif
 	spin_unlock_irq(&trapped_lock);
 
 	return 0;
@@ -184,31 +188,31 @@ static unsigned long long copy_word(unsigned long src_addr, int src_len,
 
 	switch (src_len) {
 	case 1:
-		tmp = ctrl_inb(src_addr);
+		tmp = __raw_readb(src_addr);
 		break;
 	case 2:
-		tmp = ctrl_inw(src_addr);
+		tmp = __raw_readw(src_addr);
 		break;
 	case 4:
-		tmp = ctrl_inl(src_addr);
+		tmp = __raw_readl(src_addr);
 		break;
 	case 8:
-		tmp = ctrl_inq(src_addr);
+		tmp = __raw_readq(src_addr);
 		break;
 	}
 
 	switch (dst_len) {
 	case 1:
-		ctrl_outb(tmp, dst_addr);
+		__raw_writeb(tmp, dst_addr);
 		break;
 	case 2:
-		ctrl_outw(tmp, dst_addr);
+		__raw_writew(tmp, dst_addr);
 		break;
 	case 4:
-		ctrl_outl(tmp, dst_addr);
+		__raw_writel(tmp, dst_addr);
 		break;
 	case 8:
-		ctrl_outq(tmp, dst_addr);
+		__raw_writeq(tmp, dst_addr);
 		break;
 	}
 
@@ -271,6 +275,8 @@ int handle_trapped_io(struct pt_regs *regs, unsigned long address)
 	insn_size_t instruction;
 	int tmp;
 
+	if (trapped_io_disable)
+		return 0;
 	if (!lookup_tiop(address))
 		return 0;
 

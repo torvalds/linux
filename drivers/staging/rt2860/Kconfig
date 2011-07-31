@@ -1,5 +1,10 @@
 config RT2860
-	tristate "Ralink 2860 wireless support"
+	tristate "Ralink 2860/3090 wireless support"
 	depends on PCI && X86 && WLAN
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	select CRC_CCITT
+	select FW_LOADER
 	---help---
-	  This is an experimental driver for the Ralink 2860 wireless chip.
+	  This is an experimental driver for the Ralink 2860 and 3090
+	  wireless chips.

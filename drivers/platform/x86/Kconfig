@@ -5,6 +5,7 @@
 menuconfig X86_PLATFORM_DEVICES
 	bool "X86 Platform Specific Device Drivers"
 	default y
+	depends on X86
 	---help---
 	  Say Y here to get to see options for device drivers for various
 	  x86 platforms, including vendor-specific laptop extension drivers.
@@ -59,6 +60,8 @@ config ASUS_LAPTOP
 	select NEW_LEDS
 	select BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
+	depends on RFKILL || RFKILL = n
+	select INPUT_SPARSEKMAP
 	---help---
 	  This is the new Linux driver for Asus laptops. It may also support some
 	  MEDION, JVC or VICTOR laptops. It makes all the extra buttons generate
@@ -79,6 +82,7 @@ config DELL_LAPTOP
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on RFKILL || RFKILL = n
 	depends on POWER_SUPPLY
+	depends on SERIO_I8042
 	default n
 	---help---
 	This driver adds support for rfkill and backlight control to Dell
@@ -147,6 +151,8 @@ config MSI_LAPTOP
 	tristate "MSI Laptop Extras"
 	depends on ACPI
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on RFKILL
+	depends on SERIO_I8042
 	---help---
 	  This is a driver for laptops built by MSI (MICRO-STAR
 	  INTERNATIONAL):
@@ -176,6 +182,9 @@ config COMPAL_LAPTOP
 	tristate "Compal Laptop Extras"
 	depends on ACPI
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on RFKILL
+	depends on HWMON
+	depends on POWER_SUPPLY
 	---help---
 	  This is a driver for laptops built by Compal:
 
@@ -210,6 +219,13 @@ config SONYPI_COMPAT
 	  ---help---
 	  Build the sonypi driver compatibility code into the sony-laptop driver.
 
+config IDEAPAD_ACPI
+	tristate "Lenovo IdeaPad ACPI Laptop Extras"
+	depends on ACPI
+	depends on RFKILL
+	help
+	  This is a driver for the rfkill switches on Lenovo IdeaPad netbooks.
+
 config THINKPAD_ACPI
 	tristate "ThinkPad ACPI Laptop Extras"
 	depends on ACPI
@@ -231,7 +247,35 @@ config THINKPAD_ACPI
 
 	  This driver was formerly known as ibm-acpi.
 
+	  Extra functionality will be available if the rfkill (CONFIG_RFKILL)
+	  and/or ALSA (CONFIG_SND) subsystems are available in the kernel.
+	  Note that if you want ThinkPad-ACPI to be built-in instead of
+	  modular, ALSA and rfkill will also have to be built-in.
+
 	  If you have an IBM or Lenovo ThinkPad laptop, say Y or M here.
+
+config THINKPAD_ACPI_ALSA_SUPPORT
+	bool "Console audio control ALSA interface"
+	depends on THINKPAD_ACPI
+	depends on SND
+	depends on SND = y || THINKPAD_ACPI = SND
+	default y
+	---help---
+	  Enables monitoring of the built-in console audio output control
+	  (headphone and speakers), which is operated by the mute and (in
+	  some ThinkPad models) volume hotkeys.
+
+	  If this option is enabled, ThinkPad-ACPI will export an ALSA card
+	  with a single read-only mixer control, which should be used for
+	  on-screen-display feedback purposes by the Desktop Environment.
+
+	  Optionally, the driver will also allow software control (the
+	  ALSA mixer will be made read-write).  Please refer to the driver
+	  documentation for details.
+
+	  All IBM models have both volume and mute control.  Newer Lenovo
+	  models only have mute control (the volume hotkeys are just normal
+	  keys and volume control is done through the main HDA mixer).
 
 config THINKPAD_ACPI_DEBUGFACILITIES
 	bool "Maintainer debug facilities"
@@ -291,9 +335,15 @@ config THINKPAD_ACPI_VIDEO
 	  server running, phase of the moon, and the current mood of
 	  Schroedinger's cat.  If you can use X.org's RandR to control
 	  your ThinkPad's video output ports instead of this feature,
-	  don't think twice: do it and say N here to save some memory.
+	  don't think twice: do it and say N here to save memory and avoid
+	  bad interactions with X.org.
 
-	  If you are not sure, say Y here.
+	  NOTE: access to this feature is limited to processes with the
+	  CAP_SYS_ADMIN capability, to avoid local DoS issues in platforms
+	  where it interacts badly with X.org.
+
+	  If you are not sure, say Y here but do try to check if you could
+	  be using X.org RandR instead.
 
 config THINKPAD_ACPI_HOTKEY_POLL
 	bool "Support NVRAM polling for hot keys"
@@ -334,6 +384,9 @@ config EEEPC_LAPTOP
 	depends on HOTPLUG_PCI
 	select BACKLIGHT_CLASS_DEVICE
 	select HWMON
+	select LEDS_CLASS
+	select NEW_LEDS
+	select INPUT_SPARSEKMAP
 	---help---
 	  This driver supports the Fn-Fx keys on Eee PC laptops.
 
@@ -343,6 +396,18 @@ config EEEPC_LAPTOP
 
 	  If you have an Eee PC laptop, say Y or M here.
 
+config EEEPC_WMI
+	tristate "Eee PC WMI Hotkey Driver (EXPERIMENTAL)"
+	depends on ACPI_WMI
+	depends on INPUT
+	depends on EXPERIMENTAL
+	depends on BACKLIGHT_CLASS_DEVICE
+	select INPUT_SPARSEKMAP
+	---help---
+	  Say Y here if you want to support WMI-based hotkeys on Eee PC laptops.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called eeepc-wmi.
 
 config ACPI_WMI
 	tristate "WMI"
@@ -364,6 +429,18 @@ config ACPI_WMI
 
 	  It is safe to enable this driver even if your DSDT doesn't define
 	  any ACPI-WMI devices.
+
+config MSI_WMI
+	tristate "MSI WMI extras"
+	depends on ACPI_WMI
+	depends on INPUT
+	depends on BACKLIGHT_CLASS_DEVICE
+	select INPUT_SPARSEKMAP
+	help
+	 Say Y here if you want to support WMI-based hotkeys on MSI laptops.
+
+	 To compile this driver as a module, choose M here: the module will
+	 be called msi-wmi.
 
 config ACPI_ASUS
 	tristate "ASUS/Medion Laptop Extras (DEPRECATED)"
@@ -409,10 +486,12 @@ config TOPSTAR_LAPTOP
 config ACPI_TOSHIBA
 	tristate "Toshiba Laptop Extras"
 	depends on ACPI
+	depends on LEDS_CLASS
+	depends on NEW_LEDS
+	depends on BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
 	depends on RFKILL || RFKILL = n
 	select INPUT_POLLDEV
-	select BACKLIGHT_CLASS_DEVICE
 	---help---
 	  This driver adds support for access to certain system settings
 	  on "legacy free" Toshiba laptops.  These laptops can be recognized by
@@ -435,4 +514,80 @@ config ACPI_TOSHIBA
 
 	  If you have a legacy free Toshiba laptop (such as the Libretto L1
 	  series), say Y.
+
+config TOSHIBA_BT_RFKILL
+	tristate "Toshiba Bluetooth RFKill switch support"
+	depends on ACPI
+	---help---
+	  This driver adds support for Bluetooth events for the RFKill
+	  switch on modern Toshiba laptops with full ACPI support and
+	  an RFKill switch.
+
+	  This driver handles RFKill events for the TOS6205 Bluetooth,
+	  and re-enables it when the switch is set back to the 'on'
+	  position.
+
+	  If you have a modern Toshiba laptop with a Bluetooth and an
+	  RFKill switch (such as the Portege R500), say Y.
+
+config ACPI_CMPC
+	tristate "CMPC Laptop Extras"
+	depends on X86 && ACPI
+	depends on RFKILL || RFKILL=n
+	select INPUT
+	select BACKLIGHT_CLASS_DEVICE
+	default n
+	help
+	  Support for Intel Classmate PC ACPI devices, including some
+	  keys as input device, backlight device, tablet and accelerometer
+	  devices.
+
+config INTEL_SCU_IPC
+	bool "Intel SCU IPC Support"
+	depends on X86_MRST
+	default y
+	---help---
+	  IPC is used to bridge the communications between kernel and SCU on
+	  some embedded Intel x86 platforms. This is not needed for PC-type
+	  machines.
+
+config GPIO_INTEL_PMIC
+	bool "Intel PMIC GPIO support"
+	depends on INTEL_SCU_IPC && GPIOLIB
+	---help---
+	  Say Y here to support GPIO via the SCU IPC interface
+	  on Intel MID platforms.
+
+config RAR_REGISTER
+	bool "Restricted Access Region Register Driver"
+	depends on PCI && X86_MRST
+	default n
+	---help---
+	  This driver allows other kernel drivers access to the
+	  contents of the restricted access region control registers.
+
+	  The restricted access region control registers
+	  (rar_registers) are used to pass address and
+	  locking information on restricted access regions
+	  to other drivers that use restricted access regions.
+
+	  The restricted access regions are regions of memory
+	  on the Intel MID Platform that are not accessible to
+	  the x86 processor, but are accessible to dedicated
+	  processors on board peripheral devices.
+
+	  The purpose of the restricted access regions is to
+	  protect sensitive data from compromise by unauthorized
+	  programs running on the x86 processor.
+
+config INTEL_IPS
+	tristate "Intel Intelligent Power Sharing"
+	depends on ACPI
+	---help---
+	  Intel Calpella platforms support dynamic power sharing between the
+	  CPU and GPU, maximizing performance in a given TDP.  This driver,
+	  along with the CPU frequency and i915 drivers, provides that
+	  functionality.  If in doubt, say Y here; it will only load on
+	  supported platforms.
+
 endif # X86_PLATFORM_DEVICES

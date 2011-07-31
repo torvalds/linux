@@ -43,7 +43,7 @@ bfa_fcs_cfg_base_port(struct bfa_fcs_s *fcs, struct bfa_port_cfg_s *port_cfg)
 struct bfa_fcs_port_s *
 bfa_fcs_get_base_port(struct bfa_fcs_s *fcs)
 {
-	return (&fcs->fabric.bport);
+	return &fcs->fabric.bport;
 }
 
 wwn_t
@@ -88,11 +88,10 @@ bfa_fcs_port_get_rport(struct bfa_fcs_port_s *port, wwn_t wwn, int index,
 	}
 
 	bfa_trc(fcs, i);
-	if (rport) {
+	if (rport)
 		return rport->pwwn;
-	} else {
+	else
 		return (wwn_t) 0;
-	}
 }
 
 void
@@ -138,6 +137,8 @@ bfa_fcs_port_get_rports(struct bfa_fcs_port_s *port, wwn_t rport_wwns[],
 /*
  * Iterate's through all the rport's in the given port to
  * determine the maximum operating speed.
+ *
+ * To be used in TRL Functionality only
  */
 enum bfa_pport_speed
 bfa_fcs_port_get_rport_max_speed(struct bfa_fcs_port_s *port)
@@ -147,7 +148,8 @@ bfa_fcs_port_get_rport_max_speed(struct bfa_fcs_port_s *port)
 	struct bfa_fcs_s *fcs;
 	enum bfa_pport_speed max_speed = 0;
 	struct bfa_pport_attr_s pport_attr;
-	enum bfa_pport_speed pport_speed;
+	enum bfa_pport_speed pport_speed, rport_speed;
+	bfa_boolean_t     trl_enabled = bfa_fcport_is_ratelim(port->fcs->bfa);
 
 	if (port == NULL)
 		return 0;
@@ -157,7 +159,7 @@ bfa_fcs_port_get_rport_max_speed(struct bfa_fcs_port_s *port)
 	/*
 	 * Get Physical port's current speed
 	 */
-	bfa_pport_get_attr(port->fcs->bfa, &pport_attr);
+	bfa_fcport_get_attr(port->fcs->bfa, &pport_attr);
 	pport_speed = pport_attr.speed;
 	bfa_trc(fcs, pport_speed);
 
@@ -165,19 +167,28 @@ bfa_fcs_port_get_rport_max_speed(struct bfa_fcs_port_s *port)
 	qe = bfa_q_first(qh);
 
 	while (qe != qh) {
-		rport = (struct bfa_fcs_rport_s *)qe;
-		if ((bfa_os_ntoh3b(rport->pid) > 0xFFF000)
-		    || (bfa_fcs_rport_get_state(rport) == BFA_RPORT_OFFLINE)) {
+		rport = (struct bfa_fcs_rport_s *) qe;
+		if ((bfa_os_ntoh3b(rport->pid) > 0xFFF000) ||
+			(bfa_fcs_rport_get_state(rport) ==
+						BFA_RPORT_OFFLINE)) {
 			qe = bfa_q_next(qe);
 			continue;
 		}
 
-		if ((rport->rpf.rpsc_speed == BFA_PPORT_SPEED_8GBPS)
-		    || (rport->rpf.rpsc_speed > pport_speed)) {
-			max_speed = rport->rpf.rpsc_speed;
+		rport_speed = rport->rpf.rpsc_speed;
+		if ((trl_enabled) &&  (rport_speed ==
+						BFA_PPORT_SPEED_UNKNOWN)) {
+			/* Use default ratelim speed setting */
+			rport_speed =
+				bfa_fcport_get_ratelim_speed(port->fcs->bfa);
+		}
+
+		if ((rport_speed  == BFA_PPORT_SPEED_8GBPS) ||
+			(rport_speed > pport_speed)) {
+			max_speed = rport_speed;
 			break;
-		} else if (rport->rpf.rpsc_speed > max_speed) {
-			max_speed = rport->rpf.rpsc_speed;
+		} else if (rport_speed > max_speed) {
+			max_speed = rport_speed;
 		}
 
 		qe = bfa_q_next(qe);
@@ -198,17 +209,17 @@ bfa_fcs_lookup_port(struct bfa_fcs_s *fcs, u16 vf_id, wwn_t lpwwn)
 	vf = bfa_fcs_vf_lookup(fcs, vf_id);
 	if (vf == NULL) {
 		bfa_trc(fcs, vf_id);
-		return (NULL);
+		return NULL;
 	}
 
 	if (!lpwwn || (vf->bport.port_cfg.pwwn == lpwwn))
-		return (&vf->bport);
+		return &vf->bport;
 
 	vport = bfa_fcs_fabric_vport_lookup(vf, lpwwn);
 	if (vport)
-		return (&vport->lport);
+		return &vport->lport;
 
-	return (NULL);
+	return NULL;
 }
 
 /*
@@ -236,7 +247,8 @@ bfa_fcs_port_get_info(struct bfa_fcs_port_s *port,
 		port_info->port_wwn = bfa_fcs_port_get_pwwn(port);
 		port_info->node_wwn = bfa_fcs_port_get_nwwn(port);
 
-		port_info->max_vports_supp = bfa_fcs_vport_get_max(port->fcs);
+		port_info->max_vports_supp =
+			bfa_lps_get_max_vport(port->fcs->bfa);
 		port_info->num_vports_inuse =
 			bfa_fcs_fabric_vport_count(port->fabric);
 		port_info->max_rports_supp = BFA_FCS_MAX_RPORTS_SUPP;

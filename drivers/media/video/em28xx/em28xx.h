@@ -32,6 +32,7 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <media/ir-kbd-i2c.h>
+#include <media/ir-core.h>
 #if defined(CONFIG_VIDEO_EM28XX_DVB) || defined(CONFIG_VIDEO_EM28XX_DVB_MODULE)
 #include <media/videobuf-dvb.h>
 #endif
@@ -68,6 +69,7 @@
 #define EM2820_BOARD_HERCULES_SMART_TV_USB2	  26
 #define EM2820_BOARD_PINNACLE_USB_2_FM1216ME	  27
 #define EM2820_BOARD_LEADTEK_WINFAST_USBII_DELUXE 28
+#define EM2860_BOARD_TVP5150_REFERENCE_DESIGN	  29
 #define EM2820_BOARD_VIDEOLOGY_20K14XUSB	  30
 #define EM2821_BOARD_USBGEAR_VD204		  31
 #define EM2821_BOARD_SUPERCOMP_USB_2		  32
@@ -110,6 +112,9 @@
 #define EM2820_BOARD_SILVERCREST_WEBCAM           71
 #define EM2861_BOARD_GADMEI_UTV330PLUS           72
 #define EM2870_BOARD_REDDO_DVB_C_USB_BOX          73
+#define EM2800_BOARD_VC211A			  74
+#define EM2882_BOARD_DIKOM_DK300		  75
+#define EM2870_BOARD_KWORLD_A340		  76
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
@@ -138,13 +143,10 @@
 #define EM28XX_NUM_BUFS 5
 
 /* number of packets for each buffer
-   windows requests only 40 packets .. so we better do the same
+   windows requests only 64 packets .. so we better do the same
    this is what I found out for all alternate numbers there!
  */
-#define EM28XX_NUM_PACKETS 40
-
-/* default alternate; 0 means choose the best */
-#define EM28XX_PINOUT 0
+#define EM28XX_NUM_PACKETS 64
 
 #define EM28XX_INTERLACED_DEFAULT 1
 
@@ -412,7 +414,7 @@ struct em28xx_board {
 
 	struct em28xx_input       input[MAX_EM28XX_INPUT];
 	struct em28xx_input	  radio;
-	struct ir_scancode_table  *ir_codes;
+	char			  *ir_codes;
 };
 
 struct em28xx_eeprom {
@@ -554,7 +556,8 @@ struct em28xx {
 	int capture_type;
 	int vbi_read;
 	unsigned char cur_field;
-
+	unsigned int vbi_width;
+	unsigned int vbi_height; /* lines per field */
 
 	struct work_struct         request_module_wk;
 
@@ -615,7 +618,6 @@ struct em28xx {
 	struct em28xx_dvb *dvb;
 
 	/* I2C keyboard data */
-	struct i2c_board_info info;
 	struct IR_i2c_init_data init_data;
 };
 
@@ -646,6 +648,8 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 			  int len);
 int em28xx_write_regs(struct em28xx *dev, u16 reg, char *buf, int len);
 int em28xx_write_reg(struct em28xx *dev, u16 reg, u8 val);
+int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
+				 u8 bitmask);
 
 int em28xx_read_ac97(struct em28xx *dev, u8 reg);
 int em28xx_write_ac97(struct em28xx *dev, u8 reg, u16 val);
@@ -669,9 +673,6 @@ int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio);
 void em28xx_wake_i2c(struct em28xx *dev);
 void em28xx_remove_from_devlist(struct em28xx *dev);
 void em28xx_add_into_devlist(struct em28xx *dev);
-struct em28xx *em28xx_get_device(int minor,
-				 enum v4l2_buf_type *fh_type,
-				 int *has_radio);
 int em28xx_register_extension(struct em28xx_ops *dev);
 void em28xx_unregister_extension(struct em28xx_ops *dev);
 void em28xx_init_extension(struct em28xx *dev);
@@ -696,6 +697,8 @@ void em28xx_release_resources(struct em28xx *dev);
 int em28xx_get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
 int em28xx_get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
 int em28xx_get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key,
+				     u32 *ir_raw);
+int em28xx_get_key_winfast_usbii_deluxe(struct IR_i2c *ir, u32 *ir_key,
 				     u32 *ir_raw);
 void em28xx_register_snapshot_button(struct em28xx *dev);
 void em28xx_deregister_snapshot_button(struct em28xx *dev);
@@ -800,7 +803,7 @@ static inline unsigned int norm_maxw(struct em28xx *dev)
 	if (dev->board.is_webcam)
 		return dev->sensor_xres;
 
-	if (dev->board.max_range_640_480)
+	if (dev->board.max_range_640_480 || dev->board.is_em2800)
 		return 640;
 
 	return 720;

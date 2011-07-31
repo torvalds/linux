@@ -41,7 +41,7 @@ struct sd {
 #define QUALITY_MAX 70
 #define QUALITY_DEF 50
 
-	u8 *jpeg_hdr;
+	u8 jpeg_hdr[JPEG_HDR_SZ];
 };
 
 /* V4L2 controls supported by the driver */
@@ -54,7 +54,7 @@ static int sd_getgamma(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val);
 
-static struct ctrl sd_ctrls[] = {
+static const struct ctrl sd_ctrls[] = {
 	{
 	    {
 		.id      = V4L2_CID_BRIGHTNESS,
@@ -200,9 +200,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	int i;
 
 	/* create the JPEG header */
-	sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
-	if (!sd->jpeg_hdr)
-		return -ENOMEM;
 	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
 			0x21);		/* JPEG 422 */
 	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
@@ -317,16 +314,8 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 		PDEBUG(D_ERR, "Camera Stop failed");
 }
 
-static void sd_stop0(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	kfree(sd->jpeg_hdr);
-}
-
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *data,			/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -348,11 +337,11 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			    || data[5 + p] == 0x67) {
 				PDEBUG(D_PACK, "sof offset: %d len: %d",
 					p, len);
-				frame = gspca_frame_add(gspca_dev, LAST_PACKET,
-							frame, data, p);
+				gspca_frame_add(gspca_dev, LAST_PACKET,
+						data, p);
 
 				/* put the JPEG header */
-				gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+				gspca_frame_add(gspca_dev, FIRST_PACKET,
 					sd->jpeg_hdr, JPEG_HDR_SZ);
 				data += p + 16;
 				len -= p + 16;
@@ -360,7 +349,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			}
 		}
 	}
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
@@ -487,7 +476,6 @@ static const struct sd_desc sd_desc = {
 	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
-	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 	.get_jcomp = sd_get_jcomp,
 	.set_jcomp = sd_set_jcomp,

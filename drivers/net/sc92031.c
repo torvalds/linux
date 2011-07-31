@@ -428,18 +428,18 @@ static void _sc92031_set_mar(struct net_device *dev)
 	void __iomem *port_base = priv->port_base;
 	u32 mar0 = 0, mar1 = 0;
 
-	if ((dev->flags & IFF_PROMISC)
-			|| dev->mc_count > multicast_filter_limit
-			|| (dev->flags & IFF_ALLMULTI))
+	if ((dev->flags & IFF_PROMISC) ||
+	    netdev_mc_count(dev) > multicast_filter_limit ||
+	    (dev->flags & IFF_ALLMULTI))
 		mar0 = mar1 = 0xffffffff;
 	else if (dev->flags & IFF_MULTICAST) {
-		struct dev_mc_list *mc_list;
+		struct netdev_hw_addr *ha;
 
-		for (mc_list = dev->mc_list; mc_list; mc_list = mc_list->next) {
+		netdev_for_each_mc_addr(ha, dev) {
 			u32 crc;
 			unsigned bit = 0;
 
-			crc = ~ether_crc(ETH_ALEN, mc_list->dmi_addr);
+			crc = ~ether_crc(ETH_ALEN, ha->addr);
 			crc >>= 24;
 
 			if (crc & 0x01)	bit |= 0x02;
@@ -777,10 +777,10 @@ static void _sc92031_rx_tasklet(struct net_device *dev)
 
 		rx_ring_offset = (rx_ring_offset + 4) % RX_BUF_LEN;
 
-		if (unlikely(rx_status == 0
-				|| rx_size > (MAX_ETH_FRAME_SIZE + 4)
-				|| rx_size < 16
-				|| !(rx_status & RxStatesOK))) {
+		if (unlikely(rx_status == 0 ||
+			     rx_size > (MAX_ETH_FRAME_SIZE + 4) ||
+			     rx_size < 16 ||
+			     !(rx_status & RxStatesOK))) {
 			_sc92031_rx_tasklet_error(dev, rx_status, rx_size);
 			break;
 		}
@@ -793,15 +793,13 @@ static void _sc92031_rx_tasklet(struct net_device *dev)
 
 		rx_len -= rx_size_align + 4;
 
-		skb = netdev_alloc_skb(dev, pkt_size + NET_IP_ALIGN);
+		skb = netdev_alloc_skb_ip_align(dev, pkt_size);
 		if (unlikely(!skb)) {
 			if (printk_ratelimit())
 				printk(KERN_ERR "%s: Couldn't allocate a skb_buff for a packet of size %u\n",
 						dev->name, pkt_size);
 			goto next;
 		}
-
-		skb_reserve(skb, NET_IP_ALIGN);
 
 		if ((rx_ring_offset + pkt_size) > RX_BUF_LEN) {
 			memcpy(skb_put(skb, RX_BUF_LEN - rx_ring_offset),
@@ -988,8 +986,6 @@ static netdev_tx_t sc92031_start_xmit(struct sk_buff *skb,
 			port_base + TxAddr0 + entry * 4);
 	iowrite32(tx_status, port_base + TxStatus0 + entry * 4);
 	mmiowb();
-
-	dev->trans_start = jiffies;
 
 	if (priv->tx_head - priv->tx_tail >= NUM_TX_DESC)
 		netif_stop_queue(dev);
@@ -1591,7 +1587,7 @@ out:
 	return 0;
 }
 
-static struct pci_device_id sc92031_pci_device_id_table[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(sc92031_pci_device_id_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SILAN, 0x2031) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SILAN, 0x8139) },
 	{ PCI_DEVICE(0x1088, 0x2031) },

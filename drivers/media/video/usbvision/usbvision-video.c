@@ -137,8 +137,6 @@ static int PowerOnAtOpen = 1;
 static int video_nr = -1;
 /* Sequential Number of Radio Device */
 static int radio_nr = -1;
-/* Sequential Number of VBI Device */
-static int vbi_nr = -1;
 
 /* Grab parameters for the device driver */
 
@@ -148,14 +146,12 @@ module_param(video_debug, int, 0444);
 module_param(PowerOnAtOpen, int, 0444);
 module_param(video_nr, int, 0444);
 module_param(radio_nr, int, 0444);
-module_param(vbi_nr, int, 0444);
 
 MODULE_PARM_DESC(isocMode, " Set the default format for ISOC endpoint.  Default: 0x60 (Compression On)");
 MODULE_PARM_DESC(video_debug, " Set the default Debug Mode of the device driver.  Default: 0 (Off)");
 MODULE_PARM_DESC(PowerOnAtOpen, " Set the default device to power on when device is opened.  Default: 1 (On)");
 MODULE_PARM_DESC(video_nr, "Set video device number (/dev/videoX).  Default: -1 (autodetect)");
 MODULE_PARM_DESC(radio_nr, "Set radio device number (/dev/radioX).  Default: -1 (autodetect)");
-MODULE_PARM_DESC(vbi_nr, "Set vbi device number (/dev/vbiX).  Default: -1 (autodetect)");
 
 
 // Misc stuff
@@ -601,7 +597,7 @@ static int vidioc_s_input (struct file *file, void *priv, unsigned int input)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
 
-	if ((input >= usbvision->video_inputs) || (input < 0) )
+	if (input >= usbvision->video_inputs)
 		return -EINVAL;
 
 	mutex_lock(&usbvision->lock);
@@ -1244,36 +1240,6 @@ static int usbvision_radio_close(struct file *file)
 	return errCode;
 }
 
-/*
- * Here comes the stuff for vbi on usbvision based devices
- *
- */
-static int usbvision_vbi_open(struct file *file)
-{
-	/* TODO */
-	return -ENODEV;
-}
-
-static int usbvision_vbi_close(struct file *file)
-{
-	/* TODO */
-	return -ENODEV;
-}
-
-static long usbvision_do_vbi_ioctl(struct file *file,
-				 unsigned int cmd, void *arg)
-{
-	/* TODO */
-	return -ENOIOCTLCMD;
-}
-
-static long usbvision_vbi_ioctl(struct file *file,
-		       unsigned int cmd, unsigned long arg)
-{
-	return video_usercopy(file, cmd, arg, usbvision_do_vbi_ioctl);
-}
-
-
 //
 // Video registration stuff
 //
@@ -1328,7 +1294,6 @@ static struct video_device usbvision_video_template = {
 	.ioctl_ops 	= &usbvision_ioctl_ops,
 	.name           = "usbvision-video",
 	.release	= video_device_release,
-	.minor		= -1,
 	.tvnorms              = USBVISION_NORMS,
 	.current_norm         = V4L2_STD_PAL
 };
@@ -1362,27 +1327,10 @@ static struct video_device usbvision_radio_template = {
 	.fops		= &usbvision_radio_fops,
 	.name           = "usbvision-radio",
 	.release	= video_device_release,
-	.minor		= -1,
 	.ioctl_ops 	= &usbvision_radio_ioctl_ops,
 
 	.tvnorms              = USBVISION_NORMS,
 	.current_norm         = V4L2_STD_PAL
-};
-
-// vbi template
-static const struct v4l2_file_operations usbvision_vbi_fops = {
-	.owner             = THIS_MODULE,
-	.open		= usbvision_vbi_open,
-	.release	= usbvision_vbi_close,
-	.ioctl		= usbvision_vbi_ioctl,
-};
-
-static struct video_device usbvision_vbi_template=
-{
-	.fops		= &usbvision_vbi_fops,
-	.release	= video_device_release,
-	.name           = "usbvision-vbi",
-	.minor		= -1,
 };
 
 
@@ -1404,7 +1352,6 @@ static struct video_device *usbvision_vdev_init(struct usb_usbvision *usbvision,
 		return NULL;
 	}
 	*vdev = *vdev_template;
-//	vdev->minor   = -1;
 	vdev->v4l2_dev = &usbvision->v4l2_dev;
 	snprintf(vdev->name, sizeof(vdev->name), "%s", name);
 	video_set_drvdata(vdev, usbvision);
@@ -1414,23 +1361,11 @@ static struct video_device *usbvision_vdev_init(struct usb_usbvision *usbvision,
 // unregister video4linux devices
 static void usbvision_unregister_video(struct usb_usbvision *usbvision)
 {
-	// vbi Device:
-	if (usbvision->vbi) {
-		PDEBUG(DBG_PROBE, "unregister /dev/vbi%d [v4l2]",
-		       usbvision->vbi->num);
-		if (usbvision->vbi->minor != -1) {
-			video_unregister_device(usbvision->vbi);
-		} else {
-			video_device_release(usbvision->vbi);
-		}
-		usbvision->vbi = NULL;
-	}
-
 	// Radio Device:
 	if (usbvision->rdev) {
-		PDEBUG(DBG_PROBE, "unregister /dev/radio%d [v4l2]",
-		       usbvision->rdev->num);
-		if (usbvision->rdev->minor != -1) {
+		PDEBUG(DBG_PROBE, "unregister %s [v4l2]",
+		       video_device_node_name(usbvision->rdev));
+		if (video_is_registered(usbvision->rdev)) {
 			video_unregister_device(usbvision->rdev);
 		} else {
 			video_device_release(usbvision->rdev);
@@ -1440,9 +1375,9 @@ static void usbvision_unregister_video(struct usb_usbvision *usbvision)
 
 	// Video Device:
 	if (usbvision->vdev) {
-		PDEBUG(DBG_PROBE, "unregister /dev/video%d [v4l2]",
-		       usbvision->vdev->num);
-		if (usbvision->vdev->minor != -1) {
+		PDEBUG(DBG_PROBE, "unregister %s [v4l2]",
+		       video_device_node_name(usbvision->vdev));
+		if (video_is_registered(usbvision->vdev)) {
 			video_unregister_device(usbvision->vdev);
 		} else {
 			video_device_release(usbvision->vdev);
@@ -1466,8 +1401,8 @@ static int __devinit usbvision_register_video(struct usb_usbvision *usbvision)
 				  video_nr)<0) {
 		goto err_exit;
 	}
-	printk(KERN_INFO "USBVision[%d]: registered USBVision Video device /dev/video%d [v4l2]\n",
-	       usbvision->nr, usbvision->vdev->num);
+	printk(KERN_INFO "USBVision[%d]: registered USBVision Video device %s [v4l2]\n",
+	       usbvision->nr, video_device_node_name(usbvision->vdev));
 
 	// Radio Device:
 	if (usbvision_device_data[usbvision->DevModel].Radio) {
@@ -1483,24 +1418,8 @@ static int __devinit usbvision_register_video(struct usb_usbvision *usbvision)
 					  radio_nr)<0) {
 			goto err_exit;
 		}
-		printk(KERN_INFO "USBVision[%d]: registered USBVision Radio device /dev/radio%d [v4l2]\n",
-		       usbvision->nr, usbvision->rdev->num);
-	}
-	// vbi Device:
-	if (usbvision_device_data[usbvision->DevModel].vbi) {
-		usbvision->vbi = usbvision_vdev_init(usbvision,
-						     &usbvision_vbi_template,
-						     "USBVision VBI");
-		if (usbvision->vdev == NULL) {
-			goto err_exit;
-		}
-		if (video_register_device(usbvision->vbi,
-					  VFL_TYPE_VBI,
-					  vbi_nr)<0) {
-			goto err_exit;
-		}
-		printk(KERN_INFO "USBVision[%d]: registered USBVision VBI device /dev/vbi%d [v4l2] (Not Working Yet!)\n",
-		       usbvision->nr, usbvision->vbi->num);
+		printk(KERN_INFO "USBVision[%d]: registered USBVision Radio device %s [v4l2]\n",
+		       usbvision->nr, video_device_node_name(usbvision->rdev));
 	}
 	// all done
 	return 0;
@@ -1730,8 +1649,6 @@ static int __devinit usbvision_probe(struct usb_interface *intf,
 	usbvision_configure_video(usbvision);
 	mutex_unlock(&usbvision->lock);
 
-
-	usb_set_intfdata (intf, usbvision);
 	usbvision_create_sysfs(usbvision->vdev);
 
 	PDEBUG(DBG_PROBE, "success");
@@ -1749,16 +1666,14 @@ static int __devinit usbvision_probe(struct usb_interface *intf,
  */
 static void __devexit usbvision_disconnect(struct usb_interface *intf)
 {
-	struct usb_usbvision *usbvision = usb_get_intfdata(intf);
+	struct usb_usbvision *usbvision = to_usbvision(usb_get_intfdata(intf));
 
 	PDEBUG(DBG_PROBE, "");
 
 	if (usbvision == NULL) {
-		dev_err(&usbvision->dev->dev,
-			"%s: usb_get_intfdata() failed\n", __func__);
+		pr_err("%s: usb_get_intfdata() failed\n", __func__);
 		return;
 	}
-	usb_set_intfdata (intf, NULL);
 
 	mutex_lock(&usbvision->lock);
 

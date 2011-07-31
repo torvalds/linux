@@ -22,7 +22,6 @@
 
 struct soc_camera_platform_priv {
 	struct v4l2_subdev subdev;
-	struct soc_camera_data_format format;
 };
 
 static struct soc_camera_platform_priv *get_priv(struct platform_device *pdev)
@@ -57,37 +56,73 @@ soc_camera_platform_query_bus_param(struct soc_camera_device *icd)
 	return p->bus_param;
 }
 
-static int soc_camera_platform_try_fmt(struct v4l2_subdev *sd,
-				       struct v4l2_format *f)
+static int soc_camera_platform_fill_fmt(struct v4l2_subdev *sd,
+					struct v4l2_mbus_framefmt *mf)
 {
 	struct soc_camera_platform_info *p = v4l2_get_subdevdata(sd);
-	struct v4l2_pix_format *pix = &f->fmt.pix;
 
-	pix->width = p->format.width;
-	pix->height = p->format.height;
+	mf->width	= p->format.width;
+	mf->height	= p->format.height;
+	mf->code	= p->format.code;
+	mf->colorspace	= p->format.colorspace;
+	mf->field	= p->format.field;
+
 	return 0;
-}
-
-static void soc_camera_platform_video_probe(struct soc_camera_device *icd,
-					    struct platform_device *pdev)
-{
-	struct soc_camera_platform_priv *priv = get_priv(pdev);
-	struct soc_camera_platform_info *p = pdev->dev.platform_data;
-
-	priv->format.name = p->format_name;
-	priv->format.depth = p->format_depth;
-	priv->format.fourcc = p->format.pixelformat;
-	priv->format.colorspace = p->format.colorspace;
-
-	icd->formats = &priv->format;
-	icd->num_formats = 1;
 }
 
 static struct v4l2_subdev_core_ops platform_subdev_core_ops;
 
+static int soc_camera_platform_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
+					enum v4l2_mbus_pixelcode *code)
+{
+	struct soc_camera_platform_info *p = v4l2_get_subdevdata(sd);
+
+	if (index)
+		return -EINVAL;
+
+	*code = p->format.code;
+	return 0;
+}
+
+static int soc_camera_platform_g_crop(struct v4l2_subdev *sd,
+				      struct v4l2_crop *a)
+{
+	struct soc_camera_platform_info *p = v4l2_get_subdevdata(sd);
+
+	a->c.left	= 0;
+	a->c.top	= 0;
+	a->c.width	= p->format.width;
+	a->c.height	= p->format.height;
+	a->type		= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+	return 0;
+}
+
+static int soc_camera_platform_cropcap(struct v4l2_subdev *sd,
+				       struct v4l2_cropcap *a)
+{
+	struct soc_camera_platform_info *p = v4l2_get_subdevdata(sd);
+
+	a->bounds.left			= 0;
+	a->bounds.top			= 0;
+	a->bounds.width			= p->format.width;
+	a->bounds.height		= p->format.height;
+	a->defrect			= a->bounds;
+	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	a->pixelaspect.numerator	= 1;
+	a->pixelaspect.denominator	= 1;
+
+	return 0;
+}
+
 static struct v4l2_subdev_video_ops platform_subdev_video_ops = {
 	.s_stream	= soc_camera_platform_s_stream,
-	.try_fmt	= soc_camera_platform_try_fmt,
+	.enum_mbus_fmt	= soc_camera_platform_enum_fmt,
+	.cropcap	= soc_camera_platform_cropcap,
+	.g_crop		= soc_camera_platform_g_crop,
+	.try_mbus_fmt	= soc_camera_platform_fill_fmt,
+	.g_mbus_fmt	= soc_camera_platform_fill_fmt,
+	.s_mbus_fmt	= soc_camera_platform_fill_fmt,
 };
 
 static struct v4l2_subdev_ops platform_subdev_ops = {
@@ -128,12 +163,9 @@ static int soc_camera_platform_probe(struct platform_device *pdev)
 	/* Set the control device reference */
 	dev_set_drvdata(&icd->dev, &pdev->dev);
 
-	icd->y_skip_top		= 0;
-	icd->ops		= &soc_camera_platform_ops;
+	icd->ops = &soc_camera_platform_ops;
 
 	ici = to_soc_camera_host(icd->dev.parent);
-
-	soc_camera_platform_video_probe(icd, pdev);
 
 	v4l2_subdev_init(&priv->subdev, &platform_subdev_ops);
 	v4l2_set_subdevdata(&priv->subdev, p);

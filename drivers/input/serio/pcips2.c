@@ -15,6 +15,7 @@
 #include <linux/ioport.h>
 #include <linux/input.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/serio.h>
 #include <linux/delay.h>
@@ -186,7 +187,7 @@ static void __devexit pcips2_remove(struct pci_dev *dev)
 	pci_disable_device(dev);
 }
 
-static struct pci_device_id pcips2_ids[] = {
+static const struct pci_device_id pcips2_ids[] = {
 	{
 		.vendor		= 0x14f2,	/* MOBILITY */
 		.device		= 0x0123,	/* Keyboard */

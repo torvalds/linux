@@ -37,12 +37,12 @@
 
 #define DRV_NAME "IT8172"
 
-static void it8172_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void it8172_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u16 drive_enables;
 	u32 drive_timing;
+	const u8 pio = drive->pio_mode - XFER_PIO_0;
 
 	/*
 	 * The highest value of DIOR/DIOW pulse width and recovery time
@@ -77,14 +77,14 @@ static void it8172_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	pci_write_config_dword(dev, 0x44, drive_timing);
 }
 
-static void it8172_set_dma_mode(ide_drive_t *drive, const u8 speed)
+static void it8172_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	int a_speed		= 3 << (drive->dn * 4);
 	int u_flag		= 1 << drive->dn;
 	int u_speed		= 0;
 	u8 reg48, reg4a;
+	const u8 speed		= drive->dma_mode;
 
 	pci_read_config_byte(dev, 0x48, &reg48);
 	pci_read_config_byte(dev, 0x4a, &reg4a);
@@ -98,14 +98,14 @@ static void it8172_set_dma_mode(ide_drive_t *drive, const u8 speed)
 		pci_write_config_byte(dev, 0x4a, reg4a | u_speed);
 	} else {
 		const u8 mwdma_to_pio[] = { 0, 3, 4 };
-		u8 pio;
 
 		pci_write_config_byte(dev, 0x48, reg48 & ~u_flag);
 		pci_write_config_byte(dev, 0x4a, reg4a & ~a_speed);
 
-		pio = mwdma_to_pio[speed - XFER_MW_DMA_0];
+		drive->pio_mode =
+			mwdma_to_pio[speed - XFER_MW_DMA_0] + XFER_PIO_0;
 
-		it8172_set_pio_mode(drive, pio);
+		it8172_set_pio_mode(hwif, drive);
 	}
 }
 

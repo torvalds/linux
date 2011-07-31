@@ -39,7 +39,7 @@ i915_verify_inactive(struct drm_device *dev, char *file, int line)
 	struct drm_i915_gem_object *obj_priv;
 
 	list_for_each_entry(obj_priv, &dev_priv->mm.inactive_list, list) {
-		obj = obj_priv->obj;
+		obj = &obj_priv->base;
 		if (obj_priv->pin_count || obj_priv->active ||
 		    (obj->write_domain & ~(I915_GEM_DOMAIN_CPU |
 					   I915_GEM_DOMAIN_GTT)))
@@ -72,7 +72,7 @@ void
 i915_gem_dump_object(struct drm_gem_object *obj, int len,
 		     const char *where, uint32_t mark)
 {
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int page;
 
 	DRM_INFO("%s: object at offset %08x\n", where, obj_priv->gtt_offset);
@@ -137,7 +137,7 @@ void
 i915_gem_object_check_coherency(struct drm_gem_object *obj, int handle)
 {
 	struct drm_device *dev = obj->dev;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int page;
 	uint32_t *gtt_mapping;
 	uint32_t *backing_map = NULL;

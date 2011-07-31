@@ -12,7 +12,6 @@
 #include <linux/param.h>
 #include <linux/time.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/in.h>
@@ -234,7 +233,7 @@ nfs_xdr_removeargs(struct rpc_rqst *req, __be32 *p, const struct nfs_removeargs 
 static int
 nfs_xdr_readargs(struct rpc_rqst *req, __be32 *p, struct nfs_readargs *args)
 {
-	struct rpc_auth	*auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
+	struct rpc_auth	*auth = req->rq_cred->cr_auth;
 	unsigned int replen;
 	u32 offset = (u32)args->offset;
 	u32 count = args->count;
@@ -394,8 +393,7 @@ nfs_xdr_symlinkargs(struct rpc_rqst *req, __be32 *p, struct nfs_symlinkargs *arg
 static int
 nfs_xdr_readdirargs(struct rpc_rqst *req, __be32 *p, struct nfs_readdirargs *args)
 {
-	struct rpc_task	*task = req->rq_task;
-	struct rpc_auth	*auth = task->tk_msg.rpc_cred->cr_auth;
+	struct rpc_auth	*auth = req->rq_cred->cr_auth;
 	unsigned int replen;
 	u32 count = args->count;
 
@@ -576,7 +574,7 @@ nfs_xdr_diropres(struct rpc_rqst *req, __be32 *p, struct nfs_diropok *res)
 static int
 nfs_xdr_readlinkargs(struct rpc_rqst *req, __be32 *p, struct nfs_readlinkargs *args)
 {
-	struct rpc_auth	*auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
+	struct rpc_auth	*auth = req->rq_cred->cr_auth;
 	unsigned int replen;
 
 	p = xdr_encode_fhandle(p, args->fh);
@@ -699,7 +697,7 @@ static struct {
 	{ NFSERR_BAD_COOKIE,	-EBADCOOKIE	},
 	{ NFSERR_NOTSUPP,	-ENOTSUPP	},
 	{ NFSERR_TOOSMALL,	-ETOOSMALL	},
-	{ NFSERR_SERVERFAULT,	-ESERVERFAULT	},
+	{ NFSERR_SERVERFAULT,	-EREMOTEIO	},
 	{ NFSERR_BADTYPE,	-EBADTYPE	},
 	{ NFSERR_JUKEBOX,	-EJUKEBOX	},
 	{ -1,			-EIO		}

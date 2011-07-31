@@ -9,4 +9,3 @@ comedi-objs :=		\
 	range.o		\
 	drivers.o	\
 	comedi_compat32.o \
-	comedi_ksyms.o	\

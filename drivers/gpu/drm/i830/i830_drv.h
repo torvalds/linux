@@ -122,6 +122,7 @@ typedef struct drm_i830_private {
 
 } drm_i830_private_t;
 
+long i830_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 extern struct drm_ioctl_desc i830_ioctls[];
 extern int i830_max_ioctl;
 
@@ -132,33 +133,33 @@ extern int i830_irq_wait(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 
 extern irqreturn_t i830_driver_irq_handler(DRM_IRQ_ARGS);
-extern void i830_driver_irq_preinstall(struct drm_device * dev);
-extern void i830_driver_irq_postinstall(struct drm_device * dev);
-extern void i830_driver_irq_uninstall(struct drm_device * dev);
+extern void i830_driver_irq_preinstall(struct drm_device *dev);
+extern void i830_driver_irq_postinstall(struct drm_device *dev);
+extern void i830_driver_irq_uninstall(struct drm_device *dev);
 extern int i830_driver_load(struct drm_device *, unsigned long flags);
-extern void i830_driver_preclose(struct drm_device * dev,
+extern void i830_driver_preclose(struct drm_device *dev,
 				 struct drm_file *file_priv);
-extern void i830_driver_lastclose(struct drm_device * dev);
-extern void i830_driver_reclaim_buffers_locked(struct drm_device * dev,
+extern void i830_driver_lastclose(struct drm_device *dev);
+extern void i830_driver_reclaim_buffers_locked(struct drm_device *dev,
 					       struct drm_file *file_priv);
-extern int i830_driver_dma_quiescent(struct drm_device * dev);
-extern int i830_driver_device_is_agp(struct drm_device * dev);
+extern int i830_driver_dma_quiescent(struct drm_device *dev);
+extern int i830_driver_device_is_agp(struct drm_device *dev);
 
-#define I830_READ(reg)          DRM_READ32(dev_priv->mmio_map, reg)
-#define I830_WRITE(reg,val)     DRM_WRITE32(dev_priv->mmio_map, reg, val)
-#define I830_READ16(reg)        DRM_READ16(dev_priv->mmio_map, reg)
-#define I830_WRITE16(reg,val)   DRM_WRITE16(dev_priv->mmio_map, reg, val)
+#define I830_READ(reg)		DRM_READ32(dev_priv->mmio_map, reg)
+#define I830_WRITE(reg, val)	DRM_WRITE32(dev_priv->mmio_map, reg, val)
+#define I830_READ16(reg)	DRM_READ16(dev_priv->mmio_map, reg)
+#define I830_WRITE16(reg, val)	DRM_WRITE16(dev_priv->mmio_map, reg, val)
 
 #define I830_VERBOSE 0
 
 #define RING_LOCALS	unsigned int outring, ringmask, outcount; \
-                        volatile char *virt;
+			volatile char *virt;
 
 #define BEGIN_LP_RING(n) do {				\
 	if (I830_VERBOSE)				\
 		printk("BEGIN_LP_RING(%d)\n", (n));	\
 	if (dev_priv->ring.space < n*4)			\
-		i830_wait_ring(dev, n*4, __func__);		\
+		i830_wait_ring(dev, n*4, __func__);	\
 	outcount = 0;					\
 	outring = dev_priv->ring.tail;			\
 	ringmask = dev_priv->ring.tail_mask;		\
@@ -166,21 +167,23 @@ extern int i830_driver_device_is_agp(struct drm_device * dev);
 } while (0)
 
 #define OUT_RING(n) do {					\
-	if (I830_VERBOSE) printk("   OUT_RING %x\n", (int)(n));	\
+	if (I830_VERBOSE)					\
+		printk("   OUT_RING %x\n", (int)(n));		\
 	*(volatile unsigned int *)(virt + outring) = n;		\
-        outcount++;						\
+	outcount++;						\
 	outring += 4;						\
 	outring &= ringmask;					\
 } while (0)
 
-#define ADVANCE_LP_RING() do {						\
-	if (I830_VERBOSE) printk("ADVANCE_LP_RING %x\n", outring);	\
-	dev_priv->ring.tail = outring;					\
-	dev_priv->ring.space -= outcount * 4;				\
-	I830_WRITE(LP_RING + RING_TAIL, outring);			\
-} while(0)
+#define ADVANCE_LP_RING() do {					\
+	if (I830_VERBOSE)					\
+		printk("ADVANCE_LP_RING %x\n", outring);	\
+	dev_priv->ring.tail = outring;				\
+	dev_priv->ring.space -= outcount * 4;			\
+	I830_WRITE(LP_RING + RING_TAIL, outring);		\
+} while (0)
 
-extern int i830_wait_ring(struct drm_device * dev, int n, const char *caller);
+extern int i830_wait_ring(struct drm_device *dev, int n, const char *caller);
 
 #define GFX_OP_USER_INTERRUPT		((0<<29)|(2<<23))
 #define GFX_OP_BREAKPOINT_INTERRUPT	((0<<29)|(1<<23))

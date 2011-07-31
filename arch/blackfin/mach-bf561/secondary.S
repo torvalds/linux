@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <asm/blackfin.h>
 #include <asm/asm-offsets.h>
+#include <asm/trace.h>
 
 __INIT
 
@@ -61,6 +62,8 @@ ENTRY(_coreb_trampoline_start)
 	M1 = r0;
 	M2 = r0;
 	M3 = r0;
+
+	trace_buffer_init(p0,r0);
 
 	/* Turn off the icache */
 	p0.l = LO(IMEM_CONTROL);
@@ -159,6 +162,41 @@ ENTRY(_coreb_trampoline_start)
 ENDPROC(_coreb_trampoline_start)
 ENTRY(_coreb_trampoline_end)
 
+.section ".text"
+ENTRY(_set_sicb_iwr)
+	P0.H = hi(SICB_IWR0);
+	P0.L = lo(SICB_IWR0);
+	P1.H = hi(SICB_IWR1);
+	P1.L = lo(SICB_IWR1);
+	[P0] = R0;
+	[P1] = R1;
+	SSYNC;
+	RTS;
+ENDPROC(_set_sicb_iwr)
+
+ENTRY(_coreb_sleep)
+	sp.l = lo(INITIAL_STACK);
+	sp.h = hi(INITIAL_STACK);
+	fp = sp;
+	usp = sp;
+
+	call _set_sicb_iwr;
+
+	CLI R2;
+	SSYNC;
+	IDLE;
+	STI R2;
+
+	R0 = IWR_DISABLE_ALL;
+	R1 = IWR_DISABLE_ALL;
+	call _set_sicb_iwr;
+
+	p0.h = hi(COREB_L1_CODE_START);
+	p0.l = lo(COREB_L1_CODE_START);
+	jump (p0);
+ENDPROC(_coreb_sleep)
+
+__CPUINIT
 ENTRY(_coreb_start)
 	[--sp] = reti;
 
@@ -176,12 +214,20 @@ ENTRY(_coreb_start)
 	sp = [p0];
 	usp = sp;
 	fp = sp;
+#ifdef CONFIG_HOTPLUG_CPU
+	p0.l = _hotplug_coreb;
+	p0.h = _hotplug_coreb;
+	r0 = [p0];
+	cc = BITTST(r0, 0);
+	if cc jump 3f;
+#endif
 	sp += -12;
 	call _init_pda
 	sp += 12;
+#ifdef CONFIG_HOTPLUG_CPU
+3:
+#endif
 	call _secondary_start_kernel;
 .L_exit:
 	jump.s	.L_exit;
 ENDPROC(_coreb_start)
-
-__FINIT

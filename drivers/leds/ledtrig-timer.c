@@ -22,6 +22,7 @@
 #include <linux/timer.h>
 #include <linux/ctype.h>
 #include <linux/leds.h>
+#include <linux/slab.h>
 #include "leds.h"
 
 struct timer_trig_data {
@@ -83,7 +84,7 @@ static ssize_t led_delay_on_store(struct device *dev,
 	unsigned long state = simple_strtoul(buf, &after, 10);
 	size_t count = after - buf;
 
-	if (*after && isspace(*after))
+	if (isspace(*after))
 		count++;
 
 	if (count == size) {
@@ -127,7 +128,7 @@ static ssize_t led_delay_off_store(struct device *dev,
 	unsigned long state = simple_strtoul(buf, &after, 10);
 	size_t count = after - buf;
 
-	if (*after && isspace(*after))
+	if (isspace(*after))
 		count++;
 
 	if (count == size) {

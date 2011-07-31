@@ -33,7 +33,7 @@ static __cpuinitdata atomic_t stop_count;
  * we want to have the fastest, inlined, non-debug version
  * of a critical section, to be able to prove TSC time-warps:
  */
-static __cpuinitdata raw_spinlock_t sync_lock = __RAW_SPIN_LOCK_UNLOCKED;
+static __cpuinitdata arch_spinlock_t sync_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 
 static __cpuinitdata cycles_t last_tsc;
 static __cpuinitdata cycles_t max_warp;
@@ -62,13 +62,13 @@ static __cpuinit void check_tsc_warp(void)
 		 * previous TSC that was measured (possibly on
 		 * another CPU) and update the previous TSC timestamp.
 		 */
-		__raw_spin_lock(&sync_lock);
+		arch_spin_lock(&sync_lock);
 		prev = last_tsc;
 		rdtsc_barrier();
 		now = get_cycles();
 		rdtsc_barrier();
 		last_tsc = now;
-		__raw_spin_unlock(&sync_lock);
+		arch_spin_unlock(&sync_lock);
 
 		/*
 		 * Be nice every now and then (and also check whether
@@ -87,10 +87,10 @@ static __cpuinit void check_tsc_warp(void)
 		 * we saw a time-warp of the TSC going backwards:
 		 */
 		if (unlikely(prev > now)) {
-			__raw_spin_lock(&sync_lock);
+			arch_spin_lock(&sync_lock);
 			max_warp = max(max_warp, prev - now);
 			nr_warps++;
-			__raw_spin_unlock(&sync_lock);
+			arch_spin_unlock(&sync_lock);
 		}
 	}
 	WARN(!(now-start),
@@ -114,12 +114,11 @@ void __cpuinit check_tsc_sync_source(int cpu)
 		return;
 
 	if (boot_cpu_has(X86_FEATURE_TSC_RELIABLE)) {
-		printk_once(KERN_INFO "Skipping synchronization checks as TSC is reliable.\n");
+		if (cpu == (nr_cpu_ids-1) || system_state != SYSTEM_BOOTING)
+			pr_info(
+			"Skipped synchronization checks as TSC is reliable.\n");
 		return;
 	}
-
-	pr_info("checking TSC synchronization [CPU#%d -> CPU#%d]:",
-		smp_processor_id(), cpu);
 
 	/*
 	 * Reset it - in case this is a second bootup:
@@ -142,12 +141,14 @@ void __cpuinit check_tsc_sync_source(int cpu)
 		cpu_relax();
 
 	if (nr_warps) {
-		printk("\n");
+		pr_warning("TSC synchronization [CPU#%d -> CPU#%d]:\n",
+			smp_processor_id(), cpu);
 		pr_warning("Measured %Ld cycles TSC warp between CPUs, "
 			   "turning off TSC clock.\n", max_warp);
 		mark_tsc_unstable("check_tsc_sync_source failed");
 	} else {
-		printk(" passed.\n");
+		pr_debug("TSC synchronization [CPU#%d -> CPU#%d]: passed\n",
+			smp_processor_id(), cpu);
 	}
 
 	/*

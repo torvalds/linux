@@ -9,25 +9,28 @@
 #include <linux/of.h>
 #include <linux/device.h>
 #include <linux/spi/spi.h>
+#include <linux/of_irq.h>
 #include <linux/of_spi.h>
 
 /**
  * of_register_spi_devices - Register child devices onto the SPI bus
  * @master:	Pointer to spi_master device
- * @np:		parent node of SPI device nodes
  *
- * Registers an spi_device for each child node of 'np' which has a 'reg'
+ * Registers an spi_device for each child node of master node which has a 'reg'
  * property.
  */
-void of_register_spi_devices(struct spi_master *master, struct device_node *np)
+void of_register_spi_devices(struct spi_master *master)
 {
 	struct spi_device *spi;
 	struct device_node *nc;
-	const u32 *prop;
+	const __be32 *prop;
 	int rc;
 	int len;
 
-	for_each_child_of_node(np, nc) {
+	if (!master->dev.of_node)
+		return;
+
+	for_each_child_of_node(master->dev.of_node, nc) {
 		/* Alloc an spi_device */
 		spi = spi_alloc_device(master);
 		if (!spi) {
@@ -54,7 +57,7 @@ void of_register_spi_devices(struct spi_master *master, struct device_node *np)
 			spi_dev_put(spi);
 			continue;
 		}
-		spi->chip_select = *prop;
+		spi->chip_select = be32_to_cpup(prop);
 
 		/* Mode (clock phase/polarity/etc.) */
 		if (of_find_property(nc, "spi-cpha", NULL))
@@ -72,14 +75,14 @@ void of_register_spi_devices(struct spi_master *master, struct device_node *np)
 			spi_dev_put(spi);
 			continue;
 		}
-		spi->max_speed_hz = *prop;
+		spi->max_speed_hz = be32_to_cpup(prop);
 
 		/* IRQ */
 		spi->irq = irq_of_parse_and_map(nc, 0);
 
 		/* Store a pointer to the node in the device structure */
 		of_node_get(nc);
-		spi->dev.archdata.of_node = nc;
+		spi->dev.of_node = nc;
 
 		/* Register the new device */
 		request_module(spi->modalias);

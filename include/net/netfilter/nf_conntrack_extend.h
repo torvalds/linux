@@ -1,14 +1,16 @@
 #ifndef _NF_CONNTRACK_EXTEND_H
 #define _NF_CONNTRACK_EXTEND_H
 
+#include <linux/slab.h>
+
 #include <net/netfilter/nf_conntrack.h>
 
-enum nf_ct_ext_id
-{
+enum nf_ct_ext_id {
 	NF_CT_EXT_HELPER,
 	NF_CT_EXT_NAT,
 	NF_CT_EXT_ACCT,
 	NF_CT_EXT_ECACHE,
+	NF_CT_EXT_ZONE,
 	NF_CT_EXT_NUM,
 };
 
@@ -16,6 +18,7 @@ enum nf_ct_ext_id
 #define NF_CT_EXT_NAT_TYPE struct nf_conn_nat
 #define NF_CT_EXT_ACCT_TYPE struct nf_conn_counter
 #define NF_CT_EXT_ECACHE_TYPE struct nf_conntrack_ecache
+#define NF_CT_EXT_ZONE_TYPE struct nf_conntrack_zone
 
 /* Extensions: optional stuff which isn't permanently in struct. */
 struct nf_ct_ext {
@@ -25,9 +28,14 @@ struct nf_ct_ext {
 	char data[0];
 };
 
-static inline int nf_ct_ext_exist(const struct nf_conn *ct, u8 id)
+static inline bool __nf_ct_ext_exist(const struct nf_ct_ext *ext, u8 id)
 {
-	return (ct->ext && ct->ext->offset[id]);
+	return !!ext->offset[id];
+}
+
+static inline bool nf_ct_ext_exist(const struct nf_conn *ct, u8 id)
+{
+	return (ct->ext && __nf_ct_ext_exist(ct->ext, id));
 }
 
 static inline void *__nf_ct_ext_find(const struct nf_conn *ct, u8 id)
@@ -65,8 +73,7 @@ __nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp);
 
 #define NF_CT_EXT_F_PREALLOC	0x0001
 
-struct nf_ct_ext_type
-{
+struct nf_ct_ext_type {
 	/* Destroys relationships (can be NULL). */
 	void (*destroy)(struct nf_conn *ct);
 	/* Called when realloacted (can be NULL).

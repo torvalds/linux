@@ -26,6 +26,7 @@
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/key.h>
+#include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/smp_lock.h>
 #include <linux/file.h>
@@ -85,7 +86,6 @@ static void ecryptfs_destroy_inode(struct inode *inode)
 		if (lower_dentry->d_inode) {
 			fput(inode_info->lower_file);
 			inode_info->lower_file = NULL;
-			d_drop(lower_dentry);
 		}
 	}
 	ecryptfs_destroy_crypt_stat(&inode_info->crypt_stat);
@@ -109,26 +109,6 @@ void ecryptfs_init_inode(struct inode *inode, struct inode *lower_inode)
 }
 
 /**
- * ecryptfs_put_super
- * @sb: Pointer to the ecryptfs super block
- *
- * Final actions when unmounting a file system.
- * This will handle deallocation and release of our private data.
- */
-static void ecryptfs_put_super(struct super_block *sb)
-{
-	struct ecryptfs_sb_info *sb_info = ecryptfs_superblock_to_private(sb);
-
-	lock_kernel();
-
-	ecryptfs_destroy_mount_crypt_stat(&sb_info->mount_crypt_stat);
-	kmem_cache_free(ecryptfs_sb_info_cache, sb_info);
-	ecryptfs_set_superblock_private(sb, NULL);
-
-	unlock_kernel();
-}
-
-/**
  * ecryptfs_statfs
  * @sb: The ecryptfs super block
  * @buf: The struct kstatfs to fill in with stats
@@ -138,11 +118,15 @@ static void ecryptfs_put_super(struct super_block *sb)
  */
 static int ecryptfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	return vfs_statfs(ecryptfs_dentry_to_lower(dentry), buf);
+	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
+
+	if (!lower_dentry->d_sb->s_op->statfs)
+		return -ENOSYS;
+	return lower_dentry->d_sb->s_op->statfs(lower_dentry, buf);
 }
 
 /**
- * ecryptfs_clear_inode
+ * ecryptfs_evict_inode
  * @inode - The ecryptfs inode
  *
  * Called by iput() when the inode reference count reached zero
@@ -151,8 +135,10 @@ static int ecryptfs_statfs(struct dentry *dentry, struct kstatfs *buf)
  * on the inode free list. We use this to drop out reference to the
  * lower inode.
  */
-static void ecryptfs_clear_inode(struct inode *inode)
+static void ecryptfs_evict_inode(struct inode *inode)
 {
+	truncate_inode_pages(&inode->i_data, 0);
+	end_writeback(inode);
 	iput(ecryptfs_inode_to_lower(inode));
 }
 
@@ -202,9 +188,8 @@ const struct super_operations ecryptfs_sops = {
 	.alloc_inode = ecryptfs_alloc_inode,
 	.destroy_inode = ecryptfs_destroy_inode,
 	.drop_inode = generic_delete_inode,
-	.put_super = ecryptfs_put_super,
 	.statfs = ecryptfs_statfs,
 	.remount_fs = NULL,
-	.clear_inode = ecryptfs_clear_inode,
+	.evict_inode = ecryptfs_evict_inode,
 	.show_options = ecryptfs_show_options
 };

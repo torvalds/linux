@@ -27,7 +27,7 @@
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <mach/gpio.h>
-#include <mach/mcbsp.h>
+#include <plat/mcbsp.h>
 
 #include "omap-mcbsp.h"
 #include "omap-pcm.h"
@@ -93,10 +93,17 @@ static struct snd_soc_card snd_soc_omap3evm = {
 	.num_links = 1,
 };
 
+/* twl4030 setup */
+static struct twl4030_setup_data twl4030_setup = {
+	.ramp_delay_value = 4,
+	.sysclk = 26000,
+};
+
 /* Audio subsystem */
 static struct snd_soc_device omap3evm_snd_devdata = {
 	.card = &snd_soc_omap3evm,
 	.codec_dev = &soc_codec_dev_twl4030,
+	.codec_data = &twl4030_setup,
 };
 
 static struct platform_device *omap3evm_snd_device;

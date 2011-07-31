@@ -98,14 +98,18 @@ static void ri_tasklet(unsigned long dev)
 		stats->tx_packets++;
 		stats->tx_bytes +=skb->len;
 
-		skb->dev = dev_get_by_index(&init_net, skb->iif);
+		rcu_read_lock();
+		skb->dev = dev_get_by_index_rcu(&init_net, skb->skb_iif);
 		if (!skb->dev) {
+			rcu_read_unlock();
 			dev_kfree_skb(skb);
 			stats->tx_dropped++;
+			if (skb_queue_len(&dp->tq) != 0)
+				goto resched;
 			break;
 		}
-		dev_put(skb->dev);
-		skb->iif = _dev->ifindex;
+		rcu_read_unlock();
+		skb->skb_iif = _dev->ifindex;
 
 		if (from & AT_EGRESS) {
 			dp->st_rx_frm_egr++;
@@ -170,7 +174,7 @@ static netdev_tx_t ifb_xmit(struct sk_buff *skb, struct net_device *dev)
 	stats->rx_packets++;
 	stats->rx_bytes+=skb->len;
 
-	if (!(from & (AT_INGRESS|AT_EGRESS)) || !skb->iif) {
+	if (!(from & (AT_INGRESS|AT_EGRESS)) || !skb->skb_iif) {
 		dev_kfree_skb(skb);
 		stats->rx_dropped++;
 		return NETDEV_TX_OK;
@@ -180,7 +184,6 @@ static netdev_tx_t ifb_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 	}
 
-	dev->trans_start = jiffies;
 	skb_queue_tail(&dp->rq, skb);
 	if (!dp->tasklet_pending) {
 		dp->tasklet_pending = 1;

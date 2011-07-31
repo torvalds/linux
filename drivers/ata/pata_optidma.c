@@ -429,7 +429,7 @@ static int optidma_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	if (optiplus_with_udma(dev))
 		ppi[0] = &info_82c700_udma;
 
-	return ata_pci_sff_init_one(dev, ppi, &optidma_sht, NULL);
+	return ata_pci_bmdma_init_one(dev, ppi, &optidma_sht, NULL, 0);
 }
 
 static const struct pci_device_id optidma[] = {

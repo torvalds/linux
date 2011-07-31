@@ -14,10 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/mm.h>
@@ -65,6 +61,11 @@ static struct map_desc mxc_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(AIPS2_BASE_ADDR),
 		.length		= AIPS2_SIZE,
 		.type		= MT_DEVICE_NONSHARED
+	}, {
+		.virtual = SPBA0_BASE_ADDR_VIRT,
+		.pfn = __phys_to_pfn(SPBA0_BASE_ADDR),
+		.length = SPBA0_SIZE,
+		.type = MT_DEVICE_NONSHARED
 	},
 };
 
@@ -92,9 +93,12 @@ void __init mx35_map_io(void)
 }
 #endif
 
+int imx3x_register_gpios(void);
+
 void __init mx31_init_irq(void)
 {
 	mxc_init_irq(IO_ADDRESS(AVIC_BASE_ADDR));
+	imx3x_register_gpios();
 }
 
 void __init mx35_init_irq(void)

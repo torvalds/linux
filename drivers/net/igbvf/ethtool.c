@@ -367,16 +367,6 @@ static int igbvf_link_test(struct igbvf_adapter *adapter, u64 *data)
 	return *data;
 }
 
-static int igbvf_get_self_test_count(struct net_device *netdev)
-{
-	return IGBVF_TEST_LEN;
-}
-
-static int igbvf_get_stats_count(struct net_device *netdev)
-{
-	return IGBVF_GLOBAL_STATS_LEN;
-}
-
 static void igbvf_diag_test(struct net_device *netdev,
                             struct ethtool_test *eth_test, u64 *data)
 {
@@ -400,8 +390,6 @@ static void igbvf_get_wol(struct net_device *netdev,
 {
 	wol->supported = 0;
 	wol->wolopts = 0;
-
-	return;
 }
 
 static int igbvf_set_wol(struct net_device *netdev,
@@ -484,6 +472,18 @@ static void igbvf_get_ethtool_stats(struct net_device *netdev,
 
 }
 
+static int igbvf_get_sset_count(struct net_device *dev, int stringset)
+{
+	switch(stringset) {
+	case ETH_SS_TEST:
+		return IGBVF_TEST_LEN;
+	case ETH_SS_STATS:
+		return IGBVF_GLOBAL_STATS_LEN;
+	default:
+		return -EINVAL;
+	}
+}
+
 static void igbvf_get_strings(struct net_device *netdev, u32 stringset,
                               u8 *data)
 {
@@ -532,11 +532,10 @@ static const struct ethtool_ops igbvf_ethtool_ops = {
 	.get_tso		= ethtool_op_get_tso,
 	.set_tso		= igbvf_set_tso,
 	.self_test		= igbvf_diag_test,
+	.get_sset_count		= igbvf_get_sset_count,
 	.get_strings		= igbvf_get_strings,
 	.phys_id		= igbvf_phys_id,
 	.get_ethtool_stats	= igbvf_get_ethtool_stats,
-	.self_test_count	= igbvf_get_self_test_count,
-	.get_stats_count	= igbvf_get_stats_count,
 	.get_coalesce		= igbvf_get_coalesce,
 	.set_coalesce		= igbvf_set_coalesce,
 };

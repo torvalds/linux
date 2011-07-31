@@ -1,9 +1,15 @@
 menu "SCSI device support"
 
+config SCSI_MOD
+       tristate
+       default y if SCSI=n || SCSI=y
+       default m if SCSI=m
+
 config RAID_ATTRS
 	tristate "RAID Transport Class"
 	default n
 	depends on BLOCK
+	depends on SCSI_MOD
 	---help---
 	  Provides RAID
 
@@ -364,6 +370,14 @@ config ISCSI_TCP
 
 	 http://open-iscsi.org
 
+config ISCSI_BOOT_SYSFS
+	tristate "iSCSI Boot Sysfs Interface"
+	default	n
+	help
+	  This option enables support for exposing iSCSI boot information
+	  via sysfs to userspace. If you wish to export this information,
+	  say Y. Otherwise, say N.
+
 source "drivers/scsi/cxgb3i/Kconfig"
 source "drivers/scsi/bnx2i/Kconfig"
 source "drivers/scsi/be2iscsi/Kconfig"
@@ -388,6 +402,16 @@ config BLK_DEV_3W_XXXX_RAID
 	  Please read the comments at the top of
 	  <file:drivers/scsi/3w-xxxx.c>.
 
+config SCSI_HPSA
+	tristate "HP Smart Array SCSI driver"
+	depends on PCI && SCSI
+	help
+	  This driver supports HP Smart Array Controllers (circa 2009).
+	  It is a SCSI alternative to the cciss driver, which is a block
+	  driver.  Anyone wishing to use HP Smart Array controllers who
+	  would prefer the devices be presented to linux as SCSI devices,
+	  rather than as generic block devices should say Y here.
+
 config SCSI_3W_9XXX
 	tristate "3ware 9xxx SATA-RAID support"
 	depends on PCI && SCSI
@@ -398,6 +422,17 @@ config SCSI_3W_9XXX
 
 	  Please read the comments at the top of
 	  <file:drivers/scsi/3w-9xxx.c>.
+
+config SCSI_3W_SAS
+	tristate "3ware 97xx SAS/SATA-RAID support"
+	depends on PCI && SCSI
+	help
+	  This driver supports the LSI 3ware 9750 6Gb/s SAS/SATA-RAID cards.
+
+	  <http://www.lsi.com>
+
+	  Please read the comments at the top of
+	  <file:drivers/scsi/3w-sas.c>.
 
 config SCSI_7000FASST
 	tristate "7000FASST SCSI support"
@@ -621,6 +656,14 @@ config SCSI_FLASHPOINT
 	  substantial, so users of MultiMaster Host Adapters may not
 	  wish to include it.
 
+config VMWARE_PVSCSI
+	tristate "VMware PVSCSI driver support"
+	depends on PCI && SCSI && X86
+	help
+	  This driver supports VMware's para virtualized SCSI HBA.
+	  To compile this driver as a module, choose M here: the
+	  module will be called vmw_pvscsi.
+
 config LIBFC
 	tristate "LibFC module"
 	select SCSI_FC_ATTRS
@@ -644,7 +687,7 @@ config FCOE
 config FCOE_FNIC
 	tristate "Cisco FNIC Driver"
 	depends on PCI && X86
-	select LIBFC
+	select LIBFCOE
 	help
 	  This is support for the Cisco PCI-Express FCoE HBA.
 
@@ -1812,11 +1855,23 @@ config ZFCP
           called zfcp. If you want to compile it as a module, say M here
           and read <file:Documentation/kbuild/modules.txt>.
 
+config ZFCP_DIF
+	tristate "T10 DIF/DIX support for the zfcp driver (EXPERIMENTAL)"
+	depends on ZFCP && EXPERIMENTAL
+
 config SCSI_PMCRAID
 	tristate "PMC SIERRA Linux MaxRAID adapter support"
-	depends on PCI && SCSI
+	depends on PCI && SCSI && NET
 	---help---
 	  This driver supports the PMC SIERRA MaxRAID adapters.
+
+config SCSI_PM8001
+	tristate "PMC-Sierra SPC 8001 SAS/SATA Based Host Adapter driver"
+	depends on PCI && SCSI
+	select SCSI_SAS_LIBSAS
+	help
+	  This driver supports PMC-Sierra PCIE SAS/SATA 8x6G SPC 8001 chip
+	  based host adapters.
 
 config SCSI_SRP
 	tristate "SCSI RDMA Protocol helper library"

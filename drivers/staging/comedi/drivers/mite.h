@@ -27,8 +27,6 @@
 #include <linux/pci.h>
 #include "../comedidev.h"
 
-#define PCI_VENDOR_ID_NATINST		0x1093
-
 /*  #define DEBUG_MITE */
 #define PCIMIO_COMPAT
 
@@ -162,13 +160,6 @@ u32 mite_bytes_read_from_memory_ub(struct mite_channel *mite_chan);
 u32 mite_bytes_in_transit(struct mite_channel *mite_chan);
 unsigned mite_get_status(struct mite_channel *mite_chan);
 int mite_done(struct mite_channel *mite_chan);
-
-#if 0
-unsigned long mite_ll_from_kvmem(struct mite_struct *mite,
-				 struct comedi_async *async, int len);
-void mite_setregs(struct mite_struct *mite, unsigned long ll_start, int chan,
-		  int dir);
-#endif
 
 void mite_prep_dma(struct mite_channel *mite_chan,
 		   unsigned int num_device_bits, unsigned int num_memory_bits);

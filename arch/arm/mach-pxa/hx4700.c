@@ -820,6 +820,7 @@ static struct platform_device *devices[] __initdata = {
 	&gpio_keys,
 	&backlight,
 	&w3220,
+	&hx4700_lcd,
 	&egpio,
 	&bq24022,
 	&gpio_vbus,
@@ -848,6 +849,10 @@ static void __init hx4700_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(hx4700_pin_config));
 	hx4700_gpio_request(ARRAY_AND_SIZE(global_gpios));
+
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 

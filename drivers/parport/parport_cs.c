@@ -48,7 +48,6 @@
 #include <linux/parport.h>
 #include <linux/parport_pc.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -67,14 +66,6 @@ MODULE_LICENSE("Dual MPL/GPL");
 
 INT_MODULE_PARM(epp_mode, 1);
 
-#ifdef PCMCIA_DEBUG
-INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
-"parport_cs.c 1.29 2002/10/11 06:57:41 (David Hinds)";
-#else
-#define DEBUG(n, args...)
-#endif
 
 /*====================================================================*/
 
@@ -83,7 +74,6 @@ static char *version =
 typedef struct parport_info_t {
 	struct pcmcia_device	*p_dev;
     int			ndev;
-    dev_node_t		node;
     struct parport	*port;
 } parport_info_t;
 
@@ -103,7 +93,7 @@ static int parport_probe(struct pcmcia_device *link)
 {
     parport_info_t *info;
 
-    DEBUG(0, "parport_attach()\n");
+    dev_dbg(&link->dev, "parport_attach()\n");
 
     /* Create new parport device */
     info = kzalloc(sizeof(*info), GFP_KERNEL);
@@ -111,10 +101,8 @@ static int parport_probe(struct pcmcia_device *link)
     link->priv = info;
     info->p_dev = link;
 
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-    link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
+    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+    link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -132,7 +120,7 @@ static int parport_probe(struct pcmcia_device *link)
 
 static void parport_detach(struct pcmcia_device *link)
 {
-    DEBUG(0, "parport_detach(0x%p)\n", link);
+    dev_dbg(&link->dev, "parport_detach\n");
 
     parport_cs_release(link);
 
@@ -147,9 +135,6 @@ static void parport_detach(struct pcmcia_device *link)
 
 ======================================================================*/
 
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
-
 static int parport_config_check(struct pcmcia_device *p_dev,
 				cistpl_cftable_entry_t *cfg,
 				cistpl_cftable_entry_t *dflt,
@@ -158,16 +143,16 @@ static int parport_config_check(struct pcmcia_device *p_dev,
 {
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
+		p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
 		if (epp_mode)
 			p_dev->conf.ConfigIndex |= FORCE_EPP_MODE;
-		p_dev->io.BasePort1 = io->win[0].base;
-		p_dev->io.NumPorts1 = io->win[0].len;
-		p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
+		p_dev->resource[0]->start = io->win[0].base;
+		p_dev->resource[0]->end = io->win[0].len;
 		if (io->nwin == 2) {
-			p_dev->io.BasePort2 = io->win[1].base;
-			p_dev->io.NumPorts2 = io->win[1].len;
+			p_dev->resource[1]->start = io->win[1].base;
+			p_dev->resource[1]->end = io->win[1].len;
 		}
-		if (pcmcia_request_io(p_dev, &p_dev->io) != 0)
+		if (pcmcia_request_io(p_dev) != 0)
 			return -ENODEV;
 		return 0;
 	}
@@ -178,26 +163,29 @@ static int parport_config(struct pcmcia_device *link)
 {
     parport_info_t *info = link->priv;
     struct parport *p;
-    int last_ret, last_fn;
+    int ret;
 
-    DEBUG(0, "parport_config(0x%p)\n", link);
+    dev_dbg(&link->dev, "parport_config\n");
 
-    last_ret = pcmcia_loop_config(link, parport_config_check, NULL);
-    if (last_ret) {
-	    cs_error(link, RequestIO, last_ret);
+    ret = pcmcia_loop_config(link, parport_config_check, NULL);
+    if (ret)
 	    goto failed;
-    }
 
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
+    if (!link->irq)
+	    goto failed;
+    ret = pcmcia_request_configuration(link, &link->conf);
+    if (ret)
+	    goto failed;
 
-    p = parport_pc_probe_port(link->io.BasePort1, link->io.BasePort2,
-			      link->irq.AssignedIRQ, PARPORT_DMA_NONE,
+    p = parport_pc_probe_port(link->resource[0]->start,
+			      link->resource[1]->start,
+			      link->irq, PARPORT_DMA_NONE,
 			      &link->dev, IRQF_SHARED);
     if (p == NULL) {
 	printk(KERN_NOTICE "parport_cs: parport_pc_probe_port() at "
-	       "0x%3x, irq %u failed\n", link->io.BasePort1,
-	       link->irq.AssignedIRQ);
+	       "0x%3x, irq %u failed\n",
+	       (unsigned int) link->resource[0]->start,
+	       link->irq);
 	goto failed;
     }
 
@@ -205,16 +193,10 @@ static int parport_config(struct pcmcia_device *link)
     if (epp_mode)
 	p->modes |= PARPORT_MODE_TRISTATE | PARPORT_MODE_EPP;
     info->ndev = 1;
-    info->node.major = LP_MAJOR;
-    info->node.minor = p->number;
     info->port = p;
-    strcpy(info->node.dev_name, p->name);
-    link->dev_node = &info->node;
 
     return 0;
 
-cs_failed:
-    cs_error(link, last_fn, last_ret);
 failed:
     parport_cs_release(link);
     return -ENODEV;
@@ -232,7 +214,7 @@ static void parport_cs_release(struct pcmcia_device *link)
 {
 	parport_info_t *info = link->priv;
 
-	DEBUG(0, "parport_release(0x%p)\n", link);
+	dev_dbg(&link->dev, "parport_release\n");
 
 	if (info->ndev) {
 		struct parport *p = info->port;

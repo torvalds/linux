@@ -37,7 +37,6 @@ static const char version[] =
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -335,7 +334,7 @@ static int __init seeq8005_probe1(struct net_device *dev, int ioaddr)
 
 #if 0
 	{
-		 int irqval = request_irq(dev->irq, &seeq8005_interrupt, 0, "seeq8005", dev);
+		 int irqval = request_irq(dev->irq, seeq8005_interrupt, 0, "seeq8005", dev);
 		 if (irqval) {
 			 printk ("%s: unable to get IRQ %d (irqval=%d).\n", dev->name,
 					 dev->irq, irqval);
@@ -367,7 +366,7 @@ static int seeq8005_open(struct net_device *dev)
 	struct net_local *lp = netdev_priv(dev);
 
 	{
-		 int irqval = request_irq(dev->irq, &seeq8005_interrupt, 0, "seeq8005", dev);
+		 int irqval = request_irq(dev->irq, seeq8005_interrupt, 0, "seeq8005", dev);
 		 if (irqval) {
 			 printk ("%s: unable to get IRQ %d (irqval=%d).\n", dev->name,
 					 dev->irq, irqval);
@@ -391,7 +390,7 @@ static void seeq8005_timeout(struct net_device *dev)
 		   tx_done(dev) ? "IRQ conflict" : "network cable problem");
 	/* Try to restart the adaptor. */
 	seeq8005_init(dev, 1);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 }
 
@@ -412,7 +411,6 @@ static netdev_tx_t seeq8005_send_packet(struct sk_buff *skb,
 	netif_stop_queue(dev);
 
 	hardware_send_packet(dev, buf, length);
-	dev->trans_start = jiffies;
 	dev->stats.tx_bytes += length;
 	dev_kfree_skb (skb);
 	/* You might need to clean up and record Tx statistics here. */
@@ -580,7 +578,6 @@ static void seeq8005_rx(struct net_device *dev)
 	/* If any worth-while packets have been received, netif_rx()
 	   has done a mark_bh(NET_BH) for us and will work on them
 	   when we get to the bottom-half routine. */
-	return;
 }
 
 /* The inverse routine to net_open(). */

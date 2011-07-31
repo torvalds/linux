@@ -104,7 +104,7 @@ GLOBAL_ENTRY(kvm_vmm_panic)
 	br.call.sptk.many b6=vmm_panic_handler;
 END(kvm_vmm_panic)
 
-    .section .text.ivt,"ax"
+    .section .text..ivt,"ax"
 
     .align 32768    // align on 32KB boundary
     .global kvm_ia64_ivt

@@ -19,6 +19,7 @@
 #include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/percpu.h>
+#include <linux/slab.h>
 #include <asm/prom.h>
 
 #include "cacheinfo.h"
@@ -642,7 +643,7 @@ static struct kobj_attribute *cache_index_opt_attrs[] = {
 	&cache_assoc_attr,
 };
 
-static struct sysfs_ops cache_index_ops = {
+static const struct sysfs_ops cache_index_ops = {
 	.show = cache_index_show,
 };
 

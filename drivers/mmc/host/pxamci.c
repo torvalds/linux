@@ -29,6 +29,7 @@
 #include <linux/io.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio.h>
+#include <linux/gfp.h>
 
 #include <asm/sizes.h>
 
@@ -42,6 +43,9 @@
 
 #define NR_SG	1
 #define CLKRT_OFF	(~0)
+
+#define mmc_has_26MHz()		(cpu_is_pxa300() || cpu_is_pxa310() \
+				|| cpu_is_pxa935())
 
 struct pxamci_host {
 	struct mmc_host		*mmc;
@@ -457,7 +461,7 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			clk_enable(host->clk);
 
 		if (ios->clock == 26000000) {
-			/* to support 26MHz on pxa300/pxa310 */
+			/* to support 26MHz */
 			host->clkrt = 7;
 		} else {
 			/* to handle (19.5MHz, 26MHz) */
@@ -540,7 +544,7 @@ static irqreturn_t pxamci_detect_irq(int irq, void *devid)
 {
 	struct pxamci_host *host = mmc_priv(devid);
 
-	mmc_detect_change(devid, host->pdata->detect_delay);
+	mmc_detect_change(devid, msecs_to_jiffies(host->pdata->detect_delay_ms));
 	return IRQ_HANDLED;
 }
 
@@ -608,8 +612,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	 * Calculate minimum clock rate, rounding up.
 	 */
 	mmc->f_min = (host->clkrate + 63) / 64;
-	mmc->f_max = (cpu_is_pxa300() || cpu_is_pxa310()) ? 26000000
-							  : host->clkrate;
+	mmc->f_max = (mmc_has_26MHz()) ? 26000000 : host->clkrate;
 
 	pxamci_init_ocr(host);
 
@@ -618,7 +621,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	if (!cpu_is_pxa25x()) {
 		mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ;
 		host->cmdat |= CMDAT_SDIO_INT_EN;
-		if (cpu_is_pxa300() || cpu_is_pxa310())
+		if (mmc_has_26MHz())
 			mmc->caps |= MMC_CAP_MMC_HIGHSPEED |
 				     MMC_CAP_SD_HIGHSPEED;
 	}
@@ -810,7 +813,7 @@ static int pxamci_suspend(struct device *dev)
 	int ret = 0;
 
 	if (mmc)
-		ret = mmc_suspend_host(mmc, PMSG_SUSPEND);
+		ret = mmc_suspend_host(mmc);
 
 	return ret;
 }
@@ -826,7 +829,7 @@ static int pxamci_resume(struct device *dev)
 	return ret;
 }
 
-static struct dev_pm_ops pxamci_pm_ops = {
+static const struct dev_pm_ops pxamci_pm_ops = {
 	.suspend	= pxamci_suspend,
 	.resume		= pxamci_resume,
 };

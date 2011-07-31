@@ -48,23 +48,22 @@ static int physmap_flash_remove(struct platform_device *dev)
 
 	if (info->cmtd) {
 #ifdef CONFIG_MTD_PARTITIONS
-		if (info->nr_parts || physmap_data->nr_parts)
+		if (info->nr_parts || physmap_data->nr_parts) {
 			del_mtd_partitions(info->cmtd);
-		else
+
+			if (info->nr_parts)
+				kfree(info->parts);
+		} else {
 			del_mtd_device(info->cmtd);
+		}
 #else
 		del_mtd_device(info->cmtd);
 #endif
-	}
-#ifdef CONFIG_MTD_PARTITIONS
-	if (info->nr_parts)
-		kfree(info->parts);
-#endif
-
 #ifdef CONFIG_MTD_CONCAT
-	if (info->cmtd != info->mtd[0])
-		mtd_concat_destroy(info->cmtd);
+		if (info->cmtd != info->mtd[0])
+			mtd_concat_destroy(info->cmtd);
 #endif
+	}
 
 	for (i = 0; i < MAX_RESOURCES; i++) {
 		if (info->mtd[i] != NULL)
@@ -107,12 +106,12 @@ static int physmap_flash_probe(struct platform_device *dev)
 
 	for (i = 0; i < dev->num_resources; i++) {
 		printk(KERN_NOTICE "physmap platform flash device: %.8llx at %.8llx\n",
-		       (unsigned long long)(dev->resource[i].end - dev->resource[i].start + 1),
+		       (unsigned long long)resource_size(&dev->resource[i]),
 		       (unsigned long long)dev->resource[i].start);
 
 		if (!devm_request_mem_region(&dev->dev,
 			dev->resource[i].start,
-			dev->resource[i].end - dev->resource[i].start + 1,
+			resource_size(&dev->resource[i]),
 			dev_name(&dev->dev))) {
 			dev_err(&dev->dev, "Could not reserve memory region\n");
 			err = -ENOMEM;
@@ -121,7 +120,7 @@ static int physmap_flash_probe(struct platform_device *dev)
 
 		info->map[i].name = dev_name(&dev->dev);
 		info->map[i].phys = dev->resource[i].start;
-		info->map[i].size = dev->resource[i].end - dev->resource[i].start + 1;
+		info->map[i].size = resource_size(&dev->resource[i]);
 		info->map[i].bankwidth = physmap_data->width;
 		info->map[i].set_vpp = physmap_data->set_vpp;
 		info->map[i].pfow_base = physmap_data->pfow_base;
@@ -130,15 +129,19 @@ static int physmap_flash_probe(struct platform_device *dev)
 						 info->map[i].size);
 		if (info->map[i].virt == NULL) {
 			dev_err(&dev->dev, "Failed to ioremap flash region\n");
-			err = EIO;
+			err = -EIO;
 			goto err_out;
 		}
 
 		simple_map_init(&info->map[i]);
 
 		probe_type = rom_probe_types;
-		for (; info->mtd[i] == NULL && *probe_type != NULL; probe_type++)
-			info->mtd[i] = do_map_probe(*probe_type, &info->map[i]);
+		if (physmap_data->probe_type == NULL) {
+			for (; info->mtd[i] == NULL && *probe_type != NULL; probe_type++)
+				info->mtd[i] = do_map_probe(*probe_type, &info->map[i]);
+		} else
+			info->mtd[i] = do_map_probe(physmap_data->probe_type, &info->map[i]);
+
 		if (info->mtd[i] == NULL) {
 			dev_err(&dev->dev, "map_probe failed\n");
 			err = -ENXIO;
@@ -265,8 +268,11 @@ static int __init physmap_init(void)
 
 	err = platform_driver_register(&physmap_flash_driver);
 #ifdef CONFIG_MTD_PHYSMAP_COMPAT
-	if (err == 0)
-		platform_device_register(&physmap_flash);
+	if (err == 0) {
+		err = platform_device_register(&physmap_flash);
+		if (err)
+			platform_driver_unregister(&physmap_flash_driver);
+	}
 #endif
 
 	return err;

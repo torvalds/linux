@@ -1,0 +1,11 @@
+#
+# Cavium Octeon
+#
+platform-$(CONFIG_CPU_CAVIUM_OCTEON)	+= cavium-octeon/
+cflags-$(CONFIG_CPU_CAVIUM_OCTEON)	+=				\
+		-I$(srctree)/arch/mips/include/asm/mach-cavium-octeon
+ifdef CONFIG_CAVIUM_OCTEON_2ND_KERNEL
+load-$(CONFIG_CPU_CAVIUM_OCTEON)	+= 0xffffffff84100000
+else
+load-$(CONFIG_CPU_CAVIUM_OCTEON)	+= 0xffffffff81100000
+endif

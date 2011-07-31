@@ -2,7 +2,7 @@
  * Renesas Technology Corp. SH7786 Urquell Support.
  *
  * Copyright (C) 2008  Kuninori Morimoto <morimoto.kuninori@renesas.com>
- * Copyright (C) 2009  Paul Mundt
+ * Copyright (C) 2009, 2010  Paul Mundt
  *
  * Based on board-sh7785lcr.c
  * Copyright (C) 2008  Yoshihiro Shimoda
@@ -19,10 +19,12 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/irq.h>
+#include <linux/clk.h>
 #include <mach/urquell.h>
 #include <cpu/sh7786.h>
 #include <asm/heartbeat.h>
 #include <asm/sizes.h>
+#include <asm/smp-ops.h>
 
 /*
  * bit  1234 5678
@@ -50,26 +52,17 @@
  */
 
 /* HeartBeat */
-static struct resource heartbeat_resources[] = {
-	[0] = {
-		.start	= BOARDREG(SLEDR),
-		.end	= BOARDREG(SLEDR),
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct heartbeat_data heartbeat_data = {
-	.regsize = 16,
+static struct resource heartbeat_resource = {
+	.start	= BOARDREG(SLEDR),
+	.end	= BOARDREG(SLEDR),
+	.flags	= IORESOURCE_MEM | IORESOURCE_MEM_16BIT,
 };
 
 static struct platform_device heartbeat_device = {
 	.name		= "heartbeat",
 	.id		= -1,
-	.dev	= {
-		.platform_data	= &heartbeat_data,
-	},
-	.num_resources	= ARRAY_SIZE(heartbeat_resources),
-	.resource	= heartbeat_resources,
+	.num_resources	= 1,
+	.resource	= &heartbeat_resource,
 };
 
 /* LAN91C111 */
@@ -184,12 +177,35 @@ static int urquell_mode_pins(void)
 	return __raw_readw(UBOARDREG(MDSWMR));
 }
 
+static int urquell_clk_init(void)
+{
+	struct clk *clk;
+	int ret;
+
+	/*
+	 * Only handle the EXTAL case, anyone interfacing a crystal
+	 * resonator will need to provide their own input clock.
+	 */
+	if (test_mode_pin(MODE_PIN9))
+		return -EINVAL;
+
+	clk = clk_get(NULL, "extal");
+	if (!clk || IS_ERR(clk))
+		return PTR_ERR(clk);
+	ret = clk_set_rate(clk, 33333333);
+	clk_put(clk);
+
+	return ret;
+}
+
 /* Initialize the board */
 static void __init urquell_setup(char **cmdline_p)
 {
 	printk(KERN_INFO "Renesas Technology Corp. Urquell support.\n");
 
 	pm_power_off = urquell_power_off;
+
+	register_smp_ops(&shx3_smp_ops);
 }
 
 /*
@@ -200,4 +216,5 @@ static struct sh_machine_vector mv_urquell __initmv = {
 	.mv_setup	= urquell_setup,
 	.mv_init_irq	= urquell_init_irq,
 	.mv_mode_pins	= urquell_mode_pins,
+	.mv_clk_init	= urquell_clk_init,
 };

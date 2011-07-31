@@ -98,6 +98,17 @@ system, git, as a "commit log".  See #15, below.
 If your description starts to get long, that's a sign that you probably
 need to split up your patch.  See #3, next.
 
+When you submit or resubmit a patch or patch series, include the
+complete patch description and justification for it.  Don't just
+say that this is version N of the patch (series).  Don't expect the
+patch merger to refer back to earlier patch versions or referenced
+URLs to find the patch description and put that into the patch.
+I.e., the patch (series) and its description should be self-contained.
+This benefits both the patch merger(s) and reviewers.  Some reviewers
+probably didn't even receive earlier versions of the patch.
+
+If the patch fixes a logged bug entry, refer to that bug entry by
+number and URL.
 
 
 3) Separate your changes.

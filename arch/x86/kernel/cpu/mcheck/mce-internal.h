@@ -28,3 +28,26 @@ extern int mce_ser;
 
 extern struct mce_bank *mce_banks;
 
+#ifdef CONFIG_ACPI_APEI
+int apei_write_mce(struct mce *m);
+ssize_t apei_read_mce(struct mce *m, u64 *record_id);
+int apei_check_mce(void);
+int apei_clear_mce(u64 record_id);
+#else
+static inline int apei_write_mce(struct mce *m)
+{
+	return -EINVAL;
+}
+static inline ssize_t apei_read_mce(struct mce *m, u64 *record_id)
+{
+	return 0;
+}
+static inline int apei_check_mce(void)
+{
+	return 0;
+}
+static inline int apei_clear_mce(u64 record_id)
+{
+	return -EINVAL;
+}
+#endif

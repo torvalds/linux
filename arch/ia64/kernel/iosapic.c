@@ -86,6 +86,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/string.h>
 #include <linux/bootmem.h>
@@ -793,12 +794,12 @@ iosapic_register_intr (unsigned int gsi,
 			goto unlock_iosapic_lock;
 	}
 
-	spin_lock(&irq_desc[irq].lock);
+	raw_spin_lock(&irq_desc[irq].lock);
 	dest = get_target_cpu(gsi, irq);
 	dmode = choose_dmode();
 	err = register_intr(gsi, irq, dmode, polarity, trigger);
 	if (err < 0) {
-		spin_unlock(&irq_desc[irq].lock);
+		raw_spin_unlock(&irq_desc[irq].lock);
 		irq = err;
 		goto unlock_iosapic_lock;
 	}
@@ -817,7 +818,7 @@ iosapic_register_intr (unsigned int gsi,
 	       (polarity == IOSAPIC_POL_HIGH ? "high" : "low"),
 	       cpu_logical_id(dest), dest, irq_to_vector(irq));
 
-	spin_unlock(&irq_desc[irq].lock);
+	raw_spin_unlock(&irq_desc[irq].lock);
  unlock_iosapic_lock:
 	spin_unlock_irqrestore(&iosapic_lock, flags);
 	return irq;

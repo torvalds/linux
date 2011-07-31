@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/gpio.h>
 #include <linux/input/matrix_keypad.h>
+#include <linux/slab.h>
 
 struct matrix_keypad {
 	const struct matrix_keypad_platform_data *pdata;
@@ -29,11 +30,14 @@ struct matrix_keypad {
 	unsigned short *keycodes;
 	unsigned int row_shift;
 
+	DECLARE_BITMAP(disabled_gpios, MATRIX_MAX_ROWS);
+
 	uint32_t last_key_state[MATRIX_MAX_COLS];
 	struct delayed_work work;
+	spinlock_t lock;
 	bool scan_pending;
 	bool stopped;
-	spinlock_t lock;
+	bool gpio_all_disabled;
 };
 
 /*
@@ -85,18 +89,25 @@ static void enable_row_irqs(struct matrix_keypad *keypad)
 	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
 	int i;
 
-       //printk("enable_row_irqs \n");
-	for (i = 0; i < pdata->num_row_gpios; i++)
-		enable_irq(gpio_to_irq(pdata->row_gpios[i]));
+	if (pdata->clustered_irq > 0)
+		enable_irq(pdata->clustered_irq);
+	else {
+		for (i = 0; i < pdata->num_row_gpios; i++)
+			enable_irq(gpio_to_irq(pdata->row_gpios[i]));
+	}
 }
 
 static void disable_row_irqs(struct matrix_keypad *keypad)
 {
 	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
 	int i;
-       //printk("disable_row_irqs \n");
-	for (i = 0; i < pdata->num_row_gpios; i++)
-		disable_irq_nosync(gpio_to_irq(pdata->row_gpios[i]));
+
+	if (pdata->clustered_irq > 0)
+		disable_irq_nosync(pdata->clustered_irq);
+	else {
+		for (i = 0; i < pdata->num_row_gpios; i++)
+			disable_irq_nosync(gpio_to_irq(pdata->row_gpios[i]));
+	}
 }
 
 /*
@@ -238,38 +249,77 @@ static void matrix_keypad_stop(struct input_dev *dev)
 }
 
 #ifdef CONFIG_PM
-static int matrix_keypad_suspend(struct platform_device *pdev, pm_message_t state)
+static void matrix_keypad_enable_wakeup(struct matrix_keypad *keypad)
 {
-	struct matrix_keypad *keypad = platform_get_drvdata(pdev);
 	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
+	unsigned int gpio;
 	int i;
+
+	if (pdata->clustered_irq > 0) {
+		if (enable_irq_wake(pdata->clustered_irq) == 0)
+			keypad->gpio_all_disabled = true;
+	} else {
+
+		for (i = 0; i < pdata->num_row_gpios; i++) {
+			if (!test_bit(i, keypad->disabled_gpios)) {
+				gpio = pdata->row_gpios[i];
+
+				if (enable_irq_wake(gpio_to_irq(gpio)) == 0)
+					__set_bit(i, keypad->disabled_gpios);
+			}
+		}
+	}
+}
+
+static void matrix_keypad_disable_wakeup(struct matrix_keypad *keypad)
+{
+	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
+	unsigned int gpio;
+	int i;
+
+	if (pdata->clustered_irq > 0) {
+		if (keypad->gpio_all_disabled) {
+			disable_irq_wake(pdata->clustered_irq);
+			keypad->gpio_all_disabled = false;
+		}
+	} else {
+		for (i = 0; i < pdata->num_row_gpios; i++) {
+			if (test_and_clear_bit(i, keypad->disabled_gpios)) {
+				gpio = pdata->row_gpios[i];
+				disable_irq_wake(gpio_to_irq(gpio));
+			}
+		}
+	}
+}
+
+static int matrix_keypad_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct matrix_keypad *keypad = platform_get_drvdata(pdev);
 
 	matrix_keypad_stop(keypad->input_dev);
 
 	if (device_may_wakeup(&pdev->dev))
-		for (i = 0; i < pdata->num_row_gpios; i++)
-			enable_irq_wake(gpio_to_irq(pdata->row_gpios[i]));
+		matrix_keypad_enable_wakeup(keypad);
 
 	return 0;
 }
 
-static int matrix_keypad_resume(struct platform_device *pdev)
+static int matrix_keypad_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct matrix_keypad *keypad = platform_get_drvdata(pdev);
-	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
-	int i;
 
 	if (device_may_wakeup(&pdev->dev))
-		for (i = 0; i < pdata->num_row_gpios; i++)
-			disable_irq_wake(gpio_to_irq(pdata->row_gpios[i]));
+		matrix_keypad_disable_wakeup(keypad);
 
 	matrix_keypad_start(keypad->input_dev);
 
 	return 0;
 }
-#else
-#define matrix_keypad_suspend	NULL
-#define matrix_keypad_resume	NULL
+
+static const SIMPLE_DEV_PM_OPS(matrix_keypad_pm_ops,
+				matrix_keypad_suspend, matrix_keypad_resume);
 #endif
 
 static int __devinit init_matrix_gpio(struct platform_device *pdev,
@@ -306,18 +356,31 @@ static int __devinit init_matrix_gpio(struct platform_device *pdev,
 		gpio_direction_input(pdata->row_gpios[i]);
 	}
 
-	for (i = 0; i < pdata->num_row_gpios; i++) {
-		printk("%d %d\n", pdata->row_gpios[i], gpio_to_irq(pdata->row_gpios[i]));
-		err = request_irq(gpio_to_irq(pdata->row_gpios[i]),
+	if (pdata->clustered_irq > 0) {
+		err = request_irq(pdata->clustered_irq,
 				matrix_keypad_interrupt,
-				/*IRQF_DISABLED |*/
-				IRQ_TYPE_EDGE_BOTH,
+				pdata->clustered_irq_flags,
 				"matrix-keypad", keypad);
 		if (err) {
 			dev_err(&pdev->dev,
-				"Unable to acquire interrupt for GPIO line %i\n",
-				pdata->row_gpios[i]);
-			goto err_free_irqs;
+				"Unable to acquire clustered interrupt\n");
+			goto err_free_rows;
+		}
+	} else {
+		for (i = 0; i < pdata->num_row_gpios; i++) {
+			err = request_irq(gpio_to_irq(pdata->row_gpios[i]),
+					matrix_keypad_interrupt,
+					/* IRQF_DISABLED | */
+					IRQF_TRIGGER_RISING |
+					IRQF_TRIGGER_FALLING,
+					"matrix-keypad", keypad);
+			if (err) {
+				dev_err(&pdev->dev,
+					"Unable to acquire interrupt "
+					"for GPIO line %i\n",
+					pdata->row_gpios[i]);
+				goto err_free_irqs;
+			}
 		}
 	}
 
@@ -386,7 +449,9 @@ static int __devinit matrix_keypad_probe(struct platform_device *pdev)
 	input_dev->name		= pdev->name;
 	input_dev->id.bustype	= BUS_HOST;
 	input_dev->dev.parent	= &pdev->dev;
-	input_dev->evbit[0]	= BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
+	input_dev->evbit[0]	= BIT_MASK(EV_KEY);
+	if (!pdata->no_autorepeat)
+		input_dev->evbit[0] |= BIT_MASK(EV_REP);
 	input_dev->open		= matrix_keypad_start;
 	input_dev->close	= matrix_keypad_stop;
 
@@ -430,10 +495,15 @@ static int __devexit matrix_keypad_remove(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 0);
 
-	for (i = 0; i < pdata->num_row_gpios; i++) {
-		free_irq(gpio_to_irq(pdata->row_gpios[i]), keypad);
-		gpio_free(pdata->row_gpios[i]);
+	if (pdata->clustered_irq > 0) {
+		free_irq(pdata->clustered_irq, keypad);
+	} else {
+		for (i = 0; i < pdata->num_row_gpios; i++)
+			free_irq(gpio_to_irq(pdata->row_gpios[i]), keypad);
 	}
+
+	for (i = 0; i < pdata->num_row_gpios; i++)
+		gpio_free(pdata->row_gpios[i]);
 
 	for (i = 0; i < pdata->num_col_gpios; i++)
 		gpio_free(pdata->col_gpios[i]);
@@ -449,11 +519,12 @@ static int __devexit matrix_keypad_remove(struct platform_device *pdev)
 static struct platform_driver matrix_keypad_driver = {
 	.probe		= matrix_keypad_probe,
 	.remove		= __devexit_p(matrix_keypad_remove),
-	.suspend	= matrix_keypad_suspend,
-	.resume		= matrix_keypad_resume,
 	.driver		= {
 		.name	= "matrix-keypad",
 		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &matrix_keypad_pm_ops,
+#endif
 	},
 };
 

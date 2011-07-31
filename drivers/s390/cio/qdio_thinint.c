@@ -1,14 +1,13 @@
 /*
  * linux/drivers/s390/cio/thinint_qdio.c
  *
- * thin interrupt support for qdio
- *
- * Copyright 2000-2008 IBM Corp.
+ * Copyright 2000,2009 IBM Corp.
  * Author(s): Utz Bacher <utz.bacher@de.ibm.com>
  *	      Cornelia Huck <cornelia.huck@de.ibm.com>
  *	      Jan Glauber <jang@linux.vnet.ibm.com>
  */
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <asm/atomic.h>
 #include <asm/debug.h>
 #include <asm/qdio.h>
@@ -19,7 +18,6 @@
 #include "ioasm.h"
 #include "qdio.h"
 #include "qdio_debug.h"
-#include "qdio_perf.h"
 
 /*
  * Restriction: only 63 iqdio subchannels would have its own indicator,
@@ -97,7 +95,7 @@ void tiqdio_add_input_queues(struct qdio_irq *irq_ptr)
 	for_each_input_queue(irq_ptr, q, i)
 		list_add_rcu(&q->entry, &tiq_list);
 	mutex_unlock(&tiq_list_lock);
-	xchg(irq_ptr->dsci, 1);
+	xchg(irq_ptr->dsci, 1 << 7);
 }
 
 void tiqdio_remove_input_queues(struct qdio_irq *irq_ptr)
@@ -132,8 +130,6 @@ static void tiqdio_thinint_handler(void *ind, void *drv_data)
 {
 	struct qdio_q *q;
 
-	qdio_perf_stat_inc(&perf_stats.thin_int);
-
 	/*
 	 * SVS only when needed: issue SVS to benefit from iqdio interrupt
 	 * avoidance (SVS clears adapter interrupt suppression overwrite)
@@ -154,6 +150,7 @@ static void tiqdio_thinint_handler(void *ind, void *drv_data)
 	list_for_each_entry_rcu(q, &tiq_list, entry)
 		/* only process queues from changed sets */
 		if (*q->irq_ptr->dsci) {
+			qperf_inc(q, adapter_int);
 
 			/* only clear it if the indicator is non-shared */
 			if (!shared_ind(q->irq_ptr))
@@ -176,7 +173,7 @@ static void tiqdio_thinint_handler(void *ind, void *drv_data)
 
 		/* prevent racing */
 		if (*tiqdio_alsi)
-			xchg(&q_indicators[TIQDIO_SHARED_IND].ind, 1);
+			xchg(&q_indicators[TIQDIO_SHARED_IND].ind, 1 << 7);
 	}
 }
 
@@ -202,8 +199,8 @@ static int set_subchannel_ind(struct qdio_irq *irq_ptr, int reset)
 		.code	= 0x0021,
 	};
 	scssc_area->operation_code = 0;
-	scssc_area->ks = PAGE_DEFAULT_KEY;
-	scssc_area->kc = PAGE_DEFAULT_KEY;
+	scssc_area->ks = PAGE_DEFAULT_KEY >> 4;
+	scssc_area->kc = PAGE_DEFAULT_KEY >> 4;
 	scssc_area->isc = QDIO_AIRQ_ISC;
 	scssc_area->schid = irq_ptr->schid;
 

@@ -29,12 +29,10 @@
 #include <linux/delay.h>
 #include <linux/log2.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2C, 0x2E, 0x2F, I2C_CLIENT_END };
-
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(adt7470);
 
 /* ADT7470 registers */
 #define ADT7470_REG_BASE_ADDR			0x20
@@ -177,12 +175,12 @@ struct adt7470_data {
 
 static int adt7470_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int adt7470_detect(struct i2c_client *client, int kind,
+static int adt7470_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static int adt7470_remove(struct i2c_client *client);
 
 static const struct i2c_device_id adt7470_id[] = {
-	{ "adt7470", adt7470 },
+	{ "adt7470", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adt7470_id);
@@ -196,7 +194,7 @@ static struct i2c_driver adt7470_driver = {
 	.remove		= adt7470_remove,
 	.id_table	= adt7470_id,
 	.detect		= adt7470_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*
@@ -1225,31 +1223,26 @@ static struct attribute *adt7470_attr[] =
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int adt7470_detect(struct i2c_client *client, int kind,
+static int adt7470_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
+	int vendor, device, revision;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	if (kind <= 0) {
-		int vendor, device, revision;
+	vendor = i2c_smbus_read_byte_data(client, ADT7470_REG_VENDOR);
+	if (vendor != ADT7470_VENDOR)
+		return -ENODEV;
 
-		vendor = i2c_smbus_read_byte_data(client, ADT7470_REG_VENDOR);
-		if (vendor != ADT7470_VENDOR)
-			return -ENODEV;
+	device = i2c_smbus_read_byte_data(client, ADT7470_REG_DEVICE);
+	if (device != ADT7470_DEVICE)
+		return -ENODEV;
 
-		device = i2c_smbus_read_byte_data(client, ADT7470_REG_DEVICE);
-		if (device != ADT7470_DEVICE)
-			return -ENODEV;
-
-		revision = i2c_smbus_read_byte_data(client,
-						    ADT7470_REG_REVISION);
-		if (revision != ADT7470_REVISION)
-			return -ENODEV;
-	} else
-		dev_dbg(&adapter->dev, "detection forced\n");
+	revision = i2c_smbus_read_byte_data(client, ADT7470_REG_REVISION);
+	if (revision != ADT7470_REVISION)
+		return -ENODEV;
 
 	strlcpy(info->type, "adt7470", I2C_NAME_SIZE);
 

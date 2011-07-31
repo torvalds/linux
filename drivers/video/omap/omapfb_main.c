@@ -26,11 +26,12 @@
  */
 #include <linux/platform_device.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 
-#include <mach/dma.h>
-#include <mach/omapfb.h>
+#include <plat/dma.h>
 
+#include "omapfb.h"
 #include "lcdc.h"
 #include "dispc.h"
 
@@ -81,6 +82,19 @@ static struct caps_table_struct color_caps[] = {
 	{ 1 << OMAPFB_COLOR_CLUT_1BPP,	"CLUT1", },
 	{ 1 << OMAPFB_COLOR_RGB444,	"RGB444", },
 	{ 1 << OMAPFB_COLOR_YUY422,	"YUY422", },
+};
+
+static void omapdss_release(struct device *dev)
+{
+}
+
+/* dummy device for clocks */
+static struct platform_device omapdss_device = {
+	.name		= "omapdss",
+	.id		= -1,
+	.dev            = {
+		.release = omapdss_release,
+	},
 };
 
 /*
@@ -473,10 +487,11 @@ static int set_color_mode(struct omapfb_plane_struct *plane,
 		return 0;
 	case 12:
 		var->bits_per_pixel = 16;
-		plane->color_mode = OMAPFB_COLOR_RGB444;
-		return 0;
 	case 16:
-		plane->color_mode = OMAPFB_COLOR_RGB565;
+		if (plane->fbdev->panel->bpp == 12)
+			plane->color_mode = OMAPFB_COLOR_RGB444;
+		else
+			plane->color_mode = OMAPFB_COLOR_RGB565;
 		return 0;
 	default:
 		return -EINVAL;
@@ -1700,6 +1715,7 @@ static int omapfb_do_probe(struct platform_device *pdev,
 
 	fbdev->dev = &pdev->dev;
 	fbdev->panel = panel;
+	fbdev->dssdev = &omapdss_device;
 	platform_set_drvdata(pdev, fbdev);
 
 	mutex_init(&fbdev->rqueue_mutex);
@@ -1814,7 +1830,15 @@ cleanup:
 
 static int omapfb_probe(struct platform_device *pdev)
 {
+	int r;
+
 	BUG_ON(fbdev_pdev != NULL);
+
+	r = platform_device_register(&omapdss_device);
+	if (r) {
+		dev_err(&pdev->dev, "can't register omapdss device\n");
+		return r;
+	}
 
 	/* Delay actual initialization until the LCD is registered */
 	fbdev_pdev = pdev;
@@ -1842,6 +1866,9 @@ static int omapfb_remove(struct platform_device *pdev)
 
 	fbdev->state = OMAPFB_DISABLED;
 	omapfb_free_resources(fbdev, saved_state);
+
+	platform_device_unregister(&omapdss_device);
+	fbdev->dssdev = NULL;
 
 	return 0;
 }

@@ -21,8 +21,12 @@
 #include <linux/types.h>
 #include <linux/ioctl.h>
 #include <linux/i2c.h>
+#if defined(CONFIG_SPI)
+#include <linux/spi/spi.h>
+#endif
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 
 int v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev)
 {
@@ -97,6 +101,14 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 				i2c_unregister_device(client);
 		}
 #endif
+#if defined(CONFIG_SPI)
+		if (sd->flags & V4L2_SUBDEV_FL_IS_SPI) {
+			struct spi_device *spi = v4l2_get_subdevdata(sd);
+
+			if (spi)
+				spi_unregister_device(spi);
+		}
+#endif
 	}
 }
 EXPORT_SYMBOL_GPL(v4l2_device_unregister);
@@ -104,6 +116,8 @@ EXPORT_SYMBOL_GPL(v4l2_device_unregister);
 int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 						struct v4l2_subdev *sd)
 {
+	int err;
+
 	/* Check for valid input */
 	if (v4l2_dev == NULL || sd == NULL || !sd->name[0])
 		return -EINVAL;
@@ -111,6 +125,10 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 	WARN_ON(sd->v4l2_dev != NULL);
 	if (!try_module_get(sd->owner))
 		return -ENODEV;
+	/* This just returns 0 if either of the two args is NULL */
+	err = v4l2_ctrl_add_handler(v4l2_dev->ctrl_handler, sd->ctrl_handler);
+	if (err)
+		return err;
 	sd->v4l2_dev = v4l2_dev;
 	spin_lock(&v4l2_dev->lock);
 	list_add_tail(&sd->list, &v4l2_dev->subdevs);

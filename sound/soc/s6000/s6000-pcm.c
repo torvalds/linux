@@ -58,12 +58,14 @@ static void s6000_pcm_enqueue_dma(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct s6000_runtime_data *prtd = runtime->private_data;
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct s6000_pcm_dma_params *par = soc_runtime->dai->cpu_dai->dma_data;
+	struct s6000_pcm_dma_params *par;
 	int channel;
 	unsigned int period_size;
 	unsigned int dma_offset;
 	dma_addr_t dma_pos;
 	dma_addr_t src, dst;
+
+	par = snd_soc_dai_get_dma_data(soc_runtime->dai->cpu_dai, substream);
 
 	period_size = snd_pcm_lib_period_bytes(substream);
 	dma_offset = prtd->period * period_size;
@@ -101,7 +103,8 @@ static irqreturn_t s6000_pcm_irq(int irq, void *data)
 {
 	struct snd_pcm *pcm = data;
 	struct snd_soc_pcm_runtime *runtime = pcm->private_data;
-	struct s6000_pcm_dma_params *params = runtime->dai->cpu_dai->dma_data;
+	struct s6000_pcm_dma_params *params =
+		snd_soc_dai_get_dma_data(soc_runtime->dai->cpu_dai, substream);
 	struct s6000_runtime_data *prtd;
 	unsigned int has_xrun;
 	int i, ret = IRQ_NONE;
@@ -172,10 +175,12 @@ static int s6000_pcm_start(struct snd_pcm_substream *substream)
 {
 	struct s6000_runtime_data *prtd = substream->runtime->private_data;
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct s6000_pcm_dma_params *par = soc_runtime->dai->cpu_dai->dma_data;
+	struct s6000_pcm_dma_params *par;
 	unsigned long flags;
 	int srcinc;
 	u32 dma;
+
+	par = snd_soc_dai_get_dma_data(soc_runtime->dai->cpu_dai, substream);
 
 	spin_lock_irqsave(&prtd->lock, flags);
 
@@ -196,7 +201,7 @@ static int s6000_pcm_start(struct snd_pcm_substream *substream)
 			   0 /* destination skip after chunk (impossible) */,
 			   4 /* 16 byte burst size */,
 			   -1 /* don't conserve bandwidth */,
-			   0 /* low watermark irq descriptor theshold */,
+			   0 /* low watermark irq descriptor threshold */,
 			   0 /* disable hardware timestamps */,
 			   1 /* enable channel */);
 
@@ -212,9 +217,11 @@ static int s6000_pcm_stop(struct snd_pcm_substream *substream)
 {
 	struct s6000_runtime_data *prtd = substream->runtime->private_data;
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct s6000_pcm_dma_params *par = soc_runtime->dai->cpu_dai->dma_data;
+	struct s6000_pcm_dma_params *par;
 	unsigned long flags;
 	u32 channel;
+
+	par = snd_soc_dai_get_dma_data(soc_runtime->dai->cpu_dai, substream);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		channel = par->dma_out;
@@ -236,8 +243,10 @@ static int s6000_pcm_stop(struct snd_pcm_substream *substream)
 static int s6000_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct s6000_pcm_dma_params *par = soc_runtime->dai->cpu_dai->dma_data;
+	struct s6000_pcm_dma_params *par;
 	int ret;
+
+	par = snd_soc_dai_get_dma_data(soc_runtime->dai->cpu_dai, substream);
 
 	ret = par->trigger(substream, cmd, 0);
 	if (ret < 0)
@@ -275,12 +284,14 @@ static int s6000_pcm_prepare(struct snd_pcm_substream *substream)
 static snd_pcm_uframes_t s6000_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct s6000_pcm_dma_params *par = soc_runtime->dai->cpu_dai->dma_data;
+	struct s6000_pcm_dma_params *par;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct s6000_runtime_data *prtd = runtime->private_data;
 	unsigned long flags;
 	unsigned int offset;
 	dma_addr_t count;
+
+	par = snd_soc_dai_get_dma_data(soc_runtime->dai->cpu_dai, substream);
 
 	spin_lock_irqsave(&prtd->lock, flags);
 
@@ -305,11 +316,12 @@ static snd_pcm_uframes_t s6000_pcm_pointer(struct snd_pcm_substream *substream)
 static int s6000_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct s6000_pcm_dma_params *par = soc_runtime->dai->cpu_dai->dma_data;
+	struct s6000_pcm_dma_params *par;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct s6000_runtime_data *prtd;
 	int ret;
 
+	par = snd_soc_dai_get_dma_data(soc_runtime->dai->cpu_dai, substream);
 	snd_soc_set_runtime_hwparams(substream, &s6000_pcm_hardware);
 
 	ret = snd_pcm_hw_constraint_step(runtime, 0,
@@ -364,7 +376,7 @@ static int s6000_pcm_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct s6000_pcm_dma_params *par = soc_runtime->dai->cpu_dai->dma_data;
+	struct s6000_pcm_dma_params *par;
 	int ret;
 	ret = snd_pcm_lib_malloc_pages(substream,
 				       params_buffer_bytes(hw_params));
@@ -372,6 +384,8 @@ static int s6000_pcm_hw_params(struct snd_pcm_substream *substream,
 		printk(KERN_WARNING "s6000-pcm: allocation of memory failed\n");
 		return ret;
 	}
+
+	par = snd_soc_dai_get_dma_data(soc_runtime->dai->cpu_dai, substream);
 
 	if (par->same_rate) {
 		spin_lock(&par->lock);
@@ -392,7 +406,8 @@ static int s6000_pcm_hw_params(struct snd_pcm_substream *substream,
 static int s6000_pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct s6000_pcm_dma_params *par = soc_runtime->dai->cpu_dai->dma_data;
+	struct s6000_pcm_dma_params *par =
+		snd_soc_dai_get_dma_data(soc_runtime->dai->cpu_dai, substream);
 
 	spin_lock(&par->lock);
 	par->in_use &= ~(1 << substream->stream);
@@ -417,25 +432,28 @@ static struct snd_pcm_ops s6000_pcm_ops = {
 static void s6000_pcm_free(struct snd_pcm *pcm)
 {
 	struct snd_soc_pcm_runtime *runtime = pcm->private_data;
-	struct s6000_pcm_dma_params *params = runtime->dai->cpu_dai->dma_data;
+	struct s6000_pcm_dma_params *params =
+		snd_soc_dai_get_dma_data(soc_runtime->dai->cpu_dai, substream);
 
 	free_irq(params->irq, pcm);
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
 
-static u64 s6000_pcm_dmamask = DMA_32BIT_MASK;
+static u64 s6000_pcm_dmamask = DMA_BIT_MASK(32);
 
 static int s6000_pcm_new(struct snd_card *card,
 			 struct snd_soc_dai *dai, struct snd_pcm *pcm)
 {
 	struct snd_soc_pcm_runtime *runtime = pcm->private_data;
-	struct s6000_pcm_dma_params *params = runtime->dai->cpu_dai->dma_data;
+	struct s6000_pcm_dma_params *params;
 	int res;
+
+	params = snd_soc_dai_get_dma_data(soc_runtime->dai->cpu_dai, substream);
 
 	if (!card->dev->dma_mask)
 		card->dev->dma_mask = &s6000_pcm_dmamask;
 	if (!card->dev->coherent_dma_mask)
-		card->dev->coherent_dma_mask = DMA_32BIT_MASK;
+		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
 
 	if (params->dma_in) {
 		s6dmac_disable_chan(DMA_MASK_DMAC(params->dma_in),

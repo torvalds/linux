@@ -18,6 +18,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/mtd.h>
@@ -32,7 +33,11 @@
 #include <asm/mach-types.h>
 
 #include <mach/regs-serial.h>
+#include <mach/nuc900_spi.h>
 #include <mach/map.h>
+#include <mach/fb.h>
+#include <mach/regs-ldm.h>
+#include <mach/w90p910_keypad.h>
 
 #include "cpu.h"
 
@@ -196,6 +201,18 @@ static struct platform_device nuc900_device_emc = {
 
 /* SPI device */
 
+static struct nuc900_spi_info nuc900_spiflash_data = {
+	.num_cs		= 1,
+	.lsb		= 0,
+	.txneg		= 1,
+	.rxneg		= 0,
+	.divider	= 24,
+	.sleep		= 0,
+	.txnum		= 0,
+	.txbitlen	= 8,
+	.bus_num	= 0,
+};
+
 static struct resource nuc900_spi_resource[] = {
 	[0] = {
 		.start = W90X900_PA_I2C + SPIOFFSET,
@@ -214,6 +231,9 @@ static struct platform_device nuc900_device_spi = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(nuc900_spi_resource),
 	.resource	= nuc900_spi_resource,
+	.dev		= {
+				.platform_data = &nuc900_spiflash_data,
+			}
 };
 
 /* spi device, spi flash info */
@@ -238,7 +258,7 @@ static struct spi_board_info nuc900_spi_board_info[] __initdata = {
 		.modalias = "m25p80",
 		.max_speed_hz = 20000000,
 		.bus_num = 0,
-		.chip_select = 1,
+		.chip_select = 0,
 		.platform_data = &nuc900_spi_flash_data,
 		.mode = SPI_MODE_0,
 	},
@@ -343,6 +363,39 @@ struct platform_device nuc900_device_fmi = {
 
 /* KPI controller*/
 
+static int nuc900_keymap[] = {
+	KEY(0, 0, KEY_A),
+	KEY(0, 1, KEY_B),
+	KEY(0, 2, KEY_C),
+	KEY(0, 3, KEY_D),
+
+	KEY(1, 0, KEY_E),
+	KEY(1, 1, KEY_F),
+	KEY(1, 2, KEY_G),
+	KEY(1, 3, KEY_H),
+
+	KEY(2, 0, KEY_I),
+	KEY(2, 1, KEY_J),
+	KEY(2, 2, KEY_K),
+	KEY(2, 3, KEY_L),
+
+	KEY(3, 0, KEY_M),
+	KEY(3, 1, KEY_N),
+	KEY(3, 2, KEY_O),
+	KEY(3, 3, KEY_P),
+};
+
+static struct matrix_keymap_data nuc900_map_data = {
+	.keymap			= nuc900_keymap,
+	.keymap_size		= ARRAY_SIZE(nuc900_keymap),
+};
+
+struct w90p910_keypad_platform_data nuc900_keypad_info = {
+	.keymap_data	= &nuc900_map_data,
+	.prescale	= 0xfa,
+	.debounce	= 0x50,
+};
+
 static struct resource nuc900_kpi_resource[] = {
 	[0] = {
 		.start = W90X900_PA_KPI,
@@ -362,6 +415,101 @@ struct platform_device nuc900_device_kpi = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(nuc900_kpi_resource),
 	.resource	= nuc900_kpi_resource,
+	.dev		= {
+				.platform_data = &nuc900_keypad_info,
+			}
+};
+
+/* LCD controller*/
+
+static struct nuc900fb_display __initdata nuc900_lcd_info[] = {
+	/* Giantplus Technology GPM1040A0 320x240 Color TFT LCD */
+	[0] = {
+		.type		= LCM_DCCS_VA_SRC_RGB565,
+		.width		= 320,
+		.height		= 240,
+		.xres		= 320,
+		.yres		= 240,
+		.bpp		= 16,
+		.pixclock	= 200000,
+		.left_margin	= 34,
+		.right_margin   = 54,
+		.hsync_len	= 10,
+		.upper_margin	= 18,
+		.lower_margin	= 4,
+		.vsync_len	= 1,
+		.dccs		= 0x8e00041a,
+		.devctl		= 0x060800c0,
+		.fbctrl		= 0x00a000a0,
+		.scale		= 0x04000400,
+	},
+};
+
+static struct nuc900fb_mach_info nuc900_fb_info __initdata = {
+#if defined(CONFIG_GPM1040A0_320X240)
+	.displays		= &nuc900_lcd_info[0],
+#else
+	.displays		= nuc900_lcd_info,
+#endif
+	.num_displays		= ARRAY_SIZE(nuc900_lcd_info),
+	.default_display	= 0,
+	.gpio_dir		= 0x00000004,
+	.gpio_dir_mask		= 0xFFFFFFFD,
+	.gpio_data		= 0x00000004,
+	.gpio_data_mask		= 0xFFFFFFFD,
+};
+
+static struct resource nuc900_lcd_resource[] = {
+	[0] = {
+		.start = W90X900_PA_LCD,
+		.end   = W90X900_PA_LCD + W90X900_SZ_LCD - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_LCD,
+		.end   = IRQ_LCD,
+		.flags = IORESOURCE_IRQ,
+	}
+};
+
+static u64 nuc900_device_lcd_dmamask = -1;
+struct platform_device nuc900_device_lcd = {
+	.name             = "nuc900-lcd",
+	.id               = -1,
+	.num_resources    = ARRAY_SIZE(nuc900_lcd_resource),
+	.resource         = nuc900_lcd_resource,
+	.dev              = {
+		.dma_mask               = &nuc900_device_lcd_dmamask,
+		.coherent_dma_mask      = -1,
+		.platform_data = &nuc900_fb_info,
+	}
+};
+
+/* AUDIO controller*/
+static u64 nuc900_device_audio_dmamask = -1;
+static struct resource nuc900_ac97_resource[] = {
+	[0] = {
+		.start = W90X900_PA_ACTL,
+		.end   = W90X900_PA_ACTL + W90X900_SZ_ACTL - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_ACTL,
+		.end   = IRQ_ACTL,
+		.flags = IORESOURCE_IRQ,
+	}
+
+};
+
+struct platform_device nuc900_device_audio = {
+	.name		= "nuc900-audio",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(nuc900_ac97_resource),
+	.resource	= nuc900_ac97_resource,
+	.dev              = {
+		.dma_mask               = &nuc900_device_audio_dmamask,
+		.coherent_dma_mask      = -1,
+	}
 };
 
 /*Here should be your evb resourse,such as LCD*/
@@ -375,6 +523,7 @@ static struct platform_device *nuc900_public_dev[] __initdata = {
 	&nuc900_device_emc,
 	&nuc900_device_spi,
 	&nuc900_device_wdt,
+	&nuc900_device_audio,
 };
 
 /* Provide adding specific CPU platform devices API */

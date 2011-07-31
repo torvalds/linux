@@ -303,7 +303,7 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 		unsigned long lo;
 		write_c0_pagemask(PM_HUGE_MASK);
 		ptep = (pte_t *)pmdp;
-		lo = pte_val(*ptep) >> 6;
+		lo = pte_to_entrylo(pte_val(*ptep));
 		write_c0_entrylo0(lo);
 		write_c0_entrylo1(lo + (HPAGE_SIZE >> 7));
 
@@ -323,8 +323,8 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 		ptep++;
 		write_c0_entrylo1(ptep->pte_high);
 #else
-		write_c0_entrylo0(pte_val(*ptep++) >> 6);
-		write_c0_entrylo1(pte_val(*ptep) >> 6);
+		write_c0_entrylo0(pte_to_entrylo(pte_val(*ptep++)));
+		write_c0_entrylo1(pte_to_entrylo(pte_val(*ptep)));
 #endif
 		mtc0_tlbw_hazard();
 		if (idx < 0)
@@ -336,40 +336,6 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 	FLUSH_ITLB_VM(vma);
 	EXIT_CRITICAL(flags);
 }
-
-#if 0
-static void r4k_update_mmu_cache_hwbug(struct vm_area_struct * vma,
-				       unsigned long address, pte_t pte)
-{
-	unsigned long flags;
-	unsigned int asid;
-	pgd_t *pgdp;
-	pmd_t *pmdp;
-	pte_t *ptep;
-	int idx;
-
-	ENTER_CRITICAL(flags);
-	address &= (PAGE_MASK << 1);
-	asid = read_c0_entryhi() & ASID_MASK;
-	write_c0_entryhi(address | asid);
-	pgdp = pgd_offset(vma->vm_mm, address);
-	mtc0_tlbw_hazard();
-	tlb_probe();
-	tlb_probe_hazard();
-	pmdp = pmd_offset(pgdp, address);
-	idx = read_c0_index();
-	ptep = pte_offset_map(pmdp, address);
-	write_c0_entrylo0(pte_val(*ptep++) >> 6);
-	write_c0_entrylo1(pte_val(*ptep) >> 6);
-	mtc0_tlbw_hazard();
-	if (idx < 0)
-		tlb_write_random();
-	else
-		tlb_write_indexed();
-	tlbw_use_hazard();
-	EXIT_CRITICAL(flags);
-}
-#endif
 
 void __init add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 	unsigned long entryhi, unsigned long pagemask)
@@ -447,34 +413,6 @@ out:
 	return ret;
 }
 
-static void __cpuinit probe_tlb(unsigned long config)
-{
-	struct cpuinfo_mips *c = &current_cpu_data;
-	unsigned int reg;
-
-	/*
-	 * If this isn't a MIPS32 / MIPS64 compliant CPU.  Config 1 register
-	 * is not supported, we assume R4k style.  Cpu probing already figured
-	 * out the number of tlb entries.
-	 */
-	if ((c->processor_id & 0xff0000) == PRID_COMP_LEGACY)
-		return;
-#ifdef CONFIG_MIPS_MT_SMTC
-	/*
-	 * If TLB is shared in SMTC system, total size already
-	 * has been calculated and written into cpu_data tlbsize
-	 */
-	if((smtc_status & SMTC_TLB_SHARED) == SMTC_TLB_SHARED)
-		return;
-#endif /* CONFIG_MIPS_MT_SMTC */
-
-	reg = read_c0_config1();
-	if (!((config >> 7) & 3))
-		panic("No TLB present");
-
-	c->tlbsize = ((reg >> 25) & 0x3f) + 1;
-}
-
 static int __cpuinitdata ntlb;
 static int __init set_ntlb(char *str)
 {
@@ -486,8 +424,6 @@ __setup("ntlb=", set_ntlb);
 
 void __cpuinit tlb_init(void)
 {
-	unsigned int config = read_c0_config();
-
 	/*
 	 * You should never change this register:
 	 *   - On R4600 1.7 the tlbp never hits for pages smaller than
@@ -495,13 +431,25 @@ void __cpuinit tlb_init(void)
 	 *   - The entire mm handling assumes the c0_pagemask register to
 	 *     be set to fixed-size pages.
 	 */
-	probe_tlb(config);
 	write_c0_pagemask(PM_DEFAULT_MASK);
 	write_c0_wired(0);
 	if (current_cpu_type() == CPU_R10000 ||
 	    current_cpu_type() == CPU_R12000 ||
 	    current_cpu_type() == CPU_R14000)
 		write_c0_framemask(0);
+
+	if (kernel_uses_smartmips_rixi) {
+		/*
+		 * Enable the no read, no exec bits, and enable large virtual
+		 * address.
+		 */
+		u32 pg = PG_RIE | PG_XIE;
+#ifdef CONFIG_64BIT
+		pg |= PG_ELPA;
+#endif
+		write_c0_pagegrain(pg);
+	}
+
 	temp_tlb_entry = current_cpu_data.tlbsize - 1;
 
         /* From this point on the ARC firmware is dead.  */

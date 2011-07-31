@@ -21,6 +21,7 @@
 
 #include <linux/init.h>
 #include <linux/time.h>
+#include <linux/slab.h>
 #include <linux/ioport.h>
 #include <sound/core.h>
 
@@ -101,6 +102,35 @@ EXPORT_SYMBOL_GPL(__snd_printk);
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
 /**
+ * snd_pci_quirk_lookup_id - look up a PCI SSID quirk list
+ * @vendor: PCI SSV id
+ * @device: PCI SSD id
+ * @list: quirk list, terminated by a null entry
+ *
+ * Look through the given quirk list and finds a matching entry
+ * with the same PCI SSID.  When subdevice is 0, all subdevice
+ * values may match.
+ *
+ * Returns the matched entry pointer, or NULL if nothing matched.
+ */
+const struct snd_pci_quirk *
+snd_pci_quirk_lookup_id(u16 vendor, u16 device,
+			const struct snd_pci_quirk *list)
+{
+	const struct snd_pci_quirk *q;
+
+	for (q = list; q->subvendor; q++) {
+		if (q->subvendor != vendor)
+			continue;
+		if (!q->subdevice ||
+		    (device & q->subdevice_mask) == q->subdevice)
+			return q;
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(snd_pci_quirk_lookup_id);
+
+/**
  * snd_pci_quirk_lookup - look up a PCI SSID quirk list
  * @pci: pci_dev handle
  * @list: quirk list, terminated by a null entry
@@ -114,16 +144,9 @@ EXPORT_SYMBOL_GPL(__snd_printk);
 const struct snd_pci_quirk *
 snd_pci_quirk_lookup(struct pci_dev *pci, const struct snd_pci_quirk *list)
 {
-	const struct snd_pci_quirk *q;
-
-	for (q = list; q->subvendor; q++) {
-		if (q->subvendor != pci->subsystem_vendor)
-			continue;
-		if (!q->subdevice ||
-		    (pci->subsystem_device & q->subdevice_mask) == q->subdevice)
-			return q;
-	}
-	return NULL;
+	return snd_pci_quirk_lookup_id(pci->subsystem_vendor,
+				       pci->subsystem_device,
+				       list);
 }
 EXPORT_SYMBOL(snd_pci_quirk_lookup);
 #endif

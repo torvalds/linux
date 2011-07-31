@@ -25,7 +25,7 @@
 
 #include <asm/mach-types.h>
 
-#include "s3c24xx-pcm.h"
+#include "s3c-dma.h"
 #include "s3c2412-i2s.h"
 
 #include "../codecs/wm8750.h"
@@ -70,7 +70,7 @@ static int jive_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	s3c_i2sv2_iis_calc_rate(&div, NULL, params_rate(params),
-				s3c2412_get_iisclk());
+				s3c_i2sv2_get_clock(cpu_dai));
 
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
@@ -152,15 +152,10 @@ static struct snd_soc_card snd_soc_machine_jive = {
 	.num_links	= 1,
 };
 
-/* jive audio private data */
-static struct wm8750_setup_data jive_wm8750_setup = {
-};
-
 /* jive audio subsystem */
 static struct snd_soc_device jive_snd_devdata = {
 	.card		= &snd_soc_machine_jive,
 	.codec_dev	= &soc_codec_dev_wm8750,
-	.codec_data	= &jive_wm8750_setup,
 };
 
 static struct platform_device *jive_snd_device;

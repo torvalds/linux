@@ -24,6 +24,7 @@
 #include <linux/rtc.h>
 #include <linux/bcd.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 
 #define DS1374_REG_TOD0		0x00 /* Time of Day */
 #define DS1374_REG_TOD1		0x01
@@ -383,6 +384,8 @@ static int ds1374_probe(struct i2c_client *client,
 			dev_err(&client->dev, "unable to request IRQ\n");
 			goto out_free;
 		}
+
+		device_set_wakeup_capable(&client->dev, 1);
 	}
 
 	ds1374->rtc = rtc_device_register(client->name, &client->dev,
@@ -400,7 +403,6 @@ out_irq:
 		free_irq(client->irq, client);
 
 out_free:
-	i2c_set_clientdata(client, NULL);
 	kfree(ds1374);
 	return ret;
 }
@@ -419,7 +421,6 @@ static int __devexit ds1374_remove(struct i2c_client *client)
 	}
 
 	rtc_device_unregister(ds1374->rtc);
-	i2c_set_clientdata(client, NULL);
 	kfree(ds1374);
 	return 0;
 }

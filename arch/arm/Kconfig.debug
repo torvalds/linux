@@ -71,6 +71,14 @@ config DEBUG_LL
 	  in the kernel.  This is helpful if you are debugging code that
 	  executes before the console is initialized.
 
+config EARLY_PRINTK
+	bool "Early printk"
+	depends on DEBUG_LL
+	help
+	  Say Y here if you want to have an early console using the
+	  kernel low-level debugging functions. Add earlyprintk to your
+	  kernel parameters to enable this console.
+
 config DEBUG_ICEDCC
 	bool "Kernel low-level debugging via EmbeddedICE DCC channel"
 	depends on DEBUG_LL
@@ -82,6 +90,14 @@ config DEBUG_ICEDCC
 
 	  It does include a timeout to ensure that the system does not
 	  totally freeze when there is nothing connected to read.
+
+config OC_ETM
+	bool "On-chip ETM and ETB"
+	select ARM_AMBA
+	help
+	  Enables the on-chip embedded trace macrocell and embedded trace
+	  buffer driver that will allow you to collect traces of the
+	  kernel code.
 
 config DEBUG_DC21285_PORT
 	bool "Kernel low-level debugging messages via footbridge serial port"
@@ -101,7 +117,7 @@ config DEBUG_CLPS711X_UART2
 	  cause the debug messages to appear on the first serial port.
 
 config DEBUG_S3C_UART
-	depends on PLAT_S3C
+	depends on PLAT_SAMSUNG
 	int "S3C UART to use for low-level debug"
 	default "0"
 	help

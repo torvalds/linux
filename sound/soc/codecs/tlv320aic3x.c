@@ -38,7 +38,10 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/gpio.h>
+#include <linux/regulator/consumer.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -46,16 +49,25 @@
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
+#include <sound/tlv320aic3x.h>
 
 #include "tlv320aic3x.h"
 
-#define AIC3X_VERSION "0.2"
+#define AIC3X_NUM_SUPPLIES	4
+static const char *aic3x_supply_names[AIC3X_NUM_SUPPLIES] = {
+	"IOVDD",	/* I/O Voltage */
+	"DVDD",		/* Digital Core Voltage */
+	"AVDD",		/* Analog DAC Voltage */
+	"DRVDD",	/* ADC Analog and Output Driver Voltage */
+};
 
 /* codec private data */
 struct aic3x_priv {
 	struct snd_soc_codec codec;
+	struct regulator_bulk_data supplies[AIC3X_NUM_SUPPLIES];
 	unsigned int sysclk;
 	int master;
+	int gpio_reset;
 };
 
 /*
@@ -753,7 +765,6 @@ static int aic3x_add_widgets(struct snd_soc_codec *codec)
 	/* set up audio path interconnects */
 	snd_soc_dapm_add_routes(codec, intercon, ARRAY_SIZE(intercon));
 
-	snd_soc_dapm_new_widgets(codec);
 	return 0;
 }
 
@@ -764,11 +775,12 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct aic3x_priv *aic3x = codec->private_data;
+	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
 	int codec_clk = 0, bypass_pll = 0, fsref, last_clk = 0;
-	u8 data, r, p, pll_q, pll_p = 1, pll_r = 1, pll_j = 1;
-	u16 pll_d = 1;
+	u8 data, j, r, p, pll_q, pll_p = 1, pll_r = 1, pll_j = 1;
+	u16 d, pll_d = 1;
 	u8 reg;
+	int clk;
 
 	/* select data word length */
 	data =
@@ -834,48 +846,70 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 	if (bypass_pll)
 		return 0;
 
-	/* Use PLL
-	 * find an apropriate setup for j, d, r and p by iterating over
-	 * p and r - j and d are calculated for each fraction.
-	 * Up to 128 values are probed, the closest one wins the game.
+	/* Use PLL, compute apropriate setup for j, d, r and p, the closest
+	 * one wins the game. Try with d==0 first, next with d!=0.
+	 * Constraints for j are according to the datasheet.
 	 * The sysclk is divided by 1000 to prevent integer overflows.
 	 */
+
 	codec_clk = (2048 * fsref) / (aic3x->sysclk / 1000);
 
 	for (r = 1; r <= 16; r++)
 		for (p = 1; p <= 8; p++) {
-			int clk, tmp = (codec_clk * pll_r * 10) / pll_p;
-			u8 j = tmp / 10000;
-			u16 d = tmp % 10000;
+			for (j = 4; j <= 55; j++) {
+				/* This is actually 1000*((j+(d/10000))*r)/p
+				 * The term had to be converted to get
+				 * rid of the division by 10000; d = 0 here
+				 */
+				int tmp_clk = (1000 * j * r) / p;
 
-			if (j > 63)
-				continue;
+				/* Check whether this values get closer than
+				 * the best ones we had before
+				 */
+				if (abs(codec_clk - tmp_clk) <
+					abs(codec_clk - last_clk)) {
+					pll_j = j; pll_d = 0;
+					pll_r = r; pll_p = p;
+					last_clk = tmp_clk;
+				}
 
-			if (d != 0 && aic3x->sysclk < 10000000)
-				continue;
-
-			/* This is actually 1000 * ((j + (d/10000)) * r) / p
-			 * The term had to be converted to get rid of the
-			 * division by 10000 */
-			clk = ((10000 * j * r) + (d * r)) / (10 * p);
-
-			/* check whether this values get closer than the best
-			 * ones we had before */
-			if (abs(codec_clk - clk) < abs(codec_clk - last_clk)) {
-				pll_j = j; pll_d = d; pll_r = r; pll_p = p;
-				last_clk = clk;
+				/* Early exit for exact matches */
+				if (tmp_clk == codec_clk)
+					goto found;
 			}
-
-			/* Early exit for exact matches */
-			if (clk == codec_clk)
-				break;
 		}
+
+	/* try with d != 0 */
+	for (p = 1; p <= 8; p++) {
+		j = codec_clk * p / 1000;
+
+		if (j < 4 || j > 11)
+			continue;
+
+		/* do not use codec_clk here since we'd loose precision */
+		d = ((2048 * p * fsref) - j * aic3x->sysclk)
+			* 100 / (aic3x->sysclk/100);
+
+		clk = (10000 * j + d) / (10 * p);
+
+		/* check whether this values get closer than the best
+		 * ones we had before */
+		if (abs(codec_clk - clk) < abs(codec_clk - last_clk)) {
+			pll_j = j; pll_d = d; pll_r = 1; pll_p = p;
+			last_clk = clk;
+		}
+
+		/* Early exit for exact matches */
+		if (clk == codec_clk)
+			goto found;
+	}
 
 	if (last_clk == 0) {
 		printk(KERN_ERR "%s(): unable to setup PLL\n", __func__);
 		return -EINVAL;
 	}
 
+found:
 	data = aic3x_read_reg_cache(codec, AIC3X_PLL_PROGA_REG);
 	aic3x_write(codec, AIC3X_PLL_PROGA_REG, data | (pll_p << PLLP_SHIFT));
 	aic3x_write(codec, AIC3X_OVRF_STATUS_AND_PLLR_REG, pll_r << PLLR_SHIFT);
@@ -908,7 +942,7 @@ static int aic3x_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct aic3x_priv *aic3x = codec->private_data;
+	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
 
 	aic3x->sysclk = freq;
 	return 0;
@@ -918,7 +952,7 @@ static int aic3x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			     unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct aic3x_priv *aic3x = codec->private_data;
+	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
 	u8 iface_areg, iface_breg;
 	int delay = 0;
 
@@ -972,12 +1006,13 @@ static int aic3x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 				enum snd_soc_bias_level level)
 {
-	struct aic3x_priv *aic3x = codec->private_data;
+	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
 	u8 reg;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		/* all power is driven by DAPM system */
+		break;
+	case SND_SOC_BIAS_PREPARE:
 		if (aic3x->master) {
 			/* enable pll */
 			reg = aic3x_read_reg_cache(codec, AIC3X_PLL_PROGA_REG);
@@ -985,48 +1020,9 @@ static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 				    reg | PLL_ENABLE);
 		}
 		break;
-	case SND_SOC_BIAS_PREPARE:
-		break;
 	case SND_SOC_BIAS_STANDBY:
-		/*
-		 * all power is driven by DAPM system,
-		 * so output power is safe if bypass was set
-		 */
-		if (aic3x->master) {
-			/* disable pll */
-			reg = aic3x_read_reg_cache(codec, AIC3X_PLL_PROGA_REG);
-			aic3x_write(codec, AIC3X_PLL_PROGA_REG,
-				    reg & ~PLL_ENABLE);
-		}
-		break;
+		/* fall through and disable pll */
 	case SND_SOC_BIAS_OFF:
-		/* force all power off */
-		reg = aic3x_read_reg_cache(codec, LINE1L_2_LADC_CTRL);
-		aic3x_write(codec, LINE1L_2_LADC_CTRL, reg & ~LADC_PWR_ON);
-		reg = aic3x_read_reg_cache(codec, LINE1R_2_RADC_CTRL);
-		aic3x_write(codec, LINE1R_2_RADC_CTRL, reg & ~RADC_PWR_ON);
-
-		reg = aic3x_read_reg_cache(codec, DAC_PWR);
-		aic3x_write(codec, DAC_PWR, reg & ~(LDAC_PWR_ON | RDAC_PWR_ON));
-
-		reg = aic3x_read_reg_cache(codec, HPLOUT_CTRL);
-		aic3x_write(codec, HPLOUT_CTRL, reg & ~HPLOUT_PWR_ON);
-		reg = aic3x_read_reg_cache(codec, HPROUT_CTRL);
-		aic3x_write(codec, HPROUT_CTRL, reg & ~HPROUT_PWR_ON);
-
-		reg = aic3x_read_reg_cache(codec, HPLCOM_CTRL);
-		aic3x_write(codec, HPLCOM_CTRL, reg & ~HPLCOM_PWR_ON);
-		reg = aic3x_read_reg_cache(codec, HPRCOM_CTRL);
-		aic3x_write(codec, HPRCOM_CTRL, reg & ~HPRCOM_PWR_ON);
-
-		reg = aic3x_read_reg_cache(codec, MONOLOPM_CTRL);
-		aic3x_write(codec, MONOLOPM_CTRL, reg & ~MONOLOPM_PWR_ON);
-
-		reg = aic3x_read_reg_cache(codec, LLOPM_CTRL);
-		aic3x_write(codec, LLOPM_CTRL, reg & ~LLOPM_PWR_ON);
-		reg = aic3x_read_reg_cache(codec, RLOPM_CTRL);
-		aic3x_write(codec, RLOPM_CTRL, reg & ~RLOPM_PWR_ON);
-
 		if (aic3x->master) {
 			/* disable pll */
 			reg = aic3x_read_reg_cache(codec, AIC3X_PLL_PROGA_REG);
@@ -1148,7 +1144,7 @@ static int aic3x_resume(struct platform_device *pdev)
 		codec->hw_write(codec->control_data, data, 2);
 	}
 
-	aic3x_set_bias_level(codec, codec->suspend_bias_level);
+	aic3x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;
 }
@@ -1286,6 +1282,13 @@ static int aic3x_unregister(struct aic3x_priv *aic3x)
 	snd_soc_unregister_dai(&aic3x_dai);
 	snd_soc_unregister_codec(&aic3x->codec);
 
+	if (aic3x->gpio_reset >= 0) {
+		gpio_set_value(aic3x->gpio_reset, 0);
+		gpio_free(aic3x->gpio_reset);
+	}
+	regulator_bulk_disable(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
+	regulator_bulk_free(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
+
 	kfree(aic3x);
 	aic3x_codec = NULL;
 
@@ -1307,6 +1310,8 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 {
 	struct snd_soc_codec *codec;
 	struct aic3x_priv *aic3x;
+	struct aic3x_pdata *pdata = i2c->dev.platform_data;
+	int ret, i;
 
 	aic3x = kzalloc(sizeof(struct aic3x_priv), GFP_KERNEL);
 	if (aic3x == NULL) {
@@ -1316,13 +1321,53 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 
 	codec = &aic3x->codec;
 	codec->dev = &i2c->dev;
-	codec->private_data = aic3x;
+	snd_soc_codec_set_drvdata(codec, aic3x);
 	codec->control_data = i2c;
 	codec->hw_write = (hw_write_t) i2c_master_send;
 
 	i2c_set_clientdata(i2c, aic3x);
 
+	aic3x->gpio_reset = -1;
+	if (pdata && pdata->gpio_reset >= 0) {
+		ret = gpio_request(pdata->gpio_reset, "tlv320aic3x reset");
+		if (ret != 0)
+			goto err_gpio;
+		aic3x->gpio_reset = pdata->gpio_reset;
+		gpio_direction_output(aic3x->gpio_reset, 0);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(aic3x->supplies); i++)
+		aic3x->supplies[i].supply = aic3x_supply_names[i];
+
+	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(aic3x->supplies),
+				 aic3x->supplies);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
+		goto err_get;
+	}
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(aic3x->supplies),
+				    aic3x->supplies);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
+		goto err_enable;
+	}
+
+	if (aic3x->gpio_reset >= 0) {
+		udelay(1);
+		gpio_set_value(aic3x->gpio_reset, 1);
+	}
+
 	return aic3x_register(codec);
+
+err_enable:
+	regulator_bulk_free(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
+err_get:
+	if (aic3x->gpio_reset >= 0)
+		gpio_free(aic3x->gpio_reset);
+err_gpio:
+	kfree(aic3x);
+	return ret;
 }
 
 static int aic3x_i2c_remove(struct i2c_client *client)
@@ -1405,17 +1450,7 @@ static int aic3x_probe(struct platform_device *pdev)
 
 	aic3x_add_widgets(codec);
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		printk(KERN_ERR "aic3x: failed to register card\n");
-		goto card_err;
-	}
-
 	return ret;
-
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 
 pcm_err:
 	kfree(codec->reg_cache);

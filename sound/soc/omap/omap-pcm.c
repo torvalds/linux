@@ -23,12 +23,13 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
-#include <mach/dma.h>
+#include <plat/dma.h>
 #include "omap-pcm.h"
 
 static const struct snd_pcm_hardware omap_pcm_hardware = {
@@ -37,7 +38,8 @@ static const struct snd_pcm_hardware omap_pcm_hardware = {
 				  SNDRV_PCM_INFO_INTERLEAVED |
 				  SNDRV_PCM_INFO_PAUSE |
 				  SNDRV_PCM_INFO_RESUME,
-	.formats		= SNDRV_PCM_FMTBIT_S16_LE,
+	.formats		= SNDRV_PCM_FMTBIT_S16_LE |
+				  SNDRV_PCM_FMTBIT_S32_LE,
 	.period_bytes_min	= 32,
 	.period_bytes_max	= 64 * 1024,
 	.periods_min		= 2,
@@ -59,12 +61,11 @@ static void omap_pcm_dma_irq(int ch, u16 stat, void *data)
 	struct omap_runtime_data *prtd = runtime->private_data;
 	unsigned long flags;
 
-	if ((cpu_is_omap1510()) &&
-			(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)) {
+	if ((cpu_is_omap1510())) {
 		/*
 		 * OMAP1510 doesn't fully support DMA progress counter
 		 * and there is no software emulation implemented yet,
-		 * so have to maintain our own playback progress counter
+		 * so have to maintain our own progress counters
 		 * that can be used by omap_pcm_pointer() instead.
 		 */
 		spin_lock_irqsave(&prtd->lock, flags);
@@ -99,8 +100,10 @@ static int omap_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct omap_runtime_data *prtd = runtime->private_data;
-	struct omap_pcm_dma_data *dma_data = rtd->dai->cpu_dai->dma_data;
+	struct omap_pcm_dma_data *dma_data;
 	int err = 0;
+
+	dma_data = snd_soc_dai_get_dma_data(rtd->dai->cpu_dai, substream);
 
 	/* return if this is a bufferless transfer e.g.
 	 * codec <--> BT codec or GSM modem -- lg FIXME */
@@ -149,6 +152,7 @@ static int omap_pcm_prepare(struct snd_pcm_substream *substream)
 	struct omap_runtime_data *prtd = runtime->private_data;
 	struct omap_pcm_dma_data *dma_data = prtd->dma_data;
 	struct omap_dma_channel_params dma_params;
+	int bytes;
 
 	/* return if this is a bufferless transfer e.g.
 	 * codec <--> BT codec or GSM modem -- lg FIXME */
@@ -156,11 +160,7 @@ static int omap_pcm_prepare(struct snd_pcm_substream *substream)
 		return 0;
 
 	memset(&dma_params, 0, sizeof(dma_params));
-	/*
-	 * Note: Regardless of interface data formats supported by OMAP McBSP
-	 * or EAC blocks, internal representation is always fixed 16-bit/sample
-	 */
-	dma_params.data_type			= OMAP_DMA_DATA_TYPE_S16;
+	dma_params.data_type			= dma_data->data_type;
 	dma_params.trigger			= dma_data->dma_req;
 	dma_params.sync_mode			= dma_data->sync_mode;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -170,6 +170,7 @@ static int omap_pcm_prepare(struct snd_pcm_substream *substream)
 		dma_params.src_start		= runtime->dma_addr;
 		dma_params.dst_start		= dma_data->port_addr;
 		dma_params.dst_port		= OMAP_DMA_PORT_MPUI;
+		dma_params.dst_fi		= dma_data->packet_size;
 	} else {
 		dma_params.src_amode		= OMAP_DMA_AMODE_CONSTANT;
 		dma_params.dst_amode		= OMAP_DMA_AMODE_POST_INC;
@@ -177,6 +178,7 @@ static int omap_pcm_prepare(struct snd_pcm_substream *substream)
 		dma_params.src_start		= dma_data->port_addr;
 		dma_params.dst_start		= runtime->dma_addr;
 		dma_params.src_port		= OMAP_DMA_PORT_MPUI;
+		dma_params.src_fi		= dma_data->packet_size;
 	}
 	/*
 	 * Set DMA transfer frame size equal to ALSA period size and frame
@@ -184,12 +186,12 @@ static int omap_pcm_prepare(struct snd_pcm_substream *substream)
 	 * we can transfer the whole ALSA buffer with single DMA transfer but
 	 * still can get an interrupt at each period bounary
 	 */
-	dma_params.elem_count	= snd_pcm_lib_period_bytes(substream) / 2;
+	bytes = snd_pcm_lib_period_bytes(substream);
+	dma_params.elem_count	= bytes >> dma_data->data_type;
 	dma_params.frame_count	= runtime->periods;
 	omap_set_dma_params(prtd->dma_ch, &dma_params);
 
-	if ((cpu_is_omap1510()) &&
-			(substream->stream == SNDRV_PCM_STREAM_PLAYBACK))
+	if ((cpu_is_omap1510()))
 		omap_enable_dma_irq(prtd->dma_ch, OMAP_DMA_FRAME_IRQ |
 			      OMAP_DMA_LAST_IRQ | OMAP_DMA_BLOCK_IRQ);
 	else
@@ -247,14 +249,15 @@ static snd_pcm_uframes_t omap_pcm_pointer(struct snd_pcm_substream *substream)
 	dma_addr_t ptr;
 	snd_pcm_uframes_t offset;
 
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+	if (cpu_is_omap1510()) {
+		offset = prtd->period_index * runtime->period_size;
+	} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		ptr = omap_get_dma_dst_pos(prtd->dma_ch);
 		offset = bytes_to_frames(runtime, ptr - runtime->dma_addr);
-	} else if (!(cpu_is_omap1510())) {
+	} else {
 		ptr = omap_get_dma_src_pos(prtd->dma_ch);
 		offset = bytes_to_frames(runtime, ptr - runtime->dma_addr);
-	} else
-		offset = prtd->period_index * runtime->period_size;
+	}
 
 	if (offset >= runtime->buffer_size)
 		offset = 0;

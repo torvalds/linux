@@ -10,6 +10,7 @@
 #include <linux/debugfs.h>
 #include <linux/fs.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <linux/stat.h>
 
 #include <linux/mmc/card.h>

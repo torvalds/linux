@@ -48,7 +48,7 @@ out:
 static struct ctl_table *find_in_table(struct ctl_table *p, struct qstr *name)
 {
 	int len;
-	for ( ; p->ctl_name || p->procname; p++) {
+	for ( ; p->procname; p++) {
 
 		if (!p->procname)
 			continue;
@@ -218,7 +218,7 @@ static int scan(struct ctl_table_header *head, ctl_table *table,
 		void *dirent, filldir_t filldir)
 {
 
-	for (; table->ctl_name || table->procname; table++, (*pos)++) {
+	for (; table->procname; table++, (*pos)++) {
 		int res;
 
 		/* Can't do anything without a proc name */
@@ -329,10 +329,19 @@ static int proc_sys_setattr(struct dentry *dentry, struct iattr *attr)
 		return -EPERM;
 
 	error = inode_change_ok(inode, attr);
-	if (!error)
-		error = inode_setattr(inode, attr);
+	if (error)
+		return error;
 
-	return error;
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		error = vmtruncate(inode, attr->ia_size);
+		if (error)
+			return error;
+	}
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+	return 0;
 }
 
 static int proc_sys_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)

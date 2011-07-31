@@ -10,6 +10,7 @@
 #include <linux/wait.h>
 #include <linux/hrtimer.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 
 #include <asm/lguest.h>
 

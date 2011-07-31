@@ -1,6 +1,4 @@
 /*
- *  fs/nfsd/nfs4idmap.c
- *
  *  Mapping of UID/GIDs to name and vice versa.
  *
  *  Copyright (c) 2002, 2003 The Regents of the University of
@@ -35,22 +33,10 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
-
-#include <linux/mm.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/sunrpc/clnt.h>
-#include <linux/nfs.h>
-#include <linux/nfs4.h>
-#include <linux/nfs_fs.h>
-#include <linux/nfs_page.h>
-#include <linux/sunrpc/cache.h>
 #include <linux/nfsd_idmap.h>
-#include <linux/list.h>
-#include <linux/time.h>
 #include <linux/seq_file.h>
-#include <linux/sunrpc/svcauth.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
 
 /*
  * Cache entry

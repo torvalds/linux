@@ -17,6 +17,8 @@
  * USA.
  */
 
+#include <linux/slab.h>
+
 #include "usbip_common.h"
 #include "vhci.h"
 
@@ -177,7 +179,7 @@ static int vhci_send_cmd_unlink(struct vhci_device *vdev)
 		memset(&msg, 0, sizeof(msg));
 		memset(&iov, 0, sizeof(iov));
 
-		usbip_dbg_vhci_tx("setup cmd unlink, %lu \n", unlink->seqnum);
+		usbip_dbg_vhci_tx("setup cmd unlink, %lu\n", unlink->seqnum);
 
 
 		/* 1. setup usbip_header */

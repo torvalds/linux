@@ -25,16 +25,14 @@
 #include <linux/platform_device.h>
 
 #include <mach/gpio.h>
-#include <mach/mux.h>
-#include <mach/omapfb.h>
+
+#include "omapfb.h"
 
 /* #define USE_35INCH_LCD 1 */
 
 static int apollon_panel_init(struct lcd_panel *panel,
 				struct omapfb_device *fbdev)
 {
-	/* configure LCD PWR_EN */
-	omap_cfg_reg(M21_242X_GPIO11);
 	return 0;
 }
 

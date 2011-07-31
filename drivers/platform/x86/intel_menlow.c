@@ -30,6 +30,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/pm.h>
@@ -51,6 +52,8 @@ MODULE_LICENSE("GPL");
 #define MEMORY_SET_BANDWIDTH "STHS"
 #define MEMORY_ARG_CUR_BANDWIDTH 1
 #define MEMORY_ARG_MAX_BANDWIDTH 0
+
+static void intel_menlow_unregister_sensor(void);
 
 /*
  * GTHS returning 'n' would mean that [0,n-1] states are supported
@@ -396,6 +399,7 @@ static int intel_menlow_add_one_attribute(char *name, int mode, void *show,
 	if (!attr)
 		return -ENOMEM;
 
+	sysfs_attr_init(&attr->attr.attr); /* That is consistent naming :D */
 	attr->attr.attr.name = name;
 	attr->attr.attr.mode = mode;
 	attr->attr.show = show;
@@ -404,8 +408,10 @@ static int intel_menlow_add_one_attribute(char *name, int mode, void *show,
 	attr->handle = handle;
 
 	result = device_create_file(dev, &attr->attr);
-	if (result)
+	if (result) {
+		kfree(attr);
 		return result;
+	}
 
 	mutex_lock(&intel_menlow_attr_lock);
 	list_add_tail(&attr->node, &intel_menlow_attr_list);
@@ -429,11 +435,11 @@ static acpi_status intel_menlow_register_sensor(acpi_handle handle, u32 lvl,
 	/* _TZ must have the AUX0/1 methods */
 	status = acpi_get_handle(handle, GET_AUX0, &dummy);
 	if (ACPI_FAILURE(status))
-		goto not_found;
+		return (status == AE_NOT_FOUND) ? AE_OK : status;
 
 	status = acpi_get_handle(handle, SET_AUX0, &dummy);
 	if (ACPI_FAILURE(status))
-		goto not_found;
+		return (status == AE_NOT_FOUND) ? AE_OK : status;
 
 	result = intel_menlow_add_one_attribute("aux0", 0644,
 						aux0_show, aux0_store,
@@ -443,17 +449,19 @@ static acpi_status intel_menlow_register_sensor(acpi_handle handle, u32 lvl,
 
 	status = acpi_get_handle(handle, GET_AUX1, &dummy);
 	if (ACPI_FAILURE(status))
-		goto not_found;
+		goto aux1_not_found;
 
 	status = acpi_get_handle(handle, SET_AUX1, &dummy);
 	if (ACPI_FAILURE(status))
-		goto not_found;
+		goto aux1_not_found;
 
 	result = intel_menlow_add_one_attribute("aux1", 0644,
 						aux1_show, aux1_store,
 						&thermal->device, handle);
-	if (result)
+	if (result) {
+		intel_menlow_unregister_sensor();
 		return AE_ERROR;
+	}
 
 	/*
 	 * create the "dabney_enabled" attribute which means the user app
@@ -463,14 +471,17 @@ static acpi_status intel_menlow_register_sensor(acpi_handle handle, u32 lvl,
 	result = intel_menlow_add_one_attribute("bios_enabled", 0444,
 						bios_enabled_show, NULL,
 						&thermal->device, handle);
-	if (result)
+	if (result) {
+		intel_menlow_unregister_sensor();
 		return AE_ERROR;
+	}
 
- not_found:
+ aux1_not_found:
 	if (status == AE_NOT_FOUND)
 		return AE_OK;
-	else
-		return status;
+
+	intel_menlow_unregister_sensor();
+	return status;
 }
 
 static void intel_menlow_unregister_sensor(void)
@@ -510,9 +521,11 @@ static int __init intel_menlow_module_init(void)
 	/* Looking for sensors in each ACPI thermal zone */
 	status = acpi_walk_namespace(ACPI_TYPE_THERMAL, ACPI_ROOT_OBJECT,
 				     ACPI_UINT32_MAX,
-				     intel_menlow_register_sensor, NULL, NULL);
-	if (ACPI_FAILURE(status))
+				     intel_menlow_register_sensor, NULL, NULL, NULL);
+	if (ACPI_FAILURE(status)) {
+		acpi_bus_unregister_driver(&intel_menlow_memory_driver);
 		return -ENODEV;
+	}
 
 	return 0;
 }

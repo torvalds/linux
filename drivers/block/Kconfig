@@ -76,6 +76,17 @@ config BLK_DEV_XD
 
 	  It's pretty unlikely that you have one of these: say N.
 
+config GDROM
+	tristate "SEGA Dreamcast GD-ROM drive"
+	depends on SH_DREAMCAST
+	help
+	  A standard SEGA Dreamcast comes with a modified CD ROM drive called a
+	  "GD-ROM" by SEGA to signify it is capable of reading special disks
+	  with up to 1 GB of data. This drive will also read standard CD ROM
+	  disks. Select this option to access any disks in your GD ROM drive.
+	  Most users will want to say "Y" here.
+	  You can also build this as a module which will be called gdrom.
+
 config PARIDE
 	tristate "Parallel port IDE device support"
 	depends on PARPORT_PC
@@ -102,17 +113,6 @@ config PARIDE
 	  to at least one protocol driver (e.g. "ATEN EH-100 protocol",
 	  "MicroSolutions backpack protocol", "DataStor Commuter protocol"
 	  etc.).
-
-config GDROM
-	tristate "SEGA Dreamcast GD-ROM drive"
-	depends on SH_DREAMCAST
-	help
-	  A standard SEGA Dreamcast comes with a modified CD ROM drive called a
-	  "GD-ROM" by SEGA to signify it is capable of reading special disks
-	  with up to 1 GB of data. This drive will also read standard CD ROM
-	  disks. Select this option to access any disks in your GD ROM drive.
-	  Most users will want to say "Y" here.
-	  You can also build this as a module which will be called gdrom.
 
 source "drivers/block/paride/Kconfig"
 
@@ -270,6 +270,8 @@ config BLK_DEV_CRYPTOLOOP
 	  ext3 or Reiserfs. Please use the Device Mapper crypto module
 	  instead, which can be configured to be on-disk compatible with the
 	  cryptoloop device.
+
+source "drivers/block/drbd/Kconfig"
 
 config BLK_DEV_NBD
 	tristate "Network block device support"

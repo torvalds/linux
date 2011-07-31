@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -218,7 +218,7 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state * walk_state)
 	union acpi_operand_object **operand = &walk_state->operands[0];
 	union acpi_operand_object *return_desc = NULL;
 	acpi_status status = AE_OK;
-	acpi_integer index;
+	u64 index;
 	union acpi_operand_object *this_element;
 
 	ACPI_FUNCTION_TRACE_STR(ex_opcode_6A_0T_1R,
@@ -245,7 +245,7 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state * walk_state)
 		index = operand[5]->integer.value;
 		if (index >= operand[0]->package.count) {
 			ACPI_ERROR((AE_INFO,
-				    "Index (%X%8.8X) beyond package end (%X)",
+				    "Index (0x%8.8X%8.8X) beyond package end (0x%X)",
 				    ACPI_FORMAT_UINT64(index),
 				    operand[0]->package.count));
 			status = AE_AML_PACKAGE_LIMIT;
@@ -253,17 +253,14 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state * walk_state)
 		}
 
 		/* Create an integer for the return value */
+		/* Default return value is ACPI_UINT64_MAX if no match found */
 
-		return_desc = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
+		return_desc = acpi_ut_create_integer_object(ACPI_UINT64_MAX);
 		if (!return_desc) {
 			status = AE_NO_MEMORY;
 			goto cleanup;
 
 		}
-
-		/* Default return value if no match found */
-
-		return_desc->integer.value = ACPI_INTEGER_MAX;
 
 		/*
 		 * Examine each element until a match is found. Both match conditions
@@ -273,7 +270,7 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state * walk_state)
 		 *
 		 * Upon finding a match, the loop will terminate via "break" at
 		 * the bottom.  If it terminates "normally", match_value will be
-		 * ACPI_INTEGER_MAX (Ones) (its initial value) indicating that no
+		 * ACPI_UINT64_MAX (Ones) (its initial value) indicating that no
 		 * match was found.
 		 */
 		for (; index < operand[0]->package.count; index++) {
@@ -317,7 +314,7 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state * walk_state)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode %X",
+		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;

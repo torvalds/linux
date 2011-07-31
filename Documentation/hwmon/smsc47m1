@@ -7,13 +7,10 @@ Supported chips:
     Addresses scanned: none, address read from Super I/O config space
     Prefix: 'smsc47m1'
     Datasheets:
-        http://www.smsc.com/main/datasheets/47b27x.pdf
-        http://www.smsc.com/main/datasheets/47m10x.pdf
-        http://www.smsc.com/main/datasheets/47m112.pdf
-        http://www.smsc.com/main/tools/discontinued/47m13x.pdf
-        http://www.smsc.com/main/datasheets/47m14x.pdf
-        http://www.smsc.com/main/tools/discontinued/47m15x.pdf
-        http://www.smsc.com/main/datasheets/47m192.pdf
+        http://www.smsc.com/media/Downloads_Public/Data_Sheets/47b272.pdf
+        http://www.smsc.com/media/Downloads_Public/Data_Sheets/47m10x.pdf
+        http://www.smsc.com/media/Downloads_Public/Data_Sheets/47m112.pdf
+        http://www.smsc.com/
   * SMSC LPC47M292
     Addresses scanned: none, address read from Super I/O config space
     Prefix: 'smsc47m2'

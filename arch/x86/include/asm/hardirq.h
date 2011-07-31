@@ -12,7 +12,7 @@ typedef struct {
 	unsigned int apic_timer_irqs;	/* arch dependent */
 	unsigned int irq_spurious_count;
 #endif
-	unsigned int generic_irqs;	/* arch dependent */
+	unsigned int x86_platform_ipis;	/* arch dependent */
 	unsigned int apic_perf_irqs;
 	unsigned int apic_pending_irqs;
 #ifdef CONFIG_SMP
@@ -20,11 +20,11 @@ typedef struct {
 	unsigned int irq_call_count;
 	unsigned int irq_tlb_count;
 #endif
-#ifdef CONFIG_X86_MCE
+#ifdef CONFIG_X86_THERMAL_VECTOR
 	unsigned int irq_thermal_count;
-# ifdef CONFIG_X86_MCE_THRESHOLD
+#endif
+#ifdef CONFIG_X86_MCE_THRESHOLD
 	unsigned int irq_threshold_count;
-# endif
 #endif
 } ____cacheline_aligned irq_cpustat_t;
 
@@ -35,7 +35,7 @@ DECLARE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
 
 #define __ARCH_IRQ_STAT
 
-#define inc_irq_stat(member)	percpu_add(irq_stat.member, 1)
+#define inc_irq_stat(member)	percpu_inc(irq_stat.member)
 
 #define local_softirq_pending()	percpu_read(irq_stat.__softirq_pending)
 

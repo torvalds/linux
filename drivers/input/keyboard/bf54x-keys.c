@@ -34,6 +34,7 @@
 #include <linux/fs.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/pm.h>
 #include <linux/sysctl.h>
@@ -162,7 +163,7 @@ static irqreturn_t bfin_kpad_isr(int irq, void *dev_id)
 	input_sync(input);
 
 	if (bfin_kpad_get_keypressed(bf54x_kpad)) {
-		disable_irq(bf54x_kpad->irq);
+		disable_irq_nosync(bf54x_kpad->irq);
 		bf54x_kpad->lastkey = key;
 		mod_timer(&bf54x_kpad->timer,
 			  jiffies + bf54x_kpad->keyup_test_jiffies);

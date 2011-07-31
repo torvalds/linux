@@ -752,7 +752,7 @@ fovfl_ovfl_on:
 
 	bra.l		_real_ovfl
 
-# overflow occurred but is disabled. meanwhile, inexact is enabled. therefore,
+# overflow occurred but is disabled. meanwhile, inexact is enabled. Therefore,
 # we must jump to real_inex().
 fovfl_inex_on:
 
@@ -1014,7 +1014,7 @@ funfl_unfl_on2:
 
 	bra.l		_real_unfl
 
-# undeflow occurred but is disabled. meanwhile, inexact is enabled. therefore,
+# underflow occurred but is disabled. meanwhile, inexact is enabled. Therefore,
 # we must jump to real_inex().
 funfl_inex_on:
 
@@ -2962,7 +2962,7 @@ iea_disabled:
 
 	tst.w		%d0			# is instr fmovm?
 	bmi.b		iea_dis_fmovm		# yes
-# instruction is using an extended precision immediate operand. therefore,
+# instruction is using an extended precision immediate operand. Therefore,
 # the total instruction length is 16 bytes.
 iea_dis_immed:
 	mov.l		&0x10,%d0		# 16 bytes of instruction
@@ -5865,7 +5865,7 @@ denorm_set_stky:
 	rts
 
 #									#
-# dnrm_lp(): normalize exponent/mantissa to specified threshhold	#
+# dnrm_lp(): normalize exponent/mantissa to specified threshold		#
 #									#
 # INPUT:								#
 #	%a0	   : points to the operand to be denormalized		#
@@ -6524,7 +6524,7 @@ unnorm_shift:
 	bgt.b		unnorm_nrm_zero		# yes; denorm only until exp = 0
 
 #
-# exponent would not go < 0. therefore, number stays normalized
+# exponent would not go < 0. Therefore, number stays normalized
 #
 	sub.w		%d0, %d1		# shift exponent value
 	mov.w		FTEMP_EX(%a0), %d0	# load old exponent
@@ -7901,7 +7901,7 @@ fout_pack_type:
 	tst.l		%d0
 	bne.b		fout_pack_set
 # "mantissa" is all zero which means that the answer is zero. but, the '040
-# algorithm allows the exponent to be non-zero. the 881/2 do not. therefore,
+# algorithm allows the exponent to be non-zero. the 881/2 do not. Therefore,
 # if the mantissa is zero, I will zero the exponent, too.
 # the question now is whether the exponents sign bit is allowed to be non-zero
 # for a zero, also...
@@ -8647,7 +8647,7 @@ fin_sd_unfl_dis:
 
 #
 # operand will underflow AND underflow or inexact is enabled.
-# therefore, we must return the result rounded to extended precision.
+# Therefore, we must return the result rounded to extended precision.
 #
 fin_sd_unfl_ena:
 	mov.l		FP_SCR0_HI(%a6),FP_SCR1_HI(%a6)
@@ -9177,7 +9177,7 @@ fdiv_zero_load_p:
 
 #
 # The destination was In Range and the source was a ZERO. The result,
-# therefore, is an INF w/ the proper sign.
+# Therefore, is an INF w/ the proper sign.
 # So, determine the sign and return a new INF (w/ the j-bit cleared).
 #
 	global		fdiv_inf_load		# global for fsgldiv
@@ -9427,7 +9427,7 @@ fneg_sd_unfl_dis:
 
 #
 # operand will underflow AND underflow is enabled.
-# therefore, we must return the result rounded to extended precision.
+# Therefore, we must return the result rounded to extended precision.
 #
 fneg_sd_unfl_ena:
 	mov.l		FP_SCR0_HI(%a6),FP_SCR1_HI(%a6)
@@ -10042,7 +10042,7 @@ fabs_sd_unfl_dis:
 
 #
 # operand will underflow AND underflow is enabled.
-# therefore, we must return the result rounded to extended precision.
+# Therefore, we must return the result rounded to extended precision.
 #
 fabs_sd_unfl_ena:
 	mov.l		FP_SCR0_HI(%a6),FP_SCR1_HI(%a6)
@@ -11404,7 +11404,7 @@ fadd_zero_2:
 
 #
 # the ZEROes have opposite signs:
-# - therefore, we return +ZERO if the rounding modes are RN,RZ, or RP.
+# - Therefore, we return +ZERO if the rounding modes are RN,RZ, or RP.
 # - -ZERO is returned in the case of RM.
 #
 fadd_zero_2_chk_rm:
@@ -11856,7 +11856,7 @@ fsub_zero_2:
 
 #
 # the ZEROes have the same signs:
-# - therefore, we return +ZERO if the rounding mode is RN,RZ, or RP
+# - Therefore, we return +ZERO if the rounding mode is RN,RZ, or RP
 # - -ZERO is returned in the case of RM.
 #
 fsub_zero_2_chk_rm:
@@ -12124,7 +12124,7 @@ fsqrt_sd_unfl_dis:
 
 #
 # operand will underflow AND underflow is enabled.
-# therefore, we must return the result rounded to extended precision.
+# Therefore, we must return the result rounded to extended precision.
 #
 fsqrt_sd_unfl_ena:
 	mov.l		FP_SCR0_HI(%a6),FP_SCR1_HI(%a6)

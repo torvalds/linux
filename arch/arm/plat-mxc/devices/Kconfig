@@ -1,0 +1,15 @@
+config IMX_HAVE_PLATFORM_FLEXCAN
+	select HAVE_CAN_FLEXCAN
+	bool
+
+config IMX_HAVE_PLATFORM_IMX_I2C
+	bool
+
+config IMX_HAVE_PLATFORM_IMX_UART
+	bool
+
+config IMX_HAVE_PLATFORM_MXC_NAND
+	bool
+
+config IMX_HAVE_PLATFORM_SPI_IMX
+	bool

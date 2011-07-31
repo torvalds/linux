@@ -219,7 +219,7 @@ int pvr2_hdw_get_stdenum_value(struct pvr2_hdw *hdw,struct v4l2_standard *std,
    this may prevent the device from running (and leaving this mode may
    imply a device reset). */
 void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *,
-				int prom_flag,
+				int mode, /* 0=8KB FX2, 1=16KB FX2, 2=PROM */
 				int enable_flag);
 
 /* Return true if we're in a mode for retrieval CPU firmware */
@@ -306,6 +306,7 @@ struct pvr2_hdw_debug_info {
 	int state_encoder_ok;
 	int state_encoder_run;
 	int state_decoder_run;
+	int state_decoder_ready;
 	int state_usbstream_run;
 	int state_decoder_quiescent;
 	int state_pipeline_config;

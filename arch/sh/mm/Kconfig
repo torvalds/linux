@@ -75,57 +75,25 @@ config MEMORY_SIZE
 config 29BIT
 	def_bool !32BIT
 	depends on SUPERH32
+	select UNCACHED_MAPPING
 
 config 32BIT
 	bool
 	default y if CPU_SH5
 
-config PMB_ENABLE
-	bool "Support 32-bit physical addressing through PMB"
-	depends on MMU && EXPERIMENTAL && (CPU_SUBTYPE_SH7757 || CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785)
-	select 32BIT
-	default y
-	help
-	  If you say Y here, physical addressing will be extended to
-	  32-bits through the SH-4A PMB. If this is not set, legacy
-	  29-bit physical addressing will be used.
-
-choice
-	prompt "PMB handling type"
-	depends on PMB_ENABLE
-	default PMB_FIXED
-
 config PMB
-	bool "PMB"
-	depends on MMU && EXPERIMENTAL && (CPU_SUBTYPE_SH7757 || CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785)
+	bool "Support 32-bit physical addressing through PMB"
+	depends on MMU && EXPERIMENTAL && CPU_SH4A && !CPU_SH4AL_DSP
 	select 32BIT
+	select UNCACHED_MAPPING
 	help
 	  If you say Y here, physical addressing will be extended to
 	  32-bits through the SH-4A PMB. If this is not set, legacy
 	  29-bit physical addressing will be used.
-
-config PMB_FIXED
-	bool "fixed PMB"
-	depends on MMU && EXPERIMENTAL && (CPU_SUBTYPE_SH7757 || \
-					   CPU_SUBTYPE_SH7780 || \
-					   CPU_SUBTYPE_SH7785)
-	select 32BIT
-	help
-	  If this option is enabled, fixed PMB mappings are inherited
-	  from the boot loader, and the kernel does not attempt dynamic
-	  management. This is the closest to legacy 29-bit physical mode,
-	  and allows systems to support up to 512MiB of system memory.
-
-endchoice
 
 config X2TLB
-	bool "Enable extended TLB mode"
-	depends on (CPU_SHX2 || CPU_SHX3) && MMU && EXPERIMENTAL
-	help
-	  Selecting this option will enable the extended mode of the SH-X2
-	  TLB. For legacy SH-X behaviour and interoperability, say N. For
-	  all of the fun new features and a willingless to submit bug reports,
-	  say Y.
+	def_bool y
+	depends on (CPU_SHX2 || CPU_SHX3) && MMU
 
 config VSYSCALL
 	bool "Support vsyscall page"
@@ -193,14 +161,19 @@ config ARCH_MEMORY_PROBE
 	def_bool y
 	depends on MEMORY_HOTPLUG
 
+config IOREMAP_FIXED
+       def_bool y
+       depends on X2TLB || SUPERH64
+
+config UNCACHED_MAPPING
+	bool
+
 choice
 	prompt "Kernel page size"
-	default PAGE_SIZE_8KB if X2TLB
 	default PAGE_SIZE_4KB
 
 config PAGE_SIZE_4KB
 	bool "4kB"
-	depends on !MMU || !X2TLB
 	help
 	  This is the default page size used by all SuperH CPUs.
 
@@ -257,6 +230,15 @@ config HUGETLB_PAGE_SIZE_512MB
 endchoice
 
 source "mm/Kconfig"
+
+config SCHED_MC
+	bool "Multi-core scheduler support"
+	depends on SMP
+	default y
+	help
+	  Multi-core scheduler support improves the CPU scheduler's decision
+	  making when dealing with multi-core CPU chips at a cost of slightly
+	  increased overhead in some places. If unsure say N here.
 
 endmenu
 

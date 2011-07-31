@@ -1,7 +1,7 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2006-2008 Solarflare Communications Inc.
+ * Copyright 2006-2009 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -37,6 +37,8 @@
 #define EFX_DWORD_2_WIDTH 32
 #define EFX_DWORD_3_LBN 96
 #define EFX_DWORD_3_WIDTH 32
+#define EFX_QWORD_0_LBN 0
+#define EFX_QWORD_0_WIDTH 64
 
 /* Specified attribute (e.g. LBN) of the specified field */
 #define EFX_VAL(field, attribute) field ## _ ## attribute
@@ -519,19 +521,6 @@ typedef union efx_oword {
 #define EFX_SET_OWORD_FIELD EFX_SET_OWORD_FIELD32
 #define EFX_SET_QWORD_FIELD EFX_SET_QWORD_FIELD32
 #endif
-
-#define EFX_SET_OWORD_FIELD_VER(efx, oword, field, value) do { \
-	if (falcon_rev(efx) >= FALCON_REV_B0) {			   \
-		EFX_SET_OWORD_FIELD((oword), field##_B0, (value)); \
-	} else { \
-		EFX_SET_OWORD_FIELD((oword), field##_A1, (value)); \
-	} \
-} while (0)
-
-#define EFX_QWORD_FIELD_VER(efx, qword, field)	\
-	(falcon_rev(efx) >= FALCON_REV_B0 ?	\
-	 EFX_QWORD_FIELD((qword), field##_B0) :	\
-	 EFX_QWORD_FIELD((qword), field##_A1))
 
 /* Used to avoid compiler warnings about shift range exceeding width
  * of the data types when dma_addr_t is only 32 bits wide.

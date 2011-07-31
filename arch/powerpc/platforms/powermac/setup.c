@@ -31,7 +31,6 @@
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/tty.h>
 #include <linux/string.h>
@@ -52,7 +51,7 @@
 #include <linux/suspend.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/reg.h>
 #include <asm/sections.h>
@@ -481,7 +480,7 @@ static void __init pmac_init_early(void)
 #endif
 
 	/* SMP Init has to be done early as we need to patch up
-	 * cpu_possible_map before interrupt stacks are allocated
+	 * cpu_possible_mask before interrupt stacks are allocated
 	 * or kaboom...
 	 */
 #ifdef CONFIG_SMP
@@ -620,7 +619,7 @@ static int __init pmac_probe(void)
 	 * driver needs that. We have to allocate it now. We allocate 4k
 	 * (1 small page) for now.
 	 */
-	smu_cmdbuf_abs = lmb_alloc_base(4096, 4096, 0x80000000UL);
+	smu_cmdbuf_abs = memblock_alloc_base(4096, 4096, 0x80000000UL);
 #endif /* CONFIG_PMAC_SMU */
 
 	return 1;
@@ -647,7 +646,7 @@ static int pmac_pci_probe_mode(struct pci_bus *bus)
 /* access per cpu vars from generic smp.c */
 DECLARE_PER_CPU(int, cpu_state);
 
-static void pmac_cpu_die(void)
+static void pmac64_cpu_die(void)
 {
 	/*
 	 * turn off as much as possible, we'll be
@@ -718,8 +717,13 @@ define_machine(powermac) {
 	.pcibios_after_init	= pmac_pcibios_after_init,
 	.phys_mem_access_prot	= pci_phys_mem_access_prot,
 #endif
-#if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PPC64)
-	.cpu_die		= pmac_cpu_die,
+#ifdef CONFIG_HOTPLUG_CPU
+#ifdef CONFIG_PPC64
+	.cpu_die		= pmac64_cpu_die,
+#endif
+#ifdef CONFIG_PPC32
+	.cpu_die		= pmac32_cpu_die,
+#endif
 #endif
 #if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PPC32)
 	.cpu_die		= generic_mach_cpu_die,

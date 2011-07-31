@@ -25,6 +25,7 @@
  */
 
 #include <linux/etherdevice.h>
+#include <linux/slab.h>
 #include <linux/wlp.h>
 
 #include "wlp-internal.h"
@@ -282,7 +283,7 @@ EXPORT_SYMBOL_GPL(wlp_receive_frame);
  *         and transmission will be done by the calling function.
  * @dst:   On return this will contain the device address to which the
  *         frame is destined.
- * @returns: 0 on success no tx : WLP header sucessfully applied to skb buffer,
+ * @returns: 0 on success no tx : WLP header successfully applied to skb buffer,
  *                                calling function can proceed with tx
  *           1 on success with tx : WLP will take over transmission of this
  *                                  frame

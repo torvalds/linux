@@ -31,15 +31,6 @@
 #define CARMINE_MEM_SIZE	0x8000000
 #define DRV_NAME		"mb862xxfb"
 
-#if defined(CONFIG_LWMON5)
-static struct mb862xx_gc_mode lwmon5_gc_mode = {
-	/* Mode for Sharp LQ104V1DG61 TFT LCD Panel */
-	{ "640x480", 60, 640, 480, 40000, 48, 16, 32, 11, 96, 2, 0, 0, 0 },
-	/* 16 bits/pixel, 32MB, 100MHz, SDRAM memory mode value */
-	16, 0x2000000, GC_CCF_COT_100, 0x414fb7f2
-};
-#endif
-
 #if defined(CONFIG_SOCRATES)
 static struct mb862xx_gc_mode socrates_gc_mode = {
 	/* Mode for Prime View PM070WL4 TFT LCD Panel */
@@ -214,6 +205,8 @@ static int mb862xxfb_set_par(struct fb_info *fbi)
 	unsigned long reg, sc;
 
 	dev_dbg(par->dev, "%s\n", __func__);
+	if (par->type == BT_CORALP)
+		mb862xxfb_init_accel(fbi, fbi->var.xres);
 
 	if (par->pre_init)
 		return 0;
@@ -453,6 +446,18 @@ static ssize_t mb862xxfb_show_dispregs(struct device *dev,
 		ptr += sprintf(ptr, "%08x = %08x\n",
 			       reg, inreg(disp, reg));
 
+	for (reg = 0x400; reg <= 0x410; reg += 4)
+		ptr += sprintf(ptr, "geo %08x = %08x\n",
+			       reg, inreg(geo, reg));
+
+	for (reg = 0x400; reg <= 0x410; reg += 4)
+		ptr += sprintf(ptr, "draw %08x = %08x\n",
+			       reg, inreg(draw, reg));
+
+	for (reg = 0x440; reg <= 0x450; reg += 4)
+		ptr += sprintf(ptr, "draw %08x = %08x\n",
+			       reg, inreg(draw, reg));
+
 	return ptr - buf;
 }
 
@@ -545,10 +550,10 @@ static int mb862xx_gdc_init(struct mb862xxfb_par *par)
 	return 0;
 }
 
-static int __devinit of_platform_mb862xx_probe(struct of_device *ofdev,
+static int __devinit of_platform_mb862xx_probe(struct platform_device *ofdev,
 					       const struct of_device_id *id)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct device *dev = &ofdev->dev;
 	struct mb862xxfb_par *par;
 	struct fb_info *info;
@@ -585,10 +590,6 @@ static int __devinit of_platform_mb862xx_probe(struct of_device *ofdev,
 		ret = -ENXIO;
 		goto irqdisp;
 	}
-
-#if defined(CONFIG_LWMON5)
-	par->gc_mode = &lwmon5_gc_mode;
-#endif
 
 #if defined(CONFIG_SOCRATES)
 	par->gc_mode = &socrates_gc_mode;
@@ -668,7 +669,7 @@ fbrel:
 	return ret;
 }
 
-static int __devexit of_platform_mb862xx_remove(struct of_device *ofdev)
+static int __devexit of_platform_mb862xx_remove(struct platform_device *ofdev)
 {
 	struct fb_info *fbi = dev_get_drvdata(&ofdev->dev);
 	struct mb862xxfb_par *par = fbi->par;
@@ -717,9 +718,11 @@ static struct of_device_id __devinitdata of_platform_mb862xx_tbl[] = {
 };
 
 static struct of_platform_driver of_platform_mb862xxfb_driver = {
-	.owner		= THIS_MODULE,
-	.name		= DRV_NAME,
-	.match_table	= of_platform_mb862xx_tbl,
+	.driver = {
+		.name = DRV_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = of_platform_mb862xx_tbl,
+	},
 	.probe		= of_platform_mb862xx_probe,
 	.remove		= __devexit_p(of_platform_mb862xx_remove),
 };

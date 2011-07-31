@@ -40,8 +40,6 @@
 static unsigned int au1x00_clock; /*  Hz */
 static unsigned long uart_baud_base;
 
-static DEFINE_SPINLOCK(time_lock);
-
 /*
  * Set the au1000_clock
  */
@@ -84,9 +82,6 @@ void set_au1x00_uart_baud_base(unsigned long new_baud_base)
 unsigned long au1xxx_calc_clock(void)
 {
 	unsigned long cpu_speed;
-	unsigned long flags;
-
-	spin_lock_irqsave(&time_lock, flags);
 
 	/*
 	 * On early Au1000, sys_cpupll was write-only. Since these
@@ -94,11 +89,7 @@ unsigned long au1xxx_calc_clock(void)
 	 * over backwards trying to determine the frequency.
 	 */
 	if (au1xxx_cpu_has_pll_wo())
-#ifdef CONFIG_SOC_AU1000_FREQUENCY
-		cpu_speed = CONFIG_SOC_AU1000_FREQUENCY;
-#else
 		cpu_speed = 396000000;
-#endif
 	else
 		cpu_speed = (au_readl(SYS_CPUPLL) & 0x0000003f) * AU1000_SRC_CLK;
 
@@ -107,8 +98,6 @@ unsigned long au1xxx_calc_clock(void)
 	/* Equation: Baudrate = CPU / (SD * 2 * CLKDIV * 16) */
 	set_au1x00_uart_baud_base(cpu_speed / (2 * ((int)(au_readl(SYS_POWERCTRL)
 							  & 0x03) + 2) * 16));
-
-	spin_unlock_irqrestore(&time_lock, flags);
 
 	set_au1x00_speed(cpu_speed);
 

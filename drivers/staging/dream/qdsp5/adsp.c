@@ -30,18 +30,15 @@
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/wait.h>
-#include <linux/wakelock.h>
 
-static struct wake_lock adsp_wake_lock;
 static inline void prevent_suspend(void)
 {
-	wake_lock(&adsp_wake_lock);
 }
 static inline void allow_suspend(void)
 {
-	wake_unlock(&adsp_wake_lock);
 }
 
 #include <linux/io.h>
@@ -1046,7 +1043,6 @@ static int msm_adsp_probe(struct platform_device *pdev)
 
 	pr_info("adsp: probe\n");
 
-	wake_lock_init(&adsp_wake_lock, WAKE_LOCK_SUSPEND, "adsp");
 #if CONFIG_MSM_AMSS_VERSION >= 6350
 	adsp_info.init_info_ptr = kzalloc(
 		(sizeof(struct adsp_rtos_mp_mtoa_init_info_type)), GFP_KERNEL);

@@ -143,9 +143,17 @@ static int rsvp_classify(struct sk_buff *skb, struct tcf_proto *tp,
 	u8 tunnelid = 0;
 	u8 *xprt;
 #if RSVP_DST_LEN == 4
-	struct ipv6hdr *nhptr = ipv6_hdr(skb);
+	struct ipv6hdr *nhptr;
+
+	if (!pskb_network_may_pull(skb, sizeof(*nhptr)))
+		return -1;
+	nhptr = ipv6_hdr(skb);
 #else
-	struct iphdr *nhptr = ip_hdr(skb);
+	struct iphdr *nhptr;
+
+	if (!pskb_network_may_pull(skb, sizeof(*nhptr)))
+		return -1;
+	nhptr = ip_hdr(skb);
 #endif
 
 restart:
@@ -170,21 +178,23 @@ restart:
 	for (s = sht[h1]; s; s = s->next) {
 		if (dst[RSVP_DST_LEN-1] == s->dst[RSVP_DST_LEN-1] &&
 		    protocol == s->protocol &&
-		    !(s->dpi.mask & (*(u32*)(xprt+s->dpi.offset)^s->dpi.key))
+		    !(s->dpi.mask &
+		      (*(u32*)(xprt+s->dpi.offset)^s->dpi.key)) &&
 #if RSVP_DST_LEN == 4
-		    && dst[0] == s->dst[0]
-		    && dst[1] == s->dst[1]
-		    && dst[2] == s->dst[2]
+		    dst[0] == s->dst[0] &&
+		    dst[1] == s->dst[1] &&
+		    dst[2] == s->dst[2] &&
 #endif
-		    && tunnelid == s->tunnelid) {
+		    tunnelid == s->tunnelid) {
 
 			for (f = s->ht[h2]; f; f = f->next) {
 				if (src[RSVP_DST_LEN-1] == f->src[RSVP_DST_LEN-1] &&
 				    !(f->spi.mask & (*(u32*)(xprt+f->spi.offset)^f->spi.key))
 #if RSVP_DST_LEN == 4
-				    && src[0] == f->src[0]
-				    && src[1] == f->src[1]
-				    && src[2] == f->src[2]
+				    &&
+				    src[0] == f->src[0] &&
+				    src[1] == f->src[1] &&
+				    src[2] == f->src[2]
 #endif
 				    ) {
 					*res = f->res;
@@ -493,13 +503,13 @@ static int rsvp_change(struct tcf_proto *tp, unsigned long base,
 	for (sp = &data->ht[h1]; (s=*sp) != NULL; sp = &s->next) {
 		if (dst[RSVP_DST_LEN-1] == s->dst[RSVP_DST_LEN-1] &&
 		    pinfo && pinfo->protocol == s->protocol &&
-		    memcmp(&pinfo->dpi, &s->dpi, sizeof(s->dpi)) == 0
+		    memcmp(&pinfo->dpi, &s->dpi, sizeof(s->dpi)) == 0 &&
 #if RSVP_DST_LEN == 4
-		    && dst[0] == s->dst[0]
-		    && dst[1] == s->dst[1]
-		    && dst[2] == s->dst[2]
+		    dst[0] == s->dst[0] &&
+		    dst[1] == s->dst[1] &&
+		    dst[2] == s->dst[2] &&
 #endif
-		    && pinfo->tunnelid == s->tunnelid) {
+		    pinfo->tunnelid == s->tunnelid) {
 
 insert:
 			/* OK, we found appropriate session */

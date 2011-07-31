@@ -226,6 +226,7 @@
 				max-frame-size = <9000>;
 				rx-fifo-size = <4096>;
 				tx-fifo-size = <2048>;
+				rx-fifo-size-gige = <16384>;
 				phy-mode = "rgmii";
 				phy-map = <0x00000000>;
 				rgmii-device = <&RGMII0>;
@@ -233,10 +234,132 @@
 				has-inverted-stacr-oc;
 				has-new-stacr-staopc;
 			};
+		};
+		PCIE0: pciex@d00000000 {
+			device_type = "pci";
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			compatible = "ibm,plb-pciex-460sx", "ibm,plb-pciex";
+			primary;
+			port = <0x0>; /* port number */
+			reg = <0x0000000d 0x00000000 0x20000000	/* Config space access */
+			       0x0000000c 0x10000000 0x00001000>;	/* Registers */
+			dcr-reg = <0x100 0x020>;
+			sdr-base = <0x300>;
 
+			/* Outbound ranges, one memory and one IO,
+			 * later cannot be changed
+			 */
+			ranges = <0x02000000 0x00000000 0x80000000 0x0000000e 0x00000000 0x00000000 0x80000000
+				  0x01000000 0x00000000 0x00000000 0x0000000f 0x80000000 0x00000000 0x00010000>;
+
+			/* Inbound 2GB range starting at 0 */
+			dma-ranges = <0x42000000 0x0 0x0 0x0 0x0 0x0 0x80000000>;
+
+			/* This drives busses 10 to 0x1f */
+			bus-range = <0x10 0x1f>;
+
+			/* Legacy interrupts (note the weird polarity, the bridge seems
+			 * to invert PCIe legacy interrupts).
+			 * We are de-swizzling here because the numbers are actually for
+			 * port of the root complex virtual P2P bridge. But I want
+			 * to avoid putting a node for it in the tree, so the numbers
+			 * below are basically de-swizzled numbers.
+			 * The real slot is on idsel 0, so the swizzling is 1:1
+			 */
+			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+			interrupt-map = <
+				0x0 0x0 0x0 0x1 &UIC3 0x0 0x4 /* swizzled int A */
+				0x0 0x0 0x0 0x2 &UIC3 0x1 0x4 /* swizzled int B */
+				0x0 0x0 0x0 0x3 &UIC3 0x2 0x4 /* swizzled int C */
+				0x0 0x0 0x0 0x4 &UIC3 0x3 0x4 /* swizzled int D */>;
+		};
+
+		PCIE1: pciex@d20000000 {
+			device_type = "pci";
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			compatible = "ibm,plb-pciex-460sx", "ibm,plb-pciex";
+			primary;
+			port = <0x1>; /* port number */
+			reg = <0x0000000d 0x20000000 0x20000000	/* Config space access */
+			       0x0000000c 0x10001000 0x00001000>;	/* Registers */
+			dcr-reg = <0x120 0x020>;
+			sdr-base = <0x340>;
+
+			/* Outbound ranges, one memory and one IO,
+			 * later cannot be changed
+			 */
+			ranges = <0x02000000 0x00000000 0x80000000 0x0000000e 0x80000000 0x00000000 0x80000000
+				  0x01000000 0x00000000 0x00000000 0x0000000f 0x80010000 0x00000000 0x00010000>;
+
+			/* Inbound 2GB range starting at 0 */
+			dma-ranges = <0x42000000 0x0 0x0 0x0 0x0 0x0 0x80000000>;
+
+			/* This drives busses 10 to 0x1f */
+			bus-range = <0x20 0x2f>;
+
+			/* Legacy interrupts (note the weird polarity, the bridge seems
+			 * to invert PCIe legacy interrupts).
+			 * We are de-swizzling here because the numbers are actually for
+			 * port of the root complex virtual P2P bridge. But I want
+			 * to avoid putting a node for it in the tree, so the numbers
+			 * below are basically de-swizzled numbers.
+			 * The real slot is on idsel 0, so the swizzling is 1:1
+			 */
+			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+			interrupt-map = <
+				0x0 0x0 0x0 0x1 &UIC3 0x4 0x4 /* swizzled int A */
+				0x0 0x0 0x0 0x2 &UIC3 0x5 0x4 /* swizzled int B */
+				0x0 0x0 0x0 0x3 &UIC3 0x6 0x4 /* swizzled int C */
+				0x0 0x0 0x0 0x4 &UIC3 0x7 0x4 /* swizzled int D */>;
+		};
+
+		PCIE2: pciex@d40000000 {
+			device_type = "pci";
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			compatible = "ibm,plb-pciex-460sx", "ibm,plb-pciex";
+			primary;
+			port = <0x2>; /* port number */
+			reg = <0x0000000d 0x40000000 0x20000000	/* Config space access */
+			       0x0000000c 0x10002000 0x00001000>;	/* Registers */
+			dcr-reg = <0x140 0x020>;
+			sdr-base = <0x370>;
+
+			/* Outbound ranges, one memory and one IO,
+			 * later cannot be changed
+			 */
+			ranges = <0x02000000 0x00000000 0x80000000 0x0000000f 0x00000000 0x00000000 0x80000000
+				  0x01000000 0x00000000 0x00000000 0x0000000f 0x80020000 0x00000000 0x00010000>;
+
+			/* Inbound 2GB range starting at 0 */
+			dma-ranges = <0x42000000 0x0 0x0 0x0 0x0 0x0 0x80000000>;
+
+			/* This drives busses 10 to 0x1f */
+			bus-range = <0x30 0x3f>;
+
+			/* Legacy interrupts (note the weird polarity, the bridge seems
+			 * to invert PCIe legacy interrupts).
+			 * We are de-swizzling here because the numbers are actually for
+			 * port of the root complex virtual P2P bridge. But I want
+			 * to avoid putting a node for it in the tree, so the numbers
+			 * below are basically de-swizzled numbers.
+			 * The real slot is on idsel 0, so the swizzling is 1:1
+			 */
+			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+			interrupt-map = <
+				0x0 0x0 0x0 0x1 &UIC3 0x8 0x4 /* swizzled int A */
+				0x0 0x0 0x0 0x2 &UIC3 0x9 0x4 /* swizzled int B */
+				0x0 0x0 0x0 0x3 &UIC3 0xa 0x4 /* swizzled int C */
+				0x0 0x0 0x0 0x4 &UIC3 0xb 0x4 /* swizzled int D */>;
 		};
 
 	};
+
 	chosen {
 		linux,stdout-path = "/plb/opb/serial@ef600200";
 	};

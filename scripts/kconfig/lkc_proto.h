@@ -3,6 +3,7 @@
 P(conf_parse,void,(const char *name));
 P(conf_read,int,(const char *name));
 P(conf_read_simple,int,(const char *name, int));
+P(conf_write_defconfig,int,(const char *name));
 P(conf_write,int,(const char *name));
 P(conf_write_autoconf,int,(void));
 P(conf_get_changed,bool,(void));
@@ -11,13 +12,15 @@ P(conf_set_changed_callback, void,(void (*fn)(void)));
 /* menu.c */
 P(rootmenu,struct menu,);
 
-P(menu_is_visible,bool,(struct menu *menu));
+P(menu_is_visible, bool, (struct menu *menu));
+P(menu_has_prompt, bool, (struct menu *menu));
 P(menu_get_prompt,const char *,(struct menu *menu));
 P(menu_get_root_menu,struct menu *,(struct menu *menu));
 P(menu_get_parent_menu,struct menu *,(struct menu *menu));
 P(menu_has_help,bool,(struct menu *menu));
 P(menu_get_help,const char *,(struct menu *menu));
-P(get_symbol_str,void,(struct gstr *r, struct symbol *sym));
+P(get_symbol_str, void, (struct gstr *r, struct symbol *sym));
+P(get_relations_str, struct gstr, (struct symbol **sym_arr));
 P(menu_get_ext_help,void,(struct menu *menu, struct gstr *help));
 
 /* symbol.c */

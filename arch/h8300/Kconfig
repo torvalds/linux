@@ -10,6 +10,10 @@ config H8300
 	default y
 	select HAVE_IDE
 
+config SYMBOL_PREFIX
+	string
+	default "_"
+
 config MMU
 	bool
 	default n
@@ -55,10 +59,6 @@ config GENERIC_HARDIRQS
 	default y
 
 config GENERIC_CALIBRATE_DELAY
-	bool
-	default y
-
-config GENERIC_TIME
 	bool
 	default y
 

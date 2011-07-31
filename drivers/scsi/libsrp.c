@@ -1,5 +1,5 @@
 /*
- * SCSI RDAM Protocol lib functions
+ * SCSI RDMA Protocol lib functions
  *
  * Copyright (C) 2006 FUJITA Tomonori <tomof@acm.org>
  *
@@ -19,6 +19,7 @@
  * 02110-1301 USA
  */
 #include <linux/err.h>
+#include <linux/slab.h>
 #include <linux/kfifo.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
@@ -58,19 +59,15 @@ static int srp_iu_pool_alloc(struct srp_queue *q, size_t max,
 		goto free_pool;
 
 	spin_lock_init(&q->lock);
-	q->queue = kfifo_init((void *) q->pool, max * sizeof(void *),
-			      GFP_KERNEL, &q->lock);
-	if (IS_ERR(q->queue))
-		goto free_item;
+	kfifo_init(&q->queue, (void *) q->pool, max * sizeof(void *));
 
 	for (i = 0, iue = q->items; i < max; i++) {
-		__kfifo_put(q->queue, (void *) &iue, sizeof(void *));
+		kfifo_in(&q->queue, (void *) &iue, sizeof(void *));
 		iue->sbuf = ring[i];
 		iue++;
 	}
 	return 0;
 
-free_item:
 	kfree(q->items);
 free_pool:
 	kfree(q->pool);
@@ -167,7 +164,11 @@ struct iu_entry *srp_iu_get(struct srp_target *target)
 {
 	struct iu_entry *iue = NULL;
 
-	kfifo_get(target->iu_queue.queue, (void *) &iue, sizeof(void *));
+	if (kfifo_out_locked(&target->iu_queue.queue, (void *) &iue,
+		sizeof(void *), &target->iu_queue.lock) != sizeof(void *)) {
+			WARN_ONCE(1, "unexpected fifo state");
+			return NULL;
+	}
 	if (!iue)
 		return iue;
 	iue->target = target;
@@ -179,7 +180,8 @@ EXPORT_SYMBOL_GPL(srp_iu_get);
 
 void srp_iu_put(struct iu_entry *iue)
 {
-	kfifo_put(iue->target->iu_queue.queue, (void *) &iue, sizeof(void *));
+	kfifo_in_locked(&iue->target->iu_queue.queue, (void *) &iue,
+			sizeof(void *), &iue->target->iu_queue.lock);
 }
 EXPORT_SYMBOL_GPL(srp_iu_put);
 
@@ -327,7 +329,7 @@ int srp_transfer_data(struct scsi_cmnd *sc, struct srp_cmd *cmd,
 	int offset, err = 0;
 	u8 format;
 
-	offset = cmd->add_cdb_len * 4;
+	offset = cmd->add_cdb_len & ~3;
 
 	dir = srp_cmd_direction(cmd);
 	if (dir == DMA_FROM_DEVICE)
@@ -365,7 +367,7 @@ static int vscsis_data_length(struct srp_cmd *cmd, enum dma_data_direction dir)
 {
 	struct srp_direct_buf *md;
 	struct srp_indirect_buf *id;
-	int len = 0, offset = cmd->add_cdb_len * 4;
+	int len = 0, offset = cmd->add_cdb_len & ~3;
 	u8 fmt;
 
 	if (dir == DMA_TO_DEVICE)
@@ -439,6 +441,6 @@ int srp_cmd_queue(struct Scsi_Host *shost, struct srp_cmd *cmd, void *info,
 }
 EXPORT_SYMBOL_GPL(srp_cmd_queue);
 
-MODULE_DESCRIPTION("SCSI RDAM Protocol lib functions");
+MODULE_DESCRIPTION("SCSI RDMA Protocol lib functions");
 MODULE_AUTHOR("FUJITA Tomonori");
 MODULE_LICENSE("GPL");

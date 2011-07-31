@@ -30,7 +30,7 @@ static int qnx4_match(int len, const char *name,
 	int namelen, thislen;
 
 	if (bh == NULL) {
-		printk("qnx4: matching unassigned buffer !\n");
+		printk(KERN_WARNING "qnx4: matching unassigned buffer !\n");
 		return 0;
 	}
 	de = (struct qnx4_inode_entry *) (bh->b_data + *offset);
@@ -66,7 +66,7 @@ static struct buffer_head *qnx4_find_entry(int len, struct inode *dir,
 
 	*res_dir = NULL;
 	if (!dir->i_sb) {
-		printk("qnx4: no superblock on dir.\n");
+		printk(KERN_WARNING "qnx4: no superblock on dir.\n");
 		return NULL;
 	}
 	bh = NULL;
@@ -124,7 +124,7 @@ struct dentry * qnx4_lookup(struct inode *dir, struct dentry *dentry, struct nam
 	foundinode = qnx4_iget(dir->i_sb, ino);
 	if (IS_ERR(foundinode)) {
 		unlock_kernel();
-		QNX4DEBUG(("qnx4: lookup->iget -> error %ld\n",
+		QNX4DEBUG((KERN_ERR "qnx4: lookup->iget -> error %ld\n",
 			   PTR_ERR(foundinode)));
 		return ERR_CAST(foundinode);
 	}

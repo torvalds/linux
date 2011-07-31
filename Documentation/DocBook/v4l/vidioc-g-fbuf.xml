@@ -336,6 +336,13 @@ alpha value. Alpha blending makes no sense for destructive overlays.</entry>
 inverted alpha channel of the framebuffer or VGA signal. Alpha
 blending makes no sense for destructive overlays.</entry>
 	  </row>
+	  <row>
+	    <entry><constant>V4L2_FBUF_CAP_SRC_CHROMAKEY</constant></entry>
+	    <entry>0x0080</entry>
+	    <entry>The device supports Source Chroma-keying. Framebuffer pixels
+with the chroma-key colors are replaced by video pixels, which is exactly opposite of
+<constant>V4L2_FBUF_CAP_CHROMAKEY</constant></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>
@@ -410,6 +417,16 @@ of the framebuffer to clip or blend framebuffer pixels with video
 images, but with an inverted alpha value. The blend function is:
 output = framebuffer pixel * (1 - alpha) + video pixel * alpha. The
 actual alpha depth depends on the framebuffer pixel format.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_FBUF_FLAG_SRC_CHROMAKEY</constant></entry>
+	    <entry>0x0040</entry>
+	    <entry>Use source chroma-keying. The source chroma-key color is
+determined by the <structfield>chromakey</structfield> field of
+&v4l2-window; and negotiated with the &VIDIOC-S-FMT; ioctl, see <xref
+linkend="overlay" /> and <xref linkend="osd" />.
+Both chroma-keying are mutual exclusive to each other, so same
+<structfield>chromakey</structfield> field of &v4l2-window; is being used.</entry>
 	  </row>
 	</tbody>
       </tgroup>

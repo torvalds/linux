@@ -29,6 +29,8 @@
 #define _E1000_82575_H_
 
 extern void igb_shutdown_serdes_link_82575(struct e1000_hw *hw);
+extern void igb_power_up_serdes_link_82575(struct e1000_hw *hw);
+extern void igb_power_down_phy_copper_82575(struct e1000_hw *hw);
 extern void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
 
 #define ID_LED_DEFAULT_82575_SERDES ((ID_LED_DEF1_DEF2 << 12) | \
@@ -36,8 +38,14 @@ extern void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
                                      (ID_LED_DEF1_DEF2 <<  4) | \
                                      (ID_LED_OFF1_ON2))
 
-#define E1000_RAR_ENTRIES_82575   16
-#define E1000_RAR_ENTRIES_82576   24
+#define E1000_RAR_ENTRIES_82575        16
+#define E1000_RAR_ENTRIES_82576        24
+#define E1000_RAR_ENTRIES_82580        24
+#define E1000_RAR_ENTRIES_I350         32
+
+#define E1000_SW_SYNCH_MB              0x00000100
+#define E1000_STAT_DEV_RST_SET         0x00100000
+#define E1000_CTRL_DEV_RST             0x20000000
 
 /* SRRCTL bit definitions */
 #define E1000_SRRCTL_BSIZEPKT_SHIFT                     10 /* Shift _right_ */
@@ -45,6 +53,7 @@ extern void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
 #define E1000_SRRCTL_DESCTYPE_ADV_ONEBUF                0x02000000
 #define E1000_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS          0x0A000000
 #define E1000_SRRCTL_DROP_EN                            0x80000000
+#define E1000_SRRCTL_TIMESTAMP                          0x40000000
 
 #define E1000_MRQC_ENABLE_RSS_4Q            0x00000002
 #define E1000_MRQC_ENABLE_VMDQ              0x00000003
@@ -66,6 +75,8 @@ extern void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
     E1000_EICR_RX_QUEUE3)
 
 /* Immediate Interrupt Rx (A.K.A. Low Latency Interrupt) */
+#define E1000_IMIREXT_SIZE_BP     0x00001000  /* Packet size bypass */
+#define E1000_IMIREXT_CTRL_BP     0x00080000  /* Bypass check of ctrl bits */
 
 /* Receive Descriptor - Advanced */
 union e1000_adv_rx_desc {
@@ -98,6 +109,8 @@ union e1000_adv_rx_desc {
 
 #define E1000_RXDADV_HDRBUFLEN_MASK      0x7FE0
 #define E1000_RXDADV_HDRBUFLEN_SHIFT     5
+#define E1000_RXDADV_STAT_TS             0x10000 /* Pkt was time stamped */
+#define E1000_RXDADV_STAT_TSIP           0x08000 /* timestamp in packet */
 
 /* Transmit Descriptor - Advanced */
 union e1000_adv_tx_desc {
@@ -167,6 +180,18 @@ struct e1000_adv_tx_context_desc {
 #define E1000_DCA_TXCTRL_CPUID_SHIFT 24 /* Tx CPUID now in the last byte */
 #define E1000_DCA_RXCTRL_CPUID_SHIFT 24 /* Rx CPUID now in the last byte */
 
+/* ETQF register bit definitions */
+#define E1000_ETQF_FILTER_ENABLE   (1 << 26)
+#define E1000_ETQF_1588            (1 << 30)
+
+/* FTQF register bit definitions */
+#define E1000_FTQF_VF_BP               0x00008000
+#define E1000_FTQF_1588_TIME_STAMP     0x08000000
+#define E1000_FTQF_MASK                0xF0000000
+#define E1000_FTQF_MASK_PROTO_BP       0x10000000
+#define E1000_FTQF_MASK_SOURCE_PORT_BP 0x80000000
+
+#define E1000_NVM_APME_82575          0x0400
 #define MAX_NUM_VFS                   8
 
 #define E1000_DTXSWC_VMDQ_LOOPBACK_EN (1 << 31)  /* global VF LB enable */
@@ -199,12 +224,27 @@ struct e1000_adv_tx_context_desc {
 #define E1000_VLVF_LVLAN          0x00100000
 #define E1000_VLVF_VLANID_ENABLE  0x80000000
 
+#define E1000_VMVIR_VLANA_DEFAULT      0x40000000 /* Always use default VLAN */
+#define E1000_VMVIR_VLANA_NEVER        0x80000000 /* Never insert VLAN tag */
+
 #define E1000_IOVCTL 0x05BBC
 #define E1000_IOVCTL_REUSE_VFQ 0x00000001
 
+#define E1000_RPLOLR_STRVLAN   0x40000000
+#define E1000_RPLOLR_STRCRC    0x80000000
+
+#define E1000_DTXCTL_8023LL     0x0004
+#define E1000_DTXCTL_VLAN_ADDED 0x0008
+#define E1000_DTXCTL_OOS_ENABLE 0x0010
+#define E1000_DTXCTL_MDP_EN     0x0020
+#define E1000_DTXCTL_SPOOF_INT  0x0040
+
 #define ALL_QUEUES   0xFFFF
 
+/* RX packet buffer size defines */
+#define E1000_RXPBS_SIZE_MASK_82576  0x0000007F
 void igb_vmdq_set_loopback_pf(struct e1000_hw *, bool);
 void igb_vmdq_set_replication_pf(struct e1000_hw *, bool);
+u16 igb_rxpbs_adjust_82580(u32 data);
 
 #endif

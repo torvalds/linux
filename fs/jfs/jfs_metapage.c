@@ -21,6 +21,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/bio.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/buffer_head.h>
 #include <linux/mempool.h>

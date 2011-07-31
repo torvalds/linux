@@ -26,11 +26,19 @@ OPTIONS
 
 -e::
 --event=::
-	Select the PMU event. Selection can be a symbolic event name
-	(use 'perf list' to list all events) or a raw PMU
-	event (eventsel+umask) in the form of rNNN where NNN is a
-	hexadecimal event descriptor.
+	Select the PMU event. Selection can be:
 
+        - a symbolic event name	(use 'perf list' to list all events)
+
+        - a raw PMU event (eventsel+umask) in the form of rNNN where NNN is a
+	  hexadecimal event descriptor.
+
+        - a hardware breakpoint event in the form of '\mem:addr[:access]'
+          where addr is the address in memory you want to break in.
+          Access is the memory access type (read, write, execute) it can
+          be passed as follows: '\mem:addr[:[r][w][x]]'.
+          If you want to profile read-write accesses in 0x1000, just set
+          'mem:0x1000:rw'.
 -a::
         System-wide collection.
 
@@ -50,7 +58,7 @@ OPTIONS
 
 -f::
 --force::
-	Overwrite existing data file.
+	Overwrite existing data file. (deprecated)
 
 -c::
 --count=::
@@ -61,8 +69,8 @@ OPTIONS
 	Output file name.
 
 -i::
---inherit::
-	Child tasks inherit counters.
+--no-inherit::
+	Child tasks do not inherit counters.
 -F::
 --freq=::
 	Profile at this frequency.
@@ -93,7 +101,20 @@ OPTIONS
 
 -R::
 --raw-samples::
-Collect raw sample records from all opened counters (typically for tracepoint counters).
+Collect raw sample records from all opened counters (default for tracepoint counters).
+
+-C::
+--cpu::
+Collect samples only on the list of cpus provided. Multiple CPUs can be provided as a
+comma-sperated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
+In per-thread mode with inheritance mode on (default), samples are captured only when
+the thread executes on the designated CPUs. Default is to monitor all CPUs.
+
+-N::
+--no-buildid-cache::
+Do not update the builid cache. This saves some overhead in situations
+where the information in the perf.data file (which includes buildids)
+is sufficient.
 
 SEE ALSO
 --------

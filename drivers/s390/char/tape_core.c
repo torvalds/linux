@@ -12,12 +12,15 @@
  */
 
 #define KMSG_COMPONENT "tape"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/init.h>	     // for kernel parameters
 #include <linux/kmod.h>	     // for requesting modules
 #include <linux/spinlock.h>  // for locks
 #include <linux/vmalloc.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 #include <asm/types.h>	     // for variable types
 
@@ -492,6 +495,7 @@ tape_alloc_device(void)
 		kfree(device);
 		return ERR_PTR(-ENOMEM);
 	}
+	mutex_init(&device->mutex);
 	INIT_LIST_HEAD(&device->req_queue);
 	INIT_LIST_HEAD(&device->node);
 	init_waitqueue_head(&device->state_change_wq);
@@ -511,11 +515,12 @@ tape_alloc_device(void)
  * increment the reference count.
  */
 struct tape_device *
-tape_get_device_reference(struct tape_device *device)
+tape_get_device(struct tape_device *device)
 {
-	DBF_EVENT(4, "tape_get_device_reference(%p) = %i\n", device,
-		atomic_inc_return(&device->ref_count));
+	int count;
 
+	count = atomic_inc_return(&device->ref_count);
+	DBF_EVENT(4, "tape_get_device(%p) = %i\n", device, count);
 	return device;
 }
 
@@ -525,32 +530,25 @@ tape_get_device_reference(struct tape_device *device)
  * The function returns a NULL pointer to be used by the caller
  * for clearing reference pointers.
  */
-struct tape_device *
+void
 tape_put_device(struct tape_device *device)
 {
-	int remain;
+	int count;
 
-	remain = atomic_dec_return(&device->ref_count);
-	if (remain > 0) {
-		DBF_EVENT(4, "tape_put_device(%p) -> %i\n", device, remain);
-	} else {
-		if (remain < 0) {
-			DBF_EVENT(4, "put device without reference\n");
-		} else {
-			DBF_EVENT(4, "tape_free_device(%p)\n", device);
-			kfree(device->modeset_byte);
-			kfree(device);
-		}
+	count = atomic_dec_return(&device->ref_count);
+	DBF_EVENT(4, "tape_put_device(%p) -> %i\n", device, count);
+	BUG_ON(count < 0);
+	if (count == 0) {
+		kfree(device->modeset_byte);
+		kfree(device);
 	}
-
-	return NULL;			
 }
 
 /*
  * Find tape device by a device index.
  */
 struct tape_device *
-tape_get_device(int devindex)
+tape_find_device(int devindex)
 {
 	struct tape_device *device, *tmp;
 
@@ -558,7 +556,7 @@ tape_get_device(int devindex)
 	read_lock(&tape_device_lock);
 	list_for_each_entry(tmp, &tape_device_list, node) {
 		if (tmp->first_minor / TAPE_MINORS_PER_DEV == devindex) {
-			device = tape_get_device_reference(tmp);
+			device = tape_get_device(tmp);
 			break;
 		}
 	}
@@ -579,7 +577,8 @@ tape_generic_probe(struct ccw_device *cdev)
 	device = tape_alloc_device();
 	if (IS_ERR(device))
 		return -ENODEV;
-	ccw_device_set_options(cdev, CCWDEV_DO_PATHGROUP);
+	ccw_device_set_options(cdev, CCWDEV_DO_PATHGROUP |
+				     CCWDEV_DO_MULTIPATH);
 	ret = sysfs_create_group(&cdev->dev.kobj, &tape_attr_group);
 	if (ret) {
 		tape_put_device(device);
@@ -606,7 +605,8 @@ __tape_discard_requests(struct tape_device *device)
 		list_del(&request->list);
 
 		/* Decrease ref_count for removed request. */
-		request->device = tape_put_device(device);
+		request->device = NULL;
+		tape_put_device(device);
 		request->rc = -EIO;
 		if (request->callback != NULL)
 			request->callback(request, request->callback_data);
@@ -664,9 +664,11 @@ tape_generic_remove(struct ccw_device *cdev)
 			tape_cleanup_device(device);
 	}
 
-	if (!dev_get_drvdata(&cdev->dev)) {
+	device = dev_get_drvdata(&cdev->dev);
+	if (device) {
 		sysfs_remove_group(&cdev->dev.kobj, &tape_attr_group);
-		dev_set_drvdata(&cdev->dev, tape_put_device(dev_get_drvdata(&cdev->dev)));
+		dev_set_drvdata(&cdev->dev, NULL);
+		tape_put_device(device);
 	}
 }
 
@@ -721,9 +723,8 @@ tape_free_request (struct tape_request * request)
 {
 	DBF_LH(6, "Free request %p\n", request);
 
-	if (request->device != NULL) {
-		request->device = tape_put_device(request->device);
-	}
+	if (request->device)
+		tape_put_device(request->device);
 	kfree(request->cpdata);
 	kfree(request->cpaddr);
 	kfree(request);
@@ -838,7 +839,8 @@ static void tape_long_busy_timeout(unsigned long data)
 	BUG_ON(request->status != TAPE_REQUEST_LONG_BUSY);
 	DBF_LH(6, "%08x: Long busy timeout.\n", device->cdev_id);
 	__tape_start_next_request(device);
-	device->lb_timeout.data = (unsigned long) tape_put_device(device);
+	device->lb_timeout.data = 0UL;
+	tape_put_device(device);
 	spin_unlock_irq(get_ccwdev_lock(device->cdev));
 }
 
@@ -918,7 +920,7 @@ __tape_start_request(struct tape_device *device, struct tape_request *request)
 	}
 
 	/* Increase use count of device for the added request. */
-	request->device = tape_get_device_reference(device);
+	request->device = tape_get_device(device);
 
 	if (list_empty(&device->req_queue)) {
 		/* No other requests are on the queue. Start this one. */
@@ -1117,8 +1119,8 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 		if (req->status == TAPE_REQUEST_LONG_BUSY) {
 			DBF_EVENT(3, "(%08x): del timer\n", device->cdev_id);
 			if (del_timer(&device->lb_timeout)) {
-				device->lb_timeout.data = (unsigned long)
-					tape_put_device(device);
+				device->lb_timeout.data = 0UL;
+				tape_put_device(device);
 				__tape_start_next_request(device);
 			}
 			return;
@@ -1173,7 +1175,7 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 			break;
 		case TAPE_IO_LONG_BUSY:
 			device->lb_timeout.data =
-				(unsigned long)tape_get_device_reference(device);
+				(unsigned long) tape_get_device(device);
 			device->lb_timeout.expires = jiffies +
 				LONG_BUSY_TIMEOUT * HZ;
 			DBF_EVENT(3, "(%08x): add timer\n", device->cdev_id);
@@ -1326,7 +1328,7 @@ EXPORT_SYMBOL(tape_generic_online);
 EXPORT_SYMBOL(tape_generic_offline);
 EXPORT_SYMBOL(tape_generic_pm_suspend);
 EXPORT_SYMBOL(tape_put_device);
-EXPORT_SYMBOL(tape_get_device_reference);
+EXPORT_SYMBOL(tape_get_device);
 EXPORT_SYMBOL(tape_state_verbose);
 EXPORT_SYMBOL(tape_op_verbose);
 EXPORT_SYMBOL(tape_state_set);

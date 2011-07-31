@@ -11,11 +11,14 @@
 
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
+#include <asm/tlbflush.h>
 #include <asm-generic/mm_hooks.h>
 
 static inline int init_new_context(struct task_struct *tsk,
 				   struct mm_struct *mm)
 {
+	atomic_set(&mm->context.attach_count, 0);
+	mm->context.flush_mm = 0;
 	mm->context.asce_bits = _ASCE_TABLE_LENGTH | _ASCE_USER_BITS;
 #ifdef CONFIG_64BIT
 	mm->context.asce_bits |= _ASCE_TYPE_REGION3;
@@ -36,7 +39,7 @@ static inline int init_new_context(struct task_struct *tsk,
 		mm->context.has_pgste = 1;
 		mm->context.alloc_pgste = 1;
 	} else {
-		mm->context.noexec = s390_noexec;
+		mm->context.noexec = (user_mode == SECONDARY_SPACE_MODE);
 		mm->context.has_pgste = 0;
 		mm->context.alloc_pgste = 0;
 	}
@@ -58,7 +61,7 @@ static inline void update_mm(struct mm_struct *mm, struct task_struct *tsk)
 	pgd_t *pgd = mm->pgd;
 
 	S390_lowcore.user_asce = mm->context.asce_bits | __pa(pgd);
-	if (switch_amode) {
+	if (user_mode != HOME_SPACE_MODE) {
 		/* Load primary space page table origin. */
 		pgd = mm->context.noexec ? get_shadow_table(pgd) : pgd;
 		S390_lowcore.user_exec_asce = mm->context.asce_bits | __pa(pgd);
@@ -76,6 +79,12 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 {
 	cpumask_set_cpu(smp_processor_id(), mm_cpumask(next));
 	update_mm(next, tsk);
+	atomic_dec(&prev->context.attach_count);
+	WARN_ON(atomic_read(&prev->context.attach_count) < 0);
+	atomic_inc(&next->context.attach_count);
+	/* Check for TLBs not flushed yet */
+	if (next->context.flush_mm)
+		__tlb_flush_mm(next);
 }
 
 #define enter_lazy_tlb(mm,tsk)	do { } while (0)

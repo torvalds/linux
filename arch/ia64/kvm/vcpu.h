@@ -388,6 +388,9 @@ static inline u64 __gpfn_is_io(u64 gpfn)
 #define _vmm_raw_spin_lock(x)	 do {}while(0)
 #define _vmm_raw_spin_unlock(x) do {}while(0)
 #else
+typedef struct {
+	volatile unsigned int lock;
+} vmm_spinlock_t;
 #define _vmm_raw_spin_lock(x)						\
 	do {								\
 		__u32 *ia64_spinlock_ptr = (__u32 *) (x);		\
@@ -405,12 +408,12 @@ static inline u64 __gpfn_is_io(u64 gpfn)
 
 #define _vmm_raw_spin_unlock(x)				\
 	do { barrier();				\
-		((spinlock_t *)x)->raw_lock.lock = 0; } \
+		((vmm_spinlock_t *)x)->lock = 0; } \
 while (0)
 #endif
 
-void vmm_spin_lock(spinlock_t *lock);
-void vmm_spin_unlock(spinlock_t *lock);
+void vmm_spin_lock(vmm_spinlock_t *lock);
+void vmm_spin_unlock(vmm_spinlock_t *lock);
 enum {
 	I_TLB = 1,
 	D_TLB = 2

@@ -28,6 +28,15 @@
 #define P4SEG_TLB_DATA	0xf7000000
 #define P4SEG_REG_BASE	0xff000000
 
+#define PA_AREA0	0x00000000
+#define PA_AREA1	0x04000000
+#define PA_AREA2	0x08000000
+#define PA_AREA3	0x0c000000
+#define PA_AREA4	0x10000000
+#define PA_AREA5	0x14000000
+#define PA_AREA6	0x18000000
+#define PA_AREA7	0x1c000000
+
 #define PA_AREA5_IO	0xb4000000	/* Area 5 IO Memory */
 #define PA_AREA6_IO	0xb8000000	/* Area 6 IO Memory */
 

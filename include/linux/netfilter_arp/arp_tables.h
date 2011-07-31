@@ -132,8 +132,7 @@ struct arpt_entry
 #define ARPT_RETURN XT_RETURN
 
 /* The argument to ARPT_SO_GET_INFO */
-struct arpt_getinfo
-{
+struct arpt_getinfo {
 	/* Which table: caller fills this in. */
 	char name[ARPT_TABLE_MAXNAMELEN];
 
@@ -155,8 +154,7 @@ struct arpt_getinfo
 };
 
 /* The argument to ARPT_SO_SET_REPLACE. */
-struct arpt_replace
-{
+struct arpt_replace {
 	/* Which table. */
 	char name[ARPT_TABLE_MAXNAMELEN];
 
@@ -191,8 +189,7 @@ struct arpt_replace
 #define arpt_counters xt_counters
 
 /* The argument to ARPT_SO_GET_ENTRIES. */
-struct arpt_get_entries
-{
+struct arpt_get_entries {
 	/* Which table: user fills this in. */
 	char name[ARPT_TABLE_MAXNAMELEN];
 
@@ -214,9 +211,11 @@ static __inline__ struct arpt_entry_target *arpt_get_target(struct arpt_entry *e
 	return (void *)e + e->target_offset;
 }
 
+#ifndef __KERNEL__
 /* fn returns 0 to continue iteration */
 #define ARPT_ENTRY_ITERATE(entries, size, fn, args...) \
 	XT_ENTRY_ITERATE(struct arpt_entry, entries, size, fn, ## args)
+#endif
 
 /*
  *	Main firewall chains definitions and global var's definitions.
@@ -224,20 +223,17 @@ static __inline__ struct arpt_entry_target *arpt_get_target(struct arpt_entry *e
 #ifdef __KERNEL__
 
 /* Standard entry. */
-struct arpt_standard
-{
+struct arpt_standard {
 	struct arpt_entry entry;
 	struct arpt_standard_target target;
 };
 
-struct arpt_error_target
-{
+struct arpt_error_target {
 	struct arpt_entry_target target;
 	char errorname[ARPT_FUNCTION_MAXNAMELEN];
 };
 
-struct arpt_error
-{
+struct arpt_error {
 	struct arpt_entry entry;
 	struct arpt_error_target target;
 };
@@ -264,6 +260,7 @@ struct arpt_error
 	.target.errorname = "ERROR",					       \
 }
 
+extern void *arpt_alloc_initial_table(const struct xt_table *);
 extern struct xt_table *arpt_register_table(struct net *net,
 					    const struct xt_table *table,
 					    const struct arpt_replace *repl);
@@ -279,8 +276,7 @@ extern unsigned int arpt_do_table(struct sk_buff *skb,
 #ifdef CONFIG_COMPAT
 #include <net/compat.h>
 
-struct compat_arpt_entry
-{
+struct compat_arpt_entry {
 	struct arpt_arp arp;
 	u_int16_t target_offset;
 	u_int16_t next_offset;
@@ -296,14 +292,6 @@ compat_arpt_get_target(struct compat_arpt_entry *e)
 }
 
 #define COMPAT_ARPT_ALIGN(s)	COMPAT_XT_ALIGN(s)
-
-/* fn returns 0 to continue iteration */
-#define COMPAT_ARPT_ENTRY_ITERATE(entries, size, fn, args...) \
-	XT_ENTRY_ITERATE(struct compat_arpt_entry, entries, size, fn, ## args)
-
-#define COMPAT_ARPT_ENTRY_ITERATE_CONTINUE(entries, size, n, fn, args...) \
-	XT_ENTRY_ITERATE_CONTINUE(struct compat_arpt_entry, entries, size, n, \
-				  fn, ## args)
 
 #endif /* CONFIG_COMPAT */
 #endif /*__KERNEL__*/

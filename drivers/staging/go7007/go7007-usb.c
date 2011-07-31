@@ -425,7 +425,7 @@ static struct go7007_usb_board board_sensoray_2250 = {
 		.num_i2c_devs	 = 1,
 		.i2c_devs	 = {
 			{
-				.type	= "s2250_board",
+				.type	= "s2250",
 				.id	= I2C_DRIVERID_S2250,
 				.addr	= 0x43,
 			},
@@ -444,7 +444,9 @@ static struct go7007_usb_board board_sensoray_2250 = {
 	},
 };
 
-static struct usb_device_id go7007_usb_id_table[] = {
+MODULE_FIRMWARE("go7007tv.bin");
+
+static const struct usb_device_id go7007_usb_id_table[] = {
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION |
 					USB_DEVICE_ID_MATCH_INT_INFO,
@@ -668,10 +670,9 @@ static int go7007_usb_onboard_write_interrupt(struct go7007 *go,
 		"go7007-usb: WriteInterrupt: %04x %04x\n", addr, data);
 #endif
 
-	tbuf = kmalloc(8, GFP_KERNEL);
+	tbuf = kzalloc(8, GFP_KERNEL);
 	if (tbuf == NULL)
 		return -ENOMEM;
-	memset(tbuf, 0, 8);
 	tbuf[0] = data & 0xff;
 	tbuf[1] = data >> 8;
 	tbuf[2] = addr & 0xff;
@@ -1057,7 +1058,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 			usb_rcvintpipe(usb->usbdev, 4),
 			usb->intr_urb->transfer_buffer, 2*sizeof(u16),
 			go7007_usb_readinterrupt_complete, go, 8);
-	usb_set_intfdata(intf, go);
+	usb_set_intfdata(intf, &go->v4l2_dev);
 
 	/* Boot the GO7007 */
 	if (go7007_boot_encoder(go, go->board_info->flags &
@@ -1233,7 +1234,7 @@ allocfail:
 
 static void go7007_usb_disconnect(struct usb_interface *intf)
 {
-	struct go7007 *go = usb_get_intfdata(intf);
+	struct go7007 *go = to_go7007(usb_get_intfdata(intf));
 	struct go7007_usb *usb = go->hpi_context;
 	struct urb *vurb, *aurb;
 	int i;

@@ -48,7 +48,7 @@ do {							\
 		   "i" (sizeof(struct bug_entry)));	\
 } while (0)
 
-#define __WARN()					\
+#define __WARN_TAINT(taint)				\
 do {							\
 	__asm__ __volatile__ (				\
 		"1:\t.short %O0\n"			\
@@ -57,7 +57,7 @@ do {							\
 		 : "n" (TRAPA_BUG_OPCODE),		\
 		   "i" (__FILE__),			\
 		   "i" (__LINE__),			\
-		   "i" (BUGFLAG_WARNING),		\
+		   "i" (BUGFLAG_TAINT(taint)),		\
 		   "i" (sizeof(struct bug_entry)));	\
 } while (0)
 

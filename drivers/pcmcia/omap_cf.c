@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 
 #include <pcmcia/ss.h>
 
@@ -23,8 +24,8 @@
 #include <asm/io.h>
 #include <asm/sizes.h>
 
-#include <mach/mux.h>
-#include <mach/tc.h>
+#include <plat/mux.h>
+#include <plat/tc.h>
 
 
 /* NOTE:  don't expect this to support many I/O cards.  The 16xx chips have
@@ -71,8 +72,6 @@ struct omap_cf_socket {
 
 #define	POLL_INTERVAL		(2 * HZ)
 
-#define	SZ_2K			(2 * SZ_1K)
-
 /*--------------------------------------------------------------------------*/
 
 static int omap_cf_ss_init(struct pcmcia_socket *s)
@@ -118,7 +117,7 @@ static int omap_cf_get_status(struct pcmcia_socket *s, u_int *sp)
 
 		*sp = SS_READY | SS_DETECT | SS_POWERON | SS_3VCARD;
 		cf = container_of(s, struct omap_cf_socket, socket);
-		s->irq.AssignedIRQ = 0;
+		s->pcmcia_irq = 0;
 		s->pci_irq = cf->irq;
 	} else
 		*sp = 0;
@@ -332,24 +331,12 @@ static int __exit omap_cf_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int omap_cf_suspend(struct platform_device *pdev, pm_message_t mesg)
-{
-	return pcmcia_socket_dev_suspend(&pdev->dev);
-}
-
-static int omap_cf_resume(struct platform_device *pdev)
-{
-	return pcmcia_socket_dev_resume(&pdev->dev);
-}
-
 static struct platform_driver omap_cf_driver = {
 	.driver = {
 		.name	= (char *) driver_name,
 		.owner	= THIS_MODULE,
 	},
 	.remove		= __exit_p(omap_cf_remove),
-	.suspend	= omap_cf_suspend,
-	.resume		= omap_cf_resume,
 };
 
 static int __init omap_cf_init(void)

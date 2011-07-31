@@ -183,7 +183,7 @@ ENTRY(sys_call_table)
 	.long sys_rt_sigpending
 	.long sys_rt_sigtimedwait
 	.long sys_rt_sigqueueinfo
-	.long sys_rt_sigsuspend_wrapper
+	.long sys_rt_sigsuspend
 	.long sys_pread64		/* 180 */
 	.long sys_pwrite64
 	.long sys_chown
@@ -196,7 +196,7 @@ ENTRY(sys_call_table)
 	.long sys_ni_syscall		/* reserved for streams2 */
 	.long sys_vfork		/* 190 */
 	.long sys_getrlimit
-	.long sys_mmap2			/* mmap2 */
+	.long sys_mmap_pgoff		/* mmap2 */
 	.long sys_truncate64
 	.long sys_ftruncate64
 	.long sys_stat64		/* 195 */
@@ -303,7 +303,7 @@ ENTRY(sys_call_table)
 	.long sys_mkdirat
 	.long sys_mknodat
 	.long sys_fchownat
-	.long sys_ni_syscall
+	.long sys_futimesat
 	.long sys_fstatat64		/* 300 */
 	.long sys_unlinkat
 	.long sys_renameat
@@ -366,8 +366,9 @@ ENTRY(sys_call_table)
 	.long sys_shutdown
 	.long sys_sendmsg		/* 360 */
 	.long sys_recvmsg
-	.long sys_ni_syscall
+	.long sys_accept4
 	.long sys_ni_syscall
 	.long sys_ni_syscall
 	.long sys_rt_tgsigqueueinfo	/* 365 */
 	.long sys_perf_event_open
+	.long sys_recvmmsg

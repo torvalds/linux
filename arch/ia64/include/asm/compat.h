@@ -5,7 +5,8 @@
  */
 #include <linux/types.h>
 
-#define COMPAT_USER_HZ	100
+#define COMPAT_USER_HZ		100
+#define COMPAT_UTS_MACHINE	"i686\0\0\0"
 
 typedef u32		compat_size_t;
 typedef s32		compat_ssize_t;
@@ -198,7 +199,7 @@ ptr_to_compat(void __user *uptr)
 }
 
 static __inline__ void __user *
-compat_alloc_user_space (long len)
+arch_compat_alloc_user_space (long len)
 {
 	struct pt_regs *regs = task_pt_regs(current);
 	return (void __user *) (((regs->r12 & 0xffffffff) & -16) - len);

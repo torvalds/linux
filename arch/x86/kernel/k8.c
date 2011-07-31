@@ -2,8 +2,8 @@
  * Shared support code for AMD K8 northbridges and derivates.
  * Copyright 2006 Andi Kleen, SUSE Labs. Subject to GPLv2.
  */
-#include <linux/gfp.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/module.h>
@@ -121,3 +121,17 @@ void k8_flush_garts(void)
 }
 EXPORT_SYMBOL_GPL(k8_flush_garts);
 
+static __init int init_k8_nbs(void)
+{
+	int err = 0;
+
+	err = cache_k8_northbridges();
+
+	if (err < 0)
+		printk(KERN_NOTICE "K8 NB: Cannot enumerate AMD northbridges.\n");
+
+	return err;
+}
+
+/* This has to go after the PCI subsystem */
+fs_initcall(init_k8_nbs);

@@ -12,11 +12,13 @@
 struct device_node;
 
 struct dev_archdata {
-	/* Optional pointer to an OF device node */
-	struct device_node	*of_node;
+	/* DMA operations on that device */
+	struct dma_map_ops	*dma_ops;
+	void                    *dma_data;
 };
 
 struct pdev_archdata {
+	u64 dma_mask;
 };
 
 #endif /* _ASM_MICROBLAZE_DEVICE_H */

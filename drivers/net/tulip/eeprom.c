@@ -13,6 +13,7 @@
 */
 
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include "tulip.h"
 #include <linux/init.h>
 #include <asm/unaligned.h>
@@ -119,8 +120,8 @@ static void __devinit tulip_build_fake_mediatable(struct tulip_private *tp)
 			  0x00, 0x06  /* ttm bit map */
 			};
 
-		tp->mtable = (struct mediatable *)
-			kmalloc(sizeof(struct mediatable) + sizeof(struct medialeaf), GFP_KERNEL);
+		tp->mtable = kmalloc(sizeof(struct mediatable) +
+				     sizeof(struct medialeaf), GFP_KERNEL);
 
 		if (tp->mtable == NULL)
 			return; /* Horrible, impossible failure. */
@@ -143,6 +144,12 @@ static void __devinit tulip_build_fake_mediatable(struct tulip_private *tp)
 
 void __devinit tulip_parse_eeprom(struct net_device *dev)
 {
+	/*
+	  dev is not registered at this point, so logging messages can't
+	  use dev_<level> or netdev_<level> but dev->name is good via a
+	  hack in the caller
+	*/
+
 	/* The last media info list parsed, for multiport boards.  */
 	static struct mediatable *last_mediatable;
 	static unsigned char *last_ee_data;
@@ -161,36 +168,33 @@ void __devinit tulip_parse_eeprom(struct net_device *dev)
 		if (ee_data[0] == 0xff) {
 			if (last_mediatable) {
 				controller_index++;
-				printk(KERN_INFO "%s:  Controller %d of multiport board.\n",
-					   dev->name, controller_index);
+				pr_info("%s: Controller %d of multiport board\n",
+					dev->name, controller_index);
 				tp->mtable = last_mediatable;
 				ee_data = last_ee_data;
 				goto subsequent_board;
 			} else
-				printk(KERN_INFO "%s:  Missing EEPROM, this interface may "
-					   "not work correctly!\n",
-			   dev->name);
+				pr_info("%s: Missing EEPROM, this interface may not work correctly!\n",
+					dev->name);
 			return;
 		}
 	  /* Do a fix-up based on the vendor half of the station address prefix. */
 	  for (i = 0; eeprom_fixups[i].name; i++) {
-		if (dev->dev_addr[0] == eeprom_fixups[i].addr0
-			&&  dev->dev_addr[1] == eeprom_fixups[i].addr1
-			&&  dev->dev_addr[2] == eeprom_fixups[i].addr2) {
-		  if (dev->dev_addr[2] == 0xE8  &&  ee_data[0x1a] == 0x55)
+		  if (dev->dev_addr[0] == eeprom_fixups[i].addr0 &&
+		      dev->dev_addr[1] == eeprom_fixups[i].addr1 &&
+		      dev->dev_addr[2] == eeprom_fixups[i].addr2) {
+		  if (dev->dev_addr[2] == 0xE8 && ee_data[0x1a] == 0x55)
 			  i++;			/* An Accton EN1207, not an outlaw Maxtech. */
 		  memcpy(ee_data + 26, eeprom_fixups[i].newtable,
 				 sizeof(eeprom_fixups[i].newtable));
-		  printk(KERN_INFO "%s: Old format EEPROM on '%s' board.  Using"
-				 " substitute media control info.\n",
-				 dev->name, eeprom_fixups[i].name);
+		  pr_info("%s: Old format EEPROM on '%s' board.  Using substitute media control info\n",
+			  dev->name, eeprom_fixups[i].name);
 		  break;
 		}
 	  }
 	  if (eeprom_fixups[i].name == NULL) { /* No fixup found. */
-		  printk(KERN_INFO "%s: Old style EEPROM with no media selection "
-				 "information.\n",
-			   dev->name);
+		  pr_info("%s: Old style EEPROM with no media selection information\n",
+			  dev->name);
 		return;
 	  }
 	}
@@ -218,13 +222,14 @@ subsequent_board:
 	        /* there is no phy information, don't even try to build mtable */
 	        if (count == 0) {
 			if (tulip_debug > 0)
-				printk(KERN_WARNING "%s: no phy info, aborting mtable build\n", dev->name);
+				pr_warning("%s: no phy info, aborting mtable build\n",
+					   dev->name);
 		        return;
 		}
 
-		mtable = (struct mediatable *)
-			kmalloc(sizeof(struct mediatable) + count*sizeof(struct medialeaf),
-					GFP_KERNEL);
+		mtable = kmalloc(sizeof(struct mediatable) +
+				 count * sizeof(struct medialeaf),
+				 GFP_KERNEL);
 		if (mtable == NULL)
 			return;				/* Horrible, impossible failure. */
 		last_mediatable = tp->mtable = mtable;
@@ -234,8 +239,10 @@ subsequent_board:
 		mtable->has_nonmii = mtable->has_mii = mtable->has_reset = 0;
 		mtable->csr15dir = mtable->csr15val = 0;
 
-		printk(KERN_INFO "%s:  EEPROM default media type %s.\n", dev->name,
-			   media & 0x0800 ? "Autosense" : medianame[media & MEDIA_MASK]);
+		pr_info("%s: EEPROM default media type %s\n",
+			dev->name,
+			media & 0x0800 ? "Autosense"
+				       : medianame[media & MEDIA_MASK]);
 		for (i = 0; i < count; i++) {
 			struct medialeaf *leaf = &mtable->mleaf[i];
 
@@ -298,16 +305,17 @@ subsequent_board:
 			}
 			if (tulip_debug > 1  &&  leaf->media == 11) {
 				unsigned char *bp = leaf->leafdata;
-				printk(KERN_INFO "%s:  MII interface PHY %d, setup/reset "
-					   "sequences %d/%d long, capabilities %2.2x %2.2x.\n",
-					   dev->name, bp[0], bp[1], bp[2 + bp[1]*2],
-					   bp[5 + bp[2 + bp[1]*2]*2], bp[4 + bp[2 + bp[1]*2]*2]);
+				pr_info("%s: MII interface PHY %d, setup/reset sequences %d/%d long, capabilities %02x %02x\n",
+					dev->name,
+					bp[0], bp[1], bp[2 + bp[1]*2],
+					bp[5 + bp[2 + bp[1]*2]*2],
+					bp[4 + bp[2 + bp[1]*2]*2]);
 			}
-			printk(KERN_INFO "%s:  Index #%d - Media %s (#%d) described "
-				   "by a %s (%d) block.\n",
-				   dev->name, i, medianame[leaf->media & 15], leaf->media,
-				   leaf->type < ARRAY_SIZE(block_name) ? block_name[leaf->type] : "<unknown>",
-				   leaf->type);
+			pr_info("%s: Index #%d - Media %s (#%d) described by a %s (%d) block\n",
+				dev->name,
+				i, medianame[leaf->media & 15], leaf->media,
+				leaf->type < ARRAY_SIZE(block_name) ? block_name[leaf->type] : "<unknown>",
+				leaf->type);
 		}
 		if (new_advertise)
 			tp->sym_advertise = new_advertise;

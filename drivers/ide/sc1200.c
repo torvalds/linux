@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/ide.h>
@@ -122,13 +123,13 @@ out:
 	return mask;
 }
 
-static void sc1200_set_dma_mode(ide_drive_t *drive, const u8 mode)
+static void sc1200_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t		*hwif = drive->hwif;
 	struct pci_dev		*dev = to_pci_dev(hwif->dev);
 	unsigned int		reg, timings;
 	unsigned short		pci_clock;
 	unsigned int		basereg = hwif->channel ? 0x50 : 0x40;
+	const u8		mode = drive->dma_mode;
 
 	static const u32 udma_timing[3][3] = {
 		{ 0x00921250, 0x00911140, 0x00911030 },
@@ -193,10 +194,10 @@ static int sc1200_dma_end(ide_drive_t *drive)
  * will have valid default PIO timings set up before we get here.
  */
 
-static void sc1200_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void sc1200_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t	*hwif = drive->hwif;
 	int		mode = -1;
+	const u8	pio = drive->pio_mode - XFER_PIO_0;
 
 	/*
 	 * bad abuse of ->set_pio_mode interface

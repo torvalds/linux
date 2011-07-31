@@ -61,6 +61,7 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 
 	control_reg |= clock;
 	if (control_reg != old_control_reg) {
+		DE_ACT(("set_sample_rate: %d clock %d\n", rate, clock));
 		chip->comm_page->control_register = cpu_to_le32(control_reg);
 		chip->sample_rate = rate;
 		clear_handshake(chip);

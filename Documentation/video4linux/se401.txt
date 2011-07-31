@@ -49,6 +49,6 @@ order to increase the throughput (and thus framerate).
 HELP:
 
 The latest info on this driver can be found at:
-http://www.chello.nl/~j.vreeken/se401/
+http://members.chello.nl/~j.vreeken/se401/
 And questions to me can be send to:
 pe1rxq@amsat.org

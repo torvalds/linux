@@ -23,7 +23,6 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 #include <linux/pci.h>
-#include <linux/slab.h>
 #include <linux/sched.h>
 
 #include "speedstep-lib.h"
@@ -39,7 +38,7 @@ static struct pci_dev *speedstep_chipset_dev;
 
 /* speedstep_processor
  */
-static unsigned int speedstep_processor;
+static enum speedstep_processor speedstep_processor;
 
 static u32 pmbase;
 

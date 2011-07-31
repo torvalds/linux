@@ -84,7 +84,7 @@ print_active_timers(struct seq_file *m, struct hrtimer_clock_base *base,
 
 next_one:
 	i = 0;
-	spin_lock_irqsave(&base->cpu_base->lock, flags);
+	raw_spin_lock_irqsave(&base->cpu_base->lock, flags);
 
 	curr = base->first;
 	/*
@@ -100,13 +100,13 @@ next_one:
 
 		timer = rb_entry(curr, struct hrtimer, node);
 		tmp = *timer;
-		spin_unlock_irqrestore(&base->cpu_base->lock, flags);
+		raw_spin_unlock_irqrestore(&base->cpu_base->lock, flags);
 
 		print_timer(m, timer, &tmp, i, now);
 		next++;
 		goto next_one;
 	}
-	spin_unlock_irqrestore(&base->cpu_base->lock, flags);
+	raw_spin_unlock_irqrestore(&base->cpu_base->lock, flags);
 }
 
 static void
@@ -150,6 +150,9 @@ static void print_cpu(struct seq_file *m, int cpu, u64 now)
 	P_ns(expires_next);
 	P(hres_active);
 	P(nr_events);
+	P(nr_retries);
+	P(nr_hangs);
+	P_ns(max_hang_time);
 #endif
 #undef P
 #undef P_ns
@@ -173,6 +176,7 @@ static void print_cpu(struct seq_file *m, int cpu, u64 now)
 		P_ns(idle_waketime);
 		P_ns(idle_exittime);
 		P_ns(idle_sleeptime);
+		P_ns(iowait_sleeptime);
 		P(last_jiffies);
 		P(next_jiffies);
 		P_ns(idle_expires);
@@ -204,10 +208,12 @@ print_tickdevice(struct seq_file *m, struct tick_device *td, int cpu)
 		return;
 	}
 	SEQ_printf(m, "%s\n", dev->name);
-	SEQ_printf(m, " max_delta_ns:   %lu\n", dev->max_delta_ns);
-	SEQ_printf(m, " min_delta_ns:   %lu\n", dev->min_delta_ns);
-	SEQ_printf(m, " mult:           %lu\n", dev->mult);
-	SEQ_printf(m, " shift:          %d\n", dev->shift);
+	SEQ_printf(m, " max_delta_ns:   %llu\n",
+		   (unsigned long long) dev->max_delta_ns);
+	SEQ_printf(m, " min_delta_ns:   %llu\n",
+		   (unsigned long long) dev->min_delta_ns);
+	SEQ_printf(m, " mult:           %u\n", dev->mult);
+	SEQ_printf(m, " shift:          %u\n", dev->shift);
 	SEQ_printf(m, " mode:           %d\n", dev->mode);
 	SEQ_printf(m, " next_event:     %Ld nsecs\n",
 		   (unsigned long long) ktime_to_ns(dev->next_event));
@@ -223,6 +229,7 @@ print_tickdevice(struct seq_file *m, struct tick_device *td, int cpu)
 	SEQ_printf(m, " event_handler:  ");
 	print_name_offset(m, dev->event_handler);
 	SEQ_printf(m, "\n");
+	SEQ_printf(m, " retries:        %lu\n", dev->retries);
 }
 
 static void timer_list_show_tickdevices(struct seq_file *m)
@@ -232,10 +239,10 @@ static void timer_list_show_tickdevices(struct seq_file *m)
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 	print_tickdevice(m, tick_get_broadcast_device(), -1);
 	SEQ_printf(m, "tick_broadcast_mask: %08lx\n",
-		   tick_get_broadcast_mask()->bits[0]);
+		   cpumask_bits(tick_get_broadcast_mask())[0]);
 #ifdef CONFIG_TICK_ONESHOT
 	SEQ_printf(m, "tick_broadcast_oneshot_mask: %08lx\n",
-		   tick_get_broadcast_oneshot_mask()->bits[0]);
+		   cpumask_bits(tick_get_broadcast_oneshot_mask())[0]);
 #endif
 	SEQ_printf(m, "\n");
 #endif
@@ -252,7 +259,7 @@ static int timer_list_show(struct seq_file *m, void *v)
 	u64 now = ktime_to_ns(ktime_get());
 	int cpu;
 
-	SEQ_printf(m, "Timer List Version: v0.4\n");
+	SEQ_printf(m, "Timer List Version: v0.6\n");
 	SEQ_printf(m, "HRTIMER_MAX_CLOCK_BASES: %d\n", HRTIMER_MAX_CLOCK_BASES);
 	SEQ_printf(m, "now at %Ld nsecs\n", (unsigned long long)now);
 

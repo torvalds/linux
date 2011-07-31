@@ -15,70 +15,64 @@
 
 #include "callback.h"
 
+#ifdef CONFIG_NFS_V4
 static const int nfs_set_port_min = 0;
 static const int nfs_set_port_max = 65535;
+#endif
 static struct ctl_table_header *nfs_callback_sysctl_table;
 
 static ctl_table nfs_cb_sysctls[] = {
 #ifdef CONFIG_NFS_V4
 	{
-		.ctl_name = CTL_UNNUMBERED,
 		.procname = "nfs_callback_tcpport",
 		.data = &nfs_callback_set_tcpport,
 		.maxlen = sizeof(int),
 		.mode = 0644,
-		.proc_handler = &proc_dointvec_minmax,
+		.proc_handler = proc_dointvec_minmax,
 		.extra1 = (int *)&nfs_set_port_min,
 		.extra2 = (int *)&nfs_set_port_max,
 	},
 	{
-		.ctl_name = CTL_UNNUMBERED,
 		.procname = "idmap_cache_timeout",
 		.data = &nfs_idmap_cache_timeout,
 		.maxlen = sizeof(int),
 		.mode = 0644,
-		.proc_handler = &proc_dointvec_jiffies,
-		.strategy = &sysctl_jiffies,
+		.proc_handler = proc_dointvec_jiffies,
 	},
 #endif
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "nfs_mountpoint_timeout",
 		.data		= &nfs_mountpoint_expiry_timeout,
 		.maxlen		= sizeof(nfs_mountpoint_expiry_timeout),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-		.strategy	= &sysctl_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "nfs_congestion_kb",
 		.data		= &nfs_congestion_kb,
 		.maxlen		= sizeof(nfs_congestion_kb),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static ctl_table nfs_cb_sysctl_dir[] = {
 	{
-		.ctl_name = CTL_UNNUMBERED,
 		.procname = "nfs",
 		.mode = 0555,
 		.child = nfs_cb_sysctls,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static ctl_table nfs_cb_sysctl_root[] = {
 	{
-		.ctl_name = CTL_FS,
 		.procname = "fs",
 		.mode = 0555,
 		.child = nfs_cb_sysctl_dir,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 int nfs_register_sysctl(void)

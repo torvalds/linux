@@ -17,29 +17,28 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/pci.h>
 
-#define xgpio_irq(n)		(IRQ_IXP4XX_GPIO ## n)
-#define gpio_irq(n)		xgpio_irq(n)
-
 #define SLOT_ETHA		0x0B	/* IDSEL = AD21 */
 #define SLOT_ETHB		0x0C	/* IDSEL = AD20 */
 #define SLOT_MPCI		0x0D	/* IDSEL = AD19 */
 #define SLOT_NEC		0x0E	/* IDSEL = AD18 */
 
-#define IRQ_ETHA		IRQ_IXP4XX_GPIO4
-#define IRQ_ETHB		IRQ_IXP4XX_GPIO5
-#define IRQ_NEC			IRQ_IXP4XX_GPIO3
-#define IRQ_MPCI		IRQ_IXP4XX_GPIO12
-
 /* GPIO lines */
 #define GPIO_SCL		0
 #define GPIO_SDA		1
 #define GPIO_STR		2
+#define GPIO_IRQ_NEC		3
+#define GPIO_IRQ_ETHA		4
+#define GPIO_IRQ_ETHB		5
 #define GPIO_HSS0_DCD_N		6
 #define GPIO_HSS1_DCD_N		7
+#define GPIO_UART0_DCD		8
+#define GPIO_UART1_DCD		9
 #define GPIO_HSS0_CTS_N		10
 #define GPIO_HSS1_CTS_N		11
+#define GPIO_IRQ_MPCI		12
 #define GPIO_HSS1_RTS_N		13
 #define GPIO_HSS0_RTS_N		14
+/* GPIO15 is not connected */
 
 /* Control outputs from 74HC4094 */
 #define CONTROL_HSS0_CLK_INT	0
@@ -152,7 +151,7 @@ static int hss_set_clock(int port, unsigned int clock_type)
 
 static irqreturn_t hss_dcd_irq(int irq, void *pdev)
 {
-	int i, port = (irq == gpio_irq(GPIO_HSS1_DCD_N));
+	int i, port = (irq == IXP4XX_GPIO_IRQ(GPIO_HSS1_DCD_N));
 	gpio_line_get(port ? GPIO_HSS1_DCD_N : GPIO_HSS0_DCD_N, &i);
 	set_carrier_cb_tab[port](pdev, !i);
 	return IRQ_HANDLED;
@@ -165,9 +164,9 @@ static int hss_open(int port, void *pdev,
 	int i, irq;
 
 	if (!port)
-		irq = gpio_irq(GPIO_HSS0_DCD_N);
+		irq = IXP4XX_GPIO_IRQ(GPIO_HSS0_DCD_N);
 	else
-		irq = gpio_irq(GPIO_HSS1_DCD_N);
+		irq = IXP4XX_GPIO_IRQ(GPIO_HSS1_DCD_N);
 
 	gpio_line_get(port ? GPIO_HSS1_DCD_N : GPIO_HSS0_DCD_N, &i);
 	set_carrier_cb(pdev, !i);
@@ -188,8 +187,8 @@ static int hss_open(int port, void *pdev,
 
 static void hss_close(int port, void *pdev)
 {
-	free_irq(port ? gpio_irq(GPIO_HSS1_DCD_N) : gpio_irq(GPIO_HSS0_DCD_N),
-		 pdev);
+	free_irq(port ? IXP4XX_GPIO_IRQ(GPIO_HSS1_DCD_N) :
+		 IXP4XX_GPIO_IRQ(GPIO_HSS0_DCD_N), pdev);
 	set_carrier_cb_tab[!!port] = NULL; /* catch bugs */
 
 	set_control(port ? CONTROL_HSS1_DTR_N : CONTROL_HSS0_DTR_N, 1);
@@ -421,8 +420,8 @@ static void __init gmlr_init(void)
 	gpio_line_config(GPIO_HSS1_RTS_N, IXP4XX_GPIO_OUT);
 	gpio_line_config(GPIO_HSS0_DCD_N, IXP4XX_GPIO_IN);
 	gpio_line_config(GPIO_HSS1_DCD_N, IXP4XX_GPIO_IN);
-	set_irq_type(gpio_irq(GPIO_HSS0_DCD_N), IRQ_TYPE_EDGE_BOTH);
-	set_irq_type(gpio_irq(GPIO_HSS1_DCD_N), IRQ_TYPE_EDGE_BOTH);
+	set_irq_type(IXP4XX_GPIO_IRQ(GPIO_HSS0_DCD_N), IRQ_TYPE_EDGE_BOTH);
+	set_irq_type(IXP4XX_GPIO_IRQ(GPIO_HSS1_DCD_N), IRQ_TYPE_EDGE_BOTH);
 
 	set_control(CONTROL_HSS0_DTR_N, 1);
 	set_control(CONTROL_HSS1_DTR_N, 1);
@@ -442,10 +441,10 @@ static void __init gmlr_init(void)
 #ifdef CONFIG_PCI
 static void __init gmlr_pci_preinit(void)
 {
-	set_irq_type(IRQ_ETHA, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IRQ_ETHB, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IRQ_NEC, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IRQ_MPCI, IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(GPIO_IRQ_ETHA), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(GPIO_IRQ_ETHB), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(GPIO_IRQ_NEC), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(GPIO_IRQ_MPCI), IRQ_TYPE_LEVEL_LOW);
 	ixp4xx_pci_preinit();
 }
 
@@ -466,10 +465,10 @@ static void __init gmlr_pci_postinit(void)
 static int __init gmlr_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
 	switch(slot) {
-	case SLOT_ETHA:	return IRQ_ETHA;
-	case SLOT_ETHB:	return IRQ_ETHB;
-	case SLOT_NEC:	return IRQ_NEC;
-	default:	return IRQ_MPCI;
+	case SLOT_ETHA:	return IXP4XX_GPIO_IRQ(GPIO_IRQ_ETHA);
+	case SLOT_ETHB:	return IXP4XX_GPIO_IRQ(GPIO_IRQ_ETHB);
+	case SLOT_NEC:	return IXP4XX_GPIO_IRQ(GPIO_IRQ_NEC);
+	default:	return IXP4XX_GPIO_IRQ(GPIO_IRQ_MPCI);
 	}
 }
 

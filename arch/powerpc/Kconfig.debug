@@ -44,9 +44,21 @@ config DEBUG_STACK_USAGE
 
 	  This option will slow down process creation somewhat.
 
+config DEBUG_PER_CPU_MAPS
+	bool "Debug access to per_cpu maps"
+	depends on DEBUG_KERNEL
+	depends on SMP
+	default n
+	---help---
+	  Say Y to verify that the per_cpu map being accessed has
+	  been setup.  Adds a fair amount of code to kernel memory
+	  and decreases performance.
+
+	  Say N if unsure.
+
 config HCALL_STATS
 	bool "Hypervisor call instrumentation"
-	depends on PPC_PSERIES && DEBUG_FS
+	depends on PPC_PSERIES && DEBUG_FS && TRACEPOINTS
 	help
 	  Adds code to keep track of the number of hypervisor calls made and
 	  the amount of time spent in hypervisor calls.  Wall time spent in
@@ -122,13 +134,6 @@ config DEBUGGER
 	bool
 	depends on KGDB || XMON
 	default y
-
-config IRQSTACKS
-	bool "Use separate kernel stacks when processing interrupts"
-	help
-	  If you say Y here the kernel will use separate kernel stacks
-	  for handling hard and soft interrupts.  This can help avoid
-	  overflowing the process kernel stacks.
 
 config VIRQ_DEBUG
 	bool "Expose hardware/virtual IRQ mapping via debugfs"
@@ -253,6 +258,14 @@ config PPC_EARLY_DEBUG_CPM
 	  Select this to enable early debugging for Freescale chips
 	  using a CPM-based serial port.  This assumes that the bootwrapper
 	  has run, and set up the CPM in a particular way.
+
+config PPC_EARLY_DEBUG_USBGECKO
+	bool "Early debugging through the USB Gecko adapter"
+	depends on GAMECUBE_COMMON
+	select USBGECKO_UDBG
+	help
+	  Select this to enable early debugging for Nintendo GameCube/Wii
+	  consoles via an external USB Gecko adapter.
 
 endchoice
 

@@ -55,11 +55,11 @@ struct ext2_xattr_entry {
 
 # ifdef CONFIG_EXT2_FS_XATTR
 
-extern struct xattr_handler ext2_xattr_user_handler;
-extern struct xattr_handler ext2_xattr_trusted_handler;
-extern struct xattr_handler ext2_xattr_acl_access_handler;
-extern struct xattr_handler ext2_xattr_acl_default_handler;
-extern struct xattr_handler ext2_xattr_security_handler;
+extern const struct xattr_handler ext2_xattr_user_handler;
+extern const struct xattr_handler ext2_xattr_trusted_handler;
+extern const struct xattr_handler ext2_xattr_acl_access_handler;
+extern const struct xattr_handler ext2_xattr_acl_default_handler;
+extern const struct xattr_handler ext2_xattr_security_handler;
 
 extern ssize_t ext2_listxattr(struct dentry *, char *, size_t);
 
@@ -72,7 +72,7 @@ extern void ext2_xattr_put_super(struct super_block *);
 extern int init_ext2_xattr(void);
 extern void exit_ext2_xattr(void);
 
-extern struct xattr_handler *ext2_xattr_handlers[];
+extern const struct xattr_handler *ext2_xattr_handlers[];
 
 # else  /* CONFIG_EXT2_FS_XATTR */
 

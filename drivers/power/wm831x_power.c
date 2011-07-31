@@ -960,7 +960,7 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 		goto err_battery;
 
 	irq = platform_get_irq_byname(pdev, "SYSLO");
-	ret = request_threaded_irq(irq, NULL, wm831x_syslo_irq, 
+	ret = request_threaded_irq(irq, NULL, wm831x_syslo_irq,
 				   IRQF_TRIGGER_RISING, "System power low",
 				   power);
 	if (ret != 0) {

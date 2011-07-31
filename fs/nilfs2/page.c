@@ -29,6 +29,7 @@
 #include <linux/list.h>
 #include <linux/highmem.h>
 #include <linux/pagevec.h>
+#include <linux/gfp.h>
 #include "nilfs.h"
 #include "page.h"
 #include "mdt.h"
@@ -36,7 +37,8 @@
 
 #define NILFS_BUFFER_INHERENT_BITS  \
 	((1UL << BH_Uptodate) | (1UL << BH_Mapped) | (1UL << BH_NILFS_Node) | \
-	 (1UL << BH_NILFS_Volatile) | (1UL << BH_NILFS_Allocated))
+	 (1UL << BH_NILFS_Volatile) | (1UL << BH_NILFS_Allocated) | \
+	 (1UL << BH_NILFS_Checked))
 
 static struct buffer_head *
 __nilfs_get_page_block(struct page *page, unsigned long block, pgoff_t index,
@@ -128,6 +130,7 @@ void nilfs_forget_buffer(struct buffer_head *bh)
 
 	lock_buffer(bh);
 	clear_buffer_nilfs_volatile(bh);
+	clear_buffer_nilfs_checked(bh);
 	clear_buffer_dirty(bh);
 	if (nilfs_page_buffers_clean(page))
 		__nilfs_clear_page_dirty(page);
@@ -292,7 +295,7 @@ void nilfs_free_private_page(struct page *page)
  * @src: source page
  * @copy_dirty: flag whether to copy dirty states on the page's buffer heads.
  *
- * This fuction is for both data pages and btnode pages.  The dirty flag
+ * This function is for both data pages and btnode pages.  The dirty flag
  * should be treated by caller.  The page must not be under i/o.
  * Both src and dst page must be locked
  */
@@ -388,7 +391,7 @@ repeat:
 }
 
 /**
- * nilfs_copy_back_pages -- copy back pages to orignal cache from shadow cache
+ * nilfs_copy_back_pages -- copy back pages to original cache from shadow cache
  * @dmap: destination page cache
  * @smap: source page cache
  *
@@ -479,6 +482,7 @@ void nilfs_clear_dirty_pages(struct address_space *mapping)
 				lock_buffer(bh);
 				clear_buffer_dirty(bh);
 				clear_buffer_nilfs_volatile(bh);
+				clear_buffer_nilfs_checked(bh);
 				clear_buffer_uptodate(bh);
 				clear_buffer_mapped(bh);
 				unlock_buffer(bh);

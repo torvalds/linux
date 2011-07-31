@@ -14,7 +14,6 @@
  */
 
 #include "gigaset.h"
-#include <linux/ctype.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 
@@ -29,7 +28,7 @@
 #endif
 
 /* Module parameters */
-int gigaset_debuglevel = DEBUG_DEFAULT;
+int gigaset_debuglevel;
 EXPORT_SYMBOL_GPL(gigaset_debuglevel);
 module_param_named(debug, gigaset_debuglevel, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(debug, "debug level");
@@ -108,7 +107,7 @@ int gigaset_enterconfigmode(struct cardstate *cs)
 {
 	int i, r;
 
-	cs->control_state = TIOCM_RTS; //FIXME
+	cs->control_state = TIOCM_RTS;
 
 	r = setflags(cs, TIOCM_DTR, 200);
 	if (r < 0)
@@ -132,10 +131,10 @@ int gigaset_enterconfigmode(struct cardstate *cs)
 
 error:
 	dev_err(cs->dev, "error %d on setuartbits\n", -r);
-	cs->control_state = TIOCM_RTS|TIOCM_DTR; // FIXME is this a good value?
+	cs->control_state = TIOCM_RTS|TIOCM_DTR;
 	cs->ops->set_modem_ctrl(cs, 0, TIOCM_RTS|TIOCM_DTR);
 
-	return -1; //r
+	return -1;
 }
 
 static int test_timeout(struct at_state_t *at_state)
@@ -149,11 +148,8 @@ static int test_timeout(struct at_state_t *at_state)
 		return 0;
 	}
 
-	if (!gigaset_add_event(at_state->cs, at_state, EV_TIMEOUT, NULL,
-			       at_state->timer_index, NULL)) {
-		//FIXME what should we do?
-	}
-
+	gigaset_add_event(at_state->cs, at_state, EV_TIMEOUT, NULL,
+			  at_state->timer_index, NULL);
 	return 1;
 }
 
@@ -181,7 +177,7 @@ static void timer_tick(unsigned long data)
 	if (cs->running) {
 		mod_timer(&cs->timer, jiffies + msecs_to_jiffies(GIG_TICK));
 		if (timeout) {
-			gig_dbg(DEBUG_CMD, "scheduling timeout");
+			gig_dbg(DEBUG_EVENT, "scheduling timeout");
 			tasklet_schedule(&cs->event_tasklet);
 		}
 	}
@@ -195,16 +191,42 @@ int gigaset_get_channel(struct bc_state *bcs)
 
 	spin_lock_irqsave(&bcs->cs->lock, flags);
 	if (bcs->use_count || !try_module_get(bcs->cs->driver->owner)) {
-		gig_dbg(DEBUG_ANY, "could not allocate channel %d",
+		gig_dbg(DEBUG_CHANNEL, "could not allocate channel %d",
 			bcs->channel);
 		spin_unlock_irqrestore(&bcs->cs->lock, flags);
 		return 0;
 	}
 	++bcs->use_count;
 	bcs->busy = 1;
-	gig_dbg(DEBUG_ANY, "allocated channel %d", bcs->channel);
+	gig_dbg(DEBUG_CHANNEL, "allocated channel %d", bcs->channel);
 	spin_unlock_irqrestore(&bcs->cs->lock, flags);
 	return 1;
+}
+
+struct bc_state *gigaset_get_free_channel(struct cardstate *cs)
+{
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&cs->lock, flags);
+	if (!try_module_get(cs->driver->owner)) {
+		gig_dbg(DEBUG_CHANNEL,
+			"could not get module for allocating channel");
+		spin_unlock_irqrestore(&cs->lock, flags);
+		return NULL;
+	}
+	for (i = 0; i < cs->channels; ++i)
+		if (!cs->bcs[i].use_count) {
+			++cs->bcs[i].use_count;
+			cs->bcs[i].busy = 1;
+			spin_unlock_irqrestore(&cs->lock, flags);
+			gig_dbg(DEBUG_CHANNEL, "allocated channel %d", i);
+			return cs->bcs + i;
+		}
+	module_put(cs->driver->owner);
+	spin_unlock_irqrestore(&cs->lock, flags);
+	gig_dbg(DEBUG_CHANNEL, "no free channel");
+	return NULL;
 }
 
 void gigaset_free_channel(struct bc_state *bcs)
@@ -213,14 +235,15 @@ void gigaset_free_channel(struct bc_state *bcs)
 
 	spin_lock_irqsave(&bcs->cs->lock, flags);
 	if (!bcs->busy) {
-		gig_dbg(DEBUG_ANY, "could not free channel %d", bcs->channel);
+		gig_dbg(DEBUG_CHANNEL, "could not free channel %d",
+			bcs->channel);
 		spin_unlock_irqrestore(&bcs->cs->lock, flags);
 		return;
 	}
 	--bcs->use_count;
 	bcs->busy = 0;
 	module_put(bcs->cs->driver->owner);
-	gig_dbg(DEBUG_ANY, "freed channel %d", bcs->channel);
+	gig_dbg(DEBUG_CHANNEL, "freed channel %d", bcs->channel);
 	spin_unlock_irqrestore(&bcs->cs->lock, flags);
 }
 
@@ -233,14 +256,15 @@ int gigaset_get_channels(struct cardstate *cs)
 	for (i = 0; i < cs->channels; ++i)
 		if (cs->bcs[i].use_count) {
 			spin_unlock_irqrestore(&cs->lock, flags);
-			gig_dbg(DEBUG_ANY, "could not allocate all channels");
+			gig_dbg(DEBUG_CHANNEL,
+				"could not allocate all channels");
 			return 0;
 		}
 	for (i = 0; i < cs->channels; ++i)
 		++cs->bcs[i].use_count;
 	spin_unlock_irqrestore(&cs->lock, flags);
 
-	gig_dbg(DEBUG_ANY, "allocated all channels");
+	gig_dbg(DEBUG_CHANNEL, "allocated all channels");
 
 	return 1;
 }
@@ -250,7 +274,7 @@ void gigaset_free_channels(struct cardstate *cs)
 	unsigned long flags;
 	int i;
 
-	gig_dbg(DEBUG_ANY, "unblocking all channels");
+	gig_dbg(DEBUG_CHANNEL, "unblocking all channels");
 	spin_lock_irqsave(&cs->lock, flags);
 	for (i = 0; i < cs->channels; ++i)
 		--cs->bcs[i].use_count;
@@ -262,7 +286,7 @@ void gigaset_block_channels(struct cardstate *cs)
 	unsigned long flags;
 	int i;
 
-	gig_dbg(DEBUG_ANY, "blocking all channels");
+	gig_dbg(DEBUG_CHANNEL, "blocking all channels");
 	spin_lock_irqsave(&cs->lock, flags);
 	for (i = 0; i < cs->channels; ++i)
 		++cs->bcs[i].use_count;
@@ -312,6 +336,8 @@ struct event_t *gigaset_add_event(struct cardstate *cs,
 	unsigned long flags;
 	unsigned next, tail;
 	struct event_t *event = NULL;
+
+	gig_dbg(DEBUG_EVENT, "queueing event %d", type);
 
 	spin_lock_irqsave(&cs->ev_lock, flags);
 
@@ -367,16 +393,15 @@ static void gigaset_freebcs(struct bc_state *bcs)
 	int i;
 
 	gig_dbg(DEBUG_INIT, "freeing bcs[%d]->hw", bcs->channel);
-	if (!bcs->cs->ops->freebcshw(bcs)) {
+	if (!bcs->cs->ops->freebcshw(bcs))
 		gig_dbg(DEBUG_INIT, "failed");
-	}
 
 	gig_dbg(DEBUG_INIT, "clearing bcs[%d]->at_state", bcs->channel);
 	clear_at_state(&bcs->at_state);
 	gig_dbg(DEBUG_INIT, "freeing bcs[%d]->skb", bcs->channel);
+	dev_kfree_skb(bcs->rx_skb);
+	bcs->rx_skb = NULL;
 
-	if (bcs->skb)
-		dev_kfree_skb(bcs->skb);
 	for (i = 0; i < AT_NUM; ++i) {
 		kfree(bcs->commands[i]);
 		bcs->commands[i] = NULL;
@@ -463,6 +488,12 @@ void gigaset_freecs(struct cardstate *cs)
 
 	switch (cs->cs_init) {
 	default:
+		/* clear B channel structures */
+		for (i = 0; i < cs->channels; ++i) {
+			gig_dbg(DEBUG_INIT, "clearing bcs[%d]", i);
+			gigaset_freebcs(cs->bcs + i);
+		}
+
 		/* clear device sysfs */
 		gigaset_free_dev_sysfs(cs);
 
@@ -471,28 +502,20 @@ void gigaset_freecs(struct cardstate *cs)
 		gig_dbg(DEBUG_INIT, "clearing hw");
 		cs->ops->freecshw(cs);
 
-		//FIXME cmdbuf
-
 		/* fall through */
 	case 2: /* error in initcshw */
 		/* Deregister from LL */
 		make_invalid(cs, VALID_ID);
-		gig_dbg(DEBUG_INIT, "clearing iif");
-		gigaset_i4l_cmd(cs, ISDN_STAT_UNLOAD);
+		gigaset_isdn_unregdev(cs);
 
 		/* fall through */
-	case 1: /* error when regestering to LL */
+	case 1: /* error when registering to LL */
 		gig_dbg(DEBUG_INIT, "clearing at_state");
 		clear_at_state(&cs->at_state);
 		dealloc_at_states(cs);
 
 		/* fall through */
-	case 0: /* error in one call to initbcs */
-		for (i = 0; i < cs->channels; ++i) {
-			gig_dbg(DEBUG_INIT, "clearing bcs[%d]", i);
-			gigaset_freebcs(cs->bcs + i);
-		}
-
+	case 0:	/* error in basic setup */
 		clear_events(cs);
 		gig_dbg(DEBUG_INIT, "freeing inbuf");
 		kfree(cs->inbuf);
@@ -534,16 +557,13 @@ void gigaset_at_init(struct at_state_t *at_state, struct bc_state *bcs,
 }
 
 
-static void gigaset_inbuf_init(struct inbuf_t *inbuf, struct bc_state *bcs,
-			       struct cardstate *cs, int inputstate)
+static void gigaset_inbuf_init(struct inbuf_t *inbuf, struct cardstate *cs)
 /* inbuf->read must be allocated before! */
 {
 	inbuf->head = 0;
 	inbuf->tail = 0;
 	inbuf->cs = cs;
-	inbuf->bcs = bcs; /*base driver: NULL*/
-	inbuf->rcvbuf = NULL;
-	inbuf->inputstate = inputstate;
+	inbuf->inputstate = INS_command;
 }
 
 /**
@@ -599,7 +619,7 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 {
 	int i;
 
-	bcs->tx_skb = NULL; //FIXME -> hw part
+	bcs->tx_skb = NULL;
 
 	skb_queue_head_init(&bcs->squeue);
 
@@ -614,19 +634,10 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	bcs->emptycount = 0;
 #endif
 
-	gig_dbg(DEBUG_INIT, "allocating bcs[%d]->skb", channel);
-	bcs->fcs = PPP_INITFCS;
+	bcs->rx_bufsize = 0;
+	bcs->rx_skb = NULL;
+	bcs->rx_fcs = PPP_INITFCS;
 	bcs->inputstate = 0;
-	if (cs->ignoreframes) {
-		bcs->inputstate |= INS_skip_frame;
-		bcs->skb = NULL;
-	} else if ((bcs->skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN)) != NULL)
-		skb_reserve(bcs->skb, HW_HDR_LEN);
-	else {
-		pr_err("out of memory\n");
-		bcs->inputstate |= INS_skip_frame;
-	}
-
 	bcs->channel = channel;
 	bcs->cs = cs;
 
@@ -638,16 +649,15 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	for (i = 0; i < AT_NUM; ++i)
 		bcs->commands[i] = NULL;
 
+	spin_lock_init(&bcs->aplock);
+	bcs->ap = NULL;
+	bcs->apconnstate = 0;
+
 	gig_dbg(DEBUG_INIT, "  setting up bcs[%d]->hw", channel);
 	if (cs->ops->initbcshw(bcs))
 		return bcs;
 
 	gig_dbg(DEBUG_INIT, "  failed");
-
-	gig_dbg(DEBUG_INIT, "  freeing bcs[%d]->skb", channel);
-	if (bcs->skb)
-		dev_kfree_skb(bcs->skb);
-
 	return NULL;
 }
 
@@ -673,12 +683,13 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 				 int onechannel, int ignoreframes,
 				 int cidmode, const char *modulename)
 {
-	struct cardstate *cs = NULL;
+	struct cardstate *cs;
 	unsigned long flags;
 	int i;
 
 	gig_dbg(DEBUG_INIT, "allocating cs");
-	if (!(cs = alloc_cs(drv))) {
+	cs = alloc_cs(drv);
+	if (!cs) {
 		pr_err("maximum number of devices exceeded\n");
 		return NULL;
 	}
@@ -707,7 +718,7 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	cs->ev_tail = 0;
 	cs->ev_head = 0;
 
-	tasklet_init(&cs->event_tasklet, &gigaset_handle_event,
+	tasklet_init(&cs->event_tasklet, gigaset_handle_event,
 		     (unsigned long) cs);
 	cs->commands_pending = 0;
 	cs->cur_at_seq = 0;
@@ -726,14 +737,6 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	cs->mode = M_UNKNOWN;
 	cs->mstate = MS_UNINITIALIZED;
 
-	for (i = 0; i < channels; ++i) {
-		gig_dbg(DEBUG_INIT, "setting up bcs[%d].read", i);
-		if (!gigaset_initbcs(cs->bcs + i, cs, i)) {
-			pr_err("could not allocate channel %d data\n", i);
-			goto error;
-		}
-	}
-
 	++cs->cs_init;
 
 	gig_dbg(DEBUG_INIT, "setting up at_state");
@@ -743,10 +746,7 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	cs->cbytes = 0;
 
 	gig_dbg(DEBUG_INIT, "setting up inbuf");
-	if (onechannel) {			//FIXME distinction necessary?
-		gigaset_inbuf_init(cs->inbuf, cs->bcs, cs, INS_command);
-	} else
-		gigaset_inbuf_init(cs->inbuf, NULL,    cs, INS_command);
+	gigaset_inbuf_init(cs->inbuf, cs);
 
 	cs->connected = 0;
 	cs->isdn_up = 0;
@@ -758,7 +758,7 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	cs->cmdbytes = 0;
 
 	gig_dbg(DEBUG_INIT, "setting up iif");
-	if (!gigaset_register_to_LL(cs, modulename)) {
+	if (!gigaset_isdn_regdev(cs, modulename)) {
 		pr_err("error registering ISDN device\n");
 		goto error;
 	}
@@ -777,13 +777,20 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	/* set up device sysfs */
 	gigaset_init_dev_sysfs(cs);
 
+	/* set up channel data structures */
+	for (i = 0; i < channels; ++i) {
+		gig_dbg(DEBUG_INIT, "setting up bcs[%d]", i);
+		if (!gigaset_initbcs(cs->bcs + i, cs, i)) {
+			pr_err("could not allocate channel %d data\n", i);
+			goto error;
+		}
+	}
+
 	spin_lock_irqsave(&cs->lock, flags);
 	cs->running = 1;
 	spin_unlock_irqrestore(&cs->lock, flags);
 	setup_timer(&cs->timer, timer_tick, (unsigned long) cs);
 	cs->timer.expires = jiffies + msecs_to_jiffies(GIG_TICK);
-	/* FIXME: can jiffies increase too much until the timer is added?
-	 * Same problem(?) with mod_timer() in timer_tick(). */
 	add_timer(&cs->timer);
 
 	gig_dbg(DEBUG_INIT, "cs initialized");
@@ -820,13 +827,12 @@ void gigaset_bcs_reinit(struct bc_state *bcs)
 	bcs->emptycount = 0;
 #endif
 
-	bcs->fcs = PPP_INITFCS;
+	bcs->rx_fcs = PPP_INITFCS;
 	bcs->chstate = 0;
 
 	bcs->ignore = cs->ignoreframes;
-	if (bcs->ignore)
-		bcs->inputstate |= INS_skip_frame;
-
+	dev_kfree_skb(bcs->rx_skb);
+	bcs->rx_skb = NULL;
 
 	cs->ops->reinitbcshw(bcs);
 }
@@ -847,8 +853,6 @@ static void cleanup_cs(struct cardstate *cs)
 	free_strings(&cs->at_state);
 	gigaset_at_init(&cs->at_state, NULL, cs, 0);
 
-	kfree(cs->inbuf->rcvbuf);
-	cs->inbuf->rcvbuf = NULL;
 	cs->inbuf->inputstate = INS_command;
 	cs->inbuf->head = 0;
 	cs->inbuf->tail = 0;
@@ -911,19 +915,14 @@ int gigaset_start(struct cardstate *cs)
 		cs->ops->baud_rate(cs, B115200);
 		cs->ops->set_line_ctrl(cs, CS8);
 		cs->control_state = TIOCM_DTR|TIOCM_RTS;
-	} else {
-		//FIXME use some saved values?
 	}
 
 	cs->waiting = 1;
 
 	if (!gigaset_add_event(cs, &cs->at_state, EV_START, NULL, 0, NULL)) {
 		cs->waiting = 0;
-		//FIXME what should we do?
 		goto error;
 	}
-
-	gig_dbg(DEBUG_CMD, "scheduling START");
 	gigaset_schedule_event(cs);
 
 	wait_event(cs->waitqueue, !cs->waiting);
@@ -958,12 +957,8 @@ int gigaset_shutdown(struct cardstate *cs)
 
 	cs->waiting = 1;
 
-	if (!gigaset_add_event(cs, &cs->at_state, EV_SHUTDOWN, NULL, 0, NULL)) {
-		//FIXME what should we do?
+	if (!gigaset_add_event(cs, &cs->at_state, EV_SHUTDOWN, NULL, 0, NULL))
 		goto exit;
-	}
-
-	gig_dbg(DEBUG_CMD, "scheduling SHUTDOWN");
 	gigaset_schedule_event(cs);
 
 	wait_event(cs->waitqueue, !cs->waiting);
@@ -989,12 +984,8 @@ void gigaset_stop(struct cardstate *cs)
 
 	cs->waiting = 1;
 
-	if (!gigaset_add_event(cs, &cs->at_state, EV_STOP, NULL, 0, NULL)) {
-		//FIXME what should we do?
+	if (!gigaset_add_event(cs, &cs->at_state, EV_STOP, NULL, 0, NULL))
 		goto exit;
-	}
-
-	gig_dbg(DEBUG_CMD, "scheduling STOP");
 	gigaset_schedule_event(cs);
 
 	wait_event(cs->waitqueue, !cs->waiting);
@@ -1199,11 +1190,13 @@ static int __init gigaset_init_module(void)
 		gigaset_debuglevel = DEBUG_DEFAULT;
 
 	pr_info(DRIVER_DESC DRIVER_DESC_DEBUG "\n");
+	gigaset_isdn_regdrv();
 	return 0;
 }
 
 static void __exit gigaset_exit_module(void)
 {
+	gigaset_isdn_unregdrv();
 }
 
 module_init(gigaset_init_module);

@@ -102,7 +102,7 @@ static struct sclp_req *cpi_prepare_req(void)
 	/* set system name */
 	set_data(evb->system_name, system_name);
 
-	/* set sytem level */
+	/* set system level */
 	evb->system_level = system_level;
 
 	/* set sysplex name */

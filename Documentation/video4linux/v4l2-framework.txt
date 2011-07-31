@@ -545,12 +545,11 @@ unregister them:
 This will remove the device nodes from sysfs (causing udev to remove them
 from /dev).
 
-After video_unregister_device() returns no new opens can be done.
-
-However, in the case of USB devices some application might still have one
-of these device nodes open. You should block all new accesses to read,
-write, poll, etc. except possibly for certain ioctl operations like
-queueing buffers.
+After video_unregister_device() returns no new opens can be done. However,
+in the case of USB devices some application might still have one of these
+device nodes open. So after the unregister all file operations will return
+an error as well, except for the ioctl and unlocked_ioctl file operations:
+those will still be passed on since some buffer ioctls may still be needed.
 
 When the last user of the video device node exits, then the vdev->release()
 callback is called and you can do the final cleanup there.
@@ -560,6 +559,8 @@ video_device helper functions
 -----------------------------
 
 There are a few useful helper functions:
+
+- file/video_device private data
 
 You can set/get driver private data in the video_device struct using:
 
@@ -575,8 +576,7 @@ struct video_device *video_devdata(struct file *file);
 
 returns the video_device belonging to the file struct.
 
-The final helper function combines video_get_drvdata with
-video_devdata:
+The video_drvdata function combines video_get_drvdata with video_devdata:
 
 void *video_drvdata(struct file *file);
 
@@ -584,102 +584,159 @@ You can go from a video_device struct to the v4l2_device struct using:
 
 struct v4l2_device *v4l2_dev = vdev->v4l2_dev;
 
+- Device node name
+
+The video_device node kernel name can be retrieved using
+
+const char *video_device_node_name(struct video_device *vdev);
+
+The name is used as a hint by userspace tools such as udev. The function
+should be used where possible instead of accessing the video_device::num and
+video_device::minor fields.
+
+
 video buffer helper functions
 -----------------------------
 
-The v4l2 core API provides a standard method for dealing with video
-buffers. Those methods allow a driver to implement read(), mmap() and
-overlay() on a consistent way.
+The v4l2 core API provides a set of standard methods (called "videobuf")
+for dealing with video buffers. Those methods allow a driver to implement
+read(), mmap() and overlay() in a consistent way.  There are currently
+methods for using video buffers on devices that supports DMA with
+scatter/gather method (videobuf-dma-sg), DMA with linear access
+(videobuf-dma-contig), and vmalloced buffers, mostly used on USB drivers
+(videobuf-vmalloc).
 
-There are currently methods for using video buffers on devices that
-supports DMA with scatter/gather method (videobuf-dma-sg), DMA with
-linear access (videobuf-dma-contig), and vmalloced buffers, mostly
-used on USB drivers (videobuf-vmalloc).
+Please see Documentation/video4linux/videobuf for more information on how
+to use the videobuf layer.
 
-Any driver using videobuf should provide operations (callbacks) for
-four handlers:
+struct v4l2_fh
+--------------
 
-ops->buf_setup   - calculates the size of the video buffers and avoid they
-		   to waste more than some maximum limit of RAM;
-ops->buf_prepare - fills the video buffer structs and calls
-		   videobuf_iolock() to alloc and prepare mmaped memory;
-ops->buf_queue   - advices the driver that another buffer were
-		   requested (by read() or by QBUF);
-ops->buf_release - frees any buffer that were allocated.
+struct v4l2_fh provides a way to easily keep file handle specific data
+that is used by the V4L2 framework. Using v4l2_fh is optional for
+drivers.
 
-In order to use it, the driver need to have a code (generally called at
-interrupt context) that will properly handle the buffer request lists,
-announcing that a new buffer were filled.
+The users of v4l2_fh (in the V4L2 framework, not the driver) know
+whether a driver uses v4l2_fh as its file->private_data pointer by
+testing the V4L2_FL_USES_V4L2_FH bit in video_device->flags.
 
-The irq handling code should handle the videobuf task lists, in order
-to advice videobuf that a new frame were filled, in order to honor to a
-request. The code is generally like this one:
-	if (list_empty(&dma_q->active))
-		return;
+Useful functions:
 
-	buf = list_entry(dma_q->active.next, struct vbuffer, vb.queue);
+- v4l2_fh_init()
 
-	if (!waitqueue_active(&buf->vb.done))
-		return;
+  Initialise the file handle. This *MUST* be performed in the driver's
+  v4l2_file_operations->open() handler.
 
-	/* Some logic to handle the buf may be needed here */
+- v4l2_fh_add()
 
-	list_del(&buf->vb.queue);
-	do_gettimeofday(&buf->vb.ts);
-	wake_up(&buf->vb.done);
+  Add a v4l2_fh to video_device file handle list. May be called after
+  initialising the file handle.
 
-Those are the videobuffer functions used on drivers, implemented on
-videobuf-core:
+- v4l2_fh_del()
 
-- Videobuf init functions
-  videobuf_queue_sg_init()
-      Initializes the videobuf infrastructure. This function should be
-      called before any other videobuf function on drivers that uses DMA
-      Scatter/Gather buffers.
+  Unassociate the file handle from video_device(). The file handle
+  exit function may now be called.
 
-  videobuf_queue_dma_contig_init
-      Initializes the videobuf infrastructure. This function should be
-      called before any other videobuf function on drivers that need DMA
-      contiguous buffers.
+- v4l2_fh_exit()
 
-  videobuf_queue_vmalloc_init()
-      Initializes the videobuf infrastructure. This function should be
-      called before any other videobuf function on USB (and other drivers)
-      that need a vmalloced type of videobuf.
+  Uninitialise the file handle. After uninitialisation the v4l2_fh
+  memory can be freed.
 
-- videobuf_iolock()
-  Prepares the videobuf memory for the proper method (read, mmap, overlay).
+struct v4l2_fh is allocated as a part of the driver's own file handle
+structure and is set to file->private_data in the driver's open
+function by the driver. Drivers can extract their own file handle
+structure by using the container_of macro. Example:
 
-- videobuf_queue_is_busy()
-  Checks if a videobuf is streaming.
+struct my_fh {
+	int blah;
+	struct v4l2_fh fh;
+};
 
-- videobuf_queue_cancel()
-  Stops video handling.
+...
 
-- videobuf_mmap_free()
-  frees mmap buffers.
+int my_open(struct file *file)
+{
+	struct my_fh *my_fh;
+	struct video_device *vfd;
+	int ret;
 
-- videobuf_stop()
-  Stops video handling, ends mmap and frees mmap and other buffers.
+	...
 
-- V4L2 api functions. Those functions correspond to VIDIOC_foo ioctls:
-   videobuf_reqbufs(), videobuf_querybuf(), videobuf_qbuf(),
-   videobuf_dqbuf(), videobuf_streamon(), videobuf_streamoff().
+	ret = v4l2_fh_init(&my_fh->fh, vfd);
+	if (ret)
+		return ret;
 
-- V4L1 api function (corresponds to VIDIOCMBUF ioctl):
-   videobuf_cgmbuf()
-      This function is used to provide backward compatibility with V4L1
-      API.
+	v4l2_fh_add(&my_fh->fh);
 
-- Some help functions for read()/poll() operations:
-   videobuf_read_stream()
-      For continuous stream read()
-   videobuf_read_one()
-      For snapshot read()
-   videobuf_poll_stream()
-      polling help function
+	file->private_data = &my_fh->fh;
 
-The better way to understand it is to take a look at vivi driver. One
-of the main reasons for vivi is to be a videobuf usage example. the
-vivi_thread_tick() does the task that the IRQ callback would do on PCI
-drivers (or the irq callback on USB).
+	...
+}
+
+int my_release(struct file *file)
+{
+	struct v4l2_fh *fh = file->private_data;
+	struct my_fh *my_fh = container_of(fh, struct my_fh, fh);
+
+	...
+}
+
+V4L2 events
+-----------
+
+The V4L2 events provide a generic way to pass events to user space.
+The driver must use v4l2_fh to be able to support V4L2 events.
+
+Useful functions:
+
+- v4l2_event_alloc()
+
+  To use events, the driver must allocate events for the file handle. By
+  calling the function more than once, the driver may assure that at least n
+  events in total have been allocated. The function may not be called in
+  atomic context.
+
+- v4l2_event_queue()
+
+  Queue events to video device. The driver's only responsibility is to fill
+  in the type and the data fields. The other fields will be filled in by
+  V4L2.
+
+- v4l2_event_subscribe()
+
+  The video_device->ioctl_ops->vidioc_subscribe_event must check the driver
+  is able to produce events with specified event id. Then it calls
+  v4l2_event_subscribe() to subscribe the event.
+
+- v4l2_event_unsubscribe()
+
+  vidioc_unsubscribe_event in struct v4l2_ioctl_ops. A driver may use
+  v4l2_event_unsubscribe() directly unless it wants to be involved in
+  unsubscription process.
+
+  The special type V4L2_EVENT_ALL may be used to unsubscribe all events. The
+  drivers may want to handle this in a special way.
+
+- v4l2_event_pending()
+
+  Returns the number of pending events. Useful when implementing poll.
+
+Drivers do not initialise events directly. The events are initialised
+through v4l2_fh_init() if video_device->ioctl_ops->vidioc_subscribe_event is
+non-NULL. This *MUST* be performed in the driver's
+v4l2_file_operations->open() handler.
+
+Events are delivered to user space through the poll system call. The driver
+can use v4l2_fh->events->wait wait_queue_head_t as the argument for
+poll_wait().
+
+There are standard and private events. New standard events must use the
+smallest available event type. The drivers must allocate their events from
+their own class starting from class base. Class base is
+V4L2_EVENT_PRIVATE_START + n * 1000 where n is the lowest available number.
+The first event type in the class is reserved for future use, so the first
+available event type is 'class base + 1'.
+
+An example on how the V4L2 events may be used can be found in the OMAP
+3 ISP driver available at <URL:http://gitorious.org/omap3camera> as of
+writing this.

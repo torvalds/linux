@@ -43,10 +43,10 @@
  */
 
 #ifdef __KERNEL__
+#include <linux/mod_devicetable.h>
 
 #define DEVICE_COUNT_COMPATIBLE 4
 
-#define ISAPNP_ANY_ID		0xffff
 #define ISAPNP_CARD_DEVS	8
 
 #define ISAPNP_CARD_ID(_va, _vb, _vc, _device) \
@@ -73,12 +73,6 @@ struct isapnp_card_id {
 		.vendor = ISAPNP_VENDOR(_dva, _dvb, _dvc), .function = ISAPNP_FUNCTION(_dfunction)
 #define ISAPNP_DEVICE_SINGLE_END \
 		.card_vendor = 0, .card_device = 0
-
-struct isapnp_device_id {
-	unsigned short card_vendor, card_device;
-	unsigned short vendor, function;
-	unsigned long driver_data;	/* data private to the driver */
-};
 
 #if defined(CONFIG_ISAPNP) || (defined(CONFIG_ISAPNP_MODULE) && defined(MODULE))
 

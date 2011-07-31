@@ -19,6 +19,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
@@ -770,7 +771,7 @@ static int mpu_synth_ioctl(int dev, unsigned int cmd, void __user *arg)
 
 	midi_dev = synth_devs[dev]->midi_dev;
 
-	if (midi_dev < 0 || midi_dev > num_midis || midi_devs[midi_dev] == NULL)
+	if (midi_dev < 0 || midi_dev >= num_midis || midi_devs[midi_dev] == NULL)
 		return -ENXIO;
 
 	devc = &dev_conf[midi_dev];

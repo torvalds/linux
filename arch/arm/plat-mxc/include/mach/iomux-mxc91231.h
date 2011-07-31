@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef __MACH_IOMUX_MXC91231_H__
@@ -48,7 +44,7 @@
  * setups a single pin:
  * 	- reserves the pin so that it is not claimed by another driver
  * 	- setups the iomux according to the configuration
- * 	- if the pin is configured as a GPIO, we claim it throug kernel gpiolib
+ * 	- if the pin is configured as a GPIO, we claim it through kernel gpiolib
  */
 int mxc_iomux_alloc_pin(const unsigned int pin_mode, const char *label);
 /*

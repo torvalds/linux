@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
@@ -90,13 +91,6 @@ static int pcm3008_soc_probe(struct platform_device *pdev)
 		goto pcm_err;
 	}
 
-	/* Register Card. */
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		printk(KERN_ERR "pcm3008: failed to register card\n");
-		goto card_err;
-	}
-
 	/* DEM1  DEM0  DE-EMPHASIS_MODE
 	 * Low   Low   De-emphasis 44.1 kHz ON
 	 * Low   High  De-emphasis OFF
@@ -136,8 +130,6 @@ static int pcm3008_soc_probe(struct platform_device *pdev)
 
 gpio_err:
 	pcm3008_gpio_free(setup);
-card_err:
-	snd_soc_free_pcms(socdev);
 pcm_err:
 	kfree(socdev->card->codec);
 

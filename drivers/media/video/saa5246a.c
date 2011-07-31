@@ -43,6 +43,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/videotext.h>
 #include <linux/videodev2.h>
@@ -1036,7 +1037,6 @@ static struct video_device saa_template =
 	.name	  = "saa5246a",
 	.fops	  = &saa_fops,
 	.release  = video_device_release,
-	.minor    = -1,
 };
 
 static int saa5246a_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)

@@ -4,7 +4,7 @@
  *  Derived from ivtv-streams.h
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
- *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,18 +28,28 @@ int cx18_streams_setup(struct cx18 *cx);
 int cx18_streams_register(struct cx18 *cx);
 void cx18_streams_cleanup(struct cx18 *cx, int unregister);
 
-/* Related to submission of buffers to firmware */
+#define CX18_ENC_STREAM_TYPE_IDX_FW_MDL_MIN (3)
+void cx18_stream_rotate_idx_mdls(struct cx18 *cx);
+
+static inline bool cx18_stream_enabled(struct cx18_stream *s)
+{
+	return s->video_dev || s->dvb.enabled ||
+	       (s->type == CX18_ENC_STREAM_TYPE_IDX &&
+		s->cx->stream_buffers[CX18_ENC_STREAM_TYPE_IDX] != 0);
+}
+
+/* Related to submission of mdls to firmware */
 static inline void cx18_stream_load_fw_queue(struct cx18_stream *s)
 {
 	struct cx18 *cx = s->cx;
 	queue_work(cx->out_work_queue, &s->out_work_order);
 }
 
-static inline void cx18_stream_put_buf_fw(struct cx18_stream *s,
-					  struct cx18_buffer *buf)
+static inline void cx18_stream_put_mdl_fw(struct cx18_stream *s,
+					  struct cx18_mdl *mdl)
 {
-	/* Put buf on q_free; the out work handler will move buf(s) to q_busy */
-	cx18_enqueue(s, buf, &s->q_free);
+	/* Put mdl on q_free; the out work handler will move mdl(s) to q_busy */
+	cx18_enqueue(s, mdl, &s->q_free);
 	cx18_stream_load_fw_queue(s);
 }
 

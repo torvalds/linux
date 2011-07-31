@@ -67,7 +67,7 @@ static struct snd_soc_dai_link corgi_dai = {
 	.ops = &corgi_ops,
 };
 
-struct snd_soc_card then sets up the machine with it's DAIs. e.g.
+struct snd_soc_card then sets up the machine with its DAIs. e.g.
 
 /* corgi audio machine driver */
 static struct snd_soc_card snd_soc_corgi = {

@@ -177,7 +177,7 @@ config ATM_ZATM_DEBUG
 
 config ATM_NICSTAR
 	tristate "IDT 77201 (NICStAR) (ForeRunnerLE)"
-	depends on PCI && !64BIT && VIRT_TO_BUS
+	depends on PCI
 	help
 	  The NICStAR chipset family is used in a large number of ATM NICs for
 	  25 and for 155 Mbps, including IDT cards and the Fore ForeRunnerLE
@@ -394,6 +394,7 @@ config ATM_HE_USE_SUNI
 config ATM_SOLOS
 	tristate "Solos ADSL2+ PCI Multiport card driver"
 	depends on PCI
+	select FW_LOADER
 	help
 	  Support for the Solos multiport ADSL2+ card.
 

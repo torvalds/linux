@@ -26,8 +26,7 @@
 #define EBT_IP_MATCH "ip"
 
 /* the same values are used for the invflags */
-struct ebt_ip_info
-{
+struct ebt_ip_info {
 	__be32 saddr;
 	__be32 daddr;
 	__be32 smsk;

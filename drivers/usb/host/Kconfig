@@ -72,8 +72,9 @@ config USB_EHCI_ROOT_HUB_TT
 	  from ARC, and has since changed hands a few times.
 
 config USB_EHCI_TT_NEWSCHED
-	bool "Improved Transaction Translator scheduling (EXPERIMENTAL)"
-	depends on USB_EHCI_HCD && EXPERIMENTAL
+	bool "Improved Transaction Translator scheduling"
+	depends on USB_EHCI_HCD
+	default y
 	---help---
 	  This changes the periodic scheduling code to fill more of the low
 	  and full speed bandwidth available from the Transaction Translator
@@ -84,19 +85,32 @@ config USB_EHCI_TT_NEWSCHED
 	  If you have multiple periodic low/fullspeed devices connected to a
 	  highspeed USB hub which is connected to a highspeed USB Host
 	  Controller, and some of those devices will not work correctly
-	  (possibly due to "ENOSPC" or "-28" errors), say Y.
+	  (possibly due to "ENOSPC" or "-28" errors), say Y.  Conversely, if
+	  you have only one such device and it doesn't work, you could try
+	  saying N.
 
-	  If unsure, say N.
+	  If unsure, say Y.
 
 config USB_EHCI_BIG_ENDIAN_MMIO
 	bool
-	depends on USB_EHCI_HCD && (PPC_CELLEB || PPC_PS3 || 440EPX || ARCH_IXP4XX)
+	depends on USB_EHCI_HCD && (PPC_CELLEB || PPC_PS3 || 440EPX || ARCH_IXP4XX || XPS_USB_HCD_XILINX)
 	default y
 
 config USB_EHCI_BIG_ENDIAN_DESC
 	bool
-	depends on USB_EHCI_HCD && (440EPX || ARCH_IXP4XX)
+	depends on USB_EHCI_HCD && (440EPX || ARCH_IXP4XX || XPS_USB_HCD_XILINX)
 	default y
+
+config XPS_USB_HCD_XILINX
+	bool "Use Xilinx usb host EHCI controller core"
+	depends on USB_EHCI_HCD && (PPC32 || MICROBLAZE)
+	select USB_EHCI_BIG_ENDIAN_DESC
+	select USB_EHCI_BIG_ENDIAN_MMIO
+	---help---
+		Xilinx xps USB host controller core is EHCI compilant and has
+		transaction translator built-in. It can be configured to either
+		support both high speed and full speed devices, or high speed
+		devices only.
 
 config USB_EHCI_FSL
 	bool "Support for Freescale on-chip EHCI USB controller"
@@ -104,6 +118,21 @@ config USB_EHCI_FSL
 	select USB_EHCI_ROOT_HUB_TT
 	---help---
 	  Variation of ARC USB block used in some Freescale chips.
+
+config USB_EHCI_MXC
+	bool "Support for Freescale on-chip EHCI USB controller"
+	depends on USB_EHCI_HCD && ARCH_MXC
+	select USB_EHCI_ROOT_HUB_TT
+	---help---
+	  Variation of ARC USB block used in some Freescale chips.
+
+config USB_EHCI_TEGRA
+       boolean "NVIDIA Tegra HCD support"
+       depends on USB_EHCI_HCD && ARCH_TEGRA
+       select USB_EHCI_ROOT_HUB_TT
+       help
+         This driver enables support for the internal USB Host Controller
+         found in NVIDIA Tegra SoCs. The Tegra controller is EHCI compliant.
 
 config USB_EHCI_HCD_PPC_OF
 	bool "EHCI support for PPC USB controller on OF platform bus"
@@ -188,6 +217,21 @@ config USB_OHCI_HCD
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ohci-hcd.
+
+config USB_OHCI_HCD_OMAP1
+	bool "OHCI support for OMAP1/2 chips"
+	depends on USB_OHCI_HCD && (ARCH_OMAP1 || ARCH_OMAP2)
+	default y
+	---help---
+	  Enables support for the OHCI controller on OMAP1/2 chips.
+
+config USB_OHCI_HCD_OMAP3
+	bool "OHCI support for OMAP3 and later chips"
+	depends on USB_OHCI_HCD && (ARCH_OMAP3 || ARCH_OMAP4)
+	default y
+	---help---
+	  Enables support for the on-chip OHCI controller on
+	  OMAP3 and later chips.
 
 config USB_OHCI_HCD_PPC_SOC
 	bool "OHCI support for on-chip PPC USB controller"
@@ -381,3 +425,14 @@ config USB_HWA_HCD
 
 	  To compile this driver a module, choose M here: the module
 	  will be called "hwa-hc".
+
+config USB_IMX21_HCD
+       tristate "iMX21 HCD support"
+       depends on USB && ARM && MACH_MX21
+       help
+         This driver enables support for the on-chip USB host in the
+         iMX21 processor.
+
+         To compile this driver as a module, choose M here: the
+         module will be called "imx21-hcd".
+

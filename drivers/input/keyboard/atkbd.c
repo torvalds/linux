@@ -40,26 +40,26 @@ module_param_named(set, atkbd_set, int, 0);
 MODULE_PARM_DESC(set, "Select keyboard code set (2 = default, 3 = PS/2 native)");
 
 #if defined(__i386__) || defined(__x86_64__) || defined(__hppa__)
-static int atkbd_reset;
+static bool atkbd_reset;
 #else
-static int atkbd_reset = 1;
+static bool atkbd_reset = true;
 #endif
 module_param_named(reset, atkbd_reset, bool, 0);
 MODULE_PARM_DESC(reset, "Reset keyboard during initialization");
 
-static int atkbd_softrepeat;
+static bool atkbd_softrepeat;
 module_param_named(softrepeat, atkbd_softrepeat, bool, 0);
 MODULE_PARM_DESC(softrepeat, "Use software keyboard repeat");
 
-static int atkbd_softraw = 1;
+static bool atkbd_softraw = true;
 module_param_named(softraw, atkbd_softraw, bool, 0);
 MODULE_PARM_DESC(softraw, "Use software generated rawmode");
 
-static int atkbd_scroll;
+static bool atkbd_scroll;
 module_param_named(scroll, atkbd_scroll, bool, 0);
 MODULE_PARM_DESC(scroll, "Enable scroll-wheel on MS Office and similar keyboards");
 
-static int atkbd_extra;
+static bool atkbd_extra;
 module_param_named(extra, atkbd_extra, bool, 0);
 MODULE_PARM_DESC(extra, "Enable extra LEDs and keys on IBM RapidAcces, EzKey and similar keyboards");
 
@@ -134,7 +134,8 @@ static const unsigned short atkbd_unxlate_table[128] = {
 #define ATKBD_CMD_GETID		0x02f2
 #define ATKBD_CMD_SETREP	0x10f3
 #define ATKBD_CMD_ENABLE	0x00f4
-#define ATKBD_CMD_RESET_DIS	0x00f5
+#define ATKBD_CMD_RESET_DIS	0x00f5	/* Reset to defaults and disable */
+#define ATKBD_CMD_RESET_DEF	0x00f6	/* Reset to defaults */
 #define ATKBD_CMD_SETALL_MBR	0x00fa
 #define ATKBD_CMD_RESET_BAT	0x02ff
 #define ATKBD_CMD_RESEND	0x00fe
@@ -152,16 +153,16 @@ static const unsigned short atkbd_unxlate_table[128] = {
 #define ATKBD_RET_HANGEUL	0xf2
 #define ATKBD_RET_ERR		0xff
 
-#define ATKBD_KEY_UNKNOWN	  0
+#define ATKBD_KEY_UNKNOWN	0
 #define ATKBD_KEY_NULL		255
 
-#define ATKBD_SCR_1		254
-#define ATKBD_SCR_2		253
-#define ATKBD_SCR_4		252
-#define ATKBD_SCR_8		251
-#define ATKBD_SCR_CLICK		250
-#define ATKBD_SCR_LEFT		249
-#define ATKBD_SCR_RIGHT		248
+#define ATKBD_SCR_1		0xfffe
+#define ATKBD_SCR_2		0xfffd
+#define ATKBD_SCR_4		0xfffc
+#define ATKBD_SCR_8		0xfffb
+#define ATKBD_SCR_CLICK		0xfffa
+#define ATKBD_SCR_LEFT		0xfff9
+#define ATKBD_SCR_RIGHT		0xfff8
 
 #define ATKBD_SPECIAL		ATKBD_SCR_RIGHT
 
@@ -176,7 +177,7 @@ static const unsigned short atkbd_unxlate_table[128] = {
 #define ATKBD_XL_HANJA		0x20
 
 static const struct {
-	unsigned char keycode;
+	unsigned short keycode;
 	unsigned char set2;
 } atkbd_scroll_keys[] = {
 	{ ATKBD_SCR_1,     0xc5 },
@@ -205,18 +206,18 @@ struct atkbd {
 	unsigned short keycode[ATKBD_KEYMAP_SIZE];
 	DECLARE_BITMAP(force_release_mask, ATKBD_KEYMAP_SIZE);
 	unsigned char set;
-	unsigned char translated;
-	unsigned char extra;
-	unsigned char write;
-	unsigned char softrepeat;
-	unsigned char softraw;
-	unsigned char scroll;
-	unsigned char enabled;
+	bool translated;
+	bool extra;
+	bool write;
+	bool softrepeat;
+	bool softraw;
+	bool scroll;
+	bool enabled;
 
 	/* Accessed only from interrupt */
 	unsigned char emul;
-	unsigned char resend;
-	unsigned char release;
+	bool resend;
+	bool release;
 	unsigned long xl_bit;
 	unsigned int last;
 	unsigned long time;
@@ -224,8 +225,10 @@ struct atkbd {
 
 	struct delayed_work event_work;
 	unsigned long event_jiffies;
-	struct mutex event_mutex;
 	unsigned long event_mask;
+
+	/* Serializes reconnect(), attr->set() and event work */
+	struct mutex mutex;
 };
 
 /*
@@ -298,18 +301,18 @@ static const unsigned int xl_table[] = {
  * Checks if we should mangle the scancode to extract 'release' bit
  * in translated mode.
  */
-static int atkbd_need_xlate(unsigned long xl_bit, unsigned char code)
+static bool atkbd_need_xlate(unsigned long xl_bit, unsigned char code)
 {
 	int i;
 
 	if (code == ATKBD_RET_EMUL0 || code == ATKBD_RET_EMUL1)
-		return 0;
+		return false;
 
 	for (i = 0; i < ARRAY_SIZE(xl_table); i++)
 		if (code == xl_table[i])
 			return test_bit(i, &xl_bit);
 
-	return 1;
+	return true;
 }
 
 /*
@@ -356,7 +359,7 @@ static unsigned int atkbd_compat_scancode(struct atkbd *atkbd, unsigned int code
  */
 
 static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
-			unsigned int flags)
+				   unsigned int flags)
 {
 	struct atkbd *atkbd = serio_get_drvdata(serio);
 	struct input_dev *dev = atkbd->dev;
@@ -365,20 +368,18 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 	int value;
 	unsigned short keycode;
 
-#ifdef ATKBD_DEBUG
-	printk(KERN_DEBUG "atkbd.c: Received %02x flags %02x\n", data, flags);
-#endif
+	dev_dbg(&serio->dev, "Received %02x flags %02x\n", data, flags);
 
 #if !defined(__i386__) && !defined (__x86_64__)
 	if ((flags & (SERIO_FRAME | SERIO_PARITY)) && (~flags & SERIO_TIMEOUT) && !atkbd->resend && atkbd->write) {
-		printk(KERN_WARNING "atkbd.c: frame/parity error: %02x\n", flags);
+		dev_warn(&serio->dev, "Frame/parity error: %02x\n", flags);
 		serio_write(serio, ATKBD_CMD_RESEND);
-		atkbd->resend = 1;
+		atkbd->resend = true;
 		goto out;
 	}
 
 	if (!flags && data == ATKBD_RET_ACK)
-		atkbd->resend = 0;
+		atkbd->resend = false;
 #endif
 
 	if (unlikely(atkbd->ps2dev.flags & PS2_FLAG_ACK))
@@ -409,32 +410,32 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 	}
 
 	switch (code) {
-		case ATKBD_RET_BAT:
-			atkbd->enabled = 0;
-			serio_reconnect(atkbd->ps2dev.serio);
-			goto out;
-		case ATKBD_RET_EMUL0:
-			atkbd->emul = 1;
-			goto out;
-		case ATKBD_RET_EMUL1:
-			atkbd->emul = 2;
-			goto out;
-		case ATKBD_RET_RELEASE:
-			atkbd->release = 1;
-			goto out;
-		case ATKBD_RET_ACK:
-		case ATKBD_RET_NAK:
-			if (printk_ratelimit())
-				printk(KERN_WARNING "atkbd.c: Spurious %s on %s. "
-				       "Some program might be trying access hardware directly.\n",
-				       data == ATKBD_RET_ACK ? "ACK" : "NAK", serio->phys);
-			goto out;
-		case ATKBD_RET_ERR:
-			atkbd->err_count++;
-#ifdef ATKBD_DEBUG
-			printk(KERN_DEBUG "atkbd.c: Keyboard on %s reports too many keys pressed.\n", serio->phys);
-#endif
-			goto out;
+	case ATKBD_RET_BAT:
+		atkbd->enabled = false;
+		serio_reconnect(atkbd->ps2dev.serio);
+		goto out;
+	case ATKBD_RET_EMUL0:
+		atkbd->emul = 1;
+		goto out;
+	case ATKBD_RET_EMUL1:
+		atkbd->emul = 2;
+		goto out;
+	case ATKBD_RET_RELEASE:
+		atkbd->release = true;
+		goto out;
+	case ATKBD_RET_ACK:
+	case ATKBD_RET_NAK:
+		if (printk_ratelimit())
+			dev_warn(&serio->dev,
+				 "Spurious %s on %s. "
+				 "Some program might be trying access hardware directly.\n",
+				 data == ATKBD_RET_ACK ? "ACK" : "NAK", serio->phys);
+		goto out;
+	case ATKBD_RET_ERR:
+		atkbd->err_count++;
+		dev_dbg(&serio->dev, "Keyboard on %s reports too many keys pressed.\n",
+			serio->phys);
+		goto out;
 	}
 
 	code = atkbd_compat_scancode(atkbd, code);
@@ -448,71 +449,72 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 		input_event(dev, EV_MSC, MSC_SCAN, code);
 
 	switch (keycode) {
-		case ATKBD_KEY_NULL:
-			break;
-		case ATKBD_KEY_UNKNOWN:
-			printk(KERN_WARNING
-			       "atkbd.c: Unknown key %s (%s set %d, code %#x on %s).\n",
-			       atkbd->release ? "released" : "pressed",
-			       atkbd->translated ? "translated" : "raw",
-			       atkbd->set, code, serio->phys);
-			printk(KERN_WARNING
-			       "atkbd.c: Use 'setkeycodes %s%02x <keycode>' to make it known.\n",
-			       code & 0x80 ? "e0" : "", code & 0x7f);
-			input_sync(dev);
-			break;
-		case ATKBD_SCR_1:
-			scroll = 1 - atkbd->release * 2;
-			break;
-		case ATKBD_SCR_2:
-			scroll = 2 - atkbd->release * 4;
-			break;
-		case ATKBD_SCR_4:
-			scroll = 4 - atkbd->release * 8;
-			break;
-		case ATKBD_SCR_8:
-			scroll = 8 - atkbd->release * 16;
-			break;
-		case ATKBD_SCR_CLICK:
-			click = !atkbd->release;
-			break;
-		case ATKBD_SCR_LEFT:
-			hscroll = -1;
-			break;
-		case ATKBD_SCR_RIGHT:
-			hscroll = 1;
-			break;
-		default:
-			if (atkbd->release) {
-				value = 0;
-				atkbd->last = 0;
-			} else if (!atkbd->softrepeat && test_bit(keycode, dev->key)) {
-				/* Workaround Toshiba laptop multiple keypress */
-				value = time_before(jiffies, atkbd->time) && atkbd->last == code ? 1 : 2;
-			} else {
-				value = 1;
-				atkbd->last = code;
-				atkbd->time = jiffies + msecs_to_jiffies(dev->rep[REP_DELAY]) / 2;
-			}
+	case ATKBD_KEY_NULL:
+		break;
+	case ATKBD_KEY_UNKNOWN:
+		dev_warn(&serio->dev,
+			 "Unknown key %s (%s set %d, code %#x on %s).\n",
+			 atkbd->release ? "released" : "pressed",
+			 atkbd->translated ? "translated" : "raw",
+			 atkbd->set, code, serio->phys);
+		dev_warn(&serio->dev,
+			 "Use 'setkeycodes %s%02x <keycode>' to make it known.\n",
+			 code & 0x80 ? "e0" : "", code & 0x7f);
+		input_sync(dev);
+		break;
+	case ATKBD_SCR_1:
+		scroll = 1;
+		break;
+	case ATKBD_SCR_2:
+		scroll = 2;
+		break;
+	case ATKBD_SCR_4:
+		scroll = 4;
+		break;
+	case ATKBD_SCR_8:
+		scroll = 8;
+		break;
+	case ATKBD_SCR_CLICK:
+		click = !atkbd->release;
+		break;
+	case ATKBD_SCR_LEFT:
+		hscroll = -1;
+		break;
+	case ATKBD_SCR_RIGHT:
+		hscroll = 1;
+		break;
+	default:
+		if (atkbd->release) {
+			value = 0;
+			atkbd->last = 0;
+		} else if (!atkbd->softrepeat && test_bit(keycode, dev->key)) {
+			/* Workaround Toshiba laptop multiple keypress */
+			value = time_before(jiffies, atkbd->time) && atkbd->last == code ? 1 : 2;
+		} else {
+			value = 1;
+			atkbd->last = code;
+			atkbd->time = jiffies + msecs_to_jiffies(dev->rep[REP_DELAY]) / 2;
+		}
 
-			input_event(dev, EV_KEY, keycode, value);
-			input_sync(dev);
+		input_event(dev, EV_KEY, keycode, value);
+		input_sync(dev);
 
-			if (value && test_bit(code, atkbd->force_release_mask)) {
-				input_report_key(dev, keycode, 0);
-				input_sync(dev);
-			}
+		if (value && test_bit(code, atkbd->force_release_mask)) {
+			input_report_key(dev, keycode, 0);
+			input_sync(dev);
+		}
 	}
 
 	if (atkbd->scroll) {
 		if (click != -1)
 			input_report_key(dev, BTN_MIDDLE, click);
-		input_report_rel(dev, REL_WHEEL, scroll);
+		input_report_rel(dev, REL_WHEEL,
+				 atkbd->release ? -scroll : scroll);
 		input_report_rel(dev, REL_HWHEEL, hscroll);
 		input_sync(dev);
 	}
 
-	atkbd->release = 0;
+	atkbd->release = false;
 out:
 	return IRQ_HANDLED;
 }
@@ -576,7 +578,7 @@ static void atkbd_event_work(struct work_struct *work)
 {
 	struct atkbd *atkbd = container_of(work, struct atkbd, event_work.work);
 
-	mutex_lock(&atkbd->event_mutex);
+	mutex_lock(&atkbd->mutex);
 
 	if (!atkbd->enabled) {
 		/*
@@ -595,7 +597,7 @@ static void atkbd_event_work(struct work_struct *work)
 			atkbd_set_repeat_rate(atkbd);
 	}
 
-	mutex_unlock(&atkbd->event_mutex);
+	mutex_unlock(&atkbd->mutex);
 }
 
 /*
@@ -611,7 +613,7 @@ static void atkbd_schedule_event_work(struct atkbd *atkbd, int event_bit)
 
 	atkbd->event_jiffies = jiffies;
 	set_bit(event_bit, &atkbd->event_mask);
-	wmb();
+	mb();
 	schedule_delayed_work(&atkbd->event_work, delay);
 }
 
@@ -631,17 +633,18 @@ static int atkbd_event(struct input_dev *dev,
 
 	switch (type) {
 
-		case EV_LED:
-			atkbd_schedule_event_work(atkbd, ATKBD_LED_EVENT_BIT);
-			return 0;
+	case EV_LED:
+		atkbd_schedule_event_work(atkbd, ATKBD_LED_EVENT_BIT);
+		return 0;
 
-		case EV_REP:
-			if (!atkbd->softrepeat)
-				atkbd_schedule_event_work(atkbd, ATKBD_REP_EVENT_BIT);
-			return 0;
+	case EV_REP:
+		if (!atkbd->softrepeat)
+			atkbd_schedule_event_work(atkbd, ATKBD_REP_EVENT_BIT);
+		return 0;
+
+	default:
+		return -1;
 	}
-
-	return -1;
 }
 
 /*
@@ -652,7 +655,7 @@ static int atkbd_event(struct input_dev *dev,
 static inline void atkbd_enable(struct atkbd *atkbd)
 {
 	serio_pause_rx(atkbd->ps2dev.serio);
-	atkbd->enabled = 1;
+	atkbd->enabled = true;
 	serio_continue_rx(atkbd->ps2dev.serio);
 }
 
@@ -664,7 +667,7 @@ static inline void atkbd_enable(struct atkbd *atkbd)
 static inline void atkbd_disable(struct atkbd *atkbd)
 {
 	serio_pause_rx(atkbd->ps2dev.serio);
-	atkbd->enabled = 0;
+	atkbd->enabled = false;
 	serio_continue_rx(atkbd->ps2dev.serio);
 }
 
@@ -685,7 +688,9 @@ static int atkbd_probe(struct atkbd *atkbd)
 
 	if (atkbd_reset)
 		if (ps2_command(ps2dev, NULL, ATKBD_CMD_RESET_BAT))
-			printk(KERN_WARNING "atkbd.c: keyboard reset failed on %s\n", ps2dev->serio->phys);
+			dev_warn(&ps2dev->serio->dev,
+				 "keyboard reset failed on %s\n",
+				 ps2dev->serio->phys);
 
 /*
  * Then we check the keyboard ID. We should get 0xab83 under normal conditions.
@@ -715,8 +720,9 @@ static int atkbd_probe(struct atkbd *atkbd)
 	atkbd->id = (param[0] << 8) | param[1];
 
 	if (atkbd->id == 0xaca1 && atkbd->translated) {
-		printk(KERN_ERR "atkbd.c: NCD terminal keyboards are only supported on non-translating\n");
-		printk(KERN_ERR "atkbd.c: controllers. Use i8042.direct=1 to disable translation.\n");
+		dev_err(&ps2dev->serio->dev,
+			"NCD terminal keyboards are only supported on non-translating controlelrs. "
+			"Use i8042.direct=1 to disable translation.\n");
 		return -1;
 	}
 
@@ -734,7 +740,7 @@ static int atkbd_select_set(struct atkbd *atkbd, int target_set, int allow_extra
 	struct ps2dev *ps2dev = &atkbd->ps2dev;
 	unsigned char param[2];
 
-	atkbd->extra = 0;
+	atkbd->extra = false;
 /*
  * For known special keyboards we can go ahead and set the correct set.
  * We check for NCD PS/2 Sun, NorthGate OmniKey 101 and
@@ -753,7 +759,7 @@ static int atkbd_select_set(struct atkbd *atkbd, int target_set, int allow_extra
 	if (allow_extra) {
 		param[0] = 0x71;
 		if (!ps2_command(ps2dev, param, ATKBD_CMD_EX_ENABLE)) {
-			atkbd->extra = 1;
+			atkbd->extra = true;
 			return 2;
 		}
 	}
@@ -818,7 +824,8 @@ static int atkbd_activate(struct atkbd *atkbd)
  */
 
 	if (ps2_command(ps2dev, NULL, ATKBD_CMD_ENABLE)) {
-		printk(KERN_ERR "atkbd.c: Failed to enable keyboard on %s\n",
+		dev_err(&ps2dev->serio->dev,
+			"Failed to enable keyboard on %s\n",
 			ps2dev->serio->phys);
 		return -1;
 	}
@@ -836,7 +843,7 @@ static void atkbd_cleanup(struct serio *serio)
 	struct atkbd *atkbd = serio_get_drvdata(serio);
 
 	atkbd_disable(atkbd);
-	ps2_command(&atkbd->ps2dev, NULL, ATKBD_CMD_RESET_BAT);
+	ps2_command(&atkbd->ps2dev, NULL, ATKBD_CMD_RESET_DEF);
 }
 
 
@@ -848,13 +855,20 @@ static void atkbd_disconnect(struct serio *serio)
 {
 	struct atkbd *atkbd = serio_get_drvdata(serio);
 
+	sysfs_remove_group(&serio->dev.kobj, &atkbd_attribute_group);
+
 	atkbd_disable(atkbd);
 
-	/* make sure we don't have a command in flight */
+	input_unregister_device(atkbd->dev);
+
+	/*
+	 * Make sure we don't have a command in flight.
+	 * Note that since atkbd->enabled is false event work will keep
+	 * rescheduling itself until it gets canceled and will not try
+	 * accessing freed input device or serio port.
+	 */
 	cancel_delayed_work_sync(&atkbd->event_work);
 
-	sysfs_remove_group(&serio->dev.kobj, &atkbd_attribute_group);
-	input_unregister_device(atkbd->dev);
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
 	kfree(atkbd);
@@ -1060,9 +1074,13 @@ static void atkbd_set_device_attrs(struct atkbd *atkbd)
 	input_dev->keycodesize = sizeof(unsigned short);
 	input_dev->keycodemax = ARRAY_SIZE(atkbd_set2_keycode);
 
-	for (i = 0; i < ATKBD_KEYMAP_SIZE; i++)
-		if (atkbd->keycode[i] && atkbd->keycode[i] < ATKBD_SPECIAL)
+	for (i = 0; i < ATKBD_KEYMAP_SIZE; i++) {
+		if (atkbd->keycode[i] != KEY_RESERVED &&
+		    atkbd->keycode[i] != ATKBD_KEY_NULL &&
+		    atkbd->keycode[i] < ATKBD_SPECIAL) {
 			__set_bit(atkbd->keycode[i], input_dev->keybit);
+		}
+	}
 }
 
 /*
@@ -1086,16 +1104,18 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 	atkbd->dev = dev;
 	ps2_init(&atkbd->ps2dev, serio);
 	INIT_DELAYED_WORK(&atkbd->event_work, atkbd_event_work);
-	mutex_init(&atkbd->event_mutex);
+	mutex_init(&atkbd->mutex);
 
 	switch (serio->id.type) {
 
-		case SERIO_8042_XL:
-			atkbd->translated = 1;
-		case SERIO_8042:
-			if (serio->write)
-				atkbd->write = 1;
-			break;
+	case SERIO_8042_XL:
+		atkbd->translated = true;
+		/* Fall through */
+
+	case SERIO_8042:
+		if (serio->write)
+			atkbd->write = true;
+		break;
 	}
 
 	atkbd->softraw = atkbd_softraw;
@@ -1103,7 +1123,7 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 	atkbd->scroll = atkbd_scroll;
 
 	if (atkbd->softrepeat)
-		atkbd->softraw = 1;
+		atkbd->softraw = true;
 
 	serio_set_drvdata(serio, atkbd);
 
@@ -1159,19 +1179,24 @@ static int atkbd_reconnect(struct serio *serio)
 {
 	struct atkbd *atkbd = serio_get_drvdata(serio);
 	struct serio_driver *drv = serio->drv;
+	int retval = -1;
 
 	if (!atkbd || !drv) {
-		printk(KERN_DEBUG "atkbd: reconnect request, but serio is disconnected, ignoring...\n");
+		dev_dbg(&serio->dev,
+			"reconnect request, but serio is disconnected, ignoring...\n");
 		return -1;
 	}
+
+	mutex_lock(&atkbd->mutex);
 
 	atkbd_disable(atkbd);
 
 	if (atkbd->write) {
 		if (atkbd_probe(atkbd))
-			return -1;
+			goto out;
+
 		if (atkbd->set != atkbd_select_set(atkbd, atkbd->set, atkbd->extra))
-			return -1;
+			goto out;
 
 		atkbd_activate(atkbd);
 
@@ -1189,8 +1214,11 @@ static int atkbd_reconnect(struct serio *serio)
 	}
 
 	atkbd_enable(atkbd);
+	retval = 0;
 
-	return 0;
+ out:
+	mutex_unlock(&atkbd->mutex);
+	return retval;
 }
 
 static struct serio_device_id atkbd_serio_ids[] = {
@@ -1234,47 +1262,28 @@ static ssize_t atkbd_attr_show_helper(struct device *dev, char *buf,
 				ssize_t (*handler)(struct atkbd *, char *))
 {
 	struct serio *serio = to_serio_port(dev);
-	int retval;
+	struct atkbd *atkbd = serio_get_drvdata(serio);
 
-	retval = serio_pin_driver(serio);
-	if (retval)
-		return retval;
-
-	if (serio->drv != &atkbd_drv) {
-		retval = -ENODEV;
-		goto out;
-	}
-
-	retval = handler((struct atkbd *)serio_get_drvdata(serio), buf);
-
-out:
-	serio_unpin_driver(serio);
-	return retval;
+	return handler(atkbd, buf);
 }
 
 static ssize_t atkbd_attr_set_helper(struct device *dev, const char *buf, size_t count,
 				ssize_t (*handler)(struct atkbd *, const char *, size_t))
 {
 	struct serio *serio = to_serio_port(dev);
-	struct atkbd *atkbd;
+	struct atkbd *atkbd = serio_get_drvdata(serio);
 	int retval;
 
-	retval = serio_pin_driver(serio);
+	retval = mutex_lock_interruptible(&atkbd->mutex);
 	if (retval)
 		return retval;
 
-	if (serio->drv != &atkbd_drv) {
-		retval = -ENODEV;
-		goto out;
-	}
-
-	atkbd = serio_get_drvdata(serio);
 	atkbd_disable(atkbd);
 	retval = handler(atkbd, buf, count);
 	atkbd_enable(atkbd);
 
-out:
-	serio_unpin_driver(serio);
+	mutex_unlock(&atkbd->mutex);
+
 	return retval;
 }
 
@@ -1288,7 +1297,8 @@ static ssize_t atkbd_set_extra(struct atkbd *atkbd, const char *buf, size_t coun
 	struct input_dev *old_dev, *new_dev;
 	unsigned long value;
 	int err;
-	unsigned char old_extra, old_set;
+	bool old_extra;
+	unsigned char old_set;
 
 	if (!atkbd->write)
 		return -EIO;
@@ -1371,7 +1381,7 @@ static ssize_t atkbd_set_scroll(struct atkbd *atkbd, const char *buf, size_t cou
 	struct input_dev *old_dev, *new_dev;
 	unsigned long value;
 	int err;
-	unsigned char old_scroll;
+	bool old_scroll;
 
 	if (strict_strtoul(buf, 10, &value) || value > 1)
 		return -EINVAL;
@@ -1415,7 +1425,8 @@ static ssize_t atkbd_set_set(struct atkbd *atkbd, const char *buf, size_t count)
 	struct input_dev *old_dev, *new_dev;
 	unsigned long value;
 	int err;
-	unsigned char old_set, old_extra;
+	unsigned char old_set;
+	bool old_extra;
 
 	if (!atkbd->write)
 		return -EIO;
@@ -1465,7 +1476,7 @@ static ssize_t atkbd_set_softrepeat(struct atkbd *atkbd, const char *buf, size_t
 	struct input_dev *old_dev, *new_dev;
 	unsigned long value;
 	int err;
-	unsigned char old_softrepeat, old_softraw;
+	bool old_softrepeat, old_softraw;
 
 	if (!atkbd->write)
 		return -EIO;
@@ -1485,7 +1496,7 @@ static ssize_t atkbd_set_softrepeat(struct atkbd *atkbd, const char *buf, size_t
 		atkbd->dev = new_dev;
 		atkbd->softrepeat = value;
 		if (atkbd->softrepeat)
-			atkbd->softraw = 1;
+			atkbd->softraw = true;
 		atkbd_set_device_attrs(atkbd);
 
 		err = input_register_device(atkbd->dev);
@@ -1515,7 +1526,7 @@ static ssize_t atkbd_set_softraw(struct atkbd *atkbd, const char *buf, size_t co
 	struct input_dev *old_dev, *new_dev;
 	unsigned long value;
 	int err;
-	unsigned char old_softraw;
+	bool old_softraw;
 
 	if (strict_strtoul(buf, 10, &value) || value > 1)
 		return -EINVAL;
@@ -1567,9 +1578,8 @@ static int __init atkbd_setup_scancode_fixup(const struct dmi_system_id *id)
 	return 0;
 }
 
-static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
+static const struct dmi_system_id atkbd_dmi_quirk_table[] __initconst = {
 	{
-		.ident = "Dell Laptop",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_CHASSIS_TYPE, "8"), /* Portable */
@@ -1578,7 +1588,6 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_dell_laptop_forced_release_keys,
 	},
 	{
-		.ident = "Dell Laptop",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Computer Corporation"),
 			DMI_MATCH(DMI_CHASSIS_TYPE, "8"), /* Portable */
@@ -1587,7 +1596,6 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_dell_laptop_forced_release_keys,
 	},
 	{
-		.ident = "HP 2133",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "HP 2133"),
@@ -1596,7 +1604,6 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_hp_forced_release_keys,
 	},
 	{
-		.ident = "HP Pavilion ZV6100",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Pavilion ZV6100"),
@@ -1605,7 +1612,6 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_volume_forced_release_keys,
 	},
 	{
-		.ident = "HP Presario R4000",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Presario R4000"),
@@ -1614,7 +1620,6 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_volume_forced_release_keys,
 	},
 	{
-		.ident = "HP Presario R4100",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Presario R4100"),
@@ -1623,7 +1628,6 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_volume_forced_release_keys,
 	},
 	{
-		.ident = "HP Presario R4200",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Presario R4200"),
@@ -1632,7 +1636,7 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_volume_forced_release_keys,
 	},
 	{
-		.ident = "Inventec Symphony",
+		/* Inventec Symphony */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "INVENTEC"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "SYMPHONY 6.0/7.0"),
@@ -1641,7 +1645,7 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_volume_forced_release_keys,
 	},
 	{
-		.ident = "Samsung NC10",
+		/* Samsung NC10 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "NC10"),
@@ -1650,7 +1654,7 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_samsung_forced_release_keys,
 	},
 	{
-		.ident = "Samsung NC20",
+		/* Samsung NC20 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "NC20"),
@@ -1659,7 +1663,7 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_samsung_forced_release_keys,
 	},
 	{
-		.ident = "Samsung SQ45S70S",
+		/* Samsung SQ45S70S */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "SQ45S70S"),
@@ -1668,7 +1672,7 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_samsung_forced_release_keys,
 	},
 	{
-		.ident = "Fujitsu Amilo PA 1510",
+		/* Fujitsu Amilo PA 1510 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Pa 1510"),
@@ -1677,7 +1681,7 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_volume_forced_release_keys,
 	},
 	{
-		.ident = "Fujitsu Amilo Pi 3525",
+		/* Fujitsu Amilo Pi 3525 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Pi 3525"),
@@ -1686,7 +1690,7 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_amilo_pi3525_forced_release_keys,
 	},
 	{
-		.ident = "Fujitsu Amilo Xi 3650",
+		/* Fujitsu Amilo Xi 3650 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Xi 3650"),
@@ -1695,7 +1699,6 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_amilo_xi3650_forced_release_keys,
 	},
 	{
-		.ident = "Soltech Corporation TA12",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Soltech Corporation"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TA12"),
@@ -1704,7 +1707,7 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkdb_soltech_ta12_forced_release_keys,
 	},
 	{
-		.ident = "OQO Model 01+",
+		/* OQO Model 01+ */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "OQO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "ZEPTO"),

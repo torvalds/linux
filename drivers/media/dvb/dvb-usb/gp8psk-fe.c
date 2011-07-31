@@ -146,8 +146,8 @@ static int gp8psk_fe_set_frontend(struct dvb_frontend* fe,
 
 	switch (c->delivery_system) {
 	case SYS_DVBS:
-		/* Only QPSK is supported for DVB-S */
-		if (c->modulation != QPSK) {
+		/* Allow QPSK and 8PSK (even for DVB-S) */
+		if (c->modulation != QPSK && c->modulation != PSK_8) {
 			deb_fe("%s: unsupported modulation selected (%d)\n",
 				__func__, c->modulation);
 			return -EOPNOTSUPP;
@@ -349,7 +349,7 @@ static struct dvb_frontend_ops gp8psk_fe_ops = {
 			 * FE_CAN_QAM_16 is for compatibility
 			 * (Myth incorrectly detects Turbo-QPSK as plain QAM-16)
 			 */
-			FE_CAN_QPSK | FE_CAN_QAM_16
+			FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_TURBO_FEC
 	},
 
 	.release = gp8psk_fe_release,

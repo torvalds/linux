@@ -72,7 +72,7 @@
 1998-11-23  Scott Bambrough  <scottb@netwinder.org>
 
 	* README.FPE - fix typo in description of lfm/sfm instructions
-	* NOTES - Added file to describe known bugs/problems 
+	* NOTES - Added file to describe known bugs/problems
 	* fpmodule.c - Changed version number to 0.94
 
 1998-11-20  Scott Bambrough  <scottb@netwinder.org>

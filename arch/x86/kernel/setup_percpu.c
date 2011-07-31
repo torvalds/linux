@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -18,12 +20,6 @@
 #include <asm/cpumask.h>
 #include <asm/cpu.h>
 #include <asm/stackprotector.h>
-
-#ifdef CONFIG_DEBUG_PER_CPU_MAPS
-# define DBG(x...) printk(KERN_DEBUG x)
-#else
-# define DBG(x...)
-#endif
 
 DEFINE_PER_CPU(int, cpu_number);
 EXPORT_PER_CPU_SYMBOL(cpu_number);
@@ -116,8 +112,8 @@ static void * __init pcpu_alloc_bootmem(unsigned int cpu, unsigned long size,
 	} else {
 		ptr = __alloc_bootmem_node_nopanic(NODE_DATA(node),
 						   size, align, goal);
-		pr_debug("per cpu data for cpu%d %lu bytes on node%d at "
-			 "%016lx\n", cpu, size, node, __pa(ptr));
+		pr_debug("per cpu data for cpu%d %lu bytes on node%d at %016lx\n",
+			 cpu, size, node, __pa(ptr));
 	}
 	return ptr;
 #else
@@ -135,7 +131,13 @@ static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size, size_t align)
 
 static void __init pcpu_fc_free(void *ptr, size_t size)
 {
+#ifdef CONFIG_NO_BOOTMEM
+	u64 start = __pa(ptr);
+	u64 end = start + size;
+	free_early_partial(start, end);
+#else
 	free_bootmem(__pa(ptr), size);
+#endif
 }
 
 static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
@@ -198,8 +200,7 @@ void __init setup_per_cpu_areas(void)
 					    pcpu_cpu_distance,
 					    pcpu_fc_alloc, pcpu_fc_free);
 		if (rc < 0)
-			pr_warning("PERCPU: %s allocator failed (%d), "
-				   "falling back to page size\n",
+			pr_warning("%s allocator failed (%d), falling back to page size\n",
 				   pcpu_fc_names[pcpu_chosen_fc], rc);
 	}
 	if (rc < 0)
@@ -237,10 +238,19 @@ void __init setup_per_cpu_areas(void)
 #ifdef CONFIG_NUMA
 		per_cpu(x86_cpu_to_node_map, cpu) =
 			early_per_cpu_map(x86_cpu_to_node_map, cpu);
+		/*
+		 * Ensure that the boot cpu numa_node is correct when the boot
+		 * cpu is on a node that doesn't have memory installed.
+		 * Also cpu_up() will call cpu_to_node() for APs when
+		 * MEMORY_HOTPLUG is defined, before per_cpu(numa_node) is set
+		 * up later with c_init aka intel_init/amd_init.
+		 * So set them all (boot cpu and all APs).
+		 */
+		set_cpu_numa_node(cpu, early_cpu_to_node(cpu));
 #endif
 #endif
 		/*
-		 * Up to this point, the boot CPU has been using .data.init
+		 * Up to this point, the boot CPU has been using .init.data
 		 * area.  Reload any changed state for the boot CPU.
 		 */
 		if (cpu == boot_cpu_id)
@@ -254,14 +264,6 @@ void __init setup_per_cpu_areas(void)
 #endif
 #if defined(CONFIG_X86_64) && defined(CONFIG_NUMA)
 	early_per_cpu_ptr(x86_cpu_to_node_map) = NULL;
-#endif
-
-#if defined(CONFIG_X86_64) && defined(CONFIG_NUMA)
-	/*
-	 * make sure boot cpu node_number is right, when boot cpu is on the
-	 * node that doesn't have mem installed
-	 */
-	per_cpu(node_number, boot_cpu_id) = cpu_to_node(boot_cpu_id);
 #endif
 
 	/* Setup node to cpumask map */

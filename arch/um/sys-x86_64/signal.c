@@ -6,6 +6,7 @@
 
 #include <linux/personality.h>
 #include <linux/ptrace.h>
+#include <linux/kernel.h>
 #include <asm/unistd.h>
 #include <asm/uaccess.h>
 #include <asm/ucontext.h>
@@ -164,8 +165,6 @@ struct rt_sigframe
 	struct siginfo info;
 	struct _fpstate fpstate;
 };
-
-#define round_down(m, n) (((m) / (n)) * (n))
 
 int setup_signal_stack_si(unsigned long stack_top, int sig,
 			  struct k_sigaction *ka, struct pt_regs * regs,

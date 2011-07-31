@@ -26,13 +26,14 @@
 #ifndef _CHAINALLOC_H_
 #define _CHAINALLOC_H_
 
+struct ocfs2_suballoc_result;
 typedef int (group_search_t)(struct inode *,
 			     struct buffer_head *,
 			     u32,			/* bits_wanted */
 			     u32,			/* min_bits */
 			     u64,			/* max_block */
-			     u16 *,			/* *bit_off */
-			     u16 *);			/* *bits_found */
+			     struct ocfs2_suballoc_result *);
+							/* found bits */
 
 struct ocfs2_alloc_context {
 	struct inode *ac_inode;    /* which bitmap are we allocating from? */
@@ -54,8 +55,14 @@ struct ocfs2_alloc_context {
 	u64    ac_last_group;
 	u64    ac_max_block;  /* Highest block number to allocate. 0 is
 				 is the same as ~0 - unlimited */
+
+	int    ac_find_loc_only;  /* hack for reflink operation ordering */
+	struct ocfs2_suballoc_result *ac_find_loc_priv; /* */
+
+	struct ocfs2_alloc_reservation	*ac_resv;
 };
 
+void ocfs2_init_steal_slots(struct ocfs2_super *osb);
 void ocfs2_free_alloc_context(struct ocfs2_alloc_context *ac);
 static inline int ocfs2_alloc_context_bits_left(struct ocfs2_alloc_context *ac)
 {
@@ -79,22 +86,21 @@ int ocfs2_reserve_clusters(struct ocfs2_super *osb,
 			   u32 bits_wanted,
 			   struct ocfs2_alloc_context **ac);
 
-int ocfs2_claim_metadata(struct ocfs2_super *osb,
-			 handle_t *handle,
+int ocfs2_claim_metadata(handle_t *handle,
 			 struct ocfs2_alloc_context *ac,
 			 u32 bits_wanted,
+			 u64 *suballoc_loc,
 			 u16 *suballoc_bit_start,
 			 u32 *num_bits,
 			 u64 *blkno_start);
-int ocfs2_claim_new_inode(struct ocfs2_super *osb,
-			  handle_t *handle,
+int ocfs2_claim_new_inode(handle_t *handle,
 			  struct inode *dir,
 			  struct buffer_head *parent_fe_bh,
 			  struct ocfs2_alloc_context *ac,
+			  u64 *suballoc_loc,
 			  u16 *suballoc_bit,
 			  u64 *fe_blkno);
-int ocfs2_claim_clusters(struct ocfs2_super *osb,
-			 handle_t *handle,
+int ocfs2_claim_clusters(handle_t *handle,
 			 struct ocfs2_alloc_context *ac,
 			 u32 min_clusters,
 			 u32 *cluster_start,
@@ -103,8 +109,7 @@ int ocfs2_claim_clusters(struct ocfs2_super *osb,
  * Use this variant of ocfs2_claim_clusters to specify a maxiumum
  * number of clusters smaller than the allocation reserved.
  */
-int __ocfs2_claim_clusters(struct ocfs2_super *osb,
-			   handle_t *handle,
+int __ocfs2_claim_clusters(handle_t *handle,
 			   struct ocfs2_alloc_context *ac,
 			   u32 min_clusters,
 			   u32 max_clusters,
@@ -126,6 +131,11 @@ int ocfs2_free_clusters(handle_t *handle,
 			struct buffer_head *bitmap_bh,
 			u64 start_blk,
 			unsigned int num_clusters);
+int ocfs2_release_clusters(handle_t *handle,
+			   struct inode *bitmap_inode,
+			   struct buffer_head *bitmap_bh,
+			   u64 start_blk,
+			   unsigned int num_clusters);
 
 static inline u64 ocfs2_which_suballoc_group(u64 block, unsigned int bit)
 {
@@ -190,4 +200,22 @@ int ocfs2_lock_allocators(struct inode *inode, struct ocfs2_extent_tree *et,
 			  struct ocfs2_alloc_context **meta_ac);
 
 int ocfs2_test_inode_bit(struct ocfs2_super *osb, u64 blkno, int *res);
+
+
+
+/*
+ * The following two interfaces are for ocfs2_create_inode_in_orphan().
+ */
+int ocfs2_find_new_inode_loc(struct inode *dir,
+			     struct buffer_head *parent_fe_bh,
+			     struct ocfs2_alloc_context *ac,
+			     u64 *fe_blkno);
+
+int ocfs2_claim_new_inode_at_loc(handle_t *handle,
+				 struct inode *dir,
+				 struct ocfs2_alloc_context *ac,
+				 u64 *suballoc_loc,
+				 u16 *suballoc_bit,
+				 u64 di_blkno);
+
 #endif /* _CHAINALLOC_H_ */

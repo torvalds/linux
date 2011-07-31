@@ -143,8 +143,8 @@ static u32 tcp_lp_remote_hz_estimator(struct sock *sk)
 		goto out;
 
 	/* we can't calc remote HZ with no different!! */
-	if (tp->rx_opt.rcv_tsval == lp->remote_ref_time
-	    || tp->rx_opt.rcv_tsecr == lp->local_ref_time)
+	if (tp->rx_opt.rcv_tsval == lp->remote_ref_time ||
+	    tp->rx_opt.rcv_tsecr == lp->local_ref_time)
 		goto out;
 
 	m = HZ * (tp->rx_opt.rcv_tsval -

@@ -39,15 +39,15 @@ typedef     long                s32_t;
 typedef     short               s16_t;
 typedef     char                s8_t;
 
-#ifndef     TRUE
-#define     TRUE                (1==1)
+#ifndef TRUE
+#define     TRUE                (1 == 1)
 #endif
 
-#ifndef     FALSE
-#define     FALSE               (1==0)
+#ifndef FALSE
+#define     FALSE               (1 == 0)
 #endif
 
-#ifndef     NULL
+#ifndef	NULL
 #define     NULL                0
 #endif
 

@@ -14,12 +14,14 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
+#include <linux/slab.h>
 #include <asm/fsl_gtm.h>
 
 #define GTCFR_STP(x)		((x) & 1 ? 1 << 5 : 1 << 1)

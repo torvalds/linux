@@ -10,6 +10,7 @@
 #ifndef _X25_H
 #define _X25_H 
 #include <linux/x25.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 
 #define	X25_ADDR_LEN			16
@@ -79,8 +80,6 @@ enum {
 #define	X25_DEFAULT_PACKET_SIZE	X25_PS128		/* Default Packet Size */
 #define	X25_DEFAULT_THROUGHPUT	0x0A			/* Deafult Throughput */
 #define	X25_DEFAULT_REVERSE	0x00			/* Default Reverse Charging */
-#define X25_DENY_ACCPT_APPRV   0x01			/* Default value */
-#define X25_ALLOW_ACCPT_APPRV  0x00			/* Control enabled */
 
 #define X25_SMODULUS 		8
 #define	X25_EMODULUS		128
@@ -111,6 +110,11 @@ enum {
 #define X25_DTE_SERVICES 	0x0F
 #define X25_MAX_AE_LEN 		40			/* Max num of semi-octets in AE - OSI Nw */
 #define X25_MAX_DTE_FACIL_LEN	21			/* Max length of DTE facility params */
+
+/* Bitset in x25_sock->flags for misc flags */
+#define X25_Q_BIT_FLAG		0
+#define X25_INTERRUPT_FLAG	1
+#define X25_ACCPT_APPRV_FLAG	2
 
 /**
  *	struct x25_route - x25 routing entry
@@ -145,10 +149,11 @@ struct x25_sock {
 	struct x25_address	source_addr, dest_addr;
 	struct x25_neigh	*neighbour;
 	unsigned int		lci, cudmatchlength;
-	unsigned char		state, condition, qbitincl, intflag, accptapprv;
+	unsigned char		state, condition;
 	unsigned short		vs, vr, va, vl;
 	unsigned long		t2, t21, t22, t23;
 	unsigned short		fraglen;
+	unsigned long		flags;
 	struct sk_buff_head	ack_queue;
 	struct sk_buff_head	fragment_queue;
 	struct sk_buff_head	interrupt_in_queue;
@@ -181,6 +186,10 @@ extern int  sysctl_x25_reset_request_timeout;
 extern int  sysctl_x25_clear_request_timeout;
 extern int  sysctl_x25_ack_holdback_timeout;
 extern int  sysctl_x25_forward;
+
+extern int x25_parse_address_block(struct sk_buff *skb,
+		struct x25_address *called_addr,
+		struct x25_address *calling_addr);
 
 extern int  x25_addr_ntoa(unsigned char *, struct x25_address *,
 			  struct x25_address *);
@@ -287,8 +296,14 @@ extern unsigned long x25_display_timer(struct sock *);
 extern void x25_check_rbuf(struct sock *);
 
 /* sysctl_net_x25.c */
+#ifdef CONFIG_SYSCTL
 extern void x25_register_sysctl(void);
 extern void x25_unregister_sysctl(void);
+#else
+static inline void x25_register_sysctl(void) {};
+static inline void x25_unregister_sysctl(void) {};
+#endif /* CONFIG_SYSCTL */
+
 struct x25_skb_cb {
 	unsigned flags;
 };

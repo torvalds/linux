@@ -9,7 +9,6 @@ EXTRA_CFLAGS += -DTHOMAS_BEACON
 #EXTRA_CFLAGS += -DMUTIPLE_BULK_OUT
 
 r8192s_usb-objs :=		\
-	r8180_93cx6.o		\
 	r8192U_wx.o		\
 	r8192S_phy.o		\
 	r8192S_rtl6052.o	\
@@ -21,6 +20,7 @@ r8192s_usb-objs :=		\
 	r8192S_Efuse.o		\
 	r8192U_core.o		\
 	r8192U_pm.o		\
+	r8192SU_led.o		\
 	ieee80211/ieee80211_crypt.o		\
 	ieee80211/ieee80211_crypt_tkip.o	\
 	ieee80211/ieee80211_crypt_ccmp.o	\

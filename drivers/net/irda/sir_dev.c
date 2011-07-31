@@ -13,6 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 
@@ -654,7 +655,6 @@ static netdev_tx_t sirdev_hard_xmit(struct sk_buff *skb,
 
 	if (likely(actual > 0)) {
 		dev->tx_skb = skb;
-		ndev->trans_start = jiffies;
 		dev->tx_buff.data += actual;
 		dev->tx_buff.len -= actual;
 	}

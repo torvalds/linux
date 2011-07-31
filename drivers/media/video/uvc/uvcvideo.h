@@ -27,6 +27,8 @@
 #define UVC_CONTROL_RESTORE	(1 << 6)
 /* Control can be updated by the camera. */
 #define UVC_CONTROL_AUTO_UPDATE	(1 << 7)
+/* Control is an extension unit control. */
+#define UVC_CONTROL_EXTENSION	(1 << 8)
 
 #define UVC_CONTROL_GET_RANGE	(UVC_CONTROL_GET_CUR | UVC_CONTROL_GET_MIN | \
 				 UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | \
@@ -40,6 +42,15 @@ struct uvc_xu_control_info {
 	__u32 flags;
 };
 
+struct uvc_menu_info {
+	__u32 value;
+	__u8 name[32];
+};
+
+struct uvc_xu_control_mapping_old {
+	__u8 reserved[64];
+};
+
 struct uvc_xu_control_mapping {
 	__u32 id;
 	__u8 name[32];
@@ -50,6 +61,11 @@ struct uvc_xu_control_mapping {
 	__u8 offset;
 	enum v4l2_ctrl_type v4l2_type;
 	__u32 data_type;
+
+	struct uvc_menu_info __user *menu_info;
+	__u32 menu_count;
+
+	__u32 reserved[4];
 };
 
 struct uvc_xu_control {
@@ -60,6 +76,7 @@ struct uvc_xu_control {
 };
 
 #define UVCIOC_CTRL_ADD		_IOW('U', 1, struct uvc_xu_control_info)
+#define UVCIOC_CTRL_MAP_OLD	_IOWR('U', 2, struct uvc_xu_control_mapping_old)
 #define UVCIOC_CTRL_MAP		_IOWR('U', 2, struct uvc_xu_control_mapping)
 #define UVCIOC_CTRL_GET		_IOWR('U', 3, struct uvc_xu_control)
 #define UVCIOC_CTRL_SET		_IOW('U', 4, struct uvc_xu_control)
@@ -75,6 +92,7 @@ struct uvc_xu_control {
 
 #define UVC_TERM_INPUT			0x0000
 #define UVC_TERM_OUTPUT			0x8000
+#define UVC_TERM_DIRECTION(term)	((term)->type & 0x8000)
 
 #define UVC_ENTITY_TYPE(entity)		((entity)->type & 0x7fff)
 #define UVC_ENTITY_IS_UNIT(entity)	(((entity)->type & 0xff00) == 0)
@@ -112,6 +130,9 @@ struct uvc_xu_control {
 #define UVC_GUID_FORMAT_YUY2 \
 	{ 'Y',  'U',  'Y',  '2', 0x00, 0x00, 0x10, 0x00, \
 	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
+#define UVC_GUID_FORMAT_YUY2_ISIGHT \
+	{ 'Y',  'U',  'Y',  '2', 0x00, 0x00, 0x10, 0x00, \
+	 0x80, 0x00, 0x00, 0x00, 0x00, 0x38, 0x9b, 0x71}
 #define UVC_GUID_FORMAT_NV12 \
 	{ 'N',  'V',  '1',  '2', 0x00, 0x00, 0x10, 0x00, \
 	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
@@ -127,10 +148,12 @@ struct uvc_xu_control {
 #define UVC_GUID_FORMAT_Y800 \
 	{ 'Y',  '8',  '0',  '0', 0x00, 0x00, 0x10, 0x00, \
 	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
+#define UVC_GUID_FORMAT_Y16 \
+	{ 'Y',  '1',  '6',  ' ', 0x00, 0x00, 0x10, 0x00, \
+	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
 #define UVC_GUID_FORMAT_BY8 \
 	{ 'B',  'Y',  '8',  ' ', 0x00, 0x00, 0x10, 0x00, \
 	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
-
 
 /* ------------------------------------------------------------------------
  * Driver specific constants.
@@ -148,7 +171,7 @@ struct uvc_xu_control {
 #define UVC_MAX_STATUS_SIZE	16
 
 #define UVC_CTRL_CONTROL_TIMEOUT	300
-#define UVC_CTRL_STREAMING_TIMEOUT	1000
+#define UVC_CTRL_STREAMING_TIMEOUT	5000
 
 /* Devices quirks */
 #define UVC_QUIRK_STATUS_INTERVAL	0x00000001
@@ -159,6 +182,7 @@ struct uvc_xu_control {
 #define UVC_QUIRK_IGNORE_SELECTOR_UNIT	0x00000020
 #define UVC_QUIRK_FIX_BANDWIDTH		0x00000080
 #define UVC_QUIRK_PROBE_DEF		0x00000100
+#define UVC_QUIRK_RESTRICT_FRAME_RATE	0x00000200
 
 /* Format flags */
 #define UVC_FMT_FLAG_COMPRESSED		0x00000001
@@ -173,30 +197,6 @@ struct uvc_device;
 /* TODO: Put the most frequently accessed fields at the beginning of
  * structures to maximize cache efficiency.
  */
-struct uvc_streaming_control {
-	__u16 bmHint;
-	__u8  bFormatIndex;
-	__u8  bFrameIndex;
-	__u32 dwFrameInterval;
-	__u16 wKeyFrameRate;
-	__u16 wPFrameRate;
-	__u16 wCompQuality;
-	__u16 wCompWindowSize;
-	__u16 wDelay;
-	__u32 dwMaxVideoFrameSize;
-	__u32 dwMaxPayloadTransferSize;
-	__u32 dwClockFrequency;
-	__u8  bmFramingInfo;
-	__u8  bPreferedVersion;
-	__u8  bMinVersion;
-	__u8  bMaxVersion;
-};
-
-struct uvc_menu_info {
-	__u32 value;
-	__u8 name[32];
-};
-
 struct uvc_control_info {
 	struct list_head list;
 	struct list_head mappings;
@@ -241,9 +241,11 @@ struct uvc_control {
 			   uvc_control_info. */
 	__u8 dirty : 1,
 	     loaded : 1,
-	     modified : 1;
+	     modified : 1,
+	     cached : 1;
 
-	__u8 *data;
+	__u8 *uvc_data;
+	__u8 *uvc_info;
 };
 
 struct uvc_format_desc {
@@ -292,11 +294,9 @@ struct uvc_entity {
 		} media;
 
 		struct {
-			__u8  bSourceID;
 		} output;
 
 		struct {
-			__u8  bSourceID;
 			__u16 wMaxMultiplier;
 			__u8  bControlSize;
 			__u8  *bmControls;
@@ -304,20 +304,19 @@ struct uvc_entity {
 		} processing;
 
 		struct {
-			__u8  bNrInPins;
-			__u8  *baSourceID;
 		} selector;
 
 		struct {
 			__u8  guidExtensionCode[16];
 			__u8  bNumControls;
-			__u8  bNrInPins;
-			__u8  *baSourceID;
 			__u8  bControlSize;
 			__u8  *bmControls;
 			__u8  *bmControlsType;
 		} extension;
 	};
+
+	__u8 bNrInPins;
+	__u8 *baSourceID;
 
 	unsigned int ncontrols;
 	struct uvc_control *controls;
@@ -367,8 +366,9 @@ enum uvc_buffer_state {
 	UVC_BUF_STATE_IDLE	= 0,
 	UVC_BUF_STATE_QUEUED	= 1,
 	UVC_BUF_STATE_ACTIVE	= 2,
-	UVC_BUF_STATE_DONE	= 3,
-	UVC_BUF_STATE_ERROR	= 4,
+	UVC_BUF_STATE_READY	= 3,
+	UVC_BUF_STATE_DONE	= 4,
+	UVC_BUF_STATE_ERROR	= 5,
 };
 
 struct uvc_buffer {
@@ -380,11 +380,12 @@ struct uvc_buffer {
 	struct list_head queue;
 	wait_queue_head_t wait;
 	enum uvc_buffer_state state;
+	unsigned int error;
 };
 
 #define UVC_QUEUE_STREAMING		(1 << 0)
 #define UVC_QUEUE_DISCONNECTED		(1 << 1)
-#define UVC_QUEUE_DROP_INCOMPLETE	(1 << 2)
+#define UVC_QUEUE_DROP_CORRUPTED	(1 << 2)
 
 struct uvc_video_queue {
 	enum v4l2_buf_type type;
@@ -411,11 +412,9 @@ struct uvc_video_chain {
 	struct uvc_device *dev;
 	struct list_head list;
 
-	struct list_head iterms;		/* Input terminals */
-	struct list_head oterms;		/* Output terminals */
+	struct list_head entities;		/* All entities */
 	struct uvc_entity *processing;		/* Processing unit */
 	struct uvc_entity *selector;		/* Selector unit */
-	struct list_head extensions;		/* Extension units */
 
 	struct mutex ctrl_mutex;
 };
@@ -480,7 +479,6 @@ struct uvc_device {
 	char name[32];
 
 	enum uvc_device_state state;
-	struct kref kref;
 	struct list_head list;
 	atomic_t users;
 
@@ -493,6 +491,7 @@ struct uvc_device {
 
 	/* Video Streaming interfaces */
 	struct list_head streams;
+	atomic_t nstreams;
 
 	/* Status Interrupt Endpoint */
 	struct usb_host_endpoint *int_ep;
@@ -516,8 +515,6 @@ struct uvc_fh {
 struct uvc_driver {
 	struct usb_driver driver;
 
-	struct mutex open_mutex;	/* protects from open/disconnect race */
-
 	struct list_head devices;	/* struct uvc_device list */
 	struct list_head controls;	/* struct uvc_control_info list */
 	struct mutex ctrl_mutex;	/* protects controls and devices
@@ -538,12 +535,15 @@ struct uvc_driver {
 #define UVC_TRACE_FRAME		(1 << 7)
 #define UVC_TRACE_SUSPEND	(1 << 8)
 #define UVC_TRACE_STATUS	(1 << 9)
+#define UVC_TRACE_VIDEO		(1 << 10)
 
 #define UVC_WARN_MINMAX		0
 #define UVC_WARN_PROBE_DEF	1
 
+extern unsigned int uvc_clock_param;
 extern unsigned int uvc_no_drop_param;
 extern unsigned int uvc_trace_param;
+extern unsigned int uvc_timeout_param;
 
 #define uvc_trace(flag, msg...) \
 	do { \
@@ -560,27 +560,16 @@ extern unsigned int uvc_trace_param;
 #define uvc_printk(level, msg...) \
 	printk(level "uvcvideo: " msg)
 
-#define UVC_GUID_FORMAT "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-" \
-			"%02x%02x%02x%02x%02x%02x"
-#define UVC_GUID_ARGS(guid) \
-	(guid)[3],  (guid)[2],  (guid)[1],  (guid)[0], \
-	(guid)[5],  (guid)[4], \
-	(guid)[7],  (guid)[6], \
-	(guid)[8],  (guid)[9], \
-	(guid)[10], (guid)[11], (guid)[12], \
-	(guid)[13], (guid)[14], (guid)[15]
-
 /* --------------------------------------------------------------------------
  * Internal functions.
  */
 
 /* Core driver */
 extern struct uvc_driver uvc_driver;
-extern void uvc_delete(struct kref *kref);
 
 /* Video buffers queue management. */
 extern void uvc_queue_init(struct uvc_video_queue *queue,
-		enum v4l2_buf_type type);
+		enum v4l2_buf_type type, int drop_corrupted);
 extern int uvc_alloc_buffers(struct uvc_video_queue *queue,
 		unsigned int nbuffers, unsigned int buflength);
 extern int uvc_free_buffers(struct uvc_video_queue *queue);
@@ -637,6 +626,7 @@ extern int uvc_ctrl_init_device(struct uvc_device *dev);
 extern void uvc_ctrl_cleanup_device(struct uvc_device *dev);
 extern int uvc_ctrl_resume_device(struct uvc_device *dev);
 extern void uvc_ctrl_init(void);
+extern void uvc_ctrl_cleanup(void);
 
 extern int uvc_ctrl_begin(struct uvc_video_chain *chain);
 extern int __uvc_ctrl_commit(struct uvc_video_chain *chain, int rollback);

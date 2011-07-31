@@ -10,8 +10,8 @@
  */
 
 #include <linux/mount.h>
+#include <linux/slab.h>
 #include <linux/file.h>
-#include <linux/ima.h>
 #include "internal.h"
 
 /*
@@ -422,7 +422,7 @@ int cachefiles_read_or_alloc_page(struct fscache_retrieval *op,
 	shift = PAGE_SHIFT - inode->i_sb->s_blocksize_bits;
 
 	op->op.flags &= FSCACHE_OP_KEEP_FLAGS;
-	op->op.flags |= FSCACHE_OP_FAST;
+	op->op.flags |= FSCACHE_OP_ASYNC;
 	op->op.processor = cachefiles_read_copier;
 
 	pagevec_init(&pagevec, 0);
@@ -729,7 +729,7 @@ int cachefiles_read_or_alloc_pages(struct fscache_retrieval *op,
 	pagevec_init(&pagevec, 0);
 
 	op->op.flags &= FSCACHE_OP_KEEP_FLAGS;
-	op->op.flags |= FSCACHE_OP_FAST;
+	op->op.flags |= FSCACHE_OP_ASYNC;
 	op->op.processor = cachefiles_read_copier;
 
 	INIT_LIST_HEAD(&backpages);
@@ -923,7 +923,6 @@ int cachefiles_write_page(struct fscache_storage *op, struct page *page)
 	if (IS_ERR(file)) {
 		ret = PTR_ERR(file);
 	} else {
-		ima_counts_get(file);
 		ret = -EIO;
 		if (file->f_op->write) {
 			pos = (loff_t) page->index << PAGE_SHIFT;

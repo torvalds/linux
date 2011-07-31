@@ -110,37 +110,14 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	return addr;
 }
 
-static unsigned long do_mmap2(unsigned long addr, unsigned long len,
-	unsigned long prot, unsigned long flags, unsigned long fd,
-	unsigned long pgoff)
-{
-	struct file * file = NULL;
-	unsigned long error = -EBADF;
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file)
-			goto out;
-	}
-
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-
-	down_write(&current->mm->mmap_sem);
-	error = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-	up_write(&current->mm->mmap_sem);
-
-	if (file != NULL)
-		fput(file);
-out:
-	return error;
-}
-
 asmlinkage unsigned long sys_mmap2(unsigned long addr, unsigned long len,
 	unsigned long prot, unsigned long flags, unsigned long fd,
 	unsigned long pgoff)
 {
 	/* Make sure the shift for mmap2 is constant (12), no matter what PAGE_SIZE
 	   we have. */
-	return do_mmap2(addr, len, prot, flags, fd, pgoff >> (PAGE_SHIFT - 12));
+	return sys_mmap_pgoff(addr, len, prot, flags, fd,
+			      pgoff >> (PAGE_SHIFT - 12));
 }
 
 asmlinkage unsigned long sys_mmap(unsigned long addr, unsigned long len,
@@ -148,7 +125,8 @@ asmlinkage unsigned long sys_mmap(unsigned long addr, unsigned long len,
 		unsigned long offset)
 {
 	if (!(offset & ~PAGE_MASK)) {
-		return do_mmap2(addr, len, prot, flags, fd, offset >> PAGE_SHIFT);
+		return sys_mmap_pgoff(addr, len, prot, flags, fd,
+					offset >> PAGE_SHIFT);
 	} else {
 		return -EINVAL;
 	}
@@ -253,21 +231,6 @@ long parisc_personality(unsigned long personality)
 	err = sys_personality(personality);
 	if (err == PER_LINUX32)
 		err = PER_LINUX;
-
-	return err;
-}
-
-long parisc_newuname(struct new_utsname __user *name)
-{
-	int err = sys_newuname(name);
-
-#ifdef CONFIG_COMPAT
-	if (!err && personality(current->personality) == PER_LINUX32) {
-		if (__put_user(0, name->machine + 6) ||
-		    __put_user(0, name->machine + 7))
-			err = -EFAULT;
-	}
-#endif
 
 	return err;
 }

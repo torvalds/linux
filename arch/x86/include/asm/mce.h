@@ -38,6 +38,10 @@
 #define MCM_ADDR_MEM	 3	/* memory address */
 #define MCM_ADDR_GENERIC 7	/* generic */
 
+/* CTL2 register defines */
+#define MCI_CTL2_CMCI_EN		(1ULL << 30)
+#define MCI_CTL2_CMCI_THRESHOLD_MASK	0x7fffULL
+
 #define MCJ_CTX_MASK		3
 #define MCJ_CTX(flags)		((flags) & MCJ_CTX_MASK)
 #define MCJ_CTX_RANDOM		0    /* inject context: random */
@@ -108,7 +112,10 @@ struct mce_log {
 #define K8_MCE_THRESHOLD_BANK_5    (MCE_THRESHOLD_BASE + 5 * 9)
 #define K8_MCE_THRESHOLD_DRAM_ECC  (MCE_THRESHOLD_BANK_4 + 0)
 
+
 #ifdef __KERNEL__
+
+extern struct atomic_notifier_head x86_mce_decoder_chain;
 
 #include <linux/percpu.h>
 #include <linux/init.h>
@@ -118,9 +125,11 @@ extern int mce_disabled;
 extern int mce_p5_enabled;
 
 #ifdef CONFIG_X86_MCE
-void mcheck_init(struct cpuinfo_x86 *c);
+int mcheck_init(void);
+void mcheck_cpu_init(struct cpuinfo_x86 *c);
 #else
-static inline void mcheck_init(struct cpuinfo_x86 *c) {}
+static inline int mcheck_init(void) { return 0; }
+static inline void mcheck_cpu_init(struct cpuinfo_x86 *c) {}
 #endif
 
 #ifdef CONFIG_X86_ANCIENT_MCE
@@ -213,6 +222,20 @@ extern void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
 void intel_init_thermal(struct cpuinfo_x86 *c);
 
 void mce_log_therm_throt_event(__u64 status);
+
+#ifdef CONFIG_X86_THERMAL_VECTOR
+extern void mcheck_intel_therm_init(void);
+#else
+static inline void mcheck_intel_therm_init(void) { }
+#endif
+
+/*
+ * Used by APEI to report memory error via /dev/mcelog
+ */
+
+struct cper_sec_mem_err;
+extern void apei_mce_report_mem_error(int corrected,
+				      struct cper_sec_mem_err *mem_err);
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_X86_MCE_H */

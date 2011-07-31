@@ -17,6 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/bcd.h>
 #include <linux/rtc.h>
+#include <linux/slab.h>
 
 #define DRV_VERSION "0.4.3"
 
@@ -171,14 +172,6 @@ static int pcf8563_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	return 0;
 }
 
-struct pcf8563_limit
-{
-	unsigned char reg;
-	unsigned char mask;
-	unsigned char min;
-	unsigned char max;
-};
-
 static int pcf8563_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	return pcf8563_get_datetime(to_i2c_client(dev), tm);
@@ -212,6 +205,8 @@ static int pcf8563_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
 
+	i2c_set_clientdata(client, pcf8563);
+
 	pcf8563->rtc = rtc_device_register(pcf8563_driver.driver.name,
 				&client->dev, &pcf8563_rtc_ops, THIS_MODULE);
 
@@ -219,8 +214,6 @@ static int pcf8563_probe(struct i2c_client *client,
 		err = PTR_ERR(pcf8563->rtc);
 		goto exit_kfree;
 	}
-
-	i2c_set_clientdata(client, pcf8563);
 
 	return 0;
 

@@ -10,6 +10,7 @@
 #include <linux/utsname.h>
 #include <linux/kernel.h>
 #include <linux/ktime.h>
+#include <linux/slab.h>
 
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/xprtsock.h>
@@ -349,9 +350,9 @@ retry:
  * nsm_reboot_lookup - match NLMPROC_SM_NOTIFY arguments to an nsm_handle
  * @info: pointer to NLMPROC_SM_NOTIFY arguments
  *
- * Returns a matching nsm_handle if found in the nsm cache; the returned
- * nsm_handle's reference count is bumped and sm_monitored is cleared.
- * Otherwise returns NULL if some error occurred.
+ * Returns a matching nsm_handle if found in the nsm cache. The returned
+ * nsm_handle's reference count is bumped. Otherwise returns NULL if some
+ * error occurred.
  */
 struct nsm_handle *nsm_reboot_lookup(const struct nlm_reboot *info)
 {
@@ -369,12 +370,6 @@ struct nsm_handle *nsm_reboot_lookup(const struct nlm_reboot *info)
 
 	atomic_inc(&cached->sm_count);
 	spin_unlock(&nsm_lock);
-
-	/*
-	 * During subsequent lock activity, force a fresh
-	 * notification to be set up for this host.
-	 */
-	cached->sm_monitored = 0;
 
 	dprintk("lockd: host %s (%s) rebooted, cnt %d\n",
 			cached->sm_name, cached->sm_addrbuf,

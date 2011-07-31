@@ -60,15 +60,15 @@
 #define                     TWI1_REGBASE  0xffc02200
 #define                      TWI1_CLKDIV  0xffc02200   /* Clock Divider Register */
 #define                     TWI1_CONTROL  0xffc02204   /* TWI Control Register */
-#define                  TWI1_SLAVE_CTRL  0xffc02208   /* TWI Slave Mode Control Register */
+#define                   TWI1_SLAVE_CTL  0xffc02208   /* TWI Slave Mode Control Register */
 #define                  TWI1_SLAVE_STAT  0xffc0220c   /* TWI Slave Mode Status Register */
 #define                  TWI1_SLAVE_ADDR  0xffc02210   /* TWI Slave Mode Address Register */
-#define                 TWI1_MASTER_CTRL  0xffc02214   /* TWI Master Mode Control Register */
+#define                  TWI1_MASTER_CTL  0xffc02214   /* TWI Master Mode Control Register */
 #define                 TWI1_MASTER_STAT  0xffc02218   /* TWI Master Mode Status Register */
 #define                 TWI1_MASTER_ADDR  0xffc0221c   /* TWI Master Mode Address Register */
 #define                    TWI1_INT_STAT  0xffc02220   /* TWI Interrupt Status Register */
 #define                    TWI1_INT_MASK  0xffc02224   /* TWI Interrupt Mask Register */
-#define                   TWI1_FIFO_CTRL  0xffc02228   /* TWI FIFO Control Register */
+#define                    TWI1_FIFO_CTL  0xffc02228   /* TWI FIFO Control Register */
 #define                   TWI1_FIFO_STAT  0xffc0222c   /* TWI FIFO Status Register */
 #define                   TWI1_XMT_DATA8  0xffc02280   /* TWI FIFO Transmit Data Single Byte Register */
 #define                  TWI1_XMT_DATA16  0xffc02284   /* TWI FIFO Transmit Data Double Byte Register */
@@ -491,7 +491,7 @@
 #define                   HMDMA0_CONTROL  0xffc04500   /* Handshake MDMA0 Control Register */
 #define                    HMDMA0_ECINIT  0xffc04504   /* Handshake MDMA0 Initial Edge Count Register */
 #define                    HMDMA0_BCINIT  0xffc04508   /* Handshake MDMA0 Initial Block Count Register */
-#define                  HMDMA0_ECURGENT  0xffc0450c   /* Handshake MDMA0 Urgent Edge Count Threshhold Register */
+#define                  HMDMA0_ECURGENT  0xffc0450c   /* Handshake MDMA0 Urgent Edge Count Threshold Register */
 #define                HMDMA0_ECOVERFLOW  0xffc04510   /* Handshake MDMA0 Edge Count Overflow Interrupt Register */
 #define                    HMDMA0_ECOUNT  0xffc04514   /* Handshake MDMA0 Current Edge Count Register */
 #define                    HMDMA0_BCOUNT  0xffc04518   /* Handshake MDMA0 Current Block Count Register */
@@ -501,7 +501,7 @@
 #define                   HMDMA1_CONTROL  0xffc04540   /* Handshake MDMA1 Control Register */
 #define                    HMDMA1_ECINIT  0xffc04544   /* Handshake MDMA1 Initial Edge Count Register */
 #define                    HMDMA1_BCINIT  0xffc04548   /* Handshake MDMA1 Initial Block Count Register */
-#define                  HMDMA1_ECURGENT  0xffc0454c   /* Handshake MDMA1 Urgent Edge Count Threshhold Register */
+#define                  HMDMA1_ECURGENT  0xffc0454c   /* Handshake MDMA1 Urgent Edge Count Threshold Register */
 #define                HMDMA1_ECOVERFLOW  0xffc04550   /* Handshake MDMA1 Edge Count Overflow Interrupt Register */
 #define                    HMDMA1_ECOUNT  0xffc04554   /* Handshake MDMA1 Current Edge Count Register */
 #define                    HMDMA1_BCOUNT  0xffc04558   /* Handshake MDMA1 Current Block Count Register */
@@ -624,9 +624,9 @@
 #define                 DMA_READY  0x1        /* DMA Ready */
 #define                  FIFOFULL  0x2        /* FIFO Full */
 #define                 FIFOEMPTY  0x4        /* FIFO Empty */
-#define                  COMPLETE  0x8        /* DMA Complete */
+#define              DMA_COMPLETE  0x8        /* DMA Complete */
 #define                      HSHK  0x10       /* Host Handshake */
-#define                   TIMEOUT  0x20       /* Host Timeout */
+#define                 HSTIMEOUT  0x20       /* Host Timeout */
 #define                      HIRQ  0x40       /* Host Interrupt Request */
 #define                ALLOW_CNFG  0x80       /* Allow New Configuration */
 #define                   DMA_DIR  0x100      /* DMA Direction */

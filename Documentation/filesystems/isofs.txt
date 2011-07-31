@@ -41,7 +41,7 @@ Mount options unique to the isofs filesystem.
   sbsector=xxx  Session begins from sector xxx
 
 Recommended documents about ISO 9660 standard are located at:
-http://www.y-adagio.com/public/standards/iso_cdromr/tocont.htm
+http://www.y-adagio.com/
 ftp://ftp.ecma.ch/ecma-st/Ecma-119.pdf
 Quoting from the PDF "This 2nd Edition of Standard ECMA-119 is technically 
 identical with ISO 9660.", so it is a valid and gratis substitute of the

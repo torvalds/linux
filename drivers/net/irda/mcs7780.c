@@ -434,8 +434,6 @@ static void mcs_unwrap_mir(struct mcs_cb *mcs, __u8 *buf, int len)
 
 	mcs->netdev->stats.rx_packets++;
 	mcs->netdev->stats.rx_bytes += new_len;
-
-	return;
 }
 
 /* Unwrap received packets at FIR speed.  A 32 bit crc_ccitt checksum is
@@ -487,8 +485,6 @@ static void mcs_unwrap_fir(struct mcs_cb *mcs, __u8 *buf, int len)
 
 	mcs->netdev->stats.rx_packets++;
 	mcs->netdev->stats.rx_bytes += new_len;
-
-	return;
 }
 
 

@@ -107,18 +107,6 @@ typedef struct { unsigned long pte; } pte_t;
 typedef struct page *pgtable_t;
 
 /*
- * For 3-level pagetables we defines these ourselves, for 2-level the
- * definitions are supplied by <asm-generic/pgtable-nopmd.h>.
- */
-#ifdef CONFIG_64BIT
-
-typedef struct { unsigned long pmd; } pmd_t;
-#define pmd_val(x)	((x).pmd)
-#define __pmd(x)	((pmd_t) { (x) } )
-
-#endif
-
-/*
  * Right now we don't support 4-level pagetables, so all pud-related
  * definitions come from <asm-generic/pgtable-nopud.h>.
  */
@@ -162,6 +150,20 @@ typedef struct { unsigned long pgprot; } pgprot_t;
     ((unsigned long)(x) - PAGE_OFFSET + PHYS_OFFSET)
 #endif
 #define __va(x)		((void *)((unsigned long)(x) + PAGE_OFFSET - PHYS_OFFSET))
+
+/*
+ * RELOC_HIDE was originally added by 6007b903dfe5f1d13e0c711ac2894bdd4a61b1ad
+ * (lmo) rsp. 8431fd094d625b94d364fe393076ccef88e6ce18 (kernel.org).  The
+ * discussion can be found in lkml posting
+ * <a2ebde260608230500o3407b108hc03debb9da6e62c@mail.gmail.com> which is
+ * archived at http://lists.linuxcoding.com/kernel/2006-q3/msg17360.html
+ *
+ * It is unclear if the misscompilations mentioned in
+ * http://lkml.org/lkml/2010/8/8/138 also affect MIPS so we keep this one
+ * until GCC 3.x has been retired before we can apply
+ * https://patchwork.linux-mips.org/patch/1541/
+ */
+
 #define __pa_symbol(x)	__pa(RELOC_HIDE((unsigned long)(x), 0))
 
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
@@ -200,8 +202,10 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
-#define UNCAC_ADDR(addr)	((addr) - PAGE_OFFSET + UNCAC_BASE)
-#define CAC_ADDR(addr)		((addr) - UNCAC_BASE + PAGE_OFFSET)
+#define UNCAC_ADDR(addr)	((addr) - PAGE_OFFSET + UNCAC_BASE + 	\
+								PHYS_OFFSET)
+#define CAC_ADDR(addr)		((addr) - UNCAC_BASE + PAGE_OFFSET -	\
+								PHYS_OFFSET)
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>

@@ -102,12 +102,12 @@
 #include <linux/interrupt.h>
 #include <linux/errno.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -886,7 +886,7 @@ static int elp_open(struct net_device *dev)
 	/*
 	 * install our interrupt service routine
 	 */
-	if ((retval = request_irq(dev->irq, &elp_interrupt, 0, dev->name, dev))) {
+	if ((retval = request_irq(dev->irq, elp_interrupt, 0, dev->name, dev))) {
 		pr_err("%s: could not allocate IRQ%d\n", dev->name, dev->irq);
 		return retval;
 	}
@@ -1055,7 +1055,7 @@ static void elp_timeout(struct net_device *dev)
 		   (stat & ACRF) ? "interrupt" : "command");
 	if (elp_debug >= 1)
 		pr_debug("%s: status %#02x\n", dev->name, stat);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	dev->stats.tx_dropped++;
 	netif_wake_queue(dev);
 }
@@ -1092,11 +1092,6 @@ static netdev_tx_t elp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	if (elp_debug >= 3)
 		pr_debug("%s: packet of length %d sent\n", dev->name, (int) skb->len);
-
-	/*
-	 * start the transmit timeout
-	 */
-	dev->trans_start = jiffies;
 
 	prime_rx(dev);
 	spin_unlock_irqrestore(&adapter->lock, flags);
@@ -1216,7 +1211,7 @@ static int elp_close(struct net_device *dev)
 static void elp_set_mc_list(struct net_device *dev)
 {
 	elp_device *adapter = netdev_priv(dev);
-	struct dev_mc_list *dmi = dev->mc_list;
+	struct netdev_hw_addr *ha;
 	int i;
 	unsigned long flags;
 
@@ -1229,11 +1224,11 @@ static void elp_set_mc_list(struct net_device *dev)
 		/* send a "load multicast list" command to the board, max 10 addrs/cmd */
 		/* if num_addrs==0 the list will be cleared */
 		adapter->tx_pcb.command = CMD_LOAD_MULTICAST_LIST;
-		adapter->tx_pcb.length = 6 * dev->mc_count;
-		for (i = 0; i < dev->mc_count; i++) {
-			memcpy(adapter->tx_pcb.data.multicast[i], dmi->dmi_addr, 6);
-			dmi = dmi->next;
-		}
+		adapter->tx_pcb.length = 6 * netdev_mc_count(dev);
+		i = 0;
+		netdev_for_each_mc_addr(ha, dev)
+			memcpy(adapter->tx_pcb.data.multicast[i++],
+			       ha->addr, 6);
 		adapter->got[CMD_LOAD_MULTICAST_LIST] = 0;
 		if (!send_pcb(dev, &adapter->tx_pcb))
 			pr_err("%s: couldn't send set_multicast command\n", dev->name);
@@ -1244,7 +1239,7 @@ static void elp_set_mc_list(struct net_device *dev)
 				TIMEOUT_MSG(__LINE__);
 			}
 		}
-		if (dev->mc_count)
+		if (!netdev_mc_empty(dev))
 			adapter->tx_pcb.data.configure = NO_LOOPBACK | RECV_BROAD | RECV_MULTI;
 		else		/* num_addrs == 0 */
 			adapter->tx_pcb.data.configure = NO_LOOPBACK | RECV_BROAD;

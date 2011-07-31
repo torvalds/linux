@@ -17,7 +17,7 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-You shoud also find the complete GPL in the COPYING file accompanying this source code.
+You should also find the complete GPL in the COPYING file accompanying this source code.
 
 @endverbatim
 */
@@ -1386,8 +1386,7 @@ int i_APCI1710_ReadChronoValue(struct comedi_device *dev,
 				/* Test the timout parameter */
 		 /*****************************/
 
-				if ((ui_TimeOut >= 0)
-					&& (ui_TimeOut <= 65535UL)) {
+				if (ui_TimeOut <= 65535UL) {
 
 					for (;;) {
 			  /*******************/

@@ -36,7 +36,6 @@
 #include <linux/ptrace.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/time.h>
 #include <linux/errno.h>
@@ -426,7 +425,7 @@ static int smctr_alloc_shared_memory(struct net_device *dev)
         smctr_malloc(dev, 1L);
 
         /* Allocate Non-MAC receive data buffers.
-         * To guarantee a minimum of 256 contigous memory to
+         * To guarantee a minimum of 256 contiguous memory to
          * UM_Receive_Packet's lookahead pointer, before a page
          * change or ring end is encountered, place each rx buffer on
          * a 256 byte boundary.
@@ -2309,9 +2308,9 @@ static irqreturn_t smctr_interrupt(int irq, void *dev_id)
                                 else
                                 {
                                         if((tp->acb_head->cmd
-                                                == ACB_CMD_READ_TRC_STATUS)
-                                                && (tp->acb_head->subcmd
-                                                == RW_TRC_STATUS_BLOCK))
+					    == ACB_CMD_READ_TRC_STATUS) &&
+					   (tp->acb_head->subcmd
+					    == RW_TRC_STATUS_BLOCK))
                                         {
                                                 if(tp->ptr_bcn_type)
                                                 {
@@ -2331,8 +2330,8 @@ static irqreturn_t smctr_interrupt(int irq, void *dev_id)
                                                         smctr_disable_16bit(dev);
                                                         err = smctr_ring_status_chg(dev);
                                                         smctr_enable_16bit(dev);
-                                                        if((tp->ring_status & REMOVE_RECEIVED)
-                                                                && (tp->config_word0 & NO_AUTOREMOVE))
+                                                        if((tp->ring_status & REMOVE_RECEIVED) &&
+							   (tp->config_word0 & NO_AUTOREMOVE))
                                                         {
                                                                 smctr_issue_remove_cmd(dev);
                                                         }
@@ -2511,9 +2510,9 @@ static int smctr_issue_init_timers_cmd(struct net_device *dev)
         tp->config_word0 = THDREN | DMA_TRIGGER | USETPT | NO_AUTOREMOVE;
         tp->config_word1 = 0;
 
-        if((tp->media_type == MEDIA_STP_16)
-                || (tp->media_type == MEDIA_UTP_16)
-                || (tp->media_type == MEDIA_STP_16_UTP_16))
+        if((tp->media_type == MEDIA_STP_16) ||
+	   (tp->media_type == MEDIA_UTP_16) ||
+	   (tp->media_type == MEDIA_STP_16_UTP_16))
         {
                 tp->config_word0 |= FREQ_16MB_BIT;
         }
@@ -2556,9 +2555,9 @@ static int smctr_issue_init_timers_cmd(struct net_device *dev)
                         tp->config_word1 &= ~SOURCE_ROUTING_SPANNING_BITS;
         }
 
-        if((tp->media_type == MEDIA_STP_16)
-                || (tp->media_type == MEDIA_UTP_16)
-                || (tp->media_type == MEDIA_STP_16_UTP_16))
+        if((tp->media_type == MEDIA_STP_16) ||
+	   (tp->media_type == MEDIA_UTP_16) ||
+	   (tp->media_type == MEDIA_STP_16_UTP_16))
         {
                 tp->config_word1 |= INTERFRAME_SPACING_16;
         }
@@ -2568,9 +2567,9 @@ static int smctr_issue_init_timers_cmd(struct net_device *dev)
         *pTimer_Struc++ = tp->config_word0;
         *pTimer_Struc++ = tp->config_word1;
 
-        if((tp->media_type == MEDIA_STP_4)
-                || (tp->media_type == MEDIA_UTP_4)
-                || (tp->media_type == MEDIA_STP_4_UTP_4))
+        if((tp->media_type == MEDIA_STP_4) ||
+	   (tp->media_type == MEDIA_UTP_4) ||
+	   (tp->media_type == MEDIA_STP_4_UTP_4))
         {
                 *pTimer_Struc++ = 0x00FA;       /* prescale */
                 *pTimer_Struc++ = 0x2710;       /* TPT_limit */
@@ -2990,8 +2989,8 @@ static int smctr_load_firmware(struct net_device *dev)
 	}
 
         /* Verify the firmware exists and is there in the right amount. */
-        if (!fw->data
-                || (*(fw->data + UCODE_VERSION_OFFSET) < UCODE_VERSION))
+        if (!fw->data ||
+	    (*(fw->data + UCODE_VERSION_OFFSET) < UCODE_VERSION))
         {
                 err = (UCODE_NOT_PRESENT);
 		goto out;
@@ -3010,9 +3009,8 @@ static int smctr_load_firmware(struct net_device *dev)
         smctr_enable_16bit(dev);
         smctr_set_page(dev, (__u8 *)tp->ram_access);
 
-        if((smctr_checksum_firmware(dev))
-                || (*(fw->data + UCODE_VERSION_OFFSET)
-                > tp->microcode_version))
+        if((smctr_checksum_firmware(dev)) ||
+	   (*(fw->data + UCODE_VERSION_OFFSET) > tp->microcode_version))
         {
                 smctr_enable_adapter_ctrl_store(dev);
 
@@ -3117,9 +3115,9 @@ static int smctr_lobe_media_test(struct net_device *dev)
         }
 
         /* Check if any frames received during test. */
-        if((tp->rx_fcb_curr[MAC_QUEUE]->frame_status)
-                || (tp->rx_fcb_curr[NON_MAC_QUEUE]->frame_status))
-			goto err;
+        if((tp->rx_fcb_curr[MAC_QUEUE]->frame_status) ||
+	   (tp->rx_fcb_curr[NON_MAC_QUEUE]->frame_status))
+		goto err;
 
         /* Set receive mask to "Promisc" mode. */
         tp->receive_mask = saved_rcv_mask;
@@ -3303,8 +3301,8 @@ static int smctr_make_group_addr(struct net_device *dev, MAC_SUB_VECTOR *tsv)
         /* Set Group Address Sub-vector to all zeros if only the
          * Group Address/Functional Address Indicator is set.
          */
-        if(tsv->svv[0] == 0x80 && tsv->svv[1] == 0x00
-        	&& tsv->svv[2] == 0x00 && tsv->svv[3] == 0x00)
+        if(tsv->svv[0] == 0x80 && tsv->svv[1] == 0x00 &&
+	   tsv->svv[2] == 0x00 && tsv->svv[3] == 0x00)
                 tsv->svv[0] = 0x00;
 
         return (0);
@@ -3876,10 +3874,10 @@ static int smctr_process_rx_packet(MAC_HEADER *rmf, __u16 size,
         /* NOTE: UNKNOWN MAC frames will NOT be passed up unless
          * ACCEPT_ATT_MAC_FRAMES is set.
          */
-        if(((tp->receive_mask & ACCEPT_ATT_MAC_FRAMES)
-                && (xframe == (__u8)0))
-                || ((tp->receive_mask & ACCEPT_EXT_MAC_FRAMES)
-                && (xframe == (__u8)1)))
+        if(((tp->receive_mask & ACCEPT_ATT_MAC_FRAMES) &&
+	    (xframe == (__u8)0)) ||
+	   ((tp->receive_mask & ACCEPT_EXT_MAC_FRAMES) &&
+	    (xframe == (__u8)1)))
         {
                 rmf->vl = SWAP_BYTES(rmf->vl);
 
@@ -3934,8 +3932,8 @@ static int smctr_ram_memory_test(struct net_device *dev)
 
                 word_pattern = start_pattern;
 
-                for(j = 1; j < (__u32)(tp->ram_usable * 1024) - 1
-                        && (~err); j += 2, word_pattern++)
+                for(j = 1; j < (__u32)(tp->ram_usable * 1024) - 1 && (~err);
+		    j += 2, word_pattern++)
                 {
                         word_read = *(__u16 *)(pword + j);
                         if(word_read != word_pattern)
@@ -3959,8 +3957,7 @@ static int smctr_ram_memory_test(struct net_device *dev)
                 for(j = 0; j < (__u32)tp->ram_usable * 1024; j +=2)
                         *(__u16 *)(pword + j) = word_pattern;
 
-                for(j =0; j < (__u32)tp->ram_usable * 1024
-                        && (~err); j += 2)
+                for(j =0; j < (__u32)tp->ram_usable * 1024 && (~err); j += 2)
                 {
                         word_read = *(__u16 *)(pword + j);
                         if(word_read != word_pattern)
@@ -4325,8 +4322,8 @@ static int smctr_restart_tx_chain(struct net_device *dev, short queue)
         if(smctr_debug > 10)
                 printk(KERN_DEBUG "%s: smctr_restart_tx_chain\n", dev->name);
 
-        if(tp->num_tx_fcbs_used[queue] != 0
-                && tp->tx_queue_status[queue] == NOT_TRANSMITING)
+        if(tp->num_tx_fcbs_used[queue] != 0 &&
+	   tp->tx_queue_status[queue] == NOT_TRANSMITING)
         {
                 tp->tx_queue_status[queue] = TRANSMITING;
                 err = smctr_issue_resume_tx_fcb_cmd(dev, queue);
@@ -4349,8 +4346,8 @@ static int smctr_ring_status_chg(struct net_device *dev)
          */
         if(tp->ring_status_flags == MONITOR_STATE_CHANGED)
         {
-                if((tp->monitor_state == MS_ACTIVE_MONITOR_STATE)
-                        || (tp->monitor_state == MS_STANDBY_MONITOR_STATE))
+                if((tp->monitor_state == MS_ACTIVE_MONITOR_STATE) ||
+		   (tp->monitor_state == MS_STANDBY_MONITOR_STATE))
                 {
                         tp->monitor_state_ready = 1;
                 }
@@ -4363,8 +4360,8 @@ static int smctr_ring_status_chg(struct net_device *dev)
                         tp->monitor_state_ready = 0;
 
 			/* Ring speed problem, switching to auto mode. */
-			if(tp->monitor_state == MS_MONITOR_FSM_INACTIVE
-				&& !tp->cleanup)
+			if(tp->monitor_state == MS_MONITOR_FSM_INACTIVE &&
+			   !tp->cleanup)
 			{
 				printk(KERN_INFO "%s: Incorrect ring speed switching.\n",
 					dev->name);
@@ -4442,8 +4439,8 @@ static int smctr_rx_frame(struct net_device *dev)
         {
                 err = HARDWARE_FAILED;
 
-                if(((status & 0x007f) == 0)
-                        || ((tp->receive_mask & ACCEPT_ERR_PACKETS) != 0))
+                if(((status & 0x007f) == 0) ||
+		   ((tp->receive_mask & ACCEPT_ERR_PACKETS) != 0))
                 {
                         /* frame length less the CRC (4 bytes) + FS (1 byte) */
                         rx_size = tp->rx_fcb_curr[queue]->frame_length - 5;
@@ -4538,8 +4535,8 @@ static int smctr_send_dat(struct net_device *dev)
         }
 
         /* Check if GOOD frame Tx'ed. */
-        if(!(fcb->frame_status &  FCB_COMMAND_DONE)
-                || fcb->frame_status & (FCB_TX_STATUS_E | FCB_TX_AC_BITS))
+        if(!(fcb->frame_status &  FCB_COMMAND_DONE) ||
+	   fcb->frame_status & (FCB_TX_STATUS_E | FCB_TX_AC_BITS))
         {
                 return (INITIALIZE_FAILED);
         }
@@ -4565,7 +4562,7 @@ static void smctr_timeout(struct net_device *dev)
          * fake transmission time and go on trying. Our own timeout
          * routine is in sktr_timer_chk()
          */
-        dev->trans_start = jiffies;
+        dev->trans_start = jiffies; /* prevent tx timeout */
         netif_wake_queue(dev);
 }
 
@@ -4653,8 +4650,8 @@ static int smctr_send_lobe_media_test(struct net_device *dev)
         }
 
         /* Check if GOOD frame Tx'ed */
-        if(!(fcb->frame_status & FCB_COMMAND_DONE)
-                || fcb->frame_status & (FCB_TX_STATUS_E | FCB_TX_AC_BITS))
+        if(!(fcb->frame_status & FCB_COMMAND_DONE) ||
+	   fcb->frame_status & (FCB_TX_STATUS_E | FCB_TX_AC_BITS))
         {
                 return (LOBE_MEDIA_TEST_FAILED);
         }
@@ -5150,8 +5147,6 @@ static void smctr_set_multicast_list(struct net_device *dev)
 {
         if(smctr_debug > 10)
                 printk(KERN_DEBUG "%s: smctr_set_multicast_list\n", dev->name);
-
-        return;
 }
 
 static int smctr_set_page(struct net_device *dev, __u8 *buf)

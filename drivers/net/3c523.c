@@ -99,7 +99,6 @@
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/mca-legacy.h>
@@ -288,7 +287,7 @@ static int elmc_open(struct net_device *dev)
 
 	elmc_id_attn586();	/* disable interrupts */
 
-	ret = request_irq(dev->irq, &elmc_interrupt, IRQF_SHARED | IRQF_SAMPLE_RANDOM,
+	ret = request_irq(dev->irq, elmc_interrupt, IRQF_SHARED | IRQF_SAMPLE_RANDOM,
 			  dev->name, dev);
 	if (ret) {
 		pr_err("%s: couldn't get irq %d\n", dev->name, dev->irq);
@@ -504,7 +503,6 @@ static int __init do_elmc_probe(struct net_device *dev)
 		break;
 	}
 
-	memset(pr, 0, sizeof(struct priv));
 	pr->slot = slot;
 
 	pr_info("%s: 3Com 3c523 Rev 0x%x at %#lx\n", dev->name, (int) revision,
@@ -625,8 +623,8 @@ static int init586(struct net_device *dev)
 	volatile struct iasetup_cmd_struct *ias_cmd;
 	volatile struct tdr_cmd_struct *tdr_cmd;
 	volatile struct mcsetup_cmd_struct *mc_cmd;
-	struct dev_mc_list *dmi = dev->mc_list;
-	int num_addrs = dev->mc_count;
+	struct netdev_hw_addr *ha;
+	int num_addrs = netdev_mc_count(dev);
 
 	ptr = (void *) ((char *) p->scb + sizeof(struct scb_struct));
 
@@ -771,7 +769,7 @@ static int init586(struct net_device *dev)
 	 * Multicast setup
 	 */
 
-	if (dev->mc_count) {
+	if (num_addrs) {
 		/* I don't understand this: do we really need memory after the init? */
 		int len = ((char *) p->iscp - (char *) ptr - 8) / 6;
 		if (len <= 0) {
@@ -787,10 +785,10 @@ static int init586(struct net_device *dev)
 			mc_cmd->cmd_cmd = CMD_MCSETUP | CMD_LAST;
 			mc_cmd->cmd_link = 0xffff;
 			mc_cmd->mc_cnt = num_addrs * 6;
-			for (i = 0; i < num_addrs; i++) {
-				memcpy((char *) mc_cmd->mc_list[i], dmi->dmi_addr, 6);
-				dmi = dmi->next;
-			}
+			i = 0;
+			netdev_for_each_mc_addr(ha, dev)
+				memcpy((char *) mc_cmd->mc_list[i++],
+				       ha->addr, 6);
 			p->scb->cbl_offset = make16(mc_cmd);
 			p->scb->cmd = CUC_START;
 			elmc_id_attn586();
@@ -1154,7 +1152,6 @@ static netdev_tx_t elmc_send_packet(struct sk_buff *skb, struct net_device *dev)
 		p->scb->cmd = CUC_START;
 		p->xmit_cmds[0]->cmd_status = 0;
 			elmc_attn586();
-		dev->trans_start = jiffies;
 		if (!i) {
 			dev_kfree_skb(skb);
 		}
@@ -1178,7 +1175,6 @@ static netdev_tx_t elmc_send_packet(struct sk_buff *skb, struct net_device *dev)
 	p->xmit_cmds[0]->cmd_status = p->nop_cmds[next_nop]->cmd_status = 0;
 
 	p->nop_cmds[p->nop_point]->cmd_link = make16((p->xmit_cmds[0]));
-	dev->trans_start = jiffies;
 	p->nop_point = next_nop;
 	dev_kfree_skb(skb);
 #endif
@@ -1192,7 +1188,6 @@ static netdev_tx_t elmc_send_packet(struct sk_buff *skb, struct net_device *dev)
 	    = make16((p->nop_cmds[next_nop]));
 	p->nop_cmds[next_nop]->cmd_status = 0;
 		p->nop_cmds[p->xmit_count]->cmd_link = make16((p->xmit_cmds[p->xmit_count]));
-	dev->trans_start = jiffies;
 	p->xmit_count = next_nop;
 	if (p->xmit_count != p->xmit_last)
 		netif_wake_queue(dev);

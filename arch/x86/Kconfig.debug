@@ -45,7 +45,6 @@ config EARLY_PRINTK
 
 config EARLY_PRINTK_DBGP
 	bool "Early printk via EHCI debug port"
-	default n
 	depends on EARLY_PRINTK && PCI
 	---help---
 	  Write kernel log output directly into the EHCI debug port.
@@ -76,7 +75,6 @@ config DEBUG_PER_CPU_MAPS
 	bool "Debug access to per_cpu maps"
 	depends on DEBUG_KERNEL
 	depends on SMP
-	default n
 	---help---
 	  Say Y to verify that the per_cpu map being accessed has
 	  been setup.  Adds a fair amount of code to kernel memory
@@ -174,17 +172,17 @@ config IOMMU_LEAK
 	  Add a simple leak tracer to the IOMMU code. This is useful when you
 	  are debugging a buggy device driver that leaks IOMMU mappings.
 
-config X86_DS_SELFTEST
-    bool "DS selftest"
-    default y
-    depends on DEBUG_KERNEL
-    depends on X86_DS
-	---help---
-	  Perform Debug Store selftests at boot time.
-	  If in doubt, say "N".
-
 config HAVE_MMIOTRACE_SUPPORT
 	def_bool y
+
+config X86_DECODER_SELFTEST
+	bool "x86 instruction decoder selftest"
+	depends on DEBUG_KERNEL && KPROBES
+	---help---
+	 Perform x86 instruction decoder selftests at build time.
+	 This option is useful for checking the sanity of x86 instruction
+	 decoder code.
+	 If unsure, say "N".
 
 #
 # IO delay types:
@@ -286,5 +284,19 @@ config OPTIMIZE_INLINING
 	  is there to test gcc for this.
 
 	  If unsure, say N.
+
+config DEBUG_STRICT_USER_COPY_CHECKS
+	bool "Strict copy size checks"
+	depends on DEBUG_KERNEL && !TRACE_BRANCH_PROFILING
+	---help---
+	  Enabling this option turns a certain set of sanity checks for user
+	  copy operations into compile time failures.
+
+	  The copy_from_user() etc checks are there to help test if there
+	  are sufficient security checks on the length argument of
+	  the copy operation, by having gcc prove that the argument is
+	  within bounds.
+
+	  If unsure, or if you run an older (pre 4.4) gcc, say N.
 
 endmenu

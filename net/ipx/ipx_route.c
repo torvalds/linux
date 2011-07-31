@@ -9,6 +9,7 @@
 
 #include <linux/list.h>
 #include <linux/route.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 
 #include <net/ipx.h>

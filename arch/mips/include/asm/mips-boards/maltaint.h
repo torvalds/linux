@@ -88,9 +88,6 @@
 
 #define GIC_EXT_INTR(x)		x
 
-/* Dummy data */
-#define X			0xdead
-
 /* External Interrupts used for IPI */
 #define GIC_IPI_EXT_INTR_RESCHED_VPE0	16
 #define GIC_IPI_EXT_INTR_CALLFNC_VPE0	17

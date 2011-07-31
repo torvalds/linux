@@ -109,11 +109,5 @@
 #define CORGI_GPIO_BACKLIGHT_CONT	(CORGI_SCOOP_GPIO_BASE + 7)
 #define CORGI_GPIO_MIC_BIAS		(CORGI_SCOOP_GPIO_BASE + 8)
 
-/*
- * Shared data structures
- */
-extern struct platform_device corgiscoop_device;
-extern struct platform_device corgissp_device;
-
 #endif /* __ASM_ARCH_CORGI_H  */
 

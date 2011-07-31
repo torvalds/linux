@@ -44,8 +44,10 @@
  */
 
 #include <linux/sched.h>
+#include <linux/gfp.h>
 #include <linux/errno.h>
-#include <linux/slab.h>
+
+#include <linux/usb/quirks.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_eh.h>
@@ -137,19 +139,15 @@ static int usb_stor_msg_common(struct us_data *us, int timeout)
 
 	/* fill the common fields in the URB */
 	us->current_urb->context = &urb_done;
-	us->current_urb->actual_length = 0;
-	us->current_urb->error_count = 0;
-	us->current_urb->status = 0;
+	us->current_urb->transfer_flags = 0;
 
 	/* we assume that if transfer_buffer isn't us->iobuf then it
 	 * hasn't been mapped for DMA.  Yes, this is clunky, but it's
 	 * easier than always having the caller tell us whether the
 	 * transfer buffer has already been mapped. */
-	us->current_urb->transfer_flags = URB_NO_SETUP_DMA_MAP;
 	if (us->current_urb->transfer_buffer == us->iobuf)
 		us->current_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	us->current_urb->transfer_dma = us->iobuf_dma;
-	us->current_urb->setup_dma = us->cr_dma;
 
 	/* submit the URB */
 	status = usb_submit_urb(us->current_urb, GFP_NOIO);
@@ -666,10 +664,11 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	 * to wait for at least one CHECK_CONDITION to determine
 	 * SANE_SENSE support
 	 */
-	if ((srb->cmnd[0] == ATA_16 || srb->cmnd[0] == ATA_12) &&
+	if (unlikely((srb->cmnd[0] == ATA_16 || srb->cmnd[0] == ATA_12) &&
 	    result == USB_STOR_TRANSPORT_GOOD &&
 	    !(us->fflags & US_FL_SANE_SENSE) &&
-	    !(srb->cmnd[2] & 0x20)) {
+	    !(us->fflags & US_FL_BAD_SENSE) &&
+	    !(srb->cmnd[2] & 0x20))) {
 		US_DEBUGP("-- SAT supported, increasing auto-sense\n");
 		us->fflags |= US_FL_SANE_SENSE;
 	}
@@ -718,6 +717,12 @@ Retry_Sense:
 		if (test_bit(US_FLIDX_TIMED_OUT, &us->dflags)) {
 			US_DEBUGP("-- auto-sense aborted\n");
 			srb->result = DID_ABORT << 16;
+
+			/* If SANE_SENSE caused this problem, disable it */
+			if (sense_size != US_SENSE_SIZE) {
+				us->fflags &= ~US_FL_SANE_SENSE;
+				us->fflags |= US_FL_BAD_SENSE;
+			}
 			goto Handle_Errors;
 		}
 
@@ -727,10 +732,11 @@ Retry_Sense:
 		 * (small) sense request. This fixes some USB GSM modems
 		 */
 		if (temp_result == USB_STOR_TRANSPORT_FAILED &&
-		    (us->fflags & US_FL_SANE_SENSE) &&
-		    sense_size != US_SENSE_SIZE) {
+				sense_size != US_SENSE_SIZE) {
 			US_DEBUGP("-- auto-sense failure, retry small sense\n");
 			sense_size = US_SENSE_SIZE;
+			us->fflags &= ~US_FL_SANE_SENSE;
+			us->fflags |= US_FL_BAD_SENSE;
 			goto Retry_Sense;
 		}
 
@@ -754,6 +760,7 @@ Retry_Sense:
 		 */
 		if (srb->sense_buffer[7] > (US_SENSE_SIZE - 8) &&
 		    !(us->fflags & US_FL_SANE_SENSE) &&
+		    !(us->fflags & US_FL_BAD_SENSE) &&
 		    (srb->sense_buffer[0] & 0x7C) == 0x70) {
 			US_DEBUGP("-- SANE_SENSE support enabled\n");
 			us->fflags |= US_FL_SANE_SENSE;
@@ -1287,6 +1294,10 @@ EXPORT_SYMBOL_GPL(usb_stor_Bulk_reset);
 int usb_stor_port_reset(struct us_data *us)
 {
 	int result;
+
+	/*for these devices we must use the class specific method */
+	if (us->pusb_dev->quirks & USB_QUIRK_RESET_MORPHS)
+		return -EPERM;
 
 	result = usb_lock_device_for_reset(us->pusb_dev, us->pusb_intf);
 	if (result < 0)

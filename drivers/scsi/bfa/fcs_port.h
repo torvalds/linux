@@ -26,7 +26,6 @@
 /*
  * fcs friend functions: only between fcs modules
  */
-void bfa_fcs_pport_modinit(struct bfa_fcs_s *fcs);
-void bfa_fcs_pport_modexit(struct bfa_fcs_s *fcs);
+void bfa_fcs_pport_attach(struct bfa_fcs_s *fcs);
 
 #endif /* __FCS_PPORT_H__ */

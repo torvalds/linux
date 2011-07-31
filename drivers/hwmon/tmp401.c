@@ -42,8 +42,7 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x4c, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_2(tmp401, tmp411);
+enum chips { tmp401, tmp411 };
 
 /*
  * The TMP401 registers, note some registers have different addresses for
@@ -93,17 +92,6 @@ static const u8 TMP411_TEMP_HIGHEST_LSB[2]		= { 0x33, 0x37 };
 #define TMP411_DEVICE_ID			0x12
 
 /*
- * Functions declarations
- */
-
-static int tmp401_probe(struct i2c_client *client,
-			const struct i2c_device_id *id);
-static int tmp401_detect(struct i2c_client *client, int kind,
-			 struct i2c_board_info *info);
-static int tmp401_remove(struct i2c_client *client);
-static struct tmp401_data *tmp401_update_device(struct device *dev);
-
-/*
  * Driver data (common to all clients)
  */
 
@@ -114,18 +102,6 @@ static const struct i2c_device_id tmp401_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tmp401_id);
 
-static struct i2c_driver tmp401_driver = {
-	.class		= I2C_CLASS_HWMON,
-	.driver = {
-		.name	= "tmp401",
-	},
-	.probe		= tmp401_probe,
-	.remove		= tmp401_remove,
-	.id_table	= tmp401_id,
-	.detect		= tmp401_detect,
-	.address_data	= &addr_data,
-};
-
 /*
  * Client data (each client gets its own)
  */
@@ -135,7 +111,7 @@ struct tmp401_data {
 	struct mutex update_lock;
 	char valid; /* zero until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
-	int kind;
+	enum chips kind;
 
 	/* register values */
 	u8 status;
@@ -193,6 +169,71 @@ static u8 tmp401_crit_temp_to_register(long temp, u8 config)
 		temp = SENSORS_LIMIT(temp, 0, 127000);
 
 	return (temp + 500) / 1000;
+}
+
+static struct tmp401_data *tmp401_update_device_reg16(
+	struct i2c_client *client, struct tmp401_data *data)
+{
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		/*
+		 * High byte must be read first immediately followed
+		 * by the low byte
+		 */
+		data->temp[i] = i2c_smbus_read_byte_data(client,
+			TMP401_TEMP_MSB[i]) << 8;
+		data->temp[i] |= i2c_smbus_read_byte_data(client,
+			TMP401_TEMP_LSB[i]);
+		data->temp_low[i] = i2c_smbus_read_byte_data(client,
+			TMP401_TEMP_LOW_LIMIT_MSB_READ[i]) << 8;
+		data->temp_low[i] |= i2c_smbus_read_byte_data(client,
+			TMP401_TEMP_LOW_LIMIT_LSB[i]);
+		data->temp_high[i] = i2c_smbus_read_byte_data(client,
+			TMP401_TEMP_HIGH_LIMIT_MSB_READ[i]) << 8;
+		data->temp_high[i] |= i2c_smbus_read_byte_data(client,
+			TMP401_TEMP_HIGH_LIMIT_LSB[i]);
+		data->temp_crit[i] = i2c_smbus_read_byte_data(client,
+			TMP401_TEMP_CRIT_LIMIT[i]);
+
+		if (data->kind == tmp411) {
+			data->temp_lowest[i] = i2c_smbus_read_byte_data(client,
+				TMP411_TEMP_LOWEST_MSB[i]) << 8;
+			data->temp_lowest[i] |= i2c_smbus_read_byte_data(
+				client, TMP411_TEMP_LOWEST_LSB[i]);
+
+			data->temp_highest[i] = i2c_smbus_read_byte_data(
+				client, TMP411_TEMP_HIGHEST_MSB[i]) << 8;
+			data->temp_highest[i] |= i2c_smbus_read_byte_data(
+				client, TMP411_TEMP_HIGHEST_LSB[i]);
+		}
+	}
+	return data;
+}
+
+static struct tmp401_data *tmp401_update_device(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct tmp401_data *data = i2c_get_clientdata(client);
+
+	mutex_lock(&data->update_lock);
+
+	if (time_after(jiffies, data->last_updated + HZ) || !data->valid) {
+		data->status = i2c_smbus_read_byte_data(client, TMP401_STATUS);
+		data->config = i2c_smbus_read_byte_data(client,
+						TMP401_CONFIG_READ);
+		tmp401_update_device_reg16(client, data);
+
+		data->temp_crit_hyst = i2c_smbus_read_byte_data(client,
+						TMP401_TEMP_CRIT_HYST);
+
+		data->last_updated = jiffies;
+		data->valid = 1;
+	}
+
+	mutex_unlock(&data->update_lock);
+
+	return data;
 }
 
 static ssize_t show_temp_value(struct device *dev,
@@ -421,30 +462,36 @@ static ssize_t reset_temp_history(struct device *dev,
 }
 
 static struct sensor_device_attribute tmp401_attr[] = {
-	SENSOR_ATTR(temp1_input, 0444, show_temp_value, NULL, 0),
-	SENSOR_ATTR(temp1_min, 0644, show_temp_min, store_temp_min, 0),
-	SENSOR_ATTR(temp1_max, 0644, show_temp_max, store_temp_max, 0),
-	SENSOR_ATTR(temp1_crit, 0644, show_temp_crit, store_temp_crit, 0),
-	SENSOR_ATTR(temp1_crit_hyst, 0644, show_temp_crit_hyst,
+	SENSOR_ATTR(temp1_input, S_IRUGO, show_temp_value, NULL, 0),
+	SENSOR_ATTR(temp1_min, S_IWUSR | S_IRUGO, show_temp_min,
+		    store_temp_min, 0),
+	SENSOR_ATTR(temp1_max, S_IWUSR | S_IRUGO, show_temp_max,
+		    store_temp_max, 0),
+	SENSOR_ATTR(temp1_crit, S_IWUSR | S_IRUGO, show_temp_crit,
+		    store_temp_crit, 0),
+	SENSOR_ATTR(temp1_crit_hyst, S_IWUSR | S_IRUGO, show_temp_crit_hyst,
 		    store_temp_crit_hyst, 0),
-	SENSOR_ATTR(temp1_min_alarm, 0444, show_status, NULL,
+	SENSOR_ATTR(temp1_min_alarm, S_IRUGO, show_status, NULL,
 		    TMP401_STATUS_LOCAL_LOW),
-	SENSOR_ATTR(temp1_max_alarm, 0444, show_status, NULL,
+	SENSOR_ATTR(temp1_max_alarm, S_IRUGO, show_status, NULL,
 		    TMP401_STATUS_LOCAL_HIGH),
-	SENSOR_ATTR(temp1_crit_alarm, 0444, show_status, NULL,
+	SENSOR_ATTR(temp1_crit_alarm, S_IRUGO, show_status, NULL,
 		    TMP401_STATUS_LOCAL_CRIT),
-	SENSOR_ATTR(temp2_input, 0444, show_temp_value, NULL, 1),
-	SENSOR_ATTR(temp2_min, 0644, show_temp_min, store_temp_min, 1),
-	SENSOR_ATTR(temp2_max, 0644, show_temp_max, store_temp_max, 1),
-	SENSOR_ATTR(temp2_crit, 0644, show_temp_crit, store_temp_crit, 1),
-	SENSOR_ATTR(temp2_crit_hyst, 0444, show_temp_crit_hyst, NULL, 1),
-	SENSOR_ATTR(temp2_fault, 0444, show_status, NULL,
+	SENSOR_ATTR(temp2_input, S_IRUGO, show_temp_value, NULL, 1),
+	SENSOR_ATTR(temp2_min, S_IWUSR | S_IRUGO, show_temp_min,
+		    store_temp_min, 1),
+	SENSOR_ATTR(temp2_max, S_IWUSR | S_IRUGO, show_temp_max,
+		    store_temp_max, 1),
+	SENSOR_ATTR(temp2_crit, S_IWUSR | S_IRUGO, show_temp_crit,
+		    store_temp_crit, 1),
+	SENSOR_ATTR(temp2_crit_hyst, S_IRUGO, show_temp_crit_hyst, NULL, 1),
+	SENSOR_ATTR(temp2_fault, S_IRUGO, show_status, NULL,
 		    TMP401_STATUS_REMOTE_OPEN),
-	SENSOR_ATTR(temp2_min_alarm, 0444, show_status, NULL,
+	SENSOR_ATTR(temp2_min_alarm, S_IRUGO, show_status, NULL,
 		    TMP401_STATUS_REMOTE_LOW),
-	SENSOR_ATTR(temp2_max_alarm, 0444, show_status, NULL,
+	SENSOR_ATTR(temp2_max_alarm, S_IRUGO, show_status, NULL,
 		    TMP401_STATUS_REMOTE_HIGH),
-	SENSOR_ATTR(temp2_crit_alarm, 0444, show_status, NULL,
+	SENSOR_ATTR(temp2_crit_alarm, S_IRUGO, show_status, NULL,
 		    TMP401_STATUS_REMOTE_CRIT),
 };
 
@@ -456,11 +503,11 @@ static struct sensor_device_attribute tmp401_attr[] = {
  * and remote channels.
  */
 static struct sensor_device_attribute tmp411_attr[] = {
-	SENSOR_ATTR(temp1_highest, 0444, show_temp_highest, NULL, 0),
-	SENSOR_ATTR(temp1_lowest, 0444, show_temp_lowest, NULL, 0),
-	SENSOR_ATTR(temp2_highest, 0444, show_temp_highest, NULL, 1),
-	SENSOR_ATTR(temp2_lowest, 0444, show_temp_lowest, NULL, 1),
-	SENSOR_ATTR(temp_reset_history, 0200, NULL, reset_temp_history, 0),
+	SENSOR_ATTR(temp1_highest, S_IRUGO, show_temp_highest, NULL, 0),
+	SENSOR_ATTR(temp1_lowest, S_IRUGO, show_temp_lowest, NULL, 0),
+	SENSOR_ATTR(temp2_highest, S_IRUGO, show_temp_highest, NULL, 1),
+	SENSOR_ATTR(temp2_lowest, S_IRUGO, show_temp_lowest, NULL, 1),
+	SENSOR_ATTR(temp_reset_history, S_IWUSR, NULL, reset_temp_history, 0),
 };
 
 /*
@@ -488,48 +535,66 @@ static void tmp401_init_client(struct i2c_client *client)
 		i2c_smbus_write_byte_data(client, TMP401_CONFIG_WRITE, config);
 }
 
-static int tmp401_detect(struct i2c_client *client, int kind,
+static int tmp401_detect(struct i2c_client *client,
 			 struct i2c_board_info *info)
 {
+	enum chips kind;
 	struct i2c_adapter *adapter = client->adapter;
+	u8 reg;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
 	/* Detect and identify the chip */
-	if (kind <= 0) {
-		u8 reg;
+	reg = i2c_smbus_read_byte_data(client, TMP401_MANUFACTURER_ID_REG);
+	if (reg != TMP401_MANUFACTURER_ID)
+		return -ENODEV;
 
-		reg = i2c_smbus_read_byte_data(client,
-					       TMP401_MANUFACTURER_ID_REG);
-		if (reg != TMP401_MANUFACTURER_ID)
-			return -ENODEV;
+	reg = i2c_smbus_read_byte_data(client, TMP401_DEVICE_ID_REG);
 
-		reg = i2c_smbus_read_byte_data(client, TMP401_DEVICE_ID_REG);
-
-		switch (reg) {
-		case TMP401_DEVICE_ID:
-			kind = tmp401;
-			break;
-		case TMP411_DEVICE_ID:
-			kind = tmp411;
-			break;
-		default:
-			return -ENODEV;
-		}
-
-		reg = i2c_smbus_read_byte_data(client, TMP401_CONFIG_READ);
-		if (reg & 0x1b)
-			return -ENODEV;
-
-		reg = i2c_smbus_read_byte_data(client,
-					       TMP401_CONVERSION_RATE_READ);
-		/* Datasheet says: 0x1-0x6 */
-		if (reg > 15)
-			return -ENODEV;
+	switch (reg) {
+	case TMP401_DEVICE_ID:
+		kind = tmp401;
+		break;
+	case TMP411_DEVICE_ID:
+		kind = tmp411;
+		break;
+	default:
+		return -ENODEV;
 	}
-	strlcpy(info->type, tmp401_id[kind - 1].name, I2C_NAME_SIZE);
 
+	reg = i2c_smbus_read_byte_data(client, TMP401_CONFIG_READ);
+	if (reg & 0x1b)
+		return -ENODEV;
+
+	reg = i2c_smbus_read_byte_data(client, TMP401_CONVERSION_RATE_READ);
+	/* Datasheet says: 0x1-0x6 */
+	if (reg > 15)
+		return -ENODEV;
+
+	strlcpy(info->type, tmp401_id[kind].name, I2C_NAME_SIZE);
+
+	return 0;
+}
+
+static int tmp401_remove(struct i2c_client *client)
+{
+	struct tmp401_data *data = i2c_get_clientdata(client);
+	int i;
+
+	if (data->hwmon_dev)
+		hwmon_device_unregister(data->hwmon_dev);
+
+	for (i = 0; i < ARRAY_SIZE(tmp401_attr); i++)
+		device_remove_file(&client->dev, &tmp401_attr[i].dev_attr);
+
+	if (data->kind == tmp411) {
+		for (i = 0; i < ARRAY_SIZE(tmp411_attr); i++)
+			device_remove_file(&client->dev,
+					   &tmp411_attr[i].dev_attr);
+	}
+
+	kfree(data);
 	return 0;
 }
 
@@ -576,8 +641,7 @@ static int tmp401_probe(struct i2c_client *client,
 		goto exit_remove;
 	}
 
-	dev_info(&client->dev, "Detected TI %s chip\n",
-		 names[data->kind - 1]);
+	dev_info(&client->dev, "Detected TI %s chip\n", names[data->kind]);
 
 	return 0;
 
@@ -586,91 +650,17 @@ exit_remove:
 	return err;
 }
 
-static int tmp401_remove(struct i2c_client *client)
-{
-	struct tmp401_data *data = i2c_get_clientdata(client);
-	int i;
-
-	if (data->hwmon_dev)
-		hwmon_device_unregister(data->hwmon_dev);
-
-	for (i = 0; i < ARRAY_SIZE(tmp401_attr); i++)
-		device_remove_file(&client->dev, &tmp401_attr[i].dev_attr);
-
-	if (data->kind == tmp411) {
-		for (i = 0; i < ARRAY_SIZE(tmp411_attr); i++)
-			device_remove_file(&client->dev,
-					   &tmp411_attr[i].dev_attr);
-	}
-
-	kfree(data);
-	return 0;
-}
-
-static struct tmp401_data *tmp401_update_device_reg16(
-	struct i2c_client *client, struct tmp401_data *data)
-{
-	int i;
-
-	for (i = 0; i < 2; i++) {
-		/*
-		 * High byte must be read first immediately followed
-		 * by the low byte
-		 */
-		data->temp[i] = i2c_smbus_read_byte_data(client,
-			TMP401_TEMP_MSB[i]) << 8;
-		data->temp[i] |= i2c_smbus_read_byte_data(client,
-			TMP401_TEMP_LSB[i]);
-		data->temp_low[i] = i2c_smbus_read_byte_data(client,
-			TMP401_TEMP_LOW_LIMIT_MSB_READ[i]) << 8;
-		data->temp_low[i] |= i2c_smbus_read_byte_data(client,
-			TMP401_TEMP_LOW_LIMIT_LSB[i]);
-		data->temp_high[i] = i2c_smbus_read_byte_data(client,
-			TMP401_TEMP_HIGH_LIMIT_MSB_READ[i]) << 8;
-		data->temp_high[i] |= i2c_smbus_read_byte_data(client,
-			TMP401_TEMP_HIGH_LIMIT_LSB[i]);
-		data->temp_crit[i] = i2c_smbus_read_byte_data(client,
-			TMP401_TEMP_CRIT_LIMIT[i]);
-
-		if (data->kind == tmp411) {
-			data->temp_lowest[i] = i2c_smbus_read_byte_data(client,
-				TMP411_TEMP_LOWEST_MSB[i]) << 8;
-			data->temp_lowest[i] |= i2c_smbus_read_byte_data(
-				client, TMP411_TEMP_LOWEST_LSB[i]);
-
-			data->temp_highest[i] = i2c_smbus_read_byte_data(
-				client, TMP411_TEMP_HIGHEST_MSB[i]) << 8;
-			data->temp_highest[i] |= i2c_smbus_read_byte_data(
-				client, TMP411_TEMP_HIGHEST_LSB[i]);
-		}
-	}
-	return data;
-}
-
-static struct tmp401_data *tmp401_update_device(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct tmp401_data *data = i2c_get_clientdata(client);
-
-	mutex_lock(&data->update_lock);
-
-	if (time_after(jiffies, data->last_updated + HZ) || !data->valid) {
-		data->status = i2c_smbus_read_byte_data(client, TMP401_STATUS);
-		data->config = i2c_smbus_read_byte_data(client,
-						TMP401_CONFIG_READ);
-		tmp401_update_device_reg16(client, data);
-
-		data->temp_crit_hyst = i2c_smbus_read_byte_data(client,
-						TMP401_TEMP_CRIT_HYST);
-
-		data->last_updated = jiffies;
-		data->valid = 1;
-	}
-
-	mutex_unlock(&data->update_lock);
-
-	return data;
-}
+static struct i2c_driver tmp401_driver = {
+	.class		= I2C_CLASS_HWMON,
+	.driver = {
+		.name	= "tmp401",
+	},
+	.probe		= tmp401_probe,
+	.remove		= tmp401_remove,
+	.id_table	= tmp401_id,
+	.detect		= tmp401_detect,
+	.address_list	= normal_i2c,
+};
 
 static int __init tmp401_init(void)
 {

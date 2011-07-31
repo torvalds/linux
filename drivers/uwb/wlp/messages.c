@@ -24,6 +24,7 @@
  */
 
 #include <linux/wlp.h>
+#include <linux/slab.h>
 
 #include "wlp-internal.h"
 
@@ -259,6 +260,63 @@ out:
 }
 
 
+static ssize_t wlp_get_attribute(struct wlp *wlp, u16 type_code,
+	struct wlp_attr_hdr *attr_hdr, void *value, ssize_t value_len,
+	ssize_t buflen)
+{
+	struct device *dev = &wlp->rc->uwb_dev.dev;
+	ssize_t attr_len = sizeof(*attr_hdr) + value_len;
+	if (buflen < 0)
+		return -EINVAL;
+	if (buflen < attr_len) {
+		dev_err(dev, "WLP: Not enough space in buffer to parse"
+			" attribute field. Need %d, received %zu\n",
+			(int)attr_len, buflen);
+		return -EIO;
+	}
+	if (wlp_check_attr_hdr(wlp, attr_hdr, type_code, value_len) < 0) {
+		dev_err(dev, "WLP: Header verification failed. \n");
+		return -EINVAL;
+	}
+	memcpy(value, (void *)attr_hdr + sizeof(*attr_hdr), value_len);
+	return attr_len;
+}
+
+static ssize_t wlp_vget_attribute(struct wlp *wlp, u16 type_code,
+	struct wlp_attr_hdr *attr_hdr, void *value, ssize_t max_value_len,
+	ssize_t buflen)
+{
+	struct device *dev = &wlp->rc->uwb_dev.dev;
+	size_t len;
+	if (buflen < 0)
+		return -EINVAL;
+	if (buflen < sizeof(*attr_hdr)) {
+		dev_err(dev, "WLP: Not enough space in buffer to parse"
+			" header.\n");
+		return -EIO;
+	}
+	if (le16_to_cpu(attr_hdr->type) != type_code) {
+		dev_err(dev, "WLP: Unexpected attribute type. Got %u, "
+			"expected %u.\n", le16_to_cpu(attr_hdr->type),
+			type_code);
+		return -EINVAL;
+	}
+	len = le16_to_cpu(attr_hdr->length);
+	if (len > max_value_len) {
+		dev_err(dev, "WLP: Attribute larger than maximum "
+			"allowed. Received %zu, max is %d.\n", len,
+			(int)max_value_len);
+		return -EFBIG;
+	}
+	if (buflen < sizeof(*attr_hdr) + len) {
+		dev_err(dev, "WLP: Not enough space in buffer to parse "
+			"variable data.\n");
+		return -EIO;
+	}
+	memcpy(value, (void *)attr_hdr + sizeof(*attr_hdr), len);
+	return sizeof(*attr_hdr) + len;
+}
+
 /**
  * Get value of attribute from fixed size attribute field.
  *
@@ -274,22 +332,8 @@ out:
 ssize_t wlp_get_##name(struct wlp *wlp, struct wlp_attr_##name *attr,	\
 		      type *value, ssize_t buflen)			\
 {									\
-	struct device *dev = &wlp->rc->uwb_dev.dev;			\
-	if (buflen < 0)							\
-		return -EINVAL;						\
-	if (buflen < sizeof(*attr)) {					\
-		dev_err(dev, "WLP: Not enough space in buffer to parse"	\
-			" attribute field. Need %d, received %zu\n",	\
-			(int)sizeof(*attr), buflen);			\
-		return -EIO;						\
-	}								\
-	if (wlp_check_attr_hdr(wlp, &attr->hdr, type_code,		\
-			       sizeof(attr->name)) < 0) {		\
-		dev_err(dev, "WLP: Header verification failed. \n");	\
-		return -EINVAL;						\
-	}								\
-	*value = attr->name;						\
-	return sizeof(*attr);						\
+	return wlp_get_attribute(wlp, (type_code), &attr->hdr,		\
+				 value, sizeof(*value), buflen);	\
 }
 
 #define wlp_get_sparse(type, type_code, name) \
@@ -313,35 +357,8 @@ static ssize_t wlp_get_##name(struct wlp *wlp,				\
 			      struct wlp_attr_##name *attr,		\
 			      type_val *value, ssize_t buflen)		\
 {									\
-	struct device *dev = &wlp->rc->uwb_dev.dev;			\
-	size_t len;							\
-	if (buflen < 0)							\
-		return -EINVAL;						\
-	if (buflen < sizeof(*attr)) {					\
-		dev_err(dev, "WLP: Not enough space in buffer to parse"	\
-			" header.\n");					\
-		return -EIO;						\
-	}								\
-	if (le16_to_cpu(attr->hdr.type) != type_code) {			\
-		dev_err(dev, "WLP: Unexpected attribute type. Got %u, "	\
-			"expected %u.\n", le16_to_cpu(attr->hdr.type),	\
-			type_code);					\
-		return -EINVAL;						\
-	}								\
-	len = le16_to_cpu(attr->hdr.length);				\
-	if (len > max) {						\
-		dev_err(dev, "WLP: Attribute larger than maximum "	\
-			"allowed. Received %zu, max is %d.\n", len,	\
-			(int)max);					\
-		return -EFBIG;						\
-	}								\
-	if (buflen < sizeof(*attr) + len) {				\
-		dev_err(dev, "WLP: Not enough space in buffer to parse "\
-			"variable data.\n");				\
-		return -EIO;						\
-	}								\
-	memcpy(value, (void *) attr + sizeof(*attr), len);		\
-	return sizeof(*attr) + len;					\
+	return wlp_vget_attribute(wlp, (type_code), &attr->hdr, 	\
+			      value, (max), buflen);			\
 }
 
 wlp_get(u8, WLP_ATTR_WLP_VER, version)

@@ -70,7 +70,7 @@ static void cyberjack_read_int_callback(struct urb *urb);
 static void cyberjack_read_bulk_callback(struct urb *urb);
 static void cyberjack_write_bulk_callback(struct urb *urb);
 
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(CYBERJACK_VENDOR_ID, CYBERJACK_PRODUCT_ID) },
 	{ }			/* Terminating entry */
 };
@@ -391,11 +391,10 @@ static void cyberjack_read_bulk_callback(struct urb *urb)
 
 	tty = tty_port_tty_get(&port->port);
 	if (!tty) {
-		dbg("%s - ignoring since device not open\n", __func__);
+		dbg("%s - ignoring since device not open", __func__);
 		return;
 	}
 	if (urb->actual_length) {
-		tty_buffer_request_room(tty, urb->actual_length);
 		tty_insert_flip_string(tty, data, urb->actual_length);
 		tty_flip_buffer_push(tty);
 	}

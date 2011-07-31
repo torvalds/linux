@@ -51,7 +51,7 @@ static void pmc_swift_idle(void)
 #endif
 }
 
-static int __devinit pmc_probe(struct of_device *op,
+static int __devinit pmc_probe(struct platform_device *op,
 			       const struct of_device_id *match)
 {
 	regs = of_ioremap(&op->resource[0], 0,
@@ -79,14 +79,17 @@ static struct of_device_id __initdata pmc_match[] = {
 MODULE_DEVICE_TABLE(of, pmc_match);
 
 static struct of_platform_driver pmc_driver = {
-	.name		= "pmc",
-	.match_table	= pmc_match,
+	.driver = {
+		.name = "pmc",
+		.owner = THIS_MODULE,
+		.of_match_table = pmc_match,
+	},
 	.probe		= pmc_probe,
 };
 
 static int __init pmc_init(void)
 {
-	return of_register_driver(&pmc_driver, &of_bus_type);
+	return of_register_platform_driver(&pmc_driver);
 }
 
 /* This driver is not critical to the boot process

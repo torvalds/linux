@@ -9,8 +9,10 @@
 #include <linux/backing-dev.h>
 #include <linux/fs.h>
 #include <linux/ioctl.h>
+#include <linux/slab.h>
 #include <linux/genhd.h>
 #include <linux/netdevice.h>
+#include <linux/smp_lock.h>
 #include "aoe.h"
 
 static struct kmem_cache *buf_pool_cache;
@@ -123,13 +125,16 @@ aoeblk_open(struct block_device *bdev, fmode_t mode)
 	struct aoedev *d = bdev->bd_disk->private_data;
 	ulong flags;
 
+	lock_kernel();
 	spin_lock_irqsave(&d->lock, flags);
 	if (d->flags & DEVFL_UP) {
 		d->nopen++;
 		spin_unlock_irqrestore(&d->lock, flags);
+		unlock_kernel();
 		return 0;
 	}
 	spin_unlock_irqrestore(&d->lock, flags);
+	unlock_kernel();
 	return -ENODEV;
 }
 
@@ -172,7 +177,7 @@ aoeblk_make_request(struct request_queue *q, struct bio *bio)
 		BUG();
 		bio_endio(bio, -ENXIO);
 		return 0;
-	} else if (bio_rw_flagged(bio, BIO_RW_BARRIER)) {
+	} else if (bio->bi_rw & REQ_HARDBARRIER) {
 		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
 	} else if (bio->bi_io_vec == NULL) {

@@ -61,6 +61,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/net.h>
+#include <linux/slab.h>
 #include <net/ax25.h>
 #include <linux/inet.h>
 #include <linux/netdevice.h>
@@ -167,10 +168,7 @@ static inline struct net_device *bpq_get_ax25_dev(struct net_device *dev)
 
 static inline int dev_is_ethdev(struct net_device *dev)
 {
-	return (
-			dev->type == ARPHRD_ETHER
-			&& strncmp(dev->name, "dummy", 5)
-	);
+	return (dev->type == ARPHRD_ETHER && strncmp(dev->name, "dummy", 5));
 }
 
 /* ------------------------------------------------------------------------ */
@@ -186,7 +184,7 @@ static int bpq_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_ty
 	struct ethhdr *eth;
 	struct bpqdev *bpq;
 
-	if (dev_net(dev) != &init_net)
+	if (!net_eq(dev_net(dev), &init_net))
 		goto drop;
 
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
@@ -251,6 +249,7 @@ static netdev_tx_t bpq_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	unsigned char *ptr;
 	struct bpqdev *bpq;
+	struct net_device *orig_dev;
 	int size;
 
 	/*
@@ -285,8 +284,9 @@ static netdev_tx_t bpq_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	bpq = netdev_priv(dev);
 
+	orig_dev = dev;
 	if ((dev = bpq_get_ether_dev(dev)) == NULL) {
-		dev->stats.tx_dropped++;
+		orig_dev->stats.tx_dropped++;
 		kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
@@ -552,7 +552,7 @@ static int bpq_device_event(struct notifier_block *this,unsigned long event, voi
 {
 	struct net_device *dev = (struct net_device *)ptr;
 
-	if (dev_net(dev) != &init_net)
+	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
 	if (!dev_is_ethdev(dev))

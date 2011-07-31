@@ -29,7 +29,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/bootmem.h>
@@ -214,7 +213,7 @@ static int __init com90io_probe(struct net_device *dev)
 		outb(0, _INTMASK);
 		dev->irq = probe_irq_off(airqmask);
 
-		if (dev->irq <= 0) {
+		if ((int)dev->irq <= 0) {
 			BUGMSG(D_INIT_REASONS, "Autoprobe IRQ failed\n");
 			goto err_out;
 		}
@@ -238,7 +237,7 @@ static int __init com90io_found(struct net_device *dev)
 	int err;
 
 	/* Reserve the irq */
-	if (request_irq(dev->irq, &arcnet_interrupt, 0, "arcnet (COM90xx-IO)", dev)) {
+	if (request_irq(dev->irq, arcnet_interrupt, 0, "arcnet (COM90xx-IO)", dev)) {
 		BUGMSG(D_NORMAL, "Can't get IRQ %d!\n", dev->irq);
 		return -ENODEV;
 	}

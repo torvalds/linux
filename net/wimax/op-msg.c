@@ -72,6 +72,7 @@
  *   wimax_msg_send()
  */
 #include <linux/device.h>
+#include <linux/slab.h>
 #include <net/genetlink.h>
 #include <linux/netdevice.h>
 #include <linux/wimax.h>
@@ -320,8 +321,7 @@ int wimax_msg(struct wimax_dev *wimax_dev, const char *pipe_name,
 EXPORT_SYMBOL_GPL(wimax_msg);
 
 
-static const
-struct nla_policy wimax_gnl_msg_policy[WIMAX_GNL_ATTR_MAX + 1] = {
+static const struct nla_policy wimax_gnl_msg_policy[WIMAX_GNL_ATTR_MAX + 1] = {
 	[WIMAX_GNL_MSG_IFIDX] = {
 		.type = NLA_U32,
 	},
@@ -388,6 +388,8 @@ int wimax_gnl_doit_msg_from_user(struct sk_buff *skb, struct genl_info *info)
 	}
 	mutex_lock(&wimax_dev->mutex);
 	result = wimax_dev_is_ready(wimax_dev);
+	if (result == -ENOMEDIUM)
+		result = 0;
 	if (result < 0)
 		goto error_not_ready;
 	result = -ENOSYS;

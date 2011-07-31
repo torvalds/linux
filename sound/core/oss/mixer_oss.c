@@ -43,6 +43,10 @@ static int snd_mixer_oss_open(struct inode *inode, struct file *file)
 	struct snd_mixer_oss_file *fmixer;
 	int err;
 
+	err = nonseekable_open(inode, file);
+	if (err < 0)
+		return err;
+
 	card = snd_lookup_oss_minor_data(iminor(inode),
 					 SNDRV_OSS_DEVICE_TYPE_MIXER);
 	if (card == NULL)
@@ -397,6 +401,7 @@ static const struct file_operations snd_mixer_oss_f_ops =
 	.owner =	THIS_MODULE,
 	.open =		snd_mixer_oss_open,
 	.release =	snd_mixer_oss_release,
+	.llseek =	no_llseek,
 	.unlocked_ioctl =	snd_mixer_oss_ioctl,
 	.compat_ioctl =	snd_mixer_oss_ioctl_compat,
 };
@@ -613,8 +618,10 @@ static void snd_mixer_oss_put_volume1_vol(struct snd_mixer_oss_file *fmixer,
 	if (numid == ID_UNKNOWN)
 		return;
 	down_read(&card->controls_rwsem);
-	if ((kctl = snd_ctl_find_numid(card, numid)) == NULL)
+	if ((kctl = snd_ctl_find_numid(card, numid)) == NULL) {
+		up_read(&card->controls_rwsem);
 		return;
+	}
 	uinfo = kzalloc(sizeof(*uinfo), GFP_KERNEL);
 	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
 	if (uinfo == NULL || uctl == NULL)
@@ -653,7 +660,7 @@ static void snd_mixer_oss_put_volume1_sw(struct snd_mixer_oss_file *fmixer,
 		return;
 	down_read(&card->controls_rwsem);
 	if ((kctl = snd_ctl_find_numid(card, numid)) == NULL) {
-		up_read(&fmixer->card->controls_rwsem);
+		up_read(&card->controls_rwsem);
 		return;
 	}
 	uinfo = kzalloc(sizeof(*uinfo), GFP_KERNEL);
@@ -792,7 +799,7 @@ static int snd_mixer_oss_get_recsrc2(struct snd_mixer_oss_file *fmixer, unsigned
 	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
 	if (uinfo == NULL || uctl == NULL) {
 		err = -ENOMEM;
-		goto __unlock;
+		goto __free_only;
 	}
 	down_read(&card->controls_rwsem);
 	kctl = snd_mixer_oss_test_id(mixer, "Capture Source", 0);
@@ -821,6 +828,7 @@ static int snd_mixer_oss_get_recsrc2(struct snd_mixer_oss_file *fmixer, unsigned
 	err = 0;
       __unlock:
      	up_read(&card->controls_rwsem);
+      __free_only:
       	kfree(uctl);
       	kfree(uinfo);
       	return err;
@@ -842,7 +850,7 @@ static int snd_mixer_oss_put_recsrc2(struct snd_mixer_oss_file *fmixer, unsigned
 	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
 	if (uinfo == NULL || uctl == NULL) {
 		err = -ENOMEM;
-		goto __unlock;
+		goto __free_only;
 	}
 	down_read(&card->controls_rwsem);
 	kctl = snd_mixer_oss_test_id(mixer, "Capture Source", 0);
@@ -875,6 +883,7 @@ static int snd_mixer_oss_put_recsrc2(struct snd_mixer_oss_file *fmixer, unsigned
 	err = 0;
       __unlock:
 	up_read(&card->controls_rwsem);
+      __free_only:
 	kfree(uctl);
 	kfree(uinfo);
 	return err;
@@ -1251,7 +1260,9 @@ static void snd_mixer_oss_build(struct snd_mixer_oss *mixer)
 		{ SOUND_MIXER_SYNTH,	"FM",			0 }, /* fallback */
 		{ SOUND_MIXER_SYNTH,	"Music",		0 }, /* fallback */
 		{ SOUND_MIXER_PCM,	"PCM",			0 },
-		{ SOUND_MIXER_SPEAKER,	"PC Speaker", 		0 },
+		{ SOUND_MIXER_SPEAKER,	"Beep", 		0 },
+		{ SOUND_MIXER_SPEAKER,	"PC Speaker", 		0 }, /* fallback */
+		{ SOUND_MIXER_SPEAKER,	"Speaker", 		0 }, /* fallback */
 		{ SOUND_MIXER_LINE,	"Line", 		0 },
 		{ SOUND_MIXER_MIC,	"Mic", 			0 },
 		{ SOUND_MIXER_CD,	"CD", 			0 },

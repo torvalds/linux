@@ -82,7 +82,7 @@ SYSCALL_DEFINE3(msync, unsigned long, start, size_t, len, int, flags)
 				(vma->vm_flags & VM_SHARED)) {
 			get_file(file);
 			up_read(&mm->mmap_sem);
-			error = vfs_fsync(file, file->f_path.dentry, 0);
+			error = vfs_fsync(file, 0);
 			fput(file);
 			if (error || start >= end)
 				goto out;

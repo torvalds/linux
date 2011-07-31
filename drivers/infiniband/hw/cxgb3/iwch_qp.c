@@ -30,6 +30,7 @@
  * SOFTWARE.
  */
 #include <linux/sched.h>
+#include <linux/gfp.h>
 #include "iwch_provider.h"
 #include "iwch.h"
 #include "iwch_cm.h"
@@ -365,18 +366,19 @@ int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	spin_lock_irqsave(&qhp->lock, flag);
 	if (qhp->attr.state > IWCH_QP_STATE_RTS) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
-		return -EINVAL;
+		err = -EINVAL;
+		goto out;
 	}
 	num_wrs = Q_FREECNT(qhp->wq.sq_rptr, qhp->wq.sq_wptr,
 		  qhp->wq.sq_size_log2);
-	if (num_wrs <= 0) {
+	if (num_wrs == 0) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto out;
 	}
 	while (wr) {
 		if (num_wrs == 0) {
 			err = -ENOMEM;
-			*bad_wr = wr;
 			break;
 		}
 		idx = Q_PTR2IDX(qhp->wq.wptr, qhp->wq.size_log2);
@@ -428,10 +430,8 @@ int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			     wr->opcode);
 			err = -EINVAL;
 		}
-		if (err) {
-			*bad_wr = wr;
+		if (err)
 			break;
-		}
 		wqe->send.wrid.id0.hi = qhp->wq.sq_wptr;
 		sqp->wr_id = wr->wr_id;
 		sqp->opcode = wr2opcode(t3_wr_opcode);
@@ -453,7 +453,12 @@ int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		++(qhp->wq.sq_wptr);
 	}
 	spin_unlock_irqrestore(&qhp->lock, flag);
-	ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
+	if (cxio_wq_db_enabled(&qhp->wq))
+		ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
+
+out:
+	if (err)
+		*bad_wr = wr;
 	return err;
 }
 
@@ -471,18 +476,19 @@ int iwch_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	spin_lock_irqsave(&qhp->lock, flag);
 	if (qhp->attr.state > IWCH_QP_STATE_RTS) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
-		return -EINVAL;
+		err = -EINVAL;
+		goto out;
 	}
 	num_wrs = Q_FREECNT(qhp->wq.rq_rptr, qhp->wq.rq_wptr,
 			    qhp->wq.rq_size_log2) - 1;
 	if (!wr) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
-		return -EINVAL;
+		err = -ENOMEM;
+		goto out;
 	}
 	while (wr) {
 		if (wr->num_sge > T3_MAX_SGE) {
 			err = -EINVAL;
-			*bad_wr = wr;
 			break;
 		}
 		idx = Q_PTR2IDX(qhp->wq.wptr, qhp->wq.size_log2);
@@ -494,10 +500,10 @@ int iwch_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 				err = build_zero_stag_recv(qhp, wqe, wr);
 		else
 			err = -ENOMEM;
-		if (err) {
-			*bad_wr = wr;
+
+		if (err)
 			break;
-		}
+
 		build_fw_riwrh((void *) wqe, T3_WR_RCV, T3_COMPLETION_FLAG,
 			       Q_GENBIT(qhp->wq.wptr, qhp->wq.size_log2),
 			       0, sizeof(struct t3_receive_wr) >> 3, T3_SOPEOP);
@@ -510,7 +516,12 @@ int iwch_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		num_wrs--;
 	}
 	spin_unlock_irqrestore(&qhp->lock, flag);
-	ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
+	if (cxio_wq_db_enabled(&qhp->wq))
+		ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
+
+out:
+	if (err)
+		*bad_wr = wr;
 	return err;
 }
 
@@ -543,7 +554,7 @@ int iwch_bind_mw(struct ib_qp *qp,
 	}
 	num_wrs = Q_FREECNT(qhp->wq.sq_rptr, qhp->wq.sq_wptr,
 			    qhp->wq.sq_size_log2);
-	if ((num_wrs) <= 0) {
+	if (num_wrs == 0) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
 		return -ENOMEM;
 	}
@@ -589,7 +600,8 @@ int iwch_bind_mw(struct ib_qp *qp,
 	++(qhp->wq.sq_wptr);
 	spin_unlock_irqrestore(&qhp->lock, flag);
 
-	ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
+	if (cxio_wq_db_enabled(&qhp->wq))
+		ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
 
 	return err;
 }
@@ -804,7 +816,7 @@ static void __flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 	atomic_inc(&qhp->refcnt);
 	spin_unlock_irqrestore(&qhp->lock, *flag);
 
-	/* locking heirarchy: cq lock first, then qp lock. */
+	/* locking hierarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&rchp->lock, *flag);
 	spin_lock(&qhp->lock);
 	cxio_flush_hw_cq(&rchp->cq);
@@ -815,7 +827,7 @@ static void __flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 	if (flushed)
 		(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
 
-	/* locking heirarchy: cq lock first, then qp lock. */
+	/* locking hierarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&schp->lock, *flag);
 	spin_lock(&qhp->lock);
 	cxio_flush_hw_cq(&schp->cq);

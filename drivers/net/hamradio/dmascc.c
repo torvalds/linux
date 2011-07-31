@@ -32,6 +32,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 #include <linux/rtnetlink.h>
 #include <linux/sockios.h>
 #include <linux/workqueue.h>
@@ -331,8 +332,8 @@ static int __init dmascc_init(void)
 			for (i = 0; i < MAX_NUM_DEVS && io[i]; i++) {
 				j = (io[i] -
 				     hw[h].io_region) / hw[h].io_delta;
-				if (j >= 0 && j < hw[h].num_devs
-				    && hw[h].io_region +
+				if (j >= 0 && j < hw[h].num_devs &&
+				    hw[h].io_region +
 				    j * hw[h].io_delta == io[i]) {
 					base[j] = io[i];
 				}
@@ -396,8 +397,8 @@ static int __init dmascc_init(void)
 					t_val =
 					    inb(t1[i]) + (inb(t1[i]) << 8);
 					/* Also check whether counter did wrap */
-					if (t_val == 0
-					    || t_val > TMR_0_HZ / HZ * 10)
+					if (t_val == 0 ||
+					    t_val > TMR_0_HZ / HZ * 10)
 						counting[i] = 0;
 					delay[i] = jiffies - start[i];
 				}

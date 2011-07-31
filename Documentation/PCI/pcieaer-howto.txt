@@ -13,7 +13,7 @@ Reporting (AER) driver and provides information on how to use it, as
 well as how to enable the drivers of endpoint devices to conform with
 PCI Express AER driver.
 
-1.2 Copyright © Intel Corporation 2006.
+1.2 Copyright (C) Intel Corporation 2006.
 
 1.3 What is the PCI Express AER Driver?
 
@@ -71,15 +71,11 @@ console. If it's a correctable error, it is outputed as a warning.
 Otherwise, it is printed as an error. So users could choose different
 log level to filter out correctable error messages.
 
-Below shows an example.
-+------ PCI-Express Device Error -----+
-Error Severity          : Uncorrected (Fatal)
-PCIE Bus Error type     : Transaction Layer
-Unsupported Request     : First
-Requester ID            : 0500
-VendorID=8086h, DeviceID=0329h, Bus=05h, Device=00h, Function=00h
-TLB Header:
-04000001 00200a03 05010000 00050100
+Below shows an example:
+0000:50:00.0: PCIe Bus Error: severity=Uncorrected (Fatal), type=Transaction Layer, id=0500(Requester ID)
+0000:50:00.0:   device [8086:0329] error status/mask=00100000/00000000
+0000:50:00.0:    [20] Unsupported Request    (First)
+0000:50:00.0:   TLP Header: 04000001 00200a03 05010000 00050100
 
 In the example, 'Requester ID' means the ID of the device who sends
 the error message to root port. Pls. refer to pci express specs for
@@ -112,7 +108,7 @@ but the PCI Express link itself is fully functional. Fatal errors, on
 the other hand, cause the link to be unreliable.
 
 When AER is enabled, a PCI Express device will automatically send an
-error message to the PCIE root port above it when the device captures
+error message to the PCIe root port above it when the device captures
 an error. The Root Port, upon receiving an error reporting message,
 internally processes and logs the error message in its PCI Express
 capability structure. Error information being logged includes storing
@@ -198,8 +194,9 @@ to reset link, AER port service driver is required to provide the
 function to reset link. Firstly, kernel looks for if the upstream
 component has an aer driver. If it has, kernel uses the reset_link
 callback of the aer driver. If the upstream component has no aer driver
-and the port is downstream port, we will use the aer driver of the
-root port who reports the AER error. As for upstream ports,
+and the port is downstream port, we will perform a hot reset as the
+default by setting the Secondary Bus Reset bit of the Bridge Control
+register associated with the downstream port. As for upstream ports,
 they should provide their own aer service drivers with reset_link
 function. If error_detected returns PCI_ERS_RESULT_CAN_RECOVER and
 reset_link returns PCI_ERS_RESULT_RECOVERED, the error handling goes
@@ -253,11 +250,11 @@ cleanup uncorrectable status register. Pls. refer to section 3.3.
 
 4. Software error injection
 
-Debugging PCIE AER error recovery code is quite difficult because it
+Debugging PCIe AER error recovery code is quite difficult because it
 is hard to trigger real hardware errors. Software based error
-injection can be used to fake various kinds of PCIE errors.
+injection can be used to fake various kinds of PCIe errors.
 
-First you should enable PCIE AER software error injection in kernel
+First you should enable PCIe AER software error injection in kernel
 configuration, that is, following item should be in your .config.
 
 CONFIG_PCIEAER_INJECT=y or CONFIG_PCIEAER_INJECT=m

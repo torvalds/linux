@@ -27,6 +27,7 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/uio_driver.h>
+#include <linux/slab.h>
 
 #define PCI_VENDOR_ID_AEC 0xaecb
 #define PCI_DEVICE_ID_AEC_VITCLTC 0x6250

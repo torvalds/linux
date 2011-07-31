@@ -18,6 +18,7 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -630,7 +631,7 @@ static int wm8961_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8961_priv *wm8961 = codec->private_data;
+	struct wm8961_priv *wm8961 = snd_soc_codec_get_drvdata(codec);
 	int i, best, target, fs;
 	u16 reg;
 
@@ -710,7 +711,7 @@ static int wm8961_hw_params(struct snd_pcm_substream *substream,
 	if (fs <= 24000)
 		reg |= WM8961_DACSLOPE;
 	else
-		reg &= WM8961_DACSLOPE;
+		reg &= ~WM8961_DACSLOPE;
 	snd_soc_write(codec, WM8961_ADC_DAC_CONTROL_2, reg);
 
 	return 0;
@@ -721,7 +722,7 @@ static int wm8961_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 			     int dir)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8961_priv *wm8961 = codec->private_data;
+	struct wm8961_priv *wm8961 = snd_soc_codec_get_drvdata(codec);
 	u16 reg = snd_soc_read(codec, WM8961_CLOCKING1);
 
 	if (freq > 33000000) {
@@ -735,7 +736,7 @@ static int wm8961_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 		freq /= 2;
 	} else {
 		dev_dbg(codec->dev, "Using MCLK/1 for %dHz MCLK\n", freq);
-		reg &= WM8961_MCLKDIV;
+		reg &= ~WM8961_MCLKDIV;
 	}
 
 	snd_soc_write(codec, WM8961_CLOCKING1, reg);
@@ -986,19 +987,9 @@ static int wm8961_probe(struct platform_device *pdev)
 	snd_soc_dapm_new_controls(codec, wm8961_dapm_widgets,
 				  ARRAY_SIZE(wm8961_dapm_widgets));
 	snd_soc_dapm_add_routes(codec, audio_paths, ARRAY_SIZE(audio_paths));
-	snd_soc_dapm_new_widgets(codec);
-
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to register card: %d\n", ret);
-		goto card_err;
-	}
 
 	return ret;
 
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 pcm_err:
 	return ret;
 }
@@ -1032,6 +1023,9 @@ static int wm8961_resume(struct platform_device *pdev)
 	int i;
 
 	for (i = 0; i < codec->reg_cache_size; i++) {
+		if (reg_cache[i] == wm8961_reg_defaults[i])
+			continue;
+
 		if (i == WM8961_SOFTWARE_RESET)
 			continue;
 
@@ -1071,7 +1065,7 @@ static int wm8961_register(struct wm8961_priv *wm8961)
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data = wm8961;
+	snd_soc_codec_set_drvdata(codec, wm8961);
 	codec->name = "WM8961";
 	codec->owner = THIS_MODULE;
 	codec->dai = &wm8961_dai;
@@ -1108,7 +1102,7 @@ static int wm8961_register(struct wm8961_priv *wm8961)
 	ret = wm8961_reset(codec);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to issue reset\n");
-		return ret;
+		goto err;
 	}
 
 	/* Enable class W */
@@ -1153,18 +1147,19 @@ static int wm8961_register(struct wm8961_priv *wm8961)
 	ret = snd_soc_register_codec(codec);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to register codec: %d\n", ret);
-		return ret;
+		goto err;
 	}
 
 	ret = snd_soc_register_dai(&wm8961_dai);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
-		snd_soc_unregister_codec(codec);
-		return ret;
+		goto err_codec;
 	}
 
 	return 0;
 
+err_codec:
+	snd_soc_unregister_codec(codec);
 err:
 	kfree(wm8961);
 	return ret;
@@ -1206,21 +1201,6 @@ static __devexit int wm8961_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8961_i2c_suspend(struct i2c_client *client, pm_message_t state)
-{
-	return snd_soc_suspend_device(&client->dev);
-}
-
-static int wm8961_i2c_resume(struct i2c_client *client)
-{
-	return snd_soc_resume_device(&client->dev);
-}
-#else
-#define wm8961_i2c_suspend NULL
-#define wm8961_i2c_resume NULL
-#endif
-
 static const struct i2c_device_id wm8961_i2c_id[] = {
 	{ "wm8961", 0 },
 	{ }
@@ -1234,8 +1214,6 @@ static struct i2c_driver wm8961_i2c_driver = {
 	},
 	.probe =    wm8961_i2c_probe,
 	.remove =   __devexit_p(wm8961_i2c_remove),
-	.suspend =  wm8961_i2c_suspend,
-	.resume =   wm8961_i2c_resume,
 	.id_table = wm8961_i2c_id,
 };
 

@@ -8,6 +8,7 @@
 #include <linux/blkdev.h>
 #include <linux/netdevice.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include "aoe.h"
 
 static void dummy_timer(ulong);

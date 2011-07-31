@@ -47,12 +47,12 @@ bfa_q_is_on_q_func(struct list_head *q, struct list_head *qe)
 	tqe = bfa_q_next(q);
 	while (tqe != q) {
 		if (tqe == qe)
-			return (1);
+			return 1;
 		tqe = bfa_q_next(tqe);
 		if (tqe == NULL)
 			break;
 	}
-	return (0);
+	return 0;
 }
 
 

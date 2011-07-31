@@ -34,16 +34,21 @@ struct notifier_block;
 
 extern void rcu_sched_qs(int cpu);
 extern void rcu_bh_qs(int cpu);
-extern int rcu_cpu_notify(struct notifier_block *self,
-			  unsigned long action, void *hcpu);
+extern void rcu_note_context_switch(int cpu);
 extern int rcu_needs_cpu(int cpu);
-extern int rcu_expedited_torture_stats(char *page);
 
 #ifdef CONFIG_TREE_PREEMPT_RCU
 
 extern void __rcu_read_lock(void);
 extern void __rcu_read_unlock(void);
+extern void synchronize_rcu(void);
 extern void exit_rcu(void);
+
+/*
+ * Defined as macro as it is a very low level header
+ * included from areas that don't even know about current
+ */
+#define rcu_preempt_depth() (current->rcu_read_lock_nesting)
 
 #else /* #ifdef CONFIG_TREE_PREEMPT_RCU */
 
@@ -57,10 +62,15 @@ static inline void __rcu_read_unlock(void)
 	preempt_enable();
 }
 
-#define __synchronize_sched() synchronize_rcu()
+#define synchronize_rcu synchronize_sched
 
 static inline void exit_rcu(void)
 {
+}
+
+static inline int rcu_preempt_depth(void)
+{
+	return 0;
 }
 
 #endif /* #else #ifdef CONFIG_TREE_PREEMPT_RCU */
@@ -76,6 +86,8 @@ static inline void __rcu_read_unlock_bh(void)
 
 extern void call_rcu_sched(struct rcu_head *head,
 			   void (*func)(struct rcu_head *rcu));
+extern void synchronize_rcu_bh(void);
+extern void synchronize_sched(void);
 extern void synchronize_rcu_expedited(void);
 
 static inline void synchronize_rcu_bh_expedited(void)
@@ -83,12 +95,14 @@ static inline void synchronize_rcu_bh_expedited(void)
 	synchronize_sched_expedited();
 }
 
-extern void __rcu_init(void);
 extern void rcu_check_callbacks(int cpu, int user);
 
 extern long rcu_batches_completed(void);
 extern long rcu_batches_completed_bh(void);
 extern long rcu_batches_completed_sched(void);
+extern void rcu_force_quiescent_state(void);
+extern void rcu_bh_force_quiescent_state(void);
+extern void rcu_sched_force_quiescent_state(void);
 
 #ifdef CONFIG_NO_HZ
 void rcu_enter_nohz(void);
@@ -107,5 +121,8 @@ static inline int rcu_blocking_is_gp(void)
 {
 	return num_online_cpus() == 1;
 }
+
+extern void rcu_scheduler_starting(void);
+extern int rcu_scheduler_active __read_mostly;
 
 #endif /* __LINUX_RCUTREE_H */

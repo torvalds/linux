@@ -267,7 +267,7 @@ static int acpi_fan_add(struct acpi_device *device)
 		goto end;
 	}
 
-	dev_info(&device->dev, "registered as cooling_device%d\n", cdev->id);
+	dev_dbg(&device->dev, "registered as cooling_device%d\n", cdev->id);
 
 	device->driver_data = cdev;
 	result = sysfs_create_link(&device->dev.kobj,
@@ -347,7 +347,6 @@ static int __init acpi_fan_init(void)
 {
 	int result = 0;
 
-
 #ifdef CONFIG_ACPI_PROCFS
 	acpi_fan_dir = proc_mkdir(ACPI_FAN_CLASS, acpi_root_dir);
 	if (!acpi_fan_dir)
@@ -356,7 +355,9 @@ static int __init acpi_fan_init(void)
 
 	result = acpi_bus_register_driver(&acpi_fan_driver);
 	if (result < 0) {
+#ifdef CONFIG_ACPI_PROCFS
 		remove_proc_entry(ACPI_FAN_CLASS, acpi_root_dir);
+#endif
 		return -ENODEV;
 	}
 
@@ -368,7 +369,9 @@ static void __exit acpi_fan_exit(void)
 
 	acpi_bus_unregister_driver(&acpi_fan_driver);
 
+#ifdef CONFIG_ACPI_PROCFS
 	remove_proc_entry(ACPI_FAN_CLASS, acpi_root_dir);
+#endif
 
 	return;
 }

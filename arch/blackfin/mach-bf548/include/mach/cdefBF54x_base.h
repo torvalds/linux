@@ -301,10 +301,10 @@
 
 /* DMAC0 Registers */
 
-#define bfin_read_DMAC0_TCPER()		bfin_read16(DMAC0_TCPER)
-#define bfin_write_DMAC0_TCPER(val)	bfin_write16(DMAC0_TCPER, val)
-#define bfin_read_DMAC0_TCCNT()		bfin_read16(DMAC0_TCCNT)
-#define bfin_write_DMAC0_TCCNT(val)	bfin_write16(DMAC0_TCCNT, val)
+#define bfin_read_DMAC0_TC_PER()		bfin_read16(DMAC0_TC_PER)
+#define bfin_write_DMAC0_TC_PER(val)	bfin_write16(DMAC0_TC_PER, val)
+#define bfin_read_DMAC0_TC_CNT()		bfin_read16(DMAC0_TC_CNT)
+#define bfin_write_DMAC0_TC_CNT(val)	bfin_write16(DMAC0_TC_CNT, val)
 
 /* DMA Channel 0 Registers */
 
@@ -1155,10 +1155,10 @@
 
 /* DMAC1 Registers */
 
-#define bfin_read_DMAC1_TCPER()			bfin_read16(DMAC1_TCPER)
-#define bfin_write_DMAC1_TCPER(val)		bfin_write16(DMAC1_TCPER, val)
-#define bfin_read_DMAC1_TCCNT()			bfin_read16(DMAC1_TCCNT)
-#define bfin_write_DMAC1_TCCNT(val)		bfin_write16(DMAC1_TCCNT, val)
+#define bfin_read_DMAC1_TC_PER()			bfin_read16(DMAC1_TC_PER)
+#define bfin_write_DMAC1_TC_PER(val)		bfin_write16(DMAC1_TC_PER, val)
+#define bfin_read_DMAC1_TC_CNT()			bfin_read16(DMAC1_TC_CNT)
+#define bfin_write_DMAC1_TC_CNT(val)		bfin_write16(DMAC1_TC_CNT, val)
 
 /* DMA Channel 12 Registers */
 
@@ -2615,17 +2615,6 @@
 #define bfin_read_CNT_MIN()		bfin_read32(CNT_MIN)
 #define bfin_write_CNT_MIN(val)		bfin_write32(CNT_MIN, val)
 
-/* OTP/FUSE Registers */
-
-#define bfin_read_OTP_CONTROL()		bfin_read16(OTP_CONTROL)
-#define bfin_write_OTP_CONTROL(val)	bfin_write16(OTP_CONTROL, val)
-#define bfin_read_OTP_BEN()		bfin_read16(OTP_BEN)
-#define bfin_write_OTP_BEN(val)		bfin_write16(OTP_BEN, val)
-#define bfin_read_OTP_STATUS()		bfin_read16(OTP_STATUS)
-#define bfin_write_OTP_STATUS(val)	bfin_write16(OTP_STATUS, val)
-#define bfin_read_OTP_TIMING()		bfin_read32(OTP_TIMING)
-#define bfin_write_OTP_TIMING(val)	bfin_write32(OTP_TIMING, val)
-
 /* Security Registers */
 
 #define bfin_read_SECURE_SYSSWT()	bfin_read32(SECURE_SYSSWT)
@@ -2639,17 +2628,6 @@
 
 #define bfin_read_DMAC1_PERIMUX()	bfin_read16(DMAC1_PERIMUX)
 #define bfin_write_DMAC1_PERIMUX(val)	bfin_write16(DMAC1_PERIMUX, val)
-
-/* OTP Read/Write Data Buffer Registers */
-
-#define bfin_read_OTP_DATA0()		bfin_read32(OTP_DATA0)
-#define bfin_write_OTP_DATA0(val)	bfin_write32(OTP_DATA0, val)
-#define bfin_read_OTP_DATA1()		bfin_read32(OTP_DATA1)
-#define bfin_write_OTP_DATA1(val)	bfin_write32(OTP_DATA1, val)
-#define bfin_read_OTP_DATA2()		bfin_read32(OTP_DATA2)
-#define bfin_write_OTP_DATA2(val)	bfin_write32(OTP_DATA2, val)
-#define bfin_read_OTP_DATA3()		bfin_read32(OTP_DATA3)
-#define bfin_write_OTP_DATA3(val)	bfin_write32(OTP_DATA3, val)
 
 /* Handshake MDMA is not defined in the shared file because it is not available on the ADSP-BF542 bfin_read_()rocessor */
 

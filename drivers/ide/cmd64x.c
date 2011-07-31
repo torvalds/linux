@@ -7,6 +7,7 @@
  * Copyright (C) 1998		David S. Miller (davem@redhat.com)
  *
  * Copyright (C) 1999-2002	Andre Hedrick <andre@linux-ide.org>
+ * Copyright (C) 2007-2010	Bartlomiej Zolnierkiewicz
  * Copyright (C) 2007,2009	MontaVista Software, Inc. <source@mvista.com>
  */
 
@@ -19,14 +20,6 @@
 #include <asm/io.h>
 
 #define DRV_NAME "cmd64x"
-
-#define CMD_DEBUG 0
-
-#if CMD_DEBUG
-#define cmdprintk(x...)	printk(x)
-#else
-#define cmdprintk(x...)
-#endif
 
 /*
  * CMD64x specific registers definition.
@@ -58,79 +51,42 @@
 #define UDIDETCR1	0x7B
 #define DTPR1		0x7C
 
-static u8 quantize_timing(int timing, int quant)
+static void cmd64x_program_timings(ide_drive_t *drive, u8 mode)
 {
-	return (timing + quant - 1) / quant;
-}
-
-/*
- * This routine calculates active/recovery counts and then writes them into
- * the chipset registers.
- */
-static void program_cycle_times (ide_drive_t *drive, int cycle_time, int active_time)
-{
+	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(drive->hwif->dev);
-	int clock_time = 1000 / (ide_pci_clk ? ide_pci_clk : 33);
-	u8  cycle_count, active_count, recovery_count, drwtim;
+	int bus_speed = ide_pci_clk ? ide_pci_clk : 33;
+	const unsigned long T = 1000000 / bus_speed;
 	static const u8 recovery_values[] =
 		{15, 15, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0};
+	static const u8 setup_values[] = {0x40, 0x40, 0x40, 0x80, 0, 0xc0};
+	static const u8 arttim_regs[4] = {ARTTIM0, ARTTIM1, ARTTIM23, ARTTIM23};
 	static const u8 drwtim_regs[4] = {DRWTIM0, DRWTIM1, DRWTIM2, DRWTIM3};
+	struct ide_timing t;
+	u8 arttim = 0;
 
-	cmdprintk("program_cycle_times parameters: total=%d, active=%d\n",
-		  cycle_time, active_time);
-
-	cycle_count	= quantize_timing( cycle_time, clock_time);
-	active_count	= quantize_timing(active_time, clock_time);
-	recovery_count	= cycle_count - active_count;
+	ide_timing_compute(drive, mode, &t, T, 0);
 
 	/*
 	 * In case we've got too long recovery phase, try to lengthen
 	 * the active phase
 	 */
-	if (recovery_count > 16) {
-		active_count += recovery_count - 16;
-		recovery_count = 16;
+	if (t.recover > 16) {
+		t.active += t.recover - 16;
+		t.recover = 16;
 	}
-	if (active_count > 16)		/* shouldn't actually happen... */
-	 	active_count = 16;
-
-	cmdprintk("Final counts: total=%d, active=%d, recovery=%d\n",
-		  cycle_count, active_count, recovery_count);
+	if (t.active > 16)		/* shouldn't actually happen... */
+		t.active = 16;
 
 	/*
 	 * Convert values to internal chipset representation
 	 */
-	recovery_count = recovery_values[recovery_count];
- 	active_count  &= 0x0f;
+	t.recover = recovery_values[t.recover];
+	t.active &= 0x0f;
 
 	/* Program the active/recovery counts into the DRWTIM register */
-	drwtim = (active_count << 4) | recovery_count;
-	(void) pci_write_config_byte(dev, drwtim_regs[drive->dn], drwtim);
-	cmdprintk("Write 0x%02x to reg 0x%x\n", drwtim, drwtim_regs[drive->dn]);
-}
-
-/*
- * This routine writes into the chipset registers
- * PIO setup/active/recovery timings.
- */
-static void cmd64x_tune_pio(ide_drive_t *drive, const u8 pio)
-{
-	ide_hwif_t *hwif	= drive->hwif;
-	struct pci_dev *dev	= to_pci_dev(hwif->dev);
-	struct ide_timing *t	= ide_timing_find_mode(XFER_PIO_0 + pio);
-	unsigned long setup_count;
-	unsigned int cycle_time;
-	u8 arttim = 0;
-
-	static const u8 setup_values[] = {0x40, 0x40, 0x40, 0x80, 0, 0xc0};
-	static const u8 arttim_regs[4] = {ARTTIM0, ARTTIM1, ARTTIM23, ARTTIM23};
-
-	cycle_time = ide_pio_cycle_time(drive, pio);
-
-	program_cycle_times(drive, cycle_time, t->active);
-
-	setup_count = quantize_timing(t->setup,
-			1000 / (ide_pci_clk ? ide_pci_clk : 33));
+	pci_write_config_byte(dev, drwtim_regs[drive->dn],
+			      (t.active << 4) | t.recover);
 
 	/*
 	 * The primary channel has individual address setup timing registers
@@ -141,16 +97,21 @@ static void cmd64x_tune_pio(ide_drive_t *drive, const u8 pio)
 	if (hwif->channel) {
 		ide_drive_t *pair = ide_get_pair_dev(drive);
 
-		ide_set_drivedata(drive, (void *)setup_count);
+		if (pair) {
+			struct ide_timing tp;
 
-		if (pair)
-			setup_count = max_t(u8, setup_count,
-					(unsigned long)ide_get_drivedata(pair));
+			ide_timing_compute(pair, pair->pio_mode, &tp, T, 0);
+			ide_timing_merge(&t, &tp, &t, IDE_TIMING_SETUP);
+			if (pair->dma_mode) {
+				ide_timing_compute(pair, pair->dma_mode,
+						&tp, T, 0);
+				ide_timing_merge(&tp, &t, &t, IDE_TIMING_SETUP);
+			}
+		}
 	}
 
-	if (setup_count > 5)		/* shouldn't actually happen... */
-		setup_count = 5;
-	cmdprintk("Final address setup count: %d\n", setup_count);
+	if (t.setup > 5)		/* shouldn't actually happen... */
+		t.setup = 5;
 
 	/*
 	 * Program the address setup clocks into the ARTTIM registers.
@@ -160,9 +121,8 @@ static void cmd64x_tune_pio(ide_drive_t *drive, const u8 pio)
 	if (hwif->channel)
 		arttim &= ~ARTTIM23_INTR_CH1;
 	arttim &= ~0xc0;
-	arttim |= setup_values[setup_count];
+	arttim |= setup_values[t.setup];
 	(void) pci_write_config_byte(dev, arttim_regs[drive->dn], arttim);
-	cmdprintk("Write 0x%02x to reg 0x%x\n", arttim, arttim_regs[drive->dn]);
 }
 
 /*
@@ -170,8 +130,10 @@ static void cmd64x_tune_pio(ide_drive_t *drive, const u8 pio)
  * Special cases are 8: prefetch off, 9: prefetch on (both never worked)
  */
 
-static void cmd64x_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void cmd64x_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
+	const u8 pio = drive->pio_mode - XFER_PIO_0;
+
 	/*
 	 * Filter out the prefetch control values
 	 * to prevent PIO5 from being programmed
@@ -179,20 +141,18 @@ static void cmd64x_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	if (pio == 8 || pio == 9)
 		return;
 
-	cmd64x_tune_pio(drive, pio);
+	cmd64x_program_timings(drive, XFER_PIO_0 + pio);
 }
 
-static void cmd64x_set_dma_mode(ide_drive_t *drive, const u8 speed)
+static void cmd64x_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 unit			= drive->dn & 0x01;
 	u8 regU = 0, pciU	= hwif->channel ? UDIDETCR1 : UDIDETCR0;
+	const u8 speed		= drive->dma_mode;
 
-	if (speed >= XFER_SW_DMA_0) {
-		(void) pci_read_config_byte(dev, pciU, &regU);
-		regU &= ~(unit ? 0xCA : 0x35);
-	}
+	pci_read_config_byte(dev, pciU, &regU);
+	regU &= ~(unit ? 0xCA : 0x35);
 
 	switch(speed) {
 	case XFER_UDMA_5:
@@ -214,18 +174,13 @@ static void cmd64x_set_dma_mode(ide_drive_t *drive, const u8 speed)
 		regU |= unit ? 0xC2 : 0x31;
 		break;
 	case XFER_MW_DMA_2:
-		program_cycle_times(drive, 120, 70);
-		break;
 	case XFER_MW_DMA_1:
-		program_cycle_times(drive, 150, 80);
-		break;
 	case XFER_MW_DMA_0:
-		program_cycle_times(drive, 480, 215);
+		cmd64x_program_timings(drive, speed);
 		break;
 	}
 
-	if (speed >= XFER_SW_DMA_0)
-		(void) pci_write_config_byte(dev, pciU, regU);
+	pci_write_config_byte(dev, pciU, regU);
 }
 
 static void cmd648_clear_irq(ide_drive_t *drive)
@@ -488,6 +443,6 @@ static void __exit cmd64x_ide_exit(void)
 module_init(cmd64x_ide_init);
 module_exit(cmd64x_ide_exit);
 
-MODULE_AUTHOR("Eddie Dost, David Miller, Andre Hedrick");
+MODULE_AUTHOR("Eddie Dost, David Miller, Andre Hedrick, Bartlomiej Zolnierkiewicz");
 MODULE_DESCRIPTION("PCI driver module for CMD64x IDE");
 MODULE_LICENSE("GPL");

@@ -1,3 +1,21 @@
+config WIRELESS_EXT
+	bool
+
+config WEXT_CORE
+	def_bool y
+	depends on CFG80211_WEXT || WIRELESS_EXT
+
+config WEXT_PROC
+	def_bool y
+	depends on PROC_FS
+	depends on WEXT_CORE
+
+config WEXT_SPY
+	bool
+
+config WEXT_PRIV
+	bool
+
 config CFG80211
 	tristate "cfg80211 - wireless configuration API"
 	depends on RFKILL || !RFKILL
@@ -67,47 +85,44 @@ config CFG80211_DEFAULT_PS
 	  applications instead -- they need to register their network
 	  latency requirement, see Documentation/power/pm_qos_interface.txt.
 
-config CFG80211_DEFAULT_PS_VALUE
-	int
-	default 1 if CFG80211_DEFAULT_PS
-	default 0
-
 config CFG80211_DEBUGFS
 	bool "cfg80211 DebugFS entries"
-	depends on CFG80211 && DEBUG_FS
+	depends on CFG80211
+	depends on DEBUG_FS
 	---help---
 	  You can enable this if you want to debugfs entries for cfg80211.
 
 	  If unsure, say N.
 
-config WIRELESS_OLD_REGULATORY
-	bool "Old wireless static regulatory definitions"
+config CFG80211_INTERNAL_REGDB
+	bool "use statically compiled regulatory rules database" if EMBEDDED
 	default n
+	depends on CFG80211
 	---help---
-	  This option enables the old static regulatory information
-	  and uses it within the new framework. This option is available
-	  for historical reasons and it is advised to leave it off.
+	  This option generates an internal data structure representing
+	  the wireless regulatory rules described in net/wireless/db.txt
+	  and includes code to query that database.  This is an alternative
+	  to using CRDA for defining regulatory rules for the kernel.
 
 	  For details see:
 
 	  http://wireless.kernel.org/en/developers/Regulatory
 
-	  Say N and if you say Y, please tell us why. The default is N.
+	  Most distributions have a CRDA package.  So if unsure, say N.
 
-config WIRELESS_EXT
-	bool "Wireless extensions"
+config CFG80211_WEXT
+	bool "cfg80211 wireless extensions compatibility"
+	depends on CFG80211
+	select WEXT_CORE
 	default y
-	---help---
-	  This option enables the legacy wireless extensions
-	  (wireless network interface configuration via ioctls.)
-
-	  Say Y unless you've upgraded all your userspace to use
-	  nl80211 instead of wireless extensions.
+	help
+	  Enable this option if you need old userspace for wireless
+	  extensions with cfg80211-based drivers.
 
 config WIRELESS_EXT_SYSFS
 	bool "Wireless extensions sysfs files"
 	default y
-	depends on WIRELESS_EXT && SYSFS
+	depends on WEXT_CORE && SYSFS
 	help
 	  This option enables the deprecated wireless statistics
 	  files in /sys/class/net/*/wireless/. The same information

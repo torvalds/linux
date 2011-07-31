@@ -825,7 +825,7 @@ typedef union iprb_u {
 	struct {
 	    u64	rsvd1:	15,
 		error:	1,	/* Widget rcvd wr resp pkt w/ error */
-		ovflow:	5,	/* Over flow count. perf measurement */
+		ovflow:	5,	/* Overflow count. perf measurement */
 		fire_and_forget: 1, /* Launch Write without response */
 		mode:	2,	/* Widget operation Mode	*/
 		rsvd2:	2,

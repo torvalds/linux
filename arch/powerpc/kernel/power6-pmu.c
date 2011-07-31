@@ -178,7 +178,7 @@ static int p6_compute_mmcr(u64 event[], int n_ev,
 			   unsigned int hwc[], unsigned long mmcr[])
 {
 	unsigned long mmcr1 = 0;
-	unsigned long mmcra = 0;
+	unsigned long mmcra = MMCRA_SDAR_DCACHE_MISS | MMCRA_SDAR_ERAT_MISS;
 	int i;
 	unsigned int pmc, ev, b, u, s, psel;
 	unsigned int ttmset = 0;

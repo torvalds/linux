@@ -15,10 +15,20 @@
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 
+#include <linux/mmc/pm.h>
+
 struct mmc_card;
 struct sdio_func;
 
 typedef void (sdio_irq_handler_t)(struct sdio_func *);
+
+/*
+ * Structure used to hold embedded SDIO device data from platform layer
+ */
+struct sdio_embedded_func {
+	uint8_t f_class;
+	uint32_t f_maxblksize;
+};
 
 /*
  * SDIO function CIS tuple (unknown to the core)
@@ -128,6 +138,8 @@ extern int sdio_release_irq(struct sdio_func *func);
 extern unsigned int sdio_align_size(struct sdio_func *func, unsigned int sz);
 
 extern u8 sdio_readb(struct sdio_func *func, unsigned int addr, int *err_ret);
+extern u8 sdio_readb_ext(struct sdio_func *func, unsigned int addr, int *err_ret,
+	unsigned in);
 extern u16 sdio_readw(struct sdio_func *func, unsigned int addr, int *err_ret);
 extern u32 sdio_readl(struct sdio_func *func, unsigned int addr, int *err_ret);
 
@@ -143,6 +155,9 @@ extern void sdio_writew(struct sdio_func *func, u16 b,
 extern void sdio_writel(struct sdio_func *func, u32 b,
 	unsigned int addr, int *err_ret);
 
+extern u8 sdio_writeb_readb(struct sdio_func *func, u8 write_byte,
+	unsigned int addr, int *err_ret);
+
 extern int sdio_memcpy_toio(struct sdio_func *func, unsigned int addr,
 	void *src, int count);
 extern int sdio_writesb(struct sdio_func *func, unsigned int addr,
@@ -152,6 +167,9 @@ extern unsigned char sdio_f0_readb(struct sdio_func *func,
 	unsigned int addr, int *err_ret);
 extern void sdio_f0_writeb(struct sdio_func *func, unsigned char b,
 	unsigned int addr, int *err_ret);
+
+extern mmc_pm_flag_t sdio_get_host_pm_caps(struct sdio_func *func);
+extern int sdio_set_host_pm_flags(struct sdio_func *func, mmc_pm_flag_t flags);
 
 #endif
 

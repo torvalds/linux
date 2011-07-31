@@ -197,7 +197,7 @@ struct cpc_can_err_counter {
 };
 
 /* Main message type used between library and application */
-struct __attribute__ ((packed)) ems_cpc_msg {
+struct __packed ems_cpc_msg {
 	u8 type;	/* type of message */
 	u8 length;	/* length of data within union 'msg' */
 	u8 msgid;	/* confirmation handle */
@@ -232,7 +232,7 @@ MODULE_DEVICE_TABLE(usb, ems_usb_table);
 #define INTR_IN_BUFFER_SIZE 4
 
 #define MAX_RX_URBS 10
-#define MAX_TX_URBS CAN_ECHO_SKB_MAX
+#define MAX_TX_URBS 10
 
 struct ems_usb;
 
@@ -300,8 +300,6 @@ static void ems_usb_read_interrupt_callback(struct urb *urb)
 	else if (err)
 		dev_err(netdev->dev.parent,
 			"failed resubmitting intr urb: %d\n", err);
-
-	return;
 }
 
 static void ems_usb_rx_can_msg(struct ems_usb *dev, struct ems_cpc_msg *msg)
@@ -311,23 +309,19 @@ static void ems_usb_rx_can_msg(struct ems_usb *dev, struct ems_cpc_msg *msg)
 	int i;
 	struct net_device_stats *stats = &dev->netdev->stats;
 
-	skb = netdev_alloc_skb(dev->netdev, sizeof(struct can_frame));
+	skb = alloc_can_skb(dev->netdev, &cf);
 	if (skb == NULL)
 		return;
 
-	skb->protocol = htons(ETH_P_CAN);
-
-	cf = (struct can_frame *)skb_put(skb, sizeof(struct can_frame));
-
 	cf->can_id = le32_to_cpu(msg->msg.can_msg.id);
-	cf->can_dlc = min_t(u8, msg->msg.can_msg.length, 8);
+	cf->can_dlc = get_can_dlc(msg->msg.can_msg.length & 0xF);
 
-	if (msg->type == CPC_MSG_TYPE_EXT_CAN_FRAME
-	    || msg->type == CPC_MSG_TYPE_EXT_RTR_FRAME)
+	if (msg->type == CPC_MSG_TYPE_EXT_CAN_FRAME ||
+	    msg->type == CPC_MSG_TYPE_EXT_RTR_FRAME)
 		cf->can_id |= CAN_EFF_FLAG;
 
-	if (msg->type == CPC_MSG_TYPE_RTR_FRAME
-	    || msg->type == CPC_MSG_TYPE_EXT_RTR_FRAME) {
+	if (msg->type == CPC_MSG_TYPE_RTR_FRAME ||
+	    msg->type == CPC_MSG_TYPE_EXT_RTR_FRAME) {
 		cf->can_id |= CAN_RTR_FLAG;
 	} else {
 		for (i = 0; i < cf->can_dlc; i++)
@@ -346,17 +340,9 @@ static void ems_usb_rx_err(struct ems_usb *dev, struct ems_cpc_msg *msg)
 	struct sk_buff *skb;
 	struct net_device_stats *stats = &dev->netdev->stats;
 
-	skb = netdev_alloc_skb(dev->netdev, sizeof(struct can_frame));
+	skb = alloc_can_err_skb(dev->netdev, &cf);
 	if (skb == NULL)
 		return;
-
-	skb->protocol = htons(ETH_P_CAN);
-
-	cf = (struct can_frame *)skb_put(skb, sizeof(struct can_frame));
-	memset(cf, 0, sizeof(struct can_frame));
-
-	cf->can_id = CAN_ERR_FLAG;
-	cf->can_dlc = CAN_ERR_DLC;
 
 	if (msg->type == CPC_MSG_TYPE_CAN_STATE) {
 		u8 state = msg->msg.can_state;
@@ -509,8 +495,6 @@ resubmit_urb:
 	else if (retval)
 		dev_err(netdev->dev.parent,
 			"failed resubmitting read bulk urb: %d\n", retval);
-
-	return;
 }
 
 /*
@@ -528,8 +512,8 @@ static void ems_usb_write_bulk_callback(struct urb *urb)
 	netdev = dev->netdev;
 
 	/* free up our allocated buffer */
-	usb_buffer_free(urb->dev, urb->transfer_buffer_length,
-			urb->transfer_buffer, urb->transfer_dma);
+	usb_free_coherent(urb->dev, urb->transfer_buffer_length,
+			  urb->transfer_buffer, urb->transfer_dma);
 
 	atomic_dec(&dev->active_tx_urbs);
 
@@ -626,8 +610,8 @@ static int ems_usb_start(struct ems_usb *dev)
 			return -ENOMEM;
 		}
 
-		buf = usb_buffer_alloc(dev->udev, RX_BUFFER_SIZE, GFP_KERNEL,
-				       &urb->transfer_dma);
+		buf = usb_alloc_coherent(dev->udev, RX_BUFFER_SIZE, GFP_KERNEL,
+					 &urb->transfer_dma);
 		if (!buf) {
 			dev_err(netdev->dev.parent,
 				"No memory left for USB buffer\n");
@@ -647,8 +631,8 @@ static int ems_usb_start(struct ems_usb *dev)
 				netif_device_detach(dev->netdev);
 
 			usb_unanchor_urb(urb);
-			usb_buffer_free(dev->udev, RX_BUFFER_SIZE, buf,
-					urb->transfer_dma);
+			usb_free_coherent(dev->udev, RX_BUFFER_SIZE, buf,
+					  urb->transfer_dma);
 			break;
 		}
 
@@ -779,6 +763,9 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 	size_t size = CPC_HEADER_SIZE + CPC_MSG_HEADER_LEN
 			+ sizeof(struct cpc_can_msg);
 
+	if (can_dropped_invalid_skb(netdev, skb))
+		return NETDEV_TX_OK;
+
 	/* create a URB, and a buffer for it, and copy the data to the URB */
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
@@ -786,7 +773,7 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 		goto nomem;
 	}
 
-	buf = usb_buffer_alloc(dev->udev, size, GFP_ATOMIC, &urb->transfer_dma);
+	buf = usb_alloc_coherent(dev->udev, size, GFP_ATOMIC, &urb->transfer_dma);
 	if (!buf) {
 		dev_err(netdev->dev.parent, "No memory left for USB buffer\n");
 		usb_free_urb(urb);
@@ -829,7 +816,7 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 	 */
 	if (!context) {
 		usb_unanchor_urb(urb);
-		usb_buffer_free(dev->udev, size, buf, urb->transfer_dma);
+		usb_free_coherent(dev->udev, size, buf, urb->transfer_dma);
 
 		dev_warn(netdev->dev.parent, "couldn't find free context\n");
 
@@ -854,7 +841,7 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 		can_free_echo_skb(netdev, context->echo_index);
 
 		usb_unanchor_urb(urb);
-		usb_buffer_free(dev->udev, size, buf, urb->transfer_dma);
+		usb_free_coherent(dev->udev, size, buf, urb->transfer_dma);
 		dev_kfree_skb(skb);
 
 		atomic_dec(&dev->active_tx_urbs);
@@ -885,9 +872,7 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 	return NETDEV_TX_OK;
 
 nomem:
-	if (skb)
-		dev_kfree_skb(skb);
-
+	dev_kfree_skb(skb);
 	stats->tx_dropped++;
 
 	return NETDEV_TX_OK;
@@ -1015,9 +1000,9 @@ static int ems_usb_probe(struct usb_interface *intf,
 	struct ems_usb *dev;
 	int i, err = -ENOMEM;
 
-	netdev = alloc_candev(sizeof(struct ems_usb));
+	netdev = alloc_candev(sizeof(struct ems_usb), MAX_TX_URBS);
 	if (!netdev) {
-		dev_err(netdev->dev.parent, "Couldn't alloc candev\n");
+		dev_err(&intf->dev, "ems_usb: Couldn't alloc candev\n");
 		return -ENOMEM;
 	}
 
@@ -1031,8 +1016,7 @@ static int ems_usb_probe(struct usb_interface *intf,
 	dev->can.bittiming_const = &ems_usb_bittiming_const;
 	dev->can.do_set_bittiming = ems_usb_set_bittiming;
 	dev->can.do_set_mode = ems_usb_set_mode;
-
-	netdev->flags |= IFF_ECHO; /* we support local echo */
+	dev->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES;
 
 	netdev->netdev_ops = &ems_usb_netdev_ops;
 
@@ -1048,20 +1032,20 @@ static int ems_usb_probe(struct usb_interface *intf,
 
 	dev->intr_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!dev->intr_urb) {
-		dev_err(netdev->dev.parent, "Couldn't alloc intr URB\n");
+		dev_err(&intf->dev, "Couldn't alloc intr URB\n");
 		goto cleanup_candev;
 	}
 
 	dev->intr_in_buffer = kzalloc(INTR_IN_BUFFER_SIZE, GFP_KERNEL);
 	if (!dev->intr_in_buffer) {
-		dev_err(netdev->dev.parent, "Couldn't alloc Intr buffer\n");
+		dev_err(&intf->dev, "Couldn't alloc Intr buffer\n");
 		goto cleanup_intr_urb;
 	}
 
 	dev->tx_msg_buffer = kzalloc(CPC_HEADER_SIZE +
 				     sizeof(struct ems_cpc_msg), GFP_KERNEL);
 	if (!dev->tx_msg_buffer) {
-		dev_err(netdev->dev.parent, "Couldn't alloc Tx buffer\n");
+		dev_err(&intf->dev, "Couldn't alloc Tx buffer\n");
 		goto cleanup_intr_in_buffer;
 	}
 

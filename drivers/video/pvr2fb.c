@@ -831,7 +831,7 @@ static int __devinit pvr2fb_common_init(void)
 	printk(KERN_NOTICE "fb%d: registering with SQ API\n", fb_info->node);
 
 	pvr2fb_map = sq_remap(fb_info->fix.smem_start, fb_info->fix.smem_len,
-			      fb_info->fix.id, pgprot_val(PAGE_SHARED));
+			      fb_info->fix.id, PAGE_SHARED);
 
 	printk(KERN_NOTICE "fb%d: Mapped video memory to SQ addr 0x%lx\n",
 	       fb_info->node, pvr2fb_map);

@@ -77,12 +77,12 @@ struct addi_board {
 	int i_NbrAoChannel;	/*  num of D/A chans */
 	int i_AiMaxdata;	/*  resolution of A/D */
 	int i_AoMaxdata;	/*  resolution of D/A */
-        const struct comedi_lrange *pr_AiRangelist;	/* rangelist for A/D */
-        const struct comedi_lrange *pr_AoRangelist;	/* rangelist for D/A */
+	const struct comedi_lrange *pr_AiRangelist;	/* rangelist for A/D */
+	const struct comedi_lrange *pr_AoRangelist;	/* rangelist for D/A */
 
 	int i_NbrDiChannel;	/*  Number of DI channels */
 	int i_NbrDoChannel;	/*  Number of DO channels */
-	int i_DoMaxdata;	/*  data to set all chanels high */
+	int i_DoMaxdata;	/*  data to set all channels high */
 
 	int i_NbrTTLChannel;	/*  Number of TTL channels */
 	const struct comedi_lrange *pr_TTLRangelist;	/* rangelist for TTL */
@@ -351,7 +351,7 @@ struct addi_private {
 	int i_IobaseAmcc;	/*  base+size for AMCC chip */
 	int i_IobaseAddon;	/* addon base address */
 	int i_IobaseReserved;
-	unsigned long dw_AiBase;
+	void __iomem *dw_AiBase;
 	struct pcilst_struct *amcc;	/*  ptr too AMCC data */
 	unsigned char allocated;		/*  we have blocked card */
 	unsigned char b_ValidDriver;	/*  driver is ok */

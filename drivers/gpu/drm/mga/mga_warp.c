@@ -46,7 +46,7 @@ MODULE_FIRMWARE(FIRMWARE_G400);
 
 #define WARP_UCODE_SIZE(size)		ALIGN(size, MGA_WARP_CODE_ALIGN)
 
-int mga_warp_install_microcode(drm_mga_private_t * dev_priv)
+int mga_warp_install_microcode(drm_mga_private_t *dev_priv)
 {
 	unsigned char *vcbase = dev_priv->warp->handle;
 	unsigned long pcbase = dev_priv->warp->offset;
@@ -133,7 +133,7 @@ out:
 
 #define WMISC_EXPECTED		(MGA_WUCODECACHE_ENABLE | MGA_WMASTER_ENABLE)
 
-int mga_warp_init(drm_mga_private_t * dev_priv)
+int mga_warp_init(drm_mga_private_t *dev_priv)
 {
 	u32 wmisc;
 

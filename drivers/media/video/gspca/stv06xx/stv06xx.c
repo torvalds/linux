@@ -27,6 +27,7 @@
  * P/N 861040-0000: Sensor ST VV6410       ASIC STV0610   - QuickCam Web
  */
 
+#include <linux/input.h>
 #include "stv06xx_sensor.h"
 
 MODULE_AUTHOR("Erik Andrén");
@@ -219,6 +220,7 @@ static void stv06xx_dump_bridge(struct sd *sd)
 		info("Read 0x%x from address 0x%x", data, i);
 	}
 
+	info("Testing stv06xx bridge registers for writability");
 	for (i = 0x1400; i < 0x160f; i++) {
 		stv06xx_read_bridge(sd, i, &data);
 		buf = data;
@@ -229,7 +231,7 @@ static void stv06xx_dump_bridge(struct sd *sd)
 			info("Register 0x%x is read/write", i);
 		else if (data != buf)
 			info("Register 0x%x is read/write,"
-			     "but only partially", i);
+			     " but only partially", i);
 		else
 			info("Register 0x%x is read-only", i);
 
@@ -312,8 +314,7 @@ out:
  * The 0005 and 0100 chunks seem to appear only in compressed stream.
  */
 static void stv06xx_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *data,			/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -366,7 +367,7 @@ frame_data:
 				sd->to_skip -= skip;
 			}
 
-			gspca_frame_add(gspca_dev, INTER_PACKET, frame,
+			gspca_frame_add(gspca_dev, INTER_PACKET,
 					data, chunk_len);
 			break;
 
@@ -378,7 +379,7 @@ frame_data:
 
 			/* Create a new frame, chunk length should be zero */
 			gspca_frame_add(gspca_dev, FIRST_PACKET,
-					frame, data, 0);
+					NULL, 0);
 
 			if (sd->bridge == BRIDGE_ST6422)
 				sd->to_skip = gspca_dev->width * 4;
@@ -394,8 +395,8 @@ frame_data:
 			PDEBUG(D_PACK, "End of frame detected");
 
 			/* Complete the last frame (if any) */
-			frame = gspca_frame_add(gspca_dev, LAST_PACKET,
-						frame, data, 0);
+			gspca_frame_add(gspca_dev, LAST_PACKET,
+					NULL, 0);
 
 			if (chunk_len)
 				PDEBUG(D_ERR, "Chunk length is "
@@ -427,6 +428,29 @@ frame_data:
 	}
 }
 
+#ifdef CONFIG_INPUT
+static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
+			u8 *data,		/* interrupt packet data */
+			int len)		/* interrupt packet length */
+{
+	int ret = -EINVAL;
+
+	if (len == 1 && data[0] == 0x80) {
+		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 1);
+		input_sync(gspca_dev->input_dev);
+		ret = 0;
+	}
+
+	if (len == 1 && data[0] == 0x88) {
+		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
+		input_sync(gspca_dev->input_dev);
+		ret = 0;
+	}
+
+	return ret;
+}
+#endif
+
 static int stv06xx_config(struct gspca_dev *gspca_dev,
 			  const struct usb_device_id *id);
 
@@ -437,7 +461,10 @@ static const struct sd_desc sd_desc = {
 	.init = stv06xx_init,
 	.start = stv06xx_start,
 	.stopN = stv06xx_stopN,
-	.pkt_scan = stv06xx_pkt_scan
+	.pkt_scan = stv06xx_pkt_scan,
+#ifdef CONFIG_INPUT
+	.int_pkt_scan = sd_int_pkt_scan,
+#endif
 };
 
 /* This function is called at probe time */
@@ -497,8 +524,6 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x046D, 0x08F5), .driver_info = BRIDGE_ST6422 },
 	/* QuickCam Messenger (new) */
 	{USB_DEVICE(0x046D, 0x08F6), .driver_info = BRIDGE_ST6422 },
-	/* QuickCam Messenger (new) */
-	{USB_DEVICE(0x046D, 0x08DA), .driver_info = BRIDGE_ST6422 },
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);

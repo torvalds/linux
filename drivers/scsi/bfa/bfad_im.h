@@ -23,7 +23,6 @@
 
 #define FCPI_NAME " fcpim"
 
-void bfad_flags_set(struct bfad_s *bfad, u32 flags);
 bfa_status_t bfad_im_module_init(void);
 void bfad_im_module_exit(void);
 bfa_status_t bfad_im_probe(struct bfad_s *bfad);
@@ -35,7 +34,7 @@ void bfad_im_port_online(struct bfad_s *bfad, struct bfad_port_s *port);
 void bfad_im_port_offline(struct bfad_s *bfad, struct bfad_port_s *port);
 void bfad_im_port_clean(struct bfad_im_port_s *im_port);
 int  bfad_im_scsi_host_alloc(struct bfad_s *bfad,
-				struct bfad_im_port_s *im_port);
+		struct bfad_im_port_s *im_port, struct device *dev);
 void bfad_im_scsi_host_free(struct bfad_s *bfad,
 				struct bfad_im_port_s *im_port);
 
@@ -65,9 +64,11 @@ struct bfad_im_port_s {
 	struct work_struct port_delete_work;
 	int             idr_id;
 	u16        cur_scsi_id;
+	u16	   flags;
 	struct list_head binding_list;
 	struct Scsi_Host *shost;
 	struct list_head itnim_mapped_list;
+	struct fc_vport *fc_vport;
 };
 
 enum bfad_itnim_state {
@@ -126,7 +127,6 @@ bfa_status_t bfad_os_thread_workq(struct bfad_s *bfad);
 void bfad_os_destroy_workq(struct bfad_im_s *im);
 void bfad_os_itnim_process(struct bfad_itnim_s *itnim_drv);
 void bfad_os_fc_host_init(struct bfad_im_port_s *im_port);
-void bfad_os_init_work(struct bfad_im_port_s *im_port);
 void bfad_os_scsi_host_free(struct bfad_s *bfad,
 				 struct bfad_im_port_s *im_port);
 void bfad_os_ramp_up_qdepth(struct bfad_itnim_s *itnim,
@@ -136,15 +136,14 @@ struct bfad_itnim_s *bfad_os_get_itnim(struct bfad_im_port_s *im_port, int id);
 int bfad_os_scsi_add_host(struct Scsi_Host *shost,
 		struct bfad_im_port_s *im_port, struct bfad_s *bfad);
 
-/*
- * scsi_host_template entries
- */
 void bfad_im_itnim_unmap(struct bfad_im_port_s  *im_port,
 			 struct bfad_itnim_s *itnim);
 
 extern struct scsi_host_template bfad_im_scsi_host_template;
 extern struct scsi_host_template bfad_im_vport_template;
 extern struct fc_function_template bfad_im_fc_function_template;
+extern struct fc_function_template bfad_im_vport_fc_function_template;
 extern struct scsi_transport_template *bfad_im_scsi_transport_template;
+extern struct scsi_transport_template *bfad_im_scsi_vport_transport_template;
 
 #endif

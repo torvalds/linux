@@ -77,9 +77,6 @@
 /* Maximum number of nesting allowed inside epoll sets */
 #define EP_MAX_NESTS 4
 
-/* Maximum msec timeout value storeable in a long int */
-#define EP_MAX_MSTIMEO min(1000ULL * MAX_SCHEDULE_TIMEOUT / HZ, (LONG_MAX - 999ULL) / HZ)
-
 #define EP_MAX_EVENTS (INT_MAX / sizeof(struct epoll_event))
 
 #define EP_UNACTIVE_PTR ((void *) -1L)
@@ -251,10 +248,10 @@ ctl_table epoll_table[] = {
 		.data		= &max_user_watches,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &zero,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 #endif /* CONFIG_SYSCTL */
 
@@ -1116,18 +1113,22 @@ static int ep_send_events(struct eventpoll *ep,
 static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		   int maxevents, long timeout)
 {
-	int res, eavail;
+	int res, eavail, timed_out = 0;
 	unsigned long flags;
-	long jtimeout;
+	long slack;
 	wait_queue_t wait;
+	struct timespec end_time;
+	ktime_t expires, *to = NULL;
 
-	/*
-	 * Calculate the timeout by checking for the "infinite" value (-1)
-	 * and the overflow condition. The passed timeout is in milliseconds,
-	 * that why (t * HZ) / 1000.
-	 */
-	jtimeout = (timeout < 0 || timeout >= EP_MAX_MSTIMEO) ?
-		MAX_SCHEDULE_TIMEOUT : (timeout * HZ + 999) / 1000;
+	if (timeout > 0) {
+		ktime_get_ts(&end_time);
+		timespec_add_ns(&end_time, (u64)timeout * NSEC_PER_MSEC);
+		slack = select_estimate_accuracy(&end_time);
+		to = &expires;
+		*to = timespec_to_ktime(end_time);
+	} else if (timeout == 0) {
+		timed_out = 1;
+	}
 
 retry:
 	spin_lock_irqsave(&ep->lock, flags);
@@ -1140,8 +1141,7 @@ retry:
 		 * ep_poll_callback() when events will become available.
 		 */
 		init_waitqueue_entry(&wait, current);
-		wait.flags |= WQ_FLAG_EXCLUSIVE;
-		__add_wait_queue(&ep->wq, &wait);
+		__add_wait_queue_exclusive(&ep->wq, &wait);
 
 		for (;;) {
 			/*
@@ -1150,7 +1150,7 @@ retry:
 			 * to TASK_INTERRUPTIBLE before doing the checks.
 			 */
 			set_current_state(TASK_INTERRUPTIBLE);
-			if (!list_empty(&ep->rdllist) || !jtimeout)
+			if (!list_empty(&ep->rdllist) || timed_out)
 				break;
 			if (signal_pending(current)) {
 				res = -EINTR;
@@ -1158,7 +1158,9 @@ retry:
 			}
 
 			spin_unlock_irqrestore(&ep->lock, flags);
-			jtimeout = schedule_timeout(jtimeout);
+			if (!schedule_hrtimeout_range(to, slack, HRTIMER_MODE_ABS))
+				timed_out = 1;
+
 			spin_lock_irqsave(&ep->lock, flags);
 		}
 		__remove_wait_queue(&ep->wq, &wait);
@@ -1176,7 +1178,7 @@ retry:
 	 * more luck.
 	 */
 	if (!res && eavail &&
-	    !(res = ep_send_events(ep, events, maxevents)) && jtimeout)
+	    !(res = ep_send_events(ep, events, maxevents)) && !timed_out)
 		goto retry;
 
 	return res;
@@ -1206,7 +1208,7 @@ SYSCALL_DEFINE1(epoll_create1, int, flags)
 	 * a file structure and a free file descriptor.
 	 */
 	error = anon_inode_getfd("[eventpoll]", &eventpoll_fops, ep,
-				 flags & O_CLOEXEC);
+				 O_RDWR | (flags & O_CLOEXEC));
 	if (error < 0)
 		ep_free(ep);
 

@@ -28,10 +28,7 @@
 /* Returns the privileged segment base of a given address  */
 #define PXSEG(a)	(((unsigned long)(a)) & 0xe0000000)
 
-/* Returns the physical address of a PnSEG (n=1,2) address   */
-#define PHYSADDR(a)	(((unsigned long)(a)) & 0x1fffffff)
-
-#if defined(CONFIG_29BIT) || defined(CONFIG_PMB_FIXED)
+#ifdef CONFIG_29BIT
 /*
  * Map an address to a certain privileged segment
  */
@@ -43,7 +40,15 @@
 	((__typeof__(a))(((unsigned long)(a) & 0x1fffffff) | P3SEG))
 #define P4SEGADDR(a)	\
 	((__typeof__(a))(((unsigned long)(a) & 0x1fffffff) | P4SEG))
-#endif /* 29BIT || PMB_FIXED */
+#else
+/*
+ * These will never work in 32-bit, don't even bother.
+ */
+#define P1SEGADDR(a)	__futile_remapping_attempt
+#define P2SEGADDR(a)	__futile_remapping_attempt
+#define P3SEGADDR(a)	__futile_remapping_attempt
+#define P4SEGADDR(a)	__futile_remapping_attempt
+#endif
 #endif /* P1SEG */
 
 /* Check if an address can be reached in 29 bits */

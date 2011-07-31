@@ -28,7 +28,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/bootmem.h>
@@ -156,7 +155,7 @@ static int __init arcrimi_found(struct net_device *dev)
 	}
 
 	/* reserve the irq */
-	if (request_irq(dev->irq, &arcnet_interrupt, 0, "arcnet (RIM I)", dev)) {
+	if (request_irq(dev->irq, arcnet_interrupt, 0, "arcnet (RIM I)", dev)) {
 		iounmap(p);
 		release_mem_region(dev->mem_start, MIRROR_SIZE);
 		BUGMSG(D_NORMAL, "Can't get IRQ %d!\n", dev->irq);
@@ -174,9 +173,9 @@ static int __init arcrimi_found(struct net_device *dev)
 	 * 2k (or there are no mirrors at all) but on some, it's 4k.
 	 */
 	mirror_size = MIRROR_SIZE;
-	if (readb(p) == TESTvalue
-	    && check_mirror(shmem - MIRROR_SIZE, MIRROR_SIZE) == 0
-	    && check_mirror(shmem - 2 * MIRROR_SIZE, MIRROR_SIZE) == 1)
+	if (readb(p) == TESTvalue &&
+	    check_mirror(shmem - MIRROR_SIZE, MIRROR_SIZE) == 0 &&
+	    check_mirror(shmem - 2 * MIRROR_SIZE, MIRROR_SIZE) == 1)
 		mirror_size = 2 * MIRROR_SIZE;
 
 	first_mirror = shmem - mirror_size;

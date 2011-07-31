@@ -74,7 +74,7 @@
 #define SCA3000_MEAS_MODE_OP_2			0x02
 
 /* In motion detection mode the accelerations are band pass filtered
- * (aprox 1 - 25Hz) and then a programmable theshold used to trigger
+ * (aprox 1 - 25Hz) and then a programmable threshold used to trigger
  * and interrupt.
  */
 #define SCA3000_MEAS_MODE_MOT_DET		0x03
@@ -139,7 +139,7 @@
 /* Values of mulipexed registers (write to ctrl_data after select) */
 #define SCA3000_REG_ADDR_CTRL_DATA		0x22
 
-/* Measurment modes available on some sca3000 series chips. Code assumes others
+/* Measurement modes available on some sca3000 series chips. Code assumes others
  * may become available in the future.
  *
  * Bypass - Bypass the low-pass filter in the signal channel so as to increase
@@ -187,6 +187,7 @@ struct sca3000_state {
 /**
  * struct sca3000_chip_info - model dependant parameters
  * @name: 			model identification
+ * @scale:			string containing floating point scale factor
  * @temp_output:		some devices have temperature sensors.
  * @measurement_mode_freq:	normal mode sampling frequency
  * @option_mode_1:		first optional mode. Not all models have one
@@ -199,6 +200,7 @@ struct sca3000_state {
  **/
 struct sca3000_chip_info {
 	const char		*name;
+	const char		*scale;
 	bool			temp_output;
 	int			measurement_mode_freq;
 	int			option_mode_1;
@@ -240,7 +242,7 @@ static inline int sca3000_11bit_convert(uint8_t msb, uint8_t lsb)
 	val |= (val & (1 << 12)) ? 0xE000 : 0;
 
 	return val;
-};
+}
 
 static inline int sca3000_13bit_convert(uint8_t msb, uint8_t lsb)
 {
@@ -251,7 +253,7 @@ static inline int sca3000_13bit_convert(uint8_t msb, uint8_t lsb)
 	val |= (val & (1 << 12)) ? 0xE000 : 0;
 
 	return val;
-};
+}
 
 
 #ifdef CONFIG_IIO_RING_BUFFER
@@ -284,15 +286,19 @@ void sca3000_unconfigure_ring(struct iio_dev *indio_dev);
 void sca3000_ring_int_process(u8 val, struct iio_ring_buffer *ring);
 
 #else
-static inline void sca3000_register_ring_funcs(struct iio_dev *indio_dev) {};
+static inline void sca3000_register_ring_funcs(struct iio_dev *indio_dev)
+{
+}
 
 static inline
 int sca3000_register_ring_access_and_init(struct iio_dev *indio_dev)
 {
 	return 0;
-};
+}
 
-static inline void sca3000_ring_int_process(u8 val, void *ring) {};
+static inline void sca3000_ring_int_process(u8 val, void *ring)
+{
+}
 
 #endif
 

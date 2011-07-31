@@ -5,14 +5,12 @@
 #include <linux/pkt_cls.h>
 
 #define TCA_ACT_GACT 5
-struct tc_gact
-{
+struct tc_gact {
 	tc_gen;
 
 };
 
-struct tc_gact_p
-{
+struct tc_gact_p {
 #define PGACT_NONE              0
 #define PGACT_NETRAND           1
 #define PGACT_DETERM            2
@@ -22,8 +20,7 @@ struct tc_gact_p
 	int                   paction;
 };
  
-enum
-{
+enum {
 	TCA_GACT_UNSPEC,
 	TCA_GACT_TM,
 	TCA_GACT_PARMS,

@@ -121,7 +121,7 @@ KEYBOARD_STATE kb_state;
  * bytes have been lost and in which state of the packet structure we are now.
  * This usually causes keyboards bytes to be interpreted as mouse movements
  * and vice versa, which is very annoying. It seems better to throw away some
- * bytes (that are usually mouse bytes) than to misinterpret them. Therefor I
+ * bytes (that are usually mouse bytes) than to misinterpret them. Therefore I
  * introduced the RESYNC state for IKBD data. In this state, the bytes up to
  * one that really looks like a key event (0x04..0xf2) or the start of a mouse
  * packet (0xf8..0xfb) are thrown away, but at most 2 bytes. This at least

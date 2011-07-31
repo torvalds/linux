@@ -173,8 +173,8 @@
 /* em2874 IR config register (0x50) */
 #define EM2874_IR_NEC           0x00
 #define EM2874_IR_RC5           0x04
-#define EM2874_IR_RC5_MODE_0    0x08
-#define EM2874_IR_RC5_MODE_6A   0x0b
+#define EM2874_IR_RC6_MODE_0    0x08
+#define EM2874_IR_RC6_MODE_6A   0x0b
 
 /* em2874 Transport Stream Enable Register (0x5f) */
 #define EM2874_TS1_CAPTURE_ENABLE (1 << 0)
@@ -192,6 +192,7 @@
 
 /* FIXME: Need to be populated with the other chip ID's */
 enum em28xx_chip_id {
+	CHIP_ID_EM2800 = 7,
 	CHIP_ID_EM2710 = 17,
 	CHIP_ID_EM2820 = 18,	/* Also used by some em2710 */
 	CHIP_ID_EM2840 = 20,

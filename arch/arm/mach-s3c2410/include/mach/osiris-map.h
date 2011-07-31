@@ -1,6 +1,6 @@
 /* arch/arm/mach-s3c2410/include/mach/osiris-map.h
  *
- * (c) 2005 Simtec Electronics
+ * Copyright 2005 Simtec Electronics
  *	http://www.simtec.co.uk/products/
  *	Ben Dooks <ben@simtec.co.uk>
  *

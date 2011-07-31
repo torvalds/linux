@@ -42,6 +42,7 @@
 #include <linux/videodev2.h>
 #include <linux/version.h>      /* for KERNEL_VERSION MACRO     */
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 
@@ -262,6 +263,8 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 {
 	struct maxiradio *dev = video_drvdata(file);
 
+	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
+		return -EINVAL;
 	if (f->frequency < FREQ_LO || f->frequency > FREQ_HI) {
 		dprintk(dev, 1, "radio freq (%d.%02d MHz) out of range (%d-%d)\n",
 					f->frequency / 16000,
@@ -285,6 +288,8 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 {
 	struct maxiradio *dev = video_drvdata(file);
 
+	if (f->tuner != 0)
+		return -EINVAL;
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = dev->freq;
 

@@ -32,7 +32,7 @@ struct pca9532_led {
 	struct i2c_client *client;
 	char *name;
 	struct led_classdev ldev;
-       struct work_struct work;
+	struct work_struct work;
 	enum pca9532_type type;
 	enum pca9532_state state;
 };

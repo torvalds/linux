@@ -30,7 +30,6 @@
 #include <linux/dnotify.h>
 #include <linux/statfs.h>
 #include <linux/security.h>
-#include <linux/ima.h>
 #include <linux/magic.h>
 
 #include <asm/uaccess.h>
@@ -372,27 +371,10 @@ static void truncate_hugepages(struct inode *inode, loff_t lstart)
 	hugetlb_unreserve_pages(inode, start, freed);
 }
 
-static void hugetlbfs_delete_inode(struct inode *inode)
+static void hugetlbfs_evict_inode(struct inode *inode)
 {
 	truncate_hugepages(inode, 0);
-	clear_inode(inode);
-}
-
-static void hugetlbfs_forget_inode(struct inode *inode) __releases(inode_lock)
-{
-	if (generic_detach_inode(inode)) {
-		truncate_hugepages(inode, 0);
-		clear_inode(inode);
-		destroy_inode(inode);
-	}
-}
-
-static void hugetlbfs_drop_inode(struct inode *inode)
-{
-	if (!inode->i_nlink)
-		generic_delete_inode(inode);
-	else
-		hugetlbfs_forget_inode(inode);
+	end_writeback(inode);
 }
 
 static inline void
@@ -449,19 +431,20 @@ static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	error = inode_change_ok(inode, attr);
 	if (error)
-		goto out;
+		return error;
 
 	if (ia_valid & ATTR_SIZE) {
 		error = -EINVAL;
-		if (!(attr->ia_size & ~huge_page_mask(h)))
-			error = hugetlb_vmtruncate(inode, attr->ia_size);
+		if (attr->ia_size & ~huge_page_mask(h))
+			return -EINVAL;
+		error = hugetlb_vmtruncate(inode, attr->ia_size);
 		if (error)
-			goto out;
-		attr->ia_valid &= ~ATTR_SIZE;
+			return error;
 	}
-	error = inode_setattr(inode, attr);
-out:
-	return error;
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+	return 0;
 }
 
 static struct inode *hugetlbfs_get_inode(struct super_block *sb, uid_t uid, 
@@ -689,7 +672,7 @@ static void init_once(void *foo)
 const struct file_operations hugetlbfs_file_operations = {
 	.read			= hugetlbfs_read,
 	.mmap			= hugetlbfs_file_mmap,
-	.fsync			= simple_sync_file,
+	.fsync			= noop_fsync,
 	.get_unmapped_area	= hugetlb_get_unmapped_area,
 };
 
@@ -713,9 +696,8 @@ static const struct inode_operations hugetlbfs_inode_operations = {
 static const struct super_operations hugetlbfs_ops = {
 	.alloc_inode    = hugetlbfs_alloc_inode,
 	.destroy_inode  = hugetlbfs_destroy_inode,
+	.evict_inode	= hugetlbfs_evict_inode,
 	.statfs		= hugetlbfs_statfs,
-	.delete_inode	= hugetlbfs_delete_inode,
-	.drop_inode	= hugetlbfs_drop_inode,
 	.put_super	= hugetlbfs_put_super,
 	.show_options	= generic_show_options,
 };
@@ -922,7 +904,8 @@ struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag,
 	int error = -ENOMEM;
 	struct file *file;
 	struct inode *inode;
-	struct dentry *dentry, *root;
+	struct path path;
+	struct dentry *root;
 	struct qstr quick_string;
 
 	*user = NULL;
@@ -944,10 +927,11 @@ struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag,
 	quick_string.name = name;
 	quick_string.len = strlen(quick_string.name);
 	quick_string.hash = 0;
-	dentry = d_alloc(root, &quick_string);
-	if (!dentry)
+	path.dentry = d_alloc(root, &quick_string);
+	if (!path.dentry)
 		goto out_shm_unlock;
 
+	path.mnt = mntget(hugetlbfs_vfsmount);
 	error = -ENOSPC;
 	inode = hugetlbfs_get_inode(root->d_sb, current_fsuid(),
 				current_fsgid(), S_IFREG | S_IRWXUGO, 0);
@@ -960,24 +944,22 @@ struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag,
 			acctflag))
 		goto out_inode;
 
-	d_instantiate(dentry, inode);
+	d_instantiate(path.dentry, inode);
 	inode->i_size = size;
 	inode->i_nlink = 0;
 
 	error = -ENFILE;
-	file = alloc_file(hugetlbfs_vfsmount, dentry,
-			FMODE_WRITE | FMODE_READ,
+	file = alloc_file(&path, FMODE_WRITE | FMODE_READ,
 			&hugetlbfs_file_operations);
 	if (!file)
 		goto out_dentry; /* inode is already attached */
-	ima_counts_get(file);
 
 	return file;
 
 out_inode:
 	iput(inode);
 out_dentry:
-	dput(dentry);
+	path_put(&path);
 out_shm_unlock:
 	if (*user) {
 		user_shm_unlock(size, *user);

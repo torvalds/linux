@@ -50,6 +50,7 @@
 #include <video/vga.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include "nv_type.h"
 #include "nv_local.h"
 #include "nv_proto.h"

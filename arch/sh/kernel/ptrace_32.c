@@ -2,7 +2,7 @@
  * SuperH process tracing
  *
  * Copyright (C) 1999, 2000  Kaz Kojima & Niibe Yutaka
- * Copyright (C) 2002 - 2008  Paul Mundt
+ * Copyright (C) 2002 - 2009  Paul Mundt
  *
  * Audit support by Yuichi Nakamura <ynakam@hitachisoft.jp>
  *
@@ -17,7 +17,6 @@
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
-#include <linux/slab.h>
 #include <linux/security.h>
 #include <linux/signal.h>
 #include <linux/io.h>
@@ -26,6 +25,7 @@
 #include <linux/tracehook.h>
 #include <linux/elf.h>
 #include <linux/regset.h>
+#include <linux/hw_breakpoint.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -63,33 +63,64 @@ static inline int put_stack_long(struct task_struct *task, int offset,
 	return 0;
 }
 
+void ptrace_triggered(struct perf_event *bp, int nmi,
+		      struct perf_sample_data *data, struct pt_regs *regs)
+{
+	struct perf_event_attr attr;
+
+	/*
+	 * Disable the breakpoint request here since ptrace has defined a
+	 * one-shot behaviour for breakpoint exceptions.
+	 */
+	attr = bp->attr;
+	attr.disabled = true;
+	modify_user_hw_breakpoint(bp, &attr);
+}
+
+static int set_single_step(struct task_struct *tsk, unsigned long addr)
+{
+	struct thread_struct *thread = &tsk->thread;
+	struct perf_event *bp;
+	struct perf_event_attr attr;
+
+	bp = thread->ptrace_bps[0];
+	if (!bp) {
+		ptrace_breakpoint_init(&attr);
+
+		attr.bp_addr = addr;
+		attr.bp_len = HW_BREAKPOINT_LEN_2;
+		attr.bp_type = HW_BREAKPOINT_R;
+
+		bp = register_user_hw_breakpoint(&attr, ptrace_triggered, tsk);
+		if (IS_ERR(bp))
+			return PTR_ERR(bp);
+
+		thread->ptrace_bps[0] = bp;
+	} else {
+		int err;
+
+		attr = bp->attr;
+		attr.bp_addr = addr;
+		err = modify_user_hw_breakpoint(bp, &attr);
+		if (unlikely(err))
+			return err;
+	}
+
+	return 0;
+}
+
 void user_enable_single_step(struct task_struct *child)
 {
-	/* Next scheduling will set up UBC */
-	if (child->thread.ubc_pc == 0)
-		ubc_usercnt += 1;
-
-	child->thread.ubc_pc = get_stack_long(child,
-				offsetof(struct pt_regs, pc));
+	unsigned long pc = get_stack_long(child, offsetof(struct pt_regs, pc));
 
 	set_tsk_thread_flag(child, TIF_SINGLESTEP);
+
+	set_single_step(child, pc);
 }
 
 void user_disable_single_step(struct task_struct *child)
 {
 	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
-
-	/*
-	 * Ensure the UBC is not programmed at the next context switch.
-	 *
-	 * Normally this is not needed but there are sequences such as
-	 * singlestep, signal delivery, and continue that leave the
-	 * ubc_pc non-zero leading to spurious SIGTRAPs.
-	 */
-	if (child->thread.ubc_pc != 0) {
-		ubc_usercnt -= 1;
-		child->thread.ubc_pc = 0;
-	}
 }
 
 /*
@@ -163,10 +194,10 @@ int fpregs_get(struct task_struct *target,
 
 	if ((boot_cpu_data.flags & CPU_HAS_FPU))
 		return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-					   &target->thread.fpu.hard, 0, -1);
+					   &target->thread.xstate->hardfpu, 0, -1);
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   &target->thread.fpu.soft, 0, -1);
+				   &target->thread.xstate->softfpu, 0, -1);
 }
 
 static int fpregs_set(struct task_struct *target,
@@ -184,10 +215,10 @@ static int fpregs_set(struct task_struct *target,
 
 	if ((boot_cpu_data.flags & CPU_HAS_FPU))
 		return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-					  &target->thread.fpu.hard, 0, -1);
+					  &target->thread.xstate->hardfpu, 0, -1);
 
 	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				  &target->thread.fpu.soft, 0, -1);
+				  &target->thread.xstate->softfpu, 0, -1);
 }
 
 static int fpregs_active(struct task_struct *target,
@@ -333,7 +364,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				else
 					tmp = 0;
 			} else
-				tmp = ((long *)&child->thread.fpu)
+				tmp = ((long *)child->thread.xstate)
 					[(addr - (long)&dummy->fpu) >> 2];
 		} else if (addr == (long) &dummy->u_fpvalid)
 			tmp = !!tsk_used_math(child);
@@ -362,7 +393,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		else if (addr >= (long) &dummy->fpu &&
 			 addr < (long) &dummy->u_fpvalid) {
 			set_stopped_child_used_math(child);
-			((long *)&child->thread.fpu)
+			((long *)child->thread.xstate)
 				[(addr - (long)&dummy->fpu) >> 2] = data;
 			ret = 0;
 		} else if (addr == (long) &dummy->u_fpvalid) {
@@ -404,29 +435,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 					     REGSET_DSP,
 					     0, sizeof(struct pt_dspregs),
 					     (const void __user *)data);
-#endif
-#ifdef CONFIG_BINFMT_ELF_FDPIC
-	case PTRACE_GETFDPIC: {
-		unsigned long tmp = 0;
-
-		switch (addr) {
-		case PTRACE_GETFDPIC_EXEC:
-			tmp = child->mm->context.exec_fdpic_loadmap;
-			break;
-		case PTRACE_GETFDPIC_INTERP:
-			tmp = child->mm->context.interp_fdpic_loadmap;
-			break;
-		default:
-			break;
-		}
-
-		ret = 0;
-		if (put_user(tmp, datap)) {
-			ret = -EFAULT;
-			break;
-		}
-		break;
-	}
 #endif
 	default:
 		ret = ptrace_request(child, request, addr, data);

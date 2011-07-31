@@ -83,9 +83,9 @@
 #define VMALLOC_START (((unsigned long) high_memory + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1))
 #define VMALLOC_END KMAP_START
 #else
-extern unsigned long vmalloc_end;
+extern unsigned long m68k_vmalloc_end;
 #define VMALLOC_START 0x0f800000
-#define VMALLOC_END vmalloc_end
+#define VMALLOC_END m68k_vmalloc_end
 #endif /* CONFIG_SUN3 */
 
 /* zero page used for uninitialized stuff */
@@ -115,7 +115,7 @@ extern void kernel_set_cachemode(void *addr, unsigned long size, int cmode);
  * they are updated on demand.
  */
 static inline void update_mmu_cache(struct vm_area_struct *vma,
-				    unsigned long address, pte_t pte)
+				    unsigned long address, pte_t *ptep)
 {
 }
 

@@ -308,6 +308,10 @@ enum { SCTP_MAX_GABS = 16 };
 
 #define SCTP_DEFAULT_MINWINDOW	1500	/* default minimum rwnd size */
 #define SCTP_DEFAULT_MAXWINDOW	65535	/* default rwnd size */
+#define SCTP_DEFAULT_RWND_SHIFT  4	/* by default, update on 1/16 of
+					 * rcvbuf, which is 1/8 of initial
+					 * window
+					 */
 #define SCTP_DEFAULT_MAXSEGMENT 1500	/* MTU size, this is the limit
                                          * to which we will raise the P-MTU.
 					 */

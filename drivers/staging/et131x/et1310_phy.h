@@ -61,9 +61,6 @@
 
 #include "et1310_address_map.h"
 
-#define TRUEPHY_SUCCESS 0
-#define TRUEPHY_FAILURE 1
-
 /* MI Register Addresses */
 #define MI_CONTROL_REG                      0
 #define MI_STATUS_REG                       1
@@ -739,42 +736,8 @@ typedef union _MI_LCR2_t {
 
 /* MI Register 29 - 31: Reserved Reg(0x1D - 0x1E) */
 
-/* Forward declaration of the private adapter structure */
-struct et131x_adapter;
-
-/* OS Specific Functions*/
-void TPAL_SetPhy10HalfDuplex(struct et131x_adapter *adapter);
-void TPAL_SetPhy10FullDuplex(struct et131x_adapter *adapter);
-void TPAL_SetPhy10Force(struct et131x_adapter *pAdapter);
-void TPAL_SetPhy100HalfDuplex(struct et131x_adapter *adapter);
-void TPAL_SetPhy100FullDuplex(struct et131x_adapter *adapter);
-void TPAL_SetPhy100Force(struct et131x_adapter *pAdapter);
-void TPAL_SetPhy1000FullDuplex(struct et131x_adapter *adapter);
-void TPAL_SetPhyAutoNeg(struct et131x_adapter *adapter);
 
 /* Prototypes for ET1310_phy.c */
-int et131x_xcvr_find(struct et131x_adapter *adapter);
-int et131x_setphy_normal(struct et131x_adapter *adapter);
-int32_t PhyMiRead(struct et131x_adapter *adapter,
-	       u8 xcvrAddr, u8 xcvrReg, u16 *value);
-
-/* static inline function does not work because et131x_adapter is not always
- * defined
- */
-#define MiRead(adapter, xcvrReg, value) \
-	PhyMiRead((adapter), (adapter)->Stats.xcvr_addr, (xcvrReg), (value))
-
-int32_t MiWrite(struct et131x_adapter *adapter,
-		u8 xcvReg, u16 value);
-void et131x_Mii_check(struct et131x_adapter *pAdapter,
-		      MI_BMSR_t bmsr, MI_BMSR_t bmsr_ints);
-
-/* This last is not strictly required (the driver could call the TPAL
- * version instead), but this sets the adapter up correctly, and calls the
- * access routine indirectly.  This protects the driver from changes in TPAL.
- */
-void SetPhy_10BaseTHalfDuplex(struct et131x_adapter *adapter);
-
 /* Defines for PHY access routines */
 
 /* Define bit operation flags */
@@ -855,31 +818,5 @@ void SetPhy_10BaseTHalfDuplex(struct et131x_adapter *adapter);
 #define PHY_LED_2                  0x1C	/* #define TRU_VMI_LED_CONTROL_2_REGISTER          28 */
 					/* #define TRU_VMI_LINK_CONTROL_REGISTER           29 */
 					/* #define TRU_VMI_TIMING_CONTROL_REGISTER */
-
-/* Prototypes for PHY access routines */
-void ET1310_PhyInit(struct et131x_adapter *adapter);
-void ET1310_PhyReset(struct et131x_adapter *adapter);
-void ET1310_PhyPowerDown(struct et131x_adapter *adapter, bool down);
-void ET1310_PhyAutoNeg(struct et131x_adapter *adapter, bool enable);
-void ET1310_PhyDuplexMode(struct et131x_adapter *adapter, u16 duplex);
-void ET1310_PhySpeedSelect(struct et131x_adapter *adapter, u16 speed);
-void ET1310_PhyAdvertise1000BaseT(struct et131x_adapter *adapter,
-				  u16 duplex);
-void ET1310_PhyAdvertise100BaseT(struct et131x_adapter *adapter,
-				 u16 duplex);
-void ET1310_PhyAdvertise10BaseT(struct et131x_adapter *adapter,
-				u16 duplex);
-void ET1310_PhyLinkStatus(struct et131x_adapter *adapter,
-			  u8 *Link_status,
-			  u32 *autoneg,
-			  u32 *linkspeed,
-			  u32 *duplex_mode,
-			  u32 *mdi_mdix,
-			  u32 *masterslave, u32 *polarity);
-void ET1310_PhyAndOrReg(struct et131x_adapter *adapter,
-			u16 regnum, u16 andMask, u16 orMask);
-void ET1310_PhyAccessMiBit(struct et131x_adapter *adapter,
-			   u16 action,
-			   u16 regnum, u16 bitnum, u8 *value);
 
 #endif /* _ET1310_PHY_H_ */

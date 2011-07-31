@@ -204,6 +204,7 @@ static const struct agp_bridge_driver ali_generic_bridge = {
 	.aperture_sizes		= ali_generic_sizes,
 	.size_type		= U32_APER_SIZE,
 	.num_aperture_sizes	= 7,
+	.needs_scratch_page	= true,
 	.configure		= ali_configure,
 	.fetch_size		= ali_fetch_size,
 	.cleanup		= ali_cleanup,

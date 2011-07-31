@@ -172,11 +172,12 @@ static void at91_ide_output_data(ide_drive_t *drive, struct ide_cmd *cmd,
 	leave_16bit(chipselect, mode);
 }
 
-static void at91_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void at91_ide_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	struct ide_timing *timing;
-	u8 chipselect = drive->hwif->select_data;
+	u8 chipselect = hwif->select_data;
 	int use_iordy = 0;
+	const u8 pio = drive->pio_mode - XFER_PIO_0;
 
 	pdbg("chipselect %u pio %u\n", chipselect, pio);
 

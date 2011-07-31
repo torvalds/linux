@@ -21,11 +21,11 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/reboot.h>
 #include <asm/uaccess.h>
 
-#include "ocfs2.h"  /* For struct ocfs2_lock_res */
 #include "stackglue.h"
 
 #include <linux/dlm_plock.h>
@@ -63,8 +63,8 @@
  * negotiated by the client.  The client negotiates based on the maximum
  * version advertised in /sys/fs/ocfs2/max_locking_protocol.  The major
  * number from the "SETV" message must match
- * ocfs2_user_plugin.sp_proto->lp_max_version.pv_major, and the minor number
- * must be less than or equal to ...->lp_max_version.pv_minor.
+ * ocfs2_user_plugin.sp_max_proto.pv_major, and the minor number
+ * must be less than or equal to ...sp_max_version.pv_minor.
  *
  * Once this information has been set, mounts will be allowed.  From this
  * point on, the "DOWN" message can be sent for node down notification.
@@ -401,7 +401,7 @@ static int ocfs2_control_do_setversion_msg(struct file *file,
 	char *ptr = NULL;
 	struct ocfs2_control_private *p = file->private_data;
 	struct ocfs2_protocol_version *max =
-		&ocfs2_user_plugin.sp_proto->lp_max_version;
+		&ocfs2_user_plugin.sp_max_proto;
 
 	if (ocfs2_control_get_handshake_state(file) !=
 	    OCFS2_CONTROL_HANDSHAKE_PROTOCOL)
@@ -664,18 +664,10 @@ static void ocfs2_control_exit(void)
 		       -rc);
 }
 
-static struct dlm_lksb *fsdlm_astarg_to_lksb(void *astarg)
-{
-	struct ocfs2_lock_res *res = astarg;
-	return &res->l_lksb.lksb_fsdlm;
-}
-
 static void fsdlm_lock_ast_wrapper(void *astarg)
 {
-	struct dlm_lksb *lksb = fsdlm_astarg_to_lksb(astarg);
-	int status = lksb->sb_status;
-
-	BUG_ON(ocfs2_user_plugin.sp_proto == NULL);
+	struct ocfs2_dlm_lksb *lksb = astarg;
+	int status = lksb->lksb_fsdlm.sb_status;
 
 	/*
 	 * For now we're punting on the issue of other non-standard errors
@@ -688,25 +680,24 @@ static void fsdlm_lock_ast_wrapper(void *astarg)
 	 */
 
 	if (status == -DLM_EUNLOCK || status == -DLM_ECANCEL)
-		ocfs2_user_plugin.sp_proto->lp_unlock_ast(astarg, 0);
+		lksb->lksb_conn->cc_proto->lp_unlock_ast(lksb, 0);
 	else
-		ocfs2_user_plugin.sp_proto->lp_lock_ast(astarg);
+		lksb->lksb_conn->cc_proto->lp_lock_ast(lksb);
 }
 
 static void fsdlm_blocking_ast_wrapper(void *astarg, int level)
 {
-	BUG_ON(ocfs2_user_plugin.sp_proto == NULL);
+	struct ocfs2_dlm_lksb *lksb = astarg;
 
-	ocfs2_user_plugin.sp_proto->lp_blocking_ast(astarg, level);
+	lksb->lksb_conn->cc_proto->lp_blocking_ast(lksb, level);
 }
 
 static int user_dlm_lock(struct ocfs2_cluster_connection *conn,
 			 int mode,
-			 union ocfs2_dlm_lksb *lksb,
+			 struct ocfs2_dlm_lksb *lksb,
 			 u32 flags,
 			 void *name,
-			 unsigned int namelen,
-			 void *astarg)
+			 unsigned int namelen)
 {
 	int ret;
 
@@ -716,36 +707,35 @@ static int user_dlm_lock(struct ocfs2_cluster_connection *conn,
 
 	ret = dlm_lock(conn->cc_lockspace, mode, &lksb->lksb_fsdlm,
 		       flags|DLM_LKF_NODLCKWT, name, namelen, 0,
-		       fsdlm_lock_ast_wrapper, astarg,
+		       fsdlm_lock_ast_wrapper, lksb,
 		       fsdlm_blocking_ast_wrapper);
 	return ret;
 }
 
 static int user_dlm_unlock(struct ocfs2_cluster_connection *conn,
-			   union ocfs2_dlm_lksb *lksb,
-			   u32 flags,
-			   void *astarg)
+			   struct ocfs2_dlm_lksb *lksb,
+			   u32 flags)
 {
 	int ret;
 
 	ret = dlm_unlock(conn->cc_lockspace, lksb->lksb_fsdlm.sb_lkid,
-			 flags, &lksb->lksb_fsdlm, astarg);
+			 flags, &lksb->lksb_fsdlm, lksb);
 	return ret;
 }
 
-static int user_dlm_lock_status(union ocfs2_dlm_lksb *lksb)
+static int user_dlm_lock_status(struct ocfs2_dlm_lksb *lksb)
 {
 	return lksb->lksb_fsdlm.sb_status;
 }
 
-static int user_dlm_lvb_valid(union ocfs2_dlm_lksb *lksb)
+static int user_dlm_lvb_valid(struct ocfs2_dlm_lksb *lksb)
 {
 	int invalid = lksb->lksb_fsdlm.sb_flags & DLM_SBF_VALNOTVALID;
 
 	return !invalid;
 }
 
-static void *user_dlm_lvb(union ocfs2_dlm_lksb *lksb)
+static void *user_dlm_lvb(struct ocfs2_dlm_lksb *lksb)
 {
 	if (!lksb->lksb_fsdlm.sb_lvbptr)
 		lksb->lksb_fsdlm.sb_lvbptr = (char *)lksb +
@@ -753,7 +743,7 @@ static void *user_dlm_lvb(union ocfs2_dlm_lksb *lksb)
 	return (void *)(lksb->lksb_fsdlm.sb_lvbptr);
 }
 
-static void user_dlm_dump_lksb(union ocfs2_dlm_lksb *lksb)
+static void user_dlm_dump_lksb(struct ocfs2_dlm_lksb *lksb)
 {
 }
 
@@ -814,7 +804,7 @@ static int fs_protocol_compare(struct ocfs2_protocol_version *existing,
 static int user_cluster_connect(struct ocfs2_cluster_connection *conn)
 {
 	dlm_lockspace_t *fsdlm;
-	struct ocfs2_live_connection *control;
+	struct ocfs2_live_connection *uninitialized_var(control);
 	int rc = 0;
 
 	BUG_ON(conn == NULL);

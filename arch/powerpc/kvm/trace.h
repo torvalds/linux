@@ -12,8 +12,8 @@
  * Tracepoint for guest mode entry.
  */
 TRACE_EVENT(kvm_ppc_instr,
-	TP_PROTO(unsigned int inst, unsigned long pc, unsigned int emulate),
-	TP_ARGS(inst, pc, emulate),
+	TP_PROTO(unsigned int inst, unsigned long _pc, unsigned int emulate),
+	TP_ARGS(inst, _pc, emulate),
 
 	TP_STRUCT__entry(
 		__field(	unsigned int,	inst		)
@@ -23,7 +23,7 @@ TRACE_EVENT(kvm_ppc_instr,
 
 	TP_fast_assign(
 		__entry->inst		= inst;
-		__entry->pc		= pc;
+		__entry->pc		= _pc;
 		__entry->emulate	= emulate;
 	),
 

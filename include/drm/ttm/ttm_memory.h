@@ -33,6 +33,7 @@
 #include <linux/wait.h>
 #include <linux/errno.h>
 #include <linux/kobject.h>
+#include <linux/mm.h>
 
 /**
  * struct ttm_mem_shrink - callback to shrink TTM memory usage.

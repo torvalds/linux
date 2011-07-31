@@ -20,7 +20,9 @@
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/ftrace.h>
 #include <linux/irq.h>
+#include <linux/kmemleak.h>
 
 #include <asm/ptrace.h>
 #include <asm/processor.h>
@@ -45,6 +47,7 @@
 
 #include "entry.h"
 #include "cpumap.h"
+#include "kstack.h"
 
 #define NUM_IVECS	(IMAP_INR + 1)
 
@@ -176,7 +179,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	}
 
 	if (i < NR_IRQS) {
-		spin_lock_irqsave(&irq_desc[i].lock, flags);
+		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
 		action = irq_desc[i].action;
 		if (!action)
 			goto skip;
@@ -187,7 +190,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
 #endif
-		seq_printf(p, " %9s", irq_desc[i].chip->typename);
+		seq_printf(p, " %9s", irq_desc[i].chip->name);
 		seq_printf(p, "  %s", action->name);
 
 		for (action=action->next; action; action = action->next)
@@ -195,7 +198,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 		seq_putc(p, '\n');
 skip:
-		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
 	} else if (i == NR_IRQS) {
 		seq_printf(p, "NMI: ");
 		for_each_online_cpu(j)
@@ -250,12 +253,12 @@ struct irq_handler_data {
 };
 
 #ifdef CONFIG_SMP
-static int irq_choose_cpu(unsigned int virt_irq)
+static int irq_choose_cpu(unsigned int virt_irq, const struct cpumask *affinity)
 {
 	cpumask_t mask;
 	int cpuid;
 
-	cpumask_copy(&mask, irq_desc[virt_irq].affinity);
+	cpumask_copy(&mask, affinity);
 	if (cpus_equal(mask, cpu_online_map)) {
 		cpuid = map_to_cpu(virt_irq);
 	} else {
@@ -268,10 +271,8 @@ static int irq_choose_cpu(unsigned int virt_irq)
 	return cpuid;
 }
 #else
-static int irq_choose_cpu(unsigned int virt_irq)
-{
-	return real_hard_smp_processor_id();
-}
+#define irq_choose_cpu(virt_irq, affinity)	\
+	real_hard_smp_processor_id()
 #endif
 
 static void sun4u_irq_enable(unsigned int virt_irq)
@@ -282,7 +283,8 @@ static void sun4u_irq_enable(unsigned int virt_irq)
 		unsigned long cpuid, imap, val;
 		unsigned int tid;
 
-		cpuid = irq_choose_cpu(virt_irq);
+		cpuid = irq_choose_cpu(virt_irq,
+				       irq_desc[virt_irq].affinity);
 		imap = data->imap;
 
 		tid = sun4u_compute_tid(imap, cpuid);
@@ -299,7 +301,24 @@ static void sun4u_irq_enable(unsigned int virt_irq)
 static int sun4u_set_affinity(unsigned int virt_irq,
 			       const struct cpumask *mask)
 {
-	sun4u_irq_enable(virt_irq);
+	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
+
+	if (likely(data)) {
+		unsigned long cpuid, imap, val;
+		unsigned int tid;
+
+		cpuid = irq_choose_cpu(virt_irq, mask);
+		imap = data->imap;
+
+		tid = sun4u_compute_tid(imap, cpuid);
+
+		val = upa_readq(imap);
+		val &= ~(IMAP_TID_UPA | IMAP_TID_JBUS |
+			 IMAP_AID_SAFARI | IMAP_NID_SAFARI);
+		val |= tid | IMAP_VALID;
+		upa_writeq(val, imap);
+		upa_writeq(ICLR_IDLE, data->iclr);
+	}
 
 	return 0;
 }
@@ -340,7 +359,8 @@ static void sun4u_irq_eoi(unsigned int virt_irq)
 static void sun4v_irq_enable(unsigned int virt_irq)
 {
 	unsigned int ino = virt_irq_table[virt_irq].dev_ino;
-	unsigned long cpuid = irq_choose_cpu(virt_irq);
+	unsigned long cpuid = irq_choose_cpu(virt_irq,
+					     irq_desc[virt_irq].affinity);
 	int err;
 
 	err = sun4v_intr_settarget(ino, cpuid);
@@ -361,7 +381,7 @@ static int sun4v_set_affinity(unsigned int virt_irq,
 			       const struct cpumask *mask)
 {
 	unsigned int ino = virt_irq_table[virt_irq].dev_ino;
-	unsigned long cpuid = irq_choose_cpu(virt_irq);
+	unsigned long cpuid = irq_choose_cpu(virt_irq, mask);
 	int err;
 
 	err = sun4v_intr_settarget(ino, cpuid);
@@ -403,7 +423,7 @@ static void sun4v_virq_enable(unsigned int virt_irq)
 	unsigned long cpuid, dev_handle, dev_ino;
 	int err;
 
-	cpuid = irq_choose_cpu(virt_irq);
+	cpuid = irq_choose_cpu(virt_irq, irq_desc[virt_irq].affinity);
 
 	dev_handle = virt_irq_table[virt_irq].dev_handle;
 	dev_ino = virt_irq_table[virt_irq].dev_ino;
@@ -433,7 +453,7 @@ static int sun4v_virt_set_affinity(unsigned int virt_irq,
 	unsigned long cpuid, dev_handle, dev_ino;
 	int err;
 
-	cpuid = irq_choose_cpu(virt_irq);
+	cpuid = irq_choose_cpu(virt_irq, mask);
 
 	dev_handle = virt_irq_table[virt_irq].dev_handle;
 	dev_ino = virt_irq_table[virt_irq].dev_ino;
@@ -484,7 +504,7 @@ static void sun4v_virq_eoi(unsigned int virt_irq)
 }
 
 static struct irq_chip sun4u_irq = {
-	.typename	= "sun4u",
+	.name		= "sun4u",
 	.enable		= sun4u_irq_enable,
 	.disable	= sun4u_irq_disable,
 	.eoi		= sun4u_irq_eoi,
@@ -492,7 +512,7 @@ static struct irq_chip sun4u_irq = {
 };
 
 static struct irq_chip sun4v_irq = {
-	.typename	= "sun4v",
+	.name		= "sun4v",
 	.enable		= sun4v_irq_enable,
 	.disable	= sun4v_irq_disable,
 	.eoi		= sun4v_irq_eoi,
@@ -500,7 +520,7 @@ static struct irq_chip sun4v_irq = {
 };
 
 static struct irq_chip sun4v_virq = {
-	.typename	= "vsun4v",
+	.name		= "vsun4v",
 	.enable		= sun4v_virq_enable,
 	.disable	= sun4v_virq_disable,
 	.eoi		= sun4v_virq_eoi,
@@ -630,6 +650,14 @@ unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino)
 	bucket = kzalloc(sizeof(struct ino_bucket), GFP_ATOMIC);
 	if (unlikely(!bucket))
 		return 0;
+
+	/* The only reference we store to the IRQ bucket is
+	 * by physical address which kmemleak can't see, tell
+	 * it that this object explicitly is not a leak and
+	 * should be scanned.
+	 */
+	kmemleak_not_leak(bucket);
+
 	__flush_dcache_range((unsigned long) bucket,
 			     ((unsigned long) bucket +
 			      sizeof(struct ino_bucket)));
@@ -686,25 +714,7 @@ void ack_bad_irq(unsigned int virt_irq)
 void *hardirq_stack[NR_CPUS];
 void *softirq_stack[NR_CPUS];
 
-static __attribute__((always_inline)) void *set_hardirq_stack(void)
-{
-	void *orig_sp, *sp = hardirq_stack[smp_processor_id()];
-
-	__asm__ __volatile__("mov %%sp, %0" : "=r" (orig_sp));
-	if (orig_sp < sp ||
-	    orig_sp > (sp + THREAD_SIZE)) {
-		sp += THREAD_SIZE - 192 - STACK_BIAS;
-		__asm__ __volatile__("mov %0, %%sp" : : "r" (sp));
-	}
-
-	return orig_sp;
-}
-static __attribute__((always_inline)) void restore_hardirq_stack(void *orig_sp)
-{
-	__asm__ __volatile__("mov %0, %%sp" : : "r" (orig_sp));
-}
-
-void handler_irq(int irq, struct pt_regs *regs)
+void __irq_entry handler_irq(int irq, struct pt_regs *regs)
 {
 	unsigned long pstate, bucket_pa;
 	struct pt_regs *old_regs;
@@ -785,14 +795,14 @@ void fixup_irqs(void)
 	for (irq = 0; irq < NR_IRQS; irq++) {
 		unsigned long flags;
 
-		spin_lock_irqsave(&irq_desc[irq].lock, flags);
+		raw_spin_lock_irqsave(&irq_desc[irq].lock, flags);
 		if (irq_desc[irq].action &&
 		    !(irq_desc[irq].status & IRQ_PER_CPU)) {
 			if (irq_desc[irq].chip->set_affinity)
 				irq_desc[irq].chip->set_affinity(irq,
 					irq_desc[irq].affinity);
 		}
-		spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
+		raw_spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
 	}
 
 	tick_ops->disable_irq();

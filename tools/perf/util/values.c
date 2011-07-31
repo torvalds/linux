@@ -169,6 +169,7 @@ static void perf_read_values__display_pretty(FILE *fp,
 				counterwidth[j], values->value[i][j]);
 		fprintf(fp, "\n");
 	}
+	free(counterwidth);
 }
 
 static void perf_read_values__display_raw(FILE *fp,

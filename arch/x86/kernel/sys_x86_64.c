@@ -23,26 +23,11 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
 		unsigned long, fd, unsigned long, off)
 {
 	long error;
-	struct file *file;
-
 	error = -EINVAL;
 	if (off & ~PAGE_MASK)
 		goto out;
 
-	error = -EBADF;
-	file = NULL;
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file)
-			goto out;
-	}
-	down_write(&current->mm->mmap_sem);
-	error = do_mmap_pgoff(file, addr, len, prot, flags, off >> PAGE_SHIFT);
-	up_write(&current->mm->mmap_sem);
-
-	if (file)
-		fput(file);
+	error = sys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
 out:
 	return error;
 }
@@ -223,16 +208,4 @@ bottomup:
 	mm->cached_hole_size = ~0UL;
 
 	return addr;
-}
-
-
-SYSCALL_DEFINE1(uname, struct new_utsname __user *, name)
-{
-	int err;
-	down_read(&uts_sem);
-	err = copy_to_user(name, utsname(), sizeof(*name));
-	up_read(&uts_sem);
-	if (personality(current->personality) == PER_LINUX32)
-		err |= copy_to_user(&name->machine, "i686", 5);
-	return err ? -EFAULT : 0;
 }

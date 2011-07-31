@@ -76,14 +76,6 @@
 #define FALSE   (0)
 #endif
 
-#if !defined(EXTERN)
-#if defined(__cplusplus)
-#define EXTERN extern "C"
-#else
-#define EXTERN extern
-#endif
-#endif
-
 #if !defined(INLINE)
 #define INLINE static __inline
 #endif
@@ -727,15 +719,6 @@
 #define STDMSK_CLKPOL		((uint16_t)(1 << STDBIT_CLKPOL))
 #define STDMSK_CLKMULT		((uint16_t)(3 << STDBIT_CLKMULT))
 #define STDMSK_CLKENAB		((uint16_t)(1 << STDBIT_CLKENAB))
-
-/* typedef struct indexCounter */
-/* { */
-/*   unsigned int ao; */
-/*   unsigned int ai; */
-/*   unsigned int digout; */
-/*   unsigned int digin; */
-/*   unsigned int enc; */
-/* }CallCounter; */
 
 struct bufferDMA {
 	dma_addr_t PhysicalBase;

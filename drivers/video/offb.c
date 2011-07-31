@@ -17,16 +17,16 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/interrupt.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/pci-bridge.h>
@@ -282,8 +282,17 @@ static int offb_set_par(struct fb_info *info)
 	return 0;
 }
 
+static void offb_destroy(struct fb_info *info)
+{
+	if (info->screen_base)
+		iounmap(info->screen_base);
+	release_mem_region(info->apertures->ranges[0].base, info->apertures->ranges[0].size);
+	framebuffer_release(info);
+}
+
 static struct fb_ops offb_ops = {
 	.owner		= THIS_MODULE,
+	.fb_destroy	= offb_destroy,
 	.fb_setcolreg	= offb_setcolreg,
 	.fb_set_par	= offb_set_par,
 	.fb_blank	= offb_blank,
@@ -482,24 +491,34 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 	var->sync = 0;
 	var->vmode = FB_VMODE_NONINTERLACED;
 
+	/* set offb aperture size for generic probing */
+	info->apertures = alloc_apertures(1);
+	if (!info->apertures)
+		goto out_aper;
+	info->apertures->ranges[0].base = address;
+	info->apertures->ranges[0].size = fix->smem_len;
+
 	info->fbops = &offb_ops;
 	info->screen_base = ioremap(address, fix->smem_len);
 	info->pseudo_palette = (void *) (info + 1);
-	info->flags = FBINFO_DEFAULT | foreign_endian;
+	info->flags = FBINFO_DEFAULT | FBINFO_MISC_FIRMWARE | foreign_endian;
 
 	fb_alloc_cmap(&info->cmap, 256, 0);
 
-	if (register_framebuffer(info) < 0) {
-		iounmap(par->cmap_adr);
-		par->cmap_adr = NULL;
-		iounmap(info->screen_base);
-		framebuffer_release(info);
-		release_mem_region(res_start, res_size);
-		return;
-	}
+	if (register_framebuffer(info) < 0)
+		goto out_err;
 
 	printk(KERN_INFO "fb%d: Open Firmware frame buffer device on %s\n",
 	       info->node, full_name);
+	return;
+
+out_err:
+	iounmap(info->screen_base);
+out_aper:
+	iounmap(par->cmap_adr);
+	par->cmap_adr = NULL;
+	framebuffer_release(info);
+	release_mem_region(res_start, res_size);
 }
 
 

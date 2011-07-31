@@ -22,6 +22,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/dvb/frontend.h>
 
@@ -37,6 +38,7 @@ struct stv6110_priv {
 
 	u32 mclk;
 	u8 clk_div;
+	u8 gain;
 	u8 regs[8];
 };
 
@@ -255,7 +257,7 @@ static int stv6110_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	u8 ret = 0x04;
 	u32 divider, ref, p, presc, i, result_freq, vco_freq;
 	s32 p_calc, p_calc_opt = 1000, r_div, r_div_opt = 0, p_val;
-	s32 srate; u8 gain;
+	s32 srate;
 
 	dprintk("%s, freq=%d kHz, mclk=%d Hz\n", __func__,
 						frequency, priv->mclk);
@@ -273,15 +275,8 @@ static int stv6110_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	} else
 		srate = 15000000;
 
-	if (srate >= 15000000)
-		gain = 3; /* +6 dB */
-	else if (srate >= 5000000)
-		gain = 3; /* +6 dB */
-	else
-		gain = 3; /* +6 dB */
-
 	priv->regs[RSTV6110_CTRL2] &= ~0x0f;
-	priv->regs[RSTV6110_CTRL2] |= (gain & 0x0f);
+	priv->regs[RSTV6110_CTRL2] |= (priv->gain & 0x0f);
 
 	if (frequency <= 1023000) {
 		p = 1;
@@ -436,6 +431,7 @@ struct dvb_frontend *stv6110_attach(struct dvb_frontend *fe,
 	priv->i2c = i2c;
 	priv->mclk = config->mclk;
 	priv->clk_div = config->clk_div;
+	priv->gain = config->gain;
 
 	memcpy(&priv->regs, &reg0[1], 8);
 

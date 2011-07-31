@@ -140,21 +140,21 @@ cvmx_cmd_queue_result_t cvmx_cmd_queue_initialize(cvmx_cmd_queue_id_t queue_id,
 	if (qstate->base_ptr_div128) {
 		if (max_depth != (int)qstate->max_depth) {
 			cvmx_dprintf("ERROR: cvmx_cmd_queue_initialize: "
-				"Queue already initalized with different "
+				"Queue already initialized with different "
 				"max_depth (%d).\n",
 			     (int)qstate->max_depth);
 			return CVMX_CMD_QUEUE_INVALID_PARAM;
 		}
 		if (fpa_pool != qstate->fpa_pool) {
 			cvmx_dprintf("ERROR: cvmx_cmd_queue_initialize: "
-				"Queue already initalized with different "
+				"Queue already initialized with different "
 				"FPA pool (%u).\n",
 			     qstate->fpa_pool);
 			return CVMX_CMD_QUEUE_INVALID_PARAM;
 		}
 		if ((pool_size >> 3) - 1 != qstate->pool_size_m1) {
 			cvmx_dprintf("ERROR: cvmx_cmd_queue_initialize: "
-				"Queue already initalized with different "
+				"Queue already initialized with different "
 				"FPA pool size (%u).\n",
 			     (qstate->pool_size_m1 + 1) << 3);
 			return CVMX_CMD_QUEUE_INVALID_PARAM;

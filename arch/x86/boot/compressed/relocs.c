@@ -9,6 +9,9 @@
 #include <byteswap.h>
 #define USE_BSD
 #include <endian.h>
+#include <regex.h>
+
+static void die(char *fmt, ...);
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 static Elf32_Ehdr ehdr;
@@ -30,25 +33,47 @@ static struct section *secs;
  * the address for which it has been compiled. Don't warn user about
  * absolute relocations present w.r.t these symbols.
  */
-static const char* safe_abs_relocs[] = {
-		"xen_irq_disable_direct_reloc",
-		"xen_save_fl_direct_reloc",
-};
-
-static int is_safe_abs_reloc(const char* sym_name)
+static const char abs_sym_regex[] =
+	"^(xen_irq_disable_direct_reloc$|"
+	"xen_save_fl_direct_reloc$|"
+	"VDSO|"
+	"__crc_)";
+static regex_t abs_sym_regex_c;
+static int is_abs_reloc(const char *sym_name)
 {
-	int i;
+	return !regexec(&abs_sym_regex_c, sym_name, 0, NULL, 0);
+}
 
-	for (i = 0; i < ARRAY_SIZE(safe_abs_relocs); i++) {
-		if (!strcmp(sym_name, safe_abs_relocs[i]))
-			/* Match found */
-			return 1;
-	}
-	if (strncmp(sym_name, "VDSO", 4) == 0)
-		return 1;
-	if (strncmp(sym_name, "__crc_", 6) == 0)
-		return 1;
-	return 0;
+/*
+ * These symbols are known to be relative, even if the linker marks them
+ * as absolute (typically defined outside any section in the linker script.)
+ */
+static const char rel_sym_regex[] =
+	"^_end$";
+static regex_t rel_sym_regex_c;
+static int is_rel_reloc(const char *sym_name)
+{
+	return !regexec(&rel_sym_regex_c, sym_name, 0, NULL, 0);
+}
+
+static void regex_init(void)
+{
+        char errbuf[128];
+        int err;
+	
+        err = regcomp(&abs_sym_regex_c, abs_sym_regex,
+                      REG_EXTENDED|REG_NOSUB);
+        if (err) {
+                regerror(err, &abs_sym_regex_c, errbuf, sizeof errbuf);
+                die("%s", errbuf);
+        }
+
+        err = regcomp(&rel_sym_regex_c, rel_sym_regex,
+                      REG_EXTENDED|REG_NOSUB);
+        if (err) {
+                regerror(err, &rel_sym_regex_c, errbuf, sizeof errbuf);
+                die("%s", errbuf);
+        }
 }
 
 static void die(char *fmt, ...)
@@ -131,7 +156,7 @@ static const char *rel_type(unsigned type)
 #undef REL_TYPE
 	};
 	const char *name = "unknown type rel type name";
-	if (type < ARRAY_SIZE(type_name)) {
+	if (type < ARRAY_SIZE(type_name) && type_name[type]) {
 		name = type_name[type];
 	}
 	return name;
@@ -448,7 +473,7 @@ static void print_absolute_relocs(void)
 			 * Before warning check if this absolute symbol
 			 * relocation is harmless.
 			 */
-			if (is_safe_abs_reloc(name))
+			if (is_abs_reloc(name) || is_rel_reloc(name))
 				continue;
 
 			if (!printed) {
@@ -501,21 +526,26 @@ static void walk_relocs(void (*visit)(Elf32_Rel *rel, Elf32_Sym *sym))
 			sym = &sh_symtab[ELF32_R_SYM(rel->r_info)];
 			r_type = ELF32_R_TYPE(rel->r_info);
 			/* Don't visit relocations to absolute symbols */
-			if (sym->st_shndx == SHN_ABS) {
+			if (sym->st_shndx == SHN_ABS &&
+			    !is_rel_reloc(sym_name(sym_strtab, sym))) {
 				continue;
 			}
-			if (r_type == R_386_NONE || r_type == R_386_PC32) {
+			switch (r_type) {
+			case R_386_NONE:
+			case R_386_PC32:
 				/*
 				 * NONE can be ignored and and PC relative
 				 * relocations don't need to be adjusted.
 				 */
-			}
-			else if (r_type == R_386_32) {
+				break;
+			case R_386_32:
 				/* Visit relocations that need to be adjusted */
 				visit(rel, sym);
-			}
-			else {
-				die("Unsupported relocation type: %d\n", r_type);
+				break;
+			default:
+				die("Unsupported relocation type: %s (%d)\n",
+				    rel_type(r_type), r_type);
+				break;
 			}
 		}
 	}
@@ -571,16 +601,15 @@ static void emit_relocs(int as_text)
 	}
 	else {
 		unsigned char buf[4];
-		buf[0] = buf[1] = buf[2] = buf[3] = 0;
 		/* Print a stop */
-		printf("%c%c%c%c", buf[0], buf[1], buf[2], buf[3]);
+		fwrite("\0\0\0\0", 4, 1, stdout);
 		/* Now print each relocation */
 		for (i = 0; i < reloc_count; i++) {
 			buf[0] = (relocs[i] >>  0) & 0xff;
 			buf[1] = (relocs[i] >>  8) & 0xff;
 			buf[2] = (relocs[i] >> 16) & 0xff;
 			buf[3] = (relocs[i] >> 24) & 0xff;
-			printf("%c%c%c%c", buf[0], buf[1], buf[2], buf[3]);
+			fwrite(buf, 4, 1, stdout);
 		}
 	}
 }
@@ -597,6 +626,8 @@ int main(int argc, char **argv)
 	const char *fname;
 	FILE *fp;
 	int i;
+
+	regex_init();
 
 	show_absolute_syms = 0;
 	show_absolute_relocs = 0;

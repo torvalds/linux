@@ -954,13 +954,8 @@ static void neo_param(struct jsm_channel *ch)
 		ch->ch_flags |= (CH_BAUD0);
 		ch->ch_mostat &= ~(UART_MCR_RTS | UART_MCR_DTR);
 		neo_assert_modem_signals(ch);
-		ch->ch_old_baud = 0;
 		return;
 
-	} else if (ch->ch_custom_speed) {
-			baud = ch->ch_custom_speed;
-			if (ch->ch_flags & CH_BAUD0)
-				ch->ch_flags &= ~(CH_BAUD0);
 	} else {
 		int i;
 		unsigned int cflag;
@@ -1045,7 +1040,6 @@ static void neo_param(struct jsm_channel *ch)
 	quot = ch->ch_bd->bd_dividend / baud;
 
 	if (quot != 0) {
-		ch->ch_old_baud = baud;
 		writeb(UART_LCR_DLAB, &ch->ch_neo_uart->lcr);
 		writeb((quot & 0xff), &ch->ch_neo_uart->txrx);
 		writeb((quot >> 8), &ch->ch_neo_uart->ier);
@@ -1122,8 +1116,6 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 	unsigned long lock_flags;
 	unsigned long lock_flags2;
 	int outofloop_count = 0;
-
-	brd->intr_count++;
 
 	/* Lock out the slow poller from running on this board. */
 	spin_lock_irqsave(&brd->bd_intr_lock, lock_flags);

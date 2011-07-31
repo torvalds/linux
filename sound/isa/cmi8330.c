@@ -46,7 +46,6 @@
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/isa.h>
-#include <linux/slab.h>
 #include <linux/pnp.h>
 #include <linux/moduleparam.h>
 #include <sound/core.h>
@@ -237,7 +236,7 @@ WSS_DOUBLE("Wavetable Capture Volume", 0,
 		CMI8330_WAVGAIN, CMI8330_WAVGAIN, 4, 0, 15, 0),
 WSS_SINGLE("3D Control - Switch", 0,
 		CMI8330_RMUX3D, 5, 1, 1),
-WSS_SINGLE("PC Speaker Playback Volume", 0,
+WSS_SINGLE("Beep Playback Volume", 0,
 		CMI8330_OUTPUTVOL, 3, 3, 0),
 WSS_DOUBLE("FM Playback Switch", 0,
 		CS4231_AUX2_LEFT_INPUT, CS4231_AUX2_RIGHT_INPUT, 7, 7, 1, 1),
@@ -262,7 +261,7 @@ SB_DOUBLE("SB Line Playback Switch", SB_DSP4_OUTPUT_SW, SB_DSP4_OUTPUT_SW, 4, 3,
 SB_DOUBLE("SB Line Playback Volume", SB_DSP4_LINE_DEV, (SB_DSP4_LINE_DEV + 1), 3, 3, 31),
 SB_SINGLE("SB Mic Playback Switch", SB_DSP4_OUTPUT_SW, 0, 1),
 SB_SINGLE("SB Mic Playback Volume", SB_DSP4_MIC_DEV, 3, 31),
-SB_SINGLE("SB PC Speaker Volume", SB_DSP4_SPEAKER_DEV, 6, 3),
+SB_SINGLE("SB Beep Volume", SB_DSP4_SPEAKER_DEV, 6, 3),
 SB_DOUBLE("SB Capture Volume", SB_DSP4_IGAIN_DEV, (SB_DSP4_IGAIN_DEV + 1), 6, 6, 3),
 SB_DOUBLE("SB Playback Volume", SB_DSP4_OGAIN_DEV, (SB_DSP4_OGAIN_DEV + 1), 6, 6, 3),
 SB_SINGLE("SB Mic Auto Gain", SB_DSP4_MIC_AGC, 0, 1),

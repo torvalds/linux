@@ -20,6 +20,7 @@
 #include <linux/smp.h>
 #include <linux/signal.h>
 #include <linux/ptrace.h>
+#include <linux/kdebug.h>
 #include <asm/current.h>
 #include <asm/processor.h>
 #include <asm/machdep.h>
@@ -52,7 +53,7 @@ static struct hard_trap_info
 	{ 0x2030, 0x08 /* SIGFPE */  },		/* spe fp data */
 	{ 0x2040, 0x08 /* SIGFPE */  },		/* spe fp data */
 	{ 0x2050, 0x08 /* SIGFPE */  },		/* spe fp round */
-	{ 0x2060, 0x0e /* SIGILL */  },		/* performace monitor */
+	{ 0x2060, 0x0e /* SIGILL */  },		/* performance monitor */
 	{ 0x2900, 0x08 /* SIGFPE */  },		/* apu unavailable */
 	{ 0x3100, 0x0e /* SIGALRM */ },		/* fixed interval timer */
 	{ 0x3200, 0x02 /* SIGINT */  }, 	/* watchdog */
@@ -115,7 +116,8 @@ void kgdb_roundup_cpus(unsigned long flags)
 /* KGDB functions to use existing PowerPC64 hooks. */
 static int kgdb_debugger(struct pt_regs *regs)
 {
-	return kgdb_handle_exception(0, computeSignal(TRAP(regs)), 0, regs);
+	return !kgdb_handle_exception(1, computeSignal(TRAP(regs)),
+				      DIE_OOPS, regs);
 }
 
 static int kgdb_handle_breakpoint(struct pt_regs *regs)
@@ -123,11 +125,11 @@ static int kgdb_handle_breakpoint(struct pt_regs *regs)
 	if (user_mode(regs))
 		return 0;
 
-	if (kgdb_handle_exception(0, SIGTRAP, 0, regs) != 0)
+	if (kgdb_handle_exception(1, SIGTRAP, 0, regs) != 0)
 		return 0;
 
 	if (*(u32 *) (regs->nip) == *(u32 *) (&arch_kgdb_ops.gdb_bpt_instr))
-		regs->nip += 4;
+		regs->nip += BREAK_INSTR_SIZE;
 
 	return 1;
 }
@@ -309,6 +311,11 @@ void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 	       (unsigned long)(((void *)gdb_regs) + NUMREGBYTES));
 }
 
+void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long pc)
+{
+	regs->nip = pc;
+}
+
 /*
  * This function does PowerPC specific procesing for interfacing to gdb.
  */
@@ -333,7 +340,7 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 		atomic_set(&kgdb_cpu_doing_single_step, -1);
 		/* set the trace bit if we're stepping */
 		if (remcom_in_buffer[0] == 's') {
-#if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 			mtspr(SPRN_DBCR0,
 			      mfspr(SPRN_DBCR0) | DBCR0_IC | DBCR0_IDM);
 			linux_regs->msr |= MSR_DE;

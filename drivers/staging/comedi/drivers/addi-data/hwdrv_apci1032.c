@@ -17,7 +17,7 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-You shoud also find the complete GPL in the COPYING file accompanying this source code.
+You should also find the complete GPL in the COPYING file accompanying this source code.
 
 @endverbatim
 */
@@ -53,8 +53,8 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 */
 #include "hwdrv_apci1032.h"
 #include <linux/delay.h>
-/* Global variables */
-unsigned int ui_InterruptStatus = 0;
+
+static unsigned int ui_InterruptStatus;
 
 /*
 +----------------------------------------------------------------------------+
@@ -108,9 +108,9 @@ int i_APCI1032_ConfigDigitalInput(struct comedi_device *dev, struct comedi_subde
 			ui_TmpValue =
 				inl(devpriv->iobase + APCI1032_DIGITAL_IP_IRQ);
 		}		/* if (data[1] == ADDIDATA_OR) */
-		else {
+		else
 			outl(0x6, devpriv->iobase + APCI1032_DIGITAL_IP_IRQ);
-		}		/* else if(data[1] == ADDIDATA_OR) */
+				/* else if(data[1] == ADDIDATA_OR) */
 	}			/*  if( data[0] == ADDIDATA_ENABLE) */
 	else {
 		ul_Command1 = ul_Command1 & 0xFFFF0000;
@@ -150,7 +150,7 @@ int i_APCI1032_Read1DigitalInput(struct comedi_device *dev, struct comedi_subdev
 	unsigned int ui_TmpValue = 0;
 	unsigned int ui_Channel;
 	ui_Channel = CR_CHAN(insn->chanspec);
-	if (ui_Channel >= 0 && ui_Channel <= 31) {
+	if (ui_Channel <= 31) {
 		ui_TmpValue = (unsigned int) inl(devpriv->iobase + APCI1032_DIGITAL_IP);
 /*
 * since only 1 channel reqd to bring it to last bit it is rotated 8
@@ -221,9 +221,9 @@ int i_APCI1032_ReadMoreDigitalInput(struct comedi_device *dev, struct comedi_sub
 		}		/* switch(ui_NoOfChannels) */
 	}			/* if(data[1]==0) */
 	else {
-		if (data[1] == 1) {
+		if (data[1] == 1)
 			*data = ui_InterruptStatus;
-		}		/* if(data[1]==1) */
+				/* if(data[1]==1) */
 	}			/* else if(data[1]==0) */
 	return insn->n;
 }

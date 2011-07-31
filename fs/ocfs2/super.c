@@ -69,6 +69,7 @@
 #include "xattr.h"
 #include "quota.h"
 #include "refcounttree.h"
+#include "suballoc.h"
 
 #include "buffer_head_io.h"
 
@@ -93,13 +94,17 @@ struct mount_options
 	unsigned long	mount_opt;
 	unsigned int	atime_quantum;
 	signed short	slot;
-	unsigned int	localalloc_opt;
+	int		localalloc_opt;
+	unsigned int	resv_level;
+	int		dir_resv_level;
 	char		cluster_stack[OCFS2_STACK_LABEL_LEN + 1];
 };
 
 static int ocfs2_parse_options(struct super_block *sb, char *options,
 			       struct mount_options *mopt,
 			       int is_remount);
+static int ocfs2_check_set_options(struct super_block *sb,
+				   struct mount_options *options);
 static int ocfs2_show_options(struct seq_file *s, struct vfsmount *mnt);
 static void ocfs2_put_super(struct super_block *sb);
 static int ocfs2_mount_volume(struct super_block *sb);
@@ -140,8 +145,7 @@ static const struct super_operations ocfs2_sops = {
 	.alloc_inode	= ocfs2_alloc_inode,
 	.destroy_inode	= ocfs2_destroy_inode,
 	.drop_inode	= ocfs2_drop_inode,
-	.clear_inode	= ocfs2_clear_inode,
-	.delete_inode	= ocfs2_delete_inode,
+	.evict_inode	= ocfs2_evict_inode,
 	.sync_fs	= ocfs2_sync_fs,
 	.put_super	= ocfs2_put_super,
 	.remount_fs	= ocfs2_remount,
@@ -173,6 +177,8 @@ enum {
 	Opt_noacl,
 	Opt_usrquota,
 	Opt_grpquota,
+	Opt_resv_level,
+	Opt_dir_resv_level,
 	Opt_err,
 };
 
@@ -199,6 +205,8 @@ static const match_table_t tokens = {
 	{Opt_noacl, "noacl"},
 	{Opt_usrquota, "usrquota"},
 	{Opt_grpquota, "grpquota"},
+	{Opt_resv_level, "resv_level=%u"},
+	{Opt_dir_resv_level, "dir_resv_level=%u"},
 	{Opt_err, NULL}
 };
 
@@ -299,9 +307,12 @@ static int ocfs2_osb_dump(struct ocfs2_super *osb, char *buf, int len)
 
 	spin_lock(&osb->osb_lock);
 	out += snprintf(buf + out, len - out,
-			"%10s => Slot: %d  NumStolen: %d\n", "Steal",
+			"%10s => InodeSlot: %d  StolenInodes: %d, "
+			"MetaSlot: %d  StolenMeta: %d\n", "Steal",
 			osb->s_inode_steal_slot,
-			atomic_read(&osb->s_num_inodes_stolen));
+			atomic_read(&osb->s_num_inodes_stolen),
+			osb->s_meta_steal_slot,
+			atomic_read(&osb->s_num_meta_stolen));
 	spin_unlock(&osb->osb_lock);
 
 	out += snprintf(buf + out, len - out, "OrphanScan => ");
@@ -600,7 +611,8 @@ static int ocfs2_remount(struct super_block *sb, int *flags, char *data)
 
 	lock_kernel();
 
-	if (!ocfs2_parse_options(sb, data, &parsed_options, 1)) {
+	if (!ocfs2_parse_options(sb, data, &parsed_options, 1) ||
+	    !ocfs2_check_set_options(sb, &parsed_options)) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -691,8 +703,6 @@ unlock_osb:
 	if (!ret) {
 		/* Only save off the new mount options in case of a successful
 		 * remount. */
-		if (!(osb->s_feature_incompat & OCFS2_FEATURE_INCOMPAT_XATTR))
-			parsed_options.mount_opt &= ~OCFS2_MOUNT_POSIX_ACL;
 		osb->s_mount_opt = parsed_options.mount_opt;
 		osb->s_atime_quantum = parsed_options.atime_quantum;
 		osb->preferred_slot = parsed_options.slot;
@@ -701,6 +711,10 @@ unlock_osb:
 
 		if (!ocfs2_is_hard_readonly(osb))
 			ocfs2_set_journal_params(osb);
+
+		sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
+			((osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL) ?
+							MS_POSIXACL : 0);
 	}
 out:
 	unlock_kernel();
@@ -864,13 +878,15 @@ static int ocfs2_susp_quotas(struct ocfs2_super *osb, int unsuspend)
 		if (!OCFS2_HAS_RO_COMPAT_FEATURE(sb, feature[type]))
 			continue;
 		if (unsuspend)
-			status = vfs_quota_enable(
-					sb_dqopt(sb)->files[type],
-					type, QFMT_OCFS2,
-					DQUOT_SUSPENDED);
-		else
-			status = vfs_quota_disable(sb, type,
-						   DQUOT_SUSPENDED);
+			status = dquot_resume(sb, type);
+		else {
+			struct ocfs2_mem_dqinfo *oinfo;
+
+			/* Cancel periodic syncing before suspending */
+			oinfo = sb_dqinfo(sb, type)->dqi_priv;
+			cancel_delayed_work_sync(&oinfo->dqi_sync_work);
+			status = dquot_suspend(sb, type);
+		}
 		if (status < 0)
 			break;
 	}
@@ -901,8 +917,8 @@ static int ocfs2_enable_quotas(struct ocfs2_super *osb)
 			status = -ENOENT;
 			goto out_quota_off;
 		}
-		status = vfs_quota_enable(inode[type], type, QFMT_OCFS2,
-						DQUOT_USAGE_ENABLED);
+		status = dquot_enable(inode[type], type, QFMT_OCFS2,
+				      DQUOT_USAGE_ENABLED);
 		if (status < 0)
 			goto out_quota_off;
 	}
@@ -923,18 +939,22 @@ static void ocfs2_disable_quotas(struct ocfs2_super *osb)
 	int type;
 	struct inode *inode;
 	struct super_block *sb = osb->sb;
+	struct ocfs2_mem_dqinfo *oinfo;
 
 	/* We mostly ignore errors in this function because there's not much
 	 * we can do when we see them */
 	for (type = 0; type < MAXQUOTAS; type++) {
 		if (!sb_has_quota_loaded(sb, type))
 			continue;
+		/* Cancel periodic syncing before we grab dqonoff_mutex */
+		oinfo = sb_dqinfo(sb, type)->dqi_priv;
+		cancel_delayed_work_sync(&oinfo->dqi_sync_work);
 		inode = igrab(sb->s_dquot.files[type]);
 		/* Turn off quotas. This will remove all dquot structures from
 		 * memory and so they will be automatically synced to global
 		 * quota files */
-		vfs_quota_disable(sb, type, DQUOT_USAGE_ENABLED |
-					    DQUOT_LIMITS_ENABLED);
+		dquot_disable(sb, type, DQUOT_USAGE_ENABLED |
+					DQUOT_LIMITS_ENABLED);
 		if (!inode)
 			continue;
 		iput(inode);
@@ -943,7 +963,7 @@ static void ocfs2_disable_quotas(struct ocfs2_super *osb)
 
 /* Handle quota on quotactl */
 static int ocfs2_quota_on(struct super_block *sb, int type, int format_id,
-			  char *path, int remount)
+			  char *path)
 {
 	unsigned int feature[MAXQUOTAS] = { OCFS2_FEATURE_RO_COMPAT_USRQUOTA,
 					     OCFS2_FEATURE_RO_COMPAT_GRPQUOTA};
@@ -951,30 +971,24 @@ static int ocfs2_quota_on(struct super_block *sb, int type, int format_id,
 	if (!OCFS2_HAS_RO_COMPAT_FEATURE(sb, feature[type]))
 		return -EINVAL;
 
-	if (remount)
-		return 0;	/* Just ignore it has been handled in
-				 * ocfs2_remount() */
-	return vfs_quota_enable(sb_dqopt(sb)->files[type], type,
-				    format_id, DQUOT_LIMITS_ENABLED);
+	return dquot_enable(sb_dqopt(sb)->files[type], type,
+			    format_id, DQUOT_LIMITS_ENABLED);
 }
 
 /* Handle quota off quotactl */
-static int ocfs2_quota_off(struct super_block *sb, int type, int remount)
+static int ocfs2_quota_off(struct super_block *sb, int type)
 {
-	if (remount)
-		return 0;	/* Ignore now and handle later in
-				 * ocfs2_remount() */
-	return vfs_quota_disable(sb, type, DQUOT_LIMITS_ENABLED);
+	return dquot_disable(sb, type, DQUOT_LIMITS_ENABLED);
 }
 
 static const struct quotactl_ops ocfs2_quotactl_ops = {
 	.quota_on	= ocfs2_quota_on,
 	.quota_off	= ocfs2_quota_off,
-	.quota_sync	= vfs_quota_sync,
-	.get_info	= vfs_get_dqinfo,
-	.set_info	= vfs_set_dqinfo,
-	.get_dqblk	= vfs_get_dqblk,
-	.set_dqblk	= vfs_set_dqblk,
+	.quota_sync	= dquot_quota_sync,
+	.get_info	= dquot_get_dqinfo,
+	.set_info	= dquot_set_dqinfo,
+	.get_dqblk	= dquot_get_dqblk,
+	.set_dqblk	= dquot_set_dqblk,
 };
 
 static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
@@ -1011,31 +1025,22 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	brelse(bh);
 	bh = NULL;
 
-	if (!(osb->s_feature_incompat & OCFS2_FEATURE_INCOMPAT_XATTR))
-		parsed_options.mount_opt &= ~OCFS2_MOUNT_POSIX_ACL;
-
+	if (!ocfs2_check_set_options(sb, &parsed_options)) {
+		status = -EINVAL;
+		goto read_super_error;
+	}
 	osb->s_mount_opt = parsed_options.mount_opt;
 	osb->s_atime_quantum = parsed_options.atime_quantum;
 	osb->preferred_slot = parsed_options.slot;
 	osb->osb_commit_interval = parsed_options.commit_interval;
-	osb->local_alloc_default_bits = ocfs2_megabytes_to_clusters(sb, parsed_options.localalloc_opt);
-	osb->local_alloc_bits = osb->local_alloc_default_bits;
-	if (osb->s_mount_opt & OCFS2_MOUNT_USRQUOTA &&
-	    !OCFS2_HAS_RO_COMPAT_FEATURE(sb,
-					 OCFS2_FEATURE_RO_COMPAT_USRQUOTA)) {
-		status = -EINVAL;
-		mlog(ML_ERROR, "User quotas were requested, but this "
-		     "filesystem does not have the feature enabled.\n");
-		goto read_super_error;
-	}
-	if (osb->s_mount_opt & OCFS2_MOUNT_GRPQUOTA &&
-	    !OCFS2_HAS_RO_COMPAT_FEATURE(sb,
-					 OCFS2_FEATURE_RO_COMPAT_GRPQUOTA)) {
-		status = -EINVAL;
-		mlog(ML_ERROR, "Group quotas were requested, but this "
-		     "filesystem does not have the feature enabled.\n");
-		goto read_super_error;
-	}
+
+	ocfs2_la_set_sizes(osb, parsed_options.localalloc_opt);
+	osb->osb_resv_level = parsed_options.resv_level;
+	osb->osb_dir_resv_level = parsed_options.resv_level;
+	if (parsed_options.dir_resv_level == -1)
+		osb->osb_dir_resv_level = parsed_options.resv_level;
+	else
+		osb->osb_dir_resv_level = parsed_options.dir_resv_level;
 
 	status = ocfs2_verify_userspace_stack(osb, &parsed_options);
 	if (status)
@@ -1072,7 +1077,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 				     "file system, but write access is "
 				     "unavailable.\n");
 			else
-				mlog_errno(status);			
+				mlog_errno(status);
 			goto read_super_error;
 		}
 
@@ -1245,6 +1250,40 @@ static struct file_system_type ocfs2_fs_type = {
 	.next           = NULL
 };
 
+static int ocfs2_check_set_options(struct super_block *sb,
+				   struct mount_options *options)
+{
+	if (options->mount_opt & OCFS2_MOUNT_USRQUOTA &&
+	    !OCFS2_HAS_RO_COMPAT_FEATURE(sb,
+					 OCFS2_FEATURE_RO_COMPAT_USRQUOTA)) {
+		mlog(ML_ERROR, "User quotas were requested, but this "
+		     "filesystem does not have the feature enabled.\n");
+		return 0;
+	}
+	if (options->mount_opt & OCFS2_MOUNT_GRPQUOTA &&
+	    !OCFS2_HAS_RO_COMPAT_FEATURE(sb,
+					 OCFS2_FEATURE_RO_COMPAT_GRPQUOTA)) {
+		mlog(ML_ERROR, "Group quotas were requested, but this "
+		     "filesystem does not have the feature enabled.\n");
+		return 0;
+	}
+	if (options->mount_opt & OCFS2_MOUNT_POSIX_ACL &&
+	    !OCFS2_HAS_INCOMPAT_FEATURE(sb, OCFS2_FEATURE_INCOMPAT_XATTR)) {
+		mlog(ML_ERROR, "ACL support requested but extended attributes "
+		     "feature is not enabled\n");
+		return 0;
+	}
+	/* No ACL setting specified? Use XATTR feature... */
+	if (!(options->mount_opt & (OCFS2_MOUNT_POSIX_ACL |
+				    OCFS2_MOUNT_NO_POSIX_ACL))) {
+		if (OCFS2_HAS_INCOMPAT_FEATURE(sb, OCFS2_FEATURE_INCOMPAT_XATTR))
+			options->mount_opt |= OCFS2_MOUNT_POSIX_ACL;
+		else
+			options->mount_opt |= OCFS2_MOUNT_NO_POSIX_ACL;
+	}
+	return 1;
+}
+
 static int ocfs2_parse_options(struct super_block *sb,
 			       char *options,
 			       struct mount_options *mopt,
@@ -1257,11 +1296,13 @@ static int ocfs2_parse_options(struct super_block *sb,
 		   options ? options : "(none)");
 
 	mopt->commit_interval = 0;
-	mopt->mount_opt = 0;
+	mopt->mount_opt = OCFS2_MOUNT_NOINTR;
 	mopt->atime_quantum = OCFS2_DEFAULT_ATIME_QUANTUM;
 	mopt->slot = OCFS2_INVALID_SLOT;
-	mopt->localalloc_opt = OCFS2_DEFAULT_LOCAL_ALLOC_SIZE;
+	mopt->localalloc_opt = -1;
 	mopt->cluster_stack[0] = '\0';
+	mopt->resv_level = OCFS2_DEFAULT_RESV_LEVEL;
+	mopt->dir_resv_level = -1;
 
 	if (!options) {
 		status = 1;
@@ -1352,7 +1393,7 @@ static int ocfs2_parse_options(struct super_block *sb,
 				status = 0;
 				goto bail;
 			}
-			if (option >= 0 && (option <= ocfs2_local_alloc_size(sb) * 8))
+			if (option >= 0)
 				mopt->localalloc_opt = option;
 			break;
 		case Opt_localflocks:
@@ -1392,40 +1433,41 @@ static int ocfs2_parse_options(struct super_block *sb,
 			mopt->mount_opt |= OCFS2_MOUNT_INODE64;
 			break;
 		case Opt_usrquota:
-			/* We check only on remount, otherwise features
-			 * aren't yet initialized. */
-			if (is_remount && !OCFS2_HAS_RO_COMPAT_FEATURE(sb,
-			    OCFS2_FEATURE_RO_COMPAT_USRQUOTA)) {
-				mlog(ML_ERROR, "User quota requested but "
-				     "filesystem feature is not set\n");
-				status = 0;
-				goto bail;
-			}
 			mopt->mount_opt |= OCFS2_MOUNT_USRQUOTA;
 			break;
 		case Opt_grpquota:
-			if (is_remount && !OCFS2_HAS_RO_COMPAT_FEATURE(sb,
-			    OCFS2_FEATURE_RO_COMPAT_GRPQUOTA)) {
-				mlog(ML_ERROR, "Group quota requested but "
-				     "filesystem feature is not set\n");
+			mopt->mount_opt |= OCFS2_MOUNT_GRPQUOTA;
+			break;
+		case Opt_acl:
+			mopt->mount_opt |= OCFS2_MOUNT_POSIX_ACL;
+			mopt->mount_opt &= ~OCFS2_MOUNT_NO_POSIX_ACL;
+			break;
+		case Opt_noacl:
+			mopt->mount_opt |= OCFS2_MOUNT_NO_POSIX_ACL;
+			mopt->mount_opt &= ~OCFS2_MOUNT_POSIX_ACL;
+			break;
+		case Opt_resv_level:
+			if (is_remount)
+				break;
+			if (match_int(&args[0], &option)) {
 				status = 0;
 				goto bail;
 			}
-			mopt->mount_opt |= OCFS2_MOUNT_GRPQUOTA;
+			if (option >= OCFS2_MIN_RESV_LEVEL &&
+			    option < OCFS2_MAX_RESV_LEVEL)
+				mopt->resv_level = option;
 			break;
-#ifdef CONFIG_OCFS2_FS_POSIX_ACL
-		case Opt_acl:
-			mopt->mount_opt |= OCFS2_MOUNT_POSIX_ACL;
+		case Opt_dir_resv_level:
+			if (is_remount)
+				break;
+			if (match_int(&args[0], &option)) {
+				status = 0;
+				goto bail;
+			}
+			if (option >= OCFS2_MIN_RESV_LEVEL &&
+			    option < OCFS2_MAX_RESV_LEVEL)
+				mopt->dir_resv_level = option;
 			break;
-		case Opt_noacl:
-			mopt->mount_opt &= ~OCFS2_MOUNT_POSIX_ACL;
-			break;
-#else
-		case Opt_acl:
-		case Opt_noacl:
-			printk(KERN_INFO "ocfs2 (no)acl options not supported\n");
-			break;
-#endif
 		default:
 			mlog(ML_ERROR,
 			     "Unrecognized mount option \"%s\" "
@@ -1480,7 +1522,7 @@ static int ocfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 			   (unsigned) (osb->osb_commit_interval / HZ));
 
 	local_alloc_megs = osb->local_alloc_bits >> (20 - osb->s_clustersize_bits);
-	if (local_alloc_megs != OCFS2_DEFAULT_LOCAL_ALLOC_SIZE)
+	if (local_alloc_megs != ocfs2_la_default_mb(osb))
 		seq_printf(s, ",localalloc=%d", local_alloc_megs);
 
 	if (opts & OCFS2_MOUNT_LOCALFLOCKS)
@@ -1502,12 +1544,16 @@ static int ocfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 	if (opts & OCFS2_MOUNT_INODE64)
 		seq_printf(s, ",inode64");
 
-#ifdef CONFIG_OCFS2_FS_POSIX_ACL
 	if (opts & OCFS2_MOUNT_POSIX_ACL)
 		seq_printf(s, ",acl");
 	else
 		seq_printf(s, ",noacl");
-#endif
+
+	if (osb->osb_resv_level != OCFS2_DEFAULT_RESV_LEVEL)
+		seq_printf(s, ",resv_level=%d", osb->osb_resv_level);
+
+	if (osb->osb_dir_resv_level != osb->osb_resv_level)
+		seq_printf(s, ",dir_resv_level=%d", osb->osb_resv_level);
 
 	return 0;
 }
@@ -1682,6 +1728,8 @@ static void ocfs2_inode_init_once(void *data)
 
 	oi->ip_blkno = 0ULL;
 	oi->ip_clusters = 0;
+
+	ocfs2_resv_init_once(&oi->ip_la_data_resv);
 
 	ocfs2_lock_res_init_once(&oi->ip_rw_lockres);
 	ocfs2_lock_res_init_once(&oi->ip_inode_lockres);
@@ -1996,7 +2044,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	osb->blocked_lock_count = 0;
 	spin_lock_init(&osb->osb_lock);
 	spin_lock_init(&osb->osb_xattr_lock);
-	ocfs2_init_inode_steal_slot(osb);
+	ocfs2_init_steal_slots(osb);
 
 	atomic_set(&osb->alloc_stats.moves, 0);
 	atomic_set(&osb->alloc_stats.local_data, 0);
@@ -2036,6 +2084,12 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	INIT_DELAYED_WORK(&osb->la_enable_wq, ocfs2_la_enable_worker);
 
 	init_waitqueue_head(&osb->osb_mount_event);
+
+	status = ocfs2_resmap_init(osb, &osb->osb_la_resmap);
+	if (status) {
+		mlog_errno(status);
+		goto bail;
+	}
 
 	osb->vol_label = kmalloc(OCFS2_MAX_VOL_LABEL_LEN, GFP_KERNEL);
 	if (!osb->vol_label) {
@@ -2219,9 +2273,11 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	}
 
 	osb->bitmap_blkno = OCFS2_I(inode)->ip_blkno;
+	osb->osb_clusters_at_boot = OCFS2_I(inode)->ip_clusters;
 	iput(inode);
 
-	osb->bitmap_cpg = ocfs2_group_bitmap_size(sb) * 8;
+	osb->bitmap_cpg = ocfs2_group_bitmap_size(sb, 0,
+				 osb->s_feature_incompat) * 8;
 
 	status = ocfs2_init_slot_info(osb);
 	if (status < 0) {
@@ -2415,7 +2471,7 @@ static void ocfs2_delete_osb(struct ocfs2_super *osb)
 	kfree(osb->slot_recovery_generations);
 	/* FIXME
 	 * This belongs in journal shutdown, but because we have to
-	 * allocate osb->journal at the start of ocfs2_initalize_osb(),
+	 * allocate osb->journal at the start of ocfs2_initialize_osb(),
 	 * we free it here.
 	 */
 	kfree(osb->journal);
@@ -2502,6 +2558,26 @@ void __ocfs2_abort(struct super_block* sb,
 	if (!ocfs2_mount_local(OCFS2_SB(sb)))
 		OCFS2_SB(sb)->s_mount_opt |= OCFS2_MOUNT_ERRORS_PANIC;
 	ocfs2_handle_error(sb);
+}
+
+/*
+ * Void signal blockers, because in-kernel sigprocmask() only fails
+ * when SIG_* is wrong.
+ */
+void ocfs2_block_signals(sigset_t *oldset)
+{
+	int rc;
+	sigset_t blocked;
+
+	sigfillset(&blocked);
+	rc = sigprocmask(SIG_BLOCK, &blocked, oldset);
+	BUG_ON(rc);
+}
+
+void ocfs2_unblock_signals(sigset_t *oldset)
+{
+	int rc = sigprocmask(SIG_SETMASK, oldset, NULL);
+	BUG_ON(rc);
 }
 
 module_init(ocfs2_init);

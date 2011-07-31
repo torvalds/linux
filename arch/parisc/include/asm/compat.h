@@ -7,7 +7,8 @@
 #include <linux/sched.h>
 #include <linux/thread_info.h>
 
-#define COMPAT_USER_HZ 100
+#define COMPAT_USER_HZ 		100
+#define COMPAT_UTS_MACHINE	"parisc\0\0"
 
 typedef u32	compat_size_t;
 typedef s32	compat_ssize_t;
@@ -146,7 +147,7 @@ static inline compat_uptr_t ptr_to_compat(void __user *uptr)
 	return (u32)(unsigned long)uptr;
 }
 
-static __inline__ void __user *compat_alloc_user_space(long len)
+static __inline__ void __user *arch_compat_alloc_user_space(long len)
 {
 	struct pt_regs *regs = &current->thread.regs;
 	return (void __user *)regs->gr[30];

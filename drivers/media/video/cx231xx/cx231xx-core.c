@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/vmalloc.h>
 #include <media/v4l2-common.h>
@@ -66,32 +67,6 @@ MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
 static LIST_HEAD(cx231xx_devlist);
 static DEFINE_MUTEX(cx231xx_devlist_mutex);
 
-struct cx231xx *cx231xx_get_device(int minor,
-				   enum v4l2_buf_type *fh_type, int *has_radio)
-{
-	struct cx231xx *h, *dev = NULL;
-
-	*fh_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	*has_radio = 0;
-
-	mutex_lock(&cx231xx_devlist_mutex);
-	list_for_each_entry(h, &cx231xx_devlist, devlist) {
-		if (h->vdev->minor == minor)
-			dev = h;
-		if (h->vbi_dev->minor == minor) {
-			dev = h;
-			*fh_type = V4L2_BUF_TYPE_VBI_CAPTURE;
-		}
-		if (h->radio_dev && h->radio_dev->minor == minor) {
-			dev = h;
-			*has_radio = 1;
-		}
-	}
-	mutex_unlock(&cx231xx_devlist_mutex);
-
-	return dev;
-}
-
 /*
  * cx231xx_realease_resources()
  * unregisters the v4l2,i2c and usb devices
@@ -121,10 +96,9 @@ int cx231xx_register_extension(struct cx231xx_ops *ops)
 	mutex_lock(&cx231xx_devlist_mutex);
 	mutex_lock(&cx231xx_extension_devlist_lock);
 	list_add_tail(&ops->next, &cx231xx_extension_devlist);
-	list_for_each_entry(dev, &cx231xx_devlist, devlist) {
-		if (dev)
-			ops->init(dev);
-	}
+	list_for_each_entry(dev, &cx231xx_devlist, devlist)
+		ops->init(dev);
+
 	printk(KERN_INFO DRIVER_NAME ": %s initialized\n", ops->name);
 	mutex_unlock(&cx231xx_extension_devlist_lock);
 	mutex_unlock(&cx231xx_devlist_mutex);
@@ -137,10 +111,8 @@ void cx231xx_unregister_extension(struct cx231xx_ops *ops)
 	struct cx231xx *dev = NULL;
 
 	mutex_lock(&cx231xx_devlist_mutex);
-	list_for_each_entry(dev, &cx231xx_devlist, devlist) {
-		if (dev)
-			ops->fini(dev);
-	}
+	list_for_each_entry(dev, &cx231xx_devlist, devlist)
+		ops->fini(dev);
 
 	mutex_lock(&cx231xx_extension_devlist_lock);
 	printk(KERN_INFO DRIVER_NAME ": %s removed\n", ops->name);
@@ -704,11 +676,11 @@ void cx231xx_uninit_isoc(struct cx231xx *dev)
 				usb_unlink_urb(urb);
 
 			if (dev->video_mode.isoc_ctl.transfer_buffer[i]) {
-				usb_buffer_free(dev->udev,
-						urb->transfer_buffer_length,
-						dev->video_mode.isoc_ctl.
-						transfer_buffer[i],
-						urb->transfer_dma);
+				usb_free_coherent(dev->udev,
+						  urb->transfer_buffer_length,
+						  dev->video_mode.isoc_ctl.
+						  transfer_buffer[i],
+						  urb->transfer_dma);
 			}
 			usb_free_urb(urb);
 			dev->video_mode.isoc_ctl.urb[i] = NULL;
@@ -795,8 +767,8 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 		dev->video_mode.isoc_ctl.urb[i] = urb;
 
 		dev->video_mode.isoc_ctl.transfer_buffer[i] =
-		    usb_buffer_alloc(dev->udev, sb_size, GFP_KERNEL,
-				     &urb->transfer_dma);
+		    usb_alloc_coherent(dev->udev, sb_size, GFP_KERNEL,
+				       &urb->transfer_dma);
 		if (!dev->video_mode.isoc_ctl.transfer_buffer[i]) {
 			cx231xx_err("unable to allocate %i bytes for transfer"
 				    " buffer %i%s\n",

@@ -84,14 +84,14 @@ void __init MMU_init_hw(void)
 	 * vectors and the kernel live in real-mode.
 	 */
 
-        mtspr(SPRN_DCCR, 0xF0000000);	/* 512 MB of data space at 0x0. */
-        mtspr(SPRN_ICCR, 0xF0000000);	/* 512 MB of instr. space at 0x0. */
+        mtspr(SPRN_DCCR, 0xFFFF0000);	/* 2GByte of data space at 0x0. */
+        mtspr(SPRN_ICCR, 0xFFFF0000);	/* 2GByte of instr. space at 0x0. */
 }
 
 #define LARGE_PAGE_SIZE_16M	(1<<24)
 #define LARGE_PAGE_SIZE_4M	(1<<22)
 
-unsigned long __init mmu_mapin_ram(void)
+unsigned long __init mmu_mapin_ram(unsigned long top)
 {
 	unsigned long v, s, mapped;
 	phys_addr_t p;
@@ -135,7 +135,7 @@ unsigned long __init mmu_mapin_ram(void)
 	/* If the size of RAM is not an exact power of two, we may not
 	 * have covered RAM in its entirety with 16 and 4 MiB
 	 * pages. Consequently, restrict the top end of RAM currently
-	 * allocable so that calls to the LMB to allocate PTEs for "tail"
+	 * allocable so that calls to the MEMBLOCK to allocate PTEs for "tail"
 	 * coverage with normal-sized pages (or other reasons) do not
 	 * attempt to allocate outside the allowed range.
 	 */

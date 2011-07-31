@@ -75,7 +75,6 @@ struct dn_dev_parms {
 	unsigned long t3;         /* Default value of t3                */
 	int priority;             /* Priority to be a router            */
 	char *name;               /* Name for sysctl                    */
-	int ctl_name;             /* Index for sysctl                   */
 	int  (*up)(struct net_device *);
 	void (*down)(struct net_device *);
 	void (*timer3)(struct net_device *, struct dn_ifaddr *ifa);
@@ -97,16 +96,14 @@ struct dn_dev {
 	unsigned long uptime;     /* Time device went up in jiffies */
 };
 
-struct dn_short_packet
-{
+struct dn_short_packet {
 	__u8    msgflg;
 	__le16 dstnode;
 	__le16 srcnode;
 	__u8   forward;
-} __attribute__((packed));
+} __packed;
 
-struct dn_long_packet
-{
+struct dn_long_packet {
 	__u8   msgflg;
 	__u8   d_area;
 	__u8   d_subarea;
@@ -118,12 +115,11 @@ struct dn_long_packet
 	__u8   visit_ct;
 	__u8   s_class;
 	__u8   pt;
-} __attribute__((packed));
+} __packed;
 
 /*------------------------- DRP - Routing messages ---------------------*/
 
-struct endnode_hello_message
-{
+struct endnode_hello_message {
 	__u8   msgflg;
 	__u8   tiver[3];
 	__u8   id[6];
@@ -136,10 +132,9 @@ struct endnode_hello_message
 	__u8   mpd;
 	__u8   datalen;
 	__u8   data[2];
-} __attribute__((packed));
+} __packed;
 
-struct rtnode_hello_message
-{
+struct rtnode_hello_message {
 	__u8   msgflg;
 	__u8   tiver[3];
 	__u8   id[6];
@@ -149,7 +144,7 @@ struct rtnode_hello_message
 	__u8   area;
 	__le16  timer;
 	__u8   mpd;
-} __attribute__((packed));
+} __packed;
 
 
 extern void dn_dev_init(void);

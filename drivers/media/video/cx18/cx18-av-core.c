@@ -4,7 +4,7 @@
  *  Derived from cx25840-core.c
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
- *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -99,10 +99,8 @@ int cx18_av_and_or4(struct cx18 *cx, u16 addr, u32 and_mask,
 			     or_value);
 }
 
-static int cx18_av_init(struct v4l2_subdev *sd, u32 val)
+static void cx18_av_init(struct cx18 *cx)
 {
-	struct cx18 *cx = v4l2_get_subdevdata(sd);
-
 	/*
 	 * The crystal freq used in calculations in this driver will be
 	 * 28.636360 MHz.
@@ -125,7 +123,6 @@ static int cx18_av_init(struct v4l2_subdev *sd, u32 val)
 
 	/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x16 */
 	cx18_av_write(cx, CXADEC_I2S_MCLK, 0x56);
-	return 0;
 }
 
 static void cx18_av_initialize(struct v4l2_subdev *sd)
@@ -198,7 +195,7 @@ static void cx18_av_initialize(struct v4l2_subdev *sd)
 	cx18_av_and_or4(cx, CXADEC_CHIP_CTRL, 0xFFFBFFFF, 0x00120000);
 
 	/* Setup the Video and and Aux/Audio PLLs */
-	cx18_av_init(sd, 0);
+	cx18_av_init(cx);
 
 	/* set video to auto-detect */
 	/* Clear bits 11-12 to enable slow locking mode.  Set autodetect mode */
@@ -582,6 +579,7 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 
 	u8 afe_mux_cfg;
 	u8 adc2_cfg;
+	u8 input_mode;
 	u32 afe_cfg;
 	int i;
 
@@ -592,6 +590,30 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 	    vid_input <= CX18_AV_COMPOSITE8) {
 		afe_mux_cfg = 0xf0 + (vid_input - CX18_AV_COMPOSITE1);
 		ch[0] = CVBS;
+		input_mode = 0x0;
+	} else if (vid_input >= CX18_AV_COMPONENT_LUMA1) {
+		int luma = vid_input & 0xf000;
+		int r_chroma = vid_input & 0xf0000;
+		int b_chroma = vid_input & 0xf00000;
+
+		if ((vid_input & ~0xfff000) ||
+		    luma < CX18_AV_COMPONENT_LUMA1 ||
+		    luma > CX18_AV_COMPONENT_LUMA8 ||
+		    r_chroma < CX18_AV_COMPONENT_R_CHROMA4 ||
+		    r_chroma > CX18_AV_COMPONENT_R_CHROMA6 ||
+		    b_chroma < CX18_AV_COMPONENT_B_CHROMA7 ||
+		    b_chroma > CX18_AV_COMPONENT_B_CHROMA8) {
+			CX18_ERR_DEV(sd, "0x%06x is not a valid video input!\n",
+				     vid_input);
+			return -EINVAL;
+		}
+		afe_mux_cfg = (luma - CX18_AV_COMPONENT_LUMA1) >> 12;
+		ch[0] = Y;
+		afe_mux_cfg |= (r_chroma - CX18_AV_COMPONENT_R_CHROMA4) >> 12;
+		ch[1] = Pr;
+		afe_mux_cfg |= (b_chroma - CX18_AV_COMPONENT_B_CHROMA7) >> 14;
+		ch[2] = Pb;
+		input_mode = 0x6;
 	} else {
 		int luma = vid_input & 0xf0;
 		int chroma = vid_input & 0xf00;
@@ -601,7 +623,7 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 		    luma > CX18_AV_SVIDEO_LUMA8 ||
 		    chroma < CX18_AV_SVIDEO_CHROMA4 ||
 		    chroma > CX18_AV_SVIDEO_CHROMA8) {
-			CX18_ERR_DEV(sd, "0x%04x is not a valid video input!\n",
+			CX18_ERR_DEV(sd, "0x%06x is not a valid video input!\n",
 				     vid_input);
 			return -EINVAL;
 		}
@@ -616,8 +638,8 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 			afe_mux_cfg |= (chroma - CX18_AV_SVIDEO_CHROMA4) >> 4;
 			ch[1] = C;
 		}
+		input_mode = 0x2;
 	}
-	/* TODO: LeadTek WinFast DVR3100 H & WinFast PVR2100 can do Y/Pb/Pr */
 
 	switch (aud_input) {
 	case CX18_AV_AUDIO_SERIAL1:
@@ -653,8 +675,8 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 
 	/* Set up analog front end multiplexers */
 	cx18_av_write_expect(cx, 0x103, afe_mux_cfg, afe_mux_cfg, 0xf7);
-	/* Set INPUT_MODE to Composite (0) or S-Video (1) */
-	cx18_av_and_or(cx, 0x401, ~0x6, ch[0] == CVBS ? 0 : 0x02);
+	/* Set INPUT_MODE to Composite, S-Video, or Component */
+	cx18_av_and_or(cx, 0x401, ~0x6, input_mode);
 
 	/* Set CH_SEL_ADC2 to 1 if input comes from CH3 */
 	adc2_cfg = cx18_av_read(cx, 0x102);
@@ -999,92 +1021,74 @@ static int cx18_av_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 	return -EINVAL;
 }
 
-static int cx18_av_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
-{
-	struct cx18 *cx = v4l2_get_subdevdata(sd);
-
-	return cx18_av_vbi_g_fmt(cx, fmt);
-}
-
-static int cx18_av_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
+static int cx18_av_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *fmt)
 {
 	struct cx18_av_state *state = to_cx18_av_state(sd);
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
-
-	struct v4l2_pix_format *pix;
 	int HSC, VSC, Vsrc, Hsrc, filter, Vlines;
 	int is_50Hz = !(state->std & V4L2_STD_525_60);
 
-	switch (fmt->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		pix = &(fmt->fmt.pix);
-
-		Vsrc = (cx18_av_read(cx, 0x476) & 0x3f) << 4;
-		Vsrc |= (cx18_av_read(cx, 0x475) & 0xf0) >> 4;
-
-		Hsrc = (cx18_av_read(cx, 0x472) & 0x3f) << 4;
-		Hsrc |= (cx18_av_read(cx, 0x471) & 0xf0) >> 4;
-
-		/*
-		 * This adjustment reflects the excess of vactive, set in
-		 * cx18_av_std_setup(), above standard values:
-		 *
-		 * 480 + 1 for 60 Hz systems
-		 * 576 + 3 for 50 Hz systems
-		 */
-		Vlines = pix->height + (is_50Hz ? 3 : 1);
-
-		/*
-		 * Invalid height and width scaling requests are:
-		 * 1. width less than 1/16 of the source width
-		 * 2. width greater than the source width
-		 * 3. height less than 1/8 of the source height
-		 * 4. height greater than the source height
-		 */
-		if ((pix->width * 16 < Hsrc) || (Hsrc < pix->width) ||
-		    (Vlines * 8 < Vsrc) || (Vsrc < Vlines)) {
-			CX18_ERR_DEV(sd, "%dx%d is not a valid size!\n",
-				     pix->width, pix->height);
-			return -ERANGE;
-		}
-
-		HSC = (Hsrc * (1 << 20)) / pix->width - (1 << 20);
-		VSC = (1 << 16) - (Vsrc * (1 << 9) / Vlines - (1 << 9));
-		VSC &= 0x1fff;
-
-		if (pix->width >= 385)
-			filter = 0;
-		else if (pix->width > 192)
-			filter = 1;
-		else if (pix->width > 96)
-			filter = 2;
-		else
-			filter = 3;
-
-		CX18_DEBUG_INFO_DEV(sd,
-				    "decoder set size %dx%d -> scale  %ux%u\n",
-				    pix->width, pix->height, HSC, VSC);
-
-		/* HSCALE=HSC */
-		cx18_av_write(cx, 0x418, HSC & 0xff);
-		cx18_av_write(cx, 0x419, (HSC >> 8) & 0xff);
-		cx18_av_write(cx, 0x41a, HSC >> 16);
-		/* VSCALE=VSC */
-		cx18_av_write(cx, 0x41c, VSC & 0xff);
-		cx18_av_write(cx, 0x41d, VSC >> 8);
-		/* VS_INTRLACE=1 VFILT=filter */
-		cx18_av_write(cx, 0x41e, 0x8 | filter);
-		break;
-
-	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return cx18_av_vbi_s_fmt(cx, fmt);
-
-	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		return cx18_av_vbi_s_fmt(cx, fmt);
-
-	default:
+	if (fmt->code != V4L2_MBUS_FMT_FIXED)
 		return -EINVAL;
+
+	fmt->field = V4L2_FIELD_INTERLACED;
+	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
+
+	Vsrc = (cx18_av_read(cx, 0x476) & 0x3f) << 4;
+	Vsrc |= (cx18_av_read(cx, 0x475) & 0xf0) >> 4;
+
+	Hsrc = (cx18_av_read(cx, 0x472) & 0x3f) << 4;
+	Hsrc |= (cx18_av_read(cx, 0x471) & 0xf0) >> 4;
+
+	/*
+	 * This adjustment reflects the excess of vactive, set in
+	 * cx18_av_std_setup(), above standard values:
+	 *
+	 * 480 + 1 for 60 Hz systems
+	 * 576 + 3 for 50 Hz systems
+	 */
+	Vlines = fmt->height + (is_50Hz ? 3 : 1);
+
+	/*
+	 * Invalid height and width scaling requests are:
+	 * 1. width less than 1/16 of the source width
+	 * 2. width greater than the source width
+	 * 3. height less than 1/8 of the source height
+	 * 4. height greater than the source height
+	 */
+	if ((fmt->width * 16 < Hsrc) || (Hsrc < fmt->width) ||
+	    (Vlines * 8 < Vsrc) || (Vsrc < Vlines)) {
+		CX18_ERR_DEV(sd, "%dx%d is not a valid size!\n",
+			     fmt->width, fmt->height);
+		return -ERANGE;
 	}
+
+	HSC = (Hsrc * (1 << 20)) / fmt->width - (1 << 20);
+	VSC = (1 << 16) - (Vsrc * (1 << 9) / Vlines - (1 << 9));
+	VSC &= 0x1fff;
+
+	if (fmt->width >= 385)
+		filter = 0;
+	else if (fmt->width > 192)
+		filter = 1;
+	else if (fmt->width > 96)
+		filter = 2;
+	else
+		filter = 3;
+
+	CX18_DEBUG_INFO_DEV(sd,
+			    "decoder set size %dx%d -> scale  %ux%u\n",
+			    fmt->width, fmt->height, HSC, VSC);
+
+	/* HSCALE=HSC */
+	cx18_av_write(cx, 0x418, HSC & 0xff);
+	cx18_av_write(cx, 0x419, (HSC >> 8) & 0xff);
+	cx18_av_write(cx, 0x41a, HSC >> 16);
+	/* VSCALE=VSC */
+	cx18_av_write(cx, 0x41c, VSC & 0xff);
+	cx18_av_write(cx, 0x41d, VSC >> 8);
+	/* VS_INTRLACE=1 VFILT=filter */
+	cx18_av_write(cx, 0x41e, 0x8 | filter);
 	return 0;
 }
 
@@ -1355,7 +1359,6 @@ static int cx18_av_s_register(struct v4l2_subdev *sd,
 static const struct v4l2_subdev_core_ops cx18_av_general_ops = {
 	.g_chip_ident = cx18_av_g_chip_ident,
 	.log_status = cx18_av_log_status,
-	.init = cx18_av_init,
 	.load_fw = cx18_av_load_fw,
 	.reset = cx18_av_reset,
 	.queryctrl = cx18_av_queryctrl,
@@ -1382,10 +1385,15 @@ static const struct v4l2_subdev_audio_ops cx18_av_audio_ops = {
 
 static const struct v4l2_subdev_video_ops cx18_av_video_ops = {
 	.s_routing = cx18_av_s_video_routing,
-	.decode_vbi_line = cx18_av_decode_vbi_line,
 	.s_stream = cx18_av_s_stream,
-	.g_fmt = cx18_av_g_fmt,
-	.s_fmt = cx18_av_s_fmt,
+	.s_mbus_fmt = cx18_av_s_mbus_fmt,
+};
+
+static const struct v4l2_subdev_vbi_ops cx18_av_vbi_ops = {
+	.decode_vbi_line = cx18_av_decode_vbi_line,
+	.g_sliced_fmt = cx18_av_g_sliced_fmt,
+	.s_sliced_fmt = cx18_av_s_sliced_fmt,
+	.s_raw_fmt = cx18_av_s_raw_fmt,
 };
 
 static const struct v4l2_subdev_ops cx18_av_ops = {
@@ -1393,12 +1401,14 @@ static const struct v4l2_subdev_ops cx18_av_ops = {
 	.tuner = &cx18_av_tuner_ops,
 	.audio = &cx18_av_audio_ops,
 	.video = &cx18_av_video_ops,
+	.vbi = &cx18_av_vbi_ops,
 };
 
 int cx18_av_probe(struct cx18 *cx)
 {
 	struct cx18_av_state *state = &cx->av_state;
 	struct v4l2_subdev *sd;
+	int err;
 
 	state->rev = cx18_av_read4(cx, CXADEC_CHIP_CTRL) & 0xffff;
 	state->id = ((state->rev >> 4) == CXADEC_CHIP_TYPE_MAKO)
@@ -1417,5 +1427,8 @@ int cx18_av_probe(struct cx18 *cx)
 	snprintf(sd->name, sizeof(sd->name),
 		 "%s %03x", cx->v4l2_dev.name, (state->rev >> 4));
 	sd->grp_id = CX18_HW_418_AV;
-	return v4l2_device_register_subdev(&cx->v4l2_dev, sd);
+	err = v4l2_device_register_subdev(&cx->v4l2_dev, sd);
+	if (!err)
+		cx18_av_init(cx);
+	return err;
 }

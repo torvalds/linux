@@ -30,6 +30,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/memory_hotplug.h>
+#include <linux/slab.h>
 #include <acpi/acpi_drivers.h>
 
 #define ACPI_MEMORY_DEVICE_CLASS		"memory"
@@ -537,7 +538,7 @@ static int __init acpi_memory_device_init(void)
 
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 				     ACPI_UINT32_MAX,
-				     acpi_memory_register_notify_handler,
+				     acpi_memory_register_notify_handler, NULL,
 				     NULL, NULL);
 
 	if (ACPI_FAILURE(status)) {
@@ -561,7 +562,7 @@ static void __exit acpi_memory_device_exit(void)
 	 */
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 				     ACPI_UINT32_MAX,
-				     acpi_memory_deregister_notify_handler,
+				     acpi_memory_deregister_notify_handler, NULL,
 				     NULL, NULL);
 
 	if (ACPI_FAILURE(status))

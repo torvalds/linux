@@ -58,7 +58,7 @@ MPEG stream embedded, sliced VBI data format in this specification.
 </contrib>
 	<affiliation>
 	  <address>
-	    <email>awalls@radix.net</email>
+	    <email>awalls@md.metrocast.net</email>
 	  </address>
 	</affiliation>
       </author>
@@ -71,6 +71,17 @@ Remote Controller chapter.</contrib>
 	<affiliation>
 	  <address>
 	    <email>mchehab@redhat.com</email>
+	  </address>
+	</affiliation>
+      </author>
+
+      <author>
+	<firstname>Muralidharan</firstname>
+	<surname>Karicheri</surname>
+	<contrib>Documented the Digital Video timings API.</contrib>
+	<affiliation>
+	  <address>
+	    <email>m-karicheri2@ti.com</email>
 	  </address>
 	</affiliation>
       </author>
@@ -89,7 +100,7 @@ Remote Controller chapter.</contrib>
       <year>2008</year>
       <year>2009</year>
       <holder>Bill Dirks, Michael H. Schimek, Hans Verkuil, Martin
-Rubli, Andy Walls, Mauro Carvalho Chehab</holder>
+Rubli, Andy Walls, Muralidharan Karicheri, Mauro Carvalho Chehab</holder>
     </copyright>
     <legalnotice>
     <para>Except when explicitly stated as GPL, programming examples within
@@ -101,6 +112,13 @@ Rubli, Andy Walls, Mauro Carvalho Chehab</holder>
 structs, ioctls) must be noted in more detail in the history chapter
 (compat.sgml), along with the possible impact on existing drivers and
 applications. -->
+
+      <revision>
+	<revnumber>2.6.33</revnumber>
+	<date>2009-12-03</date>
+	<authorinitials>mk</authorinitials>
+	<revremark>Added documentation for the Digital Video timings API.</revremark>
+      </revision>
 
       <revision>
 	<revnumber>2.6.32</revnumber>
@@ -355,7 +373,7 @@ and discussions on the V4L mailing list.</revremark>
 </partinfo>
 
 <title>Video for Linux Two API Specification</title>
- <subtitle>Revision 2.6.32</subtitle>
+ <subtitle>Revision 2.6.33</subtitle>
 
   <chapter id="common">
     &sub-common;
@@ -383,6 +401,7 @@ and discussions on the V4L mailing list.</revremark>
     <section id="ttx"> &sub-dev-teletext; </section>
     <section id="radio"> &sub-dev-radio; </section>
     <section id="rds"> &sub-dev-rds; </section>
+    <section id="event"> &sub-dev-event; </section>
   </chapter>
 
   <chapter id="driver">
@@ -408,9 +427,11 @@ and discussions on the V4L mailing list.</revremark>
     &sub-cropcap;
     &sub-dbg-g-chip-ident;
     &sub-dbg-g-register;
+    &sub-dqevent;
     &sub-encoder-cmd;
     &sub-enumaudio;
     &sub-enumaudioout;
+    &sub-enum-dv-presets;
     &sub-enum-fmt;
     &sub-enum-framesizes;
     &sub-enum-frameintervals;
@@ -421,6 +442,8 @@ and discussions on the V4L mailing list.</revremark>
     &sub-g-audioout;
     &sub-g-crop;
     &sub-g-ctrl;
+    &sub-g-dv-preset;
+    &sub-g-dv-timings;
     &sub-g-enc-index;
     &sub-g-ext-ctrls;
     &sub-g-fbuf;
@@ -441,10 +464,12 @@ and discussions on the V4L mailing list.</revremark>
     &sub-querybuf;
     &sub-querycap;
     &sub-queryctrl;
+    &sub-query-dv-preset;
     &sub-querystd;
     &sub-reqbufs;
     &sub-s-hw-freq-seek;
     &sub-streamon;
+    &sub-subscribe-event;
     <!-- End of ioctls. -->
     &sub-mmap;
     &sub-munmap;

@@ -2,7 +2,7 @@
  *  arch/s390/kernel/setup.c
  *
  *  S390 version
- *    Copyright (C) 1999,2000 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright (C) IBM Corp. 1999,2010
  *    Author(s): Hartmut Penner (hp@de.ibm.com),
  *               Martin Schwidefsky (schwidefsky@de.ibm.com)
  *
@@ -25,7 +25,6 @@
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/tty.h>
 #include <linux/ioport.h>
@@ -87,7 +86,6 @@ unsigned long elf_hwcap = 0;
 char elf_platform[ELF_PLATFORM_SIZE];
 
 struct mem_chunk __initdata memory_chunk[MEMORY_CHUNKS];
-volatile int __cpu_logical_map[NR_CPUS]; /* logical cpu to cpu address */
 
 int __initdata memory_end_set;
 unsigned long __initdata memory_end;
@@ -113,28 +111,6 @@ static struct resource data_resource = {
 	.name = "Kernel data",
 	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
 };
-
-/*
- * cpu_init() initializes state that is per-CPU.
- */
-void __cpuinit cpu_init(void)
-{
-        /*
-         * Store processor id in lowcore (used e.g. in timer_interrupt)
-         */
-	get_cpu_id(&S390_lowcore.cpu_id);
-
-        /*
-         * Force FPU initialization:
-         */
-        clear_thread_flag(TIF_USEDFPU);
-        clear_used_math();
-
-	atomic_inc(&init_mm.mm_count);
-	current->active_mm = &init_mm;
-	BUG_ON(current->mm);
-        enter_lazy_tlb(&init_mm, current);
-}
 
 /*
  * condev= and conmode= setup parameter.
@@ -305,9 +281,8 @@ static int __init early_parse_mem(char *p)
 }
 early_param("mem", early_parse_mem);
 
-#ifdef CONFIG_S390_SWITCH_AMODE
-unsigned int switch_amode = 0;
-EXPORT_SYMBOL_GPL(switch_amode);
+unsigned int user_mode = HOME_SPACE_MODE;
+EXPORT_SYMBOL_GPL(user_mode);
 
 static int set_amode_and_uaccess(unsigned long user_amode,
 				 unsigned long user32_amode)
@@ -340,23 +315,29 @@ static int set_amode_and_uaccess(unsigned long user_amode,
  */
 static int __init early_parse_switch_amode(char *p)
 {
-	switch_amode = 1;
+	if (user_mode != SECONDARY_SPACE_MODE)
+		user_mode = PRIMARY_SPACE_MODE;
 	return 0;
 }
 early_param("switch_amode", early_parse_switch_amode);
 
-#else /* CONFIG_S390_SWITCH_AMODE */
-static inline int set_amode_and_uaccess(unsigned long user_amode,
-					unsigned long user32_amode)
+static int __init early_parse_user_mode(char *p)
 {
+	if (p && strcmp(p, "primary") == 0)
+		user_mode = PRIMARY_SPACE_MODE;
+#ifdef CONFIG_S390_EXEC_PROTECT
+	else if (p && strcmp(p, "secondary") == 0)
+		user_mode = SECONDARY_SPACE_MODE;
+#endif
+	else if (!p || strcmp(p, "home") == 0)
+		user_mode = HOME_SPACE_MODE;
+	else
+		return 1;
 	return 0;
 }
-#endif /* CONFIG_S390_SWITCH_AMODE */
+early_param("user_mode", early_parse_user_mode);
 
 #ifdef CONFIG_S390_EXEC_PROTECT
-unsigned int s390_noexec = 0;
-EXPORT_SYMBOL_GPL(s390_noexec);
-
 /*
  * Enable execute protection?
  */
@@ -364,8 +345,7 @@ static int __init early_parse_noexec(char *p)
 {
 	if (!strncmp(p, "off", 3))
 		return 0;
-	switch_amode = 1;
-	s390_noexec = 1;
+	user_mode = SECONDARY_SPACE_MODE;
 	return 0;
 }
 early_param("noexec", early_parse_noexec);
@@ -373,7 +353,7 @@ early_param("noexec", early_parse_noexec);
 
 static void setup_addressing_mode(void)
 {
-	if (s390_noexec) {
+	if (user_mode == SECONDARY_SPACE_MODE) {
 		if (set_amode_and_uaccess(PSW_ASC_SECONDARY,
 					  PSW32_ASC_SECONDARY))
 			pr_info("Execute protection active, "
@@ -381,7 +361,7 @@ static void setup_addressing_mode(void)
 		else
 			pr_info("Execute protection active, "
 				"mvcos not available\n");
-	} else if (switch_amode) {
+	} else if (user_mode == PRIMARY_SPACE_MODE) {
 		if (set_amode_and_uaccess(PSW_ASC_PRIMARY, PSW32_ASC_PRIMARY))
 			pr_info("Address spaces switched, "
 				"mvcos available\n");
@@ -389,29 +369,22 @@ static void setup_addressing_mode(void)
 			pr_info("Address spaces switched, "
 				"mvcos not available\n");
 	}
-#ifdef CONFIG_TRACE_IRQFLAGS
-	sysc_restore_trace_psw.mask = psw_kernel_bits & ~PSW_MASK_MCHECK;
-	io_restore_trace_psw.mask = psw_kernel_bits & ~PSW_MASK_MCHECK;
-#endif
 }
 
 static void __init
 setup_lowcore(void)
 {
 	struct _lowcore *lc;
-	int lc_pages;
 
 	/*
 	 * Setup lowcore for boot cpu
 	 */
-	lc_pages = sizeof(void *) == 8 ? 2 : 1;
-	lc = (struct _lowcore *)
-		__alloc_bootmem(lc_pages * PAGE_SIZE, lc_pages * PAGE_SIZE, 0);
-	memset(lc, 0, lc_pages * PAGE_SIZE);
+	BUILD_BUG_ON(sizeof(struct _lowcore) != LC_PAGES * 4096);
+	lc = __alloc_bootmem_low(LC_PAGES * PAGE_SIZE, LC_PAGES * PAGE_SIZE, 0);
 	lc->restart_psw.mask = PSW_BASE_BITS | PSW_DEFAULT_KEY;
 	lc->restart_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) restart_int_handler;
-	if (switch_amode)
+	if (user_mode != HOME_SPACE_MODE)
 		lc->restart_psw.mask |= PSW_ASC_HOME;
 	lc->external_new_psw.mask = psw_kernel_bits;
 	lc->external_new_psw.addr =
@@ -439,11 +412,12 @@ setup_lowcore(void)
 #ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE) {
 		lc->extended_save_area_addr = (__u32)
-			__alloc_bootmem(PAGE_SIZE, PAGE_SIZE, 0);
+			__alloc_bootmem_low(PAGE_SIZE, PAGE_SIZE, 0);
 		/* enable extended save area */
 		__ctl_set_bit(14, 29);
 	}
 #else
+	lc->cmf_hpp = -1ULL;
 	lc->vdso_per_cpu_data = (unsigned long) &lc->paste[0];
 #endif
 	lc->sync_enter_timer = S390_lowcore.sync_enter_timer;
@@ -702,6 +676,7 @@ static void __init setup_hwcaps(void)
 	static const int stfl_bits[6] = { 0, 2, 7, 17, 19, 21 };
 	unsigned long long facility_list_extended;
 	unsigned int facility_list;
+	struct cpuid cpu_id;
 	int i;
 
 	facility_list = stfl();
@@ -763,7 +738,8 @@ static void __init setup_hwcaps(void)
 	 */
 	elf_hwcap |= HWCAP_S390_HIGH_GPRS;
 
-	switch (S390_lowcore.cpu_id.machine) {
+	get_cpu_id(&cpu_id);
+	switch (cpu_id.machine) {
 	case 0x9672:
 #if !defined(CONFIG_64BIT)
 	default:	/* Use "g5" as default for 31 bit kernels. */
@@ -807,7 +783,7 @@ setup_arch(char **cmdline_p)
 	if (MACHINE_IS_VM)
 		pr_info("Linux is running as a z/VM "
 			"guest operating system in 31-bit mode\n");
-	else
+	else if (MACHINE_IS_LPAR)
 		pr_info("Linux is running natively in 31-bit mode\n");
 	if (MACHINE_HAS_IEEE)
 		pr_info("The hardware system has IEEE compatible "
@@ -821,7 +797,7 @@ setup_arch(char **cmdline_p)
 			"guest operating system in 64-bit mode\n");
 	else if (MACHINE_IS_KVM)
 		pr_info("Linux is running under KVM in 64-bit mode\n");
-	else
+	else if (MACHINE_IS_LPAR)
 		pr_info("Linux is running natively in 64-bit mode\n");
 #endif /* CONFIG_64BIT */
 
@@ -851,7 +827,6 @@ setup_arch(char **cmdline_p)
 	setup_lowcore();
 
         cpu_init();
-	__cpu_logical_map[0] = stap();
 	s390_init_cpu_topology();
 
 	/*

@@ -149,10 +149,10 @@
 
 #define USER(x...)				\
 9999:	x;					\
-	.section __ex_table,"a";		\
+	.pushsection __ex_table,"a";		\
 	.align	3;				\
 	.long	9999b,9001f;			\
-	.previous
+	.popsection
 
 /*
  * SMP data memory barrier
@@ -193,10 +193,10 @@
 	.error	"Unsupported inc macro argument"
 	.endif
 
-	.section __ex_table,"a"
+	.pushsection __ex_table,"a"
 	.align	3
 	.long	9999b, \abort
-	.previous
+	.popsection
 	.endm
 
 	.macro	usracc, instr, reg, ptr, inc, cond, rept, abort
@@ -215,7 +215,7 @@
 	@ Slightly optimised to avoid incrementing the pointer twice
 	usraccoff \instr, \reg, \ptr, \inc, 0, \cond, \abort
 	.if	\rept == 2
-	usraccoff \instr, \reg, \ptr, \inc, 4, \cond, \abort
+	usraccoff \instr, \reg, \ptr, \inc, \inc, \cond, \abort
 	.endif
 
 	add\cond \ptr, #\rept * \inc
@@ -234,10 +234,10 @@
 	.error	"Unsupported inc macro argument"
 	.endif
 
-	.section __ex_table,"a"
+	.pushsection __ex_table,"a"
 	.align	3
 	.long	9999b, \abort
-	.previous
+	.popsection
 	.endr
 	.endm
 

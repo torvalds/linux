@@ -105,7 +105,7 @@ int __init irlmp_init(void)
 
 	init_timer(&irlmp->discovery_timer);
 
-	/* Do discovery every 3 seconds, conditionaly */
+	/* Do discovery every 3 seconds, conditionally */
 	if (sysctl_discovery)
 		irlmp_start_discovery_timer(irlmp,
 					    sysctl_discovery_timeout*HZ);
@@ -1842,7 +1842,7 @@ LM_REASON irlmp_convert_lap_reason( LAP_REASON lap_reason)
 		reason = LM_CONNECT_FAILURE;
 		break;
 	default:
-		IRDA_DEBUG(1, "%s(), Unknow IrLAP disconnect reason %d!\n",
+		IRDA_DEBUG(1, "%s(), Unknown IrLAP disconnect reason %d!\n",
 			   __func__, lap_reason);
 		reason = LM_LAP_DISCONNECT;
 		break;

@@ -22,7 +22,7 @@ test_and_set_bit:	/* %o0=nr, %o1=addr */
 	or	%g7, %o2, %g1
 	casx	[%o1], %g7, %g1
 	cmp	%g7, %g1
-	bne,pn	%xcc, 2f
+	bne,pn	%xcc, BACKOFF_LABEL(2f, 1b)
 	 and	%g7, %o2, %g2
 	clr	%o0
 	movrne	%g2, 1, %o0
@@ -45,7 +45,7 @@ test_and_clear_bit:	/* %o0=nr, %o1=addr */
 	andn	%g7, %o2, %g1
 	casx	[%o1], %g7, %g1
 	cmp	%g7, %g1
-	bne,pn	%xcc, 2f
+	bne,pn	%xcc, BACKOFF_LABEL(2f, 1b)
 	 and	%g7, %o2, %g2
 	clr	%o0
 	movrne	%g2, 1, %o0
@@ -68,7 +68,7 @@ test_and_change_bit:	/* %o0=nr, %o1=addr */
 	xor	%g7, %o2, %g1
 	casx	[%o1], %g7, %g1
 	cmp	%g7, %g1
-	bne,pn	%xcc, 2f
+	bne,pn	%xcc, BACKOFF_LABEL(2f, 1b)
 	 and	%g7, %o2, %g2
 	clr	%o0
 	movrne	%g2, 1, %o0
@@ -91,7 +91,7 @@ set_bit:		/* %o0=nr, %o1=addr */
 	or	%g7, %o2, %g1
 	casx	[%o1], %g7, %g1
 	cmp	%g7, %g1
-	bne,pn	%xcc, 2f
+	bne,pn	%xcc, BACKOFF_LABEL(2f, 1b)
 	 nop
 	retl
 	 nop
@@ -112,7 +112,7 @@ clear_bit:		/* %o0=nr, %o1=addr */
 	andn	%g7, %o2, %g1
 	casx	[%o1], %g7, %g1
 	cmp	%g7, %g1
-	bne,pn	%xcc, 2f
+	bne,pn	%xcc, BACKOFF_LABEL(2f, 1b)
 	 nop
 	retl
 	 nop
@@ -133,7 +133,7 @@ change_bit:		/* %o0=nr, %o1=addr */
 	xor	%g7, %o2, %g1
 	casx	[%o1], %g7, %g1
 	cmp	%g7, %g1
-	bne,pn	%xcc, 2f
+	bne,pn	%xcc, BACKOFF_LABEL(2f, 1b)
 	 nop
 	retl
 	 nop

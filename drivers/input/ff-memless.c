@@ -25,6 +25,7 @@
 
 #define debug(format, arg...) pr_debug("ff-memless: " format "\n", ## arg)
 
+#include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -221,11 +222,27 @@ static int get_compatible_type(struct ff_device *ff, int effect_type)
 }
 
 /*
+ * Only left/right direction should be used (under/over 0x8000) for
+ * forward/reverse motor direction (to keep calculation fast & simple).
+ */
+static u16 ml_calculate_direction(u16 direction, u16 force,
+				  u16 new_direction, u16 new_force)
+{
+	if (!force)
+		return new_direction;
+	if (!new_force)
+		return direction;
+	return (((u32)(direction >> 1) * force +
+		 (new_direction >> 1) * new_force) /
+		(force + new_force)) << 1;
+}
+
+/*
  * Combine two effects and apply gain.
  */
 static void ml_combine_effects(struct ff_effect *effect,
 			       struct ml_effect_state *state,
-			       unsigned int gain)
+			       int gain)
 {
 	struct ff_effect *new = state->effect;
 	unsigned int strong, weak, i;
@@ -252,8 +269,21 @@ static void ml_combine_effects(struct ff_effect *effect,
 		break;
 
 	case FF_RUMBLE:
-		strong = new->u.rumble.strong_magnitude * gain / 0xffff;
-		weak = new->u.rumble.weak_magnitude * gain / 0xffff;
+		strong = (u32)new->u.rumble.strong_magnitude * gain / 0xffff;
+		weak = (u32)new->u.rumble.weak_magnitude * gain / 0xffff;
+
+		if (effect->u.rumble.strong_magnitude + strong)
+			effect->direction = ml_calculate_direction(
+				effect->direction,
+				effect->u.rumble.strong_magnitude,
+				new->direction, strong);
+		else if (effect->u.rumble.weak_magnitude + weak)
+			effect->direction = ml_calculate_direction(
+				effect->direction,
+				effect->u.rumble.weak_magnitude,
+				new->direction, weak);
+		else
+			effect->direction = 0;
 		effect->u.rumble.strong_magnitude =
 			min(strong + effect->u.rumble.strong_magnitude,
 			    0xffffU);
@@ -268,6 +298,13 @@ static void ml_combine_effects(struct ff_effect *effect,
 		/* here we also scale it 0x7fff => 0xffff */
 		i = i * gain / 0x7fff;
 
+		if (effect->u.rumble.strong_magnitude + i)
+			effect->direction = ml_calculate_direction(
+				effect->direction,
+				effect->u.rumble.strong_magnitude,
+				new->direction, i);
+		else
+			effect->direction = 0;
 		effect->u.rumble.strong_magnitude =
 			min(i + effect->u.rumble.strong_magnitude, 0xffffU);
 		effect->u.rumble.weak_magnitude =
@@ -411,8 +448,6 @@ static int ml_ff_playback(struct input_dev *dev, int effect_id, int value)
 				 msecs_to_jiffies(state->effect->replay.length);
 		state->adj_at = state->play_at;
 
-		ml_schedule_timer(ml);
-
 	} else {
 		debug("initiated stop");
 
@@ -420,9 +455,9 @@ static int ml_ff_playback(struct input_dev *dev, int effect_id, int value)
 			__set_bit(FF_EFFECT_ABORTING, &state->flags);
 		else
 			__clear_bit(FF_EFFECT_STARTED, &state->flags);
-
-		ml_play_effects(ml);
 	}
+
+	ml_play_effects(ml);
 
 	return 0;
 }

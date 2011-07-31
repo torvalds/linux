@@ -6,7 +6,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ipv6.h>
@@ -27,7 +27,7 @@ static inline bool
 id_match(u_int32_t min, u_int32_t max, u_int32_t id, bool invert)
 {
 	bool r;
-	pr_debug("frag id_match:%c 0x%x <= 0x%x <= 0x%x", invert ? '!' : ' ',
+	pr_debug("id_match:%c 0x%x <= 0x%x <= 0x%x\n", invert ? '!' : ' ',
 		 min, id, max);
 	r = (id >= min && id <= max) ^ invert;
 	pr_debug(" result %s\n", r ? "PASS" : "FAILED");
@@ -35,7 +35,7 @@ id_match(u_int32_t min, u_int32_t max, u_int32_t id, bool invert)
 }
 
 static bool
-frag_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
+frag_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	struct frag_hdr _frag;
 	const struct frag_hdr *fh;
@@ -46,13 +46,13 @@ frag_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 	err = ipv6_find_hdr(skb, &ptr, NEXTHDR_FRAGMENT, NULL);
 	if (err < 0) {
 		if (err != -ENOENT)
-			*par->hotdrop = true;
+			par->hotdrop = true;
 		return false;
 	}
 
 	fh = skb_header_pointer(skb, ptr, sizeof(_frag), &_frag);
 	if (fh == NULL) {
-		*par->hotdrop = true;
+		par->hotdrop = true;
 		return false;
 	}
 
@@ -70,52 +70,47 @@ frag_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 	pr_debug("res %02X %02X%04X %02X ",
 		 fraginfo->flags & IP6T_FRAG_RES, fh->reserved,
 		 ntohs(fh->frag_off) & 0x6,
-		 !((fraginfo->flags & IP6T_FRAG_RES)
-		   && (fh->reserved || (ntohs(fh->frag_off) & 0x06))));
+		 !((fraginfo->flags & IP6T_FRAG_RES) &&
+		   (fh->reserved || (ntohs(fh->frag_off) & 0x06))));
 	pr_debug("first %02X %02X %02X ",
 		 fraginfo->flags & IP6T_FRAG_FST,
 		 ntohs(fh->frag_off) & ~0x7,
-		 !((fraginfo->flags & IP6T_FRAG_FST)
-		   && (ntohs(fh->frag_off) & ~0x7)));
+		 !((fraginfo->flags & IP6T_FRAG_FST) &&
+		   (ntohs(fh->frag_off) & ~0x7)));
 	pr_debug("mf %02X %02X %02X ",
 		 fraginfo->flags & IP6T_FRAG_MF,
 		 ntohs(fh->frag_off) & IP6_MF,
-		 !((fraginfo->flags & IP6T_FRAG_MF)
-		   && !((ntohs(fh->frag_off) & IP6_MF))));
+		 !((fraginfo->flags & IP6T_FRAG_MF) &&
+		   !((ntohs(fh->frag_off) & IP6_MF))));
 	pr_debug("last %02X %02X %02X\n",
 		 fraginfo->flags & IP6T_FRAG_NMF,
 		 ntohs(fh->frag_off) & IP6_MF,
-		 !((fraginfo->flags & IP6T_FRAG_NMF)
-		   && (ntohs(fh->frag_off) & IP6_MF)));
+		 !((fraginfo->flags & IP6T_FRAG_NMF) &&
+		   (ntohs(fh->frag_off) & IP6_MF)));
 
-	return (fh != NULL)
-	       &&
-	       id_match(fraginfo->ids[0], fraginfo->ids[1],
-			ntohl(fh->identification),
-			!!(fraginfo->invflags & IP6T_FRAG_INV_IDS))
-	       &&
-	       !((fraginfo->flags & IP6T_FRAG_RES)
-		 && (fh->reserved || (ntohs(fh->frag_off) & 0x6)))
-	       &&
-	       !((fraginfo->flags & IP6T_FRAG_FST)
-		 && (ntohs(fh->frag_off) & ~0x7))
-	       &&
-	       !((fraginfo->flags & IP6T_FRAG_MF)
-		 && !(ntohs(fh->frag_off) & IP6_MF))
-	       &&
-	       !((fraginfo->flags & IP6T_FRAG_NMF)
-		 && (ntohs(fh->frag_off) & IP6_MF));
+	return (fh != NULL) &&
+		id_match(fraginfo->ids[0], fraginfo->ids[1],
+			 ntohl(fh->identification),
+			 !!(fraginfo->invflags & IP6T_FRAG_INV_IDS)) &&
+		!((fraginfo->flags & IP6T_FRAG_RES) &&
+		  (fh->reserved || (ntohs(fh->frag_off) & 0x6))) &&
+		!((fraginfo->flags & IP6T_FRAG_FST) &&
+		  (ntohs(fh->frag_off) & ~0x7)) &&
+		!((fraginfo->flags & IP6T_FRAG_MF) &&
+		  !(ntohs(fh->frag_off) & IP6_MF)) &&
+		!((fraginfo->flags & IP6T_FRAG_NMF) &&
+		  (ntohs(fh->frag_off) & IP6_MF));
 }
 
-static bool frag_mt6_check(const struct xt_mtchk_param *par)
+static int frag_mt6_check(const struct xt_mtchk_param *par)
 {
 	const struct ip6t_frag *fraginfo = par->matchinfo;
 
 	if (fraginfo->invflags & ~IP6T_FRAG_INV_MASK) {
-		pr_debug("ip6t_frag: unknown flags %X\n", fraginfo->invflags);
-		return false;
+		pr_debug("unknown flags %X\n", fraginfo->invflags);
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
 static struct xt_match frag_mt6_reg __read_mostly = {

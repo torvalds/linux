@@ -11,8 +11,7 @@ enum {
 	XT_STRING_FLAG_IGNORECASE	= 0x02
 };
 
-struct xt_string_info
-{
+struct xt_string_info {
 	__u16 from_offset;
 	__u16 to_offset;
 	char	  algo[XT_STRING_MAX_ALGO_NAME_SIZE];

@@ -32,6 +32,7 @@
  */
 
 #include <linux/mlx4/cq.h>
+#include <linux/slab.h>
 #include <linux/mlx4/qp.h>
 #include <linux/skbuff.h>
 #include <linux/if_ether.h>
@@ -204,7 +205,7 @@ static void mlx4_en_free_rx_desc(struct mlx4_en_priv *priv,
 		en_dbg(DRV, priv, "Freeing fragment:%d\n", nr);
 		dma = be64_to_cpu(rx_desc->data[nr].addr);
 
-		en_dbg(DRV, priv, "Unmaping buffer at dma:0x%llx\n", (u64) dma);
+		en_dbg(DRV, priv, "Unmapping buffer at dma:0x%llx\n", (u64) dma);
 		pci_unmap_single(mdev->pdev, dma, skb_frags[nr].size,
 				 PCI_DMA_FROMDEVICE);
 		put_page(skb_frags[nr].page);
@@ -508,11 +509,11 @@ static struct sk_buff *mlx4_en_rx_skb(struct mlx4_en_priv *priv,
 		/* We are copying all relevant data to the skb - temporarily
 		 * synch buffers for the copy */
 		dma = be64_to_cpu(rx_desc->data[0].addr);
-		dma_sync_single_range_for_cpu(&mdev->pdev->dev, dma, 0,
-					      length, DMA_FROM_DEVICE);
+		dma_sync_single_for_cpu(&mdev->pdev->dev, dma, length,
+					DMA_FROM_DEVICE);
 		skb_copy_to_linear_data(skb, va, length);
-		dma_sync_single_range_for_device(&mdev->pdev->dev, dma, 0,
-						 length, DMA_FROM_DEVICE);
+		dma_sync_single_for_device(&mdev->pdev->dev, dma, length,
+					   DMA_FROM_DEVICE);
 		skb->tail += length;
 	} else {
 

@@ -176,19 +176,27 @@ extern const struct ssb_sprom *ssb_get_fallback_sprom(void);
 
 /* core.c */
 extern u32 ssb_calc_clock_rate(u32 plltype, u32 n, u32 m);
-extern int ssb_devices_freeze(struct ssb_bus *bus);
-extern int ssb_devices_thaw(struct ssb_bus *bus);
 extern struct ssb_bus *ssb_pci_dev_to_bus(struct pci_dev *pdev);
 int ssb_for_each_bus_call(unsigned long data,
 			  int (*func)(struct ssb_bus *bus, unsigned long data));
 extern struct ssb_bus *ssb_pcmcia_dev_to_bus(struct pcmcia_device *pdev);
+
+struct ssb_freeze_context {
+	/* Pointer to the bus */
+	struct ssb_bus *bus;
+	/* Boolean list to indicate whether a device is frozen on this bus. */
+	bool device_frozen[SSB_MAX_NR_CORES];
+};
+extern int ssb_devices_freeze(struct ssb_bus *bus, struct ssb_freeze_context *ctx);
+extern int ssb_devices_thaw(struct ssb_freeze_context *ctx);
+
 
 
 /* b43_pci_bridge.c */
 #ifdef CONFIG_SSB_B43_PCI_BRIDGE
 extern int __init b43_pci_ssb_bridge_init(void);
 extern void __exit b43_pci_ssb_bridge_exit(void);
-#else /* CONFIG_SSB_B43_PCI_BRIDGR */
+#else /* CONFIG_SSB_B43_PCI_BRIDGE */
 static inline int b43_pci_ssb_bridge_init(void)
 {
 	return 0;
@@ -196,6 +204,6 @@ static inline int b43_pci_ssb_bridge_init(void)
 static inline void b43_pci_ssb_bridge_exit(void)
 {
 }
-#endif /* CONFIG_SSB_PCIHOST */
+#endif /* CONFIG_SSB_B43_PCI_BRIDGE */
 
 #endif /* LINUX_SSB_PRIVATE_H_ */

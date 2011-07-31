@@ -17,7 +17,7 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-You shoud also find the complete GPL in the COPYING file accompanying this source code.
+You should also find the complete GPL in the COPYING file accompanying this source code.
 
 @endverbatim
 */
@@ -117,7 +117,7 @@ int i_APCI2016_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subde
 	unsigned int ui_NoOfChannel;
 	unsigned int ui_Temp, ui_Temp1;
 	ui_NoOfChannel = CR_CHAN(insn->chanspec);
-	if ((ui_NoOfChannel < 0) || (ui_NoOfChannel > 15)) {
+	if (ui_NoOfChannel > 15) {
 		comedi_error(dev,
 			"Invalid Channel Numbers !!!, Channel Numbers must be between 0 and 15\n");
 		return -EINVAL;
@@ -272,7 +272,7 @@ int i_APCI2016_BitsDigitalOutput(struct comedi_device *dev, struct comedi_subdev
 	unsigned int ui_Temp;
 	unsigned int ui_NoOfChannel;
 	ui_NoOfChannel = CR_CHAN(insn->chanspec);
-	if ((ui_NoOfChannel < 0) || (ui_NoOfChannel > 15)) {
+	if (ui_NoOfChannel > 15) {
 		comedi_error(dev,
 			"Invalid Channel Numbers !!!, Channel Numbers must be between 0 and 15\n");
 		return -EINVAL;

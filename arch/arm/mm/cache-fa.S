@@ -127,15 +127,16 @@ ENTRY(fa_coherent_user_range)
 	mov	pc, lr
 
 /*
- *	flush_kern_dcache_page(kaddr)
+ *	flush_kern_dcache_area(void *addr, size_t size)
  *
  *	Ensure that the data held in the page kaddr is written back
  *	to the page in question.
  *
- *	- kaddr   - kernel address (guaranteed to be page aligned)
+ *	- addr	- kernel address
+ *	- size	- size of region
  */
-ENTRY(fa_flush_kern_dcache_page)
-	add	r1, r0, #PAGE_SZ
+ENTRY(fa_flush_kern_dcache_area)
+	add	r1, r0, r1
 1:	mcr	p15, 0, r0, c7, c14, 1		@ clean & invalidate D line
 	add	r0, r0, #CACHE_DLINESIZE
 	cmp	r0, r1
@@ -156,7 +157,7 @@ ENTRY(fa_flush_kern_dcache_page)
  *	- start  - virtual start address
  *	- end	 - virtual end address
  */
-ENTRY(fa_dma_inv_range)
+fa_dma_inv_range:
 	tst	r0, #CACHE_DLINESIZE - 1
 	bic	r0, r0, #CACHE_DLINESIZE - 1
 	mcrne	p15, 0, r0, c7, c14, 1		@ clean & invalidate D entry
@@ -179,7 +180,7 @@ ENTRY(fa_dma_inv_range)
  *	- start  - virtual start address
  *	- end	 - virtual end address
  */
-ENTRY(fa_dma_clean_range)
+fa_dma_clean_range:
 	bic	r0, r0, #CACHE_DLINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	add	r0, r0, #CACHE_DLINESIZE
@@ -204,6 +205,30 @@ ENTRY(fa_dma_flush_range)
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer
 	mov	pc, lr
 
+/*
+ *	dma_map_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(fa_dma_map_area)
+	add	r1, r1, r0
+	cmp	r2, #DMA_TO_DEVICE
+	beq	fa_dma_clean_range
+	bcs	fa_dma_inv_range
+	b	fa_dma_flush_range
+ENDPROC(fa_dma_map_area)
+
+/*
+ *	dma_unmap_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(fa_dma_unmap_area)
+	mov	pc, lr
+ENDPROC(fa_dma_unmap_area)
+
 	__INITDATA
 
 	.type	fa_cache_fns, #object
@@ -213,8 +238,8 @@ ENTRY(fa_cache_fns)
 	.long	fa_flush_user_cache_range
 	.long	fa_coherent_kern_range
 	.long	fa_coherent_user_range
-	.long	fa_flush_kern_dcache_page
-	.long	fa_dma_inv_range
-	.long	fa_dma_clean_range
+	.long	fa_flush_kern_dcache_area
+	.long	fa_dma_map_area
+	.long	fa_dma_unmap_area
 	.long	fa_dma_flush_range
 	.size	fa_cache_fns, . - fa_cache_fns

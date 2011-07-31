@@ -74,7 +74,7 @@ enum {
  * WUSB defines that CHIDs, CDIDs and CKs are a 16 byte string of
  * data. In order to avoid confusion and enforce types, we wrap it.
  *
- * Make it packed, as we use it in some hw defintions.
+ * Make it packed, as we use it in some hw definitions.
  */
 struct wusb_ckhdid {
 	u8 data[16];

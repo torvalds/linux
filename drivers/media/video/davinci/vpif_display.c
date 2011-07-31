@@ -30,6 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/version.h>
+#include <linux/slab.h>
 
 #include <asm/irq.h>
 #include <asm/page.h>
@@ -383,7 +384,7 @@ static int vpif_get_std_info(struct channel_obj *ch)
 	int index;
 
 	std_info->stdid = vid_ch->stdid;
-	if (!std_info)
+	if (!std_info->stdid)
 		return -1;
 
 	for (index = 0; index < ARRAY_SIZE(ch_params); index++) {
@@ -670,7 +671,7 @@ static int vpif_release(struct file *filep)
 		ch->initialized = 0;
 
 	/* Close the priority */
-	v4l2_prio_close(&ch->prio, &fh->prio);
+	v4l2_prio_close(&ch->prio, fh->prio);
 	filep->private_data = NULL;
 	fh->initialized = 0;
 	kfree(fh);
@@ -752,7 +753,7 @@ static int vpif_s_fmt_vid_out(struct file *file, void *priv,
 		}
 
 		/* Check for the priority */
-		ret = v4l2_prio_check(&ch->prio, &fh->prio);
+		ret = v4l2_prio_check(&ch->prio, fh->prio);
 		if (0 != ret)
 			return ret;
 		fh->initialized = 1;
@@ -1347,7 +1348,6 @@ static const struct v4l2_file_operations vpif_fops = {
 static struct video_device vpif_video_template = {
 	.name		= "vpif",
 	.fops		= &vpif_fops,
-	.minor		= -1,
 	.ioctl_ops	= &vpif_ioctl_ops,
 	.tvnorms	= DM646X_V4L2_STD,
 	.current_norm	= V4L2_STD_625_50,

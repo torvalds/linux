@@ -33,6 +33,7 @@
 #include <linux/miscdevice.h>
 #include <linux/smp_lock.h>
 #include <linux/compat.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 
@@ -40,8 +41,7 @@
 
 #define SG_TABLESIZE		30
 
-static int i2o_cfg_ioctl(struct inode *, struct file *, unsigned int,
-			 unsigned long);
+static long i2o_cfg_ioctl(struct file *, unsigned int, unsigned long);
 
 static spinlock_t i2o_config_lock;
 
@@ -111,11 +111,11 @@ static int i2o_cfg_gethrt(unsigned long arg)
 
 	len = 8 + ((hrt->entry_len * hrt->num_entries) << 2);
 
-	/* We did a get user...so assuming mem is ok...is this bad? */
-	put_user(len, kcmd.reslen);
-	if (len > reslen)
+	if (put_user(len, kcmd.reslen))
+		ret = -EFAULT;
+	else if (len > reslen)
 		ret = -ENOBUFS;
-	if (copy_to_user(kcmd.resbuf, (void *)hrt, len))
+	else if (copy_to_user(kcmd.resbuf, (void *)hrt, len))
 		ret = -EFAULT;
 
 	return ret;
@@ -147,8 +147,9 @@ static int i2o_cfg_getlct(unsigned long arg)
 	lct = (i2o_lct *) c->lct;
 
 	len = (unsigned int)lct->table_size << 2;
-	put_user(len, kcmd.reslen);
-	if (len > reslen)
+	if (put_user(len, kcmd.reslen))
+		ret = -EFAULT;
+	else if (len > reslen)
 		ret = -ENOBUFS;
 	else if (copy_to_user(kcmd.resbuf, lct, len))
 		ret = -EFAULT;
@@ -186,14 +187,9 @@ static int i2o_cfg_parms(unsigned long arg, unsigned int type)
 	if (!dev)
 		return -ENXIO;
 
-	ops = kmalloc(kcmd.oplen, GFP_KERNEL);
-	if (!ops)
-		return -ENOMEM;
-
-	if (copy_from_user(ops, kcmd.opbuf, kcmd.oplen)) {
-		kfree(ops);
-		return -EFAULT;
-	}
+	ops = memdup_user(kcmd.opbuf, kcmd.oplen);
+	if (IS_ERR(ops))
+		return PTR_ERR(ops);
 
 	/*
 	 * It's possible to have a _very_ large table
@@ -213,8 +209,9 @@ static int i2o_cfg_parms(unsigned long arg, unsigned int type)
 		return -EAGAIN;
 	}
 
-	put_user(len, kcmd.reslen);
-	if (len > reslen)
+	if (put_user(len, kcmd.reslen))
+		ret = -EFAULT;
+	else if (len > reslen)
 		ret = -ENOBUFS;
 	else if (copy_to_user(kcmd.resbuf, res, len))
 		ret = -EFAULT;
@@ -314,22 +311,22 @@ static int i2o_cfg_swul(unsigned long arg)
 	int ret = 0;
 
 	if (copy_from_user(&kxfer, pxfer, sizeof(struct i2o_sw_xfer)))
-		goto return_fault;
+		return -EFAULT;
 
 	if (get_user(swlen, kxfer.swlen) < 0)
-		goto return_fault;
+		return -EFAULT;
 
 	if (get_user(maxfrag, kxfer.maxfrag) < 0)
-		goto return_fault;
+		return -EFAULT;
 
 	if (get_user(curfrag, kxfer.curfrag) < 0)
-		goto return_fault;
+		return -EFAULT;
 
 	if (curfrag == maxfrag)
 		fragsize = swlen - (maxfrag - 1) * 8192;
 
 	if (!kxfer.buf)
-		goto return_fault;
+		return -EFAULT;
 
 	c = i2o_find_iop(kxfer.iop);
 	if (!c)
@@ -373,12 +370,8 @@ static int i2o_cfg_swul(unsigned long arg)
 
 	i2o_dma_free(&c->pdev->dev, &buffer);
 
-      return_ret:
 	return ret;
-      return_fault:
-	ret = -EFAULT;
-	goto return_ret;
-};
+}
 
 static int i2o_cfg_swdel(unsigned long arg)
 {
@@ -751,7 +744,7 @@ static long i2o_cfg_compat_ioctl(struct file *file, unsigned cmd,
 	lock_kernel();
 	switch (cmd) {
 	case I2OGETIOPS:
-		ret = i2o_cfg_ioctl(NULL, file, cmd, arg);
+		ret = i2o_cfg_ioctl(file, cmd, arg);
 		break;
 	case I2OPASSTHRU32:
 		ret = i2o_cfg_passthru32(file, cmd, arg);
@@ -984,11 +977,11 @@ out:
 /*
  * IOCTL Handler
  */
-static int i2o_cfg_ioctl(struct inode *inode, struct file *fp, unsigned int cmd,
-			 unsigned long arg)
+static long i2o_cfg_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
 	int ret;
 
+	lock_kernel();
 	switch (cmd) {
 	case I2OGETIOPS:
 		ret = i2o_cfg_getiops(arg);
@@ -1044,7 +1037,7 @@ static int i2o_cfg_ioctl(struct inode *inode, struct file *fp, unsigned int cmd,
 		osm_debug("unknown ioctl called!\n");
 		ret = -EINVAL;
 	}
-
+	unlock_kernel();
 	return ret;
 }
 
@@ -1118,7 +1111,7 @@ static int cfg_release(struct inode *inode, struct file *file)
 static const struct file_operations config_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
-	.ioctl = i2o_cfg_ioctl,
+	.unlocked_ioctl = i2o_cfg_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = i2o_cfg_compat_ioctl,
 #endif

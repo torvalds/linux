@@ -39,7 +39,8 @@
  * These flags used only by the kernel as part of the
  * irq handling routines.
  *
- * IRQF_DISABLED - keep irqs disabled when calling the action handler
+ * IRQF_DISABLED - keep irqs disabled when calling the action handler.
+ *                 DEPRECATED. This flag is a NOOP and scheduled to be removed
  * IRQF_SAMPLE_RANDOM - irq is used to feed the random generator
  * IRQF_SHARED - allow sharing the irq among several devices
  * IRQF_PROBE_SHARED - set by callers when they expect sharing mismatches to occur
@@ -52,16 +53,21 @@
  * IRQF_ONESHOT - Interrupt is not reenabled after the hardirq handler finished.
  *                Used by threaded interrupts which need to keep the
  *                irq line disabled until the threaded handler has been run.
+ * IRQF_NO_SUSPEND - Do not disable this IRQ during suspend
+ *
  */
 #define IRQF_DISABLED		0x00000020
 #define IRQF_SAMPLE_RANDOM	0x00000040
 #define IRQF_SHARED		0x00000080
 #define IRQF_PROBE_SHARED	0x00000100
-#define IRQF_TIMER		0x00000200
+#define __IRQF_TIMER		0x00000200
 #define IRQF_PERCPU		0x00000400
 #define IRQF_NOBALANCING	0x00000800
 #define IRQF_IRQPOLL		0x00001000
 #define IRQF_ONESHOT		0x00002000
+#define IRQF_NO_SUSPEND		0x00004000
+
+#define IRQF_TIMER		(__IRQF_TIMER | IRQF_NO_SUSPEND)
 
 /*
  * Bits used by threaded handlers:
@@ -75,6 +81,18 @@ enum {
 	IRQTF_DIED,
 	IRQTF_WARNED,
 	IRQTF_AFFINITY,
+};
+
+/*
+ * These values can be returned by request_any_context_irq() and
+ * describe the context the interrupt will be run in.
+ *
+ * IRQC_IS_HARDIRQ - interrupt runs in hardirq context
+ * IRQC_IS_NESTED - interrupt runs in a nested threaded context
+ */
+enum {
+	IRQC_IS_HARDIRQ	= 0,
+	IRQC_IS_NESTED,
 };
 
 typedef irqreturn_t (*irq_handler_t)(int, void *);
@@ -120,6 +138,10 @@ request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags,
 	return request_threaded_irq(irq, handler, NULL, flags, name, dev);
 }
 
+extern int __must_check
+request_any_context_irq(unsigned int irq, irq_handler_t handler,
+			unsigned long flags, const char *name, void *dev_id);
+
 extern void exit_irq_thread(void);
 #else
 
@@ -139,6 +161,13 @@ request_threaded_irq(unsigned int irq, irq_handler_t handler,
 		     unsigned long flags, const char *name, void *dev)
 {
 	return request_irq(irq, handler, flags, name, dev);
+}
+
+static inline int __must_check
+request_any_context_irq(unsigned int irq, irq_handler_t handler,
+			unsigned long flags, const char *name, void *dev_id)
+{
+	return request_irq(irq, handler, flags, name, dev_id);
 }
 
 static inline void exit_irq_thread(void) { }
@@ -209,6 +238,7 @@ extern int irq_set_affinity(unsigned int irq, const struct cpumask *cpumask);
 extern int irq_can_set_affinity(unsigned int irq);
 extern int irq_select_affinity(unsigned int irq);
 
+extern int irq_set_affinity_hint(unsigned int irq, const struct cpumask *m);
 #else /* CONFIG_SMP */
 
 static inline int irq_set_affinity(unsigned int irq, const struct cpumask *m)
@@ -223,6 +253,11 @@ static inline int irq_can_set_affinity(unsigned int irq)
 
 static inline int irq_select_affinity(unsigned int irq)  { return 0; }
 
+static inline int irq_set_affinity_hint(unsigned int irq,
+                                        const struct cpumask *m)
+{
+	return -EINVAL;
+}
 #endif /* CONFIG_SMP && CONFIG_GENERIC_HARDIRQS */
 
 #ifdef CONFIG_GENERIC_HARDIRQS
@@ -601,12 +636,6 @@ extern void init_irq_proc(void);
 static inline void init_irq_proc(void)
 {
 }
-#endif
-
-#if defined(CONFIG_GENERIC_HARDIRQS) && defined(CONFIG_DEBUG_SHIRQ)
-extern void debug_poll_all_shared_irqs(void);
-#else
-static inline void debug_poll_all_shared_irqs(void) { }
 #endif
 
 struct seq_file;

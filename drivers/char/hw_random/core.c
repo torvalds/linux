@@ -52,7 +52,9 @@
 static struct hwrng *current_rng;
 static LIST_HEAD(rng_list);
 static DEFINE_MUTEX(rng_mutex);
-
+static int data_avail;
+static u8 rng_buffer[SMP_CACHE_BYTES < 32 ? 32 : SMP_CACHE_BYTES]
+	__cacheline_aligned;
 
 static inline int hwrng_init(struct hwrng *rng)
 {
@@ -67,19 +69,6 @@ static inline void hwrng_cleanup(struct hwrng *rng)
 		rng->cleanup(rng);
 }
 
-static inline int hwrng_data_present(struct hwrng *rng, int wait)
-{
-	if (!rng->data_present)
-		return 1;
-	return rng->data_present(rng, wait);
-}
-
-static inline int hwrng_data_read(struct hwrng *rng, u32 *data)
-{
-	return rng->data_read(rng, data);
-}
-
-
 static int rng_dev_open(struct inode *inode, struct file *filp)
 {
 	/* enforce read-only access to this chrdev */
@@ -87,60 +76,93 @@ static int rng_dev_open(struct inode *inode, struct file *filp)
 		return -EINVAL;
 	if (filp->f_mode & FMODE_WRITE)
 		return -EINVAL;
-	cycle_kernel_lock();
+	return 0;
+}
+
+static inline int rng_get_data(struct hwrng *rng, u8 *buffer, size_t size,
+			int wait) {
+	int present;
+
+	if (rng->read)
+		return rng->read(rng, (void *)buffer, size, wait);
+
+	if (rng->data_present)
+		present = rng->data_present(rng, wait);
+	else
+		present = 1;
+
+	if (present)
+		return rng->data_read(rng, (u32 *)buffer);
+
 	return 0;
 }
 
 static ssize_t rng_dev_read(struct file *filp, char __user *buf,
 			    size_t size, loff_t *offp)
 {
-	u32 data;
 	ssize_t ret = 0;
 	int err = 0;
-	int bytes_read;
+	int bytes_read, len;
 
 	while (size) {
-		err = -ERESTARTSYS;
-		if (mutex_lock_interruptible(&rng_mutex))
+		if (mutex_lock_interruptible(&rng_mutex)) {
+			err = -ERESTARTSYS;
 			goto out;
+		}
+
 		if (!current_rng) {
-			mutex_unlock(&rng_mutex);
 			err = -ENODEV;
-			goto out;
+			goto out_unlock;
 		}
 
-		bytes_read = 0;
-		if (hwrng_data_present(current_rng,
-				       !(filp->f_flags & O_NONBLOCK)))
-			bytes_read = hwrng_data_read(current_rng, &data);
+		if (!data_avail) {
+			bytes_read = rng_get_data(current_rng, rng_buffer,
+				sizeof(rng_buffer),
+				!(filp->f_flags & O_NONBLOCK));
+			if (bytes_read < 0) {
+				err = bytes_read;
+				goto out_unlock;
+			}
+			data_avail = bytes_read;
+		}
+
+		if (!data_avail) {
+			if (filp->f_flags & O_NONBLOCK) {
+				err = -EAGAIN;
+				goto out_unlock;
+			}
+		} else {
+			len = data_avail;
+			if (len > size)
+				len = size;
+
+			data_avail -= len;
+
+			if (copy_to_user(buf + ret, rng_buffer + data_avail,
+								len)) {
+				err = -EFAULT;
+				goto out_unlock;
+			}
+
+			size -= len;
+			ret += len;
+		}
+
 		mutex_unlock(&rng_mutex);
-
-		err = -EAGAIN;
-		if (!bytes_read && (filp->f_flags & O_NONBLOCK))
-			goto out;
-		if (bytes_read < 0) {
-			err = bytes_read;
-			goto out;
-		}
-
-		err = -EFAULT;
-		while (bytes_read && size) {
-			if (put_user((u8)data, buf++))
-				goto out;
-			size--;
-			ret++;
-			bytes_read--;
-			data >>= 8;
-		}
 
 		if (need_resched())
 			schedule_timeout_interruptible(1);
-		err = -ERESTARTSYS;
-		if (signal_pending(current))
+
+		if (signal_pending(current)) {
+			err = -ERESTARTSYS;
 			goto out;
+		}
 	}
 out:
 	return ret ? : err;
+out_unlock:
+	mutex_unlock(&rng_mutex);
+	goto out;
 }
 
 
@@ -280,7 +302,7 @@ int hwrng_register(struct hwrng *rng)
 	struct hwrng *old_rng, *tmp;
 
 	if (rng->name == NULL ||
-	    rng->data_read == NULL)
+	    (rng->data_read == NULL && rng->read == NULL))
 		goto out;
 
 	mutex_lock(&rng_mutex);

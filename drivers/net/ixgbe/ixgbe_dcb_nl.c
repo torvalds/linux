@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -121,7 +121,7 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 			goto out;
 
 		if (!(adapter->flags & IXGBE_FLAG_MSIX_ENABLED)) {
-			DPRINTK(DRV, ERR, "Enable failed, needs MSI-X\n");
+			e_err(drv, "Enable failed, needs MSI-X\n");
 			err = 1;
 			goto out;
 		}
@@ -223,7 +223,7 @@ static void ixgbe_dcbnl_set_pg_bwg_cfg_tx(struct net_device *netdev, int bwg_id,
 
 	if (adapter->temp_dcb_cfg.bw_percentage[0][bwg_id] !=
 	    adapter->dcb_cfg.bw_percentage[0][bwg_id]) {
-		adapter->dcb_set_bitmap |= BIT_PG_RX;
+		adapter->dcb_set_bitmap |= BIT_PG_TX;
 		adapter->dcb_set_bitmap |= BIT_RESETLINK;
 	}
 }
@@ -341,6 +341,12 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 	if (!adapter->dcb_set_bitmap)
 		return DCB_NO_HW_CHG;
 
+	ret = ixgbe_copy_dcb_cfg(&adapter->temp_dcb_cfg, &adapter->dcb_cfg,
+				 adapter->ring_feature[RING_F_DCB].indices);
+
+	if (ret)
+		return DCB_NO_HW_CHG;
+
 	/*
 	 * Only take down the adapter if the configuration change
 	 * requires a reset.
@@ -357,14 +363,6 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 			if (netif_running(netdev))
 				ixgbe_down(adapter);
 		}
-	}
-
-	ret = ixgbe_copy_dcb_cfg(&adapter->temp_dcb_cfg, &adapter->dcb_cfg,
-				 adapter->ring_feature[RING_F_DCB].indices);
-	if (ret) {
-		if (adapter->dcb_set_bitmap & BIT_RESETLINK)
-			clear_bit(__IXGBE_RESETTING, &adapter->state);
-		return DCB_NO_HW_CHG;
 	}
 
 	if (adapter->dcb_cfg.pfc_mode_enable) {
@@ -490,7 +488,6 @@ static void ixgbe_dcbnl_setpfcstate(struct net_device *netdev, u8 state)
 	if (adapter->temp_dcb_cfg.pfc_mode_enable !=
 		adapter->dcb_cfg.pfc_mode_enable)
 		adapter->dcb_set_bitmap |= BIT_PFC;
-	return;
 }
 
 /**
@@ -563,7 +560,7 @@ static u8 ixgbe_dcbnl_setapp(struct net_device *netdev,
 	return rval;
 }
 
-struct dcbnl_rtnl_ops dcbnl_ops = {
+const struct dcbnl_rtnl_ops dcbnl_ops = {
 	.getstate	= ixgbe_dcbnl_get_state,
 	.setstate	= ixgbe_dcbnl_set_state,
 	.getpermhwaddr	= ixgbe_dcbnl_get_perm_hw_addr,

@@ -80,6 +80,7 @@
 # define TIOCPKT_START		 8
 # define TIOCPKT_NOSTOP		16
 # define TIOCPKT_DOSTOP		32
+# define TIOCPKT_IOCTL		64
 
 
 #define TIOCNOTTY	0x5422
@@ -93,6 +94,7 @@
 #define TIOCSRS485	0x542f
 #define TIOCGPTN	_IOR('T',0x30, unsigned int) /* Get Pty Number (of pty-mux device) */
 #define TIOCSPTLCK	_IOW('T',0x31, int)  /* Lock/unlock Pty */
+#define TIOCSIG		_IOW('T',0x36, int)  /* Generate signal on Pty slave */
 
 #define TIOCSERCONFIG	0x5453
 #define TIOCSERGWILD	0x5454

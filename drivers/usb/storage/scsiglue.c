@@ -43,7 +43,6 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 
@@ -73,7 +72,8 @@
 
 static const char* host_info(struct Scsi_Host *host)
 {
-	return "SCSI emulation for USB Mass Storage devices";
+	struct us_data *us = host_to_us(host);
+	return us->scsi_name;
 }
 
 static int slave_alloc (struct scsi_device *sdev)
@@ -132,15 +132,15 @@ static int slave_configure(struct scsi_device *sdev)
 
 		if (us->fflags & US_FL_MAX_SECTORS_MIN)
 			max_sectors = PAGE_CACHE_SIZE >> 9;
-		if (queue_max_sectors(sdev->request_queue) > max_sectors)
-			blk_queue_max_sectors(sdev->request_queue,
+		if (queue_max_hw_sectors(sdev->request_queue) > max_sectors)
+			blk_queue_max_hw_sectors(sdev->request_queue,
 					      max_sectors);
 	} else if (sdev->type == TYPE_TAPE) {
 		/* Tapes need much higher max_sector limits, so just
 		 * raise it to the maximum possible (4 GB / 512) and
 		 * let the queue segment size sort out the real limit.
 		 */
-		blk_queue_max_sectors(sdev->request_queue, 0x7FFFFF);
+		blk_queue_max_hw_sectors(sdev->request_queue, 0x7FFFFF);
 	}
 
 	/* Some USB host controllers can't do DMA; they have to use PIO.
@@ -483,7 +483,7 @@ static ssize_t show_max_sectors(struct device *dev, struct device_attribute *att
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 
-	return sprintf(buf, "%u\n", queue_max_sectors(sdev->request_queue));
+	return sprintf(buf, "%u\n", queue_max_hw_sectors(sdev->request_queue));
 }
 
 /* Input routine for the sysfs max_sectors file */
@@ -493,9 +493,9 @@ static ssize_t store_max_sectors(struct device *dev, struct device_attribute *at
 	struct scsi_device *sdev = to_scsi_device(dev);
 	unsigned short ms;
 
-	if (sscanf(buf, "%hu", &ms) > 0 && ms <= SCSI_DEFAULT_MAX_SECTORS) {
-		blk_queue_max_sectors(sdev->request_queue, ms);
-		return strlen(buf);
+	if (sscanf(buf, "%hu", &ms) > 0) {
+		blk_queue_max_hw_sectors(sdev->request_queue, ms);
+		return count;
 	}
 	return -EINVAL;	
 }
@@ -538,7 +538,7 @@ struct scsi_host_template usb_stor_host_template = {
 	.slave_configure =		slave_configure,
 
 	/* lots of sg segments can be handled */
-	.sg_tablesize =			SG_ALL,
+	.sg_tablesize =			SCSI_MAX_SG_CHAIN_SEGMENTS,
 
 	/* limit the total size of a transfer to 120 KB */
 	.max_sectors =                  240,

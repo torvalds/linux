@@ -67,7 +67,7 @@ void __init plat_mem_setup(void)
 	cserial = ArcGetEnvironmentVariable("ConsoleOut");
 
 	if ((ctype && *ctype == 'd') || (cserial && *cserial == 's')) {
-		static char options[8];
+		static char options[8] __initdata;
 		char *baud = ArcGetEnvironmentVariable("dbaud");
 		if (baud)
 			strcpy(options, baud);

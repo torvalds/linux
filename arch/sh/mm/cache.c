@@ -2,7 +2,7 @@
  * arch/sh/mm/cache.c
  *
  * Copyright (C) 1999, 2000, 2002  Niibe Yutaka
- * Copyright (C) 2002 - 2009  Paul Mundt
+ * Copyright (C) 2002 - 2010  Paul Mundt
  *
  * Released under the terms of the GNU GPL v2.0.
  */
@@ -27,8 +27,11 @@ void (*local_flush_icache_page)(void *args) = cache_noop;
 void (*local_flush_cache_sigtramp)(void *args) = cache_noop;
 
 void (*__flush_wback_region)(void *start, int size);
+EXPORT_SYMBOL(__flush_wback_region);
 void (*__flush_purge_region)(void *start, int size);
+EXPORT_SYMBOL(__flush_purge_region);
 void (*__flush_invalidate_region)(void *start, int size);
+EXPORT_SYMBOL(__flush_invalidate_region);
 
 static inline void noop__flush_region(void *start, int size)
 {
@@ -38,8 +41,17 @@ static inline void cacheop_on_each_cpu(void (*func) (void *info), void *info,
                                    int wait)
 {
 	preempt_disable();
-	smp_call_function(func, info, wait);
+
+	/*
+	 * It's possible that this gets called early on when IRQs are
+	 * still disabled due to ioremapping by the boot CPU, so don't
+	 * even attempt IPIs unless there are other CPUs online.
+	 */
+	if (num_online_cpus() > 1)
+		smp_call_function(func, info, wait);
+
 	func(info);
+
 	preempt_enable();
 }
 
@@ -130,12 +142,8 @@ void __update_cache(struct vm_area_struct *vma,
 	page = pfn_to_page(pfn);
 	if (pfn_valid(pfn)) {
 		int dirty = test_and_clear_bit(PG_dcache_dirty, &page->flags);
-		if (dirty) {
-			unsigned long addr = (unsigned long)page_address(page);
-
-			if (pages_do_alias(addr, address & PAGE_MASK))
-				__flush_purge_region((void *)addr, PAGE_SIZE);
-		}
+		if (dirty)
+			__flush_purge_region(page_address(page), PAGE_SIZE);
 	}
 }
 
@@ -161,14 +169,21 @@ void flush_cache_all(void)
 {
 	cacheop_on_each_cpu(local_flush_cache_all, NULL, 1);
 }
+EXPORT_SYMBOL(flush_cache_all);
 
 void flush_cache_mm(struct mm_struct *mm)
 {
+	if (boot_cpu_data.dcache.n_aliases == 0)
+		return;
+
 	cacheop_on_each_cpu(local_flush_cache_mm, mm, 1);
 }
 
 void flush_cache_dup_mm(struct mm_struct *mm)
 {
+	if (boot_cpu_data.dcache.n_aliases == 0)
+		return;
+
 	cacheop_on_each_cpu(local_flush_cache_dup_mm, mm, 1);
 }
 
@@ -195,11 +210,13 @@ void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
 
 	cacheop_on_each_cpu(local_flush_cache_range, (void *)&data, 1);
 }
+EXPORT_SYMBOL(flush_cache_range);
 
 void flush_dcache_page(struct page *page)
 {
 	cacheop_on_each_cpu(local_flush_dcache_page, page, 1);
 }
+EXPORT_SYMBOL(flush_dcache_page);
 
 void flush_icache_range(unsigned long start, unsigned long end)
 {
@@ -265,7 +282,11 @@ static void __init emit_cache_params(void)
 
 void __init cpu_cache_init(void)
 {
-	unsigned int cache_disabled = !(__raw_readl(CCR) & CCR_CACHE_ENABLE);
+	unsigned int cache_disabled = 0;
+
+#ifdef CCR
+	cache_disabled = !(__raw_readl(CCR) & CCR_CACHE_ENABLE);
+#endif
 
 	compute_alias(&boot_cpu_data.icache);
 	compute_alias(&boot_cpu_data.dcache);
@@ -313,6 +334,13 @@ void __init cpu_cache_init(void)
 		extern void __weak sh4_cache_init(void);
 
 		sh4_cache_init();
+
+		if ((boot_cpu_data.type == CPU_SH7786) ||
+		    (boot_cpu_data.type == CPU_SHX3)) {
+			extern void __weak shx3_cache_init(void);
+
+			shx3_cache_init();
+		}
 	}
 
 	if (boot_cpu_data.family == CPU_FAMILY_SH5) {

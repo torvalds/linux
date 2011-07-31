@@ -29,7 +29,7 @@
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <mach/gpio.h>
-#include <mach/mcbsp.h>
+#include <plat/mcbsp.h>
 
 #include "omap-mcbsp.h"
 #include "omap-pcm.h"
@@ -181,9 +181,6 @@ static int zoom2_twl4030_init(struct snd_soc_codec *codec)
 	snd_soc_dapm_nc_pin(codec, "CARKITMIC");
 	snd_soc_dapm_nc_pin(codec, "DIGIMIC0");
 	snd_soc_dapm_nc_pin(codec, "DIGIMIC1");
-
-	snd_soc_dapm_nc_pin(codec, "OUTL");
-	snd_soc_dapm_nc_pin(codec, "OUTR");
 	snd_soc_dapm_nc_pin(codec, "EARPIECE");
 	snd_soc_dapm_nc_pin(codec, "PREDRIVEL");
 	snd_soc_dapm_nc_pin(codec, "PREDRIVER");

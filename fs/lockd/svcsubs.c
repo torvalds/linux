@@ -10,6 +10,7 @@
 #include <linux/string.h>
 #include <linux/time.h>
 #include <linux/in.h>
+#include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/clnt.h>

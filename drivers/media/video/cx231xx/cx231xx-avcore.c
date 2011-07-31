@@ -2414,9 +2414,11 @@ int cx231xx_gpio_i2c_read_ack(struct cx231xx *dev)
 		cx231xx_info("No ACK after %d msec -GPIO I2C failed!",
 			     nInit * 10);
 
-	/* readAck
-	   throuth clock stretch ,slave has given a SCL signal,
-	   so the SDA data can be directly read.  */
+	/*
+	 * readAck
+	 * through clock stretch, slave has given a SCL signal,
+	 * so the SDA data can be directly read.
+	 */
 	status = cx231xx_get_gpio_bit(dev, dev->gpio_dir, (u8 *)&dev->gpio_val);
 
 	if ((dev->gpio_val & 1 << dev->board.tuner_sda_gpio) == 0) {

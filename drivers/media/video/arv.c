@@ -27,8 +27,10 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
-#include <linux/videodev.h>
+#include <linux/version.h>
+#include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <linux/mutex.h>
 
@@ -39,7 +41,7 @@
 #include <asm/byteorder.h>
 
 #if 0
-#define DEBUG(n, args...) printk(args)
+#define DEBUG(n, args...) printk(KERN_INFO args)
 #define CHECK_LOST	1
 #else
 #define DEBUG(n, args...)
@@ -52,10 +54,10 @@
  */
 #define USE_INT		0	/* Don't modify */
 
-#define VERSION	"0.03"
+#define VERSION	"0.04"
 
 #define ar_inl(addr) 		inl((unsigned long)(addr))
-#define ar_outl(val, addr)	outl((unsigned long)(val),(unsigned long)(addr))
+#define ar_outl(val, addr)	outl((unsigned long)(val), (unsigned long)(addr))
 
 extern struct cpuinfo_m32r	boot_cpu_data;
 
@@ -79,7 +81,7 @@ extern struct cpuinfo_m32r	boot_cpu_data;
 
 /* bits & bytes per pixel */
 #define AR_BITS_PER_PIXEL	16
-#define AR_BYTES_PER_PIXEL	(AR_BITS_PER_PIXEL/8)
+#define AR_BYTES_PER_PIXEL	(AR_BITS_PER_PIXEL / 8)
 
 /* line buffer size */
 #define AR_LINE_BYTES_VGA	(AR_WIDTH_VGA * AR_BYTES_PER_PIXEL)
@@ -104,8 +106,9 @@ extern struct cpuinfo_m32r	boot_cpu_data;
 #define AR_MODE_INTERLACE	0
 #define AR_MODE_NORMAL		1
 
-struct ar_device {
-	struct video_device *vdev;
+struct ar {
+	struct v4l2_device v4l2_dev;
+	struct video_device vdev;
 	unsigned int start_capture;	/* duaring capture in INT. mode. */
 #if USE_INT
 	unsigned char *line_buff;	/* DMA line buffer */
@@ -116,12 +119,13 @@ struct ar_device {
 	int width, height;
 	int frame_bytes, line_bytes;
 	wait_queue_head_t wait;
-	unsigned long in_use;
 	struct mutex lock;
 };
 
+static struct ar ardev;
+
 static int video_nr = -1;	/* video device number (first free) */
-static unsigned char	yuv[MAX_AR_FRAME_BYTES];
+static unsigned char yuv[MAX_AR_FRAME_BYTES];
 
 /* module parameters */
 /* default frequency */
@@ -133,9 +137,7 @@ module_param(freq, int, 0);
 module_param(vga, int, 0);
 module_param(vga_interlace, int, 0);
 
-static int ar_initialize(struct video_device *dev);
-
-static inline void wait_for_vsync(void)
+static void wait_for_vsync(void)
 {
 	while (ar_inl(ARVCR0) & ARVCR0_VDS)	/* wait for VSYNC */
 		cpu_relax();
@@ -143,7 +145,7 @@ static inline void wait_for_vsync(void)
 		cpu_relax();
 }
 
-static inline void wait_acknowledge(void)
+static void wait_acknowledge(void)
 {
 	int i;
 
@@ -156,7 +158,7 @@ static inline void wait_acknowledge(void)
 /*******************************************************************
  * I2C functions
  *******************************************************************/
-void iic(int n, unsigned long addr, unsigned long data1, unsigned long data2,
+static void iic(int n, unsigned long addr, unsigned long data1, unsigned long data2,
 	 unsigned long data3)
 {
 	int i;
@@ -200,7 +202,7 @@ void iic(int n, unsigned long addr, unsigned long data1, unsigned long data2,
 }
 
 
-void init_iic(void)
+static void init_iic(void)
 {
 	DEBUG(1, "init_iic:\n");
 
@@ -214,13 +216,12 @@ void init_iic(void)
 
 	/* I2C CLK */
 	/* 50MH-100k */
-	if (freq == 75) {
+	if (freq == 75)
 		ar_outl(369, PLDI2CFREQ);	/* BCLK = 75MHz */
-	} else if (freq == 50) {
+	else if (freq == 50)
 		ar_outl(244, PLDI2CFREQ);	/* BCLK = 50MHz */
-	} else {
+	else
 		ar_outl(244, PLDI2CFREQ);	/* default: BCLK = 50MHz */
-	}
 	ar_outl(0x1, PLDI2CCR); 	/* I2CCR Enable */
 }
 
@@ -245,7 +246,7 @@ static inline void clear_dma_status(void)
 	ar_outl(0x8000, M32R_DMAEDET_PORTL);	/* clear status */
 }
 
-static inline void wait_for_vertical_sync(int exp_line)
+static void wait_for_vertical_sync(struct ar *ar, int exp_line)
 {
 #if CHECK_LOST
 	int tmout = 10000;	/* FIXME */
@@ -260,7 +261,7 @@ static inline void wait_for_vertical_sync(int exp_line)
 			break;
 	}
 	if (tmout < 0)
-		printk("arv: lost %d -> %d\n", exp_line, l);
+		v4l2_err(&ar->v4l2_dev, "lost %d -> %d\n", exp_line, l);
 #else
 	while (ar_inl(ARVHCOUNT) != exp_line)
 		cpu_relax();
@@ -269,15 +270,14 @@ static inline void wait_for_vertical_sync(int exp_line)
 
 static ssize_t ar_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
-	struct video_device *v = video_devdata(file);
-	struct ar_device *ar = video_get_drvdata(v);
+	struct ar *ar = video_drvdata(file);
 	long ret = ar->frame_bytes;		/* return read bytes */
 	unsigned long arvcr1 = 0;
 	unsigned long flags;
 	unsigned char *p;
 	int h, w;
 	unsigned char *py, *pu, *pv;
-#if ! USE_INT
+#if !USE_INT
 	int l;
 #endif
 
@@ -305,7 +305,7 @@ static ssize_t ar_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 	ar_outl(ar->line_bytes, M32R_DMA0RBCUT_PORTL); 	/* reload count (bytes) */
 
 	/*
-	 * Okey , kicks AR LSI to invoke an interrupt
+	 * Okay, kick AR LSI to invoke an interrupt
 	 */
 	ar->start_capture = 0;
 	ar_outl(arvcr1 | ARVCR1_HIEN, ARVCR1);
@@ -313,7 +313,7 @@ static ssize_t ar_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 	/* .... AR interrupts .... */
 	interruptible_sleep_on(&ar->wait);
 	if (signal_pending(current)) {
-		printk("arv: interrupted while get frame data.\n");
+		printk(KERN_ERR "arv: interrupted while get frame data.\n");
 		ret = -EINTR;
 		goto out_up;
 	}
@@ -334,7 +334,7 @@ static ssize_t ar_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 		cpu_relax();
 	if (ar->mode == AR_MODE_INTERLACE && ar->size == AR_SIZE_VGA) {
 		for (h = 0; h < ar->height; h++) {
-			wait_for_vertical_sync(h);
+			wait_for_vertical_sync(ar, h);
 			if (h < (AR_HEIGHT_VGA/2))
 				l = h << 1;
 			else
@@ -349,7 +349,7 @@ static ssize_t ar_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 		}
 	} else {
 		for (h = 0; h < ar->height; h++) {
-			wait_for_vertical_sync(h);
+			wait_for_vertical_sync(ar, h);
 			ar_outl(virt_to_phys(ar->frame[h]), M32R_DMA0CDA_PORTL);
 			enable_dma();
 			while (!(ar_inl(M32R_DMAEDET_PORTL) & 0x8000))
@@ -386,7 +386,7 @@ static ssize_t ar_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 		}
 	}
 	if (copy_to_user(buf, yuv, ar->frame_bytes)) {
-		printk("arv: failed while copy_to_user yuv.\n");
+		v4l2_err(&ar->v4l2_dev, "failed while copy_to_user yuv.\n");
 		ret = -EFAULT;
 		goto out_up;
 	}
@@ -396,153 +396,127 @@ out_up:
 	return ret;
 }
 
-static long ar_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static int ar_querycap(struct file *file, void  *priv,
+					struct v4l2_capability *vcap)
 {
-	struct video_device *dev = video_devdata(file);
-	struct ar_device *ar = video_get_drvdata(dev);
+	struct ar *ar = video_drvdata(file);
 
-	DEBUG(1, "ar_ioctl()\n");
-	switch(cmd) {
-	case VIDIOCGCAP:
-	{
-		struct video_capability *b = arg;
-		DEBUG(1, "VIDIOCGCAP:\n");
-		strcpy(b->name, ar->vdev->name);
-		b->type = VID_TYPE_CAPTURE;
-		b->channels = 0;
-		b->audios = 0;
-		b->maxwidth = MAX_AR_WIDTH;
-		b->maxheight = MAX_AR_HEIGHT;
-		b->minwidth = MIN_AR_WIDTH;
-		b->minheight = MIN_AR_HEIGHT;
-		return 0;
-	}
-	case VIDIOCGCHAN:
-		DEBUG(1, "VIDIOCGCHAN:\n");
-		return 0;
-	case VIDIOCSCHAN:
-		DEBUG(1, "VIDIOCSCHAN:\n");
-		return 0;
-	case VIDIOCGTUNER:
-		DEBUG(1, "VIDIOCGTUNER:\n");
-		return 0;
-	case VIDIOCSTUNER:
-		DEBUG(1, "VIDIOCSTUNER:\n");
-		return 0;
-	case VIDIOCGPICT:
-		DEBUG(1, "VIDIOCGPICT:\n");
-		return 0;
-	case VIDIOCSPICT:
-		DEBUG(1, "VIDIOCSPICT:\n");
-		return 0;
-	case VIDIOCCAPTURE:
-		DEBUG(1, "VIDIOCCAPTURE:\n");
-		return -EINVAL;
-	case VIDIOCGWIN:
-	{
-		struct video_window *w = arg;
-		DEBUG(1, "VIDIOCGWIN:\n");
-		memset(w, 0, sizeof(*w));
-		w->width = ar->width;
-		w->height = ar->height;
-		return 0;
-	}
-	case VIDIOCSWIN:
-	{
-		struct video_window *w = arg;
-		DEBUG(1, "VIDIOCSWIN:\n");
-		if ((w->width != AR_WIDTH_VGA || w->height != AR_HEIGHT_VGA) &&
-		    (w->width != AR_WIDTH_QVGA || w->height != AR_HEIGHT_QVGA))
-				return -EINVAL;
-
-		mutex_lock(&ar->lock);
-		ar->width = w->width;
-		ar->height = w->height;
-		if (ar->width == AR_WIDTH_VGA) {
-			ar->size = AR_SIZE_VGA;
-			ar->frame_bytes = AR_FRAME_BYTES_VGA;
-			ar->line_bytes = AR_LINE_BYTES_VGA;
-			if (vga_interlace)
-				ar->mode = AR_MODE_INTERLACE;
-			else
-				ar->mode = AR_MODE_NORMAL;
-		} else {
-			ar->size = AR_SIZE_QVGA;
-			ar->frame_bytes = AR_FRAME_BYTES_QVGA;
-			ar->line_bytes = AR_LINE_BYTES_QVGA;
-			ar->mode = AR_MODE_INTERLACE;
-		}
-		mutex_unlock(&ar->lock);
-		return 0;
-	}
-	case VIDIOCGFBUF:
-		DEBUG(1, "VIDIOCGFBUF:\n");
-		return -EINVAL;
-	case VIDIOCSFBUF:
-		DEBUG(1, "VIDIOCSFBUF:\n");
-		return -EINVAL;
-	case VIDIOCKEY:
-		DEBUG(1, "VIDIOCKEY:\n");
-		return 0;
-	case VIDIOCGFREQ:
-		DEBUG(1, "VIDIOCGFREQ:\n");
-		return -EINVAL;
-	case VIDIOCSFREQ:
-		DEBUG(1, "VIDIOCSFREQ:\n");
-		return -EINVAL;
-	case VIDIOCGAUDIO:
-		DEBUG(1, "VIDIOCGAUDIO:\n");
-		return -EINVAL;
-	case VIDIOCSAUDIO:
-		DEBUG(1, "VIDIOCSAUDIO:\n");
-		return -EINVAL;
-	case VIDIOCSYNC:
-		DEBUG(1, "VIDIOCSYNC:\n");
-		return -EINVAL;
-	case VIDIOCMCAPTURE:
-		DEBUG(1, "VIDIOCMCAPTURE:\n");
-		return -EINVAL;
-	case VIDIOCGMBUF:
-		DEBUG(1, "VIDIOCGMBUF:\n");
-		return -EINVAL;
-	case VIDIOCGUNIT:
-		DEBUG(1, "VIDIOCGUNIT:\n");
-		return -EINVAL;
-	case VIDIOCGCAPTURE:
-		DEBUG(1, "VIDIOCGCAPTURE:\n");
-		return -EINVAL;
-	case VIDIOCSCAPTURE:
-		DEBUG(1, "VIDIOCSCAPTURE:\n");
-		return -EINVAL;
-	case VIDIOCSPLAYMODE:
-		DEBUG(1, "VIDIOCSPLAYMODE:\n");
-		return -EINVAL;
-	case VIDIOCSWRITEMODE:
-		DEBUG(1, "VIDIOCSWRITEMODE:\n");
-		return -EINVAL;
-	case VIDIOCGPLAYINFO:
-		DEBUG(1, "VIDIOCGPLAYINFO:\n");
-		return -EINVAL;
-	case VIDIOCSMICROCODE:
-		DEBUG(1, "VIDIOCSMICROCODE:\n");
-		return -EINVAL;
-	case VIDIOCGVBIFMT:
-		DEBUG(1, "VIDIOCGVBIFMT:\n");
-		return -EINVAL;
-	case VIDIOCSVBIFMT:
-		DEBUG(1, "VIDIOCSVBIFMT:\n");
-		return -EINVAL;
-	default:
-		DEBUG(1, "Unknown ioctl(0x%08x)\n", cmd);
-		return -ENOIOCTLCMD;
-	}
+	strlcpy(vcap->driver, ar->vdev.name, sizeof(vcap->driver));
+	strlcpy(vcap->card, "Colour AR VGA", sizeof(vcap->card));
+	strlcpy(vcap->bus_info, "Platform", sizeof(vcap->bus_info));
+	vcap->version = KERNEL_VERSION(0, 0, 4);
+	vcap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE;
 	return 0;
 }
 
-static long ar_ioctl(struct file *file, unsigned int cmd,
-		    unsigned long arg)
+static int ar_enum_input(struct file *file, void *fh, struct v4l2_input *vin)
 {
-	return video_usercopy(file, cmd, arg, ar_do_ioctl);
+	if (vin->index > 0)
+		return -EINVAL;
+	strlcpy(vin->name, "Camera", sizeof(vin->name));
+	vin->type = V4L2_INPUT_TYPE_CAMERA;
+	vin->audioset = 0;
+	vin->tuner = 0;
+	vin->std = V4L2_STD_ALL;
+	vin->status = 0;
+	return 0;
+}
+
+static int ar_g_input(struct file *file, void *fh, unsigned int *inp)
+{
+	*inp = 0;
+	return 0;
+}
+
+static int ar_s_input(struct file *file, void *fh, unsigned int inp)
+{
+	return inp ? -EINVAL : 0;
+}
+
+static int ar_g_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *fmt)
+{
+	struct ar *ar = video_drvdata(file);
+	struct v4l2_pix_format *pix = &fmt->fmt.pix;
+
+	pix->width = ar->width;
+	pix->height = ar->height;
+	pix->pixelformat = V4L2_PIX_FMT_YUV422P;
+	pix->field = (ar->mode == AR_MODE_NORMAL) ? V4L2_FIELD_NONE : V4L2_FIELD_INTERLACED;
+	pix->bytesperline = ar->width;
+	pix->sizeimage = 2 * ar->width * ar->height;
+	/* Just a guess */
+	pix->colorspace = V4L2_COLORSPACE_SMPTE170M;
+	return 0;
+}
+
+static int ar_try_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *fmt)
+{
+	struct ar *ar = video_drvdata(file);
+	struct v4l2_pix_format *pix = &fmt->fmt.pix;
+
+	if (pix->height <= AR_HEIGHT_QVGA || pix->width <= AR_WIDTH_QVGA) {
+		pix->height = AR_HEIGHT_QVGA;
+		pix->width = AR_WIDTH_QVGA;
+		pix->field = V4L2_FIELD_INTERLACED;
+	} else {
+		pix->height = AR_HEIGHT_VGA;
+		pix->width = AR_WIDTH_VGA;
+		pix->field = vga_interlace ? V4L2_FIELD_INTERLACED : V4L2_FIELD_NONE;
+	}
+	pix->pixelformat = V4L2_PIX_FMT_YUV422P;
+	pix->bytesperline = ar->width;
+	pix->sizeimage = 2 * ar->width * ar->height;
+	/* Just a guess */
+	pix->colorspace = V4L2_COLORSPACE_SMPTE170M;
+	return 0;
+}
+
+static int ar_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *fmt)
+{
+	struct ar *ar = video_drvdata(file);
+	struct v4l2_pix_format *pix = &fmt->fmt.pix;
+	int ret = ar_try_fmt_vid_cap(file, fh, fmt);
+
+	if (ret)
+		return ret;
+	mutex_lock(&ar->lock);
+	ar->width = pix->width;
+	ar->height = pix->height;
+	if (ar->width == AR_WIDTH_VGA) {
+		ar->size = AR_SIZE_VGA;
+		ar->frame_bytes = AR_FRAME_BYTES_VGA;
+		ar->line_bytes = AR_LINE_BYTES_VGA;
+		if (vga_interlace)
+			ar->mode = AR_MODE_INTERLACE;
+		else
+			ar->mode = AR_MODE_NORMAL;
+	} else {
+		ar->size = AR_SIZE_QVGA;
+		ar->frame_bytes = AR_FRAME_BYTES_QVGA;
+		ar->line_bytes = AR_LINE_BYTES_QVGA;
+		ar->mode = AR_MODE_INTERLACE;
+	}
+	/* Ok we figured out what to use from our wide choice */
+	mutex_unlock(&ar->lock);
+	return 0;
+}
+
+static int ar_enum_fmt_vid_cap(struct file *file, void *fh, struct v4l2_fmtdesc *fmt)
+{
+	static struct v4l2_fmtdesc formats[] = {
+		{ 0, 0, 0,
+		  "YUV 4:2:2 Planar", V4L2_PIX_FMT_YUV422P,
+		  { 0, 0, 0, 0 }
+		},
+	};
+	enum v4l2_buf_type type = fmt->type;
+
+	if (fmt->index > 0)
+		return -EINVAL;
+
+	*fmt = formats[fmt->index];
+	fmt->type = type;
+	return 0;
 }
 
 #if USE_INT
@@ -551,7 +525,7 @@ static long ar_ioctl(struct file *file, unsigned int cmd,
  */
 static void ar_interrupt(int irq, void *dev)
 {
-	struct ar_device *ar = dev;
+	struct ar *ar = dev;
 	unsigned int line_count;
 	unsigned int line_number;
 	unsigned int arvcr1;
@@ -559,11 +533,11 @@ static void ar_interrupt(int irq, void *dev)
 	line_count = ar_inl(ARVHCOUNT);			/* line number */
 	if (ar->mode == AR_MODE_INTERLACE && ar->size == AR_SIZE_VGA) {
 		/* operations for interlace mode */
-		if ( line_count < (AR_HEIGHT_VGA/2) ) 	/* even line */
+		if (line_count < (AR_HEIGHT_VGA / 2)) 	/* even line */
 			line_number = (line_count << 1);
 		else 					/* odd line */
 			line_number =
-			(((line_count - (AR_HEIGHT_VGA/2)) << 1) + 1);
+			(((line_count - (AR_HEIGHT_VGA / 2)) << 1) + 1);
 	} else {
 		line_number = line_count;
 	}
@@ -623,11 +597,10 @@ static void ar_interrupt(int irq, void *dev)
  *	0 is returned in success.
  *
  */
-static int ar_initialize(struct video_device *dev)
+static int ar_initialize(struct ar *ar)
 {
-	struct ar_device *ar = video_get_drvdata(dev);
 	unsigned long cr = 0;
-	int i,found=0;
+	int i, found = 0;
 
 	DEBUG(1, "ar_initialize:\n");
 
@@ -666,130 +639,119 @@ static int ar_initialize(struct video_device *dev)
 	if (found == 0)
 		return -ENODEV;
 
-	printk("arv: Initializing ");
+	v4l2_info(&ar->v4l2_dev, "Initializing ");
 
-	iic(2,0x78,0x11,0x01,0x00);	/* start */
-	iic(3,0x78,0x12,0x00,0x06);
-	iic(3,0x78,0x12,0x12,0x30);
-	iic(3,0x78,0x12,0x15,0x58);
-	iic(3,0x78,0x12,0x17,0x30);
-	printk(".");
-	iic(3,0x78,0x12,0x1a,0x97);
-	iic(3,0x78,0x12,0x1b,0xff);
-	iic(3,0x78,0x12,0x1c,0xff);
-	iic(3,0x78,0x12,0x26,0x10);
-	iic(3,0x78,0x12,0x27,0x00);
-	printk(".");
-	iic(2,0x78,0x34,0x02,0x00);
-	iic(2,0x78,0x7a,0x10,0x00);
-	iic(2,0x78,0x80,0x39,0x00);
-	iic(2,0x78,0x81,0xe6,0x00);
-	iic(2,0x78,0x8d,0x00,0x00);
-	printk(".");
-	iic(2,0x78,0x8e,0x0c,0x00);
-	iic(2,0x78,0x8f,0x00,0x00);
+	iic(2, 0x78, 0x11, 0x01, 0x00);	/* start */
+	iic(3, 0x78, 0x12, 0x00, 0x06);
+	iic(3, 0x78, 0x12, 0x12, 0x30);
+	iic(3, 0x78, 0x12, 0x15, 0x58);
+	iic(3, 0x78, 0x12, 0x17, 0x30);
+	printk(KERN_CONT ".");
+	iic(3, 0x78, 0x12, 0x1a, 0x97);
+	iic(3, 0x78, 0x12, 0x1b, 0xff);
+	iic(3, 0x78, 0x12, 0x1c, 0xff);
+	iic(3, 0x78, 0x12, 0x26, 0x10);
+	iic(3, 0x78, 0x12, 0x27, 0x00);
+	printk(KERN_CONT ".");
+	iic(2, 0x78, 0x34, 0x02, 0x00);
+	iic(2, 0x78, 0x7a, 0x10, 0x00);
+	iic(2, 0x78, 0x80, 0x39, 0x00);
+	iic(2, 0x78, 0x81, 0xe6, 0x00);
+	iic(2, 0x78, 0x8d, 0x00, 0x00);
+	printk(KERN_CONT ".");
+	iic(2, 0x78, 0x8e, 0x0c, 0x00);
+	iic(2, 0x78, 0x8f, 0x00, 0x00);
 #if 0
-	iic(2,0x78,0x90,0x00,0x00);	/* AWB on=1 off=0 */
+	iic(2, 0x78, 0x90, 0x00, 0x00);	/* AWB on=1 off=0 */
 #endif
-	iic(2,0x78,0x93,0x01,0x00);
-	iic(2,0x78,0x94,0xcd,0x00);
-	iic(2,0x78,0x95,0x00,0x00);
-	printk(".");
-	iic(2,0x78,0x96,0xa0,0x00);
-	iic(2,0x78,0x97,0x00,0x00);
-	iic(2,0x78,0x98,0x60,0x00);
-	iic(2,0x78,0x99,0x01,0x00);
-	iic(2,0x78,0x9a,0x19,0x00);
-	printk(".");
-	iic(2,0x78,0x9b,0x02,0x00);
-	iic(2,0x78,0x9c,0xe8,0x00);
-	iic(2,0x78,0x9d,0x02,0x00);
-	iic(2,0x78,0x9e,0x2e,0x00);
-	iic(2,0x78,0xb8,0x78,0x00);
-	iic(2,0x78,0xba,0x05,0x00);
+	iic(2, 0x78, 0x93, 0x01, 0x00);
+	iic(2, 0x78, 0x94, 0xcd, 0x00);
+	iic(2, 0x78, 0x95, 0x00, 0x00);
+	printk(KERN_CONT ".");
+	iic(2, 0x78, 0x96, 0xa0, 0x00);
+	iic(2, 0x78, 0x97, 0x00, 0x00);
+	iic(2, 0x78, 0x98, 0x60, 0x00);
+	iic(2, 0x78, 0x99, 0x01, 0x00);
+	iic(2, 0x78, 0x9a, 0x19, 0x00);
+	printk(KERN_CONT ".");
+	iic(2, 0x78, 0x9b, 0x02, 0x00);
+	iic(2, 0x78, 0x9c, 0xe8, 0x00);
+	iic(2, 0x78, 0x9d, 0x02, 0x00);
+	iic(2, 0x78, 0x9e, 0x2e, 0x00);
+	iic(2, 0x78, 0xb8, 0x78, 0x00);
+	iic(2, 0x78, 0xba, 0x05, 0x00);
 #if 0
-	iic(2,0x78,0x83,0x8c,0x00);	/* brightness */
+	iic(2, 0x78, 0x83, 0x8c, 0x00);	/* brightness */
 #endif
-	printk(".");
+	printk(KERN_CONT ".");
 
 	/* color correction */
-	iic(3,0x78,0x49,0x00,0x95);	/* a		*/
-	iic(3,0x78,0x49,0x01,0x96);	/* b		*/
-	iic(3,0x78,0x49,0x03,0x85);	/* c		*/
-	iic(3,0x78,0x49,0x04,0x97);	/* d		*/
-	iic(3,0x78,0x49,0x02,0x7e);	/* e(Lo)	*/
-	iic(3,0x78,0x49,0x05,0xa4);	/* f(Lo)	*/
-	iic(3,0x78,0x49,0x06,0x04);	/* e(Hi)	*/
-	iic(3,0x78,0x49,0x07,0x04);	/* e(Hi)	*/
-	iic(2,0x78,0x48,0x01,0x00);	/* on=1 off=0	*/
+	iic(3, 0x78, 0x49, 0x00, 0x95);	/* a		*/
+	iic(3, 0x78, 0x49, 0x01, 0x96);	/* b		*/
+	iic(3, 0x78, 0x49, 0x03, 0x85);	/* c		*/
+	iic(3, 0x78, 0x49, 0x04, 0x97);	/* d		*/
+	iic(3, 0x78, 0x49, 0x02, 0x7e);	/* e(Lo)	*/
+	iic(3, 0x78, 0x49, 0x05, 0xa4);	/* f(Lo)	*/
+	iic(3, 0x78, 0x49, 0x06, 0x04);	/* e(Hi)	*/
+	iic(3, 0x78, 0x49, 0x07, 0x04);	/* e(Hi)	*/
+	iic(2, 0x78, 0x48, 0x01, 0x00);	/* on=1 off=0	*/
 
-	printk(".");
-	iic(2,0x78,0x11,0x00,0x00);	/* end */
-	printk(" done\n");
+	printk(KERN_CONT ".");
+	iic(2, 0x78, 0x11, 0x00, 0x00);	/* end */
+	printk(KERN_CONT " done\n");
 	return 0;
 }
 
-
-void ar_release(struct video_device *vfd)
-{
-	struct ar_device *ar = video_get_drvdata(vfd);
-	mutex_lock(&ar->lock);
-	video_device_release(vfd);
-}
 
 /****************************************************************************
  *
  * Video4Linux Module functions
  *
  ****************************************************************************/
-static struct ar_device ardev;
-
-static int ar_exclusive_open(struct file *file)
-{
-	return test_and_set_bit(0, &ardev.in_use) ? -EBUSY : 0;
-}
-
-static int ar_exclusive_release(struct file *file)
-{
-	clear_bit(0, &ardev.in_use);
-	return 0;
-}
 
 static const struct v4l2_file_operations ar_fops = {
 	.owner		= THIS_MODULE,
-	.open		= ar_exclusive_open,
-	.release	= ar_exclusive_release,
 	.read		= ar_read,
-	.ioctl		= ar_ioctl,
+	.ioctl		= video_ioctl2,
 };
 
-static struct video_device ar_template = {
-	.name		= "Colour AR VGA",
-	.fops		= &ar_fops,
-	.release	= ar_release,
-	.minor		= -1,
+static const struct v4l2_ioctl_ops ar_ioctl_ops = {
+	.vidioc_querycap    		    = ar_querycap,
+	.vidioc_g_input      		    = ar_g_input,
+	.vidioc_s_input      		    = ar_s_input,
+	.vidioc_enum_input   		    = ar_enum_input,
+	.vidioc_enum_fmt_vid_cap 	    = ar_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap 		    = ar_g_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap  		    = ar_s_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap  	    = ar_try_fmt_vid_cap,
 };
 
 #define ALIGN4(x)	((((int)(x)) & 0x3) == 0)
 
 static int __init ar_init(void)
 {
-	struct ar_device *ar;
+	struct ar *ar;
+	struct v4l2_device *v4l2_dev;
 	int ret;
 	int i;
 
-	DEBUG(1, "ar_init:\n");
-	ret = -EIO;
-	printk(KERN_INFO "arv: Colour AR VGA driver %s\n", VERSION);
-
 	ar = &ardev;
-	memset(ar, 0, sizeof(struct ar_device));
+	v4l2_dev = &ar->v4l2_dev;
+	strlcpy(v4l2_dev->name, "arv", sizeof(v4l2_dev->name));
+	v4l2_info(v4l2_dev, "Colour AR VGA driver %s\n", VERSION);
+
+	ret = v4l2_device_register(NULL, v4l2_dev);
+	if (ret < 0) {
+		v4l2_err(v4l2_dev, "Could not register v4l2_device\n");
+		return ret;
+	}
+	ret = -EIO;
 
 #if USE_INT
 	/* allocate a DMA buffer for 1 line.  */
 	ar->line_buff = kmalloc(MAX_AR_LINE_BYTES, GFP_KERNEL | GFP_DMA);
-	if (ar->line_buff == NULL || ! ALIGN4(ar->line_buff)) {
-		printk("arv: buffer allocation failed for DMA.\n");
+	if (ar->line_buff == NULL || !ALIGN4(ar->line_buff)) {
+		v4l2_err(v4l2_dev, "buffer allocation failed for DMA.\n");
 		ret = -ENOMEM;
 		goto out_end;
 	}
@@ -797,20 +759,19 @@ static int __init ar_init(void)
 	/* allocate buffers for a frame */
 	for (i = 0; i < MAX_AR_HEIGHT; i++) {
 		ar->frame[i] = kmalloc(MAX_AR_LINE_BYTES, GFP_KERNEL);
-		if (ar->frame[i] == NULL || ! ALIGN4(ar->frame[i])) {
-			printk("arv: buffer allocation failed for frame.\n");
+		if (ar->frame[i] == NULL || !ALIGN4(ar->frame[i])) {
+			v4l2_err(v4l2_dev, "buffer allocation failed for frame.\n");
 			ret = -ENOMEM;
 			goto out_line_buff;
 		}
 	}
 
-	ar->vdev = video_device_alloc();
-	if (!ar->vdev) {
-		printk(KERN_ERR "arv: video_device_alloc() failed\n");
-		return -ENOMEM;
-	}
-	memcpy(ar->vdev, &ar_template, sizeof(ar_template));
-	video_set_drvdata(ar->vdev, ar);
+	strlcpy(ar->vdev.name, "Colour AR VGA", sizeof(ar->vdev.name));
+	ar->vdev.v4l2_dev = v4l2_dev;
+	ar->vdev.fops = &ar_fops;
+	ar->vdev.ioctl_ops = &ar_ioctl_ops;
+	ar->vdev.release = video_device_release_empty;
+	video_set_drvdata(&ar->vdev, ar);
 
 	if (vga) {
 		ar->width 	= AR_WIDTH_VGA;
@@ -835,14 +796,14 @@ static int __init ar_init(void)
 
 #if USE_INT
 	if (request_irq(M32R_IRQ_INT3, ar_interrupt, 0, "arv", ar)) {
-		printk("arv: request_irq(%d) failed.\n", M32R_IRQ_INT3);
+		v4l2_err("request_irq(%d) failed.\n", M32R_IRQ_INT3);
 		ret = -EIO;
 		goto out_irq;
 	}
 #endif
 
-	if (ar_initialize(ar->vdev) != 0) {
-		printk("arv: M64278 not found.\n");
+	if (ar_initialize(ar) != 0) {
+		v4l2_err(v4l2_dev, "M64278 not found.\n");
 		ret = -ENODEV;
 		goto out_dev;
 	}
@@ -853,15 +814,15 @@ static int __init ar_init(void)
 	 * device is named "video[0-64]".
 	 * video_register_device() initializes h/w using ar_initialize().
 	 */
-	if (video_register_device(ar->vdev, VFL_TYPE_GRABBER, video_nr) != 0) {
+	if (video_register_device(&ar->vdev, VFL_TYPE_GRABBER, video_nr) != 0) {
 		/* return -1, -ENFILE(full) or others */
-		printk("arv: register video (Colour AR) failed.\n");
+		v4l2_err(v4l2_dev, "register video (Colour AR) failed.\n");
 		ret = -ENODEV;
 		goto out_dev;
 	}
 
-	printk("video%d: Found M64278 VGA (IRQ %d, Freq %dMHz).\n",
-		ar->vdev->num, M32R_IRQ_INT3, freq);
+	v4l2_info(v4l2_dev, "%s: Found M64278 VGA (IRQ %d, Freq %dMHz).\n",
+		video_device_node_name(&ar->vdev), M32R_IRQ_INT3, freq);
 
 	return 0;
 
@@ -880,6 +841,7 @@ out_line_buff:
 
 out_end:
 #endif
+	v4l2_device_unregister(&ar->v4l2_dev);
 	return ret;
 }
 
@@ -887,7 +849,7 @@ out_end:
 static int __init ar_init_module(void)
 {
 	freq = (boot_cpu_data.bus_clock / 1000000);
-	printk("arv: Bus clock %d\n", freq);
+	printk(KERN_INFO "arv: Bus clock %d\n", freq);
 	if (freq != 50 && freq != 75)
 		freq = DEFAULT_FREQ;
 	return ar_init();
@@ -895,11 +857,11 @@ static int __init ar_init_module(void)
 
 static void __exit ar_cleanup_module(void)
 {
-	struct ar_device *ar;
+	struct ar *ar;
 	int i;
 
 	ar = &ardev;
-	video_unregister_device(ar->vdev);
+	video_unregister_device(&ar->vdev);
 #if USE_INT
 	free_irq(M32R_IRQ_INT3, ar);
 #endif
@@ -908,6 +870,7 @@ static void __exit ar_cleanup_module(void)
 #if USE_INT
 	kfree(ar->line_buff);
 #endif
+	v4l2_device_unregister(&ar->v4l2_dev);
 }
 
 module_init(ar_init_module);

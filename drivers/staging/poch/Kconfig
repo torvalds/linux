@@ -1,6 +1,0 @@
-config POCH
-	tristate "Redrapids Pocket Change CardBus support"
-	depends on PCI && UIO
-	default N
-	---help---
-	  Enable support for Redrapids Pocket Change CardBus devices.

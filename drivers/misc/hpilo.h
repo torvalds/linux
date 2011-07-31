@@ -44,9 +44,20 @@ struct ilo_hwinfo {
 
 	struct pci_dev *ilo_dev;
 
+	/*
+	 * open_lock      serializes ccb_cnt during open and close
+	 * [ irq disabled ]
+	 * -> alloc_lock  used when adding/removing/searching ccb_alloc,
+	 *                which represents all ccbs open on the device
+	 * --> fifo_lock  controls access to fifo queues shared with hw
+	 *
+	 * Locks must be taken in this order, but open_lock and alloc_lock
+	 * are optional, they do not need to be held in order to take a
+	 * lower level lock.
+	 */
+	spinlock_t open_lock;
 	spinlock_t alloc_lock;
 	spinlock_t fifo_lock;
-	spinlock_t open_lock;
 
 	struct cdev cdev;
 };
@@ -68,21 +79,21 @@ struct ilo_hwinfo {
 struct ccb {
 	union {
 		char *send_fifobar;
-		u64 padding1;
+		u64 send_fifobar_pa;
 	} ccb_u1;
 	union {
 		char *send_desc;
-		u64 padding2;
+		u64 send_desc_pa;
 	} ccb_u2;
 	u64 send_ctrl;
 
 	union {
 		char *recv_fifobar;
-		u64 padding3;
+		u64 recv_fifobar_pa;
 	} ccb_u3;
 	union {
 		char *recv_desc;
-		u64 padding4;
+		u64 recv_desc_pa;
 	} ccb_u4;
 	u64 recv_ctrl;
 

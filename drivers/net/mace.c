@@ -16,6 +16,7 @@
 #include <linux/crc32.h>
 #include <linux/spinlock.h>
 #include <linux/bitrev.h>
+#include <linux/slab.h>
 #include <asm/prom.h>
 #include <asm/dbdma.h>
 #include <asm/io.h>
@@ -206,7 +207,7 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 		mp->port_aaui = port_aaui;
 	else {
 		/* Apple Network Server uses the AAUI port */
-		if (machine_is_compatible("AAPL,ShinerESB"))
+		if (of_machine_is_compatible("AAPL,ShinerESB"))
 			mp->port_aaui = 1;
 		else {
 #ifdef CONFIG_MACE_AAUI_PORT
@@ -588,7 +589,7 @@ static void mace_set_multicast(struct net_device *dev)
 {
     struct mace_data *mp = netdev_priv(dev);
     volatile struct mace __iomem *mb = mp->mace;
-    int i, j;
+    int i;
     u32 crc;
     unsigned long flags;
 
@@ -598,7 +599,7 @@ static void mace_set_multicast(struct net_device *dev)
 	mp->maccc |= PROM;
     } else {
 	unsigned char multicast_filter[8];
-	struct dev_mc_list *dmi = dev->mc_list;
+	struct netdev_hw_addr *ha;
 
 	if (dev->flags & IFF_ALLMULTI) {
 	    for (i = 0; i < 8; i++)
@@ -606,11 +607,10 @@ static void mace_set_multicast(struct net_device *dev)
 	} else {
 	    for (i = 0; i < 8; i++)
 		multicast_filter[i] = 0;
-	    for (i = 0; i < dev->mc_count; i++) {
-	        crc = ether_crc_le(6, dmi->dmi_addr);
-		j = crc >> 26;	/* bit number in multicast_filter */
-		multicast_filter[j >> 3] |= 1 << (j & 7);
-		dmi = dmi->next;
+	    netdev_for_each_mc_addr(ha, dev) {
+	        crc = ether_crc_le(6, ha->addr);
+		i = crc >> 26;	/* bit number in multicast_filter */
+		multicast_filter[i >> 3] |= 1 << (i & 7);
 	    }
 	}
 #if 0
@@ -897,8 +897,8 @@ static irqreturn_t mace_rxdma_intr(int irq, void *dev_id)
 	    if (next >= N_RX_RING)
 		next = 0;
 	    np = mp->rx_cmds + next;
-	    if (next != mp->rx_fill
-		&& (ld_le16(&np->xfer_status) & ACTIVE) != 0) {
+	    if (next != mp->rx_fill &&
+		(ld_le16(&np->xfer_status) & ACTIVE) != 0) {
 		printk(KERN_DEBUG "mace: lost a status word\n");
 		++mace_lost_status;
 	    } else
@@ -997,8 +997,11 @@ MODULE_DEVICE_TABLE (of, mace_match);
 
 static struct macio_driver mace_driver =
 {
-	.name 		= "mace",
-	.match_table	= mace_match,
+	.driver = {
+		.name 		= "mace",
+		.owner		= THIS_MODULE,
+		.of_match_table	= mace_match,
+	},
 	.probe		= mace_probe,
 	.remove		= mace_remove,
 };

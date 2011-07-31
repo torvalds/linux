@@ -19,7 +19,6 @@
 #include <linux/pci.h>
 #include <linux/pm.h>
 #include <linux/string.h>
-#include <linux/slab.h>
 #include <linux/serial_core.h>
 #include <linux/serial_8250.h>
 #include <linux/mtd/physmap.h>
@@ -47,7 +46,6 @@ static void __init glantank_timer_init(void)
 
 static struct sys_timer glantank_timer = {
 	.init		= glantank_timer_init,
-	.offset		= iop_gettimeoffset,
 };
 
 

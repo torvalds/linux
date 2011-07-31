@@ -24,5 +24,5 @@ EXPORT_SYMBOL(crisv32_io_get_name);
 EXPORT_SYMBOL(crisv32_io_get);
 
 /* Functions masking/unmasking interrupts */
-EXPORT_SYMBOL(mask_irq);
-EXPORT_SYMBOL(unmask_irq);
+EXPORT_SYMBOL(crisv32_mask_irq);
+EXPORT_SYMBOL(crisv32_unmask_irq);

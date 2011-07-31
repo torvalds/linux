@@ -94,7 +94,7 @@
 /* BATTERY */
 #define PALMTX_BAT_MAX_VOLTAGE		4000	/* 4.00v current voltage */
 #define PALMTX_BAT_MIN_VOLTAGE		3550	/* 3.55v critical voltage */
-#define PALMTX_BAT_MAX_CURRENT		0	/* unknokn */
+#define PALMTX_BAT_MAX_CURRENT		0	/* unknown */
 #define PALMTX_BAT_MIN_CURRENT		0	/* unknown */
 #define PALMTX_BAT_MAX_CHARGE		1	/* unknown */
 #define PALMTX_BAT_MIN_CHARGE		1	/* unknown */

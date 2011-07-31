@@ -77,21 +77,6 @@ typedef enum _WIRELESS_MODE {
 	WIRELESS_MODE_AUTO = 0x08,
 } WIRELESS_MODE;
 
-typedef enum _VERSION_8185{
-	// RTL8185
-	VERSION_8185_UNKNOWN,
-	VERSION_8185_C, // C-cut
-	VERSION_8185_D, // D-cut
-	// RTL8185B
-	VERSION_8185B_B, // B-cut
-	VERSION_8185B_D, // D-cut
-	VERSION_8185B_E, // E-cut
-	//RTL8187S-PCIE
-	VERSION_8187S_B, // B-cut
-	VERSION_8187S_C, // C-cut
-	VERSION_8187S_D, // D-cut
-
-}VERSION_8185,*PVERSION_8185;
 typedef struct 	ChnlAccessSetting {
 	u16 SIFS_Timer;
 	u16 DIFS_Timer;
@@ -341,11 +326,8 @@ typedef struct r8180_priv
 	int irq;
 	struct ieee80211_device *ieee80211;
 
-        short card_8185; /* O: rtl8180, 1:rtl8185 V B/C, 2:rtl8185 V D, 3:rtl8185B */
-	short card_8185_Bversion; /* if TCR reports card V B/C this discriminates */
 	short phy_ver; /* meaningful for rtl8225 1:A 2:B 3:C */
 	short enable_gpio0;
-	enum card_type {PCI,MINIPCI,CARDBUS,USB/*rtl8187*/}card_type;
 	short hw_plcp_len;
 	short plcp_preamble_mode; // 0:auto 1:short 2:long
 
@@ -384,7 +366,6 @@ typedef struct r8180_priv
 	short diversity;
 	u8 cs_treshold;
 	short rcr_csense;
-	short rf_chip;
 	u32 key0[4];
 	short (*rf_set_sens)(struct net_device *dev,short sens);
 	void (*rf_set_chan)(struct net_device *dev,short ch);
@@ -497,9 +478,6 @@ typedef struct r8180_priv
 	u8 retry_rts;
 	u16 rts;
 
-//add for RF power on power off by lizhaoming 080512
-	u8	 RegThreeWireMode; // See "Three wire mode" defined above, 2006.05.31, by rcnjko.
-
 //by amy for led
 	LED_STRATEGY_8185 LedStrategy;
 //by amy for led
@@ -521,7 +499,7 @@ typedef struct r8180_priv
 	//u32 NumTxOkInPeriod;   //YJ,del,080828
 	u8   TxPollingTimes;
 
-	bool	bApBufOurFrame;// TRUE if AP buffer our unicast data , we will keep eAwake untill receive data or timeout.
+	bool	bApBufOurFrame;// TRUE if AP buffer our unicast data , we will keep eAwake until receive data or timeout.
 	u8	WaitBufDataBcnCount;
 	u8	WaitBufDataTimeOut;
 
@@ -599,7 +577,7 @@ typedef struct r8180_priv
 	u8						RSSI;
 	char					RxPower;
 	 u8 InitialGain;
-	 //For adjust Dig Threshhold during Legacy/Leisure Power Save Mode
+	 //For adjust Dig Threshold during Legacy/Leisure Power Save Mode
 	u32				DozePeriodInPast2Sec;
 	 // Don't access BB/RF under disable PLL situation.
 	u8					InitialGainBackUp;

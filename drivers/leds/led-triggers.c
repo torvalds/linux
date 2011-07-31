@@ -21,6 +21,7 @@
 #include <linux/timer.h>
 #include <linux/rwsem.h>
 #include <linux/leds.h>
+#include <linux/slab.h>
 #include "leds.h"
 
 /*

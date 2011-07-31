@@ -146,6 +146,14 @@ static struct console ram_console = {
 	.index	= -1,
 };
 
+void ram_console_enable_console(int enabled)
+{
+	if (enabled)
+		ram_console.flags |= CON_ENABLED;
+	else
+		ram_console.flags &= ~CON_ENABLED;
+}
+
 static void __init
 ram_console_save_old(struct ram_console_buffer *buffer, char *dest)
 {
@@ -404,7 +412,7 @@ static int __init ram_console_late_init(void)
 #ifdef CONFIG_ANDROID_RAM_CONSOLE_EARLY_INIT
 console_initcall(ram_console_early_init);
 #else
-module_init(ram_console_module_init);
+postcore_initcall(ram_console_module_init);
 #endif
 late_initcall(ram_console_late_init);
 

@@ -77,43 +77,10 @@
  */
 #define NUM_TRAFFIC_CLASSES          1
 
-/*
- * There are three ways of counting errors - if there are more than X errors
- * in Y packets (represented by the "SAMPLE" macros), if there are more than
- * N errors in a S mSec time period (the "PERIOD" macros), or if there are
- * consecutive packets with errors (CONSEC_ERRORED_THRESH).  This last covers
- * for "Bursty" errors, and the errored packets may well not be contiguous,
- * but several errors where the packet counter has changed by less than a
- * small amount will cause this count to increment.
- */
-#define TX_PACKETS_IN_SAMPLE        10000
-#define TX_MAX_ERRORS_IN_SAMPLE     50
-
 #define TX_ERROR_PERIOD             1000
-#define TX_MAX_ERRORS_IN_PERIOD     10
-
-#define LINK_DETECTION_TIMER        5000
-
-#define TX_CONSEC_RANGE             5
-#define TX_CONSEC_ERRORED_THRESH    10
 
 #define LO_MARK_PERCENT_FOR_PSR     15
 #define LO_MARK_PERCENT_FOR_RX      15
-
-/* Macros specific to the private adapter structure */
-#define MP_TCB_RESOURCES_AVAILABLE(_M) ((_M)->TxRing.nBusySend < NUM_TCB)
-#define MP_TCB_RESOURCES_NOT_AVAILABLE(_M) ((_M)->TxRing.nBusySend >= NUM_TCB)
-
-#define MP_SHOULD_FAIL_SEND(_M)   ((_M)->Flags & fMP_ADAPTER_FAIL_SEND_MASK)
-
-/* Counters for error rate monitoring */
-typedef struct _MP_ERR_COUNTERS {
-	u32 PktCountTxPackets;
-	u32 PktCountTxErrors;
-	u32 TimerBasedTxErrors;
-	u32 PktCountLastError;
-	u32 ErredConsecPackets;
-} MP_ERR_COUNTERS, *PMP_ERR_COUNTERS;
 
 /* RFD (Receive Frame Descriptor) */
 typedef struct _MP_RFD {
@@ -168,7 +135,7 @@ typedef struct _ce_stats_t {
 	u32 tx_deferred;
 
 	/* Rx Statistics. */
-	u32 rx_ov_flow;	/* Rx Over Flow */
+	u32 rx_ov_flow;	/* Rx Overflow */
 
 	u32 length_err;
 	u32 alignment_err;
@@ -179,6 +146,20 @@ typedef struct _ce_stats_t {
 	u32 SynchrounousIterations;
 	u32 InterruptStatus;
 } CE_STATS_t, *PCE_STATS_t;
+
+typedef struct _MP_POWER_MGMT {
+	/* variable putting the phy into coma mode when boot up with no cable
+	 * plugged in after 5 seconds
+	 */
+	u8 TransPhyComaModeOnBoot;
+
+	/* Next two used to save power information at power down. This
+	 * information will be used during power up to set up parts of Power
+	 * Management in JAGCore
+	 */
+	u16 PowerDownSpeed;
+	u8 PowerDownDuplex;
+} MP_POWER_MGMT, *PMP_POWER_MGMT;
 
 /* The private adapter structure */
 struct et131x_adapter {
@@ -203,7 +184,6 @@ struct et131x_adapter {
 	spinlock_t TCBSendQLock;
 	spinlock_t TCBReadyQLock;
 	spinlock_t SendHWLock;
-	spinlock_t SendWaitLock;
 
 	spinlock_t RcvLock;
 	spinlock_t RcvPendLock;
@@ -220,9 +200,6 @@ struct et131x_adapter {
 	u32 MCAddressCount;
 	u8 MCList[NIC_MAX_MCAST_LIST][ETH_ALEN];
 
-	/* MAC test */
-	TXMAC_TXTEST_t TxMacTest;
-
 	/* Pointer to the device's PCI register space */
 	ADDRESS_MAP_t __iomem *regs;
 
@@ -234,9 +211,6 @@ struct et131x_adapter {
 	u32 RegistryRxMemEnd;	/* Size of internal rx memory */
 	u32 RegistryJumboPacket;	/* Max supported ethernet packet size */
 
-	/* Validation helpers */
-	u8 RegistryNMIDisable;
-	u8 RegistryPhyLoopbk;	/* Enable Phy loopback */
 
 	/* Derived from the registry: */
 	u8 AiForceDpx;		/* duplex setting */
@@ -248,7 +222,6 @@ struct et131x_adapter {
 		NETIF_STATUS_MEDIA_DISCONNECT,
 		NETIF_STATUS_MAX
 	} MediaState;
-	u8 DriverNoPhyAccess;
 
 	/* Minimize init-time */
 	struct timer_list ErrorTimer;
@@ -259,10 +232,10 @@ struct et131x_adapter {
 	MI_BMSR_t Bmsr;
 
 	/* Tx Memory Variables */
-	TX_RING_t TxRing;
+	struct tx_ring tx_ring;
 
 	/* Rx Memory Variables */
-	RX_RING_t RxRing;
+	struct rx_ring rx_ring;
 
 	/* Loopback specifics */
 	u8 ReplicaPhyLoopbk;	/* Replica Enable */

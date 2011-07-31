@@ -2,10 +2,11 @@
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
  * Copyright © 2001-2007 Red Hat, Inc.
- * Created by Arjan van de Ven <arjanv@redhat.com>
- *
+ * Copyright © 2004-2010 David Woodhouse <dwmw2@infradead.org>
  * Copyright © 2004 Ferenc Havasi <havasi@inf.u-szeged.hu>,
  *		    University of Szeged, Hungary
+ *
+ * Created by Arjan van de Ven <arjan@infradead.org>
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
@@ -177,7 +178,7 @@ uint16_t jffs2_compress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 		spin_unlock(&jffs2_compressor_list_lock);
 		break;
 	default:
-		printk(KERN_ERR "JFFS2: unknow compression mode.\n");
+		printk(KERN_ERR "JFFS2: unknown compression mode.\n");
 	}
  out:
 	if (ret == JFFS2_COMPR_NONE) {

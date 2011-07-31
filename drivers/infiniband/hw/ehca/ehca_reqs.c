@@ -269,7 +269,7 @@ static inline int ehca_write_swqe(struct ehca_qp *qp,
 		/* no break is intentional here */
 	case IB_QPT_RC:
 		/* TODO: atomic not implemented */
-		wqe_p->u.nud.remote_virtual_adress =
+		wqe_p->u.nud.remote_virtual_address =
 			send_wr->wr.rdma.remote_addr;
 		wqe_p->u.nud.rkey = send_wr->wr.rdma.rkey;
 
@@ -400,7 +400,6 @@ static inline void map_ib_wc_status(u32 cqe_status,
 
 static inline int post_one_send(struct ehca_qp *my_qp,
 			 struct ib_send_wr *cur_send_wr,
-			 struct ib_send_wr **bad_send_wr,
 			 int hidden)
 {
 	struct ehca_wqe *wqe_p;
@@ -412,8 +411,6 @@ static inline int post_one_send(struct ehca_qp *my_qp,
 	wqe_p = ipz_qeit_get_inc(&my_qp->ipz_squeue);
 	if (unlikely(!wqe_p)) {
 		/* too many posted work requests: queue overflow */
-		if (bad_send_wr)
-			*bad_send_wr = cur_send_wr;
 		ehca_err(my_qp->ib_qp.device, "Too many posted WQEs "
 			 "qp_num=%x", my_qp->ib_qp.qp_num);
 		return -ENOMEM;
@@ -433,8 +430,6 @@ static inline int post_one_send(struct ehca_qp *my_qp,
 	 */
 	if (unlikely(ret)) {
 		my_qp->ipz_squeue.current_q_offset = start_offset;
-		if (bad_send_wr)
-			*bad_send_wr = cur_send_wr;
 		ehca_err(my_qp->ib_qp.device, "Could not write WQE "
 			 "qp_num=%x", my_qp->ib_qp.qp_num);
 		return -EINVAL;
@@ -448,7 +443,6 @@ int ehca_post_send(struct ib_qp *qp,
 		   struct ib_send_wr **bad_send_wr)
 {
 	struct ehca_qp *my_qp = container_of(qp, struct ehca_qp, ib_qp);
-	struct ib_send_wr *cur_send_wr;
 	int wqe_cnt = 0;
 	int ret = 0;
 	unsigned long flags;
@@ -457,7 +451,8 @@ int ehca_post_send(struct ib_qp *qp,
 	if (unlikely(my_qp->state < IB_QPS_RTS)) {
 		ehca_err(qp->device, "Invalid QP state  qp_state=%d qpn=%x",
 			 my_qp->state, qp->qp_num);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	/* LOCK the QUEUE */
@@ -476,24 +471,21 @@ int ehca_post_send(struct ib_qp *qp,
 		struct ib_send_wr circ_wr;
 		memset(&circ_wr, 0, sizeof(circ_wr));
 		circ_wr.opcode = IB_WR_RDMA_READ;
-		post_one_send(my_qp, &circ_wr, NULL, 1); /* ignore retcode */
+		post_one_send(my_qp, &circ_wr, 1); /* ignore retcode */
 		wqe_cnt++;
 		ehca_dbg(qp->device, "posted circ wr  qp_num=%x", qp->qp_num);
 		my_qp->message_count = my_qp->packet_count = 0;
 	}
 
 	/* loop processes list of send reqs */
-	for (cur_send_wr = send_wr; cur_send_wr != NULL;
-	     cur_send_wr = cur_send_wr->next) {
-		ret = post_one_send(my_qp, cur_send_wr, bad_send_wr, 0);
+	while (send_wr) {
+		ret = post_one_send(my_qp, send_wr, 0);
 		if (unlikely(ret)) {
-			/* if one or more WQEs were successful, don't fail */
-			if (wqe_cnt)
-				ret = 0;
 			goto post_send_exit0;
 		}
 		wqe_cnt++;
-	} /* eof for cur_send_wr */
+		send_wr = send_wr->next;
+	}
 
 post_send_exit0:
 	iosync(); /* serialize GAL register access */
@@ -503,6 +495,10 @@ post_send_exit0:
 			 my_qp, qp->qp_num, wqe_cnt, ret);
 	my_qp->message_count += wqe_cnt;
 	spin_unlock_irqrestore(&my_qp->spinlock_s, flags);
+
+out:
+	if (ret)
+		*bad_send_wr = send_wr;
 	return ret;
 }
 
@@ -511,7 +507,6 @@ static int internal_post_recv(struct ehca_qp *my_qp,
 			      struct ib_recv_wr *recv_wr,
 			      struct ib_recv_wr **bad_recv_wr)
 {
-	struct ib_recv_wr *cur_recv_wr;
 	struct ehca_wqe *wqe_p;
 	int wqe_cnt = 0;
 	int ret = 0;
@@ -522,27 +517,23 @@ static int internal_post_recv(struct ehca_qp *my_qp,
 	if (unlikely(!HAS_RQ(my_qp))) {
 		ehca_err(dev, "QP has no RQ  ehca_qp=%p qp_num=%x ext_type=%d",
 			 my_qp, my_qp->real_qp_num, my_qp->ext_type);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto out;
 	}
 
 	/* LOCK the QUEUE */
 	spin_lock_irqsave(&my_qp->spinlock_r, flags);
 
-	/* loop processes list of send reqs */
-	for (cur_recv_wr = recv_wr; cur_recv_wr != NULL;
-	     cur_recv_wr = cur_recv_wr->next) {
+	/* loop processes list of recv reqs */
+	while (recv_wr) {
 		u64 start_offset = my_qp->ipz_rqueue.current_q_offset;
 		/* get pointer next to free WQE */
 		wqe_p = ipz_qeit_get_inc(&my_qp->ipz_rqueue);
 		if (unlikely(!wqe_p)) {
 			/* too many posted work requests: queue overflow */
-			if (bad_recv_wr)
-				*bad_recv_wr = cur_recv_wr;
-			if (wqe_cnt == 0) {
-				ret = -ENOMEM;
-				ehca_err(dev, "Too many posted WQEs "
-					 "qp_num=%x", my_qp->real_qp_num);
-			}
+			ret = -ENOMEM;
+			ehca_err(dev, "Too many posted WQEs "
+				"qp_num=%x", my_qp->real_qp_num);
 			goto post_recv_exit0;
 		}
 		/*
@@ -552,7 +543,7 @@ static int internal_post_recv(struct ehca_qp *my_qp,
 		rq_map_idx = start_offset / my_qp->ipz_rqueue.qe_size;
 
 		/* write a RECV WQE into the QUEUE */
-		ret = ehca_write_rwqe(&my_qp->ipz_rqueue, wqe_p, cur_recv_wr,
+		ret = ehca_write_rwqe(&my_qp->ipz_rqueue, wqe_p, recv_wr,
 				rq_map_idx);
 		/*
 		 * if something failed,
@@ -560,22 +551,20 @@ static int internal_post_recv(struct ehca_qp *my_qp,
 		 */
 		if (unlikely(ret)) {
 			my_qp->ipz_rqueue.current_q_offset = start_offset;
-			*bad_recv_wr = cur_recv_wr;
-			if (wqe_cnt == 0) {
-				ret = -EINVAL;
-				ehca_err(dev, "Could not write WQE "
-					 "qp_num=%x", my_qp->real_qp_num);
-			}
+			ret = -EINVAL;
+			ehca_err(dev, "Could not write WQE "
+				"qp_num=%x", my_qp->real_qp_num);
 			goto post_recv_exit0;
 		}
 
 		qmap_entry = &my_qp->rq_map.map[rq_map_idx];
-		qmap_entry->app_wr_id = get_app_wr_id(cur_recv_wr->wr_id);
+		qmap_entry->app_wr_id = get_app_wr_id(recv_wr->wr_id);
 		qmap_entry->reported = 0;
 		qmap_entry->cqe_req = 1;
 
 		wqe_cnt++;
-	} /* eof for cur_recv_wr */
+		recv_wr = recv_wr->next;
+	} /* eof for recv_wr */
 
 post_recv_exit0:
 	iosync(); /* serialize GAL register access */
@@ -584,6 +573,11 @@ post_recv_exit0:
 	    ehca_dbg(dev, "ehca_qp=%p qp_num=%x wqe_cnt=%d ret=%i",
 		     my_qp, my_qp->real_qp_num, wqe_cnt, ret);
 	spin_unlock_irqrestore(&my_qp->spinlock_r, flags);
+
+out:
+	if (ret)
+		*bad_recv_wr = recv_wr;
+
 	return ret;
 }
 
@@ -597,6 +591,7 @@ int ehca_post_recv(struct ib_qp *qp,
 	if (unlikely(my_qp->state == IB_QPS_RESET)) {
 		ehca_err(qp->device, "Invalid QP state  qp_state=%d qpn=%x",
 			 my_qp->state, qp->qp_num);
+		*bad_recv_wr = recv_wr;
 		return -EINVAL;
 	}
 

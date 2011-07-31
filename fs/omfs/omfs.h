@@ -58,6 +58,7 @@ extern void omfs_make_empty_table(struct buffer_head *bh, int offset);
 extern int omfs_shrink_inode(struct inode *inode);
 
 /* inode.c */
+extern struct buffer_head *omfs_bread(struct super_block *sb, sector_t block);
 extern struct inode *omfs_iget(struct super_block *sb, ino_t inode);
 extern struct inode *omfs_new_inode(struct inode *dir, int mode);
 extern int omfs_reserve_block(struct super_block *sb, sector_t block);

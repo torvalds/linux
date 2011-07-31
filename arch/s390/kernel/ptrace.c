@@ -57,6 +57,7 @@
 enum s390_regset {
 	REGSET_GENERAL,
 	REGSET_FP,
+	REGSET_LAST_BREAK,
 	REGSET_GENERAL_EXTENDED,
 };
 
@@ -65,6 +66,7 @@ FixPerRegisters(struct task_struct *task)
 {
 	struct pt_regs *regs;
 	per_struct *per_info;
+	per_cr_words cr_words;
 
 	regs = task_pt_regs(task);
 	per_info = (per_struct *) &task->thread.per_info;
@@ -98,6 +100,13 @@ FixPerRegisters(struct task_struct *task)
 		per_info->control_regs.bits.storage_alt_space_ctl = 1;
 	else
 		per_info->control_regs.bits.storage_alt_space_ctl = 0;
+
+	if (task == current) {
+		__ctl_store(cr_words, 9, 11);
+		if (memcmp(&cr_words, &per_info->control_regs.words,
+			   sizeof(cr_words)) != 0)
+			__ctl_load(per_info->control_regs.words, 9, 11);
+	}
 }
 
 void user_enable_single_step(struct task_struct *task)
@@ -373,6 +382,10 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			copied += sizeof(unsigned long);
 		}
 		return 0;
+	case PTRACE_GET_LAST_BREAK:
+		put_user(task_thread_info(child)->last_break,
+			 (unsigned long __user *) data);
+		return 0;
 	default:
 		/* Removing high order bit from addr (only for 31 bit). */
 		addr &= PSW_ADDR_INSN;
@@ -625,6 +638,10 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			copied += sizeof(unsigned int);
 		}
 		return 0;
+	case PTRACE_GET_LAST_BREAK:
+		put_user(task_thread_info(child)->last_break,
+			 (unsigned int __user *) data);
+		return 0;
 	}
 	return compat_ptrace_request(child, request, addr, data);
 }
@@ -632,7 +649,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 
 asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 {
-	long ret;
+	long ret = 0;
 
 	/* Do the secure computing check first. */
 	secure_computing(regs->gprs[2]);
@@ -641,7 +658,6 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 	 * The sysc_tracesys code in entry.S stored the system
 	 * call number to gprs[2].
 	 */
-	ret = regs->gprs[2];
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
 	    (tracehook_report_syscall_entry(regs) ||
 	     regs->gprs[2] >= NR_syscalls)) {
@@ -663,7 +679,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 				    regs->gprs[2], regs->orig_gpr2,
 				    regs->gprs[3], regs->gprs[4],
 				    regs->gprs[5]);
-	return ret;
+	return ret ?: regs->gprs[2];
 }
 
 asmlinkage void do_syscall_trace_exit(struct pt_regs *regs)
@@ -790,6 +806,28 @@ static int s390_fpregs_set(struct task_struct *target,
 	return rc;
 }
 
+#ifdef CONFIG_64BIT
+
+static int s390_last_break_get(struct task_struct *target,
+			       const struct user_regset *regset,
+			       unsigned int pos, unsigned int count,
+			       void *kbuf, void __user *ubuf)
+{
+	if (count > 0) {
+		if (kbuf) {
+			unsigned long *k = kbuf;
+			*k = task_thread_info(target)->last_break;
+		} else {
+			unsigned long  __user *u = ubuf;
+			if (__put_user(task_thread_info(target)->last_break, u))
+				return -EFAULT;
+		}
+	}
+	return 0;
+}
+
+#endif
+
 static const struct user_regset s390_regsets[] = {
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS,
@@ -807,6 +845,15 @@ static const struct user_regset s390_regsets[] = {
 		.get = s390_fpregs_get,
 		.set = s390_fpregs_set,
 	},
+#ifdef CONFIG_64BIT
+	[REGSET_LAST_BREAK] = {
+		.core_note_type = NT_S390_LAST_BREAK,
+		.n = 1,
+		.size = sizeof(long),
+		.align = sizeof(long),
+		.get = s390_last_break_get,
+	},
+#endif
 };
 
 static const struct user_regset_view user_s390_view = {
@@ -941,6 +988,27 @@ static int s390_compat_regs_high_set(struct task_struct *target,
 	return rc;
 }
 
+static int s390_compat_last_break_get(struct task_struct *target,
+				      const struct user_regset *regset,
+				      unsigned int pos, unsigned int count,
+				      void *kbuf, void __user *ubuf)
+{
+	compat_ulong_t last_break;
+
+	if (count > 0) {
+		last_break = task_thread_info(target)->last_break;
+		if (kbuf) {
+			unsigned long *k = kbuf;
+			*k = last_break;
+		} else {
+			unsigned long  __user *u = ubuf;
+			if (__put_user(last_break, u))
+				return -EFAULT;
+		}
+	}
+	return 0;
+}
+
 static const struct user_regset s390_compat_regsets[] = {
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS,
@@ -958,8 +1026,15 @@ static const struct user_regset s390_compat_regsets[] = {
 		.get = s390_fpregs_get,
 		.set = s390_fpregs_set,
 	},
+	[REGSET_LAST_BREAK] = {
+		.core_note_type = NT_S390_LAST_BREAK,
+		.n = 1,
+		.size = sizeof(long),
+		.align = sizeof(long),
+		.get = s390_compat_last_break_get,
+	},
 	[REGSET_GENERAL_EXTENDED] = {
-		.core_note_type = NT_PRXSTATUS,
+		.core_note_type = NT_S390_HIGH_GPRS,
 		.n = sizeof(s390_compat_regs_high) / sizeof(compat_long_t),
 		.size = sizeof(compat_long_t),
 		.align = sizeof(compat_long_t),
@@ -983,4 +1058,62 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 		return &user_s390_compat_view;
 #endif
 	return &user_s390_view;
+}
+
+static const char *gpr_names[NUM_GPRS] = {
+	"r0", "r1",  "r2",  "r3",  "r4",  "r5",  "r6",  "r7",
+	"r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
+};
+
+unsigned long regs_get_register(struct pt_regs *regs, unsigned int offset)
+{
+	if (offset >= NUM_GPRS)
+		return 0;
+	return regs->gprs[offset];
+}
+
+int regs_query_register_offset(const char *name)
+{
+	unsigned long offset;
+
+	if (!name || *name != 'r')
+		return -EINVAL;
+	if (strict_strtoul(name + 1, 10, &offset))
+		return -EINVAL;
+	if (offset >= NUM_GPRS)
+		return -EINVAL;
+	return offset;
+}
+
+const char *regs_query_register_name(unsigned int offset)
+{
+	if (offset >= NUM_GPRS)
+		return NULL;
+	return gpr_names[offset];
+}
+
+static int regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
+{
+	unsigned long ksp = kernel_stack_pointer(regs);
+
+	return (addr & ~(THREAD_SIZE - 1)) == (ksp & ~(THREAD_SIZE - 1));
+}
+
+/**
+ * regs_get_kernel_stack_nth() - get Nth entry of the stack
+ * @regs:pt_regs which contains kernel stack pointer.
+ * @n:stack entry number.
+ *
+ * regs_get_kernel_stack_nth() returns @n th entry of the kernel stack which
+ * is specifined by @regs. If the @n th entry is NOT in the kernel stack,
+ * this returns 0.
+ */
+unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n)
+{
+	unsigned long addr;
+
+	addr = kernel_stack_pointer(regs) + n * sizeof(long);
+	if (!regs_within_kernel_stack(regs, addr))
+		return 0;
+	return *(unsigned long *)addr;
 }

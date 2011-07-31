@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -131,7 +131,8 @@ void acpi_ns_dump_root_devices(void)
 
 	status = acpi_ns_walk_namespace(ACPI_TYPE_DEVICE, sys_bus_handle,
 					ACPI_UINT32_MAX, ACPI_NS_WALK_NO_UNLOCK,
-					acpi_ns_dump_one_device, NULL, NULL);
+					acpi_ns_dump_one_device, NULL, NULL,
+					NULL);
 }
 
 #endif

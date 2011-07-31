@@ -29,6 +29,7 @@
 #include <linux/firmware.h>
 #include <linux/mutex.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 #include <asm/system.h>
 #include <linux/videodev2.h>
 #include <media/tuner.h>
@@ -49,7 +50,7 @@ int go7007_read_interrupt(struct go7007 *go, u16 *value, u16 *data)
 	go->hpi_ops->read_interrupt(go);
 	if (wait_event_timeout(go->interrupt_waitq,
 				go->interrupt_available, 5*HZ) < 0) {
-		v4l2_err(go->video_dev, "timeout waiting for read interrupt\n");
+		v4l2_err(&go->v4l2_dev, "timeout waiting for read interrupt\n");
 		return -1;
 	}
 	if (!go->interrupt_available)
@@ -128,6 +129,8 @@ static int go7007_load_encoder(struct go7007 *go)
 	return rv;
 }
 
+MODULE_FIRMWARE("go7007fw.bin");
+
 /*
  * Boot the encoder and register the I2C adapter if requested.  Do the
  * minimum initialization necessary, since the board-specific code may
@@ -193,7 +196,8 @@ int go7007_reset_encoder(struct go7007 *go)
 static int init_i2c_module(struct i2c_adapter *adapter, const char *type,
 			   int id, int addr)
 {
-	struct i2c_board_info info;
+	struct go7007 *go = i2c_get_adapdata(adapter);
+	struct v4l2_device *v4l2_dev = &go->v4l2_dev;
 	char *modname;
 
 	switch (id) {
@@ -219,20 +223,16 @@ static int init_i2c_module(struct i2c_adapter *adapter, const char *type,
 		modname = "wis-ov7640";
 		break;
 	case I2C_DRIVERID_S2250:
-		modname = "s2250-board";
+		modname = "s2250";
 		break;
 	default:
 		modname = NULL;
 		break;
 	}
-	if (modname != NULL)
-		request_module(modname);
 
-	memset(&info, 0, sizeof(struct i2c_board_info));
-	info.addr = addr;
-	strlcpy(info.type, type, I2C_NAME_SIZE);
-	if (!i2c_new_device(adapter, &info))
+	if (v4l2_i2c_new_subdev(v4l2_dev, adapter, modname, type, addr, NULL))
 		return 0;
+
 	if (modname != NULL)
 		printk(KERN_INFO
 			"go7007: probing for module %s failed\n", modname);
@@ -262,6 +262,11 @@ int go7007_register_encoder(struct go7007 *go)
 	if (ret < 0)
 		return -1;
 
+	/* v4l2 init must happen before i2c subdevs */
+	ret = go7007_v4l2_init(go);
+	if (ret < 0)
+		return ret;
+
 	if (!go->i2c_adapter_online &&
 			go->board_info->flags & GO7007_BOARD_USE_ONBOARD_I2C) {
 		if (go7007_i2c_init(go) < 0)
@@ -282,7 +287,7 @@ int go7007_register_encoder(struct go7007 *go)
 		go->audio_enabled = 1;
 		go7007_snd_init(go);
 	}
-	return go7007_v4l2_init(go);
+	return 0;
 }
 EXPORT_SYMBOL(go7007_register_encoder);
 
@@ -315,7 +320,7 @@ int go7007_start_encoder(struct go7007 *go)
 
 	if (go7007_send_firmware(go, fw, fw_len) < 0 ||
 			go7007_read_interrupt(go, &intr_val, &intr_data) < 0) {
-		v4l2_err(go->video_dev, "error transferring firmware\n");
+		v4l2_err(&go->v4l2_dev, "error transferring firmware\n");
 		rv = -1;
 		goto start_error;
 	}
@@ -324,7 +329,7 @@ int go7007_start_encoder(struct go7007 *go)
 	go->parse_length = 0;
 	go->seen_frame = 0;
 	if (go7007_stream_start(go) < 0) {
-		v4l2_err(go->video_dev, "error starting stream transfer\n");
+		v4l2_err(&go->v4l2_dev, "error starting stream transfer\n");
 		rv = -1;
 		goto start_error;
 	}
@@ -420,7 +425,7 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 	for (i = 0; i < length; ++i) {
 		if (go->active_buf != NULL &&
 			    go->active_buf->bytesused >= GO7007_BUF_SIZE - 3) {
-			v4l2_info(go->video_dev, "dropping oversized frame\n");
+			v4l2_info(&go->v4l2_dev, "dropping oversized frame\n");
 			go->active_buf->offset -= go->active_buf->bytesused;
 			go->active_buf->bytesused = 0;
 			go->active_buf->modet_active = 0;
@@ -668,7 +673,7 @@ void go7007_remove(struct go7007 *go)
 		if (i2c_del_adapter(&go->i2c_adapter) == 0)
 			go->i2c_adapter_online = 0;
 		else
-			v4l2_err(go->video_dev,
+			v4l2_err(&go->v4l2_dev,
 				"error removing I2C adapter!\n");
 	}
 

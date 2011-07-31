@@ -15,13 +15,13 @@
 #include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
-#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/random.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/kallsyms.h>
 #include <linux/kgdb.h>
+#include <linux/ftrace.h>
 
 #include <asm/atomic.h>
 #include <asm/system.h>
@@ -99,7 +99,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	}
 
 	if (i < NR_IRQS) {
-		spin_lock_irqsave(&irq_desc[i].lock, flags);
+		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
 		action = irq_desc[i].action;
 		if (!action)
 			goto skip;
@@ -118,7 +118,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 		seq_putc(p, '\n');
 skip:
-		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
 	} else if (i == NR_IRQS) {
 		seq_putc(p, '\n');
 		seq_printf(p, "ERR: %10u\n", atomic_read(&irq_err_count));
@@ -150,3 +150,32 @@ void __init init_IRQ(void)
 		kgdb_early_setup = 1;
 #endif
 }
+
+/*
+ * do_IRQ handles all normal device IRQ's (the special
+ * SMP cross-CPU interrupts have their own specific
+ * handlers).
+ */
+void __irq_entry do_IRQ(unsigned int irq)
+{
+	irq_enter();
+	__DO_IRQ_SMTC_HOOK(irq);
+	generic_handle_irq(irq);
+	irq_exit();
+}
+
+#ifdef CONFIG_MIPS_MT_SMTC_IRQAFF
+/*
+ * To avoid inefficient and in some cases pathological re-checking of
+ * IRQ affinity, we have this variant that skips the affinity check.
+ */
+
+void __irq_entry do_IRQ_no_affinity(unsigned int irq)
+{
+	irq_enter();
+	__NO_AFFINITY_IRQ_SMTC_HOOK(irq);
+	generic_handle_irq(irq);
+	irq_exit();
+}
+
+#endif /* CONFIG_MIPS_MT_SMTC_IRQAFF */

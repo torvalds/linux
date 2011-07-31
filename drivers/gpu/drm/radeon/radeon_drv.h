@@ -106,9 +106,11 @@
  * 1.29- R500 3D cmd buffer support
  * 1.30- Add support for occlusion queries
  * 1.31- Add support for num Z pipes from GET_PARAM
+ * 1.32- fixes for rv740 setup
+ * 1.33- Add r6xx/r7xx const buffer support
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		31
+#define DRIVER_MINOR		33
 #define DRIVER_PATCHLEVEL	0
 
 enum radeon_cp_microcode_version {
@@ -267,6 +269,8 @@ typedef struct drm_radeon_private {
 
 	u32 scratch_ages[5];
 
+	int have_z_offset;
+
 	/* starting from here on, data is preserved accross an open */
 	uint32_t flags;		/* see radeon_chip_flags */
 	resource_size_t fb_aper_offset;
@@ -294,6 +298,9 @@ typedef struct drm_radeon_private {
 	int r700_sc_prim_fifo_size;
 	int r700_sc_hiz_tile_fifo_size;
 	int r700_sc_earlyz_tile_fifo_fize;
+	int r600_group_size;
+	int r600_npipes;
+	int r600_nbanks;
 
 	struct mutex cs_mutex;
 	u32 cs_id_scnt;
@@ -309,9 +316,11 @@ typedef struct drm_radeon_buf_priv {
 	u32 age;
 } drm_radeon_buf_priv_t;
 
+struct drm_buffer;
+
 typedef struct drm_radeon_kcmd_buffer {
 	int bufsz;
-	char *buf;
+	struct drm_buffer *buffer;
 	int nbox;
 	struct drm_clip_rect __user *boxes;
 } drm_radeon_kcmd_buffer_t;
@@ -453,6 +462,15 @@ extern void r600_blit_swap(struct drm_device *dev,
 			   uint64_t src_gpu_addr, uint64_t dst_gpu_addr,
 			   int sx, int sy, int dx, int dy,
 			   int w, int h, int src_pitch, int dst_pitch, int cpp);
+
+/* atpx handler */
+#if defined(CONFIG_VGA_SWITCHEROO)
+void radeon_register_atpx_handler(void);
+void radeon_unregister_atpx_handler(void);
+#else
+static inline void radeon_register_atpx_handler(void) {}
+static inline void radeon_unregister_atpx_handler(void) {}
+#endif
 
 /* Flags for stats.boxes
  */
@@ -1104,7 +1122,6 @@ extern u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index);
 #       define R600_IT_WAIT_REG_MEM             0x00003C00
 #       define R600_IT_MEM_WRITE                0x00003D00
 #       define R600_IT_INDIRECT_BUFFER          0x00003200
-#       define R600_IT_CP_INTERRUPT             0x00004000
 #       define R600_IT_SURFACE_SYNC             0x00004300
 #              define R600_CB0_DEST_BASE_ENA    (1 << 6)
 #              define R600_TC_ACTION_ENA        (1 << 23)
@@ -2121,5 +2138,33 @@ extern void radeon_commit_ring(drm_radeon_private_t *dev_priv);
 	}							\
 	write &= mask;						\
 } while (0)
+
+/**
+ * Copy given number of dwords from drm buffer to the ring buffer.
+ */
+#define OUT_RING_DRM_BUFFER(buf, sz) do {				\
+	int _size = (sz) * 4;						\
+	struct drm_buffer *_buf = (buf);				\
+	int _part_size;							\
+	while (_size > 0) {						\
+		_part_size = _size;					\
+									\
+		if (write + _part_size/4 > mask)			\
+			_part_size = ((mask + 1) - write)*4;		\
+									\
+		if (drm_buffer_index(_buf) + _part_size > PAGE_SIZE)	\
+			_part_size = PAGE_SIZE - drm_buffer_index(_buf);\
+									\
+									\
+									\
+		memcpy(ring + write, &_buf->data[drm_buffer_page(_buf)]	\
+			[drm_buffer_index(_buf)], _part_size);		\
+									\
+		_size -= _part_size;					\
+		write = (write + _part_size/4) & mask;			\
+		drm_buffer_advance(_buf, _part_size);			\
+	}								\
+} while (0)
+
 
 #endif				/* __RADEON_DRV_H__ */

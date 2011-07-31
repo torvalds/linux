@@ -24,6 +24,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/socket.h>
 #include <asm/ioctls.h>
 #include <net/sock.h>
@@ -75,7 +76,8 @@ static int pn_sendmsg(struct kiocb *iocb, struct sock *sk,
 	struct sk_buff *skb;
 	int err;
 
-	if (msg->msg_flags & MSG_OOB)
+	if (msg->msg_flags & ~(MSG_DONTWAIT|MSG_EOR|MSG_NOSIGNAL|
+				MSG_CMSG_COMPAT))
 		return -EOPNOTSUPP;
 
 	if (msg->msg_name == NULL)
@@ -119,7 +121,8 @@ static int pn_recvmsg(struct kiocb *iocb, struct sock *sk,
 	int rval = -EOPNOTSUPP;
 	int copylen;
 
-	if (flags & MSG_OOB)
+	if (flags & ~(MSG_PEEK|MSG_TRUNC|MSG_DONTWAIT|MSG_NOSIGNAL|
+			MSG_CMSG_COMPAT))
 		goto out_nofree;
 
 	if (addr_len)
@@ -159,11 +162,9 @@ out_nofree:
 static int pn_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	int err = sock_queue_rcv_skb(sk, skb);
-	if (err < 0) {
+
+	if (err < 0)
 		kfree_skb(skb);
-		if (err == -ENOMEM)
-			atomic_inc(&sk->sk_drops);
-	}
 	return err ? NET_RX_DROP : NET_RX_SUCCESS;
 }
 

@@ -31,51 +31,20 @@ struct gus_proc_private {
 	struct snd_gus_card * gus;
 };
 
-static long snd_gf1_mem_proc_dump(struct snd_info_entry *entry, void *file_private_data,
-			          struct file *file, char __user *buf,
-			          unsigned long count, unsigned long pos)
+static ssize_t snd_gf1_mem_proc_dump(struct snd_info_entry *entry,
+				     void *file_private_data,
+				     struct file *file, char __user *buf,
+				     size_t count, loff_t pos)
 {
-	long size;
 	struct gus_proc_private *priv = entry->private_data;
 	struct snd_gus_card *gus = priv->gus;
 	int err;
 
-	size = count;
-	if (pos + size > priv->size)
-		size = (long)priv->size - pos;
-	if (size > 0) {
-		if ((err = snd_gus_dram_read(gus, buf, pos, size, priv->rom)) < 0)
-			return err;
-		return size;
-	}
-	return 0;
+	err = snd_gus_dram_read(gus, buf, pos, count, priv->rom);
+	if (err < 0)
+		return err;
+	return count;
 }			
-
-static long long snd_gf1_mem_proc_llseek(struct snd_info_entry *entry,
-					void *private_file_data,
-					struct file *file,
-					long long offset,
-					int orig)
-{
-	struct gus_proc_private *priv = entry->private_data;
-
-	switch (orig) {
-	case SEEK_SET:
-		file->f_pos = offset;
-		break;
-	case SEEK_CUR:
-		file->f_pos += offset;
-		break;
-	case SEEK_END: /* offset is negative */
-		file->f_pos = priv->size + offset;
-		break;
-	default:
-		return -EINVAL;
-	}
-	if (file->f_pos > priv->size)
-		file->f_pos = priv->size;
-	return file->f_pos;
-}
 
 static void snd_gf1_mem_proc_free(struct snd_info_entry *entry)
 {
@@ -85,7 +54,6 @@ static void snd_gf1_mem_proc_free(struct snd_info_entry *entry)
 
 static struct snd_info_entry_ops snd_gf1_mem_proc_ops = {
 	.read = snd_gf1_mem_proc_dump,
-	.llseek = snd_gf1_mem_proc_llseek,
 };
 
 int snd_gf1_mem_proc_init(struct snd_gus_card * gus)

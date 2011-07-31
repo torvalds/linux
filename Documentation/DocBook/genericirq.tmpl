@@ -417,8 +417,8 @@ desc->chip->end();
       </para>
       <para>
 	To make use of the split implementation, replace the call to
-	__do_IRQ by a call to desc->chip->handle_irq() and associate
-        the appropriate handler function to desc->chip->handle_irq().
+	__do_IRQ by a call to desc->handle_irq() and associate
+        the appropriate handler function to desc->handle_irq().
 	In most cases the generic handler implementations should
 	be sufficient.
      </para>

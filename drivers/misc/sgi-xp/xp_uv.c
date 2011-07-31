@@ -32,11 +32,43 @@ xp_pa_uv(void *addr)
 	return uv_gpa(addr);
 }
 
+/*
+ * Convert a global physical to socket physical address.
+ */
+static unsigned long
+xp_socket_pa_uv(unsigned long gpa)
+{
+	return uv_gpa_to_soc_phys_ram(gpa);
+}
+
+static enum xp_retval
+xp_remote_mmr_read(unsigned long dst_gpa, const unsigned long src_gpa,
+		   size_t len)
+{
+	int ret;
+	unsigned long *dst_va = __va(uv_gpa_to_soc_phys_ram(dst_gpa));
+
+	BUG_ON(!uv_gpa_in_mmr_space(src_gpa));
+	BUG_ON(len != 8);
+
+	ret = gru_read_gpa(dst_va, src_gpa);
+	if (ret == 0)
+		return xpSuccess;
+
+	dev_err(xp, "gru_read_gpa() failed, dst_gpa=0x%016lx src_gpa=0x%016lx "
+		"len=%ld\n", dst_gpa, src_gpa, len);
+	return xpGruCopyError;
+}
+
+
 static enum xp_retval
 xp_remote_memcpy_uv(unsigned long dst_gpa, const unsigned long src_gpa,
 		    size_t len)
 {
 	int ret;
+
+	if (uv_gpa_in_mmr_space(src_gpa))
+		return xp_remote_mmr_read(dst_gpa, src_gpa, len);
 
 	ret = gru_copy_gpa(dst_gpa, src_gpa, len);
 	if (ret == 0)
@@ -123,6 +155,7 @@ xp_init_uv(void)
 	xp_region_size = sn_region_size;
 
 	xp_pa = xp_pa_uv;
+	xp_socket_pa = xp_socket_pa_uv;
 	xp_remote_memcpy = xp_remote_memcpy_uv;
 	xp_cpu_to_nasid = xp_cpu_to_nasid_uv;
 	xp_expand_memprotect = xp_expand_memprotect_uv;

@@ -144,7 +144,7 @@ bfa_itnim_sm_uninit(struct bfa_itnim_s *itnim, enum bfa_itnim_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->bfa, event);
 	}
 }
 
@@ -175,7 +175,7 @@ bfa_itnim_sm_created(struct bfa_itnim_s *itnim, enum bfa_itnim_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->bfa, event);
 	}
 }
 
@@ -212,7 +212,7 @@ bfa_itnim_sm_fwcreate(struct bfa_itnim_s *itnim, enum bfa_itnim_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->bfa, event);
 	}
 }
 
@@ -247,7 +247,7 @@ bfa_itnim_sm_fwcreate_qfull(struct bfa_itnim_s *itnim,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->bfa, event);
 	}
 }
 
@@ -275,7 +275,7 @@ bfa_itnim_sm_delete_pending(struct bfa_itnim_s *itnim,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->bfa, event);
 	}
 }
 
@@ -317,7 +317,7 @@ bfa_itnim_sm_online(struct bfa_itnim_s *itnim, enum bfa_itnim_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->bfa, event);
 	}
 }
 
@@ -348,7 +348,7 @@ bfa_itnim_sm_sler(struct bfa_itnim_s *itnim, enum bfa_itnim_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->bfa, event);
 	}
 }
 
@@ -385,7 +385,7 @@ bfa_itnim_sm_cleanup_offline(struct bfa_itnim_s *itnim,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->bfa, event);
 	}
 }
 
@@ -413,7 +413,7 @@ bfa_itnim_sm_cleanup_delete(struct bfa_itnim_s *itnim,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->bfa, event);
 	}
 }
 
@@ -442,7 +442,7 @@ bfa_itnim_sm_fwdelete(struct bfa_itnim_s *itnim, enum bfa_itnim_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->bfa, event);
 	}
 }
 
@@ -470,7 +470,7 @@ bfa_itnim_sm_fwdelete_qfull(struct bfa_itnim_s *itnim,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->bfa, event);
 	}
 }
 
@@ -502,7 +502,7 @@ bfa_itnim_sm_offline(struct bfa_itnim_s *itnim, enum bfa_itnim_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->bfa, event);
 	}
 }
 
@@ -538,7 +538,7 @@ bfa_itnim_sm_iocdisable(struct bfa_itnim_s *itnim,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->bfa, event);
 	}
 }
 
@@ -559,7 +559,7 @@ bfa_itnim_sm_deleting(struct bfa_itnim_s *itnim, enum bfa_itnim_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->bfa, event);
 	}
 }
 
@@ -583,7 +583,7 @@ bfa_itnim_sm_deleting_qfull(struct bfa_itnim_s *itnim,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->bfa, event);
 	}
 }
 
@@ -1029,7 +1029,7 @@ bfa_itnim_create(struct bfa_s *bfa, struct bfa_rport_s *rport, void *ditn)
 	bfa_stats(itnim, creates);
 	bfa_sm_send_event(itnim, BFA_ITNIM_SM_CREATE);
 
-	return (itnim);
+	return itnim;
 }
 
 void
@@ -1061,7 +1061,7 @@ bfa_itnim_offline(struct bfa_itnim_s *itnim)
 bfa_boolean_t
 bfa_itnim_hold_io(struct bfa_itnim_s *itnim)
 {
-	return (
+	return
 		itnim->fcpim->path_tov && itnim->iotov_active &&
 		(bfa_sm_cmp_state(itnim, bfa_itnim_sm_fwcreate) ||
 		 bfa_sm_cmp_state(itnim, bfa_itnim_sm_sler) ||
@@ -1069,7 +1069,7 @@ bfa_itnim_hold_io(struct bfa_itnim_s *itnim)
 		 bfa_sm_cmp_state(itnim, bfa_itnim_sm_fwdelete) ||
 		 bfa_sm_cmp_state(itnim, bfa_itnim_sm_offline) ||
 		 bfa_sm_cmp_state(itnim, bfa_itnim_sm_iocdisable))
-);
+	;
 }
 
 void

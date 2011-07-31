@@ -39,7 +39,7 @@ int mls_compute_context_len(struct context *context)
 	struct ebitmap *e;
 	struct ebitmap_node *node;
 
-	if (!selinux_mls_enabled)
+	if (!policydb.mls_enabled)
 		return 0;
 
 	len = 1; /* for the beginning ":" */
@@ -93,7 +93,7 @@ void mls_sid_to_context(struct context *context,
 	struct ebitmap *e;
 	struct ebitmap_node *node;
 
-	if (!selinux_mls_enabled)
+	if (!policydb.mls_enabled)
 		return;
 
 	scontextp = *scontext;
@@ -200,7 +200,7 @@ int mls_context_isvalid(struct policydb *p, struct context *c)
 {
 	struct user_datum *usrdatum;
 
-	if (!selinux_mls_enabled)
+	if (!p->mls_enabled)
 		return 1;
 
 	if (!mls_range_isvalid(p, &c->range))
@@ -253,9 +253,9 @@ int mls_context_to_sid(struct policydb *pol,
 	struct cat_datum *catdatum, *rngdatum;
 	int l, rc = -EINVAL;
 
-	if (!selinux_mls_enabled) {
+	if (!pol->mls_enabled) {
 		if (def_sid != SECSID_NULL && oldc)
-			*scontext += strlen(*scontext)+1;
+			*scontext += strlen(*scontext) + 1;
 		return 0;
 	}
 
@@ -387,7 +387,7 @@ int mls_from_string(char *str, struct context *context, gfp_t gfp_mask)
 	char *tmpstr, *freestr;
 	int rc;
 
-	if (!selinux_mls_enabled)
+	if (!policydb.mls_enabled)
 		return -EINVAL;
 
 	/* we need freestr because mls_context_to_sid will change
@@ -407,7 +407,7 @@ int mls_from_string(char *str, struct context *context, gfp_t gfp_mask)
 /*
  * Copies the MLS range `range' into `context'.
  */
-static inline int mls_range_set(struct context *context,
+int mls_range_set(struct context *context,
 				struct mls_range *range)
 {
 	int l, rc = 0;
@@ -427,7 +427,7 @@ static inline int mls_range_set(struct context *context,
 int mls_setup_user_range(struct context *fromcon, struct user_datum *user,
 			 struct context *usercon)
 {
-	if (selinux_mls_enabled) {
+	if (policydb.mls_enabled) {
 		struct mls_level *fromcon_sen = &(fromcon->range.level[0]);
 		struct mls_level *fromcon_clr = &(fromcon->range.level[1]);
 		struct mls_level *user_low = &(user->range.level[0]);
@@ -477,7 +477,7 @@ int mls_convert_context(struct policydb *oldp,
 	struct ebitmap_node *node;
 	int l, i;
 
-	if (!selinux_mls_enabled)
+	if (!policydb.mls_enabled)
 		return 0;
 
 	for (l = 0; l < 2; l++) {
@@ -513,26 +513,24 @@ int mls_compute_sid(struct context *scontext,
 		    u32 specified,
 		    struct context *newcontext)
 {
-	struct range_trans *rtr;
+	struct range_trans rtr;
+	struct mls_range *r;
 
-	if (!selinux_mls_enabled)
+	if (!policydb.mls_enabled)
 		return 0;
 
 	switch (specified) {
 	case AVTAB_TRANSITION:
 		/* Look for a range transition rule. */
-		for (rtr = policydb.range_tr; rtr; rtr = rtr->next) {
-			if (rtr->source_type == scontext->type &&
-			    rtr->target_type == tcontext->type &&
-			    rtr->target_class == tclass) {
-				/* Set the range from the rule */
-				return mls_range_set(newcontext,
-						     &rtr->target_range);
-			}
-		}
+		rtr.source_type = scontext->type;
+		rtr.target_type = tcontext->type;
+		rtr.target_class = tclass;
+		r = hashtab_search(policydb.range_tr, &rtr);
+		if (r)
+			return mls_range_set(newcontext, r);
 		/* Fallthrough */
 	case AVTAB_CHANGE:
-		if (tclass == SECCLASS_PROCESS)
+		if (tclass == policydb.process_class)
 			/* Use the process MLS attributes. */
 			return mls_context_cpy(newcontext, scontext);
 		else
@@ -541,8 +539,8 @@ int mls_compute_sid(struct context *scontext,
 	case AVTAB_MEMBER:
 		/* Use the process effective MLS attributes. */
 		return mls_context_cpy_low(newcontext, scontext);
-	default:
-		return -EINVAL;
+
+	/* fall through */
 	}
 	return -EINVAL;
 }
@@ -561,7 +559,7 @@ int mls_compute_sid(struct context *scontext,
 void mls_export_netlbl_lvl(struct context *context,
 			   struct netlbl_lsm_secattr *secattr)
 {
-	if (!selinux_mls_enabled)
+	if (!policydb.mls_enabled)
 		return;
 
 	secattr->attr.mls.lvl = context->range.level[0].sens - 1;
@@ -581,7 +579,7 @@ void mls_export_netlbl_lvl(struct context *context,
 void mls_import_netlbl_lvl(struct context *context,
 			   struct netlbl_lsm_secattr *secattr)
 {
-	if (!selinux_mls_enabled)
+	if (!policydb.mls_enabled)
 		return;
 
 	context->range.level[0].sens = secattr->attr.mls.lvl + 1;
@@ -603,7 +601,7 @@ int mls_export_netlbl_cat(struct context *context,
 {
 	int rc;
 
-	if (!selinux_mls_enabled)
+	if (!policydb.mls_enabled)
 		return 0;
 
 	rc = ebitmap_netlbl_export(&context->range.level[0].cat,
@@ -631,7 +629,7 @@ int mls_import_netlbl_cat(struct context *context,
 {
 	int rc;
 
-	if (!selinux_mls_enabled)
+	if (!policydb.mls_enabled)
 		return 0;
 
 	rc = ebitmap_netlbl_import(&context->range.level[0].cat,

@@ -97,8 +97,34 @@ ia64_acpi_release_global_lock (unsigned int *lock)
 #endif
 #define acpi_processor_cstate_check(x) (x) /* no idle limits on IA64 :) */
 static inline void disable_acpi(void) { }
+static inline void pci_acpi_crs_quirks(void) { }
 
+#ifdef CONFIG_IA64_GENERIC
 const char *acpi_get_sysname (void);
+#else
+static inline const char *acpi_get_sysname (void)
+{
+# if defined (CONFIG_IA64_HP_SIM)
+	return "hpsim";
+# elif defined (CONFIG_IA64_HP_ZX1)
+	return "hpzx1";
+# elif defined (CONFIG_IA64_HP_ZX1_SWIOTLB)
+	return "hpzx1_swiotlb";
+# elif defined (CONFIG_IA64_SGI_SN2)
+	return "sn2";
+# elif defined (CONFIG_IA64_SGI_UV)
+	return "uv";
+# elif defined (CONFIG_IA64_DIG)
+	return "dig";
+# elif defined (CONFIG_IA64_XEN_GUEST)
+	return "xen";
+# elif defined(CONFIG_IA64_DIG_VTD)
+	return "dig_vtd";
+# else
+#	error Unknown platform.  Fix acpi.c.
+# endif
+}
+#endif
 int acpi_request_vector (u32 int_type);
 int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
 
@@ -131,6 +157,12 @@ extern int additional_cpus;
 extern int __devinitdata pxm_to_nid_map[MAX_PXM_DOMAINS];
 extern int __initdata nid_to_pxm_map[MAX_NUMNODES];
 #endif
+
+static inline bool arch_has_acpi_pdc(void) { return true; }
+static inline void arch_acpi_set_pdc_bits(u32 *buf)
+{
+	buf[2] |= ACPI_PDC_EST_CAPABILITY_SMP;
+}
 
 #define acpi_unlazy_tlb(x)
 

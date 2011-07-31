@@ -18,6 +18,7 @@
 #include <linux/mfd/ezx-pcap.h>
 #include <linux/spi/spi.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 #define PCAP_ADC_MAXQ		8
 struct pcap_adc_request {
@@ -387,7 +388,6 @@ static int __devinit pcap_add_subdev(struct pcap_chip *pcap,
 	pdev = platform_device_alloc(subdev->name, subdev->id);
 	pdev->dev.parent = &pcap->spi->dev;
 	pdev->dev.platform_data = subdev->platform_data;
-	platform_set_drvdata(pdev, pcap);
 
 	return platform_device_add(pdev);
 }

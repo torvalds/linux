@@ -39,8 +39,7 @@
 static unsigned short normal_i2c[] = { 0x2a, 0x4c, 0x4d, 0x4e, 0x4f,
 				       I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_3(tmp421, tmp422, tmp423);
+enum chips { tmp421, tmp422, tmp423 };
 
 /* The TMP421 registers */
 #define TMP421_CONFIG_REG_1			0x09
@@ -62,9 +61,9 @@ static const u8 TMP421_TEMP_LSB[4]		= { 0x10, 0x11, 0x12, 0x13 };
 #define TMP423_DEVICE_ID			0x23
 
 static const struct i2c_device_id tmp421_id[] = {
-	{ "tmp421", tmp421 },
-	{ "tmp422", tmp422 },
-	{ "tmp423", tmp423 },
+	{ "tmp421", 2 },
+	{ "tmp422", 3 },
+	{ "tmp423", 4 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tmp421_id);
@@ -74,21 +73,23 @@ struct tmp421_data {
 	struct mutex update_lock;
 	char valid;
 	unsigned long last_updated;
-	int kind;
+	int channels;
 	u8 config;
 	s16 temp[4];
 };
 
 static int temp_from_s16(s16 reg)
 {
-	int temp = reg;
+	/* Mask out status bits */
+	int temp = reg & ~0xf;
 
 	return (temp * 1000 + 128) / 256;
 }
 
 static int temp_from_u16(u16 reg)
 {
-	int temp = reg;
+	/* Mask out status bits */
+	int temp = reg & ~0xf;
 
 	/* Add offset for extended temperature range. */
 	temp -= 64 * 256;
@@ -108,7 +109,7 @@ static struct tmp421_data *tmp421_update_device(struct device *dev)
 		data->config = i2c_smbus_read_byte_data(client,
 			TMP421_CONFIG_REG_1);
 
-		for (i = 0; i <= data->kind; i++) {
+		for (i = 0; i < data->channels; i++) {
 			data->temp[i] = i2c_smbus_read_byte_data(client,
 				TMP421_TEMP_MSB[i]) << 8;
 			data->temp[i] |= i2c_smbus_read_byte_data(client,
@@ -167,7 +168,7 @@ static mode_t tmp421_is_visible(struct kobject *kobj, struct attribute *a,
 	devattr = container_of(a, struct device_attribute, attr);
 	index = to_sensor_dev_attr(devattr)->index;
 
-	if (data->kind > index)
+	if (index < data->channels)
 		return a->mode;
 
 	return 0;
@@ -223,42 +224,39 @@ static int tmp421_init_client(struct i2c_client *client)
 	return 0;
 }
 
-static int tmp421_detect(struct i2c_client *client, int kind,
+static int tmp421_detect(struct i2c_client *client,
 			 struct i2c_board_info *info)
 {
+	enum chips kind;
 	struct i2c_adapter *adapter = client->adapter;
 	const char *names[] = { "TMP421", "TMP422", "TMP423" };
+	u8 reg;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	if (kind <= 0) {
-		u8 reg;
+	reg = i2c_smbus_read_byte_data(client, TMP421_MANUFACTURER_ID_REG);
+	if (reg != TMP421_MANUFACTURER_ID)
+		return -ENODEV;
 
-		reg = i2c_smbus_read_byte_data(client,
-					       TMP421_MANUFACTURER_ID_REG);
-		if (reg != TMP421_MANUFACTURER_ID)
-			return -ENODEV;
-
-		reg = i2c_smbus_read_byte_data(client,
-					       TMP421_DEVICE_ID_REG);
-		switch (reg) {
-		case TMP421_DEVICE_ID:
-			kind = tmp421;
-			break;
-		case TMP422_DEVICE_ID:
-			kind = tmp422;
-			break;
-		case TMP423_DEVICE_ID:
-			kind = tmp423;
-			break;
-		default:
-			return -ENODEV;
-		}
+	reg = i2c_smbus_read_byte_data(client, TMP421_DEVICE_ID_REG);
+	switch (reg) {
+	case TMP421_DEVICE_ID:
+		kind = tmp421;
+		break;
+	case TMP422_DEVICE_ID:
+		kind = tmp422;
+		break;
+	case TMP423_DEVICE_ID:
+		kind = tmp423;
+		break;
+	default:
+		return -ENODEV;
 	}
-	strlcpy(info->type, tmp421_id[kind - 1].name, I2C_NAME_SIZE);
+
+	strlcpy(info->type, tmp421_id[kind].name, I2C_NAME_SIZE);
 	dev_info(&adapter->dev, "Detected TI %s chip at 0x%02x\n",
-		 names[kind - 1], client->addr);
+		 names[kind], client->addr);
 
 	return 0;
 }
@@ -275,7 +273,7 @@ static int tmp421_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
-	data->kind = id->driver_data;
+	data->channels = id->driver_data;
 
 	err = tmp421_init_client(client);
 	if (err)
@@ -297,7 +295,6 @@ exit_remove:
 	sysfs_remove_group(&client->dev.kobj, &tmp421_group);
 
 exit_free:
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 
 	return err;
@@ -310,7 +307,6 @@ static int tmp421_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &tmp421_group);
 
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 
 	return 0;
@@ -325,7 +321,7 @@ static struct i2c_driver tmp421_driver = {
 	.remove = tmp421_remove,
 	.id_table = tmp421_id,
 	.detect = tmp421_detect,
-	.address_data = &addr_data,
+	.address_list = normal_i2c,
 };
 
 static int __init tmp421_init(void)

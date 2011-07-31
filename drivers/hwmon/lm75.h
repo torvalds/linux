@@ -30,6 +30,7 @@
 /* straight from the datasheet */
 #define LM75_TEMP_MIN (-55000)
 #define LM75_TEMP_MAX 125000
+#define LM75_SHUTDOWN 0x01
 
 /* TEMP: 0.001C/bit (-55C to +125C)
    REG: (0.5C/bit, two's complement) << 7 */

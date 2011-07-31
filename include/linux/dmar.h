@@ -126,7 +126,9 @@ extern int free_irte(int irq);
 extern int irq_remapped(int irq);
 extern struct intel_iommu *map_dev_to_ir(struct pci_dev *dev);
 extern struct intel_iommu *map_ioapic_to_ir(int apic);
+extern struct intel_iommu *map_hpet_to_ir(u8 id);
 extern int set_ioapic_sid(struct irte *irte, int apic);
+extern int set_hpet_sid(struct irte *irte, u8 id);
 extern int set_msi_sid(struct irte *irte, struct pci_dev *dev);
 #else
 static inline int alloc_irte(struct intel_iommu *iommu, int irq, u16 count)
@@ -158,9 +160,17 @@ static inline struct intel_iommu *map_ioapic_to_ir(int apic)
 {
 	return NULL;
 }
+static inline struct intel_iommu *map_hpet_to_ir(unsigned int hpet_id)
+{
+	return NULL;
+}
 static inline int set_ioapic_sid(struct irte *irte, int apic)
 {
 	return 0;
+}
+static inline int set_hpet_sid(struct irte *irte, u8 id)
+{
+	return -1;
 }
 static inline int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 {
@@ -208,16 +218,9 @@ struct dmar_atsr_unit {
 	u8 include_all:1;		/* include all ports */
 };
 
-/* Intel DMAR  initialization functions */
 extern int intel_iommu_init(void);
-#else
-static inline int intel_iommu_init(void)
-{
-#ifdef CONFIG_INTR_REMAP
-	return dmar_dev_scope_init();
-#else
-	return -ENODEV;
-#endif
-}
-#endif /* !CONFIG_DMAR */
+#else /* !CONFIG_DMAR: */
+static inline int intel_iommu_init(void) { return -ENODEV; }
+#endif /* CONFIG_DMAR */
+
 #endif /* __DMAR_H__ */

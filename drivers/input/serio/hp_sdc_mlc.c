@@ -125,7 +125,7 @@ static void hp_sdc_mlc_isr (int irq, void *dev_id,
 		break;
 
 	default:
-		printk(KERN_WARNING PREFIX "Unkown HIL Error status (%x)!\n", data);
+		printk(KERN_WARNING PREFIX "Unknown HIL Error status (%x)!\n", data);
 		break;
 	}
 

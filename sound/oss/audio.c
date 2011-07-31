@@ -838,7 +838,7 @@ static int dma_ioctl(int dev, unsigned int cmd, void __user *arg)
 					if ((err = audio_devs[dev]->d->prepare_for_input(dev,
 						     dmap_in->fragment_size, dmap_in->nbufs)) < 0) {
 						spin_unlock_irqrestore(&dmap_in->lock,flags);
-						return -err;
+						return err;
 					}
 					dmap_in->dma_mode = DMODE_INPUT;
 					audio_devs[dev]->enable_bits |= PCM_ENABLE_INPUT;

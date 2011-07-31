@@ -211,7 +211,7 @@ static int mipsnet_open(struct net_device *dev)
 {
 	int err;
 
-	err = request_irq(dev->irq, &mipsnet_interrupt,
+	err = request_irq(dev->irq, mipsnet_interrupt,
 			  IRQF_SHARED, dev->name, (void *) dev);
 	if (err) {
 		release_region(dev->base_addr, sizeof(struct mipsnet_regs));
@@ -247,7 +247,7 @@ static const struct net_device_ops mipsnet_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 };
 
-static int __init mipsnet_probe(struct platform_device *dev)
+static int __devinit mipsnet_probe(struct platform_device *dev)
 {
 	struct net_device *netdev;
 	int err;

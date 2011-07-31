@@ -126,7 +126,7 @@ static void q40_reset(void)
 {
         halted = 1;
         printk("\n\n*******************************************\n"
-		"Called q40_reset : press the RESET button!! \n"
+		"Called q40_reset : press the RESET button!!\n"
 		"*******************************************\n");
 	Q40_LED_ON();
 	while (1)

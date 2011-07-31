@@ -102,7 +102,7 @@ void strlist__remove(struct strlist *self, struct str_node *sn)
 	str_node__delete(sn, self->dupstr);
 }
 
-bool strlist__has_entry(struct strlist *self, const char *entry)
+struct str_node *strlist__find(struct strlist *self, const char *entry)
 {
 	struct rb_node **p = &self->entries.rb_node;
 	struct rb_node *parent = NULL;
@@ -120,10 +120,10 @@ bool strlist__has_entry(struct strlist *self, const char *entry)
 		else if (rc < 0)
 			p = &(*p)->rb_right;
 		else
-			return true;
+			return sn;
 	}
 
-	return false;
+	return NULL;
 }
 
 static int strlist__parse_list_entry(struct strlist *self, const char *s)

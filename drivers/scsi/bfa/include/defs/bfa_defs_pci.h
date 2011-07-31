@@ -26,7 +26,12 @@ enum {
 	BFA_PCI_DEVICE_ID_FC_8G2P	= 0x13,
 	BFA_PCI_DEVICE_ID_FC_8G1P	= 0x17,
 	BFA_PCI_DEVICE_ID_CT		= 0x14,
+	BFA_PCI_DEVICE_ID_CT_FC         = 0x21,
 };
+
+#define bfa_asic_id_ct(devid)                   \
+	((devid) == BFA_PCI_DEVICE_ID_CT ||     \
+	 (devid) == BFA_PCI_DEVICE_ID_CT_FC)
 
 /**
  * PCI sub-system device and vendor ID information
@@ -35,7 +40,9 @@ enum {
 	BFA_PCI_FCOE_SSDEVICE_ID	= 0x14,
 };
 
-#define BFA_PCI_ACCESS_RANGES 1	/* Maximum number of device address ranges
-				 * mapped through different BAR(s). */
+/**
+ * Maximum number of device address ranges mapped through different BAR(s)
+ */
+#define BFA_PCI_ACCESS_RANGES 1
 
 #endif /* __BFA_DEFS_PCI_H__ */

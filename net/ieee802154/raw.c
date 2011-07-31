@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/if_arp.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/af_ieee802154.h>
 
@@ -191,7 +192,7 @@ static int raw_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	if (err)
 		goto done;
 
-	sock_recv_timestamp(msg, sk, skb);
+	sock_recv_ts_and_drops(msg, sk, skb);
 
 	if (flags & MSG_TRUNC)
 		copied = skb->len;
@@ -206,7 +207,6 @@ out:
 static int raw_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	if (sock_queue_rcv_skb(sk, skb) < 0) {
-		atomic_inc(&sk->sk_drops);
 		kfree_skb(skb);
 		return NET_RX_DROP;
 	}

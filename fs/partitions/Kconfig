@@ -249,3 +249,9 @@ config SYSV68_PARTITION
 	  partition table format used by Motorola Delta machines (using
 	  sysv68).
 	  Otherwise, say N.
+
+config CMDLINE_PARTITION
+       bool "Kernel command line partition table support" if PARTITION_ADVANCED
+       help
+	 Say Y here if you would like to pass the partition table for a device
+	 on the kernel command line.

@@ -14,6 +14,7 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
+#include <linux/memblock.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <mach/hardware.h>
@@ -21,6 +22,21 @@
 #include <mach/memory.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+
+static void __init u300_reserve(void)
+{
+	/*
+	 * U300 - This platform family can share physical memory
+	 * between two ARM cpus, one running Linux and the other
+	 * running another OS.
+	 */
+#ifdef CONFIG_MACH_U300_SINGLE_RAM
+#if ((CONFIG_MACH_U300_ACCESS_MEM_SIZE & 1) == 1) && \
+	CONFIG_MACH_U300_2MB_ALIGNMENT_FIX
+        memblock_reserve(PHYS_OFFSET, 0x00100000);
+#endif
+#endif
+}
 
 static void __init u300_init_machine(void)
 {
@@ -49,6 +65,7 @@ MACHINE_START(U300, MACH_U300_STRING)
 	.io_pg_offst	= ((U300_AHB_PER_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= BOOT_PARAMS_OFFSET,
 	.map_io		= u300_map_io,
+	.reserve	= u300_reserve,
 	.init_irq	= u300_init_irq,
 	.timer		= &u300_timer,
 	.init_machine	= u300_init_machine,

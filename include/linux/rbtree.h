@@ -25,10 +25,10 @@
 
   Some example of insert and search follows here. The search is a plain
   normal search over an ordered tree. The insert instead must be implemented
-  int two steps: as first thing the code must insert the element in
-  order as a red leaf in the tree, then the support library function
-  rb_insert_color() must be called. Such function will do the
-  not trivial work to rebalance the rbtree if necessary.
+  in two steps: First, the code must insert the element in order as a red leaf
+  in the tree, and then the support library function rb_insert_color() must
+  be called. Such function will do the not trivial work to rebalance the
+  rbtree, if necessary.
 
 -----------------------------------------------------------------------
 static inline struct page * rb_search_page_cache(struct inode * inode,
@@ -138,6 +138,14 @@ static inline void rb_set_color(struct rb_node *rb, int color)
 
 extern void rb_insert_color(struct rb_node *, struct rb_root *);
 extern void rb_erase(struct rb_node *, struct rb_root *);
+
+typedef void (*rb_augment_f)(struct rb_node *node, void *data);
+
+extern void rb_augment_insert(struct rb_node *node,
+			      rb_augment_f func, void *data);
+extern struct rb_node *rb_augment_erase_begin(struct rb_node *node);
+extern void rb_augment_erase_end(struct rb_node *node,
+				 rb_augment_f func, void *data);
 
 /* Find logical next and previous nodes in a tree */
 extern struct rb_node *rb_next(const struct rb_node *);

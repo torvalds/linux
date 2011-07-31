@@ -12,6 +12,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/cdev.h>
+#include <linux/slab.h>
 #include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
@@ -695,7 +696,6 @@ static int ur_open(struct inode *inode, struct file *file)
 
 	if (accmode == O_RDWR)
 		return -EACCES;
-	lock_kernel();
 	/*
 	 * We treat the minor number as the devno of the ur device
 	 * to find in the driver tree.
@@ -749,7 +749,6 @@ static int ur_open(struct inode *inode, struct file *file)
 		goto fail_urfile_free;
 	urf->file_reclen = rc;
 	file->private_data = urf;
-	unlock_kernel();
 	return 0;
 
 fail_urfile_free:
@@ -761,7 +760,6 @@ fail_unlock:
 fail_put:
 	urdev_put(urd);
 out:
-	unlock_kernel();
 	return rc;
 }
 

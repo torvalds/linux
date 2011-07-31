@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2008 QLogic Corporation
+ * Copyright (c)  2003-2010 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -1535,7 +1535,7 @@ qla2x00_fdmi_rpa(scsi_qla_host_t *vha)
 	eiter = (struct ct_fdmi_port_attr *) (entries + size);
 	eiter->type = __constant_cpu_to_be16(FDMI_PORT_SUPPORT_SPEED);
 	eiter->len = __constant_cpu_to_be16(4 + 4);
-	if (IS_QLA81XX(ha))
+	if (IS_QLA8XXX_TYPE(ha))
 		eiter->a.sup_speed = __constant_cpu_to_be32(
 		    FDMI_PORT_SPEED_10GB);
 	else if (IS_QLA25XX(ha))
@@ -1912,4 +1912,76 @@ qla2x00_gpsc(scsi_qla_host_t *vha, sw_info_t *list)
 	}
 
 	return (rval);
+}
+
+/**
+ * qla2x00_gff_id() - SNS Get FC-4 Features (GFF_ID) query.
+ *
+ * @ha: HA context
+ * @list: switch info entries to populate
+ *
+ */
+void
+qla2x00_gff_id(scsi_qla_host_t *vha, sw_info_t *list)
+{
+	int		rval;
+	uint16_t	i;
+
+	ms_iocb_entry_t	*ms_pkt;
+	struct ct_sns_req	*ct_req;
+	struct ct_sns_rsp	*ct_rsp;
+	struct qla_hw_data *ha = vha->hw;
+	uint8_t fcp_scsi_features = 0;
+
+	for (i = 0; i < MAX_FIBRE_DEVICES; i++) {
+		/* Set default FC4 Type as UNKNOWN so the default is to
+		 * Process this port */
+		list[i].fc4_type = FC4_TYPE_UNKNOWN;
+
+		/* Do not attempt GFF_ID if we are not FWI_2 capable */
+		if (!IS_FWI2_CAPABLE(ha))
+			continue;
+
+		/* Prepare common MS IOCB */
+		ms_pkt = ha->isp_ops->prep_ms_iocb(vha, GFF_ID_REQ_SIZE,
+		    GFF_ID_RSP_SIZE);
+
+		/* Prepare CT request */
+		ct_req = qla2x00_prep_ct_req(&ha->ct_sns->p.req, GFF_ID_CMD,
+		    GFF_ID_RSP_SIZE);
+		ct_rsp = &ha->ct_sns->p.rsp;
+
+		/* Prepare CT arguments -- port_id */
+		ct_req->req.port_id.port_id[0] = list[i].d_id.b.domain;
+		ct_req->req.port_id.port_id[1] = list[i].d_id.b.area;
+		ct_req->req.port_id.port_id[2] = list[i].d_id.b.al_pa;
+
+		/* Execute MS IOCB */
+		rval = qla2x00_issue_iocb(vha, ha->ms_iocb, ha->ms_iocb_dma,
+		   sizeof(ms_iocb_entry_t));
+
+		if (rval != QLA_SUCCESS) {
+			DEBUG2_3(printk(KERN_INFO
+			    "scsi(%ld): GFF_ID issue IOCB failed "
+			    "(%d).\n", vha->host_no, rval));
+		} else if (qla2x00_chk_ms_status(vha, ms_pkt, ct_rsp,
+			       "GPN_ID") != QLA_SUCCESS) {
+			DEBUG2_3(printk(KERN_INFO
+			    "scsi(%ld): GFF_ID IOCB status had a "
+			    "failure status code\n", vha->host_no));
+		} else {
+			fcp_scsi_features =
+			   ct_rsp->rsp.gff_id.fc4_features[GFF_FCP_SCSI_OFFSET];
+			fcp_scsi_features &= 0x0f;
+
+			if (fcp_scsi_features)
+				list[i].fc4_type = FC4_TYPE_FCP_SCSI;
+			else
+				list[i].fc4_type = FC4_TYPE_OTHER;
+		}
+
+		/* Last device exit. */
+		if (list[i].d_id.b.rsvd_1 != 0)
+			break;
+	}
 }

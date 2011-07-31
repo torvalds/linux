@@ -27,6 +27,7 @@
 #include <linux/fs.h>
 #include <linux/ncp_fs.h>
 #include <linux/time.h>
+#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/stat.h>
 #include "ncplib_kernel.h"

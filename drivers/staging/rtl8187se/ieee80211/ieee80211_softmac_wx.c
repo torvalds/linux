@@ -277,8 +277,6 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 
 	chan = ieee->current_network.channel;
 
-	netif_carrier_off(ieee->dev);
-
 	if (ieee->data_hard_stop)
 		ieee->data_hard_stop(ieee->dev);
 
@@ -299,8 +297,6 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 
 	if(ieee->iw_mode == IW_MODE_ADHOC || ieee->iw_mode == IW_MODE_MASTER)
 		ieee80211_start_send_beacons(ieee);
-
-	netif_carrier_on(ieee->dev);
 
 	//YJ,add,080828, In prevent of lossing ping packet during scanning
 	//ieee80211_sta_ps_send_null_frame(ieee, false);
@@ -482,8 +478,7 @@ int ieee80211_wx_set_power(struct ieee80211_device *ieee,
 		(!ieee->enter_sleep_state) ||
 		(!ieee->ps_is_queue_empty)){
 
-		printk("ERROR. PS mode is tryied to be use but\
-driver missed a callback\n\n");
+		printk("ERROR. PS mode tried to be use but driver missed a callback\n\n");
 
 		return -1;
 	}

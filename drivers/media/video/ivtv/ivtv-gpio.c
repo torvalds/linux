@@ -24,6 +24,7 @@
 #include "ivtv-gpio.h"
 #include "tuner-xc2028.h"
 #include <media/tuner.h>
+#include <media/v4l2-ctrls.h>
 
 /*
  * GPIO assignment of Yuan MPG600/MPG160
@@ -149,16 +150,10 @@ static inline struct ivtv *sd_to_ivtv(struct v4l2_subdev *sd)
 	return container_of(sd, struct ivtv, sd_gpio);
 }
 
-static struct v4l2_queryctrl gpio_ctrl_mute = {
-	.id            = V4L2_CID_AUDIO_MUTE,
-	.type          = V4L2_CTRL_TYPE_BOOLEAN,
-	.name          = "Mute",
-	.minimum       = 0,
-	.maximum       = 1,
-	.step          = 1,
-	.default_value = 1,
-	.flags         = 0,
-};
+static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
+{
+	return &container_of(ctrl->handler, struct ivtv, hdl_gpio)->sd_gpio;
+}
 
 static int subdev_s_clock_freq(struct v4l2_subdev *sd, u32 freq)
 {
@@ -262,40 +257,24 @@ static int subdev_s_audio_routing(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int subdev_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+static int subdev_s_ctrl(struct v4l2_ctrl *ctrl)
 {
+	struct v4l2_subdev *sd = to_sd(ctrl);
 	struct ivtv *itv = sd_to_ivtv(sd);
 	u16 mask, data;
 
-	if (ctrl->id != V4L2_CID_AUDIO_MUTE)
-		return -EINVAL;
-	mask = itv->card->gpio_audio_mute.mask;
-	data = itv->card->gpio_audio_mute.mute;
-	ctrl->value = (read_reg(IVTV_REG_GPIO_OUT) & mask) == data;
-	return 0;
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		mask = itv->card->gpio_audio_mute.mask;
+		data = ctrl->val ? itv->card->gpio_audio_mute.mute : 0;
+		if (mask)
+			write_reg((read_reg(IVTV_REG_GPIO_OUT) & ~mask) |
+					(data & mask), IVTV_REG_GPIO_OUT);
+		return 0;
+	}
+	return -EINVAL;
 }
 
-static int subdev_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
-{
-	struct ivtv *itv = sd_to_ivtv(sd);
-	u16 mask, data;
-
-	if (ctrl->id != V4L2_CID_AUDIO_MUTE)
-		return -EINVAL;
-	mask = itv->card->gpio_audio_mute.mask;
-	data = ctrl->value ? itv->card->gpio_audio_mute.mute : 0;
-	if (mask)
-		write_reg((read_reg(IVTV_REG_GPIO_OUT) & ~mask) | (data & mask), IVTV_REG_GPIO_OUT);
-	return 0;
-}
-
-static int subdev_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
-{
-	if (qc->id != V4L2_CID_AUDIO_MUTE)
-		return -EINVAL;
-	*qc = gpio_ctrl_mute;
-	return 0;
-}
 
 static int subdev_log_status(struct v4l2_subdev *sd)
 {
@@ -304,6 +283,7 @@ static int subdev_log_status(struct v4l2_subdev *sd)
 	IVTV_INFO("GPIO status: DIR=0x%04x OUT=0x%04x IN=0x%04x\n",
 			read_reg(IVTV_REG_GPIO_DIR), read_reg(IVTV_REG_GPIO_OUT),
 			read_reg(IVTV_REG_GPIO_IN));
+	v4l2_ctrl_handler_log_status(&itv->hdl_gpio, sd->name);
 	return 0;
 }
 
@@ -327,11 +307,19 @@ static int subdev_s_video_routing(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static const struct v4l2_ctrl_ops gpio_ctrl_ops = {
+	.s_ctrl = subdev_s_ctrl,
+};
+
 static const struct v4l2_subdev_core_ops subdev_core_ops = {
 	.log_status = subdev_log_status,
-	.g_ctrl = subdev_g_ctrl,
-	.s_ctrl = subdev_s_ctrl,
-	.queryctrl = subdev_queryctrl,
+	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
+	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
+	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
+	.g_ctrl = v4l2_subdev_g_ctrl,
+	.s_ctrl = v4l2_subdev_s_ctrl,
+	.queryctrl = v4l2_subdev_queryctrl,
+	.querymenu = v4l2_subdev_querymenu,
 };
 
 static const struct v4l2_subdev_tuner_ops subdev_tuner_ops = {
@@ -375,5 +363,12 @@ int ivtv_gpio_init(struct ivtv *itv)
 	v4l2_subdev_init(&itv->sd_gpio, &subdev_ops);
 	snprintf(itv->sd_gpio.name, sizeof(itv->sd_gpio.name), "%s-gpio", itv->v4l2_dev.name);
 	itv->sd_gpio.grp_id = IVTV_HW_GPIO;
+	v4l2_ctrl_handler_init(&itv->hdl_gpio, 1);
+	v4l2_ctrl_new_std(&itv->hdl_gpio, &gpio_ctrl_ops,
+			V4L2_CID_AUDIO_MUTE, 0, 1, 1, 0);
+	if (itv->hdl_gpio.error)
+		return itv->hdl_gpio.error;
+	itv->sd_gpio.ctrl_handler = &itv->hdl_gpio;
+	v4l2_ctrl_handler_setup(&itv->hdl_gpio);
 	return v4l2_device_register_subdev(&itv->v4l2_dev, &itv->sd_gpio);
 }

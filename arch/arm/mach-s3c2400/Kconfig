@@ -1,13 +1,7 @@
-# arch/arm/mach-s3c2400/Kconfig
-#
 # Copyright 2007 Simtec Electronics
 #
 # Licensed under GPLv2
 
-
-
 menu "S3C2400 Machines"
 
-
 endmenu
-

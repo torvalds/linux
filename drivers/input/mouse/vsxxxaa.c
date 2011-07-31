@@ -86,27 +86,28 @@
 
 #define DRIVER_DESC "Driver for DEC VSXXX-AA and -GA mice and VSXXX-AB tablet"
 
-MODULE_AUTHOR ("Jan-Benedict Glaw <jbglaw@lug-owl.de>");
-MODULE_DESCRIPTION (DRIVER_DESC);
-MODULE_LICENSE ("GPL");
+MODULE_AUTHOR("Jan-Benedict Glaw <jbglaw@lug-owl.de>");
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_LICENSE("GPL");
 
 #undef VSXXXAA_DEBUG
 #ifdef VSXXXAA_DEBUG
-#define DBG(x...) printk (x)
+#define DBG(x...) printk(x)
 #else
 #define DBG(x...) do {} while (0)
 #endif
 
 #define VSXXXAA_INTRO_MASK	0x80
 #define VSXXXAA_INTRO_HEAD	0x80
-#define IS_HDR_BYTE(x)		(((x) & VSXXXAA_INTRO_MASK)	\
-					== VSXXXAA_INTRO_HEAD)
+#define IS_HDR_BYTE(x)			\
+	(((x) & VSXXXAA_INTRO_MASK) == VSXXXAA_INTRO_HEAD)
 
 #define VSXXXAA_PACKET_MASK	0xe0
 #define VSXXXAA_PACKET_REL	0x80
 #define VSXXXAA_PACKET_ABS	0xc0
 #define VSXXXAA_PACKET_POR	0xa0
-#define MATCH_PACKET_TYPE(data, type)	(((data) & VSXXXAA_PACKET_MASK) == (type))
+#define MATCH_PACKET_TYPE(data, type)	\
+	(((data) & VSXXXAA_PACKET_MASK) == (type))
 
 
 
@@ -123,52 +124,50 @@ struct vsxxxaa {
 	char phys[32];
 };
 
-static void
-vsxxxaa_drop_bytes (struct vsxxxaa *mouse, int num)
+static void vsxxxaa_drop_bytes(struct vsxxxaa *mouse, int num)
 {
-	if (num >= mouse->count)
+	if (num >= mouse->count) {
 		mouse->count = 0;
-	else {
-		memmove (mouse->buf, mouse->buf + num - 1, BUFLEN - num);
+	} else {
+		memmove(mouse->buf, mouse->buf + num - 1, BUFLEN - num);
 		mouse->count -= num;
 	}
 }
 
-static void
-vsxxxaa_queue_byte (struct vsxxxaa *mouse, unsigned char byte)
+static void vsxxxaa_queue_byte(struct vsxxxaa *mouse, unsigned char byte)
 {
 	if (mouse->count == BUFLEN) {
-		printk (KERN_ERR "%s on %s: Dropping a byte of full buffer.\n",
-				mouse->name, mouse->phys);
-		vsxxxaa_drop_bytes (mouse, 1);
+		printk(KERN_ERR "%s on %s: Dropping a byte of full buffer.\n",
+			mouse->name, mouse->phys);
+		vsxxxaa_drop_bytes(mouse, 1);
 	}
-	DBG (KERN_INFO "Queueing byte 0x%02x\n", byte);
+
+	DBG(KERN_INFO "Queueing byte 0x%02x\n", byte);
 
 	mouse->buf[mouse->count++] = byte;
 }
 
-static void
-vsxxxaa_detection_done (struct vsxxxaa *mouse)
+static void vsxxxaa_detection_done(struct vsxxxaa *mouse)
 {
 	switch (mouse->type) {
-		case 0x02:
-			strlcpy (mouse->name, "DEC VSXXX-AA/-GA mouse",
-				 sizeof (mouse->name));
-			break;
+	case 0x02:
+		strlcpy(mouse->name, "DEC VSXXX-AA/-GA mouse",
+			sizeof(mouse->name));
+		break;
 
-		case 0x04:
-			strlcpy (mouse->name, "DEC VSXXX-AB digitizer",
-				 sizeof (mouse->name));
-			break;
+	case 0x04:
+		strlcpy(mouse->name, "DEC VSXXX-AB digitizer",
+			sizeof(mouse->name));
+		break;
 
-		default:
-			snprintf (mouse->name, sizeof (mouse->name),
-				  "unknown DEC pointer device (type = 0x%02x)",
-				  mouse->type);
-			break;
+	default:
+		snprintf(mouse->name, sizeof(mouse->name),
+			 "unknown DEC pointer device (type = 0x%02x)",
+			 mouse->type);
+		break;
 	}
 
-	printk (KERN_INFO
+	printk(KERN_INFO
 		"Found %s version 0x%02x from country 0x%02x on port %s\n",
 		mouse->name, mouse->version, mouse->country, mouse->phys);
 }
@@ -176,42 +175,38 @@ vsxxxaa_detection_done (struct vsxxxaa *mouse)
 /*
  * Returns number of bytes to be dropped, 0 if packet is okay.
  */
-static int
-vsxxxaa_check_packet (struct vsxxxaa *mouse, int packet_len)
+static int vsxxxaa_check_packet(struct vsxxxaa *mouse, int packet_len)
 {
 	int i;
 
 	/* First byte must be a header byte */
-	if (!IS_HDR_BYTE (mouse->buf[0])) {
-		DBG ("vsck: len=%d, 1st=0x%02x\n", packet_len, mouse->buf[0]);
+	if (!IS_HDR_BYTE(mouse->buf[0])) {
+		DBG("vsck: len=%d, 1st=0x%02x\n", packet_len, mouse->buf[0]);
 		return 1;
 	}
 
 	/* Check all following bytes */
-	if (packet_len > 1) {
-		for (i = 1; i < packet_len; i++) {
-			if (IS_HDR_BYTE (mouse->buf[i])) {
-				printk (KERN_ERR "Need to drop %d bytes "
-						"of a broken packet.\n",
-						i - 1);
-				DBG (KERN_INFO "check: len=%d, b[%d]=0x%02x\n",
-						packet_len, i, mouse->buf[i]);
-				return i - 1;
-			}
+	for (i = 1; i < packet_len; i++) {
+		if (IS_HDR_BYTE(mouse->buf[i])) {
+			printk(KERN_ERR
+				"Need to drop %d bytes of a broken packet.\n",
+				i - 1);
+			DBG(KERN_INFO "check: len=%d, b[%d]=0x%02x\n",
+			    packet_len, i, mouse->buf[i]);
+			return i - 1;
 		}
 	}
 
 	return 0;
 }
 
-static __inline__ int
-vsxxxaa_smells_like_packet (struct vsxxxaa *mouse, unsigned char type, size_t len)
+static inline int vsxxxaa_smells_like_packet(struct vsxxxaa *mouse,
+					     unsigned char type, size_t len)
 {
-	return (mouse->count >= len) && MATCH_PACKET_TYPE (mouse->buf[0], type);
+	return mouse->count >= len && MATCH_PACKET_TYPE(mouse->buf[0], type);
 }
 
-static void
-vsxxxaa_handle_REL_packet (struct vsxxxaa *mouse)
+static void vsxxxaa_handle_REL_packet(struct vsxxxaa *mouse)
 {
 	struct input_dev *dev = mouse->dev;
 	unsigned char *buf = mouse->buf;
@@ -232,43 +227,42 @@ vsxxxaa_handle_REL_packet (struct vsxxxaa *mouse)
 	 * 0, bit 4 of byte 0 is direction.
 	 */
 	dx = buf[1] & 0x7f;
-	dx *= ((buf[0] >> 4) & 0x01)? 1: -1;
+	dx *= ((buf[0] >> 4) & 0x01) ? 1 : -1;
 
 	/*
 	 * Low 7 bit of byte 2 are abs(dy), bit 7 is
 	 * 0, bit 3 of byte 0 is direction.
 	 */
 	dy = buf[2] & 0x7f;
-	dy *= ((buf[0] >> 3) & 0x01)? -1: 1;
+	dy *= ((buf[0] >> 3) & 0x01) ? -1 : 1;
 
 	/*
 	 * Get button state. It's the low three bits
 	 * (for three buttons) of byte 0.
 	 */
-	left	= (buf[0] & 0x04)? 1: 0;
-	middle	= (buf[0] & 0x02)? 1: 0;
-	right	= (buf[0] & 0x01)? 1: 0;
+	left	= buf[0] & 0x04;
+	middle	= buf[0] & 0x02;
+	right	= buf[0] & 0x01;
 
-	vsxxxaa_drop_bytes (mouse, 3);
+	vsxxxaa_drop_bytes(mouse, 3);
 
-	DBG (KERN_INFO "%s on %s: dx=%d, dy=%d, buttons=%s%s%s\n",
-			mouse->name, mouse->phys, dx, dy,
-			left? "L": "l", middle? "M": "m", right? "R": "r");
+	DBG(KERN_INFO "%s on %s: dx=%d, dy=%d, buttons=%s%s%s\n",
+	    mouse->name, mouse->phys, dx, dy,
+	    left ? "L" : "l", middle ? "M" : "m", right ? "R" : "r");
 
 	/*
 	 * Report what we've found so far...
 	 */
-	input_report_key (dev, BTN_LEFT, left);
-	input_report_key (dev, BTN_MIDDLE, middle);
-	input_report_key (dev, BTN_RIGHT, right);
-	input_report_key (dev, BTN_TOUCH, 0);
-	input_report_rel (dev, REL_X, dx);
-	input_report_rel (dev, REL_Y, dy);
-	input_sync (dev);
+	input_report_key(dev, BTN_LEFT, left);
+	input_report_key(dev, BTN_MIDDLE, middle);
+	input_report_key(dev, BTN_RIGHT, right);
+	input_report_key(dev, BTN_TOUCH, 0);
+	input_report_rel(dev, REL_X, dx);
+	input_report_rel(dev, REL_Y, dy);
+	input_sync(dev);
 }
 
-static void
-vsxxxaa_handle_ABS_packet (struct vsxxxaa *mouse)
+static void vsxxxaa_handle_ABS_packet(struct vsxxxaa *mouse)
 {
 	struct input_dev *dev = mouse->dev;
 	unsigned char *buf = mouse->buf;
@@ -296,32 +290,31 @@ vsxxxaa_handle_ABS_packet (struct vsxxxaa *mouse)
 	/*
 	 * Get button state. It's bits <4..1> of byte 0.
 	 */
-	left	= (buf[0] & 0x02)? 1: 0;
-	middle	= (buf[0] & 0x04)? 1: 0;
-	right	= (buf[0] & 0x08)? 1: 0;
-	touch	= (buf[0] & 0x10)? 1: 0;
+	left	= buf[0] & 0x02;
+	middle	= buf[0] & 0x04;
+	right	= buf[0] & 0x08;
+	touch	= buf[0] & 0x10;
 
-	vsxxxaa_drop_bytes (mouse, 5);
+	vsxxxaa_drop_bytes(mouse, 5);
 
-	DBG (KERN_INFO "%s on %s: x=%d, y=%d, buttons=%s%s%s%s\n",
-			mouse->name, mouse->phys, x, y,
-			left? "L": "l", middle? "M": "m",
-			right? "R": "r", touch? "T": "t");
+	DBG(KERN_INFO "%s on %s: x=%d, y=%d, buttons=%s%s%s%s\n",
+	    mouse->name, mouse->phys, x, y,
+	    left ? "L" : "l", middle ? "M" : "m",
+	    right ? "R" : "r", touch ? "T" : "t");
 
 	/*
 	 * Report what we've found so far...
 	 */
-	input_report_key (dev, BTN_LEFT, left);
-	input_report_key (dev, BTN_MIDDLE, middle);
-	input_report_key (dev, BTN_RIGHT, right);
-	input_report_key (dev, BTN_TOUCH, touch);
-	input_report_abs (dev, ABS_X, x);
-	input_report_abs (dev, ABS_Y, y);
-	input_sync (dev);
+	input_report_key(dev, BTN_LEFT, left);
+	input_report_key(dev, BTN_MIDDLE, middle);
+	input_report_key(dev, BTN_RIGHT, right);
+	input_report_key(dev, BTN_TOUCH, touch);
+	input_report_abs(dev, ABS_X, x);
+	input_report_abs(dev, ABS_Y, y);
+	input_sync(dev);
 }
 
-static void
-vsxxxaa_handle_POR_packet (struct vsxxxaa *mouse)
+static void vsxxxaa_handle_POR_packet(struct vsxxxaa *mouse)
 {
 	struct input_dev *dev = mouse->dev;
 	unsigned char *buf = mouse->buf;
@@ -356,24 +349,24 @@ vsxxxaa_handle_POR_packet (struct vsxxxaa *mouse)
 	 * (for three buttons) of byte 0. Maybe even the bit <3>
 	 * has some meaning if a tablet is attached.
 	 */
-	left	= (buf[0] & 0x04)? 1: 0;
-	middle	= (buf[0] & 0x02)? 1: 0;
-	right	= (buf[0] & 0x01)? 1: 0;
+	left	= buf[0] & 0x04;
+	middle	= buf[0] & 0x02;
+	right	= buf[0] & 0x01;
 
-	vsxxxaa_drop_bytes (mouse, 4);
-	vsxxxaa_detection_done (mouse);
+	vsxxxaa_drop_bytes(mouse, 4);
+	vsxxxaa_detection_done(mouse);
 
 	if (error <= 0x1f) {
 		/* No (serious) error. Report buttons */
-		input_report_key (dev, BTN_LEFT, left);
-		input_report_key (dev, BTN_MIDDLE, middle);
-		input_report_key (dev, BTN_RIGHT, right);
-		input_report_key (dev, BTN_TOUCH, 0);
-		input_sync (dev);
+		input_report_key(dev, BTN_LEFT, left);
+		input_report_key(dev, BTN_MIDDLE, middle);
+		input_report_key(dev, BTN_RIGHT, right);
+		input_report_key(dev, BTN_TOUCH, 0);
+		input_sync(dev);
 
 		if (error != 0)
-			printk (KERN_INFO "Your %s on %s reports error=0x%02x\n",
-					mouse->name, mouse->phys, error);
+			printk(KERN_INFO "Your %s on %s reports error=0x%02x\n",
+				mouse->name, mouse->phys, error);
 
 	}
 
@@ -381,18 +374,18 @@ vsxxxaa_handle_POR_packet (struct vsxxxaa *mouse)
 	 * If the mouse was hot-plugged, we need to force differential mode
 	 * now... However, give it a second to recover from it's reset.
 	 */
-	printk (KERN_NOTICE "%s on %s: Forceing standard packet format, "
-			"incremental streaming mode and 72 samples/sec\n",
-			mouse->name, mouse->phys);
-	serio_write (mouse->serio, 'S');	/* Standard format */
-	mdelay (50);
-	serio_write (mouse->serio, 'R');	/* Incremental */
-	mdelay (50);
-	serio_write (mouse->serio, 'L');	/* 72 samples/sec */
+	printk(KERN_NOTICE
+		"%s on %s: Forcing standard packet format, "
+		"incremental streaming mode and 72 samples/sec\n",
+		mouse->name, mouse->phys);
+	serio_write(mouse->serio, 'S');	/* Standard format */
+	mdelay(50);
+	serio_write(mouse->serio, 'R');	/* Incremental */
+	mdelay(50);
+	serio_write(mouse->serio, 'L');	/* 72 samples/sec */
 }
 
-static void
-vsxxxaa_parse_buffer (struct vsxxxaa *mouse)
+static void vsxxxaa_parse_buffer(struct vsxxxaa *mouse)
 {
 	unsigned char *buf = mouse->buf;
 	int stray_bytes;
@@ -409,122 +402,107 @@ vsxxxaa_parse_buffer (struct vsxxxaa *mouse)
 		 * activity on the mouse.
 		 */
 		while (mouse->count > 0 && !IS_HDR_BYTE(buf[0])) {
-			printk (KERN_ERR "%s on %s: Dropping a byte to regain "
-					"sync with mouse data stream...\n",
-					mouse->name, mouse->phys);
-			vsxxxaa_drop_bytes (mouse, 1);
+			printk(KERN_ERR "%s on %s: Dropping a byte to regain "
+				"sync with mouse data stream...\n",
+				mouse->name, mouse->phys);
+			vsxxxaa_drop_bytes(mouse, 1);
 		}
 
 		/*
 		 * Check for packets we know about.
 		 */
 
-		if (vsxxxaa_smells_like_packet (mouse, VSXXXAA_PACKET_REL, 3)) {
+		if (vsxxxaa_smells_like_packet(mouse, VSXXXAA_PACKET_REL, 3)) {
 			/* Check for broken packet */
-			stray_bytes = vsxxxaa_check_packet (mouse, 3);
-			if (stray_bytes > 0) {
-				printk (KERN_ERR "Dropping %d bytes now...\n",
-						stray_bytes);
-				vsxxxaa_drop_bytes (mouse, stray_bytes);
-				continue;
-			}
+			stray_bytes = vsxxxaa_check_packet(mouse, 3);
+			if (!stray_bytes)
+				vsxxxaa_handle_REL_packet(mouse);
 
-			vsxxxaa_handle_REL_packet (mouse);
-			continue; /* More to parse? */
+		} else if (vsxxxaa_smells_like_packet(mouse,
+						      VSXXXAA_PACKET_ABS, 5)) {
+			/* Check for broken packet */
+			stray_bytes = vsxxxaa_check_packet(mouse, 5);
+			if (!stray_bytes)
+				vsxxxaa_handle_ABS_packet(mouse);
+
+		} else if (vsxxxaa_smells_like_packet(mouse,
+						      VSXXXAA_PACKET_POR, 4)) {
+			/* Check for broken packet */
+			stray_bytes = vsxxxaa_check_packet(mouse, 4);
+			if (!stray_bytes)
+				vsxxxaa_handle_POR_packet(mouse);
+
+		} else {
+			break; /* No REL, ABS or POR packet found */
 		}
 
-		if (vsxxxaa_smells_like_packet (mouse, VSXXXAA_PACKET_ABS, 5)) {
-			/* Check for broken packet */
-			stray_bytes = vsxxxaa_check_packet (mouse, 5);
-			if (stray_bytes > 0) {
-				printk (KERN_ERR "Dropping %d bytes now...\n",
-						stray_bytes);
-				vsxxxaa_drop_bytes (mouse, stray_bytes);
-				continue;
-			}
-
-			vsxxxaa_handle_ABS_packet (mouse);
-			continue; /* More to parse? */
+		if (stray_bytes > 0) {
+			printk(KERN_ERR "Dropping %d bytes now...\n",
+				stray_bytes);
+			vsxxxaa_drop_bytes(mouse, stray_bytes);
 		}
 
-		if (vsxxxaa_smells_like_packet (mouse, VSXXXAA_PACKET_POR, 4)) {
-			/* Check for broken packet */
-			stray_bytes = vsxxxaa_check_packet (mouse, 4);
-			if (stray_bytes > 0) {
-				printk (KERN_ERR "Dropping %d bytes now...\n",
-						stray_bytes);
-				vsxxxaa_drop_bytes (mouse, stray_bytes);
-				continue;
-			}
-
-			vsxxxaa_handle_POR_packet (mouse);
-			continue; /* More to parse? */
-		}
-
-		break; /* No REL, ABS or POR packet found */
 	} while (1);
 }
 
-static irqreturn_t
-vsxxxaa_interrupt (struct serio *serio, unsigned char data, unsigned int flags)
+static irqreturn_t vsxxxaa_interrupt(struct serio *serio,
+				     unsigned char data, unsigned int flags)
 {
-	struct vsxxxaa *mouse = serio_get_drvdata (serio);
+	struct vsxxxaa *mouse = serio_get_drvdata(serio);
 
-	vsxxxaa_queue_byte (mouse, data);
-	vsxxxaa_parse_buffer (mouse);
+	vsxxxaa_queue_byte(mouse, data);
+	vsxxxaa_parse_buffer(mouse);
 
 	return IRQ_HANDLED;
 }
 
-static void
-vsxxxaa_disconnect (struct serio *serio)
+static void vsxxxaa_disconnect(struct serio *serio)
 {
-	struct vsxxxaa *mouse = serio_get_drvdata (serio);
+	struct vsxxxaa *mouse = serio_get_drvdata(serio);
 
-	serio_close (serio);
-	serio_set_drvdata (serio, NULL);
-	input_unregister_device (mouse->dev);
-	kfree (mouse);
+	serio_close(serio);
+	serio_set_drvdata(serio, NULL);
+	input_unregister_device(mouse->dev);
+	kfree(mouse);
 }
 
-static int
-vsxxxaa_connect (struct serio *serio, struct serio_driver *drv)
+static int vsxxxaa_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct vsxxxaa *mouse;
 	struct input_dev *input_dev;
 	int err = -ENOMEM;
 
-	mouse = kzalloc (sizeof (struct vsxxxaa), GFP_KERNEL);
-	input_dev = input_allocate_device ();
+	mouse = kzalloc(sizeof(struct vsxxxaa), GFP_KERNEL);
+	input_dev = input_allocate_device();
 	if (!mouse || !input_dev)
 		goto fail1;
 
 	mouse->dev = input_dev;
 	mouse->serio = serio;
-	strlcat (mouse->name, "DEC VSXXX-AA/-GA mouse or VSXXX-AB digitizer",
-		 sizeof (mouse->name));
-	snprintf (mouse->phys, sizeof (mouse->phys), "%s/input0", serio->phys);
+	strlcat(mouse->name, "DEC VSXXX-AA/-GA mouse or VSXXX-AB digitizer",
+		 sizeof(mouse->name));
+	snprintf(mouse->phys, sizeof(mouse->phys), "%s/input0", serio->phys);
 
 	input_dev->name = mouse->name;
 	input_dev->phys = mouse->phys;
 	input_dev->id.bustype = BUS_RS232;
 	input_dev->dev.parent = &serio->dev;
 
-	set_bit (EV_KEY, input_dev->evbit);		/* We have buttons */
-	set_bit (EV_REL, input_dev->evbit);
-	set_bit (EV_ABS, input_dev->evbit);
-	set_bit (BTN_LEFT, input_dev->keybit);		/* We have 3 buttons */
-	set_bit (BTN_MIDDLE, input_dev->keybit);
-	set_bit (BTN_RIGHT, input_dev->keybit);
-	set_bit (BTN_TOUCH, input_dev->keybit);		/* ...and Tablet */
-	set_bit (REL_X, input_dev->relbit);
-	set_bit (REL_Y, input_dev->relbit);
-	input_set_abs_params (input_dev, ABS_X, 0, 1023, 0, 0);
-	input_set_abs_params (input_dev, ABS_Y, 0, 1023, 0, 0);
+	__set_bit(EV_KEY, input_dev->evbit);		/* We have buttons */
+	__set_bit(EV_REL, input_dev->evbit);
+	__set_bit(EV_ABS, input_dev->evbit);
+	__set_bit(BTN_LEFT, input_dev->keybit);		/* We have 3 buttons */
+	__set_bit(BTN_MIDDLE, input_dev->keybit);
+	__set_bit(BTN_RIGHT, input_dev->keybit);
+	__set_bit(BTN_TOUCH, input_dev->keybit);	/* ...and Tablet */
+	__set_bit(REL_X, input_dev->relbit);
+	__set_bit(REL_Y, input_dev->relbit);
+	input_set_abs_params(input_dev, ABS_X, 0, 1023, 0, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, 1023, 0, 0);
 
-	serio_set_drvdata (serio, mouse);
+	serio_set_drvdata(serio, mouse);
 
-	err = serio_open (serio, drv);
+	err = serio_open(serio, drv);
 	if (err)
 		goto fail2;
 
@@ -532,18 +510,18 @@ vsxxxaa_connect (struct serio *serio, struct serio_driver *drv)
 	 * Request selftest. Standard packet format and differential
 	 * mode will be requested after the device ID'ed successfully.
 	 */
-	serio_write (serio, 'T'); /* Test */
+	serio_write(serio, 'T'); /* Test */
 
-	err = input_register_device (input_dev);
+	err = input_register_device(input_dev);
 	if (err)
 		goto fail3;
 
 	return 0;
 
- fail3:	serio_close (serio);
- fail2:	serio_set_drvdata (serio, NULL);
- fail1:	input_free_device (input_dev);
-	kfree (mouse);
+ fail3:	serio_close(serio);
+ fail2:	serio_set_drvdata(serio, NULL);
+ fail1:	input_free_device(input_dev);
+	kfree(mouse);
 	return err;
 }
 
@@ -570,18 +548,16 @@ static struct serio_driver vsxxxaa_drv = {
 	.disconnect	= vsxxxaa_disconnect,
 };
 
-static int __init
-vsxxxaa_init (void)
+static int __init vsxxxaa_init(void)
 {
 	return serio_register_driver(&vsxxxaa_drv);
 }
 
-static void __exit
-vsxxxaa_exit (void)
+static void __exit vsxxxaa_exit(void)
 {
 	serio_unregister_driver(&vsxxxaa_drv);
 }
 
-module_init (vsxxxaa_init);
-module_exit (vsxxxaa_exit);
+module_init(vsxxxaa_init);
+module_exit(vsxxxaa_exit);
 

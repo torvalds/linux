@@ -47,7 +47,7 @@ static inline void resume_map_numa_kva(pgd_t *pgd) {}
 /*
  * generic node memory support, the following assumptions apply:
  *
- * 1) memory comes in 64Mb contigious chunks which are either present or not
+ * 1) memory comes in 64Mb contiguous chunks which are either present or not
  * 2) we will not have more than 64Gb in total
  *
  * for now assume that 64Gb is max amount of RAM for whole system

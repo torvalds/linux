@@ -81,7 +81,11 @@ struct gfs2_meta_header {
 	__be32 mh_type;
 	__be64 __pad0;		/* Was generation number in gfs1 */
 	__be32 mh_format;
-	__be32 __pad1;		/* Was incarnation number in gfs1 */
+	/* This union is to keep userspace happy */
+	union {
+		__be32 mh_jid;		/* Was incarnation number in gfs1 */
+		__be32 __pad1;
+	};
 };
 
 /*
@@ -176,33 +180,6 @@ struct gfs2_rgrp {
 };
 
 /*
- * quota linked list: user quotas and group quotas form two separate 
- * singly linked lists. ll_next stores uids or gids of next quotas in the 
- * linked list.
-
-Given the uid/gid, how to calculate the quota file offsets for the corresponding
-gfs2_quota structures on disk:
-
-for user quotas, given uid,
-offset = uid * sizeof(struct gfs2_quota);
-
-for group quotas, given gid,
-offset = (gid * sizeof(struct gfs2_quota)) + sizeof(struct gfs2_quota);
-
-
-  uid:0   gid:0       uid:12   gid:12      uid:17   gid:17     uid:5142 gid:5142
-+-------+-------+    +-------+-------+    +-------+- - - -+    +- - - -+-------+
-| valid | valid | :: | valid | valid | :: | valid | inval | :: | inval | valid |
-+-------+-------+    +-------+-------+    +-------+- - - -+    +- - - -+-------+
-next:12   next:12    next:17 next:5142    next:NULL                    next:NULL
-    |       |            |       |            |<-- user quota list         |
-     \______|___________/ \______|___________/         group quota list -->|
-            |                    |                                         |
-             \__________________/ \_______________________________________/
-
-*/
-
-/*
  * quota structure
  */
 
@@ -210,8 +187,7 @@ struct gfs2_quota {
 	__be64 qu_limit;
 	__be64 qu_warn;
 	__be64 qu_value;
-	__be32 qu_ll_next; /* location of next quota in list */
-	__u8 qu_reserved[60];
+	__u8 qu_reserved[64];
 };
 
 /*

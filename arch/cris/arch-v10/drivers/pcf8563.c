@@ -27,6 +27,7 @@
 #include <linux/delay.h>
 #include <linux/bcd.h>
 #include <linux/mutex.h>
+#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -53,7 +54,7 @@ static DEFINE_MUTEX(rtc_lock); /* Protect state etc */
 static const unsigned char days_in_month[] =
 	{ 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
-int pcf8563_ioctl(struct inode *, struct file *, unsigned int, unsigned long);
+static long pcf8563_unlocked_ioctl(struct file *, unsigned int, unsigned long);
 
 /* Cache VL bit value read at driver init since writing the RTC_SECOND
  * register clears the VL status.
@@ -62,7 +63,7 @@ static int voltage_low;
 
 static const struct file_operations pcf8563_fops = {
 	.owner = THIS_MODULE,
-	.ioctl = pcf8563_ioctl,
+	.unlocked_ioctl = pcf8563_unlocked_ioctl,
 };
 
 unsigned char
@@ -212,8 +213,7 @@ pcf8563_exit(void)
  * ioctl calls for this driver. Why return -ENOTTY upon error? Because
  * POSIX says so!
  */
-int pcf8563_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
-	unsigned long arg)
+static int pcf8563_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	/* Some sanity checks. */
 	if (_IOC_TYPE(cmd) != RTC_MAGIC)
@@ -337,6 +337,17 @@ int pcf8563_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 	}
 
 	return 0;
+}
+
+static long pcf8563_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	return pcf8563_ioctl(filp, cmd, arg);
+	unlock_kernel();
+
+	return ret;
 }
 
 static int __init pcf8563_register(void)

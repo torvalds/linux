@@ -6,7 +6,8 @@
  */
 
 #ifdef CONFIG_SMP
-static int select_task_rq_idle(struct task_struct *p, int sd_flag, int flags)
+static int
+select_task_rq_idle(struct rq *rq, struct task_struct *p, int sd_flag, int flags)
 {
 	return task_cpu(p); /* IDLE tasks as never migrated */
 }
@@ -22,8 +23,7 @@ static void check_preempt_curr_idle(struct rq *rq, struct task_struct *p, int fl
 static struct task_struct *pick_next_task_idle(struct rq *rq)
 {
 	schedstat_inc(rq, sched_goidle);
-	/* adjust the active tasks as we might go into a long sleep */
-	calc_load_account_active(rq);
+	calc_load_account_idle(rq);
 	return rq->idle;
 }
 
@@ -32,35 +32,17 @@ static struct task_struct *pick_next_task_idle(struct rq *rq)
  * message if some code attempts to do it:
  */
 static void
-dequeue_task_idle(struct rq *rq, struct task_struct *p, int sleep)
+dequeue_task_idle(struct rq *rq, struct task_struct *p, int flags)
 {
-	spin_unlock_irq(&rq->lock);
+	raw_spin_unlock_irq(&rq->lock);
 	printk(KERN_ERR "bad: scheduling from the idle thread!\n");
 	dump_stack();
-	spin_lock_irq(&rq->lock);
+	raw_spin_lock_irq(&rq->lock);
 }
 
 static void put_prev_task_idle(struct rq *rq, struct task_struct *prev)
 {
 }
-
-#ifdef CONFIG_SMP
-static unsigned long
-load_balance_idle(struct rq *this_rq, int this_cpu, struct rq *busiest,
-		  unsigned long max_load_move,
-		  struct sched_domain *sd, enum cpu_idle_type idle,
-		  int *all_pinned, int *this_best_prio)
-{
-	return 0;
-}
-
-static int
-move_one_task_idle(struct rq *this_rq, int this_cpu, struct rq *busiest,
-		   struct sched_domain *sd, enum cpu_idle_type idle)
-{
-	return 0;
-}
-#endif
 
 static void task_tick_idle(struct rq *rq, struct task_struct *curr, int queued)
 {
@@ -97,7 +79,7 @@ static void prio_changed_idle(struct rq *rq, struct task_struct *p,
 		check_preempt_curr(rq, p, 0);
 }
 
-unsigned int get_rr_interval_idle(struct task_struct *task)
+static unsigned int get_rr_interval_idle(struct rq *rq, struct task_struct *task)
 {
 	return 0;
 }
@@ -119,9 +101,6 @@ static const struct sched_class idle_sched_class = {
 
 #ifdef CONFIG_SMP
 	.select_task_rq		= select_task_rq_idle,
-
-	.load_balance		= load_balance_idle,
-	.move_one_task		= move_one_task_idle,
 #endif
 
 	.set_curr_task          = set_curr_task_idle,

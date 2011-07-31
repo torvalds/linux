@@ -28,6 +28,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/proc_fs.h>
+#include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/netdevice.h>
 
@@ -158,6 +159,25 @@ static const u32 oid_supported_list [] =
 #endif	/* RNDIS_PM */
 };
 
+/* HACK: copied from net/core/dev.c to replace dev_get_stats since
+ * dev_get_stats cannot be called from atomic context */
+static void netdev_stats_to_stats64(struct rtnl_link_stats64 *stats64,
+				    const struct net_device_stats *netdev_stats)
+{
+#if BITS_PER_LONG == 64
+	BUILD_BUG_ON(sizeof(*stats64) != sizeof(*netdev_stats));
+	memcpy(stats64, netdev_stats, sizeof(*stats64));
+#else
+	size_t i, n = sizeof(*stats64) / sizeof(u64);
+	const unsigned long *src = (const unsigned long *)netdev_stats;
+	u64 *dst = (u64 *)stats64;
+
+	BUILD_BUG_ON(sizeof(*netdev_stats) / sizeof(unsigned long) !=
+		     sizeof(*stats64) / sizeof(u64));
+	for (i = 0; i < n; i++)
+		dst[i] = src[i];
+#endif
+}
 
 /* NDIS Functions */
 static int
@@ -170,7 +190,8 @@ gen_ndis_query_resp (int configNr, u32 OID, u8 *buf, unsigned buf_len,
 	int			i, count;
 	rndis_query_cmplt_type	*resp;
 	struct net_device	*net;
-	const struct net_device_stats	*stats;
+	struct rtnl_link_stats64 temp;
+	struct rtnl_link_stats64 *stats = &temp;
 
 	if (!r) return -ENOMEM;
 	resp = (rndis_query_cmplt_type *) r->buf;
@@ -193,7 +214,7 @@ gen_ndis_query_resp (int configNr, u32 OID, u8 *buf, unsigned buf_len,
 	resp->InformationBufferOffset = cpu_to_le32 (16);
 
 	net = rndis_per_dev_params[configNr].dev;
-	stats = dev_get_stats(net);
+	netdev_stats_to_stats64(stats, &net->stats);
 
 	switch (OID) {
 
@@ -291,9 +312,13 @@ gen_ndis_query_resp (int configNr, u32 OID, u8 *buf, unsigned buf_len,
 	/* mandatory */
 	case OID_GEN_VENDOR_DESCRIPTION:
 		pr_debug("%s: OID_GEN_VENDOR_DESCRIPTION\n", __func__);
-		length = strlen (rndis_per_dev_params [configNr].vendorDescr);
-		memcpy (outbuf,
-			rndis_per_dev_params [configNr].vendorDescr, length);
+		if ( rndis_per_dev_params [configNr].vendorDescr ) {
+			length = strlen (rndis_per_dev_params [configNr].vendorDescr);
+			memcpy (outbuf,
+				rndis_per_dev_params [configNr].vendorDescr, length);
+		} else {
+			outbuf[0] = 0;
+		}
 		retval = 0;
 		break;
 
@@ -1146,7 +1171,7 @@ static struct proc_dir_entry *rndis_connect_state [RNDIS_MAX_CONFIGS];
 #endif	/* CONFIG_USB_GADGET_DEBUG_FILES */
 
 
-int __init rndis_init (void)
+int rndis_init(void)
 {
 	u8 i;
 

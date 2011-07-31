@@ -26,10 +26,9 @@
 #include <asm/mach/map.h>
 
 #include <mach/gpio.h>
-#include <mach/mux.h>
-#include <mach/usb.h>
-#include <mach/board.h>
-#include <mach/common.h>
+#include <plat/usb.h>
+#include <plat/board.h>
+#include <plat/common.h>
 
 static struct omap_board_config_kernel generic_config[] = {
 };
@@ -50,15 +49,16 @@ static void __init omap_generic_init(void)
 static void __init omap_generic_map_io(void)
 {
 	omap2_set_globals_242x(); /* should be 242x, 243x, or 343x */
-	omap2_map_common_io();
+	omap242x_map_common_io();
 }
 
 MACHINE_START(OMAP_GENERIC, "Generic OMAP24xx")
 	/* Maintainer: Paul Mundt <paul.mundt@nokia.com> */
 	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
+	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap_generic_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_generic_init_irq,
 	.init_machine	= omap_generic_init,
 	.timer		= &omap_timer,

@@ -14,9 +14,11 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 #include "iio.h"
 #include "trigger.h"
+#include "trigger_consumer.h"
 
 /* RFC - Question of approach
  * Make the common case (single sensor single trigger)
@@ -28,7 +30,6 @@
  *
  * Any other suggestions?
  */
-
 
 static DEFINE_IDR(iio_trigger_idr);
 static DEFINE_SPINLOCK(iio_trigger_idr_lock);
@@ -91,9 +92,9 @@ idr_again:
  **/
 static void iio_trigger_unregister_id(struct iio_trigger *trig_info)
 {
-		spin_lock(&iio_trigger_idr_lock);
-		idr_remove(&iio_trigger_idr, trig_info->id);
-		spin_unlock(&iio_trigger_idr_lock);
+	spin_lock(&iio_trigger_idr_lock);
+	idr_remove(&iio_trigger_idr, trig_info->id);
+	spin_unlock(&iio_trigger_idr_lock);
 }
 
 int iio_trigger_register(struct iio_trigger *trig_info)
@@ -155,6 +156,9 @@ struct iio_trigger *iio_trigger_find_by_name(const char *name, size_t len)
 	struct iio_trigger *trig;
 	bool found = false;
 
+	if (len && name[len - 1] == '\n')
+		len--;
+
 	mutex_lock(&iio_trigger_list_lock);
 	list_for_each_entry(trig, &iio_trigger_list, list) {
 		if (strncmp(trig->name, name, len) == 0) {
@@ -165,10 +169,10 @@ struct iio_trigger *iio_trigger_find_by_name(const char *name, size_t len)
 	mutex_unlock(&iio_trigger_list_lock);
 
 	return found ? trig : NULL;
-};
+}
 EXPORT_SYMBOL(iio_trigger_find_by_name);
 
-void iio_trigger_poll(struct iio_trigger *trig)
+void iio_trigger_poll(struct iio_trigger *trig, s64 time)
 {
 	struct iio_poll_func *pf_cursor;
 
@@ -180,7 +184,8 @@ void iio_trigger_poll(struct iio_trigger *trig)
 	}
 	list_for_each_entry(pf_cursor, &trig->pollfunc_list, list) {
 		if (pf_cursor->poll_func_main) {
-			pf_cursor->poll_func_main(pf_cursor->private_data);
+			pf_cursor->poll_func_main(pf_cursor->private_data,
+						  time);
 			trig->use_count++;
 		}
 	}
@@ -193,8 +198,7 @@ void iio_trigger_notify_done(struct iio_trigger *trig)
 	if (trig->use_count == 0 && trig->try_reenable)
 		if (trig->try_reenable(trig)) {
 			/* Missed and interrupt so launch new poll now */
-			trig->timestamp = 0;
-			iio_trigger_poll(trig);
+			iio_trigger_poll(trig, 0);
 		}
 }
 EXPORT_SYMBOL(iio_trigger_notify_done);
@@ -279,7 +283,7 @@ error_ret:
 EXPORT_SYMBOL(iio_trigger_dettach_poll_func);
 
 /**
- * iio_trigger_read_currrent() trigger consumer sysfs query which trigger
+ * iio_trigger_read_currrent() - trigger consumer sysfs query which trigger
  *
  * For trigger consumers the current_trigger interface allows the trigger
  * used by the device to be queried.
@@ -291,10 +295,9 @@ static ssize_t iio_trigger_read_current(struct device *dev,
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
 	int len = 0;
 	if (dev_info->trig)
-		len = snprintf(buf,
-			       IIO_TRIGGER_NAME_LENGTH,
-			       "%s\n",
-			       dev_info->trig->name);
+		len = sprintf(buf,
+			      "%s\n",
+			      dev_info->trig->name);
 	return len;
 }
 
@@ -319,8 +322,6 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 	}
 	mutex_unlock(&dev_info->mlock);
 
-	len = len < IIO_TRIGGER_NAME_LENGTH ? len : IIO_TRIGGER_NAME_LENGTH;
-
 	dev_info->trig = iio_trigger_find_by_name(buf, len);
 	if (oldtrig && dev_info->trig != oldtrig)
 		iio_put_trigger(oldtrig);
@@ -330,9 +331,9 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 	return len;
 }
 
-DEVICE_ATTR(current_trigger, S_IRUGO | S_IWUSR,
-	    iio_trigger_read_current,
-	    iio_trigger_write_current);
+static DEVICE_ATTR(current_trigger, S_IRUGO | S_IWUSR,
+		   iio_trigger_read_current,
+		   iio_trigger_write_current);
 
 static struct attribute *iio_trigger_consumer_attrs[] = {
 	&dev_attr_current_trigger.attr,
@@ -361,7 +362,7 @@ struct iio_trigger *iio_allocate_trigger(void)
 	trig = kzalloc(sizeof *trig, GFP_KERNEL);
 	if (trig) {
 		trig->dev.type = &iio_trig_type;
-		trig->dev.class = &iio_class;
+		trig->dev.bus = &iio_bus_type;
 		device_initialize(&trig->dev);
 		dev_set_drvdata(&trig->dev, (void *)trig);
 		spin_lock_init(&trig->pollfunc_list_lock);
@@ -397,3 +398,34 @@ int iio_device_unregister_trigger_consumer(struct iio_dev *dev_info)
 }
 EXPORT_SYMBOL(iio_device_unregister_trigger_consumer);
 
+int iio_alloc_pollfunc(struct iio_dev *indio_dev,
+		       void (*immediate)(struct iio_dev *indio_dev),
+		       void (*main)(struct iio_dev *private_data, s64 time))
+{
+	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);
+	if (indio_dev->pollfunc == NULL)
+		return -ENOMEM;
+	indio_dev->pollfunc->poll_func_immediate = immediate;
+	indio_dev->pollfunc->poll_func_main = main;
+	indio_dev->pollfunc->private_data = indio_dev;
+	return 0;
+}
+EXPORT_SYMBOL(iio_alloc_pollfunc);
+
+int iio_triggered_ring_postenable(struct iio_dev *indio_dev)
+{
+	return indio_dev->trig
+		? iio_trigger_attach_poll_func(indio_dev->trig,
+					       indio_dev->pollfunc)
+		: 0;
+}
+EXPORT_SYMBOL(iio_triggered_ring_postenable);
+
+int iio_triggered_ring_predisable(struct iio_dev *indio_dev)
+{
+	return indio_dev->trig
+		? iio_trigger_dettach_poll_func(indio_dev->trig,
+						indio_dev->pollfunc)
+		: 0;
+}
+EXPORT_SYMBOL(iio_triggered_ring_predisable);

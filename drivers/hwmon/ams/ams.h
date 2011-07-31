@@ -23,7 +23,7 @@ struct ams {
 
 	/* General properties */
 	struct device_node *of_node;
-	struct of_device *of_dev;
+	struct platform_device *of_dev;
 	char has_device;
 	char vflag;
 	u32 orient1;
@@ -61,6 +61,7 @@ extern struct ams ams_info;
 
 extern void ams_sensors(s8 *x, s8 *y, s8 *z);
 extern int ams_sensor_attach(void);
+extern void ams_sensor_detach(void);
 
 extern int ams_pmu_init(struct device_node *np);
 extern int ams_i2c_init(struct device_node *np);

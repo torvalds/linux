@@ -17,17 +17,59 @@
 #include <linux/mm.h>
 #include <linux/sh_timer.h>
 
+static struct plat_sci_port scif2_platform_data = {
+	.mapbase	= 0xfe4b0000,		/* SCIF2 */
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 40, 40, 40, 40 },
+};
+
+static struct platform_device scif2_device = {
+	.name		= "sh-sci",
+	.id		= 2,
+	.dev		= {
+		.platform_data	= &scif2_platform_data,
+	},
+};
+
+static struct plat_sci_port scif3_platform_data = {
+	.mapbase	= 0xfe4c0000,		/* SCIF3 */
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 76, 76, 76, 76 },
+};
+
+static struct platform_device scif3_device = {
+	.name		= "sh-sci",
+	.id		= 3,
+	.dev		= {
+		.platform_data	= &scif3_platform_data,
+	},
+};
+
+static struct plat_sci_port scif4_platform_data = {
+	.mapbase	= 0xfe4d0000,		/* SCIF4 */
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 104, 104, 104, 104 },
+};
+
+static struct platform_device scif4_device = {
+	.name		= "sh-sci",
+	.id		= 4,
+	.dev		= {
+		.platform_data	= &scif4_platform_data,
+	},
+};
+
 static struct sh_timer_config tmu0_platform_data = {
-	.name = "TMU0",
 	.channel_offset = 0x04,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
 static struct resource tmu0_resources[] = {
 	[0] = {
-		.name	= "TMU0",
 		.start	= 0xfe430008,
 		.end	= 0xfe430013,
 		.flags	= IORESOURCE_MEM,
@@ -49,16 +91,13 @@ static struct platform_device tmu0_device = {
 };
 
 static struct sh_timer_config tmu1_platform_data = {
-	.name = "TMU1",
 	.channel_offset = 0x10,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 	.clocksource_rating = 200,
 };
 
 static struct resource tmu1_resources[] = {
 	[0] = {
-		.name	= "TMU1",
 		.start	= 0xfe430014,
 		.end	= 0xfe43001f,
 		.flags	= IORESOURCE_MEM,
@@ -79,39 +118,12 @@ static struct platform_device tmu1_device = {
 	.num_resources	= ARRAY_SIZE(tmu1_resources),
 };
 
-static struct plat_sci_port sci_platform_data[] = {
-	{
-		.mapbase	= 0xfe4b0000,		/* SCIF2 */
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 40, 40, 40, 40 },
-	}, {
-		.mapbase	= 0xfe4c0000,		/* SCIF3 */
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 76, 76, 76, 76 },
-	}, {
-		.mapbase	= 0xfe4d0000,		/* SCIF4 */
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 104, 104, 104, 104 },
-	}, {
-		.flags = 0,
-	}
-};
-
-static struct platform_device sci_device = {
-	.name		= "sh-sci",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= sci_platform_data,
-	},
-};
-
 static struct platform_device *sh7757_devices[] __initdata = {
+	&scif2_device,
+	&scif3_device,
+	&scif4_device,
 	&tmu0_device,
 	&tmu1_device,
-	&sci_device,
 };
 
 static int __init sh7757_devices_setup(void)
@@ -120,6 +132,20 @@ static int __init sh7757_devices_setup(void)
 				    ARRAY_SIZE(sh7757_devices));
 }
 arch_initcall(sh7757_devices_setup);
+
+static struct platform_device *sh7757_early_devices[] __initdata = {
+	&scif2_device,
+	&scif3_device,
+	&scif4_device,
+	&tmu0_device,
+	&tmu1_device,
+};
+
+void __init plat_early_device_setup(void)
+{
+	early_platform_add_devices(sh7757_early_devices,
+				   ARRAY_SIZE(sh7757_early_devices));
+}
 
 enum {
 	UNUSED = 0,
@@ -455,17 +481,17 @@ static DECLARE_INTC_DESC(intc_desc_irl4567, "sh7757-irl4567", vectors_irl4567,
 void __init plat_irq_setup(void)
 {
 	/* disable IRQ3-0 + IRQ7-4 */
-	ctrl_outl(0xff000000, INTC_INTMSK0);
+	__raw_writel(0xff000000, INTC_INTMSK0);
 
 	/* disable IRL3-0 + IRL7-4 */
-	ctrl_outl(0xc0000000, INTC_INTMSK1);
-	ctrl_outl(0xfffefffe, INTC_INTMSK2);
+	__raw_writel(0xc0000000, INTC_INTMSK1);
+	__raw_writel(0xfffefffe, INTC_INTMSK2);
 
 	/* select IRL mode for IRL3-0 + IRL7-4 */
-	ctrl_outl(ctrl_inl(INTC_ICR0) & ~0x00c00000, INTC_ICR0);
+	__raw_writel(__raw_readl(INTC_ICR0) & ~0x00c00000, INTC_ICR0);
 
 	/* disable holding function, ie enable "SH-4 Mode" */
-	ctrl_outl(ctrl_inl(INTC_ICR0) | 0x00200000, INTC_ICR0);
+	__raw_writel(__raw_readl(INTC_ICR0) | 0x00200000, INTC_ICR0);
 
 	register_intc_controller(&intc_desc);
 }
@@ -475,32 +501,32 @@ void __init plat_irq_setup_pins(int mode)
 	switch (mode) {
 	case IRQ_MODE_IRQ7654:
 		/* select IRQ mode for IRL7-4 */
-		ctrl_outl(ctrl_inl(INTC_ICR0) | 0x00400000, INTC_ICR0);
+		__raw_writel(__raw_readl(INTC_ICR0) | 0x00400000, INTC_ICR0);
 		register_intc_controller(&intc_desc_irq4567);
 		break;
 	case IRQ_MODE_IRQ3210:
 		/* select IRQ mode for IRL3-0 */
-		ctrl_outl(ctrl_inl(INTC_ICR0) | 0x00800000, INTC_ICR0);
+		__raw_writel(__raw_readl(INTC_ICR0) | 0x00800000, INTC_ICR0);
 		register_intc_controller(&intc_desc_irq0123);
 		break;
 	case IRQ_MODE_IRL7654:
 		/* enable IRL7-4 but don't provide any masking */
-		ctrl_outl(0x40000000, INTC_INTMSKCLR1);
-		ctrl_outl(0x0000fffe, INTC_INTMSKCLR2);
+		__raw_writel(0x40000000, INTC_INTMSKCLR1);
+		__raw_writel(0x0000fffe, INTC_INTMSKCLR2);
 		break;
 	case IRQ_MODE_IRL3210:
 		/* enable IRL0-3 but don't provide any masking */
-		ctrl_outl(0x80000000, INTC_INTMSKCLR1);
-		ctrl_outl(0xfffe0000, INTC_INTMSKCLR2);
+		__raw_writel(0x80000000, INTC_INTMSKCLR1);
+		__raw_writel(0xfffe0000, INTC_INTMSKCLR2);
 		break;
 	case IRQ_MODE_IRL7654_MASK:
 		/* enable IRL7-4 and mask using cpu intc controller */
-		ctrl_outl(0x40000000, INTC_INTMSKCLR1);
+		__raw_writel(0x40000000, INTC_INTMSKCLR1);
 		register_intc_controller(&intc_desc_irl4567);
 		break;
 	case IRQ_MODE_IRL3210_MASK:
 		/* enable IRL0-3 and mask using cpu intc controller */
-		ctrl_outl(0x80000000, INTC_INTMSKCLR1);
+		__raw_writel(0x80000000, INTC_INTMSKCLR1);
 		register_intc_controller(&intc_desc_irl0123);
 		break;
 	default:

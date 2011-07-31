@@ -21,9 +21,11 @@
 #include <linux/list.h>
 #include <linux/sysctl.h>
 #include <linux/ctype.h>
+#include <linux/string.h>
 #include <linux/uaccess.h>
 #include <linux/dynamic_debug.h>
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 
 extern struct _ddebug __start___verbose[];
 extern struct _ddebug __stop___verbose[];
@@ -209,8 +211,7 @@ static int ddebug_tokenize(char *buf, char *words[], int maxwords)
 		char *end;
 
 		/* Skip leading whitespace */
-		while (*buf && isspace(*buf))
-			buf++;
+		buf = skip_spaces(buf);
 		if (!*buf)
 			break;	/* oh, it was trailing whitespace */
 
@@ -455,7 +456,7 @@ static ssize_t ddebug_proc_write(struct file *file, const char __user *ubuf,
 			__func__, (int)len);
 
 	nwords = ddebug_tokenize(tmpbuf, words, MAXWORDS);
-	if (nwords < 0)
+	if (nwords <= 0)
 		return -EINVAL;
 	if (ddebug_parse_query(words, nwords-1, &query))
 		return -EINVAL;
@@ -691,7 +692,7 @@ static void ddebug_table_free(struct ddebug_table *dt)
  * Called in response to a module being unloaded.  Removes
  * any ddebug_table's which point at the module.
  */
-int ddebug_remove_module(char *mod_name)
+int ddebug_remove_module(const char *mod_name)
 {
 	struct ddebug_table *dt, *nextdt;
 	int ret = -ENOENT;

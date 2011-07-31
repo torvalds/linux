@@ -149,14 +149,18 @@ struct gpio_led {
 	unsigned	default_state : 2;
 	/* default_state should be one of LEDS_GPIO_DEFSTATE_(ON|OFF|KEEP) */
 };
-#define LEDS_GPIO_DEFSTATE_OFF	0
-#define LEDS_GPIO_DEFSTATE_ON	1
-#define LEDS_GPIO_DEFSTATE_KEEP	2
+#define LEDS_GPIO_DEFSTATE_OFF		0
+#define LEDS_GPIO_DEFSTATE_ON		1
+#define LEDS_GPIO_DEFSTATE_KEEP		2
 
 struct gpio_led_platform_data {
 	int 		num_leds;
 	struct gpio_led *leds;
-	int		(*gpio_blink_set)(unsigned gpio,
+
+#define GPIO_LED_NO_BLINK_LOW	0	/* No blink GPIO state low */
+#define GPIO_LED_NO_BLINK_HIGH	1	/* No blink GPIO state high */
+#define GPIO_LED_BLINK		2	/* Plase, blink */
+	int		(*gpio_blink_set)(unsigned gpio, int state,
 					unsigned long *delay_on,
 					unsigned long *delay_off);
 };

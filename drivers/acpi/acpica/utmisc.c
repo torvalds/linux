@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -205,7 +205,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 	/* Guard against multiple allocations of ID to the same location */
 
 	if (*owner_id) {
-		ACPI_ERROR((AE_INFO, "Owner ID [%2.2X] already exists",
+		ACPI_ERROR((AE_INFO, "Owner ID [0x%2.2X] already exists",
 			    *owner_id));
 		return_ACPI_STATUS(AE_ALREADY_EXISTS);
 	}
@@ -315,7 +315,7 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 	/* Zero is not a valid owner_iD */
 
 	if (owner_id == 0) {
-		ACPI_ERROR((AE_INFO, "Invalid OwnerId: %2.2X", owner_id));
+		ACPI_ERROR((AE_INFO, "Invalid OwnerId: 0x%2.2X", owner_id));
 		return_VOID;
 	}
 
@@ -341,7 +341,7 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 		acpi_gbl_owner_id_mask[index] ^= bit;
 	} else {
 		ACPI_ERROR((AE_INFO,
-			    "Release of non-allocated OwnerId: %2.2X",
+			    "Release of non-allocated OwnerId: 0x%2.2X",
 			    owner_id + 1));
 	}
 
@@ -724,13 +724,12 @@ acpi_name acpi_ut_repair_name(char *name)
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer)
+acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 * ret_integer)
 {
 	u32 this_digit = 0;
-	acpi_integer return_value = 0;
-	acpi_integer quotient;
-	acpi_integer dividend;
+	u64 return_value = 0;
+	u64 quotient;
+	u64 dividend;
 	u32 to_integer_op = (base == ACPI_ANY_BASE);
 	u32 mode32 = (acpi_gbl_integer_byte_width == 4);
 	u8 valid_digits = 0;
@@ -844,9 +843,8 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer)
 
 		/* Divide the digit into the correct position */
 
-		(void)
-		    acpi_ut_short_divide((dividend - (acpi_integer) this_digit),
-					 base, &quotient, NULL);
+		(void)acpi_ut_short_divide((dividend - (u64) this_digit),
+					   base, &quotient, NULL);
 
 		if (return_value > quotient) {
 			if (to_integer_op) {
@@ -1155,6 +1153,48 @@ acpi_ut_predefined_warning(const char *module_name,
 	}
 
 	acpi_os_printf("ACPI Warning for %s: ", pathname);
+
+	va_start(args, format);
+	acpi_os_vprintf(format, args);
+	ACPI_COMMON_MSG_SUFFIX;
+	va_end(args);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_predefined_info
+ *
+ * PARAMETERS:  module_name     - Caller's module name (for error output)
+ *              line_number     - Caller's line number (for error output)
+ *              Pathname        - Full pathname to the node
+ *              node_flags      - From Namespace node for the method/object
+ *              Format          - Printf format string + additional args
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Info messages for the predefined validation module. Messages
+ *              are only emitted the first time a problem with a particular
+ *              method/object is detected. This prevents a flood of
+ *              messages for methods that are repeatedly evaluated.
+ *
+ ******************************************************************************/
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_predefined_info(const char *module_name,
+			u32 line_number,
+			char *pathname, u8 node_flags, const char *format, ...)
+{
+	va_list args;
+
+	/*
+	 * Warning messages for this method/object will be disabled after the
+	 * first time a validation fails or an object is successfully repaired.
+	 */
+	if (node_flags & ANOBJ_EVALUATED) {
+		return;
+	}
+
+	acpi_os_printf("ACPI Info for %s: ", pathname);
 
 	va_start(args, format);
 	acpi_os_vprintf(format, args);

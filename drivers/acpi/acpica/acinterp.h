@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -121,6 +121,13 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 			       struct acpi_walk_state *walk_state);
 
 /*
+ * exdebug - AML debug object
+ */
+void
+acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
+			u32 level, u32 index);
+
+/*
  * exfield - ACPI AML (p-code) execution - field manipulation
  */
 acpi_status
@@ -129,18 +136,17 @@ acpi_ex_common_buffer_setup(union acpi_operand_object *obj_desc,
 
 acpi_status
 acpi_ex_write_with_update_rule(union acpi_operand_object *obj_desc,
-			       acpi_integer mask,
-			       acpi_integer field_value,
-			       u32 field_datum_byte_offset);
+			       u64 mask,
+			       u64 field_value, u32 field_datum_byte_offset);
 
 void
-acpi_ex_get_buffer_datum(acpi_integer * datum,
+acpi_ex_get_buffer_datum(u64 *datum,
 			 void *buffer,
 			 u32 buffer_length,
 			 u32 byte_granularity, u32 buffer_offset);
 
 void
-acpi_ex_set_buffer_datum(acpi_integer merged_datum,
+acpi_ex_set_buffer_datum(u64 merged_datum,
 			 void *buffer,
 			 u32 buffer_length,
 			 u32 byte_granularity, u32 buffer_offset);
@@ -168,8 +174,7 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 
 acpi_status
 acpi_ex_access_region(union acpi_operand_object *obj_desc,
-		      u32 field_datum_byte_offset,
-		      acpi_integer * value, u32 read_write);
+		      u32 field_datum_byte_offset, u64 *value, u32 read_write);
 
 /*
  * exmisc - misc support routines
@@ -193,16 +198,14 @@ acpi_ex_do_concatenate(union acpi_operand_object *obj_desc,
 
 acpi_status
 acpi_ex_do_logical_numeric_op(u16 opcode,
-			      acpi_integer integer0,
-			      acpi_integer integer1, u8 * logical_result);
+			      u64 integer0, u64 integer1, u8 *logical_result);
 
 acpi_status
 acpi_ex_do_logical_op(u16 opcode,
 		      union acpi_operand_object *operand0,
-		      union acpi_operand_object *operand1, u8 * logical_result);
+		      union acpi_operand_object *operand1, u8 *logical_result);
 
-acpi_integer
-acpi_ex_do_math_op(u16 opcode, acpi_integer operand0, acpi_integer operand1);
+u64 acpi_ex_do_math_op(u16 opcode, u64 operand0, u64 operand1);
 
 acpi_status acpi_ex_create_mutex(struct acpi_walk_state *walk_state);
 
@@ -278,7 +281,7 @@ acpi_status
 acpi_ex_system_do_notify_op(union acpi_operand_object *value,
 			    union acpi_operand_object *obj_desc);
 
-acpi_status acpi_ex_system_do_suspend(acpi_integer time);
+acpi_status acpi_ex_system_do_sleep(u64 time);
 
 acpi_status acpi_ex_system_do_stall(u32 time);
 
@@ -461,9 +464,9 @@ void acpi_ex_acquire_global_lock(u32 rule);
 
 void acpi_ex_release_global_lock(u32 rule);
 
-void acpi_ex_eisa_id_to_string(char *dest, acpi_integer compressed_id);
+void acpi_ex_eisa_id_to_string(char *dest, u64 compressed_id);
 
-void acpi_ex_integer_to_string(char *dest, acpi_integer value);
+void acpi_ex_integer_to_string(char *dest, u64 value);
 
 /*
  * exregion - default op_region handlers
@@ -472,7 +475,7 @@ acpi_status
 acpi_ex_system_memory_space_handler(u32 function,
 				    acpi_physical_address address,
 				    u32 bit_width,
-				    acpi_integer * value,
+				    u64 *value,
 				    void *handler_context,
 				    void *region_context);
 
@@ -480,35 +483,35 @@ acpi_status
 acpi_ex_system_io_space_handler(u32 function,
 				acpi_physical_address address,
 				u32 bit_width,
-				acpi_integer * value,
+				u64 *value,
 				void *handler_context, void *region_context);
 
 acpi_status
 acpi_ex_pci_config_space_handler(u32 function,
 				 acpi_physical_address address,
 				 u32 bit_width,
-				 acpi_integer * value,
+				 u64 *value,
 				 void *handler_context, void *region_context);
 
 acpi_status
 acpi_ex_cmos_space_handler(u32 function,
 			   acpi_physical_address address,
 			   u32 bit_width,
-			   acpi_integer * value,
+			   u64 *value,
 			   void *handler_context, void *region_context);
 
 acpi_status
 acpi_ex_pci_bar_space_handler(u32 function,
 			      acpi_physical_address address,
 			      u32 bit_width,
-			      acpi_integer * value,
+			      u64 *value,
 			      void *handler_context, void *region_context);
 
 acpi_status
 acpi_ex_embedded_controller_space_handler(u32 function,
 					  acpi_physical_address address,
 					  u32 bit_width,
-					  acpi_integer * value,
+					  u64 *value,
 					  void *handler_context,
 					  void *region_context);
 
@@ -516,14 +519,14 @@ acpi_status
 acpi_ex_sm_bus_space_handler(u32 function,
 			     acpi_physical_address address,
 			     u32 bit_width,
-			     acpi_integer * value,
+			     u64 *value,
 			     void *handler_context, void *region_context);
 
 acpi_status
 acpi_ex_data_table_space_handler(u32 function,
 				 acpi_physical_address address,
 				 u32 bit_width,
-				 acpi_integer * value,
+				 u64 *value,
 				 void *handler_context, void *region_context);
 
 #endif				/* __INTERP_H__ */

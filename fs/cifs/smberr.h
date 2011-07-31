@@ -76,6 +76,7 @@
 #define ERRnofiles		18	/* A File Search command can find no
 					   more files matching the specified
 					   criteria. */
+#define ERRwriteprot		19	/* media is write protected */
 #define ERRgeneral		31
 #define ERRbadshare		32	/* The sharing mode specified for an
 					   Open conflicts with existing FIDs on

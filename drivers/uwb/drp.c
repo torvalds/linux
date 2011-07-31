@@ -20,6 +20,7 @@
  */
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include "uwb-internal.h"
 

@@ -9,6 +9,7 @@
  */
 
 #include <linux/jiffies.h>
+#include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/input-polldev.h>
 
@@ -56,19 +57,24 @@ static void input_polldev_stop_workqueue(void)
 	mutex_unlock(&polldev_mutex);
 }
 
-static void input_polled_device_work(struct work_struct *work)
+static void input_polldev_queue_work(struct input_polled_dev *dev)
 {
-	struct input_polled_dev *dev =
-		container_of(work, struct input_polled_dev, work.work);
 	unsigned long delay;
-
-	dev->poll(dev);
 
 	delay = msecs_to_jiffies(dev->poll_interval);
 	if (delay >= HZ)
 		delay = round_jiffies_relative(delay);
 
 	queue_delayed_work(polldev_wq, &dev->work, delay);
+}
+
+static void input_polled_device_work(struct work_struct *work)
+{
+	struct input_polled_dev *dev =
+		container_of(work, struct input_polled_dev, work.work);
+
+	dev->poll(dev);
+	input_polldev_queue_work(dev);
 }
 
 static int input_open_polled_device(struct input_dev *input)
@@ -80,11 +86,12 @@ static int input_open_polled_device(struct input_dev *input)
 	if (error)
 		return error;
 
-	if (dev->flush)
-		dev->flush(dev);
+	if (dev->open)
+		dev->open(dev);
 
-	queue_delayed_work(polldev_wq, &dev->work,
-			   msecs_to_jiffies(dev->poll_interval));
+	/* Only start polling if polling is enabled */
+	if (dev->poll_interval > 0)
+		queue_delayed_work(polldev_wq, &dev->work, 0);
 
 	return 0;
 }
@@ -94,8 +101,94 @@ static void input_close_polled_device(struct input_dev *input)
 	struct input_polled_dev *dev = input_get_drvdata(input);
 
 	cancel_delayed_work_sync(&dev->work);
+	/*
+	 * Clean up work struct to remove references to the workqueue.
+	 * It may be destroyed by the next call. This causes problems
+	 * at next device open-close in case of poll_interval == 0.
+	 */
+	INIT_DELAYED_WORK(&dev->work, dev->work.work.func);
 	input_polldev_stop_workqueue();
+
+	if (dev->close)
+		dev->close(dev);
 }
+
+/* SYSFS interface */
+
+static ssize_t input_polldev_get_poll(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct input_polled_dev *polldev = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", polldev->poll_interval);
+}
+
+static ssize_t input_polldev_set_poll(struct device *dev,
+				struct device_attribute *attr, const char *buf,
+				size_t count)
+{
+	struct input_polled_dev *polldev = dev_get_drvdata(dev);
+	struct input_dev *input = polldev->input;
+	unsigned long interval;
+
+	if (strict_strtoul(buf, 0, &interval))
+		return -EINVAL;
+
+	if (interval < polldev->poll_interval_min)
+		return -EINVAL;
+
+	if (interval > polldev->poll_interval_max)
+		return -EINVAL;
+
+	mutex_lock(&input->mutex);
+
+	polldev->poll_interval = interval;
+
+	if (input->users) {
+		cancel_delayed_work_sync(&polldev->work);
+		if (polldev->poll_interval > 0)
+			input_polldev_queue_work(polldev);
+	}
+
+	mutex_unlock(&input->mutex);
+
+	return count;
+}
+
+static DEVICE_ATTR(poll, S_IRUGO | S_IWUSR, input_polldev_get_poll,
+					    input_polldev_set_poll);
+
+
+static ssize_t input_polldev_get_max(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct input_polled_dev *polldev = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", polldev->poll_interval_max);
+}
+
+static DEVICE_ATTR(max, S_IRUGO, input_polldev_get_max, NULL);
+
+static ssize_t input_polldev_get_min(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct input_polled_dev *polldev = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", polldev->poll_interval_min);
+}
+
+static DEVICE_ATTR(min, S_IRUGO, input_polldev_get_min, NULL);
+
+static struct attribute *sysfs_attrs[] = {
+	&dev_attr_poll.attr,
+	&dev_attr_max.attr,
+	&dev_attr_min.attr,
+	NULL
+};
+
+static struct attribute_group input_polldev_attribute_group = {
+	.attrs = sysfs_attrs
+};
 
 /**
  * input_allocate_polled_device - allocated memory polled device
@@ -126,7 +219,7 @@ EXPORT_SYMBOL(input_allocate_polled_device);
  * @dev: device to free
  *
  * The function frees memory allocated for polling device and drops
- * reference to the associated input device (if present).
+ * reference to the associated input device.
  */
 void input_free_polled_device(struct input_polled_dev *dev)
 {
@@ -150,15 +243,38 @@ EXPORT_SYMBOL(input_free_polled_device);
 int input_register_polled_device(struct input_polled_dev *dev)
 {
 	struct input_dev *input = dev->input;
+	int error;
 
 	input_set_drvdata(input, dev);
 	INIT_DELAYED_WORK(&dev->work, input_polled_device_work);
 	if (!dev->poll_interval)
 		dev->poll_interval = 500;
+	if (!dev->poll_interval_max)
+		dev->poll_interval_max = dev->poll_interval;
 	input->open = input_open_polled_device;
 	input->close = input_close_polled_device;
 
-	return input_register_device(input);
+	error = input_register_device(input);
+	if (error)
+		return error;
+
+	error = sysfs_create_group(&input->dev.kobj,
+				   &input_polldev_attribute_group);
+	if (error) {
+		input_unregister_device(input);
+		return error;
+	}
+
+	/*
+	 * Take extra reference to the underlying input device so
+	 * that it survives call to input_unregister_polled_device()
+	 * and is deleted only after input_free_polled_device()
+	 * has been invoked. This is needed to ease task of freeing
+	 * sparse keymaps.
+	 */
+	input_get_device(input);
+
+	return 0;
 }
 EXPORT_SYMBOL(input_register_polled_device);
 
@@ -169,13 +285,13 @@ EXPORT_SYMBOL(input_register_polled_device);
  * The function unregisters previously registered polled input
  * device from input layer. Polling is stopped and device is
  * ready to be freed with call to input_free_polled_device().
- * Callers should not attempt to access dev->input pointer
- * after calling this function.
  */
 void input_unregister_polled_device(struct input_polled_dev *dev)
 {
+	sysfs_remove_group(&dev->input->dev.kobj,
+			   &input_polldev_attribute_group);
+
 	input_unregister_device(dev->input);
-	dev->input = NULL;
 }
 EXPORT_SYMBOL(input_unregister_polled_device);
 

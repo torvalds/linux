@@ -61,7 +61,7 @@ static unsigned long tosa_read_bat(struct tosa_bat *bat)
 	mutex_lock(&bat_lock);
 	gpio_set_value(bat->gpio_bat, 1);
 	msleep(5);
-	value = wm97xx_read_aux_adc(bat->psy.dev->parent->driver_data,
+	value = wm97xx_read_aux_adc(dev_get_drvdata(bat->psy.dev->parent),
 			bat->adc_bat);
 	gpio_set_value(bat->gpio_bat, 0);
 	mutex_unlock(&bat_lock);
@@ -81,7 +81,7 @@ static unsigned long tosa_read_temp(struct tosa_bat *bat)
 	mutex_lock(&bat_lock);
 	gpio_set_value(bat->gpio_temp, 1);
 	msleep(5);
-	value = wm97xx_read_aux_adc(bat->psy.dev->parent->driver_data,
+	value = wm97xx_read_aux_adc(dev_get_drvdata(bat->psy.dev->parent),
 			bat->adc_temp);
 	gpio_set_value(bat->gpio_temp, 0);
 	mutex_unlock(&bat_lock);

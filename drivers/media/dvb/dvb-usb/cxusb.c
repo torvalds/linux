@@ -25,6 +25,7 @@
  */
 #include <media/tuner.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 
 #include "cxusb.h"
 
@@ -36,9 +37,11 @@
 #include "tuner-xc2028.h"
 #include "tuner-simple.h"
 #include "mxl5005s.h"
+#include "max2165.h"
 #include "dib7000p.h"
 #include "dib0070.h"
 #include "lgs8gxx.h"
+#include "atbm8830.h"
 
 /* debug */
 static int dvb_usb_cxusb_debug;
@@ -382,7 +385,7 @@ static int cxusb_d680_dmb_streaming_ctrl(
 
 static int cxusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
-	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc.legacy.rc_key_map;
 	u8 ircode[4];
 	int i;
 
@@ -391,10 +394,10 @@ static int cxusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	*event = 0;
 	*state = REMOTE_NO_KEY_PRESSED;
 
-	for (i = 0; i < d->props.rc_key_map_size; i++) {
+	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++) {
 		if (rc5_custom(&keymap[i]) == ircode[2] &&
 		    rc5_data(&keymap[i]) == ircode[3]) {
-			*event = keymap[i].event;
+			*event = keymap[i].keycode;
 			*state = REMOTE_KEY_PRESSED;
 
 			return 0;
@@ -407,7 +410,7 @@ static int cxusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 static int cxusb_bluebird2_rc_query(struct dvb_usb_device *d, u32 *event,
 				    int *state)
 {
-	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc.legacy.rc_key_map;
 	u8 ircode[4];
 	int i;
 	struct i2c_msg msg = { .addr = 0x6b, .flags = I2C_M_RD,
@@ -419,10 +422,10 @@ static int cxusb_bluebird2_rc_query(struct dvb_usb_device *d, u32 *event,
 	if (cxusb_i2c_xfer(&d->i2c_adap, &msg, 1) != 1)
 		return 0;
 
-	for (i = 0; i < d->props.rc_key_map_size; i++) {
+	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++) {
 		if (rc5_custom(&keymap[i]) == ircode[1] &&
 		    rc5_data(&keymap[i]) == ircode[2]) {
-			*event = keymap[i].event;
+			*event = keymap[i].keycode;
 			*state = REMOTE_KEY_PRESSED;
 
 			return 0;
@@ -435,7 +438,7 @@ static int cxusb_bluebird2_rc_query(struct dvb_usb_device *d, u32 *event,
 static int cxusb_d680_dmb_rc_query(struct dvb_usb_device *d, u32 *event,
 		int *state)
 {
-	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc.legacy.rc_key_map;
 	u8 ircode[2];
 	int i;
 
@@ -445,10 +448,10 @@ static int cxusb_d680_dmb_rc_query(struct dvb_usb_device *d, u32 *event,
 	if (cxusb_ctrl_msg(d, 0x10, NULL, 0, ircode, 2) < 0)
 		return 0;
 
-	for (i = 0; i < d->props.rc_key_map_size; i++) {
+	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++) {
 		if (rc5_custom(&keymap[i]) == ircode[0] &&
 		    rc5_data(&keymap[i]) == ircode[1]) {
-			*event = keymap[i].event;
+			*event = keymap[i].keycode;
 			*state = REMOTE_KEY_PRESSED;
 
 			return 0;
@@ -458,7 +461,7 @@ static int cxusb_d680_dmb_rc_query(struct dvb_usb_device *d, u32 *event,
 	return 0;
 }
 
-static struct dvb_usb_rc_key dvico_mce_rc_keys[] = {
+static struct ir_scancode ir_codes_dvico_mce_table[] = {
 	{ 0xfe02, KEY_TV },
 	{ 0xfe0e, KEY_MP3 },
 	{ 0xfe1a, KEY_DVD },
@@ -506,7 +509,7 @@ static struct dvb_usb_rc_key dvico_mce_rc_keys[] = {
 	{ 0xfe4e, KEY_POWER },
 };
 
-static struct dvb_usb_rc_key dvico_portable_rc_keys[] = {
+static struct ir_scancode ir_codes_dvico_portable_table[] = {
 	{ 0xfc02, KEY_SETUP },       /* Profile */
 	{ 0xfc43, KEY_POWER2 },
 	{ 0xfc06, KEY_EPG },
@@ -545,7 +548,7 @@ static struct dvb_usb_rc_key dvico_portable_rc_keys[] = {
 	{ 0xfc00, KEY_UNKNOWN },    /* HD */
 };
 
-static struct dvb_usb_rc_key d680_dmb_rc_keys[] = {
+static struct ir_scancode ir_codes_d680_dmb_table[] = {
 	{ 0x0038, KEY_UNKNOWN },	/* TV/AV */
 	{ 0x080c, KEY_ZOOM },
 	{ 0x0800, KEY_0 },
@@ -714,6 +717,11 @@ static struct mxl5005s_config d680_dmb_tuner = {
 	.AgcMasterByte   = 0x00,
 };
 
+static struct max2165_config mygica_d689_max2165_cfg = {
+	.i2c_address = 0x60,
+	.osc_clk = 20
+};
+
 /* Callbacks for DVB USB */
 static int cxusb_fmd1216me_tuner_attach(struct dvb_usb_adapter *adap)
 {
@@ -813,6 +821,14 @@ static int cxusb_d680_dmb_tuner_attach(struct dvb_usb_adapter *adap)
 	return (fe == NULL) ? -EIO : 0;
 }
 
+static int cxusb_mygica_d689_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	struct dvb_frontend *fe;
+	fe = dvb_attach(max2165_attach, adap->fe,
+			&adap->dev->i2c_adap, &mygica_d689_max2165_cfg);
+	return (fe == NULL) ? -EIO : 0;
+}
+
 static int cxusb_cx22702_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	u8 b;
@@ -907,7 +923,7 @@ static int cxusb_dualdig4_frontend_attach(struct dvb_usb_adapter *adap)
 		return -EIO;
 
 	/* try to determine if there is no IR decoder on the I2C bus */
-	for (i = 0; adap->dev->props.rc_key_map != NULL && i < 5; i++) {
+	for (i = 0; adap->dev->props.rc.legacy.rc_key_map != NULL && i < 5; i++) {
 		msleep(20);
 		if (cxusb_i2c_xfer(&adap->dev->i2c_adap, &msg, 1) != 1)
 			goto no_IR;
@@ -915,7 +931,7 @@ static int cxusb_dualdig4_frontend_attach(struct dvb_usb_adapter *adap)
 			continue;
 		if (ircode[2] + ircode[3] != 0xff) {
 no_IR:
-			adap->dev->props.rc_key_map = NULL;
+			adap->dev->props.rc.legacy.rc_key_map = NULL;
 			info("No IR receiver detected on this device.");
 			break;
 		}
@@ -1009,8 +1025,11 @@ static int cxusb_dualdig4_rev2_frontend_attach(struct dvb_usb_adapter *adap)
 
 	cxusb_bluebird_gpio_pulse(adap->dev, 0x02, 1);
 
-	dib7000p_i2c_enumeration(&adap->dev->i2c_adap, 1, 18,
-				 &cxusb_dualdig4_rev2_config);
+	if (dib7000p_i2c_enumeration(&adap->dev->i2c_adap, 1, 18,
+				     &cxusb_dualdig4_rev2_config) < 0) {
+		printk(KERN_WARNING "Unable to enumerate dib7000p\n");
+		return -ENODEV;
+	}
 
 	adap->fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x80,
 			      &cxusb_dualdig4_rev2_config);
@@ -1160,6 +1179,58 @@ static int cxusb_d680_dmb_frontend_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
+static struct atbm8830_config mygica_d689_atbm8830_cfg = {
+	.prod = ATBM8830_PROD_8830,
+	.demod_address = 0x40,
+	.serial_ts = 0,
+	.ts_sampling_edge = 1,
+	.ts_clk_gated = 0,
+	.osc_clk_freq = 30400, /* in kHz */
+	.if_freq = 0, /* zero IF */
+	.zif_swap_iq = 1,
+	.agc_min = 0x2E,
+	.agc_max = 0x90,
+	.agc_hold_loop = 0,
+};
+
+static int cxusb_mygica_d689_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	struct dvb_usb_device *d = adap->dev;
+
+	/* Select required USB configuration */
+	if (usb_set_interface(d->udev, 0, 0) < 0)
+		err("set interface failed");
+
+	/* Unblock all USB pipes */
+	usb_clear_halt(d->udev,
+		usb_sndbulkpipe(d->udev, d->props.generic_bulk_ctrl_endpoint));
+	usb_clear_halt(d->udev,
+		usb_rcvbulkpipe(d->udev, d->props.generic_bulk_ctrl_endpoint));
+	usb_clear_halt(d->udev,
+		usb_rcvbulkpipe(d->udev, d->props.adapter[0].stream.endpoint));
+
+
+	/* Reset the tuner */
+	if (cxusb_d680_dmb_gpio_tuner(d, 0x07, 0) < 0) {
+		err("clear tuner gpio failed");
+		return -EIO;
+	}
+	msleep(100);
+	if (cxusb_d680_dmb_gpio_tuner(d, 0x07, 1) < 0) {
+		err("set tuner gpio failed");
+		return -EIO;
+	}
+	msleep(100);
+
+	/* Attach frontend */
+	adap->fe = dvb_attach(atbm8830_attach, &mygica_d689_atbm8830_cfg,
+		&d->i2c_adap);
+	if (adap->fe == NULL)
+		return -EIO;
+
+	return 0;
+}
+
 /*
  * DViCO has shipped two devices with the same USB ID, but only one of them
  * needs a firmware download.  Check the device class details to see if they
@@ -1240,6 +1311,7 @@ static struct dvb_usb_device_properties cxusb_bluebird_nano2_properties;
 static struct dvb_usb_device_properties cxusb_bluebird_nano2_needsfirmware_properties;
 static struct dvb_usb_device_properties cxusb_aver_a868r_properties;
 static struct dvb_usb_device_properties cxusb_d680_dmb_properties;
+static struct dvb_usb_device_properties cxusb_mygica_d689_properties;
 
 static int cxusb_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
@@ -1268,6 +1340,8 @@ static int cxusb_probe(struct usb_interface *intf,
 				     THIS_MODULE, NULL, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &cxusb_d680_dmb_properties,
 				     THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, &cxusb_mygica_d689_properties,
+				     THIS_MODULE, NULL, adapter_nr) ||
 	    0)
 		return 0;
 
@@ -1294,6 +1368,7 @@ static struct usb_device_id cxusb_table [] = {
 	{ USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_VOLAR_A868R) },
 	{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DUAL_4_REV_2) },
 	{ USB_DEVICE(USB_VID_CONEXANT, USB_PID_CONEXANT_D680_DMB) },
+	{ USB_DEVICE(USB_VID_CONEXANT, USB_PID_MYGICA_D689) },
 	{}		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, cxusb_table);
@@ -1376,10 +1451,12 @@ static struct dvb_usb_device_properties cxusb_bluebird_lgh064f_properties = {
 
 	.i2c_algo         = &cxusb_i2c_algo,
 
-	.rc_interval      = 100,
-	.rc_key_map       = dvico_portable_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(dvico_portable_rc_keys),
-	.rc_query         = cxusb_rc_query,
+	.rc.legacy = {
+		.rc_interval      = 100,
+		.rc_key_map       = ir_codes_dvico_portable_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dvico_portable_table),
+		.rc_query         = cxusb_rc_query,
+	},
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
@@ -1427,10 +1504,12 @@ static struct dvb_usb_device_properties cxusb_bluebird_dee1601_properties = {
 
 	.i2c_algo         = &cxusb_i2c_algo,
 
-	.rc_interval      = 150,
-	.rc_key_map       = dvico_mce_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(dvico_mce_rc_keys),
-	.rc_query         = cxusb_rc_query,
+	.rc.legacy = {
+		.rc_interval      = 150,
+		.rc_key_map       = ir_codes_dvico_mce_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dvico_mce_table),
+		.rc_query         = cxusb_rc_query,
+	},
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
@@ -1486,10 +1565,12 @@ static struct dvb_usb_device_properties cxusb_bluebird_lgz201_properties = {
 
 	.i2c_algo         = &cxusb_i2c_algo,
 
-	.rc_interval      = 100,
-	.rc_key_map       = dvico_portable_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(dvico_portable_rc_keys),
-	.rc_query         = cxusb_rc_query,
+	.rc.legacy = {
+		.rc_interval      = 100,
+		.rc_key_map       = ir_codes_dvico_portable_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dvico_portable_table),
+		.rc_query         = cxusb_rc_query,
+	},
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 	.num_device_descs = 1,
@@ -1536,10 +1617,12 @@ static struct dvb_usb_device_properties cxusb_bluebird_dtt7579_properties = {
 
 	.i2c_algo         = &cxusb_i2c_algo,
 
-	.rc_interval      = 100,
-	.rc_key_map       = dvico_portable_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(dvico_portable_rc_keys),
-	.rc_query         = cxusb_rc_query,
+	.rc.legacy = {
+		.rc_interval      = 100,
+		.rc_key_map       = ir_codes_dvico_portable_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dvico_portable_table),
+		.rc_query         = cxusb_rc_query,
+	},
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
@@ -1585,10 +1668,12 @@ static struct dvb_usb_device_properties cxusb_bluebird_dualdig4_properties = {
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
-	.rc_interval      = 100,
-	.rc_key_map       = dvico_mce_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(dvico_mce_rc_keys),
-	.rc_query         = cxusb_bluebird2_rc_query,
+	.rc.legacy = {
+		.rc_interval      = 100,
+		.rc_key_map       = ir_codes_dvico_mce_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dvico_mce_table),
+		.rc_query         = cxusb_bluebird2_rc_query,
+	},
 
 	.num_device_descs = 1,
 	.devices = {
@@ -1633,10 +1718,12 @@ static struct dvb_usb_device_properties cxusb_bluebird_nano2_properties = {
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
-	.rc_interval      = 100,
-	.rc_key_map       = dvico_portable_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(dvico_portable_rc_keys),
-	.rc_query         = cxusb_bluebird2_rc_query,
+	.rc.legacy = {
+		.rc_interval      = 100,
+		.rc_key_map       = ir_codes_dvico_portable_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dvico_portable_table),
+		.rc_query         = cxusb_bluebird2_rc_query,
+	},
 
 	.num_device_descs = 1,
 	.devices = {
@@ -1683,10 +1770,12 @@ static struct dvb_usb_device_properties cxusb_bluebird_nano2_needsfirmware_prope
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
-	.rc_interval      = 100,
-	.rc_key_map       = dvico_portable_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(dvico_portable_rc_keys),
-	.rc_query         = cxusb_rc_query,
+	.rc.legacy = {
+		.rc_interval      = 100,
+		.rc_key_map       = ir_codes_dvico_portable_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dvico_portable_table),
+		.rc_query         = cxusb_rc_query,
+	},
 
 	.num_device_descs = 1,
 	.devices = {
@@ -1774,10 +1863,12 @@ struct dvb_usb_device_properties cxusb_bluebird_dualdig4_rev2_properties = {
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
-	.rc_interval      = 100,
-	.rc_key_map       = dvico_mce_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(dvico_mce_rc_keys),
-	.rc_query         = cxusb_rc_query,
+	.rc.legacy = {
+		.rc_interval      = 100,
+		.rc_key_map       = ir_codes_dvico_mce_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dvico_mce_table),
+		.rc_query         = cxusb_rc_query,
+	},
 
 	.num_device_descs = 1,
 	.devices = {
@@ -1822,10 +1913,12 @@ static struct dvb_usb_device_properties cxusb_d680_dmb_properties = {
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
-	.rc_interval      = 100,
-	.rc_key_map       = d680_dmb_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(d680_dmb_rc_keys),
-	.rc_query         = cxusb_d680_dmb_rc_query,
+	.rc.legacy = {
+		.rc_interval      = 100,
+		.rc_key_map       = ir_codes_d680_dmb_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_d680_dmb_table),
+		.rc_query         = cxusb_d680_dmb_rc_query,
+	},
 
 	.num_device_descs = 1,
 	.devices = {
@@ -1833,6 +1926,57 @@ static struct dvb_usb_device_properties cxusb_d680_dmb_properties = {
 			"Conexant DMB-TH Stick",
 			{ NULL },
 			{ &cxusb_table[18], NULL },
+		},
+	}
+};
+
+static struct dvb_usb_device_properties cxusb_mygica_d689_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+
+	.usb_ctrl         = CYPRESS_FX2,
+
+	.size_of_priv     = sizeof(struct cxusb_state),
+
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.streaming_ctrl   = cxusb_d680_dmb_streaming_ctrl,
+			.frontend_attach  = cxusb_mygica_d689_frontend_attach,
+			.tuner_attach     = cxusb_mygica_d689_tuner_attach,
+
+			/* parameter for the MPEG2-data transfer */
+			.stream = {
+				.type = USB_BULK,
+				.count = 5,
+				.endpoint = 0x02,
+				.u = {
+					.bulk = {
+						.buffersize = 8192,
+					}
+				}
+			},
+		},
+	},
+
+	.power_ctrl       = cxusb_d680_dmb_power_ctrl,
+
+	.i2c_algo         = &cxusb_i2c_algo,
+
+	.generic_bulk_ctrl_endpoint = 0x01,
+
+	.rc.legacy = {
+		.rc_interval      = 100,
+		.rc_key_map       = ir_codes_d680_dmb_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_d680_dmb_table),
+		.rc_query         = cxusb_d680_dmb_rc_query,
+	},
+
+	.num_device_descs = 1,
+	.devices = {
+		{
+			"Mygica D689 DMB-TH",
+			{ NULL },
+			{ &cxusb_table[19], NULL },
 		},
 	}
 };

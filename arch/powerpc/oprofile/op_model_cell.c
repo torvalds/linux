@@ -248,7 +248,7 @@ static int pm_rtas_activate_signals(u32 node, u32 count)
 	 * There is no debug setup required for the cycles event.
 	 * Note that only events in the same group can be used.
 	 * Otherwise, there will be conflicts in correctly routing
-	 * the signals on the debug bus.  It is the responsiblity
+	 * the signals on the debug bus.  It is the responsibility
 	 * of the OProfile user tool to check the events are in
 	 * the same group.
 	 */
@@ -1077,7 +1077,7 @@ static int calculate_lfsr(int n)
 		index = ENTRIES-1;
 
 	/* make sure index is valid */
-	if ((index > ENTRIES) || (index < 0))
+	if ((index >= ENTRIES) || (index < 0))
 		index = ENTRIES-1;
 
 	return initial_lfsr[index];
@@ -1594,7 +1594,7 @@ static void cell_handle_interrupt_spu(struct pt_regs *regs,
 		 * to a latch.  The new values (interrupt setting bits, reset
 		 * counter value etc.) are not copied to the actual registers
 		 * until the performance monitor is enabled.  In order to get
-		 * this to work as desired, the permormance monitor needs to
+		 * this to work as desired, the performance monitor needs to
 		 * be disabled while writing to the latches.  This is a
 		 * HW design issue.
 		 */
@@ -1668,7 +1668,7 @@ static void cell_handle_interrupt_ppu(struct pt_regs *regs,
 		 * to a latch.	The new values (interrupt setting bits, reset
 		 * counter value etc.) are not copied to the actual registers
 		 * until the performance monitor is enabled.  In order to get
-		 * this to work as desired, the permormance monitor needs to
+		 * this to work as desired, the performance monitor needs to
 		 * be disabled while writing to the latches.  This is a
 		 * HW design issue.
 		 */

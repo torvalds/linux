@@ -75,7 +75,7 @@ struct bfa_fcs_fabric_s {
 							    */
 };
 
-#define bfa_fcs_fabric_npiv_capable(__f)    (__f)->is_npiv
+#define bfa_fcs_fabric_npiv_capable(__f)    ((__f)->is_npiv)
 #define bfa_fcs_fabric_is_switched(__f)			\
 	((__f)->fab_type == BFA_FCS_FABRIC_SWITCHED)
 

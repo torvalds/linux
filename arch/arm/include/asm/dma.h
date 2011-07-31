@@ -139,10 +139,15 @@ extern int  get_dma_residue(unsigned int chan);
  */
 extern void set_dma_handler (unsigned int chan, void (*irq_handler) (int, void *), void *data, unsigned int irq_mode);
 
-
 /*
  * get dma transfer position
  */
 extern void get_dma_position(unsigned int chan, dma_addr_t *src_pos, dma_addr_t *dst_pos);
+
+#ifdef CONFIG_PCI
+extern int isa_dma_bridge_buggy;
+#else
+#define isa_dma_bridge_buggy    (0)
+#endif
 
 #endif /* __ASM_ARM_DMA_H */

@@ -1,0 +1,33 @@
+perf-buildid-cache(1)
+=====================
+
+NAME
+----
+perf-buildid-cache - Manage build-id cache.
+
+SYNOPSIS
+--------
+[verse]
+'perf buildid-cache <options>'
+
+DESCRIPTION
+-----------
+This command manages the build-id cache. It can add and remove files to/from
+the cache. In the future it should as well purge older entries, set upper
+limits for the space used by the cache, etc.
+
+OPTIONS
+-------
+-a::
+--add=::
+        Add specified file to the cache.
+-r::
+--remove=::
+        Remove specified file from the cache.
+-v::
+--verbose::
+	Be more verbose.
+
+SEE ALSO
+--------
+linkperf:perf-record[1], linkperf:perf-report[1], linkperf:perf-buildid-list[1]

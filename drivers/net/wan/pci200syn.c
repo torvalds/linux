@@ -417,7 +417,7 @@ static int __devinit pci200_pci_init_one(struct pci_dev *pdev,
 
 
 
-static struct pci_device_id pci200_pci_tbl[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(pci200_pci_tbl) = {
 	{ PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050, PCI_VENDOR_ID_PLX,
 	  PCI_DEVICE_ID_PLX_PCI200SYN, 0, 0, 0 },
 	{ 0, }

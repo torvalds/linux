@@ -215,7 +215,7 @@ static int cx24108_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend
 		freq = 2150000; /* satellite IF is 950..2150MHz */
 
 	/* decide which VCO to use for the input frequency */
-	for(i = 1; (i < ARRAY_SIZE(osci)) && (osci[i] < freq); i++);
+	for(i = 1; (i < ARRAY_SIZE(osci) - 1) && (osci[i] < freq); i++);
 	printk("cx24108 debug: select vco #%d (f=%d)\n",i,freq);
 	band=bandsel[i];
 	/* the gain values must be set by SetSymbolrate */

@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/nfs_fs.h>
 #include <linux/sunrpc/clnt.h>

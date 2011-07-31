@@ -20,6 +20,7 @@
 #include <linux/vmalloc.h>
 #include <linux/security.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>

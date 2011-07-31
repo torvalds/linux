@@ -24,30 +24,30 @@
 void __init init_se7780_IRQ(void)
 {
 	/* enable all interrupt at FPGA */
-	ctrl_outw(0, FPGA_INTMSK1);
+	__raw_writew(0, FPGA_INTMSK1);
 	/* mask SM501 interrupt */
-	ctrl_outw((ctrl_inw(FPGA_INTMSK1) | 0x0002), FPGA_INTMSK1);
+	__raw_writew((__raw_readw(FPGA_INTMSK1) | 0x0002), FPGA_INTMSK1);
 	/* enable all interrupt at FPGA */
-	ctrl_outw(0, FPGA_INTMSK2);
+	__raw_writew(0, FPGA_INTMSK2);
 
 	/* set FPGA INTSEL register */
 	/* FPGA + 0x06 */
-	ctrl_outw( ((IRQPIN_SM501 << IRQPOS_SM501) |
+	__raw_writew( ((IRQPIN_SM501 << IRQPOS_SM501) |
 		(IRQPIN_SMC91CX << IRQPOS_SMC91CX)), FPGA_INTSEL1);
 
 	/* FPGA + 0x08 */
-	ctrl_outw(((IRQPIN_EXTINT4 << IRQPOS_EXTINT4) |
+	__raw_writew(((IRQPIN_EXTINT4 << IRQPOS_EXTINT4) |
 		(IRQPIN_EXTINT3 << IRQPOS_EXTINT3) |
 		(IRQPIN_EXTINT2 << IRQPOS_EXTINT2) |
 		(IRQPIN_EXTINT1 << IRQPOS_EXTINT1)), FPGA_INTSEL2);
 
 	/* FPGA + 0x0A */
-	ctrl_outw((IRQPIN_PCCPW << IRQPOS_PCCPW), FPGA_INTSEL3);
+	__raw_writew((IRQPIN_PCCPW << IRQPOS_PCCPW), FPGA_INTSEL3);
 
 	plat_irq_setup_pins(IRQ_MODE_IRQ); /* install handlers for IRQ0-7 */
 
 	/* ICR1: detect low level(for 2ndcut) */
-	ctrl_outl(0xAAAA0000, INTC_ICR1);
+	__raw_writel(0xAAAA0000, INTC_ICR1);
 
 	/*
 	 * FPGA PCISEL register initialize
@@ -63,6 +63,6 @@ void __init init_se7780_IRQ(void)
 	 *  INTD || INTD  | INTC  |  --   | INTA
 	 *  -------------------------------------
 	 */
-	ctrl_outw(0x0013, FPGA_PCI_INTSEL1);
-	ctrl_outw(0xE402, FPGA_PCI_INTSEL2);
+	__raw_writew(0x0013, FPGA_PCI_INTSEL1);
+	__raw_writew(0xE402, FPGA_PCI_INTSEL2);
 }

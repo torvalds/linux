@@ -155,6 +155,7 @@
 
 #include <linux/types.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 
 
 /* Backend stuff */
@@ -449,5 +450,77 @@ do {							\
 	rc;								\
 })
 
+
+static inline
+void d_submodule_set(struct d_level *d_level, size_t d_level_size,
+		     const char *submodule, u8 level, const char *tag)
+{
+	struct d_level *itr, *top;
+	int index = -1;
+
+	for (itr = d_level, top = itr + d_level_size; itr < top; itr++) {
+		index++;
+		if (itr->name == NULL) {
+			printk(KERN_ERR "%s: itr->name NULL?? (%p, #%d)\n",
+			       tag, itr, index);
+			continue;
+		}
+		if (!strcmp(itr->name, submodule)) {
+			itr->level = level;
+			return;
+		}
+	}
+	printk(KERN_ERR "%s: unknown submodule %s\n", tag, submodule);
+}
+
+
+/**
+ * d_parse_params - Parse a string with debug parameters from the
+ * command line
+ *
+ * @d_level: level structure (D_LEVEL)
+ * @d_level_size: number of items in the level structure
+ *     (D_LEVEL_SIZE).
+ * @_params: string with the parameters; this is a space (not tab!)
+ *     separated list of NAME:VALUE, where value is the debug level
+ *     and NAME is the name of the submodule.
+ * @tag: string for error messages (example: MODULE.ARGNAME).
+ */
+static inline
+void d_parse_params(struct d_level *d_level, size_t d_level_size,
+		    const char *_params, const char *tag)
+{
+	char submodule[130], *params, *params_orig, *token, *colon;
+	unsigned level, tokens;
+
+	if (_params == NULL)
+		return;
+	params_orig = kstrdup(_params, GFP_KERNEL);
+	params = params_orig;
+	while (1) {
+		token = strsep(&params, " ");
+		if (token == NULL)
+			break;
+		if (*token == '\0')	/* eat joint spaces */
+			continue;
+		/* kernel's sscanf %s eats until whitespace, so we
+		 * replace : by \n so it doesn't get eaten later by
+		 * strsep */
+		colon = strchr(token, ':');
+		if (colon != NULL)
+			*colon = '\n';
+		tokens = sscanf(token, "%s\n%u", submodule, &level);
+		if (colon != NULL)
+			*colon = ':';	/* set back, for error messages */
+		if (tokens == 2)
+			d_submodule_set(d_level, d_level_size,
+					submodule, level, tag);
+		else
+			printk(KERN_ERR "%s: can't parse '%s' as a "
+			       "SUBMODULE:LEVEL (%d tokens)\n",
+			       tag, token, tokens);
+	}
+	kfree(params_orig);
+}
 
 #endif /* #ifndef __debug__h__ */

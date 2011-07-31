@@ -52,7 +52,7 @@
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
-#include <mach/dmtimer.h>
+#include <plat/dmtimer.h>
 
 struct sys_timer omap_timer;
 
@@ -67,12 +67,6 @@ struct sys_timer omap_timer;
  * with the 32KHz synchronized timer.
  * ---------------------------------------------------------------------------
  */
-
-#if defined(CONFIG_ARCH_OMAP16XX)
-#define TIMER_32K_SYNCHRONIZED		0xfffbc410
-#else
-#error OMAP 32KHz timer does not currently work on 15XX!
-#endif
 
 /* 16xx specific defines */
 #define OMAP1_32K_TIMER_BASE		0xfffb9000
@@ -149,15 +143,6 @@ static struct clock_event_device clockevent_32k_timer = {
 	.set_next_event	= omap_32k_timer_set_next_event,
 	.set_mode	= omap_32k_timer_set_mode,
 };
-
-/*
- * The 32KHz synchronized timer is an additional timer on 16xx.
- * It is always running.
- */
-static inline unsigned long omap_32k_sync_timer_read(void)
-{
-	return omap_readl(TIMER_32K_SYNCHRONIZED);
-}
 
 static irqreturn_t omap_32k_timer_interrupt(int irq, void *dev_id)
 {

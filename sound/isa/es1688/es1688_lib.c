@@ -99,7 +99,7 @@ static unsigned char snd_es1688_mixer_read(struct snd_es1688 *chip, unsigned cha
 	return result;
 }
 
-static int snd_es1688_reset(struct snd_es1688 *chip)
+int snd_es1688_reset(struct snd_es1688 *chip)
 {
 	int i;
 
@@ -115,6 +115,7 @@ static int snd_es1688_reset(struct snd_es1688 *chip)
 	snd_es1688_dsp_command(chip, 0xc6);	/* enable extended mode */
 	return 0;
 }
+EXPORT_SYMBOL(snd_es1688_reset);
 
 static int snd_es1688_probe(struct snd_es1688 *chip)
 {
@@ -620,7 +621,6 @@ static int snd_es1688_free(struct snd_es1688 *chip)
 		disable_dma(chip->dma8);
 		free_dma(chip->dma8);
 	}
-	kfree(chip);
 	return 0;
 }
 
@@ -638,23 +638,20 @@ static const char *snd_es1688_chip_id(struct snd_es1688 *chip)
 }
 
 int snd_es1688_create(struct snd_card *card,
+		      struct snd_es1688 *chip,
 		      unsigned long port,
 		      unsigned long mpu_port,
 		      int irq,
 		      int mpu_irq,
 		      int dma8,
-		      unsigned short hardware,
-		      struct snd_es1688 **rchip)
+		      unsigned short hardware)
 {
 	static struct snd_device_ops ops = {
 		.dev_free =	snd_es1688_dev_free,
 	};
                                 
-	struct snd_es1688 *chip;
 	int err;
 
-	*rchip = NULL;
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 	chip->irq = -1;
@@ -662,25 +659,21 @@ int snd_es1688_create(struct snd_card *card,
 	
 	if ((chip->res_port = request_region(port + 4, 12, "ES1688")) == NULL) {
 		snd_printk(KERN_ERR "es1688: can't grab port 0x%lx\n", port + 4);
-		snd_es1688_free(chip);
 		return -EBUSY;
 	}
 	if (request_irq(irq, snd_es1688_interrupt, IRQF_DISABLED, "ES1688", (void *) chip)) {
 		snd_printk(KERN_ERR "es1688: can't grab IRQ %d\n", irq);
-		snd_es1688_free(chip);
 		return -EBUSY;
 	}
 	chip->irq = irq;
 	if (request_dma(dma8, "ES1688")) {
 		snd_printk(KERN_ERR "es1688: can't grab DMA8 %d\n", dma8);
-		snd_es1688_free(chip);
 		return -EBUSY;
 	}
 	chip->dma8 = dma8;
 
 	spin_lock_init(&chip->reg_lock);
 	spin_lock_init(&chip->mixer_lock);
-	chip->card = card;
 	chip->port = port;
 	mpu_port &= ~0x000f;
 	if (mpu_port < 0x300 || mpu_port > 0x330)
@@ -689,23 +682,16 @@ int snd_es1688_create(struct snd_card *card,
 	chip->mpu_irq = mpu_irq;
 	chip->hardware = hardware;
 
-	if ((err = snd_es1688_probe(chip)) < 0) {
-		snd_es1688_free(chip);
+	err = snd_es1688_probe(chip);
+	if (err < 0)
 		return err;
-	}
-	if ((err = snd_es1688_init(chip, 1)) < 0) {
-		snd_es1688_free(chip);
+
+	err = snd_es1688_init(chip, 1);
+	if (err < 0)
 		return err;
-	}
 
 	/* Register device */
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
-		snd_es1688_free(chip);
-		return err;
-	}
-
-	*rchip = chip;
-	return 0;
+	return snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
 }
 
 static struct snd_pcm_ops snd_es1688_playback_ops = {
@@ -730,12 +716,14 @@ static struct snd_pcm_ops snd_es1688_capture_ops = {
 	.pointer =		snd_es1688_capture_pointer,
 };
 
-int snd_es1688_pcm(struct snd_es1688 * chip, int device, struct snd_pcm ** rpcm)
+int snd_es1688_pcm(struct snd_card *card, struct snd_es1688 *chip,
+		   int device, struct snd_pcm **rpcm)
 {
 	struct snd_pcm *pcm;
 	int err;
 
-	if ((err = snd_pcm_new(chip->card, "ESx688", device, 1, 1, &pcm)) < 0)
+	err = snd_pcm_new(card, "ESx688", device, 1, 1, &pcm);
+	if (err < 0)
 		return err;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_es1688_playback_ops);
@@ -982,7 +970,7 @@ ES1688_DOUBLE("CD Playback Volume", 0, ES1688_CD_DEV, ES1688_CD_DEV, 4, 0, 15, 0
 ES1688_DOUBLE("FM Playback Volume", 0, ES1688_FM_DEV, ES1688_FM_DEV, 4, 0, 15, 0),
 ES1688_DOUBLE("Mic Playback Volume", 0, ES1688_MIC_DEV, ES1688_MIC_DEV, 4, 0, 15, 0),
 ES1688_DOUBLE("Aux Playback Volume", 0, ES1688_AUX_DEV, ES1688_AUX_DEV, 4, 0, 15, 0),
-ES1688_SINGLE("PC Speaker Playback Volume", 0, ES1688_SPEAKER_DEV, 0, 7, 0),
+ES1688_SINGLE("Beep Playback Volume", 0, ES1688_SPEAKER_DEV, 0, 7, 0),
 ES1688_DOUBLE("Capture Volume", 0, ES1688_RECLEV_DEV, ES1688_RECLEV_DEV, 4, 0, 15, 0),
 ES1688_SINGLE("Capture Switch", 0, ES1688_REC_DEV, 4, 1, 1),
 {
@@ -1009,17 +997,14 @@ static unsigned char snd_es1688_init_table[][2] = {
 	{ ES1688_REC_DEV, 0x17 }
 };
                                         
-int snd_es1688_mixer(struct snd_es1688 *chip)
+int snd_es1688_mixer(struct snd_card *card, struct snd_es1688 *chip)
 {
-	struct snd_card *card;
 	unsigned int idx;
 	int err;
 	unsigned char reg, val;
 
-	if (snd_BUG_ON(!chip || !chip->card))
+	if (snd_BUG_ON(!chip || !card))
 		return -EINVAL;
-
-	card = chip->card;
 
 	strcpy(card->mixername, snd_es1688_chip_id(chip));
 

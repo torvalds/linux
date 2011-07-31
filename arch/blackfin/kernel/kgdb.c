@@ -6,33 +6,9 @@
  * Licensed under the GPL-2 or later.
  */
 
-#include <linux/string.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/smp.h>
-#include <linux/spinlock.h>
-#include <linux/delay.h>
 #include <linux/ptrace.h>		/* for linux pt_regs struct */
 #include <linux/kgdb.h>
-#include <linux/console.h>
-#include <linux/init.h>
-#include <linux/errno.h>
-#include <linux/irq.h>
 #include <linux/uaccess.h>
-#include <asm/system.h>
-#include <asm/traps.h>
-#include <asm/blackfin.h>
-#include <asm/dma.h>
-
-/* Put the error code here just in case the user cares.  */
-int gdb_bfin_errcode;
-/* Likewise, the vector number here (since GDB only gets the signal
-   number through the usual means, and that's not very specific).  */
-int gdb_bfin_vector = -1;
-
-#if KGDB_MAX_NO_CPUS != 8
-#error change the definition of slavecpulocks
-#endif
 
 void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 {
@@ -90,7 +66,7 @@ void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 	gdb_regs[BFIN_RETN] = regs->retn;
 	gdb_regs[BFIN_RETE] = regs->rete;
 	gdb_regs[BFIN_PC] = regs->pc;
-	gdb_regs[BFIN_CC] = 0;
+	gdb_regs[BFIN_CC] = (regs->astat >> 5) & 1;
 	gdb_regs[BFIN_EXTRA1] = 0;
 	gdb_regs[BFIN_EXTRA2] = 0;
 	gdb_regs[BFIN_EXTRA3] = 0;
@@ -157,7 +133,7 @@ void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 	regs->lb1 = gdb_regs[BFIN_LB1];
 	regs->usp = gdb_regs[BFIN_USP];
 	regs->syscfg = gdb_regs[BFIN_SYSCFG];
-	regs->retx = gdb_regs[BFIN_PC];
+	regs->retx = gdb_regs[BFIN_RETX];
 	regs->retn = gdb_regs[BFIN_RETN];
 	regs->rete = gdb_regs[BFIN_RETE];
 	regs->pc = gdb_regs[BFIN_PC];
@@ -169,7 +145,7 @@ void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 #endif
 }
 
-struct hw_breakpoint {
+static struct hw_breakpoint {
 	unsigned int occupied:1;
 	unsigned int skip:1;
 	unsigned int enabled:1;
@@ -179,7 +155,7 @@ struct hw_breakpoint {
 	unsigned int addr;
 } breakinfo[HW_WATCHPOINT_NUM];
 
-int bfin_set_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
+static int bfin_set_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
 {
 	int breakno;
 	int bfin_type;
@@ -226,7 +202,7 @@ int bfin_set_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
 	return -ENOSPC;
 }
 
-int bfin_remove_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
+static int bfin_remove_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
 {
 	int breakno;
 	int bfin_type;
@@ -254,7 +230,7 @@ int bfin_remove_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
 	return 0;
 }
 
-void bfin_remove_all_hw_break(void)
+static void bfin_remove_all_hw_break(void)
 {
 	int breakno;
 
@@ -266,7 +242,7 @@ void bfin_remove_all_hw_break(void)
 		breakinfo[breakno].type = TYPE_DATA_WATCHPOINT;
 }
 
-void bfin_correct_hw_break(void)
+static void bfin_correct_hw_break(void)
 {
 	int breakno;
 	unsigned int wpiactl = 0;
@@ -369,13 +345,6 @@ void kgdb_roundup_cpu(int cpu, unsigned long flags)
 }
 #endif
 
-void kgdb_post_primary_code(struct pt_regs *regs, int eVector, int err_code)
-{
-	/* Master processor is completely in the debugger */
-	gdb_bfin_vector = eVector;
-	gdb_bfin_errcode = err_code;
-}
-
 int kgdb_arch_handle_exception(int vector, int signo,
 			       int err_code, char *remcom_in_buffer,
 			       char *remcom_out_buffer,
@@ -441,182 +410,6 @@ struct kgdb_arch arch_kgdb_ops = {
 	.correct_hw_break = bfin_correct_hw_break,
 };
 
-static int hex(char ch)
-{
-	if ((ch >= 'a') && (ch <= 'f'))
-		return ch - 'a' + 10;
-	if ((ch >= '0') && (ch <= '9'))
-		return ch - '0';
-	if ((ch >= 'A') && (ch <= 'F'))
-		return ch - 'A' + 10;
-	return -1;
-}
-
-static int validate_memory_access_address(unsigned long addr, int size)
-{
-	if (size < 0 || addr == 0)
-		return -EFAULT;
-	return bfin_mem_access_type(addr, size);
-}
-
-static int bfin_probe_kernel_read(char *dst, char *src, int size)
-{
-	unsigned long lsrc = (unsigned long)src;
-	int mem_type;
-
-	mem_type = validate_memory_access_address(lsrc, size);
-	if (mem_type < 0)
-		return mem_type;
-
-	if (lsrc >= SYSMMR_BASE) {
-		if (size == 2 && lsrc % 2 == 0) {
-			u16 mmr = bfin_read16(src);
-			memcpy(dst, &mmr, sizeof(mmr));
-			return 0;
-		} else if (size == 4 && lsrc % 4 == 0) {
-			u32 mmr = bfin_read32(src);
-			memcpy(dst, &mmr, sizeof(mmr));
-			return 0;
-		}
-	} else {
-		switch (mem_type) {
-			case BFIN_MEM_ACCESS_CORE:
-			case BFIN_MEM_ACCESS_CORE_ONLY:
-				return probe_kernel_read(dst, src, size);
-			/* XXX: should support IDMA here with SMP */
-			case BFIN_MEM_ACCESS_DMA:
-				if (dma_memcpy(dst, src, size))
-					return 0;
-				break;
-			case BFIN_MEM_ACCESS_ITEST:
-				if (isram_memcpy(dst, src, size))
-					return 0;
-				break;
-		}
-	}
-
-	return -EFAULT;
-}
-
-static int bfin_probe_kernel_write(char *dst, char *src, int size)
-{
-	unsigned long ldst = (unsigned long)dst;
-	int mem_type;
-
-	mem_type = validate_memory_access_address(ldst, size);
-	if (mem_type < 0)
-		return mem_type;
-
-	if (ldst >= SYSMMR_BASE) {
-		if (size == 2 && ldst % 2 == 0) {
-			u16 mmr;
-			memcpy(&mmr, src, sizeof(mmr));
-			bfin_write16(dst, mmr);
-			return 0;
-		} else if (size == 4 && ldst % 4 == 0) {
-			u32 mmr;
-			memcpy(&mmr, src, sizeof(mmr));
-			bfin_write32(dst, mmr);
-			return 0;
-		}
-	} else {
-		switch (mem_type) {
-			case BFIN_MEM_ACCESS_CORE:
-			case BFIN_MEM_ACCESS_CORE_ONLY:
-				return probe_kernel_write(dst, src, size);
-			/* XXX: should support IDMA here with SMP */
-			case BFIN_MEM_ACCESS_DMA:
-				if (dma_memcpy(dst, src, size))
-					return 0;
-				break;
-			case BFIN_MEM_ACCESS_ITEST:
-				if (isram_memcpy(dst, src, size))
-					return 0;
-				break;
-		}
-	}
-
-	return -EFAULT;
-}
-
-/*
- * Convert the memory pointed to by mem into hex, placing result in buf.
- * Return a pointer to the last char put in buf (null). May return an error.
- */
-int kgdb_mem2hex(char *mem, char *buf, int count)
-{
-	char *tmp;
-	int err;
-
-	/*
-	 * We use the upper half of buf as an intermediate buffer for the
-	 * raw memory copy.  Hex conversion will work against this one.
-	 */
-	tmp = buf + count;
-
-	err = bfin_probe_kernel_read(tmp, mem, count);
-	if (!err) {
-		while (count > 0) {
-			buf = pack_hex_byte(buf, *tmp);
-			tmp++;
-			count--;
-		}
-
-		*buf = 0;
-	}
-
-	return err;
-}
-
-/*
- * Copy the binary array pointed to by buf into mem.  Fix $, #, and
- * 0x7d escaped with 0x7d.  Return a pointer to the character after
- * the last byte written.
- */
-int kgdb_ebin2mem(char *buf, char *mem, int count)
-{
-	char *tmp_old, *tmp_new;
-	int size;
-
-	tmp_old = tmp_new = buf;
-
-	for (size = 0; size < count; ++size) {
-		if (*tmp_old == 0x7d)
-			*tmp_new = *(++tmp_old) ^ 0x20;
-		else
-			*tmp_new = *tmp_old;
-		tmp_new++;
-		tmp_old++;
-	}
-
-	return bfin_probe_kernel_write(mem, buf, count);
-}
-
-/*
- * Convert the hex array pointed to by buf into binary to be placed in mem.
- * Return a pointer to the character AFTER the last byte written.
- * May return an error.
- */
-int kgdb_hex2mem(char *buf, char *mem, int count)
-{
-	char *tmp_raw, *tmp_hex;
-
-	/*
-	 * We use the upper half of buf as an intermediate buffer for the
-	 * raw memory that is converted from hex.
-	 */
-	tmp_raw = buf + count * 2;
-
-	tmp_hex = tmp_raw - 1;
-	while (tmp_hex >= buf) {
-		tmp_raw--;
-		*tmp_raw = hex(*tmp_hex--);
-		*tmp_raw |= hex(*tmp_hex--) << 4;
-	}
-
-	return bfin_probe_kernel_write(mem, tmp_raw, count);
-}
-
 #define IN_MEM(addr, size, l1_addr, l1_size) \
 ({ \
 	unsigned long __addr = (unsigned long)(addr); \
@@ -646,19 +439,9 @@ int kgdb_validate_break_address(unsigned long addr)
 	return -EFAULT;
 }
 
-int kgdb_arch_set_breakpoint(unsigned long addr, char *saved_instr)
+void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long ip)
 {
-	int err = bfin_probe_kernel_read(saved_instr, (char *)addr,
-	                                 BREAK_INSTR_SIZE);
-	if (err)
-		return err;
-	return bfin_probe_kernel_write((char *)addr, arch_kgdb_ops.gdb_bpt_instr,
-	                               BREAK_INSTR_SIZE);
-}
-
-int kgdb_arch_remove_breakpoint(unsigned long addr, char *bundle)
-{
-	return bfin_probe_kernel_write((char *)addr, bundle, BREAK_INSTR_SIZE);
+	regs->retx = ip;
 }
 
 int kgdb_arch_init(void)

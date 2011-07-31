@@ -29,6 +29,7 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 
 #include <net/irda/irda.h>
 #include <net/irda/irlap_event.h>
@@ -1741,7 +1742,7 @@ static int irlap_state_reset(struct irlap_cb *self, IRLAP_EVENT event,
  * Function irlap_state_xmit_s (event, skb, info)
  *
  *   XMIT_S, The secondary station has been given the right to transmit,
- *   and we therefor do not expect to receive any transmissions from other
+ *   and we therefore do not expect to receive any transmissions from other
  *   stations.
  */
 static int irlap_state_xmit_s(struct irlap_cb *self, IRLAP_EVENT event,

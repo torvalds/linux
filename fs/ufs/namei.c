@@ -56,7 +56,7 @@ static struct dentry *ufs_lookup(struct inode * dir, struct dentry *dentry, stru
 		return ERR_PTR(-ENAMETOOLONG);
 
 	lock_kernel();
-	ino = ufs_inode_by_name(dir, dentry);
+	ino = ufs_inode_by_name(dir, &dentry->d_name);
 	if (ino) {
 		inode = ufs_iget(dir->i_sb, ino);
 		if (IS_ERR(inode)) {
@@ -84,6 +84,7 @@ static int ufs_create (struct inode * dir, struct dentry * dentry, int mode,
 	int err;
 
 	UFSD("BEGIN\n");
+
 	inode = ufs_new_inode(dir, mode);
 	err = PTR_ERR(inode);
 
@@ -107,6 +108,7 @@ static int ufs_mknod (struct inode * dir, struct dentry *dentry, int mode, dev_t
 
 	if (!old_valid_dev(rdev))
 		return -EINVAL;
+
 	inode = ufs_new_inode(dir, mode);
 	err = PTR_ERR(inode);
 	if (!IS_ERR(inode)) {
@@ -139,7 +141,7 @@ static int ufs_symlink (struct inode * dir, struct dentry * dentry,
 
 	if (l > UFS_SB(sb)->s_uspi->s_maxsymlinklen) {
 		/* slow symlink */
-		inode->i_op = &page_symlink_inode_operations;
+		inode->i_op = &ufs_symlink_inode_operations;
 		inode->i_mapping->a_ops = &ufs_aops;
 		err = page_symlink(inode, symname, l);
 		if (err)
@@ -237,7 +239,7 @@ static int ufs_unlink(struct inode *dir, struct dentry *dentry)
 	struct page *page;
 	int err = -ENOENT;
 
-	de = ufs_find_entry(dir, dentry, &page);
+	de = ufs_find_entry(dir, &dentry->d_name, &page);
 	if (!de)
 		goto out;
 
@@ -281,7 +283,7 @@ static int ufs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct ufs_dir_entry *old_de;
 	int err = -ENOENT;
 
-	old_de = ufs_find_entry(old_dir, old_dentry, &old_page);
+	old_de = ufs_find_entry(old_dir, &old_dentry->d_name, &old_page);
 	if (!old_de)
 		goto out;
 
@@ -301,7 +303,7 @@ static int ufs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto out_dir;
 
 		err = -ENOENT;
-		new_de = ufs_find_entry(new_dir, new_dentry, &new_page);
+		new_de = ufs_find_entry(new_dir, &new_dentry->d_name, &new_page);
 		if (!new_de)
 			goto out_dir;
 		inode_inc_link_count(old_inode);

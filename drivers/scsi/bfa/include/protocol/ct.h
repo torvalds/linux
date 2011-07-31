@@ -82,7 +82,7 @@ enum {
 };
 
 /*
- * defintions for CT reason code
+ * definitions for CT reason code
  */
 enum {
 	CT_RSN_INV_CMD		= 0x01,
@@ -129,7 +129,7 @@ enum {
 };
 
 /*
- * defintions for the explanation code for all servers
+ * definitions for the explanation code for all servers
  */
 enum {
 	CT_EXP_AUTH_EXCEPTION			= 0xF1,
@@ -193,11 +193,11 @@ struct fcgs_rftid_req_s {
 #define FC_GS_FCP_FC4_FEATURE_TARGET	 0x01
 
 struct fcgs_rffid_req_s{
-    u32    rsvd          :8;
-    u32    dap        	  :24;		/* port identifier	*/
-    u32    rsvd1         :16;
-    u32    fc4ftr_bits   :8;		/* fc4 feature bits	*/
-    u32    fc4_type      :8;		/* corresponding FC4 Type */
+    u32    rsvd:8;
+    u32    dap:24;		/* port identifier	*/
+    u32    rsvd1:16;
+    u32    fc4ftr_bits:8;	/* fc4 feature bits	*/
+    u32    fc4_type:8;	/* corresponding FC4 Type */
 };
 
 /**

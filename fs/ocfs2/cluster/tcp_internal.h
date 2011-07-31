@@ -32,10 +32,10 @@
  * on their number */
 #define O2NET_QUORUM_DELAY_MS	((o2hb_dead_threshold + 2) * O2HB_REGION_TIMEOUT_MS)
 
-/* 
+/*
  * This version number represents quite a lot, unfortunately.  It not
  * only represents the raw network message protocol on the wire but also
- * locking semantics of the file system using the protocol.  It should 
+ * locking semantics of the file system using the protocol.  It should
  * be somewhere else, I'm sure, but right now it isn't.
  *
  * With version 11, we separate out the filesystem locking portion.  The

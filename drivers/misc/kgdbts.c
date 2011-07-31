@@ -295,6 +295,10 @@ static int check_and_rewind_pc(char *put_str, char *arg)
 	/* On x86 a breakpoint stop requires it to be decremented */
 	if (addr + 1 == kgdbts_regs.ip)
 		offset = -1;
+#elif defined(CONFIG_SUPERH)
+	/* On SUPERH a breakpoint stop requires it to be decremented */
+	if (addr + 2 == kgdbts_regs.pc)
+		offset = -2;
 #endif
 	if (strcmp(arg, "silent") &&
 		instruction_pointer(&kgdbts_regs) + offset != addr) {
@@ -305,6 +309,8 @@ static int check_and_rewind_pc(char *put_str, char *arg)
 #ifdef CONFIG_X86
 	/* On x86 adjust the instruction pointer if needed */
 	kgdbts_regs.ip += offset;
+#elif defined(CONFIG_SUPERH)
+	kgdbts_regs.pc += offset;
 #endif
 	return 0;
 }
@@ -712,6 +718,12 @@ static int run_simple_test(int is_get_char, int chr)
 
 	/* End of packet == #XX so look for the '#' */
 	if (put_buf_cnt > 3 && put_buf[put_buf_cnt - 3] == '#') {
+		if (put_buf_cnt >= BUFMAX) {
+			eprintk("kgdbts: ERROR: put buffer overflow on"
+				" '%s' line %i\n", ts.name, ts.idx);
+			put_buf_cnt = 0;
+			return 0;
+		}
 		put_buf[put_buf_cnt] = '\0';
 		v2printk("put%i: %s\n", ts.idx, put_buf);
 		/* Trigger check here */
@@ -885,16 +897,16 @@ static void kgdbts_run_tests(void)
 	int nmi_sleep = 0;
 	int i;
 
-	ptr = strstr(config, "F");
+	ptr = strchr(config, 'F');
 	if (ptr)
 		fork_test = simple_strtol(ptr + 1, NULL, 10);
-	ptr = strstr(config, "S");
+	ptr = strchr(config, 'S');
 	if (ptr)
 		do_sys_open_test = simple_strtol(ptr + 1, NULL, 10);
-	ptr = strstr(config, "N");
+	ptr = strchr(config, 'N');
 	if (ptr)
 		nmi_sleep = simple_strtol(ptr+1, NULL, 10);
-	ptr = strstr(config, "I");
+	ptr = strchr(config, 'I');
 	if (ptr)
 		sstep_test = simple_strtol(ptr+1, NULL, 10);
 

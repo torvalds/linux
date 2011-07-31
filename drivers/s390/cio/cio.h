@@ -68,6 +68,11 @@ struct schib {
 	__u8 mda[4];		 /* model dependent area */
 } __attribute__ ((packed,aligned(4)));
 
+enum sch_todo {
+	SCH_TODO_NOTHING,
+	SCH_TODO_UNREG,
+};
+
 /* subchannel data structure used by I/O subroutines */
 struct subchannel {
 	struct subchannel_id schid;
@@ -95,7 +100,8 @@ struct subchannel {
 	struct device dev;	/* entry in device tree */
 	struct css_driver *driver;
 	void *private; /* private per subchannel type data */
-	struct work_struct work;
+	enum sch_todo todo;
+	struct work_struct todo_work;
 	struct schib_config config;
 } __attribute__ ((aligned(8)));
 

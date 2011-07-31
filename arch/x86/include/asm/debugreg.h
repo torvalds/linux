@@ -14,10 +14,14 @@
    which debugging register was responsible for the trap.  The other bits
    are either reserved or not of interest to us. */
 
+/* Define reserved bits in DR6 which are always set to 1 */
+#define DR6_RESERVED	(0xFFFF0FF0)
+
 #define DR_TRAP0	(0x1)		/* db0 */
 #define DR_TRAP1	(0x2)		/* db1 */
 #define DR_TRAP2	(0x4)		/* db2 */
 #define DR_TRAP3	(0x8)		/* db3 */
+#define DR_TRAP_BITS	(DR_TRAP0|DR_TRAP1|DR_TRAP2|DR_TRAP3)
 
 #define DR_STEP		(0x4000)	/* single-step */
 #define DR_SWITCH	(0x8000)	/* task switch */
@@ -49,6 +53,8 @@
 
 #define DR_LOCAL_ENABLE_SHIFT 0    /* Extra shift to the local enable bit */
 #define DR_GLOBAL_ENABLE_SHIFT 1   /* Extra shift to the global enable bit */
+#define DR_LOCAL_ENABLE (0x1)      /* Local enable for reg 0 */
+#define DR_GLOBAL_ENABLE (0x2)     /* Global enable for reg 0 */
 #define DR_ENABLE_SIZE 2           /* 2 enable bits per register */
 
 #define DR_LOCAL_ENABLE_MASK (0x55)  /* Set  local bits for all 4 regs */
@@ -66,5 +72,35 @@
 
 #define DR_LOCAL_SLOWDOWN (0x100)   /* Local slow the pipeline */
 #define DR_GLOBAL_SLOWDOWN (0x200)  /* Global slow the pipeline */
+
+/*
+ * HW breakpoint additions
+ */
+#ifdef __KERNEL__
+
+DECLARE_PER_CPU(unsigned long, cpu_dr7);
+
+static inline void hw_breakpoint_disable(void)
+{
+	/* Zero the control register for HW Breakpoint */
+	set_debugreg(0UL, 7);
+
+	/* Zero-out the individual HW breakpoint address registers */
+	set_debugreg(0UL, 0);
+	set_debugreg(0UL, 1);
+	set_debugreg(0UL, 2);
+	set_debugreg(0UL, 3);
+}
+
+static inline int hw_breakpoint_active(void)
+{
+	return __get_cpu_var(cpu_dr7) & DR_GLOBAL_ENABLE_MASK;
+}
+
+extern void aout_dump_debugregs(struct user *dump);
+
+extern void hw_breakpoint_restore(void);
+
+#endif	/* __KERNEL__ */
 
 #endif /* _ASM_X86_DEBUGREG_H */

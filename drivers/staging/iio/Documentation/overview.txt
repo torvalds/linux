@@ -24,11 +24,12 @@ hwmon with simple polled access to device channels via sysfs.
 * Event chrdevs.  These are similar to input in that they provide a
 route to user space for hardware triggered events. Such events include
 threshold detectors, free-fall detectors and more complex action
-detection.  They events themselves are currently very simple with
+detection.  The events themselves are currently very simple with
 merely an event code and a timestamp.  Any data associated with the
-event must be accessed via polling. Note a given device may have one
-or more event channel.  These events are turned on or off (if possible)
-via sysfs interfaces.
+event must be accessed via polling.
+
+Note: A given device may have one or more event channel.  These events are
+turned on or off (if possible) via sysfs interfaces.
 
 * Hardware ring buffer support.  Some recent sensors have included
 fifo / ring buffers on the sensor chip.  These greatly reduce the load
@@ -43,7 +44,7 @@ which the raw data it self may be read back.
 applications it it useful to be able to capture data based on some
 external signal (trigger).  These triggers might be a data ready
 signal, a gpio line connected to some external system or an on
-processor periodic interrupt.  A single trigger many initialize data
+processor periodic interrupt.  A single trigger may initialize data
 capture or reading from a number of sensors.  These triggers are
 used in iio to fill software ring buffers acting in a very similar
 fashion to the hardware buffers described above.

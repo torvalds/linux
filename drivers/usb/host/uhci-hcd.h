@@ -67,11 +67,16 @@
 #define   USBPORTSC_RES3	0x4000	/* reserved, write zeroes */
 #define   USBPORTSC_RES4	0x8000	/* reserved, write zeroes */
 
-/* Legacy support register */
+/* PCI legacy support register */
 #define USBLEGSUP		0xc0
 #define   USBLEGSUP_DEFAULT	0x2000	/* only PIRQ enable set */
 #define   USBLEGSUP_RWC		0x8f00	/* the R/WC bits */
 #define   USBLEGSUP_RO		0x5040	/* R/O and reserved bits */
+
+/* PCI Intel-specific resume-enable register */
+#define USBRES_INTEL		0xc4
+#define   USBPORT1EN		0x01
+#define   USBPORT2EN		0x02
 
 #define UHCI_PTR_BITS		cpu_to_le32(0x000F)
 #define UHCI_PTR_TERM		cpu_to_le32(0x0001)

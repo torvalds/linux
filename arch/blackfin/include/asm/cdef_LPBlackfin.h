@@ -216,12 +216,16 @@
 #define bfin_write_EVT14(val)                bfin_write32(EVT14,val)
 #define bfin_read_EVT15()                    bfin_read32(EVT15)
 #define bfin_write_EVT15(val)                bfin_write32(EVT15,val)
+#define bfin_read_EVT_OVERRIDE()             bfin_read32(EVT_OVERRIDE)
+#define bfin_write_EVT_OVERRIDE(val)         bfin_write32(EVT_OVERRIDE,val)
 #define bfin_read_IMASK()                    bfin_read32(IMASK)
 #define bfin_write_IMASK(val)                bfin_write32(IMASK,val)
 #define bfin_read_IPEND()                    bfin_read32(IPEND)
 #define bfin_write_IPEND(val)                bfin_write32(IPEND,val)
 #define bfin_read_ILAT()                     bfin_read32(ILAT)
 #define bfin_write_ILAT(val)                 bfin_write32(ILAT,val)
+#define bfin_read_IPRIO()                    bfin_read32(IPRIO)
+#define bfin_write_IPRIO(val)                bfin_write32(IPRIO,val)
 
 /*Core Timer Registers*/
 #define bfin_read_TCNTL()                    bfin_read32(TCNTL)
@@ -298,9 +302,5 @@
 #define bfin_write_PFCNTR0(val)              bfin_write32(PFCNTR0,val)
 #define bfin_read_PFCNTR1()                  bfin_read32(PFCNTR1)
 #define bfin_write_PFCNTR1(val)              bfin_write32(PFCNTR1,val)
-
-/*
-#define IPRIO                  0xFFE02110
-*/
 
 #endif				/* _CDEF_LPBLACKFIN_H */

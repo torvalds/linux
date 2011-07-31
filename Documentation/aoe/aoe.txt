@@ -1,6 +1,6 @@
 The EtherDrive (R) HOWTO for users of 2.6 kernels is found at ...
 
-  http://www.coraid.com/support/linux/EtherDrive-2.6-HOWTO.html
+  http://www.coraid.com/SUPPORT/EtherDrive-HBA  
 
   It has many tips and hints!
 

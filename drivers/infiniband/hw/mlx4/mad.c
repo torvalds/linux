@@ -34,6 +34,7 @@
 #include <rdma/ib_smi.h>
 
 #include <linux/mlx4/cmd.h>
+#include <linux/gfp.h>
 
 #include "mlx4_ib.h"
 

@@ -44,7 +44,8 @@
 #define PORT_RM9000	16	/* PMC-Sierra RM9xxx internal UART */
 #define PORT_OCTEON	17	/* Cavium OCTEON internal UART */
 #define PORT_AR7	18	/* Texas Instruments AR7 internal UART */
-#define PORT_MAX_8250	18	/* max port ID */
+#define PORT_U6_16550A	19	/* ST-Ericsson U6xxx internal UART */
+#define PORT_MAX_8250	19	/* max port ID */
 
 /*
  * ARM specific type numbers.  These are not currently guaranteed
@@ -179,9 +180,26 @@
 /* BCM63xx family SoCs */
 #define PORT_BCM63XX	89
 
-#define PORT_RK2818		90
+#define PORT_RK2818	90
 
-#define PORT_RK29		90
+#define PORT_RK29	90
+
+/* Aeroflex Gaisler GRLIB APBUART */
+#define PORT_APBUART    90
+
+/* Altera UARTs */
+#define PORT_ALTERA_JTAGUART	91
+#define PORT_ALTERA_UART	92
+
+/* SH-SCI */
+#define PORT_SCIFB	93
+
+/* MAX3107 */
+#define PORT_MAX3107	94
+
+/* High Speed UART for Medfield */
+#define PORT_MFD	95
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>
@@ -216,10 +234,11 @@ struct uart_ops {
 	void		(*flush_buffer)(struct uart_port *);
 	void		(*set_termios)(struct uart_port *, struct ktermios *new,
 				       struct ktermios *old);
-	void		(*set_ldisc)(struct uart_port *);
+	void		(*set_ldisc)(struct uart_port *, int new);
 	void		(*pm)(struct uart_port *, unsigned int state,
 			      unsigned int oldstate);
 	int		(*set_wake)(struct uart_port *, unsigned int state);
+	void		(*wake_peer)(struct uart_port *);
 
 	/*
 	 * Return a string describing the type of the port
@@ -246,6 +265,7 @@ struct uart_ops {
 #endif
 };
 
+#define NO_POLL_CHAR		0x00ff0000
 #define UART_CONFIG_TYPE	(1 << 0)
 #define UART_CONFIG_IRQ		(1 << 1)
 
@@ -271,6 +291,9 @@ struct uart_port {
 	unsigned char __iomem	*membase;		/* read/write[bwl] */
 	unsigned int		(*serial_in)(struct uart_port *, int);
 	void			(*serial_out)(struct uart_port *, int, int);
+	void			(*set_termios)(struct uart_port *,
+				               struct ktermios *new,
+				               struct ktermios *old);
 	unsigned int		irq;			/* irq number */
 	unsigned long		irqflags;		/* irq flags  */
 	unsigned int		uartclk;		/* base uart clock */
@@ -448,7 +471,7 @@ uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
 #ifdef SUPPORT_SYSRQ
 	if (port->sysrq) {
 		if (ch && time_before(jiffies, port->sysrq)) {
-			handle_sysrq(ch, port->state->port.tty);
+			handle_sysrq(ch);
 			port->sysrq = 0;
 			return 1;
 		}
@@ -491,9 +514,13 @@ uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
 {
 	struct uart_state *state = uport->state;
 	struct tty_port *port = &state->port;
+	struct tty_ldisc *ld = tty_ldisc_ref(port->tty);
+	struct timespec ts;
+
+	if (ld && ld->ops->dcd_change)
+		getnstimeofday(&ts);
 
 	uport->icount.dcd++;
-
 #ifdef CONFIG_HARD_PPS
 	if ((uport->flags & UPF_HARDPPS_CD) && status)
 		hardpps();
@@ -505,6 +532,11 @@ uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
 		else if (port->tty)
 			tty_hangup(port->tty);
 	}
+
+	if (ld && ld->ops->dcd_change)
+		ld->ops->dcd_change(port->tty, status, &ts);
+	if (ld)
+		tty_ldisc_deref(ld);
 }
 
 /**

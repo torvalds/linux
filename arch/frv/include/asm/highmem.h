@@ -152,7 +152,7 @@ do {									\
 	asm volatile("tlbpr %0,gr0,#4,#1" : : "r"(vaddr) : "memory");	\
 } while(0)
 
-static inline void kunmap_atomic(void *kvaddr, enum km_type type)
+static inline void kunmap_atomic_notypecheck(void *kvaddr, enum km_type type)
 {
 	switch (type) {
         case 0:		__kunmap_atomic_primary(0, 2);	break;

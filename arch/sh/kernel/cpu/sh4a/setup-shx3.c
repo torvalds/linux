@@ -15,51 +15,68 @@
 #include <linux/sh_timer.h>
 #include <asm/mmzone.h>
 
-static struct plat_sci_port sci_platform_data[] = {
-	{
-		.mapbase	= 0xffc30000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 40, 41, 43, 42 },
-	}, {
-		.mapbase	= 0xffc40000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 44, 45, 47, 46 },
-	}, {
-		.mapbase	= 0xffc50000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 48, 49, 51, 50 },
-	}, {
-		.mapbase	= 0xffc60000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 52, 53, 55, 54 },
-	}, {
-		.flags = 0,
-	}
+/*
+ * This intentionally only registers SCIF ports 0, 1, and 3. SCIF 2
+ * INTEVT values overlap with the FPU EXPEVT ones, requiring special
+ * demuxing in the exception dispatch path.
+ *
+ * As this overlap is something that never should have made it in to
+ * silicon in the first place, we just refuse to deal with the port at
+ * all rather than adding infrastructure to hack around it.
+ */
+static struct plat_sci_port scif0_platform_data = {
+	.mapbase	= 0xffc30000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 40, 41, 43, 42 },
 };
 
-static struct platform_device sci_device = {
+static struct platform_device scif0_device = {
 	.name		= "sh-sci",
-	.id		= -1,
+	.id		= 0,
 	.dev		= {
-		.platform_data	= sci_platform_data,
+		.platform_data	= &scif0_platform_data,
+	},
+};
+
+static struct plat_sci_port scif1_platform_data = {
+	.mapbase	= 0xffc40000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 44, 45, 47, 46 },
+};
+
+static struct platform_device scif1_device = {
+	.name		= "sh-sci",
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &scif1_platform_data,
+	},
+};
+
+static struct plat_sci_port scif2_platform_data = {
+	.mapbase	= 0xffc60000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 52, 53, 55, 54 },
+};
+
+static struct platform_device scif2_device = {
+	.name		= "sh-sci",
+	.id		= 2,
+	.dev		= {
+		.platform_data	= &scif2_platform_data,
 	},
 };
 
 static struct sh_timer_config tmu0_platform_data = {
-	.name = "TMU0",
 	.channel_offset = 0x04,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
 static struct resource tmu0_resources[] = {
 	[0] = {
-		.name	= "TMU0",
 		.start	= 0xffc10008,
 		.end	= 0xffc10013,
 		.flags	= IORESOURCE_MEM,
@@ -81,16 +98,13 @@ static struct platform_device tmu0_device = {
 };
 
 static struct sh_timer_config tmu1_platform_data = {
-	.name = "TMU1",
 	.channel_offset = 0x10,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 	.clocksource_rating = 200,
 };
 
 static struct resource tmu1_resources[] = {
 	[0] = {
-		.name	= "TMU1",
 		.start	= 0xffc10014,
 		.end	= 0xffc1001f,
 		.flags	= IORESOURCE_MEM,
@@ -112,15 +126,12 @@ static struct platform_device tmu1_device = {
 };
 
 static struct sh_timer_config tmu2_platform_data = {
-	.name = "TMU2",
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu2_resources[] = {
 	[0] = {
-		.name	= "TMU2",
 		.start	= 0xffc10020,
 		.end	= 0xffc1002f,
 		.flags	= IORESOURCE_MEM,
@@ -142,15 +153,12 @@ static struct platform_device tmu2_device = {
 };
 
 static struct sh_timer_config tmu3_platform_data = {
-	.name = "TMU3",
 	.channel_offset = 0x04,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu3_resources[] = {
 	[0] = {
-		.name	= "TMU3",
 		.start	= 0xffc20008,
 		.end	= 0xffc20013,
 		.flags	= IORESOURCE_MEM,
@@ -172,15 +180,12 @@ static struct platform_device tmu3_device = {
 };
 
 static struct sh_timer_config tmu4_platform_data = {
-	.name = "TMU4",
 	.channel_offset = 0x10,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu4_resources[] = {
 	[0] = {
-		.name	= "TMU4",
 		.start	= 0xffc20014,
 		.end	= 0xffc2001f,
 		.flags	= IORESOURCE_MEM,
@@ -202,15 +207,12 @@ static struct platform_device tmu4_device = {
 };
 
 static struct sh_timer_config tmu5_platform_data = {
-	.name = "TMU5",
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu5_resources[] = {
 	[0] = {
-		.name	= "TMU5",
 		.start	= 0xffc20020,
 		.end	= 0xffc2002b,
 		.flags	= IORESOURCE_MEM,
@@ -232,6 +234,9 @@ static struct platform_device tmu5_device = {
 };
 
 static struct platform_device *shx3_early_devices[] __initdata = {
+	&scif0_device,
+	&scif1_device,
+	&scif2_device,
 	&tmu0_device,
 	&tmu1_device,
 	&tmu2_device,
@@ -240,21 +245,10 @@ static struct platform_device *shx3_early_devices[] __initdata = {
 	&tmu5_device,
 };
 
-static struct platform_device *shx3_devices[] __initdata = {
-	&sci_device,
-};
-
 static int __init shx3_devices_setup(void)
 {
-	int ret;
-
-	ret = platform_add_devices(shx3_early_devices,
+	return platform_add_devices(shx3_early_devices,
 				   ARRAY_SIZE(shx3_early_devices));
-	if (unlikely(ret != 0))
-		return ret;
-
-	return platform_add_devices(shx3_devices,
-				    ARRAY_SIZE(shx3_devices));
 }
 arch_initcall(shx3_devices_setup);
 
@@ -268,7 +262,11 @@ enum {
 	UNUSED = 0,
 
 	/* interrupt sources */
-	IRL, IRQ0, IRQ1, IRQ2, IRQ3,
+	IRL_LLLL, IRL_LLLH, IRL_LLHL, IRL_LLHH,
+	IRL_LHLL, IRL_LHLH, IRL_LHHL, IRL_LHHH,
+	IRL_HLLL, IRL_HLLH, IRL_HLHL, IRL_HLHH,
+	IRL_HHLL, IRL_HHLH, IRL_HHHL,
+	IRQ0, IRQ1, IRQ2, IRQ3,
 	HUDII,
 	TMU0, TMU1, TMU2, TMU3, TMU4, TMU5,
 	PCII0, PCII1, PCII2, PCII3, PCII4,
@@ -291,7 +289,7 @@ enum {
 	INTICI4, INTICI5, INTICI6, INTICI7,
 
 	/* interrupt groups */
-	PCII56789, SCIF0, SCIF1, SCIF2, SCIF3,
+	IRL, PCII56789, SCIF0, SCIF1, SCIF2, SCIF3,
 	DMAC0, DMAC1,
 };
 
@@ -309,8 +307,6 @@ static struct intc_vect vectors[] __initdata = {
 	INTC_VECT(SCIF0_BRI, 0x740), INTC_VECT(SCIF0_TXI, 0x760),
 	INTC_VECT(SCIF1_ERI, 0x780), INTC_VECT(SCIF1_RXI, 0x7a0),
 	INTC_VECT(SCIF1_BRI, 0x7c0), INTC_VECT(SCIF1_TXI, 0x7e0),
-	INTC_VECT(SCIF2_ERI, 0x800), INTC_VECT(SCIF2_RXI, 0x820),
-	INTC_VECT(SCIF2_BRI, 0x840), INTC_VECT(SCIF2_TXI, 0x860),
 	INTC_VECT(SCIF3_ERI, 0x880), INTC_VECT(SCIF3_RXI, 0x8a0),
 	INTC_VECT(SCIF3_BRI, 0x8c0), INTC_VECT(SCIF3_TXI, 0x8e0),
 	INTC_VECT(DMAC0_DMINT0, 0x900), INTC_VECT(DMAC0_DMINT1, 0x920),
@@ -344,10 +340,13 @@ static struct intc_vect vectors[] __initdata = {
 };
 
 static struct intc_group groups[] __initdata = {
+	INTC_GROUP(IRL, IRL_LLLL, IRL_LLLH, IRL_LLHL, IRL_LLHH,
+		   IRL_LHLL, IRL_LHLH, IRL_LHHL, IRL_LHHH,
+		   IRL_HLLL, IRL_HLLH, IRL_HLHL, IRL_HLHH,
+		   IRL_HHLL, IRL_HHLH, IRL_HHHL),
 	INTC_GROUP(PCII56789, PCII5, PCII6, PCII7, PCII8, PCII9),
 	INTC_GROUP(SCIF0, SCIF0_ERI, SCIF0_RXI, SCIF0_BRI, SCIF0_TXI),
 	INTC_GROUP(SCIF1, SCIF1_ERI, SCIF1_RXI, SCIF1_BRI, SCIF1_TXI),
-	INTC_GROUP(SCIF2, SCIF2_ERI, SCIF2_RXI, SCIF2_BRI, SCIF2_TXI),
 	INTC_GROUP(SCIF3, SCIF3_ERI, SCIF3_RXI, SCIF3_BRI, SCIF3_TXI),
 	INTC_GROUP(DMAC0, DMAC0_DMINT0, DMAC0_DMINT1, DMAC0_DMINT2,
 		   DMAC0_DMINT3, DMAC0_DMINT4, DMAC0_DMINT5, DMAC0_DMAE),
@@ -419,14 +418,14 @@ static DECLARE_INTC_DESC(intc_desc_irq, "shx3-irq", vectors_irq, groups,
 
 /* External interrupt pins in IRL mode */
 static struct intc_vect vectors_irl[] __initdata = {
-	INTC_VECT(IRL, 0x200), INTC_VECT(IRL, 0x220),
-	INTC_VECT(IRL, 0x240), INTC_VECT(IRL, 0x260),
-	INTC_VECT(IRL, 0x280), INTC_VECT(IRL, 0x2a0),
-	INTC_VECT(IRL, 0x2c0), INTC_VECT(IRL, 0x2e0),
-	INTC_VECT(IRL, 0x300), INTC_VECT(IRL, 0x320),
-	INTC_VECT(IRL, 0x340), INTC_VECT(IRL, 0x360),
-	INTC_VECT(IRL, 0x380), INTC_VECT(IRL, 0x3a0),
-	INTC_VECT(IRL, 0x3c0),
+	INTC_VECT(IRL_LLLL, 0x200), INTC_VECT(IRL_LLLH, 0x220),
+	INTC_VECT(IRL_LLHL, 0x240), INTC_VECT(IRL_LLHH, 0x260),
+	INTC_VECT(IRL_LHLL, 0x280), INTC_VECT(IRL_LHLH, 0x2a0),
+	INTC_VECT(IRL_LHHL, 0x2c0), INTC_VECT(IRL_LHHH, 0x2e0),
+	INTC_VECT(IRL_HLLL, 0x300), INTC_VECT(IRL_HLLH, 0x320),
+	INTC_VECT(IRL_HLHL, 0x340), INTC_VECT(IRL_HLHH, 0x360),
+	INTC_VECT(IRL_HHLL, 0x380), INTC_VECT(IRL_HHLH, 0x3a0),
+	INTC_VECT(IRL_HHHL, 0x3c0),
 };
 
 static DECLARE_INTC_DESC(intc_desc_irl, "shx3-irl", vectors_irl, groups,

@@ -1,5 +1,4 @@
 #include <linux/err.h>
-#include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -35,7 +34,7 @@ void extent_map_exit(void)
  */
 void extent_map_tree_init(struct extent_map_tree *tree, gfp_t mask)
 {
-	tree->map.rb_node = NULL;
+	tree->map = RB_ROOT;
 	rwlock_init(&tree->lock);
 }
 
@@ -155,20 +154,6 @@ static struct rb_node *__tree_search(struct rb_root *root, u64 offset,
 	return NULL;
 }
 
-/*
- * look for an offset in the tree, and if it can't be found, return
- * the first offset we can find smaller than 'offset'.
- */
-static inline struct rb_node *tree_search(struct rb_root *root, u64 offset)
-{
-	struct rb_node *prev;
-	struct rb_node *ret;
-	ret = __tree_search(root, offset, &prev, NULL);
-	if (!ret)
-		return prev;
-	return ret;
-}
-
 /* check to see if two extent_map structs are adjacent and safe to merge */
 static int mergable_maps(struct extent_map *prev, struct extent_map *next)
 {
@@ -256,7 +241,7 @@ out:
  * Insert @em into @tree or perform a simple forward/backward merge with
  * existing mappings.  The extent_map struct passed in will be inserted
  * into the tree directly, with an additional reference taken, or a
- * reference dropped if the merge attempt was sucessfull.
+ * reference dropped if the merge attempt was successfull.
  */
 int add_extent_mapping(struct extent_map_tree *tree,
 		       struct extent_map *em)

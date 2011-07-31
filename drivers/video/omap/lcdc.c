@@ -28,47 +28,18 @@
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
 #include <linux/clk.h>
+#include <linux/gfp.h>
 
-#include <mach/dma.h>
-#include <mach/omapfb.h>
+#include <mach/lcdc.h>
+#include <plat/dma.h>
 
 #include <asm/mach-types.h>
+
+#include "omapfb.h"
 
 #include "lcdc.h"
 
 #define MODULE_NAME			"lcdc"
-
-#define OMAP_LCDC_BASE			0xfffec000
-#define OMAP_LCDC_SIZE			256
-#define OMAP_LCDC_IRQ			INT_LCD_CTRL
-
-#define OMAP_LCDC_CONTROL		(OMAP_LCDC_BASE + 0x00)
-#define OMAP_LCDC_TIMING0		(OMAP_LCDC_BASE + 0x04)
-#define OMAP_LCDC_TIMING1		(OMAP_LCDC_BASE + 0x08)
-#define OMAP_LCDC_TIMING2		(OMAP_LCDC_BASE + 0x0c)
-#define OMAP_LCDC_STATUS		(OMAP_LCDC_BASE + 0x10)
-#define OMAP_LCDC_SUBPANEL		(OMAP_LCDC_BASE + 0x14)
-#define OMAP_LCDC_LINE_INT		(OMAP_LCDC_BASE + 0x18)
-#define OMAP_LCDC_DISPLAY_STATUS	(OMAP_LCDC_BASE + 0x1c)
-
-#define OMAP_LCDC_STAT_DONE		(1 << 0)
-#define OMAP_LCDC_STAT_VSYNC		(1 << 1)
-#define OMAP_LCDC_STAT_SYNC_LOST	(1 << 2)
-#define OMAP_LCDC_STAT_ABC		(1 << 3)
-#define OMAP_LCDC_STAT_LINE_INT		(1 << 4)
-#define OMAP_LCDC_STAT_FUF		(1 << 5)
-#define OMAP_LCDC_STAT_LOADED_PALETTE	(1 << 6)
-
-#define OMAP_LCDC_CTRL_LCD_EN		(1 << 0)
-#define OMAP_LCDC_CTRL_LCD_TFT		(1 << 7)
-#define OMAP_LCDC_CTRL_LINE_IRQ_CLR_SEL	(1 << 10)
-
-#define OMAP_LCDC_IRQ_VSYNC		(1 << 2)
-#define OMAP_LCDC_IRQ_DONE		(1 << 3)
-#define OMAP_LCDC_IRQ_LOADED_PALETTE	(1 << 4)
-#define OMAP_LCDC_IRQ_LINE_NIRQ		(1 << 5)
-#define OMAP_LCDC_IRQ_LINE		(1 << 6)
-#define OMAP_LCDC_IRQ_MASK		(((1 << 5) - 1) << 2)
 
 #define MAX_PALETTE_SIZE		PAGE_SIZE
 
@@ -419,7 +390,7 @@ static int omap_lcdc_enable_plane(int plane, int enable)
 /*
  * Configure the LCD DMA for a palette load operation and do the palette
  * downloading synchronously. We don't use the frame+palette load mode of
- * the controller, since the palette can always be downloaded seperately.
+ * the controller, since the palette can always be downloaded separately.
  */
 static void load_palette(void)
 {
@@ -601,22 +572,12 @@ static enum omapfb_update_mode omap_lcdc_get_update_mode(void)
 /* PM code called only in internal controller mode */
 static void omap_lcdc_suspend(void)
 {
-	if (lcdc.update_mode == OMAPFB_AUTO_UPDATE) {
-		disable_controller();
-		omap_stop_lcd_dma();
-	}
+	omap_lcdc_set_update_mode(OMAPFB_UPDATE_DISABLED);
 }
 
 static void omap_lcdc_resume(void)
 {
-	if (lcdc.update_mode == OMAPFB_AUTO_UPDATE) {
-		setup_regs();
-		load_palette();
-		setup_lcd_dma();
-		set_load_mode(OMAP_LCDC_LOAD_FRAME);
-		enable_irqs(OMAP_LCDC_IRQ_DONE);
-		enable_controller();
-	}
+	omap_lcdc_set_update_mode(OMAPFB_AUTO_UPDATE);
 }
 
 static void omap_lcdc_get_caps(int plane, struct omapfb_caps *caps)

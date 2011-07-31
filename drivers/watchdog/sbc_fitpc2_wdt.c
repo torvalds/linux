@@ -30,7 +30,7 @@
 static int nowayout = WATCHDOG_NOWAYOUT;
 static unsigned int margin = 60;	/* (secs) Default is 1 minute */
 static unsigned long wdt_status;
-static DEFINE_SPINLOCK(wdt_lock);
+static DEFINE_MUTEX(wdt_lock);
 
 #define WDT_IN_USE		0
 #define WDT_OK_TO_CLOSE		1
@@ -45,26 +45,26 @@ static DEFINE_SPINLOCK(wdt_lock);
 
 static void wdt_send_data(unsigned char command, unsigned char data)
 {
-	outb(command, COMMAND_PORT);
-	mdelay(100);
 	outb(data, DATA_PORT);
-	mdelay(200);
+	msleep(200);
+	outb(command, COMMAND_PORT);
+	msleep(100);
 }
 
 static void wdt_enable(void)
 {
-	spin_lock(&wdt_lock);
+	mutex_lock(&wdt_lock);
 	wdt_send_data(IFACE_ON_COMMAND, 1);
 	wdt_send_data(REBOOT_COMMAND, margin);
-	spin_unlock(&wdt_lock);
+	mutex_unlock(&wdt_lock);
 }
 
 static void wdt_disable(void)
 {
-	spin_lock(&wdt_lock);
+	mutex_lock(&wdt_lock);
 	wdt_send_data(IFACE_ON_COMMAND, 0);
 	wdt_send_data(REBOOT_COMMAND, 0);
-	spin_unlock(&wdt_lock);
+	mutex_unlock(&wdt_lock);
 }
 
 static int fitpc2_wdt_open(struct inode *inode, struct file *file)
@@ -111,7 +111,7 @@ out:
 }
 
 
-static struct watchdog_info ident = {
+static const struct watchdog_info ident = {
 	.options	= WDIOF_MAGICCLOSE | WDIOF_SETTIMEOUT |
 				WDIOF_KEEPALIVEPING,
 	.identity	= WATCHDOG_NAME,
@@ -202,11 +202,10 @@ static int __init fitpc2_wdt_init(void)
 {
 	int err;
 
-	if (strcmp("SBC-FITPC2", dmi_get_system_info(DMI_BOARD_NAME))) {
-		pr_info("board name is: %s. Should be SBC-FITPC2\n",
-			dmi_get_system_info(DMI_BOARD_NAME));
+	if (!strstr(dmi_get_system_info(DMI_BOARD_NAME), "SBC-FITPC2"))
 		return -ENODEV;
-	}
+
+	pr_info("%s found\n", dmi_get_system_info(DMI_BOARD_NAME));
 
 	if (!request_region(COMMAND_PORT, 1, WATCHDOG_NAME)) {
 		pr_err("I/O address 0x%04x already in use\n", COMMAND_PORT);

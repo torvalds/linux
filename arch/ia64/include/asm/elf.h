@@ -25,7 +25,6 @@
 #define ELF_DATA	ELFDATA2LSB
 #define ELF_ARCH	EM_IA_64
 
-#define USE_ELF_CORE_DUMP
 #define CORE_DUMP_USE_REGSET
 
 /* Least-significant four bits of ELF header's e_flags are OS-specific.  The bits are
@@ -202,7 +201,9 @@ extern void ia64_elf_core_copy_regs (struct pt_regs *src, elf_gregset_t dst);
    relevant until we have real hardware to play with... */
 #define ELF_PLATFORM	NULL
 
-#define SET_PERSONALITY(ex)	set_personality(PER_LINUX)
+#define SET_PERSONALITY(ex)	\
+	set_personality((current->personality & ~PER_MASK) | PER_LINUX)
+
 #define elf_read_implies_exec(ex, executable_stack)					\
 	((executable_stack!=EXSTACK_DISABLE_X) && ((ex).e_flags & EF_IA_64_LINUX_EXECUTABLE_STACK) != 0)
 
@@ -216,54 +217,6 @@ do {										\
 	extern char __kernel_syscall_via_epc[];					\
 	NEW_AUX_ENT(AT_SYSINFO, (unsigned long) __kernel_syscall_via_epc);	\
 	NEW_AUX_ENT(AT_SYSINFO_EHDR, (unsigned long) GATE_EHDR);		\
-} while (0)
-
-
-/*
- * These macros parameterize elf_core_dump in fs/binfmt_elf.c to write out
- * extra segments containing the gate DSO contents.  Dumping its
- * contents makes post-mortem fully interpretable later without matching up
- * the same kernel and hardware config to see what PC values meant.
- * Dumping its extra ELF program headers includes all the other information
- * a debugger needs to easily find how the gate DSO was being used.
- */
-#define ELF_CORE_EXTRA_PHDRS		(GATE_EHDR->e_phnum)
-#define ELF_CORE_WRITE_EXTRA_PHDRS						\
-do {										\
-	const struct elf_phdr *const gate_phdrs =			      \
-		(const struct elf_phdr *) (GATE_ADDR + GATE_EHDR->e_phoff);   \
-	int i;									\
-	Elf64_Off ofs = 0;						      \
-	for (i = 0; i < GATE_EHDR->e_phnum; ++i) {				\
-		struct elf_phdr phdr = gate_phdrs[i];			      \
-		if (phdr.p_type == PT_LOAD) {					\
-			phdr.p_memsz = PAGE_ALIGN(phdr.p_memsz);	      \
-			phdr.p_filesz = phdr.p_memsz;			      \
-			if (ofs == 0) {					      \
-				ofs = phdr.p_offset = offset;		      \
-			offset += phdr.p_filesz;				\
-		}							      \
-		else							      \
-				phdr.p_offset = ofs;			      \
-		}							      \
-		else							      \
-			phdr.p_offset += ofs;					\
-		phdr.p_paddr = 0; /* match other core phdrs */			\
-		DUMP_WRITE(&phdr, sizeof(phdr));				\
-	}									\
-} while (0)
-#define ELF_CORE_WRITE_EXTRA_DATA					\
-do {									\
-	const struct elf_phdr *const gate_phdrs =			      \
-		(const struct elf_phdr *) (GATE_ADDR + GATE_EHDR->e_phoff);   \
-	int i;								\
-	for (i = 0; i < GATE_EHDR->e_phnum; ++i) {			\
-		if (gate_phdrs[i].p_type == PT_LOAD) {			      \
-			DUMP_WRITE((void *) gate_phdrs[i].p_vaddr,	      \
-				   PAGE_ALIGN(gate_phdrs[i].p_memsz));	      \
-			break;						      \
-		}							      \
-	}								\
 } while (0)
 
 /*

@@ -40,34 +40,34 @@ struct ccid2_seq {
 
 /**
  * struct ccid2_hc_tx_sock - CCID2 TX half connection
- * @ccid2hctx_{cwnd,ssthresh,pipe}: as per RFC 4341, section 5
- * @ccid2hctx_packets_acked - Ack counter for deriving cwnd growth (RFC 3465)
- * @ccid2hctx_lastrtt -time RTT was last measured
- * @ccid2hctx_rpseq - last consecutive seqno
- * @ccid2hctx_rpdupack - dupacks since rpseq
+ * @tx_{cwnd,ssthresh,pipe}: as per RFC 4341, section 5
+ * @tx_packets_acked:	     Ack counter for deriving cwnd growth (RFC 3465)
+ * @tx_lastrtt:		     time RTT was last measured
+ * @tx_rpseq:		     last consecutive seqno
+ * @tx_rpdupack:	     dupacks since rpseq
  */
 struct ccid2_hc_tx_sock {
-	u32			ccid2hctx_cwnd;
-	u32			ccid2hctx_ssthresh;
-	u32			ccid2hctx_pipe;
-	u32			ccid2hctx_packets_acked;
-	struct ccid2_seq	*ccid2hctx_seqbuf[CCID2_SEQBUF_MAX];
-	int			ccid2hctx_seqbufc;
-	struct ccid2_seq	*ccid2hctx_seqh;
-	struct ccid2_seq	*ccid2hctx_seqt;
-	long			ccid2hctx_rto;
-	long			ccid2hctx_srtt;
-	long			ccid2hctx_rttvar;
-	unsigned long		ccid2hctx_lastrtt;
-	struct timer_list	ccid2hctx_rtotimer;
-	u64			ccid2hctx_rpseq;
-	int			ccid2hctx_rpdupack;
-	unsigned long		ccid2hctx_last_cong;
-	u64			ccid2hctx_high_ack;
+	u32			tx_cwnd;
+	u32			tx_ssthresh;
+	u32			tx_pipe;
+	u32			tx_packets_acked;
+	struct ccid2_seq	*tx_seqbuf[CCID2_SEQBUF_MAX];
+	int			tx_seqbufc;
+	struct ccid2_seq	*tx_seqh;
+	struct ccid2_seq	*tx_seqt;
+	long			tx_rto;
+	long			tx_srtt;
+	long			tx_rttvar;
+	unsigned long		tx_lastrtt;
+	struct timer_list	tx_rtotimer;
+	u64			tx_rpseq;
+	int			tx_rpdupack;
+	unsigned long		tx_last_cong;
+	u64			tx_high_ack;
 };
 
 struct ccid2_hc_rx_sock {
-	int	ccid2hcrx_data;
+	int	rx_data;
 };
 
 static inline struct ccid2_hc_tx_sock *ccid2_hc_tx_sk(const struct sock *sk)

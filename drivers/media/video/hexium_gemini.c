@@ -251,7 +251,7 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 
 	DEB_EE(("VIDIOC_S_INPUT %d.\n", input));
 
-	if (input < 0 || input >= HEXIUM_INPUTS)
+	if (input >= HEXIUM_INPUTS)
 		return -EINVAL;
 
 	hexium->cur_input = input;
@@ -352,6 +352,7 @@ static struct saa7146_ext_vv vv_data;
 static int hexium_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_data *info)
 {
 	struct hexium *hexium = (struct hexium *) dev->ext_priv;
+	int ret;
 
 	DEB_EE((".\n"));
 
@@ -400,9 +401,10 @@ static int hexium_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_d
 	vv_data.ops.vidioc_enum_input = vidioc_enum_input;
 	vv_data.ops.vidioc_g_input = vidioc_g_input;
 	vv_data.ops.vidioc_s_input = vidioc_s_input;
-	if (0 != saa7146_register_device(&hexium->video_dev, dev, "hexium gemini", VFL_TYPE_GRABBER)) {
+	ret = saa7146_register_device(&hexium->video_dev, dev, "hexium gemini", VFL_TYPE_GRABBER);
+	if (ret < 0) {
 		printk("hexium_gemini: cannot register capture v4l2 device. skipping.\n");
-		return -1;
+		return ret;
 	}
 
 	printk("hexium_gemini: found 'hexium gemini' frame grabber-%d.\n", hexium_num);

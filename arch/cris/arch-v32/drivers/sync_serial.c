@@ -13,7 +13,6 @@
 #include <linux/errno.h>
 #include <linux/major.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/interrupt.h>
 #include <linux/poll.h>
@@ -154,7 +153,7 @@ static int sync_serial_open(struct inode *, struct file*);
 static int sync_serial_release(struct inode*, struct file*);
 static unsigned int sync_serial_poll(struct file *filp, poll_table *wait);
 
-static int sync_serial_ioctl(struct inode*, struct file*,
+static int sync_serial_ioctl(struct file *,
 			     unsigned int cmd, unsigned long arg);
 static ssize_t sync_serial_write(struct file * file, const char * buf,
 				 size_t count, loff_t *ppos);
@@ -242,13 +241,13 @@ static struct sync_port ports[]=
 #define NBR_PORTS ARRAY_SIZE(ports)
 
 static const struct file_operations sync_serial_fops = {
-	.owner   = THIS_MODULE,
-	.write   = sync_serial_write,
-	.read    = sync_serial_read,
-	.poll    = sync_serial_poll,
-	.ioctl   = sync_serial_ioctl,
-	.open    = sync_serial_open,
-	.release = sync_serial_release
+	.owner		= THIS_MODULE,
+	.write		= sync_serial_write,
+	.read		= sync_serial_read,
+	.poll		= sync_serial_poll,
+	.unlocked_ioctl	= sync_serial_ioctl,
+	.open		= sync_serial_open,
+	.release	= sync_serial_release
 };
 
 static int __init etrax_sync_serial_init(void)
@@ -651,7 +650,7 @@ static unsigned int sync_serial_poll(struct file *file, poll_table *wait)
 	return mask;
 }
 
-static int sync_serial_ioctl(struct inode *inode, struct file *file,
+static int sync_serial_ioctl(struct file *file,
 		  unsigned int cmd, unsigned long arg)
 {
 	int return_val = 0;
@@ -960,6 +959,18 @@ static int sync_serial_ioctl(struct inode *inode, struct file *file,
 
 	spin_unlock_irq(&port->lock);
 	return return_val;
+}
+
+static long sync_serial_ioctl(struct file *file,
+                             unsigned int cmd, unsigned long arg)
+{
+       long ret;
+
+       lock_kernel();
+       ret = sync_serial_ioctl_unlocked(file, cmd, arg);
+       unlock_kernel();
+
+       return ret;
 }
 
 /* NOTE: sync_serial_write does not support concurrency */

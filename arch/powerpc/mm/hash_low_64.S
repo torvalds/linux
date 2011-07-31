@@ -68,9 +68,6 @@ _GLOBAL(__hash_page_4K)
 	std	r8,STK_PARM(r8)(r1)
 	std	r9,STK_PARM(r9)(r1)
 	
-	/* Add _PAGE_PRESENT to access */
-	ori	r4,r4,_PAGE_PRESENT
-
 	/* Save non-volatile registers.
 	 * r31 will hold "old PTE"
 	 * r30 is "new PTE"
@@ -346,9 +343,6 @@ _GLOBAL(__hash_page_4K)
 	std	r6,STK_PARM(r6)(r1)
 	std	r8,STK_PARM(r8)(r1)
 	std	r9,STK_PARM(r9)(r1)
-
-	/* Add _PAGE_PRESENT to access */
-	ori	r4,r4,_PAGE_PRESENT
 
 	/* Save non-volatile registers.
 	 * r31 will hold "old PTE"
@@ -686,9 +680,6 @@ _GLOBAL(__hash_page_64K)
 	std	r6,STK_PARM(r6)(r1)
 	std	r8,STK_PARM(r8)(r1)
 	std	r9,STK_PARM(r9)(r1)
-
-	/* Add _PAGE_PRESENT to access */
-	ori	r4,r4,_PAGE_PRESENT
 
 	/* Save non-volatile registers.
 	 * r31 will hold "old PTE"

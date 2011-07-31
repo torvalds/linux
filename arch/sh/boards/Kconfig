@@ -150,6 +150,15 @@ config SH_SDK7780
 	  Select SDK7780 if configuring for a Renesas SH7780 SDK7780R3
 	  evaluation board.
 
+config SH_SDK7786
+	bool "SDK7786"
+	depends on CPU_SUBTYPE_SH7786
+	select SYS_SUPPORTS_PCI
+	select NO_IOPORT if !PCI
+	help
+	  Select SDK7786 if configuring for a Renesas Technology Europe
+	  SH7786-65nm board.
+
 config SH_HIGHLANDER
 	bool "Highlander"
 	depends on CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785
@@ -182,6 +191,7 @@ config SH_URQUELL
 	depends on CPU_SUBTYPE_SH7786
 	select ARCH_REQUIRE_GPIOLIB
 	select SYS_SUPPORTS_PCI
+	select NO_IOPORT if !PCI
 
 config SH_MIGOR
 	bool "Migo-R"
@@ -278,6 +288,7 @@ config SH_LBOX_RE2
 config SH_X3PROTO
 	bool "SH-X3 Prototype board"
 	depends on CPU_SUBTYPE_SHX3
+	select NO_IOPORT if !PCI
 
 config SH_MAGIC_PANEL_R2
 	bool "Magic Panel R2"

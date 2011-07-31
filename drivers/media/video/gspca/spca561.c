@@ -22,6 +22,7 @@
 
 #define MODULE_NAME "spca561"
 
+#include <linux/input.h>
 #include "gspca.h"
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
@@ -249,9 +250,9 @@ static const __u16 Pb100_2map8300[][2] = {
 };
 
 static const __u16 spca561_161rev12A_data1[][2] = {
-	{0x29, 0x8118},		/* white balance - was 21 */
-	{0x08, 0x8114},		/* white balance - was 01 */
-	{0x0e, 0x8112},		/* white balance - was 00 */
+	{0x29, 0x8118},		/* Control register (various enable bits) */
+	{0x08, 0x8114},		/* GPIO: Led off */
+	{0x0e, 0x8112},		/* 0x0e stream off 0x3e stream on */
 	{0x00, 0x8102},		/* white balance - new */
 	{0x92, 0x8804},
 	{0x04, 0x8802},		/* windows uses 08 */
@@ -263,14 +264,10 @@ static const __u16 spca561_161rev12A_data2[][2] = {
 	{0x07, 0x8601},
 	{0x07, 0x8602},
 	{0x04, 0x8501},
-	{0x21, 0x8118},
 
 	{0x07, 0x8201},		/* windows uses 02 */
 	{0x08, 0x8200},
 	{0x01, 0x8200},
-
-	{0x00, 0x8114},
-	{0x01, 0x8114},		/* windows uses 00 */
 
 	{0x90, 0x8604},
 	{0x00, 0x8605},
@@ -302,6 +299,9 @@ static const __u16 spca561_161rev12A_data2[][2] = {
 	{0xf0, 0x8505},
 	{0x32, 0x850a},
 /*	{0x99, 0x8700},		 * - white balance - new (removed) */
+	/* HDG we used to do this in stop0, making the init state and the state
+	   after a start / stop different, so do this here instead. */
+	{0x29, 0x8118},
 	{}
 };
 
@@ -645,6 +645,9 @@ static int sd_start_12a(struct gspca_dev *gspca_dev)
 	setwhite(gspca_dev);
 	setgain(gspca_dev);
 	setexposure(gspca_dev);
+
+	/* Led ON (bit 3 -> 0 */
+	reg_w_val(gspca_dev->dev, 0x8114, 0x00);
 	return 0;
 }
 static int sd_start_72a(struct gspca_dev *gspca_dev)
@@ -691,24 +694,12 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 
 	if (sd->chip_revision == Rev012A) {
 		reg_w_val(gspca_dev->dev, 0x8112, 0x0e);
+		/* Led Off (bit 3 -> 1 */
+		reg_w_val(gspca_dev->dev, 0x8114, 0x08);
 	} else {
 		reg_w_val(gspca_dev->dev, 0x8112, 0x20);
 /*		reg_w_val(gspca_dev->dev, 0x8102, 0x00); ?? */
 	}
-}
-
-/* called on streamoff with alt 0 and on disconnect */
-static void sd_stop0(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	if (!gspca_dev->present)
-		return;
-	if (sd->chip_revision == Rev012A) {
-		reg_w_val(gspca_dev->dev, 0x8118, 0x29);
-		reg_w_val(gspca_dev->dev, 0x8114, 0x08);
-	}
-/*	reg_w_val(gspca_dev->dev, 0x8114, 0); */
 }
 
 static void do_autogain(struct gspca_dev *gspca_dev)
@@ -779,8 +770,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame, /* target */
-			__u8 *data,		/* isoc packet */
+			u8 *data,		/* isoc packet */
 			int len)		/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -788,12 +778,27 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	len--;
 	switch (*data++) {			/* sequence number */
 	case 0:					/* start of frame */
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
-					data, 0);
+		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
+
+		/* This should never happen */
+		if (len < 2) {
+			PDEBUG(D_ERR, "Short SOF packet, ignoring");
+			gspca_dev->last_packet_type = DISCARD_PACKET;
+			return;
+		}
+
+#ifdef CONFIG_INPUT
+		if (data[0] & 0x20) {
+			input_report_key(gspca_dev->input_dev, KEY_CAMERA, 1);
+			input_sync(gspca_dev->input_dev);
+			input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
+			input_sync(gspca_dev->input_dev);
+		}
+#endif
+
 		if (data[1] & 0x10) {
 			/* compressed bayer */
-			gspca_frame_add(gspca_dev, FIRST_PACKET,
-					frame, data, len);
+			gspca_frame_add(gspca_dev, FIRST_PACKET, data, len);
 		} else {
 			/* raw bayer (with a header, which we skip) */
 			if (sd->chip_revision == Rev012A) {
@@ -803,14 +808,13 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 				data += 16;
 				len -= 16;
 			}
-			gspca_frame_add(gspca_dev, FIRST_PACKET,
-						frame, data, len);
+			gspca_frame_add(gspca_dev, FIRST_PACKET, data, len);
 		}
 		return;
 	case 0xff:			/* drop (empty mpackets) */
 		return;
 	}
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 /* rev 72a only */
@@ -926,7 +930,7 @@ static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val)
 }
 
 /* control tables */
-static struct ctrl sd_ctrls_12a[] = {
+static const struct ctrl sd_ctrls_12a[] = {
 	{
 	    {
 		.id = V4L2_CID_HUE,
@@ -968,7 +972,7 @@ static struct ctrl sd_ctrls_12a[] = {
 	},
 };
 
-static struct ctrl sd_ctrls_72a[] = {
+static const struct ctrl sd_ctrls_72a[] = {
 	{
 	    {
 		.id = V4L2_CID_HUE,
@@ -1032,8 +1036,10 @@ static const struct sd_desc sd_desc_12a = {
 	.init = sd_init_12a,
 	.start = sd_start_12a,
 	.stopN = sd_stopN,
-	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
+#ifdef CONFIG_INPUT
+	.other_input = 1,
+#endif
 };
 static const struct sd_desc sd_desc_72a = {
 	.name = MODULE_NAME,
@@ -1043,9 +1049,11 @@ static const struct sd_desc sd_desc_72a = {
 	.init = sd_init_72a,
 	.start = sd_start_72a,
 	.stopN = sd_stopN,
-	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 	.dq_callback = do_autogain,
+#ifdef CONFIG_INPUT
+	.other_input = 1,
+#endif
 };
 static const struct sd_desc *sd_desc[2] = {
 	&sd_desc_12a,
@@ -1057,6 +1065,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x401a), .driver_info = Rev072A},
 	{USB_DEVICE(0x041e, 0x403b), .driver_info = Rev012A},
 	{USB_DEVICE(0x0458, 0x7004), .driver_info = Rev072A},
+	{USB_DEVICE(0x0461, 0x0815), .driver_info = Rev072A},
 	{USB_DEVICE(0x046d, 0x0928), .driver_info = Rev012A},
 	{USB_DEVICE(0x046d, 0x0929), .driver_info = Rev012A},
 	{USB_DEVICE(0x046d, 0x092a), .driver_info = Rev012A},

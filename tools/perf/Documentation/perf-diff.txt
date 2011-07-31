@@ -1,0 +1,55 @@
+perf-diff(1)
+============
+
+NAME
+----
+perf-diff - Read two perf.data files and display the differential profile
+
+SYNOPSIS
+--------
+[verse]
+'perf diff' [oldfile] [newfile]
+
+DESCRIPTION
+-----------
+This command displays the performance difference amongst two perf.data files
+captured via perf record.
+
+If no parameters are passed it will assume perf.data.old and perf.data.
+
+OPTIONS
+-------
+-d::
+--dsos=::
+	Only consider symbols in these dsos. CSV that understands
+	file://filename entries.
+
+-C::
+--comms=::
+	Only consider symbols in these comms. CSV that understands
+	file://filename entries.
+
+-S::
+--symbols=::
+	Only consider these symbols. CSV that understands
+	file://filename entries.
+
+-s::
+--sort=::
+	Sort by key(s): pid, comm, dso, symbol.
+
+-t::
+--field-separator=::
+
+	Use a special separator character and don't pad with spaces, replacing
+	all occurances of this separator in symbol names (and other output)
+	with a '.' character, that thus it's the only non valid separator.
+
+-v::
+--verbose::
+	Be verbose, for instance, show the raw counts in addition to the
+	diff.
+
+SEE ALSO
+--------
+linkperf:perf-record[1]

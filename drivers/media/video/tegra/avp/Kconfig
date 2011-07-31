@@ -1,0 +1,25 @@
+config TEGRA_RPC
+	bool "Enable support for Tegra RPC"
+	depends on ARCH_TEGRA
+	default y
+	help
+	  Enables support for the RPC mechanism necessary for the Tegra
+	  multimedia framework. It is both used to communicate locally on the
+	  CPU between multiple multimedia components as well as to communicate
+	  with the AVP for offloading media decode.
+
+	  Exports the local tegra RPC interface on device node
+	  /dev/tegra_rpc. Also provides tegra fd based semaphores needed by
+	  the tegra multimedia framework.
+
+	  If unsure, say Y
+
+config TEGRA_AVP
+	bool "Enable support for the AVP multimedia offload engine"
+	depends on ARCH_TEGRA && TEGRA_RPC
+	default y
+	help
+	  Enables support for the multimedia offload engine used by Tegra
+	  multimedia framework.
+
+	  If unsure, say Y

@@ -171,7 +171,18 @@ static struct comedi_driver driver_pcl711 = {
 	.offset = sizeof(struct pcl711_board),
 };
 
-COMEDI_INITCLEANUP(driver_pcl711);
+static int __init driver_pcl711_init_module(void)
+{
+	return comedi_driver_register(&driver_pcl711);
+}
+
+static void __exit driver_pcl711_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_pcl711);
+}
+
+module_init(driver_pcl711_init_module);
+module_exit(driver_pcl711_cleanup_module);
 
 struct pcl711_private {
 
@@ -207,11 +218,10 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 
 	/* FIXME! Nothing else sets ntrig! */
 	if (!(--devpriv->ntrig)) {
-		if (this_board->is_8112) {
+		if (this_board->is_8112)
 			outb(1, dev->iobase + PCL711_MODE);
-		} else {
+		else
 			outb(0, dev->iobase + PCL711_MODE);
-		}
 
 		s->async->events |= COMEDI_CB_EOA;
 	}
@@ -232,15 +242,15 @@ static void pcl711_set_changain(struct comedi_device *dev, int chan)
 		/*
 		 *  Set the correct channel.  The two channel banks are switched
 		 *  using the mask value.
-		 *  NB: To use differential channels, you should use mask = 0x30,
-		 *  but I haven't written the support for this yet. /JJ
+		 *  NB: To use differential channels, you should use
+		 *  mask = 0x30, but I haven't written the support for this
+		 *  yet. /JJ
 		 */
 
-		if (chan_register >= 8) {
+		if (chan_register >= 8)
 			chan_register = 0x20 | (chan_register & 0x7);
-		} else {
+		else
 			chan_register |= 0x10;
-		}
 	} else {
 		outb(chan_register, dev->iobase + PCL711_MUX);
 	}
@@ -256,15 +266,13 @@ static int pcl711_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	for (n = 0; n < insn->n; n++) {
 		/*
-		 *  Write the correct mode (software polling) and start polling by writing
-		 *  to the trigger register
+		 *  Write the correct mode (software polling) and start polling
+		 *  by writing to the trigger register
 		 */
 		outb(1, dev->iobase + PCL711_MODE);
 
-		if (this_board->is_8112) {
-		} else {
+		if (!this_board->is_8112)
 			outb(0, dev->iobase + PCL711_SOFTTRIG);
-		}
 
 		i = PCL711_TIMEOUT;
 		while (--i) {
@@ -273,7 +281,7 @@ static int pcl711_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 				goto ok;
 			udelay(1);
 		}
-		printk("comedi%d: pcl711: A/D timeout\n", dev->minor);
+		printk(KERN_ERR "comedi%d: pcl711: A/D timeout\n", dev->minor);
 		return -ETIME;
 
 ok:
@@ -407,6 +415,7 @@ static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		 *  0xb4 = Select Counter 2 | LSB/MSB | Mode=2 | Binary
 		 */
 
+		timer1 = timer2 = 0;
 		i8253_cascade_ns_to_timer(i8253_osc_base, &timer1, &timer2,
 					  &cmd->scan_begin_arg,
 					  TRIG_ROUND_NEAREST);
@@ -461,9 +470,8 @@ static int pcl711_ao_insn_read(struct comedi_device *dev,
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
 
-	for (n = 0; n < insn->n; n++) {
+	for (n = 0; n < insn->n; n++)
 		data[n] = devpriv->ao_readback[chan];
-	}
 
 	return n;
 
@@ -508,7 +516,7 @@ static int pcl711_do_insn_bits(struct comedi_device *dev,
 /*  Free any resources that we have claimed  */
 static int pcl711_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: pcl711: remove\n", dev->minor);
+	printk(KERN_INFO "comedi%d: pcl711: remove\n", dev->minor);
 
 	if (dev->irq)
 		free_irq(dev->irq, dev);
@@ -530,7 +538,7 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* claim our I/O space */
 
 	iobase = it->options[0];
-	printk("comedi%d: pcl711: 0x%04lx ", dev->minor, iobase);
+	printk(KERN_INFO "comedi%d: pcl711: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, PCL711_SIZE, "pcl711")) {
 		printk("I/O port conflict\n");
 		return -EIO;
@@ -545,15 +553,15 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* grab our IRQ */
 	irq = it->options[1];
 	if (irq > this_board->maxirq) {
-		printk("irq out of range\n");
+		printk(KERN_ERR "irq out of range\n");
 		return -EINVAL;
 	}
 	if (irq) {
 		if (request_irq(irq, pcl711_interrupt, 0, "pcl711", dev)) {
-			printk("unable to allocate irq %u\n", irq);
+			printk(KERN_ERR "unable to allocate irq %u\n", irq);
 			return -EINVAL;
 		} else {
-			printk("( irq = %u )\n", irq);
+			printk(KERN_INFO "( irq = %u )\n", irq);
 		}
 	}
 	dev->irq = irq;
@@ -618,9 +626,8 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	   this is the "base value" for the mode register, which is
 	   used for the irq on the PCL711
 	 */
-	if (this_board->is_pcl711b) {
+	if (this_board->is_pcl711b)
 		devpriv->mode = (dev->irq << 4);
-	}
 
 	/* clear DAC */
 	outb(0, dev->iobase + PCL711_DA0_LO);
@@ -628,7 +635,11 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	outb(0, dev->iobase + PCL711_DA1_LO);
 	outb(0, dev->iobase + PCL711_DA1_HI);
 
-	printk("\n");
+	printk(KERN_INFO "\n");
 
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

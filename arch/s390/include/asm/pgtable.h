@@ -43,7 +43,7 @@ extern void vmem_map_init(void);
  * The S390 doesn't have any external MMU info: the kernel page
  * tables contain all the necessary information.
  */
-#define update_mmu_cache(vma, address, pte)     do { } while (0)
+#define update_mmu_cache(vma, address, ptep)     do { } while (0)
 
 /*
  * ZERO_PAGE is a global shared page that is always zero: used
@@ -105,7 +105,7 @@ extern char empty_zero_page[PAGE_SIZE];
 #ifndef __ASSEMBLY__
 /*
  * The vmalloc area will always be on the topmost area of the kernel
- * mapping. We reserve 96MB (31bit) / 1GB (64bit) for vmalloc,
+ * mapping. We reserve 96MB (31bit) / 128GB (64bit) for vmalloc,
  * which should be enough for any sane case.
  * By putting vmalloc at the top, we maximise the gap between physical
  * memory and vmalloc to catch misplaced memory accesses. As a side
@@ -120,8 +120,8 @@ extern unsigned long VMALLOC_START;
 #define VMALLOC_END	0x7e000000UL
 #define VMEM_MAP_END	0x80000000UL
 #else /* __s390x__ */
-#define VMALLOC_SIZE	(1UL << 30)
-#define VMALLOC_END	0x3e040000000UL
+#define VMALLOC_SIZE	(128UL << 30)
+#define VMALLOC_END	0x3e000000000UL
 #define VMEM_MAP_END	0x40000000000UL
 #endif /* __s390x__ */
 
@@ -169,12 +169,13 @@ extern unsigned long VMALLOC_START;
  * STL Segment-Table-Length:  Segment-table length (STL+1*16 entries -> up to 2048)
  *
  * A 64 bit pagetable entry of S390 has following format:
- * |                     PFRA                         |0IP0|  OS  |
+ * |			 PFRA			      |0IPC|  OS  |
  * 0000000000111111111122222222223333333333444444444455555555556666
  * 0123456789012345678901234567890123456789012345678901234567890123
  *
  * I Page-Invalid Bit:    Page is not available for address-translation
  * P Page-Protection Bit: Store access not possible for page
+ * C Change-bit override: HW is not required to set change bit
  *
  * A 64 bit segmenttable entry of S390 has following format:
  * |        P-table origin                              |      TT
@@ -218,6 +219,7 @@ extern unsigned long VMALLOC_START;
  */
 
 /* Hardware bits in the page table entry */
+#define _PAGE_CO	0x100		/* HW Change-bit override */
 #define _PAGE_RO	0x200		/* HW read-only bit  */
 #define _PAGE_INVALID	0x400		/* HW invalid bit    */
 
@@ -878,7 +880,8 @@ static inline void ptep_invalidate(struct mm_struct *mm,
 #define ptep_get_and_clear(__mm, __address, __ptep)			\
 ({									\
 	pte_t __pte = *(__ptep);					\
-	if (atomic_read(&(__mm)->mm_users) > 1 ||			\
+	(__mm)->context.flush_mm = 1;					\
+	if (atomic_read(&(__mm)->context.attach_count) > 1 ||		\
 	    (__mm) != current->active_mm)				\
 		ptep_invalidate(__mm, __address, __ptep);		\
 	else								\
@@ -921,7 +924,8 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 ({									\
 	pte_t __pte = *(__ptep);					\
 	if (pte_write(__pte)) {						\
-		if (atomic_read(&(__mm)->mm_users) > 1 ||		\
+		(__mm)->context.flush_mm = 1;				\
+		if (atomic_read(&(__mm)->context.attach_count) > 1 ||	\
 		    (__mm) != current->active_mm)			\
 			ptep_invalidate(__mm, __addr, __ptep);		\
 		set_pte_at(__mm, __addr, __ptep, pte_wrprotect(__pte));	\

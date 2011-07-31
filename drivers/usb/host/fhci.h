@@ -20,13 +20,14 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/bug.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/kfifo.h>
 #include <linux/io.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <asm/qe.h>
-#include "../core/hcd.h"
 
 #define USB_CLOCK	48000000
 
@@ -423,9 +424,9 @@ struct endpoint {
 	struct usb_td __iomem *td_base; /* first TD in the ring */
 	struct usb_td __iomem *conf_td; /* next TD for confirm after transac */
 	struct usb_td __iomem *empty_td;/* next TD for new transaction req. */
-	struct kfifo *empty_frame_Q;  /* Empty frames list to use */
-	struct kfifo *conf_frame_Q;   /* frames passed to TDs,waiting for tx */
-	struct kfifo *dummy_packets_Q;/* dummy packets for the CRC overun */
+	struct kfifo empty_frame_Q;  /* Empty frames list to use */
+	struct kfifo conf_frame_Q;   /* frames passed to TDs,waiting for tx */
+	struct kfifo dummy_packets_Q;/* dummy packets for the CRC overun */
 
 	bool already_pushed_dummy_bd;
 };
@@ -493,9 +494,9 @@ static inline struct usb_hcd *fhci_to_hcd(struct fhci_hcd *fhci)
 }
 
 /* fifo of pointers */
-static inline struct kfifo *cq_new(int size)
+static inline int cq_new(struct kfifo *fifo, int size)
 {
-	return kfifo_alloc(size * sizeof(void *), GFP_KERNEL, NULL);
+	return kfifo_alloc(fifo, size * sizeof(void *), GFP_KERNEL);
 }
 
 static inline void cq_delete(struct kfifo *kfifo)
@@ -505,19 +506,23 @@ static inline void cq_delete(struct kfifo *kfifo)
 
 static inline unsigned int cq_howmany(struct kfifo *kfifo)
 {
-	return __kfifo_len(kfifo) / sizeof(void *);
+	return kfifo_len(kfifo) / sizeof(void *);
 }
 
 static inline int cq_put(struct kfifo *kfifo, void *p)
 {
-	return __kfifo_put(kfifo, (void *)&p, sizeof(p));
+	return kfifo_in(kfifo, (void *)&p, sizeof(p));
 }
 
 static inline void *cq_get(struct kfifo *kfifo)
 {
-	void *p = NULL;
+	unsigned int sz;
+	void *p;
 
-	__kfifo_get(kfifo, (void *)&p, sizeof(p));
+	sz = kfifo_out(kfifo, (void *)&p, sizeof(p));
+	if (sz != sizeof(p))
+		return NULL;
+
 	return p;
 }
 

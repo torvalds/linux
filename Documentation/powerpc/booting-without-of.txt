@@ -49,40 +49,13 @@ Table of Contents
       f) MDIO on GPIOs
       g) SPI busses
 
-  VII - Marvell Discovery mv64[345]6x System Controller chips
-    1) The /system-controller node
-    2) Child nodes of /system-controller
-      a) Marvell Discovery MDIO bus
-      b) Marvell Discovery ethernet controller
-      c) Marvell Discovery PHY nodes
-      d) Marvell Discovery SDMA nodes
-      e) Marvell Discovery BRG nodes
-      f) Marvell Discovery CUNIT nodes
-      g) Marvell Discovery MPSCROUTING nodes
-      h) Marvell Discovery MPSCINTR nodes
-      i) Marvell Discovery MPSC nodes
-      j) Marvell Discovery Watch Dog Timer nodes
-      k) Marvell Discovery I2C nodes
-      l) Marvell Discovery PIC (Programmable Interrupt Controller) nodes
-      m) Marvell Discovery MPP (Multipurpose Pins) multiplexing nodes
-      n) Marvell Discovery GPP (General Purpose Pins) nodes
-      o) Marvell Discovery PCI host bridge node
-      p) Marvell Discovery CPU Error nodes
-      q) Marvell Discovery SRAM Controller nodes
-      r) Marvell Discovery PCI Error Handler nodes
-      s) Marvell Discovery Memory Controller nodes
-
-  VIII - Specifying interrupt information for devices
+  VII - Specifying interrupt information for devices
     1) interrupts property
     2) interrupt-parent property
     3) OpenPIC Interrupt Controllers
     4) ISA Interrupt Controllers
 
-  IX - Specifying GPIO information for devices
-    1) gpios property
-    2) gpio-controller nodes
-
-  X - Specifying device power management information (sleep property)
+  VIII - Specifying device power management information (sleep property)
 
   Appendix A - Sample SOC node for MPC8540
 
@@ -1048,7 +1021,7 @@ IV - "dtc", the device tree compiler
 
 
 dtc source code can be found at
-<http://ozlabs.org/~dgibson/dtc/dtc.tar.gz>
+<http://git.jdl.com/gitweb/?p=dtc.git>
 
 WARNING: This version is still in early development stage; the
 resulting device-tree "blobs" have not yet been validated with the
@@ -1289,7 +1262,7 @@ link between a device node and its interrupt parent in
 the interrupt tree.  The value of interrupt-parent is the
 phandle of the parent node.
 
-If the interrupt-parent property is not defined for a node, it's
+If the interrupt-parent property is not defined for a node, its
 interrupt parent is assumed to be an ancestor in the node's
 _device tree_ hierarchy.
 

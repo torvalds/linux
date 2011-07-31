@@ -1,4 +1,41 @@
 This file details changes in 2.6 which affect PCMCIA card driver authors:
+* pcmcia_request_io changes (as of 2.6.36)
+   Instead of io_req_t, drivers are now requested to fill out
+   struct pcmcia_device *p_dev->resource[0,1] for up to two ioport
+   ranges. After a call to pcmcia_request_io(), the ports found there
+   are reserved, after calling pcmcia_request_configuration(), they may
+   be used.
+
+* No dev_info_t, no cs_types.h (as of 2.6.36)
+   dev_info_t and a few other typedefs are removed. No longer use them
+   in PCMCIA device drivers. Also, do not include pcmcia/cs_types.h, as
+   this file is gone.
+
+* No dev_node_t (as of 2.6.35)
+   There is no more need to fill out a "dev_node_t" structure.
+
+* New IRQ request rules (as of 2.6.35)
+   Instead of the old pcmcia_request_irq() interface, drivers may now
+   choose between:
+   - calling request_irq/free_irq directly. Use the IRQ from *p_dev->irq.
+   - use pcmcia_request_irq(p_dev, handler_t); the PCMCIA core will
+     clean up automatically on calls to pcmcia_disable_device() or
+     device ejection.
+   - drivers still not capable of IRQF_SHARED (or not telling us so) may
+     use the deprecated pcmcia_request_exclusive_irq() for the time
+     being; they might receive a shared IRQ nonetheless.
+
+* no cs_error / CS_CHECK / CONFIG_PCMCIA_DEBUG (as of 2.6.33)
+   Instead of the cs_error() callback or the CS_CHECK() macro, please use
+   Linux-style checking of return values, and -- if necessary -- debug
+   messages using "dev_dbg()" or "pr_debug()".
+
+* New CIS tuple access (as of 2.6.33)
+   Instead of pcmcia_get_{first,next}_tuple(), pcmcia_get_tuple_data() and
+   pcmcia_parse_tuple(), a driver shall use "pcmcia_get_tuple()" if it is
+   only interested in one (raw) tuple, or "pcmcia_loop_tuple()" if it is
+   interested in all tuples of one type. To decode the MAC from CISTPL_FUNCE,
+   a new helper "pcmcia_get_mac_from_cis()" was added.
 
 * New configuration loop helper (as of 2.6.28)
    By calling pcmcia_loop_config(), a driver can iterate over all available

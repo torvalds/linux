@@ -450,10 +450,10 @@ void irlap_disconnect_request(struct irlap_cb *self)
 
 	/* Check if we are in the right state for disconnecting */
 	switch (self->state) {
-	case LAP_XMIT_P:        /* FALLTROUGH */
-	case LAP_XMIT_S:        /* FALLTROUGH */
-	case LAP_CONN:          /* FALLTROUGH */
-	case LAP_RESET_WAIT:    /* FALLTROUGH */
+	case LAP_XMIT_P:        /* FALLTHROUGH */
+	case LAP_XMIT_S:        /* FALLTHROUGH */
+	case LAP_CONN:          /* FALLTHROUGH */
+	case LAP_RESET_WAIT:    /* FALLTHROUGH */
 	case LAP_RESET_CHECK:
 		irlap_do_event(self, DISCONNECT_REQUEST, NULL, NULL);
 		break;
@@ -485,9 +485,9 @@ void irlap_disconnect_indication(struct irlap_cb *self, LAP_REASON reason)
 		IRDA_DEBUG(1, "%s(), Sending reset request!\n", __func__);
 		irlap_do_event(self, RESET_REQUEST, NULL, NULL);
 		break;
-	case LAP_NO_RESPONSE:	   /* FALLTROUGH */
-	case LAP_DISC_INDICATION:  /* FALLTROUGH */
-	case LAP_FOUND_NONE:       /* FALLTROUGH */
+	case LAP_NO_RESPONSE:	   /* FALLTHROUGH */
+	case LAP_DISC_INDICATION:  /* FALLTHROUGH */
+	case LAP_FOUND_NONE:       /* FALLTHROUGH */
 	case LAP_MEDIA_BUSY:
 		irlmp_link_disconnect_indication(self->notify.instance, self,
 						 reason, NULL);

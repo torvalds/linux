@@ -29,6 +29,8 @@
 #include "chsc.h"
 
 static void *sei_page;
+static DEFINE_SPINLOCK(siosl_lock);
+static DEFINE_SPINLOCK(sda_lock);
 
 /**
  * chsc_error_from_response() - convert a chsc response to an error
@@ -47,6 +49,7 @@ int chsc_error_from_response(int response)
 	case 0x0007:
 	case 0x0008:
 	case 0x000a:
+	case 0x0104:
 		return -EINVAL;
 	case 0x0004:
 		return -EOPNOTSUPP;
@@ -574,7 +577,7 @@ int __chsc_do_secm(struct channel_subsystem *css, int enable, void *page)
 	secm_area->request.length = 0x0050;
 	secm_area->request.code = 0x0016;
 
-	secm_area->key = PAGE_DEFAULT_KEY;
+	secm_area->key = PAGE_DEFAULT_KEY >> 4;
 	secm_area->cub_addr1 = (u64)(unsigned long)css->cub_addr1;
 	secm_area->cub_addr2 = (u64)(unsigned long)css->cub_addr2;
 
@@ -712,7 +715,7 @@ int chsc_determine_base_channel_path_desc(struct chp_id chpid,
 	ret = chsc_determine_channel_path_desc(chpid, 0, 0, 0, 0, chsc_resp);
 	if (ret)
 		goto out_free;
-	memcpy(desc, &chsc_resp->data, chsc_resp->length);
+	memcpy(desc, &chsc_resp->data, sizeof(*desc));
 out_free:
 	kfree(chsc_resp);
 	return ret;
@@ -832,11 +835,10 @@ void __init chsc_free_sei_area(void)
 	kfree(sei_page);
 }
 
-int __init
-chsc_enable_facility(int operation_code)
+int chsc_enable_facility(int operation_code)
 {
 	int ret;
-	struct {
+	static struct {
 		struct chsc_header request;
 		u8 reserved1:4;
 		u8 format:4;
@@ -849,33 +851,32 @@ chsc_enable_facility(int operation_code)
 		u32 reserved5:4;
 		u32 format2:4;
 		u32 reserved6:24;
-	} __attribute__ ((packed)) *sda_area;
+	} __attribute__ ((packed, aligned(4096))) sda_area;
 
-	sda_area = (void *)get_zeroed_page(GFP_KERNEL|GFP_DMA);
-	if (!sda_area)
-		return -ENOMEM;
-	sda_area->request.length = 0x0400;
-	sda_area->request.code = 0x0031;
-	sda_area->operation_code = operation_code;
+	spin_lock(&sda_lock);
+	memset(&sda_area, 0, sizeof(sda_area));
+	sda_area.request.length = 0x0400;
+	sda_area.request.code = 0x0031;
+	sda_area.operation_code = operation_code;
 
-	ret = chsc(sda_area);
+	ret = chsc(&sda_area);
 	if (ret > 0) {
 		ret = (ret == 3) ? -ENODEV : -EBUSY;
 		goto out;
 	}
 
-	switch (sda_area->response.code) {
+	switch (sda_area.response.code) {
 	case 0x0101:
 		ret = -EOPNOTSUPP;
 		break;
 	default:
-		ret = chsc_error_from_response(sda_area->response.code);
+		ret = chsc_error_from_response(sda_area.response.code);
 	}
 	if (ret != 0)
 		CIO_CRW_EVENT(2, "chsc: sda (oc=%x) failed (rc=%04x)\n",
-			      operation_code, sda_area->response.code);
+			      operation_code, sda_area.response.code);
  out:
-	free_page((unsigned long)sda_area);
+	spin_unlock(&sda_lock);
 	return ret;
 }
 
@@ -975,3 +976,49 @@ int chsc_sstpi(void *page, void *result, size_t size)
 	return (rr->response.code == 0x0001) ? 0 : -EIO;
 }
 
+static struct {
+	struct chsc_header request;
+	u32 word1;
+	struct subchannel_id sid;
+	u32 word3;
+	struct chsc_header response;
+	u32 word[11];
+} __attribute__ ((packed)) siosl_area __attribute__ ((__aligned__(PAGE_SIZE)));
+
+int chsc_siosl(struct subchannel_id schid)
+{
+	unsigned long flags;
+	int ccode;
+	int rc;
+
+	spin_lock_irqsave(&siosl_lock, flags);
+	memset(&siosl_area, 0, sizeof(siosl_area));
+	siosl_area.request.length = 0x0010;
+	siosl_area.request.code = 0x0046;
+	siosl_area.word1 = 0x80000000;
+	siosl_area.sid = schid;
+
+	ccode = chsc(&siosl_area);
+	if (ccode > 0) {
+		if (ccode == 3)
+			rc = -ENODEV;
+		else
+			rc = -EBUSY;
+		CIO_MSG_EVENT(2, "chsc: chsc failed for 0.%x.%04x (ccode=%d)\n",
+			      schid.ssid, schid.sch_no, ccode);
+		goto out;
+	}
+	rc = chsc_error_from_response(siosl_area.response.code);
+	if (rc)
+		CIO_MSG_EVENT(2, "chsc: siosl failed for 0.%x.%04x (rc=%04x)\n",
+			      schid.ssid, schid.sch_no,
+			      siosl_area.response.code);
+	else
+		CIO_MSG_EVENT(4, "chsc: siosl succeeded for 0.%x.%04x\n",
+			      schid.ssid, schid.sch_no);
+out:
+	spin_unlock_irqrestore(&siosl_lock, flags);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(chsc_siosl);

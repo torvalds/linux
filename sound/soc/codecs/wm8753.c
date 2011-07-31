@@ -40,6 +40,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -673,7 +674,6 @@ static int wm8753_add_widgets(struct snd_soc_codec *codec)
 
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_new_widgets(codec);
 	return 0;
 }
 
@@ -724,8 +724,8 @@ static void pll_factors(struct _pll_div *pll_div, unsigned int target,
 	pll_div->k = K;
 }
 
-static int wm8753_set_dai_pll(struct snd_soc_dai *codec_dai,
-		int pll_id, unsigned int freq_in, unsigned int freq_out)
+static int wm8753_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
+		int source, unsigned int freq_in, unsigned int freq_out)
 {
 	u16 reg, enable;
 	int offset;
@@ -851,7 +851,7 @@ static int wm8753_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8753_priv *wm8753 = codec->private_data;
+	struct wm8753_priv *wm8753 = snd_soc_codec_get_drvdata(codec);
 
 	switch (freq) {
 	case 11289600:
@@ -914,7 +914,7 @@ static int wm8753_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8753_priv *wm8753 = codec->private_data;
+	struct wm8753_priv *wm8753 = snd_soc_codec_get_drvdata(codec);
 	u16 voice = wm8753_read_reg_cache(codec, WM8753_PCM) & 0x01f3;
 	u16 srate = wm8753_read_reg_cache(codec, WM8753_SRATE1) & 0x017f;
 
@@ -1148,7 +1148,7 @@ static int wm8753_i2s_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8753_priv *wm8753 = codec->private_data;
+	struct wm8753_priv *wm8753 = snd_soc_codec_get_drvdata(codec);
 	u16 srate = wm8753_read_reg_cache(codec, WM8753_SRATE1) & 0x01c0;
 	u16 hifi = wm8753_read_reg_cache(codec, WM8753_HIFI) & 0x01f3;
 	int coeff;
@@ -1508,10 +1508,6 @@ static int wm8753_suspend(struct platform_device *pdev, pm_message_t state)
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
 
-	/* we only need to suspend if we are a valid card */
-	if (!codec->card)
-		return 0;
-
 	wm8753_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
@@ -1523,10 +1519,6 @@ static int wm8753_resume(struct platform_device *pdev)
 	int i;
 	u8 data[2];
 	u16 *cache = codec->reg_cache;
-
-	/* we only need to resume if we are a valid card */
-	if (!codec->card)
-		return 0;
 
 	/* Sync reg_cache with the hardware */
 	for (i = 0; i < ARRAY_SIZE(wm8753_reg); i++) {
@@ -1583,17 +1575,8 @@ static int wm8753_probe(struct platform_device *pdev)
 	snd_soc_add_controls(codec, wm8753_snd_controls,
 			     ARRAY_SIZE(wm8753_snd_controls));
 	wm8753_add_widgets(codec);
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		printk(KERN_ERR "wm8753: failed to register card\n");
-		goto card_err;
-	}
 
 	return 0;
-
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 
 pcm_err:
 	return ret;
@@ -1663,7 +1646,7 @@ static int wm8753_register(struct wm8753_priv *wm8753)
 	codec->num_dai = 2;
 	codec->reg_cache_size = ARRAY_SIZE(wm8753->reg_cache) + 1;
 	codec->reg_cache = &wm8753->reg_cache;
-	codec->private_data = wm8753;
+	snd_soc_codec_set_drvdata(codec, wm8753);
 
 	memcpy(codec->reg_cache, wm8753_reg, sizeof(wm8753->reg_cache));
 	INIT_DELAYED_WORK(&codec->delayed_work, wm8753_work);
@@ -1767,21 +1750,6 @@ static int wm8753_i2c_remove(struct i2c_client *client)
         return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8753_i2c_suspend(struct i2c_client *client, pm_message_t msg)
-{
-	return snd_soc_suspend_device(&client->dev);
-}
-
-static int wm8753_i2c_resume(struct i2c_client *client)
-{
-	return snd_soc_resume_device(&client->dev);
-}
-#else
-#define wm8753_i2c_suspend NULL
-#define wm8753_i2c_resume NULL
-#endif
-
 static const struct i2c_device_id wm8753_i2c_id[] = {
 	{ "wm8753", 0 },
 	{ }
@@ -1795,8 +1763,6 @@ static struct i2c_driver wm8753_i2c_driver = {
 	},
 	.probe =    wm8753_i2c_probe,
 	.remove =   wm8753_i2c_remove,
-	.suspend =  wm8753_i2c_suspend,
-	.resume =   wm8753_i2c_resume,
 	.id_table = wm8753_i2c_id,
 };
 #endif
@@ -1852,22 +1818,6 @@ static int __devexit wm8753_spi_remove(struct spi_device *spi)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8753_spi_suspend(struct spi_device *spi, pm_message_t msg)
-{
-	return snd_soc_suspend_device(&spi->dev);
-}
-
-static int wm8753_spi_resume(struct spi_device *spi)
-{
-	return snd_soc_resume_device(&spi->dev);
-}
-
-#else
-#define wm8753_spi_suspend NULL
-#define wm8753_spi_resume NULL
-#endif
-
 static struct spi_driver wm8753_spi_driver = {
 	.driver = {
 		.name	= "wm8753",
@@ -1876,8 +1826,6 @@ static struct spi_driver wm8753_spi_driver = {
 	},
 	.probe		= wm8753_spi_probe,
 	.remove		= __devexit_p(wm8753_spi_remove),
-	.suspend	= wm8753_spi_suspend,
-	.resume		= wm8753_spi_resume,
 };
 #endif
 

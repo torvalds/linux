@@ -61,14 +61,10 @@ void *kmap(struct page *page);
 void kunmap(struct page *page);
 void *kmap_atomic_prot(struct page *page, enum km_type type, pgprot_t prot);
 void *kmap_atomic(struct page *page, enum km_type type);
-void kunmap_atomic(void *kvaddr, enum km_type type);
+void kunmap_atomic_notypecheck(void *kvaddr, enum km_type type);
 void *kmap_atomic_pfn(unsigned long pfn, enum km_type type);
 void *kmap_atomic_prot_pfn(unsigned long pfn, enum km_type type, pgprot_t prot);
 struct page *kmap_atomic_to_page(void *ptr);
-
-#ifndef CONFIG_PARAVIRT
-#define kmap_atomic_pte(page, type)	kmap_atomic(page, type)
-#endif
 
 #define flush_cache_kmaps()	do { } while (0)
 

@@ -106,8 +106,8 @@ struct affs_sb_info {
 	u32 s_last_bmap;
 	struct buffer_head *s_bmap_bh;
 	char *s_prefix;			/* Prefix for volumes and assigns. */
-	int s_prefix_len;		/* Length of prefix. */
 	char s_volume[32];		/* Volume prefix for absolute symlinks. */
+	spinlock_t symlink_lock;	/* protects the previous two */
 };
 
 #define SF_INTL		0x0001		/* International filesystem. */
@@ -171,18 +171,18 @@ extern int	affs_rename(struct inode *old_dir, struct dentry *old_dentry,
 extern unsigned long		 affs_parent_ino(struct inode *dir);
 extern struct inode		*affs_new_inode(struct inode *dir);
 extern int			 affs_notify_change(struct dentry *dentry, struct iattr *attr);
-extern void			 affs_delete_inode(struct inode *inode);
-extern void			 affs_clear_inode(struct inode *inode);
+extern void			 affs_evict_inode(struct inode *inode);
 extern struct inode		*affs_iget(struct super_block *sb,
 					unsigned long ino);
-extern int			 affs_write_inode(struct inode *inode, int);
+extern int			 affs_write_inode(struct inode *inode,
+					struct writeback_control *wbc);
 extern int			 affs_add_entry(struct inode *dir, struct inode *inode, struct dentry *dentry, s32 type);
 
 /* file.c */
 
 void		affs_free_prealloc(struct inode *inode);
 extern void	affs_truncate(struct inode *);
-int		affs_file_fsync(struct file *, struct dentry *, int);
+int		affs_file_fsync(struct file *, int);
 
 /* dir.c */
 

@@ -31,6 +31,7 @@
  *
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 
 #include "rds.h"
 #include "rdma.h"
@@ -187,11 +188,8 @@ void __rds_ib_destroy_conns(struct list_head *list, spinlock_t *list_lock)
 	INIT_LIST_HEAD(list);
 	spin_unlock_irq(list_lock);
 
-	list_for_each_entry_safe(ic, _ic, &tmp_list, ib_node) {
-		if (ic->conn->c_passive)
-			rds_conn_destroy(ic->conn->c_passive);
+	list_for_each_entry_safe(ic, _ic, &tmp_list, ib_node)
 		rds_conn_destroy(ic->conn);
-	}
 }
 
 struct rds_ib_mr_pool *rds_ib_create_mr_pool(struct rds_ib_device *rds_ibdev)
@@ -237,8 +235,8 @@ void rds_ib_destroy_mr_pool(struct rds_ib_mr_pool *pool)
 {
 	flush_workqueue(rds_wq);
 	rds_ib_flush_mr_pool(pool, 1);
-	BUG_ON(atomic_read(&pool->item_count));
-	BUG_ON(atomic_read(&pool->free_pinned));
+	WARN_ON(atomic_read(&pool->item_count));
+	WARN_ON(atomic_read(&pool->free_pinned));
 	kfree(pool);
 }
 
@@ -443,6 +441,7 @@ static void __rds_ib_teardown_mr(struct rds_ib_mr *ibmr)
 
 			/* FIXME we need a way to tell a r/w MR
 			 * from a r/o MR */
+			BUG_ON(in_interrupt());
 			set_page_dirty(page);
 			put_page(page);
 		}
@@ -573,8 +572,8 @@ void rds_ib_free_mr(void *trans_private, int invalidate)
 	spin_unlock_irqrestore(&pool->list_lock, flags);
 
 	/* If we've pinned too many pages, request a flush */
-	if (atomic_read(&pool->free_pinned) >= pool->max_free_pinned
-	 || atomic_read(&pool->dirty_count) >= pool->max_items / 10)
+	if (atomic_read(&pool->free_pinned) >= pool->max_free_pinned ||
+	    atomic_read(&pool->dirty_count) >= pool->max_items / 10)
 		queue_work(rds_wq, &pool->flush_worker);
 
 	if (invalidate) {

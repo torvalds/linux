@@ -289,7 +289,7 @@ struct mpic
 #ifdef CONFIG_MPIC_U3_HT_IRQS
 	/* The fixup table */
 	struct mpic_irq_fixup	*fixups;
-	spinlock_t		fixup_lock;
+	raw_spinlock_t	fixup_lock;
 #endif
 
 	/* Register access method */
@@ -462,9 +462,6 @@ extern void mpic_cpu_set_priority(int prio);
 
 /* Request IPIs on primary mpic */
 extern void mpic_request_ipis(void);
-
-/* Send an IPI (non offseted number 0..3) */
-extern void mpic_send_ipi(unsigned int ipi_no, unsigned int cpu_mask);
 
 /* Send a message (IPI) to a given target (cpu number or MSG_*) */
 void smp_mpic_message_pass(int target, int msg);

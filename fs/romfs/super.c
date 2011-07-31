@@ -544,6 +544,7 @@ error:
 error_rsb_inval:
 	ret = -EINVAL;
 error_rsb:
+	kfree(rsb);
 	return ret;
 }
 

@@ -30,49 +30,41 @@
 #include <linux/kprobes.h>
 #include <linux/uaccess.h>
 #include <linux/hugetlb.h>
+#include <asm/asm-offsets.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/s390_ext.h>
 #include <asm/mmu_context.h>
+#include <asm/compat.h>
 #include "../kernel/entry.h"
 
 #ifndef CONFIG_64BIT
 #define __FAIL_ADDR_MASK 0x7ffff000
-#define __FIXUP_MASK 0x7fffffff
 #define __SUBCODE_MASK 0x0200
 #define __PF_RES_FIELD 0ULL
 #else /* CONFIG_64BIT */
 #define __FAIL_ADDR_MASK -4096L
-#define __FIXUP_MASK ~0L
 #define __SUBCODE_MASK 0x0600
 #define __PF_RES_FIELD 0x8000000000000000ULL
 #endif /* CONFIG_64BIT */
 
-#ifdef CONFIG_SYSCTL
-extern int sysctl_userprocess_debug;
-#endif
+#define VM_FAULT_BADCONTEXT	0x010000
+#define VM_FAULT_BADMAP		0x020000
+#define VM_FAULT_BADACCESS	0x040000
 
-#ifdef CONFIG_KPROBES
-static inline int notify_page_fault(struct pt_regs *regs, long err)
+static inline int notify_page_fault(struct pt_regs *regs)
 {
 	int ret = 0;
 
 	/* kprobe_running() needs smp_processor_id() */
-	if (!user_mode(regs)) {
+	if (kprobes_built_in() && !user_mode(regs)) {
 		preempt_disable();
 		if (kprobe_running() && kprobe_fault_handler(regs, 14))
 			ret = 1;
 		preempt_enable();
 	}
-
 	return ret;
 }
-#else
-static inline int notify_page_fault(struct pt_regs *regs, long err)
-{
-	return 0;
-}
-#endif
 
 
 /*
@@ -100,74 +92,74 @@ void bust_spinlocks(int yes)
 
 /*
  * Returns the address space associated with the fault.
- * Returns 0 for kernel space, 1 for user space and
- * 2 for code execution in user space with noexec=on.
+ * Returns 0 for kernel space and 1 for user space.
  */
-static inline int check_space(struct task_struct *tsk)
+static inline int user_space_fault(unsigned long trans_exc_code)
 {
 	/*
-	 * The lowest two bits of S390_lowcore.trans_exc_code
-	 * indicate which paging table was used.
+	 * The lowest two bits of the translation exception
+	 * identification indicate which paging table was used.
 	 */
-	int desc = S390_lowcore.trans_exc_code & 3;
+	trans_exc_code &= 3;
+	if (trans_exc_code == 2)
+		/* Access via secondary space, set_fs setting decides */
+		return current->thread.mm_segment.ar4;
+	if (user_mode == HOME_SPACE_MODE)
+		/* User space if the access has been done via home space. */
+		return trans_exc_code == 3;
+	/*
+	 * If the user space is not the home space the kernel runs in home
+	 * space. Access via secondary space has already been covered,
+	 * access via primary space or access register is from user space
+	 * and access via home space is from the kernel.
+	 */
+	return trans_exc_code != 3;
+}
 
-	if (desc == 3)	/* Home Segment Table Descriptor */
-		return switch_amode == 0;
-	if (desc == 2)	/* Secondary Segment Table Descriptor */
-		return tsk->thread.mm_segment.ar4;
-#ifdef CONFIG_S390_SWITCH_AMODE
-	if (unlikely(desc == 1)) { /* STD determined via access register */
-		/* %a0 always indicates primary space. */
-		if (S390_lowcore.exc_access_id != 0) {
-			save_access_regs(tsk->thread.acrs);
-			/*
-			 * An alet of 0 indicates primary space.
-			 * An alet of 1 indicates secondary space.
-			 * Any other alet values generate an
-			 * alen-translation exception.
-			 */
-			if (tsk->thread.acrs[S390_lowcore.exc_access_id])
-				return tsk->thread.mm_segment.ar4;
-		}
-	}
-#endif
-	/* Primary Segment Table Descriptor */
-	return switch_amode << s390_noexec;
+static inline void report_user_fault(struct pt_regs *regs, long int_code,
+				     int signr, unsigned long address)
+{
+	if ((task_pid_nr(current) > 1) && !show_unhandled_signals)
+		return;
+	if (!unhandled_signal(current, signr))
+		return;
+	if (!printk_ratelimit())
+		return;
+	printk("User process fault: interruption code 0x%lX ", int_code);
+	print_vma_addr(KERN_CONT "in ", regs->psw.addr & PSW_ADDR_INSN);
+	printk("\n");
+	printk("failing address: %lX\n", address);
+	show_regs(regs);
 }
 
 /*
  * Send SIGSEGV to task.  This is an external routine
  * to keep the stack usage of do_page_fault small.
  */
-static void do_sigsegv(struct pt_regs *regs, unsigned long error_code,
-		       int si_code, unsigned long address)
+static noinline void do_sigsegv(struct pt_regs *regs, long int_code,
+				int si_code, unsigned long trans_exc_code)
 {
 	struct siginfo si;
+	unsigned long address;
 
-#if defined(CONFIG_SYSCTL) || defined(CONFIG_PROCESS_DEBUG)
-#if defined(CONFIG_SYSCTL)
-	if (sysctl_userprocess_debug)
-#endif
-	{
-		printk("User process fault: interruption code 0x%lX\n",
-		       error_code);
-		printk("failing address: %lX\n", address);
-		show_regs(regs);
-	}
-#endif
+	address = trans_exc_code & __FAIL_ADDR_MASK;
+	current->thread.prot_addr = address;
+	current->thread.trap_no = int_code;
+	report_user_fault(regs, int_code, SIGSEGV, address);
 	si.si_signo = SIGSEGV;
 	si.si_code = si_code;
 	si.si_addr = (void __user *) address;
 	force_sig_info(SIGSEGV, &si, current);
 }
 
-static void do_no_context(struct pt_regs *regs, unsigned long error_code,
-			  unsigned long address)
+static noinline void do_no_context(struct pt_regs *regs, long int_code,
+				   unsigned long trans_exc_code)
 {
 	const struct exception_table_entry *fixup;
+	unsigned long address;
 
 	/* Are we prepared to handle this kernel fault?  */
-	fixup = search_exception_tables(regs->psw.addr & __FIXUP_MASK);
+	fixup = search_exception_tables(regs->psw.addr & PSW_ADDR_INSN);
 	if (fixup) {
 		regs->psw.addr = fixup->fixup | PSW_ADDR_AMODE;
 		return;
@@ -177,129 +169,149 @@ static void do_no_context(struct pt_regs *regs, unsigned long error_code,
 	 * Oops. The kernel tried to access some bad page. We'll have to
 	 * terminate things with extreme prejudice.
 	 */
-	if (check_space(current) == 0)
+	address = trans_exc_code & __FAIL_ADDR_MASK;
+	if (!user_space_fault(trans_exc_code))
 		printk(KERN_ALERT "Unable to handle kernel pointer dereference"
 		       " at virtual kernel address %p\n", (void *)address);
 	else
 		printk(KERN_ALERT "Unable to handle kernel paging request"
 		       " at virtual user address %p\n", (void *)address);
 
-	die("Oops", regs, error_code);
+	die("Oops", regs, int_code);
 	do_exit(SIGKILL);
 }
 
-static void do_low_address(struct pt_regs *regs, unsigned long error_code)
+static noinline void do_low_address(struct pt_regs *regs, long int_code,
+				    unsigned long trans_exc_code)
 {
 	/* Low-address protection hit in kernel mode means
 	   NULL pointer write access in kernel mode.  */
 	if (regs->psw.mask & PSW_MASK_PSTATE) {
 		/* Low-address protection hit in user mode 'cannot happen'. */
-		die ("Low-address protection", regs, error_code);
+		die ("Low-address protection", regs, int_code);
 		do_exit(SIGKILL);
 	}
 
-	do_no_context(regs, error_code, 0);
+	do_no_context(regs, int_code, trans_exc_code);
 }
 
-static void do_sigbus(struct pt_regs *regs, unsigned long error_code,
-		      unsigned long address)
+static noinline void do_sigbus(struct pt_regs *regs, long int_code,
+			       unsigned long trans_exc_code)
 {
 	struct task_struct *tsk = current;
-	struct mm_struct *mm = tsk->mm;
 
-	up_read(&mm->mmap_sem);
 	/*
 	 * Send a sigbus, regardless of whether we were in kernel
 	 * or user mode.
 	 */
-	tsk->thread.prot_addr = address;
-	tsk->thread.trap_no = error_code;
+	tsk->thread.prot_addr = trans_exc_code & __FAIL_ADDR_MASK;
+	tsk->thread.trap_no = int_code;
 	force_sig(SIGBUS, tsk);
-
-	/* Kernel mode? Handle exceptions or die */
-	if (!(regs->psw.mask & PSW_MASK_PSTATE))
-		do_no_context(regs, error_code, address);
 }
 
 #ifdef CONFIG_S390_EXEC_PROTECT
-static int signal_return(struct mm_struct *mm, struct pt_regs *regs,
-			 unsigned long address, unsigned long error_code)
+static noinline int signal_return(struct pt_regs *regs, long int_code,
+				  unsigned long trans_exc_code)
 {
 	u16 instruction;
 	int rc;
-#ifdef CONFIG_COMPAT
-	int compat;
-#endif
 
-	pagefault_disable();
 	rc = __get_user(instruction, (u16 __user *) regs->psw.addr);
-	pagefault_enable();
-	if (rc)
-		return -EFAULT;
 
-	up_read(&mm->mmap_sem);
-	clear_tsk_thread_flag(current, TIF_SINGLE_STEP);
-#ifdef CONFIG_COMPAT
-	compat = is_compat_task();
-	if (compat && instruction == 0x0a77)
-		sys32_sigreturn();
-	else if (compat && instruction == 0x0aad)
-		sys32_rt_sigreturn();
-	else
-#endif
-	if (instruction == 0x0a77)
-		sys_sigreturn();
-	else if (instruction == 0x0aad)
-		sys_rt_sigreturn();
-	else {
-		current->thread.prot_addr = address;
-		current->thread.trap_no = error_code;
-		do_sigsegv(regs, error_code, SEGV_MAPERR, address);
-	}
+	if (!rc && instruction == 0x0a77) {
+		clear_tsk_thread_flag(current, TIF_SINGLE_STEP);
+		if (is_compat_task())
+			sys32_sigreturn();
+		else
+			sys_sigreturn();
+	} else if (!rc && instruction == 0x0aad) {
+		clear_tsk_thread_flag(current, TIF_SINGLE_STEP);
+		if (is_compat_task())
+			sys32_rt_sigreturn();
+		else
+			sys_rt_sigreturn();
+	} else
+		do_sigsegv(regs, int_code, SEGV_MAPERR, trans_exc_code);
 	return 0;
 }
 #endif /* CONFIG_S390_EXEC_PROTECT */
+
+static noinline void do_fault_error(struct pt_regs *regs, long int_code,
+				    unsigned long trans_exc_code, int fault)
+{
+	int si_code;
+
+	switch (fault) {
+	case VM_FAULT_BADACCESS:
+#ifdef CONFIG_S390_EXEC_PROTECT
+		if ((regs->psw.mask & PSW_MASK_ASC) == PSW_ASC_SECONDARY &&
+		    (trans_exc_code & 3) == 0) {
+			signal_return(regs, int_code, trans_exc_code);
+			break;
+		}
+#endif /* CONFIG_S390_EXEC_PROTECT */
+	case VM_FAULT_BADMAP:
+		/* Bad memory access. Check if it is kernel or user space. */
+		if (regs->psw.mask & PSW_MASK_PSTATE) {
+			/* User mode accesses just cause a SIGSEGV */
+			si_code = (fault == VM_FAULT_BADMAP) ?
+				SEGV_MAPERR : SEGV_ACCERR;
+			do_sigsegv(regs, int_code, si_code, trans_exc_code);
+			return;
+		}
+	case VM_FAULT_BADCONTEXT:
+		do_no_context(regs, int_code, trans_exc_code);
+		break;
+	default: /* fault & VM_FAULT_ERROR */
+		if (fault & VM_FAULT_OOM)
+			pagefault_out_of_memory();
+		else if (fault & VM_FAULT_SIGBUS) {
+			do_sigbus(regs, int_code, trans_exc_code);
+			/* Kernel mode? Handle exceptions or die */
+			if (!(regs->psw.mask & PSW_MASK_PSTATE))
+				do_no_context(regs, int_code, trans_exc_code);
+		} else
+			BUG();
+		break;
+	}
+}
 
 /*
  * This routine handles page faults.  It determines the address,
  * and the problem, and then passes it off to one of the appropriate
  * routines.
  *
- * error_code:
+ * interruption code (int_code):
  *   04       Protection           ->  Write-Protection  (suprression)
  *   10       Segment translation  ->  Not present       (nullification)
  *   11       Page translation     ->  Not present       (nullification)
  *   3b       Region third trans.  ->  Not present       (nullification)
  */
-static inline void
-do_exception(struct pt_regs *regs, unsigned long error_code, int write)
+static inline int do_exception(struct pt_regs *regs, int access,
+			       unsigned long trans_exc_code)
 {
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	struct vm_area_struct *vma;
 	unsigned long address;
-	int space;
-	int si_code;
 	int fault;
 
-	if (notify_page_fault(regs, error_code))
-		return;
+	if (notify_page_fault(regs))
+		return 0;
 
 	tsk = current;
 	mm = tsk->mm;
-
-	/* get the failing address and the affected space */
-	address = S390_lowcore.trans_exc_code & __FAIL_ADDR_MASK;
-	space = check_space(tsk);
 
 	/*
 	 * Verify that the fault happened in user space, that
 	 * we are not in an interrupt and that there is a 
 	 * user context.
 	 */
-	if (unlikely(space == 0 || in_atomic() || !mm))
-		goto no_context;
+	fault = VM_FAULT_BADCONTEXT;
+	if (unlikely(!user_space_fault(trans_exc_code) || in_atomic() || !mm))
+		goto out;
 
+	address = trans_exc_code & __FAIL_ADDR_MASK;
 	/*
 	 * When we get here, the fault happened in the current
 	 * task's user address space, so we can switch on the
@@ -309,41 +321,25 @@ do_exception(struct pt_regs *regs, unsigned long error_code, int write)
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, 0, regs, address);
 	down_read(&mm->mmap_sem);
 
-	si_code = SEGV_MAPERR;
+	fault = VM_FAULT_BADMAP;
 	vma = find_vma(mm, address);
 	if (!vma)
-		goto bad_area;
+		goto out_up;
 
-#ifdef CONFIG_S390_EXEC_PROTECT
-	if (unlikely((space == 2) && !(vma->vm_flags & VM_EXEC)))
-		if (!signal_return(mm, regs, address, error_code))
-			/*
-			 * signal_return() has done an up_read(&mm->mmap_sem)
-			 * if it returns 0.
-			 */
-			return;
-#endif
-
-	if (vma->vm_start <= address)
-		goto good_area;
-	if (!(vma->vm_flags & VM_GROWSDOWN))
-		goto bad_area;
-	if (expand_stack(vma, address))
-		goto bad_area;
-/*
- * Ok, we have a good vm_area for this memory access, so
- * we can handle it..
- */
-good_area:
-	si_code = SEGV_ACCERR;
-	if (!write) {
-		/* page not present, check vm flags */
-		if (!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)))
-			goto bad_area;
-	} else {
-		if (!(vma->vm_flags & VM_WRITE))
-			goto bad_area;
+	if (unlikely(vma->vm_start > address)) {
+		if (!(vma->vm_flags & VM_GROWSDOWN))
+			goto out_up;
+		if (expand_stack(vma, address))
+			goto out_up;
 	}
+
+	/*
+	 * Ok, we have a good vm_area for this memory access, so
+	 * we can handle it..
+	 */
+	fault = VM_FAULT_BADACCESS;
+	if (unlikely(!(vma->vm_flags & access)))
+		goto out_up;
 
 	if (is_vm_hugetlb_page(vma))
 		address &= HPAGE_MASK;
@@ -352,18 +348,11 @@ good_area:
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	fault = handle_mm_fault(mm, vma, address, write ? FAULT_FLAG_WRITE : 0);
-	if (unlikely(fault & VM_FAULT_ERROR)) {
-		if (fault & VM_FAULT_OOM) {
-			up_read(&mm->mmap_sem);
-			pagefault_out_of_memory();
-			return;
-		} else if (fault & VM_FAULT_SIGBUS) {
-			do_sigbus(regs, error_code, address);
-			return;
-		}
-		BUG();
-	}
+	fault = handle_mm_fault(mm, vma, address,
+				(access == VM_WRITE) ? FAULT_FLAG_WRITE : 0);
+	if (unlikely(fault & VM_FAULT_ERROR))
+		goto out_up;
+
 	if (fault & VM_FAULT_MAJOR) {
 		tsk->maj_flt++;
 		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
@@ -373,74 +362,69 @@ good_area:
 		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
 				     regs, address);
 	}
-        up_read(&mm->mmap_sem);
 	/*
 	 * The instruction that caused the program check will
 	 * be repeated. Don't signal single step via SIGTRAP.
 	 */
 	clear_tsk_thread_flag(tsk, TIF_SINGLE_STEP);
-        return;
-
-/*
- * Something tried to access memory that isn't in our memory map..
- * Fix it, but check if it's kernel or user first..
- */
-bad_area:
+	fault = 0;
+out_up:
 	up_read(&mm->mmap_sem);
-
-	/* User mode accesses just cause a SIGSEGV */
-	if (regs->psw.mask & PSW_MASK_PSTATE) {
-		tsk->thread.prot_addr = address;
-		tsk->thread.trap_no = error_code;
-		do_sigsegv(regs, error_code, si_code, address);
-		return;
-	}
-
-no_context:
-	do_no_context(regs, error_code, address);
+out:
+	return fault;
 }
 
-void __kprobes do_protection_exception(struct pt_regs *regs,
-				       long error_code)
+void __kprobes do_protection_exception(struct pt_regs *regs, long int_code)
 {
+	unsigned long trans_exc_code = S390_lowcore.trans_exc_code;
+	int fault;
+
 	/* Protection exception is supressing, decrement psw address. */
-	regs->psw.addr -= (error_code >> 16);
+	regs->psw.addr -= (int_code >> 16);
 	/*
 	 * Check for low-address protection.  This needs to be treated
 	 * as a special case because the translation exception code
 	 * field is not guaranteed to contain valid data in this case.
 	 */
-	if (unlikely(!(S390_lowcore.trans_exc_code & 4))) {
-		do_low_address(regs, error_code);
+	if (unlikely(!(trans_exc_code & 4))) {
+		do_low_address(regs, int_code, trans_exc_code);
 		return;
 	}
-	do_exception(regs, 4, 1);
+	fault = do_exception(regs, VM_WRITE, trans_exc_code);
+	if (unlikely(fault))
+		do_fault_error(regs, 4, trans_exc_code, fault);
 }
 
-void __kprobes do_dat_exception(struct pt_regs *regs, long error_code)
+void __kprobes do_dat_exception(struct pt_regs *regs, long int_code)
 {
-	do_exception(regs, error_code & 0xff, 0);
+	unsigned long trans_exc_code = S390_lowcore.trans_exc_code;
+	int access, fault;
+
+	access = VM_READ | VM_EXEC | VM_WRITE;
+#ifdef CONFIG_S390_EXEC_PROTECT
+	if ((regs->psw.mask & PSW_MASK_ASC) == PSW_ASC_SECONDARY &&
+	    (trans_exc_code & 3) == 0)
+		access = VM_EXEC;
+#endif
+	fault = do_exception(regs, access, trans_exc_code);
+	if (unlikely(fault))
+		do_fault_error(regs, int_code & 255, trans_exc_code, fault);
 }
 
 #ifdef CONFIG_64BIT
-void __kprobes do_asce_exception(struct pt_regs *regs, unsigned long error_code)
+void __kprobes do_asce_exception(struct pt_regs *regs, long int_code)
 {
-	struct mm_struct *mm;
+	unsigned long trans_exc_code = S390_lowcore.trans_exc_code;
+	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
-	unsigned long address;
-	int space;
 
-	mm = current->mm;
-	address = S390_lowcore.trans_exc_code & __FAIL_ADDR_MASK;
-	space = check_space(current);
-
-	if (unlikely(space == 0 || in_atomic() || !mm))
+	if (unlikely(!user_space_fault(trans_exc_code) || in_atomic() || !mm))
 		goto no_context;
 
 	local_irq_enable();
 
 	down_read(&mm->mmap_sem);
-	vma = find_vma(mm, address);
+	vma = find_vma(mm, trans_exc_code & __FAIL_ADDR_MASK);
 	up_read(&mm->mmap_sem);
 
 	if (vma) {
@@ -450,16 +434,37 @@ void __kprobes do_asce_exception(struct pt_regs *regs, unsigned long error_code)
 
 	/* User mode accesses just cause a SIGSEGV */
 	if (regs->psw.mask & PSW_MASK_PSTATE) {
-		current->thread.prot_addr = address;
-		current->thread.trap_no = error_code;
-		do_sigsegv(regs, error_code, SEGV_MAPERR, address);
+		do_sigsegv(regs, int_code, SEGV_MAPERR, trans_exc_code);
 		return;
 	}
 
 no_context:
-	do_no_context(regs, error_code, address);
+	do_no_context(regs, int_code, trans_exc_code);
 }
 #endif
+
+int __handle_fault(unsigned long uaddr, unsigned long int_code, int write_user)
+{
+	struct pt_regs regs;
+	int access, fault;
+
+	regs.psw.mask = psw_kernel_bits;
+	if (!irqs_disabled())
+		regs.psw.mask |= PSW_MASK_IO | PSW_MASK_EXT;
+	regs.psw.addr = (unsigned long) __builtin_return_address(0);
+	regs.psw.addr |= PSW_ADDR_AMODE;
+	uaddr &= PAGE_MASK;
+	access = write_user ? VM_WRITE : VM_READ;
+	fault = do_exception(&regs, access, uaddr | 2);
+	if (unlikely(fault)) {
+		if (fault & VM_FAULT_OOM) {
+			pagefault_out_of_memory();
+			fault = 0;
+		} else if (fault & VM_FAULT_SIGBUS)
+			do_sigbus(&regs, int_code, uaddr);
+	}
+	return fault ? -EFAULT : 0;
+}
 
 #ifdef CONFIG_PFAULT 
 /*
@@ -522,7 +527,7 @@ void pfault_fini(void)
 		: : "a" (&refbk), "m" (refbk) : "cc");
 }
 
-static void pfault_interrupt(__u16 error_code)
+static void pfault_interrupt(__u16 int_code)
 {
 	struct task_struct *tsk;
 	__u16 subcode;

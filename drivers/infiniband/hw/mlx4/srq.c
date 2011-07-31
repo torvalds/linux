@@ -33,6 +33,7 @@
 
 #include <linux/mlx4/qp.h>
 #include <linux/mlx4/srq.h>
+#include <linux/slab.h>
 
 #include "mlx4_ib.h"
 #include "user.h"
@@ -74,6 +75,7 @@ struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
 	struct mlx4_ib_dev *dev = to_mdev(pd->device);
 	struct mlx4_ib_srq *srq;
 	struct mlx4_wqe_srq_next_seg *next;
+	struct mlx4_wqe_data_seg *scatter;
 	int desc_size;
 	int buf_size;
 	int err;
@@ -149,6 +151,11 @@ struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
 			next = get_wqe(srq, i);
 			next->next_wqe_index =
 				cpu_to_be16((i + 1) & (srq->msrq.max - 1));
+
+			for (scatter = (void *) (next + 1);
+			     (void *) scatter < (void *) next + desc_size;
+			     ++scatter)
+				scatter->lkey = cpu_to_be32(MLX4_INVALID_LKEY);
 		}
 
 		err = mlx4_mtt_init(dev->dev, srq->buf.npages, srq->buf.page_shift,

@@ -558,7 +558,7 @@ static void saa7146_set_window(struct saa7146_dev *dev, int width, int height, e
 static void saa7146_set_position(struct saa7146_dev *dev, int w_x, int w_y, int w_height, enum v4l2_field field, u32 pixelformat)
 {
 	struct saa7146_vv *vv = dev->vv_data;
-	struct saa7146_format *sfmt = format_by_fourcc(dev, pixelformat);
+	struct saa7146_format *sfmt = saa7146_format_by_fourcc(dev, pixelformat);
 
 	int b_depth = vv->ov_fmt->depth;
 	int b_bpl = vv->ov_fb.fmt.bytesperline;
@@ -702,7 +702,7 @@ static int calculate_video_dma_grab_packed(struct saa7146_dev* dev, struct saa71
 	struct saa7146_vv *vv = dev->vv_data;
 	struct saa7146_video_dma vdma1;
 
-	struct saa7146_format *sfmt = format_by_fourcc(dev,buf->fmt->pixelformat);
+	struct saa7146_format *sfmt = saa7146_format_by_fourcc(dev,buf->fmt->pixelformat);
 
 	int width = buf->fmt->width;
 	int height = buf->fmt->height;
@@ -827,7 +827,7 @@ static int calculate_video_dma_grab_planar(struct saa7146_dev* dev, struct saa71
 	struct saa7146_video_dma vdma2;
 	struct saa7146_video_dma vdma3;
 
-	struct saa7146_format *sfmt = format_by_fourcc(dev,buf->fmt->pixelformat);
+	struct saa7146_format *sfmt = saa7146_format_by_fourcc(dev,buf->fmt->pixelformat);
 
 	int width = buf->fmt->width;
 	int height = buf->fmt->height;
@@ -994,7 +994,7 @@ static void program_capture_engine(struct saa7146_dev *dev, int planar)
 
 void saa7146_set_capture(struct saa7146_dev *dev, struct saa7146_buf *buf, struct saa7146_buf *next)
 {
-	struct saa7146_format *sfmt = format_by_fourcc(dev,buf->fmt->pixelformat);
+	struct saa7146_format *sfmt = saa7146_format_by_fourcc(dev,buf->fmt->pixelformat);
 	struct saa7146_vv *vv = dev->vv_data;
 	u32 vdma1_prot_addr;
 

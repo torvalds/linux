@@ -884,64 +884,10 @@
 /* System MMR Register Bits */
 /******************************************************************************* */
 
-/* ********************* PLL AND RESET MASKS ************************ */
-
-/* PLL_CTL Masks */
-#define PLL_CLKIN              0x00000000	/* Pass CLKIN to PLL */
-#define PLL_CLKIN_DIV2         0x00000001	/* Pass CLKIN/2 to PLL */
-#define PLL_OFF                0x00000002	/* Shut off PLL clocks */
-#define STOPCK_OFF             0x00000008	/* Core clock off */
-#define PDWN                   0x00000020	/* Put the PLL in a Deep Sleep state */
-#define BYPASS                 0x00000100	/* Bypass the PLL */
-
 /* CHIPID Masks */
 #define CHIPID_VERSION         0xF0000000
 #define CHIPID_FAMILY          0x0FFFF000
 #define CHIPID_MANUFACTURE     0x00000FFE
-
-/* VR_CTL Masks																	*/
-#define	FREQ			0x0003	/* Switching Oscillator Frequency For Regulator	*/
-#define	HIBERNATE		0x0000	/* Powerdown/Bypass On-Board Regulation	*/
-#define	FREQ_333		0x0001	/* Switching Frequency Is 333 kHz */
-#define	FREQ_667		0x0002	/* Switching Frequency Is 667 kHz */
-#define	FREQ_1000		0x0003	/* Switching Frequency Is 1 MHz */
-
-#define	GAIN			0x000C	/* Voltage Level Gain	*/
-#define	GAIN_5			0x0000	/* GAIN = 5*/
-#define	GAIN_10			0x0004	/* GAIN = 1*/
-#define	GAIN_20			0x0008	/* GAIN = 2*/
-#define	GAIN_50			0x000C	/* GAIN = 5*/
-
-#define	VLEV			0x00F0	/* Internal Voltage Level */
-#define	VLEV_085 		0x0060	/* VLEV = 0.85 V (-5% - +10% Accuracy) */
-#define	VLEV_090		0x0070	/* VLEV = 0.90 V (-5% - +10% Accuracy) */
-#define	VLEV_095		0x0080	/* VLEV = 0.95 V (-5% - +10% Accuracy) */
-#define	VLEV_100		0x0090	/* VLEV = 1.00 V (-5% - +10% Accuracy) */
-#define	VLEV_105		0x00A0	/* VLEV = 1.05 V (-5% - +10% Accuracy) */
-#define	VLEV_110		0x00B0	/* VLEV = 1.10 V (-5% - +10% Accuracy) */
-#define	VLEV_115		0x00C0	/* VLEV = 1.15 V (-5% - +10% Accuracy) */
-#define	VLEV_120		0x00D0	/* VLEV = 1.20 V (-5% - +10% Accuracy) */
-#define	VLEV_125		0x00E0	/* VLEV = 1.25 V (-5% - +10% Accuracy) */
-#define	VLEV_130		0x00F0	/* VLEV = 1.30 V (-5% - +10% Accuracy) */
-
-#define	WAKE			0x0100	/* Enable RTC/Reset Wakeup From Hibernate */
-#define	SCKELOW			0x8000	/* Do Not Drive SCKE High During Reset After Hibernate */
-
-/* PLL_DIV Masks */
-#define SCLK_DIV(x)  (x)	/* SCLK = VCO / x */
-
-#define CSEL			0x30		/* Core Select */
-#define SSEL			0xf		/* System Select */
-#define CCLK_DIV1              0x00000000	/* CCLK = VCO / 1 */
-#define CCLK_DIV2              0x00000010	/* CCLK = VCO / 2 */
-#define CCLK_DIV4              0x00000020	/* CCLK = VCO / 4 */
-#define CCLK_DIV8              0x00000030	/* CCLK = VCO / 8 */
-
-/* PLL_STAT Masks																	*/
-#define ACTIVE_PLLENABLED	0x0001	/* Processor In Active Mode With PLL Enabled    */
-#define	FULL_ON				0x0002	/* Processor In Full On Mode                                    */
-#define ACTIVE_PLLDISABLED	0x0004	/* Processor In Active Mode With PLL Disabled   */
-#define	PLL_LOCKED			0x0020	/* PLL_LOCKCNT Has Been Reached                                 */
 
 /* SICA_SYSCR Masks */
 #define COREB_SRAM_INIT		0x0020
@@ -1061,66 +1007,6 @@
 #define IREN_P	0x01
 #define UCEN_P	0x00
 
-/* **********  SERIAL PORT MASKS  ********************** */
-
-/* SPORTx_TCR1 Masks */
-#define TSPEN    0x0001		/* TX enable  */
-#define ITCLK    0x0002		/* Internal TX Clock Select  */
-#define TDTYPE   0x000C		/* TX Data Formatting Select */
-#define TLSBIT   0x0010		/* TX Bit Order */
-#define ITFS     0x0200		/* Internal TX Frame Sync Select  */
-#define TFSR     0x0400		/* TX Frame Sync Required Select  */
-#define DITFS    0x0800		/* Data Independent TX Frame Sync Select  */
-#define LTFS     0x1000		/* Low TX Frame Sync Select  */
-#define LATFS    0x2000		/* Late TX Frame Sync Select  */
-#define TCKFE    0x4000		/* TX Clock Falling Edge Select  */
-
-/* SPORTx_TCR2 Masks */
-#define SLEN	    0x001F	/*TX Word Length  */
-#define TXSE        0x0100	/*TX Secondary Enable */
-#define TSFSE       0x0200	/*TX Stereo Frame Sync Enable */
-#define TRFST       0x0400	/*TX Right-First Data Order  */
-
-/* SPORTx_RCR1 Masks */
-#define RSPEN    0x0001		/* RX enable  */
-#define IRCLK    0x0002		/* Internal RX Clock Select  */
-#define RDTYPE   0x000C		/* RX Data Formatting Select */
-#define RULAW    0x0008		/* u-Law enable  */
-#define RALAW    0x000C		/* A-Law enable  */
-#define RLSBIT   0x0010		/* RX Bit Order */
-#define IRFS     0x0200		/* Internal RX Frame Sync Select  */
-#define RFSR     0x0400		/* RX Frame Sync Required Select  */
-#define LRFS     0x1000		/* Low RX Frame Sync Select  */
-#define LARFS    0x2000		/* Late RX Frame Sync Select  */
-#define RCKFE    0x4000		/* RX Clock Falling Edge Select  */
-
-/* SPORTx_RCR2 Masks */
-#define SLEN	    0x001F	/*RX Word Length  */
-#define RXSE        0x0100	/*RX Secondary Enable */
-#define RSFSE       0x0200	/*RX Stereo Frame Sync Enable */
-#define RRFST       0x0400	/*Right-First Data Order  */
-
-/*SPORTx_STAT Masks */
-#define RXNE		0x0001	/*RX FIFO Not Empty Status */
-#define RUVF	    	0x0002	/*RX Underflow Status */
-#define ROVF		0x0004	/*RX Overflow Status */
-#define TXF		0x0008	/*TX FIFO Full Status */
-#define TUVF         	0x0010	/*TX Underflow Status */
-#define TOVF         	0x0020	/*TX Overflow Status */
-#define TXHRE        	0x0040	/*TX Hold Register Empty */
-
-/*SPORTx_MCMC1 Masks */
-#define SP_WSIZE		0x0000F000	/*Multichannel Window Size Field */
-#define SP_WOFF		0x000003FF	/*Multichannel Window Offset Field */
-
-/*SPORTx_MCMC2 Masks */
-#define MCCRM		0x00000003	/*Multichannel Clock Recovery Mode */
-#define MCDTXPE		0x00000004	/*Multichannel DMA Transmit Packing */
-#define MCDRXPE		0x00000008	/*Multichannel DMA Receive Packing */
-#define MCMEN		0x00000010	/*Multichannel Frame Mode Enable */
-#define FSDR		0x00000080	/*Multichannel Frame Sync to Data Relationship */
-#define MFD		0x0000F000	/*Multichannel Frame Delay    */
-
 /*  *********  PARALLEL PERIPHERAL INTERFACE (PPI) MASKS ****************   */
 
 /*  PPI_CONTROL Masks         */
@@ -1149,53 +1035,6 @@
 #define ERR_NCOR	     0x00008000	/* Error Not Corrected Indicator */
 
 /* **********  DMA CONTROLLER MASKS  *********************8 */
-
-/* DMAx_CONFIG, MDMA_yy_CONFIG, IMDMA_yy_CONFIG Masks */
-#define DMAEN	        0x00000001	/* Channel Enable */
-#define WNR	   	0x00000002	/* Channel Direction (W/R*) */
-#define WDSIZE_8	0x00000000	/* Word Size 8 bits */
-#define WDSIZE_16	0x00000004	/* Word Size 16 bits */
-#define WDSIZE_32	0x00000008	/* Word Size 32 bits */
-#define DMA2D	        0x00000010	/* 2D/1D* Mode */
-#define RESTART         0x00000020	/* Restart */
-#define DI_SEL	        0x00000040	/* Data Interrupt Select */
-#define DI_EN	        0x00000080	/* Data Interrupt Enable */
-#define NDSIZE_0		0x0000	/* Next Descriptor Size = 0 (Stop/Autobuffer)   */
-#define NDSIZE_1		0x0100	/* Next Descriptor Size = 1                                             */
-#define NDSIZE_2		0x0200	/* Next Descriptor Size = 2                                             */
-#define NDSIZE_3		0x0300	/* Next Descriptor Size = 3                                             */
-#define NDSIZE_4		0x0400	/* Next Descriptor Size = 4                                             */
-#define NDSIZE_5		0x0500	/* Next Descriptor Size = 5                                             */
-#define NDSIZE_6		0x0600	/* Next Descriptor Size = 6                                             */
-#define NDSIZE_7		0x0700	/* Next Descriptor Size = 7                                             */
-#define NDSIZE_8		0x0800	/* Next Descriptor Size = 8                                             */
-#define NDSIZE_9		0x0900	/* Next Descriptor Size = 9                                             */
-#define NDSIZE	        0x00000900	/* Next Descriptor Size */
-#define DMAFLOW	        0x00007000	/* Flow Control */
-#define DMAFLOW_STOP		0x0000	/* Stop Mode */
-#define DMAFLOW_AUTO		0x1000	/* Autobuffer Mode */
-#define DMAFLOW_ARRAY		0x4000	/* Descriptor Array Mode */
-#define DMAFLOW_SMALL		0x6000	/* Small Model Descriptor List Mode */
-#define DMAFLOW_LARGE		0x7000	/* Large Model Descriptor List Mode */
-
-#define DMAEN_P	            	0	/* Channel Enable */
-#define WNR_P	            	1	/* Channel Direction (W/R*) */
-#define DMA2D_P	        	4	/* 2D/1D* Mode */
-#define RESTART_P	      	5	/* Restart */
-#define DI_SEL_P	     	6	/* Data Interrupt Select */
-#define DI_EN_P	            	7	/* Data Interrupt Enable */
-
-/* DMAx_IRQ_STATUS, MDMA_yy_IRQ_STATUS, IMDMA_yy_IRQ_STATUS Masks */
-
-#define DMA_DONE		0x00000001	/* DMA Done Indicator */
-#define DMA_ERR	        	0x00000002	/* DMA Error Indicator */
-#define DFETCH	            	0x00000004	/* Descriptor Fetch Indicator */
-#define DMA_RUN	            	0x00000008	/* DMA Running Indicator */
-
-#define DMA_DONE_P	    	0	/* DMA Done Indicator */
-#define DMA_ERR_P     		1	/* DMA Error Indicator */
-#define DFETCH_P     		2	/* Descriptor Fetch Indicator */
-#define DMA_RUN_P     		3	/* DMA Running Indicator */
 
 /* DMAx_PERIPHERAL_MAP, MDMA_yy_PERIPHERAL_MAP, IMDMA_yy_PERIPHERAL_MAP Masks */
 

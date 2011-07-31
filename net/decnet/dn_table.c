@@ -15,6 +15,7 @@
 #include <linux/string.h>
 #include <linux/net.h>
 #include <linux/socket.h>
+#include <linux/slab.h>
 #include <linux/sockios.h>
 #include <linux/init.h>
 #include <linux/skbuff.h>
@@ -471,7 +472,7 @@ int dn_fib_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	struct hlist_node *node;
 	int dumped = 0;
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		return 0;
 
 	if (NLMSG_PAYLOAD(cb->nlh, 0) >= sizeof(struct rtmsg) &&
@@ -581,8 +582,9 @@ static int dn_fib_table_insert(struct dn_fib_table *tb, struct rtmsg *r, struct 
 		DN_FIB_SCAN_KEY(f, fp, key) {
 			if (fi->fib_priority != DN_FIB_INFO(f)->fib_priority)
 				break;
-			if (f->fn_type == type && f->fn_scope == r->rtm_scope
-					&& DN_FIB_INFO(f) == fi)
+			if (f->fn_type == type &&
+			    f->fn_scope == r->rtm_scope &&
+			    DN_FIB_INFO(f) == fi)
 				goto out;
 		}
 

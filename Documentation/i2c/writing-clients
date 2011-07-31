@@ -44,7 +44,7 @@ static struct i2c_driver foo_driver = {
 	/* if device autodetection is needed: */
 	.class		= I2C_CLASS_SOMETHING,
 	.detect		= foo_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 
 	.shutdown	= foo_shutdown,	/* optional */
 	.suspend	= foo_suspend,	/* optional */
@@ -73,6 +73,11 @@ structure at all.  You should use this to keep device-specific data.
 
 	/* retrieve the value */
 	void *i2c_get_clientdata(const struct i2c_client *client);
+
+Note that starting with kernel 2.6.34, you don't have to set the `data' field
+to NULL in remove() or if probe() failed anymore. The i2c-core does this
+automatically on these occasions. Those are also the only times the core will
+touch this field.
 
 
 Accessing the client
@@ -318,8 +323,9 @@ Plain I2C communication
 These routines read and write some bytes from/to a client. The client
 contains the i2c address, so you do not have to include it. The second
 parameter contains the bytes to read/write, the third the number of bytes
-to read/write (must be less than the length of the buffer.) Returned is
-the actual number of bytes read/written.
+to read/write (must be less than the length of the buffer, also should be
+less than 64k since msg.len is u16.) Returned is the actual number of bytes
+read/written.
 
 	int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msg,
 			 int num);

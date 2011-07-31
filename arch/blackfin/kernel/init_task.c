@@ -28,5 +28,5 @@ EXPORT_SYMBOL(init_task);
  * "init_task" linker map entry.
  */
 union thread_union init_thread_union
-    __attribute__ ((__section__(".init_task.data"))) = {
+    __init_task_data = {
 INIT_THREAD_INFO(init_task)};

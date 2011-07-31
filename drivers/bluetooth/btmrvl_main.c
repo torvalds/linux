@@ -66,7 +66,7 @@ int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb)
 {
 	struct btmrvl_adapter *adapter = priv->adapter;
 	struct btmrvl_event *event;
-	u8 ret = 0;
+	int ret = 0;
 
 	event = (struct btmrvl_event *) skb->data;
 	if (event->ec != 0xff) {
@@ -112,8 +112,17 @@ int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb)
 	case BT_CMD_MODULE_CFG_REQ:
 		if (priv->btmrvl_dev.sendcmdflag &&
 				event->data[1] == MODULE_BRINGUP_REQ) {
-			BT_DBG("EVENT:%s", (event->data[2]) ?
-				"Bring-up failed" : "Bring-up succeed");
+			BT_DBG("EVENT:%s",
+				((event->data[2] == MODULE_BROUGHT_UP) ||
+				(event->data[2] == MODULE_ALREADY_UP)) ?
+				"Bring-up succeed" : "Bring-up failed");
+
+			if (event->length > 3)
+				priv->btmrvl_dev.dev_type = event->data[3];
+			else
+				priv->btmrvl_dev.dev_type = HCI_BREDR;
+
+			BT_DBG("dev_type: %d", priv->btmrvl_dev.dev_type);
 		} else if (priv->btmrvl_dev.sendcmdflag &&
 				event->data[1] == MODULE_SHUTDOWN_REQ) {
 			BT_DBG("EVENT:%s", (event->data[2]) ?
@@ -189,6 +198,38 @@ int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, int subcmd)
 }
 EXPORT_SYMBOL_GPL(btmrvl_send_module_cfg_cmd);
 
+int btmrvl_enable_ps(struct btmrvl_private *priv)
+{
+	struct sk_buff *skb;
+	struct btmrvl_cmd *cmd;
+
+	skb = bt_skb_alloc(sizeof(*cmd), GFP_ATOMIC);
+	if (skb == NULL) {
+		BT_ERR("No free skb");
+		return -ENOMEM;
+	}
+
+	cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
+	cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF,
+					BT_CMD_AUTO_SLEEP_MODE));
+	cmd->length = 1;
+
+	if (priv->btmrvl_dev.psmode)
+		cmd->data[0] = BT_PS_ENABLE;
+	else
+		cmd->data[0] = BT_PS_DISABLE;
+
+	bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
+
+	skb->dev = (void *) priv->btmrvl_dev.hcidev;
+	skb_queue_head(&priv->adapter->tx_queue, skb);
+
+	BT_DBG("Queue PSMODE Command:%d", cmd->data[0]);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(btmrvl_enable_ps);
+
 static int btmrvl_enable_hs(struct btmrvl_private *priv)
 {
 	struct sk_buff *skb;
@@ -258,28 +299,7 @@ int btmrvl_prepare_command(struct btmrvl_private *priv)
 
 	if (priv->btmrvl_dev.pscmd) {
 		priv->btmrvl_dev.pscmd = 0;
-
-		skb = bt_skb_alloc(sizeof(*cmd), GFP_ATOMIC);
-		if (skb == NULL) {
-			BT_ERR("No free skb");
-			return -ENOMEM;
-		}
-
-		cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
-		cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF, BT_CMD_AUTO_SLEEP_MODE));
-		cmd->length = 1;
-
-		if (priv->btmrvl_dev.psmode)
-			cmd->data[0] = BT_PS_ENABLE;
-		else
-			cmd->data[0] = BT_PS_DISABLE;
-
-		bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
-
-		skb->dev = (void *) priv->btmrvl_dev.hcidev;
-		skb_queue_head(&priv->adapter->tx_queue, skb);
-
-		BT_DBG("Queue PSMODE Command:%d", cmd->data[0]);
+		btmrvl_enable_ps(priv);
 	}
 
 	if (priv->btmrvl_dev.hscmd) {
@@ -482,14 +502,17 @@ static int btmrvl_service_main_thread(void *data)
 		spin_lock_irqsave(&priv->driver_lock, flags);
 		if (adapter->int_count) {
 			adapter->int_count = 0;
+			spin_unlock_irqrestore(&priv->driver_lock, flags);
+			priv->hw_process_int_status(priv);
 		} else if (adapter->ps_state == PS_SLEEP &&
 					!skb_queue_empty(&adapter->tx_queue)) {
 			spin_unlock_irqrestore(&priv->driver_lock, flags);
 			adapter->wakeup_tries++;
 			priv->hw_wakeup_firmware(priv);
 			continue;
+		} else {
+			spin_unlock_irqrestore(&priv->driver_lock, flags);
 		}
-		spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 		if (adapter->ps_state == PS_SLEEP)
 			continue;
@@ -511,11 +534,62 @@ static int btmrvl_service_main_thread(void *data)
 	return 0;
 }
 
-struct btmrvl_private *btmrvl_add_card(void *card)
+int btmrvl_register_hdev(struct btmrvl_private *priv)
 {
 	struct hci_dev *hdev = NULL;
-	struct btmrvl_private *priv;
 	int ret;
+
+	hdev = hci_alloc_dev();
+	if (!hdev) {
+		BT_ERR("Can not allocate HCI device");
+		goto err_hdev;
+	}
+
+	priv->btmrvl_dev.hcidev = hdev;
+	hdev->driver_data = priv;
+
+	hdev->bus = HCI_SDIO;
+	hdev->open = btmrvl_open;
+	hdev->close = btmrvl_close;
+	hdev->flush = btmrvl_flush;
+	hdev->send = btmrvl_send_frame;
+	hdev->destruct = btmrvl_destruct;
+	hdev->ioctl = btmrvl_ioctl;
+	hdev->owner = THIS_MODULE;
+
+	btmrvl_send_module_cfg_cmd(priv, MODULE_BRINGUP_REQ);
+
+	hdev->dev_type = priv->btmrvl_dev.dev_type;
+
+	ret = hci_register_dev(hdev);
+	if (ret < 0) {
+		BT_ERR("Can not register HCI device");
+		goto err_hci_register_dev;
+	}
+
+#ifdef CONFIG_DEBUG_FS
+	btmrvl_debugfs_init(hdev);
+#endif
+
+	return 0;
+
+err_hci_register_dev:
+	hci_free_dev(hdev);
+
+err_hdev:
+	/* Stop the thread servicing the interrupts */
+	kthread_stop(priv->main_thread.task);
+
+	btmrvl_free_adapter(priv);
+	kfree(priv);
+
+	return -ENOMEM;
+}
+EXPORT_SYMBOL_GPL(btmrvl_register_hdev);
+
+struct btmrvl_private *btmrvl_add_card(void *card)
+{
+	struct btmrvl_private *priv;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
@@ -531,12 +605,6 @@ struct btmrvl_private *btmrvl_add_card(void *card)
 
 	btmrvl_init_adapter(priv);
 
-	hdev = hci_alloc_dev();
-	if (!hdev) {
-		BT_ERR("Can not allocate HCI device");
-		goto err_hdev;
-	}
-
 	BT_DBG("Starting kthread...");
 	priv->main_thread.priv = priv;
 	spin_lock_init(&priv->driver_lock);
@@ -545,42 +613,10 @@ struct btmrvl_private *btmrvl_add_card(void *card)
 	priv->main_thread.task = kthread_run(btmrvl_service_main_thread,
 				&priv->main_thread, "btmrvl_main_service");
 
-	priv->btmrvl_dev.hcidev = hdev;
 	priv->btmrvl_dev.card = card;
-
-	hdev->driver_data = priv;
-
 	priv->btmrvl_dev.tx_dnld_rdy = true;
 
-	hdev->type = HCI_SDIO;
-	hdev->open = btmrvl_open;
-	hdev->close = btmrvl_close;
-	hdev->flush = btmrvl_flush;
-	hdev->send = btmrvl_send_frame;
-	hdev->destruct = btmrvl_destruct;
-	hdev->ioctl = btmrvl_ioctl;
-	hdev->owner = THIS_MODULE;
-
-	ret = hci_register_dev(hdev);
-	if (ret < 0) {
-		BT_ERR("Can not register HCI device");
-		goto err_hci_register_dev;
-	}
-
-#ifdef CONFIG_DEBUG_FS
-	btmrvl_debugfs_init(hdev);
-#endif
-
 	return priv;
-
-err_hci_register_dev:
-	/* Stop the thread servicing the interrupts */
-	kthread_stop(priv->main_thread.task);
-
-	hci_free_dev(hdev);
-
-err_hdev:
-	btmrvl_free_adapter(priv);
 
 err_adapter:
 	kfree(priv);

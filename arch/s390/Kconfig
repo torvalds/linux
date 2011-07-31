@@ -40,9 +40,6 @@ config ARCH_HAS_ILOG2_U64
 config GENERIC_HWEIGHT
 	def_bool y
 
-config GENERIC_TIME
-	def_bool y
-
 config GENERIC_TIME_VSYSCALL
 	def_bool y
 
@@ -53,6 +50,9 @@ config GENERIC_BUG
 	bool
 	depends on BUG
 	default y
+
+config GENERIC_BUG_RELATIVE_POINTERS
+	def_bool y
 
 config NO_IOMEM
 	def_bool y
@@ -87,6 +87,7 @@ config S390
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_DEFAULT_NO_SPIN_MUTEXES
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
@@ -95,6 +96,38 @@ config S390
 	select HAVE_ARCH_TRACEHOOK
 	select INIT_ALL_POSSIBLE
 	select HAVE_PERF_EVENTS
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_BZIP2
+	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_LZO
+	select ARCH_INLINE_SPIN_TRYLOCK
+	select ARCH_INLINE_SPIN_TRYLOCK_BH
+	select ARCH_INLINE_SPIN_LOCK
+	select ARCH_INLINE_SPIN_LOCK_BH
+	select ARCH_INLINE_SPIN_LOCK_IRQ
+	select ARCH_INLINE_SPIN_LOCK_IRQSAVE
+	select ARCH_INLINE_SPIN_UNLOCK
+	select ARCH_INLINE_SPIN_UNLOCK_BH
+	select ARCH_INLINE_SPIN_UNLOCK_IRQ
+	select ARCH_INLINE_SPIN_UNLOCK_IRQRESTORE
+	select ARCH_INLINE_READ_TRYLOCK
+	select ARCH_INLINE_READ_LOCK
+	select ARCH_INLINE_READ_LOCK_BH
+	select ARCH_INLINE_READ_LOCK_IRQ
+	select ARCH_INLINE_READ_LOCK_IRQSAVE
+	select ARCH_INLINE_READ_UNLOCK
+	select ARCH_INLINE_READ_UNLOCK_BH
+	select ARCH_INLINE_READ_UNLOCK_IRQ
+	select ARCH_INLINE_READ_UNLOCK_IRQRESTORE
+	select ARCH_INLINE_WRITE_TRYLOCK
+	select ARCH_INLINE_WRITE_LOCK
+	select ARCH_INLINE_WRITE_LOCK_BH
+	select ARCH_INLINE_WRITE_LOCK_IRQ
+	select ARCH_INLINE_WRITE_LOCK_IRQSAVE
+	select ARCH_INLINE_WRITE_UNLOCK
+	select ARCH_INLINE_WRITE_UNLOCK_BH
+	select ARCH_INLINE_WRITE_UNLOCK_IRQ
+	select ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE
 
 config SCHED_OMIT_FRAME_POINTER
 	bool
@@ -192,23 +225,8 @@ config AUDIT_ARCH
 	bool
 	default y
 
-config S390_SWITCH_AMODE
-	bool "Switch kernel/user addressing modes"
-	help
-	  This option allows to switch the addressing modes of kernel and user
-	  space. The kernel parameter switch_amode=on will enable this feature,
-	  default is disabled. Enabling this (via kernel parameter) on machines
-	  earlier than IBM System z9-109 EC/BC will reduce system performance.
-
-	  Note that this option will also be selected by selecting the execute
-	  protection option below. Enabling the execute protection via the
-	  noexec kernel parameter will also switch the addressing modes,
-	  independent of the switch_amode kernel parameter.
-
-
 config S390_EXEC_PROTECT
 	bool "Data execute protection"
-	select S390_SWITCH_AMODE
 	help
 	  This option allows to enable a buffer overflow protection for user
 	  space programs and it also selects the addressing mode option above.
@@ -424,13 +442,6 @@ config FORCE_MAX_ZONEORDER
 	int
 	default "9"
 
-config PROCESS_DEBUG
-	bool "Show crashed user process info"
-	help
-	  Say Y to print all process fault locations to the console.  This is
-	  a debugging option; you probably do not want to set it unless you
-	  are an S390 port maintainer.
-
 config PFAULT
 	bool "Pseudo page fault support"
 	help
@@ -465,13 +476,6 @@ config CMM
 	  allows an external monitor to balance memory of many systems.
 	  Everybody who wants to run Linux under VM should select this
 	  option.
-
-config CMM_PROC
-	bool "/proc interface to cooperative memory management"
-	depends on CMM
-	help
-	  Select this option to enable the /proc interface to the
-	  cooperative memory management.
 
 config CMM_IUCV
 	bool "IUCV special message interface to cooperative memory management"

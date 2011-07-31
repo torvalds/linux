@@ -76,41 +76,4 @@
 	remap_pfn_range((vma), (addr), (pfn), PAGE_SIZE,		\
 			__pgprot(pgprot_val((prot)) | _PAGE_4K_PFN))
 
-
-#ifdef CONFIG_PPC_SUBPAGE_PROT
-/*
- * For the sub-page protection option, we extend the PGD with one of
- * these.  Basically we have a 3-level tree, with the top level being
- * the protptrs array.  To optimize speed and memory consumption when
- * only addresses < 4GB are being protected, pointers to the first
- * four pages of sub-page protection words are stored in the low_prot
- * array.
- * Each page of sub-page protection words protects 1GB (4 bytes
- * protects 64k).  For the 3-level tree, each page of pointers then
- * protects 8TB.
- */
-struct subpage_prot_table {
-	unsigned long maxaddr;	/* only addresses < this are protected */
-	unsigned int **protptrs[2];
-	unsigned int *low_prot[4];
-};
-
-#undef PGD_TABLE_SIZE
-#define PGD_TABLE_SIZE		((sizeof(pgd_t) << PGD_INDEX_SIZE) + \
-				 sizeof(struct subpage_prot_table))
-
-#define SBP_L1_BITS		(PAGE_SHIFT - 2)
-#define SBP_L2_BITS		(PAGE_SHIFT - 3)
-#define SBP_L1_COUNT		(1 << SBP_L1_BITS)
-#define SBP_L2_COUNT		(1 << SBP_L2_BITS)
-#define SBP_L2_SHIFT		(PAGE_SHIFT + SBP_L1_BITS)
-#define SBP_L3_SHIFT		(SBP_L2_SHIFT + SBP_L2_BITS)
-
-extern void subpage_prot_free(pgd_t *pgd);
-
-static inline struct subpage_prot_table *pgd_subpage_prot(pgd_t *pgd)
-{
-	return (struct subpage_prot_table *)(pgd + PTRS_PER_PGD);
-}
-#endif /* CONFIG_PPC_SUBPAGE_PROT */
 #endif	/* __ASSEMBLY__ */

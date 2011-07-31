@@ -29,6 +29,7 @@
 #include <linux/fb.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <video/edid.h>
 #ifdef CONFIG_PPC_OF
 #include <asm/prom.h>
@@ -970,6 +971,99 @@ void fb_edid_to_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 		specs->misc &= ~FB_MISC_1ST_DETAIL;
 
 	DPRINTK("========================================\n");
+}
+
+void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
+{
+	unsigned char *block;
+	unsigned char *dtd_block;
+	struct fb_videomode *mode, *m;
+	int num = 0, i, first = 1;
+
+	if (edid == NULL)
+		return;
+
+	if (!edid_checksum(edid))
+		return;
+
+	if (edid[0] != 0x2)
+		return;
+
+	mode = kzalloc(50 * sizeof(struct fb_videomode), GFP_KERNEL);
+	if (mode == NULL)
+		return;
+
+	block = edid + 0x4;
+	dtd_block = edid + edid[0x2];
+
+	DPRINTK("  Short Video Modes\n");
+	while (block < dtd_block) {
+		unsigned tag = block[0] >> 5;
+		unsigned len = block[0] & 0x1f;
+
+		block++;
+		if (dtd_block - block < len)
+			break;
+
+		if (tag == 0x2) {
+			for (i = 0; i < len; i++) {
+				unsigned m = block[i];
+				if (m > 0 && m < CEA_MODEDB_SIZE) {
+					memcpy(&mode[num], &cea_modes[m],
+					       sizeof(mode[num]));
+					DPRINTK("  %d: %dx%d @ %d\n", m,
+						cea_modes[m].xres, cea_modes[m].yres,
+						cea_modes[m].refresh);
+
+					num++;
+				}
+			}
+		} else if (tag == 0x3) {
+			if (len >= 3) {
+				u32 ieee_reg = block[0] | (block[1] << 8) |
+					(block[2] << 16);
+				if (ieee_reg == 0x000c03)
+					specs->misc |= FB_MISC_HDMI;
+			}
+		}
+
+		block += len;
+	}
+
+	DPRINTK("  Extended Detailed Timings\n");
+
+	for (i = 0; i < (128 - edid[0x2]) / DETAILED_TIMING_DESCRIPTION_SIZE;
+	     i++, dtd_block += DETAILED_TIMING_DESCRIPTION_SIZE) {
+		if (!(dtd_block[0] == 0x00 && dtd_block[1] == 0x00)) {
+			get_detailed_timing(dtd_block, &mode[num]);
+			if (first) {
+			        mode[num].flag |= FB_MODE_IS_FIRST;
+				first = 0;
+			}
+			num++;
+		}
+	}
+
+	/* Yikes, EDID data is totally useless */
+	if (!num) {
+		kfree(mode);
+		return;
+	}
+
+	m = kzalloc((specs->modedb_len + num) *
+		       sizeof(struct fb_videomode), GFP_KERNEL);
+
+	if (!m) {
+		kfree(mode);
+		return;
+	}
+
+	memmove(m, specs->modedb, specs->modedb_len * sizeof(struct fb_videomode));
+	memmove(m + specs->modedb_len, mode, num * sizeof(struct fb_videomode));
+	kfree(mode);
+	kfree(specs->modedb);
+	specs->modedb = m;
+	specs->modedb_len = specs->modedb_len + num;
 }
 
 /*

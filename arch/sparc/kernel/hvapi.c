@@ -5,7 +5,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 
 #include <asm/hypervisor.h>
 #include <asm/oplib.h>

@@ -16,7 +16,7 @@
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/smp_lock.h>
+
 #include <asm/uaccess.h>
 #include "mem_user.h"
 
@@ -46,8 +46,7 @@ static ssize_t mmapper_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static int mmapper_ioctl(struct inode *inode, struct file *file,
-			 unsigned int cmd, unsigned long arg)
+static long mmapper_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	return -ENOIOCTLCMD;
 }
@@ -78,7 +77,6 @@ out:
 
 static int mmapper_open(struct inode *inode, struct file *file)
 {
-	cycle_kernel_lock();
 	return 0;
 }
 
@@ -91,7 +89,7 @@ static const struct file_operations mmapper_fops = {
 	.owner		= THIS_MODULE,
 	.read		= mmapper_read,
 	.write		= mmapper_write,
-	.ioctl		= mmapper_ioctl,
+	.unlocked_ioctl	= mmapper_ioctl,
 	.mmap		= mmapper_mmap,
 	.open		= mmapper_open,
 	.release	= mmapper_release,
@@ -115,18 +113,16 @@ static int __init mmapper_init(void)
 	v_buf = (char *) find_iomem("mmapper", &mmapper_size);
 	if (mmapper_size == 0) {
 		printk(KERN_ERR "mmapper_init - find_iomem failed\n");
-		goto out;
+		return -ENODEV;
 	}
+	p_buf = __pa(v_buf);
 
 	err = misc_register(&mmapper_dev);
 	if (err) {
 		printk(KERN_ERR "mmapper - misc_register failed, err = %d\n",
 		       err);
-		goto out;
+		return err;;
 	}
-
-	p_buf = __pa(v_buf);
-out:
 	return 0;
 }
 

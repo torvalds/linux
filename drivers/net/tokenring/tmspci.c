@@ -57,7 +57,7 @@ static struct card_info card_info_table[] = {
 	{ {0x03, 0x01}, "3Com Token Link Velocity"},
 };
 
-static struct pci_device_id tmspci_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(tmspci_pci_tbl) = {
 	{ PCI_VENDOR_ID_COMPAQ, PCI_DEVICE_ID_COMPAQ_TOKENRING, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_SYSKONNECT, PCI_DEVICE_ID_SYSKONNECT_TR, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1 },
 	{ PCI_VENDOR_ID_TCONRAD, PCI_DEVICE_ID_TCONRAD_TOKENRING, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2 },

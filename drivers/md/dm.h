@@ -59,12 +59,19 @@ void dm_table_postsuspend_targets(struct dm_table *t);
 int dm_table_resume_targets(struct dm_table *t);
 int dm_table_any_congested(struct dm_table *t, int bdi_bits);
 int dm_table_any_busy_target(struct dm_table *t);
-int dm_table_set_type(struct dm_table *t);
 unsigned dm_table_get_type(struct dm_table *t);
 bool dm_table_request_based(struct dm_table *t);
+bool dm_table_supports_discards(struct dm_table *t);
 int dm_table_alloc_md_mempools(struct dm_table *t);
 void dm_table_free_md_mempools(struct dm_table *t);
 struct dm_md_mempools *dm_table_get_md_mempools(struct dm_table *t);
+
+void dm_lock_md_type(struct mapped_device *md);
+void dm_unlock_md_type(struct mapped_device *md);
+void dm_set_md_type(struct mapped_device *md, unsigned type);
+unsigned dm_get_md_type(struct mapped_device *md);
+
+int dm_setup_md_queue(struct mapped_device *md);
 
 /*
  * To check the return value from dm_table_find_target().
@@ -87,6 +94,16 @@ int dm_target_iterate(void (*iter_func)(struct target_type *tt,
 					void *param), void *param);
 
 int dm_split_args(int *argc, char ***argvp, char *input);
+
+/*
+ * Is this mapped_device being deleted?
+ */
+int dm_deleting_md(struct mapped_device *md);
+
+/*
+ * Is this mapped_device suspended?
+ */
+int dm_suspended_md(struct mapped_device *md);
 
 /*
  * The device-mapper can be driven through one of two interfaces;
@@ -112,11 +129,19 @@ void dm_linear_exit(void);
 int dm_stripe_init(void);
 void dm_stripe_exit(void);
 
+/*
+ * mapped_device operations
+ */
+void dm_destroy(struct mapped_device *md);
+void dm_destroy_immediate(struct mapped_device *md);
 int dm_open_count(struct mapped_device *md);
 int dm_lock_for_deletion(struct mapped_device *md);
 
-void dm_kobject_uevent(struct mapped_device *md, enum kobject_action action,
-		       unsigned cookie);
+int dm_kobject_uevent(struct mapped_device *md, enum kobject_action action,
+		      unsigned cookie);
+
+int dm_io_init(void);
+void dm_io_exit(void);
 
 int dm_kcopyd_init(void);
 void dm_kcopyd_exit(void);

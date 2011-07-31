@@ -94,6 +94,7 @@ static const char version[] = "NET3 PLIP version 2.4-parport gniibe@mri.co.jp\n"
 #include <linux/fcntl.h>
 #include <linux/interrupt.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/if_ether.h>
 #include <linux/in.h>
 #include <linux/errno.h>
@@ -372,8 +373,8 @@ plip_bh(struct work_struct *work)
 
 	nl->is_deferred = 0;
 	f = connection_state_table[nl->connection];
-	if ((r = (*f)(nl->dev, nl, snd, rcv)) != OK
-	    && (r = plip_bh_timeout_error(nl->dev, nl, snd, rcv, r)) != OK) {
+	if ((r = (*f)(nl->dev, nl, snd, rcv)) != OK &&
+	    (r = plip_bh_timeout_error(nl->dev, nl, snd, rcv, r)) != OK) {
 		nl->is_deferred = 1;
 		schedule_delayed_work(&nl->deferred, 1);
 	}
@@ -416,9 +417,8 @@ plip_bh_timeout_error(struct net_device *dev, struct net_local *nl,
 
 		if (error != ERROR) { /* Timeout */
 			nl->timeout_count++;
-			if ((error == HS_TIMEOUT
-			     && nl->timeout_count <= 10)
-			    || nl->timeout_count <= 3) {
+			if ((error == HS_TIMEOUT && nl->timeout_count <= 10) ||
+			    nl->timeout_count <= 3) {
 				spin_unlock_irq(&nl->lock);
 				/* Try again later */
 				return TIMEOUT;
@@ -624,8 +624,8 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 		if (plip_receive(nibble_timeout, dev,
 				 &rcv->nibble, &rcv->length.b.msb))
 			return TIMEOUT;
-		if (rcv->length.h > dev->mtu + dev->hard_header_len
-		    || rcv->length.h < 8) {
+		if (rcv->length.h > dev->mtu + dev->hard_header_len ||
+		    rcv->length.h < 8) {
 			printk(KERN_WARNING "%s: bogus packet size %d.\n", dev->name, rcv->length.h);
 			return ERROR;
 		}
@@ -979,7 +979,6 @@ plip_tx_packet(struct sk_buff *skb, struct net_device *dev)
 		printk(KERN_DEBUG "%s: send request\n", dev->name);
 
 	spin_lock_irq(&nl->lock);
-	dev->trans_start = jiffies;
 	snd->skb = skb;
 	snd->length.h = skb->len;
 	snd->state = PLIP_PK_TRIGGER;
@@ -1192,8 +1191,6 @@ plip_wakeup(void *handle)
 		/* Clear the data port. */
 		write_data (dev, 0x00);
 	}
-
-	return;
 }
 
 static int
@@ -1309,7 +1306,6 @@ err_parport_unregister:
 	parport_unregister_device(nl->pardev);
 err_free_dev:
 	free_netdev(dev);
-	return;
 }
 
 /* plip_detach() is called (by the parport code) when a port is

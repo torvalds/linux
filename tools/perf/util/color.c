@@ -166,6 +166,31 @@ int perf_color_default_config(const char *var, const char *value, void *cb)
 	return perf_default_config(var, value, cb);
 }
 
+static int __color_vsnprintf(char *bf, size_t size, const char *color,
+			     const char *fmt, va_list args, const char *trail)
+{
+	int r = 0;
+
+	/*
+	 * Auto-detect:
+	 */
+	if (perf_use_color_default < 0) {
+		if (isatty(1) || pager_in_use())
+			perf_use_color_default = 1;
+		else
+			perf_use_color_default = 0;
+	}
+
+	if (perf_use_color_default && *color)
+		r += snprintf(bf, size, "%s", color);
+	r += vsnprintf(bf + r, size - r, fmt, args);
+	if (perf_use_color_default && *color)
+		r += snprintf(bf + r, size - r, "%s", PERF_COLOR_RESET);
+	if (trail)
+		r += snprintf(bf + r, size - r, "%s", trail);
+	return r;
+}
+
 static int __color_vfprintf(FILE *fp, const char *color, const char *fmt,
 		va_list args, const char *trail)
 {
@@ -191,11 +216,28 @@ static int __color_vfprintf(FILE *fp, const char *color, const char *fmt,
 	return r;
 }
 
+int color_vsnprintf(char *bf, size_t size, const char *color,
+		    const char *fmt, va_list args)
+{
+	return __color_vsnprintf(bf, size, color, fmt, args, NULL);
+}
+
 int color_vfprintf(FILE *fp, const char *color, const char *fmt, va_list args)
 {
 	return __color_vfprintf(fp, color, fmt, args, NULL);
 }
 
+int color_snprintf(char *bf, size_t size, const char *color,
+		   const char *fmt, ...)
+{
+	va_list args;
+	int r;
+
+	va_start(args, fmt);
+	r = color_vsnprintf(bf, size, color, fmt, args);
+	va_end(args);
+	return r;
+}
 
 int color_fprintf(FILE *fp, const char *color, const char *fmt, ...)
 {
@@ -273,4 +315,10 @@ int percent_color_fprintf(FILE *fp, const char *fmt, double percent)
 	r = color_fprintf(fp, color, fmt, percent);
 
 	return r;
+}
+
+int percent_color_snprintf(char *bf, size_t size, const char *fmt, double percent)
+{
+	const char *color = get_percent_color(percent);
+	return color_snprintf(bf, size, color, fmt, percent);
 }

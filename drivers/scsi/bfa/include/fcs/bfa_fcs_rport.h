@@ -58,6 +58,7 @@ struct bfa_fcs_rport_s {
 	u16        reply_oxid;	/*  OX_ID of inbound requests */
 	enum fc_cos        fc_cos;	/*  FC classes of service supp */
 	bfa_boolean_t   cisc;	/*  CISC capable device */
+	bfa_boolean_t   prlo;   /*  processing prlo or LOGO */
 	wwn_t           pwwn;	/*  port wwn of rport */
 	wwn_t           nwwn;	/*  node wwn of rport */
 	struct bfa_rport_symname_s psym_name; /*  port symbolic name  */

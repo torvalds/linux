@@ -2,8 +2,11 @@ config PPC_PSERIES
 	depends on PPC64 && PPC_BOOK3S
 	bool "IBM pSeries & new (POWER5-based) iSeries"
 	select MPIC
+	select PCI_MSI
+	select XICS
 	select PPC_I8259
 	select PPC_RTAS
+	select PPC_RTAS_DAEMON
 	select RTAS_ERROR_LOGGING
 	select PPC_UDBG_16550
 	select PPC_NATIVE
@@ -59,7 +62,7 @@ config PPC_SMLPAR
 
 config CMM
 	tristate "Collaborative memory management"
-	depends on PPC_SMLPAR && !CRASH_DUMP
+	depends on PPC_SMLPAR
 	default y
 	help
 	  Select this option, if you want to enable the kernel interface

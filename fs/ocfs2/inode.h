@@ -70,6 +70,8 @@ struct ocfs2_inode_info
 	/* Only valid if the inode is the dir. */
 	u32				ip_last_used_slot;
 	u64				ip_last_used_group;
+
+	struct ocfs2_alloc_reservation	ip_la_data_resv;
 };
 
 /*
@@ -100,6 +102,8 @@ struct ocfs2_inode_info
 #define OCFS2_INODE_MAYBE_ORPHANED	0x00000020
 /* Does someone have the file open O_DIRECT */
 #define OCFS2_INODE_OPEN_DIRECT		0x00000040
+/* Tell the inode wipe code it's not in orphan dir */
+#define OCFS2_INODE_SKIP_ORPHAN_DIR     0x00000080
 
 static inline struct ocfs2_inode_info *OCFS2_I(struct inode *inode)
 {
@@ -119,9 +123,8 @@ static inline struct ocfs2_caching_info *INODE_CACHE(struct inode *inode)
 	return &OCFS2_I(inode)->ip_metadata_cache;
 }
 
-void ocfs2_clear_inode(struct inode *inode);
-void ocfs2_delete_inode(struct inode *inode);
-void ocfs2_drop_inode(struct inode *inode);
+void ocfs2_evict_inode(struct inode *inode);
+int ocfs2_drop_inode(struct inode *inode);
 
 /* Flags for ocfs2_iget() */
 #define OCFS2_FI_FLAG_SYSFILE		0x1

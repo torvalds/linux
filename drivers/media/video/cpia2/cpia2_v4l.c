@@ -38,16 +38,11 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/videodev.h>
+#include <linux/stringify.h>
 #include <media/v4l2-ioctl.h>
 
 #include "cpia2.h"
 #include "cpia2dev.h"
-
-
-//#define _CPIA2_DEBUG_
-
-#define MAKE_STRING_1(x)	#x
-#define MAKE_STRING(x)	MAKE_STRING_1(x)
 
 static int video_nr = -1;
 module_param(video_nr, int, 0);
@@ -60,26 +55,26 @@ MODULE_PARM_DESC(buffer_size, "Size for each frame buffer in bytes (default 68k)
 static int num_buffers = 3;
 module_param(num_buffers, int, 0);
 MODULE_PARM_DESC(num_buffers, "Number of frame buffers (1-"
-		 MAKE_STRING(VIDEO_MAX_FRAME) ", default 3)");
+		 __stringify(VIDEO_MAX_FRAME) ", default 3)");
 
 static int alternate = DEFAULT_ALT;
 module_param(alternate, int, 0);
-MODULE_PARM_DESC(alternate, "USB Alternate (" MAKE_STRING(USBIF_ISO_1) "-"
-		 MAKE_STRING(USBIF_ISO_6) ", default "
-		 MAKE_STRING(DEFAULT_ALT) ")");
+MODULE_PARM_DESC(alternate, "USB Alternate (" __stringify(USBIF_ISO_1) "-"
+		 __stringify(USBIF_ISO_6) ", default "
+		 __stringify(DEFAULT_ALT) ")");
 
 static int flicker_freq = 60;
 module_param(flicker_freq, int, 0);
-MODULE_PARM_DESC(flicker_freq, "Flicker frequency (" MAKE_STRING(50) "or"
-		 MAKE_STRING(60) ", default "
-		 MAKE_STRING(60) ")");
+MODULE_PARM_DESC(flicker_freq, "Flicker frequency (" __stringify(50) "or"
+		 __stringify(60) ", default "
+		 __stringify(60) ")");
 
 static int flicker_mode = NEVER_FLICKER;
 module_param(flicker_mode, int, 0);
 MODULE_PARM_DESC(flicker_mode,
-		 "Flicker supression (" MAKE_STRING(NEVER_FLICKER) "or"
-		 MAKE_STRING(ANTI_FLICKER_ON) ", default "
-		 MAKE_STRING(NEVER_FLICKER) ")");
+		 "Flicker supression (" __stringify(NEVER_FLICKER) "or"
+		 __stringify(ANTI_FLICKER_ON) ", default "
+		 __stringify(NEVER_FLICKER) ")");
 
 MODULE_AUTHOR("Steve Miller (STMicroelectronics) <steve.miller@st.com>");
 MODULE_DESCRIPTION("V4L-driver for STMicroelectronics CPiA2 based cameras");
@@ -329,7 +324,7 @@ static int cpia2_close(struct file *file)
 	{
 		if(fh->mmapped)
 			cam->mmapped = 0;
-		v4l2_prio_close(&cam->prio,&fh->prio);
+		v4l2_prio_close(&cam->prio, fh->prio);
 		file->private_data = NULL;
 		kfree(fh);
 	}
@@ -1597,7 +1592,7 @@ static long cpia2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_S_FMT:
 	{
 		struct cpia2_fh *fh = file->private_data;
-		retval = v4l2_prio_check(&cam->prio, &fh->prio);
+		retval = v4l2_prio_check(&cam->prio, fh->prio);
 		if(retval) {
 			mutex_unlock(&cam->busy_lock);
 			return retval;
@@ -1926,7 +1921,6 @@ static const struct v4l2_file_operations fops_template = {
 static struct video_device cpia2_template = {
 	/* I could not find any place for the old .initialize initializer?? */
 	.name=		"CPiA2 Camera",
-	.minor=		-1,
 	.fops=		&fops_template,
 	.release=	video_device_release,
 };
@@ -1967,9 +1961,9 @@ void cpia2_unregister_camera(struct camera_data *cam)
 	if (!cam->open_count) {
 		video_unregister_device(cam->vdev);
 	} else {
-		LOG("/dev/video%d removed while open, "
-		    "deferring video_unregister_device\n",
-		    cam->vdev->num);
+		LOG("%s removed while open, deferring "
+		    "video_unregister_device\n",
+		    video_device_node_name(cam->vdev));
 	}
 }
 

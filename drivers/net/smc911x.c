@@ -59,7 +59,6 @@ static const char version[] =
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/errno.h>
@@ -383,7 +382,7 @@ static inline void	 smc911x_rcv(struct net_device *dev)
 	DBG(SMC_DEBUG_FUNC | SMC_DEBUG_RX, "%s: --> %s\n",
 		dev->name, __func__);
 	status = SMC_GET_RX_STS_FIFO(lp);
-	DBG(SMC_DEBUG_RX, "%s: Rx pkt len %d status 0x%08x \n",
+	DBG(SMC_DEBUG_RX, "%s: Rx pkt len %d status 0x%08x\n",
 		dev->name, (status & 0x3fff0000) >> 16, status & 0xc000ffff);
 	pkt_len = (status & RX_STS_PKT_LEN_) >> 16;
 	if (status & RX_STS_ES_) {
@@ -1136,7 +1135,7 @@ static irqreturn_t smc911x_interrupt(int irq, void *dev_id)
 		}
 #else
 		if (status & INT_STS_TSFL_) {
-			DBG(SMC_DEBUG_TX, "%s: TX status FIFO limit (%d) irq \n", dev->name, );
+			DBG(SMC_DEBUG_TX, "%s: TX status FIFO limit (%d) irq\n", dev->name, );
 			smc911x_tx(dev);
 			SMC_ACK_INT(lp, INT_STS_TSFL_);
 		}
@@ -1275,7 +1274,7 @@ static void smc911x_timeout(struct net_device *dev)
 	status = SMC_GET_INT(lp);
 	mask = SMC_GET_INT_EN(lp);
 	spin_unlock_irqrestore(&lp->lock, flags);
-	DBG(SMC_DEBUG_MISC, "%s: INT 0x%02x MASK 0x%02x \n",
+	DBG(SMC_DEBUG_MISC, "%s: INT 0x%02x MASK 0x%02x\n",
 		dev->name, status, mask);
 
 	/* Dump the current TX FIFO contents and restart */
@@ -1290,7 +1289,7 @@ static void smc911x_timeout(struct net_device *dev)
 		schedule_work(&lp->phy_configure);
 
 	/* We can accept TX packets again */
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 }
 
@@ -1323,7 +1322,7 @@ static void smc911x_set_multicast_list(struct net_device *dev)
 	 * I don't need to zero the multicast table, because the flag is
 	 * checked before the table is
 	 */
-	else if (dev->flags & IFF_ALLMULTI || dev->mc_count > 16) {
+	else if (dev->flags & IFF_ALLMULTI || netdev_mc_count(dev) > 16) {
 		DBG(SMC_DEBUG_MISC, "%s: RCR_ALMUL\n", dev->name);
 		mcr |= MAC_CR_MCPAS_;
 	}
@@ -1340,9 +1339,8 @@ static void smc911x_set_multicast_list(struct net_device *dev)
 	 * the number of the 32 bit register, while the low 5 bits are the bit
 	 * within that register.
 	 */
-	else if (dev->mc_count)  {
-		int i;
-		struct dev_mc_list *cur_addr;
+	else if (!netdev_mc_empty(dev)) {
+		struct netdev_hw_addr *ha;
 
 		/* Set the Hash perfec mode */
 		mcr |= MAC_CR_HPFILT_;
@@ -1350,20 +1348,16 @@ static void smc911x_set_multicast_list(struct net_device *dev)
 		/* start with a table of all zeros: reject all */
 		memset(multicast_table, 0, sizeof(multicast_table));
 
-		cur_addr = dev->mc_list;
-		for (i = 0; i < dev->mc_count; i++, cur_addr = cur_addr->next) {
+		netdev_for_each_mc_addr(ha, dev) {
 			u32 position;
 
-			/* do we have a pointer here? */
-			if (!cur_addr)
-				break;
 			/* make sure this is a multicast address -
 				shouldn't this be a given if we have it here ? */
-			if (!(*cur_addr->dmi_addr & 1))
-				 continue;
+			if (!(*ha->addr & 1))
+				continue;
 
 			/* upper 6 bits are used as hash index */
-			position = ether_crc(ETH_ALEN, cur_addr->dmi_addr)>>26;
+			position = ether_crc(ETH_ALEN, ha->addr)>>26;
 
 			multicast_table[position>>5] |= 1 << (position&0x1f);
 		}
@@ -1984,7 +1978,7 @@ static int __devinit smc911x_probe(struct net_device *dev)
 #endif
 
 	/* Grab the IRQ */
-	retval = request_irq(dev->irq, &smc911x_interrupt,
+	retval = request_irq(dev->irq, smc911x_interrupt,
 			     irq_flags, dev->name, dev);
 	if (retval)
 		goto err_out;
@@ -2017,10 +2011,8 @@ static int __devinit smc911x_probe(struct net_device *dev)
 					"set using ifconfig\n", dev->name);
 		} else {
 			/* Print the Ethernet address */
-			printk("%s: Ethernet addr: ", dev->name);
-			for (i = 0; i < 5; i++)
-				printk("%2.2x:", dev->dev_addr[i]);
-			printk("%2.2x\n", dev->dev_addr[5]);
+			printk("%s: Ethernet addr: %pM\n",
+				dev->name, dev->dev_addr);
 		}
 
 		if (lp->phy_type == 0) {

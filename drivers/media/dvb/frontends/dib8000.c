@@ -8,6 +8,7 @@
  *  published by the Free Software Foundation, version 2.
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/i2c.h>
 #include "dvb_math.h"
 
@@ -27,18 +28,6 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "turn on debugging (default: 0)");
 
 #define dprintk(args...) do { if (debug) { printk(KERN_DEBUG "DiB8000: "); printk(args); printk("\n"); } } while (0)
-
-enum frontend_tune_state {
-	CT_AGC_START = 20,
-	CT_AGC_STEP_0,
-	CT_AGC_STEP_1,
-	CT_AGC_STEP_2,
-	CT_AGC_STEP_3,
-	CT_AGC_STEP_4,
-	CT_AGC_STOP,
-
-	CT_DEMOD_START = 30,
-};
 
 #define FE_STATUS_TUNE_FAILED 0
 
@@ -133,104 +122,104 @@ static int dib8000_write_word(struct dib8000_state *state, u16 reg, u16 val)
 	return dib8000_i2c_write16(&state->i2c, reg, val);
 }
 
-const int16_t coeff_2k_sb_1seg_dqpsk[8] = {
+static const int16_t coeff_2k_sb_1seg_dqpsk[8] = {
 	(769 << 5) | 0x0a, (745 << 5) | 0x03, (595 << 5) | 0x0d, (769 << 5) | 0x0a, (920 << 5) | 0x09, (784 << 5) | 0x02, (519 << 5) | 0x0c,
 	    (920 << 5) | 0x09
 };
 
-const int16_t coeff_2k_sb_1seg[8] = {
+static const int16_t coeff_2k_sb_1seg[8] = {
 	(692 << 5) | 0x0b, (683 << 5) | 0x01, (519 << 5) | 0x09, (692 << 5) | 0x0b, 0 | 0x1f, 0 | 0x1f, 0 | 0x1f, 0 | 0x1f
 };
 
-const int16_t coeff_2k_sb_3seg_0dqpsk_1dqpsk[8] = {
+static const int16_t coeff_2k_sb_3seg_0dqpsk_1dqpsk[8] = {
 	(832 << 5) | 0x10, (912 << 5) | 0x05, (900 << 5) | 0x12, (832 << 5) | 0x10, (-931 << 5) | 0x0f, (912 << 5) | 0x04, (807 << 5) | 0x11,
 	    (-931 << 5) | 0x0f
 };
 
-const int16_t coeff_2k_sb_3seg_0dqpsk[8] = {
+static const int16_t coeff_2k_sb_3seg_0dqpsk[8] = {
 	(622 << 5) | 0x0c, (941 << 5) | 0x04, (796 << 5) | 0x10, (622 << 5) | 0x0c, (982 << 5) | 0x0c, (519 << 5) | 0x02, (572 << 5) | 0x0e,
 	    (982 << 5) | 0x0c
 };
 
-const int16_t coeff_2k_sb_3seg_1dqpsk[8] = {
+static const int16_t coeff_2k_sb_3seg_1dqpsk[8] = {
 	(699 << 5) | 0x14, (607 << 5) | 0x04, (944 << 5) | 0x13, (699 << 5) | 0x14, (-720 << 5) | 0x0d, (640 << 5) | 0x03, (866 << 5) | 0x12,
 	    (-720 << 5) | 0x0d
 };
 
-const int16_t coeff_2k_sb_3seg[8] = {
+static const int16_t coeff_2k_sb_3seg[8] = {
 	(664 << 5) | 0x0c, (925 << 5) | 0x03, (937 << 5) | 0x10, (664 << 5) | 0x0c, (-610 << 5) | 0x0a, (697 << 5) | 0x01, (836 << 5) | 0x0e,
 	    (-610 << 5) | 0x0a
 };
 
-const int16_t coeff_4k_sb_1seg_dqpsk[8] = {
+static const int16_t coeff_4k_sb_1seg_dqpsk[8] = {
 	(-955 << 5) | 0x0e, (687 << 5) | 0x04, (818 << 5) | 0x10, (-955 << 5) | 0x0e, (-922 << 5) | 0x0d, (750 << 5) | 0x03, (665 << 5) | 0x0f,
 	    (-922 << 5) | 0x0d
 };
 
-const int16_t coeff_4k_sb_1seg[8] = {
+static const int16_t coeff_4k_sb_1seg[8] = {
 	(638 << 5) | 0x0d, (683 << 5) | 0x02, (638 << 5) | 0x0d, (638 << 5) | 0x0d, (-655 << 5) | 0x0a, (517 << 5) | 0x00, (698 << 5) | 0x0d,
 	    (-655 << 5) | 0x0a
 };
 
-const int16_t coeff_4k_sb_3seg_0dqpsk_1dqpsk[8] = {
+static const int16_t coeff_4k_sb_3seg_0dqpsk_1dqpsk[8] = {
 	(-707 << 5) | 0x14, (910 << 5) | 0x06, (889 << 5) | 0x16, (-707 << 5) | 0x14, (-958 << 5) | 0x13, (993 << 5) | 0x05, (523 << 5) | 0x14,
 	    (-958 << 5) | 0x13
 };
 
-const int16_t coeff_4k_sb_3seg_0dqpsk[8] = {
+static const int16_t coeff_4k_sb_3seg_0dqpsk[8] = {
 	(-723 << 5) | 0x13, (910 << 5) | 0x05, (777 << 5) | 0x14, (-723 << 5) | 0x13, (-568 << 5) | 0x0f, (547 << 5) | 0x03, (696 << 5) | 0x12,
 	    (-568 << 5) | 0x0f
 };
 
-const int16_t coeff_4k_sb_3seg_1dqpsk[8] = {
+static const int16_t coeff_4k_sb_3seg_1dqpsk[8] = {
 	(-940 << 5) | 0x15, (607 << 5) | 0x05, (915 << 5) | 0x16, (-940 << 5) | 0x15, (-848 << 5) | 0x13, (683 << 5) | 0x04, (543 << 5) | 0x14,
 	    (-848 << 5) | 0x13
 };
 
-const int16_t coeff_4k_sb_3seg[8] = {
+static const int16_t coeff_4k_sb_3seg[8] = {
 	(612 << 5) | 0x12, (910 << 5) | 0x04, (864 << 5) | 0x14, (612 << 5) | 0x12, (-869 << 5) | 0x13, (683 << 5) | 0x02, (869 << 5) | 0x12,
 	    (-869 << 5) | 0x13
 };
 
-const int16_t coeff_8k_sb_1seg_dqpsk[8] = {
+static const int16_t coeff_8k_sb_1seg_dqpsk[8] = {
 	(-835 << 5) | 0x12, (684 << 5) | 0x05, (735 << 5) | 0x14, (-835 << 5) | 0x12, (-598 << 5) | 0x10, (781 << 5) | 0x04, (739 << 5) | 0x13,
 	    (-598 << 5) | 0x10
 };
 
-const int16_t coeff_8k_sb_1seg[8] = {
+static const int16_t coeff_8k_sb_1seg[8] = {
 	(673 << 5) | 0x0f, (683 << 5) | 0x03, (808 << 5) | 0x12, (673 << 5) | 0x0f, (585 << 5) | 0x0f, (512 << 5) | 0x01, (780 << 5) | 0x0f,
 	    (585 << 5) | 0x0f
 };
 
-const int16_t coeff_8k_sb_3seg_0dqpsk_1dqpsk[8] = {
+static const int16_t coeff_8k_sb_3seg_0dqpsk_1dqpsk[8] = {
 	(863 << 5) | 0x17, (930 << 5) | 0x07, (878 << 5) | 0x19, (863 << 5) | 0x17, (0 << 5) | 0x14, (521 << 5) | 0x05, (980 << 5) | 0x18,
 	    (0 << 5) | 0x14
 };
 
-const int16_t coeff_8k_sb_3seg_0dqpsk[8] = {
+static const int16_t coeff_8k_sb_3seg_0dqpsk[8] = {
 	(-924 << 5) | 0x17, (910 << 5) | 0x06, (774 << 5) | 0x17, (-924 << 5) | 0x17, (-877 << 5) | 0x15, (565 << 5) | 0x04, (553 << 5) | 0x15,
 	    (-877 << 5) | 0x15
 };
 
-const int16_t coeff_8k_sb_3seg_1dqpsk[8] = {
+static const int16_t coeff_8k_sb_3seg_1dqpsk[8] = {
 	(-921 << 5) | 0x19, (607 << 5) | 0x06, (881 << 5) | 0x19, (-921 << 5) | 0x19, (-921 << 5) | 0x14, (713 << 5) | 0x05, (1018 << 5) | 0x18,
 	    (-921 << 5) | 0x14
 };
 
-const int16_t coeff_8k_sb_3seg[8] = {
+static const int16_t coeff_8k_sb_3seg[8] = {
 	(514 << 5) | 0x14, (910 << 5) | 0x05, (861 << 5) | 0x17, (514 << 5) | 0x14, (690 << 5) | 0x14, (683 << 5) | 0x03, (662 << 5) | 0x15,
 	    (690 << 5) | 0x14
 };
 
-const int16_t ana_fe_coeff_3seg[24] = {
+static const int16_t ana_fe_coeff_3seg[24] = {
 	81, 80, 78, 74, 68, 61, 54, 45, 37, 28, 19, 11, 4, 1022, 1017, 1013, 1010, 1008, 1008, 1008, 1008, 1010, 1014, 1017
 };
 
-const int16_t ana_fe_coeff_1seg[24] = {
+static const int16_t ana_fe_coeff_1seg[24] = {
 	249, 226, 164, 82, 5, 981, 970, 988, 1018, 20, 31, 26, 8, 1012, 1000, 1018, 1012, 8, 15, 14, 9, 3, 1017, 1003
 };
 
-const int16_t ana_fe_coeff_13seg[24] = {
+static const int16_t ana_fe_coeff_13seg[24] = {
 	396, 305, 105, -51, -77, -12, 41, 31, -11, -30, -11, 14, 15, -2, -13, -7, 5, 8, 1, -6, -7, -3, 0, 1
 };
 
@@ -852,6 +841,14 @@ static int dib8000_set_agc_config(struct dib8000_state *state, u8 band)
 	return 0;
 }
 
+void dib8000_pwm_agc_reset(struct dvb_frontend *fe)
+{
+	struct dib8000_state *state = fe->demodulator_priv;
+	dib8000_set_adc_state(state, DIBX000_ADC_ON);
+	dib8000_set_agc_config(state, (unsigned char)(BAND_OF_FREQUENCY(fe->dtv_property_cache.frequency / 1000)));
+}
+EXPORT_SYMBOL(dib8000_pwm_agc_reset);
+
 static int dib8000_agc_soft_split(struct dib8000_state *state)
 {
 	u16 agc, split_offset;
@@ -939,6 +936,32 @@ static int dib8000_agc_startup(struct dvb_frontend *fe)
 
 }
 
+static const int32_t lut_1000ln_mant[] =
+{
+	908, 7003, 7090, 7170, 7244, 7313, 7377, 7438, 7495, 7549, 7600
+};
+
+int32_t dib8000_get_adc_power(struct dvb_frontend *fe, uint8_t mode)
+{
+    struct dib8000_state *state = fe->demodulator_priv;
+    uint32_t ix = 0, tmp_val = 0, exp = 0, mant = 0;
+    int32_t val;
+
+    val = dib8000_read32(state, 384);
+    /* mode = 1 : ln_agcpower calc using mant-exp conversion and mantis look up table */
+    if (mode) {
+	tmp_val = val;
+	while (tmp_val >>= 1)
+		exp++;
+	mant = (val * 1000 / (1<<exp));
+	ix = (uint8_t)((mant-1000)/100); /* index of the LUT */
+	val = (lut_1000ln_mant[ix] + 693*(exp-20) - 6908); /* 1000 * ln(adcpower_real) ; 693 = 1000ln(2) ; 6908 = 1000*ln(1000) ; 20 comes from adc_real = adc_pow_int / 2**20 */
+	val = (val*256)/1000;
+    }
+    return val;
+}
+EXPORT_SYMBOL(dib8000_get_adc_power);
+
 static void dib8000_update_timf(struct dib8000_state *state)
 {
 	u32 timf = state->timf = dib8000_read32(state, 435);
@@ -954,7 +977,7 @@ static void dib8000_set_channel(struct dib8000_state *state, u8 seq, u8 autosear
 	u8 guard, crate, constellation, timeI;
 	u8 permu_seg[] = { 6, 5, 7, 4, 8, 3, 9, 2, 10, 1, 11, 0, 12 };
 	u16 i, coeff[4], P_cfr_left_edge = 0, P_cfr_right_edge = 0, seg_mask13 = 0x1fff;	// All 13 segments enabled
-	const s16 *ncoeff, *ana_fe;
+	const s16 *ncoeff = NULL, *ana_fe;
 	u16 tmcc_pow = 0;
 	u16 coff_pow = 0x2800;
 	u16 init_prbs = 0xfff;
@@ -1401,10 +1424,9 @@ static void dib8000_set_channel(struct dib8000_state *state, u8 seq, u8 autosear
 			}
 			break;
 		}
-	}
-	if (state->fe.dtv_property_cache.isdbt_sb_mode == 1)
 		for (i = 0; i < 8; i++)
 			dib8000_write_word(state, 343 + i, ncoeff[i]);
+	}
 
 	// P_small_coef_ext_enable=ISDB-Tsb, P_small_narrow_band=ISDB-Tsb, P_small_last_seg=13, P_small_offset_num_car=5
 	dib8000_write_word(state, 351,
@@ -1854,6 +1876,24 @@ static int dib8000_sleep(struct dvb_frontend *fe)
 	}
 }
 
+enum frontend_tune_state dib8000_get_tune_state(struct dvb_frontend *fe)
+{
+	struct dib8000_state *state = fe->demodulator_priv;
+	return state->tune_state;
+}
+EXPORT_SYMBOL(dib8000_get_tune_state);
+
+int dib8000_set_tune_state(struct dvb_frontend *fe, enum frontend_tune_state tune_state)
+{
+	struct dib8000_state *state = fe->demodulator_priv;
+	state->tune_state = tune_state;
+	return 0;
+}
+EXPORT_SYMBOL(dib8000_set_tune_state);
+
+
+
+
 static int dib8000_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
@@ -1960,6 +2000,8 @@ static int dib8000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 	struct dib8000_state *state = fe->demodulator_priv;
 	int time, ret;
 
+	fe->dtv_property_cache.delivery_system = SYS_ISDBT;
+
 	dib8000_set_output_mode(state, OUTMODE_HIGH_Z);
 
 	if (fe->ops.tuner_ops.set_params)
@@ -2043,29 +2085,31 @@ static int dib8000_read_status(struct dvb_frontend *fe, fe_status_t * stat)
 
 	*stat = 0;
 
-	if ((lock >> 14) & 1)	// AGC
+	if ((lock >> 13) & 1)
 		*stat |= FE_HAS_SIGNAL;
 
-	if ((lock >> 8) & 1)	// Equal
+	if ((lock >> 8) & 1) /* Equal */
 		*stat |= FE_HAS_CARRIER;
 
-	if ((lock >> 3) & 1)	// TMCC_SYNC
+	if (((lock >> 1) & 0xf) == 0xf) /* TMCC_SYNC */
 		*stat |= FE_HAS_SYNC;
 
-	if ((lock >> 5) & 7)	// FEC MPEG
+	if (((lock >> 12) & 1) && ((lock >> 5) & 7)) /* FEC MPEG */
 		*stat |= FE_HAS_LOCK;
 
-	lock = dib8000_read_word(state, 554);	// Viterbi Layer A
-	if (lock & 0x01)
-		*stat |= FE_HAS_VITERBI;
+	if ((lock >> 12) & 1) {
+		lock = dib8000_read_word(state, 554); /* Viterbi Layer A */
+		if (lock & 0x01)
+			*stat |= FE_HAS_VITERBI;
 
-	lock = dib8000_read_word(state, 555);	// Viterbi Layer B
-	if (lock & 0x01)
-		*stat |= FE_HAS_VITERBI;
+		lock = dib8000_read_word(state, 555); /* Viterbi Layer B */
+		if (lock & 0x01)
+			*stat |= FE_HAS_VITERBI;
 
-	lock = dib8000_read_word(state, 556);	// Viterbi Layer C
-	if (lock & 0x01)
-		*stat |= FE_HAS_VITERBI;
+		lock = dib8000_read_word(state, 556); /* Viterbi Layer C */
+		if (lock & 0x01)
+			*stat |= FE_HAS_VITERBI;
+	}
 
 	return 0;
 }
@@ -2121,7 +2165,7 @@ static int dib8000_read_snr(struct dvb_frontend *fe, u16 * snr)
 	else
 		result -= intlog10(2) * 10 * noise_exp - 100;
 
-	*snr = result / (1 << 24);
+	*snr = result / ((1 << 24) / 10);
 	return 0;
 }
 
@@ -2194,6 +2238,25 @@ struct i2c_adapter *dib8000_get_i2c_master(struct dvb_frontend *fe, enum dibx000
 }
 
 EXPORT_SYMBOL(dib8000_get_i2c_master);
+
+int dib8000_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
+{
+	struct dib8000_state *st = fe->demodulator_priv;
+    u16 val = dib8000_read_word(st, 299) & 0xffef;
+    val |= (onoff & 0x1) << 4;
+
+    dprintk("pid filter enabled %d", onoff);
+    return dib8000_write_word(st, 299, val);
+}
+EXPORT_SYMBOL(dib8000_pid_filter_ctrl);
+
+int dib8000_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff)
+{
+	struct dib8000_state *st = fe->demodulator_priv;
+    dprintk("Index %x, PID %d, OnOff %d", id, pid, onoff);
+    return dib8000_write_word(st, 305 + id, onoff ? (1 << 13) | pid : 0);
+}
+EXPORT_SYMBOL(dib8000_pid_filter);
 
 static const struct dvb_frontend_ops dib8000_ops = {
 	.info = {

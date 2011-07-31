@@ -70,7 +70,7 @@ static inline void gpio_set_value(unsigned gpio, int value)
 #include <asm-generic/gpio.h>			/* cansleep wrappers */
 
 extern int gpio_to_irq(int gpio);
-extern int irq_to_gpio(int gpio);
+extern int irq_to_gpio(unsigned int irq);
 
 #endif
 

@@ -347,8 +347,8 @@ static void init_remap_allocator(int nid)
 		(ulong) node_remap_end_vaddr[nid]);
 }
 
-void __init initmem_init(unsigned long start_pfn,
-				  unsigned long end_pfn)
+void __init initmem_init(unsigned long start_pfn, unsigned long end_pfn,
+				int acpi, int k8)
 {
 	int nid;
 	long kva_target_pfn;
@@ -418,7 +418,10 @@ void __init initmem_init(unsigned long start_pfn,
 
 	for_each_online_node(nid) {
 		memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
+		NODE_DATA(nid)->node_id = nid;
+#ifndef CONFIG_NO_BOOTMEM
 		NODE_DATA(nid)->bdata = &bootmem_node_data[nid];
+#endif
 	}
 
 	setup_bootmem_allocator();

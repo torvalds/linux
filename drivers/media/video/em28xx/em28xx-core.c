@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/vmalloc.h>
 #include <media/v4l2-common.h>
@@ -50,7 +51,7 @@ MODULE_PARM_DESC(reg_debug, "enable debug messages [URB reg]");
 		printk(KERN_INFO "%s %s :"fmt, \
 			 dev->name, __func__ , ##arg); } while (0)
 
-static int alt = EM28XX_PINOUT;
+static int alt;
 module_param(alt, int, 0644);
 MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
 
@@ -216,7 +217,7 @@ int em28xx_write_reg(struct em28xx *dev, u16 reg, u8 val)
  * sets only some bits (specified by bitmask) of a register, by first reading
  * the actual value
  */
-static int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
+int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
 				 u8 bitmask)
 {
 	int oldval;
@@ -533,8 +534,15 @@ int em28xx_audio_setup(struct em28xx *dev)
 
 	vid1 = em28xx_read_ac97(dev, AC97_VENDOR_ID1);
 	if (vid1 < 0) {
-		/* Device likely doesn't support AC97 */
+		/*
+		 * Device likely doesn't support AC97
+		 * Note: (some) em2800 devices without eeprom reports 0x91 on
+		 *	 CHIPCFG register, even not having an AC97 chip
+		 */
 		em28xx_warn("AC97 chip type couldn't be determined\n");
+		dev->audio_mode.ac97 = EM28XX_NO_AC97;
+		dev->has_alsa_audio = 0;
+		dev->audio_mode.has_audio = 0;
 		goto init_audio;
 	}
 
@@ -684,9 +692,15 @@ int em28xx_set_outfmt(struct em28xx *dev)
 	if (em28xx_vbi_supported(dev) == 1) {
 		vinctrl |= EM28XX_VINCTRL_VBI_RAW;
 		em28xx_write_reg(dev, EM28XX_R34_VBI_START_H, 0x00);
-		em28xx_write_reg(dev, EM28XX_R35_VBI_START_V, 0x09);
-		em28xx_write_reg(dev, EM28XX_R36_VBI_WIDTH, 0xb4);
-		em28xx_write_reg(dev, EM28XX_R37_VBI_HEIGHT, 0x0c);
+		em28xx_write_reg(dev, EM28XX_R36_VBI_WIDTH, dev->vbi_width/4);
+		em28xx_write_reg(dev, EM28XX_R37_VBI_HEIGHT, dev->vbi_height);
+		if (dev->norm & V4L2_STD_525_60) {
+			/* NTSC */
+			em28xx_write_reg(dev, EM28XX_R35_VBI_START_V, 0x09);
+		} else if (dev->norm & V4L2_STD_625_50) {
+			/* PAL */
+			em28xx_write_reg(dev, EM28XX_R35_VBI_START_V, 0x07);
+		}
 	}
 
 	return em28xx_write_reg(dev, EM28XX_R11_VINCTRL, vinctrl);
@@ -753,6 +767,13 @@ int em28xx_resolution_set(struct em28xx *dev)
 	width = norm_maxw(dev);
 	height = norm_maxh(dev);
 
+	/* Properly setup VBI */
+	dev->vbi_width = 720;
+	if (dev->norm & V4L2_STD_525_60)
+		dev->vbi_height = 12;
+	else
+		dev->vbi_height = 18;
+
 	if (!dev->progressive)
 		height >>= norm_maxh(dev);
 
@@ -761,11 +782,15 @@ int em28xx_resolution_set(struct em28xx *dev)
 
 	em28xx_accumulator_set(dev, 1, (width - 4) >> 2, 1, (height - 4) >> 2);
 
-	/* If we don't set the start position to 4 in VBI mode, we end up
-	   with line 21 being YUYV encoded instead of being in 8-bit
-	   greyscale */
+	/* If we don't set the start position to 2 in VBI mode, we end up
+	   with line 20/21 being YUYV encoded instead of being in 8-bit
+	   greyscale.  The core of the issue is that line 21 (and line 23 for
+	   PAL WSS) are inside of active video region, and as a result they
+	   get the pixelformatting associated with that area.  So by cropping
+	   it out, we end up with the same format as the rest of the VBI
+	   region */
 	if (em28xx_vbi_supported(dev) == 1)
-		em28xx_capture_area_set(dev, 0, 4, width >> 2, height >> 2);
+		em28xx_capture_area_set(dev, 0, 2, width >> 2, height >> 2);
 	else
 		em28xx_capture_area_set(dev, 0, 0, width >> 2, height >> 2);
 
@@ -777,6 +802,16 @@ int em28xx_set_alternate(struct em28xx *dev)
 	int errCode, prev_alt = dev->alt;
 	int i;
 	unsigned int min_pkt_size = dev->width * 2 + 4;
+
+	/*
+	 * alt = 0 is used only for control messages, so, only values
+	 * greater than 0 can be used for streaming.
+	 */
+	if (alt && alt < dev->num_alt) {
+		em28xx_coredbg("alternate forced to %d\n", dev->alt);
+		dev->alt = alt;
+		goto set_alt;
+	}
 
 	/* When image size is bigger than a certain value,
 	   the frame size should be increased, otherwise, only
@@ -798,6 +833,7 @@ int em28xx_set_alternate(struct em28xx *dev)
 			dev->alt = i;
 	}
 
+set_alt:
 	if (dev->alt != prev_alt) {
 		em28xx_coredbg("minimum isoc packet size: %u (alt=%d)\n",
 				min_pkt_size, dev->alt);
@@ -934,7 +970,7 @@ void em28xx_uninit_isoc(struct em28xx *dev)
 				usb_unlink_urb(urb);
 
 			if (dev->isoc_ctl.transfer_buffer[i]) {
-				usb_buffer_free(dev->udev,
+				usb_free_coherent(dev->udev,
 					urb->transfer_buffer_length,
 					dev->isoc_ctl.transfer_buffer[i],
 					urb->transfer_dma);
@@ -1009,7 +1045,7 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 		}
 		dev->isoc_ctl.urb[i] = urb;
 
-		dev->isoc_ctl.transfer_buffer[i] = usb_buffer_alloc(dev->udev,
+		dev->isoc_ctl.transfer_buffer[i] = usb_alloc_coherent(dev->udev,
 			sb_size, GFP_KERNEL, &urb->transfer_dma);
 		if (!dev->isoc_ctl.transfer_buffer[i]) {
 			em28xx_err("unable to allocate %i bytes for transfer"
@@ -1118,34 +1154,6 @@ void em28xx_wake_i2c(struct em28xx *dev)
 static LIST_HEAD(em28xx_devlist);
 static DEFINE_MUTEX(em28xx_devlist_mutex);
 
-struct em28xx *em28xx_get_device(int minor,
-				 enum v4l2_buf_type *fh_type,
-				 int *has_radio)
-{
-	struct em28xx *h, *dev = NULL;
-
-	*fh_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	*has_radio = 0;
-
-	mutex_lock(&em28xx_devlist_mutex);
-	list_for_each_entry(h, &em28xx_devlist, devlist) {
-		if (h->vdev->minor == minor)
-			dev = h;
-		if (h->vbi_dev && h->vbi_dev->minor == minor) {
-			dev = h;
-			*fh_type = V4L2_BUF_TYPE_VBI_CAPTURE;
-		}
-		if (h->radio_dev &&
-		    h->radio_dev->minor == minor) {
-			dev = h;
-			*has_radio = 1;
-		}
-	}
-	mutex_unlock(&em28xx_devlist_mutex);
-
-	return dev;
-}
-
 /*
  * em28xx_realease_resources()
  * unregisters the v4l2,i2c and usb devices
@@ -1170,21 +1178,17 @@ void em28xx_add_into_devlist(struct em28xx *dev)
  */
 
 static LIST_HEAD(em28xx_extension_devlist);
-static DEFINE_MUTEX(em28xx_extension_devlist_lock);
 
 int em28xx_register_extension(struct em28xx_ops *ops)
 {
 	struct em28xx *dev = NULL;
 
 	mutex_lock(&em28xx_devlist_mutex);
-	mutex_lock(&em28xx_extension_devlist_lock);
 	list_add_tail(&ops->next, &em28xx_extension_devlist);
 	list_for_each_entry(dev, &em28xx_devlist, devlist) {
-		if (dev)
-			ops->init(dev);
+		ops->init(dev);
 	}
 	printk(KERN_INFO "Em28xx: Initialized (%s) extension\n", ops->name);
-	mutex_unlock(&em28xx_extension_devlist_lock);
 	mutex_unlock(&em28xx_devlist_mutex);
 	return 0;
 }
@@ -1196,14 +1200,10 @@ void em28xx_unregister_extension(struct em28xx_ops *ops)
 
 	mutex_lock(&em28xx_devlist_mutex);
 	list_for_each_entry(dev, &em28xx_devlist, devlist) {
-		if (dev)
-			ops->fini(dev);
+		ops->fini(dev);
 	}
-
-	mutex_lock(&em28xx_extension_devlist_lock);
 	printk(KERN_INFO "Em28xx: Removed (%s) extension\n", ops->name);
 	list_del(&ops->next);
-	mutex_unlock(&em28xx_extension_devlist_lock);
 	mutex_unlock(&em28xx_devlist_mutex);
 }
 EXPORT_SYMBOL(em28xx_unregister_extension);
@@ -1212,26 +1212,26 @@ void em28xx_init_extension(struct em28xx *dev)
 {
 	struct em28xx_ops *ops = NULL;
 
-	mutex_lock(&em28xx_extension_devlist_lock);
+	mutex_lock(&em28xx_devlist_mutex);
 	if (!list_empty(&em28xx_extension_devlist)) {
 		list_for_each_entry(ops, &em28xx_extension_devlist, next) {
 			if (ops->init)
 				ops->init(dev);
 		}
 	}
-	mutex_unlock(&em28xx_extension_devlist_lock);
+	mutex_unlock(&em28xx_devlist_mutex);
 }
 
 void em28xx_close_extension(struct em28xx *dev)
 {
 	struct em28xx_ops *ops = NULL;
 
-	mutex_lock(&em28xx_extension_devlist_lock);
+	mutex_lock(&em28xx_devlist_mutex);
 	if (!list_empty(&em28xx_extension_devlist)) {
 		list_for_each_entry(ops, &em28xx_extension_devlist, next) {
 			if (ops->fini)
 				ops->fini(dev);
 		}
 	}
-	mutex_unlock(&em28xx_extension_devlist_lock);
+	mutex_unlock(&em28xx_devlist_mutex);
 }

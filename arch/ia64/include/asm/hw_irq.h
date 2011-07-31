@@ -59,7 +59,13 @@ typedef u16 ia64_vector;
 extern int ia64_first_device_vector;
 extern int ia64_last_device_vector;
 
+#if defined(CONFIG_SMP) && (defined(CONFIG_IA64_GENERIC) || defined (CONFIG_IA64_DIG))
+/* Reserve the lower priority vector than device vectors for "move IRQ" IPI */
+#define IA64_IRQ_MOVE_VECTOR		0x30	/* "move IRQ" IPI */
+#define IA64_DEF_FIRST_DEVICE_VECTOR	0x31
+#else
 #define IA64_DEF_FIRST_DEVICE_VECTOR	0x30
+#endif
 #define IA64_DEF_LAST_DEVICE_VECTOR	0xe7
 #define IA64_FIRST_DEVICE_VECTOR	ia64_first_device_vector
 #define IA64_LAST_DEVICE_VECTOR		ia64_last_device_vector

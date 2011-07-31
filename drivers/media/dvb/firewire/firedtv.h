@@ -16,6 +16,7 @@
 #include <linux/dvb/dmx.h>
 #include <linux/dvb/frontend.h>
 #include <linux/list.h>
+#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/spinlock_types.h>
 #include <linux/types.h>
@@ -72,8 +73,8 @@ struct input_dev;
 struct firedtv;
 
 struct firedtv_backend {
-	int (*lock)(struct firedtv *fdtv, u64 addr, void *data, __be32 arg);
-	int (*read)(struct firedtv *fdtv, u64 addr, void *data, size_t len);
+	int (*lock)(struct firedtv *fdtv, u64 addr, void *data);
+	int (*read)(struct firedtv *fdtv, u64 addr, void *data);
 	int (*write)(struct firedtv *fdtv, u64 addr, void *data, size_t len);
 	int (*start_iso)(struct firedtv *fdtv);
 	void (*stop_iso)(struct firedtv *fdtv);
@@ -113,16 +114,16 @@ struct firedtv {
 	unsigned long		channel_active;
 	u16			channel_pid[16];
 
-	size_t			response_length;
-	u8			response[512];
+	int			avc_data_length;
+	u8			avc_data[512];
 };
 
 /* firedtv-1394.c */
 #ifdef CONFIG_DVB_FIREDTV_IEEE1394
-int fdtv_1394_init(struct ieee1394_device_id id_table[]);
+int fdtv_1394_init(void);
 void fdtv_1394_exit(void);
 #else
-static inline int fdtv_1394_init(struct ieee1394_device_id it[]) { return 0; }
+static inline int fdtv_1394_init(void) { return 0; }
 static inline void fdtv_1394_exit(void) {}
 #endif
 
@@ -163,9 +164,19 @@ struct firedtv *fdtv_alloc(struct device *dev,
 			   const struct firedtv_backend *backend,
 			   const char *name, size_t name_len);
 extern const char *fdtv_model_names[];
+extern const struct ieee1394_device_id fdtv_id_table[];
 
 /* firedtv-fe.c */
 void fdtv_frontend_init(struct firedtv *fdtv);
+
+/* firedtv-fw.c */
+#ifdef CONFIG_DVB_FIREDTV_FIREWIRE
+int fdtv_fw_init(void);
+void fdtv_fw_exit(void);
+#else
+static inline int fdtv_fw_init(void) { return 0; }
+static inline void fdtv_fw_exit(void) {}
+#endif
 
 /* firedtv-rc.c */
 #ifdef CONFIG_DVB_FIREDTV_INPUT

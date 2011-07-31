@@ -19,6 +19,7 @@
 #define __BFI_IOCFC_H__
 
 #include "bfi.h"
+#include <bfi/bfi_pbc.h>
 #include <defs/bfa_defs_ioc.h>
 #include <defs/bfa_defs_iocfc.h>
 #include <defs/bfa_defs_boot.h>
@@ -78,6 +79,7 @@ struct bfi_iocfc_cfgrsp_s {
 	struct bfa_iocfc_fwcfg_s	fwcfg;
 	struct bfa_iocfc_intr_attr_s	intr_attr;
 	struct bfi_iocfc_bootwwns	bootwwns;
+	struct bfi_pbc_s                pbc_cfg;
 };
 
 /**

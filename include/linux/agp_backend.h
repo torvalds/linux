@@ -79,7 +79,6 @@ struct agp_memory {
 	u32 physical;
 	bool is_bound;
 	bool is_flushed;
-	bool vmalloc_flag;
 	/* list of agp_memory mapped to the aperture */
 	struct list_head mapped_list;
 	/* DMA-mapped addresses */

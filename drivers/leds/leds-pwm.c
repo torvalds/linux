@@ -21,13 +21,13 @@
 #include <linux/err.h>
 #include <linux/pwm.h>
 #include <linux/leds_pwm.h>
+#include <linux/slab.h>
 
 struct led_pwm_data {
 	struct led_classdev	cdev;
 	struct pwm_device	*pwm;
 	unsigned int 		active_low;
 	unsigned int		period;
-	unsigned int		max_brightness;
 };
 
 static void led_pwm_set(struct led_classdev *led_cdev,
@@ -35,7 +35,7 @@ static void led_pwm_set(struct led_classdev *led_cdev,
 {
 	struct led_pwm_data *led_dat =
 		container_of(led_cdev, struct led_pwm_data, cdev);
-	unsigned int max = led_dat->max_brightness;
+	unsigned int max = led_dat->cdev.max_brightness;
 	unsigned int period =  led_dat->period;
 
 	if (brightness == 0) {
@@ -77,10 +77,10 @@ static int led_pwm_probe(struct platform_device *pdev)
 		led_dat->cdev.name = cur_led->name;
 		led_dat->cdev.default_trigger = cur_led->default_trigger;
 		led_dat->active_low = cur_led->active_low;
-		led_dat->max_brightness = cur_led->max_brightness;
 		led_dat->period = cur_led->pwm_period_ns;
 		led_dat->cdev.brightness_set = led_pwm_set;
 		led_dat->cdev.brightness = LED_OFF;
+		led_dat->cdev.max_brightness = cur_led->max_brightness;
 		led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
 
 		ret = led_classdev_register(&pdev->dev, &led_dat->cdev);

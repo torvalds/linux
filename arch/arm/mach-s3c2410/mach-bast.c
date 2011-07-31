@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2410/mach-bast.c
  *
- * Copyright (c) 2003-2005,2008 Simtec Electronics
+ * Copyright 2003-2008 Simtec Electronics
  *   Ben Dooks <ben@simtec.co.uk>
  *
  * http://www.simtec.co.uk/products/EB2410ITX/
@@ -61,11 +61,13 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/cpu-freq.h>
+#include <plat/gpio-cfg.h>
+#include <plat/audio-simtec.h>
 
 #include "usb-simtec.h"
 #include "nor-simtec.h"
 
-#define COPYRIGHT ", (c) 2004-2005 Simtec Electronics"
+#define COPYRIGHT ", Copyright 2004-2008 Simtec Electronics"
 
 /* macros for virtual address mods for the io space entries */
 #define VA_C5(item) ((unsigned long)(item) + BAST_VAM_CS5)
@@ -215,15 +217,13 @@ static struct s3c2410_uartcfg bast_uartcfgs[] __initdata = {
 static int bast_pm_suspend(struct sys_device *sd, pm_message_t state)
 {
 	/* ensure that an nRESET is not generated on resume. */
-	s3c2410_gpio_setpin(S3C2410_GPA(21), 1);
-	s3c2410_gpio_cfgpin(S3C2410_GPA(21), S3C2410_GPIO_OUTPUT);
-
+	gpio_direction_output(S3C2410_GPA(21), 1);
 	return 0;
 }
 
 static int bast_pm_resume(struct sys_device *sd)
 {
-	s3c2410_gpio_cfgpin(S3C2410_GPA(21), S3C2410_GPA21_nRSTOUT);
+	s3c_gpio_cfgpin(S3C2410_GPA(21), S3C2410_GPA21_nRSTOUT);
 	return 0;
 }
 
@@ -247,7 +247,7 @@ static int chip0_map[] = { 1 };
 static int chip1_map[] = { 2 };
 static int chip2_map[] = { 3 };
 
-static struct mtd_partition bast_default_nand_part[] = {
+static struct mtd_partition __initdata bast_default_nand_part[] = {
 	[0] = {
 		.name	= "Boot Agent",
 		.size	= SZ_16K,
@@ -273,11 +273,12 @@ static struct mtd_partition bast_default_nand_part[] = {
  * socket.
 */
 
-static struct s3c2410_nand_set bast_nand_sets[] = {
+static struct s3c2410_nand_set __initdata bast_nand_sets[] = {
 	[0] = {
 		.name		= "SmartMedia",
 		.nr_chips	= 1,
 		.nr_map		= smartmedia_map,
+		.options        = NAND_SCAN_SILENT_NODEV,
 		.nr_partitions	= ARRAY_SIZE(bast_default_nand_part),
 		.partitions	= bast_default_nand_part,
 	},
@@ -292,6 +293,7 @@ static struct s3c2410_nand_set bast_nand_sets[] = {
 		.name		= "chip1",
 		.nr_chips	= 1,
 		.nr_map		= chip1_map,
+		.options        = NAND_SCAN_SILENT_NODEV,
 		.nr_partitions	= ARRAY_SIZE(bast_default_nand_part),
 		.partitions	= bast_default_nand_part,
 	},
@@ -299,6 +301,7 @@ static struct s3c2410_nand_set bast_nand_sets[] = {
 		.name		= "chip2",
 		.nr_chips	= 1,
 		.nr_map		= chip2_map,
+		.options        = NAND_SCAN_SILENT_NODEV,
 		.nr_partitions	= ARRAY_SIZE(bast_default_nand_part),
 		.partitions	= bast_default_nand_part,
 	}
@@ -323,7 +326,7 @@ static void bast_nand_select(struct s3c2410_nand_set *set, int slot)
 	__raw_writeb(tmp, BAST_VA_CTRL2);
 }
 
-static struct s3c2410_platform_nand bast_nand_info = {
+static struct s3c2410_platform_nand __initdata bast_nand_info = {
 	.tacls		= 30,
 	.twrph0		= 60,
 	.twrph1		= 60,
@@ -580,7 +583,7 @@ static struct s3c_hwmon_pdata bast_hwmon_info = {
 // cat /sys/devices/platform/s3c24xx-adc/s3c-hwmon/in_0
 
 static struct platform_device *bast_devices[] __initdata = {
-	&s3c_device_usb,
+	&s3c_device_ohci,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
 	&s3c_device_i2c0,
@@ -608,6 +611,11 @@ static struct s3c_cpufreq_board __initdata bast_cpufreq = {
 	.need_io	= 1,
 };
 
+static struct s3c24xx_audio_simtec_pdata __initdata bast_audio = {
+	.have_mic	= 1,
+	.have_lout	= 1,
+};
+
 static void __init bast_map_io(void)
 {
 	/* initialise the clocks */
@@ -625,8 +633,7 @@ static void __init bast_map_io(void)
 
 	s3c24xx_register_clocks(bast_clocks, ARRAY_SIZE(bast_clocks));
 
-	s3c_device_nand.dev.platform_data = &bast_nand_info;
-	s3c_device_hwmon.dev.platform_data = &bast_hwmon_info;
+	s3c_hwmon_set_platdata(&bast_hwmon_info);
 
 	s3c24xx_init_io(bast_iodesc, ARRAY_SIZE(bast_iodesc));
 	s3c24xx_init_clocks(0);
@@ -639,6 +646,7 @@ static void __init bast_init(void)
 	sysdev_register(&bast_pm_sysdev);
 
 	s3c_i2c0_set_platdata(&bast_i2c_info);
+	s3c_nand_set_platdata(&bast_nand_info);
 	s3c24xx_fb_set_platdata(&bast_fb_info);
 	platform_add_devices(bast_devices, ARRAY_SIZE(bast_devices));
 
@@ -647,7 +655,10 @@ static void __init bast_init(void)
 
 	usb_simtec_init();
 	nor_simtec_init();
+	simtec_audio_add(NULL, true, &bast_audio);
 
+	WARN_ON(gpio_request(S3C2410_GPA(21), "bast nreset"));
+	
 	s3c_cpufreq_setboard(&bast_cpufreq);
 }
 

@@ -136,7 +136,7 @@ static struct {
 };
 
 
-static struct pci_device_id ne2k_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(ne2k_pci_tbl) = {
 	{ 0x10ec, 0x8029, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_RealTek_RTL_8029 },
 	{ 0x1050, 0x0940, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_Winbond_89C940 },
 	{ 0x11f6, 0x1401, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_Compex_RL2000 },
@@ -631,7 +631,6 @@ static void ne2k_pci_block_output(struct net_device *dev, int count,
 
 	outb(ENISR_RDC, nic_base + EN0_ISR);	/* Ack intr. */
 	ei_status.dmaing &= ~0x01;
-	return;
 }
 
 static void ne2k_pci_get_drvinfo(struct net_device *dev,

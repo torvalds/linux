@@ -36,6 +36,7 @@
  * FCS sub-modules
  */
 struct bfa_fcs_mod_s {
+	void		(*attach) (struct bfa_fcs_s *fcs);
 	void            (*modinit) (struct bfa_fcs_s *fcs);
 	void            (*modexit) (struct bfa_fcs_s *fcs);
 };
@@ -43,12 +44,10 @@ struct bfa_fcs_mod_s {
 #define BFA_FCS_MODULE(_mod) { _mod ## _modinit, _mod ## _modexit }
 
 static struct bfa_fcs_mod_s fcs_modules[] = {
-	BFA_FCS_MODULE(bfa_fcs_pport),
-	BFA_FCS_MODULE(bfa_fcs_uf),
-	BFA_FCS_MODULE(bfa_fcs_fabric),
-	BFA_FCS_MODULE(bfa_fcs_vport),
-	BFA_FCS_MODULE(bfa_fcs_rport),
-	BFA_FCS_MODULE(bfa_fcs_fcpim),
+	{ bfa_fcs_pport_attach, NULL, NULL },
+	{ bfa_fcs_uf_attach, NULL, NULL },
+	{ bfa_fcs_fabric_attach, bfa_fcs_fabric_modinit,
+	 bfa_fcs_fabric_modexit },
 };
 
 /**
@@ -71,16 +70,10 @@ bfa_fcs_exit_comp(void *fcs_cbarg)
  */
 
 /**
- * 		FCS instance initialization.
- *
- * 	param[in]		fcs		FCS instance
- * 	param[in]		bfa		BFA instance
- * 	param[in]		bfad		BFA driver instance
- *
- * 	return None
+ * fcs attach -- called once to initialize data structures at driver attach time
  */
 void
-bfa_fcs_init(struct bfa_fcs_s *fcs, struct bfa_s *bfa, struct bfad_s *bfad,
+bfa_fcs_attach(struct bfa_fcs_s *fcs, struct bfa_s *bfa, struct bfad_s *bfad,
 			bfa_boolean_t min_cfg)
 {
 	int             i;
@@ -93,9 +86,34 @@ bfa_fcs_init(struct bfa_fcs_s *fcs, struct bfa_s *bfa, struct bfad_s *bfad,
 	bfa_attach_fcs(bfa);
 	fcbuild_init();
 
-	for (i = 0; i < sizeof(fcs_modules) / sizeof(fcs_modules[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(fcs_modules); i++) {
 		mod = &fcs_modules[i];
-		mod->modinit(fcs);
+		if (mod->attach)
+			mod->attach(fcs);
+	}
+}
+
+/**
+ * fcs initialization, called once after bfa initialization is complete
+ */
+void
+bfa_fcs_init(struct bfa_fcs_s *fcs)
+{
+	int i, npbc_vports;
+	struct bfa_fcs_mod_s  *mod;
+	struct bfi_pbc_vport_s pbc_vports[BFI_PBC_MAX_VPORTS];
+
+	for (i = 0; i < ARRAY_SIZE(fcs_modules); i++) {
+		mod = &fcs_modules[i];
+		if (mod->modinit)
+			mod->modinit(fcs);
+	}
+	/* Initialize pbc vports */
+	if (!fcs->min_cfg) {
+		npbc_vports =
+			bfa_iocfc_get_pbc_vports(fcs->bfa, pbc_vports);
+		for (i = 0; i < npbc_vports; i++)
+			bfa_fcb_pbc_vport_create(fcs->bfa->bfad, pbc_vports[i]);
 	}
 }
 
@@ -127,6 +145,23 @@ bfa_fcs_driver_info_init(struct bfa_fcs_s *fcs,
 }
 
 /**
+ *      @brief
+ *              FCS FDMI Driver Parameter Initialization
+ *
+ *      @param[in]              fcs             FCS instance
+ *      @param[in]              fdmi_enable     TRUE/FALSE
+ *
+ *      @return None
+ */
+void
+bfa_fcs_set_fdmi_param(struct bfa_fcs_s *fcs, bfa_boolean_t fdmi_enable)
+{
+
+	fcs->fdmi_enabled = fdmi_enable;
+
+}
+
+/**
  * 		FCS instance cleanup and exit.
  *
  * 	param[in]		fcs			FCS instance
@@ -136,17 +171,17 @@ void
 bfa_fcs_exit(struct bfa_fcs_s *fcs)
 {
 	struct bfa_fcs_mod_s  *mod;
-	int             nmods, i;
+	int i;
 
 	bfa_wc_init(&fcs->wc, bfa_fcs_exit_comp, fcs);
 
-	nmods = sizeof(fcs_modules) / sizeof(fcs_modules[0]);
-
-	for (i = 0; i < nmods; i++) {
-		bfa_wc_up(&fcs->wc);
+	for (i = 0; i < ARRAY_SIZE(fcs_modules); i++) {
 
 		mod = &fcs_modules[i];
-		mod->modexit(fcs);
+		if (mod->modexit) {
+			bfa_wc_up(&fcs->wc);
+			mod->modexit(fcs);
+		}
 	}
 
 	bfa_wc_wait(&fcs->wc);

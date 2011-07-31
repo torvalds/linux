@@ -14,9 +14,9 @@
 #include <linux/device.h>
 #include <linux/scatterlist.h>
 #include <linux/usb/quirks.h>
+#include <linux/usb/hcd.h>	/* for usbcore internals */
 #include <asm/byteorder.h>
 
-#include "hcd.h"	/* for usbcore internals */
 #include "usb.h"
 
 static void cancel_async_set_config(struct usb_device *udev);
@@ -226,8 +226,7 @@ int usb_bulk_msg(struct usb_device *usb_dev, unsigned int pipe,
 	struct urb *urb;
 	struct usb_host_endpoint *ep;
 
-	ep = (usb_pipein(pipe) ? usb_dev->ep_in : usb_dev->ep_out)
-			[usb_pipeendpoint(pipe)];
+	ep = usb_pipe_endpoint(usb_dev, pipe);
 	if (!ep || len < 0)
 		return -EINVAL;
 
@@ -259,9 +258,6 @@ static void sg_clean(struct usb_sg_request *io)
 		kfree(io->urbs);
 		io->urbs = NULL;
 	}
-	if (io->dev->dev.dma_mask != NULL)
-		usb_buffer_unmap_sg(io->dev, usb_pipein(io->pipe),
-				    io->sg, io->nents);
 	io->dev = NULL;
 }
 
@@ -364,7 +360,6 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 {
 	int i;
 	int urb_flags;
-	int dma;
 	int use_sg;
 
 	if (!io || !dev || !sg
@@ -376,119 +371,79 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	spin_lock_init(&io->lock);
 	io->dev = dev;
 	io->pipe = pipe;
-	io->sg = sg;
-	io->nents = nents;
 
-	/* not all host controllers use DMA (like the mainstream pci ones);
-	 * they can use PIO (sl811) or be software over another transport.
-	 */
-	dma = (dev->dev.dma_mask != NULL);
-	if (dma)
-		io->entries = usb_buffer_map_sg(dev, usb_pipein(pipe),
-						sg, nents);
-	else
+	if (dev->bus->sg_tablesize > 0) {
+		use_sg = true;
+		io->entries = 1;
+	} else {
+		use_sg = false;
 		io->entries = nents;
+	}
 
 	/* initialize all the urbs we'll use */
-	if (io->entries <= 0)
-		return io->entries;
-
-	/* If we're running on an xHCI host controller, queue the whole scatter
-	 * gather list with one call to urb_enqueue().  This is only for bulk,
-	 * as that endpoint type does not care how the data gets broken up
-	 * across frames.
-	 */
-	if (usb_pipebulk(pipe) &&
-			bus_to_hcd(dev->bus)->driver->flags & HCD_USB3) {
-		io->urbs = kmalloc(sizeof *io->urbs, mem_flags);
-		use_sg = true;
-	} else {
-		io->urbs = kmalloc(io->entries * sizeof *io->urbs, mem_flags);
-		use_sg = false;
-	}
+	io->urbs = kmalloc(io->entries * sizeof *io->urbs, mem_flags);
 	if (!io->urbs)
 		goto nomem;
 
 	urb_flags = URB_NO_INTERRUPT;
-	if (dma)
-		urb_flags |= URB_NO_TRANSFER_DMA_MAP;
 	if (usb_pipein(pipe))
 		urb_flags |= URB_SHORT_NOT_OK;
 
-	if (use_sg) {
-		io->urbs[0] = usb_alloc_urb(0, mem_flags);
-		if (!io->urbs[0]) {
-			io->entries = 0;
+	for_each_sg(sg, sg, io->entries, i) {
+		struct urb *urb;
+		unsigned len;
+
+		urb = usb_alloc_urb(0, mem_flags);
+		if (!urb) {
+			io->entries = i;
 			goto nomem;
 		}
+		io->urbs[i] = urb;
 
-		io->urbs[0]->dev = NULL;
-		io->urbs[0]->pipe = pipe;
-		io->urbs[0]->interval = period;
-		io->urbs[0]->transfer_flags = urb_flags;
+		urb->dev = NULL;
+		urb->pipe = pipe;
+		urb->interval = period;
+		urb->transfer_flags = urb_flags;
+		urb->complete = sg_complete;
+		urb->context = io;
+		urb->sg = sg;
 
-		io->urbs[0]->complete = sg_complete;
-		io->urbs[0]->context = io;
-		/* A length of zero means transfer the whole sg list */
-		io->urbs[0]->transfer_buffer_length = length;
-		if (length == 0) {
-			for_each_sg(sg, sg, io->entries, i) {
-				io->urbs[0]->transfer_buffer_length +=
-					sg_dma_len(sg);
+		if (use_sg) {
+			/* There is no single transfer buffer */
+			urb->transfer_buffer = NULL;
+			urb->num_sgs = nents;
+
+			/* A length of zero means transfer the whole sg list */
+			len = length;
+			if (len == 0) {
+				struct scatterlist	*sg2;
+				int			j;
+
+				for_each_sg(sg, sg2, nents, j)
+					len += sg2->length;
 			}
-		}
-		io->urbs[0]->sg = io;
-		io->urbs[0]->num_sgs = io->entries;
-		io->entries = 1;
-	} else {
-		for_each_sg(sg, sg, io->entries, i) {
-			unsigned len;
-
-			io->urbs[i] = usb_alloc_urb(0, mem_flags);
-			if (!io->urbs[i]) {
-				io->entries = i;
-				goto nomem;
-			}
-
-			io->urbs[i]->dev = NULL;
-			io->urbs[i]->pipe = pipe;
-			io->urbs[i]->interval = period;
-			io->urbs[i]->transfer_flags = urb_flags;
-
-			io->urbs[i]->complete = sg_complete;
-			io->urbs[i]->context = io;
-
+		} else {
 			/*
-			 * Some systems need to revert to PIO when DMA is temporarily
-			 * unavailable.  For their sakes, both transfer_buffer and
-			 * transfer_dma are set when possible.
-			 *
-			 * Note that if IOMMU coalescing occurred, we cannot
-			 * trust sg_page anymore, so check if S/G list shrunk.
+			 * Some systems can't use DMA; they use PIO instead.
+			 * For their sakes, transfer_buffer is set whenever
+			 * possible.
 			 */
-			if (io->nents == io->entries && !PageHighMem(sg_page(sg)))
-				io->urbs[i]->transfer_buffer = sg_virt(sg);
+			if (!PageHighMem(sg_page(sg)))
+				urb->transfer_buffer = sg_virt(sg);
 			else
-				io->urbs[i]->transfer_buffer = NULL;
+				urb->transfer_buffer = NULL;
 
-			if (dma) {
-				io->urbs[i]->transfer_dma = sg_dma_address(sg);
-				len = sg_dma_len(sg);
-			} else {
-				/* hc may use _only_ transfer_buffer */
-				len = sg->length;
-			}
-
+			len = sg->length;
 			if (length) {
 				len = min_t(unsigned, len, length);
 				length -= len;
 				if (length == 0)
 					io->entries = i + 1;
 			}
-			io->urbs[i]->transfer_buffer_length = len;
 		}
-		io->urbs[--i]->transfer_flags &= ~URB_NO_INTERRUPT;
+		urb->transfer_buffer_length = len;
 	}
+	io->urbs[--i]->transfer_flags &= ~URB_NO_INTERRUPT;
 
 	/* transaction state */
 	io->count = io->entries;
@@ -911,11 +866,11 @@ char *usb_cache_string(struct usb_device *udev, int index)
 	if (index <= 0)
 		return NULL;
 
-	buf = kmalloc(MAX_USB_STRING_SIZE, GFP_KERNEL);
+	buf = kmalloc(MAX_USB_STRING_SIZE, GFP_NOIO);
 	if (buf) {
 		len = usb_string(udev, index, buf, MAX_USB_STRING_SIZE);
 		if (len > 0) {
-			smallbuf = kmalloc(++len, GFP_KERNEL);
+			smallbuf = kmalloc(++len, GFP_NOIO);
 			if (!smallbuf)
 				return buf;
 			memcpy(smallbuf, buf, len);
@@ -1185,13 +1140,6 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 {
 	int i;
 
-	dev_dbg(&dev->dev, "%s nuking %s URBs\n", __func__,
-		skip_ep0 ? "non-ep0" : "all");
-	for (i = skip_ep0; i < 16; ++i) {
-		usb_disable_endpoint(dev, i, true);
-		usb_disable_endpoint(dev, i + USB_DIR_IN, true);
-	}
-
 	/* getting rid of interfaces will disconnect
 	 * any drivers bound to them (a key side effect)
 	 */
@@ -1220,6 +1168,13 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 		dev->actconfig = NULL;
 		if (dev->state == USB_STATE_CONFIGURED)
 			usb_set_device_state(dev, USB_STATE_ADDRESS);
+	}
+
+	dev_dbg(&dev->dev, "%s nuking %s URBs\n", __func__,
+		skip_ep0 ? "non-ep0" : "all");
+	for (i = skip_ep0; i < 16; ++i) {
+		usb_disable_endpoint(dev, i, true);
+		usb_disable_endpoint(dev, i + USB_DIR_IN, true);
 	}
 }
 
@@ -1303,6 +1258,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 {
 	struct usb_interface *iface;
 	struct usb_host_interface *alt;
+	struct usb_hcd *hcd = bus_to_hcd(dev->bus);
 	int ret;
 	int manual = 0;
 	unsigned int epaddr;
@@ -1320,9 +1276,21 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 
 	alt = usb_altnum_to_altsetting(iface, alternate);
 	if (!alt) {
-		dev_warn(&dev->dev, "selecting invalid altsetting %d",
+		dev_warn(&dev->dev, "selecting invalid altsetting %d\n",
 			 alternate);
 		return -EINVAL;
+	}
+
+	/* Make sure we have enough bandwidth for this alternate interface.
+	 * Remove the current alt setting and add the new alt setting.
+	 */
+	mutex_lock(&hcd->bandwidth_mutex);
+	ret = usb_hcd_alloc_bandwidth(dev, NULL, iface->cur_altsetting, alt);
+	if (ret < 0) {
+		dev_info(&dev->dev, "Not enough bandwidth for altsetting %d\n",
+				alternate);
+		mutex_unlock(&hcd->bandwidth_mutex);
+		return ret;
 	}
 
 	if (dev->quirks & USB_QUIRK_NO_SET_INTF)
@@ -1340,8 +1308,13 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 			"manual set_interface for iface %d, alt %d\n",
 			interface, alternate);
 		manual = 1;
-	} else if (ret < 0)
+	} else if (ret < 0) {
+		/* Re-instate the old alt setting */
+		usb_hcd_alloc_bandwidth(dev, NULL, alt, iface->cur_altsetting);
+		mutex_unlock(&hcd->bandwidth_mutex);
 		return ret;
+	}
+	mutex_unlock(&hcd->bandwidth_mutex);
 
 	/* FIXME drivers shouldn't need to replicate/bugfix the logic here
 	 * when they implement async or easily-killable versions of this or
@@ -1423,6 +1396,7 @@ int usb_reset_configuration(struct usb_device *dev)
 {
 	int			i, retval;
 	struct usb_host_config	*config;
+	struct usb_hcd *hcd = bus_to_hcd(dev->bus);
 
 	if (dev->state == USB_STATE_SUSPENDED)
 		return -EHOSTUNREACH;
@@ -1438,12 +1412,46 @@ int usb_reset_configuration(struct usb_device *dev)
 	}
 
 	config = dev->actconfig;
+	retval = 0;
+	mutex_lock(&hcd->bandwidth_mutex);
+	/* Make sure we have enough bandwidth for each alternate setting 0 */
+	for (i = 0; i < config->desc.bNumInterfaces; i++) {
+		struct usb_interface *intf = config->interface[i];
+		struct usb_host_interface *alt;
+
+		alt = usb_altnum_to_altsetting(intf, 0);
+		if (!alt)
+			alt = &intf->altsetting[0];
+		if (alt != intf->cur_altsetting)
+			retval = usb_hcd_alloc_bandwidth(dev, NULL,
+					intf->cur_altsetting, alt);
+		if (retval < 0)
+			break;
+	}
+	/* If not, reinstate the old alternate settings */
+	if (retval < 0) {
+reset_old_alts:
+		for (i--; i >= 0; i--) {
+			struct usb_interface *intf = config->interface[i];
+			struct usb_host_interface *alt;
+
+			alt = usb_altnum_to_altsetting(intf, 0);
+			if (!alt)
+				alt = &intf->altsetting[0];
+			if (alt != intf->cur_altsetting)
+				usb_hcd_alloc_bandwidth(dev, NULL,
+						alt, intf->cur_altsetting);
+		}
+		mutex_unlock(&hcd->bandwidth_mutex);
+		return retval;
+	}
 	retval = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			USB_REQ_SET_CONFIGURATION, 0,
 			config->desc.bConfigurationValue, 0,
 			NULL, 0, USB_CTRL_SET_TIMEOUT);
 	if (retval < 0)
-		return retval;
+		goto reset_old_alts;
+	mutex_unlock(&hcd->bandwidth_mutex);
 
 	/* re-init hc/hcd interface/endpoint state */
 	for (i = 0; i < config->desc.bNumInterfaces; i++) {
@@ -1585,7 +1593,7 @@ static struct usb_interface_assoc_descriptor *find_iad(struct usb_device *dev,
  *
  * See usb_queue_reset_device() for more details
  */
-void __usb_queue_reset_device(struct work_struct *ws)
+static void __usb_queue_reset_device(struct work_struct *ws)
 {
 	int rc;
 	struct usb_interface *iface =
@@ -1652,6 +1660,7 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 	int i, ret;
 	struct usb_host_config *cp = NULL;
 	struct usb_interface **new_interfaces = NULL;
+	struct usb_hcd *hcd = bus_to_hcd(dev->bus);
 	int n, nintf;
 
 	if (dev->authorized == 0 || configuration == -1)
@@ -1682,7 +1691,7 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 	if (cp) {
 		nintf = cp->desc.bNumInterfaces;
 		new_interfaces = kmalloc(nintf * sizeof(*new_interfaces),
-				GFP_KERNEL);
+				GFP_NOIO);
 		if (!new_interfaces) {
 			dev_err(&dev->dev, "Out of memory\n");
 			return -ENOMEM;
@@ -1691,7 +1700,7 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 		for (; n < nintf; ++n) {
 			new_interfaces[n] = kzalloc(
 					sizeof(struct usb_interface),
-					GFP_KERNEL);
+					GFP_NOIO);
 			if (!new_interfaces[n]) {
 				dev_err(&dev->dev, "Out of memory\n");
 				ret = -ENOMEM;
@@ -1715,21 +1724,6 @@ free_interfaces:
 	if (ret)
 		goto free_interfaces;
 
-	/* Make sure we have bandwidth (and available HCD resources) for this
-	 * configuration.  Remove endpoints from the schedule if we're dropping
-	 * this configuration to set configuration 0.  After this point, the
-	 * host controller will not allow submissions to dropped endpoints.  If
-	 * this call fails, the device state is unchanged.
-	 */
-	if (cp)
-		ret = usb_hcd_check_bandwidth(dev, cp, NULL);
-	else
-		ret = usb_hcd_check_bandwidth(dev, NULL, NULL);
-	if (ret < 0) {
-		usb_autosuspend_device(dev);
-		goto free_interfaces;
-	}
-
 	/* if it's already configured, clear out old state first.
 	 * getting rid of old interfaces means unbinding their drivers.
 	 */
@@ -1738,6 +1732,20 @@ free_interfaces:
 
 	/* Get rid of pending async Set-Config requests for this device */
 	cancel_async_set_config(dev);
+
+	/* Make sure we have bandwidth (and available HCD resources) for this
+	 * configuration.  Remove endpoints from the schedule if we're dropping
+	 * this configuration to set configuration 0.  After this point, the
+	 * host controller will not allow submissions to dropped endpoints.  If
+	 * this call fails, the device state is unchanged.
+	 */
+	mutex_lock(&hcd->bandwidth_mutex);
+	ret = usb_hcd_alloc_bandwidth(dev, cp, NULL, NULL);
+	if (ret < 0) {
+		mutex_unlock(&hcd->bandwidth_mutex);
+		usb_autosuspend_device(dev);
+		goto free_interfaces;
+	}
 
 	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			      USB_REQ_SET_CONFIGURATION, 0, configuration, 0,
@@ -1752,10 +1760,12 @@ free_interfaces:
 	dev->actconfig = cp;
 	if (!cp) {
 		usb_set_device_state(dev, USB_STATE_ADDRESS);
-		usb_hcd_check_bandwidth(dev, NULL, NULL);
+		usb_hcd_alloc_bandwidth(dev, NULL, NULL, NULL);
+		mutex_unlock(&hcd->bandwidth_mutex);
 		usb_autosuspend_device(dev);
 		goto free_interfaces;
 	}
+	mutex_unlock(&hcd->bandwidth_mutex);
 	usb_set_device_state(dev, USB_STATE_CONFIGURED);
 
 	/* Initialize the new interface structures and the
@@ -1792,8 +1802,8 @@ free_interfaces:
 		intf->dev.groups = usb_interface_groups;
 		intf->dev.dma_mask = dev->dev.dma_mask;
 		INIT_WORK(&intf->reset_ws, __usb_queue_reset_device);
+		intf->minor = -1;
 		device_initialize(&intf->dev);
-		mark_quiesced(intf);
 		dev_set_name(&intf->dev, "%d-%s:%d.%d",
 			dev->bus->busnum, dev->devpath,
 			configuration, alt->desc.bInterfaceNumber);
@@ -1817,6 +1827,7 @@ free_interfaces:
 			"adding %s (config #%d, interface %d)\n",
 			dev_name(&intf->dev), configuration,
 			intf->cur_altsetting->desc.bInterfaceNumber);
+		device_enable_async_suspend(&intf->dev);
 		ret = device_add(&intf->dev);
 		if (ret != 0) {
 			dev_err(&dev->dev, "device_add(%s) --> %d\n",
@@ -1890,7 +1901,7 @@ static void cancel_async_set_config(struct usb_device *udev)
  * routine gets around the normal restrictions by using a work thread to
  * submit the change-config request.
  *
- * Returns 0 if the request was succesfully queued, error code otherwise.
+ * Returns 0 if the request was successfully queued, error code otherwise.
  * The caller has no way to know whether the queued request will eventually
  * succeed.
  */

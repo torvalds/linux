@@ -26,7 +26,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/slab.h>
 
 #include <linux/input.h>
 #include <linux/serio.h>
@@ -86,7 +85,8 @@ int touchkit_ps2_detect(struct psmouse *psmouse, bool set_properties)
 
 	if (set_properties) {
 		dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
-		__set_bit(BTN_TOUCH, dev->keybit);
+		dev->keybit[BIT_WORD(BTN_MOUSE)] = 0;
+		dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 		input_set_abs_params(dev, ABS_X, 0, TOUCHKIT_MAX_XC, 0, 0);
 		input_set_abs_params(dev, ABS_Y, 0, TOUCHKIT_MAX_YC, 0, 0);
 

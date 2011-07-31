@@ -26,6 +26,7 @@
 #include <mach/colibri.h>
 #include <mach/ohci.h>
 #include <mach/pxafb.h>
+#include <mach/audio.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -145,7 +146,7 @@ static void __init colibri_pxa300_init_lcd(void)
 static inline void colibri_pxa300_init_lcd(void) {}
 #endif /* CONFIG_FB_PXA || CONFIG_FB_PXA_MODULE */
 
-#if defined(SND_AC97_CODEC) || defined(SND_AC97_CODEC_MODULE)
+#if defined(CONFIG_SND_AC97_CODEC) || defined(CONFIG_SND_AC97_CODEC_MODULE)
 static mfp_cfg_t colibri_pxa310_ac97_pin_config[] __initdata = {
 	GPIO24_AC97_SYSCLK,
 	GPIO23_AC97_nACRESET,
@@ -170,6 +171,10 @@ static inline void colibri_pxa310_init_ac97(void) {}
 
 void __init colibri_pxa300_init(void)
 {
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	colibri_pxa300_init_eth();
 	colibri_pxa300_init_ohci();
 	colibri_pxa3xx_init_nand();

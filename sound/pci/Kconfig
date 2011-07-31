@@ -58,6 +58,18 @@ config SND_ALI5451
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-ali5451.
 
+config SND_ASIHPI
+	tristate "AudioScience ASIxxxx"
+	depends on X86
+	select FW_LOADER
+	select SND_PCM
+	select SND_HWDEP
+	help
+	  Say Y here to include support for AudioScience ASI sound cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-asihpi.
+
 config SND_ATIIXP
 	tristate "ATI IXP AC97 Controller"
 	select SND_AC97_CODEC
@@ -501,6 +513,16 @@ config SND_ES1968
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-es1968.
 
+config SND_ES1968_INPUT
+	bool "Enable input device for es1968 volume buttons"
+	depends on SND_ES1968
+	depends on INPUT=y || INPUT=SND_ES1968
+	help
+	  If you say Y here, you will get an input device which reports
+	  keypresses for the volume buttons connected to the es1968 chip.
+	  If you say N the buttons will directly control the master volume.
+	  It is recommended to say Y.
+
 config SND_FM801
 	tristate "ForteMedia FM801"
 	select SND_OPL3_LIB
@@ -570,6 +592,7 @@ config SND_ICE1712
 	tristate "ICEnsemble ICE1712 (Envy24)"
 	select SND_MPU401_UART
 	select SND_AC97_CODEC
+	select BITREVERSE
 	help
 	  Say Y here to include support for soundcards based on the
 	  ICE1712 (Envy24) chip.
@@ -653,6 +676,16 @@ config SND_MAESTRO3
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-maestro3.
+
+config SND_MAESTRO3_INPUT
+	bool "Enable input device for maestro3 volume buttons"
+	depends on SND_MAESTRO3
+	depends on INPUT=y || INPUT=SND_MAESTRO3
+	help
+	  If you say Y here, you will get an input device which reports
+	  keypresses for the volume buttons connected to the maestro3 chip.
+	  If you say N the buttons will directly control the master volume.
+	  It is recommended to say Y.
 
 config SND_MIXART
 	tristate "Digigram miXart"
@@ -788,6 +821,7 @@ config SND_VIRTUOSO
 	  Say Y here to include support for sound cards based on the
 	  Asus AV100/AV200 chips, i.e., Xonar D1, DX, D2, D2X,
 	  Essence ST (Deluxe), and Essence STX.
+	  Support for the DS is experimental.
 	  Support for the HDAV1.3 (Deluxe) is very experimental.
 
 	  To compile this driver as a module, choose M here: the module

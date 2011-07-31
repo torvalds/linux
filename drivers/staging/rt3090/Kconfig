@@ -1,5 +1,0 @@
-config RT3090
-	tristate "Ralink 3090 wireless support"
-	depends on PCI && X86 && WLAN
-	---help---
-	  This is an experimental driver for the Ralink 3090 wireless chip.

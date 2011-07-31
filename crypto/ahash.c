@@ -47,8 +47,11 @@ static int hash_walk_next(struct crypto_hash_walk *walk)
 	walk->data = crypto_kmap(walk->pg, 0);
 	walk->data += offset;
 
-	if (offset & alignmask)
-		nbytes = alignmask + 1 - (offset & alignmask);
+	if (offset & alignmask) {
+		unsigned int unaligned = alignmask + 1 - (offset & alignmask);
+		if (nbytes > unaligned)
+			nbytes = unaligned;
+	}
 
 	walk->entrylen -= nbytes;
 	return nbytes;
@@ -78,7 +81,6 @@ int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err)
 	walk->data -= walk->offset;
 
 	if (nbytes && walk->offset & alignmask && !err) {
-		walk->offset += alignmask - 1;
 		walk->offset = ALIGN(walk->offset, alignmask + 1);
 		walk->data += walk->offset;
 

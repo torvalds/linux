@@ -9,6 +9,8 @@
  * the dangers of modifying code on the run.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/spinlock.h>
 #include <linux/hardirq.h>
 #include <linux/uaccess.h>
@@ -28,14 +30,32 @@
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
+/*
+ * modifying_code is set to notify NMIs that they need to use
+ * memory barriers when entering or exiting. But we don't want
+ * to burden NMIs with unnecessary memory barriers when code
+ * modification is not being done (which is most of the time).
+ *
+ * A mutex is already held when ftrace_arch_code_modify_prepare
+ * and post_process are called. No locks need to be taken here.
+ *
+ * Stop machine will make sure currently running NMIs are done
+ * and new NMIs will see the updated variable before we need
+ * to worry about NMIs doing memory barriers.
+ */
+static int modifying_code __read_mostly;
+static DEFINE_PER_CPU(int, save_modifying_code);
+
 int ftrace_arch_code_modify_prepare(void)
 {
 	set_kernel_text_rw();
+	modifying_code = 1;
 	return 0;
 }
 
 int ftrace_arch_code_modify_post_process(void)
 {
+	modifying_code = 0;
 	set_kernel_text_ro();
 	return 0;
 }
@@ -147,6 +167,11 @@ static void ftrace_mod_code(void)
 
 void ftrace_nmi_enter(void)
 {
+	__get_cpu_var(save_modifying_code) = modifying_code;
+
+	if (!__get_cpu_var(save_modifying_code))
+		return;
+
 	if (atomic_inc_return(&nmi_running) & MOD_CODE_WRITE_FLAG) {
 		smp_rmb();
 		ftrace_mod_code();
@@ -158,6 +183,9 @@ void ftrace_nmi_enter(void)
 
 void ftrace_nmi_exit(void)
 {
+	if (!__get_cpu_var(save_modifying_code))
+		return;
+
 	/* Finish all executions before clearing nmi_running */
 	smp_mb();
 	atomic_dec(&nmi_running);
@@ -187,9 +215,26 @@ static void wait_for_nmi(void)
 	nmi_wait_count++;
 }
 
+static inline int
+within(unsigned long addr, unsigned long start, unsigned long end)
+{
+	return addr >= start && addr < end;
+}
+
 static int
 do_ftrace_mod_code(unsigned long ip, void *new_code)
 {
+	/*
+	 * On x86_64, kernel text mappings are mapped read-only with
+	 * CONFIG_DEBUG_RODATA. So we use the kernel identity mapping instead
+	 * of the kernel text mapping to modify the kernel text.
+	 *
+	 * For 32bit kernels, these mappings are same and we can use
+	 * kernel identity mapping to modify code.
+	 */
+	if (within(ip, (unsigned long)_text, (unsigned long)_etext))
+		ip = (unsigned long)__va(__pa(ip));
+
 	mod_code_ip = (void *)ip;
 	mod_code_newcode = new_code;
 
@@ -336,15 +381,15 @@ int __init ftrace_dyn_arch_init(void *data)
 
 	switch (faulted) {
 	case 0:
-		pr_info("ftrace: converting mcount calls to 0f 1f 44 00 00\n");
+		pr_info("converting mcount calls to 0f 1f 44 00 00\n");
 		memcpy(ftrace_nop, ftrace_test_p6nop, MCOUNT_INSN_SIZE);
 		break;
 	case 1:
-		pr_info("ftrace: converting mcount calls to 66 66 66 66 90\n");
+		pr_info("converting mcount calls to 66 66 66 66 90\n");
 		memcpy(ftrace_nop, ftrace_test_nop5, MCOUNT_INSN_SIZE);
 		break;
 	case 2:
-		pr_info("ftrace: converting mcount calls to jmp . + 5\n");
+		pr_info("converting mcount calls to jmp . + 5\n");
 		memcpy(ftrace_nop, ftrace_test_jmp, MCOUNT_INSN_SIZE);
 		break;
 	}
@@ -465,85 +510,3 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 	}
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
-
-#ifdef CONFIG_FTRACE_SYSCALLS
-
-extern unsigned long __start_syscalls_metadata[];
-extern unsigned long __stop_syscalls_metadata[];
-extern unsigned long *sys_call_table;
-
-static struct syscall_metadata **syscalls_metadata;
-
-static struct syscall_metadata *find_syscall_meta(unsigned long *syscall)
-{
-	struct syscall_metadata *start;
-	struct syscall_metadata *stop;
-	char str[KSYM_SYMBOL_LEN];
-
-
-	start = (struct syscall_metadata *)__start_syscalls_metadata;
-	stop = (struct syscall_metadata *)__stop_syscalls_metadata;
-	kallsyms_lookup((unsigned long) syscall, NULL, NULL, NULL, str);
-
-	for ( ; start < stop; start++) {
-		if (start->name && !strcmp(start->name, str))
-			return start;
-	}
-	return NULL;
-}
-
-struct syscall_metadata *syscall_nr_to_meta(int nr)
-{
-	if (!syscalls_metadata || nr >= NR_syscalls || nr < 0)
-		return NULL;
-
-	return syscalls_metadata[nr];
-}
-
-int syscall_name_to_nr(char *name)
-{
-	int i;
-
-	if (!syscalls_metadata)
-		return -1;
-
-	for (i = 0; i < NR_syscalls; i++) {
-		if (syscalls_metadata[i]) {
-			if (!strcmp(syscalls_metadata[i]->name, name))
-				return i;
-		}
-	}
-	return -1;
-}
-
-void set_syscall_enter_id(int num, int id)
-{
-	syscalls_metadata[num]->enter_id = id;
-}
-
-void set_syscall_exit_id(int num, int id)
-{
-	syscalls_metadata[num]->exit_id = id;
-}
-
-static int __init arch_init_ftrace_syscalls(void)
-{
-	int i;
-	struct syscall_metadata *meta;
-	unsigned long **psys_syscall_table = &sys_call_table;
-
-	syscalls_metadata = kzalloc(sizeof(*syscalls_metadata) *
-					NR_syscalls, GFP_KERNEL);
-	if (!syscalls_metadata) {
-		WARN_ON(1);
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < NR_syscalls; i++) {
-		meta = find_syscall_meta(psys_syscall_table[i]);
-		syscalls_metadata[i] = meta;
-	}
-	return 0;
-}
-arch_initcall(arch_init_ftrace_syscalls);
-#endif

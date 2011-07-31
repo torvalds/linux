@@ -19,6 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -506,10 +507,8 @@ static int wm8988_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8988_priv *wm8988 = codec->private_data;
-	
-    DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-		
+	struct wm8988_priv *wm8988 = snd_soc_codec_get_drvdata(codec);
+
 	switch (freq) {
 	case 11289600:
 	case 18432000:
@@ -599,8 +598,8 @@ static int wm8988_pcm_startup(struct snd_pcm_substream *substream,
 			      struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8988_priv *wm8988 = codec->private_data;
-	
+	struct wm8988_priv *wm8988 = snd_soc_codec_get_drvdata(codec);
+
 	/* The set of sample rates that can be supported depends on the
 	 * MCLK supplied to the CODEC - enforce this.
 	 */
@@ -625,7 +624,7 @@ static int wm8988_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8988_priv *wm8988 = codec->private_data;
+	struct wm8988_priv *wm8988 = snd_soc_codec_get_drvdata(codec);
 	u16 iface = snd_soc_read(codec, WM8988_IFACE) & 0x1f3;
 	u16 srate = snd_soc_read(codec, WM8988_SRATE) & 0x180;
 	int coeff;
@@ -807,19 +806,9 @@ static int wm8988_probe(struct platform_device *pdev)
 	snd_soc_dapm_new_controls(codec, wm8988_dapm_widgets,
 				  ARRAY_SIZE(wm8988_dapm_widgets));
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
-	snd_soc_dapm_new_widgets(codec);
-
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to register card: %d\n", ret);
-		goto card_err;
-	}
 
 	return ret;
 
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 pcm_err:
 	return ret;
 }
@@ -859,7 +848,7 @@ static int wm8988_register(struct wm8988_priv *wm8988,
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data = wm8988;
+	snd_soc_codec_set_drvdata(codec, wm8988);
 	codec->name = "WM8988";
 	codec->owner = THIS_MODULE;
 	codec->dai = &wm8988_dai;
@@ -932,7 +921,6 @@ static int wm8988_register(struct wm8988_priv *wm8988,
 	ret = snd_soc_register_dai(&wm8988_dai);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
-		snd_soc_unregister_codec(codec);
 		goto err_codec;
 	}
 
@@ -982,21 +970,6 @@ static int wm8988_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8988_i2c_suspend(struct i2c_client *client, pm_message_t msg)
-{
-	return snd_soc_suspend_device(&client->dev);
-}
-
-static int wm8988_i2c_resume(struct i2c_client *client)
-{
-	return snd_soc_resume_device(&client->dev);
-}
-#else
-#define wm8988_i2c_suspend NULL
-#define wm8988_i2c_resume NULL
-#endif
-
 static const struct i2c_device_id wm8988_i2c_id[] = {
 	{ "wm8988", 0 },
 	{ }
@@ -1010,8 +983,6 @@ static struct i2c_driver wm8988_i2c_driver = {
 	},
 	.probe = wm8988_i2c_probe,
 	.remove = wm8988_i2c_remove,
-	.suspend = wm8988_i2c_suspend,
-	.resume = wm8988_i2c_resume,
 	.id_table = wm8988_i2c_id,
 };
 #endif
@@ -1044,21 +1015,6 @@ static int __devexit wm8988_spi_remove(struct spi_device *spi)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8988_spi_suspend(struct spi_device *spi, pm_message_t msg)
-{
-	return snd_soc_suspend_device(&spi->dev);
-}
-
-static int wm8988_spi_resume(struct spi_device *spi)
-{
-	return snd_soc_resume_device(&spi->dev);
-}
-#else
-#define wm8988_spi_suspend NULL
-#define wm8988_spi_resume NULL
-#endif
-
 static struct spi_driver wm8988_spi_driver = {
 	.driver = {
 		.name	= "wm8988",
@@ -1067,8 +1023,6 @@ static struct spi_driver wm8988_spi_driver = {
 	},
 	.probe		= wm8988_spi_probe,
 	.remove		= __devexit_p(wm8988_spi_remove),
-	.suspend	= wm8988_spi_suspend,
-	.resume		= wm8988_spi_resume,
 };
 #endif
 

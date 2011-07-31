@@ -210,7 +210,7 @@ struct sir {
 } __attribute__ ((packed));
 
 /* USB Controller */
-struct usb_ctlr {
+struct qe_usb_ctlr {
 	u8	usb_usmod;
 	u8	usb_usadr;
 	u8	usb_uscom;
@@ -229,7 +229,7 @@ struct usb_ctlr {
 } __attribute__ ((packed));
 
 /* MCC */
-struct mcc {
+struct qe_mcc {
 	__be32	mcce;		/* MCC event register */
 	__be32	mccm;		/* MCC mask register */
 	__be32	mccf;		/* MCC configuration register */
@@ -431,9 +431,9 @@ struct qe_immap {
 	struct qe_mux		qmx;		/* QE Multiplexer */
 	struct qe_timers	qet;		/* QE Timers */
 	struct spi		spi[0x2];	/* spi */
-	struct mcc		mcc;		/* mcc */
+	struct qe_mcc		mcc;		/* mcc */
 	struct qe_brg		brg;		/* brg */
-	struct usb_ctlr		usb;		/* USB */
+	struct qe_usb_ctlr	usb;		/* USB */
 	struct si1		si1;		/* SI */
 	u8			res11[0x800];
 	struct sir		sir;		/* SI Routing Tables */

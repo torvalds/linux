@@ -2,6 +2,7 @@
 #define __BEN_VLAN_802_1Q_INC__
 
 #include <linux/if_vlan.h>
+#include <linux/u64_stats_sync.h>
 
 
 /**
@@ -14,6 +15,23 @@ struct vlan_priority_tci_mapping {
 	u32					priority;
 	u16					vlan_qos;
 	struct vlan_priority_tci_mapping	*next;
+};
+
+
+/**
+ *	struct vlan_rx_stats - VLAN percpu rx stats
+ *	@rx_packets: number of received packets
+ *	@rx_bytes: number of received bytes
+ *	@rx_multicast: number of received multicast packets
+ *	@syncp: synchronization point for 64bit counters
+ *	@rx_errors: number of errors
+ */
+struct vlan_rx_stats {
+	u64			rx_packets;
+	u64			rx_bytes;
+	u64			rx_multicast;
+	struct u64_stats_sync	syncp;
+	unsigned long		rx_errors;
 };
 
 /**
@@ -29,6 +47,7 @@ struct vlan_priority_tci_mapping {
  *	@dent: proc dir entry
  *	@cnt_inc_headroom_on_tx: statistic - number of skb expansions on TX
  *	@cnt_encap_on_xmit: statistic - number of skb encapsulations on TX
+ *	@vlan_rx_stats: ptr to percpu rx stats
  */
 struct vlan_dev_info {
 	unsigned int				nr_ingress_mappings;
@@ -45,6 +64,7 @@ struct vlan_dev_info {
 	struct proc_dir_entry			*dent;
 	unsigned long				cnt_inc_headroom_on_tx;
 	unsigned long				cnt_encap_on_xmit;
+	struct vlan_rx_stats __percpu		*vlan_rx_stats;
 };
 
 static inline struct vlan_dev_info *vlan_dev_info(const struct net_device *dev)
@@ -82,14 +102,14 @@ void vlan_dev_get_realdev_name(const struct net_device *dev, char *result);
 int vlan_check_real_dev(struct net_device *real_dev, u16 vlan_id);
 void vlan_setup(struct net_device *dev);
 int register_vlan_dev(struct net_device *dev);
-void unregister_vlan_dev(struct net_device *dev);
+void unregister_vlan_dev(struct net_device *dev, struct list_head *head);
 
 static inline u32 vlan_get_ingress_priority(struct net_device *dev,
 					    u16 vlan_tci)
 {
 	struct vlan_dev_info *vip = vlan_dev_info(dev);
 
-	return vip->ingress_priority_map[(vlan_tci >> 13) & 0x7];
+	return vip->ingress_priority_map[(vlan_tci >> VLAN_PRIO_SHIFT) & 0x7];
 }
 
 #ifdef CONFIG_VLAN_8021Q_GVRP

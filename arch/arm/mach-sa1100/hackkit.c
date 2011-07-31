@@ -187,7 +187,7 @@ static struct resource hackkit_flash_resource = {
 
 static void __init hackkit_init(void)
 {
-	sa11x0_set_flash_data(&hackkit_flash_data, &hackkit_flash_resource, 1);
+	sa11x0_register_mtd(&hackkit_flash_data, &hackkit_flash_resource, 1);
 }
 
 /**********************************************************************

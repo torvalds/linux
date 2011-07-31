@@ -350,7 +350,7 @@ struct snd_azf3328 {
 #endif
 };
 
-static const struct pci_device_id snd_azf3328_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_azf3328_ids) = {
 	{ 0x122D, 0x50DC, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },   /* PCI168/3328 */
 	{ 0x122D, 0x80DA, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },   /* 3328 */
 	{ 0, }
@@ -830,8 +830,8 @@ static struct snd_kcontrol_new snd_azf3328_mixer_controls[] __devinitdata = {
 	AZF3328_MIXER_SWITCH("Mic Boost (+20dB)", IDX_MIXER_MIC, 6, 0),
 	AZF3328_MIXER_SWITCH("Line Playback Switch", IDX_MIXER_LINEIN, 15, 1),
 	AZF3328_MIXER_VOL_STEREO("Line Playback Volume", IDX_MIXER_LINEIN, 0x1f, 1),
-	AZF3328_MIXER_SWITCH("PC Speaker Playback Switch", IDX_MIXER_PCBEEP, 15, 1),
-	AZF3328_MIXER_VOL_SPECIAL("PC Speaker Playback Volume", IDX_MIXER_PCBEEP, 0x0f, 1, 1),
+	AZF3328_MIXER_SWITCH("Beep Playback Switch", IDX_MIXER_PCBEEP, 15, 1),
+	AZF3328_MIXER_VOL_SPECIAL("Beep Playback Volume", IDX_MIXER_PCBEEP, 0x0f, 1, 1),
 	AZF3328_MIXER_SWITCH("Video Playback Switch", IDX_MIXER_VIDEO, 15, 1),
 	AZF3328_MIXER_VOL_STEREO("Video Playback Volume", IDX_MIXER_VIDEO, 0x1f, 1),
 	AZF3328_MIXER_SWITCH("Aux Playback Switch", IDX_MIXER_AUX, 15, 1),

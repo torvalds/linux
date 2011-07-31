@@ -2,7 +2,7 @@
  *  cx18 System Control Block initialization
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
- *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -81,7 +81,7 @@
 
 
 /* This structure is used by EPU to provide memory descriptors in its memory */
-struct cx18_mdl {
+struct cx18_mdl_ent {
     u32 paddr;  /* Physical address of a buffer segment */
     u32 length; /* Length of the buffer segment */
 };
@@ -272,7 +272,7 @@ struct cx18_scb {
 	struct cx18_mailbox  ppu2epu_mb;
 
 	struct cx18_mdl_ack  cpu_mdl_ack[CX18_MAX_STREAMS][CX18_MAX_MDL_ACKS];
-	struct cx18_mdl      cpu_mdl[1];
+	struct cx18_mdl_ent  cpu_mdl[1];
 };
 
 void cx18_init_scb(struct cx18 *cx);

@@ -115,13 +115,16 @@ struct timex {
 #define ADJ_OFFSET_SS_READ	0xa001	/* read-only adjtime */
 #endif
 
-/* xntp 3.4 compatibility names */
+/* NTP userland likes the MOD_ prefix better */
 #define MOD_OFFSET	ADJ_OFFSET
 #define MOD_FREQUENCY	ADJ_FREQUENCY
 #define MOD_MAXERROR	ADJ_MAXERROR
 #define MOD_ESTERROR	ADJ_ESTERROR
 #define MOD_STATUS	ADJ_STATUS
 #define MOD_TIMECONST	ADJ_TIMECONST
+#define MOD_TAI	ADJ_TAI
+#define MOD_MICRO	ADJ_MICRO
+#define MOD_NANO	ADJ_NANO
 
 
 /*
@@ -229,16 +232,11 @@ struct timex {
  */
 extern unsigned long tick_usec;		/* USER_HZ period (usec) */
 extern unsigned long tick_nsec;		/* ACTHZ          period (nsec) */
-extern int tickadj;			/* amount of adjustment per tick */
 
 /*
  * phase-lock loop variables
  */
 extern int time_status;		/* clock synchronization status bits */
-extern long time_maxerror;	/* maximum error */
-extern long time_esterror;	/* estimated error */
-
-extern long time_adjust;	/* The amount of adjtime left */
 
 extern void ntp_init(void);
 extern void ntp_clear(void);
@@ -261,11 +259,7 @@ static inline int ntp_synced(void)
 
 #define NTP_SCALE_SHIFT		32
 
-#ifdef CONFIG_NO_HZ
-#define NTP_INTERVAL_FREQ  (2)
-#else
 #define NTP_INTERVAL_FREQ  (HZ)
-#endif
 #define NTP_INTERVAL_LENGTH (NSEC_PER_SEC/NTP_INTERVAL_FREQ)
 
 /* Returns how long ticks are at present, in ns / 2^NTP_SCALE_SHIFT. */
@@ -274,9 +268,6 @@ extern u64 tick_length;
 extern void second_overflow(void);
 extern void update_ntp_one_tick(void);
 extern int do_adjtimex(struct timex *);
-
-/* Don't use! Compatibility define for existing users. */
-#define tickadj	(500/HZ ? : 1)
 
 int read_current_timer(unsigned long *timer_val);
 

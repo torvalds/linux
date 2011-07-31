@@ -14,7 +14,8 @@ struct screen_info {
 	__u16 orig_video_page;	/* 0x04 */
 	__u8  orig_video_mode;	/* 0x06 */
 	__u8  orig_video_cols;	/* 0x07 */
-	__u16 unused2;		/* 0x08 */
+	__u8  flags;		/* 0x08 */
+	__u8  unused2;		/* 0x09 */
 	__u16 orig_video_ega_bx;/* 0x0a */
 	__u16 unused3;		/* 0x0c */
 	__u8  orig_video_lines;	/* 0x0e */
@@ -64,6 +65,8 @@ struct screen_info {
 #define VIDEO_TYPE_PMAC		0x60	/* PowerMacintosh frame buffer. */
 
 #define VIDEO_TYPE_EFI		0x70	/* EFI graphic mode		*/
+
+#define VIDEO_FLAGS_NOCURSOR	(1 << 0) /* The video mode has no cursor set */
 
 #ifdef __KERNEL__
 extern struct screen_info screen_info;

@@ -1820,10 +1820,6 @@ struct atyclk {
 #define ATYIO_FEATW		0x41545903	/* ATY\03 */
 #endif
 
-#ifndef FBIO_WAITFORVSYNC
-#define FBIO_WAITFORVSYNC _IOW('F', 0x20, __u32)
-#endif
-
 static int atyfb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 {
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
@@ -2232,6 +2228,7 @@ static struct backlight_ops aty_bl_data = {
 
 static void aty_bl_init(struct atyfb_par *par)
 {
+	struct backlight_properties props;
 	struct fb_info *info = pci_get_drvdata(par->pdev);
 	struct backlight_device *bd;
 	char name[12];
@@ -2243,7 +2240,10 @@ static void aty_bl_init(struct atyfb_par *par)
 
 	snprintf(name, sizeof(name), "atybl%d", info->node);
 
-	bd = backlight_device_register(name, info->dev, par, &aty_bl_data);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
+	bd = backlight_device_register(name, info->dev, par, &aty_bl_data,
+				       &props);
 	if (IS_ERR(bd)) {
 		info->bl_dev = NULL;
 		printk(KERN_WARNING "aty: Backlight registration failed\n");
@@ -2255,7 +2255,6 @@ static void aty_bl_init(struct atyfb_par *par)
 			    0x3F * FB_BACKLIGHT_MAX / MAX_LEVEL,
 			    0xFF * FB_BACKLIGHT_MAX / MAX_LEVEL);
 
-	bd->props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
 	bd->props.brightness = bd->props.max_brightness;
 	bd->props.power = FB_BLANK_UNBLANK;
 	backlight_update_status(bd);
@@ -2439,7 +2438,7 @@ static int __devinit aty_init(struct fb_info *info)
 	 * The Apple iBook1 uses non-standard memory frequencies.
 	 * We detect it and set the frequency manually.
 	 */
-	if (machine_is_compatible("PowerBook2,1")) {
+	if (of_machine_is_compatible("PowerBook2,1")) {
 		par->pll_limits.mclk = 70;
 		par->pll_limits.xclk = 53;
 	}
@@ -2659,7 +2658,7 @@ static int __devinit aty_init(struct fb_info *info)
 		      FBINFO_HWACCEL_YPAN;
 
 #ifdef CONFIG_PMAC_BACKLIGHT
-	if (M64_HAS(G3_PB_1_1) && machine_is_compatible("PowerBook1,1")) {
+	if (M64_HAS(G3_PB_1_1) && of_machine_is_compatible("PowerBook1,1")) {
 		/*
 		 * these bits let the 101 powerbook
 		 * wake up from sleep -- paulus
@@ -2690,9 +2689,9 @@ static int __devinit aty_init(struct fb_info *info)
 				if (M64_HAS(G3_PB_1024x768))
 					/* G3 PowerBook with 1024x768 LCD */
 					default_vmode = VMODE_1024_768_60;
-				else if (machine_is_compatible("iMac"))
+				else if (of_machine_is_compatible("iMac"))
 					default_vmode = VMODE_1024_768_75;
-				else if (machine_is_compatible("PowerBook2,1"))
+				else if (of_machine_is_compatible("PowerBook2,1"))
 					/* iBook with 800x600 LCD */
 					default_vmode = VMODE_800_600_60;
 				else
@@ -3104,7 +3103,7 @@ static int __devinit atyfb_setup_sparc(struct pci_dev *pdev,
 	}
 
 	dp = pci_device_to_OF_node(pdev);
-	if (node == dp->node) {
+	if (node == dp->phandle) {
 		struct fb_var_screeninfo *var = &default_var;
 		unsigned int N, P, Q, M, T, R;
 		u32 v_total, h_total;
@@ -3276,7 +3275,7 @@ static void __devinit aty_init_lcd(struct atyfb_par *par, u32 bios_base)
 				txtformat = "24 bit interface";
 				break;
 			default:
-				txtformat = "unkown format";
+				txtformat = "unknown format";
 			}
 		} else {
 			switch (format & 7) {
@@ -3299,7 +3298,7 @@ static void __devinit aty_init_lcd(struct atyfb_par *par, u32 bios_base)
 				txtformat = "262144 colours (FDPI-2 mode)";
 				break;
 			default:
-				txtformat = "unkown format";
+				txtformat = "unknown format";
 			}
 		}
 		PRINTKI("%s%s %s monitor detected: %s\n",

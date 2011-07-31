@@ -59,6 +59,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/dvb/net.h>
+#include <linux/smp_lock.h>
 #include <linux/uio.h>
 #include <asm/uaccess.h>
 #include <linux/crc32.h>
@@ -350,6 +351,7 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 	const u8 *ts, *ts_end, *from_where = NULL;
 	u8 ts_remain = 0, how_much = 0, new_ts = 1;
 	struct ethhdr *ethh = NULL;
+	bool error = false;
 
 #ifdef ULE_DEBUG
 	/* The code inside ULE_DEBUG keeps a history of the last 100 TS cells processed. */
@@ -459,10 +461,16 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 
 						/* Drop partly decoded SNDU, reset state, resync on PUSI. */
 						if (priv->ule_skb) {
-							dev_kfree_skb( priv->ule_skb );
+							error = true;
+							dev_kfree_skb(priv->ule_skb);
+						}
+
+						if (error || priv->ule_sndu_remain) {
 							dev->stats.rx_errors++;
 							dev->stats.rx_frame_errors++;
+							error = false;
 						}
+
 						reset_ule(priv);
 						priv->need_pusi = 1;
 						continue;
@@ -504,6 +512,7 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 				       "bytes left in TS.  Resyncing.\n", ts_remain);
 				priv->ule_sndu_len = 0;
 				priv->need_pusi = 1;
+				ts += TS_SZ;
 				continue;
 			}
 
@@ -533,6 +542,7 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 				from_where += 2;
 			}
 
+			priv->ule_sndu_remain = priv->ule_sndu_len + 2;
 			/*
 			 * State of current TS:
 			 *   ts_remain (remaining bytes in the current TS cell)
@@ -542,6 +552,7 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 			 */
 			switch (ts_remain) {
 				case 1:
+					priv->ule_sndu_remain--;
 					priv->ule_sndu_type = from_where[0] << 8;
 					priv->ule_sndu_type_1 = 1; /* first byte of ule_type is set. */
 					ts_remain -= 1; from_where += 1;
@@ -555,6 +566,7 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 				default: /* complete ULE header is present in current TS. */
 					/* Extract ULE type field. */
 					if (priv->ule_sndu_type_1) {
+						priv->ule_sndu_type_1 = 0;
 						priv->ule_sndu_type |= from_where[0];
 						from_where += 1; /* points to payload start. */
 						ts_remain -= 1;
@@ -949,11 +961,8 @@ static int dvb_net_filter_sec_set(struct net_device *dev,
 	(*secfilter)->filter_mask[10] = mac_mask[1];
 	(*secfilter)->filter_mask[11]=mac_mask[0];
 
-	dprintk("%s: filter mac=%02x %02x %02x %02x %02x %02x\n",
-	       dev->name, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-	dprintk("%s: filter mask=%02x %02x %02x %02x %02x %02x\n",
-	       dev->name, mac_mask[0], mac_mask[1], mac_mask[2],
-	       mac_mask[3], mac_mask[4], mac_mask[5]);
+	dprintk("%s: filter mac=%pM\n", dev->name, mac);
+	dprintk("%s: filter mask=%pM\n", dev->name, mac_mask);
 
 	return 0;
 }
@@ -1111,14 +1120,14 @@ static int dvb_net_feed_stop(struct net_device *dev)
 }
 
 
-static int dvb_set_mc_filter (struct net_device *dev, struct dev_mc_list *mc)
+static int dvb_set_mc_filter(struct net_device *dev, unsigned char *addr)
 {
 	struct dvb_net_priv *priv = netdev_priv(dev);
 
 	if (priv->multi_num == DVB_NET_MULTICAST_MAX)
 		return -ENOMEM;
 
-	memcpy(priv->multi_macs[priv->multi_num], mc->dmi_addr, 6);
+	memcpy(priv->multi_macs[priv->multi_num], addr, ETH_ALEN);
 
 	priv->multi_num++;
 	return 0;
@@ -1141,21 +1150,17 @@ static void wq_set_multicast_list (struct work_struct *work)
 	} else if ((dev->flags & IFF_ALLMULTI)) {
 		dprintk("%s: allmulti mode\n", dev->name);
 		priv->rx_mode = RX_MODE_ALL_MULTI;
-	} else if (dev->mc_count) {
-		int mci;
-		struct dev_mc_list *mc;
+	} else if (!netdev_mc_empty(dev)) {
+		struct netdev_hw_addr *ha;
 
 		dprintk("%s: set_mc_list, %d entries\n",
-			dev->name, dev->mc_count);
+			dev->name, netdev_mc_count(dev));
 
 		priv->rx_mode = RX_MODE_MULTI;
 		priv->multi_num = 0;
 
-		for (mci = 0, mc=dev->mc_list;
-		     mci < dev->mc_count;
-		     mc = mc->next, mci++) {
-			dvb_set_mc_filter(dev, mc);
-		}
+		netdev_for_each_mc_addr(ha, dev)
+			dvb_set_mc_filter(dev, ha->addr);
 	}
 
 	netif_addr_unlock_bh(dev);
@@ -1239,7 +1244,6 @@ static void dvb_net_setup(struct net_device *dev)
 	dev->header_ops		= &dvb_header_ops;
 	dev->netdev_ops		= &dvb_netdev_ops;
 	dev->mtu		= 4096;
-	dev->mc_count           = 0;
 
 	dev->flags |= IFF_NOARP;
 }
@@ -1336,7 +1340,7 @@ static int dvb_net_remove_if(struct dvb_net *dvbnet, unsigned long num)
 	return 0;
 }
 
-static int dvb_net_do_ioctl(struct inode *inode, struct file *file,
+static int dvb_net_do_ioctl(struct file *file,
 		  unsigned int cmd, void *parg)
 {
 	struct dvb_device *dvbdev = file->private_data;
@@ -1396,7 +1400,7 @@ static int dvb_net_do_ioctl(struct inode *inode, struct file *file,
 		return ret;
 	}
 
-	/* binary compatiblity cruft */
+	/* binary compatibility cruft */
 	case __NET_ADD_IF_OLD:
 	{
 		struct __dvb_net_if_old *dvbnetif = parg;
@@ -1438,10 +1442,16 @@ static int dvb_net_do_ioctl(struct inode *inode, struct file *file,
 	return 0;
 }
 
-static int dvb_net_ioctl(struct inode *inode, struct file *file,
+static long dvb_net_ioctl(struct file *file,
 	      unsigned int cmd, unsigned long arg)
 {
-	return dvb_usercopy(inode, file, cmd, arg, dvb_net_do_ioctl);
+	int ret;
+
+	lock_kernel();
+	ret = dvb_usercopy(file, cmd, arg, dvb_net_do_ioctl);
+	unlock_kernel();
+
+	return ret;
 }
 
 static int dvb_net_close(struct inode *inode, struct file *file)
@@ -1462,7 +1472,7 @@ static int dvb_net_close(struct inode *inode, struct file *file)
 
 static const struct file_operations dvb_net_fops = {
 	.owner = THIS_MODULE,
-	.ioctl = dvb_net_ioctl,
+	.unlocked_ioctl = dvb_net_ioctl,
 	.open =	dvb_generic_open,
 	.release = dvb_net_close,
 };

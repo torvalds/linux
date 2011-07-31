@@ -21,7 +21,7 @@
 
 /* one of these per inode */
 struct btrfs_ordered_inode_tree {
-	struct mutex mutex;
+	spinlock_t lock;
 	struct rb_root tree;
 	struct rb_node *last;
 };
@@ -71,6 +71,8 @@ struct btrfs_ordered_sum {
 #define BTRFS_ORDERED_COMPRESSED 3 /* writing a compressed extent */
 
 #define BTRFS_ORDERED_PREALLOC 4 /* set when writing to prealloced extent */
+
+#define BTRFS_ORDERED_DIRECT 5 /* set when we're doing DIO with this extent */
 
 struct btrfs_ordered_extent {
 	/* logical offset in the file */
@@ -128,8 +130,8 @@ static inline int btrfs_ordered_sum_size(struct btrfs_root *root,
 static inline void
 btrfs_ordered_inode_tree_init(struct btrfs_ordered_inode_tree *t)
 {
-	mutex_init(&t->mutex);
-	t->tree.rb_node = NULL;
+	spin_lock_init(&t->lock);
+	t->tree = RB_ROOT;
 	t->last = NULL;
 }
 
@@ -137,9 +139,12 @@ int btrfs_put_ordered_extent(struct btrfs_ordered_extent *entry);
 int btrfs_remove_ordered_extent(struct inode *inode,
 				struct btrfs_ordered_extent *entry);
 int btrfs_dec_test_ordered_pending(struct inode *inode,
-				       u64 file_offset, u64 io_size);
+				   struct btrfs_ordered_extent **cached,
+				   u64 file_offset, u64 io_size);
 int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
-			     u64 start, u64 len, u64 disk_len, int tyep);
+			     u64 start, u64 len, u64 disk_len, int type);
+int btrfs_add_ordered_extent_dio(struct inode *inode, u64 file_offset,
+				 u64 start, u64 len, u64 disk_len, int type);
 int btrfs_add_ordered_sum(struct inode *inode,
 			  struct btrfs_ordered_extent *entry,
 			  struct btrfs_ordered_sum *sum);
@@ -150,12 +155,16 @@ void btrfs_start_ordered_extent(struct inode *inode,
 int btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len);
 struct btrfs_ordered_extent *
 btrfs_lookup_first_ordered_extent(struct inode * inode, u64 file_offset);
-int btrfs_ordered_update_i_size(struct inode *inode,
+struct btrfs_ordered_extent *btrfs_lookup_ordered_range(struct inode *inode,
+							u64 file_offset,
+							u64 len);
+int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
 				struct btrfs_ordered_extent *ordered);
 int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr, u32 *sum);
-int btrfs_wait_ordered_extents(struct btrfs_root *root, int nocow_only);
 int btrfs_run_ordered_operations(struct btrfs_root *root, int wait);
 int btrfs_add_ordered_operation(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
 				struct inode *inode);
+int btrfs_wait_ordered_extents(struct btrfs_root *root,
+			       int nocow_only, int delay_iput);
 #endif

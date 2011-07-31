@@ -4,8 +4,7 @@
 #include <linux/types.h>
 #include <linux/pkt_cls.h>
 
-struct tcf_em_nbyte
-{
+struct tcf_em_nbyte {
 	__u16		off;
 	__u16		len:12;
 	__u8		layer:4;

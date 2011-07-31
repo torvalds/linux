@@ -232,6 +232,7 @@ void ib_unpack(const struct ib_field        *desc,
 
 void ib_ud_header_init(int     		   payload_bytes,
 		       int    		   grh_present,
+		       int		   immediate_present,
 		       struct ib_ud_header *header);
 
 int ib_ud_header_pack(struct ib_ud_header *header,

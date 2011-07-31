@@ -27,7 +27,7 @@ static struct pcmcia_irqs irqs[] = {
 
 static int assabet_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
-	skt->irq = ASSABET_IRQ_GPIO_CF_IRQ;
+	skt->socket.pci_irq = ASSABET_IRQ_GPIO_CF_IRQ;
 
 	return soc_pcmcia_request_irqs(skt, irqs, ARRAY_SIZE(irqs));
 }

@@ -8,6 +8,7 @@
  * GNU General Public Licence
  */
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/maple.h>
@@ -612,16 +613,15 @@ static int __devinit vmu_connect(struct maple_device *mdev)
 
 	test_flash_data = be32_to_cpu(mdev->devinfo.function);
 	/* Need to count how many bits are set - to find out which
-	 * function_data element has details of the memory card:
-	 * using Brian Kernighan's/Peter Wegner's method */
-	for (c = 0; test_flash_data; c++)
-		test_flash_data &= test_flash_data - 1;
+	 * function_data element has details of the memory card
+	 */
+	c = hweight_long(test_flash_data);
 
 	basic_flash_data = be32_to_cpu(mdev->devinfo.function_data[c - 1]);
 
 	card = kmalloc(sizeof(struct memcard), GFP_KERNEL);
 	if (!card) {
-		error = ENOMEM;
+		error = -ENOMEM;
 		goto fail_nomem;
 	}
 

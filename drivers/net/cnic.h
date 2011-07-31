@@ -1,6 +1,6 @@
 /* cnic.h: Broadcom CNIC core network driver.
  *
- * Copyright (c) 2006-2009 Broadcom Corporation
+ * Copyright (c) 2006-2010 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -101,7 +101,7 @@ struct cnic_redirect_entry {
 #define BNX2X_KWQ_DATA(cp, x)						\
 	&(cp)->kwq_16_data[BNX2X_KWQ_DATA_PG(cp, x)][BNX2X_KWQ_DATA_IDX(cp, x)]
 
-#define DEF_IPID_COUNT		0xc001
+#define DEF_IPID_START		0x8000
 
 #define DEF_KA_TIMEOUT		10000
 #define DEF_KA_INTERVAL		300000
@@ -169,6 +169,16 @@ struct cnic_context {
 	} proto;
 };
 
+struct kcq_info {
+	struct cnic_dma	dma;
+	struct kcqe	**kcq;
+
+	u16		*hw_prod_idx_ptr;
+	u16		sw_prod_idx;
+	u16		*status_idx_ptr;
+	u32		io_addr;
+};
+
 struct cnic_local {
 
 	spinlock_t cnic_ulp_lock;
@@ -179,9 +189,9 @@ struct cnic_local {
 #define ULP_F_CALL_PENDING	2
 	struct cnic_ulp_ops *ulp_ops[MAX_CNIC_ULP_TYPE];
 
-	/* protected by ulp_lock */
-	u32 cnic_local_flags;
-#define	CNIC_LCL_FL_KWQ_INIT	0x00000001
+	unsigned long cnic_local_flags;
+#define	CNIC_LCL_FL_KWQ_INIT		0x0
+#define	CNIC_LCL_FL_L2_WAIT		0x1
 
 	struct cnic_dev *dev;
 
@@ -202,9 +212,6 @@ struct cnic_local {
 	u16		rx_cons;
 	u16		tx_cons;
 
-	u32 kwq_cid_addr;
-	u32 kcq_cid_addr;
-
 	struct cnic_dma		kwq_info;
 	struct kwqe		**kwq;
 
@@ -218,15 +225,15 @@ struct cnic_local {
 	u16		*kwq_con_idx_ptr;
 	u16		kwq_con_idx;
 
-	struct cnic_dma	kcq_info;
-	struct kcqe	**kcq;
+	struct kcq_info	kcq1;
 
-	u16		kcq_prod_idx;
-	u32		kcq_io_addr;
+	union {
+		void				*gen;
+		struct status_block_msix	*bnx2;
+		struct host_status_block	*bnx2x;
+	} status_blk;
 
-	void				*status_blk;
-	struct status_block_msix	*bnx2_status_blk;
-	struct host_status_block	*bnx2x_status_blk;
+	struct host_def_status_block	*bnx2x_def_status_blk;
 
 	u32				status_blk_num;
 	u32				int_num;
@@ -244,8 +251,10 @@ struct cnic_local {
 	struct cnic_iscsi	*iscsi_tbl;
 	struct cnic_context	*ctx_tbl;
 	struct cnic_id_tbl	cid_tbl;
-	int			max_iscsi_conn;
 	atomic_t		iscsi_conn;
+	u32			iscsi_start_cid;
+
+	u32			max_cid_space;
 
 	/* per connection parameters */
 	int			num_iscsi_tasks;
@@ -258,6 +267,7 @@ struct cnic_local {
 	struct cnic_ctx		*ctx_arr;
 	int			ctx_blks;
 	int			ctx_blk_size;
+	unsigned long		ctx_align;
 	int			cids_per_blk;
 
 	u32			chip_id;
@@ -290,11 +300,77 @@ struct bnx2x_bd_chain_next {
 	u8	reserved[8];
 };
 
+#define ISCSI_DEFAULT_MAX_OUTSTANDING_R2T 	(1)
+
 #define ISCSI_RAMROD_CMD_ID_UPDATE_CONN		(ISCSI_KCQE_OPCODE_UPDATE_CONN)
 #define ISCSI_RAMROD_CMD_ID_INIT		(ISCSI_KCQE_OPCODE_INIT)
 
 #define CDU_REGION_NUMBER_XCM_AG 2
 #define CDU_REGION_NUMBER_UCM_AG 4
+
+#define CDU_VALID_DATA(_cid, _region, _type)	\
+	(((_cid) << 8) | (((_region)&0xf)<<4) | (((_type)&0xf)))
+
+#define CDU_CRC8(_cid, _region, _type)	\
+	(calc_crc8(CDU_VALID_DATA(_cid, _region, _type), 0xff))
+
+#define CDU_RSRVD_VALUE_TYPE_A(_cid, _region, _type)	\
+	(0x80 | ((CDU_CRC8(_cid, _region, _type)) & 0x7f))
+
+#define BNX2X_CONTEXT_MEM_SIZE		1024
+#define BNX2X_FCOE_CID			16
+
+/* iSCSI client IDs are 17, 19, 21, 23 */
+#define BNX2X_ISCSI_BASE_CL_ID		17
+#define BNX2X_ISCSI_CL_ID(vn)		(BNX2X_ISCSI_BASE_CL_ID + ((vn) << 1))
+
+#define BNX2X_ISCSI_L2_CID		17
+#define BNX2X_ISCSI_START_CID		18
+#define BNX2X_ISCSI_NUM_CONNECTIONS	128
+#define BNX2X_ISCSI_TASK_CONTEXT_SIZE	128
+#define BNX2X_ISCSI_MAX_PENDING_R2TS	4
+#define BNX2X_ISCSI_R2TQE_SIZE		8
+#define BNX2X_ISCSI_HQ_BD_SIZE		64
+#define BNX2X_ISCSI_CONN_BUF_SIZE	64
+#define BNX2X_ISCSI_GLB_BUF_SIZE	64
+#define BNX2X_ISCSI_PBL_NOT_CACHED	0xff
+#define BNX2X_ISCSI_PDU_HEADER_NOT_CACHED	0xff
+#define BNX2X_HW_CID(x, func)		((x) | (((func) % PORT_MAX) << 23) | \
+					 (((func) >> 1) << 17))
+#define BNX2X_SW_CID(x)			(x & 0x1ffff)
+#define BNX2X_CHIP_NUM_57711		0x164f
+#define BNX2X_CHIP_NUM_57711E		0x1650
+#define BNX2X_CHIP_NUM(x)		(x >> 16)
+#define BNX2X_CHIP_IS_57711(x)		\
+	(BNX2X_CHIP_NUM(x) == BNX2X_CHIP_NUM_57711)
+#define BNX2X_CHIP_IS_57711E(x)		\
+	(BNX2X_CHIP_NUM(x) == BNX2X_CHIP_NUM_57711E)
+#define BNX2X_CHIP_IS_E1H(x)		\
+	(BNX2X_CHIP_IS_57711(x) || BNX2X_CHIP_IS_57711E(x))
+#define IS_E1H_OFFSET       		BNX2X_CHIP_IS_E1H(cp->chip_id)
+
+#define BNX2X_RX_DESC_CNT		(BCM_PAGE_SIZE / sizeof(struct eth_rx_bd))
+#define BNX2X_MAX_RX_DESC_CNT		(BNX2X_RX_DESC_CNT - 2)
+#define BNX2X_RCQ_DESC_CNT		(BCM_PAGE_SIZE / sizeof(union eth_rx_cqe))
+#define BNX2X_MAX_RCQ_DESC_CNT		(BNX2X_RCQ_DESC_CNT - 1)
+
+#define BNX2X_NEXT_RCQE(x) (((x) & BNX2X_MAX_RCQ_DESC_CNT) ==		\
+		(BNX2X_MAX_RCQ_DESC_CNT - 1)) ?				\
+		((x) + 2) : ((x) + 1)
+
+#define BNX2X_DEF_SB_ID			16
+
+#define BNX2X_ISCSI_RX_SB_INDEX_NUM					\
+		((HC_INDEX_DEF_U_ETH_ISCSI_RX_CQ_CONS << \
+		  USTORM_ETH_ST_CONTEXT_CONFIG_CQE_SB_INDEX_NUMBER_SHIFT) & \
+		 USTORM_ETH_ST_CONTEXT_CONFIG_CQE_SB_INDEX_NUMBER)
+
+#define BNX2X_SHMEM_ADDR(base, field)	(base + \
+					 offsetof(struct shmem_region, field))
+
+#define CNIC_PORT(cp)			((cp)->func % PORT_MAX)
+#define CNIC_FUNC(cp)			((cp)->func)
+#define CNIC_E1HVN(cp)			((cp)->func >> 1)
 
 #endif
 

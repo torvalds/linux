@@ -256,7 +256,7 @@ void saa7134_dma_free(struct videobuf_queue *q,struct saa7134_buf *buf)
 	BUG_ON(in_interrupt());
 
 	videobuf_waiton(&buf->vb,0,0);
-	videobuf_dma_unmap(q, dma);
+	videobuf_dma_unmap(q->dev, dma);
 	videobuf_dma_free(dma);
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
 }
@@ -420,19 +420,6 @@ int saa7134_set_dmabits(struct saa7134_dev *dev)
 		ctrl |= SAA7134_MAIN_CTRL_TE5;
 		irq  |= SAA7134_IRQ1_INTE_RA2_1 |
 			SAA7134_IRQ1_INTE_RA2_0;
-
-		/* dma: setup channel 5 (= TS) */
-
-		saa_writeb(SAA7134_TS_DMA0, (dev->ts.nr_packets - 1) & 0xff);
-		saa_writeb(SAA7134_TS_DMA1,
-			((dev->ts.nr_packets - 1) >> 8) & 0xff);
-		/* TSNOPIT=0, TSCOLAP=0 */
-		saa_writeb(SAA7134_TS_DMA2,
-			(((dev->ts.nr_packets - 1) >> 16) & 0x3f) | 0x00);
-		saa_writel(SAA7134_RS_PITCH(5), TS_PACKET_SIZE);
-		saa_writel(SAA7134_RS_CONTROL(5), SAA7134_RS_CONTROL_BURST_16 |
-						  SAA7134_RS_CONTROL_ME |
-						  (dev->ts.pt_ts.dma >> 12));
 	}
 
 	/* set task conditions + field handling */
@@ -484,7 +471,7 @@ static char *irqbits[] = {
 	"DONE_RA0", "DONE_RA1", "DONE_RA2", "DONE_RA3",
 	"AR", "PE", "PWR_ON", "RDCAP", "INTL", "FIDT", "MMC",
 	"TRIG_ERR", "CONF_ERR", "LOAD_ERR",
-	"GPIO16?", "GPIO18", "GPIO22", "GPIO23"
+	"GPIO16", "GPIO18", "GPIO22", "GPIO23"
 };
 #define IRQBITS ARRAY_SIZE(irqbits)
 
@@ -614,12 +601,14 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id)
 			/* disable gpio16 IRQ */
 			printk(KERN_WARNING "%s/irq: looping -- "
 			       "clearing GPIO16 enable bit\n",dev->name);
-			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO16);
+			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO16_P);
+			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO16_N);
 		} else if (report & SAA7134_IRQ_REPORT_GPIO18) {
 			/* disable gpio18 IRQs */
 			printk(KERN_WARNING "%s/irq: looping -- "
 			       "clearing GPIO18 enable bit\n",dev->name);
-			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18);
+			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18_P);
+			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18_N);
 		} else {
 			/* disable all irqs */
 			printk(KERN_WARNING "%s/irq: looping -- "
@@ -711,11 +700,13 @@ static int saa7134_hw_enable2(struct saa7134_dev *dev)
 
 	if (dev->has_remote == SAA7134_REMOTE_GPIO && dev->remote) {
 		if (dev->remote->mask_keydown & 0x10000)
-			irq2_mask |= SAA7134_IRQ2_INTE_GPIO16;
-		else if (dev->remote->mask_keydown & 0x40000)
-			irq2_mask |= SAA7134_IRQ2_INTE_GPIO18;
-		else if (dev->remote->mask_keyup & 0x40000)
-			irq2_mask |= SAA7134_IRQ2_INTE_GPIO18A;
+			irq2_mask |= SAA7134_IRQ2_INTE_GPIO16_N;
+		else {		/* Allow enabling both IRQ edge triggers */
+			if (dev->remote->mask_keydown & 0x40000)
+				irq2_mask |= SAA7134_IRQ2_INTE_GPIO18_P;
+			if (dev->remote->mask_keyup & 0x40000)
+				irq2_mask |= SAA7134_IRQ2_INTE_GPIO18_N;
+		}
 	}
 
 	if (dev->has_remote == SAA7134_REMOTE_I2C) {
@@ -797,27 +788,28 @@ static struct video_device *vdev_init(struct saa7134_dev *dev,
 	vfd->debug   = video_debug;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
 		 dev->name, type, saa7134_boards[dev->board].name);
+	video_set_drvdata(vfd, dev);
 	return vfd;
 }
 
 static void saa7134_unregister_video(struct saa7134_dev *dev)
 {
 	if (dev->video_dev) {
-		if (-1 != dev->video_dev->minor)
+		if (video_is_registered(dev->video_dev))
 			video_unregister_device(dev->video_dev);
 		else
 			video_device_release(dev->video_dev);
 		dev->video_dev = NULL;
 	}
 	if (dev->vbi_dev) {
-		if (-1 != dev->vbi_dev->minor)
+		if (video_is_registered(dev->vbi_dev))
 			video_unregister_device(dev->vbi_dev);
 		else
 			video_device_release(dev->vbi_dev);
 		dev->vbi_dev = NULL;
 	}
 	if (dev->radio_dev) {
-		if (-1 != dev->radio_dev->minor)
+		if (video_is_registered(dev->radio_dev))
 			video_unregister_device(dev->radio_dev);
 		else
 			video_device_release(dev->radio_dev);
@@ -1032,7 +1024,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	saa7134_irq_video_signalchange(dev);
 
 	if (TUNER_ABSENT != dev->tuner_type)
-		saa_call_all(dev, tuner, s_standby);
+		saa_call_all(dev, core, s_power, 0);
 
 	/* register v4l devices */
 	if (saa7134_no_overlay > 0)
@@ -1046,8 +1038,8 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		       dev->name);
 		goto fail4;
 	}
-	printk(KERN_INFO "%s: registered device video%d [v4l2]\n",
-	       dev->name, dev->video_dev->num);
+	printk(KERN_INFO "%s: registered device %s [v4l2]\n",
+	       dev->name, video_device_node_name(dev->video_dev));
 
 	dev->vbi_dev = vdev_init(dev, &saa7134_video_template, "vbi");
 
@@ -1055,8 +1047,8 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 				    vbi_nr[dev->nr]);
 	if (err < 0)
 		goto fail4;
-	printk(KERN_INFO "%s: registered device vbi%d\n",
-	       dev->name, dev->vbi_dev->num);
+	printk(KERN_INFO "%s: registered device %s\n",
+	       dev->name, video_device_node_name(dev->vbi_dev));
 
 	if (card_has_radio(dev)) {
 		dev->radio_dev = vdev_init(dev,&saa7134_radio_template,"radio");
@@ -1064,8 +1056,8 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 					    radio_nr[dev->nr]);
 		if (err < 0)
 			goto fail4;
-		printk(KERN_INFO "%s: registered device radio%d\n",
-		       dev->name, dev->radio_dev->num);
+		printk(KERN_INFO "%s: registered device %s\n",
+		       dev->name, video_device_node_name(dev->radio_dev));
 	}
 
 	/* everything worked */
@@ -1239,7 +1231,7 @@ static int saa7134_resume(struct pci_dev *pci_dev)
 	if (card_has_mpeg(dev))
 		saa7134_ts_init_hw(dev);
 	if (dev->remote)
-		saa7134_ir_start(dev, dev->remote);
+		saa7134_ir_start(dev);
 	saa7134_hw_enable1(dev);
 
 	msleep(100);
@@ -1319,7 +1311,7 @@ static struct pci_driver saa7134_pci_driver = {
 #endif
 };
 
-static int saa7134_init(void)
+static int __init saa7134_init(void)
 {
 	INIT_LIST_HEAD(&saa7134_devlist);
 	printk(KERN_INFO "saa7130/34: v4l2 driver version %d.%d.%d loaded\n",
@@ -1333,7 +1325,7 @@ static int saa7134_init(void)
 	return pci_register_driver(&saa7134_pci_driver);
 }
 
-static void saa7134_fini(void)
+static void __exit saa7134_fini(void)
 {
 	pci_unregister_driver(&saa7134_pci_driver);
 }

@@ -437,11 +437,7 @@
 #define IRQ_MAP_EEPROM_DATA 0x0046 /*  Offset into eeprom for the IRQ map */
 #define IRQ_MAP_LEN 0x0004 /*  No of bytes to read for the IRQ map */
 #define PNP_IRQ_FRMT 0x0022 /*  PNP small item IRQ format */
-#ifdef CONFIG_SH_HICOSH4
-#define CS8900_IRQ_MAP 0x0002 /* HiCO-SH4 board has its IRQ on #1 */
-#else
 #define CS8900_IRQ_MAP 0x1c20 /*  This IRQ map is fixed */
-#endif
 
 #define CS8920_NO_INTS 0x0F   /*  Max CS8920 interrupt select # */
 

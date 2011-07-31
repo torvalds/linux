@@ -12,6 +12,7 @@
 #include <linux/isdn.h>
 #include <linux/poll.h>
 #include <linux/ppp-comp.h>
+#include <linux/slab.h>
 #ifdef CONFIG_IPPP_FILTER
 #include <linux/filter.h>
 #endif
@@ -448,14 +449,9 @@ static int get_filter(void __user *arg, struct sock_filter **p)
 
 	/* uprog.len is unsigned short, so no overflow here */
 	len = uprog.len * sizeof(struct sock_filter);
-	code = kmalloc(len, GFP_KERNEL);
-	if (code == NULL)
-		return -ENOMEM;
-
-	if (copy_from_user(code, uprog.filter, len)) {
-		kfree(code);
-		return -EFAULT;
-	}
+	code = memdup_user(uprog.filter, len);
+	if (IS_ERR(code))
+		return PTR_ERR(code);
 
 	err = sk_chk_filter(code, uprog.len);
 	if (err) {
@@ -481,7 +477,7 @@ isdn_ppp_ioctl(int min, struct file *file, unsigned int cmd, unsigned long arg)
 	struct isdn_ppp_comp_data data;
 	void __user *argp = (void __user *)arg;
 
-	is = (struct ippp_struct *) file->private_data;
+	is = file->private_data;
 	lp = is->lp;
 
 	if (is->debug & 0x1)
@@ -836,7 +832,7 @@ isdn_ppp_write(int min, struct file *file, const char __user *buf, int count)
 			unsigned short hl;
 			struct sk_buff *skb;
 			/*
-			 * we need to reserve enought space in front of
+			 * we need to reserve enough space in front of
 			 * sk_buff. old call to dev_alloc_skb only reserved
 			 * 16 bytes, now we are looking what the driver want
 			 */
@@ -1326,7 +1322,7 @@ isdn_ppp_xmit(struct sk_buff *skb, struct net_device *netdev)
 		struct sk_buff *new_skb;
 	        unsigned short hl;
 		/*
-		 * we need to reserve enought space in front of
+		 * we need to reserve enough space in front of
 		 * sk_buff. old call to dev_alloc_skb only reserved
 		 * 16 bytes, now we are looking what the driver want.
 		 */
@@ -1674,7 +1670,7 @@ static void isdn_ppp_mp_receive(isdn_net_dev * net_dev, isdn_net_local * lp,
 	 * - insert new fragment into the proper sequence slot (once that's done
 	 *   newfrag will be set to NULL)
 	 * - reassemble any complete fragment sequence (non-null 'start'
-	 *   indicates there is a continguous sequence present)
+	 *   indicates there is a contiguous sequence present)
 	 * - discard any incomplete sequences that are below minseq -- due
 	 *   to the fact that sender always increment sequence number, if there
 	 *   is an incomplete sequence below minseq, no new fragments would

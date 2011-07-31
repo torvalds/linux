@@ -55,6 +55,16 @@ struct consw {
 	void	(*con_invert_region)(struct vc_data *, u16 *, int);
 	u16    *(*con_screen_pos)(struct vc_data *, int);
 	unsigned long (*con_getxy)(struct vc_data *, unsigned long, int *, int *);
+	/*
+	 * Prepare the console for the debugger.  This includes, but is not
+	 * limited to, unblanking the console, loading an appropriate
+	 * palette, and allowing debugger generated output.
+	 */
+	int	(*con_debug_enter)(struct vc_data *);
+	/*
+	 * Restore the console to its pre-debug state as closely as possible.
+	 */
+	int	(*con_debug_leave)(struct vc_data *);
 };
 
 extern const struct consw *conswitchp;
@@ -69,6 +79,14 @@ int register_con_driver(const struct consw *csw, int first, int last);
 int unregister_con_driver(const struct consw *csw);
 int take_over_console(const struct consw *sw, int first, int last, int deflt);
 void give_up_console(const struct consw *sw);
+#ifdef CONFIG_HW_CONSOLE
+int con_debug_enter(struct vc_data *vc);
+int con_debug_leave(void);
+#else
+#define con_debug_enter(vc) (0)
+#define con_debug_leave() (0)
+#endif
+
 /* scroll */
 #define SM_UP       (1)
 #define SM_DOWN     (2)

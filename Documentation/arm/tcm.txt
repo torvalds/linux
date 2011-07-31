@@ -19,8 +19,8 @@ defines a CPUID_TCM register that you can read out from the
 system control coprocessor. Documentation from ARM can be found
 at http://infocenter.arm.com, search for "TCM Status Register"
 to see documents for all CPUs. Reading this register you can
-determine if ITCM (bit 0) and/or DTCM (bit 16) is present in the
-machine.
+determine if ITCM (bits 1-0) and/or DTCM (bit 17-16) is present
+in the machine.
 
 There is further a TCM region register (search for "TCM Region
 Registers" at the ARM site) that can report and modify the location
@@ -35,7 +35,15 @@ The TCM memory can then be remapped to another address again using
 the MMU, but notice that the TCM if often used in situations where
 the MMU is turned off. To avoid confusion the current Linux
 implementation will map the TCM 1 to 1 from physical to virtual
-memory in the location specified by the machine.
+memory in the location specified by the kernel. Currently Linux
+will map ITCM to 0xfffe0000 and on, and DTCM to 0xfffe8000 and
+on, supporting a maximum of 32KiB of ITCM and 32KiB of DTCM.
+
+Newer versions of the region registers also support dividing these
+TCMs in two separate banks, so for example an 8KiB ITCM is divided
+into two 4KiB banks with its own control registers. The idea is to
+be able to lock and hide one of the banks for use by the secure
+world (TrustZone).
 
 TCM is used for a few things:
 
@@ -65,17 +73,17 @@ in <asm/tcm.h>. Using this interface it is possible to:
   memory. Such a heap is great for things like saving
   device state when shutting off device power domains.
 
-A machine that has TCM memory shall select HAVE_TCM in
-arch/arm/Kconfig for itself, and then the
-rest of the functionality will depend on the physical
-location and size of ITCM and DTCM to be defined in
-mach/memory.h for the machine. Code that needs to use
-TCM shall #include <asm/tcm.h> If the TCM is not located
-at the place given in memory.h it will be moved using
-the TCM Region registers.
+A machine that has TCM memory shall select HAVE_TCM from
+arch/arm/Kconfig for itself. Code that needs to use TCM shall
+#include <asm/tcm.h>
 
 Functions to go into itcm can be tagged like this:
 int __tcmfunc foo(int bar);
+
+Since these are marked to become long_calls and you may want
+to have functions called locally inside the TCM without
+wasting space, there is also the __tcmlocalfunc prefix that
+will make the call relative.
 
 Variables to go into dtcm can be tagged like this:
 int __tcmdata foo;

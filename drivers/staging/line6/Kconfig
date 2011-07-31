@@ -2,6 +2,7 @@ config LINE6_USB
 	tristate "Line6 USB support"
 	depends on USB && SND
 	select SND_RAWMIDI
+	select SND_PCM
 	help
 	  This is a driver for the guitar amp, cab, and effects modeller
 	  PODxt Pro by Line6 (and similar devices), supporting the

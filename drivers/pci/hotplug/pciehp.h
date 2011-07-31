@@ -91,7 +91,6 @@ struct controller {
 	struct slot *slot;
 	wait_queue_head_t queue;	/* sleep & wake process */
 	u32 slot_cap;
-	u8 cap_base;
 	struct timer_list poll_timer;
 	unsigned int cmd_busy:1;
 	unsigned int no_cmd_complete:1;
@@ -177,19 +176,11 @@ static inline void pciehp_firmware_init(void)
 {
 	pciehp_acpi_slot_detection_init();
 }
-
-static inline int pciehp_get_hp_hw_control_from_firmware(struct pci_dev *dev)
-{
-	int retval;
-	u32 flags = (OSC_PCI_EXPRESS_NATIVE_HP_CONTROL |
-		     OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
-	retval = acpi_get_hp_hw_control_from_firmware(dev, flags);
-	if (retval)
-		return retval;
-	return pciehp_acpi_slot_detection_check(dev);
-}
 #else
 #define pciehp_firmware_init()				do {} while (0)
-#define pciehp_get_hp_hw_control_from_firmware(dev) 	0
+static inline int pciehp_acpi_slot_detection_check(struct pci_dev *dev)
+{
+	return 0;
+}
 #endif 				/* CONFIG_ACPI */
 #endif				/* _PCIEHP_H */

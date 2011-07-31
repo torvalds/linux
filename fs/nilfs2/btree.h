@@ -30,39 +30,25 @@
 #include "btnode.h"
 #include "bmap.h"
 
-struct nilfs_btree;
-struct nilfs_btree_path;
-
 /**
- * struct nilfs_btree_node - B-tree node
- * @bn_flags: flags
- * @bn_level: level
- * @bn_nchildren: number of children
- * @bn_pad: padding
+ * struct nilfs_btree_path - A path on which B-tree operations are executed
+ * @bp_bh: buffer head of node block
+ * @bp_sib_bh: buffer head of sibling node block
+ * @bp_index: index of child node
+ * @bp_oldreq: ptr end request for old ptr
+ * @bp_newreq: ptr alloc request for new ptr
+ * @bp_op: rebalance operation
  */
-struct nilfs_btree_node {
-	__u8 bn_flags;
-	__u8 bn_level;
-	__le16 bn_nchildren;
-	__le32 bn_pad;
+struct nilfs_btree_path {
+	struct buffer_head *bp_bh;
+	struct buffer_head *bp_sib_bh;
+	int bp_index;
+	union nilfs_bmap_ptr_req bp_oldreq;
+	union nilfs_bmap_ptr_req bp_newreq;
+	struct nilfs_btnode_chkey_ctxt bp_ctxt;
+	void (*bp_op)(struct nilfs_bmap *, struct nilfs_btree_path *,
+		      int, __u64 *, __u64 *);
 };
-
-/* flags */
-#define NILFS_BTREE_NODE_ROOT	0x01
-
-/* level */
-#define NILFS_BTREE_LEVEL_DATA		0
-#define NILFS_BTREE_LEVEL_NODE_MIN	(NILFS_BTREE_LEVEL_DATA + 1)
-#define NILFS_BTREE_LEVEL_MAX		14
-
-/**
- * struct nilfs_btree - B-tree structure
- * @bt_bmap: bmap base structure
- */
-struct nilfs_btree {
-	struct nilfs_bmap bt_bmap;
-};
-
 
 #define NILFS_BTREE_ROOT_SIZE		NILFS_BMAP_SIZE
 #define NILFS_BTREE_ROOT_NCHILDREN_MAX					\
@@ -79,12 +65,13 @@ struct nilfs_btree {
 #define NILFS_BTREE_KEY_MIN	((__u64)0)
 #define NILFS_BTREE_KEY_MAX	(~(__u64)0)
 
+extern struct kmem_cache *nilfs_btree_path_cache;
 
-int nilfs_btree_path_cache_init(void);
-void nilfs_btree_path_cache_destroy(void);
 int nilfs_btree_init(struct nilfs_bmap *);
 int nilfs_btree_convert_and_insert(struct nilfs_bmap *, __u64, __u64,
 				   const __u64 *, const __u64 *, int);
 void nilfs_btree_init_gc(struct nilfs_bmap *);
+
+int nilfs_btree_broken_node_block(struct buffer_head *bh);
 
 #endif	/* _NILFS_BTREE_H */

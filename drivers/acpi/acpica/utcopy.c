@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -323,11 +323,11 @@ acpi_ut_copy_ielement_to_eelement(u8 object_type,
  * RETURN:      Status
  *
  * DESCRIPTION: This function is called to place a package object in a user
- *              buffer.  A package object by definition contains other objects.
+ *              buffer. A package object by definition contains other objects.
  *
  *              The buffer is assumed to have sufficient space for the object.
- *              The caller must have verified the buffer length needed using the
- *              acpi_ut_get_object_size function before calling this function.
+ *              The caller must have verified the buffer length needed using
+ *              the acpi_ut_get_object_size function before calling this function.
  *
  ******************************************************************************/
 
@@ -382,12 +382,12 @@ acpi_ut_copy_ipackage_to_epackage(union acpi_operand_object *internal_object,
  * FUNCTION:    acpi_ut_copy_iobject_to_eobject
  *
  * PARAMETERS:  internal_object     - The internal object to be converted
- *              buffer_ptr          - Where the object is returned
+ *              ret_buffer          - Where the object is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: This function is called to build an API object to be returned to
- *              the caller.
+ * DESCRIPTION: This function is called to build an API object to be returned
+ *              to the caller.
  *
  ******************************************************************************/
 
@@ -626,7 +626,7 @@ acpi_ut_copy_epackage_to_ipackage(union acpi_object *external_object,
  * PARAMETERS:  external_object     - The external object to be converted
  *              internal_object     - Where the internal object is returned
  *
- * RETURN:      Status              - the status of the call
+ * RETURN:      Status
  *
  * DESCRIPTION: Converts an external object to an internal object.
  *
@@ -665,7 +665,7 @@ acpi_ut_copy_eobject_to_iobject(union acpi_object *external_object,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Simple copy of one internal object to another.  Reference count
+ * DESCRIPTION: Simple copy of one internal object to another. Reference count
  *              of the destination object is preserved.
  *
  ******************************************************************************/
@@ -677,16 +677,24 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 	u16 reference_count;
 	union acpi_operand_object *next_object;
 	acpi_status status;
+	acpi_size copy_size;
 
 	/* Save fields from destination that we don't want to overwrite */
 
 	reference_count = dest_desc->common.reference_count;
 	next_object = dest_desc->common.next_object;
 
-	/* Copy the entire source object over the destination object */
+	/*
+	 * Copy the entire source object over the destination object.
+	 * Note: Source can be either an operand object or namespace node.
+	 */
+	copy_size = sizeof(union acpi_operand_object);
+	if (ACPI_GET_DESCRIPTOR_TYPE(source_desc) == ACPI_DESC_TYPE_NAMED) {
+		copy_size = sizeof(struct acpi_namespace_node);
+	}
 
-	ACPI_MEMCPY((char *)dest_desc, (char *)source_desc,
-		    sizeof(union acpi_operand_object));
+	ACPI_MEMCPY(ACPI_CAST_PTR(char, dest_desc),
+		    ACPI_CAST_PTR(char, source_desc), copy_size);
 
 	/* Restore the saved fields */
 
@@ -897,10 +905,11 @@ acpi_ut_copy_ielement_to_ielement(u8 object_type,
  *
  * FUNCTION:    acpi_ut_copy_ipackage_to_ipackage
  *
- * PARAMETERS:  *source_obj     - Pointer to the source package object
- *              *dest_obj       - Where the internal object is returned
+ * PARAMETERS:  source_obj      - Pointer to the source package object
+ *              dest_obj        - Where the internal object is returned
+ *              walk_state      - Current Walk state descriptor
  *
- * RETURN:      Status          - the status of the call
+ * RETURN:      Status
  *
  * DESCRIPTION: This function is called to copy an internal package object
  *              into another internal package object.
@@ -953,9 +962,9 @@ acpi_ut_copy_ipackage_to_ipackage(union acpi_operand_object *source_obj,
  *
  * FUNCTION:    acpi_ut_copy_iobject_to_iobject
  *
- * PARAMETERS:  walk_state          - Current walk state
- *              source_desc         - The internal object to be copied
+ * PARAMETERS:  source_desc         - The internal object to be copied
  *              dest_desc           - Where the copied object is returned
+ *              walk_state          - Current walk state
  *
  * RETURN:      Status
  *

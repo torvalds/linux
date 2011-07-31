@@ -363,6 +363,7 @@ struct <link linkend="v4l2-pix-format">v4l2_pix_format</link> {
 #define <link linkend="V4L2-PIX-FMT-OV511">V4L2_PIX_FMT_OV511</link>    v4l2_fourcc('O', '5', '1', '1') /* ov511 JPEG */
 #define <link linkend="V4L2-PIX-FMT-OV518">V4L2_PIX_FMT_OV518</link>    v4l2_fourcc('O', '5', '1', '8') /* ov518 JPEG */
 #define <link linkend="V4L2-PIX-FMT-TM6000">V4L2_PIX_FMT_TM6000</link>   v4l2_fourcc('T', 'M', '6', '0') /* tm5600/tm60x0 */
+#define <link linkend="V4L2-PIX-FMT-STV0680">V4L2_PIX_FMT_STV0680</link>  v4l2_fourcc('S', '6', '8', '0') /* stv0680 bayer */
 
 /*
  *      F O R M A T   E N U M E R A T I O N
@@ -492,7 +493,7 @@ struct <link linkend="v4l2-jpegcompression">v4l2_jpegcompression</link> {
                                  * you do, leave them untouched.
                                  * Inluding less markers will make the
                                  * resulting code smaller, but there will
-                                 * be fewer aplications which can read it.
+                                 * be fewer applications which can read it.
                                  * The presence of the APP and COM marker
                                  * is influenced by APP_len and COM_len
                                  * ONLY, not by this property! */
@@ -565,6 +566,7 @@ struct <link linkend="v4l2-framebuffer">v4l2_framebuffer</link> {
 #define V4L2_FBUF_CAP_LOCAL_ALPHA       0x0010
 #define V4L2_FBUF_CAP_GLOBAL_ALPHA      0x0020
 #define V4L2_FBUF_CAP_LOCAL_INV_ALPHA   0x0040
+#define V4L2_FBUF_CAP_SRC_CHROMAKEY     0x0080
 /*  Flags for the 'flags' field. */
 #define V4L2_FBUF_FLAG_PRIMARY          0x0001
 #define V4L2_FBUF_FLAG_OVERLAY          0x0002
@@ -572,6 +574,7 @@ struct <link linkend="v4l2-framebuffer">v4l2_framebuffer</link> {
 #define V4L2_FBUF_FLAG_LOCAL_ALPHA      0x0008
 #define V4L2_FBUF_FLAG_GLOBAL_ALPHA     0x0010
 #define V4L2_FBUF_FLAG_LOCAL_INV_ALPHA  0x0020
+#define V4L2_FBUF_FLAG_SRC_CHROMAKEY    0x0040
 
 struct <link linkend="v4l2-clip">v4l2_clip</link> {
         struct <link linkend="v4l2-rect">v4l2_rect</link>        c;
@@ -731,6 +734,99 @@ struct <link linkend="v4l2-standard">v4l2_standard</link> {
 };
 
 /*
+ *      V I D E O       T I M I N G S   D V     P R E S E T
+ */
+struct <link linkend="v4l2-dv-preset">v4l2_dv_preset</link> {
+        __u32   preset;
+        __u32   reserved[4];
+};
+
+/*
+ *      D V     P R E S E T S   E N U M E R A T I O N
+ */
+struct <link linkend="v4l2-dv-enum-preset">v4l2_dv_enum_preset</link> {
+        __u32   index;
+        __u32   preset;
+        __u8    name[32]; /* Name of the preset timing */
+        __u32   width;
+        __u32   height;
+        __u32   reserved[4];
+};
+
+/*
+ *      D V     P R E S E T     V A L U E S
+ */
+#define         V4L2_DV_INVALID         0
+#define         V4L2_DV_480P59_94       1 /* BT.1362 */
+#define         V4L2_DV_576P50          2 /* BT.1362 */
+#define         V4L2_DV_720P24          3 /* SMPTE 296M */
+#define         V4L2_DV_720P25          4 /* SMPTE 296M */
+#define         V4L2_DV_720P30          5 /* SMPTE 296M */
+#define         V4L2_DV_720P50          6 /* SMPTE 296M */
+#define         V4L2_DV_720P59_94       7 /* SMPTE 274M */
+#define         V4L2_DV_720P60          8 /* SMPTE 274M/296M */
+#define         V4L2_DV_1080I29_97      9 /* BT.1120/ SMPTE 274M */
+#define         V4L2_DV_1080I30         10 /* BT.1120/ SMPTE 274M */
+#define         V4L2_DV_1080I25         11 /* BT.1120 */
+#define         V4L2_DV_1080I50         12 /* SMPTE 296M */
+#define         V4L2_DV_1080I60         13 /* SMPTE 296M */
+#define         V4L2_DV_1080P24         14 /* SMPTE 296M */
+#define         V4L2_DV_1080P25         15 /* SMPTE 296M */
+#define         V4L2_DV_1080P30         16 /* SMPTE 296M */
+#define         V4L2_DV_1080P50         17 /* BT.1120 */
+#define         V4L2_DV_1080P60         18 /* BT.1120 */
+
+/*
+ *      D V     B T     T I M I N G S
+ */
+
+/* BT.656/BT.1120 timing data */
+struct <link linkend="v4l2-bt-timings">v4l2_bt_timings</link> {
+        __u32   width;          /* width in pixels */
+        __u32   height;         /* height in lines */
+        __u32   interlaced;     /* Interlaced or progressive */
+        __u32   polarities;     /* Positive or negative polarity */
+        __u64   pixelclock;     /* Pixel clock in HZ. Ex. 74.25MHz-&gt;74250000 */
+        __u32   hfrontporch;    /* Horizpontal front porch in pixels */
+        __u32   hsync;          /* Horizontal Sync length in pixels */
+        __u32   hbackporch;     /* Horizontal back porch in pixels */
+        __u32   vfrontporch;    /* Vertical front porch in pixels */
+        __u32   vsync;          /* Vertical Sync length in lines */
+        __u32   vbackporch;     /* Vertical back porch in lines */
+        __u32   il_vfrontporch; /* Vertical front porch for bottom field of
+                                 * interlaced field formats
+                                 */
+        __u32   il_vsync;       /* Vertical sync length for bottom field of
+                                 * interlaced field formats
+                                 */
+        __u32   il_vbackporch;  /* Vertical back porch for bottom field of
+                                 * interlaced field formats
+                                 */
+        __u32   reserved[16];
+} __attribute__ ((packed));
+
+/* Interlaced or progressive format */
+#define V4L2_DV_PROGRESSIVE     0
+#define V4L2_DV_INTERLACED      1
+
+/* Polarities. If bit is not set, it is assumed to be negative polarity */
+#define V4L2_DV_VSYNC_POS_POL   0x00000001
+#define V4L2_DV_HSYNC_POS_POL   0x00000002
+
+
+/* DV timings */
+struct <link linkend="v4l2-dv-timings">v4l2_dv_timings</link> {
+        __u32 type;
+        union {
+                struct <link linkend="v4l2-bt-timings">v4l2_bt_timings</link>  bt;
+                __u32   reserved[32];
+        };
+} __attribute__ ((packed));
+
+/* Values for the type field */
+#define V4L2_DV_BT_656_1120     0       /* BT.656/1120 timing type */
+
+/*
  *      V I D E O   I N P U T S
  */
 struct <link linkend="v4l2-input">v4l2_input</link> {
@@ -741,7 +837,8 @@ struct <link linkend="v4l2-input">v4l2_input</link> {
         __u32        tuner;             /*  Associated tuner */
         v4l2_std_id  std;
         __u32        status;
-        __u32        reserved[4];
+        __u32        capabilities;
+        __u32        reserved[3];
 };
 
 /*  Values for the 'type' field */
@@ -772,6 +869,11 @@ struct <link linkend="v4l2-input">v4l2_input</link> {
 #define V4L2_IN_ST_NO_ACCESS   0x02000000  /* Conditional access denied */
 #define V4L2_IN_ST_VTR         0x04000000  /* VTR time constant */
 
+/* capabilities flags */
+#define V4L2_IN_CAP_PRESETS             0x00000001 /* Supports S_DV_PRESET */
+#define V4L2_IN_CAP_CUSTOM_TIMINGS      0x00000002 /* Supports S_DV_TIMINGS */
+#define V4L2_IN_CAP_STD                 0x00000004 /* Supports S_STD */
+
 /*
  *      V I D E O   O U T P U T S
  */
@@ -782,12 +884,18 @@ struct <link linkend="v4l2-output">v4l2_output</link> {
         __u32        audioset;          /*  Associated audios (bitfield) */
         __u32        modulator;         /*  Associated modulator */
         v4l2_std_id  std;
-        __u32        reserved[4];
+        __u32        capabilities;
+        __u32        reserved[3];
 };
 /*  Values for the 'type' field */
 #define V4L2_OUTPUT_TYPE_MODULATOR              1
 #define V4L2_OUTPUT_TYPE_ANALOG                 2
 #define V4L2_OUTPUT_TYPE_ANALOGVGAOVERLAY       3
+
+/* capabilities flags */
+#define V4L2_OUT_CAP_PRESETS            0x00000001 /* Supports S_DV_PRESET */
+#define V4L2_OUT_CAP_CUSTOM_TIMINGS     0x00000002 /* Supports S_DV_TIMINGS */
+#define V4L2_OUT_CAP_STD                0x00000004 /* Supports S_STD */
 
 /*
  *      C O N T R O L S
@@ -910,12 +1018,21 @@ enum <link linkend="v4l2-colorfx">v4l2_colorfx</link> {
         V4L2_COLORFX_NONE       = 0,
         V4L2_COLORFX_BW         = 1,
         V4L2_COLORFX_SEPIA      = 2,
+        V4L2_COLORFX_NEGATIVE   = 3,
+        V4L2_COLORFX_EMBOSS     = 4,
+        V4L2_COLORFX_SKETCH     = 5,
+        V4L2_COLORFX_SKY_BLUE   = 6,
+        V4L2_COLORFX_GRASS_GREEN = 7,
+        V4L2_COLORFX_SKIN_WHITEN = 8,
+        V4L2_COLORFX_VIVID      = 9.
 };
 #define V4L2_CID_AUTOBRIGHTNESS                 (V4L2_CID_BASE+32)
 #define V4L2_CID_BAND_STOP_FILTER               (V4L2_CID_BASE+33)
 
+#define V4L2_CID_ROTATE                         (V4L2_CID_BASE+34)
+#define V4L2_CID_BG_COLOR                       (V4L2_CID_BASE+35)
 /* last CID + 1 */
-#define V4L2_CID_LASTP1                         (V4L2_CID_BASE+34)
+#define V4L2_CID_LASTP1                         (V4L2_CID_BASE+36)
 
 /*  MPEG-class control IDs defined by V4L2 */
 #define V4L2_CID_MPEG_BASE                      (V4L2_CTRL_CLASS_MPEG | 0x900)
@@ -1160,6 +1277,9 @@ enum  <link linkend="v4l2-exposure-auto-type">v4l2_exposure_auto_type</link> {
 #define V4L2_CID_ZOOM_CONTINUOUS                (V4L2_CID_CAMERA_CLASS_BASE+15)
 
 #define V4L2_CID_PRIVACY                        (V4L2_CID_CAMERA_CLASS_BASE+16)
+
+#define V4L2_CID_IRIS_ABSOLUTE                  (V4L2_CID_CAMERA_CLASS_BASE+17)
+#define V4L2_CID_IRIS_RELATIVE                  (V4L2_CID_CAMERA_CLASS_BASE+18)
 
 /* FM Modulator class control IDs */
 #define V4L2_CID_FM_TX_CLASS_BASE               (V4L2_CTRL_CLASS_FM_TX | 0x900)
@@ -1621,6 +1741,13 @@ struct <link linkend="v4l2-dbg-chip-ident">v4l2_dbg_chip_ident</link> {
 #endif
 
 #define VIDIOC_S_HW_FREQ_SEEK    _IOW('V', 82, struct <link linkend="v4l2-hw-freq-seek">v4l2_hw_freq_seek</link>)
+#define VIDIOC_ENUM_DV_PRESETS  _IOWR('V', 83, struct <link linkend="v4l2-dv-enum-preset">v4l2_dv_enum_preset</link>)
+#define VIDIOC_S_DV_PRESET      _IOWR('V', 84, struct <link linkend="v4l2-dv-preset">v4l2_dv_preset</link>)
+#define VIDIOC_G_DV_PRESET      _IOWR('V', 85, struct <link linkend="v4l2-dv-preset">v4l2_dv_preset</link>)
+#define VIDIOC_QUERY_DV_PRESET  _IOR('V',  86, struct <link linkend="v4l2-dv-preset">v4l2_dv_preset</link>)
+#define VIDIOC_S_DV_TIMINGS     _IOWR('V', 87, struct <link linkend="v4l2-dv-timings">v4l2_dv_timings</link>)
+#define VIDIOC_G_DV_TIMINGS     _IOWR('V', 88, struct <link linkend="v4l2-dv-timings">v4l2_dv_timings</link>)
+
 /* Reminder: when adding new ioctls please add support for them to
    drivers/media/video/v4l2-compat-ioctl32.c as well! */
 

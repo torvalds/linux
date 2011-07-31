@@ -41,8 +41,8 @@
  * DMA hardware state programming functions
  */
 
-static void mga_emit_clip_rect(drm_mga_private_t * dev_priv,
-			       struct drm_clip_rect * box)
+static void mga_emit_clip_rect(drm_mga_private_t *dev_priv,
+			       struct drm_clip_rect *box)
 {
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_mga_context_regs_t *ctx = &sarea_priv->context_state;
@@ -66,7 +66,7 @@ static void mga_emit_clip_rect(drm_mga_private_t * dev_priv,
 	ADVANCE_DMA();
 }
 
-static __inline__ void mga_g200_emit_context(drm_mga_private_t * dev_priv)
+static __inline__ void mga_g200_emit_context(drm_mga_private_t *dev_priv)
 {
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_mga_context_regs_t *ctx = &sarea_priv->context_state;
@@ -89,7 +89,7 @@ static __inline__ void mga_g200_emit_context(drm_mga_private_t * dev_priv)
 	ADVANCE_DMA();
 }
 
-static __inline__ void mga_g400_emit_context(drm_mga_private_t * dev_priv)
+static __inline__ void mga_g400_emit_context(drm_mga_private_t *dev_priv)
 {
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_mga_context_regs_t *ctx = &sarea_priv->context_state;
@@ -116,7 +116,7 @@ static __inline__ void mga_g400_emit_context(drm_mga_private_t * dev_priv)
 	ADVANCE_DMA();
 }
 
-static __inline__ void mga_g200_emit_tex0(drm_mga_private_t * dev_priv)
+static __inline__ void mga_g200_emit_tex0(drm_mga_private_t *dev_priv)
 {
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_mga_texture_regs_t *tex = &sarea_priv->tex_state[0];
@@ -144,7 +144,7 @@ static __inline__ void mga_g200_emit_tex0(drm_mga_private_t * dev_priv)
 	ADVANCE_DMA();
 }
 
-static __inline__ void mga_g400_emit_tex0(drm_mga_private_t * dev_priv)
+static __inline__ void mga_g400_emit_tex0(drm_mga_private_t *dev_priv)
 {
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_mga_texture_regs_t *tex = &sarea_priv->tex_state[0];
@@ -184,7 +184,7 @@ static __inline__ void mga_g400_emit_tex0(drm_mga_private_t * dev_priv)
 	ADVANCE_DMA();
 }
 
-static __inline__ void mga_g400_emit_tex1(drm_mga_private_t * dev_priv)
+static __inline__ void mga_g400_emit_tex1(drm_mga_private_t *dev_priv)
 {
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_mga_texture_regs_t *tex = &sarea_priv->tex_state[1];
@@ -223,7 +223,7 @@ static __inline__ void mga_g400_emit_tex1(drm_mga_private_t * dev_priv)
 	ADVANCE_DMA();
 }
 
-static __inline__ void mga_g200_emit_pipe(drm_mga_private_t * dev_priv)
+static __inline__ void mga_g200_emit_pipe(drm_mga_private_t *dev_priv)
 {
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	unsigned int pipe = sarea_priv->warp_pipe;
@@ -250,7 +250,7 @@ static __inline__ void mga_g200_emit_pipe(drm_mga_private_t * dev_priv)
 	ADVANCE_DMA();
 }
 
-static __inline__ void mga_g400_emit_pipe(drm_mga_private_t * dev_priv)
+static __inline__ void mga_g400_emit_pipe(drm_mga_private_t *dev_priv)
 {
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	unsigned int pipe = sarea_priv->warp_pipe;
@@ -327,7 +327,7 @@ static __inline__ void mga_g400_emit_pipe(drm_mga_private_t * dev_priv)
 	ADVANCE_DMA();
 }
 
-static void mga_g200_emit_state(drm_mga_private_t * dev_priv)
+static void mga_g200_emit_state(drm_mga_private_t *dev_priv)
 {
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	unsigned int dirty = sarea_priv->dirty;
@@ -348,7 +348,7 @@ static void mga_g200_emit_state(drm_mga_private_t * dev_priv)
 	}
 }
 
-static void mga_g400_emit_state(drm_mga_private_t * dev_priv)
+static void mga_g400_emit_state(drm_mga_private_t *dev_priv)
 {
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	unsigned int dirty = sarea_priv->dirty;
@@ -381,7 +381,7 @@ static void mga_g400_emit_state(drm_mga_private_t * dev_priv)
 
 /* Disallow all write destinations except the front and backbuffer.
  */
-static int mga_verify_context(drm_mga_private_t * dev_priv)
+static int mga_verify_context(drm_mga_private_t *dev_priv)
 {
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_mga_context_regs_t *ctx = &sarea_priv->context_state;
@@ -400,7 +400,7 @@ static int mga_verify_context(drm_mga_private_t * dev_priv)
 
 /* Disallow texture reads from PCI space.
  */
-static int mga_verify_tex(drm_mga_private_t * dev_priv, int unit)
+static int mga_verify_tex(drm_mga_private_t *dev_priv, int unit)
 {
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_mga_texture_regs_t *tex = &sarea_priv->tex_state[unit];
@@ -417,7 +417,7 @@ static int mga_verify_tex(drm_mga_private_t * dev_priv, int unit)
 	return 0;
 }
 
-static int mga_verify_state(drm_mga_private_t * dev_priv)
+static int mga_verify_state(drm_mga_private_t *dev_priv)
 {
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	unsigned int dirty = sarea_priv->dirty;
@@ -446,7 +446,7 @@ static int mga_verify_state(drm_mga_private_t * dev_priv)
 	return (ret == 0);
 }
 
-static int mga_verify_iload(drm_mga_private_t * dev_priv,
+static int mga_verify_iload(drm_mga_private_t *dev_priv,
 			    unsigned int dstorg, unsigned int length)
 {
 	if (dstorg < dev_priv->texture_offset ||
@@ -465,7 +465,7 @@ static int mga_verify_iload(drm_mga_private_t * dev_priv,
 	return 0;
 }
 
-static int mga_verify_blit(drm_mga_private_t * dev_priv,
+static int mga_verify_blit(drm_mga_private_t *dev_priv,
 			   unsigned int srcorg, unsigned int dstorg)
 {
 	if ((srcorg & 0x3) == (MGA_SRCACC_PCI | MGA_SRCMAP_SYSMEM) ||
@@ -480,7 +480,7 @@ static int mga_verify_blit(drm_mga_private_t * dev_priv,
  *
  */
 
-static void mga_dma_dispatch_clear(struct drm_device * dev, drm_mga_clear_t * clear)
+static void mga_dma_dispatch_clear(struct drm_device *dev, drm_mga_clear_t *clear)
 {
 	drm_mga_private_t *dev_priv = dev->dev_private;
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
@@ -568,7 +568,7 @@ static void mga_dma_dispatch_clear(struct drm_device * dev, drm_mga_clear_t * cl
 	FLUSH_DMA();
 }
 
-static void mga_dma_dispatch_swap(struct drm_device * dev)
+static void mga_dma_dispatch_swap(struct drm_device *dev)
 {
 	drm_mga_private_t *dev_priv = dev->dev_private;
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
@@ -622,7 +622,7 @@ static void mga_dma_dispatch_swap(struct drm_device * dev)
 	DRM_DEBUG("... done.\n");
 }
 
-static void mga_dma_dispatch_vertex(struct drm_device * dev, struct drm_buf * buf)
+static void mga_dma_dispatch_vertex(struct drm_device *dev, struct drm_buf *buf)
 {
 	drm_mga_private_t *dev_priv = dev->dev_private;
 	drm_mga_buf_priv_t *buf_priv = buf->dev_private;
@@ -669,7 +669,7 @@ static void mga_dma_dispatch_vertex(struct drm_device * dev, struct drm_buf * bu
 	FLUSH_DMA();
 }
 
-static void mga_dma_dispatch_indices(struct drm_device * dev, struct drm_buf * buf,
+static void mga_dma_dispatch_indices(struct drm_device *dev, struct drm_buf *buf,
 				     unsigned int start, unsigned int end)
 {
 	drm_mga_private_t *dev_priv = dev->dev_private;
@@ -718,7 +718,7 @@ static void mga_dma_dispatch_indices(struct drm_device * dev, struct drm_buf * b
 /* This copies a 64 byte aligned agp region to the frambuffer with a
  * standard blit, the ioctl needs to do checking.
  */
-static void mga_dma_dispatch_iload(struct drm_device * dev, struct drm_buf * buf,
+static void mga_dma_dispatch_iload(struct drm_device *dev, struct drm_buf *buf,
 				   unsigned int dstorg, unsigned int length)
 {
 	drm_mga_private_t *dev_priv = dev->dev_private;
@@ -766,7 +766,7 @@ static void mga_dma_dispatch_iload(struct drm_device * dev, struct drm_buf * buf
 	FLUSH_DMA();
 }
 
-static void mga_dma_dispatch_blit(struct drm_device * dev, drm_mga_blit_t * blit)
+static void mga_dma_dispatch_blit(struct drm_device *dev, drm_mga_blit_t *blit)
 {
 	drm_mga_private_t *dev_priv = dev->dev_private;
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
@@ -801,9 +801,8 @@ static void mga_dma_dispatch_blit(struct drm_device * dev, drm_mga_blit_t * blit
 		int w = pbox[i].x2 - pbox[i].x1 - 1;
 		int start;
 
-		if (blit->ydir == -1) {
+		if (blit->ydir == -1)
 			srcy = blit->height - srcy - 1;
-		}
 
 		start = srcy * blit->src_pitch + srcx;
 
@@ -1086,19 +1085,19 @@ file_priv)
 }
 
 struct drm_ioctl_desc mga_ioctls[] = {
-	DRM_IOCTL_DEF(DRM_MGA_INIT, mga_dma_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF(DRM_MGA_FLUSH, mga_dma_flush, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_MGA_RESET, mga_dma_reset, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_MGA_SWAP, mga_dma_swap, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_MGA_CLEAR, mga_dma_clear, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_MGA_VERTEX, mga_dma_vertex, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_MGA_INDICES, mga_dma_indices, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_MGA_ILOAD, mga_dma_iload, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_MGA_BLIT, mga_dma_blit, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_MGA_GETPARAM, mga_getparam, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_MGA_SET_FENCE, mga_set_fence, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_MGA_WAIT_FENCE, mga_wait_fence, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_MGA_DMA_BOOTSTRAP, mga_dma_bootstrap, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(MGA_INIT, mga_dma_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(MGA_FLUSH, mga_dma_flush, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(MGA_RESET, mga_dma_reset, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(MGA_SWAP, mga_dma_swap, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(MGA_CLEAR, mga_dma_clear, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(MGA_VERTEX, mga_dma_vertex, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(MGA_INDICES, mga_dma_indices, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(MGA_ILOAD, mga_dma_iload, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(MGA_BLIT, mga_dma_blit, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(MGA_GETPARAM, mga_getparam, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(MGA_SET_FENCE, mga_set_fence, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(MGA_WAIT_FENCE, mga_wait_fence, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(MGA_DMA_BOOTSTRAP, mga_dma_bootstrap, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 };
 
 int mga_max_ioctl = DRM_ARRAY_SIZE(mga_ioctls);

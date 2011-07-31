@@ -23,6 +23,7 @@
 #define __LINUX_SECURITY_H
 
 #include <linux/fs.h>
+#include <linux/fsnotify.h>
 #include <linux/binfmts.h>
 #include <linux/signal.h>
 #include <linux/resource.h>
@@ -33,7 +34,7 @@
 #include <linux/sched.h>
 #include <linux/key.h>
 #include <linux/xfrm.h>
-#include <linux/gfp.h>
+#include <linux/slab.h>
 #include <net/flow.h>
 
 /* Maximum number of letters for an LSM name string */
@@ -76,7 +77,7 @@ extern int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 extern int cap_task_setscheduler(struct task_struct *p, int policy, struct sched_param *lp);
 extern int cap_task_setioprio(struct task_struct *p, int ioprio);
 extern int cap_task_setnice(struct task_struct *p, int nice);
-extern int cap_syslog(int type);
+extern int cap_syslog(int type, bool from_file);
 extern int cap_vm_enough_memory(struct mm_struct *mm, long pages);
 
 struct msghdr;
@@ -95,8 +96,15 @@ struct seq_file;
 extern int cap_netlink_send(struct sock *sk, struct sk_buff *skb);
 extern int cap_netlink_recv(struct sk_buff *skb, int cap);
 
+void reset_security_ops(void);
+
+#ifdef CONFIG_MMU
 extern unsigned long mmap_min_addr;
 extern unsigned long dac_mmap_min_addr;
+#else
+#define dac_mmap_min_addr	0UL
+#endif
+
 /*
  * Values used in the task_security_ops calls
  */
@@ -121,6 +129,7 @@ struct request_sock;
 #define LSM_UNSAFE_PTRACE	2
 #define LSM_UNSAFE_PTRACE_CAP	4
 
+#ifdef CONFIG_MMU
 /*
  * If a hint addr is less than mmap_min_addr change hint to be as
  * low as possible but still greater than mmap_min_addr
@@ -135,6 +144,7 @@ static inline unsigned long round_hint_to_min(unsigned long hint)
 }
 extern int mmap_min_addr_handler(struct ctl_table *table, int write,
 				 void __user *buffer, size_t *lenp, loff_t *ppos);
+#endif
 
 #ifdef CONFIG_SECURITY
 
@@ -258,49 +268,16 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@orig the original mount data copied from userspace.
  *	@copy copied data which will be passed to the security module.
  *	Returns 0 if the copy was successful.
- * @sb_check_sb:
- *	Check permission before the device with superblock @mnt->sb is mounted
- *	on the mount point named by @nd.
- *	@mnt contains the vfsmount for device being mounted.
- *	@path contains the path for the mount point.
- *	Return 0 if permission is granted.
  * @sb_umount:
  *	Check permission before the @mnt file system is unmounted.
  *	@mnt contains the mounted file system.
  *	@flags contains the unmount flags, e.g. MNT_FORCE.
  *	Return 0 if permission is granted.
- * @sb_umount_close:
- *	Close any files in the @mnt mounted filesystem that are held open by
- *	the security module.  This hook is called during an umount operation
- *	prior to checking whether the filesystem is still busy.
- *	@mnt contains the mounted filesystem.
- * @sb_umount_busy:
- *	Handle a failed umount of the @mnt mounted filesystem, e.g.  re-opening
- *	any files that were closed by umount_close.  This hook is called during
- *	an umount operation if the umount fails after a call to the
- *	umount_close hook.
- *	@mnt contains the mounted filesystem.
- * @sb_post_remount:
- *	Update the security module's state when a filesystem is remounted.
- *	This hook is only called if the remount was successful.
- *	@mnt contains the mounted file system.
- *	@flags contains the new filesystem flags.
- *	@data contains the filesystem-specific data.
- * @sb_post_addmount:
- *	Update the security module's state when a filesystem is mounted.
- *	This hook is called any time a mount is successfully grafetd to
- *	the tree.
- *	@mnt contains the mounted filesystem.
- *	@mountpoint contains the path for the mount point.
  * @sb_pivotroot:
  *	Check permission before pivoting the root filesystem.
  *	@old_path contains the path for the new location of the current root (put_old).
  *	@new_path contains the path for the new root (new_root).
  *	Return 0 if permission is granted.
- * @sb_post_pivotroot:
- *	Update module state after a successful pivot.
- *	@old_path contains the path for the old root.
- *	@new_path contains the path for the new root.
  * @sb_set_mnt_opts:
  *	Set the security relevant mount options used for a superblock
  *	@sb the superblock to set security mount options for
@@ -447,6 +424,22 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@new_dir contains the path structure for parent of the new link.
  *	@new_dentry contains the dentry structure of the new link.
  *	Return 0 if permission is granted.
+ * @path_chmod:
+ *	Check for permission to change DAC's permission of a file or directory.
+ *	@dentry contains the dentry structure.
+ *	@mnt contains the vfsmnt structure.
+ *	@mode contains DAC's mode.
+ *	Return 0 if permission is granted.
+ * @path_chown:
+ *	Check for permission to change owner/group of a file or directory.
+ *	@path contains the path structure.
+ *	@uid contains new owner's ID.
+ *	@gid contains new group's ID.
+ *	Return 0 if permission is granted.
+ * @path_chroot:
+ *	Check for permission to change root directory.
+ *	@path contains the path structure.
+ *	Return 0 if permission is granted.
  * @inode_readlink:
  *	Check the permission to read the symbolic link.
  *	@dentry contains the dentry structure for the file link.
@@ -478,20 +471,12 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  * @path_truncate:
  *	Check permission before truncating a file.
  *	@path contains the path structure for the file.
- *	@length is the new length of the file.
- *	@time_attrs is the flags passed to do_truncate().
  *	Return 0 if permission is granted.
  * @inode_getattr:
  *	Check permission before obtaining file attributes.
  *	@mnt is the vfsmount where the dentry was looked up
  *	@dentry contains the dentry structure for the file.
  *	Return 0 if permission is granted.
- * @inode_delete:
- *	@inode contains the inode structure for deleted inode.
- *	This hook is called when a deleted inode is released (i.e. an inode
- *	with no hard links has its use count drop to zero).  A security module
- *	can use this hook to release any persistent label associated with the
- *	inode.
  * @inode_setxattr:
  *	Check permission before setting the extended attributes
  *	@value identified by @name for @dentry.
@@ -666,10 +651,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@old points to the original credentials.
  *	@gfp indicates the atomicity of any memory allocations.
  *	Prepare a new set of credentials by copying the data from the old set.
- * @cred_commit:
- *	@new points to the new credentials.
- *	@old points to the original credentials.
- *	Install a new set of credentials.
  * @cred_transfer:
  *	@new points to the new credentials.
  *	@old points to the original credentials.
@@ -690,19 +671,8 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  * @kernel_module_request:
  *	Ability to trigger the kernel to automatically upcall to userspace for
  *	userspace to load a kernel module with the given name.
+ *	@kmod_name name of the module requested by the kernel
  *	Return 0 if successful.
- * @task_setuid:
- *	Check permission before setting one or more of the user identity
- *	attributes of the current process.  The @flags parameter indicates
- *	which of the set*uid system calls invoked this hook and how to
- *	interpret the @id0, @id1, and @id2 parameters.  See the LSM_SETID
- *	definitions at the beginning of this file for the @flags values and
- *	their meanings.
- *	@id0 contains a uid.
- *	@id1 contains a uid.
- *	@id2 contains a uid.
- *	@flags contains one of the LSM_SETID_* values.
- *	Return 0 if permission is granted.
  * @task_fix_setuid:
  *	Update the module's state after setting one or more of the user
  *	identity attributes of the current process.  The @flags parameter
@@ -712,18 +682,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@old is the set of credentials that are being replaces
  *	@flags contains one of the LSM_SETID_* values.
  *	Return 0 on success.
- * @task_setgid:
- *	Check permission before setting one or more of the group identity
- *	attributes of the current process.  The @flags parameter indicates
- *	which of the set*gid system calls invoked this hook and how to
- *	interpret the @id0, @id1, and @id2 parameters.  See the LSM_SETID
- *	definitions at the beginning of this file for the @flags values and
- *	their meanings.
- *	@id0 contains a gid.
- *	@id1 contains a gid.
- *	@id2 contains a gid.
- *	@flags contains one of the LSM_SETID_* values.
- *	Return 0 if permission is granted.
  * @task_setpgid:
  *	Check permission before setting the process group identifier of the
  *	process @p to @pgid.
@@ -745,11 +703,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@p contains the task_struct for the process and place is into @secid.
  *	In case of failure, @secid will be set to zero.
  *
- * @task_setgroups:
- *	Check permission before setting the supplementary group set of the
- *	current process.
- *	@group_info contains the new group information.
- *	Return 0 if permission is granted.
  * @task_setnice:
  *	Check permission before setting the nice value of @p to @nice.
  *	@p contains the task_struct of process.
@@ -961,6 +914,7 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	Check permissions on incoming network packets.  This hook is distinct
  *	from Netfilter's IP input hooks since it is the first time that the
  *	incoming sk_buff @skb has been associated with a particular socket, @sk.
+ *	Must not sleep inside this hook because some callers hold spinlocks.
  *	@sk contains the sock (not socket) associated with the incoming sk_buff.
  *	@skb contains the incoming network data.
  * @socket_getpeersec_stream:
@@ -1112,13 +1066,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	Return the length of the string (including terminating NUL) or -ve if
  *      an error.
  *	May also return 0 (and a NULL buffer pointer) if there is no label.
- * @key_session_to_parent:
- *	Forcibly assign the session keyring from a process to its parent
- *	process.
- *	@cred: Pointer to process's credentials
- *	@parent_cred: Pointer to parent process's credentials
- *	@keyring: Proposed new session keyring
- *	Return 0 if permission is granted, -ve error otherwise.
  *
  * Security hooks affecting all System V IPC operations.
  *
@@ -1306,13 +1253,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@cap contains the capability <include/linux/capability.h>.
  *	@audit: Whether to write an audit message or not
  *	Return 0 if the capability is granted for @tsk.
- * @acct:
- *	Check permission before enabling or disabling process accounting.  If
- *	accounting is being enabled, then @file refers to the open file used to
- *	store accounting records.  If accounting is being disabled, then @file
- *	is NULL.
- *	@file contains the file structure for the accounting file (may be NULL).
- *	Return 0 if permission is granted.
  * @sysctl:
  *	Check permission before accessing the @table sysctl variable in the
  *	manner specified by @op.
@@ -1324,6 +1264,7 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	logging to the console.
  *	See the syslog(2) manual page for an explanation of the @type values.
  *	@type contains the type of action.
+ *	@from_file indicates the context of action (if it came from /proc).
  *	Return 0 if permission is granted.
  * @settime:
  *	Check permission to change the system time.
@@ -1434,11 +1375,10 @@ struct security_operations {
 		       const kernel_cap_t *permitted);
 	int (*capable) (struct task_struct *tsk, const struct cred *cred,
 			int cap, int audit);
-	int (*acct) (struct file *file);
 	int (*sysctl) (struct ctl_table *table, int op);
 	int (*quotactl) (int cmds, int type, int id, struct super_block *sb);
 	int (*quota_on) (struct dentry *dentry);
-	int (*syslog) (int type);
+	int (*syslog) (int type, bool from_file);
 	int (*settime) (struct timespec *ts, struct timezone *tz);
 	int (*vm_enough_memory) (struct mm_struct *mm, long pages);
 
@@ -1456,18 +1396,9 @@ struct security_operations {
 	int (*sb_statfs) (struct dentry *dentry);
 	int (*sb_mount) (char *dev_name, struct path *path,
 			 char *type, unsigned long flags, void *data);
-	int (*sb_check_sb) (struct vfsmount *mnt, struct path *path);
 	int (*sb_umount) (struct vfsmount *mnt, int flags);
-	void (*sb_umount_close) (struct vfsmount *mnt);
-	void (*sb_umount_busy) (struct vfsmount *mnt);
-	void (*sb_post_remount) (struct vfsmount *mnt,
-				 unsigned long flags, void *data);
-	void (*sb_post_addmount) (struct vfsmount *mnt,
-				  struct path *mountpoint);
 	int (*sb_pivotroot) (struct path *old_path,
 			     struct path *new_path);
-	void (*sb_post_pivotroot) (struct path *old_path,
-				   struct path *new_path);
 	int (*sb_set_mnt_opts) (struct super_block *sb,
 				struct security_mnt_opts *opts);
 	void (*sb_clone_mnt_opts) (const struct super_block *oldsb,
@@ -1480,14 +1411,17 @@ struct security_operations {
 	int (*path_rmdir) (struct path *dir, struct dentry *dentry);
 	int (*path_mknod) (struct path *dir, struct dentry *dentry, int mode,
 			   unsigned int dev);
-	int (*path_truncate) (struct path *path, loff_t length,
-			      unsigned int time_attrs);
+	int (*path_truncate) (struct path *path);
 	int (*path_symlink) (struct path *dir, struct dentry *dentry,
 			     const char *old_name);
 	int (*path_link) (struct dentry *old_dentry, struct path *new_dir,
 			  struct dentry *new_dentry);
 	int (*path_rename) (struct path *old_dir, struct dentry *old_dentry,
 			    struct path *new_dir, struct dentry *new_dentry);
+	int (*path_chmod) (struct dentry *dentry, struct vfsmount *mnt,
+			   mode_t mode);
+	int (*path_chown) (struct path *path, uid_t uid, gid_t gid);
+	int (*path_chroot) (struct path *path);
 #endif
 
 	int (*inode_alloc_security) (struct inode *inode);
@@ -1512,7 +1446,6 @@ struct security_operations {
 	int (*inode_permission) (struct inode *inode, int mask);
 	int (*inode_setattr)	(struct dentry *dentry, struct iattr *attr);
 	int (*inode_getattr) (struct vfsmount *mnt, struct dentry *dentry);
-	void (*inode_delete) (struct inode *inode);
 	int (*inode_setxattr) (struct dentry *dentry, const char *name,
 			       const void *value, size_t size, int flags);
 	void (*inode_post_setxattr) (struct dentry *dentry, const char *name,
@@ -1553,24 +1486,21 @@ struct security_operations {
 	void (*cred_free) (struct cred *cred);
 	int (*cred_prepare)(struct cred *new, const struct cred *old,
 			    gfp_t gfp);
-	void (*cred_commit)(struct cred *new, const struct cred *old);
 	void (*cred_transfer)(struct cred *new, const struct cred *old);
 	int (*kernel_act_as)(struct cred *new, u32 secid);
 	int (*kernel_create_files_as)(struct cred *new, struct inode *inode);
-	int (*kernel_module_request)(void);
-	int (*task_setuid) (uid_t id0, uid_t id1, uid_t id2, int flags);
+	int (*kernel_module_request)(char *kmod_name);
 	int (*task_fix_setuid) (struct cred *new, const struct cred *old,
 				int flags);
-	int (*task_setgid) (gid_t id0, gid_t id1, gid_t id2, int flags);
 	int (*task_setpgid) (struct task_struct *p, pid_t pgid);
 	int (*task_getpgid) (struct task_struct *p);
 	int (*task_getsid) (struct task_struct *p);
 	void (*task_getsecid) (struct task_struct *p, u32 *secid);
-	int (*task_setgroups) (struct group_info *group_info);
 	int (*task_setnice) (struct task_struct *p, int nice);
 	int (*task_setioprio) (struct task_struct *p, int ioprio);
 	int (*task_getioprio) (struct task_struct *p);
-	int (*task_setrlimit) (unsigned int resource, struct rlimit *new_rlim);
+	int (*task_setrlimit) (struct task_struct *p, unsigned int resource,
+			struct rlimit *new_rlim);
 	int (*task_setscheduler) (struct task_struct *p, int policy,
 				  struct sched_param *lp);
 	int (*task_getscheduler) (struct task_struct *p);
@@ -1696,9 +1626,6 @@ struct security_operations {
 			       const struct cred *cred,
 			       key_perm_t perm);
 	int (*key_getsecurity)(struct key *key, char **_buffer);
-	int (*key_session_to_parent)(const struct cred *cred,
-				     const struct cred *parent_cred,
-				     struct key *key);
 #endif	/* CONFIG_KEYS */
 
 #ifdef CONFIG_AUDIT
@@ -1729,11 +1656,10 @@ int security_capset(struct cred *new, const struct cred *old,
 int security_capable(int cap);
 int security_real_capable(struct task_struct *tsk, int cap);
 int security_real_capable_noaudit(struct task_struct *tsk, int cap);
-int security_acct(struct file *file);
 int security_sysctl(struct ctl_table *table, int op);
 int security_quotactl(int cmds, int type, int id, struct super_block *sb);
 int security_quota_on(struct dentry *dentry);
-int security_syslog(int type);
+int security_syslog(int type, bool from_file);
 int security_settime(struct timespec *ts, struct timezone *tz);
 int security_vm_enough_memory(long pages);
 int security_vm_enough_memory_mm(struct mm_struct *mm, long pages);
@@ -1751,14 +1677,8 @@ int security_sb_show_options(struct seq_file *m, struct super_block *sb);
 int security_sb_statfs(struct dentry *dentry);
 int security_sb_mount(char *dev_name, struct path *path,
 		      char *type, unsigned long flags, void *data);
-int security_sb_check_sb(struct vfsmount *mnt, struct path *path);
 int security_sb_umount(struct vfsmount *mnt, int flags);
-void security_sb_umount_close(struct vfsmount *mnt);
-void security_sb_umount_busy(struct vfsmount *mnt);
-void security_sb_post_remount(struct vfsmount *mnt, unsigned long flags, void *data);
-void security_sb_post_addmount(struct vfsmount *mnt, struct path *mountpoint);
 int security_sb_pivotroot(struct path *old_path, struct path *new_path);
-void security_sb_post_pivotroot(struct path *old_path, struct path *new_path);
 int security_sb_set_mnt_opts(struct super_block *sb, struct security_mnt_opts *opts);
 void security_sb_clone_mnt_opts(const struct super_block *oldsb,
 				struct super_block *newsb);
@@ -1784,7 +1704,6 @@ int security_inode_follow_link(struct dentry *dentry, struct nameidata *nd);
 int security_inode_permission(struct inode *inode, int mask);
 int security_inode_setattr(struct dentry *dentry, struct iattr *attr);
 int security_inode_getattr(struct vfsmount *mnt, struct dentry *dentry);
-void security_inode_delete(struct inode *inode);
 int security_inode_setxattr(struct dentry *dentry, const char *name,
 			    const void *value, size_t size, int flags);
 void security_inode_post_setxattr(struct dentry *dentry, const char *name,
@@ -1818,24 +1737,21 @@ int security_task_create(unsigned long clone_flags);
 int security_cred_alloc_blank(struct cred *cred, gfp_t gfp);
 void security_cred_free(struct cred *cred);
 int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp);
-void security_commit_creds(struct cred *new, const struct cred *old);
 void security_transfer_creds(struct cred *new, const struct cred *old);
 int security_kernel_act_as(struct cred *new, u32 secid);
 int security_kernel_create_files_as(struct cred *new, struct inode *inode);
-int security_kernel_module_request(void);
-int security_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags);
+int security_kernel_module_request(char *kmod_name);
 int security_task_fix_setuid(struct cred *new, const struct cred *old,
 			     int flags);
-int security_task_setgid(gid_t id0, gid_t id1, gid_t id2, int flags);
 int security_task_setpgid(struct task_struct *p, pid_t pgid);
 int security_task_getpgid(struct task_struct *p);
 int security_task_getsid(struct task_struct *p);
 void security_task_getsecid(struct task_struct *p, u32 *secid);
-int security_task_setgroups(struct group_info *group_info);
 int security_task_setnice(struct task_struct *p, int nice);
 int security_task_setioprio(struct task_struct *p, int ioprio);
 int security_task_getioprio(struct task_struct *p);
-int security_task_setrlimit(unsigned int resource, struct rlimit *new_rlim);
+int security_task_setrlimit(struct task_struct *p, unsigned int resource,
+		struct rlimit *new_rlim);
 int security_task_setscheduler(struct task_struct *p,
 				int policy, struct sched_param *lp);
 int security_task_getscheduler(struct task_struct *p);
@@ -1958,11 +1874,6 @@ int security_real_capable_noaudit(struct task_struct *tsk, int cap)
 	return ret;
 }
 
-static inline int security_acct(struct file *file)
-{
-	return 0;
-}
-
 static inline int security_sysctl(struct ctl_table *table, int op)
 {
 	return 0;
@@ -1979,9 +1890,9 @@ static inline int security_quota_on(struct dentry *dentry)
 	return 0;
 }
 
-static inline int security_syslog(int type)
+static inline int security_syslog(int type, bool from_file)
 {
-	return cap_syslog(type);
+	return cap_syslog(type, from_file);
 }
 
 static inline int security_settime(struct timespec *ts, struct timezone *tz)
@@ -2067,40 +1978,16 @@ static inline int security_sb_mount(char *dev_name, struct path *path,
 	return 0;
 }
 
-static inline int security_sb_check_sb(struct vfsmount *mnt,
-				       struct path *path)
-{
-	return 0;
-}
-
 static inline int security_sb_umount(struct vfsmount *mnt, int flags)
 {
 	return 0;
 }
-
-static inline void security_sb_umount_close(struct vfsmount *mnt)
-{ }
-
-static inline void security_sb_umount_busy(struct vfsmount *mnt)
-{ }
-
-static inline void security_sb_post_remount(struct vfsmount *mnt,
-					     unsigned long flags, void *data)
-{ }
-
-static inline void security_sb_post_addmount(struct vfsmount *mnt,
-					     struct path *mountpoint)
-{ }
 
 static inline int security_sb_pivotroot(struct path *old_path,
 					struct path *new_path)
 {
 	return 0;
 }
-
-static inline void security_sb_post_pivotroot(struct path *old_path,
-					      struct path *new_path)
-{ }
 
 static inline int security_sb_set_mnt_opts(struct super_block *sb,
 					   struct security_mnt_opts *opts)
@@ -2216,9 +2103,6 @@ static inline int security_inode_getattr(struct vfsmount *mnt,
 {
 	return 0;
 }
-
-static inline void security_inode_delete(struct inode *inode)
-{ }
 
 static inline int security_inode_setxattr(struct dentry *dentry,
 		const char *name, const void *value, size_t size, int flags)
@@ -2366,11 +2250,6 @@ static inline int security_prepare_creds(struct cred *new,
 	return 0;
 }
 
-static inline void security_commit_creds(struct cred *new,
-					 const struct cred *old)
-{
-}
-
 static inline void security_transfer_creds(struct cred *new,
 					   const struct cred *old)
 {
@@ -2387,13 +2266,7 @@ static inline int security_kernel_create_files_as(struct cred *cred,
 	return 0;
 }
 
-static inline int security_kernel_module_request(void)
-{
-	return 0;
-}
-
-static inline int security_task_setuid(uid_t id0, uid_t id1, uid_t id2,
-				       int flags)
+static inline int security_kernel_module_request(char *kmod_name)
 {
 	return 0;
 }
@@ -2403,12 +2276,6 @@ static inline int security_task_fix_setuid(struct cred *new,
 					   int flags)
 {
 	return cap_task_fix_setuid(new, old, flags);
-}
-
-static inline int security_task_setgid(gid_t id0, gid_t id1, gid_t id2,
-				       int flags)
-{
-	return 0;
 }
 
 static inline int security_task_setpgid(struct task_struct *p, pid_t pgid)
@@ -2431,11 +2298,6 @@ static inline void security_task_getsecid(struct task_struct *p, u32 *secid)
 	*secid = 0;
 }
 
-static inline int security_task_setgroups(struct group_info *group_info)
-{
-	return 0;
-}
-
 static inline int security_task_setnice(struct task_struct *p, int nice)
 {
 	return cap_task_setnice(p, nice);
@@ -2451,7 +2313,8 @@ static inline int security_task_getioprio(struct task_struct *p)
 	return 0;
 }
 
-static inline int security_task_setrlimit(unsigned int resource,
+static inline int security_task_setrlimit(struct task_struct *p,
+					  unsigned int resource,
 					  struct rlimit *new_rlim)
 {
 	return 0;
@@ -2944,14 +2807,17 @@ int security_path_mkdir(struct path *dir, struct dentry *dentry, int mode);
 int security_path_rmdir(struct path *dir, struct dentry *dentry);
 int security_path_mknod(struct path *dir, struct dentry *dentry, int mode,
 			unsigned int dev);
-int security_path_truncate(struct path *path, loff_t length,
-			   unsigned int time_attrs);
+int security_path_truncate(struct path *path);
 int security_path_symlink(struct path *dir, struct dentry *dentry,
 			  const char *old_name);
 int security_path_link(struct dentry *old_dentry, struct path *new_dir,
 		       struct dentry *new_dentry);
 int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
 			 struct path *new_dir, struct dentry *new_dentry);
+int security_path_chmod(struct dentry *dentry, struct vfsmount *mnt,
+			mode_t mode);
+int security_path_chown(struct path *path, uid_t uid, gid_t gid);
+int security_path_chroot(struct path *path);
 #else	/* CONFIG_SECURITY_PATH */
 static inline int security_path_unlink(struct path *dir, struct dentry *dentry)
 {
@@ -2975,8 +2841,7 @@ static inline int security_path_mknod(struct path *dir, struct dentry *dentry,
 	return 0;
 }
 
-static inline int security_path_truncate(struct path *path, loff_t length,
-					 unsigned int time_attrs)
+static inline int security_path_truncate(struct path *path)
 {
 	return 0;
 }
@@ -3001,6 +2866,23 @@ static inline int security_path_rename(struct path *old_dir,
 {
 	return 0;
 }
+
+static inline int security_path_chmod(struct dentry *dentry,
+				      struct vfsmount *mnt,
+				      mode_t mode)
+{
+	return 0;
+}
+
+static inline int security_path_chown(struct path *path, uid_t uid, gid_t gid)
+{
+	return 0;
+}
+
+static inline int security_path_chroot(struct path *path)
+{
+	return 0;
+}
 #endif	/* CONFIG_SECURITY_PATH */
 
 #ifdef CONFIG_KEYS
@@ -3011,9 +2893,6 @@ void security_key_free(struct key *key);
 int security_key_permission(key_ref_t key_ref,
 			    const struct cred *cred, key_perm_t perm);
 int security_key_getsecurity(struct key *key, char **_buffer);
-int security_key_session_to_parent(const struct cred *cred,
-				   const struct cred *parent_cred,
-				   struct key *key);
 
 #else
 
@@ -3038,13 +2917,6 @@ static inline int security_key_permission(key_ref_t key_ref,
 static inline int security_key_getsecurity(struct key *key, char **_buffer)
 {
 	*_buffer = NULL;
-	return 0;
-}
-
-static inline int security_key_session_to_parent(const struct cred *cred,
-						 const struct cred *parent_cred,
-						 struct key *key)
-{
 	return 0;
 }
 

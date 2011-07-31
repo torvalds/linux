@@ -27,8 +27,8 @@ static struct stack_trace max_stack_trace = {
 };
 
 static unsigned long max_stack_size;
-static raw_spinlock_t max_stack_lock =
-	(raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
+static arch_spinlock_t max_stack_lock =
+	(arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
 static int stack_trace_disabled __read_mostly;
 static DEFINE_PER_CPU(int, trace_active);
@@ -54,7 +54,7 @@ static inline void check_stack(void)
 		return;
 
 	local_irq_save(flags);
-	__raw_spin_lock(&max_stack_lock);
+	arch_spin_lock(&max_stack_lock);
 
 	/* a race could have already updated it */
 	if (this_size <= max_stack_size)
@@ -103,19 +103,19 @@ static inline void check_stack(void)
 	}
 
  out:
-	__raw_spin_unlock(&max_stack_lock);
+	arch_spin_unlock(&max_stack_lock);
 	local_irq_restore(flags);
 }
 
 static void
 stack_trace_call(unsigned long ip, unsigned long parent_ip)
 {
-	int cpu, resched;
+	int cpu;
 
 	if (unlikely(!ftrace_enabled || stack_trace_disabled))
 		return;
 
-	resched = ftrace_preempt_disable();
+	preempt_disable_notrace();
 
 	cpu = raw_smp_processor_id();
 	/* no atomic needed, we only modify this variable by this cpu */
@@ -127,7 +127,7 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip)
  out:
 	per_cpu(trace_active, cpu)--;
 	/* prevent recursion in schedule */
-	ftrace_preempt_enable(resched);
+	preempt_enable_notrace();
 }
 
 static struct ftrace_ops trace_ops __read_mostly =
@@ -157,6 +157,7 @@ stack_max_size_write(struct file *filp, const char __user *ubuf,
 	unsigned long val, flags;
 	char buf[64];
 	int ret;
+	int cpu;
 
 	if (count >= sizeof(buf))
 		return -EINVAL;
@@ -171,9 +172,20 @@ stack_max_size_write(struct file *filp, const char __user *ubuf,
 		return ret;
 
 	local_irq_save(flags);
-	__raw_spin_lock(&max_stack_lock);
+
+	/*
+	 * In case we trace inside arch_spin_lock() or after (NMI),
+	 * we will cause circular lock, so we also need to increase
+	 * the percpu trace_active here.
+	 */
+	cpu = smp_processor_id();
+	per_cpu(trace_active, cpu)++;
+
+	arch_spin_lock(&max_stack_lock);
 	*ptr = val;
-	__raw_spin_unlock(&max_stack_lock);
+	arch_spin_unlock(&max_stack_lock);
+
+	per_cpu(trace_active, cpu)--;
 	local_irq_restore(flags);
 
 	return count;
@@ -206,8 +218,14 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 
 static void *t_start(struct seq_file *m, loff_t *pos)
 {
+	int cpu;
+
 	local_irq_disable();
-	__raw_spin_lock(&max_stack_lock);
+
+	cpu = smp_processor_id();
+	per_cpu(trace_active, cpu)++;
+
+	arch_spin_lock(&max_stack_lock);
 
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
@@ -217,7 +235,13 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 
 static void t_stop(struct seq_file *m, void *p)
 {
-	__raw_spin_unlock(&max_stack_lock);
+	int cpu;
+
+	arch_spin_unlock(&max_stack_lock);
+
+	cpu = smp_processor_id();
+	per_cpu(trace_active, cpu)--;
+
 	local_irq_enable();
 }
 
@@ -225,7 +249,7 @@ static int trace_lookup_stack(struct seq_file *m, long i)
 {
 	unsigned long addr = stack_dump_trace[i];
 
-	return seq_printf(m, "%pF\n", (void *)addr);
+	return seq_printf(m, "%pS\n", (void *)addr);
 }
 
 static void print_disabled(struct seq_file *m)

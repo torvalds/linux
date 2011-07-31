@@ -2,7 +2,7 @@
  *  cx18 functions for DVB support
  *
  *  Copyright (c) 2008 Steven Toth <stoth@linuxtv.org>
- *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -61,6 +61,7 @@ static struct mxl5005s_config hauppauge_hvr1600_tuner = {
 	.top		 = MXL5005S_TOP_25P2,
 	.mod_mode        = MXL_DIGITAL_MODE,
 	.if_mode         = MXL_ZERO_IF,
+	.qam_gain        = 0x02,
 	.AgcMasterByte   = 0x00,
 };
 
@@ -71,7 +72,8 @@ static struct s5h1409_config hauppauge_hvr1600_config = {
 	.qam_if        = 44000,
 	.inversion     = S5H1409_INVERSION_OFF,
 	.status_mode   = S5H1409_DEMODLOCKING,
-	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+	.hvr1600_opt   = S5H1409_HVR1600_OPTIMIZE
 };
 
 /*
@@ -211,10 +213,14 @@ static int cx18_dvb_start_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
 	struct cx18_stream *stream = (struct cx18_stream *) demux->priv;
-	struct cx18 *cx = stream->cx;
+	struct cx18 *cx;
 	int ret;
 	u32 v;
 
+	if (!stream)
+		return -EINVAL;
+
+	cx = stream->cx;
 	CX18_DEBUG_INFO("Start feed: pid = 0x%x index = %d\n",
 			feed->pid, feed->index);
 
@@ -251,12 +257,10 @@ static int cx18_dvb_start_feed(struct dvb_demux_feed *feed)
 	if (!demux->dmx.frontend)
 		return -EINVAL;
 
-	if (!stream)
-		return -EINVAL;
-
 	mutex_lock(&stream->dvb.feedlock);
 	if (stream->dvb.feeding++ == 0) {
 		CX18_DEBUG_INFO("Starting Transport DMA\n");
+		mutex_lock(&cx->serialize_lock);
 		set_bit(CX18_F_S_STREAMING, &stream->s_flags);
 		ret = cx18_start_v4l2_encode_stream(stream);
 		if (ret < 0) {
@@ -265,6 +269,7 @@ static int cx18_dvb_start_feed(struct dvb_demux_feed *feed)
 			if (stream->dvb.feeding == 0)
 				clear_bit(CX18_F_S_STREAMING, &stream->s_flags);
 		}
+		mutex_unlock(&cx->serialize_lock);
 	} else
 		ret = 0;
 	mutex_unlock(&stream->dvb.feedlock);
@@ -277,17 +282,20 @@ static int cx18_dvb_stop_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
 	struct cx18_stream *stream = (struct cx18_stream *)demux->priv;
-	struct cx18 *cx = stream->cx;
+	struct cx18 *cx;
 	int ret = -EINVAL;
 
-	CX18_DEBUG_INFO("Stop feed: pid = 0x%x index = %d\n",
-			feed->pid, feed->index);
-
 	if (stream) {
+		cx = stream->cx;
+		CX18_DEBUG_INFO("Stop feed: pid = 0x%x index = %d\n",
+				feed->pid, feed->index);
+
 		mutex_lock(&stream->dvb.feedlock);
 		if (--stream->dvb.feeding == 0) {
 			CX18_DEBUG_INFO("Stopping Transport DMA\n");
+			mutex_lock(&cx->serialize_lock);
 			ret = cx18_stop_v4l2_encode_stream(stream, 0);
+			mutex_unlock(&cx->serialize_lock);
 		} else
 			ret = 0;
 		mutex_unlock(&stream->dvb.feedlock);
@@ -360,9 +368,10 @@ int cx18_dvb_register(struct cx18_stream *stream)
 	dvb_net_init(dvb_adapter, &dvb->dvbnet, dmx);
 
 	CX18_INFO("DVB Frontend registered\n");
-	CX18_INFO("Registered DVB adapter%d for %s (%d x %d kB)\n",
+	CX18_INFO("Registered DVB adapter%d for %s (%d x %d.%02d kB)\n",
 		  stream->dvb.dvb_adapter.num, stream->name,
-		  stream->buffers, stream->buf_size/1024);
+		  stream->buffers, stream->buf_size/1024,
+		  (stream->buf_size * 100 / 1024) % 100);
 
 	mutex_init(&dvb->feedlock);
 	dvb->enabled = 1;

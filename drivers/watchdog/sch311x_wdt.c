@@ -250,7 +250,7 @@ static long sch311x_wdt_ioctl(struct file *file, unsigned int cmd,
 	int new_timeout;
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
-	static struct watchdog_info ident = {
+	static const struct watchdog_info ident = {
 		.options		= WDIOF_KEEPALIVEPING |
 					  WDIOF_SETTIMEOUT |
 					  WDIOF_MAGICCLOSE,
@@ -425,14 +425,14 @@ static int __devinit sch311x_wdt_probe(struct platform_device *pdev)
 	val = therm_trip ? 0x06 : 0x04;
 	outb(val, sch311x_wdt_data.runtime_reg + RESGEN);
 
+	sch311x_wdt_miscdev.parent = dev;
+
 	err = misc_register(&sch311x_wdt_miscdev);
 	if (err != 0) {
 		dev_err(dev, "cannot register miscdev on minor=%d (err=%d)\n",
 							WATCHDOG_MINOR, err);
 		goto exit_release_region3;
 	}
-
-	sch311x_wdt_miscdev.parent = dev;
 
 	dev_info(dev,
 		"SMSC SCH311x WDT initialized. timeout=%d sec (nowayout=%d)\n",

@@ -30,7 +30,8 @@
 #include <linux/highmem.h>
 #include <linux/initrd.h>
 #include <linux/pagemap.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
+#include <linux/gfp.h>
 
 #include <asm/pgalloc.h>
 #include <asm/prom.h>
@@ -47,7 +48,7 @@
 #include "mmu_decl.h"
 
 #if defined(CONFIG_KERNEL_START_BOOL) || defined(CONFIG_LOWMEM_SIZE_BOOL)
-/* The ammount of lowmem must be within 0xF0000000 - KERNELBASE. */
+/* The amount of lowmem must be within 0xF0000000 - KERNELBASE. */
 #if (CONFIG_LOWMEM_SIZE > (0xF0000000 - PAGE_OFFSET))
 #error "You must adjust CONFIG_LOWMEM_SIZE or CONFIG_START_KERNEL"
 #endif
@@ -81,6 +82,11 @@ extern struct task_struct *current_set[NR_CPUS];
  */
 int __map_without_bats;
 int __map_without_ltlbs;
+
+/*
+ * This tells the system to allow ioremapping memory marked as reserved.
+ */
+int __allow_ioremap_reserved;
 
 /* max amount of low RAM to map in */
 unsigned long __max_low_memory = MAX_LOW_MEM;
@@ -130,13 +136,17 @@ void __init MMU_init(void)
 	/* parse args from command line */
 	MMU_setup();
 
-	if (lmb.memory.cnt > 1) {
-		lmb.memory.cnt = 1;
-		lmb_analyze();
+	if (memblock.memory.cnt > 1) {
+#ifndef CONFIG_WII
+		memblock.memory.cnt = 1;
+		memblock_analyze();
 		printk(KERN_WARNING "Only using first contiguous memory region");
+#else
+		wii_memory_fixups();
+#endif
 	}
 
-	total_lowmem = total_memory = lmb_end_of_DRAM() - memstart_addr;
+	total_lowmem = total_memory = memblock_end_of_DRAM() - memstart_addr;
 	lowmem_end_addr = memstart_addr + total_lowmem;
 
 #ifdef CONFIG_FSL_BOOKE
@@ -151,8 +161,8 @@ void __init MMU_init(void)
 		lowmem_end_addr = memstart_addr + total_lowmem;
 #ifndef CONFIG_HIGHMEM
 		total_memory = total_lowmem;
-		lmb_enforce_memory_limit(lowmem_end_addr);
-		lmb_analyze();
+		memblock_enforce_memory_limit(lowmem_end_addr);
+		memblock_analyze();
 #endif /* CONFIG_HIGHMEM */
 	}
 
@@ -190,7 +200,7 @@ void __init *early_get_page(void)
 	if (init_bootmem_done) {
 		p = alloc_bootmem_pages(PAGE_SIZE);
 	} else {
-		p = __va(lmb_alloc_base(PAGE_SIZE, PAGE_SIZE,
+		p = __va(memblock_alloc_base(PAGE_SIZE, PAGE_SIZE,
 					__initial_memory_limit_addr));
 	}
 	return p;

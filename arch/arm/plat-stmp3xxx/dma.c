@@ -15,6 +15,7 @@
  * http://www.opensource.org/licenses/gpl-license.html
  * http://www.gnu.org/copyleft/gpl.html
  */
+#include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/dmapool.h>

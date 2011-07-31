@@ -151,13 +151,22 @@ The stages that a patch goes through are, generally:
    well.
 
  - Wider review.  When the patch is getting close to ready for mainline
-   inclusion, it will be accepted by a relevant subsystem maintainer -
+   inclusion, it should be accepted by a relevant subsystem maintainer -
    though this acceptance is not a guarantee that the patch will make it
    all the way to the mainline.  The patch will show up in the maintainer's
    subsystem tree and into the staging trees (described below).  When the
    process works, this step leads to more extensive review of the patch and
    the discovery of any problems resulting from the integration of this
    patch with work being done by others.
+
+-  Please note that most maintainers also have day jobs, so merging
+   your patch may not be their highest priority.  If your patch is
+   getting feedback about changes that are needed, you should either
+   make those changes or justify why they should not be made.  If your
+   patch has no review complaints but is not being merged by its
+   appropriate subsystem or driver maintainer, you should be persistent
+   in updating the patch to the current kernel so that it applies cleanly
+   and keep sending it for review and merging.
 
  - Merging into the mainline.  Eventually, a successful patch will be
    merged into the mainline repository managed by Linus Torvalds.  More
@@ -258,12 +267,8 @@ an appropriate subsystem tree or be sent directly to Linus.  In a typical
 development cycle, approximately 10% of the patches going into the mainline
 get there via -mm.
 
-The current -mm patch can always be found from the front page of
-
-	http://kernel.org/
-
-Those who want to see the current state of -mm can get the "-mm of the
-moment" tree, found at:
+The current -mm patch is available in the "mmotm" (-mm of the moment)
+directory at:
 
 	http://userweb.kernel.org/~akpm/mmotm/
 
@@ -298,6 +303,12 @@ volatility of linux-next tends to make it a difficult development target.
 See http://lwn.net/Articles/289013/ for more information on this topic, and
 stay tuned; much is still in flux where linux-next is involved.
 
+Besides the mmotm and linux-next trees, the kernel source tree now contains
+the drivers/staging/ directory and many sub-directories for drivers or
+filesystems that are on their way to being added to the kernel tree
+proper, but they remain in drivers/staging/ while they still need more
+work.
+
 
 2.5: TOOLS
 
@@ -319,9 +330,9 @@ developers; even if they do not use it for their own work, they'll need git
 to keep up with what other developers (and the mainline) are doing.
 
 Git is now packaged by almost all Linux distributions.  There is a home
-page at 
+page at:
 
-	http://git.or.cz/
+	http://git-scm.com/
 
 That page has pointers to documentation and tutorials.  One should be
 aware, in particular, of the Kernel Hacker's Guide to git, which has

@@ -24,6 +24,7 @@
 #include <linux/random.h>
 #include <linux/miscdevice.h>
 #include <linux/poll.h>
+#include <linux/slab.h>
 #include <linux/wait.h>
 #include <linux/module.h>
 #include "ecryptfs_kernel.h"
@@ -499,7 +500,7 @@ static struct miscdevice ecryptfs_miscdev = {
  *
  * Returns zero on success; non-zero otherwise
  */
-int ecryptfs_init_ecryptfs_miscdev(void)
+int __init ecryptfs_init_ecryptfs_miscdev(void)
 {
 	int rc;
 

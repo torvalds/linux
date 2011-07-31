@@ -11,6 +11,7 @@
 #include <linux/etherdevice.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 #include "dsa_priv.h"
 
 #define DSA_HLEN	4

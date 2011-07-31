@@ -25,6 +25,7 @@
  */
 /* #define DEBUG */
 
+#include <linux/gfp.h>
 #include <linux/delay.h>
 #include <linux/vmalloc.h>
 #include <linux/mISDNhw.h>
@@ -860,7 +861,7 @@ isar_pump_statev_modem(struct isar_ch *ch, u8 devt) {
 		pr_debug("%s: pump stev GSTN CLEAR\n", ch->is->name);
 		break;
 	default:
-		pr_info("u%s: nknown pump stev %x\n", ch->is->name, devt);
+		pr_info("u%s: unknown pump stev %x\n", ch->is->name, devt);
 		break;
 	}
 }
@@ -1712,13 +1713,13 @@ mISDNisar_init(struct isar_hw *isar, void *hw)
 }
 EXPORT_SYMBOL(mISDNisar_init);
 
-static int isar_mod_init(void)
+static int __init isar_mod_init(void)
 {
 	pr_notice("mISDN: ISAR driver Rev. %s\n", ISAR_REV);
 	return 0;
 }
 
-static void isar_mod_cleanup(void)
+static void __exit isar_mod_cleanup(void)
 {
 	pr_notice("mISDN: ISAR module unloaded\n");
 }

@@ -25,6 +25,7 @@
 
 #define MODULE_NAME "pac207"
 
+#include <linux/input.h>
 #include "gspca.h"
 
 MODULE_AUTHOR("Hans de Goede <hdgoede@redhat.com>");
@@ -77,7 +78,7 @@ static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val);
 
-static struct ctrl sd_ctrls[] = {
+static const struct ctrl sd_ctrls[] = {
 #define SD_BRIGHTNESS 0
 	{
 	    {
@@ -98,7 +99,7 @@ static struct ctrl sd_ctrls[] = {
 	    {
 		.id = V4L2_CID_EXPOSURE,
 		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "exposure",
+		.name = "Exposure",
 		.minimum = PAC207_EXPOSURE_MIN,
 		.maximum = PAC207_EXPOSURE_MAX,
 		.step = 1,
@@ -129,7 +130,7 @@ static struct ctrl sd_ctrls[] = {
 	    {
 		.id = V4L2_CID_GAIN,
 		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "gain",
+		.name = "Gain",
 		.minimum = PAC207_GAIN_MIN,
 		.maximum = PAC207_GAIN_MAX,
 		.step = 1,
@@ -337,14 +338,13 @@ static void pac207_do_auto_gain(struct gspca_dev *gspca_dev)
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,
-			__u8 *data,
+			u8 *data,
 			int len)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	unsigned char *sof;
 
-	sof = pac_find_sof(gspca_dev, data, len);
+	sof = pac_find_sof(&sd->sof_read, data, len);
 	if (sof) {
 		int n;
 
@@ -354,10 +354,10 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			n -= sizeof pac_sof_marker;
 		else
 			n = 0;
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
-					data, n);
+		gspca_frame_add(gspca_dev, LAST_PACKET,
+				data, n);
 		sd->header_read = 0;
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, NULL, 0);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, NULL, 0);
 		len -= sof - data;
 		data = sof;
 	}
@@ -381,7 +381,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		sd->header_read = 11;
 	}
 
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static void setbrightness(struct gspca_dev *gspca_dev)
@@ -496,6 +496,25 @@ static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
+#ifdef CONFIG_INPUT
+static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
+			u8 *data,		/* interrupt packet data */
+			int len)		/* interrput packet length */
+{
+	int ret = -EINVAL;
+
+	if (len == 2 && data[0] == 0x5a && data[1] == 0x5a) {
+		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 1);
+		input_sync(gspca_dev->input_dev);
+		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
+		input_sync(gspca_dev->input_dev);
+		ret = 0;
+	}
+
+	return ret;
+}
+#endif
+
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
@@ -507,6 +526,9 @@ static const struct sd_desc sd_desc = {
 	.stopN = sd_stopN,
 	.dq_callback = pac207_do_auto_gain,
 	.pkt_scan = sd_pkt_scan,
+#ifdef CONFIG_INPUT
+	.int_pkt_scan = sd_int_pkt_scan,
+#endif
 };
 
 /* -- module initialisation -- */

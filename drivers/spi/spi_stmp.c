@@ -76,7 +76,7 @@ struct stmp_spi {
 			break;						\
 		}							\
 		cpu_relax();						\
-	} while (time_before(end_jiffies, jiffies));			\
+	} while (time_before(jiffies, end_jiffies));			\
 	succeeded;							\
 	})
 

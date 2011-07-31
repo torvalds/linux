@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/suspend.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 
 #include <mach/pm.h>
 

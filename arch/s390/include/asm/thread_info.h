@@ -50,6 +50,7 @@ struct thread_info {
 	struct restart_block	restart_block;
 	__u64			user_timer;
 	__u64			system_timer;
+	unsigned long		last_break;	/* last breaking-event-address. */
 };
 
 /*
@@ -73,7 +74,7 @@ struct thread_info {
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)
 {
-	return (struct thread_info *)((*(unsigned long *) __LC_KERNEL_STACK)-THREAD_SIZE);
+	return (struct thread_info *)(S390_lowcore.kernel_stack - THREAD_SIZE);
 }
 
 #define THREAD_SIZE_ORDER THREAD_ORDER
@@ -93,13 +94,12 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_SYSCALL_AUDIT	9	/* syscall auditing active */
 #define TIF_SECCOMP		10	/* secure computing */
 #define TIF_SYSCALL_TRACEPOINT	11	/* syscall tracepoint instrumentation */
-#define TIF_USEDFPU		16	/* FPU was used by this task this quantum (SMP) */
-#define TIF_POLLING_NRFLAG	17	/* true if poll_idle() is polling 
+#define TIF_POLLING_NRFLAG	16	/* true if poll_idle() is polling
 					   TIF_NEED_RESCHED */
-#define TIF_31BIT		18	/* 32bit process */ 
-#define TIF_MEMDIE		19
-#define TIF_RESTORE_SIGMASK	20	/* restore signal mask in do_signal() */
-#define TIF_FREEZE		21	/* thread is freezing for suspend */
+#define TIF_31BIT		17	/* 32bit process */
+#define TIF_MEMDIE		18	/* is terminating due to OOM killer */
+#define TIF_RESTORE_SIGMASK	19	/* restore signal mask in do_signal() */
+#define TIF_FREEZE		20	/* thread is freezing for suspend */
 
 #define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
 #define _TIF_RESTORE_SIGMASK	(1<<TIF_RESTORE_SIGMASK)
@@ -112,7 +112,6 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
 #define _TIF_SECCOMP		(1<<TIF_SECCOMP)
 #define _TIF_SYSCALL_TRACEPOINT	(1<<TIF_SYSCALL_TRACEPOINT)
-#define _TIF_USEDFPU		(1<<TIF_USEDFPU)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 #define _TIF_31BIT		(1<<TIF_31BIT)
 #define _TIF_FREEZE		(1<<TIF_FREEZE)

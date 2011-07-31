@@ -49,6 +49,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/seq_file.h>
 
 #include "xprt_rdma.h"
@@ -86,79 +87,63 @@ static struct ctl_table_header *sunrpc_table_header;
 
 static ctl_table xr_tunables_table[] = {
 	{
-		.ctl_name       = CTL_UNNUMBERED,
 		.procname	= "rdma_slot_table_entries",
 		.data		= &xprt_rdma_slot_table_entries,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &min_slot_table_size,
 		.extra2		= &max_slot_table_size
 	},
 	{
-		.ctl_name       = CTL_UNNUMBERED,
 		.procname	= "rdma_max_inline_read",
 		.data		= &xprt_rdma_max_inline_read,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name       = CTL_UNNUMBERED,
 		.procname	= "rdma_max_inline_write",
 		.data		= &xprt_rdma_max_inline_write,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name       = CTL_UNNUMBERED,
 		.procname	= "rdma_inline_write_padding",
 		.data		= &xprt_rdma_inline_write_padding,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &zero,
 		.extra2		= &max_padding,
 	},
 	{
-		.ctl_name       = CTL_UNNUMBERED,
 		.procname	= "rdma_memreg_strategy",
 		.data		= &xprt_rdma_memreg_strategy,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &min_memreg,
 		.extra2		= &max_memreg,
 	},
 	{
-		.ctl_name       = CTL_UNNUMBERED,
 		.procname	= "rdma_pad_optimize",
 		.data		= &xprt_rdma_pad_optimize,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
-	{
-		.ctl_name = 0,
-	},
+	{ },
 };
 
 static ctl_table sunrpc_table[] = {
 	{
-		.ctl_name	= CTL_SUNRPC,
 		.procname	= "sunrpc",
 		.mode		= 0555,
 		.child		= xr_tunables_table
 	},
-	{
-		.ctl_name = 0,
-	},
+	{ },
 };
 
 #endif
@@ -176,16 +161,15 @@ xprt_rdma_format_addresses(struct rpc_xprt *xprt)
 	(void)rpc_ntop(sap, buf, sizeof(buf));
 	xprt->address_strings[RPC_DISPLAY_ADDR] = kstrdup(buf, GFP_KERNEL);
 
-	(void)snprintf(buf, sizeof(buf), "%u", rpc_get_port(sap));
+	snprintf(buf, sizeof(buf), "%u", rpc_get_port(sap));
 	xprt->address_strings[RPC_DISPLAY_PORT] = kstrdup(buf, GFP_KERNEL);
 
 	xprt->address_strings[RPC_DISPLAY_PROTO] = "rdma";
 
-	(void)snprintf(buf, sizeof(buf), "%02x%02x%02x%02x",
-				NIPQUAD(sin->sin_addr.s_addr));
+	snprintf(buf, sizeof(buf), "%08x", ntohl(sin->sin_addr.s_addr));
 	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = kstrdup(buf, GFP_KERNEL);
 
-	(void)snprintf(buf, sizeof(buf), "%4hx", rpc_get_port(sap));
+	snprintf(buf, sizeof(buf), "%4hx", rpc_get_port(sap));
 	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = kstrdup(buf, GFP_KERNEL);
 
 	/* netid */
@@ -321,7 +305,6 @@ xprt_setup_rdma(struct xprt_create *args)
 	/* 60 second timeout, no retries */
 	xprt->timeout = &xprt_rdma_default_timeout;
 	xprt->bind_timeout = (60U * HZ);
-	xprt->connect_timeout = (60U * HZ);
 	xprt->reestablish_timeout = (5U * HZ);
 	xprt->idle_timeout = (5U * 60 * HZ);
 
@@ -465,21 +448,19 @@ xprt_rdma_connect(struct rpc_task *task)
 	struct rpc_xprt *xprt = (struct rpc_xprt *)task->tk_xprt;
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 
-	if (!xprt_test_and_set_connecting(xprt)) {
-		if (r_xprt->rx_ep.rep_connected != 0) {
-			/* Reconnect */
-			schedule_delayed_work(&r_xprt->rdma_connect,
-				xprt->reestablish_timeout);
-			xprt->reestablish_timeout <<= 1;
-			if (xprt->reestablish_timeout > (30 * HZ))
-				xprt->reestablish_timeout = (30 * HZ);
-			else if (xprt->reestablish_timeout < (5 * HZ))
-				xprt->reestablish_timeout = (5 * HZ);
-		} else {
-			schedule_delayed_work(&r_xprt->rdma_connect, 0);
-			if (!RPC_IS_ASYNC(task))
-				flush_scheduled_work();
-		}
+	if (r_xprt->rx_ep.rep_connected != 0) {
+		/* Reconnect */
+		schedule_delayed_work(&r_xprt->rdma_connect,
+			xprt->reestablish_timeout);
+		xprt->reestablish_timeout <<= 1;
+		if (xprt->reestablish_timeout > (30 * HZ))
+			xprt->reestablish_timeout = (30 * HZ);
+		else if (xprt->reestablish_timeout < (5 * HZ))
+			xprt->reestablish_timeout = (5 * HZ);
+	} else {
+		schedule_delayed_work(&r_xprt->rdma_connect, 0);
+		if (!RPC_IS_ASYNC(task))
+			flush_scheduled_work();
 	}
 }
 
@@ -693,7 +674,7 @@ xprt_rdma_send_request(struct rpc_task *task)
 	if (rpcrdma_ep_post(&r_xprt->rx_ia, &r_xprt->rx_ep, req))
 		goto drop_connection;
 
-	task->tk_bytes_sent += rqst->rq_snd_buf.len;
+	rqst->rq_xmit_bytes_sent += rqst->rq_snd_buf.len;
 	rqst->rq_bytes_sent = 0;
 	return 0;
 

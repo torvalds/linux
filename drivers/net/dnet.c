@@ -594,8 +594,6 @@ static netdev_tx_t dnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock_irqrestore(&bp->lock, flags);
 
-	dev->trans_start = jiffies;
-
 	return NETDEV_TX_OK;
 }
 
@@ -799,7 +797,7 @@ static int dnet_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (!phydev)
 		return -ENODEV;
 
-	return phy_mii_ioctl(phydev, if_mii(rq), cmd);
+	return phy_mii_ioctl(phydev, rq, cmd);
 }
 
 static void dnet_get_drvinfo(struct net_device *dev,
@@ -856,7 +854,7 @@ static int __devinit dnet_probe(struct platform_device *pdev)
 	dev = alloc_etherdev(sizeof(*bp));
 	if (!dev) {
 		dev_err(&pdev->dev, "etherdev alloc failed, aborting.\n");
-		goto err_out;
+		goto err_out_release_mem;
 	}
 
 	/* TODO: Actually, we have some interesting features... */
@@ -913,12 +911,13 @@ static int __devinit dnet_probe(struct platform_device *pdev)
 	if (err)
 		dev_warn(&pdev->dev, "Cannot register PHY board fixup.\n");
 
-	if (dnet_mii_init(bp) != 0)
+	err = dnet_mii_init(bp);
+	if (err)
 		goto err_out_unregister_netdev;
 
 	dev_info(&pdev->dev, "Dave DNET at 0x%p (0x%08x) irq %d %pM\n",
 	       bp->regs, mem_base, dev->irq, dev->dev_addr);
-	dev_info(&pdev->dev, "has %smdio, %sirq, %sgigabit, %sdma \n",
+	dev_info(&pdev->dev, "has %smdio, %sirq, %sgigabit, %sdma\n",
 	       (bp->capabilities & DNET_HAS_MDIO) ? "" : "no ",
 	       (bp->capabilities & DNET_HAS_IRQ) ? "" : "no ",
 	       (bp->capabilities & DNET_HAS_GIGABIT) ? "" : "no ",
@@ -938,6 +937,8 @@ err_out_iounmap:
 	iounmap(bp->regs);
 err_out_free_dev:
 	free_netdev(dev);
+err_out_release_mem:
+	release_mem_region(mem_base, mem_size);
 err_out:
 	return err;
 }

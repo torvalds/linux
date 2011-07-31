@@ -28,9 +28,9 @@ void suspend_device_irqs(void)
 	for_each_irq_desc(irq, desc) {
 		unsigned long flags;
 
-		spin_lock_irqsave(&desc->lock, flags);
+		raw_spin_lock_irqsave(&desc->lock, flags);
 		__disable_irq(desc, irq, true);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 
 	for_each_irq_desc(irq, desc)
@@ -56,9 +56,9 @@ void resume_device_irqs(void)
 		if (!(desc->status & IRQ_SUSPENDED))
 			continue;
 
-		spin_lock_irqsave(&desc->lock, flags);
+		raw_spin_lock_irqsave(&desc->lock, flags);
 		__enable_irq(desc, irq, true);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }
 EXPORT_SYMBOL_GPL(resume_device_irqs);
@@ -72,8 +72,12 @@ int check_wakeup_irqs(void)
 	int irq;
 
 	for_each_irq_desc(irq, desc)
-		if ((desc->status & IRQ_WAKEUP) && (desc->status & IRQ_PENDING))
+		if ((desc->status & IRQ_WAKEUP) &&
+		    (desc->status & IRQ_PENDING)) {
+			pr_info("Wakeup IRQ %d %s pending, suspend aborted\n",
+				irq, desc->name ? desc->name : "");
 			return -EBUSY;
+		}
 
 	return 0;
 }

@@ -3,7 +3,7 @@ config HAVE_ARCH_KGDB
 	bool
 
 menuconfig KGDB
-	bool "KGDB: kernel debugging with remote gdb"
+	bool "KGDB: kernel debugger"
 	depends on HAVE_ARCH_KGDB
 	depends on DEBUG_KERNEL && EXPERIMENTAL
 	help
@@ -56,5 +56,27 @@ config KGDB_TESTS_BOOT_STRING
 	  boot.  See the drivers/misc/kgdbts.c for detailed
 	  information about other strings you could use beyond the
 	  default of V1F100.
+
+config KGDB_LOW_LEVEL_TRAP
+       bool "KGDB: Allow debugging with traps in notifiers"
+       depends on X86 || MIPS
+       default n
+       help
+         This will add an extra call back to kgdb for the breakpoint
+         exception handler on which will will allow kgdb to step
+         through a notify handler.
+
+config KGDB_KDB
+	bool "KGDB_KDB: include kdb frontend for kgdb"
+	default n
+	help
+	  KDB frontend for kernel
+
+config KDB_KEYBOARD
+	bool "KGDB_KDB: keyboard as input device"
+	depends on VT && KGDB_KDB
+	default n
+	help
+	  KDB can use a PS/2 type keyboard for an input device
 
 endif # KGDB

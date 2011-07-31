@@ -50,13 +50,13 @@ static int macio_do_gpio_write(PMF_STD_ARGS, u8 value, u8 mask)
 		value = ~value;
 
 	/* Toggle the GPIO */
-	spin_lock_irqsave(&feature_lock, flags);
+	raw_spin_lock_irqsave(&feature_lock, flags);
 	tmp = readb(addr);
 	tmp = (tmp & ~mask) | (value & mask);
 	DBG("Do write 0x%02x to GPIO %s (%p)\n",
 	    tmp, func->node->full_name, addr);
 	writeb(tmp, addr);
-	spin_unlock_irqrestore(&feature_lock, flags);
+	raw_spin_unlock_irqrestore(&feature_lock, flags);
 
 	return 0;
 }
@@ -145,9 +145,9 @@ static int macio_do_write_reg32(PMF_STD_ARGS, u32 offset, u32 value, u32 mask)
 	struct macio_chip *macio = func->driver_data;
 	unsigned long flags;
 
-	spin_lock_irqsave(&feature_lock, flags);
+	raw_spin_lock_irqsave(&feature_lock, flags);
 	MACIO_OUT32(offset, (MACIO_IN32(offset) & ~mask) | (value & mask));
-	spin_unlock_irqrestore(&feature_lock, flags);
+	raw_spin_unlock_irqrestore(&feature_lock, flags);
 	return 0;
 }
 
@@ -168,9 +168,9 @@ static int macio_do_write_reg8(PMF_STD_ARGS, u32 offset, u8 value, u8 mask)
 	struct macio_chip *macio = func->driver_data;
 	unsigned long flags;
 
-	spin_lock_irqsave(&feature_lock, flags);
+	raw_spin_lock_irqsave(&feature_lock, flags);
 	MACIO_OUT8(offset, (MACIO_IN8(offset) & ~mask) | (value & mask));
-	spin_unlock_irqrestore(&feature_lock, flags);
+	raw_spin_unlock_irqrestore(&feature_lock, flags);
 	return 0;
 }
 
@@ -223,12 +223,12 @@ static int macio_do_write_reg32_slm(PMF_STD_ARGS, u32 offset, u32 shift,
 	if (args == NULL || args->count == 0)
 		return -EINVAL;
 
-	spin_lock_irqsave(&feature_lock, flags);
+	raw_spin_lock_irqsave(&feature_lock, flags);
 	tmp = MACIO_IN32(offset);
 	val = args->u[0].v << shift;
 	tmp = (tmp & ~mask) | (val & mask);
 	MACIO_OUT32(offset, tmp);
-	spin_unlock_irqrestore(&feature_lock, flags);
+	raw_spin_unlock_irqrestore(&feature_lock, flags);
 	return 0;
 }
 
@@ -243,12 +243,12 @@ static int macio_do_write_reg8_slm(PMF_STD_ARGS, u32 offset, u32 shift,
 	if (args == NULL || args->count == 0)
 		return -EINVAL;
 
-	spin_lock_irqsave(&feature_lock, flags);
+	raw_spin_lock_irqsave(&feature_lock, flags);
 	tmp = MACIO_IN8(offset);
 	val = args->u[0].v << shift;
 	tmp = (tmp & ~mask) | (val & mask);
 	MACIO_OUT8(offset, tmp);
-	spin_unlock_irqrestore(&feature_lock, flags);
+	raw_spin_unlock_irqrestore(&feature_lock, flags);
 	return 0;
 }
 
@@ -278,12 +278,12 @@ static int unin_do_write_reg32(PMF_STD_ARGS, u32 offset, u32 value, u32 mask)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&feature_lock, flags);
+	raw_spin_lock_irqsave(&feature_lock, flags);
 	/* This is fairly bogus in darwin, but it should work for our needs
 	 * implemeted that way:
 	 */
 	UN_OUT(offset, (UN_IN(offset) & ~mask) | (value & mask));
-	spin_unlock_irqrestore(&feature_lock, flags);
+	raw_spin_unlock_irqrestore(&feature_lock, flags);
 	return 0;
 }
 

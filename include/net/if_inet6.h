@@ -32,8 +32,14 @@
 
 #ifdef __KERNEL__
 
-struct inet6_ifaddr 
-{
+enum {
+	INET6_IFADDR_STATE_DAD,
+	INET6_IFADDR_STATE_POSTDAD,
+	INET6_IFADDR_STATE_UP,
+	INET6_IFADDR_STATE_DEAD,
+};
+
+struct inet6_ifaddr {
 	struct in6_addr		addr;
 	__u32			prefix_len;
 	
@@ -41,6 +47,9 @@ struct inet6_ifaddr
 	__u32			prefered_lft;
 	atomic_t		refcnt;
 	spinlock_t		lock;
+	spinlock_t		state_lock;
+
+	int			state;
 
 	__u8			probes;
 	__u8			flags;
@@ -55,20 +64,18 @@ struct inet6_ifaddr
 	struct inet6_dev	*idev;
 	struct rt6_info		*rt;
 
-	struct inet6_ifaddr	*lst_next;      /* next addr in addr_lst */
-	struct inet6_ifaddr	*if_next;       /* next addr in inet6_dev */
+	struct hlist_node	addr_lst;
+	struct list_head	if_list;
 
 #ifdef CONFIG_IPV6_PRIVACY
-	struct inet6_ifaddr	*tmp_next;	/* next addr in tempaddr_lst */
+	struct list_head	tmp_list;
 	struct inet6_ifaddr	*ifpub;
 	int			regen_count;
 #endif
-
-	int			dead;
+	struct rcu_head		rcu;
 };
 
-struct ip6_sf_socklist
-{
+struct ip6_sf_socklist {
 	unsigned int		sl_max;
 	unsigned int		sl_count;
 	struct in6_addr		sl_addr[0];
@@ -79,8 +86,7 @@ struct ip6_sf_socklist
 
 #define IP6_SFBLOCK	10	/* allocate this many at once */
 
-struct ipv6_mc_socklist
-{
+struct ipv6_mc_socklist {
 	struct in6_addr		addr;
 	int			ifindex;
 	struct ipv6_mc_socklist *next;
@@ -89,8 +95,7 @@ struct ipv6_mc_socklist
 	struct ip6_sf_socklist	*sflist;
 };
 
-struct ip6_sf_list
-{
+struct ip6_sf_list {
 	struct ip6_sf_list	*sf_next;
 	struct in6_addr		sf_addr;
 	unsigned long		sf_count[2];	/* include/exclude counts */
@@ -105,8 +110,7 @@ struct ip6_sf_list
 #define MAF_NOREPORT		0x08
 #define MAF_GSQUERY		0x10
 
-struct ifmcaddr6
-{
+struct ifmcaddr6 {
 	struct in6_addr		mca_addr;
 	struct inet6_dev	*idev;
 	struct ifmcaddr6	*next;
@@ -126,15 +130,13 @@ struct ifmcaddr6
 
 /* Anycast stuff */
 
-struct ipv6_ac_socklist
-{
+struct ipv6_ac_socklist {
 	struct in6_addr		acl_addr;
 	int			acl_ifindex;
 	struct ipv6_ac_socklist *acl_next;
 };
 
-struct ifacaddr6
-{
+struct ifacaddr6 {
 	struct in6_addr		aca_addr;
 	struct inet6_dev	*aca_idev;
 	struct rt6_info		*aca_rt;
@@ -157,15 +159,14 @@ struct ipv6_devstat {
 	DEFINE_SNMP_STAT(struct icmpv6msg_mib, icmpv6msg);
 };
 
-struct inet6_dev 
-{
-	struct net_device		*dev;
+struct inet6_dev {
+	struct net_device	*dev;
 
-	struct inet6_ifaddr	*addr_list;
+	struct list_head	addr_list;
 
 	struct ifmcaddr6	*mc_list;
 	struct ifmcaddr6	*mc_tomb;
-	rwlock_t		mc_lock;
+	spinlock_t		mc_lock;
 	unsigned char		mc_qrv;
 	unsigned char		mc_gq_running;
 	unsigned char		mc_ifc_count;
@@ -183,7 +184,7 @@ struct inet6_dev
 #ifdef CONFIG_IPV6_PRIVACY
 	u8			rndid[8];
 	struct timer_list	regen_timer;
-	struct inet6_ifaddr	*tempaddr_list;
+	struct list_head	tempaddr_list;
 #endif
 
 	struct neigh_parms	*nd_parms;

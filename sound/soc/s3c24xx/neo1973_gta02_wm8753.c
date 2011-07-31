@@ -32,7 +32,7 @@
 #include <asm/io.h>
 #include <mach/gta02.h>
 #include "../codecs/wm8753.h"
-#include "s3c24xx-pcm.h"
+#include "s3c-dma.h"
 #include "s3c24xx-i2s.h"
 
 static struct snd_soc_card neo1973_gta02;
@@ -119,7 +119,7 @@ static int neo1973_gta02_hifi_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	/* codec PLL input is PCLK/4 */
-	ret = snd_soc_dai_set_pll(codec_dai, WM8753_PLL1,
+	ret = snd_soc_dai_set_pll(codec_dai, WM8753_PLL1, 0,
 		iis_clkrate / 4, pll_out);
 	if (ret < 0)
 		return ret;
@@ -133,7 +133,7 @@ static int neo1973_gta02_hifi_hw_free(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
 
 	/* disable the PLL */
-	return snd_soc_dai_set_pll(codec_dai, WM8753_PLL1, 0, 0);
+	return snd_soc_dai_set_pll(codec_dai, WM8753_PLL1, 0, 0, 0);
 }
 
 /*
@@ -183,7 +183,7 @@ static int neo1973_gta02_voice_hw_params(
 		return ret;
 
 	/* configue and enable PLL for 12.288MHz output */
-	ret = snd_soc_dai_set_pll(codec_dai, WM8753_PLL2,
+	ret = snd_soc_dai_set_pll(codec_dai, WM8753_PLL2, 0,
 		iis_clkrate / 4, 12288000);
 	if (ret < 0)
 		return ret;
@@ -197,7 +197,7 @@ static int neo1973_gta02_voice_hw_free(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
 
 	/* disable the PLL */
-	return snd_soc_dai_set_pll(codec_dai, WM8753_PLL2, 0, 0);
+	return snd_soc_dai_set_pll(codec_dai, WM8753_PLL2, 0, 0, 0);
 }
 
 static struct snd_soc_ops neo1973_gta02_voice_ops = {
@@ -361,6 +361,14 @@ static int neo1973_gta02_wm8753_init(struct snd_soc_codec *codec)
 	snd_soc_dapm_disable_pin(codec, "Headset Mic");
 	snd_soc_dapm_disable_pin(codec, "Handset Mic");
 	snd_soc_dapm_disable_pin(codec, "Handset Spk");
+
+	/* allow audio paths from the GSM modem to run during suspend */
+	snd_soc_dapm_ignore_suspend(codec, "Stereo Out");
+	snd_soc_dapm_ignore_suspend(codec, "GSM Line Out");
+	snd_soc_dapm_ignore_suspend(codec, "GSM Line In");
+	snd_soc_dapm_ignore_suspend(codec, "Headset Mic");
+	snd_soc_dapm_ignore_suspend(codec, "Handset Mic");
+	snd_soc_dapm_ignore_suspend(codec, "Handset Spk");
 
 	snd_soc_dapm_sync(codec);
 

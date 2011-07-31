@@ -13,6 +13,8 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/types.h>
 
 /* include interfaces to usb layer */
 #include <linux/usb.h>
@@ -30,11 +32,13 @@
 #define CMD_I2C_IO_BEGIN	(1<<0)
 #define CMD_I2C_IO_END		(1<<1)
 
-/* i2c bit delay, default is 10us -> 100kHz */
-static int delay = 10;
-module_param(delay, int, 0);
-MODULE_PARM_DESC(delay, "bit delay in microseconds, "
-		 "e.g. 10 for 100kHz (default is 100kHz)");
+/* i2c bit delay, default is 10us -> 100kHz max
+   (in practice, due to additional delays in the i2c bitbanging
+   code this results in a i2c clock of about 50kHz) */
+static unsigned short delay = 10;
+module_param(delay, ushort, 0);
+MODULE_PARM_DESC(delay, "bit delay in microseconds "
+		 "(default is 10us for 100kHz max)");
 
 static int usb_read(struct i2c_adapter *adapter, int cmd,
 		    int value, int index, void *data, int len);
@@ -109,7 +113,7 @@ static int usb_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 
 static u32 usb_func(struct i2c_adapter *adapter)
 {
-	u32 func;
+	__le32 func;
 
 	/* get functionality from adapter */
 	if (usb_read(adapter, CMD_GET_FUNC, 0, 0, &func, sizeof(func)) !=
@@ -118,7 +122,7 @@ static u32 usb_func(struct i2c_adapter *adapter)
 		return 0;
 	}
 
-	return func;
+	return le32_to_cpu(func);
 }
 
 /* This is the actual algorithm we define */
@@ -136,7 +140,7 @@ static const struct i2c_algorithm usb_algorithm = {
  * Future Technology Devices International Ltd., later a pair was
  * bought from EZPrototypes
  */
-static struct usb_device_id i2c_tiny_usb_table [] = {
+static const struct usb_device_id i2c_tiny_usb_table[] = {
 	{ USB_DEVICE(0x0403, 0xc631) },   /* FTDI */
 	{ USB_DEVICE(0x1c40, 0x0534) },   /* EZPrototypes */
 	{ }                               /* Terminating entry */
@@ -216,8 +220,7 @@ static int i2c_tiny_usb_probe(struct usb_interface *interface,
 		 "i2c-tiny-usb at bus %03d device %03d",
 		 dev->usb_dev->bus->busnum, dev->usb_dev->devnum);
 
-	if (usb_write(&dev->adapter, CMD_SET_DELAY,
-		      cpu_to_le16(delay), 0, NULL, 0) != 0) {
+	if (usb_write(&dev->adapter, CMD_SET_DELAY, delay, 0, NULL, 0) != 0) {
 		dev_err(&dev->adapter.dev,
 			"failure setting delay to %dus\n", delay);
 		retval = -EIO;

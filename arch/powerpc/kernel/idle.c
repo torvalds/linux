@@ -94,9 +94,9 @@ void cpu_idle(void)
 		HMT_medium();
 		ppc64_runlatch_on();
 		tick_nohz_restart_sched_tick();
+		preempt_enable_no_resched();
 		if (cpu_should_die())
 			cpu_die();
-		preempt_enable_no_resched();
 		schedule();
 		preempt_disable();
 	}
@@ -110,18 +110,16 @@ int powersave_nap;
  */
 static ctl_table powersave_nap_ctl_table[]={
 	{
-		.ctl_name	= KERN_PPC_POWERSAVE_NAP,
 		.procname	= "powersave-nap",
 		.data		= &powersave_nap,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{}
 };
 static ctl_table powersave_nap_sysctl_root[] = {
 	{
-		.ctl_name	= CTL_KERN,
 		.procname	= "kernel",
 		.mode		= 0555,
 		.child		= powersave_nap_ctl_table,

@@ -50,7 +50,7 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 {
 	if (!rdp->beenonline)
 		return;
-	seq_printf(m, "%3d%cc=%ld g=%ld pq=%d pqc=%ld qp=%d",
+	seq_printf(m, "%3d%cc=%lu g=%lu pq=%d pqc=%lu qp=%d",
 		   rdp->cpu,
 		   cpu_is_offline(rdp->cpu) ? '!' : ' ',
 		   rdp->completed, rdp->gpnum,
@@ -105,7 +105,7 @@ static void print_one_rcu_data_csv(struct seq_file *m, struct rcu_data *rdp)
 {
 	if (!rdp->beenonline)
 		return;
-	seq_printf(m, "%d,%s,%ld,%ld,%d,%ld,%d",
+	seq_printf(m, "%d,%s,%lu,%lu,%d,%lu,%d",
 		   rdp->cpu,
 		   cpu_is_offline(rdp->cpu) ? "\"N\"" : "\"Y\"",
 		   rdp->completed, rdp->gpnum,
@@ -155,12 +155,15 @@ static const struct file_operations rcudata_csv_fops = {
 
 static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 {
+	unsigned long gpnum;
 	int level = 0;
+	int phase;
 	struct rcu_node *rnp;
 
-	seq_printf(m, "c=%ld g=%ld s=%d jfq=%ld j=%x "
+	gpnum = rsp->gpnum;
+	seq_printf(m, "c=%lu g=%lu s=%d jfq=%ld j=%x "
 		      "nfqs=%lu/nfqsng=%lu(%lu) fqlh=%lu oqlen=%ld\n",
-		   rsp->completed, rsp->gpnum, rsp->signaled,
+		   rsp->completed, gpnum, rsp->signaled,
 		   (long)(rsp->jiffies_force_qs - jiffies),
 		   (int)(jiffies & 0xffff),
 		   rsp->n_force_qs, rsp->n_force_qs_ngp,
@@ -171,8 +174,13 @@ static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 			seq_puts(m, "\n");
 			level = rnp->level;
 		}
-		seq_printf(m, "%lx/%lx %d:%d ^%d    ",
+		phase = gpnum & 0x1;
+		seq_printf(m, "%lx/%lx %c%c>%c%c %d:%d ^%d    ",
 			   rnp->qsmask, rnp->qsmaskinit,
+			   "T."[list_empty(&rnp->blocked_tasks[phase])],
+			   "E."[list_empty(&rnp->blocked_tasks[phase + 2])],
+			   "T."[list_empty(&rnp->blocked_tasks[!phase])],
+			   "E."[list_empty(&rnp->blocked_tasks[!phase + 2])],
 			   rnp->grplo, rnp->grphi, rnp->grpnum);
 	}
 	seq_puts(m, "\n");
@@ -207,12 +215,12 @@ static const struct file_operations rcuhier_fops = {
 static int show_rcugp(struct seq_file *m, void *unused)
 {
 #ifdef CONFIG_TREE_PREEMPT_RCU
-	seq_printf(m, "rcu_preempt: completed=%ld  gpnum=%ld\n",
+	seq_printf(m, "rcu_preempt: completed=%ld  gpnum=%lu\n",
 		   rcu_preempt_state.completed, rcu_preempt_state.gpnum);
 #endif /* #ifdef CONFIG_TREE_PREEMPT_RCU */
-	seq_printf(m, "rcu_sched: completed=%ld  gpnum=%ld\n",
+	seq_printf(m, "rcu_sched: completed=%ld  gpnum=%lu\n",
 		   rcu_sched_state.completed, rcu_sched_state.gpnum);
-	seq_printf(m, "rcu_bh: completed=%ld  gpnum=%ld\n",
+	seq_printf(m, "rcu_bh: completed=%ld  gpnum=%lu\n",
 		   rcu_bh_state.completed, rcu_bh_state.gpnum);
 	return 0;
 }
@@ -233,11 +241,13 @@ static const struct file_operations rcugp_fops = {
 static void print_one_rcu_pending(struct seq_file *m, struct rcu_data *rdp)
 {
 	seq_printf(m, "%3d%cnp=%ld "
-		   "qsp=%ld cbr=%ld cng=%ld gpc=%ld gps=%ld nf=%ld nn=%ld\n",
+		   "qsp=%ld rpq=%ld cbr=%ld cng=%ld "
+		   "gpc=%ld gps=%ld nf=%ld nn=%ld\n",
 		   rdp->cpu,
 		   cpu_is_offline(rdp->cpu) ? '!' : ' ',
 		   rdp->n_rcu_pending,
 		   rdp->n_rp_qs_pending,
+		   rdp->n_rp_report_qs,
 		   rdp->n_rp_cb_ready,
 		   rdp->n_rp_cpu_needs_gp,
 		   rdp->n_rp_gp_completed,

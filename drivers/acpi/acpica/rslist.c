@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -94,7 +94,7 @@ acpi_rs_convert_aml_to_resources(u8 * aml,
 					    [resource_index]);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
-				"Could not convert AML resource (Type %X)",
+				"Could not convert AML resource (Type 0x%X)",
 				*aml));
 		return_ACPI_STATUS(status);
 	}
@@ -147,7 +147,7 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 
 		if (resource->type > ACPI_RESOURCE_TYPE_MAX) {
 			ACPI_ERROR((AE_INFO,
-				    "Invalid descriptor type (%X) in resource list",
+				    "Invalid descriptor type (0x%X) in resource list",
 				    resource->type));
 			return_ACPI_STATUS(AE_BAD_DATA);
 		}
@@ -161,7 +161,7 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 							 [resource->type]);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
-					"Could not convert resource (type %X) to AML",
+					"Could not convert resource (type 0x%X) to AML",
 					resource->type));
 			return_ACPI_STATUS(status);
 		}

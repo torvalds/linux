@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/input.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/usb/input.h>
 

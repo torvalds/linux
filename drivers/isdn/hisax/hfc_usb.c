@@ -39,6 +39,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/moduleparam.h>
+#include <linux/slab.h>
 #include "hisax.h"
 #include "hisax_if.h"
 #include "hfc_usb.h"
@@ -1086,7 +1087,7 @@ hfc_usb_l2l1(struct hisax_if *my_hisax_if, int pr, void *arg)
 			break;
 		default:
 			DBG(HFCUSB_DBG_STATES,
-			       "HFC_USB: hfc_usb_d_l2l1: unkown state : %#x", pr);
+			       "HFC_USB: hfc_usb_d_l2l1: unknown state : %#x", pr);
 			break;
 	}
 }

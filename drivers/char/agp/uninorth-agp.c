@@ -3,6 +3,7 @@
  */
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/pagemap.h>
 #include <linux/agp_backend.h>
@@ -27,6 +28,7 @@
  */
 static int uninorth_rev;
 static int is_u3;
+static u32 scratch_value;
 
 #define DEFAULT_APERTURE_SIZE 256
 #define DEFAULT_APERTURE_STRING "256"
@@ -144,58 +146,61 @@ static int uninorth_configure(void)
 	return 0;
 }
 
-static int uninorth_insert_memory(struct agp_memory *mem, off_t pg_start,
-				int type)
-{
-	int i, j, num_entries;
-	void *temp;
-	int mask_type;
-
-	temp = agp_bridge->current_size;
-	num_entries = A_SIZE_32(temp)->num_entries;
-
-	if (type != mem->type)
-		return -EINVAL;
-
-	mask_type = agp_bridge->driver->agp_type_to_mask_type(agp_bridge, type);
-	if (mask_type != 0) {
-		/* We know nothing of memory types */
-		return -EINVAL;
-	}
-
-	if ((pg_start + mem->page_count) > num_entries)
-		return -EINVAL;
-
-	j = pg_start;
-
-	while (j < (pg_start + mem->page_count)) {
-		if (agp_bridge->gatt_table[j])
-			return -EBUSY;
-		j++;
-	}
-
-	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
-		agp_bridge->gatt_table[j] =
-			cpu_to_le32((page_to_phys(mem->pages[i]) & 0xFFFFF000UL) | 0x1UL);
-		flush_dcache_range((unsigned long)__va(page_to_phys(mem->pages[i])),
-				   (unsigned long)__va(page_to_phys(mem->pages[i]))+0x1000);
-	}
-	(void)in_le32((volatile u32*)&agp_bridge->gatt_table[pg_start]);
-	mb();
-
-	uninorth_tlbflush(mem);
-	return 0;
-}
-
-static int u3_insert_memory(struct agp_memory *mem, off_t pg_start, int type)
+static int uninorth_insert_memory(struct agp_memory *mem, off_t pg_start, int type)
 {
 	int i, num_entries;
 	void *temp;
 	u32 *gp;
 	int mask_type;
 
+	if (type != mem->type)
+		return -EINVAL;
+
+	mask_type = agp_bridge->driver->agp_type_to_mask_type(agp_bridge, type);
+	if (mask_type != 0) {
+		/* We know nothing of memory types */
+		return -EINVAL;
+	}
+
+	if (mem->page_count == 0)
+		return 0;
+
 	temp = agp_bridge->current_size;
 	num_entries = A_SIZE_32(temp)->num_entries;
+
+	if ((pg_start + mem->page_count) > num_entries)
+		return -EINVAL;
+
+	gp = (u32 *) &agp_bridge->gatt_table[pg_start];
+	for (i = 0; i < mem->page_count; ++i) {
+		if (gp[i] != scratch_value) {
+			dev_info(&agp_bridge->dev->dev,
+				 "uninorth_insert_memory: entry 0x%x occupied (%x)\n",
+				 i, gp[i]);
+			return -EBUSY;
+		}
+	}
+
+	for (i = 0; i < mem->page_count; i++) {
+		if (is_u3)
+			gp[i] = (page_to_phys(mem->pages[i]) >> PAGE_SHIFT) | 0x80000000UL;
+		else
+			gp[i] =	cpu_to_le32((page_to_phys(mem->pages[i]) & 0xFFFFF000UL) |
+					    0x1UL);
+		flush_dcache_range((unsigned long)__va(page_to_phys(mem->pages[i])),
+				   (unsigned long)__va(page_to_phys(mem->pages[i]))+0x1000);
+	}
+	mb();
+	uninorth_tlbflush(mem);
+
+	return 0;
+}
+
+int uninorth_remove_memory(struct agp_memory *mem, off_t pg_start, int type)
+{
+	size_t i;
+	u32 *gp;
+	int mask_type;
 
 	if (type != mem->type)
 		return -EINVAL;
@@ -206,42 +211,13 @@ static int u3_insert_memory(struct agp_memory *mem, off_t pg_start, int type)
 		return -EINVAL;
 	}
 
-	if ((pg_start + mem->page_count) > num_entries)
-		return -EINVAL;
+	if (mem->page_count == 0)
+		return 0;
 
 	gp = (u32 *) &agp_bridge->gatt_table[pg_start];
 	for (i = 0; i < mem->page_count; ++i) {
-		if (gp[i]) {
-			dev_info(&agp_bridge->dev->dev,
-				 "u3_insert_memory: entry 0x%x occupied (%x)\n",
-				 i, gp[i]);
-			return -EBUSY;
-		}
+		gp[i] = scratch_value;
 	}
-
-	for (i = 0; i < mem->page_count; i++) {
-		gp[i] = (page_to_phys(mem->pages[i]) >> PAGE_SHIFT) | 0x80000000UL;
-		flush_dcache_range((unsigned long)__va(page_to_phys(mem->pages[i])),
-				   (unsigned long)__va(page_to_phys(mem->pages[i]))+0x1000);
-	}
-	mb();
-	uninorth_tlbflush(mem);
-
-	return 0;
-}
-
-int u3_remove_memory(struct agp_memory *mem, off_t pg_start, int type)
-{
-	size_t i;
-	u32 *gp;
-
-	if (type != 0 || mem->type != 0)
-		/* We know nothing of memory types */
-		return -EINVAL;
-
-	gp = (u32 *) &agp_bridge->gatt_table[pg_start];
-	for (i = 0; i < mem->page_count; ++i)
-		gp[i] = 0;
 	mb();
 	uninorth_tlbflush(mem);
 
@@ -439,7 +415,7 @@ static int uninorth_create_gatt_table(struct agp_bridge_data *bridge)
 	bridge->gatt_table_real = (u32 *) table;
 	/* Need to clear out any dirty data still sitting in caches */
 	flush_dcache_range((unsigned long)table,
-			   (unsigned long)(table_end + PAGE_SIZE));
+			   (unsigned long)table_end + 1);
 	bridge->gatt_table = vmap(pages, (1 << page_order), 0, PAGE_KERNEL_NCG);
 
 	if (bridge->gatt_table == NULL)
@@ -447,8 +423,13 @@ static int uninorth_create_gatt_table(struct agp_bridge_data *bridge)
 
 	bridge->gatt_bus_addr = virt_to_phys(table);
 
+	if (is_u3)
+		scratch_value = (page_to_phys(agp_bridge->scratch_page_page) >> PAGE_SHIFT) | 0x80000000UL;
+	else
+		scratch_value =	cpu_to_le32((page_to_phys(agp_bridge->scratch_page_page) & 0xFFFFF000UL) |
+				0x1UL);
 	for (i = 0; i < num_entries; i++)
-		bridge->gatt_table[i] = 0;
+		bridge->gatt_table[i] = scratch_value;
 
 	return 0;
 
@@ -536,7 +517,7 @@ const struct agp_bridge_driver uninorth_agp_driver = {
 	.create_gatt_table	= uninorth_create_gatt_table,
 	.free_gatt_table	= uninorth_free_gatt_table,
 	.insert_memory		= uninorth_insert_memory,
-	.remove_memory		= agp_generic_remove_memory,
+	.remove_memory		= uninorth_remove_memory,
 	.alloc_by_type		= agp_generic_alloc_by_type,
 	.free_by_type		= agp_generic_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
@@ -545,6 +526,7 @@ const struct agp_bridge_driver uninorth_agp_driver = {
 	.agp_destroy_pages	= agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 	.cant_use_aperture	= true,
+	.needs_scratch_page	= true,
 };
 
 const struct agp_bridge_driver u3_agp_driver = {
@@ -562,8 +544,8 @@ const struct agp_bridge_driver u3_agp_driver = {
 	.agp_enable		= uninorth_agp_enable,
 	.create_gatt_table	= uninorth_create_gatt_table,
 	.free_gatt_table	= uninorth_free_gatt_table,
-	.insert_memory		= u3_insert_memory,
-	.remove_memory		= u3_remove_memory,
+	.insert_memory		= uninorth_insert_memory,
+	.remove_memory		= uninorth_remove_memory,
 	.alloc_by_type		= agp_generic_alloc_by_type,
 	.free_by_type		= agp_generic_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,

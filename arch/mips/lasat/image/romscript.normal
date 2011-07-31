@@ -4,7 +4,7 @@ SECTIONS
 {
   .text :
   {
-    *(.text.start)
+    *(.text..start)
   }
 
   /* Data in ROM */

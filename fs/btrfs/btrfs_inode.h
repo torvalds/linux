@@ -44,9 +44,6 @@ struct btrfs_inode {
 	 */
 	struct extent_io_tree io_failure_tree;
 
-	/* held while inesrting or deleting extents from files */
-	struct mutex extent_mutex;
-
 	/* held while logging the inode in tree-log.c */
 	struct mutex log_mutex;
 
@@ -140,8 +137,8 @@ struct btrfs_inode {
 	 * of extent items we've reserved metadata for.
 	 */
 	spinlock_t accounting_lock;
+	atomic_t outstanding_extents;
 	int reserved_extents;
-	int outstanding_extents;
 
 	/*
 	 * ordered_data_close is set by truncate when a file that used
@@ -154,7 +151,13 @@ struct btrfs_inode {
 	 * of these.
 	 */
 	unsigned ordered_data_close:1;
+	unsigned orphan_meta_reserved:1;
 	unsigned dummy_inode:1;
+
+	/*
+	 * always compress this one file
+	 */
+	unsigned force_compress:1;
 
 	struct inode vfs_inode;
 };
@@ -166,7 +169,7 @@ static inline struct btrfs_inode *BTRFS_I(struct inode *inode)
 
 static inline void btrfs_i_size_write(struct inode *inode, u64 size)
 {
-	inode->i_size = size;
+	i_size_write(inode, size);
 	BTRFS_I(inode)->disk_i_size = size;
 }
 

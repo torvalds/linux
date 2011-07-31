@@ -206,14 +206,16 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 	}
 
 	*nanosec = div1 * div2 * i8253_osc_base;
-	*d1 = div1 & 0xffff;	/*  masking is done since counter maps zero to 0x10000 */
+	/*  masking is done since counter maps zero to 0x10000 */
+	*d1 = div1 & 0xffff;
 	*d2 = div2 & 0xffff;
 	return;
 }
 
 #ifndef CMDTEST
 /* i8254_load programs 8254 counter chip.  It should also work for the 8253.
- * base_address is the lowest io address for the chip (the address of counter 0).
+ * base_address is the lowest io address
+ * for the chip (the address of counter 0).
  * counter_number is the counter you want to load (0,1 or 2)
  * count is the number to load into the counter.
  *

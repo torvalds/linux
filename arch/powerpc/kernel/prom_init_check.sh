@@ -52,10 +52,16 @@ do
 	if [ "${UNDEF:0:9}" = "_restgpr_" ]; then
 		OK=1
 	fi
+	if [ "${UNDEF:0:10}" = "_restgpr0_" ]; then
+		OK=1
+	fi
 	if [ "${UNDEF:0:11}" = "_rest32gpr_" ]; then
 		OK=1
 	fi
 	if [ "${UNDEF:0:9}" = "_savegpr_" ]; then
+		OK=1
+	fi
+	if [ "${UNDEF:0:10}" = "_savegpr0_" ]; then
 		OK=1
 	fi
 	if [ "${UNDEF:0:11}" = "_save32gpr_" ]; then

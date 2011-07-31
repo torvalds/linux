@@ -148,6 +148,17 @@ struct v7_super_block {
 	char    s_fname[6];     /* file system name */
 	char    s_fpack[6];     /* file system pack name */
 };
+/* Constants to aid sanity checking */
+/* This is not a hard limit, nor enforced by v7 kernel. It's actually just
+ * the limit used by Seventh Edition's ls, though is high enough to assume
+ * that no reasonable file system would have that much entries in root
+ * directory. Thus, if we see anything higher, we just probably got the
+ * endiannes wrong. */
+#define V7_NFILES	1024
+/* The disk addresses are three-byte (despite direct block addresses being
+ * aligned word-wise in inode). If the most significant byte is non-zero,
+ * something is most likely wrong (not a filesystem, bad bytesex). */
+#define V7_MAXSIZE	0x00ffffff
 
 /* Coherent super-block data on disk */
 #define COH_NICINOD	100	/* number of inode cache entries */

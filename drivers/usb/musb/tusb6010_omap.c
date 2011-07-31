@@ -15,8 +15,9 @@
 #include <linux/usb.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <mach/dma.h>
-#include <mach/mux.h>
+#include <linux/slab.h>
+#include <plat/dma.h>
+#include <plat/mux.h>
 
 #include "musb_core.h"
 
@@ -38,7 +39,7 @@ struct tusb_omap_dma_ch {
 
 	struct tusb_omap_dma	*tusb_dma;
 
-	void __iomem		*dma_addr;
+	dma_addr_t		dma_addr;
 
 	u32			len;
 	u16			packet_sz;
@@ -125,6 +126,7 @@ static void tusb_omap_dma_cb(int lch, u16 ch_status, void *data)
 	struct tusb_omap_dma_ch	*chdat = to_chdat(channel);
 	struct tusb_omap_dma	*tusb_dma = chdat->tusb_dma;
 	struct musb		*musb = chdat->musb;
+	struct device		*dev = musb->controller;
 	struct musb_hw_ep	*hw_ep = chdat->hw_ep;
 	void __iomem		*ep_conf = hw_ep->conf;
 	void __iomem		*mbase = musb->mregs;
@@ -172,13 +174,15 @@ static void tusb_omap_dma_cb(int lch, u16 ch_status, void *data)
 		DBG(3, "Using PIO for remaining %lu bytes\n", pio);
 		buf = phys_to_virt((u32)chdat->dma_addr) + chdat->transfer_len;
 		if (chdat->tx) {
-			dma_cache_maint(phys_to_virt((u32)chdat->dma_addr),
-					chdat->transfer_len, DMA_TO_DEVICE);
+			dma_unmap_single(dev, chdat->dma_addr,
+						chdat->transfer_len,
+						DMA_TO_DEVICE);
 			musb_write_fifo(hw_ep, pio, buf);
 		} else {
+			dma_unmap_single(dev, chdat->dma_addr,
+						chdat->transfer_len,
+						DMA_FROM_DEVICE);
 			musb_read_fifo(hw_ep, pio, buf);
-			dma_cache_maint(phys_to_virt((u32)chdat->dma_addr),
-					chdat->transfer_len, DMA_FROM_DEVICE);
 		}
 		channel->actual_len += pio;
 	}
@@ -223,6 +227,7 @@ static int tusb_omap_dma_program(struct dma_channel *channel, u16 packet_sz,
 	struct tusb_omap_dma_ch		*chdat = to_chdat(channel);
 	struct tusb_omap_dma		*tusb_dma = chdat->tusb_dma;
 	struct musb			*musb = chdat->musb;
+	struct device			*dev = musb->controller;
 	struct musb_hw_ep		*hw_ep = chdat->hw_ep;
 	void __iomem			*mbase = musb->mregs;
 	void __iomem			*ep_conf = hw_ep->conf;
@@ -298,14 +303,16 @@ static int tusb_omap_dma_program(struct dma_channel *channel, u16 packet_sz,
 	chdat->packet_sz = packet_sz;
 	chdat->len = len;
 	channel->actual_len = 0;
-	chdat->dma_addr = (void __iomem *)dma_addr;
+	chdat->dma_addr = dma_addr;
 	channel->status = MUSB_DMA_STATUS_BUSY;
 
 	/* Since we're recycling dma areas, we need to clean or invalidate */
 	if (chdat->tx)
-		dma_cache_maint(phys_to_virt(dma_addr), len, DMA_TO_DEVICE);
+		dma_map_single(dev, phys_to_virt(dma_addr), len,
+				DMA_TO_DEVICE);
 	else
-		dma_cache_maint(phys_to_virt(dma_addr), len, DMA_FROM_DEVICE);
+		dma_map_single(dev, phys_to_virt(dma_addr), len,
+				DMA_FROM_DEVICE);
 
 	/* Use 16-bit transfer if dma_addr is not 32-bit aligned */
 	if ((dma_addr & 0x3) == 0) {
@@ -648,7 +655,7 @@ void dma_controller_destroy(struct dma_controller *c)
 		}
 	}
 
-	if (!tusb_dma->multichannel && tusb_dma && tusb_dma->ch >= 0)
+	if (tusb_dma && !tusb_dma->multichannel && tusb_dma->ch >= 0)
 		omap_free_dma(tusb_dma->ch);
 
 	kfree(tusb_dma);

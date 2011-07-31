@@ -67,9 +67,15 @@
 #define MACH_LEMOTE_ML2F7      3
 #define MACH_LEMOTE_YL2F89     4
 #define MACH_DEXXON_GDIUM2F10  5
-#define MACH_LOONGSON_END      6
+#define MACH_LEMOTE_NAS        6
+#define MACH_LEMOTE_LL2F       7
+#define MACH_LOONGSON_END      8
 
-#define CL_SIZE			COMMAND_LINE_SIZE
+/*
+ * Valid machtype for group INGENIC
+ */
+#define  MACH_INGENIC_JZ4730	0	/* JZ4730 SOC		*/
+#define  MACH_INGENIC_JZ4740	1	/* JZ4740 SOC		*/
 
 extern char *system_type;
 const char *get_system_type(void);
@@ -107,7 +113,7 @@ extern void free_init_pages(const char *what,
 /*
  * Initial kernel command line, usually setup by prom_init()
  */
-extern char arcs_cmdline[CL_SIZE];
+extern char arcs_cmdline[COMMAND_LINE_SIZE];
 
 /*
  * Registers a0, a1, a3 and a4 as passed to the kernel entry by firmware

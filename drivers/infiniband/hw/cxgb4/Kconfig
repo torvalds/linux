@@ -1,0 +1,18 @@
+config INFINIBAND_CXGB4
+	tristate "Chelsio T4 RDMA Driver"
+	depends on CHELSIO_T4 && INET
+	select GENERIC_ALLOCATOR
+	---help---
+	  This is an iWARP/RDMA driver for the Chelsio T4 1GbE and
+	  10GbE adapters.
+
+	  For general information about Chelsio and our products, visit
+	  our website at <http://www.chelsio.com>.
+
+	  For customer support, please visit our customer support page at
+	  <http://www.chelsio.com/support.htm>.
+
+	  Please send feedback to <linux-bugs@chelsio.com>.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called iw_cxgb4.

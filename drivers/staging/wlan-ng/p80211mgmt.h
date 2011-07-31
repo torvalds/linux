@@ -100,7 +100,7 @@
 #ifndef _P80211MGMT_H
 #define _P80211MGMT_H
 
-#ifndef  _P80211HDR_H
+#ifndef _P80211HDR_H
 #include "p80211hdr.h"
 #endif
 
@@ -298,7 +298,7 @@ typedef struct wlan_fr_mgmt {
 	u16 type;
 	u16 len;		/* DOES NOT include CRC !!!! */
 	u8 *buf;
-	p80211_hdr_t *hdr;
+	union p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -310,7 +310,7 @@ typedef struct wlan_fr_beacon {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	p80211_hdr_t *hdr;
+	union p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -333,7 +333,7 @@ typedef struct wlan_fr_ibssatim {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	p80211_hdr_t *hdr;
+	union p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 
@@ -349,7 +349,7 @@ typedef struct wlan_fr_disassoc {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	p80211_hdr_t *hdr;
+	union p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -364,7 +364,7 @@ typedef struct wlan_fr_assocreq {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	p80211_hdr_t *hdr;
+	union p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -381,7 +381,7 @@ typedef struct wlan_fr_assocresp {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	p80211_hdr_t *hdr;
+	union p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -398,7 +398,7 @@ typedef struct wlan_fr_reassocreq {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	p80211_hdr_t *hdr;
+	union p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -416,7 +416,7 @@ typedef struct wlan_fr_reassocresp {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	p80211_hdr_t *hdr;
+	union p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -433,7 +433,7 @@ typedef struct wlan_fr_probereq {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	p80211_hdr_t *hdr;
+	union p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -448,7 +448,7 @@ typedef struct wlan_fr_proberesp {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	p80211_hdr_t *hdr;
+	union p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -469,7 +469,7 @@ typedef struct wlan_fr_authen {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	p80211_hdr_t *hdr;
+	union p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -486,7 +486,7 @@ typedef struct wlan_fr_deauthen {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	p80211_hdr_t *hdr;
+	union p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -496,25 +496,25 @@ typedef struct wlan_fr_deauthen {
 
 } wlan_fr_deauthen_t;
 
-void wlan_mgmt_encode_beacon(wlan_fr_beacon_t * f);
-void wlan_mgmt_decode_beacon(wlan_fr_beacon_t * f);
-void wlan_mgmt_encode_disassoc(wlan_fr_disassoc_t * f);
-void wlan_mgmt_decode_disassoc(wlan_fr_disassoc_t * f);
-void wlan_mgmt_encode_assocreq(wlan_fr_assocreq_t * f);
-void wlan_mgmt_decode_assocreq(wlan_fr_assocreq_t * f);
-void wlan_mgmt_encode_assocresp(wlan_fr_assocresp_t * f);
-void wlan_mgmt_decode_assocresp(wlan_fr_assocresp_t * f);
-void wlan_mgmt_encode_reassocreq(wlan_fr_reassocreq_t * f);
-void wlan_mgmt_decode_reassocreq(wlan_fr_reassocreq_t * f);
-void wlan_mgmt_encode_reassocresp(wlan_fr_reassocresp_t * f);
-void wlan_mgmt_decode_reassocresp(wlan_fr_reassocresp_t * f);
-void wlan_mgmt_encode_probereq(wlan_fr_probereq_t * f);
-void wlan_mgmt_decode_probereq(wlan_fr_probereq_t * f);
-void wlan_mgmt_encode_proberesp(wlan_fr_proberesp_t * f);
-void wlan_mgmt_decode_proberesp(wlan_fr_proberesp_t * f);
-void wlan_mgmt_encode_authen(wlan_fr_authen_t * f);
-void wlan_mgmt_decode_authen(wlan_fr_authen_t * f);
-void wlan_mgmt_encode_deauthen(wlan_fr_deauthen_t * f);
-void wlan_mgmt_decode_deauthen(wlan_fr_deauthen_t * f);
+void wlan_mgmt_encode_beacon(wlan_fr_beacon_t *f);
+void wlan_mgmt_decode_beacon(wlan_fr_beacon_t *f);
+void wlan_mgmt_encode_disassoc(wlan_fr_disassoc_t *f);
+void wlan_mgmt_decode_disassoc(wlan_fr_disassoc_t *f);
+void wlan_mgmt_encode_assocreq(wlan_fr_assocreq_t *f);
+void wlan_mgmt_decode_assocreq(wlan_fr_assocreq_t *f);
+void wlan_mgmt_encode_assocresp(wlan_fr_assocresp_t *f);
+void wlan_mgmt_decode_assocresp(wlan_fr_assocresp_t *f);
+void wlan_mgmt_encode_reassocreq(wlan_fr_reassocreq_t *f);
+void wlan_mgmt_decode_reassocreq(wlan_fr_reassocreq_t *f);
+void wlan_mgmt_encode_reassocresp(wlan_fr_reassocresp_t *f);
+void wlan_mgmt_decode_reassocresp(wlan_fr_reassocresp_t *f);
+void wlan_mgmt_encode_probereq(wlan_fr_probereq_t *f);
+void wlan_mgmt_decode_probereq(wlan_fr_probereq_t *f);
+void wlan_mgmt_encode_proberesp(wlan_fr_proberesp_t *f);
+void wlan_mgmt_decode_proberesp(wlan_fr_proberesp_t *f);
+void wlan_mgmt_encode_authen(wlan_fr_authen_t *f);
+void wlan_mgmt_decode_authen(wlan_fr_authen_t *f);
+void wlan_mgmt_encode_deauthen(wlan_fr_deauthen_t *f);
+void wlan_mgmt_decode_deauthen(wlan_fr_deauthen_t *f);
 
 #endif /* _P80211MGMT_H */

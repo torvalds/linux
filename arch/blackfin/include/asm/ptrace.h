@@ -24,6 +24,8 @@
 
 #ifndef __ASSEMBLY__
 
+struct task_struct;
+
 /* this struct defines the way the registers are stored on the
    stack during a system call. */
 
@@ -89,9 +91,9 @@ struct pt_regs {
 #define PTRACE_GETREGS            12
 #define PTRACE_SETREGS            13	/* ptrace signal  */
 
-#define PTRACE_GETFDPIC           31
-#define PTRACE_GETFDPIC_EXEC      0
-#define PTRACE_GETFDPIC_INTERP    1
+#define PTRACE_GETFDPIC           31	/* get the ELF fdpic loadmap address */
+#define PTRACE_GETFDPIC_EXEC       0	/* [addr] request the executable loadmap */
+#define PTRACE_GETFDPIC_INTERP     1	/* [addr] request the interpreter loadmap */
 
 #define PS_S  (0x0002)
 
@@ -101,8 +103,29 @@ struct pt_regs {
    master interrupt enable.  */
 #define user_mode(regs) (!(((regs)->ipend & ~0x10) & (((regs)->ipend & ~0x10) - 1)))
 #define instruction_pointer(regs) ((regs)->pc)
+#define user_stack_pointer(regs)  ((regs)->usp)
 #define profile_pc(regs) instruction_pointer(regs)
 extern void show_regs(struct pt_regs *);
+
+#define arch_has_single_step()	(1)
+extern void user_enable_single_step(struct task_struct *child);
+extern void user_disable_single_step(struct task_struct *child);
+/* common code demands this function */
+#define ptrace_disable(child) user_disable_single_step(child)
+
+/*
+ * Get the address of the live pt_regs for the specified task.
+ * These are saved onto the top kernel stack when the process
+ * is not running.
+ *
+ * Note: if a user thread is execve'd from kernel space, the
+ * kernel stack will not be empty on entry to the kernel, so
+ * ptracing these tasks will fail.
+ */
+#define task_pt_regs(task) \
+	(struct pt_regs *) \
+	    ((unsigned long)task_stack_page(task) + \
+	     (THREAD_SIZE - sizeof(struct pt_regs)))
 
 #endif  /*  __KERNEL__  */
 
@@ -172,5 +195,7 @@ extern void show_regs(struct pt_regs *);
 #define PT_DATA_ADDR 228
 #define PT_FDPIC_EXEC 232
 #define PT_FDPIC_INTERP 236
+
+#define PT_LAST_PSEUDO PT_FDPIC_INTERP
 
 #endif				/* _BFIN_PTRACE_H */

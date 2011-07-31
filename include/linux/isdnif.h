@@ -317,7 +317,7 @@ typedef struct T30_s {
 	__u8 r_scantime;
 	__u8 r_id[FAXIDLEN];
 	__u8 r_code;
-} __attribute__((packed)) T30_s;
+} __packed T30_s;
 
 #define ISDN_TTY_FAX_CONN_IN	0
 #define ISDN_TTY_FAX_CONN_OUT	1

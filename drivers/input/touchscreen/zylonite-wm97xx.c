@@ -96,7 +96,7 @@ static int wm97xx_acc_pen_down(struct wm97xx *wm)
 	/* When the AC97 queue has been drained we need to allow time
 	 * to buffer up samples otherwise we end up spinning polling
 	 * for samples.  The controller can't have a suitably low
-	 * threashold set to use the notifications it gives.
+	 * threshold set to use the notifications it gives.
 	 */
 	msleep(1);
 
@@ -117,6 +117,9 @@ static int wm97xx_acc_pen_down(struct wm97xx *wm)
 		y = MODR;
 		if (pressure)
 			p = MODR;
+
+		dev_dbg(wm->dev, "Raw coordinates: x=%x, y=%x, p=%x\n",
+			x, y, p);
 
 		/* are samples valid */
 		if ((x & WM97XX_ADCSRC_MASK) != WM97XX_ADCSEL_X ||

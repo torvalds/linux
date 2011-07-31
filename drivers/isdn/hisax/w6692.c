@@ -16,6 +16,7 @@
 #include "isdnl1.h"
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 
 /* table entry in the PCI devices list */
 typedef struct {
@@ -1007,7 +1008,7 @@ setup_w6692(struct IsdnCard *card)
 		return (0);
 
 	while (id_list[id_idx].vendor_id) {
-		dev_w6692 = pci_find_device(id_list[id_idx].vendor_id,
+		dev_w6692 = hisax_find_pci_device(id_list[id_idx].vendor_id,
 					    id_list[id_idx].device_id,
 					    dev_w6692);
 		if (dev_w6692) {

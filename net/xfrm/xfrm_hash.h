@@ -16,7 +16,8 @@ static inline unsigned int __xfrm6_addr_hash(xfrm_address_t *addr)
 
 static inline unsigned int __xfrm4_daddr_saddr_hash(xfrm_address_t *daddr, xfrm_address_t *saddr)
 {
-	return ntohl(daddr->a4 + saddr->a4);
+	u32 sum = (__force u32)daddr->a4 + (__force u32)saddr->a4;
+	return ntohl((__force __be32)sum);
 }
 
 static inline unsigned int __xfrm6_daddr_saddr_hash(xfrm_address_t *daddr, xfrm_address_t *saddr)
@@ -54,7 +55,7 @@ static inline unsigned __xfrm_src_hash(xfrm_address_t *daddr,
 	case AF_INET6:
 		h ^= __xfrm6_daddr_saddr_hash(daddr, saddr);
 		break;
-	};
+	}
 	return (h ^ (h >> 16)) & hmask;
 }
 
@@ -101,7 +102,7 @@ static inline unsigned int __sel_hash(struct xfrm_selector *sel, unsigned short 
 
 		h = __xfrm6_daddr_saddr_hash(daddr, saddr);
 		break;
-	};
+	}
 	h ^= (h >> 16);
 	return h & hmask;
 }
@@ -118,7 +119,7 @@ static inline unsigned int __addr_hash(xfrm_address_t *daddr, xfrm_address_t *sa
 	case AF_INET6:
 		h = __xfrm6_daddr_saddr_hash(daddr, saddr);
 		break;
-	};
+	}
 	h ^= (h >> 16);
 	return h & hmask;
 }

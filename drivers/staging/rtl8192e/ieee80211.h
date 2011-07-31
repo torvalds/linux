@@ -303,8 +303,8 @@ enum	_ReasonCode{
 #define ieee80211_rx_mgt		ieee80211_rx_mgt_rsl
 
 #define ieee80211_get_beacon		ieee80211_get_beacon_rsl
-#define ieee80211_wake_queue		ieee80211_wake_queue_rsl
-#define ieee80211_stop_queue		ieee80211_stop_queue_rsl
+#define ieee80211_rtl_wake_queue		ieee80211_rtl_wake_queue_rsl
+#define ieee80211_rtl_stop_queue		ieee80211_rtl_stop_queue_rsl
 #define ieee80211_reset_queue		ieee80211_reset_queue_rsl
 #define ieee80211_softmac_stop_protocol	ieee80211_softmac_stop_protocol_rsl
 #define ieee80211_softmac_start_protocol ieee80211_softmac_start_protocol_rsl
@@ -546,9 +546,6 @@ do { if (ieee80211_debug_level & (level)) \
 #endif	/* CONFIG_IEEE80211_DEBUG */
 
 /* debug macros not dependent on CONFIG_IEEE80211_DEBUG */
-
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-#define MAC_ARG(x) ((u8*)(x))[0],((u8*)(x))[1],((u8*)(x))[2],((u8*)(x))[3],((u8*)(x))[4],((u8*)(x))[5]
 
 /*
  * To use the debug system;
@@ -1849,7 +1846,7 @@ struct ieee80211_device {
 	spinlock_t bw_spinlock;
 
 	spinlock_t reorder_spinlock;
-	// for HT operation rate set.  we use this one for HT data rate to seperate different descriptors
+	// for HT operation rate set.  we use this one for HT data rate to separate different descriptors
 	//the way fill this is the same as in the IE
 	u8	Regdot11HTOperationalRateSet[16];		//use RATR format
 	u8	dot11HTOperationalRateSet[16];		//use RATR format
@@ -2435,13 +2432,13 @@ extern int ieee80211_encrypt_fragment(
 	struct sk_buff *frag,
 	int hdr_len);
 
-extern int ieee80211_xmit(struct sk_buff *skb,
+extern int ieee80211_rtl_xmit(struct sk_buff *skb,
 			  struct net_device *dev);
 extern void ieee80211_txb_free(struct ieee80211_txb *);
 
 
 /* ieee80211_rx.c */
-extern int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
+extern int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			struct ieee80211_rx_stats *rx_stats);
 extern void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 			     struct ieee80211_hdr_4addr *header,
@@ -2502,8 +2499,8 @@ extern void ieee80211_stop_protocol(struct ieee80211_device *ieee);
 extern void ieee80211_softmac_start_protocol(struct ieee80211_device *ieee);
 extern void ieee80211_softmac_stop_protocol(struct ieee80211_device *ieee);
 extern void ieee80211_reset_queue(struct ieee80211_device *ieee);
-extern void ieee80211_wake_queue(struct ieee80211_device *ieee);
-extern void ieee80211_stop_queue(struct ieee80211_device *ieee);
+extern void ieee80211_rtl_wake_queue(struct ieee80211_device *ieee);
+extern void ieee80211_rtl_stop_queue(struct ieee80211_device *ieee);
 extern struct sk_buff *ieee80211_get_beacon(struct ieee80211_device *ieee);
 extern void ieee80211_start_send_beacons(struct ieee80211_device *ieee);
 extern void ieee80211_stop_send_beacons(struct ieee80211_device *ieee);

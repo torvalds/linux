@@ -67,17 +67,8 @@ void __init default_setup_apic_routing(void)
 	}
 #endif
 
-	if (apic == &apic_flat) {
-		switch (boot_cpu_data.x86_vendor) {
-		case X86_VENDOR_INTEL:
-			if (num_processors > 8)
-				apic = &apic_physflat;
-			break;
-		case X86_VENDOR_AMD:
-			if (max_physical_apicid >= 8)
-				apic = &apic_physflat;
-		}
-	}
+	if (apic == &apic_flat && num_possible_cpus() > 8)
+			apic = &apic_physflat;
 
 	printk(KERN_INFO "Setting APIC routing to %s\n", apic->name);
 
@@ -85,13 +76,6 @@ void __init default_setup_apic_routing(void)
 		/* need to update phys_pkg_id */
 		apic->phys_pkg_id = apicid_phys_pkg_id;
 	}
-
-	/*
-	 * Now that apic routing model is selected, configure the
-	 * fault handling for intr remapping.
-	 */
-	if (intr_remapping_enabled)
-		enable_drhd_fault_handling();
 }
 
 /* Same for both flat and physical. */

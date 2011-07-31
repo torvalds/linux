@@ -17,7 +17,7 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-You shoud also find the complete GPL in the COPYING file accompanying this source code.
+You should also find the complete GPL in the COPYING file accompanying this source code.
 
 @endverbatim
 */
@@ -53,7 +53,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 */
 
 #include "hwdrv_apci2032.h"
-unsigned int ui_InterruptData, ui_Type;
+static unsigned int ui_InterruptData, ui_Type;
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2032_ConfigDigitalOutput                     |

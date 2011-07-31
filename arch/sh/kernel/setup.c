@@ -4,7 +4,7 @@
  * This file handles the architecture-dependent parts of initialization
  *
  *  Copyright (C) 1999  Niibe Yutaka
- *  Copyright (C) 2002 - 2007 Paul Mundt
+ *  Copyright (C) 2002 - 2010 Paul Mundt
  */
 #include <linux/screen_info.h>
 #include <linux/ioport.h>
@@ -30,7 +30,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/page.h>
@@ -39,7 +39,9 @@
 #include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/clock.h>
+#include <asm/smp.h>
 #include <asm/mmu_context.h>
+#include <asm/mmzone.h>
 
 /*
  * Initialize loops_per_jiffy as 10000000 (1000MIPS).
@@ -93,6 +95,7 @@ unsigned long memory_start;
 EXPORT_SYMBOL(memory_start);
 unsigned long memory_end = 0;
 EXPORT_SYMBOL(memory_end);
+unsigned long memory_limit = 0;
 
 static struct resource mem_resources[MAX_NUMNODES];
 
@@ -100,92 +103,73 @@ int l1i_cache_shape, l1d_cache_shape, l2_cache_shape;
 
 static int __init early_parse_mem(char *p)
 {
-	unsigned long size;
+	if (!p)
+		return 1;
 
-	memory_start = (unsigned long)__va(__MEMORY_START);
-	size = memparse(p, &p);
+	memory_limit = PAGE_ALIGN(memparse(p, &p));
 
-	if (size > __MEMORY_SIZE) {
-		printk(KERN_ERR
-			"Using mem= to increase the size of kernel memory "
-			"is not allowed.\n"
-			"  Recompile the kernel with the correct value for "
-			"CONFIG_MEMORY_SIZE.\n");
-		return 0;
-	}
-
-	memory_end = memory_start + size;
+	pr_notice("Memory limited to %ldMB\n", memory_limit >> 20);
 
 	return 0;
 }
 early_param("mem", early_parse_mem);
 
-/*
- * Register fully available low RAM pages with the bootmem allocator.
- */
-static void __init register_bootmem_low_pages(void)
+void __init check_for_initrd(void)
 {
-	unsigned long curr_pfn, last_pfn, pages;
+#ifdef CONFIG_BLK_DEV_INITRD
+	unsigned long start, end;
 
 	/*
-	 * We are rounding up the start address of usable memory:
+	 * Check for the rare cases where boot loaders adhere to the boot
+	 * ABI.
 	 */
-	curr_pfn = PFN_UP(__MEMORY_START);
+	if (!LOADER_TYPE || !INITRD_START || !INITRD_SIZE)
+		goto disable;
 
-	/*
-	 * ... and at the end of the usable range downwards:
-	 */
-	last_pfn = PFN_DOWN(__pa(memory_end));
+	start = INITRD_START + __MEMORY_START;
+	end = start + INITRD_SIZE;
 
-	if (last_pfn > max_low_pfn)
-		last_pfn = max_low_pfn;
-
-	pages = last_pfn - curr_pfn;
-	free_bootmem(PFN_PHYS(curr_pfn), PFN_PHYS(pages));
-}
-
-#ifdef CONFIG_KEXEC
-static void __init reserve_crashkernel(void)
-{
-	unsigned long long free_mem;
-	unsigned long long crash_size, crash_base;
-	void *vp;
-	int ret;
-
-	free_mem = ((unsigned long long)max_low_pfn - min_low_pfn) << PAGE_SHIFT;
-
-	ret = parse_crashkernel(boot_command_line, free_mem,
-			&crash_size, &crash_base);
-	if (ret == 0 && crash_size) {
-		if (crash_base <= 0) {
-			vp = alloc_bootmem_nopanic(crash_size);
-			if (!vp) {
-				printk(KERN_INFO "crashkernel allocation "
-				       "failed\n");
-				return;
-			}
-			crash_base = __pa(vp);
-		} else if (reserve_bootmem(crash_base, crash_size,
-					BOOTMEM_EXCLUSIVE) < 0) {
-			printk(KERN_INFO "crashkernel reservation failed - "
-					"memory is in use\n");
-			return;
-		}
-
-		printk(KERN_INFO "Reserving %ldMB of memory at %ldMB "
-				"for crashkernel (System RAM: %ldMB)\n",
-				(unsigned long)(crash_size >> 20),
-				(unsigned long)(crash_base >> 20),
-				(unsigned long)(free_mem >> 20));
-		crashk_res.start = crash_base;
-		crashk_res.end   = crash_base + crash_size - 1;
-		insert_resource(&iomem_resource, &crashk_res);
+	if (unlikely(end <= start))
+		goto disable;
+	if (unlikely(start & ~PAGE_MASK)) {
+		pr_err("initrd must be page aligned\n");
+		goto disable;
 	}
-}
-#else
-static inline void __init reserve_crashkernel(void)
-{}
+
+	if (unlikely(start < PAGE_OFFSET)) {
+		pr_err("initrd start < PAGE_OFFSET\n");
+		goto disable;
+	}
+
+	if (unlikely(end > memblock_end_of_DRAM())) {
+		pr_err("initrd extends beyond end of memory "
+		       "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
+		       end, (unsigned long)memblock_end_of_DRAM());
+		goto disable;
+	}
+
+	/*
+	 * If we got this far inspite of the boot loader's best efforts
+	 * to the contrary, assume we actually have a valid initrd and
+	 * fix up the root dev.
+	 */
+	ROOT_DEV = Root_RAM0;
+
+	/*
+	 * Address sanitization
+	 */
+	initrd_start = (unsigned long)__va(__pa(start));
+	initrd_end = initrd_start + INITRD_SIZE;
+
+	memblock_reserve(__pa(initrd_start), INITRD_SIZE);
+
+	return;
+
+disable:
+	pr_info("initrd disabled\n");
+	initrd_start = initrd_end = 0;
 #endif
+}
 
 void __cpuinit calibrate_delay(void)
 {
@@ -207,13 +191,18 @@ void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
 						unsigned long end_pfn)
 {
 	struct resource *res = &mem_resources[nid];
+	unsigned long start, end;
 
 	WARN_ON(res->name); /* max one active range per node for now */
 
+	start = start_pfn << PAGE_SHIFT;
+	end = end_pfn << PAGE_SHIFT;
+
 	res->name = "System RAM";
-	res->start = start_pfn << PAGE_SHIFT;
-	res->end = (end_pfn << PAGE_SHIFT) - 1;
+	res->start = start;
+	res->end = end - 1;
 	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+
 	if (request_resource(&iomem_resource, res)) {
 		pr_err("unable to request memory_resource 0x%lx 0x%lx\n",
 		       start_pfn, end_pfn);
@@ -229,138 +218,18 @@ void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
 	request_resource(res, &data_resource);
 	request_resource(res, &bss_resource);
 
+	/*
+	 * Also make sure that there is a PMB mapping that covers this
+	 * range before we attempt to activate it, to avoid reset by MMU.
+	 * We can hit this path with NUMA or memory hot-add.
+	 */
+	pmb_bolt_mapping((unsigned long)__va(start), start, end - start,
+			 PAGE_KERNEL);
+
 	add_active_range(nid, start_pfn, end_pfn);
 }
 
-void __init setup_bootmem_allocator(unsigned long free_pfn)
-{
-	unsigned long bootmap_size;
-	unsigned long bootmap_pages, bootmem_paddr;
-	u64 total_pages = (lmb_end_of_DRAM() - __MEMORY_START) >> PAGE_SHIFT;
-	int i;
-
-	bootmap_pages = bootmem_bootmap_pages(total_pages);
-
-	bootmem_paddr = lmb_alloc(bootmap_pages << PAGE_SHIFT, PAGE_SIZE);
-
-	/*
-	 * Find a proper area for the bootmem bitmap. After this
-	 * bootstrap step all allocations (until the page allocator
-	 * is intact) must be done via bootmem_alloc().
-	 */
-	bootmap_size = init_bootmem_node(NODE_DATA(0),
-					 bootmem_paddr >> PAGE_SHIFT,
-					 min_low_pfn, max_low_pfn);
-
-	/* Add active regions with valid PFNs. */
-	for (i = 0; i < lmb.memory.cnt; i++) {
-		unsigned long start_pfn, end_pfn;
-		start_pfn = lmb.memory.region[i].base >> PAGE_SHIFT;
-		end_pfn = start_pfn + lmb_size_pages(&lmb.memory, i);
-		__add_active_range(0, start_pfn, end_pfn);
-	}
-
-	/*
-	 * Add all physical memory to the bootmem map and mark each
-	 * area as present.
-	 */
-	register_bootmem_low_pages();
-
-	/* Reserve the sections we're already using. */
-	for (i = 0; i < lmb.reserved.cnt; i++)
-		reserve_bootmem(lmb.reserved.region[i].base,
-				lmb_size_bytes(&lmb.reserved, i),
-				BOOTMEM_DEFAULT);
-
-	node_set_online(0);
-
-	sparse_memory_present_with_active_regions(0);
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	ROOT_DEV = Root_RAM0;
-
-	if (LOADER_TYPE && INITRD_START) {
-		unsigned long initrd_start_phys = INITRD_START + __MEMORY_START;
-
-		if (initrd_start_phys + INITRD_SIZE <= PFN_PHYS(max_low_pfn)) {
-			reserve_bootmem(initrd_start_phys, INITRD_SIZE,
-					BOOTMEM_DEFAULT);
-			initrd_start = (unsigned long)__va(initrd_start_phys);
-			initrd_end = initrd_start + INITRD_SIZE;
-		} else {
-			printk("initrd extends beyond end of memory "
-			       "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
-			       initrd_start_phys + INITRD_SIZE,
-			       (unsigned long)PFN_PHYS(max_low_pfn));
-			initrd_start = 0;
-		}
-	}
-#endif
-
-	reserve_crashkernel();
-}
-
-#ifndef CONFIG_NEED_MULTIPLE_NODES
-static void __init setup_memory(void)
-{
-	unsigned long start_pfn;
-	u64 base = min_low_pfn << PAGE_SHIFT;
-	u64 size = (max_low_pfn << PAGE_SHIFT) - base;
-
-	/*
-	 * Partially used pages are not usable - thus
-	 * we are rounding upwards:
-	 */
-	start_pfn = PFN_UP(__pa(_end));
-
-	lmb_add(base, size);
-
-	/*
-	 * Reserve the kernel text and
-	 * Reserve the bootmem bitmap. We do this in two steps (first step
-	 * was init_bootmem()), because this catches the (definitely buggy)
-	 * case of us accidentally initializing the bootmem allocator with
-	 * an invalid RAM area.
-	 */
-	lmb_reserve(__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET,
-		    (PFN_PHYS(start_pfn) + PAGE_SIZE - 1) -
-		    (__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET));
-
-	/*
-	 * Reserve physical pages below CONFIG_ZERO_PAGE_OFFSET.
-	 */
-	if (CONFIG_ZERO_PAGE_OFFSET != 0)
-		lmb_reserve(__MEMORY_START, CONFIG_ZERO_PAGE_OFFSET);
-
-	lmb_analyze();
-	lmb_dump_all();
-
-	setup_bootmem_allocator(start_pfn);
-}
-#else
-extern void __init setup_memory(void);
-#endif
-
-/*
- * Note: elfcorehdr_addr is not just limited to vmcore. It is also used by
- * is_kdump_kernel() to determine if we are booting after a panic. Hence
- * ifdef it under CONFIG_CRASH_DUMP and not CONFIG_PROC_VMCORE.
- */
-#ifdef CONFIG_CRASH_DUMP
-/* elfcorehdr= specifies the location of elf core header
- * stored by the crashed kernel.
- */
-static int __init parse_elfcorehdr(char *arg)
-{
-	if (!arg)
-		return -EINVAL;
-	elfcorehdr_addr = memparse(arg, &arg);
-	return 0;
-}
-early_param("elfcorehdr", parse_elfcorehdr);
-#endif
-
-void __init __attribute__ ((weak)) plat_early_device_setup(void)
+void __init __weak plat_early_device_setup(void)
 {
 }
 
@@ -401,10 +270,6 @@ void __init setup_arch(char **cmdline_p)
 	bss_resource.start = virt_to_phys(__bss_start);
 	bss_resource.end = virt_to_phys(_ebss)-1;
 
-	memory_start = (unsigned long)__va(__MEMORY_START);
-	if (!memory_end)
-		memory_end = memory_start + __MEMORY_SIZE;
-
 #ifdef CONFIG_CMDLINE_OVERWRITE
 	strlcpy(command_line, CONFIG_CMDLINE, sizeof(command_line));
 #else
@@ -425,23 +290,10 @@ void __init setup_arch(char **cmdline_p)
 
 	sh_mv_setup();
 
-	/*
-	 * Find the highest page frame number we have available
-	 */
-	max_pfn = PFN_DOWN(__pa(memory_end));
+	/* Let earlyprintk output early console messages */
+	early_platform_driver_probe("earlyprintk", 1, 1);
 
-	/*
-	 * Determine low and high memory ranges:
-	 */
-	max_low_pfn = max_pfn;
-	min_low_pfn = __MEMORY_START >> PAGE_SHIFT;
-
-	nodes_clear(node_online_map);
-
-	/* Setup bootmem with available RAM */
-	lmb_init();
-	setup_memory();
-	sparse_init();
+	paging_init();
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
@@ -451,11 +303,7 @@ void __init setup_arch(char **cmdline_p)
 	if (likely(sh_mv.mv_setup))
 		sh_mv.mv_setup(cmdline_p);
 
-	paging_init();
-
-#ifdef CONFIG_SMP
 	plat_smp_setup();
-#endif
 }
 
 /* processor boot mode configuration */

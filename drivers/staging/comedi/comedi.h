@@ -24,10 +24,6 @@
 #ifndef _COMEDI_H
 #define _COMEDI_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define COMEDI_MAJORVERSION	0
 #define COMEDI_MINORVERSION	7
 #define COMEDI_MICROVERSION	76
@@ -50,8 +46,10 @@ extern "C" {
 #define COMEDI_DEVCONF_AUX_DATA2_LENGTH		26
 #define COMEDI_DEVCONF_AUX_DATA1_LENGTH		27
 #define COMEDI_DEVCONF_AUX_DATA0_LENGTH		28
-#define COMEDI_DEVCONF_AUX_DATA_HI		29	/* most significant 32 bits of pointer address (if needed) */
-#define COMEDI_DEVCONF_AUX_DATA_LO		30	/* least significant 32 bits of pointer address */
+/* most significant 32 bits of pointer address (if needed) */
+#define COMEDI_DEVCONF_AUX_DATA_HI		29
+/* least significant 32 bits of pointer address */
+#define COMEDI_DEVCONF_AUX_DATA_LO		30
 #define COMEDI_DEVCONF_AUX_DATA_LENGTH		31	/* total data length */
 
 /* max length of device and driver names */
@@ -59,8 +57,10 @@ extern "C" {
 
 /* packs and unpacks a channel/range number */
 
-#define CR_PACK(chan, rng, aref)		((((aref)&0x3)<<24) | (((rng)&0xff)<<16) | (chan))
-#define CR_PACK_FLAGS(chan, range, aref, flags)	(CR_PACK(chan, range, aref) | ((flags) & CR_FLAGS_MASK))
+#define CR_PACK(chan, rng, aref)					\
+	((((aref)&0x3)<<24) | (((rng)&0xff)<<16) | (chan))
+#define CR_PACK_FLAGS(chan, range, aref, flags)				\
+	(CR_PACK(chan, range, aref) | ((flags) & CR_FLAGS_MASK))
 
 #define CR_CHAN(a)	((a)&0xffff)
 #define CR_RANGE(a)	(((a)>>16)&0xff)
@@ -129,7 +129,8 @@ extern "C" {
 /* command flags */
 /* These flags are used in comedi_cmd structures */
 
-#define CMDF_PRIORITY		0x00000008	/* try to use a real-time interrupt while performing command */
+/* try to use a real-time interrupt while performing command */
+#define CMDF_PRIORITY		0x00000008
 
 #define TRIG_RT		CMDF_PRIORITY	/* compatibility definition */
 
@@ -155,15 +156,15 @@ extern "C" {
 #define TRIG_ANY	0xffffffff
 #define TRIG_INVALID	0x00000000
 
-#define TRIG_NONE	0x00000001	/* never trigger */
-#define TRIG_NOW	0x00000002	/* trigger now + N ns */
-#define TRIG_FOLLOW	0x00000004	/* trigger on next lower level trig */
-#define TRIG_TIME	0x00000008	/* trigger at time N ns */
-#define TRIG_TIMER	0x00000010	/* trigger at rate N ns */
-#define TRIG_COUNT	0x00000020	/* trigger when count reaches N */
-#define TRIG_EXT	0x00000040	/* trigger on external signal N */
-#define TRIG_INT	0x00000080	/* trigger on comedi-internal signal N */
-#define TRIG_OTHER	0x00000100	/* driver defined */
+#define TRIG_NONE	0x00000001 /* never trigger */
+#define TRIG_NOW	0x00000002 /* trigger now + N ns */
+#define TRIG_FOLLOW	0x00000004 /* trigger on next lower level trig */
+#define TRIG_TIME	0x00000008 /* trigger at time N ns */
+#define TRIG_TIMER	0x00000010 /* trigger at rate N ns */
+#define TRIG_COUNT	0x00000020 /* trigger when count reaches N */
+#define TRIG_EXT	0x00000040 /* trigger on external signal N */
+#define TRIG_INT	0x00000080 /* trigger on comedi-internal signal N */
+#define TRIG_OTHER	0x00000100 /* driver defined */
 
 /* subdevice flags */
 
@@ -180,14 +181,17 @@ extern "C" {
 #define SDF_MODE3	0x0400	/* can do mode 3 */
 #define SDF_MODE4	0x0800	/* can do mode 4 */
 #define SDF_CMD		0x1000	/* can do commands (deprecated) */
-#define SDF_SOFT_CALIBRATED	0x2000	/* subdevice uses software calibration */
-#define SDF_CMD_WRITE		0x4000	/* can do output commands */
-#define SDF_CMD_READ		0x8000	/* can do input commands */
+#define SDF_SOFT_CALIBRATED	0x2000 /* subdevice uses software calibration */
+#define SDF_CMD_WRITE		0x4000 /* can do output commands */
+#define SDF_CMD_READ		0x8000 /* can do input commands */
 
-#define SDF_READABLE	0x00010000	/* subdevice can be read (e.g. analog input) */
-#define SDF_WRITABLE	0x00020000	/* subdevice can be written (e.g. analog output) */
+/* subdevice can be read (e.g. analog input) */
+#define SDF_READABLE	0x00010000
+/* subdevice can be written (e.g. analog output) */
+#define SDF_WRITABLE	0x00020000
 #define SDF_WRITEABLE	SDF_WRITABLE	/* spelling error in API */
-#define SDF_INTERNAL	0x00040000	/* subdevice does not have externally visible lines */
+/* subdevice does not have externally visible lines */
+#define SDF_INTERNAL	0x00040000
 #define SDF_GROUND	0x00100000	/* can do aref=ground */
 #define SDF_COMMON	0x00200000	/* can do aref=common */
 #define SDF_DIFF	0x00400000	/* can do aref=diff */
@@ -246,22 +250,25 @@ extern "C" {
 		INSN_CONFIG_DISARM = 32,
 		INSN_CONFIG_GET_COUNTER_STATUS = 33,
 		INSN_CONFIG_RESET = 34,
-		INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR = 1001,	/* Use CTR as single pulsegenerator */
-		INSN_CONFIG_GPCT_PULSE_TRAIN_GENERATOR = 1002,	/* Use CTR as pulsetraingenerator */
-		INSN_CONFIG_GPCT_QUADRATURE_ENCODER = 1003,	/* Use the counter as encoder */
+		/* Use CTR as single pulsegenerator */
+		INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR = 1001,
+		/* Use CTR as pulsetraingenerator */
+		INSN_CONFIG_GPCT_PULSE_TRAIN_GENERATOR = 1002,
+		/* Use the counter as encoder */
+		INSN_CONFIG_GPCT_QUADRATURE_ENCODER = 1003,
 		INSN_CONFIG_SET_GATE_SRC = 2001,	/* Set gate source */
 		INSN_CONFIG_GET_GATE_SRC = 2002,	/* Get gate source */
-		INSN_CONFIG_SET_CLOCK_SRC = 2003,	/* Set master clock source */
-		INSN_CONFIG_GET_CLOCK_SRC = 2004,	/* Get master clock source */
-		INSN_CONFIG_SET_OTHER_SRC = 2005,	/* Set other source */
-		/*	INSN_CONFIG_GET_OTHER_SRC = 2006,*//* Get other source */
-		INSN_CONFIG_GET_HARDWARE_BUFFER_SIZE = 2006,	/* Get size in bytes of
-								   subdevice's on-board
-								   fifos used during
-								   streaming
-								   input/output */
+		/* Set master clock source */
+		INSN_CONFIG_SET_CLOCK_SRC = 2003,
+		INSN_CONFIG_GET_CLOCK_SRC = 2004, /* Get master clock source */
+		INSN_CONFIG_SET_OTHER_SRC = 2005, /* Set other source */
+		/* INSN_CONFIG_GET_OTHER_SRC = 2006,*//* Get other source */
+		/* Get size in bytes of subdevice's on-board fifos used during
+		 * streaming input/output */
+		INSN_CONFIG_GET_HARDWARE_BUFFER_SIZE = 2006,
 		INSN_CONFIG_SET_COUNTER_MODE = 4097,
-		INSN_CONFIG_8254_SET_MODE = INSN_CONFIG_SET_COUNTER_MODE,	/* deprecated */
+		/* INSN_CONFIG_8254_SET_MODE is deprecated */
+		INSN_CONFIG_8254_SET_MODE = INSN_CONFIG_SET_COUNTER_MODE,
 		INSN_CONFIG_8254_READ_STATUS = 4098,
 		INSN_CONFIG_SET_ROUTING = 4099,
 		INSN_CONFIG_GET_ROUTING = 4109,
@@ -269,8 +276,11 @@ extern "C" {
 		INSN_CONFIG_PWM_SET_PERIOD = 5000,	/* sets frequency */
 		INSN_CONFIG_PWM_GET_PERIOD = 5001,	/* gets frequency */
 		INSN_CONFIG_GET_PWM_STATUS = 5002,	/* is it running? */
-		INSN_CONFIG_PWM_SET_H_BRIDGE = 5003,	/* sets H bridge: duty cycle and sign bit for a relay  at the same time */
-		INSN_CONFIG_PWM_GET_H_BRIDGE = 5004	/* gets H bridge data: duty cycle and the sign bit */
+		/* sets H bridge: duty cycle and sign bit for a relay at the
+		 * same time */
+		INSN_CONFIG_PWM_SET_H_BRIDGE = 5003,
+		/* gets H bridge data: duty cycle and the sign bit */
+		INSN_CONFIG_PWM_GET_H_BRIDGE = 5004
 	};
 
 	enum comedi_io_direction {
@@ -325,7 +335,7 @@ extern "C" {
 	struct comedi_insn {
 		unsigned int insn;
 		unsigned int n;
-		unsigned int *data;
+		unsigned int __user *data;
 		unsigned int subdev;
 		unsigned int chanspec;
 		unsigned int unused[3];
@@ -333,7 +343,7 @@ extern "C" {
 
 	struct comedi_insnlist {
 		unsigned int n_insns;
-		struct comedi_insn *insns;
+		struct comedi_insn __user *insns;
 	};
 
 	struct comedi_cmd {
@@ -355,24 +365,24 @@ extern "C" {
 		unsigned int stop_src;
 		unsigned int stop_arg;
 
-		unsigned int *chanlist;	/* channel/range list */
+		unsigned int __user *chanlist;	/* channel/range list */
 		unsigned int chanlist_len;
 
-		short *data;	/* data list, size depends on subd flags */
+		short __user *data; /* data list, size depends on subd flags */
 		unsigned int data_len;
 	};
 
 	struct comedi_chaninfo {
 		unsigned int subdev;
-		unsigned int *maxdata_list;
-		unsigned int *flaglist;
-		unsigned int *rangelist;
+		unsigned int __user *maxdata_list;
+		unsigned int __user *flaglist;
+		unsigned int __user *rangelist;
 		unsigned int unused[4];
 	};
 
 	struct comedi_rangeinfo {
 		unsigned int range_type;
-		void *range_ptr;
+		void __user *range_ptr;
 	};
 
 	struct comedi_krange {
@@ -391,7 +401,8 @@ extern "C" {
 		unsigned int flags;	/* channel flags */
 		unsigned int range_type;	/* lookup in kernel */
 		unsigned int settling_time_0;
-		unsigned insn_bits_support;	/* see support_level enum for values */
+		/* see support_level enum for values */
+		unsigned insn_bits_support;
 		unsigned int unused[8];
 	};
 
@@ -455,7 +466,8 @@ extern "C" {
 
 #define COMEDI_CB_EOS		1	/* end of scan */
 #define COMEDI_CB_EOA		2	/* end of acquisition */
-#define COMEDI_CB_BLOCK		4	/* DEPRECATED: convenient block size */
+#define COMEDI_CB_BLOCK		4	/* data has arrived:
+					 * wakes up read() / write() */
 #define COMEDI_CB_EOBUF		8	/* DEPRECATED: end of buffer */
 #define COMEDI_CB_ERROR		16	/* card error during acquisition */
 #define COMEDI_CB_OVERFLOW	32	/* buffer overflow/underflow */
@@ -489,12 +501,15 @@ extern "C" {
 		I8254_MODE2 = (2 << 1),	/* Rate generator */
 		I8254_MODE3 = (3 << 1),	/* Square wave mode */
 		I8254_MODE4 = (4 << 1),	/* Software triggered strobe */
-		I8254_MODE5 = (5 << 1),	/* Hardware triggered strobe (retriggerable) */
-		I8254_BCD = 1,	/* use binary-coded decimal instead of binary (pretty useless) */
+		I8254_MODE5 = (5 << 1),	/* Hardware triggered strobe
+					 * (retriggerable) */
+		I8254_BCD = 1,	/* use binary-coded decimal instead of binary
+				 * (pretty useless) */
 		I8254_BINARY = 0
 	};
 
-	static inline unsigned NI_USUAL_PFI_SELECT(unsigned pfi_channel) {
+	static inline unsigned NI_USUAL_PFI_SELECT(unsigned pfi_channel)
+	{
 		if (pfi_channel < 10)
 			return 0x1 + pfi_channel;
 		else
@@ -584,24 +599,30 @@ extern "C" {
 		NI_GPCT_LOGIC_LOW_CLOCK_SRC_BITS = 0x3,
 		NI_GPCT_NEXT_GATE_CLOCK_SRC_BITS = 0x4,
 		NI_GPCT_NEXT_TC_CLOCK_SRC_BITS = 0x5,
-		NI_GPCT_SOURCE_PIN_i_CLOCK_SRC_BITS = 0x6,	/* NI 660x-specific */
+		/* NI 660x-specific */
+		NI_GPCT_SOURCE_PIN_i_CLOCK_SRC_BITS = 0x6,
 		NI_GPCT_PXI10_CLOCK_SRC_BITS = 0x7,
 		NI_GPCT_PXI_STAR_TRIGGER_CLOCK_SRC_BITS = 0x8,
 		NI_GPCT_ANALOG_TRIGGER_OUT_CLOCK_SRC_BITS = 0x9,
 		NI_GPCT_PRESCALE_MODE_CLOCK_SRC_MASK = 0x30000000,
 		NI_GPCT_NO_PRESCALE_CLOCK_SRC_BITS = 0x0,
-		NI_GPCT_PRESCALE_X2_CLOCK_SRC_BITS = 0x10000000,	/* divide source by 2 */
-		NI_GPCT_PRESCALE_X8_CLOCK_SRC_BITS = 0x20000000,	/* divide source by 8 */
+		/* divide source by 2 */
+		NI_GPCT_PRESCALE_X2_CLOCK_SRC_BITS = 0x10000000,
+		/* divide source by 8 */
+		NI_GPCT_PRESCALE_X8_CLOCK_SRC_BITS = 0x20000000,
 		NI_GPCT_INVERT_CLOCK_SRC_BIT = 0x80000000
 	};
-	static inline unsigned NI_GPCT_SOURCE_PIN_CLOCK_SRC_BITS(unsigned n) {
+	static inline unsigned NI_GPCT_SOURCE_PIN_CLOCK_SRC_BITS(unsigned n)
+	{
 		/* NI 660x-specific */
 		return 0x10 + n;
 	}
-	static inline unsigned NI_GPCT_RTSI_CLOCK_SRC_BITS(unsigned n) {
+	static inline unsigned NI_GPCT_RTSI_CLOCK_SRC_BITS(unsigned n)
+	{
 		return 0x18 + n;
 	}
-	static inline unsigned NI_GPCT_PFI_CLOCK_SRC_BITS(unsigned n) {
+	static inline unsigned NI_GPCT_PFI_CLOCK_SRC_BITS(unsigned n)
+	{
 		/* no pfi on NI 660x */
 		return 0x20 + n;
 	}
@@ -626,19 +647,24 @@ May be bitwise-or'd with CR_EDGE or CR_INVERT. */
 		NI_GPCT_UP_DOWN_PIN_i_GATE_SELECT = 0x201,
 		NI_GPCT_SELECTED_GATE_GATE_SELECT = 0x21e,
 		/* m-series "second gate" sources are unknown,
-		   we should add them here with an offset of 0x300 when known. */
+		 * we should add them here with an offset of 0x300 when
+		 * known. */
 		NI_GPCT_DISABLED_GATE_SELECT = 0x8000,
 	};
-	static inline unsigned NI_GPCT_GATE_PIN_GATE_SELECT(unsigned n) {
+	static inline unsigned NI_GPCT_GATE_PIN_GATE_SELECT(unsigned n)
+	{
 		return 0x102 + n;
 	}
-	static inline unsigned NI_GPCT_RTSI_GATE_SELECT(unsigned n) {
+	static inline unsigned NI_GPCT_RTSI_GATE_SELECT(unsigned n)
+	{
 		return NI_USUAL_RTSI_SELECT(n);
 	}
-	static inline unsigned NI_GPCT_PFI_GATE_SELECT(unsigned n) {
+	static inline unsigned NI_GPCT_PFI_GATE_SELECT(unsigned n)
+	{
 		return NI_USUAL_PFI_SELECT(n);
 	}
-	static inline unsigned NI_GPCT_UP_DOWN_PIN_GATE_SELECT(unsigned n) {
+	static inline unsigned NI_GPCT_UP_DOWN_PIN_GATE_SELECT(unsigned n)
+	{
 		return 0x202 + n;
 	}
 
@@ -654,7 +680,8 @@ INSN_CONFIG_SET_OTHER_SRC when using NI general-purpose counters. */
 		/* Still unknown, probably only need NI_GPCT_PFI_OTHER_SELECT */
 		NI_GPCT_DISABLED_OTHER_SELECT = 0x8000,
 	};
-	static inline unsigned NI_GPCT_PFI_OTHER_SELECT(unsigned n) {
+	static inline unsigned NI_GPCT_PFI_OTHER_SELECT(unsigned n)
+	{
 		return NI_USUAL_PFI_SELECT(n);
 	}
 
@@ -662,14 +689,14 @@ INSN_CONFIG_SET_OTHER_SRC when using NI general-purpose counters. */
 INSN_CONFIG_ARM */
 	enum ni_gpct_arm_source {
 		NI_GPCT_ARM_IMMEDIATE = 0x0,
-		NI_GPCT_ARM_PAIRED_IMMEDIATE = 0x1,	/* Start both the counter and
-							   the adjacent paired counter
-							   simultaneously */
-		/* NI doesn't document bits for selecting hardware arm triggers.  If
-		 * the NI_GPCT_ARM_UNKNOWN bit is set, we will pass the least
-		 * significant bits (3 bits for 660x or 5 bits for m-series) through to
-		 * the hardware.  This will at least allow someone to figure out what
-		 * the bits do later. */
+		NI_GPCT_ARM_PAIRED_IMMEDIATE = 0x1, /* Start both the counter
+						     * and the adjacent paired
+						     * counter simultaneously */
+		/* NI doesn't document bits for selecting hardware arm triggers.
+		 * If the NI_GPCT_ARM_UNKNOWN bit is set, we will pass the least
+		 * significant bits (3 bits for 660x or 5 bits for m-series)
+		 * through to the hardware.  This will at least allow someone to
+		 * figure out what the bits do later. */
 		NI_GPCT_ARM_UNKNOWN = 0x1000,
 	};
 
@@ -703,7 +730,8 @@ INSN_CONFIG_ARM */
 		NI_MIO_PLL_PXI10_CLOCK = 3,
 		NI_MIO_PLL_RTSI0_CLOCK = 4
 	};
-	static inline unsigned NI_MIO_PLL_RTSI_CLOCK(unsigned rtsi_channel) {
+	static inline unsigned NI_MIO_PLL_RTSI_CLOCK(unsigned rtsi_channel)
+	{
 		return NI_MIO_PLL_RTSI0_CLOCK + rtsi_channel;
 	}
 
@@ -720,10 +748,11 @@ INSN_CONFIG_ARM */
 		NI_RTSI_OUTPUT_G_GATE0 = 6,
 		NI_RTSI_OUTPUT_RGOUT0 = 7,
 		NI_RTSI_OUTPUT_RTSI_BRD_0 = 8,
-		NI_RTSI_OUTPUT_RTSI_OSC = 12	/* pre-m-series always have RTSI clock
-						   on line 7 */
+		NI_RTSI_OUTPUT_RTSI_OSC = 12	/* pre-m-series always have RTSI
+						 * clock on line 7 */
 	};
-	static inline unsigned NI_RTSI_OUTPUT_RTSI_BRD(unsigned n) {
+	static inline unsigned NI_RTSI_OUTPUT_RTSI_BRD(unsigned n)
+	{
 		return NI_RTSI_OUTPUT_RTSI_BRD_0 + n;
 	}
 
@@ -758,7 +787,8 @@ INSN_CONFIG_ARM */
 		NI_PFI_OUTPUT_CDI_SAMPLE = 29,
 		NI_PFI_OUTPUT_CDO_UPDATE = 30
 	};
-	static inline unsigned NI_PFI_OUTPUT_RTSI(unsigned rtsi_channel) {
+	static inline unsigned NI_PFI_OUTPUT_RTSI(unsigned rtsi_channel)
+	{
 		return NI_PFI_OUTPUT_RTSI0 + rtsi_channel;
 	}
 
@@ -776,10 +806,12 @@ INSN_CONFIG_ARM */
 /* NI External Trigger lines.  These values are not arbitrary, but are related
  * to the bits required to program the board (offset by 1 for historical
  * reasons). */
-	static inline unsigned NI_EXT_PFI(unsigned pfi_channel) {
+	static inline unsigned NI_EXT_PFI(unsigned pfi_channel)
+	{
 		return NI_USUAL_PFI_SELECT(pfi_channel) - 1;
 	}
-	static inline unsigned NI_EXT_RTSI(unsigned rtsi_channel) {
+	static inline unsigned NI_EXT_RTSI(unsigned rtsi_channel)
+	{
 		return NI_USUAL_RTSI_SELECT(rtsi_channel) - 1;
 	}
 
@@ -805,21 +837,25 @@ INSN_CONFIG_ARM */
 		NI_CDIO_SCAN_BEGIN_SRC_FREQ_OUT = 32,
 		NI_CDIO_SCAN_BEGIN_SRC_DIO_CHANGE_DETECT_IRQ = 33
 	};
-	static inline unsigned NI_CDIO_SCAN_BEGIN_SRC_PFI(unsigned pfi_channel) {
+	static inline unsigned NI_CDIO_SCAN_BEGIN_SRC_PFI(unsigned pfi_channel)
+	{
 		return NI_USUAL_PFI_SELECT(pfi_channel);
 	}
-	static inline unsigned NI_CDIO_SCAN_BEGIN_SRC_RTSI(unsigned
-							   rtsi_channel) {
+	static inline unsigned
+		NI_CDIO_SCAN_BEGIN_SRC_RTSI(unsigned rtsi_channel)
+	{
 		return NI_USUAL_RTSI_SELECT(rtsi_channel);
 	}
 
 /* scan_begin_src for scan_begin_arg==TRIG_EXT with analog output command on NI
  * boards.  These scan begin sources can also be bitwise-or'd with CR_INVERT to
  * change polarity. */
-	static inline unsigned NI_AO_SCAN_BEGIN_SRC_PFI(unsigned pfi_channel) {
+	static inline unsigned NI_AO_SCAN_BEGIN_SRC_PFI(unsigned pfi_channel)
+	{
 		return NI_USUAL_PFI_SELECT(pfi_channel);
 	}
-	static inline unsigned NI_AO_SCAN_BEGIN_SRC_RTSI(unsigned rtsi_channel) {
+	static inline unsigned NI_AO_SCAN_BEGIN_SRC_RTSI(unsigned rtsi_channel)
+	{
 		return NI_USUAL_RTSI_SELECT(rtsi_channel);
 	}
 
@@ -870,9 +906,5 @@ INSN_CONFIG_ARM */
 		AMPLC_DIO_GAT_RESERVED6,
 		AMPLC_DIO_GAT_RESERVED7
 	};
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* _COMEDI_H */

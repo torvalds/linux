@@ -32,6 +32,7 @@
 #include <linux/proc_fs.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 
 #include <net/arp.h>
 #include <net/ip.h>
@@ -62,8 +63,8 @@ static DEFINE_SPINLOCK(fib_multipath_lock);
 #define for_nexthops(fi) { int nhsel; const struct fib_nh * nh; \
 for (nhsel=0, nh = (fi)->fib_nh; nhsel < (fi)->fib_nhs; nh++, nhsel++)
 
-#define change_nexthops(fi) { int nhsel; struct fib_nh * nh; \
-for (nhsel=0, nh = (struct fib_nh *)((fi)->fib_nh); nhsel < (fi)->fib_nhs; nh++, nhsel++)
+#define change_nexthops(fi) { int nhsel; struct fib_nh *nexthop_nh; \
+for (nhsel=0, nexthop_nh = (struct fib_nh *)((fi)->fib_nh); nhsel < (fi)->fib_nhs; nexthop_nh++, nhsel++)
 
 #else /* CONFIG_IP_ROUTE_MULTIPATH */
 
@@ -72,7 +73,7 @@ for (nhsel=0, nh = (struct fib_nh *)((fi)->fib_nh); nhsel < (fi)->fib_nhs; nh++,
 #define for_nexthops(fi) { int nhsel = 0; const struct fib_nh * nh = (fi)->fib_nh; \
 for (nhsel=0; nhsel < 1; nhsel++)
 
-#define change_nexthops(fi) { int nhsel = 0; struct fib_nh * nh = (struct fib_nh *)((fi)->fib_nh); \
+#define change_nexthops(fi) { int nhsel = 0; struct fib_nh *nexthop_nh = (struct fib_nh *)((fi)->fib_nh); \
 for (nhsel=0; nhsel < 1; nhsel++)
 
 #endif /* CONFIG_IP_ROUTE_MULTIPATH */
@@ -145,9 +146,9 @@ void free_fib_info(struct fib_info *fi)
 		return;
 	}
 	change_nexthops(fi) {
-		if (nh->nh_dev)
-			dev_put(nh->nh_dev);
-		nh->nh_dev = NULL;
+		if (nexthop_nh->nh_dev)
+			dev_put(nexthop_nh->nh_dev);
+		nexthop_nh->nh_dev = NULL;
 	} endfor_nexthops(fi);
 	fib_info_cnt--;
 	release_net(fi->fib_net);
@@ -162,9 +163,9 @@ void fib_release_info(struct fib_info *fi)
 		if (fi->fib_prefsrc)
 			hlist_del(&fi->fib_lhash);
 		change_nexthops(fi) {
-			if (!nh->nh_dev)
+			if (!nexthop_nh->nh_dev)
 				continue;
-			hlist_del(&nh->nh_hash);
+			hlist_del(&nexthop_nh->nh_hash);
 		} endfor_nexthops(fi)
 		fi->fib_dead = 1;
 		fib_info_put(fi);
@@ -228,7 +229,7 @@ static struct fib_info *fib_find_info(const struct fib_info *nfi)
 	head = &fib_info_hash[hash];
 
 	hlist_for_each_entry(fi, node, head, fib_hash) {
-		if (fi->fib_net != nfi->fib_net)
+		if (!net_eq(fi->fib_net, nfi->fib_net))
 			continue;
 		if (fi->fib_nhs != nfi->fib_nhs)
 			continue;
@@ -395,19 +396,20 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 		if (!rtnh_ok(rtnh, remaining))
 			return -EINVAL;
 
-		nh->nh_flags = (cfg->fc_flags & ~0xFF) | rtnh->rtnh_flags;
-		nh->nh_oif = rtnh->rtnh_ifindex;
-		nh->nh_weight = rtnh->rtnh_hops + 1;
+		nexthop_nh->nh_flags =
+			(cfg->fc_flags & ~0xFF) | rtnh->rtnh_flags;
+		nexthop_nh->nh_oif = rtnh->rtnh_ifindex;
+		nexthop_nh->nh_weight = rtnh->rtnh_hops + 1;
 
 		attrlen = rtnh_attrlen(rtnh);
 		if (attrlen > 0) {
 			struct nlattr *nla, *attrs = rtnh_attrs(rtnh);
 
 			nla = nla_find(attrs, attrlen, RTA_GATEWAY);
-			nh->nh_gw = nla ? nla_get_be32(nla) : 0;
+			nexthop_nh->nh_gw = nla ? nla_get_be32(nla) : 0;
 #ifdef CONFIG_NET_CLS_ROUTE
 			nla = nla_find(attrs, attrlen, RTA_FLOW);
-			nh->nh_tclassid = nla ? nla_get_u32(nla) : 0;
+			nexthop_nh->nh_tclassid = nla ? nla_get_u32(nla) : 0;
 #endif
 		}
 
@@ -527,10 +529,6 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 	if (nh->nh_gw) {
 		struct fib_result res;
 
-#ifdef CONFIG_IP_ROUTE_PERVASIVE
-		if (nh->nh_flags&RTNH_F_PERVASIVE)
-			return 0;
-#endif
 		if (nh->nh_flags&RTNH_F_ONLINK) {
 			struct net_device *dev;
 
@@ -738,7 +736,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 
 	fi->fib_nhs = nhs;
 	change_nexthops(fi) {
-		nh->nh_parent = fi;
+		nexthop_nh->nh_parent = fi;
 	} endfor_nexthops(fi)
 
 	if (cfg->fc_mx) {
@@ -808,7 +806,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 			goto failure;
 	} else {
 		change_nexthops(fi) {
-			if ((err = fib_check_nh(cfg, fi, nh)) != 0)
+			if ((err = fib_check_nh(cfg, fi, nexthop_nh)) != 0)
 				goto failure;
 		} endfor_nexthops(fi)
 	}
@@ -843,11 +841,11 @@ link_it:
 		struct hlist_head *head;
 		unsigned int hash;
 
-		if (!nh->nh_dev)
+		if (!nexthop_nh->nh_dev)
 			continue;
-		hash = fib_devindex_hashfn(nh->nh_dev->ifindex);
+		hash = fib_devindex_hashfn(nexthop_nh->nh_dev->ifindex);
 		head = &fib_info_devhash[hash];
-		hlist_add_head(&nh->nh_hash, head);
+		hlist_add_head(&nexthop_nh->nh_hash, head);
 	} endfor_nexthops(fi)
 	spin_unlock_bh(&fib_info_lock);
 	return fi;
@@ -1047,7 +1045,7 @@ int fib_sync_down_addr(struct net *net, __be32 local)
 		return 0;
 
 	hlist_for_each_entry(fi, node, head, fib_lhash) {
-		if (fi->fib_net != net)
+		if (!net_eq(fi->fib_net, net))
 			continue;
 		if (fi->fib_prefsrc == local) {
 			fi->fib_flags |= RTNH_F_DEAD;
@@ -1080,21 +1078,21 @@ int fib_sync_down_dev(struct net_device *dev, int force)
 		prev_fi = fi;
 		dead = 0;
 		change_nexthops(fi) {
-			if (nh->nh_flags&RTNH_F_DEAD)
+			if (nexthop_nh->nh_flags&RTNH_F_DEAD)
 				dead++;
-			else if (nh->nh_dev == dev &&
-					nh->nh_scope != scope) {
-				nh->nh_flags |= RTNH_F_DEAD;
+			else if (nexthop_nh->nh_dev == dev &&
+				 nexthop_nh->nh_scope != scope) {
+				nexthop_nh->nh_flags |= RTNH_F_DEAD;
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 				spin_lock_bh(&fib_multipath_lock);
-				fi->fib_power -= nh->nh_power;
-				nh->nh_power = 0;
+				fi->fib_power -= nexthop_nh->nh_power;
+				nexthop_nh->nh_power = 0;
 				spin_unlock_bh(&fib_multipath_lock);
 #endif
 				dead++;
 			}
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-			if (force > 1 && nh->nh_dev == dev) {
+			if (force > 1 && nexthop_nh->nh_dev == dev) {
 				dead = fi->fib_nhs;
 				break;
 			}
@@ -1144,18 +1142,20 @@ int fib_sync_up(struct net_device *dev)
 		prev_fi = fi;
 		alive = 0;
 		change_nexthops(fi) {
-			if (!(nh->nh_flags&RTNH_F_DEAD)) {
+			if (!(nexthop_nh->nh_flags&RTNH_F_DEAD)) {
 				alive++;
 				continue;
 			}
-			if (nh->nh_dev == NULL || !(nh->nh_dev->flags&IFF_UP))
+			if (nexthop_nh->nh_dev == NULL ||
+			    !(nexthop_nh->nh_dev->flags&IFF_UP))
 				continue;
-			if (nh->nh_dev != dev || !__in_dev_get_rtnl(dev))
+			if (nexthop_nh->nh_dev != dev ||
+			    !__in_dev_get_rtnl(dev))
 				continue;
 			alive++;
 			spin_lock_bh(&fib_multipath_lock);
-			nh->nh_power = 0;
-			nh->nh_flags &= ~RTNH_F_DEAD;
+			nexthop_nh->nh_power = 0;
+			nexthop_nh->nh_flags &= ~RTNH_F_DEAD;
 			spin_unlock_bh(&fib_multipath_lock);
 		} endfor_nexthops(fi)
 
@@ -1182,9 +1182,9 @@ void fib_select_multipath(const struct flowi *flp, struct fib_result *res)
 	if (fi->fib_power <= 0) {
 		int power = 0;
 		change_nexthops(fi) {
-			if (!(nh->nh_flags&RTNH_F_DEAD)) {
-				power += nh->nh_weight;
-				nh->nh_power = nh->nh_weight;
+			if (!(nexthop_nh->nh_flags&RTNH_F_DEAD)) {
+				power += nexthop_nh->nh_weight;
+				nexthop_nh->nh_power = nexthop_nh->nh_weight;
 			}
 		} endfor_nexthops(fi);
 		fi->fib_power = power;
@@ -1204,9 +1204,10 @@ void fib_select_multipath(const struct flowi *flp, struct fib_result *res)
 	w = jiffies % fi->fib_power;
 
 	change_nexthops(fi) {
-		if (!(nh->nh_flags&RTNH_F_DEAD) && nh->nh_power) {
-			if ((w -= nh->nh_power) <= 0) {
-				nh->nh_power--;
+		if (!(nexthop_nh->nh_flags&RTNH_F_DEAD) &&
+		    nexthop_nh->nh_power) {
+			if ((w -= nexthop_nh->nh_power) <= 0) {
+				nexthop_nh->nh_power--;
 				fi->fib_power--;
 				res->nh_sel = nhsel;
 				spin_unlock_bh(&fib_multipath_lock);

@@ -39,7 +39,6 @@
 #include <linux/ioport.h>
 #include <linux/in.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -58,6 +57,7 @@
 #include <linux/bitops.h>
 #include <linux/mutex.h>
 #include <linux/mm.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -107,7 +107,7 @@ MODULE_LICENSE("GPL");
 #define GEM_MODULE_NAME	"gem"
 #define PFX GEM_MODULE_NAME ": "
 
-static struct pci_device_id gem_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(gem_pci_tbl) = {
 	{ PCI_VENDOR_ID_SUN, PCI_DEVICE_ID_SUN_GEM,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 
@@ -782,7 +782,7 @@ static int gem_rx(struct gem *gp, int work_to_do)
 			break;
 
 		/* When writing back RX descriptor, GEM writes status
-		 * then buffer address, possibly in seperate transactions.
+		 * then buffer address, possibly in separate transactions.
 		 * If we don't wait for the chip to write both, we could
 		 * post a new buffer to this descriptor then have GEM spam
 		 * on the buffer address.  We sync on the RX completion
@@ -1034,10 +1034,8 @@ static netdev_tx_t gem_start_xmit(struct sk_buff *skb,
 			(csum_stuff_off << 21));
 	}
 
-	local_irq_save(flags);
-	if (!spin_trylock(&gp->tx_lock)) {
+	if (!spin_trylock_irqsave(&gp->tx_lock, flags)) {
 		/* Tell upper layer to requeue */
-		local_irq_restore(flags);
 		return NETDEV_TX_LOCKED;
 	}
 	/* We raced with gem_do_stop() */
@@ -1138,7 +1136,7 @@ static netdev_tx_t gem_start_xmit(struct sk_buff *skb,
 	writel(gp->tx_new, gp->regs + TXDMA_KICK);
 	spin_unlock_irqrestore(&gp->tx_lock, flags);
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* NETIF_F_LLTX driver :( */
 
 	return NETDEV_TX_OK;
 }
@@ -1839,7 +1837,7 @@ static u32 gem_setup_multicast(struct gem *gp)
 	int i;
 
 	if ((gp->dev->flags & IFF_ALLMULTI) ||
-	    (gp->dev->mc_count > 256)) {
+	    (netdev_mc_count(gp->dev) > 256)) {
 	    	for (i=0; i<16; i++)
 			writel(0xffff, gp->regs + MAC_HASH0 + (i << 2));
 		rxcfg |= MAC_RXCFG_HFE;
@@ -1848,16 +1846,12 @@ static u32 gem_setup_multicast(struct gem *gp)
 	} else {
 		u16 hash_table[16];
 		u32 crc;
-		struct dev_mc_list *dmi = gp->dev->mc_list;
+		struct netdev_hw_addr *ha;
 		int i;
 
-		for (i = 0; i < 16; i++)
-			hash_table[i] = 0;
-
-		for (i = 0; i < gp->dev->mc_count; i++) {
-			char *addrs = dmi->dmi_addr;
-
-			dmi = dmi->next;
+		memset(hash_table, 0, sizeof(hash_table));
+		netdev_for_each_mc_addr(ha, gp->dev) {
+			char *addrs = ha->addr;
 
 			if (!(*addrs & 1))
 				continue;
@@ -2929,7 +2923,6 @@ static void get_gem_mac_nonobp(struct pci_dev *pdev, unsigned char *dev_addr)
 	dev_addr[1] = 0x00;
 	dev_addr[2] = 0x20;
 	get_random_bytes(dev_addr + 3, 3);
-	return;
 }
 #endif /* not Sparc and not PPC */
 

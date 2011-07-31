@@ -294,7 +294,7 @@ static int ohci_hcd_au1xxx_drv_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops au1xxx_ohci_pmops = {
+static const struct dev_pm_ops au1xxx_ohci_pmops = {
 	.suspend	= ohci_hcd_au1xxx_drv_suspend,
 	.resume		= ohci_hcd_au1xxx_drv_resume,
 };

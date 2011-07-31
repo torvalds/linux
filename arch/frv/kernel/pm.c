@@ -211,37 +211,6 @@ static int cmode_procctl(ctl_table *ctl, int write,
 	return try_set_cmode(new_cmode)?:*lenp;
 }
 
-static int cmode_sysctl(ctl_table *table,
-			void __user *oldval, size_t __user *oldlenp,
-			void __user *newval, size_t newlen)
-{
-	if (oldval && oldlenp) {
-		size_t oldlen;
-
-		if (get_user(oldlen, oldlenp))
-			return -EFAULT;
-
-		if (oldlen != sizeof(int))
-			return -EINVAL;
-
-		if (put_user(clock_cmode_current, (unsigned __user *)oldval) ||
-		    put_user(sizeof(int), oldlenp))
-			return -EFAULT;
-	}
-	if (newval && newlen) {
-		int new_cmode;
-
-		if (newlen != sizeof(int))
-			return -EINVAL;
-
-		if (get_user(new_cmode, (int __user *)newval))
-			return -EFAULT;
-
-		return try_set_cmode(new_cmode)?:1;
-	}
-	return 1;
-}
-
 static int try_set_p0(int new_p0)
 {
 	unsigned long flags, clkc;
@@ -314,37 +283,6 @@ static int p0_procctl(ctl_table *ctl, int write,
 	return try_set_p0(new_p0)?:*lenp;
 }
 
-static int p0_sysctl(ctl_table *table,
-		     void __user *oldval, size_t __user *oldlenp,
-		     void __user *newval, size_t newlen)
-{
-	if (oldval && oldlenp) {
-		size_t oldlen;
-
-		if (get_user(oldlen, oldlenp))
-			return -EFAULT;
-
-		if (oldlen != sizeof(int))
-			return -EINVAL;
-
-		if (put_user(clock_p0_current, (unsigned __user *)oldval) ||
-		    put_user(sizeof(int), oldlenp))
-			return -EFAULT;
-	}
-	if (newval && newlen) {
-		int new_p0;
-
-		if (newlen != sizeof(int))
-			return -EINVAL;
-
-		if (get_user(new_p0, (int __user *)newval))
-			return -EFAULT;
-
-		return try_set_p0(new_p0)?:1;
-	}
-	return 1;
-}
-
 static int cm_procctl(ctl_table *ctl, int write,
 		      void __user *buffer, size_t *lenp, loff_t *fpos)
 {
@@ -358,87 +296,47 @@ static int cm_procctl(ctl_table *ctl, int write,
 	return try_set_cm(new_cm)?:*lenp;
 }
 
-static int cm_sysctl(ctl_table *table,
-		     void __user *oldval, size_t __user *oldlenp,
-		     void __user *newval, size_t newlen)
-{
-	if (oldval && oldlenp) {
-		size_t oldlen;
-
-		if (get_user(oldlen, oldlenp))
-			return -EFAULT;
-
-		if (oldlen != sizeof(int))
-			return -EINVAL;
-
-		if (put_user(clock_cm_current, (unsigned __user *)oldval) ||
-		    put_user(sizeof(int), oldlenp))
-			return -EFAULT;
-	}
-	if (newval && newlen) {
-		int new_cm;
-
-		if (newlen != sizeof(int))
-			return -EINVAL;
-
-		if (get_user(new_cm, (int __user *)newval))
-			return -EFAULT;
-
-		return try_set_cm(new_cm)?:1;
-	}
-	return 1;
-}
-
-
 static struct ctl_table pm_table[] =
 {
 	{
-		.ctl_name	= CTL_PM_SUSPEND,
 		.procname	= "suspend",
 		.data		= NULL,
 		.maxlen		= 0,
 		.mode		= 0200,
-		.proc_handler	= &sysctl_pm_do_suspend,
+		.proc_handler	= sysctl_pm_do_suspend,
 	},
 	{
-		.ctl_name	= CTL_PM_CMODE,
 		.procname	= "cmode",
 		.data		= &clock_cmode_current,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &cmode_procctl,
-		.strategy	= &cmode_sysctl,
+		.proc_handler	= cmode_procctl,
 	},
 	{
-		.ctl_name	= CTL_PM_P0,
 		.procname	= "p0",
 		.data		= &clock_p0_current,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &p0_procctl,
-		.strategy	= &p0_sysctl,
+		.proc_handler	= p0_procctl,
 	},
 	{
-		.ctl_name	= CTL_PM_CM,
 		.procname	= "cm",
 		.data		= &clock_cm_current,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &cm_procctl,
-		.strategy	= &cm_sysctl,
+		.proc_handler	= cm_procctl,
 	},
-	{ .ctl_name = 0}
+	{ }
 };
 
 static struct ctl_table pm_dir_table[] =
 {
 	{
-		.ctl_name	= CTL_PM,
 		.procname	= "pm",
 		.mode		= 0555,
 		.child		= pm_table,
 	},
-	{ .ctl_name = 0}
+	{ }
 };
 
 /*

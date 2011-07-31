@@ -129,8 +129,6 @@ const BYTE TKIP_Sbox_Upper[256] = {
 //STKIPKeyManagement  sTKIPKeyTable[MAX_TKIP_KEY];
 
 /*---------------------  Static Functions  --------------------------*/
-unsigned int tkip_sbox(unsigned int index);
-unsigned int rotr1(unsigned int a);
 
 /*---------------------  Export Variables  --------------------------*/
 
@@ -139,7 +137,7 @@ unsigned int rotr1(unsigned int a);
 /* Returns a 16 bit value from a 64K entry table. The Table */
 /* is synthesized from two 256 entry byte wide tables.      */
 /************************************************************/
-unsigned int tkip_sbox(unsigned int index)
+static unsigned int tkip_sbox(unsigned int index)
 {
     unsigned int index_low;
     unsigned int index_high;
@@ -155,7 +153,7 @@ unsigned int tkip_sbox(unsigned int index)
 };
 
 
-unsigned int rotr1(unsigned int a)
+static unsigned int rotr1(unsigned int a)
 {
     unsigned int b;
 
@@ -183,7 +181,7 @@ unsigned int rotr1(unsigned int a)
  * Return Value: none
  *
  */
-VOID TKIPvMixKey(
+void TKIPvMixKey(
     PBYTE   pbyTKey,
     PBYTE   pbyTA,
     WORD    wTSC15_0,

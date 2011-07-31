@@ -127,7 +127,7 @@
 	ENTRY_SAME(socketpair)
 	ENTRY_SAME(setpgid)
 	ENTRY_SAME(send)
-	ENTRY_OURS(newuname)
+	ENTRY_SAME(newuname)
 	ENTRY_SAME(umask)		/* 60 */
 	ENTRY_SAME(chroot)
 	ENTRY_COMP(ustat)
@@ -234,7 +234,7 @@
 	ENTRY_SAME(getsid)
 	ENTRY_SAME(fdatasync)
 	/* struct __sysctl_args is a mess */
-	ENTRY_DIFF(sysctl)
+	ENTRY_COMP(sysctl)
 	ENTRY_SAME(mlock)		/* 150 */
 	ENTRY_SAME(munlock)
 	ENTRY_SAME(mlockall)
@@ -417,6 +417,8 @@
 	ENTRY_COMP(pwritev)
 	ENTRY_COMP(rt_tgsigqueueinfo)
 	ENTRY_SAME(perf_event_open)
+	ENTRY_COMP(recvmmsg)
+	ENTRY_SAME(accept4)		/* 320 */
 
 	/* Nothing yet */
 

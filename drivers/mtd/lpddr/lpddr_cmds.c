@@ -26,6 +26,7 @@
  */
 #include <linux/mtd/pfow.h>
 #include <linux/mtd/qinfo.h>
+#include <linux/slab.h>
 
 static int lpddr_read(struct mtd_info *mtd, loff_t adr, size_t len,
 					size_t *retlen, u_char *buf);
@@ -97,7 +98,7 @@ struct mtd_info *lpddr_cmdset(struct map_info *map)
 	numchips = lpddr->numchips / lpddr->qinfo->HWPartsNum;
 	for (i = 0; i < numchips; i++) {
 		shared[i].writing = shared[i].erasing = NULL;
-		spin_lock_init(&shared[i].lock);
+		mutex_init(&shared[i].lock);
 		for (j = 0; j < lpddr->qinfo->HWPartsNum; j++) {
 			*chip = lpddr->chips[i];
 			chip->start += j << lpddr->chipshift;
@@ -106,8 +107,7 @@ struct mtd_info *lpddr_cmdset(struct map_info *map)
 			/* those should be reset too since
 			   they create memory references. */
 			init_waitqueue_head(&chip->wq);
-			spin_lock_init(&chip->_spinlock);
-			chip->mutex = &chip->_spinlock;
+			mutex_init(&chip->mutex);
 			chip++;
 		}
 	}
@@ -143,7 +143,7 @@ static int wait_for_ready(struct map_info *map, struct flchip *chip,
 		}
 
 		/* OK Still waiting. Drop the lock, wait a while and retry. */
-		spin_unlock(chip->mutex);
+		mutex_unlock(&chip->mutex);
 		if (sleep_time >= 1000000/HZ) {
 			/*
 			 * Half of the normal delay still remaining
@@ -158,17 +158,17 @@ static int wait_for_ready(struct map_info *map, struct flchip *chip,
 			cond_resched();
 			timeo--;
 		}
-		spin_lock(chip->mutex);
+		mutex_lock(&chip->mutex);
 
 		while (chip->state != chip_state) {
 			/* Someone's suspended the operation: sleep */
 			DECLARE_WAITQUEUE(wait, current);
 			set_current_state(TASK_UNINTERRUPTIBLE);
 			add_wait_queue(&chip->wq, &wait);
-			spin_unlock(chip->mutex);
+			mutex_unlock(&chip->mutex);
 			schedule();
 			remove_wait_queue(&chip->wq, &wait);
-			spin_lock(chip->mutex);
+			mutex_lock(&chip->mutex);
 		}
 		if (chip->erase_suspended || chip->write_suspended)  {
 			/* Suspend has occured while sleep: reset timeout */
@@ -217,7 +217,7 @@ static int get_chip(struct map_info *map, struct flchip *chip, int mode)
 		 */
 		struct flchip_shared *shared = chip->priv;
 		struct flchip *contender;
-		spin_lock(&shared->lock);
+		mutex_lock(&shared->lock);
 		contender = shared->writing;
 		if (contender && contender != chip) {
 			/*
@@ -229,45 +229,45 @@ static int get_chip(struct map_info *map, struct flchip *chip, int mode)
 			 * it'll happily send us to sleep.  In any case, when
 			 * get_chip returns success we're clear to go ahead.
 			 */
-			ret = spin_trylock(contender->mutex);
-			spin_unlock(&shared->lock);
+			ret = mutex_trylock(&contender->mutex);
+			mutex_unlock(&shared->lock);
 			if (!ret)
 				goto retry;
-			spin_unlock(chip->mutex);
+			mutex_unlock(&chip->mutex);
 			ret = chip_ready(map, contender, mode);
-			spin_lock(chip->mutex);
+			mutex_lock(&chip->mutex);
 
 			if (ret == -EAGAIN) {
-				spin_unlock(contender->mutex);
+				mutex_unlock(&contender->mutex);
 				goto retry;
 			}
 			if (ret) {
-				spin_unlock(contender->mutex);
+				mutex_unlock(&contender->mutex);
 				return ret;
 			}
-			spin_lock(&shared->lock);
+			mutex_lock(&shared->lock);
 
 			/* We should not own chip if it is already in FL_SYNCING
 			 * state. Put contender and retry. */
 			if (chip->state == FL_SYNCING) {
 				put_chip(map, contender);
-				spin_unlock(contender->mutex);
+				mutex_unlock(&contender->mutex);
 				goto retry;
 			}
-			spin_unlock(contender->mutex);
+			mutex_unlock(&contender->mutex);
 		}
 
 		/* Check if we have suspended erase on this chip.
 		   Must sleep in such a case. */
 		if (mode == FL_ERASING && shared->erasing
 		    && shared->erasing->oldstate == FL_ERASING) {
-			spin_unlock(&shared->lock);
+			mutex_unlock(&shared->lock);
 			set_current_state(TASK_UNINTERRUPTIBLE);
 			add_wait_queue(&chip->wq, &wait);
-			spin_unlock(chip->mutex);
+			mutex_unlock(&chip->mutex);
 			schedule();
 			remove_wait_queue(&chip->wq, &wait);
-			spin_lock(chip->mutex);
+			mutex_lock(&chip->mutex);
 			goto retry;
 		}
 
@@ -275,7 +275,7 @@ static int get_chip(struct map_info *map, struct flchip *chip, int mode)
 		shared->writing = chip;
 		if (mode == FL_ERASING)
 			shared->erasing = chip;
-		spin_unlock(&shared->lock);
+		mutex_unlock(&shared->lock);
 	}
 
 	ret = chip_ready(map, chip, mode);
@@ -336,10 +336,10 @@ static int chip_ready(struct map_info *map, struct flchip *chip, int mode)
 sleep:
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		add_wait_queue(&chip->wq, &wait);
-		spin_unlock(chip->mutex);
+		mutex_unlock(&chip->mutex);
 		schedule();
 		remove_wait_queue(&chip->wq, &wait);
-		spin_lock(chip->mutex);
+		mutex_lock(&chip->mutex);
 		return -EAGAIN;
 	}
 }
@@ -348,19 +348,19 @@ static void put_chip(struct map_info *map, struct flchip *chip)
 {
 	if (chip->priv) {
 		struct flchip_shared *shared = chip->priv;
-		spin_lock(&shared->lock);
+		mutex_lock(&shared->lock);
 		if (shared->writing == chip && chip->oldstate == FL_READY) {
 			/* We own the ability to write, but we're done */
 			shared->writing = shared->erasing;
 			if (shared->writing && shared->writing != chip) {
 				/* give back the ownership */
 				struct flchip *loaner = shared->writing;
-				spin_lock(loaner->mutex);
-				spin_unlock(&shared->lock);
-				spin_unlock(chip->mutex);
+				mutex_lock(&loaner->mutex);
+				mutex_unlock(&shared->lock);
+				mutex_unlock(&chip->mutex);
 				put_chip(map, loaner);
-				spin_lock(chip->mutex);
-				spin_unlock(loaner->mutex);
+				mutex_lock(&chip->mutex);
+				mutex_unlock(&loaner->mutex);
 				wake_up(&chip->wq);
 				return;
 			}
@@ -374,11 +374,11 @@ static void put_chip(struct map_info *map, struct flchip *chip)
 			 * Don't let the switch below mess things up since
 			 * we don't have ownership to resume anything.
 			 */
-			spin_unlock(&shared->lock);
+			mutex_unlock(&shared->lock);
 			wake_up(&chip->wq);
 			return;
 		}
-		spin_unlock(&shared->lock);
+		mutex_unlock(&shared->lock);
 	}
 
 	switch (chip->oldstate) {
@@ -413,10 +413,10 @@ int do_write_buffer(struct map_info *map, struct flchip *chip,
 
 	wbufsize = 1 << lpddr->qinfo->BufSizeShift;
 
-	spin_lock(chip->mutex);
+	mutex_lock(&chip->mutex);
 	ret = get_chip(map, chip, FL_WRITING);
 	if (ret) {
-		spin_unlock(chip->mutex);
+		mutex_unlock(&chip->mutex);
 		return ret;
 	}
 	/* Figure out the number of words to write */
@@ -477,7 +477,7 @@ int do_write_buffer(struct map_info *map, struct flchip *chip,
 	}
 
  out:	put_chip(map, chip);
-	spin_unlock(chip->mutex);
+	mutex_unlock(&chip->mutex);
 	return ret;
 }
 
@@ -489,10 +489,10 @@ int do_erase_oneblock(struct mtd_info *mtd, loff_t adr)
 	struct flchip *chip = &lpddr->chips[chipnum];
 	int ret;
 
-	spin_lock(chip->mutex);
+	mutex_lock(&chip->mutex);
 	ret = get_chip(map, chip, FL_ERASING);
 	if (ret) {
-		spin_unlock(chip->mutex);
+		mutex_unlock(&chip->mutex);
 		return ret;
 	}
 	send_pfow_command(map, LPDDR_BLOCK_ERASE, adr, 0, NULL);
@@ -504,7 +504,7 @@ int do_erase_oneblock(struct mtd_info *mtd, loff_t adr)
 		goto out;
 	}
  out:	put_chip(map, chip);
-	spin_unlock(chip->mutex);
+	mutex_unlock(&chip->mutex);
 	return ret;
 }
 
@@ -517,10 +517,10 @@ static int lpddr_read(struct mtd_info *mtd, loff_t adr, size_t len,
 	struct flchip *chip = &lpddr->chips[chipnum];
 	int ret = 0;
 
-	spin_lock(chip->mutex);
+	mutex_lock(&chip->mutex);
 	ret = get_chip(map, chip, FL_READY);
 	if (ret) {
-		spin_unlock(chip->mutex);
+		mutex_unlock(&chip->mutex);
 		return ret;
 	}
 
@@ -528,7 +528,7 @@ static int lpddr_read(struct mtd_info *mtd, loff_t adr, size_t len,
 	*retlen = len;
 
 	put_chip(map, chip);
-	spin_unlock(chip->mutex);
+	mutex_unlock(&chip->mutex);
 	return ret;
 }
 
@@ -568,9 +568,9 @@ static int lpddr_point(struct mtd_info *mtd, loff_t adr, size_t len,
 		else
 			thislen = len;
 		/* get the chip */
-		spin_lock(chip->mutex);
+		mutex_lock(&chip->mutex);
 		ret = get_chip(map, chip, FL_POINT);
-		spin_unlock(chip->mutex);
+		mutex_unlock(&chip->mutex);
 		if (ret)
 			break;
 
@@ -610,7 +610,7 @@ static void lpddr_unpoint (struct mtd_info *mtd, loff_t adr, size_t len)
 		else
 			thislen = len;
 
-		spin_lock(chip->mutex);
+		mutex_lock(&chip->mutex);
 		if (chip->state == FL_POINT) {
 			chip->ref_point_counter--;
 			if (chip->ref_point_counter == 0)
@@ -620,7 +620,7 @@ static void lpddr_unpoint (struct mtd_info *mtd, loff_t adr, size_t len)
 					"pointed region\n", map->name);
 
 		put_chip(map, chip);
-		spin_unlock(chip->mutex);
+		mutex_unlock(&chip->mutex);
 
 		len -= thislen;
 		ofs = 0;
@@ -726,10 +726,10 @@ int do_xxlock(struct mtd_info *mtd, loff_t adr, uint32_t len, int thunk)
 	int chipnum = adr >> lpddr->chipshift;
 	struct flchip *chip = &lpddr->chips[chipnum];
 
-	spin_lock(chip->mutex);
+	mutex_lock(&chip->mutex);
 	ret = get_chip(map, chip, FL_LOCKING);
 	if (ret) {
-		spin_unlock(chip->mutex);
+		mutex_unlock(&chip->mutex);
 		return ret;
 	}
 
@@ -749,7 +749,7 @@ int do_xxlock(struct mtd_info *mtd, loff_t adr, uint32_t len, int thunk)
 		goto out;
 	}
 out:	put_chip(map, chip);
-	spin_unlock(chip->mutex);
+	mutex_unlock(&chip->mutex);
 	return ret;
 }
 
@@ -770,10 +770,10 @@ int word_program(struct map_info *map, loff_t adr, uint32_t curval)
 	int chipnum = adr >> lpddr->chipshift;
 	struct flchip *chip = &lpddr->chips[chipnum];
 
-	spin_lock(chip->mutex);
+	mutex_lock(&chip->mutex);
 	ret = get_chip(map, chip, FL_WRITING);
 	if (ret) {
-		spin_unlock(chip->mutex);
+		mutex_unlock(&chip->mutex);
 		return ret;
 	}
 
@@ -787,7 +787,7 @@ int word_program(struct map_info *map, loff_t adr, uint32_t curval)
 	}
 
 out:	put_chip(map, chip);
-	spin_unlock(chip->mutex);
+	mutex_unlock(&chip->mutex);
 	return ret;
 }
 

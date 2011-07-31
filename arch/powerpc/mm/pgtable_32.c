@@ -26,6 +26,8 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/highmem.h>
+#include <linux/memblock.h>
+#include <linux/slab.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -113,11 +115,7 @@ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
 	struct page *ptepage;
 
-#ifdef CONFIG_HIGHPTE
-	gfp_t flags = GFP_KERNEL | __GFP_HIGHMEM | __GFP_REPEAT | __GFP_ZERO;
-#else
 	gfp_t flags = GFP_KERNEL | __GFP_REPEAT | __GFP_ZERO;
-#endif
 
 	ptepage = alloc_pages(flags, 0);
 	if (!ptepage)
@@ -143,6 +141,14 @@ ioremap_flags(phys_addr_t addr, unsigned long size, unsigned long flags)
 
 	/* we don't want to let _PAGE_USER and _PAGE_EXEC leak out */
 	flags &= ~(_PAGE_USER | _PAGE_EXEC);
+
+#ifdef _PAGE_BAP_SR
+	/* _PAGE_USER contains _PAGE_BAP_SR on BookE using the new PTE format
+	 * which means that we just cleared supervisor access... oops ;-) This
+	 * restores it
+	 */
+	flags |= _PAGE_BAP_SR;
+#endif
 
 	return __ioremap_caller(addr, size, flags, __builtin_return_address(0));
 }
@@ -191,7 +197,8 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, unsigned long flags,
 	 * Don't allow anybody to remap normal RAM that we're using.
 	 * mem_init() sets high_memory so only do the check after that.
 	 */
-	if (mem_init_done && (p < virt_to_phys(high_memory))) {
+	if (mem_init_done && (p < virt_to_phys(high_memory)) &&
+	    !(__allow_ioremap_reserved && memblock_is_region_reserved(p, size))) {
 		printk("__ioremap(): phys addr 0x%llx is RAM lr %p\n",
 		       (unsigned long long)p, __builtin_return_address(0));
 		return NULL;
@@ -283,18 +290,18 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
 }
 
 /*
- * Map in a big chunk of physical memory starting at PAGE_OFFSET.
+ * Map in a chunk of physical memory starting at start.
  */
-void __init mapin_ram(void)
+void __init __mapin_ram_chunk(unsigned long offset, unsigned long top)
 {
 	unsigned long v, s, f;
 	phys_addr_t p;
 	int ktext;
 
-	s = mmu_mapin_ram();
+	s = offset;
 	v = PAGE_OFFSET + s;
 	p = memstart_addr + s;
-	for (; s < total_lowmem; s += PAGE_SIZE) {
+	for (; s < top; s += PAGE_SIZE) {
 		ktext = ((char *) v >= _stext && (char *) v < etext);
 		f = ktext ? PAGE_KERNEL_TEXT : PAGE_KERNEL;
 		map_page(v, p, f);
@@ -305,6 +312,30 @@ void __init mapin_ram(void)
 		v += PAGE_SIZE;
 		p += PAGE_SIZE;
 	}
+}
+
+void __init mapin_ram(void)
+{
+	unsigned long s, top;
+
+#ifndef CONFIG_WII
+	top = total_lowmem;
+	s = mmu_mapin_ram(top);
+	__mapin_ram_chunk(s, top);
+#else
+	if (!wii_hole_size) {
+		s = mmu_mapin_ram(total_lowmem);
+		__mapin_ram_chunk(s, total_lowmem);
+	} else {
+		top = wii_hole_start;
+		s = mmu_mapin_ram(top);
+		__mapin_ram_chunk(s, top);
+
+		top = memblock_end_of_DRAM();
+		s = wii_mmu_mapin_mem2(top);
+		__mapin_ram_chunk(s, top);
+	}
+#endif
 }
 
 /* Scan the real Linux page tables and return a PTE pointer for
@@ -356,13 +387,9 @@ static int __change_page_attr(struct page *page, pgprot_t prot)
 		return 0;
 	if (!get_pteptr(&init_mm, address, &kpte, &kpmd))
 		return -EINVAL;
-	set_pte_at(&init_mm, address, kpte, mk_pte(page, prot));
+	__set_pte_at(&init_mm, address, kpte, mk_pte(page, prot), 0);
 	wmb();
-#ifdef CONFIG_PPC_STD_MMU
-	flush_hash_pages(0, address, pmd_val(*kpmd), 1);
-#else
 	flush_tlb_page(NULL, address);
-#endif
 	pte_unmap(kpte);
 
 	return 0;

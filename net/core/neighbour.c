@@ -15,6 +15,7 @@
  *	Harald Welte		Add neighbour cache statistics like rtstat
  */
 
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -771,6 +772,8 @@ static __inline__ int neigh_max_probes(struct neighbour *n)
 }
 
 static void neigh_invalidate(struct neighbour *neigh)
+	__releases(neigh->lock)
+	__acquires(neigh->lock)
 {
 	struct sk_buff *skb;
 
@@ -931,6 +934,7 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 				kfree_skb(buff);
 				NEIGH_CACHE_STAT_INC(neigh->tbl, unres_discards);
 			}
+			skb_dst_force(skb);
 			__skb_queue_tail(&neigh->arp_queue, skb);
 		}
 		rc = 1;
@@ -945,7 +949,10 @@ static void neigh_update_hhs(struct neighbour *neigh)
 {
 	struct hh_cache *hh;
 	void (*update)(struct hh_cache*, const struct net_device*, const unsigned char *)
-		= neigh->dev->header_ops->cache_update;
+		= NULL;
+
+	if (neigh->dev->header_ops)
+		update = neigh->dev->header_ops->cache_update;
 
 	if (update) {
 		for (hh = neigh->hh; hh; hh = hh->hh_next) {
@@ -2092,7 +2099,7 @@ static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 		if (h > s_h)
 			s_idx = 0;
 		for (n = tbl->hash_buckets[h], idx = 0; n; n = n->next) {
-			if (dev_net(n->dev) != net)
+			if (!net_eq(dev_net(n->dev), net))
 				continue;
 			if (idx < s_idx)
 				goto next;
@@ -2417,8 +2424,7 @@ EXPORT_SYMBOL(neigh_seq_stop);
 
 static void *neigh_stat_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	struct proc_dir_entry *pde = seq->private;
-	struct neigh_table *tbl = pde->data;
+	struct neigh_table *tbl = seq->private;
 	int cpu;
 
 	if (*pos == 0)
@@ -2435,8 +2441,7 @@ static void *neigh_stat_seq_start(struct seq_file *seq, loff_t *pos)
 
 static void *neigh_stat_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct proc_dir_entry *pde = seq->private;
-	struct neigh_table *tbl = pde->data;
+	struct neigh_table *tbl = seq->private;
 	int cpu;
 
 	for (cpu = *pos; cpu < nr_cpu_ids; ++cpu) {
@@ -2455,8 +2460,7 @@ static void neigh_stat_seq_stop(struct seq_file *seq, void *v)
 
 static int neigh_stat_seq_show(struct seq_file *seq, void *v)
 {
-	struct proc_dir_entry *pde = seq->private;
-	struct neigh_table *tbl = pde->data;
+	struct neigh_table *tbl = seq->private;
 	struct neigh_statistics *st = v;
 
 	if (v == SEQ_START_TOKEN) {
@@ -2501,7 +2505,7 @@ static int neigh_stat_seq_open(struct inode *inode, struct file *file)
 
 	if (!ret) {
 		struct seq_file *sf = file->private_data;
-		sf->private = PDE(inode);
+		sf->private = PDE(inode)->data;
 	}
 	return ret;
 };
@@ -2559,28 +2563,27 @@ EXPORT_SYMBOL(neigh_app_ns);
 
 #ifdef CONFIG_SYSCTL
 
+#define NEIGH_VARS_MAX 19
+
 static struct neigh_sysctl_table {
 	struct ctl_table_header *sysctl_header;
-	struct ctl_table neigh_vars[__NET_NEIGH_MAX];
+	struct ctl_table neigh_vars[NEIGH_VARS_MAX];
 	char *dev_name;
 } neigh_sysctl_template __read_mostly = {
 	.neigh_vars = {
 		{
-			.ctl_name	= NET_NEIGH_MCAST_SOLICIT,
 			.procname	= "mcast_solicit",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec,
 		},
 		{
-			.ctl_name	= NET_NEIGH_UCAST_SOLICIT,
 			.procname	= "ucast_solicit",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec,
 		},
 		{
-			.ctl_name	= NET_NEIGH_APP_SOLICIT,
 			.procname	= "app_solicit",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
@@ -2593,38 +2596,30 @@ static struct neigh_sysctl_table {
 			.proc_handler	= proc_dointvec_userhz_jiffies,
 		},
 		{
-			.ctl_name	= NET_NEIGH_REACHABLE_TIME,
 			.procname	= "base_reachable_time",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec_jiffies,
-			.strategy	= sysctl_jiffies,
 		},
 		{
-			.ctl_name	= NET_NEIGH_DELAY_PROBE_TIME,
 			.procname	= "delay_first_probe_time",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec_jiffies,
-			.strategy	= sysctl_jiffies,
 		},
 		{
-			.ctl_name	= NET_NEIGH_GC_STALE_TIME,
 			.procname	= "gc_stale_time",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec_jiffies,
-			.strategy	= sysctl_jiffies,
 		},
 		{
-			.ctl_name	= NET_NEIGH_UNRES_QLEN,
 			.procname	= "unres_qlen",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec,
 		},
 		{
-			.ctl_name	= NET_NEIGH_PROXY_QLEN,
 			.procname	= "proxy_qlen",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
@@ -2649,45 +2644,36 @@ static struct neigh_sysctl_table {
 			.proc_handler	= proc_dointvec_userhz_jiffies,
 		},
 		{
-			.ctl_name	= NET_NEIGH_RETRANS_TIME_MS,
 			.procname	= "retrans_time_ms",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec_ms_jiffies,
-			.strategy	= sysctl_ms_jiffies,
 		},
 		{
-			.ctl_name	= NET_NEIGH_REACHABLE_TIME_MS,
 			.procname	= "base_reachable_time_ms",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec_ms_jiffies,
-			.strategy	= sysctl_ms_jiffies,
 		},
 		{
-			.ctl_name	= NET_NEIGH_GC_INTERVAL,
 			.procname	= "gc_interval",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec_jiffies,
-			.strategy	= sysctl_jiffies,
 		},
 		{
-			.ctl_name	= NET_NEIGH_GC_THRESH1,
 			.procname	= "gc_thresh1",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec,
 		},
 		{
-			.ctl_name	= NET_NEIGH_GC_THRESH2,
 			.procname	= "gc_thresh2",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec,
 		},
 		{
-			.ctl_name	= NET_NEIGH_GC_THRESH3,
 			.procname	= "gc_thresh3",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
@@ -2698,8 +2684,7 @@ static struct neigh_sysctl_table {
 };
 
 int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
-			  int p_id, int pdev_id, char *p_name,
-			  proc_handler *handler, ctl_handler *strategy)
+			  char *p_name, proc_handler *handler)
 {
 	struct neigh_sysctl_table *t;
 	const char *dev_name_source = NULL;
@@ -2710,10 +2695,10 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 #define NEIGH_CTL_PATH_DEV	3
 
 	struct ctl_path neigh_path[] = {
-		{ .procname = "net",	 .ctl_name = CTL_NET, },
-		{ .procname = "proto",	 .ctl_name = 0, },
-		{ .procname = "neigh",	 .ctl_name = 0, },
-		{ .procname = "default", .ctl_name = NET_PROTO_CONF_DEFAULT, },
+		{ .procname = "net",	 },
+		{ .procname = "proto",	 },
+		{ .procname = "neigh",	 },
+		{ .procname = "default", },
 		{ },
 	};
 
@@ -2738,7 +2723,6 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 
 	if (dev) {
 		dev_name_source = dev->name;
-		neigh_path[NEIGH_CTL_PATH_DEV].ctl_name = dev->ifindex;
 		/* Terminate the table early */
 		memset(&t->neigh_vars[14], 0, sizeof(t->neigh_vars[14]));
 	} else {
@@ -2750,31 +2734,19 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 	}
 
 
-	if (handler || strategy) {
+	if (handler) {
 		/* RetransTime */
 		t->neigh_vars[3].proc_handler = handler;
-		t->neigh_vars[3].strategy = strategy;
 		t->neigh_vars[3].extra1 = dev;
-		if (!strategy)
-			t->neigh_vars[3].ctl_name = CTL_UNNUMBERED;
 		/* ReachableTime */
 		t->neigh_vars[4].proc_handler = handler;
-		t->neigh_vars[4].strategy = strategy;
 		t->neigh_vars[4].extra1 = dev;
-		if (!strategy)
-			t->neigh_vars[4].ctl_name = CTL_UNNUMBERED;
 		/* RetransTime (in milliseconds)*/
 		t->neigh_vars[12].proc_handler = handler;
-		t->neigh_vars[12].strategy = strategy;
 		t->neigh_vars[12].extra1 = dev;
-		if (!strategy)
-			t->neigh_vars[12].ctl_name = CTL_UNNUMBERED;
 		/* ReachableTime (in milliseconds) */
 		t->neigh_vars[13].proc_handler = handler;
-		t->neigh_vars[13].strategy = strategy;
 		t->neigh_vars[13].extra1 = dev;
-		if (!strategy)
-			t->neigh_vars[13].ctl_name = CTL_UNNUMBERED;
 	}
 
 	t->dev_name = kstrdup(dev_name_source, GFP_KERNEL);
@@ -2782,9 +2754,7 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 		goto free;
 
 	neigh_path[NEIGH_CTL_PATH_DEV].procname = t->dev_name;
-	neigh_path[NEIGH_CTL_PATH_NEIGH].ctl_name = pdev_id;
 	neigh_path[NEIGH_CTL_PATH_PROTO].procname = p_name;
-	neigh_path[NEIGH_CTL_PATH_PROTO].ctl_name = p_id;
 
 	t->sysctl_header =
 		register_net_sysctl_table(neigh_parms_net(p), neigh_path, t->neigh_vars);

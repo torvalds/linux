@@ -58,8 +58,10 @@ DCCP_SOCKOPT_GET_CUR_MPS is read-only and retrieves the current maximum packet
 size (application payload size) in bytes, see RFC 4340, section 14.
 
 DCCP_SOCKOPT_AVAILABLE_CCIDS is also read-only and returns the list of CCIDs
-supported by the endpoint (see include/linux/dccp.h for symbolic constants).
-The caller needs to provide a sufficiently large (> 2) array of type uint8_t.
+supported by the endpoint. The option value is an array of type uint8_t whose
+size is passed as option length. The minimum array size is 4 elements, the
+value returned in the optlen argument always reflects the true number of
+built-in CCIDs.
 
 DCCP_SOCKOPT_CCID is write-only and sets both the TX and RX CCIDs at the same
 time, combining the operation of the next two socket options. This option is

@@ -9,4 +9,9 @@ config BFIN518F_EZBRD
 	help
 	  BF518-EZBRD board support.
 
+config BFIN518F_TCM
+       bool "Bluetechnix TCM-BF518"
+       help
+         Bluetechnix TCM-BF518 board support.
+
 endchoice

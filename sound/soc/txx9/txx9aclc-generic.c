@@ -96,3 +96,4 @@ module_exit(txx9aclc_generic_exit);
 MODULE_AUTHOR("Atsushi Nemoto <anemo@mba.ocn.ne.jp>");
 MODULE_DESCRIPTION("Generic TXx9 ACLC ALSA SoC audio driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:txx9aclc-generic");

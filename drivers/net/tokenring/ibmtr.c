@@ -96,7 +96,7 @@
  *
  *      Change by Mike Sullivan et al.:
  *      + added turbo card support. No need to use lanaid to configure
- *      the adapter into isa compatiblity mode.
+ *      the adapter into isa compatibility mode.
  *
  *      Changes by Burt Silverman to allow the computer to behave nicely when
  *	a cable is pulled or not in place, or a PCMCIA card is removed hot.
@@ -680,7 +680,7 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 
 	/* The PCMCIA has already got the interrupt line and the io port, 
 	   so no chance of anybody else getting it - MLP */
-	if (request_irq(dev->irq = irq, &tok_interrupt, 0, "ibmtr", dev) != 0) {
+	if (request_irq(dev->irq = irq, tok_interrupt, 0, "ibmtr", dev) != 0) {
 		DPRINTK("Could not grab irq %d.  Halting Token Ring driver.\n",
 					irq);
 		iounmap(t_mmio);
@@ -986,7 +986,7 @@ static void open_sap(unsigned char type, struct net_device *dev)
 static void tok_set_multicast_list(struct net_device *dev)
 {
 	struct tok_info *ti = netdev_priv(dev);
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	unsigned char address[4];
 
 	int i;
@@ -995,13 +995,11 @@ static void tok_set_multicast_list(struct net_device *dev)
 	/*BMS ifconfig tr down or hot unplug a PCMCIA card ??hownowbrowncow*/
 	if (/*BMSHELPdev->start == 0 ||*/ ti->open_status != OPEN) return;
 	address[0] = address[1] = address[2] = address[3] = 0;
-	mclist = dev->mc_list;
-	for (i = 0; i < dev->mc_count; i++) {
-		address[0] |= mclist->dmi_addr[2];
-		address[1] |= mclist->dmi_addr[3];
-		address[2] |= mclist->dmi_addr[4];
-		address[3] |= mclist->dmi_addr[5];
-		mclist = mclist->next;
+	netdev_for_each_mc_addr(ha, dev) {
+		address[0] |= ha->addr[2];
+		address[1] |= ha->addr[3];
+		address[2] |= ha->addr[4];
+		address[3] |= ha->addr[5];
 	}
 	SET_PAGE(ti->srb_page);
 	for (i = 0; i < sizeof(struct srb_set_funct_addr); i++)
@@ -1043,7 +1041,6 @@ static netdev_tx_t tok_send_packet(struct sk_buff *skb,
 	writew(ti->exsap_station_id, ti->srb + STATION_ID_OFST);
 	writeb(CMD_IN_SRB, ti->mmio + ACA_OFFSET + ACA_SET + ISRA_ODD);
 	spin_unlock_irqrestore(&(ti->lock), flags);
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 }
 

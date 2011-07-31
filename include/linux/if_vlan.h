@@ -63,7 +63,11 @@ static inline struct vlan_ethhdr *vlan_eth_hdr(const struct sk_buff *skb)
 	return (struct vlan_ethhdr *)skb_mac_header(skb);
 }
 
-#define VLAN_VID_MASK	0xfff
+#define VLAN_PRIO_MASK		0xe000 /* Priority Code Point */
+#define VLAN_PRIO_SHIFT		13
+#define VLAN_CFI_MASK		0x1000 /* Canonical Format Indicator */
+#define VLAN_TAG_PRESENT	VLAN_CFI_MASK
+#define VLAN_VID_MASK		0x0fff /* VLAN Identifier */
 
 /* found in socket.c */
 extern void vlan_ioctl_set(int (*hook)(struct net *, void __user *));
@@ -81,6 +85,7 @@ struct vlan_group {
 					    * the vlan is attached to.
 					    */
 	unsigned int		nr_vlans;
+	int			killall;
 	struct hlist_node	hlist;	/* linked list */
 	struct net_device **vlan_devices_arrays[VLAN_GROUP_ARRAY_SPLIT_PARTS];
 	struct rcu_head		rcu;
@@ -105,8 +110,8 @@ static inline void vlan_group_set_device(struct vlan_group *vg,
 	array[vlan_id % VLAN_GROUP_ARRAY_PART_LEN] = dev;
 }
 
-#define vlan_tx_tag_present(__skb)	((__skb)->vlan_tci)
-#define vlan_tx_tag_get(__skb)		((__skb)->vlan_tci)
+#define vlan_tx_tag_present(__skb)	((__skb)->vlan_tci & VLAN_TAG_PRESENT)
+#define vlan_tx_tag_get(__skb)		((__skb)->vlan_tci & ~VLAN_TAG_PRESENT)
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
@@ -115,10 +120,12 @@ extern u16 vlan_dev_vlan_id(const struct net_device *dev);
 extern int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 			     u16 vlan_tci, int polling);
 extern int vlan_hwaccel_do_receive(struct sk_buff *skb);
-extern int vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
-			    unsigned int vlan_tci, struct sk_buff *skb);
-extern int vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
-			  unsigned int vlan_tci);
+extern gro_result_t
+vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
+		 unsigned int vlan_tci, struct sk_buff *skb);
+extern gro_result_t
+vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
+	       unsigned int vlan_tci);
 
 #else
 static inline struct net_device *vlan_dev_real_dev(const struct net_device *dev)
@@ -145,17 +152,18 @@ static inline int vlan_hwaccel_do_receive(struct sk_buff *skb)
 	return 0;
 }
 
-static inline int vlan_gro_receive(struct napi_struct *napi,
-				   struct vlan_group *grp,
-				   unsigned int vlan_tci, struct sk_buff *skb)
+static inline gro_result_t
+vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
+		 unsigned int vlan_tci, struct sk_buff *skb)
 {
-	return NET_RX_DROP;
+	return GRO_DROP;
 }
 
-static inline int vlan_gro_frags(struct napi_struct *napi,
-				 struct vlan_group *grp, unsigned int vlan_tci)
+static inline gro_result_t
+vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
+	       unsigned int vlan_tci)
 {
-	return NET_RX_DROP;
+	return GRO_DROP;
 }
 #endif
 
@@ -231,7 +239,7 @@ static inline struct sk_buff *__vlan_put_tag(struct sk_buff *skb, u16 vlan_tci)
 static inline struct sk_buff *__vlan_hwaccel_put_tag(struct sk_buff *skb,
 						     u16 vlan_tci)
 {
-	skb->vlan_tci = vlan_tci;
+	skb->vlan_tci = VLAN_TAG_PRESENT | vlan_tci;
 	return skb;
 }
 
@@ -284,7 +292,7 @@ static inline int __vlan_hwaccel_get_tag(const struct sk_buff *skb,
 					 u16 *vlan_tci)
 {
 	if (vlan_tx_tag_present(skb)) {
-		*vlan_tci = skb->vlan_tci;
+		*vlan_tci = vlan_tx_tag_get(skb);
 		return 0;
 	} else {
 		*vlan_tci = 0;
@@ -331,6 +339,7 @@ enum vlan_ioctl_cmds {
 enum vlan_flags {
 	VLAN_FLAG_REORDER_HDR	= 0x1,
 	VLAN_FLAG_GVRP		= 0x2,
+	VLAN_FLAG_LOOSE_BINDING	= 0x4,
 };
 
 enum vlan_name_types {

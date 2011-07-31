@@ -42,36 +42,46 @@
 #define MCT_U232_SET_REQUEST_TYPE	0x40
 #define MCT_U232_GET_REQUEST_TYPE	0xc0
 
-#define MCT_U232_GET_MODEM_STAT_REQUEST 2  /* Get Modem Status Register (MSR) */
-#define MCT_U232_GET_MODEM_STAT_SIZE    1
+/* Get Modem Status Register (MSR) */
+#define MCT_U232_GET_MODEM_STAT_REQUEST	2
+#define MCT_U232_GET_MODEM_STAT_SIZE	1
 
-#define MCT_U232_GET_LINE_CTRL_REQUEST  6  /* Get Line Control Register (LCR) */
-#define MCT_U232_GET_LINE_CTRL_SIZE     1  /* ... not used by this driver */
+/* Get Line Control Register (LCR) */
+/* ... not used by this driver */
+#define MCT_U232_GET_LINE_CTRL_REQUEST	6
+#define MCT_U232_GET_LINE_CTRL_SIZE	1
 
-#define MCT_U232_SET_BAUD_RATE_REQUEST	5  /* Set Baud Rate Divisor */
-#define MCT_U232_SET_BAUD_RATE_SIZE     4
+/* Set Baud Rate Divisor */
+#define MCT_U232_SET_BAUD_RATE_REQUEST	5
+#define MCT_U232_SET_BAUD_RATE_SIZE	4
 
-#define MCT_U232_SET_LINE_CTRL_REQUEST	7  /* Set Line Control Register (LCR) */
-#define MCT_U232_SET_LINE_CTRL_SIZE     1
+/* Set Line Control Register (LCR) */
+#define MCT_U232_SET_LINE_CTRL_REQUEST	7
+#define MCT_U232_SET_LINE_CTRL_SIZE	1
 
-#define MCT_U232_SET_MODEM_CTRL_REQUEST	10 /* Set Modem Control Register (MCR) */
-#define MCT_U232_SET_MODEM_CTRL_SIZE    1
+/* Set Modem Control Register (MCR) */
+#define MCT_U232_SET_MODEM_CTRL_REQUEST	10
+#define MCT_U232_SET_MODEM_CTRL_SIZE	1
 
-/* This USB device request code is not well understood.  It is transmitted by
-   the MCT-supplied Windows driver whenever the baud rate changes. 
-*/
-#define MCT_U232_SET_UNKNOWN1_REQUEST   11  /* Unknown functionality */
-#define MCT_U232_SET_UNKNOWN1_SIZE       1
+/*
+ * This USB device request code is not well understood.  It is transmitted by
+ * the MCT-supplied Windows driver whenever the baud rate changes.
+ */
+#define MCT_U232_SET_UNKNOWN1_REQUEST	11  /* Unknown functionality */
+#define MCT_U232_SET_UNKNOWN1_SIZE	1
 
-/* This USB device request code appears to control whether CTS is required
-   during transmission.
-   
-   Sending a zero byte allows data transmission to a device which is not
-   asserting CTS.  Sending a '1' byte will cause transmission to be deferred
-   until the device asserts CTS.
-*/
-#define MCT_U232_SET_CTS_REQUEST   12
-#define MCT_U232_SET_CTS_SIZE       1
+/*
+ * This USB device request code appears to control whether CTS is required
+ * during transmission.
+ *
+ * Sending a zero byte allows data transmission to a device which is not
+ * asserting CTS.  Sending a '1' byte will cause transmission to be deferred
+ * until the device asserts CTS.
+ */
+#define MCT_U232_SET_CTS_REQUEST	12
+#define MCT_U232_SET_CTS_SIZE		1
+
+#define MCT_U232_MAX_SIZE		4	/* of MCT_XXX_SIZE */
 
 /*
  * Baud rate (divisor)
@@ -79,7 +89,8 @@
  * and "Intel solution". They are the regular MCT and "Sitecom" for us.
  * This is pointless to document in the header, see the code for the bits.
  */
-static int mct_u232_calculate_baud_rate(struct usb_serial *serial, speed_t value, speed_t *result);
+static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
+					speed_t value, speed_t *result);
 
 /*
  * Line Control Register (LCR)
@@ -123,16 +134,16 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial, speed_t value
 /*
  * Line Status Register (LSR)
  */
-#define MCT_U232_LSR_INDEX              1       /* data[index] */
-#define MCT_U232_LSR_ERR                0x80    /* OE | PE | FE | BI */
-#define MCT_U232_LSR_TEMT               0x40    /* transmit register empty */
-#define MCT_U232_LSR_THRE               0x20    /* transmit holding register empty */
-#define MCT_U232_LSR_BI                 0x10    /* break indicator */
-#define MCT_U232_LSR_FE                 0x08    /* framing error */
-#define MCT_U232_LSR_OE                 0x02    /* overrun error */
-#define MCT_U232_LSR_PE                 0x04    /* parity error */
-#define MCT_U232_LSR_OE                 0x02    /* overrun error */
-#define MCT_U232_LSR_DR                 0x01    /* receive data ready */
+#define MCT_U232_LSR_INDEX	1	/* data[index] */
+#define MCT_U232_LSR_ERR	0x80	/* OE | PE | FE | BI */
+#define MCT_U232_LSR_TEMT	0x40	/* transmit register empty */
+#define MCT_U232_LSR_THRE	0x20	/* transmit holding register empty */
+#define MCT_U232_LSR_BI		0x10	/* break indicator */
+#define MCT_U232_LSR_FE		0x08	/* framing error */
+#define MCT_U232_LSR_OE		0x02	/* overrun error */
+#define MCT_U232_LSR_PE		0x04	/* parity error */
+#define MCT_U232_LSR_OE		0x02	/* overrun error */
+#define MCT_U232_LSR_DR		0x01	/* receive data ready */
 
 
 /* -----------------------------------------------------------------------------
@@ -141,10 +152,10 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial, speed_t value
  *
  *  The technical details of the device have been acquired be using "SniffUSB"
  *  and the vendor-supplied device driver (version 2.3A) under Windows98. To
- *  identify the USB vendor-specific requests and to assign them to terminal 
+ *  identify the USB vendor-specific requests and to assign them to terminal
  *  settings (flow control, baud rate, etc.) the program "SerialSettings" from
  *  William G. Greathouse has been proven to be very useful. I also used the
- *  Win98 "HyperTerminal" and "usb-robot" on Linux for testing. The results and 
+ *  Win98 "HyperTerminal" and "usb-robot" on Linux for testing. The results and
  *  observations are summarized below:
  *
  *  The USB requests seem to be directly mapped to the registers of a 8250,
@@ -184,33 +195,33 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial, speed_t value
  *  Data:           LCR (see below)
  *
  *  Bit 7: Divisor Latch Access Bit (DLAB). When set, access to the data
- *  	   transmit/receive register (THR/RBR) and the Interrupt Enable Register
- *  	   (IER) is disabled. Any access to these ports is now redirected to the
- *  	   Divisor Latch Registers. Setting this bit, loading the Divisor
- *  	   Registers, and clearing DLAB should be done with interrupts disabled.
+ *	   transmit/receive register (THR/RBR) and the Interrupt Enable Register
+ *	   (IER) is disabled. Any access to these ports is now redirected to the
+ *	   Divisor Latch Registers. Setting this bit, loading the Divisor
+ *	   Registers, and clearing DLAB should be done with interrupts disabled.
  *  Bit 6: Set Break. When set to "1", the transmitter begins to transmit
- *  	   continuous Spacing until this bit is set to "0". This overrides any
- *  	   bits of characters that are being transmitted.
+ *	   continuous Spacing until this bit is set to "0". This overrides any
+ *	   bits of characters that are being transmitted.
  *  Bit 5: Stick Parity. When parity is enabled, setting this bit causes parity
- *  	   to always be "1" or "0", based on the value of Bit 4.
+ *	   to always be "1" or "0", based on the value of Bit 4.
  *  Bit 4: Even Parity Select (EPS). When parity is enabled and Bit 5 is "0",
- *  	   setting this bit causes even parity to be transmitted and expected.
- *  	   Otherwise, odd parity is used.
+ *	   setting this bit causes even parity to be transmitted and expected.
+ *	   Otherwise, odd parity is used.
  *  Bit 3: Parity Enable (PEN). When set to "1", a parity bit is inserted
- *  	   between the last bit of the data and the Stop Bit. The UART will also
- *  	   expect parity to be present in the received data.
+ *	   between the last bit of the data and the Stop Bit. The UART will also
+ *	   expect parity to be present in the received data.
  *  Bit 2: Number of Stop Bits (STB). If set to "1" and using 5-bit data words,
- *  	   1.5 Stop Bits are transmitted and expected in each data word. For
- *  	   6, 7 and 8-bit data words, 2 Stop Bits are transmitted and expected.
- *  	   When this bit is set to "0", one Stop Bit is used on each data word.
+ *	   1.5 Stop Bits are transmitted and expected in each data word. For
+ *	   6, 7 and 8-bit data words, 2 Stop Bits are transmitted and expected.
+ *	   When this bit is set to "0", one Stop Bit is used on each data word.
  *  Bit 1: Word Length Select Bit #1 (WLSB1)
  *  Bit 0: Word Length Select Bit #0 (WLSB0)
- *  	   Together these bits specify the number of bits in each data word.
- *  	     1 0  Word Length
- *  	     0 0  5 Data Bits
- *  	     0 1  6 Data Bits
- *  	     1 0  7 Data Bits
- *  	     1 1  8 Data Bits
+ *	   Together these bits specify the number of bits in each data word.
+ *	     1 0  Word Length
+ *	     0 0  5 Data Bits
+ *	     0 1  6 Data Bits
+ *	     1 0  7 Data Bits
+ *	     1 1  8 Data Bits
  *
  *  SniffUSB observations: Bit 7 seems not to be used. There seem to be two bugs
  *  in the Win98 driver: the break does not work (bit 6 is not asserted) and the
@@ -232,20 +243,20 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial, speed_t value
  *  Bit 6: Reserved, always 0.
  *  Bit 5: Reserved, always 0.
  *  Bit 4: Loop-Back Enable. When set to "1", the UART transmitter and receiver
- *  	   are internally connected together to allow diagnostic operations. In
- *  	   addition, the UART modem control outputs are connected to the UART
- *  	   modem control inputs. CTS is connected to RTS, DTR is connected to
- *  	   DSR, OUT1 is connected to RI, and OUT 2 is connected to DCD.
+ *	   are internally connected together to allow diagnostic operations. In
+ *	   addition, the UART modem control outputs are connected to the UART
+ *	   modem control inputs. CTS is connected to RTS, DTR is connected to
+ *	   DSR, OUT1 is connected to RI, and OUT 2 is connected to DCD.
  *  Bit 3: OUT 2. An auxiliary output that the host processor may set high or
- *  	   low. In the IBM PC serial adapter (and most clones), OUT 2 is used
- *  	   to tri-state (disable) the interrupt signal from the
- *  	   8250/16450/16550 UART.
+ *	   low. In the IBM PC serial adapter (and most clones), OUT 2 is used
+ *	   to tri-state (disable) the interrupt signal from the
+ *	   8250/16450/16550 UART.
  *  Bit 2: OUT 1. An auxiliary output that the host processor may set high or
- *  	   low. This output is not used on the IBM PC serial adapter.
+ *	   low. This output is not used on the IBM PC serial adapter.
  *  Bit 1: Request to Send (RTS). When set to "1", the output of the UART -RTS
- *  	   line is Low (Active).
+ *	   line is Low (Active).
  *  Bit 0: Data Terminal Ready (DTR). When set to "1", the output of the UART
- *  	   -DTR line is Low (Active).
+ *	   -DTR line is Low (Active).
  *
  *  SniffUSB observations: Bit 2 and 4 seem not to be used but bit 3 has been
  *  seen _always_ set.
@@ -262,22 +273,22 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial, speed_t value
  *  Data:           MSR (see below)
  *
  *  Bit 7: Data Carrier Detect (CD). Reflects the state of the DCD line on the
- *  	   UART.
+ *	   UART.
  *  Bit 6: Ring Indicator (RI). Reflects the state of the RI line on the UART.
  *  Bit 5: Data Set Ready (DSR). Reflects the state of the DSR line on the UART.
  *  Bit 4: Clear To Send (CTS). Reflects the state of the CTS line on the UART.
  *  Bit 3: Delta Data Carrier Detect (DDCD). Set to "1" if the -DCD line has
- *  	   changed state one more more times since the last time the MSR was
- *  	   read by the host.
+ *	   changed state one more more times since the last time the MSR was
+ *	   read by the host.
  *  Bit 2: Trailing Edge Ring Indicator (TERI). Set to "1" if the -RI line has
- *  	   had a low to high transition since the last time the MSR was read by
- *  	   the host.
+ *	   had a low to high transition since the last time the MSR was read by
+ *	   the host.
  *  Bit 1: Delta Data Set Ready (DDSR). Set to "1" if the -DSR line has changed
- *  	   state one more more times since the last time the MSR was read by the
- *  	   host.
+ *	   state one more more times since the last time the MSR was read by the
+ *	   host.
  *  Bit 0: Delta Clear To Send (DCTS). Set to "1" if the -CTS line has changed
- *  	   state one more times since the last time the MSR was read by the
- *  	   host.
+ *	   state one more times since the last time the MSR was read by the
+ *	   host.
  *
  *  SniffUSB observations: the MSR is also returned as first byte on the
  *  interrupt-in endpoint 0x83 to signal changes of modem status lines. The USB
@@ -288,31 +299,34 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial, speed_t value
  * --------------------------
  *
  *  Bit 7   Error in Receiver FIFO. On the 8250/16450 UART, this bit is zero.
- *  	    This bit is set to "1" when any of the bytes in the FIFO have one or
- *  	    more of the following error conditions: PE, FE, or BI.
+ *	    This bit is set to "1" when any of the bytes in the FIFO have one
+ *	    or more of the following error conditions: PE, FE, or BI.
  *  Bit 6   Transmitter Empty (TEMT). When set to "1", there are no words
- *  	    remaining in the transmit FIFO or the transmit shift register. The
- *  	    transmitter is completely idle.
- *  Bit 5   Transmitter Holding Register Empty (THRE). When set to "1", the FIFO
- *  	    (or holding register) now has room for at least one additional word
- *  	    to transmit. The transmitter may still be transmitting when this bit
- *  	    is set to "1".
+ *	    remaining in the transmit FIFO or the transmit shift register. The
+ *	    transmitter is completely idle.
+ *  Bit 5   Transmitter Holding Register Empty (THRE). When set to "1", the
+ *	    FIFO (or holding register) now has room for at least one additional
+ *	    word to transmit. The transmitter may still be transmitting when
+ *	    this bit is set to "1".
  *  Bit 4   Break Interrupt (BI). The receiver has detected a Break signal.
- *  Bit 3   Framing Error (FE). A Start Bit was detected but the Stop Bit did not
- *  	    appear at the expected time. The received word is probably garbled.
- *  Bit 2   Parity Error (PE). The parity bit was incorrect for the word received.
- *  Bit 1   Overrun Error (OE). A new word was received and there was no room in
- *  	    the receive buffer. The newly-arrived word in the shift register is
- *  	    discarded. On 8250/16450 UARTs, the word in the holding register is
- *  	    discarded and the newly- arrived word is put in the holding register.
+ *  Bit 3   Framing Error (FE). A Start Bit was detected but the Stop Bit did
+ *	    not appear at the expected time. The received word is probably
+ *	    garbled.
+ *  Bit 2   Parity Error (PE). The parity bit was incorrect for the word
+ *	    received.
+ *  Bit 1   Overrun Error (OE). A new word was received and there was no room
+ *	    in the receive buffer. The newly-arrived word in the shift register
+ *	    is discarded. On 8250/16450 UARTs, the word in the holding register
+ *	    is discarded and the newly- arrived word is put in the holding
+ *	    register.
  *  Bit 0   Data Ready (DR). One or more words are in the receive FIFO that the
- *  	    host may read. A word must be completely received and moved from the
- *  	    shift register into the FIFO (or holding register for 8250/16450
- *  	    designs) before this bit is set.
+ *	    host may read. A word must be completely received and moved from
+ *	    the shift register into the FIFO (or holding register for
+ *	    8250/16450 designs) before this bit is set.
  *
- *  SniffUSB observations: the LSR is returned as second byte on the interrupt-in
- *  endpoint 0x83 to signal error conditions. Such errors have been seen with
- *  minicom/zmodem transfers (CRC errors).
+ *  SniffUSB observations: the LSR is returned as second byte on the
+ *  interrupt-in endpoint 0x83 to signal error conditions. Such errors have
+ *  been seen with minicom/zmodem transfers (CRC errors).
  *
  *
  * Unknown #1
@@ -362,16 +376,16 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial, speed_t value
  * --------------
  *
  *  SniffUSB observations: the bulk-out endpoint 0x1 and interrupt-in endpoint
- *  0x81 is used to transmit and receive characters. The second interrupt-in 
- *  endpoint 0x83 signals exceptional conditions like modem line changes and 
+ *  0x81 is used to transmit and receive characters. The second interrupt-in
+ *  endpoint 0x83 signals exceptional conditions like modem line changes and
  *  errors. The first byte returned is the MSR and the second byte the LSR.
  *
  *
  * Other observations
  * ------------------
  *
- *  Queued bulk transfers like used in visor.c did not work. 
- *  
+ *  Queued bulk transfers like used in visor.c did not work.
+ *
  *
  * Properties of the USB device used (as found in /var/log/messages)
  * -----------------------------------------------------------------
@@ -409,26 +423,26 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial, speed_t value
  *      bInterface Class:SubClass:Protocol =   00:00:00
  *      iInterface          =   00
  *      Endpoint:
- * 	  bLength             =    7
- * 	  bDescriptorType     =   05
- * 	  bEndpointAddress    =   81 (in)
- * 	  bmAttributes        =   03 (Interrupt)
- * 	  wMaxPacketSize      = 0040
- * 	  bInterval           =   02
+ *	  bLength             =    7
+ *	  bDescriptorType     =   05
+ *	  bEndpointAddress    =   81 (in)
+ *	  bmAttributes        =   03 (Interrupt)
+ *	  wMaxPacketSize      = 0040
+ *	  bInterval           =   02
  *      Endpoint:
- * 	  bLength             =    7
- * 	  bDescriptorType     =   05
- * 	  bEndpointAddress    =   01 (out)
- * 	  bmAttributes        =   02 (Bulk)
- * 	  wMaxPacketSize      = 0040
- * 	  bInterval           =   00
+ *	  bLength             =    7
+ *	  bDescriptorType     =   05
+ *	  bEndpointAddress    =   01 (out)
+ *	  bmAttributes        =   02 (Bulk)
+ *	  wMaxPacketSize      = 0040
+ *	  bInterval           =   00
  *      Endpoint:
- * 	  bLength             =    7
- * 	  bDescriptorType     =   05
- * 	  bEndpointAddress    =   83 (in)
- * 	  bmAttributes        =   03 (Interrupt)
- * 	  wMaxPacketSize      = 0002
- * 	  bInterval           =   02
+ *	  bLength             =    7
+ *	  bDescriptorType     =   05
+ *	  bEndpointAddress    =   83 (in)
+ *	  bmAttributes        =   03 (Interrupt)
+ *	  wMaxPacketSize      = 0002
+ *	  bInterval           =   02
  *
  *
  * Hardware details (added by Martin Hamilton, 2001/12/06)
@@ -438,7 +452,7 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial, speed_t value
  * adaptor, which turns out to simply be a re-badged U232-P9.  We
  * know this because there is a sticky label on the circuit board
  * which says "U232-P9" ;-)
- * 
+ *
  * The circuit board inside the adaptor contains a Philips PDIUSBD12
  * USB endpoint chip and a Philips P87C52UBAA microcontroller with
  * embedded UART.  Exhaustive documentation for these is available at:
@@ -447,7 +461,7 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial, speed_t value
  *   http://www.semiconductors.philips.com/pip/pdiusbd12
  *
  * Thanks to Julian Highfield for the pointer to the Philips database.
- * 
+ *
  */
 
 #endif /* __LINUX_USB_SERIAL_MCT_U232_H */

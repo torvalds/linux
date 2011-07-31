@@ -222,7 +222,7 @@ int ehca_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 {
 	int ret;
 
-	if (!port_num || port_num > ibdev->phys_port_cnt)
+	if (!port_num || port_num > ibdev->phys_port_cnt || !in_wc)
 		return IB_MAD_RESULT_FAILURE;
 
 	/* accept only pma request */

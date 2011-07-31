@@ -62,7 +62,6 @@ static struct inet_protosw udplite6_protosw = {
 	.protocol	= IPPROTO_UDPLITE,
 	.prot		= &udplitev6_prot,
 	.ops		= &inet6_dgram_ops,
-	.capability	= -1,
 	.no_check	= 0,
 	.flags		= INET_PROTOSW_PERMANENT,
 };
@@ -105,12 +104,12 @@ static struct udp_seq_afinfo udplite6_seq_afinfo = {
 	},
 };
 
-static int udplite6_proc_init_net(struct net *net)
+static int __net_init udplite6_proc_init_net(struct net *net)
 {
 	return udp_proc_register(net, &udplite6_seq_afinfo);
 }
 
-static void udplite6_proc_exit_net(struct net *net)
+static void __net_exit udplite6_proc_exit_net(struct net *net)
 {
 	udp_proc_unregister(net, &udplite6_seq_afinfo);
 }

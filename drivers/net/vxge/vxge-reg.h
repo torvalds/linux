@@ -7,9 +7,9 @@
  * system is licensed under the GPL.
  * See the file COPYING in this distribution for more information.
  *
- * vxge-reg.h: Driver for Neterion Inc's X3100 Series 10GbE PCIe I/O Virtualized
+ * vxge-reg.h: Driver for Exar Corp's X3100 Series 10GbE PCIe I/O Virtualized
  *             Server Adapter.
- * Copyright(c) 2002-2009 Neterion Inc.
+ * Copyright(c) 2002-2010 Exar Corp.
  ******************************************************************************/
 #ifndef VXGE_REG_H
 #define VXGE_REG_H
@@ -4326,10 +4326,6 @@ struct vxge_hw_vpath_reg {
 /*0x011e0*/	u64	umq_bwr_init_byte;
 #define VXGE_HW_UMQ_BWR_INIT_BYTE_COUNT(val) vxge_vBIT(val, 0, 32)
 /*0x011e8*/	u64	gendma_int;
-#define	VXGE_HW_GENDMA_INT_IMMED_ENABLE	vxge_mBIT(6)
-#define	VXGE_HW_GENDMA_INT_EVENT_ENABLE	vxge_mBIT(7)
-#define VXGE_HW_GENDMA_INT_NUMBER(val) vxge_vBIT(val, 9, 7)
-#define VXGE_HW_GENDMA_INT_BITMAP(val) vxge_vBIT(val, 16, 16)
 /*0x011f0*/	u64	umqdmq_ir_init_notify;
 #define	VXGE_HW_UMQDMQ_IR_INIT_NOTIFY_PULSE	vxge_mBIT(3)
 /*0x011f8*/	u64	dmq_init_notify;

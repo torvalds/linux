@@ -18,7 +18,6 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/tty.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/svga.h>
@@ -446,7 +445,7 @@ static int vt8623fb_set_par(struct fb_info *info)
 
 	svga_wseq_mask(0x1E, 0xF0, 0xF0); // DI/DVP bus
 	svga_wseq_mask(0x2A, 0x0F, 0x0F); // DI/DVP bus
-	svga_wseq_mask(0x16, 0x08, 0xBF); // FIFO read treshold
+	svga_wseq_mask(0x16, 0x08, 0xBF); // FIFO read threshold
 	vga_wseq(NULL, 0x17, 0x1F);       // FIFO depth
 	vga_wseq(NULL, 0x18, 0x4E);
 	svga_wseq_mask(0x1A, 0x08, 0x08); // enable MMIO ?
@@ -727,7 +726,9 @@ static int __devinit vt8623_pci_probe(struct pci_dev *dev, const struct pci_devi
 
 	/* Prepare startup mode */
 
+	kparam_block_sysfs_write(mode_option);
 	rc = fb_find_mode(&(info->var), info, mode_option, NULL, 0, NULL, 8);
+	kparam_unblock_sysfs_write(mode_option);
 	if (! ((rc == 1) || (rc == 2))) {
 		rc = -EINVAL;
 		dev_err(info->device, "mode %s not found\n", mode_option);

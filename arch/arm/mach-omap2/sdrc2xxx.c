@@ -24,13 +24,13 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <mach/common.h>
-#include <mach/clock.h>
-#include <mach/sram.h>
+#include <plat/common.h>
+#include <plat/clock.h>
+#include <plat/sram.h>
 
 #include "prm.h"
 #include "clock.h"
-#include <mach/sdrc.h>
+#include <plat/sdrc.h>
 #include "sdrc.h"
 
 /* Memory timing, DLL mode flags */

@@ -781,12 +781,17 @@ err_desc_get:
 	return NULL;
 }
 
-static void dwc_terminate_all(struct dma_chan *chan)
+static int dwc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
+		       unsigned long arg)
 {
 	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
 	struct dw_dma		*dw = to_dw_dma(chan->device);
 	struct dw_desc		*desc, *_desc;
 	LIST_HEAD(list);
+
+	/* Only supports DMA_TERMINATE_ALL */
+	if (cmd != DMA_TERMINATE_ALL)
+		return -ENXIO;
 
 	/*
 	 * This is only called when something went wrong elsewhere, so
@@ -810,12 +815,14 @@ static void dwc_terminate_all(struct dma_chan *chan)
 	/* Flush all pending and queued descriptors */
 	list_for_each_entry_safe(desc, _desc, &list, desc_node)
 		dwc_descriptor_complete(dwc, desc);
+
+	return 0;
 }
 
 static enum dma_status
-dwc_is_tx_complete(struct dma_chan *chan,
-		dma_cookie_t cookie,
-		dma_cookie_t *done, dma_cookie_t *used)
+dwc_tx_status(struct dma_chan *chan,
+	      dma_cookie_t cookie,
+	      struct dma_tx_state *txstate)
 {
 	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
 	dma_cookie_t		last_used;
@@ -835,10 +842,7 @@ dwc_is_tx_complete(struct dma_chan *chan,
 		ret = dma_async_is_complete(cookie, last_complete, last_used);
 	}
 
-	if (done)
-		*done = last_complete;
-	if (used)
-		*used = last_used;
+	dma_set_tx_state(txstate, last_complete, last_used, 0);
 
 	return ret;
 }
@@ -1270,8 +1274,6 @@ static int __init dw_probe(struct platform_device *pdev)
 		goto err_kfree;
 	}
 
-	memset(dw, 0, sizeof *dw);
-
 	dw->regs = ioremap(io->start, DW_REGLEN);
 	if (!dw->regs) {
 		err = -ENOMEM;
@@ -1340,9 +1342,9 @@ static int __init dw_probe(struct platform_device *pdev)
 	dw->dma.device_prep_dma_memcpy = dwc_prep_dma_memcpy;
 
 	dw->dma.device_prep_slave_sg = dwc_prep_slave_sg;
-	dw->dma.device_terminate_all = dwc_terminate_all;
+	dw->dma.device_control = dwc_control;
 
-	dw->dma.device_is_tx_complete = dwc_is_tx_complete;
+	dw->dma.device_tx_status = dwc_tx_status;
 	dw->dma.device_issue_pending = dwc_issue_pending;
 
 	dma_writel(dw, CFG, DW_CFG_DMA_EN);
@@ -1427,7 +1429,7 @@ static int dw_resume_noirq(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops dw_dev_pm_ops = {
+static const struct dev_pm_ops dw_dev_pm_ops = {
 	.suspend_noirq = dw_suspend_noirq,
 	.resume_noirq = dw_resume_noirq,
 };

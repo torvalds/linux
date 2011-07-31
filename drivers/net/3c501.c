@@ -117,7 +117,6 @@ static const char version[] =
 #include <linux/fcntl.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/spinlock.h>
@@ -249,11 +248,11 @@ static int __init el1_probe1(struct net_device *dev, int ioaddr)
 	 *	for the Sager NP943 prefix.
 	 */
 
-	if (station_addr[0] == 0x02  &&  station_addr[1] == 0x60
-						&& station_addr[2] == 0x8c)
+	if (station_addr[0] == 0x02 && station_addr[1] == 0x60 &&
+	    station_addr[2] == 0x8c)
 		mname = "3c501";
-	else if (station_addr[0] == 0x00  &&  station_addr[1] == 0x80
-						&& station_addr[2] == 0xC8)
+	else if (station_addr[0] == 0x00 && station_addr[1] == 0x80 &&
+		 station_addr[2] == 0xC8)
 		mname = "NP943";
 	else {
 		release_region(ioaddr, EL1_IO_EXTENT);
@@ -345,7 +344,7 @@ static int el_open(struct net_device *dev)
 	if (el_debug > 2)
 		pr_debug("%s: Doing el_open()...\n", dev->name);
 
-	retval = request_irq(dev->irq, &el_interrupt, 0, dev->name, dev);
+	retval = request_irq(dev->irq, el_interrupt, 0, dev->name, dev);
 	if (retval)
 		return retval;
 
@@ -481,7 +480,6 @@ static netdev_tx_t el_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			/* fire ... Trigger xmit.  */
 			outb(AX_XMIT, AX_CMD);
 			lp->loading = 0;
-			dev->trans_start = jiffies;
 			if (el_debug > 2)
 				pr_debug(" queued xmit.\n");
 			dev_kfree_skb(skb);
@@ -728,7 +726,6 @@ static void el_receive(struct net_device *dev)
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += pkt_len;
 	}
-	return;
 }
 
 /**
@@ -812,7 +809,7 @@ static void set_multicast_list(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC) {
 		outb(RX_PROM, RX_CMD);
 		inb(RX_STATUS);
-	} else if (dev->mc_list || dev->flags & IFF_ALLMULTI) {
+	} else if (!netdev_mc_empty(dev) || dev->flags & IFF_ALLMULTI) {
 		/* Multicast or all multicast is the same */
 		outb(RX_MULT, RX_CMD);
 		inb(RX_STATUS);		/* Clear status. */

@@ -897,10 +897,17 @@ static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	/* Set up to return from userspace.  */
 	err |= __put_user(frame->retcode, &frame->pretcode);
+#ifdef __mcoldfire__
+	/* movel #__NR_rt_sigreturn,d0; trap #0 */
+	err |= __put_user(0x203c0000, (long __user *)(frame->retcode + 0));
+	err |= __put_user(0x00004e40 + (__NR_rt_sigreturn << 16),
+			  (long __user *)(frame->retcode + 4));
+#else
 	/* moveq #,d0; notb d0; trap #0 */
 	err |= __put_user(0x70004600 + ((__NR_rt_sigreturn ^ 0xff) << 16),
 			  (long __user *)(frame->retcode + 0));
 	err |= __put_user(0x4e40, (short __user *)(frame->retcode + 4));
+#endif
 
 	if (err)
 		goto give_sigsegv;

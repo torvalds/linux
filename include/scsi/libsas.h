@@ -36,6 +36,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_transport_sas.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 
 struct block_device;
 
@@ -421,16 +422,7 @@ enum service_response {
 };
 
 enum exec_status {
-	SAM_GOOD         = 0,
-	SAM_CHECK_COND   = 2,
-	SAM_COND_MET     = 4,
-	SAM_BUSY         = 8,
-	SAM_INTERMEDIATE = 0x10,
-	SAM_IM_COND_MET  = 0x12,
-	SAM_RESV_CONFLICT= 0x14,
-	SAM_TASK_SET_FULL= 0x28,
-	SAM_ACA_ACTIVE   = 0x30,
-	SAM_TASK_ABORTED = 0x40,
+	/* The SAM_STAT_.. codes fit in the lower 6 bits */
 
 	SAS_DEV_NO_RESPONSE = 0x80,
 	SAS_DATA_UNDERRUN,
@@ -634,7 +626,8 @@ extern int sas_target_alloc(struct scsi_target *);
 extern int sas_slave_alloc(struct scsi_device *);
 extern int sas_slave_configure(struct scsi_device *);
 extern void sas_slave_destroy(struct scsi_device *);
-extern int sas_change_queue_depth(struct scsi_device *, int new_depth);
+extern int sas_change_queue_depth(struct scsi_device *, int new_depth,
+				  int reason);
 extern int sas_change_queue_type(struct scsi_device *, int qt);
 extern int sas_bios_param(struct scsi_device *,
 			  struct block_device *,

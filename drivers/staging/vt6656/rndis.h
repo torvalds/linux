@@ -152,11 +152,10 @@ typedef struct _CMD_CHANGE_BBTYPE
 
 /*---------------------  Export Macros -------------------------*/
 
-#define EXCH_WORD(w)        ( (WORD)((WORD)(w)<<8) | (WORD)((WORD)(w)>>8) )
+#define EXCH_WORD(w) ((WORD)((WORD)(w)<<8) | (WORD)((WORD)(w)>>8))
 
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
 
-
-#endif // _RNDIS_H_
+#endif /* _RNDIS_H_ */

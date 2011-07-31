@@ -14,8 +14,6 @@
 #define __ARCH_ARM_PNX4008_CLOCK_H__
 
 struct clk {
-	struct list_head node;
-	struct module *owner;
 	const char *name;
 	struct clk *parent;
 	struct clk *propagate_next;
@@ -29,9 +27,11 @@ struct clk {
 	u8 enable_shift1;
 	u32 enable_reg1;
 	u32 parent_switch_reg;
-	 u32(*round_rate) (struct clk *, u32);
+	u32(*round_rate) (struct clk *, u32);
 	int (*set_rate) (struct clk *, u32);
 	int (*set_parent) (struct clk * clk, struct clk * parent);
+	int (*enable)(struct clk *);
+	void (*disable)(struct clk *);
 };
 
 /* Flags */

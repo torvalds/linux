@@ -13,6 +13,7 @@
 
 #include <linux/ctype.h>
 #include <linux/power_supply.h>
+#include <linux/slab.h>
 
 #include "power_supply.h"
 
@@ -30,9 +31,9 @@
 
 #define POWER_SUPPLY_ATTR(_name)					\
 {									\
-	.attr = { .name = #_name, .mode = 0444 },	\
+	.attr = { .name = #_name },					\
 	.show = power_supply_show_property,				\
-	.store = NULL,							\
+	.store = power_supply_store_property,				\
 }
 
 static struct device_attribute power_supply_attrs[];
@@ -40,6 +41,9 @@ static struct device_attribute power_supply_attrs[];
 static ssize_t power_supply_show_property(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf) {
+	static char *type_text[] = {
+		"Battery", "UPS", "Mains", "USB"
+	};
 	static char *status_text[] = {
 		"Unknown", "Charging", "Discharging", "Not charging", "Full"
 	};
@@ -57,15 +61,21 @@ static ssize_t power_supply_show_property(struct device *dev,
 	static char *capacity_level_text[] = {
 		"Unknown", "Critical", "Low", "Normal", "High", "Full"
 	};
-	ssize_t ret;
+	ssize_t ret = 0;
 	struct power_supply *psy = dev_get_drvdata(dev);
 	const ptrdiff_t off = attr - power_supply_attrs;
 	union power_supply_propval value;
 
-	ret = psy->get_property(psy, off, &value);
+	if (off == POWER_SUPPLY_PROP_TYPE)
+		value.intval = psy->type;
+	else
+		ret = psy->get_property(psy, off, &value);
 
 	if (ret < 0) {
-		if (ret != -ENODEV)
+		if (ret == -ENODATA)
+			dev_dbg(dev, "driver has no data for `%s' property\n",
+				attr->attr.name);
+		else if (ret != -ENODEV)
 			dev_err(dev, "driver failed to report `%s' property\n",
 				attr->attr.name);
 		return ret;
@@ -81,10 +91,35 @@ static ssize_t power_supply_show_property(struct device *dev,
 		return sprintf(buf, "%s\n", technology_text[value.intval]);
 	else if (off == POWER_SUPPLY_PROP_CAPACITY_LEVEL)
 		return sprintf(buf, "%s\n", capacity_level_text[value.intval]);
+	else if (off == POWER_SUPPLY_PROP_TYPE)
+		return sprintf(buf, "%s\n", type_text[value.intval]);
 	else if (off >= POWER_SUPPLY_PROP_MODEL_NAME)
 		return sprintf(buf, "%s\n", value.strval);
 
 	return sprintf(buf, "%d\n", value.intval);
+}
+
+static ssize_t power_supply_store_property(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count) {
+	ssize_t ret;
+	struct power_supply *psy = dev_get_drvdata(dev);
+	const ptrdiff_t off = attr - power_supply_attrs;
+	union power_supply_propval value;
+	long long_val;
+
+	/* TODO: support other types than int */
+	ret = strict_strtol(buf, 10, &long_val);
+	if (ret < 0)
+		return ret;
+
+	value.intval = long_val;
+
+	ret = psy->set_property(psy, off, &value);
+	if (ret < 0)
+		return ret;
+
+	return count;
 }
 
 /* Must be in the same order as POWER_SUPPLY_PROP_* */
@@ -96,6 +131,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(present),
 	POWER_SUPPLY_ATTR(online),
 	POWER_SUPPLY_ATTR(technology),
+	POWER_SUPPLY_ATTR(cycle_count),
 	POWER_SUPPLY_ATTR(voltage_max),
 	POWER_SUPPLY_ATTR(voltage_min),
 	POWER_SUPPLY_ATTR(voltage_max_design),
@@ -127,67 +163,61 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(time_to_empty_avg),
 	POWER_SUPPLY_ATTR(time_to_full_now),
 	POWER_SUPPLY_ATTR(time_to_full_avg),
+	POWER_SUPPLY_ATTR(type),
 	/* Properties of type `const char *' */
 	POWER_SUPPLY_ATTR(model_name),
 	POWER_SUPPLY_ATTR(manufacturer),
 	POWER_SUPPLY_ATTR(serial_number),
 };
 
-static ssize_t power_supply_show_static_attrs(struct device *dev,
-					      struct device_attribute *attr,
-					      char *buf) {
-	static char *type_text[] = { "Battery", "UPS", "Mains", "USB" };
-	struct power_supply *psy = dev_get_drvdata(dev);
+static struct attribute *
+__power_supply_attrs[ARRAY_SIZE(power_supply_attrs) + 1];
 
-	return sprintf(buf, "%s\n", type_text[psy->type]);
+static mode_t power_supply_attr_is_visible(struct kobject *kobj,
+					   struct attribute *attr,
+					   int attrno)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct power_supply *psy = dev_get_drvdata(dev);
+	mode_t mode = S_IRUSR | S_IRGRP | S_IROTH;
+	int i;
+
+	if (attrno == POWER_SUPPLY_PROP_TYPE)
+		return mode;
+
+	for (i = 0; i < psy->num_properties; i++) {
+		int property = psy->properties[i];
+
+		if (property == attrno) {
+			if (psy->property_is_writeable &&
+			    psy->property_is_writeable(psy, property) > 0)
+				mode |= S_IWUSR;
+
+			return mode;
+		}
+	}
+
+	return 0;
 }
 
-static struct device_attribute power_supply_static_attrs[] = {
-	__ATTR(type, 0444, power_supply_show_static_attrs, NULL),
+static struct attribute_group power_supply_attr_group = {
+	.attrs = __power_supply_attrs,
+	.is_visible = power_supply_attr_is_visible,
 };
 
-int power_supply_create_attrs(struct power_supply *psy)
-{
-	int rc = 0;
-	int i, j;
+static const struct attribute_group *power_supply_attr_groups[] = {
+	&power_supply_attr_group,
+	NULL,
+};
 
-	for (i = 0; i < ARRAY_SIZE(power_supply_static_attrs); i++) {
-		rc = device_create_file(psy->dev,
-			    &power_supply_static_attrs[i]);
-		if (rc)
-			goto statics_failed;
-	}
-
-	for (j = 0; j < psy->num_properties; j++) {
-		rc = device_create_file(psy->dev,
-			    &power_supply_attrs[psy->properties[j]]);
-		if (rc)
-			goto dynamics_failed;
-	}
-
-	goto succeed;
-
-dynamics_failed:
-	while (j--)
-		device_remove_file(psy->dev,
-			   &power_supply_attrs[psy->properties[j]]);
-statics_failed:
-	while (i--)
-		device_remove_file(psy->dev, &power_supply_static_attrs[i]);
-succeed:
-	return rc;
-}
-
-void power_supply_remove_attrs(struct power_supply *psy)
+void power_supply_init_attrs(struct device_type *dev_type)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(power_supply_static_attrs); i++)
-		device_remove_file(psy->dev, &power_supply_static_attrs[i]);
+	dev_type->groups = power_supply_attr_groups;
 
-	for (i = 0; i < psy->num_properties; i++)
-		device_remove_file(psy->dev,
-			    &power_supply_attrs[psy->properties[i]]);
+	for (i = 0; i < ARRAY_SIZE(power_supply_attrs); i++)
+		__power_supply_attrs[i] = &power_supply_attrs[i].attr;
 }
 
 static char *kstruprdup(const char *str, gfp_t gfp)
@@ -230,36 +260,6 @@ int power_supply_uevent(struct device *dev, struct kobj_uevent_env *env)
 	prop_buf = (char *)get_zeroed_page(GFP_KERNEL);
 	if (!prop_buf)
 		return -ENOMEM;
-
-	for (j = 0; j < ARRAY_SIZE(power_supply_static_attrs); j++) {
-		struct device_attribute *attr;
-		char *line;
-
-		attr = &power_supply_static_attrs[j];
-
-		ret = power_supply_show_static_attrs(dev, attr, prop_buf);
-		if (ret < 0)
-			goto out;
-
-		line = strchr(prop_buf, '\n');
-		if (line)
-			*line = 0;
-
-		attrname = kstruprdup(attr->attr.name, GFP_KERNEL);
-		if (!attrname) {
-			ret = -ENOMEM;
-			goto out;
-		}
-
-		dev_dbg(dev, "Static prop %s=%s\n", attrname, prop_buf);
-
-		ret = add_uevent_var(env, "POWER_SUPPLY_%s=%s", attrname, prop_buf);
-		kfree(attrname);
-		if (ret)
-			goto out;
-	}
-
-	dev_dbg(dev, "%zd dynamic props\n", psy->num_properties);
 
 	for (j = 0; j < psy->num_properties; j++) {
 		struct device_attribute *attr;

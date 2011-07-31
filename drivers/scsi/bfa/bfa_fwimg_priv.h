@@ -21,11 +21,24 @@
 #define	BFI_FLASH_CHUNK_SZ		256	/*  Flash chunk size */
 #define	BFI_FLASH_CHUNK_SZ_WORDS	(BFI_FLASH_CHUNK_SZ/sizeof(u32))
 
-extern u32 *bfi_image_ct_get_chunk(u32 off);
-extern u32 bfi_image_ct_size;
-extern u32 *bfi_image_cb_get_chunk(u32 off);
-extern u32 bfi_image_cb_size;
-extern u32 *bfi_image_cb;
-extern u32 *bfi_image_ct;
+/**
+ * BFI FW image type
+ */
+enum {
+	BFI_IMAGE_CB_FC,
+	BFI_IMAGE_CT_FC,
+	BFI_IMAGE_CT_CNA,
+	BFI_IMAGE_MAX,
+};
+
+extern u32 *bfi_image_get_chunk(int type, uint32_t off);
+extern u32 bfi_image_get_size(int type);
+extern u32 bfi_image_ct_fc_size;
+extern u32 bfi_image_ct_cna_size;
+extern u32 bfi_image_cb_fc_size;
+extern u32 *bfi_image_ct_fc;
+extern u32 *bfi_image_ct_cna;
+extern u32 *bfi_image_cb_fc;
+
 
 #endif /* __BFA_FWIMG_PRIV_H__ */

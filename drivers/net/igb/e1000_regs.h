@@ -34,6 +34,7 @@
 #define E1000_EERD     0x00014  /* EEPROM Read - RW */
 #define E1000_CTRL_EXT 0x00018  /* Extended Device Control - RW */
 #define E1000_MDIC     0x00020  /* MDI Control - RW */
+#define E1000_MDICNFG  0x00E04  /* MDI Config - RW */
 #define E1000_SCTL     0x00024  /* SerDes Control - RW */
 #define E1000_FCAL     0x00028  /* Flow Control Address Low - RW */
 #define E1000_FCAH     0x0002C  /* Flow Control Address High -RW */
@@ -76,59 +77,20 @@
 #define E1000_FCRTV    0x02460  /* Flow Control Refresh Timer Value - RW */
 
 /* IEEE 1588 TIMESYNCH */
-#define E1000_TSYNCTXCTL 0x0B614
-#define E1000_TSYNCTXCTL_VALID (1<<0)
-#define E1000_TSYNCTXCTL_ENABLED (1<<4)
-#define E1000_TSYNCRXCTL 0x0B620
-#define E1000_TSYNCRXCTL_VALID (1<<0)
-#define E1000_TSYNCRXCTL_ENABLED (1<<4)
-enum {
-	E1000_TSYNCRXCTL_TYPE_L2_V2 = 0,
-	E1000_TSYNCRXCTL_TYPE_L4_V1 = (1<<1),
-	E1000_TSYNCRXCTL_TYPE_L2_L4_V2 = (1<<2),
-	E1000_TSYNCRXCTL_TYPE_ALL = (1<<3),
-	E1000_TSYNCRXCTL_TYPE_EVENT_V2 = (1<<3) | (1<<1),
-};
-#define E1000_TSYNCRXCFG 0x05F50
-enum {
-	E1000_TSYNCRXCFG_PTP_V1_SYNC_MESSAGE = 0<<0,
-	E1000_TSYNCRXCFG_PTP_V1_DELAY_REQ_MESSAGE = 1<<0,
-	E1000_TSYNCRXCFG_PTP_V1_FOLLOWUP_MESSAGE = 2<<0,
-	E1000_TSYNCRXCFG_PTP_V1_DELAY_RESP_MESSAGE = 3<<0,
-	E1000_TSYNCRXCFG_PTP_V1_MANAGEMENT_MESSAGE = 4<<0,
-
-	E1000_TSYNCRXCFG_PTP_V2_SYNC_MESSAGE = 0<<8,
-	E1000_TSYNCRXCFG_PTP_V2_DELAY_REQ_MESSAGE = 1<<8,
-	E1000_TSYNCRXCFG_PTP_V2_PATH_DELAY_REQ_MESSAGE = 2<<8,
-	E1000_TSYNCRXCFG_PTP_V2_PATH_DELAY_RESP_MESSAGE = 3<<8,
-	E1000_TSYNCRXCFG_PTP_V2_FOLLOWUP_MESSAGE = 8<<8,
-	E1000_TSYNCRXCFG_PTP_V2_DELAY_RESP_MESSAGE = 9<<8,
-	E1000_TSYNCRXCFG_PTP_V2_PATH_DELAY_FOLLOWUP_MESSAGE = 0xA<<8,
-	E1000_TSYNCRXCFG_PTP_V2_ANNOUNCE_MESSAGE = 0xB<<8,
-	E1000_TSYNCRXCFG_PTP_V2_SIGNALLING_MESSAGE = 0xC<<8,
-	E1000_TSYNCRXCFG_PTP_V2_MANAGEMENT_MESSAGE = 0xD<<8,
-};
-#define E1000_SYSTIML 0x0B600
-#define E1000_SYSTIMH 0x0B604
-#define E1000_TIMINCA 0x0B608
-
-#define E1000_RXMTRL     0x0B634
-#define E1000_RXSTMPL 0x0B624
-#define E1000_RXSTMPH 0x0B628
-#define E1000_RXSATRL 0x0B62C
-#define E1000_RXSATRH 0x0B630
-
-#define E1000_TXSTMPL 0x0B618
-#define E1000_TXSTMPH 0x0B61C
-
-#define E1000_ETQF0   0x05CB0
-#define E1000_ETQF1   0x05CB4
-#define E1000_ETQF2   0x05CB8
-#define E1000_ETQF3   0x05CBC
-#define E1000_ETQF4   0x05CC0
-#define E1000_ETQF5   0x05CC4
-#define E1000_ETQF6   0x05CC8
-#define E1000_ETQF7   0x05CCC
+#define E1000_TSYNCRXCTL 0x0B620 /* Rx Time Sync Control register - RW */
+#define E1000_TSYNCTXCTL 0x0B614 /* Tx Time Sync Control register - RW */
+#define E1000_TSYNCRXCFG 0x05F50 /* Time Sync Rx Configuration - RW */
+#define E1000_RXSTMPL    0x0B624 /* Rx timestamp Low - RO */
+#define E1000_RXSTMPH    0x0B628 /* Rx timestamp High - RO */
+#define E1000_RXSATRL    0x0B62C /* Rx timestamp attribute low - RO */
+#define E1000_RXSATRH    0x0B630 /* Rx timestamp attribute high - RO */
+#define E1000_TXSTMPL    0x0B618 /* Tx timestamp value Low - RO */
+#define E1000_TXSTMPH    0x0B61C /* Tx timestamp value High - RO */
+#define E1000_SYSTIML    0x0B600 /* System time register Low - RO */
+#define E1000_SYSTIMH    0x0B604 /* System time register High - RO */
+#define E1000_TIMINCA    0x0B608 /* Increment attributes register - RW */
+#define E1000_TSAUXC     0x0B640 /* Timesync Auxiliary Control register */
+#define E1000_SYSTIMR    0x0B6F8 /* System time register Residue */
 
 /* Filtering Registers */
 #define E1000_SAQF(_n) (0x5980 + 4 * (_n))
@@ -143,7 +105,9 @@ enum {
 #define E1000_ETQF(_n)  (0x05CB0 + (4 * (_n))) /* EType Queue Fltr */
 
 #define E1000_RQDPC(_n) (0x0C030 + ((_n) * 0x40))
+
 /* Split and Replication RX Control - RW */
+#define E1000_RXPBS    0x02404  /* Rx Packet Buffer Size - RW */
 /*
  * Convenience macros
  *
@@ -288,10 +252,17 @@ enum {
 #define E1000_MTA      0x05200  /* Multicast Table Array - RW Array */
 #define E1000_RA       0x05400  /* Receive Address - RW Array */
 #define E1000_RA2      0x054E0  /* 2nd half of receive address array - RW Array */
+#define E1000_PSRTYPE(_i)       (0x05480 + ((_i) * 4))
 #define E1000_RAL(_i)  (((_i) <= 15) ? (0x05400 + ((_i) * 8)) : \
                                        (0x054E0 + ((_i - 16) * 8)))
 #define E1000_RAH(_i)  (((_i) <= 15) ? (0x05404 + ((_i) * 8)) : \
                                        (0x054E4 + ((_i - 16) * 8)))
+#define E1000_IP4AT_REG(_i)     (0x05840 + ((_i) * 8))
+#define E1000_IP6AT_REG(_i)     (0x05880 + ((_i) * 4))
+#define E1000_WUPM_REG(_i)      (0x05A00 + ((_i) * 4))
+#define E1000_FFMT_REG(_i)      (0x09000 + ((_i) * 8))
+#define E1000_FFVT_REG(_i)      (0x09800 + ((_i) * 8))
+#define E1000_FFLT_REG(_i)      (0x05F00 + ((_i) * 8))
 #define E1000_VFTA     0x05600  /* VLAN Filter Table Array - RW Array */
 #define E1000_VT_CTL   0x0581C  /* VMDq Control - RW */
 #define E1000_WUC      0x05800  /* Wakeup Control - RW */
@@ -331,6 +302,7 @@ enum {
 #define E1000_QDE       0x02408 /* Queue Drop Enable - RW */
 #define E1000_DTXSWC    0x03500 /* DMA Tx Switch Control - RW */
 #define E1000_RPLOLR    0x05AF0 /* Replication Offload - RW */
+#define E1000_UTA       0x0A000 /* Unicast Table Array - RW */
 #define E1000_IOVTCL    0x05BBC /* IOV Control Register */
 /* These act per VF so an array friendly macro is used */
 #define E1000_P2VMAILBOX(_n)   (0x00C00 + (4 * (_n)))
@@ -338,6 +310,7 @@ enum {
 #define E1000_VMOLR(_n)        (0x05AD0 + (4 * (_n)))
 #define E1000_VLVF(_n)         (0x05D00 + (4 * (_n))) /* VLAN Virtual Machine
                                                        * Filter - RW */
+#define E1000_VMVIR(_n)        (0x03700 + (4 * (_n)))
 
 #define wr32(reg, value) (writel(value, hw->hw_addr + reg))
 #define rd32(reg) (readl(hw->hw_addr + reg))
@@ -348,4 +321,6 @@ enum {
 #define array_rd32(reg, offset) \
 	(readl(hw->hw_addr + reg + ((offset) << 2)))
 
+/* DMA Coalescing registers */
+#define E1000_PCIEMISC          0x05BB8 /* PCIE misc config register */
 #endif

@@ -24,13 +24,16 @@
 
 #include <linux/delay.h>
 #include <linux/highmem.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 
 #include <linux/mmc/host.h>
 
 #include <linux/io.h>
+#include <linux/sdhci-pltfm.h>
 
 #include "sdhci.h"
+#include "sdhci-pltfm.h"
 
 /*****************************************************************************\
  *                                                                           *
@@ -49,11 +52,14 @@ static struct sdhci_ops sdhci_pltfm_ops = {
 
 static int __devinit sdhci_pltfm_probe(struct platform_device *pdev)
 {
+	struct sdhci_pltfm_data *pdata = pdev->dev.platform_data;
+	const struct platform_device_id *platid = platform_get_device_id(pdev);
 	struct sdhci_host *host;
 	struct resource *iomem;
 	int ret;
 
-	BUG_ON(pdev == NULL);
+	if (!pdata && platid && platid->driver_data)
+		pdata = (void *)platid->driver_data;
 
 	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!iomem) {
@@ -61,7 +67,7 @@ static int __devinit sdhci_pltfm_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	if (resource_size(iomem) != 0x100)
+	if (resource_size(iomem) < 0x100)
 		dev_err(&pdev->dev, "Invalid iomem size. You may "
 			"experience problems.\n");
 
@@ -76,7 +82,12 @@ static int __devinit sdhci_pltfm_probe(struct platform_device *pdev)
 	}
 
 	host->hw_name = "platform";
-	host->ops = &sdhci_pltfm_ops;
+	if (pdata && pdata->ops)
+		host->ops = pdata->ops;
+	else
+		host->ops = &sdhci_pltfm_ops;
+	if (pdata)
+		host->quirks = pdata->quirks;
 	host->irq = platform_get_irq(pdev, 0);
 
 	if (!request_mem_region(iomem->start, resource_size(iomem),
@@ -93,6 +104,12 @@ static int __devinit sdhci_pltfm_probe(struct platform_device *pdev)
 		goto err_remap;
 	}
 
+	if (pdata && pdata->init) {
+		ret = pdata->init(host);
+		if (ret)
+			goto err_plat_init;
+	}
+
 	ret = sdhci_add_host(host);
 	if (ret)
 		goto err_add_host;
@@ -102,6 +119,9 @@ static int __devinit sdhci_pltfm_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_host:
+	if (pdata && pdata->exit)
+		pdata->exit(host);
+err_plat_init:
 	iounmap(host->ioaddr);
 err_remap:
 	release_mem_region(iomem->start, resource_size(iomem));
@@ -114,6 +134,7 @@ err:
 
 static int __devexit sdhci_pltfm_remove(struct platform_device *pdev)
 {
+	struct sdhci_pltfm_data *pdata = pdev->dev.platform_data;
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct resource *iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	int dead;
@@ -125,6 +146,8 @@ static int __devexit sdhci_pltfm_remove(struct platform_device *pdev)
 		dead = 1;
 
 	sdhci_remove_host(host, dead);
+	if (pdata && pdata->exit)
+		pdata->exit(host);
 	iounmap(host->ioaddr);
 	release_mem_region(iomem->start, resource_size(iomem));
 	sdhci_free_host(host);
@@ -133,6 +156,15 @@ static int __devexit sdhci_pltfm_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id sdhci_pltfm_ids[] = {
+	{ "sdhci", },
+#ifdef CONFIG_MMC_SDHCI_CNS3XXX
+	{ "sdhci-cns3xxx", (kernel_ulong_t)&sdhci_cns3xxx_pdata },
+#endif
+	{ },
+};
+MODULE_DEVICE_TABLE(platform, sdhci_pltfm_ids);
+
 static struct platform_driver sdhci_pltfm_driver = {
 	.driver = {
 		.name	= "sdhci",
@@ -140,6 +172,7 @@ static struct platform_driver sdhci_pltfm_driver = {
 	},
 	.probe		= sdhci_pltfm_probe,
 	.remove		= __devexit_p(sdhci_pltfm_remove),
+	.id_table	= sdhci_pltfm_ids,
 };
 
 /*****************************************************************************\
@@ -164,5 +197,3 @@ module_exit(sdhci_drv_exit);
 MODULE_DESCRIPTION("Secure Digital Host Controller Interface platform driver");
 MODULE_AUTHOR("Mocean Laboratories <info@mocean-labs.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:sdhci");
-

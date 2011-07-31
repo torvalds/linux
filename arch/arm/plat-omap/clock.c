@@ -12,19 +12,17 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/string.h>
 #include <linux/clk.h>
 #include <linux/mutex.h>
-#include <linux/platform_device.h>
 #include <linux/cpufreq.h>
 #include <linux/debugfs.h>
 #include <linux/io.h>
 
-#include <mach/clock.h>
+#include <plat/clock.h>
 
 static LIST_HEAD(clocks);
 static DEFINE_MUTEX(clocks_mutex);
@@ -32,44 +30,14 @@ static DEFINE_SPINLOCK(clockfw_lock);
 
 static struct clk_functions *arch_clock;
 
-/*-------------------------------------------------------------------------
+/*
  * Standard clock functions defined in include/linux/clk.h
- *-------------------------------------------------------------------------*/
+ */
 
-/* This functions is moved to arch/arm/common/clkdev.c. For OMAP4 since
- * clock framework is not up , it is defined here to avoid rework in
- * every driver. Also dummy prcm reset function is added */
-
-/* Dummy hooks only for OMAP4.For rest OMAPs, common clkdev is used */
-#if defined(CONFIG_ARCH_OMAP4)
-struct clk *clk_get(struct device *dev, const char *id)
-{
-	return NULL;
-}
-EXPORT_SYMBOL(clk_get);
-
-void clk_put(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_put);
-
-void omap2_clk_prepare_for_reboot(void)
-{
-}
-EXPORT_SYMBOL(omap2_clk_prepare_for_reboot);
-
-void omap_prcm_arch_reset(char mode)
-{
-}
-EXPORT_SYMBOL(omap_prcm_arch_reset);
-#endif
 int clk_enable(struct clk *clk)
 {
 	unsigned long flags;
 	int ret = 0;
-	if (cpu_is_omap44xx())
-		/* OMAP4 clk framework not supported yet */
-		return 0;
 
 	if (clk == NULL || IS_ERR(clk))
 		return -EINVAL;
@@ -122,9 +90,9 @@ unsigned long clk_get_rate(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_get_rate);
 
-/*-------------------------------------------------------------------------
+/*
  * Optional clock functions defined in include/linux/clk.h
- *-------------------------------------------------------------------------*/
+ */
 
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
@@ -170,9 +138,6 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	unsigned long flags;
 	int ret = -EINVAL;
 
-	if (cpu_is_omap44xx())
-	/* OMAP4 clk framework not supported yet */
-		return 0;
 	if (clk == NULL || IS_ERR(clk) || parent == NULL || IS_ERR(parent))
 		return ret;
 
@@ -199,11 +164,11 @@ struct clk *clk_get_parent(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_get_parent);
 
-/*-------------------------------------------------------------------------
+/*
  * OMAP specific clock functions shared between omap1 and omap2
- *-------------------------------------------------------------------------*/
+ */
 
-unsigned int __initdata mpurate;
+int __initdata mpurate;
 
 /*
  * By default we use the rate set by the bootloader.
@@ -229,6 +194,17 @@ unsigned long followparent_recalc(struct clk *clk)
 	return clk->parent->rate;
 }
 
+/*
+ * Used for clocks that have the same value as the parent clock,
+ * divided by some factor
+ */
+unsigned long omap_fixed_divisor_recalc(struct clk *clk)
+{
+	WARN_ON(!clk->fixed_div);
+
+	return clk->parent->rate / clk->fixed_div;
+}
+
 void clk_reparent(struct clk *child, struct clk *parent)
 {
 	list_del_init(&child->sibling);
@@ -241,7 +217,7 @@ void clk_reparent(struct clk *child, struct clk *parent)
 }
 
 /* Propagate rate to children */
-void propagate_rate(struct clk * tclk)
+void propagate_rate(struct clk *tclk)
 {
 	struct clk *clkp;
 
@@ -331,7 +307,33 @@ void clk_enable_init_clocks(void)
 			clk_enable(clkp);
 	}
 }
-EXPORT_SYMBOL(clk_enable_init_clocks);
+
+/**
+ * omap_clk_get_by_name - locate OMAP struct clk by its name
+ * @name: name of the struct clk to locate
+ *
+ * Locate an OMAP struct clk by its name.  Assumes that struct clk
+ * names are unique.  Returns NULL if not found or a pointer to the
+ * struct clk if found.
+ */
+struct clk *omap_clk_get_by_name(const char *name)
+{
+	struct clk *c;
+	struct clk *ret = NULL;
+
+	mutex_lock(&clocks_mutex);
+
+	list_for_each_entry(c, &clocks, node) {
+		if (!strcmp(c->name, name)) {
+			ret = c;
+			break;
+		}
+	}
+
+	mutex_unlock(&clocks_mutex);
+
+	return ret;
+}
 
 /*
  * Low level helpers
@@ -350,6 +352,16 @@ const struct clkops clkops_null = {
 	.disable	= clkll_disable_null,
 };
 
+/*
+ * Dummy clock
+ *
+ * Used for clock aliases that are needed on some OMAPs, but not others
+ */
+struct clk dummy_ck = {
+	.name	= "dummy",
+	.ops	= &clkops_null,
+};
+
 #ifdef CONFIG_CPU_FREQ
 void clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
 {
@@ -360,10 +372,21 @@ void clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
 		arch_clock->clk_init_cpufreq_table(table);
 	spin_unlock_irqrestore(&clockfw_lock, flags);
 }
-EXPORT_SYMBOL(clk_init_cpufreq_table);
+
+void clk_exit_cpufreq_table(struct cpufreq_frequency_table **table)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&clockfw_lock, flags);
+	if (arch_clock->clk_exit_cpufreq_table)
+		arch_clock->clk_exit_cpufreq_table(table);
+	spin_unlock_irqrestore(&clockfw_lock, flags);
+}
 #endif
 
-/*-------------------------------------------------------------------------*/
+/*
+ *
+ */
 
 #ifdef CONFIG_OMAP_RESET_CLOCKS
 /*
@@ -378,7 +401,7 @@ static int __init clk_disable_unused(void)
 		if (ck->ops == &clkops_null)
 			continue;
 
-		if (ck->usecount > 0 || ck->enable_reg == 0)
+		if (ck->usecount > 0 || !ck->enable_reg)
 			continue;
 
 		spin_lock_irqsave(&clockfw_lock, flags);
@@ -413,14 +436,12 @@ static struct dentry *clk_debugfs_root;
 static int clk_debugfs_register_one(struct clk *c)
 {
 	int err;
-	struct dentry *d, *child;
+	struct dentry *d, *child, *child_tmp;
 	struct clk *pa = c->parent;
 	char s[255];
 	char *p = s;
 
 	p += sprintf(p, "%s", c->name);
-	if (c->id != 0)
-		sprintf(p, ":%d", c->id);
 	d = debugfs_create_dir(s, pa ? pa->dent : clk_debugfs_root);
 	if (!d)
 		return -ENOMEM;
@@ -445,7 +466,7 @@ static int clk_debugfs_register_one(struct clk *c)
 
 err_out:
 	d = c->dent;
-	list_for_each_entry(child, &d->d_subdirs, d_u.d_child)
+	list_for_each_entry_safe(child, child_tmp, &d->d_subdirs, d_u.d_child)
 		debugfs_remove(child);
 	debugfs_remove(c->dent);
 	return err;

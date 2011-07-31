@@ -21,7 +21,7 @@
 #
 # the break handler has its own stack
 #
-	.section	.bss.stack
+	.section	.bss..stack
 	.globl		__break_user_context
 	.balign		THREAD_SIZE
 __break_stack:
@@ -63,7 +63,7 @@ __break_trace_through_exceptions:
 # entry point for Break Exceptions/Interrupts
 #
 ###############################################################################
-	.section	.text.break
+	.section	.text..break
 	.balign		4
 	.globl		__entry_break
 __entry_break:

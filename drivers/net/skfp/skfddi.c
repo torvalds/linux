@@ -78,13 +78,13 @@ static const char * const boot_msg =
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/fddidevice.h>
 #include <linux/skbuff.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -149,7 +149,7 @@ extern void mac_drv_rx_mode(struct s_smc *smc, int mode);
 extern void mac_drv_clear_rx_queue(struct s_smc *smc);
 extern void enable_tx_irq(struct s_smc *smc, u_short queue);
 
-static struct pci_device_id skfddi_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(skfddi_pci_tbl) = {
 	{ PCI_VENDOR_ID_SK, PCI_DEVICE_ID_SK_FP, PCI_ANY_ID, PCI_ANY_ID, },
 	{ }			/* Terminating entry */
 };
@@ -435,13 +435,7 @@ static  int skfp_driver_init(struct net_device *dev)
 		goto fail;
 	}
 	read_address(smc, NULL);
-	pr_debug(KERN_INFO "HW-Addr: %02x %02x %02x %02x %02x %02x\n",
-	       smc->hw.fddi_canon_addr.a[0],
-	       smc->hw.fddi_canon_addr.a[1],
-	       smc->hw.fddi_canon_addr.a[2],
-	       smc->hw.fddi_canon_addr.a[3],
-	       smc->hw.fddi_canon_addr.a[4],
-	       smc->hw.fddi_canon_addr.a[5]);
+	pr_debug(KERN_INFO "HW-Addr: %pMF\n", smc->hw.fddi_canon_addr.a);
 	memcpy(dev->dev_addr, smc->hw.fddi_canon_addr.a, 6);
 
 	smt_reset_defaults(smc, 0);
@@ -850,7 +844,6 @@ static void skfp_ctl_set_multicast_list(struct net_device *dev)
 	spin_lock_irqsave(&bp->DriverLock, Flags);
 	skfp_ctl_set_multicast_list_wo_lock(dev);
 	spin_unlock_irqrestore(&bp->DriverLock, Flags);
-	return;
 }				// skfp_ctl_set_multicast_list
 
 
@@ -858,8 +851,7 @@ static void skfp_ctl_set_multicast_list(struct net_device *dev)
 static void skfp_ctl_set_multicast_list_wo_lock(struct net_device *dev)
 {
 	struct s_smc *smc = netdev_priv(dev);
-	struct dev_mc_list *dmi;	/* ptr to multicast addr entry */
-	int i;
+	struct netdev_hw_addr *ha;
 
 	/* Enable promiscuous mode, if necessary */
 	if (dev->flags & IFF_PROMISC) {
@@ -878,29 +870,19 @@ static void skfp_ctl_set_multicast_list_wo_lock(struct net_device *dev)
 		if (dev->flags & IFF_ALLMULTI) {
 			mac_drv_rx_mode(smc, RX_ENABLE_ALLMULTI);
 			pr_debug(KERN_INFO "ENABLE ALL MC ADDRESSES\n");
-		} else if (dev->mc_count > 0) {
-			if (dev->mc_count <= FPMAX_MULTICAST) {
+		} else if (!netdev_mc_empty(dev)) {
+			if (netdev_mc_count(dev) <= FPMAX_MULTICAST) {
 				/* use exact filtering */
 
 				// point to first multicast addr
-				dmi = dev->mc_list;
+				netdev_for_each_mc_addr(ha, dev) {
+					mac_add_multicast(smc,
+						(struct fddi_addr *)ha->addr,
+						1);
 
-				for (i = 0; i < dev->mc_count; i++) {
-					mac_add_multicast(smc, 
-							  (struct fddi_addr *)dmi->dmi_addr, 
-							  1);
-
-					pr_debug(KERN_INFO "ENABLE MC ADDRESS:");
-					pr_debug(" %02x %02x %02x ",
-					       dmi->dmi_addr[0],
-					       dmi->dmi_addr[1],
-					       dmi->dmi_addr[2]);
-					pr_debug("%02x %02x %02x\n",
-					       dmi->dmi_addr[3],
-					       dmi->dmi_addr[4],
-					       dmi->dmi_addr[5]);
-					dmi = dmi->next;
-				}	// for
+					pr_debug(KERN_INFO "ENABLE MC ADDRESS: %pMF\n",
+						ha->addr);
+				}
 
 			} else {	// more MC addresses than HW supports
 
@@ -915,7 +897,6 @@ static void skfp_ctl_set_multicast_list_wo_lock(struct net_device *dev)
 		/* Update adapter filters */
 		mac_update_multicast(smc);
 	}
-	return;
 }				// skfp_ctl_set_multicast_list_wo_lock
 
 
@@ -1002,7 +983,7 @@ static int skfp_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		}
 		break;
 	default:
-		printk("ioctl for %s: unknow cmd: %04x\n", dev->name, ioc.cmd);
+		printk("ioctl for %s: unknown cmd: %04x\n", dev->name, ioc.cmd);
 		status = -EOPNOTSUPP;
 
 	}			// switch
@@ -1093,7 +1074,6 @@ static netdev_tx_t skfp_send_pkt(struct sk_buff *skb,
 	if (bp->QueueSkb == 0) {
 		netif_stop_queue(dev);
 	}
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 
 }				// skfp_send_pkt

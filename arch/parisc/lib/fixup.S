@@ -36,8 +36,8 @@
 #endif
 	/* t2 = &__per_cpu_offset[smp_processor_id()]; */
 	LDREGX \t2(\t1),\t2 
-	addil LT%per_cpu__exception_data,%r27
-	LDREG RT%per_cpu__exception_data(%r1),\t1
+	addil LT%exception_data,%r27
+	LDREG RT%exception_data(%r1),\t1
 	/* t1 = &__get_cpu_var(exception_data) */
 	add,l \t1,\t2,\t1
 	/* t1 = t1->fault_ip */
@@ -46,8 +46,8 @@
 #else
 	.macro  get_fault_ip t1 t2
 	/* t1 = &__get_cpu_var(exception_data) */
-	addil LT%per_cpu__exception_data,%r27
-	LDREG RT%per_cpu__exception_data(%r1),\t2
+	addil LT%exception_data,%r27
+	LDREG RT%exception_data(%r1),\t2
 	/* t1 = t2->fault_ip */
 	LDREG EXCDATA_IP(\t2), \t1
 	.endm

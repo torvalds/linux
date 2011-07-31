@@ -1,6 +1,3 @@
-# sound/Config.in
-#
-
 menuconfig SOUND
 	tristate "Sound card support"
 	depends on HAS_IOMEM
@@ -58,7 +55,7 @@ config SOUND_OSS_CORE_PRECLAIM
 	  Please read Documentation/feature-removal-schedule.txt for
 	  details.
 
-	  If unusre, say Y.
+	  If unsure, say Y.
 
 source "sound/oss/dmasound/Kconfig"
 
@@ -136,4 +133,3 @@ config AC97_BUS
 	  sound subsystem and other function drivers completely unrelated to
 	  sound although they're sharing the AC97 bus. Concerned drivers
 	  should "select" this.
-

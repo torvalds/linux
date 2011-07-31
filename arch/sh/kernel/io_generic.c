@@ -24,7 +24,7 @@
 #define dummy_read()
 #endif
 
-unsigned long generic_io_base;
+unsigned long generic_io_base = 0;
 
 u8 generic_inb(unsigned long port)
 {
@@ -147,8 +147,10 @@ void generic_outsl(unsigned long port, const void *src, unsigned long count)
 
 void __iomem *generic_ioport_map(unsigned long addr, unsigned int size)
 {
+#ifdef P1SEG
 	if (PXSEG(addr) >= P1SEG)
 		return (void __iomem *)addr;
+#endif
 
 	return (void __iomem *)(addr + generic_io_base);
 }
@@ -156,3 +158,23 @@ void __iomem *generic_ioport_map(unsigned long addr, unsigned int size)
 void generic_ioport_unmap(void __iomem *addr)
 {
 }
+
+#ifndef CONFIG_GENERIC_IOMAP
+void __iomem *ioport_map(unsigned long port, unsigned int nr)
+{
+	void __iomem *ret;
+
+	ret = __ioport_map_trapped(port, nr);
+	if (ret)
+		return ret;
+
+	return __ioport_map(port, nr);
+}
+EXPORT_SYMBOL(ioport_map);
+
+void ioport_unmap(void __iomem *addr)
+{
+	sh_mv.mv_ioport_unmap(addr);
+}
+EXPORT_SYMBOL(ioport_unmap);
+#endif /* CONFIG_GENERIC_IOMAP */

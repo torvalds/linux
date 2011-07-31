@@ -139,8 +139,8 @@ out:
 
 }
 
-static int dev_nvram_ioctl(struct inode *inode, struct file *file,
-	unsigned int cmd, unsigned long arg)
+static long dev_nvram_ioctl(struct file *file, unsigned int cmd,
+			    unsigned long arg)
 {
 	switch(cmd) {
 #ifdef CONFIG_PPC_PMAC
@@ -169,11 +169,11 @@ static int dev_nvram_ioctl(struct inode *inode, struct file *file,
 }
 
 const struct file_operations nvram_fops = {
-	.owner =	THIS_MODULE,
-	.llseek =	dev_nvram_llseek,
-	.read =		dev_nvram_read,
-	.write =	dev_nvram_write,
-	.ioctl =	dev_nvram_ioctl,
+	.owner		= THIS_MODULE,
+	.llseek		= dev_nvram_llseek,
+	.read		= dev_nvram_read,
+	.write		= dev_nvram_write,
+	.unlocked_ioctl	= dev_nvram_ioctl,
 };
 
 static struct miscdevice nvram_dev = {
@@ -184,7 +184,7 @@ static struct miscdevice nvram_dev = {
 
 
 #ifdef DEBUG_NVRAM
-static void nvram_print_partitions(char * label)
+static void __init nvram_print_partitions(char * label)
 {
 	struct list_head * p;
 	struct nvram_partition * tmp_part;
@@ -202,7 +202,7 @@ static void nvram_print_partitions(char * label)
 #endif
 
 
-static int nvram_write_header(struct nvram_partition * part)
+static int __init nvram_write_header(struct nvram_partition * part)
 {
 	loff_t tmp_index;
 	int rc;
@@ -214,7 +214,7 @@ static int nvram_write_header(struct nvram_partition * part)
 }
 
 
-static unsigned char nvram_checksum(struct nvram_header *p)
+static unsigned char __init nvram_checksum(struct nvram_header *p)
 {
 	unsigned int c_sum, c_sum2;
 	unsigned short *sp = (unsigned short *)p->name; /* assume 6 shorts */
@@ -228,32 +228,7 @@ static unsigned char nvram_checksum(struct nvram_header *p)
 	return c_sum;
 }
 
-
-/*
- * Find an nvram partition, sig can be 0 for any
- * partition or name can be NULL for any name, else
- * tries to match both
- */
-struct nvram_partition *nvram_find_partition(int sig, const char *name)
-{
-	struct nvram_partition * part;
-	struct list_head * p;
-
-	list_for_each(p, &nvram_part->partition) {
-		part = list_entry(p, struct nvram_partition, partition);
-
-		if (sig && part->header.signature != sig)
-			continue;
-		if (name && 0 != strncmp(name, part->header.name, 12))
-			continue;
-		return part; 
-	}
-	return NULL;
-}
-EXPORT_SYMBOL(nvram_find_partition);
-
-
-static int nvram_remove_os_partition(void)
+static int __init nvram_remove_os_partition(void)
 {
 	struct list_head *i;
 	struct list_head *j;
@@ -319,7 +294,7 @@ static int nvram_remove_os_partition(void)
  * Will create a partition starting at the first free
  * space found if space has enough room.
  */
-static int nvram_create_os_partition(void)
+static int __init nvram_create_os_partition(void)
 {
 	struct nvram_partition *part;
 	struct nvram_partition *new_part;
@@ -363,8 +338,8 @@ static int nvram_create_os_partition(void)
 
 	rc = nvram_write_header(new_part);
 	if (rc <= 0) {
-		printk(KERN_ERR "nvram_create_os_partition: nvram_write_header \
-				failed (%d)\n", rc);
+		printk(KERN_ERR "nvram_create_os_partition: nvram_write_header "
+				"failed (%d)\n", rc);
 		return rc;
 	}
 
@@ -374,7 +349,7 @@ static int nvram_create_os_partition(void)
 	rc = ppc_md.nvram_write((char *)&seq_init, sizeof(seq_init), &tmp_index);
 	if (rc <= 0) {
 		printk(KERN_ERR "nvram_create_os_partition: nvram_write "
-				"failed (%d)\n", rc);
+		       "failed (%d)\n", rc);
 		return rc;
 	}
 	
@@ -422,7 +397,7 @@ static int nvram_create_os_partition(void)
  * 5.) If the max chunk cannot be allocated then try finding a chunk
  * that will satisfy the minum needed (NVRAM_MIN_REQ).
  */
-static int nvram_setup_partition(void)
+static int __init nvram_setup_partition(void)
 {
 	struct list_head * p;
 	struct nvram_partition * part;
@@ -480,7 +455,7 @@ static int nvram_setup_partition(void)
 }
 
 
-static int nvram_scan_partitions(void)
+static int __init nvram_scan_partitions(void)
 {
 	loff_t cur_index = 0;
 	struct nvram_header phead;
@@ -705,6 +680,9 @@ int nvram_clear_error_log(void)
 	loff_t tmp_index;
 	int clear_word = ERR_FLAG_ALREADY_LOGGED;
 	int rc;
+
+	if (nvram_error_log_index == -1)
+		return -1;
 
 	tmp_index = nvram_error_log_index;
 	

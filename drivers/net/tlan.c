@@ -254,7 +254,7 @@ static struct board {
 	{ "Compaq NetFlex-3/E", TLAN_ADAPTER_ACTIVITY_LED, 0x83 }, /* EISA card */
 };
 
-static struct pci_device_id tlan_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(tlan_pci_tbl) = {
 	{ PCI_VENDOR_ID_COMPAQ, PCI_DEVICE_ID_COMPAQ_NETEL10,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_COMPAQ, PCI_DEVICE_ID_COMPAQ_NETEL100,
@@ -338,7 +338,7 @@ static int	TLan_PhyInternalService( struct net_device * );
 static int	TLan_PhyDp83840aCheck( struct net_device * );
 */
 
-static int	TLan_MiiReadReg( struct net_device *, u16, u16, u16 * );
+static bool	TLan_MiiReadReg( struct net_device *, u16, u16, u16 * );
 static void	TLan_MiiSendData( u16, u32, unsigned );
 static void	TLan_MiiSync( u16 );
 static void	TLan_MiiWriteReg( struct net_device *, u16, u16, u16 );
@@ -1034,7 +1034,7 @@ static void TLan_tx_timeout(struct net_device *dev)
 	TLan_ResetLists( dev );
 	TLan_ReadAndClearStats( dev, TLAN_IGNORE );
 	TLan_ResetAdapter( dev );
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue( dev );
 
 }
@@ -1147,7 +1147,6 @@ static netdev_tx_t TLan_StartTx( struct sk_buff *skb, struct net_device *dev )
 
 	CIRC_INC( priv->txTail, TLAN_NUM_TX_LISTS );
 
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 
 } /* TLan_StartTx */
@@ -1314,7 +1313,7 @@ static struct net_device_stats *TLan_GetStats( struct net_device *dev )
 
 static void TLan_SetMulticastList( struct net_device *dev )
 {
-	struct dev_mc_list	*dmi = dev->mc_list;
+	struct netdev_hw_addr *ha;
 	u32			hash1 = 0;
 	u32			hash2 = 0;
 	int			i;
@@ -1335,18 +1334,19 @@ static void TLan_SetMulticastList( struct net_device *dev )
 			TLan_DioWrite32( dev->base_addr, TLAN_HASH_1, 0xFFFFFFFF );
 			TLan_DioWrite32( dev->base_addr, TLAN_HASH_2, 0xFFFFFFFF );
 		} else {
-			for ( i = 0; i < dev->mc_count; i++ ) {
+			i = 0;
+			netdev_for_each_mc_addr(ha, dev) {
 				if ( i < 3 ) {
 					TLan_SetMac( dev, i + 1,
-						     (char *) &dmi->dmi_addr );
+						     (char *) &ha->addr);
 				} else {
-					offset = TLan_HashFunc( (u8 *) &dmi->dmi_addr );
+					offset = TLan_HashFunc((u8 *)&ha->addr);
 					if ( offset < 32 )
 						hash1 |= ( 1 << offset );
 					else
 						hash2 |= ( 1 << ( offset - 32 ) );
 				}
-				dmi = dmi->next;
+				i++;
 			}
 			for ( ; i < 3; i++ )
 				TLan_SetMac( dev, i + 1, NULL );
@@ -1549,7 +1549,8 @@ static u32 TLan_HandleRxEOF( struct net_device *dev, u16 host_int )
 		if (tmpCStat & TLAN_CSTAT_EOC)
 			eoc = 1;
 
-		new_skb = netdev_alloc_skb(dev, TLAN_MAX_FRAME_SIZE + 7 );
+		new_skb = netdev_alloc_skb_ip_align(dev,
+						    TLAN_MAX_FRAME_SIZE + 5);
 		if ( !new_skb )
 			goto drop_and_reuse;
 
@@ -1563,7 +1564,6 @@ static u32 TLan_HandleRxEOF( struct net_device *dev, u16 host_int )
 		skb->protocol = eth_type_trans( skb, dev );
 		netif_rx( skb );
 
-		skb_reserve( new_skb, NET_IP_ALIGN );
 		head_list->buffer[0].address = pci_map_single(priv->pciDev,
 							      new_skb->data,
 							      TLAN_MAX_FRAME_SIZE,
@@ -1755,8 +1755,8 @@ static u32 TLan_HandleStatusCheck( struct net_device *dev, u16 host_int )
 			     ! ( tlphy_ctl & TLAN_TC_SWAPOL ) ) {
                 		tlphy_ctl |= TLAN_TC_SWAPOL;
                 		TLan_MiiWriteReg( dev, phy, TLAN_TLPHY_CTL, tlphy_ctl);
-        		} else if ( ( tlphy_sts & TLAN_TS_POLOK )
-				    && ( tlphy_ctl & TLAN_TC_SWAPOL ) ) {
+			} else if ( ( tlphy_sts & TLAN_TS_POLOK ) &&
+				    ( tlphy_ctl & TLAN_TC_SWAPOL ) ) {
                 		tlphy_ctl &= ~TLAN_TC_SWAPOL;
                 		TLan_MiiWriteReg( dev, phy, TLAN_TLPHY_CTL, tlphy_ctl);
         		}
@@ -1967,13 +1967,12 @@ static void TLan_ResetLists( struct net_device *dev )
 		list->cStat = TLAN_CSTAT_READY;
 		list->frameSize = TLAN_MAX_FRAME_SIZE;
 		list->buffer[0].count = TLAN_MAX_FRAME_SIZE | TLAN_LAST_BUFFER;
-		skb = netdev_alloc_skb(dev, TLAN_MAX_FRAME_SIZE + 7 );
+		skb = netdev_alloc_skb_ip_align(dev, TLAN_MAX_FRAME_SIZE + 5);
 		if ( !skb ) {
 			pr_err("TLAN: out of memory for received data.\n" );
 			break;
 		}
 
-		skb_reserve( skb, NET_IP_ALIGN );
 		list->buffer[0].address = pci_map_single(priv->pciDev,
 							 skb->data,
 							 TLAN_MAX_FRAME_SIZE,
@@ -2205,7 +2204,7 @@ TLan_ResetAdapter( struct net_device *dev )
 	u32		data;
 	u8		data8;
 
-	priv->tlanFullDuplex = FALSE;
+	priv->tlanFullDuplex = false;
 	priv->phyOnline=0;
 	netif_carrier_off(dev);
 
@@ -2260,7 +2259,7 @@ TLan_ResetAdapter( struct net_device *dev )
 			TLan_DioWrite8( dev->base_addr, TLAN_ACOMMIT, 0x0a );
 		} else if ( priv->duplex == TLAN_DUPLEX_FULL ) {
 			TLan_DioWrite8( dev->base_addr, TLAN_ACOMMIT, 0x00 );
-			priv->tlanFullDuplex = TRUE;
+			priv->tlanFullDuplex = true;
 		} else {
 			TLan_DioWrite8( dev->base_addr, TLAN_ACOMMIT, 0x08 );
 		}
@@ -2464,7 +2463,7 @@ static void TLan_PhyPrint( struct net_device *dev )
 		printk( "TLAN:   Device %s, Unmanaged PHY.\n", dev->name );
 	} else if ( phy <= TLAN_PHY_MAX_ADDR ) {
 		printk( "TLAN:   Device %s, PHY 0x%02x.\n", dev->name, phy );
-		printk( "TLAN:      Off.  +0     +1     +2     +3 \n" );
+		printk( "TLAN:      Off.  +0     +1     +2     +3\n" );
                 for ( i = 0; i < 0x20; i+= 4 ) {
 			printk( "TLAN:      0x%02x", i );
 			TLan_MiiReadReg( dev, phy, i, &data0 );
@@ -2652,14 +2651,14 @@ static void TLan_PhyStartLink( struct net_device *dev )
 			TLan_MiiWriteReg( dev, phy, MII_GEN_CTL, 0x0000);
 		} else if ( priv->speed == TLAN_SPEED_10 &&
 			    priv->duplex == TLAN_DUPLEX_FULL) {
-			priv->tlanFullDuplex = TRUE;
+			priv->tlanFullDuplex = true;
 			TLan_MiiWriteReg( dev, phy, MII_GEN_CTL, 0x0100);
 		} else if ( priv->speed == TLAN_SPEED_100 &&
 			    priv->duplex == TLAN_DUPLEX_HALF) {
 			TLan_MiiWriteReg( dev, phy, MII_GEN_CTL, 0x2000);
 		} else if ( priv->speed == TLAN_SPEED_100 &&
 			    priv->duplex == TLAN_DUPLEX_FULL) {
-			priv->tlanFullDuplex = TRUE;
+			priv->tlanFullDuplex = true;
 			TLan_MiiWriteReg( dev, phy, MII_GEN_CTL, 0x2100);
 		} else {
 
@@ -2696,7 +2695,7 @@ static void TLan_PhyStartLink( struct net_device *dev )
                 	tctl &= ~TLAN_TC_AUISEL;
 			if ( priv->duplex == TLAN_DUPLEX_FULL ) {
 				control |= MII_GC_DUPLEX;
-				priv->tlanFullDuplex = TRUE;
+				priv->tlanFullDuplex = true;
 			}
 			if ( priv->speed == TLAN_SPEED_100 ) {
 				control |= MII_GC_SPEEDSEL;
@@ -2751,9 +2750,9 @@ static void TLan_PhyFinishAutoNeg( struct net_device *dev )
 	TLan_MiiReadReg( dev, phy, MII_AN_LPA, &an_lpa );
 	mode = an_adv & an_lpa & 0x03E0;
 	if ( mode & 0x0100 ) {
-		priv->tlanFullDuplex = TRUE;
+		priv->tlanFullDuplex = true;
 	} else if ( ! ( mode & 0x0080 ) && ( mode & 0x0040 ) ) {
-		priv->tlanFullDuplex = TRUE;
+		priv->tlanFullDuplex = true;
 	}
 
 	if ( ( ! ( mode & 0x0180 ) ) &&
@@ -2856,8 +2855,8 @@ void TLan_PhyMonitor( struct net_device *dev )
 	 *	TLan_MiiReadReg
 	 *
 	 *	Returns:
-	 *		0	if ack received ok
-	 *		1	otherwise.
+	 *		false	if ack received ok
+	 *		true	if no ack received or other error
 	 *
 	 *	Parms:
 	 *		dev		The device structure containing
@@ -2876,17 +2875,17 @@ void TLan_PhyMonitor( struct net_device *dev )
 	 *
 	 **************************************************************/
 
-static int TLan_MiiReadReg( struct net_device *dev, u16 phy, u16 reg, u16 *val )
+static bool TLan_MiiReadReg( struct net_device *dev, u16 phy, u16 reg, u16 *val )
 {
 	u8	nack;
 	u16	sio, tmp;
  	u32	i;
-	int	err;
+	bool	err;
 	int	minten;
 	TLanPrivateInfo *priv = netdev_priv(dev);
 	unsigned long flags = 0;
 
-	err = FALSE;
+	err = false;
 	outw(TLAN_NET_SIO, dev->base_addr + TLAN_DIO_ADR);
 	sio = dev->base_addr + TLAN_DIO_DATA + TLAN_NET_SIO;
 
@@ -2919,7 +2918,7 @@ static int TLan_MiiReadReg( struct net_device *dev, u16 phy, u16 reg, u16 *val )
 			TLan_SetBit(TLAN_NET_SIO_MCLK, sio);
 		}
 		tmp = 0xffff;
-		err = TRUE;
+		err = true;
 	} else {					/* ACK, so read data */
 		for (tmp = 0, i = 0x8000; i; i >>= 1) {
 			TLan_ClearBit(TLAN_NET_SIO_MCLK, sio);

@@ -14,7 +14,6 @@
  */
 
 #include "gigaset.h"
-#include <linux/ctype.h>
 
 static ssize_t show_cidmode(struct device *dev,
 			    struct device_attribute *attr, char *buf)
@@ -39,7 +38,7 @@ static ssize_t set_cidmode(struct device *dev, struct device_attribute *attr,
 			return -EINVAL;
 
 	if (mutex_lock_interruptible(&cs->mutex))
-		return -ERESTARTSYS; // FIXME -EINTR?
+		return -ERESTARTSYS;
 
 	cs->waiting = 1;
 	if (!gigaset_add_event(cs, &cs->at_state, EV_PROC_CIDMODE,
@@ -48,8 +47,6 @@ static ssize_t set_cidmode(struct device *dev, struct device_attribute *attr,
 		mutex_unlock(&cs->mutex);
 		return -ENOMEM;
 	}
-
-	gig_dbg(DEBUG_CMD, "scheduling PROC_CIDMODE");
 	gigaset_schedule_event(cs);
 
 	wait_event(cs->waitqueue, !cs->waiting);

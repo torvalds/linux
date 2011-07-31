@@ -293,7 +293,7 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 	dprintk("opening device and trying to acquire exclusive lock\n");
 
 	if (!dev) {
-		printk(KERN_ERR "BUG: em28xx can't find device struct."
+		em28xx_err("BUG: em28xx can't find device struct."
 				" Can't proceed with open\n");
 		return -ENODEV;
 	}
@@ -325,7 +325,7 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 
 	return 0;
 err:
-	printk(KERN_ERR "Error while configuring em28xx mixer\n");
+	em28xx_err("Error while configuring em28xx mixer\n");
 	return ret;
 }
 
@@ -491,7 +491,7 @@ static int em28xx_audio_init(struct em28xx *dev)
 	strcpy(pcm->name, "Empia 28xx Capture");
 
 	snd_card_set_dev(card, &dev->udev->dev);
-	strcpy(card->driver, "Empia Em28xx Audio");
+	strcpy(card->driver, "Em28xx-Audio");
 	strcpy(card->shortname, "Em28xx Audio");
 	strcpy(card->longname, "Empia Em28xx Audio");
 

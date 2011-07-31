@@ -20,7 +20,6 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <mach/npe.h>
 
 #define DEBUG_MSG			0
@@ -665,7 +664,7 @@ err:
 }
 
 
-struct npe *npe_request(int id)
+struct npe *npe_request(unsigned id)
 {
 	if (id < NPE_COUNT)
 		if (npe_tab[id].valid)

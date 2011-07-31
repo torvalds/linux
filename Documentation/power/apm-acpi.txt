@@ -28,5 +28,5 @@ and be sure that they are started sometime in the system boot process.
 Go ahead and start both.  If ACPI or APM is not available on your
 system the associated daemon will exit gracefully.
 
-  apmd:   http://worldvisions.ca/~apenwarr/apmd/
+  apmd:   http://ftp.debian.org/pool/main/a/apmd/
   acpid:  http://acpid.sf.net/

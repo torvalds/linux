@@ -366,7 +366,7 @@ static void cpc_tty_close(struct tty_struct *tty, struct file *flip)
 	int res;
 
 	if (!tty || !tty->driver_data ) {
-		CPC_TTY_DBG("hdlx-tty: no TTY in close \n");
+		CPC_TTY_DBG("hdlx-tty: no TTY in close\n");
 		return;
 	}
 

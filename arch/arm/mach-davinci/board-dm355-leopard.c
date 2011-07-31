@@ -8,37 +8,27 @@
  * warranty of any kind, whether express or implied.
  */
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
-#include <linux/dma-mapping.h>
+#include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand.h>
 #include <linux/i2c.h>
-#include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/eeprom.h>
 
-#include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
-#include <asm/mach/flash.h>
 
-#include <mach/hardware.h>
 #include <mach/dm355.h>
-#include <mach/psc.h>
-#include <mach/common.h>
 #include <mach/i2c.h>
 #include <mach/serial.h>
 #include <mach/nand.h>
 #include <mach/mmc.h>
-
-#define DAVINCI_ASYNC_EMIF_CONTROL_BASE		0x01e10000
-#define DAVINCI_ASYNC_EMIF_DATA_CE0_BASE	0x02000000
+#include <mach/usb.h>
 
 /* NOTE:  this is geared for the standard config, with a socketed
  * 2 GByte Micron NAND (MT29F16G08FAA) using 128KB sectors.  If you
@@ -89,12 +79,12 @@ static struct davinci_nand_pdata davinci_nand_data = {
 
 static struct resource davinci_nand_resources[] = {
 	{
-		.start		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE,
-		.end		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE + SZ_32M - 1,
+		.start		= DM355_ASYNC_EMIF_DATA_CE0_BASE,
+		.end		= DM355_ASYNC_EMIF_DATA_CE0_BASE + SZ_32M - 1,
 		.flags		= IORESOURCE_MEM,
 	}, {
-		.start		= DAVINCI_ASYNC_EMIF_CONTROL_BASE,
-		.end		= DAVINCI_ASYNC_EMIF_CONTROL_BASE + SZ_4K - 1,
+		.start		= DM355_ASYNC_EMIF_CONTROL_BASE,
+		.end		= DM355_ASYNC_EMIF_CONTROL_BASE + SZ_4K - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 };
@@ -270,7 +260,7 @@ static __init void dm355_leopard_init(void)
 	gpio_request(2, "usb_id_toggle");
 	gpio_direction_output(2, USB_ID_VALUE);
 	/* irlml6401 switches over 1A in under 8 msec */
-	setup_usb(500, 8);
+	davinci_setup_usb(1000, 8);
 
 	davinci_setup_mmc(0, &dm355leopard_mmc_config);
 	davinci_setup_mmc(1, &dm355leopard_mmc_config);
@@ -279,17 +269,12 @@ static __init void dm355_leopard_init(void)
 			ARRAY_SIZE(dm355_leopard_spi_info));
 }
 
-static __init void dm355_leopard_irq_init(void)
-{
-	davinci_irq_init();
-}
-
 MACHINE_START(DM355_LEOPARD, "DaVinci DM355 leopard")
 	.phys_io      = IO_PHYS,
 	.io_pg_offst  = (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
 	.boot_params  = (0x80000100),
 	.map_io	      = dm355_leopard_map_io,
-	.init_irq     = dm355_leopard_irq_init,
+	.init_irq     = davinci_irq_init,
 	.timer	      = &davinci_timer,
 	.init_machine = dm355_leopard_init,
 MACHINE_END

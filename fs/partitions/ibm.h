@@ -1,1 +1,1 @@
-int ibm_partition(struct parsed_partitions *, struct block_device *);
+int ibm_partition(struct parsed_partitions *);

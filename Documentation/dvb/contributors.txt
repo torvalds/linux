@@ -1,7 +1,7 @@
 Thanks go to the following people for patches and contributions:
 
 Michael Hunold <m.hunold@gmx.de>
-  for the initial saa7146 driver and it's recent overhaul
+  for the initial saa7146 driver and its recent overhaul
 
 Christian Theiss
   for his work on the initial Linux DVB driver

@@ -10,9 +10,7 @@ struct kvm_timer {
 };
 
 struct kvm_timer_ops {
-        bool (*is_periodic)(struct kvm_timer *);
+	bool (*is_periodic)(struct kvm_timer *);
 };
 
-
 enum hrtimer_restart kvm_timer_fn(struct hrtimer *data);
-

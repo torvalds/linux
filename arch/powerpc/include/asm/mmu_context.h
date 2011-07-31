@@ -23,8 +23,12 @@ extern void switch_slb(struct task_struct *tsk, struct mm_struct *mm);
 extern void set_context(unsigned long id, pgd_t *pgd);
 
 #ifdef CONFIG_PPC_BOOK3S_64
+extern int __init_new_context(void);
+extern void __destroy_context(int context_id);
 static inline void mmu_context_init(void) { }
 #else
+extern unsigned long __init_new_context(void);
+extern void __destroy_context(unsigned long context_id);
 extern void mmu_context_init(void);
 #endif
 

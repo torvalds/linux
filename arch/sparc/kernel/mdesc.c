@@ -4,12 +4,13 @@
  */
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <linux/log2.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/miscdevice.h>
+#include <linux/bootmem.h>
 
 #include <asm/cpudata.h>
 #include <asm/hypervisor.h>
@@ -85,7 +86,7 @@ static void mdesc_handle_init(struct mdesc_handle *hp,
 	hp->handle_size = handle_size;
 }
 
-static struct mdesc_handle * __init mdesc_lmb_alloc(unsigned int mdesc_size)
+static struct mdesc_handle * __init mdesc_memblock_alloc(unsigned int mdesc_size)
 {
 	unsigned int handle_size, alloc_size;
 	struct mdesc_handle *hp;
@@ -96,7 +97,7 @@ static struct mdesc_handle * __init mdesc_lmb_alloc(unsigned int mdesc_size)
 		       mdesc_size);
 	alloc_size = PAGE_ALIGN(handle_size);
 
-	paddr = lmb_alloc(alloc_size, PAGE_SIZE);
+	paddr = memblock_alloc(alloc_size, PAGE_SIZE);
 
 	hp = NULL;
 	if (paddr) {
@@ -106,32 +107,22 @@ static struct mdesc_handle * __init mdesc_lmb_alloc(unsigned int mdesc_size)
 	return hp;
 }
 
-static void mdesc_lmb_free(struct mdesc_handle *hp)
+static void mdesc_memblock_free(struct mdesc_handle *hp)
 {
-	unsigned int alloc_size, handle_size = hp->handle_size;
-	unsigned long start, end;
+	unsigned int alloc_size;
+	unsigned long start;
 
 	BUG_ON(atomic_read(&hp->refcnt) != 0);
 	BUG_ON(!list_empty(&hp->list));
 
-	alloc_size = PAGE_ALIGN(handle_size);
-
-	start = (unsigned long) hp;
-	end = start + alloc_size;
-
-	while (start < end) {
-		struct page *p;
-
-		p = virt_to_page(start);
-		ClearPageReserved(p);
-		__free_page(p);
-		start += PAGE_SIZE;
-	}
+	alloc_size = PAGE_ALIGN(hp->handle_size);
+	start = __pa(hp);
+	free_bootmem_late(start, alloc_size);
 }
 
-static struct mdesc_mem_ops lmb_mdesc_ops = {
-	.alloc = mdesc_lmb_alloc,
-	.free  = mdesc_lmb_free,
+static struct mdesc_mem_ops memblock_mdesc_ops = {
+	.alloc = mdesc_memblock_alloc,
+	.free  = mdesc_memblock_free,
 };
 
 static struct mdesc_handle *mdesc_kmalloc(unsigned int mdesc_size)
@@ -923,7 +914,7 @@ void __init sun4v_mdesc_init(void)
 
 	printk("MDESC: Size is %lu bytes.\n", len);
 
-	hp = mdesc_alloc(len, &lmb_mdesc_ops);
+	hp = mdesc_alloc(len, &memblock_mdesc_ops);
 	if (hp == NULL) {
 		prom_printf("MDESC: alloc of %lu bytes failed.\n", len);
 		prom_halt();

@@ -33,7 +33,6 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 #include <linux/pagemap.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
@@ -64,32 +63,6 @@ static int debug;
 static LIST_HEAD(pci_hotplug_slot_list);
 static DEFINE_MUTEX(pci_hp_mutex);
 
-/* these strings match up with the values in pci_bus_speed */
-static char *pci_bus_speed_strings[] = {
-	"33 MHz PCI",		/* 0x00 */
-	"66 MHz PCI",		/* 0x01 */
-	"66 MHz PCIX", 		/* 0x02 */
-	"100 MHz PCIX",		/* 0x03 */
-	"133 MHz PCIX",		/* 0x04 */
-	NULL,			/* 0x05 */
-	NULL,			/* 0x06 */
-	NULL,			/* 0x07 */
-	NULL,			/* 0x08 */
-	"66 MHz PCIX 266",	/* 0x09 */
-	"100 MHz PCIX 266",	/* 0x0a */
-	"133 MHz PCIX 266",	/* 0x0b */
-	NULL,			/* 0x0c */
-	NULL,			/* 0x0d */
-	NULL,			/* 0x0e */
-	NULL,			/* 0x0f */
-	NULL,			/* 0x10 */
-	"66 MHz PCIX 533",	/* 0x11 */
-	"100 MHz PCIX 533",	/* 0x12 */
-	"133 MHz PCIX 533",	/* 0x13 */
-	"2.5 GT/s PCI-E",	/* 0x14 */
-	"5.0 GT/s PCI-E",	/* 0x15 */
-};
-
 #ifdef CONFIG_HOTPLUG_PCI_CPCI
 extern int cpci_hotplug_init(int debug);
 extern void cpci_hotplug_exit(void);
@@ -118,8 +91,6 @@ GET_STATUS(power_status, u8)
 GET_STATUS(attention_status, u8)
 GET_STATUS(latch_status, u8)
 GET_STATUS(adapter_status, u8)
-GET_STATUS(max_bus_speed, enum pci_bus_speed)
-GET_STATUS(cur_bus_speed, enum pci_bus_speed)
 
 static ssize_t power_read_file(struct pci_slot *slot, char *buf)
 {
@@ -263,60 +234,6 @@ static struct pci_slot_attribute hotplug_slot_attr_presence = {
 	.show = presence_read_file,
 };
 
-static char *unknown_speed = "Unknown bus speed";
-
-static ssize_t max_bus_speed_read_file(struct pci_slot *slot, char *buf)
-{
-	char *speed_string;
-	int retval;
-	enum pci_bus_speed value;
-	
-	retval = get_max_bus_speed(slot->hotplug, &value);
-	if (retval)
-		goto exit;
-
-	if (value == PCI_SPEED_UNKNOWN)
-		speed_string = unknown_speed;
-	else
-		speed_string = pci_bus_speed_strings[value];
-	
-	retval = sprintf (buf, "%s\n", speed_string);
-
-exit:
-	return retval;
-}
-
-static struct pci_slot_attribute hotplug_slot_attr_max_bus_speed = {
-	.attr = {.name = "max_bus_speed", .mode = S_IFREG | S_IRUGO},
-	.show = max_bus_speed_read_file,
-};
-
-static ssize_t cur_bus_speed_read_file(struct pci_slot *slot, char *buf)
-{
-	char *speed_string;
-	int retval;
-	enum pci_bus_speed value;
-
-	retval = get_cur_bus_speed(slot->hotplug, &value);
-	if (retval)
-		goto exit;
-
-	if (value == PCI_SPEED_UNKNOWN)
-		speed_string = unknown_speed;
-	else
-		speed_string = pci_bus_speed_strings[value];
-	
-	retval = sprintf (buf, "%s\n", speed_string);
-
-exit:
-	return retval;
-}
-
-static struct pci_slot_attribute hotplug_slot_attr_cur_bus_speed = {
-	.attr = {.name = "cur_bus_speed", .mode = S_IFREG | S_IRUGO},
-	.show = cur_bus_speed_read_file,
-};
-
 static ssize_t test_write_file(struct pci_slot *pci_slot, const char *buf,
 		size_t count)
 {
@@ -391,26 +308,6 @@ static bool has_adapter_file(struct pci_slot *pci_slot)
 	return false;
 }
 
-static bool has_max_bus_speed_file(struct pci_slot *pci_slot)
-{
-	struct hotplug_slot *slot = pci_slot->hotplug;
-	if ((!slot) || (!slot->ops))
-		return false;
-	if (slot->ops->get_max_bus_speed)
-		return true;
-	return false;
-}
-
-static bool has_cur_bus_speed_file(struct pci_slot *pci_slot)
-{
-	struct hotplug_slot *slot = pci_slot->hotplug;
-	if ((!slot) || (!slot->ops))
-		return false;
-	if (slot->ops->get_cur_bus_speed)
-		return true;
-	return false;
-}
-
 static bool has_test_file(struct pci_slot *pci_slot)
 {
 	struct hotplug_slot *slot = pci_slot->hotplug;
@@ -456,20 +353,6 @@ static int fs_add_slot(struct pci_slot *slot)
 			goto exit_adapter;
 	}
 
-	if (has_max_bus_speed_file(slot)) {
-		retval = sysfs_create_file(&slot->kobj,
-					&hotplug_slot_attr_max_bus_speed.attr);
-		if (retval)
-			goto exit_max_speed;
-	}
-
-	if (has_cur_bus_speed_file(slot)) {
-		retval = sysfs_create_file(&slot->kobj,
-					&hotplug_slot_attr_cur_bus_speed.attr);
-		if (retval)
-			goto exit_cur_speed;
-	}
-
 	if (has_test_file(slot)) {
 		retval = sysfs_create_file(&slot->kobj,
 					   &hotplug_slot_attr_test.attr);
@@ -480,14 +363,6 @@ static int fs_add_slot(struct pci_slot *slot)
 	goto exit;
 
 exit_test:
-	if (has_cur_bus_speed_file(slot))
-		sysfs_remove_file(&slot->kobj,
-				  &hotplug_slot_attr_cur_bus_speed.attr);
-exit_cur_speed:
-	if (has_max_bus_speed_file(slot))
-		sysfs_remove_file(&slot->kobj,
-				  &hotplug_slot_attr_max_bus_speed.attr);
-exit_max_speed:
 	if (has_adapter_file(slot))
 		sysfs_remove_file(&slot->kobj,
 				  &hotplug_slot_attr_presence.attr);
@@ -522,14 +397,6 @@ static void fs_remove_slot(struct pci_slot *slot)
 	if (has_adapter_file(slot))
 		sysfs_remove_file(&slot->kobj,
 				  &hotplug_slot_attr_presence.attr);
-
-	if (has_max_bus_speed_file(slot))
-		sysfs_remove_file(&slot->kobj,
-				  &hotplug_slot_attr_max_bus_speed.attr);
-
-	if (has_cur_bus_speed_file(slot))
-		sysfs_remove_file(&slot->kobj,
-				  &hotplug_slot_attr_cur_bus_speed.attr);
 
 	if (has_test_file(slot))
 		sysfs_remove_file(&slot->kobj, &hotplug_slot_attr_test.attr);

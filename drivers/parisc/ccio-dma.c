@@ -650,7 +650,7 @@ ccio_clear_io_tlb(struct ioc *ioc, dma_addr_t iovp, size_t byte_cnt)
  * Mark the I/O Pdir entries invalid and blow away the corresponding I/O
  * TLB entries.
  *
- * FIXME: at some threshhold it might be "cheaper" to just blow
+ * FIXME: at some threshold it might be "cheaper" to just blow
  *        away the entire I/O TLB instead of individual entries.
  *
  * FIXME: Uturn has 256 TLB entries. We don't need to purge every
@@ -1241,10 +1241,10 @@ static struct parisc_driver ccio_driver = {
 };
 
 /**
- * ccio_ioc_init - Initalize the I/O Controller
+ * ccio_ioc_init - Initialize the I/O Controller
  * @ioc: The I/O Controller.
  *
- * Initalize the I/O Controller which includes setting up the
+ * Initialize the I/O Controller which includes setting up the
  * I/O Page Directory, the resource map, and initalizing the
  * U2/Uturn chip into virtual mode.
  */

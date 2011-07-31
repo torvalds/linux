@@ -727,7 +727,8 @@ static int create_mixer(struct hda_codec *codec, struct hda_gnode *node,
 		if (is_loopback)
 			add_input_loopback(codec, node->nid, HDA_INPUT, index);
 		snd_printdd("[%s] NID=0x%x, DIR=IN, IDX=0x%x\n", name, node->nid, index);
-		err = snd_hda_ctl_add(codec, snd_ctl_new1(&knew, codec));
+		err = snd_hda_ctl_add(codec, node->nid,
+					snd_ctl_new1(&knew, codec));
 		if (err < 0)
 			return err;
 		created = 1;
@@ -737,7 +738,8 @@ static int create_mixer(struct hda_codec *codec, struct hda_gnode *node,
 		if (is_loopback)
 			add_input_loopback(codec, node->nid, HDA_OUTPUT, 0);
 		snd_printdd("[%s] NID=0x%x, DIR=OUT\n", name, node->nid);
-		err = snd_hda_ctl_add(codec, snd_ctl_new1(&knew, codec));
+		err = snd_hda_ctl_add(codec, node->nid,
+					snd_ctl_new1(&knew, codec));
 		if (err < 0)
 			return err;
 		created = 1;
@@ -751,7 +753,8 @@ static int create_mixer(struct hda_codec *codec, struct hda_gnode *node,
 	    (node->amp_in_caps & AC_AMPCAP_NUM_STEPS)) {
 		knew = (struct snd_kcontrol_new)HDA_CODEC_VOLUME(name, node->nid, index, HDA_INPUT);
 		snd_printdd("[%s] NID=0x%x, DIR=IN, IDX=0x%x\n", name, node->nid, index);
-		err = snd_hda_ctl_add(codec, snd_ctl_new1(&knew, codec));
+		err = snd_hda_ctl_add(codec, node->nid,
+					snd_ctl_new1(&knew, codec));
 		if (err < 0)
 			return err;
 		created = 1;
@@ -759,7 +762,8 @@ static int create_mixer(struct hda_codec *codec, struct hda_gnode *node,
 		   (node->amp_out_caps & AC_AMPCAP_NUM_STEPS)) {
 		knew = (struct snd_kcontrol_new)HDA_CODEC_VOLUME(name, node->nid, 0, HDA_OUTPUT);
 		snd_printdd("[%s] NID=0x%x, DIR=OUT\n", name, node->nid);
-		err = snd_hda_ctl_add(codec, snd_ctl_new1(&knew, codec));
+		err = snd_hda_ctl_add(codec, node->nid,
+					snd_ctl_new1(&knew, codec));
 		if (err < 0)
 			return err;
 		created = 1;
@@ -857,7 +861,8 @@ static int build_input_controls(struct hda_codec *codec)
 	}
 
 	/* create input MUX if multiple sources are available */
-	err = snd_hda_ctl_add(codec, snd_ctl_new1(&cap_sel, codec));
+	err = snd_hda_ctl_add(codec, spec->adc_node->nid,
+			      snd_ctl_new1(&cap_sel, codec));
 	if (err < 0)
 		return err;
 
@@ -875,7 +880,8 @@ static int build_input_controls(struct hda_codec *codec)
 			HDA_CODEC_VOLUME(name, adc_node->nid,
 					 spec->input_mux.items[i].index,
 					 HDA_INPUT);
-		err = snd_hda_ctl_add(codec, snd_ctl_new1(&knew, codec));
+		err = snd_hda_ctl_add(codec, adc_node->nid,
+					snd_ctl_new1(&knew, codec));
 		if (err < 0)
 			return err;
 	}

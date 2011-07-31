@@ -10,6 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
+#include <linux/slab.h>
 
 MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
 MODULE_DESCRIPTION("TI BQ4802 RTC driver");
@@ -169,6 +170,8 @@ static int __devinit bq4802_probe(struct platform_device *pdev)
 		goto out_free;
 	}
 
+	platform_set_drvdata(pdev, p);
+
 	p->rtc = rtc_device_register("bq4802", &pdev->dev,
 				     &bq4802_ops, THIS_MODULE);
 	if (IS_ERR(p->rtc)) {
@@ -176,7 +179,6 @@ static int __devinit bq4802_probe(struct platform_device *pdev)
 		goto out_iounmap;
 	}
 
-	platform_set_drvdata(pdev, p);
 	err = 0;
 out:
 	return err;

@@ -257,7 +257,7 @@ static long coh901327_ioctl(struct file *file, unsigned int cmd,
 		struct watchdog_info __user *ident;
 		int __user *i;
 	} uarg;
-	static struct watchdog_info ident = {
+	static const struct watchdog_info ident = {
 		.options		= WDIOF_CARDRESET |
 					  WDIOF_SETTIMEOUT |
 					  WDIOF_KEEPALIVEPING,
@@ -508,7 +508,7 @@ void coh901327_watchdog_reset(void)
 	 * deactivating the watchdog before it is shut down by it.
 	 *
 	 * NOTE: on future versions of the watchdog, this restriction is
-	 * gone: the watchdog will be reloaded with a defaul value (1 min)
+	 * gone: the watchdog will be reloaded with a default value (1 min)
 	 * instead of last value, and you can conveniently set the watchdog
 	 * timeout to 10ms (value = 1) without any problems.
 	 */

@@ -1,7 +1,6 @@
-/* @file gl860-ov9655.c
- * @author Olivier LORIN, from logs done by Simon (Sur3) and Almighurt
+/* Subdriver for the GL860 chip with the OV9655 sensor
+ * Author Olivier LORIN, from logs done by Simon (Sur3) and Almighurt
  * on dsd's weblog
- * @date 2009-08-27
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -70,7 +69,7 @@ static u8 *tbl_640[] = {
 	"\xd0\x01\xd1\x08\xd2\xe0\xd3\x01" "\xd4\x10\xd5\x80"
 };
 
-static u8 *tbl_800[] = {
+static u8 *tbl_1280[] = {
 	"\x00\x40\x07\x6a\x06\xf3\x0d\x6a" "\x10\x10\xc1\x01"
 	,
 	"\x12\x80\x00\x00\x01\x98\x02\x80" "\x03\x12\x04\x01\x0b\x57\x0e\x61"
@@ -104,14 +103,14 @@ static u8 *tbl_800[] = {
 };
 
 static u8 c04[] = {0x04};
-static u8 dat_post_1[] = "\x04\x00\x10\x20\xa1\x00\x00\x02";
-static u8 dat_post_2[] = "\x10\x10\xc1\x02";
-static u8 dat_post_3[] = "\x04\x00\x10\x7c\xa1\x00\x00\x04";
-static u8 dat_post_4[] = "\x10\x02\xc1\x06";
-static u8 dat_post_5[] = "\x04\x00\x10\x7b\xa1\x00\x00\x08";
-static u8 dat_post_6[] = "\x10\x10\xc1\x05";
-static u8 dat_post_7[] = "\x04\x00\x10\x7c\xa1\x00\x00\x08";
-static u8 dat_post_8[] = "\x04\x00\x10\x7c\xa1\x00\x00\x09";
+static u8 dat_post1[] = "\x04\x00\x10\x20\xa1\x00\x00\x02";
+static u8 dat_post2[] = "\x10\x10\xc1\x02";
+static u8 dat_post3[] = "\x04\x00\x10\x7c\xa1\x00\x00\x04";
+static u8 dat_post4[] = "\x10\x02\xc1\x06";
+static u8 dat_post5[] = "\x04\x00\x10\x7b\xa1\x00\x00\x08";
+static u8 dat_post6[] = "\x10\x10\xc1\x05";
+static u8 dat_post7[] = "\x04\x00\x10\x7c\xa1\x00\x00\x08";
+static u8 dat_post8[] = "\x04\x00\x10\x7c\xa1\x00\x00\x09";
 
 static struct validx tbl_init_post_alt[] = {
 	{0x6032, 0x00ff}, {0x6032, 0x00ff}, {0x6032, 0x00ff}, {0x603c, 0x00ff},
@@ -212,13 +211,13 @@ static int ov9655_init_pre_alt(struct gspca_dev *gspca_dev)
 static int ov9655_init_post_alt(struct gspca_dev *gspca_dev)
 {
 	s32 reso = gspca_dev->cam.cam_mode[(s32) gspca_dev->curr_mode].priv;
-	s32 n; /* reserved for FETCH macros */
+	s32 n; /* reserved for FETCH functions */
 	s32 i;
 	u8 **tbl;
 
 	ctrl_out(gspca_dev, 0x40, 5, 0x0001, 0x0000, 0, NULL);
 
-	tbl = (reso == IMAGE_640) ? tbl_640 : tbl_800;
+	tbl = (reso == IMAGE_640) ? tbl_640 : tbl_1280;
 
 	ctrl_out(gspca_dev, 0x40, 3, 0x0000, 0x0200,
 			tbl_length[0], tbl[0]);
@@ -243,7 +242,7 @@ static int ov9655_init_post_alt(struct gspca_dev *gspca_dev)
 	ctrl_in(gspca_dev, 0xc0, 2, 0x6000, 0x801e, 1, c04);
 	keep_on_fetching_validx(gspca_dev, tbl_init_post_alt,
 					ARRAY_SIZE(tbl_init_post_alt), n);
-	ctrl_out(gspca_dev, 0x40, 3, 0x6000, 0x0200, 8, dat_post_1);
+	ctrl_out(gspca_dev, 0x40, 3, 0x6000, 0x0200, 8, dat_post1);
 	keep_on_fetching_validx(gspca_dev, tbl_init_post_alt,
 					ARRAY_SIZE(tbl_init_post_alt), n);
 
@@ -259,7 +258,7 @@ static int ov9655_init_post_alt(struct gspca_dev *gspca_dev)
 	ctrl_in(gspca_dev, 0xc0, 2, 0x6000, 0x801e, 1, c04);
 	keep_on_fetching_validx(gspca_dev, tbl_init_post_alt,
 					ARRAY_SIZE(tbl_init_post_alt), n);
-	ctrl_out(gspca_dev, 0x40, 3, 0x6000, 0x0200, 8, dat_post_1);
+	ctrl_out(gspca_dev, 0x40, 3, 0x6000, 0x0200, 8, dat_post1);
 	keep_on_fetching_validx(gspca_dev, tbl_init_post_alt,
 					ARRAY_SIZE(tbl_init_post_alt), n);
 
@@ -270,18 +269,18 @@ static int ov9655_init_post_alt(struct gspca_dev *gspca_dev)
 	keep_on_fetching_validx(gspca_dev, tbl_init_post_alt,
 					ARRAY_SIZE(tbl_init_post_alt), n);
 
-	ctrl_out(gspca_dev, 0x40, 3, 0x6000, 0x0200, 8, dat_post_1);
+	ctrl_out(gspca_dev, 0x40, 3, 0x6000, 0x0200, 8, dat_post1);
 
-	ctrl_out(gspca_dev, 0x40, 3, 0x0000, 0x0200, 4, dat_post_2);
-	ctrl_out(gspca_dev, 0x40, 3, 0x6000, 0x0200, 8, dat_post_3);
+	ctrl_out(gspca_dev, 0x40, 3, 0x0000, 0x0200, 4, dat_post2);
+	ctrl_out(gspca_dev, 0x40, 3, 0x6000, 0x0200, 8, dat_post3);
 
-	ctrl_out(gspca_dev, 0x40, 3, 0x0000, 0x0200, 4, dat_post_4);
-	ctrl_out(gspca_dev, 0x40, 3, 0x6000, 0x0200, 8, dat_post_5);
+	ctrl_out(gspca_dev, 0x40, 3, 0x0000, 0x0200, 4, dat_post4);
+	ctrl_out(gspca_dev, 0x40, 3, 0x6000, 0x0200, 8, dat_post5);
 
-	ctrl_out(gspca_dev, 0x40, 3, 0x0000, 0x0200, 4, dat_post_6);
-	ctrl_out(gspca_dev, 0x40, 3, 0x6000, 0x0200, 8, dat_post_7);
+	ctrl_out(gspca_dev, 0x40, 3, 0x0000, 0x0200, 4, dat_post6);
+	ctrl_out(gspca_dev, 0x40, 3, 0x6000, 0x0200, 8, dat_post7);
 
-	ctrl_out(gspca_dev, 0x40, 3, 0x6000, 0x0200, 8, dat_post_8);
+	ctrl_out(gspca_dev, 0x40, 3, 0x6000, 0x0200, 8, dat_post8);
 
 	ov9655_camera_settings(gspca_dev);
 

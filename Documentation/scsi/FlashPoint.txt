@@ -13,7 +13,7 @@ operating system support to its BusLogic brand of FlashPoint Ultra SCSI
 host adapters.  All of BusLogic's other SCSI host adapters, including the
 MultiMaster line, currently support the Linux operating system.  Linux
 drivers and information will be available on October 15th at
-http://www.dandelion.com/Linux/.
+http://sourceforge.net/projects/dandelion/.
 
 "Mylex is committed to supporting the Linux community," says Peter Shambora,
 vice president of marketing for Mylex.  "We have supported Linux driver
@@ -27,7 +27,7 @@ Linux is a freely-distributed implementation of UNIX for Intel x86, Sun
 SPARC, SGI MIPS, Motorola 68k, Digital Alpha AXP and Motorola PowerPC
 machines.  It supports a wide range of software, including the X Window
 System, Emacs, and TCP/IP networking.  Further information is available at
-http://www.linux.org and http://www.ssc.com/linux.
+http://www.linux.org and http://www.ssc.com/.
 
 FlashPoint Host Adapters
 
@@ -71,7 +71,7 @@ peters@mylex.com
 
 Ever since its introduction last October, the BusLogic FlashPoint LT has
 been problematic for members of the Linux community, in that no Linux
-drivers have been available for this new Ultra SCSI product.  Despite it's
+drivers have been available for this new Ultra SCSI product.  Despite its
 officially being positioned as a desktop workstation product, and not being
 particularly well suited for a high performance multitasking operating
 system like Linux, the FlashPoint LT has been touted by computer system

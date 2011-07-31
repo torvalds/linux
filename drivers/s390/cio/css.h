@@ -11,6 +11,8 @@
 #include <asm/chpid.h>
 #include <asm/schid.h>
 
+#include "cio.h"
+
 /*
  * path grouping stuff
  */
@@ -93,7 +95,7 @@ struct css_driver {
 	int (*freeze)(struct subchannel *);
 	int (*thaw) (struct subchannel *);
 	int (*restore)(struct subchannel *);
-	void (*settle)(void);
+	int (*settle)(void);
 	const char *name;
 };
 
@@ -144,11 +146,13 @@ extern struct channel_subsystem *channel_subsystems[];
 /* Helper functions to build lists for the slow path. */
 void css_schedule_eval(struct subchannel_id schid);
 void css_schedule_eval_all(void);
+int css_complete_work(void);
 
 int sch_is_pseudo_sch(struct subchannel *);
 struct schib;
 int css_sch_is_valid(struct schib *);
 
-extern struct workqueue_struct *slow_path_wq;
+extern struct workqueue_struct *cio_work_q;
 void css_wait_for_slow_path(void);
+void css_sched_sch_todo(struct subchannel *sch, enum sch_todo todo);
 #endif

@@ -7,6 +7,8 @@
 #define MAX_CODADEVS  5	   /* how many do we allow */
 
 #ifdef __KERNEL__
+#include <linux/backing-dev.h>
+
 struct kstatfs;
 
 /* communication pending/processing queues */
@@ -17,6 +19,7 @@ struct venus_comm {
 	struct list_head    vc_processing;
 	int                 vc_inuse;
 	struct super_block *vc_sb;
+	struct backing_dev_info bdi;
 };
 
 
@@ -83,9 +86,9 @@ struct upc_req {
 	wait_queue_head_t   uc_sleep;   /* process' wait queue */
 };
 
-#define REQ_ASYNC  0x1
-#define REQ_READ   0x2
-#define REQ_WRITE  0x4
-#define REQ_ABORT  0x8
+#define CODA_REQ_ASYNC  0x1
+#define CODA_REQ_READ   0x2
+#define CODA_REQ_WRITE  0x4
+#define CODA_REQ_ABORT  0x8
 
 #endif

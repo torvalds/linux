@@ -170,6 +170,25 @@ config IPV6_SIT
 
 	  Saying M here will produce a module called sit. If unsure, say Y.
 
+config IPV6_SIT_6RD
+	bool "IPv6: IPv6 Rapid Deployment (6RD) (EXPERIMENTAL)"
+	depends on IPV6_SIT && EXPERIMENTAL
+	default n
+	---help---
+	  IPv6 Rapid Deployment (6rd; draft-ietf-softwire-ipv6-6rd) builds upon
+	  mechanisms of 6to4 (RFC3056) to enable a service provider to rapidly
+	  deploy IPv6 unicast service to IPv4 sites to which it provides
+	  customer premise equipment.  Like 6to4, it utilizes stateless IPv6 in
+	  IPv4 encapsulation in order to transit IPv4-only network
+	  infrastructure.  Unlike 6to4, a 6rd service provider uses an IPv6
+	  prefix of its own in place of the fixed 6to4 prefix.
+
+	  With this option enabled, the SIT driver offers 6rd functionality by
+	  providing additional ioctl API to configure the IPv6 Prefix for in
+	  stead of static 2002::/16 for 6to4.
+
+	  If unsure, say N.
+
 config IPV6_NDISC_NODETYPE
 	bool
 
@@ -208,6 +227,20 @@ config IPV6_MROUTE
 	depends on IPV6 && EXPERIMENTAL
 	---help---
 	  Experimental support for IPv6 multicast forwarding.
+	  If unsure, say N.
+
+config IPV6_MROUTE_MULTIPLE_TABLES
+	bool "IPv6: multicast policy routing"
+	depends on IPV6_MROUTE
+	select FIB_RULES
+	help
+	  Normally, a multicast router runs a userspace daemon and decides
+	  what to do with a multicast packet based on the source and
+	  destination addresses. If you say Y here, the multicast router
+	  will also be able to take interfaces and packet marks into
+	  account and run multiple instances of userspace daemons
+	  simultaneously, each one handling a single table.
+
 	  If unsure, say N.
 
 config IPV6_PIMSM_V2

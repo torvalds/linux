@@ -4,8 +4,6 @@ config DREAM
 
 if DREAM
 
-source "drivers/staging/dream/smd/Kconfig"
-
 source "drivers/staging/dream/camera/Kconfig"
 
 config INPUT_GPIO

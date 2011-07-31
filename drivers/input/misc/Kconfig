@@ -18,6 +18,46 @@ config INPUT_LPSENSOR_ISL29028
 config INPUT_LPSENSOR_CM3602
 	tristate "l/p sensor input support"
 
+config INPUT_88PM860X_ONKEY
+	tristate "88PM860x ONKEY support"
+	depends on MFD_88PM860X
+	help
+	  Support the ONKEY of Marvell 88PM860x PMICs as an input device
+	  reporting power button status.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 88pm860x_onkey.
+
+config INPUT_AD714X
+	tristate "Analog Devices AD714x Capacitance Touch Sensor"
+	help
+	  Say Y here if you want to support an AD7142/3/7/8/7A touch sensor.
+
+	  You should select a bus connection too.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad714x.
+
+config INPUT_AD714X_I2C
+	tristate "support I2C bus connection"
+	depends on INPUT_AD714X && I2C
+	default y
+	help
+	  Say Y here if you have AD7142/AD7147 hooked to an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad714x-i2c.
+
+config INPUT_AD714X_SPI
+	tristate "support SPI bus connection"
+	depends on INPUT_AD714X && SPI
+	default y
+	help
+	  Say Y here if you have AD7142/AD7147 hooked to a SPI bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad714x-spi.
+
 config INPUT_PCSPKR
 	tristate "PC Speaker support"
 	depends on PCSPKR_PLATFORM
@@ -45,6 +85,16 @@ config INPUT_SPARCSPKR
 config INPUT_M68K_BEEP
 	tristate "M68k Beeper support"
 	depends on M68K
+
+config INPUT_MAX8925_ONKEY
+	tristate "MAX8925 ONKEY support"
+	depends on MFD_MAX8925
+	help
+	  Support the ONKEY of MAX8925 PMICs as an input device
+	  reporting power button status.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called max8925_onkey.
 
 config INPUT_APANEL
 	tristate "Fujitsu Lifebook Application Panel buttons"
@@ -86,6 +136,7 @@ config INPUT_WISTRON_BTNS
 	tristate "x86 Wistron laptop button interface"
 	depends on X86 && !X86_64
 	select INPUT_POLLDEV
+	select INPUT_SPARSEKMAP
 	select NEW_LEDS
 	select LEDS_CLASS
 	select CHECK_SIGNATURE
@@ -137,6 +188,17 @@ config INPUT_ATI_REMOTE2
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ati_remote2.
+
+config INPUT_KEYCHORD
+	tristate "Key chord input driver support"
+	help
+	  Say Y here if you want to enable the key chord driver
+	  accessible at /dev/keychord.  This driver can be used
+	  for receiving notifications when client specified key
+	  combinations are pressed.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called keychord.
 
 config INPUT_KEYSPAN_REMOTE
 	tristate "Keyspan DMR USB remote control (EXPERIMENTAL)"
@@ -199,6 +261,16 @@ config INPUT_CM109
 	  To compile this driver as a module, choose M here: the module will be
 	  called cm109.
 
+config INPUT_TPS65910_PWRBUTTON
+	tristate "TPS65910 Power button Driver"
+	depends on TPS65910_CORE
+	help
+	  Say Y here if you want to enable power key reporting via the
+	  TPS65910 family of chips.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called tps65910_pwrbutton.
+
 config INPUT_TWL4030_PWRBUTTON
 	tristate "TWL4030 Power button Driver"
 	depends on TWL4030_CORE
@@ -209,15 +281,16 @@ config INPUT_TWL4030_PWRBUTTON
 	  To compile this driver as a module, choose M here. The module will
 	  be called twl4030_pwrbutton.
 
-config INPUT_TPS65910_PWRBUTTON
-	tristate "TPS65910 Power button Driver"
-	depends on TPS65910_CORE
+config INPUT_TWL4030_VIBRA
+	tristate "Support for TWL4030 Vibrator"
+	depends on TWL4030_CORE
+	select TWL4030_CODEC
+	select INPUT_FF_MEMLESS
 	help
-	  Say Y here if you want to enable power key reporting via the
-	  TPS65910 family of chips.
+	  This option enables support for TWL4030 Vibrator Driver.
 
 	  To compile this driver as a module, choose M here. The module will
-	  be called tps65910_pwrbutton.
+	  be called twl4030_vibra.
 
 config INPUT_UINPUT
 	tristate "User level driver support"
@@ -256,6 +329,11 @@ config INPUT_WINBOND_CIR
 	  To compile this driver as a module, choose M here: the module will be
 	  called winbond_cir.
 
+config INPUT_GPIO
+	tristate "GPIO driver support"
+	help
+	  Say Y here if you want to support gpio based keys, wheels etc...
+
 config HP_SDC_RTC
 	tristate "HP SDC Real Time Clock"
 	depends on (GSC || HP300) && SERIO
@@ -270,6 +348,27 @@ config INPUT_PCF50633_PMU
 	help
 	 Say Y to include support for delivering  PMU events via  input
 	 layer on NXP PCF50633.
+
+config INPUT_PCF8574
+	tristate "PCF8574 Keypad input device"
+	depends on I2C && EXPERIMENTAL
+	help
+	  Say Y here if you want to support a keypad connetced via I2C
+	  with a PCF8574.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pcf8574_keypad.
+
+config INPUT_PWM_BEEPER
+	tristate "PWM beeper support"
+	depends on HAVE_PWM
+	help
+	  Say Y here to get support for PWM based beeper devices.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called pwm-beeper.
 
 config INPUT_GPIO_ROTARY_ENCODER
 	tristate "Rotary encoders connected to GPIO pins"
@@ -297,6 +396,7 @@ config INPUT_RB532_BUTTON
 config INPUT_DM355EVM
 	tristate "TI DaVinci DM355 EVM Keypad and IR Remote"
 	depends on MFD_DM355EVM_MSP
+	select INPUT_SPARSEKMAP
 	help
 	  Supports the pushbuttons and IR remote used with
 	  the DM355 EVM board.
@@ -332,5 +432,42 @@ config INPUT_PCAP
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pcap_keys.
+
+config INPUT_ADXL34X
+	tristate "Analog Devices ADXL34x Three-Axis Digital Accelerometer"
+	default n
+	help
+	  Say Y here if you have a Accelerometer interface using the
+	  ADXL345/6 controller, and your board-specific initialization
+	  code includes that in its table of devices.
+
+	  This driver can use either I2C or SPI communication to the
+	  ADXL345/6 controller.  Select the appropriate method for
+	  your system.
+
+	  If unsure, say N (but it's safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adxl34x.
+
+config INPUT_ADXL34X_I2C
+	tristate "support I2C bus connection"
+	depends on INPUT_ADXL34X && I2C
+	default y
+	help
+	  Say Y here if you have ADXL345/6 hooked to an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adxl34x-i2c.
+
+config INPUT_ADXL34X_SPI
+	tristate "support SPI bus connection"
+	depends on INPUT_ADXL34X && SPI
+	default y
+	help
+	  Say Y here if you have ADXL345/6 hooked to a SPI bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adxl34x-spi.
 
 endif

@@ -30,6 +30,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 
 #include "uwb-internal.h"

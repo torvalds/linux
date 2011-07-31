@@ -27,7 +27,6 @@
 #include <linux/buffer_head.h>
 #include <linux/bio.h>
 #include <linux/completion.h>
-#include <linux/backing-dev.h>
 
 /**
  * struct nilfs_segsum_info - On-memory segment summary
@@ -38,6 +37,7 @@
  * @sumbytes: Byte count of segment summary
  * @nfileblk: Total number of file blocks
  * @seg_seq: Segment sequence number
+ * @cno: Checkpoint number
  * @ctime: Creation time
  * @next: Block number of the next full segment
  */
@@ -49,20 +49,10 @@ struct nilfs_segsum_info {
 	unsigned long		sumbytes;
 	unsigned long		nfileblk;
 	u64			seg_seq;
+	__u64			cno;
 	time_t			ctime;
 	sector_t		next;
 };
-
-/* macro for the flags */
-#define NILFS_SEG_HAS_SR(sum)    ((sum)->flags & NILFS_SS_SR)
-#define NILFS_SEG_LOGBGN(sum)    ((sum)->flags & NILFS_SS_LOGBGN)
-#define NILFS_SEG_LOGEND(sum)    ((sum)->flags & NILFS_SS_LOGEND)
-#define NILFS_SEG_DSYNC(sum)     ((sum)->flags & NILFS_SS_SYNDT)
-#define NILFS_SEG_SIMPLEX(sum) \
-	(((sum)->flags & (NILFS_SS_LOGBGN | NILFS_SS_LOGEND)) == \
-	 (NILFS_SS_LOGBGN | NILFS_SS_LOGEND))
-
-#define NILFS_SEG_EMPTY(sum)	((sum)->nblocks == (sum)->nsumblk)
 
 /**
  * struct nilfs_segment_buffer - Segment buffer
@@ -77,7 +67,10 @@ struct nilfs_segsum_info {
  * @sb_rest_blocks: Number of residual blocks in the current segment
  * @sb_segsum_buffers: List of buffers for segment summaries
  * @sb_payload_buffers: List of buffers for segment payload
- * @sb_io_error: I/O error status
+ * @sb_super_root: Pointer to buffer storing a super root block (if exists)
+ * @sb_nbio: Number of flying bio requests
+ * @sb_err: I/O error status
+ * @sb_bio_event: Completion event of log writing
  */
 struct nilfs_segment_buffer {
 	struct super_block     *sb_super;
@@ -94,9 +87,12 @@ struct nilfs_segment_buffer {
 	/* Buffers */
 	struct list_head	sb_segsum_buffers;
 	struct list_head	sb_payload_buffers; /* including super root */
+	struct buffer_head     *sb_super_root;
 
 	/* io status */
-	int			sb_io_error;
+	int			sb_nbio;
+	atomic_t		sb_err;
+	struct completion	sb_bio_event;
 };
 
 #define NILFS_LIST_SEGBUF(head)  \
@@ -118,22 +114,34 @@ struct nilfs_segment_buffer {
 		    b_assoc_buffers))
 #define NILFS_SEGBUF_BH_IS_LAST(bh, head)  ((bh)->b_assoc_buffers.next == head)
 
+extern struct kmem_cache *nilfs_segbuf_cachep;
 
-int __init nilfs_init_segbuf_cache(void);
-void nilfs_destroy_segbuf_cache(void);
 struct nilfs_segment_buffer *nilfs_segbuf_new(struct super_block *);
 void nilfs_segbuf_free(struct nilfs_segment_buffer *);
 void nilfs_segbuf_map(struct nilfs_segment_buffer *, __u64, unsigned long,
 		      struct the_nilfs *);
+void nilfs_segbuf_map_cont(struct nilfs_segment_buffer *segbuf,
+			   struct nilfs_segment_buffer *prev);
 void nilfs_segbuf_set_next_segnum(struct nilfs_segment_buffer *, __u64,
 				  struct the_nilfs *);
-int nilfs_segbuf_reset(struct nilfs_segment_buffer *, unsigned, time_t);
+int nilfs_segbuf_reset(struct nilfs_segment_buffer *, unsigned, time_t, __u64);
 int nilfs_segbuf_extend_segsum(struct nilfs_segment_buffer *);
 int nilfs_segbuf_extend_payload(struct nilfs_segment_buffer *,
 				struct buffer_head **);
 void nilfs_segbuf_fill_in_segsum(struct nilfs_segment_buffer *);
-void nilfs_segbuf_fill_in_segsum_crc(struct nilfs_segment_buffer *, u32);
-void nilfs_segbuf_fill_in_data_crc(struct nilfs_segment_buffer *, u32);
+
+static inline int nilfs_segbuf_simplex(struct nilfs_segment_buffer *segbuf)
+{
+	unsigned int flags = segbuf->sb_sum.flags;
+
+	return (flags & (NILFS_SS_LOGBGN | NILFS_SS_LOGEND)) ==
+		(NILFS_SS_LOGBGN | NILFS_SS_LOGEND);
+}
+
+static inline int nilfs_segbuf_empty(struct nilfs_segment_buffer *segbuf)
+{
+	return segbuf->sb_sum.nblocks == segbuf->sb_sum.nsumblk;
+}
 
 static inline void
 nilfs_segbuf_add_segsum_buffer(struct nilfs_segment_buffer *segbuf,
@@ -161,41 +169,16 @@ nilfs_segbuf_add_file_buffer(struct nilfs_segment_buffer *segbuf,
 	segbuf->sb_sum.nfileblk++;
 }
 
-void nilfs_release_buffers(struct list_head *);
+void nilfs_clear_logs(struct list_head *logs);
+void nilfs_truncate_logs(struct list_head *logs,
+			 struct nilfs_segment_buffer *last);
+int nilfs_write_logs(struct list_head *logs, struct the_nilfs *nilfs);
+int nilfs_wait_on_logs(struct list_head *logs);
+void nilfs_add_checksums_on_logs(struct list_head *logs, u32 seed);
 
-static inline void nilfs_segbuf_clear(struct nilfs_segment_buffer *segbuf)
+static inline void nilfs_destroy_logs(struct list_head *logs)
 {
-	nilfs_release_buffers(&segbuf->sb_segsum_buffers);
-	nilfs_release_buffers(&segbuf->sb_payload_buffers);
+	nilfs_truncate_logs(logs, NULL);
 }
-
-struct nilfs_write_info {
-	struct bio	       *bio;
-	int 			start, end; /* The region to be submitted */
-	int			rest_blocks;
-	int			max_pages;
-	int			nr_vecs;
-	sector_t		blocknr;
-
-	int			nbio;
-	atomic_t		err;
-	struct completion	bio_event;
-				/* completion event of segment write */
-
-	/*
-	 * The following fields must be set explicitly
-	 */
-	struct super_block     *sb;
-	struct backing_dev_info *bdi; /* backing dev info */
-	struct buffer_head     *bh_sr;
-};
-
-
-void nilfs_segbuf_prepare_write(struct nilfs_segment_buffer *,
-				struct nilfs_write_info *);
-int nilfs_segbuf_write(struct nilfs_segment_buffer *,
-		       struct nilfs_write_info *);
-int nilfs_segbuf_wait(struct nilfs_segment_buffer *,
-		      struct nilfs_write_info *);
 
 #endif /* _NILFS_SEGBUF_H */

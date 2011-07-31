@@ -36,7 +36,7 @@ struct wm8993_platform_data {
 	unsigned int micbias1_lvl:1;
 	unsigned int micbias2_lvl:1;
 
-	/* Jack detect threashold levels, see datasheet for values */
+	/* Jack detect threshold levels, see datasheet for values */
 	unsigned int jd_scthr:2;
 	unsigned int jd_thr:2;
 };

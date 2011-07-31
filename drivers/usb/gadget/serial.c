@@ -137,7 +137,7 @@ MODULE_PARM_DESC(n_ports, "number of ports to create, default=1");
 
 /*-------------------------------------------------------------------------*/
 
-static int __init serial_bind_config(struct usb_configuration *c)
+static int __ref serial_bind_config(struct usb_configuration *c)
 {
 	unsigned i;
 	int status = 0;
@@ -161,7 +161,7 @@ static struct usb_configuration serial_config_driver = {
 	.bmAttributes	= USB_CONFIG_ATT_SELFPOWER,
 };
 
-static int __init gs_bind(struct usb_composite_dev *cdev)
+static int __ref gs_bind(struct usb_composite_dev *cdev)
 {
 	int			gcnum;
 	struct usb_gadget	*gadget = cdev->gadget;

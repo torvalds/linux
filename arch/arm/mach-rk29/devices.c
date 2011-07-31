@@ -805,6 +805,19 @@ struct platform_device rk29_device_usb20_host = {
 };
 #endif
 
+static struct resource rk29_pmu_resource = {
+	.start		= IRQ_A8IRQ3,
+	.end		= IRQ_A8IRQ3,
+	.flags		= IORESOURCE_IRQ,
+};
+
+struct platform_device rk29_device_pmu = {
+	.name		= "arm-pmu",
+	.id		= ARM_PMU_DEVICE_CPU,
+	.num_resources	= 1,
+	.resource	= &rk29_pmu_resource,
+};
+
 static int boot_mode;
 static int __init boot_mode_init(char *s)
 {
@@ -831,3 +844,9 @@ int board_boot_mode(void)
 }
 EXPORT_SYMBOL(board_boot_mode);
 
+static int __init rk29_init_devices(void)
+{
+	platform_device_register(&rk29_pmu_device);
+        return 0;
+}
+arch_initcall(rk29_init_devices);

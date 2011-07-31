@@ -310,8 +310,6 @@ struct controller {
 	u8 first_slot;
 	u8 add_support;
 	u8 push_flag;
-	enum pci_bus_speed speed;
-	enum pci_bus_speed speed_capability;
 	u8 push_button;			/* 0 = no pushbutton, 1 = pushbutton present */
 	u8 slot_switch_type;		/* 0 = no switch, 1 = switch present */
 	u8 defeature_PHP;		/* 0 = PHP not supported, 1 = PHP supported */

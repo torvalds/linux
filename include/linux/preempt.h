@@ -105,6 +105,11 @@ struct preempt_notifier;
  * @sched_out: we've just been preempted
  *    notifier: struct preempt_notifier for the task being preempted
  *    next: the task that's kicking us out
+ *
+ * Please note that sched_in and out are called under different
+ * contexts.  sched_out is called with rq lock held and irq disabled
+ * while sched_in is called without rq lock and irq enabled.  This
+ * difference is intentional and depended upon by its users.
  */
 struct preempt_ops {
 	void (*sched_in)(struct preempt_notifier *notifier, int cpu);

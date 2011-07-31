@@ -337,7 +337,7 @@ bool kmemcheck_is_obj_initialized(unsigned long addr, size_t size)
 	if (!shadow)
 		return true;
 
-	status = kmemcheck_shadow_test(shadow, size);
+	status = kmemcheck_shadow_test_all(shadow, size);
 
 	return status == KMEMCHECK_SHADOW_INITIALIZED;
 }

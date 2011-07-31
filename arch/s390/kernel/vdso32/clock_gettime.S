@@ -38,13 +38,13 @@ __kernel_clock_gettime:
 	sl	%r1,__VDSO_XTIME_STAMP+4(%r5)
 	brc	3,2f
 	ahi	%r0,-1
-2:	mhi	%r0,1000			/* cyc2ns(clock,cycle_delta) */
+2:	ms	%r0,__VDSO_NTP_MULT(%r5)	/* cyc2ns(clock,cycle_delta) */
 	lr	%r2,%r0
-	lhi	%r0,1000
+	l	%r0,__VDSO_NTP_MULT(%r5)
 	ltr	%r1,%r1
 	mr	%r0,%r0
 	jnm	3f
-	ahi	%r0,1000
+	a	%r0,__VDSO_NTP_MULT(%r5)
 3:	alr	%r0,%r2
 	srdl	%r0,12
 	al	%r0,__VDSO_XTIME_NSEC(%r5)	/*  + xtime */
@@ -86,13 +86,13 @@ __kernel_clock_gettime:
 	sl	%r1,__VDSO_XTIME_STAMP+4(%r5)
 	brc	3,12f
 	ahi	%r0,-1
-12:	mhi	%r0,1000			/* cyc2ns(clock,cycle_delta) */
+12:	ms	%r0,__VDSO_NTP_MULT(%r5)	/* cyc2ns(clock,cycle_delta) */
 	lr	%r2,%r0
-	lhi	%r0,1000
+	l	%r0,__VDSO_NTP_MULT(%r5)
 	ltr	%r1,%r1
 	mr	%r0,%r0
 	jnm	13f
-	ahi	%r0,1000
+	a	%r0,__VDSO_NTP_MULT(%r5)
 13:	alr	%r0,%r2
 	srdl	%r0,12
 	al	%r0,__VDSO_XTIME_NSEC(%r5)	/*  + xtime */

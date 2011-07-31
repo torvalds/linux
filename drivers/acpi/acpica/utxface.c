@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -293,12 +293,8 @@ acpi_status acpi_initialize_objects(u32 flags)
 	 * Complete the GPE initialization for the GPE blocks defined in the FADT
 	 * (GPE block 0 and 1).
 	 *
-	 * Note1: This is where the _PRW methods are executed for the GPEs. These
-	 * methods can only be executed after the SCI and Global Lock handlers are
-	 * installed and initialized.
-	 *
-	 * Note2: Currently, there seems to be no need to run the _REG methods
-	 * before execution of the _PRW methods and enabling of the GPEs.
+	 * NOTE: Currently, there seems to be no need to run the _REG methods
+	 * before enabling the GPEs.
 	 */
 	if (!(flags & ACPI_NO_EVENT_INIT)) {
 		status = acpi_ev_install_fadt_gpes();

@@ -110,7 +110,7 @@ struct fw_event_work {
 	MPT_ADAPTER	*ioc;
 	u32			event;
 	u8			retries;
-	u8			event_data[1];
+	u8			__attribute__((aligned(4))) event_data[1];
 };
 
 struct mptsas_discovery_event {
@@ -140,6 +140,7 @@ struct mptsas_devinfo {
 	u64	sas_address;    /* WWN of this device,
 				   SATA is assigned by HBA,expander */
 	u32	device_info;	/* bitfield detailed info about this device */
+	u16	flags;		/* sas device pg0 flags */
 };
 
 /*

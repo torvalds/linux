@@ -325,7 +325,7 @@ should be part of the control documentation.</entry>
 	    <entry>n/a</entry>
 	    <entry>This is not a control. When
 <constant>VIDIOC_QUERYCTRL</constant> is called with a control ID
-equal to a control class code (see <xref linkend="ctrl-class" />), the
+equal to a control class code (see <xref linkend="ctrl-class" />) + 1, the
 ioctl returns the name of the control class and this control type.
 Older drivers which do not support this feature return an
 &EINVAL;.</entry>

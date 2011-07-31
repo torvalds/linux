@@ -38,6 +38,8 @@
 #include <linux/socket.h>
 #include <linux/skbuff.h>
 #include <linux/device.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
 #include <linux/list.h>
 #include <net/sock.h>
 
@@ -163,11 +165,11 @@ static inline int sco_chan_add(struct sco_conn *conn, struct sock *sk, struct so
 	int err = 0;
 
 	sco_conn_lock(conn);
-	if (conn->sk) {
+	if (conn->sk)
 		err = -EBUSY;
-	} else {
+	else
 		__sco_chan_add(conn, sk, parent);
-	}
+
 	sco_conn_unlock(conn);
 	return err;
 }
@@ -176,6 +178,7 @@ static int sco_connect(struct sock *sk)
 {
 	bdaddr_t *src = &bt_sk(sk)->src;
 	bdaddr_t *dst = &bt_sk(sk)->dst;
+	__u16 pkt_type = sco_pi(sk)->pkt_type;
 	struct sco_conn *conn;
 	struct hci_conn *hcon;
 	struct hci_dev  *hdev;
@@ -192,10 +195,13 @@ static int sco_connect(struct sock *sk)
 
 	if (lmp_esco_capable(hdev) && !disable_esco)
 		type = ESCO_LINK;
-	else
+	else {
 		type = SCO_LINK;
+		pkt_type &= SCO_ESCO_MASK;
+	}
 
-	hcon = hci_connect(hdev, type, dst, BT_SECURITY_LOW, HCI_AT_NO_BONDING);
+	hcon = hci_connect(hdev, type, pkt_type, dst,
+					BT_SECURITY_LOW, HCI_AT_NO_BONDING);
 	if (!hcon)
 		goto done;
 
@@ -239,22 +245,19 @@ static inline int sco_send_frame(struct sock *sk, struct msghdr *msg, int len)
 	BT_DBG("sk %p len %d", sk, len);
 
 	count = min_t(unsigned int, conn->mtu, len);
-	if (!(skb = bt_skb_send_alloc(sk, count, msg->msg_flags & MSG_DONTWAIT, &err)))
+	skb = bt_skb_send_alloc(sk, count,
+			msg->msg_flags & MSG_DONTWAIT, &err);
+	if (!skb)
 		return err;
 
 	if (memcpy_fromiovec(skb_put(skb, count), msg->msg_iov, count)) {
-		err = -EFAULT;
-		goto fail;
+		kfree_skb(skb);
+		return -EFAULT;
 	}
 
-	if ((err = hci_send_sco(conn->hcon, skb)) < 0)
-		return err;
+	hci_send_sco(conn->hcon, skb);
 
 	return count;
-
-fail:
-	kfree_skb(skb);
-	return err;
 }
 
 static inline void sco_recv_frame(struct sco_conn *conn, struct sk_buff *skb)
@@ -274,7 +277,6 @@ static inline void sco_recv_frame(struct sco_conn *conn, struct sk_buff *skb)
 
 drop:
 	kfree_skb(skb);
-	return;
 }
 
 /* -------- Socket interface ---------- */
@@ -430,7 +432,8 @@ static struct sock *sco_sock_alloc(struct net *net, struct socket *sock, int pro
 	return sk;
 }
 
-static int sco_sock_create(struct net *net, struct socket *sock, int protocol)
+static int sco_sock_create(struct net *net, struct socket *sock, int protocol,
+			   int kern)
 {
 	struct sock *sk;
 
@@ -451,17 +454,21 @@ static int sco_sock_create(struct net *net, struct socket *sock, int protocol)
 	return 0;
 }
 
-static int sco_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
+static int sco_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 {
-	struct sockaddr_sco *sa = (struct sockaddr_sco *) addr;
+	struct sockaddr_sco sa;
 	struct sock *sk = sock->sk;
-	bdaddr_t *src = &sa->sco_bdaddr;
-	int err = 0;
+	bdaddr_t *src = &sa.sco_bdaddr;
+	int len, err = 0;
 
-	BT_DBG("sk %p %s", sk, batostr(&sa->sco_bdaddr));
+	BT_DBG("sk %p %s", sk, batostr(&sa.sco_bdaddr));
 
 	if (!addr || addr->sa_family != AF_BLUETOOTH)
 		return -EINVAL;
+
+	memset(&sa, 0, sizeof(sa));
+	len = min_t(unsigned int, sizeof(sa), alen);
+	memcpy(&sa, addr, len);
 
 	lock_sock(sk);
 
@@ -476,7 +483,8 @@ static int sco_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_le
 		err = -EADDRINUSE;
 	} else {
 		/* Save source address */
-		bacpy(&bt_sk(sk)->src, &sa->sco_bdaddr);
+		bacpy(&bt_sk(sk)->src, &sa.sco_bdaddr);
+		sco_pi(sk)->pkt_type = sa.sco_pkt_type;
 		sk->sk_state = BT_BOUND;
 	}
 
@@ -489,26 +497,34 @@ done:
 
 static int sco_sock_connect(struct socket *sock, struct sockaddr *addr, int alen, int flags)
 {
-	struct sockaddr_sco *sa = (struct sockaddr_sco *) addr;
 	struct sock *sk = sock->sk;
-	int err = 0;
-
+	struct sockaddr_sco sa;
+	int len, err = 0;
 
 	BT_DBG("sk %p", sk);
 
-	if (addr->sa_family != AF_BLUETOOTH || alen < sizeof(struct sockaddr_sco))
+	if (!addr || addr->sa_family != AF_BLUETOOTH)
 		return -EINVAL;
 
-	if (sk->sk_state != BT_OPEN && sk->sk_state != BT_BOUND)
-		return -EBADFD;
-
-	if (sk->sk_type != SOCK_SEQPACKET)
-		return -EINVAL;
+	memset(&sa, 0, sizeof(sa));
+	len = min_t(unsigned int, sizeof(sa), alen);
+	memcpy(&sa, addr, len);
 
 	lock_sock(sk);
 
+	if (sk->sk_type != SOCK_SEQPACKET) {
+		err = -EINVAL;
+		goto done;
+	}
+
+	if (sk->sk_state != BT_OPEN && sk->sk_state != BT_BOUND) {
+		err = -EBADFD;
+		goto done;
+	}
+
 	/* Set destination address and psm */
-	bacpy(&bt_sk(sk)->dst, &sa->sco_bdaddr);
+	bacpy(&bt_sk(sk)->dst, &sa.sco_bdaddr);
+	sco_pi(sk)->pkt_type = sa.sco_pkt_type;
 
 	if ((err = sco_connect(sk)))
 		goto done;
@@ -563,7 +579,7 @@ static int sco_sock_accept(struct socket *sock, struct socket *newsock, int flag
 	BT_DBG("sk %p timeo %ld", sk, timeo);
 
 	/* Wait for an incoming connection. (wake-one). */
-	add_wait_queue_exclusive(sk->sk_sleep, &wait);
+	add_wait_queue_exclusive(sk_sleep(sk), &wait);
 	while (!(ch = bt_accept_dequeue(sk, newsock))) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (!timeo) {
@@ -586,7 +602,7 @@ static int sco_sock_accept(struct socket *sock, struct socket *newsock, int flag
 		}
 	}
 	set_current_state(TASK_RUNNING);
-	remove_wait_queue(sk->sk_sleep, &wait);
+	remove_wait_queue(sk_sleep(sk), &wait);
 
 	if (err)
 		goto done;
@@ -614,6 +630,7 @@ static int sco_sock_getname(struct socket *sock, struct sockaddr *addr, int *len
 		bacpy(&sa->sco_bdaddr, &bt_sk(sk)->dst);
 	else
 		bacpy(&sa->sco_bdaddr, &bt_sk(sk)->src);
+	sa->sco_pkt_type = sco_pi(sk)->pkt_type;
 
 	return 0;
 }
@@ -622,7 +639,7 @@ static int sco_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 			    struct msghdr *msg, size_t len)
 {
 	struct sock *sk = sock->sk;
-	int err = 0;
+	int err;
 
 	BT_DBG("sock %p, sk %p", sock, sk);
 
@@ -847,7 +864,8 @@ static void sco_conn_ready(struct sco_conn *conn)
 
 		bh_lock_sock(parent);
 
-		sk = sco_sock_alloc(sock_net(parent), NULL, BTPROTO_SCO, GFP_ATOMIC);
+		sk = sco_sock_alloc(sock_net(parent), NULL,
+				BTPROTO_SCO, GFP_ATOMIC);
 		if (!sk) {
 			bh_unlock_sock(parent);
 			goto done;
@@ -952,26 +970,36 @@ drop:
 	return 0;
 }
 
-static ssize_t sco_sysfs_show(struct class *dev, char *buf)
+static int sco_debugfs_show(struct seq_file *f, void *p)
 {
 	struct sock *sk;
 	struct hlist_node *node;
-	char *str = buf;
 
 	read_lock_bh(&sco_sk_list.lock);
 
 	sk_for_each(sk, node, &sco_sk_list.head) {
-		str += sprintf(str, "%s %s %d\n",
-				batostr(&bt_sk(sk)->src), batostr(&bt_sk(sk)->dst),
-				sk->sk_state);
+		seq_printf(f, "%s %s %d\n", batostr(&bt_sk(sk)->src),
+				batostr(&bt_sk(sk)->dst), sk->sk_state);
 	}
 
 	read_unlock_bh(&sco_sk_list.lock);
 
-	return (str - buf);
+	return 0;
 }
 
-static CLASS_ATTR(sco, S_IRUGO, sco_sysfs_show, NULL);
+static int sco_debugfs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, sco_debugfs_show, inode->i_private);
+}
+
+static const struct file_operations sco_debugfs_fops = {
+	.open		= sco_debugfs_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static struct dentry *sco_debugfs;
 
 static const struct proto_ops sco_sock_ops = {
 	.family		= PF_BLUETOOTH,
@@ -993,7 +1021,7 @@ static const struct proto_ops sco_sock_ops = {
 	.getsockopt	= sco_sock_getsockopt
 };
 
-static struct net_proto_family sco_sock_family_ops = {
+static const struct net_proto_family sco_sock_family_ops = {
 	.family	= PF_BLUETOOTH,
 	.owner	= THIS_MODULE,
 	.create	= sco_sock_create,
@@ -1029,8 +1057,12 @@ static int __init sco_init(void)
 		goto error;
 	}
 
-	if (class_create_file(bt_class, &class_attr_sco) < 0)
-		BT_ERR("Failed to create SCO info file");
+	if (bt_debugfs) {
+		sco_debugfs = debugfs_create_file("sco", 0444,
+					bt_debugfs, NULL, &sco_debugfs_fops);
+		if (!sco_debugfs)
+			BT_ERR("Failed to create SCO debug file");
+	}
 
 	BT_INFO("SCO (Voice Link) ver %s", VERSION);
 	BT_INFO("SCO socket layer initialized");
@@ -1044,7 +1076,7 @@ error:
 
 static void __exit sco_exit(void)
 {
-	class_remove_file(bt_class, &class_attr_sco);
+	debugfs_remove(sco_debugfs);
 
 	if (bt_sock_unregister(BTPROTO_SCO) < 0)
 		BT_ERR("SCO socket unregistration failed");

@@ -9,10 +9,11 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/skbuff.h>
+#include <linux/if_arp.h>
 #include <linux/ip.h>
 #include <net/icmp.h>
 #include <net/udp.h>
@@ -74,8 +75,8 @@ static void dump_packet(const struct nf_loginfo *info,
 	if (ntohs(ih->frag_off) & IP_OFFSET)
 		printk("FRAG:%u ", ntohs(ih->frag_off) & IP_OFFSET);
 
-	if ((logflags & IPT_LOG_IPOPT)
-	    && ih->ihl * 4 > sizeof(struct iphdr)) {
+	if ((logflags & IPT_LOG_IPOPT) &&
+	    ih->ihl * 4 > sizeof(struct iphdr)) {
 		const unsigned char *op;
 		unsigned char _opt[4 * 15 - sizeof(struct iphdr)];
 		unsigned int i, optsize;
@@ -146,8 +147,8 @@ static void dump_packet(const struct nf_loginfo *info,
 		/* Max length: 11 "URGP=65535 " */
 		printk("URGP=%u ", ntohs(th->urg_ptr));
 
-		if ((logflags & IPT_LOG_TCPOPT)
-		    && th->doff * 4 > sizeof(struct tcphdr)) {
+		if ((logflags & IPT_LOG_TCPOPT) &&
+		    th->doff * 4 > sizeof(struct tcphdr)) {
 			unsigned char _opt[4 * 15 - sizeof(struct tcphdr)];
 			const unsigned char *op;
 			unsigned int i, optsize;
@@ -238,9 +239,9 @@ static void dump_packet(const struct nf_loginfo *info,
 		printk("TYPE=%u CODE=%u ", ich->type, ich->code);
 
 		/* Max length: 25 "INCOMPLETE [65535 bytes] " */
-		if (ich->type <= NR_ICMP_TYPES
-		    && required_len[ich->type]
-		    && skb->len-iphoff-ih->ihl*4 < required_len[ich->type]) {
+		if (ich->type <= NR_ICMP_TYPES &&
+		    required_len[ich->type] &&
+		    skb->len-iphoff-ih->ihl*4 < required_len[ich->type]) {
 			printk("INCOMPLETE [%u bytes] ",
 			       skb->len - iphoff - ih->ihl*4);
 			break;
@@ -276,8 +277,8 @@ static void dump_packet(const struct nf_loginfo *info,
 			}
 
 			/* Max length: 10 "MTU=65535 " */
-			if (ich->type == ICMP_DEST_UNREACH
-			    && ich->code == ICMP_FRAG_NEEDED)
+			if (ich->type == ICMP_DEST_UNREACH &&
+			    ich->code == ICMP_FRAG_NEEDED)
 				printk("MTU=%u ", ntohs(ich->un.frag.mtu));
 		}
 		break;
@@ -363,11 +364,47 @@ static void dump_packet(const struct nf_loginfo *info,
 	/* maxlen = 230+   91  + 230 + 252 = 803 */
 }
 
+static void dump_mac_header(const struct nf_loginfo *info,
+			    const struct sk_buff *skb)
+{
+	struct net_device *dev = skb->dev;
+	unsigned int logflags = 0;
+
+	if (info->type == NF_LOG_TYPE_LOG)
+		logflags = info->u.log.logflags;
+
+	if (!(logflags & IPT_LOG_MACDECODE))
+		goto fallback;
+
+	switch (dev->type) {
+	case ARPHRD_ETHER:
+		printk("MACSRC=%pM MACDST=%pM MACPROTO=%04x ",
+		       eth_hdr(skb)->h_source, eth_hdr(skb)->h_dest,
+		       ntohs(eth_hdr(skb)->h_proto));
+		return;
+	default:
+		break;
+	}
+
+fallback:
+	printk("MAC=");
+	if (dev->hard_header_len &&
+	    skb->mac_header != skb->network_header) {
+		const unsigned char *p = skb_mac_header(skb);
+		unsigned int i;
+
+		printk("%02x", *p++);
+		for (i = 1; i < dev->hard_header_len; i++, p++)
+			printk(":%02x", *p);
+	}
+	printk(" ");
+}
+
 static struct nf_loginfo default_loginfo = {
 	.type	= NF_LOG_TYPE_LOG,
 	.u = {
 		.log = {
-			.level    = 0,
+			.level    = 5,
 			.logflags = NF_LOG_MASK,
 		},
 	},
@@ -404,20 +441,9 @@ ipt_log_packet(u_int8_t pf,
 	}
 #endif
 
-	if (in && !out) {
-		/* MAC logging for input chain only. */
-		printk("MAC=");
-		if (skb->dev && skb->dev->hard_header_len
-		    && skb->mac_header != skb->network_header) {
-			int i;
-			const unsigned char *p = skb_mac_header(skb);
-			for (i = 0; i < skb->dev->hard_header_len; i++,p++)
-				printk("%02x%c", *p,
-				       i==skb->dev->hard_header_len - 1
-				       ? ' ':':');
-		} else
-			printk(" ");
-	}
+	/* MAC logging for input path only. */
+	if (in && !out)
+		dump_mac_header(loginfo, skb);
 
 	dump_packet(loginfo, skb, 0);
 	printk("\n");
@@ -425,7 +451,7 @@ ipt_log_packet(u_int8_t pf,
 }
 
 static unsigned int
-log_tg(struct sk_buff *skb, const struct xt_target_param *par)
+log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ipt_log_info *loginfo = par->targinfo;
 	struct nf_loginfo li;
@@ -439,20 +465,19 @@ log_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return XT_CONTINUE;
 }
 
-static bool log_tg_check(const struct xt_tgchk_param *par)
+static int log_tg_check(const struct xt_tgchk_param *par)
 {
 	const struct ipt_log_info *loginfo = par->targinfo;
 
 	if (loginfo->level >= 8) {
-		pr_debug("LOG: level %u >= 8\n", loginfo->level);
-		return false;
+		pr_debug("level %u >= 8\n", loginfo->level);
+		return -EINVAL;
 	}
 	if (loginfo->prefix[sizeof(loginfo->prefix)-1] != '\0') {
-		pr_debug("LOG: prefix term %i\n",
-			 loginfo->prefix[sizeof(loginfo->prefix)-1]);
-		return false;
+		pr_debug("prefix is not null-terminated\n");
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
 static struct xt_target log_tg_reg __read_mostly = {

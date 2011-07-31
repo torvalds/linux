@@ -4,21 +4,21 @@
  * Licensed under the GPL-2 or later.
  */
 
-#ifndef _CDEF_BF548_H
-#define _CDEF_BF548_H
+#ifndef _CDEF_BF547_H
+#define _CDEF_BF547_H
 
 /* include all Core registers and bit definitions */
-#include "defBF548.h"
+#include "defBF547.h"
 
 /* include core sbfin_read_()ecific register pointer definitions */
 #include <asm/cdef_LPBlackfin.h>
 
-/* SYSTEM & MMR ADDRESS DEFINITIONS FOR ADSP-BF548 */
+/* SYSTEM & MMR ADDRESS DEFINITIONS FOR ADSP-BF547 */
 
 /* include cdefBF54x_base.h for the set of #defines that are common to all ADSP-BF54x bfin_read_()rocessors */
 #include "cdefBF54x_base.h"
 
-/* The following are the #defines needed by ADSP-BF548 that are not in the common header */
+/* The following are the #defines needed by ADSP-BF547 that are not in the common header */
 
 /* Timer Registers */
 
@@ -805,4 +805,4 @@
 #define bfin_read_HMDMA1_BCOUNT()		bfin_read16(HMDMA1_BCOUNT)
 #define bfin_write_HMDMA1_BCOUNT(val)		bfin_write16(HMDMA1_BCOUNT, val)
 
-#endif /* _CDEF_BF548_H */
+#endif /* _CDEF_BF547_H */

@@ -31,6 +31,7 @@
  *
  */
 #include <linux/pagemap.h>
+#include <linux/slab.h>
 #include <linux/rbtree.h>
 #include <linux/dma-mapping.h> /* for DMA_*_DEVICE */
 
@@ -317,6 +318,30 @@ int rds_get_mr(struct rds_sock *rs, char __user *optval, int optlen)
 	return __rds_rdma_map(rs, &args, NULL, NULL);
 }
 
+int rds_get_mr_for_dest(struct rds_sock *rs, char __user *optval, int optlen)
+{
+	struct rds_get_mr_for_dest_args args;
+	struct rds_get_mr_args new_args;
+
+	if (optlen != sizeof(struct rds_get_mr_for_dest_args))
+		return -EINVAL;
+
+	if (copy_from_user(&args, (struct rds_get_mr_for_dest_args __user *)optval,
+			   sizeof(struct rds_get_mr_for_dest_args)))
+		return -EFAULT;
+
+	/*
+	 * Initially, just behave like get_mr().
+	 * TODO: Implement get_mr as wrapper around this
+	 *	 and deprecate it.
+	 */
+	new_args.vec = args.vec;
+	new_args.cookie_addr = args.cookie_addr;
+	new_args.flags = args.flags;
+
+	return __rds_rdma_map(rs, &new_args, NULL, NULL);
+}
+
 /*
  * Free the MR indicated by the given R_Key
  */
@@ -414,8 +439,10 @@ void rds_rdma_free_op(struct rds_rdma_op *ro)
 		/* Mark page dirty if it was possibly modified, which
 		 * is the case for a RDMA_READ which copies from remote
 		 * to local memory */
-		if (!ro->r_write)
+		if (!ro->r_write) {
+			BUG_ON(in_interrupt());
 			set_page_dirty(page);
+		}
 		put_page(page);
 	}
 
@@ -447,7 +474,7 @@ static struct rds_rdma_op *rds_rdma_prepare(struct rds_sock *rs,
 		goto out;
 	}
 
-	if (args->nr_local > (u64)UINT_MAX) {
+	if (args->nr_local > UIO_MAXIOV) {
 		ret = -EMSGSIZE;
 		goto out;
 	}
@@ -607,8 +634,8 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 {
 	struct rds_rdma_op *op;
 
-	if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct rds_rdma_args))
-	 || rm->m_rdma_op != NULL)
+	if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct rds_rdma_args)) ||
+	    rm->m_rdma_op != NULL)
 		return -EINVAL;
 
 	op = rds_rdma_prepare(rs, CMSG_DATA(cmsg));
@@ -631,8 +658,8 @@ int rds_cmsg_rdma_dest(struct rds_sock *rs, struct rds_message *rm,
 	u32 r_key;
 	int err = 0;
 
-	if (cmsg->cmsg_len < CMSG_LEN(sizeof(rds_rdma_cookie_t))
-	 || rm->m_rdma_cookie != 0)
+	if (cmsg->cmsg_len < CMSG_LEN(sizeof(rds_rdma_cookie_t)) ||
+	    rm->m_rdma_cookie != 0)
 		return -EINVAL;
 
 	memcpy(&rm->m_rdma_cookie, CMSG_DATA(cmsg), sizeof(rm->m_rdma_cookie));
@@ -668,8 +695,8 @@ int rds_cmsg_rdma_dest(struct rds_sock *rs, struct rds_message *rm,
 int rds_cmsg_rdma_map(struct rds_sock *rs, struct rds_message *rm,
 			  struct cmsghdr *cmsg)
 {
-	if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct rds_get_mr_args))
-	 || rm->m_rdma_cookie != 0)
+	if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct rds_get_mr_args)) ||
+	    rm->m_rdma_cookie != 0)
 		return -EINVAL;
 
 	return __rds_rdma_map(rs, CMSG_DATA(cmsg), &rm->m_rdma_cookie, &rm->m_rdma_mr);

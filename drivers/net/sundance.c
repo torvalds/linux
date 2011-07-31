@@ -84,7 +84,6 @@ static char *media[MAX_UNITS];
 #include <linux/timer.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -206,7 +205,7 @@ IVc. Errata
 #define USE_IO_OPS 1
 #endif
 
-static const struct pci_device_id sundance_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(sundance_pci_tbl) = {
 	{ 0x1186, 0x1002, 0x1186, 0x1002, 0, 0, 0 },
 	{ 0x1186, 0x1002, 0x1186, 0x1003, 0, 0, 1 },
 	{ 0x1186, 0x1002, 0x1186, 0x1012, 0, 0, 2 },
@@ -603,8 +602,8 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 			    strcmp (media[card_idx], "4") == 0) {
 				np->speed = 100;
 				np->mii_if.full_duplex = 1;
-			} else if (strcmp (media[card_idx], "100mbps_hd") == 0
-				   || strcmp (media[card_idx], "3") == 0) {
+			} else if (strcmp (media[card_idx], "100mbps_hd") == 0 ||
+				   strcmp (media[card_idx], "3") == 0) {
 				np->speed = 100;
 				np->mii_if.full_duplex = 0;
 			} else if (strcmp (media[card_idx], "10mbps_fd") == 0 ||
@@ -789,7 +788,6 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 		iowrite8(MDIO_EnbIn | MDIO_ShiftClk, mdio_addr);
 		mdio_delay();
 	}
-	return;
 }
 
 static int mdio_wait_link(struct net_device *dev, int wait)
@@ -819,7 +817,7 @@ static int netdev_open(struct net_device *dev)
 
 	/* Do we need to reset the chip??? */
 
-	i = request_irq(dev->irq, &intr_handler, IRQF_SHARED, dev->name, dev);
+	i = request_irq(dev->irq, intr_handler, IRQF_SHARED, dev->name, dev);
 	if (i)
 		return i;
 
@@ -973,7 +971,7 @@ static void tx_timeout(struct net_device *dev)
 
 	dev->if_port = 0;
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	dev->stats.tx_errors++;
 	if (np->cur_tx - np->dirty_tx < TX_QUEUE_LEN - 4) {
 		netif_wake_queue(dev);
@@ -1023,7 +1021,6 @@ static void init_ring(struct net_device *dev)
 		np->tx_skbuff[i] = NULL;
 		np->tx_ring[i].status = 0;
 	}
-	return;
 }
 
 static void tx_poll (unsigned long data)
@@ -1050,7 +1047,6 @@ static void tx_poll (unsigned long data)
 	if (ioread32 (np->base + TxListPtr) == 0)
 		iowrite32 (np->tx_ring_dma + head * sizeof(struct netdev_desc),
 			np->base + TxListPtr);
-	return;
 }
 
 static netdev_tx_t
@@ -1079,13 +1075,12 @@ start_tx (struct sk_buff *skb, struct net_device *dev)
 	tasklet_schedule(&np->tx_tasklet);
 
 	/* On some architectures: explicitly flush cache lines here. */
-	if (np->cur_tx - np->dirty_tx < TX_QUEUE_LEN - 1
-			&& !netif_queue_stopped(dev)) {
+	if (np->cur_tx - np->dirty_tx < TX_QUEUE_LEN - 1 &&
+	    !netif_queue_stopped(dev)) {
 		/* do nothing */
 	} else {
 		netif_stop_queue (dev);
 	}
-	dev->trans_start = jiffies;
 	if (netif_msg_tx_queued(np)) {
 		printk (KERN_DEBUG
 			"%s: Transmit frame #%d queued in slot %d.\n",
@@ -1336,8 +1331,8 @@ static void rx_poll(unsigned long data)
 #endif
 			/* Check if the packet is long enough to accept without copying
 			   to a minimally-sized skbuff. */
-			if (pkt_len < rx_copybreak
-				&& (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
+			if (pkt_len < rx_copybreak &&
+			    (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
 				pci_dma_sync_single_for_cpu(np->pci_dev,
 							    le32_to_cpu(desc->frag[0].addr),
@@ -1380,7 +1375,6 @@ not_done:
 	if (np->budget <= 0)
 		np->budget = RX_BUDGET;
 	tasklet_schedule(&np->rx_tasklet);
-	return;
 }
 
 static void refill_rx (struct net_device *dev)
@@ -1411,7 +1405,6 @@ static void refill_rx (struct net_device *dev)
 		np->rx_ring[entry].status = 0;
 		cnt++;
 	}
-	return;
 }
 static void netdev_error(struct net_device *dev, int intr_status)
 {
@@ -1517,20 +1510,19 @@ static void set_rx_mode(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC) {			/* Set promiscuous. */
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 		rx_mode = AcceptBroadcast | AcceptMulticast | AcceptAll | AcceptMyPhys;
-	} else if ((dev->mc_count > multicast_filter_limit)
-			   ||  (dev->flags & IFF_ALLMULTI)) {
+	} else if ((netdev_mc_count(dev) > multicast_filter_limit) ||
+		   (dev->flags & IFF_ALLMULTI)) {
 		/* Too many to match, or accept all multicasts. */
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 		rx_mode = AcceptBroadcast | AcceptMulticast | AcceptMyPhys;
-	} else if (dev->mc_count) {
-		struct dev_mc_list *mclist;
+	} else if (!netdev_mc_empty(dev)) {
+		struct netdev_hw_addr *ha;
 		int bit;
 		int index;
 		int crc;
 		memset (mc_filter, 0, sizeof (mc_filter));
-		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
-		     i++, mclist = mclist->next) {
-			crc = ether_crc_le (ETH_ALEN, mclist->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev) {
+			crc = ether_crc_le(ETH_ALEN, ha->addr);
 			for (index=0, bit=0; bit < 6; bit++, crc <<= 1)
 				if (crc & 0x80000000) index |= 1 << bit;
 			mc_filter[index/16] |= (1 << (index % 16));

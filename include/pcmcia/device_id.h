@@ -34,6 +34,11 @@
 	.prod_id = { NULL, (v2), NULL, NULL },  \
 	.prod_id_hash = { 0, (vh2), 0, 0 }, }
 
+#define PCMCIA_DEVICE_PROD_ID3(v3, vh3) { \
+	.match_flags = PCMCIA_DEV_ID_MATCH_PROD_ID3, \
+	.prod_id = { NULL, NULL, (v3), NULL },  \
+	.prod_id_hash = { 0, 0, (vh3), 0 }, }
+
 #define PCMCIA_DEVICE_PROD_ID12(v1, v2, vh1, vh2) { \
 	.match_flags = PCMCIA_DEV_ID_MATCH_PROD_ID1| \
 			PCMCIA_DEV_ID_MATCH_PROD_ID2, \

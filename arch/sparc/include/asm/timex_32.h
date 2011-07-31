@@ -12,4 +12,5 @@
 typedef unsigned long cycles_t;
 #define get_cycles()	(0)
 
+extern u32 (*do_arch_gettimeoffset)(void);
 #endif

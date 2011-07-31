@@ -1,0 +1,17 @@
+#
+# SPEAr600 machine configuration file
+#
+
+if MACH_SPEAR600
+
+choice
+	prompt "SPEAr600 Boards"
+	default BOARD_SPEAR600_EVB
+
+config	BOARD_SPEAR600_EVB
+	bool "SPEAr600 Evaluation Board"
+	help
+	  Supports ST SPEAr600 Evaluation Board
+endchoice
+
+endif	#MACH_SPEAR600

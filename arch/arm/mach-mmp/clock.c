@@ -34,6 +34,21 @@ struct clkops apbc_clk_ops = {
 	.disable	= apbc_clk_disable,
 };
 
+static void apmu_clk_enable(struct clk *clk)
+{
+	__raw_writel(clk->enable_val, clk->clk_rst);
+}
+
+static void apmu_clk_disable(struct clk *clk)
+{
+	__raw_writel(0, clk->clk_rst);
+}
+
+struct clkops apmu_clk_ops = {
+	.enable		= apmu_clk_enable,
+	.disable	= apmu_clk_disable,
+};
+
 static DEFINE_SPINLOCK(clocks_lock);
 
 int clk_enable(struct clk *clk)
@@ -73,11 +88,3 @@ unsigned long clk_get_rate(struct clk *clk)
 	return rate;
 }
 EXPORT_SYMBOL(clk_get_rate);
-
-void clks_register(struct clk_lookup *clks, size_t num)
-{
-	int i;
-
-	for (i = 0; i < num; i++)
-		clkdev_add(&clks[i]);
-}

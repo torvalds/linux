@@ -601,6 +601,7 @@ File: cis/LA-PCM.cis
       cis/NE2K.cis
       cis/tamarack.cis
       cis/PE-200.cis
+      cis/PE520.cis
 
 Licence: GPL
 
@@ -678,11 +679,11 @@ Found in hex form in kernel source.
 
 Driver: bnx2x: Broadcom Everest
 
-File: bnx2x-e1-4.8.53.0.fw.ihex
-File: bnx2x-e1h-4.8.53.0.fw.ihex
+File: bnx2x-e1-5.2.13.0.fw
+File: bnx2x-e1h-5.2.13.0.fw
 
 License:
-  Copyright (c) 2007-2009 Broadcom Corporation
+  Copyright (c) 2007-2010 Broadcom Corporation
 
   This file contains firmware data derived from proprietary unpublished
   source code, Copyright (c) 2007-2009 Broadcom Corporation.
@@ -853,6 +854,46 @@ Licence:
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: ib_qib - QLogic Infiniband
+
+File: qlogic/sd7220.fw
+
+Licence:
+
+ * Copyright (c) 2007, 2008 QLogic Corporation. All rights reserved.
+ *
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
 
 Found in hex form in kernel source.
 

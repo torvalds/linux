@@ -6,7 +6,9 @@
 
 
 	.global cris_spin_lock
+	.type   cris_spin_lock,@function
 	.global cris_spin_trylock
+	.type   cris_spin_trylock,@function
 
 	.text
 
@@ -22,6 +24,8 @@ cris_spin_lock:
 	ret
 	nop
 
+	.size   cris_spin_lock, . - cris_spin_lock
+
 cris_spin_trylock:
 	clearf	p
 1:	move.b	[$r10], $r11
@@ -31,3 +35,6 @@ cris_spin_trylock:
         clearf	p
 	ret
 	movu.b	$r11,$r10
+
+	.size   cris_spin_trylock, . - cris_spin_trylock
+

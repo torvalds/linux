@@ -29,7 +29,7 @@
 #include "irq_impl.h"
 #include "pci_impl.h"
 #include "machvec_impl.h"
-
+#include "pc873xx.h"
 
 /* Note mask bit is true for DISABLED irqs.  */
 static unsigned long cached_irq_mask[2] = { -1, -1 };
@@ -264,7 +264,14 @@ takara_init_pci(void)
 		alpha_mv.pci_map_irq = takara_map_irq_srm;
 
 	cia_init_pci();
-	ns87312_enable_ide(0x26e);
+
+	if (pc873xx_probe() == -1) {
+		printk(KERN_ERR "Probing for PC873xx Super IO chip failed.\n");
+	} else {
+		printk(KERN_INFO "Found %s Super IO chip at 0x%x\n",
+			pc873xx_get_model(), pc873xx_get_base());
+		pc873xx_enable_ide();
+	}
 }
 
 

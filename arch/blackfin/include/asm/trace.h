@@ -23,10 +23,19 @@
 #ifndef __ASSEMBLY__
 extern unsigned long trace_buff_offset;
 extern unsigned long software_trace_buff[];
+#if defined(CONFIG_DEBUG_VERBOSE)
+extern void decode_address(char *buf, unsigned long address);
+extern bool get_instruction(unsigned int *val, unsigned short *address);
+#else
+static inline void decode_address(char *buf, unsigned long address) { }
+static inline bool get_instruction(unsigned int *val, unsigned short *address) { return false; }
+#endif
 
 /* Trace Macros for C files */
 
 #ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
+
+#define trace_buffer_init() bfin_write_TBUFCTL(BFIN_TRACE_INIT)
 
 #define trace_buffer_save(x) \
 	do { \

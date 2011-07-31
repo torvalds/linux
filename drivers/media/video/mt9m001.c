@@ -17,9 +17,11 @@
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
 
-/* mt9m001 i2c address 0x5d
+/*
+ * mt9m001 i2c address 0x5d
  * The platform has to define ctruct i2c_board_info objects and link to them
- * from struct soc_camera_link */
+ * from struct soc_camera_link
+ */
 
 /* mt9m001 selected register addresses */
 #define MT9M001_CHIP_VERSION		0x00
@@ -46,42 +48,50 @@
 #define MT9M001_COLUMN_SKIP		20
 #define MT9M001_ROW_SKIP		12
 
-static const struct soc_camera_data_format mt9m001_colour_formats[] = {
-	/* Order important: first natively supported,
-	 * second supported with a GPIO extender */
-	{
-		.name		= "Bayer (sRGB) 10 bit",
-		.depth		= 10,
-		.fourcc		= V4L2_PIX_FMT_SBGGR16,
-		.colorspace	= V4L2_COLORSPACE_SRGB,
-	}, {
-		.name		= "Bayer (sRGB) 8 bit",
-		.depth		= 8,
-		.fourcc		= V4L2_PIX_FMT_SBGGR8,
-		.colorspace	= V4L2_COLORSPACE_SRGB,
-	}
+/* MT9M001 has only one fixed colorspace per pixelcode */
+struct mt9m001_datafmt {
+	enum v4l2_mbus_pixelcode	code;
+	enum v4l2_colorspace		colorspace;
 };
 
-static const struct soc_camera_data_format mt9m001_monochrome_formats[] = {
+/* Find a data format by a pixel code in an array */
+static const struct mt9m001_datafmt *mt9m001_find_datafmt(
+	enum v4l2_mbus_pixelcode code, const struct mt9m001_datafmt *fmt,
+	int n)
+{
+	int i;
+	for (i = 0; i < n; i++)
+		if (fmt[i].code == code)
+			return fmt + i;
+
+	return NULL;
+}
+
+static const struct mt9m001_datafmt mt9m001_colour_fmts[] = {
+	/*
+	 * Order important: first natively supported,
+	 * second supported with a GPIO extender
+	 */
+	{V4L2_MBUS_FMT_SBGGR10_1X10, V4L2_COLORSPACE_SRGB},
+	{V4L2_MBUS_FMT_SBGGR8_1X8, V4L2_COLORSPACE_SRGB},
+};
+
+static const struct mt9m001_datafmt mt9m001_monochrome_fmts[] = {
 	/* Order important - see above */
-	{
-		.name		= "Monochrome 10 bit",
-		.depth		= 10,
-		.fourcc		= V4L2_PIX_FMT_Y16,
-	}, {
-		.name		= "Monochrome 8 bit",
-		.depth		= 8,
-		.fourcc		= V4L2_PIX_FMT_GREY,
-	},
+	{V4L2_MBUS_FMT_Y10_1X10, V4L2_COLORSPACE_JPEG},
+	{V4L2_MBUS_FMT_GREY8_1X8, V4L2_COLORSPACE_JPEG},
 };
 
 struct mt9m001 {
 	struct v4l2_subdev subdev;
 	struct v4l2_rect rect;	/* Sensor window */
-	__u32 fourcc;
+	const struct mt9m001_datafmt *fmt;
+	const struct mt9m001_datafmt *fmts;
+	int num_fmts;
 	int model;	/* V4L2_IDENT_MT9M001* codes from v4l2-chip-ident.h */
 	unsigned int gain;
 	unsigned int exposure;
+	unsigned short y_skip_top;	/* Lines to skip at the top */
 	unsigned char autoexposure;
 };
 
@@ -204,8 +214,7 @@ static int mt9m001_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	const u16 hblank = 9, vblank = 25;
 	unsigned int total_h;
 
-	if (mt9m001->fourcc == V4L2_PIX_FMT_SBGGR8 ||
-	    mt9m001->fourcc == V4L2_PIX_FMT_SBGGR16)
+	if (mt9m001->fmts == mt9m001_colour_fmts)
 		/*
 		 * Bayer format - even number of rows for simplicity,
 		 * but let the user play with the top row.
@@ -222,15 +231,17 @@ static int mt9m001_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	soc_camera_limit_side(&rect.top, &rect.height,
 		     MT9M001_ROW_SKIP, MT9M001_MIN_HEIGHT, MT9M001_MAX_HEIGHT);
 
-	total_h = rect.height + icd->y_skip_top + vblank;
+	total_h = rect.height + mt9m001->y_skip_top + vblank;
 
 	/* Blanking and start values - default... */
 	ret = reg_write(client, MT9M001_HORIZONTAL_BLANKING, hblank);
 	if (!ret)
 		ret = reg_write(client, MT9M001_VERTICAL_BLANKING, vblank);
 
-	/* The caller provides a supported format, as verified per
-	 * call to icd->try_fmt() */
+	/*
+	 * The caller provides a supported format, as verified per
+	 * call to icd->try_fmt()
+	 */
 	if (!ret)
 		ret = reg_write(client, MT9M001_COLUMN_START, rect.left);
 	if (!ret)
@@ -239,7 +250,7 @@ static int mt9m001_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 		ret = reg_write(client, MT9M001_WINDOW_WIDTH, rect.width - 1);
 	if (!ret)
 		ret = reg_write(client, MT9M001_WINDOW_HEIGHT,
-				rect.height + icd->y_skip_top - 1);
+				rect.height + mt9m001->y_skip_top - 1);
 	if (!ret && mt9m001->autoexposure) {
 		ret = reg_write(client, MT9M001_SHUTTER_WIDTH, total_h);
 		if (!ret) {
@@ -283,32 +294,32 @@ static int mt9m001_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 	return 0;
 }
 
-static int mt9m001_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int mt9m001_g_fmt(struct v4l2_subdev *sd,
+			 struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = sd->priv;
 	struct mt9m001 *mt9m001 = to_mt9m001(client);
-	struct v4l2_pix_format *pix = &f->fmt.pix;
 
-	pix->width		= mt9m001->rect.width;
-	pix->height		= mt9m001->rect.height;
-	pix->pixelformat	= mt9m001->fourcc;
-	pix->field		= V4L2_FIELD_NONE;
-	pix->colorspace		= V4L2_COLORSPACE_SRGB;
+	mf->width	= mt9m001->rect.width;
+	mf->height	= mt9m001->rect.height;
+	mf->code	= mt9m001->fmt->code;
+	mf->colorspace	= mt9m001->fmt->colorspace;
+	mf->field	= V4L2_FIELD_NONE;
 
 	return 0;
 }
 
-static int mt9m001_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int mt9m001_s_fmt(struct v4l2_subdev *sd,
+			 struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = sd->priv;
 	struct mt9m001 *mt9m001 = to_mt9m001(client);
-	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct v4l2_crop a = {
 		.c = {
 			.left	= mt9m001->rect.left,
 			.top	= mt9m001->rect.top,
-			.width	= pix->width,
-			.height	= pix->height,
+			.width	= mf->width,
+			.height	= mf->height,
 		},
 	};
 	int ret;
@@ -316,28 +327,39 @@ static int mt9m001_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	/* No support for scaling so far, just crop. TODO: use skipping */
 	ret = mt9m001_s_crop(sd, &a);
 	if (!ret) {
-		pix->width = mt9m001->rect.width;
-		pix->height = mt9m001->rect.height;
-		mt9m001->fourcc = pix->pixelformat;
+		mf->width	= mt9m001->rect.width;
+		mf->height	= mt9m001->rect.height;
+		mt9m001->fmt	= mt9m001_find_datafmt(mf->code,
+					mt9m001->fmts, mt9m001->num_fmts);
+		mf->colorspace	= mt9m001->fmt->colorspace;
 	}
 
 	return ret;
 }
 
-static int mt9m001_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int mt9m001_try_fmt(struct v4l2_subdev *sd,
+			   struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = sd->priv;
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct v4l2_pix_format *pix = &f->fmt.pix;
+	struct mt9m001 *mt9m001 = to_mt9m001(client);
+	const struct mt9m001_datafmt *fmt;
 
-	v4l_bound_align_image(&pix->width, MT9M001_MIN_WIDTH,
+	v4l_bound_align_image(&mf->width, MT9M001_MIN_WIDTH,
 		MT9M001_MAX_WIDTH, 1,
-		&pix->height, MT9M001_MIN_HEIGHT + icd->y_skip_top,
-		MT9M001_MAX_HEIGHT + icd->y_skip_top, 0, 0);
+		&mf->height, MT9M001_MIN_HEIGHT + mt9m001->y_skip_top,
+		MT9M001_MAX_HEIGHT + mt9m001->y_skip_top, 0, 0);
 
-	if (pix->pixelformat == V4L2_PIX_FMT_SBGGR8 ||
-	    pix->pixelformat == V4L2_PIX_FMT_SBGGR16)
-		pix->height = ALIGN(pix->height - 1, 2);
+	if (mt9m001->fmts == mt9m001_colour_fmts)
+		mf->height = ALIGN(mf->height - 1, 2);
+
+	fmt = mt9m001_find_datafmt(mf->code, mt9m001->fmts,
+				   mt9m001->num_fmts);
+	if (!fmt) {
+		fmt = mt9m001->fmt;
+		mf->code = fmt->code;
+	}
+
+	mf->colorspace	= fmt->colorspace;
 
 	return 0;
 }
@@ -552,7 +574,7 @@ static int mt9m001_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		if (ctrl->value) {
 			const u16 vblank = 25;
 			unsigned int total_h = mt9m001->rect.height +
-				icd->y_skip_top + vblank;
+				mt9m001->y_skip_top + vblank;
 			if (reg_write(client, MT9M001_SHUTTER_WIDTH,
 				      total_h) < 0)
 				return -EIO;
@@ -568,8 +590,10 @@ static int mt9m001_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	return 0;
 }
 
-/* Interface active, can use i2c. If it fails, it can indeed mean, that
- * this wasn't our capture interface, so, we wait for the right one */
+/*
+ * Interface active, can use i2c. If it fails, it can indeed mean, that
+ * this wasn't our capture interface, so, we wait for the right one
+ */
 static int mt9m001_video_probe(struct soc_camera_device *icd,
 			       struct i2c_client *client)
 {
@@ -579,8 +603,10 @@ static int mt9m001_video_probe(struct soc_camera_device *icd,
 	unsigned long flags;
 	int ret;
 
-	/* We must have a parent by now. And it cannot be a wrong one.
-	 * So this entire test is completely redundant. */
+	/*
+	 * We must have a parent by now. And it cannot be a wrong one.
+	 * So this entire test is completely redundant.
+	 */
 	if (!icd->dev.parent ||
 	    to_soc_camera_host(icd->dev.parent)->nr != icd->iface)
 		return -ENODEV;
@@ -597,11 +623,11 @@ static int mt9m001_video_probe(struct soc_camera_device *icd,
 	case 0x8411:
 	case 0x8421:
 		mt9m001->model = V4L2_IDENT_MT9M001C12ST;
-		icd->formats = mt9m001_colour_formats;
+		mt9m001->fmts = mt9m001_colour_fmts;
 		break;
 	case 0x8431:
 		mt9m001->model = V4L2_IDENT_MT9M001C12STM;
-		icd->formats = mt9m001_monochrome_formats;
+		mt9m001->fmts = mt9m001_monochrome_fmts;
 		break;
 	default:
 		dev_err(&client->dev,
@@ -609,7 +635,7 @@ static int mt9m001_video_probe(struct soc_camera_device *icd,
 		return -ENODEV;
 	}
 
-	icd->num_formats = 0;
+	mt9m001->num_fmts = 0;
 
 	/*
 	 * This is a 10bit sensor, so by default we only allow 10bit.
@@ -622,14 +648,14 @@ static int mt9m001_video_probe(struct soc_camera_device *icd,
 		flags = SOCAM_DATAWIDTH_10;
 
 	if (flags & SOCAM_DATAWIDTH_10)
-		icd->num_formats++;
+		mt9m001->num_fmts++;
 	else
-		icd->formats++;
+		mt9m001->fmts++;
 
 	if (flags & SOCAM_DATAWIDTH_8)
-		icd->num_formats++;
+		mt9m001->num_fmts++;
 
-	mt9m001->fourcc = icd->formats->fourcc;
+	mt9m001->fmt = &mt9m001->fmts[0];
 
 	dev_info(&client->dev, "Detected a MT9M001 chip ID %x (%s)\n", data,
 		 data == 0x8431 ? "C12STM" : "C12ST");
@@ -655,6 +681,16 @@ static void mt9m001_video_remove(struct soc_camera_device *icd)
 		icl->free_bus(icl);
 }
 
+static int mt9m001_g_skip_top_lines(struct v4l2_subdev *sd, u32 *lines)
+{
+	struct i2c_client *client = sd->priv;
+	struct mt9m001 *mt9m001 = to_mt9m001(client);
+
+	*lines = mt9m001->y_skip_top;
+
+	return 0;
+}
+
 static struct v4l2_subdev_core_ops mt9m001_subdev_core_ops = {
 	.g_ctrl		= mt9m001_g_ctrl,
 	.s_ctrl		= mt9m001_s_ctrl,
@@ -665,19 +701,38 @@ static struct v4l2_subdev_core_ops mt9m001_subdev_core_ops = {
 #endif
 };
 
+static int mt9m001_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
+			    enum v4l2_mbus_pixelcode *code)
+{
+	struct i2c_client *client = sd->priv;
+	struct mt9m001 *mt9m001 = to_mt9m001(client);
+
+	if (index >= mt9m001->num_fmts)
+		return -EINVAL;
+
+	*code = mt9m001->fmts[index].code;
+	return 0;
+}
+
 static struct v4l2_subdev_video_ops mt9m001_subdev_video_ops = {
 	.s_stream	= mt9m001_s_stream,
-	.s_fmt		= mt9m001_s_fmt,
-	.g_fmt		= mt9m001_g_fmt,
-	.try_fmt	= mt9m001_try_fmt,
+	.s_mbus_fmt	= mt9m001_s_fmt,
+	.g_mbus_fmt	= mt9m001_g_fmt,
+	.try_mbus_fmt	= mt9m001_try_fmt,
 	.s_crop		= mt9m001_s_crop,
 	.g_crop		= mt9m001_g_crop,
 	.cropcap	= mt9m001_cropcap,
+	.enum_mbus_fmt	= mt9m001_enum_fmt,
+};
+
+static struct v4l2_subdev_sensor_ops mt9m001_subdev_sensor_ops = {
+	.g_skip_top_lines	= mt9m001_g_skip_top_lines,
 };
 
 static struct v4l2_subdev_ops mt9m001_subdev_ops = {
 	.core	= &mt9m001_subdev_core_ops,
 	.video	= &mt9m001_subdev_video_ops,
+	.sensor	= &mt9m001_subdev_sensor_ops,
 };
 
 static int mt9m001_probe(struct i2c_client *client,
@@ -714,21 +769,22 @@ static int mt9m001_probe(struct i2c_client *client,
 
 	/* Second stage probe - when a capture adapter is there */
 	icd->ops		= &mt9m001_ops;
-	icd->y_skip_top		= 0;
 
+	mt9m001->y_skip_top	= 0;
 	mt9m001->rect.left	= MT9M001_COLUMN_SKIP;
 	mt9m001->rect.top	= MT9M001_ROW_SKIP;
 	mt9m001->rect.width	= MT9M001_MAX_WIDTH;
 	mt9m001->rect.height	= MT9M001_MAX_HEIGHT;
 
-	/* Simulated autoexposure. If enabled, we calculate shutter width
-	 * ourselves in the driver based on vertical blanking and frame width */
+	/*
+	 * Simulated autoexposure. If enabled, we calculate shutter width
+	 * ourselves in the driver based on vertical blanking and frame width
+	 */
 	mt9m001->autoexposure = 1;
 
 	ret = mt9m001_video_probe(icd, client);
 	if (ret) {
 		icd->ops = NULL;
-		i2c_set_clientdata(client, NULL);
 		kfree(mt9m001);
 	}
 
@@ -742,7 +798,6 @@ static int mt9m001_remove(struct i2c_client *client)
 
 	icd->ops = NULL;
 	mt9m001_video_remove(icd);
-	i2c_set_clientdata(client, NULL);
 	client->driver = NULL;
 	kfree(mt9m001);
 

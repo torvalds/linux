@@ -20,7 +20,6 @@
 #define IOP13XX_CORE_FREQ_1200		(5 << 16)
 
 void iop_init_time(unsigned long tickrate);
-unsigned long iop_gettimeoffset(void);
 
 static inline unsigned long iop13xx_core_freq(void)
 {
@@ -66,6 +65,13 @@ static inline unsigned long iop13xx_xsi_bus_ratio(void)
 	return 2;
 }
 
+static inline u32 read_tmr0(void)
+{
+	u32 val;
+	asm volatile("mrc p6, 0, %0, c0, c9, 0" : "=r" (val));
+	return val;
+}
+
 static inline void write_tmr0(u32 val)
 {
 	asm volatile("mcr p6, 0, %0, c0, c9, 0" : : "r" (val));
@@ -83,11 +89,21 @@ static inline u32 read_tcr0(void)
 	return val;
 }
 
+static inline void write_tcr0(u32 val)
+{
+	asm volatile("mcr p6, 0, %0, c2, c9, 0" : : "r" (val));
+}
+
 static inline u32 read_tcr1(void)
 {
 	u32 val;
 	asm volatile("mrc p6, 0, %0, c3, c9, 0" : "=r" (val));
 	return val;
+}
+
+static inline void write_tcr1(u32 val)
+{
+	asm volatile("mcr p6, 0, %0, c3, c9, 0" : : "r" (val));
 }
 
 static inline void write_trr0(u32 val)

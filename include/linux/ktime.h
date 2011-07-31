@@ -130,7 +130,7 @@ static inline ktime_t timeval_to_ktime(struct timeval tv)
 /* Convert ktime_t to nanoseconds - NOP in the scalar storage format: */
 #define ktime_to_ns(kt)			((kt).tv64)
 
-#else
+#else	/* !((BITS_PER_LONG == 64) || defined(CONFIG_KTIME_SCALAR)) */
 
 /*
  * Helper macros/inlines to get the ktime_t math right in the timespec
@@ -275,7 +275,7 @@ static inline s64 ktime_to_ns(const ktime_t kt)
 	return (s64) kt.tv.sec * NSEC_PER_SEC + kt.tv.nsec;
 }
 
-#endif
+#endif	/* !((BITS_PER_LONG == 64) || defined(CONFIG_KTIME_SCALAR)) */
 
 /**
  * ktime_equal - Compares two ktime_t variables to see if they are equal
@@ -293,6 +293,12 @@ static inline s64 ktime_to_us(const ktime_t kt)
 {
 	struct timeval tv = ktime_to_timeval(kt);
 	return (s64) tv.tv_sec * USEC_PER_SEC + tv.tv_usec;
+}
+
+static inline s64 ktime_to_ms(const ktime_t kt)
+{
+	struct timeval tv = ktime_to_timeval(kt);
+	return (s64) tv.tv_sec * MSEC_PER_SEC + tv.tv_usec / USEC_PER_MSEC;
 }
 
 static inline s64 ktime_us_delta(const ktime_t later, const ktime_t earlier)

@@ -17,6 +17,7 @@
 #include "isac.h"
 #include "isdnl1.h"
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/isapnp.h>
 #include <linux/interrupt.h>
 
@@ -822,7 +823,7 @@ static int __devinit avm_pnp_setup(struct IsdnCardState *cs)
 
 #endif /* __ISAPNP__ */
 
-#ifndef CONFIG_PCI_LEGACY
+#ifndef CONFIG_PCI
 
 static int __devinit avm_pci_setup(struct IsdnCardState *cs)
 {
@@ -835,7 +836,7 @@ static struct pci_dev *dev_avm __devinitdata = NULL;
 
 static int __devinit avm_pci_setup(struct IsdnCardState *cs)
 {
-	if ((dev_avm = pci_find_device(PCI_VENDOR_ID_AVM,
+	if ((dev_avm = hisax_find_pci_device(PCI_VENDOR_ID_AVM,
 		PCI_DEVICE_ID_AVM_A1, dev_avm))) {
 
 		if (pci_enable_device(dev_avm))
@@ -864,7 +865,7 @@ static int __devinit avm_pci_setup(struct IsdnCardState *cs)
 	return (1);
 }
 
-#endif /* CONFIG_PCI_LEGACY */
+#endif /* CONFIG_PCI */
 
 int __devinit
 setup_avm_pcipnp(struct IsdnCard *card)

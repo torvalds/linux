@@ -10,13 +10,19 @@
 struct tvec_base;
 
 struct timer_list {
+	/*
+	 * All fields that change during normal runtime grouped to the
+	 * same cacheline
+	 */
 	struct list_head entry;
 	unsigned long expires;
+	struct tvec_base *base;
 
 	void (*function)(unsigned long);
 	unsigned long data;
 
-	struct tvec_base *base;
+	int slack;
+
 #ifdef CONFIG_TIMER_STATS
 	void *start_site;
 	char start_comm[16];
@@ -94,6 +100,13 @@ void init_timer_deferrable_key(struct timer_list *timer,
 		setup_timer_on_stack_key((timer), #timer, &__key,	\
 					 (fn), (data));			\
 	} while (0)
+#define setup_deferrable_timer_on_stack(timer, fn, data)		\
+	do {								\
+		static struct lock_class_key __key;			\
+		setup_deferrable_timer_on_stack_key((timer), #timer,	\
+						    &__key, (fn),	\
+						    (data));		\
+	} while (0)
 #else
 #define init_timer(timer)\
 	init_timer_key((timer), NULL, NULL)
@@ -105,6 +118,8 @@ void init_timer_deferrable_key(struct timer_list *timer,
 	setup_timer_key((timer), NULL, NULL, (fn), (data))
 #define setup_timer_on_stack(timer, fn, data)\
 	setup_timer_on_stack_key((timer), NULL, NULL, (fn), (data))
+#define setup_deferrable_timer_on_stack(timer, fn, data)\
+	setup_deferrable_timer_on_stack_key((timer), NULL, NULL, (fn), (data))
 #endif
 
 #ifdef CONFIG_DEBUG_OBJECTS_TIMERS
@@ -144,6 +159,12 @@ static inline void setup_timer_on_stack_key(struct timer_list *timer,
 	init_timer_on_stack_key(timer, name, key);
 }
 
+extern void setup_deferrable_timer_on_stack_key(struct timer_list *timer,
+						const char *name,
+						struct lock_class_key *key,
+						void (*function)(unsigned long),
+						unsigned long data);
+
 /**
  * timer_pending - is a timer pending?
  * @timer: the timer in question
@@ -164,6 +185,8 @@ extern int del_timer(struct timer_list * timer);
 extern int mod_timer(struct timer_list *timer, unsigned long expires);
 extern int mod_timer_pending(struct timer_list *timer, unsigned long expires);
 extern int mod_timer_pinned(struct timer_list *timer, unsigned long expires);
+
+extern void set_timer_slack(struct timer_list *time, int slack_hz);
 
 #define TIMER_NOT_PINNED	0
 #define TIMER_PINNED		1

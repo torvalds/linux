@@ -28,6 +28,7 @@
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/unistd.h>
 #include <linux/syscalls.h>
 #include <asm/syscalls.h>
@@ -36,34 +37,16 @@ asmlinkage long
 sys_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
 	  unsigned long flags, unsigned long fd, unsigned long pgoff)
 {
-	int error = -EBADF;
-	struct file *file = NULL;
-
-	if (pgoff & (~PAGE_MASK >> 12))
-		return -EINVAL;
-
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file)
-			return error;
-	}
-
-	down_write(&current->mm->mmap_sem);
-	error = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-	up_write(&current->mm->mmap_sem);
-
-	if (file)
-		fput(file);
-
-	return error;
+	return sys_mmap_pgoff(addr, len, prot, flags, fd, pgoff);
 }
 
 asmlinkage long
 sys_mmap(unsigned long addr, unsigned long len, unsigned long prot,
-	unsigned long flags, unsigned long fd, off_t pgoff)
+	unsigned long flags, unsigned long fd, off_t offset)
 {
-	return sys_mmap2(addr, len, prot, flags, fd, pgoff >> PAGE_SHIFT);
+	if (unlikely(offset & ~PAGE_MASK))
+		return -EINVAL;
+	return sys_mmap_pgoff(addr, len, prot, flags, fd, offset >> PAGE_SHIFT);
 }
 
 asmlinkage long
@@ -116,8 +99,10 @@ score_execve(struct pt_regs *regs)
 	if (IS_ERR(filename))
 		return error;
 
-	error = do_execve(filename, (char __user *__user*)regs->regs[5],
-			  (char __user *__user *) regs->regs[6], regs);
+	error = do_execve(filename,
+			  (const char __user *const __user *)regs->regs[5],
+			  (const char __user *const __user *)regs->regs[6],
+			  regs);
 
 	putname(filename);
 	return error;
@@ -127,7 +112,9 @@ score_execve(struct pt_regs *regs)
  * Do a system call from kernel instead of calling sys_execve so we
  * end up with proper pt_regs.
  */
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
 {
 	register unsigned long __r4 asm("r4") = (unsigned long) filename;
 	register unsigned long __r5 asm("r5") = (unsigned long) argv;

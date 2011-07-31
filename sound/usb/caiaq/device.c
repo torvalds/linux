@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/gfp.h>
 #include <linux/usb.h>
 #include <sound/initval.h>
 #include <sound/core.h>
@@ -35,7 +36,7 @@
 #include "input.h"
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
-MODULE_DESCRIPTION("caiaq USB audio, version 1.3.20");
+MODULE_DESCRIPTION("caiaq USB audio, version 1.3.21");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Native Instruments, RigKontrol2},"
 			 "{Native Instruments, RigKontrol3},"
@@ -46,7 +47,8 @@ MODULE_SUPPORTED_DEVICE("{{Native Instruments, RigKontrol2},"
 			 "{Native Instruments, Audio 4 DJ},"
 			 "{Native Instruments, Audio 8 DJ},"
 			 "{Native Instruments, Session I/O},"
-			 "{Native Instruments, GuitarRig mobile}");
+			 "{Native Instruments, GuitarRig mobile}"
+			 "{Native Instruments, Traktor Kontrol X1}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX; /* Index 0-max */
 static char* id[SNDRV_CARDS] = SNDRV_DEFAULT_STR; /* Id for this card */
@@ -126,6 +128,11 @@ static struct usb_device_id snd_usb_id_table[] = {
 		.match_flags =  USB_DEVICE_ID_MATCH_DEVICE,
 		.idVendor =     USB_VID_NATIVEINSTRUMENTS,
 		.idProduct =    USB_PID_AUDIO2DJ
+	},
+	{
+		.match_flags =  USB_DEVICE_ID_MATCH_DEVICE,
+		.idVendor =     USB_VID_NATIVEINSTRUMENTS,
+		.idProduct =    USB_PID_TRAKTORKONTROLX1
 	},
 	{ /* terminator */ }
 };
@@ -312,12 +319,6 @@ static void __devinit setup_card(struct snd_usb_caiaqdev *dev)
 				EP1_CMD_WRITE_IO, dev->control_state, 6);
 		}
 
-		break;
-	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO4DJ):
-		/* Audio 4 DJ - default input mode to phono */
-		dev->control_state[0] = 2;
-		snd_usb_caiaq_send_command(dev, EP1_CMD_WRITE_IO,
-			dev->control_state, 1);
 		break;
 	}
 

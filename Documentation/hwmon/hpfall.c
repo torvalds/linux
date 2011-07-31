@@ -1,7 +1,7 @@
 /* Disk protection for HP machines.
  *
  * Copyright 2008 Eric Piel
- * Copyright 2009 Pavel Machek <pavel@suse.cz>
+ * Copyright 2009 Pavel Machek <pavel@ucw.cz>
  *
  * GPLv2.
  */

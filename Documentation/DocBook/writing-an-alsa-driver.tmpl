@@ -5318,7 +5318,7 @@ struct _snd_pcm_runtime {
       pages of the given size and map them onto the virtually contiguous
       memory.  The virtual pointer is addressed in runtime-&gt;dma_area.
       The physical address (runtime-&gt;dma_addr) is set to zero,
-      because the buffer is physically non-contigous.
+      because the buffer is physically non-contiguous.
       The physical address table is set up in sgbuf-&gt;table.
       You can get the physical address at a certain offset via
       <function>snd_pcm_sgbuf_get_addr()</function>. 
@@ -5518,34 +5518,41 @@ struct _snd_pcm_runtime {
 ]]>
         </programlisting>
       </informalexample>
+
+      For the raw data, <structfield>size</structfield> field must be
+      set properly.  This specifies the maximum size of the proc file access.
     </para>
 
     <para>
-      The callback is much more complicated than the text-file
-      version. You need to use a low-level I/O functions such as
+      The read/write callbacks of raw mode are more direct than the text mode.
+      You need to use a low-level I/O functions such as
       <function>copy_from/to_user()</function> to transfer the
       data.
 
       <informalexample>
         <programlisting>
 <![CDATA[
-  static long my_file_io_read(struct snd_info_entry *entry,
+  static ssize_t my_file_io_read(struct snd_info_entry *entry,
                               void *file_private_data,
                               struct file *file,
                               char *buf,
-                              unsigned long count,
-                              unsigned long pos)
+                              size_t count,
+                              loff_t pos)
   {
-          long size = count;
-          if (pos + size > local_max_size)
-                  size = local_max_size - pos;
-          if (copy_to_user(buf, local_data + pos, size))
+          if (copy_to_user(buf, local_data + pos, count))
                   return -EFAULT;
-          return size;
+          return count;
   }
 ]]>
         </programlisting>
       </informalexample>
+
+      If the size of the info entry has been set up properly,
+      <structfield>count</structfield> and <structfield>pos</structfield> are
+      guaranteed to fit within 0 and the given size.
+      You don't have to check the range in the callbacks unless any
+      other condition is required.
+
     </para>
 
   </chapter>

@@ -149,7 +149,7 @@ static  void receive_chars(struct tty_struct *tty)
 						ch = ia64_ssc(0, 0, 0, 0,
 							      SSC_GETCHAR);
 					while (!ch);
-					handle_sysrq(ch, NULL);
+					handle_sysrq(ch);
 				}
 #endif
 				seen_esc = 0;

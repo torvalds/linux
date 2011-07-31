@@ -36,7 +36,6 @@
 #include <asm/dma.h>
 #include <asm/io.h>
 #include <linux/wait.h>
-#include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/major.h>
 #include <linux/delay.h>
@@ -56,7 +55,7 @@
 /*
  * Table for permanently allocated memory (used when unloading the module)
  */
-void *          sound_mem_blocks[1024];
+void *          sound_mem_blocks[MAX_MEM_BLOCKS];
 int             sound_nblocks = 0;
 
 /* Persistent DMA buffers */
@@ -87,7 +86,7 @@ int *load_mixer_volumes(char *name, int *levels, int present)
 	int             i, n;
 
 	for (i = 0; i < num_mixer_volumes; i++) {
-		if (strcmp(name, mixer_vols[i].name) == 0) {
+		if (strncmp(name, mixer_vols[i].name, 32) == 0) {
 			if (present)
 				mixer_vols[i].num = i;
 			return mixer_vols[i].levels;
@@ -99,7 +98,7 @@ int *load_mixer_volumes(char *name, int *levels, int present)
 	}
 	n = num_mixer_volumes++;
 
-	strcpy(mixer_vols[n].name, name);
+	strncpy(mixer_vols[n].name, name, 32);
 
 	if (present)
 		mixer_vols[n].num = n;
@@ -211,42 +210,44 @@ static int sound_open(struct inode *inode, struct file *file)
 		printk(KERN_ERR "Invalid minor device %d\n", dev);
 		return -ENXIO;
 	}
+	lock_kernel();
 	switch (dev & 0x0f) {
 	case SND_DEV_CTL:
 		dev >>= 4;
 		if (dev >= 0 && dev < MAX_MIXER_DEV && mixer_devs[dev] == NULL) {
 			request_module("mixer%d", dev);
 		}
+		retval = -ENXIO;
 		if (dev && (dev >= num_mixers || mixer_devs[dev] == NULL))
-			return -ENXIO;
+			break;
 	
 		if (!try_module_get(mixer_devs[dev]->owner))
-			return -ENXIO;
+			break;
+
+		retval = 0;
 		break;
 
 	case SND_DEV_SEQ:
 	case SND_DEV_SEQ2:
-		if ((retval = sequencer_open(dev, file)) < 0)
-			return retval;
+		retval = sequencer_open(dev, file);
 		break;
 
 	case SND_DEV_MIDIN:
-		if ((retval = MIDIbuf_open(dev, file)) < 0)
-			return retval;
+		retval = MIDIbuf_open(dev, file);
 		break;
 
 	case SND_DEV_DSP:
 	case SND_DEV_DSP16:
 	case SND_DEV_AUDIO:
-		if ((retval = audio_open(dev, file)) < 0)
-			return retval;
+		retval = audio_open(dev, file);
 		break;
 
 	default:
 		printk(KERN_ERR "Invalid minor device %d\n", dev);
-		return -ENXIO;
+		retval = -ENXIO;
 	}
 
+	unlock_kernel();
 	return 0;
 }
 
@@ -328,11 +329,11 @@ static int sound_mixer_ioctl(int mixdev, unsigned int cmd, void __user *arg)
 	return mixer_devs[mixdev]->ioctl(mixdev, cmd, arg);
 }
 
-static int sound_ioctl(struct inode *inode, struct file *file,
-		       unsigned int cmd, unsigned long arg)
+static long sound_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int len = 0, dtype;
-	int dev = iminor(inode);
+	int dev = iminor(file->f_dentry->d_inode);
+	long ret = -EINVAL;
 	void __user *p = (void __user *)arg;
 
 	if (_SIOC_DIR(cmd) != _SIOC_NONE && _SIOC_DIR(cmd) != 0) {
@@ -353,6 +354,7 @@ static int sound_ioctl(struct inode *inode, struct file *file,
 	if (cmd == OSS_GETVERSION)
 		return __put_user(SOUND_VERSION, (int __user *)p);
 	
+	lock_kernel();
 	if (_IOC_TYPE(cmd) == 'M' && num_mixers > 0 &&   /* Mixer ioctl */
 	    (dev & 0x0f) != SND_DEV_CTL) {              
 		dtype = dev & 0x0f;
@@ -360,37 +362,45 @@ static int sound_ioctl(struct inode *inode, struct file *file,
 		case SND_DEV_DSP:
 		case SND_DEV_DSP16:
 		case SND_DEV_AUDIO:
-			return sound_mixer_ioctl(audio_devs[dev >> 4]->mixer_dev,
+			ret = sound_mixer_ioctl(audio_devs[dev >> 4]->mixer_dev,
 						 cmd, p);
-			
+			break;			
 		default:
-			return sound_mixer_ioctl(dev >> 4, cmd, p);
+			ret = sound_mixer_ioctl(dev >> 4, cmd, p);
+			break;
 		}
+		unlock_kernel();
+		return ret;
 	}
+
 	switch (dev & 0x0f) {
 	case SND_DEV_CTL:
 		if (cmd == SOUND_MIXER_GETLEVELS)
-			return get_mixer_levels(p);
-		if (cmd == SOUND_MIXER_SETLEVELS)
-			return set_mixer_levels(p);
-		return sound_mixer_ioctl(dev >> 4, cmd, p);
+			ret = get_mixer_levels(p);
+		else if (cmd == SOUND_MIXER_SETLEVELS)
+			ret = set_mixer_levels(p);
+		else
+			ret = sound_mixer_ioctl(dev >> 4, cmd, p);
+		break;
 
 	case SND_DEV_SEQ:
 	case SND_DEV_SEQ2:
-		return sequencer_ioctl(dev, file, cmd, p);
+		ret = sequencer_ioctl(dev, file, cmd, p);
+		break;
 
 	case SND_DEV_DSP:
 	case SND_DEV_DSP16:
 	case SND_DEV_AUDIO:
-		return audio_ioctl(dev, file, cmd, p);
+		ret = audio_ioctl(dev, file, cmd, p);
 		break;
 
 	case SND_DEV_MIDIN:
-		return MIDIbuf_ioctl(dev, file, cmd, p);
+		ret = MIDIbuf_ioctl(dev, file, cmd, p);
 		break;
 
 	}
-	return -EINVAL;
+	unlock_kernel();
+	return ret;
 }
 
 static unsigned int sound_poll(struct file *file, poll_table * wait)
@@ -490,7 +500,7 @@ const struct file_operations oss_sound_fops = {
 	.read		= sound_read,
 	.write		= sound_write,
 	.poll		= sound_poll,
-	.ioctl		= sound_ioctl,
+	.unlocked_ioctl	= sound_ioctl,
 	.mmap		= sound_mmap,
 	.open		= sound_open,
 	.release	= sound_release,
@@ -574,7 +584,7 @@ static int __init oss_init(void)
 				      NULL, "%s%d", dev_list[i].name, j);
 	}
 
-	if (sound_nblocks >= 1024)
+	if (sound_nblocks >= MAX_MEM_BLOCKS - 1)
 		printk(KERN_ERR "Sound warning: Deallocation table was too small.\n");
 	
 	return 0;

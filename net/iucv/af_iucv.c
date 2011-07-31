@@ -59,7 +59,7 @@ do {									\
 	DEFINE_WAIT(__wait);						\
 	long __timeo = timeo;						\
 	ret = 0;							\
-	prepare_to_wait(sk->sk_sleep, &__wait, TASK_INTERRUPTIBLE);	\
+	prepare_to_wait(sk_sleep(sk), &__wait, TASK_INTERRUPTIBLE);	\
 	while (!(condition)) {						\
 		if (!__timeo) {						\
 			ret = -EAGAIN;					\
@@ -76,7 +76,7 @@ do {									\
 		if (ret)						\
 			break;						\
 	}								\
-	finish_wait(sk->sk_sleep, &__wait);				\
+	finish_wait(sk_sleep(sk), &__wait);				\
 } while (0)
 
 #define iucv_sock_wait(sk, condition, timeo)				\
@@ -136,7 +136,6 @@ static void afiucv_pm_complete(struct device *dev)
 #ifdef CONFIG_PM_DEBUG
 	printk(KERN_WARNING "afiucv_pm_complete\n");
 #endif
-	return;
 }
 
 /**
@@ -221,7 +220,7 @@ static int afiucv_pm_restore_thaw(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops afiucv_pm_ops = {
+static const struct dev_pm_ops afiucv_pm_ops = {
 	.prepare = afiucv_pm_prepare,
 	.complete = afiucv_pm_complete,
 	.freeze = afiucv_pm_freeze,
@@ -305,11 +304,14 @@ static inline int iucv_below_msglim(struct sock *sk)
  */
 static void iucv_sock_wake_msglim(struct sock *sk)
 {
-	read_lock(&sk->sk_callback_lock);
-	if (sk_has_sleeper(sk))
-		wake_up_interruptible_all(sk->sk_sleep);
+	struct socket_wq *wq;
+
+	rcu_read_lock();
+	wq = rcu_dereference(sk->sk_wq);
+	if (wq_has_sleeper(wq))
+		wake_up_interruptible_all(&wq->wait);
 	sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
-	read_unlock(&sk->sk_callback_lock);
+	rcu_read_unlock();
 }
 
 /* Timers */
@@ -428,7 +430,6 @@ static void iucv_sock_close(struct sock *sk)
 		break;
 
 	default:
-		sock_set_flag(sk, SOCK_ZAPPED);
 		/* nothing to do here */
 		break;
 	}
@@ -482,7 +483,8 @@ static struct sock *iucv_sock_alloc(struct socket *sock, int proto, gfp_t prio)
 }
 
 /* Create an IUCV socket */
-static int iucv_sock_create(struct net *net, struct socket *sock, int protocol)
+static int iucv_sock_create(struct net *net, struct socket *sock, int protocol,
+			    int kern)
 {
 	struct sock *sk;
 
@@ -536,7 +538,7 @@ void iucv_accept_enqueue(struct sock *parent, struct sock *sk)
 	list_add_tail(&iucv_sk(sk)->accept_q, &par->accept_q);
 	spin_unlock_irqrestore(&par->accept_q_lock, flags);
 	iucv_sk(sk)->parent = parent;
-	parent->sk_ack_backlog++;
+	sk_acceptq_added(parent);
 }
 
 void iucv_accept_unlink(struct sock *sk)
@@ -547,7 +549,7 @@ void iucv_accept_unlink(struct sock *sk)
 	spin_lock_irqsave(&par->accept_q_lock, flags);
 	list_del_init(&iucv_sk(sk)->accept_q);
 	spin_unlock_irqrestore(&par->accept_q_lock, flags);
-	iucv_sk(sk)->parent->sk_ack_backlog--;
+	sk_acceptq_removed(iucv_sk(sk)->parent);
 	iucv_sk(sk)->parent = NULL;
 	sock_put(sk);
 }
@@ -795,7 +797,7 @@ static int iucv_sock_accept(struct socket *sock, struct socket *newsock,
 	timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
 
 	/* Wait for an incoming connection */
-	add_wait_queue_exclusive(sk->sk_sleep, &wait);
+	add_wait_queue_exclusive(sk_sleep(sk), &wait);
 	while (!(nsk = iucv_accept_dequeue(sk, newsock))) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (!timeo) {
@@ -819,7 +821,7 @@ static int iucv_sock_accept(struct socket *sock, struct socket *newsock,
 	}
 
 	set_current_state(TASK_RUNNING);
-	remove_wait_queue(sk->sk_sleep, &wait);
+	remove_wait_queue(sk_sleep(sk), &wait);
 
 	if (err)
 		goto done;
@@ -1269,7 +1271,7 @@ unsigned int iucv_sock_poll(struct file *file, struct socket *sock,
 	struct sock *sk = sock->sk;
 	unsigned int mask = 0;
 
-	sock_poll_wait(file, sk->sk_sleep, wait);
+	sock_poll_wait(file, sk_sleep(sk), wait);
 
 	if (sk->sk_state == IUCV_LISTEN)
 		return iucv_accept_poll(sk);
@@ -1617,7 +1619,7 @@ static void iucv_callback_rx(struct iucv_path *path, struct iucv_message *msg)
 save_message:
 	save_msg = kzalloc(sizeof(struct sock_msg_q), GFP_ATOMIC | GFP_DMA);
 	if (!save_msg)
-		return;
+		goto out_unlock;
 	save_msg->path = path;
 	save_msg->msg = *msg;
 
@@ -1715,7 +1717,7 @@ static const struct proto_ops iucv_sock_ops = {
 	.getsockopt	= iucv_sock_getsockopt,
 };
 
-static struct net_proto_family iucv_sock_family_ops = {
+static const struct net_proto_family iucv_sock_family_ops = {
 	.family	= AF_IUCV,
 	.owner	= THIS_MODULE,
 	.create	= iucv_sock_create,

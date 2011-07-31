@@ -25,7 +25,7 @@
  * Temperature sensor status values
  */
 enum bfa_tsensor_status {
-	BFA_TSENSOR_STATUS_UNKNOWN   = 1,   /*  unkown status */
+	BFA_TSENSOR_STATUS_UNKNOWN   = 1,   /*  unknown status */
 	BFA_TSENSOR_STATUS_FAULTY    = 2,   /*  sensor is faulty */
 	BFA_TSENSOR_STATUS_BELOW_MIN = 3,   /*  temperature below mininum */
 	BFA_TSENSOR_STATUS_NOMINAL   = 4,   /*  normal temperature */

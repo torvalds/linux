@@ -95,7 +95,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code,
  * update_mmu_cache()
  *======================================================================*/
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr,
-	pte_t pte)
+	pte_t *ptep)
 {
 	BUG();
 }

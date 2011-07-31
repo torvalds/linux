@@ -2,7 +2,7 @@
  * OMAP24XX powerdomain definitions
  *
  * Copyright (C) 2007-2008 Texas Instruments, Inc.
- * Copyright (C) 2007-2008 Nokia Corporation
+ * Copyright (C) 2007-2009 Nokia Corporation
  *
  * Written by Paul Walmsley
  * Debugging and integration fixes by Jouni Högander
@@ -20,7 +20,7 @@
  * the array in mach-omap2/powerdomains.h.
  */
 
-#include <mach/powerdomain.h>
+#include <plat/powerdomain.h>
 
 #include "prcm-common.h"
 #include "prm.h"
@@ -30,83 +30,7 @@
 
 /* 24XX powerdomains and dependencies */
 
-#ifdef CONFIG_ARCH_OMAP24XX
-
-
-/* Wakeup dependency source arrays */
-
-/*
- * 2420/2430 PM_WKDEP_DSP: CORE, MPU, WKUP
- * 2430 PM_WKDEP_MDM: same as above
- */
-static struct pwrdm_dep dsp_mdm_24xx_wkdeps[] = {
-	{
-		.pwrdm_name = "core_pwrdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX)
-	},
-	{
-		.pwrdm_name = "mpu_pwrdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX)
-	},
-	{
-		.pwrdm_name = "wkup_pwrdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX)
-	},
-	{ NULL },
-};
-
-/*
- * 2420 PM_WKDEP_MPU: CORE, DSP, WKUP
- * 2430 adds MDM
- */
-static struct pwrdm_dep mpu_24xx_wkdeps[] = {
-	{
-		.pwrdm_name = "core_pwrdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX)
-	},
-	{
-		.pwrdm_name = "dsp_pwrdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX)
-	},
-	{
-		.pwrdm_name = "wkup_pwrdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX)
-	},
-	{
-		.pwrdm_name = "mdm_pwrdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP2430)
-	},
-	{ NULL },
-};
-
-/*
- * 2420 PM_WKDEP_CORE: DSP, GFX, MPU, WKUP
- * 2430 adds MDM
- */
-static struct pwrdm_dep core_24xx_wkdeps[] = {
-	{
-		.pwrdm_name = "dsp_pwrdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX)
-	},
-	{
-		.pwrdm_name = "gfx_pwrdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX)
-	},
-	{
-		.pwrdm_name = "mpu_pwrdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX)
-	},
-	{
-		.pwrdm_name = "wkup_pwrdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX)
-	},
-	{
-		.pwrdm_name = "mdm_pwrdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP2430)
-	},
-	{ NULL },
-};
-
+#ifdef CONFIG_ARCH_OMAP2
 
 /* Powerdomains */
 
@@ -114,8 +38,6 @@ static struct powerdomain dsp_pwrdm = {
 	.name		  = "dsp_pwrdm",
 	.prcm_offs	  = OMAP24XX_DSP_MOD,
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX),
-	.dep_bit	  = OMAP24XX_PM_WKDEP_MPU_EN_DSP_SHIFT,
-	.wkdep_srcs	  = dsp_mdm_24xx_wkdeps,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.pwrsts_logic_ret = PWRDM_POWER_RET,
 	.banks		  = 1,
@@ -131,8 +53,6 @@ static struct powerdomain mpu_24xx_pwrdm = {
 	.name		  = "mpu_pwrdm",
 	.prcm_offs	  = MPU_MOD,
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX),
-	.dep_bit	  = OMAP24XX_EN_MPU_SHIFT,
-	.wkdep_srcs	  = mpu_24xx_wkdeps,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.pwrsts_logic_ret = PWRSTS_OFF_RET,
 	.banks		  = 1,
@@ -148,9 +68,7 @@ static struct powerdomain core_24xx_pwrdm = {
 	.name		  = "core_pwrdm",
 	.prcm_offs	  = CORE_MOD,
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX),
-	.wkdep_srcs	  = core_24xx_wkdeps,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
-	.dep_bit	  = OMAP24XX_EN_CORE_SHIFT,
 	.banks		  = 3,
 	.pwrsts_mem_ret	  = {
 		[0] = PWRSTS_OFF_RET,	 /* MEM1RETSTATE */
@@ -164,7 +82,7 @@ static struct powerdomain core_24xx_pwrdm = {
 	},
 };
 
-#endif	   /* CONFIG_ARCH_OMAP24XX */
+#endif	   /* CONFIG_ARCH_OMAP2 */
 
 
 
@@ -176,13 +94,10 @@ static struct powerdomain core_24xx_pwrdm = {
 
 /* XXX 2430 KILLDOMAINWKUP bit?  No current users apparently */
 
-/* Another case of bit name collisions between several registers: EN_MDM */
 static struct powerdomain mdm_pwrdm = {
 	.name		  = "mdm_pwrdm",
 	.prcm_offs	  = OMAP2430_MDM_MOD,
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP2430),
-	.dep_bit	  = OMAP2430_PM_WKDEP_MPU_EN_MDM_SHIFT,
-	.wkdep_srcs	  = dsp_mdm_24xx_wkdeps,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.pwrsts_logic_ret = PWRDM_POWER_RET,
 	.banks		  = 1,

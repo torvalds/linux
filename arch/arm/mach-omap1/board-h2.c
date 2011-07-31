@@ -26,25 +26,26 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 #include <linux/input.h>
 #include <linux/i2c/tps65010.h>
+#include <linux/smc91x.h>
 
 #include <mach/hardware.h>
 #include <asm/gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
-#include <mach/mux.h>
-#include <mach/dma.h>
-#include <mach/tc.h>
-#include <mach/nand.h>
-#include <mach/irda.h>
-#include <mach/usb.h>
-#include <mach/keypad.h>
-#include <mach/common.h>
+#include <plat/mux.h>
+#include <plat/dma.h>
+#include <plat/tc.h>
+#include <plat/irda.h>
+#include <plat/usb.h>
+#include <plat/keypad.h>
+#include <plat/common.h>
+#include <plat/flash.h>
 
 #include "board-h2.h"
 
@@ -121,9 +122,9 @@ static struct mtd_partition h2_nor_partitions[] = {
 	}
 };
 
-static struct flash_platform_data h2_nor_data = {
-	.map_name	= "cfi_probe",
+static struct physmap_flash_data h2_nor_data = {
 	.width		= 2,
+	.set_vpp	= omap1_set_vpp,
 	.parts		= h2_nor_partitions,
 	.nr_parts	= ARRAY_SIZE(h2_nor_partitions),
 };
@@ -134,7 +135,7 @@ static struct resource h2_nor_resource = {
 };
 
 static struct platform_device h2_nor_device = {
-	.name		= "omapflash",
+	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
 		.platform_data	= &h2_nor_data,
@@ -179,11 +180,43 @@ static struct mtd_partition h2_nand_partitions[] = {
 	},
 };
 
-/* dip switches control NAND chip access:  8 bit, 16 bit, or neither */
-static struct omap_nand_platform_data h2_nand_data = {
-	.options	= NAND_SAMSUNG_LP_OPTIONS,
-	.parts		= h2_nand_partitions,
-	.nr_parts	= ARRAY_SIZE(h2_nand_partitions),
+static void h2_nand_cmd_ctl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
+{
+	struct nand_chip *this = mtd->priv;
+	unsigned long mask;
+
+	if (cmd == NAND_CMD_NONE)
+		return;
+
+	mask = (ctrl & NAND_CLE) ? 0x02 : 0;
+	if (ctrl & NAND_ALE)
+		mask |= 0x04;
+	writeb(cmd, (unsigned long)this->IO_ADDR_W | mask);
+}
+
+#define H2_NAND_RB_GPIO_PIN	62
+
+static int h2_nand_dev_ready(struct mtd_info *mtd)
+{
+	return gpio_get_value(H2_NAND_RB_GPIO_PIN);
+}
+
+static const char *h2_part_probes[] = { "cmdlinepart", NULL };
+
+struct platform_nand_data h2_nand_platdata = {
+	.chip	= {
+		.nr_chips		= 1,
+		.chip_offset		= 0,
+		.nr_partitions		= ARRAY_SIZE(h2_nand_partitions),
+		.partitions		= h2_nand_partitions,
+		.options		= NAND_SAMSUNG_LP_OPTIONS,
+		.part_probe_types	= h2_part_probes,
+	},
+	.ctrl	= {
+		.cmd_ctrl	= h2_nand_cmd_ctl,
+		.dev_ready	= h2_nand_dev_ready,
+
+	},
 };
 
 static struct resource h2_nand_resource = {
@@ -191,13 +224,19 @@ static struct resource h2_nand_resource = {
 };
 
 static struct platform_device h2_nand_device = {
-	.name		= "omapnand",
+	.name		= "gen_nand",
 	.id		= 0,
 	.dev		= {
-		.platform_data	= &h2_nand_data,
+		.platform_data	= &h2_nand_platdata,
 	},
 	.num_resources	= 1,
 	.resource	= &h2_nand_resource,
+};
+
+static struct smc91x_platdata h2_smc91x_info = {
+	.flags	= SMC91X_USE_16BIT | SMC91X_NOWAIT,
+	.leda	= RPC_LED_100_10,
+	.ledb	= RPC_LED_TX_RX,
 };
 
 static struct resource h2_smc91x_resources[] = {
@@ -216,6 +255,9 @@ static struct resource h2_smc91x_resources[] = {
 static struct platform_device h2_smc91x_device = {
 	.name		= "smc91x",
 	.id		= 0,
+	.dev	= {
+		.platform_data	= &h2_smc91x_info,
+	},
 	.num_resources	= ARRAY_SIZE(h2_smc91x_resources),
 	.resource	= h2_smc91x_resources,
 };
@@ -249,15 +291,6 @@ static struct platform_device h2_kp_device = {
 };
 
 #define H2_IRDA_FIRSEL_GPIO_PIN	17
-
-#if defined(CONFIG_OMAP_IR) || defined(CONFIG_OMAP_IR_MODULE)
-static int h2_transceiver_mode(struct device *dev, int state)
-{
-	/* SIR when low, else MIR/FIR when HIGH */
-	gpio_set_value(H2_IRDA_FIRSEL_GPIO_PIN, !(state & IR_SIRMODE));
-	return 0;
-}
-#endif
 
 static struct omap_irda_config h2_irda_data = {
 	.transceiver_cap	= IR_SIRMODE | IR_MIRMODE | IR_FIRMODE,
@@ -368,8 +401,6 @@ static struct omap_board_config_kernel h2_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&h2_lcd_config },
 };
 
-#define H2_NAND_RB_GPIO_PIN	62
-
 static void __init h2_init(void)
 {
 	/* Here we assume the NOR boot config:  NOR on CS3 (possibly swapped
@@ -397,14 +428,18 @@ static void __init h2_init(void)
 	/* omap_cfg_reg(U19_ARMIO1); */		/* CD */
 	omap_cfg_reg(BALLOUT_V8_ARMIO3);	/* WP */
 
-	/* Irda */
-#if defined(CONFIG_OMAP_IR) || defined(CONFIG_OMAP_IR_MODULE)
-	omap_writel(omap_readl(FUNC_MUX_CTRL_A) | 7, FUNC_MUX_CTRL_A);
-	if (gpio_request(H2_IRDA_FIRSEL_GPIO_PIN, "IRDA mode") < 0)
-		BUG();
-	gpio_direction_output(H2_IRDA_FIRSEL_GPIO_PIN, 0);
-	h2_irda_data.transceiver_mode = h2_transceiver_mode;
-#endif
+	/* Mux pins for keypad */
+	omap_cfg_reg(F18_1610_KBC0);
+	omap_cfg_reg(D20_1610_KBC1);
+	omap_cfg_reg(D19_1610_KBC2);
+	omap_cfg_reg(E18_1610_KBC3);
+	omap_cfg_reg(C21_1610_KBC4);
+	omap_cfg_reg(G18_1610_KBR0);
+	omap_cfg_reg(F19_1610_KBR1);
+	omap_cfg_reg(H14_1610_KBR2);
+	omap_cfg_reg(E20_1610_KBR3);
+	omap_cfg_reg(E19_1610_KBR4);
+	omap_cfg_reg(N19_1610_KBR5);
 
 	platform_add_devices(h2_devices, ARRAY_SIZE(h2_devices));
 	omap_board_config = h2_config;
@@ -412,7 +447,7 @@ static void __init h2_init(void)
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, h2_i2c_board_info,
 			      ARRAY_SIZE(h2_i2c_board_info));
-	omap_usb_init(&h2_usb_config);
+	omap1_usb_init(&h2_usb_config);
 	h2_mmc_init();
 }
 
@@ -427,6 +462,7 @@ MACHINE_START(OMAP_H2, "TI-H2")
 	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,
 	.map_io		= h2_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= h2_init_irq,
 	.init_machine	= h2_init,
 	.timer		= &omap_timer,

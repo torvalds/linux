@@ -21,7 +21,7 @@ struct percpu_counter {
 #ifdef CONFIG_HOTPLUG_CPU
 	struct list_head list;	/* All percpu_counters are on a list */
 #endif
-	s32 *counters;
+	s32 __percpu *counters;
 };
 
 extern int percpu_counter_batch;
@@ -40,6 +40,7 @@ void percpu_counter_destroy(struct percpu_counter *fbc);
 void percpu_counter_set(struct percpu_counter *fbc, s64 amount);
 void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch);
 s64 __percpu_counter_sum(struct percpu_counter *fbc);
+int percpu_counter_compare(struct percpu_counter *fbc, s64 rhs);
 
 static inline void percpu_counter_add(struct percpu_counter *fbc, s64 amount)
 {
@@ -77,6 +78,11 @@ static inline s64 percpu_counter_read_positive(struct percpu_counter *fbc)
 	return 1;
 }
 
+static inline int percpu_counter_initialized(struct percpu_counter *fbc)
+{
+	return (fbc->counters != NULL);
+}
+
 #else
 
 struct percpu_counter {
@@ -98,8 +104,15 @@ static inline void percpu_counter_set(struct percpu_counter *fbc, s64 amount)
 	fbc->count = amount;
 }
 
-#define __percpu_counter_add(fbc, amount, batch) \
-	percpu_counter_add(fbc, amount)
+static inline int percpu_counter_compare(struct percpu_counter *fbc, s64 rhs)
+{
+	if (fbc->count > rhs)
+		return 1;
+	else if (fbc->count < rhs)
+		return -1;
+	else
+		return 0;
+}
 
 static inline void
 percpu_counter_add(struct percpu_counter *fbc, s64 amount)
@@ -107,6 +120,12 @@ percpu_counter_add(struct percpu_counter *fbc, s64 amount)
 	preempt_disable();
 	fbc->count += amount;
 	preempt_enable();
+}
+
+static inline void
+__percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch)
+{
+	percpu_counter_add(fbc, amount);
 }
 
 static inline s64 percpu_counter_read(struct percpu_counter *fbc)
@@ -127,6 +146,11 @@ static inline s64 percpu_counter_sum_positive(struct percpu_counter *fbc)
 static inline s64 percpu_counter_sum(struct percpu_counter *fbc)
 {
 	return percpu_counter_read(fbc);
+}
+
+static inline int percpu_counter_initialized(struct percpu_counter *fbc)
+{
+	return 1;
 }
 
 #endif	/* CONFIG_SMP */

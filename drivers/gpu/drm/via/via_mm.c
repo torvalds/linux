@@ -31,7 +31,7 @@
 #include "drm_sman.h"
 
 #define VIA_MM_ALIGN_SHIFT 4
-#define VIA_MM_ALIGN_MASK ( (1 << VIA_MM_ALIGN_SHIFT) - 1)
+#define VIA_MM_ALIGN_MASK ((1 << VIA_MM_ALIGN_SHIFT) - 1)
 
 int via_agp_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
@@ -172,7 +172,7 @@ int via_mem_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
 }
 
 
-void via_reclaim_buffers_locked(struct drm_device * dev,
+void via_reclaim_buffers_locked(struct drm_device *dev,
 				struct drm_file *file_priv)
 {
 	drm_via_private_t *dev_priv = dev->dev_private;
@@ -183,9 +183,8 @@ void via_reclaim_buffers_locked(struct drm_device * dev,
 		return;
 	}
 
-	if (dev->driver->dma_quiescent) {
+	if (dev->driver->dma_quiescent)
 		dev->driver->dma_quiescent(dev);
-	}
 
 	drm_sman_owner_cleanup(&dev_priv->sman, (unsigned long)file_priv);
 	mutex_unlock(&dev->struct_mutex);

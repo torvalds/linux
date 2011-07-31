@@ -1436,6 +1436,7 @@ int pl330_update(const struct pl330_info *pi)
 			i++;
 		}
 	}
+
 	/* Check which event happened i.e, thread notified */
 	val = readl(regs + ES);
 	if (pi->pcfg.num_events < 32
@@ -1478,6 +1479,7 @@ int pl330_update(const struct pl330_info *pi)
 			list_add_tail(&rqdone->rqd, &pl330->req_done);
 		}
 	}
+
 	/* Now that we are in no hurry, do the callbacks */
 	while (!list_empty(&pl330->req_done)) {
 		rqdone = container_of(pl330->req_done.next,

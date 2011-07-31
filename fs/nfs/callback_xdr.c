@@ -9,6 +9,7 @@
 #include <linux/sunrpc/svc.h>
 #include <linux/nfs4.h>
 #include <linux/nfs_fs.h>
+#include <linux/slab.h>
 #include "nfs4_fs.h"
 #include "callback.h"
 
@@ -23,9 +24,14 @@
 #if defined(CONFIG_NFS_V4_1)
 #define CB_OP_SEQUENCE_RES_MAXSZ	(CB_OP_HDR_RES_MAXSZ + \
 					4 + 1 + 3)
+#define CB_OP_RECALLANY_RES_MAXSZ	(CB_OP_HDR_RES_MAXSZ)
+#define CB_OP_RECALLSLOT_RES_MAXSZ	(CB_OP_HDR_RES_MAXSZ)
 #endif /* CONFIG_NFS_V4_1 */
 
 #define NFSDBG_FACILITY NFSDBG_CALLBACK
+
+/* Internal error code */
+#define NFS4ERR_RESOURCE_HDR	11050
 
 typedef __be32 (*callback_process_op_t)(void *, void *);
 typedef __be32 (*callback_decode_arg_t)(struct svc_rqst *, struct xdr_stream *, void *);
@@ -172,7 +178,7 @@ static __be32 decode_op_hdr(struct xdr_stream *xdr, unsigned int *op)
 	__be32 *p;
 	p = read_buf(xdr, 4);
 	if (unlikely(p == NULL))
-		return htonl(NFS4ERR_RESOURCE);
+		return htonl(NFS4ERR_RESOURCE_HDR);
 	*op = ntohl(*p);
 	return 0;
 }
@@ -214,10 +220,10 @@ out:
 
 #if defined(CONFIG_NFS_V4_1)
 
-static unsigned decode_sessionid(struct xdr_stream *xdr,
+static __be32 decode_sessionid(struct xdr_stream *xdr,
 				 struct nfs4_sessionid *sid)
 {
-	uint32_t *p;
+	__be32 *p;
 	int len = NFS4_MAX_SESSIONID_LEN;
 
 	p = read_buf(xdr, len);
@@ -228,12 +234,12 @@ static unsigned decode_sessionid(struct xdr_stream *xdr,
 	return 0;
 }
 
-static unsigned decode_rc_list(struct xdr_stream *xdr,
+static __be32 decode_rc_list(struct xdr_stream *xdr,
 			       struct referring_call_list *rc_list)
 {
-	uint32_t *p;
+	__be32 *p;
 	int i;
-	unsigned status;
+	__be32 status;
 
 	status = decode_sessionid(xdr, &rc_list->rcl_sessionid);
 	if (status)
@@ -266,13 +272,13 @@ out:
 	return status;
 }
 
-static unsigned decode_cb_sequence_args(struct svc_rqst *rqstp,
+static __be32 decode_cb_sequence_args(struct svc_rqst *rqstp,
 					struct xdr_stream *xdr,
 					struct cb_sequenceargs *args)
 {
-	uint32_t *p;
+	__be32 *p;
 	int i;
-	unsigned status;
+	__be32 status;
 
 	status = decode_sessionid(xdr, &args->csa_sessionid);
 	if (status)
@@ -324,6 +330,39 @@ out_free:
 		kfree(args->csa_rclists[i].rcl_refcalls);
 	kfree(args->csa_rclists);
 	goto out;
+}
+
+static __be32 decode_recallany_args(struct svc_rqst *rqstp,
+				      struct xdr_stream *xdr,
+				      struct cb_recallanyargs *args)
+{
+	__be32 *p;
+
+	args->craa_addr = svc_addr(rqstp);
+	p = read_buf(xdr, 4);
+	if (unlikely(p == NULL))
+		return htonl(NFS4ERR_BADXDR);
+	args->craa_objs_to_keep = ntohl(*p++);
+	p = read_buf(xdr, 4);
+	if (unlikely(p == NULL))
+		return htonl(NFS4ERR_BADXDR);
+	args->craa_type_mask = ntohl(*p);
+
+	return 0;
+}
+
+static __be32 decode_recallslot_args(struct svc_rqst *rqstp,
+					struct xdr_stream *xdr,
+					struct cb_recallslotargs *args)
+{
+	__be32 *p;
+
+	args->crsa_addr = svc_addr(rqstp);
+	p = read_buf(xdr, 4);
+	if (unlikely(p == NULL))
+		return htonl(NFS4ERR_BADXDR);
+	args->crsa_target_max_slots = ntohl(*p++);
+	return 0;
 }
 
 #endif /* CONFIG_NFS_V4_1 */
@@ -445,7 +484,7 @@ static __be32 encode_op_hdr(struct xdr_stream *xdr, uint32_t op, __be32 res)
 	
 	p = xdr_reserve_space(xdr, 8);
 	if (unlikely(p == NULL))
-		return htonl(NFS4ERR_RESOURCE);
+		return htonl(NFS4ERR_RESOURCE_HDR);
 	*p++ = htonl(op);
 	*p = res;
 	return 0;
@@ -479,10 +518,10 @@ out:
 
 #if defined(CONFIG_NFS_V4_1)
 
-static unsigned encode_sessionid(struct xdr_stream *xdr,
+static __be32 encode_sessionid(struct xdr_stream *xdr,
 				 const struct nfs4_sessionid *sid)
 {
-	uint32_t *p;
+	__be32 *p;
 	int len = NFS4_MAX_SESSIONID_LEN;
 
 	p = xdr_reserve_space(xdr, len);
@@ -493,11 +532,11 @@ static unsigned encode_sessionid(struct xdr_stream *xdr,
 	return 0;
 }
 
-static unsigned encode_cb_sequence_res(struct svc_rqst *rqstp,
+static __be32 encode_cb_sequence_res(struct svc_rqst *rqstp,
 				       struct xdr_stream *xdr,
 				       const struct cb_sequenceres *res)
 {
-	uint32_t *p;
+	__be32 *p;
 	unsigned status = res->csr_status;
 
 	if (unlikely(status != 0))
@@ -533,6 +572,8 @@ preprocess_nfs41_op(int nop, unsigned int op_nr, struct callback_op **op)
 	case OP_CB_GETATTR:
 	case OP_CB_RECALL:
 	case OP_CB_SEQUENCE:
+	case OP_CB_RECALL_ANY:
+	case OP_CB_RECALL_SLOT:
 		*op = &callback_ops[op_nr];
 		break;
 
@@ -540,9 +581,7 @@ preprocess_nfs41_op(int nop, unsigned int op_nr, struct callback_op **op)
 	case OP_CB_NOTIFY_DEVICEID:
 	case OP_CB_NOTIFY:
 	case OP_CB_PUSH_DELEG:
-	case OP_CB_RECALL_ANY:
 	case OP_CB_RECALLABLE_OBJ_AVAIL:
-	case OP_CB_RECALL_SLOT:
 	case OP_CB_WANTS_CANCELLED:
 	case OP_CB_NOTIFY_LOCK:
 		return htonl(NFS4ERR_NOTSUPP);
@@ -582,20 +621,18 @@ preprocess_nfs4_op(unsigned int op_nr, struct callback_op **op)
 static __be32 process_op(uint32_t minorversion, int nop,
 		struct svc_rqst *rqstp,
 		struct xdr_stream *xdr_in, void *argp,
-		struct xdr_stream *xdr_out, void *resp)
+		struct xdr_stream *xdr_out, void *resp, int* drc_status)
 {
 	struct callback_op *op = &callback_ops[0];
-	unsigned int op_nr = OP_CB_ILLEGAL;
+	unsigned int op_nr;
 	__be32 status;
 	long maxlen;
 	__be32 res;
 
 	dprintk("%s: start\n", __func__);
 	status = decode_op_hdr(xdr_in, &op_nr);
-	if (unlikely(status)) {
-		status = htonl(NFS4ERR_OP_ILLEGAL);
-		goto out;
-	}
+	if (unlikely(status))
+		return status;
 
 	dprintk("%s: minorversion=%d nop=%d op_nr=%u\n",
 		__func__, minorversion, nop, op_nr);
@@ -604,19 +641,32 @@ static __be32 process_op(uint32_t minorversion, int nop,
 				preprocess_nfs4_op(op_nr, &op);
 	if (status == htonl(NFS4ERR_OP_ILLEGAL))
 		op_nr = OP_CB_ILLEGAL;
-out:
+	if (status)
+		goto encode_hdr;
+
+	if (*drc_status) {
+		status = *drc_status;
+		goto encode_hdr;
+	}
+
 	maxlen = xdr_out->end - xdr_out->p;
 	if (maxlen > 0 && maxlen < PAGE_SIZE) {
-		if (likely(status == 0 && op->decode_args != NULL))
-			status = op->decode_args(rqstp, xdr_in, argp);
-		if (likely(status == 0 && op->process_op != NULL))
+		status = op->decode_args(rqstp, xdr_in, argp);
+		if (likely(status == 0))
 			status = op->process_op(argp, resp);
 	} else
 		status = htonl(NFS4ERR_RESOURCE);
 
+	/* Only set by OP_CB_SEQUENCE processing */
+	if (status == htonl(NFS4ERR_RETRY_UNCACHED_REP)) {
+		*drc_status = status;
+		status = 0;
+	}
+
+encode_hdr:
 	res = encode_op_hdr(xdr_out, op_nr, status);
-	if (status == 0)
-		status = res;
+	if (unlikely(res))
+		return res;
 	if (op->encode_res != NULL && status == 0)
 		status = op->encode_res(rqstp, xdr_out, resp);
 	dprintk("%s: done, status = %d\n", __func__, ntohl(status));
@@ -632,7 +682,7 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 	struct cb_compound_hdr_res hdr_res = { NULL };
 	struct xdr_stream xdr_in, xdr_out;
 	__be32 *p;
-	__be32 status;
+	__be32 status, drc_status = 0;
 	unsigned int nops = 0;
 
 	dprintk("%s: start\n", __func__);
@@ -652,9 +702,16 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 		return rpc_system_err;
 
 	while (status == 0 && nops != hdr_arg.nops) {
-		status = process_op(hdr_arg.minorversion, nops,
-				    rqstp, &xdr_in, argp, &xdr_out, resp);
+		status = process_op(hdr_arg.minorversion, nops, rqstp,
+				    &xdr_in, argp, &xdr_out, resp, &drc_status);
 		nops++;
+	}
+
+	/* Buffer overflow in decode_ops_hdr or encode_ops_hdr. Return
+	* resource error in cb_compound status without returning op */
+	if (unlikely(status == htonl(NFS4ERR_RESOURCE_HDR))) {
+		status = htonl(NFS4ERR_RESOURCE);
+		nops--;
 	}
 
 	*hdr_res.status = status;
@@ -688,6 +745,16 @@ static struct callback_op callback_ops[] = {
 		.encode_res = (callback_encode_res_t)encode_cb_sequence_res,
 		.res_maxsize = CB_OP_SEQUENCE_RES_MAXSZ,
 	},
+	[OP_CB_RECALL_ANY] = {
+		.process_op = (callback_process_op_t)nfs4_callback_recallany,
+		.decode_args = (callback_decode_arg_t)decode_recallany_args,
+		.res_maxsize = CB_OP_RECALLANY_RES_MAXSZ,
+	},
+	[OP_CB_RECALL_SLOT] = {
+		.process_op = (callback_process_op_t)nfs4_callback_recallslot,
+		.decode_args = (callback_decode_arg_t)decode_recallslot_args,
+		.res_maxsize = CB_OP_RECALLSLOT_RES_MAXSZ,
+	},
 #endif /* CONFIG_NFS_V4_1 */
 };
 
@@ -716,5 +783,13 @@ struct svc_version nfs4_callback_version1 = {
 	.vs_proc = nfs4_callback_procedures1,
 	.vs_xdrsize = NFS4_CALLBACK_XDRSIZE,
 	.vs_dispatch = NULL,
+	.vs_hidden = 1,
 };
 
+struct svc_version nfs4_callback_version4 = {
+	.vs_vers = 4,
+	.vs_nproc = ARRAY_SIZE(nfs4_callback_procedures1),
+	.vs_proc = nfs4_callback_procedures1,
+	.vs_xdrsize = NFS4_CALLBACK_XDRSIZE,
+	.vs_dispatch = NULL,
+};

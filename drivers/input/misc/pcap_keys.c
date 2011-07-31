@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/mfd/ezx-pcap.h>
+#include <linux/slab.h>
 
 struct pcap_keys {
 	struct pcap_chip *pcap;

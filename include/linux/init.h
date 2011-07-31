@@ -149,6 +149,8 @@ void prepare_namespace(void);
 
 extern void (*late_time_init)(void);
 
+extern int initcall_debug;
+
 #endif
   
 #ifndef MODULE
@@ -299,7 +301,7 @@ void __init parse_early_options(char *cmdline);
 #endif
 
 /* Data marked not to be saved by software suspend */
-#define __nosavedata __section(.data.nosave)
+#define __nosavedata __section(.data..nosave)
 
 /* This means "can be init if no module support, otherwise module load
    may call it." */

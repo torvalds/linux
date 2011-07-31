@@ -48,7 +48,6 @@ See the notes in the ni_atmio.o driver.
 #include "ni_stc.h"
 #include "8255.h"
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -123,7 +122,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .adbits = 12,
 	 .ai_fifo_depth = 1024,
 	 .alwaysdither = 0,
-	 .gainlkup = ai_gain_16,
+	 .gainlkup = ai_gain_4,
 	 .ai_speed = 5000,
 	 .n_aochan = 2,
 	 .aobits = 12,
@@ -250,9 +249,8 @@ static int mio_cs_detach(struct comedi_device *dev)
 
 	/* PCMCIA layer frees the IO region */
 
-	if (dev->irq) {
+	if (dev->irq)
 		free_irq(dev->irq, dev);
-	}
 
 	return 0;
 }
@@ -262,19 +260,11 @@ static void cs_release(struct pcmcia_device *link);
 static void cs_detach(struct pcmcia_device *);
 
 static struct pcmcia_device *cur_dev = NULL;
-static const dev_info_t dev_info = "ni_mio_cs";
-static dev_node_t dev_node = {
-	"ni_mio_cs",
-	COMEDI_MAJOR, 0,
-	NULL
-};
 
 static int cs_attach(struct pcmcia_device *link)
 {
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-	link->io.NumPorts1 = 16;
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
+	link->resource[0]->end = 16;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -294,9 +284,7 @@ static void cs_detach(struct pcmcia_device *link)
 {
 	DPRINTK("cs_detach(link=%p)\n", link);
 
-	if (link->dev_node) {
-		cs_release(link);
-	}
+	cs_release(link);
 }
 
 static int mio_cs_suspend(struct pcmcia_device *link)
@@ -312,98 +300,44 @@ static int mio_cs_resume(struct pcmcia_device *link)
 	return 0;
 }
 
+
+static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev,
+				cistpl_cftable_entry_t *cfg,
+				cistpl_cftable_entry_t *dflt,
+				unsigned int vcc,
+				void *priv_data)
+{
+	int base, ret;
+
+	p_dev->resource[0]->end = cfg->io.win[0].len;
+	p_dev->io_lines = cfg->io.flags & CISTPL_IO_LINES_MASK;
+
+	for (base = 0x000; base < 0x400; base += 0x20) {
+		p_dev->resource[0]->start = base;
+		ret = pcmcia_request_io(p_dev);
+		if (!ret)
+			return 0;
+	}
+	return -ENODEV;
+}
+
+
 static void mio_cs_config(struct pcmcia_device *link)
 {
-	tuple_t tuple;
-	u_short buf[128];
-	cisparse_t parse;
-	int manfid = 0, prodid = 0;
 	int ret;
 
 	DPRINTK("mio_cs_config(link=%p)\n", link);
 
-	tuple.TupleData = (cisdata_t *) buf;
-	tuple.TupleOffset = 0;
-	tuple.TupleDataMax = 255;
-	tuple.Attributes = 0;
-
-	tuple.DesiredTuple = CISTPL_CONFIG;
-	ret = pcmcia_get_first_tuple(link, &tuple);
-	ret = pcmcia_get_tuple_data(link, &tuple);
-	ret = pcmcia_parse_tuple(&tuple, &parse);
-	link->conf.ConfigBase = parse.config.base;
-	link->conf.Present = parse.config.rmask[0];
-
-#if 0
-	tuple.DesiredTuple = CISTPL_LONGLINK_MFC;
-	tuple.Attributes = TUPLE_RETURN_COMMON | TUPLE_RETURN_LINK;
-	info->multi(first_tuple(link, &tuple, &parse) == 0);
-#endif
-
-	tuple.DesiredTuple = CISTPL_MANFID;
-	tuple.Attributes = TUPLE_RETURN_COMMON;
-	if ((pcmcia_get_first_tuple(link, &tuple) == 0) &&
-	    (pcmcia_get_tuple_data(link, &tuple) == 0)) {
-		manfid = le16_to_cpu(buf[0]);
-		prodid = le16_to_cpu(buf[1]);
-	}
-	/* printk("manfid = 0x%04x, 0x%04x\n",manfid,prodid); */
-
-	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	tuple.Attributes = 0;
-	ret = pcmcia_get_first_tuple(link, &tuple);
-	ret = pcmcia_get_tuple_data(link, &tuple);
-	ret = pcmcia_parse_tuple(&tuple, &parse);
-
-#if 0
-	printk(" index: 0x%x\n", parse.cftable_entry.index);
-	printk(" flags: 0x%x\n", parse.cftable_entry.flags);
-	printk(" io flags: 0x%x\n", parse.cftable_entry.io.flags);
-	printk(" io nwin: 0x%x\n", parse.cftable_entry.io.nwin);
-	printk(" io base: 0x%x\n", parse.cftable_entry.io.win[0].base);
-	printk(" io len: 0x%x\n", parse.cftable_entry.io.win[0].len);
-	printk(" irq1: 0x%x\n", parse.cftable_entry.irq.IRQInfo1);
-	printk(" irq2: 0x%x\n", parse.cftable_entry.irq.IRQInfo2);
-	printk(" mem flags: 0x%x\n", parse.cftable_entry.mem.flags);
-	printk(" mem nwin: 0x%x\n", parse.cftable_entry.mem.nwin);
-	printk(" subtuples: 0x%x\n", parse.cftable_entry.subtuples);
-#endif
-
-#if 0
-	link->io.NumPorts1 = 0x20;
-	link->io.IOAddrLines = 5;
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-#endif
-	link->io.NumPorts1 = parse.cftable_entry.io.win[0].len;
-	link->io.IOAddrLines =
-	    parse.cftable_entry.io.flags & CISTPL_IO_LINES_MASK;
-	link->io.NumPorts2 = 0;
-
-	{
-		int base;
-		for (base = 0x000; base < 0x400; base += 0x20) {
-			link->io.BasePort1 = base;
-			ret = pcmcia_request_io(link, &link->io);
-			/* printk("RequestIO 0x%02x\n",ret); */
-			if (!ret)
-				break;
-		}
-	}
-
-	link->irq.IRQInfo1 = parse.cftable_entry.irq.IRQInfo1;
-	link->irq.IRQInfo2 = parse.cftable_entry.irq.IRQInfo2;
-	ret = pcmcia_request_irq(link, &link->irq);
+	ret = pcmcia_loop_config(link, mio_pcmcia_config_loop, NULL);
 	if (ret) {
-		printk("pcmcia_request_irq() returned error: %i\n", ret);
+		dev_warn(&link->dev, "no configuration found\n");
+		return;
 	}
-	/* printk("RequestIRQ 0x%02x\n",ret); */
 
-	link->conf.ConfigIndex = 1;
+	if (!link->irq)
+		dev_info(&link->dev, "no IRQ available\n");
 
 	ret = pcmcia_request_configuration(link, &link->conf);
-	/* printk("RequestConfiguration %d\n",ret); */
-
-	link->dev_node = &dev_node;
 }
 
 static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
@@ -419,9 +353,9 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EIO;
 
 	dev->driver = &driver_ni_mio_cs;
-	dev->iobase = link->io.BasePort1;
+	dev->iobase = link->resource[0]->start;
 
-	irq = link->irq.AssignedIRQ;
+	irq = link->irq;
 
 	printk("comedi%d: %s: DAQCard: io 0x%04lx, irq %u, ",
 	       dev->minor, dev->driver->driver_name, dev->iobase, irq);
@@ -437,9 +371,8 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 		printk("\n");
 		printk(" board fingerprint (windowed):");
-		for (i = 0; i < 10; i++) {
+		for (i = 0; i < 10; i++)
 			printk(" 0x%04x", win_in(i));
-		}
 		printk("\n");
 	}
 #endif
@@ -475,47 +408,22 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int get_prodid(struct comedi_device *dev, struct pcmcia_device *link)
-{
-	tuple_t tuple;
-	u_short buf[128];
-	int prodid = 0;
-
-	tuple.TupleData = (cisdata_t *) buf;
-	tuple.TupleOffset = 0;
-	tuple.TupleDataMax = 255;
-	tuple.DesiredTuple = CISTPL_MANFID;
-	tuple.Attributes = TUPLE_RETURN_COMMON;
-	if ((pcmcia_get_first_tuple(link, &tuple) == 0) &&
-	    (pcmcia_get_tuple_data(link, &tuple) == 0)) {
-		prodid = le16_to_cpu(buf[1]);
-	}
-
-	return prodid;
-}
-
 static int ni_getboardtype(struct comedi_device *dev,
 			   struct pcmcia_device *link)
 {
-	int id;
 	int i;
 
-	id = get_prodid(dev, link);
-
 	for (i = 0; i < n_ni_boards; i++) {
-		if (ni_boards[i].device_id == id) {
+		if (ni_boards[i].device_id == link->card_id)
 			return i;
-		}
 	}
 
-	printk("unknown board 0x%04x -- pretend it is a ", id);
+	printk("unknown board 0x%04x -- pretend it is a ", link->card_id);
 
 	return 0;
 }
 
 #ifdef MODULE
-
-MODULE_LICENSE("GPL");
 
 static struct pcmcia_device_id ni_mio_cs_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x010d),	/* DAQCard-ai-16xe-50 */
@@ -527,6 +435,9 @@ static struct pcmcia_device_id ni_mio_cs_ids[] = {
 };
 
 MODULE_DEVICE_TABLE(pcmcia, ni_mio_cs_ids);
+MODULE_AUTHOR("David A. Schleef <ds@schleef.org>");
+MODULE_DESCRIPTION("Comedi driver for National Instruments DAQCard E series");
+MODULE_LICENSE("GPL");
 
 struct pcmcia_driver ni_mio_cs_driver = {
 	.probe = &cs_attach,
@@ -536,7 +447,7 @@ struct pcmcia_driver ni_mio_cs_driver = {
 	.id_table = ni_mio_cs_ids,
 	.owner = THIS_MODULE,
 	.drv = {
-		.name = dev_info,
+		.name = "ni_mio_cs",
 		},
 };
 

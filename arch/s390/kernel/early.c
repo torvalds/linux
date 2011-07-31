@@ -82,7 +82,8 @@ asm(
 	"	lm	6,15,24(15)\n"
 #endif
 	"	br	14\n"
-	"	.size	savesys_ipl_nss, .-savesys_ipl_nss\n");
+	"	.size	savesys_ipl_nss, .-savesys_ipl_nss\n"
+	"	.previous\n");
 
 static __initdata char upper_command_line[COMMAND_LINE_SIZE];
 
@@ -214,10 +215,13 @@ static __initdata struct sysinfo_3_2_2 vmms __aligned(PAGE_SIZE);
 
 static noinline __init void detect_machine_type(void)
 {
-	/* No VM information? Looks like LPAR */
-	if (stsi(&vmms, 3, 2, 2) == -ENOSYS)
+	/* Check current-configuration-level */
+	if ((stsi(NULL, 0, 0, 0) >> 28) <= 2) {
+		S390_lowcore.machine_flags |= MACHINE_FLAG_LPAR;
 		return;
-	if (!vmms.count)
+	}
+	/* Get virtual-machine cpu information. */
+	if (stsi(&vmms, 3, 2, 2) == -ENOSYS || !vmms.count)
 		return;
 
 	/* Running under KVM? If not we assume z/VM */
@@ -352,6 +356,7 @@ static __init void detect_machine_facilities(void)
 {
 #ifdef CONFIG_64BIT
 	unsigned int facilities;
+	unsigned long long facility_bits;
 
 	facilities = stfl();
 	if (facilities & (1 << 28))
@@ -360,6 +365,9 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_PFMF;
 	if (facilities & (1 << 4))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_MVCOS;
+	if ((stfle(&facility_bits, 1) > 0) &&
+	    (facility_bits & (1ULL << (63 - 40))))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_SPP;
 #endif
 }
 
@@ -402,8 +410,19 @@ static void __init append_to_cmdline(size_t (*ipl_data)(char *, size_t))
 
 static void __init setup_boot_command_line(void)
 {
+	int i;
+
+	/* convert arch command line to ascii */
+	for (i = 0; i < ARCH_COMMAND_LINE_SIZE; i++)
+		if (COMMAND_LINE[i] & 0x80)
+			break;
+	if (i < ARCH_COMMAND_LINE_SIZE)
+		EBCASC(COMMAND_LINE, ARCH_COMMAND_LINE_SIZE);
+	COMMAND_LINE[ARCH_COMMAND_LINE_SIZE-1] = 0;
+
 	/* copy arch command line */
-	strlcpy(boot_command_line, COMMAND_LINE, ARCH_COMMAND_LINE_SIZE);
+	strlcpy(boot_command_line, strstrip(COMMAND_LINE),
+		ARCH_COMMAND_LINE_SIZE);
 
 	/* append IPL PARM data to the boot command line */
 	if (MACHINE_IS_VM)

@@ -287,7 +287,43 @@ static struct comedi_driver driver_dt3000 = {
 	.detach = dt3000_detach,
 };
 
-COMEDI_PCI_INITCLEANUP(driver_dt3000, dt3k_pci_table);
+static int __devinit driver_dt3000_pci_probe(struct pci_dev *dev,
+					     const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_dt3000.driver_name);
+}
+
+static void __devexit driver_dt3000_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_dt3000_pci_driver = {
+	.id_table = dt3k_pci_table,
+	.probe = &driver_dt3000_pci_probe,
+	.remove = __devexit_p(&driver_dt3000_pci_remove)
+};
+
+static int __init driver_dt3000_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_dt3000);
+	if (retval < 0)
+		return retval;
+
+	driver_dt3000_pci_driver.name = (char *)driver_dt3000.driver_name;
+	return pci_register_driver(&driver_dt3000_pci_driver);
+}
+
+static void __exit driver_dt3000_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_dt3000_pci_driver);
+	comedi_driver_unregister(&driver_dt3000);
+}
+
+module_init(driver_dt3000_init_module);
+module_exit(driver_dt3000_cleanup_module);
 
 static void dt3k_ai_empty_fifo(struct comedi_device *dev,
 			       struct comedi_subdevice *s);
@@ -314,9 +350,8 @@ static int dt3k_send_cmd(struct comedi_device *dev, unsigned int cmd)
 			break;
 		udelay(1);
 	}
-	if ((status & DT3000_COMPLETION_MASK) == DT3000_NOERROR) {
+	if ((status & DT3000_COMPLETION_MASK) == DT3000_NOERROR)
 		return 0;
-	}
 
 	printk("dt3k_send_cmd() timeout/error status=0x%04x\n", status);
 
@@ -359,9 +394,8 @@ static irqreturn_t dt3k_interrupt(int irq, void *d)
 	struct comedi_subdevice *s;
 	unsigned int status;
 
-	if (!dev->attached) {
+	if (!dev->attached)
 		return IRQ_NONE;
-	}
 
 	s = dev->subdevices + 0;
 	status = readw(devpriv->io_addr + DPR_Intr_Flag);
@@ -374,9 +408,8 @@ static irqreturn_t dt3k_interrupt(int irq, void *d)
 		s->async->events |= COMEDI_CB_BLOCK;
 	}
 
-	if (status & (DT3000_ADSWERR | DT3000_ADHWERR)) {
+	if (status & (DT3000_ADSWERR | DT3000_ADHWERR))
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-	}
 
 	debug_n_ints++;
 	if (debug_n_ints >= 10) {
@@ -399,9 +432,8 @@ static void debug_intr_flags(unsigned int flags)
 	int i;
 	printk("dt3k: intr_flags:");
 	for (i = 0; i < 8; i++) {
-		if (flags & (1 << i)) {
+		if (flags & (1 << i))
 			printk(" %s", intr_flags[i]);
-		}
 	}
 	printk("\n");
 }
@@ -690,9 +722,8 @@ static int dt3k_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 	/* XXX docs don't explain how to select aref */
 	aref = CR_AREF(insn->chanspec);
 
-	for (i = 0; i < insn->n; i++) {
+	for (i = 0; i < insn->n; i++)
 		data[i] = dt3k_readsingle(dev, SUBS_AI, chan, gain);
-	}
 
 	return i;
 }
@@ -720,9 +751,8 @@ static int dt3k_ao_insn_read(struct comedi_device *dev,
 	unsigned int chan;
 
 	chan = CR_CHAN(insn->chanspec);
-	for (i = 0; i < insn->n; i++) {
+	for (i = 0; i < insn->n; i++)
 		data[i] = devpriv->ao_readback[chan];
-	}
 
 	return i;
 }
@@ -911,9 +941,8 @@ static int dt3000_detach(struct comedi_device *dev)
 
 	if (devpriv) {
 		if (devpriv->pci_dev) {
-			if (devpriv->phys_addr) {
+			if (devpriv->phys_addr)
 				comedi_pci_disable(devpriv->pci_dev);
-			}
 			pci_dev_put(devpriv->pci_dev);
 		}
 		if (devpriv->io_addr)
@@ -998,3 +1027,7 @@ static struct pci_dev *dt_pci_find_device(struct pci_dev *from, int *board)
 	*board = -1;
 	return from;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

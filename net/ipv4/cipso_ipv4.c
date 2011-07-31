@@ -44,6 +44,7 @@
 #include <linux/string.h>
 #include <linux/jhash.h>
 #include <linux/audit.h>
+#include <linux/slab.h>
 #include <net/ip.h>
 #include <net/icmp.h>
 #include <net/tcp.h>
@@ -289,8 +290,6 @@ void cipso_v4_cache_invalidate(void)
 		cipso_v4_cache[iter].size = 0;
 		spin_unlock_bh(&cipso_v4_cache[iter].lock);
 	}
-
-	return;
 }
 
 /**
@@ -2017,7 +2016,7 @@ req_setattr_failure:
  * values on failure.
  *
  */
-int cipso_v4_delopt(struct ip_options **opt_ptr)
+static int cipso_v4_delopt(struct ip_options **opt_ptr)
 {
 	int hdr_delta = 0;
 	struct ip_options *opt = *opt_ptr;

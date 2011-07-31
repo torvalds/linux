@@ -2,6 +2,8 @@
  * include/asm-sh/watchdog.h
  *
  * Copyright (C) 2002, 2003 Paul Mundt
+ * Copyright (C) 2009 Siemens AG
+ * Copyright (C) 2009 Valentin Sitdikov
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -61,13 +63,68 @@
 #define WTCSR_CKS_2048	0x06
 #define WTCSR_CKS_4096	0x07
 
+#if defined(CONFIG_CPU_SUBTYPE_SH7785) || defined(CONFIG_CPU_SUBTYPE_SH7780)
+/**
+ * 	sh_wdt_read_cnt - Read from Counter
+ * 	Reads back the WTCNT value.
+ */
+static inline __u32 sh_wdt_read_cnt(void)
+{
+	return __raw_readl(WTCNT_R);
+}
+
+/**
+ *	sh_wdt_write_cnt - Write to Counter
+ *	@val: Value to write
+ *
+ *	Writes the given value @val to the lower byte of the timer counter.
+ *	The upper byte is set manually on each write.
+ */
+static inline void sh_wdt_write_cnt(__u32 val)
+{
+	__raw_writel((WTCNT_HIGH << 24) | (__u32)val, WTCNT);
+}
+
+/**
+ *	sh_wdt_write_bst - Write to Counter
+ *	@val: Value to write
+ *
+ *	Writes the given value @val to the lower byte of the timer counter.
+ *	The upper byte is set manually on each write.
+ */
+static inline void sh_wdt_write_bst(__u32 val)
+{
+	__raw_writel((WTBST_HIGH << 24) | (__u32)val, WTBST);
+}
+/**
+ * 	sh_wdt_read_csr - Read from Control/Status Register
+ *
+ *	Reads back the WTCSR value.
+ */
+static inline __u32 sh_wdt_read_csr(void)
+{
+	return __raw_readl(WTCSR_R);
+}
+
+/**
+ * 	sh_wdt_write_csr - Write to Control/Status Register
+ * 	@val: Value to write
+ *
+ * 	Writes the given value @val to the lower byte of the control/status
+ * 	register. The upper byte is set manually on each write.
+ */
+static inline void sh_wdt_write_csr(__u32 val)
+{
+	__raw_writel((WTCSR_HIGH << 24) | (__u32)val, WTCSR);
+}
+#else
 /**
  * 	sh_wdt_read_cnt - Read from Counter
  * 	Reads back the WTCNT value.
  */
 static inline __u8 sh_wdt_read_cnt(void)
 {
-	return ctrl_inb(WTCNT_R);
+	return __raw_readb(WTCNT_R);
 }
 
 /**
@@ -79,7 +136,7 @@ static inline __u8 sh_wdt_read_cnt(void)
  */
 static inline void sh_wdt_write_cnt(__u8 val)
 {
-	ctrl_outw((WTCNT_HIGH << 8) | (__u16)val, WTCNT);
+	__raw_writew((WTCNT_HIGH << 8) | (__u16)val, WTCNT);
 }
 
 /**
@@ -89,7 +146,7 @@ static inline void sh_wdt_write_cnt(__u8 val)
  */
 static inline __u8 sh_wdt_read_csr(void)
 {
-	return ctrl_inb(WTCSR_R);
+	return __raw_readb(WTCSR_R);
 }
 
 /**
@@ -101,8 +158,8 @@ static inline __u8 sh_wdt_read_csr(void)
  */
 static inline void sh_wdt_write_csr(__u8 val)
 {
-	ctrl_outw((WTCSR_HIGH << 8) | (__u16)val, WTCSR);
+	__raw_writew((WTCSR_HIGH << 8) | (__u16)val, WTCSR);
 }
-
+#endif /* CONFIG_CPU_SUBTYPE_SH7785 || CONFIG_CPU_SUBTYPE_SH7780 */
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_WATCHDOG_H */

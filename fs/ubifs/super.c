@@ -283,7 +283,7 @@ static void ubifs_destroy_inode(struct inode *inode)
 /*
  * Note, Linux write-back code calls this without 'i_mutex'.
  */
-static int ubifs_write_inode(struct inode *inode, int wait)
+static int ubifs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	int err = 0;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
@@ -327,7 +327,7 @@ static int ubifs_write_inode(struct inode *inode, int wait)
 	return err;
 }
 
-static void ubifs_delete_inode(struct inode *inode)
+static void ubifs_evict_inode(struct inode *inode)
 {
 	int err;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
@@ -343,9 +343,12 @@ static void ubifs_delete_inode(struct inode *inode)
 
 	dbg_gen("inode %lu, mode %#x", inode->i_ino, (int)inode->i_mode);
 	ubifs_assert(!atomic_read(&inode->i_count));
-	ubifs_assert(inode->i_nlink == 0);
 
 	truncate_inode_pages(&inode->i_data, 0);
+
+	if (inode->i_nlink)
+		goto done;
+
 	if (is_bad_inode(inode))
 		goto out;
 
@@ -367,7 +370,8 @@ out:
 		c->nospace = c->nospace_rp = 0;
 		smp_wmb();
 	}
-	clear_inode(inode);
+done:
+	end_writeback(inode);
 }
 
 static void ubifs_dirty_inode(struct inode *inode)
@@ -1307,6 +1311,8 @@ static int mount_ubifs(struct ubifs_info *c)
 			if (err)
 				goto out_orphans;
 			err = ubifs_rcvry_gc_commit(c);
+			if (err)
+				goto out_orphans;
 		} else {
 			err = take_gc_lnum(c);
 			if (err)
@@ -1318,7 +1324,7 @@ static int mount_ubifs(struct ubifs_info *c)
 			 */
 			err = ubifs_leb_unmap(c, c->gc_lnum);
 			if (err)
-				return err;
+				goto out_orphans;
 		}
 
 		err = dbg_check_lprops(c);
@@ -1393,12 +1399,7 @@ static int mount_ubifs(struct ubifs_info *c)
 		c->leb_size, c->leb_size >> 10);
 	dbg_msg("data journal heads:  %d",
 		c->jhead_cnt - NONDATA_JHEADS_CNT);
-	dbg_msg("UUID:                %02X%02X%02X%02X-%02X%02X"
-	       "-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X",
-	       c->uuid[0], c->uuid[1], c->uuid[2], c->uuid[3],
-	       c->uuid[4], c->uuid[5], c->uuid[6], c->uuid[7],
-	       c->uuid[8], c->uuid[9], c->uuid[10], c->uuid[11],
-	       c->uuid[12], c->uuid[13], c->uuid[14], c->uuid[15]);
+	dbg_msg("UUID:                %pUB", c->uuid);
 	dbg_msg("big_lpt              %d", c->big_lpt);
 	dbg_msg("log LEBs:            %d (%d - %d)",
 		c->log_lebs, UBIFS_LOG_LNUM, c->log_last);
@@ -1829,7 +1830,7 @@ const struct super_operations ubifs_super_operations = {
 	.destroy_inode = ubifs_destroy_inode,
 	.put_super     = ubifs_put_super,
 	.write_inode   = ubifs_write_inode,
-	.delete_inode  = ubifs_delete_inode,
+	.evict_inode   = ubifs_evict_inode,
 	.statfs        = ubifs_statfs,
 	.dirty_inode   = ubifs_dirty_inode,
 	.remount_fs    = ubifs_remount_fs,
@@ -1842,22 +1843,32 @@ const struct super_operations ubifs_super_operations = {
  * @name: UBI volume name
  * @mode: UBI volume open mode
  *
- * There are several ways to specify UBI volumes when mounting UBIFS:
- * o ubiX_Y    - UBI device number X, volume Y;
- * o ubiY      - UBI device number 0, volume Y;
+ * The primary method of mounting UBIFS is by specifying the UBI volume
+ * character device node path. However, UBIFS may also be mounted withoug any
+ * character device node using one of the following methods:
+ *
+ * o ubiX_Y    - mount UBI device number X, volume Y;
+ * o ubiY      - mount UBI device number 0, volume Y;
  * o ubiX:NAME - mount UBI device X, volume with name NAME;
  * o ubi:NAME  - mount UBI device 0, volume with name NAME.
  *
  * Alternative '!' separator may be used instead of ':' (because some shells
  * like busybox may interpret ':' as an NFS host name separator). This function
- * returns ubi volume object in case of success and a negative error code in
- * case of failure.
+ * returns UBI volume description object in case of success and a negative
+ * error code in case of failure.
  */
 static struct ubi_volume_desc *open_ubi(const char *name, int mode)
 {
+	struct ubi_volume_desc *ubi;
 	int dev, vol;
 	char *endptr;
 
+	/* First, try to open using the device node path method */
+	ubi = ubi_open_volume_path(name, mode);
+	if (!IS_ERR(ubi))
+		return ubi;
+
+	/* Try the "nodev" method */
 	if (name[0] != 'u' || name[1] != 'b' || name[2] != 'i')
 		return ERR_PTR(-EINVAL);
 

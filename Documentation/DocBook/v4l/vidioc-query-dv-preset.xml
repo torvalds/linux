@@ -1,0 +1,87 @@
+<refentry id="vidioc-query-dv-preset">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_QUERY_DV_PRESET</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_QUERY_DV_PRESET</refname>
+    <refpurpose>Sense the DV preset received by the current
+input</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>&v4l2-dv-preset; *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+	<varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_QUERY_DV_PRESET</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>The hardware may be able to detect the current DV preset
+automatically, similar to sensing the video standard. To do so, applications
+call <constant> VIDIOC_QUERY_DV_PRESET</constant> with a pointer to a
+&v4l2-dv-preset; type. Once the hardware detects a preset, that preset is
+returned in the preset field of &v4l2-dv-preset;. If the preset could not be
+detected because there was no signal, or the signal was unreliable, or the
+signal did not map to a supported preset, then the value V4L2_DV_INVALID is
+returned.</para>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>This ioctl is not supported.</para>
+	</listitem>
+    </varlistentry>
+      <varlistentry>
+	<term><errorcode>EBUSY</errorcode></term>
+	<listitem>
+	  <para>The device is busy and therefore can not sense the preset</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>
+
+<!--
+Local Variables:
+mode: sgml
+sgml-parent-document: "v4l2.sgml"
+indent-tabs-mode: nil
+End:
+-->

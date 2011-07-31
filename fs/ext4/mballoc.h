@@ -17,7 +17,6 @@
 #include <linux/proc_fs.h>
 #include <linux/pagemap.h>
 #include <linux/seq_file.h>
-#include <linux/version.h>
 #include <linux/blkdev.h>
 #include <linux/mutex.h>
 #include "ext4_jbd2.h"
@@ -221,16 +220,9 @@ struct ext4_buddy {
 #define EXT4_MB_BITMAP(e4b)	((e4b)->bd_bitmap)
 #define EXT4_MB_BUDDY(e4b)	((e4b)->bd_buddy)
 
-#define in_range(b, first, len)	((b) >= (first) && (b) <= (first) + (len) - 1)
-
 static inline ext4_fsblk_t ext4_grp_offs_to_block(struct super_block *sb,
 					struct ext4_free_extent *fex)
 {
-	ext4_fsblk_t block;
-
-	block = (ext4_fsblk_t) fex->fe_group * EXT4_BLOCKS_PER_GROUP(sb)
-			+ fex->fe_start
-			+ le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block);
-	return block;
+	return ext4_group_first_block_no(sb, fex->fe_group) + fex->fe_start;
 }
 #endif

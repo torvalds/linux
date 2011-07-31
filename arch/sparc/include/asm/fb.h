@@ -1,5 +1,6 @@
 #ifndef _SPARC_FB_H_
 #define _SPARC_FB_H_
+#include <linux/console.h>
 #include <linux/fb.h>
 #include <linux/fs.h>
 #include <asm/page.h>
@@ -18,7 +19,10 @@ static inline int fb_is_primary_device(struct fb_info *info)
 	struct device *dev = info->device;
 	struct device_node *node;
 
-	node = dev->archdata.prom_node;
+	if (console_set_on_cmdline)
+		return 0;
+
+	node = dev->of_node;
 	if (node &&
 	    node == of_console_device)
 		return 1;

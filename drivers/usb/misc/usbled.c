@@ -24,7 +24,7 @@
 #define PRODUCT_ID	0x1223
 
 /* table of devices that work with this driver */
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(VENDOR_ID, PRODUCT_ID) },
 	{ },
 };
@@ -94,7 +94,7 @@ static ssize_t set_##value(struct device *dev, struct device_attribute *attr, co
 	change_color(led);						\
 	return count;							\
 }									\
-static DEVICE_ATTR(value, S_IWUGO | S_IRUGO, show_##value, set_##value);
+static DEVICE_ATTR(value, S_IRUGO | S_IWUSR, show_##value, set_##value);
 show_set(blue);
 show_set(red);
 show_set(green);

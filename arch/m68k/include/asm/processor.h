@@ -44,10 +44,14 @@ static inline void wrusp(unsigned long usp)
  * User space process size: 3.75GB. This is hardcoded into a few places,
  * so don't change it unless you know what you are doing.
  */
+#ifdef CONFIG_MMU
 #ifndef CONFIG_SUN3
 #define TASK_SIZE	(0xF0000000UL)
 #else
 #define TASK_SIZE	(0x0E000000UL)
+#endif
+#else
+#define TASK_SIZE	(0xFFFFFFFFUL)
 #endif
 
 #ifdef __KERNEL__
@@ -164,6 +168,8 @@ unsigned long get_wchan(struct task_struct *p);
 	      eip = ((struct pt_regs *) (tsk)->thread.esp0)->pc; \
 	eip; })
 #define	KSTK_ESP(tsk)	((tsk) == current ? rdusp() : (tsk)->thread.usp)
+
+#define task_pt_regs(tsk)	((struct pt_regs *) ((tsk)->thread.esp0))
 
 #define cpu_relax()	barrier()
 

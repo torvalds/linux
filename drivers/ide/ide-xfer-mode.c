@@ -58,7 +58,7 @@ EXPORT_SYMBOL(ide_xfer_verbose);
  *	This is used by most chipset support modules when "auto-tuning".
  */
 
-u8 ide_get_best_pio_mode(ide_drive_t *drive, u8 mode_wanted, u8 max_mode)
+static u8 ide_get_best_pio_mode(ide_drive_t *drive, u8 mode_wanted, u8 max_mode)
 {
 	u16 *id = drive->id;
 	int pio_mode = -1, overridden = 0;
@@ -105,7 +105,6 @@ u8 ide_get_best_pio_mode(ide_drive_t *drive, u8 mode_wanted, u8 max_mode)
 
 	return pio_mode;
 }
-EXPORT_SYMBOL_GPL(ide_get_best_pio_mode);
 
 int ide_pio_need_iordy(ide_drive_t *drive, const u8 pio)
 {
@@ -135,17 +134,20 @@ int ide_set_pio_mode(ide_drive_t *drive, const u8 mode)
 	 * set transfer mode on the device in ->set_pio_mode method...
 	 */
 	if (port_ops->set_dma_mode == NULL) {
-		port_ops->set_pio_mode(drive, mode - XFER_PIO_0);
+		drive->pio_mode = mode;
+		port_ops->set_pio_mode(hwif, drive);
 		return 0;
 	}
 
 	if (hwif->host_flags & IDE_HFLAG_POST_SET_MODE) {
 		if (ide_config_drive_speed(drive, mode))
 			return -1;
-		port_ops->set_pio_mode(drive, mode - XFER_PIO_0);
+		drive->pio_mode = mode;
+		port_ops->set_pio_mode(hwif, drive);
 		return 0;
 	} else {
-		port_ops->set_pio_mode(drive, mode - XFER_PIO_0);
+		drive->pio_mode = mode;
+		port_ops->set_pio_mode(hwif, drive);
 		return ide_config_drive_speed(drive, mode);
 	}
 }
@@ -164,10 +166,12 @@ int ide_set_dma_mode(ide_drive_t *drive, const u8 mode)
 	if (hwif->host_flags & IDE_HFLAG_POST_SET_MODE) {
 		if (ide_config_drive_speed(drive, mode))
 			return -1;
-		port_ops->set_dma_mode(drive, mode);
+		drive->dma_mode = mode;
+		port_ops->set_dma_mode(hwif, drive);
 		return 0;
 	} else {
-		port_ops->set_dma_mode(drive, mode);
+		drive->dma_mode = mode;
+		port_ops->set_dma_mode(hwif, drive);
 		return ide_config_drive_speed(drive, mode);
 	}
 }

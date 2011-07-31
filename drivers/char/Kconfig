@@ -88,6 +88,19 @@ config VT_HW_CONSOLE_BINDING
 	 information. For framebuffer console users, please refer to
 	 <file:Documentation/fb/fbcon.txt>.
 
+config DEVMEM
+	bool "Memory device driver"
+	default y
+	help
+	  The memory driver provides two character devices, mem and kmem, which
+	  provide access to the system's memory. The mem device is a view of
+	  physical memory, and each byte in the device corresponds to the
+	  matching physical address. The kmem device is the same as mem, but
+	  the addresses correspond to the kernel's virtual address space rather
+	  than physical memory. These devices are standard parts of a Linux
+	  system and most users should say Y here. You might say N if very
+	  security conscience or memory is tight.
+
 config DEVKMEM
 	bool "/dev/kmem virtual device support"
 	default y
@@ -201,19 +214,6 @@ config DIGIEPCA
 	  To compile this driver as a module, choose M here: the
 	  module will be called epca.
 
-config ESPSERIAL
-	tristate "Hayes ESP serial port support"
-	depends on SERIAL_NONSTANDARD && ISA && ISA_DMA_API && BROKEN
-	help
-	  This is a driver which supports Hayes ESP serial ports.  Both single
-	  port cards and multiport cards are supported.  Make sure to read
-	  <file:Documentation/hayes-esp.txt>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called esp.
-
-	  If unsure, say N.
-
 config MOXA_INTELLIO
 	tristate "Moxa Intellio support"
 	depends on SERIAL_NONSTANDARD && (ISA || EISA || PCI)
@@ -289,10 +289,18 @@ config N_HDLC
 	  Allows synchronous HDLC communications with tty device drivers that
 	  support synchronous HDLC such as the Microgate SyncLink adapter.
 
-	  This driver can only be built as a module ( = code which can be
+	  This driver can be built as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want).
 	  The module will be called n_hdlc. If you want to do that, say M
 	  here.
+
+config N_GSM
+	tristate "GSM MUX line discipline support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on NET
+	help
+	  This line discipline provides support for the GSM MUX protocol and
+	  presents the mux as a set of 61 individual tty devices.
 
 config RISCOM8
 	tristate "SDL RISCom/8 card support"
@@ -515,7 +523,7 @@ config BRIQ_PANEL
 
 config BFIN_OTP
 	tristate "Blackfin On-Chip OTP Memory Support"
-	depends on BLACKFIN && (BF52x || BF54x)
+	depends on BLACKFIN && (BF51x || BF52x || BF54x)
 	default y
 	help
 	  If you say Y here, you will get support for a character device
@@ -679,10 +687,18 @@ config VIRTIO_CONSOLE
 	help
 	  Virtio console for use with lguest and other hypervisors.
 
+	  Also serves as a general-purpose serial device for data
+	  transfer between the guest and host.  Character devices at
+	  /dev/vportNpn will be created when corresponding ports are
+	  found, where N is the device number and n is the port number
+	  within that device.  If specified by the host, a sysfs
+	  attribute called 'name' will be populated with a name for
+	  the port which can be used by udev scripts to create a
+	  symlink to the device.
 
 config HVCS
 	tristate "IBM Hypervisor Virtual Console Server support"
-	depends on PPC_PSERIES
+	depends on PPC_PSERIES && HVC_CONSOLE
 	help
 	  Partitionable IBM Power5 ppc64 machines allow hosting of
 	  firmware virtual consoles from one Linux partition by
@@ -999,7 +1015,7 @@ config SCx200_GPIO
 
 config PC8736x_GPIO
 	tristate "NatSemi PC8736x GPIO Support"
-	depends on X86
+	depends on X86_32
 	default SCx200_GPIO	# mostly N
 	select NSC_GPIO		# needed for support routines
 	help
@@ -1116,7 +1132,19 @@ config DEVPORT
 	depends on ISA || PCI
 	default y
 
+config DCC_TTY
+	tristate "DCC tty driver"
+	depends on ARM
+
 source "drivers/s390/char/Kconfig"
+
+config RAMOOPS
+	tristate "Log panic/oops to a RAM buffer"
+	depends on HAS_IOMEM
+	default n
+	help
+	  This enables panic and oops messages to be logged to a circular
+	  buffer in RAM where it can be read back at some later point.
 
 endmenu
 

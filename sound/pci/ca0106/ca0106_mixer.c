@@ -63,7 +63,6 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 #include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/initval.h>
@@ -792,8 +791,8 @@ int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 		"Phone Playback Volume",
 		"Video Playback Switch",
 		"Video Playback Volume",
-		"PC Speaker Playback Switch",
-		"PC Speaker Playback Volume",
+		"Beep Playback Switch",
+		"Beep Playback Volume",
 		"Mono Output Select",
 		"Capture Source",
 		"Capture Switch",

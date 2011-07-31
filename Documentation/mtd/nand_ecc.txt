@@ -91,7 +91,7 @@ ECC 1   rp15  rp14  rp13  rp12  rp11  rp10  rp09  rp08
 ECC 2   cp5   cp4   cp3   cp2   cp1   cp0      1     1
 
 I detected after writing this that ST application note AN1823
-(http://www.st.com/stonline/books/pdf/docs/10123.pdf) gives a much
+(http://www.st.com/stonline/) gives a much
 nicer picture.(but they use line parity as term where I use row parity)
 Oh well, I'm graphically challenged, so suffer with me for a moment :-)
 And I could not reuse the ST picture anyway for copyright reasons.

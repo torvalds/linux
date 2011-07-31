@@ -5,9 +5,9 @@
 #include "r819xE_phy.h"
 #include "r8192E_dm.h"
 #ifdef ENABLE_DOT11D
-#include "dot11d.h"
+#include "ieee80211/dot11d.h"
 #endif
-static u32 RF_CHANNEL_TABLE_ZEBRA[] = {
+static const u32 RF_CHANNEL_TABLE_ZEBRA[] = {
 	0,
 	0x085c, //2412 1
 	0x08dc, //2417 2

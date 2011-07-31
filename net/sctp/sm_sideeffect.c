@@ -51,6 +51,7 @@
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/ip.h>
+#include <linux/gfp.h>
 #include <net/sock.h>
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
@@ -217,8 +218,7 @@ static int sctp_gen_sack(struct sctp_association *asoc, int force,
 		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_RESTART,
 				SCTP_TO(SCTP_EVENT_TIMEOUT_SACK));
 	} else {
-		if (asoc->a_rwnd > asoc->rwnd)
-			asoc->a_rwnd = asoc->rwnd;
+		asoc->a_rwnd = asoc->rwnd;
 		sack = sctp_make_sack(asoc);
 		if (!sack)
 			goto nomem;
@@ -397,6 +397,41 @@ out_unlock:
 	sctp_transport_put(transport);
 }
 
+/* Handle the timeout of the ICMP protocol unreachable timer.  Trigger
+ * the correct state machine transition that will close the association.
+ */
+void sctp_generate_proto_unreach_event(unsigned long data)
+{
+	struct sctp_transport *transport = (struct sctp_transport *) data;
+	struct sctp_association *asoc = transport->asoc;
+	
+	sctp_bh_lock_sock(asoc->base.sk);
+	if (sock_owned_by_user(asoc->base.sk)) {
+		SCTP_DEBUG_PRINTK("%s:Sock is busy.\n", __func__);
+
+		/* Try again later.  */
+		if (!mod_timer(&transport->proto_unreach_timer,
+				jiffies + (HZ/20)))
+			sctp_association_hold(asoc);
+		goto out_unlock;
+	}
+
+	/* Is this structure just waiting around for us to actually
+	 * get destroyed?
+	 */
+	if (asoc->base.dead)
+		goto out_unlock;
+
+	sctp_do_sm(SCTP_EVENT_T_OTHER,
+		   SCTP_ST_OTHER(SCTP_EVENT_ICMP_PROTO_UNREACH),
+		   asoc->state, asoc->ep, asoc, transport, GFP_ATOMIC);
+
+out_unlock:
+	sctp_bh_unlock_sock(asoc->base.sk);
+	sctp_association_put(asoc);
+}
+
+
 /* Inject a SACK Timeout event into the state machine.  */
 static void sctp_generate_sack_event(unsigned long data)
 {
@@ -476,7 +511,7 @@ static void sctp_do_8_2_transport_strike(struct sctp_association *asoc,
 	 * used to provide an upper bound to this doubling operation.
 	 *
 	 * Special Case:  the first HB doesn't trigger exponential backoff.
-	 * The first unacknowleged HB triggers it.  We do this with a flag
+	 * The first unacknowledged HB triggers it.  We do this with a flag
 	 * that indicates that we have an outstanding HB.
 	 */
 	if (!is_hb || transport->hb_sent) {
@@ -697,11 +732,15 @@ static void sctp_cmd_setup_t2(sctp_cmd_seq_t *cmds,
 {
 	struct sctp_transport *t;
 
-	t = sctp_assoc_choose_alter_transport(asoc,
+	if (chunk->transport)
+		t = chunk->transport;
+	else {
+		t = sctp_assoc_choose_alter_transport(asoc,
 					      asoc->shutdown_last_sent_to);
+		chunk->transport = t;
+	}
 	asoc->shutdown_last_sent_to = t;
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_T2_SHUTDOWN] = t->rto;
-	chunk->transport = t;
 }
 
 /* Helper function to change the state of an association. */
@@ -718,7 +757,7 @@ static void sctp_cmd_new_state(sctp_cmd_seq_t *cmds,
 
 	if (sctp_style(sk, TCP)) {
 		/* Change the sk->sk_state of a TCP-style socket that has
-		 * sucessfully completed a connect() call.
+		 * successfully completed a connect() call.
 		 */
 		if (sctp_state(asoc, ESTABLISHED) && sctp_sstate(sk, CLOSED))
 			sk->sk_state = SCTP_SS_ESTABLISHED;
@@ -853,8 +892,6 @@ static void sctp_cmd_process_fwdtsn(struct sctp_ulpq *ulpq,
 	sctp_walk_fwdtsn(skip, chunk) {
 		sctp_ulpq_skip(ulpq, ntohs(skip->stream), ntohs(skip->ssn));
 	}
-
-	return;
 }
 
 /* Helper function to remove the association non-primary peer
@@ -873,8 +910,6 @@ static void sctp_cmd_del_non_primary(struct sctp_association *asoc)
 			sctp_assoc_del_peer(asoc, &t->ipaddr);
 		}
 	}
-
-	return;
 }
 
 /* Helper function to set sk_err on a 1-1 style socket. */
@@ -961,6 +996,29 @@ static int sctp_cmd_send_msg(struct sctp_association *asoc,
 	return error;
 }
 
+
+/* Sent the next ASCONF packet currently stored in the association.
+ * This happens after the ASCONF_ACK was succeffully processed.
+ */
+static void sctp_cmd_send_asconf(struct sctp_association *asoc)
+{
+	/* Send the next asconf chunk from the addip chunk
+	 * queue.
+	 */
+	if (!list_empty(&asoc->addip_chunk_list)) {
+		struct list_head *entry = asoc->addip_chunk_list.next;
+		struct sctp_chunk *asconf = list_entry(entry,
+						struct sctp_chunk, list);
+		list_del_init(entry);
+
+		/* Hold the chunk until an ASCONF_ACK is received. */
+		sctp_chunk_hold(asconf);
+		if (sctp_primitive_ASCONF(asoc, asconf))
+			sctp_chunk_free(asconf);
+		else
+			asoc->addip_last_asconf = asconf;
+	}
+}
 
 
 /* These three macros allow us to pull the debugging code out of the
@@ -1417,6 +1475,8 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			asoc->init_last_sent_to = t;
 			chunk->transport = t;
 			t->init_sent_count++;
+			/* Set the new transport as primary */
+			sctp_assoc_set_primary(asoc, t);
 			break;
 
 		case SCTP_CMD_INIT_RESTART:
@@ -1614,6 +1674,9 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 				local_cork = 1;
 			}
 			error = sctp_cmd_send_msg(asoc, cmd->obj.msg);
+			break;
+		case SCTP_CMD_SEND_NEXT_ASCONF:
+			sctp_cmd_send_asconf(asoc);
 			break;
 		default:
 			printk(KERN_WARNING "Impossible command: %u, %p\n",

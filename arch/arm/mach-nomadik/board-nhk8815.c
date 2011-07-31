@@ -18,6 +18,7 @@
 #include <linux/gpio.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
+#include <linux/mtd/onenand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
 #include <asm/sizes.h>
@@ -25,12 +26,18 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/flash.h>
+
+#include <plat/mtu.h>
+
 #include <mach/setup.h>
 #include <mach/nand.h>
 #include <mach/fsmc.h>
-#include "clock.h"
 
-/* These adresses span 16MB, so use three individual pages */
+/* Initial value for SRC control register: all timers use MXTAL/8 source */
+#define SRC_CR_INIT_MASK	0x00007fff
+#define SRC_CR_INIT_VAL		0x2aaa8000
+
+/* These addresses span 16MB, so use three individual pages */
 static struct resource nhk8815_nand_resources[] = {
 	{
 		.name = "nand_addr",
@@ -142,7 +149,7 @@ static struct mtd_partition nhk8815_onenand_partitions[] = {
 	}
 };
 
-static struct flash_platform_data nhk8815_onenand_data = {
+static struct onenand_platform_data nhk8815_onenand_data = {
 	.parts		= nhk8815_onenand_partitions,
 	.nr_parts	= ARRAY_SIZE(nhk8815_onenand_partitions),
 };
@@ -156,7 +163,7 @@ static struct resource nhk8815_onenand_resource[] = {
 };
 
 static struct platform_device nhk8815_onenand_device = {
-	.name		= "onenand",
+	.name		= "onenand-flash",
 	.id		= -1,
 	.dev		= {
 		.platform_data	= &nhk8815_onenand_data,
@@ -167,10 +174,10 @@ static struct platform_device nhk8815_onenand_device = {
 
 static void __init nhk8815_onenand_init(void)
 {
-#ifdef CONFIG_ONENAND
+#ifdef CONFIG_MTD_ONENAND
        /* Set up SMCS0 for OneNand */
-       writel(0x000030db, FSMC_BCR0);
-       writel(0x02100551, FSMC_BTR0);
+	writel(0x000030db, FSMC_BCR(0));
+	writel(0x02100551, FSMC_BTR(0));
 #endif
 }
 
@@ -192,11 +199,6 @@ static struct amba_device uart1_device = {
 static struct amba_device *amba_devs[] __initdata = {
 	&uart0_device,
 	&uart1_device,
-};
-
-/* We have a fixed clock alone, by now */
-static struct clk nhk8815_clk_48 = {
-	.rate = 48*1000*1000,
 };
 
 static struct resource nhk8815_eth_resources[] = {
@@ -239,6 +241,26 @@ static struct platform_device *nhk8815_platform_devices[] __initdata = {
 	/* will add more devices */
 };
 
+static void __init nomadik_timer_init(void)
+{
+	u32 src_cr;
+
+	/* Configure timer sources in "system reset controller" ctrl reg */
+	src_cr = readl(io_p2v(NOMADIK_SRC_BASE));
+	src_cr &= SRC_CR_INIT_MASK;
+	src_cr |= SRC_CR_INIT_VAL;
+	writel(src_cr, io_p2v(NOMADIK_SRC_BASE));
+
+	/* Save global pointer to mtu, used by platform timer code */
+	mtu_base = io_p2v(NOMADIK_MTU0_BASE);
+
+	nmdk_timer_init();
+}
+
+static struct sys_timer nomadik_timer = {
+	.init	= nomadik_timer_init,
+};
+
 static void __init nhk8815_platform_init(void)
 {
 	int i;
@@ -248,10 +270,8 @@ static void __init nhk8815_platform_init(void)
 	platform_add_devices(nhk8815_platform_devices,
 			     ARRAY_SIZE(nhk8815_platform_devices));
 
-	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
-		nmdk_clk_create(&nhk8815_clk_48, amba_devs[i]->dev.init_name);
+	for (i = 0; i < ARRAY_SIZE(amba_devs); i++)
 		amba_device_register(amba_devs[i], &iomem_resource);
-	}
 }
 
 MACHINE_START(NOMADIK, "NHK8815")

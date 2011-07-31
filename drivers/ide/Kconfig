@@ -7,50 +7,25 @@ config HAVE_IDE
 	bool
 
 menuconfig IDE
-	tristate "ATA/ATAPI/MFM/RLL support"
+	tristate "ATA/ATAPI/MFM/RLL support (DEPRECATED)"
 	depends on HAVE_IDE
 	depends on BLOCK
 	---help---
-	  If you say Y here, your kernel will be able to manage low cost mass
-	  storage units such as ATA/(E)IDE and ATAPI units. The most common
-	  cases are IDE hard drives and ATAPI CD-ROM drives.
+	  If you say Y here, your kernel will be able to manage ATA/(E)IDE and
+	  ATAPI units. The most common cases are IDE hard drives and ATAPI
+	  CD-ROM drives.
 
-	  If your system is pure SCSI and doesn't use these interfaces, you
-	  can say N here.
-
-	  Integrated Disk Electronics (IDE aka ATA-1) is a connecting standard
-	  for mass storage units such as hard disks. It was designed by
-	  Western Digital and Compaq Computer in 1984. It was then named
-	  ST506. Quite a number of disks use the IDE interface.
-
-	  AT Attachment (ATA) is the superset of the IDE specifications.
-	  ST506 was also called ATA-1.
-
-	  Fast-IDE is ATA-2 (also named Fast ATA), Enhanced IDE (EIDE) is
-	  ATA-3. It provides support for larger disks (up to 8.4GB by means of
-	  the LBA standard), more disks (4 instead of 2) and for other mass
-	  storage units such as tapes and cdrom. UDMA/33 (aka UltraDMA/33) is
-	  ATA-4 and provides faster (and more CPU friendly) transfer modes
-	  than previous PIO (Programmed processor Input/Output) from previous
-	  ATA/IDE standards by means of fast DMA controllers.
-
-	  ATA Packet Interface (ATAPI) is a protocol used by EIDE tape and
-	  CD-ROM drives, similar in many respects to the SCSI protocol.
-
-	  SMART IDE (Self Monitoring, Analysis and Reporting Technology) was
-	  designed in order to prevent data corruption and disk crash by
-	  detecting pre hardware failure conditions (heat, access time, and
-	  the like...). Disks built since June 1995 may follow this standard.
-	  The kernel itself doesn't manage this; however there are quite a
-	  number of user programs such as smart that can query the status of
-	  SMART parameters from disk drives.
+	  This subsystem is currently in maintenance mode with only bug fix
+	  changes applied. Users of ATA hardware are encouraged to migrate to
+	  the newer ATA subsystem ("Serial ATA (prod) and Parallel ATA
+	  (experimental) drivers") which is more actively maintained.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ide-core.
 
 	  For further information, please read <file:Documentation/ide/ide.txt>.
 
-	  If unsure, say Y.
+	  If unsure, say N.
 
 if IDE
 

@@ -10,6 +10,7 @@
 /* Copyright (C) Rusty Russell IBM Corporation 2006.
  * GPL v2 and any later version */
 #include <linux/mm.h>
+#include <linux/gfp.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/random.h>

@@ -15,6 +15,8 @@
 #ifndef _LINUX_CISTPL_H
 #define _LINUX_CISTPL_H
 
+typedef unsigned char cisdata_t;
+
 #define CISTPL_NULL		0x00
 #define CISTPL_DEVICE		0x01
 #define CISTPL_LONGLINK_CB	0x02

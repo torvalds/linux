@@ -329,11 +329,11 @@ static uint16_t ni_atmio_win_in(struct comedi_device *dev, int addr)
 }
 
 static struct pnp_device_id device_ids[] = {
-	{.id = "NIC1900",.driver_data = 0},
-	{.id = "NIC2400",.driver_data = 0},
-	{.id = "NIC2500",.driver_data = 0},
-	{.id = "NIC2600",.driver_data = 0},
-	{.id = "NIC2700",.driver_data = 0},
+	{.id = "NIC1900", .driver_data = 0},
+	{.id = "NIC2400", .driver_data = 0},
+	{.id = "NIC2500", .driver_data = 0},
+	{.id = "NIC2600", .driver_data = 0},
+	{.id = "NIC2700", .driver_data = 0},
 	{.id = ""}
 };
 
@@ -349,7 +349,18 @@ static struct comedi_driver driver_atmio = {
 	.detach = ni_atmio_detach,
 };
 
-COMEDI_INITCLEANUP(driver_atmio);
+static int __init driver_atmio_init_module(void)
+{
+	return comedi_driver_register(&driver_atmio);
+}
+
+static void __exit driver_atmio_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_atmio);
+}
+
+module_init(driver_atmio_init_module);
+module_exit(driver_atmio_cleanup_module);
 
 #include "ni_mio_common.c"
 
@@ -362,9 +373,9 @@ static int ni_atmio_detach(struct comedi_device *dev)
 
 	if (dev->iobase)
 		release_region(dev->iobase, NI_SIZE);
-	if (dev->irq) {
+	if (dev->irq)
 		free_irq(dev->irq, dev);
-	}
+
 	if (devpriv->isapnp_dev)
 		pnp_device_detach(devpriv->isapnp_dev);
 
@@ -387,8 +398,8 @@ static int ni_isapnp_find_board(struct pnp_dev **dev)
 
 		if (pnp_device_attach(isapnp_dev) < 0) {
 			printk
-			    ("ni_atmio: %s found but already active, skipping.\n",
-			     ni_boards[i].name);
+			 ("ni_atmio: %s found but already active, skipping.\n",
+			  ni_boards[i].name);
 			continue;
 		}
 		if (pnp_activate_dev(isapnp_dev) < 0) {
@@ -496,9 +507,9 @@ static int ni_atmio_attach(struct comedi_device *dev,
 	/* generic E series stuff in ni_mio_common.c */
 
 	ret = ni_E_init(dev, it);
-	if (ret < 0) {
+	if (ret < 0)
 		return ret;
-	}
+
 
 	return 0;
 }
@@ -509,16 +520,16 @@ static int ni_getboardtype(struct comedi_device *dev)
 	int i;
 
 	for (i = 0; i < n_ni_boards; i++) {
-		if (ni_boards[i].device_id == device_id) {
+		if (ni_boards[i].device_id == device_id)
 			return i;
-		}
+
 	}
-	if (device_id == 255) {
+	if (device_id == 255)
 		printk(" can't find board\n");
-	} else if (device_id == 0) {
+	 else if (device_id == 0)
 		printk(" EEPROM read error (?) or device not found\n");
-	} else {
+	 else
 		printk(" unknown device ID %d -- contact author\n", device_id);
-	}
+
 	return -1;
 }

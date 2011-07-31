@@ -18,9 +18,10 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/usb.h>
-#include "../core/hcd.h"
+#include <linux/usb/hcd.h>
 #include "fhci.h"
 
 static void init_td(struct td *td)

@@ -59,6 +59,13 @@
 		reg = <0xe0000000 0x00000200>;
 		bus-frequency = <0>;	/* Filled in by U-Boot */
 
+		pmc: power@b00 {
+			compatible = "fsl,mpc8360-pmc", "fsl,mpc8349-pmc";
+			reg = <0xb00 0x100 0xa00 0x100>;
+			interrupts = <80 0x8>;
+			interrupt-parent = <&ipic>;
+		};
+
 		i2c@3000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -483,7 +490,7 @@
 			compatible = "cfi-flash";
 			/*
 			 * The Intel P30 chip has 2 non-identical chips on
-			 * one die, so we need to define 2 seperate regions
+			 * one die, so we need to define 2 separate regions
 			 * that are scanned by physmap_of independantly.
 			 */
 			reg = <0 0x00000000 0x02000000

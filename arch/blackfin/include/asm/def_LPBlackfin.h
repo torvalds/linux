@@ -12,6 +12,8 @@
 #include <mach/anomaly.h>
 
 #define MK_BMSK_(x) (1<<x)
+#define BFIN_DEPOSIT(mask, x)	(((x) << __ffs(mask)) & (mask))
+#define BFIN_EXTRACT(mask, x)	(((x) & (mask)) >> __ffs(mask))
 
 #ifndef __ASSEMBLY__
 
@@ -23,62 +25,47 @@
 # define NOP_PAD_ANOMALY_05000198
 #endif
 
-#define bfin_read8(addr) ({ \
-	uint32_t __v; \
+#define _bfin_readX(addr, size, asm_size, asm_ext) ({ \
+	u32 __v; \
 	__asm__ __volatile__( \
 		NOP_PAD_ANOMALY_05000198 \
-		"%0 = b[%1] (z);" \
+		"%0 = " #asm_size "[%1]" #asm_ext ";" \
 		: "=d" (__v) \
 		: "a" (addr) \
 	); \
 	__v; })
-
-#define bfin_read16(addr) ({ \
-	uint32_t __v; \
+#define _bfin_writeX(addr, val, size, asm_size) \
 	__asm__ __volatile__( \
 		NOP_PAD_ANOMALY_05000198 \
-		"%0 = w[%1] (z);" \
-		: "=d" (__v) \
-		: "a" (addr) \
-	); \
-	__v; })
-
-#define bfin_read32(addr) ({ \
-	uint32_t __v; \
-	__asm__ __volatile__( \
-		NOP_PAD_ANOMALY_05000198 \
-		"%0 = [%1];" \
-		: "=d" (__v) \
-		: "a" (addr) \
-	); \
-	__v; })
-
-#define bfin_write8(addr, val) \
-	__asm__ __volatile__( \
-		NOP_PAD_ANOMALY_05000198 \
-		"b[%0] = %1;" \
+		#asm_size "[%0] = %1;" \
 		: \
-		: "a" (addr), "d" ((uint8_t)(val)) \
+		: "a" (addr), "d" ((u##size)(val)) \
 		: "memory" \
 	)
 
-#define bfin_write16(addr, val) \
-	__asm__ __volatile__( \
-		NOP_PAD_ANOMALY_05000198 \
-		"w[%0] = %1;" \
-		: \
-		: "a" (addr), "d" ((uint16_t)(val)) \
-		: "memory" \
-	)
+#define bfin_read8(addr)  _bfin_readX(addr,  8, b, (z))
+#define bfin_read16(addr) _bfin_readX(addr, 16, w, (z))
+#define bfin_read32(addr) _bfin_readX(addr, 32,  ,    )
+#define bfin_write8(addr, val)  _bfin_writeX(addr, val,  8, b)
+#define bfin_write16(addr, val) _bfin_writeX(addr, val, 16, w)
+#define bfin_write32(addr, val) _bfin_writeX(addr, val, 32,  )
 
-#define bfin_write32(addr, val) \
-	__asm__ __volatile__( \
-		NOP_PAD_ANOMALY_05000198 \
-		"[%0] = %1;" \
-		: \
-		: "a" (addr), "d" (val) \
-		: "memory" \
-	)
+#define bfin_read(addr) \
+({ \
+    sizeof(*(addr)) == 1 ? bfin_read8(addr)  : \
+    sizeof(*(addr)) == 2 ? bfin_read16(addr) : \
+    sizeof(*(addr)) == 4 ? bfin_read32(addr) : \
+    ({ BUG(); 0; }); \
+})
+#define bfin_write(addr, val) \
+({ \
+	switch (sizeof(*(addr))) { \
+	case 1: bfin_write8(addr, val);  break; \
+	case 2: bfin_write16(addr, val); break; \
+	case 4: bfin_write32(addr, val); break; \
+	default: BUG(); \
+	} \
+})
 
 #endif /* __ASSEMBLY__ */
 
@@ -407,6 +394,7 @@
 #define EVT13              0xFFE02034	/* Event Vector 13 ESR Address */
 #define EVT14              0xFFE02038	/* Event Vector 14 ESR Address */
 #define EVT15              0xFFE0203C	/* Event Vector 15 ESR Address */
+#define EVT_OVERRIDE       0xFFE02100	/* Event Vector Override Register */
 #define IMASK              0xFFE02104	/* Interrupt Mask Register */
 #define IPEND              0xFFE02108	/* Interrupt Pending Register */
 #define ILAT               0xFFE0210C	/* Interrupt Latch Register */

@@ -25,6 +25,14 @@
 #include <linux/kernel.h>
 #include <linux/utsname.h>
 
+
+#if defined USB_ETH_RNDIS
+#  undef USB_ETH_RNDIS
+#endif
+#ifdef CONFIG_USB_ETH_RNDIS
+#  define USB_ETH_RNDIS y
+#endif
+
 #include "u_ether.h"
 
 
@@ -66,7 +74,7 @@
 #define DRIVER_DESC		"Ethernet Gadget"
 #define DRIVER_VERSION		"Memorial Day 2008"
 
-#ifdef CONFIG_USB_ETH_RNDIS
+#ifdef USB_ETH_RNDIS
 #define PREFIX			"RNDIS/"
 #else
 #define PREFIX			""
@@ -87,7 +95,7 @@
 
 static inline bool has_rndis(void)
 {
-#ifdef	CONFIG_USB_ETH_RNDIS
+#ifdef	USB_ETH_RNDIS
 	return true;
 #else
 	return false;
@@ -110,7 +118,7 @@ static inline bool has_rndis(void)
 
 #include "f_ecm.c"
 #include "f_subset.c"
-#ifdef	CONFIG_USB_ETH_RNDIS
+#ifdef	USB_ETH_RNDIS
 #include "f_rndis.c"
 #include "rndis.c"
 #endif
@@ -229,7 +237,7 @@ static u8 hostaddr[ETH_ALEN];
  * the first one present.  That's to make Microsoft's drivers happy,
  * and to follow DOCSIS 1.0 (cable modem standard).
  */
-static int __init rndis_do_config(struct usb_configuration *c)
+static int __ref rndis_do_config(struct usb_configuration *c)
 {
 	/* FIXME alloc iConfiguration string, set it in c->strings */
 
@@ -262,7 +270,7 @@ MODULE_PARM_DESC(use_eem, "use CDC EEM mode");
 /*
  * We _always_ have an ECM, CDC Subset, or EEM configuration.
  */
-static int __init eth_do_config(struct usb_configuration *c)
+static int __ref eth_do_config(struct usb_configuration *c)
 {
 	/* FIXME alloc iConfiguration string, set it in c->strings */
 
@@ -289,7 +297,7 @@ static struct usb_configuration eth_config_driver = {
 
 /*-------------------------------------------------------------------------*/
 
-static int __init eth_bind(struct usb_composite_dev *cdev)
+static int __ref eth_bind(struct usb_composite_dev *cdev)
 {
 	int			gcnum;
 	struct usb_gadget	*gadget = cdev->gadget;

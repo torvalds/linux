@@ -9,7 +9,7 @@ Supported chips:
   * Texas Instruments THMC50
     Prefix: 'thmc50'
     Addresses scanned: I2C 0x2c - 0x2e
-    Datasheet: http://focus.ti.com/docs/prod/folders/print/thmc50.html
+    Datasheet: http://www.ti.com/ 
 
 Author: Krzysztof Helt <krzysztof.h1@wp.pl>
 

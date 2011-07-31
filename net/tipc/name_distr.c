@@ -103,7 +103,7 @@ static struct sk_buff *named_prepare_buf(u32 type, u32 size, u32 dest)
 
 	if (buf != NULL) {
 		msg = buf_msg(buf);
-		msg_init(msg, NAME_DISTRIBUTOR, type, LONG_H_SIZE, dest);
+		tipc_msg_init(msg, NAME_DISTRIBUTOR, type, LONG_H_SIZE, dest);
 		msg_set_size(msg, LONG_H_SIZE + size);
 	}
 	return buf;

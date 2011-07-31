@@ -8,6 +8,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/geo.h>

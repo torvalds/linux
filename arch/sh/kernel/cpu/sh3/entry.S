@@ -132,7 +132,6 @@ ENTRY(tlb_protection_violation_store)
 	 mov	#1, r5
 
 call_handle_tlbmiss:
-	setup_frame_reg
 	mov.l	1f, r0
 	mov	r5, r8
 	mov.l	@r0, r6
@@ -297,41 +296,8 @@ ENTRY(vbr_base)
 !
 	.balign 	256,0,256
 general_exception:
-#ifndef CONFIG_CPU_SUBTYPE_SHX3
 	bra	handle_exception
 	 sts	pr, k3		! save original pr value in k3
-#else
-	mov.l	1f, k4
-	mov.l	@k4, k4
-
-	! Is EXPEVT larger than 0x800?
-	mov	#0x8, k0
-	shll8	k0
-	cmp/hs	k0, k4
-	bf	0f
-
-	! then add 0x580 (k2 is 0xd80 or 0xda0)
-	mov	#0x58, k0
-	shll2	k0
-	shll2	k0
-	add	k0, k4
-0:
-	! Setup stack and save DSP context (k0 contains original r15 on return)
-	bsr	prepare_stack
-	 nop
-
-	! Save registers / Switch to bank 0
-	mov		k4, k2		! keep vector in k2
-	mov.l	1f, k4		! SR bits to clear in k4
-	bsr	save_regs	! needs original pr value in k3
-	 nop
-
-	bra	handle_exception_special
-	 nop
-
-	.align	2
-1:	.long	EXPEVT
-#endif
 
 ! prepare_stack()
 ! - roll back gRB
@@ -398,6 +364,8 @@ handle_exception:
 	 mov.l	@k2, k2		! read out vector and keep in k2
 
 handle_exception_special:
+	setup_frame_reg
+
 	! Setup return address and jump to exception handler
 	mov.l	7f, r9		! fetch return address
 	stc	r2_bank, r0	! k2 (vector)

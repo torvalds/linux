@@ -10,5 +10,4 @@ else
 lib-y += memcpy.o memmove.o
 endif
 
-lib-$(CONFIG_NO_MMU) += uaccess.o
-lib-$(CONFIG_MMU) += uaccess_old.o
+lib-y += uaccess_old.o

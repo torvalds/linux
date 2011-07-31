@@ -25,8 +25,8 @@ led-$(CONFIG_SA1100_CERF)		+= leds-cerf.o
 
 obj-$(CONFIG_SA1100_COLLIE)		+= collie.o
 
-obj-$(CONFIG_SA1100_H3100)		+= h3600.o
-obj-$(CONFIG_SA1100_H3600)		+= h3600.o
+obj-$(CONFIG_SA1100_H3100)		+= h3100.o h3xxx.o
+obj-$(CONFIG_SA1100_H3600)		+= h3600.o h3xxx.o
 
 obj-$(CONFIG_SA1100_HACKKIT)		+= hackkit.o
 led-$(CONFIG_SA1100_HACKKIT)		+= leds-hackkit.o

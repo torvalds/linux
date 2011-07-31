@@ -9,6 +9,7 @@
 #include <trace/events/workqueue.h>
 #include <linux/list.h>
 #include <linux/percpu.h>
+#include <linux/slab.h>
 #include <linux/kref.h>
 #include "trace_stat.h"
 #include "trace.h"
@@ -48,7 +49,8 @@ static void cpu_workqueue_stat_free(struct kref *kref)
 
 /* Insertion of a work */
 static void
-probe_workqueue_insertion(struct task_struct *wq_thread,
+probe_workqueue_insertion(void *ignore,
+			  struct task_struct *wq_thread,
 			  struct work_struct *work)
 {
 	int cpu = cpumask_first(&wq_thread->cpus_allowed);
@@ -69,7 +71,8 @@ found:
 
 /* Execution of a work */
 static void
-probe_workqueue_execution(struct task_struct *wq_thread,
+probe_workqueue_execution(void *ignore,
+			  struct task_struct *wq_thread,
 			  struct work_struct *work)
 {
 	int cpu = cpumask_first(&wq_thread->cpus_allowed);
@@ -89,7 +92,8 @@ found:
 }
 
 /* Creation of a cpu workqueue thread */
-static void probe_workqueue_creation(struct task_struct *wq_thread, int cpu)
+static void probe_workqueue_creation(void *ignore,
+				     struct task_struct *wq_thread, int cpu)
 {
 	struct cpu_workqueue_stats *cws;
 	unsigned long flags;
@@ -113,7 +117,8 @@ static void probe_workqueue_creation(struct task_struct *wq_thread, int cpu)
 }
 
 /* Destruction of a cpu workqueue thread */
-static void probe_workqueue_destruction(struct task_struct *wq_thread)
+static void
+probe_workqueue_destruction(void *ignore, struct task_struct *wq_thread)
 {
 	/* Workqueue only execute on one cpu */
 	int cpu = cpumask_first(&wq_thread->cpus_allowed);
@@ -258,19 +263,19 @@ int __init trace_workqueue_early_init(void)
 {
 	int ret, cpu;
 
-	ret = register_trace_workqueue_insertion(probe_workqueue_insertion);
+	ret = register_trace_workqueue_insertion(probe_workqueue_insertion, NULL);
 	if (ret)
 		goto out;
 
-	ret = register_trace_workqueue_execution(probe_workqueue_execution);
+	ret = register_trace_workqueue_execution(probe_workqueue_execution, NULL);
 	if (ret)
 		goto no_insertion;
 
-	ret = register_trace_workqueue_creation(probe_workqueue_creation);
+	ret = register_trace_workqueue_creation(probe_workqueue_creation, NULL);
 	if (ret)
 		goto no_execution;
 
-	ret = register_trace_workqueue_destruction(probe_workqueue_destruction);
+	ret = register_trace_workqueue_destruction(probe_workqueue_destruction, NULL);
 	if (ret)
 		goto no_creation;
 
@@ -282,11 +287,11 @@ int __init trace_workqueue_early_init(void)
 	return 0;
 
 no_creation:
-	unregister_trace_workqueue_creation(probe_workqueue_creation);
+	unregister_trace_workqueue_creation(probe_workqueue_creation, NULL);
 no_execution:
-	unregister_trace_workqueue_execution(probe_workqueue_execution);
+	unregister_trace_workqueue_execution(probe_workqueue_execution, NULL);
 no_insertion:
-	unregister_trace_workqueue_insertion(probe_workqueue_insertion);
+	unregister_trace_workqueue_insertion(probe_workqueue_insertion, NULL);
 out:
 	pr_warning("trace_workqueue: unable to trace workqueues\n");
 

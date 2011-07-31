@@ -105,6 +105,10 @@ static int gp8psk_load_bcm4500fw(struct dvb_usb_device *d)
 
 	ptr = fw->data;
 	buf = kmalloc(64, GFP_KERNEL | GFP_DMA);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto out_rel_fw;
+	}
 
 	while (ptr[0] != 0xff) {
 		u16 buflen = ptr[0] + 4;

@@ -120,7 +120,7 @@ static bool ebt_filter_config(const struct ebt_stp_info *info,
 }
 
 static bool
-ebt_stp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+ebt_stp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct ebt_stp_info *info = par->matchinfo;
 	const struct stp_header *sp;
@@ -135,8 +135,8 @@ ebt_stp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	if (memcmp(sp, header, sizeof(header)))
 		return false;
 
-	if (info->bitmask & EBT_STP_TYPE
-	    && FWINV(info->type != sp->type, EBT_STP_TYPE))
+	if (info->bitmask & EBT_STP_TYPE &&
+	    FWINV(info->type != sp->type, EBT_STP_TYPE))
 		return false;
 
 	if (sp->type == BPDU_TYPE_CONFIG &&
@@ -153,7 +153,7 @@ ebt_stp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return true;
 }
 
-static bool ebt_stp_mt_check(const struct xt_mtchk_param *par)
+static int ebt_stp_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct ebt_stp_info *info = par->matchinfo;
 	const uint8_t bridge_ula[6] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x00};
@@ -162,13 +162,13 @@ static bool ebt_stp_mt_check(const struct xt_mtchk_param *par)
 
 	if (info->bitmask & ~EBT_STP_MASK || info->invflags & ~EBT_STP_MASK ||
 	    !(info->bitmask & EBT_STP_MASK))
-		return false;
+		return -EINVAL;
 	/* Make sure the match only receives stp frames */
 	if (compare_ether_addr(e->destmac, bridge_ula) ||
 	    compare_ether_addr(e->destmsk, msk) || !(e->bitmask & EBT_DESTMAC))
-		return false;
+		return -EINVAL;
 
-	return true;
+	return 0;
 }
 
 static struct xt_match ebt_stp_mt_reg __read_mostly = {
@@ -177,7 +177,7 @@ static struct xt_match ebt_stp_mt_reg __read_mostly = {
 	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_stp_mt,
 	.checkentry	= ebt_stp_mt_check,
-	.matchsize	= XT_ALIGN(sizeof(struct ebt_stp_info)),
+	.matchsize	= sizeof(struct ebt_stp_info),
 	.me		= THIS_MODULE,
 };
 

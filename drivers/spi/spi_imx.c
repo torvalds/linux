@@ -30,6 +30,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 #include <linux/types.h>
@@ -43,6 +44,9 @@
 #define MXC_CSPICTRL		0x08
 #define MXC_CSPIINT		0x0c
 #define MXC_RESET		0x1c
+
+#define MX3_CSPISTAT		0x14
+#define MX3_CSPISTAT_RR		(1 << 3)
 
 /* generic defines to abstract from the different register layouts */
 #define MXC_INT_RR	(1 << 0) /* Receive data ready interrupt */
@@ -205,7 +209,7 @@ static int mx31_config(struct spi_imx_data *spi_imx,
 
 	if (cpu_is_mx31())
 		reg |= (config->bpw - 1) << MX31_CSPICTRL_BC_SHIFT;
-	else if (cpu_is_mx35()) {
+	else if (cpu_is_mx25() || cpu_is_mx35()) {
 		reg |= (config->bpw - 1) << MX35_CSPICTRL_BL_SHIFT;
 		reg |= MX31_CSPICTRL_SSCTL;
 	}
@@ -219,7 +223,7 @@ static int mx31_config(struct spi_imx_data *spi_imx,
 	if (config->cs < 0) {
 		if (cpu_is_mx31())
 			reg |= (config->cs + 32) << MX31_CSPICTRL_CS_SHIFT;
-		else if (cpu_is_mx35())
+		else if (cpu_is_mx25() || cpu_is_mx35())
 			reg |= (config->cs + 32) << MX35_CSPICTRL_CS_SHIFT;
 	}
 
@@ -466,7 +470,7 @@ static int spi_imx_setup(struct spi_device *spi)
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(spi->master);
 	int gpio = spi_imx->chipselect[spi->chip_select];
 
-	pr_debug("%s: mode %d, %u bpw, %d hz\n", __func__,
+	dev_dbg(&spi->dev, "%s: mode %d, %u bpw, %d hz\n", __func__,
 		 spi->mode, spi->bits_per_word, spi->max_speed_hz);
 
 	if (gpio >= 0)
@@ -481,7 +485,7 @@ static void spi_imx_cleanup(struct spi_device *spi)
 {
 }
 
-static int __init spi_imx_probe(struct platform_device *pdev)
+static int __devinit spi_imx_probe(struct platform_device *pdev)
 {
 	struct spi_imx_master *mxc_platform_info;
 	struct spi_master *master;
@@ -489,7 +493,7 @@ static int __init spi_imx_probe(struct platform_device *pdev)
 	struct resource *res;
 	int i, ret;
 
-	mxc_platform_info = (struct spi_imx_master *)pdev->dev.platform_data;
+	mxc_platform_info = dev_get_platdata(&pdev->dev);
 	if (!mxc_platform_info) {
 		dev_err(&pdev->dev, "can't get the platform data\n");
 		return -EINVAL;
@@ -513,11 +517,12 @@ static int __init spi_imx_probe(struct platform_device *pdev)
 			continue;
 		ret = gpio_request(spi_imx->chipselect[i], DRIVER_NAME);
 		if (ret) {
-			i--;
-			while (i > 0)
+			while (i > 0) {
+				i--;
 				if (spi_imx->chipselect[i] >= 0)
-					gpio_free(spi_imx->chipselect[i--]);
-			dev_err(&pdev->dev, "can't get cs gpios");
+					gpio_free(spi_imx->chipselect[i]);
+			}
+			dev_err(&pdev->dev, "can't get cs gpios\n");
 			goto out_master_put;
 		}
 	}
@@ -551,7 +556,7 @@ static int __init spi_imx_probe(struct platform_device *pdev)
 	}
 
 	spi_imx->irq = platform_get_irq(pdev, 0);
-	if (!spi_imx->irq) {
+	if (spi_imx->irq <= 0) {
 		ret = -EINVAL;
 		goto out_iounmap;
 	}
@@ -562,7 +567,7 @@ static int __init spi_imx_probe(struct platform_device *pdev)
 		goto out_iounmap;
 	}
 
-	if (cpu_is_mx31() || cpu_is_mx35()) {
+	if (cpu_is_mx25() || cpu_is_mx31() || cpu_is_mx35()) {
 		spi_imx->intctrl = mx31_intctrl;
 		spi_imx->config = mx31_config;
 		spi_imx->trigger = mx31_trigger;
@@ -590,8 +595,13 @@ static int __init spi_imx_probe(struct platform_device *pdev)
 	clk_enable(spi_imx->clk);
 	spi_imx->spi_clk = clk_get_rate(spi_imx->clk);
 
-	if (!cpu_is_mx31() || !cpu_is_mx35())
+	if (cpu_is_mx1() || cpu_is_mx21() || cpu_is_mx27())
 		writel(1, spi_imx->base + MXC_RESET);
+
+	/* drain receive buffer */
+	if (cpu_is_mx25() || cpu_is_mx31() || cpu_is_mx35())
+		while (readl(spi_imx->base + MX3_CSPISTAT) & MX3_CSPISTAT_RR)
+			readl(spi_imx->base + MXC_CSPIRXDATA);
 
 	spi_imx->intctrl(spi_imx, 0);
 
@@ -625,7 +635,7 @@ out_master_put:
 	return ret;
 }
 
-static int __exit spi_imx_remove(struct platform_device *pdev)
+static int __devexit spi_imx_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -659,7 +669,7 @@ static struct platform_driver spi_imx_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = spi_imx_probe,
-	.remove = __exit_p(spi_imx_remove),
+	.remove = __devexit_p(spi_imx_remove),
 };
 
 static int __init spi_imx_init(void)

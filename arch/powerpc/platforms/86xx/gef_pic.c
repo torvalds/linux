@@ -1,9 +1,9 @@
 /*
- * Interrupt handling for GE Fanuc's FPGA based PIC
+ * Interrupt handling for GE FPGA based PIC
  *
- * Author: Martyn Welch <martyn.welch@gefanuc.com>
+ * Author: Martyn Welch <martyn.welch@ge.com>
  *
- * 2008 (c) GE Fanuc Intelligent Platforms Embedded Systems, Inc.
+ * 2008 (c) GE Intelligent Platforms Embedded Systems, Inc.
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
@@ -49,7 +49,7 @@
 #define gef_irq_to_hw(virq)    ((unsigned int)irq_map[virq].hwirq)
 
 
-static DEFINE_SPINLOCK(gef_pic_lock);
+static DEFINE_RAW_SPINLOCK(gef_pic_lock);
 
 static void __iomem *gef_pic_irq_reg_base;
 static struct irq_host *gef_pic_irq_host;
@@ -118,11 +118,11 @@ static void gef_pic_mask(unsigned int virq)
 
 	hwirq = gef_irq_to_hw(virq);
 
-	spin_lock_irqsave(&gef_pic_lock, flags);
+	raw_spin_lock_irqsave(&gef_pic_lock, flags);
 	mask = in_be32(gef_pic_irq_reg_base + GEF_PIC_INTR_MASK(0));
 	mask &= ~(1 << hwirq);
 	out_be32(gef_pic_irq_reg_base + GEF_PIC_INTR_MASK(0), mask);
-	spin_unlock_irqrestore(&gef_pic_lock, flags);
+	raw_spin_unlock_irqrestore(&gef_pic_lock, flags);
 }
 
 static void gef_pic_mask_ack(unsigned int virq)
@@ -141,15 +141,15 @@ static void gef_pic_unmask(unsigned int virq)
 
 	hwirq = gef_irq_to_hw(virq);
 
-	spin_lock_irqsave(&gef_pic_lock, flags);
+	raw_spin_lock_irqsave(&gef_pic_lock, flags);
 	mask = in_be32(gef_pic_irq_reg_base + GEF_PIC_INTR_MASK(0));
 	mask |= (1 << hwirq);
 	out_be32(gef_pic_irq_reg_base + GEF_PIC_INTR_MASK(0), mask);
-	spin_unlock_irqrestore(&gef_pic_lock, flags);
+	raw_spin_unlock_irqrestore(&gef_pic_lock, flags);
 }
 
 static struct irq_chip gef_pic_chip = {
-	.typename	= "gefp",
+	.name		= "gefp",
 	.mask		= gef_pic_mask,
 	.mask_ack	= gef_pic_mask_ack,
 	.unmask		= gef_pic_unmask,
@@ -163,14 +163,14 @@ static int gef_pic_host_map(struct irq_host *h, unsigned int virq,
 			  irq_hw_number_t hwirq)
 {
 	/* All interrupts are LEVEL sensitive */
-	get_irq_desc(virq)->status |= IRQ_LEVEL;
+	irq_to_desc(virq)->status |= IRQ_LEVEL;
 	set_irq_chip_and_handler(virq, &gef_pic_chip, handle_level_irq);
 
 	return 0;
 }
 
 static int gef_pic_host_xlate(struct irq_host *h, struct device_node *ct,
-			    u32 *intspec, unsigned int intsize,
+			    const u32 *intspec, unsigned int intsize,
 			    irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 {
 
@@ -199,7 +199,7 @@ void __init gef_pic_init(struct device_node *np)
 	/* Map the devices registers into memory */
 	gef_pic_irq_reg_base = of_iomap(np, 0);
 
-	spin_lock_irqsave(&gef_pic_lock, flags);
+	raw_spin_lock_irqsave(&gef_pic_lock, flags);
 
 	/* Initialise everything as masked. */
 	out_be32(gef_pic_irq_reg_base + GEF_PIC_CPU0_INTR_MASK, 0);
@@ -208,7 +208,7 @@ void __init gef_pic_init(struct device_node *np)
 	out_be32(gef_pic_irq_reg_base + GEF_PIC_CPU0_MCP_MASK, 0);
 	out_be32(gef_pic_irq_reg_base + GEF_PIC_CPU1_MCP_MASK, 0);
 
-	spin_unlock_irqrestore(&gef_pic_lock, flags);
+	raw_spin_unlock_irqrestore(&gef_pic_lock, flags);
 
 	/* Map controller */
 	gef_pic_cascade_irq = irq_of_parse_and_map(np, 0);

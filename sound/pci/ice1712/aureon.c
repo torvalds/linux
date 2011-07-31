@@ -689,42 +689,27 @@ static int aureon_ac97_mmute_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	return change;
 }
 
-static const DECLARE_TLV_DB_SCALE(db_scale_wm_dac, -12700, 100, 1);
+static const DECLARE_TLV_DB_SCALE(db_scale_wm_dac, -10000, 100, 1);
 static const DECLARE_TLV_DB_SCALE(db_scale_wm_pcm, -6400, 50, 1);
 static const DECLARE_TLV_DB_SCALE(db_scale_wm_adc, -1200, 100, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_ac97_master, -4650, 150, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_ac97_gain, -3450, 150, 0);
 
-/*
- * Logarithmic volume values for WM8770
- * Computed as 20 * Log10(255 / x)
- */
-static const unsigned char wm_vol[256] = {
-	127, 48, 42, 39, 36, 34, 33, 31, 30, 29, 28, 27, 27, 26, 25, 25, 24, 24, 23,
-	23, 22, 22, 21, 21, 21, 20, 20, 20, 19, 19, 19, 18, 18, 18, 18, 17, 17, 17,
-	17, 16, 16, 16, 16, 15, 15, 15, 15, 15, 15, 14, 14, 14, 14, 14, 13, 13, 13,
-	13, 13, 13, 13, 12, 12, 12, 12, 12, 12, 12, 11, 11, 11, 11, 11, 11, 11, 11,
-	11, 10, 10, 10, 10, 10, 10, 10, 10, 10, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 8, 8,
-	8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 6, 6, 6,
-	6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-	5, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3,
-	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0
-};
-
-#define WM_VOL_MAX	(sizeof(wm_vol) - 1)
+#define WM_VOL_MAX	100
+#define WM_VOL_CNT	101	/* 0dB .. -100dB */
 #define WM_VOL_MUTE	0x8000
 
 static void wm_set_vol(struct snd_ice1712 *ice, unsigned int index, unsigned short vol, unsigned short master)
 {
 	unsigned char nvol;
 
-	if ((master & WM_VOL_MUTE) || (vol & WM_VOL_MUTE))
+	if ((master & WM_VOL_MUTE) || (vol & WM_VOL_MUTE)) {
 		nvol = 0;
-	else
-		nvol = 127 - wm_vol[(((vol & ~WM_VOL_MUTE) * (master & ~WM_VOL_MUTE)) / 127) & WM_VOL_MAX];
+	} else {
+		nvol = ((vol % WM_VOL_CNT) * (master % WM_VOL_CNT)) /
+								WM_VOL_MAX;
+		nvol += 0x1b;
+	}
 
 	wm_put(ice, index, nvol);
 	wm_put_nocache(ice, index, 0x180 | nvol);
@@ -795,7 +780,7 @@ static int wm_master_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_
 	for (ch = 0; ch < 2; ch++) {
 		unsigned int vol = ucontrol->value.integer.value[ch];
 		if (vol > WM_VOL_MAX)
-			continue;
+			vol = WM_VOL_MAX;
 		vol |= spec->master[ch] & WM_VOL_MUTE;
 		if (vol != spec->master[ch]) {
 			int dac;
@@ -820,7 +805,7 @@ static int wm_vol_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = voices;
 	uinfo->value.integer.min = 0;		/* mute (-101dB) */
-	uinfo->value.integer.max = 0x7F;	/* 0dB */
+	uinfo->value.integer.max = WM_VOL_MAX;	/* 0dB */
 	return 0;
 }
 
@@ -850,9 +835,9 @@ static int wm_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *
 	snd_ice1712_save_gpio_status(ice);
 	for (i = 0; i < voices; i++) {
 		unsigned int vol = ucontrol->value.integer.value[i];
-		if (vol > 0x7f)
-			continue;
-		vol |= spec->vol[ofs+i];
+		if (vol > WM_VOL_MAX)
+			vol = WM_VOL_MAX;
+		vol |= spec->vol[ofs+i] & WM_VOL_MUTE;
 		if (vol != spec->vol[ofs+i]) {
 			spec->vol[ofs+i] = vol;
 			idx  = WM_DAC_ATTEN + ofs + i;
@@ -1971,11 +1956,10 @@ static int __devinit aureon_add_controls(struct snd_ice1712 *ice)
 	return 0;
 }
 
-
 /*
- * initialize the chip
+ * reset the chip
  */
-static int __devinit aureon_init(struct snd_ice1712 *ice)
+static int aureon_reset(struct snd_ice1712 *ice)
 {
 	static const unsigned short wm_inits_aureon[] = {
 		/* These come first to reduce init pop noise */
@@ -2062,30 +2046,10 @@ static int __devinit aureon_init(struct snd_ice1712 *ice)
 		0x0605, /* slave, 24bit, MSB on second OSCLK, SDOUT for right channel when OLRCK is high */
 		(unsigned short)-1
 	};
-	struct aureon_spec *spec;
 	unsigned int tmp;
 	const unsigned short *p;
-	int err, i;
-
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (!spec)
-		return -ENOMEM;
-	ice->spec = spec;
-
-	if (ice->eeprom.subvendor == VT1724_SUBDEVICE_AUREON51_SKY) {
-		ice->num_total_dacs = 6;
-		ice->num_total_adcs = 2;
-	} else {
-		/* aureon 7.1 and prodigy 7.1 */
-		ice->num_total_dacs = 8;
-		ice->num_total_adcs = 2;
-	}
-
-	/* to remeber the register values of CS8415 */
-	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
-	if (!ice->akm)
-		return -ENOMEM;
-	ice->akm_codecs = 1;
+	int err;
+	struct aureon_spec *spec = ice->spec;
 
 	err = aureon_ac97_init(ice);
 	if (err != 0)
@@ -2133,6 +2097,61 @@ static int __devinit aureon_init(struct snd_ice1712 *ice)
 	/* initialize PCA9554 pin directions & set default input */
 	aureon_pca9554_write(ice, PCA9554_DIR, 0x00);
 	aureon_pca9554_write(ice, PCA9554_OUT, 0x00);   /* internal AUX */
+	return 0;
+}
+
+/*
+ * suspend/resume
+ */
+#ifdef CONFIG_PM
+static int aureon_resume(struct snd_ice1712 *ice)
+{
+	struct aureon_spec *spec = ice->spec;
+	int err, i;
+
+	err = aureon_reset(ice);
+	if (err != 0)
+		return err;
+
+	/* workaround for poking volume with alsamixer after resume:
+	 * just set stored volume again */
+	for (i = 0; i < ice->num_total_dacs; i++)
+		wm_set_vol(ice, i, spec->vol[i], spec->master[i % 2]);
+	return 0;
+}
+#endif
+
+/*
+ * initialize the chip
+ */
+static int __devinit aureon_init(struct snd_ice1712 *ice)
+{
+	struct aureon_spec *spec;
+	int i, err;
+
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return -ENOMEM;
+	ice->spec = spec;
+
+	if (ice->eeprom.subvendor == VT1724_SUBDEVICE_AUREON51_SKY) {
+		ice->num_total_dacs = 6;
+		ice->num_total_adcs = 2;
+	} else {
+		/* aureon 7.1 and prodigy 7.1 */
+		ice->num_total_dacs = 8;
+		ice->num_total_adcs = 2;
+	}
+
+	/* to remeber the register values of CS8415 */
+	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
+	if (!ice->akm)
+		return -ENOMEM;
+	ice->akm_codecs = 1;
+
+	err = aureon_reset(ice);
+	if (err != 0)
+		return err;
 
 	spec->master[0] = WM_VOL_MUTE;
 	spec->master[1] = WM_VOL_MUTE;
@@ -2140,6 +2159,11 @@ static int __devinit aureon_init(struct snd_ice1712 *ice)
 		spec->vol[i] = WM_VOL_MUTE;
 		wm_set_vol(ice, i, spec->vol[i], spec->master[i % 2]);
 	}
+
+#ifdef CONFIG_PM
+	ice->pm_resume = aureon_resume;
+	ice->pm_suspend_enabled = 1;
+#endif
 
 	return 0;
 }

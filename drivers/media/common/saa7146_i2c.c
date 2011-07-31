@@ -98,7 +98,7 @@ static int saa7146_i2c_msg_cleanup(const struct i2c_msg *m, int num, __le32 *op)
 
 		op_count++;
 
-		/* loop throgh all bytes of message i */
+		/* loop through all bytes of message i */
 		for(j = 0; j < m[i].len; j++) {
 			/* write back all bytes that could have been read */
 			m[i].buf[j] = (le32_to_cpu(op[op_count/3]) >> ((3-(op_count%3))*8));

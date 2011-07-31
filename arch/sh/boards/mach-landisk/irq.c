@@ -22,14 +22,14 @@ static void disable_landisk_irq(unsigned int irq)
 {
 	unsigned char mask = 0xff ^ (0x01 << (irq - 5));
 
-	ctrl_outb(ctrl_inb(PA_IMASK) & mask, PA_IMASK);
+	__raw_writeb(__raw_readb(PA_IMASK) & mask, PA_IMASK);
 }
 
 static void enable_landisk_irq(unsigned int irq)
 {
 	unsigned char value = (0x01 << (irq - 5));
 
-	ctrl_outb(ctrl_inb(PA_IMASK) | value, PA_IMASK);
+	__raw_writeb(__raw_readb(PA_IMASK) | value, PA_IMASK);
 }
 
 static struct irq_chip landisk_irq_chip __read_mostly = {
@@ -52,5 +52,5 @@ void __init init_landisk_IRQ(void)
 					      handle_level_irq, "level");
 		enable_landisk_irq(i);
 	}
-	ctrl_outb(0x00, PA_PWRINT_CLR);
+	__raw_writeb(0x00, PA_PWRINT_CLR);
 }

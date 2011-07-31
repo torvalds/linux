@@ -190,15 +190,37 @@ static void sil680_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	pci_write_config_word(pdev, ua, ultra);
 }
 
+/**
+ *	sil680_sff_exec_command - issue ATA command to host controller
+ *	@ap: port to which command is being issued
+ *	@tf: ATA taskfile register set
+ *
+ *	Issues ATA command, with proper synchronization with interrupt
+ *	handler / other threads. Use our MMIO space for PCI posting to avoid
+ *	a hideously slow cycle all the way to the device.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+void sil680_sff_exec_command(struct ata_port *ap,
+					const struct ata_taskfile *tf)
+{
+	DPRINTK("ata%u: cmd 0x%X\n", ap->print_id, tf->command);
+	iowrite8(tf->command, ap->ioaddr.command_addr);
+	ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
+}
+
 static struct scsi_host_template sil680_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 
+
 static struct ata_port_operations sil680_port_ops = {
-	.inherits	= &ata_bmdma32_port_ops,
-	.cable_detect	= sil680_cable_detect,
-	.set_piomode	= sil680_set_piomode,
-	.set_dmamode	= sil680_set_dmamode,
+	.inherits		= &ata_bmdma32_port_ops,
+	.sff_exec_command	= sil680_sff_exec_command,
+	.cable_detect		= sil680_cable_detect,
+	.set_piomode		= sil680_set_piomode,
+	.set_dmamode		= sil680_set_dmamode,
 };
 
 /**
@@ -212,13 +234,11 @@ static struct ata_port_operations sil680_port_ops = {
 
 static u8 sil680_init_chip(struct pci_dev *pdev, int *try_mmio)
 {
-	u32 class_rev	= 0;
 	u8 tmpbyte	= 0;
 
-        pci_read_config_dword(pdev, PCI_CLASS_REVISION, &class_rev);
-        class_rev &= 0xff;
         /* FIXME: double check */
-	pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE, (class_rev) ? 1 : 255);
+	pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE,
+			      pdev->revision ? 1 : 255);
 
 	pci_write_config_byte(pdev, 0x80, 0x00);
 	pci_write_config_byte(pdev, 0x84, 0x00);
@@ -354,11 +374,11 @@ static int __devinit sil680_init_one(struct pci_dev *pdev,
 	ata_sff_std_ports(&host->ports[1]->ioaddr);
 
 	/* Register & activate */
-	return ata_host_activate(host, pdev->irq, ata_sff_interrupt,
+	return ata_host_activate(host, pdev->irq, ata_bmdma_interrupt,
 				 IRQF_SHARED, &sil680_sht);
 
 use_ioports:
-	return ata_pci_sff_init_one(pdev, ppi, &sil680_sht, NULL);
+	return ata_pci_bmdma_init_one(pdev, ppi, &sil680_sht, NULL, 0);
 }
 
 #ifdef CONFIG_PM

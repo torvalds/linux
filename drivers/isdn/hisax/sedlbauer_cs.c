@@ -46,7 +46,6 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -56,24 +55,6 @@
 MODULE_DESCRIPTION("ISDN4Linux: PCMCIA client driver for Sedlbauer cards");
 MODULE_AUTHOR("Marcus Niemann");
 MODULE_LICENSE("Dual MPL/GPL");
-
-/*
-   All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
-   you do not define PCMCIA_DEBUG at all, all the debug code will be
-   left out.  If you compile with PCMCIA_DEBUG=0, the debug code will
-   be present but disabled -- but it can then be enabled for specific
-   modules at load time with a 'pc_debug=#' option to insmod.
-*/
-
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-module_param(pc_debug, int, 0);
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args); 
-static char *version =
-"sedlbauer_cs.c 1.1a 2001/01/28 15:04:04 (M.Niemann)";
-#else
-#define DEBUG(n, args...)
-#endif
 
 
 /*====================================================================*/
@@ -94,7 +75,7 @@ module_param(protocol, int, 0);
    event handler. 
 */
 
-static int sedlbauer_config(struct pcmcia_device *link);
+static int sedlbauer_config(struct pcmcia_device *link) __devinit ;
 static void sedlbauer_release(struct pcmcia_device *link);
 
 /*
@@ -103,34 +84,10 @@ static void sedlbauer_release(struct pcmcia_device *link);
    needed to manage one actual PCMCIA card.
 */
 
-static void sedlbauer_detach(struct pcmcia_device *p_dev);
+static void sedlbauer_detach(struct pcmcia_device *p_dev) __devexit;
 
-/*
-   You'll also need to prototype all the functions that will actually
-   be used to talk to your device.  See 'memory_cs' for a good example
-   of a fully self-sufficient driver; the other drivers rely more or
-   less on other parts of the kernel.
-*/
-
-/*
-   A driver needs to provide a dev_node_t structure for each device
-   on a card.  In some cases, there is only one device per card (for
-   example, ethernet cards, modems).  In other cases, there may be
-   many actual or logical devices (SCSI adapters, memory cards with
-   multiple partitions).  The dev_node_t structures need to be kept
-   in a linked list starting at the 'dev' field of a struct pcmcia_device
-   structure.  We allocate them in the card's private data structure,
-   because they generally shouldn't be allocated dynamically.
-
-   In this case, we also provide a flag to indicate if a device is
-   "stopped" due to a power management event, or card ejection.  The
-   device IO routines can use a flag like this to throttle IO to a
-   card that is not ready to accept it.
-*/
-   
 typedef struct local_info_t {
 	struct pcmcia_device	*p_dev;
-    dev_node_t		node;
     int			stop;
     int			cardnr;
 } local_info_t;
@@ -147,11 +104,11 @@ typedef struct local_info_t {
     
 ======================================================================*/
 
-static int sedlbauer_probe(struct pcmcia_device *link)
+static int __devinit sedlbauer_probe(struct pcmcia_device *link)
 {
     local_info_t *local;
 
-    DEBUG(0, "sedlbauer_attach()\n");
+    dev_dbg(&link->dev, "sedlbauer_attach()\n");
 
     /* Allocate space for private device-specific data */
     local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
@@ -160,11 +117,6 @@ static int sedlbauer_probe(struct pcmcia_device *link)
 
     local->p_dev = link;
     link->priv = local;
-
-    /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
-    link->irq.Handler = NULL;
 
     /*
       General socket configuration defaults can go here.  In this
@@ -177,9 +129,8 @@ static int sedlbauer_probe(struct pcmcia_device *link)
     /* from old sedl_cs 
     */
     /* The io structure describes IO port mapping */
-    link->io.NumPorts1 = 8;
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-    link->io.IOAddrLines = 3;
+    link->resource[0]->end = 8;
+    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
 
     link->conf.Attributes = 0;
     link->conf.IntType = INT_MEMORY_AND_IO;
@@ -196,9 +147,9 @@ static int sedlbauer_probe(struct pcmcia_device *link)
 
 ======================================================================*/
 
-static void sedlbauer_detach(struct pcmcia_device *link)
+static void __devexit sedlbauer_detach(struct pcmcia_device *link)
 {
-	DEBUG(0, "sedlbauer_detach(0x%p)\n", link);
+	dev_dbg(&link->dev, "sedlbauer_detach(0x%p)\n", link);
 
 	((local_info_t *)link->priv)->stop = 1;
 	sedlbauer_release(link);
@@ -214,17 +165,12 @@ static void sedlbauer_detach(struct pcmcia_device *link)
     device available to the system.
     
 ======================================================================*/
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
-
 static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 				  cistpl_cftable_entry_t *cfg,
 				  cistpl_cftable_entry_t *dflt,
 				  unsigned int vcc,
 				  void *priv_data)
 {
-	win_req_t *req = priv_data;
-
 	if (cfg->index == 0)
 		return -ENODEV;
 
@@ -249,74 +195,39 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 	else if (dflt->vpp1.present & (1<<CISTPL_POWER_VNOM))
 		p_dev->conf.Vpp = dflt->vpp1.param[CISTPL_POWER_VNOM]/10000;
 
-	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
-		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
-	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
+	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-		if (!(io->flags & CISTPL_IO_8BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-		if (!(io->flags & CISTPL_IO_16BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-		p_dev->io.BasePort1 = io->win[0].base;
-		p_dev->io.NumPorts1 = io->win[0].len;
+		p_dev->resource[0]->start = io->win[0].base;
+		p_dev->resource[0]->end = io->win[0].len;
+		p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+		p_dev->resource[0]->flags |=
+					pcmcia_io_cfg_data_width(io->flags);
 		if (io->nwin > 1) {
-			p_dev->io.Attributes2 = p_dev->io.Attributes1;
-			p_dev->io.BasePort2 = io->win[1].base;
-			p_dev->io.NumPorts2 = io->win[1].len;
+			p_dev->resource[1]->flags = p_dev->resource[0]->flags;
+			p_dev->resource[1]->start = io->win[1].base;
+			p_dev->resource[1]->end = io->win[1].len;
 		}
 		/* This reserves IO space but doesn't actually enable it */
-		if (pcmcia_request_io(p_dev, &p_dev->io) != 0)
+		p_dev->io_lines = 3;
+		if (pcmcia_request_io(p_dev) != 0)
 			return -ENODEV;
 	}
 
-	/*
-	  Now set up a common memory window, if needed.  There is room
-	  in the struct pcmcia_device structure for one memory window handle,
-	  but if the base addresses need to be saved, or if multiple
-	  windows are needed, the info should go in the private data
-	  structure for this device.
-
-	  Note that the memory window base is a physical address, and
-	  needs to be mapped to virtual space with ioremap() before it
-	  is used.
-	*/
-	if ((cfg->mem.nwin > 0) || (dflt->mem.nwin > 0)) {
-		cistpl_mem_t *mem = (cfg->mem.nwin) ? &cfg->mem : &dflt->mem;
-		memreq_t map;
-		req->Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM;
-		req->Attributes |= WIN_ENABLE;
-		req->Base = mem->win[0].host_addr;
-		req->Size = mem->win[0].len;
-		req->AccessSpeed = 0;
-		if (pcmcia_request_window(&p_dev, req, &p_dev->win) != 0)
-			return -ENODEV;
-		map.Page = 0;
-		map.CardOffset = mem->win[0].card_addr;
-		if (pcmcia_map_mem_page(p_dev->win, &map) != 0)
-			return -ENODEV;
-	}
 	return 0;
 }
 
 
 
-static int sedlbauer_config(struct pcmcia_device *link)
+static int __devinit sedlbauer_config(struct pcmcia_device *link)
 {
-    local_info_t *dev = link->priv;
-    win_req_t *req;
-    int last_fn, last_ret;
+    int ret;
     IsdnCard_t  icard;
 
-    DEBUG(0, "sedlbauer_config(0x%p)\n", link);
-
-    req = kzalloc(sizeof(win_req_t), GFP_KERNEL);
-    if (!req)
-	    return -ENOMEM;
+    dev_dbg(&link->dev, "sedlbauer_config(0x%p)\n", link);
 
     /*
       In this loop, we scan the CIS for configuration table entries,
@@ -330,69 +241,49 @@ static int sedlbauer_config(struct pcmcia_device *link)
       these things without consulting the CIS, and most client drivers
       will only use the CIS to fill in implementation-defined details.
     */
-    last_ret = pcmcia_loop_config(link, sedlbauer_config_check, req);
-    if (last_ret)
+    ret = pcmcia_loop_config(link, sedlbauer_config_check, NULL);
+    if (ret)
 	    goto failed;
 
-    /*
-       Allocate an interrupt line.  Note that this does not assign a
-       handler to the interrupt, unless the 'Handler' member of the
-       irq structure is initialized.
-    */
-    if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
-	
     /*
        This actually configures the PCMCIA socket -- setting up
        the I/O windows and the interrupt mapping, and putting the
        card and host interface into "Memory and IO" mode.
     */
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
-
-    /*
-      At this point, the dev_node_t structure(s) need to be
-      initialized and arranged in a linked list at link->dev.
-    */
-    sprintf(dev->node.dev_name, "sedlbauer");
-    dev->node.major = dev->node.minor = 0;
-    link->dev_node = &dev->node;
+    ret = pcmcia_request_configuration(link, &link->conf);
+    if (ret)
+	    goto failed;
 
     /* Finally, report what we've done */
-    printk(KERN_INFO "%s: index 0x%02x:",
-	   dev->node.dev_name, link->conf.ConfigIndex);
+    dev_info(&link->dev, "index 0x%02x:",
+	   link->conf.ConfigIndex);
     if (link->conf.Vpp)
 	printk(", Vpp %d.%d", link->conf.Vpp/10, link->conf.Vpp%10);
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	printk(", irq %d", link->irq.AssignedIRQ);
-    if (link->io.NumPorts1)
-	printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-	       link->io.BasePort1+link->io.NumPorts1-1);
-    if (link->io.NumPorts2)
-	printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-	       link->io.BasePort2+link->io.NumPorts2-1);
-    if (link->win)
-	printk(", mem 0x%06lx-0x%06lx", req->Base,
-	       req->Base+req->Size-1);
+	printk(", irq %d", link->irq);
+    if (link->resource[0])
+	printk(" & %pR", link->resource[0]);
+    if (link->resource[1])
+	printk(" & %pR", link->resource[1]);
     printk("\n");
 
-    icard.para[0] = link->irq.AssignedIRQ;
-    icard.para[1] = link->io.BasePort1;
+    icard.para[0] = link->irq;
+    icard.para[1] = link->resource[0]->start;
     icard.protocol = protocol;
     icard.typ = ISDN_CTYPE_SEDLBAUER_PCMCIA;
     
-    last_ret = hisax_init_pcmcia(link, &(((local_info_t*)link->priv)->stop), &icard);
-    if (last_ret < 0) {
-    	printk(KERN_ERR "sedlbauer_cs: failed to initialize SEDLBAUER PCMCIA %d at i/o %#x\n",
-    		last_ret, link->io.BasePort1);
+    ret = hisax_init_pcmcia(link, 
+			    &(((local_info_t *)link->priv)->stop), &icard);
+    if (ret < 0) {
+	printk(KERN_ERR "sedlbauer_cs: failed to initialize SEDLBAUER PCMCIA %d with %pR\n",
+		ret, link->resource[0]);
     	sedlbauer_release(link);
 	return -ENODEV;
     } else
-    	((local_info_t*)link->priv)->cardnr = last_ret;
+	((local_info_t *)link->priv)->cardnr = ret;
 
     return 0;
 
-cs_failed:
-    cs_error(link, last_fn, last_ret);
 failed:
     sedlbauer_release(link);
     return -ENODEV;
@@ -410,7 +301,7 @@ failed:
 static void sedlbauer_release(struct pcmcia_device *link)
 {
     local_info_t *local = link->priv;
-    DEBUG(0, "sedlbauer_release(0x%p)\n", link);
+    dev_dbg(&link->dev, "sedlbauer_release(0x%p)\n", link);
 
     if (local) {
     	if (local->cardnr >= 0) {
@@ -459,7 +350,7 @@ static struct pcmcia_driver sedlbauer_driver = {
 		.name	= "sedlbauer_cs",
 	},
 	.probe		= sedlbauer_probe,
-	.remove		= sedlbauer_detach,
+	.remove		= __devexit_p(sedlbauer_detach),
 	.id_table	= sedlbauer_ids,
 	.suspend	= sedlbauer_suspend,
 	.resume		= sedlbauer_resume,

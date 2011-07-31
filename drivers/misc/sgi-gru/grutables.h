@@ -161,7 +161,7 @@ extern unsigned int gru_max_gids;
 #define GRU_MAX_GRUS		(GRU_MAX_BLADES * GRU_CHIPLETS_PER_BLADE)
 
 #define GRU_DRIVER_ID_STR	"SGI GRU Device Driver"
-#define GRU_DRIVER_VERSION_STR	"0.80"
+#define GRU_DRIVER_VERSION_STR	"0.85"
 
 /*
  * GRU statistics.
@@ -171,7 +171,8 @@ struct gru_stats_s {
 	atomic_long_t vdata_free;
 	atomic_long_t gts_alloc;
 	atomic_long_t gts_free;
-	atomic_long_t vdata_double_alloc;
+	atomic_long_t gms_alloc;
+	atomic_long_t gms_free;
 	atomic_long_t gts_double_allocate;
 	atomic_long_t assign_context;
 	atomic_long_t assign_context_failed;
@@ -184,28 +185,25 @@ struct gru_stats_s {
 	atomic_long_t steal_kernel_context;
 	atomic_long_t steal_context_failed;
 	atomic_long_t nopfn;
-	atomic_long_t break_cow;
 	atomic_long_t asid_new;
 	atomic_long_t asid_next;
 	atomic_long_t asid_wrap;
 	atomic_long_t asid_reuse;
 	atomic_long_t intr;
+	atomic_long_t intr_cbr;
+	atomic_long_t intr_tfh;
+	atomic_long_t intr_spurious;
 	atomic_long_t intr_mm_lock_failed;
 	atomic_long_t call_os;
-	atomic_long_t call_os_offnode_reference;
-	atomic_long_t call_os_check_for_bug;
 	atomic_long_t call_os_wait_queue;
 	atomic_long_t user_flush_tlb;
 	atomic_long_t user_unload_context;
 	atomic_long_t user_exception;
 	atomic_long_t set_context_option;
-	atomic_long_t migrate_check;
-	atomic_long_t migrated_retarget;
-	atomic_long_t migrated_unload;
-	atomic_long_t migrated_unload_delay;
-	atomic_long_t migrated_nopfn_retarget;
-	atomic_long_t migrated_nopfn_unload;
+	atomic_long_t check_context_retarget_intr;
+	atomic_long_t check_context_unload;
 	atomic_long_t tlb_dropin;
+	atomic_long_t tlb_preload_page;
 	atomic_long_t tlb_dropin_fail_no_asid;
 	atomic_long_t tlb_dropin_fail_upm;
 	atomic_long_t tlb_dropin_fail_invalid;
@@ -213,17 +211,16 @@ struct gru_stats_s {
 	atomic_long_t tlb_dropin_fail_idle;
 	atomic_long_t tlb_dropin_fail_fmm;
 	atomic_long_t tlb_dropin_fail_no_exception;
-	atomic_long_t tlb_dropin_fail_no_exception_war;
 	atomic_long_t tfh_stale_on_fault;
 	atomic_long_t mmu_invalidate_range;
 	atomic_long_t mmu_invalidate_page;
-	atomic_long_t mmu_clear_flush_young;
 	atomic_long_t flush_tlb;
 	atomic_long_t flush_tlb_gru;
 	atomic_long_t flush_tlb_gru_tgh;
 	atomic_long_t flush_tlb_gru_zero_asid;
 
 	atomic_long_t copy_gpa;
+	atomic_long_t read_gpa;
 
 	atomic_long_t mesq_receive;
 	atomic_long_t mesq_receive_none;
@@ -235,7 +232,7 @@ struct gru_stats_s {
 	atomic_long_t mesq_send_qlimit_reached;
 	atomic_long_t mesq_send_amo_nacked;
 	atomic_long_t mesq_send_put_nacked;
-	atomic_long_t mesq_qf_not_full;
+	atomic_long_t mesq_page_overflow;
 	atomic_long_t mesq_qf_locked;
 	atomic_long_t mesq_qf_noop_not_full;
 	atomic_long_t mesq_qf_switch_head_failed;
@@ -245,11 +242,13 @@ struct gru_stats_s {
 	atomic_long_t mesq_noop_qlimit_reached;
 	atomic_long_t mesq_noop_amo_nacked;
 	atomic_long_t mesq_noop_put_nacked;
+	atomic_long_t mesq_noop_page_overflow;
 
 };
 
 enum mcs_op {cchop_allocate, cchop_start, cchop_interrupt, cchop_interrupt_sync,
-	cchop_deallocate, tghop_invalidate, mcsop_last};
+	cchop_deallocate, tfhop_write_only, tfhop_write_restart,
+	tghop_invalidate, mcsop_last};
 
 struct mcs_op_statistic {
 	atomic_long_t	count;
@@ -259,8 +258,8 @@ struct mcs_op_statistic {
 
 extern struct mcs_op_statistic mcs_op_statistics[mcsop_last];
 
-#define OPT_DPRINT	1
-#define OPT_STATS	2
+#define OPT_DPRINT		1
+#define OPT_STATS		2
 
 
 #define IRQ_GRU			110	/* Starting IRQ number for interrupts */
@@ -283,7 +282,7 @@ extern struct mcs_op_statistic mcs_op_statistics[mcsop_last];
 #define gru_dbg(dev, fmt, x...)						\
 	do {								\
 		if (gru_options & OPT_DPRINT)				\
-			dev_dbg(dev, "%s: " fmt, __func__, x);		\
+			printk(KERN_DEBUG "GRU:%d %s: " fmt, smp_processor_id(), __func__, x);\
 	} while (0)
 #else
 #define gru_dbg(x...)
@@ -297,13 +296,7 @@ extern struct mcs_op_statistic mcs_op_statistics[mcsop_last];
 #define ASID_INC	8	/* number of regions */
 
 /* Generate a GRU asid value from a GRU base asid & a virtual address. */
-#if defined CONFIG_IA64
 #define VADDR_HI_BIT		64
-#elif defined CONFIG_X86_64
-#define VADDR_HI_BIT		48
-#else
-#error "Unsupported architecture"
-#endif
 #define GRUREGION(addr)		((addr) >> (VADDR_HI_BIT - 3) & 3)
 #define GRUASID(asid, addr)	((asid) + GRUREGION(addr))
 
@@ -345,6 +338,7 @@ struct gru_vma_data {
 	long			vd_user_options;/* misc user option flags */
 	int			vd_cbr_au_count;
 	int			vd_dsr_au_count;
+	unsigned char		vd_tlb_preload_count;
 };
 
 /*
@@ -360,6 +354,7 @@ struct gru_thread_state {
 	struct gru_state	*ts_gru;	/* GRU where the context is
 						   loaded */
 	struct gru_mm_struct	*ts_gms;	/* asid & ioproc struct */
+	unsigned char		ts_tlb_preload_count; /* TLB preload pages */
 	unsigned long		ts_cbr_map;	/* map of allocated CBRs */
 	unsigned long		ts_dsr_map;	/* map of allocated DATA
 						   resources */
@@ -368,6 +363,8 @@ struct gru_thread_state {
 	long			ts_user_options;/* misc user option flags */
 	pid_t			ts_tgid_owner;	/* task that is using the
 						   context - for migration */
+	short			ts_user_blade_id;/* user selected blade */
+	char			ts_user_chiplet_id;/* user selected chiplet */
 	unsigned short		ts_sizeavail;	/* Pagesizes in use */
 	int			ts_tsid;	/* thread that owns the
 						   structure */
@@ -384,13 +381,11 @@ struct gru_thread_state {
 	char			ts_blade;	/* If >= 0, migrate context if
 						   ref from diferent blade */
 	char			ts_force_cch_reload;
-	char			ts_force_unload;/* force context to be unloaded
-						   after migration */
 	char			ts_cbr_idx[GRU_CBR_AU];/* CBR numbers of each
 							  allocated CB */
 	int			ts_data_valid;	/* Indicates if ts_gdata has
 						   valid data */
-	struct gts_statistics	ustats;		/* User statistics */
+	struct gru_gseg_statistics ustats;	/* User statistics */
 	unsigned long		ts_gdata[0];	/* save area for GRU data (CB,
 						   DS, CBE) */
 };
@@ -422,6 +417,7 @@ struct gru_state {
 							   gru segments (64) */
 	unsigned short		gs_gid;			/* unique GRU number */
 	unsigned short		gs_blade_id;		/* blade of GRU */
+	unsigned char		gs_chiplet_id;		/* blade chiplet of GRU */
 	unsigned char		gs_tgh_local_shift;	/* used to pick TGH for
 							   local flush */
 	unsigned char		gs_tgh_first_remote;	/* starting TGH# for
@@ -453,6 +449,7 @@ struct gru_state {
 							   in use */
 	struct gru_thread_state	*gs_gts[GRU_NUM_CCH];	/* GTS currently using
 							   the context */
+	int			gs_irq[GRU_NUM_TFM];	/* Interrupt irqs */
 };
 
 /*
@@ -519,8 +516,7 @@ struct gru_blade_state {
 
 /* Scan all active GRUs in a GRU bitmap */
 #define for_each_gru_in_bitmap(gid, map)				\
-	for ((gid) = find_first_bit((map), GRU_MAX_GRUS); (gid) < GRU_MAX_GRUS;\
-		(gid)++, (gid) = find_next_bit((map), GRU_MAX_GRUS, (gid)))
+	for_each_set_bit((gid), (map), GRU_MAX_GRUS)
 
 /* Scan all active GRUs on a specific blade */
 #define for_each_gru_on_blade(gru, nid, i)				\
@@ -539,23 +535,17 @@ struct gru_blade_state {
 
 /* Scan each CBR whose bit is set in a TFM (or copy of) */
 #define for_each_cbr_in_tfm(i, map)					\
-	for ((i) = find_first_bit(map, GRU_NUM_CBE);			\
-			(i) < GRU_NUM_CBE;				\
-			(i)++, (i) = find_next_bit(map, GRU_NUM_CBE, i))
+	for_each_set_bit((i), (map), GRU_NUM_CBE)
 
 /* Scan each CBR in a CBR bitmap. Note: multiple CBRs in an allocation unit */
 #define for_each_cbr_in_allocation_map(i, map, k)			\
-	for ((k) = find_first_bit(map, GRU_CBR_AU); (k) < GRU_CBR_AU;	\
-			(k) = find_next_bit(map, GRU_CBR_AU, (k) + 1)) 	\
+	for_each_set_bit((k), (map), GRU_CBR_AU)			\
 		for ((i) = (k)*GRU_CBR_AU_SIZE;				\
 				(i) < ((k) + 1) * GRU_CBR_AU_SIZE; (i)++)
 
 /* Scan each DSR in a DSR bitmap. Note: multiple DSRs in an allocation unit */
 #define for_each_dsr_in_allocation_map(i, map, k)			\
-	for ((k) = find_first_bit((const unsigned long *)map, GRU_DSR_AU);\
-			(k) < GRU_DSR_AU;				\
-			(k) = find_next_bit((const unsigned long *)map,	\
-					  GRU_DSR_AU, (k) + 1))		\
+	for_each_set_bit((k), (const unsigned long *)(map), GRU_DSR_AU)	\
 		for ((i) = (k) * GRU_DSR_AU_CL;				\
 				(i) < ((k) + 1) * GRU_DSR_AU_CL; (i)++)
 
@@ -619,6 +609,15 @@ static inline int is_kernel_context(struct gru_thread_state *gts)
 	return !gts->ts_mm;
 }
 
+/*
+ * The following are for Nehelem-EX. A more general scheme is needed for
+ * future processors.
+ */
+#define UV_MAX_INT_CORES		8
+#define uv_cpu_socket_number(p)		((cpu_physical_id(p) >> 5) & 1)
+#define uv_cpu_ht_number(p)		(cpu_physical_id(p) & 1)
+#define uv_cpu_core_number(p)		(((cpu_physical_id(p) >> 2) & 4) |	\
+					((cpu_physical_id(p) >> 1) & 3))
 /*-----------------------------------------------------------------------------
  * Function prototypes & externs
  */
@@ -633,24 +632,26 @@ extern struct gru_thread_state *gru_find_thread_state(struct vm_area_struct
 				*vma, int tsid);
 extern struct gru_thread_state *gru_alloc_thread_state(struct vm_area_struct
 				*vma, int tsid);
-extern struct gru_state *gru_assign_gru_context(struct gru_thread_state *gts,
-		int blade);
+extern struct gru_state *gru_assign_gru_context(struct gru_thread_state *gts);
 extern void gru_load_context(struct gru_thread_state *gts);
-extern void gru_steal_context(struct gru_thread_state *gts, int blade_id);
+extern void gru_steal_context(struct gru_thread_state *gts);
 extern void gru_unload_context(struct gru_thread_state *gts, int savestate);
-extern int gru_update_cch(struct gru_thread_state *gts, int force_unload);
+extern int gru_update_cch(struct gru_thread_state *gts);
 extern void gts_drop(struct gru_thread_state *gts);
 extern void gru_tgh_flush_init(struct gru_state *gru);
 extern int gru_kservices_init(void);
 extern void gru_kservices_exit(void);
+extern irqreturn_t gru0_intr(int irq, void *dev_id);
+extern irqreturn_t gru1_intr(int irq, void *dev_id);
+extern irqreturn_t gru_intr_mblade(int irq, void *dev_id);
 extern int gru_dump_chiplet_request(unsigned long arg);
 extern long gru_get_gseg_statistics(unsigned long arg);
-extern irqreturn_t gru_intr(int irq, void *dev_id);
 extern int gru_handle_user_call_os(unsigned long address);
 extern int gru_user_flush_tlb(unsigned long arg);
 extern int gru_user_unload_context(unsigned long arg);
 extern int gru_get_exception_detail(unsigned long arg);
 extern int gru_set_context_option(unsigned long address);
+extern void gru_check_context_placement(struct gru_thread_state *gts);
 extern int gru_cpu_fault_map_id(void);
 extern struct vm_area_struct *gru_find_vma(unsigned long vaddr);
 extern void gru_flush_all_tlb(struct gru_state *gru);
@@ -658,7 +659,8 @@ extern int gru_proc_init(void);
 extern void gru_proc_exit(void);
 
 extern struct gru_thread_state *gru_alloc_gts(struct vm_area_struct *vma,
-		int cbr_au_count, int dsr_au_count, int options, int tsid);
+		int cbr_au_count, int dsr_au_count,
+		unsigned char tlb_preload_count, int options, int tsid);
 extern unsigned long gru_reserve_cb_resources(struct gru_state *gru,
 		int cbr_au_count, char *cbmap);
 extern unsigned long gru_reserve_ds_resources(struct gru_state *gru,

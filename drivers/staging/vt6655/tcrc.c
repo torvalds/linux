@@ -42,7 +42,7 @@
 /*---------------------  Static Variables  --------------------------*/
 
 // 32-bit CRC table
-static const DWORD s_adwCrc32Table[256] = {
+static const unsigned long s_adwCrc32Table[256] = {
     0x00000000L, 0x77073096L, 0xEE0E612CL, 0x990951BAL,
     0x076DC419L, 0x706AF48FL, 0xE963A535L, 0x9E6495A3L,
     0x0EDB8832L, 0x79DCB8A4L, 0xE0D5E91EL, 0x97D2D988L,
@@ -132,13 +132,13 @@ static const DWORD s_adwCrc32Table[256] = {
  * Return Value: CRC-32
  *
 -*/
-DWORD CRCdwCrc32 (PBYTE pbyData, UINT cbByte, DWORD dwCrcSeed)
+unsigned long CRCdwCrc32 (unsigned char *pbyData, unsigned int cbByte, unsigned long dwCrcSeed)
 {
-    DWORD dwCrc;
+    unsigned long dwCrc;
 
     dwCrc = dwCrcSeed;
     while (cbByte--) {
-        dwCrc = s_adwCrc32Table[(BYTE)((dwCrc ^ (*pbyData)) & 0xFF)] ^ (dwCrc >> 8);
+        dwCrc = s_adwCrc32Table[(unsigned char)((dwCrc ^ (*pbyData)) & 0xFF)] ^ (dwCrc >> 8);
         pbyData++;
     }
 
@@ -164,7 +164,7 @@ DWORD CRCdwCrc32 (PBYTE pbyData, UINT cbByte, DWORD dwCrcSeed)
  * Return Value: CRC-32
  *
 -*/
-DWORD CRCdwGetCrc32 (PBYTE pbyData, UINT cbByte)
+unsigned long CRCdwGetCrc32 (unsigned char *pbyData, unsigned int cbByte)
 {
     return ~CRCdwCrc32(pbyData, cbByte, 0xFFFFFFFFL);
 }
@@ -190,7 +190,7 @@ DWORD CRCdwGetCrc32 (PBYTE pbyData, UINT cbByte)
  * Return Value: CRC-32
  *
 -*/
-DWORD CRCdwGetCrc32Ex(PBYTE pbyData, UINT cbByte, DWORD dwPreCRC)
+unsigned long CRCdwGetCrc32Ex(unsigned char *pbyData, unsigned int cbByte, unsigned long dwPreCRC)
 {
     return CRCdwCrc32(pbyData, cbByte, dwPreCRC);
 }

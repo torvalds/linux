@@ -20,6 +20,7 @@
 #include <linux/leds.h>
 #include <linux/spi/spi.h>
 #include <linux/atmel-mci.h>
+#include <linux/usb/atmel_usba_udc.h>
 
 #include <asm/io.h>
 #include <asm/setup.h>
@@ -35,6 +36,75 @@ unsigned long at32_board_osc_rates[3] = {
 	[1] = 20000000,	/* 20 MHz on osc0 */
 	[2] = 12000000,	/* 12 MHz on osc1 */
 };
+
+/*
+ * The ATNGW100 mkII is very similar to the ATNGW100. Both have the AT32AP7000
+ * chip on board; the difference is that the ATNGW100 mkII has 128 MB 32-bit
+ * SDRAM (the ATNGW100 has 32 MB 16-bit SDRAM) and 256 MB 16-bit NAND flash
+ * (the ATNGW100 has none.)
+ *
+ * The RAM difference is handled by the boot loader, so the only difference we
+ * end up handling here is the NAND flash, EBI pin reservation and if LCDC or
+ * MACB1 should be enabled.
+ */
+#ifdef CONFIG_BOARD_ATNGW100_MKII
+#include <linux/mtd/partitions.h>
+#include <mach/smc.h>
+
+static struct smc_timing nand_timing __initdata = {
+	.ncs_read_setup		= 0,
+	.nrd_setup		= 10,
+	.ncs_write_setup	= 0,
+	.nwe_setup		= 10,
+
+	.ncs_read_pulse		= 30,
+	.nrd_pulse		= 15,
+	.ncs_write_pulse	= 30,
+	.nwe_pulse		= 15,
+
+	.read_cycle		= 30,
+	.write_cycle		= 30,
+
+	.ncs_read_recover	= 0,
+	.nrd_recover		= 15,
+	.ncs_write_recover	= 0,
+	/* WE# high -> RE# low min 60 ns */
+	.nwe_recover		= 50,
+};
+
+static struct smc_config nand_config __initdata = {
+	.bus_width		= 2,
+	.nrd_controlled		= 1,
+	.nwe_controlled		= 1,
+	.nwait_mode		= 0,
+	.byte_write		= 0,
+	.tdf_cycles		= 2,
+	.tdf_mode		= 0,
+};
+
+static struct mtd_partition nand_partitions[] = {
+	{
+		.name		= "main",
+		.offset		= 0x00000000,
+		.size		= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct mtd_partition *nand_part_info(int size, int *num_partitions)
+{
+	*num_partitions = ARRAY_SIZE(nand_partitions);
+	return nand_partitions;
+}
+
+static struct atmel_nand_data atngw100mkii_nand_data __initdata = {
+	.cle		= 21,
+	.ale		= 22,
+	.rdy_pin	= GPIO_PIN_PB(28),
+	.enable_pin	= GPIO_PIN_PE(23),
+	.bus_width_16	= true,
+	.partition_info	= nand_part_info,
+};
+#endif
 
 /* Initialized by bootloader-specific startup code. */
 struct tag *bootloader_tags __initdata;
@@ -56,14 +126,22 @@ static struct spi_board_info spi0_board_info[] __initdata = {
 static struct mci_platform_data __initdata mci0_data = {
 	.slot[0] = {
 		.bus_width	= 4,
-#if defined(CONFIG_BOARD_ATNGW100_EVKLCD10X) || defined(CONFIG_BOARD_ATNGW100_MRMT1)
-		.detect_pin     = GPIO_PIN_NONE,
-		.wp_pin         = GPIO_PIN_NONE,
+#if defined(CONFIG_BOARD_ATNGW100_MKII)
+		.detect_pin	= GPIO_PIN_PC(25),
+		.wp_pin		= GPIO_PIN_PE(22),
 #else
 		.detect_pin	= GPIO_PIN_PC(25),
 		.wp_pin		= GPIO_PIN_PE(0),
 #endif
 	},
+};
+
+static struct usba_platform_data atngw100_usba_data __initdata = {
+#if defined(CONFIG_BOARD_ATNGW100_MKII)
+	.vbus_pin	= GPIO_PIN_PE(26),
+#else
+	.vbus_pin	= -ENODEV,
+#endif
 };
 
 /*
@@ -173,18 +251,27 @@ static int __init atngw100_init(void)
 	unsigned	i;
 
 	/*
-	 * ATNGW100 uses 16-bit SDRAM interface, so we don't need to
-	 * reserve any pins for it.
+	 * ATNGW100 mkII uses 32-bit SDRAM interface. Reserve the
+	 * SDRAM-specific pins so that nobody messes with them.
 	 */
+#ifdef CONFIG_BOARD_ATNGW100_MKII
+	at32_reserve_pin(GPIO_PIOE_BASE, ATMEL_EBI_PE_DATA_ALL);
+
+	smc_set_timing(&nand_config, &nand_timing);
+	smc_set_configuration(3, &nand_config);
+	at32_add_device_nand(0, &atngw100mkii_nand_data);
+#endif
 
 	at32_add_device_usart(0);
 
 	set_hw_addr(at32_add_device_eth(0, &eth_data[0]));
+#ifndef CONFIG_BOARD_ATNGW100_MKII_LCD
 	set_hw_addr(at32_add_device_eth(1, &eth_data[1]));
+#endif
 
 	at32_add_device_spi(0, spi0_board_info, ARRAY_SIZE(spi0_board_info));
 	at32_add_device_mci(0, &mci0_data);
-	at32_add_device_usba(0, NULL);
+	at32_add_device_usba(0, &atngw100_usba_data);
 
 	for (i = 0; i < ARRAY_SIZE(ngw_leds); i++) {
 		at32_select_gpio(ngw_leds[i].gpio,
@@ -194,10 +281,14 @@ static int __init atngw100_init(void)
 
 	/* all these i2c/smbus pins should have external pullups for
 	 * open-drain sharing among all I2C devices.  SDA and SCL do;
-	 * PB28/EXTINT3 doesn't; it should be SMBALERT# (for PMBus),
-	 * but it's not available off-board.
+	 * PB28/EXTINT3 (ATNGW100) and PE21 (ATNGW100 mkII) doesn't; it should
+	 * be SMBALERT# (for PMBus), but it's not available off-board.
 	 */
+#ifdef CONFIG_BOARD_ATNGW100_MKII
+	at32_select_periph(GPIO_PIOE_BASE, 1 << 21, 0, AT32_GPIOF_PULLUP);
+#else
 	at32_select_periph(GPIO_PIOB_BASE, 1 << 28, 0, AT32_GPIOF_PULLUP);
+#endif
 	at32_select_gpio(i2c_gpio_data.sda_pin,
 		AT32_GPIOF_MULTIDRV | AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
 	at32_select_gpio(i2c_gpio_data.scl_pin,
@@ -211,14 +302,22 @@ postcore_initcall(atngw100_init);
 
 static int __init atngw100_arch_init(void)
 {
-	/* PB30 is the otherwise unused jumper on the mainboard, with an
-	 * external pullup; the jumper grounds it.  Use it however you
-	 * like, including letting U-Boot or Linux tweak boot sequences.
+	/* PB30 (ATNGW100) and PE30 (ATNGW100 mkII) is the otherwise unused
+	 * jumper on the mainboard, with an external pullup; the jumper grounds
+	 * it. Use it however you like, including letting U-Boot or Linux tweak
+	 * boot sequences.
 	 */
+#ifdef CONFIG_BOARD_ATNGW100_MKII
+	at32_select_gpio(GPIO_PIN_PE(30), 0);
+	gpio_request(GPIO_PIN_PE(30), "j15");
+	gpio_direction_input(GPIO_PIN_PE(30));
+	gpio_export(GPIO_PIN_PE(30), false);
+#else
 	at32_select_gpio(GPIO_PIN_PB(30), 0);
 	gpio_request(GPIO_PIN_PB(30), "j15");
 	gpio_direction_input(GPIO_PIN_PB(30));
 	gpio_export(GPIO_PIN_PB(30), false);
+#endif
 
 	/* set_irq_type() after the arch_initcall for EIC has run, and
 	 * before the I2C subsystem could try using this IRQ.

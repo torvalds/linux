@@ -29,6 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/tty_flip.h>
 #include <linux/delay.h>
+#include <linux/gfp.h>
 #include <asm/uaccess.h>
 
 #define DEBUG 

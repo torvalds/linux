@@ -134,13 +134,12 @@ out:
 static int lpddr_chip_setup(struct map_info *map, struct lpddr_private *lpddr)
 {
 
-	lpddr->qinfo = kmalloc(sizeof(struct qinfo_chip), GFP_KERNEL);
+	lpddr->qinfo = kzalloc(sizeof(struct qinfo_chip), GFP_KERNEL);
 	if (!lpddr->qinfo) {
 		printk(KERN_WARNING "%s: no memory for LPDDR qinfo structure\n",
 				map->name);
 		return 0;
 	}
-	memset(lpddr->qinfo, 0, sizeof(struct qinfo_chip));
 
 	/* Get the ManuID */
 	lpddr->ManufactId = CMDVAL(map_read(map, map->pfow_base + PFOW_MANUFACTURER_ID));
@@ -185,13 +184,11 @@ static struct lpddr_private *lpddr_probe_chip(struct map_info *map)
 	lpddr.numchips = 1;
 
 	numvirtchips = lpddr.numchips * lpddr.qinfo->HWPartsNum;
-	retlpddr = kmalloc(sizeof(struct lpddr_private) +
+	retlpddr = kzalloc(sizeof(struct lpddr_private) +
 			numvirtchips * sizeof(struct flchip), GFP_KERNEL);
 	if (!retlpddr)
 		return NULL;
 
-	memset(retlpddr, 0, sizeof(struct lpddr_private) +
-				numvirtchips * sizeof(struct flchip));
 	memcpy(retlpddr, &lpddr, sizeof(struct lpddr_private));
 
 	retlpddr->numchips = numvirtchips;

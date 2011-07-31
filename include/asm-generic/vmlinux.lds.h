@@ -52,12 +52,22 @@
 #define LOAD_OFFSET 0
 #endif
 
-#ifndef VMLINUX_SYMBOL
-#define VMLINUX_SYMBOL(_sym_) _sym_
+#ifndef SYMBOL_PREFIX
+#define VMLINUX_SYMBOL(sym) sym
+#else
+#define PASTE2(x,y) x##y
+#define PASTE(x,y) PASTE2(x,y)
+#define VMLINUX_SYMBOL(sym) PASTE(SYMBOL_PREFIX, sym)
 #endif
 
 /* Align . to a 8 byte boundary equals to maximum function alignment. */
 #define ALIGN_FUNCTION()  . = ALIGN(8)
+
+/*
+ * Align to a 32 byte boundary equal to the
+ * alignment gcc 4.5 uses for a struct
+ */
+#define STRUCT_ALIGN() . = ALIGN(32)
 
 /* The actual configuration determine if the init/exit sections
  * are handled as text/data or they can be discarded (which
@@ -146,10 +156,6 @@
 	CPU_KEEP(exit.data)						\
 	MEM_KEEP(init.data)						\
 	MEM_KEEP(exit.data)						\
-	. = ALIGN(8);							\
-	VMLINUX_SYMBOL(__start___markers) = .;				\
-	*(__markers)							\
-	VMLINUX_SYMBOL(__stop___markers) = .;				\
 	. = ALIGN(32);							\
 	VMLINUX_SYMBOL(__start___tracepoints) = .;			\
 	*(__tracepoints)						\
@@ -162,7 +168,11 @@
 	LIKELY_PROFILE()		       				\
 	BRANCH_PROFILE()						\
 	TRACE_PRINTKS()							\
+									\
+	STRUCT_ALIGN();							\
 	FTRACE_EVENTS()							\
+									\
+	STRUCT_ALIGN();							\
 	TRACE_SYSCALLS()
 
 /*
@@ -171,25 +181,25 @@
 #define NOSAVE_DATA							\
 	. = ALIGN(PAGE_SIZE);						\
 	VMLINUX_SYMBOL(__nosave_begin) = .;				\
-	*(.data.nosave)							\
+	*(.data..nosave)						\
 	. = ALIGN(PAGE_SIZE);						\
 	VMLINUX_SYMBOL(__nosave_end) = .;
 
 #define PAGE_ALIGNED_DATA(page_align)					\
 	. = ALIGN(page_align);						\
-	*(.data.page_aligned)
+	*(.data..page_aligned)
 
 #define READ_MOSTLY_DATA(align)						\
 	. = ALIGN(align);						\
-	*(.data.read_mostly)
+	*(.data..read_mostly)
 
 #define CACHELINE_ALIGNED_DATA(align)					\
 	. = ALIGN(align);						\
-	*(.data.cacheline_aligned)
+	*(.data..cacheline_aligned)
 
 #define INIT_TASK_DATA(align)						\
 	. = ALIGN(align);						\
-	*(.data.init_task)
+	*(.data..init_task)
 
 /*
  * Read only Data
@@ -243,10 +253,10 @@
 	}								\
 									\
 	/* RapidIO route ops */						\
-	.rio_route        : AT(ADDR(.rio_route) - LOAD_OFFSET) {	\
-		VMLINUX_SYMBOL(__start_rio_route_ops) = .;		\
-		*(.rio_route_ops)					\
-		VMLINUX_SYMBOL(__end_rio_route_ops) = .;		\
+	.rio_ops        : AT(ADDR(.rio_ops) - LOAD_OFFSET) {		\
+		VMLINUX_SYMBOL(__start_rio_switch_ops) = .;		\
+		*(.rio_switch_ops)					\
+		VMLINUX_SYMBOL(__end_rio_switch_ops) = .;		\
 	}								\
 									\
 	TRACEDATA							\
@@ -431,7 +441,7 @@
  */
 #define INIT_TASK_DATA_SECTION(align)					\
 	. = ALIGN(align);						\
-	.data.init_task : {						\
+	.data..init_task :  AT(ADDR(.data..init_task) - LOAD_OFFSET) {	\
 		INIT_TASK_DATA(align)					\
 	}
 
@@ -495,7 +505,7 @@
 #define BSS(bss_align)							\
 	. = ALIGN(bss_align);						\
 	.bss : AT(ADDR(.bss) - LOAD_OFFSET) {				\
-		*(.bss.page_aligned)					\
+		*(.bss..page_aligned)					\
 		*(.dynbss)						\
 		*(.bss)							\
 		*(COMMON)						\
@@ -639,6 +649,7 @@
 	EXIT_DATA							\
 	EXIT_CALL							\
 	*(.discard)							\
+	*(.discard.*)							\
 	}
 
 /**
@@ -662,16 +673,16 @@
  */
 #define PERCPU_VADDR(vaddr, phdr)					\
 	VMLINUX_SYMBOL(__per_cpu_load) = .;				\
-	.data.percpu vaddr : AT(VMLINUX_SYMBOL(__per_cpu_load)		\
+	.data..percpu vaddr : AT(VMLINUX_SYMBOL(__per_cpu_load)		\
 				- LOAD_OFFSET) {			\
 		VMLINUX_SYMBOL(__per_cpu_start) = .;			\
-		*(.data.percpu.first)					\
-		*(.data.percpu.page_aligned)				\
-		*(.data.percpu)						\
-		*(.data.percpu.shared_aligned)				\
+		*(.data..percpu..first)					\
+		*(.data..percpu..page_aligned)				\
+		*(.data..percpu)					\
+		*(.data..percpu..shared_aligned)			\
 		VMLINUX_SYMBOL(__per_cpu_end) = .;			\
 	} phdr								\
-	. = VMLINUX_SYMBOL(__per_cpu_load) + SIZEOF(.data.percpu);
+	. = VMLINUX_SYMBOL(__per_cpu_load) + SIZEOF(.data..percpu);
 
 /**
  * PERCPU - define output section for percpu area, simple version
@@ -683,18 +694,18 @@
  *
  * This macro is equivalent to ALIGN(align); PERCPU_VADDR( , ) except
  * that __per_cpu_load is defined as a relative symbol against
- * .data.percpu which is required for relocatable x86_32
+ * .data..percpu which is required for relocatable x86_32
  * configuration.
  */
 #define PERCPU(align)							\
 	. = ALIGN(align);						\
-	.data.percpu	: AT(ADDR(.data.percpu) - LOAD_OFFSET) {	\
+	.data..percpu	: AT(ADDR(.data..percpu) - LOAD_OFFSET) {	\
 		VMLINUX_SYMBOL(__per_cpu_load) = .;			\
 		VMLINUX_SYMBOL(__per_cpu_start) = .;			\
-		*(.data.percpu.first)					\
-		*(.data.percpu.page_aligned)				\
-		*(.data.percpu)						\
-		*(.data.percpu.shared_aligned)				\
+		*(.data..percpu..first)					\
+		*(.data..percpu..page_aligned)				\
+		*(.data..percpu)					\
+		*(.data..percpu..shared_aligned)			\
 		VMLINUX_SYMBOL(__per_cpu_end) = .;			\
 	}
 

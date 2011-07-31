@@ -606,7 +606,7 @@ static long pcwd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	int temperature;
 	int new_heartbeat;
 	int __user *argp = (int __user *)arg;
-	static struct watchdog_info ident = {
+	static const struct watchdog_info ident = {
 		.options =		WDIOF_OVERHEAT |
 					WDIOF_CARDRESET |
 					WDIOF_KEEPALIVEPING |

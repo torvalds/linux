@@ -21,7 +21,6 @@
 
 #include "udfdecl.h"
 
-#include <linux/quotaops.h>
 #include <linux/buffer_head.h>
 #include <linux/bitops.h>
 
@@ -31,55 +30,8 @@
 #define udf_clear_bit(nr, addr) ext2_clear_bit(nr, addr)
 #define udf_set_bit(nr, addr) ext2_set_bit(nr, addr)
 #define udf_test_bit(nr, addr) ext2_test_bit(nr, addr)
-#define udf_find_first_one_bit(addr, size) find_first_one_bit(addr, size)
 #define udf_find_next_one_bit(addr, size, offset) \
-		find_next_one_bit(addr, size, offset)
-
-#define leBPL_to_cpup(x) leNUM_to_cpup(BITS_PER_LONG, x)
-#define leNUM_to_cpup(x, y) xleNUM_to_cpup(x, y)
-#define xleNUM_to_cpup(x, y) (le ## x ## _to_cpup(y))
-#define uintBPL_t uint(BITS_PER_LONG)
-#define uint(x) xuint(x)
-#define xuint(x) __le ## x
-
-static inline int find_next_one_bit(void *addr, int size, int offset)
-{
-	uintBPL_t *p = ((uintBPL_t *) addr) + (offset / BITS_PER_LONG);
-	int result = offset & ~(BITS_PER_LONG - 1);
-	unsigned long tmp;
-
-	if (offset >= size)
-		return size;
-	size -= result;
-	offset &= (BITS_PER_LONG - 1);
-	if (offset) {
-		tmp = leBPL_to_cpup(p++);
-		tmp &= ~0UL << offset;
-		if (size < BITS_PER_LONG)
-			goto found_first;
-		if (tmp)
-			goto found_middle;
-		size -= BITS_PER_LONG;
-		result += BITS_PER_LONG;
-	}
-	while (size & ~(BITS_PER_LONG - 1)) {
-		tmp = leBPL_to_cpup(p++);
-		if (tmp)
-			goto found_middle;
-		result += BITS_PER_LONG;
-		size -= BITS_PER_LONG;
-	}
-	if (!size)
-		return result;
-	tmp = leBPL_to_cpup(p);
-found_first:
-	tmp &= ~0UL >> (BITS_PER_LONG - size);
-found_middle:
-	return result + ffz(~tmp);
-}
-
-#define find_first_one_bit(addr, size)\
-	find_next_one_bit((addr), (size), 0)
+		ext2_find_next_bit(addr, size, offset)
 
 static int read_block_bitmap(struct super_block *sb,
 			     struct udf_bitmap *bitmap, unsigned int block,
@@ -172,9 +124,8 @@ static void udf_bitmap_free_blocks(struct super_block *sb,
 
 	mutex_lock(&sbi->s_alloc_mutex);
 	partmap = &sbi->s_partmaps[bloc->partitionReferenceNum];
-	if (bloc->logicalBlockNum < 0 ||
-	    (bloc->logicalBlockNum + count) >
-		partmap->s_partition_len) {
+	if (bloc->logicalBlockNum + count < count ||
+	    (bloc->logicalBlockNum + count) > partmap->s_partition_len) {
 		udf_debug("%d < %d || %d + %d > %d\n",
 			  bloc->logicalBlockNum, 0, bloc->logicalBlockNum,
 			  count, partmap->s_partition_len);
@@ -207,8 +158,6 @@ static void udf_bitmap_free_blocks(struct super_block *sb,
 				udf_debug("byte=%2x\n",
 					((char *)bh->b_data)[(bit + i) >> 3]);
 			} else {
-				if (inode)
-					vfs_dq_free_block(inode, 1);
 				udf_add_free_space(sb, sbi->s_partition, 1);
 			}
 		}
@@ -258,15 +207,8 @@ static int udf_bitmap_prealloc_blocks(struct super_block *sb,
 		bit = block % (sb->s_blocksize << 3);
 
 		while (bit < (sb->s_blocksize << 3) && block_count > 0) {
-			if (!udf_test_bit(bit, bh->b_data))
+			if (!udf_clear_bit(bit, bh->b_data))
 				goto out;
-			else if (vfs_dq_prealloc_block(inode, 1))
-				goto out;
-			else if (!udf_clear_bit(bit, bh->b_data)) {
-				udf_debug("bit already cleared for block %d\n", bit);
-				vfs_dq_free_block(inode, 1);
-				goto out;
-			}
 			block_count--;
 			alloc_count++;
 			bit++;
@@ -386,16 +328,6 @@ search_back:
 	}
 
 got_block:
-
-	/*
-	 * Check quota for allocation of this block.
-	 */
-	if (inode && vfs_dq_alloc_block(inode, 1)) {
-		mutex_unlock(&sbi->s_alloc_mutex);
-		*err = -EDQUOT;
-		return 0;
-	}
-
 	newblock = bit + (block_group << (sb->s_blocksize_bits + 3)) -
 		(sizeof(struct spaceBitmapDesc) << 3);
 
@@ -436,20 +368,15 @@ static void udf_table_free_blocks(struct super_block *sb,
 
 	mutex_lock(&sbi->s_alloc_mutex);
 	partmap = &sbi->s_partmaps[bloc->partitionReferenceNum];
-	if (bloc->logicalBlockNum < 0 ||
-	    (bloc->logicalBlockNum + count) >
-		partmap->s_partition_len) {
+	if (bloc->logicalBlockNum + count < count ||
+	    (bloc->logicalBlockNum + count) > partmap->s_partition_len) {
 		udf_debug("%d < %d || %d + %d > %d\n",
-			  bloc.logicalBlockNum, 0, bloc.logicalBlockNum, count,
+			  bloc->logicalBlockNum, 0, bloc->logicalBlockNum, count,
 			  partmap->s_partition_len);
 		goto error_return;
 	}
 
 	iinfo = UDF_I(table);
-	/* We do this up front - There are some error conditions that
-	   could occure, but.. oh well */
-	if (inode)
-		vfs_dq_free_block(inode, count);
 	udf_add_free_space(sb, sbi->s_partition, count);
 
 	start = bloc->logicalBlockNum + offset;
@@ -547,7 +474,7 @@ static void udf_table_free_blocks(struct super_block *sb,
 		}
 
 		if (epos.offset + (2 * adsize) > sb->s_blocksize) {
-			char *sptr, *dptr;
+			unsigned char *sptr, *dptr;
 			int loffset;
 
 			brelse(oepos.bh);
@@ -694,10 +621,7 @@ static int udf_table_prealloc_blocks(struct super_block *sb,
 		epos.offset -= adsize;
 
 		alloc_count = (elen >> sb->s_blocksize_bits);
-		if (inode && vfs_dq_prealloc_block(inode,
-			alloc_count > block_count ? block_count : alloc_count))
-			alloc_count = 0;
-		else if (alloc_count > block_count) {
+		if (alloc_count > block_count) {
 			alloc_count = block_count;
 			eloc.logicalBlockNum += alloc_count;
 			elen -= (alloc_count << sb->s_blocksize_bits);
@@ -797,13 +721,6 @@ static int udf_table_new_block(struct super_block *sb,
 	newblock = goal_eloc.logicalBlockNum;
 	goal_eloc.logicalBlockNum++;
 	goal_elen -= sb->s_blocksize;
-
-	if (inode && vfs_dq_alloc_block(inode, 1)) {
-		brelse(goal_epos.bh);
-		mutex_unlock(&sbi->s_alloc_mutex);
-		*err = -EDQUOT;
-		return 0;
-	}
 
 	if (goal_elen)
 		udf_write_aext(table, &goal_epos, &goal_eloc, goal_elen, 1);

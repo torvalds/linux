@@ -41,6 +41,49 @@ config CAN_AT91
 	---help---
 	  This is a driver for the SoC CAN controller in Atmel's AT91SAM9263.
 
+config CAN_TI_HECC
+	depends on CAN_DEV && ARCH_OMAP3
+	tristate "TI High End CAN Controller"
+	---help---
+	  Driver for TI HECC (High End CAN Controller) module found on many
+	  TI devices. The device specifications are available from www.ti.com
+
+config CAN_MCP251X
+	tristate "Microchip MCP251x SPI CAN controllers"
+	depends on CAN_DEV && SPI && HAS_DMA
+	---help---
+	  Driver for the Microchip MCP251x SPI CAN controllers.
+
+config CAN_BFIN
+	depends on CAN_DEV && (BF534 || BF536 || BF537 || BF538 || BF539 || BF54x)
+	tristate "Analog Devices Blackfin on-chip CAN"
+	---help---
+	  Driver for the Analog Devices Blackfin on-chip CAN controllers
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bfin_can.
+
+config CAN_JANZ_ICAN3
+	tristate "Janz VMOD-ICAN3 Intelligent CAN controller"
+	depends on CAN_DEV && MFD_JANZ_CMODIO
+	---help---
+	  Driver for Janz VMOD-ICAN3 Intelligent CAN controller module, which
+	  connects to a MODULbus carrier board.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called janz-ican3.ko.
+
+config HAVE_CAN_FLEXCAN
+	bool
+
+config CAN_FLEXCAN
+	tristate "Support for Freescale FLEXCAN based chips"
+	depends on CAN_DEV && HAVE_CAN_FLEXCAN
+	---help---
+	  Say Y here if you want to support for Freescale FlexCAN.
+
+source "drivers/net/can/mscan/Kconfig"
+
 source "drivers/net/can/sja1000/Kconfig"
 
 source "drivers/net/can/usb/Kconfig"

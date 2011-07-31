@@ -62,7 +62,8 @@ changes are :
 2. Insertion of a dentry into the hash table is done using
    hlist_add_head_rcu() which take care of ordering the writes - the
    writes to the dentry must be visible before the dentry is
-   inserted. This works in conjunction with hlist_for_each_rcu() while
+   inserted. This works in conjunction with hlist_for_each_rcu(),
+   which has since been replaced by hlist_for_each_entry_rcu(), while
    walking the hash chain. The only requirement is that all
    initialization to the dentry must be done before
    hlist_add_head_rcu() since we don't have dcache_lock protection

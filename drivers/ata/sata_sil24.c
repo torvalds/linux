@@ -19,6 +19,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/gfp.h>
 #include <linux/pci.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
@@ -417,6 +418,10 @@ static struct ata_port_operations sil24_ops = {
 #endif
 };
 
+static int sata_sil24_msi;    /* Disable MSI */
+module_param_named(msi, sata_sil24_msi, bool, S_IRUGO);
+MODULE_PARM_DESC(msi, "Enable MSI (Default: false)");
+
 /*
  * Use bits 30-31 of port_flags to encode available port numbers.
  * Current maxium is 4.
@@ -534,12 +539,12 @@ static void sil24_config_port(struct ata_port *ap)
 		writel(PORT_CS_IRQ_WOC, port + PORT_CTRL_CLR);
 
 	/* zero error counters. */
-	writel(0x8000, port + PORT_DECODE_ERR_THRESH);
-	writel(0x8000, port + PORT_CRC_ERR_THRESH);
-	writel(0x8000, port + PORT_HSHK_ERR_THRESH);
-	writel(0x0000, port + PORT_DECODE_ERR_CNT);
-	writel(0x0000, port + PORT_CRC_ERR_CNT);
-	writel(0x0000, port + PORT_HSHK_ERR_CNT);
+	writew(0x8000, port + PORT_DECODE_ERR_THRESH);
+	writew(0x8000, port + PORT_CRC_ERR_THRESH);
+	writew(0x8000, port + PORT_HSHK_ERR_THRESH);
+	writew(0x0000, port + PORT_DECODE_ERR_CNT);
+	writew(0x0000, port + PORT_CRC_ERR_CNT);
+	writew(0x0000, port + PORT_HSHK_ERR_CNT);
 
 	/* always use 64bit activation */
 	writel(PORT_CS_32BIT_ACTV, port + PORT_CTRL_CLR);
@@ -617,6 +622,11 @@ static int sil24_exec_polled_cmd(struct ata_port *ap, int pmp,
 	irq_enabled = readl(port + PORT_IRQ_ENABLE_SET);
 	writel(PORT_IRQ_COMPLETE | PORT_IRQ_ERROR, port + PORT_IRQ_ENABLE_CLR);
 
+	/*
+	 * The barrier is required to ensure that writes to cmd_block reach
+	 * the memory before the write to PORT_CMD_ACTIVATE.
+	 */
+	wmb();
 	writel((u32)paddr, port + PORT_CMD_ACTIVATE);
 	writel((u64)paddr >> 32, port + PORT_CMD_ACTIVATE + 4);
 
@@ -860,7 +870,7 @@ static void sil24_qc_prep(struct ata_queued_cmd *qc)
 	} else {
 		prb = &cb->atapi.prb;
 		sge = cb->atapi.sge;
-		memset(cb->atapi.cdb, 0, 32);
+		memset(cb->atapi.cdb, 0, sizeof(cb->atapi.cdb));
 		memcpy(cb->atapi.cdb, qc->cdb, qc->dev->cdb_len);
 
 		if (ata_is_data(qc->tf.protocol)) {
@@ -890,6 +900,11 @@ static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc)
 	paddr = pp->cmd_block_dma + tag * sizeof(*pp->cmd_block);
 	activate = port + PORT_CMD_ACTIVATE + tag * 8;
 
+	/*
+	 * The barrier is required to ensure that writes to cmd_block reach
+	 * the memory before the write to PORT_CMD_ACTIVATE.
+	 */
+	wmb();
 	writel((u32)paddr, activate);
 	writel((u64)paddr >> 32, activate + 4);
 
@@ -1155,13 +1170,8 @@ static irqreturn_t sil24_interrupt(int irq, void *dev_instance)
 
 	for (i = 0; i < host->n_ports; i++)
 		if (status & (1 << i)) {
-			struct ata_port *ap = host->ports[i];
-			if (ap && !(ap->flags & ATA_FLAG_DISABLED)) {
-				sil24_host_intr(ap);
-				handled++;
-			} else
-				printk(KERN_ERR DRV_NAME
-				       ": interrupt from disabled port %d\n", i);
+			sil24_host_intr(host->ports[i]);
+			handled++;
 		}
 
 	spin_unlock(&host->lock);
@@ -1339,6 +1349,11 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pcie_set_readrq(pdev, 4096);
 
 	sil24_init_controller(host);
+
+	if (sata_sil24_msi && !pci_enable_msi(pdev)) {
+		dev_printk(KERN_INFO, &pdev->dev, "Using MSI\n");
+		pci_intx(pdev, 0);
+	}
 
 	pci_set_master(pdev);
 	return ata_host_activate(host, pdev->irq, sil24_interrupt, IRQF_SHARED,

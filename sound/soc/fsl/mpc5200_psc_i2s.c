@@ -16,7 +16,6 @@
 
 #include <asm/mpc52xx_psc.h>
 
-#include "mpc5200_psc_i2s.h"
 #include "mpc5200_dma.h"
 
 /**
@@ -153,7 +152,7 @@ EXPORT_SYMBOL_GPL(psc_i2s_dai);
  * - Probe/remove operations
  * - OF device match table
  */
-static int __devinit psc_i2s_of_probe(struct of_device *op,
+static int __devinit psc_i2s_of_probe(struct platform_device *op,
 				      const struct of_device_id *match)
 {
 	int rc;
@@ -181,7 +180,7 @@ static int __devinit psc_i2s_of_probe(struct of_device *op,
 
 	/* Check for the codec handle.  If it is not present then we
 	 * are done */
-	if (!of_get_property(op->node, "codec-handle", NULL))
+	if (!of_get_property(op->dev.of_node, "codec-handle", NULL))
 		return 0;
 
 	/* Due to errata in the dma mode; need to line up enabling
@@ -206,7 +205,7 @@ static int __devinit psc_i2s_of_probe(struct of_device *op,
 
 }
 
-static int __devexit psc_i2s_of_remove(struct of_device *op)
+static int __devexit psc_i2s_of_remove(struct platform_device *op)
 {
 	return mpc5200_audio_dma_destroy(op);
 }
@@ -220,12 +219,12 @@ static struct of_device_id psc_i2s_match[] __devinitdata = {
 MODULE_DEVICE_TABLE(of, psc_i2s_match);
 
 static struct of_platform_driver psc_i2s_driver = {
-	.match_table = psc_i2s_match,
 	.probe = psc_i2s_of_probe,
 	.remove = __devexit_p(psc_i2s_of_remove),
 	.driver = {
 		.name = "mpc5200-psc-i2s",
 		.owner = THIS_MODULE,
+		.of_match_table = psc_i2s_match,
 	},
 };
 

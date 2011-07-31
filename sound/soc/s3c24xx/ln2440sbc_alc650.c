@@ -24,8 +24,8 @@
 #include <sound/soc-dapm.h>
 
 #include "../codecs/ac97.h"
-#include "s3c24xx-pcm.h"
-#include "s3c24xx-ac97.h"
+#include "s3c-dma.h"
+#include "s3c-ac97.h"
 
 static struct snd_soc_card ln2440sbc;
 
@@ -33,7 +33,7 @@ static struct snd_soc_dai_link ln2440sbc_dai[] = {
 {
 	.name = "AC97",
 	.stream_name = "AC97 HiFi",
-	.cpu_dai = &s3c2443_ac97_dai[0],
+	.cpu_dai = &s3c_ac97_dai[S3C_AC97_DAI_PCM],
 	.codec_dai = &ac97_dai,
 },
 };

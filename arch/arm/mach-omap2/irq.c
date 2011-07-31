@@ -25,6 +25,10 @@
 #define INTC_SYSSTATUS		0x0014
 #define INTC_SIR		0x0040
 #define INTC_CONTROL		0x0048
+#define INTC_PROTECTION		0x004C
+#define INTC_IDLE		0x0050
+#define INTC_THRESHOLD		0x0068
+#define INTC_MIR0		0x0084
 #define INTC_MIR_CLEAR0		0x0088
 #define INTC_MIR_SET0		0x008c
 #define INTC_PENDING_IRQ0	0x0098
@@ -47,6 +51,18 @@ static struct omap_irq_bank {
 		.nr_irqs	= 96,
 	},
 };
+
+/* Structure to save interrupt controller context */
+struct omap3_intc_regs {
+	u32 sysconfig;
+	u32 protection;
+	u32 idle;
+	u32 threshold;
+	u32 ilr[INTCPS_NR_IRQS];
+	u32 mir[INTCPS_NR_MIR_REGS];
+};
+
+static struct omap3_intc_regs intc_context[ARRAY_SIZE(irq_banks)];
 
 /* INTC bank register get/set */
 
@@ -178,12 +194,22 @@ void __init omap_init_irq(void)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(irq_banks); i++) {
+		unsigned long base = 0;
 		struct omap_irq_bank *bank = irq_banks + i;
 
 		if (cpu_is_omap24xx())
-			bank->base_reg = OMAP2_IO_ADDRESS(OMAP24XX_IC_BASE);
+			base = OMAP24XX_IC_BASE;
 		else if (cpu_is_omap34xx())
-			bank->base_reg = OMAP2_IO_ADDRESS(OMAP34XX_IC_BASE);
+			base = OMAP34XX_IC_BASE;
+
+		BUG_ON(!base);
+
+		/* Static mapping, never released */
+		bank->base_reg = ioremap(base, SZ_4K);
+		if (!bank->base_reg) {
+			printk(KERN_ERR "Could not ioremap irq bank%i\n", i);
+			continue;
+		}
 
 		omap_irq_bank_init_one(bank);
 
@@ -201,3 +227,71 @@ void __init omap_init_irq(void)
 	}
 }
 
+#ifdef CONFIG_ARCH_OMAP3
+void omap_intc_save_context(void)
+{
+	int ind = 0, i = 0;
+	for (ind = 0; ind < ARRAY_SIZE(irq_banks); ind++) {
+		struct omap_irq_bank *bank = irq_banks + ind;
+		intc_context[ind].sysconfig =
+			intc_bank_read_reg(bank, INTC_SYSCONFIG);
+		intc_context[ind].protection =
+			intc_bank_read_reg(bank, INTC_PROTECTION);
+		intc_context[ind].idle =
+			intc_bank_read_reg(bank, INTC_IDLE);
+		intc_context[ind].threshold =
+			intc_bank_read_reg(bank, INTC_THRESHOLD);
+		for (i = 0; i < INTCPS_NR_IRQS; i++)
+			intc_context[ind].ilr[i] =
+				intc_bank_read_reg(bank, (0x100 + 0x4*i));
+		for (i = 0; i < INTCPS_NR_MIR_REGS; i++)
+			intc_context[ind].mir[i] =
+				intc_bank_read_reg(&irq_banks[0], INTC_MIR0 +
+				(0x20 * i));
+	}
+}
+
+void omap_intc_restore_context(void)
+{
+	int ind = 0, i = 0;
+
+	for (ind = 0; ind < ARRAY_SIZE(irq_banks); ind++) {
+		struct omap_irq_bank *bank = irq_banks + ind;
+		intc_bank_write_reg(intc_context[ind].sysconfig,
+					bank, INTC_SYSCONFIG);
+		intc_bank_write_reg(intc_context[ind].sysconfig,
+					bank, INTC_SYSCONFIG);
+		intc_bank_write_reg(intc_context[ind].protection,
+					bank, INTC_PROTECTION);
+		intc_bank_write_reg(intc_context[ind].idle,
+					bank, INTC_IDLE);
+		intc_bank_write_reg(intc_context[ind].threshold,
+					bank, INTC_THRESHOLD);
+		for (i = 0; i < INTCPS_NR_IRQS; i++)
+			intc_bank_write_reg(intc_context[ind].ilr[i],
+				bank, (0x100 + 0x4*i));
+		for (i = 0; i < INTCPS_NR_MIR_REGS; i++)
+			intc_bank_write_reg(intc_context[ind].mir[i],
+				 &irq_banks[0], INTC_MIR0 + (0x20 * i));
+	}
+	/* MIRs are saved and restore with other PRCM registers */
+}
+
+void omap3_intc_suspend(void)
+{
+	/* A pending interrupt would prevent OMAP from entering suspend */
+	omap_ack_irq(0);
+}
+
+void omap3_intc_prepare_idle(void)
+{
+	/* Disable autoidle as it can stall interrupt controller */
+	intc_bank_write_reg(0, &irq_banks[0], INTC_SYSCONFIG);
+}
+
+void omap3_intc_resume_idle(void)
+{
+	/* Re-enable autoidle */
+	intc_bank_write_reg(1, &irq_banks[0], INTC_SYSCONFIG);
+}
+#endif /* CONFIG_ARCH_OMAP3 */

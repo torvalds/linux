@@ -27,7 +27,6 @@
 
 #include <asm/uaccess.h>
 #include <asm/utrap.h>
-#include <asm/perfctr.h>
 #include <asm/unistd.h>
 
 #include "entry.h"
@@ -317,10 +316,14 @@ bottomup:
 unsigned long get_fb_unmapped_area(struct file *filp, unsigned long orig_addr, unsigned long len, unsigned long pgoff, unsigned long flags)
 {
 	unsigned long align_goal, addr = -ENOMEM;
+	unsigned long (*get_area)(struct file *, unsigned long,
+				  unsigned long, unsigned long, unsigned long);
+
+	get_area = current->mm->get_unmapped_area;
 
 	if (flags & MAP_FIXED) {
 		/* Ok, don't mess with it. */
-		return get_unmapped_area(NULL, orig_addr, len, pgoff, flags);
+		return get_area(NULL, orig_addr, len, pgoff, flags);
 	}
 	flags &= ~MAP_SHARED;
 
@@ -333,7 +336,7 @@ unsigned long get_fb_unmapped_area(struct file *filp, unsigned long orig_addr, u
 		align_goal = (64UL * 1024);
 
 	do {
-		addr = get_unmapped_area(NULL, orig_addr, len + (align_goal - PAGE_SIZE), pgoff, flags);
+		addr = get_area(NULL, orig_addr, len + (align_goal - PAGE_SIZE), pgoff, flags);
 		if (!(addr & ~PAGE_MASK)) {
 			addr = (addr + (align_goal - 1UL)) & ~(align_goal - 1UL);
 			break;
@@ -351,7 +354,7 @@ unsigned long get_fb_unmapped_area(struct file *filp, unsigned long orig_addr, u
 	 * be obtained.
 	 */
 	if (addr & ~PAGE_MASK)
-		addr = get_unmapped_area(NULL, orig_addr, len, pgoff, flags);
+		addr = get_area(NULL, orig_addr, len, pgoff, flags);
 
 	return addr;
 }
@@ -361,6 +364,7 @@ EXPORT_SYMBOL(get_fb_unmapped_area);
 void arch_pick_mmap_layout(struct mm_struct *mm)
 {
 	unsigned long random_factor = 0UL;
+	unsigned long gap;
 
 	if (current->flags & PF_RANDOMIZE) {
 		random_factor = get_random_int();
@@ -375,9 +379,10 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 	 * Fall back to the standard layout if the personality
 	 * bit is set, or if the expected stack growth is unlimited:
 	 */
+	gap = rlimit(RLIMIT_STACK);
 	if (!test_thread_flag(TIF_32BIT) ||
 	    (current->personality & ADDR_COMPAT_LAYOUT) ||
-	    current->signal->rlim[RLIMIT_STACK].rlim_cur == RLIM_INFINITY ||
+	    gap == RLIM_INFINITY ||
 	    sysctl_legacy_va_layout) {
 		mm->mmap_base = TASK_UNMAPPED_BASE + random_factor;
 		mm->get_unmapped_area = arch_get_unmapped_area;
@@ -385,9 +390,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 	} else {
 		/* We know it's 32-bit */
 		unsigned long task_size = STACK_TOP32;
-		unsigned long gap;
 
-		gap = current->signal->rlim[RLIMIT_STACK].rlim_cur;
 		if (gap < 128 * 1024 * 1024)
 			gap = 128 * 1024 * 1024;
 		if (gap > (task_size / 6 * 5))
@@ -399,18 +402,6 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 	}
 }
 
-SYSCALL_DEFINE1(sparc_brk, unsigned long, brk)
-{
-	/* People could try to be nasty and use ta 0x6d in 32bit programs */
-	if (test_thread_flag(TIF_32BIT) && brk >= STACK_TOP32)
-		return current->mm->brk;
-
-	if (unlikely(straddles_64bit_va_hole(current->mm->brk, brk)))
-		return current->mm->brk;
-
-	return sys_brk(brk);
-}
-                                                                
 /*
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way unix traditionally does this, though.
@@ -435,7 +426,7 @@ out:
  * This is really horribly ugly.
  */
 
-SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, unsigned long, second,
+SYSCALL_DEFINE6(sparc_ipc, unsigned int, call, int, first, unsigned long, second,
 		unsigned long, third, void __user *, ptr, long, fifth)
 {
 	long err;
@@ -519,17 +510,6 @@ out:
 	return err;
 }
 
-SYSCALL_DEFINE1(sparc64_newuname, struct new_utsname __user *, name)
-{
-	int ret = sys_newuname(name);
-	
-	if (current->personality == PER_LINUX32 && !ret) {
-		ret = (copy_to_user(name->machine, "sparc\0\0", 8)
-		       ? -EFAULT : 0);
-	}
-	return ret;
-}
-
 SYSCALL_DEFINE1(sparc64_personality, unsigned long, personality)
 {
 	int ret;
@@ -568,23 +548,13 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
 		unsigned long, prot, unsigned long, flags, unsigned long, fd,
 		unsigned long, off)
 {
-	struct file * file = NULL;
-	unsigned long retval = -EBADF;
+	unsigned long retval = -EINVAL;
 
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file)
-			goto out;
-	}
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-	len = PAGE_ALIGN(len);
-
-	down_write(&current->mm->mmap_sem);
-	retval = do_mmap(file, addr, len, prot, flags, off);
-	up_write(&current->mm->mmap_sem);
-
-	if (file)
-		fput(file);
+	if ((off + PAGE_ALIGN(len)) < off)
+		goto out;
+	if (off & ~PAGE_MASK)
+		goto out;
+	retval = sys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
 out:
 	return retval;
 }
@@ -613,12 +583,6 @@ SYSCALL_DEFINE5(64_mremap, unsigned long, addr,	unsigned long, old_len,
 	unsigned long ret = -EINVAL;
 
 	if (test_thread_flag(TIF_32BIT))
-		goto out;
-	if (unlikely(new_len >= VA_EXCLUDE_START))
-		goto out;
-	if (unlikely(sparc_mmap_check(addr, old_len)))
-		goto out;
-	if (unlikely(sparc_mmap_check(new_addr, new_len)))
 		goto out;
 
 	down_write(&current->mm->mmap_sem);
@@ -790,114 +754,13 @@ SYSCALL_DEFINE5(rt_sigaction, int, sig, const struct sigaction __user *, act,
 	return ret;
 }
 
-/* Invoked by rtrap code to update performance counters in
- * user space.
- */
-asmlinkage void update_perfctrs(void)
-{
-	unsigned long pic, tmp;
-
-	read_pic(pic);
-	tmp = (current_thread_info()->kernel_cntd0 += (unsigned int)pic);
-	__put_user(tmp, current_thread_info()->user_cntd0);
-	tmp = (current_thread_info()->kernel_cntd1 += (pic >> 32));
-	__put_user(tmp, current_thread_info()->user_cntd1);
-	reset_pic();
-}
-
-SYSCALL_DEFINE4(perfctr, int, opcode, unsigned long, arg0,
-		unsigned long, arg1, unsigned long, arg2)
-{
-	int err = 0;
-
-	switch(opcode) {
-	case PERFCTR_ON:
-		current_thread_info()->pcr_reg = arg2;
-		current_thread_info()->user_cntd0 = (u64 __user *) arg0;
-		current_thread_info()->user_cntd1 = (u64 __user *) arg1;
-		current_thread_info()->kernel_cntd0 =
-			current_thread_info()->kernel_cntd1 = 0;
-		write_pcr(arg2);
-		reset_pic();
-		set_thread_flag(TIF_PERFCTR);
-		break;
-
-	case PERFCTR_OFF:
-		err = -EINVAL;
-		if (test_thread_flag(TIF_PERFCTR)) {
-			current_thread_info()->user_cntd0 =
-				current_thread_info()->user_cntd1 = NULL;
-			current_thread_info()->pcr_reg = 0;
-			write_pcr(0);
-			clear_thread_flag(TIF_PERFCTR);
-			err = 0;
-		}
-		break;
-
-	case PERFCTR_READ: {
-		unsigned long pic, tmp;
-
-		if (!test_thread_flag(TIF_PERFCTR)) {
-			err = -EINVAL;
-			break;
-		}
-		read_pic(pic);
-		tmp = (current_thread_info()->kernel_cntd0 += (unsigned int)pic);
-		err |= __put_user(tmp, current_thread_info()->user_cntd0);
-		tmp = (current_thread_info()->kernel_cntd1 += (pic >> 32));
-		err |= __put_user(tmp, current_thread_info()->user_cntd1);
-		reset_pic();
-		break;
-	}
-
-	case PERFCTR_CLRPIC:
-		if (!test_thread_flag(TIF_PERFCTR)) {
-			err = -EINVAL;
-			break;
-		}
-		current_thread_info()->kernel_cntd0 =
-			current_thread_info()->kernel_cntd1 = 0;
-		reset_pic();
-		break;
-
-	case PERFCTR_SETPCR: {
-		u64 __user *user_pcr = (u64 __user *)arg0;
-
-		if (!test_thread_flag(TIF_PERFCTR)) {
-			err = -EINVAL;
-			break;
-		}
-		err |= __get_user(current_thread_info()->pcr_reg, user_pcr);
-		write_pcr(current_thread_info()->pcr_reg);
-		current_thread_info()->kernel_cntd0 =
-			current_thread_info()->kernel_cntd1 = 0;
-		reset_pic();
-		break;
-	}
-
-	case PERFCTR_GETPCR: {
-		u64 __user *user_pcr = (u64 __user *)arg0;
-
-		if (!test_thread_flag(TIF_PERFCTR)) {
-			err = -EINVAL;
-			break;
-		}
-		err |= __put_user(current_thread_info()->pcr_reg, user_pcr);
-		break;
-	}
-
-	default:
-		err = -EINVAL;
-		break;
-	};
-	return err;
-}
-
 /*
  * Do a system call from kernel instead of calling sys_execve so we
  * end up with proper pt_regs.
  */
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
 {
 	long __res;
 	register long __g1 __asm__ ("g1") = __NR_execve;

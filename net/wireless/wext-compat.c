@@ -12,6 +12,7 @@
 #include <linux/nl80211.h>
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
+#include <linux/slab.h>
 #include <net/iw_handler.h>
 #include <net/cfg80211.h>
 #include "wext-compat.h"
@@ -437,6 +438,7 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err, i;
+	bool rejoin = false;
 
 	if (!wdev->wext.keys) {
 		wdev->wext.keys = kzalloc(sizeof(*wdev->wext.keys),
@@ -466,8 +468,25 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 
 	if (remove) {
 		err = 0;
-		if (wdev->current_bss)
+		if (wdev->current_bss) {
+			/*
+			 * If removing the current TX key, we will need to
+			 * join a new IBSS without the privacy bit clear.
+			 */
+			if (idx == wdev->wext.default_key &&
+			    wdev->iftype == NL80211_IFTYPE_ADHOC) {
+				__cfg80211_leave_ibss(rdev, wdev->netdev, true);
+				rejoin = true;
+			}
 			err = rdev->ops->del_key(&rdev->wiphy, dev, idx, addr);
+		}
+		wdev->wext.connect.privacy = false;
+		/*
+		 * Applications using wireless extensions expect to be
+		 * able to delete keys that don't exist, so allow that.
+		 */
+		if (err == -ENOENT)
+			err = 0;
 		if (!err) {
 			if (!addr) {
 				wdev->wext.keys->params[idx].key_len = 0;
@@ -478,12 +497,9 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 			else if (idx == wdev->wext.default_mgmt_key)
 				wdev->wext.default_mgmt_key = -1;
 		}
-		/*
-		 * Applications using wireless extensions expect to be
-		 * able to delete keys that don't exist, so allow that.
-		 */
-		if (err == -ENOENT)
-			return 0;
+
+		if (!err && rejoin)
+			err = cfg80211_ibss_wext_join(rdev, wdev);
 
 		return err;
 	}
@@ -511,11 +527,25 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 	if ((params->cipher == WLAN_CIPHER_SUITE_WEP40 ||
 	     params->cipher == WLAN_CIPHER_SUITE_WEP104) &&
 	    (tx_key || (!addr && wdev->wext.default_key == -1))) {
-		if (wdev->current_bss)
+		if (wdev->current_bss) {
+			/*
+			 * If we are getting a new TX key from not having
+			 * had one before we need to join a new IBSS with
+			 * the privacy bit set.
+			 */
+			if (wdev->iftype == NL80211_IFTYPE_ADHOC &&
+			    wdev->wext.default_key == -1) {
+				__cfg80211_leave_ibss(rdev, wdev->netdev, true);
+				rejoin = true;
+			}
 			err = rdev->ops->set_default_key(&rdev->wiphy,
 							 dev, idx);
-		if (!err)
+		}
+		if (!err) {
 			wdev->wext.default_key = idx;
+			if (rejoin)
+				err = cfg80211_ibss_wext_join(rdev, wdev);
+		}
 		return err;
 	}
 
@@ -539,10 +569,13 @@ static int cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 {
 	int err;
 
+	/* devlist mutex needed for possible IBSS re-join */
+	mutex_lock(&rdev->devlist_mtx);
 	wdev_lock(dev->ieee80211_ptr);
 	err = __cfg80211_set_encryption(rdev, dev, addr, remove,
 					tx_key, idx, params);
 	wdev_unlock(dev->ieee80211_ptr);
+	mutex_unlock(&rdev->devlist_mtx);
 
 	return err;
 }
@@ -749,16 +782,22 @@ int cfg80211_wext_siwfreq(struct net_device *dev,
 		return cfg80211_mgd_wext_siwfreq(dev, info, wextfreq, extra);
 	case NL80211_IFTYPE_ADHOC:
 		return cfg80211_ibss_wext_siwfreq(dev, info, wextfreq, extra);
-	default:
+	case NL80211_IFTYPE_MONITOR:
+	case NL80211_IFTYPE_WDS:
+	case NL80211_IFTYPE_MESH_POINT:
 		freq = cfg80211_wext_freq(wdev->wiphy, wextfreq);
 		if (freq < 0)
 			return freq;
 		if (freq == 0)
 			return -EINVAL;
+		wdev_lock(wdev);
 		mutex_lock(&rdev->devlist_mtx);
-		err = rdev_set_freq(rdev, NULL, freq, NL80211_CHAN_NO_HT);
+		err = cfg80211_set_freq(rdev, wdev, freq, NL80211_CHAN_NO_HT);
 		mutex_unlock(&rdev->devlist_mtx);
+		wdev_unlock(wdev);
 		return err;
+	default:
+		return -EOPNOTSUPP;
 	}
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_siwfreq);
@@ -768,7 +807,6 @@ int cfg80211_wext_giwfreq(struct net_device *dev,
 			  struct iw_freq *freq, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
@@ -776,9 +814,9 @@ int cfg80211_wext_giwfreq(struct net_device *dev,
 	case NL80211_IFTYPE_ADHOC:
 		return cfg80211_ibss_wext_giwfreq(dev, info, freq, extra);
 	default:
-		if (!rdev->channel)
+		if (!wdev->channel)
 			return -EINVAL;
-		freq->m = rdev->channel->center_freq;
+		freq->m = wdev->channel->center_freq;
 		freq->e = 6;
 		return 0;
 	}
@@ -791,7 +829,7 @@ int cfg80211_wext_siwtxpower(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
-	enum tx_power_setting type;
+	enum nl80211_tx_power_setting type;
 	int dbm = 0;
 
 	if ((data->txpower.flags & IW_TXPOW_TYPE) != IW_TXPOW_DBM)
@@ -814,7 +852,7 @@ int cfg80211_wext_siwtxpower(struct net_device *dev,
 			if (data->txpower.value < 0)
 				return -EINVAL;
 			dbm = data->txpower.value;
-			type = TX_POWER_FIXED;
+			type = NL80211_TX_POWER_FIXED;
 			/* TODO: do regulatory check! */
 		} else {
 			/*
@@ -822,10 +860,10 @@ int cfg80211_wext_siwtxpower(struct net_device *dev,
 			 * passed in from userland.
 			 */
 			if (data->txpower.value < 0) {
-				type = TX_POWER_AUTOMATIC;
+				type = NL80211_TX_POWER_AUTOMATIC;
 			} else {
 				dbm = data->txpower.value;
-				type = TX_POWER_LIMITED;
+				type = NL80211_TX_POWER_LIMITED;
 			}
 		}
 	} else {
@@ -834,7 +872,7 @@ int cfg80211_wext_siwtxpower(struct net_device *dev,
 		return 0;
 	}
 
-	return rdev->ops->set_tx_power(wdev->wiphy, type, dbm);
+	return rdev->ops->set_tx_power(wdev->wiphy, type, DBM_TO_MBM(dbm));
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_siwtxpower);
 
@@ -904,8 +942,6 @@ static int cfg80211_set_auth_alg(struct wireless_dev *wdev,
 
 static int cfg80211_set_wpa_version(struct wireless_dev *wdev, u32 wpa_versions)
 {
-	wdev->wext.connect.crypto.wpa_versions = 0;
-
 	if (wpa_versions & ~(IW_AUTH_WPA_VERSION_WPA |
 			     IW_AUTH_WPA_VERSION_WPA2|
 		             IW_AUTH_WPA_VERSION_DISABLED))
@@ -933,8 +969,6 @@ static int cfg80211_set_wpa_version(struct wireless_dev *wdev, u32 wpa_versions)
 
 static int cfg80211_set_cipher_group(struct wireless_dev *wdev, u32 cipher)
 {
-	wdev->wext.connect.crypto.cipher_group = 0;
-
 	if (cipher & IW_AUTH_CIPHER_WEP40)
 		wdev->wext.connect.crypto.cipher_group =
 			WLAN_CIPHER_SUITE_WEP40;
@@ -950,6 +984,8 @@ static int cfg80211_set_cipher_group(struct wireless_dev *wdev, u32 cipher)
 	else if (cipher & IW_AUTH_CIPHER_AES_CMAC)
 		wdev->wext.connect.crypto.cipher_group =
 			WLAN_CIPHER_SUITE_AES_CMAC;
+	else if (cipher & IW_AUTH_CIPHER_NONE)
+		wdev->wext.connect.crypto.cipher_group = 0;
 	else
 		return -EINVAL;
 
@@ -1069,8 +1105,8 @@ int cfg80211_wext_siwpower(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
-	bool ps = wdev->wext.ps;
-	int timeout = wdev->wext.ps_timeout;
+	bool ps = wdev->ps;
+	int timeout = wdev->ps_timeout;
 	int err;
 
 	if (wdev->iftype != NL80211_IFTYPE_STATION)
@@ -1103,8 +1139,8 @@ int cfg80211_wext_siwpower(struct net_device *dev,
 	if (err)
 		return err;
 
-	wdev->wext.ps = ps;
-	wdev->wext.ps_timeout = timeout;
+	wdev->ps = ps;
+	wdev->ps_timeout = timeout;
 
 	return 0;
 
@@ -1117,7 +1153,7 @@ int cfg80211_wext_giwpower(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 
-	wrq->disabled = !wdev->wext.ps;
+	wrq->disabled = !wdev->ps;
 
 	return 0;
 }
@@ -1174,20 +1210,46 @@ int cfg80211_wext_siwrate(struct net_device *dev,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	struct cfg80211_bitrate_mask mask;
+	u32 fixed, maxrate;
+	struct ieee80211_supported_band *sband;
+	int band, ridx;
+	bool match = false;
 
 	if (!rdev->ops->set_bitrate_mask)
 		return -EOPNOTSUPP;
 
-	mask.fixed = 0;
-	mask.maxrate = 0;
+	memset(&mask, 0, sizeof(mask));
+	fixed = 0;
+	maxrate = (u32)-1;
 
 	if (rate->value < 0) {
 		/* nothing */
 	} else if (rate->fixed) {
-		mask.fixed = rate->value / 1000; /* kbps */
+		fixed = rate->value / 100000;
 	} else {
-		mask.maxrate = rate->value / 1000; /* kbps */
+		maxrate = rate->value / 100000;
 	}
+
+	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+		sband = wdev->wiphy->bands[band];
+		if (sband == NULL)
+			continue;
+		for (ridx = 0; ridx < sband->n_bitrates; ridx++) {
+			struct ieee80211_rate *srate = &sband->bitrates[ridx];
+			if (fixed == srate->bitrate) {
+				mask.control[band].legacy = 1 << ridx;
+				match = true;
+				break;
+			}
+			if (srate->bitrate <= maxrate) {
+				mask.control[band].legacy |= 1 << ridx;
+				match = true;
+			}
+		}
+	}
+
+	if (!match)
+		return -EINVAL;
 
 	return rdev->ops->set_bitrate_mask(wdev->wiphy, dev, NULL, &mask);
 }
@@ -1227,10 +1289,7 @@ int cfg80211_wext_giwrate(struct net_device *dev,
 	if (!(sinfo.filled & STATION_INFO_TX_BITRATE))
 		return -EOPNOTSUPP;
 
-	rate->value = 0;
-
-	if (!(sinfo.txrate.flags & RATE_INFO_FLAGS_MCS))
-		rate->value = 100000 * sinfo.txrate.legacy;
+	rate->value = 100000 * cfg80211_calculate_bitrate(&sinfo.txrate);
 
 	return 0;
 }
@@ -1361,6 +1420,9 @@ int cfg80211_wext_giwessid(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 
+	data->flags = 0;
+	data->length = 0;
+
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_ADHOC:
 		return cfg80211_ibss_wext_giwessid(dev, info, data, ssid);
@@ -1371,6 +1433,48 @@ int cfg80211_wext_giwessid(struct net_device *dev,
 	}
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_giwessid);
+
+int cfg80211_wext_siwpmksa(struct net_device *dev,
+			   struct iw_request_info *info,
+			   struct iw_point *data, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_pmksa cfg_pmksa;
+	struct iw_pmksa *pmksa = (struct iw_pmksa *)extra;
+
+	memset(&cfg_pmksa, 0, sizeof(struct cfg80211_pmksa));
+
+	if (wdev->iftype != NL80211_IFTYPE_STATION)
+		return -EINVAL;
+
+	cfg_pmksa.bssid = pmksa->bssid.sa_data;
+	cfg_pmksa.pmkid = pmksa->pmkid;
+
+	switch (pmksa->cmd) {
+	case IW_PMKSA_ADD:
+		if (!rdev->ops->set_pmksa)
+			return -EOPNOTSUPP;
+
+		return rdev->ops->set_pmksa(&rdev->wiphy, dev, &cfg_pmksa);
+
+	case IW_PMKSA_REMOVE:
+		if (!rdev->ops->del_pmksa)
+			return -EOPNOTSUPP;
+
+		return rdev->ops->del_pmksa(&rdev->wiphy, dev, &cfg_pmksa);
+
+	case IW_PMKSA_FLUSH:
+		if (!rdev->ops->flush_pmksa)
+			return -EOPNOTSUPP;
+
+		return rdev->ops->flush_pmksa(&rdev->wiphy, dev);
+
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwpmksa);
 
 static const iw_handler cfg80211_handlers[] = {
 	[IW_IOCTL_IDX(SIOCGIWNAME)]	= (iw_handler) cfg80211_wext_giwname,
@@ -1404,6 +1508,7 @@ static const iw_handler cfg80211_handlers[] = {
 	[IW_IOCTL_IDX(SIOCSIWAUTH)]	= (iw_handler) cfg80211_wext_siwauth,
 	[IW_IOCTL_IDX(SIOCGIWAUTH)]	= (iw_handler) cfg80211_wext_giwauth,
 	[IW_IOCTL_IDX(SIOCSIWENCODEEXT)]= (iw_handler) cfg80211_wext_siwencodeext,
+	[IW_IOCTL_IDX(SIOCSIWPMKSA)]	= (iw_handler) cfg80211_wext_siwpmksa,
 };
 
 const struct iw_handler_def cfg80211_wext_handler = {

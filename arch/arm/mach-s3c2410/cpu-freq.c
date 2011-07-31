@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2410/cpu-freq.c
  *
- * Copyright (c) 2006,2008 Simtec Electronics
+ * Copyright (c) 2006-2008 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *

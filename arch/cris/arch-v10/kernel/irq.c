@@ -17,8 +17,8 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-#define mask_irq(irq_nr) (*R_VECT_MASK_CLR = 1 << (irq_nr));
-#define unmask_irq(irq_nr) (*R_VECT_MASK_SET = 1 << (irq_nr));
+#define crisv10_mask_irq(irq_nr) (*R_VECT_MASK_CLR = 1 << (irq_nr));
+#define crisv10_unmask_irq(irq_nr) (*R_VECT_MASK_SET = 1 << (irq_nr));
 
 /* don't use set_int_vector, it bypasses the linux interrupt handlers. it is
  * global just so that the kernel gdb can use it.
@@ -116,12 +116,12 @@ static unsigned int startup_crisv10_irq(unsigned int irq)
 
 static void enable_crisv10_irq(unsigned int irq)
 {
-	unmask_irq(irq);
+	crisv10_unmask_irq(irq);
 }
 
 static void disable_crisv10_irq(unsigned int irq)
 {
-	mask_irq(irq);
+	crisv10_mask_irq(irq);
 }
 
 static void ack_crisv10_irq(unsigned int irq)
@@ -133,7 +133,7 @@ static void end_crisv10_irq(unsigned int irq)
 }
 
 static struct irq_chip crisv10_irq_type = {
-	.typename =    "CRISv10",
+	.name =        "CRISv10",
 	.startup =     startup_crisv10_irq,
 	.shutdown =    shutdown_crisv10_irq,
 	.enable =      enable_crisv10_irq,

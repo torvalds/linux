@@ -56,36 +56,36 @@ static psmouse_ret_t ps2pp_process_byte(struct psmouse *psmouse)
 		/* Logitech extended packet */
 		switch ((packet[1] >> 4) | (packet[0] & 0x30)) {
 
-			case 0x0d: /* Mouse extra info */
+		case 0x0d: /* Mouse extra info */
 
-				input_report_rel(dev, packet[2] & 0x80 ? REL_HWHEEL : REL_WHEEL,
-					(int) (packet[2] & 8) - (int) (packet[2] & 7));
-				input_report_key(dev, BTN_SIDE, (packet[2] >> 4) & 1);
-				input_report_key(dev, BTN_EXTRA, (packet[2] >> 5) & 1);
+			input_report_rel(dev, packet[2] & 0x80 ? REL_HWHEEL : REL_WHEEL,
+				(int) (packet[2] & 8) - (int) (packet[2] & 7));
+			input_report_key(dev, BTN_SIDE, (packet[2] >> 4) & 1);
+			input_report_key(dev, BTN_EXTRA, (packet[2] >> 5) & 1);
 
-				break;
+			break;
 
-			case 0x0e: /* buttons 4, 5, 6, 7, 8, 9, 10 info */
+		case 0x0e: /* buttons 4, 5, 6, 7, 8, 9, 10 info */
 
-				input_report_key(dev, BTN_SIDE, (packet[2]) & 1);
-				input_report_key(dev, BTN_EXTRA, (packet[2] >> 1) & 1);
-				input_report_key(dev, BTN_BACK, (packet[2] >> 3) & 1);
-				input_report_key(dev, BTN_FORWARD, (packet[2] >> 4) & 1);
-				input_report_key(dev, BTN_TASK, (packet[2] >> 2) & 1);
+			input_report_key(dev, BTN_SIDE, (packet[2]) & 1);
+			input_report_key(dev, BTN_EXTRA, (packet[2] >> 1) & 1);
+			input_report_key(dev, BTN_BACK, (packet[2] >> 3) & 1);
+			input_report_key(dev, BTN_FORWARD, (packet[2] >> 4) & 1);
+			input_report_key(dev, BTN_TASK, (packet[2] >> 2) & 1);
 
-				break;
+			break;
 
-			case 0x0f: /* TouchPad extra info */
+		case 0x0f: /* TouchPad extra info */
 
-				input_report_rel(dev, packet[2] & 0x08 ? REL_HWHEEL : REL_WHEEL,
-					(int) ((packet[2] >> 4) & 8) - (int) ((packet[2] >> 4) & 7));
-				packet[0] = packet[2] | 0x08;
-				break;
+			input_report_rel(dev, packet[2] & 0x08 ? REL_HWHEEL : REL_WHEEL,
+				(int) ((packet[2] >> 4) & 8) - (int) ((packet[2] >> 4) & 7));
+			packet[0] = packet[2] | 0x08;
+			break;
 
 #ifdef DEBUG
-			default:
-				printk(KERN_WARNING "psmouse.c: Received PS2++ packet #%x, but don't know how to handle.\n",
-					(packet[1] >> 4) | (packet[0] & 0x30));
+		default:
+			printk(KERN_WARNING "psmouse.c: Received PS2++ packet #%x, but don't know how to handle.\n",
+				(packet[1] >> 4) | (packet[0] & 0x30));
 #endif
 		}
 	} else {
@@ -250,7 +250,6 @@ static const struct ps2pp_info *get_model_info(unsigned char model)
 		if (model == ps2pp_list[i].model)
 			return &ps2pp_list[i];
 
-	printk(KERN_WARNING "logips2pp: Detected unknown logitech mouse model %d\n", model);
 	return NULL;
 }
 
@@ -285,31 +284,32 @@ static void ps2pp_set_model_properties(struct psmouse *psmouse,
 		__set_bit(REL_HWHEEL, input_dev->relbit);
 
 	switch (model_info->kind) {
-		case PS2PP_KIND_WHEEL:
-			psmouse->name = "Wheel Mouse";
-			break;
 
-		case PS2PP_KIND_MX:
-			psmouse->name = "MX Mouse";
-			break;
+	case PS2PP_KIND_WHEEL:
+		psmouse->name = "Wheel Mouse";
+		break;
 
-		case PS2PP_KIND_TP3:
-			psmouse->name = "TouchPad 3";
-			break;
+	case PS2PP_KIND_MX:
+		psmouse->name = "MX Mouse";
+		break;
 
-		case PS2PP_KIND_TRACKMAN:
-			psmouse->name = "TrackMan";
-			break;
+	case PS2PP_KIND_TP3:
+		psmouse->name = "TouchPad 3";
+		break;
 
-		default:
-			/*
-			 * Set name to "Mouse" only when using PS2++,
-			 * otherwise let other protocols define suitable
-			 * name
-			 */
-			if (using_ps2pp)
-				psmouse->name = "Mouse";
-			break;
+	case PS2PP_KIND_TRACKMAN:
+		psmouse->name = "TrackMan";
+		break;
+
+	default:
+		/*
+		 * Set name to "Mouse" only when using PS2++,
+		 * otherwise let other protocols define suitable
+		 * name
+		 */
+		if (using_ps2pp)
+			psmouse->name = "Mouse";
+		break;
 	}
 }
 
@@ -343,7 +343,8 @@ int ps2pp_init(struct psmouse *psmouse, bool set_properties)
 	if (!model || !buttons)
 		return -1;
 
-	if ((model_info = get_model_info(model)) != NULL) {
+	model_info = get_model_info(model);
+	if (model_info) {
 
 /*
  * Do Logitech PS2++ / PS2T++ magic init.
@@ -379,6 +380,9 @@ int ps2pp_init(struct psmouse *psmouse, bool set_properties)
 				use_ps2pp = true;
 			}
 		}
+
+	} else {
+		printk(KERN_WARNING "logips2pp: Detected unknown logitech mouse model %d\n", model);
 	}
 
 	if (set_properties) {
@@ -404,8 +408,8 @@ int ps2pp_init(struct psmouse *psmouse, bool set_properties)
 			}
 		}
 
-		if (buttons < 3)
-			__clear_bit(BTN_MIDDLE, psmouse->dev->keybit);
+		if (buttons >= 3)
+			__set_bit(BTN_MIDDLE, psmouse->dev->keybit);
 
 		if (model_info)
 			ps2pp_set_model_properties(psmouse, model_info, use_ps2pp);

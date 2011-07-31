@@ -174,7 +174,7 @@
 		</para>
 		<programlisting>
 static struct mtd_info *board_mtd;
-static unsigned long baseaddr;
+static void __iomem *baseaddr;
 		</programlisting>
 		<para>
 			Static example
@@ -182,7 +182,7 @@ static unsigned long baseaddr;
 		<programlisting>
 static struct mtd_info board_mtd;
 static struct nand_chip board_chip;
-static unsigned long baseaddr;
+static void __iomem *baseaddr;
 		</programlisting>
 	</sect1>
 	<sect1 id="Partition_defines">
@@ -269,7 +269,7 @@ static void board_hwcontrol(struct mtd_info *mtd, int cmd)
 			information about the device.
 		</para>
 		<programlisting>
-int __init board_init (void)
+static int __init board_init (void)
 {
 	struct nand_chip *this;
 	int err = 0;
@@ -283,8 +283,8 @@ int __init board_init (void)
 	}
 
 	/* map physical address */
-	baseaddr = (unsigned long)ioremap(CHIP_PHYSICAL_ADDRESS, 1024);
-	if(!baseaddr){
+	baseaddr = ioremap(CHIP_PHYSICAL_ADDRESS, 1024);
+	if (!baseaddr) {
 		printk("Ioremap to access NAND chip failed\n");
 		err = -EIO;
 		goto out_mtd;
@@ -316,7 +316,7 @@ int __init board_init (void)
 	goto out;
 
 out_ior:
-	iounmap((void *)baseaddr);
+	iounmap(baseaddr);
 out_mtd:
 	kfree (board_mtd);
 out:
@@ -341,7 +341,7 @@ static void __exit board_cleanup (void)
 	nand_release (board_mtd);
 
 	/* unmap physical address */
-	iounmap((void *)baseaddr);
+	iounmap(baseaddr);
 	
 	/* Free the MTD device structure */
 	kfree (board_mtd);
@@ -362,7 +362,7 @@ module_exit(board_cleanup);
 	<sect1 id="Multiple_chip_control">
 		<title>Multiple chip control</title>
 		<para>
-			The nand driver can control chip arrays. Therefor the
+			The nand driver can control chip arrays. Therefore the
 			board driver must provide an own select_chip function. This
 			function must (de)select the requested chip.
 			The function pointer in the nand_chip structure must
@@ -488,7 +488,7 @@ static void board_select_chip (struct mtd_info *mtd, int chip)
 				The ECC bytes must be placed immidiately after the data
 				bytes in order to make the syndrome generator work. This
 				is contrary to the usual layout used by software ECC. The
-				seperation of data and out of band area is not longer
+				separation of data and out of band area is not longer
 				possible. The nand driver code handles this layout and
 				the remaining free bytes in the oob area are managed by 
 				the autoplacement code. Provide a matching oob-layout
@@ -560,7 +560,7 @@ static void board_select_chip (struct mtd_info *mtd, int chip)
 				bad blocks. They have factory marked good blocks. The marker pattern
 				is erased when the block is erased to be reused. So in case of
 				powerloss before writing the pattern back to the chip this block 
-				would be lost and added to the bad blocks. Therefor we scan the 
+				would be lost and added to the bad blocks. Therefore we scan the 
 				chip(s) when we detect them the first time for good blocks and 
 				store this information in a bad block table before erasing any 
 				of the blocks.
@@ -1094,7 +1094,7 @@ in this page</entry>
 		manufacturers specifications. This applies similar to the spare area. 
 	</para>
 	<para>
-		Therefor NAND aware filesystems must either write in page size chunks
+		Therefore NAND aware filesystems must either write in page size chunks
 		or hold a writebuffer to collect smaller writes until they sum up to 
 		pagesize. Available NAND aware filesystems: JFFS2, YAFFS. 		
 	</para>

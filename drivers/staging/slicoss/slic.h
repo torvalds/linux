@@ -168,17 +168,6 @@ struct slic_cmdqueue {
 	struct slic_spinlock lock;
 };
 
-#ifdef STATUS_SUCCESS
-#undef STATUS_SUCCESS
-#endif
-
-#define STATUS_SUCCESS              0
-#define STATUS_PENDING              0
-#define STATUS_FAILURE             -1
-#define STATUS_ERROR               -2
-#define STATUS_NOT_SUPPORTED       -3
-#define STATUS_BUFFER_TOO_SHORT    -4
-
 #define SLIC_MAX_CARDS              32
 #define SLIC_MAX_PORTS              4        /* Max # of ports per card   */
 
@@ -510,7 +499,6 @@ struct adapter {
     struct slic_ifevents  if_events;
     struct slic_stats        inicstats_prev;
     struct slicnet_stats     slic_stats;
-    struct net_device_stats stats;
 };
 
 
@@ -525,15 +513,6 @@ struct adapter {
 #define UPDATE_STATS_GB(largestat, newstat, oldstat)                     \
 {                                                                        \
     (largestat) += ((newstat) - (oldstat));                              \
-}
-
-#define ETHER_EQ_ADDR(_AddrA, _AddrB, _Result)                           \
-{                                                                        \
-    _Result = true;                                                      \
-    if (*(u32 *)(_AddrA) != *(u32 *)(_AddrB))                          \
-	_Result = false;                                                 \
-    if (*(u16 *)(&((_AddrA)[4])) != *(u16 *)(&((_AddrB)[4])))        \
-	_Result = false;                                                 \
 }
 
 #if defined(CONFIG_X86_64) || defined(CONFIG_IA64)

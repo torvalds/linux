@@ -29,14 +29,12 @@
  * Yes, it is a memory overhead, but in 2003 AD, who cares?
  */
 
-struct ebt_mac_wormhash_tuple
-{
+struct ebt_mac_wormhash_tuple {
 	uint32_t cmp[2];
 	__be32 ip;
 };
 
-struct ebt_mac_wormhash
-{
+struct ebt_mac_wormhash {
 	int table[257];
 	int poolsize;
 	struct ebt_mac_wormhash_tuple pool[0];
@@ -45,8 +43,7 @@ struct ebt_mac_wormhash
 #define ebt_mac_wormhash_size(x) ((x) ? sizeof(struct ebt_mac_wormhash) \
 		+ (x)->poolsize * sizeof(struct ebt_mac_wormhash_tuple) : 0)
 
-struct ebt_among_info
-{
+struct ebt_among_info {
 	int wh_dst_ofs;
 	int wh_src_ofs;
 	int bitmask;

@@ -125,6 +125,22 @@ static struct xfrm_algo_desc aead_list[] = {
 		.sadb_alg_maxbits = 256
 	}
 },
+{
+	.name = "rfc4543(gcm(aes))",
+
+	.uinfo = {
+		.aead = {
+			.icv_truncbits = 128,
+		}
+	},
+
+	.desc = {
+		.sadb_alg_id = SADB_X_EALG_NULL_AES_GMAC,
+		.sadb_alg_ivlen = 8,
+		.sadb_alg_minbits = 128,
+		.sadb_alg_maxbits = 256
+	}
+},
 };
 
 static struct xfrm_algo_desc aalg_list[] = {
@@ -197,6 +213,40 @@ static struct xfrm_algo_desc aalg_list[] = {
 		.sadb_alg_ivlen = 0,
 		.sadb_alg_minbits = 256,
 		.sadb_alg_maxbits = 256
+	}
+},
+{
+	.name = "hmac(sha384)",
+
+	.uinfo = {
+		.auth = {
+			.icv_truncbits = 192,
+			.icv_fullbits = 384,
+		}
+	},
+
+	.desc = {
+		.sadb_alg_id = SADB_X_AALG_SHA2_384HMAC,
+		.sadb_alg_ivlen = 0,
+		.sadb_alg_minbits = 384,
+		.sadb_alg_maxbits = 384
+	}
+},
+{
+	.name = "hmac(sha512)",
+
+	.uinfo = {
+		.auth = {
+			.icv_truncbits = 256,
+			.icv_fullbits = 512,
+		}
+	},
+
+	.desc = {
+		.sadb_alg_id = SADB_X_AALG_SHA2_512HMAC,
+		.sadb_alg_ivlen = 0,
+		.sadb_alg_minbits = 512,
+		.sadb_alg_maxbits = 512
 	}
 },
 {
@@ -365,6 +415,7 @@ static struct xfrm_algo_desc ealg_list[] = {
 },
 {
 	.name = "cbc(camellia)",
+	.compat = "camellia",
 
 	.uinfo = {
 		.encr = {
@@ -688,84 +739,6 @@ int xfrm_count_enc_supported(void)
 	return n;
 }
 EXPORT_SYMBOL_GPL(xfrm_count_enc_supported);
-
-/* Move to common area: it is shared with AH. */
-
-int skb_icv_walk(const struct sk_buff *skb, struct hash_desc *desc,
-		 int offset, int len, icv_update_fn_t icv_update)
-{
-	int start = skb_headlen(skb);
-	int i, copy = start - offset;
-	struct sk_buff *frag_iter;
-	struct scatterlist sg;
-	int err;
-
-	/* Checksum header. */
-	if (copy > 0) {
-		if (copy > len)
-			copy = len;
-
-		sg_init_one(&sg, skb->data + offset, copy);
-
-		err = icv_update(desc, &sg, copy);
-		if (unlikely(err))
-			return err;
-
-		if ((len -= copy) == 0)
-			return 0;
-		offset += copy;
-	}
-
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		int end;
-
-		WARN_ON(start > offset + len);
-
-		end = start + skb_shinfo(skb)->frags[i].size;
-		if ((copy = end - offset) > 0) {
-			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-
-			if (copy > len)
-				copy = len;
-
-			sg_init_table(&sg, 1);
-			sg_set_page(&sg, frag->page, copy,
-				    frag->page_offset + offset-start);
-
-			err = icv_update(desc, &sg, copy);
-			if (unlikely(err))
-				return err;
-
-			if (!(len -= copy))
-				return 0;
-			offset += copy;
-		}
-		start = end;
-	}
-
-	skb_walk_frags(skb, frag_iter) {
-		int end;
-
-		WARN_ON(start > offset + len);
-
-		end = start + frag_iter->len;
-		if ((copy = end - offset) > 0) {
-			if (copy > len)
-				copy = len;
-			err = skb_icv_walk(frag_iter, desc, offset-start,
-					   copy, icv_update);
-			if (unlikely(err))
-				return err;
-			if ((len -= copy) == 0)
-				return 0;
-			offset += copy;
-		}
-		start = end;
-	}
-	BUG_ON(len);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(skb_icv_walk);
 
 #if defined(CONFIG_INET_ESP) || defined(CONFIG_INET_ESP_MODULE) || defined(CONFIG_INET6_ESP) || defined(CONFIG_INET6_ESP_MODULE)
 

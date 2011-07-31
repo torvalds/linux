@@ -117,6 +117,7 @@ struct igbvf_buffer {
 			unsigned long time_stamp;
 			u16 length;
 			u16 next_to_watch;
+			u16 mapped_as_page;
 		};
 		/* Rx */
 		struct {
@@ -197,7 +198,6 @@ struct igbvf_adapter {
 	struct igbvf_ring *tx_ring /* One per active queue */
 	____cacheline_aligned_in_smp;
 
-	unsigned long tx_queue_len;
 	unsigned int restart_queue;
 	u32 txd_cmd;
 
@@ -275,6 +275,7 @@ struct igbvf_adapter {
 	unsigned long led_status;
 
 	unsigned int flags;
+	unsigned long last_reset;
 };
 
 struct igbvf_info {

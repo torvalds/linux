@@ -23,43 +23,29 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
-#include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
-
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
-#include <linux/etherdevice.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
-#include <linux/mtd/physmap.h>
-#include <linux/io.h>
 
-#include <asm/setup.h>
 #include <asm/mach-types.h>
-
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
 #include <mach/dm644x.h>
 #include <mach/common.h>
 #include <mach/i2c.h>
 #include <mach/serial.h>
-#include <mach/psc.h>
 #include <mach/mux.h>
+#include <mach/usb.h>
 
 #define SFFSDR_PHY_MASK		(0x2)
 #define SFFSDR_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
 
-#define DAVINCI_ASYNC_EMIF_CONTROL_BASE   0x01e00000
-#define DAVINCI_ASYNC_EMIF_DATA_CE0_BASE  0x02000000
-
-struct mtd_partition davinci_sffsdr_nandflash_partition[] = {
+static struct mtd_partition davinci_sffsdr_nandflash_partition[] = {
 	/* U-Boot Environment: Block 0
 	 * UBL:                Block 1
 	 * U-Boot:             Blocks 6-7 (256 kb)
@@ -87,12 +73,12 @@ static struct flash_platform_data davinci_sffsdr_nandflash_data = {
 
 static struct resource davinci_sffsdr_nandflash_resource[] = {
 	{
-		.start		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE,
-		.end		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE + SZ_16M - 1,
+		.start		= DM644X_ASYNC_EMIF_DATA_CE0_BASE,
+		.end		= DM644X_ASYNC_EMIF_DATA_CE0_BASE + SZ_16M - 1,
 		.flags		= IORESOURCE_MEM,
 	}, {
-		.start		= DAVINCI_ASYNC_EMIF_CONTROL_BASE,
-		.end		= DAVINCI_ASYNC_EMIF_CONTROL_BASE + SZ_4K - 1,
+		.start		= DM644X_ASYNC_EMIF_CONTROL_BASE,
+		.end		= DM644X_ASYNC_EMIF_CONTROL_BASE + SZ_4K - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 };
@@ -105,11 +91,6 @@ static struct platform_device davinci_sffsdr_nandflash_device = {
 	},
 	.num_resources	= ARRAY_SIZE(davinci_sffsdr_nandflash_resource),
 	.resource	= davinci_sffsdr_nandflash_resource,
-};
-
-static struct emac_platform_data sffsdr_emac_pdata = {
-	.phy_mask	= SFFSDR_PHY_MASK,
-	.mdio_max_freq	= SFFSDR_MDIO_FREQUENCY,
 };
 
 static struct at24_platform_data eeprom_info = {
@@ -164,16 +145,11 @@ static __init void davinci_sffsdr_init(void)
 	davinci_serial_init(&uart_config);
 	soc_info->emac_pdata->phy_mask = SFFSDR_PHY_MASK;
 	soc_info->emac_pdata->mdio_max_freq = SFFSDR_MDIO_FREQUENCY;
-	setup_usb(0, 0); /* We support only peripheral mode. */
+	davinci_setup_usb(0, 0); /* We support only peripheral mode. */
 
 	/* mux VLYNQ pins */
 	davinci_cfg_reg(DM644X_VLYNQEN);
 	davinci_cfg_reg(DM644X_VLYNQWD);
-}
-
-static __init void davinci_sffsdr_irq_init(void)
-{
-	davinci_irq_init();
 }
 
 MACHINE_START(SFFSDR, "Lyrtech SFFSDR")
@@ -182,7 +158,7 @@ MACHINE_START(SFFSDR, "Lyrtech SFFSDR")
 	.io_pg_offst  = (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
 	.boot_params  = (DAVINCI_DDR_BASE + 0x100),
 	.map_io	      = davinci_sffsdr_map_io,
-	.init_irq     = davinci_sffsdr_irq_init,
+	.init_irq     = davinci_irq_init,
 	.timer	      = &davinci_timer,
 	.init_machine = davinci_sffsdr_init,
 MACHINE_END

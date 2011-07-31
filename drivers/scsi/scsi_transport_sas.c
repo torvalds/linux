@@ -155,6 +155,17 @@ static struct {
 sas_bitfield_name_search(linkspeed, sas_linkspeed_names)
 sas_bitfield_name_set(linkspeed, sas_linkspeed_names)
 
+static struct sas_end_device *sas_sdev_to_rdev(struct scsi_device *sdev)
+{
+	struct sas_rphy *rphy = target_to_rphy(sdev->sdev_target);
+	struct sas_end_device *rdev;
+
+	BUG_ON(rphy->identify.device_type != SAS_END_DEVICE);
+
+	rdev = rphy_to_end_device(rphy);
+	return rdev;
+}
+
 static void sas_smp_request(struct request_queue *q, struct Scsi_Host *shost,
 			    struct sas_rphy *rphy)
 {
@@ -358,6 +369,85 @@ void sas_remove_host(struct Scsi_Host *shost)
 }
 EXPORT_SYMBOL(sas_remove_host);
 
+/**
+ * sas_tlr_supported - checking TLR bit in vpd 0x90
+ * @sdev: scsi device struct
+ *
+ * Check Transport Layer Retries are supported or not.
+ * If vpd page 0x90 is present, TRL is supported.
+ *
+ */
+unsigned int
+sas_tlr_supported(struct scsi_device *sdev)
+{
+	const int vpd_len = 32;
+	struct sas_end_device *rdev = sas_sdev_to_rdev(sdev);
+	char *buffer = kzalloc(vpd_len, GFP_KERNEL);
+	int ret = 0;
+
+	if (scsi_get_vpd_page(sdev, 0x90, buffer, vpd_len))
+		goto out;
+
+	/*
+	 * Magic numbers: the VPD Protocol page (0x90)
+	 * has a 4 byte header and then one entry per device port
+	 * the TLR bit is at offset 8 on each port entry
+	 * if we take the first port, that's at total offset 12
+	 */
+	ret = buffer[12] & 0x01;
+
+ out:
+	kfree(buffer);
+	rdev->tlr_supported = ret;
+	return ret;
+
+}
+EXPORT_SYMBOL_GPL(sas_tlr_supported);
+
+/**
+ * sas_disable_tlr - setting TLR flags
+ * @sdev: scsi device struct
+ *
+ * Seting tlr_enabled flag to 0.
+ *
+ */
+void
+sas_disable_tlr(struct scsi_device *sdev)
+{
+	struct sas_end_device *rdev = sas_sdev_to_rdev(sdev);
+
+	rdev->tlr_enabled = 0;
+}
+EXPORT_SYMBOL_GPL(sas_disable_tlr);
+
+/**
+ * sas_enable_tlr - setting TLR flags
+ * @sdev: scsi device struct
+ *
+ * Seting tlr_enabled flag 1.
+ *
+ */
+void sas_enable_tlr(struct scsi_device *sdev)
+{
+	unsigned int tlr_supported = 0;
+	tlr_supported  = sas_tlr_supported(sdev);
+
+	if (tlr_supported) {
+		struct sas_end_device *rdev = sas_sdev_to_rdev(sdev);
+
+		rdev->tlr_enabled = 1;
+	}
+
+	return;
+}
+EXPORT_SYMBOL_GPL(sas_enable_tlr);
+
+unsigned int sas_is_tlr_enabled(struct scsi_device *sdev)
+{
+	struct sas_end_device *rdev = sas_sdev_to_rdev(sdev);
+	return rdev->tlr_enabled;
+}
+EXPORT_SYMBOL_GPL(sas_is_tlr_enabled);
 
 /*
  * SAS Phy attributes
@@ -666,7 +756,7 @@ EXPORT_SYMBOL(sas_phy_add);
  *
  * Note:
  *   This function must only be called on a PHY that has not
- *   sucessfully been added using sas_phy_add().
+ *   successfully been added using sas_phy_add().
  */
 void sas_phy_free(struct sas_phy *phy)
 {
@@ -896,7 +986,7 @@ EXPORT_SYMBOL(sas_port_add);
  *
  * Note:
  *   This function must only be called on a PORT that has not
- *   sucessfully been added using sas_port_add().
+ *   successfully been added using sas_port_add().
  */
 void sas_port_free(struct sas_port *port)
 {
@@ -1146,14 +1236,9 @@ sas_rphy_simple_attr(identify.phy_identifier, phy_identifier, "%d\n", u8);
 int sas_read_port_mode_page(struct scsi_device *sdev)
 {
 	char *buffer = kzalloc(BUF_SIZE, GFP_KERNEL), *msdata;
-	struct sas_rphy *rphy = target_to_rphy(sdev->sdev_target);
-	struct sas_end_device *rdev;
+	struct sas_end_device *rdev = sas_sdev_to_rdev(sdev);
 	struct scsi_mode_data mode_data;
 	int res, error;
-
-	BUG_ON(rphy->identify.device_type != SAS_END_DEVICE);
-
-	rdev = rphy_to_end_device(rphy);
 
 	if (!buffer)
 		return -ENOMEM;
@@ -1206,6 +1291,10 @@ sas_end_dev_simple_attr(ready_led_meaning, ready_led_meaning, "%d\n", int);
 sas_end_dev_simple_attr(I_T_nexus_loss_timeout, I_T_nexus_loss_timeout,
 			"%d\n", int);
 sas_end_dev_simple_attr(initiator_response_timeout, initiator_response_timeout,
+			"%d\n", int);
+sas_end_dev_simple_attr(tlr_supported, tlr_supported,
+			"%d\n", int);
+sas_end_dev_simple_attr(tlr_enabled, tlr_enabled,
 			"%d\n", int);
 
 static DECLARE_TRANSPORT_CLASS(sas_expander_class,
@@ -1476,7 +1565,7 @@ EXPORT_SYMBOL(sas_rphy_add);
  *
  * Note:
  *   This function must only be called on a remote
- *   PHY that has not sucessfully been added using
+ *   PHY that has not successfully been added using
  *   sas_rphy_add() (or has been sas_rphy_remove()'d)
  */
 void sas_rphy_free(struct sas_rphy *rphy)
@@ -1733,6 +1822,8 @@ sas_attach_transport(struct sas_function_template *ft)
 	SETUP_END_DEV_ATTRIBUTE(end_dev_ready_led_meaning);
 	SETUP_END_DEV_ATTRIBUTE(end_dev_I_T_nexus_loss_timeout);
 	SETUP_END_DEV_ATTRIBUTE(end_dev_initiator_response_timeout);
+	SETUP_END_DEV_ATTRIBUTE(end_dev_tlr_supported);
+	SETUP_END_DEV_ATTRIBUTE(end_dev_tlr_enabled);
 	i->end_dev_attrs[count] = NULL;
 
 	count = 0;

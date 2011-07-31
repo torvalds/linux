@@ -19,6 +19,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/can.h>
@@ -245,7 +246,7 @@ static void can_flush_echo_skb(struct net_device *dev)
 	struct net_device_stats *stats = &dev->stats;
 	int i;
 
-	for (i = 0; i < CAN_ECHO_SKB_MAX; i++) {
+	for (i = 0; i < priv->echo_skb_max; i++) {
 		if (priv->echo_skb[i]) {
 			kfree_skb(priv->echo_skb[i]);
 			priv->echo_skb[i] = NULL;
@@ -262,9 +263,12 @@ static void can_flush_echo_skb(struct net_device *dev)
  * of the device driver. The driver must protect access to
  * priv->echo_skb, if necessary.
  */
-void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev, int idx)
+void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
+		      unsigned int idx)
 {
 	struct can_priv *priv = netdev_priv(dev);
+
+	BUG_ON(idx >= priv->echo_skb_max);
 
 	/* check flag whether this packet has to be looped back */
 	if (!(dev->flags & IFF_ECHO) || skb->pkt_type != PACKET_LOOPBACK) {
@@ -311,9 +315,11 @@ EXPORT_SYMBOL_GPL(can_put_echo_skb);
  * is handled in the device driver. The driver must protect
  * access to priv->echo_skb, if necessary.
  */
-void can_get_echo_skb(struct net_device *dev, int idx)
+void can_get_echo_skb(struct net_device *dev, unsigned int idx)
 {
 	struct can_priv *priv = netdev_priv(dev);
+
+	BUG_ON(idx >= priv->echo_skb_max);
 
 	if (priv->echo_skb[idx]) {
 		netif_rx(priv->echo_skb[idx]);
@@ -327,9 +333,11 @@ EXPORT_SYMBOL_GPL(can_get_echo_skb);
   *
   * The function is typically called when TX failed.
   */
-void can_free_echo_skb(struct net_device *dev, int idx)
+void can_free_echo_skb(struct net_device *dev, unsigned int idx)
 {
 	struct can_priv *priv = netdev_priv(dev);
+
+	BUG_ON(idx >= priv->echo_skb_max);
 
 	if (priv->echo_skb[idx]) {
 		kfree_skb(priv->echo_skb[idx]);
@@ -359,17 +367,12 @@ void can_restart(unsigned long data)
 	can_flush_echo_skb(dev);
 
 	/* send restart message upstream */
-	skb = dev_alloc_skb(sizeof(struct can_frame));
+	skb = alloc_can_err_skb(dev, &cf);
 	if (skb == NULL) {
 		err = -ENOMEM;
 		goto restart;
 	}
-	skb->dev = dev;
-	skb->protocol = htons(ETH_P_CAN);
-	cf = (struct can_frame *)skb_put(skb, sizeof(struct can_frame));
-	memset(cf, 0, sizeof(struct can_frame));
-	cf->can_id = CAN_ERR_FLAG | CAN_ERR_RESTARTED;
-	cf->can_dlc = CAN_ERR_DLC;
+	cf->can_id |= CAN_ERR_RESTARTED;
 
 	netif_rx(skb);
 
@@ -442,19 +445,65 @@ static void can_setup(struct net_device *dev)
 	dev->features = NETIF_F_NO_CSUM;
 }
 
+struct sk_buff *alloc_can_skb(struct net_device *dev, struct can_frame **cf)
+{
+	struct sk_buff *skb;
+
+	skb = netdev_alloc_skb(dev, sizeof(struct can_frame));
+	if (unlikely(!skb))
+		return NULL;
+
+	skb->protocol = htons(ETH_P_CAN);
+	skb->pkt_type = PACKET_BROADCAST;
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	*cf = (struct can_frame *)skb_put(skb, sizeof(struct can_frame));
+	memset(*cf, 0, sizeof(struct can_frame));
+
+	return skb;
+}
+EXPORT_SYMBOL_GPL(alloc_can_skb);
+
+struct sk_buff *alloc_can_err_skb(struct net_device *dev, struct can_frame **cf)
+{
+	struct sk_buff *skb;
+
+	skb = alloc_can_skb(dev, cf);
+	if (unlikely(!skb))
+		return NULL;
+
+	(*cf)->can_id = CAN_ERR_FLAG;
+	(*cf)->can_dlc = CAN_ERR_DLC;
+
+	return skb;
+}
+EXPORT_SYMBOL_GPL(alloc_can_err_skb);
+
 /*
  * Allocate and setup space for the CAN network device
  */
-struct net_device *alloc_candev(int sizeof_priv)
+struct net_device *alloc_candev(int sizeof_priv, unsigned int echo_skb_max)
 {
 	struct net_device *dev;
 	struct can_priv *priv;
+	int size;
 
-	dev = alloc_netdev(sizeof_priv, "can%d", can_setup);
+	if (echo_skb_max)
+		size = ALIGN(sizeof_priv, sizeof(struct sk_buff *)) +
+			echo_skb_max * sizeof(struct sk_buff *);
+	else
+		size = sizeof_priv;
+
+	dev = alloc_netdev(size, "can%d", can_setup);
 	if (!dev)
 		return NULL;
 
 	priv = netdev_priv(dev);
+
+	if (echo_skb_max) {
+		priv->echo_skb_max = echo_skb_max;
+		priv->echo_skb = (void *)priv +
+			ALIGN(sizeof_priv, sizeof(struct sk_buff *));
+	}
 
 	priv->state = CAN_STATE_STOPPED;
 
@@ -526,6 +575,7 @@ static const struct nla_policy can_policy[IFLA_CAN_MAX + 1] = {
 	[IFLA_CAN_BITTIMING_CONST]
 				= { .len = sizeof(struct can_bittiming_const) },
 	[IFLA_CAN_CLOCK]	= { .len = sizeof(struct can_clock) },
+	[IFLA_CAN_BERR_COUNTER]	= { .len = sizeof(struct can_berr_counter) },
 };
 
 static int can_changelink(struct net_device *dev,
@@ -544,6 +594,8 @@ static int can_changelink(struct net_device *dev,
 		if (dev->flags & IFF_UP)
 			return -EBUSY;
 		cm = nla_data(data[IFLA_CAN_CTRLMODE]);
+		if (cm->flags & ~priv->ctrlmode_supported)
+			return -EOPNOTSUPP;
 		priv->ctrlmode &= ~cm->mask;
 		priv->ctrlmode |= cm->flags;
 	}
@@ -599,6 +651,8 @@ static size_t can_get_size(const struct net_device *dev)
 	size += nla_total_size(sizeof(u32));  /* IFLA_CAN_RESTART_MS */
 	size += sizeof(struct can_bittiming); /* IFLA_CAN_BITTIMING */
 	size += sizeof(struct can_clock);     /* IFLA_CAN_CLOCK */
+	if (priv->do_get_berr_counter)        /* IFLA_CAN_BERR_COUNTER */
+		size += sizeof(struct can_berr_counter);
 	if (priv->bittiming_const)	      /* IFLA_CAN_BITTIMING_CONST */
 		size += sizeof(struct can_bittiming_const);
 
@@ -609,6 +663,7 @@ static int can_fill_info(struct sk_buff *skb, const struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
 	struct can_ctrlmode cm = {.flags = priv->ctrlmode};
+	struct can_berr_counter bec;
 	enum can_state state = priv->state;
 
 	if (priv->do_get_state)
@@ -619,6 +674,8 @@ static int can_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	NLA_PUT(skb, IFLA_CAN_BITTIMING,
 		sizeof(priv->bittiming), &priv->bittiming);
 	NLA_PUT(skb, IFLA_CAN_CLOCK, sizeof(cm), &priv->clock);
+	if (priv->do_get_berr_counter && !priv->do_get_berr_counter(dev, &bec))
+		NLA_PUT(skb, IFLA_CAN_BERR_COUNTER, sizeof(bec), &bec);
 	if (priv->bittiming_const)
 		NLA_PUT(skb, IFLA_CAN_BITTIMING_CONST,
 			sizeof(*priv->bittiming_const), priv->bittiming_const);
@@ -647,7 +704,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int can_newlink(struct net_device *dev,
+static int can_newlink(struct net *src_net, struct net_device *dev,
 		       struct nlattr *tb[], struct nlattr *data[])
 {
 	return -EOPNOTSUPP;

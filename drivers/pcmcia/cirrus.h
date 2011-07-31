@@ -30,16 +30,6 @@
 #ifndef _LINUX_CIRRUS_H
 #define _LINUX_CIRRUS_H
 
-#ifndef PCI_VENDOR_ID_CIRRUS
-#define PCI_VENDOR_ID_CIRRUS		0x1013
-#endif
-#ifndef PCI_DEVICE_ID_CIRRUS_6729
-#define PCI_DEVICE_ID_CIRRUS_6729	0x1100
-#endif
-#ifndef PCI_DEVICE_ID_CIRRUS_6832
-#define PCI_DEVICE_ID_CIRRUS_6832	0x1110
-#endif
-
 #define PD67_MISC_CTL_1		0x16	/* Misc control 1 */
 #define PD67_FIFO_CTL		0x17	/* FIFO control */
 #define PD67_MISC_CTL_2		0x1E	/* Misc control 2 */

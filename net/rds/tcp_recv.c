@@ -31,6 +31,7 @@
  *
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <net/tcp.h>
 
 #include "rds.h"
@@ -97,6 +98,7 @@ int rds_tcp_inc_copy_to_user(struct rds_incoming *inc, struct iovec *first_iov,
 				goto out;
 			}
 
+			rds_stats_add(s_copy_to_user, to_copy);
 			size -= to_copy;
 			ret += to_copy;
 			skb_off += to_copy;
@@ -322,7 +324,7 @@ void rds_tcp_data_ready(struct sock *sk, int bytes)
 
 	rdsdebug("data ready sk %p bytes %d\n", sk, bytes);
 
-	read_lock(&sk->sk_callback_lock);
+	read_lock_bh(&sk->sk_callback_lock);
 	conn = sk->sk_user_data;
 	if (conn == NULL) { /* check for teardown race */
 		ready = sk->sk_data_ready;
@@ -336,7 +338,7 @@ void rds_tcp_data_ready(struct sock *sk, int bytes)
 	if (rds_tcp_read_sock(conn, GFP_ATOMIC, KM_SOFTIRQ0) == -ENOMEM)
 		queue_delayed_work(rds_wq, &conn->c_recv_w, 0);
 out:
-	read_unlock(&sk->sk_callback_lock);
+	read_unlock_bh(&sk->sk_callback_lock);
 	ready(sk, bytes);
 }
 

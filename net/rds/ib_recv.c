@@ -31,6 +31,7 @@
  *
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <rdma/rdma_cm.h>
@@ -143,15 +144,16 @@ static int rds_ib_recv_refill_one(struct rds_connection *conn,
 	int ret = -ENOMEM;
 
 	if (recv->r_ibinc == NULL) {
-		if (atomic_read(&rds_ib_allocation) >= rds_ib_sysctl_max_recv_allocation) {
+		if (!atomic_add_unless(&rds_ib_allocation, 1, rds_ib_sysctl_max_recv_allocation)) {
 			rds_ib_stats_inc(s_ib_rx_alloc_limit);
 			goto out;
 		}
 		recv->r_ibinc = kmem_cache_alloc(rds_ib_incoming_slab,
 						 kptr_gfp);
-		if (recv->r_ibinc == NULL)
+		if (recv->r_ibinc == NULL) {
+			atomic_dec(&rds_ib_allocation);
 			goto out;
-		atomic_inc(&rds_ib_allocation);
+		}
 		INIT_LIST_HEAD(&recv->r_ibinc->ii_frags);
 		rds_inc_init(&recv->r_ibinc->ii_inc, conn, conn->c_faddr);
 	}
@@ -229,8 +231,8 @@ int rds_ib_recv_refill(struct rds_connection *conn, gfp_t kptr_gfp,
 	int ret = 0;
 	u32 pos;
 
-	while ((prefill || rds_conn_up(conn))
-			&& rds_ib_ring_alloc(&ic->i_recv_ring, 1, &pos)) {
+	while ((prefill || rds_conn_up(conn)) &&
+	       rds_ib_ring_alloc(&ic->i_recv_ring, 1, &pos)) {
 		if (pos >= ic->i_recv_ring.w_nr) {
 			printk(KERN_NOTICE "Argh - ring alloc returned pos=%u\n",
 					pos);
@@ -467,8 +469,8 @@ static void rds_ib_send_ack(struct rds_ib_connection *ic, unsigned int adv_credi
 		set_bit(IB_ACK_REQUESTED, &ic->i_ack_flags);
 
 		rds_ib_stats_inc(s_ib_ack_send_failure);
-		/* Need to finesse this later. */
-		BUG();
+
+		rds_ib_conn_error(ic->conn, "sending ack failed\n");
 	} else
 		rds_ib_stats_inc(s_ib_ack_sent);
 }
@@ -770,10 +772,10 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 		hdr = &ibinc->ii_inc.i_hdr;
 		/* We can't just use memcmp here; fragments of a
 		 * single message may carry different ACKs */
-		if (hdr->h_sequence != ihdr->h_sequence
-		 || hdr->h_len != ihdr->h_len
-		 || hdr->h_sport != ihdr->h_sport
-		 || hdr->h_dport != ihdr->h_dport) {
+		if (hdr->h_sequence != ihdr->h_sequence ||
+		    hdr->h_len != ihdr->h_len ||
+		    hdr->h_sport != ihdr->h_sport ||
+		    hdr->h_dport != ihdr->h_dport) {
 			rds_ib_conn_error(conn,
 				"fragment header mismatch; forcing reconnect\n");
 			return;
@@ -824,17 +826,22 @@ void rds_ib_recv_cq_comp_handler(struct ib_cq *cq, void *context)
 {
 	struct rds_connection *conn = context;
 	struct rds_ib_connection *ic = conn->c_transport_data;
-	struct ib_wc wc;
-	struct rds_ib_ack_state state = { 0, };
-	struct rds_ib_recv_work *recv;
 
 	rdsdebug("conn %p cq %p\n", conn, cq);
 
 	rds_ib_stats_inc(s_ib_rx_cq_call);
 
-	ib_req_notify_cq(cq, IB_CQ_SOLICITED);
+	tasklet_schedule(&ic->i_recv_tasklet);
+}
 
-	while (ib_poll_cq(cq, 1, &wc) > 0) {
+static inline void rds_poll_cq(struct rds_ib_connection *ic,
+			       struct rds_ib_ack_state *state)
+{
+	struct rds_connection *conn = ic->conn;
+	struct ib_wc wc;
+	struct rds_ib_recv_work *recv;
+
+	while (ib_poll_cq(ic->i_recv_cq, 1, &wc) > 0) {
 		rdsdebug("wc wr_id 0x%llx status %u byte_len %u imm_data %u\n",
 			 (unsigned long long)wc.wr_id, wc.status, wc.byte_len,
 			 be32_to_cpu(wc.ex.imm_data));
@@ -852,7 +859,7 @@ void rds_ib_recv_cq_comp_handler(struct ib_cq *cq, void *context)
 		if (rds_conn_up(conn) || rds_conn_connecting(conn)) {
 			/* We expect errors as the qp is drained during shutdown */
 			if (wc.status == IB_WC_SUCCESS) {
-				rds_ib_process_recv(conn, recv, wc.byte_len, &state);
+				rds_ib_process_recv(conn, recv, wc.byte_len, state);
 			} else {
 				rds_ib_conn_error(conn, "recv completion on "
 				       "%pI4 had status %u, disconnecting and "
@@ -863,6 +870,17 @@ void rds_ib_recv_cq_comp_handler(struct ib_cq *cq, void *context)
 
 		rds_ib_ring_free(&ic->i_recv_ring, 1);
 	}
+}
+
+void rds_ib_recv_tasklet_fn(unsigned long data)
+{
+	struct rds_ib_connection *ic = (struct rds_ib_connection *) data;
+	struct rds_connection *conn = ic->conn;
+	struct rds_ib_ack_state state = { 0, };
+
+	rds_poll_cq(ic, &state);
+	ib_req_notify_cq(ic->i_recv_cq, IB_CQ_SOLICITED);
+	rds_poll_cq(ic, &state);
 
 	if (state.ack_next_valid)
 		rds_ib_set_ack(ic, state.ack_next, state.ack_required);

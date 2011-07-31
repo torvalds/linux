@@ -20,9 +20,6 @@
 #include <asm/processor.h>
 #include "op_impl.h"
 
-extern struct op_sh_model op_model_sh7750_ops __weak;
-extern struct op_sh_model op_model_sh4a_ops __weak;
-
 static struct op_sh_model *model;
 
 static struct op_counter_config ctr[20];
@@ -94,33 +91,14 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	 */
 	ops->backtrace = sh_backtrace;
 
-	switch (current_cpu_data.type) {
-	/* SH-4 types */
-	case CPU_SH7750:
-	case CPU_SH7750S:
-		lmodel = &op_model_sh7750_ops;
-		break;
-
-        /* SH-4A types */
-	case CPU_SH7763:
-	case CPU_SH7770:
-	case CPU_SH7780:
-	case CPU_SH7781:
-	case CPU_SH7785:
-	case CPU_SH7786:
-	case CPU_SH7723:
-	case CPU_SH7724:
-	case CPU_SHX3:
-		lmodel = &op_model_sh4a_ops;
-		break;
-
-	/* SH4AL-DSP types */
-	case CPU_SH7343:
-	case CPU_SH7722:
-	case CPU_SH7366:
-		lmodel = &op_model_sh4a_ops;
-		break;
-	}
+	/*
+	 * XXX
+	 *
+	 * All of the SH7750/SH-4A counters have been converted to perf,
+	 * this infrastructure hook is left for other users until they've
+	 * had a chance to convert over, at which point all of this
+	 * will be deleted.
+	 */
 
 	if (!lmodel)
 		return -ENODEV;

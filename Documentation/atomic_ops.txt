@@ -320,7 +320,7 @@ counter decrement would not become globally visible until the
 obj->active update does.
 
 As a historical note, 32-bit Sparc used to only allow usage of
-24-bits of it's atomic_t type.  This was because it used 8 bits
+24-bits of its atomic_t type.  This was because it used 8 bits
 as a spinlock for SMP safety.  Sparc32 lacked a "compare and swap"
 type instruction.  However, 32-bit Sparc has since been moved over
 to a "hash table of spinlocks" scheme, that allows the full 32-bit

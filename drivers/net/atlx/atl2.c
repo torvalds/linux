@@ -39,6 +39,7 @@
 #include <linux/pci_ids.h>
 #include <linux/pm.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/tcp.h>
@@ -63,7 +64,7 @@ MODULE_VERSION(ATL2_DRV_VERSION);
 /*
  * atl2_pci_tbl - PCI Device ID Table
  */
-static struct pci_device_id atl2_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(atl2_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATTANSIC_L2)},
 	/* required last entry */
 	{0,}
@@ -135,7 +136,7 @@ static void atl2_set_multi(struct net_device *netdev)
 {
 	struct atl2_adapter *adapter = netdev_priv(netdev);
 	struct atl2_hw *hw = &adapter->hw;
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u32 rctl;
 	u32 hash_value;
 
@@ -157,8 +158,8 @@ static void atl2_set_multi(struct net_device *netdev)
 	ATL2_WRITE_REG_ARRAY(hw, REG_RX_HASH_TABLE, 1, 0);
 
 	/* comoute mc addresses' hash value ,and put it into hash table */
-	for (mc_ptr = netdev->mc_list; mc_ptr; mc_ptr = mc_ptr->next) {
-		hash_value = atl2_hash_mc_addr(hw, mc_ptr->dmi_addr);
+	netdev_for_each_mc_addr(ha, netdev) {
+		hash_value = atl2_hash_mc_addr(hw, ha->addr);
 		atl2_hash_set(hw, hash_value);
 	}
 }
@@ -409,7 +410,7 @@ static void atl2_intr_rx(struct atl2_adapter *adapter)
 		if (rxd->status.ok && rxd->status.pkt_size >= 60) {
 			int rx_size = (int)(rxd->status.pkt_size - 4);
 			/* alloc new buffer */
-			skb = netdev_alloc_skb(netdev, rx_size + NET_IP_ALIGN);
+			skb = netdev_alloc_skb_ip_align(netdev, rx_size);
 			if (NULL == skb) {
 				printk(KERN_WARNING
 					"%s: Mem squeeze, deferring packet.\n",
@@ -421,8 +422,6 @@ static void atl2_intr_rx(struct atl2_adapter *adapter)
 				netdev->stats.rx_dropped++;
 				break;
 			}
-			skb_reserve(skb, NET_IP_ALIGN);
-			skb->dev = netdev;
 			memcpy(skb->data, rxd->packet, rx_size);
 			skb_put(skb, rx_size);
 			skb->protocol = eth_type_trans(skb, netdev);
@@ -652,7 +651,7 @@ static int atl2_request_irq(struct atl2_adapter *adapter)
 	if (adapter->have_msi)
 		flags &= ~IRQF_SHARED;
 
-	return request_irq(adapter->pdev->irq, &atl2_intr, flags, netdev->name,
+	return request_irq(adapter->pdev->irq, atl2_intr, flags, netdev->name,
 		netdev);
 }
 
@@ -893,7 +892,6 @@ static netdev_tx_t atl2_xmit_frame(struct sk_buff *skb,
 		(adapter->txd_write_ptr >> 2));
 
 	mmiowb();
-	netdev->trans_start = jiffies;
 	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
@@ -1960,12 +1958,15 @@ static int atl2_get_eeprom(struct net_device *netdev,
 		return -ENOMEM;
 
 	for (i = first_dword; i < last_dword; i++) {
-		if (!atl2_read_eeprom(hw, i*4, &(eeprom_buff[i-first_dword])))
-			return -EIO;
+		if (!atl2_read_eeprom(hw, i*4, &(eeprom_buff[i-first_dword]))) {
+			ret_val = -EIO;
+			goto free;
+		}
 	}
 
 	memcpy(bytes, (u8 *)eeprom_buff + (eeprom->offset & 3),
 		eeprom->len);
+free:
 	kfree(eeprom_buff);
 
 	return ret_val;

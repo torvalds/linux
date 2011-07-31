@@ -16,6 +16,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/slab.h>
 #include "hisax.h"
 #include "isdnl3.h"
 

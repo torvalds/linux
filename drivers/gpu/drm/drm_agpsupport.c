@@ -33,6 +33,7 @@
 
 #include "drmP.h"
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #if __OS_HAS_AGP
 

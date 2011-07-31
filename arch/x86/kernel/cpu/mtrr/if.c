@@ -4,6 +4,8 @@
 #include <linux/proc_fs.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 
 #define LINE_SIZE 80
@@ -133,8 +135,7 @@ mtrr_write(struct file *file, const char __user *buf, size_t len, loff_t * ppos)
 		return -EINVAL;
 
 	base = simple_strtoull(line + 5, &ptr, 0);
-	while (isspace(*ptr))
-		ptr++;
+	ptr = skip_spaces(ptr);
 
 	if (strncmp(ptr, "size=", 5))
 		return -EINVAL;
@@ -142,14 +143,11 @@ mtrr_write(struct file *file, const char __user *buf, size_t len, loff_t * ppos)
 	size = simple_strtoull(ptr + 5, &ptr, 0);
 	if ((base & 0xfff) || (size & 0xfff))
 		return -EINVAL;
-	while (isspace(*ptr))
-		ptr++;
+	ptr = skip_spaces(ptr);
 
 	if (strncmp(ptr, "type=", 5))
 		return -EINVAL;
-	ptr += 5;
-	while (isspace(*ptr))
-		ptr++;
+	ptr = skip_spaces(ptr + 5);
 
 	for (i = 0; i < MTRR_NUM_TYPES; ++i) {
 		if (strcmp(ptr, mtrr_strings[i]))

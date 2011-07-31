@@ -724,13 +724,13 @@ static struct pci_driver saa7164_pci_driver = {
 	.resume   = NULL,
 };
 
-static int saa7164_init(void)
+static int __init saa7164_init(void)
 {
 	printk(KERN_INFO "saa7164 driver loaded\n");
 	return pci_register_driver(&saa7164_pci_driver);
 }
 
-static void saa7164_fini(void)
+static void __exit saa7164_fini(void)
 {
 	pci_unregister_driver(&saa7164_pci_driver);
 }

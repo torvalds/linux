@@ -59,7 +59,7 @@ void set_thresholds(unsigned long cpu)
 	mtspr(SPRN_THRM1, THRM1_THRES(tau[cpu].low) | THRM1_V | THRM1_TIE | THRM1_TID);
 
 	/* setup THRM2,
-	 * threshold, valid bit, enable interrupts, interrupt when above threshhold
+	 * threshold, valid bit, enable interrupts, interrupt when above threshold
 	 */
 	mtspr (SPRN_THRM2, THRM1_THRES(tau[cpu].high) | THRM1_V | THRM1_TIE);
 #else

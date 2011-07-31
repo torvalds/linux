@@ -9,24 +9,29 @@
  * for more details.
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/platform_device.h>
-#include <linux/i2c.h>
-#include <linux/io.h>
-#include <sound/core.h>
-#include <sound/pcm.h>
-#include <sound/soc.h>
-#include <sound/soc-dapm.h>
-
 #include <sound/sh_fsi.h>
 #include <../sound/soc/codecs/ak4642.h>
+
+static int fsi_ak4642_dai_init(struct snd_soc_codec *codec)
+{
+	int ret;
+
+	ret = snd_soc_dai_set_fmt(&ak4642_dai, SND_SOC_DAIFMT_CBM_CFM);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_soc_dai_set_sysclk(&ak4642_dai, 0, 11289600, 0);
+
+	return ret;
+}
 
 static struct snd_soc_dai_link fsi_dai_link = {
 	.name		= "AK4642",
 	.stream_name	= "AK4642",
-	.cpu_dai	= &fsi_soc_dai[0], /* fsi */
+	.cpu_dai	= &fsi_soc_dai[FSI_PORT_A],
 	.codec_dai	= &ak4642_dai,
+	.init		= fsi_ak4642_dai_init,
 	.ops		= NULL,
 };
 
@@ -42,43 +47,13 @@ static struct snd_soc_device fsi_snd_devdata = {
 	.codec_dev	= &soc_codec_dev_ak4642,
 };
 
-#define AK4642_BUS 0
-#define AK4642_ADR 0x12
-static int ak4642_add_i2c_device(void)
-{
-	struct i2c_board_info info;
-	struct i2c_adapter *adapter;
-	struct i2c_client *client;
-
-	memset(&info, 0, sizeof(struct i2c_board_info));
-	info.addr = AK4642_ADR;
-	strlcpy(info.type, "ak4642", I2C_NAME_SIZE);
-
-	adapter = i2c_get_adapter(AK4642_BUS);
-	if (!adapter) {
-		printk(KERN_DEBUG "can't get i2c adapter\n");
-		return -ENODEV;
-	}
-
-	client = i2c_new_device(adapter, &info);
-	i2c_put_adapter(adapter);
-	if (!client) {
-		printk(KERN_DEBUG "can't add i2c device\n");
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
 static struct platform_device *fsi_snd_device;
 
 static int __init fsi_ak4642_init(void)
 {
 	int ret = -ENOMEM;
 
-	ak4642_add_i2c_device();
-
-	fsi_snd_device = platform_device_alloc("soc-audio", -1);
+	fsi_snd_device = platform_device_alloc("soc-audio", FSI_PORT_A);
 	if (!fsi_snd_device)
 		goto out;
 

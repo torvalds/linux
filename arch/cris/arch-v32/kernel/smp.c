@@ -168,8 +168,8 @@ void __init smp_callin(void)
 
 	/* Enable IRQ and idle */
 	REG_WR(intr_vect, irq_regs[cpu], rw_mask, vect_mask);
-	unmask_irq(IPI_INTR_VECT);
-	unmask_irq(TIMER0_INTR_VECT);
+	crisv32_unmask_irq(IPI_INTR_VECT);
+	crisv32_unmask_irq(TIMER0_INTR_VECT);
 	preempt_disable();
 	notify_cpu_starting(cpu);
 	local_irq_enable();

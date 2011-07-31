@@ -845,7 +845,7 @@ static int i596_open(struct net_device *dev)
 {
 	int i;
 
-	i = request_irq(dev->irq, &i596_interrupt, IRQF_SHARED, dev->name, dev);
+	i = request_irq(dev->irq, i596_interrupt, IRQF_SHARED, dev->name, dev);
 	if (i) {
 		printk(KERN_ERR "%s: IRQ %d not free\n", dev->name, dev->irq);
 		return i;
@@ -874,8 +874,6 @@ static netdev_tx_t i596_start_xmit (struct sk_buff *skb, struct net_device *dev)
 			return NETDEV_TX_OK;
 		length = ETH_ZLEN;
 	}
-
-	dev->trans_start = jiffies;
 
 	tx_cmd = kmalloc((sizeof (struct tx_cmd) + sizeof (struct i596_tbd)), GFP_ATOMIC);
 	if (tx_cmd == NULL) {
@@ -1253,21 +1251,22 @@ static void set_multicast_list(struct net_device *dev) {
 
 	if (i596_debug > 1)
 		printk ("%s: set multicast list %d\n",
-			dev->name, dev->mc_count);
+			dev->name, netdev_mc_count(dev));
 
-	if (dev->mc_count > 0) {
-		struct dev_mc_list *dmi;
+	if (!netdev_mc_empty(dev)) {
+		struct netdev_hw_addr *ha;
 		char *cp;
-		cmd = kmalloc(sizeof(struct i596_cmd)+2+dev->mc_count*6, GFP_ATOMIC);
+		cmd = kmalloc(sizeof(struct i596_cmd) + 2 +
+			      netdev_mc_count(dev) * 6, GFP_ATOMIC);
 		if (cmd == NULL) {
 			printk (KERN_ERR "%s: set_multicast Memory squeeze.\n", dev->name);
 			return;
 		}
 		cmd->command = CmdMulticastList;
-		*((unsigned short *) (cmd + 1)) = dev->mc_count * 6;
+		*((unsigned short *) (cmd + 1)) = netdev_mc_count(dev) * 6;
 		cp = ((char *)(cmd + 1))+2;
-		for (dmi = dev->mc_list; dmi != NULL; dmi = dmi->next) {
-			memcpy(cp, dmi,6);
+		netdev_for_each_mc_addr(ha, dev) {
+			memcpy(cp, ha->addr, 6);
 			cp += 6;
 		}
 		if (i596_debug & LOG_SRCDST)
@@ -1277,7 +1276,8 @@ static void set_multicast_list(struct net_device *dev) {
 		if (lp->set_conf.pa_next != I596_NULL) {
 			return;
 		}
-		if (dev->mc_count == 0 && !(dev->flags & (IFF_PROMISC | IFF_ALLMULTI))) {
+		if (netdev_mc_empty(dev) &&
+		    !(dev->flags & (IFF_PROMISC | IFF_ALLMULTI))) {
 			lp->i596_config[8] &= ~0x01;
 		} else {
 			lp->i596_config[8] |= 0x01;

@@ -9,6 +9,7 @@ input-core-objs := input.o input-compat.o ff-core.o
 
 obj-$(CONFIG_INPUT_FF_MEMLESS)	+= ff-memless.o
 obj-$(CONFIG_INPUT_POLLDEV)	+= input-polldev.o
+obj-$(CONFIG_INPUT_SPARSEKMAP)	+= sparse-keymap.o
 
 obj-$(CONFIG_INPUT_MOUSEDEV)	+= mousedev.o
 obj-$(CONFIG_INPUT_JOYDEV)	+= joydev.o
@@ -26,6 +27,7 @@ obj-$(CONFIG_INPUT_JOGBALL)	+= jogball/
 obj-$(CONFIG_LIGHT_SENSOR_DEVICE) += lightsensor/
 
 obj-$(CONFIG_INPUT_APMPOWER)	+= apm-power.o
+obj-$(CONFIG_INPUT_KEYRESET)	+= keyreset.o
 
 obj-$(CONFIG_XEN_KBDDEV_FRONTEND)	+= xen-kbdfront.o
 obj-y += magnetometer/

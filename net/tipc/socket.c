@@ -40,9 +40,9 @@
 #include <linux/socket.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/fcntl.h>
+#include <linux/gfp.h>
 #include <asm/string.h>
 #include <asm/atomic.h>
 #include <net/sock.h>
@@ -177,6 +177,7 @@ static void reject_rx_queue(struct sock *sk)
  * @net: network namespace (must be default network)
  * @sock: pre-allocated socket structure
  * @protocol: protocol indicator (must be 0)
+ * @kern: caused by kernel or by userspace?
  *
  * This routine creates additional data structures used by the TIPC socket,
  * initializes them, and links them together.
@@ -184,7 +185,8 @@ static void reject_rx_queue(struct sock *sk)
  * Returns 0 on success, errno otherwise
  */
 
-static int tipc_create(struct net *net, struct socket *sock, int protocol)
+static int tipc_create(struct net *net, struct socket *sock, int protocol,
+		       int kern)
 {
 	const struct proto_ops *ops;
 	socket_state state;
@@ -193,7 +195,7 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol)
 
 	/* Validate arguments */
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		return -EAFNOSUPPORT;
 
 	if (unlikely(protocol != 0))
@@ -444,7 +446,7 @@ static unsigned int poll(struct file *file, struct socket *sock,
 	struct sock *sk = sock->sk;
 	u32 mask;
 
-	poll_wait(file, sk->sk_sleep, wait);
+	poll_wait(file, sk_sleep(sk), wait);
 
 	if (!skb_queue_empty(&sk->sk_receive_queue) ||
 	    (sock->state == SS_UNCONNECTED) ||
@@ -589,7 +591,7 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 			break;
 		}
 		release_sock(sk);
-		res = wait_event_interruptible(*sk->sk_sleep,
+		res = wait_event_interruptible(*sk_sleep(sk),
 					       !tport->congested);
 		lock_sock(sk);
 		if (res)
@@ -648,7 +650,7 @@ static int send_packet(struct kiocb *iocb, struct socket *sock,
 			break;
 		}
 		release_sock(sk);
-		res = wait_event_interruptible(*sk->sk_sleep,
+		res = wait_event_interruptible(*sk_sleep(sk),
 			(!tport->congested || !tport->connected));
 		lock_sock(sk);
 		if (res)
@@ -929,7 +931,7 @@ restart:
 			goto exit;
 		}
 		release_sock(sk);
-		res = wait_event_interruptible(*sk->sk_sleep,
+		res = wait_event_interruptible(*sk_sleep(sk),
 			(!skb_queue_empty(&sk->sk_receive_queue) ||
 			 (sock->state == SS_DISCONNECTING)));
 		lock_sock(sk);
@@ -1062,7 +1064,7 @@ restart:
 			goto exit;
 		}
 		release_sock(sk);
-		res = wait_event_interruptible(*sk->sk_sleep,
+		res = wait_event_interruptible(*sk_sleep(sk),
 			(!skb_queue_empty(&sk->sk_receive_queue) ||
 			 (sock->state == SS_DISCONNECTING)));
 		lock_sock(sk);
@@ -1134,13 +1136,11 @@ restart:
 
 	/* Loop around if more data is required */
 
-	if ((sz_copied < buf_len)    /* didn't get all requested data */
-	    && (!skb_queue_empty(&sk->sk_receive_queue) ||
-		(flags & MSG_WAITALL))
-				     /* ... and more is ready or required */
-	    && (!(flags & MSG_PEEK)) /* ... and aren't just peeking at data */
-	    && (!err)                /* ... and haven't reached a FIN */
-	    )
+	if ((sz_copied < buf_len) &&	/* didn't get all requested data */
+	    (!skb_queue_empty(&sk->sk_receive_queue) ||
+	     (flags & MSG_WAITALL)) &&	/* and more is ready or required */
+	    (!(flags & MSG_PEEK)) &&	/* and aren't just peeking at data */
+	    (!err))			/* and haven't reached a FIN */
 		goto restart;
 
 exit:
@@ -1271,8 +1271,8 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
 		tipc_disconnect_port(tipc_sk_port(sk));
 	}
 
-	if (waitqueue_active(sk->sk_sleep))
-		wake_up_interruptible(sk->sk_sleep);
+	if (waitqueue_active(sk_sleep(sk)))
+		wake_up_interruptible(sk_sleep(sk));
 	return TIPC_OK;
 }
 
@@ -1322,8 +1322,10 @@ static u32 dispatch(struct tipc_port *tport, struct sk_buff *buf)
 	if (!sock_owned_by_user(sk)) {
 		res = filter_rcv(sk, buf);
 	} else {
-		sk_add_backlog(sk, buf);
-		res = TIPC_OK;
+		if (sk_add_backlog(sk, buf))
+			res = TIPC_ERR_OVERLOAD;
+		else
+			res = TIPC_OK;
 	}
 	bh_unlock_sock(sk);
 
@@ -1341,8 +1343,8 @@ static void wakeupdispatch(struct tipc_port *tport)
 {
 	struct sock *sk = (struct sock *)tport->usr_handle;
 
-	if (waitqueue_active(sk->sk_sleep))
-		wake_up_interruptible(sk->sk_sleep);
+	if (waitqueue_active(sk_sleep(sk)))
+		wake_up_interruptible(sk_sleep(sk));
 }
 
 /**
@@ -1424,7 +1426,7 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 	/* Wait until an 'ACK' or 'RST' arrives, or a timeout occurs */
 
 	release_sock(sk);
-	res = wait_event_interruptible_timeout(*sk->sk_sleep,
+	res = wait_event_interruptible_timeout(*sk_sleep(sk),
 			(!skb_queue_empty(&sk->sk_receive_queue) ||
 			(sock->state != SS_CONNECTING)),
 			sk->sk_rcvtimeo);
@@ -1519,7 +1521,7 @@ static int accept(struct socket *sock, struct socket *new_sock, int flags)
 			goto exit;
 		}
 		release_sock(sk);
-		res = wait_event_interruptible(*sk->sk_sleep,
+		res = wait_event_interruptible(*sk_sleep(sk),
 				(!skb_queue_empty(&sk->sk_receive_queue)));
 		lock_sock(sk);
 		if (res)
@@ -1528,7 +1530,7 @@ static int accept(struct socket *sock, struct socket *new_sock, int flags)
 
 	buf = skb_peek(&sk->sk_receive_queue);
 
-	res = tipc_create(sock_net(sock->sk), new_sock, 0);
+	res = tipc_create(sock_net(sock->sk), new_sock, 0, 0);
 	if (!res) {
 		struct sock *new_sk = new_sock->sk;
 		struct tipc_sock *new_tsock = tipc_sk(new_sk);
@@ -1630,8 +1632,8 @@ restart:
 		/* Discard any unreceived messages; wake up sleeping tasks */
 
 		discard_rx_queue(sk);
-		if (waitqueue_active(sk->sk_sleep))
-			wake_up_interruptible(sk->sk_sleep);
+		if (waitqueue_active(sk_sleep(sk)))
+			wake_up_interruptible(sk_sleep(sk));
 		res = 0;
 		break;
 

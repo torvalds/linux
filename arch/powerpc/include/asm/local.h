@@ -24,7 +24,7 @@ static __inline__ long local_add_return(long a, local_t *l)
 	long t;
 
 	__asm__ __volatile__(
-"1:"	PPC_LLARX	"%0,0,%2		# local_add_return\n\
+"1:"	PPC_LLARX(%0,0,%2,0) "			# local_add_return\n\
 	add	%0,%1,%0\n"
 	PPC405_ERR77(0,%2)
 	PPC_STLCX	"%0,0,%2 \n\
@@ -43,7 +43,7 @@ static __inline__ long local_sub_return(long a, local_t *l)
 	long t;
 
 	__asm__ __volatile__(
-"1:"	PPC_LLARX	"%0,0,%2		# local_sub_return\n\
+"1:"	PPC_LLARX(%0,0,%2,0) "			# local_sub_return\n\
 	subf	%0,%1,%0\n"
 	PPC405_ERR77(0,%2)
 	PPC_STLCX	"%0,0,%2 \n\
@@ -60,7 +60,7 @@ static __inline__ long local_inc_return(local_t *l)
 	long t;
 
 	__asm__ __volatile__(
-"1:"	PPC_LLARX	"%0,0,%1		# local_inc_return\n\
+"1:"	PPC_LLARX(%0,0,%1,0) "			# local_inc_return\n\
 	addic	%0,%0,1\n"
 	PPC405_ERR77(0,%1)
 	PPC_STLCX	"%0,0,%1 \n\
@@ -87,7 +87,7 @@ static __inline__ long local_dec_return(local_t *l)
 	long t;
 
 	__asm__ __volatile__(
-"1:"	PPC_LLARX	"%0,0,%1		# local_dec_return\n\
+"1:"	PPC_LLARX(%0,0,%1,0) "			# local_dec_return\n\
 	addic	%0,%0,-1\n"
 	PPC405_ERR77(0,%1)
 	PPC_STLCX	"%0,0,%1\n\
@@ -117,7 +117,7 @@ static __inline__ int local_add_unless(local_t *l, long a, long u)
 	long t;
 
 	__asm__ __volatile__ (
-"1:"	PPC_LLARX	"%0,0,%1		# local_add_unless\n\
+"1:"	PPC_LLARX(%0,0,%1,0) "			# local_add_unless\n\
 	cmpw	0,%0,%3 \n\
 	beq-	2f \n\
 	add	%0,%2,%0 \n"
@@ -147,7 +147,7 @@ static __inline__ long local_dec_if_positive(local_t *l)
 	long t;
 
 	__asm__ __volatile__(
-"1:"	PPC_LLARX	"%0,0,%1		# local_dec_if_positive\n\
+"1:"	PPC_LLARX(%0,0,%1,0) "			# local_dec_if_positive\n\
 	cmpwi	%0,1\n\
 	addi	%0,%0,-1\n\
 	blt-	2f\n"
@@ -171,30 +171,5 @@ static __inline__ long local_dec_if_positive(local_t *l)
 #define __local_dec(l)		((l)->a.counter++)
 #define __local_add(i,l)	((l)->a.counter+=(i))
 #define __local_sub(i,l)	((l)->a.counter-=(i))
-
-/* Need to disable preemption for the cpu local counters otherwise we could
-   still access a variable of a previous CPU in a non atomic way. */
-#define cpu_local_wrap_v(l)	 	\
-	({ local_t res__;		\
-	   preempt_disable(); 		\
-	   res__ = (l);			\
-	   preempt_enable();		\
-	   res__; })
-#define cpu_local_wrap(l)		\
-	({ preempt_disable();		\
-	   l;				\
-	   preempt_enable(); })		\
-
-#define cpu_local_read(l)    cpu_local_wrap_v(local_read(&__get_cpu_var(l)))
-#define cpu_local_set(l, i)  cpu_local_wrap(local_set(&__get_cpu_var(l), (i)))
-#define cpu_local_inc(l)     cpu_local_wrap(local_inc(&__get_cpu_var(l)))
-#define cpu_local_dec(l)     cpu_local_wrap(local_dec(&__get_cpu_var(l)))
-#define cpu_local_add(i, l)  cpu_local_wrap(local_add((i), &__get_cpu_var(l)))
-#define cpu_local_sub(i, l)  cpu_local_wrap(local_sub((i), &__get_cpu_var(l)))
-
-#define __cpu_local_inc(l)	cpu_local_inc(l)
-#define __cpu_local_dec(l)	cpu_local_dec(l)
-#define __cpu_local_add(i, l)	cpu_local_add((i), (l))
-#define __cpu_local_sub(i, l)	cpu_local_sub((i), (l))
 
 #endif /* _ARCH_POWERPC_LOCAL_H */

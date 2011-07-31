@@ -18,6 +18,7 @@
 #include <linux/smp_lock.h>
 #include <linux/file.h>
 #include <linux/vfs.h>
+#include <linux/slab.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -34,7 +35,7 @@
 #include "coda_int.h"
 
 /* VFS super_block ops */
-static void coda_clear_inode(struct inode *);
+static void coda_evict_inode(struct inode *);
 static void coda_put_super(struct super_block *);
 static int coda_statfs(struct dentry *dentry, struct kstatfs *buf);
 
@@ -92,7 +93,7 @@ static const struct super_operations coda_super_operations =
 {
 	.alloc_inode	= coda_alloc_inode,
 	.destroy_inode	= coda_destroy_inode,
-	.clear_inode	= coda_clear_inode,
+	.evict_inode	= coda_evict_inode,
 	.put_super	= coda_put_super,
 	.statfs		= coda_statfs,
 	.remount_fs	= coda_remount,
@@ -166,6 +167,10 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 		return -EBUSY;
 	}
 
+	error = bdi_setup_and_register(&vc->bdi, "coda", BDI_CAP_MAP_COPY);
+	if (error)
+		goto bdi_err;
+
 	vc->vc_sb = sb;
 
 	sb->s_fs_info = vc;
@@ -174,6 +179,7 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_blocksize_bits = 12;
 	sb->s_magic = CODA_SUPER_MAGIC;
 	sb->s_op = &coda_super_operations;
+	sb->s_bdi = &vc->bdi;
 
 	/* get root fid from Venus: this needs the root inode */
 	error = venus_rootfid(sb, &fid);
@@ -199,6 +205,8 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
         return 0;
 
  error:
+	bdi_destroy(&vc->bdi);
+ bdi_err:
 	if (root)
 		iput(root);
 	if (vc)
@@ -209,14 +217,17 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 
 static void coda_put_super(struct super_block *sb)
 {
+	bdi_destroy(&coda_vcp(sb)->bdi);
 	coda_vcp(sb)->vc_sb = NULL;
 	sb->s_fs_info = NULL;
 
 	printk("Coda: Bye bye.\n");
 }
 
-static void coda_clear_inode(struct inode *inode)
+static void coda_evict_inode(struct inode *inode)
 {
+	truncate_inode_pages(&inode->i_data, 0);
+	end_writeback(inode);
 	coda_cache_clear_inode(inode);
 }
 

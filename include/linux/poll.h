@@ -10,8 +10,10 @@
 #include <linux/wait.h>
 #include <linux/string.h>
 #include <linux/fs.h>
+#include <linux/sysctl.h>
 #include <asm/uaccess.h>
 
+extern struct ctl_table epoll_table[]; /* for sysctl */
 /* ~832 bytes of stack space used max in sys_select/sys_poll before allocating
    additional memory. */
 #define MAX_STACK_ALLOC 832
@@ -71,6 +73,8 @@ extern void poll_initwait(struct poll_wqueues *pwq);
 extern void poll_freewait(struct poll_wqueues *pwq);
 extern int poll_schedule_timeout(struct poll_wqueues *pwq, int state,
 				 ktime_t *expires, unsigned long slack);
+extern long select_estimate_accuracy(struct timespec *tv);
+
 
 static inline int poll_schedule(struct poll_wqueues *pwq, int state)
 {

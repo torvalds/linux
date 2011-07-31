@@ -104,6 +104,8 @@
 #include <linux/io.h>
 #include <asm/system.h>
 #include <linux/uaccess.h>
+#include <linux/kdb.h>
+#include <linux/ctype.h>
 
 #define MAX_NR_CON_DRIVER 16
 
@@ -161,6 +163,11 @@ static void set_palette(struct vc_data *vc);
 static int printable;		/* Is console ready for printing? */
 int default_utf8 = true;
 module_param(default_utf8, int, S_IRUGO | S_IWUSR);
+int global_cursor_default = -1;
+module_param(global_cursor_default, int, S_IRUGO | S_IWUSR);
+
+static int cur_default = CUR_DEFAULT;
+module_param(cur_default, int, S_IRUGO | S_IWUSR);
 
 /*
  * ignore_poke: don't unblank the screen when things are typed.  This is
@@ -182,12 +189,16 @@ static DECLARE_WORK(console_work, console_callback);
  * fg_console is the current virtual console,
  * last_console is the last used one,
  * want_console is the console we want to switch to,
- * kmsg_redirect is the console for kernel messages,
+ * saved_* variants are for save/restore around kernel debugger enter/leave
  */
 int fg_console;
 int last_console;
 int want_console = -1;
-int kmsg_redirect;
+static int saved_fg_console;
+static int saved_last_console;
+static int saved_want_console;
+static int saved_vc_mode;
+static int saved_console_blanked;
 
 /*
  * For each existing display, we have a pointer to console currently visible
@@ -277,8 +288,12 @@ static inline unsigned short *screenpos(struct vc_data *vc, int offset, int view
 	return p;
 }
 
+/* Called  from the keyboard irq path.. */
 static inline void scrolldelta(int lines)
 {
+	/* FIXME */
+	/* scrolldelta needs some kind of consistency lock, but the BKL was
+	   and still is not protecting versus the scheduled back end */
 	scrollback_delta += lines;
 	schedule_console_callback();
 }
@@ -695,7 +710,10 @@ void redraw_screen(struct vc_data *vc, int is_switch)
 			update_attr(vc);
 			clear_buffer_attributes(vc);
 		}
-		if (update && vc->vc_mode != KD_GRAPHICS)
+
+		/* Forcibly update if we're panicing */
+		if ((update && vc->vc_mode != KD_GRAPHICS) ||
+		    vt_force_oops_output(vc))
 			do_update_region(vc, vc->vc_origin, vc->vc_screenbuf_size / 2);
 	}
 	set_cursor(vc);
@@ -733,6 +751,7 @@ static void visual_init(struct vc_data *vc, int num, int init)
 	vc->vc_hi_font_mask = 0;
 	vc->vc_complement_mask = 0;
 	vc->vc_can_do_color = 0;
+	vc->vc_panic_force_write = false;
 	vc->vc_sw->con_init(vc, init);
 	if (!vc->vc_complement_mask)
 		vc->vc_complement_mask = vc->vc_can_do_color ? 0x7700 : 0x0800;
@@ -765,6 +784,7 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 	    if (!vc)
 		return -ENOMEM;
 	    vc_cons[currcons].d = vc;
+	    tty_port_init(&vc->port);
 	    INIT_WORK(&vc_cons[currcons].SAK_work, vc_SAK);
 	    visual_init(vc, currcons, 1);
 	    if (!*vc->vc_uni_pagedir_loc)
@@ -775,6 +795,12 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 		vc_cons[currcons].d = NULL;
 		return -ENOMEM;
 	    }
+
+	    /* If no drivers have overridden us and the user didn't pass a
+	       boot option, default to displaying the cursor */
+	    if (global_cursor_default == -1)
+		    global_cursor_default = 1;
+
 	    vc_init(vc, vc->vc_rows, vc->vc_cols, 1);
 	    vcs_make_sysfs(currcons);
 	    atomic_notifier_call_chain(&vt_notifier_list, VT_ALLOCATE, &param);
@@ -812,7 +838,7 @@ static inline int resize_screen(struct vc_data *vc, int width, int height,
  *
  *	Resize a virtual console, clipping according to the actual constraints.
  *	If the caller passes a tty structure then update the termios winsize
- *	information and perform any neccessary signal handling.
+ *	information and perform any necessary signal handling.
  *
  *	Caller must hold the console semaphore. Takes the termios mutex and
  *	ctrl_lock of the tty IFF a tty is passed.
@@ -822,9 +848,10 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 				unsigned int cols, unsigned int lines)
 {
 	unsigned long old_origin, new_origin, new_scr_end, rlth, rrem, err = 0;
+	unsigned long end;
 	unsigned int old_cols, old_rows, old_row_size, old_screen_size;
 	unsigned int new_cols, new_rows, new_row_size, new_screen_size;
-	unsigned int end, user;
+	unsigned int user;
 	unsigned short *newscreen;
 
 	WARN_CONSOLE_UNLOCKED();
@@ -879,22 +906,16 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 			 * bottom of buffer
 			 */
 			old_origin += (old_rows - new_rows) * old_row_size;
-			end = vc->vc_scr_end;
 		} else {
 			/*
 			 * Cursor is in no man's land, copy 1/2 screenful
 			 * from the top and bottom of cursor position
 			 */
 			old_origin += (vc->vc_y - new_rows/2) * old_row_size;
-			end = old_origin + (old_row_size * new_rows);
 		}
-	} else
-		/*
-		 * Cursor near the top, copy contents from the top of buffer
-		 */
-		end = (old_rows > new_rows) ? old_origin +
-			(old_row_size * new_rows) :
-			vc->vc_scr_end;
+	}
+
+	end = old_origin + old_row_size * min(old_rows, new_rows);
 
 	update_attr(vc);
 
@@ -947,12 +968,12 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
  *	Resize a virtual console as seen from the console end of things. We
  *	use the common vc_do_resize methods to update the structures. The
  *	caller must hold the console sem to protect console internals and
- *	vc->vc_tty
+ *	vc->port.tty
  */
 
 int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int rows)
 {
-	return vc_do_resize(vc->vc_tty, vc, cols, rows);
+	return vc_do_resize(vc->port.tty, vc, cols, rows);
 }
 
 /**
@@ -1616,7 +1637,7 @@ static void reset_terminal(struct vc_data *vc, int do_clear)
 	vc->vc_decscnm		= 0;
 	vc->vc_decom		= 0;
 	vc->vc_decawm		= 1;
-	vc->vc_deccm		= 1;
+	vc->vc_deccm		= global_cursor_default;
 	vc->vc_decim		= 0;
 
 	set_kbd(vc, decarm);
@@ -1630,7 +1651,7 @@ static void reset_terminal(struct vc_data *vc, int do_clear)
 	/* do not do set_leds here because this causes an endless tasklet loop
 	   when the keyboard hasn't been initialized yet */
 
-	vc->vc_cursor_type = CUR_DEFAULT;
+	vc->vc_cursor_type = cur_default;
 	vc->vc_complement_mask = vc->vc_s_complement_mask;
 
 	default_attr(vc);
@@ -1780,8 +1801,8 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			vc->vc_state = ESnormal;
 		return;
 	case ESpalette:
-		if ( (c>='0'&&c<='9') || (c>='A'&&c<='F') || (c>='a'&&c<='f') ) {
-			vc->vc_par[vc->vc_npar++] = (c > '9' ? (c & 0xDF) - 'A' + 10 : c - '0');
+		if (isxdigit(c)) {
+			vc->vc_par[vc->vc_npar++] = hex_to_bin(c);
 			if (vc->vc_npar == 7) {
 				int i = vc->vc_par[0] * 3, j = 1;
 				vc->vc_palette[i] = 16 * vc->vc_par[j++];
@@ -1832,7 +1853,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 				if (vc->vc_par[0])
 					vc->vc_cursor_type = vc->vc_par[0] | (vc->vc_par[1] << 8) | (vc->vc_par[2] << 16);
 				else
-					vc->vc_cursor_type = CUR_DEFAULT;
+					vc->vc_cursor_type = cur_default;
 				return;
 			}
 			break;
@@ -2110,8 +2131,6 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 	uint8_t inverse;
 	uint8_t width;
 	u16 himask, charmask;
-	const unsigned char *orig_buf = NULL;
-	int orig_count;
 
 	if (in_interrupt())
 		return count;
@@ -2133,8 +2152,6 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 	    release_console_sem();
 	    return 0;
 	}
-	orig_buf = buf;
-	orig_count = count;
 
 	himask = vc->vc_hi_font_mask;
 	charmask = himask ? 0x1ff : 0xff;
@@ -2426,6 +2443,37 @@ struct tty_driver *console_driver;
 
 #ifdef CONFIG_VT_CONSOLE
 
+/**
+ * vt_kmsg_redirect() - Sets/gets the kernel message console
+ * @new:	The new virtual terminal number or -1 if the console should stay
+ * 		unchanged
+ *
+ * By default, the kernel messages are always printed on the current virtual
+ * console. However, the user may modify that default with the
+ * TIOCL_SETKMSGREDIRECT ioctl call.
+ *
+ * This function sets the kernel message console to be @new. It returns the old
+ * virtual console number. The virtual terminal number 0 (both as parameter and
+ * return value) means no redirection (i.e. always printed on the currently
+ * active console).
+ *
+ * The parameter -1 means that only the current console is returned, but the
+ * value is not modified. You may use the macro vt_get_kmsg_redirect() in that
+ * case to make the code more understandable.
+ *
+ * When the kernel is compiled without CONFIG_VT_CONSOLE, this function ignores
+ * the parameter and always returns 0.
+ */
+int vt_kmsg_redirect(int new)
+{
+	static int kmsg_con;
+
+	if (new != -1)
+		return xchg(&kmsg_con, new);
+	else
+		return kmsg_con;
+}
+
 /*
  *	Console on virtual terminal
  *
@@ -2440,6 +2488,7 @@ static void vt_console_print(struct console *co, const char *b, unsigned count)
 	const ushort *start;
 	ushort cnt = 0;
 	ushort myx;
+	int kmsg_console;
 
 	/* console busy or not yet initialized */
 	if (!printable)
@@ -2447,8 +2496,9 @@ static void vt_console_print(struct console *co, const char *b, unsigned count)
 	if (!spin_trylock(&printing_lock))
 		return;
 
-	if (kmsg_redirect && vc_cons_allocated(kmsg_redirect - 1))
-		vc = vc_cons[kmsg_redirect - 1].d;
+	kmsg_console = vt_get_kmsg_redirect();
+	if (kmsg_console && vc_cons_allocated(kmsg_console - 1))
+		vc = vc_cons[kmsg_console - 1].d;
 
 	/* read `x' only after setting currcons properly (otherwise
 	   the `x' macro will read the x of the foreground console). */
@@ -2460,7 +2510,7 @@ static void vt_console_print(struct console *co, const char *b, unsigned count)
 		goto quit;
 	}
 
-	if (vc->vc_mode != KD_TEXT)
+	if (vc->vc_mode != KD_TEXT && !vt_force_oops_output(vc))
 		goto quit;
 
 	/* undraw cursor first */
@@ -2566,8 +2616,6 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 		return -EFAULT;
 	ret = 0;
 
-	lock_kernel();
-
 	switch (type)
 	{
 		case TIOCL_SETSEL:
@@ -2605,7 +2653,7 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 			ret = set_vesa_blanking(p);
 			break;
 		case TIOCL_GETKMSGREDIRECT:
-			data = kmsg_redirect;
+			data = vt_get_kmsg_redirect();
 			ret = __put_user(data, p);
 			break;
 		case TIOCL_SETKMSGREDIRECT:
@@ -2615,7 +2663,7 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 				if (get_user(data, p+1))
 					ret = -EFAULT;
 				else
-					kmsg_redirect = data;
+					vt_kmsg_redirect(data);
 			}
 			break;
 		case TIOCL_GETFGCONSOLE:
@@ -2642,7 +2690,6 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 			ret = -EINVAL;
 			break;
 	}
-	unlock_kernel();
 	return ret;
 }
 
@@ -2755,12 +2802,12 @@ static int con_open(struct tty_struct *tty, struct file *filp)
 			struct vc_data *vc = vc_cons[currcons].d;
 
 			/* Still being freed */
-			if (vc->vc_tty) {
+			if (vc->port.tty) {
 				release_console_sem();
 				return -ERESTARTSYS;
 			}
 			tty->driver_data = vc;
-			vc->vc_tty = tty;
+			vc->port.tty = tty;
 
 			if (!tty->winsize.ws_row && !tty->winsize.ws_col) {
 				tty->winsize.ws_row = vc_cons[currcons].d->vc_rows;
@@ -2788,7 +2835,7 @@ static void con_shutdown(struct tty_struct *tty)
 	struct vc_data *vc = tty->driver_data;
 	BUG_ON(vc == NULL);
 	acquire_console_sem();
-	vc->vc_tty = NULL;
+	vc->port.tty = NULL;
 	release_console_sem();
 	tty_shutdown(tty);
 }
@@ -2870,6 +2917,7 @@ static int __init con_init(void)
 	for (currcons = 0; currcons < MIN_NR_CONSOLES; currcons++) {
 		vc_cons[currcons].d = vc = kzalloc(sizeof(struct vc_data), GFP_NOWAIT);
 		INIT_WORK(&vc_cons[currcons].SAK_work, vc_SAK);
+		tty_port_init(&vc->port);
 		visual_init(vc, currcons, 1);
 		vc->vc_screenbuf = kzalloc(vc->vc_screenbuf_size, GFP_NOWAIT);
 		vc_init(vc, vc->vc_rows, vc->vc_cols,
@@ -3376,6 +3424,80 @@ int con_is_bound(const struct consw *csw)
 EXPORT_SYMBOL(con_is_bound);
 
 /**
+ * con_debug_enter - prepare the console for the kernel debugger
+ * @sw: console driver
+ *
+ * Called when the console is taken over by the kernel debugger, this
+ * function needs to save the current console state, then put the console
+ * into a state suitable for the kernel debugger.
+ *
+ * RETURNS:
+ * Zero on success, nonzero if a failure occurred when trying to prepare
+ * the console for the debugger.
+ */
+int con_debug_enter(struct vc_data *vc)
+{
+	int ret = 0;
+
+	saved_fg_console = fg_console;
+	saved_last_console = last_console;
+	saved_want_console = want_console;
+	saved_vc_mode = vc->vc_mode;
+	saved_console_blanked = console_blanked;
+	vc->vc_mode = KD_TEXT;
+	console_blanked = 0;
+	if (vc->vc_sw->con_debug_enter)
+		ret = vc->vc_sw->con_debug_enter(vc);
+#ifdef CONFIG_KGDB_KDB
+	/* Set the initial LINES variable if it is not already set */
+	if (vc->vc_rows < 999) {
+		int linecount;
+		char lns[4];
+		const char *setargs[3] = {
+			"set",
+			"LINES",
+			lns,
+		};
+		if (kdbgetintenv(setargs[0], &linecount)) {
+			snprintf(lns, 4, "%i", vc->vc_rows);
+			kdb_set(2, setargs);
+		}
+	}
+#endif /* CONFIG_KGDB_KDB */
+	return ret;
+}
+EXPORT_SYMBOL_GPL(con_debug_enter);
+
+/**
+ * con_debug_leave - restore console state
+ * @sw: console driver
+ *
+ * Restore the console state to what it was before the kernel debugger
+ * was invoked.
+ *
+ * RETURNS:
+ * Zero on success, nonzero if a failure occurred when trying to restore
+ * the console.
+ */
+int con_debug_leave(void)
+{
+	struct vc_data *vc;
+	int ret = 0;
+
+	fg_console = saved_fg_console;
+	last_console = saved_last_console;
+	want_console = saved_want_console;
+	console_blanked = saved_console_blanked;
+	vc_cons[fg_console].d->vc_mode = saved_vc_mode;
+
+	vc = vc_cons[fg_console].d;
+	if (vc->vc_sw->con_debug_leave)
+		ret = vc->vc_sw->con_debug_leave(vc);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(con_debug_leave);
+
+/**
  * register_con_driver - register console driver to console layer
  * @csw: console driver
  * @first: the first console to take over, minimum value is 0
@@ -3665,7 +3787,8 @@ void do_unblank_screen(int leaving_gfx)
 		return;
 	}
 	vc = vc_cons[fg_console].d;
-	if (vc->vc_mode != KD_TEXT)
+	/* Try to unblank in oops case too */
+	if (vc->vc_mode != KD_TEXT && !vt_force_oops_output(vc))
 		return; /* but leave console_blanked != 0 */
 
 	if (blankinterval) {
@@ -3674,7 +3797,7 @@ void do_unblank_screen(int leaving_gfx)
 	}
 
 	console_blanked = 0;
-	if (vc->vc_sw->con_blank(vc, 0, leaving_gfx))
+	if (vc->vc_sw->con_blank(vc, 0, leaving_gfx) || vt_force_oops_output(vc))
 		/* Low-level driver cannot restore -> do it ourselves */
 		update_screen(vc);
 	if (console_blank_hook)
@@ -3929,13 +4052,9 @@ static int con_font_set(struct vc_data *vc, struct console_font_op *op)
 	font.charcount = op->charcount;
 	font.height = op->height;
 	font.width = op->width;
-	font.data = kmalloc(size, GFP_KERNEL);
-	if (!font.data)
-		return -ENOMEM;
-	if (copy_from_user(font.data, op->data, size)) {
-		kfree(font.data);
-		return -EFAULT;
-	}
+	font.data = memdup_user(op->data, size);
+	if (IS_ERR(font.data))
+		return PTR_ERR(font.data);
 	acquire_console_sem();
 	if (vc->vc_sw->con_font_set)
 		rc = vc->vc_sw->con_font_set(vc, &font, op->flags);
@@ -4078,6 +4197,7 @@ EXPORT_SYMBOL(fg_console);
 EXPORT_SYMBOL(console_blank_hook);
 EXPORT_SYMBOL(console_blanked);
 EXPORT_SYMBOL(vc_cons);
+EXPORT_SYMBOL(global_cursor_default);
 #ifndef VT_SINGLE_DRIVER
 EXPORT_SYMBOL(take_over_console);
 EXPORT_SYMBOL(give_up_console);

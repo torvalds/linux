@@ -1,0 +1,50 @@
+Kernel driver mc13783-adc
+=========================
+
+Supported chips:
+  * Freescale Atlas MC13783
+    Prefix: 'mc13783_adc'
+    Datasheet: http://www.freescale.com/files/rf_if/doc/data_sheet/MC13783.pdf?fsrch=1
+
+Authors:
+    Sascha Hauer <s.hauer@pengutronix.de>
+    Luotao Fu <l.fu@pengutronix.de>
+
+Description
+-----------
+
+The Freescale MC13783 is a Power Management and Audio Circuit. Among
+other things it contains a 10-bit A/D converter. The converter has 16
+channels which can be used in different modes.
+The A/D converter has a resolution of 2.25mV. Channels 0-4 have
+a dedicated meaning with chip internal scaling applied. Channels 5-7
+can be used as general purpose inputs or alternatively in a dedicated
+mode. Channels 12-15 are occupied by the touchscreen if it's active.
+
+Currently the driver only supports channels 2 and 5-15 with no alternative
+modes for channels 5-7.
+
+See this table for the meaning of the different channels and their chip
+internal scaling:
+
+Channel	Signal						Input Range	Scaling
+-------------------------------------------------------------------------------
+0	Battery Voltage (BATT)				2.50 - 4.65V	-2.40V
+1	Battery Current (BATT - BATTISNS)		-50 - 50 mV	x20
+2	Application Supply (BP)				2.50 - 4.65V	-2.40V
+3	Charger Voltage (CHRGRAW)			0 - 10V /	/5
+							0 - 20V		/10
+4	Charger Current (CHRGISNSP-CHRGISNSN)		-0.25V - 0.25V	x4
+5	General Purpose ADIN5 / Battery Pack Thermistor	0 - 2.30V	No
+6	General Purpose ADIN6 / Backup Voltage (LICELL)	0 - 2.30V /	No /
+							1.50 - 3.50V	-1.20V
+7	General Purpose ADIN7 / UID / Die Temperature	0 - 2.30V /	No /
+							0 - 2.55V /	x0.9 / No
+8	General Purpose ADIN8				0 - 2.30V	No
+9	General Purpose ADIN9				0 - 2.30V	No
+10	General Purpose ADIN10				0 - 2.30V	No
+11	General Purpose ADIN11				0 - 2.30V	No
+12	General Purpose TSX1 / Touchscreen X-plate 1	0 - 2.30V	No
+13	General Purpose TSX2 / Touchscreen X-plate 2	0 - 2.30V	No
+14	General Purpose TSY1 / Touchscreen Y-plate 1	0 - 2.30V	No
+15	General Purpose TSY2 / Touchscreen Y-plate 2	0 - 2.30V	No

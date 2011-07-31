@@ -542,7 +542,7 @@ __head_end:
 	.size		_boot, .-_boot
 
 	# provide a point for GDB to place a break
-	.section	.text.start,"ax"
+	.section	.text..start,"ax"
 	.globl		_start
 	.balign		4
 _start:

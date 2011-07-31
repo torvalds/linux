@@ -16,17 +16,21 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/security.h>
+#include <linux/ima.h>
 
 /* Boot-time LSM user choice */
-static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1];
+static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1] =
+	CONFIG_DEFAULT_SECURITY;
 
 /* things that live in capability.c */
-extern struct security_operations default_security_ops;
-extern void security_fixup_ops(struct security_operations *ops);
+extern void __init security_fixup_ops(struct security_operations *ops);
 
-struct security_operations *security_ops;	/* Initialized to NULL */
+static struct security_operations *security_ops;
+static struct security_operations default_security_ops = {
+	.name	= "default",
+};
 
-static inline int verify(struct security_operations *ops)
+static inline int __init verify(struct security_operations *ops)
 {
 	/* verify the security_operations structure exists */
 	if (!ops)
@@ -61,6 +65,11 @@ int __init security_init(void)
 	return 0;
 }
 
+void reset_security_ops(void)
+{
+	security_ops = &default_security_ops;
+}
+
 /* Save user chosen LSM */
 static int __init choose_lsm(char *str)
 {
@@ -79,8 +88,10 @@ __setup("security=", choose_lsm);
  *
  * Return true if:
  *	-The passed LSM is the one chosen by user at boot time,
- *	-or user didn't specify a specific LSM and we're the first to ask
- *	 for registration permission,
+ *	-or the passed LSM is configured as the default and the user did not
+ *	 choose an alternate LSM at boot time,
+ *	-or there is no default LSM set and the user didn't specify a
+ *	 specific LSM and we're the first to ask for registration permission,
  *	-or the passed LSM is currently loaded.
  * Otherwise, return false.
  */
@@ -106,7 +117,7 @@ int __init security_module_enable(struct security_operations *ops)
  * If there is already a security module registered with the kernel,
  * an error will be returned.  Otherwise %0 is returned on success.
  */
-int register_security(struct security_operations *ops)
+int __init register_security(struct security_operations *ops)
 {
 	if (verify(ops)) {
 		printk(KERN_DEBUG "%s could not verify "
@@ -179,11 +190,6 @@ int security_real_capable_noaudit(struct task_struct *tsk, int cap)
 	return ret;
 }
 
-int security_acct(struct file *file)
-{
-	return security_ops->acct(file);
-}
-
 int security_sysctl(struct ctl_table *table, int op)
 {
 	return security_ops->sysctl(table, op);
@@ -199,9 +205,9 @@ int security_quota_on(struct dentry *dentry)
 	return security_ops->quota_on(dentry);
 }
 
-int security_syslog(int type)
+int security_syslog(int type, bool from_file)
 {
-	return security_ops->syslog(type);
+	return security_ops->syslog(type, from_file);
 }
 
 int security_settime(struct timespec *ts, struct timezone *tz)
@@ -235,7 +241,12 @@ int security_bprm_set_creds(struct linux_binprm *bprm)
 
 int security_bprm_check(struct linux_binprm *bprm)
 {
-	return security_ops->bprm_check_security(bprm);
+	int ret;
+
+	ret = security_ops->bprm_check_security(bprm);
+	if (ret)
+		return ret;
+	return ima_bprm_check(bprm);
 }
 
 void security_bprm_committing_creds(struct linux_binprm *bprm)
@@ -290,44 +301,14 @@ int security_sb_mount(char *dev_name, struct path *path,
 	return security_ops->sb_mount(dev_name, path, type, flags, data);
 }
 
-int security_sb_check_sb(struct vfsmount *mnt, struct path *path)
-{
-	return security_ops->sb_check_sb(mnt, path);
-}
-
 int security_sb_umount(struct vfsmount *mnt, int flags)
 {
 	return security_ops->sb_umount(mnt, flags);
 }
 
-void security_sb_umount_close(struct vfsmount *mnt)
-{
-	security_ops->sb_umount_close(mnt);
-}
-
-void security_sb_umount_busy(struct vfsmount *mnt)
-{
-	security_ops->sb_umount_busy(mnt);
-}
-
-void security_sb_post_remount(struct vfsmount *mnt, unsigned long flags, void *data)
-{
-	security_ops->sb_post_remount(mnt, flags, data);
-}
-
-void security_sb_post_addmount(struct vfsmount *mnt, struct path *mountpoint)
-{
-	security_ops->sb_post_addmount(mnt, mountpoint);
-}
-
 int security_sb_pivotroot(struct path *old_path, struct path *new_path)
 {
 	return security_ops->sb_pivotroot(old_path, new_path);
-}
-
-void security_sb_post_pivotroot(struct path *old_path, struct path *new_path)
-{
-	security_ops->sb_post_pivotroot(old_path, new_path);
 }
 
 int security_sb_set_mnt_opts(struct super_block *sb,
@@ -352,12 +333,21 @@ EXPORT_SYMBOL(security_sb_parse_opts_str);
 
 int security_inode_alloc(struct inode *inode)
 {
+	int ret;
+
 	inode->i_security = NULL;
-	return security_ops->inode_alloc_security(inode);
+	ret =  security_ops->inode_alloc_security(inode);
+	if (ret)
+		return ret;
+	ret = ima_inode_alloc(inode);
+	if (ret)
+		security_inode_free(inode);
+	return ret;
 }
 
 void security_inode_free(struct inode *inode)
 {
+	ima_inode_free(inode);
 	security_ops->inode_free_security(inode);
 }
 
@@ -371,42 +361,42 @@ int security_inode_init_security(struct inode *inode, struct inode *dir,
 EXPORT_SYMBOL(security_inode_init_security);
 
 #ifdef CONFIG_SECURITY_PATH
-int security_path_mknod(struct path *path, struct dentry *dentry, int mode,
+int security_path_mknod(struct path *dir, struct dentry *dentry, int mode,
 			unsigned int dev)
 {
-	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(dir->dentry->d_inode)))
 		return 0;
-	return security_ops->path_mknod(path, dentry, mode, dev);
+	return security_ops->path_mknod(dir, dentry, mode, dev);
 }
 EXPORT_SYMBOL(security_path_mknod);
 
-int security_path_mkdir(struct path *path, struct dentry *dentry, int mode)
+int security_path_mkdir(struct path *dir, struct dentry *dentry, int mode)
 {
-	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(dir->dentry->d_inode)))
 		return 0;
-	return security_ops->path_mkdir(path, dentry, mode);
+	return security_ops->path_mkdir(dir, dentry, mode);
 }
 
-int security_path_rmdir(struct path *path, struct dentry *dentry)
+int security_path_rmdir(struct path *dir, struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(dir->dentry->d_inode)))
 		return 0;
-	return security_ops->path_rmdir(path, dentry);
+	return security_ops->path_rmdir(dir, dentry);
 }
 
-int security_path_unlink(struct path *path, struct dentry *dentry)
+int security_path_unlink(struct path *dir, struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(dir->dentry->d_inode)))
 		return 0;
-	return security_ops->path_unlink(path, dentry);
+	return security_ops->path_unlink(dir, dentry);
 }
 
-int security_path_symlink(struct path *path, struct dentry *dentry,
+int security_path_symlink(struct path *dir, struct dentry *dentry,
 			  const char *old_name)
 {
-	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(dir->dentry->d_inode)))
 		return 0;
-	return security_ops->path_symlink(path, dentry, old_name);
+	return security_ops->path_symlink(dir, dentry, old_name);
 }
 
 int security_path_link(struct dentry *old_dentry, struct path *new_dir,
@@ -427,12 +417,31 @@ int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
 					 new_dentry);
 }
 
-int security_path_truncate(struct path *path, loff_t length,
-			   unsigned int time_attrs)
+int security_path_truncate(struct path *path)
 {
 	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
 		return 0;
-	return security_ops->path_truncate(path, length, time_attrs);
+	return security_ops->path_truncate(path);
+}
+
+int security_path_chmod(struct dentry *dentry, struct vfsmount *mnt,
+			mode_t mode)
+{
+	if (unlikely(IS_PRIVATE(dentry->d_inode)))
+		return 0;
+	return security_ops->path_chmod(dentry, mnt, mode);
+}
+
+int security_path_chown(struct path *path, uid_t uid, gid_t gid)
+{
+	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+		return 0;
+	return security_ops->path_chown(path, uid, gid);
+}
+
+int security_path_chroot(struct path *path)
+{
+	return security_ops->path_chroot(path);
 }
 #endif
 
@@ -535,13 +544,6 @@ int security_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
 	return security_ops->inode_getattr(mnt, dentry);
 }
 
-void security_inode_delete(struct inode *inode)
-{
-	if (unlikely(IS_PRIVATE(inode)))
-		return;
-	security_ops->inode_delete(inode);
-}
-
 int security_inode_setxattr(struct dentry *dentry, const char *name,
 			    const void *value, size_t size, int flags)
 {
@@ -592,14 +594,14 @@ int security_inode_killpriv(struct dentry *dentry)
 int security_inode_getsecurity(const struct inode *inode, const char *name, void **buffer, bool alloc)
 {
 	if (unlikely(IS_PRIVATE(inode)))
-		return 0;
+		return -EOPNOTSUPP;
 	return security_ops->inode_getsecurity(inode, name, buffer, alloc);
 }
 
 int security_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags)
 {
 	if (unlikely(IS_PRIVATE(inode)))
-		return 0;
+		return -EOPNOTSUPP;
 	return security_ops->inode_setsecurity(inode, name, value, size, flags);
 }
 
@@ -617,7 +619,13 @@ void security_inode_getsecid(const struct inode *inode, u32 *secid)
 
 int security_file_permission(struct file *file, int mask)
 {
-	return security_ops->file_permission(file, mask);
+	int ret;
+
+	ret = security_ops->file_permission(file, mask);
+	if (ret)
+		return ret;
+
+	return fsnotify_perm(file, mask);
 }
 
 int security_file_alloc(struct file *file)
@@ -639,7 +647,12 @@ int security_file_mmap(struct file *file, unsigned long reqprot,
 			unsigned long prot, unsigned long flags,
 			unsigned long addr, unsigned long addr_only)
 {
-	return security_ops->file_mmap(file, reqprot, prot, flags, addr, addr_only);
+	int ret;
+
+	ret = security_ops->file_mmap(file, reqprot, prot, flags, addr, addr_only);
+	if (ret)
+		return ret;
+	return ima_file_mmap(file, prot);
 }
 
 int security_file_mprotect(struct vm_area_struct *vma, unsigned long reqprot,
@@ -676,7 +689,13 @@ int security_file_receive(struct file *file)
 
 int security_dentry_open(struct file *file, const struct cred *cred)
 {
-	return security_ops->dentry_open(file, cred);
+	int ret;
+
+	ret = security_ops->dentry_open(file, cred);
+	if (ret)
+		return ret;
+
+	return fsnotify_perm(file, MAY_OPEN);
 }
 
 int security_task_create(unsigned long clone_flags)
@@ -699,11 +718,6 @@ int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp)
 	return security_ops->cred_prepare(new, old, gfp);
 }
 
-void security_commit_creds(struct cred *new, const struct cred *old)
-{
-	security_ops->cred_commit(new, old);
-}
-
 void security_transfer_creds(struct cred *new, const struct cred *old)
 {
 	security_ops->cred_transfer(new, old);
@@ -719,25 +733,15 @@ int security_kernel_create_files_as(struct cred *new, struct inode *inode)
 	return security_ops->kernel_create_files_as(new, inode);
 }
 
-int security_kernel_module_request(void)
+int security_kernel_module_request(char *kmod_name)
 {
-	return security_ops->kernel_module_request();
-}
-
-int security_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags)
-{
-	return security_ops->task_setuid(id0, id1, id2, flags);
+	return security_ops->kernel_module_request(kmod_name);
 }
 
 int security_task_fix_setuid(struct cred *new, const struct cred *old,
 			     int flags)
 {
 	return security_ops->task_fix_setuid(new, old, flags);
-}
-
-int security_task_setgid(gid_t id0, gid_t id1, gid_t id2, int flags)
-{
-	return security_ops->task_setgid(id0, id1, id2, flags);
 }
 
 int security_task_setpgid(struct task_struct *p, pid_t pgid)
@@ -761,11 +765,6 @@ void security_task_getsecid(struct task_struct *p, u32 *secid)
 }
 EXPORT_SYMBOL(security_task_getsecid);
 
-int security_task_setgroups(struct group_info *group_info)
-{
-	return security_ops->task_setgroups(group_info);
-}
-
 int security_task_setnice(struct task_struct *p, int nice)
 {
 	return security_ops->task_setnice(p, nice);
@@ -781,9 +780,10 @@ int security_task_getioprio(struct task_struct *p)
 	return security_ops->task_getioprio(p);
 }
 
-int security_task_setrlimit(unsigned int resource, struct rlimit *new_rlim)
+int security_task_setrlimit(struct task_struct *p, unsigned int resource,
+		struct rlimit *new_rlim)
 {
-	return security_ops->task_setrlimit(resource, new_rlim);
+	return security_ops->task_setrlimit(p, resource, new_rlim);
 }
 
 int security_task_setscheduler(struct task_struct *p,
@@ -1267,13 +1267,6 @@ int security_key_permission(key_ref_t key_ref,
 int security_key_getsecurity(struct key *key, char **_buffer)
 {
 	return security_ops->key_getsecurity(key, _buffer);
-}
-
-int security_key_session_to_parent(const struct cred *cred,
-				   const struct cred *parent_cred,
-				   struct key *key)
-{
-	return security_ops->key_session_to_parent(cred, parent_cred, key);
 }
 
 #endif	/* CONFIG_KEYS */

@@ -12,8 +12,6 @@ u32 read_pci_config(u8 bus, u8 slot, u8 func, u8 offset)
 	u32 v;
 	outl(0x80000000 | (bus<<16) | (slot<<11) | (func<<8) | offset, 0xcf8);
 	v = inl(0xcfc);
-	if (v != 0xffffffff)
-		pr_debug("%x reading 4 from %x: %x\n", slot, offset, v);
 	return v;
 }
 
@@ -22,7 +20,6 @@ u8 read_pci_config_byte(u8 bus, u8 slot, u8 func, u8 offset)
 	u8 v;
 	outl(0x80000000 | (bus<<16) | (slot<<11) | (func<<8) | offset, 0xcf8);
 	v = inb(0xcfc + (offset&3));
-	pr_debug("%x reading 1 from %x: %x\n", slot, offset, v);
 	return v;
 }
 
@@ -31,28 +28,24 @@ u16 read_pci_config_16(u8 bus, u8 slot, u8 func, u8 offset)
 	u16 v;
 	outl(0x80000000 | (bus<<16) | (slot<<11) | (func<<8) | offset, 0xcf8);
 	v = inw(0xcfc + (offset&2));
-	pr_debug("%x reading 2 from %x: %x\n", slot, offset, v);
 	return v;
 }
 
 void write_pci_config(u8 bus, u8 slot, u8 func, u8 offset,
 				    u32 val)
 {
-	pr_debug("%x writing to %x: %x\n", slot, offset, val);
 	outl(0x80000000 | (bus<<16) | (slot<<11) | (func<<8) | offset, 0xcf8);
 	outl(val, 0xcfc);
 }
 
 void write_pci_config_byte(u8 bus, u8 slot, u8 func, u8 offset, u8 val)
 {
-	pr_debug("%x writing to %x: %x\n", slot, offset, val);
 	outl(0x80000000 | (bus<<16) | (slot<<11) | (func<<8) | offset, 0xcf8);
 	outb(val, 0xcfc + (offset&3));
 }
 
 void write_pci_config_16(u8 bus, u8 slot, u8 func, u8 offset, u16 val)
 {
-	pr_debug("%x writing to %x: %x\n", slot, offset, val);
 	outl(0x80000000 | (bus<<16) | (slot<<11) | (func<<8) | offset, 0xcf8);
 	outw(val, 0xcfc + (offset&2));
 }

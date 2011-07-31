@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -434,7 +434,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown action (%X)", action));
+		ACPI_ERROR((AE_INFO, "Unknown action (0x%X)", action));
 		break;
 	}
 
@@ -444,8 +444,8 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 	 */
 	if (count > ACPI_MAX_REFERENCE_COUNT) {
 		ACPI_WARNING((AE_INFO,
-			      "Large Reference Count (%X) in object %p", count,
-			      object));
+			      "Large Reference Count (0x%X) in object %p",
+			      count, object));
 	}
 }
 

@@ -77,5 +77,6 @@ extern struct platform_device rk29_device_vmac;
 extern struct rk29_vmac_platform_data rk29_vmac_pdata;
 extern struct platform_device rk29_device_ipp;
 extern struct platform_device rk29_device_wdt;
+extern struct platform_device rk29_device_pmu;
 
 #endif

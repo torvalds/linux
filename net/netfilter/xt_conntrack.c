@@ -9,7 +9,7 @@
  *	it under the terms of the GNU General Public License version 2 as
  *	published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <net/ipv6.h>
@@ -113,7 +113,8 @@ ct_proto_port_check(const struct xt_conntrack_mtinfo2 *info,
 }
 
 static bool
-conntrack_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+conntrack_mt(const struct sk_buff *skb, struct xt_action_param *par,
+             u16 state_mask, u16 status_mask)
 {
 	const struct xt_conntrack_mtinfo2 *info = par->matchinfo;
 	enum ip_conntrack_info ctinfo;
@@ -122,11 +123,12 @@ conntrack_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 
 	ct = nf_ct_get(skb, &ctinfo);
 
-	if (ct == &nf_conntrack_untracked)
-		statebit = XT_CONNTRACK_STATE_UNTRACKED;
-	else if (ct != NULL)
-		statebit = XT_CONNTRACK_STATE_BIT(ctinfo);
-	else
+	if (ct) {
+		if (nf_ct_is_untracked(ct))
+			statebit = XT_CONNTRACK_STATE_UNTRACKED;
+		else
+			statebit = XT_CONNTRACK_STATE_BIT(ctinfo);
+	} else
 		statebit = XT_CONNTRACK_STATE_INVALID;
 
 	if (info->match_flags & XT_CONNTRACK_STATE) {
@@ -136,7 +138,7 @@ conntrack_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 			if (test_bit(IPS_DST_NAT_BIT, &ct->status))
 				statebit |= XT_CONNTRACK_STATE_DNAT;
 		}
-		if (!!(info->state_mask & statebit) ^
+		if (!!(state_mask & statebit) ^
 		    !(info->invert_flags & XT_CONNTRACK_STATE))
 			return false;
 	}
@@ -172,7 +174,7 @@ conntrack_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 		return false;
 
 	if ((info->match_flags & XT_CONNTRACK_STATUS) &&
-	    (!!(info->status_mask & ct->status) ^
+	    (!!(status_mask & ct->status) ^
 	    !(info->invert_flags & XT_CONNTRACK_STATUS)))
 		return false;
 
@@ -190,62 +192,35 @@ conntrack_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 }
 
 static bool
-conntrack_mt_v1(const struct sk_buff *skb, const struct xt_match_param *par)
+conntrack_mt_v1(const struct sk_buff *skb, struct xt_action_param *par)
 {
-	const struct xt_conntrack_mtinfo2 *const *info = par->matchinfo;
-	struct xt_match_param newpar = *par;
+	const struct xt_conntrack_mtinfo1 *info = par->matchinfo;
 
-	newpar.matchinfo = *info;
-	return conntrack_mt(skb, &newpar);
+	return conntrack_mt(skb, par, info->state_mask, info->status_mask);
 }
 
-static bool conntrack_mt_check(const struct xt_mtchk_param *par)
+static bool
+conntrack_mt_v2(const struct sk_buff *skb, struct xt_action_param *par)
 {
-	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
-		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%u\n", par->family);
-		return false;
-	}
-	return true;
+	const struct xt_conntrack_mtinfo2 *info = par->matchinfo;
+
+	return conntrack_mt(skb, par, info->state_mask, info->status_mask);
 }
 
-static bool conntrack_mt_check_v1(const struct xt_mtchk_param *par)
+static int conntrack_mt_check(const struct xt_mtchk_param *par)
 {
-	struct xt_conntrack_mtinfo1 *info = par->matchinfo;
-	struct xt_conntrack_mtinfo2 *up;
-	int ret = conntrack_mt_check(par);
+	int ret;
 
+	ret = nf_ct_l3proto_try_module_get(par->family);
 	if (ret < 0)
-		return ret;
-
-	up = kmalloc(sizeof(*up), GFP_KERNEL);
-	if (up == NULL) {
-		nf_ct_l3proto_module_put(par->family);
-		return -ENOMEM;
-	}
-
-	/*
-	 * The strategy here is to minimize the overhead of v1 matching,
-	 * by prebuilding a v2 struct and putting the pointer into the
-	 * v1 dataspace.
-	 */
-	memcpy(up, info, offsetof(typeof(*info), state_mask));
-	up->state_mask  = info->state_mask;
-	up->status_mask = info->status_mask;
-	*(void **)info  = up;
-	return true;
+		pr_info("cannot load conntrack support for proto=%u\n",
+			par->family);
+	return ret;
 }
 
 static void conntrack_mt_destroy(const struct xt_mtdtor_param *par)
 {
 	nf_ct_l3proto_module_put(par->family);
-}
-
-static void conntrack_mt_destroy_v1(const struct xt_mtdtor_param *par)
-{
-	struct xt_conntrack_mtinfo2 **info = par->matchinfo;
-	kfree(*info);
-	conntrack_mt_destroy(par);
 }
 
 static struct xt_match conntrack_mt_reg[] __read_mostly = {
@@ -255,8 +230,8 @@ static struct xt_match conntrack_mt_reg[] __read_mostly = {
 		.family     = NFPROTO_UNSPEC,
 		.matchsize  = sizeof(struct xt_conntrack_mtinfo1),
 		.match      = conntrack_mt_v1,
-		.checkentry = conntrack_mt_check_v1,
-		.destroy    = conntrack_mt_destroy_v1,
+		.checkentry = conntrack_mt_check,
+		.destroy    = conntrack_mt_destroy,
 		.me         = THIS_MODULE,
 	},
 	{
@@ -264,7 +239,7 @@ static struct xt_match conntrack_mt_reg[] __read_mostly = {
 		.revision   = 2,
 		.family     = NFPROTO_UNSPEC,
 		.matchsize  = sizeof(struct xt_conntrack_mtinfo2),
-		.match      = conntrack_mt,
+		.match      = conntrack_mt_v2,
 		.checkentry = conntrack_mt_check,
 		.destroy    = conntrack_mt_destroy,
 		.me         = THIS_MODULE,

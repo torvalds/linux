@@ -243,7 +243,7 @@ struct es1938 {
 
 static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id);
 
-static struct pci_device_id snd_es1938_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_es1938_ids) = {
 	{ PCI_VDEVICE(ESS, 0x1969), 0, },   /* Solo-1 */
 	{ 0, }
 };
@@ -1387,7 +1387,7 @@ ES1938_DOUBLE_TLV("Aux Playback Volume", 0, 0x3a, 0x3a, 4, 0, 15, 0,
 		  db_scale_line),
 ES1938_DOUBLE_TLV("Capture Volume", 0, 0xb4, 0xb4, 4, 0, 15, 0,
 		  db_scale_capture),
-ES1938_SINGLE("PC Speaker Volume", 0, 0x3c, 0, 7, 0),
+ES1938_SINGLE("Beep Volume", 0, 0x3c, 0, 7, 0),
 ES1938_SINGLE("Record Monitor", 0, 0xa8, 3, 1, 0),
 ES1938_SINGLE("Capture Switch", 0, 0x1c, 4, 1, 1),
 {

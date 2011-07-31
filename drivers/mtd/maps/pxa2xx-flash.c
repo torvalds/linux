@@ -11,6 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -20,14 +21,23 @@
 
 #include <asm/io.h>
 #include <mach/hardware.h>
-#include <asm/cacheflush.h>
 
 #include <asm/mach/flash.h>
+
+#define CACHELINESIZE	32
 
 static void pxa2xx_map_inval_cache(struct map_info *map, unsigned long from,
 				      ssize_t len)
 {
-	flush_ioremap_region(map->phys, map->cached, from, len);
+	unsigned long start = (unsigned long)map->cached + from;
+	unsigned long end = start + len;
+
+	start &= ~(CACHELINESIZE - 1);
+	while (start < end) {
+		/* invalidate D cache line */
+		asm volatile ("mcr p15, 0, %0, c7, c6, 1" : : "r" (start));
+		start += CACHELINESIZE;
+	}
 }
 
 struct pxa2xx_flash_info {
@@ -53,11 +63,10 @@ static int __init pxa2xx_flash_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 
-	info = kmalloc(sizeof(struct pxa2xx_flash_info), GFP_KERNEL);
+	info = kzalloc(sizeof(struct pxa2xx_flash_info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
-	memset(info, 0, sizeof(struct pxa2xx_flash_info));
 	info->map.name = (char *) flash->name;
 	info->map.bankwidth = flash->width;
 	info->map.phys = res->start;

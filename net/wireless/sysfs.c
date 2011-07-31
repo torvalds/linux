@@ -33,10 +33,30 @@ static ssize_t name ## _show(struct device *dev,			\
 
 SHOW_FMT(index, "%d", wiphy_idx);
 SHOW_FMT(macaddress, "%pM", wiphy.perm_addr);
+SHOW_FMT(address_mask, "%pM", wiphy.addr_mask);
+
+static ssize_t addresses_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	struct wiphy *wiphy = &dev_to_rdev(dev)->wiphy;
+	char *start = buf;
+	int i;
+
+	if (!wiphy->addresses)
+		return sprintf(buf, "%pM\n", wiphy->perm_addr);
+
+	for (i = 0; i < wiphy->n_addresses; i++)
+		buf += sprintf(buf, "%pM\n", &wiphy->addresses[i].addr);
+
+	return buf - start;
+}
 
 static struct device_attribute ieee80211_dev_attrs[] = {
 	__ATTR_RO(index),
 	__ATTR_RO(macaddress),
+	__ATTR_RO(address_mask),
+	__ATTR_RO(addresses),
 	{}
 };
 

@@ -120,12 +120,15 @@ void __irq_entry do_extint(struct pt_regs *regs, unsigned short code)
 	struct pt_regs *old_regs;
 
 	old_regs = set_irq_regs(regs);
-	s390_idle_check();
+	s390_idle_check(regs, S390_lowcore.int_clock,
+			S390_lowcore.async_enter_timer);
 	irq_enter();
 	if (S390_lowcore.int_clock >= S390_lowcore.clock_comparator)
 		/* Serve timer interrupts first. */
 		clock_comparator_work();
 	kstat_cpu(smp_processor_id()).irqs[EXTERNAL_INTERRUPT]++;
+	if (code != 0x1004)
+		__get_cpu_var(s390_idle).nohz_delay = 1;
         index = ext_hash(code);
 	for (p = ext_int_hash[index]; p; p = p->next) {
 		if (likely(p->code == code))

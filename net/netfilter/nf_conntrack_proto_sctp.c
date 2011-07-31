@@ -377,7 +377,7 @@ static int sctp_packet(struct nf_conn *ct,
 	    new_state == SCTP_CONNTRACK_ESTABLISHED) {
 		pr_debug("Setting assured bit\n");
 		set_bit(IPS_ASSURED_BIT, &ct->status);
-		nf_conntrack_event_cache(IPCT_STATUS, ct);
+		nf_conntrack_event_cache(IPCT_ASSURED, ct);
 	}
 
 	return NF_ACCEPT;
@@ -595,9 +595,7 @@ static struct ctl_table sctp_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
 	},
-	{
-		.ctl_name = 0
-	}
+	{ }
 };
 
 #ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
@@ -651,9 +649,7 @@ static struct ctl_table sctp_compat_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
 	},
-	{
-		.ctl_name = 0
-	}
+	{ }
 };
 #endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif
@@ -721,12 +717,12 @@ static int __init nf_conntrack_proto_sctp_init(void)
 
 	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_sctp4);
 	if (ret) {
-		printk("nf_conntrack_l4proto_sctp4: protocol register failed\n");
+		pr_err("nf_conntrack_l4proto_sctp4: protocol register failed\n");
 		goto out;
 	}
 	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_sctp6);
 	if (ret) {
-		printk("nf_conntrack_l4proto_sctp6: protocol register failed\n");
+		pr_err("nf_conntrack_l4proto_sctp6: protocol register failed\n");
 		goto cleanup_sctp4;
 	}
 

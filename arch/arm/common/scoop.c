@@ -82,7 +82,7 @@ static int scoop_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct scoop_dev *sdev = container_of(chip, struct scoop_dev, gpio);
 
-	/* XXX: I'm usure,  but it seems so */
+	/* XXX: I'm unsure, but it seems so */
 	return ioread16(sdev->base + SCOOP_GPRR) & (1 << (offset + 1));
 }
 
@@ -140,6 +140,7 @@ EXPORT_SYMBOL(reset_scoop);
 EXPORT_SYMBOL(read_scoop_reg);
 EXPORT_SYMBOL(write_scoop_reg);
 
+#ifdef CONFIG_PM
 static void check_scoop_reg(struct scoop_dev *sdev)
 {
 	unsigned short mcr;
@@ -149,7 +150,6 @@ static void check_scoop_reg(struct scoop_dev *sdev)
 		iowrite16(0x0101, sdev->base + SCOOP_MCR);
 }
 
-#ifdef CONFIG_PM
 static int scoop_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct scoop_dev *sdev = platform_get_drvdata(dev);

@@ -16,11 +16,13 @@
 #include <linux/init.h>
 #include <linux/seq_file.h>
 #include <linux/fs.h>
+#include <linux/kdb.h>
 #include <linux/err.h>
 #include <linux/proc_fs.h>
 #include <linux/sched.h>	/* for cond_resched */
 #include <linux/mm.h>
 #include <linux/ctype.h>
+#include <linux/slab.h>
 
 #include <asm/sections.h>
 
@@ -181,6 +183,7 @@ unsigned long kallsyms_lookup_name(const char *name)
 	}
 	return module_kallsyms_lookup_name(name);
 }
+EXPORT_SYMBOL_GPL(kallsyms_lookup_name);
 
 int kallsyms_on_each_symbol(int (*fn)(void *, const char *, struct module *,
 				      unsigned long),
@@ -513,6 +516,26 @@ static int kallsyms_open(struct inode *inode, struct file *file)
 		kfree(iter);
 	return ret;
 }
+
+#ifdef	CONFIG_KGDB_KDB
+const char *kdb_walk_kallsyms(loff_t *pos)
+{
+	static struct kallsym_iter kdb_walk_kallsyms_iter;
+	if (*pos == 0) {
+		memset(&kdb_walk_kallsyms_iter, 0,
+		       sizeof(kdb_walk_kallsyms_iter));
+		reset_iter(&kdb_walk_kallsyms_iter, 0);
+	}
+	while (1) {
+		if (!update_iter(&kdb_walk_kallsyms_iter, *pos))
+			return NULL;
+		++*pos;
+		/* Some debugging symbols have no name.  Ignore them. */
+		if (kdb_walk_kallsyms_iter.name[0])
+			return kdb_walk_kallsyms_iter.name;
+	}
+}
+#endif	/* CONFIG_KGDB_KDB */
 
 static const struct file_operations kallsyms_operations = {
 	.open = kallsyms_open,

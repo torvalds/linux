@@ -34,3 +34,10 @@ config USB_IP_HOST
 
 	 To compile this driver as a module, choose M here: the
 	 module will be called usbip.
+
+config USB_IP_DEBUG_ENABLE
+	bool "USB-IP Debug Enable"
+	depends on USB_IP_COMMON
+	default N
+	---help---
+	  This enables the debug messages from the USB-IP drivers.

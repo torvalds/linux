@@ -155,7 +155,7 @@ config SND_ML403_AC97CR
 	select SND_AC97_CODEC
 	help
 	  Say Y here to include support for the
-	  opb_ac97_controller_ref_v1_00_a ip core found in Xilinx' ML403
+	  opb_ac97_controller_ref_v1_00_a ip core found in Xilinx's ML403
 	  reference design.
 
 	  To compile this driver as a module, choose M here: the module
@@ -170,9 +170,25 @@ config SND_AC97_POWER_SAVE
 	  AC97 codecs.  In this mode, the power-mode is dynamically
 	  controlled at each open/close.
 
-	  The mode is activated by passing power_save=1 option to
-	  snd-ac97-codec driver.  You can toggle it dynamically over
-	  sysfs, too.
+	  The mode is activated by passing 'power_save=X' to the
+	  snd-ac97-codec driver module, where 'X' is the time-out
+	  value, a nonnegative integer that specifies how many
+	  seconds of idle time the driver must count before it may
+	  put the AC97 into power-save mode;  a value of 0 (zero)
+	  disables the use of this power-save mode.
+
+	  After the snd-ac97-codec driver module has been loaded,
+	  the 'power_save' parameter can be set via sysfs as follows:
+
+	    echo 10 > /sys/module/snd_ac97_codec/parameters/power_save
+
+	  In this case, the time-out is set to 10 seconds; setting
+	  the time-out to 1 second (the minimum activation value)
+	  isn't recommended because many applications try to reopen
+	  the device frequently.  A value of 10 seconds would be a
+	  good choice for normal operations.
+
+	  See Documentation/sound/alsa/powersave.txt for more details.
 
 config SND_AC97_POWER_SAVE_DEFAULT
 	int "Default time-out for AC97 power-save mode"
@@ -181,5 +197,7 @@ config SND_AC97_POWER_SAVE_DEFAULT
 	help
 	  The default time-out value in seconds for AC97 automatic
 	  power-save mode.  0 means to disable the power-save mode.
+
+	  See SND_AC97_POWER_SAVE for more details.
 
 endif	# SND_DRIVERS

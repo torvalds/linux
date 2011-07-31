@@ -22,6 +22,7 @@
  */
 
 #include <linux/kthread.h>
+#include <linux/slab.h>
 
 #include "c67x00.h"
 #include "c67x00-hcd.h"

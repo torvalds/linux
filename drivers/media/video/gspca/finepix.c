@@ -82,7 +82,6 @@ static void dostream(struct work_struct *work)
 	struct gspca_dev *gspca_dev = &dev->gspca_dev;
 	struct urb *urb = gspca_dev->urb[0];
 	u8 *data = urb->transfer_buffer;
-	struct gspca_frame *frame;
 	int ret = 0;
 	int len;
 
@@ -118,10 +117,6 @@ again:
 			}
 			if (!gspca_dev->present || !gspca_dev->streaming)
 				goto out;
-			frame = gspca_get_i_frame(&dev->gspca_dev);
-			if (frame == NULL)
-				gspca_dev->last_packet_type = DISCARD_PACKET;
-
 			if (len < FPIX_MAX_TRANSFER ||
 				(data[len - 2] == 0xff &&
 					data[len - 1] == 0xd9)) {
@@ -132,21 +127,17 @@ again:
 				 * but there's nothing we can do. We also end
 				 * here if the the jpeg ends right at the end
 				 * of the frame. */
-				if (frame)
-					frame = gspca_frame_add(gspca_dev,
-							LAST_PACKET,
-							frame,
-							data, len);
+				gspca_frame_add(gspca_dev, LAST_PACKET,
+						data, len);
 				break;
 			}
 
 			/* got a partial image */
-			if (frame)
-				gspca_frame_add(gspca_dev,
-						gspca_dev->last_packet_type
-							== LAST_PACKET
-						? FIRST_PACKET : INTER_PACKET,
-						frame, data, len);
+			gspca_frame_add(gspca_dev,
+					gspca_dev->last_packet_type
+						== LAST_PACKET
+					? FIRST_PACKET : INTER_PACKET,
+					data, len);
 		}
 
 		/* We must wait before trying reading the next

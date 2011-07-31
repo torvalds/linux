@@ -9,6 +9,7 @@
 #include <linux/sysctl.h>
 #include <linux/in6.h>
 #include <linux/ipv6.h>
+#include <linux/slab.h>
 #include <net/ndisc.h>
 #include <net/ipv6.h>
 #include <net/addrconf.h>
@@ -16,50 +17,46 @@
 
 static ctl_table ipv6_table_template[] = {
 	{
-		.ctl_name	= NET_IPV6_ROUTE,
 		.procname	= "route",
 		.maxlen		= 0,
 		.mode		= 0555,
 		.child		= ipv6_route_table_template
 	},
 	{
-		.ctl_name	= NET_IPV6_ICMP,
 		.procname	= "icmp",
 		.maxlen		= 0,
 		.mode		= 0555,
 		.child		= ipv6_icmp_table_template
 	},
 	{
-		.ctl_name	= NET_IPV6_BINDV6ONLY,
 		.procname	= "bindv6only",
 		.data		= &init_net.ipv6.sysctl.bindv6only,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static ctl_table ipv6_rotable[] = {
 	{
-		.ctl_name	= NET_IPV6_MLD_MAX_MSF,
 		.procname	= "mld_max_msf",
 		.data		= &sysctl_mld_max_msf,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 struct ctl_path net_ipv6_ctl_path[] = {
-	{ .procname = "net", .ctl_name = CTL_NET, },
-	{ .procname = "ipv6", .ctl_name = NET_IPV6, },
+	{ .procname = "net", },
+	{ .procname = "ipv6", },
 	{ },
 };
 EXPORT_SYMBOL_GPL(net_ipv6_ctl_path);
 
-static int ipv6_sysctl_net_init(struct net *net)
+static int __net_init ipv6_sysctl_net_init(struct net *net)
 {
 	struct ctl_table *ipv6_table;
 	struct ctl_table *ipv6_route_table;
@@ -102,7 +99,7 @@ out_ipv6_table:
 	goto out;
 }
 
-static void ipv6_sysctl_net_exit(struct net *net)
+static void __net_exit ipv6_sysctl_net_exit(struct net *net)
 {
 	struct ctl_table *ipv6_table;
 	struct ctl_table *ipv6_route_table;

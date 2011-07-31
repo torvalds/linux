@@ -51,7 +51,6 @@ SIGN1(sys32_exit_group, sys_exit_group, %o0)
 SIGN1(sys32_wait4, compat_sys_wait4, %o2)
 SIGN1(sys32_creat, sys_creat, %o1)
 SIGN1(sys32_mknod, sys_mknod, %o1)
-SIGN1(sys32_perfctr, sys_perfctr, %o0)
 SIGN1(sys32_umount, sys_umount, %o1)
 SIGN1(sys32_signal, sys_signal, %o0)
 SIGN1(sys32_access, sys_access, %o1)
@@ -330,6 +329,15 @@ do_sys_accept4: /* sys_accept4(int, struct sockaddr *, int *, int) */
 66:	 lduwa		[%o1 + 0x4] %asi, %o1
 	nop
 	nop
+
+	.globl		sys32_fanotify_mark
+sys32_fanotify_mark:
+	sethi		%hi(sys_fanotify_mark), %g1
+	sllx		%o2, 32, %o2
+	or		%o2, %o3, %o2
+	mov		%o4, %o3
+	jmpl		%g1 + %lo(sys_fanotify_mark), %g0
+	 mov		%o5, %o4
 
 	.section	__ex_table,"a"
 	.align		4

@@ -30,6 +30,7 @@
 #include <linux/notifier.h>
 #include <linux/backing-dev.h>
 #include <linux/memcontrol.h>
+#include <linux/gfp.h>
 
 #include "internal.h"
 
@@ -55,7 +56,7 @@ static void __page_cache_release(struct page *page)
 		del_page_from_lru(zone, page);
 		spin_unlock_irqrestore(&zone->lru_lock, flags);
 	}
-	free_hot_page(page);
+	free_hot_cold_page(page, 0);
 }
 
 static void put_compound_page(struct page *page)
@@ -223,6 +224,7 @@ void __lru_cache_add(struct page *page, enum lru_list lru)
 		____pagevec_lru_add(pvec, lru);
 	put_cpu_var(lru_add_pvecs);
 }
+EXPORT_SYMBOL(__lru_cache_add);
 
 /**
  * lru_cache_add_lru - add a page to a page list

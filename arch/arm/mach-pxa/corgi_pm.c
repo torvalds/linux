@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/apm-emulation.h>
@@ -22,11 +23,11 @@
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 
-#include <mach/sharpsl.h>
 #include <mach/corgi.h>
 #include <mach/pxa2xx-regs.h>
-#include <mach/pxa2xx-gpio.h>
-#include "sharpsl.h"
+#include <mach/sharpsl_pm.h>
+
+#include "generic.h"
 
 #define SHARPSL_CHARGE_ON_VOLT         0x99  /* 2.9V */
 #define SHARPSL_CHARGE_ON_TEMP         0xe0  /* 2.9V */
@@ -35,87 +36,46 @@
 #define SHARPSL_FATAL_ACIN_VOLT        182   /* 3.45V */
 #define SHARPSL_FATAL_NOACIN_VOLT      170   /* 3.40V */
 
+static struct gpio charger_gpios[] = {
+	{ CORGI_GPIO_ADC_TEMP_ON, GPIOF_OUT_INIT_LOW, "ADC Temp On" },
+	{ CORGI_GPIO_CHRG_ON,	  GPIOF_OUT_INIT_LOW, "Charger On" },
+	{ CORGI_GPIO_CHRG_UKN,	  GPIOF_OUT_INIT_LOW, "Charger Unknown" },
+	{ CORGI_GPIO_KEY_INT,	  GPIOF_IN, "Key Interrupt" },
+};
+
 static void corgi_charger_init(void)
 {
-	pxa_gpio_mode(CORGI_GPIO_ADC_TEMP_ON | GPIO_OUT);
-	pxa_gpio_mode(CORGI_GPIO_CHRG_ON | GPIO_OUT);
-	pxa_gpio_mode(CORGI_GPIO_CHRG_UKN | GPIO_OUT);
-	pxa_gpio_mode(CORGI_GPIO_KEY_INT | GPIO_IN);
+	gpio_request_array(ARRAY_AND_SIZE(charger_gpios));
 }
 
 static void corgi_measure_temp(int on)
 {
-	if (on)
-		GPSR(CORGI_GPIO_ADC_TEMP_ON) = GPIO_bit(CORGI_GPIO_ADC_TEMP_ON);
-	else
-		GPCR(CORGI_GPIO_ADC_TEMP_ON) = GPIO_bit(CORGI_GPIO_ADC_TEMP_ON);
+	gpio_set_value(CORGI_GPIO_ADC_TEMP_ON, on);
 }
 
 static void corgi_charge(int on)
 {
 	if (on) {
 		if (machine_is_corgi() && (sharpsl_pm.flags & SHARPSL_SUSPENDED)) {
-			GPCR(CORGI_GPIO_CHRG_ON) = GPIO_bit(CORGI_GPIO_CHRG_ON);
-			GPSR(CORGI_GPIO_CHRG_UKN) = GPIO_bit(CORGI_GPIO_CHRG_UKN);
+			gpio_set_value(CORGI_GPIO_CHRG_ON, 0);
+			gpio_set_value(CORGI_GPIO_CHRG_UKN, 1);
 		} else {
-			GPSR(CORGI_GPIO_CHRG_ON) = GPIO_bit(CORGI_GPIO_CHRG_ON);
-			GPCR(CORGI_GPIO_CHRG_UKN) = GPIO_bit(CORGI_GPIO_CHRG_UKN);
+			gpio_set_value(CORGI_GPIO_CHRG_ON, 1);
+			gpio_set_value(CORGI_GPIO_CHRG_UKN, 0);
 		}
 	} else {
-		GPCR(CORGI_GPIO_CHRG_ON) = GPIO_bit(CORGI_GPIO_CHRG_ON);
-		GPCR(CORGI_GPIO_CHRG_UKN) = GPIO_bit(CORGI_GPIO_CHRG_UKN);
+		gpio_set_value(CORGI_GPIO_CHRG_ON, 0);
+		gpio_set_value(CORGI_GPIO_CHRG_UKN, 0);
 	}
 }
 
 static void corgi_discharge(int on)
 {
-	if (on)
-		GPSR(CORGI_GPIO_DISCHARGE_ON) = GPIO_bit(CORGI_GPIO_DISCHARGE_ON);
-	else
-		GPCR(CORGI_GPIO_DISCHARGE_ON) = GPIO_bit(CORGI_GPIO_DISCHARGE_ON);
+	gpio_set_value(CORGI_GPIO_DISCHARGE_ON, on);
 }
 
 static void corgi_presuspend(void)
 {
-	int i;
-	unsigned long wakeup_mask;
-
-	/* charging , so CHARGE_ON bit is HIGH during OFF. */
-	if (READ_GPIO_BIT(CORGI_GPIO_CHRG_ON))
-		PGSR1 |= GPIO_bit(CORGI_GPIO_CHRG_ON);
-	else
-		PGSR1 &= ~GPIO_bit(CORGI_GPIO_CHRG_ON);
-
-	if (READ_GPIO_BIT(CORGI_GPIO_LED_ORANGE))
-		PGSR0 |= GPIO_bit(CORGI_GPIO_LED_ORANGE);
-	else
-		PGSR0 &= ~GPIO_bit(CORGI_GPIO_LED_ORANGE);
-
-	if (READ_GPIO_BIT(CORGI_GPIO_CHRG_UKN))
-		PGSR1 |= GPIO_bit(CORGI_GPIO_CHRG_UKN);
-	else
-		PGSR1 &= ~GPIO_bit(CORGI_GPIO_CHRG_UKN);
-
-	/* Resume on keyboard power key */
-	PGSR2 = (PGSR2 & ~CORGI_GPIO_ALL_STROBE_BIT) | CORGI_GPIO_STROBE_BIT(0);
-
-	wakeup_mask = GPIO_bit(CORGI_GPIO_KEY_INT) | GPIO_bit(CORGI_GPIO_WAKEUP) | GPIO_bit(CORGI_GPIO_AC_IN) | GPIO_bit(CORGI_GPIO_CHRG_FULL);
-
-	if (!machine_is_corgi())
-		wakeup_mask |= GPIO_bit(CORGI_GPIO_MAIN_BAT_LOW);
-
-	PWER = wakeup_mask | PWER_RTC;
-	PRER = wakeup_mask;
-	PFER = wakeup_mask;
-
-	for (i = 0; i <=15; i++) {
-		if (PRER & PFER & GPIO_bit(i)) {
-			if (GPLR0 & GPIO_bit(i) )
-				PRER &= ~GPIO_bit(i);
-			else
-				PFER &= ~GPIO_bit(i);
-		}
-	}
 }
 
 static void corgi_postsuspend(void)
@@ -173,11 +133,11 @@ unsigned long corgipm_read_devdata(int type)
 	case SHARPSL_STATUS_ACIN:
 		return ((GPLR(CORGI_GPIO_AC_IN) & GPIO_bit(CORGI_GPIO_AC_IN)) != 0);
 	case SHARPSL_STATUS_LOCK:
-		return READ_GPIO_BIT(sharpsl_pm.machinfo->gpio_batlock);
+		return gpio_get_value(sharpsl_pm.machinfo->gpio_batlock);
 	case SHARPSL_STATUS_CHRGFULL:
-		return READ_GPIO_BIT(sharpsl_pm.machinfo->gpio_batfull);
+		return gpio_get_value(sharpsl_pm.machinfo->gpio_batfull);
 	case SHARPSL_STATUS_FATAL:
-		return READ_GPIO_BIT(sharpsl_pm.machinfo->gpio_fatal);
+		return gpio_get_value(sharpsl_pm.machinfo->gpio_fatal);
 	case SHARPSL_ACIN_VOLT:
 		return sharpsl_pm_pxa_read_max1111(MAX1111_ACIN_VOLT);
 	case SHARPSL_BATT_TEMP:
@@ -204,8 +164,6 @@ static struct sharpsl_charger_machinfo corgi_pm_machinfo = {
 	.should_wakeup   = corgi_should_wakeup,
 #if defined(CONFIG_LCD_CORGI)
 	.backlight_limit = corgi_lcd_limit_intensity,
-#elif defined(CONFIG_BACKLIGHT_CORGI)
-	.backlight_limit = corgibl_limit_intensity,
 #endif
 	.charge_on_volt	  = SHARPSL_CHARGE_ON_VOLT,
 	.charge_on_temp	  = SHARPSL_CHARGE_ON_TEMP,
@@ -214,8 +172,8 @@ static struct sharpsl_charger_machinfo corgi_pm_machinfo = {
 	.fatal_acin_volt  = SHARPSL_FATAL_ACIN_VOLT,
 	.fatal_noacin_volt= SHARPSL_FATAL_NOACIN_VOLT,
 	.bat_levels       = 40,
-	.bat_levels_noac  = spitz_battery_levels_noac,
-	.bat_levels_acin  = spitz_battery_levels_acin,
+	.bat_levels_noac  = sharpsl_battery_levels_noac,
+	.bat_levels_acin  = sharpsl_battery_levels_acin,
 	.status_high_acin = 188,
 	.status_low_acin  = 178,
 	.status_high_noac = 185,

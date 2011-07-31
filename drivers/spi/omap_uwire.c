@@ -41,6 +41,7 @@
 #include <linux/interrupt.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/slab.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
@@ -51,8 +52,8 @@
 #include <asm/io.h>
 #include <asm/mach-types.h>
 
-#include <mach/mux.h>
-#include <mach/omap730.h>	/* OMAP730_IO_CONF registers */
+#include <plat/mux.h>
+#include <plat/omap7xx.h>	/* OMAP7XX_IO_CONF registers */
 
 
 /* FIXME address is now a platform device resource,
@@ -504,7 +505,7 @@ static int __init uwire_probe(struct platform_device *pdev)
 	}
 	clk_enable(uwire->ck);
 
-	if (cpu_is_omap730())
+	if (cpu_is_omap7xx())
 		uwire_idx_shift = 1;
 	else
 		uwire_idx_shift = 2;
@@ -573,8 +574,8 @@ static int __init omap_uwire_init(void)
 	}
 	if (machine_is_omap_perseus2()) {
 		/* configure pins: MPU_UW_nSCS1, MPU_UW_SDO, MPU_UW_SCLK */
-		int val = omap_readl(OMAP730_IO_CONF_9) & ~0x00EEE000;
-		omap_writel(val | 0x00AAA000, OMAP730_IO_CONF_9);
+		int val = omap_readl(OMAP7XX_IO_CONF_9) & ~0x00EEE000;
+		omap_writel(val | 0x00AAA000, OMAP7XX_IO_CONF_9);
 	}
 
 	return platform_driver_probe(&uwire_driver, uwire_probe);

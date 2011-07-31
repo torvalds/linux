@@ -14,10 +14,10 @@
 #include <linux/fs.h>
 #include <linux/proc_fs.h>
 #include <linux/device.h>
+#include <linux/mfd/ucb1x00.h>
 
 #include <mach/dma.h>
 
-#include "ucb1x00.h"
 
 #define UCB1X00_ATTR(name,input)\
 static ssize_t name##_show(struct device *dev, struct device_attribute *attr, \

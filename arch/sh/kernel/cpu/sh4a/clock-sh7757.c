@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <asm/clkdev.h>
 #include <asm/clock.h>
 #include <asm/freq.h>
 
@@ -35,7 +36,7 @@ static struct clk_ops sh7757_master_clk_ops = {
 
 static void module_clk_recalc(struct clk *clk)
 {
-	int idx = ctrl_inl(FRQCR) & 0x0000000f;
+	int idx = __raw_readl(FRQCR) & 0x0000000f;
 	clk->rate = clk->parent->rate / p1fc_divisors[idx];
 }
 
@@ -45,7 +46,7 @@ static struct clk_ops sh7757_module_clk_ops = {
 
 static void bus_clk_recalc(struct clk *clk)
 {
-	int idx = (ctrl_inl(FRQCR) >> 8) & 0x0000000f;
+	int idx = (__raw_readl(FRQCR) >> 8) & 0x0000000f;
 	clk->rate = clk->parent->rate / bfc_divisors[idx];
 }
 
@@ -55,7 +56,7 @@ static struct clk_ops sh7757_bus_clk_ops = {
 
 static void cpu_clk_recalc(struct clk *clk)
 {
-	int idx = (ctrl_inl(FRQCR) >> 20) & 0x0000000f;
+	int idx = (__raw_readl(FRQCR) >> 20) & 0x0000000f;
 	clk->rate = clk->parent->rate / ifc_divisors[idx];
 }
 
@@ -78,7 +79,7 @@ void __init arch_init_clk_ops(struct clk_ops **ops, int idx)
 
 static void shyway_clk_recalc(struct clk *clk)
 {
-	int idx = (ctrl_inl(FRQCR) >> 12) & 0x0000000f;
+	int idx = (__raw_readl(FRQCR) >> 12) & 0x0000000f;
 	clk->rate = clk->parent->rate / sfc_divisors[idx];
 }
 
@@ -87,7 +88,6 @@ static struct clk_ops sh7757_shyway_clk_ops = {
 };
 
 static struct clk sh7757_shyway_clk = {
-	.name		= "shyway_clk",
 	.flags		= CLK_ENABLE_ON_INIT,
 	.ops		= &sh7757_shyway_clk_ops,
 };
@@ -98,6 +98,13 @@ static struct clk sh7757_shyway_clk = {
  */
 static struct clk *sh7757_onchip_clocks[] = {
 	&sh7757_shyway_clk,
+};
+
+#define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
+
+static struct clk_lookup lookups[] = {
+	/* main clocks */
+	CLKDEV_CON_ID("shyway_clk", &sh7757_shyway_clk),
 };
 
 static int __init sh7757_clk_init(void)
@@ -122,6 +129,8 @@ static int __init sh7757_clk_init(void)
 	clk_set_rate(clk, clk_get_rate(clk));
 
 	clk_put(clk);
+
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	return 0;
 }

@@ -13,7 +13,6 @@ struct olpc_platform_t {
 
 #define OLPC_F_PRESENT		0x01
 #define OLPC_F_DCON		0x02
-#define OLPC_F_VSA		0x04
 
 #ifdef CONFIG_OLPC
 
@@ -51,18 +50,6 @@ static inline int olpc_has_dcon(void)
 }
 
 /*
- * The VSA is software from AMD that typical Geode bioses will include.
- * It is used to emulate the PCI bus, VGA, etc.  OLPC's Open Firmware does
- * not include the VSA; instead, PCI is emulated by the kernel.
- *
- * The VSA is described further in arch/x86/pci/olpc.c.
- */
-static inline int olpc_has_vsa(void)
-{
-	return (olpc_platform_info.flags & OLPC_F_VSA) ? 1 : 0;
-}
-
-/*
  * The "Mass Production" version of OLPC's XO is identified as being model
  * C2.  During the prototype phase, the following models (in chronological
  * order) were created: A1, B1, B2, B3, B4, C1.  The A1 through B2 models
@@ -87,12 +74,9 @@ static inline int olpc_has_dcon(void)
 	return 0;
 }
 
-static inline int olpc_has_vsa(void)
-{
-	return 0;
-}
-
 #endif
+
+extern int pci_olpc_init(void);
 
 /* EC related functions */
 
@@ -120,7 +104,7 @@ extern int olpc_ec_mask_unset(uint8_t bits);
 
 /* GPIO assignments */
 
-#define OLPC_GPIO_MIC_AC	geode_gpio(1)
+#define OLPC_GPIO_MIC_AC	1
 #define OLPC_GPIO_DCON_IRQ	geode_gpio(7)
 #define OLPC_GPIO_THRM_ALRM	geode_gpio(10)
 #define OLPC_GPIO_SMB_CLK	geode_gpio(14)

@@ -28,7 +28,7 @@ struct _ddebug {
 	/*
  	 * The flags field controls the behaviour at the callsite.
  	 * The bits here are changed dynamically when the user
- 	 * writes commands to <debugfs>/dynamic_debug/ddebug
+	 * writes commands to <debugfs>/dynamic_debug/control
 	 */
 #define _DPRINTK_FLAGS_PRINT   (1<<0)  /* printk() a message using the format */
 #define _DPRINTK_FLAGS_DEFAULT 0
@@ -40,7 +40,7 @@ int ddebug_add_module(struct _ddebug *tab, unsigned int n,
 				const char *modname);
 
 #if defined(CONFIG_DYNAMIC_DEBUG)
-extern int ddebug_remove_module(char *mod_name);
+extern int ddebug_remove_module(const char *mod_name);
 
 #define __dynamic_dbg_enabled(dd)  ({	     \
 	int __ret = 0;							     \
@@ -57,8 +57,7 @@ extern int ddebug_remove_module(char *mod_name);
 	{ KBUILD_MODNAME, __func__, __FILE__, fmt, DEBUG_HASH,	\
 		DEBUG_HASH2, __LINE__, _DPRINTK_FLAGS_DEFAULT };	\
 	if (__dynamic_dbg_enabled(descriptor))				\
-		printk(KERN_DEBUG KBUILD_MODNAME ":" pr_fmt(fmt),	\
-				##__VA_ARGS__);				\
+		printk(KERN_DEBUG pr_fmt(fmt),	##__VA_ARGS__);		\
 	} while (0)
 
 
@@ -69,20 +68,20 @@ extern int ddebug_remove_module(char *mod_name);
 	{ KBUILD_MODNAME, __func__, __FILE__, fmt, DEBUG_HASH,	\
 		DEBUG_HASH2, __LINE__, _DPRINTK_FLAGS_DEFAULT };	\
 	if (__dynamic_dbg_enabled(descriptor))				\
-			dev_printk(KERN_DEBUG, dev,			\
-					KBUILD_MODNAME ": " fmt,	\
-					##__VA_ARGS__);			\
+		dev_printk(KERN_DEBUG, dev, fmt, ##__VA_ARGS__);	\
 	} while (0)
 
 #else
 
-static inline int ddebug_remove_module(char *mod)
+static inline int ddebug_remove_module(const char *mod)
 {
 	return 0;
 }
 
-#define dynamic_pr_debug(fmt, ...)  do { } while (0)
-#define dynamic_dev_dbg(dev, format, ...)  do { } while (0)
+#define dynamic_pr_debug(fmt, ...)					\
+	do { if (0) printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__); } while (0)
+#define dynamic_dev_dbg(dev, format, ...)				\
+	do { if (0) dev_printk(KERN_DEBUG, dev, fmt, ##__VA_ARGS__); } while (0)
 #endif
 
 #endif

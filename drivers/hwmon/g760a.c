@@ -68,7 +68,7 @@ struct g760a_data {
 #define PWM_FROM_CNT(cnt)	(0xff-(cnt))
 #define PWM_TO_CNT(pwm)		(0xff-(pwm))
 
-unsigned int rpm_from_cnt(u8 val, u32 clk, u16 div)
+static inline unsigned int rpm_from_cnt(u8 val, u32 clk, u16 div)
 {
 	return ((val == 0x00) ? 0 : ((clk*30)/(val*div)));
 }
@@ -236,7 +236,6 @@ error_hwmon_device_register:
 	sysfs_remove_group(&client->dev.kobj, &g760a_group);
 error_sysfs_create_group:
 	kfree(data);
-	i2c_set_clientdata(client, NULL);
 
 	return err;
 }
@@ -247,7 +246,6 @@ static int g760a_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &g760a_group);
 	kfree(data);
-	i2c_set_clientdata(client, NULL);
 
 	return 0;
 }

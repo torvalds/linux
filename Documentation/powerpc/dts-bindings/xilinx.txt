@@ -11,7 +11,7 @@
    control how the core is synthesized.  Historically, the EDK tool would
    extract the device parameters relevant to device drivers and copy them
    into an 'xparameters.h' in the form of #define symbols.  This tells the
-   device drivers how the IP cores are configured, but it requres the kernel
+   device drivers how the IP cores are configured, but it requires the kernel
    to be recompiled every time the FPGA bitstream is resynthesized.
 
    The new approach is to export the parameters into the device tree and
@@ -292,4 +292,15 @@
        - reg-offset : A value of 3 is required
        - reg-shift : A value of 2 is required
 
+      vii) Xilinx USB Host controller
+
+      The Xilinx USB host controller is EHCI compatible but with a different
+      base address for the EHCI registers, and it is always a big-endian
+      USB Host controller. The hardware can be configured as high speed only,
+      or high speed/full speed hybrid.
+
+      Required properties:
+      - xlnx,support-usb-fs: A value 0 means the core is built as high speed
+                             only. A value 1 means the core also supports
+                             full speed devices.
 

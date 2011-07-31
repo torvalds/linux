@@ -38,7 +38,6 @@
 static const unsigned short normal_i2c[] = { 0x2e, 0x2f, I2C_CLIENT_END };
 
 /* Insmod parameters */
-I2C_CLIENT_INSMOD_1(w83l786ng);
 
 static int reset;
 module_param(reset, bool, 0);
@@ -147,14 +146,14 @@ struct w83l786ng_data {
 
 static int w83l786ng_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id);
-static int w83l786ng_detect(struct i2c_client *client, int kind,
+static int w83l786ng_detect(struct i2c_client *client,
 			    struct i2c_board_info *info);
 static int w83l786ng_remove(struct i2c_client *client);
 static void w83l786ng_init_client(struct i2c_client *client);
 static struct w83l786ng_data *w83l786ng_update_device(struct device *dev);
 
 static const struct i2c_device_id w83l786ng_id[] = {
-	{ "w83l786ng", w83l786ng },
+	{ "w83l786ng", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, w83l786ng_id);
@@ -168,7 +167,7 @@ static struct i2c_driver w83l786ng_driver = {
 	.remove		= w83l786ng_remove,
 	.id_table	= w83l786ng_id,
 	.detect		= w83l786ng_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static u8
@@ -586,57 +585,34 @@ static const struct attribute_group w83l786ng_group = {
 };
 
 static int
-w83l786ng_detect(struct i2c_client *client, int kind,
-		 struct i2c_board_info *info)
+w83l786ng_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
+	u16 man_id;
+	u8 chip_id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		return -ENODEV;
 	}
 
-	/*
-	 * Now we do the remaining detection. A negative kind means that
-	 * the driver was loaded with no force parameter (default), so we
-	 * must both detect and identify the chip (actually there is only
-	 * one possible kind of chip for now, W83L786NG). A zero kind means
-	 * that the driver was loaded with the force parameter, the detection
-	 * step shall be skipped. A positive kind means that the driver
-	 * was loaded with the force parameter and a given kind of chip is
-	 * requested, so both the detection and the identification steps
-	 * are skipped.
-	 */
-	if (kind < 0) { /* detection */
-		if (((w83l786ng_read_value(client,
-		    W83L786NG_REG_CONFIG) & 0x80) != 0x00)) {
-			dev_dbg(&adapter->dev,
-				"W83L786NG detection failed at 0x%02x.\n",
-				client->addr);
-			return -ENODEV;
-		}
+	/* Detection */
+	if ((w83l786ng_read_value(client, W83L786NG_REG_CONFIG) & 0x80)) {
+		dev_dbg(&adapter->dev, "W83L786NG detection failed at 0x%02x\n",
+			client->addr);
+		return -ENODEV;
 	}
 
-	if (kind <= 0) { /* identification */
-		u16 man_id;
-		u8 chip_id;
+	/* Identification */
+	man_id = (w83l786ng_read_value(client, W83L786NG_REG_MAN_ID1) << 8) +
+		 w83l786ng_read_value(client, W83L786NG_REG_MAN_ID2);
+	chip_id = w83l786ng_read_value(client, W83L786NG_REG_CHIP_ID);
 
-		man_id = (w83l786ng_read_value(client,
-		    W83L786NG_REG_MAN_ID1) << 8) +
-		    w83l786ng_read_value(client, W83L786NG_REG_MAN_ID2);
-		chip_id = w83l786ng_read_value(client, W83L786NG_REG_CHIP_ID);
-
-		if (man_id == 0x5CA3) { /* Winbond */
-			if (chip_id == 0x80) { /* W83L786NG */
-				kind = w83l786ng;
-			}
-		}
-
-		if (kind <= 0) { /* identification failed */
-			dev_info(&adapter->dev,
-			    "Unsupported chip (man_id=0x%04X, "
-			    "chip_id=0x%02X).\n", man_id, chip_id);
-			return -ENODEV;
-		}
+	if (man_id != 0x5CA3 ||		/* Winbond */
+	    chip_id != 0x80) {		/* W83L786NG */
+		dev_dbg(&adapter->dev,
+			"Unsupported chip (man_id=0x%04X, chip_id=0x%02X)\n",
+			man_id, chip_id);
+		return -ENODEV;
 	}
 
 	strlcpy(info->type, "w83l786ng", I2C_NAME_SIZE);

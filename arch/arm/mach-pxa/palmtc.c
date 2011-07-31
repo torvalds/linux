@@ -84,26 +84,7 @@ static unsigned long palmtc_pin_config[] __initdata = {
 	GPIO36_GPIO,	/* pullup */
 
 	/* LCD */
-	GPIO58_LCD_LDD_0,
-	GPIO59_LCD_LDD_1,
-	GPIO60_LCD_LDD_2,
-	GPIO61_LCD_LDD_3,
-	GPIO62_LCD_LDD_4,
-	GPIO63_LCD_LDD_5,
-	GPIO64_LCD_LDD_6,
-	GPIO65_LCD_LDD_7,
-	GPIO66_LCD_LDD_8,
-	GPIO67_LCD_LDD_9,
-	GPIO68_LCD_LDD_10,
-	GPIO69_LCD_LDD_11,
-	GPIO70_LCD_LDD_12,
-	GPIO71_LCD_LDD_13,
-	GPIO72_LCD_LDD_14,
-	GPIO73_LCD_LDD_15,
-	GPIO74_LCD_FCLK,
-	GPIO75_LCD_LCLK,
-	GPIO76_LCD_PCLK,
-	GPIO77_LCD_BIAS,
+	GPIOxx_LCD_TFT_16BPP,
 
 	/* MATRIX KEYPAD */
 	GPIO0_GPIO | WAKEUP_ON_EDGE_BOTH,	/* in 0 */
@@ -140,7 +121,7 @@ static struct pxamci_platform_data palmtc_mci_platform_data = {
 	.gpio_power		= GPIO_NR_PALMTC_SD_POWER,
 	.gpio_card_ro		= GPIO_NR_PALMTC_SD_READONLY,
 	.gpio_card_detect	= GPIO_NR_PALMTC_SD_DETECT_N,
-	.detect_delay		= 20,
+	.detect_delay_ms	= 200,
 };
 
 /******************************************************************************
@@ -185,7 +166,7 @@ err:
 	return ret;
 }
 
-static int palmtc_backlight_notify(int brightness)
+static int palmtc_backlight_notify(struct device *dev, int brightness)
 {
 	/* backlight is on when GPIO16 AF0 is high */
 	gpio_set_value(GPIO_NR_PALMTC_BL_POWER, brightness);
@@ -282,11 +263,11 @@ const struct matrix_keymap_data palmtc_keymap_data = {
 	.keymap_size		= ARRAY_SIZE(palmtc_matrix_keys),
 };
 
-const static unsigned int palmtc_keypad_row_gpios[] = {
+static const unsigned int palmtc_keypad_row_gpios[] = {
 	0, 9, 10, 11
 };
 
-const static unsigned int palmtc_keypad_col_gpios[] = {
+static const unsigned int palmtc_keypad_col_gpios[] = {
 	18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 79, 80
 };
 
@@ -415,6 +396,11 @@ static struct platform_device *devices[] __initdata = {
 static void __init palmtc_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(palmtc_pin_config));
+
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+	pxa_set_hwuart_info(NULL);
 
 	set_pxa_fb_info(&palmtc_lcd_screen);
 	pxa_set_mci_info(&palmtc_mci_platform_data);

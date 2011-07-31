@@ -12,6 +12,7 @@
  */
 
 #include <linux/inet.h>
+#include <linux/slab.h>
 #include <linux/crypto.h>
 #include <linux/if_vlan.h>
 #include <net/dst.h>
@@ -591,8 +592,7 @@ static int cxgb3i_conn_bind(struct iscsi_cls_session *cls_session,
 	cxgb3i_conn_max_recv_dlength(conn);
 
 	spin_lock_bh(&conn->session->lock);
-	sprintf(conn->portal_address, NIPQUAD_FMT,
-		NIPQUAD(c3cn->daddr.sin_addr.s_addr));
+	sprintf(conn->portal_address, "%pI4", &c3cn->daddr.sin_addr.s_addr);
 	conn->portal_port = ntohs(c3cn->daddr.sin_port);
 	spin_unlock_bh(&conn->session->lock);
 
@@ -709,6 +709,12 @@ static int cxgb3i_host_set_param(struct Scsi_Host *shost,
 {
 	struct cxgb3i_hba *hba = iscsi_host_priv(shost);
 
+	if (!hba->ndev) {
+		shost_printk(KERN_ERR, shost, "Could not set host param. "
+			     "Netdev for host not set.\n");
+		return -ENODEV;
+	}
+
 	cxgb3i_api_debug("param %d, buf %s.\n", param, buf);
 
 	switch (param) {
@@ -739,6 +745,12 @@ static int cxgb3i_host_get_param(struct Scsi_Host *shost,
 	struct cxgb3i_hba *hba = iscsi_host_priv(shost);
 	int len = 0;
 
+	if (!hba->ndev) {
+		shost_printk(KERN_ERR, shost, "Could not set host param. "
+			     "Netdev for host not set.\n");
+		return -ENODEV;
+	}
+
 	cxgb3i_api_debug("hba %s, param %d.\n", hba->ndev->name, param);
 
 	switch (param) {
@@ -753,7 +765,7 @@ static int cxgb3i_host_get_param(struct Scsi_Host *shost,
 		__be32 addr;
 
 		addr = cxgb3i_get_private_ipv4addr(hba->ndev);
-		len = sprintf(buf, NIPQUAD_FMT, NIPQUAD(addr));
+		len = sprintf(buf, "%pI4", &addr);
 		break;
 	}
 	default:
@@ -904,7 +916,7 @@ static struct scsi_host_template cxgb3i_host_template = {
 	.cmd_per_lun		= ISCSI_DEF_CMD_PER_LUN,
 	.eh_abort_handler	= iscsi_eh_abort,
 	.eh_device_reset_handler = iscsi_eh_device_reset,
-	.eh_target_reset_handler = iscsi_eh_target_reset,
+	.eh_target_reset_handler = iscsi_eh_recover_target,
 	.target_alloc		= iscsi_target_alloc,
 	.use_clustering		= DISABLE_CLUSTERING,
 	.this_id		= -1,
@@ -937,7 +949,7 @@ static struct iscsi_transport cxgb3i_iscsi_transport = {
 				ISCSI_USERNAME | ISCSI_PASSWORD |
 				ISCSI_USERNAME_IN | ISCSI_PASSWORD_IN |
 				ISCSI_FAST_ABORT | ISCSI_ABORT_TMO |
-				ISCSI_LU_RESET_TMO |
+				ISCSI_LU_RESET_TMO | ISCSI_TGT_RESET_TMO |
 				ISCSI_PING_TMO | ISCSI_RECV_TMO |
 				ISCSI_IFACE_NAME | ISCSI_INITIATOR_NAME,
 	.host_param_mask	= ISCSI_HOST_HWADDRESS | ISCSI_HOST_IPADDRESS |

@@ -174,7 +174,7 @@ int sc_ioctl(int card, scs_ioctl *data)
 		pr_debug("%s: SCIOGETSPID: ioctl received\n",
 				sc_adapter[card]->devicename);
 
-		spid = kmalloc(SCIOC_SPIDSIZE, GFP_KERNEL);
+		spid = kzalloc(SCIOC_SPIDSIZE, GFP_KERNEL);
 		if (!spid) {
 			kfree(rcvmsg);
 			return -ENOMEM;
@@ -194,7 +194,7 @@ int sc_ioctl(int card, scs_ioctl *data)
 			kfree(rcvmsg);
 			return status;
 		}
-		strcpy(spid, rcvmsg->msg_data.byte_array);
+		strlcpy(spid, rcvmsg->msg_data.byte_array, SCIOC_SPIDSIZE);
 
 		/*
 		 * Package the switch type and send to user space
@@ -215,19 +215,13 @@ int sc_ioctl(int card, scs_ioctl *data)
 		pr_debug("%s: DCBIOSETSPID: ioctl received\n",
 				sc_adapter[card]->devicename);
 
-		spid = kmalloc(SCIOC_SPIDSIZE, GFP_KERNEL);
-		if(!spid) {
-			kfree(rcvmsg);
-			return -ENOMEM;
-		}
-
 		/*
 		 * Get the spid from user space
 		 */
-		if (copy_from_user(spid, data->dataptr, SCIOC_SPIDSIZE)) {
+		spid = memdup_user(data->dataptr, SCIOC_SPIDSIZE);
+		if (IS_ERR(spid)) {
 			kfree(rcvmsg);
-			kfree(spid);
-			return -EFAULT;
+			return PTR_ERR(spid);
 		}
 
 		pr_debug("%s: SCIOCSETSPID: setting channel %d spid to %s\n", 
@@ -272,12 +266,12 @@ int sc_ioctl(int card, scs_ioctl *data)
 			return status;
 		}
 
-		dn = kmalloc(SCIOC_DNSIZE, GFP_KERNEL);
+		dn = kzalloc(SCIOC_DNSIZE, GFP_KERNEL);
 		if (!dn) {
 			kfree(rcvmsg);
 			return -ENOMEM;
 		}
-		strcpy(dn, rcvmsg->msg_data.byte_array);
+		strlcpy(dn, rcvmsg->msg_data.byte_array, SCIOC_DNSIZE);
 		kfree(rcvmsg);
 
 		/*
@@ -296,18 +290,13 @@ int sc_ioctl(int card, scs_ioctl *data)
 		pr_debug("%s: SCIOSETDN: ioctl received\n",
 				sc_adapter[card]->devicename);
 
-		dn = kmalloc(SCIOC_DNSIZE, GFP_KERNEL);
-		if (!dn) {
-			kfree(rcvmsg);
-			return -ENOMEM;
-		}
 		/*
 		 * Get the spid from user space
 		 */
-		if (copy_from_user(dn, data->dataptr, SCIOC_DNSIZE)) {
+		dn = memdup_user(data->dataptr, SCIOC_DNSIZE);
+		if (IS_ERR(dn)) {
 			kfree(rcvmsg);
-			kfree(dn);
-			return -EFAULT;
+			return PTR_ERR(dn);
 		}
 
 		pr_debug("%s: SCIOCSETDN: setting channel %d dn to %s\n", 
@@ -348,7 +337,7 @@ int sc_ioctl(int card, scs_ioctl *data)
 		pr_debug("%s: SCIOSTAT: ioctl received\n",
 				sc_adapter[card]->devicename);
 
-		bi = kmalloc (sizeof(boardInfo), GFP_KERNEL);
+		bi = kzalloc(sizeof(boardInfo), GFP_KERNEL);
 		if (!bi) {
 			kfree(rcvmsg);
 			return -ENOMEM;

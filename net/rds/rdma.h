@@ -61,6 +61,7 @@ static inline u32 rds_rdma_cookie_offset(rds_rdma_cookie_t cookie)
 }
 
 int rds_get_mr(struct rds_sock *rs, char __user *optval, int optlen);
+int rds_get_mr_for_dest(struct rds_sock *rs, char __user *optval, int optlen);
 int rds_free_mr(struct rds_sock *rs, char __user *optval, int optlen);
 void rds_rdma_drop_keys(struct rds_sock *rs);
 int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,

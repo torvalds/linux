@@ -19,7 +19,7 @@ struct vme_master_resource {
 	vme_address_t address_attr;
 	vme_cycle_t cycle_attr;
 	vme_width_t width_attr;
-	struct resource pci_resource;	/* XXX Rename to be bus agnostic */
+	struct resource bus_resource;
 	void *kern_base;
 };
 
@@ -64,6 +64,7 @@ struct vme_dma_resource {
 	int number;
 	struct list_head pending;
 	struct list_head running;
+	vme_dma_route_t route_attr;
 };
 
 struct vme_lm_resource {
@@ -101,7 +102,7 @@ struct vme_irq {
  * Currently we assume that all chips are PCI-based
  */
 struct vme_bridge {
-        char name[VMENAMSIZ];
+	char name[VMENAMSIZ];
 	int num;
 	struct list_head master_resources;
 	struct list_head slave_resources;
@@ -112,7 +113,7 @@ struct vme_bridge {
 
 	/* Bridge Info - XXX Move to private structure? */
 	struct device *parent;	/* Generic device struct (pdev->dev for PCI) */
-	void * base;		/* Base Address of device registers */
+	void *driver_priv;	/* Private pointer for the bridge driver */
 
 	struct device dev[VME_SLOTS_MAX];	/* Device registered with
 						 * device model on VME bus
@@ -120,6 +121,8 @@ struct vme_bridge {
 
 	/* Interrupt callbacks */
 	struct vme_irq irq[7];
+	/* Locking for VME irq callback configuration */
+	struct mutex irq_mtx;
 
 	/* Slave Functions */
 	int (*slave_get) (struct vme_slave_resource *, int *,
@@ -149,9 +152,8 @@ struct vme_bridge {
 	int (*dma_list_empty) (struct vme_dma_list *);
 
 	/* Interrupt Functions */
-	int (*request_irq) (int, int, void (*cback)(int, int, void*), void *);
-	void (*free_irq) (int, int);
-	int (*generate_irq) (int, int);
+	void (*irq_set) (struct vme_bridge *, int, int, int);
+	int (*irq_generate) (struct vme_bridge *, int, int);
 
 	/* Location monitor functions */
 	int (*lm_set) (struct vme_lm_resource *, unsigned long long,
@@ -162,100 +164,12 @@ struct vme_bridge {
 	int (*lm_detach) (struct vme_lm_resource *, int);
 
 	/* CR/CSR space functions */
-	int (*slot_get) (void);
-	/* Use standard master read and write functions to access CR/CSR */
-
-#if 0
-	int (*set_prefetch) (void);
-	int (*get_prefetch) (void);
-	int (*set_arbiter) (void);
-	int (*get_arbiter) (void);
-	int (*set_requestor) (void);
-	int (*get_requestor) (void);
-#endif
+	int (*slot_get) (struct vme_bridge *);
 };
 
-int vme_register_bridge (struct vme_bridge *);
-void vme_unregister_bridge (struct vme_bridge *);
+void vme_irq_handler(struct vme_bridge *, int, int);
+
+int vme_register_bridge(struct vme_bridge *);
+void vme_unregister_bridge(struct vme_bridge *);
 
 #endif /* _VME_BRIDGE_H_ */
-
-#if 0
-/*
- *  VMEbus GET INFO Arg Structure
- */
-struct vmeInfoCfg {
-	int vmeSlotNum;		/*  VME slot number of interest */
-	int boardResponded;	/* Board responded */
-	char sysConFlag;	/*  System controller flag */
-	int vmeControllerID;	/*  Vendor/device ID of VME bridge */
-	int vmeControllerRev;	/*  Revision of VME bridge */
-	char osName[8];		/*  Name of OS e.g. "Linux" */
-	int vmeSharedDataValid;	/*  Validity of data struct */
-	int vmeDriverRev;	/*  Revision of VME driver */
-	unsigned int vmeAddrHi[8];	/* Address on VME bus */
-	unsigned int vmeAddrLo[8];	/* Address on VME bus */
-	unsigned int vmeSize[8];	/* Size on VME bus */
-	unsigned int vmeAm[8];	/* Address modifier on VME bus */
-	int reserved;		/* For future use */
-};
-typedef struct vmeInfoCfg vmeInfoCfg_t;
-
-/*
- *  VMEbus Requester Arg Structure
- */
-struct vmeRequesterCfg {
-	int requestLevel;	/*  Requester Bus Request Level */
-	char fairMode;		/*  Requester Fairness Mode Indicator */
-	int releaseMode;	/*  Requester Bus Release Mode */
-	int timeonTimeoutTimer;	/*  Master Time-on Time-out Timer */
-	int timeoffTimeoutTimer;	/*  Master Time-off Time-out Timer */
-	int reserved;		/* For future use */
-};
-typedef struct vmeRequesterCfg vmeRequesterCfg_t;
-
-/*
- *  VMEbus Arbiter Arg Structure
- */
-struct vmeArbiterCfg {
-	vme_arbitration_t arbiterMode;	/*  Arbitration Scheduling Algorithm */
-	char arbiterTimeoutFlag;	/*  Arbiter Time-out Timer Indicator */
-	int globalTimeoutTimer;	/*  VMEbus Global Time-out Timer */
-	char noEarlyReleaseFlag;	/*  No Early Release on BBUSY */
-	int reserved;		/* For future use */
-};
-typedef struct vmeArbiterCfg vmeArbiterCfg_t;
-
-
-/*
- *  VMEbus RMW Configuration Data
- */
-struct vmeRmwCfg {
-	unsigned int targetAddrU;	/*  VME Address (Upper) to trigger RMW cycle */
-	unsigned int targetAddr;	/*  VME Address (Lower) to trigger RMW cycle */
-	vme_address_t addrSpace;	/*  VME Address Space */
-	int enableMask;		/*  Bit mask defining the bits of interest */
-	int compareData;	/*  Data to be compared with the data read */
-	int swapData;		/*  Data written to the VMEbus on success */
-	int maxAttempts;	/*  Maximum times to try */
-	int numAttempts;	/*  Number of attempts before success */
-	int reserved;		/* For future use */
-
-};
-typedef struct vmeRmwCfg vmeRmwCfg_t;
-
-/*
- *  VMEbus Location Monitor Arg Structure
- */
-struct vmeLmCfg {
-	unsigned int addrU;	/*  Location Monitor Address upper */
-	unsigned int addr;	/*  Location Monitor Address lower */
-	vme_address_t addrSpace;	/*  Address Space */
-	int userAccessType;	/*  User/Supervisor Access Type */
-	int dataAccessType;	/*  Data/Program Access Type */
-	int lmWait;		/* Time to wait for access */
-	int lmEvents;		/* Lm event mask */
-	int reserved;		/* For future use */
-};
-typedef struct vmeLmCfg vmeLmCfg_t;
-#endif

@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 /*
  * Check that the effect_id is a valid effect and whether the user
@@ -353,7 +354,7 @@ int input_ff_create(struct input_dev *dev, int max_effects)
 EXPORT_SYMBOL_GPL(input_ff_create);
 
 /**
- * input_ff_free() - frees force feedback portion of input device
+ * input_ff_destroy() - frees force feedback portion of input device
  * @dev: input device supporting force feedback
  *
  * This function is only needed in error path as input core will
@@ -369,6 +370,7 @@ void input_ff_destroy(struct input_dev *dev)
 		if (ff->destroy)
 			ff->destroy(ff);
 		kfree(ff->private);
+		kfree(ff->effects);
 		kfree(ff);
 		dev->ff = NULL;
 	}

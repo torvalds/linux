@@ -10,7 +10,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/fb.h>
@@ -250,9 +249,9 @@ static void p9100_init_fix(struct fb_info *info, int linebytes, struct device_no
 	info->fix.accel = FB_ACCEL_SUN_CGTHREE;
 }
 
-static int __devinit p9100_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit p9100_probe(struct platform_device *op, const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
 	struct p9100_par *par;
 	int linebytes, err;
@@ -327,7 +326,7 @@ out_err:
 	return err;
 }
 
-static int __devexit p9100_remove(struct of_device *op)
+static int __devexit p9100_remove(struct platform_device *op)
 {
 	struct fb_info *info = dev_get_drvdata(&op->dev);
 	struct p9100_par *par = info->par;
@@ -354,8 +353,11 @@ static const struct of_device_id p9100_match[] = {
 MODULE_DEVICE_TABLE(of, p9100_match);
 
 static struct of_platform_driver p9100_driver = {
-	.name		= "p9100",
-	.match_table	= p9100_match,
+	.driver = {
+		.name = "p9100",
+		.owner = THIS_MODULE,
+		.of_match_table = p9100_match,
+	},
 	.probe		= p9100_probe,
 	.remove		= __devexit_p(p9100_remove),
 };
@@ -365,12 +367,12 @@ static int __init p9100_init(void)
 	if (fb_get_options("p9100fb", NULL))
 		return -ENODEV;
 
-	return of_register_driver(&p9100_driver, &of_bus_type);
+	return of_register_platform_driver(&p9100_driver);
 }
 
 static void __exit p9100_exit(void)
 {
-	of_unregister_driver(&p9100_driver);
+	of_unregister_platform_driver(&p9100_driver);
 }
 
 module_init(p9100_init);

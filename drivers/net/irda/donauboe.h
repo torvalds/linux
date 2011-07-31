@@ -273,7 +273,7 @@ struct OboeSlot
   __u8 control;                 /*Slot control/status see below */
   __u32 address;                /*Slot buffer address */
 }
-__attribute__ ((packed));
+__packed;
 
 #define OBOE_NTASKS OBOE_TXRING_OFFSET_IN_SLOTS
 

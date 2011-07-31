@@ -27,6 +27,26 @@
 #define PTRACE_GETSIGINFO	0x4202
 #define PTRACE_SETSIGINFO	0x4203
 
+/*
+ * Generic ptrace interface that exports the architecture specific regsets
+ * using the corresponding NT_* types (which are also used in the core dump).
+ * Please note that the NT_PRSTATUS note type in a core dump contains a full
+ * 'struct elf_prstatus'. But the user_regset for NT_PRSTATUS contains just the
+ * elf_gregset_t that is the pr_reg field of 'struct elf_prstatus'. For all the
+ * other user_regset flavors, the user_regset layout and the ELF core dump note
+ * payload are exactly the same layout.
+ *
+ * This interface usage is as follows:
+ *	struct iovec iov = { buf, len};
+ *
+ *	ret = ptrace(PTRACE_GETREGSET/PTRACE_SETREGSET, pid, NT_XXX_TYPE, &iov);
+ *
+ * On the successful completion, iov.len will be updated by the kernel,
+ * specifying how much the kernel has written/read to/from the user's iov.buf.
+ */
+#define PTRACE_GETREGSET	0x4204
+#define PTRACE_SETREGSET	0x4205
+
 /* options set using PTRACE_SETOPTIONS */
 #define PTRACE_O_TRACESYSGOOD	0x00000001
 #define PTRACE_O_TRACEFORK	0x00000002
@@ -105,12 +125,7 @@ static inline int ptrace_reparented(struct task_struct *child)
 {
 	return child->real_parent != child->parent;
 }
-static inline void ptrace_link(struct task_struct *child,
-			       struct task_struct *new_parent)
-{
-	if (unlikely(child->ptrace))
-		__ptrace_link(child, new_parent);
-}
+
 static inline void ptrace_unlink(struct task_struct *child)
 {
 	if (unlikely(child->ptrace))
@@ -169,9 +184,9 @@ static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
 	INIT_LIST_HEAD(&child->ptraced);
 	child->parent = child->real_parent;
 	child->ptrace = 0;
-	if (unlikely(ptrace)) {
+	if (unlikely(ptrace) && (current->ptrace & PT_PTRACED)) {
 		child->ptrace = current->ptrace;
-		ptrace_link(child, current->parent);
+		__ptrace_link(child, current->parent);
 	}
 }
 
@@ -249,6 +264,9 @@ static inline void user_enable_single_step(struct task_struct *task)
 static inline void user_disable_single_step(struct task_struct *task)
 {
 }
+#else
+extern void user_enable_single_step(struct task_struct *);
+extern void user_disable_single_step(struct task_struct *);
 #endif	/* arch_has_single_step */
 
 #ifndef arch_has_block_step
@@ -276,7 +294,21 @@ static inline void user_enable_block_step(struct task_struct *task)
 {
 	BUG();			/* This can never be called.  */
 }
+#else
+extern void user_enable_block_step(struct task_struct *);
 #endif	/* arch_has_block_step */
+
+#ifdef ARCH_HAS_USER_SINGLE_STEP_INFO
+extern void user_single_step_siginfo(struct task_struct *tsk,
+				struct pt_regs *regs, siginfo_t *info);
+#else
+static inline void user_single_step_siginfo(struct task_struct *tsk,
+				struct pt_regs *regs, siginfo_t *info)
+{
+	memset(info, 0, sizeof(*info));
+	info->si_signo = SIGTRAP;
+}
+#endif
 
 #ifndef arch_ptrace_stop_needed
 /**
@@ -311,18 +343,6 @@ static inline void user_enable_block_step(struct task_struct *task)
  * indicated by arch_ptrace_stop_needed().
  */
 #define arch_ptrace_stop(code, info)		do { } while (0)
-#endif
-
-#ifndef arch_ptrace_untrace
-/*
- * Do machine-specific work before untracing child.
- *
- * This is called for a normal detach as well as from ptrace_exit()
- * when the tracing task dies.
- *
- * Called with write_lock(&tasklist_lock) held.
- */
-#define arch_ptrace_untrace(task)		do { } while (0)
 #endif
 
 extern int task_current_syscall(struct task_struct *target, long *callno,

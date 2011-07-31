@@ -302,7 +302,7 @@ struct ni_gpct_device *ni_gpct_device_construct(struct comedi_device *dev,
 									ni_gpct_register
 									reg),
 						unsigned (*read_register)
-						(struct ni_gpct * counter,
+						(struct ni_gpct *counter,
 						 enum ni_gpct_register reg),
 						enum ni_gpct_variant variant,
 						unsigned num_counters)
@@ -332,6 +332,7 @@ struct ni_gpct_device *ni_gpct_device_construct(struct comedi_device *dev,
 	counter_dev->num_counters = num_counters;
 	return counter_dev;
 }
+EXPORT_SYMBOL_GPL(ni_gpct_device_construct);
 
 void ni_gpct_device_destroy(struct ni_gpct_device *counter_dev)
 {
@@ -340,6 +341,7 @@ void ni_gpct_device_destroy(struct ni_gpct_device *counter_dev)
 	kfree(counter_dev->counters);
 	kfree(counter_dev);
 }
+EXPORT_SYMBOL_GPL(ni_gpct_device_destroy);
 
 static int ni_tio_second_gate_registers_present(const struct ni_gpct_device
 						*counter_dev)
@@ -418,6 +420,7 @@ void ni_tio_init_counter(struct ni_gpct *counter)
 			NITIO_Gi_Interrupt_Enable_Reg(counter->counter_index),
 			~0, 0x0);
 }
+EXPORT_SYMBOL_GPL(ni_tio_init_counter);
 
 static unsigned int ni_tio_counter_status(struct ni_gpct *counter)
 {
@@ -446,9 +449,7 @@ static void ni_tio_set_sync_mode(struct ni_gpct *counter, int force_alt_sync)
 	if (ni_tio_counting_mode_registers_present(counter_dev) == 0)
 		return;
 
-	switch (ni_tio_get_soft_copy(counter,
-				     counting_mode_reg) & Gi_Counting_Mode_Mask)
-	{
+	switch (ni_tio_get_soft_copy(counter, counting_mode_reg) & Gi_Counting_Mode_Mask) {
 	case Gi_Counting_Mode_QuadratureX1_Bits:
 	case Gi_Counting_Mode_QuadratureX2_Bits:
 	case Gi_Counting_Mode_QuadratureX4_Bits:
@@ -513,9 +514,8 @@ static int ni_tio_set_counter_mode(struct ni_gpct *counter, unsigned mode)
 		counting_mode_bits |=
 		    ((mode >> NI_GPCT_INDEX_PHASE_BITSHIFT) <<
 		     Gi_Index_Phase_Bitshift) & Gi_Index_Phase_Mask;
-		if (mode & NI_GPCT_INDEX_ENABLE_BIT) {
+		if (mode & NI_GPCT_INDEX_ENABLE_BIT)
 			counting_mode_bits |= Gi_Index_Mode_Bit;
-		}
 		ni_tio_set_bits(counter,
 				NITIO_Gi_Counting_Mode_Reg(counter->
 							   counter_index),
@@ -529,12 +529,10 @@ static int ni_tio_set_counter_mode(struct ni_gpct *counter, unsigned mode)
 			(mode >> NI_GPCT_COUNTING_DIRECTION_SHIFT) <<
 			Gi_Up_Down_Shift);
 
-	if (mode & NI_GPCT_OR_GATE_BIT) {
+	if (mode & NI_GPCT_OR_GATE_BIT)
 		input_select_bits |= Gi_Or_Gate_Bit;
-	}
-	if (mode & NI_GPCT_INVERT_OUTPUT_BIT) {
+	if (mode & NI_GPCT_INVERT_OUTPUT_BIT)
 		input_select_bits |= Gi_Output_Polarity_Bit;
-	}
 	ni_tio_set_bits(counter,
 			NITIO_Gi_Input_Select_Reg(counter->counter_index),
 			Gi_Gate_Select_Load_Source_Bit | Gi_Or_Gate_Bit |
@@ -600,6 +598,7 @@ int ni_tio_arm(struct ni_gpct *counter, int arm, unsigned start_trigger)
 				  0, 0, command_transient_bits);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ni_tio_arm);
 
 static unsigned ni_660x_source_select_bits(unsigned int clock_source)
 {
@@ -706,7 +705,7 @@ static unsigned ni_m_series_source_select_bits(unsigned int clock_source)
 		}
 		if (i <= ni_m_series_max_pfi_channel)
 			break;
-		printk("invalid clock source 0x%lx\n",
+		printk(KERN_ERR "invalid clock source 0x%lx\n",
 		       (unsigned long)clock_source);
 		BUG();
 		ni_m_series_clock = 0;
@@ -1026,14 +1025,12 @@ static void ni_tio_set_first_gate_modifiers(struct ni_gpct *counter,
 	const unsigned mode_mask = Gi_Gate_Polarity_Bit | Gi_Gating_Mode_Mask;
 	unsigned mode_values = 0;
 
-	if (gate_source & CR_INVERT) {
+	if (gate_source & CR_INVERT)
 		mode_values |= Gi_Gate_Polarity_Bit;
-	}
-	if (gate_source & CR_EDGE) {
+	if (gate_source & CR_EDGE)
 		mode_values |= Gi_Rising_Edge_Gating_Bits;
-	} else {
+	else
 		mode_values |= Gi_Level_Gating_Bits;
-	}
 	ni_tio_set_bits(counter, NITIO_Gi_Mode_Reg(counter->counter_index),
 			mode_mask, mode_values);
 }
@@ -1290,6 +1287,7 @@ int ni_tio_set_gate_src(struct ni_gpct *counter, unsigned gate_index,
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ni_tio_set_gate_src);
 
 static int ni_tio_set_other_src(struct ni_gpct *counter, unsigned index,
 				unsigned int source)
@@ -1531,12 +1529,10 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned gate_index,
 			BUG();
 			break;
 		}
-		if (mode_bits & Gi_Gate_Polarity_Bit) {
+		if (mode_bits & Gi_Gate_Polarity_Bit)
 			*gate_source |= CR_INVERT;
-		}
-		if ((mode_bits & Gi_Gating_Mode_Mask) != Gi_Level_Gating_Bits) {
+		if ((mode_bits & Gi_Gating_Mode_Mask) != Gi_Level_Gating_Bits)
 			*gate_source |= CR_EDGE;
-		}
 		break;
 	case 1:
 		if ((mode_bits & Gi_Gating_Mode_Mask) == Gi_Gating_Disabled_Bits
@@ -1572,9 +1568,8 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned gate_index,
 			*gate_source |= CR_INVERT;
 		}
 		/* second gate can't have edge/level mode set independently */
-		if ((mode_bits & Gi_Gating_Mode_Mask) != Gi_Level_Gating_Bits) {
+		if ((mode_bits & Gi_Gating_Mode_Mask) != Gi_Level_Gating_Bits)
 			*gate_source |= CR_EDGE;
-		}
 		break;
 	default:
 		return -EINVAL;
@@ -1627,6 +1622,7 @@ int ni_tio_insn_config(struct ni_gpct *counter,
 	}
 	return -EINVAL;
 }
+EXPORT_SYMBOL_GPL(ni_tio_insn_config);
 
 int ni_tio_rinsn(struct ni_gpct *counter, struct comedi_insn *insn,
 		 unsigned int *data)
@@ -1681,6 +1677,7 @@ int ni_tio_rinsn(struct ni_gpct *counter, struct comedi_insn *insn,
 	};
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ni_tio_rinsn);
 
 static unsigned ni_tio_next_load_register(struct ni_gpct *counter)
 {
@@ -1688,11 +1685,10 @@ static unsigned ni_tio_next_load_register(struct ni_gpct *counter)
 					    NITIO_Gxx_Status_Reg(counter->
 								 counter_index));
 
-	if (bits & Gi_Next_Load_Source_Bit(counter->counter_index)) {
+	if (bits & Gi_Next_Load_Source_Bit(counter->counter_index))
 		return NITIO_Gi_LoadB_Reg(counter->counter_index);
-	} else {
+	else
 		return NITIO_Gi_LoadA_Reg(counter->counter_index);
-	}
 }
 
 int ni_tio_winsn(struct ni_gpct *counter, struct comedi_insn *insn,
@@ -1735,12 +1731,4 @@ int ni_tio_winsn(struct ni_gpct *counter, struct comedi_insn *insn,
 	}
 	return 0;
 }
-
-EXPORT_SYMBOL_GPL(ni_tio_rinsn);
 EXPORT_SYMBOL_GPL(ni_tio_winsn);
-EXPORT_SYMBOL_GPL(ni_tio_insn_config);
-EXPORT_SYMBOL_GPL(ni_tio_init_counter);
-EXPORT_SYMBOL_GPL(ni_tio_arm);
-EXPORT_SYMBOL_GPL(ni_tio_set_gate_src);
-EXPORT_SYMBOL_GPL(ni_gpct_device_construct);
-EXPORT_SYMBOL_GPL(ni_gpct_device_destroy);

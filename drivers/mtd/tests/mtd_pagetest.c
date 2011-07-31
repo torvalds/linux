@@ -25,6 +25,7 @@
 #include <linux/moduleparam.h>
 #include <linux/err.h>
 #include <linux/mtd/mtd.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 
 #define PRINT_PREF KERN_INFO "mtd_pagetest: "
@@ -309,7 +310,7 @@ static int crosstest(void)
 static int erasecrosstest(void)
 {
 	size_t read = 0, written = 0;
-	int err = 0, i, ebnum, ok = 1, ebnum2;
+	int err = 0, i, ebnum, ebnum2;
 	loff_t addr0;
 	char *readbuf = twopages;
 
@@ -356,8 +357,7 @@ static int erasecrosstest(void)
 	if (memcmp(writebuf, readbuf, pgsize)) {
 		printk(PRINT_PREF "verify failed!\n");
 		errcnt += 1;
-		ok = 0;
-		return err;
+		return -1;
 	}
 
 	printk(PRINT_PREF "erasing block %d\n", ebnum);
@@ -395,10 +395,10 @@ static int erasecrosstest(void)
 	if (memcmp(writebuf, readbuf, pgsize)) {
 		printk(PRINT_PREF "verify failed!\n");
 		errcnt += 1;
-		ok = 0;
+		return -1;
 	}
 
-	if (ok && !err)
+	if (!err)
 		printk(PRINT_PREF "erasecrosstest ok\n");
 	return err;
 }
@@ -479,12 +479,11 @@ static int scan_for_bad_eraseblocks(void)
 {
 	int i, bad = 0;
 
-	bbt = kmalloc(ebcnt, GFP_KERNEL);
+	bbt = kzalloc(ebcnt, GFP_KERNEL);
 	if (!bbt) {
 		printk(PRINT_PREF "error: cannot allocate memory\n");
 		return -ENOMEM;
 	}
-	memset(bbt, 0 , ebcnt);
 
 	printk(PRINT_PREF "scanning for bad eraseblocks\n");
 	for (i = 0; i < ebcnt; ++i) {
@@ -523,6 +522,7 @@ static int __init mtd_pagetest_init(void)
 	do_div(tmp, mtd->erasesize);
 	ebcnt = tmp;
 	pgcnt = mtd->erasesize / mtd->writesize;
+	pgsize = mtd->writesize;
 
 	printk(PRINT_PREF "MTD device size %llu, eraseblock size %u, "
 	       "page size %u, count of eraseblocks %u, pages per "

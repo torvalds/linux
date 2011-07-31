@@ -6,10 +6,6 @@
 
 	.text
 
-	.globl	__memset
-	.type	__memset, #function
-__memset:		/* %o0=buf, %o1=pat, %o2=len */
-
 	.globl	memset
 	.type	memset, #function
 memset:			/* %o0=buf, %o1=pat, %o2=len */
@@ -83,7 +79,6 @@ __bzero_done:
 	retl
 	 mov		%o3, %o0
 	.size		__bzero, .-__bzero
-	.size		__memset, .-__memset
 	.size		memset, .-memset
 
 #define EX_ST(x,y)		\

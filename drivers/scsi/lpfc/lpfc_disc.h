@@ -19,7 +19,7 @@
  *******************************************************************/
 
 #define FC_MAX_HOLD_RSCN     32	      /* max number of deferred RSCNs */
-#define FC_MAX_NS_RSP        65536    /* max size NameServer rsp */
+#define FC_MAX_NS_RSP        64512    /* max size NameServer rsp */
 #define FC_MAXLOOP           126      /* max devices supported on a fc loop */
 #define LPFC_DISC_FLOGI_TMO  10	      /* Discovery FLOGI ratov */
 
@@ -38,6 +38,7 @@ enum lpfc_work_type {
 	LPFC_EVT_ELS_RETRY,
 	LPFC_EVT_DEV_LOSS,
 	LPFC_EVT_FASTPATH_MGMT_EVT,
+	LPFC_EVT_RESET_HBA,
 };
 
 /* structure used to queue event to the discovery tasklet */
@@ -105,8 +106,6 @@ struct lpfc_nodelist {
 	struct lpfc_vport *vport;
 	struct lpfc_work_evt els_retry_evt;
 	struct lpfc_work_evt dev_loss_evt;
-	unsigned long last_ramp_up_time;        /* jiffy of last ramp up */
-	unsigned long last_q_full_time;		/* jiffy of last queue full */
 	struct kref     kref;
 	atomic_t cmd_pending;
 	uint32_t cmd_qdepth;
@@ -115,6 +114,8 @@ struct lpfc_nodelist {
 };
 
 /* Defines for nlp_flag (uint32) */
+#define NLP_IGNR_REG_CMPL  0x00000001 /* Rcvd rscn before we cmpl reg login */
+#define NLP_REG_LOGIN_SEND 0x00000002   /* sent reglogin to adapter */
 #define NLP_PLOGI_SND      0x00000020	/* sent PLOGI request for this entry */
 #define NLP_PRLI_SND       0x00000040	/* sent PRLI request for this entry */
 #define NLP_ADISC_SND      0x00000080	/* sent ADISC request for this entry */

@@ -44,7 +44,6 @@
  * and if they're the last, they fire off the decision.
  */
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/reboot.h>
 
@@ -74,8 +73,20 @@ static void o2quo_fence_self(void)
 	 * threads can still schedule, etc, etc */
 	o2hb_stop_all_regions();
 
-	printk("ocfs2 is very sorry to be fencing this system by restarting\n");
-	emergency_restart();
+	switch (o2nm_single_cluster->cl_fence_method) {
+	case O2NM_FENCE_PANIC:
+		panic("*** ocfs2 is very sorry to be fencing this system by "
+		      "panicing ***\n");
+		break;
+	default:
+		WARN_ON(o2nm_single_cluster->cl_fence_method >=
+			O2NM_FENCE_METHODS);
+	case O2NM_FENCE_RESET:
+		printk(KERN_ERR "*** ocfs2 is very sorry to be fencing this "
+		       "system by restarting ***\n");
+		emergency_restart();
+		break;
+	};
 }
 
 /* Indicate that a timeout occured on a hearbeat region write. The

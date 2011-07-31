@@ -131,7 +131,7 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 		return err;
 	}
 
-	snd_card_set_dev(card, &handle_to_dev(link));
+	snd_card_set_dev(card, &link->dev);
 
 	pdacf->index = i;
 	card_list[i] = card;
@@ -139,16 +139,10 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 	pdacf->p_dev = link;
 	link->priv = pdacf;
 
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	link->io.NumPorts1 = 16;
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
+	link->resource[0]->end = 16;
 
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT | IRQ_FORCED_PULSE;
-	// link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
-
-	link->irq.IRQInfo1 = 0 /* | IRQ_LEVEL_ID */;
-	link->irq.Handler = pdacf_interrupt;
-	link->irq.Instance = pdacf;
-	link->conf.Attributes = CONF_ENABLE_IRQ;
+	link->conf.Attributes = CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.ConfigIndex = 1;
 	link->conf.Present = PRESENT_OPTION;
@@ -225,11 +219,11 @@ static int pdacf_config(struct pcmcia_device *link)
 	snd_printdd(KERN_DEBUG "pdacf_config called\n");
 	link->conf.ConfigIndex = 0x5;
 
-	ret = pcmcia_request_io(link, &link->io);
+	ret = pcmcia_request_io(link);
 	if (ret)
 		goto failed;
 
-	ret = pcmcia_request_irq(link, &link->irq);
+	ret = pcmcia_request_exclusive_irq(link, pdacf_interrupt);
 	if (ret)
 		goto failed;
 
@@ -237,10 +231,10 @@ static int pdacf_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	if (snd_pdacf_assign_resources(pdacf, link->io.BasePort1, link->irq.AssignedIRQ) < 0)
+	if (snd_pdacf_assign_resources(pdacf, link->resource[0]->start,
+					link->irq) < 0)
 		goto failed;
 
-	link->dev_node = &pdacf->node;
 	return 0;
 
 failed:

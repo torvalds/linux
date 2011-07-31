@@ -242,8 +242,6 @@ static int assign_substream(struct snd_rawmidi *rmidi, int subdevice,
 		return -ENXIO;
 	if (subdevice >= 0 && subdevice >= s->substream_count)
 		return -ENODEV;
-	if (s->substream_opened >= s->substream_count)
-		return -EAGAIN;
 
 	list_for_each_entry(substream, &s->substreams, list) {
 		if (substream->opened) {
@@ -280,9 +278,10 @@ static int open_substream(struct snd_rawmidi *rmidi,
 		substream->active_sensing = 0;
 		if (mode & SNDRV_RAWMIDI_LFLG_APPEND)
 			substream->append = 1;
+		substream->pid = get_pid(task_pid(current));
+		rmidi->streams[substream->stream].substream_opened++;
 	}
 	substream->use_count++;
-	rmidi->streams[substream->stream].substream_opened++;
 	return 0;
 }
 
@@ -377,6 +376,10 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 	if ((file->f_flags & O_APPEND) && !(file->f_flags & O_NONBLOCK)) 
 		return -EINVAL;		/* invalid combination */
 
+	err = nonseekable_open(inode, file);
+	if (err < 0)
+		return err;
+
 	if (maj == snd_major) {
 		rmidi = snd_lookup_minor_data(iminor(inode),
 					      SNDRV_DEVICE_TYPE_RAWMIDI);
@@ -413,7 +416,7 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 		subdevice = -1;
 		read_lock(&card->ctl_files_rwlock);
 		list_for_each_entry(kctl, &card->ctl_files, list) {
-			if (kctl->pid == current->pid) {
+			if (kctl->pid == task_pid(current)) {
 				subdevice = kctl->prefer_rawmidi_subdevice;
 				if (subdevice != -1)
 					break;
@@ -466,7 +469,6 @@ static void close_substream(struct snd_rawmidi *rmidi,
 			    struct snd_rawmidi_substream *substream,
 			    int cleanup)
 {
-	rmidi->streams[substream->stream].substream_opened--;
 	if (--substream->use_count)
 		return;
 
@@ -491,6 +493,9 @@ static void close_substream(struct snd_rawmidi *rmidi,
 	snd_rawmidi_runtime_free(substream);
 	substream->opened = 0;
 	substream->append = 0;
+	put_pid(substream->pid);
+	substream->pid = NULL;
+	rmidi->streams[substream->stream].substream_opened--;
 }
 
 static void rawmidi_release_priv(struct snd_rawmidi_file *rfile)
@@ -530,13 +535,15 @@ static int snd_rawmidi_release(struct inode *inode, struct file *file)
 {
 	struct snd_rawmidi_file *rfile;
 	struct snd_rawmidi *rmidi;
+	struct module *module;
 
 	rfile = file->private_data;
 	rmidi = rfile->rmidi;
 	rawmidi_release_priv(rfile);
 	kfree(rfile);
+	module = rmidi->card->module;
 	snd_card_file_remove(rmidi->card, file);
-	module_put(rmidi->card->module);
+	module_put(module);
 	return 0;
 }
 
@@ -824,6 +831,8 @@ static int snd_rawmidi_control_ioctl(struct snd_card *card,
 		
 		if (get_user(device, (int __user *)argp))
 			return -EFAULT;
+		if (device >= SNDRV_RAWMIDI_DEVICES) /* next device is -1 */
+			device = SNDRV_RAWMIDI_DEVICES - 1;
 		mutex_lock(&register_mutex);
 		device = device < 0 ? 0 : device + 1;
 		while (device < SNDRV_RAWMIDI_DEVICES) {
@@ -1256,7 +1265,7 @@ static ssize_t snd_rawmidi_write(struct file *file, const char __user *buf,
 			break;
 		count -= count1;
 	}
-	if (file->f_flags & O_SYNC) {
+	if (file->f_flags & O_DSYNC) {
 		spin_lock_irq(&runtime->lock);
 		while (runtime->avail != runtime->buffer_size) {
 			wait_queue_t wait;
@@ -1338,6 +1347,9 @@ static void snd_rawmidi_proc_info_read(struct snd_info_entry *entry,
 				    substream->number,
 				    (unsigned long) substream->bytes);
 			if (substream->opened) {
+				snd_iprintf(buffer,
+				    "  Owner PID    : %d\n",
+				    pid_vnr(substream->pid));
 				runtime = substream->runtime;
 				snd_iprintf(buffer,
 				    "  Mode         : %s\n"
@@ -1359,6 +1371,9 @@ static void snd_rawmidi_proc_info_read(struct snd_info_entry *entry,
 				    substream->number,
 				    (unsigned long) substream->bytes);
 			if (substream->opened) {
+				snd_iprintf(buffer,
+					    "  Owner PID    : %d\n",
+					    pid_vnr(substream->pid));
 				runtime = substream->runtime;
 				snd_iprintf(buffer,
 					    "  Buffer size  : %lu\n"
@@ -1384,6 +1399,7 @@ static const struct file_operations snd_rawmidi_f_ops =
 	.write =	snd_rawmidi_write,
 	.open =		snd_rawmidi_open,
 	.release =	snd_rawmidi_release,
+	.llseek =	no_llseek,
 	.poll =		snd_rawmidi_poll,
 	.unlocked_ioctl =	snd_rawmidi_ioctl,
 	.compat_ioctl =	snd_rawmidi_ioctl_compat,

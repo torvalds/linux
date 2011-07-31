@@ -22,7 +22,6 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/cfi.h>
-#include <linux/mtd/compatmac.h>
 
 int __xipram cfi_qry_present(struct map_info *map, __u32 base,
 			     struct cfi_private *cfi)
@@ -71,6 +70,13 @@ int __xipram cfi_qry_mode_on(uint32_t base, struct map_info *map,
 	cfi_send_gen_cmd(0x98, 0x555, base, map, cfi, cfi->device_type, NULL);
 	if (cfi_qry_present(map, base, cfi))
 		return 1;
+	/* some old SST chips, e.g. 39VF160x/39VF320x */
+	cfi_send_gen_cmd(0xF0, 0, base, map, cfi, cfi->device_type, NULL);
+	cfi_send_gen_cmd(0xAA, 0x5555, base, map, cfi, cfi->device_type, NULL);
+	cfi_send_gen_cmd(0x55, 0x2AAA, base, map, cfi, cfi->device_type, NULL);
+	cfi_send_gen_cmd(0x98, 0x5555, base, map, cfi, cfi->device_type, NULL);
+	if (cfi_qry_present(map, base, cfi))
+		return 1;
 	/* QRY not found */
 	return 0;
 }
@@ -97,9 +103,10 @@ __xipram cfi_read_pri(struct map_info *map, __u16 adr, __u16 size, const char* n
 	int i;
 	struct cfi_extquery *extp = NULL;
 
-	printk(" %s Extended Query Table at 0x%4.4X\n", name, adr);
 	if (!adr)
 		goto out;
+
+	printk(KERN_INFO "%s Extended Query Table at 0x%4.4X\n", name, adr);
 
 	extp = kmalloc(size, GFP_KERNEL);
 	if (!extp) {

@@ -192,7 +192,7 @@ command line. This will execute all matching early_param() callbacks.
 User specified early platform devices will be registered at this point.
 For the early serial console case the user can specify port on the
 kernel command line as "earlyprintk=serial.0" where "earlyprintk" is
-the class string, "serial" is the name of the platfrom driver and
+the class string, "serial" is the name of the platform driver and
 0 is the platform device id. If the id is -1 then the dot and the
 id can be omitted.
 

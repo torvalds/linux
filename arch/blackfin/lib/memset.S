@@ -20,6 +20,7 @@
  * R1 = filler byte
  * R2 = count
  * Favours word aligned data.
+ * The strncpy assumes that I0 and I1 are not used in this function
  */
 
 ENTRY(_memset)

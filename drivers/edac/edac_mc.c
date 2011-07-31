@@ -76,6 +76,30 @@ static void edac_mc_dump_mci(struct mem_ctl_info *mci)
 	debugf3("\tpvt_info = %p\n\n", mci->pvt_info);
 }
 
+/*
+ * keep those in sync with the enum mem_type
+ */
+const char *edac_mem_types[] = {
+	"Empty csrow",
+	"Reserved csrow type",
+	"Unknown csrow type",
+	"Fast page mode RAM",
+	"Extended data out RAM",
+	"Burst Extended data out RAM",
+	"Single data rate SDRAM",
+	"Registered single data rate SDRAM",
+	"Double data rate SDRAM",
+	"Registered Double data rate SDRAM",
+	"Rambus DRAM",
+	"Unbuffered DDR2 RAM",
+	"Fully buffered DDR2",
+	"Registered DDR2 RAM",
+	"Rambus XDR",
+	"Unbuffered DDR3 RAM",
+	"Registered DDR3 RAM",
+};
+EXPORT_SYMBOL_GPL(edac_mem_types);
+
 #endif				/* CONFIG_EDAC_DEBUG */
 
 /* 'ptr' points to a possibly unaligned item X such that sizeof(X) is 'size'.
@@ -315,6 +339,9 @@ static void edac_mc_workq_teardown(struct mem_ctl_info *mci)
 {
 	int status;
 
+	if (mci->op_state != OP_RUNNING_POLL)
+		return;
+
 	status = cancel_delayed_work(&mci->work);
 	if (status == 0) {
 		debugf0("%s() not canceled, flush the queue\n",
@@ -551,14 +578,16 @@ struct mem_ctl_info *edac_mc_del_mc(struct device *dev)
 		return NULL;
 	}
 
-	/* marking MCI offline */
-	mci->op_state = OP_OFFLINE;
-
 	del_mc_from_global_list(mci);
 	mutex_unlock(&mem_ctls_mutex);
 
-	/* flush workq processes and remove sysfs */
+	/* flush workq processes */
 	edac_mc_workq_teardown(mci);
+
+	/* marking MCI offline */
+	mci->op_state = OP_OFFLINE;
+
+	/* remove from sysfs */
 	edac_remove_sysfs_mci_device(mci);
 
 	edac_printk(KERN_INFO, EDAC_MC,

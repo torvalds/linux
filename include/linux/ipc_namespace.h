@@ -62,11 +62,6 @@ extern struct ipc_namespace init_ipc_ns;
 extern atomic_t nr_ipc_ns;
 
 extern spinlock_t mq_lock;
-#if defined(CONFIG_POSIX_MQUEUE) || defined(CONFIG_SYSVIPC)
-#define INIT_IPC_NS(ns)		.ns		= &init_ipc_ns,
-#else
-#define INIT_IPC_NS(ns)
-#endif
 
 #ifdef CONFIG_SYSVIPC
 extern int register_ipcns_notifier(struct ipc_namespace *);
@@ -87,7 +82,7 @@ extern int mq_init_ns(struct ipc_namespace *ns);
 /* default values */
 #define DFLT_QUEUESMAX 256     /* max number of message queues */
 #define DFLT_MSGMAX    10      /* max number of messages in each queue */
-#define HARD_MSGMAX    (131072/sizeof(void *))
+#define HARD_MSGMAX    (32768*sizeof(void *)/4)
 #define DFLT_MSGSIZEMAX 8192   /* max message size */
 #else
 static inline int mq_init_ns(struct ipc_namespace *ns) { return 0; }

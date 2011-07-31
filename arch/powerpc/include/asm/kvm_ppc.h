@@ -28,24 +28,34 @@
 #include <linux/types.h>
 #include <linux/kvm_types.h>
 #include <linux/kvm_host.h>
+#ifdef CONFIG_PPC_BOOK3S
+#include <asm/kvm_book3s.h>
+#else
+#include <asm/kvm_booke.h>
+#endif
 
 enum emulation_result {
 	EMULATE_DONE,         /* no further processing */
 	EMULATE_DO_MMIO,      /* kvm_run filled with MMIO request */
 	EMULATE_DO_DCR,       /* kvm_run filled with DCR request */
 	EMULATE_FAIL,         /* can't emulate this instruction */
+	EMULATE_AGAIN,        /* something went wrong. go again */
 };
 
 extern int __kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
 extern char kvmppc_handlers_start[];
 extern unsigned long kvmppc_handler_len;
+extern void kvmppc_handler_highmem(void);
 
 extern void kvmppc_dump_vcpu(struct kvm_vcpu *vcpu);
 extern int kvmppc_handle_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
                               unsigned int rt, unsigned int bytes,
                               int is_bigendian);
+extern int kvmppc_handle_loads(struct kvm_run *run, struct kvm_vcpu *vcpu,
+                               unsigned int rt, unsigned int bytes,
+                               int is_bigendian);
 extern int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
-                               u32 val, unsigned int bytes, int is_bigendian);
+                               u64 val, unsigned int bytes, int is_bigendian);
 
 extern int kvmppc_emulate_instruction(struct kvm_run *run,
                                       struct kvm_vcpu *vcpu);
@@ -59,6 +69,7 @@ extern void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gpa_t gpaddr,
 extern void kvmppc_mmu_priv_switch(struct kvm_vcpu *vcpu, int usermode);
 extern void kvmppc_mmu_switch_pid(struct kvm_vcpu *vcpu, u32 pid);
 extern void kvmppc_mmu_destroy(struct kvm_vcpu *vcpu);
+extern int kvmppc_mmu_init(struct kvm_vcpu *vcpu);
 extern int kvmppc_mmu_dtlb_index(struct kvm_vcpu *vcpu, gva_t eaddr);
 extern int kvmppc_mmu_itlb_index(struct kvm_vcpu *vcpu, gva_t eaddr);
 extern gpa_t kvmppc_mmu_xlate(struct kvm_vcpu *vcpu, unsigned int gtlb_index,
@@ -79,10 +90,13 @@ extern void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu);
 
 extern void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu);
 extern int kvmppc_core_pending_dec(struct kvm_vcpu *vcpu);
-extern void kvmppc_core_queue_program(struct kvm_vcpu *vcpu);
+extern void kvmppc_core_queue_program(struct kvm_vcpu *vcpu, ulong flags);
 extern void kvmppc_core_queue_dec(struct kvm_vcpu *vcpu);
+extern void kvmppc_core_dequeue_dec(struct kvm_vcpu *vcpu);
 extern void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
                                        struct kvm_interrupt *irq);
+extern void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu,
+                                         struct kvm_interrupt *irq);
 
 extern int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
                                   unsigned int op, int *advance);
@@ -93,5 +107,38 @@ extern int kvmppc_booke_init(void);
 extern void kvmppc_booke_exit(void);
 
 extern void kvmppc_core_destroy_mmu(struct kvm_vcpu *vcpu);
+
+/*
+ * Cuts out inst bits with ordering according to spec.
+ * That means the leftmost bit is zero. All given bits are included.
+ */
+static inline u32 kvmppc_get_field(u64 inst, int msb, int lsb)
+{
+	u32 r;
+	u32 mask;
+
+	BUG_ON(msb > lsb);
+
+	mask = (1 << (lsb - msb + 1)) - 1;
+	r = (inst >> (63 - lsb)) & mask;
+
+	return r;
+}
+
+/*
+ * Replaces inst bits with ordering according to spec.
+ */
+static inline u32 kvmppc_set_field(u64 inst, int msb, int lsb, int value)
+{
+	u32 r;
+	u32 mask;
+
+	BUG_ON(msb > lsb);
+
+	mask = ((1 << (lsb - msb + 1)) - 1) << (63 - lsb);
+	r = (inst & ~mask) | ((value << (63 - lsb)) & mask);
+
+	return r;
+}
 
 #endif /* __POWERPC_KVM_PPC_H__ */

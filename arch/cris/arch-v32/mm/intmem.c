@@ -33,8 +33,8 @@ static void crisv32_intmem_init(void)
 {
 	static int initiated = 0;
 	if (!initiated) {
-		struct intmem_allocation* alloc =
-		  (struct intmem_allocation*)kmalloc(sizeof *alloc, GFP_KERNEL);
+		struct intmem_allocation* alloc;
+		alloc = kmalloc(sizeof *alloc, GFP_KERNEL);
 		INIT_LIST_HEAD(&intmem_allocations);
 		intmem_virtual = ioremap(MEM_INTMEM_START + RESERVED_SIZE,
 					 MEM_INTMEM_SIZE - RESERVED_SIZE);
@@ -62,9 +62,8 @@ void* crisv32_intmem_alloc(unsigned size, unsigned align)
 		if (allocation->status == STATUS_FREE &&
 		    allocation->size >= size + alignment) {
 			if (allocation->size > size + alignment) {
-				struct intmem_allocation* alloc =
-					(struct intmem_allocation*)
-					kmalloc(sizeof *alloc, GFP_ATOMIC);
+				struct intmem_allocation* alloc;
+				alloc = kmalloc(sizeof *alloc, GFP_ATOMIC);
 				alloc->status = STATUS_FREE;
 				alloc->size = allocation->size - size -
 					alignment;
@@ -74,9 +73,7 @@ void* crisv32_intmem_alloc(unsigned size, unsigned align)
 
 				if (alignment) {
 					struct intmem_allocation *tmp;
-					tmp = (struct intmem_allocation *)
-						kmalloc(sizeof *tmp,
-							GFP_ATOMIC);
+					tmp = kmalloc(sizeof *tmp, GFP_ATOMIC);
 					tmp->offset = allocation->offset;
 					tmp->size = alignment;
 					tmp->status = STATUS_FREE;

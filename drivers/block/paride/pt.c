@@ -274,11 +274,11 @@ static int pt_wait(struct pt_unit *tape, int go, int stop, char *fun, char *msg)
 	       && (j++ < PT_SPIN))
 		udelay(PT_SPIN_DEL);
 
-	if ((r & (STAT_ERR & stop)) || (j >= PT_SPIN)) {
+	if ((r & (STAT_ERR & stop)) || (j > PT_SPIN)) {
 		s = read_reg(pi, 7);
 		e = read_reg(pi, 1);
 		p = read_reg(pi, 2);
-		if (j >= PT_SPIN)
+		if (j > PT_SPIN)
 			e |= 0x100;
 		if (fun)
 			printk("%s: %s %s: alt=0x%x stat=0x%x err=0x%x"

@@ -25,6 +25,7 @@
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 
 #include "attrib.h"
 #include "inode.h"
@@ -927,7 +928,7 @@ lock_retry_remap:
 		return 0;
 
 	ntfs_debug("Failed. Returning error code %s.", err == -EOVERFLOW ?
-			"EOVERFLOW" : (!err ? "EIO" : "unkown error"));
+			"EOVERFLOW" : (!err ? "EIO" : "unknown error"));
 	return err < 0 ? err : -EIO;
 
 read_err:

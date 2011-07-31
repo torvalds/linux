@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -87,7 +87,8 @@ acpi_ps_complete_final_op(struct acpi_walk_state *walk_state,
 			  union acpi_parse_object *op, acpi_status status);
 
 static void
-acpi_ps_link_module_code(u8 *aml_start, u32 aml_length, acpi_owner_id owner_id);
+acpi_ps_link_module_code(union acpi_parse_object *parent_op,
+			 u8 *aml_start, u32 aml_length, acpi_owner_id owner_id);
 
 /*******************************************************************************
  *
@@ -135,7 +136,7 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 		/* The opcode is unrecognized. Just skip unknown opcodes */
 
 		ACPI_ERROR((AE_INFO,
-			    "Found unknown opcode %X at AML address %p offset %X, ignoring",
+			    "Found unknown opcode 0x%X at AML address %p offset 0x%X, ignoring",
 			    walk_state->opcode, walk_state->parser_state.aml,
 			    walk_state->aml_offset));
 
@@ -479,11 +480,14 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 				 */
 				if (walk_state->pass_number ==
 				    ACPI_IMODE_LOAD_PASS1) {
-					acpi_ps_link_module_code(aml_op_start,
-								 walk_state->
+					acpi_ps_link_module_code(op->common.
+								 parent,
+								 aml_op_start,
+								 (u32)
+								 (walk_state->
 								 parser_state.
 								 pkg_end -
-								 aml_op_start,
+								 aml_op_start),
 								 walk_state->
 								 owner_id);
 				}
@@ -598,7 +602,8 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
  *
  * FUNCTION:    acpi_ps_link_module_code
  *
- * PARAMETERS:  aml_start           - Pointer to the AML
+ * PARAMETERS:  parent_op           - Parent parser op
+ *              aml_start           - Pointer to the AML
  *              aml_length          - Length of executable AML
  *              owner_id            - owner_id of module level code
  *
@@ -611,11 +616,13 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
  ******************************************************************************/
 
 static void
-acpi_ps_link_module_code(u8 *aml_start, u32 aml_length, acpi_owner_id owner_id)
+acpi_ps_link_module_code(union acpi_parse_object *parent_op,
+			 u8 *aml_start, u32 aml_length, acpi_owner_id owner_id)
 {
 	union acpi_operand_object *prev;
 	union acpi_operand_object *next;
 	union acpi_operand_object *method_obj;
+	struct acpi_namespace_node *parent_node;
 
 	/* Get the tail of the list */
 
@@ -639,10 +646,23 @@ acpi_ps_link_module_code(u8 *aml_start, u32 aml_length, acpi_owner_id owner_id)
 			return;
 		}
 
+		if (parent_op->common.node) {
+			parent_node = parent_op->common.node;
+		} else {
+			parent_node = acpi_gbl_root_node;
+		}
+
 		method_obj->method.aml_start = aml_start;
 		method_obj->method.aml_length = aml_length;
 		method_obj->method.owner_id = owner_id;
 		method_obj->method.flags |= AOPOBJ_MODULE_LEVEL;
+
+		/*
+		 * Save the parent node in next_object. This is cheating, but we
+		 * don't want to expand the method object.
+		 */
+		method_obj->method.next_object =
+		    ACPI_CAST_PTR(union acpi_operand_object, parent_node);
 
 		if (!prev) {
 			acpi_gbl_module_code_list = method_obj;
@@ -1001,7 +1021,6 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 					if (status == AE_AML_NO_RETURN_VALUE) {
 						ACPI_EXCEPTION((AE_INFO, status,
 								"Invoked method did not return a value"));
-
 					}
 
 					ACPI_EXCEPTION((AE_INFO, status,

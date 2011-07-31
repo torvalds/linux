@@ -1,6 +1,6 @@
 #!/bin/awk
 #
-# Awk script to generate include/asm-arm/mach-types.h
+# Awk script to generate include/generated/mach-types.h
 #
 BEGIN	{ nr = 0 }
 /^#/	{ next }

@@ -149,7 +149,6 @@ ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
 
 			switch(ieee754_csr.rm) {
 			case IEEE754_RN:
-				return ieee754sp_zero(sn);
 			case IEEE754_RZ:
 				return ieee754sp_zero(sn);
 			case IEEE754_RU:      /* toward +Infinity */

@@ -54,7 +54,7 @@ static struct uwb_est_entry i1480_est_fd01[] = {
 		.size = sizeof(struct i1480_rceb) + 2 },
 };
 
-static int i1480_est_init(void)
+static int __init i1480_est_init(void)
 {
 	int result = uwb_est_register(i1480_CET_VS1, 0x00, 0x8086, 0x0c3b,
 				      i1480_est_fd00,
@@ -73,7 +73,7 @@ static int i1480_est_init(void)
 }
 module_init(i1480_est_init);
 
-static void i1480_est_exit(void)
+static void __exit i1480_est_exit(void)
 {
 	uwb_est_unregister(i1480_CET_VS1, 0x00, 0x8086, 0x0c3b,
 			   i1480_est_fd00, ARRAY_SIZE(i1480_est_fd00));

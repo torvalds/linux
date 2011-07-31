@@ -35,6 +35,7 @@
 #define LOG_VPORT	0x00004000	/* NPIV events */
 #define LOF_SECURITY	0x00008000	/* Security events */
 #define LOG_EVENT	0x00010000	/* CT,TEMP,DUMP, logging */
+#define LOG_FIP		0x00020000	/* FIP events */
 #define LOG_ALL_MSG	0xffffffff	/* LOG all messages */
 
 #define lpfc_printf_vlog(vport, level, mask, fmt, arg...) \

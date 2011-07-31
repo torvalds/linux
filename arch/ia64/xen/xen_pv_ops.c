@@ -301,11 +301,6 @@ static void xen_setreg(int regnum, unsigned long val)
 	case _IA64_REG_AR_KR0 ... _IA64_REG_AR_KR7:
 		xen_set_kr(regnum - _IA64_REG_AR_KR0, val);
 		break;
-#ifdef CONFIG_IA32_SUPPORT
-	case _IA64_REG_AR_EFLAG:
-		xen_set_eflag(val);
-		break;
-#endif
 	case _IA64_REG_AR_ITC:
 		xen_set_itc(val);
 		break;
@@ -332,11 +327,6 @@ static unsigned long xen_getreg(int regnum)
 	case _IA64_REG_PSR:
 		res = xen_get_psr();
 		break;
-#ifdef CONFIG_IA32_SUPPORT
-	case _IA64_REG_AR_EFLAG:
-		res = xen_get_eflag();
-		break;
-#endif
 	case _IA64_REG_AR_ITC:
 		res = xen_get_itc();
 		break;
@@ -710,9 +700,6 @@ extern unsigned long xen_getreg(int regnum);
 
 __DEFINE_FUNC(getreg,
 	      __DEFINE_GET_REG(PSR, PSR)
-#ifdef CONFIG_IA32_SUPPORT
-	      __DEFINE_GET_REG(AR_EFLAG, EFLAG)
-#endif
 
 	      /* get_itc */
 	      "mov r2 = " __stringify(_IA64_REG_AR_ITC) "\n"
@@ -789,9 +776,6 @@ __DEFINE_FUNC(setreg,
 	      ";;\n"
 	      "(p6) br.cond.spnt xen_set_itc\n"
 
-#ifdef CONFIG_IA32_SUPPORT
-	      __DEFINE_SET_REG(AR_EFLAG, SET_EFLAG)
-#endif
 	      __DEFINE_SET_REG(CR_TPR, SET_TPR)
 	      __DEFINE_SET_REG(CR_EOI, EOI)
 

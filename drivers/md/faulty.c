@@ -64,6 +64,7 @@
 #define MaxFault	50
 #include <linux/blkdev.h>
 #include <linux/raid/md_u.h>
+#include <linux/slab.h>
 #include "md.h"
 #include <linux/seq_file.h>
 
@@ -168,10 +169,9 @@ static void add_sector(conf_t *conf, sector_t start, int mode)
 		conf->nfaults = n+1;
 }
 
-static int make_request(struct request_queue *q, struct bio *bio)
+static int make_request(mddev_t *mddev, struct bio *bio)
 {
-	mddev_t *mddev = q->queuedata;
-	conf_t *conf = (conf_t*)mddev->private;
+	conf_t *conf = mddev->private;
 	int failit = 0;
 
 	if (bio_data_dir(bio) == WRITE) {
@@ -224,7 +224,7 @@ static int make_request(struct request_queue *q, struct bio *bio)
 
 static void status(struct seq_file *seq, mddev_t *mddev)
 {
-	conf_t *conf = (conf_t*)mddev->private;
+	conf_t *conf = mddev->private;
 	int n;
 
 	if ((n=atomic_read(&conf->counters[WriteTransient])) != 0)
@@ -327,7 +327,7 @@ static int run(mddev_t *mddev)
 
 static int stop(mddev_t *mddev)
 {
-	conf_t *conf = (conf_t *)mddev->private;
+	conf_t *conf = mddev->private;
 
 	kfree(conf);
 	mddev->private = NULL;
@@ -360,6 +360,7 @@ static void raid_exit(void)
 module_init(raid_init);
 module_exit(raid_exit);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Fault injection personality for MD");
 MODULE_ALIAS("md-personality-10"); /* faulty */
 MODULE_ALIAS("md-faulty");
 MODULE_ALIAS("md-level--5");

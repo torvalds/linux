@@ -13,9 +13,10 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/io.h>
+#include <asm/clkdev.h>
 #include <asm/clock.h>
 #include <asm/freq.h>
-#include <asm/io.h>
 
 static int ifc_divisors[] = { 1, 2, 4 ,6 };
 static int bfc_divisors[] = { 1, 1, 1, 1, 1, 12, 16, 18, 24, 32, 36, 48 };
@@ -33,7 +34,7 @@ static int cfc_divisors[] = { 1, 1, 4, 6 };
 
 static void master_clk_init(struct clk *clk)
 {
-	clk->rate *= pfc_divisors[(ctrl_inl(FRQCR) >> PFC_POS) & PFC_MSK];
+	clk->rate *= pfc_divisors[(__raw_readl(FRQCR) >> PFC_POS) & PFC_MSK];
 }
 
 static struct clk_ops shx3_master_clk_ops = {
@@ -42,7 +43,7 @@ static struct clk_ops shx3_master_clk_ops = {
 
 static unsigned long module_clk_recalc(struct clk *clk)
 {
-	int idx = ((ctrl_inl(FRQCR) >> PFC_POS) & PFC_MSK);
+	int idx = ((__raw_readl(FRQCR) >> PFC_POS) & PFC_MSK);
 	return clk->parent->rate / pfc_divisors[idx];
 }
 
@@ -52,7 +53,7 @@ static struct clk_ops shx3_module_clk_ops = {
 
 static unsigned long bus_clk_recalc(struct clk *clk)
 {
-	int idx = ((ctrl_inl(FRQCR) >> BFC_POS) & BFC_MSK);
+	int idx = ((__raw_readl(FRQCR) >> BFC_POS) & BFC_MSK);
 	return clk->parent->rate / bfc_divisors[idx];
 }
 
@@ -62,7 +63,7 @@ static struct clk_ops shx3_bus_clk_ops = {
 
 static unsigned long cpu_clk_recalc(struct clk *clk)
 {
-	int idx = ((ctrl_inl(FRQCR) >> IFC_POS) & IFC_MSK);
+	int idx = ((__raw_readl(FRQCR) >> IFC_POS) & IFC_MSK);
 	return clk->parent->rate / ifc_divisors[idx];
 }
 
@@ -85,7 +86,7 @@ void __init arch_init_clk_ops(struct clk_ops **ops, int idx)
 
 static unsigned long shyway_clk_recalc(struct clk *clk)
 {
-	int idx = ((ctrl_inl(FRQCR) >> CFC_POS) & CFC_MSK);
+	int idx = ((__raw_readl(FRQCR) >> CFC_POS) & CFC_MSK);
 	return clk->parent->rate / cfc_divisors[idx];
 }
 
@@ -94,7 +95,6 @@ static struct clk_ops shx3_shyway_clk_ops = {
 };
 
 static struct clk shx3_shyway_clk = {
-	.name		= "shyway_clk",
 	.flags		= CLK_ENABLE_ON_INIT,
 	.ops		= &shx3_shyway_clk_ops,
 };
@@ -105,6 +105,13 @@ static struct clk shx3_shyway_clk = {
  */
 static struct clk *shx3_onchip_clocks[] = {
 	&shx3_shyway_clk,
+};
+
+#define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
+
+static struct clk_lookup lookups[] = {
+	/* main clocks */
+	CLKDEV_CON_ID("shyway_clk", &shx3_shyway_clk),
 };
 
 int __init arch_clk_init(void)
@@ -123,6 +130,8 @@ int __init arch_clk_init(void)
 	}
 
 	clk_put(clk);
+
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	return ret;
 }

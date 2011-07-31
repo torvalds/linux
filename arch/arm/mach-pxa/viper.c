@@ -27,12 +27,14 @@
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/major.h>
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/sched.h>
 #include <linux/gpio.h>
+#include <linux/jiffies.h>
 #include <linux/i2c-gpio.h>
 #include <linux/serial_8250.h>
 #include <linux/smc91x.h>
@@ -47,6 +49,7 @@
 #include <mach/pxafb.h>
 #include <plat/i2c.h>
 #include <mach/regs-uart.h>
+#include <mach/arcom-pcmcia.h>
 #include <mach/viper.h>
 
 #include <asm/setup.h>
@@ -76,14 +79,28 @@ static void viper_icr_clear_bit(unsigned int bit)
 }
 
 /* This function is used from the pcmcia module to reset the CF */
-void viper_cf_rst(int state)
+static void viper_cf_reset(int state)
 {
 	if (state)
 		viper_icr_set_bit(VIPER_ICR_CF_RST);
 	else
 		viper_icr_clear_bit(VIPER_ICR_CF_RST);
 }
-EXPORT_SYMBOL(viper_cf_rst);
+
+static struct arcom_pcmcia_pdata viper_pcmcia_info = {
+	.cd_gpio	= VIPER_CF_CD_GPIO,
+	.rdy_gpio	= VIPER_CF_RDY_GPIO,
+	.pwr_gpio	= VIPER_CF_POWER_GPIO,
+	.reset		= viper_cf_reset,
+};
+
+static struct platform_device viper_pcmcia_device = {
+	.name		= "viper-pcmcia",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &viper_pcmcia_info,
+	},
+};
 
 /*
  * The CPLD version register was not present on VIPER boards prior to
@@ -266,7 +283,7 @@ static void viper_irq_handler(unsigned int irq, struct irq_desc *desc)
 	do {
 		/* we're in a chained irq handler,
 		 * so ack the interrupt by hand */
-		GEDR(VIPER_CPLD_GPIO) = GPIO_bit(VIPER_CPLD_GPIO);
+		desc->chip->ack(irq);
 
 		if (likely(pending)) {
 			irq = viper_bit_to_irq(__ffs(pending));
@@ -301,15 +318,6 @@ static void __init viper_init_irq(void)
 	set_irq_chained_handler(gpio_to_irq(VIPER_CPLD_GPIO),
 				viper_irq_handler);
 	set_irq_type(gpio_to_irq(VIPER_CPLD_GPIO), IRQ_TYPE_EDGE_BOTH);
-
-#ifndef CONFIG_SERIAL_PXA
-	/*
-	 * 8250 doesn't support IRQ_TYPE being passed as part
-	 * of the plat_serial8250_port structure...
-	 */
-	set_irq_type(gpio_to_irq(VIPER_UARTA_GPIO), IRQ_TYPE_EDGE_RISING);
-	set_irq_type(gpio_to_irq(VIPER_UARTB_GPIO), IRQ_TYPE_EDGE_RISING);
-#endif
 }
 
 /* Flat Panel */
@@ -373,7 +381,7 @@ err_request_bckl:
 	return ret;
 }
 
-static int viper_backlight_notify(int brightness)
+static int viper_backlight_notify(struct device *dev, int brightness)
 {
 	gpio_set_value(VIPER_LCD_EN_GPIO, !!brightness);
 	gpio_set_value(VIPER_BCKLIGHT_EN_GPIO, !!brightness);
@@ -447,7 +455,7 @@ static struct i2c_gpio_platform_data i2c_bus_data = {
 	.sda_pin = VIPER_RTC_I2C_SDA_GPIO,
 	.scl_pin = VIPER_RTC_I2C_SCL_GPIO,
 	.udelay  = 10,
-	.timeout = 100,
+	.timeout = HZ,
 };
 
 static struct platform_device i2c_bus_device = {
@@ -539,6 +547,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 	{
 		.mapbase	= VIPER_UARTA_PHYS,
 		.irq		= gpio_to_irq(VIPER_UARTA_GPIO),
+		.irqflags	= IRQF_TRIGGER_RISING,
 		.uartclk	= 1843200,
 		.regshift	= 1,
 		.iotype		= UPIO_MEM,
@@ -548,6 +557,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 	{
 		.mapbase	= VIPER_UARTB_PHYS,
 		.irq		= gpio_to_irq(VIPER_UARTB_GPIO),
+		.irqflags	= IRQF_TRIGGER_RISING,
 		.uartclk	= 1843200,
 		.regshift	= 1,
 		.iotype		= UPIO_MEM,
@@ -692,6 +702,7 @@ static struct platform_device *viper_devs[] __initdata = {
 	&viper_mtd_devices[0],
 	&viper_mtd_devices[1],
 	&viper_backlight_device,
+	&viper_pcmcia_device,
 };
 
 static mfp_cfg_t viper_pin_config[] __initdata = {
@@ -701,6 +712,12 @@ static mfp_cfg_t viper_pin_config[] __initdata = {
 	GPIO79_nCS_3,
 	GPIO80_nCS_4,
 	GPIO33_nCS_5,
+
+	/* AC97 */
+	GPIO28_AC97_BITCLK,
+	GPIO29_AC97_SDATA_IN_0,
+	GPIO30_AC97_SDATA_OUT,
+	GPIO31_AC97_SYNC,
 
 	/* FP Backlight */
 	GPIO9_GPIO, 				/* VIPER_BCKLIGHT_EN_GPIO */
@@ -763,7 +780,7 @@ static void __init viper_tpm_init(void)
 		.sda_pin = VIPER_TPM_I2C_SDA_GPIO,
 		.scl_pin = VIPER_TPM_I2C_SCL_GPIO,
 		.udelay  = 10,
-		.timeout = 100,
+		.timeout = HZ,
 	};
 	char *errstr;
 
@@ -907,6 +924,10 @@ static void __init viper_init(void)
 	pm_power_off = viper_power_off;
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(viper_pin_config));
+
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 
 	/* Wake-up serial console */
 	viper_init_serial_gpio();

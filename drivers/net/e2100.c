@@ -186,9 +186,9 @@ static int __init e21_probe1(struct net_device *dev, int ioaddr)
 		return -EBUSY;
 
 	/* First check the station address for the Ctron prefix. */
-	if (inb(ioaddr + E21_SAPROM + 0) != 0x00
-		|| inb(ioaddr + E21_SAPROM + 1) != 0x00
-		|| inb(ioaddr + E21_SAPROM + 2) != 0x1d) {
+	if (inb(ioaddr + E21_SAPROM + 0) != 0x00 ||
+	    inb(ioaddr + E21_SAPROM + 1) != 0x00 ||
+	    inb(ioaddr + E21_SAPROM + 2) != 0x1d) {
 		retval = -ENODEV;
 		goto out;
 	}
@@ -328,7 +328,6 @@ e21_reset_8390(struct net_device *dev)
 	/* Set up the ASIC registers, just in case something changed them. */
 
 	if (ei_debug > 1) printk("reset done\n");
-	return;
 }
 
 /* Grab the 8390 specific header. We put the 2k window so the header page

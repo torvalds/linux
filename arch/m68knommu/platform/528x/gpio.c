@@ -31,7 +31,7 @@ static struct mcf_gpio_chip mcf_gpio_chips[] = {
 			.get			= mcf_gpio_get_value,
 			.set			= mcf_gpio_set_value,
 			.base			= 1,
-			.ngpio			= 8,
+			.ngpio			= 7,
 		},
 		.pddr				= MCFEPORT_EPDDR,
 		.podr				= MCFEPORT_EPDR,

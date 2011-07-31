@@ -15,6 +15,7 @@
 #include <linux/version.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/videodev2.h>
 #include <linux/vmalloc.h>
@@ -26,6 +27,71 @@
 #include <media/v4l2-ioctl.h>
 
 #include "uvcvideo.h"
+
+/* ------------------------------------------------------------------------
+ * UVC ioctls
+ */
+static int uvc_ioctl_ctrl_map(struct uvc_xu_control_mapping *xmap, int old)
+{
+	struct uvc_control_mapping *map;
+	unsigned int size;
+	int ret;
+
+	map = kzalloc(sizeof *map, GFP_KERNEL);
+	if (map == NULL)
+		return -ENOMEM;
+
+	map->id = xmap->id;
+	memcpy(map->name, xmap->name, sizeof map->name);
+	memcpy(map->entity, xmap->entity, sizeof map->entity);
+	map->selector = xmap->selector;
+	map->size = xmap->size;
+	map->offset = xmap->offset;
+	map->v4l2_type = xmap->v4l2_type;
+	map->data_type = xmap->data_type;
+
+	switch (xmap->v4l2_type) {
+	case V4L2_CTRL_TYPE_INTEGER:
+	case V4L2_CTRL_TYPE_BOOLEAN:
+	case V4L2_CTRL_TYPE_BUTTON:
+		break;
+
+	case V4L2_CTRL_TYPE_MENU:
+		if (old) {
+			ret = -EINVAL;
+			goto done;
+		}
+
+		size = xmap->menu_count * sizeof(*map->menu_info);
+		map->menu_info = kmalloc(size, GFP_KERNEL);
+		if (map->menu_info == NULL) {
+			ret = -ENOMEM;
+			goto done;
+		}
+
+		if (copy_from_user(map->menu_info, xmap->menu_info, size)) {
+			ret = -EFAULT;
+			goto done;
+		}
+
+		map->menu_count = xmap->menu_count;
+		break;
+
+	default:
+		ret = -EINVAL;
+		goto done;
+	}
+
+	ret = uvc_ctrl_add_mapping(map);
+
+done:
+	if (ret < 0) {
+		kfree(map->menu_info);
+		kfree(map);
+	}
+
+	return ret;
+}
 
 /* ------------------------------------------------------------------------
  * V4L2 interface
@@ -369,37 +435,30 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
  * unprivileged state. Only a single instance can be in a privileged state at
  * a given time. Trying to perform an operation that requires privileges will
  * automatically acquire the required privileges if possible, or return -EBUSY
- * otherwise. Privileges are dismissed when closing the instance.
+ * otherwise. Privileges are dismissed when closing the instance or when
+ * freeing the video buffers using VIDIOC_REQBUFS.
  *
  * Operations that require privileges are:
  *
  * - VIDIOC_S_INPUT
  * - VIDIOC_S_PARM
  * - VIDIOC_S_FMT
- * - VIDIOC_TRY_FMT
  * - VIDIOC_REQBUFS
  */
 static int uvc_acquire_privileges(struct uvc_fh *handle)
 {
-	int ret = 0;
-
 	/* Always succeed if the handle is already privileged. */
 	if (handle->state == UVC_HANDLE_ACTIVE)
 		return 0;
 
 	/* Check if the device already has a privileged handle. */
-	mutex_lock(&uvc_driver.open_mutex);
 	if (atomic_inc_return(&handle->stream->active) != 1) {
 		atomic_dec(&handle->stream->active);
-		ret = -EBUSY;
-		goto done;
+		return -EBUSY;
 	}
 
 	handle->state = UVC_HANDLE_ACTIVE;
-
-done:
-	mutex_unlock(&uvc_driver.open_mutex);
-	return ret;
+	return 0;
 }
 
 static void uvc_dismiss_privileges(struct uvc_fh *handle)
@@ -426,24 +485,20 @@ static int uvc_v4l2_open(struct file *file)
 	int ret = 0;
 
 	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_open\n");
-	mutex_lock(&uvc_driver.open_mutex);
 	stream = video_drvdata(file);
 
-	if (stream->dev->state & UVC_DEV_DISCONNECTED) {
-		ret = -ENODEV;
-		goto done;
-	}
+	if (stream->dev->state & UVC_DEV_DISCONNECTED)
+		return -ENODEV;
 
 	ret = usb_autopm_get_interface(stream->dev->intf);
 	if (ret < 0)
-		goto done;
+		return ret;
 
 	/* Create the device handle. */
 	handle = kzalloc(sizeof *handle, GFP_KERNEL);
 	if (handle == NULL) {
 		usb_autopm_put_interface(stream->dev->intf);
-		ret = -ENOMEM;
-		goto done;
+		return -ENOMEM;
 	}
 
 	if (atomic_inc_return(&stream->dev->users) == 1) {
@@ -452,7 +507,7 @@ static int uvc_v4l2_open(struct file *file)
 			usb_autopm_put_interface(stream->dev->intf);
 			atomic_dec(&stream->dev->users);
 			kfree(handle);
-			goto done;
+			return ret;
 		}
 	}
 
@@ -461,16 +516,12 @@ static int uvc_v4l2_open(struct file *file)
 	handle->state = UVC_HANDLE_PASSIVE;
 	file->private_data = handle;
 
-	kref_get(&stream->dev->kref);
-
-done:
-	mutex_unlock(&uvc_driver.open_mutex);
-	return ret;
+	return 0;
 }
 
 static int uvc_v4l2_release(struct file *file)
 {
-	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
+	struct uvc_fh *handle = file->private_data;
 	struct uvc_streaming *stream = handle->stream;
 
 	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_release\n");
@@ -495,14 +546,13 @@ static int uvc_v4l2_release(struct file *file)
 		uvc_status_stop(stream->dev);
 
 	usb_autopm_put_interface(stream->dev->intf);
-	kref_put(&stream->dev->kref, uvc_delete);
 	return 0;
 }
 
 static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = video_devdata(file);
-	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
+	struct uvc_fh *handle = file->private_data;
 	struct uvc_video_chain *chain = handle->chain;
 	struct uvc_streaming *stream = handle->stream;
 	long ret = 0;
@@ -560,7 +610,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		xctrl.id = ctrl->id;
 		xctrl.value = ctrl->value;
 
-		uvc_ctrl_begin(chain);
+		ret = uvc_ctrl_begin(chain);
 		if (ret < 0)
 			return ret;
 
@@ -570,6 +620,8 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			return ret;
 		}
 		ret = uvc_ctrl_commit(chain);
+		if (ret == 0)
+			ctrl->value = xctrl.value;
 		break;
 	}
 
@@ -641,12 +693,16 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		    (chain->dev->quirks & UVC_QUIRK_IGNORE_SELECTOR_UNIT)) {
 			if (index != 0)
 				return -EINVAL;
-			iterm = list_first_entry(&chain->iterms,
-					struct uvc_entity, chain);
+			list_for_each_entry(iterm, &chain->entities, chain) {
+				if (UVC_ENTITY_IS_ITERM(iterm))
+					break;
+			}
 			pin = iterm->id;
-		} else if (pin < selector->selector.bNrInPins) {
-			pin = selector->selector.baSourceID[index];
-			list_for_each_entry(iterm, chain->iterms.next, chain) {
+		} else if (pin < selector->bNrInPins) {
+			pin = selector->baSourceID[index];
+			list_for_each_entry(iterm, &chain->entities, chain) {
+				if (!UVC_ENTITY_IS_ITERM(iterm))
+					continue;
 				if (iterm->id == pin)
 					break;
 			}
@@ -697,7 +753,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			break;
 		}
 
-		if (input == 0 || input > chain->selector->selector.bNrInPins)
+		if (input == 0 || input > chain->selector->bNrInPins)
 			return -EINVAL;
 
 		return uvc_query_ctrl(chain->dev, UVC_SET_CUR,
@@ -735,9 +791,6 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_TRY_FMT:
 	{
 		struct uvc_streaming_control probe;
-
-		if ((ret = uvc_acquire_privileges(handle)) < 0)
-			return ret;
 
 		return uvc_v4l2_try_format(stream, arg, &probe, NULL, NULL);
 	}
@@ -895,6 +948,9 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (ret < 0)
 			return ret;
 
+		if (ret == 0)
+			uvc_dismiss_privileges(handle);
+
 		rb->count = ret;
 		ret = 0;
 		break;
@@ -983,6 +1039,9 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
+		if (xinfo->size == 0)
+			return -EINVAL;
+
 		info = kzalloc(sizeof *info, GFP_KERNEL);
 		if (info == NULL)
 			return -ENOMEM;
@@ -994,7 +1053,8 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		info->flags = xinfo->flags;
 
 		info->flags |= UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX |
-				UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF;
+			       UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF |
+			       UVC_CONTROL_EXTENSION;
 
 		ret = uvc_ctrl_add_info(info);
 		if (ret < 0)
@@ -1002,32 +1062,12 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		break;
 	}
 
+	case UVCIOC_CTRL_MAP_OLD:
 	case UVCIOC_CTRL_MAP:
-	{
-		struct uvc_xu_control_mapping *xmap = arg;
-		struct uvc_control_mapping *map;
-
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
-		map = kzalloc(sizeof *map, GFP_KERNEL);
-		if (map == NULL)
-			return -ENOMEM;
-
-		map->id = xmap->id;
-		memcpy(map->name, xmap->name, sizeof map->name);
-		memcpy(map->entity, xmap->entity, sizeof map->entity);
-		map->selector = xmap->selector;
-		map->size = xmap->size;
-		map->offset = xmap->offset;
-		map->v4l2_type = xmap->v4l2_type;
-		map->data_type = xmap->data_type;
-
-		ret = uvc_ctrl_add_mapping(map);
-		if (ret < 0)
-			kfree(map);
-		break;
-	}
+		return uvc_ioctl_ctrl_map(arg, cmd == UVCIOC_CTRL_MAP_OLD);
 
 	case UVCIOC_CTRL_GET:
 		return uvc_xu_ctrl_query(chain, arg, 0);
@@ -1062,7 +1102,7 @@ static ssize_t uvc_v4l2_read(struct file *file, char __user *data,
 		    size_t count, loff_t *ppos)
 {
 	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_read: not implemented.\n");
-	return -ENODEV;
+	return -EINVAL;
 }
 
 /*
@@ -1087,7 +1127,7 @@ static const struct vm_operations_struct uvc_vm_ops = {
 
 static int uvc_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
+	struct uvc_fh *handle = file->private_data;
 	struct uvc_streaming *stream = handle->stream;
 	struct uvc_video_queue *queue = &stream->queue;
 	struct uvc_buffer *uninitialized_var(buffer);
@@ -1142,7 +1182,7 @@ done:
 
 static unsigned int uvc_v4l2_poll(struct file *file, poll_table *wait)
 {
-	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
+	struct uvc_fh *handle = file->private_data;
 	struct uvc_streaming *stream = handle->stream;
 
 	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_poll\n");

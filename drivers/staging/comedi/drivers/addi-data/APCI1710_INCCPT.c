@@ -17,7 +17,7 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-You shoud also find the complete GPL in the COPYING file accompanying this source code.
+You should also find the complete GPL in the COPYING file accompanying this source code.
 
 @endverbatim
 */
@@ -3807,7 +3807,7 @@ int i_APCI1710_EnableFrequencyMeasurement(struct comedi_device *dev,
 			s_ModuleInfo[b_ModulNbr].
 			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /********************************************/
-			/* Test if frequency mesurement initialised */
+			/* Test if frequency measurement initialised */
 	      /********************************************/
 
 			if (devpriv->
@@ -3953,7 +3953,7 @@ int i_APCI1710_DisableFrequencyMeasurement(struct comedi_device *dev, unsigned c
 			s_ModuleInfo[b_ModulNbr].
 			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /********************************************/
-			/* Test if frequency mesurement initialised */
+			/* Test if frequency measurement initialised */
 	      /********************************************/
 
 			if (devpriv->
@@ -5166,7 +5166,7 @@ int i_APCI1710_ReadFrequencyMeasurement(struct comedi_device *dev,
 			s_ModuleInfo[b_ModulNbr].
 			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /********************************************/
-			/* Test if frequency mesurement initialised */
+			/* Test if frequency measurement initialised */
 	      /********************************************/
 
 			if (devpriv->

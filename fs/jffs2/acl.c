@@ -234,8 +234,9 @@ static int jffs2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 			if (inode->i_mode != mode) {
 				struct iattr attr;
 
-				attr.ia_valid = ATTR_MODE;
+				attr.ia_valid = ATTR_MODE | ATTR_CTIME;
 				attr.ia_mode = mode;
+				attr.ia_ctime = CURRENT_TIME_SEC;
 				rc = jffs2_do_setattr(inode, &attr);
 				if (rc < 0)
 					return rc;
@@ -350,8 +351,8 @@ int jffs2_acl_chmod(struct inode *inode)
 	return rc;
 }
 
-static size_t jffs2_acl_access_listxattr(struct inode *inode, char *list, size_t list_size,
-					 const char *name, size_t name_len)
+static size_t jffs2_acl_access_listxattr(struct dentry *dentry, char *list,
+		size_t list_size, const char *name, size_t name_len, int type)
 {
 	const int retlen = sizeof(POSIX_ACL_XATTR_ACCESS);
 
@@ -360,8 +361,8 @@ static size_t jffs2_acl_access_listxattr(struct inode *inode, char *list, size_t
 	return retlen;
 }
 
-static size_t jffs2_acl_default_listxattr(struct inode *inode, char *list, size_t list_size,
-					  const char *name, size_t name_len)
+static size_t jffs2_acl_default_listxattr(struct dentry *dentry, char *list,
+		size_t list_size, const char *name, size_t name_len, int type)
 {
 	const int retlen = sizeof(POSIX_ACL_XATTR_DEFAULT);
 
@@ -370,12 +371,16 @@ static size_t jffs2_acl_default_listxattr(struct inode *inode, char *list, size_
 	return retlen;
 }
 
-static int jffs2_acl_getxattr(struct inode *inode, int type, void *buffer, size_t size)
+static int jffs2_acl_getxattr(struct dentry *dentry, const char *name,
+		void *buffer, size_t size, int type)
 {
 	struct posix_acl *acl;
 	int rc;
 
-	acl = jffs2_get_acl(inode, type);
+	if (name[0] != '\0')
+		return -EINVAL;
+
+	acl = jffs2_get_acl(dentry->d_inode, type);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 	if (!acl)
@@ -386,26 +391,15 @@ static int jffs2_acl_getxattr(struct inode *inode, int type, void *buffer, size_
 	return rc;
 }
 
-static int jffs2_acl_access_getxattr(struct inode *inode, const char *name, void *buffer, size_t size)
-{
-	if (name[0] != '\0')
-		return -EINVAL;
-	return jffs2_acl_getxattr(inode, ACL_TYPE_ACCESS, buffer, size);
-}
-
-static int jffs2_acl_default_getxattr(struct inode *inode, const char *name, void *buffer, size_t size)
-{
-	if (name[0] != '\0')
-		return -EINVAL;
-	return jffs2_acl_getxattr(inode, ACL_TYPE_DEFAULT, buffer, size);
-}
-
-static int jffs2_acl_setxattr(struct inode *inode, int type, const void *value, size_t size)
+static int jffs2_acl_setxattr(struct dentry *dentry, const char *name,
+		const void *value, size_t size, int flags, int type)
 {
 	struct posix_acl *acl;
 	int rc;
 
-	if (!is_owner_or_cap(inode))
+	if (name[0] != '\0')
+		return -EINVAL;
+	if (!is_owner_or_cap(dentry->d_inode))
 		return -EPERM;
 
 	if (value) {
@@ -420,38 +414,24 @@ static int jffs2_acl_setxattr(struct inode *inode, int type, const void *value, 
 	} else {
 		acl = NULL;
 	}
-	rc = jffs2_set_acl(inode, type, acl);
+	rc = jffs2_set_acl(dentry->d_inode, type, acl);
  out:
 	posix_acl_release(acl);
 	return rc;
 }
 
-static int jffs2_acl_access_setxattr(struct inode *inode, const char *name,
-				     const void *buffer, size_t size, int flags)
-{
-	if (name[0] != '\0')
-		return -EINVAL;
-	return jffs2_acl_setxattr(inode, ACL_TYPE_ACCESS, buffer, size);
-}
-
-static int jffs2_acl_default_setxattr(struct inode *inode, const char *name,
-				      const void *buffer, size_t size, int flags)
-{
-	if (name[0] != '\0')
-		return -EINVAL;
-	return jffs2_acl_setxattr(inode, ACL_TYPE_DEFAULT, buffer, size);
-}
-
-struct xattr_handler jffs2_acl_access_xattr_handler = {
+const struct xattr_handler jffs2_acl_access_xattr_handler = {
 	.prefix	= POSIX_ACL_XATTR_ACCESS,
+	.flags	= ACL_TYPE_DEFAULT,
 	.list	= jffs2_acl_access_listxattr,
-	.get	= jffs2_acl_access_getxattr,
-	.set	= jffs2_acl_access_setxattr,
+	.get	= jffs2_acl_getxattr,
+	.set	= jffs2_acl_setxattr,
 };
 
-struct xattr_handler jffs2_acl_default_xattr_handler = {
+const struct xattr_handler jffs2_acl_default_xattr_handler = {
 	.prefix	= POSIX_ACL_XATTR_DEFAULT,
+	.flags	= ACL_TYPE_DEFAULT,
 	.list	= jffs2_acl_default_listxattr,
-	.get	= jffs2_acl_default_getxattr,
-	.set	= jffs2_acl_default_setxattr,
+	.get	= jffs2_acl_getxattr,
+	.set	= jffs2_acl_setxattr,
 };

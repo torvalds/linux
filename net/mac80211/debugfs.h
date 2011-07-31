@@ -3,14 +3,11 @@
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 extern void debugfs_hw_add(struct ieee80211_local *local);
-extern void debugfs_hw_del(struct ieee80211_local *local);
 extern int mac80211_open_file_generic(struct inode *inode, struct file *file);
 #else
 static inline void debugfs_hw_add(struct ieee80211_local *local)
 {
-	return;
 }
-static inline void debugfs_hw_del(struct ieee80211_local *local) {}
 #endif
 
 #endif /* __MAC80211_DEBUGFS_H */

@@ -84,7 +84,7 @@ static int __init esi_init (void)
 		      case ESI_DESC_ENTRY_POINT:
 			break;
 		      default:
-			printk(KERN_WARNING "Unkown table type %d found in "
+			printk(KERN_WARNING "Unknown table type %d found in "
 			       "ESI table, ignoring rest of table\n", *p);
 			return -ENODEV;
 		}

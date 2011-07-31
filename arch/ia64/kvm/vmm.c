@@ -51,7 +51,7 @@ static int __init  kvm_vmm_init(void)
 	vmm_fpswa_interface = fpswa_interface;
 
 	/*Register vmm data to kvm side*/
-	return kvm_init(&vmm_info, 1024, THIS_MODULE);
+	return kvm_init(&vmm_info, 1024, 0, THIS_MODULE);
 }
 
 static void __exit kvm_vmm_exit(void)
@@ -60,12 +60,12 @@ static void __exit kvm_vmm_exit(void)
 	return ;
 }
 
-void vmm_spin_lock(spinlock_t *lock)
+void vmm_spin_lock(vmm_spinlock_t *lock)
 {
 	_vmm_raw_spin_lock(lock);
 }
 
-void vmm_spin_unlock(spinlock_t *lock)
+void vmm_spin_unlock(vmm_spinlock_t *lock)
 {
 	_vmm_raw_spin_unlock(lock);
 }

@@ -49,6 +49,7 @@
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <linux/workqueue.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
@@ -56,7 +57,6 @@
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/byteorder.h>
-#include "../core/hcd.h"
 
 	/* FIXME ohci.h is ONLY for internal use by the OHCI driver.
 	 * If you're going to try stuff like this, you need to split
@@ -1446,9 +1446,9 @@ static void u132_hcd_endp_work_scheduler(struct work_struct *work)
 			return;
 		} else {
 			int retval;
-			u8 address = u132->addr[endp->usb_addr].address;
 			struct urb *urb = endp->urb_list[ENDP_QUEUE_MASK &
 				endp->queue_next];
+			address = u132->addr[endp->usb_addr].address;
 			endp->active = 1;
 			ring->curr_endp = endp;
 			ring->in_use = 1;
@@ -3120,8 +3120,8 @@ static int __devinit u132_probe(struct platform_device *pdev)
 		ftdi_elan_gone_away(pdev);
 		return -ENOMEM;
 	} else {
-		int retval = 0;
 		struct u132 *u132 = hcd_to_u132(hcd);
+		retval = 0;
 		hcd->rsrc_start = 0;
 		mutex_lock(&u132_module_lock);
 		list_add_tail(&u132->u132_list, &u132_static_list);

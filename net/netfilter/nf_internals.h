@@ -6,7 +6,7 @@
 #include <linux/netdevice.h>
 
 #ifdef CONFIG_NETFILTER_DEBUG
-#define NFDEBUG(format, args...)  printk(format , ## args)
+#define NFDEBUG(format, args...)  printk(KERN_DEBUG format , ## args)
 #else
 #define NFDEBUG(format, args...)
 #endif

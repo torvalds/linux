@@ -1,0 +1,6 @@
+#!/bin/bash
+perf record -a -e sched:sched_switch -e sched:sched_wakeup $@
+
+
+
+

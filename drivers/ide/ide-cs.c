@@ -43,7 +43,6 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -60,22 +59,12 @@ MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
 MODULE_DESCRIPTION("PCMCIA ATA/IDE card driver");
 MODULE_LICENSE("Dual MPL/GPL");
 
-#define INT_MODULE_PARM(n, v) static int n = v; module_param(n, int, 0)
-
-#ifdef CONFIG_PCMCIA_DEBUG
-INT_MODULE_PARM(pc_debug, 0);
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-#else
-#define DEBUG(n, args...)
-#endif
-
 /*====================================================================*/
 
 typedef struct ide_info_t {
 	struct pcmcia_device	*p_dev;
 	struct ide_host		*host;
-    int		ndev;
-    dev_node_t	node;
+	int			ndev;
 } ide_info_t;
 
 static void ide_release(struct pcmcia_device *);
@@ -98,7 +87,7 @@ static int ide_probe(struct pcmcia_device *link)
 {
     ide_info_t *info;
 
-    DEBUG(0, "ide_attach()\n");
+    dev_dbg(&link->dev, "ide_attach()\n");
 
     /* Create new ide device */
     info = kzalloc(sizeof(*info), GFP_KERNEL);
@@ -108,11 +97,8 @@ static int ide_probe(struct pcmcia_device *link)
     info->p_dev = link;
     link->priv = info;
 
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-    link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
-    link->io.IOAddrLines = 3;
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
+    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
+    link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -131,18 +117,10 @@ static int ide_probe(struct pcmcia_device *link)
 static void ide_detach(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
-    ide_hwif_t *hwif = info->host->ports[0];
-    unsigned long data_addr, ctl_addr;
 
-    DEBUG(0, "ide_detach(0x%p)\n", link);
-
-    data_addr = hwif->io_ports.data_addr;
-    ctl_addr  = hwif->io_ports.ctl_addr;
+    dev_dbg(&link->dev, "ide_detach(0x%p)\n", link);
 
     ide_release(link);
-
-    release_region(ctl_addr, 1);
-    release_region(data_addr, 8);
 
     kfree(info);
 } /* ide_detach */
@@ -217,9 +195,6 @@ out_release:
 
 ======================================================================*/
 
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
-
 struct pcmcia_config_check {
 	unsigned long ctl_base;
 	int skip_vcc;
@@ -252,24 +227,27 @@ static int pcmcia_check_one_config(struct pcmcia_device *pdev,
 
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
+		pdev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
+
 		pdev->conf.ConfigIndex = cfg->index;
-		pdev->io.BasePort1 = io->win[0].base;
-		pdev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-		if (!(io->flags & CISTPL_IO_16BIT))
-			pdev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+		pdev->resource[0]->start = io->win[0].base;
+		if (!(io->flags & CISTPL_IO_16BIT)) {
+			pdev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+			pdev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+		}
 		if (io->nwin == 2) {
-			pdev->io.NumPorts1 = 8;
-			pdev->io.BasePort2 = io->win[1].base;
-			pdev->io.NumPorts2 = (stk->is_kme) ? 2 : 1;
-			if (pcmcia_request_io(pdev, &pdev->io) != 0)
+			pdev->resource[0]->end = 8;
+			pdev->resource[1]->start = io->win[1].base;
+			pdev->resource[1]->end = (stk->is_kme) ? 2 : 1;
+			if (pcmcia_request_io(pdev) != 0)
 				return -ENODEV;
-			stk->ctl_base = pdev->io.BasePort2;
+			stk->ctl_base = pdev->resource[1]->start;
 		} else if ((io->nwin == 1) && (io->win[0].len >= 16)) {
-			pdev->io.NumPorts1 = io->win[0].len;
-			pdev->io.NumPorts2 = 0;
-			if (pcmcia_request_io(pdev, &pdev->io) != 0)
+			pdev->resource[0]->end = io->win[0].len;
+			pdev->resource[1]->end = 0;
+			if (pcmcia_request_io(pdev) != 0)
 				return -ENODEV;
-			stk->ctl_base = pdev->io.BasePort1 + 0x0e;
+			stk->ctl_base = pdev->resource[0]->start + 0x0e;
 		} else
 			return -ENODEV;
 		/* If we've got this far, we're done */
@@ -282,11 +260,11 @@ static int ide_config(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
     struct pcmcia_config_check *stk = NULL;
-    int last_ret = 0, last_fn = 0, is_kme = 0;
+    int ret = 0, is_kme = 0;
     unsigned long io_base, ctl_base;
     struct ide_host *host;
 
-    DEBUG(0, "ide_config(0x%p)\n", link);
+    dev_dbg(&link->dev, "ide_config(0x%p)\n", link);
 
     is_kme = ((link->manf_id == MANFID_KME) &&
 	      ((link->card_id == PRODID_KME_KXLC005_A) ||
@@ -303,11 +281,14 @@ static int ide_config(struct pcmcia_device *link)
 	    if (pcmcia_loop_config(link, pcmcia_check_one_config, stk))
 		    goto failed; /* No suitable config found */
     }
-    io_base = link->io.BasePort1;
+    io_base = link->resource[0]->start;
     ctl_base = stk->ctl_base;
 
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
+    if (!link->irq)
+	    goto failed;
+    ret = pcmcia_request_configuration(link, &link->conf);
+    if (ret)
+	    goto failed;
 
     /* disable drive interrupts during IDE probe */
     outb(0x02, ctl_base);
@@ -316,24 +297,21 @@ static int ide_config(struct pcmcia_device *link)
     if (is_kme)
 	outb(0x81, ctl_base+1);
 
-     host = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ, link);
-     if (host == NULL && link->io.NumPorts1 == 0x20) {
+     host = idecs_register(io_base, ctl_base, link->irq, link);
+     if (host == NULL && resource_size(link->resource[0]) == 0x20) {
 	    outb(0x02, ctl_base + 0x10);
 	    host = idecs_register(io_base + 0x10, ctl_base + 0x10,
-				  link->irq.AssignedIRQ, link);
+				  link->irq, link);
     }
 
     if (host == NULL)
 	goto failed;
 
     info->ndev = 1;
-    sprintf(info->node.dev_name, "hd%c", 'a' + host->ports[0]->index * 2);
-    info->node.major = host->ports[0]->major;
-    info->node.minor = 0;
     info->host = host;
-    link->dev_node = &info->node;
-    printk(KERN_INFO "ide-cs: %s: Vpp = %d.%d\n",
-	   info->node.dev_name, link->conf.Vpp / 10, link->conf.Vpp % 10);
+    dev_info(&link->dev, "ide-cs: hd%c: Vpp = %d.%d\n",
+	    'a' + host->ports[0]->index * 2,
+	    link->conf.Vpp / 10, link->conf.Vpp % 10);
 
     kfree(stk);
     return 0;
@@ -342,8 +320,6 @@ err_mem:
     printk(KERN_NOTICE "ide-cs: ide_config failed memory allocation\n");
     goto failed;
 
-cs_failed:
-    cs_error(link, last_fn, last_ret);
 failed:
     kfree(stk);
     ide_release(link);
@@ -363,14 +339,21 @@ static void ide_release(struct pcmcia_device *link)
     ide_info_t *info = link->priv;
     struct ide_host *host = info->host;
 
-    DEBUG(0, "ide_release(0x%p)\n", link);
+    dev_dbg(&link->dev, "ide_release(0x%p)\n", link);
 
-    if (info->ndev)
-	/* FIXME: if this fails we need to queue the cleanup somehow
-	   -- need to investigate the required PCMCIA magic */
+    if (info->ndev) {
+	ide_hwif_t *hwif = host->ports[0];
+	unsigned long data_addr, ctl_addr;
+
+	data_addr = hwif->io_ports.data_addr;
+	ctl_addr = hwif->io_ports.ctl_addr;
+
 	ide_host_remove(host);
+	info->ndev = 0;
 
-    info->ndev = 0;
+	release_region(ctl_addr, 1);
+	release_region(data_addr, 8);
+    }
 
     pcmcia_disable_device(link);
 } /* ide_release */
@@ -421,6 +404,8 @@ static struct pcmcia_device_id ide_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("Hyperstone", "Model1", 0x3d5b9ef5, 0xca6ab420),
 	PCMCIA_DEVICE_PROD_ID12("IBM", "microdrive", 0xb569a6e5, 0xa6d76178),
 	PCMCIA_DEVICE_PROD_ID12("IBM", "IBM17JSSFP20", 0xb569a6e5, 0xf2508753),
+	PCMCIA_DEVICE_PROD_ID12("KINGSTON", "CF CARD 1GB", 0x2e6d1829, 0x55d5bffb),
+	PCMCIA_DEVICE_PROD_ID12("KINGSTON", "CF CARD 4GB", 0x2e6d1829, 0x531e7d10),
 	PCMCIA_DEVICE_PROD_ID12("KINGSTON", "CF8GB", 0x2e6d1829, 0xacbe682e),
 	PCMCIA_DEVICE_PROD_ID12("IO DATA", "CBIDE2      ", 0x547e66dc, 0x8671043b),
 	PCMCIA_DEVICE_PROD_ID12("IO DATA", "PCIDE", 0x547e66dc, 0x5c5ab149),
@@ -441,6 +426,8 @@ static struct pcmcia_device_id ide_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS1GCF80", 0x709b1bf1, 0x2a54d4b1),
 	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS2GCF120", 0x709b1bf1, 0x969aa4f2),
 	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS4GCF120", 0x709b1bf1, 0xf54a91c8),
+	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS4GCF133", 0x709b1bf1, 0x7558f133),
+	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS8GCF133", 0x709b1bf1, 0xb2f89b47),
 	PCMCIA_DEVICE_PROD_ID12("WIT", "IDE16", 0x244e5994, 0x3e232852),
 	PCMCIA_DEVICE_PROD_ID12("WEIDA", "TWTTI", 0xcc7cf69c, 0x212bb918),
 	PCMCIA_DEVICE_PROD_ID1("STI Flash", 0xe4a13209),

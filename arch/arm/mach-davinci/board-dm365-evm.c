@@ -13,9 +13,8 @@
  * GNU General Public License for more details.
  */
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
-#include <linux/dma-mapping.h>
+#include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
 #include <linux/clk.h>
@@ -23,21 +22,25 @@
 #include <linux/leds.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/slab.h>
 #include <linux/mtd/nand.h>
-#include <asm/setup.h>
+#include <linux/input.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/eeprom.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
+
 #include <mach/mux.h>
-#include <mach/hardware.h>
 #include <mach/dm365.h>
-#include <mach/psc.h>
 #include <mach/common.h>
 #include <mach/i2c.h>
 #include <mach/serial.h>
 #include <mach/mmc.h>
 #include <mach/nand.h>
+#include <mach/keyscan.h>
 
+#include <media/tvp514x.h>
 
 static inline int have_imager(void)
 {
@@ -50,11 +53,6 @@ static inline int have_tvp7002(void)
 	/* REVISIT when it's supported, trigger via Kconfig */
 	return 0;
 }
-
-
-#define DM365_ASYNC_EMIF_CONTROL_BASE	0x01d10000
-#define DM365_ASYNC_EMIF_DATA_CE0_BASE	0x02000000
-#define DM365_ASYNC_EMIF_DATA_CE1_BASE	0x04000000
 
 #define DM365_EVM_PHY_MASK		(0x2)
 #define DM365_EVM_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
@@ -144,6 +142,7 @@ static struct davinci_nand_pdata davinci_nand_data = {
 	.nr_parts		= ARRAY_SIZE(davinci_nand_partitions),
 	.ecc_mode		= NAND_ECC_HW,
 	.options		= NAND_USE_FLASH_BBT,
+	.ecc_bits		= 4,
 };
 
 static struct resource davinci_nand_resources[] = {
@@ -176,16 +175,57 @@ static struct at24_platform_data eeprom_info = {
 	.context	= (void *)0x7f00,
 };
 
+static struct snd_platform_data dm365_evm_snd_data;
+
 static struct i2c_board_info i2c_info[] = {
 	{
 		I2C_BOARD_INFO("24c256", 0x50),
 		.platform_data	= &eeprom_info,
+	},
+	{
+		I2C_BOARD_INFO("tlv320aic3x", 0x18),
 	},
 };
 
 static struct davinci_i2c_platform_data i2c_pdata = {
 	.bus_freq	= 400	/* kHz */,
 	.bus_delay	= 0	/* usec */,
+};
+
+static int dm365evm_keyscan_enable(struct device *dev)
+{
+	return davinci_cfg_reg(DM365_KEYSCAN);
+}
+
+static unsigned short dm365evm_keymap[] = {
+	KEY_KP2,
+	KEY_LEFT,
+	KEY_EXIT,
+	KEY_DOWN,
+	KEY_ENTER,
+	KEY_UP,
+	KEY_KP1,
+	KEY_RIGHT,
+	KEY_MENU,
+	KEY_RECORD,
+	KEY_REWIND,
+	KEY_KPMINUS,
+	KEY_STOP,
+	KEY_FASTFORWARD,
+	KEY_KPPLUS,
+	KEY_PLAYPAUSE,
+	0
+};
+
+static struct davinci_ks_platform_data dm365evm_ks_data = {
+	.device_enable	= dm365evm_keyscan_enable,
+	.keymap		= dm365evm_keymap,
+	.keymapsize	= ARRAY_SIZE(dm365evm_keymap),
+	.rep		= 1,
+	/* Scan period = strobe + interval */
+	.strobe		= 0x5,
+	.interval	= 0x2,
+	.matrix_type	= DAVINCI_KEYSCAN_MATRIX_4X4,
 };
 
 static int cpld_mmc_get_cd(int module)
@@ -265,6 +305,73 @@ static void dm365evm_mmc_configure(void)
 	davinci_cfg_reg(DM365_SD1_DATA1);
 	davinci_cfg_reg(DM365_SD1_DATA0);
 }
+
+static struct tvp514x_platform_data tvp5146_pdata = {
+	.clk_polarity = 0,
+	.hs_polarity = 1,
+	.vs_polarity = 1
+};
+
+#define TVP514X_STD_ALL        (V4L2_STD_NTSC | V4L2_STD_PAL)
+/* Inputs available at the TVP5146 */
+static struct v4l2_input tvp5146_inputs[] = {
+	{
+		.index = 0,
+		.name = "Composite",
+		.type = V4L2_INPUT_TYPE_CAMERA,
+		.std = TVP514X_STD_ALL,
+	},
+	{
+		.index = 1,
+		.name = "S-Video",
+		.type = V4L2_INPUT_TYPE_CAMERA,
+		.std = TVP514X_STD_ALL,
+	},
+};
+
+/*
+ * this is the route info for connecting each input to decoder
+ * ouput that goes to vpfe. There is a one to one correspondence
+ * with tvp5146_inputs
+ */
+static struct vpfe_route tvp5146_routes[] = {
+	{
+		.input = INPUT_CVBS_VI2B,
+		.output = OUTPUT_10BIT_422_EMBEDDED_SYNC,
+	},
+{
+		.input = INPUT_SVIDEO_VI2C_VI1C,
+		.output = OUTPUT_10BIT_422_EMBEDDED_SYNC,
+	},
+};
+
+static struct vpfe_subdev_info vpfe_sub_devs[] = {
+	{
+		.name = "tvp5146",
+		.grp_id = 0,
+		.num_inputs = ARRAY_SIZE(tvp5146_inputs),
+		.inputs = tvp5146_inputs,
+		.routes = tvp5146_routes,
+		.can_route = 1,
+		.ccdc_if_params = {
+			.if_type = VPFE_BT656,
+			.hdpol = VPFE_PINPOL_POSITIVE,
+			.vdpol = VPFE_PINPOL_POSITIVE,
+		},
+		.board_info = {
+			I2C_BOARD_INFO("tvp5146", 0x5d),
+			.platform_data = &tvp5146_pdata,
+		},
+	},
+};
+
+static struct vpfe_config vpfe_cfg = {
+	.num_subdevs = ARRAY_SIZE(vpfe_sub_devs),
+	.sub_devs = vpfe_sub_devs,
+	.i2c_adapter_id = 1,
+	.card_name = "DM365 EVM",
+	.ccdc = "ISIF",
+};
 
 static void __init evm_init_i2c(void)
 {
@@ -457,8 +564,28 @@ static struct davinci_uart_config uart_config __initdata = {
 
 static void __init dm365_evm_map_io(void)
 {
+	/* setup input configuration for VPFE input devices */
+	dm365_set_vpfe_config(&vpfe_cfg);
 	dm365_init();
 }
+
+static struct spi_eeprom at25640 = {
+	.byte_len	= SZ_64K / 8,
+	.name		= "at25640",
+	.page_size	= 32,
+	.flags		= EE_ADDR2,
+};
+
+static struct spi_board_info dm365_evm_spi_info[] __initconst = {
+	{
+		.modalias	= "at25",
+		.platform_data	= &at25640,
+		.max_speed_hz	= 10 * 1000 * 1000,
+		.bus_num	= 0,
+		.chip_select	= 0,
+		.mode		= SPI_MODE_0,
+	},
+};
 
 static __init void dm365_evm_init(void)
 {
@@ -472,11 +599,17 @@ static __init void dm365_evm_init(void)
 
 	/* maybe setup mmc1/etc ... _after_ mmc0 */
 	evm_init_cpld();
-}
 
-static __init void dm365_evm_irq_init(void)
-{
-	davinci_irq_init();
+#ifdef CONFIG_SND_DM365_AIC3X_CODEC
+	dm365_init_asp(&dm365_evm_snd_data);
+#elif defined(CONFIG_SND_DM365_VOICE_CODEC)
+	dm365_init_vc(&dm365_evm_snd_data);
+#endif
+	dm365_init_rtc();
+	dm365_init_ks(&dm365evm_ks_data);
+
+	dm365_init_spi0(BIT(0), dm365_evm_spi_info,
+			ARRAY_SIZE(dm365_evm_spi_info));
 }
 
 MACHINE_START(DAVINCI_DM365_EVM, "DaVinci DM365 EVM")
@@ -484,7 +617,7 @@ MACHINE_START(DAVINCI_DM365_EVM, "DaVinci DM365 EVM")
 	.io_pg_offst	= (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
 	.boot_params	= (0x80000100),
 	.map_io		= dm365_evm_map_io,
-	.init_irq	= dm365_evm_irq_init,
+	.init_irq	= davinci_irq_init,
 	.timer		= &davinci_timer,
 	.init_machine	= dm365_evm_init,
 MACHINE_END

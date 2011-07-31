@@ -14,8 +14,10 @@
  *	unless the userspace driver also doesn't work for you...
  *
  *      Changes:
- *      08/07/2003        Daniele Bellucci <bellucda@tiscali.it>
- *                        - pms_capture: report back -EFAULT
+ *	25-11-2009 	Hans Verkuil <hverkuil@xs4all.nl>
+ * 			- converted to version 2 of the V4L API.
+ *      08/07/2003      Daniele Bellucci <bellucda@tiscali.it>
+ *                      - pms_capture: report back -EFAULT
  */
 
 #include <linux/module.h>
@@ -23,179 +25,185 @@
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
+#include <linux/version.h>
+#include <linux/mutex.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
-#include <linux/videodev.h>
+
+#include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
-#include <linux/mutex.h>
+#include <media/v4l2-device.h>
 
-#include <asm/uaccess.h>
+MODULE_LICENSE("GPL");
 
 
 #define MOTOROLA	1
-#define PHILIPS2	2
+#define PHILIPS2	2               /* SAA7191 */
 #define PHILIPS1	3
 #define MVVMEMORYWIDTH	0x40		/* 512 bytes */
 
-struct pms_device
-{
-	struct video_device v;
-	struct video_picture picture;
-	int height;
-	int width;
-	unsigned long in_use;
-	struct mutex lock;
-};
-
-struct i2c_info
-{
+struct i2c_info {
 	u8 slave;
 	u8 sub;
 	u8 data;
 	u8 hits;
 };
 
-static int i2c_count;
-static struct i2c_info i2cinfo[64];
+struct pms {
+	struct v4l2_device v4l2_dev;
+	struct video_device vdev;
+	int height;
+	int width;
+	int depth;
+	int input;
+	s32 brightness, saturation, hue, contrast;
+	struct mutex lock;
+	int i2c_count;
+	struct i2c_info i2cinfo[64];
 
-static int decoder 		= PHILIPS2;
-static int standard;	/* 0 - auto 1 - ntsc 2 - pal 3 - secam */
+	int decoder;
+	int standard;	/* 0 - auto 1 - ntsc 2 - pal 3 - secam */
+	v4l2_std_id std;
+	int io;
+	int data;
+	void __iomem *mem;
+};
+
+static struct pms pms_card;
 
 /*
  *	I/O ports and Shared Memory
  */
 
-static int io_port		=	0x250;
-static int data_port		=	0x251;
-static int mem_base		=	0xC8000;
-static void __iomem *mem;
-static int video_nr             =       -1;
+static int io_port = 0x250;
+module_param(io_port, int, 0);
+
+static int mem_base = 0xc8000;
+module_param(mem_base, int, 0);
+
+static int video_nr = -1;
+module_param(video_nr, int, 0);
 
 
-
-static inline void mvv_write(u8 index, u8 value)
+static inline void mvv_write(struct pms *dev, u8 index, u8 value)
 {
-	outw(index|(value<<8), io_port);
+	outw(index | (value << 8), dev->io);
 }
 
-static inline u8 mvv_read(u8 index)
+static inline u8 mvv_read(struct pms *dev, u8 index)
 {
-	outb(index, io_port);
-	return inb(data_port);
+	outb(index, dev->io);
+	return inb(dev->data);
 }
 
-static int pms_i2c_stat(u8 slave)
+static int pms_i2c_stat(struct pms *dev, u8 slave)
 {
-	int counter;
+	int counter = 0;
 	int i;
 
-	outb(0x28, io_port);
+	outb(0x28, dev->io);
 
-	counter=0;
-	while((inb(data_port)&0x01)==0)
-		if(counter++==256)
+	while ((inb(dev->data) & 0x01) == 0)
+		if (counter++ == 256)
 			break;
 
-	while((inb(data_port)&0x01)!=0)
-		if(counter++==256)
+	while ((inb(dev->data) & 0x01) != 0)
+		if (counter++ == 256)
 			break;
 
-	outb(slave, io_port);
+	outb(slave, dev->io);
 
-	counter=0;
-	while((inb(data_port)&0x01)==0)
-		if(counter++==256)
+	counter = 0;
+	while ((inb(dev->data) & 0x01) == 0)
+		if (counter++ == 256)
 			break;
 
-	while((inb(data_port)&0x01)!=0)
-		if(counter++==256)
+	while ((inb(dev->data) & 0x01) != 0)
+		if (counter++ == 256)
 			break;
 
-	for(i=0;i<12;i++)
-	{
-		char st=inb(data_port);
-		if((st&2)!=0)
+	for (i = 0; i < 12; i++) {
+		char st = inb(dev->data);
+
+		if ((st & 2) != 0)
 			return -1;
-		if((st&1)==0)
+		if ((st & 1) == 0)
 			break;
 	}
-	outb(0x29, io_port);
-	return inb(data_port);
+	outb(0x29, dev->io);
+	return inb(dev->data);
 }
 
-static int pms_i2c_write(u16 slave, u16 sub, u16 data)
+static int pms_i2c_write(struct pms *dev, u16 slave, u16 sub, u16 data)
 {
-	int skip=0;
+	int skip = 0;
 	int count;
 	int i;
 
-	for(i=0;i<i2c_count;i++)
-	{
-		if((i2cinfo[i].slave==slave) &&
-		   (i2cinfo[i].sub == sub))
-		{
-			if(i2cinfo[i].data==data)
-				skip=1;
-			i2cinfo[i].data=data;
-			i=i2c_count+1;
+	for (i = 0; i < dev->i2c_count; i++) {
+		if ((dev->i2cinfo[i].slave == slave) &&
+		    (dev->i2cinfo[i].sub == sub)) {
+			if (dev->i2cinfo[i].data == data)
+				skip = 1;
+			dev->i2cinfo[i].data = data;
+			i = dev->i2c_count + 1;
 		}
 	}
 
-	if(i==i2c_count && i2c_count<64)
-	{
-		i2cinfo[i2c_count].slave=slave;
-		i2cinfo[i2c_count].sub=sub;
-		i2cinfo[i2c_count].data=data;
-		i2c_count++;
+	if (i == dev->i2c_count && dev->i2c_count < 64) {
+		dev->i2cinfo[dev->i2c_count].slave = slave;
+		dev->i2cinfo[dev->i2c_count].sub = sub;
+		dev->i2cinfo[dev->i2c_count].data = data;
+		dev->i2c_count++;
 	}
 
-	if(skip)
+	if (skip)
 		return 0;
 
-	mvv_write(0x29, sub);
-	mvv_write(0x2A, data);
-	mvv_write(0x28, slave);
+	mvv_write(dev, 0x29, sub);
+	mvv_write(dev, 0x2A, data);
+	mvv_write(dev, 0x28, slave);
 
-	outb(0x28, io_port);
+	outb(0x28, dev->io);
 
-	count=0;
-	while((inb(data_port)&1)==0)
-		if(count>255)
+	count = 0;
+	while ((inb(dev->data) & 1) == 0)
+		if (count > 255)
 			break;
-	while((inb(data_port)&1)!=0)
-		if(count>255)
+	while ((inb(dev->data) & 1) != 0)
+		if (count > 255)
 			break;
 
-	count=inb(data_port);
+	count = inb(dev->data);
 
-	if(count&2)
+	if (count & 2)
 		return -1;
 	return count;
 }
 
-static int pms_i2c_read(int slave, int sub)
+static int pms_i2c_read(struct pms *dev, int slave, int sub)
 {
-	int i=0;
-	for(i=0;i<i2c_count;i++)
-	{
-		if(i2cinfo[i].slave==slave && i2cinfo[i].sub==sub)
-			return i2cinfo[i].data;
+	int i;
+
+	for (i = 0; i < dev->i2c_count; i++) {
+		if (dev->i2cinfo[i].slave == slave && dev->i2cinfo[i].sub == sub)
+			return dev->i2cinfo[i].data;
 	}
 	return 0;
 }
 
 
-static void pms_i2c_andor(int slave, int sub, int and, int or)
+static void pms_i2c_andor(struct pms *dev, int slave, int sub, int and, int or)
 {
 	u8 tmp;
 
-	tmp=pms_i2c_read(slave, sub);
-	tmp = (tmp&and)|or;
-	pms_i2c_write(slave, sub, tmp);
+	tmp = pms_i2c_read(dev, slave, sub);
+	tmp = (tmp & and) | or;
+	pms_i2c_write(dev, slave, sub, tmp);
 }
 
 /*
@@ -203,100 +211,108 @@ static void pms_i2c_andor(int slave, int sub, int and, int or)
  */
 
 
-static void pms_videosource(short source)
+static void pms_videosource(struct pms *dev, short source)
 {
-	mvv_write(0x2E, source?0x31:0x30);
+	switch (dev->decoder) {
+	case MOTOROLA:
+		break;
+	case PHILIPS2:
+		pms_i2c_andor(dev, 0x8a, 0x06, 0x7f, source ? 0x80 : 0);
+		break;
+	case PHILIPS1:
+		break;
+	}
+	mvv_write(dev, 0x2E, 0x31);
+	/* Was: mvv_write(dev, 0x2E, source ? 0x31 : 0x30);
+	   But could not make this work correctly. Only Composite input
+	   worked for me. */
 }
 
-static void pms_hue(short hue)
+static void pms_hue(struct pms *dev, short hue)
 {
-	switch(decoder)
-	{
-		case MOTOROLA:
-			pms_i2c_write(0x8A, 0x00, hue);
-			break;
-		case PHILIPS2:
-			pms_i2c_write(0x8A, 0x07, hue);
-			break;
-		case PHILIPS1:
-			pms_i2c_write(0x42, 0x07, hue);
-			break;
+	switch (dev->decoder) {
+	case MOTOROLA:
+		pms_i2c_write(dev, 0x8a, 0x00, hue);
+		break;
+	case PHILIPS2:
+		pms_i2c_write(dev, 0x8a, 0x07, hue);
+		break;
+	case PHILIPS1:
+		pms_i2c_write(dev, 0x42, 0x07, hue);
+		break;
 	}
 }
 
-static void pms_colour(short colour)
+static void pms_saturation(struct pms *dev, short sat)
 {
-	switch(decoder)
-	{
-		case MOTOROLA:
-			pms_i2c_write(0x8A, 0x00, colour);
-			break;
-		case PHILIPS1:
-			pms_i2c_write(0x42, 0x12, colour);
-			break;
-	}
-}
-
-
-static void pms_contrast(short contrast)
-{
-	switch(decoder)
-	{
-		case MOTOROLA:
-			pms_i2c_write(0x8A, 0x00, contrast);
-			break;
-		case PHILIPS1:
-			pms_i2c_write(0x42, 0x13, contrast);
-			break;
-	}
-}
-
-static void pms_brightness(short brightness)
-{
-	switch(decoder)
-	{
-		case MOTOROLA:
-			pms_i2c_write(0x8A, 0x00, brightness);
-			pms_i2c_write(0x8A, 0x00, brightness);
-			pms_i2c_write(0x8A, 0x00, brightness);
-			break;
-		case PHILIPS1:
-			pms_i2c_write(0x42, 0x19, brightness);
-			break;
+	switch (dev->decoder) {
+	case MOTOROLA:
+		pms_i2c_write(dev, 0x8a, 0x00, sat);
+		break;
+	case PHILIPS1:
+		pms_i2c_write(dev, 0x42, 0x12, sat);
+		break;
 	}
 }
 
 
-static void pms_format(short format)
+static void pms_contrast(struct pms *dev, short contrast)
+{
+	switch (dev->decoder) {
+	case MOTOROLA:
+		pms_i2c_write(dev, 0x8a, 0x00, contrast);
+		break;
+	case PHILIPS1:
+		pms_i2c_write(dev, 0x42, 0x13, contrast);
+		break;
+	}
+}
+
+static void pms_brightness(struct pms *dev, short brightness)
+{
+	switch (dev->decoder) {
+	case MOTOROLA:
+		pms_i2c_write(dev, 0x8a, 0x00, brightness);
+		pms_i2c_write(dev, 0x8a, 0x00, brightness);
+		pms_i2c_write(dev, 0x8a, 0x00, brightness);
+		break;
+	case PHILIPS1:
+		pms_i2c_write(dev, 0x42, 0x19, brightness);
+		break;
+	}
+}
+
+
+static void pms_format(struct pms *dev, short format)
 {
 	int target;
-	standard = format;
 
-	if(decoder==PHILIPS1)
-		target=0x42;
-	else if(decoder==PHILIPS2)
-		target=0x8A;
+	dev->standard = format;
+
+	if (dev->decoder == PHILIPS1)
+		target = 0x42;
+	else if (dev->decoder == PHILIPS2)
+		target = 0x8a;
 	else
 		return;
 
-	switch(format)
-	{
-		case 0:	/* Auto */
-			pms_i2c_andor(target, 0x0D, 0xFE,0x00);
-			pms_i2c_andor(target, 0x0F, 0x3F,0x80);
-			break;
-		case 1: /* NTSC */
-			pms_i2c_andor(target, 0x0D, 0xFE, 0x00);
-			pms_i2c_andor(target, 0x0F, 0x3F, 0x40);
-			break;
-		case 2: /* PAL */
-			pms_i2c_andor(target, 0x0D, 0xFE, 0x00);
-			pms_i2c_andor(target, 0x0F, 0x3F, 0x00);
-			break;
-		case 3:	/* SECAM */
-			pms_i2c_andor(target, 0x0D, 0xFE, 0x01);
-			pms_i2c_andor(target, 0x0F, 0x3F, 0x00);
-			break;
+	switch (format) {
+	case 0:	/* Auto */
+		pms_i2c_andor(dev, target, 0x0d, 0xfe, 0x00);
+		pms_i2c_andor(dev, target, 0x0f, 0x3f, 0x80);
+		break;
+	case 1: /* NTSC */
+		pms_i2c_andor(dev, target, 0x0d, 0xfe, 0x00);
+		pms_i2c_andor(dev, target, 0x0f, 0x3f, 0x40);
+		break;
+	case 2: /* PAL */
+		pms_i2c_andor(dev, target, 0x0d, 0xfe, 0x00);
+		pms_i2c_andor(dev, target, 0x0f, 0x3f, 0x00);
+		break;
+	case 3:	/* SECAM */
+		pms_i2c_andor(dev, target, 0x0d, 0xfe, 0x01);
+		pms_i2c_andor(dev, target, 0x0f, 0x3f, 0x00);
+		break;
 	}
 }
 
@@ -308,18 +324,17 @@ static void pms_format(short format)
  *	people need it. We also don't yet use the PMS interrupt.
  */
 
-static void pms_hstart(short start)
+static void pms_hstart(struct pms *dev, short start)
 {
-	switch(decoder)
-	{
-		case PHILIPS1:
-			pms_i2c_write(0x8A, 0x05, start);
-			pms_i2c_write(0x8A, 0x18, start);
-			break;
-		case PHILIPS2:
-			pms_i2c_write(0x42, 0x05, start);
-			pms_i2c_write(0x42, 0x18, start);
-			break;
+	switch (dev->decoder) {
+	case PHILIPS1:
+		pms_i2c_write(dev, 0x8a, 0x05, start);
+		pms_i2c_write(dev, 0x8a, 0x18, start);
+		break;
+	case PHILIPS2:
+		pms_i2c_write(dev, 0x42, 0x05, start);
+		pms_i2c_write(dev, 0x42, 0x18, start);
+		break;
 	}
 }
 
@@ -327,293 +342,271 @@ static void pms_hstart(short start)
  *	Bandpass filters
  */
 
-static void pms_bandpass(short pass)
+static void pms_bandpass(struct pms *dev, short pass)
 {
-	if(decoder==PHILIPS2)
-		pms_i2c_andor(0x8A, 0x06, 0xCF, (pass&0x03)<<4);
-	else if(decoder==PHILIPS1)
-		pms_i2c_andor(0x42, 0x06, 0xCF, (pass&0x03)<<4);
+	if (dev->decoder == PHILIPS2)
+		pms_i2c_andor(dev, 0x8a, 0x06, 0xcf, (pass & 0x03) << 4);
+	else if (dev->decoder == PHILIPS1)
+		pms_i2c_andor(dev, 0x42, 0x06, 0xcf, (pass & 0x03) << 4);
 }
 
-static void pms_antisnow(short snow)
+static void pms_antisnow(struct pms *dev, short snow)
 {
-	if(decoder==PHILIPS2)
-		pms_i2c_andor(0x8A, 0x06, 0xF3, (snow&0x03)<<2);
-	else if(decoder==PHILIPS1)
-		pms_i2c_andor(0x42, 0x06, 0xF3, (snow&0x03)<<2);
+	if (dev->decoder == PHILIPS2)
+		pms_i2c_andor(dev, 0x8a, 0x06, 0xf3, (snow & 0x03) << 2);
+	else if (dev->decoder == PHILIPS1)
+		pms_i2c_andor(dev, 0x42, 0x06, 0xf3, (snow & 0x03) << 2);
 }
 
-static void pms_sharpness(short sharp)
+static void pms_sharpness(struct pms *dev, short sharp)
 {
-	if(decoder==PHILIPS2)
-		pms_i2c_andor(0x8A, 0x06, 0xFC, sharp&0x03);
-	else if(decoder==PHILIPS1)
-		pms_i2c_andor(0x42, 0x06, 0xFC, sharp&0x03);
+	if (dev->decoder == PHILIPS2)
+		pms_i2c_andor(dev, 0x8a, 0x06, 0xfc, sharp & 0x03);
+	else if (dev->decoder == PHILIPS1)
+		pms_i2c_andor(dev, 0x42, 0x06, 0xfc, sharp & 0x03);
 }
 
-static void pms_chromaagc(short agc)
+static void pms_chromaagc(struct pms *dev, short agc)
 {
-	if(decoder==PHILIPS2)
-		pms_i2c_andor(0x8A, 0x0C, 0x9F, (agc&0x03)<<5);
-	else if(decoder==PHILIPS1)
-		pms_i2c_andor(0x42, 0x0C, 0x9F, (agc&0x03)<<5);
+	if (dev->decoder == PHILIPS2)
+		pms_i2c_andor(dev, 0x8a, 0x0c, 0x9f, (agc & 0x03) << 5);
+	else if (dev->decoder == PHILIPS1)
+		pms_i2c_andor(dev, 0x42, 0x0c, 0x9f, (agc & 0x03) << 5);
 }
 
-static void pms_vertnoise(short noise)
+static void pms_vertnoise(struct pms *dev, short noise)
 {
-	if(decoder==PHILIPS2)
-		pms_i2c_andor(0x8A, 0x10, 0xFC, noise&3);
-	else if(decoder==PHILIPS1)
-		pms_i2c_andor(0x42, 0x10, 0xFC, noise&3);
+	if (dev->decoder == PHILIPS2)
+		pms_i2c_andor(dev, 0x8a, 0x10, 0xfc, noise & 3);
+	else if (dev->decoder == PHILIPS1)
+		pms_i2c_andor(dev, 0x42, 0x10, 0xfc, noise & 3);
 }
 
-static void pms_forcecolour(short colour)
+static void pms_forcecolour(struct pms *dev, short colour)
 {
-	if(decoder==PHILIPS2)
-		pms_i2c_andor(0x8A, 0x0C, 0x7F, (colour&1)<<7);
-	else if(decoder==PHILIPS1)
-		pms_i2c_andor(0x42, 0x0C, 0x7, (colour&1)<<7);
+	if (dev->decoder == PHILIPS2)
+		pms_i2c_andor(dev, 0x8a, 0x0c, 0x7f, (colour & 1) << 7);
+	else if (dev->decoder == PHILIPS1)
+		pms_i2c_andor(dev, 0x42, 0x0c, 0x7, (colour & 1) << 7);
 }
 
-static void pms_antigamma(short gamma)
+static void pms_antigamma(struct pms *dev, short gamma)
 {
-	if(decoder==PHILIPS2)
-		pms_i2c_andor(0xB8, 0x00, 0x7F, (gamma&1)<<7);
-	else if(decoder==PHILIPS1)
-		pms_i2c_andor(0x42, 0x20, 0x7, (gamma&1)<<7);
+	if (dev->decoder == PHILIPS2)
+		pms_i2c_andor(dev, 0xb8, 0x00, 0x7f, (gamma & 1) << 7);
+	else if (dev->decoder == PHILIPS1)
+		pms_i2c_andor(dev, 0x42, 0x20, 0x7, (gamma & 1) << 7);
 }
 
-static void pms_prefilter(short filter)
+static void pms_prefilter(struct pms *dev, short filter)
 {
-	if(decoder==PHILIPS2)
-		pms_i2c_andor(0x8A, 0x06, 0xBF, (filter&1)<<6);
-	else if(decoder==PHILIPS1)
-		pms_i2c_andor(0x42, 0x06, 0xBF, (filter&1)<<6);
+	if (dev->decoder == PHILIPS2)
+		pms_i2c_andor(dev, 0x8a, 0x06, 0xbf, (filter & 1) << 6);
+	else if (dev->decoder == PHILIPS1)
+		pms_i2c_andor(dev, 0x42, 0x06, 0xbf, (filter & 1) << 6);
 }
 
-static void pms_hfilter(short filter)
+static void pms_hfilter(struct pms *dev, short filter)
 {
-	if(decoder==PHILIPS2)
-		pms_i2c_andor(0xB8, 0x04, 0x1F, (filter&7)<<5);
-	else if(decoder==PHILIPS1)
-		pms_i2c_andor(0x42, 0x24, 0x1F, (filter&7)<<5);
+	if (dev->decoder == PHILIPS2)
+		pms_i2c_andor(dev, 0xb8, 0x04, 0x1f, (filter & 7) << 5);
+	else if (dev->decoder == PHILIPS1)
+		pms_i2c_andor(dev, 0x42, 0x24, 0x1f, (filter & 7) << 5);
 }
 
-static void pms_vfilter(short filter)
+static void pms_vfilter(struct pms *dev, short filter)
 {
-	if(decoder==PHILIPS2)
-		pms_i2c_andor(0xB8, 0x08, 0x9F, (filter&3)<<5);
-	else if(decoder==PHILIPS1)
-		pms_i2c_andor(0x42, 0x28, 0x9F, (filter&3)<<5);
+	if (dev->decoder == PHILIPS2)
+		pms_i2c_andor(dev, 0xb8, 0x08, 0x9f, (filter & 3) << 5);
+	else if (dev->decoder == PHILIPS1)
+		pms_i2c_andor(dev, 0x42, 0x28, 0x9f, (filter & 3) << 5);
 }
 
-static void pms_killcolour(short colour)
+static void pms_killcolour(struct pms *dev, short colour)
 {
-	if(decoder==PHILIPS2)
-	{
-		pms_i2c_andor(0x8A, 0x08, 0x07, (colour&0x1F)<<3);
-		pms_i2c_andor(0x8A, 0x09, 0x07, (colour&0x1F)<<3);
-	}
-	else if(decoder==PHILIPS1)
-	{
-		pms_i2c_andor(0x42, 0x08, 0x07, (colour&0x1F)<<3);
-		pms_i2c_andor(0x42, 0x09, 0x07, (colour&0x1F)<<3);
+	if (dev->decoder == PHILIPS2) {
+		pms_i2c_andor(dev, 0x8a, 0x08, 0x07, (colour & 0x1f) << 3);
+		pms_i2c_andor(dev, 0x8a, 0x09, 0x07, (colour & 0x1f) << 3);
+	} else if (dev->decoder == PHILIPS1) {
+		pms_i2c_andor(dev, 0x42, 0x08, 0x07, (colour & 0x1f) << 3);
+		pms_i2c_andor(dev, 0x42, 0x09, 0x07, (colour & 0x1f) << 3);
 	}
 }
 
-static void pms_chromagain(short chroma)
+static void pms_chromagain(struct pms *dev, short chroma)
 {
-	if(decoder==PHILIPS2)
-	{
-		pms_i2c_write(0x8A, 0x11, chroma);
-	}
-	else if(decoder==PHILIPS1)
-	{
-		pms_i2c_write(0x42, 0x11, chroma);
-	}
+	if (dev->decoder == PHILIPS2)
+		pms_i2c_write(dev, 0x8a, 0x11, chroma);
+	else if (dev->decoder == PHILIPS1)
+		pms_i2c_write(dev, 0x42, 0x11, chroma);
 }
 
 
-static void pms_spacialcompl(short data)
+static void pms_spacialcompl(struct pms *dev, short data)
 {
-	mvv_write(0x3B, data);
+	mvv_write(dev, 0x3b, data);
 }
 
-static void pms_spacialcomph(short data)
+static void pms_spacialcomph(struct pms *dev, short data)
 {
-	mvv_write(0x3A, data);
+	mvv_write(dev, 0x3a, data);
 }
 
-static void pms_vstart(short start)
+static void pms_vstart(struct pms *dev, short start)
 {
-	mvv_write(0x16, start);
-	mvv_write(0x17, (start>>8)&0x01);
+	mvv_write(dev, 0x16, start);
+	mvv_write(dev, 0x17, (start >> 8) & 0x01);
 }
 
 #endif
 
-static void pms_secamcross(short cross)
+static void pms_secamcross(struct pms *dev, short cross)
 {
-	if(decoder==PHILIPS2)
-		pms_i2c_andor(0x8A, 0x0F, 0xDF, (cross&1)<<5);
-	else if(decoder==PHILIPS1)
-		pms_i2c_andor(0x42, 0x0F, 0xDF, (cross&1)<<5);
+	if (dev->decoder == PHILIPS2)
+		pms_i2c_andor(dev, 0x8a, 0x0f, 0xdf, (cross & 1) << 5);
+	else if (dev->decoder == PHILIPS1)
+		pms_i2c_andor(dev, 0x42, 0x0f, 0xdf, (cross & 1) << 5);
 }
 
 
-static void pms_swsense(short sense)
+static void pms_swsense(struct pms *dev, short sense)
 {
-	if(decoder==PHILIPS2)
-	{
-		pms_i2c_write(0x8A, 0x0A, sense);
-		pms_i2c_write(0x8A, 0x0B, sense);
-	}
-	else if(decoder==PHILIPS1)
-	{
-		pms_i2c_write(0x42, 0x0A, sense);
-		pms_i2c_write(0x42, 0x0B, sense);
+	if (dev->decoder == PHILIPS2) {
+		pms_i2c_write(dev, 0x8a, 0x0a, sense);
+		pms_i2c_write(dev, 0x8a, 0x0b, sense);
+	} else if (dev->decoder == PHILIPS1) {
+		pms_i2c_write(dev, 0x42, 0x0a, sense);
+		pms_i2c_write(dev, 0x42, 0x0b, sense);
 	}
 }
 
 
-static void pms_framerate(short frr)
+static void pms_framerate(struct pms *dev, short frr)
 {
-	int fps=(standard==1)?30:25;
-	if(frr==0)
+	int fps = (dev->std & V4L2_STD_525_60) ? 30 : 25;
+
+	if (frr == 0)
 		return;
-	fps=fps/frr;
-	mvv_write(0x14,0x80|fps);
-	mvv_write(0x15,1);
+	fps = fps/frr;
+	mvv_write(dev, 0x14, 0x80 | fps);
+	mvv_write(dev, 0x15, 1);
 }
 
-static void pms_vert(u8 deciden, u8 decinum)
+static void pms_vert(struct pms *dev, u8 deciden, u8 decinum)
 {
-	mvv_write(0x1C, deciden);	/* Denominator */
-	mvv_write(0x1D, decinum);	/* Numerator */
+	mvv_write(dev, 0x1c, deciden);	/* Denominator */
+	mvv_write(dev, 0x1d, decinum);	/* Numerator */
 }
 
 /*
  *	Turn 16bit ratios into best small ratio the chipset can grok
  */
 
-static void pms_vertdeci(unsigned short decinum, unsigned short deciden)
+static void pms_vertdeci(struct pms *dev, unsigned short decinum, unsigned short deciden)
 {
-	/* Knock it down by /5 once */
-	if(decinum%5==0)
-	{
-		deciden/=5;
-		decinum/=5;
+	/* Knock it down by / 5 once */
+	if (decinum % 5 == 0) {
+		deciden /= 5;
+		decinum /= 5;
 	}
 	/*
 	 *	3's
 	 */
-	while(decinum%3==0 && deciden%3==0)
-	{
-		deciden/=3;
-		decinum/=3;
+	while (decinum % 3 == 0 && deciden % 3 == 0) {
+		deciden /= 3;
+		decinum /= 3;
 	}
 	/*
 	 *	2's
 	 */
-	while(decinum%2==0 && deciden%2==0)
-	{
-		decinum/=2;
-		deciden/=2;
+	while (decinum % 2 == 0 && deciden % 2 == 0) {
+		decinum /= 2;
+		deciden /= 2;
 	}
 	/*
 	 *	Fudgyify
 	 */
-	while(deciden>32)
-	{
-		deciden/=2;
-		decinum=(decinum+1)/2;
+	while (deciden > 32) {
+		deciden /= 2;
+		decinum = (decinum + 1) / 2;
 	}
-	if(deciden==32)
+	if (deciden == 32)
 		deciden--;
-	pms_vert(deciden,decinum);
+	pms_vert(dev, deciden, decinum);
 }
 
-static void pms_horzdeci(short decinum, short deciden)
+static void pms_horzdeci(struct pms *dev, short decinum, short deciden)
 {
-	if(decinum<=512)
-	{
-		if(decinum%5==0)
-		{
-			decinum/=5;
-			deciden/=5;
+	if (decinum <= 512) {
+		if (decinum % 5 == 0) {
+			decinum /= 5;
+			deciden /= 5;
 		}
-	}
-	else
-	{
-		decinum=512;
-		deciden=640;	/* 768 would be ideal */
+	} else {
+		decinum = 512;
+		deciden = 640;	/* 768 would be ideal */
 	}
 
-	while(((decinum|deciden)&1)==0)
-	{
-		decinum>>=1;
-		deciden>>=1;
+	while (((decinum | deciden) & 1) == 0) {
+		decinum >>= 1;
+		deciden >>= 1;
 	}
-	while(deciden>32)
-	{
-		deciden>>=1;
-		decinum=(decinum+1)>>1;
+	while (deciden > 32) {
+		deciden >>= 1;
+		decinum = (decinum + 1) >> 1;
 	}
-	if(deciden==32)
+	if (deciden == 32)
 		deciden--;
 
-	mvv_write(0x24, 0x80|deciden);
-	mvv_write(0x25, decinum);
+	mvv_write(dev, 0x24, 0x80 | deciden);
+	mvv_write(dev, 0x25, decinum);
 }
 
-static void pms_resolution(short width, short height)
+static void pms_resolution(struct pms *dev, short width, short height)
 {
 	int fg_height;
 
-	fg_height=height;
-	if(fg_height>280)
-		fg_height=280;
+	fg_height = height;
+	if (fg_height > 280)
+		fg_height = 280;
 
-	mvv_write(0x18, fg_height);
-	mvv_write(0x19, fg_height>>8);
+	mvv_write(dev, 0x18, fg_height);
+	mvv_write(dev, 0x19, fg_height >> 8);
 
-	if(standard==1)
-	{
-		mvv_write(0x1A, 0xFC);
-		mvv_write(0x1B, 0x00);
-		if(height>fg_height)
-			pms_vertdeci(240,240);
+	if (dev->std & V4L2_STD_525_60) {
+		mvv_write(dev, 0x1a, 0xfc);
+		mvv_write(dev, 0x1b, 0x00);
+		if (height > fg_height)
+			pms_vertdeci(dev, 240, 240);
 		else
-			pms_vertdeci(fg_height,240);
-	}
-	else
-	{
-		mvv_write(0x1A, 0x1A);
-		mvv_write(0x1B, 0x01);
-		if(fg_height>256)
-			pms_vertdeci(270,270);
+			pms_vertdeci(dev, fg_height, 240);
+	} else {
+		mvv_write(dev, 0x1a, 0x1a);
+		mvv_write(dev, 0x1b, 0x01);
+		if (fg_height > 256)
+			pms_vertdeci(dev, 270, 270);
 		else
-			pms_vertdeci(fg_height, 270);
+			pms_vertdeci(dev, fg_height, 270);
 	}
-	mvv_write(0x12,0);
-	mvv_write(0x13, MVVMEMORYWIDTH);
-	mvv_write(0x42, 0x00);
-	mvv_write(0x43, 0x00);
-	mvv_write(0x44, MVVMEMORYWIDTH);
+	mvv_write(dev, 0x12, 0);
+	mvv_write(dev, 0x13, MVVMEMORYWIDTH);
+	mvv_write(dev, 0x42, 0x00);
+	mvv_write(dev, 0x43, 0x00);
+	mvv_write(dev, 0x44, MVVMEMORYWIDTH);
 
-	mvv_write(0x22, width+8);
-	mvv_write(0x23, (width+8)>> 8);
+	mvv_write(dev, 0x22, width + 8);
+	mvv_write(dev, 0x23, (width + 8) >> 8);
 
-	if(standard==1)
-		pms_horzdeci(width,640);
+	if (dev->std & V4L2_STD_525_60)
+		pms_horzdeci(dev, width, 640);
 	else
-		pms_horzdeci(width+8, 768);
+		pms_horzdeci(dev, width + 8, 768);
 
-	mvv_write(0x30, mvv_read(0x30)&0xFE);
-	mvv_write(0x08, mvv_read(0x08)|0x01);
-	mvv_write(0x01, mvv_read(0x01)&0xFD);
-	mvv_write(0x32, 0x00);
-	mvv_write(0x33, MVVMEMORYWIDTH);
+	mvv_write(dev, 0x30, mvv_read(dev, 0x30) & 0xfe);
+	mvv_write(dev, 0x08, mvv_read(dev, 0x08) | 0x01);
+	mvv_write(dev, 0x01, mvv_read(dev, 0x01) & 0xfd);
+	mvv_write(dev, 0x32, 0x00);
+	mvv_write(dev, 0x33, MVVMEMORYWIDTH);
 }
 
 
@@ -621,52 +614,49 @@ static void pms_resolution(short width, short height)
  *	Set Input
  */
 
-static void pms_vcrinput(short input)
+static void pms_vcrinput(struct pms *dev, short input)
 {
-	if(decoder==PHILIPS2)
-		pms_i2c_andor(0x8A,0x0D,0x7F,(input&1)<<7);
-	else if(decoder==PHILIPS1)
-		pms_i2c_andor(0x42,0x0D,0x7F,(input&1)<<7);
+	if (dev->decoder == PHILIPS2)
+		pms_i2c_andor(dev, 0x8a, 0x0d, 0x7f, (input & 1) << 7);
+	else if (dev->decoder == PHILIPS1)
+		pms_i2c_andor(dev, 0x42, 0x0d, 0x7f, (input & 1) << 7);
 }
 
 
-static int pms_capture(struct pms_device *dev, char __user *buf, int rgb555, int count)
+static int pms_capture(struct pms *dev, char __user *buf, int rgb555, int count)
 {
 	int y;
-	int dw = 2*dev->width;
-
-	char tmp[dw+32]; /* using a temp buffer is faster than direct  */
+	int dw = 2 * dev->width;
+	char tmp[dw + 32]; /* using a temp buffer is faster than direct  */
 	int cnt = 0;
-	int len=0;
+	int len = 0;
 	unsigned char r8 = 0x5;  /* value for reg8  */
 
 	if (rgb555)
 		r8 |= 0x20; /* else use untranslated rgb = 565 */
-	mvv_write(0x08,r8); /* capture rgb555/565, init DRAM, PC enable */
+	mvv_write(dev, 0x08, r8); /* capture rgb555/565, init DRAM, PC enable */
 
 /*	printf("%d %d %d %d %d %x %x\n",width,height,voff,nom,den,mvv_buf); */
 
-	for (y = 0; y < dev->height; y++ )
-	{
-		writeb(0, mem);  /* synchronisiert neue Zeile */
+	for (y = 0; y < dev->height; y++) {
+		writeb(0, dev->mem);  /* synchronisiert neue Zeile */
 
 		/*
 		 *	This is in truth a fifo, be very careful as if you
 		 *	forgot this odd things will occur 8)
 		 */
 
-		memcpy_fromio(tmp, mem, dw+32); /* discard 16 word   */
+		memcpy_fromio(tmp, dev->mem, dw + 32); /* discard 16 word   */
 		cnt -= dev->height;
-		while (cnt <= 0)
-		{
+		while (cnt <= 0) {
 			/*
 			 *	Don't copy too far
 			 */
-			int dt=dw;
-			if(dt+len>count)
-				dt=count-len;
+			int dt = dw;
+			if (dt + len > count)
+				dt = count - len;
 			cnt += dev->height;
-			if (copy_to_user(buf, tmp+32, dt))
+			if (copy_to_user(buf, tmp + 32, dt))
 				return len ? len : -EFAULT;
 			buf += dt;
 			len += dt;
@@ -680,300 +670,343 @@ static int pms_capture(struct pms_device *dev, char __user *buf, int rgb555, int
  *	Video4linux interfacing
  */
 
-static long pms_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static int pms_querycap(struct file *file, void  *priv,
+					struct v4l2_capability *vcap)
 {
-	struct video_device *dev = video_devdata(file);
-	struct pms_device *pd=(struct pms_device *)dev;
+	struct pms *dev = video_drvdata(file);
 
-	switch(cmd)
-	{
-		case VIDIOCGCAP:
-		{
-			struct video_capability *b = arg;
-			strcpy(b->name, "Mediavision PMS");
-			b->type = VID_TYPE_CAPTURE|VID_TYPE_SCALES;
-			b->channels = 4;
-			b->audios = 0;
-			b->maxwidth = 640;
-			b->maxheight = 480;
-			b->minwidth = 16;
-			b->minheight = 16;
-			return 0;
-		}
-		case VIDIOCGCHAN:
-		{
-			struct video_channel *v = arg;
-			if(v->channel<0 || v->channel>3)
-				return -EINVAL;
-			v->flags=0;
-			v->tuners=1;
-			/* Good question.. its composite or SVHS so.. */
-			v->type = VIDEO_TYPE_CAMERA;
-			switch(v->channel)
-			{
-				case 0:
-					strcpy(v->name, "Composite");break;
-				case 1:
-					strcpy(v->name, "SVideo");break;
-				case 2:
-					strcpy(v->name, "Composite(VCR)");break;
-				case 3:
-					strcpy(v->name, "SVideo(VCR)");break;
-			}
-			return 0;
-		}
-		case VIDIOCSCHAN:
-		{
-			struct video_channel *v = arg;
-			if(v->channel<0 || v->channel>3)
-				return -EINVAL;
-			mutex_lock(&pd->lock);
-			pms_videosource(v->channel&1);
-			pms_vcrinput(v->channel>>1);
-			mutex_unlock(&pd->lock);
-			return 0;
-		}
-		case VIDIOCGTUNER:
-		{
-			struct video_tuner *v = arg;
-			if(v->tuner)
-				return -EINVAL;
-			strcpy(v->name, "Format");
-			v->rangelow=0;
-			v->rangehigh=0;
-			v->flags= VIDEO_TUNER_PAL|VIDEO_TUNER_NTSC|VIDEO_TUNER_SECAM;
-			switch(standard)
-			{
-				case 0:
-					v->mode = VIDEO_MODE_AUTO;
-					break;
-				case 1:
-					v->mode = VIDEO_MODE_NTSC;
-					break;
-				case 2:
-					v->mode = VIDEO_MODE_PAL;
-					break;
-				case 3:
-					v->mode = VIDEO_MODE_SECAM;
-					break;
-			}
-			return 0;
-		}
-		case VIDIOCSTUNER:
-		{
-			struct video_tuner *v = arg;
-			if(v->tuner)
-				return -EINVAL;
-			mutex_lock(&pd->lock);
-			switch(v->mode)
-			{
-				case VIDEO_MODE_AUTO:
-					pms_framerate(25);
-					pms_secamcross(0);
-					pms_format(0);
-					break;
-				case VIDEO_MODE_NTSC:
-					pms_framerate(30);
-					pms_secamcross(0);
-					pms_format(1);
-					break;
-				case VIDEO_MODE_PAL:
-					pms_framerate(25);
-					pms_secamcross(0);
-					pms_format(2);
-					break;
-				case VIDEO_MODE_SECAM:
-					pms_framerate(25);
-					pms_secamcross(1);
-					pms_format(2);
-					break;
-				default:
-					mutex_unlock(&pd->lock);
-					return -EINVAL;
-			}
-			mutex_unlock(&pd->lock);
-			return 0;
-		}
-		case VIDIOCGPICT:
-		{
-			struct video_picture *p = arg;
-			*p = pd->picture;
-			return 0;
-		}
-		case VIDIOCSPICT:
-		{
-			struct video_picture *p = arg;
-			if(!((p->palette==VIDEO_PALETTE_RGB565 && p->depth==16)
-			    ||(p->palette==VIDEO_PALETTE_RGB555 && p->depth==15)))
-				return -EINVAL;
-			pd->picture= *p;
-
-			/*
-			 *	Now load the card.
-			 */
-
-			mutex_lock(&pd->lock);
-			pms_brightness(p->brightness>>8);
-			pms_hue(p->hue>>8);
-			pms_colour(p->colour>>8);
-			pms_contrast(p->contrast>>8);
-			mutex_unlock(&pd->lock);
-			return 0;
-		}
-		case VIDIOCSWIN:
-		{
-			struct video_window *vw = arg;
-			if(vw->flags)
-				return -EINVAL;
-			if(vw->clipcount)
-				return -EINVAL;
-			if(vw->height<16||vw->height>480)
-				return -EINVAL;
-			if(vw->width<16||vw->width>640)
-				return -EINVAL;
-			pd->width=vw->width;
-			pd->height=vw->height;
-			mutex_lock(&pd->lock);
-			pms_resolution(pd->width, pd->height);
-			mutex_unlock(&pd->lock);			/* Ok we figured out what to use from our wide choice */
-			return 0;
-		}
-		case VIDIOCGWIN:
-		{
-			struct video_window *vw = arg;
-			memset(vw,0,sizeof(*vw));
-			vw->width=pd->width;
-			vw->height=pd->height;
-			return 0;
-		}
-		case VIDIOCKEY:
-			return 0;
-		case VIDIOCCAPTURE:
-		case VIDIOCGFBUF:
-		case VIDIOCSFBUF:
-		case VIDIOCGFREQ:
-		case VIDIOCSFREQ:
-		case VIDIOCGAUDIO:
-		case VIDIOCSAUDIO:
-			return -EINVAL;
-		default:
-			return -ENOIOCTLCMD;
-	}
+	strlcpy(vcap->driver, dev->v4l2_dev.name, sizeof(vcap->driver));
+	strlcpy(vcap->card, "Mediavision PMS", sizeof(vcap->card));
+	strlcpy(vcap->bus_info, "ISA", sizeof(vcap->bus_info));
+	vcap->version = KERNEL_VERSION(0, 0, 3);
+	vcap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE;
 	return 0;
 }
 
-static long pms_ioctl(struct file *file,
-		     unsigned int cmd, unsigned long arg)
+static int pms_enum_input(struct file *file, void *fh, struct v4l2_input *vin)
 {
-	return video_usercopy(file, cmd, arg, pms_do_ioctl);
+	static const char *inputs[4] = {
+		"Composite",
+		"S-Video",
+		"Composite (VCR)",
+		"S-Video (VCR)"
+	};
+
+	if (vin->index > 3)
+		return -EINVAL;
+	strlcpy(vin->name, inputs[vin->index], sizeof(vin->name));
+	vin->type = V4L2_INPUT_TYPE_CAMERA;
+	vin->audioset = 0;
+	vin->tuner = 0;
+	vin->std = V4L2_STD_ALL;
+	vin->status = 0;
+	return 0;
+}
+
+static int pms_g_input(struct file *file, void *fh, unsigned int *inp)
+{
+	struct pms *dev = video_drvdata(file);
+
+	*inp = dev->input;
+	return 0;
+}
+
+static int pms_s_input(struct file *file, void *fh, unsigned int inp)
+{
+	struct pms *dev = video_drvdata(file);
+
+	if (inp > 3)
+		return -EINVAL;
+
+	mutex_lock(&dev->lock);
+	dev->input = inp;
+	pms_videosource(dev, inp & 1);
+	pms_vcrinput(dev, inp >> 1);
+	mutex_unlock(&dev->lock);
+	return 0;
+}
+
+static int pms_g_std(struct file *file, void *fh, v4l2_std_id *std)
+{
+	struct pms *dev = video_drvdata(file);
+
+	*std = dev->std;
+	return 0;
+}
+
+static int pms_s_std(struct file *file, void *fh, v4l2_std_id *std)
+{
+	struct pms *dev = video_drvdata(file);
+	int ret = 0;
+
+	dev->std = *std;
+	mutex_lock(&dev->lock);
+	if (dev->std & V4L2_STD_NTSC) {
+		pms_framerate(dev, 30);
+		pms_secamcross(dev, 0);
+		pms_format(dev, 1);
+	} else if (dev->std & V4L2_STD_PAL) {
+		pms_framerate(dev, 25);
+		pms_secamcross(dev, 0);
+		pms_format(dev, 2);
+	} else if (dev->std & V4L2_STD_SECAM) {
+		pms_framerate(dev, 25);
+		pms_secamcross(dev, 1);
+		pms_format(dev, 2);
+	} else {
+		ret = -EINVAL;
+	}
+	/*
+	switch (v->mode) {
+	case VIDEO_MODE_AUTO:
+		pms_framerate(dev, 25);
+		pms_secamcross(dev, 0);
+		pms_format(dev, 0);
+		break;
+	}*/
+	mutex_unlock(&dev->lock);
+	return 0;
+}
+
+static int pms_queryctrl(struct file *file, void *priv,
+					struct v4l2_queryctrl *qc)
+{
+	switch (qc->id) {
+	case V4L2_CID_BRIGHTNESS:
+		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 139);
+	case V4L2_CID_CONTRAST:
+		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 70);
+	case V4L2_CID_SATURATION:
+		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 64);
+	case V4L2_CID_HUE:
+		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 0);
+	}
+	return -EINVAL;
+}
+
+static int pms_g_ctrl(struct file *file, void *priv,
+					struct v4l2_control *ctrl)
+{
+	struct pms *dev = video_drvdata(file);
+	int ret = 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		ctrl->value = dev->brightness;
+		break;
+	case V4L2_CID_CONTRAST:
+		ctrl->value = dev->contrast;
+		break;
+	case V4L2_CID_SATURATION:
+		ctrl->value = dev->saturation;
+		break;
+	case V4L2_CID_HUE:
+		ctrl->value = dev->hue;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+
+static int pms_s_ctrl(struct file *file, void *priv,
+					struct v4l2_control *ctrl)
+{
+	struct pms *dev = video_drvdata(file);
+	int ret = 0;
+
+	mutex_lock(&dev->lock);
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		dev->brightness = ctrl->value;
+		pms_brightness(dev, dev->brightness);
+		break;
+	case V4L2_CID_CONTRAST:
+		dev->contrast = ctrl->value;
+		pms_contrast(dev, dev->contrast);
+		break;
+	case V4L2_CID_SATURATION:
+		dev->saturation = ctrl->value;
+		pms_saturation(dev, dev->saturation);
+		break;
+	case V4L2_CID_HUE:
+		dev->hue = ctrl->value;
+		pms_hue(dev, dev->hue);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	mutex_unlock(&dev->lock);
+	return ret;
+}
+
+static int pms_g_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *fmt)
+{
+	struct pms *dev = video_drvdata(file);
+	struct v4l2_pix_format *pix = &fmt->fmt.pix;
+
+	pix->width = dev->width;
+	pix->height = dev->height;
+	pix->pixelformat = dev->width == 15 ?
+			    V4L2_PIX_FMT_RGB555 : V4L2_PIX_FMT_RGB565;
+	pix->field = V4L2_FIELD_NONE;
+	pix->bytesperline = 2 * dev->width;
+	pix->sizeimage = 2 * dev->width * dev->height;
+	/* Just a guess */
+	pix->colorspace = V4L2_COLORSPACE_SRGB;
+	return 0;
+}
+
+static int pms_try_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *fmt)
+{
+	struct v4l2_pix_format *pix = &fmt->fmt.pix;
+
+	if (pix->height < 16 || pix->height > 480)
+		return -EINVAL;
+	if (pix->width < 16 || pix->width > 640)
+		return -EINVAL;
+	if (pix->pixelformat != V4L2_PIX_FMT_RGB555 &&
+	    pix->pixelformat != V4L2_PIX_FMT_RGB565)
+		return -EINVAL;
+	pix->field = V4L2_FIELD_NONE;
+	pix->bytesperline = 2 * pix->width;
+	pix->sizeimage = 2 * pix->width * pix->height;
+	/* Just a guess */
+	pix->colorspace = V4L2_COLORSPACE_SRGB;
+	return 0;
+}
+
+static int pms_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *fmt)
+{
+	struct pms *dev = video_drvdata(file);
+	struct v4l2_pix_format *pix = &fmt->fmt.pix;
+	int ret = pms_try_fmt_vid_cap(file, fh, fmt);
+
+	if (ret)
+		return ret;
+	mutex_lock(&dev->lock);
+	dev->width = pix->width;
+	dev->height = pix->height;
+	dev->depth = (pix->pixelformat == V4L2_PIX_FMT_RGB555) ? 15 : 16;
+	pms_resolution(dev, dev->width, dev->height);
+	/* Ok we figured out what to use from our wide choice */
+	mutex_unlock(&dev->lock);
+	return 0;
+}
+
+static int pms_enum_fmt_vid_cap(struct file *file, void *fh, struct v4l2_fmtdesc *fmt)
+{
+	static struct v4l2_fmtdesc formats[] = {
+		{ 0, 0, 0,
+		  "RGB 5:5:5", V4L2_PIX_FMT_RGB555,
+		  { 0, 0, 0, 0 }
+		},
+		{ 0, 0, 0,
+		  "RGB 5:6:5", V4L2_PIX_FMT_RGB565,
+		  { 0, 0, 0, 0 }
+		},
+	};
+	enum v4l2_buf_type type = fmt->type;
+
+	if (fmt->index > 1)
+		return -EINVAL;
+
+	*fmt = formats[fmt->index];
+	fmt->type = type;
+	return 0;
 }
 
 static ssize_t pms_read(struct file *file, char __user *buf,
 		    size_t count, loff_t *ppos)
 {
-	struct video_device *v = video_devdata(file);
-	struct pms_device *pd=(struct pms_device *)v;
+	struct pms *dev = video_drvdata(file);
 	int len;
 
-	mutex_lock(&pd->lock);
-	len=pms_capture(pd, buf, (pd->picture.depth==16)?0:1,count);
-	mutex_unlock(&pd->lock);
+	mutex_lock(&dev->lock);
+	len = pms_capture(dev, buf, (dev->depth == 15), count);
+	mutex_unlock(&dev->lock);
 	return len;
-}
-
-static int pms_exclusive_open(struct file *file)
-{
-	struct video_device *v = video_devdata(file);
-	struct pms_device *pd = (struct pms_device *)v;
-
-	return test_and_set_bit(0, &pd->in_use) ? -EBUSY : 0;
-}
-
-static int pms_exclusive_release(struct file *file)
-{
-	struct video_device *v = video_devdata(file);
-	struct pms_device *pd = (struct pms_device *)v;
-
-	clear_bit(0, &pd->in_use);
-	return 0;
 }
 
 static const struct v4l2_file_operations pms_fops = {
 	.owner		= THIS_MODULE,
-	.open           = pms_exclusive_open,
-	.release        = pms_exclusive_release,
-	.ioctl          = pms_ioctl,
+	.ioctl		= video_ioctl2,
 	.read           = pms_read,
 };
 
-static struct video_device pms_template=
-{
-	.name		= "Mediavision PMS",
-	.fops           = &pms_fops,
-	.release 	= video_device_release_empty,
+static const struct v4l2_ioctl_ops pms_ioctl_ops = {
+	.vidioc_querycap    		    = pms_querycap,
+	.vidioc_g_input      		    = pms_g_input,
+	.vidioc_s_input      		    = pms_s_input,
+	.vidioc_enum_input   		    = pms_enum_input,
+	.vidioc_g_std 			    = pms_g_std,
+	.vidioc_s_std 			    = pms_s_std,
+	.vidioc_queryctrl 		    = pms_queryctrl,
+	.vidioc_g_ctrl  		    = pms_g_ctrl,
+	.vidioc_s_ctrl 			    = pms_s_ctrl,
+	.vidioc_enum_fmt_vid_cap 	    = pms_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap 		    = pms_g_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap  		    = pms_s_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap  	    = pms_try_fmt_vid_cap,
 };
-
-static struct pms_device pms_device;
-
 
 /*
  *	Probe for and initialise the Mediavision PMS
  */
 
-static int init_mediavision(void)
+static int init_mediavision(struct pms *dev)
 {
 	int id;
 	int idec, decst;
 	int i;
-
-	unsigned char i2c_defs[]={
-		0x4C,0x30,0x00,0xE8,
-		0xB6,0xE2,0x00,0x00,
-		0xFF,0xFF,0x00,0x00,
-		0x00,0x00,0x78,0x98,
-		0x00,0x00,0x00,0x00,
-		0x34,0x0A,0xF4,0xCE,
-		0xE4
+	static const unsigned char i2c_defs[] = {
+		0x4c, 0x30, 0x00, 0xe8,
+		0xb6, 0xe2, 0x00, 0x00,
+		0xff, 0xff, 0x00, 0x00,
+		0x00, 0x00, 0x78, 0x98,
+		0x00, 0x00, 0x00, 0x00,
+		0x34, 0x0a, 0xf4, 0xce,
+		0xe4
 	};
 
-	mem = ioremap(mem_base, 0x800);
-	if (!mem)
+	dev->mem = ioremap(mem_base, 0x800);
+	if (!dev->mem)
 		return -ENOMEM;
 
-	if (!request_region(0x9A01, 1, "Mediavision PMS config"))
-	{
-		printk(KERN_WARNING "mediavision: unable to detect: 0x9A01 in use.\n");
-		iounmap(mem);
+	if (!request_region(0x9a01, 1, "Mediavision PMS config")) {
+		printk(KERN_WARNING "mediavision: unable to detect: 0x9a01 in use.\n");
+		iounmap(dev->mem);
 		return -EBUSY;
 	}
-	if (!request_region(io_port, 3, "Mediavision PMS"))
-	{
-		printk(KERN_WARNING "mediavision: I/O port %d in use.\n", io_port);
-		release_region(0x9A01, 1);
-		iounmap(mem);
+	if (!request_region(dev->io, 3, "Mediavision PMS")) {
+		printk(KERN_WARNING "mediavision: I/O port %d in use.\n", dev->io);
+		release_region(0x9a01, 1);
+		iounmap(dev->mem);
 		return -EBUSY;
 	}
-	outb(0xB8, 0x9A01);		/* Unlock */
-	outb(io_port>>4, 0x9A01);	/* Set IO port */
+	outb(0xb8, 0x9a01);		/* Unlock */
+	outb(dev->io >> 4, 0x9a01);	/* Set IO port */
 
 
-	id=mvv_read(3);
-	decst=pms_i2c_stat(0x43);
+	id = mvv_read(dev, 3);
+	decst = pms_i2c_stat(dev, 0x43);
 
-	if(decst!=-1)
-		idec=2;
-	else if(pms_i2c_stat(0xb9)!=-1)
-		idec=3;
-	else if(pms_i2c_stat(0x8b)!=-1)
-		idec=1;
+	if (decst != -1)
+		idec = 2;
+	else if (pms_i2c_stat(dev, 0xb9) != -1)
+		idec = 3;
+	else if (pms_i2c_stat(dev, 0x8b) != -1)
+		idec = 1;
 	else
-		idec=0;
+		idec = 0;
 
 	printk(KERN_INFO "PMS type is %d\n", idec);
-	if(idec == 0) {
-		release_region(io_port, 3);
-		release_region(0x9A01, 1);
-		iounmap(mem);
+	if (idec == 0) {
+		release_region(dev->io, 3);
+		release_region(0x9a01, 1);
+		iounmap(dev->mem);
 		return -ENODEV;
 	}
 
@@ -981,51 +1014,50 @@ static int init_mediavision(void)
 	 *	Ok we have a PMS of some sort
 	 */
 
-	mvv_write(0x04, mem_base>>12);	/* Set the memory area */
+	mvv_write(dev, 0x04, mem_base >> 12);	/* Set the memory area */
 
 	/* Ok now load the defaults */
 
-	for(i=0;i<0x19;i++)
-	{
-		if(i2c_defs[i]==0xFF)
-			pms_i2c_andor(0x8A, i, 0x07,0x00);
+	for (i = 0; i < 0x19; i++) {
+		if (i2c_defs[i] == 0xff)
+			pms_i2c_andor(dev, 0x8a, i, 0x07, 0x00);
 		else
-			pms_i2c_write(0x8A, i, i2c_defs[i]);
+			pms_i2c_write(dev, 0x8a, i, i2c_defs[i]);
 	}
 
-	pms_i2c_write(0xB8,0x00,0x12);
-	pms_i2c_write(0xB8,0x04,0x00);
-	pms_i2c_write(0xB8,0x07,0x00);
-	pms_i2c_write(0xB8,0x08,0x00);
-	pms_i2c_write(0xB8,0x09,0xFF);
-	pms_i2c_write(0xB8,0x0A,0x00);
-	pms_i2c_write(0xB8,0x0B,0x10);
-	pms_i2c_write(0xB8,0x10,0x03);
+	pms_i2c_write(dev, 0xb8, 0x00, 0x12);
+	pms_i2c_write(dev, 0xb8, 0x04, 0x00);
+	pms_i2c_write(dev, 0xb8, 0x07, 0x00);
+	pms_i2c_write(dev, 0xb8, 0x08, 0x00);
+	pms_i2c_write(dev, 0xb8, 0x09, 0xff);
+	pms_i2c_write(dev, 0xb8, 0x0a, 0x00);
+	pms_i2c_write(dev, 0xb8, 0x0b, 0x10);
+	pms_i2c_write(dev, 0xb8, 0x10, 0x03);
 
-	mvv_write(0x01, 0x00);
-	mvv_write(0x05, 0xA0);
-	mvv_write(0x08, 0x25);
-	mvv_write(0x09, 0x00);
-	mvv_write(0x0A, 0x20|MVVMEMORYWIDTH);
+	mvv_write(dev, 0x01, 0x00);
+	mvv_write(dev, 0x05, 0xa0);
+	mvv_write(dev, 0x08, 0x25);
+	mvv_write(dev, 0x09, 0x00);
+	mvv_write(dev, 0x0a, 0x20 | MVVMEMORYWIDTH);
 
-	mvv_write(0x10, 0x02);
-	mvv_write(0x1E, 0x0C);
-	mvv_write(0x1F, 0x03);
-	mvv_write(0x26, 0x06);
+	mvv_write(dev, 0x10, 0x02);
+	mvv_write(dev, 0x1e, 0x0c);
+	mvv_write(dev, 0x1f, 0x03);
+	mvv_write(dev, 0x26, 0x06);
 
-	mvv_write(0x2B, 0x00);
-	mvv_write(0x2C, 0x20);
-	mvv_write(0x2D, 0x00);
-	mvv_write(0x2F, 0x70);
-	mvv_write(0x32, 0x00);
-	mvv_write(0x33, MVVMEMORYWIDTH);
-	mvv_write(0x34, 0x00);
-	mvv_write(0x35, 0x00);
-	mvv_write(0x3A, 0x80);
-	mvv_write(0x3B, 0x10);
-	mvv_write(0x20, 0x00);
-	mvv_write(0x21, 0x00);
-	mvv_write(0x30, 0x22);
+	mvv_write(dev, 0x2b, 0x00);
+	mvv_write(dev, 0x2c, 0x20);
+	mvv_write(dev, 0x2d, 0x00);
+	mvv_write(dev, 0x2f, 0x70);
+	mvv_write(dev, 0x32, 0x00);
+	mvv_write(dev, 0x33, MVVMEMORYWIDTH);
+	mvv_write(dev, 0x34, 0x00);
+	mvv_write(dev, 0x35, 0x00);
+	mvv_write(dev, 0x3a, 0x80);
+	mvv_write(dev, 0x3b, 0x10);
+	mvv_write(dev, 0x20, 0x00);
+	mvv_write(dev, 0x21, 0x00);
+	mvv_write(dev, 0x30, 0x22);
 	return 0;
 }
 
@@ -1038,53 +1070,77 @@ static int enable;
 module_param(enable, int, 0);
 #endif
 
-static int __init init_pms_cards(void)
+static int __init pms_init(void)
 {
-	printk(KERN_INFO "Mediavision Pro Movie Studio driver 0.02\n");
+	struct pms *dev = &pms_card;
+	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
+	int res;
+
+	strlcpy(v4l2_dev->name, "pms", sizeof(v4l2_dev->name));
+
+	v4l2_info(v4l2_dev, "Mediavision Pro Movie Studio driver 0.03\n");
 
 #ifndef MODULE
 	if (!enable) {
-		printk(KERN_INFO "PMS: not enabled, use pms.enable=1 to "
-				 "probe\n");
+		v4l2_err(v4l2_dev,
+			"PMS: not enabled, use pms.enable=1 to probe\n");
 		return -ENODEV;
 	}
 #endif
 
-	data_port = io_port +1;
+	dev->decoder = PHILIPS2;
+	dev->io = io_port;
+	dev->data = io_port + 1;
 
-	if(init_mediavision())
-	{
-		printk(KERN_INFO "Board not found.\n");
+	if (init_mediavision(dev)) {
+		v4l2_err(v4l2_dev, "Board not found.\n");
 		return -ENODEV;
 	}
-	memcpy(&pms_device, &pms_template, sizeof(pms_template));
-	mutex_init(&pms_device.lock);
-	pms_device.height=240;
-	pms_device.width=320;
-	pms_swsense(75);
-	pms_resolution(320,240);
-	return video_register_device((struct video_device *)&pms_device, VFL_TYPE_GRABBER, video_nr);
+
+	res = v4l2_device_register(NULL, v4l2_dev);
+	if (res < 0) {
+		v4l2_err(v4l2_dev, "Could not register v4l2_device\n");
+		return res;
+	}
+
+	strlcpy(dev->vdev.name, v4l2_dev->name, sizeof(dev->vdev.name));
+	dev->vdev.v4l2_dev = v4l2_dev;
+	dev->vdev.fops = &pms_fops;
+	dev->vdev.ioctl_ops = &pms_ioctl_ops;
+	dev->vdev.release = video_device_release_empty;
+	video_set_drvdata(&dev->vdev, dev);
+	mutex_init(&dev->lock);
+	dev->std = V4L2_STD_NTSC_M;
+	dev->height = 240;
+	dev->width = 320;
+	dev->depth = 15;
+	dev->brightness = 139;
+	dev->contrast = 70;
+	dev->hue = 0;
+	dev->saturation = 64;
+	pms_swsense(dev, 75);
+	pms_resolution(dev, 320, 240);
+	pms_videosource(dev, 0);
+	pms_vcrinput(dev, 0);
+	if (video_register_device(&dev->vdev, VFL_TYPE_GRABBER, video_nr) < 0) {
+		v4l2_device_unregister(&dev->v4l2_dev);
+		release_region(dev->io, 3);
+		release_region(0x9a01, 1);
+		iounmap(dev->mem);
+		return -EINVAL;
+	}
+	return 0;
 }
 
-module_param(io_port, int, 0);
-module_param(mem_base, int, 0);
-module_param(video_nr, int, 0);
-MODULE_LICENSE("GPL");
-
-
-static void __exit shutdown_mediavision(void)
+static void __exit pms_exit(void)
 {
-	release_region(io_port,3);
-	release_region(0x9A01, 1);
+	struct pms *dev = &pms_card;
+
+	video_unregister_device(&dev->vdev);
+	release_region(dev->io, 3);
+	release_region(0x9a01, 1);
+	iounmap(dev->mem);
 }
 
-static void __exit cleanup_pms_module(void)
-{
-	shutdown_mediavision();
-	video_unregister_device((struct video_device *)&pms_device);
-	iounmap(mem);
-}
-
-module_init(init_pms_cards);
-module_exit(cleanup_pms_module);
-
+module_init(pms_init);
+module_exit(pms_exit);

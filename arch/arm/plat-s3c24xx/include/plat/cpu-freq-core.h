@@ -1,6 +1,6 @@
 /* arch/arm/plat-s3c/include/plat/cpu-freq.h
  *
- * Copyright (c) 2006,2007,2009 Simtec Electronics
+ * Copyright (c) 2006-2009 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
@@ -135,7 +135,7 @@ struct s3c_cpufreq_config {
  * @locktime_m: The lock-time in uS for the MPLL.
  * @locktime_u: The lock-time in uS for the UPLL.
  * @locttime_bits: The number of bits each LOCKTIME field.
- * @need_pll: Set if this driver needs to change the PLL values to acheive
+ * @need_pll: Set if this driver needs to change the PLL values to achieve
  *	any frequency changes. This is really only need by devices like the
  *	S3C2410 where there is no or limited divider between the PLL and the
  *	ARMCLK.

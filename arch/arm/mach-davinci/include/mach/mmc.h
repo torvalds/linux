@@ -22,6 +22,9 @@ struct davinci_mmc_config {
 
 	/* Version of the MMC/SD controller */
 	u8	version;
+
+	/* Number of sg segments */
+	u8	nr_sg;
 };
 void davinci_setup_mmc(int module, struct davinci_mmc_config *config);
 

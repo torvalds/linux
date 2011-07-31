@@ -51,6 +51,7 @@
 #include <linux/mm.h>
 #include <linux/inet.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 
 #include <linux/route.h>
 
@@ -523,7 +524,7 @@ int __devinit c2_rnic_init(struct c2_dev *c2dev)
 		err = -ENOMEM;
 		goto bail1;
 	}
-	pci_unmap_addr_set(&c2dev->rep_vq, mapping, c2dev->rep_vq.host_dma);
+	dma_unmap_addr_set(&c2dev->rep_vq, mapping, c2dev->rep_vq.host_dma);
 	pr_debug("%s rep_vq va %p dma %llx\n", __func__, q1_pages,
 		 (unsigned long long) c2dev->rep_vq.host_dma);
 	c2_mq_rep_init(&c2dev->rep_vq,
@@ -544,7 +545,7 @@ int __devinit c2_rnic_init(struct c2_dev *c2dev)
 		err = -ENOMEM;
 		goto bail2;
 	}
-	pci_unmap_addr_set(&c2dev->aeq, mapping, c2dev->aeq.host_dma);
+	dma_unmap_addr_set(&c2dev->aeq, mapping, c2dev->aeq.host_dma);
 	pr_debug("%s aeq va %p dma %llx\n", __func__, q2_pages,
 		 (unsigned long long) c2dev->aeq.host_dma);
 	c2_mq_rep_init(&c2dev->aeq,
@@ -595,11 +596,11 @@ int __devinit c2_rnic_init(struct c2_dev *c2dev)
       bail3:
 	dma_free_coherent(&c2dev->pcidev->dev,
 			  c2dev->aeq.q_size * c2dev->aeq.msg_size,
-			  q2_pages, pci_unmap_addr(&c2dev->aeq, mapping));
+			  q2_pages, dma_unmap_addr(&c2dev->aeq, mapping));
       bail2:
 	dma_free_coherent(&c2dev->pcidev->dev,
 			  c2dev->rep_vq.q_size * c2dev->rep_vq.msg_size,
-			  q1_pages, pci_unmap_addr(&c2dev->rep_vq, mapping));
+			  q1_pages, dma_unmap_addr(&c2dev->rep_vq, mapping));
       bail1:
 	c2_free_mqsp_pool(c2dev, c2dev->kern_mqsp_pool);
       bail0:
@@ -636,13 +637,13 @@ void __devexit c2_rnic_term(struct c2_dev *c2dev)
 	dma_free_coherent(&c2dev->pcidev->dev,
 			  c2dev->aeq.q_size * c2dev->aeq.msg_size,
 			  c2dev->aeq.msg_pool.host,
-			  pci_unmap_addr(&c2dev->aeq, mapping));
+			  dma_unmap_addr(&c2dev->aeq, mapping));
 
 	/* Free the verbs reply queue */
 	dma_free_coherent(&c2dev->pcidev->dev,
 			  c2dev->rep_vq.q_size * c2dev->rep_vq.msg_size,
 			  c2dev->rep_vq.msg_pool.host,
-			  pci_unmap_addr(&c2dev->rep_vq, mapping));
+			  dma_unmap_addr(&c2dev->rep_vq, mapping));
 
 	/* Free the MQ shared pointer pool */
 	c2_free_mqsp_pool(c2dev, c2dev->kern_mqsp_pool);

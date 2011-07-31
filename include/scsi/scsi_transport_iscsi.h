@@ -32,6 +32,7 @@ struct scsi_transport_template;
 struct iscsi_transport;
 struct iscsi_endpoint;
 struct Scsi_Host;
+struct scsi_cmnd;
 struct iscsi_cls_conn;
 struct iscsi_conn;
 struct iscsi_task;
@@ -255,5 +256,6 @@ extern int iscsi_scan_finished(struct Scsi_Host *shost, unsigned long time);
 extern struct iscsi_endpoint *iscsi_create_endpoint(int dd_size);
 extern void iscsi_destroy_endpoint(struct iscsi_endpoint *ep);
 extern struct iscsi_endpoint *iscsi_lookup_endpoint(u64 handle);
+extern int iscsi_block_scsi_eh(struct scsi_cmnd *cmd);
 
 #endif

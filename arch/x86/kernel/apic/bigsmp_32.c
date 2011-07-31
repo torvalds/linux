@@ -35,7 +35,7 @@ static const struct cpumask *bigsmp_target_cpus(void)
 #endif
 }
 
-static unsigned long bigsmp_check_apicid_used(physid_mask_t bitmap, int apicid)
+static unsigned long bigsmp_check_apicid_used(physid_mask_t *map, int apicid)
 {
 	return 0;
 }
@@ -93,11 +93,6 @@ static int bigsmp_cpu_present_to_apicid(int mps_cpu)
 	return BAD_APICID;
 }
 
-static physid_mask_t bigsmp_apicid_to_cpu_present(int phys_apicid)
-{
-	return physid_mask_of_physid(phys_apicid);
-}
-
 /* Mapping from cpu number to logical apicid */
 static inline int bigsmp_cpu_to_logical_apicid(int cpu)
 {
@@ -106,10 +101,10 @@ static inline int bigsmp_cpu_to_logical_apicid(int cpu)
 	return cpu_physical_id(cpu);
 }
 
-static physid_mask_t bigsmp_ioapic_phys_id_map(physid_mask_t phys_map)
+static void bigsmp_ioapic_phys_id_map(physid_mask_t *phys_map, physid_mask_t *retmap)
 {
 	/* For clustered we don't have a good way to do this yet - hack */
-	return physids_promote(0xFFL);
+	physids_promote(0xFFL, retmap);
 }
 
 static int bigsmp_check_phys_apicid_present(int phys_apicid)
@@ -136,10 +131,7 @@ static unsigned int bigsmp_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 		if (cpumask_test_cpu(cpu, cpu_online_mask))
 			break;
 	}
-	if (cpu < nr_cpu_ids)
-		return bigsmp_cpu_to_logical_apicid(cpu);
-
-	return BAD_APICID;
+	return bigsmp_cpu_to_logical_apicid(cpu);
 }
 
 static int bigsmp_phys_pkg_id(int cpuid_apic, int index_msb)
@@ -230,7 +222,7 @@ struct apic apic_bigsmp = {
 	.apicid_to_node			= bigsmp_apicid_to_node,
 	.cpu_to_logical_apicid		= bigsmp_cpu_to_logical_apicid,
 	.cpu_present_to_apicid		= bigsmp_cpu_present_to_apicid,
-	.apicid_to_cpu_present		= bigsmp_apicid_to_cpu_present,
+	.apicid_to_cpu_present		= physid_set_mask_of_physid,
 	.setup_portio_remap		= NULL,
 	.check_phys_apicid_present	= bigsmp_check_phys_apicid_present,
 	.enable_apic_mode		= NULL,

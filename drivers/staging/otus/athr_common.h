@@ -68,7 +68,7 @@
 
 #define ZM_WAPI_KEY_SIZE                32
 #define ZM_WAPI_IV_LEN                  16
-#endif //ZM_ENALBE_WAPI
+#endif /* ZM_ENALBE_WAPI */
 /* structure definition */
 
 struct athr_wlan_param {
@@ -123,7 +123,7 @@ struct athr_wapi_param {
 			u8 key[ZM_WAPI_KEY_SIZE];
 		} crypt;
 		struct {
-                        u8 wapi_policy;
+			u8 wapi_policy;
 		} info;
 	} u;
 };
@@ -132,10 +132,10 @@ struct athr_wapi_sta_info
 {
 	u16	msg_type;
 	u16	datalen;
-    	u8	sta_mac[ETH_ALEN];
+	u8	sta_mac[ETH_ALEN];
 	u8	reserve_data[2];
-    	u8	gsn[ZM_WAPI_IV_LEN];
+	u8	gsn[ZM_WAPI_IV_LEN];
 	u8	wie[256];
 };
-#endif //ZM_ENALBE_WAPI
+#endif /* ZM_ENALBE_WAPI */
 #endif

@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
+#include <linux/slab.h>
 #include <linux/tty_flip.h>
 #include <linux/serial.h>
 #include <linux/module.h>
@@ -22,7 +23,7 @@
 
 static int debug;
 
-static struct usb_device_id id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x065a, 0x0009) },
 	{ },
 };
@@ -55,7 +56,6 @@ static void opticon_bulk_callback(struct urb *urb)
 	int status = urb->status;
 	struct tty_struct *tty;
 	int result;
-	int available_room = 0;
 	int data_length;
 
 	dbg("%s - port %d", __func__, port->number);
@@ -96,13 +96,9 @@ static void opticon_bulk_callback(struct urb *urb)
 			/* real data, send it to the tty layer */
 			tty = tty_port_tty_get(&port->port);
 			if (tty) {
-				available_room = tty_buffer_request_room(tty,
-								data_length);
-				if (available_room) {
-					tty_insert_flip_string(tty, data,
-							       available_room);
-					tty_flip_buffer_push(tty);
-				}
+				tty_insert_flip_string(tty, data + 2,
+						       data_length);
+				tty_flip_buffer_push(tty);
 				tty_kref_put(tty);
 			}
 		} else {
@@ -120,7 +116,7 @@ static void opticon_bulk_callback(struct urb *urb)
 		}
 	} else {
 		dev_dbg(&priv->udev->dev,
-			"Improper ammount of data received from the device, "
+			"Improper amount of data received from the device, "
 			"%d bytes", urb->actual_length);
 	}
 
@@ -134,7 +130,7 @@ exit:
 						  priv->bulk_address),
 				  priv->bulk_in_buffer, priv->buffer_size,
 				  opticon_bulk_callback, priv);
-		result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
+		result = usb_submit_urb(priv->bulk_read_urb, GFP_ATOMIC);
 		if (result)
 			dev_err(&port->dev,
 			    "%s - failed resubmitting read urb, error %d\n",
@@ -217,7 +213,7 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->outstanding_urbs > URB_UPPER_LIMIT) {
 		spin_unlock_irqrestore(&priv->lock, flags);
-		dbg("%s - write limit hit\n", __func__);
+		dbg("%s - write limit hit", __func__);
 		return 0;
 	}
 	priv->outstanding_urbs++;
@@ -288,7 +284,7 @@ static int opticon_write_room(struct tty_struct *tty)
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->outstanding_urbs > URB_UPPER_LIMIT * 2 / 3) {
 		spin_unlock_irqrestore(&priv->lock, flags);
-		dbg("%s - write limit hit\n", __func__);
+		dbg("%s - write limit hit", __func__);
 		return 0;
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -501,12 +497,13 @@ static int opticon_resume(struct usb_interface *intf)
 	struct usb_serial_port *port = serial->port[0];
 	int result;
 
-	mutex_lock(&port->mutex);
-	if (port->port.count)
+	mutex_lock(&port->port.mutex);
+	/* This is protected by the port mutex against close/open */
+	if (test_bit(ASYNCB_INITIALIZED, &port->port.flags))
 		result = usb_submit_urb(priv->bulk_read_urb, GFP_NOIO);
 	else
 		result = 0;
-	mutex_unlock(&port->mutex);
+	mutex_unlock(&port->port.mutex);
 	return result;
 }
 

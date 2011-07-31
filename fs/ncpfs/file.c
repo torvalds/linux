@@ -15,7 +15,6 @@
 #include <linux/fcntl.h>
 #include <linux/stat.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
 #include <linux/smp_lock.h>
@@ -23,7 +22,7 @@
 #include <linux/ncp_fs.h>
 #include "ncplib_kernel.h"
 
-static int ncp_fsync(struct file *file, struct dentry *dentry, int datasync)
+static int ncp_fsync(struct file *file, int datasync)
 {
 	return 0;
 }
@@ -296,7 +295,7 @@ const struct file_operations ncp_file_operations =
 	.llseek 	= ncp_remote_llseek,
 	.read		= ncp_file_read,
 	.write		= ncp_file_write,
-	.ioctl		= ncp_ioctl,
+	.unlocked_ioctl	= ncp_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= ncp_compat_ioctl,
 #endif

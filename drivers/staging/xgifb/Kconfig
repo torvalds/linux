@@ -1,0 +1,11 @@
+config FB_XGI
+	tristate "XGI display support"
+	depends on FB && PCI
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This driver supports notebooks with XGI Z7,Z9,Z11 PCI chips.
+	  Say Y if you have such a graphics card.
+	  To compile this driver as a module, choose M here: the
+	  module will be called xgifb.ko

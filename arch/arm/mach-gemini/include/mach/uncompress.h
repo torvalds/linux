@@ -30,7 +30,9 @@ static inline void putc(char c)
 	UART[UART_TX] = c;
 }
 
-#define flush() do { } while (0)
+static inline void flush(void)
+{
+}
 
 /*
  * nothing to do

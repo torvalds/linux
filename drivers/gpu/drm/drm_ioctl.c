@@ -64,6 +64,19 @@ int drm_getunique(struct drm_device *dev, void *data,
 	return 0;
 }
 
+static void
+drm_unset_busid(struct drm_device *dev,
+		struct drm_master *master)
+{
+	kfree(dev->devname);
+	dev->devname = NULL;
+
+	kfree(master->unique);
+	master->unique = NULL;
+	master->unique_len = 0;
+	master->unique_size = 0;
+}
+
 /**
  * Set the bus id.
  *
@@ -94,17 +107,24 @@ int drm_setunique(struct drm_device *dev, void *data,
 	master->unique_len = u->unique_len;
 	master->unique_size = u->unique_len + 1;
 	master->unique = kmalloc(master->unique_size, GFP_KERNEL);
-	if (!master->unique)
-		return -ENOMEM;
-	if (copy_from_user(master->unique, u->unique, master->unique_len))
-		return -EFAULT;
+	if (!master->unique) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	if (copy_from_user(master->unique, u->unique, master->unique_len)) {
+		ret = -EFAULT;
+		goto err;
+	}
 
 	master->unique[master->unique_len] = '\0';
 
 	dev->devname = kmalloc(strlen(dev->driver->pci_driver.name) +
 			       strlen(master->unique) + 2, GFP_KERNEL);
-	if (!dev->devname)
-		return -ENOMEM;
+	if (!dev->devname) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	sprintf(dev->devname, "%s@%s", dev->driver->pci_driver.name,
 		master->unique);
@@ -113,53 +133,103 @@ int drm_setunique(struct drm_device *dev, void *data,
 	 * busid.
 	 */
 	ret = sscanf(master->unique, "PCI:%d:%d:%d", &bus, &slot, &func);
-	if (ret != 3)
-		return -EINVAL;
+	if (ret != 3) {
+		ret = -EINVAL;
+		goto err;
+	}
+
 	domain = bus >> 8;
 	bus &= 0xff;
 
 	if ((domain != drm_get_pci_domain(dev)) ||
 	    (bus != dev->pdev->bus->number) ||
 	    (slot != PCI_SLOT(dev->pdev->devfn)) ||
-	    (func != PCI_FUNC(dev->pdev->devfn)))
-		return -EINVAL;
+	    (func != PCI_FUNC(dev->pdev->devfn))) {
+		ret = -EINVAL;
+		goto err;
+	}
 
 	return 0;
+
+err:
+	drm_unset_busid(dev, master);
+	return ret;
 }
 
 static int drm_set_busid(struct drm_device *dev, struct drm_file *file_priv)
 {
 	struct drm_master *master = file_priv->master;
-	int len;
+	int len, ret;
 
 	if (master->unique != NULL)
-		return -EBUSY;
+		drm_unset_busid(dev, master);
 
-	master->unique_len = 40;
-	master->unique_size = master->unique_len;
-	master->unique = kmalloc(master->unique_size, GFP_KERNEL);
-	if (master->unique == NULL)
-		return -ENOMEM;
+	if (drm_core_check_feature(dev, DRIVER_USE_PLATFORM_DEVICE)) {
+		master->unique_len = 10 + strlen(dev->platformdev->name);
+		master->unique = kmalloc(master->unique_len + 1, GFP_KERNEL);
 
-	len = snprintf(master->unique, master->unique_len, "pci:%04x:%02x:%02x.%d",
-		       drm_get_pci_domain(dev),
-		       dev->pdev->bus->number,
-		       PCI_SLOT(dev->pdev->devfn),
-		       PCI_FUNC(dev->pdev->devfn));
-	if (len >= master->unique_len)
-		DRM_ERROR("buffer overflow");
-	else
-		master->unique_len = len;
+		if (master->unique == NULL)
+			return -ENOMEM;
 
-	dev->devname = kmalloc(strlen(dev->driver->pci_driver.name) +
-			       master->unique_len + 2, GFP_KERNEL);
-	if (dev->devname == NULL)
-		return -ENOMEM;
+		len = snprintf(master->unique, master->unique_len,
+			"platform:%s", dev->platformdev->name);
 
-	sprintf(dev->devname, "%s@%s", dev->driver->pci_driver.name,
-		master->unique);
+		if (len > master->unique_len) {
+			DRM_ERROR("Unique buffer overflowed\n");
+			ret = -EINVAL;
+			goto err;
+		}
+
+		dev->devname =
+			kmalloc(strlen(dev->platformdev->name) +
+				master->unique_len + 2, GFP_KERNEL);
+
+		if (dev->devname == NULL) {
+			ret = -ENOMEM;
+			goto err;
+		}
+
+		sprintf(dev->devname, "%s@%s", dev->platformdev->name,
+			master->unique);
+
+	} else {
+		master->unique_len = 40;
+		master->unique_size = master->unique_len;
+		master->unique = kmalloc(master->unique_size, GFP_KERNEL);
+		if (master->unique == NULL)
+			return -ENOMEM;
+
+		len = snprintf(master->unique, master->unique_len,
+			"pci:%04x:%02x:%02x.%d",
+			drm_get_pci_domain(dev),
+			dev->pdev->bus->number,
+			PCI_SLOT(dev->pdev->devfn),
+			PCI_FUNC(dev->pdev->devfn));
+		if (len >= master->unique_len) {
+			DRM_ERROR("buffer overflow");
+			ret = -EINVAL;
+			goto err;
+		} else
+			master->unique_len = len;
+
+		dev->devname =
+			kmalloc(strlen(dev->driver->pci_driver.name) +
+				master->unique_len + 2, GFP_KERNEL);
+
+		if (dev->devname == NULL) {
+			ret = -ENOMEM;
+			goto err;
+		}
+
+		sprintf(dev->devname, "%s@%s", dev->driver->pci_driver.name,
+			master->unique);
+	}
 
 	return 0;
+
+err:
+	drm_unset_busid(dev, master);
+	return ret;
 }
 
 /**
@@ -322,8 +392,11 @@ int drm_setversion(struct drm_device *dev, void *data, struct drm_file *file_pri
 		if (sv->drm_di_minor >= 1) {
 			/*
 			 * Version 1.1 includes tying of DRM to specific device
+			 * Version 1.4 has proper PCI domain support
 			 */
-			drm_set_busid(dev, file_priv);
+			retcode = drm_set_busid(dev, file_priv);
+			if (retcode)
+				goto done;
 		}
 	}
 

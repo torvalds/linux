@@ -5,15 +5,14 @@
 #include <linux/ktime.h>
 #include <net/sch_generic.h>
 
-struct qdisc_walker
-{
+struct qdisc_walker {
 	int	stop;
 	int	skip;
 	int	count;
 	int	(*fn)(struct Qdisc *, unsigned long cl, struct qdisc_walker *);
 };
 
-#define QDISC_ALIGNTO		32
+#define QDISC_ALIGNTO		64
 #define QDISC_ALIGN(len)	(((len) + QDISC_ALIGNTO-1) & ~(QDISC_ALIGNTO-1))
 
 static inline void *qdisc_priv(struct Qdisc *q)
@@ -72,6 +71,7 @@ extern void qdisc_watchdog_cancel(struct qdisc_watchdog *wd);
 
 extern struct Qdisc_ops pfifo_qdisc_ops;
 extern struct Qdisc_ops bfifo_qdisc_ops;
+extern struct Qdisc_ops pfifo_head_drop_qdisc_ops;
 
 extern int fifo_set_limit(struct Qdisc *q, unsigned int limit);
 extern struct Qdisc *fifo_create_dflt(struct Qdisc *sch, struct Qdisc_ops *ops,
@@ -95,7 +95,7 @@ extern void __qdisc_run(struct Qdisc *q);
 
 static inline void qdisc_run(struct Qdisc *q)
 {
-	if (!test_and_set_bit(__QDISC_STATE_RUNNING, &q->state))
+	if (qdisc_run_begin(q))
 		__qdisc_run(q);
 }
 

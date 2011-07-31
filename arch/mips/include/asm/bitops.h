@@ -42,7 +42,7 @@
 /*
  * clear_bit() doesn't provide any barrier for the compiler.
  */
-#define smp_mb__before_clear_bit()	smp_llsc_mb()
+#define smp_mb__before_clear_bit()	smp_mb__before_llsc()
 #define smp_mb__after_clear_bit()	smp_llsc_mb()
 
 /*
@@ -258,7 +258,7 @@ static inline int test_and_set_bit(unsigned long nr,
 	unsigned short bit = nr & SZLONG_MASK;
 	unsigned long res;
 
-	smp_llsc_mb();
+	smp_mb__before_llsc();
 
 	if (kernel_uses_llsc && R10000_LLSC_WAR) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
@@ -395,7 +395,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 	unsigned short bit = nr & SZLONG_MASK;
 	unsigned long res;
 
-	smp_llsc_mb();
+	smp_mb__before_llsc();
 
 	if (kernel_uses_llsc && R10000_LLSC_WAR) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
@@ -485,7 +485,7 @@ static inline int test_and_change_bit(unsigned long nr,
 	unsigned short bit = nr & SZLONG_MASK;
 	unsigned long res;
 
-	smp_llsc_mb();
+	smp_mb__before_llsc();
 
 	if (kernel_uses_llsc && R10000_LLSC_WAR) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
@@ -700,7 +700,10 @@ static inline int ffs(int word)
 #ifdef __KERNEL__
 
 #include <asm-generic/bitops/sched.h>
-#include <asm-generic/bitops/hweight.h>
+
+#include <asm/arch_hweight.h>
+#include <asm-generic/bitops/const_hweight.h>
+
 #include <asm-generic/bitops/ext2-non-atomic.h>
 #include <asm-generic/bitops/ext2-atomic.h>
 #include <asm-generic/bitops/minix.h>

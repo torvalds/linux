@@ -1,5 +1,3 @@
-# drivers/mtd/maps/Kconfig
-
 menu "Mapping drivers for chip access"
 	depends on MTD!=n
 
@@ -253,12 +251,6 @@ config MTD_NETtel
 	help
 	  Support for flash chips on NETtel/SecureEdge/SnapGear boards.
 
-config MTD_ALCHEMY
-	tristate "AMD Alchemy Pb1xxx/Db1xxx/RDK MTD support"
-	depends on SOC_AU1X00 && MTD_PARTITIONS && MTD_CFI
-	help
-	  Flash memory access on AMD Alchemy Pb/Db/RDK Reference Boards
-
 config MTD_DILNETPC
 	tristate "CFI Flash device mapped on DIL/Net PC"
 	depends on X86 && MTD_CONCAT && MTD_PARTITIONS && MTD_CFI_INTELEXT && BROKEN
@@ -327,14 +319,6 @@ config MTD_CFI_FLAGADM
 	  Mapping for the Flaga digital module. If you don't have one, ignore
 	  this setting.
 
-config MTD_REDWOOD
-	tristate "CFI Flash devices mapped on IBM Redwood"
-	depends on MTD_CFI && ( REDWOOD_4 || REDWOOD_5 || REDWOOD_6 )
-	help
-	  This enables access routines for the flash chips on the IBM
-	  Redwood board. If you have one of these boards and would like to
-	  use the flash chips on it, say 'Y'.
-
 config MTD_SOLUTIONENGINE
 	tristate "CFI Flash device mapped on Hitachi SolutionEngine"
 	depends on SUPERH && SOLUTION_ENGINE && MTD_CFI && MTD_REDBOOT_PARTS
@@ -361,12 +345,6 @@ config MTD_SA1100
 	  the SA1100 and SA1110, including the Assabet and the Compaq iPAQ.
 	  If you have such a board, say 'Y'.
 
-config MTD_IPAQ
-	tristate "CFI Flash device mapped on Compaq/HP iPAQ"
-	depends on IPAQ_HANDHELD && MTD_CFI
-	help
-	  This provides a driver for the on-board flash of the iPAQ.
-
 config MTD_DC21285
 	tristate "CFI Flash device mapped on DC21285 Footbridge"
 	depends on MTD_CFI && ARCH_FOOTBRIDGE && MTD_COMPLEX_MAPPINGS
@@ -389,9 +367,9 @@ config MTD_IXP2000
 	depends on MTD_CFI && MTD_COMPLEX_MAPPINGS && ARCH_IXP2000
 	help
 	  This enables MTD access to flash devices on platforms based
-	  on Intel's IXP2000 family of network processors such as the
-	  IXDP425 and Coyote. If you have an IXP2000 based board and
-	  would like to use the flash chips on it, say 'Y'.
+	  on Intel's IXP2000 family of network processors. If you have an
+	  IXP2000 based board and would like to use the flash chips on it,
+	  say 'Y'.
 
 config MTD_FORTUNET
 	tristate "CFI Flash device mapped on the FortuNet board"
@@ -436,15 +414,6 @@ config MTD_H720X
 	  This enables access to the flash chips on the Hynix evaluation boards.
 	  If you have such a board, say 'Y'.
 
-config MTD_OMAP_NOR
-	tristate "TI OMAP board mappings"
-	depends on MTD_CFI && ARCH_OMAP
-	help
-	  This enables access to the NOR flash chips on TI OMAP-based
-	  boards defining flash platform devices and flash platform data.
-	  These boards include the Innovator, H2, H3, OSK, Perseus2, and
-	  more.  If you have such a board, say 'Y'.
-
 # This needs CFI or JEDEC, depending on the cards found.
 config MTD_PCI
 	tristate "PCI MTD driver"
@@ -458,7 +427,7 @@ config MTD_PCI
 
 config MTD_PCMCIA
 	tristate "PCMCIA MTD driver"
-	depends on PCMCIA && MTD_COMPLEX_MAPPINGS && BROKEN
+	depends on PCMCIA && MTD_COMPLEX_MAPPINGS
 	help
 	  Map driver for accessing PCMCIA linear flash memory cards. These
 	  cards are usually around 4-16MiB in size. This does not include
@@ -556,5 +525,22 @@ config MTD_VMU
 
 	  To build this as a module select M here, the module will be called
 	  vmu-flash.
+
+config MTD_PISMO
+	tristate "MTD discovery driver for PISMO modules"
+	depends on I2C
+	depends on ARCH_VERSATILE
+	help
+	  This driver allows for discovery of PISMO modules - see
+	  <http://www.pismoworld.org/>.  These are small modules containing
+	  up to five memory devices (eg, SRAM, flash, DOC) described by an
+	  I2C EEPROM.
+
+	  This driver does not create any MTD maps itself; instead it
+	  creates MTD physmap and MTD SRAM platform devices.  If you
+	  enable this option, you should consider enabling MTD_PHYSMAP
+	  and/or MTD_PLATRAM according to the devices on your module.
+
+	  When built as a module, it will be called pismo.ko
 
 endmenu

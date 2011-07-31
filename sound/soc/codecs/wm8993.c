@@ -1,7 +1,7 @@
 /*
  * wm8993.c -- WM8993 ALSA SoC audio driver
  *
- * Copyright 2009 Wolfson Microelectronics plc
+ * Copyright 2009, 2010 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
@@ -16,7 +16,9 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -28,6 +30,16 @@
 
 #include "wm8993.h"
 #include "wm_hubs.h"
+
+#define WM8993_NUM_SUPPLIES 6
+static const char *wm8993_supply_names[WM8993_NUM_SUPPLIES] = {
+	"DCVDD",
+	"DBVDD",
+	"AVDD1",
+	"AVDD2",
+	"CPVDD",
+	"SPKVDD",
+};
 
 static u16 wm8993_reg_defaults[WM8993_REGISTER_COUNT] = {
 	0x8993,     /* R0   - Software Reset */
@@ -213,7 +225,9 @@ static struct {
 };
 
 struct wm8993_priv {
+	struct wm_hubs_data hubs_data;
 	u16 reg_cache[WM8993_REGISTER_COUNT];
+	struct regulator_bulk_data supplies[WM8993_NUM_SUPPLIES];
 	struct wm8993_platform_data pdata;
 	struct snd_soc_codec codec;
 	int master;
@@ -227,35 +241,8 @@ struct wm8993_priv {
 	int class_w_users;
 	unsigned int fll_fref;
 	unsigned int fll_fout;
+	int fll_src;
 };
-
-static unsigned int wm8993_read_hw(struct snd_soc_codec *codec, u8 reg)
-{
-	struct i2c_msg xfer[2];
-	u16 data;
-	int ret;
-	struct i2c_client *i2c = codec->control_data;
-
-	/* Write register */
-	xfer[0].addr = i2c->addr;
-	xfer[0].flags = 0;
-	xfer[0].len = 1;
-	xfer[0].buf = &reg;
-
-	/* Read data */
-	xfer[1].addr = i2c->addr;
-	xfer[1].flags = I2C_M_RD;
-	xfer[1].len = 2;
-	xfer[1].buf = (u8 *)&data;
-
-	ret = i2c_transfer(i2c->adapter, xfer, 2);
-	if (ret != 2) {
-		dev_err(codec->dev, "Failed to read 0x%x: %d\n", reg, ret);
-		return 0;
-	}
-
-	return (data >> 8) | ((data & 0xff) << 8);
-}
 
 static int wm8993_volatile(unsigned int reg)
 {
@@ -269,48 +256,6 @@ static int wm8993_volatile(unsigned int reg)
 	default:
 		return 0;
 	}
-}
-
-static unsigned int wm8993_read(struct snd_soc_codec *codec,
-				unsigned int reg)
-{
-	u16 *reg_cache = codec->reg_cache;
-
-	BUG_ON(reg > WM8993_MAX_REGISTER);
-
-	if (wm8993_volatile(reg))
-		return wm8993_read_hw(codec, reg);
-	else
-		return reg_cache[reg];
-}
-
-static int wm8993_write(struct snd_soc_codec *codec, unsigned int reg,
-			unsigned int value)
-{
-	u16 *reg_cache = codec->reg_cache;
-	u8 data[3];
-	int ret;
-
-	BUG_ON(reg > WM8993_MAX_REGISTER);
-
-	/* data is
-	 *   D15..D9 WM8993 register offset
-	 *   D8...D0 register data
-	 */
-	data[0] = reg;
-	data[1] = value >> 8;
-	data[2] = value & 0x00ff;
-
-	if (!wm8993_volatile(reg))
-		reg_cache[reg] = value;
-
-	ret = codec->hw_write(codec->control_data, data, 3);
-
-	if (ret == 3)
-		return 0;
-	if (ret < 0)
-		return ret;
-	return -EIO;
 }
 
 struct _fll_div {
@@ -422,11 +367,11 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	return 0;
 }
 
-static int wm8993_set_fll(struct snd_soc_dai *dai, int fll_id,
+static int wm8993_set_fll(struct snd_soc_dai *dai, int fll_id, int source,
 			  unsigned int Fref, unsigned int Fout)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8993_priv *wm8993 = codec->private_data;
+	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 	u16 reg1, reg4, reg5;
 	struct _fll_div fll_div;
 	int ret;
@@ -441,9 +386,9 @@ static int wm8993_set_fll(struct snd_soc_dai *dai, int fll_id,
 		wm8993->fll_fref = 0;
 		wm8993->fll_fout = 0;
 
-		reg1 = wm8993_read(codec, WM8993_FLL_CONTROL_1);
+		reg1 = snd_soc_read(codec, WM8993_FLL_CONTROL_1);
 		reg1 &= ~WM8993_FLL_ENA;
-		wm8993_write(codec, WM8993_FLL_CONTROL_1, reg1);
+		snd_soc_write(codec, WM8993_FLL_CONTROL_1, reg1);
 
 		return 0;
 	}
@@ -452,7 +397,7 @@ static int wm8993_set_fll(struct snd_soc_dai *dai, int fll_id,
 	if (ret != 0)
 		return ret;
 
-	reg5 = wm8993_read(codec, WM8993_FLL_CONTROL_5);
+	reg5 = snd_soc_read(codec, WM8993_FLL_CONTROL_5);
 	reg5 &= ~WM8993_FLL_CLK_SRC_MASK;
 
 	switch (fll_id) {
@@ -474,45 +419,46 @@ static int wm8993_set_fll(struct snd_soc_dai *dai, int fll_id,
 
 	/* Any FLL configuration change requires that the FLL be
 	 * disabled first. */
-	reg1 = wm8993_read(codec, WM8993_FLL_CONTROL_1);
+	reg1 = snd_soc_read(codec, WM8993_FLL_CONTROL_1);
 	reg1 &= ~WM8993_FLL_ENA;
-	wm8993_write(codec, WM8993_FLL_CONTROL_1, reg1);
+	snd_soc_write(codec, WM8993_FLL_CONTROL_1, reg1);
 
 	/* Apply the configuration */
 	if (fll_div.k)
 		reg1 |= WM8993_FLL_FRAC_MASK;
 	else
 		reg1 &= ~WM8993_FLL_FRAC_MASK;
-	wm8993_write(codec, WM8993_FLL_CONTROL_1, reg1);
+	snd_soc_write(codec, WM8993_FLL_CONTROL_1, reg1);
 
-	wm8993_write(codec, WM8993_FLL_CONTROL_2,
-		     (fll_div.fll_outdiv << WM8993_FLL_OUTDIV_SHIFT) |
-		     (fll_div.fll_fratio << WM8993_FLL_FRATIO_SHIFT));
-	wm8993_write(codec, WM8993_FLL_CONTROL_3, fll_div.k);
+	snd_soc_write(codec, WM8993_FLL_CONTROL_2,
+		      (fll_div.fll_outdiv << WM8993_FLL_OUTDIV_SHIFT) |
+		      (fll_div.fll_fratio << WM8993_FLL_FRATIO_SHIFT));
+	snd_soc_write(codec, WM8993_FLL_CONTROL_3, fll_div.k);
 
-	reg4 = wm8993_read(codec, WM8993_FLL_CONTROL_4);
+	reg4 = snd_soc_read(codec, WM8993_FLL_CONTROL_4);
 	reg4 &= ~WM8993_FLL_N_MASK;
 	reg4 |= fll_div.n << WM8993_FLL_N_SHIFT;
-	wm8993_write(codec, WM8993_FLL_CONTROL_4, reg4);
+	snd_soc_write(codec, WM8993_FLL_CONTROL_4, reg4);
 
 	reg5 &= ~WM8993_FLL_CLK_REF_DIV_MASK;
 	reg5 |= fll_div.fll_clk_ref_div << WM8993_FLL_CLK_REF_DIV_SHIFT;
-	wm8993_write(codec, WM8993_FLL_CONTROL_5, reg5);
+	snd_soc_write(codec, WM8993_FLL_CONTROL_5, reg5);
 
 	/* Enable the FLL */
-	wm8993_write(codec, WM8993_FLL_CONTROL_1, reg1 | WM8993_FLL_ENA);
+	snd_soc_write(codec, WM8993_FLL_CONTROL_1, reg1 | WM8993_FLL_ENA);
 
 	dev_dbg(codec->dev, "FLL enabled at %dHz->%dHz\n", Fref, Fout);
 
 	wm8993->fll_fref = Fref;
 	wm8993->fll_fout = Fout;
+	wm8993->fll_src = source;
 
 	return 0;
 }
 
 static int configure_clock(struct snd_soc_codec *codec)
 {
-	struct wm8993_priv *wm8993 = codec->private_data;
+	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 	unsigned int reg;
 
 	/* This should be done on init() for bypass paths */
@@ -520,7 +466,7 @@ static int configure_clock(struct snd_soc_codec *codec)
 	case WM8993_SYSCLK_MCLK:
 		dev_dbg(codec->dev, "Using %dHz MCLK\n", wm8993->mclk_rate);
 
-		reg = wm8993_read(codec, WM8993_CLOCKING_2);
+		reg = snd_soc_read(codec, WM8993_CLOCKING_2);
 		reg &= ~(WM8993_MCLK_DIV | WM8993_SYSCLK_SRC);
 		if (wm8993->mclk_rate > 13500000) {
 			reg |= WM8993_MCLK_DIV;
@@ -529,14 +475,14 @@ static int configure_clock(struct snd_soc_codec *codec)
 			reg &= ~WM8993_MCLK_DIV;
 			wm8993->sysclk_rate = wm8993->mclk_rate;
 		}
-		wm8993_write(codec, WM8993_CLOCKING_2, reg);
+		snd_soc_write(codec, WM8993_CLOCKING_2, reg);
 		break;
 
 	case WM8993_SYSCLK_FLL:
 		dev_dbg(codec->dev, "Using %dHz FLL clock\n",
 			wm8993->fll_fout);
 
-		reg = wm8993_read(codec, WM8993_CLOCKING_2);
+		reg = snd_soc_read(codec, WM8993_CLOCKING_2);
 		reg |= WM8993_SYSCLK_SRC;
 		if (wm8993->fll_fout > 13500000) {
 			reg |= WM8993_MCLK_DIV;
@@ -545,7 +491,7 @@ static int configure_clock(struct snd_soc_codec *codec)
 			reg &= ~WM8993_MCLK_DIV;
 			wm8993->sysclk_rate = wm8993->fll_fout;
 		}
-		wm8993_write(codec, WM8993_CLOCKING_2, reg);
+		snd_soc_write(codec, WM8993_CLOCKING_2, reg);
 		break;
 
 	default:
@@ -689,7 +635,7 @@ SOC_DOUBLE_TLV("Digital Sidetone Volume", WM8993_DIGITAL_SIDE_TONE,
 
 SOC_SINGLE("DRC Switch", WM8993_DRC_CONTROL_1, 15, 1, 0),
 SOC_ENUM("DRC Path", drc_path),
-SOC_SINGLE_TLV("DRC Compressor Threashold Volume", WM8993_DRC_CONTROL_2,
+SOC_SINGLE_TLV("DRC Compressor Threshold Volume", WM8993_DRC_CONTROL_2,
 	       2, 60, 1, drc_comp_threash),
 SOC_SINGLE_TLV("DRC Compressor Amplitude Volume", WM8993_DRC_CONTROL_3,
 	       11, 30, 1, drc_comp_amp),
@@ -709,7 +655,7 @@ SOC_SINGLE_TLV("DRC Quick Release Volume", WM8993_DRC_CONTROL_3, 2, 3, 0,
 SOC_ENUM("DRC Quick Release Rate", drc_qr_rate),
 SOC_SINGLE("DRC Smoothing Switch", WM8993_DRC_CONTROL_1, 11, 1, 0),
 SOC_SINGLE("DRC Smoothing Hysteresis Switch", WM8993_DRC_CONTROL_1, 8, 1, 0),
-SOC_ENUM("DRC Smoothing Hysteresis Threashold", drc_smooth),
+SOC_ENUM("DRC Smoothing Hysteresis Threshold", drc_smooth),
 SOC_SINGLE_TLV("DRC Startup Volume", WM8993_DRC_CONTROL_4, 8, 18, 0,
 	       drc_startup_tlv),
 
@@ -771,7 +717,7 @@ static int class_w_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_codec *codec = widget->codec;
-	struct wm8993_priv *wm8993 = codec->private_data;
+	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
 	/* Turn it off if we're using the main output mixer */
@@ -978,10 +924,33 @@ static const struct snd_soc_dapm_route routes[] = {
 	{ "Right Headphone Mux", "DAC", "DACR" },
 };
 
+static void wm8993_cache_restore(struct snd_soc_codec *codec)
+{
+	u16 *cache = codec->reg_cache;
+	int i;
+
+	if (!codec->cache_sync)
+		return;
+
+	/* Reenable hardware writes */
+	codec->cache_only = 0;
+
+	/* Restore the register settings */
+	for (i = 1; i < WM8993_MAX_REGISTER; i++) {
+		if (cache[i] == wm8993_reg_defaults[i])
+			continue;
+		snd_soc_write(codec, i, cache[i]);
+	}
+
+	/* We're in sync again */
+	codec->cache_sync = 0;
+}
+
 static int wm8993_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
-	struct wm8993_priv *wm8993 = codec->private_data;
+	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
+	int ret;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -995,6 +964,18 @@ static int wm8993_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+			ret = regulator_bulk_enable(ARRAY_SIZE(wm8993->supplies),
+						    wm8993->supplies);
+			if (ret != 0)
+				return ret;
+
+			wm8993_cache_restore(codec);
+
+			/* Tune DC servo configuration */
+			snd_soc_write(codec, 0x44, 3);
+			snd_soc_write(codec, 0x56, 3);
+			snd_soc_write(codec, 0x44, 0);
+
 			/* Bring up VMID with fast soft start */
 			snd_soc_update_bits(codec, WM8993_ANTIPOP2,
 					    WM8993_STARTUP_BIAS_ENA |
@@ -1042,6 +1023,18 @@ static int wm8993_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_update_bits(codec, WM8993_POWER_MANAGEMENT_1,
 				    WM8993_VMID_SEL_MASK | WM8993_BIAS_ENA,
 				    0);
+
+#ifdef CONFIG_REGULATOR
+               /* Post 2.6.34 we will be able to get a callback when
+                * the regulators are disabled which we can use but
+		* for now just assume that the power will be cut if
+		* the regulator API is in use.
+		*/
+		codec->cache_sync = 1;
+#endif
+
+		regulator_bulk_disable(ARRAY_SIZE(wm8993->supplies),
+				       wm8993->supplies);
 		break;
 	}
 
@@ -1054,7 +1047,7 @@ static int wm8993_set_sysclk(struct snd_soc_dai *codec_dai,
 			     int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8993_priv *wm8993 = codec->private_data;
+	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 
 	switch (clk_id) {
 	case WM8993_SYSCLK_MCLK:
@@ -1074,9 +1067,9 @@ static int wm8993_set_dai_fmt(struct snd_soc_dai *dai,
 			      unsigned int fmt)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8993_priv *wm8993 = codec->private_data;
-	unsigned int aif1 = wm8993_read(codec, WM8993_AUDIO_INTERFACE_1);
-	unsigned int aif4 = wm8993_read(codec, WM8993_AUDIO_INTERFACE_4);
+	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
+	unsigned int aif1 = snd_soc_read(codec, WM8993_AUDIO_INTERFACE_1);
+	unsigned int aif4 = snd_soc_read(codec, WM8993_AUDIO_INTERFACE_4);
 
 	aif1 &= ~(WM8993_BCLK_DIR | WM8993_AIF_BCLK_INV |
 		  WM8993_AIF_LRCLK_INV | WM8993_AIF_FMT_MASK);
@@ -1159,8 +1152,8 @@ static int wm8993_set_dai_fmt(struct snd_soc_dai *dai,
 		return -EINVAL;
 	}
 
-	wm8993_write(codec, WM8993_AUDIO_INTERFACE_1, aif1);
-	wm8993_write(codec, WM8993_AUDIO_INTERFACE_4, aif4);
+	snd_soc_write(codec, WM8993_AUDIO_INTERFACE_1, aif1);
+	snd_soc_write(codec, WM8993_AUDIO_INTERFACE_4, aif4);
 
 	return 0;
 }
@@ -1170,20 +1163,20 @@ static int wm8993_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8993_priv *wm8993 = codec->private_data;
+	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 	int ret, i, best, best_val, cur_val;
 	unsigned int clocking1, clocking3, aif1, aif4;
 
-	clocking1 = wm8993_read(codec, WM8993_CLOCKING_1);
+	clocking1 = snd_soc_read(codec, WM8993_CLOCKING_1);
 	clocking1 &= ~WM8993_BCLK_DIV_MASK;
 
-	clocking3 = wm8993_read(codec, WM8993_CLOCKING_3);
+	clocking3 = snd_soc_read(codec, WM8993_CLOCKING_3);
 	clocking3 &= ~(WM8993_CLK_SYS_RATE_MASK | WM8993_SAMPLE_RATE_MASK);
 
-	aif1 = wm8993_read(codec, WM8993_AUDIO_INTERFACE_1);
+	aif1 = snd_soc_read(codec, WM8993_AUDIO_INTERFACE_1);
 	aif1 &= ~WM8993_AIF_WL_MASK;
 
-	aif4 = wm8993_read(codec, WM8993_AUDIO_INTERFACE_4);
+	aif4 = snd_soc_read(codec, WM8993_AUDIO_INTERFACE_4);
 	aif4 &= ~WM8993_LRCLK_RATE_MASK;
 
 	/* What BCLK do we need? */
@@ -1276,14 +1269,14 @@ static int wm8993_hw_params(struct snd_pcm_substream *substream,
 	dev_dbg(codec->dev, "LRCLK_RATE is %d\n", wm8993->bclk / wm8993->fs);
 	aif4 |= wm8993->bclk / wm8993->fs;
 
-	wm8993_write(codec, WM8993_CLOCKING_1, clocking1);
-	wm8993_write(codec, WM8993_CLOCKING_3, clocking3);
-	wm8993_write(codec, WM8993_AUDIO_INTERFACE_1, aif1);
-	wm8993_write(codec, WM8993_AUDIO_INTERFACE_4, aif4);
+	snd_soc_write(codec, WM8993_CLOCKING_1, clocking1);
+	snd_soc_write(codec, WM8993_CLOCKING_3, clocking3);
+	snd_soc_write(codec, WM8993_AUDIO_INTERFACE_1, aif1);
+	snd_soc_write(codec, WM8993_AUDIO_INTERFACE_4, aif4);
 
 	/* ReTune Mobile? */
 	if (wm8993->pdata.num_retune_configs) {
-		u16 eq1 = wm8993_read(codec, WM8993_EQ1);
+		u16 eq1 = snd_soc_read(codec, WM8993_EQ1);
 		struct wm8993_retune_mobile_setting *s;
 
 		best = 0;
@@ -1306,7 +1299,7 @@ static int wm8993_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_update_bits(codec, WM8993_EQ1, WM8993_EQ_ENA, 0);
 
 		for (i = 1; i < ARRAY_SIZE(s->config); i++)
-			wm8993_write(codec, WM8993_EQ1 + i, s->config[i]);
+			snd_soc_write(codec, WM8993_EQ1 + i, s->config[i]);
 
 		snd_soc_update_bits(codec, WM8993_EQ1, WM8993_EQ_ENA, eq1);
 	}
@@ -1319,14 +1312,14 @@ static int wm8993_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 	struct snd_soc_codec *codec = codec_dai->codec;
 	unsigned int reg;
 
-	reg = wm8993_read(codec, WM8993_DAC_CTRL);
+	reg = snd_soc_read(codec, WM8993_DAC_CTRL);
 
 	if (mute)
 		reg |= WM8993_DAC_MUTE;
 	else
 		reg &= ~WM8993_DAC_MUTE;
 
-	wm8993_write(codec, WM8993_DAC_CTRL, reg);
+	snd_soc_write(codec, WM8993_DAC_CTRL, reg);
 
 	return 0;
 }
@@ -1335,7 +1328,7 @@ static int wm8993_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 			       unsigned int rx_mask, int slots, int slot_width)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8993_priv *wm8993 = codec->private_data;
+	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 	int aif1 = 0;
 	int aif2 = 0;
 
@@ -1438,7 +1431,7 @@ static int wm8993_probe(struct platform_device *pdev)
 
 	socdev->card->codec = wm8993_codec;
 	codec = wm8993_codec;
-	wm8993 = codec->private_data;
+	wm8993 = snd_soc_codec_get_drvdata(codec);
 
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
 	if (ret < 0) {
@@ -1464,19 +1457,8 @@ static int wm8993_probe(struct platform_device *pdev)
 	wm_hubs_add_analogue_routes(codec, wm8993->pdata.lineout1_diff,
 				    wm8993->pdata.lineout2_diff);
 
-	snd_soc_dapm_new_widgets(codec);
-
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to register card\n");
-		goto card_err;
-	}
-
 	return ret;
 
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 err:
 	return ret;
 }
@@ -1491,9 +1473,66 @@ static int wm8993_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int wm8993_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_codec *codec = socdev->card->codec;
+	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
+	int fll_fout = wm8993->fll_fout;
+	int fll_fref  = wm8993->fll_fref;
+	int ret;
+
+	/* Stop the FLL in an orderly fashion */
+	ret = wm8993_set_fll(codec->dai, 0, 0, 0, 0);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "Failed to stop FLL\n");
+		return ret;
+	}
+
+	wm8993->fll_fout = fll_fout;
+	wm8993->fll_fref = fll_fref;
+
+	wm8993_set_bias_level(codec, SND_SOC_BIAS_OFF);
+
+	return 0;
+}
+
+static int wm8993_resume(struct platform_device *pdev)
+{
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_codec *codec = socdev->card->codec;
+	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
+	int ret;
+
+	wm8993_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+
+	/* Restart the FLL? */
+	if (wm8993->fll_fout) {
+		int fll_fout = wm8993->fll_fout;
+		int fll_fref  = wm8993->fll_fref;
+
+		wm8993->fll_fref = 0;
+		wm8993->fll_fout = 0;
+
+		ret = wm8993_set_fll(codec->dai, 0, wm8993->fll_src,
+				     fll_fref, fll_fout);
+		if (ret != 0)
+			dev_err(codec->dev, "Failed to restart FLL\n");
+	}
+
+	return 0;
+}
+#else
+#define wm8993_suspend NULL
+#define wm8993_resume NULL
+#endif
+
 struct snd_soc_codec_device soc_codec_dev_wm8993 = {
 	.probe = 	wm8993_probe,
 	.remove = 	wm8993_remove,
+	.suspend =	wm8993_suspend,
+	.resume =	wm8993_resume,
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8993);
 
@@ -1504,6 +1543,7 @@ static int wm8993_i2c_probe(struct i2c_client *i2c,
 	struct snd_soc_codec *codec;
 	unsigned int val;
 	int ret;
+	int i;
 
 	if (wm8993_codec) {
 		dev_err(&i2c->dev, "A WM8993 is already registered\n");
@@ -1524,19 +1564,26 @@ static int wm8993_i2c_probe(struct i2c_client *i2c,
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
 	codec->name = "WM8993";
-	codec->read = wm8993_read;
-	codec->write = wm8993_write;
-	codec->hw_write = (hw_write_t)i2c_master_send;
+	codec->volatile_register = wm8993_volatile;
 	codec->reg_cache = wm8993->reg_cache;
 	codec->reg_cache_size = ARRAY_SIZE(wm8993->reg_cache);
 	codec->bias_level = SND_SOC_BIAS_OFF;
 	codec->set_bias_level = wm8993_set_bias_level;
 	codec->dai = &wm8993_dai;
 	codec->num_dai = 1;
-	codec->private_data = wm8993;
+	snd_soc_codec_set_drvdata(codec, wm8993);
+
+	wm8993->hubs_data.hp_startup_mode = 1;
+	wm8993->hubs_data.dcs_codes = -2;
 
 	memcpy(wm8993->reg_cache, wm8993_reg_defaults,
 	       sizeof(wm8993->reg_cache));
+
+	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
+		goto err;
+	}
 
 	i2c_set_clientdata(i2c, wm8993);
 	codec->control_data = i2c;
@@ -1544,16 +1591,35 @@ static int wm8993_i2c_probe(struct i2c_client *i2c,
 
 	codec->dev = &i2c->dev;
 
-	val = wm8993_read_hw(codec, WM8993_SOFTWARE_RESET);
-	if (val != wm8993_reg_defaults[WM8993_SOFTWARE_RESET]) {
-		dev_err(codec->dev, "Invalid ID register value %x\n", val);
-		ret = -EINVAL;
+	for (i = 0; i < ARRAY_SIZE(wm8993->supplies); i++)
+		wm8993->supplies[i].supply = wm8993_supply_names[i];
+
+	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(wm8993->supplies),
+				 wm8993->supplies);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
 		goto err;
 	}
 
-	ret = wm8993_write(codec, WM8993_SOFTWARE_RESET, 0xffff);
+	ret = regulator_bulk_enable(ARRAY_SIZE(wm8993->supplies),
+				    wm8993->supplies);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
+		goto err_get;
+	}
+
+	val = snd_soc_read(codec, WM8993_SOFTWARE_RESET);
+	if (val != wm8993_reg_defaults[WM8993_SOFTWARE_RESET]) {
+		dev_err(codec->dev, "Invalid ID register value %x\n", val);
+		ret = -EINVAL;
+		goto err_enable;
+	}
+
+	ret = snd_soc_write(codec, WM8993_SOFTWARE_RESET, 0xffff);
 	if (ret != 0)
-		goto err;
+		goto err_enable;
+
+	codec->cache_only = 1;
 
 	/* By default we're using the output mixers */
 	wm8993->class_w_users = 2;
@@ -1572,36 +1638,18 @@ static int wm8993_i2c_probe(struct i2c_client *i2c,
 	/* Use automatic clock configuration */
 	snd_soc_update_bits(codec, WM8993_CLOCKING_4, WM8993_SR_MODE, 0);
 
-	if (!wm8993->pdata.lineout1_diff)
-		snd_soc_update_bits(codec, WM8993_LINE_MIXER1,
-				    WM8993_LINEOUT1_MODE,
-				    WM8993_LINEOUT1_MODE);
-	if (!wm8993->pdata.lineout2_diff)
-		snd_soc_update_bits(codec, WM8993_LINE_MIXER2,
-				    WM8993_LINEOUT2_MODE,
-				    WM8993_LINEOUT2_MODE);
-
-	if (wm8993->pdata.lineout1fb)
-		snd_soc_update_bits(codec, WM8993_ADDITIONAL_CONTROL,
-				    WM8993_LINEOUT1_FB, WM8993_LINEOUT1_FB);
-
-	if (wm8993->pdata.lineout2fb)
-		snd_soc_update_bits(codec, WM8993_ADDITIONAL_CONTROL,
-				    WM8993_LINEOUT2_FB, WM8993_LINEOUT2_FB);
-
-	/* Apply the microphone bias/detection configuration - the
-	 * platform data is directly applicable to the register. */
-	snd_soc_update_bits(codec, WM8993_MICBIAS,
-			    WM8993_JD_SCTHR_MASK | WM8993_JD_THR_MASK |
-			    WM8993_MICB1_LVL | WM8993_MICB2_LVL,
-			    wm8993->pdata.jd_scthr << WM8993_JD_SCTHR_SHIFT |
-			    wm8993->pdata.jd_thr << WM8993_JD_THR_SHIFT |
-			    wm8993->pdata.micbias1_lvl |
-			    wm8993->pdata.micbias1_lvl << 1);
-
+	wm_hubs_handle_analogue_pdata(codec, wm8993->pdata.lineout1_diff,
+				      wm8993->pdata.lineout2_diff,
+				      wm8993->pdata.lineout1fb,
+				      wm8993->pdata.lineout2fb,
+				      wm8993->pdata.jd_scthr,
+				      wm8993->pdata.jd_thr,
+				      wm8993->pdata.micbias1_lvl,
+				      wm8993->pdata.micbias2_lvl);
+			     
 	ret = wm8993_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	if (ret != 0)
-		goto err;
+		goto err_enable;
 
 	wm8993_dai.dev = codec->dev;
 
@@ -1615,6 +1663,10 @@ static int wm8993_i2c_probe(struct i2c_client *i2c,
 
 err_bias:
 	wm8993_set_bias_level(codec, SND_SOC_BIAS_OFF);
+err_enable:
+	regulator_bulk_disable(ARRAY_SIZE(wm8993->supplies), wm8993->supplies);
+err_get:
+	regulator_bulk_free(ARRAY_SIZE(wm8993->supplies), wm8993->supplies);
 err:
 	wm8993_codec = NULL;
 	kfree(wm8993);
@@ -1629,6 +1681,7 @@ static int wm8993_i2c_remove(struct i2c_client *client)
 	snd_soc_unregister_dai(&wm8993_dai);
 
 	wm8993_set_bias_level(&wm8993->codec, SND_SOC_BIAS_OFF);
+	regulator_bulk_free(ARRAY_SIZE(wm8993->supplies), wm8993->supplies);
 	kfree(wm8993);
 
 	return 0;

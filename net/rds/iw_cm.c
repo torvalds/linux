@@ -32,6 +32,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/in.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 
 #include "rds.h"
@@ -156,9 +157,11 @@ static void rds_iw_qp_event_handler(struct ib_event *event, void *data)
 	case IB_EVENT_QP_REQ_ERR:
 	case IB_EVENT_QP_FATAL:
 	default:
-		rds_iw_conn_error(conn, "RDS/IW: Fatal QP Event %u - connection %pI4->%pI4...reconnecting\n",
+		rdsdebug("Fatal QP Event %u "
+			"- connection %pI4->%pI4, reconnecting\n",
 			event->event, &conn->c_laddr,
 			&conn->c_faddr);
+		rds_conn_drop(conn);
 		break;
 	}
 }
@@ -449,6 +452,7 @@ int rds_iw_cm_handle_connect(struct rdma_cm_id *cm_id,
 	err = rds_iw_setup_qp(conn);
 	if (err) {
 		rds_iw_conn_error(conn, "rds_iw_setup_qp failed (%d)\n", err);
+		mutex_unlock(&conn->c_cm_lock);
 		goto out;
 	}
 
@@ -696,6 +700,8 @@ int rds_iw_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&ic->iw_node);
+	tasklet_init(&ic->i_recv_tasklet, rds_iw_recv_tasklet_fn,
+		     (unsigned long) ic);
 	mutex_init(&ic->i_recv_mutex);
 #ifndef KERNEL_HAS_ATOMIC64
 	spin_lock_init(&ic->i_ack_lock);

@@ -128,6 +128,7 @@ extern int sctp_register_pf(struct sctp_pf *, sa_family_t);
 int sctp_backlog_rcv(struct sock *sk, struct sk_buff *skb);
 int sctp_inet_listen(struct socket *sock, int backlog);
 void sctp_write_space(struct sock *sk);
+void sctp_data_ready(struct sock *sk, int len);
 unsigned int sctp_poll(struct file *file, struct socket *sock,
 		poll_table *wait);
 void sctp_sock_rfree(struct sk_buff *skb);
@@ -227,8 +228,7 @@ DECLARE_SNMP_STAT(struct sctp_mib, sctp_statistics);
 #endif /* !TEST_FRAME */
 
 /* sctp mib definitions */
-enum
-{
+enum {
 	SCTP_MIB_NUM = 0,
 	SCTP_MIB_CURRESTAB,			/* CurrEstab */
 	SCTP_MIB_ACTIVEESTABS,			/* ActiveEstabs */
@@ -269,7 +269,7 @@ enum
 #define SCTP_MIB_MAX    __SCTP_MIB_MAX
 struct sctp_mib {
         unsigned long   mibs[SCTP_MIB_MAX];
-} __SNMP_MIB_ALIGN__;
+};
 
 
 /* Print debugging messages.  */
@@ -547,7 +547,7 @@ for (pos = chunk->subh.fwdtsn_hdr->skip;\
 #define WORD_ROUND(s) (((s)+3)&~3)
 
 /* Make a new instance of type.  */
-#define t_new(type, flags)	(type *)kmalloc(sizeof(type), flags)
+#define t_new(type, flags)	(type *)kzalloc(sizeof(type), flags)
 
 /* Compare two timevals.  */
 #define tv_lt(s, t) \

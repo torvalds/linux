@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/reboot.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include "sclp.h"
@@ -495,6 +496,10 @@ sclp_vt220_open(struct tty_struct *tty, struct file *filp)
 		if (tty->driver_data == NULL)
 			return -ENOMEM;
 		tty->low_latency = 0;
+		if (!tty->winsize.ws_row && !tty->winsize.ws_col) {
+			tty->winsize.ws_row = 24;
+			tty->winsize.ws_col = 80;
+		}
 	}
 	return 0;
 }

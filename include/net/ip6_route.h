@@ -37,6 +37,24 @@ struct route_info {
 #define RT6_LOOKUP_F_SRCPREF_PUBLIC	0x00000010
 #define RT6_LOOKUP_F_SRCPREF_COA	0x00000020
 
+/*
+ * rt6_srcprefs2flags() and rt6_flags2srcprefs() translate
+ * between IPV6_ADDR_PREFERENCES socket option values
+ *	IPV6_PREFER_SRC_TMP    = 0x1
+ *	IPV6_PREFER_SRC_PUBLIC = 0x2
+ *	IPV6_PREFER_SRC_COA    = 0x4
+ * and above RT6_LOOKUP_F_SRCPREF_xxx flags.
+ */
+static inline int rt6_srcprefs2flags(unsigned int srcprefs)
+{
+	/* No need to bitmask because srcprefs have only 3 bits. */
+	return srcprefs << 3;
+}
+
+static inline unsigned int rt6_flags2srcprefs(int flags)
+{
+	return (flags >> 3) & 7;
+}
 
 extern void			ip6_route_input(struct sk_buff *skb);
 
@@ -103,8 +121,7 @@ extern void			rt6_pmtu_discovery(struct in6_addr *daddr,
 
 struct netlink_callback;
 
-struct rt6_rtnl_dump_arg
-{
+struct rt6_rtnl_dump_arg {
 	struct sk_buff *skb;
 	struct netlink_callback *cb;
 	struct net *net;
@@ -135,9 +152,9 @@ static inline void __ip6_dst_store(struct sock *sk, struct dst_entry *dst,
 static inline void ip6_dst_store(struct sock *sk, struct dst_entry *dst,
 				 struct in6_addr *daddr, struct in6_addr *saddr)
 {
-	write_lock(&sk->sk_dst_lock);
+	spin_lock(&sk->sk_dst_lock);
 	__ip6_dst_store(sk, dst, daddr, saddr);
-	write_unlock(&sk->sk_dst_lock);
+	spin_unlock(&sk->sk_dst_lock);
 }
 
 static inline int ipv6_unicast_destination(struct sk_buff *skb)

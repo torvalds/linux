@@ -34,11 +34,11 @@ Configuration options:
   [0] - I/O port base
   [1] - unused
   [2] - Analog input reference
-          0 = single ended
-          1 = differential
+	0 = single ended
+	1 = differential
   [3] - Analog input encoding (must match jumpers)
-          0 = straight binary
-          1 = two's complement
+	0 = straight binary
+	1 = two's complement
 */
 
 #include <linux/interrupt.h>
@@ -89,7 +89,18 @@ static struct comedi_driver driver_pcmad = {
 	.offset = sizeof(pcmad_boards[0]),
 };
 
-COMEDI_INITCLEANUP(driver_pcmad);
+static int __init driver_pcmad_init_module(void)
+{
+	return comedi_driver_register(&driver_pcmad);
+}
+
+static void __exit driver_pcmad_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_pcmad);
+}
+
+module_init(driver_pcmad_init_module);
+module_exit(driver_pcmad_cleanup_module);
 
 #define TIMEOUT	100
 
@@ -113,9 +124,8 @@ static int pcmad_ai_insn_read(struct comedi_device *dev,
 		data[n] = inb(dev->iobase + PCMAD_LSB);
 		data[n] |= (inb(dev->iobase + PCMAD_MSB) << 8);
 
-		if (devpriv->twos_comp) {
+		if (devpriv->twos_comp)
 			data[n] ^= (1 << (this_board->n_ai_bits - 1));
-		}
 	}
 
 	return n;
@@ -135,11 +145,12 @@ static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned long iobase;
 
 	iobase = it->options[0];
-	printk("comedi%d: pcmad: 0x%04lx ", dev->minor, iobase);
+	printk(KERN_INFO "comedi%d: pcmad: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, PCMAD_SIZE, "pcmad")) {
-		printk("I/O port conflict\n");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
+	printk(KERN_CONT "\n");
 	dev->iobase = iobase;
 
 	ret = alloc_subdevices(dev, 1);
@@ -166,13 +177,17 @@ static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static int pcmad_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: pcmad: remove\n", dev->minor);
+	printk(KERN_INFO "comedi%d: pcmad: remove\n", dev->minor);
 
-	if (dev->irq) {
+	if (dev->irq)
 		free_irq(dev->irq, dev);
-	}
+
 	if (dev->iobase)
 		release_region(dev->iobase, PCMAD_SIZE);
 
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");
