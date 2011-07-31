@@ -196,6 +196,9 @@ int bl_is_sector_init(struct pnfs_inval_markings *marks, sector_t isect);
 int encode_pnfs_block_layoutupdate(struct pnfs_block_layout *bl,
 				   struct xdr_stream *xdr,
 				   const struct nfs4_layoutcommit_args *arg);
+void clean_pnfs_block_layoutupdate(struct pnfs_block_layout *bl,
+				   const struct nfs4_layoutcommit_args *arg,
+				   int status);
 int bl_add_merge_extent(struct pnfs_block_layout *bl,
 			 struct pnfs_block_extent *new);
 

@@ -162,6 +162,10 @@ bl_encode_layoutcommit(struct pnfs_layout_hdr *lo, struct xdr_stream *xdr,
 static void
 bl_cleanup_layoutcommit(struct nfs4_layoutcommit_data *lcdata)
 {
+	struct pnfs_layout_hdr *lo = NFS_I(lcdata->args.inode)->layout;
+
+	dprintk("%s enter\n", __func__);
+	clean_pnfs_block_layoutupdate(BLK_LO2EXT(lo), &lcdata->args, lcdata->res.status);
 }
 
 static void free_blk_mountid(struct block_mount_id *mid)
