@@ -16,6 +16,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
+#include <linux/export.h>
 #include <linux/io.h>
 #include <asm/hardware/scoop.h>
 

@@ -23,6 +23,7 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
 

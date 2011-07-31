@@ -32,6 +32,7 @@
 #include <linux/irq.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/export.h>
 
 #include <asm/sizes.h>
 #include <asm/mach/pci.h>

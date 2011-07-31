@@ -23,6 +23,7 @@
 #include <linux/phy.h>
 #include <linux/clk.h>
 #include <linux/videodev2.h>
+#include <linux/export.h>
 
 #include <media/tvp514x.h>
 

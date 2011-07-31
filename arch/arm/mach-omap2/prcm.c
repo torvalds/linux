@@ -23,6 +23,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/export.h>
 
 #include <mach/system.h>
 #include <plat/common.h>

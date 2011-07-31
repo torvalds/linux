@@ -14,6 +14,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/export.h>
 
 #include <linux/usb/musb.h>
 

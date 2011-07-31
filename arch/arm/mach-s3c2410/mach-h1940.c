@@ -35,6 +35,7 @@
 #include <video/platform_lcd.h>
 
 #include <linux/mmc/host.h>
+#include <linux/export.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
