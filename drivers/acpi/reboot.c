@@ -23,8 +23,7 @@ void acpi_reboot(void)
 	/* Is the reset register supported? The spec says we should be
 	 * checking the bit width and bit offset, but Windows ignores
 	 * these fields */
-	if (!(acpi_gbl_FADT.flags & ACPI_FADT_RESET_REGISTER))
-		return;
+	/* Ignore also acpi_gbl_FADT.flags.ACPI_FADT_RESET_REGISTER */
 
 	reset_value = acpi_gbl_FADT.reset_value;
 
