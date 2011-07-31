@@ -80,6 +80,9 @@ struct pnfs_layoutdriver_type {
 	struct module *owner;
 	unsigned flags;
 
+	int (*set_layoutdriver) (struct nfs_server *, const struct nfs_fh *);
+	int (*clear_layoutdriver) (struct nfs_server *);
+
 	struct pnfs_layout_hdr * (*alloc_layout_hdr) (struct inode *inode, gfp_t gfp_flags);
 	void (*free_layout_hdr) (struct pnfs_layout_hdr *);
 
@@ -167,7 +170,7 @@ void put_lseg(struct pnfs_layout_segment *lseg);
 bool pnfs_pageio_init_read(struct nfs_pageio_descriptor *, struct inode *);
 bool pnfs_pageio_init_write(struct nfs_pageio_descriptor *, struct inode *, int);
 
-void set_pnfs_layoutdriver(struct nfs_server *, u32 id);
+void set_pnfs_layoutdriver(struct nfs_server *, const struct nfs_fh *, u32);
 void unset_pnfs_layoutdriver(struct nfs_server *);
 void pnfs_generic_pg_init_read(struct nfs_pageio_descriptor *, struct nfs_page *);
 int pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc);
@@ -374,7 +377,8 @@ pnfs_roc_drain(struct inode *ino, u32 *barrier)
 	return false;
 }
 
-static inline void set_pnfs_layoutdriver(struct nfs_server *s, u32 id)
+static inline void set_pnfs_layoutdriver(struct nfs_server *s,
+					 const struct nfs_fh *mntfh, u32 id);
 {
 }
 
