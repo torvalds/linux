@@ -75,7 +75,7 @@
 #include <linux/kthread.h>
 #include <linux/splice.h>
 #include <linux/sysfs.h>
-
+#include <linux/miscdevice.h>
 #include <asm/uaccess.h>
 
 static DEFINE_IDR(loop_index_idr);
@@ -1478,13 +1478,22 @@ static int lo_compat_ioctl(struct block_device *bdev, fmode_t mode,
 
 static int lo_open(struct block_device *bdev, fmode_t mode)
 {
-	struct loop_device *lo = bdev->bd_disk->private_data;
+	struct loop_device *lo;
+	int err = 0;
+
+	mutex_lock(&loop_index_mutex);
+	lo = bdev->bd_disk->private_data;
+	if (!lo) {
+		err = -ENXIO;
+		goto out;
+	}
 
 	mutex_lock(&lo->lo_ctl_mutex);
 	lo->lo_refcnt++;
 	mutex_unlock(&lo->lo_ctl_mutex);
-
-	return 0;
+out:
+	mutex_unlock(&loop_index_mutex);
+	return err;
 }
 
 static int lo_release(struct gendisk *disk, fmode_t mode)
@@ -1603,6 +1612,13 @@ static int loop_add(struct loop_device **l, int i)
 			idr_remove(&loop_index_idr, m);
 			err = -EEXIST;
 		}
+	} else if (i == -1) {
+		int m;
+
+		/* get next free nr */
+		err = idr_get_new(&loop_index_idr, lo, &m);
+		if (err >= 0)
+			i = m;
 	} else {
 		err = -EINVAL;
 	}
@@ -1648,16 +1664,41 @@ static void loop_remove(struct loop_device *lo)
 	kfree(lo);
 }
 
+static int find_free_cb(int id, void *ptr, void *data)
+{
+	struct loop_device *lo = ptr;
+	struct loop_device **l = data;
+
+	if (lo->lo_state == Lo_unbound) {
+		*l = lo;
+		return 1;
+	}
+	return 0;
+}
+
 static int loop_lookup(struct loop_device **l, int i)
 {
 	struct loop_device *lo;
 	int ret = -ENODEV;
 
+	if (i < 0) {
+		int err;
+
+		err = idr_for_each(&loop_index_idr, &find_free_cb, &lo);
+		if (err == 1) {
+			*l = lo;
+			ret = lo->lo_number;
+		}
+		goto out;
+	}
+
+	/* lookup and return a specific i */
 	lo = idr_find(&loop_index_idr, i);
 	if (lo) {
 		*l = lo;
 		ret = lo->lo_number;
 	}
+out:
 	return ret;
 }
 
@@ -1681,11 +1722,76 @@ static struct kobject *loop_probe(dev_t dev, int *part, void *data)
 	return kobj;
 }
 
+static long loop_control_ioctl(struct file *file, unsigned int cmd,
+			       unsigned long parm)
+{
+	struct loop_device *lo;
+	int ret = -ENOSYS;
+
+	mutex_lock(&loop_index_mutex);
+	switch (cmd) {
+	case LOOP_CTL_ADD:
+		ret = loop_lookup(&lo, parm);
+		if (ret >= 0) {
+			ret = -EEXIST;
+			break;
+		}
+		ret = loop_add(&lo, parm);
+		break;
+	case LOOP_CTL_REMOVE:
+		ret = loop_lookup(&lo, parm);
+		if (ret < 0)
+			break;
+		mutex_lock(&lo->lo_ctl_mutex);
+		if (lo->lo_state != Lo_unbound) {
+			ret = -EBUSY;
+			mutex_unlock(&lo->lo_ctl_mutex);
+			break;
+		}
+		if (lo->lo_refcnt > 0) {
+			ret = -EBUSY;
+			mutex_unlock(&lo->lo_ctl_mutex);
+			break;
+		}
+		lo->lo_disk->private_data = NULL;
+		mutex_unlock(&lo->lo_ctl_mutex);
+		idr_remove(&loop_index_idr, lo->lo_number);
+		loop_remove(lo);
+		break;
+	case LOOP_CTL_GET_FREE:
+		ret = loop_lookup(&lo, -1);
+		if (ret >= 0)
+			break;
+		ret = loop_add(&lo, -1);
+	}
+	mutex_unlock(&loop_index_mutex);
+
+	return ret;
+}
+
+static const struct file_operations loop_ctl_fops = {
+	.open		= nonseekable_open,
+	.unlocked_ioctl	= loop_control_ioctl,
+	.compat_ioctl	= loop_control_ioctl,
+	.owner		= THIS_MODULE,
+	.llseek		= noop_llseek,
+};
+
+static struct miscdevice loop_misc = {
+	.minor		= LOOP_CTRL_MINOR,
+	.name		= "loop-control",
+	.fops		= &loop_ctl_fops,
+};
+
+MODULE_ALIAS_MISCDEV(LOOP_CTRL_MINOR);
+MODULE_ALIAS("devname:loop-control");
+
 static int __init loop_init(void)
 {
 	int i, nr;
 	unsigned long range;
 	struct loop_device *lo;
+	int err;
 
 	/*
 	 * loop module now has a feature to instantiate underlying device
@@ -1701,6 +1807,10 @@ static int __init loop_init(void)
 	 *     themselves and have kernel automatically instantiate actual
 	 *     device on-demand.
 	 */
+
+	err = misc_register(&loop_misc);
+	if (err < 0)
+		return err;
 
 	part_shift = 0;
 	if (max_part > 0) {
@@ -1767,6 +1877,8 @@ static void __exit loop_exit(void)
 
 	blk_unregister_region(MKDEV(LOOP_MAJOR, 0), range);
 	unregister_blkdev(LOOP_MAJOR, "loop");
+
+	misc_deregister(&loop_misc);
 }
 
 module_init(loop_init);
