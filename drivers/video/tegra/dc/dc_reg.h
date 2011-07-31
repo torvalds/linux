@@ -332,9 +332,9 @@
 #define DC_WIN_V_FILTER_P(x)			(0x619 + (x))
 #define DC_WIN_WIN_OPTIONS			0x700
 #define  H_DIRECTION_INCREMENT		(0 << 0)
-#define  H_DIRECTION_DECREMENTT		(1 << 0)
+#define  H_DIRECTION_DECREMENT		(1 << 0)
 #define  V_DIRECTION_INCREMENT		(0 << 2)
-#define  V_DIRECTION_DECREMENTT		(1 << 2)
+#define  V_DIRECTION_DECREMENT		(1 << 2)
 #define  COLOR_EXPAND			(1 << 6)
 #define  H_FILTER_ENABLE		(1 << 8)
 #define  V_FILTER_ENABLE		(1 << 10)
@@ -382,6 +382,10 @@
 #define DC_WIN_BUF_STRIDE			0x70b
 #define DC_WIN_UV_BUF_STRIDE			0x70c
 #define DC_WIN_BUFFER_ADDR_MODE			0x70d
+#define  DC_WIN_BUFFER_ADDR_MODE_LINEAR		(0 << 0)
+#define  DC_WIN_BUFFER_ADDR_MODE_LINEAR_UV	(0 << 16)
+#define  DC_WIN_BUFFER_ADDR_MODE_TILE		(1 << 0)
+#define  DC_WIN_BUFFER_ADDR_MODE_TILE_UV	(1 << 16)
 #define DC_WIN_DV_CONTROL			0x70e
 #define DC_WIN_BLEND_NOKEY			0x70f
 #define DC_WIN_BLEND_1WIN			0x710

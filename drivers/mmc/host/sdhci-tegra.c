@@ -186,6 +186,9 @@ static int __devinit tegra_sdhci_probe(struct platform_device *pdev)
 	if (plat->mmc_data.built_in)
 		sdhci->mmc->pm_flags = MMC_PM_KEEP_POWER | MMC_PM_IGNORE_PM_NOTIFY;
 
+	if (plat->rt_disable != 0)
+		sdhci->quirks |= SDHCI_QUIRK_RUNTIME_DISABLE;
+
 	rc = sdhci_add_host(sdhci);
 	if (rc)
 		goto err_clk_disable;
