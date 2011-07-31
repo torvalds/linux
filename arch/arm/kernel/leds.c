@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/sysdev.h>
 #include <linux/syscore_ops.h>
+#include <linux/string.h>
 
 #include <asm/leds.h>
 

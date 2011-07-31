@@ -15,6 +15,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>

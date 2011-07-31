@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/string.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
