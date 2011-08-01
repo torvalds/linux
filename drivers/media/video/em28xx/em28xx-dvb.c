@@ -42,6 +42,8 @@
 #include "cxd2820r.h"
 #include "tda18271c2dd.h"
 #include "drxk.h"
+#include "tda10071.h"
+#include "a8293.h"
 
 MODULE_DESCRIPTION("driver for em28xx based DVB cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
@@ -441,6 +443,19 @@ static struct tda18271_config em28xx_cxd2820r_tda18271_config = {
 	.gate = TDA18271_GATE_DIGITAL,
 };
 
+static const struct tda10071_config em28xx_tda10071_config = {
+	.i2c_address = 0x55, /* (0xaa >> 1) */
+	.i2c_wr_max = 64,
+	.ts_mode = TDA10071_TS_SERIAL,
+	.spec_inv = 0,
+	.xtal = 40444000, /* 40.444 MHz */
+	.pll_multiplier = 20,
+};
+
+static const struct a8293_config em28xx_a8293_config = {
+	.i2c_addr = 0x08, /* (0x10 >> 1) */
+};
+
 /* ------------------------------------------------------------------ */
 
 static int em28xx_attach_xc3028(u8 addr, struct em28xx *dev)
@@ -807,6 +822,16 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		       &dvb->fe[0]->ops.tuner_ops,
 		       sizeof(dvb->fe[0]->ops.tuner_ops));
 
+		break;
+	case EM28174_BOARD_PCTV_460E:
+		/* attach demod */
+		dvb->fe[0] = dvb_attach(tda10071_attach,
+			&em28xx_tda10071_config, &dev->i2c_adap);
+
+		/* attach SEC */
+		if (dvb->fe[0])
+			dvb_attach(a8293_attach, dvb->fe[0], &dev->i2c_adap,
+				&em28xx_a8293_config);
 		break;
 	default:
 		em28xx_errdev("/2: The frontend of your DVB/ATSC card"

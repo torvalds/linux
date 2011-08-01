@@ -317,6 +317,25 @@ static struct em28xx_reg_seq terratec_h5_digital[] = {
 };
 #endif
 
+/* 2013:024f PCTV DVB-S2 Stick 460e
+ * GPIO_0 - POWER_ON
+ * GPIO_1 - BOOST
+ * GPIO_2 - VUV_LNB (red LED)
+ * GPIO_3 - EXT_12V
+ * GPIO_4 - INT_DEM (DEMOD GPIO_0)
+ * GPIO_5 - INT_LNB
+ * GPIO_6 - RESET_DEM
+ * GPIO_7 - LED (green LED)
+ */
+static struct em28xx_reg_seq pctv_460e[] = {
+	{EM2874_R80_GPIO, 0x01, 0xff,  50},
+	{0x0d,            0xff, 0xff,  50},
+	{EM2874_R80_GPIO, 0x41, 0xff,  50}, /* GPIO_6=1 */
+	{0x0d,            0x42, 0xff,  50},
+	{EM2874_R80_GPIO, 0x61, 0xff,  50}, /* GPIO_5=1 */
+	{             -1,   -1,   -1,  -1},
+};
+
 /*
  *  Board definitions
  */
@@ -1810,6 +1829,17 @@ struct em28xx_board em28xx_boards[] = {
 		.has_dvb       = 1,
 		.ir_codes      = RC_MAP_PINNACLE_PCTV_HD,
 	},
+	/* 2013:024f PCTV DVB-S2 Stick 460e
+	 * Empia EM28174, NXP TDA10071, Conexant CX24118A and Allegro A8293 */
+	[EM28174_BOARD_PCTV_460E] = {
+		.i2c_speed     = EM2874_I2C_SECONDARY_BUS_SELECT |
+			EM28XX_I2C_CLK_WAIT_ENABLE | EM28XX_I2C_FREQ_400_KHZ,
+		.name          = "PCTV DVB-S2 Stick (460e)",
+		.tuner_type    = TUNER_ABSENT,
+		.tuner_gpio    = pctv_460e,
+		.has_dvb       = 1,
+		.ir_codes      = RC_MAP_PINNACLE_PCTV_HD,
+	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
@@ -1941,6 +1971,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2870_BOARD_KWORLD_A340 },
 	{ USB_DEVICE(0x2013, 0x024f),
 			.driver_info = EM28174_BOARD_PCTV_290E },
+	{ USB_DEVICE(0x2013, 0x024c),
+			.driver_info = EM28174_BOARD_PCTV_460E },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);

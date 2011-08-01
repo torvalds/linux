@@ -120,6 +120,7 @@
 #define EM2874_BOARD_LEADERSHIP_ISDBT		  77
 #define EM28174_BOARD_PCTV_290E                   78
 #define EM2884_BOARD_TERRATEC_H5		  79
+#define EM28174_BOARD_PCTV_460E                   80
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
