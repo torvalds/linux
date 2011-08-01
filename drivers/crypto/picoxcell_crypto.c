@@ -34,6 +34,7 @@
 #include <linux/io.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/rtnetlink.h>
@@ -1657,27 +1658,49 @@ static struct spacc_alg l2_engine_algs[] = {
 	},
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id spacc_of_id_table[] = {
+	{ .compatible = "picochip,spacc-ipsec" },
+	{ .compatible = "picochip,spacc-l2" },
+	{}
+};
+#else /* CONFIG_OF */
+#define spacc_of_id_table NULL
+#endif /* CONFIG_OF */
+
+static bool spacc_is_compatible(struct platform_device *pdev,
+				const char *spacc_type)
+{
+	const struct platform_device_id *platid = platform_get_device_id(pdev);
+
+	if (platid && !strcmp(platid->name, spacc_type))
+		return true;
+
+#ifdef CONFIG_OF
+	if (of_device_is_compatible(pdev->dev.of_node, spacc_type))
+		return true;
+#endif /* CONFIG_OF */
+
+	return false;
+}
+
 static int __devinit spacc_probe(struct platform_device *pdev)
 {
 	int i, err, ret = -EINVAL;
 	struct resource *mem, *irq;
-	const struct platform_device_id *platid = platform_get_device_id(pdev);
 	struct spacc_engine *engine = devm_kzalloc(&pdev->dev, sizeof(*engine),
 						   GFP_KERNEL);
 	if (!engine)
 		return -ENOMEM;
 
-	if (!platid)
-		return -EINVAL;
-
-	if (!strcmp(platid->name, "picoxcell-ipsec")) {
+	if (spacc_is_compatible(pdev, "picochip,spacc-ipsec")) {
 		engine->max_ctxs	= SPACC_CRYPTO_IPSEC_MAX_CTXS;
 		engine->cipher_pg_sz	= SPACC_CRYPTO_IPSEC_CIPHER_PG_SZ;
 		engine->hash_pg_sz	= SPACC_CRYPTO_IPSEC_HASH_PG_SZ;
 		engine->fifo_sz		= SPACC_CRYPTO_IPSEC_FIFO_SZ;
 		engine->algs		= ipsec_engine_algs;
 		engine->num_algs	= ARRAY_SIZE(ipsec_engine_algs);
-	} else if (!strcmp(platid->name, "picoxcell-l2")) {
+	} else if (spacc_is_compatible(pdev, "picochip,spacc-l2")) {
 		engine->max_ctxs	= SPACC_CRYPTO_L2_MAX_CTXS;
 		engine->cipher_pg_sz	= SPACC_CRYPTO_L2_CIPHER_PG_SZ;
 		engine->hash_pg_sz	= SPACC_CRYPTO_L2_HASH_PG_SZ;
@@ -1826,6 +1849,7 @@ static struct platform_driver spacc_driver = {
 #ifdef CONFIG_PM
 		.pm	= &spacc_pm_ops,
 #endif /* CONFIG_PM */
+		.of_match_table	= spacc_of_id_table,
 	},
 	.id_table	= spacc_id_table,
 };
