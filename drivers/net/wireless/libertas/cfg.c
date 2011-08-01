@@ -712,7 +712,7 @@ static void lbs_scan_worker(struct work_struct *work)
 
 	if (priv->scan_channel < priv->scan_req->n_channels) {
 		cancel_delayed_work(&priv->scan_work);
-		if (!priv->stopping)
+		if (netif_running(priv->dev))
 			queue_delayed_work(priv->work_thread, &priv->scan_work,
 				msecs_to_jiffies(300));
 	}
@@ -1409,11 +1409,34 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
+int lbs_disconnect(struct lbs_private *priv, u16 reason)
+{
+	struct cmd_ds_802_11_deauthenticate cmd;
+	int ret;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	/* Mildly ugly to use a locally store my own BSSID ... */
+	memcpy(cmd.macaddr, &priv->assoc_bss, ETH_ALEN);
+	cmd.reasoncode = cpu_to_le16(reason);
+
+	ret = lbs_cmd_with_response(priv, CMD_802_11_DEAUTHENTICATE, &cmd);
+	if (ret)
+		return ret;
+
+	cfg80211_disconnected(priv->dev,
+			reason,
+			NULL, 0,
+			GFP_KERNEL);
+	priv->connect_status = LBS_DISCONNECTED;
+
+	return 0;
+}
+
 static int lbs_cfg_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	u16 reason_code)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);
-	struct cmd_ds_802_11_deauthenticate cmd;
 
 	if (dev == priv->mesh_dev)
 		return -EOPNOTSUPP;
@@ -1423,24 +1446,8 @@ static int lbs_cfg_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	/* store for lbs_cfg_ret_disconnect() */
 	priv->disassoc_reason = reason_code;
 
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
-	/* Mildly ugly to use a locally store my own BSSID ... */
-	memcpy(cmd.macaddr, &priv->assoc_bss, ETH_ALEN);
-	cmd.reasoncode = cpu_to_le16(reason_code);
-
-	if (lbs_cmd_with_response(priv, CMD_802_11_DEAUTHENTICATE, &cmd))
-		return -EFAULT;
-
-	cfg80211_disconnected(priv->dev,
-			priv->disassoc_reason,
-			NULL, 0,
-			GFP_KERNEL);
-	priv->connect_status = LBS_DISCONNECTED;
-
-	return 0;
+	return lbs_disconnect(priv, reason_code);
 }
-
 
 static int lbs_cfg_set_default_key(struct wiphy *wiphy,
 				   struct net_device *netdev,

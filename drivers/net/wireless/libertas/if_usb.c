@@ -956,7 +956,7 @@ static int if_usb_prog_firmware(struct if_usb_card *cardp,
 	priv->dnld_sent = DNLD_RES_RECEIVED;
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
-	wake_up_interruptible(&priv->waitq);
+	wake_up(&priv->waitq);
 
 	return ret;
 }

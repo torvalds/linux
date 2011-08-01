@@ -924,7 +924,9 @@ static int lbs_mesh_stop(struct net_device *dev)
 
 	spin_unlock_irq(&priv->driver_lock);
 
-	schedule_work(&priv->mcast_work);
+	lbs_update_mcast(priv);
+	if (!lbs_iface_active(priv))
+		lbs_stop_iface(priv);
 
 	lbs_deb_leave(LBS_DEB_MESH);
 	return 0;
@@ -942,6 +944,11 @@ static int lbs_mesh_dev_open(struct net_device *dev)
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_NET);
+	if (!priv->iface_running) {
+		ret = lbs_start_iface(priv);
+		if (ret)
+			goto out;
+	}
 
 	spin_lock_irq(&priv->driver_lock);
 

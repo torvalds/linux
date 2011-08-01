@@ -46,7 +46,6 @@ struct lbs_private {
 	/* CFG80211 */
 	struct wireless_dev *wdev;
 	bool wiphy_registered;
-	bool stopping;
 	struct cfg80211_scan_request *scan_req;
 	u8 assoc_bss[ETH_ALEN];
 	u8 disassoc_reason;
@@ -96,11 +95,14 @@ struct lbs_private {
 
 	/* Hardware access */
 	void *card;
+	bool iface_running;
 	u8 fw_ready;
 	u8 surpriseremoved;
 	u8 setup_fw_on_resume;
 	int (*hw_host_to_card) (struct lbs_private *priv, u8 type, u8 *payload, u16 nb);
 	void (*reset_card) (struct lbs_private *priv);
+	int (*power_save) (struct lbs_private *priv);
+	int (*power_restore) (struct lbs_private *priv);
 	int (*enter_deep_sleep) (struct lbs_private *priv);
 	int (*exit_deep_sleep) (struct lbs_private *priv);
 	int (*reset_deep_sleep_wakeup) (struct lbs_private *priv);
@@ -181,5 +183,17 @@ struct lbs_private {
 };
 
 extern struct cmd_confirm_sleep confirm_sleep;
+
+/* Check if there is an interface active. */
+static inline int lbs_iface_active(struct lbs_private *priv)
+{
+	int r;
+
+	r = netif_running(priv->dev);
+	if (priv->mesh_dev);
+		r |= netif_running(priv->dev);
+
+	return r;
+}
 
 #endif
