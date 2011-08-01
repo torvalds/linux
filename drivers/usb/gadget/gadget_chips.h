@@ -140,6 +140,7 @@
 #define gadget_is_dwc_otg(g)    !strcmp("dwc_otg_pcd", (g)->name)
 #else
 #define gadget_is_dwc_otg(g)    0
+#endif
 
 #ifdef CONFIG_USB_S3C_HSOTG
 #define gadget_is_s3c_hsotg(g)    (!strcmp("s3c-hsotg", (g)->name))
