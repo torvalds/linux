@@ -13,6 +13,7 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/syscore_ops.h>
+#include <linux/export.h>
 
 #include <asm/io.h>
 
