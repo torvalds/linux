@@ -299,7 +299,6 @@ enum {
 	V4L2_IDENT_MT9P111		= 45033,     /* ddl@rock-chips.com : MT9P111 support */
 	V4L2_IDENT_MT9D113      = 45034,     /* ddl@rock-chips.com : MT9D113 support */
 
-	V4L2_IDENT_MT9T111      = 45035, 	/*xbl@rock-chips.com: mt9t111 support*/
 	/* HV7131R CMOS sensor: just ident 46000 */
 	V4L2_IDENT_HV7131R		= 46000,
 
