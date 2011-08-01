@@ -610,6 +610,10 @@ struct scsi_qla_host {
 #define SYSFS_FLAG_FW_SEL_BOOT 2
 	struct iscsi_boot_kset *boot_kset;
 	struct ql4_boot_tgt_info boot_tgt;
+	uint16_t phy_port_num;
+	uint16_t phy_port_cnt;
+	uint16_t iscsi_pci_func_cnt;
+	uint8_t model_name[16];
 };
 
 struct ql4_task_data {

@@ -446,6 +446,21 @@ static int qla4xxx_init_firmware(struct scsi_qla_host *ha)
 	return qla4xxx_get_firmware_status(ha);
 }
 
+static void qla4xxx_set_model_info(struct scsi_qla_host *ha)
+{
+	uint16_t board_id_string[8];
+	int i;
+	int size = sizeof(ha->nvram->isp4022.boardIdStr);
+	int offset = offsetof(struct eeprom_data, isp4022.boardIdStr) / 2;
+
+	for (i = 0; i < (size / 2) ; i++) {
+		board_id_string[i] = rd_nvram_word(ha, offset);
+		offset += 1;
+	}
+
+	memcpy(ha->model_name, board_id_string, size);
+}
+
 static int qla4xxx_config_nvram(struct scsi_qla_host *ha)
 {
 	unsigned long flags;
@@ -481,6 +496,12 @@ static int qla4xxx_config_nvram(struct scsi_qla_host *ha)
 		else
 			return QLA_ERROR;
 	}
+
+	if (is_qla4022(ha) || is_qla4032(ha))
+		qla4xxx_set_model_info(ha);
+	else
+		strcpy(ha->model_name, "QLA4010");
+
 	DEBUG(printk("scsi%ld: %s: Setting extHwConfig to 0xFFFF%04x\n",
 		     ha->host_no, __func__, extHwConfig.Asuint32_t));
 

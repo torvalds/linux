@@ -2266,6 +2266,11 @@ int qla4_8xxx_get_sys_info(struct scsi_qla_host *ha)
 	    min(sizeof(ha->my_mac), sizeof(sys_info->mac_addr)));
 	memcpy(ha->serial_number, &sys_info->serial_number,
 	    min(sizeof(ha->serial_number), sizeof(sys_info->serial_number)));
+	memcpy(ha->model_name, &sys_info->board_id_str,
+	       min(sizeof(ha->model_name), sizeof(sys_info->board_id_str)));
+	ha->phy_port_cnt = sys_info->phys_port_cnt;
+	ha->phy_port_num = sys_info->port_num;
+	ha->iscsi_pci_func_cnt = sys_info->iscsi_pci_func_cnt;
 
 	DEBUG2(printk("scsi%ld: %s: "
 	    "mac %02x:%02x:%02x:%02x:%02x:%02x "
