@@ -38,6 +38,7 @@
 #include <linux/workqueue.h>
 #include <linux/hrtimer.h>
 #include <linux/oom.h>
+#include <linux/version.h>
 
 #include <asm/ptrace.h>
 #include <asm/irq_regs.h>
@@ -744,7 +745,11 @@ void __rk_handle_sysrq(int key, struct tty_struct *tty, int check_mask)
 		if (!check_mask || rk_sysrq_on_mask(op_p->enable_mask)) {
 			printk("%s\n", op_p->action_msg);
 			console_loglevel = orig_log_level;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36))
+			op_p->handler(key);
+#else
 			op_p->handler(key, tty);
+#endif
 		} else {
 			printk("This sysrq operation is disabled.\n");
 		}
