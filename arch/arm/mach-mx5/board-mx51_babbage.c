@@ -31,7 +31,6 @@
 #include <asm/mach/time.h>
 
 #include "devices-imx51.h"
-#include "devices.h"
 #include "cpu_op-mx51.h"
 
 #define BABBAGE_USB_HUB_RESET	IMX_GPIO_NR(1, 7)
@@ -176,7 +175,7 @@ static const struct imxi2c_platform_data babbage_i2c_data __initconst = {
 	.bitrate = 100000,
 };
 
-static struct imxi2c_platform_data babbage_hsi2c_data = {
+static const struct imxi2c_platform_data babbage_hsi2c_data __initconst = {
 	.bitrate = 400000,
 };
 
@@ -381,7 +380,7 @@ static void __init mx51_babbage_init(void)
 
 	imx51_add_imx_i2c(0, &babbage_i2c_data);
 	imx51_add_imx_i2c(1, &babbage_i2c_data);
-	mxc_register_device(&mxc_hsi2c_device, &babbage_hsi2c_data);
+	imx51_add_hsi2c(&babbage_hsi2c_data);
 
 	if (otg_mode_host)
 		imx51_add_mxc_ehci_otg(&dr_utmi_config);

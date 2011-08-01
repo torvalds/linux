@@ -20,6 +20,8 @@ extern const struct imx_fsl_usb2_udc_data imx51_fsl_usb2_udc_data;
 extern const struct imx_imx_i2c_data imx51_imx_i2c_data[];
 #define imx51_add_imx_i2c(id, pdata)	\
 	imx_add_imx_i2c(&imx51_imx_i2c_data[id], pdata)
+#define imx51_add_hsi2c(pdata)	\
+	imx51_add_imx_i2c(2, pdata)
 
 extern const struct imx_imx_ssi_data imx51_imx_ssi_data[];
 #define imx51_add_imx_ssi(id, pdata)	\
