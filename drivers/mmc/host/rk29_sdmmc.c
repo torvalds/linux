@@ -33,6 +33,8 @@
 #include <linux/stat.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
+#include <linux/slab.h>
+#include <linux/version.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/card.h>
@@ -2755,6 +2757,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	}
 
     mmc->ops = &rk29_sdmmc_ops[pdev->id];
+	mmc->pm_flags |= MMC_PM_IGNORE_PM_NOTIFY;
 	mmc->f_min = FOD_FREQ;
 #if 0
     mmc->f_max = SDHC_FPP_FREQ;
@@ -3020,7 +3023,11 @@ static int rk29_sdmmc_suspend(struct platform_device *pdev, pm_message_t state)
     if(host && host->pdev && (RK29_CTRL_SDMMC_ID == host->pdev->id)) //only the SDMMC0 have suspend-resume; noted by xbw
     {
         if (mmc)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
+            ret = mmc_suspend_host(mmc);
+#else
             ret = mmc_suspend_host(mmc, state);
+#endif
 
         if(rk29_sdmmc_sdcard_suspend(host) < 0)
 			dev_info(&host->pdev->dev, "rk29_sdmmc_sdcard_suspend error\n");
@@ -3060,12 +3067,12 @@ static struct platform_driver rk29_sdmmc_driver = {
 	},
 };
 
-static int __init rk29_sdmmc_init(void)
+static int __devinit rk29_sdmmc_init(void)
 {
 	return platform_driver_probe(&rk29_sdmmc_driver, rk29_sdmmc_probe);
 }
 
-static void __exit rk29_sdmmc_exit(void)
+static void __devexit rk29_sdmmc_exit(void)
 {
 	platform_driver_unregister(&rk29_sdmmc_driver);
 }
