@@ -162,6 +162,10 @@ int qla4xxx_bootdb_by_index(struct scsi_qla_host *ha,
 			    dma_addr_t fw_ddb_entry_dma, uint16_t ddb_index);
 int qla4xxx_get_chap(struct scsi_qla_host *ha, char *username,
 		     char *password, uint16_t idx);
+int qla4xxx_get_nvram(struct scsi_qla_host *ha, dma_addr_t nvram_dma,
+		      uint32_t offset, uint32_t size);
+int qla4xxx_set_nvram(struct scsi_qla_host *ha, dma_addr_t nvram_dma,
+		      uint32_t offset, uint32_t size);
 
 /* BSG Functions */
 int qla4xxx_bsg_request(struct bsg_job *bsg_job);

@@ -196,6 +196,147 @@ leave:
 	return rval;
 }
 
+static int
+qla4xxx_read_nvram(struct bsg_job *bsg_job)
+{
+	struct Scsi_Host *host = iscsi_job_to_shost(bsg_job);
+	struct scsi_qla_host *ha = to_qla_host(host);
+	struct iscsi_bsg_request *bsg_req = bsg_job->request;
+	struct iscsi_bsg_reply *bsg_reply = bsg_job->reply;
+	uint32_t offset = 0;
+	uint32_t len = 0;
+	uint32_t total_len = 0;
+	dma_addr_t nvram_dma;
+	uint8_t *nvram = NULL;
+	int rval = -EINVAL;
+
+	bsg_reply->reply_payload_rcv_len = 0;
+
+	if (unlikely(pci_channel_offline(ha->pdev)))
+		goto leave;
+
+	/* Only 40xx adapters are supported */
+	if (!(is_qla4010(ha) || is_qla4022(ha) || is_qla4032(ha)))
+		goto leave;
+
+	if (ql4xxx_reset_active(ha)) {
+		ql4_printk(KERN_ERR, ha, "%s: reset active\n", __func__);
+		rval = -EBUSY;
+		goto leave;
+	}
+
+	offset = bsg_req->rqst_data.h_vendor.vendor_cmd[1];
+	len = bsg_job->reply_payload.payload_len;
+	total_len = offset + len;
+
+	/* total len should not be greater than max NVRAM size */
+	if ((is_qla4010(ha) && total_len > QL4010_NVRAM_SIZE) ||
+	    ((is_qla4022(ha) || is_qla4032(ha)) &&
+	     total_len > QL40X2_NVRAM_SIZE)) {
+		ql4_printk(KERN_ERR, ha, "%s: offset+len greater than max"
+			   " nvram size, offset=%d len=%d\n",
+			   __func__, offset, len);
+		goto leave;
+	}
+
+	nvram = dma_alloc_coherent(&ha->pdev->dev, len, &nvram_dma,
+				   GFP_KERNEL);
+	if (!nvram) {
+		ql4_printk(KERN_ERR, ha, "%s: dma alloc failed for nvram "
+			   "data\n", __func__);
+		rval = -ENOMEM;
+		goto leave;
+	}
+
+	rval = qla4xxx_get_nvram(ha, nvram_dma, offset, len);
+	if (rval) {
+		ql4_printk(KERN_ERR, ha, "%s: get nvram failed\n", __func__);
+		bsg_reply->result = DID_ERROR << 16;
+		rval = -EIO;
+	} else {
+		bsg_reply->reply_payload_rcv_len =
+			sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
+					    bsg_job->reply_payload.sg_cnt,
+					    nvram, len);
+		bsg_reply->result = DID_OK << 16;
+	}
+
+	bsg_job_done(bsg_job, bsg_reply->result,
+		     bsg_reply->reply_payload_rcv_len);
+	dma_free_coherent(&ha->pdev->dev, len, nvram, nvram_dma);
+leave:
+	return rval;
+}
+
+static int
+qla4xxx_update_nvram(struct bsg_job *bsg_job)
+{
+	struct Scsi_Host *host = iscsi_job_to_shost(bsg_job);
+	struct scsi_qla_host *ha = to_qla_host(host);
+	struct iscsi_bsg_request *bsg_req = bsg_job->request;
+	struct iscsi_bsg_reply *bsg_reply = bsg_job->reply;
+	uint32_t offset = 0;
+	uint32_t len = 0;
+	uint32_t total_len = 0;
+	dma_addr_t nvram_dma;
+	uint8_t *nvram = NULL;
+	int rval = -EINVAL;
+
+	bsg_reply->reply_payload_rcv_len = 0;
+
+	if (unlikely(pci_channel_offline(ha->pdev)))
+		goto leave;
+
+	if (!(is_qla4010(ha) || is_qla4022(ha) || is_qla4032(ha)))
+		goto leave;
+
+	if (ql4xxx_reset_active(ha)) {
+		ql4_printk(KERN_ERR, ha, "%s: reset active\n", __func__);
+		rval = -EBUSY;
+		goto leave;
+	}
+
+	offset = bsg_req->rqst_data.h_vendor.vendor_cmd[1];
+	len = bsg_job->request_payload.payload_len;
+	total_len = offset + len;
+
+	/* total len should not be greater than max NVRAM size */
+	if ((is_qla4010(ha) && total_len > QL4010_NVRAM_SIZE) ||
+	    ((is_qla4022(ha) || is_qla4032(ha)) &&
+	     total_len > QL40X2_NVRAM_SIZE)) {
+		ql4_printk(KERN_ERR, ha, "%s: offset+len greater than max"
+			   " nvram size, offset=%d len=%d\n",
+			   __func__, offset, len);
+		goto leave;
+	}
+
+	nvram = dma_alloc_coherent(&ha->pdev->dev, len, &nvram_dma,
+				   GFP_KERNEL);
+	if (!nvram) {
+		ql4_printk(KERN_ERR, ha, "%s: dma alloc failed for flash "
+			   "data\n", __func__);
+		rval = -ENOMEM;
+		goto leave;
+	}
+
+	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
+			  bsg_job->request_payload.sg_cnt, nvram, len);
+
+	rval = qla4xxx_set_nvram(ha, nvram_dma, offset, len);
+	if (rval) {
+		ql4_printk(KERN_ERR, ha, "%s: set nvram failed\n", __func__);
+		bsg_reply->result = DID_ERROR << 16;
+		rval = -EIO;
+	} else
+		bsg_reply->result = DID_OK << 16;
+
+	bsg_job_done(bsg_job, bsg_reply->result,
+		     bsg_reply->reply_payload_rcv_len);
+	dma_free_coherent(&ha->pdev->dev, len, nvram, nvram_dma);
+leave:
+	return rval;
+}
+
 /**
  * qla4xxx_process_vendor_specific - handle vendor specific bsg request
  * @job: iscsi_bsg_job to handle
@@ -216,6 +357,12 @@ int qla4xxx_process_vendor_specific(struct bsg_job *bsg_job)
 
 	case QLISCSI_VND_GET_ACB_STATE:
 		return qla4xxx_get_acb_state(bsg_job);
+
+	case QLISCSI_VND_READ_NVRAM:
+		return qla4xxx_read_nvram(bsg_job);
+
+	case QLISCSI_VND_UPDATE_NVRAM:
+		return qla4xxx_update_nvram(bsg_job);
 
 	default:
 		ql4_printk(KERN_ERR, ha, "%s: invalid BSG vendor command: "

@@ -201,6 +201,9 @@ static inline uint32_t clr_rmask(uint32_t val)
 /* ISP 4022 nvram definitions */
 #define NVR_WRITE_ENABLE			0x00000010	/* 4022 */
 
+#define QL4010_NVRAM_SIZE			0x200
+#define QL40X2_NVRAM_SIZE			0x800
+
 /*  ISP port_status definitions */
 
 /*  ISP Semaphore definitions */
@@ -359,6 +362,8 @@ struct qla_flt_region {
 #define MBOX_CMD_GET_FW_STATE			0x0069
 #define MBOX_CMD_GET_INIT_FW_CTRL_BLOCK_DEFAULTS 0x006A
 #define MBOX_CMD_GET_SYS_INFO			0x0078
+#define MBOX_CMD_GET_NVRAM			0x0078	/* For 40xx */
+#define MBOX_CMD_SET_NVRAM			0x0079	/* For 40xx */
 #define MBOX_CMD_RESTORE_FACTORY_DEFAULTS	0x0087
 #define MBOX_CMD_SET_ACB			0x0088
 #define MBOX_CMD_GET_ACB			0x0089
