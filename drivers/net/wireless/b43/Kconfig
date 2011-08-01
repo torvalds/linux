@@ -28,7 +28,7 @@ config B43
 
 config B43_BCMA
 	bool "Support for BCMA bus"
-	depends on B43 && BCMA && BROKEN
+	depends on B43 && BCMA
 	default y
 
 config B43_SSB

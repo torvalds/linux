@@ -1,0 +1,76 @@
+# drivers/media/video/s5p-tv/Kconfig
+#
+# Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
+#	http://www.samsung.com/
+# Tomasz Stanislawski <t.stanislaws@samsung.com>
+#
+# Licensed under GPL
+
+config VIDEO_SAMSUNG_S5P_TV
+	bool "Samsung TV driver for S5P platform (experimental)"
+	depends on PLAT_S5P
+	depends on EXPERIMENTAL
+	default n
+	---help---
+	  Say Y here to enable selecting the TV output devices for
+	  Samsung S5P platform.
+
+if VIDEO_SAMSUNG_S5P_TV
+
+config VIDEO_SAMSUNG_S5P_HDMI
+	tristate "Samsung HDMI Driver"
+	depends on VIDEO_V4L2
+	depends on VIDEO_SAMSUNG_S5P_TV
+	select VIDEO_SAMSUNG_S5P_HDMIPHY
+	help
+	  Say Y here if you want support for the HDMI output
+	  interface in S5P Samsung SoC. The driver can be compiled
+	  as module. It is an auxiliary driver, that exposes a V4L2
+	  subdev for use by other drivers. This driver requires
+	  hdmiphy driver to work correctly.
+
+config VIDEO_SAMSUNG_S5P_HDMI_DEBUG
+	bool "Enable debug for HDMI Driver"
+	depends on VIDEO_SAMSUNG_S5P_HDMI
+	default n
+	help
+	  Enables debugging for HDMI driver.
+
+config VIDEO_SAMSUNG_S5P_HDMIPHY
+	tristate "Samsung HDMIPHY Driver"
+	depends on VIDEO_DEV && VIDEO_V4L2 && I2C
+	depends on VIDEO_SAMSUNG_S5P_TV
+	help
+	  Say Y here if you want support for the physical HDMI
+	  interface in S5P Samsung SoC. The driver can be compiled
+	  as module. It is an I2C driver, that exposes a V4L2
+	  subdev for use by other drivers.
+
+config VIDEO_SAMSUNG_S5P_SDO
+	tristate "Samsung Analog TV Driver"
+	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on VIDEO_SAMSUNG_S5P_TV
+	help
+	  Say Y here if you want support for the analog TV output
+	  interface in S5P Samsung SoC. The driver can be compiled
+	  as module. It is an auxiliary driver, that exposes a V4L2
+	  subdev for use by other drivers. This driver requires
+	  hdmiphy driver to work correctly.
+
+config VIDEO_SAMSUNG_S5P_MIXER
+	tristate "Samsung Mixer and Video Processor Driver"
+	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on VIDEO_SAMSUNG_S5P_TV
+	select VIDEOBUF2_DMA_CONTIG
+	help
+	  Say Y here if you want support for the Mixer in Samsung S5P SoCs.
+	  This device produce image data to one of output interfaces.
+
+config VIDEO_SAMSUNG_S5P_MIXER_DEBUG
+	bool "Enable debug for Mixer Driver"
+	depends on VIDEO_SAMSUNG_S5P_MIXER
+	default n
+	help
+	  Enables debugging for Mixer driver.
+
+endif # VIDEO_SAMSUNG_S5P_TV

@@ -1,7 +1,7 @@
 /*
  * OMAP4 Power domains framework
  *
- * Copyright (C) 2009-2010 Texas Instruments, Inc.
+ * Copyright (C) 2009-2011 Texas Instruments, Inc.
  * Copyright (C) 2009-2011 Nokia Corporation
  *
  * Abhijit Pagare (abhijitpagare@ti.com)
@@ -41,14 +41,14 @@ static struct powerdomain core_44xx_pwrdm = {
 	.banks		  = 5,
 	.pwrsts_mem_ret	= {
 		[0] = PWRSTS_OFF,	/* core_nret_bank */
-		[1] = PWRSTS_OFF_RET,	/* core_ocmram */
+		[1] = PWRSTS_RET,	/* core_ocmram */
 		[2] = PWRSTS_RET,	/* core_other_bank */
 		[3] = PWRSTS_OFF_RET,	/* ducati_l2ram */
 		[4] = PWRSTS_OFF_RET,	/* ducati_unicache */
 	},
 	.pwrsts_mem_on	= {
 		[0] = PWRSTS_ON,	/* core_nret_bank */
-		[1] = PWRSTS_OFF_RET,	/* core_ocmram */
+		[1] = PWRSTS_ON,	/* core_ocmram */
 		[2] = PWRSTS_ON,	/* core_other_bank */
 		[3] = PWRSTS_ON,	/* ducati_l2ram */
 		[4] = PWRSTS_ON,	/* ducati_unicache */
@@ -205,7 +205,7 @@ static struct powerdomain mpu_44xx_pwrdm = {
 	.prcm_offs	  = OMAP4430_PRM_MPU_INST,
 	.prcm_partition	  = OMAP4430_PRM_PARTITION,
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
-	.pwrsts		  = PWRSTS_OFF_RET_ON,
+	.pwrsts		  = PWRSTS_RET_ON,
 	.pwrsts_logic_ret = PWRSTS_OFF_RET,
 	.banks		  = 3,
 	.pwrsts_mem_ret	= {
@@ -318,6 +318,7 @@ static struct powerdomain cefuse_44xx_pwrdm = {
 	.prcm_partition	  = OMAP4430_PRM_PARTITION,
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
 	.pwrsts		  = PWRSTS_OFF_ON,
+	.flags		  = PWRDM_HAS_LOWPOWERSTATECHANGE,
 };
 
 /*

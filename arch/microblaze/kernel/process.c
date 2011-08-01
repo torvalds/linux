@@ -237,7 +237,6 @@ unsigned long get_wchan(struct task_struct *p)
 /* Set up a thread for executing a new program */
 void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long usp)
 {
-	set_fs(USER_DS);
 	regs->pc = pc;
 	regs->r1 = usp;
 	regs->pt_mode = 0;

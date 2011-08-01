@@ -44,7 +44,7 @@
  * SMP torture testing
  */
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/byteorder.h>
 
 #include <linux/compiler.h>

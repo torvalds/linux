@@ -17,15 +17,11 @@
 #ifndef _wl_cfg80211_h_
 #define _wl_cfg80211_h_
 
-#include <linux/wireless.h>
-#include <net/cfg80211.h>
-#include <wlioctl.h>
-
-struct wl_conf;
-struct wl_iface;
-struct wl_priv;
-struct wl_security;
-struct wl_ibss;
+struct brcmf_cfg80211_conf;
+struct brcmf_cfg80211_iface;
+struct brcmf_cfg80211_priv;
+struct brcmf_cfg80211_security;
+struct brcmf_cfg80211_ibss;
 
 #define WL_DBG_NONE		0
 #define WL_DBG_CONN		(1 << 5)

@@ -180,6 +180,7 @@ config MACH_MX53_EVK
 	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
 	select IMX_HAVE_PLATFORM_SPI_IMX
+	select LEDS_GPIO_REGISTER
 	help
 	  Include support for MX53 EVK platform. This includes specific
 	  configurations for the board and its peripherals.
@@ -203,8 +204,21 @@ config MACH_MX53_LOCO
 	select IMX_HAVE_PLATFORM_IMX_UART
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
 	select IMX_HAVE_PLATFORM_GPIO_KEYS
+	select LEDS_GPIO_REGISTER
 	help
 	  Include support for MX53 LOCO platform. This includes specific
+	  configurations for the board and its peripherals.
+
+config MACH_MX53_ARD
+	bool "Support MX53 ARD platforms"
+	select SOC_IMX53
+	select IMX_HAVE_PLATFORM_IMX2_WDT
+	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
+	select IMX_HAVE_PLATFORM_GPIO_KEYS
+	help
+	  Include support for MX53 ARD platform. This includes specific
 	  configurations for the board and its peripherals.
 
 endif # ARCH_MX53_SUPPORTED

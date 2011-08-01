@@ -893,7 +893,7 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 	unchar *i_fastsymlink;
 	s64 xlen = 0;
 	int bmask = 0, xsize;
-	s64 extent = 0, xaddr;
+	s64 xaddr;
 	struct metapage *mp;
 	struct super_block *sb;
 	struct tblock *tblk;
@@ -993,7 +993,6 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 			txAbort(tid, 0);
 			goto out3;
 		}
-		extent = xaddr;
 		ip->i_size = ssize - 1;
 		while (ssize) {
 			/* This is kind of silly since PATH_MAX == 4K */

@@ -22,7 +22,7 @@
 #include <asm/stacktrace.h>
 #include <asm/cpudata.h>
 #include <asm/uaccess.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/nmi.h>
 #include <asm/pcr.h>
 
@@ -1343,7 +1343,8 @@ static bool __init supported_pmu(void)
 		sparc_pmu = &niagara1_pmu;
 		return true;
 	}
-	if (!strcmp(sparc_pmu_type, "niagara2")) {
+	if (!strcmp(sparc_pmu_type, "niagara2") ||
+	    !strcmp(sparc_pmu_type, "niagara3")) {
 		sparc_pmu = &niagara2_pmu;
 		return true;
 	}

@@ -42,11 +42,36 @@ bfa_hwcb_reqq_ack_msix(struct bfa_s *bfa, int reqq)
 			bfa->iocfc.bfa_regs.intr_status);
 }
 
+/*
+ * Actions to respond RME Interrupt for Crossbow ASIC:
+ * - Write 1 to Interrupt Status register
+ *              INTX - done in bfa_intx()
+ *              MSIX - done in bfa_hwcb_rspq_ack_msix()
+ * - Update CI (only if new CI)
+ */
 static void
-bfa_hwcb_rspq_ack_msix(struct bfa_s *bfa, int rspq)
+bfa_hwcb_rspq_ack_msix(struct bfa_s *bfa, int rspq, u32 ci)
 {
 	writel(__HFN_INT_RME_Q0 << RME_Q_NUM(bfa_ioc_pcifn(&bfa->ioc), rspq),
-			bfa->iocfc.bfa_regs.intr_status);
+		bfa->iocfc.bfa_regs.intr_status);
+
+	if (bfa_rspq_ci(bfa, rspq) == ci)
+		return;
+
+	bfa_rspq_ci(bfa, rspq) = ci;
+	writel(ci, bfa->iocfc.bfa_regs.rme_q_ci[rspq]);
+	mmiowb();
+}
+
+void
+bfa_hwcb_rspq_ack(struct bfa_s *bfa, int rspq, u32 ci)
+{
+	if (bfa_rspq_ci(bfa, rspq) == ci)
+		return;
+
+	bfa_rspq_ci(bfa, rspq) = ci;
+	writel(ci, bfa->iocfc.bfa_regs.rme_q_ci[rspq]);
+	mmiowb();
 }
 
 void
@@ -149,8 +174,13 @@ bfa_hwcb_msix_uninstall(struct bfa_s *bfa)
 void
 bfa_hwcb_isr_mode_set(struct bfa_s *bfa, bfa_boolean_t msix)
 {
-	bfa->iocfc.hwif.hw_reqq_ack = bfa_hwcb_reqq_ack_msix;
-	bfa->iocfc.hwif.hw_rspq_ack = bfa_hwcb_rspq_ack_msix;
+	if (msix) {
+		bfa->iocfc.hwif.hw_reqq_ack = bfa_hwcb_reqq_ack_msix;
+		bfa->iocfc.hwif.hw_rspq_ack = bfa_hwcb_rspq_ack_msix;
+	} else {
+		bfa->iocfc.hwif.hw_reqq_ack = NULL;
+		bfa->iocfc.hwif.hw_rspq_ack = bfa_hwcb_rspq_ack;
+	}
 }
 
 void

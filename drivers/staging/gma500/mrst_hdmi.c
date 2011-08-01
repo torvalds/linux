@@ -129,7 +129,7 @@ static void wait_for_vblank(struct drm_device *dev)
 {
 	/* FIXME: Can we do this as a sleep ? */
 	/* Wait for 20ms, i.e. one cycle at 50hz. */
-	udelay(20000);
+	mdelay(20);
 }
 
 static void scu_busy_loop(void *scu_base)

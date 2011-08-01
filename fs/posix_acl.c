@@ -14,7 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/posix_acl.h>

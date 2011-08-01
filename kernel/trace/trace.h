@@ -2,7 +2,7 @@
 #define _LINUX_KERNEL_TRACE_H
 
 #include <linux/fs.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/sched.h>
 #include <linux/clocksource.h>
 #include <linux/ring_buffer.h>

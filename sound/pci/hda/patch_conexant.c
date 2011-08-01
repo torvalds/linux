@@ -446,6 +446,19 @@ static int conexant_init_jacks(struct hda_codec *codec)
 	return 0;
 }
 
+static void conexant_set_power(struct hda_codec *codec, hda_nid_t fg,
+			       unsigned int power_state)
+{
+	if (power_state == AC_PWRST_D3)
+		msleep(100);
+	snd_hda_codec_read(codec, fg, 0, AC_VERB_SET_POWER_STATE,
+			    power_state);
+	/* partial workaround for "azx_get_response timeout" */
+	if (power_state == AC_PWRST_D0)
+		msleep(10);
+	snd_hda_codec_set_power_to_all(codec, fg, power_state, true);
+}
+
 static int conexant_init(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
@@ -588,6 +601,7 @@ static const struct hda_codec_ops conexant_patch_ops = {
 	.build_pcms = conexant_build_pcms,
 	.init = conexant_init,
 	.free = conexant_free,
+	.set_power_state = conexant_set_power,
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	.suspend = conexant_suspend,
 #endif

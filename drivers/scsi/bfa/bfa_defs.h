@@ -144,6 +144,7 @@ enum bfa_status {
 	BFA_STATUS_INVLD_DFSZ	= 24,	/*  Invalid Max data field size */
 	BFA_STATUS_CMD_NOTSUPP  = 26,   /*  Command/API not supported */
 	BFA_STATUS_FABRIC_RJT	= 29,	/*  Reject from attached fabric */
+	BFA_STATUS_UNKNOWN_VWWN = 30,	/*  VPORT PWWN not found */
 	BFA_STATUS_PORT_OFFLINE = 34,	/*  Port is not online */
 	BFA_STATUS_VPORT_WWN_BP	= 46,	/*  WWN is same as base port's WWN */
 	BFA_STATUS_PORT_NOT_DISABLED = 47, /* Port not disabled disable port */
@@ -164,6 +165,8 @@ enum bfa_status {
 	BFA_STATUS_INVALID_MAC  = 134, /*  Invalid MAC address */
 	BFA_STATUS_PBC		= 154, /*  Operation not allowed for pre-boot
 					*  configuration */
+	BFA_STATUS_BAD_FWCFG = 156,	/* Bad firmware configuration */
+	BFA_STATUS_INVALID_VENDOR = 158, /* Invalid switch vendor */
 	BFA_STATUS_SFP_NOT_READY = 159,	/* SFP info is not ready. Retry */
 	BFA_STATUS_TRUNK_ENABLED = 164, /* Trunk is already enabled on
 					 * this adapter */
@@ -172,11 +175,15 @@ enum bfa_status {
 	BFA_STATUS_IOPROFILE_OFF = 175, /* IO profile OFF */
 	BFA_STATUS_PHY_NOT_PRESENT = 183, /* PHY module not present */
 	BFA_STATUS_FEATURE_NOT_SUPPORTED = 192,	/* Feature not supported */
+	BFA_STATUS_ENTRY_EXISTS = 193,	/* Entry already exists */
+	BFA_STATUS_ENTRY_NOT_EXISTS = 194, /* Entry does not exist */
+	BFA_STATUS_NO_CHANGE = 195,	/* Feature already in that state */
 	BFA_STATUS_FAA_ENABLED = 197,	/* FAA is already enabled */
 	BFA_STATUS_FAA_DISABLED = 198,	/* FAA is already disabled */
 	BFA_STATUS_FAA_ACQUIRED = 199,	/* FAA is already acquired */
 	BFA_STATUS_FAA_ACQ_ADDR = 200,	/* Acquiring addr */
 	BFA_STATUS_ERROR_TRUNK_ENABLED = 203,	/* Trunk enabled on adapter */
+	BFA_STATUS_MAX_ENTRY_REACHED = 212,	/* MAX entry reached */
 	BFA_STATUS_MAX_VAL		/* Unknown error code */
 };
 #define bfa_status_t enum bfa_status
@@ -359,6 +366,139 @@ struct bfa_ioc_attr_s {
 };
 
 /*
+ *			AEN related definitions
+ */
+enum bfa_aen_category {
+	BFA_AEN_CAT_ADAPTER	= 1,
+	BFA_AEN_CAT_PORT	= 2,
+	BFA_AEN_CAT_LPORT	= 3,
+	BFA_AEN_CAT_RPORT	= 4,
+	BFA_AEN_CAT_ITNIM	= 5,
+	BFA_AEN_CAT_AUDIT	= 8,
+	BFA_AEN_CAT_IOC		= 9,
+};
+
+/* BFA adapter level events */
+enum bfa_adapter_aen_event {
+	BFA_ADAPTER_AEN_ADD	= 1,	/* New Adapter found event */
+	BFA_ADAPTER_AEN_REMOVE	= 2,	/* Adapter removed event */
+};
+
+struct bfa_adapter_aen_data_s {
+	char	serial_num[BFA_ADAPTER_SERIAL_NUM_LEN];
+	u32	nports; /* Number of NPorts */
+	wwn_t	pwwn;   /* WWN of one of its physical port */
+};
+
+/* BFA physical port Level events */
+enum bfa_port_aen_event {
+	BFA_PORT_AEN_ONLINE	= 1,    /* Physical Port online event */
+	BFA_PORT_AEN_OFFLINE	= 2,    /* Physical Port offline event */
+	BFA_PORT_AEN_RLIR	= 3,    /* RLIR event, not supported */
+	BFA_PORT_AEN_SFP_INSERT	= 4,    /* SFP inserted event */
+	BFA_PORT_AEN_SFP_REMOVE	= 5,    /* SFP removed event */
+	BFA_PORT_AEN_SFP_POM	= 6,    /* SFP POM event */
+	BFA_PORT_AEN_ENABLE	= 7,    /* Physical Port enable event */
+	BFA_PORT_AEN_DISABLE	= 8,    /* Physical Port disable event */
+	BFA_PORT_AEN_AUTH_ON	= 9,    /* Physical Port auth success event */
+	BFA_PORT_AEN_AUTH_OFF	= 10,   /* Physical Port auth fail event */
+	BFA_PORT_AEN_DISCONNECT	= 11,   /* Physical Port disconnect event */
+	BFA_PORT_AEN_QOS_NEG	= 12,   /* Base Port QOS negotiation event */
+	BFA_PORT_AEN_FABRIC_NAME_CHANGE	= 13, /* Fabric Name/WWN change */
+	BFA_PORT_AEN_SFP_ACCESS_ERROR	= 14, /* SFP read error event */
+	BFA_PORT_AEN_SFP_UNSUPPORT	= 15, /* Unsupported SFP event */
+};
+
+enum bfa_port_aen_sfp_pom {
+	BFA_PORT_AEN_SFP_POM_GREEN = 1, /* Normal */
+	BFA_PORT_AEN_SFP_POM_AMBER = 2, /* Warning */
+	BFA_PORT_AEN_SFP_POM_RED   = 3, /* Critical */
+	BFA_PORT_AEN_SFP_POM_MAX   = BFA_PORT_AEN_SFP_POM_RED
+};
+
+struct bfa_port_aen_data_s {
+	wwn_t		pwwn;		/* WWN of the physical port */
+	wwn_t		fwwn;		/* WWN of the fabric port */
+	u32		phy_port_num;	/* For SFP related events */
+	u16		ioc_type;
+	u16		level;		/* Only transitions will be informed */
+	mac_t		mac;		/* MAC address of the ethernet port */
+	u16		rsvd;
+};
+
+/* BFA AEN logical port events */
+enum bfa_lport_aen_event {
+	BFA_LPORT_AEN_NEW	= 1,		/* LPort created event */
+	BFA_LPORT_AEN_DELETE	= 2,		/* LPort deleted event */
+	BFA_LPORT_AEN_ONLINE	= 3,		/* LPort online event */
+	BFA_LPORT_AEN_OFFLINE	= 4,		/* LPort offline event */
+	BFA_LPORT_AEN_DISCONNECT = 5,		/* LPort disconnect event */
+	BFA_LPORT_AEN_NEW_PROP	= 6,		/* VPort created event */
+	BFA_LPORT_AEN_DELETE_PROP = 7,		/* VPort deleted event */
+	BFA_LPORT_AEN_NEW_STANDARD = 8,		/* VPort created event */
+	BFA_LPORT_AEN_DELETE_STANDARD = 9,	/* VPort deleted event */
+	BFA_LPORT_AEN_NPIV_DUP_WWN = 10,	/* VPort with duplicate WWN */
+	BFA_LPORT_AEN_NPIV_FABRIC_MAX = 11,	/* Max NPIV in fabric/fport */
+	BFA_LPORT_AEN_NPIV_UNKNOWN = 12,	/* Unknown NPIV Error code */
+};
+
+struct bfa_lport_aen_data_s {
+	u16	vf_id;	/* vf_id of this logical port */
+	u16	roles;	/* Logical port mode,IM/TM/IP etc */
+	u32	rsvd;
+	wwn_t	ppwwn;	/* WWN of its physical port */
+	wwn_t	lpwwn;	/* WWN of this logical port */
+};
+
+/* BFA ITNIM events */
+enum bfa_itnim_aen_event {
+	BFA_ITNIM_AEN_ONLINE	 = 1,	/* Target online */
+	BFA_ITNIM_AEN_OFFLINE	 = 2,	/* Target offline */
+	BFA_ITNIM_AEN_DISCONNECT = 3,	/* Target disconnected */
+};
+
+struct bfa_itnim_aen_data_s {
+	u16		vf_id;		/* vf_id of the IT nexus */
+	u16		rsvd[3];
+	wwn_t		ppwwn;		/* WWN of its physical port */
+	wwn_t		lpwwn;		/* WWN of logical port */
+	wwn_t		rpwwn;		/* WWN of remote(target) port */
+};
+
+/* BFA audit events */
+enum bfa_audit_aen_event {
+	BFA_AUDIT_AEN_AUTH_ENABLE	= 1,
+	BFA_AUDIT_AEN_AUTH_DISABLE	= 2,
+	BFA_AUDIT_AEN_FLASH_ERASE	= 3,
+	BFA_AUDIT_AEN_FLASH_UPDATE	= 4,
+};
+
+struct bfa_audit_aen_data_s {
+	wwn_t	pwwn;
+	int	partition_inst;
+	int	partition_type;
+};
+
+/* BFA IOC level events */
+enum bfa_ioc_aen_event {
+	BFA_IOC_AEN_HBGOOD  = 1,	/* Heart Beat restore event	*/
+	BFA_IOC_AEN_HBFAIL  = 2,	/* Heart Beat failure event	*/
+	BFA_IOC_AEN_ENABLE  = 3,	/* IOC enabled event		*/
+	BFA_IOC_AEN_DISABLE = 4,	/* IOC disabled event		*/
+	BFA_IOC_AEN_FWMISMATCH  = 5,	/* IOC firmware mismatch	*/
+	BFA_IOC_AEN_FWCFG_ERROR = 6,	/* IOC firmware config error	*/
+	BFA_IOC_AEN_INVALID_VENDOR = 7,
+	BFA_IOC_AEN_INVALID_NWWN = 8,	/* Zero NWWN			*/
+	BFA_IOC_AEN_INVALID_PWWN = 9	/* Zero PWWN			*/
+};
+
+struct bfa_ioc_aen_data_s {
+	wwn_t	pwwn;
+	u16	ioc_type;
+	mac_t	mac;
+};
+
+/*
  * ---------------------- mfg definitions ------------
  */
 
@@ -520,6 +660,20 @@ struct bfa_boot_bootlun_s {
 /*
  * BOOT boot configuraton
  */
+struct bfa_boot_cfg_s {
+	u8		version;
+	u8		rsvd1;
+	u16		chksum;
+	u8		enable;		/* enable/disable SAN boot */
+	u8		speed;          /* boot speed settings */
+	u8		topology;       /* boot topology setting */
+	u8		bootopt;        /* bfa_boot_bootopt_t */
+	u32		nbluns;         /* number of boot luns */
+	u32		rsvd2;
+	struct bfa_boot_bootlun_s blun[BFA_BOOT_BOOTLUN_MAX];
+	struct bfa_boot_bootlun_s blun_disc[BFA_BOOT_BOOTLUN_MAX];
+};
+
 struct bfa_boot_pbc_s {
 	u8              enable;         /*  enable/disable SAN boot */
 	u8              speed;          /*  boot speed settings */
@@ -527,6 +681,15 @@ struct bfa_boot_pbc_s {
 	u8              rsvd1;
 	u32     nbluns;         /*  number of boot luns */
 	struct bfa_boot_bootlun_s pblun[BFA_PREBOOT_BOOTLUN_MAX];
+};
+
+struct bfa_ethboot_cfg_s {
+	u8		version;
+	u8		rsvd1;
+	u16		chksum;
+	u8		enable;	/* enable/disable Eth/PXE boot */
+	u8		rsvd2;
+	u16		vlan;
 };
 
 /*
@@ -586,6 +749,14 @@ struct bfa_ablk_cfg_s {
  *	SFP module specific
  */
 #define SFP_DIAGMON_SIZE	10 /* num bytes of diag monitor data */
+
+/* SFP state change notification event */
+#define BFA_SFP_SCN_REMOVED	0
+#define BFA_SFP_SCN_INSERTED	1
+#define BFA_SFP_SCN_POM		2
+#define BFA_SFP_SCN_FAILED	3
+#define BFA_SFP_SCN_UNSUPPORT	4
+#define BFA_SFP_SCN_VALID	5
 
 enum bfa_defs_sfp_media_e {
 	BFA_SFP_MEDIA_UNKNOWN	= 0x00,

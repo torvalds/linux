@@ -111,6 +111,7 @@ struct clk {
 #define CLK_PLL			BIT(4) /* PLL-derived clock */
 #define PRE_PLL			BIT(5) /* source is before PLL mult/div */
 #define PSC_SWRSTDISABLE	BIT(6) /* Disable state is SwRstDisable */
+#define PSC_FORCE		BIT(7) /* Force module state transtition */
 
 #define CLK(dev, con, ck) 	\
 	{			\

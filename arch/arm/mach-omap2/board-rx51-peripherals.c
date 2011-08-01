@@ -39,6 +39,7 @@
 #include <sound/tpa6130a2-plat.h>
 #include <media/radio-si4713.h>
 #include <media/si4713.h>
+#include <linux/leds-lp5523.h>
 
 #include <../drivers/staging/iio/light/tsl2563.h>
 
@@ -53,6 +54,7 @@
 #define RX51_WL1251_IRQ_GPIO		42
 #define RX51_FMTX_RESET_GPIO		163
 #define RX51_FMTX_IRQ			53
+#define RX51_LP5523_CHIP_EN_GPIO	41
 
 #define RX51_USB_TRANSCEIVER_RST_GPIO	67
 
@@ -68,6 +70,64 @@ static struct wl12xx_platform_data wl1251_pdata;
 #if defined(CONFIG_SENSORS_TSL2563) || defined(CONFIG_SENSORS_TSL2563_MODULE)
 static struct tsl2563_platform_data rx51_tsl2563_platform_data = {
 	.cover_comp_gain = 16,
+};
+#endif
+
+#if defined(CONFIG_LEDS_LP5523) || defined(CONFIG_LEDS_LP5523_MODULE)
+static struct lp5523_led_config rx51_lp5523_led_config[] = {
+	{
+		.chan_nr	= 0,
+		.led_current	= 50,
+	}, {
+		.chan_nr	= 1,
+		.led_current	= 50,
+	}, {
+		.chan_nr	= 2,
+		.led_current	= 50,
+	}, {
+		.chan_nr	= 3,
+		.led_current	= 50,
+	}, {
+		.chan_nr	= 4,
+		.led_current	= 50,
+	}, {
+		.chan_nr	= 5,
+		.led_current	= 50,
+	}, {
+		.chan_nr	= 6,
+		.led_current	= 50,
+	}, {
+		.chan_nr	= 7,
+		.led_current	= 50,
+	}, {
+		.chan_nr	= 8,
+		.led_current	= 50,
+	}
+};
+
+static int rx51_lp5523_setup(void)
+{
+	return gpio_request_one(RX51_LP5523_CHIP_EN_GPIO, GPIOF_DIR_OUT,
+			"lp5523_enable");
+}
+
+static void rx51_lp5523_release(void)
+{
+	gpio_free(RX51_LP5523_CHIP_EN_GPIO);
+}
+
+static void rx51_lp5523_enable(bool state)
+{
+	gpio_set_value(RX51_LP5523_CHIP_EN_GPIO, !!state);
+}
+
+static struct lp5523_platform_data rx51_lp5523_platform_data = {
+	.led_config		= rx51_lp5523_led_config,
+	.num_channels		= ARRAY_SIZE(rx51_lp5523_led_config),
+	.clock_mode		= LP5523_CLOCK_AUTO,
+	.setup_resources	= rx51_lp5523_setup,
+	.release_resources	= rx51_lp5523_release,
+	.enable			= rx51_lp5523_enable,
 };
 #endif
 
@@ -358,6 +418,10 @@ static struct regulator_consumer_supply rx51_vmmc1_supply[] = {
 	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
 
+static struct regulator_consumer_supply rx51_vaux2_supply[] = {
+	REGULATOR_SUPPLY("vdds_csib", "omap3isp"),
+};
+
 static struct regulator_consumer_supply rx51_vaux3_supply[] = {
 	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
 };
@@ -419,6 +483,8 @@ static struct regulator_init_data rx51_vaux2 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
+	.num_consumer_supplies	= ARRAY_SIZE(rx51_vaux2_supply),
+	.consumer_supplies	= rx51_vaux2_supply,
 };
 
 /* VAUX3 - adds more power to VIO_18 rail */
@@ -495,6 +561,32 @@ static struct regulator_init_data rx51_vmmc2 = {
 	.consumer_supplies	= rx51_vmmc2_supplies,
 };
 
+static struct regulator_init_data rx51_vpll1 = {
+	.constraints = {
+		.name			= "VPLL",
+		.min_uV			= 1800000,
+		.max_uV			= 1800000,
+		.apply_uV		= true,
+		.always_on		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE,
+	},
+};
+
+static struct regulator_init_data rx51_vpll2 = {
+	.constraints = {
+		.name			= "VSDI_CSI",
+		.min_uV			= 1800000,
+		.max_uV			= 1800000,
+		.apply_uV		= true,
+		.always_on		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE,
+	},
+};
+
 static struct regulator_init_data rx51_vsim = {
 	.constraints = {
 		.name			= "VMMC2_IO_18",
@@ -522,6 +614,43 @@ static struct regulator_init_data rx51_vio = {
 	},
 	.num_consumer_supplies	= ARRAY_SIZE(rx51_vio_supplies),
 	.consumer_supplies	= rx51_vio_supplies,
+};
+
+static struct regulator_init_data rx51_vintana1 = {
+	.constraints = {
+		.name			= "VINTANA1",
+		.min_uV			= 1500000,
+		.max_uV			= 1500000,
+		.always_on		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE,
+	},
+};
+
+static struct regulator_init_data rx51_vintana2 = {
+	.constraints = {
+		.name			= "VINTANA2",
+		.min_uV			= 2750000,
+		.max_uV			= 2750000,
+		.apply_uV		= true,
+		.always_on		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE,
+	},
+};
+
+static struct regulator_init_data rx51_vintdig = {
+	.constraints = {
+		.name			= "VINTDIG",
+		.min_uV			= 1500000,
+		.max_uV			= 1500000,
+		.always_on		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE,
+	},
 };
 
 static struct si4713_platform_data rx51_si4713_i2c_data __initdata_or_module = {
@@ -741,11 +870,11 @@ static struct twl4030_power_data rx51_t2scripts_data __initdata = {
 	.resource_config = twl4030_rconfig,
 };
 
-struct twl4030_codec_vibra_data rx51_vibra_data __initdata = {
+struct twl4030_vibra_data rx51_vibra_data __initdata = {
 	.coexist	= 0,
 };
 
-struct twl4030_codec_data rx51_codec_data __initdata = {
+struct twl4030_audio_data rx51_audio_data __initdata = {
 	.audio_mclk	= 26000000,
 	.vibra		= &rx51_vibra_data,
 };
@@ -755,13 +884,18 @@ static struct twl4030_platform_data rx51_twldata __initdata = {
 	.gpio			= &rx51_gpio_data,
 	.keypad			= &rx51_kp_data,
 	.power			= &rx51_t2scripts_data,
-	.codec			= &rx51_codec_data,
+	.audio			= &rx51_audio_data,
 
 	.vaux1			= &rx51_vaux1,
 	.vaux2			= &rx51_vaux2,
 	.vaux4			= &rx51_vaux4,
 	.vmmc1			= &rx51_vmmc1,
+	.vpll1			= &rx51_vpll1,
+	.vpll2			= &rx51_vpll2,
 	.vsim			= &rx51_vsim,
+	.vintana1		= &rx51_vintana1,
+	.vintana2		= &rx51_vintana2,
+	.vintdig		= &rx51_vintdig,
 	.vio			= &rx51_vio,
 };
 
@@ -798,6 +932,12 @@ static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_2[] = {
 	{
 		I2C_BOARD_INFO("tsl2563", 0x29),
 		.platform_data = &rx51_tsl2563_platform_data,
+	},
+#endif
+#if defined(CONFIG_LEDS_LP5523) || defined(CONFIG_LEDS_LP5523_MODULE)
+	{
+		I2C_BOARD_INFO("lp5523", 0x32),
+		.platform_data  = &rx51_lp5523_platform_data,
 	},
 #endif
 	{
@@ -950,6 +1090,7 @@ error:
 void __init rx51_peripherals_init(void)
 {
 	rx51_i2c_init();
+	regulator_has_full_constraints();
 	gpmc_onenand_init(board_onenand_data);
 	board_smc91x_init();
 	rx51_add_gpio_keys();

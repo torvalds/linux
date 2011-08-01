@@ -37,7 +37,7 @@
  *   inode->i_sb->s_inode_lru, inode->i_lru
  * inode_sb_list_lock protects:
  *   sb->s_inodes, inode->i_sb_list
- * inode_wb_list_lock protects:
+ * bdi->wb.list_lock protects:
  *   bdi->wb.b_{dirty,io,more_io}, inode->i_wb_list
  * inode_hash_lock protects:
  *   inode_hashtable, inode->i_hash
@@ -48,7 +48,7 @@
  *   inode->i_lock
  *     inode->i_sb->s_inode_lru_lock
  *
- * inode_wb_list_lock
+ * bdi->wb.list_lock
  *   inode->i_lock
  *
  * inode_hash_lock
@@ -65,7 +65,6 @@ static struct hlist_head *inode_hashtable __read_mostly;
 static __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_hash_lock);
 
 __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_sb_list_lock);
-__cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_wb_list_lock);
 
 /*
  * Empty aops. Can be used for the cases where the user does not
@@ -362,9 +361,11 @@ EXPORT_SYMBOL_GPL(inode_sb_list_add);
 
 static inline void inode_sb_list_del(struct inode *inode)
 {
-	spin_lock(&inode_sb_list_lock);
-	list_del_init(&inode->i_sb_list);
-	spin_unlock(&inode_sb_list_lock);
+	if (!list_empty(&inode->i_sb_list)) {
+		spin_lock(&inode_sb_list_lock);
+		list_del_init(&inode->i_sb_list);
+		spin_unlock(&inode_sb_list_lock);
+	}
 }
 
 static unsigned long hash(struct super_block *sb, unsigned long hashval)
@@ -797,6 +798,29 @@ unsigned int get_next_ino(void)
 EXPORT_SYMBOL(get_next_ino);
 
 /**
+ *	new_inode_pseudo 	- obtain an inode
+ *	@sb: superblock
+ *
+ *	Allocates a new inode for given superblock.
+ *	Inode wont be chained in superblock s_inodes list
+ *	This means :
+ *	- fs can't be unmount
+ *	- quotas, fsnotify, writeback can't work
+ */
+struct inode *new_inode_pseudo(struct super_block *sb)
+{
+	struct inode *inode = alloc_inode(sb);
+
+	if (inode) {
+		spin_lock(&inode->i_lock);
+		inode->i_state = 0;
+		spin_unlock(&inode->i_lock);
+		INIT_LIST_HEAD(&inode->i_sb_list);
+	}
+	return inode;
+}
+
+/**
  *	new_inode 	- obtain an inode
  *	@sb: superblock
  *
@@ -814,13 +838,9 @@ struct inode *new_inode(struct super_block *sb)
 
 	spin_lock_prefetch(&inode_sb_list_lock);
 
-	inode = alloc_inode(sb);
-	if (inode) {
-		spin_lock(&inode->i_lock);
-		inode->i_state = 0;
-		spin_unlock(&inode->i_lock);
+	inode = new_inode_pseudo(sb);
+	if (inode)
 		inode_sb_list_add(inode);
-	}
 	return inode;
 }
 EXPORT_SYMBOL(new_inode);

@@ -196,6 +196,11 @@ clear_master_aborts(void)
 void __init
 ixp2000_pci_preinit(void)
 {
+	pci_set_flags(0);
+
+	pcibios_min_io = 0;
+	pcibios_min_mem = 0;
+
 #ifndef CONFIG_IXP2000_SUPPORT_BROKEN_PCI_IO
 	/*
 	 * Configure the PCI unit to properly byteswap I/O transactions,

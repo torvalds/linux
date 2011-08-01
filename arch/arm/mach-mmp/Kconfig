@@ -77,6 +77,13 @@ config MACH_TETON_BGA
 	  Say 'Y' here if you want to support the Marvell PXA168-based
 	  Teton BGA Development Board.
 
+config MACH_SHEEVAD
+	bool "Marvell's PXA168 GuruPlug Display (gplugD) Board"
+	select CPU_PXA168
+	help
+	  Say 'Y' here if you want to support the Marvell PXA168-based
+	  GuruPlug Display (gplugD) Board
+
 endmenu
 
 config CPU_PXA168

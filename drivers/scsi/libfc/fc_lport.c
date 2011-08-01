@@ -1352,7 +1352,6 @@ static void fc_lport_timeout(struct work_struct *work)
 		WARN_ON(1);
 		break;
 	case LPORT_ST_READY:
-		WARN_ON(1);
 		break;
 	case LPORT_ST_RESET:
 		break;

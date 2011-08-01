@@ -80,7 +80,7 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 				  ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
 	if (ret) {
 		jffs2_free_raw_inode(ri);
-		if (S_ISLNK(inode->i_mode & S_IFMT))
+		if (S_ISLNK(inode->i_mode))
 			 kfree(mdata);
 		return ret;
 	}

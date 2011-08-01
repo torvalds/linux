@@ -30,138 +30,17 @@
 #include <linux/uaccess.h>
 #include <linux/interrupt.h>
 #include <linux/hardirq.h>
-#include <bcmdefs.h>
-#include <bcmutils.h>
+#include <net/cfg80211.h>
+#include <defs.h>
+#include <brcmu_utils.h>
+#include <brcmu_wifi.h>
 
-#include <dngl_stats.h>
-#include <dhd.h>
-#include <dhd_bus.h>
-#include <dhd_proto.h>
-#include <dhd_dbg.h>
-
-#include <wl_cfg80211.h>
-
-#define EPI_VERSION_STR		"4.218.248.5"
-#define ETH_P_BRCM			0x886c
-
-#if defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC)
-#include <linux/wifi_tiwlan.h>
-
-struct semaphore wifi_control_sem;
-
-struct dhd_bus *g_bus;
-
-static struct wifi_platform_data *wifi_control_data;
-static struct resource *wifi_irqres;
-
-int wifi_get_irq_number(unsigned long *irq_flags_ptr)
-{
-	if (wifi_irqres) {
-		*irq_flags_ptr = wifi_irqres->flags & IRQF_TRIGGER_MASK;
-		return (int)wifi_irqres->start;
-	}
-#ifdef CUSTOM_OOB_GPIO_NUM
-	return CUSTOM_OOB_GPIO_NUM;
-#else
-	return -1;
-#endif
-}
-
-int wifi_set_carddetect(int on)
-{
-	printk(KERN_ERR "%s = %d\n", __func__, on);
-	if (wifi_control_data && wifi_control_data->set_carddetect)
-		wifi_control_data->set_carddetect(on);
-	return 0;
-}
-
-int wifi_set_power(int on, unsigned long msec)
-{
-	printk(KERN_ERR "%s = %d\n", __func__, on);
-	if (wifi_control_data && wifi_control_data->set_power)
-		wifi_control_data->set_power(on);
-	if (msec)
-		mdelay(msec);
-	return 0;
-}
-
-int wifi_set_reset(int on, unsigned long msec)
-{
-	printk(KERN_ERR "%s = %d\n", __func__, on);
-	if (wifi_control_data && wifi_control_data->set_reset)
-		wifi_control_data->set_reset(on);
-	if (msec)
-		mdelay(msec);
-	return 0;
-}
-
-static int wifi_probe(struct platform_device *pdev)
-{
-	struct wifi_platform_data *wifi_ctrl =
-	    (struct wifi_platform_data *)(pdev->dev.platform_data);
-
-	printk(KERN_ERR "## %s\n", __func__);
-	wifi_irqres =
-	    platform_get_resource_byname(pdev, IORESOURCE_IRQ,
-					 "bcm4329_wlan_irq");
-	wifi_control_data = wifi_ctrl;
-
-	wifi_set_power(1, 0);	/* Power On */
-	wifi_set_carddetect(1);	/* CardDetect (0->1) */
-
-	up(&wifi_control_sem);
-	return 0;
-}
-
-static int wifi_remove(struct platform_device *pdev)
-{
-	struct wifi_platform_data *wifi_ctrl =
-	    (struct wifi_platform_data *)(pdev->dev.platform_data);
-
-	printk(KERN_ERR "## %s\n", __func__);
-	wifi_control_data = wifi_ctrl;
-
-	wifi_set_carddetect(0);	/* CardDetect (1->0) */
-	wifi_set_power(0, 0);	/* Power Off */
-
-	up(&wifi_control_sem);
-	return 0;
-}
-
-static int wifi_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	DHD_TRACE(("##> %s\n", __func__));
-	return 0;
-}
-
-static int wifi_resume(struct platform_device *pdev)
-{
-	DHD_TRACE(("##> %s\n", __func__));
-	return 0;
-}
-
-static struct platform_driver wifi_device = {
-	.probe = wifi_probe,
-	.remove = wifi_remove,
-	.suspend = wifi_suspend,
-	.resume = wifi_resume,
-	.driver = {
-		   .name = KBUILD_MODNAME,
-		   }
-};
-
-int wifi_add_dev(void)
-{
-	DHD_TRACE(("## Calling platform_driver_register\n"));
-	return platform_driver_register(&wifi_device);
-}
-
-void wifi_del_dev(void)
-{
-	DHD_TRACE(("## Unregister platform_driver_register\n"));
-	platform_driver_unregister(&wifi_device);
-}
-#endif	/* defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC) */
+#include "dhd.h"
+#include "dhd_bus.h"
+#include "dhd_proto.h"
+#include "dhd_dbg.h"
+#include "wl_cfg80211.h"
+#include "bcmchip.h"
 
 #if defined(CONFIG_PM_SLEEP)
 #include <linux/suspend.h>

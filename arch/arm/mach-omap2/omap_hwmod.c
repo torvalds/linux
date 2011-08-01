@@ -146,9 +146,10 @@
 #include <plat/prcm.h>
 
 #include "cm2xxx_3xxx.h"
-#include "cm44xx.h"
+#include "cminst44xx.h"
 #include "prm2xxx_3xxx.h"
 #include "prm44xx.h"
+#include "prminst44xx.h"
 #include "mux.h"
 
 /* Maximum microseconds to wait for OMAP module to softreset */
@@ -679,6 +680,56 @@ static void _disable_optional_clocks(struct omap_hwmod *oh)
 }
 
 /**
+ * _enable_module - enable CLKCTRL modulemode on OMAP4
+ * @oh: struct omap_hwmod *
+ *
+ * Enables the PRCM module mode related to the hwmod @oh.
+ * No return value.
+ */
+static void _enable_module(struct omap_hwmod *oh)
+{
+	/* The module mode does not exist prior OMAP4 */
+	if (cpu_is_omap24xx() || cpu_is_omap34xx())
+		return;
+
+	if (!oh->clkdm || !oh->prcm.omap4.modulemode)
+		return;
+
+	pr_debug("omap_hwmod: %s: _enable_module: %d\n",
+		 oh->name, oh->prcm.omap4.modulemode);
+
+	omap4_cminst_module_enable(oh->prcm.omap4.modulemode,
+				   oh->clkdm->prcm_partition,
+				   oh->clkdm->cm_inst,
+				   oh->clkdm->clkdm_offs,
+				   oh->prcm.omap4.clkctrl_offs);
+}
+
+/**
+ * _disable_module - enable CLKCTRL modulemode on OMAP4
+ * @oh: struct omap_hwmod *
+ *
+ * Disable the PRCM module mode related to the hwmod @oh.
+ * No return value.
+ */
+static void _disable_module(struct omap_hwmod *oh)
+{
+	/* The module mode does not exist prior OMAP4 */
+	if (cpu_is_omap24xx() || cpu_is_omap34xx())
+		return;
+
+	if (!oh->clkdm || !oh->prcm.omap4.modulemode)
+		return;
+
+	pr_debug("omap_hwmod: %s: _disable_module\n", oh->name);
+
+	omap4_cminst_module_disable(oh->clkdm->prcm_partition,
+				    oh->clkdm->cm_inst,
+				    oh->clkdm->clkdm_offs,
+				    oh->prcm.omap4.clkctrl_offs);
+}
+
+/**
  * _count_mpu_irqs - count the number of MPU IRQ lines associated with @oh
  * @oh: struct omap_hwmod *oh
  *
@@ -990,9 +1041,40 @@ static struct omap_hwmod *_lookup(const char *name)
 
 	return oh;
 }
+/**
+ * _init_clkdm - look up a clockdomain name, store pointer in omap_hwmod
+ * @oh: struct omap_hwmod *
+ *
+ * Convert a clockdomain name stored in a struct omap_hwmod into a
+ * clockdomain pointer, and save it into the struct omap_hwmod.
+ * return -EINVAL if clkdm_name does not exist or if the lookup failed.
+ */
+static int _init_clkdm(struct omap_hwmod *oh)
+{
+	if (cpu_is_omap24xx() || cpu_is_omap34xx())
+		return 0;
+
+	if (!oh->clkdm_name) {
+		pr_warning("omap_hwmod: %s: no clkdm_name\n", oh->name);
+		return -EINVAL;
+	}
+
+	oh->clkdm = clkdm_lookup(oh->clkdm_name);
+	if (!oh->clkdm) {
+		pr_warning("omap_hwmod: %s: could not associate to clkdm %s\n",
+			oh->name, oh->clkdm_name);
+		return -EINVAL;
+	}
+
+	pr_debug("omap_hwmod: %s: associated to clkdm %s\n",
+		oh->name, oh->clkdm_name);
+
+	return 0;
+}
 
 /**
- * _init_clocks - clk_get() all clocks associated with this hwmod
+ * _init_clocks - clk_get() all clocks associated with this hwmod. Retrieve as
+ * well the clockdomain.
  * @oh: struct omap_hwmod *
  * @data: not used; pass NULL
  *
@@ -1012,6 +1094,7 @@ static int _init_clocks(struct omap_hwmod *oh, void *data)
 	ret |= _init_main_clk(oh);
 	ret |= _init_interface_clks(oh);
 	ret |= _init_opt_clks(oh);
+	ret |= _init_clkdm(oh);
 
 	if (!ret)
 		oh->_state = _HWMOD_STATE_CLKS_INITED;
@@ -1028,7 +1111,7 @@ static int _init_clocks(struct omap_hwmod *oh, void *data)
  * Wait for a module @oh to leave slave idle.  Returns 0 if the module
  * does not have an IDLEST bit or if the module successfully leaves
  * slave idle; otherwise, pass along the return value of the
- * appropriate *_cm_wait_module_ready() function.
+ * appropriate *_cm*_wait_module_ready() function.
  */
 static int _wait_target_ready(struct omap_hwmod *oh)
 {
@@ -1055,12 +1138,48 @@ static int _wait_target_ready(struct omap_hwmod *oh)
 						 oh->prcm.omap2.idlest_reg_id,
 						 oh->prcm.omap2.idlest_idle_bit);
 	} else if (cpu_is_omap44xx()) {
-		ret = omap4_cm_wait_module_ready(oh->prcm.omap4.clkctrl_reg);
+		if (!oh->clkdm)
+			return -EINVAL;
+
+		ret = omap4_cminst_wait_module_ready(oh->clkdm->prcm_partition,
+						     oh->clkdm->cm_inst,
+						     oh->clkdm->clkdm_offs,
+						     oh->prcm.omap4.clkctrl_offs);
 	} else {
 		BUG();
 	};
 
 	return ret;
+}
+
+/**
+ * _wait_target_disable - wait for a module to be disabled
+ * @oh: struct omap_hwmod *
+ *
+ * Wait for a module @oh to enter slave idle.  Returns 0 if the module
+ * does not have an IDLEST bit or if the module successfully enters
+ * slave idle; otherwise, pass along the return value of the
+ * appropriate *_cm*_wait_module_idle() function.
+ */
+static int _wait_target_disable(struct omap_hwmod *oh)
+{
+	/* TODO: For now just handle OMAP4+ */
+	if (cpu_is_omap24xx() || cpu_is_omap34xx())
+		return 0;
+
+	if (!oh)
+		return -EINVAL;
+
+	if (oh->_int_flags & _HWMOD_NO_MPU_PORT)
+		return 0;
+
+	if (oh->flags & HWMOD_NO_IDLEST)
+		return 0;
+
+	return omap4_cminst_wait_module_idle(oh->clkdm->prcm_partition,
+					     oh->clkdm->cm_inst,
+					     oh->clkdm->clkdm_offs,
+					     oh->prcm.omap4.clkctrl_offs);
 }
 
 /**
@@ -1119,8 +1238,10 @@ static int _assert_hardreset(struct omap_hwmod *oh, const char *name)
 		return omap2_prm_assert_hardreset(oh->prcm.omap2.module_offs,
 						  ohri.rst_shift);
 	else if (cpu_is_omap44xx())
-		return omap4_prm_assert_hardreset(oh->prcm.omap4.rstctrl_reg,
-						  ohri.rst_shift);
+		return omap4_prminst_assert_hardreset(ohri.rst_shift,
+				  oh->clkdm->pwrdm.ptr->prcm_partition,
+				  oh->clkdm->pwrdm.ptr->prcm_offs,
+				  oh->prcm.omap4.rstctrl_offs);
 	else
 		return -EINVAL;
 }
@@ -1155,8 +1276,10 @@ static int _deassert_hardreset(struct omap_hwmod *oh, const char *name)
 		if (ohri.st_shift)
 			pr_err("omap_hwmod: %s: %s: hwmod data error: OMAP4 does not support st_shift\n",
 			       oh->name, name);
-		ret = omap4_prm_deassert_hardreset(oh->prcm.omap4.rstctrl_reg,
-						   ohri.rst_shift);
+		ret = omap4_prminst_deassert_hardreset(ohri.rst_shift,
+				  oh->clkdm->pwrdm.ptr->prcm_partition,
+				  oh->clkdm->pwrdm.ptr->prcm_offs,
+				  oh->prcm.omap4.rstctrl_offs);
 	} else {
 		return -EINVAL;
 	}
@@ -1191,8 +1314,10 @@ static int _read_hardreset(struct omap_hwmod *oh, const char *name)
 		return omap2_prm_is_hardreset_asserted(oh->prcm.omap2.module_offs,
 						       ohri.st_shift);
 	} else if (cpu_is_omap44xx()) {
-		return omap4_prm_is_hardreset_asserted(oh->prcm.omap4.rstctrl_reg,
-						       ohri.rst_shift);
+		return omap4_prminst_is_hardreset_asserted(ohri.rst_shift,
+				  oh->clkdm->pwrdm.ptr->prcm_partition,
+				  oh->clkdm->pwrdm.ptr->prcm_offs,
+				  oh->prcm.omap4.rstctrl_offs);
 	} else {
 		return -EINVAL;
 	}
@@ -1312,6 +1437,7 @@ static int _reset(struct omap_hwmod *oh)
 static int _enable(struct omap_hwmod *oh)
 {
 	int r;
+	int hwsup = 0;
 
 	pr_debug("omap_hwmod: %s: enabling\n", oh->name);
 
@@ -1323,14 +1449,6 @@ static int _enable(struct omap_hwmod *oh)
 		return -EINVAL;
 	}
 
-	/* Mux pins for device runtime if populated */
-	if (oh->mux && (!oh->mux->enabled ||
-			((oh->_state == _HWMOD_STATE_IDLE) &&
-			 oh->mux->pads_dynamic)))
-		omap_hwmod_mux(oh->mux, _HWMOD_STATE_ENABLED);
-
-	_add_initiator_dep(oh, mpu_oh);
-	_enable_clocks(oh);
 
 	/*
 	 * If an IP contains only one HW reset line, then de-assert it in order
@@ -1341,22 +1459,56 @@ static int _enable(struct omap_hwmod *oh)
 	     oh->_state == _HWMOD_STATE_DISABLED) && oh->rst_lines_cnt == 1)
 		_deassert_hardreset(oh, oh->rst_lines[0].name);
 
-	r = _wait_target_ready(oh);
-	if (r) {
-		pr_debug("omap_hwmod: %s: _wait_target_ready: %d\n",
-			 oh->name, r);
-		_disable_clocks(oh);
+	/* Mux pins for device runtime if populated */
+	if (oh->mux && (!oh->mux->enabled ||
+			((oh->_state == _HWMOD_STATE_IDLE) &&
+			 oh->mux->pads_dynamic)))
+		omap_hwmod_mux(oh->mux, _HWMOD_STATE_ENABLED);
 
-		return r;
+	_add_initiator_dep(oh, mpu_oh);
+
+	if (oh->clkdm) {
+		/*
+		 * A clockdomain must be in SW_SUP before enabling
+		 * completely the module. The clockdomain can be set
+		 * in HW_AUTO only when the module become ready.
+		 */
+		hwsup = clkdm_in_hwsup(oh->clkdm);
+		r = clkdm_hwmod_enable(oh->clkdm, oh);
+		if (r) {
+			WARN(1, "omap_hwmod: %s: could not enable clockdomain %s: %d\n",
+			     oh->name, oh->clkdm->name, r);
+			return r;
+		}
 	}
 
-	oh->_state = _HWMOD_STATE_ENABLED;
+	_enable_clocks(oh);
+	_enable_module(oh);
 
-	/* Access the sysconfig only if the target is ready */
-	if (oh->class->sysc) {
-		if (!(oh->_int_flags & _HWMOD_SYSCONFIG_LOADED))
-			_update_sysc_cache(oh);
-		_enable_sysc(oh);
+	r = _wait_target_ready(oh);
+	if (!r) {
+		/*
+		 * Set the clockdomain to HW_AUTO only if the target is ready,
+		 * assuming that the previous state was HW_AUTO
+		 */
+		if (oh->clkdm && hwsup)
+			clkdm_allow_idle(oh->clkdm);
+
+		oh->_state = _HWMOD_STATE_ENABLED;
+
+		/* Access the sysconfig only if the target is ready */
+		if (oh->class->sysc) {
+			if (!(oh->_int_flags & _HWMOD_SYSCONFIG_LOADED))
+				_update_sysc_cache(oh);
+			_enable_sysc(oh);
+		}
+	} else {
+		_disable_clocks(oh);
+		pr_debug("omap_hwmod: %s: _wait_target_ready: %d\n",
+			 oh->name, r);
+
+		if (oh->clkdm)
+			clkdm_hwmod_disable(oh->clkdm, oh);
 	}
 
 	return r;
@@ -1372,6 +1524,8 @@ static int _enable(struct omap_hwmod *oh)
  */
 static int _idle(struct omap_hwmod *oh)
 {
+	int ret;
+
 	pr_debug("omap_hwmod: %s: idling\n", oh->name);
 
 	if (oh->_state != _HWMOD_STATE_ENABLED) {
@@ -1383,7 +1537,20 @@ static int _idle(struct omap_hwmod *oh)
 	if (oh->class->sysc)
 		_idle_sysc(oh);
 	_del_initiator_dep(oh, mpu_oh);
+	_disable_module(oh);
+	ret = _wait_target_disable(oh);
+	if (ret)
+		pr_warn("omap_hwmod: %s: _wait_target_disable failed\n",
+			oh->name);
+	/*
+	 * The module must be in idle mode before disabling any parents
+	 * clocks. Otherwise, the parent clock might be disabled before
+	 * the module transition is done, and thus will prevent the
+	 * transition to complete properly.
+	 */
 	_disable_clocks(oh);
+	if (oh->clkdm)
+		clkdm_hwmod_disable(oh->clkdm, oh);
 
 	/* Mux pins for device idle if populated */
 	if (oh->mux && oh->mux->pads_dynamic)
@@ -1475,7 +1642,14 @@ static int _shutdown(struct omap_hwmod *oh)
 	if (oh->_state == _HWMOD_STATE_ENABLED) {
 		_del_initiator_dep(oh, mpu_oh);
 		/* XXX what about the other system initiators here? dma, dsp */
+		_disable_module(oh);
+		ret = _wait_target_disable(oh);
+		if (ret)
+			pr_warn("omap_hwmod: %s: _wait_target_disable failed\n",
+				oh->name);
 		_disable_clocks(oh);
+		if (oh->clkdm)
+			clkdm_hwmod_disable(oh->clkdm, oh);
 	}
 	/* XXX Should this code also force-disable the optional clocks? */
 
@@ -1653,6 +1827,33 @@ void omap_hwmod_write(u32 v, struct omap_hwmod *oh, u16 reg_offs)
 		__raw_writew(v, oh->_mpu_rt_va + reg_offs);
 	else
 		__raw_writel(v, oh->_mpu_rt_va + reg_offs);
+}
+
+/**
+ * omap_hwmod_softreset - reset a module via SYSCONFIG.SOFTRESET bit
+ * @oh: struct omap_hwmod *
+ *
+ * This is a public function exposed to drivers. Some drivers may need to do
+ * some settings before and after resetting the device.  Those drivers after
+ * doing the necessary settings could use this function to start a reset by
+ * setting the SYSCONFIG.SOFTRESET bit.
+ */
+int omap_hwmod_softreset(struct omap_hwmod *oh)
+{
+	u32 v;
+	int ret;
+
+	if (!oh || !(oh->_sysc_cache))
+		return -EINVAL;
+
+	v = oh->_sysc_cache;
+	ret = _set_softreset(oh, &v);
+	if (ret)
+		goto error;
+	_write_sysconfig(v, oh);
+
+error:
+	return ret;
 }
 
 /**

@@ -51,25 +51,6 @@ struct pci_dev *isa_bridge_pcidev;
 EXPORT_SYMBOL_GPL(isa_bridge_pcidev);
 
 static void
-fixup_hide_host_resource_fsl(struct pci_dev *dev)
-{
-	int i, class = dev->class >> 8;
-
-	if ((class == PCI_CLASS_PROCESSOR_POWERPC ||
-	     class == PCI_CLASS_BRIDGE_OTHER) &&
-		(dev->hdr_type == PCI_HEADER_TYPE_NORMAL) &&
-		(dev->bus->parent == NULL)) {
-		for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-			dev->resource[i].start = 0;
-			dev->resource[i].end = 0;
-			dev->resource[i].flags = 0;
-		}
-	}
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MOTOROLA, PCI_ANY_ID, fixup_hide_host_resource_fsl); 
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_FREESCALE, PCI_ANY_ID, fixup_hide_host_resource_fsl); 
-
-static void
 fixup_cpc710_pci64(struct pci_dev* dev)
 {
 	/* Hide the PCI64 BARs from the kernel as their content doesn't
@@ -249,7 +230,7 @@ static int __init pcibios_init(void)
 
 	printk(KERN_INFO "PCI: Probing PCI hardware\n");
 
-	if (ppc_pci_flags & PPC_PCI_REASSIGN_ALL_BUS)
+	if (pci_has_flag(PCI_REASSIGN_ALL_BUS))
 		pci_assign_all_buses = 1;
 
 	/* Scan all of the recorded PCI controllers.  */

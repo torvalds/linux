@@ -193,20 +193,6 @@ Why:	/proc/<pid>/oom_adj allows userspace to influence the oom killer's
 
 ---------------------------
 
-What:	CS5535/CS5536 obsolete GPIO driver
-When:	June 2011
-Files:	drivers/staging/cs5535_gpio/*
-Check:	drivers/staging/cs5535_gpio/cs5535_gpio.c
-Why:	A newer driver replaces this; it is drivers/gpio/cs5535-gpio.c, and
-	integrates with the Linux GPIO subsystem.  The old driver has been
-	moved to staging, and will be removed altogether around 3.0.
-	Please test the new driver, and ensure that the functionality you
-	need and any bugfixes from the old driver are available in the new
-	one.
-Who:	Andres Salomon <dilinger@queued.net>
-
---------------------------
-
 What:	remove EXPORT_SYMBOL(kernel_thread)
 When:	August 2006
 Files:	arch/*/kernel/*_ksyms.c
@@ -474,13 +460,6 @@ Who:	FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
 
 ----------------------------
 
-What: 	DMA_xxBIT_MASK macros
-When:	Jun 2011
-Why:	DMA_xxBIT_MASK macros were replaced with DMA_BIT_MASK() macros.
-Who:	FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-
-----------------------------
-
 What:	iwlwifi disable_hw_scan module parameters
 When:	3.0
 Why:	Hareware scan is the prefer method for iwlwifi devices for
@@ -488,16 +467,6 @@ Why:	Hareware scan is the prefer method for iwlwifi devices for
 	iwlwifi devices.
 
 Who:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
-
-----------------------------
-
-What:   access to nfsd auth cache through sys_nfsservctl or '.' files
-        in the 'nfsd' filesystem.
-When:   3.0
-Why:    This is a legacy interface which have been replaced by a more
-        dynamic cache.  Continuing to maintain this interface is an
-        unnecessary burden.
-Who:    NeilBrown <neilb@suse.de>
 
 ----------------------------
 
@@ -558,6 +527,41 @@ Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 
 ----------------------------
 
+What:	Support for driver specific ioctls in the pwc driver (everything
+	defined in media/pwc-ioctl.h)
+When:	3.3
+Why:	This stems from the v4l1 era, with v4l2 everything can be done with
+	standardized v4l2 API calls
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	Driver specific sysfs API in the pwc driver
+When:	3.3
+Why:	Setting pan/tilt should be done with v4l2 controls, like with other
+	cams. The button is available as a standard input device
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	Driver specific use of pixfmt.priv in the pwc driver
+When:	3.3
+Why:	The .priv field never was intended for this, setting a framerate is
+	support using the standardized S_PARM ioctl
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	Software emulation of arbritary resolutions in the pwc driver
+When:	3.3
+Why:	The pwc driver claims to support any resolution between 160x120
+	and 640x480, but emulates this by simply drawing a black border
+	around the image. Userspace can draw its own black border if it
+	really wants one.
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
 What:	For VIDIOC_S_FREQUENCY the type field must match the device node's type.
 	If not, return -EINVAL.
 When:	3.2
@@ -577,5 +581,12 @@ Why:	Just opening a V4L device should not change the state of the hardware
 	switch to radio mode by calling VIDIOC_S_FREQUENCY. This is the second
 	and last step of the move to consistent handling of tv and radio tuners.
 Who:	Hans Verkuil <hans.verkuil@cisco.com>
+
+----------------------------
+
+What:	g_file_storage driver
+When:	3.8
+Why:	This driver has been superseded by g_mass_storage.
+Who:	Alan Stern <stern@rowland.harvard.edu>
 
 ----------------------------

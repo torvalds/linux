@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 /*
  * The default fd array needs to be at least BITS_PER_LONG,

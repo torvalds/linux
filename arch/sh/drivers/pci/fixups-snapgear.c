@@ -18,7 +18,7 @@
 #include <linux/pci.h>
 #include "pci-sh4.h"
 
-int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)
+int __init pcibios_map_platform_irq(const struct pci_dev *pdev, u8 slot, u8 pin)
 {
 	int irq = -1;
 

@@ -734,6 +734,12 @@ T:	git git://git.berlios.de/gemini-board
 S:	Maintained
 F:	arch/arm/mach-gemini/
 
+ARM/CSR SIRFPRIMA2 MACHINE SUPPORT
+M:	Barry Song <baohua.song@csr.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-prima2/
+
 ARM/EBSA110 MACHINE SUPPORT
 M:	Russell King <linux@arm.linux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -1918,6 +1924,12 @@ M:	"H. Peter Anvin" <hpa@zytor.com>
 S:	Maintained
 F:	arch/x86/kernel/cpuid.c
 F:	arch/x86/kernel/msr.c
+
+CPU POWER MONITORING SUBSYSTEM
+M:	Dominik Brodowski <linux@dominikbrodowski.net>
+M:	Thomas Renninger <trenn@suse.de>
+S:	Maintained
+F:	tools/power/cpupower
 
 CPUSETS
 M:	Paul Menage <menage@google.com>
@@ -3896,7 +3908,7 @@ F:	arch/powerpc/platforms/512x/
 F:	arch/powerpc/platforms/52xx/
 
 LINUX FOR POWERPC EMBEDDED PPC4XX
-M:	Josh Boyer <jwboyer@linux.vnet.ibm.com>
+M:	Josh Boyer <jwboyer@gmail.com>
 M:	Matt Porter <mporter@kernel.crashing.org>
 W:	http://www.penguinppc.org/
 L:	linuxppc-dev@lists.ozlabs.org
@@ -3928,6 +3940,7 @@ W:	http://www.penguinppc.org/
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
 F:	arch/powerpc/platforms/83xx/
+F:	arch/powerpc/platforms/85xx/
 
 LINUX FOR POWERPC PA SEMI PWRFICIENT
 M:	Olof Johansson <olof@lixom.net>
@@ -4143,6 +4156,13 @@ S:	Orphan
 F:	drivers/video/matrox/matroxfb_*
 F:	include/linux/matroxfb.h
 
+MAX1668 TEMPERATURE SENSOR DRIVER
+M:	"David George" <david.george@ska.ac.za>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/max1668
+F:	drivers/hwmon/max1668.c
+
 MAX6650 HARDWARE MONITOR AND FAN CONTROLLER DRIVER
 M:	"Hans J. Koch" <hjk@hansjkoch.de>
 L:	lm-sensors@lm-sensors.org
@@ -4216,9 +4236,10 @@ F:	drivers/usb/image/microtek.*
 
 MIPS
 M:	Ralf Baechle <ralf@linux-mips.org>
-W:	http://www.linux-mips.org/
 L:	linux-mips@linux-mips.org
+W:	http://www.linux-mips.org/
 T:	git git://git.linux-mips.org/pub/scm/linux.git
+Q:	http://patchwork.linux-mips.org/project/linux-mips/list/
 S:	Supported
 F:	Documentation/mips/
 F:	arch/mips/
@@ -4990,6 +5011,17 @@ F:	drivers/input/serio/i8042-unicore32io.h
 F:	drivers/i2c/busses/i2c-puv3.c
 F:	drivers/video/fb-puv3.c
 F:	drivers/rtc/rtc-puv3.c
+
+PMBUS HARDWARE MONITORING DRIVERS
+M:	Guenter Roeck <guenter.roeck@ericsson.com>
+L:	lm-sensors@lm-sensors.org
+W:	http://www.lm-sensors.org/
+W:	http://www.roeck-us.net/linux/drivers/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/groeck/linux-staging.git
+S:	Maintained
+F:	Documentation/hwmon/pmbus
+F:	drivers/hwmon/pmbus/
+F:	include/linux/i2c/pmbus.h
 
 PMC SIERRA MaxRAID DRIVER
 M:	Anil Ravindranath <anil_ravindranath@pmc-sierra.com>
@@ -6400,7 +6432,7 @@ L:	tomoyo-users-en@lists.sourceforge.jp (subscribers-only, for users in English)
 L:	tomoyo-dev@lists.sourceforge.jp (subscribers-only, for developers in Japanese)
 L:	tomoyo-users@lists.sourceforge.jp (subscribers-only, for users in Japanese)
 W:	http://tomoyo.sourceforge.jp/
-T:	quilt http://svn.sourceforge.jp/svnroot/tomoyo/trunk/2.3.x/tomoyo-lsm/patches/
+T:	quilt http://svn.sourceforge.jp/svnroot/tomoyo/trunk/2.4.x/tomoyo-lsm/patches/
 S:	Maintained
 F:	security/tomoyo/
 

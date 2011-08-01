@@ -3409,6 +3409,9 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 	active = snd_soc_read(codec, WM8962_INTERRUPT_STATUS_2);
 	active &= ~mask;
 
+	/* Acknowledge the interrupts */
+	snd_soc_write(codec, WM8962_INTERRUPT_STATUS_2, active);
+
 	if (active & WM8962_FLL_LOCK_EINT) {
 		dev_dbg(codec->dev, "FLL locked\n");
 		complete(&wm8962->fll_lock);
@@ -3432,9 +3435,6 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 		schedule_delayed_work(&wm8962->mic_work,
 				      msecs_to_jiffies(250));
 	}
-
-	/* Acknowledge the interrupts */
-	snd_soc_write(codec, WM8962_INTERRUPT_STATUS_2, active);
 
 	return IRQ_HANDLED;
 }

@@ -86,7 +86,7 @@ static void ima_check_last_writer(struct ima_iint_cache *iint,
 				  struct inode *inode,
 				  struct file *file)
 {
-	mode_t mode = file->f_mode;
+	fmode_t mode = file->f_mode;
 
 	mutex_lock(&iint->mutex);
 	if (mode & FMODE_WRITE &&

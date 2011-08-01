@@ -121,7 +121,7 @@ xfs_dir_isempty(
 {
 	xfs_dir2_sf_hdr_t	*sfp;
 
-	ASSERT((dp->i_d.di_mode & S_IFMT) == S_IFDIR);
+	ASSERT(S_ISDIR(dp->i_d.di_mode));
 	if (dp->i_d.di_size == 0)	/* might happen during shutdown. */
 		return 1;
 	if (dp->i_d.di_size > XFS_IFORK_DSIZE(dp))
@@ -179,7 +179,7 @@ xfs_dir_init(
 	memset((char *)&args, 0, sizeof(args));
 	args.dp = dp;
 	args.trans = tp;
-	ASSERT((dp->i_d.di_mode & S_IFMT) == S_IFDIR);
+	ASSERT(S_ISDIR(dp->i_d.di_mode));
 	if ((error = xfs_dir_ino_validate(tp->t_mountp, pdp->i_ino)))
 		return error;
 	return xfs_dir2_sf_create(&args, pdp->i_ino);
@@ -202,7 +202,7 @@ xfs_dir_createname(
 	int			rval;
 	int			v;		/* type-checking value */
 
-	ASSERT((dp->i_d.di_mode & S_IFMT) == S_IFDIR);
+	ASSERT(S_ISDIR(dp->i_d.di_mode));
 	if ((rval = xfs_dir_ino_validate(tp->t_mountp, inum)))
 		return rval;
 	XFS_STATS_INC(xs_dir_create);
@@ -278,7 +278,7 @@ xfs_dir_lookup(
 	int		rval;
 	int		v;		/* type-checking value */
 
-	ASSERT((dp->i_d.di_mode & S_IFMT) == S_IFDIR);
+	ASSERT(S_ISDIR(dp->i_d.di_mode));
 	XFS_STATS_INC(xs_dir_lookup);
 
 	memset(&args, 0, sizeof(xfs_da_args_t));
@@ -333,7 +333,7 @@ xfs_dir_removename(
 	int		rval;
 	int		v;		/* type-checking value */
 
-	ASSERT((dp->i_d.di_mode & S_IFMT) == S_IFDIR);
+	ASSERT(S_ISDIR(dp->i_d.di_mode));
 	XFS_STATS_INC(xs_dir_remove);
 
 	memset(&args, 0, sizeof(xfs_da_args_t));
@@ -382,7 +382,7 @@ xfs_readdir(
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
 		return XFS_ERROR(EIO);
 
-	ASSERT((dp->i_d.di_mode & S_IFMT) == S_IFDIR);
+	ASSERT(S_ISDIR(dp->i_d.di_mode));
 	XFS_STATS_INC(xs_dir_getdents);
 
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL)
@@ -414,7 +414,7 @@ xfs_dir_replace(
 	int		rval;
 	int		v;		/* type-checking value */
 
-	ASSERT((dp->i_d.di_mode & S_IFMT) == S_IFDIR);
+	ASSERT(S_ISDIR(dp->i_d.di_mode));
 
 	if ((rval = xfs_dir_ino_validate(tp->t_mountp, inum)))
 		return rval;
@@ -464,7 +464,7 @@ xfs_dir_canenter(
 	if (resblks)
 		return 0;
 
-	ASSERT((dp->i_d.di_mode & S_IFMT) == S_IFDIR);
+	ASSERT(S_ISDIR(dp->i_d.di_mode));
 
 	memset(&args, 0, sizeof(xfs_da_args_t));
 	args.name = name->name;

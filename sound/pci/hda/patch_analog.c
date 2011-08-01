@@ -563,7 +563,7 @@ static void ad198x_free(struct hda_codec *codec)
 	snd_hda_detach_beep_device(codec);
 }
 
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 static int ad198x_suspend(struct hda_codec *codec, pm_message_t state)
 {
 	ad198x_shutup(codec);
@@ -579,7 +579,7 @@ static const struct hda_codec_ops ad198x_patch_ops = {
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	.check_power_status = ad198x_check_power_status,
 #endif
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 	.suspend = ad198x_suspend,
 #endif
 	.reboot_notify = ad198x_shutup,

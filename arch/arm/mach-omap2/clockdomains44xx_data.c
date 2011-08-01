@@ -565,7 +565,7 @@ static struct clockdomain ducati_44xx_clkdm = {
 };
 
 static struct clockdomain mpu_44xx_clkdm = {
-	.name		  = "mpu_clkdm",
+	.name		  = "mpuss_clkdm",
 	.pwrdm		  = { .name = "mpu_pwrdm" },
 	.prcm_partition	  = OMAP4430_CM1_PARTITION,
 	.cm_inst	  = OMAP4430_CM1_MPU_INST,

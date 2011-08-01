@@ -161,3 +161,5 @@ void pwm_free(struct pwm_device *pwm)
 	kfree(pwm);
 }
 EXPORT_SYMBOL(pwm_free);
+
+MODULE_LICENSE("GPL");

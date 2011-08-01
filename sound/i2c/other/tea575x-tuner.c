@@ -22,11 +22,11 @@
 
 #include <asm/io.h>
 #include <linux/delay.h>
-#include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/version.h>
-#include <sound/core.h>
+#include <media/v4l2-dev.h>
+#include <media/v4l2-ioctl.h>
 #include <sound/tea575x-tuner.h>
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
@@ -61,17 +61,6 @@ module_param(radio_nr, int, 0);
 #define TEA575X_BIT_SEARCH_150_1000  (3<<16)	/* FM > 150uV, AM > 1000uV */
 #define TEA575X_BIT_DUMMY	(1<<15)		/* buffer */
 #define TEA575X_BIT_FREQ_MASK	0x7fff
-
-static struct v4l2_queryctrl radio_qctrl[] = {
-	{
-		.id            = V4L2_CID_AUDIO_MUTE,
-		.name          = "Mute",
-		.minimum       = 0,
-		.maximum       = 1,
-		.default_value = 1,
-		.type          = V4L2_CTRL_TYPE_BOOLEAN,
-	}
-};
 
 /*
  * lowlevel part
@@ -266,83 +255,23 @@ static int vidioc_s_audio(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_queryctrl(struct file *file, void *priv,
-					struct v4l2_queryctrl *qc)
+static int tea575x_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
-		if (qc->id && qc->id == radio_qctrl[i].id) {
-			memcpy(qc, &(radio_qctrl[i]),
-						sizeof(*qc));
-			return 0;
-		}
-	}
-	return -EINVAL;
-}
-
-static int vidioc_g_ctrl(struct file *file, void *priv,
-					struct v4l2_control *ctrl)
-{
-	struct snd_tea575x *tea = video_drvdata(file);
+	struct snd_tea575x *tea = container_of(ctrl->handler, struct snd_tea575x, ctrl_handler);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
-		ctrl->value = tea->mute;
+		tea->mute = ctrl->val;
+		snd_tea575x_set_freq(tea);
 		return 0;
 	}
+
 	return -EINVAL;
-}
-
-static int vidioc_s_ctrl(struct file *file, void *priv,
-					struct v4l2_control *ctrl)
-{
-	struct snd_tea575x *tea = video_drvdata(file);
-
-	switch (ctrl->id) {
-	case V4L2_CID_AUDIO_MUTE:
-		if (tea->mute != ctrl->value) {
-			tea->mute = ctrl->value;
-			snd_tea575x_set_freq(tea);
-		}
-		return 0;
-	}
-	return -EINVAL;
-}
-
-static int vidioc_g_input(struct file *filp, void *priv, unsigned int *i)
-{
-	*i = 0;
-	return 0;
-}
-
-static int vidioc_s_input(struct file *filp, void *priv, unsigned int i)
-{
-	if (i != 0)
-		return -EINVAL;
-	return 0;
-}
-
-static int snd_tea575x_exclusive_open(struct file *file)
-{
-	struct snd_tea575x *tea = video_drvdata(file);
-
-	return test_and_set_bit(0, &tea->in_use) ? -EBUSY : 0;
-}
-
-static int snd_tea575x_exclusive_release(struct file *file)
-{
-	struct snd_tea575x *tea = video_drvdata(file);
-
-	clear_bit(0, &tea->in_use);
-	return 0;
 }
 
 static const struct v4l2_file_operations tea575x_fops = {
 	.owner		= THIS_MODULE,
-	.open           = snd_tea575x_exclusive_open,
-	.release        = snd_tea575x_exclusive_release,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops tea575x_ioctl_ops = {
@@ -351,20 +280,19 @@ static const struct v4l2_ioctl_ops tea575x_ioctl_ops = {
 	.vidioc_s_tuner     = vidioc_s_tuner,
 	.vidioc_g_audio     = vidioc_g_audio,
 	.vidioc_s_audio     = vidioc_s_audio,
-	.vidioc_g_input     = vidioc_g_input,
-	.vidioc_s_input     = vidioc_s_input,
 	.vidioc_g_frequency = vidioc_g_frequency,
 	.vidioc_s_frequency = vidioc_s_frequency,
-	.vidioc_queryctrl   = vidioc_queryctrl,
-	.vidioc_g_ctrl      = vidioc_g_ctrl,
-	.vidioc_s_ctrl      = vidioc_s_ctrl,
 };
 
 static struct video_device tea575x_radio = {
 	.name           = "tea575x-tuner",
 	.fops           = &tea575x_fops,
 	.ioctl_ops 	= &tea575x_ioctl_ops,
-	.release	= video_device_release,
+	.release	= video_device_release_empty,
+};
+
+static const struct v4l2_ctrl_ops tea575x_ctrl_ops = {
+	.s_ctrl = tea575x_s_ctrl,
 };
 
 /*
@@ -373,7 +301,6 @@ static struct video_device tea575x_radio = {
 int snd_tea575x_init(struct snd_tea575x *tea)
 {
 	int retval;
-	struct video_device *tea575x_radio_inst;
 
 	tea->mute = 1;
 
@@ -381,43 +308,49 @@ int snd_tea575x_init(struct snd_tea575x *tea)
 	if (snd_tea575x_read(tea) != 0x55AA)
 		return -ENODEV;
 
-	tea->in_use = 0;
 	tea->val = TEA575X_BIT_BAND_FM | TEA575X_BIT_SEARCH_10_40;
 	tea->freq = 90500 * 16;		/* 90.5Mhz default */
+	snd_tea575x_set_freq(tea);
 
-	tea575x_radio_inst = video_device_alloc();
-	if (tea575x_radio_inst == NULL) {
-		printk(KERN_ERR "tea575x-tuner: not enough memory\n");
-		return -ENOMEM;
-	}
+	tea->vd = tea575x_radio;
+	video_set_drvdata(&tea->vd, tea);
+	mutex_init(&tea->mutex);
+	tea->vd.lock = &tea->mutex;
 
-	memcpy(tea575x_radio_inst, &tea575x_radio, sizeof(tea575x_radio));
-
-	strcpy(tea575x_radio.name, tea->tea5759 ?
-				   "TEA5759 radio" : "TEA5757 radio");
-
-	video_set_drvdata(tea575x_radio_inst, tea);
-
-	retval = video_register_device(tea575x_radio_inst,
-				       VFL_TYPE_RADIO, radio_nr);
+	v4l2_ctrl_handler_init(&tea->ctrl_handler, 1);
+	tea->vd.ctrl_handler = &tea->ctrl_handler;
+	v4l2_ctrl_new_std(&tea->ctrl_handler, &tea575x_ctrl_ops, V4L2_CID_AUDIO_MUTE, 0, 1, 1, 1);
+	retval = tea->ctrl_handler.error;
 	if (retval) {
-		printk(KERN_ERR "tea575x-tuner: can't register video device!\n");
-		kfree(tea575x_radio_inst);
+		printk(KERN_ERR "tea575x-tuner: can't initialize controls\n");
+		v4l2_ctrl_handler_free(&tea->ctrl_handler);
 		return retval;
 	}
 
-	snd_tea575x_set_freq(tea);
-	tea->vd = tea575x_radio_inst;
+	if (tea->ext_init) {
+		retval = tea->ext_init(tea);
+		if (retval) {
+			v4l2_ctrl_handler_free(&tea->ctrl_handler);
+			return retval;
+		}
+	}
+
+	v4l2_ctrl_handler_setup(&tea->ctrl_handler);
+
+	retval = video_register_device(&tea->vd, VFL_TYPE_RADIO, radio_nr);
+	if (retval) {
+		printk(KERN_ERR "tea575x-tuner: can't register video device!\n");
+		v4l2_ctrl_handler_free(&tea->ctrl_handler);
+		return retval;
+	}
 
 	return 0;
 }
 
 void snd_tea575x_exit(struct snd_tea575x *tea)
 {
-	if (tea->vd) {
-		video_unregister_device(tea->vd);
-		tea->vd = NULL;
-	}
+	video_unregister_device(&tea->vd);
+	v4l2_ctrl_handler_free(&tea->ctrl_handler);
 }
 
 static int __init alsa_tea575x_module_init(void)

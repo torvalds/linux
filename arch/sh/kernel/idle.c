@@ -18,7 +18,7 @@
 #include <linux/smp.h>
 #include <asm/pgalloc.h>
 #include <asm/system.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/smp.h>
 
 void (*pm_idle)(void) = NULL;

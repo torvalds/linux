@@ -149,7 +149,9 @@ xfs_file_fsync(
 
 	xfs_iflags_clear(ip, XFS_ITRUNCATED);
 
+	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	xfs_ioend_wait(ip);
+	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
 	if (mp->m_flags & XFS_MOUNT_BARRIER) {
 		/*
