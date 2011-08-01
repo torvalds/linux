@@ -20,7 +20,6 @@
 #include <linux/stddef.h>
 #include <linux/list.h>
 #include <linux/timer.h>
-#include <linux/version.h>
 #include <linux/io.h>
 
 #include <mach/hardware.h>
