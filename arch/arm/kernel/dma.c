@@ -288,6 +288,7 @@ void get_dma_position(unsigned int chan, dma_addr_t *src_pos, dma_addr_t *dst_po
 }
 
 EXPORT_SYMBOL(dma_channel_active);
+
 #if 0
 void set_dma_page(unsigned int chan, char pagenr)
 {
@@ -317,6 +318,7 @@ int get_dma_residue(unsigned int chan)
 	return ret;
 }
 EXPORT_SYMBOL(get_dma_residue);
+#endif
 
 #ifdef CONFIG_PROC_FS
 static int proc_dma_show(struct seq_file *m, void *v)
