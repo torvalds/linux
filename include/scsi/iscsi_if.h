@@ -313,6 +313,7 @@ enum iscsi_net_param {
 	ISCSI_NET_PARAM_VLAN_ENABLED		= 15,
 	ISCSI_NET_PARAM_IFACE_TYPE		= 16,
 	ISCSI_NET_PARAM_IFACE_NAME		= 17,
+	ISCSI_NET_PARAM_MTU			= 18,
 };
 
 enum iscsi_conn_state {
