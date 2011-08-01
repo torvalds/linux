@@ -1698,9 +1698,9 @@ static int hdmi_get_clocks(struct platform_device *pdev)
 
 	hdmi.sys_clk = clk;
 
-	clk = clk_get(&pdev->dev, "fck");
+	clk = clk_get(&pdev->dev, "dss_48mhz_clk");
 	if (IS_ERR(clk)) {
-		DSSERR("can't get fck\n");
+		DSSERR("can't get hdmi_clk\n");
 		clk_put(hdmi.sys_clk);
 		return PTR_ERR(clk);
 	}
