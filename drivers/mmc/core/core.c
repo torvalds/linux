@@ -1928,8 +1928,6 @@ int mmc_resume_host(struct mmc_host *host)
 }
 EXPORT_SYMBOL(mmc_resume_host);
 
-///old driver add the function reforming to kernel2.6.38
-#if defined(CONFIG_SDMMC_RK29) && defined(CONFIG_SDMMC_RK29_OLD) 
 /* Do the card removal on suspend if card is assumed removeable
  * Do that in pm notifier while userspace isn't yet frozen, so we will be able
    to sync the card.
@@ -1985,8 +1983,6 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 
 	return 0;
 }
-#endif// endif---defined(CONFIG_SDMMC_RK29) && defined(CONFIG_SDMMC_RK29_OLD) 
-
 #endif
 
 #ifdef CONFIG_MMC_EMBEDDED_SDIO
