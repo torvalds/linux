@@ -15,6 +15,7 @@
 
 /* pull in the relevant register and map files. */
 
+#include <linux/version.h>
 #include <mach/rk29_iomap.h>
 
 	/* note, for the boot process to work we have to keep the UART
@@ -23,7 +24,11 @@
 	 * aligned and add in the offset when we load the value here.
 	 */
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 34))
+	.macro addruart, rx, tmp
+#else
 	.macro addruart, rx
+#endif
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1
 		ldreq	\rx, = RK29_UART1_PHYS
