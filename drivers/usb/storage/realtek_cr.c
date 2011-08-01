@@ -25,7 +25,6 @@
 #include <linux/kthread.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/version.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
