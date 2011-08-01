@@ -47,6 +47,11 @@ s32 wldev_ioctl(
 	mm_segment_t fs;
 	s32 err = 0;
 
+	if (!dev) {
+		DHD_ERROR(("%s: dev is null\n", __FUNCTION__));
+		return -EINVAL;
+	}
+
 	memset(&ioc, 0, sizeof(ioc));
 	ioc.cmd = cmd;
 	ioc.buf = arg;
