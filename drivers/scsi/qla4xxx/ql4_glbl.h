@@ -58,6 +58,8 @@ int qla4xxx_set_acb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
 		    uint32_t *mbox_sts, dma_addr_t acb_dma);
 int qla4xxx_get_acb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
 		    uint32_t *mbox_sts, dma_addr_t acb_dma);
+int qla4xxx_get_ip_state(struct scsi_qla_host *ha, uint32_t acb_idx,
+			 uint32_t ip_idx, uint32_t *sts);
 void qla4xxx_mark_device_missing(struct iscsi_cls_session *cls_session);
 u16 rd_nvram_word(struct scsi_qla_host *ha, int offset);
 u8 rd_nvram_byte(struct scsi_qla_host *ha, int offset);

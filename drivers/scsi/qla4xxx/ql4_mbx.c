@@ -1667,3 +1667,26 @@ int qla4xxx_get_mgmt_data(struct scsi_qla_host *ha, uint16_t fw_ddb_index,
 	}
 	return status;
 }
+
+int qla4xxx_get_ip_state(struct scsi_qla_host *ha, uint32_t acb_idx,
+			 uint32_t ip_idx, uint32_t *sts)
+{
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
+	int status = QLA_SUCCESS;
+
+	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
+	memset(&mbox_sts, 0, sizeof(mbox_sts));
+	mbox_cmd[0] = MBOX_CMD_GET_IP_ADDR_STATE;
+	mbox_cmd[1] = acb_idx;
+	mbox_cmd[2] = ip_idx;
+
+	status = qla4xxx_mailbox_command(ha, 3, 8, &mbox_cmd[0], &mbox_sts[0]);
+	if (status != QLA_SUCCESS) {
+		DEBUG2(ql4_printk(KERN_WARNING, ha,  "%s: "
+				  "MBOX_CMD_GET_IP_ADDR_STATE failed w/ "
+				  "status %04X\n", __func__, mbox_sts[0]));
+	}
+	memcpy(sts, mbox_sts, sizeof(mbox_sts));
+	return status;
+}

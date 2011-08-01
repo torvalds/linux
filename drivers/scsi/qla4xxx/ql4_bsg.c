@@ -139,6 +139,63 @@ leave:
 	return rval;
 }
 
+static int
+qla4xxx_get_acb_state(struct bsg_job *bsg_job)
+{
+	struct Scsi_Host *host = iscsi_job_to_shost(bsg_job);
+	struct scsi_qla_host *ha = to_qla_host(host);
+	struct iscsi_bsg_request *bsg_req = bsg_job->request;
+	struct iscsi_bsg_reply *bsg_reply = bsg_job->reply;
+	uint32_t status[MBOX_REG_COUNT];
+	uint32_t acb_idx;
+	uint32_t ip_idx;
+	int rval = -EINVAL;
+
+	bsg_reply->reply_payload_rcv_len = 0;
+
+	if (unlikely(pci_channel_offline(ha->pdev)))
+		goto leave;
+
+	/* Only 4022 and above adapters are supported */
+	if (is_qla4010(ha))
+		goto leave;
+
+	if (ql4xxx_reset_active(ha)) {
+		ql4_printk(KERN_ERR, ha, "%s: reset active\n", __func__);
+		rval = -EBUSY;
+		goto leave;
+	}
+
+	if (bsg_job->reply_payload.payload_len < sizeof(status)) {
+		ql4_printk(KERN_ERR, ha, "%s: invalid payload len %d\n",
+			   __func__, bsg_job->reply_payload.payload_len);
+		rval = -EINVAL;
+		goto leave;
+	}
+
+	acb_idx = bsg_req->rqst_data.h_vendor.vendor_cmd[1];
+	ip_idx = bsg_req->rqst_data.h_vendor.vendor_cmd[2];
+
+	rval = qla4xxx_get_ip_state(ha, acb_idx, ip_idx, status);
+	if (rval) {
+		ql4_printk(KERN_ERR, ha, "%s: get ip state failed\n",
+			   __func__);
+		bsg_reply->result = DID_ERROR << 16;
+		rval = -EIO;
+	} else {
+		bsg_reply->reply_payload_rcv_len =
+			sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
+					    bsg_job->reply_payload.sg_cnt,
+					    status, sizeof(status));
+		bsg_reply->result = DID_OK << 16;
+	}
+
+	bsg_job_done(bsg_job, bsg_reply->result,
+		     bsg_reply->reply_payload_rcv_len);
+leave:
+	return rval;
+}
+
 /**
  * qla4xxx_process_vendor_specific - handle vendor specific bsg request
  * @job: iscsi_bsg_job to handle
@@ -156,6 +213,9 @@ int qla4xxx_process_vendor_specific(struct bsg_job *bsg_job)
 
 	case QLISCSI_VND_UPDATE_FLASH:
 		return qla4xxx_update_flash(bsg_job);
+
+	case QLISCSI_VND_GET_ACB_STATE:
+		return qla4xxx_get_acb_state(bsg_job);
 
 	default:
 		ql4_printk(KERN_ERR, ha, "%s: invalid BSG vendor command: "
