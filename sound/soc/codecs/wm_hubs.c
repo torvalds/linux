@@ -179,18 +179,19 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 	dev_dbg(codec->dev, "DCS input: %x %x\n", reg_l, reg_r);
 
 	/* Apply correction to DC servo result */
-	if (hubs->dcs_codes) {
-		dev_dbg(codec->dev, "Applying %d code DC servo correction\n",
-			hubs->dcs_codes);
+	if (hubs->dcs_codes_l || hubs->dcs_codes_r) {
+		dev_dbg(codec->dev,
+			"Applying %d/%d code DC servo correction\n",
+			hubs->dcs_codes_l, hubs->dcs_codes_r);
 
 		/* HPOUT1R */
 		offset = reg_r;
-		offset += hubs->dcs_codes;
+		offset += hubs->dcs_codes_r;
 		dcs_cfg = (u8)offset << WM8993_DCS_DAC_WR_VAL_1_SHIFT;
 
 		/* HPOUT1L */
 		offset = reg_l;
-		offset += hubs->dcs_codes;
+		offset += hubs->dcs_codes_l;
 		dcs_cfg |= (u8)offset;
 
 		dev_dbg(codec->dev, "DCS result: %x\n", dcs_cfg);
@@ -228,7 +229,7 @@ static int wm8993_put_dc_servo(struct snd_kcontrol *kcontrol,
 
 	/* If we're applying an offset correction then updating the
 	 * callibration would be likely to introduce further offsets. */
-	if (hubs->dcs_codes || hubs->no_series_update)
+	if (hubs->dcs_codes_l || hubs->dcs_codes_r || hubs->no_series_update)
 		return ret;
 
 	/* Only need to do this if the outputs are active */

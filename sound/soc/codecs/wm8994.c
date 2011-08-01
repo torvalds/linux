@@ -2973,7 +2973,8 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		switch (wm8994->revision) {
 		case 2:
 		case 3:
-			wm8994->hubs.dcs_codes = -5;
+			wm8994->hubs.dcs_codes_l = -5;
+			wm8994->hubs.dcs_codes_r = -5;
 			wm8994->hubs.hp_startup_mode = 1;
 			wm8994->hubs.dcs_readback_mode = 1;
 			wm8994->hubs.series_startup = 1;

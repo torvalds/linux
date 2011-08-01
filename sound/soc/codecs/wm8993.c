@@ -1433,7 +1433,8 @@ static int wm8993_probe(struct snd_soc_codec *codec)
 	int ret, i, val;
 
 	wm8993->hubs_data.hp_startup_mode = 1;
-	wm8993->hubs_data.dcs_codes = -2;
+	wm8993->hubs_data.dcs_codes_l = -2;
+	wm8993->hubs_data.dcs_codes_r = -2;
 	wm8993->hubs_data.series_startup = 1;
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
