@@ -855,7 +855,8 @@ int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
 	btrfs_drop_extent_cache(inode, start, end - 1, 0);
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
 again:
 	recow = 0;
 	split = start;
