@@ -578,7 +578,7 @@ static struct file_operations mma8452_fops = {
 	.owner = THIS_MODULE,
 	.open = mma8452_open,
 	.release = mma8452_release,
-	.ioctl = mma8452_ioctl,
+	.unlocked_ioctl = mma8452_ioctl,
 };
 
 static struct miscdevice mma8452_device = {
