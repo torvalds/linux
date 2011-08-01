@@ -1874,6 +1874,9 @@ extern int ext4_group_extend(struct super_block *sb,
 				ext4_fsblk_t n_blocks_count);
 
 /* super.c */
+extern void *ext4_kvmalloc(size_t size, gfp_t flags);
+extern void *ext4_kvzalloc(size_t size, gfp_t flags);
+extern void ext4_kvfree(void *ptr);
 extern void __ext4_error(struct super_block *, const char *, unsigned int,
 			 const char *, ...)
 	__attribute__ ((format (printf, 4, 5)));
