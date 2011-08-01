@@ -35,6 +35,7 @@
 #include <linux/poll.h>
 #include <linux/platform_device.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 
