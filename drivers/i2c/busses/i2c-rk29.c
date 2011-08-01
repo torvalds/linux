@@ -27,6 +27,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/wakelock.h>
+#include <linux/slab.h>
 #include <mach/board.h>
 #include <asm/io.h>
 
