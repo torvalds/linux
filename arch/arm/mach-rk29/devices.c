@@ -19,6 +19,7 @@
 #include <linux/usb/android_composite.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <asm/pmu.h>
 #include <mach/irqs.h>
 #include <mach/rk29_iomap.h>
 #include <mach/rk29-dma-pl330.h> 
@@ -846,7 +847,7 @@ EXPORT_SYMBOL(board_boot_mode);
 
 static int __init rk29_init_devices(void)
 {
-	platform_device_register(&rk29_pmu_device);
+	platform_device_register(&rk29_device_pmu);
         return 0;
 }
 arch_initcall(rk29_init_devices);
