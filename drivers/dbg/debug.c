@@ -22,7 +22,7 @@
 #include <linux/kallsyms.h>
 #include <linux/delay.h>
 #include <linux/version.h>
-
+#include <linux/slab.h>
 
 /*
  * 20090725,hsl,some debug function start from here
