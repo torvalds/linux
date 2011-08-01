@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/adc.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 
 #include "rk29_adc.h"

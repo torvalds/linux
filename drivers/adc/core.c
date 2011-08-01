@@ -11,6 +11,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/adc.h>
+#include <linux/slab.h>
 
 
 static struct adc_host *g_adc = NULL;
