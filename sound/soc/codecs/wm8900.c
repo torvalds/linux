@@ -1004,6 +1004,7 @@ static int wm8900_resume(struct platform_device *pdev)
 
 	/* Restart the FLL? */
 	if (wm8900->fll_out) {
+		int ret;
 		int fll_out = wm8900->fll_out;
 		int fll_in  = wm8900->fll_in;
 
@@ -1173,7 +1174,6 @@ static int wm8900_probe(struct platform_device *pdev)
 
 	wm8900_workq = create_freezeable_workqueue("wm8900");
 	if (wm8900_workq == NULL) {
-		kfree(codec->private_data);
 		kfree(codec);
 		return -ENOMEM;
 	}
@@ -1184,9 +1184,6 @@ static int wm8900_probe(struct platform_device *pdev)
 
 	return ret;
 
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 pcm_err:
 	return ret;
 }
