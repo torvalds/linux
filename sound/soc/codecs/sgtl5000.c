@@ -50,6 +50,7 @@ static const u16 sgtl5000_regs[SGTL5000_MAX_REG_OFFSET >> 1] =  {
 	0x0000, /* 0x0016, reserved */
 	0x0000, /* 0x0018, reserved */
 	0x0000, /* 0x001A, reserved */
+	0x0000, /* 0x001C, reserved */
 	0x0000, /* 0x001E, reserved */
 	0x0000, /* 0x0020, CHIP_ANA_ADC_CTRL */
 	0x1818, /* 0x0022, CHIP_ANA_HP_CTRL */
