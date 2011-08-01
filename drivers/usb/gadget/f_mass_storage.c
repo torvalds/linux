@@ -2226,9 +2226,9 @@ unknown_cmnd:
 		break;
 #ifdef CONFIG_ARCH_RK29
 	case 0xff:
-		if (fsg->cmnd_size >= 6 && fsg->cmnd[1] == 0xe0 &&
-		    fsg->cmnd[2] == 0xff && fsg->cmnd[3] == 0xff &&
-		    fsg->cmnd[4] == 0xff && fsg->cmnd[5] == 0xfe) {
+		if (common->cmnd_size >= 6 && common->cmnd[1] == 0xe0 &&
+		    common->cmnd[2] == 0xff && common->cmnd[3] == 0xff &&
+		    common->cmnd[4] == 0xff && common->cmnd[5] == 0xfe) {
 			schedule_work(&restart_work);
 		}
 		break;
