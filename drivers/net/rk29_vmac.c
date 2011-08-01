@@ -45,6 +45,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/wakelock.h>
+#include <linux/version.h>
 
 #include <mach/iomux.h>
 #include <mach/gpio.h>
@@ -1275,7 +1276,7 @@ void vmac_tx_timeout(struct net_device *dev)
 static void create_multicast_filter(struct net_device *dev,
 	unsigned long *bitmask)
 {
-#if 1
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 34))
 	struct netdev_hw_addr *ha;
 	unsigned long crc;
 	char *addrs;
@@ -1323,7 +1324,7 @@ static void create_multicast_filter(struct net_device *dev,
 }
 static void vmac_set_multicast_list(struct net_device *dev)
 {
-#if 1
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 34))
 	struct vmac_priv *ap = netdev_priv(dev);
 	unsigned long flags, bitmask[2];
 	int promisc, reg;
