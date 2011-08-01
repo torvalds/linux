@@ -116,11 +116,6 @@ int omap_device_enable_hwmods(struct omap_device *od);
 int omap_device_disable_clocks(struct omap_device *od);
 int omap_device_enable_clocks(struct omap_device *od);
 
-static inline void omap_device_disable_idle_on_suspend(struct omap_device *od)
-{
-	od->flags |= OMAP_DEVICE_NO_IDLE_ON_SUSPEND;
-}
-
 /*
  * Entries should be kept in latency order ascending
  *
@@ -152,5 +147,13 @@ struct omap_device_pm_latency {
 
 /* Get omap_device pointer from platform_device pointer */
 #define to_omap_device(x) container_of((x), struct omap_device, pdev)
+
+static inline
+void omap_device_disable_idle_on_suspend(struct platform_device *pdev)
+{
+	struct omap_device *od = to_omap_device(pdev);
+
+	od->flags |= OMAP_DEVICE_NO_IDLE_ON_SUSPEND;
+}
 
 #endif
