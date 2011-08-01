@@ -2502,7 +2502,6 @@ int extent_write_full_page(struct extent_io_tree *tree, struct page *page,
 			  struct writeback_control *wbc)
 {
 	int ret;
-	struct address_space *mapping = page->mapping;
 	struct extent_page_data epd = {
 		.bio = NULL,
 		.tree = tree,
@@ -2510,18 +2509,9 @@ int extent_write_full_page(struct extent_io_tree *tree, struct page *page,
 		.extent_locked = 0,
 		.sync_io = wbc->sync_mode == WB_SYNC_ALL,
 	};
-	struct writeback_control wbc_writepages = {
-		.sync_mode	= wbc->sync_mode,
-		.older_than_this = NULL,
-		.nr_to_write	= 64,
-		.range_start	= page_offset(page) + PAGE_CACHE_SIZE,
-		.range_end	= (loff_t)-1,
-	};
 
 	ret = __extent_writepage(page, wbc, &epd);
 
-	extent_write_cache_pages(tree, mapping, &wbc_writepages,
-				 __extent_writepage, &epd, flush_write_bio);
 	flush_epd_write_bio(&epd);
 	return ret;
 }
