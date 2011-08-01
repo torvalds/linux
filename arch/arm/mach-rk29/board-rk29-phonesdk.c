@@ -3149,7 +3149,6 @@ static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tag
 {
 	mi->nr_banks = 1;
 	mi->bank[0].start = RK29_SDRAM_PHYS;
-	mi->bank[0].node = PHYS_TO_NID(RK29_SDRAM_PHYS);
 	mi->bank[0].size = LINUX_SIZE;
 #if SDRAM_SIZE > SZ_512M
 	mi->nr_banks = 2;
