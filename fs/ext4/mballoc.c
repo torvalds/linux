@@ -2342,7 +2342,11 @@ static int ext4_mb_init_backend(struct super_block *sb)
 		ext4_msg(sb, KERN_ERR, "can't get new inode");
 		goto err_freesgi;
 	}
-	sbi->s_buddy_cache->i_ino = get_next_ino();
+	/* To avoid potentially colliding with an valid on-disk inode number,
+	 * use EXT4_BAD_INO for the buddy cache inode number.  This inode is
+	 * not in the inode hash, so it should never be found by iget(), but
+	 * this will avoid confusion if it ever shows up during debugging. */
+	sbi->s_buddy_cache->i_ino = EXT4_BAD_INO;
 	EXT4_I(sbi->s_buddy_cache)->i_disksize = 0;
 	for (i = 0; i < ngroups; i++) {
 		desc = ext4_get_group_desc(sb, i, NULL);
