@@ -2686,16 +2686,8 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	wm8994->kcontrol = kcontrol;//save rount
 
 	//before set the route -- disable PA
-	switch(route)
-	{
-		case HEADSET_NORMAL:
-		case HEADSET_INCALL:
-		case EARPIECE_INCALL:
-			PA_ctrl(GPIO_LOW);
-			break;
-		default:
-			break;
-	}
+	PA_ctrl(GPIO_LOW);
+
 	//set rount
 	switch(route)
 	{
@@ -2774,16 +2766,22 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	//after set the route -- enable PA
 	switch(route)
 	{
-		case EARPIECE_INCALL:
-		case HEADSET_NORMAL:
-		case HEADSET_INCALL:
-		case BLUETOOTH_A2DP_NORMAL:	
-		case BLUETOOTH_A2DP_INCALL:
-		case BLUETOOTH_SCO_NORMAL:	
-			break;
-		default:
+		case MIC_CAPTURE:
+			if(wm8994_current_mode == wm8994_AP_to_headset)
+				break;
+		case EARPIECE_NORMAL:
+			if(wm8994_current_mode == wm8994_handsetMIC_to_baseband_to_headset||
+				wm8994_current_mode == wm8994_mainMIC_to_baseband_to_headset)
+				break;
+		case SPEAKER_NORMAL:	
+		case SPEAKER_RINGTONE:
+		case SPEAKER_INCALL:			
+		case EARPIECE_RINGTONE:	
+		case HEADSET_RINGTONE:
 			msleep(50);
-			PA_ctrl(GPIO_HIGH);		
+			PA_ctrl(GPIO_HIGH);				
+			break;
+		default: 		
 			break;
 	}	
 out:	
@@ -3233,6 +3231,22 @@ static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
 			snd_soc_put_route(&kcontrol,NULL);
 			break;
 		}	
+		else if(cookie_pot[1] ==':')
+		{
+			strsep(&cookie_pot,":");
+			while((p=strsep(&cookie_pot,",")))
+			{
+				kcontrol.private_value = simple_strtol(p,NULL,10);
+				printk("kcontrol.private_value = %ld\n",kcontrol.private_value);
+				if(kcontrol.private_value<SPEAKER_INCALL || kcontrol.private_value>HEADSET_RINGTONE)
+				{
+					printk("route error\n");
+					goto help;
+				}	
+				snd_soc_put_route(&kcontrol,NULL);
+			}
+			break;
+		}		
 		else
 		{
 			goto help;

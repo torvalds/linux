@@ -45,6 +45,10 @@
 #define PMEM_CAM_NECESSARY   0xc00000
 #elif ((PMEM_CAM_FULL_RESOLUTION == 0x100000) || (PMEM_CAM_FULL_RESOLUTION == 0x130000))
 #define PMEM_CAM_NECESSARY   0x800000        /* 800*600*1.5*4(preview) + 2M(capture raw) + 2M(jpeg encode output) */
+#elif (PMEM_CAM_FULL_RESOLUTION == 0x30000)
+#define PMEM_CAM_NECESSARY   0x400000        /* 640*480*1.5*4(preview) + 1M(capture raw) + 1M(jpeg encode output) */
+#else
+#define PMEM_CAM_NECESSARY   0x1200000
 #endif
 /*---------------- Camera Sensor Fixed Macro End  ------------------------*/
 #else   //#ifdef CONFIG_VIDEO_RK29 

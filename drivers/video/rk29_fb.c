@@ -57,6 +57,7 @@
 #include <mach/rk29_iomap.h>
 #include <mach/pmu.h>
 #include <mach/rk29-ipp.h>
+#include <mach/ddr.h>
 
 #include "./display/screen/screen.h"
 
@@ -973,12 +974,16 @@ static int win0_blank(int blank_mode, struct fb_info *info)
     {
     case FB_BLANK_UNBLANK:
         LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE(1));
+	LcdWrReg(inf, REG_CFG_DONE, 0x01);
         break;
     default:
         LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE(0));
+	LcdWrReg(inf, REG_CFG_DONE, 0x01);
+#ifdef CONFIG_DDR_RECONFIG
+	msleep(40);
+#endif
         break;
     }
-    LcdWrReg(inf, REG_CFG_DONE, 0x01);
 
 	mcu_refresh(inf);
     return 0;
@@ -1014,7 +1019,7 @@ static int win0_set_par(struct fb_info *info)
 
 	CHK_SUSPEND(inf);
 
-    if(((var->rotate == 270)||(var->rotate == 90)) && (inf->video_mode))
+    if(((var->rotate == 270)||(var->rotate == 90) || (var->rotate == 180)) && (inf->video_mode))
     {
       #ifdef CONFIG_FB_ROTATE_VIDEO  
     //    if(xact > screen->x_res)
@@ -1828,7 +1833,7 @@ static int fb1_set_par(struct fb_info *info)
         printk("LCDC not support rotate!\n");
         return -EINVAL;
       #endif
-    }else{
+    } else{
         xpos = (xpos * screen->x_res) / inf->panel1_info.x_res;
         ypos = (ypos * screen->y_res) / inf->panel1_info.y_res;
         xsize = (xsize * screen->x_res) / inf->panel1_info.x_res;
@@ -1924,7 +1929,11 @@ static int fb1_set_par(struct fb_info *info)
 		yuv_phy[1] = last_yuv_phy[1];
 		yuv_phy[0] += par->y_offset;
 		yuv_phy[1] += par->c_offset;
+        #if 0
 		if((var->rotate == 90) ||(var->rotate == 270))
+        #else
+        if(var->rotate%360 != 0)
+        #endif
 			{
 				dstoffset = (dstoffset+1)%2;
 				ipp_req.src0.fmt = 3;
@@ -1941,8 +1950,8 @@ static int fb1_set_par(struct fb_info *info)
 				ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
 				//   if(var->xres > screen->x_res)
 				//   {
-					ipp_req.dst0.w = screen->x_res;
-					ipp_req.dst0.h = screen->y_res;
+					ipp_req.dst0.w = var->xres;
+					ipp_req.dst0.h = var->yres;
 				//  }   else	{
 				//	  ipp_req.dst0.w = var->yres;
 				// 	  ipp_req.dst0.h = var->xres;
@@ -1952,9 +1961,10 @@ static int fb1_set_par(struct fb_info *info)
 				ipp_req.timeout = 100;
 				if(var->rotate == 90)
 					ipp_req.flag = IPP_ROT_90;
+                else if (var->rotate == 180)
+					ipp_req.flag = IPP_ROT_180;
 				else if(var->rotate == 270)
 					ipp_req.flag = IPP_ROT_270;
-
 				//ipp_do_blit(&ipp_req);
 				ipp_blit_sync(&ipp_req);
 				fbprintk("yaddr=0x%x,uvaddr=0x%x\n",ipp_req.dst0.YrgbMst,ipp_req.dst0.CbrMst);
@@ -2123,7 +2133,11 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
             yuv_phy[0] += par->y_offset;
             yuv_phy[1] += par->c_offset;
          
-            if((var->rotate == 270)||(var->rotate == 90))
+            #if 0
+    		if((var->rotate == 90) ||(var->rotate == 270))
+            #else
+            if(var->rotate%360 != 0)
+            #endif
             {
                 #ifdef CONFIG_FB_ROTATE_VIDEO 
                 dstoffset = (dstoffset+1)%2;
@@ -2151,6 +2165,8 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
                 ipp_req.timeout = 100;
                 if(var->rotate == 90)
                     ipp_req.flag = IPP_ROT_90;
+                else if(var->rotate == 180)
+                    ipp_req.flag = IPP_ROT_180;
                 else if(var->rotate == 270)
                     ipp_req.flag = IPP_ROT_270;
                 //ipp_do_blit(&ipp_req);
@@ -2390,6 +2406,7 @@ static irqreturn_t rk29fb_irq(int irq, void *dev_id)
 	wq_condition = 1;
  	wake_up_interruptible(&wq);
 
+	rk29fb_irq_notify_ddr();
 	return IRQ_HANDLED;
 }
 

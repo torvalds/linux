@@ -838,6 +838,25 @@ struct bq27510_platform_data bq27510_info = {
 };
 #endif
 
+#if defined (CONFIG_BATTERY_BQ27541)
+#define	DC_CHECK_PIN	RK29_PIN4_PA1
+#define	LI_LION_BAT_NUM	1
+static int bq27541_init_dc_check_pin(void){	
+	if(gpio_request(DC_CHECK_PIN,"dc_check") != 0){      
+		gpio_free(DC_CHECK_PIN);      
+		printk("bq27541 init dc check pin request error\n");      
+		return -EIO;    
+	}	
+	gpio_direction_input(DC_CHECK_PIN);	
+	return 0;
+}
+
+struct bq27541_platform_data bq27541_info = {	
+	.init_dc_check_pin = bq27541_init_dc_check_pin,	
+	.dc_check_pin =  DC_CHECK_PIN,		
+	.bat_num = LI_LION_BAT_NUM,
+};
+#endif
 
 /*****************************************************************************************
  * i2c devices
@@ -1143,6 +1162,14 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
 
 #ifdef CONFIG_I2C3_RK29
 static struct i2c_board_info __initdata board_i2c3_devices[] = {
+	#if defined (CONFIG_BATTERY_BQ27541)
+	{
+		.type    		= "bq27541",
+		.addr           = 0x55,
+		.flags			= 0,
+		.platform_data  = &bq27541_info,
+	},
+#endif
 };
 #endif
 
@@ -1688,6 +1715,7 @@ struct gpio_led rk29_leds[] = {
 			.gpio = RK29_PIN4_PB2,
 			.default_trigger = "timer",
 			.active_low = 0,
+			.retain_state_suspended = 1,
 			.default_state = LEDS_GPIO_DEFSTATE_OFF,
 		},
 		{
@@ -1695,6 +1723,7 @@ struct gpio_led rk29_leds[] = {
 			.gpio = RK29_PIN4_PB1,
 			.default_trigger = "timer",
 			.active_low = 0,
+			.retain_state_suspended = 1,
 			.default_state = LEDS_GPIO_DEFSTATE_OFF,
 		},
 		{
@@ -1702,6 +1731,7 @@ struct gpio_led rk29_leds[] = {
 			.gpio = RK29_PIN4_PB0,
 			.default_trigger = "timer",
 			.active_low = 0,
+			.retain_state_suspended = 1,
 			.default_state = LEDS_GPIO_DEFSTATE_OFF,
 		},
 };
@@ -1719,6 +1749,35 @@ struct platform_device rk29_device_gpio_leds = {
 	},
 };
 #endif
+
+#ifdef CONFIG_LEDS_NEWTON_PWM
+static struct led_newton_pwm rk29_pwm_leds[] = {
+		{
+			.name = "power_led",
+			.pwm_id = 1,
+			.pwm_gpio = RK29_PIN5_PD2,
+			.pwm_iomux_name = GPIO5D2_PWM1_UART1SIRIN_NAME,
+			.pwm_iomux_pwm = GPIO5H_PWM1,
+			.pwm_iomux_gpio = GPIO5H_GPIO5D2,
+			.freq = 1000,
+			.period = 255,
+		},
+};
+
+static struct led_newton_pwm_platform_data rk29_pwm_leds_pdata = {
+	.leds = &rk29_pwm_leds,
+	.num_leds	= ARRAY_SIZE(rk29_pwm_leds),
+};
+
+static struct platform_device rk29_device_pwm_leds = {
+	.name	= "leds_newton_pwm",
+	.id 	= -1,
+	.dev	= {
+	   .platform_data  = &rk29_pwm_leds_pdata,
+	},
+};
+#endif
+	
 #ifdef CONFIG_USB_ANDROID
 struct usb_mass_storage_platform_data newton_mass_storage_pdata = {
 	.nluns		= 1,
@@ -1746,6 +1805,9 @@ static void __init rk29_board_iomux_init(void)
 	rk29_mux_api_set(GPIO4B0_FLASHDATA8_NAME,GPIO4L_GPIO4B0);
 	rk29_mux_api_set(GPIO4B1_FLASHDATA9_NAME,GPIO4L_GPIO4B1);
 	rk29_mux_api_set(GPIO4B2_FLASHDATA10_NAME,GPIO4L_GPIO4B2);
+	#endif
+	#ifdef CONFIG_LEDS_NEWTON_PWM
+	rk29_mux_api_set(GPIO5D2_PWM1_UART1SIRIN_NAME, GPIO5H_GPIO5D2);
 	#endif
 }
 
@@ -1876,6 +1938,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_LEDS_GPIO_PLATFORM
 	&rk29_device_gpio_leds,
+#endif
+#ifdef CONFIG_LEDS_NEWTON_PWM
+	&rk29_device_pwm_leds,
 #endif
 };
 

@@ -268,29 +268,6 @@ config I2C_POWERMAC
 	tristate "Powermac I2C interface"
 	depends on PPC_PMAC
 
-config I2C_RK2818
-	tristate "RK2818 i2c interface (I2C)"
-	depends on ARCH_RK2818
-	default y
-	help
-		This supports the use of the I2C interface on rk2818 processors.
-
-if I2C_RK2818
-	comment "Now, there are two I2C interfaces selected by developer."
-	
-	config I2C0_RK2818
-		bool "RK2818 I2C0 interface support"
-		default y
-		depends on ARCH_RK2818
-		help
-			This supports the use of the I2C0 interface on rk2818 processors.
-	config I2C1_RK2818
-		bool "RK2818 I2C1 interface support"
-		default y
-		depends on ARCH_RK2818
-		help
-			This supports the use of the I2C1 interface on rk2818 processors.
-endif
 config I2C_RK29
 	tristate "RK29 i2c interface (I2C)"
 	depends on ARCH_RK29

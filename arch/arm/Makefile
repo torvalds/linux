@@ -170,7 +170,6 @@ machine-$(CONFIG_ARCH_VERSATILE)	:= versatile
 machine-$(CONFIG_ARCH_W90X900)		:= w90x900
 machine-$(CONFIG_FOOTBRIDGE)		:= footbridge
 machine-$(CONFIG_ARCH_MXC91231)		:= mxc91231
-machine-$(CONFIG_ARCH_RK2818)   	:= rk2818
 machine-$(CONFIG_ARCH_RK29)   		:= rk29
 
 # Platform directory name.  This list is sorted alphanumerically

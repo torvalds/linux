@@ -318,7 +318,6 @@ static int wm831x_buckv_set_dvs(struct regulator_dev *rdev, int state)
 int wm831x_reg_read(struct wm831x *wm831x, unsigned short reg);
 static int wm831x_buckv_read_voltage(struct regulator_dev *rdev)
 {
-	u16 r;
 	int vol_read;
 	int ret;
 	struct wm831x_dcdc *dcdc = rdev_get_drvdata(rdev);
@@ -329,7 +328,6 @@ static int wm831x_buckv_read_voltage(struct regulator_dev *rdev)
 	if (ret < 0)
 		return ret;
 	ret &= WM831X_DC1_ON_VSEL_MASK;
-	//printk("-readvoltage--%d---\n", ret);
 	vol_read = (ret-8)*12500 + 600000;
 
 	return vol_read;
@@ -357,8 +355,6 @@ static int wm831x_buckv_set_voltage(struct regulator_dev *rdev,
 	if (dcdc->dvs_gpio && dcdc->dvs_vsel == vsel)
 		return wm831x_buckv_set_dvs(rdev, 1);
 
-//	printk("min_uV = %d\n", min_uV);
-//	printk("vsel = %d\n", vsel);
 	/* Always set the ON status to the minimum voltage */
 	ret = wm831x_set_bits(wm831x, on_reg, WM831X_DC1_ON_VSEL_MASK, vsel);
 	if (ret < 0)
@@ -433,8 +429,7 @@ static int wm831x_buckv_set_voltage_step(struct regulator_dev * rdev, int min_uV
 	int old_vol;
 	int new_min_uV,new_max_uV;
 	int diff_value,step;
-	int ret;
-	int read_vol;
+	int ret=0;
 
 	struct wm831x_dcdc *dcdc = rdev_get_drvdata(rdev); 
 	struct wm831x *wm831x = dcdc->wm831x; 
@@ -479,7 +474,6 @@ static int wm831x_buckv_set_voltage_step(struct regulator_dev * rdev, int min_uV
 		else                    //rise  voltage
 		{
 			diff_value = (min_uV- old_vol); 
-			gpio_direction_output(RK29_PIN1_PD7, GPIO_HIGH);
 
 			for(step = 100000; step<=diff_value; step += 100000)
 			{

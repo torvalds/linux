@@ -1,7 +1,0 @@
-menu "DSP"
-config RK2818_DSP
-	tristate "ROCKCHIP RK2818 DSP"
-	default y
-	help
-          rk28 dsp module.
-endmenu

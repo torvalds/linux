@@ -22,6 +22,22 @@
 #include <linux/timer.h>
 #include <linux/notifier.h>
 
+struct led_newton_pwm {
+	const char	*name;
+	unsigned int	pwm_id;
+	unsigned	 	pwm_gpio;
+	char*			pwm_iomux_name;
+	unsigned int 	pwm_iomux_pwm;
+	unsigned int 	pwm_iomux_gpio;
+	unsigned int	freq;/**/
+	unsigned int	period;/*1-100*/
+};
+
+struct led_newton_pwm_platform_data {
+	int			num_leds;
+	struct led_newton_pwm* leds;
+};
+
 struct irda_info{
     u32 intr_pin;
     int (*iomux_init)(void);
@@ -135,6 +151,12 @@ struct rk29_i2c_platform_data {
 };
 
 struct bq27510_platform_data {	
+	int (*init_dc_check_pin)(void);	
+	unsigned int dc_check_pin;	
+	unsigned int bat_num;
+};
+
+struct bq27541_platform_data {	
 	int (*init_dc_check_pin)(void);	
 	unsigned int dc_check_pin;	
 	unsigned int bat_num;
@@ -313,14 +335,13 @@ enum periph_pll {
 enum codec_pll {
 	codec_pll_297mhz = 297000000, /* for HDMI */
 	codec_pll_300mhz = 300000000,
-	codec_pll_445mhz = 445500000, /* for HDMI */
 	codec_pll_504mhz = 504000000,
 	codec_pll_552mhz = 552000000,
 	codec_pll_594mhz = 594000000, /* for HDMI */
 	codec_pll_600mhz = 600000000,
 };
 
-void __init rk29_clock_init(enum periph_pll ppll_rate); /* codec pll is 445.5MHz, has xin27m */
+void __init rk29_clock_init(enum periph_pll ppll_rate); /* codec pll is 297MHz, has xin27m */
 void __init rk29_clock_init2(enum periph_pll ppll_rate, enum codec_pll cpll_rate, bool has_xin27m);
 
 /* for USB detection */
