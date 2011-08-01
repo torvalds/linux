@@ -164,6 +164,7 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 	u32 id  =  rk29_bl_info->pwm_id;
 	u32 divh, div_total;
 	unsigned long pwm_clk_rate;
+	struct backlight_properties props;
 
 	if (rk29_bl) {
 		DBG(KERN_CRIT "%s: backlight device register has existed \n",
@@ -181,7 +182,9 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 		rk29_bl_info->io_init();
 	}
 
-	rk29_bl = backlight_device_register("rk28_bl", &pdev->dev, rk29_bl_info, &rk29_bl_ops);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = BL_STEP;
+	rk29_bl = backlight_device_register("rk28_bl", &pdev->dev, rk29_bl_info, &rk29_bl_ops, &props);
 	if (!rk29_bl) {
 		DBG(KERN_CRIT "%s: backlight device register error\n",
 				__func__);
@@ -214,7 +217,6 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 
 	rk29_bl->props.power = FB_BLANK_UNBLANK;
 	rk29_bl->props.fb_blank = FB_BLANK_UNBLANK;
-	rk29_bl->props.max_brightness = BL_STEP;
 	rk29_bl->props.brightness = BL_STEP / 2;
 
 	schedule_delayed_work(&rk29_backlight_work, msecs_to_jiffies(rk29_bl_info->delay_ms));
