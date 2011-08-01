@@ -1356,7 +1356,7 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 
 	hid_cancel_delayed_stuff(usbhid);
 	hid_cease_io(usbhid);
-    usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+    usb_control_msg(interface_to_usbdev(intf), usb_sndctrlpipe(interface_to_usbdev(intf), 0),
             USB_REQ_SET_FEATURE, USB_TYPE_STANDARD | USB_RECIP_DEVICE, USB_DEVICE_REMOTE_WAKEUP,
             0, NULL, 0, USB_CTRL_SET_TIMEOUT);
 
