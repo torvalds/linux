@@ -26,7 +26,6 @@
  *
  ******************************************************************************/
 
-#include <linux/version.h>
 #include <linux/net.h>
 #include <linux/delay.h>
 #include <linux/string.h>
