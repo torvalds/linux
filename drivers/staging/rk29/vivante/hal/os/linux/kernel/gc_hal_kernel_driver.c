@@ -181,7 +181,7 @@ int shutdown = 0;
 
 static int drv_open(struct inode *inode, struct file *filp);
 static int drv_release(struct inode *inode, struct file *filp);
-static int drv_ioctl(struct inode *inode, struct file *filp,
+static long drv_ioctl(struct file *filp,
                      unsigned int ioctlCode, unsigned long arg);
 static int drv_mmap(struct file * filp, struct vm_area_struct * vma);
 
@@ -189,7 +189,7 @@ struct file_operations driver_fops =
 {
     .open   	= drv_open,
     .release	= drv_release,
-    .ioctl  	= drv_ioctl,
+    .unlocked_ioctl	= drv_ioctl,
     .mmap   	= drv_mmap,
 };
 
@@ -385,8 +385,7 @@ int drv_release(struct inode* inode, struct file* filp)
     return 0;
 }
 
-int drv_ioctl(struct inode *inode,
-    	      struct file *filp, 
+long drv_ioctl(struct file *filp,
     	      unsigned int ioctlCode,
 	      unsigned long arg)
 {
