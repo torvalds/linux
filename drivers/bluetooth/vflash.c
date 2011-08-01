@@ -14,6 +14,7 @@
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 
 #if 0
@@ -123,7 +124,7 @@ static int vflash_release(struct inode *inode, struct file *file)
 
 static const struct file_operations vflash_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= vflash_ioctl,
+	.unlocked_ioctl	= vflash_ioctl,
 	.open		= vflash_open,
 	.release	= vflash_release,
 };
