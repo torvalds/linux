@@ -354,7 +354,7 @@ static struct netlbl_unlhsh_iface *netlbl_unlhsh_add_iface(int ifindex)
 		INIT_LIST_HEAD(&iface->list);
 		if (netlbl_unlhsh_rcu_deref(netlbl_unlhsh_def) != NULL)
 			goto add_iface_failure;
-		rcu_assign_pointer(netlbl_unlhsh_def, iface);
+		RCU_INIT_POINTER(netlbl_unlhsh_def, iface);
 	}
 	spin_unlock(&netlbl_unlhsh_lock);
 
@@ -621,7 +621,7 @@ static void netlbl_unlhsh_condremove_iface(struct netlbl_unlhsh_iface *iface)
 	if (iface->ifindex > 0)
 		list_del_rcu(&iface->list);
 	else
-		rcu_assign_pointer(netlbl_unlhsh_def, NULL);
+		RCU_INIT_POINTER(netlbl_unlhsh_def, NULL);
 	spin_unlock(&netlbl_unlhsh_lock);
 
 	call_rcu(&iface->rcu, netlbl_unlhsh_free_iface);
@@ -1449,7 +1449,7 @@ int __init netlbl_unlabel_init(u32 size)
 
 	rcu_read_lock();
 	spin_lock(&netlbl_unlhsh_lock);
-	rcu_assign_pointer(netlbl_unlhsh, hsh_tbl);
+	RCU_INIT_POINTER(netlbl_unlhsh, hsh_tbl);
 	spin_unlock(&netlbl_unlhsh_lock);
 	rcu_read_unlock();
 

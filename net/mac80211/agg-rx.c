@@ -69,7 +69,7 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 	if (!tid_rx)
 		return;
 
-	rcu_assign_pointer(sta->ampdu_mlme.tid_rx[tid], NULL);
+	RCU_INIT_POINTER(sta->ampdu_mlme.tid_rx[tid], NULL);
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "Rx BA session stop requested for %pM tid %u\n",
@@ -340,7 +340,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	status = WLAN_STATUS_SUCCESS;
 
 	/* activate it for RX */
-	rcu_assign_pointer(sta->ampdu_mlme.tid_rx[tid], tid_agg_rx);
+	RCU_INIT_POINTER(sta->ampdu_mlme.tid_rx[tid], tid_agg_rx);
 
 	if (timeout)
 		mod_timer(&tid_agg_rx->session_timer, TU_TO_EXP_TIME(timeout));

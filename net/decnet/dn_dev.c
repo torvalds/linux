@@ -388,7 +388,7 @@ static int dn_dev_insert_ifa(struct dn_dev *dn_db, struct dn_ifaddr *ifa)
 	}
 
 	ifa->ifa_next = dn_db->ifa_list;
-	rcu_assign_pointer(dn_db->ifa_list, ifa);
+	RCU_INIT_POINTER(dn_db->ifa_list, ifa);
 
 	dn_ifaddr_notify(RTM_NEWADDR, ifa);
 	blocking_notifier_call_chain(&dnaddr_chain, NETDEV_UP, ifa);
@@ -1093,7 +1093,7 @@ static struct dn_dev *dn_dev_create(struct net_device *dev, int *err)
 
 	memcpy(&dn_db->parms, p, sizeof(struct dn_dev_parms));
 
-	rcu_assign_pointer(dev->dn_ptr, dn_db);
+	RCU_INIT_POINTER(dev->dn_ptr, dn_db);
 	dn_db->dev = dev;
 	init_timer(&dn_db->timer);
 
@@ -1101,7 +1101,7 @@ static struct dn_dev *dn_dev_create(struct net_device *dev, int *err)
 
 	dn_db->neigh_parms = neigh_parms_alloc(dev, &dn_neigh_table);
 	if (!dn_db->neigh_parms) {
-		rcu_assign_pointer(dev->dn_ptr, NULL);
+		RCU_INIT_POINTER(dev->dn_ptr, NULL);
 		kfree(dn_db);
 		return NULL;
 	}

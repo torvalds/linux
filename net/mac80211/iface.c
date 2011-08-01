@@ -456,7 +456,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 						 BSS_CHANGED_BEACON_ENABLED);
 
 		/* remove beacon */
-		rcu_assign_pointer(sdata->u.ap.beacon, NULL);
+		RCU_INIT_POINTER(sdata->u.ap.beacon, NULL);
 		synchronize_rcu();
 		kfree(old_beacon);
 

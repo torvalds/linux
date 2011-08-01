@@ -84,7 +84,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	drv_reset_tsf(local);
 
 	skb = ifibss->skb;
-	rcu_assign_pointer(ifibss->presp, NULL);
+	RCU_INIT_POINTER(ifibss->presp, NULL);
 	synchronize_rcu();
 	skb->data = skb->head;
 	skb->len = 0;
@@ -184,7 +184,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		*pos++ = 0; /* U-APSD no in use */
 	}
 
-	rcu_assign_pointer(ifibss->presp, skb);
+	RCU_INIT_POINTER(ifibss->presp, skb);
 
 	sdata->vif.bss_conf.beacon_int = beacon_int;
 	sdata->vif.bss_conf.basic_rates = basic_rates;
@@ -995,7 +995,7 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 	kfree(sdata->u.ibss.ie);
 	skb = rcu_dereference_protected(sdata->u.ibss.presp,
 					lockdep_is_held(&sdata->u.ibss.mtx));
-	rcu_assign_pointer(sdata->u.ibss.presp, NULL);
+	RCU_INIT_POINTER(sdata->u.ibss.presp, NULL);
 	sdata->vif.bss_conf.ibss_joined = false;
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED |
 						BSS_CHANGED_IBSS);
