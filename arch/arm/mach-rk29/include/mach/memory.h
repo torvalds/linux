@@ -18,6 +18,7 @@
 
 #include <asm/page.h>
 #include <asm/sizes.h>
+#include <linux/version.h>
 
 /* physical offset of RAM */
 #define PHYS_OFFSET		UL(0x60000000)
@@ -40,8 +41,11 @@ __arch_adjust_zones(int node, unsigned long *zone_size, unsigned long *zhole_siz
 	zhole_size[0] = 0;
 }
 
-#define arch_adjust_zones(node, zone_size, zhole_size) \
-	__arch_adjust_zones(node, zone_size, zhole_size)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36))
+#define arch_adjust_zones(zone_size, zhole_size) __arch_adjust_zones(0, zone_size, zhole_size)
+#else
+#define arch_adjust_zones(node, zone_size, zhole_size) __arch_adjust_zones(node, zone_size, zhole_size)
+#endif
 
 #endif /* CONFIG_ZONE_DMA */
 
@@ -52,6 +56,11 @@ __arch_adjust_zones(int node, unsigned long *zone_size, unsigned long *zhole_siz
 #define SRAM_CODE_END		0xFEF02FFF
 #define SRAM_DATA_OFFSET	0xFEF03000
 #define SRAM_DATA_END		0xFEF03FFF
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 34))
+#define dmac_clean_range(start, end)	dmac_map_area(start, end - start, DMA_TO_DEVICE)
+#define dmac_inv_range(start, end)	dmac_unmap_area(start, end - start, DMA_FROM_DEVICE)
+#endif
 
 #endif
 
