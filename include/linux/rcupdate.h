@@ -134,16 +134,6 @@ extern void call_rcu_sched(struct rcu_head *head,
 
 extern void synchronize_sched(void);
 
-static inline void __rcu_read_lock_bh(void)
-{
-	local_bh_disable();
-}
-
-static inline void __rcu_read_unlock_bh(void)
-{
-	local_bh_enable();
-}
-
 #ifdef CONFIG_PREEMPT_RCU
 
 extern void __rcu_read_lock(void);
@@ -686,7 +676,7 @@ static inline void rcu_read_unlock(void)
  */
 static inline void rcu_read_lock_bh(void)
 {
-	__rcu_read_lock_bh();
+	local_bh_disable();
 	__acquire(RCU_BH);
 	rcu_read_acquire_bh();
 }
@@ -700,7 +690,7 @@ static inline void rcu_read_unlock_bh(void)
 {
 	rcu_read_release_bh();
 	__release(RCU_BH);
-	__rcu_read_unlock_bh();
+	local_bh_enable();
 }
 
 /**
