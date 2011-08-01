@@ -651,15 +651,13 @@ static int __init vme_user_init(void)
 
 
 	/* Dynamically create the bind table based on module parameters */
-	ids = kmalloc(sizeof(struct vme_device_id) * (bus_num + 1), GFP_KERNEL);
+	ids = kzalloc(sizeof(struct vme_device_id) * (bus_num + 1), GFP_KERNEL);
 	if (ids == NULL) {
 		printk(KERN_ERR "%s: Unable to allocate ID table\n",
 			driver_name);
 		retval = -ENOMEM;
 		goto err_id;
 	}
-
-	memset(ids, 0, (sizeof(struct vme_device_id) * (bus_num + 1)));
 
 	for (i = 0; i < bus_num; i++) {
 		ids[i].bus = bus[i];
