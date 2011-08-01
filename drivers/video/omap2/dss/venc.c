@@ -741,7 +741,10 @@ static int venc_get_clocks(struct platform_device *pdev)
 	venc.tv_clk = clk;
 
 	if (dss_has_feature(FEAT_VENC_REQUIRES_TV_DAC_CLK)) {
-		clk = clk_get(&pdev->dev, "tv_dac_clk");
+		if (cpu_is_omap34xx() || cpu_is_omap3630())
+			clk = clk_get(&pdev->dev, "dss_96m_fck");
+		else
+			clk = clk_get(&pdev->dev, "tv_dac_clk");
 		if (IS_ERR(clk)) {
 			DSSERR("can't get tv_dac_clk\n");
 			clk_put(venc.tv_clk);

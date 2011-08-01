@@ -691,6 +691,11 @@ static void dss_put_clocks(void)
 	clk_put(dss.dss_clk);
 }
 
+struct clk *dss_get_ick(void)
+{
+	return clk_get(&dss.pdev->dev, "ick");
+}
+
 int dss_runtime_get(void)
 {
 	int r;

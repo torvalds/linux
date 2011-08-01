@@ -4435,7 +4435,10 @@ static int dsi_get_clocks(struct platform_device *dsidev)
 
 	dsi->dss_clk = clk;
 
-	clk = clk_get(&dsidev->dev, "sys_clk");
+	if (cpu_is_omap34xx() || cpu_is_omap3630())
+		clk = clk_get(&dsidev->dev, "dss2_alwon_fck");
+	else
+		clk = clk_get(&dsidev->dev, "sys_clk");
 	if (IS_ERR(clk)) {
 		DSSERR("can't get sys_clk\n");
 		clk_put(dsi->dss_clk);
