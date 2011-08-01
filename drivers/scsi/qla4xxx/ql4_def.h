@@ -344,6 +344,8 @@ struct ipaddress_config {
 	struct in6_addr ipv6_addr1;
 	struct in6_addr ipv6_default_router_addr;
 	uint16_t eth_mtu_size;
+	uint16_t ipv4_port;
+	uint16_t ipv6_port;
 };
 
 #define QL4_CHAP_MAX_NAME_LEN 256

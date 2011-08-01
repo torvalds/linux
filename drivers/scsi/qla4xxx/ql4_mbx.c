@@ -335,6 +335,7 @@ qla4xxx_update_local_ip(struct scsi_qla_host *ha,
 				le16_to_cpu(init_fw_cb->ipv4_addr_state);
 	ha->ip_config.eth_mtu_size =
 				le16_to_cpu(init_fw_cb->eth_mtu_size);
+	ha->ip_config.ipv4_port = le16_to_cpu(init_fw_cb->ipv4_port);
 
 	if (ha->acb_version == ACB_SUPPORTED) {
 		ha->ip_config.ipv6_options = le16_to_cpu(init_fw_cb->ipv6_opts);
@@ -384,6 +385,7 @@ qla4xxx_update_local_ip(struct scsi_qla_host *ha,
 			   sizeof(init_fw_cb->ipv6_dflt_rtr_addr)));
 		ha->ip_config.ipv6_vlan_tag =
 				be16_to_cpu(init_fw_cb->ipv6_vlan_tag);
+		ha->ip_config.ipv6_port = le16_to_cpu(init_fw_cb->ipv6_port);
 	}
 }
 

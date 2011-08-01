@@ -231,6 +231,7 @@ static mode_t ql4_attr_is_visible(int param_type, int param)
 		case ISCSI_NET_PARAM_VLAN_PRIORITY:
 		case ISCSI_NET_PARAM_VLAN_ENABLED:
 		case ISCSI_NET_PARAM_MTU:
+		case ISCSI_NET_PARAM_PORT:
 			return S_IRUGO;
 		default:
 			return 0;
@@ -338,6 +339,12 @@ static int qla4xxx_get_iface_param(struct iscsi_iface *iface,
 		break;
 	case ISCSI_NET_PARAM_MTU:
 		len = sprintf(buf, "%d\n", ha->ip_config.eth_mtu_size);
+		break;
+	case ISCSI_NET_PARAM_PORT:
+		if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4)
+			len = sprintf(buf, "%d\n", ha->ip_config.ipv4_port);
+		else if (iface->iface_type == ISCSI_IFACE_TYPE_IPV6)
+			len = sprintf(buf, "%d\n", ha->ip_config.ipv6_port);
 		break;
 	default:
 		len = -ENOSYS;
@@ -726,6 +733,14 @@ static void qla4xxx_set_ipv6(struct scsi_qla_host *ha,
 		init_fw_cb->eth_mtu_size =
 				cpu_to_le16(*(uint16_t *)iface_param->value);
 		break;
+	case ISCSI_NET_PARAM_PORT:
+		/* Autocfg applies to even interface */
+		if (iface_param->iface_num & 0x1)
+			break;
+
+		init_fw_cb->ipv6_port =
+				cpu_to_le16(*(uint16_t *)iface_param->value);
+		break;
 	default:
 		ql4_printk(KERN_ERR, ha, "Unknown IPv6 param = %d\n",
 			   iface_param->param);
@@ -788,6 +803,10 @@ static void qla4xxx_set_ipv4(struct scsi_qla_host *ha,
 		break;
 	case ISCSI_NET_PARAM_MTU:
 		init_fw_cb->eth_mtu_size =
+				cpu_to_le16(*(uint16_t *)iface_param->value);
+		break;
+	case ISCSI_NET_PARAM_PORT:
+		init_fw_cb->ipv4_port =
 				cpu_to_le16(*(uint16_t *)iface_param->value);
 		break;
 	default:
