@@ -17,6 +17,7 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/version.h>
 
 #include <asm/dma.h>
 #include <sound/core.h>
@@ -280,11 +281,18 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
     	{
     		return 0;
     	}
-           
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+                dai->cpu_dai->playback.dma_data = i2s->dma_playback;
+	else
+                dai->cpu_dai->capture.dma_data = i2s->dma_capture;
+#else
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
                 dai->cpu_dai->dma_data = i2s->dma_playback;
 	else
                 dai->cpu_dai->dma_data = i2s->dma_capture;
+#endif
                 
 	/* Working copies of register */
 	iismod = readl(&(pheadi2s->I2S_TXCR));
