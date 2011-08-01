@@ -2,7 +2,7 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/err.h>
-
+#include <linux/slab.h>
 #include <linux/hdmi.h>
 #include <linux/input.h>
 

@@ -1,7 +1,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/hdmi.h>
-
+#include <linux/slab.h>
 
 #include "anx7150.h"
 #include "anx7150_hw.h"
