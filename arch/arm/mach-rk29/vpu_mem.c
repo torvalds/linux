@@ -22,6 +22,7 @@
 #include <linux/debugfs.h>
 #include <linux/mempolicy.h>
 #include <linux/sched.h>
+#include <linux/dma-mapping.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/cacheflush.h>
@@ -841,7 +842,7 @@ void vpu_mem_cache_opt(struct file *file, long index, unsigned int cmd)
     up_read(&vdm_rwsem);
 }
 
-static pgprot_t phys_mem_access_prot(struct file *file, pgprot_t vma_prot)
+static pgprot_t vpu_mem_phys_mem_access_prot(struct file *file, pgprot_t vma_prot)
 {
 #ifdef pgprot_noncached
 	if (vpu_mem.cached == 0 || file->f_flags & O_SYNC)
@@ -918,7 +919,7 @@ static int vpu_mem_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	vma->vm_pgoff = vpu_mem.base >> PAGE_SHIFT;
-	vma->vm_page_prot = phys_mem_access_prot(file, vma->vm_page_prot);
+	vma->vm_page_prot = vpu_mem_phys_mem_access_prot(file, vma->vm_page_prot);
 
 	if (vpu_mem_map_pfn_range(vma, vma_size)) {
 		printk(KERN_INFO "vpu_mem: mmap failed in kernel!\n");
