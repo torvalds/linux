@@ -315,9 +315,17 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	else
 		precharge = 5;
 
-	if (I915_READ(ch_ctl) & DP_AUX_CH_CTL_SEND_BUSY) {
-		DRM_ERROR("dp_aux_ch not started status 0x%08x\n",
-			  I915_READ(ch_ctl));
+	/* Try to wait for any previous AUX channel activity */
+	for (try = 0; try < 3; try++) {
+		status = I915_READ(ch_ctl);
+		if ((status & DP_AUX_CH_CTL_SEND_BUSY) == 0)
+			break;
+		msleep(1);
+	}
+
+	if (try == 3) {
+		WARN(1, "dp_aux_ch not started status 0x%08x\n",
+		     I915_READ(ch_ctl));
 		return -EBUSY;
 	}
 
