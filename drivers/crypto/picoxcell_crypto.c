@@ -1724,7 +1724,7 @@ static int __devinit spacc_probe(struct platform_device *pdev)
 
 	spin_lock_init(&engine->hw_lock);
 
-	engine->clk = clk_get(&pdev->dev, NULL);
+	engine->clk = clk_get(&pdev->dev, "ref");
 	if (IS_ERR(engine->clk)) {
 		dev_info(&pdev->dev, "clk unavailable\n");
 		device_remove_file(&pdev->dev, &dev_attr_stat_irq_thresh);
