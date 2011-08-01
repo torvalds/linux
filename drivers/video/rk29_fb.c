@@ -2531,7 +2531,7 @@ static struct suspend_info suspend_info = {
 };
 #endif
 struct fb_info *g_fb0_inf = NULL;  //add cym@rk 20101027 for charger logo
-static int __init rk29fb_probe (struct platform_device *pdev)
+static int __devinit rk29fb_probe (struct platform_device *pdev)
 {
     struct rk29fb_inf *inf = NULL;
     struct resource *res = NULL;
@@ -2887,7 +2887,7 @@ release_drvdata:
 	return ret;
 }
 
-static int rk29fb_remove(struct platform_device *pdev)
+static int __devexit rk29fb_remove(struct platform_device *pdev)
 {
     struct rk29fb_inf *inf = platform_get_drvdata(pdev);
     struct fb_info *info = NULL;
@@ -3012,7 +3012,7 @@ static void rk29fb_shutdown(struct platform_device *pdev)
 
 static struct platform_driver rk29fb_driver = {
 	.probe		= rk29fb_probe,
-	.remove		= rk29fb_remove,
+	.remove		= __devexit_p(rk29fb_remove),
 	.driver		= {
 		.name	= "rk29-fb",
 		.owner	= THIS_MODULE,
