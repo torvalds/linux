@@ -803,6 +803,16 @@ static inline void ql4xxx_unlock_drvr(struct scsi_qla_host *a)
 		ql4xxx_sem_unlock(a, QL4022_DRVR_SEM_MASK);
 }
 
+static inline int ql4xxx_reset_active(struct scsi_qla_host *ha)
+{
+	return test_bit(DPC_RESET_ACTIVE, &ha->dpc_flags) ||
+	       test_bit(DPC_RESET_HA, &ha->dpc_flags) ||
+	       test_bit(DPC_RETRY_RESET_HA, &ha->dpc_flags) ||
+	       test_bit(DPC_RESET_HA_INTR, &ha->dpc_flags) ||
+	       test_bit(DPC_RESET_HA_FW_CONTEXT, &ha->dpc_flags) ||
+	       test_bit(DPC_HA_UNRECOVERABLE, &ha->dpc_flags);
+
+}
 /*---------------------------------------------------------------------------*/
 
 /* Defines for qla4xxx_initialize_adapter() and qla4xxx_recover_adapter() */

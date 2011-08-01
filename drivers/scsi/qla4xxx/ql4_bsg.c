@@ -16,36 +16,31 @@ qla4xxx_read_flash(struct bsg_job *bsg_job)
 	struct scsi_qla_host *ha = to_qla_host(host);
 	struct iscsi_bsg_reply *bsg_reply = bsg_job->reply;
 	struct iscsi_bsg_request *bsg_req = bsg_job->request;
-	uint32_t sg_cnt;
 	uint32_t offset = 0;
 	uint32_t length = 0;
 	dma_addr_t flash_dma;
 	uint8_t *flash = NULL;
-	int rval = 0;
+	int rval = -EINVAL;
 
 	bsg_reply->reply_payload_rcv_len = 0;
 
 	if (unlikely(pci_channel_offline(ha->pdev)))
-		return -EINVAL;
+		goto leave;
 
-	if (ha->flash_state != QLFLASH_WAITING)
-		return -EBUSY;
-
-	/* TODO: Add check for adapter online, reset active?? */
-	sg_cnt = dma_map_sg(&ha->pdev->dev, bsg_job->reply_payload.sg_list,
-			    bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
-
-	if (!sg_cnt)
-		return -ENOMEM;
-
-	if (sg_cnt != bsg_job->reply_payload.sg_cnt) {
-		ql4_printk(KERN_ERR, ha, "dma mapping resulted in different"
-			   " sg counts, sg_cnt: %x dma_sg_cnt: %x\n",
-			   bsg_job->reply_payload.sg_cnt, sg_cnt);
-		rval = -EAGAIN;
-		goto unmap_sg;
+	if (ql4xxx_reset_active(ha)) {
+		ql4_printk(KERN_ERR, ha, "%s: reset active\n", __func__);
+		rval = -EBUSY;
+		goto leave;
 	}
 
+	if (ha->flash_state != QLFLASH_WAITING) {
+		ql4_printk(KERN_ERR, ha, "%s: another flash operation "
+			   "active\n", __func__);
+		rval = -EBUSY;
+		goto leave;
+	}
+
+	ha->flash_state = QLFLASH_READING;
 	offset = bsg_req->rqst_data.h_vendor.vendor_cmd[1];
 	length = bsg_job->reply_payload.payload_len;
 
@@ -55,31 +50,27 @@ qla4xxx_read_flash(struct bsg_job *bsg_job)
 		ql4_printk(KERN_ERR, ha, "%s: dma alloc failed for flash "
 			   "data\n", __func__);
 		rval = -ENOMEM;
-		goto unmap_sg;
+		goto leave;
 	}
 
-	ha->flash_state = QLFLASH_READING;
-	if (qla4xxx_get_flash(ha, flash_dma, offset, length))
-		bsg_reply->result = (DID_ERROR << 16);
-	else {
-		sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
-				    bsg_job->reply_payload.sg_cnt,
-				    flash, length);
-
-		bsg_reply->result = DID_OK;
-		bsg_reply->reply_payload_rcv_len = length;
+	rval = qla4xxx_get_flash(ha, flash_dma, offset, length);
+	if (rval) {
+		ql4_printk(KERN_ERR, ha, "%s: get flash failed\n", __func__);
+		bsg_reply->result = DID_ERROR << 16;
+		rval = -EIO;
+	} else {
+		bsg_reply->reply_payload_rcv_len =
+			sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
+					    bsg_job->reply_payload.sg_cnt,
+					    flash, length);
+		bsg_reply->result = DID_OK << 16;
 	}
 
-	if (flash)
-		dma_free_coherent(&ha->pdev->dev, length, flash, flash_dma);
-
+	bsg_job_done(bsg_job, bsg_reply->result,
+		     bsg_reply->reply_payload_rcv_len);
+	dma_free_coherent(&ha->pdev->dev, length, flash, flash_dma);
+leave:
 	ha->flash_state = QLFLASH_WAITING;
-unmap_sg:
-	dma_unmap_sg(&ha->pdev->dev, bsg_job->reply_payload.sg_list,
-		     bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
-	if (!rval)
-		bsg_job_done(bsg_job, bsg_reply->result,
-			     bsg_reply->reply_payload_rcv_len);
 	return rval;
 }
 
@@ -90,36 +81,32 @@ qla4xxx_update_flash(struct bsg_job *bsg_job)
 	struct scsi_qla_host *ha = to_qla_host(host);
 	struct iscsi_bsg_reply *bsg_reply = bsg_job->reply;
 	struct iscsi_bsg_request *bsg_req = bsg_job->request;
-	uint32_t sg_cnt;
 	uint32_t length = 0;
 	uint32_t offset = 0;
 	uint32_t options = 0;
 	dma_addr_t flash_dma;
 	uint8_t *flash = NULL;
-	int rval = 0;
+	int rval = -EINVAL;
 
 	bsg_reply->reply_payload_rcv_len = 0;
 
 	if (unlikely(pci_channel_offline(ha->pdev)))
-		return -EINVAL;
+		goto leave;
 
-	if (ha->flash_state != QLFLASH_WAITING)
-		return -EBUSY;
-
-	sg_cnt = dma_map_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
-			    bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
-
-	if (!sg_cnt)
-		return -ENOMEM;
-
-	if (sg_cnt != bsg_job->request_payload.sg_cnt) {
-		ql4_printk(KERN_ERR, ha, "dma mapping resulted in different "
-			   "sg counts request_sg_cnt: %x dma_request_sg_cnt: "
-			   "%x\n", bsg_job->request_payload.sg_cnt, sg_cnt);
-		rval = -EAGAIN;
-		goto unmap_sg;
+	if (ql4xxx_reset_active(ha)) {
+		ql4_printk(KERN_ERR, ha, "%s: reset active\n", __func__);
+		rval = -EBUSY;
+		goto leave;
 	}
 
+	if (ha->flash_state != QLFLASH_WAITING) {
+		ql4_printk(KERN_ERR, ha, "%s: another flash operation "
+			   "active\n", __func__);
+		rval = -EBUSY;
+		goto leave;
+	}
+
+	ha->flash_state = QLFLASH_WRITING;
 	length = bsg_job->request_payload.payload_len;
 	offset = bsg_req->rqst_data.h_vendor.vendor_cmd[1];
 	options = bsg_req->rqst_data.h_vendor.vendor_cmd[2];
@@ -130,30 +117,25 @@ qla4xxx_update_flash(struct bsg_job *bsg_job)
 		ql4_printk(KERN_ERR, ha, "%s: dma alloc failed for flash "
 			   "data\n", __func__);
 		rval = -ENOMEM;
-		goto unmap_sg;
+		goto leave;
 	}
 
-	ha->flash_state = QLFLASH_WRITING;
 	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
 			  bsg_job->request_payload.sg_cnt, flash, length);
 
-	if (qla4xxx_set_flash(ha, flash_dma, offset, length, options))
-		bsg_reply->result = (DID_ERROR << 16);
-	else {
-		bsg_reply->result = DID_OK;
-		bsg_reply->reply_payload_rcv_len = length;
-	}
+	rval = qla4xxx_set_flash(ha, flash_dma, offset, length, options);
+	if (rval) {
+		ql4_printk(KERN_ERR, ha, "%s: set flash failed\n", __func__);
+		bsg_reply->result = DID_ERROR << 16;
+		rval = -EIO;
+	} else
+		bsg_reply->result = DID_OK << 16;
 
-	if (flash)
-		dma_free_coherent(&ha->pdev->dev, length, flash, flash_dma);
+	bsg_job_done(bsg_job, bsg_reply->result,
+		     bsg_reply->reply_payload_rcv_len);
+	dma_free_coherent(&ha->pdev->dev, length, flash, flash_dma);
+leave:
 	ha->flash_state = QLFLASH_WAITING;
-unmap_sg:
-	dma_unmap_sg(&ha->pdev->dev, bsg_job->reply_payload.sg_list,
-		     bsg_job->reply_payload.sg_cnt, DMA_TO_DEVICE);
-
-	if (!rval)
-		bsg_job_done(bsg_job, bsg_reply->result,
-			     bsg_reply->reply_payload_rcv_len);
 	return rval;
 }
 
