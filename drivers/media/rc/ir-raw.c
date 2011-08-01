@@ -12,6 +12,7 @@
  *  GNU General Public License for more details.
  */
 
+#include <linux/export.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/kmod.h>

@@ -1,4 +1,5 @@
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <media/saa7146_vv.h>
 
 static void calculate_output_format_register(struct saa7146_dev* saa, u32 palette, u32* clip_format)

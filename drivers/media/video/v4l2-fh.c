@@ -24,6 +24,7 @@
 
 #include <linux/bitops.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
