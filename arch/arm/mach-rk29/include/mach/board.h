@@ -318,6 +318,8 @@ void __init board_power_init(void);
 #define BOOT_MODE_CHARGE		3
 #define BOOT_MODE_POWER_TEST		4
 #define BOOT_MODE_OFFMODE_CHARGING	5
+#define BOOT_MODE_REBOOT		6
+#define BOOT_MODE_PANIC			7
 int board_boot_mode(void);
 
 enum periph_pll {
