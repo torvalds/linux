@@ -92,4 +92,5 @@ obj-$(CONFIG_DVB_CXD2820R) += cxd2820r.o
 obj-$(CONFIG_DVB_DRXK) += drxk.o
 obj-$(CONFIG_DVB_TDA18271C2DD) += tda18271c2dd.o
 obj-$(CONFIG_DVB_IT913X_FE) += it913x-fe.o
+obj-$(CONFIG_DVB_A8293) += a8293.o
 

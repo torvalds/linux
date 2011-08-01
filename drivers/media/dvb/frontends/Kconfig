@@ -621,6 +621,11 @@ config DVB_ISL6423
 	help
 	  A SEC controller chip from Intersil
 
+config DVB_A8293
+	tristate "Allegro A8293"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+
 config DVB_LGS8GL5
 	tristate "Silicon Legend LGS-8GL5 demodulator (OFDM)"
 	depends on DVB_CORE && I2C
