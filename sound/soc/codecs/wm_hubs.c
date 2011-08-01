@@ -18,6 +18,7 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/wm8994/registers.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -116,14 +117,23 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 {
 	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
 	s8 offset;
-	u16 reg, reg_l, reg_r, dcs_cfg;
+	u16 reg, reg_l, reg_r, dcs_cfg, dcs_reg;
+
+	switch (hubs->dcs_readback_mode) {
+	case 2:
+		dcs_reg = WM8994_DC_SERVO_4E;
+		break;
+	default:
+		dcs_reg = WM8993_DC_SERVO_3;
+		break;
+	}
 
 	/* If we're using a digital only path and have a previously
 	 * callibrated DC servo offset stored then use that. */
 	if (hubs->class_w && hubs->class_w_dcs) {
 		dev_dbg(codec->dev, "Using cached DC servo offset %x\n",
 			hubs->class_w_dcs);
-		snd_soc_write(codec, WM8993_DC_SERVO_3, hubs->class_w_dcs);
+		snd_soc_write(codec, dcs_reg, hubs->class_w_dcs);
 		wait_for_dc_servo(codec,
 				  WM8993_DCS_TRIG_DAC_WR_0 |
 				  WM8993_DCS_TRIG_DAC_WR_1);
@@ -154,8 +164,9 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 		reg_r = snd_soc_read(codec, WM8993_DC_SERVO_READBACK_2)
 			& WM8993_DCS_INTEG_CHAN_1_MASK;
 		break;
+	case 2:
 	case 1:
-		reg = snd_soc_read(codec, WM8993_DC_SERVO_3);
+		reg = snd_soc_read(codec, dcs_reg);
 		reg_r = (reg & WM8993_DCS_DAC_WR_VAL_1_MASK)
 			>> WM8993_DCS_DAC_WR_VAL_1_SHIFT;
 		reg_l = reg & WM8993_DCS_DAC_WR_VAL_0_MASK;
@@ -185,7 +196,7 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 		dev_dbg(codec->dev, "DCS result: %x\n", dcs_cfg);
 
 		/* Do it */
-		snd_soc_write(codec, WM8993_DC_SERVO_3, dcs_cfg);
+		snd_soc_write(codec, dcs_reg, dcs_cfg);
 		wait_for_dc_servo(codec,
 				  WM8993_DCS_TRIG_DAC_WR_0 |
 				  WM8993_DCS_TRIG_DAC_WR_1);

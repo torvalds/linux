@@ -72,6 +72,7 @@
 #define WM8994_DC_SERVO_2                       0x55
 #define WM8994_DC_SERVO_4                       0x57
 #define WM8994_DC_SERVO_READBACK                0x58
+#define WM8994_DC_SERVO_4E			0x59
 #define WM8994_ANALOGUE_HP_1                    0x60
 #define WM8958_MIC_DETECT_1                     0xD0
 #define WM8958_MIC_DETECT_2                     0xD1
