@@ -431,6 +431,9 @@ static struct {
  
 int msdos_partition(struct parsed_partitions *state)
 {
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
+	const struct block_device *bdev = state->bdev;
+#endif
 	sector_t sector_size = bdev_logical_block_size(state->bdev) / 512;
 	Sector sect;
 	unsigned char *data;
