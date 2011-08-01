@@ -2037,7 +2037,7 @@ void rtllib_sta_ps_send_pspoll_frame(struct rtllib_device *ieee)
 
 }
 
-short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u32 *time_h, u32 *time_l)
+static short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u64 *time)
 {
 	int timeout = ieee->ps_timeout;
 	u8 dtim;
@@ -2074,7 +2074,7 @@ short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u32 *time_h, u32 *time_l)
 		(ieee->mgmt_queue_tail != ieee->mgmt_queue_head))
 		return 0;
 
-	if (time_l){
+	if (time){
 		if (ieee->bAwakePktSent == true) {
 			pPSC->LPSAwakeIntvl = 1;
 		} else {
@@ -2107,15 +2107,9 @@ short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u32 *time_h, u32 *time_l)
 					LPSAwakeIntvl_tmp = pPSC->LPSAwakeIntvl;
 			}
 
-		*time_l = ieee->current_network.last_dtim_sta_time[0]
+		*time = ieee->current_network.last_dtim_sta_time
 			+ MSECS(ieee->current_network.beacon_interval * LPSAwakeIntvl_tmp);
 	}
-	}
-
-	if (time_h) {
-		*time_h = ieee->current_network.last_dtim_sta_time[1];
-		if (time_l && *time_l < ieee->current_network.last_dtim_sta_time[0])
-			*time_h += 1;
 	}
 
 	return 1;
@@ -2126,7 +2120,7 @@ short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u32 *time_h, u32 *time_l)
 inline void rtllib_sta_ps(struct rtllib_device *ieee)
 {
 
-	u32 th,tl;
+	u64 time;
 	short sleep;
 
 	unsigned long flags,flags2;
@@ -2146,7 +2140,7 @@ inline void rtllib_sta_ps(struct rtllib_device *ieee)
 		spin_unlock_irqrestore(&ieee->mgmt_tx_lock, flags2);
 	}
 
-	sleep = rtllib_sta_ps_sleep(ieee,&th, &tl);
+	sleep = rtllib_sta_ps_sleep(ieee, &time);
 	/* 2 wake, 1 sleep, 0 do nothing */
 	if (sleep == 0)
 	{
@@ -2154,7 +2148,7 @@ inline void rtllib_sta_ps(struct rtllib_device *ieee)
 	}
 	if (sleep == 1){
 		if (ieee->sta_sleep == LPS_IS_SLEEP){
-			ieee->enter_sleep_state(ieee->dev,th,tl);
+			ieee->enter_sleep_state(ieee->dev, time);
 		}
 
 		else if (ieee->sta_sleep == LPS_IS_WAKE){
@@ -2164,8 +2158,7 @@ inline void rtllib_sta_ps(struct rtllib_device *ieee)
 				ieee->sta_sleep = LPS_WAIT_NULL_DATA_SEND;
 				ieee->ack_tx_to_ieee = 1;
 				rtllib_sta_ps_send_null_frame(ieee,1);
-				ieee->ps_th = th;
-				ieee->ps_tl = tl;
+				ieee->ps_time = time;
 			}
 			spin_unlock_irqrestore(&ieee->mgmt_tx_lock, flags2);
 
@@ -2241,7 +2234,7 @@ void rtllib_ps_tx_ack(struct rtllib_device *ieee, short success)
 		/* Null frame with PS bit set */
 		if (success){
 			ieee->sta_sleep = LPS_IS_SLEEP;
-			ieee->enter_sleep_state(ieee->dev,ieee->ps_th,ieee->ps_tl);
+			ieee->enter_sleep_state(ieee->dev, ieee->ps_time);
 		}
 		/* if the card report not success we can't be sure the AP
 		 * has not RXed so we can't assume the AP believe us awake
