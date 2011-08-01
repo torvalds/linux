@@ -28,7 +28,7 @@ static int counter_width = 32;
 
 #define MSR_PPRO_EVENTSEL_RESERVED	((0xFFFFFFFFULL<<32)|(1ULL<<21))
 
-static u64 *reset_value;
+static u64 reset_value[OP_MAX_COUNTER];
 
 static void ppro_shutdown(struct op_msrs const * const msrs)
 {
@@ -39,10 +39,6 @@ static void ppro_shutdown(struct op_msrs const * const msrs)
 			continue;
 		release_perfctr_nmi(MSR_P6_PERFCTR0 + i);
 		release_evntsel_nmi(MSR_P6_EVNTSEL0 + i);
-	}
-	if (reset_value) {
-		kfree(reset_value);
-		reset_value = NULL;
 	}
 }
 
@@ -78,13 +74,6 @@ static void ppro_setup_ctrs(struct op_x86_model_spec const *model,
 {
 	u64 val;
 	int i;
-
-	if (!reset_value) {
-		reset_value = kzalloc(sizeof(reset_value[0]) * num_counters,
-					GFP_ATOMIC);
-		if (!reset_value)
-			return;
-	}
 
 	if (cpu_has_arch_perfmon) {
 		union cpuid10_eax eax;
@@ -141,13 +130,6 @@ static int ppro_check_ctrs(struct pt_regs * const regs,
 	u64 val;
 	int i;
 
-	/*
-	 * This can happen if perf counters are in use when
-	 * we steal the die notifier NMI.
-	 */
-	if (unlikely(!reset_value))
-		goto out;
-
 	for (i = 0; i < num_counters; ++i) {
 		if (!reset_value[i])
 			continue;
@@ -179,8 +161,6 @@ static void ppro_start(struct op_msrs const * const msrs)
 	u64 val;
 	int i;
 
-	if (!reset_value)
-		return;
 	for (i = 0; i < num_counters; ++i) {
 		if (reset_value[i]) {
 			rdmsrl(msrs->controls[i].addr, val);
@@ -196,8 +176,6 @@ static void ppro_stop(struct op_msrs const * const msrs)
 	u64 val;
 	int i;
 
-	if (!reset_value)
-		return;
 	for (i = 0; i < num_counters; ++i) {
 		if (!reset_value[i])
 			continue;
