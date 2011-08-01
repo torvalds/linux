@@ -917,4 +917,4 @@ module_init(serial_m3110_init);
 module_exit(serial_m3110_exit);
 
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("max3110-uart");
+MODULE_ALIAS("spi:max3110-uart");
