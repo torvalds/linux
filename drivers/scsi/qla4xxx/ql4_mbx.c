@@ -333,6 +333,8 @@ qla4xxx_update_local_ip(struct scsi_qla_host *ha,
 	ha->ip_config.ipv4_options = le16_to_cpu(init_fw_cb->ipv4_ip_opts);
 	ha->ip_config.ipv4_addr_state =
 				le16_to_cpu(init_fw_cb->ipv4_addr_state);
+	ha->ip_config.eth_mtu_size =
+				le16_to_cpu(init_fw_cb->eth_mtu_size);
 
 	if (ha->acb_version == ACB_SUPPORTED) {
 		ha->ip_config.ipv6_options = le16_to_cpu(init_fw_cb->ipv6_opts);

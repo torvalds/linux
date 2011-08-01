@@ -230,6 +230,7 @@ static mode_t ql4_attr_is_visible(int param_type, int param)
 		case ISCSI_NET_PARAM_VLAN_ID:
 		case ISCSI_NET_PARAM_VLAN_PRIORITY:
 		case ISCSI_NET_PARAM_VLAN_ENABLED:
+		case ISCSI_NET_PARAM_MTU:
 			return S_IRUGO;
 		default:
 			return 0;
@@ -334,6 +335,9 @@ static int qla4xxx_get_iface_param(struct iscsi_iface *iface,
 				      (ha->ip_config.ipv6_options &
 				       IPV6_OPT_VLAN_TAGGING_ENABLE) ?
 				       "enabled" : "disabled");
+		break;
+	case ISCSI_NET_PARAM_MTU:
+		len = sprintf(buf, "%d\n", ha->ip_config.eth_mtu_size);
 		break;
 	default:
 		len = -ENOSYS;
@@ -718,6 +722,10 @@ static void qla4xxx_set_ipv6(struct scsi_qla_host *ha,
 			init_fw_cb->ipv6_opts &=
 				cpu_to_le16(~IPV6_OPT_VLAN_TAGGING_ENABLE);
 		break;
+	case ISCSI_NET_PARAM_MTU:
+		init_fw_cb->eth_mtu_size =
+				cpu_to_le16(*(uint16_t *)iface_param->value);
+		break;
 	default:
 		ql4_printk(KERN_ERR, ha, "Unknown IPv6 param = %d\n",
 			   iface_param->param);
@@ -777,6 +785,10 @@ static void qla4xxx_set_ipv4(struct scsi_qla_host *ha,
 		else
 			init_fw_cb->ipv4_ip_opts &=
 					cpu_to_le16(~IPOPT_VLAN_TAGGING_ENABLE);
+		break;
+	case ISCSI_NET_PARAM_MTU:
+		init_fw_cb->eth_mtu_size =
+				cpu_to_le16(*(uint16_t *)iface_param->value);
 		break;
 	default:
 		ql4_printk(KERN_ERR, ha, "Unknown IPv4 param = %d\n",
