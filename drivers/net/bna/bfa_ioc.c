@@ -19,7 +19,7 @@
 #include "bfa_ioc.h"
 #include "cna.h"
 #include "bfi.h"
-#include "bfi_ctreg.h"
+#include "bfi_reg.h"
 #include "bfa_defs.h"
 
 /**

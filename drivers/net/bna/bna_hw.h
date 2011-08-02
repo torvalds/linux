@@ -14,14 +14,16 @@
  * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
  * All rights reserved
  * www.brocade.com
- *
+ */
+
+/**
  * File for interrupt macros and functions
  */
 
 #ifndef __BNA_HW_H__
 #define __BNA_HW_H__
 
-#include "bfi_ctreg.h"
+#include "bfi_reg.h"
 
 /**
  *
