@@ -18,12 +18,14 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/highmem.h>
+#include <linux/slab.h>
 
 #include <asm/memory.h>
 #include <asm/highmem.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/sizes.h>
+#include <asm/mach/arch.h>
 
 #include "mm.h"
 
@@ -117,26 +119,41 @@ static void __dma_free_buffer(struct page *page, size_t size)
 }
 
 #ifdef CONFIG_MMU
-/* Sanity check size */
-#if (CONSISTENT_DMA_SIZE % SZ_2M)
-#error "CONSISTENT_DMA_SIZE must be multiple of 2MiB"
-#endif
 
-#define CONSISTENT_OFFSET(x)	(((unsigned long)(x) - CONSISTENT_BASE) >> PAGE_SHIFT)
-#define CONSISTENT_PTE_INDEX(x) (((unsigned long)(x) - CONSISTENT_BASE) >> PGDIR_SHIFT)
-#define NUM_CONSISTENT_PTES (CONSISTENT_DMA_SIZE >> PGDIR_SHIFT)
+
+#define CONSISTENT_OFFSET(x)	(((unsigned long)(x) - consistent_base) >> PAGE_SHIFT)
+#define CONSISTENT_PTE_INDEX(x) (((unsigned long)(x) - consistent_base) >> PGDIR_SHIFT)
 
 /*
  * These are the page tables (2MB each) covering uncached, DMA consistent allocations
  */
-static pte_t *consistent_pte[NUM_CONSISTENT_PTES];
+static pte_t **consistent_pte;
+
+#ifdef CONSISTENT_DMA_SIZE
+#define DEFAULT_CONSISTENT_DMA_SIZE CONSISTENT_DMA_SIZE
+#else
+#define DEFAULT_CONSISTENT_DMA_SIZE SZ_2M
+#endif
+
+unsigned long consistent_base = CONSISTENT_END - DEFAULT_CONSISTENT_DMA_SIZE;
+
+void __init init_consistent_dma_size(unsigned long size)
+{
+	unsigned long base = CONSISTENT_END - ALIGN(size, SZ_2M);
+
+	BUG_ON(consistent_pte); /* Check we're called before DMA region init */
+	BUG_ON(base < VMALLOC_END);
+
+	/* Grow region to accommodate specified size  */
+	if (base < consistent_base)
+		consistent_base = base;
+}
 
 #include "vmregion.h"
 
 static struct arm_vmregion_head consistent_head = {
 	.vm_lock	= __SPIN_LOCK_UNLOCKED(&consistent_head.vm_lock),
 	.vm_list	= LIST_HEAD_INIT(consistent_head.vm_list),
-	.vm_start	= CONSISTENT_BASE,
 	.vm_end		= CONSISTENT_END,
 };
 
@@ -155,7 +172,17 @@ static int __init consistent_init(void)
 	pmd_t *pmd;
 	pte_t *pte;
 	int i = 0;
-	u32 base = CONSISTENT_BASE;
+	unsigned long base = consistent_base;
+	unsigned long num_ptes = (CONSISTENT_END - base) >> PGDIR_SHIFT;
+
+	consistent_pte = kmalloc(num_ptes * sizeof(pte_t), GFP_KERNEL);
+	if (!consistent_pte) {
+		pr_err("%s: no memory\n", __func__);
+		return -ENOMEM;
+	}
+
+	pr_debug("DMA memory: 0x%08lx - 0x%08lx:\n", base, CONSISTENT_END);
+	consistent_head.vm_start = base;
 
 	do {
 		pgd = pgd_offset(&init_mm, base);
@@ -198,7 +225,7 @@ __dma_alloc_remap(struct page *page, size_t size, gfp_t gfp, pgprot_t prot)
 	size_t align;
 	int bit;
 
-	if (!consistent_pte[0]) {
+	if (!consistent_pte) {
 		printk(KERN_ERR "%s: not initialised\n", __func__);
 		dump_stack();
 		return NULL;
