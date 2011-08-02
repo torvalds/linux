@@ -452,6 +452,11 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 	if (test_bit(NFS4_SESSION_DRAINING, &clp->cl_session->session_state)) {
 		spin_unlock(&tbl->slot_tbl_lock);
 		status = htonl(NFS4ERR_DELAY);
+		/* Return NFS4ERR_BADSESSION if we're draining the session
+		 * in order to reset it.
+		 */
+		if (test_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state))
+			status = htonl(NFS4ERR_BADSESSION);
 		goto out;
 	}
 
