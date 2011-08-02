@@ -1574,11 +1574,17 @@ bad_mem:
 static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct crypt_config *cc;
-	unsigned int key_size;
+	unsigned int key_size, opt_params;
 	unsigned long long tmpll;
 	int ret;
+	struct dm_arg_set as;
+	const char *opt_string;
 
-	if (argc != 5) {
+	static struct dm_arg _args[] = {
+		{0, 1, "Invalid number of feature args"},
+	};
+
+	if (argc < 5) {
 		ti->error = "Not enough arguments";
 		return -EINVAL;
 	}
@@ -1647,6 +1653,30 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 	cc->start = tmpll;
 
+	argv += 5;
+	argc -= 5;
+
+	/* Optional parameters */
+	if (argc) {
+		as.argc = argc;
+		as.argv = argv;
+
+		ret = dm_read_arg_group(_args, &as, &opt_params, &ti->error);
+		if (ret)
+			goto bad;
+
+		opt_string = dm_shift_arg(&as);
+
+		if (opt_params == 1 && opt_string &&
+		    !strcasecmp(opt_string, "allow_discards"))
+			ti->num_discard_requests = 1;
+		else if (opt_params) {
+			ret = -EINVAL;
+			ti->error = "Invalid feature arguments";
+			goto bad;
+		}
+	}
+
 	ret = -ENOMEM;
 	cc->io_queue = alloc_workqueue("kcryptd_io",
 				       WQ_NON_REENTRANT|
@@ -1681,9 +1711,16 @@ static int crypt_map(struct dm_target *ti, struct bio *bio,
 	struct dm_crypt_io *io;
 	struct crypt_config *cc;
 
-	if (bio->bi_rw & REQ_FLUSH) {
+	/*
+	 * If bio is REQ_FLUSH or REQ_DISCARD, just bypass crypt queues.
+	 * - for REQ_FLUSH device-mapper core ensures that no IO is in-flight
+	 * - for REQ_DISCARD caller must use flush if IO ordering matters
+	 */
+	if (unlikely(bio->bi_rw & (REQ_FLUSH | REQ_DISCARD))) {
 		cc = ti->private;
 		bio->bi_bdev = cc->dev->bdev;
+		if (bio_sectors(bio))
+			bio->bi_sector = cc->start + dm_target_offset(ti, bio->bi_sector);
 		return DM_MAPIO_REMAPPED;
 	}
 
@@ -1726,6 +1763,10 @@ static int crypt_status(struct dm_target *ti, status_type_t type,
 
 		DMEMIT(" %llu %s %llu", (unsigned long long)cc->iv_offset,
 				cc->dev->name, (unsigned long long)cc->start);
+
+		if (ti->num_discard_requests)
+			DMEMIT(" 1 allow_discards");
+
 		break;
 	}
 	return 0;
@@ -1822,7 +1863,7 @@ static int crypt_iterate_devices(struct dm_target *ti,
 
 static struct target_type crypt_target = {
 	.name   = "crypt",
-	.version = {1, 10, 0},
+	.version = {1, 11, 0},
 	.module = THIS_MODULE,
 	.ctr    = crypt_ctr,
 	.dtr    = crypt_dtr,
