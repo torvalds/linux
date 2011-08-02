@@ -2927,6 +2927,13 @@ extern unsigned long sun4v_ncs_request(unsigned long request,
 #define HV_FAST_FIRE_GET_PERFREG	0x120
 #define HV_FAST_FIRE_SET_PERFREG	0x121
 
+#define HV_FAST_REBOOT_DATA_SET		0x172
+
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_reboot_data_set(unsigned long ra,
+					   unsigned long len);
+#endif
+
 /* Function numbers for HV_CORE_TRAP.  */
 #define HV_CORE_SET_VER			0x00
 #define HV_CORE_PUTCHAR			0x01
