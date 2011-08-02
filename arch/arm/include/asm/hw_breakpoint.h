@@ -58,6 +58,7 @@ static inline void decode_ctrl_reg(u32 reg,
 /* Watchpoints */
 #define ARM_BREAKPOINT_LOAD	1
 #define ARM_BREAKPOINT_STORE	2
+#define ARM_FSR_ACCESS_MASK	(1 << 11)
 
 /* Privilege Levels */
 #define ARM_BREAKPOINT_PRIV	1
