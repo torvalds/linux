@@ -10219,8 +10219,15 @@ static void bnx2x_54618se_link_reset(struct bnx2x_phy *phy,
 	u32 cfg_pin;
 	u8 port;
 
-	/* This works with E3 only, no need to check the chip
-	   before determining the port. */
+	/*
+	 * In case of no EPIO routed to reset the GPHY, put it
+	 * in low power mode.
+	 */
+	bnx2x_cl22_write(bp, phy, MDIO_PMA_REG_CTRL, 0x800);
+	/*
+	 * This works with E3 only, no need to check the chip
+	 * before determining the port.
+	 */
 	port = params->port;
 	cfg_pin = (REG_RD(bp, params->shmem_base +
 			offsetof(struct shmem_region,
