@@ -2186,11 +2186,13 @@ err:
 	return status;
 }
 
-int be_cmd_get_phy_info(struct be_adapter *adapter, struct be_dma_mem *cmd)
+int be_cmd_get_phy_info(struct be_adapter *adapter,
+				struct be_phy_info *phy_info)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_phy_info *req;
 	struct be_sge *sge;
+	struct be_dma_mem cmd;
 	int status;
 
 	spin_lock_bh(&adapter->mcc_lock);
@@ -2200,8 +2202,16 @@ int be_cmd_get_phy_info(struct be_adapter *adapter, struct be_dma_mem *cmd)
 		status = -EBUSY;
 		goto err;
 	}
+	cmd.size = sizeof(struct be_cmd_req_get_phy_info);
+	cmd.va = pci_alloc_consistent(adapter->pdev, cmd.size,
+					&cmd.dma);
+	if (!cmd.va) {
+		dev_err(&adapter->pdev->dev, "Memory alloc failure\n");
+		status = -ENOMEM;
+		goto err;
+	}
 
-	req = cmd->va;
+	req = cmd.va;
 	sge = nonembedded_sgl(wrb);
 
 	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1,
@@ -2211,11 +2221,20 @@ int be_cmd_get_phy_info(struct be_adapter *adapter, struct be_dma_mem *cmd)
 			OPCODE_COMMON_GET_PHY_DETAILS,
 			sizeof(*req));
 
-	sge->pa_hi = cpu_to_le32(upper_32_bits(cmd->dma));
-	sge->pa_lo = cpu_to_le32(cmd->dma & 0xFFFFFFFF);
-	sge->len = cpu_to_le32(cmd->size);
+	sge->pa_hi = cpu_to_le32(upper_32_bits(cmd.dma));
+	sge->pa_lo = cpu_to_le32(cmd.dma & 0xFFFFFFFF);
+	sge->len = cpu_to_le32(cmd.size);
 
 	status = be_mcc_notify_wait(adapter);
+	if (!status) {
+		struct be_phy_info *resp_phy_info =
+				cmd.va + sizeof(struct be_cmd_req_hdr);
+		phy_info->phy_type = le16_to_cpu(resp_phy_info->phy_type);
+		phy_info->interface_type =
+			le16_to_cpu(resp_phy_info->interface_type);
+	}
+	pci_free_consistent(adapter->pdev, cmd.size,
+				cmd.va, cmd.dma);
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;

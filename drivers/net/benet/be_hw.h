@@ -175,18 +175,24 @@
 #define IMG_TYPE_FCOE_FW_ACTIVE		10
 #define IMG_TYPE_FCOE_FW_BACKUP 	11
 #define IMG_TYPE_NCSI_FW		13
+#define IMG_TYPE_PHY_FW			99
+#define TN_8022				13
 
+#define ILLEGAL_IOCTL_REQ		2
+#define FLASHROM_OPER_PHY_FLASH		9
+#define FLASHROM_OPER_PHY_SAVE		10
 #define FLASHROM_OPER_FLASH		1
 #define FLASHROM_OPER_SAVE		2
 #define FLASHROM_OPER_REPORT		4
 
-#define FLASH_IMAGE_MAX_SIZE_g2            (1310720) /* Max firmware image sz */
-#define FLASH_BIOS_IMAGE_MAX_SIZE_g2       (262144)  /* Max OPTION ROM img sz */
-#define FLASH_REDBOOT_IMAGE_MAX_SIZE_g2	  (262144)  /* Max Redboot image sz */
-#define FLASH_IMAGE_MAX_SIZE_g3            (2097152) /* Max fw image size */
-#define FLASH_BIOS_IMAGE_MAX_SIZE_g3       (524288)  /* Max OPTION ROM img sz */
-#define FLASH_REDBOOT_IMAGE_MAX_SIZE_g3	  (1048576)  /* Max Redboot image sz */
-#define FLASH_NCSI_IMAGE_MAX_SIZE_g3       (262144)  /* Max NSCI image sz */
+#define FLASH_IMAGE_MAX_SIZE_g2		(1310720) /* Max firmware image size */
+#define FLASH_BIOS_IMAGE_MAX_SIZE_g2	(262144)  /* Max OPTION ROM image sz */
+#define FLASH_REDBOOT_IMAGE_MAX_SIZE_g2	(262144)  /* Max Redboot image sz    */
+#define FLASH_IMAGE_MAX_SIZE_g3		(2097152) /* Max firmware image size */
+#define FLASH_BIOS_IMAGE_MAX_SIZE_g3	(524288)  /* Max OPTION ROM image sz */
+#define FLASH_REDBOOT_IMAGE_MAX_SIZE_g3	(1048576)  /* Max Redboot image sz    */
+#define FLASH_NCSI_IMAGE_MAX_SIZE_g3	(262144)
+#define FLASH_PHY_FW_IMAGE_MAX_SIZE_g3	262144
 
 #define FLASH_NCSI_MAGIC		(0x16032009)
 #define FLASH_NCSI_DISABLED		(0)
@@ -213,6 +219,7 @@
 #define FLASH_PXE_BIOS_START_g3            (13107200)
 #define FLASH_FCoE_BIOS_START_g3           (13631488)
 #define FLASH_REDBOOT_START_g3             (262144)
+#define FLASH_PHY_FW_START_g3		   1310720
 
 /************* Rx Packet Type Encoding **************/
 #define BE_UNICAST_PACKET		0

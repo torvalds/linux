@@ -1244,12 +1244,17 @@ struct be_cmd_req_get_phy_info {
 	struct be_cmd_req_hdr hdr;
 	u8 rsvd0[24];
 };
-struct be_cmd_resp_get_phy_info {
-	struct be_cmd_req_hdr hdr;
+
+struct be_phy_info {
 	u16 phy_type;
 	u16 interface_type;
 	u32 misc_params;
 	u32 future_use[4];
+};
+
+struct be_cmd_resp_get_phy_info {
+	struct be_cmd_req_hdr hdr;
+	struct be_phy_info phy_info;
 };
 
 /*********************** Set QOS ***********************/
@@ -1486,7 +1491,7 @@ extern int be_cmd_get_seeprom_data(struct be_adapter *adapter,
 extern int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
 				u8 loopback_type, u8 enable);
 extern int be_cmd_get_phy_info(struct be_adapter *adapter,
-		struct be_dma_mem *cmd);
+				struct be_phy_info *phy_info);
 extern int be_cmd_set_qos(struct be_adapter *adapter, u32 bps, u32 domain);
 extern void be_detect_dump_ue(struct be_adapter *adapter);
 extern int be_cmd_get_die_temperature(struct be_adapter *adapter);
