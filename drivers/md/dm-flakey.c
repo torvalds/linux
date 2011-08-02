@@ -27,54 +27,99 @@ struct flakey_c {
 	unsigned down_interval;
 };
 
+static int parse_features(struct dm_arg_set *as, struct dm_target *ti)
+{
+	int r;
+	unsigned argc;
+	const char *arg_name;
+
+	static struct dm_arg _args[] = {
+		{0, 0, "Invalid number of feature args"},
+	};
+
+	/* No feature arguments supplied. */
+	if (!as->argc)
+		return 0;
+
+	r = dm_read_arg_group(_args, as, &argc, &ti->error);
+	if (r)
+		return -EINVAL;
+
+	while (argc && !r) {
+		arg_name = dm_shift_arg(as);
+		argc--;
+
+		ti->error = "Unrecognised flakey feature requested";
+		r = -EINVAL;
+	}
+
+	return r;
+}
+
 /*
- * Construct a flakey mapping: <dev_path> <offset> <up interval> <down interval>
+ * Construct a flakey mapping:
+ * <dev_path> <offset> <up interval> <down interval> [<#feature args> [<arg>]*]
  */
 static int flakey_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
-	struct flakey_c *fc;
-	unsigned long long tmp;
+	static struct dm_arg _args[] = {
+		{0, UINT_MAX, "Invalid up interval"},
+		{0, UINT_MAX, "Invalid down interval"},
+	};
 
-	if (argc != 4) {
-		ti->error = "dm-flakey: Invalid argument count";
+	int r;
+	struct flakey_c *fc;
+	unsigned long long tmpll;
+	struct dm_arg_set as;
+	const char *devname;
+
+	as.argc = argc;
+	as.argv = argv;
+
+	if (argc < 4) {
+		ti->error = "Invalid argument count";
 		return -EINVAL;
 	}
 
 	fc = kmalloc(sizeof(*fc), GFP_KERNEL);
 	if (!fc) {
-		ti->error = "dm-flakey: Cannot allocate linear context";
+		ti->error = "Cannot allocate linear context";
 		return -ENOMEM;
 	}
 	fc->start_time = jiffies;
 
-	if (sscanf(argv[1], "%llu", &tmp) != 1) {
-		ti->error = "dm-flakey: Invalid device sector";
-		goto bad;
-	}
-	fc->start = tmp;
+	devname = dm_shift_arg(&as);
 
-	if (sscanf(argv[2], "%u", &fc->up_interval) != 1) {
-		ti->error = "dm-flakey: Invalid up interval";
+	if (sscanf(dm_shift_arg(&as), "%llu", &tmpll) != 1) {
+		ti->error = "Invalid device sector";
 		goto bad;
 	}
+	fc->start = tmpll;
 
-	if (sscanf(argv[3], "%u", &fc->down_interval) != 1) {
-		ti->error = "dm-flakey: Invalid down interval";
+	r = dm_read_arg(_args, &as, &fc->up_interval, &ti->error);
+	if (r)
 		goto bad;
-	}
+
+	r = dm_read_arg(_args, &as, &fc->down_interval, &ti->error);
+	if (r)
+		goto bad;
 
 	if (!(fc->up_interval + fc->down_interval)) {
-		ti->error = "dm-flakey: Total (up + down) interval is zero";
+		ti->error = "Total (up + down) interval is zero";
 		goto bad;
 	}
 
 	if (fc->up_interval + fc->down_interval < fc->up_interval) {
-		ti->error = "dm-flakey: Interval overflow";
+		ti->error = "Interval overflow";
 		goto bad;
 	}
 
-	if (dm_get_device(ti, argv[0], dm_table_get_mode(ti->table), &fc->dev)) {
-		ti->error = "dm-flakey: Device lookup failed";
+	r = parse_features(&as, ti);
+	if (r)
+		goto bad;
+
+	if (dm_get_device(ti, devname, dm_table_get_mode(ti->table), &fc->dev)) {
+		ti->error = "Device lookup failed";
 		goto bad;
 	}
 
@@ -178,7 +223,7 @@ static int flakey_iterate_devices(struct dm_target *ti, iterate_devices_callout_
 
 static struct target_type flakey_target = {
 	.name   = "flakey",
-	.version = {1, 1, 0},
+	.version = {1, 2, 0},
 	.module = THIS_MODULE,
 	.ctr    = flakey_ctr,
 	.dtr    = flakey_dtr,
