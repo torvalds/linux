@@ -133,15 +133,13 @@ static bool ux500_configure_channel(struct dma_channel *channel,
 					DMA_SLAVE_BUSWIDTH_4_BYTES;
 
 	slave_conf.direction = direction;
-	if (direction == DMA_FROM_DEVICE) {
-		slave_conf.src_addr = usb_fifo_addr;
-		slave_conf.src_addr_width = addr_width;
-		slave_conf.src_maxburst = 16;
-	} else {
-		slave_conf.dst_addr = usb_fifo_addr;
-		slave_conf.dst_addr_width = addr_width;
-		slave_conf.dst_maxburst = 16;
-	}
+	slave_conf.src_addr = usb_fifo_addr;
+	slave_conf.src_addr_width = addr_width;
+	slave_conf.src_maxburst = 16;
+	slave_conf.dst_addr = usb_fifo_addr;
+	slave_conf.dst_addr_width = addr_width;
+	slave_conf.dst_maxburst = 16;
+
 	dma_chan->device->device_control(dma_chan, DMA_SLAVE_CONFIG,
 					     (unsigned long) &slave_conf);
 
