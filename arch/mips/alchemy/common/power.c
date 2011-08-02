@@ -37,8 +37,6 @@
 #include <asm/uaccess.h>
 #include <asm/mach-au1x00/au1000.h>
 
-#ifdef CONFIG_PM
-
 /*
  * We need to save/restore a bunch of core registers that are
  * either volatile or reset to some state across a processor sleep.
@@ -174,5 +172,3 @@ void au_sleep(void)
 
 	restore_core_regs();
 }
-
-#endif	/* CONFIG_PM */
