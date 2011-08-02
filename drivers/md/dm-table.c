@@ -797,6 +797,63 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 	return r;
 }
 
+/*
+ * Target argument parsing helpers.
+ */
+static int validate_next_arg(struct dm_arg *arg, struct dm_arg_set *arg_set,
+			     unsigned *value, char **error, unsigned grouped)
+{
+	const char *arg_str = dm_shift_arg(arg_set);
+
+	if (!arg_str ||
+	    (sscanf(arg_str, "%u", value) != 1) ||
+	    (*value < arg->min) ||
+	    (*value > arg->max) ||
+	    (grouped && arg_set->argc < *value)) {
+		*error = arg->error;
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int dm_read_arg(struct dm_arg *arg, struct dm_arg_set *arg_set,
+		unsigned *value, char **error)
+{
+	return validate_next_arg(arg, arg_set, value, error, 0);
+}
+EXPORT_SYMBOL(dm_read_arg);
+
+int dm_read_arg_group(struct dm_arg *arg, struct dm_arg_set *arg_set,
+		      unsigned *value, char **error)
+{
+	return validate_next_arg(arg, arg_set, value, error, 1);
+}
+EXPORT_SYMBOL(dm_read_arg_group);
+
+const char *dm_shift_arg(struct dm_arg_set *as)
+{
+	char *r;
+
+	if (as->argc) {
+		as->argc--;
+		r = *as->argv;
+		as->argv++;
+		return r;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(dm_shift_arg);
+
+void dm_consume_args(struct dm_arg_set *as, unsigned num_args)
+{
+	BUG_ON(as->argc < num_args);
+	as->argc -= num_args;
+	as->argv += num_args;
+}
+EXPORT_SYMBOL(dm_consume_args);
+
 static int dm_table_set_type(struct dm_table *t)
 {
 	unsigned i;

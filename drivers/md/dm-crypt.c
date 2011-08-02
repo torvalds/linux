@@ -30,7 +30,6 @@
 #include <linux/device-mapper.h>
 
 #define DM_MSG_PREFIX "crypt"
-#define MESG_STR(x) x, sizeof(x)
 
 /*
  * context holding the current state of a multi-part conversion
@@ -1770,12 +1769,12 @@ static int crypt_message(struct dm_target *ti, unsigned argc, char **argv)
 	if (argc < 2)
 		goto error;
 
-	if (!strnicmp(argv[0], MESG_STR("key"))) {
+	if (!strcasecmp(argv[0], "key")) {
 		if (!test_bit(DM_CRYPT_SUSPENDED, &cc->flags)) {
 			DMWARN("not suspended during key manipulation.");
 			return -EINVAL;
 		}
-		if (argc == 3 && !strnicmp(argv[1], MESG_STR("set"))) {
+		if (argc == 3 && !strcasecmp(argv[1], "set")) {
 			ret = crypt_set_key(cc, argv[2]);
 			if (ret)
 				return ret;
@@ -1783,7 +1782,7 @@ static int crypt_message(struct dm_target *ti, unsigned argc, char **argv)
 				ret = cc->iv_gen_ops->init(cc);
 			return ret;
 		}
-		if (argc == 2 && !strnicmp(argv[1], MESG_STR("wipe"))) {
+		if (argc == 2 && !strcasecmp(argv[1], "wipe")) {
 			if (cc->iv_gen_ops && cc->iv_gen_ops->wipe) {
 				ret = cc->iv_gen_ops->wipe(cc);
 				if (ret)
