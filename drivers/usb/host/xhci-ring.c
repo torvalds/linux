@@ -741,7 +741,7 @@ remove_finished_td:
 		 * so remove it from the endpoint ring's TD list.  Keep it in
 		 * the cancelled TD list for URB completion later.
 		 */
-		list_del(&cur_td->td_list);
+		list_del_init(&cur_td->td_list);
 	}
 	last_unlinked_td = cur_td;
 	xhci_stop_watchdog_timer_in_irq(xhci, ep);
@@ -769,7 +769,7 @@ remove_finished_td:
 	do {
 		cur_td = list_entry(ep->cancelled_td_list.next,
 				struct xhci_td, cancelled_td_list);
-		list_del(&cur_td->cancelled_td_list);
+		list_del_init(&cur_td->cancelled_td_list);
 
 		/* Clean up the cancelled URB */
 		/* Doesn't matter what we pass for status, since the core will
@@ -877,9 +877,9 @@ void xhci_stop_endpoint_command_watchdog(unsigned long arg)
 				cur_td = list_first_entry(&ring->td_list,
 						struct xhci_td,
 						td_list);
-				list_del(&cur_td->td_list);
+				list_del_init(&cur_td->td_list);
 				if (!list_empty(&cur_td->cancelled_td_list))
-					list_del(&cur_td->cancelled_td_list);
+					list_del_init(&cur_td->cancelled_td_list);
 				xhci_giveback_urb_in_irq(xhci, cur_td,
 						-ESHUTDOWN, "killed");
 			}
@@ -888,7 +888,7 @@ void xhci_stop_endpoint_command_watchdog(unsigned long arg)
 						&temp_ep->cancelled_td_list,
 						struct xhci_td,
 						cancelled_td_list);
-				list_del(&cur_td->cancelled_td_list);
+				list_del_init(&cur_td->cancelled_td_list);
 				xhci_giveback_urb_in_irq(xhci, cur_td,
 						-ESHUTDOWN, "killed");
 			}
@@ -1580,10 +1580,10 @@ td_cleanup:
 			else
 				*status = 0;
 		}
-		list_del(&td->td_list);
+		list_del_init(&td->td_list);
 		/* Was this TD slated to be cancelled but completed anyway? */
 		if (!list_empty(&td->cancelled_td_list))
-			list_del(&td->cancelled_td_list);
+			list_del_init(&td->cancelled_td_list);
 
 		urb_priv->td_cnt++;
 		/* Giveback the urb when all the tds are completed */
@@ -3362,7 +3362,7 @@ cleanup:
 	/* Clean up a partially enqueued isoc transfer. */
 
 	for (i--; i >= 0; i--)
-		list_del(&urb_priv->td[i]->td_list);
+		list_del_init(&urb_priv->td[i]->td_list);
 
 	/* Use the first TD as a temporary variable to turn the TDs we've queued
 	 * into No-ops with a software-owned cycle bit. That way the hardware
