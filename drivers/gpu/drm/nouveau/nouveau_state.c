@@ -728,6 +728,8 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_irq;
 
+	nouveau_backlight_init(dev);
+
 	if (dev_priv->eng[NVOBJ_ENGINE_GR]) {
 		ret = nouveau_fence_init(dev);
 		if (ret)
@@ -757,6 +759,7 @@ out_chan:
 out_fence:
 	nouveau_fence_fini(dev);
 out_disp:
+	nouveau_backlight_exit(dev);
 	engine->display.destroy(dev);
 out_irq:
 	nouveau_irq_fini(dev);
@@ -817,6 +820,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 		nouveau_fence_fini(dev);
 	}
 
+	nouveau_backlight_exit(dev);
 	engine->display.destroy(dev);
 	drm_mode_config_cleanup(dev);
 

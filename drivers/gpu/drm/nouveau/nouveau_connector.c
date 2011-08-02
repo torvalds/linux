@@ -39,7 +39,7 @@
 
 static void nouveau_connector_hotplug(void *, int);
 
-static struct nouveau_encoder *
+struct nouveau_encoder *
 find_encoder(struct drm_connector *connector, int type)
 {
 	struct drm_device *dev = connector->dev;
@@ -115,10 +115,6 @@ nouveau_connector_destroy(struct drm_connector *connector)
 		pgpio->irq_unregister(dev, nv_connector->dcb->gpio_tag,
 				      nouveau_connector_hotplug, connector);
 	}
-
-	if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS ||
-	    connector->connector_type == DRM_MODE_CONNECTOR_eDP)
-		nouveau_backlight_exit(connector);
 
 	kfree(nv_connector->edid);
 	drm_sysfs_connector_remove(connector);
@@ -900,10 +896,6 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	}
 
 	drm_sysfs_connector_add(connector);
-
-	if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS ||
-	    connector->connector_type == DRM_MODE_CONNECTOR_eDP)
-		nouveau_backlight_init(connector);
 
 	dcb->drm = connector;
 	return dcb->drm;

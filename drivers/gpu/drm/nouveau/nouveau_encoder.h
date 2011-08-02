@@ -57,6 +57,9 @@ struct nouveau_encoder {
 	};
 };
 
+struct nouveau_encoder *
+find_encoder(struct drm_connector *connector, int type);
+
 static inline struct nouveau_encoder *nouveau_encoder(struct drm_encoder *enc)
 {
 	struct drm_encoder_slave *slave = to_encoder_slave(enc);
