@@ -27,7 +27,7 @@ use IO::Handle;
 		"or51211", "or51132_qam", "or51132_vsb", "bluebird",
 		"opera1", "cx231xx", "cx18", "cx23885", "pvrusb2", "mpc718",
 		"af9015", "ngene", "az6027", "lme2510_lg", "lme2510c_s7395",
-		"lme2510c_s7395_old", "drxk", "drxk_terratec_h5",
+		"lme2510c_s7395_old", "drxk", "drxk_terratec_h5", "tda10071",
                 "it9135" );
 
 # Check args
@@ -684,7 +684,22 @@ sub it9135 {
     "$fwfile"
 }
 
+sub tda10071 {
+    my $sourcefile = "PCTV%2070e%2080e%20100e%20320e%20330e%20800e%20880e.zip";
+    my $url = "ftp://ftp.pctvsystems.com/TV/driver/PCTV%2070e%2080e%20100e%20320e%20330e%20800e/";
+    my $hash = "4403de903bf2593464c8d74bbc200a57";
+    my $fwfile = "dvb-fe-tda10071.fw";
+    my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
 
+    checkstandard();
+
+    wgetfile($sourcefile, $url . $sourcefile);
+    verify($sourcefile, $hash);
+    unzip($sourcefile, $tmpdir);
+    extract("$tmpdir/PCTV\ 70e\ 80e\ 100e\ 320e\ 330e\ 800e/32\ bit/emOEM.sys", 0x67d38, 40504, $fwfile);
+
+    "$fwfile";
+}
 
 # ---------------------------------------------------------------
 # Utilities
