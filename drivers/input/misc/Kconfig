@@ -74,6 +74,29 @@ config INPUT_PCSPKR
 	  To compile this driver as a module, choose M here: the
 	  module will be called pcspkr.
 
+config INPUT_PM8XXX_VIBRATOR
+	tristate "Qualcomm PM8XXX vibrator support"
+	depends on MFD_PM8XXX
+	select INPUT_FF_MEMLESS
+	help
+	  This option enables device driver support for the vibrator
+	  on Qualcomm PM8xxx chip. This driver supports ff-memless interface
+	  from input framework.
+
+	  To compile this driver as module, choose M here: the
+	  module will be called pm8xxx-vibrator.
+
+config INPUT_PMIC8XXX_PWRKEY
+	tristate "PMIC8XXX power key support"
+	depends on MFD_PM8XXX
+	help
+	  Say Y here if you want support for the PMIC8XXX power key.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pmic8xxx-pwrkey.
+
 config INPUT_SPARCSPKR
 	tristate "SPARC Speaker support"
 	depends on PCI && SPARC64
@@ -367,17 +390,6 @@ config INPUT_PWM_BEEPER
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called pwm-beeper.
-
-config INPUT_PMIC8XXX_PWRKEY
-	tristate "PMIC8XXX power key support"
-	depends on MFD_PM8XXX
-	help
-	  Say Y here if you want support for the PMIC8XXX power key.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called pmic8xxx-pwrkey.
 
 config INPUT_GPIO_ROTARY_ENCODER
 	tristate "Rotary encoders connected to GPIO pins"
