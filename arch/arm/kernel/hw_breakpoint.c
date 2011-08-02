@@ -45,7 +45,6 @@ static DEFINE_PER_CPU(struct perf_event *, wp_on_reg[ARM_MAX_WRP]);
 
 /* Number of BRP/WRP registers on this CPU. */
 static int core_num_brps;
-static int core_num_reserved_brps;
 static int core_num_wrps;
 
 /* Debug architecture version. */
@@ -160,7 +159,15 @@ static int debug_arch_supported(void)
 		arch >= ARM_DEBUG_ARCH_V7_1;
 }
 
-/* Determine number of BRP register available. */
+/* Determine number of WRP registers available. */
+static int get_num_wrp_resources(void)
+{
+	u32 didr;
+	ARM_DBG_READ(c0, 0, didr);
+	return ((didr >> 28) & 0xf) + 1;
+}
+
+/* Determine number of BRP registers available. */
 static int get_num_brp_resources(void)
 {
 	u32 didr;
@@ -179,9 +186,10 @@ static int core_has_mismatch_brps(void)
 static int get_num_wrps(void)
 {
 	/*
-	 * FIXME: When a watchpoint fires, the only way to work out which
-	 * watchpoint it was is by disassembling the faulting instruction
-	 * and working out the address of the memory access.
+	 * On debug architectures prior to 7.1, when a watchpoint fires, the
+	 * only way to work out which watchpoint it was is by disassembling
+	 * the faulting instruction and working out the address of the memory
+	 * access.
 	 *
 	 * Furthermore, we can only do this if the watchpoint was precise
 	 * since imprecise watchpoints prevent us from calculating register
@@ -195,36 +203,17 @@ static int get_num_wrps(void)
 	 * [the ARM ARM states that the DFAR is UNKNOWN, but experience shows
 	 * that it is set on some implementations].
 	 */
+	if (get_debug_arch() < ARM_DEBUG_ARCH_V7_1)
+		return 1;
 
-#if 0
-	int wrps;
-	u32 didr;
-	ARM_DBG_READ(c0, 0, didr);
-	wrps = ((didr >> 28) & 0xf) + 1;
-#endif
-	int wrps = 1;
-
-	if (core_has_mismatch_brps() && wrps >= get_num_brp_resources())
-		wrps = get_num_brp_resources() - 1;
-
-	return wrps;
-}
-
-/* We reserve one breakpoint for each watchpoint. */
-static int get_num_reserved_brps(void)
-{
-	if (core_has_mismatch_brps())
-		return get_num_wrps();
-	return 0;
+	return get_num_wrp_resources();
 }
 
 /* Determine number of usable BRPs available. */
 static int get_num_brps(void)
 {
 	int brps = get_num_brp_resources();
-	if (core_has_mismatch_brps())
-		brps -= get_num_reserved_brps();
-	return brps;
+	return core_has_mismatch_brps() ? brps - 1 : brps;
 }
 
 /*
@@ -721,7 +710,7 @@ static void watchpoint_single_step_handler(unsigned long pc)
 
 	slots = (struct perf_event **)__get_cpu_var(wp_on_reg);
 
-	for (i = 0; i < core_num_reserved_brps; ++i) {
+	for (i = 0; i < core_num_wrps; ++i) {
 		rcu_read_lock();
 
 		wp = slots[i];
@@ -840,7 +829,7 @@ static int hw_breakpoint_pending(unsigned long addr, unsigned int fsr,
  */
 static void reset_ctrl_regs(void *info)
 {
-	int i, err = 0, cpu = smp_processor_id();
+	int i, raw_num_brps, err = 0, cpu = smp_processor_id();
 	u32 dbg_power;
 	cpumask_t *cpumask = info;
 
@@ -896,7 +885,8 @@ static void reset_ctrl_regs(void *info)
 		return;
 
 	/* We must also reset any reserved registers. */
-	for (i = 0; i < core_num_brps + core_num_reserved_brps; ++i) {
+	raw_num_brps = get_num_brp_resources();
+	for (i = 0; i < raw_num_brps; ++i) {
 		write_wb_reg(ARM_BASE_BCR + i, 0UL);
 		write_wb_reg(ARM_BASE_BVR + i, 0UL);
 	}
@@ -933,15 +923,11 @@ static int __init arch_hw_breakpoint_init(void)
 
 	/* Determine how many BRPs/WRPs are available. */
 	core_num_brps = get_num_brps();
-	core_num_reserved_brps = get_num_reserved_brps();
 	core_num_wrps = get_num_wrps();
 
-	pr_info("found %d breakpoint and %d watchpoint registers.\n",
-		core_num_brps + core_num_reserved_brps, core_num_wrps);
-
-	if (core_num_reserved_brps)
-		pr_info("%d breakpoint(s) reserved for watchpoint "
-				"single-step.\n", core_num_reserved_brps);
+	pr_info("found %d " "%s" "breakpoint and %d watchpoint registers.\n",
+		core_num_brps, core_has_mismatch_brps() ? "(+1 reserved) " :
+		"", core_num_wrps);
 
 	/*
 	 * Reset the breakpoint resources. We assume that a halting
@@ -950,7 +936,6 @@ static int __init arch_hw_breakpoint_init(void)
 	on_each_cpu(reset_ctrl_regs, &cpumask, 1);
 	if (!cpumask_empty(&cpumask)) {
 		core_num_brps = 0;
-		core_num_reserved_brps = 0;
 		core_num_wrps = 0;
 		return 0;
 	}
