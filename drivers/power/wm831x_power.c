@@ -735,6 +735,8 @@ void wm831x_batt_vol_level(struct wm831x_power *wm831x_power, int batt_vol, int 
 	static int disp_plus = 1000;
 	static int disp_minus = 1000;
 	static int disp_curr = 0;
+	static int disp_num = 50;
+
 
 	*level = wm831x_power->batt_info.level;
 	ret = wm831x_bat_check_status(wm831x_power->wm831x, &status);
@@ -799,16 +801,23 @@ void wm831x_batt_vol_level(struct wm831x_power *wm831x_power, int batt_vol, int 
 			disp_curr = 0;
 		}
 		else
-		{
+		{			
+
 			if (*level <= (wm831x_power->batt_info.level-1)) 	
 			{
 				disp_plus = 0;
 				disp_curr = 0;
 				
-				if (++disp_minus > 50)
+				if (++disp_minus > disp_num)
 				{
 					*level = wm831x_power->batt_info.level - 1;
 					disp_minus = 0;
+
+					if((*level < 17) || (*level > 85))
+					disp_num = 10;
+					else
+					disp_num = 50;
+
 				}
 				else
 				{
@@ -820,7 +829,7 @@ void wm831x_batt_vol_level(struct wm831x_power *wm831x_power, int batt_vol, int 
 				disp_plus = 0;
 				disp_minus = 0;
 
-				if (++disp_curr > 50)
+				if (++disp_curr > disp_num)
 				{
 					*level = *level;
 					disp_curr = 0;
@@ -835,10 +844,14 @@ void wm831x_batt_vol_level(struct wm831x_power *wm831x_power, int batt_vol, int 
 				disp_minus = 0;
 				disp_curr = 0;
 				
-				if (++disp_plus > 100)
+				if (++disp_plus > (disp_num<<1))
 				{
 					*level = wm831x_power->batt_info.level + 1;
 					disp_plus = 0;
+					if((*level < 17) || (*level > 85))
+					disp_num = 10;
+					else
+					disp_num = 50;
 				}
 				else
 				{
