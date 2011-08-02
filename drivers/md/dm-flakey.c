@@ -79,6 +79,7 @@ static int flakey_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	ti->num_flush_requests = 1;
+	ti->num_discard_requests = 1;
 	ti->private = fc;
 	return 0;
 
@@ -99,7 +100,7 @@ static sector_t flakey_map_sector(struct dm_target *ti, sector_t bi_sector)
 {
 	struct flakey_c *fc = ti->private;
 
-	return fc->start + (bi_sector - ti->begin);
+	return fc->start + dm_target_offset(ti, bi_sector);
 }
 
 static void flakey_map_bio(struct dm_target *ti, struct bio *bio)
