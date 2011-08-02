@@ -441,6 +441,16 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	info->screen_size = size;
 	memset(info->screen_base, 0, size);
 
+	if (dev_priv->pg->stolen_size) {
+		info->apertures = alloc_apertures(1);
+		if (!info->apertures) {
+			ret = -ENOMEM;
+			goto out_err0;
+		}
+		info->apertures->ranges[0].base = dev->mode_config.fb_base;
+		info->apertures->ranges[0].size = dev_priv->pg->stolen_size;
+	}
+
 	drm_fb_helper_fill_fix(info, fb->pitch, fb->depth);
 	drm_fb_helper_fill_var(info, &fbdev->psb_fb_helper,
 				sizes->fb_width, sizes->fb_height);

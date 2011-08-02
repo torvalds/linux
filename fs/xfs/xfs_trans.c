@@ -1361,7 +1361,7 @@ xfs_trans_item_committed(
 		lip->li_flags |= XFS_LI_ABORTED;
 	item_lsn = IOP_COMMITTED(lip, commit_lsn);
 
-	/* If the committed routine returns -1, item has been freed. */
+	/* item_lsn of -1 means the item needs no further processing */
 	if (XFS_LSN_CMP(item_lsn, (xfs_lsn_t)-1) == 0)
 		return;
 
@@ -1474,7 +1474,7 @@ xfs_trans_committed_bulk(
 			lip->li_flags |= XFS_LI_ABORTED;
 		item_lsn = IOP_COMMITTED(lip, commit_lsn);
 
-		/* item_lsn of -1 means the item was freed */
+		/* item_lsn of -1 means the item needs no further processing */
 		if (XFS_LSN_CMP(item_lsn, (xfs_lsn_t)-1) == 0)
 			continue;
 

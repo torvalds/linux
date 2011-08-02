@@ -61,8 +61,6 @@
 #include "timer-gp.h"
 #include "common-board-devices.h"
 
-#define NAND_BLOCK_SIZE		SZ_128K
-
 #define OMAP_DM9000_GPIO_IRQ	25
 #define OMAP3_DEVKIT_TS_GPIO	27
 

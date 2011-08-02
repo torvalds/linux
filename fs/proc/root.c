@@ -28,11 +28,12 @@ static int proc_test_super(struct super_block *sb, void *data)
 
 static int proc_set_super(struct super_block *sb, void *data)
 {
-	struct pid_namespace *ns;
-
-	ns = (struct pid_namespace *)data;
-	sb->s_fs_info = get_pid_ns(ns);
-	return set_anon_super(sb, NULL);
+	int err = set_anon_super(sb, NULL);
+	if (!err) {
+		struct pid_namespace *ns = (struct pid_namespace *)data;
+		sb->s_fs_info = get_pid_ns(ns);
+	}
+	return err;
 }
 
 static struct dentry *proc_mount(struct file_system_type *fs_type,

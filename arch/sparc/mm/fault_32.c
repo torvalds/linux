@@ -135,7 +135,7 @@ asmlinkage int lookup_fault(unsigned long pc, unsigned long ret_pc,
 
 	default:
 		break;
-	};
+	}
 
 	memset(&regs, 0, sizeof (regs));
 	regs.pc = pc;

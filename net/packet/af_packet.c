@@ -804,6 +804,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		} else {
 			h.h2->tp_vlan_tci = 0;
 		}
+		h.h2->tp_padding = 0;
 		hdrlen = sizeof(*h.h2);
 		break;
 	default:
@@ -1736,6 +1737,7 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 		} else {
 			aux.tp_vlan_tci = 0;
 		}
+		aux.tp_padding = 0;
 		put_cmsg(msg, SOL_PACKET, PACKET_AUXDATA, sizeof(aux), &aux);
 	}
 

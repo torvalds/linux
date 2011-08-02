@@ -661,21 +661,21 @@ than stress the kernel.
 
 To start a new job that is to be contained within a cpuset, the steps are:
 
- 1) mkdir /dev/cpuset
- 2) mount -t cgroup -ocpuset cpuset /dev/cpuset
+ 1) mkdir /sys/fs/cgroup/cpuset
+ 2) mount -t cgroup -ocpuset cpuset /sys/fs/cgroup/cpuset
  3) Create the new cpuset by doing mkdir's and write's (or echo's) in
-    the /dev/cpuset virtual file system.
+    the /sys/fs/cgroup/cpuset virtual file system.
  4) Start a task that will be the "founding father" of the new job.
  5) Attach that task to the new cpuset by writing its pid to the
-    /dev/cpuset tasks file for that cpuset.
+    /sys/fs/cgroup/cpuset tasks file for that cpuset.
  6) fork, exec or clone the job tasks from this founding father task.
 
 For example, the following sequence of commands will setup a cpuset
 named "Charlie", containing just CPUs 2 and 3, and Memory Node 1,
 and then start a subshell 'sh' in that cpuset:
 
-  mount -t cgroup -ocpuset cpuset /dev/cpuset
-  cd /dev/cpuset
+  mount -t cgroup -ocpuset cpuset /sys/fs/cgroup/cpuset
+  cd /sys/fs/cgroup/cpuset
   mkdir Charlie
   cd Charlie
   /bin/echo 2-3 > cpuset.cpus
@@ -710,14 +710,14 @@ Creating, modifying, using the cpusets can be done through the cpuset
 virtual filesystem.
 
 To mount it, type:
-# mount -t cgroup -o cpuset cpuset /dev/cpuset
+# mount -t cgroup -o cpuset cpuset /sys/fs/cgroup/cpuset
 
-Then under /dev/cpuset you can find a tree that corresponds to the
-tree of the cpusets in the system. For instance, /dev/cpuset
+Then under /sys/fs/cgroup/cpuset you can find a tree that corresponds to the
+tree of the cpusets in the system. For instance, /sys/fs/cgroup/cpuset
 is the cpuset that holds the whole system.
 
-If you want to create a new cpuset under /dev/cpuset:
-# cd /dev/cpuset
+If you want to create a new cpuset under /sys/fs/cgroup/cpuset:
+# cd /sys/fs/cgroup/cpuset
 # mkdir my_cpuset
 
 Now you want to do something with this cpuset.
@@ -765,12 +765,12 @@ wrapper around the cgroup filesystem.
 
 The command
 
-mount -t cpuset X /dev/cpuset
+mount -t cpuset X /sys/fs/cgroup/cpuset
 
 is equivalent to
 
-mount -t cgroup -ocpuset,noprefix X /dev/cpuset
-echo "/sbin/cpuset_release_agent" > /dev/cpuset/release_agent
+mount -t cgroup -ocpuset,noprefix X /sys/fs/cgroup/cpuset
+echo "/sbin/cpuset_release_agent" > /sys/fs/cgroup/cpuset/release_agent
 
 2.2 Adding/removing cpus
 ------------------------

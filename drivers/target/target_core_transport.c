@@ -536,13 +536,13 @@ EXPORT_SYMBOL(transport_register_session);
 void transport_deregister_session_configfs(struct se_session *se_sess)
 {
 	struct se_node_acl *se_nacl;
-
+	unsigned long flags;
 	/*
 	 * Used by struct se_node_acl's under ConfigFS to locate active struct se_session
 	 */
 	se_nacl = se_sess->se_node_acl;
 	if ((se_nacl)) {
-		spin_lock_irq(&se_nacl->nacl_sess_lock);
+		spin_lock_irqsave(&se_nacl->nacl_sess_lock, flags);
 		list_del(&se_sess->sess_acl_list);
 		/*
 		 * If the session list is empty, then clear the pointer.
@@ -556,7 +556,7 @@ void transport_deregister_session_configfs(struct se_session *se_sess)
 					se_nacl->acl_sess_list.prev,
 					struct se_session, sess_acl_list);
 		}
-		spin_unlock_irq(&se_nacl->nacl_sess_lock);
+		spin_unlock_irqrestore(&se_nacl->nacl_sess_lock, flags);
 	}
 }
 EXPORT_SYMBOL(transport_deregister_session_configfs);

@@ -23,6 +23,31 @@ bool vlan_do_receive(struct sk_buff **skbp)
 		return false;
 
 	skb->dev = vlan_dev;
+	if (skb->pkt_type == PACKET_OTHERHOST) {
+		/* Our lower layer thinks this is not local, let's make sure.
+		 * This allows the VLAN to have a different MAC than the
+		 * underlying device, and still route correctly. */
+		if (!compare_ether_addr(eth_hdr(skb)->h_dest,
+					vlan_dev->dev_addr))
+			skb->pkt_type = PACKET_HOST;
+	}
+
+	if (!(vlan_dev_info(vlan_dev)->flags & VLAN_FLAG_REORDER_HDR)) {
+		unsigned int offset = skb->data - skb_mac_header(skb);
+
+		/*
+		 * vlan_insert_tag expect skb->data pointing to mac header.
+		 * So change skb->data before calling it and change back to
+		 * original position later
+		 */
+		skb_push(skb, offset);
+		skb = *skbp = vlan_insert_tag(skb, skb->vlan_tci);
+		if (!skb)
+			return false;
+		skb_pull(skb, offset + VLAN_HLEN);
+		skb_reset_mac_len(skb);
+	}
+
 	skb->priority = vlan_get_ingress_priority(vlan_dev, skb->vlan_tci);
 	skb->vlan_tci = 0;
 
@@ -31,22 +56,8 @@ bool vlan_do_receive(struct sk_buff **skbp)
 	u64_stats_update_begin(&rx_stats->syncp);
 	rx_stats->rx_packets++;
 	rx_stats->rx_bytes += skb->len;
-
-	switch (skb->pkt_type) {
-	case PACKET_BROADCAST:
-		break;
-	case PACKET_MULTICAST:
+	if (skb->pkt_type == PACKET_MULTICAST)
 		rx_stats->rx_multicast++;
-		break;
-	case PACKET_OTHERHOST:
-		/* Our lower layer thinks this is not local, let's make sure.
-		 * This allows the VLAN to have a different MAC than the
-		 * underlying device, and still route correctly. */
-		if (!compare_ether_addr(eth_hdr(skb)->h_dest,
-					vlan_dev->dev_addr))
-			skb->pkt_type = PACKET_HOST;
-		break;
-	}
 	u64_stats_update_end(&rx_stats->syncp);
 
 	return true;
@@ -89,18 +100,13 @@ gro_result_t vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
 }
 EXPORT_SYMBOL(vlan_gro_frags);
 
-static struct sk_buff *vlan_check_reorder_header(struct sk_buff *skb)
+static struct sk_buff *vlan_reorder_header(struct sk_buff *skb)
 {
-	if (vlan_dev_info(skb->dev)->flags & VLAN_FLAG_REORDER_HDR) {
-		if (skb_cow(skb, skb_headroom(skb)) < 0)
-			skb = NULL;
-		if (skb) {
-			/* Lifted from Gleb's VLAN code... */
-			memmove(skb->data - ETH_HLEN,
-				skb->data - VLAN_ETH_HLEN, 12);
-			skb->mac_header += VLAN_HLEN;
-		}
-	}
+	if (skb_cow(skb, skb_headroom(skb)) < 0)
+		return NULL;
+	memmove(skb->data - ETH_HLEN, skb->data - VLAN_ETH_HLEN, 2 * ETH_ALEN);
+	skb->mac_header += VLAN_HLEN;
+	skb_reset_mac_len(skb);
 	return skb;
 }
 
@@ -161,7 +167,7 @@ struct sk_buff *vlan_untag(struct sk_buff *skb)
 	skb_pull_rcsum(skb, VLAN_HLEN);
 	vlan_set_encap_proto(skb, vhdr);
 
-	skb = vlan_check_reorder_header(skb);
+	skb = vlan_reorder_header(skb);
 	if (unlikely(!skb))
 		goto err_free;
 

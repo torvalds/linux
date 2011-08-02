@@ -318,6 +318,9 @@ struct device_node;
 extern unsigned int leon_build_device_irq(unsigned int real_irq,
 					   irq_flow_handler_t flow_handler,
 					   const char *name, int do_ack);
+extern void leon_update_virq_handling(unsigned int virq,
+			      irq_flow_handler_t flow_handler,
+			      const char *name, int do_ack);
 extern void leon_clear_clock_irq(void);
 extern void leon_load_profile_irq(int cpu, unsigned int limit);
 extern void leon_init_timers(irq_handler_t counter_fn);

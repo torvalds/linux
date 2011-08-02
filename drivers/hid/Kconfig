@@ -305,6 +305,7 @@ config HID_MULTITOUCH
 	  - 3M PCT touch screens
 	  - ActionStar dual touch panels
 	  - Cando dual touch panels
+	  - Chunghwa panels
 	  - CVTouch panels
 	  - Cypress TrueTouch panels
 	  - Elo TouchSystems IntelliTouch Plus panels

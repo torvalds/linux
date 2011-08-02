@@ -304,7 +304,7 @@ struct target_fabric_configfs *target_fabric_configfs_init(
 		printk(KERN_ERR "Unable to locate passed fabric name\n");
 		return NULL;
 	}
-	if (strlen(name) > TARGET_FABRIC_NAME_SIZE) {
+	if (strlen(name) >= TARGET_FABRIC_NAME_SIZE) {
 		printk(KERN_ERR "Passed name: %s exceeds TARGET_FABRIC"
 			"_NAME_SIZE\n", name);
 		return NULL;
@@ -312,7 +312,7 @@ struct target_fabric_configfs *target_fabric_configfs_init(
 
 	tf = kzalloc(sizeof(struct target_fabric_configfs), GFP_KERNEL);
 	if (!(tf))
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	INIT_LIST_HEAD(&tf->tf_list);
 	atomic_set(&tf->tf_access_cnt, 0);
@@ -851,7 +851,7 @@ static ssize_t target_core_dev_wwn_store_attr_vpd_unit_serial(
 		return -EOPNOTSUPP;
 	}
 
-	if ((strlen(page) + 1) > INQUIRY_VPD_SERIAL_LEN) {
+	if (strlen(page) >= INQUIRY_VPD_SERIAL_LEN) {
 		printk(KERN_ERR "Emulated VPD Unit Serial exceeds"
 		" INQUIRY_VPD_SERIAL_LEN: %d\n", INQUIRY_VPD_SERIAL_LEN);
 		return -EOVERFLOW;
@@ -917,7 +917,7 @@ static ssize_t target_core_dev_wwn_show_attr_vpd_protocol_identifier(
 
 		transport_dump_vpd_proto_id(vpd, buf, VPD_TMP_BUF_SIZE);
 
-		if ((len + strlen(buf) > PAGE_SIZE))
+		if ((len + strlen(buf) >= PAGE_SIZE))
 			break;
 
 		len += sprintf(page+len, "%s", buf);
@@ -962,19 +962,19 @@ static ssize_t target_core_dev_wwn_show_attr_##_name(			\
 									\
 		memset(buf, 0, VPD_TMP_BUF_SIZE);			\
 		transport_dump_vpd_assoc(vpd, buf, VPD_TMP_BUF_SIZE);	\
-		if ((len + strlen(buf) > PAGE_SIZE))			\
+		if ((len + strlen(buf) >= PAGE_SIZE))			\
 			break;						\
 		len += sprintf(page+len, "%s", buf);			\
 									\
 		memset(buf, 0, VPD_TMP_BUF_SIZE);			\
 		transport_dump_vpd_ident_type(vpd, buf, VPD_TMP_BUF_SIZE); \
-		if ((len + strlen(buf) > PAGE_SIZE))			\
+		if ((len + strlen(buf) >= PAGE_SIZE))			\
 			break;						\
 		len += sprintf(page+len, "%s", buf);			\
 									\
 		memset(buf, 0, VPD_TMP_BUF_SIZE);			\
 		transport_dump_vpd_ident(vpd, buf, VPD_TMP_BUF_SIZE); \
-		if ((len + strlen(buf) > PAGE_SIZE))			\
+		if ((len + strlen(buf) >= PAGE_SIZE))			\
 			break;						\
 		len += sprintf(page+len, "%s", buf);			\
 	}								\
@@ -1299,7 +1299,7 @@ static ssize_t target_core_dev_pr_show_attr_res_pr_registered_i_pts(
 			&i_buf[0] : "", pr_reg->pr_res_key,
 			pr_reg->pr_res_generation);
 
-		if ((len + strlen(buf) > PAGE_SIZE))
+		if ((len + strlen(buf) >= PAGE_SIZE))
 			break;
 
 		len += sprintf(page+len, "%s", buf);
@@ -1496,7 +1496,7 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 				ret = -ENOMEM;
 				goto out;
 			}
-			if (strlen(i_port) > PR_APTPL_MAX_IPORT_LEN) {
+			if (strlen(i_port) >= PR_APTPL_MAX_IPORT_LEN) {
 				printk(KERN_ERR "APTPL metadata initiator_node="
 					" exceeds PR_APTPL_MAX_IPORT_LEN: %d\n",
 					PR_APTPL_MAX_IPORT_LEN);
@@ -1510,7 +1510,7 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 				ret = -ENOMEM;
 				goto out;
 			}
-			if (strlen(isid) > PR_REG_ISID_LEN) {
+			if (strlen(isid) >= PR_REG_ISID_LEN) {
 				printk(KERN_ERR "APTPL metadata initiator_isid"
 					"= exceeds PR_REG_ISID_LEN: %d\n",
 					PR_REG_ISID_LEN);
@@ -1571,7 +1571,7 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 				ret = -ENOMEM;
 				goto out;
 			}
-			if (strlen(t_port) > PR_APTPL_MAX_TPORT_LEN) {
+			if (strlen(t_port) >= PR_APTPL_MAX_TPORT_LEN) {
 				printk(KERN_ERR "APTPL metadata target_node="
 					" exceeds PR_APTPL_MAX_TPORT_LEN: %d\n",
 					PR_APTPL_MAX_TPORT_LEN);
@@ -3052,7 +3052,7 @@ static struct config_group *target_core_call_addhbatotarget(
 	int ret;
 
 	memset(buf, 0, TARGET_CORE_NAME_MAX_LEN);
-	if (strlen(name) > TARGET_CORE_NAME_MAX_LEN) {
+	if (strlen(name) >= TARGET_CORE_NAME_MAX_LEN) {
 		printk(KERN_ERR "Passed *name strlen(): %d exceeds"
 			" TARGET_CORE_NAME_MAX_LEN: %d\n", (int)strlen(name),
 			TARGET_CORE_NAME_MAX_LEN);

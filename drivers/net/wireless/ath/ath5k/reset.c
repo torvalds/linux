@@ -1124,8 +1124,11 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 			/* Non fatal, can happen eg.
 			 * on mode change */
 			ret = 0;
-		} else
+		} else {
+			ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_RESET,
+				"fast chan change successful\n");
 			return 0;
+		}
 	}
 
 	/*

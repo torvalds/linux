@@ -109,6 +109,7 @@ struct ds1wm_data {
 	/* byte to write that makes all intr disabled, */
 	/* considering active_state (IAS) (optimization) */
 	u8       int_en_reg_none;
+	unsigned int reset_recover_delay; /* see ds1wm.h */
 };
 
 static inline void ds1wm_write_register(struct ds1wm_data *ds1wm_data, u32 reg,
@@ -186,6 +187,9 @@ static int ds1wm_reset(struct ds1wm_data *ds1wm_data)
 		dev_dbg(&ds1wm_data->pdev->dev, "reset: no devices found\n");
 		return 1;
 	}
+
+	if (ds1wm_data->reset_recover_delay)
+		msleep(ds1wm_data->reset_recover_delay);
 
 	return 0;
 }
@@ -490,6 +494,7 @@ static int ds1wm_probe(struct platform_device *pdev)
 	}
 	ds1wm_data->irq = res->start;
 	ds1wm_data->int_en_reg_none = (plat->active_high ? DS1WM_INTEN_IAS : 0);
+	ds1wm_data->reset_recover_delay = plat->reset_recover_delay;
 
 	if (res->flags & IORESOURCE_IRQ_HIGHEDGE)
 		irq_set_irq_type(ds1wm_data->irq, IRQ_TYPE_EDGE_RISING);

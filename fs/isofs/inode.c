@@ -974,7 +974,7 @@ out_no_inode:
 out_no_read:
 	printk(KERN_WARNING "%s: bread failed, dev=%s, iso_blknum=%d, block=%d\n",
 		__func__, s->s_id, iso_blknum, block);
-	goto out_freesbi;
+	goto out_freebh;
 out_bad_zone_size:
 	printk(KERN_WARNING "ISOFS: Bad logical zone size %ld\n",
 		sbi->s_log_zone_size);
@@ -989,6 +989,7 @@ out_unknown_format:
 
 out_freebh:
 	brelse(bh);
+	brelse(pri_bh);
 out_freesbi:
 	kfree(opt.iocharset);
 	kfree(sbi);

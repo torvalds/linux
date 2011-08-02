@@ -3983,54 +3983,6 @@ static void i830_update_wm(struct drm_device *dev)
 #define ILK_LP0_PLANE_LATENCY		700
 #define ILK_LP0_CURSOR_LATENCY		1300
 
-static bool ironlake_compute_wm0(struct drm_device *dev,
-				 int pipe,
-				 const struct intel_watermark_params *display,
-				 int display_latency_ns,
-				 const struct intel_watermark_params *cursor,
-				 int cursor_latency_ns,
-				 int *plane_wm,
-				 int *cursor_wm)
-{
-	struct drm_crtc *crtc;
-	int htotal, hdisplay, clock, pixel_size;
-	int line_time_us, line_count;
-	int entries, tlb_miss;
-
-	crtc = intel_get_crtc_for_pipe(dev, pipe);
-	if (crtc->fb == NULL || !crtc->enabled)
-		return false;
-
-	htotal = crtc->mode.htotal;
-	hdisplay = crtc->mode.hdisplay;
-	clock = crtc->mode.clock;
-	pixel_size = crtc->fb->bits_per_pixel / 8;
-
-	/* Use the small buffer method to calculate plane watermark */
-	entries = ((clock * pixel_size / 1000) * display_latency_ns) / 1000;
-	tlb_miss = display->fifo_size*display->cacheline_size - hdisplay * 8;
-	if (tlb_miss > 0)
-		entries += tlb_miss;
-	entries = DIV_ROUND_UP(entries, display->cacheline_size);
-	*plane_wm = entries + display->guard_size;
-	if (*plane_wm > (int)display->max_wm)
-		*plane_wm = display->max_wm;
-
-	/* Use the large buffer method to calculate cursor watermark */
-	line_time_us = ((htotal * 1000) / clock);
-	line_count = (cursor_latency_ns / line_time_us + 1000) / 1000;
-	entries = line_count * 64 * pixel_size;
-	tlb_miss = cursor->fifo_size*cursor->cacheline_size - hdisplay * 8;
-	if (tlb_miss > 0)
-		entries += tlb_miss;
-	entries = DIV_ROUND_UP(entries, cursor->cacheline_size);
-	*cursor_wm = entries + cursor->guard_size;
-	if (*cursor_wm > (int)cursor->max_wm)
-		*cursor_wm = (int)cursor->max_wm;
-
-	return true;
-}
-
 /*
  * Check the wm result.
  *
@@ -4139,12 +4091,12 @@ static void ironlake_update_wm(struct drm_device *dev)
 	unsigned int enabled;
 
 	enabled = 0;
-	if (ironlake_compute_wm0(dev, 0,
-				 &ironlake_display_wm_info,
-				 ILK_LP0_PLANE_LATENCY,
-				 &ironlake_cursor_wm_info,
-				 ILK_LP0_CURSOR_LATENCY,
-				 &plane_wm, &cursor_wm)) {
+	if (g4x_compute_wm0(dev, 0,
+			    &ironlake_display_wm_info,
+			    ILK_LP0_PLANE_LATENCY,
+			    &ironlake_cursor_wm_info,
+			    ILK_LP0_CURSOR_LATENCY,
+			    &plane_wm, &cursor_wm)) {
 		I915_WRITE(WM0_PIPEA_ILK,
 			   (plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm);
 		DRM_DEBUG_KMS("FIFO watermarks For pipe A -"
@@ -4153,12 +4105,12 @@ static void ironlake_update_wm(struct drm_device *dev)
 		enabled |= 1;
 	}
 
-	if (ironlake_compute_wm0(dev, 1,
-				 &ironlake_display_wm_info,
-				 ILK_LP0_PLANE_LATENCY,
-				 &ironlake_cursor_wm_info,
-				 ILK_LP0_CURSOR_LATENCY,
-				 &plane_wm, &cursor_wm)) {
+	if (g4x_compute_wm0(dev, 1,
+			    &ironlake_display_wm_info,
+			    ILK_LP0_PLANE_LATENCY,
+			    &ironlake_cursor_wm_info,
+			    ILK_LP0_CURSOR_LATENCY,
+			    &plane_wm, &cursor_wm)) {
 		I915_WRITE(WM0_PIPEB_ILK,
 			   (plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm);
 		DRM_DEBUG_KMS("FIFO watermarks For pipe B -"
@@ -4223,10 +4175,10 @@ static void sandybridge_update_wm(struct drm_device *dev)
 	unsigned int enabled;
 
 	enabled = 0;
-	if (ironlake_compute_wm0(dev, 0,
-				 &sandybridge_display_wm_info, latency,
-				 &sandybridge_cursor_wm_info, latency,
-				 &plane_wm, &cursor_wm)) {
+	if (g4x_compute_wm0(dev, 0,
+			    &sandybridge_display_wm_info, latency,
+			    &sandybridge_cursor_wm_info, latency,
+			    &plane_wm, &cursor_wm)) {
 		I915_WRITE(WM0_PIPEA_ILK,
 			   (plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm);
 		DRM_DEBUG_KMS("FIFO watermarks For pipe A -"
@@ -4235,10 +4187,10 @@ static void sandybridge_update_wm(struct drm_device *dev)
 		enabled |= 1;
 	}
 
-	if (ironlake_compute_wm0(dev, 1,
-				 &sandybridge_display_wm_info, latency,
-				 &sandybridge_cursor_wm_info, latency,
-				 &plane_wm, &cursor_wm)) {
+	if (g4x_compute_wm0(dev, 1,
+			    &sandybridge_display_wm_info, latency,
+			    &sandybridge_cursor_wm_info, latency,
+			    &plane_wm, &cursor_wm)) {
 		I915_WRITE(WM0_PIPEB_ILK,
 			   (plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm);
 		DRM_DEBUG_KMS("FIFO watermarks For pipe B -"
@@ -4353,7 +4305,8 @@ static void intel_update_watermarks(struct drm_device *dev)
 
 static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
 {
-	return dev_priv->lvds_use_ssc && i915_panel_use_ssc;
+	return dev_priv->lvds_use_ssc && i915_panel_use_ssc
+		&& !(dev_priv->quirks & QUIRK_LVDS_SSC_DISABLE);
 }
 
 static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
@@ -4735,6 +4688,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 
 	I915_WRITE(DSPCNTR(plane), dspcntr);
 	POSTING_READ(DSPCNTR(plane));
+	intel_enable_plane(dev_priv, plane, pipe);
 
 	ret = intel_pipe_set_base(crtc, x, y, old_fb);
 
@@ -5265,8 +5219,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 
 	I915_WRITE(DSPCNTR(plane), dspcntr);
 	POSTING_READ(DSPCNTR(plane));
-	if (!HAS_PCH_SPLIT(dev))
-		intel_enable_plane(dev_priv, plane, pipe);
 
 	ret = intel_pipe_set_base(crtc, x, y, old_fb);
 
@@ -6310,6 +6262,197 @@ void intel_prepare_page_flip(struct drm_device *dev, int plane)
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
+static int intel_gen2_queue_flip(struct drm_device *dev,
+				 struct drm_crtc *crtc,
+				 struct drm_framebuffer *fb,
+				 struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	unsigned long offset;
+	u32 flip_mask;
+	int ret;
+
+	ret = intel_pin_and_fence_fb_obj(dev, obj, LP_RING(dev_priv));
+	if (ret)
+		goto out;
+
+	/* Offset into the new buffer for cases of shared fbs between CRTCs */
+	offset = crtc->y * fb->pitch + crtc->x * fb->bits_per_pixel/8;
+
+	ret = BEGIN_LP_RING(6);
+	if (ret)
+		goto out;
+
+	/* Can't queue multiple flips, so wait for the previous
+	 * one to finish before executing the next.
+	 */
+	if (intel_crtc->plane)
+		flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
+	else
+		flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
+	OUT_RING(MI_WAIT_FOR_EVENT | flip_mask);
+	OUT_RING(MI_NOOP);
+	OUT_RING(MI_DISPLAY_FLIP |
+		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
+	OUT_RING(fb->pitch);
+	OUT_RING(obj->gtt_offset + offset);
+	OUT_RING(MI_NOOP);
+	ADVANCE_LP_RING();
+out:
+	return ret;
+}
+
+static int intel_gen3_queue_flip(struct drm_device *dev,
+				 struct drm_crtc *crtc,
+				 struct drm_framebuffer *fb,
+				 struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	unsigned long offset;
+	u32 flip_mask;
+	int ret;
+
+	ret = intel_pin_and_fence_fb_obj(dev, obj, LP_RING(dev_priv));
+	if (ret)
+		goto out;
+
+	/* Offset into the new buffer for cases of shared fbs between CRTCs */
+	offset = crtc->y * fb->pitch + crtc->x * fb->bits_per_pixel/8;
+
+	ret = BEGIN_LP_RING(6);
+	if (ret)
+		goto out;
+
+	if (intel_crtc->plane)
+		flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
+	else
+		flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
+	OUT_RING(MI_WAIT_FOR_EVENT | flip_mask);
+	OUT_RING(MI_NOOP);
+	OUT_RING(MI_DISPLAY_FLIP_I915 |
+		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
+	OUT_RING(fb->pitch);
+	OUT_RING(obj->gtt_offset + offset);
+	OUT_RING(MI_NOOP);
+
+	ADVANCE_LP_RING();
+out:
+	return ret;
+}
+
+static int intel_gen4_queue_flip(struct drm_device *dev,
+				 struct drm_crtc *crtc,
+				 struct drm_framebuffer *fb,
+				 struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	uint32_t pf, pipesrc;
+	int ret;
+
+	ret = intel_pin_and_fence_fb_obj(dev, obj, LP_RING(dev_priv));
+	if (ret)
+		goto out;
+
+	ret = BEGIN_LP_RING(4);
+	if (ret)
+		goto out;
+
+	/* i965+ uses the linear or tiled offsets from the
+	 * Display Registers (which do not change across a page-flip)
+	 * so we need only reprogram the base address.
+	 */
+	OUT_RING(MI_DISPLAY_FLIP |
+		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
+	OUT_RING(fb->pitch);
+	OUT_RING(obj->gtt_offset | obj->tiling_mode);
+
+	/* XXX Enabling the panel-fitter across page-flip is so far
+	 * untested on non-native modes, so ignore it for now.
+	 * pf = I915_READ(pipe == 0 ? PFA_CTL_1 : PFB_CTL_1) & PF_ENABLE;
+	 */
+	pf = 0;
+	pipesrc = I915_READ(PIPESRC(intel_crtc->pipe)) & 0x0fff0fff;
+	OUT_RING(pf | pipesrc);
+	ADVANCE_LP_RING();
+out:
+	return ret;
+}
+
+static int intel_gen6_queue_flip(struct drm_device *dev,
+				 struct drm_crtc *crtc,
+				 struct drm_framebuffer *fb,
+				 struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	uint32_t pf, pipesrc;
+	int ret;
+
+	ret = intel_pin_and_fence_fb_obj(dev, obj, LP_RING(dev_priv));
+	if (ret)
+		goto out;
+
+	ret = BEGIN_LP_RING(4);
+	if (ret)
+		goto out;
+
+	OUT_RING(MI_DISPLAY_FLIP |
+		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
+	OUT_RING(fb->pitch | obj->tiling_mode);
+	OUT_RING(obj->gtt_offset);
+
+	pf = I915_READ(PF_CTL(intel_crtc->pipe)) & PF_ENABLE;
+	pipesrc = I915_READ(PIPESRC(intel_crtc->pipe)) & 0x0fff0fff;
+	OUT_RING(pf | pipesrc);
+	ADVANCE_LP_RING();
+out:
+	return ret;
+}
+
+/*
+ * On gen7 we currently use the blit ring because (in early silicon at least)
+ * the render ring doesn't give us interrpts for page flip completion, which
+ * means clients will hang after the first flip is queued.  Fortunately the
+ * blit ring generates interrupts properly, so use it instead.
+ */
+static int intel_gen7_queue_flip(struct drm_device *dev,
+				 struct drm_crtc *crtc,
+				 struct drm_framebuffer *fb,
+				 struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_ring_buffer *ring = &dev_priv->ring[BCS];
+	int ret;
+
+	ret = intel_pin_and_fence_fb_obj(dev, obj, ring);
+	if (ret)
+		goto out;
+
+	ret = intel_ring_begin(ring, 4);
+	if (ret)
+		goto out;
+
+	intel_ring_emit(ring, MI_DISPLAY_FLIP_I915 | (intel_crtc->plane << 19));
+	intel_ring_emit(ring, (fb->pitch | obj->tiling_mode));
+	intel_ring_emit(ring, (obj->gtt_offset));
+	intel_ring_emit(ring, (MI_NOOP));
+	intel_ring_advance(ring);
+out:
+	return ret;
+}
+
+static int intel_default_queue_flip(struct drm_device *dev,
+				    struct drm_crtc *crtc,
+				    struct drm_framebuffer *fb,
+				    struct drm_i915_gem_object *obj)
+{
+	return -ENODEV;
+}
+
 static int intel_crtc_page_flip(struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
 				struct drm_pending_vblank_event *event)
@@ -6320,9 +6463,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	struct drm_i915_gem_object *obj;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_unpin_work *work;
-	unsigned long flags, offset;
-	int pipe = intel_crtc->pipe;
-	u32 pf, pipesrc;
+	unsigned long flags;
 	int ret;
 
 	work = kzalloc(sizeof *work, GFP_KERNEL);
@@ -6351,9 +6492,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	obj = intel_fb->obj;
 
 	mutex_lock(&dev->struct_mutex);
-	ret = intel_pin_and_fence_fb_obj(dev, obj, LP_RING(dev_priv));
-	if (ret)
-		goto cleanup_work;
 
 	/* Reference the objects for the scheduled work. */
 	drm_gem_object_reference(&work->old_fb_obj->base);
@@ -6365,91 +6503,18 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	if (ret)
 		goto cleanup_objs;
 
-	if (IS_GEN3(dev) || IS_GEN2(dev)) {
-		u32 flip_mask;
-
-		/* Can't queue multiple flips, so wait for the previous
-		 * one to finish before executing the next.
-		 */
-		ret = BEGIN_LP_RING(2);
-		if (ret)
-			goto cleanup_objs;
-
-		if (intel_crtc->plane)
-			flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
-		else
-			flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
-		OUT_RING(MI_WAIT_FOR_EVENT | flip_mask);
-		OUT_RING(MI_NOOP);
-		ADVANCE_LP_RING();
-	}
-
 	work->pending_flip_obj = obj;
 
 	work->enable_stall_check = true;
-
-	/* Offset into the new buffer for cases of shared fbs between CRTCs */
-	offset = crtc->y * fb->pitch + crtc->x * fb->bits_per_pixel/8;
-
-	ret = BEGIN_LP_RING(4);
-	if (ret)
-		goto cleanup_objs;
 
 	/* Block clients from rendering to the new back buffer until
 	 * the flip occurs and the object is no longer visible.
 	 */
 	atomic_add(1 << intel_crtc->plane, &work->old_fb_obj->pending_flip);
 
-	switch (INTEL_INFO(dev)->gen) {
-	case 2:
-		OUT_RING(MI_DISPLAY_FLIP |
-			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-		OUT_RING(fb->pitch);
-		OUT_RING(obj->gtt_offset + offset);
-		OUT_RING(MI_NOOP);
-		break;
-
-	case 3:
-		OUT_RING(MI_DISPLAY_FLIP_I915 |
-			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-		OUT_RING(fb->pitch);
-		OUT_RING(obj->gtt_offset + offset);
-		OUT_RING(MI_NOOP);
-		break;
-
-	case 4:
-	case 5:
-		/* i965+ uses the linear or tiled offsets from the
-		 * Display Registers (which do not change across a page-flip)
-		 * so we need only reprogram the base address.
-		 */
-		OUT_RING(MI_DISPLAY_FLIP |
-			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-		OUT_RING(fb->pitch);
-		OUT_RING(obj->gtt_offset | obj->tiling_mode);
-
-		/* XXX Enabling the panel-fitter across page-flip is so far
-		 * untested on non-native modes, so ignore it for now.
-		 * pf = I915_READ(pipe == 0 ? PFA_CTL_1 : PFB_CTL_1) & PF_ENABLE;
-		 */
-		pf = 0;
-		pipesrc = I915_READ(PIPESRC(pipe)) & 0x0fff0fff;
-		OUT_RING(pf | pipesrc);
-		break;
-
-	case 6:
-	case 7:
-		OUT_RING(MI_DISPLAY_FLIP |
-			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-		OUT_RING(fb->pitch | obj->tiling_mode);
-		OUT_RING(obj->gtt_offset);
-
-		pf = I915_READ(PF_CTL(pipe)) & PF_ENABLE;
-		pipesrc = I915_READ(PIPESRC(pipe)) & 0x0fff0fff;
-		OUT_RING(pf | pipesrc);
-		break;
-	}
-	ADVANCE_LP_RING();
+	ret = dev_priv->display.queue_flip(dev, crtc, fb, obj);
+	if (ret)
+		goto cleanup_pending;
 
 	mutex_unlock(&dev->struct_mutex);
 
@@ -6457,10 +6522,11 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	return 0;
 
+cleanup_pending:
+	atomic_sub(1 << intel_crtc->plane, &work->old_fb_obj->pending_flip);
 cleanup_objs:
 	drm_gem_object_unreference(&work->old_fb_obj->base);
 	drm_gem_object_unreference(&obj->base);
-cleanup_work:
 	mutex_unlock(&dev->struct_mutex);
 
 	spin_lock_irqsave(&dev->event_lock, flags);
@@ -7675,6 +7741,7 @@ static void intel_init_display(struct drm_device *dev)
 			dev_priv->display.update_wm = NULL;
 		} else
 			dev_priv->display.update_wm = pineview_update_wm;
+		dev_priv->display.init_clock_gating = gen3_init_clock_gating;
 	} else if (IS_G4X(dev)) {
 		dev_priv->display.update_wm = g4x_update_wm;
 		dev_priv->display.init_clock_gating = g4x_init_clock_gating;
@@ -7704,6 +7771,31 @@ static void intel_init_display(struct drm_device *dev)
 		else
 			dev_priv->display.get_fifo_size = i830_get_fifo_size;
 	}
+
+	/* Default just returns -ENODEV to indicate unsupported */
+	dev_priv->display.queue_flip = intel_default_queue_flip;
+
+	switch (INTEL_INFO(dev)->gen) {
+	case 2:
+		dev_priv->display.queue_flip = intel_gen2_queue_flip;
+		break;
+
+	case 3:
+		dev_priv->display.queue_flip = intel_gen3_queue_flip;
+		break;
+
+	case 4:
+	case 5:
+		dev_priv->display.queue_flip = intel_gen4_queue_flip;
+		break;
+
+	case 6:
+		dev_priv->display.queue_flip = intel_gen6_queue_flip;
+		break;
+	case 7:
+		dev_priv->display.queue_flip = intel_gen7_queue_flip;
+		break;
+	}
 }
 
 /*
@@ -7717,6 +7809,15 @@ static void quirk_pipea_force (struct drm_device *dev)
 
 	dev_priv->quirks |= QUIRK_PIPEA_FORCE;
 	DRM_DEBUG_DRIVER("applying pipe a force quirk\n");
+}
+
+/*
+ * Some machines (Lenovo U160) do not work with SSC on LVDS for some reason
+ */
+static void quirk_ssc_force_disable(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	dev_priv->quirks |= QUIRK_LVDS_SSC_DISABLE;
 }
 
 struct intel_quirk {
@@ -7747,6 +7848,9 @@ struct intel_quirk intel_quirks[] = {
 	/* 855 & before need to leave pipe A & dpll A up */
 	{ 0x3582, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
 	{ 0x2562, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
+
+	/* Lenovo U160 cannot use SSC on LVDS */
+	{ 0x0046, 0x17aa, 0x3920, quirk_ssc_force_disable },
 };
 
 static void intel_init_quirks(struct drm_device *dev)

@@ -38,18 +38,21 @@ static struct dentry *proc_ns_instantiate(struct inode *dir,
 	struct inode *inode;
 	struct proc_inode *ei;
 	struct dentry *error = ERR_PTR(-ENOENT);
+	void *ns;
 
 	inode = proc_pid_make_inode(dir->i_sb, task);
 	if (!inode)
 		goto out;
 
+	ns = ns_ops->get(task);
+	if (!ns)
+		goto out_iput;
+
 	ei = PROC_I(inode);
 	inode->i_mode = S_IFREG|S_IRUSR;
 	inode->i_fop  = &ns_file_operations;
 	ei->ns_ops    = ns_ops;
-	ei->ns	      = ns_ops->get(task);
-	if (!ei->ns)
-		goto out_iput;
+	ei->ns	      = ns;
 
 	dentry->d_op = &pid_dentry_operations;
 	d_add(dentry, inode);

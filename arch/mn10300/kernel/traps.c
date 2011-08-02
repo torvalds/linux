@@ -28,7 +28,7 @@
 #include <linux/irq.h>
 #include <asm/processor.h>
 #include <asm/system.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/atomic.h>
 #include <asm/smp.h>
@@ -156,7 +156,7 @@ int die_if_no_fixup(const char *str, struct pt_regs *regs,
 
 	case EXCEP_TRAP:
 	case EXCEP_UNIMPINS:
-		if (get_user(opcode, (uint8_t __user *)regs->pc) != 0)
+		if (probe_kernel_read(&opcode, (u8 *)regs->pc, 1) < 0)
 			break;
 		if (opcode == 0xff) {
 			if (notify_die(DIE_BREAKPOINT, str, regs, code, 0, 0))

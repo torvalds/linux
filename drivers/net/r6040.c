@@ -677,9 +677,11 @@ static irqreturn_t r6040_interrupt(int irq, void *dev_id)
 		if (status & RX_FIFO_FULL)
 			dev->stats.rx_fifo_errors++;
 
-		/* Mask off RX interrupt */
-		misr &= ~RX_INTS;
-		napi_schedule(&lp->napi);
+		if (likely(napi_schedule_prep(&lp->napi))) {
+			/* Mask off RX interrupt */
+			misr &= ~RX_INTS;
+			__napi_schedule(&lp->napi);
+		}
 	}
 
 	/* TX interrupt request */

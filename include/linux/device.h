@@ -530,7 +530,6 @@ struct device_dma_parameters {
  * @dma_mem:	Internal for coherent mem override.
  * @archdata:	For arch-specific additions.
  * @of_node:	Associated device tree node.
- * @of_match:	Matching of_device_id from driver.
  * @devt:	For creating the sysfs "dev".
  * @devres_lock: Spinlock to protect the resource of the device.
  * @devres_head: The resources list of the device.
@@ -654,13 +653,13 @@ static inline int device_is_registered(struct device *dev)
 
 static inline void device_enable_async_suspend(struct device *dev)
 {
-	if (!dev->power.in_suspend)
+	if (!dev->power.is_prepared)
 		dev->power.async_suspend = true;
 }
 
 static inline void device_disable_async_suspend(struct device *dev)
 {
-	if (!dev->power.in_suspend)
+	if (!dev->power.is_prepared)
 		dev->power.async_suspend = false;
 }
 

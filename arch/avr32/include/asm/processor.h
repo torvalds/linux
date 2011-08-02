@@ -131,7 +131,6 @@ struct thread_struct {
  */
 #define start_thread(regs, new_pc, new_sp)	 \
 	do {					 \
-		set_fs(USER_DS);		 \
 		memset(regs, 0, sizeof(*regs));	 \
 		regs->sr = MODE_USER;		 \
 		regs->pc = new_pc & ~1;		 \

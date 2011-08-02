@@ -1,3 +1,5 @@
+#include <asm/assembler.h>
+
 /*
  * Interrupt handling.  Preserves r7, r8, r9
  */

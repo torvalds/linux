@@ -1097,12 +1097,6 @@ struct net_device {
 #define NETIF_F_ALL_FCOE	(NETIF_F_FCOE_CRC | NETIF_F_FCOE_MTU | \
 				 NETIF_F_FSO)
 
-#define NETIF_F_ALL_TX_OFFLOADS	(NETIF_F_ALL_CSUM | NETIF_F_SG | \
-				 NETIF_F_FRAGLIST | NETIF_F_ALL_TSO | \
-				 NETIF_F_HIGHDMA | \
-				 NETIF_F_SCTP_CSUM | \
-				 NETIF_F_ALL_FCOE)
-
 	/*
 	 * If one device supports one of these features, then enable them
 	 * for all in netdev_increment_features.
@@ -2555,7 +2549,7 @@ extern void netdev_class_remove_file(struct class_attribute *class_attr);
 
 extern struct kobj_ns_type_operations net_ns_type_operations;
 
-extern char *netdev_drivername(const struct net_device *dev, char *buffer, int len);
+extern const char *netdev_drivername(const struct net_device *dev);
 
 extern void linkwatch_run_queue(void);
 

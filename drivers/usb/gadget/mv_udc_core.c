@@ -2083,7 +2083,7 @@ out:
 }
 
 #ifdef CONFIG_PM
-static int mv_udc_suspend(struct platform_device *_dev, pm_message_t state)
+static int mv_udc_suspend(struct device *_dev)
 {
 	struct mv_udc *udc = the_controller;
 
@@ -2092,7 +2092,7 @@ static int mv_udc_suspend(struct platform_device *_dev, pm_message_t state)
 	return 0;
 }
 
-static int mv_udc_resume(struct platform_device *_dev)
+static int mv_udc_resume(struct device *_dev)
 {
 	struct mv_udc *udc = the_controller;
 	int retval;
@@ -2100,7 +2100,7 @@ static int mv_udc_resume(struct platform_device *_dev)
 	retval = mv_udc_phy_init(udc->phy_regs);
 	if (retval) {
 		dev_err(_dev, "phy initialization error %d\n", retval);
-		goto error;
+		return retval;
 	}
 	udc_reset(udc);
 	ep0_reset(udc);
@@ -2122,7 +2122,7 @@ static struct platform_driver udc_driver = {
 		.owner	= THIS_MODULE,
 		.name	= "pxa-u2o",
 #ifdef CONFIG_PM
-		.pm	= mv_udc_pm_ops,
+		.pm	= &mv_udc_pm_ops,
 #endif
 	},
 };

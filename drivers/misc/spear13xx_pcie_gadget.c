@@ -845,7 +845,7 @@ err_iounmap:
 err_iounmap_app:
 	iounmap(config->va_app_base);
 err_kzalloc:
-	kfree(config);
+	kfree(target);
 err_rel_res:
 	release_mem_region(res1->start, resource_size(res1));
 err_rel_res0:

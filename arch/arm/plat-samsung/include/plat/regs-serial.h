@@ -224,6 +224,8 @@
 #define S5PV210_UFSTAT_RXMASK	(255<<0)
 #define S5PV210_UFSTAT_RXSHIFT	(0)
 
+#define NO_NEED_CHECK_CLKSRC	1
+
 #ifndef __ASSEMBLY__
 
 /* struct s3c24xx_uart_clksrc

@@ -992,6 +992,7 @@ static int __devinit rtl8139_init_one (struct pci_dev *pdev,
 	 * features
 	 */
 	dev->features |= NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_HIGHDMA;
+	dev->vlan_features = dev->features;
 
 	dev->irq = pdev->irq;
 

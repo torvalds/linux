@@ -223,7 +223,7 @@ static void lnw_irq_handler(unsigned irq, struct irq_desc *desc)
 		gedr = gpio_reg(&lnw->chip, base, GEDR);
 		pending = readl(gedr);
 		while (pending) {
-			gpio = __ffs(pending) - 1;
+			gpio = __ffs(pending);
 			mask = BIT(gpio);
 			pending &= ~mask;
 			/* Clear before handling so we can't lose an edge */

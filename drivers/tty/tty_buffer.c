@@ -413,8 +413,7 @@ static void flush_to_ldisc(struct work_struct *work)
 	spin_lock_irqsave(&tty->buf.lock, flags);
 
 	if (!test_and_set_bit(TTY_FLUSHING, &tty->flags)) {
-		struct tty_buffer *head, *tail = tty->buf.tail;
-		int seen_tail = 0;
+		struct tty_buffer *head;
 		while ((head = tty->buf.head) != NULL) {
 			int count;
 			char *char_buf;
@@ -424,15 +423,6 @@ static void flush_to_ldisc(struct work_struct *work)
 			if (!count) {
 				if (head->next == NULL)
 					break;
-				/*
-				  There's a possibility tty might get new buffer
-				  added during the unlock window below. We could
-				  end up spinning in here forever hogging the CPU
-				  completely. To avoid this let's have a rest each
-				  time we processed the tail buffer.
-				*/
-				if (tail == head)
-					seen_tail = 1;
 				tty->buf.head = head->next;
 				tty_buffer_free(tty, head);
 				continue;
@@ -442,7 +432,7 @@ static void flush_to_ldisc(struct work_struct *work)
 			   line discipline as we want to empty the queue */
 			if (test_bit(TTY_FLUSHPENDING, &tty->flags))
 				break;
-			if (!tty->receive_room || seen_tail)
+			if (!tty->receive_room)
 				break;
 			if (count > tty->receive_room)
 				count = tty->receive_room;

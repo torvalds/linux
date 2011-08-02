@@ -307,7 +307,7 @@ clusterip_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	 * error messages (RELATED) and information requests (see below) */
 	if (ip_hdr(skb)->protocol == IPPROTO_ICMP &&
 	    (ctinfo == IP_CT_RELATED ||
-	     ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY))
+	     ctinfo == IP_CT_RELATED_REPLY))
 		return XT_CONTINUE;
 
 	/* ip_conntrack_icmp guarantees us that we only have ICMP_ECHO,
@@ -321,12 +321,12 @@ clusterip_tg(struct sk_buff *skb, const struct xt_action_param *par)
 			ct->mark = hash;
 			break;
 		case IP_CT_RELATED:
-		case IP_CT_RELATED+IP_CT_IS_REPLY:
+		case IP_CT_RELATED_REPLY:
 			/* FIXME: we don't handle expectations at the
 			 * moment.  they can arrive on a different node than
 			 * the master connection (e.g. FTP passive mode) */
 		case IP_CT_ESTABLISHED:
-		case IP_CT_ESTABLISHED+IP_CT_IS_REPLY:
+		case IP_CT_ESTABLISHED_REPLY:
 			break;
 		default:
 			break;

@@ -12,6 +12,8 @@
 #include <linux/of.h>
 #include <linux/memblock.h>
 #include <linux/vmalloc.h>
+#include <linux/memory.h>
+
 #include <asm/firmware.h>
 #include <asm/machdep.h>
 #include <asm/pSeries_reconfig.h>
@@ -20,24 +22,25 @@
 static unsigned long get_memblock_size(void)
 {
 	struct device_node *np;
-	unsigned int memblock_size = 0;
+	unsigned int memblock_size = MIN_MEMORY_BLOCK_SIZE;
+	struct resource r;
 
 	np = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (np) {
-		const unsigned long *size;
+		const __be64 *size;
 
 		size = of_get_property(np, "ibm,lmb-size", NULL);
-		memblock_size = size ? *size : 0;
-
+		if (size)
+			memblock_size = be64_to_cpup(size);
 		of_node_put(np);
-	} else {
+	} else  if (machine_is(pseries)) {
+		/* This fallback really only applies to pseries */
 		unsigned int memzero_size = 0;
-		const unsigned int *regs;
 
 		np = of_find_node_by_path("/memory@0");
 		if (np) {
-			regs = of_get_property(np, "reg", NULL);
-			memzero_size = regs ? regs[3] : 0;
+			if (!of_address_to_resource(np, 0, &r))
+				memzero_size = resource_size(&r);
 			of_node_put(np);
 		}
 
@@ -50,16 +53,21 @@ static unsigned long get_memblock_size(void)
 			sprintf(buf, "/memory@%x", memzero_size);
 			np = of_find_node_by_path(buf);
 			if (np) {
-				regs = of_get_property(np, "reg", NULL);
-				memblock_size = regs ? regs[3] : 0;
+				if (!of_address_to_resource(np, 0, &r))
+					memblock_size = resource_size(&r);
 				of_node_put(np);
 			}
 		}
 	}
-
 	return memblock_size;
 }
 
+/* WARNING: This is going to override the generic definition whenever
+ * pseries is built-in regardless of what platform is active at boot
+ * time. This is fine for now as this is the only "option" and it
+ * should work everywhere. If not, we'll have to turn this into a
+ * ppc_md. callback
+ */
 unsigned long memory_block_size_bytes(void)
 {
 	return get_memblock_size();

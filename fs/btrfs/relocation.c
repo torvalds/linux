@@ -1368,7 +1368,7 @@ int btrfs_update_reloc_root(struct btrfs_trans_handle *trans,
 	int ret;
 
 	if (!root->reloc_root)
-		return 0;
+		goto out;
 
 	reloc_root = root->reloc_root;
 	root_item = &reloc_root->root_item;
@@ -1390,6 +1390,8 @@ int btrfs_update_reloc_root(struct btrfs_trans_handle *trans,
 	ret = btrfs_update_root(trans, root->fs_info->tree_root,
 				&reloc_root->root_key, root_item);
 	BUG_ON(ret);
+
+out:
 	return 0;
 }
 
@@ -2142,10 +2144,11 @@ int prepare_to_merge(struct reloc_control *rc, int err)
 	u64 num_bytes = 0;
 	int ret;
 
-	spin_lock(&root->fs_info->trans_lock);
+	mutex_lock(&root->fs_info->reloc_mutex);
 	rc->merging_rsv_size += root->nodesize * (BTRFS_MAX_LEVEL - 1) * 2;
 	rc->merging_rsv_size += rc->nodes_relocated * 2;
-	spin_unlock(&root->fs_info->trans_lock);
+	mutex_unlock(&root->fs_info->reloc_mutex);
+
 again:
 	if (!err) {
 		num_bytes = rc->merging_rsv_size;
@@ -2214,9 +2217,16 @@ int merge_reloc_roots(struct reloc_control *rc)
 	int ret;
 again:
 	root = rc->extent_root;
-	spin_lock(&root->fs_info->trans_lock);
+
+	/*
+	 * this serializes us with btrfs_record_root_in_transaction,
+	 * we have to make sure nobody is in the middle of
+	 * adding their roots to the list while we are
+	 * doing this splice
+	 */
+	mutex_lock(&root->fs_info->reloc_mutex);
 	list_splice_init(&rc->reloc_roots, &reloc_roots);
-	spin_unlock(&root->fs_info->trans_lock);
+	mutex_unlock(&root->fs_info->reloc_mutex);
 
 	while (!list_empty(&reloc_roots)) {
 		found = 1;
@@ -3590,17 +3600,19 @@ next:
 static void set_reloc_control(struct reloc_control *rc)
 {
 	struct btrfs_fs_info *fs_info = rc->extent_root->fs_info;
-	spin_lock(&fs_info->trans_lock);
+
+	mutex_lock(&fs_info->reloc_mutex);
 	fs_info->reloc_ctl = rc;
-	spin_unlock(&fs_info->trans_lock);
+	mutex_unlock(&fs_info->reloc_mutex);
 }
 
 static void unset_reloc_control(struct reloc_control *rc)
 {
 	struct btrfs_fs_info *fs_info = rc->extent_root->fs_info;
-	spin_lock(&fs_info->trans_lock);
+
+	mutex_lock(&fs_info->reloc_mutex);
 	fs_info->reloc_ctl = NULL;
-	spin_unlock(&fs_info->trans_lock);
+	mutex_unlock(&fs_info->reloc_mutex);
 }
 
 static int check_extent_flags(u64 flags)

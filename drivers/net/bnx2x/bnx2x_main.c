@@ -49,6 +49,7 @@
 #include <linux/zlib.h>
 #include <linux/io.h>
 #include <linux/stringify.h>
+#include <linux/vmalloc.h>
 
 #define BNX2X_MAIN
 #include "bnx2x.h"
@@ -4537,8 +4538,7 @@ static int bnx2x_gunzip_init(struct bnx2x *bp)
 	if (bp->strm  == NULL)
 		goto gunzip_nomem2;
 
-	bp->strm->workspace = kmalloc(zlib_inflate_workspacesize(),
-				      GFP_KERNEL);
+	bp->strm->workspace = vmalloc(zlib_inflate_workspacesize());
 	if (bp->strm->workspace == NULL)
 		goto gunzip_nomem3;
 
@@ -4562,7 +4562,7 @@ gunzip_nomem1:
 static void bnx2x_gunzip_end(struct bnx2x *bp)
 {
 	if (bp->strm) {
-		kfree(bp->strm->workspace);
+		vfree(bp->strm->workspace);
 		kfree(bp->strm);
 		bp->strm = NULL;
 	}

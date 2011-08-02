@@ -137,13 +137,13 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 		if (st->variant->flags & ADIS16400_NO_BURST) {
 			ret = adis16350_spi_read_all(&indio_dev->dev, st->rx);
 			if (ret < 0)
-				return ret;
+				goto err;
 			for (; i < ring->scan_count; i++)
 				data[i]	= *(s16 *)(st->rx + i*2);
 		} else {
 			ret = adis16400_spi_read_burst(&indio_dev->dev, st->rx);
 			if (ret < 0)
-				return ret;
+				goto err;
 			for (; i < indio_dev->ring->scan_count; i++) {
 				j = __ffs(mask);
 				mask &= ~(1 << j);
@@ -158,9 +158,13 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 	ring->access->store_to(indio_dev->ring, (u8 *) data, pf->timestamp);
 
 	iio_trigger_notify_done(indio_dev->trig);
-	kfree(data);
 
+	kfree(data);
 	return IRQ_HANDLED;
+
+err:
+	kfree(data);
+	return ret;
 }
 
 void adis16400_unconfigure_ring(struct iio_dev *indio_dev)

@@ -50,7 +50,7 @@ static struct xfrm_policy_afinfo *xfrm_policy_get_afinfo(unsigned short family);
 static void xfrm_policy_put_afinfo(struct xfrm_policy_afinfo *afinfo);
 static void xfrm_init_pmtu(struct dst_entry *dst);
 static int stale_bundle(struct dst_entry *dst);
-static int xfrm_bundle_ok(struct xfrm_dst *xdst, int family);
+static int xfrm_bundle_ok(struct xfrm_dst *xdst);
 
 
 static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
@@ -2241,7 +2241,7 @@ static struct dst_entry *xfrm_dst_check(struct dst_entry *dst, u32 cookie)
 
 static int stale_bundle(struct dst_entry *dst)
 {
-	return !xfrm_bundle_ok((struct xfrm_dst *)dst, AF_UNSPEC);
+	return !xfrm_bundle_ok((struct xfrm_dst *)dst);
 }
 
 void xfrm_dst_ifdown(struct dst_entry *dst, struct net_device *dev)
@@ -2313,7 +2313,7 @@ static void xfrm_init_pmtu(struct dst_entry *dst)
  * still valid.
  */
 
-static int xfrm_bundle_ok(struct xfrm_dst *first, int family)
+static int xfrm_bundle_ok(struct xfrm_dst *first)
 {
 	struct dst_entry *dst = &first->u.dst;
 	struct xfrm_dst *last;

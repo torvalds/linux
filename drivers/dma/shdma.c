@@ -1221,6 +1221,11 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 	} else {
 		do {
 			for (i = chanirq_res->start; i <= chanirq_res->end; i++) {
+				if (irq_cnt >= SH_DMAC_MAX_CHANNELS) {
+					irq_cap = 1;
+					break;
+				}
+
 				if ((errirq_res->flags & IORESOURCE_BITS) ==
 				    IORESOURCE_IRQ_SHAREABLE)
 					chan_flag[irq_cnt] = IRQF_SHARED;
@@ -1230,15 +1235,11 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 					"Found IRQ %d for channel %d\n",
 					i, irq_cnt);
 				chan_irq[irq_cnt++] = i;
-
-				if (irq_cnt >= SH_DMAC_MAX_CHANNELS)
-					break;
 			}
 
-			if (irq_cnt >= SH_DMAC_MAX_CHANNELS) {
-				irq_cap = 1;
+			if (irq_cnt >= SH_DMAC_MAX_CHANNELS)
 				break;
-			}
+
 			chanirq_res = platform_get_resource(pdev,
 						IORESOURCE_IRQ, ++irqres);
 		} while (irq_cnt < pdata->channel_num && chanirq_res);

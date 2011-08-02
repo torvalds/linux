@@ -277,6 +277,8 @@
 #		define NV_CIO_CRE_EBR_VDE_11		2:2
 #		define NV_CIO_CRE_EBR_VRS_11		4:4
 #		define NV_CIO_CRE_EBR_VBS_11		6:6
+#	define NV_CIO_CRE_42			0x42
+#		define NV_CIO_CRE_42_OFFSET_11		6:6
 #	define NV_CIO_CRE_43			0x43
 #	define NV_CIO_CRE_44			0x44	/* head control */
 #	define NV_CIO_CRE_CSB			0x45	/* colour saturation boost */

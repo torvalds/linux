@@ -63,8 +63,6 @@
 #define SB_T35_SMSC911X_CS	4
 #define SB_T35_SMSC911X_GPIO	65
 
-#define NAND_BLOCK_SIZE		SZ_128K
-
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
 #include <linux/smsc911x.h>
 #include <plat/gpmc-smsc911x.h>

@@ -1,7 +1,5 @@
 /*
- * linux/arch/unicore32/kernel/rtc.c
- *
- * Code specific to PKUnity SoC and UniCore ISA
+ * RTC driver code specific to PKUnity SoC and UniCore ISA
  *
  *	Maintained by GUAN Xue-tao <gxt@mprc.pku.edu.cn>
  *	Copyright (C) 2001-2010 Guan Xuetao
@@ -36,7 +34,6 @@ static int puv3_rtc_tickno  = IRQ_RTC;
 static DEFINE_SPINLOCK(puv3_rtc_pie_lock);
 
 /* IRQ Handlers */
-
 static irqreturn_t puv3_rtc_alarmirq(int irq, void *id)
 {
 	struct rtc_device *rdev = id;
@@ -89,7 +86,6 @@ static int puv3_rtc_setpie(struct device *dev, int enabled)
 }
 
 /* Time read/write */
-
 static int puv3_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
 {
 	rtc_time_to_tm(readl(RTC_RCNR), rtc_tm);
@@ -196,7 +192,6 @@ static void puv3_rtc_release(struct device *dev)
 	struct rtc_device *rtc_dev = platform_get_drvdata(pdev);
 
 	/* do not clear AIE here, it may be needed for wake */
-
 	puv3_rtc_setpie(dev, 0);
 	free_irq(puv3_rtc_alarmno, rtc_dev);
 	free_irq(puv3_rtc_tickno, rtc_dev);
@@ -218,7 +213,6 @@ static void puv3_rtc_enable(struct platform_device *pdev, int en)
 		writel(readl(RTC_RTSR) & ~RTC_RTSR_HZE, RTC_RTSR);
 	} else {
 		/* re-enable the device, and check it is ok */
-
 		if ((readl(RTC_RTSR) & RTC_RTSR_HZE) == 0) {
 			dev_info(&pdev->dev, "rtc disabled, re-enabling\n");
 			writel(readl(RTC_RTSR) | RTC_RTSR_HZE, RTC_RTSR);
@@ -251,7 +245,6 @@ static int puv3_rtc_probe(struct platform_device *pdev)
 	pr_debug("%s: probe=%p\n", __func__, pdev);
 
 	/* find the IRQs */
-
 	puv3_rtc_tickno = platform_get_irq(pdev, 1);
 	if (puv3_rtc_tickno < 0) {
 		dev_err(&pdev->dev, "no irq for rtc tick\n");
@@ -268,7 +261,6 @@ static int puv3_rtc_probe(struct platform_device *pdev)
 		 puv3_rtc_tickno, puv3_rtc_alarmno);
 
 	/* get the memory region */
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "failed to get memory region resource\n");
@@ -288,7 +280,6 @@ static int puv3_rtc_probe(struct platform_device *pdev)
 	puv3_rtc_enable(pdev, 1);
 
 	/* register RTC and exit */
-
 	rtc = rtc_device_register("pkunity", &pdev->dev, &puv3_rtcops,
 				  THIS_MODULE);
 
@@ -314,8 +305,6 @@ static int puv3_rtc_probe(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-
-/* RTC Power management control */
 
 static int ticnt_save;
 
@@ -368,4 +357,3 @@ module_exit(puv3_rtc_exit);
 MODULE_DESCRIPTION("RTC Driver for the PKUnity v3 chip");
 MODULE_AUTHOR("Hu Dongliang");
 MODULE_LICENSE("GPL v2");
-

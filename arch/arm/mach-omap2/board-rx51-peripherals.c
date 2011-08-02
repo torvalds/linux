@@ -488,6 +488,7 @@ static struct regulator_init_data rx51_vmmc2 = {
 		.name			= "V28_A",
 		.min_uV			= 2800000,
 		.max_uV			= 3000000,
+		.always_on		= true, /* due VIO leak to AIC34 VDDs */
 		.apply_uV		= true,
 		.valid_modes_mask	= REGULATOR_MODE_NORMAL
 					| REGULATOR_MODE_STANDBY,
@@ -557,7 +558,7 @@ static struct radio_si4713_platform_data rx51_si4713_data __initdata_or_module =
 	.subdev_board_info = &rx51_si4713_board_info,
 };
 
-static struct platform_device rx51_si4713_dev __initdata_or_module = {
+static struct platform_device rx51_si4713_dev = {
 	.name	= "radio-si4713",
 	.id	= -1,
 	.dev	= {
@@ -582,7 +583,7 @@ static int rx51_twlgpio_setup(struct device *dev, unsigned gpio, unsigned n)
 {
 	/* FIXME this gpio setup is just a placeholder for now */
 	gpio_request_one(gpio + 6, GPIOF_OUT_INIT_LOW, "backlight_pwm");
-	gpio_request_one(gpio + 7, GPIOF_OUT_INIT_HIGH, "speaker_en");
+	gpio_request_one(gpio + 7, GPIOF_OUT_INIT_LOW, "speaker_en");
 
 	return 0;
 }

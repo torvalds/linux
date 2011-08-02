@@ -23,12 +23,7 @@ if test -d ../../.git -o -f ../../.git &&
 then
 	VN=$(echo "$VN" | sed -e 's/-/./g');
 else
-	eval $(grep '^VERSION[[:space:]]*=' ../../Makefile|tr -d ' ')
-	eval $(grep '^PATCHLEVEL[[:space:]]*=' ../../Makefile|tr -d ' ')
-	eval $(grep '^SUBLEVEL[[:space:]]*=' ../../Makefile|tr -d ' ')
-	eval $(grep '^EXTRAVERSION[[:space:]]*=' ../../Makefile|tr -d ' ')
-
-	VN="${VERSION}.${PATCHLEVEL}.${SUBLEVEL}${EXTRAVERSION}"
+	VN=$(MAKEFLAGS= make -sC ../.. kernelversion)
 fi
 
 VN=$(expr "$VN" : v*'\(.*\)')

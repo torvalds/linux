@@ -445,7 +445,7 @@ static void lola_reset_setups(struct lola *chip)
 	lola_setup_all_analog_gains(chip, PLAY, false); /* output, update */
 }
 
-static int lola_parse_tree(struct lola *chip)
+static int __devinit lola_parse_tree(struct lola *chip)
 {
 	unsigned int val;
 	int nid, err;

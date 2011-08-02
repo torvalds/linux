@@ -1861,6 +1861,7 @@ static int pl022_setup(struct spi_device *spi)
 	}
 	if ((clk_freq.cpsdvsr < CPSDVR_MIN)
 	    || (clk_freq.cpsdvsr > CPSDVR_MAX)) {
+		status = -EINVAL;
 		dev_err(&spi->dev,
 			"cpsdvsr is configured incorrectly\n");
 		goto err_config_params;

@@ -1737,7 +1737,7 @@ cifs_iovec_read(struct file *file, const struct iovec *iov,
 			io_parms.pid = pid;
 			io_parms.tcon = pTcon;
 			io_parms.offset = *poffset;
-			io_parms.length = len;
+			io_parms.length = cur_len;
 			rc = CIFSSMBRead(xid, &io_parms, &bytes_read,
 					 &read_data, &buf_type);
 			pSMBr = (struct smb_com_read_rsp *)read_data;

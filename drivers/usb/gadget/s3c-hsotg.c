@@ -2680,9 +2680,9 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 
 	writel(0, hsotg->regs + S3C_DAINTMSK);
 
-	dev_info(hsotg->dev, "EP0: DIEPCTL0=0x%08x, DOEPCTL0=0x%08x\n",
-		 readl(hsotg->regs + S3C_DIEPCTL0),
-		 readl(hsotg->regs + S3C_DOEPCTL0));
+	dev_dbg(hsotg->dev, "EP0: DIEPCTL0=0x%08x, DOEPCTL0=0x%08x\n",
+		readl(hsotg->regs + S3C_DIEPCTL0),
+		readl(hsotg->regs + S3C_DOEPCTL0));
 
 	/* enable in and out endpoint interrupts */
 	s3c_hsotg_en_gsint(hsotg, S3C_GINTSTS_OEPInt | S3C_GINTSTS_IEPInt);
@@ -2701,7 +2701,7 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 	udelay(10);  /* see openiboot */
 	__bic32(hsotg->regs + S3C_DCTL, S3C_DCTL_PWROnPrgDone);
 
-	dev_info(hsotg->dev, "DCTL=0x%08x\n", readl(hsotg->regs + S3C_DCTL));
+	dev_dbg(hsotg->dev, "DCTL=0x%08x\n", readl(hsotg->regs + S3C_DCTL));
 
 	/* S3C_DxEPCTL_USBActEp says RO in manual, but seems to be set by
 	   writing to the EPCTL register.. */
@@ -2721,9 +2721,9 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 
 	s3c_hsotg_enqueue_setup(hsotg);
 
-	dev_info(hsotg->dev, "EP0: DIEPCTL0=0x%08x, DOEPCTL0=0x%08x\n",
-		 readl(hsotg->regs + S3C_DIEPCTL0),
-		 readl(hsotg->regs + S3C_DOEPCTL0));
+	dev_dbg(hsotg->dev, "EP0: DIEPCTL0=0x%08x, DOEPCTL0=0x%08x\n",
+		readl(hsotg->regs + S3C_DIEPCTL0),
+		readl(hsotg->regs + S3C_DOEPCTL0));
 
 	/* clear global NAKs */
 	writel(S3C_DCTL_CGOUTNak | S3C_DCTL_CGNPInNAK,
@@ -2921,9 +2921,9 @@ static void s3c_hsotg_init(struct s3c_hsotg *hsotg)
 
 	/* setup fifos */
 
-	dev_info(hsotg->dev, "GRXFSIZ=0x%08x, GNPTXFSIZ=0x%08x\n",
-		 readl(hsotg->regs + S3C_GRXFSIZ),
-		 readl(hsotg->regs + S3C_GNPTXFSIZ));
+	dev_dbg(hsotg->dev, "GRXFSIZ=0x%08x, GNPTXFSIZ=0x%08x\n",
+		readl(hsotg->regs + S3C_GRXFSIZ),
+		readl(hsotg->regs + S3C_GNPTXFSIZ));
 
 	s3c_hsotg_init_fifo(hsotg);
 
@@ -2945,6 +2945,7 @@ static void s3c_hsotg_init(struct s3c_hsotg *hsotg)
 
 static void s3c_hsotg_dump(struct s3c_hsotg *hsotg)
 {
+#ifdef DEBUG
 	struct device *dev = hsotg->dev;
 	void __iomem *regs = hsotg->regs;
 	u32 val;
@@ -2987,6 +2988,7 @@ static void s3c_hsotg_dump(struct s3c_hsotg *hsotg)
 
 	dev_info(dev, "DVBUSDIS=0x%08x, DVBUSPULSE=%08x\n",
 		 readl(regs + S3C_DVBUSDIS), readl(regs + S3C_DVBUSPULSE));
+#endif
 }
 
 

@@ -54,8 +54,6 @@
 #include "pm.h"
 #include "common-board-devices.h"
 
-#define NAND_BLOCK_SIZE		SZ_128K
-
 /*
  * OMAP3 Beagle revision
  * Run time detection of Beagle revision is done by reading GPIO.
@@ -105,6 +103,9 @@ static void __init omap3_beagle_init_rev(void)
 
 	beagle_rev = gpio_get_value(171) | (gpio_get_value(172) << 1)
 			| (gpio_get_value(173) << 2);
+
+	gpio_free_array(omap3_beagle_rev_gpios,
+			ARRAY_SIZE(omap3_beagle_rev_gpios));
 
 	switch (beagle_rev) {
 	case 7:
@@ -578,6 +579,9 @@ static void __init omap3_beagle_init(void)
 	usbhs_init(&usbhs_bdata);
 	omap_nand_flash_init(NAND_BUSWIDTH_16, omap3beagle_nand_partitions,
 			     ARRAY_SIZE(omap3beagle_nand_partitions));
+
+	/* Ensure msecure is mux'd to be able to set the RTC. */
+	omap_mux_init_signal("sys_drm_msecure", OMAP_PIN_OFF_OUTPUT_HIGH);
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);

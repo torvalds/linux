@@ -597,6 +597,8 @@ __common_mmu_cache_on:
 		sub	pc, lr, r0, lsr #32	@ properly flush pipeline
 #endif
 
+#define PROC_ENTRY_SIZE (4*5)
+
 /*
  * Here follow the relocatable cache support functions for the
  * various processors.  This is a generic hook for locating an
@@ -624,7 +626,7 @@ call_cache_fn:	adr	r12, proc_types
  ARM(		addeq	pc, r12, r3		) @ call cache function
  THUMB(		addeq	r12, r3			)
  THUMB(		moveq	pc, r12			) @ call cache function
-		add	r12, r12, #4*5
+		add	r12, r12, #PROC_ENTRY_SIZE
 		b	1b
 
 /*
@@ -691,9 +693,9 @@ proc_types:
 
 		.word	0x41069260		@ ARM926EJ-S (v5TEJ)
 		.word	0xff0ffff0
-		b	__arm926ejs_mmu_cache_on
-		b	__armv4_mmu_cache_off
-		b	__armv5tej_mmu_cache_flush
+		W(b)	__arm926ejs_mmu_cache_on
+		W(b)	__armv4_mmu_cache_off
+		W(b)	__armv5tej_mmu_cache_flush
 
 		.word	0x00007000		@ ARM7 IDs
 		.word	0x0000f000
@@ -793,6 +795,16 @@ proc_types:
  THUMB(		nop				)
 
 		.size	proc_types, . - proc_types
+
+		/*
+		 * If you get a "non-constant expression in ".if" statement"
+		 * error from the assembler on this line, check that you have
+		 * not accidentally written a "b" instruction where you should
+		 * have written W(b).
+		 */
+		.if (. - proc_types) % PROC_ENTRY_SIZE != 0
+		.error "The size of one or more proc_types entries is wrong."
+		.endif
 
 /*
  * Turn off the Cache and MMU.  ARMv3 does not support

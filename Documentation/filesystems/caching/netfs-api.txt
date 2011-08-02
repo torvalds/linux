@@ -673,6 +673,22 @@ storage request to complete, or it may attempt to cancel the storage request -
 in which case the page will not be stored in the cache this time.
 
 
+BULK INODE PAGE UNCACHE
+-----------------------
+
+A convenience routine is provided to perform an uncache on all the pages
+attached to an inode.  This assumes that the pages on the inode correspond on a
+1:1 basis with the pages in the cache.
+
+	void fscache_uncache_all_inode_pages(struct fscache_cookie *cookie,
+					     struct inode *inode);
+
+This takes the netfs cookie that the pages were cached with and the inode that
+the pages are attached to.  This function will wait for pages to finish being
+written to the cache and for the cache to finish with the page generally.  No
+error is returned.
+
+
 ==========================
 INDEX AND DATA FILE UPDATE
 ==========================

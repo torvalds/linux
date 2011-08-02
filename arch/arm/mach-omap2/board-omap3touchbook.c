@@ -56,8 +56,6 @@
 
 #include <asm/setup.h>
 
-#define NAND_BLOCK_SIZE		SZ_128K
-
 #define OMAP3_AC_GPIO		136
 #define OMAP3_TS_GPIO		162
 #define TB_BL_PWM_TIMER		9

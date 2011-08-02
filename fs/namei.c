@@ -238,7 +238,8 @@ int generic_permission(struct inode *inode, int mask, unsigned int flags,
 
 	/*
 	 * Read/write DACs are always overridable.
-	 * Executable DACs are overridable if at least one exec bit is set.
+	 * Executable DACs are overridable for all directories and
+	 * for non-directories that have least one exec bit set.
 	 */
 	if (!(mask & MAY_EXEC) || execute_ok(inode))
 		if (ns_capable(inode_userns(inode), CAP_DAC_OVERRIDE))
@@ -432,6 +433,8 @@ static int unlazy_walk(struct nameidata *nd, struct dentry *dentry)
 			goto err_parent;
 		BUG_ON(nd->inode != parent->d_inode);
 	} else {
+		if (dentry->d_parent != parent)
+			goto err_parent;
 		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
 		if (!__d_rcu_to_refcount(dentry, nd->seq))
 			goto err_child;
@@ -812,6 +815,11 @@ static int follow_automount(struct path *path, unsigned flags,
 	if (!mnt) /* mount collision */
 		return 0;
 
+	if (!*need_mntput) {
+		/* lock_mount() may release path->mnt on error */
+		mntget(path->mnt);
+		*need_mntput = true;
+	}
 	err = finish_automount(mnt, path);
 
 	switch (err) {
@@ -819,12 +827,9 @@ static int follow_automount(struct path *path, unsigned flags,
 		/* Someone else made a mount here whilst we were busy */
 		return 0;
 	case 0:
-		dput(path->dentry);
-		if (*need_mntput)
-			mntput(path->mnt);
+		path_put(path);
 		path->mnt = mnt;
 		path->dentry = dget(mnt->mnt_root);
-		*need_mntput = true;
 		return 0;
 	default:
 		return err;
@@ -844,9 +849,10 @@ static int follow_automount(struct path *path, unsigned flags,
  */
 static int follow_managed(struct path *path, unsigned flags)
 {
+	struct vfsmount *mnt = path->mnt; /* held by caller, must be left alone */
 	unsigned managed;
 	bool need_mntput = false;
-	int ret;
+	int ret = 0;
 
 	/* Given that we're not holding a lock here, we retain the value in a
 	 * local variable for each dentry as we look at it so that we don't see
@@ -861,7 +867,7 @@ static int follow_managed(struct path *path, unsigned flags)
 			BUG_ON(!path->dentry->d_op->d_manage);
 			ret = path->dentry->d_op->d_manage(path->dentry, false);
 			if (ret < 0)
-				return ret == -EISDIR ? 0 : ret;
+				break;
 		}
 
 		/* Transit to a mounted filesystem. */
@@ -887,14 +893,19 @@ static int follow_managed(struct path *path, unsigned flags)
 		if (managed & DCACHE_NEED_AUTOMOUNT) {
 			ret = follow_automount(path, flags, &need_mntput);
 			if (ret < 0)
-				return ret == -EISDIR ? 0 : ret;
+				break;
 			continue;
 		}
 
 		/* We didn't change the current path point */
 		break;
 	}
-	return 0;
+
+	if (need_mntput && path->mnt == mnt)
+		mntput(path->mnt);
+	if (ret == -EISDIR)
+		ret = 0;
+	return ret;
 }
 
 int follow_down_one(struct path *path)
@@ -931,7 +942,6 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 		 * Don't forget we might have a non-mountpoint managed dentry
 		 * that wants to block transit.
 		 */
-		*inode = path->dentry->d_inode;
 		if (unlikely(managed_dentry_might_block(path->dentry)))
 			return false;
 
@@ -944,6 +954,12 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 		path->mnt = mounted;
 		path->dentry = mounted->mnt_root;
 		nd->seq = read_seqcount_begin(&path->dentry->d_seq);
+		/*
+		 * Update the inode too. We don't need to re-check the
+		 * dentry sequence number here after this d_inode read,
+		 * because a mount-point is always pinned.
+		 */
+		*inode = path->dentry->d_inode;
 	}
 	return true;
 }
@@ -1003,9 +1019,6 @@ failed:
  * Follow down to the covering mount currently visible to userspace.  At each
  * point, the filesystem owning that dentry may be queried as to whether the
  * caller is permitted to proceed or not.
- *
- * Care must be taken as namespace_sem may be held (indicated by mounting_here
- * being true).
  */
 int follow_down(struct path *path)
 {
@@ -2624,6 +2637,10 @@ static long do_rmdir(int dfd, const char __user *pathname)
 	error = PTR_ERR(dentry);
 	if (IS_ERR(dentry))
 		goto exit2;
+	if (!dentry->d_inode) {
+		error = -ENOENT;
+		goto exit3;
+	}
 	error = mnt_want_write(nd.path.mnt);
 	if (error)
 		goto exit3;
@@ -2712,8 +2729,9 @@ static long do_unlinkat(int dfd, const char __user *pathname)
 		if (nd.last.name[nd.last.len])
 			goto slashes;
 		inode = dentry->d_inode;
-		if (inode)
-			ihold(inode);
+		if (!inode)
+			goto slashes;
+		ihold(inode);
 		error = mnt_want_write(nd.path.mnt);
 		if (error)
 			goto exit2;

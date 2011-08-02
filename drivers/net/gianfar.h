@@ -9,7 +9,7 @@
  * Maintainer: Kumar Gala
  * Modifier: Sandeep Gopalpet <sandeep.kumar@freescale.com>
  *
- * Copyright 2002-2009 Freescale Semiconductor, Inc.
+ * Copyright 2002-2009, 2011 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -274,7 +274,7 @@ extern const char gfar_driver_version[];
 #define RCTRL_PROM		0x00000008
 #define RCTRL_EMEN		0x00000002
 #define RCTRL_REQ_PARSER	(RCTRL_VLEX | RCTRL_IPCSEN | \
-				 RCTRL_TUCSEN)
+				 RCTRL_TUCSEN | RCTRL_FILREN)
 #define RCTRL_CHECKSUMMING	(RCTRL_IPCSEN | RCTRL_TUCSEN | \
 				RCTRL_PRSDEP_INIT)
 #define RCTRL_EXTHASH		(RCTRL_GHTX)
@@ -1107,10 +1107,12 @@ struct gfar_private {
 	/* HW time stamping enabled flag */
 	int hwts_rx_en;
 	int hwts_tx_en;
+
+	/*Filer table*/
+	unsigned int ftp_rqfpr[MAX_FILER_IDX + 1];
+	unsigned int ftp_rqfcr[MAX_FILER_IDX + 1];
 };
 
-extern unsigned int ftp_rqfpr[MAX_FILER_IDX + 1];
-extern unsigned int ftp_rqfcr[MAX_FILER_IDX + 1];
 
 static inline int gfar_has_errata(struct gfar_private *priv,
 				  enum gfar_errata err)
@@ -1154,6 +1156,7 @@ extern void gfar_configure_coalescing(struct gfar_private *priv,
 		unsigned long tx_mask, unsigned long rx_mask);
 void gfar_init_sysfs(struct net_device *dev);
 int gfar_set_features(struct net_device *dev, u32 features);
+extern void gfar_check_rx_parser_mode(struct gfar_private *priv);
 
 extern const struct ethtool_ops gfar_ethtool_ops;
 
