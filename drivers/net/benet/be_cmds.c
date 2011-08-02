@@ -110,8 +110,7 @@ done:
 static void be_async_link_state_process(struct be_adapter *adapter,
 		struct be_async_event_link_state *evt)
 {
-	be_link_status_update(adapter,
-		evt->port_link_status == ASYNC_EVENT_LINK_UP);
+	be_link_status_update(adapter, evt->port_link_status);
 }
 
 /* Grp5 CoS Priority evt */
@@ -1261,8 +1260,8 @@ err:
 }
 
 /* Uses synchronous mcc */
-int be_cmd_link_status_query(struct be_adapter *adapter,
-			bool *link_up, u8 *mac_speed, u16 *link_speed, u32 dom)
+int be_cmd_link_status_query(struct be_adapter *adapter, u8 *mac_speed,
+			u16 *link_speed, u32 dom)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_link_status *req;
@@ -1277,8 +1276,6 @@ int be_cmd_link_status_query(struct be_adapter *adapter,
 	}
 	req = embedded_payload(wrb);
 
-	*link_up = false;
-
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0,
 			OPCODE_COMMON_NTWK_LINK_STATUS_QUERY);
 
@@ -1289,7 +1286,6 @@ int be_cmd_link_status_query(struct be_adapter *adapter,
 	if (!status) {
 		struct be_cmd_resp_link_status *resp = embedded_payload(wrb);
 		if (resp->mac_speed != PHY_LINK_SPEED_ZERO) {
-			*link_up = true;
 			*link_speed = le16_to_cpu(resp->link_speed);
 			*mac_speed = resp->mac_speed;
 		}

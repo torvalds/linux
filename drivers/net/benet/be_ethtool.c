@@ -353,15 +353,13 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	struct be_cmd_resp_get_phy_info *resp;
 	u8 mac_speed = 0;
 	u16 link_speed = 0;
-	bool link_up = false;
 	int status;
 	u16 intf_type;
 
 	if ((adapter->link_speed < 0) || (!(netdev->flags & IFF_UP))) {
-		status = be_cmd_link_status_query(adapter, &link_up,
-						&mac_speed, &link_speed, 0);
+		status = be_cmd_link_status_query(adapter, &mac_speed,
+						&link_speed, 0);
 
-		be_link_status_update(adapter, link_up);
 		/* link_speed is in units of 10 Mbps */
 		if (link_speed) {
 			ethtool_cmd_speed_set(ecmd, link_speed*10);
@@ -617,7 +615,6 @@ static void
 be_self_test(struct net_device *netdev, struct ethtool_test *test, u64 *data)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	bool link_up;
 	u8 mac_speed = 0;
 	u16 qos_link_speed = 0;
 
@@ -643,7 +640,7 @@ be_self_test(struct net_device *netdev, struct ethtool_test *test, u64 *data)
 		test->flags |= ETH_TEST_FL_FAILED;
 	}
 
-	if (be_cmd_link_status_query(adapter, &link_up, &mac_speed,
+	if (be_cmd_link_status_query(adapter, &mac_speed,
 				&qos_link_speed, 0) != 0) {
 		test->flags |= ETH_TEST_FL_FAILED;
 		data[4] = -1;

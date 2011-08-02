@@ -521,7 +521,7 @@ static inline bool be_multi_rxq(const struct be_adapter *adapter)
 
 extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
 		u16 num_popped);
-extern void be_link_status_update(struct be_adapter *adapter, bool link_up);
+extern void be_link_status_update(struct be_adapter *adapter, u32 link_status);
 extern void be_parse_stats(struct be_adapter *adapter);
 extern int be_load_fw(struct be_adapter *adapter, u8 *func);
 #endif				/* BE_H */

@@ -89,9 +89,10 @@ struct be_async_event_trailer {
 };
 
 enum {
-	ASYNC_EVENT_LINK_DOWN 	= 0x0,
-	ASYNC_EVENT_LINK_UP 	= 0x1
+	LINK_DOWN	= 0x0,
+	LINK_UP		= 0x1
 };
+#define LINK_STATUS_MASK			0x1
 
 /* When the event code of an async trailer is link-state, the mcc_compl
  * must be interpreted as follows
@@ -1442,7 +1443,7 @@ extern int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 extern int be_cmd_rxq_destroy(struct be_adapter *adapter,
 			struct be_queue_info *q);
 extern int be_cmd_link_status_query(struct be_adapter *adapter,
-			bool *link_up, u8 *mac_speed, u16 *link_speed, u32 dom);
+			u8 *mac_speed, u16 *link_speed, u32 dom);
 extern int be_cmd_reset(struct be_adapter *adapter);
 extern int be_cmd_get_stats(struct be_adapter *adapter,
 			struct be_dma_mem *nonemb_cmd);

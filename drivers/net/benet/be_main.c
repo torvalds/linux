@@ -462,21 +462,18 @@ static struct rtnl_link_stats64 *be_get_stats64(struct net_device *netdev,
 	return stats;
 }
 
-void be_link_status_update(struct be_adapter *adapter, bool link_up)
+void be_link_status_update(struct be_adapter *adapter, u32 link_status)
 {
 	struct net_device *netdev = adapter->netdev;
 
-	/* If link came up or went down */
-	if (adapter->link_up != link_up) {
-		adapter->link_speed = -1;
-		if (link_up) {
-			netif_carrier_on(netdev);
-			printk(KERN_INFO "%s: Link up\n", netdev->name);
-		} else {
-			netif_carrier_off(netdev);
-			printk(KERN_INFO "%s: Link down\n", netdev->name);
-		}
-		adapter->link_up = link_up;
+	/* when link status changes, link speed must be re-queried from card */
+	adapter->link_speed = -1;
+	if ((link_status & LINK_STATUS_MASK) == LINK_UP) {
+		netif_carrier_on(netdev);
+		dev_info(&adapter->pdev->dev, "%s: Link up\n", netdev->name);
+	} else {
+		netif_carrier_off(netdev);
+		dev_info(&adapter->pdev->dev, "%s: Link down\n", netdev->name);
 	}
 }
 
@@ -2217,8 +2214,6 @@ static int be_close(struct net_device *netdev)
 
 	be_async_mcc_disable(adapter);
 
-	adapter->link_up = false;
-
 	if (!lancer_chip(adapter))
 		be_intr_set(adapter, false);
 
@@ -2296,10 +2291,7 @@ static int be_open(struct net_device *netdev)
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct be_eq_obj *tx_eq = &adapter->tx_eq;
 	struct be_rx_obj *rxo;
-	bool link_up;
 	int status, i;
-	u8 mac_speed;
-	u16 link_speed;
 
 	status = be_rx_queues_setup(adapter);
 	if (status)
@@ -2321,12 +2313,6 @@ static int be_open(struct net_device *netdev)
 
 	/* Now that interrupts are on we can process async mcc */
 	be_async_mcc_enable(adapter);
-
-	status = be_cmd_link_status_query(adapter, &link_up, &mac_speed,
-			&link_speed, 0);
-	if (status)
-		goto err;
-	be_link_status_update(adapter, link_up);
 
 	if (be_physfn(adapter)) {
 		status = be_vid_config(adapter, false, 0);
@@ -3347,7 +3333,6 @@ static int __devinit be_probe(struct pci_dev *pdev,
 
 	if (be_physfn(adapter) && adapter->sriov_enabled) {
 		u8 mac_speed;
-		bool link_up;
 		u16 vf, lnk_speed;
 
 		if (!lancer_chip(adapter)) {
@@ -3357,8 +3342,8 @@ static int __devinit be_probe(struct pci_dev *pdev,
 		}
 
 		for (vf = 0; vf < num_vfs; vf++) {
-			status = be_cmd_link_status_query(adapter, &link_up,
-					&mac_speed, &lnk_speed, vf + 1);
+			status = be_cmd_link_status_query(adapter, &mac_speed,
+						&lnk_speed, vf + 1);
 			if (!status)
 				adapter->vf_cfg[vf].vf_tx_rate = lnk_speed * 10;
 			else
