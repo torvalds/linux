@@ -111,6 +111,7 @@ EXPORT_SYMBOL_GPL(dm_get_rq_mapinfo);
 #define DMF_FREEING 3
 #define DMF_DELETING 4
 #define DMF_NOFLUSH_SUSPENDING 5
+#define DMF_MERGE_IS_OPTIONAL 6
 
 /*
  * Work processed by per-device workqueue.
@@ -1993,6 +1994,59 @@ static void __set_size(struct mapped_device *md, sector_t size)
 }
 
 /*
+ * Return 1 if the queue has a compulsory merge_bvec_fn function.
+ *
+ * If this function returns 0, then the device is either a non-dm
+ * device without a merge_bvec_fn, or it is a dm device that is
+ * able to split any bios it receives that are too big.
+ */
+int dm_queue_merge_is_compulsory(struct request_queue *q)
+{
+	struct mapped_device *dev_md;
+
+	if (!q->merge_bvec_fn)
+		return 0;
+
+	if (q->make_request_fn == dm_request) {
+		dev_md = q->queuedata;
+		if (test_bit(DMF_MERGE_IS_OPTIONAL, &dev_md->flags))
+			return 0;
+	}
+
+	return 1;
+}
+
+static int dm_device_merge_is_compulsory(struct dm_target *ti,
+					 struct dm_dev *dev, sector_t start,
+					 sector_t len, void *data)
+{
+	struct block_device *bdev = dev->bdev;
+	struct request_queue *q = bdev_get_queue(bdev);
+
+	return dm_queue_merge_is_compulsory(q);
+}
+
+/*
+ * Return 1 if it is acceptable to ignore merge_bvec_fn based
+ * on the properties of the underlying devices.
+ */
+static int dm_table_merge_is_optional(struct dm_table *table)
+{
+	unsigned i = 0;
+	struct dm_target *ti;
+
+	while (i < dm_table_get_num_targets(table)) {
+		ti = dm_table_get_target(table, i++);
+
+		if (ti->type->iterate_devices &&
+		    ti->type->iterate_devices(ti, dm_device_merge_is_compulsory, NULL))
+			return 0;
+	}
+
+	return 1;
+}
+
+/*
  * Returns old map, which caller must destroy.
  */
 static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
@@ -2002,6 +2056,7 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 	struct request_queue *q = md->queue;
 	sector_t size;
 	unsigned long flags;
+	int merge_is_optional;
 
 	size = dm_table_get_size(t);
 
@@ -2027,10 +2082,16 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 
 	__bind_mempools(md, t);
 
+	merge_is_optional = dm_table_merge_is_optional(t);
+
 	write_lock_irqsave(&md->map_lock, flags);
 	old_map = md->map;
 	md->map = t;
 	dm_table_set_restrictions(t, q, limits);
+	if (merge_is_optional)
+		set_bit(DMF_MERGE_IS_OPTIONAL, &md->flags);
+	else
+		clear_bit(DMF_MERGE_IS_OPTIONAL, &md->flags);
 	write_unlock_irqrestore(&md->map_lock, flags);
 
 	return old_map;
