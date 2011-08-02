@@ -2217,7 +2217,6 @@ static int be_close(struct net_device *netdev)
 
 	be_async_mcc_disable(adapter);
 
-	netif_carrier_off(netdev);
 	adapter->link_up = false;
 
 	if (!lancer_chip(adapter))
@@ -3345,7 +3344,6 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	status = register_netdev(netdev);
 	if (status != 0)
 		goto unsetup;
-	netif_carrier_off(netdev);
 
 	if (be_physfn(adapter) && adapter->sriov_enabled) {
 		u8 mac_speed;
