@@ -819,13 +819,11 @@ static int omap_dsshw_remove(struct platform_device *pdev)
 static int dss_runtime_suspend(struct device *dev)
 {
 	dss_save_context();
-	clk_disable(dss.dss_clk);
 	return 0;
 }
 
 static int dss_runtime_resume(struct device *dev)
 {
-	clk_enable(dss.dss_clk);
 	dss_restore_context();
 	return 0;
 }

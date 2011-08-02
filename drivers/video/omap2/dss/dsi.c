@@ -4605,10 +4605,6 @@ static int omap_dsi1hw_remove(struct platform_device *dsidev)
 
 static int dsi_runtime_suspend(struct device *dev)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(to_platform_device(dev));
-
-	clk_disable(dsi->dss_clk);
-
 	dispc_runtime_put();
 	dss_runtime_put();
 
@@ -4617,7 +4613,6 @@ static int dsi_runtime_suspend(struct device *dev)
 
 static int dsi_runtime_resume(struct device *dev)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(to_platform_device(dev));
 	int r;
 
 	r = dss_runtime_get();
@@ -4627,8 +4622,6 @@ static int dsi_runtime_resume(struct device *dev)
 	r = dispc_runtime_get();
 	if (r)
 		goto err_get_dispc;
-
-	clk_enable(dsi->dss_clk);
 
 	return 0;
 

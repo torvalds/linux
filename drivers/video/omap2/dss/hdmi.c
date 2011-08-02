@@ -56,7 +56,6 @@ static struct {
 	struct hdmi_config cfg;
 
 	struct clk *sys_clk;
-	struct clk *hdmi_clk;
 } hdmi;
 
 /*
@@ -1704,15 +1703,6 @@ static int hdmi_get_clocks(struct platform_device *pdev)
 
 	hdmi.sys_clk = clk;
 
-	clk = clk_get(&pdev->dev, "fck");
-	if (IS_ERR(clk)) {
-		DSSERR("can't get fck\n");
-		clk_put(hdmi.sys_clk);
-		return PTR_ERR(clk);
-	}
-
-	hdmi.hdmi_clk = clk;
-
 	return 0;
 }
 
@@ -1720,8 +1710,6 @@ static void hdmi_put_clocks(void)
 {
 	if (hdmi.sys_clk)
 		clk_put(hdmi.sys_clk);
-	if (hdmi.hdmi_clk)
-		clk_put(hdmi.hdmi_clk);
 }
 
 /* HDMI HW IP initialisation */
@@ -1792,7 +1780,6 @@ static int omapdss_hdmihw_remove(struct platform_device *pdev)
 
 static int hdmi_runtime_suspend(struct device *dev)
 {
-	clk_disable(hdmi.hdmi_clk);
 	clk_disable(hdmi.sys_clk);
 
 	dispc_runtime_put();
@@ -1815,7 +1802,6 @@ static int hdmi_runtime_resume(struct device *dev)
 
 
 	clk_enable(hdmi.sys_clk);
-	clk_enable(hdmi.hdmi_clk);
 
 	return 0;
 
