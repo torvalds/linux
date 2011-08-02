@@ -2812,7 +2812,7 @@ void aoe_update_host_ipv4_table(dhd_pub_t *dhd_pub, u32 ipa, bool add)
 	/* display what we've got */
 	dhd_arp_get_arp_hostip_table(dhd_pub, ipv4_buf, sizeof(ipv4_buf));
 	DHD_ARPOE(("%s: hostip table read from Dongle:\n", __FUNCTION__));
-	dhd_print_buf(ipv4_buf, 32, 4); /* max 8 IPs 4b each */
+	/* dhd_print_buf(ipv4_buf, 32, 4); */ /* max 8 IPs 4b each */
 
 	/* now we saved hoste_ip table, clr it in the dongle AOE */
 	dhd_aoe_hostip_clr(dhd_pub);

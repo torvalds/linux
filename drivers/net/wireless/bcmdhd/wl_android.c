@@ -219,7 +219,7 @@ static int wl_android_set_pno_setup(struct net_device *dev, char *command, int t
 	int pno_repeat = 0;
 	int pno_freq_expo_max = 0;
 
-	DHD_ERROR(("%s: command=%s, len=%d\n", __FUNCTION__, command, total_len));
+	DHD_INFO(("%s: command=%s, len=%d\n", __FUNCTION__, command, total_len));
 
 	if (total_len < (strlen(CMD_PNOSETUP_SET) + sizeof(cmd_tlv_t))) {
 		DHD_ERROR(("%s argument=%d less min size\n", __FUNCTION__, total_len));
