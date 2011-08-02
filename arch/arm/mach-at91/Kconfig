@@ -182,6 +182,11 @@ config MACH_ECO920
 	help
 	  Select this if you are using the eco920 board
 
+config MACH_RSI_EWS
+	bool "RSI Embedded Webserver"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using RSIs EWS board.
 endif
 
 # ----------------------------------------------------------
