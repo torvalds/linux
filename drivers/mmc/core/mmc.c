@@ -247,12 +247,12 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		return 0;
 
 	/* Version is coded in the CSD_STRUCTURE byte in the EXT_CSD register */
+	card->ext_csd.raw_ext_csd_structure = ext_csd[EXT_CSD_STRUCTURE];
 	if (card->csd.structure == 3) {
-		int ext_csd_struct = ext_csd[EXT_CSD_STRUCTURE];
-		if (ext_csd_struct > 2) {
+		if (card->ext_csd.raw_ext_csd_structure > 2) {
 			printk(KERN_ERR "%s: unrecognised EXT_CSD structure "
 				"version %d\n", mmc_hostname(card->host),
-					ext_csd_struct);
+					card->ext_csd.raw_ext_csd_structure);
 			err = -EINVAL;
 			goto out;
 		}
@@ -266,6 +266,10 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		goto out;
 	}
 
+	card->ext_csd.raw_sectors[0] = ext_csd[EXT_CSD_SEC_CNT + 0];
+	card->ext_csd.raw_sectors[1] = ext_csd[EXT_CSD_SEC_CNT + 1];
+	card->ext_csd.raw_sectors[2] = ext_csd[EXT_CSD_SEC_CNT + 2];
+	card->ext_csd.raw_sectors[3] = ext_csd[EXT_CSD_SEC_CNT + 3];
 	if (card->ext_csd.rev >= 2) {
 		card->ext_csd.sectors =
 			ext_csd[EXT_CSD_SEC_CNT + 0] << 0 |
@@ -277,7 +281,7 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		if (card->ext_csd.sectors > (2u * 1024 * 1024 * 1024) / 512)
 			mmc_card_set_blockaddr(card);
 	}
-
+	card->ext_csd.raw_card_type = ext_csd[EXT_CSD_CARD_TYPE];
 	switch (ext_csd[EXT_CSD_CARD_TYPE] & EXT_CSD_CARD_TYPE_MASK) {
 	case EXT_CSD_CARD_TYPE_DDR_52 | EXT_CSD_CARD_TYPE_52 |
 	     EXT_CSD_CARD_TYPE_26:
@@ -307,6 +311,11 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 			mmc_hostname(card->host));
 	}
 
+	card->ext_csd.raw_s_a_timeout = ext_csd[EXT_CSD_S_A_TIMEOUT];
+	card->ext_csd.raw_erase_timeout_mult =
+		ext_csd[EXT_CSD_ERASE_TIMEOUT_MULT];
+	card->ext_csd.raw_hc_erase_grp_size =
+		ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE];
 	if (card->ext_csd.rev >= 3) {
 		u8 sa_shift = ext_csd[EXT_CSD_S_A_TIMEOUT];
 		card->ext_csd.part_config = ext_csd[EXT_CSD_PART_CONFIG];
@@ -334,6 +343,16 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		card->ext_csd.boot_size = ext_csd[EXT_CSD_BOOT_MULT] << 17;
 	}
 
+	card->ext_csd.raw_hc_erase_gap_size =
+		ext_csd[EXT_CSD_PARTITION_ATTRIBUTE];
+	card->ext_csd.raw_sec_trim_mult =
+		ext_csd[EXT_CSD_SEC_TRIM_MULT];
+	card->ext_csd.raw_sec_erase_mult =
+		ext_csd[EXT_CSD_SEC_ERASE_MULT];
+	card->ext_csd.raw_sec_feature_support =
+		ext_csd[EXT_CSD_SEC_FEATURE_SUPPORT];
+	card->ext_csd.raw_trim_mult =
+		ext_csd[EXT_CSD_TRIM_MULT];
 	if (card->ext_csd.rev >= 4) {
 		/*
 		 * Enhanced area feature support -- check whether the eMMC
@@ -341,7 +360,7 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		 * area offset and size to user by adding sysfs interface.
 		 */
 		if ((ext_csd[EXT_CSD_PARTITION_SUPPORT] & 0x2) &&
-				(ext_csd[EXT_CSD_PARTITION_ATTRIBUTE] & 0x1)) {
+		    (ext_csd[EXT_CSD_PARTITION_ATTRIBUTE] & 0x1)) {
 			u8 hc_erase_grp_sz =
 				ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE];
 			u8 hc_wp_grp_sz =
@@ -401,17 +420,17 @@ static inline void mmc_free_ext_csd(u8 *ext_csd)
 }
 
 
-static int mmc_compare_ext_csds(struct mmc_card *card, u8 *ext_csd,
-			unsigned bus_width)
+static int mmc_compare_ext_csds(struct mmc_card *card, unsigned bus_width)
 {
 	u8 *bw_ext_csd;
 	int err;
 
-	err = mmc_get_ext_csd(card, &bw_ext_csd);
-	if (err)
-		return err;
+	if (bus_width == MMC_BUS_WIDTH_1)
+		return 0;
 
-	if ((ext_csd == NULL || bw_ext_csd == NULL)) {
+	err = mmc_get_ext_csd(card, &bw_ext_csd);
+
+	if (err || bw_ext_csd == NULL) {
 		if (bus_width != MMC_BUS_WIDTH_1)
 			err = -EINVAL;
 		goto out;
@@ -421,35 +440,40 @@ static int mmc_compare_ext_csds(struct mmc_card *card, u8 *ext_csd,
 		goto out;
 
 	/* only compare read only fields */
-	err = (!(ext_csd[EXT_CSD_PARTITION_SUPPORT] ==
+	err = (!(card->ext_csd.raw_partition_support ==
 			bw_ext_csd[EXT_CSD_PARTITION_SUPPORT]) &&
-		(ext_csd[EXT_CSD_ERASED_MEM_CONT] ==
+		(card->ext_csd.raw_erased_mem_count ==
 			bw_ext_csd[EXT_CSD_ERASED_MEM_CONT]) &&
-		(ext_csd[EXT_CSD_REV] ==
+		(card->ext_csd.rev ==
 			bw_ext_csd[EXT_CSD_REV]) &&
-		(ext_csd[EXT_CSD_STRUCTURE] ==
+		(card->ext_csd.raw_ext_csd_structure ==
 			bw_ext_csd[EXT_CSD_STRUCTURE]) &&
-		(ext_csd[EXT_CSD_CARD_TYPE] ==
+		(card->ext_csd.raw_card_type ==
 			bw_ext_csd[EXT_CSD_CARD_TYPE]) &&
-		(ext_csd[EXT_CSD_S_A_TIMEOUT] ==
+		(card->ext_csd.raw_s_a_timeout ==
 			bw_ext_csd[EXT_CSD_S_A_TIMEOUT]) &&
-		(ext_csd[EXT_CSD_HC_WP_GRP_SIZE] ==
+		(card->ext_csd.raw_hc_erase_gap_size ==
 			bw_ext_csd[EXT_CSD_HC_WP_GRP_SIZE]) &&
-		(ext_csd[EXT_CSD_ERASE_TIMEOUT_MULT] ==
+		(card->ext_csd.raw_erase_timeout_mult ==
 			bw_ext_csd[EXT_CSD_ERASE_TIMEOUT_MULT]) &&
-		(ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE] ==
+		(card->ext_csd.raw_hc_erase_grp_size ==
 			bw_ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE]) &&
-		(ext_csd[EXT_CSD_SEC_TRIM_MULT] ==
+		(card->ext_csd.raw_sec_trim_mult ==
 			bw_ext_csd[EXT_CSD_SEC_TRIM_MULT]) &&
-		(ext_csd[EXT_CSD_SEC_ERASE_MULT] ==
+		(card->ext_csd.raw_sec_erase_mult ==
 			bw_ext_csd[EXT_CSD_SEC_ERASE_MULT]) &&
-		(ext_csd[EXT_CSD_SEC_FEATURE_SUPPORT] ==
+		(card->ext_csd.raw_sec_feature_support ==
 			bw_ext_csd[EXT_CSD_SEC_FEATURE_SUPPORT]) &&
-		(ext_csd[EXT_CSD_TRIM_MULT] ==
+		(card->ext_csd.raw_trim_mult ==
 			bw_ext_csd[EXT_CSD_TRIM_MULT]) &&
-		memcmp(&ext_csd[EXT_CSD_SEC_CNT],
-		       &bw_ext_csd[EXT_CSD_SEC_CNT],
-		       4) != 0);
+		(card->ext_csd.raw_sectors[0] ==
+			bw_ext_csd[EXT_CSD_SEC_CNT + 0]) &&
+		(card->ext_csd.raw_sectors[1] ==
+			bw_ext_csd[EXT_CSD_SEC_CNT + 1]) &&
+		(card->ext_csd.raw_sectors[2] ==
+			bw_ext_csd[EXT_CSD_SEC_CNT + 2]) &&
+		(card->ext_csd.raw_sectors[3] ==
+			bw_ext_csd[EXT_CSD_SEC_CNT + 3]));
 	if (err)
 		err = -EINVAL;
 
@@ -770,7 +794,6 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 				 */
 				if (!(host->caps & MMC_CAP_BUS_WIDTH_TEST))
 					err = mmc_compare_ext_csds(card,
-						ext_csd,
 						bus_width);
 				else
 					err = mmc_bus_test(card, bus_width);

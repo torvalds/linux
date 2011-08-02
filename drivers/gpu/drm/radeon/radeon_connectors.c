@@ -52,6 +52,12 @@ void radeon_connector_hotplug(struct drm_connector *connector)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 
+	/* bail if the connector does not have hpd pin, e.g.,
+	 * VGA, TV, etc.
+	 */
+	if (radeon_connector->hpd.hpd == RADEON_HPD_NONE)
+		return;
+
 	radeon_hpd_set_polarity(rdev, radeon_connector->hpd.hpd);
 
 	/* powering up/down the eDP panel generates hpd events which

@@ -1813,8 +1813,6 @@ seqretry:
 		tname = dentry->d_name.name;
 		i = dentry->d_inode;
 		prefetch(tname);
-		if (i)
-			prefetch(i);
 		/*
 		 * This seqcount check is required to ensure name and
 		 * len are loaded atomically, so as not to walk off the
@@ -2213,22 +2211,21 @@ static void dentry_unlock_parents_for_move(struct dentry *dentry,
  * The hash value has to match the hash queue that the dentry is on..
  */
 /*
- * d_move - move a dentry
+ * __d_move - move a dentry
  * @dentry: entry to move
  * @target: new dentry
  *
  * Update the dcache to reflect the move of a file name. Negative
- * dcache entries should not be moved in this way.
+ * dcache entries should not be moved in this way.  Caller hold
+ * rename_lock.
  */
-void d_move(struct dentry * dentry, struct dentry * target)
+static void __d_move(struct dentry * dentry, struct dentry * target)
 {
 	if (!dentry->d_inode)
 		printk(KERN_WARNING "VFS: moving negative dcache entry\n");
 
 	BUG_ON(d_ancestor(dentry, target));
 	BUG_ON(d_ancestor(target, dentry));
-
-	write_seqlock(&rename_lock);
 
 	dentry_lock_for_move(dentry, target);
 
@@ -2275,6 +2272,20 @@ void d_move(struct dentry * dentry, struct dentry * target)
 	spin_unlock(&target->d_lock);
 	fsnotify_d_move(dentry);
 	spin_unlock(&dentry->d_lock);
+}
+
+/*
+ * d_move - move a dentry
+ * @dentry: entry to move
+ * @target: new dentry
+ *
+ * Update the dcache to reflect the move of a file name. Negative
+ * dcache entries should not be moved in this way.
+ */
+void d_move(struct dentry *dentry, struct dentry *target)
+{
+	write_seqlock(&rename_lock);
+	__d_move(dentry, target);
 	write_sequnlock(&rename_lock);
 }
 EXPORT_SYMBOL(d_move);
@@ -2302,7 +2313,7 @@ struct dentry *d_ancestor(struct dentry *p1, struct dentry *p2)
  * This helper attempts to cope with remotely renamed directories
  *
  * It assumes that the caller is already holding
- * dentry->d_parent->d_inode->i_mutex and the inode->i_lock
+ * dentry->d_parent->d_inode->i_mutex, inode->i_lock and rename_lock
  *
  * Note: If ever the locking in lock_rename() changes, then please
  * remember to update this too...
@@ -2317,11 +2328,6 @@ static struct dentry *__d_unalias(struct inode *inode,
 	if (alias->d_parent == dentry->d_parent)
 		goto out_unalias;
 
-	/* Check for loops */
-	ret = ERR_PTR(-ELOOP);
-	if (d_ancestor(alias, dentry))
-		goto out_err;
-
 	/* See lock_rename() */
 	ret = ERR_PTR(-EBUSY);
 	if (!mutex_trylock(&dentry->d_sb->s_vfs_rename_mutex))
@@ -2331,7 +2337,7 @@ static struct dentry *__d_unalias(struct inode *inode,
 		goto out_err;
 	m2 = &alias->d_parent->d_inode->i_mutex;
 out_unalias:
-	d_move(alias, dentry);
+	__d_move(alias, dentry);
 	ret = alias;
 out_err:
 	spin_unlock(&inode->i_lock);
@@ -2416,15 +2422,24 @@ struct dentry *d_materialise_unique(struct dentry *dentry, struct inode *inode)
 		alias = __d_find_alias(inode, 0);
 		if (alias) {
 			actual = alias;
-			/* Is this an anonymous mountpoint that we could splice
-			 * into our tree? */
-			if (IS_ROOT(alias)) {
+			write_seqlock(&rename_lock);
+
+			if (d_ancestor(alias, dentry)) {
+				/* Check for loops */
+				actual = ERR_PTR(-ELOOP);
+			} else if (IS_ROOT(alias)) {
+				/* Is this an anonymous mountpoint that we
+				 * could splice into our tree? */
 				__d_materialise_dentry(dentry, alias);
+				write_sequnlock(&rename_lock);
 				__d_drop(alias);
 				goto found;
+			} else {
+				/* Nope, but we must(!) avoid directory
+				 * aliasing */
+				actual = __d_unalias(inode, dentry, alias);
 			}
-			/* Nope, but we must(!) avoid directory aliasing */
-			actual = __d_unalias(inode, dentry, alias);
+			write_sequnlock(&rename_lock);
 			if (IS_ERR(actual))
 				dput(alias);
 			goto out_nolock;

@@ -308,7 +308,7 @@ video_set_cur_state(struct thermal_cooling_device *cooling_dev, unsigned long st
 	return acpi_video_device_lcd_set_level(video, level);
 }
 
-static struct thermal_cooling_device_ops video_cooling_ops = {
+static const struct thermal_cooling_device_ops video_cooling_ops = {
 	.get_max_state = video_get_max_state,
 	.get_cur_state = video_get_cur_state,
 	.set_cur_state = video_set_cur_state,

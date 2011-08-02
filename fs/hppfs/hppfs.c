@@ -139,7 +139,8 @@ static int file_removed(struct dentry *dentry, const char *file)
 static struct dentry *hppfs_lookup(struct inode *ino, struct dentry *dentry,
 				   struct nameidata *nd)
 {
-	struct dentry *proc_dentry, *new, *parent;
+	struct dentry *proc_dentry, *parent;
+	struct qstr *name = &dentry->d_name;
 	struct inode *inode;
 	int err, deleted;
 
@@ -149,23 +150,9 @@ static struct dentry *hppfs_lookup(struct inode *ino, struct dentry *dentry,
 	else if (deleted)
 		return ERR_PTR(-ENOENT);
 
-	err = -ENOMEM;
 	parent = HPPFS_I(ino)->proc_dentry;
 	mutex_lock(&parent->d_inode->i_mutex);
-	proc_dentry = d_lookup(parent, &dentry->d_name);
-	if (proc_dentry == NULL) {
-		proc_dentry = d_alloc(parent, &dentry->d_name);
-		if (proc_dentry == NULL) {
-			mutex_unlock(&parent->d_inode->i_mutex);
-			goto out;
-		}
-		new = (*parent->d_inode->i_op->lookup)(parent->d_inode,
-						       proc_dentry, NULL);
-		if (new) {
-			dput(proc_dentry);
-			proc_dentry = new;
-		}
-	}
+	proc_dentry = lookup_one_len(name->name, parent, name->len);
 	mutex_unlock(&parent->d_inode->i_mutex);
 
 	if (IS_ERR(proc_dentry))
@@ -174,13 +161,11 @@ static struct dentry *hppfs_lookup(struct inode *ino, struct dentry *dentry,
 	err = -ENOMEM;
 	inode = get_inode(ino->i_sb, proc_dentry);
 	if (!inode)
-		goto out_dput;
+		goto out;
 
  	d_add(dentry, inode);
 	return NULL;
 
- out_dput:
-	dput(proc_dentry);
  out:
 	return ERR_PTR(err);
 }
@@ -690,8 +675,10 @@ static struct inode *get_inode(struct super_block *sb, struct dentry *dentry)
 	struct inode *proc_ino = dentry->d_inode;
 	struct inode *inode = new_inode(sb);
 
-	if (!inode)
+	if (!inode) {
+		dput(dentry);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	if (S_ISDIR(dentry->d_inode->i_mode)) {
 		inode->i_op = &hppfs_dir_iops;
@@ -704,7 +691,7 @@ static struct inode *get_inode(struct super_block *sb, struct dentry *dentry)
 		inode->i_fop = &hppfs_file_fops;
 	}
 
-	HPPFS_I(inode)->proc_dentry = dget(dentry);
+	HPPFS_I(inode)->proc_dentry = dentry;
 
 	inode->i_uid = proc_ino->i_uid;
 	inode->i_gid = proc_ino->i_gid;
@@ -737,7 +724,7 @@ static int hppfs_fill_super(struct super_block *sb, void *d, int silent)
 	sb->s_fs_info = proc_mnt;
 
 	err = -ENOMEM;
-	root_inode = get_inode(sb, proc_mnt->mnt_sb->s_root);
+	root_inode = get_inode(sb, dget(proc_mnt->mnt_sb->s_root));
 	if (!root_inode)
 		goto out_mntput;
 
