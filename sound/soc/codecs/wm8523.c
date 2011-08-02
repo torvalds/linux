@@ -551,7 +551,7 @@ MODULE_DEVICE_TABLE(i2c, wm8523_i2c_id);
 
 static struct i2c_driver wm8523_i2c_driver = {
 	.driver = {
-		.name = "wm8523-codec",
+		.name = "wm8523",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8523_i2c_probe,
