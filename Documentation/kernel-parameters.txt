@@ -161,8 +161,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			rsdt -- prefer RSDT over (default) XSDT
 			copy_dsdt -- copy DSDT to memory
 
-			See also Documentation/power/pm.txt, pci=noacpi
-
 	acpi_apic_instance=	[ACPI, IOAPIC]
 			Format: <int>
 			2: use 2nd APIC table, if available
