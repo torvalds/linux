@@ -267,6 +267,7 @@ struct gfs2_alloc {
 enum {
 	GIF_INVALID		= 0,
 	GIF_QD_LOCKED		= 1,
+	GIF_ALLOC_FAILED	= 2,
 	GIF_SW_PAGED		= 3,
 };
 

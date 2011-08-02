@@ -736,10 +736,12 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 
 fail_gunlock2:
 	gfs2_glock_dq_uninit(ghs + 1);
-	if (inode && !IS_ERR(inode))
-		iput(inode);
 fail_gunlock:
 	gfs2_glock_dq_uninit(ghs);
+	if (inode && !IS_ERR(inode)) {
+		set_bit(GIF_ALLOC_FAILED, &GFS2_I(inode)->i_flags);
+		iput(inode);
+	}
 fail:
 	if (bh)
 		brelse(bh);
