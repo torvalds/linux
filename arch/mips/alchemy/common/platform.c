@@ -492,7 +492,7 @@ static void __init alchemy_setup_macs(int ctype)
 		memcpy(au1xxx_eth0_platform_data.mac, ethaddr, 6);
 
 	ret = platform_device_register(&au1xxx_eth0_device);
-	if (!ret)
+	if (ret)
 		printk(KERN_INFO "Alchemy: failed to register MAC0\n");
 
 
