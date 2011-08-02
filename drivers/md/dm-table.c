@@ -1248,9 +1248,45 @@ static void dm_table_set_integrity(struct dm_table *t)
 			       blk_get_integrity(template_disk));
 }
 
+static int device_flush_capable(struct dm_target *ti, struct dm_dev *dev,
+				sector_t start, sector_t len, void *data)
+{
+	unsigned flush = (*(unsigned *)data);
+	struct request_queue *q = bdev_get_queue(dev->bdev);
+
+	return q && (q->flush_flags & flush);
+}
+
+static bool dm_table_supports_flush(struct dm_table *t, unsigned flush)
+{
+	struct dm_target *ti;
+	unsigned i = 0;
+
+	/*
+	 * Require at least one underlying device to support flushes.
+	 * t->devices includes internal dm devices such as mirror logs
+	 * so we need to use iterate_devices here, which targets
+	 * supporting flushes must provide.
+	 */
+	while (i < dm_table_get_num_targets(t)) {
+		ti = dm_table_get_target(t, i++);
+
+		if (!ti->num_flush_requests)
+			continue;
+
+		if (ti->type->iterate_devices &&
+		    ti->type->iterate_devices(ti, device_flush_capable, &flush))
+			return 1;
+	}
+
+	return 0;
+}
+
 void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 			       struct queue_limits *limits)
 {
+	unsigned flush = 0;
+
 	/*
 	 * Copy table's limits to the DM device's request_queue
 	 */
@@ -1260,6 +1296,13 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, q);
 	else
 		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
+
+	if (dm_table_supports_flush(t, REQ_FLUSH)) {
+		flush |= REQ_FLUSH;
+		if (dm_table_supports_flush(t, REQ_FUA))
+			flush |= REQ_FUA;
+	}
+	blk_queue_flush(q, flush);
 
 	dm_table_set_integrity(t);
 

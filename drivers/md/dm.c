@@ -1808,7 +1808,6 @@ static void dm_init_md_queue(struct mapped_device *md)
 	blk_queue_make_request(md->queue, dm_request);
 	blk_queue_bounce_limit(md->queue, BLK_BOUNCE_ANY);
 	blk_queue_merge_bvec(md->queue, dm_merge_bvec);
-	blk_queue_flush(md->queue, REQ_FLUSH | REQ_FUA);
 }
 
 /*
