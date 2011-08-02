@@ -1546,6 +1546,12 @@ static void bnx2x_umac_enable(struct link_params *params,
 			       vars->line_speed);
 		break;
 	}
+	if (!(vars->flow_ctrl & BNX2X_FLOW_CTRL_TX))
+		val |= UMAC_COMMAND_CONFIG_REG_IGNORE_TX_PAUSE;
+
+	if (!(vars->flow_ctrl & BNX2X_FLOW_CTRL_RX))
+		val |= UMAC_COMMAND_CONFIG_REG_PAUSE_IGNORE;
+
 	REG_WR(bp, umac_base + UMAC_REG_COMMAND_CONFIG, val);
 	udelay(50);
 
