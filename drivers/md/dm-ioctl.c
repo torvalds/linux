@@ -739,10 +739,16 @@ static struct hash_cell *__find_device_hash_cell(struct dm_ioctl *param)
 	struct hash_cell *hc = NULL;
 
 	if (*param->uuid) {
+		if (*param->name || param->dev)
+			return NULL;
+
 		hc = __get_uuid_cell(param->uuid);
 		if (!hc)
 			return NULL;
 	} else if (*param->name) {
+		if (param->dev)
+			return NULL;
+
 		hc = __get_name_cell(param->name);
 		if (!hc)
 			return NULL;
