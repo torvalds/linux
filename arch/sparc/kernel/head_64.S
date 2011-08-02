@@ -559,7 +559,7 @@ niagara2_patch:
 	 nop
 	call	niagara_patch_bzero
 	 nop
-	call	niagara2_patch_pageops
+	call	niagara_patch_pageops
 	 nop
 
 	ba,a,pt	%xcc, 80f
