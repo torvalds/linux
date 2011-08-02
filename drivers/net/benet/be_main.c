@@ -1213,6 +1213,7 @@ static void be_parse_rx_compl_v1(struct be_adapter *adapter,
 		rxcp->vlan_tag = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, vlan_tag,
 					       compl);
 	}
+	rxcp->port = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, port, compl);
 }
 
 static void be_parse_rx_compl_v0(struct be_adapter *adapter,
@@ -1245,6 +1246,7 @@ static void be_parse_rx_compl_v0(struct be_adapter *adapter,
 		rxcp->vlan_tag = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, vlan_tag,
 					       compl);
 	}
+	rxcp->port = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, port, compl);
 }
 
 static struct be_rx_compl_info *be_rx_compl_get(struct be_rx_obj *rxo)
@@ -1833,16 +1835,30 @@ static int be_poll_rx(struct napi_struct *napi, int budget)
 		if (!rxcp)
 			break;
 
-		/* Ignore flush completions */
-		if (rxcp->num_rcvd && rxcp->pkt_size) {
-			if (do_gro(rxcp))
-				be_rx_compl_process_gro(adapter, rxo, rxcp);
-			else
-				be_rx_compl_process(adapter, rxo, rxcp);
-		} else if (rxcp->pkt_size == 0) {
+		/* Is it a flush compl that has no data */
+		if (unlikely(rxcp->num_rcvd == 0))
+			goto loop_continue;
+
+		/* Discard compl with partial DMA Lancer B0 */
+		if (unlikely(!rxcp->pkt_size)) {
 			be_rx_compl_discard(adapter, rxo, rxcp);
+			goto loop_continue;
 		}
 
+		/* On BE drop pkts that arrive due to imperfect filtering in
+		 * promiscuous mode on some skews
+		 */
+		if (unlikely(rxcp->port != adapter->port_num &&
+				!lancer_chip(adapter))) {
+			be_rx_compl_discard(adapter, rxo, rxcp);
+			goto loop_continue;
+		}
+
+		if (do_gro(rxcp))
+			be_rx_compl_process_gro(adapter, rxo, rxcp);
+		else
+			be_rx_compl_process(adapter, rxo, rxcp);
+loop_continue:
 		be_rx_stats_update(rxo, rxcp);
 	}
 
