@@ -26,6 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/of_device.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -907,6 +908,11 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8580 = {
 	.reg_cache_default = wm8580_reg,
 };
 
+static const struct of_device_id wm8580_of_match[] = {
+	{ .compatible = "wlf,wm8580" },
+	{ },
+};
+
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static int wm8580_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
@@ -945,6 +951,7 @@ static struct i2c_driver wm8580_i2c_driver = {
 	.driver = {
 		.name = "wm8580",
 		.owner = THIS_MODULE,
+		.of_match_table = wm8580_of_match,
 	},
 	.probe =    wm8580_i2c_probe,
 	.remove =   wm8580_i2c_remove,
