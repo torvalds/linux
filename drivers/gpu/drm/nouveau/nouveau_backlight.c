@@ -38,7 +38,8 @@
 #include "nouveau_drm.h"
 #include "nouveau_reg.h"
 
-static int nv40_get_intensity(struct backlight_device *bd)
+static int
+nv40_get_intensity(struct backlight_device *bd)
 {
 	struct drm_device *dev = bl_get_data(bd);
 	int val = (nv_rd32(dev, NV40_PMC_BACKLIGHT) & NV40_PMC_BACKLIGHT_MASK)
@@ -47,7 +48,8 @@ static int nv40_get_intensity(struct backlight_device *bd)
 	return val;
 }
 
-static int nv40_set_intensity(struct backlight_device *bd)
+static int
+nv40_set_intensity(struct backlight_device *bd)
 {
 	struct drm_device *dev = bl_get_data(bd);
 	int val = bd->props.brightness;
@@ -65,30 +67,8 @@ static const struct backlight_ops nv40_bl_ops = {
 	.update_status = nv40_set_intensity,
 };
 
-static int nv50_get_intensity(struct backlight_device *bd)
-{
-	struct drm_device *dev = bl_get_data(bd);
-
-	return nv_rd32(dev, NV50_PDISPLAY_SOR_BACKLIGHT);
-}
-
-static int nv50_set_intensity(struct backlight_device *bd)
-{
-	struct drm_device *dev = bl_get_data(bd);
-	int val = bd->props.brightness;
-
-	nv_wr32(dev, NV50_PDISPLAY_SOR_BACKLIGHT,
-		val | NV50_PDISPLAY_SOR_BACKLIGHT_ENABLE);
-	return 0;
-}
-
-static const struct backlight_ops nv50_bl_ops = {
-	.options = BL_CORE_SUSPENDRESUME,
-	.get_brightness = nv50_get_intensity,
-	.update_status = nv50_set_intensity,
-};
-
-static int nouveau_nv40_backlight_init(struct drm_connector *connector)
+static int
+nv40_backlight_init(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -113,7 +93,33 @@ static int nouveau_nv40_backlight_init(struct drm_connector *connector)
 	return 0;
 }
 
-static int nouveau_nv50_backlight_init(struct drm_connector *connector)
+static int
+nv50_get_intensity(struct backlight_device *bd)
+{
+	struct drm_device *dev = bl_get_data(bd);
+
+	return nv_rd32(dev, NV50_PDISPLAY_SOR_BACKLIGHT);
+}
+
+static int
+nv50_set_intensity(struct backlight_device *bd)
+{
+	struct drm_device *dev = bl_get_data(bd);
+	int val = bd->props.brightness;
+
+	nv_wr32(dev, NV50_PDISPLAY_SOR_BACKLIGHT,
+		val | NV50_PDISPLAY_SOR_BACKLIGHT_ENABLE);
+	return 0;
+}
+
+static const struct backlight_ops nv50_bl_ops = {
+	.options = BL_CORE_SUSPENDRESUME,
+	.get_brightness = nv50_get_intensity,
+	.update_status = nv50_set_intensity,
+};
+
+static int
+nv50_backlight_init(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -137,7 +143,8 @@ static int nouveau_nv50_backlight_init(struct drm_connector *connector)
 	return 0;
 }
 
-int nouveau_backlight_init(struct drm_connector *connector)
+int
+nouveau_backlight_init(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -152,9 +159,9 @@ int nouveau_backlight_init(struct drm_connector *connector)
 
 	switch (dev_priv->card_type) {
 	case NV_40:
-		return nouveau_nv40_backlight_init(connector);
+		return nv40_backlight_init(connector);
 	case NV_50:
-		return nouveau_nv50_backlight_init(connector);
+		return nv50_backlight_init(connector);
 	default:
 		break;
 	}
@@ -162,7 +169,8 @@ int nouveau_backlight_init(struct drm_connector *connector)
 	return 0;
 }
 
-void nouveau_backlight_exit(struct drm_connector *connector)
+void
+nouveau_backlight_exit(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
