@@ -411,6 +411,7 @@ static void gt819_queue_work(struct work_struct *work)
 	ret = gt819_read_regs(ts->client,1, point_data, 1);
 	if (ret < 0) {
 		dev_err(&ts->client->dev, "i2c_read_bytes fail:%d!\n",ret);
+		enable_irq(ts->irq);
 		return;
 	}
 	
@@ -431,6 +432,7 @@ static void gt819_queue_work(struct work_struct *work)
 	ret = gt819_read_regs(ts->client,3, point_data, points*5);
 	if (ret < 0) {
 		dev_err(&ts->client->dev, "i2c_read_bytes fail:%d!\n",ret);
+		enable_irq(ts->irq);
 		return;
 	}
 	for(i=0;i<points;i++){

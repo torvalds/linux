@@ -568,6 +568,7 @@ static void ft5406_queue_work(struct work_struct *work)
 #endif
 	if (ret < 0) {
 		dev_err(&data->client->dev, "ft5406_read_regs fail:%d!\n",ret);
+		enable_irq(data->irq);
 		return;
 	}
 #if 0
