@@ -2953,7 +2953,9 @@ static int bnx2x_cl45_read(struct bnx2x *bp, struct bnx2x_phy *phy,
 	u32 val;
 	u16 i;
 	int rc = 0;
-
+	if (phy->flags & FLAGS_MDC_MDIO_WA_B0)
+		bnx2x_bits_en(bp, phy->mdio_ctrl + EMAC_REG_EMAC_MDIO_STATUS,
+			      EMAC_MDIO_STATUS_10MB);
 	/* address */
 	val = ((phy->addr << 21) | (devad << 16) | reg |
 	       EMAC_MDIO_COMM_COMMAND_ADDRESS |
@@ -3007,6 +3009,9 @@ static int bnx2x_cl45_read(struct bnx2x *bp, struct bnx2x_phy *phy,
 		}
 	}
 
+	if (phy->flags & FLAGS_MDC_MDIO_WA_B0)
+		bnx2x_bits_dis(bp, phy->mdio_ctrl + EMAC_REG_EMAC_MDIO_STATUS,
+			       EMAC_MDIO_STATUS_10MB);
 	return rc;
 }
 
@@ -3016,6 +3021,9 @@ static int bnx2x_cl45_write(struct bnx2x *bp, struct bnx2x_phy *phy,
 	u32 tmp;
 	u8 i;
 	int rc = 0;
+	if (phy->flags & FLAGS_MDC_MDIO_WA_B0)
+		bnx2x_bits_en(bp, phy->mdio_ctrl + EMAC_REG_EMAC_MDIO_STATUS,
+			      EMAC_MDIO_STATUS_10MB);
 
 	/* address */
 
@@ -3069,7 +3077,9 @@ static int bnx2x_cl45_write(struct bnx2x *bp, struct bnx2x_phy *phy,
 			bnx2x_cl45_read(bp, phy, devad, 0xf, &temp_val);
 		}
 	}
-
+	if (phy->flags & FLAGS_MDC_MDIO_WA_B0)
+		bnx2x_bits_dis(bp, phy->mdio_ctrl + EMAC_REG_EMAC_MDIO_STATUS,
+			       EMAC_MDIO_STATUS_10MB);
 	return rc;
 }
 
@@ -11118,6 +11128,8 @@ static int bnx2x_populate_int_phy(struct bnx2x *bp, u32 shmem_base, u8 port,
 		 */
 		if (CHIP_REV(bp) == CHIP_REV_Ax)
 			phy->flags |= FLAGS_MDC_MDIO_WA;
+		else
+			phy->flags |= FLAGS_MDC_MDIO_WA_B0;
 	} else {
 		switch (switch_cfg) {
 		case SWITCH_CFG_1G:
