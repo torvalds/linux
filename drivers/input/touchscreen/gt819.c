@@ -175,7 +175,7 @@ int gt189_wait_for_slave(struct i2c_client *client, u8 status)
 
 int gt819_update_write_config(struct i2c_client *client)
 	{
-		int i,ret,len = sizeof(config_info)-1;			//byte[0] is the reg addr in the gt819.cfg
+		int ret,len = sizeof(config_info)-1;			//byte[0] is the reg addr in the gt819.cfg
 		u8 cfg_rd_buf[len];
 		u8 cfg_cmd_buf = 0x03;
 		u8 retries = 0;
@@ -209,10 +209,10 @@ int gt819_update_write_config(struct i2c_client *client)
 	}
 
 
-static int  gt819_read_version(struct i2c_client *client)
+static int  gt819_read_version(struct i2c_client *client,char *version)
 {
 	int ret, count = 0;
-	char version[17],*p;
+	char *p;
 	
 	ret = gt819_read_regs(client,240, version, 16);
 	if (ret < 0) 
@@ -328,10 +328,11 @@ int gt819_update_fw(struct i2c_client *client)
 {
 	int ret,file_len,update_need_config;
 	unsigned char i2c_control_buf[10];
+	char version[17];
 	
 	dev_info(&client->dev, "gt819 firmware update start...\n");
 	dev_info(&client->dev, "step 1:read version...\n");
-	ret = gt819_read_version(client);
+	ret = gt819_read_version(client,version);
 	if (ret < 0) 
 		return ret;
 	dev_info(&client->dev, "done!\n");
@@ -392,7 +393,7 @@ int gt819_update_fw(struct i2c_client *client)
 	dev_info(&client->dev, "done!\n");
 	msleep(1000);						//wait slave reset
 	dev_info(&client->dev, "step 11:read version...\n");
-	ret = gt819_read_version(client);
+	ret = gt819_read_version(client,version);
 	if (ret < 0) 
 		return ret;
 	dev_info(&client->dev, "done!\n");
@@ -575,6 +576,8 @@ return:
 static int gt819_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int ret = 0;
+	char version[17];
+	char version_base[17]={"GT81XNI_1R05TEST"};
 	struct goodix_ts_data *ts;
 	struct goodix_platform_data *pdata = client->dev.platform_data;
 	const char irq_table[4] = {IRQ_TYPE_EDGE_RISING,
@@ -608,7 +611,12 @@ static int gt819_probe(struct i2c_client *client, const struct i2c_device_id *id
 	  dev_err(&client->dev,"init panel fail,ret = %d\n",ret);
 	  goto err_init_panel_fail;
 	}
-	//gt819_update_fw(client);
+
+	ret = gt819_read_version(client,version);	
+	if((ret>=0) && (strcmp(version ,version_base)!=0)){
+		gt819_update_fw(client);
+	}
+
 	if (!client->irq){
 		dev_err(&client->dev,"no irq fail\n");
 		ret = -ENODEV;
