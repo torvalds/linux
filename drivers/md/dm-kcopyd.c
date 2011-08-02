@@ -224,7 +224,6 @@ struct kcopyd_job {
 	unsigned int num_dests;
 	struct dm_io_region dests[DM_KCOPYD_MAX_REGIONS];
 
-	unsigned int nr_pages;
 	struct page_list *pages;
 
 	/*
@@ -396,9 +395,9 @@ static int run_io_job(struct kcopyd_job *job)
 static int run_pages_job(struct kcopyd_job *job)
 {
 	int r;
+	unsigned nr_pages = dm_div_up(job->dests[0].count, PAGE_SIZE >> 9);
 
-	job->nr_pages = dm_div_up(job->dests[0].count, PAGE_SIZE >> 9);
-	r = kcopyd_get_pages(job->kc, job->nr_pages, &job->pages);
+	r = kcopyd_get_pages(job->kc, nr_pages, &job->pages);
 	if (!r) {
 		/* this job is ready for io */
 		push(&job->kc->io_jobs, job);
@@ -600,7 +599,6 @@ int dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 	job->num_dests = num_dests;
 	memcpy(&job->dests, dests, sizeof(*dests) * num_dests);
 
-	job->nr_pages = 0;
 	job->pages = NULL;
 
 	job->fn = fn;
