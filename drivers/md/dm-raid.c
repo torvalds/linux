@@ -308,6 +308,7 @@ static int validate_region_size(struct raid_set *rs, unsigned long region_size)
  *    [daemon_sleep <ms>]		Time between bitmap daemon work to clear bits
  *    [min_recovery_rate <kB/sec/disk>]	Throttle RAID initialization
  *    [max_recovery_rate <kB/sec/disk>]	Throttle RAID initialization
+ *    [write_mostly <idx>]		Indicate a write mostly drive via index
  *    [max_write_behind <sectors>]	See '-write-behind=' (man mdadm)
  *    [stripe_cache <sectors>]		Stripe cache size for higher RAIDs
  *    [region_size <sectors>]           Defines granularity of bitmap
@@ -376,7 +377,21 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 			clear_bit(In_sync, &rs->dev[value].rdev.flags);
 			rs->dev[value].rdev.recovery_offset = 0;
 			rs->print_flags |= DMPF_REBUILD;
+		} else if (!strcasecmp(key, "write_mostly")) {
+			if (rs->raid_type->level != 1) {
+				rs->ti->error = "write_mostly option is only valid for RAID1";
+				return -EINVAL;
+			}
+			if (value > rs->md.raid_disks) {
+				rs->ti->error = "Invalid write_mostly drive index given";
+				return -EINVAL;
+			}
+			set_bit(WriteMostly, &rs->dev[value].rdev.flags);
 		} else if (!strcasecmp(key, "max_write_behind")) {
+			if (rs->raid_type->level != 1) {
+				rs->ti->error = "max_write_behind option is only valid for RAID1";
+				return -EINVAL;
+			}
 			rs->print_flags |= DMPF_MAX_WRITE_BEHIND;
 
 			/*
@@ -621,11 +636,15 @@ static int raid_status(struct dm_target *ti, status_type_t type,
 		break;
 	case STATUSTYPE_TABLE:
 		/* The string you would use to construct this array */
-		for (i = 0; i < rs->md.raid_disks; i++)
+		for (i = 0; i < rs->md.raid_disks; i++) {
 			if ((rs->print_flags & DMPF_REBUILD) &&
 			    rs->dev[i].data_dev &&
 			    !test_bit(In_sync, &rs->dev[i].rdev.flags))
 				raid_param_cnt += 2; /* for rebuilds */
+			if (rs->dev[i].data_dev &&
+			    test_bit(WriteMostly, &rs->dev[i].rdev.flags))
+				raid_param_cnt += 2;
+		}
 
 		raid_param_cnt += (hweight64(rs->print_flags & ~DMPF_REBUILD) * 2);
 		if (rs->print_flags & (DMPF_SYNC | DMPF_NOSYNC))
@@ -655,6 +674,11 @@ static int raid_status(struct dm_target *ti, status_type_t type,
 
 		if (rs->print_flags & DMPF_MAX_RECOVERY_RATE)
 			DMEMIT(" max_recovery_rate %d", rs->md.sync_speed_max);
+
+		for (i = 0; i < rs->md.raid_disks; i++)
+			if (rs->dev[i].data_dev &&
+			    test_bit(WriteMostly, &rs->dev[i].rdev.flags))
+				DMEMIT(" write_mostly %u", i);
 
 		if (rs->print_flags & DMPF_MAX_WRITE_BEHIND)
 			DMEMIT(" max_write_behind %lu",
