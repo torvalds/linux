@@ -633,6 +633,12 @@ int wm831x_pre_init(struct wm831x *parm)
 	//ILIM = 900ma
 	ret = wm831x_reg_read(parm, WM831X_POWER_STATE) & 0xffff;
 	wm831x_reg_write(parm, WM831X_POWER_STATE, (ret&0xfff8) | 0x04);	
+
+	//BATT_FET_ENA = 1
+	wm831x_set_bits(parm, WM831X_RESET_CONTROL,0x1000,0x1000);
+	ret = wm831x_reg_read(parm, WM831X_RESET_CONTROL) & 0xffff;
+	printk("%s:WM831X_RESET_CONTROL=0x%x\n",__FUNCTION__,ret);
+	
 #if 0
 	wm831x_set_bits(parm, WM831X_LDO_ENABLE, (1 << 3), 0);
 	wm831x_set_bits(parm, WM831X_LDO_ENABLE, (1 << 7), 0);
@@ -688,7 +694,7 @@ int wm831x_post_init(struct wm831x *parm)
 	
 	ldo = regulator_get(NULL, "ldo4");		// 4th usb
 	regulator_set_voltage(ldo,2500000,2500000);
-	regulator_set_suspend_voltage(ldo,2500000);
+	regulator_set_suspend_voltage(ldo,0000000);
 	regulator_enable(ldo);	
 	printk("%s set ldo4=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
 	regulator_put(ldo);

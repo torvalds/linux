@@ -22,6 +22,36 @@
 #include <linux/timer.h>
 #include <linux/notifier.h>
 
+struct led_newton_pwm {
+	const char	*name;
+	unsigned int	pwm_id;
+	unsigned	 	pwm_gpio;
+	char*			pwm_iomux_name;
+	unsigned int 	pwm_iomux_pwm;
+	unsigned int 	pwm_iomux_gpio;
+	unsigned int	freq;/**/
+	unsigned int	period;/*1-100*/
+};
+
+struct led_newton_pwm_platform_data {
+	int			num_leds;
+	struct led_newton_pwm* leds;
+};
+
+struct irda_info{
+    u32 intr_pin;
+    int (*iomux_init)(void);
+    int (*iomux_deinit)(void);
+    int (*irda_pwr_ctl)(int en);
+};
+
+struct rk29_button_light_info{
+	u32 led_on_pin;
+	u32 led_on_level;
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+};
+
 /*spi*/
 struct spi_cs_gpio {
 	const char *name;
@@ -69,14 +99,12 @@ struct rk29_fb_setting_info{
 
 struct rk29fb_info{
     u32 fb_id;
-    u32 disp_on_pin;
-    u8 disp_on_value;
-    u32 standby_pin;
-    u8 standby_value;
     u32 mcu_fmk_pin;
     struct rk29lcd_info *lcd_info;
     int (*io_init)(struct rk29_fb_setting_info *fb_setting);
     int (*io_deinit)(void);
+    int (*io_enable)(void);
+    int (*io_disable)(void);
 };
 
 struct rk29_bl_info{
@@ -123,6 +151,12 @@ struct rk29_i2c_platform_data {
 };
 
 struct bq27510_platform_data {	
+	int (*init_dc_check_pin)(void);	
+	unsigned int dc_check_pin;	
+	unsigned int bat_num;
+};
+
+struct bq27541_platform_data {	
 	int (*init_dc_check_pin)(void);	
 	unsigned int dc_check_pin;	
 	unsigned int bat_num;
@@ -184,12 +218,22 @@ struct synaptics_platform_data {
 struct mma8452_platform_data {
     u16     model;
 	u16     swap_xy;
+	u16		swap_xyz;
+	signed char orientation[9];
     int     (*get_pendown_state)(void);
     int     (*init_platform_hw)(void);
     int     (*mma8452_platform_sleep)(void);
     int     (*mma8452_platform_wakeup)(void);
     void    (*exit_platform_hw)(void);
 };
+
+struct cm3202_platform_data {
+	int CM3202_SD_IOPIN;
+	int DATA_ADC_CHN;
+	int     (*init_platform_hw)(void);
+	void    (*exit_platform_hw)(void);
+};
+
 /*it7260 touch */
 struct it7260_platform_data {
     int     (*get_pendown_state)(void);
@@ -198,6 +242,31 @@ struct it7260_platform_data {
     int     (*it7260_platform_wakeup)(void);
     void    (*exit_platform_hw)(void);
 };
+
+struct ft5406_platform_data {
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*platform_sleep)(void);
+    int     (*platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+};
+
+struct goodix_platform_data {
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*platform_sleep)(void);
+    int     (*platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+};
+
+struct cs42l52_platform_data {
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*platform_sleep)(void);
+    int     (*platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+};
+
 
 struct akm8975_platform_data {
 	char layouts[3][3];
@@ -209,6 +278,8 @@ struct rk29_gpio_expander_info {
 	unsigned int gpio_num;
 	unsigned int pin_type;//GPIO_IN or GPIO_OUT
 	unsigned int pin_value;//GPIO_HIGH or GPIO_LOW
+};
+struct rk29_newton_data {
 };
 
 struct tca6424_platform_data {
@@ -247,15 +318,33 @@ void __init board_power_init(void);
 #define BOOT_MODE_CHARGE		3
 #define BOOT_MODE_POWER_TEST		4
 #define BOOT_MODE_OFFMODE_CHARGING	5
+#define BOOT_MODE_REBOOT		6
+#define BOOT_MODE_PANIC			7
 int board_boot_mode(void);
 
 enum periph_pll {
-	periph_pll_96mhz = 96000000,
+	periph_pll_96mhz = 96000000, /* save more power */
 	periph_pll_144mhz = 144000000,
-	periph_pll_288mhz = 288000000,
-	periph_pll_300mhz = 300000000,
+	periph_pll_288mhz = 288000000, /* for USB 1.1 */
+	periph_pll_300mhz = 300000000, /* for Ethernet */
+#if defined(CONFIG_RK29_VMAC) && defined(CONFIG_USB20_HOST_EN)
+	periph_pll_default = periph_pll_300mhz,
+#else
+	periph_pll_default = periph_pll_288mhz,
+#endif
 };
-void __init rk29_clock_init(enum periph_pll ppll_rate);
+
+enum codec_pll {
+	codec_pll_297mhz = 297000000, /* for HDMI */
+	codec_pll_300mhz = 300000000,
+	codec_pll_504mhz = 504000000,
+	codec_pll_552mhz = 552000000,
+	codec_pll_594mhz = 594000000, /* for HDMI */
+	codec_pll_600mhz = 600000000,
+};
+
+void __init rk29_clock_init(enum periph_pll ppll_rate); /* codec pll is 297MHz, has xin27m */
+void __init rk29_clock_init2(enum periph_pll ppll_rate, enum codec_pll cpll_rate, bool has_xin27m);
 
 /* for USB detection */
 #ifdef CONFIG_USB_GADGET

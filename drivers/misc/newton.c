@@ -131,12 +131,15 @@ int rk29_newton_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, 
             if(copy_to_user(argp, &sn.UID_Data, sizeof(sn.UID_Data)))  return -EFAULT;
     	}
 		break;
+/*		
 	case NEWTON_AC_DETEC:
 		{
 			int ac_status = rk29_newton_get_ac_status();
 			if(copy_to_user(argp, &ac_status, 4))  return -EFAULT;
 		}
 		break;
+*/
+
 	case NEWTON_GPS_CTRL:
 		{
 			int value = 0;
@@ -202,11 +205,14 @@ static int rk29_newton_probe(struct platform_device *pdev)
 	  printk("gpio_request NEWTON_GPIO_GPS_PWR error\n");
 	  return -EIO;
 	}
+	
+/*
 	if(gpio_request(NEWTON_GPIO_AC_DETEC,NULL) != 0){
 	  gpio_free(NEWTON_GPIO_AC_DETEC);
 	  printk("gpio_request NEWTON_GPIO_AC_DETEC error\n");
 	  return -EIO;
 	}
+*/
 	rk29_newton_set_gps_power(GPIO_LOW);
 	DBG("%s:rk29 newton initialized\n",__FUNCTION__);
 	return ret;

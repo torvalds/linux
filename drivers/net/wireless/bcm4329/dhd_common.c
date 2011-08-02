@@ -1289,7 +1289,12 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	}
 #endif /* SET_RANDOM_MAC_SOFTAP */
 
-	/* Set Country code */
+	/* Set Country code 
+         * "US" ---> 11 channels, this is default setting. 
+         * "EU" ---> 13 channels
+         * "JP" ---> 14 channels
+         */
+        strcpy(dhd->country_code, "EU");
 	if (dhd->country_code[0] != 0) {
 		if (dhdcdc_set_ioctl(dhd, 0, WLC_SET_COUNTRY,
 			dhd->country_code, sizeof(dhd->country_code)) < 0) {

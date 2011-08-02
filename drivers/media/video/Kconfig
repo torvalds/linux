@@ -1069,14 +1069,6 @@ config VIDEO_OMAP2
 	---help---
 	  This is a v4l2 driver for the TI OMAP2 camera capture interface
 
-
-config VIDEO_RK2818
-	tristate "RK2818 Camera Sensor Interface driver"
-	depends on VIDEO_DEV && ARCH_RK2818 && SOC_CAMERA && HAS_DMA
-	select VIDEOBUF_DMA_CONTIG
-	---help---
-	  This is a v4l2 driver for the RK2818 Camera Sensor Interface	  
-
 config VIDEO_RK29
 	tristate "RK29XX Camera Sensor Interface driver"
 	depends on VIDEO_DEV && ARCH_RK29 && SOC_CAMERA && HAS_DMA

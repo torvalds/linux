@@ -82,6 +82,11 @@ struct headset_priv {
 };
 static struct headset_priv *headset_info;
 
+int Headset_isMic(void)
+{
+	return headset_info->isMic;
+}
+EXPORT_SYMBOL_GPL(Headset_isMic);
 
 static irqreturn_t headset_interrupt(int irq, void *dev_id)
 {

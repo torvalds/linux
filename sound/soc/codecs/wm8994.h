@@ -39,7 +39,7 @@
 
 extern struct snd_soc_dai wm8994_dai;
 extern struct snd_soc_codec_device soc_codec_dev_wm8994;
-
+extern int Headset_isMic(void);
 #define ERROR 1
 #define TRUE 0
 

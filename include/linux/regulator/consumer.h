@@ -149,9 +149,9 @@ int regulator_list_voltage(struct regulator *regulator, unsigned selector);
 int regulator_is_supported_voltage(struct regulator *regulator,
 				   int min_uV, int max_uV);
 int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV);
-
+#ifdef CONFIG_ARCH_RK29
 int regulator_set_suspend_voltage(struct regulator *regulator, int uV);
-
+#endif
 int regulator_get_voltage(struct regulator *regulator);
 int regulator_set_current_limit(struct regulator *regulator,
 			       int min_uA, int max_uA);
@@ -234,12 +234,13 @@ static inline int regulator_set_voltage(struct regulator *regulator,
 {
 	return 0;
 }
-static int regulator_set_suspend_voltage(struct regulator *regulator, int uV)
+
+#ifdef CONFIG_ARCH_RK29
+static inline int regulator_set_suspend_voltage(struct regulator *regulator, int uV)
 {
-
-
-
+	return 0;
 }
+#endif
 
 static inline int regulator_get_voltage(struct regulator *regulator)
 {

@@ -693,6 +693,12 @@ int wm831x_pre_init(struct wm831x *parm)
 	//ILIM = 900ma
 	ret = wm831x_reg_read(parm, WM831X_POWER_STATE) & 0xffff;
 	wm831x_reg_write(parm, WM831X_POWER_STATE, (ret&0xfff8) | 0x04);	
+	
+	//BATT_FET_ENA = 1
+	wm831x_set_bits(parm, WM831X_RESET_CONTROL,0x1000,0x1000);
+	ret = wm831x_reg_read(parm, WM831X_RESET_CONTROL) & 0xffff;
+	printk("%s:WM831X_RESET_CONTROL=0x%x\n",__FUNCTION__,ret);
+	
 #if 0
 	wm831x_set_bits(parm, WM831X_LDO_ENABLE, (1 << 3), 0);
 	wm831x_set_bits(parm, WM831X_LDO_ENABLE, (1 << 7), 0);
@@ -747,7 +753,7 @@ int wm831x_post_init(struct wm831x *parm)
 	
 	ldo = regulator_get(NULL, "ldo4");		// 4th usb
 	regulator_set_voltage(ldo,2500000,2500000);
-	regulator_set_suspend_voltage(ldo,2500000);
+	regulator_set_suspend_voltage(ldo,0000000);
 	regulator_enable(ldo);	
 	printk("%s set ldo4=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
@@ -2214,7 +2220,11 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	rk29_mux_api_set(GPIO1D3_SDMMC0DATA1_NAME, GPIO1H_SDMMC0_DATA1);
 	rk29_mux_api_set(GPIO1D4_SDMMC0DATA2_NAME, GPIO1H_SDMMC0_DATA2);
 	rk29_mux_api_set(GPIO1D5_SDMMC0DATA3_NAME, GPIO1H_SDMMC0_DATA3);
+#ifdef CONFIG_SDMMC_RK29_OLD	
 	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_GPIO2A2);
+#else
+  rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);//Modifyed by xbw.
+#endif	
 	rk29_mux_api_set(GPIO5D5_SDMMC0PWREN_NAME, GPIO5H_GPIO5D5);   ///GPIO5H_SDMMC0_PWR_EN);  ///GPIO5H_GPIO5D5);
 	gpio_request(RK29_PIN5_PD5,"sdmmc");
 	gpio_set_value(RK29_PIN5_PD5,GPIO_HIGH);
@@ -3081,11 +3091,12 @@ static void rk29_pm_power_off(void)
 	while (1);
 }
 
-static struct cpufreq_frequency_table freq_table[] = {
-
+static struct cpufreq_frequency_table freq_table[] =
+{
 	{ .index = 1050000, .frequency =  408000 },
-    { .index = 1100000, .frequency =  576000 },
+	{ .index = 1100000, .frequency =  600000 },
 	{ .index = 1150000, .frequency =  816000 },
+	{ .index = 1300000, .frequency = 1008000 },
 	{ .frequency = CPUFREQ_TABLE_END },
 };
 
@@ -3093,13 +3104,13 @@ static void __init machine_rk29_board_init(void)
 {
 	rk29_board_iomux_init();
     
-    board_update_cpufreq_table(freq_table);
-    
 	gpio_request(POWER_ON_PIN,"poweronpin");
 	gpio_set_value(POWER_ON_PIN, GPIO_HIGH);
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
 	pm_power_off = rk29_pm_power_off;
 	//arm_pm_restart = rk29_pm_power_restart;
+
+	board_update_cpufreq_table(freq_table);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29

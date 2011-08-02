@@ -176,7 +176,6 @@ obj-$(CONFIG_VIDEO_MX1)			+= mx1_camera.o
 obj-$(CONFIG_VIDEO_MX3)			+= mx3_camera.o
 obj-$(CONFIG_VIDEO_PXA27x)		+= pxa_camera.o
 obj-$(CONFIG_VIDEO_SH_MOBILE_CEU)	+= sh_mobile_ceu_camera.o
-obj-$(CONFIG_VIDEO_RK2818)			+= rk2818_camera.o
 obj-$(CONFIG_VIDEO_RK29_WORK_ONEFRAME)			+= rk29_camera_oneframe.o
 obj-$(CONFIG_VIDEO_RK29_WORK_PINGPONG)			+= rk29_camera_pingpong.o
 

@@ -249,11 +249,16 @@ static int uvc_v4l2_set_format(struct uvc_streaming *stream,
 	struct uvc_frame *frame;
 	int ret;
 
-	if (fmt->type != stream->type)
+	if (fmt->type != stream->type) {
+        printk("uvc_v4l2_set_format, fmt->type(%d) != stream->type(%d)\n",fmt->type,stream->type);
 		return -EINVAL;
+	}
 
-	if (uvc_queue_allocated(&stream->queue))
+	if (uvc_queue_allocated(&stream->queue)) {
+        printk("uvc_queue_allocated failed\n");
 		return -EBUSY;
+
+	}
 
 	ret = uvc_v4l2_try_format(stream, fmt, &probe, &format, &frame);
 	if (ret < 0)
@@ -738,8 +743,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	}
 
 	case VIDIOC_S_FMT:
-		if ((ret = uvc_acquire_privileges(handle)) < 0)
+		if ((ret = uvc_acquire_privileges(handle)) < 0) {
+            printk("uvc_acquire_privileges error.");
 			return ret;
+		}
 
 		return uvc_v4l2_set_format(stream, arg);
 
@@ -907,14 +914,18 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	}
 
 	case VIDIOC_QBUF:
-		if (!uvc_has_privileges(handle))
+		if (!uvc_has_privileges(handle)) {
+            printk("uvcvideo: VIDIOC_QBUF uvc_has_privileges failed\n");
 			return -EBUSY;
+		}
 
 		return uvc_queue_buffer(&stream->queue, arg);
 
 	case VIDIOC_DQBUF:
-		if (!uvc_has_privileges(handle))
+		if (!uvc_has_privileges(handle)) {
+            printk("uvcvideo: VIDIOC_DQBUF uvc_has_privileges failed\n");
 			return -EBUSY;
+		}
 
 		return uvc_dequeue_buffer(&stream->queue, arg,
 			file->f_flags & O_NONBLOCK);

@@ -148,6 +148,11 @@ void __sramfunc ddr_resume(void);
 void __sramlocalfunc delayus(uint32_t us);
 uint32_t __sramfunc ddr_change_freq(uint32_t nMHz);
 int ddr_init(uint32_t dram_type, uint32_t freq);
+#ifdef CONFIG_DDR_RECONFIG
+int rk29fb_irq_notify_ddr(void);
+#else
+static inline int rk29fb_irq_notify_ddr(void) { return 0; }
+#endif
 
 
 #endif

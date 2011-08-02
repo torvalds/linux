@@ -189,8 +189,10 @@ static void vpu_service_power_off(void)
 	if (!service.enabled)
 		return;
 
-	while(atomic_read(&service.task_running))
+	while(atomic_read(&service.task_running)) {
+		pr_alert("power off when task running!!\n");
 		udelay(10);
+	}
 
 	printk("vpu: power off\n");
 	pmu_set_power_domain(PD_VCODEC, false);

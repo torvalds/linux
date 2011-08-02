@@ -237,5 +237,6 @@ struct reginfo
 #define CONFIG_SENSOR_MIRROR    1
 #define CONFIG_SENSOR_MIRROR_AND_FLIPE  0
 #define CONFIG_SENSOR_NONE_FLIP_MIRROR  0
-
+/**configure to indicate android cts****/
+#define CONFIG_SENSOR_FOR_CTS     1
 #endif

@@ -115,7 +115,7 @@ static void bu92747_dwork_handler(struct work_struct *work)
 		(struct bu92747_data_info *)container_of(work, struct bu92747_data_info, dwork.work);
 	u8 reg_value[2];
 	
-	printk("------- sss  enter %s\n", __func__);
+	BU92747_DBG("------- sss  enter %s\n", __func__);
 
 	if ( !start_flag && (repeat_flag <= -1)){
 		bu92747_stop(bu92747->client);
@@ -149,7 +149,7 @@ static irqreturn_t bu92747_cir_irq(int irq, void *dev_id)
 	struct i2c_client *client = container_of(bu92747guw_device.parent, struct i2c_client, dev);
 	struct bu92747_data_info *bu92747 = (struct bu92747_data_info *)i2c_get_clientdata(client);
 
-	printk("----------enter %s  repeat_flag = %d\n", __func__, repeat_flag);
+	BU92747_DBG("----------enter %s  repeat_flag = %d\n", __func__, repeat_flag);
 	
 
 	if (((--repeat_flag%16) == 0) || (repeat_flag < 0)){
@@ -242,17 +242,21 @@ static int bu92747_send_data(struct i2c_client *client, struct rk29_cir_struct_i
 	
 	return 0;
 }
+#endif
+
+
 
 static int bu92747_set_format(struct i2c_client *client, struct rk29_cir_struct_info *cir) 
 {
 	u8 inv0, inv1;
 	unsigned int clo, chi, clo_org, chi_org;
-	unsigned int hlo, hhi;
 	unsigned int d0lo, d0hi, d1lo, d1hi;
 	unsigned int end;
+	unsigned int hlo = cir->carry_low , hhi = cir->carry_high;	
+	int repeat;
 	u32 frame_interval;
-	unsigned int carry_freq = cir->carry;	
-	u8 reg_value[20];
+	int i, nByte;
+	u8 reg_value[32];
 	struct bu92747_data_info *bu92747 = (struct bu92747_data_info *)i2c_get_clientdata(client);
 	int sys_clock = bu92747->sys_clock;
 
@@ -264,30 +268,44 @@ static int bu92747_set_format(struct i2c_client *client, struct rk29_cir_struct_
 	//set inv0, inv1
 	inv0 = cir->inv & 0x01;
 	inv1 = (cir->inv>>1) & 0x01;
-	bu92747_cir_i2c_read_regs(client, REG_SETTING0, reg_value, 1);
+	bu92747_cir_i2c_read_regs(client, REG_SETTING0, reg_value, 3);
 	reg_value[0] = reg_value[0] | (inv0<<1) | (inv1<<2);
-	bu92747_cir_i2c_set_regs(client, REG_SETTING0, reg_value, 1);
+	//bu92747_cir_i2c_set_regs(client, REG_SETTING0, reg_value, 1);
 	BU92747_DBG("inv0 = %d, inv1 = %d\n", inv0, inv1);
-	bu92747->inv = cir->inv;
+
+
+	repeat_flag = cir->repeat;
+	printk("repeat 11111 =%d\n", repeat_flag);
+	
+	if (repeat_flag > 16){
+		repeat = 16; 
+	}else{
+		repeat = repeat_flag;
+	}
+
+	repeat = repeat % 16;
+	reg_value[1] = ((reg_value[1]&0xf0) | (repeat&0x0f));
+
 
 	//carry
-	chi_org = cir->duty_cycle / 10;
-	clo_org = (cir->duty_cycle % 10) - chi_org;
-	clo = (XIN_INPUT_FREQ*clo_org)/(3*carry_freq*(clo_org+chi_org));
-	chi = (XIN_INPUT_FREQ*chi_org)/(3*carry_freq*(clo_org+chi_org));
-	reg_value[0] = clo>>8;
-	reg_value[1] = clo&0xff;
-	reg_value[2] = chi>>8;
-	reg_value[3] = chi&0xff;
+	clo = XIN_INPUT_FREQ / 3000 * hlo;
+	chi = XIN_INPUT_FREQ / 3000 * hhi;
+	reg_value[3] = clo>>8;
+	reg_value[4] = clo&0xff;
+	reg_value[5] = chi>>8;
+	reg_value[6] = chi&0xff;
 	BU92747_DBG("clo = 0x%x, chi = 0x%x\n", clo, chi);
+	//bu92747_cir_i2c_set_regs(client, REG_CLO1, reg_value, 4);
+
+	
 
 	//head
 	hlo = (cir->head_space_time*sys_clock)/1000;
 	hhi = (cir->head_burst_time*sys_clock)/1000;
-	reg_value[4] = hlo>>8;
-	reg_value[5] = hlo&0xff;
-	reg_value[6] = hhi>>8;
-	reg_value[7] = hhi&0xff;
+	reg_value[7] = hlo>>8;
+	reg_value[8] = hlo&0xff;
+	reg_value[9] = hhi>>8;
+	reg_value[10] = hhi&0xff;
 	BU92747_DBG("hlo = 0x%x, hhi = 0x%x\n", hlo, hhi);
 	bu92747->head_space_time = cir->head_space_time;
 	bu92747->head_burst_time = cir->head_burst_time;
@@ -295,43 +313,59 @@ static int bu92747_set_format(struct i2c_client *client, struct rk29_cir_struct_
 	//data0
 	d0lo = (cir->logic_low_space_time*sys_clock)/1000;
 	d0hi = (cir->logic_low_burst_time*sys_clock)/1000;
-	reg_value[8] = d0lo>>8;
-	reg_value[9] = d0lo&0xff;
-	reg_value[10] = d0hi>>8;
-	reg_value[11] = d0hi&0xff;
+	reg_value[11] = d0lo>>8;
+	reg_value[12] = d0lo&0xff;
+	reg_value[13] = d0hi>>8;
+	reg_value[14] = d0hi&0xff;
 	BU92747_DBG("d0lo = 0x%x, d0hi = 0x%x\n", d0lo, d0hi);
+
 
 	//data1
 	d1lo = (cir->logic_high_space_time*sys_clock)/1000;
 	d1hi = (cir->logic_high_burst_time*sys_clock)/1000;
-	reg_value[12] = d1lo>>8;
-	reg_value[13] = d1lo&0xff;
-	reg_value[14] = d1hi>>8;
-	reg_value[15] = d1hi&0xff;
+	reg_value[15] = d1lo>>8;
+	reg_value[16] = d1lo&0xff;
+	reg_value[17] = d1hi>>8;
+	reg_value[18] = d1hi&0xff;
 	BU92747_DBG("d1lo = 0x%x, d1hi = 0x%x\n", d1lo, d1hi);
 
 	//end
 	end = (cir->stop_bit_interval*sys_clock)/1000;
-	reg_value[16] = end>>8;
-	reg_value[17] = end&0xff;
-	bu92747_cir_i2c_set_regs(client, REG_CLO1, reg_value, 18);
+	reg_value[19] = end>>8;
+	reg_value[20] = end&0xff;
+	//bu92747_cir_i2c_set_regs(client, REG_CLO1, reg_value, 18);
 
 	BU92747_DBG("end = 0x%x\n", end);
 
+	
+	//data bit length
+	reg_value[21] = cir->frame_bit_len;
+	BU92747_DBG("frame_bit_len = 0x%x\n", cir->frame_bit_len);
+
 	//frame interval
 	frame_interval = (cir->frame_interval*sys_clock)/1000;
-	reg_value[0] = frame_interval>>8;
-	reg_value[1] = frame_interval&0xff;
-	bu92747_cir_i2c_set_regs(client, REG_FRMLEN1, reg_value, 2);
+	reg_value[22] = frame_interval>>8;
+	reg_value[23] = frame_interval&0xff;
+	//bu92747_cir_i2c_set_regs(client, REG_FRMLEN1, reg_value, 2);	
+	BU92747_DBG("cir->frame_interval =%d frame_interval = %d\n\n", cir->frame_interval,frame_interval);
 
-	BU92747_DBG("frame_interval = 0x%x\n", frame_interval);
+	
+	//data
+	nByte = (cir->frame_bit_len+7)/8;
+	for (i=0; i<nByte; i++) {
+		reg_value[24+i] = ((cir->frame)>>(8*i))&0xff;
+		BU92747_DBG("reg_value[%d] = %d\n", 24+i, reg_value[24+i]);
+	}
+
+	bu92747_cir_i2c_set_regs(client, REG_SETTING0, reg_value, 23+i);
+	
 
 	BU92747_DBG("line %d: exit %s\n", __LINE__, __FUNCTION__);
 
 	return 0;
 	
 }
-#endif 
+
 
 static int bu92747_start(struct i2c_client *client) 
 {
@@ -688,6 +722,16 @@ static int bu92747_ioctl(struct inode *inode, struct file *file, unsigned int cm
 		if (ret < 0)
 			return ret;		
 		break;	
+	case BU92747_IOCTL_FORMATE:
+			if (copy_from_user(&msg, argp, sizeof(msg)))
+				return -EFAULT;
+				
+			ret = bu92747_set_format(client, (struct rk29_cir_struct_info *)msg);
+			if (ret < 0)
+				return ret; 	
+			break;	
+
+		
 	default:
 		return -ENOTTY;
 	}

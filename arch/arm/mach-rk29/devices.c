@@ -24,6 +24,7 @@
 #include <mach/rk29-dma-pl330.h> 
 #include <mach/rk29_camera.h>                          /* ddl@rock-chips.com : camera support */
 #include <mach/board.h>
+#include <mach/loader.h>
 #include "devices.h"
 #ifdef CONFIG_ADC_RK29
 static struct resource rk29_adc_resource[] = {
@@ -824,6 +825,18 @@ static int __init boot_mode_init(char *s)
 	return 1;
 }
 __setup("androidboot.mode=", boot_mode_init);
+
+void rk29_boot_mode_init_by_register(void)
+{
+	u32 flag = readl(RK29_TIMER0_BASE);
+	if (flag == (SYS_KERNRL_REBOOT_FLAG | BOOT_RECOVER)) {
+		boot_mode = BOOT_MODE_RECOVERY;
+	} else {
+		boot_mode = readl(RK29_GRF_BASE + 0xdc); // GRF_OS_REG3
+	}
+	if (boot_mode)
+		printk("Boot mode: %d\n", boot_mode);
+}
 
 int board_boot_mode(void)
 {

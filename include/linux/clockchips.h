@@ -79,8 +79,8 @@ struct clock_event_device {
 	unsigned int		features;
 	unsigned long		max_delta_ns;
 	unsigned long		min_delta_ns;
-	unsigned long		mult;
-	int			shift;
+	u32			mult;
+	u32			shift;
 	int			rating;
 	int			irq;
 	const struct cpumask	*cpumask;

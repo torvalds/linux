@@ -14,5 +14,4 @@ obj-$(CONFIG_SND_SOC)	+= s3c24xx/
 obj-$(CONFIG_SND_SOC)	+= s6000/
 obj-$(CONFIG_SND_SOC)	+= sh/
 obj-$(CONFIG_SND_SOC)	+= txx9/
-obj-$(CONFIG_SND_SOC)	+= rk2818/
-obj-$(CONFIG_SND_SOC)   += rk29/
+obj-$(CONFIG_SND_SOC)	+= rk29/
