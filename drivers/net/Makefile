@@ -13,7 +13,6 @@ obj-$(CONFIG_VMXNET3) += vmxnet3/
 # link order important here
 #
 obj-$(CONFIG_PLIP) += plip.o
-obj-$(CONFIG_ROADRUNNER) += rrunner.o
 obj-$(CONFIG_RIONET) += rionet.o
 
 #
@@ -39,6 +38,7 @@ obj-$(CONFIG_VETH) += veth.o
 obj-$(CONFIG_DEV_APPLETALK) += appletalk/
 obj-$(CONFIG_ETHERNET) += ethernet/
 obj-$(CONFIG_FDDI) += fddi/
+obj-$(CONFIG_HIPPI) += hippi/
 onj-$(CONFIG_PPP) += ppp/
 obj-$(CONFIG_PPP_ASYNC) += ppp/
 obj-$(CONFIG_PPP_BSDCOMP) += ppp/

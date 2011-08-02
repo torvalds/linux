@@ -3049,6 +3049,7 @@ S:	Maintained
 F:	include/linux/hippidevice.h
 F:	include/linux/if_hippi.h
 F:	net/802/hippi.c
+F:	drivers/net/hippi/
 
 HOST AP DRIVER
 M:	Jouni Malinen <j@w1.fi>
