@@ -12,9 +12,8 @@
 /* values 2-101 are RT priorities 0-99 */
 
 struct cpupri_vec {
-	raw_spinlock_t lock;
-	int        count;
-	cpumask_var_t mask;
+	atomic_t	count;
+	cpumask_var_t	mask;
 };
 
 struct cpupri {

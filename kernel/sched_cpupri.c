@@ -47,9 +47,6 @@ static int convert_prio(int prio)
 	return cpupri;
 }
 
-#define for_each_cpupri_active(array, idx)                    \
-	for_each_set_bit(idx, array, CPUPRI_NR_PRIORITIES)
-
 /**
  * cpupri_find - find the best (lowest-pri) CPU in the system
  * @cp: The cpupri context
@@ -71,11 +68,33 @@ int cpupri_find(struct cpupri *cp, struct task_struct *p,
 	int                  idx      = 0;
 	int                  task_pri = convert_prio(p->prio);
 
-	for_each_cpupri_active(cp->pri_active, idx) {
+	if (task_pri >= MAX_RT_PRIO)
+		return 0;
+
+	for (idx = 0; idx < task_pri; idx++) {
 		struct cpupri_vec *vec  = &cp->pri_to_cpu[idx];
 
-		if (idx >= task_pri)
-			break;
+		if (!atomic_read(&(vec)->count))
+			continue;
+		/*
+		 * When looking at the vector, we need to read the counter,
+		 * do a memory barrier, then read the mask.
+		 *
+		 * Note: This is still all racey, but we can deal with it.
+		 *  Ideally, we only want to look at masks that are set.
+		 *
+		 *  If a mask is not set, then the only thing wrong is that we
+		 *  did a little more work than necessary.
+		 *
+		 *  If we read a zero count but the mask is set, because of the
+		 *  memory barriers, that can only happen when the highest prio
+		 *  task for a run queue has left the run queue, in which case,
+		 *  it will be followed by a pull. If the task we are processing
+		 *  fails to find a proper place to go, that pull request will
+		 *  pull this task if the run queue is running at a lower
+		 *  priority.
+		 */
+		smp_rmb();
 
 		if (cpumask_any_and(&p->cpus_allowed, vec->mask) >= nr_cpu_ids)
 			continue;
@@ -115,7 +134,6 @@ void cpupri_set(struct cpupri *cp, int cpu, int newpri)
 {
 	int                 *currpri = &cp->cpu_to_pri[cpu];
 	int                  oldpri  = *currpri;
-	unsigned long        flags;
 
 	newpri = convert_prio(newpri);
 
@@ -134,26 +152,25 @@ void cpupri_set(struct cpupri *cp, int cpu, int newpri)
 	if (likely(newpri != CPUPRI_INVALID)) {
 		struct cpupri_vec *vec = &cp->pri_to_cpu[newpri];
 
-		raw_spin_lock_irqsave(&vec->lock, flags);
-
 		cpumask_set_cpu(cpu, vec->mask);
-		vec->count++;
-		if (vec->count == 1)
-			set_bit(newpri, cp->pri_active);
-
-		raw_spin_unlock_irqrestore(&vec->lock, flags);
+		/*
+		 * When adding a new vector, we update the mask first,
+		 * do a write memory barrier, and then update the count, to
+		 * make sure the vector is visible when count is set.
+		 */
+		smp_wmb();
+		atomic_inc(&(vec)->count);
 	}
 	if (likely(oldpri != CPUPRI_INVALID)) {
 		struct cpupri_vec *vec  = &cp->pri_to_cpu[oldpri];
 
-		raw_spin_lock_irqsave(&vec->lock, flags);
-
-		vec->count--;
-		if (!vec->count)
-			clear_bit(oldpri, cp->pri_active);
+		/*
+		 * When removing from the vector, we decrement the counter first
+		 * do a memory barrier and then clear the mask.
+		 */
+		atomic_dec(&(vec)->count);
+		smp_wmb();
 		cpumask_clear_cpu(cpu, vec->mask);
-
-		raw_spin_unlock_irqrestore(&vec->lock, flags);
 	}
 
 	*currpri = newpri;
@@ -175,8 +192,7 @@ int cpupri_init(struct cpupri *cp)
 	for (i = 0; i < CPUPRI_NR_PRIORITIES; i++) {
 		struct cpupri_vec *vec = &cp->pri_to_cpu[i];
 
-		raw_spin_lock_init(&vec->lock);
-		vec->count = 0;
+		atomic_set(&vec->count, 0);
 		if (!zalloc_cpumask_var(&vec->mask, GFP_KERNEL))
 			goto cleanup;
 	}
