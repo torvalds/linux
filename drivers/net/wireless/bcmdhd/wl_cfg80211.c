@@ -213,10 +213,6 @@ static s32 wl_cfg80211_get_station(struct wiphy *wiphy,
 static s32 wl_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 	struct net_device *dev, bool enabled,
 	s32 timeout);
-static s32 wl_cfg80211_set_bitrate_mask(struct wiphy *wiphy,
-	struct net_device *dev,
-	const u8 *addr,
-	const struct cfg80211_bitrate_mask *mask);
 static int wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	struct cfg80211_connect_params *sme);
 static s32 wl_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
@@ -883,6 +879,7 @@ wl_cfg80211_add_virtual_iface(struct wiphy *wiphy, char *name,
 	struct wl_priv *wl = WL_PRIV_GET();
 	struct net_device *_ndev;
 	dhd_pub_t *dhd = (dhd_pub_t *)(wl->pub);
+	int (*net_attach)(dhd_pub_t *dhdp, int ifidx);
 
 	WL_DBG(("if name: %s, type: %d\n", name, type));
 	switch (type) {
@@ -985,6 +982,16 @@ wl_cfg80211_add_virtual_iface(struct wiphy *wiphy, char *name,
 			wl->p2p->vif_created = true;
 			set_mode_by_netdev(wl, _ndev, mode);
 			wl = wdev_to_wl(vwdev);
+			net_attach =  wl_to_p2p_bss_private(wl, P2PAPI_BSSCFG_CONNECTION);
+			rtnl_unlock();
+			if (net_attach && !net_attach(dhd, _ndev->ifindex))
+				WL_DBG((" virtual interface(%s) is "
+					"created\n", wl->p2p->vir_ifname));
+			else {
+				rtnl_lock();
+				goto fail;
+			}
+			rtnl_lock();
 			return _ndev;
 
 		} else {
@@ -994,6 +1001,7 @@ wl_cfg80211_add_virtual_iface(struct wiphy *wiphy, char *name,
 			wl->p2p->vif_created = false;
 		}
 	}
+fail:
 	return ERR_PTR(-ENODEV);
 }
 
@@ -1110,11 +1118,12 @@ wl_cfg80211_change_virtual_iface(struct wiphy *wiphy, struct net_device *ndev,
 }
 
 s32
-wl_cfg80211_notify_ifadd(struct net_device *net)
+wl_cfg80211_notify_ifadd(struct net_device *net, s32 idx,
+int (*_net_attach)(dhd_pub_t *dhdp, int ifidx))
 {
 	struct wl_priv *wl = WL_PRIV_GET();
 	s32 ret = BCME_OK;
-	if (!net || !net->name) {
+	if (!net) {
 		WL_ERR(("net is NULL\n"));
 		return 0;
 	}
@@ -1126,7 +1135,9 @@ wl_cfg80211_notify_ifadd(struct net_device *net)
 		wl_to_p2p_bss_ndev(wl, P2PAPI_BSSCFG_CONNECTION) = net;
 		wl_to_p2p_bss_bssidx(wl, P2PAPI_BSSCFG_CONNECTION) =
 			P2PAPI_BSSCFG_CONNECTION;
+		wl_to_p2p_bss_private(wl, P2PAPI_BSSCFG_CONNECTION) = _net_attach;
 		wl_clr_p2p_status(wl, IF_ADD);
+		net->ifindex = idx;
 		wake_up_interruptible(&wl->dongle_event_wait);
 	}
 	return ret;
@@ -2704,62 +2715,6 @@ static __used u32 wl_find_msb(u16 bit16)
 	return ret;
 }
 
-static s32
-wl_cfg80211_set_bitrate_mask(struct wiphy *wiphy, struct net_device *dev,
-	const u8 *addr,
-	const struct cfg80211_bitrate_mask *mask)
-{
-	struct wl_rateset rateset;
-	s32 rate;
-	s32 val;
-	s32 err_bg;
-	s32 err_a;
-	u32 legacy;
-	s32 err = 0;
-
-	CHECK_SYS_UP();
-	/* addr param is always NULL. ignore it */
-	/* Get current rateset */
-	err = wldev_ioctl(dev, WLC_GET_CURR_RATESET, &rateset,
-		sizeof(rateset), false);
-	if (unlikely(err)) {
-		WL_ERR(("could not get current rateset (%d)\n", err));
-		return err;
-	}
-
-	rateset.count = dtoh32(rateset.count);
-
-	legacy = wl_find_msb(mask->control[IEEE80211_BAND_2GHZ].legacy);
-	if (!legacy)
-		legacy = wl_find_msb(mask->control[IEEE80211_BAND_5GHZ].legacy);
-
-	val = wl_g_rates[legacy - 1].bitrate * 100000;
-
-	if (val < rateset.count) {
-		/* Select rate by rateset index */
-		rate = rateset.rates[val] & 0x7f;
-	} else {
-		/* Specified rate in bps */
-		rate = val / 500000;
-	}
-
-	WL_DBG(("rate %d mbps\n", (rate / 2)));
-
-	/*
-	 *
-	 *      Set rate override,
-	 *      Since the is a/b/g-blind, both a/bg_rate are enforced.
-	 */
-	err_bg = wl_dev_intvar_set(dev, "bg_rate", rate);
-	err_a = wl_dev_intvar_set(dev, "a_rate", rate);
-	if (unlikely(err_bg && err_a)) {
-		WL_ERR(("could not set fixed rate (%d) (%d)\n", err_bg, err_a));
-		return err_bg | err_a;
-	}
-
-	return err;
-}
-
 static s32 wl_cfg80211_resume(struct wiphy *wiphy)
 {
 	struct wl_priv *wl = WL_PRIV_GET();
@@ -3837,7 +3792,6 @@ static struct cfg80211_ops wl_cfg80211_ops = {
 	.set_default_key = wl_cfg80211_config_default_key,
 	.set_default_mgmt_key = wl_cfg80211_config_default_mgmt_key,
 	.set_power_mgmt = wl_cfg80211_set_power_mgmt,
-	.set_bitrate_mask = wl_cfg80211_set_bitrate_mask,
 	.connect = wl_cfg80211_connect,
 	.disconnect = wl_cfg80211_disconnect,
 	.suspend = wl_cfg80211_suspend,

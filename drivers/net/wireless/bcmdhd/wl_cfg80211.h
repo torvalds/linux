@@ -499,7 +499,8 @@ extern void wl_cfg80211_set_sdio_func(void *func);	/* set sdio function info */
 extern struct sdio_func *wl_cfg80211_get_sdio_func(void);	/* set sdio function info */
 extern s32 wl_cfg80211_up(void);	/* dongle up */
 extern s32 wl_cfg80211_down(void);	/* dongle down */
-extern s32 wl_cfg80211_notify_ifadd(struct net_device *net);
+extern s32 wl_cfg80211_notify_ifadd(struct net_device *net, s32 idx, 
+int (*_net_attach)(dhd_pub_t *dhdp, int ifidx));
 extern s32 wl_cfg80211_ifdel_ops(struct net_device *net);
 extern s32 wl_cfg80211_notify_ifdel(struct net_device *net);
 extern s32 wl_cfg80211_is_progress_ifadd(void);

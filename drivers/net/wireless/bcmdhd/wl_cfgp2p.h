@@ -61,6 +61,7 @@ struct p2p_bss {
 	u32 bssidx;
 	struct net_device *dev;
 	struct p2p_saved_ie saved_ie;
+	void *private_data;
 };
 
 struct p2p_info {
@@ -94,6 +95,7 @@ enum wl_cfgp2p_status {
 #define wl_to_p2p_bss_ndev(w, type) 	((wl)->p2p->bss_idx[type].dev)
 #define wl_to_p2p_bss_bssidx(w, type) 	((wl)->p2p->bss_idx[type].bssidx)
 #define wl_to_p2p_bss_saved_ie(w, type) 	((wl)->p2p->bss_idx[type].saved_ie)
+#define wl_to_p2p_bss_private(w, type)  ((wl)->p2p->bss_idx[type].private_data)
 #define wl_to_p2p_bss(wl, type) ((wl)->p2p->bss_idx[type])
 #define wl_get_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0 : test_bit(WLP2P_STATUS_ ## stat, \
 									&(wl)->p2p->status))

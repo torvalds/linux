@@ -92,7 +92,7 @@ bool ap_cfg_running = FALSE;
 bool ap_fw_loaded = FALSE;
 
 #if defined(KEEP_ALIVE)
-int dhd_keep_alive_onoff(dhd_pub_t *dhd, int ka_on);
+int dhd_keep_alive_onoff(dhd_pub_t *dhd);
 #endif /* KEEP_ALIVE */
 
 /* Packet alignment for most efficient SDIO (can change based on platform) */
@@ -1674,7 +1674,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #if defined(SOFTAP)
 	if (ap_fw_loaded == FALSE)
 #endif
-		if ((res = dhd_keep_alive_onoff(dhd, 1)) < 0)
+		if ((res = dhd_keep_alive_onoff(dhd)) < 0)
 			DHD_ERROR(("%s set keeplive failed %d\n",
 			__FUNCTION__, res));
 	}
@@ -2260,49 +2260,39 @@ dhd_pno_get_status(dhd_pub_t *dhd)
 #endif /* PNO_SUPPORT */
 
 #if defined(KEEP_ALIVE)
-int dhd_keep_alive_onoff(dhd_pub_t *dhd, int ka_on)
+int dhd_keep_alive_onoff(dhd_pub_t *dhd)
 {
-	char buf[256];
-	char *buf_ptr = buf;
-	wl_keep_alive_pkt_t keep_alive_pkt;
-	char * str;
-	int str_len, buf_len;
-	int res = -1;
-	int keep_alive_period = KEEP_ALIVE_PERIOD; /* in ms */
+	char			buf[256];
+	const char		*str;
+	wl_mkeep_alive_pkt_t	mkeep_alive_pkt;
+	wl_mkeep_alive_pkt_t	*mkeep_alive_pktp;
+	int			buf_len;
+	int			str_len;
+	int res			= -1;
 
-	DHD_TRACE(("%s: param=%d\n", __FUNCTION__, ka_on));
+	DHD_ERROR(("%s Enter\n", __FUNCTION__));
 
-	if (ka_on) { /* on suspend */
-		keep_alive_pkt.period_msec = keep_alive_period;
-
-	} else {
-		/* on resume, turn off keep_alive packets  */
-		keep_alive_pkt.period_msec = 0;
-	}
-
-	/* IOC var name  */
-	str = "keep_alive";
+	str = "mkeep_alive";
 	str_len = strlen(str);
 	strncpy(buf, str, str_len);
-	buf[str_len] = '\0';
+	buf[ str_len ] = '\0';
+	mkeep_alive_pktp = (wl_mkeep_alive_pkt_t *) (buf + str_len + 1);
+	mkeep_alive_pkt.period_msec = KEEP_ALIVE_PERIOD;
 	buf_len = str_len + 1;
+	mkeep_alive_pkt.version = htod16(WL_MKEEP_ALIVE_VERSION);
+	mkeep_alive_pkt.length = htod16(WL_MKEEP_ALIVE_FIXED_LEN);
+	/* Setup keep alive zero for null packet generation */
+	mkeep_alive_pkt.keep_alive_id = 0;
+	mkeep_alive_pkt.len_bytes = 0;
+	buf_len += WL_MKEEP_ALIVE_FIXED_LEN;
+	/* Keep-alive attributes are set in local variable (mkeep_alive_pkt), and
+	 * then memcpy'ed into buffer (mkeep_alive_pktp) since there is no
+	 * guarantee that the buffer is properly aligned.
+	 */
+	memcpy((char *)mkeep_alive_pktp, &mkeep_alive_pkt, WL_MKEEP_ALIVE_FIXED_LEN);
 
-	/* set ptr to IOCTL payload after the var name */
-	buf_ptr += buf_len; /* include term Z */
-
-	/* copy Keep-alive attributes from local var keep_alive_pkt */
-	str = NULL_PKT_STR;
-	keep_alive_pkt.len_bytes = strlen(str);
-
-	memcpy(buf_ptr, &keep_alive_pkt, WL_KEEP_ALIVE_FIXED_LEN);
-	buf_ptr += WL_KEEP_ALIVE_FIXED_LEN;
-
-	/* copy packet data */
-	memcpy(buf_ptr, str, keep_alive_pkt.len_bytes);
-	buf_len += (WL_KEEP_ALIVE_FIXED_LEN + keep_alive_pkt.len_bytes);
-/*
 	res = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, buf, buf_len, TRUE, 0);
-*/
+
 	return res;
 }
 #endif /* defined(KEEP_ALIVE) */
