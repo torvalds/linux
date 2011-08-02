@@ -373,8 +373,8 @@ static struct platform_device pbdb_smbus_device = {
 #endif
 
 /* Macro to help defining the Ethernet MAC resources */
-#define MAC_RES_COUNT	3	/* MAC regs base, MAC enable reg, MAC INT */
-#define MAC_RES(_base, _enable, _irq)			\
+#define MAC_RES_COUNT	4	/* MAC regs, MAC en, MAC INT, MACDMA regs */
+#define MAC_RES(_base, _enable, _irq, _macdma)		\
 	{						\
 		.start	= _base,			\
 		.end	= _base + 0xffff,		\
@@ -389,28 +389,37 @@ static struct platform_device pbdb_smbus_device = {
 		.start	= _irq,				\
 		.end	= _irq,				\
 		.flags	= IORESOURCE_IRQ		\
+	},						\
+	{						\
+		.start	= _macdma,			\
+		.end	= _macdma + 0x1ff,		\
+		.flags	= IORESOURCE_MEM,		\
 	}
 
 static struct resource au1xxx_eth0_resources[][MAC_RES_COUNT] __initdata = {
 	[ALCHEMY_CPU_AU1000] = {
 		MAC_RES(AU1000_MAC0_PHYS_ADDR,
 			AU1000_MACEN_PHYS_ADDR,
-			AU1000_MAC0_DMA_INT)
+			AU1000_MAC0_DMA_INT,
+			AU1000_MACDMA0_PHYS_ADDR)
 	},
 	[ALCHEMY_CPU_AU1500] = {
 		MAC_RES(AU1500_MAC0_PHYS_ADDR,
 			AU1500_MACEN_PHYS_ADDR,
-			AU1500_MAC0_DMA_INT)
+			AU1500_MAC0_DMA_INT,
+			AU1000_MACDMA0_PHYS_ADDR)
 	},
 	[ALCHEMY_CPU_AU1100] = {
 		MAC_RES(AU1000_MAC0_PHYS_ADDR,
 			AU1000_MACEN_PHYS_ADDR,
-			AU1100_MAC0_DMA_INT)
+			AU1100_MAC0_DMA_INT,
+			AU1000_MACDMA0_PHYS_ADDR)
 	},
 	[ALCHEMY_CPU_AU1550] = {
 		MAC_RES(AU1000_MAC0_PHYS_ADDR,
 			AU1000_MACEN_PHYS_ADDR,
-			AU1550_MAC0_DMA_INT)
+			AU1550_MAC0_DMA_INT,
+			AU1000_MACDMA0_PHYS_ADDR)
 	},
 };
 
@@ -429,17 +438,20 @@ static struct resource au1xxx_eth1_resources[][MAC_RES_COUNT] __initdata = {
 	[ALCHEMY_CPU_AU1000] = {
 		MAC_RES(AU1000_MAC1_PHYS_ADDR,
 			AU1000_MACEN_PHYS_ADDR + 4,
-			AU1000_MAC1_DMA_INT)
+			AU1000_MAC1_DMA_INT,
+			AU1000_MACDMA1_PHYS_ADDR)
 	},
 	[ALCHEMY_CPU_AU1500] = {
 		MAC_RES(AU1500_MAC1_PHYS_ADDR,
 			AU1500_MACEN_PHYS_ADDR + 4,
-			AU1500_MAC1_DMA_INT)
+			AU1500_MAC1_DMA_INT,
+			AU1000_MACDMA1_PHYS_ADDR)
 	},
 	[ALCHEMY_CPU_AU1550] = {
 		MAC_RES(AU1000_MAC1_PHYS_ADDR,
 			AU1000_MACEN_PHYS_ADDR + 4,
-			AU1550_MAC1_DMA_INT)
+			AU1550_MAC1_DMA_INT,
+			AU1000_MACDMA1_PHYS_ADDR)
 	},
 };
 
