@@ -43,13 +43,14 @@ struct raid_dev {
 /*
  * Flags for rs->print_flags field.
  */
-#define DMPF_DAEMON_SLEEP      0x1
-#define DMPF_MAX_WRITE_BEHIND  0x2
-#define DMPF_SYNC              0x4
-#define DMPF_NOSYNC            0x8
-#define DMPF_STRIPE_CACHE      0x10
-#define DMPF_MIN_RECOVERY_RATE 0x20
-#define DMPF_MAX_RECOVERY_RATE 0x40
+#define DMPF_SYNC              0x1
+#define DMPF_NOSYNC            0x2
+#define DMPF_REBUILD           0x4
+#define DMPF_DAEMON_SLEEP      0x8
+#define DMPF_MIN_RECOVERY_RATE 0x10
+#define DMPF_MAX_RECOVERY_RATE 0x20
+#define DMPF_MAX_WRITE_BEHIND  0x40
+#define DMPF_STRIPE_CACHE      0x80
 
 struct raid_set {
 	struct dm_target *ti;
@@ -275,13 +276,13 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 		set_bit(In_sync, &rs->dev[i].rdev.flags);
 
 	for (i = 0; i < num_raid_params; i++) {
-		if (!strcmp(argv[i], "nosync")) {
+		if (!strcasecmp(argv[i], "nosync")) {
 			rs->md.recovery_cp = MaxSector;
 			rs->print_flags |= DMPF_NOSYNC;
 			rs->md.flags |= MD_SYNC_STATE_FORCED;
 			continue;
 		}
-		if (!strcmp(argv[i], "sync")) {
+		if (!strcasecmp(argv[i], "sync")) {
 			rs->md.recovery_cp = 0;
 			rs->print_flags |= DMPF_SYNC;
 			rs->md.flags |= MD_SYNC_STATE_FORCED;
@@ -300,7 +301,7 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 			return -EINVAL;
 		}
 
-		if (!strcmp(key, "rebuild")) {
+		if (!strcasecmp(key, "rebuild")) {
 			if (++rebuild_cnt > rs->raid_type->parity_devs) {
 				rs->ti->error = "Too many rebuild drives given";
 				return -EINVAL;
@@ -311,7 +312,8 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 			}
 			clear_bit(In_sync, &rs->dev[value].rdev.flags);
 			rs->dev[value].rdev.recovery_offset = 0;
-		} else if (!strcmp(key, "max_write_behind")) {
+			rs->print_flags |= DMPF_REBUILD;
+		} else if (!strcasecmp(key, "max_write_behind")) {
 			rs->print_flags |= DMPF_MAX_WRITE_BEHIND;
 
 			/*
@@ -324,14 +326,14 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 				return -EINVAL;
 			}
 			rs->md.bitmap_info.max_write_behind = value;
-		} else if (!strcmp(key, "daemon_sleep")) {
+		} else if (!strcasecmp(key, "daemon_sleep")) {
 			rs->print_flags |= DMPF_DAEMON_SLEEP;
 			if (!value || (value > MAX_SCHEDULE_TIMEOUT)) {
 				rs->ti->error = "daemon sleep period out of range";
 				return -EINVAL;
 			}
 			rs->md.bitmap_info.daemon_sleep = value;
-		} else if (!strcmp(key, "stripe_cache")) {
+		} else if (!strcasecmp(key, "stripe_cache")) {
 			rs->print_flags |= DMPF_STRIPE_CACHE;
 
 			/*
@@ -348,14 +350,14 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 				rs->ti->error = "Bad stripe_cache size";
 				return -EINVAL;
 			}
-		} else if (!strcmp(key, "min_recovery_rate")) {
+		} else if (!strcasecmp(key, "min_recovery_rate")) {
 			rs->print_flags |= DMPF_MIN_RECOVERY_RATE;
 			if (value > INT_MAX) {
 				rs->ti->error = "min_recovery_rate out of range";
 				return -EINVAL;
 			}
 			rs->md.sync_speed_min = (int)value;
-		} else if (!strcmp(key, "max_recovery_rate")) {
+		} else if (!strcasecmp(key, "max_recovery_rate")) {
 			rs->print_flags |= DMPF_MAX_RECOVERY_RATE;
 			if (value > INT_MAX) {
 				rs->ti->error = "max_recovery_rate out of range";
@@ -547,11 +549,12 @@ static int raid_status(struct dm_target *ti, status_type_t type,
 	case STATUSTYPE_TABLE:
 		/* The string you would use to construct this array */
 		for (i = 0; i < rs->md.raid_disks; i++)
-			if (rs->dev[i].data_dev &&
+			if ((rs->print_flags & DMPF_REBUILD) &&
+			    rs->dev[i].data_dev &&
 			    !test_bit(In_sync, &rs->dev[i].rdev.flags))
-				raid_param_cnt++; /* for rebuilds */
+				raid_param_cnt += 2; /* for rebuilds */
 
-		raid_param_cnt += (hweight64(rs->print_flags) * 2);
+		raid_param_cnt += (hweight64(rs->print_flags & ~DMPF_REBUILD) * 2);
 		if (rs->print_flags & (DMPF_SYNC | DMPF_NOSYNC))
 			raid_param_cnt--;
 
@@ -565,7 +568,8 @@ static int raid_status(struct dm_target *ti, status_type_t type,
 			DMEMIT(" nosync");
 
 		for (i = 0; i < rs->md.raid_disks; i++)
-			if (rs->dev[i].data_dev &&
+			if ((rs->print_flags & DMPF_REBUILD) &&
+			    rs->dev[i].data_dev &&
 			    !test_bit(In_sync, &rs->dev[i].rdev.flags))
 				DMEMIT(" rebuild %u", i);
 
