@@ -1179,7 +1179,8 @@ static int __clone_and_map_discard(struct clone_info *ci)
 
 		/*
 		 * Even though the device advertised discard support,
-		 * reconfiguration might have changed that since the
+		 * that does not mean every target supports it, and
+		 * reconfiguration might also have changed that since the
 		 * check was performed.
 		 */
 		if (!ti->num_discard_requests)
