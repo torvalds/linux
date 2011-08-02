@@ -1209,6 +1209,9 @@ static void cfq_destroy_cfqg(struct cfq_data *cfqd, struct cfq_group *cfqg)
 
 	hlist_del_init(&cfqg->cfqd_node);
 
+	BUG_ON(cfqd->nr_blkcg_linked_grps <= 0);
+	cfqd->nr_blkcg_linked_grps--;
+
 	/*
 	 * Put the reference taken at the time of creation so that when all
 	 * queues are gone, group can be destroyed.
