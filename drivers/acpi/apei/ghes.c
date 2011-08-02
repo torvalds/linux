@@ -65,7 +65,7 @@
 
 #define GHES_ESTATUS_CACHES_SIZE	4
 
-#define GHES_ESTATUS_IN_CACHE_MAX_NSEC	(10 * NSEC_PER_SEC)
+#define GHES_ESTATUS_IN_CACHE_MAX_NSEC	10000000000ULL
 /* Prevent too many caches are allocated because of RCU */
 #define GHES_ESTATUS_CACHE_ALLOCED_MAX	(GHES_ESTATUS_CACHES_SIZE * 3 / 2)
 
@@ -622,7 +622,8 @@ static void ghes_estatus_cache_add(
 			break;
 		}
 		count = atomic_read(&cache->count);
-		period = duration / (count + 1);
+		period = duration;
+		do_div(period, (count + 1));
 		if (period > max_period) {
 			max_period = period;
 			slot = i;
