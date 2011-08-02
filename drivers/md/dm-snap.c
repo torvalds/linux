@@ -30,16 +30,6 @@ static const char dm_snapshot_merge_target_name[] = "snapshot-merge";
 	((ti)->type->name == dm_snapshot_merge_target_name)
 
 /*
- * The percentage increment we will wake up users at
- */
-#define WAKE_UP_PERCENT 5
-
-/*
- * kcopyd priority of snapshot operations
- */
-#define SNAPSHOT_COPY_PRIORITY 2
-
-/*
  * The size of the mempool used to track chunks in use.
  */
 #define MIN_IOS 256
