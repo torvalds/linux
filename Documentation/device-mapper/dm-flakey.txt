@@ -1,17 +1,34 @@
 dm-flakey
 =========
 
-This target is the same as the linear target except that it returns I/O
-errors periodically.  It's been found useful in simulating failing
-devices for testing purposes.
+This target is the same as the linear target except that it exhibits
+unreliable behaviour periodically.  It's been found useful in simulating
+failing devices for testing purposes.
 
 Starting from the time the table is loaded, the device is available for
-<up interval> seconds, then returns errors for <down interval> seconds,
-and then this cycle repeats.
+<up interval> seconds, then exhibits unreliable behaviour for <down
+interval> seconds, and then this cycle repeats.
 
-Parameters: <dev path> <offset> <up interval> <down interval>
+Also, consider using this in combination with the dm-delay target too,
+which can delay reads and writes and/or send them to different
+underlying devices.
+
+Table parameters
+----------------
+  <dev path> <offset> <up interval> <down interval> \
+    [<num_features> [<feature arguments>]]
+
+Mandatory parameters:
     <dev path>: Full pathname to the underlying block-device, or a
                 "major:minor" device-number.
     <offset>: Starting sector within the device.
     <up interval>: Number of seconds device is available.
     <down interval>: Number of seconds device returns errors.
+
+Optional feature parameters:
+  If no feature parameters are present, during the periods of
+  unreliability, all I/O returns errors.
+
+  drop_writes:
+	All write I/O is silently ignored.
+	Read I/O is handled correctly.
