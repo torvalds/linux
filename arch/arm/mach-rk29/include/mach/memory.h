@@ -49,8 +49,8 @@ __arch_adjust_zones(int node, unsigned long *zone_size, unsigned long *zhole_siz
  * SRAM memory whereabouts
  */
 #define SRAM_CODE_OFFSET	0xFEF00000
-#define SRAM_CODE_END		0xFEF01FFF
-#define SRAM_DATA_OFFSET	0xFEF02000
+#define SRAM_CODE_END		0xFEF02FFF
+#define SRAM_DATA_OFFSET	0xFEF03000
 #define SRAM_DATA_END		0xFEF03FFF
 
 #endif

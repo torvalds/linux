@@ -330,7 +330,7 @@ static void rk29_cpufreq_work_func(struct work_struct *work)
 }
 #endif
 
-static int __init rk29_cpufreq_init(struct cpufreq_policy *policy)
+static int rk29_cpufreq_init(struct cpufreq_policy *policy)
 {
 	arm_clk = clk_get(NULL, "arm_pll");
 	if (IS_ERR(arm_clk))

@@ -156,6 +156,12 @@ struct bq27510_platform_data {
 	unsigned int bat_num;
 };
 
+struct bq27541_platform_data {	
+	int (*init_dc_check_pin)(void);	
+	unsigned int dc_check_pin;	
+	unsigned int bat_num;
+};
+
 /*i2s*/
 struct rk29_i2s_platform_data {
 	int (*io_init)(void);
@@ -312,6 +318,8 @@ void __init board_power_init(void);
 #define BOOT_MODE_CHARGE		3
 #define BOOT_MODE_POWER_TEST		4
 #define BOOT_MODE_OFFMODE_CHARGING	5
+#define BOOT_MODE_REBOOT		6
+#define BOOT_MODE_PANIC			7
 int board_boot_mode(void);
 
 enum periph_pll {
@@ -329,14 +337,13 @@ enum periph_pll {
 enum codec_pll {
 	codec_pll_297mhz = 297000000, /* for HDMI */
 	codec_pll_300mhz = 300000000,
-	codec_pll_445mhz = 445500000, /* for HDMI */
 	codec_pll_504mhz = 504000000,
 	codec_pll_552mhz = 552000000,
 	codec_pll_594mhz = 594000000, /* for HDMI */
 	codec_pll_600mhz = 600000000,
 };
 
-void __init rk29_clock_init(enum periph_pll ppll_rate); /* codec pll is 445.5MHz, has xin27m */
+void __init rk29_clock_init(enum periph_pll ppll_rate); /* codec pll is 297MHz, has xin27m */
 void __init rk29_clock_init2(enum periph_pll ppll_rate, enum codec_pll cpll_rate, bool has_xin27m);
 
 /* for USB detection */

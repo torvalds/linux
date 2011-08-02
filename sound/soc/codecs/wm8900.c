@@ -252,6 +252,9 @@ EXPORT_SYMBOL_GPL(codec_set_spk);
 static void wm8900_powerdown(void)
 {
 	printk("Power down wm8900\n");
+#ifndef WM8900_NO_POWEROFF
+	gpio_set_value(RK29_PIN1_PD6, GPIO_LOW);
+#endif
 
 	snd_soc_write(wm8900_codec, WM8900_REG_POWER1, 0x210D);
 
@@ -293,7 +296,8 @@ static void wm8900_set_hw(struct snd_soc_codec *codec)
 		return;
 
 	printk("Power up wm8900\n");
-
+//CLK , PATH, VOL,POW.
+	
 	snd_soc_write(codec, WM8900_REG_HPCTL1, 0x30);
 	snd_soc_write(codec, WM8900_REG_POWER1, 0x0100);
 	snd_soc_write(codec, WM8900_REG_POWER3, 0x60);
@@ -351,7 +355,10 @@ static void wm8900_set_hw(struct snd_soc_codec *codec)
 		gpio_set_value(SPK_CON, GPIO_HIGH);
 	}
 #endif
-
+#ifndef WM8900_NO_POWEROFF
+	msleep(350);
+	gpio_set_value(RK29_PIN1_PD6, GPIO_HIGH);
+#endif
 	wm8900_current_status |= WM8900_IS_STARTUP;
 }
 
@@ -1162,6 +1169,10 @@ static int wm8900_probe(struct platform_device *pdev)
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec;
 	int ret = 0;
+
+#ifndef WM8900_NO_POWEROFF
+	gpio_set_value(RK29_PIN1_PD6, GPIO_LOW);
+#endif
 
 	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
         

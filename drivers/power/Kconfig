@@ -142,6 +142,12 @@ config BATTERY_BQ27510
 	depends on I2C && ARCH_RK29
 	help
 	  Say Y here to enable support for batteries with BQ27510(I2C) chip.
+config BATTERY_BQ27541
+	tristate "BQ27541 battery driver"
+	select I2C_DEV_RK29
+	depends on I2C && ARCH_RK29
+	help
+	  Say Y here to enable support for batteries with BQ27541(I2C) chip.
 	
 config BATTERY_BQ3060
 	tristate "BQ3060 battery driver"

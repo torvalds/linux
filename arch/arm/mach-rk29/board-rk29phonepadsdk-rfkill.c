@@ -172,7 +172,7 @@ static const struct rfkill_ops bcm4329_rfk_ops = {
 	.set_block = bcm4329_set_block,
 };
 
-static int __init bcm4329_rfkill_probe(struct platform_device *pdev)
+static int __devinit bcm4329_rfkill_probe(struct platform_device *pdev)
 {
 	int rc = 0;
 	bool default_state = true;
