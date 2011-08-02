@@ -46,13 +46,13 @@ static struct omap_mcpdm_link omap_mcpdm_links[] = {
 	/* downlink */
 	{
 		.irq_mask = MCPDM_DN_IRQ_EMPTY | MCPDM_DN_IRQ_FULL,
-		.threshold = 1,
+		.threshold = 2,
 		.format = PDMOUTFORMAT_LJUST,
 	},
 	/* uplink */
 	{
 		.irq_mask = MCPDM_UP_IRQ_EMPTY | MCPDM_UP_IRQ_FULL,
-		.threshold = 1,
+		.threshold = UP_THRES_MAX - 3,
 		.format = PDMOUTFORMAT_LJUST,
 	},
 };
@@ -136,11 +136,10 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 {
 	struct omap_mcpdm_data *mcpdm_priv = snd_soc_dai_get_drvdata(dai);
 	struct omap_mcpdm_link *mcpdm_links = mcpdm_priv->links;
+	struct omap_pcm_dma_data *dma_data;
+	int threshold;
 	int stream = substream->stream;
 	int channels, err, link_mask = 0;
-
-	snd_soc_dai_set_dma_data(dai, substream,
-				 &omap_mcpdm_dai_dma_params[stream]);
 
 	channels = params_channels(params);
 	switch (channels) {
@@ -164,14 +163,22 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	dma_data = &omap_mcpdm_dai_dma_params[stream];
+	threshold = mcpdm_links[stream].threshold;
+
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		mcpdm_links[stream].channels = link_mask << 3;
+		dma_data->packet_size = (DN_THRES_MAX - threshold) * channels;
+
 		err = omap_mcpdm_playback_open(&mcpdm_links[stream]);
 	} else {
 		mcpdm_links[stream].channels = link_mask << 0;
+		dma_data->packet_size = threshold * channels;
+
 		err = omap_mcpdm_capture_open(&mcpdm_links[stream]);
 	}
 
+	snd_soc_dai_set_dma_data(dai, substream, dma_data);
 	return err;
 }
 
