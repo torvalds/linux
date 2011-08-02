@@ -719,24 +719,49 @@ static int dev_create(struct dm_ioctl *param, size_t param_size)
 static struct hash_cell *__find_device_hash_cell(struct dm_ioctl *param)
 {
 	struct mapped_device *md;
-	void *mdptr = NULL;
+	struct hash_cell *hc = NULL;
 
-	if (*param->uuid)
-		return __get_uuid_cell(param->uuid);
+	if (*param->uuid) {
+		hc = __get_uuid_cell(param->uuid);
+		if (!hc)
+			return NULL;
+		goto fill_params;
+	}
 
-	if (*param->name)
-		return __get_name_cell(param->name);
+	if (*param->name) {
+		hc = __get_name_cell(param->name);
+		if (!hc)
+			return NULL;
+		goto fill_params;
+	}
 
 	md = dm_get_md(huge_decode_dev(param->dev));
 	if (!md)
-		goto out;
+		return NULL;
 
-	mdptr = dm_get_mdptr(md);
-	if (!mdptr)
+	hc = dm_get_mdptr(md);
+	if (!hc) {
 		dm_put(md);
+		return NULL;
+	}
 
-out:
-	return mdptr;
+fill_params:
+	/*
+	 * Sneakily write in both the name and the uuid
+	 * while we have the cell.
+	 */
+	strlcpy(param->name, hc->name, sizeof(param->name));
+	if (hc->uuid)
+		strlcpy(param->uuid, hc->uuid, sizeof(param->uuid));
+	else
+		param->uuid[0] = '\0';
+
+	if (hc->new_map)
+		param->flags |= DM_INACTIVE_PRESENT_FLAG;
+	else
+		param->flags &= ~DM_INACTIVE_PRESENT_FLAG;
+
+	return hc;
 }
 
 static struct mapped_device *find_device(struct dm_ioctl *param)
@@ -746,24 +771,8 @@ static struct mapped_device *find_device(struct dm_ioctl *param)
 
 	down_read(&_hash_lock);
 	hc = __find_device_hash_cell(param);
-	if (hc) {
+	if (hc)
 		md = hc->md;
-
-		/*
-		 * Sneakily write in both the name and the uuid
-		 * while we have the cell.
-		 */
-		strlcpy(param->name, hc->name, sizeof(param->name));
-		if (hc->uuid)
-			strlcpy(param->uuid, hc->uuid, sizeof(param->uuid));
-		else
-			param->uuid[0] = '\0';
-
-		if (hc->new_map)
-			param->flags |= DM_INACTIVE_PRESENT_FLAG;
-		else
-			param->flags &= ~DM_INACTIVE_PRESENT_FLAG;
-	}
 	up_read(&_hash_lock);
 
 	return md;
