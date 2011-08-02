@@ -113,7 +113,7 @@ static unsigned long __init xen_release_chunk(phys_addr_t start_addr,
 			len++;
 		}
 	}
-	printk(KERN_CONT "%ld pages freed\n", len);
+	printk(KERN_CONT "%lu pages freed\n", len);
 
 	return len;
 }
@@ -139,7 +139,7 @@ static unsigned long __init xen_return_unused_memory(unsigned long max_pfn,
 	if (last_end < max_addr)
 		released += xen_release_chunk(last_end, max_addr);
 
-	printk(KERN_INFO "released %ld pages of unused memory\n", released);
+	printk(KERN_INFO "released %lu pages of unused memory\n", released);
 	return released;
 }
 
