@@ -254,7 +254,7 @@ static int __devexit asoc_mcpdm_remove(struct platform_device *pdev)
 
 static struct platform_driver asoc_mcpdm_driver = {
 	.driver = {
-			.name = "omap-mcpdm-dai",
+			.name = "omap-mcpdm",
 			.owner = THIS_MODULE,
 	},
 

@@ -131,7 +131,6 @@ struct omap_mcpdm {
 
        spinlock_t lock;
        struct omap_mcpdm_platform_data *pdata;
-       struct clk *clk;
        struct omap_mcpdm_link *downlink;
        struct omap_mcpdm_link *uplink;
        struct completion irq_completion;

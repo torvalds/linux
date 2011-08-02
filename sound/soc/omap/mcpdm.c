@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
-#include <linux/clk.h>
+#include <linux/pm_runtime.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -322,11 +322,11 @@ static irqreturn_t omap_mcpdm_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-int omap_mcpdm_request(void)
+			int omap_mcpdm_request(void)
 {
 	int ret;
 
-	clk_enable(mcpdm->clk);
+	pm_runtime_get_sync(mcpdm->dev);
 
 	spin_lock(&mcpdm->lock);
 
@@ -353,7 +353,8 @@ int omap_mcpdm_request(void)
 	return 0;
 
 err:
-	clk_disable(mcpdm->clk);
+	mcpdm->free = 1;
+	pm_runtime_put_sync(mcpdm->dev);
 	return ret;
 }
 
@@ -368,7 +369,7 @@ void omap_mcpdm_free(void)
 	mcpdm->free = 1;
 	spin_unlock(&mcpdm->lock);
 
-	clk_disable(mcpdm->clk);
+	pm_runtime_put_sync(mcpdm->dev);
 
 	free_irq(mcpdm->irq, (void *)mcpdm);
 }
@@ -421,28 +422,29 @@ int __devinit omap_mcpdm_probe(struct platform_device *pdev)
 
 	spin_lock_init(&mcpdm->lock);
 	mcpdm->free = 1;
+
+	if (!request_mem_region(res->start, resource_size(res), "McPDM")) {
+		ret = -EBUSY;
+		goto err_resource;
+	}
+
 	mcpdm->io_base = ioremap(res->start, resource_size(res));
 	if (!mcpdm->io_base) {
 		ret = -ENOMEM;
-		goto err_resource;
+		goto err_remap;
 	}
 
 	mcpdm->irq = platform_get_irq(pdev, 0);
 
-	mcpdm->clk = clk_get(&pdev->dev, "pdm_ck");
-	if (IS_ERR(mcpdm->clk)) {
-		ret = PTR_ERR(mcpdm->clk);
-		dev_err(&pdev->dev, "unable to get pdm_ck: %d\n", ret);
-		goto err_clk;
-	}
-
 	mcpdm->dev = &pdev->dev;
 	platform_set_drvdata(pdev, mcpdm);
 
+	pm_runtime_enable(mcpdm->dev);
+
 	return 0;
 
-err_clk:
-	iounmap(mcpdm->io_base);
+err_remap:
+	release_mem_region(res->start, resource_size(res));
 err_resource:
 	kfree(mcpdm);
 exit:
@@ -452,14 +454,16 @@ exit:
 int __devexit omap_mcpdm_remove(struct platform_device *pdev)
 {
 	struct omap_mcpdm *mcpdm_ptr = platform_get_drvdata(pdev);
+	struct resource *res;
 
 	platform_set_drvdata(pdev, NULL);
 
-	clk_put(mcpdm_ptr->clk);
+	pm_runtime_disable(mcpdm_ptr->dev);
 
 	iounmap(mcpdm_ptr->io_base);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	release_mem_region(res->start, resource_size(res));
 
-	mcpdm_ptr->clk = NULL;
 	mcpdm_ptr->free = 0;
 	mcpdm_ptr->dev = NULL;
 
