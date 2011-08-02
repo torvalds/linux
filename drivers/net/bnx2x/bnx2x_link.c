@@ -11541,13 +11541,12 @@ void bnx2x_init_xmac_loopback(struct link_params *params,
 	 * Set WC to loopback mode since link is required to provide clock
 	 * to the XMAC in 20G mode
 	 */
-	if (vars->line_speed == SPEED_20000) {
-		bnx2x_set_aer_mmd(params, &params->phy[0]);
-		bnx2x_warpcore_reset_lane(bp, &params->phy[0], 0);
-		params->phy[INT_PHY].config_loopback(
+	bnx2x_set_aer_mmd(params, &params->phy[0]);
+	bnx2x_warpcore_reset_lane(bp, &params->phy[0], 0);
+	params->phy[INT_PHY].config_loopback(
 			&params->phy[INT_PHY],
 			params);
-	}
+
 	bnx2x_xmac_enable(params, vars, 1);
 	REG_WR(bp, NIG_REG_EGRESS_DRAIN0_MODE + params->port*4, 0);
 }
