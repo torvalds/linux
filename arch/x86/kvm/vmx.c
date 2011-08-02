@@ -1748,6 +1748,21 @@ static u64 guest_read_tsc(void)
 }
 
 /*
+ * Like guest_read_tsc, but always returns L1's notion of the timestamp
+ * counter, even if a nested guest (L2) is currently running.
+ */
+u64 vmx_read_l1_tsc(struct kvm_vcpu *vcpu)
+{
+	u64 host_tsc, tsc_offset;
+
+	rdtscll(host_tsc);
+	tsc_offset = is_guest_mode(vcpu) ?
+		to_vmx(vcpu)->nested.vmcs01_tsc_offset :
+		vmcs_read64(TSC_OFFSET);
+	return host_tsc + tsc_offset;
+}
+
+/*
  * Empty call-back. Needs to be implemented when VMX enables the SET_TSC_KHZ
  * ioctl. In this case the call-back should update internal vmx state to make
  * the changes effective.
@@ -7010,6 +7025,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.write_tsc_offset = vmx_write_tsc_offset,
 	.adjust_tsc_offset = vmx_adjust_tsc_offset,
 	.compute_tsc_offset = vmx_compute_tsc_offset,
+	.read_l1_tsc = vmx_read_l1_tsc,
 
 	.set_tdp_cr3 = vmx_set_cr3,
 

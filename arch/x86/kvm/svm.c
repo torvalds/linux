@@ -2910,6 +2910,13 @@ static int cr8_write_interception(struct vcpu_svm *svm)
 	return 0;
 }
 
+u64 svm_read_l1_tsc(struct kvm_vcpu *vcpu)
+{
+	struct vmcb *vmcb = get_host_vmcb(to_svm(vcpu));
+	return vmcb->control.tsc_offset +
+		svm_scale_tsc(vcpu, native_read_tsc());
+}
+
 static int svm_get_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 *data)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -4201,6 +4208,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.write_tsc_offset = svm_write_tsc_offset,
 	.adjust_tsc_offset = svm_adjust_tsc_offset,
 	.compute_tsc_offset = svm_compute_tsc_offset,
+	.read_l1_tsc = svm_read_l1_tsc,
 
 	.set_tdp_cr3 = set_tdp_cr3,
 
