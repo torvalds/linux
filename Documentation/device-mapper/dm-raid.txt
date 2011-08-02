@@ -52,6 +52,10 @@ The target is named "raid" and it accepts the following parameters:
 	[max_recovery_rate <kB/sec/disk>]  Throttle RAID initialization
 	[max_write_behind <sectors>]       See '-write-behind=' (man mdadm)
 	[stripe_cache <sectors>]           Stripe cache size (higher RAIDs only)
+	[region_size <sectors>]
+		The region_size multiplied by the number of regions is the
+		logical size of the array.  The bitmap records the device
+		synchronisation state for each region.
 
 <#raid_devs>: The number of devices composing the array.
 	Each device consists of two entries.  The first is the device

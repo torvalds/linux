@@ -52,7 +52,7 @@ struct raid_dev {
 #define DMPF_MAX_RECOVERY_RATE 0x20
 #define DMPF_MAX_WRITE_BEHIND  0x40
 #define DMPF_STRIPE_CACHE      0x80
-
+#define DMPF_REGION_SIZE       0X100
 struct raid_set {
 	struct dm_target *ti;
 
@@ -237,6 +237,67 @@ static int dev_parms(struct raid_set *rs, char **argv)
 }
 
 /*
+ * validate_region_size
+ * @rs
+ * @region_size:  region size in sectors.  If 0, pick a size (4MiB default).
+ *
+ * Set rs->md.bitmap_info.chunksize (which really refers to 'region size').
+ * Ensure that (ti->len/region_size < 2^21) - required by MD bitmap.
+ *
+ * Returns: 0 on success, -EINVAL on failure.
+ */
+static int validate_region_size(struct raid_set *rs, unsigned long region_size)
+{
+	unsigned long min_region_size = rs->ti->len / (1 << 21);
+
+	if (!region_size) {
+		/*
+		 * Choose a reasonable default.  All figures in sectors.
+		 */
+		if (min_region_size > (1 << 13)) {
+			DMINFO("Choosing default region size of %lu sectors",
+			       region_size);
+			region_size = min_region_size;
+		} else {
+			DMINFO("Choosing default region size of 4MiB");
+			region_size = 1 << 13; /* sectors */
+		}
+	} else {
+		/*
+		 * Validate user-supplied value.
+		 */
+		if (region_size > rs->ti->len) {
+			rs->ti->error = "Supplied region size is too large";
+			return -EINVAL;
+		}
+
+		if (region_size < min_region_size) {
+			DMERR("Supplied region_size (%lu sectors) below minimum (%lu)",
+			      region_size, min_region_size);
+			rs->ti->error = "Supplied region size is too small";
+			return -EINVAL;
+		}
+
+		if (!is_power_of_2(region_size)) {
+			rs->ti->error = "Region size is not a power of 2";
+			return -EINVAL;
+		}
+
+		if (region_size < rs->md.chunk_sectors) {
+			rs->ti->error = "Region size is smaller than the chunk size";
+			return -EINVAL;
+		}
+	}
+
+	/*
+	 * Convert sectors to bytes.
+	 */
+	rs->md.bitmap_info.chunksize = (region_size << 9);
+
+	return 0;
+}
+
+/*
  * Possible arguments are...
  * RAID456:
  *	<chunk_size> [optional_args]
@@ -249,12 +310,13 @@ static int dev_parms(struct raid_set *rs, char **argv)
  *    [max_recovery_rate <kB/sec/disk>]	Throttle RAID initialization
  *    [max_write_behind <sectors>]	See '-write-behind=' (man mdadm)
  *    [stripe_cache <sectors>]		Stripe cache size for higher RAIDs
+ *    [region_size <sectors>]           Defines granularity of bitmap
  */
 static int parse_raid_params(struct raid_set *rs, char **argv,
 			     unsigned num_raid_params)
 {
 	unsigned i, rebuild_cnt = 0;
-	unsigned long value;
+	unsigned long value, region_size = 0;
 	char *key;
 
 	/*
@@ -365,12 +427,23 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 				return -EINVAL;
 			}
 			rs->md.sync_speed_max = (int)value;
+		} else if (!strcasecmp(key, "region_size")) {
+			rs->print_flags |= DMPF_REGION_SIZE;
+			region_size = value;
 		} else {
 			DMERR("Unable to parse RAID parameter: %s", key);
 			rs->ti->error = "Unable to parse RAID parameters";
 			return -EINVAL;
 		}
 	}
+
+	if (validate_region_size(rs, region_size))
+		return -EINVAL;
+
+	if (rs->md.chunk_sectors)
+		rs->ti->split_io = rs->md.chunk_sectors;
+	else
+		rs->ti->split_io = region_size;
 
 	/* Assume there are no metadata devices until the drives are parsed */
 	rs->md.persistent = 0;
@@ -469,7 +542,6 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		goto bad;
 
 	INIT_WORK(&rs->md.event_work, do_table_event);
-	ti->split_io = rs->md.chunk_sectors;
 	ti->private = rs;
 
 	mutex_lock(&rs->md.reconfig_mutex);
@@ -595,6 +667,10 @@ static int raid_status(struct dm_target *ti, status_type_t type,
 			DMEMIT(" stripe_cache %d",
 			       conf ? conf->max_nr_stripes * 2 : 0);
 		}
+
+		if (rs->print_flags & DMPF_REGION_SIZE)
+			DMEMIT(" region_size %lu",
+			       rs->md.bitmap_info.chunksize >> 9);
 
 		DMEMIT(" %d", rs->md.raid_disks);
 		for (i = 0; i < rs->md.raid_disks; i++) {
