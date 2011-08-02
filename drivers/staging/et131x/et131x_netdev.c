@@ -671,8 +671,7 @@ struct net_device *et131x_device_alloc(void)
 	/* Setup the function registration table (and other data) for a
 	 * net_device
 	 */
-	/* netdev->init               = &et131x_init; */
-	/* netdev->set_config = &et131x_config; */
+
 	netdev->watchdog_timeo = ET131X_TX_TIMEOUT;
 	netdev->netdev_ops = &et131x_netdev_ops;
 
