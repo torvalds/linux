@@ -728,6 +728,10 @@ static int be_vid_config(struct be_adapter *adapter, bool vf, u32 vf_num)
 		status = be_cmd_vlan_config(adapter, if_handle, vtag, 1, 1, 0);
 	}
 
+	/* No need to further configure vids if in promiscuous mode */
+	if (adapter->promiscuous)
+		return 0;
+
 	if (adapter->vlans_added <= adapter->max_vlans)  {
 		/* Construct VLAN Table to give to HW */
 		for (i = 0; i < VLAN_N_VID; i++) {
@@ -787,6 +791,9 @@ static void be_set_multicast_list(struct net_device *netdev)
 	if (adapter->promiscuous) {
 		adapter->promiscuous = false;
 		be_cmd_promiscuous_config(adapter, false);
+
+		if (adapter->vlans_added)
+			be_vid_config(adapter, false, 0);
 	}
 
 	/* Enable multicast promisc if num configured exceeds what we support */

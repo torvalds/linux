@@ -1586,9 +1586,11 @@ int be_cmd_promiscuous_config(struct be_adapter *adapter, bool en)
 			OPCODE_COMMON_NTWK_RX_FILTER, sizeof(*req));
 
 	req->if_id = cpu_to_le32(adapter->if_handle);
-	req->if_flags_mask = cpu_to_le32(BE_IF_FLAGS_PROMISCUOUS);
+	req->if_flags_mask = cpu_to_le32(BE_IF_FLAGS_PROMISCUOUS
+				| BE_IF_FLAGS_VLAN_PROMISCUOUS);
 	if (en)
-		req->if_flags = cpu_to_le32(BE_IF_FLAGS_PROMISCUOUS);
+		req->if_flags = cpu_to_le32(BE_IF_FLAGS_PROMISCUOUS
+				| BE_IF_FLAGS_VLAN_PROMISCUOUS);
 
 	sge->pa_hi = cpu_to_le32(upper_32_bits(promiscous_cmd.dma));
 	sge->pa_lo = cpu_to_le32(promiscous_cmd.dma & 0xFFFFFFFF);
