@@ -1548,72 +1548,11 @@ err:
 	return status;
 }
 
-/* Uses MCC for this command as it may be called in BH context
- * Uses synchronous mcc
- */
-int be_cmd_promiscuous_config(struct be_adapter *adapter, bool en)
+int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 {
 	struct be_mcc_wrb *wrb;
-	struct be_cmd_req_rx_filter *req;
-	struct be_dma_mem promiscous_cmd;
-	struct be_sge *sge;
-	int status;
-
-	memset(&promiscous_cmd, 0, sizeof(struct be_dma_mem));
-	promiscous_cmd.size = sizeof(struct be_cmd_req_rx_filter);
-	promiscous_cmd.va = pci_alloc_consistent(adapter->pdev,
-				promiscous_cmd.size, &promiscous_cmd.dma);
-	if (!promiscous_cmd.va) {
-		dev_err(&adapter->pdev->dev,
-				"Memory allocation failure\n");
-		return -ENOMEM;
-	}
-
-	spin_lock_bh(&adapter->mcc_lock);
-
-	wrb = wrb_from_mccq(adapter);
-	if (!wrb) {
-		status = -EBUSY;
-		goto err;
-	}
-
-	req = promiscous_cmd.va;
-	sge = nonembedded_sgl(wrb);
-
-	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1,
-					OPCODE_COMMON_NTWK_RX_FILTER);
-	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-			OPCODE_COMMON_NTWK_RX_FILTER, sizeof(*req));
-
-	req->if_id = cpu_to_le32(adapter->if_handle);
-	req->if_flags_mask = cpu_to_le32(BE_IF_FLAGS_PROMISCUOUS
-				| BE_IF_FLAGS_VLAN_PROMISCUOUS);
-	if (en)
-		req->if_flags = cpu_to_le32(BE_IF_FLAGS_PROMISCUOUS
-				| BE_IF_FLAGS_VLAN_PROMISCUOUS);
-
-	sge->pa_hi = cpu_to_le32(upper_32_bits(promiscous_cmd.dma));
-	sge->pa_lo = cpu_to_le32(promiscous_cmd.dma & 0xFFFFFFFF);
-	sge->len = cpu_to_le32(promiscous_cmd.size);
-
-	status = be_mcc_notify_wait(adapter);
-
-err:
-	spin_unlock_bh(&adapter->mcc_lock);
-	pci_free_consistent(adapter->pdev, promiscous_cmd.size,
-			promiscous_cmd.va, promiscous_cmd.dma);
-	return status;
-}
-
-/*
- * Uses MCC for this command as it may be called in BH context
- * (mc == NULL) => multicast promiscuous
- */
-int be_cmd_multicast_set(struct be_adapter *adapter, u32 if_id,
-		struct net_device *netdev, struct be_dma_mem *mem)
-{
-	struct be_mcc_wrb *wrb;
-	struct be_cmd_req_mcast_mac_config *req = mem->va;
+	struct be_dma_mem *mem = &adapter->rx_filter;
+	struct be_cmd_req_rx_filter *req = mem->va;
 	struct be_sge *sge;
 	int status;
 
@@ -1625,32 +1564,34 @@ int be_cmd_multicast_set(struct be_adapter *adapter, u32 if_id,
 		goto err;
 	}
 	sge = nonembedded_sgl(wrb);
-	memset(req, 0, sizeof(*req));
-
-	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1,
-			OPCODE_COMMON_NTWK_MULTICAST_SET);
 	sge->pa_hi = cpu_to_le32(upper_32_bits(mem->dma));
 	sge->pa_lo = cpu_to_le32(mem->dma & 0xFFFFFFFF);
 	sge->len = cpu_to_le32(mem->size);
+	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1,
+				OPCODE_COMMON_NTWK_RX_FILTER);
 
+	memset(req, 0, sizeof(*req));
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-		OPCODE_COMMON_NTWK_MULTICAST_SET, sizeof(*req));
+				OPCODE_COMMON_NTWK_RX_FILTER, sizeof(*req));
 
-	req->interface_id = if_id;
-	if (netdev) {
-		int i;
-		struct netdev_hw_addr *ha;
-
-		req->num_mac = cpu_to_le16(netdev_mc_count(netdev));
-
-		i = 0;
-		netdev_for_each_mc_addr(ha, netdev)
-			memcpy(req->mac[i++].byte, ha->addr, ETH_ALEN);
+	req->if_id = cpu_to_le32(adapter->if_handle);
+	if (flags & IFF_PROMISC) {
+		req->if_flags_mask = cpu_to_le32(BE_IF_FLAGS_PROMISCUOUS |
+					BE_IF_FLAGS_VLAN_PROMISCUOUS);
+		if (value == ON)
+			req->if_flags = cpu_to_le32(BE_IF_FLAGS_PROMISCUOUS |
+					BE_IF_FLAGS_VLAN_PROMISCUOUS);
+	} else if (flags & IFF_ALLMULTI) {
+		req->if_flags_mask = req->if_flags =
+			cpu_to_le32(BE_IF_FLAGS_MCAST_PROMISCUOUS);
 	} else {
-		req->promiscuous = 1;
-	}
+		struct netdev_hw_addr *ha;
+		int i = 0;
 
-	status = be_mcc_notify_wait(adapter);
+		req->mcast_num = cpu_to_le16(netdev_mc_count(adapter->netdev));
+		netdev_for_each_mc_addr(ha, adapter->netdev)
+			memcpy(req->mcast_mac[i++].byte, ha->addr, ETH_ALEN);
+	}
 
 err:
 	spin_unlock_bh(&adapter->mcc_lock);

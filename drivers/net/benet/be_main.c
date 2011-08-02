@@ -782,7 +782,7 @@ static void be_set_multicast_list(struct net_device *netdev)
 	struct be_adapter *adapter = netdev_priv(netdev);
 
 	if (netdev->flags & IFF_PROMISC) {
-		be_cmd_promiscuous_config(adapter, true);
+		be_cmd_rx_filter(adapter, IFF_PROMISC, ON);
 		adapter->promiscuous = true;
 		goto done;
 	}
@@ -790,7 +790,7 @@ static void be_set_multicast_list(struct net_device *netdev)
 	/* BE was previously in promiscuous mode; disable it */
 	if (adapter->promiscuous) {
 		adapter->promiscuous = false;
-		be_cmd_promiscuous_config(adapter, false);
+		be_cmd_rx_filter(adapter, IFF_PROMISC, OFF);
 
 		if (adapter->vlans_added)
 			be_vid_config(adapter, false, 0);
@@ -798,14 +798,12 @@ static void be_set_multicast_list(struct net_device *netdev)
 
 	/* Enable multicast promisc if num configured exceeds what we support */
 	if (netdev->flags & IFF_ALLMULTI ||
-	    netdev_mc_count(netdev) > BE_MAX_MC) {
-		be_cmd_multicast_set(adapter, adapter->if_handle, NULL,
-				&adapter->mc_cmd_mem);
+			netdev_mc_count(netdev) > BE_MAX_MC) {
+		be_cmd_rx_filter(adapter, IFF_ALLMULTI, ON);
 		goto done;
 	}
 
-	be_cmd_multicast_set(adapter, adapter->if_handle, netdev,
-		&adapter->mc_cmd_mem);
+	be_cmd_rx_filter(adapter, IFF_MULTICAST, ON);
 done:
 	return;
 }
@@ -2976,7 +2974,7 @@ static void be_ctrl_cleanup(struct be_adapter *adapter)
 		dma_free_coherent(&adapter->pdev->dev, mem->size, mem->va,
 				  mem->dma);
 
-	mem = &adapter->mc_cmd_mem;
+	mem = &adapter->rx_filter;
 	if (mem->va)
 		dma_free_coherent(&adapter->pdev->dev, mem->size, mem->va,
 				  mem->dma);
@@ -2986,7 +2984,7 @@ static int be_ctrl_init(struct be_adapter *adapter)
 {
 	struct be_dma_mem *mbox_mem_alloc = &adapter->mbox_mem_alloced;
 	struct be_dma_mem *mbox_mem_align = &adapter->mbox_mem;
-	struct be_dma_mem *mc_cmd_mem = &adapter->mc_cmd_mem;
+	struct be_dma_mem *rx_filter = &adapter->rx_filter;
 	int status;
 
 	status = be_map_pci_bars(adapter);
@@ -3002,21 +3000,19 @@ static int be_ctrl_init(struct be_adapter *adapter)
 		status = -ENOMEM;
 		goto unmap_pci_bars;
 	}
-
 	mbox_mem_align->size = sizeof(struct be_mcc_mailbox);
 	mbox_mem_align->va = PTR_ALIGN(mbox_mem_alloc->va, 16);
 	mbox_mem_align->dma = PTR_ALIGN(mbox_mem_alloc->dma, 16);
 	memset(mbox_mem_align->va, 0, sizeof(struct be_mcc_mailbox));
 
-	mc_cmd_mem->size = sizeof(struct be_cmd_req_mcast_mac_config);
-	mc_cmd_mem->va = dma_alloc_coherent(&adapter->pdev->dev,
-					    mc_cmd_mem->size, &mc_cmd_mem->dma,
-					    GFP_KERNEL);
-	if (mc_cmd_mem->va == NULL) {
+	rx_filter->size = sizeof(struct be_cmd_req_rx_filter);
+	rx_filter->va = dma_alloc_coherent(&adapter->pdev->dev, rx_filter->size,
+					&rx_filter->dma, GFP_KERNEL);
+	if (rx_filter->va == NULL) {
 		status = -ENOMEM;
 		goto free_mbox;
 	}
-	memset(mc_cmd_mem->va, 0, mc_cmd_mem->size);
+	memset(rx_filter->va, 0, rx_filter->size);
 
 	mutex_init(&adapter->mbox_lock);
 	spin_lock_init(&adapter->mcc_lock);
