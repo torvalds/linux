@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2004, 2011 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
  * Copyright (c) 2004 Voltaire Corporation.  All rights reserved.
  *
@@ -536,6 +536,23 @@ static inline void cm_rep_set_local_qpn(struct cm_rep_msg *rep_msg, __be32 qpn)
 {
 	rep_msg->offset12 = cpu_to_be32((be32_to_cpu(qpn) << 8) |
 			    (be32_to_cpu(rep_msg->offset12) & 0x000000FF));
+}
+
+static inline __be32 cm_rep_get_local_eecn(struct cm_rep_msg *rep_msg)
+{
+	return cpu_to_be32(be32_to_cpu(rep_msg->offset16) >> 8);
+}
+
+static inline void cm_rep_set_local_eecn(struct cm_rep_msg *rep_msg, __be32 eecn)
+{
+	rep_msg->offset16 = cpu_to_be32((be32_to_cpu(eecn) << 8) |
+			    (be32_to_cpu(rep_msg->offset16) & 0x000000FF));
+}
+
+static inline __be32 cm_rep_get_qpn(struct cm_rep_msg *rep_msg, enum ib_qp_type qp_type)
+{
+	return (qp_type == IB_QPT_XRC_INI) ?
+		cm_rep_get_local_eecn(rep_msg) : cm_rep_get_local_qpn(rep_msg);
 }
 
 static inline __be32 cm_rep_get_starting_psn(struct cm_rep_msg *rep_msg)
