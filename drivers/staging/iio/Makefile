@@ -16,6 +16,7 @@ obj-y += addac/
 obj-y += dac/
 obj-y += dds/
 obj-y += gyro/
+obj-y += impedance-analyzer/
 obj-y += imu/
 obj-y += light/
 obj-y += magnetometer/
