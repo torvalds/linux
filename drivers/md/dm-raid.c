@@ -16,12 +16,10 @@
 #define DM_MSG_PREFIX "raid"
 
 /*
- * If the MD doesn't support MD_SYNC_STATE_FORCED yet, then
- * make it so the flag doesn't set anything.
+ * The following flags are used by dm-raid.c to set up the array state.
+ * They must be cleared before md_run is called.
  */
-#ifndef MD_SYNC_STATE_FORCED
-#define MD_SYNC_STATE_FORCED 0
-#endif
+#define FirstUse 10             /* rdev flag */
 
 struct raid_dev {
 	/*
@@ -149,9 +147,16 @@ static void context_free(struct raid_set *rs)
 {
 	int i;
 
-	for (i = 0; i < rs->md.raid_disks; i++)
+	for (i = 0; i < rs->md.raid_disks; i++) {
+		if (rs->dev[i].meta_dev)
+			dm_put_device(rs->ti, rs->dev[i].meta_dev);
+		if (rs->dev[i].rdev.sb_page)
+			put_page(rs->dev[i].rdev.sb_page);
+		rs->dev[i].rdev.sb_page = NULL;
+		rs->dev[i].rdev.sb_loaded = 0;
 		if (rs->dev[i].data_dev)
 			dm_put_device(rs->ti, rs->dev[i].data_dev);
+	}
 
 	kfree(rs);
 }
@@ -161,7 +166,16 @@ static void context_free(struct raid_set *rs)
  *  <meta_dev>: meta device name or '-' if missing
  *  <data_dev>: data device name or '-' if missing
  *
- * This code parses those words.
+ * The following are permitted:
+ *    - -
+ *    - <data_dev>
+ *    <meta_dev> <data_dev>
+ *
+ * The following is not allowed:
+ *    <meta_dev> -
+ *
+ * This code parses those words.  If there is a failure,
+ * the caller must use context_free to unwind the operations.
  */
 static int dev_parms(struct raid_set *rs, char **argv)
 {
@@ -184,8 +198,16 @@ static int dev_parms(struct raid_set *rs, char **argv)
 		rs->dev[i].rdev.mddev = &rs->md;
 
 		if (strcmp(argv[0], "-")) {
-			rs->ti->error = "Metadata devices not supported";
-			return -EINVAL;
+			ret = dm_get_device(rs->ti, argv[0],
+					    dm_table_get_mode(rs->ti->table),
+					    &rs->dev[i].meta_dev);
+			rs->ti->error = "RAID metadata device lookup failure";
+			if (ret)
+				return ret;
+
+			rs->dev[i].rdev.sb_page = alloc_page(GFP_KERNEL);
+			if (!rs->dev[i].rdev.sb_page)
+				return -ENOMEM;
 		}
 
 		if (!strcmp(argv[1], "-")) {
@@ -194,6 +216,10 @@ static int dev_parms(struct raid_set *rs, char **argv)
 				rs->ti->error = "Drive designated for rebuild not specified";
 				return -EINVAL;
 			}
+
+			rs->ti->error = "No data device supplied with metadata device";
+			if (rs->dev[i].meta_dev)
+				return -EINVAL;
 
 			continue;
 		}
@@ -206,6 +232,10 @@ static int dev_parms(struct raid_set *rs, char **argv)
 			return ret;
 		}
 
+		if (rs->dev[i].meta_dev) {
+			metadata_available = 1;
+			rs->dev[i].rdev.meta_bdev = rs->dev[i].meta_dev->bdev;
+		}
 		rs->dev[i].rdev.bdev = rs->dev[i].data_dev->bdev;
 		list_add(&rs->dev[i].rdev.same_set, &rs->md.disks);
 		if (!test_bit(In_sync, &rs->dev[i].rdev.flags))
@@ -334,22 +364,39 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 	num_raid_params--;
 
 	/*
+	 * We set each individual device as In_sync with a completed
+	 * 'recovery_offset'.  If there has been a device failure or
+	 * replacement then one of the following cases applies:
+	 *
+	 *   1) User specifies 'rebuild'.
+	 *      - Device is reset when param is read.
+	 *   2) A new device is supplied.
+	 *      - No matching superblock found, resets device.
+	 *   3) Device failure was transient and returns on reload.
+	 *      - Failure noticed, resets device for bitmap replay.
+	 *   4) Device hadn't completed recovery after previous failure.
+	 *      - Superblock is read and overrides recovery_offset.
+	 *
+	 * What is found in the superblocks of the devices is always
+	 * authoritative, unless 'rebuild' or '[no]sync' was specified.
+	 */
+	for (i = 0; i < rs->md.raid_disks; i++) {
+		set_bit(In_sync, &rs->dev[i].rdev.flags);
+		rs->dev[i].rdev.recovery_offset = MaxSector;
+	}
+
+	/*
 	 * Second, parse the unordered optional arguments
 	 */
-	for (i = 0; i < rs->md.raid_disks; i++)
-		set_bit(In_sync, &rs->dev[i].rdev.flags);
-
 	for (i = 0; i < num_raid_params; i++) {
 		if (!strcasecmp(argv[i], "nosync")) {
 			rs->md.recovery_cp = MaxSector;
 			rs->print_flags |= DMPF_NOSYNC;
-			rs->md.flags |= MD_SYNC_STATE_FORCED;
 			continue;
 		}
 		if (!strcasecmp(argv[i], "sync")) {
 			rs->md.recovery_cp = 0;
 			rs->print_flags |= DMPF_SYNC;
-			rs->md.flags |= MD_SYNC_STATE_FORCED;
 			continue;
 		}
 
@@ -482,12 +529,343 @@ static int raid_is_congested(struct dm_target_callbacks *cb, int bits)
 }
 
 /*
+ * This structure is never routinely used by userspace, unlike md superblocks.
+ * Devices with this superblock should only ever be accessed via device-mapper.
+ */
+#define DM_RAID_MAGIC 0x64526D44
+struct dm_raid_superblock {
+	__le32 magic;		/* "DmRd" */
+	__le32 features;	/* Used to indicate possible future changes */
+
+	__le32 num_devices;	/* Number of devices in this array. (Max 64) */
+	__le32 array_position;	/* The position of this drive in the array */
+
+	__le64 events;		/* Incremented by md when superblock updated */
+	__le64 failed_devices;	/* Bit field of devices to indicate failures */
+
+	/*
+	 * This offset tracks the progress of the repair or replacement of
+	 * an individual drive.
+	 */
+	__le64 disk_recovery_offset;
+
+	/*
+	 * This offset tracks the progress of the initial array
+	 * synchronisation/parity calculation.
+	 */
+	__le64 array_resync_offset;
+
+	/*
+	 * RAID characteristics
+	 */
+	__le32 level;
+	__le32 layout;
+	__le32 stripe_sectors;
+
+	__u8 pad[452];		/* Round struct to 512 bytes. */
+				/* Always set to 0 when writing. */
+} __packed;
+
+static int read_disk_sb(mdk_rdev_t *rdev, int size)
+{
+	BUG_ON(!rdev->sb_page);
+
+	if (rdev->sb_loaded)
+		return 0;
+
+	if (!sync_page_io(rdev, 0, size, rdev->sb_page, READ, 1)) {
+		DMERR("Failed to read device superblock");
+		return -EINVAL;
+	}
+
+	rdev->sb_loaded = 1;
+
+	return 0;
+}
+
+static void super_sync(mddev_t *mddev, mdk_rdev_t *rdev)
+{
+	mdk_rdev_t *r, *t;
+	uint64_t failed_devices;
+	struct dm_raid_superblock *sb;
+
+	sb = page_address(rdev->sb_page);
+	failed_devices = le64_to_cpu(sb->failed_devices);
+
+	rdev_for_each(r, t, mddev)
+		if ((r->raid_disk >= 0) && test_bit(Faulty, &r->flags))
+			failed_devices |= (1ULL << r->raid_disk);
+
+	memset(sb, 0, sizeof(*sb));
+
+	sb->magic = cpu_to_le32(DM_RAID_MAGIC);
+	sb->features = cpu_to_le32(0);	/* No features yet */
+
+	sb->num_devices = cpu_to_le32(mddev->raid_disks);
+	sb->array_position = cpu_to_le32(rdev->raid_disk);
+
+	sb->events = cpu_to_le64(mddev->events);
+	sb->failed_devices = cpu_to_le64(failed_devices);
+
+	sb->disk_recovery_offset = cpu_to_le64(rdev->recovery_offset);
+	sb->array_resync_offset = cpu_to_le64(mddev->recovery_cp);
+
+	sb->level = cpu_to_le32(mddev->level);
+	sb->layout = cpu_to_le32(mddev->layout);
+	sb->stripe_sectors = cpu_to_le32(mddev->chunk_sectors);
+}
+
+/*
+ * super_load
+ *
+ * This function creates a superblock if one is not found on the device
+ * and will decide which superblock to use if there's a choice.
+ *
+ * Return: 1 if use rdev, 0 if use refdev, -Exxx otherwise
+ */
+static int super_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev)
+{
+	int ret;
+	struct dm_raid_superblock *sb;
+	struct dm_raid_superblock *refsb;
+	uint64_t events_sb, events_refsb;
+
+	rdev->sb_start = 0;
+	rdev->sb_size = sizeof(*sb);
+
+	ret = read_disk_sb(rdev, rdev->sb_size);
+	if (ret)
+		return ret;
+
+	sb = page_address(rdev->sb_page);
+	if (sb->magic != cpu_to_le32(DM_RAID_MAGIC)) {
+		super_sync(rdev->mddev, rdev);
+
+		set_bit(FirstUse, &rdev->flags);
+
+		/* Force writing of superblocks to disk */
+		set_bit(MD_CHANGE_DEVS, &rdev->mddev->flags);
+
+		/* Any superblock is better than none, choose that if given */
+		return refdev ? 0 : 1;
+	}
+
+	if (!refdev)
+		return 1;
+
+	events_sb = le64_to_cpu(sb->events);
+
+	refsb = page_address(refdev->sb_page);
+	events_refsb = le64_to_cpu(refsb->events);
+
+	return (events_sb > events_refsb) ? 1 : 0;
+}
+
+static int super_init_validation(mddev_t *mddev, mdk_rdev_t *rdev)
+{
+	int role;
+	struct raid_set *rs = container_of(mddev, struct raid_set, md);
+	uint64_t events_sb;
+	uint64_t failed_devices;
+	struct dm_raid_superblock *sb;
+	uint32_t new_devs = 0;
+	uint32_t rebuilds = 0;
+	mdk_rdev_t *r, *t;
+	struct dm_raid_superblock *sb2;
+
+	sb = page_address(rdev->sb_page);
+	events_sb = le64_to_cpu(sb->events);
+	failed_devices = le64_to_cpu(sb->failed_devices);
+
+	/*
+	 * Initialise to 1 if this is a new superblock.
+	 */
+	mddev->events = events_sb ? : 1;
+
+	/*
+	 * Reshaping is not currently allowed
+	 */
+	if ((le32_to_cpu(sb->level) != mddev->level) ||
+	    (le32_to_cpu(sb->layout) != mddev->layout) ||
+	    (le32_to_cpu(sb->stripe_sectors) != mddev->chunk_sectors)) {
+		DMERR("Reshaping arrays not yet supported.");
+		return -EINVAL;
+	}
+
+	/* We can only change the number of devices in RAID1 right now */
+	if ((rs->raid_type->level != 1) &&
+	    (le32_to_cpu(sb->num_devices) != mddev->raid_disks)) {
+		DMERR("Reshaping arrays not yet supported.");
+		return -EINVAL;
+	}
+
+	if (!(rs->print_flags & (DMPF_SYNC | DMPF_NOSYNC)))
+		mddev->recovery_cp = le64_to_cpu(sb->array_resync_offset);
+
+	/*
+	 * During load, we set FirstUse if a new superblock was written.
+	 * There are two reasons we might not have a superblock:
+	 * 1) The array is brand new - in which case, all of the
+	 *    devices must have their In_sync bit set.  Also,
+	 *    recovery_cp must be 0, unless forced.
+	 * 2) This is a new device being added to an old array
+	 *    and the new device needs to be rebuilt - in which
+	 *    case the In_sync bit will /not/ be set and
+	 *    recovery_cp must be MaxSector.
+	 */
+	rdev_for_each(r, t, mddev) {
+		if (!test_bit(In_sync, &r->flags)) {
+			if (!test_bit(FirstUse, &r->flags))
+				DMERR("Superblock area of "
+				      "rebuild device %d should have been "
+				      "cleared.", r->raid_disk);
+			set_bit(FirstUse, &r->flags);
+			rebuilds++;
+		} else if (test_bit(FirstUse, &r->flags))
+			new_devs++;
+	}
+
+	if (!rebuilds) {
+		if (new_devs == mddev->raid_disks) {
+			DMINFO("Superblocks created for new array");
+			set_bit(MD_ARRAY_FIRST_USE, &mddev->flags);
+		} else if (new_devs) {
+			DMERR("New device injected "
+			      "into existing array without 'rebuild' "
+			      "parameter specified");
+			return -EINVAL;
+		}
+	} else if (new_devs) {
+		DMERR("'rebuild' devices cannot be "
+		      "injected into an array with other first-time devices");
+		return -EINVAL;
+	} else if (mddev->recovery_cp != MaxSector) {
+		DMERR("'rebuild' specified while array is not in-sync");
+		return -EINVAL;
+	}
+
+	/*
+	 * Now we set the Faulty bit for those devices that are
+	 * recorded in the superblock as failed.
+	 */
+	rdev_for_each(r, t, mddev) {
+		if (!r->sb_page)
+			continue;
+		sb2 = page_address(r->sb_page);
+		sb2->failed_devices = 0;
+
+		/*
+		 * Check for any device re-ordering.
+		 */
+		if (!test_bit(FirstUse, &r->flags) && (r->raid_disk >= 0)) {
+			role = le32_to_cpu(sb2->array_position);
+			if (role != r->raid_disk) {
+				if (rs->raid_type->level != 1) {
+					rs->ti->error = "Cannot change device "
+						"positions in RAID array";
+					return -EINVAL;
+				}
+				DMINFO("RAID1 device #%d now at position #%d",
+				       role, r->raid_disk);
+			}
+
+			/*
+			 * Partial recovery is performed on
+			 * returning failed devices.
+			 */
+			if (failed_devices & (1 << role))
+				set_bit(Faulty, &r->flags);
+		}
+	}
+
+	return 0;
+}
+
+static int super_validate(mddev_t *mddev, mdk_rdev_t *rdev)
+{
+	struct dm_raid_superblock *sb = page_address(rdev->sb_page);
+
+	/*
+	 * If mddev->events is not set, we know we have not yet initialized
+	 * the array.
+	 */
+	if (!mddev->events && super_init_validation(mddev, rdev))
+		return -EINVAL;
+
+	mddev->bitmap_info.offset = 4096 >> 9; /* Enable bitmap creation */
+	rdev->mddev->bitmap_info.default_offset = 4096 >> 9;
+	if (!test_bit(FirstUse, &rdev->flags)) {
+		rdev->recovery_offset = le64_to_cpu(sb->disk_recovery_offset);
+		if (rdev->recovery_offset != MaxSector)
+			clear_bit(In_sync, &rdev->flags);
+	}
+
+	/*
+	 * If a device comes back, set it as not In_sync and no longer faulty.
+	 */
+	if (test_bit(Faulty, &rdev->flags)) {
+		clear_bit(Faulty, &rdev->flags);
+		clear_bit(In_sync, &rdev->flags);
+		rdev->saved_raid_disk = rdev->raid_disk;
+		rdev->recovery_offset = 0;
+	}
+
+	clear_bit(FirstUse, &rdev->flags);
+
+	return 0;
+}
+
+/*
+ * Analyse superblocks and select the freshest.
+ */
+static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
+{
+	int ret;
+	mdk_rdev_t *rdev, *freshest, *tmp;
+	mddev_t *mddev = &rs->md;
+
+	freshest = NULL;
+	rdev_for_each(rdev, tmp, mddev) {
+		if (!rdev->meta_bdev)
+			continue;
+
+		ret = super_load(rdev, freshest);
+
+		switch (ret) {
+		case 1:
+			freshest = rdev;
+			break;
+		case 0:
+			break;
+		default:
+			ti->error = "Failed to load superblock";
+			return ret;
+		}
+	}
+
+	if (!freshest)
+		return 0;
+
+	/*
+	 * Validation of the freshest device provides the source of
+	 * validation for the remaining devices.
+	 */
+	ti->error = "Unable to assemble array: Invalid superblocks";
+	if (super_validate(mddev, freshest))
+		return -EINVAL;
+
+	rdev_for_each(rdev, tmp, mddev)
+		if ((rdev != freshest) && super_validate(mddev, rdev))
+			return -EINVAL;
+
+	return 0;
+}
+
+/*
  * Construct a RAID4/5/6 mapping:
  * Args:
  *	<raid_type> <#raid_params> <raid_params>		\
  *	<#raid_devs> { <meta_dev1> <dev1> .. <meta_devN> <devN> }
- *
- * ** metadata devices are not supported yet, use '-' instead **
  *
  * <raid_params> varies by <raid_type>.  See 'parse_raid_params' for
  * details on possible <raid_params>.
@@ -553,6 +931,11 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	}
 
 	ret = dev_parms(rs, argv);
+	if (ret)
+		goto bad;
+
+	rs->md.sync_super = super_sync;
+	ret = analyse_superblocks(ti, rs);
 	if (ret)
 		goto bad;
 
@@ -698,7 +1081,10 @@ static int raid_status(struct dm_target *ti, status_type_t type,
 
 		DMEMIT(" %d", rs->md.raid_disks);
 		for (i = 0; i < rs->md.raid_disks; i++) {
-			DMEMIT(" -"); /* metadata device */
+			if (rs->dev[i].meta_dev)
+				DMEMIT(" %s", rs->dev[i].meta_dev->name);
+			else
+				DMEMIT(" -");
 
 			if (rs->dev[i].data_dev)
 				DMEMIT(" %s", rs->dev[i].data_dev->name);
@@ -755,6 +1141,7 @@ static void raid_resume(struct dm_target *ti)
 {
 	struct raid_set *rs = ti->private;
 
+	bitmap_load(&rs->md);
 	mddev_resume(&rs->md);
 }
 

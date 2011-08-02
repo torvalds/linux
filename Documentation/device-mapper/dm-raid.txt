@@ -11,6 +11,7 @@ The target is named "raid" and it accepts the following parameters:
     <#raid_devs> <metadata_dev0> <dev0> [.. <metadata_devN> <devN>]
 
 <raid_type>:
+  raid1		RAID1 mirroring
   raid4		RAID4 dedicated parity disk
   raid5_la	RAID5 left asymmetric
 		- rotating parity 0 with data continuation
@@ -61,8 +62,7 @@ The target is named "raid" and it accepts the following parameters:
 <#raid_devs>: The number of devices composing the array.
 	Each device consists of two entries.  The first is the device
 	containing the metadata (if any); the second is the one containing the
-	data.  Currently, separate metadata devices are not supported and '-'
-	is required in place of the metadata device.
+	data.
 
 	If a drive has failed or is missing at creation time, a '-' can be
 	given for both the metadata and data drives for a given position.
@@ -70,7 +70,7 @@ The target is named "raid" and it accepts the following parameters:
 
 Example tables
 --------------
-# RAID4 - 4 data drives, 1 parity
+# RAID4 - 4 data drives, 1 parity (no metadata devices)
 # No metadata devices specified to hold superblock/bitmap info
 # Chunk size of 1MiB
 # (Lines separated for easy reading)
@@ -79,13 +79,13 @@ Example tables
         raid4 1 2048 \
         5 - 8:17 - 8:33 - 8:49 - 8:65 - 8:81
 
-# RAID4 - 4 data drives, 1 parity (no metadata devices)
+# RAID4 - 4 data drives, 1 parity (with metadata devices)
 # Chunk size of 1MiB, force RAID initialization,
 #       min recovery rate at 20 kiB/sec/disk
 
 0 1960893648 raid \
-        raid4 4 2048 min_recovery_rate 20 sync\
-        5 - 8:17 - 8:33 - 8:49 - 8:65 - 8:81
+        raid4 4 2048 sync min_recovery_rate 20 \
+        5 8:17 8:18 8:33 8:34 8:49 8:50 8:65 8:66 8:81 8:82
 
 'dmsetup table' displays the table used to construct the mapping.
 The optional parameters are always printed in the order listed
