@@ -21,30 +21,9 @@
 #ifndef __ASM_ARCH_SYSTEM_H
 #define __ASM_ARCH_SYSTEM_H
 
-#include <mach/hardware.h>
-#include <mach/at91_st.h>
-#include <mach/at91_dbgu.h>
-#include <mach/at91_pmc.h>
-
 static inline void arch_idle(void)
 {
-	/*
-	 * Disable the processor clock.  The processor will be automatically
-	 * re-enabled by an interrupt or by a reset.
-	 */
-#ifdef AT91_PS
-	at91_sys_write(AT91_PS_CR, AT91_PS_CR_CPU);
-#else
-	at91_sys_write(AT91_PMC_SCDR, AT91_PMC_PCK);
-#endif
-#ifndef CONFIG_CPU_ARM920T
-	/*
-	 * Set the processor (CP15) into 'Wait for Interrupt' mode.
-	 * Post-RM9200 processors need this in conjunction with the above
-	 * to save power when idle.
-	 */
 	cpu_do_idle();
-#endif
 }
 
 #endif
