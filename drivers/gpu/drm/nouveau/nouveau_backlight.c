@@ -100,8 +100,11 @@ nv50_get_intensity(struct backlight_device *bd)
 	struct nouveau_encoder *nv_encoder = bl_get_data(bd);
 	struct drm_device *dev = nv_encoder->base.base.dev;
 	int or = nv_encoder->or;
+	u32 div = 1025;
+	u32 val;
 
-	return nv_rd32(dev, NV50_PDISPLAY_SOR_BACKLIGHT + (or * 0x800));
+	val = nv_rd32(dev, NV50_PDISPLAY_SOR_BACKLIGHT + (or * 0x800));
+	return ((val * 100) + (div / 2)) / div;
 }
 
 static int
@@ -109,8 +112,9 @@ nv50_set_intensity(struct backlight_device *bd)
 {
 	struct nouveau_encoder *nv_encoder = bl_get_data(bd);
 	struct drm_device *dev = nv_encoder->base.base.dev;
-	int val = bd->props.brightness;
 	int or = nv_encoder->or;
+	u32 div = 1025;
+	u32 val = (bd->props.brightness * div) / 100;
 
 	nv_wr32(dev, NV50_PDISPLAY_SOR_BACKLIGHT + (or * 0x800),
 		val | NV50_PDISPLAY_SOR_BACKLIGHT_ENABLE);
@@ -147,7 +151,7 @@ nv50_backlight_init(struct drm_connector *connector)
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
-	props.max_brightness = 1025;
+	props.max_brightness = 100;
 	bd = backlight_device_register("nv_backlight", &connector->kdev,
 				       nv_encoder, &nv50_bl_ops, &props);
 	if (IS_ERR(bd))
