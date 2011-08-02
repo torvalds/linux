@@ -921,22 +921,13 @@ nouveau_connector_hotplug(void *data, int plugged)
 	struct drm_connector *connector = data;
 	struct drm_device *dev = connector->dev;
 
-	NV_INFO(dev, "%splugged %s\n", plugged ? "" : "un",
-		drm_get_connector_name(connector));
+	NV_DEBUG(dev, "%splugged %s\n", plugged ? "" : "un",
+		 drm_get_connector_name(connector));
 
-	if (connector->encoder && connector->encoder->crtc &&
-	    connector->encoder->crtc->enabled) {
-		struct nouveau_encoder *nv_encoder = nouveau_encoder(connector->encoder);
-		struct drm_encoder_helper_funcs *helper =
-			connector->encoder->helper_private;
-
-		if (nv_encoder->dcb->type == OUTPUT_DP) {
-			if (plugged)
-				helper->dpms(connector->encoder, DRM_MODE_DPMS_ON);
-			else
-				helper->dpms(connector->encoder, DRM_MODE_DPMS_OFF);
-		}
-	}
+	if (plugged)
+		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
+	else
+		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
 
 	drm_helper_hpd_irq_event(dev);
 }
