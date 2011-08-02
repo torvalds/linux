@@ -197,15 +197,21 @@ EXPORT_SYMBOL(dm_dirty_log_destroy);
 #define MIRROR_DISK_VERSION 2
 #define LOG_OFFSET 2
 
-struct log_header {
-	uint32_t magic;
+struct log_header_disk {
+	__le32 magic;
 
 	/*
 	 * Simple, incrementing version. no backward
 	 * compatibility.
 	 */
+	__le32 version;
+	__le64 nr_regions;
+} __packed;
+
+struct log_header_core {
+	uint32_t magic;
 	uint32_t version;
-	sector_t nr_regions;
+	uint64_t nr_regions;
 };
 
 struct log_c {
@@ -239,10 +245,10 @@ struct log_c {
 	int log_dev_failed;
 	int log_dev_flush_failed;
 	struct dm_dev *log_dev;
-	struct log_header header;
+	struct log_header_core header;
 
 	struct dm_io_region header_location;
-	struct log_header *disk_header;
+	struct log_header_disk *disk_header;
 };
 
 /*
@@ -271,14 +277,14 @@ static inline void log_clear_bit(struct log_c *l,
 /*----------------------------------------------------------------
  * Header IO
  *--------------------------------------------------------------*/
-static void header_to_disk(struct log_header *core, struct log_header *disk)
+static void header_to_disk(struct log_header_core *core, struct log_header_disk *disk)
 {
 	disk->magic = cpu_to_le32(core->magic);
 	disk->version = cpu_to_le32(core->version);
 	disk->nr_regions = cpu_to_le64(core->nr_regions);
 }
 
-static void header_from_disk(struct log_header *core, struct log_header *disk)
+static void header_from_disk(struct log_header_core *core, struct log_header_disk *disk)
 {
 	core->magic = le32_to_cpu(disk->magic);
 	core->version = le32_to_cpu(disk->version);
