@@ -60,5 +60,13 @@ curr1_label		"iout1"
 curr1_input		Measured current. From READ_IOUT register.
 curr1_max		Maximum current. From IOUT_OC_WARN_LIMIT register.
 curr1_max_alarm		Current high alarm. From IOUT_OC_WARN_LIMIT register.
+curr1_lcrit		Critical minimum current. Depending on the chip
+			configuration, either curr1_lcrit or curr1_crit is
+			supported, but not both.
+curr1_lcrit_alarm	Critical current low alarm.
+curr1_crit		Critical maximum current. Depending on the chip
+			configuration, either curr1_lcrit or curr1_crit is
+			supported, but not both.
+curr1_crit_alarm	Critical current high alarm.
 curr1_highest		Historical maximum current.
 curr1_reset_history	Write any value to reset history.
