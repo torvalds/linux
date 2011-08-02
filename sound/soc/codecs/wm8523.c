@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -514,6 +515,11 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8523 = {
 	.volatile_register = wm8523_volatile_register,
 };
 
+static const struct of_device_id wm8523_of_match[] = {
+	{ .compatible = "wlf,wm8523" },
+	{ },
+};
+
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static __devinit int wm8523_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
@@ -553,6 +559,7 @@ static struct i2c_driver wm8523_i2c_driver = {
 	.driver = {
 		.name = "wm8523",
 		.owner = THIS_MODULE,
+		.of_match_table = wm8523_of_match,
 	},
 	.probe =    wm8523_i2c_probe,
 	.remove =   __devexit_p(wm8523_i2c_remove),
