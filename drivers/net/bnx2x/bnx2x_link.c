@@ -8029,6 +8029,9 @@ static void bnx2x_warpcore_set_limiting_mode(struct link_params *params,
 	bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
 			MDIO_WC_REG_UC_INFO_B1_FIRMWARE_MODE, &val);
 
+	/* Restart microcode to re-read the new mode */
+	bnx2x_warpcore_reset_lane(bp, phy, 1);
+	bnx2x_warpcore_reset_lane(bp, phy, 0);
 
 }
 
