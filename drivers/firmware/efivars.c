@@ -150,7 +150,7 @@ utf16_strnlen(efi_char16_t *s, size_t maxlength)
 	return length;
 }
 
-static unsigned long
+static inline unsigned long
 utf16_strlen(efi_char16_t *s)
 {
 	return utf16_strnlen(s, ~0UL);
