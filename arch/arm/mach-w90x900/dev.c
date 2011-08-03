@@ -530,6 +530,7 @@ static struct platform_device *nuc900_public_dev[] __initdata = {
 
 void __init nuc900_board_init(struct platform_device **device, int size)
 {
+	disable_hlt();
 	platform_add_devices(device, size);
 	platform_add_devices(nuc900_public_dev, ARRAY_SIZE(nuc900_public_dev));
 	spi_register_board_info(nuc900_spi_board_info,
