@@ -178,6 +178,8 @@ struct intel_crtc {
 #define to_intel_encoder(x) container_of(x, struct intel_encoder, base)
 #define to_intel_framebuffer(x) container_of(x, struct intel_framebuffer, base)
 
+#define DIP_HEADER_SIZE	5
+
 #define DIP_TYPE_AVI    0x82
 #define DIP_VERSION_AVI 0x2
 #define DIP_LEN_AVI     13

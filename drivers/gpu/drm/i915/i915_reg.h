@@ -1506,6 +1506,7 @@
 #define   VIDEO_DIP_SELECT_AVI		(0 << 19)
 #define   VIDEO_DIP_SELECT_VENDOR	(1 << 19)
 #define   VIDEO_DIP_SELECT_SPD		(3 << 19)
+#define   VIDEO_DIP_SELECT_MASK		(3 << 19)
 #define   VIDEO_DIP_FREQ_ONCE		(0 << 16)
 #define   VIDEO_DIP_FREQ_VSYNC		(1 << 16)
 #define   VIDEO_DIP_FREQ_2VSYNC		(2 << 16)
