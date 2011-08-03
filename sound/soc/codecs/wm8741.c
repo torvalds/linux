@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -498,6 +499,12 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8741 = {
 	.reg_cache_default = wm8741_reg_defaults,
 };
 
+static const struct of_device_id wm8741_of_match[] = {
+	{ .compatible = "wlf,wm8741", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wm8741_of_match);
+
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static int wm8741_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
@@ -541,6 +548,7 @@ static struct i2c_driver wm8741_i2c_driver = {
 	.driver = {
 		.name = "wm8741",
 		.owner = THIS_MODULE,
+		.of_match_table = wm8741_of_match,
 	},
 	.probe =    wm8741_i2c_probe,
 	.remove =   wm8741_i2c_remove,
@@ -579,6 +587,7 @@ static struct spi_driver wm8741_spi_driver = {
 	.driver = {
 		.name	= "wm8741",
 		.owner	= THIS_MODULE,
+		.of_match_table = wm8741_of_match,
 	},
 	.probe		= wm8741_spi_probe,
 	.remove		= __devexit_p(wm8741_spi_remove),
