@@ -795,7 +795,7 @@ MODULE_DEVICE_TABLE(spi, wm8750_spi_ids);
 
 static struct spi_driver wm8750_spi_driver = {
 	.driver = {
-		.name	= "wm8750-codec",
+		.name	= "wm8750",
 		.owner	= THIS_MODULE,
 		.of_match_table = wm8750_of_match,
 	},
@@ -842,7 +842,7 @@ MODULE_DEVICE_TABLE(i2c, wm8750_i2c_id);
 
 static struct i2c_driver wm8750_i2c_driver = {
 	.driver = {
-		.name = "wm8750-codec",
+		.name = "wm8750",
 		.owner = THIS_MODULE,
 		.of_match_table = wm8750_of_match,
 	},
