@@ -16,12 +16,7 @@
 
 static void arch_idle(void)
 {
-	CPU_REG (PMU_BASE, PMU_MODE) = PMU_MODE_IDLE;
-	nop();
-	nop();
-	CPU_REG (PMU_BASE, PMU_MODE) = PMU_MODE_RUN;
-	nop();
-	nop();
+	cpu_do_idle();
 }
 
 #endif
