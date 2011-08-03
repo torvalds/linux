@@ -6,7 +6,8 @@
  *		 2000-2001 Christoph Rohland
  *		 2000-2001 SAP AG
  *		 2002 Red Hat Inc.
- * Copyright (C) 2002-2005 Hugh Dickins.
+ * Copyright (C) 2002-2011 Hugh Dickins.
+ * Copyright (C) 2011 Google Inc.
  * Copyright (C) 2002-2005 VERITAS Software Corporation.
  * Copyright (C) 2004 Andi Kleen, SuSE Labs
  *
@@ -219,19 +220,6 @@ static void shmem_recalc_inode(struct inode *inode)
 	}
 }
 
-static void shmem_put_swap(struct shmem_inode_info *info, pgoff_t index,
-			   swp_entry_t swap)
-{
-	if (index < SHMEM_NR_DIRECT)
-		info->i_direct[index] = swap;
-}
-
-static swp_entry_t shmem_get_swap(struct shmem_inode_info *info, pgoff_t index)
-{
-	return (index < SHMEM_NR_DIRECT) ?
-		info->i_direct[index] : (swp_entry_t){0};
-}
-
 /*
  * Replace item expected in radix tree by a new item, while holding tree lock.
  */
@@ -297,6 +285,25 @@ static int shmem_add_to_page_cache(struct page *page,
 	if (error)
 		mem_cgroup_uncharge_cache_page(page);
 	return error;
+}
+
+/*
+ * Like delete_from_page_cache, but substitutes swap for page.
+ */
+static void shmem_delete_from_page_cache(struct page *page, void *radswap)
+{
+	struct address_space *mapping = page->mapping;
+	int error;
+
+	spin_lock_irq(&mapping->tree_lock);
+	error = shmem_radix_tree_replace(mapping, page->index, page, radswap);
+	page->mapping = NULL;
+	mapping->nrpages--;
+	__dec_zone_page_state(page, NR_FILE_PAGES);
+	__dec_zone_page_state(page, NR_SHMEM);
+	spin_unlock_irq(&mapping->tree_lock);
+	page_cache_release(page);
+	BUG_ON(error);
 }
 
 /*
@@ -664,14 +671,10 @@ int shmem_unuse(swp_entry_t swap, struct page *page)
 	mutex_lock(&shmem_swaplist_mutex);
 	list_for_each_safe(this, next, &shmem_swaplist) {
 		info = list_entry(this, struct shmem_inode_info, swaplist);
-		if (!info->swapped) {
-			spin_lock(&info->lock);
-			if (!info->swapped)
-				list_del_init(&info->swaplist);
-			spin_unlock(&info->lock);
-		}
 		if (info->swapped)
 			found = shmem_unuse_inode(info, swap, page);
+		else
+			list_del_init(&info->swaplist);
 		cond_resched();
 		if (found)
 			break;
@@ -694,10 +697,10 @@ out:
 static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct shmem_inode_info *info;
-	swp_entry_t swap, oswap;
 	struct address_space *mapping;
-	pgoff_t index;
 	struct inode *inode;
+	swp_entry_t swap;
+	pgoff_t index;
 
 	BUG_ON(!PageLocked(page));
 	mapping = page->mapping;
@@ -720,55 +723,38 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 		WARN_ON_ONCE(1);	/* Still happens? Tell us about it! */
 		goto redirty;
 	}
-
-	/*
-	 * Disable even the toy swapping implementation, while we convert
-	 * functions one by one to having swap entries in the radix tree.
-	 */
-	if (index < ULONG_MAX)
-		goto redirty;
-
 	swap = get_swap_page();
 	if (!swap.val)
 		goto redirty;
 
 	/*
 	 * Add inode to shmem_unuse()'s list of swapped-out inodes,
-	 * if it's not already there.  Do it now because we cannot take
-	 * mutex while holding spinlock, and must do so before the page
-	 * is moved to swap cache, when its pagelock no longer protects
+	 * if it's not already there.  Do it now before the page is
+	 * moved to swap cache, when its pagelock no longer protects
 	 * the inode from eviction.  But don't unlock the mutex until
-	 * we've taken the spinlock, because shmem_unuse_inode() will
-	 * prune a !swapped inode from the swaplist under both locks.
+	 * we've incremented swapped, because shmem_unuse_inode() will
+	 * prune a !swapped inode from the swaplist under this mutex.
 	 */
 	mutex_lock(&shmem_swaplist_mutex);
 	if (list_empty(&info->swaplist))
 		list_add_tail(&info->swaplist, &shmem_swaplist);
 
-	spin_lock(&info->lock);
-	mutex_unlock(&shmem_swaplist_mutex);
-
-	oswap = shmem_get_swap(info, index);
-	if (oswap.val) {
-		WARN_ON_ONCE(1);	/* Still happens? Tell us about it! */
-		free_swap_and_cache(oswap);
-		shmem_put_swap(info, index, (swp_entry_t){0});
-		info->swapped--;
-	}
-	shmem_recalc_inode(inode);
-
 	if (add_to_swap_cache(page, swap, GFP_ATOMIC) == 0) {
-		delete_from_page_cache(page);
-		shmem_put_swap(info, index, swap);
-		info->swapped++;
 		swap_shmem_alloc(swap);
+		shmem_delete_from_page_cache(page, swp_to_radix_entry(swap));
+
+		spin_lock(&info->lock);
+		info->swapped++;
+		shmem_recalc_inode(inode);
 		spin_unlock(&info->lock);
+
+		mutex_unlock(&shmem_swaplist_mutex);
 		BUG_ON(page_mapped(page));
 		swap_writepage(page, wbc);
 		return 0;
 	}
 
-	spin_unlock(&info->lock);
+	mutex_unlock(&shmem_swaplist_mutex);
 	swapcache_free(swap, NULL);
 redirty:
 	set_page_dirty(page);
