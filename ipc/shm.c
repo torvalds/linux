@@ -304,6 +304,9 @@ void exit_shm(struct task_struct *task)
 {
 	struct ipc_namespace *ns = task->nsproxy->ipc_ns;
 
+	if (shm_ids(ns).in_use == 0)
+		return;
+
 	/* Destroy all already created segments, but not mapped yet */
 	down_write(&shm_ids(ns).rw_mutex);
 	if (shm_ids(ns).in_use)
