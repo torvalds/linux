@@ -1439,6 +1439,8 @@ EXPORT_SYMBOL(drm_detect_monitor_audio);
 static void drm_add_display_info(struct edid *edid,
 				 struct drm_display_info *info)
 {
+	u8 *edid_ext;
+
 	info->width_mm = edid->width_cm * 10;
 	info->height_mm = edid->height_cm * 10;
 
@@ -1483,6 +1485,13 @@ static void drm_add_display_info(struct edid *edid,
 		info->color_formats = DRM_COLOR_FORMAT_YCRCB444;
 	if (info->color_formats & DRM_EDID_FEATURE_RGB_YCRCB422)
 		info->color_formats = DRM_COLOR_FORMAT_YCRCB422;
+
+	/* Get data from CEA blocks if present */
+	edid_ext = drm_find_cea_extension(edid);
+	if (!edid_ext)
+		return;
+
+	info->cea_rev = edid_ext[1];
 }
 
 /**
