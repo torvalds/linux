@@ -443,7 +443,7 @@ static int __devexit wm8711_spi_remove(struct spi_device *spi)
 
 static struct spi_driver wm8711_spi_driver = {
 	.driver = {
-		.name	= "wm8711-codec",
+		.name	= "wm8711",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= wm8711_spi_probe,
@@ -487,7 +487,7 @@ MODULE_DEVICE_TABLE(i2c, wm8711_i2c_id);
 
 static struct i2c_driver wm8711_i2c_driver = {
 	.driver = {
-		.name = "wm8711-codec",
+		.name = "wm8711",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8711_i2c_probe,
