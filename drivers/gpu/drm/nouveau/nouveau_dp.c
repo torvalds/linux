@@ -28,6 +28,7 @@
 #include "nouveau_i2c.h"
 #include "nouveau_connector.h"
 #include "nouveau_encoder.h"
+#include "nouveau_crtc.h"
 
 /******************************************************************************
  * aux channel util functions
@@ -178,22 +179,6 @@ auxch_rd(struct drm_encoder *encoder, int address, uint8_t *buf, int size)
 	return 0;
 }
 
-static int
-auxch_wr(struct drm_encoder *encoder, int address, uint8_t *buf, int size)
-{
-	struct drm_device *dev = encoder->dev;
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_i2c_chan *auxch;
-	int ret;
-
-	auxch = nouveau_i2c_find(dev, nv_encoder->dcb->i2c_index);
-	if (!auxch)
-		return -ENODEV;
-
-	ret = nouveau_dp_auxch(auxch, 8, address, buf, size);
-	return ret;
-}
-
 static u32
 dp_link_bw_get(struct drm_device *dev, int or, int link)
 {
@@ -304,382 +289,269 @@ nouveau_dp_tu_update(struct drm_device *dev, int or, int link, u32 clk, u32 bpp)
 							     unk);
 }
 
-static int
-nouveau_dp_lane_count_set(struct drm_encoder *encoder, uint8_t cmd)
+/******************************************************************************
+ * link training
+ *****************************************************************************/
+struct dp_state {
+	struct dcb_entry *dcb;
+	int auxch;
+	int crtc;
+	int or;
+	int link;
+	int enh_frame;
+	int link_nr;
+	u32 link_bw;
+	u8  stat[6];
+	u8  conf[4];
+};
+
+static void
+dp_set_link_config(struct drm_device *dev, struct dp_state *dp)
 {
-	struct drm_device *dev = encoder->dev;
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	uint32_t tmp;
-	int or = nv_encoder->or, link = !(nv_encoder->dcb->sorconf.link & 1);
+	int or = dp->or, link = dp->link;
+	u32 clk_sor, dp_ctrl;
+	u8  sink[2];
 
-	tmp  = nv_rd32(dev, NV50_SOR_DP_CTRL(or, link));
-	tmp &= ~(NV50_SOR_DP_CTRL_ENHANCED_FRAME_ENABLED |
-		 NV50_SOR_DP_CTRL_LANE_MASK);
-	tmp |= ((1 << (cmd & DP_LANE_COUNT_MASK)) - 1) << 16;
-	if (cmd & DP_LANE_COUNT_ENHANCED_FRAME_EN)
-		tmp |= NV50_SOR_DP_CTRL_ENHANCED_FRAME_ENABLED;
-	nv_wr32(dev, NV50_SOR_DP_CTRL(or, link), tmp);
+	NV_DEBUG_KMS(dev, "%d lanes at %d KB/s\n", dp->link_nr, dp->link_bw);
 
-	return auxch_wr(encoder, DP_LANE_COUNT_SET, &cmd, 1);
+	switch (dp->link_bw) {
+	case 270000:
+		clk_sor = 0x00040000;
+		sink[0] = DP_LINK_BW_2_7;
+		break;
+	default:
+		clk_sor = 0x00000000;
+		sink[0] = DP_LINK_BW_1_62;
+		break;
+	}
+
+	dp_ctrl = ((1 << dp->link_nr) - 1) << 16;
+	sink[1] = dp->link_nr;
+	if (dp->enh_frame) {
+		dp_ctrl |= 0x00004000;
+		sink[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
+	}
+
+	nv_mask(dev, 0x614300 + (or * 0x800), 0x000c0000, clk_sor);
+	nv_mask(dev, NV50_SOR_DP_CTRL(or, link), 0x001f4000, dp_ctrl);
+
+	auxch_tx(dev, dp->auxch, 8, DP_LINK_BW_SET, sink, 2);
+}
+
+static void
+dp_set_training_pattern(struct drm_device *dev, struct dp_state *dp, u8 tp)
+{
+	NV_DEBUG_KMS(dev, "training pattern %d\n", tp);
+	nv_mask(dev, NV50_SOR_DP_CTRL(dp->or, dp->link), 0x0f000000, tp << 24);
+	auxch_tx(dev, dp->auxch, 8, DP_TRAINING_PATTERN_SET, &tp, 1);
 }
 
 static int
-nouveau_dp_link_bw_set(struct drm_encoder *encoder, uint8_t cmd)
+dp_link_train_commit(struct drm_device *dev, struct dp_state *dp)
 {
-	struct drm_device *dev = encoder->dev;
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	uint32_t tmp;
-	int reg = 0x614300 + (nv_encoder->or * 0x800);
+	u32 mask = 0, drv = 0, pre = 0, unk = 0;
+	u8  shifts[4] = { 16, 8, 0, 24 };
+	u8  *bios, *last, headerlen;
+	int link = dp->link;
+	int or = dp->or;
+	int i;
 
-	tmp  = nv_rd32(dev, reg);
-	tmp &= 0xfff3ffff;
-	if (cmd == DP_LINK_BW_2_7)
-		tmp |= 0x00040000;
-	nv_wr32(dev, reg, tmp);
+	bios = nouveau_bios_dp_table(dev, dp->dcb, &headerlen);
+	last = bios + headerlen + (bios[4] * 5);
+	for (i = 0; i < dp->link_nr; i++) {
+		u8  lane = (dp->stat[4 + (i >> 1)] >> ((i & 1) * 4)) & 0xf;
+		u8 *conf = bios + headerlen;
 
-	return auxch_wr(encoder, DP_LINK_BW_SET, &cmd, 1);
+		while (conf < last) {
+			if ((lane  & 3) == conf[0] &&
+			    (lane >> 2) == conf[1])
+				break;
+			conf += 5;
+		}
+
+		if (conf == last)
+			return -EINVAL;
+
+		dp->conf[i] = (conf[1] << 3) | conf[0];
+		if (conf[0] == DP_TRAIN_VOLTAGE_SWING_1200)
+			dp->conf[i] |= DP_TRAIN_MAX_SWING_REACHED;
+		if (conf[1] == DP_TRAIN_PRE_EMPHASIS_9_5)
+			dp->conf[i] |= DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
+
+		NV_DEBUG_KMS(dev, "config lane %d %02x\n", i, dp->conf[i]);
+
+		mask |= 0xff << shifts[i];
+		drv  |= conf[2] << shifts[i];
+		pre  |= conf[3] << shifts[i];
+		unk   = (unk & ~0x0000ff00) | (conf[4] << 8);
+		unk  |= 1 << (shifts[i] >> 3);
+	}
+
+	nv_mask(dev, NV50_SOR_DP_UNK118(or, link), mask, drv);
+	nv_mask(dev, NV50_SOR_DP_UNK120(or, link), mask, pre);
+	nv_mask(dev, NV50_SOR_DP_UNK130(or, link), 0x0000ff0f, unk);
+
+	return auxch_tx(dev, dp->auxch, 8, DP_TRAINING_LANE0_SET, dp->conf, 4);
 }
 
 static int
-nouveau_dp_link_train_set(struct drm_encoder *encoder, int pattern)
+dp_link_train_update(struct drm_device *dev, struct dp_state *dp, u32 delay)
 {
-	struct drm_device *dev = encoder->dev;
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	uint32_t tmp;
-	uint8_t cmd;
-	int or = nv_encoder->or, link = !(nv_encoder->dcb->sorconf.link & 1);
 	int ret;
 
-	tmp  = nv_rd32(dev, NV50_SOR_DP_CTRL(or, link));
-	tmp &= ~NV50_SOR_DP_CTRL_TRAINING_PATTERN;
-	tmp |= (pattern << 24);
-	nv_wr32(dev, NV50_SOR_DP_CTRL(or, link), tmp);
+	udelay(delay);
 
-	ret = auxch_rd(encoder, DP_TRAINING_PATTERN_SET, &cmd, 1);
+	ret = auxch_tx(dev, dp->auxch, 9, DP_LANE0_1_STATUS, dp->stat, 6);
 	if (ret)
 		return ret;
-	cmd &= ~DP_TRAINING_PATTERN_MASK;
-	cmd |= (pattern & DP_TRAINING_PATTERN_MASK);
-	return auxch_wr(encoder, DP_TRAINING_PATTERN_SET, &cmd, 1);
+
+	NV_DEBUG_KMS(dev, "status %02x %02x %02x %02x %02x %02x\n",
+		     dp->stat[0], dp->stat[1], dp->stat[2], dp->stat[3],
+		     dp->stat[4], dp->stat[5]);
+	return 0;
 }
 
 static int
-nouveau_dp_max_voltage_swing(struct drm_encoder *encoder)
+dp_link_train_cr(struct drm_device *dev, struct dp_state *dp)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct drm_device *dev = encoder->dev;
-	struct bit_displayport_encoder_table_entry *dpse;
-	struct bit_displayport_encoder_table *dpe;
-	int i, dpe_headerlen, max_vs = 0;
+	bool cr_done = false, abort = false;
+	int voltage = dp->conf[0] & DP_TRAIN_VOLTAGE_SWING_MASK;
+	int tries = 0, i;
 
-	dpe = nouveau_bios_dp_table(dev, nv_encoder->dcb, &dpe_headerlen);
-	if (!dpe)
-		return false;
-	dpse = (void *)((char *)dpe + dpe_headerlen);
+	dp_set_training_pattern(dev, dp, DP_TRAINING_PATTERN_1);
 
-	for (i = 0; i < dpe_headerlen; i++, dpse++) {
-		if (dpse->vs_level > max_vs)
-			max_vs = dpse->vs_level;
-	}
-
-	return max_vs;
-}
-
-static int
-nouveau_dp_max_pre_emphasis(struct drm_encoder *encoder, int vs)
-{
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct drm_device *dev = encoder->dev;
-	struct bit_displayport_encoder_table_entry *dpse;
-	struct bit_displayport_encoder_table *dpe;
-	int i, dpe_headerlen, max_pre = 0;
-
-	dpe = nouveau_bios_dp_table(dev, nv_encoder->dcb, &dpe_headerlen);
-	if (!dpe)
-		return false;
-	dpse = (void *)((char *)dpe + dpe_headerlen);
-
-	for (i = 0; i < dpe_headerlen; i++, dpse++) {
-		if (dpse->vs_level != vs)
-			continue;
-
-		if (dpse->pre_level > max_pre)
-			max_pre = dpse->pre_level;
-	}
-
-	return max_pre;
-}
-
-static bool
-nouveau_dp_link_train_adjust(struct drm_encoder *encoder, uint8_t *config)
-{
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct drm_device *dev = encoder->dev;
-	struct bit_displayport_encoder_table *dpe;
-	int ret, i, dpe_headerlen, vs = 0, pre = 0;
-	uint8_t request[2];
-
-	dpe = nouveau_bios_dp_table(dev, nv_encoder->dcb, &dpe_headerlen);
-	if (!dpe)
-		return false;
-
-	ret = auxch_rd(encoder, DP_ADJUST_REQUEST_LANE0_1, request, 2);
-	if (ret)
-		return false;
-
-	NV_DEBUG_KMS(dev, "\t\tadjust 0x%02x 0x%02x\n", request[0], request[1]);
-
-	/* Keep all lanes at the same level.. */
-	for (i = 0; i < nv_encoder->dp.link_nr; i++) {
-		int lane_req = (request[i >> 1] >> ((i & 1) << 2)) & 0xf;
-		int lane_vs = lane_req & 3;
-		int lane_pre = (lane_req >> 2) & 3;
-
-		if (lane_vs > vs)
-			vs = lane_vs;
-		if (lane_pre > pre)
-			pre = lane_pre;
-	}
-
-	if (vs >= nouveau_dp_max_voltage_swing(encoder)) {
-		vs  = nouveau_dp_max_voltage_swing(encoder);
-		vs |= 4;
-	}
-
-	if (pre >= nouveau_dp_max_pre_emphasis(encoder, vs & 3)) {
-		pre  = nouveau_dp_max_pre_emphasis(encoder, vs & 3);
-		pre |= 4;
-	}
-
-	/* Update the configuration for all lanes.. */
-	for (i = 0; i < nv_encoder->dp.link_nr; i++)
-		config[i] = (pre << 3) | vs;
-
-	return true;
-}
-
-static bool
-nouveau_dp_link_train_commit(struct drm_encoder *encoder, uint8_t *config)
-{
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct drm_device *dev = encoder->dev;
-	struct bit_displayport_encoder_table_entry *dpse;
-	struct bit_displayport_encoder_table *dpe;
-	int or = nv_encoder->or, link = !(nv_encoder->dcb->sorconf.link & 1);
-	int dpe_headerlen, ret, i;
-
-	NV_DEBUG_KMS(dev, "\t\tconfig 0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 config[0], config[1], config[2], config[3]);
-
-	dpe = nouveau_bios_dp_table(dev, nv_encoder->dcb, &dpe_headerlen);
-	if (!dpe)
-		return false;
-	dpse = (void *)((char *)dpe + dpe_headerlen);
-
-	for (i = 0; i < dpe->record_nr; i++, dpse++) {
-		if (dpse->vs_level == (config[0] & 3) &&
-		    dpse->pre_level == ((config[0] >> 3) & 3))
+	do {
+		if (dp_link_train_commit(dev, dp) ||
+		    dp_link_train_update(dev, dp, 100))
 			break;
-	}
-	BUG_ON(i == dpe->record_nr);
 
-	for (i = 0; i < nv_encoder->dp.link_nr; i++) {
-		const int shift[4] = { 16, 8, 0, 24 };
-		uint32_t mask = 0xff << shift[i];
-		uint32_t reg0, reg1, reg2;
+		cr_done = true;
+		for (i = 0; i < dp->link_nr; i++) {
+			u8 lane = (dp->stat[i >> 1] >> ((i & 1) * 4)) & 0xf;
+			if (!(lane & DP_LANE_CR_DONE)) {
+				cr_done = false;
+				if (dp->conf[i] & DP_TRAIN_MAX_SWING_REACHED)
+					abort = true;
+				break;
+			}
+		}
 
-		reg0  = nv_rd32(dev, NV50_SOR_DP_UNK118(or, link)) & ~mask;
-		reg0 |= (dpse->reg0 << shift[i]);
-		reg1  = nv_rd32(dev, NV50_SOR_DP_UNK120(or, link)) & ~mask;
-		reg1 |= (dpse->reg1 << shift[i]);
-		reg2  = nv_rd32(dev, NV50_SOR_DP_UNK130(or, link)) & 0xffff00ff;
-		reg2 |= (dpse->reg2 << 8);
-		nv_wr32(dev, NV50_SOR_DP_UNK118(or, link), reg0);
-		nv_wr32(dev, NV50_SOR_DP_UNK120(or, link), reg1);
-		nv_wr32(dev, NV50_SOR_DP_UNK130(or, link), reg2);
-	}
+		if ((dp->conf[0] & DP_TRAIN_VOLTAGE_SWING_MASK) != voltage) {
+			voltage = dp->conf[0] & DP_TRAIN_VOLTAGE_SWING_MASK;
+			tries = 0;
+		}
+	} while (!cr_done && !abort && ++tries < 5);
 
-	ret = auxch_wr(encoder, DP_TRAINING_LANE0_SET, config, 4);
-	if (ret)
-		return false;
+	return cr_done ? 0 : -1;
+}
 
-	return true;
+static int
+dp_link_train_eq(struct drm_device *dev, struct dp_state *dp)
+{
+	bool eq_done, cr_done = true;
+	int tries = 0, i;
+
+	dp_set_training_pattern(dev, dp, DP_TRAINING_PATTERN_2);
+
+	do {
+		if (dp_link_train_update(dev, dp, 400))
+			break;
+
+		eq_done = !!(dp->stat[2] & DP_INTERLANE_ALIGN_DONE);
+		for (i = 0; i < dp->link_nr && eq_done; i++) {
+			u8 lane = (dp->stat[i >> 1] >> ((i & 1) * 4)) & 0xf;
+			if (!(lane & DP_LANE_CR_DONE))
+				cr_done = false;
+			if (!(lane & DP_LANE_CHANNEL_EQ_DONE) ||
+			    !(lane & DP_LANE_SYMBOL_LOCKED))
+				eq_done = false;
+		}
+
+		if (dp_link_train_commit(dev, dp))
+			break;
+	} while (!eq_done && cr_done && ++tries <= 5);
+
+	return eq_done ? 0 : -1;
 }
 
 bool
 nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate)
 {
-	struct drm_device *dev = encoder->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct drm_nouveau_private *dev_priv = encoder->dev->dev_private;
 	struct nouveau_gpio_engine *pgpio = &dev_priv->engine.gpio;
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_connector *nv_connector;
-	struct bit_displayport_encoder_table *dpe;
-	int dpe_headerlen;
-	uint8_t config[4], status[3];
-	bool cr_done, cr_max_vs, eq_done, hpd_state;
-	int ret = 0, i, tries, voltage;
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
+	struct nouveau_connector *nv_connector =
+		nouveau_encoder_connector_get(nv_encoder);
+	struct drm_device *dev = encoder->dev;
+	struct nouveau_i2c_chan *auxch;
+	const u32 bw_list[] = { 270000, 162000, 0 };
+	const u32 *link_bw = bw_list;
+	struct dp_state dp;
+	u8 *bios, headerlen;
+	u16 script;
 
-	NV_DEBUG_KMS(dev, "link training!!\n");
-
-	nv_connector = nouveau_encoder_connector_get(nv_encoder);
-	if (!nv_connector)
+	auxch = nouveau_i2c_find(dev, nv_encoder->dcb->i2c_index);
+	if (!auxch)
 		return false;
 
-	dpe = nouveau_bios_dp_table(dev, nv_encoder->dcb, &dpe_headerlen);
-	if (!dpe) {
-		NV_ERROR(dev, "SOR-%d: no DP encoder table!\n", nv_encoder->or);
-		return false;
-	}
+	bios = nouveau_bios_dp_table(dev, nv_encoder->dcb, &headerlen);
+	if (!bios)
+		return -EINVAL;
 
-	/* disable hotplug detect, this flips around on some panels during
-	 * link training.
+	dp.dcb = nv_encoder->dcb;
+	dp.crtc = nv_crtc->index;
+	dp.auxch = auxch->rd;
+	dp.or = nv_encoder->or;
+	dp.link = !(nv_encoder->dcb->sorconf.link & 1);
+	dp.enh_frame = nv_encoder->dp.enhanced_frame;
+
+	/* some sinks toggle hotplug in response to some of the actions
+	 * we take during link training (DP_SET_POWER is one), we need
+	 * to ignore them for the moment to avoid races.
 	 */
-	hpd_state = pgpio->irq_enable(dev, nv_connector->dcb->gpio_tag, false);
+	pgpio->irq_enable(dev, nv_connector->dcb->gpio_tag, false);
 
-	if (dpe->script0) {
-		NV_DEBUG_KMS(dev, "SOR-%d: running DP script 0\n", nv_encoder->or);
-		nouveau_bios_run_init_table(dev, le16_to_cpu(dpe->script0),
-					    nv_encoder->dcb, -1);
+	/* execute pre-train script from vbios */
+	nouveau_bios_run_init_table(dev, ROM16(bios[6]), dp.dcb, dp.crtc);
+
+	/* start off at highest link rate supported by encoder and display */
+	if (nv_encoder->dp.link_bw == DP_LINK_BW_1_62)
+		link_bw++;
+
+	while (link_bw[0]) {
+		/* find minimum required lane count at this link rate */
+		dp.link_nr = nv_encoder->dp.link_nr;
+		while ((dp.link_nr >> 1) * link_bw[0] > datarate)
+			dp.link_nr >>= 1;
+
+		/* drop link rate to minimum with this lane count */
+		while ((link_bw[1] * dp.link_nr) > datarate)
+			link_bw++;
+		dp.link_bw = link_bw[0];
+
+		/* program selected link configuration */
+		dp_set_link_config(dev, &dp);
+
+		/* attempt to train the link at this configuration */
+		memset(dp.stat, 0x00, sizeof(dp.stat));
+		if (!dp_link_train_cr(dev, &dp) &&
+		    !dp_link_train_eq(dev, &dp))
+			break;
+
+		/* retry at lower rate */
+		link_bw++;
 	}
 
-train:
-	cr_done = eq_done = false;
+	/* finish link training */
+	dp_set_training_pattern(dev, &dp, DP_TRAINING_PATTERN_DISABLE);
 
-	/* set link configuration */
-	NV_DEBUG_KMS(dev, "\tbegin train: bw %d, lanes %d\n",
-		 nv_encoder->dp.link_bw, nv_encoder->dp.link_nr);
-
-	ret = nouveau_dp_link_bw_set(encoder, nv_encoder->dp.link_bw);
-	if (ret)
-		return false;
-
-	config[0] = nv_encoder->dp.link_nr;
-	if (nv_encoder->dp.dpcd_version >= 0x11 &&
-	    nv_encoder->dp.enhanced_frame)
-		config[0] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
-
-	ret = nouveau_dp_lane_count_set(encoder, config[0]);
-	if (ret)
-		return false;
-
-	/* clock recovery */
-	NV_DEBUG_KMS(dev, "\tbegin cr\n");
-	ret = nouveau_dp_link_train_set(encoder, DP_TRAINING_PATTERN_1);
-	if (ret)
-		goto stop;
-
-	tries = 0;
-	voltage = -1;
-	memset(config, 0x00, sizeof(config));
-	for (;;) {
-		if (!nouveau_dp_link_train_commit(encoder, config))
-			break;
-
-		udelay(100);
-
-		ret = auxch_rd(encoder, DP_LANE0_1_STATUS, status, 2);
-		if (ret)
-			break;
-		NV_DEBUG_KMS(dev, "\t\tstatus: 0x%02x 0x%02x\n",
-			 status[0], status[1]);
-
-		cr_done = true;
-		cr_max_vs = false;
-		for (i = 0; i < nv_encoder->dp.link_nr; i++) {
-			int lane = (status[i >> 1] >> ((i & 1) * 4)) & 0xf;
-
-			if (!(lane & DP_LANE_CR_DONE)) {
-				cr_done = false;
-				if (config[i] & DP_TRAIN_MAX_PRE_EMPHASIS_REACHED)
-					cr_max_vs = true;
-				break;
-			}
-		}
-
-		if ((config[0] & DP_TRAIN_VOLTAGE_SWING_MASK) != voltage) {
-			voltage = config[0] & DP_TRAIN_VOLTAGE_SWING_MASK;
-			tries = 0;
-		}
-
-		if (cr_done || cr_max_vs || (++tries == 5))
-			break;
-
-		if (!nouveau_dp_link_train_adjust(encoder, config))
-			break;
-	}
-
-	if (!cr_done)
-		goto stop;
-
-	/* channel equalisation */
-	NV_DEBUG_KMS(dev, "\tbegin eq\n");
-	ret = nouveau_dp_link_train_set(encoder, DP_TRAINING_PATTERN_2);
-	if (ret)
-		goto stop;
-
-	for (tries = 0; tries <= 5; tries++) {
-		udelay(400);
-
-		ret = auxch_rd(encoder, DP_LANE0_1_STATUS, status, 3);
-		if (ret)
-			break;
-		NV_DEBUG_KMS(dev, "\t\tstatus: 0x%02x 0x%02x\n",
-			 status[0], status[1]);
-
-		eq_done = true;
-		if (!(status[2] & DP_INTERLANE_ALIGN_DONE))
-			eq_done = false;
-
-		for (i = 0; eq_done && i < nv_encoder->dp.link_nr; i++) {
-			int lane = (status[i >> 1] >> ((i & 1) * 4)) & 0xf;
-
-			if (!(lane & DP_LANE_CR_DONE)) {
-				cr_done = false;
-				break;
-			}
-
-			if (!(lane & DP_LANE_CHANNEL_EQ_DONE) ||
-			    !(lane & DP_LANE_SYMBOL_LOCKED)) {
-				eq_done = false;
-				break;
-			}
-		}
-
-		if (eq_done || !cr_done)
-			break;
-
-		if (!nouveau_dp_link_train_adjust(encoder, config) ||
-		    !nouveau_dp_link_train_commit(encoder, config))
-			break;
-	}
-
-stop:
-	/* end link training */
-	ret = nouveau_dp_link_train_set(encoder, DP_TRAINING_PATTERN_DISABLE);
-	if (ret)
-		return false;
-
-	/* retry at a lower setting, if possible */
-	if (!ret && !(eq_done && cr_done)) {
-		NV_DEBUG_KMS(dev, "\twe failed\n");
-		if (nv_encoder->dp.link_bw != DP_LINK_BW_1_62) {
-			NV_DEBUG_KMS(dev, "retry link training at low rate\n");
-			nv_encoder->dp.link_bw = DP_LINK_BW_1_62;
-			goto train;
-		}
-	}
-
-	if (dpe->script1) {
-		NV_DEBUG_KMS(dev, "SOR-%d: running DP script 1\n", nv_encoder->or);
-		nouveau_bios_run_init_table(dev, le16_to_cpu(dpe->script1),
-					    nv_encoder->dcb, -1);
-	}
+	/* execute post-train script from vbios */
+	nouveau_bios_run_init_table(dev, ROM16(bios[8]), dp.dcb, dp.crtc);
 
 	/* re-enable hotplug detect */
-	pgpio->irq_enable(dev, nv_connector->dcb->gpio_tag, hpd_state);
-
-	return eq_done;
+	pgpio->irq_enable(dev, nv_connector->dcb->gpio_tag, true);
+	return true;
 }
 
 bool

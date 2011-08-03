@@ -1179,19 +1179,18 @@ init_dp_condition(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	 *
 	 */
 
-	struct bit_displayport_encoder_table *dpe = NULL;
 	struct dcb_entry *dcb = bios->display.output;
 	struct drm_device *dev = bios->dev;
 	uint8_t cond = bios->data[offset + 1];
-	int dummy;
+	uint8_t *table, headerlen;
 
 	BIOSLOG(bios, "0x%04X: subop 0x%02X\n", offset, cond);
 
 	if (!iexec->execute)
 		return 3;
 
-	dpe = nouveau_bios_dp_table(dev, dcb, &dummy);
-	if (!dpe) {
+	table = nouveau_bios_dp_table(dev, dcb, &headerlen);
+	if (!table) {
 		NV_ERROR(dev, "0x%04X: INIT_3A: no encoder table!!\n", offset);
 		return 3;
 	}
@@ -1208,7 +1207,7 @@ init_dp_condition(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		break;
 	case 1:
 	case 2:
-		if (!(dpe->unknown & cond))
+		if (!(table[5] & cond))
 			iexec->execute = false;
 		break;
 	case 5:
@@ -4480,7 +4479,7 @@ bios_output_config_match(struct drm_device *dev, struct dcb_entry *dcbent,
 
 void *
 nouveau_bios_dp_table(struct drm_device *dev, struct dcb_entry *dcbent,
-		      int *length)
+		      uint8_t *headerlen)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nvbios *bios = &dev_priv->vbios;
@@ -4498,7 +4497,7 @@ nouveau_bios_dp_table(struct drm_device *dev, struct dcb_entry *dcbent,
 		return NULL;
 	}
 
-	*length = table[4];
+	*headerlen = table[4];
 	return bios_output_config_match(dev, dcbent,
 					bios->display.dp_table_ptr + table[1],
 					table[2], table[3], table[0] >= 0x21);
