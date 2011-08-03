@@ -45,5 +45,9 @@ EXPORT_SYMBOL(__arch_hweight16);
 EXPORT_SYMBOL(__arch_hweight32);
 EXPORT_SYMBOL(__arch_hweight64);
 
+/* from ffs_ffz.S */
+EXPORT_SYMBOL(ffs);
+EXPORT_SYMBOL(__ffs);
+
 /* Exporting a symbol from /init/main.c */
 EXPORT_SYMBOL(saved_command_line);
