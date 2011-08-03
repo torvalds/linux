@@ -858,7 +858,7 @@ EXPORT_SYMBOL(ida_get_new_above);
  * and go back to the idr_pre_get() call.  If the idr is full, it will
  * return %-ENOSPC.
  *
- * @id returns a value in the range %0 ... %0x7fffffff.
+ * @p_id returns a value in the range %0 ... %0x7fffffff.
  */
 int ida_get_new(struct ida *ida, int *p_id)
 {
