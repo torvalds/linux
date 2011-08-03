@@ -309,6 +309,8 @@ extern void omap2_init_common_devices(struct omap_sdrc_params *sdrc_cs0,
 void __iomem *omap_ioremap(unsigned long phys, size_t size, unsigned int type);
 void omap_iounmap(volatile void __iomem *addr);
 
+extern void __init omap_init_consistent_dma_size(void);
+
 #endif
 
 #endif
