@@ -336,7 +336,7 @@ config BACKLIGHT_PCF50633
 	  enable its driver.
 
 config BACKLIGHT_AAT2870
-	bool "AnalogicTech AAT2870 Backlight"
+	tristate "AnalogicTech AAT2870 Backlight"
 	depends on BACKLIGHT_CLASS_DEVICE && MFD_AAT2870_CORE
 	help
 	  If you have a AnalogicTech AAT2870 say Y to enable the
