@@ -1327,7 +1327,7 @@ int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr)
 
 	entry = kzalloc(sizeof(struct bdaddr_list), GFP_KERNEL);
 	if (!entry) {
-		return -ENOMEM;
+		err = -ENOMEM;
 		goto err;
 	}
 
