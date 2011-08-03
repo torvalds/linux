@@ -50,6 +50,7 @@ static struct vfsmount *shm_mnt;
 #include <linux/shmem_fs.h>
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
+#include <linux/pagevec.h>
 #include <linux/percpu_counter.h>
 #include <linux/splice.h>
 #include <linux/security.h>
@@ -242,11 +243,88 @@ void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
 	struct address_space *mapping = inode->i_mapping;
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	pgoff_t start = (lstart + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	unsigned partial = lstart & (PAGE_CACHE_SIZE - 1);
 	pgoff_t end = (lend >> PAGE_CACHE_SHIFT);
+	struct pagevec pvec;
 	pgoff_t index;
 	swp_entry_t swap;
+	int i;
 
-	truncate_inode_pages_range(mapping, lstart, lend);
+	BUG_ON((lend & (PAGE_CACHE_SIZE - 1)) != (PAGE_CACHE_SIZE - 1));
+
+	pagevec_init(&pvec, 0);
+	index = start;
+	while (index <= end && pagevec_lookup(&pvec, mapping, index,
+			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
+		mem_cgroup_uncharge_start();
+		for (i = 0; i < pagevec_count(&pvec); i++) {
+			struct page *page = pvec.pages[i];
+
+			/* We rely upon deletion not changing page->index */
+			index = page->index;
+			if (index > end)
+				break;
+
+			if (!trylock_page(page))
+				continue;
+			WARN_ON(page->index != index);
+			if (PageWriteback(page)) {
+				unlock_page(page);
+				continue;
+			}
+			truncate_inode_page(mapping, page);
+			unlock_page(page);
+		}
+		pagevec_release(&pvec);
+		mem_cgroup_uncharge_end();
+		cond_resched();
+		index++;
+	}
+
+	if (partial) {
+		struct page *page = NULL;
+		shmem_getpage(inode, start - 1, &page, SGP_READ, NULL);
+		if (page) {
+			zero_user_segment(page, partial, PAGE_CACHE_SIZE);
+			set_page_dirty(page);
+			unlock_page(page);
+			page_cache_release(page);
+		}
+	}
+
+	index = start;
+	for ( ; ; ) {
+		cond_resched();
+		if (!pagevec_lookup(&pvec, mapping, index,
+			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
+			if (index == start)
+				break;
+			index = start;
+			continue;
+		}
+		if (index == start && pvec.pages[0]->index > end) {
+			pagevec_release(&pvec);
+			break;
+		}
+		mem_cgroup_uncharge_start();
+		for (i = 0; i < pagevec_count(&pvec); i++) {
+			struct page *page = pvec.pages[i];
+
+			/* We rely upon deletion not changing page->index */
+			index = page->index;
+			if (index > end)
+				break;
+
+			lock_page(page);
+			WARN_ON(page->index != index);
+			wait_on_page_writeback(page);
+			truncate_inode_page(mapping, page);
+			unlock_page(page);
+		}
+		pagevec_release(&pvec);
+		mem_cgroup_uncharge_end();
+		index++;
+	}
 
 	if (end > SHMEM_NR_DIRECT)
 		end = SHMEM_NR_DIRECT;
@@ -289,24 +367,7 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
 	if (S_ISREG(inode->i_mode) && (attr->ia_valid & ATTR_SIZE)) {
 		loff_t oldsize = inode->i_size;
 		loff_t newsize = attr->ia_size;
-		struct page *page = NULL;
 
-		if (newsize < oldsize) {
-			/*
-			 * If truncating down to a partial page, then
-			 * if that page is already allocated, hold it
-			 * in memory until the truncation is over, so
-			 * truncate_partial_page cannot miss it were
-			 * it assigned to swap.
-			 */
-			if (newsize & (PAGE_CACHE_SIZE-1)) {
-				(void) shmem_getpage(inode,
-					newsize >> PAGE_CACHE_SHIFT,
-						&page, SGP_READ, NULL);
-				if (page)
-					unlock_page(page);
-			}
-		}
 		if (newsize != oldsize) {
 			i_size_write(inode, newsize);
 			inode->i_ctime = inode->i_mtime = CURRENT_TIME;
@@ -318,8 +379,6 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
 			/* unmap again to remove racily COWed private pages */
 			unmap_mapping_range(inode->i_mapping, holebegin, 0, 1);
 		}
-		if (page)
-			page_cache_release(page);
 	}
 
 	setattr_copy(inode, attr);
