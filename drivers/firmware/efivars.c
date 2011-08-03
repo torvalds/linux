@@ -157,7 +157,7 @@ utf16_strnlen(efi_char16_t *s, size_t maxlength)
 	return length;
 }
 
-static unsigned long
+static inline unsigned long
 utf16_strlen(efi_char16_t *s)
 {
 	return utf16_strnlen(s, ~0UL);
@@ -580,8 +580,8 @@ static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
 	return -1;
 }
 
-static u64 efi_pstore_write(enum pstore_type_id type, int part, size_t size,
-			    struct pstore_info *psi)
+static u64 efi_pstore_write(enum pstore_type_id type, unsigned int part,
+			    size_t size, struct pstore_info *psi)
 {
 	return 0;
 }
