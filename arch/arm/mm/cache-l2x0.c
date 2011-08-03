@@ -16,9 +16,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -372,3 +375,103 @@ void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask)
 	printk(KERN_INFO "l2x0: %d ways, CACHE_ID 0x%08x, AUX_CTRL 0x%08x, Cache size: %d B\n",
 			ways, cache_id, aux, l2x0_size);
 }
+
+#ifdef CONFIG_OF
+static void __init l2x0_of_setup(const struct device_node *np,
+				 __u32 *aux_val, __u32 *aux_mask)
+{
+	u32 data[2] = { 0, 0 };
+	u32 tag = 0;
+	u32 dirty = 0;
+	u32 val = 0, mask = 0;
+
+	of_property_read_u32(np, "arm,tag-latency", &tag);
+	if (tag) {
+		mask |= L2X0_AUX_CTRL_TAG_LATENCY_MASK;
+		val |= (tag - 1) << L2X0_AUX_CTRL_TAG_LATENCY_SHIFT;
+	}
+
+	of_property_read_u32_array(np, "arm,data-latency",
+				   data, ARRAY_SIZE(data));
+	if (data[0] && data[1]) {
+		mask |= L2X0_AUX_CTRL_DATA_RD_LATENCY_MASK |
+			L2X0_AUX_CTRL_DATA_WR_LATENCY_MASK;
+		val |= ((data[0] - 1) << L2X0_AUX_CTRL_DATA_RD_LATENCY_SHIFT) |
+		       ((data[1] - 1) << L2X0_AUX_CTRL_DATA_WR_LATENCY_SHIFT);
+	}
+
+	of_property_read_u32(np, "arm,dirty-latency", &dirty);
+	if (dirty) {
+		mask |= L2X0_AUX_CTRL_DIRTY_LATENCY_MASK;
+		val |= (dirty - 1) << L2X0_AUX_CTRL_DIRTY_LATENCY_SHIFT;
+	}
+
+	*aux_val &= ~mask;
+	*aux_val |= val;
+	*aux_mask &= ~mask;
+}
+
+static void __init pl310_of_setup(const struct device_node *np,
+				  __u32 *aux_val, __u32 *aux_mask)
+{
+	u32 data[3] = { 0, 0, 0 };
+	u32 tag[3] = { 0, 0, 0 };
+	u32 filter[2] = { 0, 0 };
+
+	of_property_read_u32_array(np, "arm,tag-latency", tag, ARRAY_SIZE(tag));
+	if (tag[0] && tag[1] && tag[2])
+		writel_relaxed(
+			((tag[0] - 1) << L2X0_LATENCY_CTRL_RD_SHIFT) |
+			((tag[1] - 1) << L2X0_LATENCY_CTRL_WR_SHIFT) |
+			((tag[2] - 1) << L2X0_LATENCY_CTRL_SETUP_SHIFT),
+			l2x0_base + L2X0_TAG_LATENCY_CTRL);
+
+	of_property_read_u32_array(np, "arm,data-latency",
+				   data, ARRAY_SIZE(data));
+	if (data[0] && data[1] && data[2])
+		writel_relaxed(
+			((data[0] - 1) << L2X0_LATENCY_CTRL_RD_SHIFT) |
+			((data[1] - 1) << L2X0_LATENCY_CTRL_WR_SHIFT) |
+			((data[2] - 1) << L2X0_LATENCY_CTRL_SETUP_SHIFT),
+			l2x0_base + L2X0_DATA_LATENCY_CTRL);
+
+	of_property_read_u32_array(np, "arm,filter-ranges",
+				   filter, ARRAY_SIZE(filter));
+	if (filter[0] && filter[1]) {
+		writel_relaxed(ALIGN(filter[0] + filter[1], SZ_1M),
+			       l2x0_base + L2X0_ADDR_FILTER_END);
+		writel_relaxed((filter[0] & ~(SZ_1M - 1)) | L2X0_ADDR_FILTER_EN,
+			       l2x0_base + L2X0_ADDR_FILTER_START);
+	}
+}
+
+static const struct of_device_id l2x0_ids[] __initconst = {
+	{ .compatible = "arm,pl310-cache", .data = pl310_of_setup },
+	{ .compatible = "arm,l220-cache", .data = l2x0_of_setup },
+	{ .compatible = "arm,l210-cache", .data = l2x0_of_setup },
+	{}
+};
+
+int __init l2x0_of_init(__u32 aux_val, __u32 aux_mask)
+{
+	struct device_node *np;
+	void (*l2_setup)(const struct device_node *np,
+		__u32 *aux_val, __u32 *aux_mask);
+
+	np = of_find_matching_node(NULL, l2x0_ids);
+	if (!np)
+		return -ENODEV;
+	l2x0_base = of_iomap(np, 0);
+	if (!l2x0_base)
+		return -ENOMEM;
+
+	/* L2 configuration can only be changed if the cache is disabled */
+	if (!(readl_relaxed(l2x0_base + L2X0_CTRL) & 1)) {
+		l2_setup = of_match_node(l2x0_ids, np)->data;
+		if (l2_setup)
+			l2_setup(np, &aux_val, &aux_mask);
+	}
+	l2x0_init(l2x0_base, aux_val, aux_mask);
+	return 0;
+}
+#endif
