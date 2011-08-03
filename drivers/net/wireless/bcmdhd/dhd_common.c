@@ -1486,11 +1486,8 @@ void dhd_arp_offload_add_ip(dhd_pub_t *dhd, uint32 ipaddr)
 		__FUNCTION__));
 }
 
-
 int dhd_arp_get_arp_hostip_table(dhd_pub_t *dhd, void *buf, int buflen)
 {
-#define MAX_IPV4_ENTRIES 8
-
 	int retcode, i;
 	int iov_len = 0;
 	uint32 *ptr32 = buf;
@@ -1502,27 +1499,28 @@ int dhd_arp_get_arp_hostip_table(dhd_pub_t *dhd, void *buf, int buflen)
 	iov_len = bcm_mkiovar("arp_hostip", 0, 0, buf, buflen);
 	retcode = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, buf, buflen, TRUE, 0);
 
-	/* clean up the buf, ascii reminder */
-	for (i = 0; i < MAX_IPV4_ENTRIES; i++) {
-
-		if (!clr_bottom) {
-			if (*ptr32 == 0)
-			clr_bottom = TRUE;
-		} else {
-			*ptr32 = 0;
-		}
-		ptr32++;
-	}
-
 	if (retcode) {
 		DHD_TRACE(("%s: ioctl WLC_GET_VAR error %d\n",
 		__FUNCTION__, retcode));
 
 		return -1;
 	}
+
+	/* clean up the buf, ascii reminder */
+	for (i = 0; i < MAX_IPV4_ENTRIES; i++) {
+		if (!clr_bottom) {
+			if (*ptr32 == 0)
+				clr_bottom = TRUE;
+		} else {
+			*ptr32 = 0;
+		}
+		ptr32++;
+	}
+
 	return 0;
 }
 #endif /* ARP_OFFLOAD_SUPPORT  */
+
 int
 dhd_preinit_ioctls(dhd_pub_t *dhd)
 {

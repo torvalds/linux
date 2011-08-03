@@ -682,6 +682,7 @@ extern void dhd_wait_for_event(dhd_pub_t *dhd, bool *lockvar);
 extern void dhd_wait_event_wakeup(dhd_pub_t*dhd);
 
 #ifdef ARP_OFFLOAD_SUPPORT
+#define MAX_IPV4_ENTRIES	8
 /* dhd_commn arp offload wrapers */
 void dhd_aoe_hostip_clr(dhd_pub_t *dhd);
 void dhd_aoe_arp_clr(dhd_pub_t *dhd);

@@ -2804,20 +2804,27 @@ int dhd_change_mtu(dhd_pub_t *dhdp, int new_mtu, int ifidx)
 /* add or remove AOE host ip(s) (up to 8 IPs on the interface)  */
 void aoe_update_host_ipv4_table(dhd_pub_t *dhd_pub, u32 ipa, bool add)
 {
-	u32 ipv4_buf[8]; /* temp save for AOE host_ip table */
+	u32 ipv4_buf[MAX_IPV4_ENTRIES]; /* temp save for AOE host_ip table */
 	int i;
+	int ret;
 
 	bzero(ipv4_buf, sizeof(ipv4_buf));
 
 	/* display what we've got */
-	dhd_arp_get_arp_hostip_table(dhd_pub, ipv4_buf, sizeof(ipv4_buf));
+	ret = dhd_arp_get_arp_hostip_table(dhd_pub, ipv4_buf, sizeof(ipv4_buf));
 	DHD_ARPOE(("%s: hostip table read from Dongle:\n", __FUNCTION__));
-	/* dhd_print_buf(ipv4_buf, 32, 4); */ /* max 8 IPs 4b each */
-
+#ifdef AOE_DBG
+	dhd_print_buf(ipv4_buf, 32, 4); /* max 8 IPs 4b each */
+#endif
 	/* now we saved hoste_ip table, clr it in the dongle AOE */
 	dhd_aoe_hostip_clr(dhd_pub);
 
-	for (i = 0; i < 8; i++) {
+	if (ret) {
+		DHD_ERROR(("%s failed\n", __FUNCTION__));
+		return;
+	}
+
+	for (i = 0; i < MAX_IPV4_ENTRIES; i++) {
 
 		if (add && (ipv4_buf[i] == 0)) {
 
