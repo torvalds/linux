@@ -304,7 +304,7 @@ static int add_del_listener(pid_t pid, const struct cpumask *mask, int isadd)
 			listeners = &per_cpu(listener_array, cpu);
 			down_write(&listeners->sem);
 			list_for_each_entry(s2, &listeners->list, list) {
-				if (s2->pid == pid)
+				if (s2->pid == pid && s2->valid)
 					goto exists;
 			}
 			list_add(&s->list, &listeners->list);
