@@ -191,6 +191,58 @@ v9fs_inode_from_fid_dotl(struct v9fs_session_info *v9ses, struct p9_fid *fid,
 	return inode;
 }
 
+struct dotl_openflag_map {
+	int open_flag;
+	int dotl_flag;
+};
+
+static int v9fs_mapped_dotl_flags(int flags)
+{
+	int i;
+	int rflags = 0;
+	struct dotl_openflag_map dotl_oflag_map[] = {
+		{ O_CREAT,	P9_DOTL_CREATE },
+		{ O_EXCL,	P9_DOTL_EXCL },
+		{ O_NOCTTY,	P9_DOTL_NOCTTY },
+		{ O_TRUNC,	P9_DOTL_TRUNC },
+		{ O_APPEND,	P9_DOTL_APPEND },
+		{ O_NONBLOCK,	P9_DOTL_NONBLOCK },
+		{ O_DSYNC,	P9_DOTL_DSYNC },
+		{ FASYNC,	P9_DOTL_FASYNC },
+		{ O_DIRECT,	P9_DOTL_DIRECT },
+		{ O_LARGEFILE,	P9_DOTL_LARGEFILE },
+		{ O_DIRECTORY,	P9_DOTL_DIRECTORY },
+		{ O_NOFOLLOW,	P9_DOTL_NOFOLLOW },
+		{ O_NOATIME,	P9_DOTL_NOATIME },
+		{ O_CLOEXEC,	P9_DOTL_CLOEXEC },
+		{ O_SYNC,	P9_DOTL_SYNC},
+	};
+	for (i = 0; i < ARRAY_SIZE(dotl_oflag_map); i++) {
+		if (flags & dotl_oflag_map[i].open_flag)
+			rflags |= dotl_oflag_map[i].dotl_flag;
+	}
+	return rflags;
+}
+
+/**
+ * v9fs_open_to_dotl_flags- convert Linux specific open flags to
+ * plan 9 open flag.
+ * @flags: flags to convert
+ */
+int v9fs_open_to_dotl_flags(int flags)
+{
+	int rflags = 0;
+
+	/*
+	 * We have same bits for P9_DOTL_READONLY, P9_DOTL_WRONLY
+	 * and P9_DOTL_NOACCESS
+	 */
+	rflags |= flags & O_ACCMODE;
+	rflags |= v9fs_mapped_dotl_flags(flags);
+
+	return rflags;
+}
+
 /**
  * v9fs_vfs_create_dotl - VFS hook to create files for 9P2000.L protocol.
  * @dir: directory inode that is being created
@@ -259,7 +311,8 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 			   "Failed to get acl values in creat %d\n", err);
 		goto error;
 	}
-	err = p9_client_create_dotl(ofid, name, flags, mode, gid, &qid);
+	err = p9_client_create_dotl(ofid, name, v9fs_open_to_dotl_flags(flags),
+				    mode, gid, &qid);
 	if (err < 0) {
 		P9_DPRINTK(P9_DEBUG_VFS,
 				"p9_client_open_dotl failed in creat %d\n",
