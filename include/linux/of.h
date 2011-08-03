@@ -242,6 +242,7 @@ extern void of_attach_node(struct device_node *);
 extern void of_detach_node(struct device_node *);
 #endif
 
+#define of_match_ptr(_ptr)	(_ptr)
 #else /* CONFIG_OF */
 
 static inline bool of_have_populated_dt(void)
@@ -280,6 +281,7 @@ static inline const void *of_get_property(const struct device_node *node,
 	return NULL;
 }
 
+#define of_match_ptr(_ptr)	NULL
 #endif /* CONFIG_OF */
 
 static inline int of_property_read_u32(const struct device_node *np,
