@@ -112,6 +112,11 @@ SECTIONS
 		*(.popc_3insn_patch)
 		__popc_3insn_patch_end = .;
 	}
+	.popc_6insn_patch : {
+		__popc_6insn_patch = .;
+		*(.popc_6insn_patch)
+		__popc_6insn_patch_end = .;
+	}
 	PERCPU_SECTION(SMP_CACHE_BYTES)
 
 	. = ALIGN(PAGE_SIZE);

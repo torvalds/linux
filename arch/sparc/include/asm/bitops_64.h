@@ -26,16 +26,17 @@ extern void change_bit(unsigned long nr, volatile unsigned long *addr);
 #define smp_mb__before_clear_bit()	barrier()
 #define smp_mb__after_clear_bit()	barrier()
 
-#include <asm-generic/bitops/ffz.h>
-#include <asm-generic/bitops/__ffs.h>
 #include <asm-generic/bitops/fls.h>
 #include <asm-generic/bitops/__fls.h>
 #include <asm-generic/bitops/fls64.h>
 
 #ifdef __KERNEL__
 
+extern int ffs(int x);
+extern unsigned long __ffs(unsigned long);
+
+#include <asm-generic/bitops/ffz.h>
 #include <asm-generic/bitops/sched.h>
-#include <asm-generic/bitops/ffs.h>
 
 /*
  * hweightN: returns the hamming weight (i.e. the number

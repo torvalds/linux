@@ -275,24 +275,34 @@ void __init sun4v_patch(void)
 static void __init popc_patch(void)
 {
 	struct popc_3insn_patch_entry *p3;
+	struct popc_6insn_patch_entry *p6;
 
 	p3 = &__popc_3insn_patch;
 	while (p3 < &__popc_3insn_patch_end) {
-		unsigned long addr = p3->addr;
+		unsigned long i, addr = p3->addr;
 
-		*(unsigned int *) (addr +  0) = p3->insns[0];
-		wmb();
-		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
-
-		*(unsigned int *) (addr +  4) = p3->insns[1];
-		wmb();
-		__asm__ __volatile__("flush	%0" : : "r" (addr +  4));
-
-		*(unsigned int *) (addr +  8) = p3->insns[2];
-		wmb();
-		__asm__ __volatile__("flush	%0" : : "r" (addr +  4));
+		for (i = 0; i < 3; i++) {
+			*(unsigned int *) (addr +  (i * 4)) = p3->insns[i];
+			wmb();
+			__asm__ __volatile__("flush	%0"
+					     : : "r" (addr +  (i * 4)));
+		}
 
 		p3++;
+	}
+
+	p6 = &__popc_6insn_patch;
+	while (p6 < &__popc_6insn_patch_end) {
+		unsigned long i, addr = p6->addr;
+
+		for (i = 0; i < 6; i++) {
+			*(unsigned int *) (addr +  (i * 4)) = p6->insns[i];
+			wmb();
+			__asm__ __volatile__("flush	%0"
+					     : : "r" (addr +  (i * 4)));
+		}
+
+		p6++;
 	}
 }
 
