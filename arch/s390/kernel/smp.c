@@ -468,6 +468,11 @@ int __cpuinit start_secondary(void *cpuvoid)
 	ipi_call_lock();
 	set_cpu_online(smp_processor_id(), true);
 	ipi_call_unlock();
+	__ctl_clear_bit(0, 28); /* Disable lowcore protection */
+	S390_lowcore.restart_psw.mask = PSW_BASE_BITS | PSW_DEFAULT_KEY;
+	S390_lowcore.restart_psw.addr =
+		PSW_ADDR_AMODE | (unsigned long) psw_restart_int_handler;
+	__ctl_set_bit(0, 28); /* Enable lowcore protection */
 	/* Switch on interrupts */
 	local_irq_enable();
 	/* cpu_idle will call schedule for us */
@@ -507,7 +512,11 @@ static int __cpuinit smp_alloc_lowcore(int cpu)
 	memset((char *)lowcore + 512, 0, sizeof(*lowcore) - 512);
 	lowcore->async_stack = async_stack + ASYNC_SIZE;
 	lowcore->panic_stack = panic_stack + PAGE_SIZE;
-
+	lowcore->restart_psw.mask = PSW_BASE_BITS | PSW_DEFAULT_KEY;
+	lowcore->restart_psw.addr =
+		PSW_ADDR_AMODE | (unsigned long) restart_int_handler;
+	if (user_mode != HOME_SPACE_MODE)
+		lowcore->restart_psw.mask |= PSW_ASC_HOME;
 #ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE) {
 		unsigned long save_area;
