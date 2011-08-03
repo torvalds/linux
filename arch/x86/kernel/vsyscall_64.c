@@ -50,6 +50,9 @@
 #include <asm/vgtod.h>
 #include <asm/traps.h>
 
+#define CREATE_TRACE_POINTS
+#include "vsyscall_trace.h"
+
 DEFINE_VVAR(int, vgetcpu_mode);
 DEFINE_VVAR(struct vsyscall_gtod_data, vsyscall_gtod_data) =
 {
@@ -146,6 +149,9 @@ void dotraplinkage do_emulate_vsyscall(struct pt_regs *regs, long error_code)
 	 * and int 0xcc is two bytes long.
 	 */
 	vsyscall_nr = addr_to_vsyscall_nr(regs->ip - 2);
+
+	trace_emulate_vsyscall(vsyscall_nr);
+
 	if (vsyscall_nr < 0) {
 		warn_bad_vsyscall(KERN_WARNING, regs,
 				  "illegal int 0xcc (exploit attempt?)");
