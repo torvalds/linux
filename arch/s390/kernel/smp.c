@@ -452,19 +452,13 @@ out:
  */
 int __cpuinit start_secondary(void *cpuvoid)
 {
-	/* Setup the cpu */
 	cpu_init();
 	preempt_disable();
-	/* Enable TOD clock interrupts on the secondary cpu. */
 	init_cpu_timer();
-	/* Enable cpu timer interrupts on the secondary cpu. */
 	init_cpu_vtimer();
-	/* Enable pfault pseudo page faults on this cpu. */
 	pfault_init();
 
-	/* call cpu notifiers */
 	notify_cpu_starting(smp_processor_id());
-	/* Mark this cpu as online */
 	ipi_call_lock();
 	set_cpu_online(smp_processor_id(), true);
 	ipi_call_unlock();
