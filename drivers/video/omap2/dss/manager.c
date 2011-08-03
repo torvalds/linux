@@ -586,6 +586,13 @@ static int omap_dss_unset_device(struct omap_overlay_manager *mgr)
 		return -EINVAL;
 	}
 
+	/*
+	 * Don't allow currently enabled displays to have the overlay manager
+	 * pulled out from underneath them
+	 */
+	if (mgr->device->state != OMAP_DSS_DISPLAY_DISABLED)
+		return -EINVAL;
+
 	mgr->device->manager = NULL;
 	mgr->device = NULL;
 	mgr->device_changed = true;
