@@ -349,10 +349,7 @@ static u32 ath9k_hw_4k_get_eeprom(struct ath_hw *ah,
 	case EEP_ANT_DIV_CTL1:
 		return pModal->antdiv_ctl1;
 	case EEP_TXGAIN_TYPE:
-		if (ver_minor >= AR5416_EEP_MINOR_VER_19)
-			return pBase->txGainType;
-		else
-			return AR5416_EEP_TXGAIN_ORIGINAL;
+		return pBase->txGainType;
 	default:
 		return 0;
 	}
