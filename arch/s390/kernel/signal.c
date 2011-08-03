@@ -65,7 +65,7 @@ SYSCALL_DEFINE3(sigsuspend, int, history0, int, history1, old_sigset_t, mask)
 	set_current_blocked(&blocked);
 	set_current_state(TASK_INTERRUPTIBLE);
 	schedule();
-	set_thread_flag(TIF_RESTORE_SIGMASK);
+	set_restore_sigmask();
 	return -ERESTARTNOHAND;
 }
 
