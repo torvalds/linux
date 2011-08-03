@@ -12,7 +12,10 @@
  * GNU General Public License for more details.
  *
  */
-void arch_idle(void);
+static inline void arch_idle(void)
+{
+	cpu_do_idle();
+}
 
 /* low level hardware reset hook -- for example, hitting the
  * PSHOLD line on the PMIC to hard reset the system
