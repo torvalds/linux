@@ -24,15 +24,10 @@
 
 int send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
 		    const uint8_t *dst_addr);
-void schedule_own_packet(struct hard_iface *hard_iface);
-void schedule_forward_packet(struct orig_node *orig_node,
-			     const struct ethhdr *ethhdr,
-			     struct batman_ogm_packet *batman_ogm_packet,
-			     int directlink,
-			     struct hard_iface *if_outgoing);
+void schedule_bat_ogm(struct hard_iface *hard_iface);
 int add_bcast_packet_to_list(struct bat_priv *bat_priv,
 			     const struct sk_buff *skb, unsigned long delay);
-void send_outstanding_bat_packet(struct work_struct *work);
+void send_outstanding_bat_ogm_packet(struct work_struct *work);
 void purge_outstanding_packets(struct bat_priv *bat_priv,
 			       const struct hard_iface *hard_iface);
 

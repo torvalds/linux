@@ -67,6 +67,27 @@ void bat_ogm_update_mac(struct hard_iface *hard_iface)
 	       hard_iface->net_dev->dev_addr, ETH_ALEN);
 }
 
+/* when do we schedule our own ogm to be sent */
+static unsigned long bat_ogm_emit_send_time(const struct bat_priv *bat_priv)
+{
+	return jiffies + msecs_to_jiffies(
+		   atomic_read(&bat_priv->orig_interval) -
+		   JITTER + (random32() % 2*JITTER));
+}
+
+/* when do we schedule a ogm packet to be sent */
+static unsigned long bat_ogm_fwd_send_time(void)
+{
+	return jiffies + msecs_to_jiffies(random32() % (JITTER/2));
+}
+
+/* apply hop penalty for a normal link */
+static uint8_t hop_penalty(uint8_t tq, const struct bat_priv *bat_priv)
+{
+	int hop_penalty = atomic_read(&bat_priv->hop_penalty);
+	return (tq * (TQ_MAX_VALUE - hop_penalty)) / (TQ_MAX_VALUE);
+}
+
 /* is there another aggregated packet here? */
 static int bat_ogm_aggr_packet(int buff_pos, int packet_len,
 			       int tt_num_changes)
@@ -75,6 +96,480 @@ static int bat_ogm_aggr_packet(int buff_pos, int packet_len,
 
 	return (next_buff_pos <= packet_len) &&
 		(next_buff_pos <= MAX_AGGREGATION_BYTES);
+}
+
+/* send a batman ogm to a given interface */
+static void bat_ogm_send_to_if(struct forw_packet *forw_packet,
+			       struct hard_iface *hard_iface)
+{
+	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
+	char *fwd_str;
+	uint8_t packet_num;
+	int16_t buff_pos;
+	struct batman_ogm_packet *batman_ogm_packet;
+	struct sk_buff *skb;
+
+	if (hard_iface->if_status != IF_ACTIVE)
+		return;
+
+	packet_num = 0;
+	buff_pos = 0;
+	batman_ogm_packet = (struct batman_ogm_packet *)forw_packet->skb->data;
+
+	/* adjust all flags and log packets */
+	while (bat_ogm_aggr_packet(buff_pos, forw_packet->packet_len,
+				   batman_ogm_packet->tt_num_changes)) {
+
+		/* we might have aggregated direct link packets with an
+		 * ordinary base packet */
+		if ((forw_packet->direct_link_flags & (1 << packet_num)) &&
+		    (forw_packet->if_incoming == hard_iface))
+			batman_ogm_packet->flags |= DIRECTLINK;
+		else
+			batman_ogm_packet->flags &= ~DIRECTLINK;
+
+		fwd_str = (packet_num > 0 ? "Forwarding" : (forw_packet->own ?
+							    "Sending own" :
+							    "Forwarding"));
+		bat_dbg(DBG_BATMAN, bat_priv,
+			"%s %spacket (originator %pM, seqno %d, TQ %d, TTL %d,"
+			" IDF %s, ttvn %d) on interface %s [%pM]\n",
+			fwd_str, (packet_num > 0 ? "aggregated " : ""),
+			batman_ogm_packet->orig,
+			ntohl(batman_ogm_packet->seqno),
+			batman_ogm_packet->tq, batman_ogm_packet->ttl,
+			(batman_ogm_packet->flags & DIRECTLINK ?
+			 "on" : "off"),
+			batman_ogm_packet->ttvn, hard_iface->net_dev->name,
+			hard_iface->net_dev->dev_addr);
+
+		buff_pos += BATMAN_OGM_LEN +
+				tt_len(batman_ogm_packet->tt_num_changes);
+		packet_num++;
+		batman_ogm_packet = (struct batman_ogm_packet *)
+					(forw_packet->skb->data + buff_pos);
+	}
+
+	/* create clone because function is called more than once */
+	skb = skb_clone(forw_packet->skb, GFP_ATOMIC);
+	if (skb)
+		send_skb_packet(skb, hard_iface, broadcast_addr);
+}
+
+/* send a batman ogm packet */
+void bat_ogm_emit(struct forw_packet *forw_packet)
+{
+	struct hard_iface *hard_iface;
+	struct net_device *soft_iface;
+	struct bat_priv *bat_priv;
+	struct hard_iface *primary_if = NULL;
+	struct batman_ogm_packet *batman_ogm_packet;
+	unsigned char directlink;
+
+	batman_ogm_packet = (struct batman_ogm_packet *)
+						(forw_packet->skb->data);
+	directlink = (batman_ogm_packet->flags & DIRECTLINK ? 1 : 0);
+
+	if (!forw_packet->if_incoming) {
+		pr_err("Error - can't forward packet: incoming iface not "
+		       "specified\n");
+		goto out;
+	}
+
+	soft_iface = forw_packet->if_incoming->soft_iface;
+	bat_priv = netdev_priv(soft_iface);
+
+	if (forw_packet->if_incoming->if_status != IF_ACTIVE)
+		goto out;
+
+	primary_if = primary_if_get_selected(bat_priv);
+	if (!primary_if)
+		goto out;
+
+	/* multihomed peer assumed */
+	/* non-primary OGMs are only broadcasted on their interface */
+	if ((directlink && (batman_ogm_packet->ttl == 1)) ||
+	    (forw_packet->own && (forw_packet->if_incoming != primary_if))) {
+
+		/* FIXME: what about aggregated packets ? */
+		bat_dbg(DBG_BATMAN, bat_priv,
+			"%s packet (originator %pM, seqno %d, TTL %d) "
+			"on interface %s [%pM]\n",
+			(forw_packet->own ? "Sending own" : "Forwarding"),
+			batman_ogm_packet->orig,
+			ntohl(batman_ogm_packet->seqno),
+			batman_ogm_packet->ttl,
+			forw_packet->if_incoming->net_dev->name,
+			forw_packet->if_incoming->net_dev->dev_addr);
+
+		/* skb is only used once and than forw_packet is free'd */
+		send_skb_packet(forw_packet->skb, forw_packet->if_incoming,
+				broadcast_addr);
+		forw_packet->skb = NULL;
+
+		goto out;
+	}
+
+	/* broadcast on every interface */
+	rcu_read_lock();
+	list_for_each_entry_rcu(hard_iface, &hardif_list, list) {
+		if (hard_iface->soft_iface != soft_iface)
+			continue;
+
+		bat_ogm_send_to_if(forw_packet, hard_iface);
+	}
+	rcu_read_unlock();
+
+out:
+	if (primary_if)
+		hardif_free_ref(primary_if);
+}
+
+/* return true if new_packet can be aggregated with forw_packet */
+static bool bat_ogm_can_aggregate(const struct batman_ogm_packet
+							*new_batman_ogm_packet,
+				  struct bat_priv *bat_priv,
+				  int packet_len, unsigned long send_time,
+				  bool directlink,
+				  const struct hard_iface *if_incoming,
+				  const struct forw_packet *forw_packet)
+{
+	struct batman_ogm_packet *batman_ogm_packet;
+	int aggregated_bytes = forw_packet->packet_len + packet_len;
+	struct hard_iface *primary_if = NULL;
+	bool res = false;
+
+	batman_ogm_packet = (struct batman_ogm_packet *)forw_packet->skb->data;
+
+	/**
+	 * we can aggregate the current packet to this aggregated packet
+	 * if:
+	 *
+	 * - the send time is within our MAX_AGGREGATION_MS time
+	 * - the resulting packet wont be bigger than
+	 *   MAX_AGGREGATION_BYTES
+	 */
+
+	if (time_before(send_time, forw_packet->send_time) &&
+	    time_after_eq(send_time + msecs_to_jiffies(MAX_AGGREGATION_MS),
+					forw_packet->send_time) &&
+	    (aggregated_bytes <= MAX_AGGREGATION_BYTES)) {
+
+		/**
+		 * check aggregation compatibility
+		 * -> direct link packets are broadcasted on
+		 *    their interface only
+		 * -> aggregate packet if the current packet is
+		 *    a "global" packet as well as the base
+		 *    packet
+		 */
+
+		primary_if = primary_if_get_selected(bat_priv);
+		if (!primary_if)
+			goto out;
+
+		/* packets without direct link flag and high TTL
+		 * are flooded through the net  */
+		if ((!directlink) &&
+		    (!(batman_ogm_packet->flags & DIRECTLINK)) &&
+		    (batman_ogm_packet->ttl != 1) &&
+
+		    /* own packets originating non-primary
+		     * interfaces leave only that interface */
+		    ((!forw_packet->own) ||
+		     (forw_packet->if_incoming == primary_if))) {
+			res = true;
+			goto out;
+		}
+
+		/* if the incoming packet is sent via this one
+		 * interface only - we still can aggregate */
+		if ((directlink) &&
+		    (new_batman_ogm_packet->ttl == 1) &&
+		    (forw_packet->if_incoming == if_incoming) &&
+
+		    /* packets from direct neighbors or
+		     * own secondary interface packets
+		     * (= secondary interface packets in general) */
+		    (batman_ogm_packet->flags & DIRECTLINK ||
+		     (forw_packet->own &&
+		      forw_packet->if_incoming != primary_if))) {
+			res = true;
+			goto out;
+		}
+	}
+
+out:
+	if (primary_if)
+		hardif_free_ref(primary_if);
+	return res;
+}
+
+/* create a new aggregated packet and add this packet to it */
+static void bat_ogm_aggregate_new(const unsigned char *packet_buff,
+				  int packet_len, unsigned long send_time,
+				  bool direct_link,
+				  struct hard_iface *if_incoming,
+				  int own_packet)
+{
+	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
+	struct forw_packet *forw_packet_aggr;
+	unsigned char *skb_buff;
+
+	if (!atomic_inc_not_zero(&if_incoming->refcount))
+		return;
+
+	/* own packet should always be scheduled */
+	if (!own_packet) {
+		if (!atomic_dec_not_zero(&bat_priv->batman_queue_left)) {
+			bat_dbg(DBG_BATMAN, bat_priv,
+				"batman packet queue full\n");
+			goto out;
+		}
+	}
+
+	forw_packet_aggr = kmalloc(sizeof(*forw_packet_aggr), GFP_ATOMIC);
+	if (!forw_packet_aggr) {
+		if (!own_packet)
+			atomic_inc(&bat_priv->batman_queue_left);
+		goto out;
+	}
+
+	if ((atomic_read(&bat_priv->aggregated_ogms)) &&
+	    (packet_len < MAX_AGGREGATION_BYTES))
+		forw_packet_aggr->skb = dev_alloc_skb(MAX_AGGREGATION_BYTES +
+						      sizeof(struct ethhdr));
+	else
+		forw_packet_aggr->skb = dev_alloc_skb(packet_len +
+						      sizeof(struct ethhdr));
+
+	if (!forw_packet_aggr->skb) {
+		if (!own_packet)
+			atomic_inc(&bat_priv->batman_queue_left);
+		kfree(forw_packet_aggr);
+		goto out;
+	}
+	skb_reserve(forw_packet_aggr->skb, sizeof(struct ethhdr));
+
+	INIT_HLIST_NODE(&forw_packet_aggr->list);
+
+	skb_buff = skb_put(forw_packet_aggr->skb, packet_len);
+	forw_packet_aggr->packet_len = packet_len;
+	memcpy(skb_buff, packet_buff, packet_len);
+
+	forw_packet_aggr->own = own_packet;
+	forw_packet_aggr->if_incoming = if_incoming;
+	forw_packet_aggr->num_packets = 0;
+	forw_packet_aggr->direct_link_flags = NO_FLAGS;
+	forw_packet_aggr->send_time = send_time;
+
+	/* save packet direct link flag status */
+	if (direct_link)
+		forw_packet_aggr->direct_link_flags |= 1;
+
+	/* add new packet to packet list */
+	spin_lock_bh(&bat_priv->forw_bat_list_lock);
+	hlist_add_head(&forw_packet_aggr->list, &bat_priv->forw_bat_list);
+	spin_unlock_bh(&bat_priv->forw_bat_list_lock);
+
+	/* start timer for this packet */
+	INIT_DELAYED_WORK(&forw_packet_aggr->delayed_work,
+			  send_outstanding_bat_ogm_packet);
+	queue_delayed_work(bat_event_workqueue,
+			   &forw_packet_aggr->delayed_work,
+			   send_time - jiffies);
+
+	return;
+out:
+	hardif_free_ref(if_incoming);
+}
+
+/* aggregate a new packet into the existing ogm packet */
+static void bat_ogm_aggregate(struct forw_packet *forw_packet_aggr,
+			      const unsigned char *packet_buff,
+			      int packet_len, bool direct_link)
+{
+	unsigned char *skb_buff;
+
+	skb_buff = skb_put(forw_packet_aggr->skb, packet_len);
+	memcpy(skb_buff, packet_buff, packet_len);
+	forw_packet_aggr->packet_len += packet_len;
+	forw_packet_aggr->num_packets++;
+
+	/* save packet direct link flag status */
+	if (direct_link)
+		forw_packet_aggr->direct_link_flags |=
+			(1 << forw_packet_aggr->num_packets);
+}
+
+static void bat_ogm_queue_add(struct bat_priv *bat_priv,
+			      unsigned char *packet_buff,
+			      int packet_len, struct hard_iface *if_incoming,
+			      int own_packet, unsigned long send_time)
+{
+	/**
+	 * _aggr -> pointer to the packet we want to aggregate with
+	 * _pos -> pointer to the position in the queue
+	 */
+	struct forw_packet *forw_packet_aggr = NULL, *forw_packet_pos = NULL;
+	struct hlist_node *tmp_node;
+	struct batman_ogm_packet *batman_ogm_packet;
+	bool direct_link;
+
+	batman_ogm_packet = (struct batman_ogm_packet *)packet_buff;
+	direct_link = batman_ogm_packet->flags & DIRECTLINK ? 1 : 0;
+
+	/* find position for the packet in the forward queue */
+	spin_lock_bh(&bat_priv->forw_bat_list_lock);
+	/* own packets are not to be aggregated */
+	if ((atomic_read(&bat_priv->aggregated_ogms)) && (!own_packet)) {
+		hlist_for_each_entry(forw_packet_pos, tmp_node,
+				     &bat_priv->forw_bat_list, list) {
+			if (bat_ogm_can_aggregate(batman_ogm_packet,
+						  bat_priv, packet_len,
+						  send_time, direct_link,
+						  if_incoming,
+						  forw_packet_pos)) {
+				forw_packet_aggr = forw_packet_pos;
+				break;
+			}
+		}
+	}
+
+	/* nothing to aggregate with - either aggregation disabled or no
+	 * suitable aggregation packet found */
+	if (!forw_packet_aggr) {
+		/* the following section can run without the lock */
+		spin_unlock_bh(&bat_priv->forw_bat_list_lock);
+
+		/**
+		 * if we could not aggregate this packet with one of the others
+		 * we hold it back for a while, so that it might be aggregated
+		 * later on
+		 */
+		if ((!own_packet) &&
+		    (atomic_read(&bat_priv->aggregated_ogms)))
+			send_time += msecs_to_jiffies(MAX_AGGREGATION_MS);
+
+		bat_ogm_aggregate_new(packet_buff, packet_len,
+				      send_time, direct_link,
+				      if_incoming, own_packet);
+	} else {
+		bat_ogm_aggregate(forw_packet_aggr, packet_buff, packet_len,
+				  direct_link);
+		spin_unlock_bh(&bat_priv->forw_bat_list_lock);
+	}
+}
+
+static void bat_ogm_forward(struct orig_node *orig_node,
+			    const struct ethhdr *ethhdr,
+			    struct batman_ogm_packet *batman_ogm_packet,
+			    int directlink, struct hard_iface *if_incoming)
+{
+	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
+	struct neigh_node *router;
+	uint8_t in_tq, in_ttl, tq_avg = 0;
+	uint8_t tt_num_changes;
+
+	if (batman_ogm_packet->ttl <= 1) {
+		bat_dbg(DBG_BATMAN, bat_priv, "ttl exceeded\n");
+		return;
+	}
+
+	router = orig_node_get_router(orig_node);
+
+	in_tq = batman_ogm_packet->tq;
+	in_ttl = batman_ogm_packet->ttl;
+	tt_num_changes = batman_ogm_packet->tt_num_changes;
+
+	batman_ogm_packet->ttl--;
+	memcpy(batman_ogm_packet->prev_sender, ethhdr->h_source, ETH_ALEN);
+
+	/* rebroadcast tq of our best ranking neighbor to ensure the rebroadcast
+	 * of our best tq value */
+	if (router && router->tq_avg != 0) {
+
+		/* rebroadcast ogm of best ranking neighbor as is */
+		if (!compare_eth(router->addr, ethhdr->h_source)) {
+			batman_ogm_packet->tq = router->tq_avg;
+
+			if (router->last_ttl)
+				batman_ogm_packet->ttl = router->last_ttl - 1;
+		}
+
+		tq_avg = router->tq_avg;
+	}
+
+	if (router)
+		neigh_node_free_ref(router);
+
+	/* apply hop penalty */
+	batman_ogm_packet->tq = hop_penalty(batman_ogm_packet->tq, bat_priv);
+
+	bat_dbg(DBG_BATMAN, bat_priv,
+		"Forwarding packet: tq_orig: %i, tq_avg: %i, "
+		"tq_forw: %i, ttl_orig: %i, ttl_forw: %i\n",
+		in_tq, tq_avg, batman_ogm_packet->tq, in_ttl - 1,
+		batman_ogm_packet->ttl);
+
+	batman_ogm_packet->seqno = htonl(batman_ogm_packet->seqno);
+	batman_ogm_packet->tt_crc = htons(batman_ogm_packet->tt_crc);
+
+	/* switch of primaries first hop flag when forwarding */
+	batman_ogm_packet->flags &= ~PRIMARIES_FIRST_HOP;
+	if (directlink)
+		batman_ogm_packet->flags |= DIRECTLINK;
+	else
+		batman_ogm_packet->flags &= ~DIRECTLINK;
+
+	bat_ogm_queue_add(bat_priv, (unsigned char *)batman_ogm_packet,
+			  BATMAN_OGM_LEN + tt_len(tt_num_changes),
+			  if_incoming, 0, bat_ogm_fwd_send_time());
+}
+
+void bat_ogm_schedule(struct hard_iface *hard_iface, int tt_num_changes)
+{
+	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
+	struct batman_ogm_packet *batman_ogm_packet;
+	struct hard_iface *primary_if;
+	int vis_server;
+
+	vis_server = atomic_read(&bat_priv->vis_mode);
+	primary_if = primary_if_get_selected(bat_priv);
+
+	batman_ogm_packet = (struct batman_ogm_packet *)hard_iface->packet_buff;
+
+	/* change sequence number to network order */
+	batman_ogm_packet->seqno =
+			htonl((uint32_t)atomic_read(&hard_iface->seqno));
+
+	batman_ogm_packet->ttvn = atomic_read(&bat_priv->ttvn);
+	batman_ogm_packet->tt_crc = htons((uint16_t)
+						atomic_read(&bat_priv->tt_crc));
+	if (tt_num_changes >= 0)
+		batman_ogm_packet->tt_num_changes = tt_num_changes;
+
+	if (vis_server == VIS_TYPE_SERVER_SYNC)
+		batman_ogm_packet->flags |= VIS_SERVER;
+	else
+		batman_ogm_packet->flags &= ~VIS_SERVER;
+
+	if ((hard_iface == primary_if) &&
+	    (atomic_read(&bat_priv->gw_mode) == GW_MODE_SERVER))
+		batman_ogm_packet->gw_flags =
+				(uint8_t)atomic_read(&bat_priv->gw_bandwidth);
+	else
+		batman_ogm_packet->gw_flags = NO_FLAGS;
+
+	atomic_inc(&hard_iface->seqno);
+
+	slide_own_bcast_window(hard_iface);
+	bat_ogm_queue_add(bat_priv, hard_iface->packet_buff,
+			  hard_iface->packet_len, hard_iface, 1,
+			  bat_ogm_emit_send_time(bat_priv));
+
+	if (primary_if)
+		hardif_free_ref(primary_if);
 }
 
 static void bat_ogm_orig_update(struct bat_priv *bat_priv,
@@ -605,8 +1100,8 @@ static void bat_ogm_process(const struct ethhdr *ethhdr,
 	if (is_single_hop_neigh) {
 
 		/* mark direct link on incoming interface */
-		schedule_forward_packet(orig_node, ethhdr, batman_ogm_packet,
-					1, if_incoming);
+		bat_ogm_forward(orig_node, ethhdr, batman_ogm_packet,
+				1, if_incoming);
 
 		bat_dbg(DBG_BATMAN, bat_priv, "Forwarding packet: "
 			"rebroadcast neighbor packet with direct link flag\n");
@@ -628,8 +1123,7 @@ static void bat_ogm_process(const struct ethhdr *ethhdr,
 
 	bat_dbg(DBG_BATMAN, bat_priv,
 		"Forwarding packet: rebroadcast originator packet\n");
-	schedule_forward_packet(orig_node, ethhdr, batman_ogm_packet,
-				0, if_incoming);
+	bat_ogm_forward(orig_node, ethhdr, batman_ogm_packet, 0, if_incoming);
 
 out_neigh:
 	if ((orig_neigh_node) && (!is_single_hop_neigh))

@@ -360,7 +360,7 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 			hard_iface->net_dev->name);
 
 	/* begin scheduling originator messages on that interface */
-	schedule_own_packet(hard_iface);
+	schedule_bat_ogm(hard_iface);
 
 out:
 	return 0;
