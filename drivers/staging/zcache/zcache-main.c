@@ -19,6 +19,7 @@
  *   http://marc.info/?l=linux-mm&m=127811271605009
  */
 
+#include <linux/module.h>
 #include <linux/cpu.h>
 #include <linux/highmem.h>
 #include <linux/list.h>
