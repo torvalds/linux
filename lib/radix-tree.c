@@ -1203,6 +1203,98 @@ radix_tree_gang_lookup_tag_slot(struct radix_tree_root *root, void ***results,
 }
 EXPORT_SYMBOL(radix_tree_gang_lookup_tag_slot);
 
+#if defined(CONFIG_SHMEM) && defined(CONFIG_SWAP)
+#include <linux/sched.h> /* for cond_resched() */
+
+/*
+ * This linear search is at present only useful to shmem_unuse_inode().
+ */
+static unsigned long __locate(struct radix_tree_node *slot, void *item,
+			      unsigned long index, unsigned long *found_index)
+{
+	unsigned int shift, height;
+	unsigned long i;
+
+	height = slot->height;
+	shift = (height-1) * RADIX_TREE_MAP_SHIFT;
+
+	for ( ; height > 1; height--) {
+		i = (index >> shift) & RADIX_TREE_MAP_MASK;
+		for (;;) {
+			if (slot->slots[i] != NULL)
+				break;
+			index &= ~((1UL << shift) - 1);
+			index += 1UL << shift;
+			if (index == 0)
+				goto out;	/* 32-bit wraparound */
+			i++;
+			if (i == RADIX_TREE_MAP_SIZE)
+				goto out;
+		}
+
+		shift -= RADIX_TREE_MAP_SHIFT;
+		slot = rcu_dereference_raw(slot->slots[i]);
+		if (slot == NULL)
+			goto out;
+	}
+
+	/* Bottom level: check items */
+	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
+		if (slot->slots[i] == item) {
+			*found_index = index + i;
+			index = 0;
+			goto out;
+		}
+	}
+	index += RADIX_TREE_MAP_SIZE;
+out:
+	return index;
+}
+
+/**
+ *	radix_tree_locate_item - search through radix tree for item
+ *	@root:		radix tree root
+ *	@item:		item to be found
+ *
+ *	Returns index where item was found, or -1 if not found.
+ *	Caller must hold no lock (since this time-consuming function needs
+ *	to be preemptible), and must check afterwards if item is still there.
+ */
+unsigned long radix_tree_locate_item(struct radix_tree_root *root, void *item)
+{
+	struct radix_tree_node *node;
+	unsigned long max_index;
+	unsigned long cur_index = 0;
+	unsigned long found_index = -1;
+
+	do {
+		rcu_read_lock();
+		node = rcu_dereference_raw(root->rnode);
+		if (!radix_tree_is_indirect_ptr(node)) {
+			rcu_read_unlock();
+			if (node == item)
+				found_index = 0;
+			break;
+		}
+
+		node = indirect_to_ptr(node);
+		max_index = radix_tree_maxindex(node->height);
+		if (cur_index > max_index)
+			break;
+
+		cur_index = __locate(node, item, cur_index, &found_index);
+		rcu_read_unlock();
+		cond_resched();
+	} while (cur_index != 0 && cur_index <= max_index);
+
+	return found_index;
+}
+#else
+unsigned long radix_tree_locate_item(struct radix_tree_root *root, void *item)
+{
+	return -1;
+}
+#endif /* CONFIG_SHMEM && CONFIG_SWAP */
 
 /**
  *	radix_tree_shrink    -    shrink height of a radix tree to minimal

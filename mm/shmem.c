@@ -357,42 +357,6 @@ export:
 }
 
 /*
- * Lockless lookup of swap entry in radix tree, avoiding refcount on pages.
- */
-static pgoff_t shmem_find_swap(struct address_space *mapping, void *radswap)
-{
-	void  **slots[PAGEVEC_SIZE];
-	pgoff_t indices[PAGEVEC_SIZE];
-	unsigned int nr_found;
-
-restart:
-	nr_found = 1;
-	indices[0] = -1;
-	while (nr_found) {
-		pgoff_t index = indices[nr_found - 1] + 1;
-		unsigned int i;
-
-		rcu_read_lock();
-		nr_found = radix_tree_gang_lookup_slot(&mapping->page_tree,
-					slots, indices, index, PAGEVEC_SIZE);
-		for (i = 0; i < nr_found; i++) {
-			void *item = radix_tree_deref_slot(slots[i]);
-			if (radix_tree_deref_retry(item)) {
-				rcu_read_unlock();
-				goto restart;
-			}
-			if (item == radswap) {
-				rcu_read_unlock();
-				return indices[i];
-			}
-		}
-		rcu_read_unlock();
-		cond_resched();
-	}
-	return -1;
-}
-
-/*
  * Remove swap entry from radix tree, free the swap and its page cache.
  */
 static int shmem_free_swap(struct address_space *mapping,
@@ -612,7 +576,7 @@ static int shmem_unuse_inode(struct shmem_inode_info *info,
 	int error;
 
 	radswap = swp_to_radix_entry(swap);
-	index = shmem_find_swap(mapping, radswap);
+	index = radix_tree_locate_item(&mapping->page_tree, radswap);
 	if (index == -1)
 		return 0;
 
