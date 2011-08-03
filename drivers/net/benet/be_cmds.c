@@ -1593,6 +1593,7 @@ int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 			memcpy(req->mcast_mac[i++].byte, ha->addr, ETH_ALEN);
 	}
 
+	status = be_mcc_notify_wait(adapter);
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
