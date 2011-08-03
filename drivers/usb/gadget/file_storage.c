@@ -586,7 +586,19 @@ dev_qualifier = {
 	.bNumConfigurations =	1,
 };
 
+static int populate_bos(struct fsg_dev *fsg, u8 *buf)
+{
+	memcpy(buf, &fsg_bos_desc, USB_DT_BOS_SIZE);
+	buf += USB_DT_BOS_SIZE;
 
+	memcpy(buf, &fsg_ext_cap_desc, USB_DT_USB_EXT_CAP_SIZE);
+	buf += USB_DT_USB_EXT_CAP_SIZE;
+
+	memcpy(buf, &fsg_ss_cap_desc, USB_DT_USB_SS_CAP_SIZE);
+
+	return USB_DT_BOS_SIZE + USB_DT_USB_SS_CAP_SIZE
+		+ USB_DT_USB_EXT_CAP_SIZE;
+}
 
 /*
  * Config descriptors must agree with the code that sets configurations
@@ -935,7 +947,8 @@ static int standard_setup_req(struct fsg_dev *fsg,
 			break;
 		case USB_DT_DEVICE_QUALIFIER:
 			VDBG(fsg, "get device qualifier\n");
-			if (!gadget_is_dualspeed(fsg->gadget))
+			if (!gadget_is_dualspeed(fsg->gadget) ||
+					fsg->gadget->speed == USB_SPEED_SUPER)
 				break;
 			/*
 			 * Assume ep0 uses the same maxpacket value for both
@@ -948,7 +961,8 @@ static int standard_setup_req(struct fsg_dev *fsg,
 
 		case USB_DT_OTHER_SPEED_CONFIG:
 			VDBG(fsg, "get other-speed config descriptor\n");
-			if (!gadget_is_dualspeed(fsg->gadget))
+			if (!gadget_is_dualspeed(fsg->gadget) ||
+					fsg->gadget->speed == USB_SPEED_SUPER)
 				break;
 			goto get_config;
 		case USB_DT_CONFIG:
@@ -967,7 +981,15 @@ get_config:
 			value = usb_gadget_get_string(&fsg_stringtab,
 					w_value & 0xff, req->buf);
 			break;
+
+		case USB_DT_BOS:
+			VDBG(fsg, "get bos descriptor\n");
+
+			if (gadget_is_superspeed(fsg->gadget))
+				value = populate_bos(fsg, req->buf);
+			break;
 		}
+
 		break;
 
 	/* One config, two speeds */
@@ -2777,13 +2799,15 @@ reset:
 
 	/* Enable the endpoints */
 	d = fsg_ep_desc(fsg->gadget,
-			&fsg_fs_bulk_in_desc, &fsg_hs_bulk_in_desc);
+			&fsg_fs_bulk_in_desc, &fsg_hs_bulk_in_desc,
+			&fsg_ss_bulk_in_desc);
 	if ((rc = enable_endpoint(fsg, fsg->bulk_in, d)) != 0)
 		goto reset;
 	fsg->bulk_in_enabled = 1;
 
 	d = fsg_ep_desc(fsg->gadget,
-			&fsg_fs_bulk_out_desc, &fsg_hs_bulk_out_desc);
+			&fsg_fs_bulk_out_desc, &fsg_hs_bulk_out_desc,
+			&fsg_ss_bulk_out_desc);
 	if ((rc = enable_endpoint(fsg, fsg->bulk_out, d)) != 0)
 		goto reset;
 	fsg->bulk_out_enabled = 1;
@@ -2792,7 +2816,8 @@ reset:
 
 	if (transport_is_cbi()) {
 		d = fsg_ep_desc(fsg->gadget,
-				&fsg_fs_intr_in_desc, &fsg_hs_intr_in_desc);
+				&fsg_fs_intr_in_desc, &fsg_hs_intr_in_desc,
+				&fsg_ss_intr_in_desc);
 		if ((rc = enable_endpoint(fsg, fsg->intr_in, d)) != 0)
 			goto reset;
 		fsg->intr_in_enabled = 1;
@@ -3424,6 +3449,24 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 			fsg_fs_intr_in_desc.bEndpointAddress;
 	}
 
+	if (gadget_is_superspeed(gadget)) {
+		unsigned		max_burst;
+
+		fsg_ss_function[i + FSG_SS_FUNCTION_PRE_EP_ENTRIES] = NULL;
+
+		/* Calculate bMaxBurst, we know packet size is 1024 */
+		max_burst = min_t(unsigned, mod_data.buflen / 1024, 15);
+
+		/* Assume endpoint addresses are the same for both speeds */
+		fsg_ss_bulk_in_desc.bEndpointAddress =
+			fsg_fs_bulk_in_desc.bEndpointAddress;
+		fsg_ss_bulk_in_comp_desc.bMaxBurst = max_burst;
+
+		fsg_ss_bulk_out_desc.bEndpointAddress =
+			fsg_fs_bulk_out_desc.bEndpointAddress;
+		fsg_ss_bulk_out_comp_desc.bMaxBurst = max_burst;
+	}
+
 	if (gadget_is_otg(gadget))
 		fsg_otg_desc.bmAttributes |= USB_OTG_HNP;
 
@@ -3540,11 +3583,7 @@ static void fsg_resume(struct usb_gadget *gadget)
 /*-------------------------------------------------------------------------*/
 
 static struct usb_gadget_driver		fsg_driver = {
-#ifdef CONFIG_USB_GADGET_DUALSPEED
-	.speed		= USB_SPEED_HIGH,
-#else
-	.speed		= USB_SPEED_FULL,
-#endif
+	.speed		= USB_SPEED_SUPER,
 	.function	= (char *) fsg_string_product,
 	.unbind		= fsg_unbind,
 	.disconnect	= fsg_disconnect,
