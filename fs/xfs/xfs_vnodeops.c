@@ -85,7 +85,7 @@ xfs_readlink_bmap(
 				  XBF_LOCK | XBF_MAPPED | XBF_DONT_BLOCK);
 		if (!bp)
 			return XFS_ERROR(ENOMEM);
-		error = xfs_buf_geterror(bp);
+		error = bp->b_error;
 		if (error) {
 			xfs_ioerror_alert("xfs_readlink",
 				  ip->i_mount, bp, XFS_BUF_ADDR(bp));

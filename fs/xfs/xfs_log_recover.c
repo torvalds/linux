@@ -2133,7 +2133,7 @@ xlog_recover_buffer_pass2(
 			  buf_flags);
 	if (!bp)
 		return XFS_ERROR(ENOMEM);
-	error = xfs_buf_geterror(bp);
+	error = bp->b_error;
 	if (error) {
 		xfs_ioerror_alert("xlog_recover_do..(read#1)", mp,
 				  bp, buf_f->blf_blkno);
@@ -2228,7 +2228,7 @@ xlog_recover_inode_pass2(
 		error = ENOMEM;
 		goto error;
 	}
-	error = xfs_buf_geterror(bp);
+	error = bp->b_error;
 	if (error) {
 		xfs_ioerror_alert("xlog_recover_do..(read#2)", mp,
 				  bp, in_f->ilf_blkno);
