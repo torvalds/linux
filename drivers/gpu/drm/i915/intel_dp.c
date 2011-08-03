@@ -317,9 +317,17 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	else
 		precharge = 5;
 
-	if (I915_READ(ch_ctl) & DP_AUX_CH_CTL_SEND_BUSY) {
-		DRM_ERROR("dp_aux_ch not started status 0x%08x\n",
-			  I915_READ(ch_ctl));
+	/* Try to wait for any previous AUX channel activity */
+	for (try = 0; try < 3; try++) {
+		status = I915_READ(ch_ctl);
+		if ((status & DP_AUX_CH_CTL_SEND_BUSY) == 0)
+			break;
+		msleep(1);
+	}
+
+	if (try == 3) {
+		WARN(1, "dp_aux_ch not started status 0x%08x\n",
+		     I915_READ(ch_ctl));
 		return -EBUSY;
 	}
 
@@ -1690,7 +1698,6 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	struct edid *edid = NULL;
 
 	intel_dp->has_audio = false;
-	memset(intel_dp->dpcd, 0, sizeof(intel_dp->dpcd));
 
 	if (HAS_PCH_SPLIT(dev))
 		status = ironlake_dp_detect(intel_dp);
