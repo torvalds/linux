@@ -236,6 +236,12 @@ void __init ixp4xx_init_irq(void)
 {
 	int i = 0;
 
+	/*
+	 * ixp4xx does not implement the XScale PWRMODE register
+	 * so it must not call cpu_do_idle().
+	 */
+	disable_hlt();
+
 	/* Route all sources to IRQ instead of FIQ */
 	*IXP4XX_ICLR = 0x0;
 

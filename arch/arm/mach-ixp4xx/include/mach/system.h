@@ -10,10 +10,5 @@
  */
 static inline void arch_idle(void)
 {
-	/* ixp4xx does not implement the XScale PWRMODE register,
-	 * so it must not call cpu_do_idle() here.
-	 */
-#if 0
 	cpu_do_idle();
-#endif
 }
