@@ -5097,6 +5097,81 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	return ret;
 }
 
+static void ironlake_update_pch_refclk(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct drm_crtc *crtc;
+	struct intel_encoder *encoder;
+	struct intel_encoder *has_edp_encoder = NULL;
+	u32 temp;
+	bool has_lvds = false;
+
+	/* We need to take the global config into account */
+	list_for_each_entry(crtc, &mode_config->crtc_list, head) {
+		if (!crtc->enabled)
+			continue;
+
+		list_for_each_entry(encoder, &mode_config->encoder_list,
+				    base.head) {
+			if (encoder->base.crtc != crtc)
+				continue;
+
+			switch (encoder->type) {
+			case INTEL_OUTPUT_LVDS:
+				has_lvds = true;
+			case INTEL_OUTPUT_EDP:
+				has_edp_encoder = encoder;
+				break;
+			}
+		}
+	}
+
+	/* Ironlake: try to setup display ref clock before DPLL
+	 * enabling. This is only under driver's control after
+	 * PCH B stepping, previous chipset stepping should be
+	 * ignoring this setting.
+	 */
+	temp = I915_READ(PCH_DREF_CONTROL);
+	/* Always enable nonspread source */
+	temp &= ~DREF_NONSPREAD_SOURCE_MASK;
+	temp |= DREF_NONSPREAD_SOURCE_ENABLE;
+	temp &= ~DREF_SSC_SOURCE_MASK;
+	temp |= DREF_SSC_SOURCE_ENABLE;
+	I915_WRITE(PCH_DREF_CONTROL, temp);
+
+	POSTING_READ(PCH_DREF_CONTROL);
+	udelay(200);
+
+	if (has_edp_encoder) {
+		if (intel_panel_use_ssc(dev_priv)) {
+			temp |= DREF_SSC1_ENABLE;
+			I915_WRITE(PCH_DREF_CONTROL, temp);
+
+			POSTING_READ(PCH_DREF_CONTROL);
+			udelay(200);
+		}
+		temp &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
+
+		/* Enable CPU source on CPU attached eDP */
+		if (!intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
+			if (intel_panel_use_ssc(dev_priv))
+				temp |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;
+			else
+				temp |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
+		} else {
+			/* Enable SSC on PCH eDP if needed */
+			if (intel_panel_use_ssc(dev_priv)) {
+				DRM_ERROR("enabling SSC on PCH\n");
+				temp |= DREF_SUPERSPREAD_SOURCE_ENABLE;
+			}
+		}
+		I915_WRITE(PCH_DREF_CONTROL, temp);
+		POSTING_READ(PCH_DREF_CONTROL);
+		udelay(200);
+	}
+}
+
 static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 				  struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode,
@@ -5292,49 +5367,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	ironlake_compute_m_n(intel_crtc->bpp, lane, target_clock, link_bw,
 			     &m_n);
 
-	/* Ironlake: try to setup display ref clock before DPLL
-	 * enabling. This is only under driver's control after
-	 * PCH B stepping, previous chipset stepping should be
-	 * ignoring this setting.
-	 */
-	temp = I915_READ(PCH_DREF_CONTROL);
-	/* Always enable nonspread source */
-	temp &= ~DREF_NONSPREAD_SOURCE_MASK;
-	temp |= DREF_NONSPREAD_SOURCE_ENABLE;
-	temp &= ~DREF_SSC_SOURCE_MASK;
-	temp |= DREF_SSC_SOURCE_ENABLE;
-	I915_WRITE(PCH_DREF_CONTROL, temp);
-
-	POSTING_READ(PCH_DREF_CONTROL);
-	udelay(200);
-
-	if (has_edp_encoder) {
-		if (intel_panel_use_ssc(dev_priv)) {
-			temp |= DREF_SSC1_ENABLE;
-			I915_WRITE(PCH_DREF_CONTROL, temp);
-
-			POSTING_READ(PCH_DREF_CONTROL);
-			udelay(200);
-		}
-		temp &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
-
-		/* Enable CPU source on CPU attached eDP */
-		if (!intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
-			if (intel_panel_use_ssc(dev_priv))
-				temp |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;
-			else
-				temp |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
-		} else {
-			/* Enable SSC on PCH eDP if needed */
-			if (intel_panel_use_ssc(dev_priv)) {
-				DRM_ERROR("enabling SSC on PCH\n");
-				temp |= DREF_SUPERSPREAD_SOURCE_ENABLE;
-			}
-		}
-		I915_WRITE(PCH_DREF_CONTROL, temp);
-		POSTING_READ(PCH_DREF_CONTROL);
-		udelay(200);
-	}
+	ironlake_update_pch_refclk(dev);
 
 	fp = clock.n << 16 | clock.m1 << 8 | clock.m2;
 	if (has_reduced_clock)
