@@ -332,10 +332,14 @@ repeat:
 		if (unlikely(!page))
 			continue;
 		if (radix_tree_exception(page)) {
-			if (radix_tree_exceptional_entry(page))
-				goto export;
-			/* radix_tree_deref_retry(page) */
-			goto restart;
+			if (radix_tree_deref_retry(page))
+				goto restart;
+			/*
+			 * Otherwise, we must be storing a swap entry
+			 * here as an exceptional entry: so return it
+			 * without attempting to raise page count.
+			 */
+			goto export;
 		}
 		if (!page_cache_get_speculative(page))
 			goto repeat;
