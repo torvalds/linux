@@ -9,8 +9,5 @@
  */
 static inline void arch_idle(void)
 {
-#if 0
-	if (!hlt_counter)
-		cpu_do_idle();
-#endif
+	cpu_do_idle();
 }
