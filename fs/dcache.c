@@ -795,6 +795,7 @@ relock:
 
 /**
  * prune_dcache_sb - shrink the dcache
+ * @sb: superblock
  * @nr_to_scan: number of entries to try to free
  *
  * Attempt to shrink the superblock dcache LRU by @nr_to_scan entries. This is
