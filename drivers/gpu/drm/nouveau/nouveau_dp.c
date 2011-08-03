@@ -516,7 +516,7 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate)
 	nouveau_bios_run_init_table(dev, ROM16(bios[6]), dp.dcb, dp.crtc);
 
 	/* start off at highest link rate supported by encoder and display */
-	if (nv_encoder->dp.link_bw == DP_LINK_BW_1_62)
+	while (*link_bw > nv_encoder->dp.link_bw)
 		link_bw++;
 
 	while (link_bw[0]) {
@@ -566,24 +566,24 @@ nouveau_dp_detect(struct drm_encoder *encoder)
 	if (ret)
 		return false;
 
-	NV_DEBUG_KMS(dev, "encoder: link_bw %d, link_nr %d\n"
-		      "display: link_bw %d, link_nr %d version 0x%02x\n",
-		 nv_encoder->dcb->dpconf.link_bw,
-		 nv_encoder->dcb->dpconf.link_nr,
-		 dpcd[1], dpcd[2] & 0x0f, dpcd[0]);
-
 	nv_encoder->dp.dpcd_version = dpcd[0];
-
-	nv_encoder->dp.link_bw = dpcd[1];
-	if (nv_encoder->dp.link_bw != DP_LINK_BW_1_62 &&
-	    !nv_encoder->dcb->dpconf.link_bw)
-		nv_encoder->dp.link_bw = DP_LINK_BW_1_62;
-
+	nv_encoder->dp.link_bw = 27000 * dpcd[1];
 	nv_encoder->dp.link_nr = dpcd[2] & DP_MAX_LANE_COUNT_MASK;
-	if (nv_encoder->dp.link_nr > nv_encoder->dcb->dpconf.link_nr)
-		nv_encoder->dp.link_nr = nv_encoder->dcb->dpconf.link_nr;
+	nv_encoder->dp.enhanced_frame = dpcd[2] & DP_ENHANCED_FRAME_CAP;
 
-	nv_encoder->dp.enhanced_frame = (dpcd[2] & DP_ENHANCED_FRAME_CAP);
+	NV_DEBUG_KMS(dev, "display: %dx%d dpcd 0x%02x\n",
+		     nv_encoder->dp.link_nr, nv_encoder->dp.link_bw, dpcd[0]);
+	NV_DEBUG_KMS(dev, "encoder: %dx%d\n",
+		     nv_encoder->dcb->dpconf.link_nr,
+		     nv_encoder->dcb->dpconf.link_bw);
+
+	if (nv_encoder->dcb->dpconf.link_nr < nv_encoder->dp.link_nr)
+		nv_encoder->dp.link_nr = nv_encoder->dcb->dpconf.link_nr;
+	if (nv_encoder->dcb->dpconf.link_bw < nv_encoder->dp.link_bw)
+		nv_encoder->dp.link_bw = nv_encoder->dcb->dpconf.link_bw;
+
+	NV_DEBUG_KMS(dev, "maximum: %dx%d\n",
+		     nv_encoder->dp.link_nr, nv_encoder->dp.link_bw);
 
 	return true;
 }

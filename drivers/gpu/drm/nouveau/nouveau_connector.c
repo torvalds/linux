@@ -708,11 +708,8 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 	case OUTPUT_TV:
 		return get_slave_funcs(encoder)->mode_valid(encoder, mode);
 	case OUTPUT_DP:
-		if (nv_encoder->dp.link_bw == DP_LINK_BW_2_7)
-			max_clock = nv_encoder->dp.link_nr * 270000;
-		else
-			max_clock = nv_encoder->dp.link_nr * 162000;
-
+		max_clock  = nv_encoder->dp.link_nr;
+		max_clock *= nv_encoder->dp.link_bw;
 		clock = clock * nouveau_connector_bpp(connector) / 8;
 		break;
 	default:

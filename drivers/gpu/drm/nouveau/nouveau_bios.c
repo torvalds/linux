@@ -6199,7 +6199,14 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 	}
 	case OUTPUT_DP:
 		entry->dpconf.sor.link = (conf & 0x00000030) >> 4;
-		entry->dpconf.link_bw = (conf & 0x00e00000) >> 21;
+		switch ((conf & 0x00e00000) >> 21) {
+		case 0:
+			entry->dpconf.link_bw = 162000;
+			break;
+		default:
+			entry->dpconf.link_bw = 270000;
+			break;
+		}
 		switch ((conf & 0x0f000000) >> 24) {
 		case 0xf:
 			entry->dpconf.link_nr = 4;
