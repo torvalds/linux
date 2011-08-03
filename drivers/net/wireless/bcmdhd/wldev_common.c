@@ -38,37 +38,21 @@
 #define htodchanspec(i) i
 #define dtohchanspec(i) i
 
+extern int dhd_ioctl_entry_local(struct net_device *net, wl_ioctl_t *ioc, int cmd);
+
 s32 wldev_ioctl(
 	struct net_device *dev, u32 cmd, void *arg, u32 len, u32 set)
 {
 	s32 ret = 0;
-	struct ifreq ifr;
 	struct wl_ioctl ioc;
-	mm_segment_t fs;
-	s32 err = 0;
-
-	if (!dev) {
-		DHD_ERROR(("%s: dev is null\n", __FUNCTION__));
-		return -EINVAL;
-	}
 
 	memset(&ioc, 0, sizeof(ioc));
 	ioc.cmd = cmd;
 	ioc.buf = arg;
 	ioc.len = len;
 	ioc.set = set;
-	strcpy(ifr.ifr_name, dev->name);
-	ifr.ifr_data = (caddr_t)&ioc;
 
-	fs = get_fs();
-	set_fs(get_ds());
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 31)
-	err = dev->do_ioctl(dev, &ifr, SIOCDEVPRIVATE);
-#else
-	err = dev->netdev_ops->ndo_do_ioctl(dev, &ifr, SIOCDEVPRIVATE);
-#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 31) */
-	set_fs(fs);
-
+	ret = dhd_ioctl_entry_local(dev, &ioc, cmd);
 	return ret;
 }
 
