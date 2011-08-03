@@ -294,7 +294,7 @@ static int shm_try_destroy_orphaned(int id, void *p, void *data)
 void shm_destroy_orphaned(struct ipc_namespace *ns)
 {
 	down_write(&shm_ids(ns).rw_mutex);
-	if (&shm_ids(ns).in_use)
+	if (shm_ids(ns).in_use)
 		idr_for_each(&shm_ids(ns).ipcs_idr, &shm_try_destroy_orphaned, ns);
 	up_write(&shm_ids(ns).rw_mutex);
 }
@@ -306,7 +306,7 @@ void exit_shm(struct task_struct *task)
 
 	/* Destroy all already created segments, but not mapped yet */
 	down_write(&shm_ids(ns).rw_mutex);
-	if (&shm_ids(ns).in_use)
+	if (shm_ids(ns).in_use)
 		idr_for_each(&shm_ids(ns).ipcs_idr, &shm_try_destroy_current, ns);
 	up_write(&shm_ids(ns).rw_mutex);
 }
