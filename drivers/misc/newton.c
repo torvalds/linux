@@ -30,6 +30,8 @@
 #define NEWTON_GPIO_B            RK29_PIN4_PB2
 #define NEWTON_GPIO_AC_DETEC     RK29_PIN4_PA1
 #define NEWTON_GPIO_GPS_PWR      RK29_PIN6_PB2
+#define NEWTON_IDBDATA_SIZE      512
+#define NEWTON_GET_IDBDATA       0x600F
 #define NEWTON_GET_UID           0x6001
 #define NEWTON_AC_DETEC          0x6002
 #define NEWTON_GPS_CTRL          0x6003
@@ -121,16 +123,29 @@ int rk29_newton_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 	
     switch(cmd)
     {
-    case NEWTON_GET_UID:
-		{
-			IdbSector3 sn;
-			DBG("%s:NEWTON_GET_UID\n",__FUNCTION__);
-			memset(&sn,0,sizeof(IdbSector3));
-			GetSNSectorInfo((char*)&sn);
-			//newton_print_buf(&sn.UID_Data, sizeof(sn.UID_Data));
+        case NEWTON_GET_UID:
+        {
+            IdbSector3 sn;
+
+            DBG("%s:NEWTON_GET_UID\n",__FUNCTION__);
+            memset(&sn,0,sizeof(IdbSector3));
+            GetSNSectorInfo((char*)&sn);
+	    //newton_print_buf(&sn.UID_Data, sizeof(sn.UID_Data));
             if(copy_to_user(argp, &sn.UID_Data, sizeof(sn.UID_Data)))  return -EFAULT;
-    	}
-		break;
+        }
+        break;
+
+        case NEWTON_GET_IDBDATA:
+        {
+            char data[NEWTON_IDBDATA_SIZE];
+
+            memset(data, 0, NEWTON_IDBDATA_SIZE);
+            GetSNSectorInfo(data);
+            if(copy_to_user(argp, data, NEWTON_IDBDATA_SIZE))
+                return -EFAULT;
+        }
+        break;
+
 /*		
 	case NEWTON_AC_DETEC:
 		{
