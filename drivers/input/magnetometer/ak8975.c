@@ -701,7 +701,7 @@ static void akm8975_early_resume(struct early_suspend *handler)
 	AKMDBG("resumed with flag=%d", 
 	       atomic_read(&reserve_open_flag));
 }
-static void akm8975_suspend(struct i2c_client *client, pm_message_t mesg)
+static int akm8975_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	AKMFUNC("akm8975_early_suspend");
 	atomic_set(&suspend_flag, 1);
@@ -711,9 +711,10 @@ static void akm8975_suspend(struct i2c_client *client, pm_message_t mesg)
 	disable_irq(this_client->irq);
 	AKMDBG("suspended with flag=%d", 
 	       atomic_read(&reserve_open_flag));
+	return 0;
 }
 
-static void akm8975_resume(struct i2c_client *client)
+static int akm8975_resume(struct i2c_client *client)
 {
 	AKMFUNC("akm8975_early_resume");
 	enable_irq(this_client->irq);
@@ -722,6 +723,7 @@ static void akm8975_resume(struct i2c_client *client)
 	wake_up(&open_wq);
 	AKMDBG("resumed with flag=%d", 
 	       atomic_read(&reserve_open_flag));
+	return 0;
 }
 /*********************************************/
 static struct file_operations akmd_fops = {
