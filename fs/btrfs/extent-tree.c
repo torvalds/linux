@@ -6728,6 +6728,10 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 	struct btrfs_space_info *space_info;
 	struct btrfs_fs_devices *fs_devices = root->fs_info->fs_devices;
 	struct btrfs_device *device;
+	u64 min_free;
+	int index;
+	int dev_nr = 0;
+	int dev_min = 1;
 	int full = 0;
 	int ret = 0;
 
@@ -6737,8 +6741,10 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 	if (!block_group)
 		return -1;
 
+	min_free = btrfs_block_group_used(&block_group->item);
+
 	/* no bytes used, we're good */
-	if (!btrfs_block_group_used(&block_group->item))
+	if (!min_free)
 		goto out;
 
 	space_info = block_group->space_info;
@@ -6754,10 +6760,9 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 	 * all of the extents from this block group.  If we can, we're good
 	 */
 	if ((space_info->total_bytes != block_group->key.offset) &&
-	   (space_info->bytes_used + space_info->bytes_reserved +
-	    space_info->bytes_pinned + space_info->bytes_readonly +
-	    btrfs_block_group_used(&block_group->item) <
-	    space_info->total_bytes)) {
+	    (space_info->bytes_used + space_info->bytes_reserved +
+	     space_info->bytes_pinned + space_info->bytes_readonly +
+	     min_free < space_info->total_bytes)) {
 		spin_unlock(&space_info->lock);
 		goto out;
 	}
@@ -6774,9 +6779,29 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 	if (full)
 		goto out;
 
+	/*
+	 * index:
+	 *      0: raid10
+	 *      1: raid1
+	 *      2: dup
+	 *      3: raid0
+	 *      4: single
+	 */
+	index = get_block_group_index(block_group);
+	if (index == 0) {
+		dev_min = 4;
+		min_free /= 2;
+	} else if (index == 1) {
+		dev_min = 2;
+	} else if (index == 2) {
+		min_free *= 2;
+	} else if (index == 3) {
+		dev_min = fs_devices->rw_devices;
+		min_free /= dev_min;
+	}
+
 	mutex_lock(&root->fs_info->chunk_mutex);
 	list_for_each_entry(device, &fs_devices->alloc_list, dev_alloc_list) {
-		u64 min_free = btrfs_block_group_used(&block_group->item);
 		u64 dev_offset;
 
 		/*
@@ -6787,7 +6812,11 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 			ret = find_free_dev_extent(NULL, device, min_free,
 						   &dev_offset, NULL);
 			if (!ret)
+				dev_nr++;
+
+			if (dev_nr >= dev_min)
 				break;
+
 			ret = -1;
 		}
 	}
