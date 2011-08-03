@@ -308,6 +308,7 @@ static int rtl28xxu_frontend_attach(struct dvb_usb_adapter *adap)
 	}
 
 	/* assume MXL5005S */
+	ret = 0;
 	priv->tuner = TUNER_RTL2830_MXL5005S;
 	rtl2830_config = &rtl28xxu_rtl2830_mxl5005s_config;
 	deb_info("%s: MXL5005S\n", __func__);
