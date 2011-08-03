@@ -27,12 +27,9 @@ int main(void)
 	BLANK();
 	DEFINE(__TASK_pid, offsetof(struct task_struct, pid));
 	BLANK();
-	DEFINE(__THREAD_per_cause,
-	       offsetof(struct task_struct, thread.per_event.cause));
-	DEFINE(__THREAD_per_address,
-	       offsetof(struct task_struct, thread.per_event.address));
-	DEFINE(__THREAD_per_paid,
-	       offsetof(struct task_struct, thread.per_event.paid));
+	DEFINE(__THREAD_per_cause, offsetof(struct task_struct, thread.per_event.cause));
+	DEFINE(__THREAD_per_address, offsetof(struct task_struct, thread.per_event.address));
+	DEFINE(__THREAD_per_paid, offsetof(struct task_struct, thread.per_event.paid));
 	BLANK();
 	DEFINE(__TI_task, offsetof(struct thread_info, task));
 	DEFINE(__TI_domain, offsetof(struct thread_info, exec_domain));
