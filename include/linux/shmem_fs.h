@@ -8,20 +8,15 @@
 
 /* inode in-kernel data */
 
-#define SHMEM_NR_DIRECT 16
-
-#define SHMEM_SYMLINK_INLINE_LEN (SHMEM_NR_DIRECT * sizeof(swp_entry_t))
-
 struct shmem_inode_info {
 	spinlock_t		lock;
 	unsigned long		flags;
 	unsigned long		alloced;	/* data pages alloced to file */
-	unsigned long		swapped;	/* subtotal assigned to swap */
-	struct shared_policy	policy;		/* NUMA memory alloc policy */
 	union {
-		swp_entry_t	i_direct[SHMEM_NR_DIRECT]; /* first blocks */
-		char		inline_symlink[SHMEM_SYMLINK_INLINE_LEN];
+		unsigned long	swapped;	/* subtotal assigned to swap */
+		char		*symlink;	/* unswappable short symlink */
 	};
+	struct shared_policy	policy;		/* NUMA memory alloc policy */
 	struct list_head	swaplist;	/* chain of maybes on swap */
 	struct list_head	xattr_list;	/* list of shmem_xattr */
 	struct inode		vfs_inode;

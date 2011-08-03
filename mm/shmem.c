@@ -73,6 +73,9 @@ static struct vfsmount *shm_mnt;
 /* Pretend that each entry is of this size in directory's i_size */
 #define BOGO_DIRENT_SIZE 20
 
+/* Symlink up to this size is kmalloc'ed instead of using a swappable page */
+#define SHORT_SYMLINK_LEN 128
+
 struct shmem_xattr {
 	struct list_head list;	/* anchored by shmem_inode_info->xattr_list */
 	char *name;		/* xattr name */
@@ -585,7 +588,8 @@ static void shmem_evict_inode(struct inode *inode)
 			list_del_init(&info->swaplist);
 			mutex_unlock(&shmem_swaplist_mutex);
 		}
-	}
+	} else
+		kfree(info->symlink);
 
 	list_for_each_entry_safe(xattr, nxattr, &info->xattr_list, list) {
 		kfree(xattr->name);
@@ -1173,7 +1177,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode 
 
 #ifdef CONFIG_TMPFS
 static const struct inode_operations shmem_symlink_inode_operations;
-static const struct inode_operations shmem_symlink_inline_operations;
+static const struct inode_operations shmem_short_symlink_operations;
 
 static int
 shmem_write_begin(struct file *file, struct address_space *mapping,
@@ -1638,10 +1642,13 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 
 	info = SHMEM_I(inode);
 	inode->i_size = len-1;
-	if (len <= SHMEM_SYMLINK_INLINE_LEN) {
-		/* do it inline */
-		memcpy(info->inline_symlink, symname, len);
-		inode->i_op = &shmem_symlink_inline_operations;
+	if (len <= SHORT_SYMLINK_LEN) {
+		info->symlink = kmemdup(symname, len, GFP_KERNEL);
+		if (!info->symlink) {
+			iput(inode);
+			return -ENOMEM;
+		}
+		inode->i_op = &shmem_short_symlink_operations;
 	} else {
 		error = shmem_getpage(inode, 0, &page, SGP_WRITE, NULL);
 		if (error) {
@@ -1664,9 +1671,9 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 	return 0;
 }
 
-static void *shmem_follow_link_inline(struct dentry *dentry, struct nameidata *nd)
+static void *shmem_follow_short_symlink(struct dentry *dentry, struct nameidata *nd)
 {
-	nd_set_link(nd, SHMEM_I(dentry->d_inode)->inline_symlink);
+	nd_set_link(nd, SHMEM_I(dentry->d_inode)->symlink);
 	return NULL;
 }
 
@@ -1914,9 +1921,9 @@ static ssize_t shmem_listxattr(struct dentry *dentry, char *buffer, size_t size)
 }
 #endif /* CONFIG_TMPFS_XATTR */
 
-static const struct inode_operations shmem_symlink_inline_operations = {
+static const struct inode_operations shmem_short_symlink_operations = {
 	.readlink	= generic_readlink,
-	.follow_link	= shmem_follow_link_inline,
+	.follow_link	= shmem_follow_short_symlink,
 #ifdef CONFIG_TMPFS_XATTR
 	.setxattr	= shmem_setxattr,
 	.getxattr	= shmem_getxattr,
@@ -2259,10 +2266,8 @@ static void shmem_destroy_callback(struct rcu_head *head)
 
 static void shmem_destroy_inode(struct inode *inode)
 {
-	if ((inode->i_mode & S_IFMT) == S_IFREG) {
-		/* only struct inode is valid if it's an inline symlink */
+	if ((inode->i_mode & S_IFMT) == S_IFREG)
 		mpol_free_shared_policy(&SHMEM_I(inode)->policy);
-	}
 	call_rcu(&inode->i_rcu, shmem_destroy_callback);
 }
 
