@@ -83,6 +83,8 @@ xfs_readlink_bmap(
 
 		bp = xfs_buf_read(mp->m_ddev_targp, d, BTOBB(byte_cnt),
 				  XBF_LOCK | XBF_MAPPED | XBF_DONT_BLOCK);
+		if (!bp)
+			return XFS_ERROR(ENOMEM);
 		error = xfs_buf_geterror(bp);
 		if (error) {
 			xfs_ioerror_alert("xfs_readlink",
