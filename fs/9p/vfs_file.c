@@ -65,7 +65,7 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 	v9inode = V9FS_I(inode);
 	v9ses = v9fs_inode2v9ses(inode);
 	if (v9fs_proto_dotl(v9ses))
-		omode = file->f_flags;
+		omode = v9fs_open_to_dotl_flags(file->f_flags);
 	else
 		omode = v9fs_uflags2omode(file->f_flags,
 					v9fs_proto_dotu(v9ses));
