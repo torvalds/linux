@@ -78,6 +78,14 @@
 #define  GRDOM_RENDER	(1<<2)
 #define  GRDOM_MEDIA	(3<<2)
 
+#define GEN6_MBCUNIT_SNPCR	0x900c /* for LLC config */
+#define   GEN6_MBC_SNPCR_SHIFT	21
+#define   GEN6_MBC_SNPCR_MASK	(3<<21)
+#define   GEN6_MBC_SNPCR_MAX	(0<<21)
+#define   GEN6_MBC_SNPCR_MED	(1<<21)
+#define   GEN6_MBC_SNPCR_LOW	(2<<21)
+#define   GEN6_MBC_SNPCR_MIN	(3<<21) /* only 1/16th of the cache is shared */
+
 #define GEN6_GDRST	0x941c
 #define  GEN6_GRDOM_FULL		(1 << 0)
 #define  GEN6_GRDOM_RENDER		(1 << 1)
