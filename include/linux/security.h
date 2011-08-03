@@ -1456,7 +1456,7 @@ struct security_operations {
 			     struct inode *new_dir, struct dentry *new_dentry);
 	int (*inode_readlink) (struct dentry *dentry);
 	int (*inode_follow_link) (struct dentry *dentry, struct nameidata *nd);
-	int (*inode_permission) (struct inode *inode, int mask, unsigned flags);
+	int (*inode_permission) (struct inode *inode, int mask);
 	int (*inode_setattr)	(struct dentry *dentry, struct iattr *attr);
 	int (*inode_getattr) (struct vfsmount *mnt, struct dentry *dentry);
 	int (*inode_setxattr) (struct dentry *dentry, const char *name,
@@ -1720,7 +1720,6 @@ int security_inode_rename(struct inode *old_dir, struct dentry *old_dentry,
 int security_inode_readlink(struct dentry *dentry);
 int security_inode_follow_link(struct dentry *dentry, struct nameidata *nd);
 int security_inode_permission(struct inode *inode, int mask);
-int security_inode_exec_permission(struct inode *inode, unsigned int flags);
 int security_inode_setattr(struct dentry *dentry, struct iattr *attr);
 int security_inode_getattr(struct vfsmount *mnt, struct dentry *dentry);
 int security_inode_setxattr(struct dentry *dentry, const char *name,
@@ -2109,12 +2108,6 @@ static inline int security_inode_follow_link(struct dentry *dentry,
 }
 
 static inline int security_inode_permission(struct inode *inode, int mask)
-{
-	return 0;
-}
-
-static inline int security_inode_exec_permission(struct inode *inode,
-						  unsigned int flags)
 {
 	return 0;
 }

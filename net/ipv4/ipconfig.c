@@ -861,41 +861,44 @@ static void __init ic_do_bootp_ext(u8 *ext)
 #endif
 
 	switch (*ext++) {
-		case 1:		/* Subnet mask */
-			if (ic_netmask == NONE)
-				memcpy(&ic_netmask, ext+1, 4);
-			break;
-		case 3:		/* Default gateway */
-			if (ic_gateway == NONE)
-				memcpy(&ic_gateway, ext+1, 4);
-			break;
-		case 6:		/* DNS server */
-			servers= *ext/4;
-			if (servers > CONF_NAMESERVERS_MAX)
-				servers = CONF_NAMESERVERS_MAX;
-			for (i = 0; i < servers; i++) {
-				if (ic_nameservers[i] == NONE)
-					memcpy(&ic_nameservers[i], ext+1+4*i, 4);
-			}
-			break;
-		case 12:	/* Host name */
-			ic_bootp_string(utsname()->nodename, ext+1, *ext, __NEW_UTS_LEN);
-			ic_host_name_set = 1;
-			break;
-		case 15:	/* Domain name (DNS) */
-			ic_bootp_string(ic_domain, ext+1, *ext, sizeof(ic_domain));
-			break;
-		case 17:	/* Root path */
-			if (!root_server_path[0])
-				ic_bootp_string(root_server_path, ext+1, *ext, sizeof(root_server_path));
-			break;
-		case 26:	/* Interface MTU */
-			memcpy(&mtu, ext+1, sizeof(mtu));
-			ic_dev_mtu = ntohs(mtu);
-			break;
-		case 40:	/* NIS Domain name (_not_ DNS) */
-			ic_bootp_string(utsname()->domainname, ext+1, *ext, __NEW_UTS_LEN);
-			break;
+	case 1:		/* Subnet mask */
+		if (ic_netmask == NONE)
+			memcpy(&ic_netmask, ext+1, 4);
+		break;
+	case 3:		/* Default gateway */
+		if (ic_gateway == NONE)
+			memcpy(&ic_gateway, ext+1, 4);
+		break;
+	case 6:		/* DNS server */
+		servers= *ext/4;
+		if (servers > CONF_NAMESERVERS_MAX)
+			servers = CONF_NAMESERVERS_MAX;
+		for (i = 0; i < servers; i++) {
+			if (ic_nameservers[i] == NONE)
+				memcpy(&ic_nameservers[i], ext+1+4*i, 4);
+		}
+		break;
+	case 12:	/* Host name */
+		ic_bootp_string(utsname()->nodename, ext+1, *ext,
+				__NEW_UTS_LEN);
+		ic_host_name_set = 1;
+		break;
+	case 15:	/* Domain name (DNS) */
+		ic_bootp_string(ic_domain, ext+1, *ext, sizeof(ic_domain));
+		break;
+	case 17:	/* Root path */
+		if (!root_server_path[0])
+			ic_bootp_string(root_server_path, ext+1, *ext,
+					sizeof(root_server_path));
+		break;
+	case 26:	/* Interface MTU */
+		memcpy(&mtu, ext+1, sizeof(mtu));
+		ic_dev_mtu = ntohs(mtu);
+		break;
+	case 40:	/* NIS Domain name (_not_ DNS) */
+		ic_bootp_string(utsname()->domainname, ext+1, *ext,
+				__NEW_UTS_LEN);
+		break;
 	}
 }
 
@@ -932,7 +935,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 		goto drop;
 
 	/* Fragments are not supported */
-	if (h->frag_off & htons(IP_OFFSET | IP_MF)) {
+	if (ip_is_fragment(h)) {
 		if (net_ratelimit())
 			printk(KERN_ERR "DHCP/BOOTP: Ignoring fragmented "
 			       "reply.\n");

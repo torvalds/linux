@@ -19,6 +19,7 @@
 
 #include <linux/etherdevice.h>
 #include <linux/device.h>
+#include <linux/interrupt.h>
 #include <linux/leds.h>
 #include <linux/completion.h>
 
@@ -53,8 +54,6 @@ struct ath_node;
 		(_l)--;				\
 		(_l) &= ((_sz) - 1);		\
 	} while (0)
-
-#define A_MAX(a, b) ((a) > (b) ? (a) : (b))
 
 #define TSF_TO_TU(_h,_l) \
 	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
@@ -101,6 +100,11 @@ enum buffer_type {
 #define bf_isxretried(bf)	(bf->bf_state.bf_type & BUF_XRETRY)
 
 #define ATH_TXSTATUS_RING_SIZE 64
+
+#define	DS2PHYS(_dd, _ds)						\
+	((_dd)->dd_desc_paddr + ((caddr_t)(_ds) - (caddr_t)(_dd)->dd_desc))
+#define ATH_DESC_4KB_BOUND_CHECK(_daddr) ((((_daddr) & 0xFFF) > 0xF7F) ? 1 : 0)
+#define ATH_DESC_4KB_BOUND_NUM_SKIPPED(_len) ((_len) / 4096)
 
 struct ath_descdma {
 	void *dd_desc;
@@ -179,7 +183,7 @@ enum ATH_AGGR_STATUS {
 struct ath_txq {
 	int mac80211_qnum; /* mac80211 queue number, -1 means not mac80211 Q */
 	u32 axq_qnum; /* ath9k hardware queue number */
-	u32 *axq_link;
+	void *axq_link;
 	struct list_head axq_q;
 	spinlock_t axq_lock;
 	u32 axq_depth;
@@ -188,7 +192,6 @@ struct ath_txq {
 	bool axq_tx_inprogress;
 	struct list_head axq_acq;
 	struct list_head txq_fifo[ATH_TXFIFO_DEPTH];
-	struct list_head txq_fifo_pending;
 	u8 txq_headidx;
 	u8 txq_tailidx;
 	int pending_frames;
@@ -428,6 +431,7 @@ void ath_hw_check(struct work_struct *work);
 void ath_hw_pll_work(struct work_struct *work);
 void ath_paprd_calibrate(struct work_struct *work);
 void ath_ani_calibrate(unsigned long data);
+void ath_start_ani(struct ath_common *common);
 
 /**********/
 /* BTCOEX */
@@ -579,7 +583,7 @@ struct ath9k_vif_iter_data {
 	int naps;      /* number of AP vifs */
 	int nmeshes;   /* number of mesh vifs */
 	int nstations; /* number of station vifs */
-	int nwds;      /* number of nwd vifs */
+	int nwds;      /* number of WDS vifs */
 	int nadhocs;   /* number of adhoc vifs */
 	int nothers;   /* number of vifs not specified above. */
 };
@@ -669,12 +673,8 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 		    const struct ath_bus_ops *bus_ops);
 void ath9k_deinit_device(struct ath_softc *sc);
 void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw);
-int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
-		    struct ath9k_channel *hchan);
 
-void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw);
 void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw);
-bool ath9k_setpower(struct ath_softc *sc, enum ath9k_power_mode mode);
 bool ath9k_uses_beacons(int type);
 
 #ifdef CONFIG_ATH9K_PCI

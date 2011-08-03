@@ -28,7 +28,7 @@
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <net/genetlink.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 /*
  * Maximum length of a cpumask that can be specified in

@@ -23,7 +23,7 @@
 #include <linux/seq_file.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/cacheflush.h>
 #include <asm/irq_handler.h>
 #include <asm/mmu_context.h>
@@ -45,9 +45,7 @@ struct corelock_slot corelock __attribute__ ((__section__(".l2.bss")));
 unsigned long blackfin_iflush_l1_entry[NR_CPUS];
 #endif
 
-void __cpuinitdata *init_retx_coreb, *init_saved_retx_coreb,
-	*init_saved_seqstat_coreb, *init_saved_icplb_fault_addr_coreb,
-	*init_saved_dcplb_fault_addr_coreb;
+struct blackfin_initial_pda __cpuinitdata initial_pda_coreb;
 
 #define BFIN_IPI_RESCHEDULE   0
 #define BFIN_IPI_CALL_FUNC    1
@@ -369,13 +367,16 @@ void __cpuinit secondary_start_kernel(void)
 	if (_bfin_swrst & SWRST_DBL_FAULT_B) {
 		printk(KERN_EMERG "CoreB Recovering from DOUBLE FAULT event\n");
 #ifdef CONFIG_DEBUG_DOUBLEFAULT
-		printk(KERN_EMERG " While handling exception (EXCAUSE = 0x%x) at %pF\n",
-			(int)init_saved_seqstat_coreb & SEQSTAT_EXCAUSE, init_saved_retx_coreb);
-		printk(KERN_NOTICE "   DCPLB_FAULT_ADDR: %pF\n", init_saved_dcplb_fault_addr_coreb);
-		printk(KERN_NOTICE "   ICPLB_FAULT_ADDR: %pF\n", init_saved_icplb_fault_addr_coreb);
+		printk(KERN_EMERG " While handling exception (EXCAUSE = %#x) at %pF\n",
+			initial_pda_coreb.seqstat_doublefault & SEQSTAT_EXCAUSE,
+			initial_pda_coreb.retx_doublefault);
+		printk(KERN_NOTICE "   DCPLB_FAULT_ADDR: %pF\n",
+			initial_pda_coreb.dcplb_doublefault_addr);
+		printk(KERN_NOTICE "   ICPLB_FAULT_ADDR: %pF\n",
+			initial_pda_coreb.icplb_doublefault_addr);
 #endif
 		printk(KERN_NOTICE " The instruction at %pF caused a double exception\n",
-			init_retx_coreb);
+			initial_pda_coreb.retx);
 	}
 
 	/*

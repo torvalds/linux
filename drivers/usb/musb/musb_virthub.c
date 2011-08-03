@@ -88,14 +88,12 @@ static void musb_port_suspend(struct musb *musb, bool do_suspend)
 						OTG_TIME_A_AIDL_BDIS));
 			musb_platform_try_idle(musb, 0);
 			break;
-#ifdef	CONFIG_USB_MUSB_OTG
 		case OTG_STATE_B_HOST:
 			musb->xceiv->state = OTG_STATE_B_WAIT_ACON;
 			musb->is_active = is_otg_enabled(musb)
 					&& musb->xceiv->host->b_hnp_enable;
 			musb_platform_try_idle(musb, 0);
 			break;
-#endif
 		default:
 			dev_dbg(musb->controller, "bogus rh suspend? %s\n",
 				otg_state_string(musb->xceiv->state));
@@ -118,13 +116,11 @@ static void musb_port_reset(struct musb *musb, bool do_reset)
 	u8		power;
 	void __iomem	*mbase = musb->mregs;
 
-#ifdef CONFIG_USB_MUSB_OTG
 	if (musb->xceiv->state == OTG_STATE_B_IDLE) {
 		dev_dbg(musb->controller, "HNP: Returning from HNP; no hub reset from b_idle\n");
 		musb->port1_status &= ~USB_PORT_STAT_RESET;
 		return;
 	}
-#endif
 
 	if (!is_host_active(musb))
 		return;
@@ -191,14 +187,12 @@ void musb_root_disconnect(struct musb *musb)
 
 	switch (musb->xceiv->state) {
 	case OTG_STATE_A_SUSPEND:
-#ifdef	CONFIG_USB_MUSB_OTG
 		if (is_otg_enabled(musb)
 				&& musb->xceiv->host->b_hnp_enable) {
 			musb->xceiv->state = OTG_STATE_A_PERIPHERAL;
 			musb->g.is_a_peripheral = 1;
 			break;
 		}
-#endif
 		/* FALLTHROUGH */
 	case OTG_STATE_A_HOST:
 		musb->xceiv->state = OTG_STATE_A_WAIT_BCON;

@@ -112,7 +112,7 @@ struct acpi_battery {
 	u8 have_sysfs_alarm:1;
 };
 
-#define to_acpi_battery(x) container_of(x, struct acpi_battery, bat);
+#define to_acpi_battery(x) container_of(x, struct acpi_battery, bat)
 
 struct acpi_sbs {
 	struct power_supply charger;

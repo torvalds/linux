@@ -570,9 +570,7 @@ xfs_alloc_ag_vextent_exact(
 	xfs_agblock_t	tbno;	/* start block of trimmed extent */
 	xfs_extlen_t	tlen;	/* length of trimmed extent */
 	xfs_agblock_t	tend;	/* end block of trimmed extent */
-	xfs_agblock_t	end;	/* end of allocated extent */
 	int		i;	/* success/failure of operation */
-	xfs_extlen_t	rlen;	/* length of returned extent */
 
 	ASSERT(args->alignment == 1);
 
@@ -625,18 +623,16 @@ xfs_alloc_ag_vextent_exact(
 	 *
 	 * Fix the length according to mod and prod if given.
 	 */
-	end = XFS_AGBLOCK_MIN(tend, args->agbno + args->maxlen);
-	args->len = end - args->agbno;
+	args->len = XFS_AGBLOCK_MIN(tend, args->agbno + args->maxlen)
+						- args->agbno;
 	xfs_alloc_fix_len(args);
 	if (!xfs_alloc_fix_minleft(args))
 		goto not_found;
 
-	rlen = args->len;
-	ASSERT(args->agbno + rlen <= tend);
-	end = args->agbno + rlen;
+	ASSERT(args->agbno + args->len <= tend);
 
 	/*
-	 * We are allocating agbno for rlen [agbno .. end]
+	 * We are allocating agbno for args->len
 	 * Allocate/initialize a cursor for the by-size btree.
 	 */
 	cnt_cur = xfs_allocbt_init_cursor(args->mp, args->tp, args->agbp,
@@ -2127,7 +2123,7 @@ xfs_read_agf(
 	 * Validate the magic number of the agf block.
 	 */
 	agf_ok =
-		be32_to_cpu(agf->agf_magicnum) == XFS_AGF_MAGIC &&
+		agf->agf_magicnum == cpu_to_be32(XFS_AGF_MAGIC) &&
 		XFS_AGF_GOOD_VERSION(be32_to_cpu(agf->agf_versionnum)) &&
 		be32_to_cpu(agf->agf_freeblks) <= be32_to_cpu(agf->agf_length) &&
 		be32_to_cpu(agf->agf_flfirst) < XFS_AGFL_SIZE(mp) &&

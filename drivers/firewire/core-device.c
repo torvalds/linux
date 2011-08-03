@@ -38,7 +38,7 @@
 #include <linux/string.h>
 #include <linux/workqueue.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/byteorder.h>
 #include <asm/system.h>
 

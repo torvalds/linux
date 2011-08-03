@@ -61,9 +61,9 @@ static void kbit_to_gw_bandwidth(int down, int up, long *gw_srv_class)
 /* returns the up and downspeeds in kbit, calculated from the class */
 void gw_bandwidth_to_kbit(uint8_t gw_srv_class, int *down, int *up)
 {
-	char sbit = (gw_srv_class & 0x80) >> 7;
-	char dpart = (gw_srv_class & 0x78) >> 3;
-	char upart = (gw_srv_class & 0x07);
+	int sbit = (gw_srv_class & 0x80) >> 7;
+	int dpart = (gw_srv_class & 0x78) >> 3;
+	int upart = (gw_srv_class & 0x07);
 
 	if (!gw_srv_class) {
 		*down = 0;
@@ -76,10 +76,11 @@ void gw_bandwidth_to_kbit(uint8_t gw_srv_class, int *down, int *up)
 }
 
 static bool parse_gw_bandwidth(struct net_device *net_dev, char *buff,
-			       long *up, long *down)
+			       int *up, int *down)
 {
 	int ret, multi = 1;
 	char *slash_ptr, *tmp_ptr;
+	long ldown, lup;
 
 	slash_ptr = strchr(buff, '/');
 	if (slash_ptr)
@@ -96,7 +97,7 @@ static bool parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 			*tmp_ptr = '\0';
 	}
 
-	ret = strict_strtoul(buff, 10, down);
+	ret = strict_strtol(buff, 10, &ldown);
 	if (ret) {
 		bat_err(net_dev,
 			"Download speed of gateway mode invalid: %s\n",
@@ -104,7 +105,7 @@ static bool parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 		return false;
 	}
 
-	*down *= multi;
+	*down = ldown * multi;
 
 	/* we also got some upload info */
 	if (slash_ptr) {
@@ -121,7 +122,7 @@ static bool parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 				*tmp_ptr = '\0';
 		}
 
-		ret = strict_strtoul(slash_ptr + 1, 10, up);
+		ret = strict_strtol(slash_ptr + 1, 10, &lup);
 		if (ret) {
 			bat_err(net_dev,
 				"Upload speed of gateway mode invalid: "
@@ -129,7 +130,7 @@ static bool parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 			return false;
 		}
 
-		*up *= multi;
+		*up = lup * multi;
 	}
 
 	return true;
@@ -138,7 +139,8 @@ static bool parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 ssize_t gw_bandwidth_set(struct net_device *net_dev, char *buff, size_t count)
 {
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
-	long gw_bandwidth_tmp = 0, up = 0, down = 0;
+	long gw_bandwidth_tmp = 0;
+	int up = 0, down = 0;
 	bool ret;
 
 	ret = parse_gw_bandwidth(net_dev, buff, &up, &down);
@@ -158,12 +160,11 @@ ssize_t gw_bandwidth_set(struct net_device *net_dev, char *buff, size_t count)
 	 * speeds, hence we need to calculate it back to show the number
 	 * that is going to be propagated
 	 **/
-	gw_bandwidth_to_kbit((uint8_t)gw_bandwidth_tmp,
-			     (int *)&down, (int *)&up);
+	gw_bandwidth_to_kbit((uint8_t)gw_bandwidth_tmp, &down, &up);
 
 	gw_deselect(bat_priv);
 	bat_info(net_dev, "Changing gateway bandwidth from: '%i' to: '%ld' "
-		 "(propagating: %ld%s/%ld%s)\n",
+		 "(propagating: %d%s/%d%s)\n",
 		 atomic_read(&bat_priv->gw_bandwidth), gw_bandwidth_tmp,
 		 (down > 2048 ? down / 1024 : down),
 		 (down > 2048 ? "MBit" : "KBit"),

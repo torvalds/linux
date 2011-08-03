@@ -151,14 +151,14 @@ xfs_nfs_get_inode(
 		 * We don't use ESTALE directly down the chain to not
 		 * confuse applications using bulkstat that expect EINVAL.
 		 */
-		if (error == EINVAL)
+		if (error == EINVAL || error == ENOENT)
 			error = ESTALE;
 		return ERR_PTR(-error);
 	}
 
 	if (ip->i_d.di_gen != generation) {
 		IRELE(ip);
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-ESTALE);
 	}
 
 	return VFS_I(ip);

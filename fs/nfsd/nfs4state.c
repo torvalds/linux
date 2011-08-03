@@ -37,6 +37,7 @@
 #include <linux/slab.h>
 #include <linux/namei.h>
 #include <linux/swap.h>
+#include <linux/pagemap.h>
 #include <linux/sunrpc/svcauth_gss.h>
 #include <linux/sunrpc/clnt.h>
 #include "xdr4.h"
@@ -60,9 +61,12 @@ static u64 current_sessionid = 1;
 
 /* forward declarations */
 static struct nfs4_stateid * find_stateid(stateid_t *stid, int flags);
+static struct nfs4_stateid * search_for_stateid(stateid_t *stid);
+static struct nfs4_delegation * search_for_delegation(stateid_t *stid);
 static struct nfs4_delegation * find_delegation_stateid(struct inode *ino, stateid_t *stid);
 static char user_recovery_dirname[PATH_MAX] = "/var/lib/nfs/v4recovery";
 static void nfs4_set_recdir(char *recdir);
+static int check_for_locks(struct nfs4_file *filp, struct nfs4_stateowner *lowner);
 
 /* Locking: */
 
@@ -381,14 +385,6 @@ static int nfs4_access_to_omode(u32 access)
 	BUG();
 }
 
-static int nfs4_access_bmap_to_omode(struct nfs4_stateid *stp)
-{
-	unsigned int access;
-
-	set_access(&access, stp->st_access_bmap);
-	return nfs4_access_to_omode(access);
-}
-
 static void unhash_generic_stateid(struct nfs4_stateid *stp)
 {
 	list_del(&stp->st_hash);
@@ -398,11 +394,14 @@ static void unhash_generic_stateid(struct nfs4_stateid *stp)
 
 static void free_generic_stateid(struct nfs4_stateid *stp)
 {
-	int oflag;
+	int i;
 
 	if (stp->st_access_bmap) {
-		oflag = nfs4_access_bmap_to_omode(stp);
-		nfs4_file_put_access(stp->st_file, oflag);
+		for (i = 1; i < 4; i++) {
+			if (test_bit(i, &stp->st_access_bmap))
+				nfs4_file_put_access(stp->st_file,
+						nfs4_access_to_omode(i));
+		}
 	}
 	put_nfs4_file(stp->st_file);
 	kmem_cache_free(stateid_slab, stp);
@@ -1507,6 +1506,29 @@ nfsd4_replay_create_session(struct nfsd4_create_session *cr_ses,
 	return slot->sl_status;
 }
 
+#define NFSD_MIN_REQ_HDR_SEQ_SZ	((\
+			2 * 2 + /* credential,verifier: AUTH_NULL, length 0 */ \
+			1 +	/* MIN tag is length with zero, only length */ \
+			3 +	/* version, opcount, opcode */ \
+			XDR_QUADLEN(NFS4_MAX_SESSIONID_LEN) + \
+				/* seqid, slotID, slotID, cache */ \
+			4 ) * sizeof(__be32))
+
+#define NFSD_MIN_RESP_HDR_SEQ_SZ ((\
+			2 +	/* verifier: AUTH_NULL, length 0 */\
+			1 +	/* status */ \
+			1 +	/* MIN tag is length with zero, only length */ \
+			3 +	/* opcount, opcode, opstatus*/ \
+			XDR_QUADLEN(NFS4_MAX_SESSIONID_LEN) + \
+				/* seqid, slotID, slotID, slotID, status */ \
+			5 ) * sizeof(__be32))
+
+static __be32 check_forechannel_attrs(struct nfsd4_channel_attrs fchannel)
+{
+	return fchannel.maxreq_sz < NFSD_MIN_REQ_HDR_SEQ_SZ
+		|| fchannel.maxresp_sz < NFSD_MIN_RESP_HDR_SEQ_SZ;
+}
+
 __be32
 nfsd4_create_session(struct svc_rqst *rqstp,
 		     struct nfsd4_compound_state *cstate,
@@ -1574,6 +1596,10 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	 */
 	cr_ses->flags &= ~SESSION4_PERSIST;
 	cr_ses->flags &= ~SESSION4_RDMA;
+
+	status = nfserr_toosmall;
+	if (check_forechannel_attrs(cr_ses->fore_channel))
+		goto out;
 
 	status = nfserr_jukebox;
 	new = alloc_init_session(rqstp, conf, cr_ses);
@@ -1736,6 +1762,14 @@ static bool nfsd4_session_too_many_ops(struct svc_rqst *rqstp, struct nfsd4_sess
 	return args->opcnt > session->se_fchannel.maxops;
 }
 
+static bool nfsd4_request_too_big(struct svc_rqst *rqstp,
+				  struct nfsd4_session *session)
+{
+	struct xdr_buf *xb = &rqstp->rq_arg;
+
+	return xb->len > session->se_fchannel.maxreq_sz;
+}
+
 __be32
 nfsd4_sequence(struct svc_rqst *rqstp,
 	       struct nfsd4_compound_state *cstate,
@@ -1766,6 +1800,10 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 
 	status = nfserr_too_many_ops;
 	if (nfsd4_session_too_many_ops(rqstp, session))
+		goto out;
+
+	status = nfserr_req_too_big;
+	if (nfsd4_request_too_big(rqstp, session))
 		goto out;
 
 	status = nfserr_badslot;
@@ -2337,15 +2375,6 @@ out:
 	return ret;
 }
 
-static inline void
-nfs4_file_downgrade(struct nfs4_file *fp, unsigned int share_access)
-{
-	if (share_access & NFS4_SHARE_ACCESS_WRITE)
-		nfs4_file_put_access(fp, O_WRONLY);
-	if (share_access & NFS4_SHARE_ACCESS_READ)
-		nfs4_file_put_access(fp, O_RDONLY);
-}
-
 static void nfsd_break_one_deleg(struct nfs4_delegation *dp)
 {
 	/* We're assuming the state code never drops its reference
@@ -2396,8 +2425,8 @@ int nfsd_change_deleg_cb(struct file_lock **onlist, int arg)
 }
 
 static const struct lock_manager_operations nfsd_lease_mng_ops = {
-	.fl_break = nfsd_break_deleg_cb,
-	.fl_change = nfsd_change_deleg_cb,
+	.lm_break = nfsd_break_deleg_cb,
+	.lm_change = nfsd_change_deleg_cb,
 };
 
 
@@ -2556,12 +2585,18 @@ static inline int nfs4_access_to_access(u32 nfs4_access)
 	return flags;
 }
 
-static __be32 nfs4_get_vfs_file(struct svc_rqst *rqstp, struct nfs4_file
-*fp, struct svc_fh *cur_fh, u32 nfs4_access)
+static __be32 nfs4_get_vfs_file(struct svc_rqst *rqstp, struct nfs4_file *fp,
+		struct svc_fh *cur_fh, struct nfsd4_open *open)
 {
 	__be32 status;
-	int oflag = nfs4_access_to_omode(nfs4_access);
-	int access = nfs4_access_to_access(nfs4_access);
+	int oflag = nfs4_access_to_omode(open->op_share_access);
+	int access = nfs4_access_to_access(open->op_share_access);
+
+	/* CLAIM_DELEGATE_CUR is used in response to a broken lease;
+	 * allowing it to break the lease and return EAGAIN leaves the
+	 * client unable to make progress in returning the delegation */
+	if (open->op_claim_type == NFS4_OPEN_CLAIM_DELEGATE_CUR)
+		access |= NFSD_MAY_NOT_BREAK_LEASE;
 
 	if (!fp->fi_fds[oflag]) {
 		status = nfsd_open(rqstp, cur_fh, S_IFREG, access,
@@ -2586,7 +2621,7 @@ nfs4_new_open(struct svc_rqst *rqstp, struct nfs4_stateid **stpp,
 	if (stp == NULL)
 		return nfserr_resource;
 
-	status = nfs4_get_vfs_file(rqstp, fp, cur_fh, open->op_share_access);
+	status = nfs4_get_vfs_file(rqstp, fp, cur_fh, open);
 	if (status) {
 		kmem_cache_free(stateid_slab, stp);
 		return status;
@@ -2619,14 +2654,14 @@ nfs4_upgrade_open(struct svc_rqst *rqstp, struct nfs4_file *fp, struct svc_fh *c
 
 	new_access = !test_bit(op_share_access, &stp->st_access_bmap);
 	if (new_access) {
-		status = nfs4_get_vfs_file(rqstp, fp, cur_fh, op_share_access);
+		status = nfs4_get_vfs_file(rqstp, fp, cur_fh, open);
 		if (status)
 			return status;
 	}
 	status = nfsd4_truncate(rqstp, cur_fh, open);
 	if (status) {
 		if (new_access) {
-			int oflag = nfs4_access_to_omode(new_access);
+			int oflag = nfs4_access_to_omode(op_share_access);
 			nfs4_file_put_access(fp, oflag);
 		}
 		return status;
@@ -3137,6 +3172,37 @@ static int is_delegation_stateid(stateid_t *stateid)
 	return stateid->si_fileid == 0;
 }
 
+static int is_open_stateid(struct nfs4_stateid *stateid)
+{
+	return stateid->st_openstp == NULL;
+}
+
+__be32 nfs4_validate_stateid(stateid_t *stateid, int flags)
+{
+	struct nfs4_stateid *stp = NULL;
+	__be32 status = nfserr_stale_stateid;
+
+	if (STALE_STATEID(stateid))
+		goto out;
+
+	status = nfserr_expired;
+	stp = search_for_stateid(stateid);
+	if (!stp)
+		goto out;
+	status = nfserr_bad_stateid;
+
+	if (!stp->st_stateowner->so_confirmed)
+		goto out;
+
+	status = check_stateid_generation(stateid, &stp->st_stateid, flags);
+	if (status)
+		goto out;
+
+	status = nfs_ok;
+out:
+	return status;
+}
+
 /*
 * Checks for stateid operations
 */
@@ -3214,6 +3280,81 @@ nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
 	status = nfs_ok;
 out:
 	return status;
+}
+
+static __be32
+nfsd4_free_delegation_stateid(stateid_t *stateid)
+{
+	struct nfs4_delegation *dp = search_for_delegation(stateid);
+	if (dp)
+		return nfserr_locks_held;
+	return nfserr_bad_stateid;
+}
+
+static __be32
+nfsd4_free_lock_stateid(struct nfs4_stateid *stp)
+{
+	if (check_for_locks(stp->st_file, stp->st_stateowner))
+		return nfserr_locks_held;
+	release_lock_stateid(stp);
+	return nfs_ok;
+}
+
+/*
+ * Test if the stateid is valid
+ */
+__be32
+nfsd4_test_stateid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+		   struct nfsd4_test_stateid *test_stateid)
+{
+	test_stateid->ts_has_session = nfsd4_has_session(cstate);
+	return nfs_ok;
+}
+
+/*
+ * Free a state id
+ */
+__be32
+nfsd4_free_stateid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+		   struct nfsd4_free_stateid *free_stateid)
+{
+	stateid_t *stateid = &free_stateid->fr_stateid;
+	struct nfs4_stateid *stp;
+	__be32 ret;
+
+	nfs4_lock_state();
+	if (is_delegation_stateid(stateid)) {
+		ret = nfsd4_free_delegation_stateid(stateid);
+		goto out;
+	}
+
+	stp = search_for_stateid(stateid);
+	if (!stp) {
+		ret = nfserr_bad_stateid;
+		goto out;
+	}
+	if (stateid->si_generation != 0) {
+		if (stateid->si_generation < stp->st_stateid.si_generation) {
+			ret = nfserr_old_stateid;
+			goto out;
+		}
+		if (stateid->si_generation > stp->st_stateid.si_generation) {
+			ret = nfserr_bad_stateid;
+			goto out;
+		}
+	}
+
+	if (is_open_stateid(stp)) {
+		ret = nfserr_locks_held;
+		goto out;
+	} else {
+		ret = nfsd4_free_lock_stateid(stp);
+		goto out;
+	}
+
+out:
+	nfs4_unlock_state();
+	return ret;
 }
 
 static inline int
@@ -3384,18 +3525,15 @@ out:
 	return status;
 }
 
-
-/*
- * unset all bits in union bitmap (bmap) that
- * do not exist in share (from successful OPEN_DOWNGRADE)
- */
-static void
-reset_union_bmap_access(unsigned long access, unsigned long *bmap)
+static inline void nfs4_file_downgrade(struct nfs4_stateid *stp, unsigned int to_access)
 {
 	int i;
+
 	for (i = 1; i < 4; i++) {
-		if ((i & access) != i)
-			__clear_bit(i, bmap);
+		if (test_bit(i, &stp->st_access_bmap) && !(i & to_access)) {
+			nfs4_file_put_access(stp->st_file, i);
+			__clear_bit(i, &stp->st_access_bmap);
+		}
 	}
 }
 
@@ -3416,7 +3554,6 @@ nfsd4_open_downgrade(struct svc_rqst *rqstp,
 {
 	__be32 status;
 	struct nfs4_stateid *stp;
-	unsigned int share_access;
 
 	dprintk("NFSD: nfsd4_open_downgrade on file %.*s\n", 
 			(int)cstate->current_fh.fh_dentry->d_name.len,
@@ -3445,10 +3582,8 @@ nfsd4_open_downgrade(struct svc_rqst *rqstp,
 			stp->st_deny_bmap, od->od_share_deny);
 		goto out;
 	}
-	set_access(&share_access, stp->st_access_bmap);
-	nfs4_file_downgrade(stp->st_file, share_access & ~od->od_share_access);
+	nfs4_file_downgrade(stp, od->od_share_access);
 
-	reset_union_bmap_access(od->od_share_access, &stp->st_access_bmap);
 	reset_union_bmap_deny(od->od_share_deny, &stp->st_deny_bmap);
 
 	update_stateid(&stp->st_stateid);
@@ -3594,6 +3729,14 @@ static struct list_head lock_ownerid_hashtbl[LOCK_HASH_SIZE];
 static struct list_head	lock_ownerstr_hashtbl[LOCK_HASH_SIZE];
 static struct list_head lockstateid_hashtbl[STATEID_HASH_SIZE];
 
+static int
+same_stateid(stateid_t *id_one, stateid_t *id_two)
+{
+	if (id_one->si_stateownerid != id_two->si_stateownerid)
+		return 0;
+	return id_one->si_fileid == id_two->si_fileid;
+}
+
 static struct nfs4_stateid *
 find_stateid(stateid_t *stid, int flags)
 {
@@ -3618,6 +3761,44 @@ find_stateid(stateid_t *stid, int flags)
 			if ((local->st_stateid.si_stateownerid == st_id) &&
 			    (local->st_stateid.si_fileid == f_id))
 				return local;
+		}
+	}
+	return NULL;
+}
+
+static struct nfs4_stateid *
+search_for_stateid(stateid_t *stid)
+{
+	struct nfs4_stateid *local;
+	unsigned int hashval = stateid_hashval(stid->si_stateownerid, stid->si_fileid);
+
+	list_for_each_entry(local, &lockstateid_hashtbl[hashval], st_hash) {
+		if (same_stateid(&local->st_stateid, stid))
+			return local;
+	}
+
+	list_for_each_entry(local, &stateid_hashtbl[hashval], st_hash) {
+		if (same_stateid(&local->st_stateid, stid))
+			return local;
+	}
+	return NULL;
+}
+
+static struct nfs4_delegation *
+search_for_delegation(stateid_t *stid)
+{
+	struct nfs4_file *fp;
+	struct nfs4_delegation *dp;
+	struct list_head *pos;
+	int i;
+
+	for (i = 0; i < FILE_HASH_SIZE; i++) {
+		list_for_each_entry(fp, &file_hashtbl[i], fi_hash) {
+			list_for_each(pos, &fp->fi_delegations) {
+				dp = list_entry(pos, struct nfs4_delegation, dl_perfile);
+				if (same_stateid(&dp->dl_stateid, stid))
+					return dp;
+			}
 		}
 	}
 	return NULL;

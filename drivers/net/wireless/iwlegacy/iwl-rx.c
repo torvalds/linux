@@ -227,27 +227,6 @@ void iwl_legacy_rx_spectrum_measure_notif(struct iwl_priv *priv,
 }
 EXPORT_SYMBOL(iwl_legacy_rx_spectrum_measure_notif);
 
-void iwl_legacy_recover_from_statistics(struct iwl_priv *priv,
-				struct iwl_rx_packet *pkt)
-{
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-	if (iwl_legacy_is_any_associated(priv)) {
-		if (priv->cfg->ops->lib->check_plcp_health) {
-			if (!priv->cfg->ops->lib->check_plcp_health(
-			    priv, pkt)) {
-				/*
-				 * high plcp error detected
-				 * reset Radio
-				 */
-				iwl_legacy_force_reset(priv,
-							IWL_RF_RESET, false);
-			}
-		}
-	}
-}
-EXPORT_SYMBOL(iwl_legacy_recover_from_statistics);
-
 /*
  * returns non-zero if packet should be dropped
  */

@@ -170,6 +170,7 @@ struct intel_crtc {
 	int16_t cursor_x, cursor_y;
 	int16_t cursor_width, cursor_height;
 	bool cursor_visible;
+	unsigned int bpp;
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
@@ -231,6 +232,13 @@ struct intel_unpin_work {
 	struct drm_pending_vblank_event *event;
 	int pending;
 	bool enable_stall_check;
+};
+
+struct intel_fbc_work {
+	struct delayed_work work;
+	struct drm_crtc *crtc;
+	struct drm_framebuffer *fb;
+	int interval;
 };
 
 int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);
@@ -317,6 +325,7 @@ extern void intel_enable_clock_gating(struct drm_device *dev);
 extern void ironlake_enable_drps(struct drm_device *dev);
 extern void ironlake_disable_drps(struct drm_device *dev);
 extern void gen6_enable_rps(struct drm_i915_private *dev_priv);
+extern void gen6_update_ring_freq(struct drm_i915_private *dev_priv);
 extern void gen6_disable_rps(struct drm_device *dev);
 extern void intel_init_emon(struct drm_device *dev);
 

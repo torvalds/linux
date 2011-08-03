@@ -33,7 +33,7 @@
 #include <net/netfilter/nf_log.h>
 #include <net/netfilter/nfnetlink_log.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #ifdef CONFIG_BRIDGE_NETFILTER
 #include "../bridge/br_private.h"

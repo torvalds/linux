@@ -1037,15 +1037,11 @@ static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, stru
 			return ERR_PTR(-EIO);
 		}
 		inode = ext4_iget(dir->i_sb, ino);
-		if (IS_ERR(inode)) {
-			if (PTR_ERR(inode) == -ESTALE) {
-				EXT4_ERROR_INODE(dir,
-						 "deleted inode referenced: %u",
-						 ino);
-				return ERR_PTR(-EIO);
-			} else {
-				return ERR_CAST(inode);
-			}
+		if (inode == ERR_PTR(-ESTALE)) {
+			EXT4_ERROR_INODE(dir,
+					 "deleted inode referenced: %u",
+					 ino);
+			return ERR_PTR(-EIO);
 		}
 	}
 	return d_splice_alias(inode, dentry);
@@ -2594,7 +2590,7 @@ const struct inode_operations ext4_dir_inode_operations = {
 	.listxattr	= ext4_listxattr,
 	.removexattr	= generic_removexattr,
 #endif
-	.check_acl	= ext4_check_acl,
+	.get_acl	= ext4_get_acl,
 	.fiemap         = ext4_fiemap,
 };
 
@@ -2606,5 +2602,5 @@ const struct inode_operations ext4_special_inode_operations = {
 	.listxattr	= ext4_listxattr,
 	.removexattr	= generic_removexattr,
 #endif
-	.check_acl	= ext4_check_acl,
+	.get_acl	= ext4_get_acl,
 };

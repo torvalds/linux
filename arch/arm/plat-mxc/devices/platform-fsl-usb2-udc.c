@@ -6,6 +6,7 @@
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
  */
+#include <linux/dma-mapping.h>
 #include <mach/hardware.h>
 #include <mach/devices-common.h>
 
@@ -34,6 +35,11 @@ const struct imx_fsl_usb2_udc_data imx31_fsl_usb2_udc_data __initconst =
 const struct imx_fsl_usb2_udc_data imx35_fsl_usb2_udc_data __initconst =
 	imx_fsl_usb2_udc_data_entry_single(MX35);
 #endif /* ifdef CONFIG_SOC_IMX35 */
+
+#ifdef CONFIG_SOC_IMX51
+const struct imx_fsl_usb2_udc_data imx51_fsl_usb2_udc_data __initconst =
+	imx_fsl_usb2_udc_data_entry_single(MX51);
+#endif
 
 struct platform_device *__init imx_add_fsl_usb2_udc(
 		const struct imx_fsl_usb2_udc_data *data,

@@ -166,7 +166,7 @@ struct twl4030_usb {
 };
 
 /* internal define on top of container_of */
-#define xceiv_to_twl(x)		container_of((x), struct twl4030_usb, otg);
+#define xceiv_to_twl(x)		container_of((x), struct twl4030_usb, otg)
 
 /*-------------------------------------------------------------------------*/
 

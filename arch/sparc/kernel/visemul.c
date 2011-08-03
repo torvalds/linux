@@ -802,7 +802,7 @@ int vis_emul(struct pt_regs *regs, unsigned int insn)
 
 	BUG_ON(regs->tstate & TSTATE_PRIV);
 
-	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, 0, regs, 0);
+	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, 0);
 
 	if (test_thread_flag(TIF_32BIT))
 		pc = (u32)pc;

@@ -184,5 +184,15 @@ depends on X86
 source "drivers/cpufreq/Kconfig.x86"
 endmenu
 
+menu "ARM CPU frequency scaling drivers"
+depends on ARM
+source "drivers/cpufreq/Kconfig.arm"
+endmenu
+
+menu "PowerPC CPU frequency scaling drivers"
+depends on PPC32 || PPC64
+source "drivers/cpufreq/Kconfig.powerpc"
+endmenu
+
 endif
 endmenu

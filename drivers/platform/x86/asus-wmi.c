@@ -857,7 +857,7 @@ static mode_t asus_hwmon_sysfs_is_visible(struct kobject *kobj,
 		int err = asus_wmi_get_devstate(asus, dev_id, &value);
 
 		if (err < 0)
-			return err;
+			return 0; /* can't return negative here */
 	}
 
 	if (dev_id == ASUS_WMI_DEVID_FAN_CTRL) {

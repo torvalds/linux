@@ -193,8 +193,8 @@ config APM_EMULATION
 	  notification of APM "events" (e.g. battery status change).
 
 	  In order to use APM, you will need supporting software. For location
-	  and more information, read <file:Documentation/power/pm.txt> and the
-	  Battery Powered Linux mini-HOWTO, available from
+	  and more information, read <file:Documentation/power/apm-acpi.txt>
+	  and the Battery Powered Linux mini-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 
 	  This driver does not spin down disk drives (see the hdparm(8)
@@ -224,6 +224,10 @@ config PM_OPP
 	  implementations a ready to use framework to manage OPPs.
 	  For more information, read <file:Documentation/power/opp.txt>
 
-config PM_RUNTIME_CLK
+config PM_CLK
 	def_bool y
-	depends on PM_RUNTIME && HAVE_CLK
+	depends on PM && HAVE_CLK
+
+config PM_GENERIC_DOMAINS
+	bool
+	depends on PM

@@ -167,7 +167,7 @@ cpdma_desc_pool_create(struct device *dev, u32 phys, u32 hw_addr,
 	} else {
 		pool->cpumap = dma_alloc_coherent(dev, size, &pool->phys,
 						  GFP_KERNEL);
-		pool->iomap = (void __force __iomem *)pool->cpumap;
+		pool->iomap = pool->cpumap;
 		pool->hw_addr = pool->phys;
 	}
 

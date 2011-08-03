@@ -210,3 +210,15 @@ config HW_RANDOM_PICOXCELL
 	  module will be called picoxcell-rng.
 
 	  If unsure, say Y.
+
+config HW_RANDOM_PPC4XX
+	tristate "PowerPC 4xx generic true random number generator support"
+	depends on HW_RANDOM && PPC && 4xx
+	---help---
+	 This driver provides the kernel-side support for the TRNG hardware
+	 found in the security function of some PowerPC 4xx SoCs.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called ppc4xx-rng.
+
+	 If unsure, say N.

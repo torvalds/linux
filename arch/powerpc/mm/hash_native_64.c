@@ -37,7 +37,7 @@
 
 #define HPTE_LOCK_BIT 3
 
-static DEFINE_RAW_SPINLOCK(native_tlbie_lock);
+DEFINE_RAW_SPINLOCK(native_tlbie_lock);
 
 static inline void __tlbie(unsigned long va, int psize, int ssize)
 {
@@ -51,7 +51,7 @@ static inline void __tlbie(unsigned long va, int psize, int ssize)
 		va &= ~0xffful;
 		va |= ssize << 8;
 		asm volatile(ASM_FTR_IFCLR("tlbie %0,0", PPC_TLBIE(%1,%0), %2)
-			     : : "r" (va), "r"(0), "i" (CPU_FTR_HVMODE_206)
+			     : : "r" (va), "r"(0), "i" (CPU_FTR_ARCH_206)
 			     : "memory");
 		break;
 	default:
@@ -61,7 +61,7 @@ static inline void __tlbie(unsigned long va, int psize, int ssize)
 		va |= ssize << 8;
 		va |= 1; /* L */
 		asm volatile(ASM_FTR_IFCLR("tlbie %0,1", PPC_TLBIE(%1,%0), %2)
-			     : : "r" (va), "r"(0), "i" (CPU_FTR_HVMODE_206)
+			     : : "r" (va), "r"(0), "i" (CPU_FTR_ARCH_206)
 			     : "memory");
 		break;
 	}

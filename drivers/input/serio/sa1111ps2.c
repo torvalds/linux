@@ -300,8 +300,7 @@ static int __devinit ps2_probe(struct sa1111_dev *dev)
 
  out:
 	sa1111_disable_device(ps2if->dev);
-	release_mem_region(dev->res.start,
-			   dev->res.end - dev->res.start + 1);
+	release_mem_region(dev->res.start, resource_size(&dev->res));
  free:
 	sa1111_set_drvdata(dev, NULL);
 	kfree(ps2if);
@@ -317,8 +316,7 @@ static int __devexit ps2_remove(struct sa1111_dev *dev)
 	struct ps2if *ps2if = sa1111_get_drvdata(dev);
 
 	serio_unregister_port(ps2if->io);
-	release_mem_region(dev->res.start,
-			   dev->res.end - dev->res.start + 1);
+	release_mem_region(dev->res.start, resource_size(&dev->res));
 	sa1111_set_drvdata(dev, NULL);
 
 	kfree(ps2if);

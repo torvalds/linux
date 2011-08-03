@@ -31,14 +31,14 @@
 #define MT9V032_CHIP_VERSION				0x00
 #define		MT9V032_CHIP_ID_REV1			0x1311
 #define		MT9V032_CHIP_ID_REV3			0x1313
-#define MT9V032_ROW_START				0x01
-#define		MT9V032_ROW_START_MIN			4
-#define		MT9V032_ROW_START_DEF			10
-#define		MT9V032_ROW_START_MAX			482
-#define MT9V032_COLUMN_START				0x02
+#define MT9V032_COLUMN_START				0x01
 #define		MT9V032_COLUMN_START_MIN		1
-#define		MT9V032_COLUMN_START_DEF		2
+#define		MT9V032_COLUMN_START_DEF		1
 #define		MT9V032_COLUMN_START_MAX		752
+#define MT9V032_ROW_START				0x02
+#define		MT9V032_ROW_START_MIN			4
+#define		MT9V032_ROW_START_DEF			5
+#define		MT9V032_ROW_START_MAX			482
 #define MT9V032_WINDOW_HEIGHT				0x03
 #define		MT9V032_WINDOW_HEIGHT_MIN		1
 #define		MT9V032_WINDOW_HEIGHT_DEF		480
@@ -420,13 +420,13 @@ static int mt9v032_set_crop(struct v4l2_subdev *subdev,
 	struct v4l2_rect *__crop;
 	struct v4l2_rect rect;
 
-	/* Clamp the crop rectangle boundaries and align them to a multiple of 2
-	 * pixels.
+	/* Clamp the crop rectangle boundaries and align them to a non multiple
+	 * of 2 pixels to ensure a GRBG Bayer pattern.
 	 */
-	rect.left = clamp(ALIGN(crop->rect.left, 2),
+	rect.left = clamp(ALIGN(crop->rect.left + 1, 2) - 1,
 			  MT9V032_COLUMN_START_MIN,
 			  MT9V032_COLUMN_START_MAX);
-	rect.top = clamp(ALIGN(crop->rect.top, 2),
+	rect.top = clamp(ALIGN(crop->rect.top + 1, 2) - 1,
 			 MT9V032_ROW_START_MIN,
 			 MT9V032_ROW_START_MAX);
 	rect.width = clamp(ALIGN(crop->rect.width, 2),

@@ -295,7 +295,7 @@ get_regs(struct bnad *bnad, u32 * regs)
 	u32 reg_addr;
 	unsigned long flags;
 
-#define BNAD_GET_REG(addr) 					\
+#define BNAD_GET_REG(addr)					\
 do {								\
 	if (regs)						\
 		regs[num++] = readl(bnad->bar0 + (addr));	\

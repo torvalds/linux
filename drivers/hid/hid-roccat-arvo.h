@@ -46,19 +46,6 @@ enum arvo_commands {
 	ARVO_COMMAND_ACTUAL_PROFILE = 0x7,
 };
 
-enum arvo_usb_commands {
-	ARVO_USB_COMMAND_MODE_KEY = 0x303,
-	/*
-	 * read/write
-	 * Read uses both index bytes as profile/key indexes
-	 * Write has index 0, profile/key is determined by payload
-	 */
-	ARVO_USB_COMMAND_BUTTON = 0x304,
-	ARVO_USB_COMMAND_INFO = 0x305,
-	ARVO_USB_COMMAND_KEY_MASK = 0x306,
-	ARVO_USB_COMMAND_ACTUAL_PROFILE = 0x307,
-};
-
 struct arvo_special_report {
 	uint8_t unknown1; /* always 0x01 */
 	uint8_t event;

@@ -40,8 +40,8 @@ struct pl022_config_chip dummy_chip_info = {
 	.hierarchy = SSP_MASTER,
 	/* 0 = drive TX even as slave, 1 = do not drive TX as slave */
 	.slave_tx_disable = 0,
-	.rx_lev_trig = SSP_RX_1_OR_MORE_ELEM,
-	.tx_lev_trig = SSP_TX_1_OR_MORE_EMPTY_LOC,
+	.rx_lev_trig = SSP_RX_4_OR_MORE_ELEM,
+	.tx_lev_trig = SSP_TX_4_OR_MORE_EMPTY_LOC,
 	.ctrl_len = SSP_BITS_12,
 	.wait_state = SSP_MWIRE_WAIT_ZERO,
 	.duplex = SSP_MICROWIRE_CHANNEL_FULL_DUPLEX,

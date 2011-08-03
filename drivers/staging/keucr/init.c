@@ -31,9 +31,7 @@ int ENE_InitMedia(struct us_data *us)
 		if (!us->SM_Status.Ready && !us->MS_Status.Ready) {
 			result = ENE_SMInit(us);
 			if (result != USB_STOR_XFER_GOOD) {
-				result = ENE_MSInit(us);
-				if (result != USB_STOR_XFER_GOOD)
-					return USB_STOR_TRANSPORT_ERROR;
+				return USB_STOR_TRANSPORT_ERROR;
 			}
 		}
 
@@ -59,60 +57,6 @@ int ENE_Read_BYTE(struct us_data *us, WORD index, void *buf)
 
 	result = ENE_SendScsiCmd(us, FDIR_READ, buf, 0);
 	return result;
-}
-
-/*
- * ENE_MSInit():
- */
-int ENE_MSInit(struct us_data *us)
-{
-	struct bulk_cb_wrap *bcb = (struct bulk_cb_wrap *) us->iobuf;
-	int	result;
-	BYTE	buf[0x200];
-	WORD	MSP_BlockSize, MSP_UserAreaBlocks;
-
-	printk(KERN_INFO "transport --- ENE_MSInit\n");
-	result = ENE_LoadBinCode(us, MS_INIT_PATTERN);
-	if (result != USB_STOR_XFER_GOOD) {
-		printk(KERN_ERR "Load MS Init Code Fail !!\n");
-		return USB_STOR_TRANSPORT_ERROR;
-	}
-
-	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
-	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
-	bcb->DataTransferLength	= 0x200;
-	bcb->Flags			= 0x80;
-	bcb->CDB[0]			= 0xF1;
-	bcb->CDB[1]			= 0x01;
-
-	result = ENE_SendScsiCmd(us, FDIR_READ, &buf, 0);
-	if (result != USB_STOR_XFER_GOOD) {
-		printk(KERN_ERR "Execution MS Init Code Fail !!\n");
-		return USB_STOR_TRANSPORT_ERROR;
-	}
-
-	us->MS_Status = *(PMS_STATUS)&buf[0];
-
-	if (us->MS_Status.Insert && us->MS_Status.Ready) {
-		printk(KERN_INFO "Insert     = %x\n", us->MS_Status.Insert);
-		printk(KERN_INFO "Ready      = %x\n", us->MS_Status.Ready);
-		printk(KERN_INFO "IsMSPro    = %x\n", us->MS_Status.IsMSPro);
-		printk(KERN_INFO "IsMSPHG    = %x\n", us->MS_Status.IsMSPHG);
-		printk(KERN_INFO "WtP        = %x\n", us->MS_Status.WtP);
-		if (us->MS_Status.IsMSPro) {
-			MSP_BlockSize      = (buf[6] << 8) | buf[7];
-			MSP_UserAreaBlocks = (buf[10] << 8) | buf[11];
-			us->MSP_TotalBlock = MSP_BlockSize * MSP_UserAreaBlocks;
-		} else {
-			MS_CardInit(us);
-		}
-		printk(KERN_INFO "MS Init Code OK !!\n");
-	} else {
-		printk(KERN_INFO "MS Card Not Ready --- %x\n", buf[0]);
-		return USB_STOR_TRANSPORT_ERROR;
-	}
-
-	return USB_STOR_TRANSPORT_GOOD;
 }
 
 /*
@@ -185,19 +129,6 @@ int ENE_LoadBinCode(struct us_data *us, BYTE flag)
 	if (buf == NULL)
 		return USB_STOR_TRANSPORT_ERROR;
 	switch (flag) {
-	/* For MS */
-	case MS_INIT_PATTERN:
-		printk(KERN_INFO "MS_INIT_PATTERN\n");
-		memcpy(buf, MS_Init, 0x800);
-		break;
-	case MSP_RW_PATTERN:
-		printk(KERN_INFO "MSP_RW_PATTERN\n");
-		memcpy(buf, MSP_Rdwr, 0x800);
-		break;
-	case MS_RW_PATTERN:
-		printk(KERN_INFO "MS_RW_PATTERN\n");
-		memcpy(buf, MS_Rdwr, 0x800);
-		break;
 	/* For SS */
 	case SM_INIT_PATTERN:
 		printk(KERN_INFO "SM_INIT_PATTERN\n");

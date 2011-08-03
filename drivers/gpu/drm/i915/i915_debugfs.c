@@ -865,7 +865,7 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 			   MEMSTAT_VID_SHIFT);
 		seq_printf(m, "Current P-state: %d\n",
 			   (rgvstat & MEMSTAT_PSTATE_MASK) >> MEMSTAT_PSTATE_SHIFT);
-	} else if (IS_GEN6(dev)) {
+	} else if (IS_GEN6(dev) || IS_GEN7(dev)) {
 		u32 gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
 		u32 rp_state_limits = I915_READ(GEN6_RP_STATE_LIMITS);
 		u32 rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
@@ -1119,6 +1119,44 @@ static int i915_emon_status(struct seq_file *m, void *unused)
 	seq_printf(m, "Chipset power: %ld\n", chipset);
 	seq_printf(m, "GFX power: %ld\n", gfx);
 	seq_printf(m, "Total power: %ld\n", chipset + gfx);
+
+	return 0;
+}
+
+static int i915_ring_freq_table(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	int ret;
+	int gpu_freq, ia_freq;
+
+	if (!(IS_GEN6(dev) || IS_GEN7(dev))) {
+		seq_printf(m, "unsupported on this chipset\n");
+		return 0;
+	}
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	seq_printf(m, "GPU freq (MHz)\tEffective CPU freq (MHz)\n");
+
+	for (gpu_freq = dev_priv->min_delay; gpu_freq <= dev_priv->max_delay;
+	     gpu_freq++) {
+		I915_WRITE(GEN6_PCODE_DATA, gpu_freq);
+		I915_WRITE(GEN6_PCODE_MAILBOX, GEN6_PCODE_READY |
+			   GEN6_PCODE_READ_MIN_FREQ_TABLE);
+		if (wait_for((I915_READ(GEN6_PCODE_MAILBOX) &
+			      GEN6_PCODE_READY) == 0, 10)) {
+			DRM_ERROR("pcode read of freq table timed out\n");
+			continue;
+		}
+		ia_freq = I915_READ(GEN6_PCODE_DATA);
+		seq_printf(m, "%d\t\t%d\n", gpu_freq * 50, ia_freq * 100);
+	}
+
+	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -1430,6 +1468,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_inttoext_table", i915_inttoext_table, 0},
 	{"i915_drpc_info", i915_drpc_info, 0},
 	{"i915_emon_status", i915_emon_status, 0},
+	{"i915_ring_freq_table", i915_ring_freq_table, 0},
 	{"i915_gfxec", i915_gfxec, 0},
 	{"i915_fbc_status", i915_fbc_status, 0},
 	{"i915_sr_status", i915_sr_status, 0},

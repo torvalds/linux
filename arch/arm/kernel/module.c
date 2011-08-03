@@ -43,25 +43,7 @@ void *module_alloc(unsigned long size)
 				GFP_KERNEL, PAGE_KERNEL_EXEC, -1,
 				__builtin_return_address(0));
 }
-#else /* CONFIG_MMU */
-void *module_alloc(unsigned long size)
-{
-	return size == 0 ? NULL : vmalloc(size);
-}
-#endif /* !CONFIG_MMU */
-
-void module_free(struct module *module, void *region)
-{
-	vfree(region);
-}
-
-int module_frob_arch_sections(Elf_Ehdr *hdr,
-			      Elf_Shdr *sechdrs,
-			      char *secstrings,
-			      struct module *mod)
-{
-	return 0;
-}
+#endif
 
 int
 apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
@@ -263,15 +245,6 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 		}
 	}
 	return 0;
-}
-
-int
-apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
-		   unsigned int symindex, unsigned int relsec, struct module *module)
-{
-	printk(KERN_ERR "module %s: ADD RELOCATION unsupported\n",
-	       module->name);
-	return -ENOEXEC;
 }
 
 struct mod_unwind_map {

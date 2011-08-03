@@ -39,7 +39,6 @@
 #include <asm/mach/time.h>
 
 #include "devices-imx51.h"
-#include "devices.h"
 #include "cpu_op-mx51.h"
 
 #define USBH1_RST		IMX_GPIO_NR(2, 28)
@@ -149,7 +148,7 @@ static int initialize_otg_port(struct platform_device *pdev)
 	void __iomem *usb_base;
 	void __iomem *usbother_base;
 
-	usb_base = ioremap(MX51_OTG_BASE_ADDR, SZ_4K);
+	usb_base = ioremap(MX51_USB_OTG_BASE_ADDR, SZ_4K);
 	if (!usb_base)
 		return -ENOMEM;
 	usbother_base = usb_base + MX5_USBOTHER_REGS_OFFSET;
@@ -172,7 +171,7 @@ static int initialize_usbh1_port(struct platform_device *pdev)
 	void __iomem *usb_base;
 	void __iomem *usbother_base;
 
-	usb_base = ioremap(MX51_OTG_BASE_ADDR, SZ_4K);
+	usb_base = ioremap(MX51_USB_OTG_BASE_ADDR, SZ_4K);
 	if (!usb_base)
 		return -ENOMEM;
 	usbother_base = usb_base + MX5_USBOTHER_REGS_OFFSET;
@@ -189,17 +188,17 @@ static int initialize_usbh1_port(struct platform_device *pdev)
 			MXC_EHCI_ITC_NO_THRESHOLD);
 }
 
-static struct mxc_usbh_platform_data dr_utmi_config = {
+static const struct mxc_usbh_platform_data dr_utmi_config __initconst = {
 	.init		= initialize_otg_port,
 	.portsc	= MXC_EHCI_UTMI_16BIT,
 };
 
-static struct fsl_usb2_platform_data usb_pdata = {
+static const struct fsl_usb2_platform_data usb_pdata __initconst = {
 	.operating_mode	= FSL_USB2_DR_DEVICE,
 	.phy_mode	= FSL_USB2_PHY_UTMI_WIDE,
 };
 
-static struct mxc_usbh_platform_data usbh1_config = {
+static const struct mxc_usbh_platform_data usbh1_config __initconst = {
 	.init		= initialize_usbh1_port,
 	.portsc	= MXC_EHCI_MODE_ULPI,
 };
@@ -264,6 +263,8 @@ static struct platform_device *platform_devices[] __initdata = {
 
 static void __init eukrea_cpuimx51sd_init(void)
 {
+	imx51_soc_init();
+
 	mxc_iomux_v3_setup_multiple_pads(eukrea_cpuimx51sd_pads,
 					ARRAY_SIZE(eukrea_cpuimx51sd_pads));
 
@@ -301,17 +302,17 @@ static void __init eukrea_cpuimx51sd_init(void)
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 
 	if (otg_mode_host)
-		mxc_register_device(&mxc_usbdr_host_device, &dr_utmi_config);
+		imx51_add_mxc_ehci_otg(&dr_utmi_config);
 	else {
 		initialize_otg_port(NULL);
-		mxc_register_device(&mxc_usbdr_udc_device, &usb_pdata);
+		imx51_add_fsl_usb2_udc(&usb_pdata);
 	}
 
 	gpio_request(USBH1_RST, "usb_rst");
 	gpio_direction_output(USBH1_RST, 0);
 	msleep(20);
 	gpio_set_value(USBH1_RST, 1);
-	mxc_register_device(&mxc_usbh1_device, &usbh1_config);
+	imx51_add_mxc_ehci_hs(1, &usbh1_config);
 
 #ifdef CONFIG_MACH_EUKREA_MBIMXSD51_BASEBOARD
 	eukrea_mbimxsd51_baseboard_init();

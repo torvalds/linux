@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/mbus.h>
+#include <video/vga.h>
 #include <asm/irq.h>
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
@@ -129,12 +130,12 @@ static void __init mv78xx0_pcie_preinit(void)
 		struct pcie_port *pp = pcie_port + i;
 
 		mv78xx0_setup_pcie_io_win(win++, pp->res[0].start,
-			pp->res[0].end - pp->res[0].start + 1,
-			pp->maj, pp->min);
+					  resource_size(&pp->res[0]),
+					  pp->maj, pp->min);
 
 		mv78xx0_setup_pcie_mem_win(win++, pp->res[1].start,
-			pp->res[1].end - pp->res[1].start + 1,
-			pp->maj, pp->min);
+					   resource_size(&pp->res[1]),
+					   pp->maj, pp->min);
 	}
 }
 
@@ -259,7 +260,8 @@ mv78xx0_pcie_scan_bus(int nr, struct pci_sys_data *sys)
 	return bus;
 }
 
-static int __init mv78xx0_pcie_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init mv78xx0_pcie_map_irq(const struct pci_dev *dev, u8 slot,
+	u8 pin)
 {
 	struct pcie_port *pp = bus_to_port(dev->bus->number);
 
@@ -297,6 +299,8 @@ static void __init add_pcie_port(int maj, int min, unsigned long base)
 
 void __init mv78xx0_pcie_init(int init_port0, int init_port1)
 {
+	vga_base = MV78XX0_PCIE_MEM_PHYS_BASE;
+
 	if (init_port0) {
 		add_pcie_port(0, 0, PCIE00_VIRT_BASE);
 		if (!orion_pcie_x4_mode((void __iomem *)PCIE00_VIRT_BASE)) {

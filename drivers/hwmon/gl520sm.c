@@ -273,7 +273,7 @@ static SENSOR_DEVICE_ATTR(in4_max, S_IRUGO | S_IWUSR,
 
 #define DIV_FROM_REG(val) (1 << (val))
 #define FAN_FROM_REG(val,div) ((val)==0 ? 0 : (480000/((val) << (div))))
-#define FAN_TO_REG(val,div) ((val)<=0?0:SENSORS_LIMIT((480000 + ((val) << ((div)-1))) / ((val) << (div)), 1, 255));
+#define FAN_TO_REG(val,div) ((val)<=0?0:SENSORS_LIMIT((480000 + ((val) << ((div)-1))) / ((val) << (div)), 1, 255))
 
 static ssize_t get_fan_input(struct device *dev, struct device_attribute *attr,
 			     char *buf)

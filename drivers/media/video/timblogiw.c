@@ -20,7 +20,6 @@
  * Timberdale FPGA LogiWin Video In
  */
 
-#include <linux/version.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/dmaengine.h>

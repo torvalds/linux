@@ -40,6 +40,10 @@ config USB_STORAGE_REALTEK
 
 	  If this driver is compiled as a module, it will be named ums-realtek.
 
+config REALTEK_AUTOPM
+	bool "Realtek Card Reader autosuspend support"
+	depends on USB_STORAGE_REALTEK && CONFIG_PM_RUNTIME
+	default y
 
 config USB_STORAGE_DATAFAB
 	tristate "Datafab Compact Flash Reader support"
@@ -187,8 +191,8 @@ config USB_STORAGE_ENE_UB6250
 	depends on USB && SCSI
 	depends on USB_STORAGE
 	---help---
-	  Say Y here if you wish to control a ENE SD Card reader.
-	  To use SM/MS card, please build driver/staging/keucr/keucr.ko
+	  Say Y here if you wish to control a ENE SD/MS Card reader.
+	  To use SM card, please build driver/staging/keucr/keucr.ko
 
 	  This option depends on 'SCSI' support being enabled, but you
 	  probably also need 'SCSI device support: SCSI disk support'

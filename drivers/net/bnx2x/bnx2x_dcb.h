@@ -27,22 +27,30 @@ struct bnx2x_dcbx_app_params {
 	u32 traffic_type_priority[LLFC_DRIVER_TRAFFIC_TYPE_MAX];
 };
 
-#define E2_NUM_OF_COS			2
-#define BNX2X_DCBX_COS_NOT_STRICT	0
-#define BNX2X_DCBX_COS_LOW_STRICT	1
-#define BNX2X_DCBX_COS_HIGH_STRICT	2
+#define DCBX_COS_MAX_NUM_E2	DCBX_E2E3_MAX_NUM_COS
+/* bnx2x currently limits numbers of supported COSes to 3 to be extended to 6 */
+#define BNX2X_MAX_COS_SUPPORT	3
+#define DCBX_COS_MAX_NUM_E3B0	BNX2X_MAX_COS_SUPPORT
+#define DCBX_COS_MAX_NUM	BNX2X_MAX_COS_SUPPORT
 
 struct bnx2x_dcbx_cos_params {
 	u32	bw_tbl;
 	u32	pri_bitmask;
+	/*
+	 * strict priority: valid values are 0..5; 0 is highest priority.
+	 * There can't be two COSes with the same priority.
+	 */
 	u8	strict;
+#define BNX2X_DCBX_STRICT_INVALID			DCBX_COS_MAX_NUM
+#define BNX2X_DCBX_STRICT_COS_HIGHEST			0
+#define BNX2X_DCBX_STRICT_COS_NEXT_LOWER_PRI(sp)	((sp) + 1)
 	u8	pauseable;
 };
 
 struct bnx2x_dcbx_pg_params {
 	u32 enabled;
 	u8 num_of_cos; /* valid COS entries */
-	struct bnx2x_dcbx_cos_params	cos_params[E2_NUM_OF_COS];
+	struct bnx2x_dcbx_cos_params	cos_params[DCBX_COS_MAX_NUM];
 };
 
 struct bnx2x_dcbx_pfc_params {
@@ -60,6 +68,8 @@ struct bnx2x_dcbx_port_params {
 #define BNX2X_DCBX_OVERWRITE_SETTINGS_DISABLE		0
 #define BNX2X_DCBX_OVERWRITE_SETTINGS_ENABLE		1
 #define BNX2X_DCBX_OVERWRITE_SETTINGS_INVALID	(BNX2X_DCBX_CONFIG_INV_VALUE)
+#define BNX2X_IS_ETS_ENABLED(bp) ((bp)->dcb_state == BNX2X_DCB_STATE_ON &&\
+				  (bp)->dcbx_port_params.ets.enabled)
 
 struct bnx2x_config_lldp_params {
 	u32 overwrite_settings;
@@ -132,7 +142,7 @@ struct cos_entry_help_data {
 };
 
 struct cos_help_data {
-	struct cos_entry_help_data	data[E2_NUM_OF_COS];
+	struct cos_entry_help_data	data[DCBX_COS_MAX_NUM];
 	u8				num_of_cos;
 };
 
@@ -148,6 +158,8 @@ struct cos_help_data {
 				((pg_pri) & (DCBX_PFC_PRI_PAUSE_MASK(bp)))
 #define DCBX_PFC_PRI_GET_NON_PAUSE(bp, pg_pri)	\
 			(DCBX_PFC_PRI_NON_PAUSE_MASK(bp) & (pg_pri))
+#define DCBX_IS_PFC_PRI_SOME_PAUSE(bp, pg_pri)	\
+			(0 != DCBX_PFC_PRI_GET_PAUSE(bp, pg_pri))
 #define IS_DCBX_PFC_PRI_ONLY_PAUSE(bp, pg_pri)	\
 			(pg_pri == DCBX_PFC_PRI_GET_PAUSE((bp), (pg_pri)))
 #define IS_DCBX_PFC_PRI_ONLY_NON_PAUSE(bp, pg_pri)\
@@ -170,22 +182,18 @@ struct pg_help_data {
 
 /* forward DCB/PFC related declarations */
 struct bnx2x;
-void bnx2x_dcb_init_intmem_pfc(struct bnx2x *bp);
 void bnx2x_dcbx_update(struct work_struct *work);
 void bnx2x_dcbx_init_params(struct bnx2x *bp);
 void bnx2x_dcbx_set_state(struct bnx2x *bp, bool dcb_on, u32 dcbx_enabled);
 
 enum {
 	BNX2X_DCBX_STATE_NEG_RECEIVED = 0x1,
-#ifdef BCM_CNIC
-	BNX2X_DCBX_STATE_ISCSI_STOPPED,
-#endif
 	BNX2X_DCBX_STATE_TX_PAUSED,
 	BNX2X_DCBX_STATE_TX_RELEASED
 };
 
 void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state);
-
+void bnx2x_dcbx_pmf_update(struct bnx2x *bp);
 /* DCB netlink */
 #ifdef BCM_DCBNL
 extern const struct dcbnl_rtnl_ops bnx2x_dcbnl_ops;

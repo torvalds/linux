@@ -72,7 +72,7 @@ static size_t sgtable_len(const struct sg_table *sgt)
 	for_each_sg(sgt->sgl, sg, sgt->nents, i) {
 		size_t bytes;
 
-		bytes = sg_dma_len(sg);
+		bytes = sg->length;
 
 		if (!iopgsz_ok(bytes)) {
 			pr_err("%s: sg[%d] not iommu pagesize(%x)\n",
@@ -198,7 +198,7 @@ static void *vmap_sg(const struct sg_table *sgt)
 		int err;
 
 		pa = sg_phys(sg);
-		bytes = sg_dma_len(sg);
+		bytes = sg->length;
 
 		BUG_ON(bytes != PAGE_SIZE);
 
@@ -476,7 +476,7 @@ static int map_iovm_area(struct iommu *obj, struct iovm_struct *new,
 		struct iotlb_entry e;
 
 		pa = sg_phys(sg);
-		bytes = sg_dma_len(sg);
+		bytes = sg->length;
 
 		flags &= ~IOVMF_PGSZ_MASK;
 		pgsz = bytes_to_iopgsz(bytes);

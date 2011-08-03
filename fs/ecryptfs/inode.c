@@ -69,6 +69,7 @@ static int ecryptfs_inode_set(struct inode *inode, void *opaque)
 	inode->i_ino = lower_inode->i_ino;
 	inode->i_version++;
 	inode->i_mapping->a_ops = &ecryptfs_aops;
+	inode->i_mapping->backing_dev_info = inode->i_sb->s_bdi;
 
 	if (S_ISLNK(inode->i_mode))
 		inode->i_op = &ecryptfs_symlink_iops;
@@ -147,7 +148,6 @@ static int ecryptfs_interpose(struct dentry *lower_dentry,
  * @lower_dir_inode: inode of the parent in the lower fs of the new file
  * @dentry: New file's dentry
  * @mode: The mode of the new file
- * @nd: nameidata of ecryptfs' parent's dentry & vfsmount
  *
  * Creates the file in the lower file system.
  *
@@ -155,31 +155,10 @@ static int ecryptfs_interpose(struct dentry *lower_dentry,
  */
 static int
 ecryptfs_create_underlying_file(struct inode *lower_dir_inode,
-				struct dentry *dentry, int mode,
-				struct nameidata *nd)
+				struct dentry *dentry, int mode)
 {
 	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
-	struct vfsmount *lower_mnt = ecryptfs_dentry_to_lower_mnt(dentry);
-	struct dentry *dentry_save;
-	struct vfsmount *vfsmount_save;
-	unsigned int flags_save;
-	int rc;
-
-	if (nd) {
-		dentry_save = nd->path.dentry;
-		vfsmount_save = nd->path.mnt;
-		flags_save = nd->flags;
-		nd->path.dentry = lower_dentry;
-		nd->path.mnt = lower_mnt;
-		nd->flags &= ~LOOKUP_OPEN;
-	}
-	rc = vfs_create(lower_dir_inode, lower_dentry, mode, nd);
-	if (nd) {
-		nd->path.dentry = dentry_save;
-		nd->path.mnt = vfsmount_save;
-		nd->flags = flags_save;
-	}
-	return rc;
+	return vfs_create(lower_dir_inode, lower_dentry, mode, NULL);
 }
 
 /**
@@ -197,8 +176,7 @@ ecryptfs_create_underlying_file(struct inode *lower_dir_inode,
  */
 static int
 ecryptfs_do_create(struct inode *directory_inode,
-		   struct dentry *ecryptfs_dentry, int mode,
-		   struct nameidata *nd)
+		   struct dentry *ecryptfs_dentry, int mode)
 {
 	int rc;
 	struct dentry *lower_dentry;
@@ -213,7 +191,7 @@ ecryptfs_do_create(struct inode *directory_inode,
 		goto out;
 	}
 	rc = ecryptfs_create_underlying_file(lower_dir_dentry->d_inode,
-					     ecryptfs_dentry, mode, nd);
+					     ecryptfs_dentry, mode);
 	if (rc) {
 		printk(KERN_ERR "%s: Failure to create dentry in lower fs; "
 		       "rc = [%d]\n", __func__, rc);
@@ -294,7 +272,7 @@ ecryptfs_create(struct inode *directory_inode, struct dentry *ecryptfs_dentry,
 	int rc;
 
 	/* ecryptfs_do_create() calls ecryptfs_interpose() */
-	rc = ecryptfs_do_create(directory_inode, ecryptfs_dentry, mode, nd);
+	rc = ecryptfs_do_create(directory_inode, ecryptfs_dentry, mode);
 	if (unlikely(rc)) {
 		ecryptfs_printk(KERN_WARNING, "Failed to create file in"
 				"lower filesystem\n");
@@ -942,10 +920,8 @@ int ecryptfs_truncate(struct dentry *dentry, loff_t new_length)
 }
 
 static int
-ecryptfs_permission(struct inode *inode, int mask, unsigned int flags)
+ecryptfs_permission(struct inode *inode, int mask)
 {
-	if (flags & IPERM_FLAG_RCU)
-		return -ECHILD;
 	return inode_permission(ecryptfs_inode_to_lower(inode), mask);
 }
 

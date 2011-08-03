@@ -40,8 +40,7 @@ struct pci_dev;
  * Set this to 1 if you want the kernel to re-assign all PCI
  * bus numbers (don't do that on ppc64 yet !)
  */
-#define pcibios_assign_all_busses() \
-	(pci_has_flag(PCI_REASSIGN_ALL_BUS))
+#define pcibios_assign_all_busses()	0
 
 static inline void pcibios_set_master(struct pci_dev *dev)
 {

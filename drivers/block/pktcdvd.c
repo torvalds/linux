@@ -1206,7 +1206,7 @@ static int pkt_start_recovery(struct packet_data *pkt)
 	if (!sb)
 		return 0;
 
-	if (!sb->s_op || !sb->s_op->relocate_blocks)
+	if (!sb->s_op->relocate_blocks)
 		goto out;
 
 	old_block = pkt->sector / (CD_FRAMESIZE >> 9);

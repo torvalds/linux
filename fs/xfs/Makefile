@@ -88,8 +88,6 @@ xfs-y				+= xfs_alloc.o \
 				   xfs_vnodeops.o \
 				   xfs_rw.o
 
-xfs-$(CONFIG_XFS_TRACE)		+= xfs_btree_trace.o
-
 # Objects in linux/
 xfs-y				+= $(addprefix $(XFS_LINUX)/, \
 				   kmem.o \

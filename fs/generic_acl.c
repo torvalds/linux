@@ -132,31 +132,17 @@ generic_acl_init(struct inode *inode, struct inode *dir)
 	if (!S_ISLNK(inode->i_mode))
 		acl = get_cached_acl(dir, ACL_TYPE_DEFAULT);
 	if (acl) {
-		struct posix_acl *clone;
-
-		if (S_ISDIR(inode->i_mode)) {
-			clone = posix_acl_clone(acl, GFP_KERNEL);
-			error = -ENOMEM;
-			if (!clone)
-				goto cleanup;
-			set_cached_acl(inode, ACL_TYPE_DEFAULT, clone);
-			posix_acl_release(clone);
-		}
-		clone = posix_acl_clone(acl, GFP_KERNEL);
-		error = -ENOMEM;
-		if (!clone)
-			goto cleanup;
-		error = posix_acl_create_masq(clone, &mode);
-		if (error >= 0) {
-			inode->i_mode = mode;
-			if (error > 0)
-				set_cached_acl(inode, ACL_TYPE_ACCESS, clone);
-		}
-		posix_acl_release(clone);
+		if (S_ISDIR(inode->i_mode))
+			set_cached_acl(inode, ACL_TYPE_DEFAULT, acl);
+		error = posix_acl_create(&acl, GFP_KERNEL, &mode);
+		if (error < 0)
+			return error;
+		inode->i_mode = mode;
+		if (error > 0)
+			set_cached_acl(inode, ACL_TYPE_ACCESS, acl);
 	}
 	error = 0;
 
-cleanup:
 	posix_acl_release(acl);
 	return error;
 }
@@ -170,42 +156,20 @@ cleanup:
 int
 generic_acl_chmod(struct inode *inode)
 {
-	struct posix_acl *acl, *clone;
+	struct posix_acl *acl;
 	int error = 0;
 
 	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;
 	acl = get_cached_acl(inode, ACL_TYPE_ACCESS);
 	if (acl) {
-		clone = posix_acl_clone(acl, GFP_KERNEL);
+		error = posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
+		if (error)
+			return error;
+		set_cached_acl(inode, ACL_TYPE_ACCESS, acl);
 		posix_acl_release(acl);
-		if (!clone)
-			return -ENOMEM;
-		error = posix_acl_chmod_masq(clone, inode->i_mode);
-		if (!error)
-			set_cached_acl(inode, ACL_TYPE_ACCESS, clone);
-		posix_acl_release(clone);
 	}
 	return error;
-}
-
-int
-generic_check_acl(struct inode *inode, int mask, unsigned int flags)
-{
-	if (flags & IPERM_FLAG_RCU) {
-		if (!negative_cached_acl(inode, ACL_TYPE_ACCESS))
-			return -ECHILD;
-	} else {
-		struct posix_acl *acl;
-
-		acl = get_cached_acl(inode, ACL_TYPE_ACCESS);
-		if (acl) {
-			int error = posix_acl_permission(inode, acl, mask);
-			posix_acl_release(acl);
-			return error;
-		}
-	}
-	return -EAGAIN;
 }
 
 const struct xattr_handler generic_acl_access_handler = {

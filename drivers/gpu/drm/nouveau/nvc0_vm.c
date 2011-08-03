@@ -105,7 +105,11 @@ nvc0_vm_flush(struct nouveau_vm *vm)
 	struct drm_device *dev = vm->dev;
 	struct nouveau_vm_pgd *vpgd;
 	unsigned long flags;
-	u32 engine = (dev_priv->chan_vm == vm) ? 1 : 5;
+	u32 engine;
+
+	engine = 1;
+	if (vm == dev_priv->bar1_vm || vm == dev_priv->bar3_vm)
+		engine |= 4;
 
 	pinstmem->flush(vm->dev);
 

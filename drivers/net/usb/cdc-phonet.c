@@ -21,6 +21,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/gfp.h>
 #include <linux/usb.h>

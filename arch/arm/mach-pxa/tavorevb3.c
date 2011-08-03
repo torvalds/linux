@@ -129,6 +129,7 @@ MACHINE_START(TAVOREVB3, "PXA950 Evaluation Board (aka TavorEVB3)")
 	.map_io         = pxa3xx_map_io,
 	.nr_irqs	= TAVOREVB3_NR_IRQS,
 	.init_irq       = pxa3xx_init_irq,
+	.handle_irq       = pxa3xx_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = evb3_init,
 MACHINE_END

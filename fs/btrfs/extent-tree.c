@@ -320,12 +320,12 @@ static u64 add_new_free_space(struct btrfs_block_group_cache *block_group,
 	return total_added;
 }
 
-static int caching_kthread(void *data)
+static noinline void caching_thread(struct btrfs_work *work)
 {
-	struct btrfs_block_group_cache *block_group = data;
-	struct btrfs_fs_info *fs_info = block_group->fs_info;
-	struct btrfs_caching_control *caching_ctl = block_group->caching_ctl;
-	struct btrfs_root *extent_root = fs_info->extent_root;
+	struct btrfs_block_group_cache *block_group;
+	struct btrfs_fs_info *fs_info;
+	struct btrfs_caching_control *caching_ctl;
+	struct btrfs_root *extent_root;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
@@ -334,9 +334,14 @@ static int caching_kthread(void *data)
 	u32 nritems;
 	int ret = 0;
 
+	caching_ctl = container_of(work, struct btrfs_caching_control, work);
+	block_group = caching_ctl->block_group;
+	fs_info = block_group->fs_info;
+	extent_root = fs_info->extent_root;
+
 	path = btrfs_alloc_path();
 	if (!path)
-		return -ENOMEM;
+		goto out;
 
 	last = max_t(u64, block_group->key.objectid, BTRFS_SUPER_INFO_OFFSET);
 
@@ -433,13 +438,11 @@ err:
 	free_excluded_extents(extent_root, block_group);
 
 	mutex_unlock(&caching_ctl->mutex);
+out:
 	wake_up(&caching_ctl->wait);
 
 	put_caching_control(caching_ctl);
-	atomic_dec(&block_group->space_info->caching_threads);
 	btrfs_put_block_group(block_group);
-
-	return 0;
 }
 
 static int cache_block_group(struct btrfs_block_group_cache *cache,
@@ -449,7 +452,6 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 {
 	struct btrfs_fs_info *fs_info = cache->fs_info;
 	struct btrfs_caching_control *caching_ctl;
-	struct task_struct *tsk;
 	int ret = 0;
 
 	smp_mb();
@@ -501,6 +503,7 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 	caching_ctl->progress = cache->key.objectid;
 	/* one for caching kthread, one for caching block group list */
 	atomic_set(&caching_ctl->count, 2);
+	caching_ctl->work.func = caching_thread;
 
 	spin_lock(&cache->lock);
 	if (cache->cached != BTRFS_CACHE_NO) {
@@ -516,16 +519,9 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 	list_add_tail(&caching_ctl->list, &fs_info->caching_block_groups);
 	up_write(&fs_info->extent_commit_sem);
 
-	atomic_inc(&cache->space_info->caching_threads);
 	btrfs_get_block_group(cache);
 
-	tsk = kthread_run(caching_kthread, cache, "btrfs-cache-%llu\n",
-			  cache->key.objectid);
-	if (IS_ERR(tsk)) {
-		ret = PTR_ERR(tsk);
-		printk(KERN_ERR "error running thread %d\n", ret);
-		BUG();
-	}
+	btrfs_queue_worker(&fs_info->caching_workers, &caching_ctl->work);
 
 	return ret;
 }
@@ -2932,9 +2928,10 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 	found->full = 0;
 	found->force_alloc = CHUNK_ALLOC_NO_FORCE;
 	found->chunk_alloc = 0;
+	found->flush = 0;
+	init_waitqueue_head(&found->wait);
 	*space_info = found;
 	list_add_rcu(&found->list, &info->space_info);
-	atomic_set(&found->caching_threads, 0);
 	return 0;
 }
 
@@ -3314,6 +3311,14 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 	if (reserved == 0)
 		return 0;
 
+	smp_mb();
+	if (root->fs_info->delalloc_bytes == 0) {
+		if (trans)
+			return 0;
+		btrfs_wait_ordered_extents(root, 0, 0);
+		return 0;
+	}
+
 	max_reclaim = min(reserved, to_reclaim);
 
 	while (loops < 1024) {
@@ -3356,6 +3361,8 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 		}
 
 	}
+	if (reclaimed >= to_reclaim && !trans)
+		btrfs_wait_ordered_extents(root, 0, 0);
 	return reclaimed >= to_reclaim;
 }
 
@@ -3380,15 +3387,36 @@ static int reserve_metadata_bytes(struct btrfs_trans_handle *trans,
 	u64 num_bytes = orig_bytes;
 	int retries = 0;
 	int ret = 0;
-	bool reserved = false;
 	bool committed = false;
+	bool flushing = false;
 
 again:
-	ret = -ENOSPC;
-	if (reserved)
-		num_bytes = 0;
-
+	ret = 0;
 	spin_lock(&space_info->lock);
+	/*
+	 * We only want to wait if somebody other than us is flushing and we are
+	 * actually alloed to flush.
+	 */
+	while (flush && !flushing && space_info->flush) {
+		spin_unlock(&space_info->lock);
+		/*
+		 * If we have a trans handle we can't wait because the flusher
+		 * may have to commit the transaction, which would mean we would
+		 * deadlock since we are waiting for the flusher to finish, but
+		 * hold the current transaction open.
+		 */
+		if (trans)
+			return -EAGAIN;
+		ret = wait_event_interruptible(space_info->wait,
+					       !space_info->flush);
+		/* Must have been interrupted, return */
+		if (ret)
+			return -EINTR;
+
+		spin_lock(&space_info->lock);
+	}
+
+	ret = -ENOSPC;
 	unused = space_info->bytes_used + space_info->bytes_reserved +
 		 space_info->bytes_pinned + space_info->bytes_readonly +
 		 space_info->bytes_may_use;
@@ -3403,8 +3431,7 @@ again:
 	if (unused <= space_info->total_bytes) {
 		unused = space_info->total_bytes - unused;
 		if (unused >= num_bytes) {
-			if (!reserved)
-				space_info->bytes_reserved += orig_bytes;
+			space_info->bytes_reserved += orig_bytes;
 			ret = 0;
 		} else {
 			/*
@@ -3429,17 +3456,14 @@ again:
 	 * to reclaim space we can actually use it instead of somebody else
 	 * stealing it from us.
 	 */
-	if (ret && !reserved) {
-		space_info->bytes_reserved += orig_bytes;
-		reserved = true;
+	if (ret && flush) {
+		flushing = true;
+		space_info->flush = 1;
 	}
 
 	spin_unlock(&space_info->lock);
 
-	if (!ret)
-		return 0;
-
-	if (!flush)
+	if (!ret || !flush)
 		goto out;
 
 	/*
@@ -3447,10 +3471,10 @@ again:
 	 * metadata until after the IO is completed.
 	 */
 	ret = shrink_delalloc(trans, root, num_bytes, 1);
-	if (ret > 0)
-		return 0;
-	else if (ret < 0)
+	if (ret < 0)
 		goto out;
+
+	ret = 0;
 
 	/*
 	 * So if we were overcommitted it's possible that somebody else flushed
@@ -3462,11 +3486,11 @@ again:
 		goto again;
 	}
 
-	spin_lock(&space_info->lock);
 	/*
 	 * Not enough space to be reclaimed, don't bother committing the
 	 * transaction.
 	 */
+	spin_lock(&space_info->lock);
 	if (space_info->bytes_pinned < orig_bytes)
 		ret = -ENOSPC;
 	spin_unlock(&space_info->lock);
@@ -3474,10 +3498,13 @@ again:
 		goto out;
 
 	ret = -EAGAIN;
-	if (trans || committed)
+	if (trans)
 		goto out;
 
 	ret = -ENOSPC;
+	if (committed)
+		goto out;
+
 	trans = btrfs_join_transaction(root);
 	if (IS_ERR(trans))
 		goto out;
@@ -3489,12 +3516,12 @@ again:
 	}
 
 out:
-	if (reserved) {
+	if (flushing) {
 		spin_lock(&space_info->lock);
-		space_info->bytes_reserved -= orig_bytes;
+		space_info->flush = 0;
+		wake_up_all(&space_info->wait);
 		spin_unlock(&space_info->lock);
 	}
-
 	return ret;
 }
 
@@ -3704,7 +3731,6 @@ int btrfs_block_rsv_check(struct btrfs_trans_handle *trans,
 	if (commit_trans) {
 		if (trans)
 			return -EAGAIN;
-
 		trans = btrfs_join_transaction(root);
 		BUG_ON(IS_ERR(trans));
 		ret = btrfs_commit_transaction(trans, root);
@@ -3874,26 +3900,6 @@ int btrfs_truncate_reserve_metadata(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-int btrfs_trans_reserve_metadata(struct btrfs_trans_handle *trans,
-				 struct btrfs_root *root,
-				 int num_items)
-{
-	u64 num_bytes;
-	int ret;
-
-	if (num_items == 0 || root->fs_info->chunk_root == root)
-		return 0;
-
-	num_bytes = btrfs_calc_trans_metadata_size(root, num_items);
-	ret = btrfs_block_rsv_add(trans, root, &root->fs_info->trans_block_rsv,
-				  num_bytes);
-	if (!ret) {
-		trans->bytes_reserved += num_bytes;
-		trans->block_rsv = &root->fs_info->trans_block_rsv;
-	}
-	return ret;
-}
-
 void btrfs_trans_release_metadata(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root)
 {
@@ -3944,6 +3950,30 @@ int btrfs_snap_reserve_metadata(struct btrfs_trans_handle *trans,
 	return block_rsv_migrate_bytes(src_rsv, dst_rsv, num_bytes);
 }
 
+static unsigned drop_outstanding_extent(struct inode *inode)
+{
+	unsigned dropped_extents = 0;
+
+	spin_lock(&BTRFS_I(inode)->lock);
+	BUG_ON(!BTRFS_I(inode)->outstanding_extents);
+	BTRFS_I(inode)->outstanding_extents--;
+
+	/*
+	 * If we have more or the same amount of outsanding extents than we have
+	 * reserved then we need to leave the reserved extents count alone.
+	 */
+	if (BTRFS_I(inode)->outstanding_extents >=
+	    BTRFS_I(inode)->reserved_extents)
+		goto out;
+
+	dropped_extents = BTRFS_I(inode)->reserved_extents -
+		BTRFS_I(inode)->outstanding_extents;
+	BTRFS_I(inode)->reserved_extents -= dropped_extents;
+out:
+	spin_unlock(&BTRFS_I(inode)->lock);
+	return dropped_extents;
+}
+
 static u64 calc_csum_metadata_size(struct inode *inode, u64 num_bytes)
 {
 	return num_bytes >>= 3;
@@ -3953,9 +3983,8 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_block_rsv *block_rsv = &root->fs_info->delalloc_block_rsv;
-	u64 to_reserve;
-	int nr_extents;
-	int reserved_extents;
+	u64 to_reserve = 0;
+	unsigned nr_extents = 0;
 	int ret;
 
 	if (btrfs_transaction_in_commit(root->fs_info))
@@ -3963,29 +3992,33 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 
 	num_bytes = ALIGN(num_bytes, root->sectorsize);
 
-	nr_extents = atomic_read(&BTRFS_I(inode)->outstanding_extents) + 1;
-	reserved_extents = atomic_read(&BTRFS_I(inode)->reserved_extents);
+	spin_lock(&BTRFS_I(inode)->lock);
+	BTRFS_I(inode)->outstanding_extents++;
 
-	if (nr_extents > reserved_extents) {
-		nr_extents -= reserved_extents;
+	if (BTRFS_I(inode)->outstanding_extents >
+	    BTRFS_I(inode)->reserved_extents) {
+		nr_extents = BTRFS_I(inode)->outstanding_extents -
+			BTRFS_I(inode)->reserved_extents;
+		BTRFS_I(inode)->reserved_extents += nr_extents;
+
 		to_reserve = btrfs_calc_trans_metadata_size(root, nr_extents);
-	} else {
-		nr_extents = 0;
-		to_reserve = 0;
 	}
+	spin_unlock(&BTRFS_I(inode)->lock);
 
 	to_reserve += calc_csum_metadata_size(inode, num_bytes);
 	ret = reserve_metadata_bytes(NULL, root, block_rsv, to_reserve, 1);
-	if (ret)
+	if (ret) {
+		unsigned dropped;
+		/*
+		 * We don't need the return value since our reservation failed,
+		 * we just need to clean up our counter.
+		 */
+		dropped = drop_outstanding_extent(inode);
+		WARN_ON(dropped > 1);
 		return ret;
-
-	atomic_add(nr_extents, &BTRFS_I(inode)->reserved_extents);
-	atomic_inc(&BTRFS_I(inode)->outstanding_extents);
+	}
 
 	block_rsv_add_bytes(block_rsv, to_reserve, 1);
-
-	if (block_rsv->size > 512 * 1024 * 1024)
-		shrink_delalloc(NULL, root, to_reserve, 0);
 
 	return 0;
 }
@@ -3993,36 +4026,15 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	u64 to_free;
-	int nr_extents;
-	int reserved_extents;
+	u64 to_free = 0;
+	unsigned dropped;
 
 	num_bytes = ALIGN(num_bytes, root->sectorsize);
-	atomic_dec(&BTRFS_I(inode)->outstanding_extents);
-	WARN_ON(atomic_read(&BTRFS_I(inode)->outstanding_extents) < 0);
-
-	reserved_extents = atomic_read(&BTRFS_I(inode)->reserved_extents);
-	do {
-		int old, new;
-
-		nr_extents = atomic_read(&BTRFS_I(inode)->outstanding_extents);
-		if (nr_extents >= reserved_extents) {
-			nr_extents = 0;
-			break;
-		}
-		old = reserved_extents;
-		nr_extents = reserved_extents - nr_extents;
-		new = reserved_extents - nr_extents;
-		old = atomic_cmpxchg(&BTRFS_I(inode)->reserved_extents,
-				     reserved_extents, new);
-		if (likely(old == reserved_extents))
-			break;
-		reserved_extents = old;
-	} while (1);
+	dropped = drop_outstanding_extent(inode);
 
 	to_free = calc_csum_metadata_size(inode, num_bytes);
-	if (nr_extents > 0)
-		to_free += btrfs_calc_trans_metadata_size(root, nr_extents);
+	if (dropped > 0)
+		to_free += btrfs_calc_trans_metadata_size(root, dropped);
 
 	btrfs_block_rsv_release(root, &root->fs_info->delalloc_block_rsv,
 				to_free);
@@ -4990,14 +5002,10 @@ have_block_group:
 			}
 
 			/*
-			 * We only want to start kthread caching if we are at
-			 * the point where we will wait for caching to make
-			 * progress, or if our ideal search is over and we've
-			 * found somebody to start caching.
+			 * The caching workers are limited to 2 threads, so we
+			 * can queue as much work as we care to.
 			 */
-			if (loop > LOOP_CACHING_NOWAIT ||
-			    (loop > LOOP_FIND_IDEAL &&
-			     atomic_read(&space_info->caching_threads) < 2)) {
+			if (loop > LOOP_FIND_IDEAL) {
 				ret = cache_block_group(block_group, trans,
 							orig_root, 0);
 				BUG_ON(ret);
@@ -5219,8 +5227,7 @@ loop:
 		if (loop == LOOP_FIND_IDEAL && found_uncached_bg) {
 			found_uncached_bg = false;
 			loop++;
-			if (!ideal_cache_percent &&
-			    atomic_read(&space_info->caching_threads))
+			if (!ideal_cache_percent)
 				goto search;
 
 			/*
@@ -5623,7 +5630,7 @@ struct extent_buffer *btrfs_init_new_buffer(struct btrfs_trans_handle *trans,
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 	btrfs_set_header_generation(buf, trans->transid);
-	btrfs_set_buffer_lockdep_class(buf, level);
+	btrfs_set_buffer_lockdep_class(root->root_key.objectid, buf, level);
 	btrfs_tree_lock(buf);
 	clean_tree_block(trans, root, buf);
 
@@ -5910,7 +5917,7 @@ static noinline int walk_down_proc(struct btrfs_trans_handle *trans,
 			return 1;
 
 		if (path->locks[level] && !wc->keep_locks) {
-			btrfs_tree_unlock(eb);
+			btrfs_tree_unlock_rw(eb, path->locks[level]);
 			path->locks[level] = 0;
 		}
 		return 0;
@@ -5934,7 +5941,7 @@ static noinline int walk_down_proc(struct btrfs_trans_handle *trans,
 	 * keep the tree lock
 	 */
 	if (path->locks[level] && level > 0) {
-		btrfs_tree_unlock(eb);
+		btrfs_tree_unlock_rw(eb, path->locks[level]);
 		path->locks[level] = 0;
 	}
 	return 0;
@@ -6047,7 +6054,7 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	BUG_ON(level != btrfs_header_level(next));
 	path->nodes[level] = next;
 	path->slots[level] = 0;
-	path->locks[level] = 1;
+	path->locks[level] = BTRFS_WRITE_LOCK_BLOCKING;
 	wc->level = level;
 	if (wc->level == 1)
 		wc->reada_slot = 0;
@@ -6118,7 +6125,7 @@ static noinline int walk_up_proc(struct btrfs_trans_handle *trans,
 			BUG_ON(level == 0);
 			btrfs_tree_lock(eb);
 			btrfs_set_lock_blocking(eb);
-			path->locks[level] = 1;
+			path->locks[level] = BTRFS_WRITE_LOCK_BLOCKING;
 
 			ret = btrfs_lookup_extent_info(trans, root,
 						       eb->start, eb->len,
@@ -6127,8 +6134,7 @@ static noinline int walk_up_proc(struct btrfs_trans_handle *trans,
 			BUG_ON(ret);
 			BUG_ON(wc->refs[level] == 0);
 			if (wc->refs[level] == 1) {
-				btrfs_tree_unlock(eb);
-				path->locks[level] = 0;
+				btrfs_tree_unlock_rw(eb, path->locks[level]);
 				return 1;
 			}
 		}
@@ -6150,7 +6156,7 @@ static noinline int walk_up_proc(struct btrfs_trans_handle *trans,
 		    btrfs_header_generation(eb) == trans->transid) {
 			btrfs_tree_lock(eb);
 			btrfs_set_lock_blocking(eb);
-			path->locks[level] = 1;
+			path->locks[level] = BTRFS_WRITE_LOCK_BLOCKING;
 		}
 		clean_tree_block(trans, root, eb);
 	}
@@ -6229,7 +6235,8 @@ static noinline int walk_up_tree(struct btrfs_trans_handle *trans,
 				return 0;
 
 			if (path->locks[level]) {
-				btrfs_tree_unlock(path->nodes[level]);
+				btrfs_tree_unlock_rw(path->nodes[level],
+						     path->locks[level]);
 				path->locks[level] = 0;
 			}
 			free_extent_buffer(path->nodes[level]);
@@ -6281,7 +6288,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 		path->nodes[level] = btrfs_lock_root_node(root);
 		btrfs_set_lock_blocking(path->nodes[level]);
 		path->slots[level] = 0;
-		path->locks[level] = 1;
+		path->locks[level] = BTRFS_WRITE_LOCK_BLOCKING;
 		memset(&wc->update_progress, 0,
 		       sizeof(wc->update_progress));
 	} else {
@@ -6449,7 +6456,7 @@ int btrfs_drop_subtree(struct btrfs_trans_handle *trans,
 	level = btrfs_header_level(node);
 	path->nodes[level] = node;
 	path->slots[level] = 0;
-	path->locks[level] = 1;
+	path->locks[level] = BTRFS_WRITE_LOCK_BLOCKING;
 
 	wc->refs[parent_level] = 1;
 	wc->flags[parent_level] = BTRFS_BLOCK_FLAG_FULL_BACKREF;
@@ -6524,14 +6531,27 @@ static u64 update_block_group_flags(struct btrfs_root *root, u64 flags)
 	return flags;
 }
 
-static int set_block_group_ro(struct btrfs_block_group_cache *cache)
+static int set_block_group_ro(struct btrfs_block_group_cache *cache, int force)
 {
 	struct btrfs_space_info *sinfo = cache->space_info;
 	u64 num_bytes;
+	u64 min_allocable_bytes;
 	int ret = -ENOSPC;
 
 	if (cache->ro)
 		return 0;
+
+	/*
+	 * We need some metadata space and system metadata space for
+	 * allocating chunks in some corner cases until we force to set
+	 * it to be readonly.
+	 */
+	if ((sinfo->flags &
+	     (BTRFS_BLOCK_GROUP_SYSTEM | BTRFS_BLOCK_GROUP_METADATA)) &&
+	    !force)
+		min_allocable_bytes = 1 * 1024 * 1024;
+	else
+		min_allocable_bytes = 0;
 
 	spin_lock(&sinfo->lock);
 	spin_lock(&cache->lock);
@@ -6540,7 +6560,8 @@ static int set_block_group_ro(struct btrfs_block_group_cache *cache)
 
 	if (sinfo->bytes_used + sinfo->bytes_reserved + sinfo->bytes_pinned +
 	    sinfo->bytes_may_use + sinfo->bytes_readonly +
-	    cache->reserved_pinned + num_bytes <= sinfo->total_bytes) {
+	    cache->reserved_pinned + num_bytes + min_allocable_bytes <=
+	    sinfo->total_bytes) {
 		sinfo->bytes_readonly += num_bytes;
 		sinfo->bytes_reserved += cache->reserved_pinned;
 		cache->reserved_pinned = 0;
@@ -6571,7 +6592,7 @@ int btrfs_set_block_group_ro(struct btrfs_root *root,
 		do_chunk_alloc(trans, root, 2 * 1024 * 1024, alloc_flags,
 			       CHUNK_ALLOC_FORCE);
 
-	ret = set_block_group_ro(cache);
+	ret = set_block_group_ro(cache, 0);
 	if (!ret)
 		goto out;
 	alloc_flags = get_alloc_profile(root, cache->space_info->flags);
@@ -6579,7 +6600,7 @@ int btrfs_set_block_group_ro(struct btrfs_root *root,
 			     CHUNK_ALLOC_FORCE);
 	if (ret < 0)
 		goto out;
-	ret = set_block_group_ro(cache);
+	ret = set_block_group_ro(cache, 0);
 out:
 	btrfs_end_transaction(trans, root);
 	return ret;
@@ -7016,7 +7037,7 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 
 		set_avail_alloc_bits(root->fs_info, cache->flags);
 		if (btrfs_chunk_readonly(root, cache->key.objectid))
-			set_block_group_ro(cache);
+			set_block_group_ro(cache, 1);
 	}
 
 	list_for_each_entry_rcu(space_info, &root->fs_info->space_info, list) {
@@ -7030,9 +7051,9 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		 * mirrored block groups.
 		 */
 		list_for_each_entry(cache, &space_info->block_groups[3], list)
-			set_block_group_ro(cache);
+			set_block_group_ro(cache, 1);
 		list_for_each_entry(cache, &space_info->block_groups[4], list)
-			set_block_group_ro(cache);
+			set_block_group_ro(cache, 1);
 	}
 
 	init_global_block_rsv(info);
