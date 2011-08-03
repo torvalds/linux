@@ -201,6 +201,21 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder)
 	intel_set_infoframe(encoder, &avi_if);
 }
 
+static void intel_hdmi_set_spd_infoframe(struct drm_encoder *encoder)
+{
+	struct dip_infoframe spd_if;
+
+	memset(&spd_if, 0, sizeof(spd_if));
+	spd_if.type = DIP_TYPE_SPD;
+	spd_if.ver = DIP_VERSION_SPD;
+	spd_if.len = DIP_LEN_SPD;
+	strcpy(spd_if.body.spd.vn, "Intel");
+	strcpy(spd_if.body.spd.pd, "Integrated gfx");
+	spd_if.body.spd.sdi = DIP_SPD_PC;
+
+	intel_set_infoframe(encoder, &spd_if);
+}
+
 static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
@@ -245,6 +260,7 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	POSTING_READ(intel_hdmi->sdvox_reg);
 
 	intel_hdmi_set_avi_infoframe(encoder);
+	intel_hdmi_set_spd_infoframe(encoder);
 }
 
 static void intel_hdmi_dpms(struct drm_encoder *encoder, int mode)
