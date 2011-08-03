@@ -1,10 +1,10 @@
 default: all
 
-centrino-decode: centrino-decode.c
-	$(CC) $(CFLAGS) -o centrino-decode centrino-decode.c
+centrino-decode: ../i386/centrino-decode.c
+	$(CC) $(CFLAGS) -o $@ $<
 
-powernow-k8-decode: powernow-k8-decode.c
-	$(CC) $(CFLAGS) -o powernow-k8-decode powernow-k8-decode.c
+powernow-k8-decode: ../i386/powernow-k8-decode.c
+	$(CC) $(CFLAGS) -o $@ $<
 
 all: centrino-decode powernow-k8-decode
 
