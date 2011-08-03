@@ -262,15 +262,11 @@ static int shmem_add_to_page_cache(struct page *page,
 				   struct address_space *mapping,
 				   pgoff_t index, gfp_t gfp, void *expected)
 {
-	int error;
+	int error = 0;
 
 	VM_BUG_ON(!PageLocked(page));
 	VM_BUG_ON(!PageSwapBacked(page));
 
-	error = mem_cgroup_cache_charge(page, current->mm,
-						gfp & GFP_RECLAIM_MASK);
-	if (error)
-		goto out;
 	if (!expected)
 		error = radix_tree_preload(gfp & GFP_RECLAIM_MASK);
 	if (!error) {
@@ -300,7 +296,6 @@ static int shmem_add_to_page_cache(struct page *page,
 	}
 	if (error)
 		mem_cgroup_uncharge_cache_page(page);
-out:
 	return error;
 }
 
@@ -660,7 +655,6 @@ int shmem_unuse(swp_entry_t swap, struct page *page)
 	 * Charge page using GFP_KERNEL while we can wait, before taking
 	 * the shmem_swaplist_mutex which might hold up shmem_writepage().
 	 * Charged back to the user (not to caller) when swap account is used.
-	 * shmem_add_to_page_cache() will be called with GFP_NOWAIT.
 	 */
 	error = mem_cgroup_cache_charge(page, current->mm, GFP_KERNEL);
 	if (error)
@@ -954,8 +948,11 @@ repeat:
 			goto failed;
 		}
 
-		error = shmem_add_to_page_cache(page, mapping, index,
-					gfp, swp_to_radix_entry(swap));
+		error = mem_cgroup_cache_charge(page, current->mm,
+						gfp & GFP_RECLAIM_MASK);
+		if (!error)
+			error = shmem_add_to_page_cache(page, mapping, index,
+						gfp, swp_to_radix_entry(swap));
 		if (error)
 			goto failed;
 
@@ -990,8 +987,11 @@ repeat:
 
 		SetPageSwapBacked(page);
 		__set_page_locked(page);
-		error = shmem_add_to_page_cache(page, mapping, index,
-								gfp, NULL);
+		error = mem_cgroup_cache_charge(page, current->mm,
+						gfp & GFP_RECLAIM_MASK);
+		if (!error)
+			error = shmem_add_to_page_cache(page, mapping, index,
+						gfp, NULL);
 		if (error)
 			goto decused;
 		lru_cache_add_anon(page);
@@ -2442,42 +2442,6 @@ out4:
 	return error;
 }
 
-#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-/**
- * mem_cgroup_get_shmem_target - find page or swap assigned to the shmem file
- * @inode: the inode to be searched
- * @index: the page offset to be searched
- * @pagep: the pointer for the found page to be stored
- * @swapp: the pointer for the found swap entry to be stored
- *
- * If a page is found, refcount of it is incremented. Callers should handle
- * these refcount.
- */
-void mem_cgroup_get_shmem_target(struct inode *inode, pgoff_t index,
-				 struct page **pagep, swp_entry_t *swapp)
-{
-	struct shmem_inode_info *info = SHMEM_I(inode);
-	struct page *page = NULL;
-	swp_entry_t swap = {0};
-
-	if ((index << PAGE_CACHE_SHIFT) >= i_size_read(inode))
-		goto out;
-
-	spin_lock(&info->lock);
-#ifdef CONFIG_SWAP
-	swap = shmem_get_swap(info, index);
-	if (swap.val)
-		page = find_get_page(&swapper_space, swap.val);
-	else
-#endif
-		page = find_get_page(inode->i_mapping, index);
-	spin_unlock(&info->lock);
-out:
-	*pagep = page;
-	*swapp = swap;
-}
-#endif
-
 #else /* !CONFIG_SHMEM */
 
 /*
@@ -2522,31 +2486,6 @@ void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
 	truncate_inode_pages_range(inode->i_mapping, lstart, lend);
 }
 EXPORT_SYMBOL_GPL(shmem_truncate_range);
-
-#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-/**
- * mem_cgroup_get_shmem_target - find page or swap assigned to the shmem file
- * @inode: the inode to be searched
- * @index: the page offset to be searched
- * @pagep: the pointer for the found page to be stored
- * @swapp: the pointer for the found swap entry to be stored
- *
- * If a page is found, refcount of it is incremented. Callers should handle
- * these refcount.
- */
-void mem_cgroup_get_shmem_target(struct inode *inode, pgoff_t index,
-				 struct page **pagep, swp_entry_t *swapp)
-{
-	struct page *page = NULL;
-
-	if ((index << PAGE_CACHE_SHIFT) >= i_size_read(inode))
-		goto out;
-	page = find_get_page(inode->i_mapping, index);
-out:
-	*pagep = page;
-	*swapp = (swp_entry_t){0};
-}
-#endif
 
 #define shmem_vm_ops				generic_file_vm_ops
 #define shmem_file_operations			ramfs_file_operations
