@@ -36,7 +36,8 @@
 #define ceph_test_mount_opt(fsc, opt) \
 	(!!((fsc)->mount_options->flags & CEPH_MOUNT_OPT_##opt))
 
-#define CEPH_RSIZE_DEFAULT             (512*1024) /* readahead */
+#define CEPH_RSIZE_DEFAULT             0           /* max read size */
+#define CEPH_RASIZE_DEFAULT            (8192*1024) /* readahead */
 #define CEPH_MAX_READDIR_DEFAULT        1024
 #define CEPH_MAX_READDIR_BYTES_DEFAULT  (512*1024)
 #define CEPH_SNAPDIRNAME_DEFAULT        ".snap"
@@ -45,8 +46,9 @@ struct ceph_mount_options {
 	int flags;
 	int sb_flags;
 
-	int wsize;
-	int rsize;            /* max readahead */
+	int wsize;            /* max write size */
+	int rsize;            /* max read size */
+	int rasize;           /* max readahead */
 	int congestion_kb;    /* max writeback in flight */
 	int caps_wanted_delay_min, caps_wanted_delay_max;
 	int cap_release_safety;

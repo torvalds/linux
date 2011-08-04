@@ -114,6 +114,7 @@ static int ceph_sync_fs(struct super_block *sb, int wait)
 enum {
 	Opt_wsize,
 	Opt_rsize,
+	Opt_rasize,
 	Opt_caps_wanted_delay_min,
 	Opt_caps_wanted_delay_max,
 	Opt_cap_release_safety,
@@ -136,6 +137,7 @@ enum {
 static match_table_t fsopt_tokens = {
 	{Opt_wsize, "wsize=%d"},
 	{Opt_rsize, "rsize=%d"},
+	{Opt_rasize, "rasize=%d"},
 	{Opt_caps_wanted_delay_min, "caps_wanted_delay_min=%d"},
 	{Opt_caps_wanted_delay_max, "caps_wanted_delay_max=%d"},
 	{Opt_cap_release_safety, "cap_release_safety=%d"},
@@ -195,6 +197,9 @@ static int parse_fsopt_token(char *c, void *private)
 		break;
 	case Opt_rsize:
 		fsopt->rsize = intval;
+		break;
+	case Opt_rasize:
+		fsopt->rasize = intval;
 		break;
 	case Opt_caps_wanted_delay_min:
 		fsopt->caps_wanted_delay_min = intval;
@@ -293,6 +298,7 @@ static int parse_mount_options(struct ceph_mount_options **pfsopt,
         fsopt->flags = CEPH_MOUNT_OPT_DEFAULT;
 
         fsopt->rsize = CEPH_RSIZE_DEFAULT;
+        fsopt->rasize = CEPH_RASIZE_DEFAULT;
         fsopt->snapdir_name = kstrdup(CEPH_SNAPDIRNAME_DEFAULT, GFP_KERNEL);
 	fsopt->caps_wanted_delay_min = CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT;
 	fsopt->caps_wanted_delay_max = CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT;
@@ -376,6 +382,8 @@ static int ceph_show_options(struct seq_file *m, struct vfsmount *mnt)
 		seq_printf(m, ",wsize=%d", fsopt->wsize);
 	if (fsopt->rsize != CEPH_RSIZE_DEFAULT)
 		seq_printf(m, ",rsize=%d", fsopt->rsize);
+	if (fsopt->rasize != CEPH_RASIZE_DEFAULT)
+		seq_printf(m, ",rasize=%d", fsopt->rsize);
 	if (fsopt->congestion_kb != default_congestion_kb())
 		seq_printf(m, ",write_congestion_kb=%d", fsopt->congestion_kb);
 	if (fsopt->caps_wanted_delay_min != CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT)
@@ -774,10 +782,10 @@ static int ceph_register_bdi(struct super_block *sb,
 {
 	int err;
 
-	/* set ra_pages based on rsize mount option? */
-	if (fsc->mount_options->rsize >= PAGE_CACHE_SIZE)
+	/* set ra_pages based on rasize mount option? */
+	if (fsc->mount_options->rasize >= PAGE_CACHE_SIZE)
 		fsc->backing_dev_info.ra_pages =
-			(fsc->mount_options->rsize + PAGE_CACHE_SIZE - 1)
+			(fsc->mount_options->rasize + PAGE_CACHE_SIZE - 1)
 			>> PAGE_SHIFT;
 	else
 		fsc->backing_dev_info.ra_pages =
