@@ -468,6 +468,7 @@ static struct tm6000_board tm6000_boards[] = {
 			.has_zl10353  = 1,
 			.has_eeprom   = 1,
 			.has_remote   = 1,
+			.has_radio    = 1,
 		},
 		.gpio = {
 			.tuner_reset	= TM6010_GPIO_2,
@@ -492,6 +493,10 @@ static struct tm6000_board tm6000_boards[] = {
 			.vmux	= TM6000_VMUX_VIDEO_AB,
 			.amux	= TM6000_AMUX_ADC2,
 			},
+		},
+		.rinput = {
+			.type = TM6000_INPUT_RADIO,
+			.amux = TM6000_AMUX_SIF1,
 		},
 	},
 	[TM5600_BOARD_TERRATEC_GRABSTER] = {
