@@ -149,29 +149,24 @@ static void dvb_frontend_add_event(struct dvb_frontend *fe, fe_status_t status)
 
 	dprintk ("%s\n", __func__);
 
-	if (mutex_lock_interruptible (&events->mtx))
-		return;
+	if ((status & FE_HAS_LOCK) && fe->ops.get_frontend)
+		fe->ops.get_frontend(fe, &fepriv->parameters_out);
+
+	mutex_lock(&events->mtx);
 
 	wp = (events->eventw + 1) % MAX_EVENT;
-
 	if (wp == events->eventr) {
 		events->overflow = 1;
 		events->eventr = (events->eventr + 1) % MAX_EVENT;
 	}
 
 	e = &events->events[events->eventw];
-
-	if (status & FE_HAS_LOCK)
-		if (fe->ops.get_frontend)
-			fe->ops.get_frontend(fe, &fepriv->parameters_out);
-
+	e->status = status;
 	e->parameters = fepriv->parameters_out;
 
 	events->eventw = wp;
 
 	mutex_unlock(&events->mtx);
-
-	e->status = status;
 
 	wake_up_interruptible (&events->wait_queue);
 }
@@ -207,14 +202,9 @@ static int dvb_frontend_get_event(struct dvb_frontend *fe,
 			return ret;
 	}
 
-	if (mutex_lock_interruptible (&events->mtx))
-		return -ERESTARTSYS;
-
-	memcpy (event, &events->events[events->eventr],
-		sizeof(struct dvb_frontend_event));
-
+	mutex_lock(&events->mtx);
+	*event = events->events[events->eventr];
 	events->eventr = (events->eventr + 1) % MAX_EVENT;
-
 	mutex_unlock(&events->mtx);
 
 	return 0;
