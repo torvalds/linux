@@ -559,14 +559,14 @@ void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
 		return;
 	}
 
-	if (!test_bit(CONNECTED, &ar->flag)) {
+	if (ar->sme_state == SME_CONNECTING) {
 		/* inform connect result to cfg80211 */
-		ar->sme_state = SME_DISCONNECTED;
+		ar->sme_state = SME_CONNECTED;
 		cfg80211_connect_result(ar->net_dev, bssid,
 					assoc_req_ie, assoc_req_len,
 					assoc_resp_ie, assoc_resp_len,
 					WLAN_STATUS_SUCCESS, GFP_KERNEL);
-	} else {
+	} else if (ar->sme_state == SME_CONNECTED) {
 		/* inform roam event to cfg80211 */
 		cfg80211_roamed(ar->net_dev, ibss_ch, bssid,
 				assoc_req_ie, assoc_req_len,
