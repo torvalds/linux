@@ -780,6 +780,11 @@ int tm6000_tuner_callback(void *ptr, int component, int command, int arg)
 			rc = tm6000_i2c_reset(dev, 100);
 			break;
 		}
+		break;
+	case XC2028_I2C_FLUSH:
+		tm6000_set_reg(dev, REQ_50_SET_START, 0, 0);
+		tm6000_set_reg(dev, REQ_51_SET_STOP, 0, 0);
+		break;
 	}
 	return rc;
 }
