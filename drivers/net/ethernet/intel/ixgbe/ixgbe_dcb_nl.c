@@ -572,6 +572,9 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 	if (max_tc != netdev_get_num_tc(dev))
 		ixgbe_setup_tc(dev, max_tc);
 
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
+		netdev_set_prio_tc_map(dev, i, ets->prio_tc[i]);
+
 	return ixgbe_dcb_hw_ets(&adapter->hw, ets, max_frame);
 }
 
