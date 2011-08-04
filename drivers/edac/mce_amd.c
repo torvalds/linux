@@ -769,8 +769,8 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 	if (amd_filter_mce(m))
 		return NOTIFY_STOP;
 
-	pr_emerg(HW_ERR "MC%d_STATUS[%s|%s|%s|%s|%s",
-		m->bank,
+	pr_emerg(HW_ERR "CPU:%d MC%d_STATUS[%s|%s|%s|%s|%s",
+		m->extcpu, m->bank,
 		((m->status & MCI_STATUS_OVER)	? "Over"  : "-"),
 		((m->status & MCI_STATUS_UC)	? "UE"	  : "CE"),
 		((m->status & MCI_STATUS_MISCV)	? "MiscV" : "-"),
