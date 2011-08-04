@@ -397,7 +397,7 @@ static struct snd_pcm_ops snd_tm6000_pcm_ops = {
 /*
  * Alsa Constructor - Component probe
  */
-int tm6000_audio_init(struct tm6000_core *dev)
+static int tm6000_audio_init(struct tm6000_core *dev)
 {
 	struct snd_card		*card;
 	struct snd_tm6000_card	*chip;
@@ -490,7 +490,7 @@ static int tm6000_audio_fini(struct tm6000_core *dev)
 	return 0;
 }
 
-struct tm6000_ops audio_ops = {
+static struct tm6000_ops audio_ops = {
 	.type	= TM6000_AUDIO,
 	.name	= "TM6000 Audio Extension",
 	.init	= tm6000_audio_init,

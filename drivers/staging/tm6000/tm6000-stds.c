@@ -22,7 +22,7 @@
 #include "tm6000.h"
 #include "tm6000-regs.h"
 
-static unsigned int tm6010_a_mode = 0;
+static unsigned int tm6010_a_mode;
 module_param(tm6010_a_mode, int, 0644);
 MODULE_PARM_DESC(tm6010_a_mode, "set tm6010 sif audio mode");
 
@@ -673,7 +673,6 @@ ret:
 		tm6000_set_audio_std(dev);
 
 	msleep(40);
-
 
 	return 0;
 }

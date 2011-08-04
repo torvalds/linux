@@ -105,7 +105,7 @@ static void tm6000_urb_received(struct urb *urb)
 	}
 }
 
-int tm6000_start_stream(struct tm6000_core *dev)
+static int tm6000_start_stream(struct tm6000_core *dev)
 {
 	int ret;
 	unsigned int pipe, size;
@@ -166,7 +166,7 @@ int tm6000_start_stream(struct tm6000_core *dev)
 	return 0;
 }
 
-void tm6000_stop_stream(struct tm6000_core *dev)
+static void tm6000_stop_stream(struct tm6000_core *dev)
 {
 	struct tm6000_dvb *dvb = dev->dvb;
 
@@ -180,7 +180,7 @@ void tm6000_stop_stream(struct tm6000_core *dev)
 	}
 }
 
-int tm6000_start_feed(struct dvb_demux_feed *feed)
+static int tm6000_start_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
 	struct tm6000_core *dev = demux->priv;
@@ -199,7 +199,7 @@ int tm6000_start_feed(struct dvb_demux_feed *feed)
 	return 0;
 }
 
-int tm6000_stop_feed(struct dvb_demux_feed *feed)
+static int tm6000_stop_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
 	struct tm6000_core *dev = demux->priv;
@@ -222,7 +222,7 @@ int tm6000_stop_feed(struct dvb_demux_feed *feed)
 	return 0;
 }
 
-int tm6000_dvb_attach_frontend(struct tm6000_core *dev)
+static int tm6000_dvb_attach_frontend(struct tm6000_core *dev)
 {
 	struct tm6000_dvb *dvb = dev->dvb;
 
@@ -247,7 +247,7 @@ int tm6000_dvb_attach_frontend(struct tm6000_core *dev)
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-int register_dvb(struct tm6000_core *dev)
+static int register_dvb(struct tm6000_core *dev)
 {
 	int ret = -1;
 	struct tm6000_dvb *dvb = dev->dvb;
@@ -359,7 +359,7 @@ err:
 	return ret;
 }
 
-void unregister_dvb(struct tm6000_core *dev)
+static void unregister_dvb(struct tm6000_core *dev)
 {
 	struct tm6000_dvb *dvb = dev->dvb;
 

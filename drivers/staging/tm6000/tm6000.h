@@ -20,9 +20,6 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-/* Use the tm6000-hack, instead of the proper initialization code i*/
-/* #define HACK 1 */
-
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/videobuf-vmalloc.h>
@@ -30,7 +27,7 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <media/v4l2-device.h>
-#include <linux/version.h>
+
 #include <linux/dvb/frontend.h>
 #include "dvb_demux.h"
 #include "dvb_frontend.h"

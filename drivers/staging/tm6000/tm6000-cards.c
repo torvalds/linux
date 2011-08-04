@@ -87,7 +87,7 @@ struct tm6000_board {
 	char		*ir_codes;
 };
 
-struct tm6000_board tm6000_boards[] = {
+static struct tm6000_board tm6000_boards[] = {
 	[TM6000_BOARD_UNKNOWN] = {
 		.name         = "Unknown tm6000 video grabber",
 		.caps = {
@@ -394,7 +394,7 @@ struct tm6000_board tm6000_boards[] = {
 			.has_zl10353    = 1,
 			.has_eeprom     = 1,
 			.has_remote     = 1,
-			.has_radio	= 1.
+			.has_radio	= 1,
 		},
 		.gpio = {
 			.tuner_reset	= TM6010_GPIO_0,
@@ -611,7 +611,7 @@ struct tm6000_board tm6000_boards[] = {
 };
 
 /* table of devices that work with this driver */
-struct usb_device_id tm6000_id_table[] = {
+static struct usb_device_id tm6000_id_table[] = {
 	{ USB_DEVICE(0x6000, 0x0001), .driver_info = TM5600_BOARD_GENERIC },
 	{ USB_DEVICE(0x6000, 0x0002), .driver_info = TM6010_BOARD_GENERIC },
 	{ USB_DEVICE(0x06e1, 0xf332), .driver_info = TM6000_BOARD_ADSTECH_DUAL_TV },
@@ -632,7 +632,7 @@ struct usb_device_id tm6000_id_table[] = {
 	{ USB_DEVICE(0x13d3, 0x3264), .driver_info = TM6010_BOARD_TWINHAN_TU501 },
 	{ USB_DEVICE(0x6000, 0xdec2), .driver_info = TM6010_BOARD_BEHOLD_WANDER_LITE },
 	{ USB_DEVICE(0x6000, 0xdec3), .driver_info = TM6010_BOARD_BEHOLD_VOYAGER_LITE },
-	{ },
+	{ }
 };
 
 /* Control power led for show some activity */
@@ -787,8 +787,6 @@ EXPORT_SYMBOL_GPL(tm6000_tuner_callback);
 
 int tm6000_cards_setup(struct tm6000_core *dev)
 {
-	int i, rc;
-
 	/*
 	 * Board-specific initialization sequence. Handles all GPIO
 	 * initialization sequences that are board-specific.
@@ -860,6 +858,9 @@ int tm6000_cards_setup(struct tm6000_core *dev)
 	 */
 
 	if (dev->gpio.tuner_reset) {
+		int rc;
+		int i;
+
 		for (i = 0; i < 2; i++) {
 			rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
 						dev->gpio.tuner_reset, 0x00);
@@ -1168,7 +1169,7 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 	snprintf(dev->name, 29, "tm6000 #%d", nr);
 
 	dev->model = id->driver_info;
-	if ((card[nr] >= 0) && (card[nr] < ARRAY_SIZE(tm6000_boards)))
+	if (card[nr] < ARRAY_SIZE(tm6000_boards))
 		dev->model = card[nr];
 
 	dev->udev = usbdev;
@@ -1188,8 +1189,6 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 	default:
 		speed = "unknown";
 	}
-
-
 
 	/* Get endpoints */
 	for (i = 0; i < interface->num_altsetting; i++) {
@@ -1274,7 +1273,6 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 	printk(KERN_INFO "tm6000: Found %s\n", tm6000_boards[dev->model].name);
 
 	rc = tm6000_init_dev(dev);
-
 	if (rc < 0)
 		goto err;
 

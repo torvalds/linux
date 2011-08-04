@@ -19,6 +19,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -202,17 +203,6 @@ static inline void buffer_filled(struct tm6000_core *dev,
 	wake_up(&buf->vb.done);
 }
 
-const char *tm6000_msg_type[] = {
-	"unknown(0)",   /* 0 */
-	"video",        /* 1 */
-	"audio",        /* 2 */
-	"vbi",          /* 3 */
-	"pts",          /* 4 */
-	"err",          /* 5 */
-	"unknown(6)",   /* 6 */
-	"unknown(7)",   /* 7 */
-};
-
 /*
  * Identify the tm5600/6000 buffer header type and properly handles
  */
@@ -286,17 +276,18 @@ static int copy_streams(u8 *data, unsigned long len,
 			if (size > TM6000_URB_MSG_LEN)
 				size = TM6000_URB_MSG_LEN;
 			pktsize = TM6000_URB_MSG_LEN;
-			/* calculate position in buffer
-			 * and change the buffer
+			/*
+			 * calculate position in buffer and change the buffer
 			 */
 			switch (cmd) {
 			case TM6000_URB_MSG_VIDEO:
 				if (!dev->radio) {
 					if ((dev->isoc_ctl.vfield != field) &&
 						(field == 1)) {
-					/* Announces that a new buffer
-					 * were filled
-					 */
+						/*
+						 * Announces that a new buffer
+						 * were filled
+						 */
 						buffer_filled(dev, dma_q, vbuf);
 						dprintk(dev, V4L2_DEBUG_ISOC,
 							"new buffer filled\n");
@@ -321,7 +312,7 @@ static int copy_streams(u8 *data, unsigned long len,
 				break;
 			case TM6000_URB_MSG_AUDIO:
 			case TM6000_URB_MSG_PTS:
-				size = pktsize;		/* Size is always 180 bytes */
+				size = pktsize; /* Size is always 180 bytes */
 				break;
 			}
 		} else {
@@ -363,7 +354,8 @@ static int copy_streams(u8 *data, unsigned long len,
 			}
 		}
 		if (ptr + pktsize > endp) {
-			/* End of URB packet, but cmd processing is not
+			/*
+			 * End of URB packet, but cmd processing is not
 			 * complete. Preserve the state for a next packet
 			 */
 			dev->isoc_ctl.pos = pos + cpysize;
@@ -1035,8 +1027,8 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 
 static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
-	struct tm6000_fh  *fh = priv;
-	struct tm6000_core *dev    = fh->dev;
+	struct tm6000_fh *fh = priv;
+	struct tm6000_core *dev = fh->dev;
 
 	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -1050,11 +1042,12 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 
 static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 {
-	struct tm6000_fh  *fh = priv;
-	struct tm6000_core *dev    = fh->dev;
+	struct tm6000_fh *fh = priv;
+	struct tm6000_core *dev = fh->dev;
 
 	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
+
 	if (i != fh->type)
 		return -EINVAL;
 
@@ -1067,7 +1060,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 {
 	int rc = 0;
-	struct tm6000_fh   *fh = priv;
+	struct tm6000_fh *fh = priv;
 	struct tm6000_core *dev = fh->dev;
 
 	dev->norm = *norm;
@@ -1464,9 +1457,6 @@ static int tm6000_open(struct file *file)
 	int i, rc;
 	int radio = 0;
 
-	printk(KERN_INFO "tm6000: open called (dev=%s)\n",
-		video_device_node_name(vdev));
-
 	dprintk(dev, V4L2_DEBUG_OPEN, "tm6000: open called (dev=%s)\n",
 		video_device_node_name(vdev));
 
@@ -1507,12 +1497,13 @@ static int tm6000_open(struct file *file)
 
 	tm6000_get_std_res(dev);
 
-	fh->width    = dev->width;
-	fh->height   = dev->height;
+	fh->width = dev->width;
+	fh->height = dev->height;
 
 	dprintk(dev, V4L2_DEBUG_OPEN, "Open: fh=0x%08lx, dev=0x%08lx, "
 						"dev->vidq=0x%08lx\n",
-		(unsigned long)fh, (unsigned long)dev, (unsigned long)&dev->vidq);
+			(unsigned long)fh, (unsigned long)dev,
+			(unsigned long)&dev->vidq);
 	dprintk(dev, V4L2_DEBUG_OPEN, "Open: list_empty "
 				"queued=%d\n", list_empty(&dev->vidq.queued));
 	dprintk(dev, V4L2_DEBUG_OPEN, "Open: list_empty "
@@ -1583,8 +1574,7 @@ tm6000_poll(struct file *file, struct poll_table_struct *wait)
 		buf = list_entry(fh->vb_vidq.stream.next, struct tm6000_buffer, vb.stream);
 	} else {
 		/* read() capture */
-		return videobuf_poll_stream(file, &fh->vb_vidq,
-					    wait);
+		return videobuf_poll_stream(file, &fh->vb_vidq, wait);
 	}
 	poll_wait(file, &buf->vb.done, wait);
 	if (buf->vb.state == VIDEOBUF_DONE ||
@@ -1617,22 +1607,19 @@ static int tm6000_release(struct file *file)
 
 static int tm6000_mmap(struct file *file, struct vm_area_struct * vma)
 {
-	struct tm6000_fh        *fh = file->private_data;
-	int ret;
+	struct tm6000_fh *fh = file->private_data;
 
-	ret = videobuf_mmap_mapper(&fh->vb_vidq, vma);
-
-	return ret;
+	return videobuf_mmap_mapper(&fh->vb_vidq, vma);
 }
 
 static struct v4l2_file_operations tm6000_fops = {
-	.owner		= THIS_MODULE,
-	.open           = tm6000_open,
-	.release        = tm6000_release,
-	.unlocked_ioctl	= video_ioctl2, /* V4L2 ioctl handler */
-	.read           = tm6000_read,
-	.poll		= tm6000_poll,
-	.mmap		= tm6000_mmap,
+	.owner = THIS_MODULE,
+	.open = tm6000_open,
+	.release = tm6000_release,
+	.unlocked_ioctl = video_ioctl2, /* V4L2 ioctl handler */
+	.read = tm6000_read,
+	.poll = tm6000_poll,
+	.mmap = tm6000_mmap,
 };
 
 static const struct v4l2_ioctl_ops video_ioctl_ops = {
@@ -1693,7 +1680,7 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_s_frequency	= vidioc_s_frequency,
 };
 
-struct video_device tm6000_radio_template = {
+static struct video_device tm6000_radio_template = {
 	.name			= "tm6000",
 	.fops			= &radio_fops,
 	.ioctl_ops		= &radio_ioctl_ops,
