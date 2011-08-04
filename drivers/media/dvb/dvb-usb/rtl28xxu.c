@@ -134,11 +134,29 @@ static int rtl28xxu_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 {
 	int ret;
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
+	struct rtl28xxu_priv *priv = d->priv;
 	struct rtl28xxu_req req;
 
 	/*
 	 * It is not known which are real I2C bus xfer limits, but testing
 	 * with RTL2831U + MT2060 gives max RD 24 and max WR 22 bytes.
+	 * TODO: find out RTL2832U lens
+	 */
+
+	/*
+	 * I2C adapter logic looks rather complicated due to fact it handles
+	 * three different access methods. Those methods are;
+	 * 1) integrated demod access
+	 * 2) old I2C access
+	 * 3) new I2C access
+	 *
+	 * Used method is selected in order 1, 2, 3. Method 3 can handle all
+	 * requests but there is two reasons why not use it always;
+	 * 1) It is most expensive, usually two USB messages are needed
+	 * 2) At least RTL2831U does not support it
+	 *
+	 * Method 3 is needed in case of I2C write+read (typical register read)
+	 * where write is more than one byte.
 	 */
 
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
@@ -146,43 +164,72 @@ static int rtl28xxu_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 
 	if (num == 2 && !(msg[0].flags & I2C_M_RD) &&
 		(msg[1].flags & I2C_M_RD)) {
-		if (msg[0].len > 2 || msg[1].len > 24) {
+		if (msg[0].len > 24 || msg[1].len > 24) {
+			/* TODO: check msg[0].len max */
 			ret = -EOPNOTSUPP;
 			goto err_unlock;
-		}
-		if (msg[0].addr == 0x10) {
-			/* integrated demod */
-			req.value = (msg[0].buf[1] << 8) | (msg[0].addr << 1);
-			req.index = CMD_DEMOD_RD | msg[0].buf[0];
+		} else if (msg[0].addr == 0x10) {
+			/* method 1 - integrated demod */
+			req.value = (msg[0].buf[0] << 8) | (msg[0].addr << 1);
+			req.index = CMD_DEMOD_RD | priv->page;
 			req.size = msg[1].len;
 			req.data = &msg[1].buf[0];
 			ret = rtl28xxu_ctrl_msg(d, &req);
-		} else {
-			/* real I2C */
+		} else if (msg[0].len < 2) {
+			/* method 2 - old I2C */
 			req.value = (msg[0].buf[0] << 8) | (msg[0].addr << 1);
 			req.index = CMD_I2C_RD;
 			req.size = msg[1].len;
 			req.data = &msg[1].buf[0];
 			ret = rtl28xxu_ctrl_msg(d, &req);
+		} else {
+			/* method 3 - new I2C */
+			req.value = (msg[0].addr << 1);
+			req.index = CMD_I2C_DA_WR;
+			req.size = msg[0].len;
+			req.data = msg[0].buf;
+			ret = rtl28xxu_ctrl_msg(d, &req);
+			if (ret)
+				goto err_unlock;
+
+			req.value = (msg[0].addr << 1);
+			req.index = CMD_I2C_DA_RD;
+			req.size = msg[1].len;
+			req.data = msg[1].buf;
+			ret = rtl28xxu_ctrl_msg(d, &req);
 		}
 	} else if (num == 1 && !(msg[0].flags & I2C_M_RD)) {
 		if (msg[0].len > 22) {
+			/* TODO: check msg[0].len max */
 			ret = -EOPNOTSUPP;
 			goto err_unlock;
-		}
-		if (msg[0].addr == 0x10) {
-			/* integrated demod */
-			req.value = (msg[0].buf[1] << 8) | (msg[0].addr << 1);
-			req.index = CMD_DEMOD_WR | msg[0].buf[0];
-			req.size = msg[0].len-2;
-			req.data = &msg[0].buf[2];
-			ret = rtl28xxu_ctrl_msg(d, &req);
-		} else {
-			/* real I2C */
+		} else if (msg[0].addr == 0x10) {
+			/* method 1 - integrated demod */
+			if (msg[0].buf[0] == 0x00) {
+				/* save demod page for later demod access */
+				priv->page = msg[0].buf[1];
+				ret = 0;
+			} else {
+				req.value = (msg[0].buf[0] << 8) |
+					(msg[0].addr << 1);
+				req.index = CMD_DEMOD_WR | priv->page;
+				req.size = msg[0].len-1;
+				req.data = &msg[0].buf[1];
+				ret = rtl28xxu_ctrl_msg(d, &req);
+			}
+		} else if (msg[0].len < 23) {
+			/* method 2 - old I2C */
 			req.value = (msg[0].buf[0] << 8) | (msg[0].addr << 1);
 			req.index = CMD_I2C_WR;
 			req.size = msg[0].len-1;
 			req.data = &msg[0].buf[1];
+			ret = rtl28xxu_ctrl_msg(d, &req);
+		} else {
+			/* method 3 - new I2C */
+			req.value = (msg[0].addr << 1);
+			req.index = CMD_I2C_DA_WR;
+			req.size = msg[0].len;
+			req.data = msg[0].buf;
 			ret = rtl28xxu_ctrl_msg(d, &req);
 		}
 	} else {
