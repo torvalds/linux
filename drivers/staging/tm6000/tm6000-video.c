@@ -1530,13 +1530,13 @@ static int tm6000_open(struct file *file)
 		dev->mode = TM6000_MODE_ANALOG;
 	}
 
-	videobuf_queue_vmalloc_init(&fh->vb_vidq, &tm6000_video_qops,
-			NULL, &dev->slock,
-			fh->type,
-			V4L2_FIELD_INTERLACED,
-			sizeof(struct tm6000_buffer), fh, &dev->lock);
-
-	if (fh->radio) {
+	if (!fh->radio) {
+		videobuf_queue_vmalloc_init(&fh->vb_vidq, &tm6000_video_qops,
+				NULL, &dev->slock,
+				fh->type,
+				V4L2_FIELD_INTERLACED,
+				sizeof(struct tm6000_buffer), fh, &dev->lock);
+	} else {
 		dprintk(dev, V4L2_DEBUG_OPEN, "video_open: setting radio device\n");
 		dev->input = 5;
 		tm6000_set_audio_rinput(dev);
@@ -1608,7 +1608,9 @@ static int tm6000_release(struct file *file)
 		int err;
 
 		tm6000_uninit_isoc(dev);
-		videobuf_mmap_free(&fh->vb_vidq);
+
+		if (!fh->radio)
+			videobuf_mmap_free(&fh->vb_vidq);
 
 		err = tm6000_reset(dev);
 		if (err < 0)
