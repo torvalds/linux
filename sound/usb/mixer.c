@@ -1191,6 +1191,11 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid, void 
 
 	if (state->mixer->protocol == UAC_VERSION_1) {
 		csize = hdr->bControlSize;
+		if (!csize) {
+			snd_printdd(KERN_ERR "usbaudio: unit %u: "
+				    "invalid bControlSize == 0\n", unitid);
+			return -EINVAL;
+		}
 		channels = (hdr->bLength - 7) / csize - 1;
 		bmaControls = hdr->bmaControls;
 	} else {
