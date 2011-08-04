@@ -120,7 +120,7 @@ struct iscsi_tiqn *iscsit_add_tiqn(unsigned char *buf)
 	struct iscsi_tiqn *tiqn = NULL;
 	int ret;
 
-	if (strlen(buf) > ISCSI_IQN_LEN) {
+	if (strlen(buf) >= ISCSI_IQN_LEN) {
 		pr_err("Target IQN exceeds %d bytes\n",
 				ISCSI_IQN_LEN);
 		return ERR_PTR(-EINVAL);
@@ -1857,7 +1857,7 @@ static int iscsit_handle_text_cmd(
 	char *text_ptr, *text_in;
 	int cmdsn_ret, niov = 0, rx_got, rx_size;
 	u32 checksum = 0, data_crc = 0, payload_length;
-	u32 padding = 0, text_length = 0;
+	u32 padding = 0, pad_bytes = 0, text_length = 0;
 	struct iscsi_cmd *cmd;
 	struct kvec iov[3];
 	struct iscsi_text *hdr;
@@ -1896,7 +1896,7 @@ static int iscsit_handle_text_cmd(
 
 		padding = ((-payload_length) & 3);
 		if (padding != 0) {
-			iov[niov].iov_base = cmd->pad_bytes;
+			iov[niov].iov_base = &pad_bytes;
 			iov[niov++].iov_len  = padding;
 			rx_size += padding;
 			pr_debug("Receiving %u additional bytes"
@@ -1917,7 +1917,7 @@ static int iscsit_handle_text_cmd(
 		if (conn->conn_ops->DataDigest) {
 			iscsit_do_crypto_hash_buf(&conn->conn_rx_hash,
 					text_in, text_length,
-					padding, cmd->pad_bytes,
+					padding, (u8 *)&pad_bytes,
 					(u8 *)&data_crc);
 
 			if (checksum != data_crc) {
@@ -3468,7 +3468,12 @@ static inline void iscsit_thread_check_cpumask(
 }
 
 #else
-#define iscsit_thread_get_cpumask(X) ({})
+
+void iscsit_thread_get_cpumask(struct iscsi_conn *conn)
+{
+	return;
+}
+
 #define iscsit_thread_check_cpumask(X, Y, Z) ({})
 #endif /* CONFIG_SMP */
 
