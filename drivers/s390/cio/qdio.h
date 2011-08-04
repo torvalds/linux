@@ -14,6 +14,8 @@
 #include "chsc.h"
 
 #define QDIO_BUSY_BIT_PATIENCE		(100 << 12)	/* 100 microseconds */
+#define QDIO_BUSY_BIT_RETRY_DELAY	10		/* 10 milliseconds */
+#define QDIO_BUSY_BIT_RETRIES		1000		/* = 10s retry time */
 #define QDIO_INPUT_THRESHOLD		(500 << 12)	/* 500 microseconds */
 
 /*

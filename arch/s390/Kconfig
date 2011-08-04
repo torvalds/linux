@@ -274,11 +274,11 @@ config MARCH_Z10
 	  on older machines.
 
 config MARCH_Z196
-	bool "IBM zEnterprise 196"
+	bool "IBM zEnterprise 114 and 196"
 	help
-	  Select this to enable optimizations for IBM zEnterprise 196
-	  (2817 series). The kernel will be slightly faster but will not work
-	  on older machines.
+	  Select this to enable optimizations for IBM zEnterprise 114 and 196
+	  (2818 and 2817 series). The kernel will be slightly faster but will
+	  not work on older machines.
 
 endchoice
 
