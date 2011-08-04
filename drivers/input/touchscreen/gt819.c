@@ -125,6 +125,15 @@ static int gt819_read_regs(struct i2c_client *client, u8 reg, u8 buf[], unsigned
 	if(ret>0)
 		return ret; 
 	ret = i2c_master_reg8_recv(client, reg, buf, len, GT819_IIC_SPEED);
+	if(ret>0)
+		return ret; 
+	ret = i2c_master_reg8_recv(client, reg, buf, len, GT819_IIC_SPEED);
+	if(ret>0)
+		return ret; 
+	ret = i2c_master_reg8_recv(client, reg, buf, len, GT819_IIC_SPEED);
+	if(ret>0)
+		return ret; 
+	ret = i2c_master_reg8_recv(client, reg, buf, len, GT819_IIC_SPEED);
 	return ret;
 }
 
@@ -132,6 +141,15 @@ static int gt819_read_regs(struct i2c_client *client, u8 reg, u8 buf[], unsigned
 static int gt819_set_regs(struct i2c_client *client, u8 reg, u8 const buf[], unsigned short len)
 {
 	int ret; 
+	ret = i2c_master_reg8_send(client, reg, buf, (int)len, GT819_IIC_SPEED);
+	if(ret>0)
+		return ret; 
+	ret = i2c_master_reg8_send(client, reg, buf, (int)len, GT819_IIC_SPEED);
+	if(ret>0)
+		return ret; 
+	ret = i2c_master_reg8_send(client, reg, buf, (int)len, GT819_IIC_SPEED);
+	if(ret>0)
+		return ret; 
 	ret = i2c_master_reg8_send(client, reg, buf, (int)len, GT819_IIC_SPEED);
 	if(ret>0)
 		return ret; 
@@ -406,14 +424,18 @@ static void gt819_queue_work(struct work_struct *work)
 	struct goodix_ts_data *ts = container_of(work, struct goodix_ts_data, work);
 	uint8_t  point_data[53]={ 0 };
 	int ret,i,offset,points;
+	int points_chect;
 	int x,y,w;
+	unsigned int  count = 0;
+	uint8_t  check_sum = 0;
 	
-	ret = gt819_read_regs(ts->client,1, point_data, 1);
+	ret = gt819_read_regs(ts->client,1, point_data, 2);
 	if (ret < 0) {
 		dev_err(&ts->client->dev, "i2c_read_bytes fail:%d!\n",ret);
 		enable_irq(ts->irq);
 		return;
 	}
+	check_sum =point_data[0]+point_data[1];
 	
 	points = point_data[0] & 0x1f;
 	//dev_info(&ts->client->dev, "points = %d\n",points);
@@ -429,12 +451,26 @@ static void gt819_queue_work(struct work_struct *work)
 	for(i=0;0!=points;i++)
 		points>>=1;
 	points = i;
-	ret = gt819_read_regs(ts->client,3, point_data, points*5);
+	points_chect = points;
+	ret = gt819_read_regs(ts->client,3, point_data, points*5+1);
 	if (ret < 0) {
 		dev_err(&ts->client->dev, "i2c_read_bytes fail:%d!\n",ret);
 		enable_irq(ts->irq);
 		return;
 	}
+	//add by Nitiion
+	for(points_chect *= 5; points_chect > 0; points_chect--)
+		{
+		check_sum += point_data[count++];
+		}
+		check_sum += point_data[count];
+	if(check_sum  != 0)			//checksum verify error
+		{
+			printk("coor checksum error!\n");
+			enable_irq(ts->irq);
+			return;
+		}
+		
 	for(i=0;i<points;i++){
 		offset = i*5;
 		x = (((s16)(point_data[offset+0]))<<8) | ((s16)point_data[offset+1]);
