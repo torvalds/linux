@@ -49,10 +49,9 @@ struct nouveau_encoder {
 
 	union {
 		struct {
-			int dpcd_version;
+			u8  dpcd[8];
 			int link_nr;
 			int link_bw;
-			bool enhanced_frame;
 			u32 datarate;
 		} dp;
 	};

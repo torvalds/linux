@@ -160,25 +160,6 @@ out:
 	return ret;
 }
 
-static int
-auxch_rd(struct drm_encoder *encoder, int address, uint8_t *buf, int size)
-{
-	struct drm_device *dev = encoder->dev;
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_i2c_chan *auxch;
-	int ret;
-
-	auxch = nouveau_i2c_find(dev, nv_encoder->dcb->i2c_index);
-	if (!auxch)
-		return -ENODEV;
-
-	ret = nouveau_dp_auxch(auxch, 9, address, buf, size);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static u32
 dp_link_bw_get(struct drm_device *dev, int or, int link)
 {
@@ -298,7 +279,7 @@ struct dp_state {
 	int crtc;
 	int or;
 	int link;
-	int enh_frame;
+	u8 *dpcd;
 	int link_nr;
 	u32 link_bw;
 	u8  stat[6];
@@ -343,7 +324,7 @@ dp_set_link_config(struct drm_device *dev, struct dp_state *dp)
 	/* configure lane count on the source */
 	dp_ctrl = ((1 << dp->link_nr) - 1) << 16;
 	sink[1] = dp->link_nr;
-	if (dp->enh_frame) {
+	if (dp->dpcd[2] & DP_ENHANCED_FRAME_CAP) {
 		dp_ctrl |= 0x00004000;
 		sink[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 	}
@@ -505,7 +486,6 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate)
 	const u32 *link_bw = bw_list;
 	struct dp_state dp;
 	u8 *bios, headerlen;
-	u16 script;
 
 	auxch = nouveau_i2c_find(dev, nv_encoder->dcb->i2c_index);
 	if (!auxch)
@@ -520,13 +500,22 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate)
 	dp.auxch = auxch->rd;
 	dp.or = nv_encoder->or;
 	dp.link = !(nv_encoder->dcb->sorconf.link & 1);
-	dp.enh_frame = nv_encoder->dp.enhanced_frame;
+	dp.dpcd = nv_encoder->dp.dpcd;
 
 	/* some sinks toggle hotplug in response to some of the actions
 	 * we take during link training (DP_SET_POWER is one), we need
 	 * to ignore them for the moment to avoid races.
 	 */
 	pgpio->irq_enable(dev, nv_connector->dcb->gpio_tag, false);
+
+	/* enable down-spreading, if possible */
+	if (headerlen >= 16) {
+		u16 script = ROM16(bios[14]);
+		if (nv_encoder->dp.dpcd[3] & 1)
+			script = ROM16(bios[12]);
+
+		nouveau_bios_run_init_table(dev, script, dp.dcb, dp.crtc);
+	}
 
 	/* execute pre-train script from vbios */
 	nouveau_bios_run_init_table(dev, ROM16(bios[6]), dp.dcb, dp.crtc);
@@ -575,17 +564,20 @@ nouveau_dp_detect(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct drm_device *dev = encoder->dev;
-	uint8_t dpcd[4];
+	struct nouveau_i2c_chan *auxch;
+	u8 *dpcd = nv_encoder->dp.dpcd;
 	int ret;
 
-	ret = auxch_rd(encoder, 0x0000, dpcd, 4);
+	auxch = nouveau_i2c_find(dev, nv_encoder->dcb->i2c_index);
+	if (!auxch)
+		return false;
+
+	ret = auxch_tx(dev, auxch->rd, 9, DP_DPCD_REV, dpcd, 8);
 	if (ret)
 		return false;
 
-	nv_encoder->dp.dpcd_version = dpcd[0];
 	nv_encoder->dp.link_bw = 27000 * dpcd[1];
 	nv_encoder->dp.link_nr = dpcd[2] & DP_MAX_LANE_COUNT_MASK;
-	nv_encoder->dp.enhanced_frame = dpcd[2] & DP_ENHANCED_FRAME_CAP;
 
 	NV_DEBUG_KMS(dev, "display: %dx%d dpcd 0x%02x\n",
 		     nv_encoder->dp.link_nr, nv_encoder->dp.link_bw, dpcd[0]);
