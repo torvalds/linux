@@ -187,11 +187,11 @@ void tm6000_set_fourcc_format(struct tm6000_core *dev)
 	if (dev->dev_type == TM6010) {
 		int val;
 
-		val = tm6000_get_reg(dev, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, 0) & 0xfc;
+		val = tm6000_get_reg(dev, TM6010_REQ07_RCC_ACTIVE_IF, 0) & 0xfc;
 		if (dev->fourcc == V4L2_PIX_FMT_UYVY)
-			tm6000_set_reg(dev, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, val);
+			tm6000_set_reg(dev, TM6010_REQ07_RCC_ACTIVE_IF, val);
 		else
-			tm6000_set_reg(dev, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, val | 1);
+			tm6000_set_reg(dev, TM6010_REQ07_RCC_ACTIVE_IF, val | 1);
 	} else {
 		if (dev->fourcc == V4L2_PIX_FMT_UYVY)
 			tm6000_set_reg(dev, TM6010_REQ07_RC1_TRESHOLD, 0xd0);
@@ -268,7 +268,7 @@ int tm6000_init_analog_mode(struct tm6000_core *dev)
 
 	if (dev->dev_type == TM6010) {
 		/* Enable video and audio */
-		tm6000_set_reg_mask(dev, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF,
+		tm6000_set_reg_mask(dev, TM6010_REQ07_RCC_ACTIVE_IF,
 							0x60, 0x60);
 		/* Disable TS input */
 		tm6000_set_reg_mask(dev, TM6010_REQ07_RC0_ACTIVE_VIDEO_SOURCE,
@@ -334,7 +334,7 @@ int tm6000_init_digital_mode(struct tm6000_core *dev)
 {
 	if (dev->dev_type == TM6010) {
 		/* Disable video and audio */
-		tm6000_set_reg_mask(dev, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF,
+		tm6000_set_reg_mask(dev, TM6010_REQ07_RCC_ACTIVE_IF,
 				0x00, 0x60);
 		/* Enable TS input */
 		tm6000_set_reg_mask(dev, TM6010_REQ07_RC0_ACTIVE_VIDEO_SOURCE,
@@ -462,7 +462,7 @@ static struct reg_init tm6010_init_tab[] = {
 	{ TM6010_REQ07_RC4_HSTART0, 0xa0 },
 	{ TM6010_REQ07_RC6_HEND0, 0x40 },
 	{ TM6010_REQ07_RCA_VEND0, 0x31 },
-	{ TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, 0xe1 },
+	{ TM6010_REQ07_RCC_ACTIVE_IF, 0xe1 },
 	{ TM6010_REQ07_RE0_DVIDEO_SOURCE, 0x03 },
 	{ TM6010_REQ07_RFE_POWER_DOWN, 0x7f },
 
