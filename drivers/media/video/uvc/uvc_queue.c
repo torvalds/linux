@@ -315,8 +315,9 @@ static int uvc_queue_waiton(struct uvc_buffer *buf, int nonblocking)
 	return wait_event_interruptible_timeout(buf->wait,
 		buf->state != UVC_BUF_STATE_QUEUED &&
 		buf->state != UVC_BUF_STATE_ACTIVE &&
-		buf->state != UVC_BUF_STATE_READYi,
-		msecs_to_jiffies(800);
+		buf->state != UVC_BUF_STATE_READY,
+		msecs_to_jiffies(800));
+#endif
 }
 
 /*

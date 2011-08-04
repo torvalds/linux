@@ -48,7 +48,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 	printk(KERN_WARNING"rk29xx_camera: " fmt , ## arg); } while (0)
 
 #define RK29CAMERA_TR(format, ...) printk(KERN_ERR format, ## __VA_ARGS__)
-#define RK29CAMERA_DG(format, ...) dprintk(0, format, ## __VA_ARGS__)
+#define RK29CAMERA_DG(format, ...) dprintk(1, format, ## __VA_ARGS__)
 
 // VIP Reg Offset
 #define RK29_VIP_AHBR_CTRL                0x00
