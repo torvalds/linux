@@ -2927,10 +2927,6 @@ static int wm8962_set_bias_level(struct snd_soc_codec *codec,
 					    WM8962_BIAS_ENA | 0x180);
 
 			msleep(5);
-
-			snd_soc_update_bits(codec, WM8962_CLOCKING2,
-					    WM8962_CLKREG_OVD,
-					    WM8962_CLKREG_OVD);
 		}
 
 		/* VMID 2*250k */
@@ -3867,6 +3863,10 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 	 * write to registers if the device is declocked.
 	 */
 	snd_soc_update_bits(codec, WM8962_CLOCKING2, WM8962_SYSCLK_ENA, 0);
+
+	/* Ensure we have soft control over all registers */
+	snd_soc_update_bits(codec, WM8962_CLOCKING2,
+			    WM8962_CLKREG_OVD, WM8962_CLKREG_OVD);
 
 	regulator_bulk_disable(ARRAY_SIZE(wm8962->supplies), wm8962->supplies);
 
