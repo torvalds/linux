@@ -2175,8 +2175,12 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 
 	switch (hw->mac.type) {
 	case ixgbe_mac_82599EB:
-	case ixgbe_mac_X540:
 		ixgbe_check_sfp_event(adapter, eicr);
+		/* Fall through */
+	case ixgbe_mac_X540:
+		if (eicr & IXGBE_EICR_ECC)
+			e_info(link, "Received unrecoverable ECC err, please "
+				     "reboot\n");
 		ixgbe_check_overtemp_event(adapter, eicr);
 		break;
 	default:
