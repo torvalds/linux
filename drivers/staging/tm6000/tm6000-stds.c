@@ -525,6 +525,7 @@ static int tm6000_load_std(struct tm6000_core *dev,
 
 int tm6000_set_standard(struct tm6000_core *dev)
 {
+	struct tm6000_input *input;
 	int i, rc = 0;
 	u8 reg_07_fe = 0x8a;
 	u8 reg_08_f1 = 0xfc;
@@ -533,12 +534,13 @@ int tm6000_set_standard(struct tm6000_core *dev)
 
 	tm6000_get_std_res(dev);
 
-	if (dev->radio) {
-		/* todo */
-	}
+	if (!dev->radio)
+		input = &dev->vinput[dev->input];
+	else
+		input = &dev->rinput;
 
 	if (dev->dev_type == TM6010) {
-		switch (dev->vinput[dev->input].vmux) {
+		switch (input->vmux) {
 		case TM6000_VMUX_VIDEO_A:
 			tm6000_set_reg(dev, TM6010_REQ08_RE3_ADC_IN1_SEL, 0xf4);
 			tm6000_set_reg(dev, TM6010_REQ08_REA_BUFF_DRV_CTRL, 0xf1);
@@ -567,7 +569,7 @@ int tm6000_set_standard(struct tm6000_core *dev)
 		default:
 			break;
 		}
-		switch (dev->vinput[dev->input].amux) {
+		switch (input->amux) {
 		case TM6000_AMUX_ADC1:
 			tm6000_set_reg_mask(dev, TM6010_REQ08_RF0_DAUDIO_INPUT_CONFIG,
 				0x00, 0x0f);
@@ -602,32 +604,32 @@ int tm6000_set_standard(struct tm6000_core *dev)
 		tm6000_set_reg(dev, TM6010_REQ08_RF1_AADC_POWER_DOWN, reg_08_f1);
 		tm6000_set_reg(dev, TM6010_REQ07_RFE_POWER_DOWN, reg_07_fe);
 	} else {
-		switch (dev->vinput[dev->input].vmux) {
+		switch (input->vmux) {
 		case TM6000_VMUX_VIDEO_A:
 			tm6000_set_reg(dev, TM6000_REQ07_RE3_VADC_INP_LPF_SEL1, 0x10);
 			tm6000_set_reg(dev, TM6000_REQ07_RE5_VADC_INP_LPF_SEL2, 0x00);
 			tm6000_set_reg(dev, TM6000_REQ07_RE8_VADC_PWDOWN_CTL, 0x0f);
 			tm6000_set_reg(dev,
-			    REQ_03_SET_GET_MCU_PIN, dev->vinput[dev->input].v_gpio, 0);
+			    REQ_03_SET_GET_MCU_PIN, input->v_gpio, 0);
 			break;
 		case TM6000_VMUX_VIDEO_B:
 			tm6000_set_reg(dev, TM6000_REQ07_RE3_VADC_INP_LPF_SEL1, 0x00);
 			tm6000_set_reg(dev, TM6000_REQ07_RE5_VADC_INP_LPF_SEL2, 0x00);
 			tm6000_set_reg(dev, TM6000_REQ07_RE8_VADC_PWDOWN_CTL, 0x0f);
 			tm6000_set_reg(dev,
-			    REQ_03_SET_GET_MCU_PIN, dev->vinput[dev->input].v_gpio, 0);
+			    REQ_03_SET_GET_MCU_PIN, input->v_gpio, 0);
 			break;
 		case TM6000_VMUX_VIDEO_AB:
 			tm6000_set_reg(dev, TM6000_REQ07_RE3_VADC_INP_LPF_SEL1, 0x10);
 			tm6000_set_reg(dev, TM6000_REQ07_RE5_VADC_INP_LPF_SEL2, 0x10);
 			tm6000_set_reg(dev, TM6000_REQ07_RE8_VADC_PWDOWN_CTL, 0x00);
 			tm6000_set_reg(dev,
-			    REQ_03_SET_GET_MCU_PIN, dev->vinput[dev->input].v_gpio, 1);
+			    REQ_03_SET_GET_MCU_PIN, input->v_gpio, 1);
 			break;
 		default:
 			break;
 		}
-		switch (dev->vinput[dev->input].amux) {
+		switch (input->amux) {
 		case TM6000_AMUX_ADC1:
 			tm6000_set_reg_mask(dev,
 				TM6000_REQ07_REB_VADC_AADC_MODE, 0x00, 0x0f);
@@ -640,7 +642,7 @@ int tm6000_set_standard(struct tm6000_core *dev)
 			break;
 		}
 	}
-	if (dev->vinput[dev->input].type == TM6000_INPUT_SVIDEO) {
+	if (input->type == TM6000_INPUT_SVIDEO) {
 		for (i = 0; i < ARRAY_SIZE(svideo_stds); i++) {
 			if (dev->norm & svideo_stds[i].id) {
 				rc = tm6000_load_std(dev, svideo_stds[i].common,
@@ -668,8 +670,8 @@ ret:
 		return rc;
 
 	if ((dev->dev_type == TM6010) &&
-	    ((dev->vinput[dev->input].amux == TM6000_AMUX_SIF1) ||
-	    (dev->vinput[dev->input].amux == TM6000_AMUX_SIF2)))
+	    ((input->amux == TM6000_AMUX_SIF1) ||
+	    (input->amux == TM6000_AMUX_SIF2)))
 		tm6000_set_audio_std(dev);
 
 	msleep(40);
