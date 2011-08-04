@@ -1936,9 +1936,9 @@ __setup("nofrontswap", no_frontswap);
 
 static int __init zcache_init(void)
 {
-#ifdef CONFIG_SYSFS
 	int ret = 0;
 
+#ifdef CONFIG_SYSFS
 	ret = sysfs_create_group(mm_kobj, &zcache_attr_group);
 	if (ret) {
 		pr_err("zcache: can't create sysfs\n");
