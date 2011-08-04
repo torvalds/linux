@@ -182,11 +182,11 @@ int v9fs_set_create_acl(struct dentry *dentry,
 	return 0;
 }
 
-int v9fs_acl_mode(struct inode *dir, mode_t *modep,
+int v9fs_acl_mode(struct inode *dir, umode_t *modep,
 		  struct posix_acl **dpacl, struct posix_acl **pacl)
 {
 	int retval = 0;
-	mode_t mode = *modep;
+	umode_t mode = *modep;
 	struct posix_acl *acl = NULL;
 
 	if (!S_ISLNK(mode)) {
@@ -319,7 +319,7 @@ static int v9fs_xattr_set_acl(struct dentry *dentry, const char *name,
 	case ACL_TYPE_ACCESS:
 		name = POSIX_ACL_XATTR_ACCESS;
 		if (acl) {
-			mode_t mode = inode->i_mode;
+			umode_t mode = inode->i_mode;
 			retval = posix_acl_equiv_mode(acl, &mode);
 			if (retval < 0)
 				goto err_out;
