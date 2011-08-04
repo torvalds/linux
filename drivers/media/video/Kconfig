@@ -817,7 +817,11 @@ config SOC_CAMERA_MT9T111
 	depends on SOC_CAMERA && I2C
 	help
 	  This driver supports MT9T111 cameras from Micron.
-
+config SOC_CAMERA_MT9P111
+	tristate "mt9p111 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This driver supports MT9P111 cameras from Micron.
 config SOC_CAMERA_MT9D112
 	tristate "mt9d112 support"
 	depends on SOC_CAMERA && I2C
@@ -952,10 +956,10 @@ config OV5640_FIXEDFOCUS
 endchoice
 
 config SOC_CAMERA_S5K6AA
-	tristate "Samsung S5K6AA MIPI CSI-2 (importek mu736asa)"
+	tristate "Samsung S5K6AA camera support"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a samsung S5K6AA mobile camera driver
+	  This is a samsung S5K6AA camera driver
 
 config SOC_CAMERA_GT2005
 	tristate "GT2005 support"
