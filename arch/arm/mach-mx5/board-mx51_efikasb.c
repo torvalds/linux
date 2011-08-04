@@ -132,7 +132,7 @@ static void __init mx51_efikasb_usb(void)
 		mxc_register_device(&mxc_usbh2_device, &usbh2_config);
 }
 
-static struct gpio_led mx51_efikasb_leds[] = {
+static const struct gpio_led mx51_efikasb_leds[] __initconst = {
 	{
 		.name = "efikasb:green",
 		.default_trigger = "default-on",
@@ -146,17 +146,10 @@ static struct gpio_led mx51_efikasb_leds[] = {
 	},
 };
 
-static struct gpio_led_platform_data mx51_efikasb_leds_data = {
+static const struct gpio_led_platform_data
+		mx51_efikasb_leds_data __initconst = {
 	.leds = mx51_efikasb_leds,
 	.num_leds = ARRAY_SIZE(mx51_efikasb_leds),
-};
-
-static struct platform_device mx51_efikasb_leds_device = {
-	.name = "leds-gpio",
-	.id = -1,
-	.dev = {
-		.platform_data = &mx51_efikasb_leds_data,
-	},
 };
 
 static struct gpio_keys_button mx51_efikasb_keys[] = {
@@ -248,6 +241,8 @@ static void __init mx51_efikasb_board_id(void)
 
 static void __init efikasb_board_init(void)
 {
+	imx51_soc_init();
+
 	mxc_iomux_v3_setup_multiple_pads(mx51efikasb_pads,
 					ARRAY_SIZE(mx51efikasb_pads));
 	efika_board_common_init();
@@ -256,9 +251,8 @@ static void __init efikasb_board_init(void)
 	mx51_efikasb_usb();
 	imx51_add_sdhci_esdhc_imx(1, NULL);
 
-	platform_device_register(&mx51_efikasb_leds_device);
+	gpio_led_register_device(-1, &mx51_efikasb_leds_data);
 	imx_add_gpio_keys(&mx51_efikasb_keys_data);
-
 }
 
 static void __init mx51_efikasb_timer_init(void)

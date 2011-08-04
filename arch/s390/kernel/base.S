@@ -6,13 +6,13 @@
  *		 Michael Holzheu <holzheu@de.ibm.com>
  */
 
+#include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
 
 #ifdef CONFIG_64BIT
 
-	.globl	s390_base_mcck_handler
-s390_base_mcck_handler:
+ENTRY(s390_base_mcck_handler)
 	basr	%r13,0
 0:	lg	%r15,__LC_PANIC_STACK	# load panic stack
 	aghi	%r15,-STACK_FRAME_OVERHEAD
@@ -26,13 +26,13 @@ s390_base_mcck_handler:
 	lpswe	__LC_MCK_OLD_PSW
 
 	.section .bss
+	.align 8
 	.globl	s390_base_mcck_handler_fn
 s390_base_mcck_handler_fn:
 	.quad	0
 	.previous
 
-	.globl	s390_base_ext_handler
-s390_base_ext_handler:
+ENTRY(s390_base_ext_handler)
 	stmg	%r0,%r15,__LC_SAVE_AREA
 	basr	%r13,0
 0:	aghi	%r15,-STACK_FRAME_OVERHEAD
@@ -46,13 +46,13 @@ s390_base_ext_handler:
 	lpswe	__LC_EXT_OLD_PSW
 
 	.section .bss
+	.align 8
 	.globl s390_base_ext_handler_fn
 s390_base_ext_handler_fn:
 	.quad	0
 	.previous
 
-	.globl	s390_base_pgm_handler
-s390_base_pgm_handler:
+ENTRY(s390_base_pgm_handler)
 	stmg	%r0,%r15,__LC_SAVE_AREA
 	basr	%r13,0
 0:	aghi	%r15,-STACK_FRAME_OVERHEAD
@@ -70,6 +70,7 @@ disabled_wait_psw:
 	.quad	0x0002000180000000,0x0000000000000000 + s390_base_pgm_handler
 
 	.section .bss
+	.align 8
 	.globl s390_base_pgm_handler_fn
 s390_base_pgm_handler_fn:
 	.quad	0
@@ -77,8 +78,7 @@ s390_base_pgm_handler_fn:
 
 #else /* CONFIG_64BIT */
 
-	.globl	s390_base_mcck_handler
-s390_base_mcck_handler:
+ENTRY(s390_base_mcck_handler)
 	basr	%r13,0
 0:	l	%r15,__LC_PANIC_STACK	# load panic stack
 	ahi	%r15,-STACK_FRAME_OVERHEAD
@@ -93,13 +93,13 @@ s390_base_mcck_handler:
 2:	.long	s390_base_mcck_handler_fn
 
 	.section .bss
+	.align 4
 	.globl	s390_base_mcck_handler_fn
 s390_base_mcck_handler_fn:
 	.long	0
 	.previous
 
-	.globl	s390_base_ext_handler
-s390_base_ext_handler:
+ENTRY(s390_base_ext_handler)
 	stm	%r0,%r15,__LC_SAVE_AREA
 	basr	%r13,0
 0:	ahi	%r15,-STACK_FRAME_OVERHEAD
@@ -115,13 +115,13 @@ s390_base_ext_handler:
 2:	.long	s390_base_ext_handler_fn
 
 	.section .bss
+	.align 4
 	.globl	s390_base_ext_handler_fn
 s390_base_ext_handler_fn:
 	.long	0
 	.previous
 
-	.globl	s390_base_pgm_handler
-s390_base_pgm_handler:
+ENTRY(s390_base_pgm_handler)
 	stm	%r0,%r15,__LC_SAVE_AREA
 	basr	%r13,0
 0:	ahi	%r15,-STACK_FRAME_OVERHEAD
@@ -142,6 +142,7 @@ disabled_wait_psw:
 	.long	0x000a0000,0x00000000 + s390_base_pgm_handler
 
 	.section .bss
+	.align 4
 	.globl	s390_base_pgm_handler_fn
 s390_base_pgm_handler_fn:
 	.long	0

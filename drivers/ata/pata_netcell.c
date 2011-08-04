@@ -57,7 +57,6 @@ static struct ata_port_operations netcell_ops = {
 
 static int netcell_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	static int printed_version;
 	static const struct ata_port_info info = {
 		.flags		= ATA_FLAG_SLAVE_POSS,
 		/* Actually we don't really care about these as the
@@ -70,9 +69,7 @@ static int netcell_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	const struct ata_port_info *port_info[] = { &info, NULL };
 	int rc;
 
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &pdev->dev,
-			   "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	rc = pcim_enable_device(pdev);
 	if (rc)

@@ -181,7 +181,7 @@ static bool choke_match_flow(struct sk_buff *skb1,
 		    ip1->saddr != ip2->saddr || ip1->daddr != ip2->daddr)
 			return false;
 
-		if ((ip1->frag_off | ip2->frag_off) & htons(IP_MF | IP_OFFSET))
+		if (ip_is_fragment(ip1) | ip_is_fragment(ip2))
 			ip_proto = 0;
 		off1 += ip1->ihl * 4;
 		off2 += ip2->ihl * 4;

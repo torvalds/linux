@@ -30,7 +30,7 @@
 
 #include "ttm/ttm_lock.h"
 #include "ttm/ttm_module.h"
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/errno.h>
 #include <linux/wait.h>
 #include <linux/sched.h>

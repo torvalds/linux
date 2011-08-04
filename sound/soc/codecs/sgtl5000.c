@@ -907,6 +907,7 @@ static int ldo_regulator_register(struct snd_soc_codec *codec,
 				struct regulator_init_data *init_data,
 				int voltage)
 {
+	dev_err(codec->dev, "this setup needs regulator support in the kernel\n");
 	return -EINVAL;
 }
 
@@ -1218,6 +1219,34 @@ static int sgtl5000_set_power_regs(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static int sgtl5000_replace_vddd_with_ldo(struct snd_soc_codec *codec)
+{
+	struct sgtl5000_priv *sgtl5000 = snd_soc_codec_get_drvdata(codec);
+	int ret;
+
+	/* set internal ldo to 1.2v */
+	ret = ldo_regulator_register(codec, &ldo_init_data, LDO_VOLTAGE);
+	if (ret) {
+		dev_err(codec->dev,
+			"Failed to register vddd internal supplies: %d\n", ret);
+		return ret;
+	}
+
+	sgtl5000->supplies[VDDD].supply = LDO_CONSUMER_NAME;
+
+	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(sgtl5000->supplies),
+			sgtl5000->supplies);
+
+	if (ret) {
+		ldo_regulator_remove(codec);
+		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
+		return ret;
+	}
+
+	dev_info(codec->dev, "Using internal LDO instead of VDDD\n");
+	return 0;
+}
+
 static int sgtl5000_enable_regulators(struct snd_soc_codec *codec)
 {
 	u16 reg;
@@ -1235,30 +1264,9 @@ static int sgtl5000_enable_regulators(struct snd_soc_codec *codec)
 	if (!ret)
 		external_vddd = 1;
 	else {
-		/* set internal ldo to 1.2v */
-		int voltage = LDO_VOLTAGE;
-
-		ret = ldo_regulator_register(codec, &ldo_init_data, voltage);
-		if (ret) {
-			dev_err(codec->dev,
-			"Failed to register vddd internal supplies: %d\n",
-				ret);
+		ret = sgtl5000_replace_vddd_with_ldo(codec);
+		if (ret)
 			return ret;
-		}
-
-		sgtl5000->supplies[VDDD].supply = LDO_CONSUMER_NAME;
-
-		ret = regulator_bulk_get(codec->dev,
-				ARRAY_SIZE(sgtl5000->supplies),
-				sgtl5000->supplies);
-
-		if (ret) {
-			ldo_regulator_remove(codec);
-			dev_err(codec->dev,
-				"Failed to request supplies: %d\n", ret);
-
-			return ret;
-		}
 	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(sgtl5000->supplies),
@@ -1287,7 +1295,6 @@ static int sgtl5000_enable_regulators(struct snd_soc_codec *codec)
 	 * roll back to use internal LDO
 	 */
 	if (external_vddd && rev >= 0x11) {
-		int voltage = LDO_VOLTAGE;
 		/* disable all regulator first */
 		regulator_bulk_disable(ARRAY_SIZE(sgtl5000->supplies),
 					sgtl5000->supplies);
@@ -1295,22 +1302,9 @@ static int sgtl5000_enable_regulators(struct snd_soc_codec *codec)
 		regulator_bulk_free(ARRAY_SIZE(sgtl5000->supplies),
 					sgtl5000->supplies);
 
-		ret = ldo_regulator_register(codec, &ldo_init_data, voltage);
+		ret = sgtl5000_replace_vddd_with_ldo(codec);
 		if (ret)
 			return ret;
-
-		sgtl5000->supplies[VDDD].supply = LDO_CONSUMER_NAME;
-
-		ret = regulator_bulk_get(codec->dev,
-				ARRAY_SIZE(sgtl5000->supplies),
-				sgtl5000->supplies);
-		if (ret) {
-			ldo_regulator_remove(codec);
-			dev_err(codec->dev,
-				"Failed to request supplies: %d\n", ret);
-
-			return ret;
-		}
 
 		ret = regulator_bulk_enable(ARRAY_SIZE(sgtl5000->supplies),
 						sgtl5000->supplies);

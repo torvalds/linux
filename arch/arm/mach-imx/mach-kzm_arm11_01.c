@@ -223,6 +223,8 @@ static int kzm_pins[] __initdata = {
  */
 static void __init kzm_board_init(void)
 {
+	imx31_soc_init();
+
 	mxc_iomux_setup_multiple_pins(kzm_pins,
 				      ARRAY_SIZE(kzm_pins), "kzm");
 	kzm_init_ext_uart();

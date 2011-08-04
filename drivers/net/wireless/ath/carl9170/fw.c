@@ -237,7 +237,7 @@ static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 		ar->disable_offload = true;
 	}
 
-	if (SUPP(CARL9170FW_PSM))
+	if (SUPP(CARL9170FW_PSM) && SUPP(CARL9170FW_FIXED_5GHZ_PSM))
 		ar->hw->flags |= IEEE80211_HW_SUPPORTS_PS;
 
 	if (!SUPP(CARL9170FW_USB_INIT_FIRMWARE)) {

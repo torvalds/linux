@@ -1208,7 +1208,7 @@ int avc_ca_pmt(struct firedtv *fdtv, char *msg, int length)
 	if (r->response != AVC_RESPONSE_ACCEPTED) {
 		dev_err(fdtv->device,
 			"CA PMT failed with response 0x%x\n", r->response);
-		ret = -EFAULT;
+		ret = -EACCES;
 	}
 out:
 	mutex_unlock(&fdtv->avc_mutex);

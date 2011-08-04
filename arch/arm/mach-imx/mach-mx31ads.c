@@ -516,6 +516,8 @@ static void __init mx31ads_init_irq(void)
 
 static void __init mx31ads_init(void)
 {
+	imx31_soc_init();
+
 	mxc_init_extuart();
 	mxc_init_imx_uart();
 	mxc_init_i2c();

@@ -69,12 +69,22 @@ const struct imx_imx_ssi_data imx35_imx_ssi_data[] __initconst = {
 #ifdef CONFIG_SOC_IMX51
 const struct imx_imx_ssi_data imx51_imx_ssi_data[] __initconst = {
 #define imx51_imx_ssi_data_entry(_id, _hwid)				\
-	imx_imx_ssi_data_entry(MX51, _id, _hwid, SZ_4K)
+	imx_imx_ssi_data_entry(MX51, _id, _hwid, SZ_16K)
 	imx51_imx_ssi_data_entry(0, 1),
 	imx51_imx_ssi_data_entry(1, 2),
 	imx51_imx_ssi_data_entry(2, 3),
 };
 #endif /* ifdef CONFIG_SOC_IMX51 */
+
+#ifdef CONFIG_SOC_IMX53
+const struct imx_imx_ssi_data imx53_imx_ssi_data[] __initconst = {
+#define imx53_imx_ssi_data_entry(_id, _hwid)				\
+	imx_imx_ssi_data_entry(MX53, _id, _hwid, SZ_16K)
+	imx53_imx_ssi_data_entry(0, 1),
+	imx53_imx_ssi_data_entry(1, 2),
+	imx53_imx_ssi_data_entry(2, 3),
+};
+#endif /* ifdef CONFIG_SOC_IMX53 */
 
 struct platform_device *__init imx_add_imx_ssi(
 		const struct imx_imx_ssi_data *data,

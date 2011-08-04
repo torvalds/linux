@@ -271,7 +271,7 @@ int iser_send_command(struct iscsi_conn *conn,
 	unsigned long edtl;
 	int err;
 	struct iser_data_buf *data_buf;
-	struct iscsi_cmd *hdr =  (struct iscsi_cmd *)task->hdr;
+	struct iscsi_scsi_req *hdr = (struct iscsi_scsi_req *)task->hdr;
 	struct scsi_cmnd *sc  =  task->sc;
 	struct iser_tx_desc *tx_desc = &iser_task->desc;
 

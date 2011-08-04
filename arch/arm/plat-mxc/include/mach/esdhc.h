@@ -10,17 +10,34 @@
 #ifndef __ASM_ARCH_IMX_ESDHC_H
 #define __ASM_ARCH_IMX_ESDHC_H
 
+enum wp_types {
+	ESDHC_WP_NONE,		/* no WP, neither controller nor gpio */
+	ESDHC_WP_CONTROLLER,	/* mmc controller internal WP */
+	ESDHC_WP_GPIO,		/* external gpio pin for WP */
+};
+
+enum cd_types {
+	ESDHC_CD_NONE,		/* no CD, neither controller nor gpio */
+	ESDHC_CD_CONTROLLER,	/* mmc controller internal CD */
+	ESDHC_CD_GPIO,		/* external gpio pin for CD */
+	ESDHC_CD_PERMANENT,	/* no CD, card permanently wired to host */
+};
+
 /**
- * struct esdhc_platform_data - optional platform data for esdhc on i.MX
+ * struct esdhc_platform_data - platform data for esdhc on i.MX
  *
- * strongly recommended for i.MX25/35, not needed for other variants
+ * ESDHC_WP(CD)_CONTROLLER type is not available on i.MX25/35.
  *
- * @wp_gpio:	gpio for write_protect (-EINVAL if unused)
- * @cd_gpio:	gpio for card_detect interrupt (-EINVAL if unused)
+ * @wp_gpio:	gpio for write_protect
+ * @cd_gpio:	gpio for card_detect interrupt
+ * @wp_type:	type of write_protect method (see wp_types enum above)
+ * @cd_type:	type of card_detect method (see cd_types enum above)
  */
 
 struct esdhc_platform_data {
 	unsigned int wp_gpio;
 	unsigned int cd_gpio;
+	enum wp_types wp_type;
+	enum cd_types cd_type;
 };
 #endif /* __ASM_ARCH_IMX_ESDHC_H */

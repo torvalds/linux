@@ -566,7 +566,7 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 		err = -ENOMEM;
 		goto err_out_free_dev;
 	}
-	np->rx_ring = (struct fealnx_desc *)ring_space;
+	np->rx_ring = ring_space;
 	np->rx_ring_dma = ring_dma;
 
 	ring_space = pci_alloc_consistent(pdev, TX_TOTAL_SIZE, &ring_dma);
@@ -574,7 +574,7 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 		err = -ENOMEM;
 		goto err_out_free_rx;
 	}
-	np->tx_ring = (struct fealnx_desc *)ring_space;
+	np->tx_ring = ring_space;
 	np->tx_ring_dma = ring_dma;
 
 	/* find the connected MII xcvrs */

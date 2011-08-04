@@ -335,28 +335,35 @@ static int efx_filter_search(struct efx_filter_table *table,
 			     bool for_insert, int *depth_required)
 {
 	unsigned hash, incr, filter_idx, depth, depth_max;
-	struct efx_filter_spec *cmp;
 
 	hash = efx_filter_hash(key);
 	incr = efx_filter_increment(key);
-	depth_max = (spec->priority <= EFX_FILTER_PRI_HINT ?
-		     FILTER_CTL_SRCH_HINT_MAX : FILTER_CTL_SRCH_MAX);
 
-	for (depth = 1, filter_idx = hash & (table->size - 1);
-	     depth <= depth_max && test_bit(filter_idx, table->used_bitmap);
-	     ++depth) {
-		cmp = &table->spec[filter_idx];
-		if (efx_filter_equal(spec, cmp))
-			goto found;
+	filter_idx = hash & (table->size - 1);
+	depth = 1;
+	depth_max = (for_insert ?
+		     (spec->priority <= EFX_FILTER_PRI_HINT ?
+		      FILTER_CTL_SRCH_HINT_MAX : FILTER_CTL_SRCH_MAX) :
+		     table->search_depth[spec->type]);
+
+	for (;;) {
+		/* Return success if entry is used and matches this spec
+		 * or entry is unused and we are trying to insert.
+		 */
+		if (test_bit(filter_idx, table->used_bitmap) ?
+		    efx_filter_equal(spec, &table->spec[filter_idx]) :
+		    for_insert) {
+			*depth_required = depth;
+			return filter_idx;
+		}
+
+		/* Return failure if we reached the maximum search depth */
+		if (depth == depth_max)
+			return for_insert ? -EBUSY : -ENOENT;
+
 		filter_idx = (filter_idx + incr) & (table->size - 1);
+		++depth;
 	}
-	if (!for_insert)
-		return -ENOENT;
-	if (depth > depth_max)
-		return -EBUSY;
-found:
-	*depth_required = depth;
-	return filter_idx;
 }
 
 /* Construct/deconstruct external filter IDs */
@@ -650,11 +657,11 @@ int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 		return -EPROTONOSUPPORT;
 
 	/* RFS must validate the IP header length before calling us */
-	EFX_BUG_ON_PARANOID(!pskb_may_pull(skb, nhoff + sizeof(*ip)));
+	EFX_BUG_ON_PARANOID(skb_headlen(skb) < nhoff + sizeof(*ip));
 	ip = (const struct iphdr *)(skb->data + nhoff);
-	if (ip->frag_off & htons(IP_MF | IP_OFFSET))
+	if (ip_is_fragment(ip))
 		return -EPROTONOSUPPORT;
-	EFX_BUG_ON_PARANOID(!pskb_may_pull(skb, nhoff + 4 * ip->ihl + 4));
+	EFX_BUG_ON_PARANOID(skb_headlen(skb) < nhoff + 4 * ip->ihl + 4);
 	ports = (const __be16 *)(skb->data + nhoff + 4 * ip->ihl);
 
 	efx_filter_init_rx(&spec, EFX_FILTER_PRI_HINT, 0, rxq_index);

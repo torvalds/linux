@@ -177,7 +177,7 @@ static int __devinit tc6387xb_probe(struct platform_device *dev)
 	if (ret)
 		goto err_resource;
 
-	tc6387xb->scr = ioremap(rscr->start, rscr->end - rscr->start + 1);
+	tc6387xb->scr = ioremap(rscr->start, resource_size(rscr));
 	if (!tc6387xb->scr) {
 		ret = -ENOMEM;
 		goto err_ioremap;

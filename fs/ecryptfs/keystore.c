@@ -1635,11 +1635,14 @@ int ecryptfs_keyring_auth_tok_for_sig(struct key **auth_tok_key,
 
 	(*auth_tok_key) = request_key(&key_type_user, sig, NULL);
 	if (!(*auth_tok_key) || IS_ERR(*auth_tok_key)) {
-		printk(KERN_ERR "Could not find key with description: [%s]\n",
-		       sig);
-		rc = process_request_key_err(PTR_ERR(*auth_tok_key));
-		(*auth_tok_key) = NULL;
-		goto out;
+		(*auth_tok_key) = ecryptfs_get_encrypted_key(sig);
+		if (!(*auth_tok_key) || IS_ERR(*auth_tok_key)) {
+			printk(KERN_ERR "Could not find key with description: [%s]\n",
+			      sig);
+			rc = process_request_key_err(PTR_ERR(*auth_tok_key));
+			(*auth_tok_key) = NULL;
+			goto out;
+		}
 	}
 	down_write(&(*auth_tok_key)->sem);
 	rc = ecryptfs_verify_auth_tok_from_key(*auth_tok_key, auth_tok);
@@ -1868,11 +1871,6 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 	 * just one will be sufficient to decrypt to get the FEK. */
 find_next_matching_auth_tok:
 	found_auth_tok = 0;
-	if (auth_tok_key) {
-		up_write(&(auth_tok_key->sem));
-		key_put(auth_tok_key);
-		auth_tok_key = NULL;
-	}
 	list_for_each_entry(auth_tok_list_item, &auth_tok_list, list) {
 		candidate_auth_tok = &auth_tok_list_item->auth_tok;
 		if (unlikely(ecryptfs_verbosity > 0)) {
@@ -1909,14 +1907,22 @@ found_matching_auth_tok:
 		memcpy(&(candidate_auth_tok->token.private_key),
 		       &(matching_auth_tok->token.private_key),
 		       sizeof(struct ecryptfs_private_key));
+		up_write(&(auth_tok_key->sem));
+		key_put(auth_tok_key);
 		rc = decrypt_pki_encrypted_session_key(candidate_auth_tok,
 						       crypt_stat);
 	} else if (candidate_auth_tok->token_type == ECRYPTFS_PASSWORD) {
 		memcpy(&(candidate_auth_tok->token.password),
 		       &(matching_auth_tok->token.password),
 		       sizeof(struct ecryptfs_password));
+		up_write(&(auth_tok_key->sem));
+		key_put(auth_tok_key);
 		rc = decrypt_passphrase_encrypted_session_key(
 			candidate_auth_tok, crypt_stat);
+	} else {
+		up_write(&(auth_tok_key->sem));
+		key_put(auth_tok_key);
+		rc = -EINVAL;
 	}
 	if (rc) {
 		struct ecryptfs_auth_tok_list_item *auth_tok_list_item_tmp;
@@ -1956,15 +1962,12 @@ found_matching_auth_tok:
 out_wipe_list:
 	wipe_auth_tok_list(&auth_tok_list);
 out:
-	if (auth_tok_key) {
-		up_write(&(auth_tok_key->sem));
-		key_put(auth_tok_key);
-	}
 	return rc;
 }
 
 static int
-pki_encrypt_session_key(struct ecryptfs_auth_tok *auth_tok,
+pki_encrypt_session_key(struct key *auth_tok_key,
+			struct ecryptfs_auth_tok *auth_tok,
 			struct ecryptfs_crypt_stat *crypt_stat,
 			struct ecryptfs_key_record *key_rec)
 {
@@ -1979,6 +1982,8 @@ pki_encrypt_session_key(struct ecryptfs_auth_tok *auth_tok,
 					 crypt_stat->cipher,
 					 crypt_stat->key_size),
 				 crypt_stat, &payload, &payload_len);
+	up_write(&(auth_tok_key->sem));
+	key_put(auth_tok_key);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error generating tag 66 packet\n");
 		goto out;
@@ -2008,6 +2013,8 @@ out:
  * write_tag_1_packet - Write an RFC2440-compatible tag 1 (public key) packet
  * @dest: Buffer into which to write the packet
  * @remaining_bytes: Maximum number of bytes that can be writtn
+ * @auth_tok_key: The authentication token key to unlock and put when done with
+ *                @auth_tok
  * @auth_tok: The authentication token used for generating the tag 1 packet
  * @crypt_stat: The cryptographic context
  * @key_rec: The key record struct for the tag 1 packet
@@ -2018,7 +2025,7 @@ out:
  */
 static int
 write_tag_1_packet(char *dest, size_t *remaining_bytes,
-		   struct ecryptfs_auth_tok *auth_tok,
+		   struct key *auth_tok_key, struct ecryptfs_auth_tok *auth_tok,
 		   struct ecryptfs_crypt_stat *crypt_stat,
 		   struct ecryptfs_key_record *key_rec, size_t *packet_size)
 {
@@ -2039,12 +2046,15 @@ write_tag_1_packet(char *dest, size_t *remaining_bytes,
 		memcpy(key_rec->enc_key,
 		       auth_tok->session_key.encrypted_key,
 		       auth_tok->session_key.encrypted_key_size);
+		up_write(&(auth_tok_key->sem));
+		key_put(auth_tok_key);
 		goto encrypted_session_key_set;
 	}
 	if (auth_tok->session_key.encrypted_key_size == 0)
 		auth_tok->session_key.encrypted_key_size =
 			auth_tok->token.private_key.key_size;
-	rc = pki_encrypt_session_key(auth_tok, crypt_stat, key_rec);
+	rc = pki_encrypt_session_key(auth_tok_key, auth_tok, crypt_stat,
+				     key_rec);
 	if (rc) {
 		printk(KERN_ERR "Failed to encrypt session key via a key "
 		       "module; rc = [%d]\n", rc);
@@ -2248,7 +2258,7 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 		       auth_tok->token.password.session_key_encryption_key,
 		       crypt_stat->key_size);
 		ecryptfs_printk(KERN_DEBUG,
-				"Cached session key " "encryption key: \n");
+				"Cached session key encryption key:\n");
 		if (ecryptfs_verbosity > 0)
 			ecryptfs_dump_hex(session_key_encryption_key, 16);
 	}
@@ -2421,6 +2431,8 @@ ecryptfs_generate_key_packet_set(char *dest_base,
 						&max, auth_tok,
 						crypt_stat, key_rec,
 						&written);
+			up_write(&(auth_tok_key->sem));
+			key_put(auth_tok_key);
 			if (rc) {
 				ecryptfs_printk(KERN_WARNING, "Error "
 						"writing tag 3 packet\n");
@@ -2438,8 +2450,8 @@ ecryptfs_generate_key_packet_set(char *dest_base,
 			}
 			(*len) += written;
 		} else if (auth_tok->token_type == ECRYPTFS_PRIVATE_KEY) {
-			rc = write_tag_1_packet(dest_base + (*len),
-						&max, auth_tok,
+			rc = write_tag_1_packet(dest_base + (*len), &max,
+						auth_tok_key, auth_tok,
 						crypt_stat, key_rec, &written);
 			if (rc) {
 				ecryptfs_printk(KERN_WARNING, "Error "
@@ -2448,14 +2460,13 @@ ecryptfs_generate_key_packet_set(char *dest_base,
 			}
 			(*len) += written;
 		} else {
+			up_write(&(auth_tok_key->sem));
+			key_put(auth_tok_key);
 			ecryptfs_printk(KERN_WARNING, "Unsupported "
 					"authentication token type\n");
 			rc = -EINVAL;
 			goto out_free;
 		}
-		up_write(&(auth_tok_key->sem));
-		key_put(auth_tok_key);
-		auth_tok_key = NULL;
 	}
 	if (likely(max > 0)) {
 		dest_base[(*len)] = 0x00;
@@ -2468,11 +2479,6 @@ out_free:
 out:
 	if (rc)
 		(*len) = 0;
-	if (auth_tok_key) {
-		up_write(&(auth_tok_key->sem));
-		key_put(auth_tok_key);
-	}
-
 	mutex_unlock(&crypt_stat->keysig_list_mutex);
 	return rc;
 }

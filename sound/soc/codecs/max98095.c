@@ -1517,8 +1517,6 @@ static int max98095_dai_set_sysclk(struct snd_soc_dai *dai,
 	if (freq == max98095->sysclk)
 		return 0;
 
-	max98095->sysclk = freq; /* remember current sysclk */
-
 	/* Setup clocks for slave mode, and using the PLL
 	 * PSCLK = 0x01 (when master clk is 10MHz to 20MHz)
 	 *         0x02 (when master clk is 20MHz to 40MHz)..
@@ -2261,11 +2259,11 @@ static int max98095_probe(struct snd_soc_codec *codec)
 
 	ret = snd_soc_read(codec, M98095_0FF_REV_ID);
 	if (ret < 0) {
-		dev_err(codec->dev, "Failed to read device revision: %d\n",
+		dev_err(codec->dev, "Failure reading hardware revision: %d\n",
 			ret);
 		goto err_access;
 	}
-	dev_info(codec->dev, "revision %c\n", ret + 'A');
+	dev_info(codec->dev, "Hardware revision: %c\n", ret - 0x40 + 'A');
 
 	snd_soc_write(codec, M98095_097_PWR_SYS, M98095_PWRSV);
 
@@ -2342,8 +2340,8 @@ static int max98095_i2c_probe(struct i2c_client *i2c,
 	max98095->control_data = i2c;
 	max98095->pdata = i2c->dev.platform_data;
 
-	ret = snd_soc_register_codec(&i2c->dev,
-			&soc_codec_dev_max98095, &max98095_dai[0], 3);
+	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_max98095,
+				     max98095_dai, ARRAY_SIZE(max98095_dai));
 	if (ret < 0)
 		kfree(max98095);
 	return ret;

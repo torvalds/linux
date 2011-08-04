@@ -1578,14 +1578,14 @@ static int __init atkbd_setup_forced_release(const struct dmi_system_id *id)
 	atkbd_platform_fixup = atkbd_apply_forced_release_keylist;
 	atkbd_platform_fixup_data = id->driver_data;
 
-	return 0;
+	return 1;
 }
 
 static int __init atkbd_setup_scancode_fixup(const struct dmi_system_id *id)
 {
 	atkbd_platform_scancode_fixup = id->driver_data;
 
-	return 0;
+	return 1;
 }
 
 static const struct dmi_system_id atkbd_dmi_quirk_table[] __initconst = {

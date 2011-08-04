@@ -605,6 +605,22 @@ static void ixgbe_set_vf_rate_limit(struct ixgbe_hw *hw, int vf, int tx_rate,
 	}
 
 	IXGBE_WRITE_REG(hw, IXGBE_RTTDQSEL, 2*vf); /* vf Y uses queue 2*Y */
+	/*
+	 * Set global transmit compensation time to the MMW_SIZE in RTTBCNRM
+	 * register. Typically MMW_SIZE=0x014 if 9728-byte jumbo is supported
+	 * and 0x004 otherwise.
+	 */
+	switch (hw->mac.type) {
+	case ixgbe_mac_82599EB:
+		IXGBE_WRITE_REG(hw, IXGBE_RTTBCNRM, 0x4);
+		break;
+	case ixgbe_mac_X540:
+		IXGBE_WRITE_REG(hw, IXGBE_RTTBCNRM, 0x14);
+		break;
+	default:
+		break;
+	}
+
 	IXGBE_WRITE_REG(hw, IXGBE_RTTBCNRC, bcnrc_val);
 }
 

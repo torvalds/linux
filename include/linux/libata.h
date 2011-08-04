@@ -74,6 +74,16 @@
 
 #define BPRINTK(fmt, args...) if (ap->flags & ATA_FLAG_DEBUGMSG) printk(KERN_ERR "%s: " fmt, __func__, ## args)
 
+#define ata_print_version_once(dev, version)			\
+({								\
+	static bool __print_once;				\
+								\
+	if (!__print_once) {					\
+		__print_once = true;				\
+		ata_print_version(dev, version);		\
+	}							\
+})
+
 /* NEW: debug levels */
 #define HAVE_LIBATA_MSG 1
 
@@ -1244,20 +1254,50 @@ static inline int sata_srst_pmp(struct ata_link *link)
 /*
  * printk helpers
  */
-#define ata_port_printk(ap, lv, fmt, args...) \
-	printk("%sata%u: "fmt, lv, (ap)->print_id , ##args)
+__attribute__((format (printf, 3, 4)))
+int ata_port_printk(const struct ata_port *ap, const char *level,
+		    const char *fmt, ...);
+__attribute__((format (printf, 3, 4)))
+int ata_link_printk(const struct ata_link *link, const char *level,
+		    const char *fmt, ...);
+__attribute__((format (printf, 3, 4)))
+int ata_dev_printk(const struct ata_device *dev, const char *level,
+		   const char *fmt, ...);
 
-#define ata_link_printk(link, lv, fmt, args...) do { \
-	if (sata_pmp_attached((link)->ap) || (link)->ap->slave_link)	\
-		printk("%sata%u.%02u: "fmt, lv, (link)->ap->print_id,	\
-		       (link)->pmp , ##args); \
-	else \
-		printk("%sata%u: "fmt, lv, (link)->ap->print_id , ##args); \
-	} while(0)
+#define ata_port_err(ap, fmt, ...)				\
+	ata_port_printk(ap, KERN_ERR, fmt, ##__VA_ARGS__)
+#define ata_port_warn(ap, fmt, ...)				\
+	ata_port_printk(ap, KERN_WARNING, fmt, ##__VA_ARGS__)
+#define ata_port_notice(ap, fmt, ...)				\
+	ata_port_printk(ap, KERN_NOTICE, fmt, ##__VA_ARGS__)
+#define ata_port_info(ap, fmt, ...)				\
+	ata_port_printk(ap, KERN_INFO, fmt, ##__VA_ARGS__)
+#define ata_port_dbg(ap, fmt, ...)				\
+	ata_port_printk(ap, KERN_DEBUG, fmt, ##__VA_ARGS__)
 
-#define ata_dev_printk(dev, lv, fmt, args...) \
-	printk("%sata%u.%02u: "fmt, lv, (dev)->link->ap->print_id,	\
-	       (dev)->link->pmp + (dev)->devno , ##args)
+#define ata_link_err(link, fmt, ...)				\
+	ata_link_printk(link, KERN_ERR, fmt, ##__VA_ARGS__)
+#define ata_link_warn(link, fmt, ...)				\
+	ata_link_printk(link, KERN_WARNING, fmt, ##__VA_ARGS__)
+#define ata_link_notice(link, fmt, ...)				\
+	ata_link_printk(link, KERN_NOTICE, fmt, ##__VA_ARGS__)
+#define ata_link_info(link, fmt, ...)				\
+	ata_link_printk(link, KERN_INFO, fmt, ##__VA_ARGS__)
+#define ata_link_dbg(link, fmt, ...)				\
+	ata_link_printk(link, KERN_DEBUG, fmt, ##__VA_ARGS__)
+
+#define ata_dev_err(dev, fmt, ...)				\
+	ata_dev_printk(dev, KERN_ERR, fmt, ##__VA_ARGS__)
+#define ata_dev_warn(dev, fmt, ...)				\
+	ata_dev_printk(dev, KERN_WARNING, fmt, ##__VA_ARGS__)
+#define ata_dev_notice(dev, fmt, ...)				\
+	ata_dev_printk(dev, KERN_NOTICE, fmt, ##__VA_ARGS__)
+#define ata_dev_info(dev, fmt, ...)				\
+	ata_dev_printk(dev, KERN_INFO, fmt, ##__VA_ARGS__)
+#define ata_dev_dbg(dev, fmt, ...)				\
+	ata_dev_printk(dev, KERN_DEBUG, fmt, ##__VA_ARGS__)
+
+void ata_print_version(const struct device *dev, const char *version);
 
 /*
  * ata_eh_info helpers

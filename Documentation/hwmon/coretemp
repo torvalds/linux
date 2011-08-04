@@ -35,6 +35,13 @@ the Out-Of-Spec bit. Following table summarizes the exported sysfs files:
 All Sysfs entries are named with their core_id (represented here by 'X').
 tempX_input	 - Core temperature (in millidegrees Celsius).
 tempX_max	 - All cooling devices should be turned on (on Core2).
+		   Initialized with IA32_THERM_INTERRUPT. When the CPU
+		   temperature reaches this temperature, an interrupt is
+		   generated and tempX_max_alarm is set.
+tempX_max_hyst   - If the CPU temperature falls below than temperature,
+		   an interrupt is generated and tempX_max_alarm is reset.
+tempX_max_alarm  - Set if the temperature reaches or exceeds tempX_max.
+		   Reset if the temperature drops to or below tempX_max_hyst.
 tempX_crit	 - Maximum junction temperature (in millidegrees Celsius).
 tempX_crit_alarm - Set when Out-of-spec bit is set, never clears.
 		   Correct CPU operation is no longer guaranteed.

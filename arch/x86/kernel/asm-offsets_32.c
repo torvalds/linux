@@ -63,7 +63,6 @@ void foo(void)
 	BLANK();
 	OFFSET(LGUEST_DATA_irq_enabled, lguest_data, irq_enabled);
 	OFFSET(LGUEST_DATA_irq_pending, lguest_data, irq_pending);
-	OFFSET(LGUEST_DATA_pgdir, lguest_data, pgdir);
 
 	BLANK();
 	OFFSET(LGUEST_PAGES_host_gdt_desc, lguest_pages, state.host_gdt_desc);

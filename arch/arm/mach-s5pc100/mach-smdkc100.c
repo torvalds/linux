@@ -29,7 +29,6 @@
 #include <asm/mach/map.h>
 
 #include <mach/map.h>
-#include <mach/regs-fb.h>
 #include <mach/regs-gpio.h>
 
 #include <video/platform_lcd.h>
@@ -51,6 +50,8 @@
 #include <plat/keypad.h>
 #include <plat/ts.h>
 #include <plat/audio.h>
+#include <plat/backlight.h>
+#include <plat/regs-fb-v4.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define SMDKC100_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -179,45 +180,6 @@ static struct samsung_keypad_platdata smdkc100_keypad_data __initdata = {
 	.cols		= 8,
 };
 
-static int smdkc100_backlight_init(struct device *dev)
-{
-	int ret;
-
-	ret = gpio_request(S5PC100_GPD(0), "Backlight");
-	if (ret) {
-		printk(KERN_ERR "failed to request GPF for PWM-OUT0\n");
-		return ret;
-	}
-
-	/* Configure GPIO pin with S5PC100_GPD_TOUT_0 */
-	s3c_gpio_cfgpin(S5PC100_GPD(0), S3C_GPIO_SFN(2));
-
-	return 0;
-}
-
-static void smdkc100_backlight_exit(struct device *dev)
-{
-	s3c_gpio_cfgpin(S5PC100_GPD(0), S3C_GPIO_OUTPUT);
-	gpio_free(S5PC100_GPD(0));
-}
-
-static struct platform_pwm_backlight_data smdkc100_backlight_data = {
-	.pwm_id		= 0,
-	.max_brightness	= 255,
-	.dft_brightness	= 255,
-	.pwm_period_ns	= 78770,
-	.init		= smdkc100_backlight_init,
-	.exit		= smdkc100_backlight_exit,
-};
-
-static struct platform_device smdkc100_backlight_device = {
-	.name		= "pwm-backlight",
-	.dev		= {
-		.parent		= &s3c_device_timer[0].dev,
-		.platform_data	= &smdkc100_backlight_data,
-	},
-};
-
 static struct platform_device *smdkc100_devices[] __initdata = {
 	&s3c_device_adc,
 	&s3c_device_cfcon,
@@ -239,14 +201,22 @@ static struct platform_device *smdkc100_devices[] __initdata = {
 	&s5p_device_fimc1,
 	&s5p_device_fimc2,
 	&s5pc100_device_spdif,
-	&s3c_device_timer[0],
-	&smdkc100_backlight_device,
 };
 
 static struct s3c2410_ts_mach_info s3c_ts_platform __initdata = {
 	.delay			= 10000,
 	.presc			= 49,
 	.oversampling_shift	= 2,
+};
+
+/* LCD Backlight data */
+static struct samsung_bl_gpio_info smdkc100_bl_gpio_info = {
+	.no = S5PC100_GPD(0),
+	.func = S3C_GPIO_SFN(2),
+};
+
+static struct platform_pwm_backlight_data smdkc100_bl_data = {
+	.pwm_id = 0,
 };
 
 static void __init smdkc100_map_io(void)
@@ -276,6 +246,9 @@ static void __init smdkc100_machine_init(void)
 	/* LCD init */
 	gpio_request(S5PC100_GPH0(6), "GPH0");
 	smdkc100_lcd_power_set(&smdkc100_lcd_power_data, 0);
+
+	samsung_bl_set(&smdkc100_bl_gpio_info, &smdkc100_bl_data);
+
 	platform_add_devices(smdkc100_devices, ARRAY_SIZE(smdkc100_devices));
 }
 

@@ -25,7 +25,7 @@
 #include <linux/percpu.h>
 #include <linux/ima.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "internal.h"
 

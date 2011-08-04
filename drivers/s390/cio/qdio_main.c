@@ -15,7 +15,7 @@
 #include <linux/delay.h>
 #include <linux/gfp.h>
 #include <linux/kernel_stat.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/debug.h>
 #include <asm/qdio.h>
 

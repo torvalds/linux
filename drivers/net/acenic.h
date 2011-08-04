@@ -1,5 +1,6 @@
 #ifndef _ACENIC_H_
 #define _ACENIC_H_
+#include <linux/interrupt.h>
 
 
 /*
@@ -664,10 +665,6 @@ struct ace_private
 	struct rx_desc		*rx_mini_ring;
 	struct rx_desc		*rx_return_ring;
 
-#if ACENIC_DO_VLAN
-	struct vlan_group	*vlgrp;
-#endif
-
 	int			tasklet_pending, jumbo;
 	struct tasklet_struct	ace_tasklet;
 
@@ -769,9 +766,9 @@ static inline void ace_unmask_irq(struct net_device *dev)
  * Prototypes
  */
 static int ace_init(struct net_device *dev);
-static void ace_load_std_rx_ring(struct ace_private *ap, int nr_bufs);
-static void ace_load_mini_rx_ring(struct ace_private *ap, int nr_bufs);
-static void ace_load_jumbo_rx_ring(struct ace_private *ap, int nr_bufs);
+static void ace_load_std_rx_ring(struct net_device *dev, int nr_bufs);
+static void ace_load_mini_rx_ring(struct net_device *dev, int nr_bufs);
+static void ace_load_jumbo_rx_ring(struct net_device *dev, int nr_bufs);
 static irqreturn_t ace_interrupt(int irq, void *dev_id);
 static int ace_load_firmware(struct net_device *dev);
 static int ace_open(struct net_device *dev);
@@ -789,8 +786,5 @@ static void ace_free_descriptors(struct net_device *dev);
 static void ace_init_cleanup(struct net_device *dev);
 static struct net_device_stats *ace_get_stats(struct net_device *dev);
 static int read_eeprom_byte(struct net_device *dev, unsigned long offset);
-#if ACENIC_DO_VLAN
-static void ace_vlan_rx_register(struct net_device *dev, struct vlan_group *grp);
-#endif
 
 #endif /* _ACENIC_H_ */

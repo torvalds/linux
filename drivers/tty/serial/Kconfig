@@ -457,7 +457,6 @@ config SERIAL_SAMSUNG_UARTS_4
 config SERIAL_SAMSUNG_UARTS
 	int
 	depends on ARM && PLAT_SAMSUNG
-	default 2 if ARCH_S3C2400
 	default 6 if ARCH_S5P6450
 	default 4 if SERIAL_SAMSUNG_UARTS_4
 	default 3
@@ -489,13 +488,6 @@ config SERIAL_SAMSUNG_CONSOLE
 	  your boot loader about how to pass options to the kernel at
 	  boot time.)
 
-config SERIAL_S3C2400
-	tristate "Samsung S3C2410 Serial port support"
-	depends on ARM && SERIAL_SAMSUNG && CPU_S3C2400
-	default y if CPU_S3C2400
-	help
-	  Serial port support for the Samsung S3C2400 SoC
-
 config SERIAL_S3C2410
 	tristate "Samsung S3C2410 Serial port support"
 	depends on SERIAL_SAMSUNG && CPU_S3C2410
@@ -518,13 +510,6 @@ config SERIAL_S3C2440
 	select SERIAL_SAMSUNG_UARTS_4 if CPU_S3C2416
 	help
 	  Serial port support for the Samsung S3C2440, S3C2416 and S3C2442 SoC
-
-config SERIAL_S3C24A0
-	tristate "Samsung S3C24A0 Serial port support"
-	depends on SERIAL_SAMSUNG && CPU_S3C24A0
-	default y if CPU_S3C24A0
-	help
-	  Serial port support for the Samsung S3C24A0 SoC
 
 config SERIAL_S3C6400
 	tristate "Samsung S3C6400/S3C6410/S5P6440/S5P6450/S5PC100 Serial port support"
@@ -974,7 +959,7 @@ config SERIAL_IP22_ZILOG_CONSOLE
 
 config SERIAL_SH_SCI
 	tristate "SuperH SCI(F) serial port support"
-	depends on HAVE_CLK && (SUPERH || H8300 || ARCH_SHMOBILE)
+	depends on HAVE_CLK && (SUPERH || ARCH_SHMOBILE)
 	select SERIAL_CORE
 
 config SERIAL_SH_SCI_NR_UARTS
@@ -1419,7 +1404,7 @@ config SERIAL_SC26XX
 
 config SERIAL_SC26XX_CONSOLE
 	bool "Console on SC2681/SC2692 serial port"
-	depends on SERIAL_SC26XX
+	depends on SERIAL_SC26XX=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  Support for Console on SC2681/SC2692 serial ports.

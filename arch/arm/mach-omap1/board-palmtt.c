@@ -266,7 +266,7 @@ static struct spi_board_info __initdata palmtt_boardinfo[] = {
 static void __init omap_palmtt_init_irq(void)
 {
 	omap1_init_common_hw();
-	omap_init_irq();
+	omap1_init_irq();
 }
 
 static struct omap_usb_config palmtt_usb_config __initdata = {
@@ -326,5 +326,5 @@ MACHINE_START(OMAP_PALMTT, "OMAP1510 based Palm Tungsten|T")
 	.reserve	= omap_reserve,
 	.init_irq	= omap_palmtt_init_irq,
 	.init_machine	= omap_palmtt_init,
-	.timer		= &omap_timer,
+	.timer		= &omap1_timer,
 MACHINE_END

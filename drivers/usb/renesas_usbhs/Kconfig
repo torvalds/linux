@@ -1,5 +1,5 @@
 #
-# Renesas USB Controller Drivers
+# Renesas USBHS Controller Drivers
 #
 
 config USB_RENESAS_USBHS
@@ -7,10 +7,9 @@ config USB_RENESAS_USBHS
 	depends on SUPERH || ARCH_SHMOBILE
 	default n
 	help
-	   Renesas USBHS is a discrete USB host and peripheral controller chip
-	   that supports both full and high speed USB 2.0 data transfers.
-	   It has nine or more configurable endpoints, and endpoint zero.
+	  Renesas USBHS is a discrete USB host and peripheral controller chip
+	  that supports both full and high speed USB 2.0 data transfers.
+	  It has nine or more configurable endpoints, and endpoint zero.
 
-	   Say "y" to link the driver statically, or "m" to build a
-	   dynamically linked module called "renesas_usbhs" and force all
-	   gadget drivers to also be dynamically linked.
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "renesas_usbhs"

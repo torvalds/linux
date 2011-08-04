@@ -2917,24 +2917,19 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 					goto skip_rx_indicate0;
 
 
-				if ((cqe_misc & NES_NIC_CQE_TAG_VALID) &&
-				    (nesvnic->vlan_grp != NULL)) {
+				if (cqe_misc & NES_NIC_CQE_TAG_VALID) {
 					vlan_tag = (u16)(le32_to_cpu(
 							cq->cq_vbase[head].cqe_words[NES_NIC_CQE_TAG_PKT_TYPE_IDX])
 							>> 16);
 					nes_debug(NES_DBG_CQ, "%s: Reporting stripped VLAN packet. Tag = 0x%04X\n",
 							nesvnic->netdev->name, vlan_tag);
-					if (nes_use_lro)
-						lro_vlan_hwaccel_receive_skb(&nesvnic->lro_mgr, rx_skb,
-								nesvnic->vlan_grp, vlan_tag, NULL);
-					else
-						nes_vlan_rx(rx_skb, nesvnic->vlan_grp, vlan_tag);
-				} else {
-					if (nes_use_lro)
-						lro_receive_skb(&nesvnic->lro_mgr, rx_skb, NULL);
-					else
-						nes_netif_rx(rx_skb);
+
+					__vlan_hwaccel_put_tag(rx_skb, vlan_tag);
 				}
+				if (nes_use_lro)
+					lro_receive_skb(&nesvnic->lro_mgr, rx_skb, NULL);
+				else
+					netif_receive_skb(rx_skb);
 
 skip_rx_indicate0:
 				;

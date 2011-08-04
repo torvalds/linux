@@ -8,6 +8,7 @@
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
  */
+#include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/serial_8250.h>
@@ -42,6 +43,7 @@
 /*
  * Device specific clocks
  */
+#define DM646X_REF_FREQ		27000000
 #define DM646X_AUX_FREQ		24000000
 
 static struct pll_data pll1_data = {
@@ -56,6 +58,8 @@ static struct pll_data pll2_data = {
 
 static struct clk ref_clk = {
 	.name = "ref_clk",
+	.rate = DM646X_REF_FREQ,
+	.set_rate = davinci_simple_set_rate,
 };
 
 static struct clk aux_clkin = {
@@ -901,7 +905,6 @@ int __init dm646x_init_edma(struct edma_rsv_info *rsv)
 
 void __init dm646x_init(void)
 {
-	dm646x_board_setup_refclk(&ref_clk);
 	davinci_common_init(&davinci_soc_info_dm646x);
 }
 

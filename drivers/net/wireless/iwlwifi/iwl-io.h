@@ -34,22 +34,23 @@
 #include "iwl-dev.h"
 #include "iwl-debug.h"
 #include "iwl-devtrace.h"
+#include "iwl-bus.h"
 
 static inline void iwl_write8(struct iwl_priv *priv, u32 ofs, u8 val)
 {
 	trace_iwlwifi_dev_iowrite8(priv, ofs, val);
-	iowrite8(val, priv->hw_base + ofs);
+	bus_write8(priv->bus, ofs, val);
 }
 
 static inline void iwl_write32(struct iwl_priv *priv, u32 ofs, u32 val)
 {
 	trace_iwlwifi_dev_iowrite32(priv, ofs, val);
-	iowrite32(val, priv->hw_base + ofs);
+	bus_write32(priv->bus, ofs, val);
 }
 
 static inline u32 iwl_read32(struct iwl_priv *priv, u32 ofs)
 {
-	u32 val = ioread32(priv->hw_base + ofs);
+	u32 val = bus_read32(priv->bus, ofs);
 	trace_iwlwifi_dev_ioread32(priv, ofs, val);
 	return val;
 }

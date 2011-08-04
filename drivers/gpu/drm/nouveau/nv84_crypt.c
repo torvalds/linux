@@ -138,7 +138,7 @@ nv84_crypt_isr(struct drm_device *dev)
 }
 
 static int
-nv84_crypt_fini(struct drm_device *dev, int engine)
+nv84_crypt_fini(struct drm_device *dev, int engine, bool suspend)
 {
 	nv_wr32(dev, 0x102140, 0x00000000);
 	return 0;

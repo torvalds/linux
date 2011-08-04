@@ -354,7 +354,7 @@ config CRYPTO_RMD128
 	  RIPEMD-128 (ISO/IEC 10118-3:2004).
 
 	  RIPEMD-128 is a 128-bit cryptographic hash function. It should only
-	  to be used as a secure replacement for RIPEMD. For other use cases
+	  be used as a secure replacement for RIPEMD. For other use cases,
 	  RIPEMD-160 should be used.
 
 	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
@@ -458,7 +458,7 @@ config CRYPTO_WP512
 
 config CRYPTO_GHASH_CLMUL_NI_INTEL
 	tristate "GHASH digest algorithm (CLMUL-NI accelerated)"
-	depends on (X86 || UML_X86) && 64BIT
+	depends on X86 && 64BIT
 	select CRYPTO_SHASH
 	select CRYPTO_CRYPTD
 	help
@@ -533,7 +533,7 @@ config CRYPTO_AES_X86_64
 
 config CRYPTO_AES_NI_INTEL
 	tristate "AES cipher algorithms (AES-NI)"
-	depends on (X86 || UML_X86)
+	depends on X86
 	select CRYPTO_AES_X86_64 if 64BIT
 	select CRYPTO_AES_586 if !64BIT
 	select CRYPTO_CRYPTD

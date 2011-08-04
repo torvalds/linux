@@ -199,7 +199,7 @@ int coda_release(struct inode *coda_inode, struct file *coda_file)
 	return 0;
 }
 
-int coda_fsync(struct file *coda_file, int datasync)
+int coda_fsync(struct file *coda_file, loff_t start, loff_t end, int datasync)
 {
 	struct file *host_file;
 	struct inode *coda_inode = coda_file->f_path.dentry->d_inode;
@@ -210,6 +210,11 @@ int coda_fsync(struct file *coda_file, int datasync)
 	      S_ISLNK(coda_inode->i_mode)))
 		return -EINVAL;
 
+	err = filemap_write_and_wait_range(coda_inode->i_mapping, start, end);
+	if (err)
+		return err;
+	mutex_lock(&coda_inode->i_mutex);
+
 	cfi = CODA_FTOC(coda_file);
 	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
 	host_file = cfi->cfi_container;
@@ -217,6 +222,7 @@ int coda_fsync(struct file *coda_file, int datasync)
 	err = vfs_fsync(host_file, datasync);
 	if (!err && !datasync)
 		err = venus_fsync(coda_inode->i_sb, coda_i2f(coda_inode));
+	mutex_unlock(&coda_inode->i_mutex);
 
 	return err;
 }

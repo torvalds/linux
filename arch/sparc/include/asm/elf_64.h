@@ -177,16 +177,18 @@ static inline unsigned int sparc64_elf_hwcap(void)
 		cap |= HWCAP_SPARC_ULTRA3;
 	else if (tlb_type == hypervisor) {
 		if (sun4v_chip_type == SUN4V_CHIP_NIAGARA1 ||
-		    sun4v_chip_type == SUN4V_CHIP_NIAGARA2)
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA2 ||
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA3)
 			cap |= HWCAP_SPARC_BLKINIT;
-		if (sun4v_chip_type == SUN4V_CHIP_NIAGARA2)
+		if (sun4v_chip_type == SUN4V_CHIP_NIAGARA2 ||
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA3)
 			cap |= HWCAP_SPARC_N2;
 	}
 
 	return cap;
 }
 
-#define ELF_HWCAP	sparc64_elf_hwcap();
+#define ELF_HWCAP	sparc64_elf_hwcap()
 
 /* This yields a string that ld.so will use to load implementation
    specific libraries for optimization.  This is more specific in

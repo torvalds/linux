@@ -1426,6 +1426,7 @@ xfs_trans_committed(
 static inline void
 xfs_log_item_batch_insert(
 	struct xfs_ail		*ailp,
+	struct xfs_ail_cursor	*cur,
 	struct xfs_log_item	**log_items,
 	int			nr_items,
 	xfs_lsn_t		commit_lsn)
@@ -1434,7 +1435,7 @@ xfs_log_item_batch_insert(
 
 	spin_lock(&ailp->xa_lock);
 	/* xfs_trans_ail_update_bulk drops ailp->xa_lock */
-	xfs_trans_ail_update_bulk(ailp, log_items, nr_items, commit_lsn);
+	xfs_trans_ail_update_bulk(ailp, cur, log_items, nr_items, commit_lsn);
 
 	for (i = 0; i < nr_items; i++)
 		IOP_UNPIN(log_items[i], 0);
@@ -1452,6 +1453,13 @@ xfs_log_item_batch_insert(
  * as an iclog write error even though we haven't started any IO yet. Hence in
  * this case all we need to do is IOP_COMMITTED processing, followed by an
  * IOP_UNPIN(aborted) call.
+ *
+ * The AIL cursor is used to optimise the insert process. If commit_lsn is not
+ * at the end of the AIL, the insert cursor avoids the need to walk
+ * the AIL to find the insertion point on every xfs_log_item_batch_insert()
+ * call. This saves a lot of needless list walking and is a net win, even
+ * though it slightly increases that amount of AIL lock traffic to set it up
+ * and tear it down.
  */
 void
 xfs_trans_committed_bulk(
@@ -1463,7 +1471,12 @@ xfs_trans_committed_bulk(
 #define LOG_ITEM_BATCH_SIZE	32
 	struct xfs_log_item	*log_items[LOG_ITEM_BATCH_SIZE];
 	struct xfs_log_vec	*lv;
+	struct xfs_ail_cursor	cur;
 	int			i = 0;
+
+	spin_lock(&ailp->xa_lock);
+	xfs_trans_ail_cursor_last(ailp, &cur, commit_lsn);
+	spin_unlock(&ailp->xa_lock);
 
 	/* unpin all the log items */
 	for (lv = log_vector; lv; lv = lv->lv_next ) {
@@ -1493,7 +1506,9 @@ xfs_trans_committed_bulk(
 			/*
 			 * Not a bulk update option due to unusual item_lsn.
 			 * Push into AIL immediately, rechecking the lsn once
-			 * we have the ail lock. Then unpin the item.
+			 * we have the ail lock. Then unpin the item. This does
+			 * not affect the AIL cursor the bulk insert path is
+			 * using.
 			 */
 			spin_lock(&ailp->xa_lock);
 			if (XFS_LSN_CMP(item_lsn, lip->li_lsn) > 0)
@@ -1507,7 +1522,7 @@ xfs_trans_committed_bulk(
 		/* Item is a candidate for bulk AIL insert.  */
 		log_items[i++] = lv->lv_item;
 		if (i >= LOG_ITEM_BATCH_SIZE) {
-			xfs_log_item_batch_insert(ailp, log_items,
+			xfs_log_item_batch_insert(ailp, &cur, log_items,
 					LOG_ITEM_BATCH_SIZE, commit_lsn);
 			i = 0;
 		}
@@ -1515,7 +1530,11 @@ xfs_trans_committed_bulk(
 
 	/* make sure we insert the remainder! */
 	if (i)
-		xfs_log_item_batch_insert(ailp, log_items, i, commit_lsn);
+		xfs_log_item_batch_insert(ailp, &cur, log_items, i, commit_lsn);
+
+	spin_lock(&ailp->xa_lock);
+	xfs_trans_ail_cursor_done(ailp, &cur);
+	spin_unlock(&ailp->xa_lock);
 }
 
 /*

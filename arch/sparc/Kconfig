@@ -41,6 +41,7 @@ config SPARC64
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_KRETPROBES
 	select HAVE_KPROBES
+	select HAVE_RCU_TABLE_FREE if SMP
 	select HAVE_MEMBLOCK
 	select HAVE_SYSCALL_WRAPPERS
 	select HAVE_DYNAMIC_FTRACE
@@ -78,10 +79,6 @@ config GENERIC_CLOCKEVENTS
 	default y if SPARC64
 
 config IOMMU_HELPER
-	bool
-	default y if SPARC64
-
-config QUICKLIST
 	bool
 	default y if SPARC64
 

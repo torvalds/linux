@@ -32,6 +32,8 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/dmaengine.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <asm/irq.h>
 #include <mach/sdma.h>
@@ -65,8 +67,8 @@
 #define SDMA_ONCE_RTB		0x060
 #define SDMA_XTRIG_CONF1	0x070
 #define SDMA_XTRIG_CONF2	0x074
-#define SDMA_CHNENBL0_V2	0x200
-#define SDMA_CHNENBL0_V1	0x080
+#define SDMA_CHNENBL0_IMX35	0x200
+#define SDMA_CHNENBL0_IMX31	0x080
 #define SDMA_CHNPRI_0		0x100
 
 /*
@@ -299,13 +301,18 @@ struct sdma_firmware_header {
 	u32	ram_code_size;
 };
 
+enum sdma_devtype {
+	IMX31_SDMA,	/* runs on i.mx31 */
+	IMX35_SDMA,	/* runs on i.mx35 and later */
+};
+
 struct sdma_engine {
 	struct device			*dev;
 	struct device_dma_parameters	dma_parms;
 	struct sdma_channel		channel[MAX_DMA_CHANNELS];
 	struct sdma_channel_control	*channel_control;
 	void __iomem			*regs;
-	unsigned int			version;
+	enum sdma_devtype		devtype;
 	unsigned int			num_events;
 	struct sdma_context_data	*context;
 	dma_addr_t			context_phys;
@@ -314,6 +321,26 @@ struct sdma_engine {
 	struct sdma_script_start_addrs	*script_addrs;
 };
 
+static struct platform_device_id sdma_devtypes[] = {
+	{
+		.name = "imx31-sdma",
+		.driver_data = IMX31_SDMA,
+	}, {
+		.name = "imx35-sdma",
+		.driver_data = IMX35_SDMA,
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(platform, sdma_devtypes);
+
+static const struct of_device_id sdma_dt_ids[] = {
+	{ .compatible = "fsl,imx31-sdma", .data = &sdma_devtypes[IMX31_SDMA], },
+	{ .compatible = "fsl,imx35-sdma", .data = &sdma_devtypes[IMX35_SDMA], },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, sdma_dt_ids);
+
 #define SDMA_H_CONFIG_DSPDMA	(1 << 12) /* indicates if the DSPDMA is used */
 #define SDMA_H_CONFIG_RTD_PINS	(1 << 11) /* indicates if Real-Time Debug pins are enabled */
 #define SDMA_H_CONFIG_ACR	(1 << 4)  /* indicates if AHB freq /core freq = 2 or 1 */
@@ -321,8 +348,8 @@ struct sdma_engine {
 
 static inline u32 chnenbl_ofs(struct sdma_engine *sdma, unsigned int event)
 {
-	u32 chnenbl0 = (sdma->version == 2 ? SDMA_CHNENBL0_V2 : SDMA_CHNENBL0_V1);
-
+	u32 chnenbl0 = (sdma->devtype == IMX31_SDMA ? SDMA_CHNENBL0_IMX31 :
+						      SDMA_CHNENBL0_IMX35);
 	return chnenbl0 + event * 4;
 }
 
@@ -1105,25 +1132,17 @@ static void sdma_add_scripts(struct sdma_engine *sdma,
 }
 
 static int __init sdma_get_firmware(struct sdma_engine *sdma,
-		const char *cpu_name, int to_version)
+		const char *fw_name)
 {
 	const struct firmware *fw;
-	char *fwname;
 	const struct sdma_firmware_header *header;
 	int ret;
 	const struct sdma_script_start_addrs *addr;
 	unsigned short *ram_code;
 
-	fwname = kasprintf(GFP_KERNEL, "sdma-%s-to%d.bin", cpu_name, to_version);
-	if (!fwname)
-		return -ENOMEM;
-
-	ret = request_firmware(&fw, fwname, sdma->dev);
-	if (ret) {
-		kfree(fwname);
+	ret = request_firmware(&fw, fw_name, sdma->dev);
+	if (ret)
 		return ret;
-	}
-	kfree(fwname);
 
 	if (fw->size < sizeof(*header))
 		goto err_firmware;
@@ -1162,15 +1181,16 @@ static int __init sdma_init(struct sdma_engine *sdma)
 	int i, ret;
 	dma_addr_t ccb_phys;
 
-	switch (sdma->version) {
-	case 1:
+	switch (sdma->devtype) {
+	case IMX31_SDMA:
 		sdma->num_events = 32;
 		break;
-	case 2:
+	case IMX35_SDMA:
 		sdma->num_events = 48;
 		break;
 	default:
-		dev_err(sdma->dev, "Unknown version %d. aborting\n", sdma->version);
+		dev_err(sdma->dev, "Unknown sdma type %d. aborting\n",
+			sdma->devtype);
 		return -ENODEV;
 	}
 
@@ -1239,6 +1259,10 @@ err_dma_alloc:
 
 static int __init sdma_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id =
+			of_match_device(sdma_dt_ids, &pdev->dev);
+	struct device_node *np = pdev->dev.of_node;
+	const char *fw_name;
 	int ret;
 	int irq;
 	struct resource *iores;
@@ -1254,7 +1278,7 @@ static int __init sdma_probe(struct platform_device *pdev)
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	if (!iores || irq < 0 || !pdata) {
+	if (!iores || irq < 0) {
 		ret = -EINVAL;
 		goto err_irq;
 	}
@@ -1281,10 +1305,14 @@ static int __init sdma_probe(struct platform_device *pdev)
 		goto err_request_irq;
 
 	sdma->script_addrs = kzalloc(sizeof(*sdma->script_addrs), GFP_KERNEL);
-	if (!sdma->script_addrs)
+	if (!sdma->script_addrs) {
+		ret = -ENOMEM;
 		goto err_alloc;
+	}
 
-	sdma->version = pdata->sdma_version;
+	if (of_id)
+		pdev->id_entry = of_id->data;
+	sdma->devtype = pdev->id_entry->driver_data;
 
 	dma_cap_set(DMA_SLAVE, sdma->dma_device.cap_mask);
 	dma_cap_set(DMA_CYCLIC, sdma->dma_device.cap_mask);
@@ -1314,10 +1342,30 @@ static int __init sdma_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_init;
 
-	if (pdata->script_addrs)
+	if (pdata && pdata->script_addrs)
 		sdma_add_scripts(sdma, pdata->script_addrs);
 
-	sdma_get_firmware(sdma, pdata->cpu_name, pdata->to_version);
+	if (pdata) {
+		sdma_get_firmware(sdma, pdata->fw_name);
+	} else {
+		/*
+		 * Because that device tree does not encode ROM script address,
+		 * the RAM script in firmware is mandatory for device tree
+		 * probe, otherwise it fails.
+		 */
+		ret = of_property_read_string(np, "fsl,sdma-ram-script-name",
+					      &fw_name);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to get firmware name\n");
+			goto err_init;
+		}
+
+		ret = sdma_get_firmware(sdma, fw_name);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to get firmware\n");
+			goto err_init;
+		}
+	}
 
 	sdma->dma_device.dev = &pdev->dev;
 
@@ -1365,7 +1413,9 @@ static int __exit sdma_remove(struct platform_device *pdev)
 static struct platform_driver sdma_driver = {
 	.driver		= {
 		.name	= "imx-sdma",
+		.of_match_table = sdma_dt_ids,
 	},
+	.id_table	= sdma_devtypes,
 	.remove		= __exit_p(sdma_remove),
 };
 

@@ -21,7 +21,7 @@
 #include <linux/jhash.h>
 #include <linux/random.h>
 #include <linux/slab.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/unaligned.h>
 #include "br_private.h"
 

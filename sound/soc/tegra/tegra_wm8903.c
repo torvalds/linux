@@ -267,7 +267,7 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 		}
 		machine->gpio_requested |= GPIO_HP_MUTE;
 
-		gpio_direction_output(pdata->gpio_hp_mute, 0);
+		gpio_direction_output(pdata->gpio_hp_mute, 1);
 	}
 
 	if (gpio_is_valid(pdata->gpio_int_mic_en)) {

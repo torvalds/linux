@@ -41,6 +41,10 @@ config NO_DMA
 config ZONE_DMA
 	bool
 	default y
+
+config CPU_HAS_NO_BITFIELDS
+	bool
+
 config HZ
 	int
 	default 1000 if CLEOPATRA

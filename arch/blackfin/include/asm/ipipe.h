@@ -32,7 +32,7 @@
 #include <asm/ptrace.h>
 #include <asm/irq.h>
 #include <asm/bitops.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/traps.h>
 #include <asm/bitsperlong.h>
 

@@ -2950,6 +2950,7 @@ extern unsigned long sun4v_ncs_request(unsigned long request,
 #define HV_GRP_N2_CPU			0x0202
 #define HV_GRP_NIU			0x0204
 #define HV_GRP_VF_CPU			0x0205
+#define HV_GRP_KT_CPU			0x0209
 #define HV_GRP_DIAG			0x0300
 
 #ifndef __ASSEMBLY__

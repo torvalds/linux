@@ -85,9 +85,10 @@ static struct snd_pcm_ops pxa2xx_pcm_ops = {
 
 static u64 pxa2xx_pcm_dmamask = DMA_BIT_MASK(32);
 
-static int pxa2xx_soc_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
-	struct snd_pcm *pcm)
+static int pxa2xx_soc_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_card *card = rtd->card->snd_card;
+	struct snd_pcm *pcm = rtd->pcm;
 	int ret = 0;
 
 	if (!card->dev->dma_mask)

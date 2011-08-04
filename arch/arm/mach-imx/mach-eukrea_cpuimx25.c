@@ -125,6 +125,8 @@ __setup("otg_mode=", eukrea_cpuimx25_otg_mode);
 
 static void __init eukrea_cpuimx25_init(void)
 {
+	imx25_soc_init();
+
 	if (mxc_iomux_v3_setup_multiple_pads(eukrea_cpuimx25_pads,
 			ARRAY_SIZE(eukrea_cpuimx25_pads)))
 		printk(KERN_ERR "error setting cpuimx25 pads !\n");

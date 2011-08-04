@@ -132,11 +132,7 @@ static struct gpmc_timings nand_timings = {
 };
 
 static struct omap_nand_platform_data board_nand_data = {
-	.nand_setup	= NULL,
 	.gpmc_t		= &nand_timings,
-	.dma_channel	= -1,		/* disable DMA in OMAP NAND driver */
-	.dev_ready	= NULL,
-	.devsize	= 0,	/* '0' for 8-bit, '1' for 16-bit device */
 };
 
 void

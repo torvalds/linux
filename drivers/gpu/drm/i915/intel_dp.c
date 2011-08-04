@@ -178,12 +178,14 @@ intel_dp_link_clock(uint8_t link_bw)
 static int
 intel_dp_link_required(struct drm_device *dev, struct intel_dp *intel_dp, int pixel_clock)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = intel_dp->base.base.crtc;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int bpp = 24;
 
-	if (is_edp(intel_dp))
-		return (pixel_clock * dev_priv->edp.bpp + 7) / 8;
-	else
-		return pixel_clock * 3;
+	if (intel_crtc)
+		bpp = intel_crtc->bpp;
+
+	return (pixel_clock * bpp + 7) / 8;
 }
 
 static int
@@ -681,7 +683,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	struct drm_encoder *encoder;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int lane_count = 4, bpp = 24;
+	int lane_count = 4;
 	struct intel_dp_m_n m_n;
 	int pipe = intel_crtc->pipe;
 
@@ -700,7 +702,6 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 			break;
 		} else if (is_edp(intel_dp)) {
 			lane_count = dev_priv->edp.lanes;
-			bpp = dev_priv->edp.bpp;
 			break;
 		}
 	}
@@ -710,7 +711,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	 * the number of bytes_per_pixel post-LUT, which we always
 	 * set up for 8-bits of R/G/B, or 3 bytes total.
 	 */
-	intel_dp_compute_m_n(bpp, lane_count,
+	intel_dp_compute_m_n(intel_crtc->bpp, lane_count,
 			     mode->clock, adjusted_mode->clock, &m_n);
 
 	if (HAS_PCH_SPLIT(dev)) {

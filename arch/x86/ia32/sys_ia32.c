@@ -43,7 +43,7 @@
 #include <asm/mman.h>
 #include <asm/types.h>
 #include <asm/uaccess.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/vgtod.h>
 #include <asm/sys_ia32.h>
 

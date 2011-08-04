@@ -89,7 +89,7 @@ static int sca3000_read_first_n_hw_rb(struct iio_ring_buffer *r,
 {
 	struct iio_hw_ring_buffer *hw_ring = iio_to_hw_ring_buf(r);
 	struct iio_dev *indio_dev = hw_ring->private;
-	struct sca3000_state *st = indio_dev->dev_data;
+	struct sca3000_state *st = iio_priv(indio_dev);
 	u8 *rx;
 	int ret, i, num_available, num_read = 0;
 	int bytes_per_sample = 1;
@@ -168,7 +168,7 @@ static ssize_t sca3000_query_ring_int(struct device *dev,
 	int ret, val;
 	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
 	struct iio_dev *indio_dev = ring->indio_dev;
-	struct sca3000_state *st = indio_dev->dev_data;
+	struct sca3000_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->lock);
 	ret = sca3000_read_data_short(st, SCA3000_REG_ADDR_INT_MASK, 1);
@@ -190,7 +190,7 @@ static ssize_t sca3000_set_ring_int(struct device *dev,
 {
 	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
 	struct iio_dev *indio_dev = ring->indio_dev;
-	struct sca3000_state *st = indio_dev->dev_data;
+	struct sca3000_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	long val;
 	int ret;
@@ -240,7 +240,7 @@ static ssize_t sca3000_show_ring_bpse(struct device *dev,
 	int len = 0, ret;
 	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
 	struct iio_dev *indio_dev = ring->indio_dev;
-	struct sca3000_state *st = indio_dev->dev_data;
+	struct sca3000_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->lock);
 	ret = sca3000_read_data_short(st, SCA3000_REG_ADDR_MODE, 1);
@@ -270,7 +270,7 @@ static ssize_t sca3000_store_ring_bpse(struct device *dev,
 {
 	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
 	struct iio_dev *indio_dev = ring->indio_dev;
-	struct sca3000_state *st = indio_dev->dev_data;
+	struct sca3000_state *st = iio_priv(indio_dev);
 	int ret;
 
 	mutex_lock(&st->lock);
@@ -300,7 +300,7 @@ static ssize_t sca3000_show_buffer_scale(struct device *dev,
 {
 	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
 	struct iio_dev *indio_dev = ring->indio_dev;
-	struct sca3000_state *st = indio_dev->dev_data;
+	struct sca3000_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "0.%06d\n", 4*st->info->scale);
 }
@@ -397,7 +397,7 @@ void sca3000_unconfigure_ring(struct iio_dev *indio_dev)
 static inline
 int __sca3000_hw_ring_state_set(struct iio_dev *indio_dev, bool state)
 {
-	struct sca3000_state *st = indio_dev->dev_data;
+	struct sca3000_state *st = iio_priv(indio_dev);
 	int ret;
 
 	mutex_lock(&st->lock);
