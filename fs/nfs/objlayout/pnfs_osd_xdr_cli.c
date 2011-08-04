@@ -170,6 +170,9 @@ int pnfs_osd_xdr_decode_layout_map(struct pnfs_osd_layout *layout,
 	p = _osd_xdr_decode_data_map(p, &layout->olo_map);
 	layout->olo_comps_index = be32_to_cpup(p++);
 	layout->olo_num_comps = be32_to_cpup(p++);
+	dprintk("%s: olo_comps_index=%d olo_num_comps=%d\n", __func__,
+		layout->olo_comps_index, layout->olo_num_comps);
+
 	iter->total_comps = layout->olo_num_comps;
 	return 0;
 }
