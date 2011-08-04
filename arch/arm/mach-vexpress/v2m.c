@@ -46,12 +46,6 @@ static struct map_desc v2m_io_desc[] __initdata = {
 	},
 };
 
-static void __init v2m_init_early(void)
-{
-	ct_desc->init_early();
-	versatile_sched_clock_init(MMIO_P2V(V2M_SYS_24MHZ), 24000000);
-}
-
 static void __init v2m_timer_init(void)
 {
 	u32 scctrl;
@@ -365,6 +359,13 @@ static struct clk_lookup v2m_lookups[] = {
 	},
 };
 
+static void __init v2m_init_early(void)
+{
+	ct_desc->init_early();
+	clkdev_add_table(v2m_lookups, ARRAY_SIZE(v2m_lookups));
+	versatile_sched_clock_init(MMIO_P2V(V2M_SYS_24MHZ), 24000000);
+}
+
 static void v2m_power_off(void)
 {
 	if (v2m_cfg_write(SYS_CFG_SHUTDOWN | SYS_CFG_SITE_MB, 0))
@@ -417,8 +418,6 @@ static void __init v2m_init_irq(void)
 static void __init v2m_init(void)
 {
 	int i;
-
-	clkdev_add_table(v2m_lookups, ARRAY_SIZE(v2m_lookups));
 
 	platform_device_register(&v2m_pcie_i2c_device);
 	platform_device_register(&v2m_ddc_i2c_device);

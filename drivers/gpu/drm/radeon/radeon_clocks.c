@@ -117,7 +117,7 @@ static bool __devinit radeon_read_clocks_OF(struct drm_device *dev)
 	p1pll->reference_div = RREG32_PLL(RADEON_PPLL_REF_DIV) & 0x3ff;
 	if (p1pll->reference_div < 2)
 		p1pll->reference_div = 12;
-	p2pll->reference_div = p1pll->reference_div;	
+	p2pll->reference_div = p1pll->reference_div;
 
 	/* These aren't in the device-tree */
 	if (rdev->family >= CHIP_R420) {
@@ -139,6 +139,8 @@ static bool __devinit radeon_read_clocks_OF(struct drm_device *dev)
 		p2pll->pll_out_min = 12500;
 		p2pll->pll_out_max = 35000;
 	}
+	/* not sure what the max should be in all cases */
+	rdev->clock.max_pixel_clock = 35000;
 
 	spll->reference_freq = mpll->reference_freq = p1pll->reference_freq;
 	spll->reference_div = mpll->reference_div =
@@ -151,7 +153,7 @@ static bool __devinit radeon_read_clocks_OF(struct drm_device *dev)
 	else
 		rdev->clock.default_sclk =
 			radeon_legacy_get_engine_clock(rdev);
-			
+
 	val = of_get_property(dp, "ATY,MCLK", NULL);
 	if (val && *val)
 		rdev->clock.default_mclk = (*val) / 10;
@@ -160,7 +162,7 @@ static bool __devinit radeon_read_clocks_OF(struct drm_device *dev)
 			radeon_legacy_get_memory_clock(rdev);
 
 	DRM_INFO("Using device-tree clock info\n");
-	
+
 	return true;
 }
 #else

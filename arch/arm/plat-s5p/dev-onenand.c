@@ -15,8 +15,6 @@
 
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
-#include <linux/mtd/mtd.h>
-#include <linux/mtd/onenand.h>
 
 #include <mach/irqs.h>
 #include <mach/map.h>
@@ -45,13 +43,3 @@ struct platform_device s5p_device_onenand = {
 	.num_resources	= ARRAY_SIZE(s5p_onenand_resources),
 	.resource	= s5p_onenand_resources,
 };
-
-void s5p_onenand_set_platdata(struct onenand_platform_data *pdata)
-{
-	struct onenand_platform_data *pd;
-
-	pd = kmemdup(pdata, sizeof(struct onenand_platform_data), GFP_KERNEL);
-	if (!pd)
-		printk(KERN_ERR "%s: no memory for platform data\n", __func__);
-	s5p_device_onenand.dev.platform_data = pd;
-}

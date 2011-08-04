@@ -184,7 +184,7 @@ int cifs_verify_signature(struct smb_hdr *cifs_pdu,
 	if (cifs_pdu == NULL || server == NULL)
 		return -EINVAL;
 
-	if (cifs_pdu->Command == SMB_COM_NEGOTIATE)
+	if (!server->session_estab)
 		return 0;
 
 	if (cifs_pdu->Command == SMB_COM_LOCKING_ANDX) {

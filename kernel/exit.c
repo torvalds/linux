@@ -561,29 +561,28 @@ void exit_files(struct task_struct *tsk)
 
 #ifdef CONFIG_MM_OWNER
 /*
- * Task p is exiting and it owned mm, lets find a new owner for it
+ * A task is exiting.   If it owned this mm, find a new owner for the mm.
  */
-static inline int
-mm_need_new_owner(struct mm_struct *mm, struct task_struct *p)
-{
-	/*
-	 * If there are other users of the mm and the owner (us) is exiting
-	 * we need to find a new owner to take on the responsibility.
-	 */
-	if (atomic_read(&mm->mm_users) <= 1)
-		return 0;
-	if (mm->owner != p)
-		return 0;
-	return 1;
-}
-
 void mm_update_next_owner(struct mm_struct *mm)
 {
 	struct task_struct *c, *g, *p = current;
 
 retry:
-	if (!mm_need_new_owner(mm, p))
+	/*
+	 * If the exiting or execing task is not the owner, it's
+	 * someone else's problem.
+	 */
+	if (mm->owner != p)
 		return;
+	/*
+	 * The current owner is exiting/execing and there are no other
+	 * candidates.  Do not leave the mm pointing to a possibly
+	 * freed task structure.
+	 */
+	if (atomic_read(&mm->mm_users) <= 1) {
+		mm->owner = NULL;
+		return;
+	}
 
 	read_lock(&tasklist_lock);
 	/*

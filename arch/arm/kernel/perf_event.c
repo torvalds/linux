@@ -583,7 +583,7 @@ static int armpmu_event_init(struct perf_event *event)
 static void armpmu_enable(struct pmu *pmu)
 {
 	/* Enable all of the perf events on hardware. */
-	int idx;
+	int idx, enabled = 0;
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
 	if (!armpmu)
@@ -596,9 +596,11 @@ static void armpmu_enable(struct pmu *pmu)
 			continue;
 
 		armpmu->enable(&event->hw, idx);
+		enabled = 1;
 	}
 
-	armpmu->start();
+	if (enabled)
+		armpmu->start();
 }
 
 static void armpmu_disable(struct pmu *pmu)

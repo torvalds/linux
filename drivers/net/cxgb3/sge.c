@@ -2026,7 +2026,7 @@ static void rx_eth(struct adapter *adap, struct sge_rspq *rq,
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	} else
 		skb_checksum_none_assert(skb);
-	skb_record_rx_queue(skb, qs - &adap->sge.qs[0]);
+	skb_record_rx_queue(skb, qs - &adap->sge.qs[pi->first_qset]);
 
 	if (unlikely(p->vlan_valid)) {
 		struct vlan_group *grp = pi->vlan_grp;
@@ -2145,7 +2145,7 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 	if (!complete)
 		return;
 
-	skb_record_rx_queue(skb, qs - &adap->sge.qs[0]);
+	skb_record_rx_queue(skb, qs - &adap->sge.qs[pi->first_qset]);
 
 	if (unlikely(cpl->vlan_valid)) {
 		struct vlan_group *grp = pi->vlan_grp;

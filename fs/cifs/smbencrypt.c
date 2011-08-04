@@ -90,12 +90,10 @@ smbhash(unsigned char *out, const unsigned char *in, unsigned char *key)
 	sg_init_one(&sgout, out, 8);
 
 	rc = crypto_blkcipher_encrypt(&desc, &sgout, &sgin, 8);
-	if (rc) {
+	if (rc)
 		cERROR(1, "could not encrypt crypt key rc: %d\n", rc);
-		crypto_free_blkcipher(tfm_des);
-		goto smbhash_err;
-	}
 
+	crypto_free_blkcipher(tfm_des);
 smbhash_err:
 	return rc;
 }

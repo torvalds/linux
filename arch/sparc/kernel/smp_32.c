@@ -114,7 +114,7 @@ void __init smp_cpus_done(unsigned int max_cpus)
 		printk("UNKNOWN!\n");
 		BUG();
 		break;
-	};
+	}
 }
 
 void cpu_panic(void)
@@ -374,7 +374,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		printk("UNKNOWN!\n");
 		BUG();
 		break;
-	};
+	}
 }
 
 /* Set this up early so that things like the scheduler can init
@@ -447,7 +447,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 		printk("UNKNOWN!\n");
 		BUG();
 		break;
-	};
+	}
 
 	if (!ret) {
 		cpumask_set_cpu(cpu, &smp_commenced_mask);

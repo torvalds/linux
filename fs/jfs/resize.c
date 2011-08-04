@@ -80,7 +80,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	int log_formatted = 0;
 	struct inode *iplist[1];
 	struct jfs_superblock *j_sb, *j_sb2;
-	uint old_agsize;
+	s64 old_agsize;
 	int agsizechanged = 0;
 	struct buffer_head *bh, *bh2;
 

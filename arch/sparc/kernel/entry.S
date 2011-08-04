@@ -229,7 +229,7 @@ real_irq_entry:
 #ifdef CONFIG_SMP
 	.globl	patchme_maybe_smp_msg
 
-	cmp	%l7, 12
+	cmp	%l7, 11
 patchme_maybe_smp_msg:
 	bgu	maybe_smp4m_msg
 	 nop
@@ -293,7 +293,7 @@ maybe_smp4m_msg:
 	WRITE_PAUSE
 	wr	%l4, PSR_ET, %psr
 	WRITE_PAUSE
-	sll	%o2, 28, %o2		! shift for simpler checks below
+	srl	%o3, 28, %o2		! shift for simpler checks below
 maybe_smp4m_msg_check_single:
 	andcc	%o2, 0x1, %g0
 	beq,a	maybe_smp4m_msg_check_mask
@@ -1604,7 +1604,7 @@ restore_current:
 	retl
 	 nop
 
-#ifdef CONFIG_PCI
+#ifdef CONFIG_PCIC_PCI
 #include <asm/pcic.h>
 
 	.align	4
@@ -1650,7 +1650,7 @@ pcic_nmi_trap_patch:
 	 rd	%psr, %l0
 	.word	0
 
-#endif /* CONFIG_PCI */
+#endif /* CONFIG_PCIC_PCI */
 
 	.globl	flushw_all
 flushw_all:

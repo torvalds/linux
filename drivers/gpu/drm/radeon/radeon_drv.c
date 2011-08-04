@@ -113,7 +113,7 @@ int radeon_benchmarking = 0;
 int radeon_testing = 0;
 int radeon_connector_table = 0;
 int radeon_tv = 1;
-int radeon_audio = 1;
+int radeon_audio = 0;
 int radeon_disp_priority = 0;
 int radeon_hw_i2c = 0;
 int radeon_pcie_gen2 = 0;
@@ -151,7 +151,7 @@ module_param_named(connector_table, radeon_connector_table, int, 0444);
 MODULE_PARM_DESC(tv, "TV enable (0 = disable)");
 module_param_named(tv, radeon_tv, int, 0444);
 
-MODULE_PARM_DESC(audio, "Audio enable (0 = disable)");
+MODULE_PARM_DESC(audio, "Audio enable (1 = enable)");
 module_param_named(audio, radeon_audio, int, 0444);
 
 MODULE_PARM_DESC(disp_priority, "Display Priority (0 = auto, 1 = normal, 2 = high)");

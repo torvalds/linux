@@ -166,7 +166,7 @@ static void __init omap_detect_sram(void)
 		else if (cpu_is_omap1611())
 			omap_sram_size = SZ_256K;
 		else {
-			printk(KERN_ERR "Could not detect SRAM size\n");
+			pr_err("Could not detect SRAM size\n");
 			omap_sram_size = 0x4000;
 		}
 	}
@@ -221,10 +221,10 @@ static void __init omap_map_sram(void)
 	omap_sram_io_desc[0].length = ROUND_DOWN(omap_sram_size, PAGE_SIZE);
 	iotable_init(omap_sram_io_desc, ARRAY_SIZE(omap_sram_io_desc));
 
-	printk(KERN_INFO "SRAM: Mapped pa 0x%08lx to va 0x%08lx size: 0x%lx\n",
-	__pfn_to_phys(omap_sram_io_desc[0].pfn),
-	omap_sram_io_desc[0].virtual,
-	       omap_sram_io_desc[0].length);
+	pr_info("SRAM: Mapped pa 0x%08llx to va 0x%08lx size: 0x%lx\n",
+		(long long) __pfn_to_phys(omap_sram_io_desc[0].pfn),
+		omap_sram_io_desc[0].virtual,
+		omap_sram_io_desc[0].length);
 
 	/*
 	 * Normally devicemaps_init() would flush caches and tlb after
@@ -252,7 +252,7 @@ static void __init omap_map_sram(void)
 void *omap_sram_push_address(unsigned long size)
 {
 	if (size > (omap_sram_ceil - (omap_sram_base + SRAM_BOOTLOADER_SZ))) {
-		printk(KERN_ERR "Not enough space in SRAM\n");
+		pr_err("Not enough space in SRAM\n");
 		return NULL;
 	}
 

@@ -190,7 +190,8 @@ void *dst_alloc(struct dst_ops *ops, struct net_device *dev,
 	dst->lastuse = jiffies;
 	dst->flags = flags;
 	dst->next = NULL;
-	dst_entries_add(ops, 1);
+	if (!(flags & DST_NOCOUNT))
+		dst_entries_add(ops, 1);
 	return dst;
 }
 EXPORT_SYMBOL(dst_alloc);
@@ -243,7 +244,8 @@ again:
 		neigh_release(neigh);
 	}
 
-	dst_entries_add(dst->ops, -1);
+	if (!(dst->flags & DST_NOCOUNT))
+		dst_entries_add(dst->ops, -1);
 
 	if (dst->ops->destroy)
 		dst->ops->destroy(dst);

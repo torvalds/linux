@@ -612,7 +612,7 @@ static int apparmor_setprocattr(struct task_struct *task, char *name,
 static int apparmor_task_setrlimit(struct task_struct *task,
 		unsigned int resource, struct rlimit *new_rlim)
 {
-	struct aa_profile *profile = aa_current_profile();
+	struct aa_profile *profile = __aa_current_profile();
 	int error = 0;
 
 	if (!unconfined(profile))

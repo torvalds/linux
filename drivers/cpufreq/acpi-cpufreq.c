@@ -759,7 +759,7 @@ static void __exit acpi_cpufreq_exit(void)
 
 	cpufreq_unregister_driver(&acpi_cpufreq_driver);
 
-	free_percpu(acpi_perf_data);
+	free_acpi_perf_data();
 }
 
 module_param(acpi_pstate_strict, uint, 0644);

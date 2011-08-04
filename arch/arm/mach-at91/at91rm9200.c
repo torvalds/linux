@@ -199,9 +199,9 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("t0_clk", "atmel_tcb.1", &tc3_clk),
 	CLKDEV_CON_DEV_ID("t1_clk", "atmel_tcb.1", &tc4_clk),
 	CLKDEV_CON_DEV_ID("t2_clk", "atmel_tcb.1", &tc5_clk),
-	CLKDEV_CON_DEV_ID("ssc", "ssc.0", &ssc0_clk),
-	CLKDEV_CON_DEV_ID("ssc", "ssc.1", &ssc1_clk),
-	CLKDEV_CON_DEV_ID("ssc", "ssc.2", &ssc2_clk),
+	CLKDEV_CON_DEV_ID("pclk", "ssc.0", &ssc0_clk),
+	CLKDEV_CON_DEV_ID("pclk", "ssc.1", &ssc1_clk),
+	CLKDEV_CON_DEV_ID("pclk", "ssc.2", &ssc2_clk),
 };
 
 static struct clk_lookup usart_clocks_lookups[] = {

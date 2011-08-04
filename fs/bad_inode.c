@@ -231,9 +231,6 @@ static int bad_inode_readlink(struct dentry *dentry, char __user *buffer,
 
 static int bad_inode_permission(struct inode *inode, int mask, unsigned int flags)
 {
-	if (flags & IPERM_FLAG_RCU)
-		return -ECHILD;
-
 	return -EIO;
 }
 

@@ -1051,4 +1051,13 @@ config RTC_DRV_TILE
 	  Enable support for the Linux driver side of the Tilera
 	  hypervisor's real-time clock interface.
 
+config RTC_DRV_PUV3
+	tristate "PKUnity v3 RTC support"
+	depends on ARCH_PUV3
+	help
+	  This enables support for the RTC in the PKUnity-v3 SoCs.
+
+	  This drive can also be built as a module. If so, the module
+	  will be called rtc-puv3.
+
 endif # RTC_CLASS

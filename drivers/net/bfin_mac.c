@@ -52,13 +52,13 @@ MODULE_DESCRIPTION(DRV_DESC);
 MODULE_ALIAS("platform:bfin_mac");
 
 #if defined(CONFIG_BFIN_MAC_USE_L1)
-# define bfin_mac_alloc(dma_handle, size)  l1_data_sram_zalloc(size)
-# define bfin_mac_free(dma_handle, ptr)    l1_data_sram_free(ptr)
+# define bfin_mac_alloc(dma_handle, size, num)  l1_data_sram_zalloc(size*num)
+# define bfin_mac_free(dma_handle, ptr, num)    l1_data_sram_free(ptr)
 #else
-# define bfin_mac_alloc(dma_handle, size) \
-	dma_alloc_coherent(NULL, size, dma_handle, GFP_KERNEL)
-# define bfin_mac_free(dma_handle, ptr) \
-	dma_free_coherent(NULL, sizeof(*ptr), ptr, dma_handle)
+# define bfin_mac_alloc(dma_handle, size, num) \
+	dma_alloc_coherent(NULL, size*num, dma_handle, GFP_KERNEL)
+# define bfin_mac_free(dma_handle, ptr, num) \
+	dma_free_coherent(NULL, sizeof(*ptr)*num, ptr, dma_handle)
 #endif
 
 #define PKT_BUF_SZ 1580
@@ -95,7 +95,7 @@ static void desc_list_free(void)
 				t = t->next;
 			}
 		}
-		bfin_mac_free(dma_handle, tx_desc);
+		bfin_mac_free(dma_handle, tx_desc, CONFIG_BFIN_TX_DESC_NUM);
 	}
 
 	if (rx_desc) {
@@ -109,7 +109,7 @@ static void desc_list_free(void)
 				r = r->next;
 			}
 		}
-		bfin_mac_free(dma_handle, rx_desc);
+		bfin_mac_free(dma_handle, rx_desc, CONFIG_BFIN_RX_DESC_NUM);
 	}
 }
 
@@ -126,13 +126,13 @@ static int desc_list_init(void)
 #endif
 
 	tx_desc = bfin_mac_alloc(&dma_handle,
-				sizeof(struct net_dma_desc_tx) *
+				sizeof(struct net_dma_desc_tx),
 				CONFIG_BFIN_TX_DESC_NUM);
 	if (tx_desc == NULL)
 		goto init_error;
 
 	rx_desc = bfin_mac_alloc(&dma_handle,
-				sizeof(struct net_dma_desc_rx) *
+				sizeof(struct net_dma_desc_rx),
 				CONFIG_BFIN_RX_DESC_NUM);
 	if (rx_desc == NULL)
 		goto init_error;

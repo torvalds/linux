@@ -97,9 +97,7 @@ struct platform_data {
 struct pdev_entry {
 	struct list_head list;
 	struct platform_device *pdev;
-	unsigned int cpu;
 	u16 phys_proc_id;
-	u16 cpu_core_id;
 };
 
 static LIST_HEAD(pdev_list);
@@ -296,7 +294,7 @@ static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 		 * If the TjMax is not plausible, an assumption
 		 * will be used
 		 */
-		if (val > 80 && val < 120) {
+		if (val) {
 			dev_info(dev, "TjMax is %d C.\n", val);
 			return val * 1000;
 		}
@@ -304,24 +302,9 @@ static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 
 	/*
 	 * An assumption is made for early CPUs and unreadable MSR.
-	 * NOTE: the given value may not be correct.
+	 * NOTE: the calculated value may not be correct.
 	 */
-
-	switch (c->x86_model) {
-	case 0xe:
-	case 0xf:
-	case 0x16:
-	case 0x1a:
-		dev_warn(dev, "TjMax is assumed as 100 C!\n");
-		return 100000;
-	case 0x17:
-	case 0x1c:		/* Atom CPUs */
-		return adjust_tjmax(c, id, dev);
-	default:
-		dev_warn(dev, "CPU (model=0x%x) is not supported yet,"
-			" using default TjMax of 100C.\n", c->x86_model);
-		return 100000;
-	}
+	return adjust_tjmax(c, id, dev);
 }
 
 static void __devinit get_ucode_rev_on_cpu(void *edx)
@@ -341,7 +324,7 @@ static int get_pkg_tjmax(unsigned int cpu, struct device *dev)
 	err = rdmsr_safe_on_cpu(cpu, MSR_IA32_TEMPERATURE_TARGET, &eax, &edx);
 	if (!err) {
 		val = (eax >> 16) & 0xff;
-		if (val > 80 && val < 120)
+		if (val)
 			return val * 1000;
 	}
 	dev_warn(dev, "Unable to read Pkg-TjMax from CPU:%u\n", cpu);
@@ -668,9 +651,7 @@ static int __cpuinit coretemp_device_add(unsigned int cpu)
 	}
 
 	pdev_entry->pdev = pdev;
-	pdev_entry->cpu = cpu;
 	pdev_entry->phys_proc_id = TO_PHYS_ID(cpu);
-	pdev_entry->cpu_core_id = TO_CORE_ID(cpu);
 
 	list_add_tail(&pdev_entry->list, &pdev_list);
 	mutex_unlock(&pdev_list_mutex);

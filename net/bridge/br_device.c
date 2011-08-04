@@ -49,7 +49,9 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_pull(skb, ETH_HLEN);
 
 	rcu_read_lock();
-	if (is_multicast_ether_addr(dest)) {
+	if (is_broadcast_ether_addr(dest))
+		br_flood_deliver(br, skb);
+	else if (is_multicast_ether_addr(dest)) {
 		if (unlikely(netpoll_tx_running(dev))) {
 			br_flood_deliver(br, skb);
 			goto out;
@@ -243,6 +245,7 @@ int br_netpoll_enable(struct net_bridge_port *p)
 		goto out;
 
 	np->dev = p->dev;
+	strlcpy(np->dev_name, p->dev->name, IFNAMSIZ);
 
 	err = __netpoll_setup(np);
 	if (err) {

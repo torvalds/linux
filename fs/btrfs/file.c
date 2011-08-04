@@ -129,7 +129,7 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 	if (!btrfs_test_opt(root, AUTO_DEFRAG))
 		return 0;
 
-	if (root->fs_info->closing)
+	if (btrfs_fs_closing(root->fs_info))
 		return 0;
 
 	if (BTRFS_I(inode)->in_defrag)
@@ -144,7 +144,7 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 	if (!defrag)
 		return -ENOMEM;
 
-	defrag->ino = inode->i_ino;
+	defrag->ino = btrfs_ino(inode);
 	defrag->transid = transid;
 	defrag->root = root->root_key.objectid;
 
@@ -229,7 +229,7 @@ int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info)
 		first_ino = defrag->ino + 1;
 		rb_erase(&defrag->rb_node, &fs_info->defrag_inodes);
 
-		if (fs_info->closing)
+		if (btrfs_fs_closing(fs_info))
 			goto next_free;
 
 		spin_unlock(&fs_info->defrag_inodes_lock);
@@ -1480,14 +1480,12 @@ int btrfs_sync_file(struct file *file, int datasync)
 	 * the current transaction, we can bail out now without any
 	 * syncing
 	 */
-	mutex_lock(&root->fs_info->trans_mutex);
+	smp_mb();
 	if (BTRFS_I(inode)->last_trans <=
 	    root->fs_info->last_trans_committed) {
 		BTRFS_I(inode)->last_trans = 0;
-		mutex_unlock(&root->fs_info->trans_mutex);
 		goto out;
 	}
-	mutex_unlock(&root->fs_info->trans_mutex);
 
 	/*
 	 * ok we haven't committed the transaction yet, lets do a commit

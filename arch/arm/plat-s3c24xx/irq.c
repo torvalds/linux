@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
@@ -668,3 +669,8 @@ void __init s3c24xx_init_irq(void)
 
 	irqdbf("s3c2410: registered interrupt handlers\n");
 }
+
+struct syscore_ops s3c24xx_irq_syscore_ops = {
+	.suspend	= s3c24xx_irq_suspend,
+	.resume		= s3c24xx_irq_resume,
+};

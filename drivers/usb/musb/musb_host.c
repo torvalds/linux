@@ -1575,7 +1575,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			/* even if there was an error, we did the dma
 			 * for iso_frame_desc->length
 			 */
-			if (d->status != EILSEQ && d->status != -EOVERFLOW)
+			if (d->status != -EILSEQ && d->status != -EOVERFLOW)
 				d->status = 0;
 
 			if (++qh->iso_idx >= urb->number_of_packets)

@@ -57,7 +57,8 @@ static int async_error;
  */
 void device_pm_init(struct device *dev)
 {
-	dev->power.in_suspend = false;
+	dev->power.is_prepared = false;
+	dev->power.is_suspended = false;
 	init_completion(&dev->power.completion);
 	complete_all(&dev->power.completion);
 	dev->power.wakeup = NULL;
@@ -91,7 +92,7 @@ void device_pm_add(struct device *dev)
 	pr_debug("PM: Adding info for %s:%s\n",
 		 dev->bus ? dev->bus->name : "No Bus", dev_name(dev));
 	mutex_lock(&dpm_list_mtx);
-	if (dev->parent && dev->parent->power.in_suspend)
+	if (dev->parent && dev->parent->power.is_prepared)
 		dev_warn(dev, "parent %s should not be sleeping\n",
 			dev_name(dev->parent));
 	list_add_tail(&dev->power.entry, &dpm_list);
@@ -511,7 +512,14 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 	dpm_wait(dev->parent, async);
 	device_lock(dev);
 
-	dev->power.in_suspend = false;
+	/*
+	 * This is a fib.  But we'll allow new children to be added below
+	 * a resumed device, even if the device hasn't been completed yet.
+	 */
+	dev->power.is_prepared = false;
+
+	if (!dev->power.is_suspended)
+		goto Unlock;
 
 	if (dev->pwr_domain) {
 		pm_dev_dbg(dev, state, "power domain ");
@@ -548,6 +556,9 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 	}
 
  End:
+	dev->power.is_suspended = false;
+
+ Unlock:
 	device_unlock(dev);
 	complete_all(&dev->power.completion);
 
@@ -670,7 +681,7 @@ void dpm_complete(pm_message_t state)
 		struct device *dev = to_device(dpm_prepared_list.prev);
 
 		get_device(dev);
-		dev->power.in_suspend = false;
+		dev->power.is_prepared = false;
 		list_move(&dev->power.entry, &list);
 		mutex_unlock(&dpm_list_mtx);
 
@@ -835,11 +846,11 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 	device_lock(dev);
 
 	if (async_error)
-		goto End;
+		goto Unlock;
 
 	if (pm_wakeup_pending()) {
 		async_error = -EBUSY;
-		goto End;
+		goto Unlock;
 	}
 
 	if (dev->pwr_domain) {
@@ -877,6 +888,9 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 	}
 
  End:
+	dev->power.is_suspended = !error;
+
+ Unlock:
 	device_unlock(dev);
 	complete_all(&dev->power.completion);
 
@@ -1042,7 +1056,7 @@ int dpm_prepare(pm_message_t state)
 			put_device(dev);
 			break;
 		}
-		dev->power.in_suspend = true;
+		dev->power.is_prepared = true;
 		if (!list_empty(&dev->power.entry))
 			list_move_tail(&dev->power.entry, &dpm_prepared_list);
 		put_device(dev);

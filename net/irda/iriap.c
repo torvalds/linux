@@ -87,6 +87,8 @@ static inline void iriap_start_watchdog_timer(struct iriap_cb *self,
 			 iriap_watchdog_timer_expired);
 }
 
+static struct lock_class_key irias_objects_key;
+
 /*
  * Function iriap_init (void)
  *
@@ -113,6 +115,9 @@ int __init iriap_init(void)
 		hashbin_delete(iriap, NULL);
 		return -ENOMEM;
 	}
+
+	lockdep_set_class_and_name(&irias_objects->hb_spinlock, &irias_objects_key,
+				   "irias_objects");
 
 	/*
 	 *  Register some default services for IrLMP

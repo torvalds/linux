@@ -281,7 +281,7 @@ static int sun4v_read_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
 	case 4:
 		*value = ret & 0xffffffff;
 		break;
-	};
+	}
 
 
 	return PCIBIOS_SUCCESSFUL;
@@ -456,7 +456,7 @@ void pci_determine_mem_io_space(struct pci_pbm_info *pbm)
 
 		default:
 			break;
-		};
+		}
 	}
 
 	if (!saw_io || !saw_mem) {

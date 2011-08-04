@@ -1178,18 +1178,25 @@ struct sighand_struct *__lock_task_sighand(struct task_struct *tsk,
 {
 	struct sighand_struct *sighand;
 
-	rcu_read_lock();
 	for (;;) {
+		local_irq_save(*flags);
+		rcu_read_lock();
 		sighand = rcu_dereference(tsk->sighand);
-		if (unlikely(sighand == NULL))
+		if (unlikely(sighand == NULL)) {
+			rcu_read_unlock();
+			local_irq_restore(*flags);
 			break;
+		}
 
-		spin_lock_irqsave(&sighand->siglock, *flags);
-		if (likely(sighand == tsk->sighand))
+		spin_lock(&sighand->siglock);
+		if (likely(sighand == tsk->sighand)) {
+			rcu_read_unlock();
 			break;
-		spin_unlock_irqrestore(&sighand->siglock, *flags);
+		}
+		spin_unlock(&sighand->siglock);
+		rcu_read_unlock();
+		local_irq_restore(*flags);
 	}
-	rcu_read_unlock();
 
 	return sighand;
 }
@@ -2365,7 +2372,7 @@ int sigprocmask(int how, sigset_t *set, sigset_t *oldset)
 /**
  *  sys_rt_sigprocmask - change the list of currently blocked signals
  *  @how: whether to add, remove, or set signals
- *  @set: stores pending signals
+ *  @nset: stores pending signals
  *  @oset: previous value of signal mask if non-null
  *  @sigsetsize: size of sigset_t type
  */

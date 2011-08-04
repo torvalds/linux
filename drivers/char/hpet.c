@@ -163,11 +163,32 @@ static irqreturn_t hpet_interrupt(int irq, void *data)
 	 * This has the effect of treating non-periodic like periodic.
 	 */
 	if ((devp->hd_flags & (HPET_IE | HPET_PERIODIC)) == HPET_IE) {
-		unsigned long m, t;
+		unsigned long m, t, mc, base, k;
+		struct hpet __iomem *hpet = devp->hd_hpet;
+		struct hpets *hpetp = devp->hd_hpets;
 
 		t = devp->hd_ireqfreq;
 		m = read_counter(&devp->hd_timer->hpet_compare);
-		write_counter(t + m, &devp->hd_timer->hpet_compare);
+		mc = read_counter(&hpet->hpet_mc);
+		/* The time for the next interrupt would logically be t + m,
+		 * however, if we are very unlucky and the interrupt is delayed
+		 * for longer than t then we will completely miss the next
+		 * interrupt if we set t + m and an application will hang.
+		 * Therefore we need to make a more complex computation assuming
+		 * that there exists a k for which the following is true:
+		 * k * t + base < mc + delta
+		 * (k + 1) * t + base > mc + delta
+		 * where t is the interval in hpet ticks for the given freq,
+		 * base is the theoretical start value 0 < base < t,
+		 * mc is the main counter value at the time of the interrupt,
+		 * delta is the time it takes to write the a value to the
+		 * comparator.
+		 * k may then be computed as (mc - base + delta) / t .
+		 */
+		base = mc % t;
+		k = (mc - base + hpetp->hp_delta) / t;
+		write_counter(t * (k + 1) + base,
+			      &devp->hd_timer->hpet_compare);
 	}
 
 	if (devp->hd_flags & HPET_SHARED_IRQ)

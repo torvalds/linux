@@ -1058,7 +1058,6 @@ SCTP_STATIC __init int sctp_init(void)
 	int status = -EINVAL;
 	unsigned long goal;
 	unsigned long limit;
-	unsigned long nr_pages;
 	int max_share;
 	int order;
 
@@ -1148,15 +1147,7 @@ SCTP_STATIC __init int sctp_init(void)
 	/* Initialize handle used for association ids. */
 	idr_init(&sctp_assocs_id);
 
-	/* Set the pressure threshold to be a fraction of global memory that
-	 * is up to 1/2 at 256 MB, decreasing toward zero with the amount of
-	 * memory, with a floor of 128 pages.
-	 * Note this initializes the data in sctpv6_prot too
-	 * Unabashedly stolen from tcp_init
-	 */
-	nr_pages = totalram_pages - totalhigh_pages;
-	limit = min(nr_pages, 1UL<<(28-PAGE_SHIFT)) >> (20-PAGE_SHIFT);
-	limit = (limit * (nr_pages >> (20-PAGE_SHIFT))) >> (PAGE_SHIFT-11);
+	limit = nr_free_buffer_pages() / 8;
 	limit = max(limit, 128UL);
 	sysctl_sctp_mem[0] = limit / 4 * 3;
 	sysctl_sctp_mem[1] = limit;

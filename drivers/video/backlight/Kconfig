@@ -302,6 +302,18 @@ config BACKLIGHT_ADP8860
 	  To compile this driver as a module, choose M here: the module will
 	  be called adp8860_bl.
 
+config BACKLIGHT_ADP8870
+	tristate "Backlight Driver for ADP8870 using WLED"
+	depends on BACKLIGHT_CLASS_DEVICE && I2C
+	select NEW_LEDS
+	select LEDS_CLASS
+	help
+	  If you have a LCD backlight connected to the ADP8870,
+	  say Y here to enable this driver.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called adp8870_bl.
+
 config BACKLIGHT_88PM860X
 	tristate "Backlight Driver for 88PM8606 using WLED"
 	depends on MFD_88PM860X

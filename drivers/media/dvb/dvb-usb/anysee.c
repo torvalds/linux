@@ -60,8 +60,6 @@ static int anysee_ctrl_msg(struct dvb_usb_device *d, u8 *sbuf, u8 slen,
 	int act_len, ret;
 	u8 buf[64];
 
-	if (slen > sizeof(buf))
-		slen = sizeof(buf);
 	memcpy(&buf[0], sbuf, slen);
 	buf[60] = state->seq++;
 
@@ -180,30 +178,37 @@ static int anysee_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msg,
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	int ret = 0, inc, i = 0;
+	u8 buf[52]; /* 4 + 48 (I2C WR USB command header + I2C WR max) */
 
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
 	while (i < num) {
 		if (num > i + 1 && (msg[i+1].flags & I2C_M_RD)) {
-			u8 buf[6];
+			if (msg[i].len > 2 || msg[i+1].len > 60) {
+				ret = -EOPNOTSUPP;
+				break;
+			}
 			buf[0] = CMD_I2C_READ;
 			buf[1] = (msg[i].addr << 1) | 0x01;
 			buf[2] = msg[i].buf[0];
 			buf[3] = msg[i].buf[1];
 			buf[4] = msg[i].len-1;
 			buf[5] = msg[i+1].len;
-			ret = anysee_ctrl_msg(d, buf, sizeof(buf), msg[i+1].buf,
+			ret = anysee_ctrl_msg(d, buf, 6, msg[i+1].buf,
 				msg[i+1].len);
 			inc = 2;
 		} else {
-			u8 buf[4+msg[i].len];
+			if (msg[i].len > 48) {
+				ret = -EOPNOTSUPP;
+				break;
+			}
 			buf[0] = CMD_I2C_WRITE;
 			buf[1] = (msg[i].addr << 1);
 			buf[2] = msg[i].len;
 			buf[3] = 0x01;
 			memcpy(&buf[4], msg[i].buf, msg[i].len);
-			ret = anysee_ctrl_msg(d, buf, sizeof(buf), NULL, 0);
+			ret = anysee_ctrl_msg(d, buf, 4 + msg[i].len, NULL, 0);
 			inc = 1;
 		}
 		if (ret)

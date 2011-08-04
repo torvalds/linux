@@ -323,10 +323,12 @@ int omap3_mux_init(struct omap_board_mux *board_mux, int flags);
 
 /**
  * omap4_mux_init() - initialize mux system with board specific set
- * @board_mux:		Board specific mux table
+ * @board_subset:	Board specific mux table
+ * @board_wkup_subset:	Board specific mux table for wakeup instance
  * @flags:		OMAP package type used for the board
  */
-int omap4_mux_init(struct omap_board_mux *board_mux, int flags);
+int omap4_mux_init(struct omap_board_mux *board_subset,
+	struct omap_board_mux *board_wkup_subset, int flags);
 
 /**
  * omap_mux_init - private mux init function, do not call

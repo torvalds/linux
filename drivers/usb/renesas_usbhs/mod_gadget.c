@@ -1380,5 +1380,6 @@ void __devexit usbhs_mod_gadget_remove(struct usbhs_priv *priv)
 {
 	struct usbhsg_gpriv *gpriv = usbhsg_priv_to_gpriv(priv);
 
+	kfree(gpriv->uep);
 	kfree(gpriv);
 }

@@ -1,3 +1,10 @@
+config LEDS_GPIO_REGISTER
+	bool
+	help
+	  This option provides the function gpio_led_register_device.
+	  As this function is used by arch code it must not be compiled as a
+	  module.
+
 menuconfig NEW_LEDS
 	bool "LED Support"
 	help
@@ -7,21 +14,13 @@ menuconfig NEW_LEDS
 	  This is not related to standard keyboard LEDs which are controlled
 	  via the input system.
 
+if NEW_LEDS
+
 config LEDS_CLASS
 	bool "LED Class Support"
-	depends on NEW_LEDS
 	help
 	  This option enables the led sysfs class in /sys/class/leds.  You'll
 	  need this to do anything useful with LEDs.  If unsure, say N.
-
-config LEDS_GPIO_REGISTER
-	bool
-	help
-	  This option provides the function gpio_led_register_device.
-	  As this function is used by arch code it must not be compiled as a
-	  module.
-
-if NEW_LEDS
 
 comment "LED drivers"
 
@@ -391,6 +390,7 @@ config LEDS_NETXBIG
 
 config LEDS_ASIC3
 	bool "LED support for the HTC ASIC3"
+	depends on LEDS_CLASS
 	depends on MFD_ASIC3
 	default y
 	help

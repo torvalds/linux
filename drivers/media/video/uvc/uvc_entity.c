@@ -27,14 +27,20 @@ static int uvc_mc_register_entity(struct uvc_video_chain *chain,
 	struct uvc_entity *entity)
 {
 	const u32 flags = MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE;
-	struct uvc_entity *remote;
+	struct media_entity *sink;
 	unsigned int i;
-	u8 remote_pad;
 	int ret;
+
+	sink = (UVC_ENTITY_TYPE(entity) == UVC_TT_STREAMING)
+	     ? (entity->vdev ? &entity->vdev->entity : NULL)
+	     : &entity->subdev.entity;
+	if (sink == NULL)
+		return 0;
 
 	for (i = 0; i < entity->num_pads; ++i) {
 		struct media_entity *source;
-		struct media_entity *sink;
+		struct uvc_entity *remote;
+		u8 remote_pad;
 
 		if (!(entity->pads[i].flags & MEDIA_PAD_FL_SINK))
 			continue;
@@ -43,10 +49,11 @@ static int uvc_mc_register_entity(struct uvc_video_chain *chain,
 		if (remote == NULL)
 			return -EINVAL;
 
-		source = (UVC_ENTITY_TYPE(remote) == UVC_TT_STREAMING)
-		       ? &remote->vdev->entity : &remote->subdev.entity;
-		sink = (UVC_ENTITY_TYPE(entity) == UVC_TT_STREAMING)
-		     ? &entity->vdev->entity : &entity->subdev.entity;
+		source = (UVC_ENTITY_TYPE(remote) != UVC_TT_STREAMING)
+		       ? (remote->vdev ? &remote->vdev->entity : NULL)
+		       : &remote->subdev.entity;
+		if (source == NULL)
+			continue;
 
 		remote_pad = remote->num_pads - 1;
 		ret = media_entity_create_link(source, remote_pad,
@@ -55,11 +62,10 @@ static int uvc_mc_register_entity(struct uvc_video_chain *chain,
 			return ret;
 	}
 
-	if (UVC_ENTITY_TYPE(entity) != UVC_TT_STREAMING)
-		ret = v4l2_device_register_subdev(&chain->dev->vdev,
-						  &entity->subdev);
+	if (UVC_ENTITY_TYPE(entity) == UVC_TT_STREAMING)
+		return 0;
 
-	return ret;
+	return v4l2_device_register_subdev(&chain->dev->vdev, &entity->subdev);
 }
 
 static struct v4l2_subdev_ops uvc_subdev_ops = {
@@ -84,9 +90,11 @@ static int uvc_mc_init_entity(struct uvc_entity *entity)
 
 		ret = media_entity_init(&entity->subdev.entity,
 					entity->num_pads, entity->pads, 0);
-	} else
+	} else if (entity->vdev != NULL) {
 		ret = media_entity_init(&entity->vdev->entity,
 					entity->num_pads, entity->pads, 0);
+	} else
+		ret = 0;
 
 	return ret;
 }

@@ -1625,7 +1625,7 @@ static void __init sun4v_ktsb_init(void)
 		ktsb_descr[0].pgsz_idx = HV_PGSZ_IDX_4MB;
 		ktsb_descr[0].pgsz_mask = HV_PGSZ_MASK_4MB;
 		break;
-	};
+	}
 
 	ktsb_descr[0].assoc = 1;
 	ktsb_descr[0].num_ttes = KERNEL_TSB_NENTRIES;
@@ -2266,7 +2266,7 @@ unsigned long pte_sz_bits(unsigned long sz)
 			return _PAGE_SZ512K_4V;
 		case 4 * 1024 * 1024:
 			return _PAGE_SZ4MB_4V;
-		};
+		}
 	} else {
 		switch (sz) {
 		case 8 * 1024:
@@ -2278,7 +2278,7 @@ unsigned long pte_sz_bits(unsigned long sz)
 			return _PAGE_SZ512K_4U;
 		case 4 * 1024 * 1024:
 			return _PAGE_SZ4MB_4U;
-		};
+		}
 	}
 }
 

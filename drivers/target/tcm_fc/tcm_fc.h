@@ -144,7 +144,7 @@ enum ft_cmd_state {
  */
 struct ft_cmd {
 	enum ft_cmd_state state;
-	u16 lun;			/* LUN from request */
+	u32 lun;                        /* LUN from request */
 	struct ft_sess *sess;		/* session held for cmd */
 	struct fc_seq *seq;		/* sequence in exchange mgr */
 	struct se_cmd se_cmd;		/* Local TCM I/O descriptor */

@@ -243,7 +243,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 		ip->flags &= ~(BTRFS_INODE_COMPRESS | BTRFS_INODE_NOCOMPRESS);
 	}
 
-	trans = btrfs_join_transaction(root, 1);
+	trans = btrfs_join_transaction(root);
 	BUG_ON(IS_ERR(trans));
 
 	ret = btrfs_update_inode(trans, root, inode);
@@ -414,8 +414,7 @@ static noinline int create_subvol(struct btrfs_root *root,
 
 	btrfs_record_root_in_trans(trans, new_root);
 
-	ret = btrfs_create_subvol_root(trans, new_root, new_dirid,
-				       BTRFS_I(dir)->block_group);
+	ret = btrfs_create_subvol_root(trans, new_root, new_dirid);
 	/*
 	 * insert the directory item
 	 */
@@ -483,8 +482,10 @@ static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 	ret = btrfs_snap_reserve_metadata(trans, pending_snapshot);
 	BUG_ON(ret);
 
+	spin_lock(&root->fs_info->trans_lock);
 	list_add(&pending_snapshot->list,
 		 &trans->transaction->pending_snapshots);
+	spin_unlock(&root->fs_info->trans_lock);
 	if (async_transid) {
 		*async_transid = trans->transid;
 		ret = btrfs_commit_transaction_async(trans,
@@ -707,16 +708,17 @@ static int find_new_extents(struct btrfs_root *root,
 	struct btrfs_file_extent_item *extent;
 	int type;
 	int ret;
+	u64 ino = btrfs_ino(inode);
 
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
 
-	min_key.objectid = inode->i_ino;
+	min_key.objectid = ino;
 	min_key.type = BTRFS_EXTENT_DATA_KEY;
 	min_key.offset = *off;
 
-	max_key.objectid = inode->i_ino;
+	max_key.objectid = ino;
 	max_key.type = (u8)-1;
 	max_key.offset = (u64)-1;
 
@@ -727,7 +729,7 @@ static int find_new_extents(struct btrfs_root *root,
 					   path, 0, newer_than);
 		if (ret != 0)
 			goto none;
-		if (min_key.objectid != inode->i_ino)
+		if (min_key.objectid != ino)
 			goto none;
 		if (min_key.type != BTRFS_EXTENT_DATA_KEY)
 			goto none;
@@ -2054,29 +2056,34 @@ static long btrfs_ioctl_rm_dev(struct btrfs_root *root, void __user *arg)
 
 static long btrfs_ioctl_fs_info(struct btrfs_root *root, void __user *arg)
 {
-	struct btrfs_ioctl_fs_info_args fi_args;
+	struct btrfs_ioctl_fs_info_args *fi_args;
 	struct btrfs_device *device;
 	struct btrfs_device *next;
 	struct btrfs_fs_devices *fs_devices = root->fs_info->fs_devices;
+	int ret = 0;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	fi_args.num_devices = fs_devices->num_devices;
-	fi_args.max_id = 0;
-	memcpy(&fi_args.fsid, root->fs_info->fsid, sizeof(fi_args.fsid));
+	fi_args = kzalloc(sizeof(*fi_args), GFP_KERNEL);
+	if (!fi_args)
+		return -ENOMEM;
+
+	fi_args->num_devices = fs_devices->num_devices;
+	memcpy(&fi_args->fsid, root->fs_info->fsid, sizeof(fi_args->fsid));
 
 	mutex_lock(&fs_devices->device_list_mutex);
 	list_for_each_entry_safe(device, next, &fs_devices->devices, dev_list) {
-		if (device->devid > fi_args.max_id)
-			fi_args.max_id = device->devid;
+		if (device->devid > fi_args->max_id)
+			fi_args->max_id = device->devid;
 	}
 	mutex_unlock(&fs_devices->device_list_mutex);
 
-	if (copy_to_user(arg, &fi_args, sizeof(fi_args)))
-		return -EFAULT;
+	if (copy_to_user(arg, fi_args, sizeof(*fi_args)))
+		ret = -EFAULT;
 
-	return 0;
+	kfree(fi_args);
+	return ret;
 }
 
 static long btrfs_ioctl_dev_info(struct btrfs_root *root, void __user *arg)
@@ -2489,12 +2496,10 @@ static long btrfs_ioctl_trans_start(struct file *file)
 	if (ret)
 		goto out;
 
-	mutex_lock(&root->fs_info->trans_mutex);
-	root->fs_info->open_ioctl_trans++;
-	mutex_unlock(&root->fs_info->trans_mutex);
+	atomic_inc(&root->fs_info->open_ioctl_trans);
 
 	ret = -ENOMEM;
-	trans = btrfs_start_ioctl_transaction(root, 0);
+	trans = btrfs_start_ioctl_transaction(root);
 	if (IS_ERR(trans))
 		goto out_drop;
 
@@ -2502,9 +2507,7 @@ static long btrfs_ioctl_trans_start(struct file *file)
 	return 0;
 
 out_drop:
-	mutex_lock(&root->fs_info->trans_mutex);
-	root->fs_info->open_ioctl_trans--;
-	mutex_unlock(&root->fs_info->trans_mutex);
+	atomic_dec(&root->fs_info->open_ioctl_trans);
 	mnt_drop_write(file->f_path.mnt);
 out:
 	return ret;
@@ -2738,9 +2741,7 @@ long btrfs_ioctl_trans_end(struct file *file)
 
 	btrfs_end_transaction(trans, root);
 
-	mutex_lock(&root->fs_info->trans_mutex);
-	root->fs_info->open_ioctl_trans--;
-	mutex_unlock(&root->fs_info->trans_mutex);
+	atomic_dec(&root->fs_info->open_ioctl_trans);
 
 	mnt_drop_write(file->f_path.mnt);
 	return 0;

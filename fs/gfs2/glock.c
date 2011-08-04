@@ -663,14 +663,19 @@ static void glock_work_func(struct work_struct *work)
 		drop_ref = 1;
 	}
 	spin_lock(&gl->gl_spin);
-	if (test_and_clear_bit(GLF_PENDING_DEMOTE, &gl->gl_flags) &&
+	if (test_bit(GLF_PENDING_DEMOTE, &gl->gl_flags) &&
 	    gl->gl_state != LM_ST_UNLOCKED &&
 	    gl->gl_demote_state != LM_ST_EXCLUSIVE) {
 		unsigned long holdtime, now = jiffies;
+
 		holdtime = gl->gl_tchange + gl->gl_ops->go_min_hold_time;
 		if (time_before(now, holdtime))
 			delay = holdtime - now;
-		set_bit(delay ? GLF_PENDING_DEMOTE : GLF_DEMOTE, &gl->gl_flags);
+
+		if (!delay) {
+			clear_bit(GLF_PENDING_DEMOTE, &gl->gl_flags);
+			set_bit(GLF_DEMOTE, &gl->gl_flags);
+		}
 	}
 	run_queue(gl, 0);
 	spin_unlock(&gl->gl_spin);

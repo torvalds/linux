@@ -2400,8 +2400,10 @@ static const struct of_device_id smc91x_match[] = {
 	{ .compatible = "smsc,lan91c94", },
 	{ .compatible = "smsc,lan91c111", },
 	{},
-}
+};
 MODULE_DEVICE_TABLE(of, smc91x_match);
+#else
+#define smc91x_match NULL
 #endif
 
 static struct dev_pm_ops smc_drv_pm_ops = {
@@ -2416,9 +2418,7 @@ static struct platform_driver smc_driver = {
 		.name	= CARDNAME,
 		.owner	= THIS_MODULE,
 		.pm	= &smc_drv_pm_ops,
-#ifdef CONFIG_OF
 		.of_match_table = smc91x_match,
-#endif
 	},
 };
 

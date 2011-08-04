@@ -35,8 +35,11 @@ struct netns_ipvs;
 #define NETDEV_HASHENTRIES (1 << NETDEV_HASHBITS)
 
 struct net {
+	atomic_t		passive;	/* To decided when the network
+						 * namespace should be freed.
+						 */
 	atomic_t		count;		/* To decided when the network
-						 *  namespace should be freed.
+						 *  namespace should be shut down.
 						 */
 #ifdef NETNS_REFCNT_DEBUG
 	atomic_t		use_count;	/* To track references we
@@ -154,6 +157,9 @@ int net_eq(const struct net *net1, const struct net *net2)
 {
 	return net1 == net2;
 }
+
+extern void net_drop_ns(void *);
+
 #else
 
 static inline struct net *get_net(struct net *net)
@@ -175,6 +181,8 @@ int net_eq(const struct net *net1, const struct net *net2)
 {
 	return 1;
 }
+
+#define net_drop_ns NULL
 #endif
 
 

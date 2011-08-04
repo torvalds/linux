@@ -1408,7 +1408,7 @@ got_index:
 
 /*
  * ext4_ext_next_allocated_block:
- * returns allocated block in subsequent extent or EXT_MAX_BLOCK.
+ * returns allocated block in subsequent extent or EXT_MAX_BLOCKS.
  * NOTE: it considers block number from index entry as
  * allocated block. Thus, index entries have to be consistent
  * with leaves.
@@ -1422,7 +1422,7 @@ ext4_ext_next_allocated_block(struct ext4_ext_path *path)
 	depth = path->p_depth;
 
 	if (depth == 0 && path->p_ext == NULL)
-		return EXT_MAX_BLOCK;
+		return EXT_MAX_BLOCKS;
 
 	while (depth >= 0) {
 		if (depth == path->p_depth) {
@@ -1439,12 +1439,12 @@ ext4_ext_next_allocated_block(struct ext4_ext_path *path)
 		depth--;
 	}
 
-	return EXT_MAX_BLOCK;
+	return EXT_MAX_BLOCKS;
 }
 
 /*
  * ext4_ext_next_leaf_block:
- * returns first allocated block from next leaf or EXT_MAX_BLOCK
+ * returns first allocated block from next leaf or EXT_MAX_BLOCKS
  */
 static ext4_lblk_t ext4_ext_next_leaf_block(struct inode *inode,
 					struct ext4_ext_path *path)
@@ -1456,7 +1456,7 @@ static ext4_lblk_t ext4_ext_next_leaf_block(struct inode *inode,
 
 	/* zero-tree has no leaf blocks at all */
 	if (depth == 0)
-		return EXT_MAX_BLOCK;
+		return EXT_MAX_BLOCKS;
 
 	/* go to index block */
 	depth--;
@@ -1469,7 +1469,7 @@ static ext4_lblk_t ext4_ext_next_leaf_block(struct inode *inode,
 		depth--;
 	}
 
-	return EXT_MAX_BLOCK;
+	return EXT_MAX_BLOCKS;
 }
 
 /*
@@ -1677,13 +1677,13 @@ static unsigned int ext4_ext_check_overlap(struct inode *inode,
 	 */
 	if (b2 < b1) {
 		b2 = ext4_ext_next_allocated_block(path);
-		if (b2 == EXT_MAX_BLOCK)
+		if (b2 == EXT_MAX_BLOCKS)
 			goto out;
 	}
 
 	/* check for wrap through zero on extent logical start block*/
 	if (b1 + len1 < b1) {
-		len1 = EXT_MAX_BLOCK - b1;
+		len1 = EXT_MAX_BLOCKS - b1;
 		newext->ee_len = cpu_to_le16(len1);
 		ret = 1;
 	}
@@ -1767,7 +1767,7 @@ repeat:
 	fex = EXT_LAST_EXTENT(eh);
 	next = ext4_ext_next_leaf_block(inode, path);
 	if (le32_to_cpu(newext->ee_block) > le32_to_cpu(fex->ee_block)
-	    && next != EXT_MAX_BLOCK) {
+	    && next != EXT_MAX_BLOCKS) {
 		ext_debug("next leaf block - %d\n", next);
 		BUG_ON(npath != NULL);
 		npath = ext4_ext_find_extent(inode, next, NULL);
@@ -1887,7 +1887,7 @@ static int ext4_ext_walk_space(struct inode *inode, ext4_lblk_t block,
 	BUG_ON(func == NULL);
 	BUG_ON(inode == NULL);
 
-	while (block < last && block != EXT_MAX_BLOCK) {
+	while (block < last && block != EXT_MAX_BLOCKS) {
 		num = last - block;
 		/* find extent for this block */
 		down_read(&EXT4_I(inode)->i_data_sem);
@@ -1958,7 +1958,7 @@ static int ext4_ext_walk_space(struct inode *inode, ext4_lblk_t block,
 			err = -EIO;
 			break;
 		}
-		err = func(inode, path, &cbex, ex, cbdata);
+		err = func(inode, next, &cbex, ex, cbdata);
 		ext4_ext_drop_refs(path);
 
 		if (err < 0)
@@ -2020,7 +2020,7 @@ ext4_ext_put_gap_in_cache(struct inode *inode, struct ext4_ext_path *path,
 	if (ex == NULL) {
 		/* there is no extent yet, so gap is [0;-] */
 		lblock = 0;
-		len = EXT_MAX_BLOCK;
+		len = EXT_MAX_BLOCKS;
 		ext_debug("cache gap(whole file):");
 	} else if (block < le32_to_cpu(ex->ee_block)) {
 		lblock = block;
@@ -2350,7 +2350,7 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 			 * never happen because at least one of the end points
 			 * needs to be on the edge of the extent.
 			 */
-			if (end == EXT_MAX_BLOCK) {
+			if (end == EXT_MAX_BLOCKS - 1) {
 				ext_debug("  bad truncate %u:%u\n",
 						start, end);
 				block = 0;
@@ -2398,7 +2398,7 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 			 * If this is a truncate, this condition
 			 * should never happen
 			 */
-			if (end == EXT_MAX_BLOCK) {
+			if (end == EXT_MAX_BLOCKS - 1) {
 				ext_debug("  bad truncate %u:%u\n",
 					start, end);
 				err = -EIO;
@@ -2478,7 +2478,7 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 		 * we need to remove it from the leaf
 		 */
 		if (num == 0) {
-			if (end != EXT_MAX_BLOCK) {
+			if (end != EXT_MAX_BLOCKS - 1) {
 				/*
 				 * For hole punching, we need to scoot all the
 				 * extents up when an extent is removed so that
@@ -3699,7 +3699,7 @@ void ext4_ext_truncate(struct inode *inode)
 
 	last_block = (inode->i_size + sb->s_blocksize - 1)
 			>> EXT4_BLOCK_SIZE_BITS(sb);
-	err = ext4_ext_remove_space(inode, last_block, EXT_MAX_BLOCK);
+	err = ext4_ext_remove_space(inode, last_block, EXT_MAX_BLOCKS - 1);
 
 	/* In a multi-transaction truncate, we only make the final
 	 * transaction synchronous.
@@ -3914,14 +3914,13 @@ int ext4_convert_unwritten_extents(struct inode *inode, loff_t offset,
 /*
  * Callback function called for each extent to gather FIEMAP information.
  */
-static int ext4_ext_fiemap_cb(struct inode *inode, struct ext4_ext_path *path,
+static int ext4_ext_fiemap_cb(struct inode *inode, ext4_lblk_t next,
 		       struct ext4_ext_cache *newex, struct ext4_extent *ex,
 		       void *data)
 {
 	__u64	logical;
 	__u64	physical;
 	__u64	length;
-	loff_t	size;
 	__u32	flags = 0;
 	int		ret = 0;
 	struct fiemap_extent_info *fieinfo = data;
@@ -4103,8 +4102,7 @@ found_delayed_extent:
 	if (ex && ext4_ext_is_uninitialized(ex))
 		flags |= FIEMAP_EXTENT_UNWRITTEN;
 
-	size = i_size_read(inode);
-	if (logical + length >= size)
+	if (next == EXT_MAX_BLOCKS)
 		flags |= FIEMAP_EXTENT_LAST;
 
 	ret = fiemap_fill_next_extent(fieinfo, logical, physical,
@@ -4347,8 +4345,8 @@ int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 
 		start_blk = start >> inode->i_sb->s_blocksize_bits;
 		last_blk = (start + len - 1) >> inode->i_sb->s_blocksize_bits;
-		if (last_blk >= EXT_MAX_BLOCK)
-			last_blk = EXT_MAX_BLOCK-1;
+		if (last_blk >= EXT_MAX_BLOCKS)
+			last_blk = EXT_MAX_BLOCKS-1;
 		len_blks = ((ext4_lblk_t) last_blk) - start_blk + 1;
 
 		/*

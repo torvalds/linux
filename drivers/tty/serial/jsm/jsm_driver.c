@@ -125,7 +125,7 @@ static int __devinit jsm_probe_one(struct pci_dev *pdev, const struct pci_device
 	brd->bd_uart_offset = 0x200;
 	brd->bd_dividend = 921600;
 
-	brd->re_map_membase = ioremap(brd->membase, 0x1000);
+	brd->re_map_membase = ioremap(brd->membase, pci_resource_len(pdev, 0));
 	if (!brd->re_map_membase) {
 		dev_err(&pdev->dev,
 			"card has no PCI Memory resources, "

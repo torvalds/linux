@@ -195,7 +195,7 @@ static const struct iio_info max517_info = {
 };
 
 static const struct iio_info max518_info = {
-	.attrs = &max517_attribute_group,
+	.attrs = &max518_attribute_group,
 	.driver_module = THIS_MODULE,
 };
 

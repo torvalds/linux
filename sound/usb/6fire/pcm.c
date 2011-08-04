@@ -395,12 +395,12 @@ static int usb6fire_pcm_open(struct snd_pcm_substream *alsa_sub)
 	alsa_rt->hw = pcm_hw;
 
 	if (alsa_sub->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (rt->rate >= 0)
+		if (rt->rate < ARRAY_SIZE(rates))
 			alsa_rt->hw.rates = rates_alsaid[rt->rate];
 		alsa_rt->hw.channels_max = OUT_N_CHANNELS;
 		sub = &rt->playback;
 	} else if (alsa_sub->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		if (rt->rate >= 0)
+		if (rt->rate < ARRAY_SIZE(rates))
 			alsa_rt->hw.rates = rates_alsaid[rt->rate];
 		alsa_rt->hw.channels_max = IN_N_CHANNELS;
 		sub = &rt->capture;

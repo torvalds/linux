@@ -126,9 +126,9 @@ struct extent_buffer {
 	unsigned long map_len;
 	struct page *first_page;
 	unsigned long bflags;
-	atomic_t refs;
 	struct list_head leak_list;
 	struct rcu_head rcu_head;
+	atomic_t refs;
 
 	/* the spinlock is used to protect most operations */
 	spinlock_t lock;

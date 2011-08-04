@@ -19,7 +19,6 @@ config DEFCONFIG_LIST
 config CONSTRUCTORS
 	bool
 	depends on !UML
-	default y
 
 config HAVE_IRQ_WORK
 	bool
@@ -203,6 +202,15 @@ config KERNEL_LZO
 	  (both compression and decompression) is the fastest.
 
 endchoice
+
+config DEFAULT_HOSTNAME
+	string "Default hostname"
+	default "(none)"
+	help
+	  This option determines the default system hostname before userspace
+	  calls sethostname(2). The kernel traditionally uses "(none)" here,
+	  but you may wish to use a different default here to make a minimal
+	  system more usable with less configuration.
 
 config SWAP
 	bool "Support for paging of anonymous memory (swap)"

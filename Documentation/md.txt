@@ -555,7 +555,7 @@ also have
    sync_min
    sync_max
      The two values, given as numbers of sectors, indicate a range
-     withing the array where 'check'/'repair' will operate. Must be
+     within the array where 'check'/'repair' will operate. Must be
      a multiple of chunk_size. When it reaches "sync_max" it will
      pause, rather than complete.
      You can use 'select' or 'poll' on "sync_completed" to wait for

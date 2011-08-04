@@ -29,7 +29,7 @@ struct linux_pcic {
 	int			pcic_imdim;
 };
 
-#ifdef CONFIG_PCI
+#ifdef CONFIG_PCIC_PCI
 extern int pcic_present(void);
 extern int pcic_probe(void);
 extern void pci_time_init(void);

@@ -17,51 +17,35 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 	const struct iphdr *iph = ip_hdr(skb);
 	struct rtable *rt;
 	struct flowi4 fl4 = {};
-	unsigned long orefdst;
+	__be32 saddr = iph->saddr;
+	__u8 flags = 0;
 	unsigned int hh_len;
-	unsigned int type;
 
-	type = inet_addr_type(net, iph->saddr);
-	if (skb->sk && inet_sk(skb->sk)->transparent)
-		type = RTN_LOCAL;
-	if (addr_type == RTN_UNSPEC)
-		addr_type = type;
+	if (!skb->sk && addr_type != RTN_LOCAL) {
+		if (addr_type == RTN_UNSPEC)
+			addr_type = inet_addr_type(net, saddr);
+		if (addr_type == RTN_LOCAL || addr_type == RTN_UNICAST)
+			flags |= FLOWI_FLAG_ANYSRC;
+		else
+			saddr = 0;
+	}
 
 	/* some non-standard hacks like ipt_REJECT.c:send_reset() can cause
 	 * packets with foreign saddr to appear on the NF_INET_LOCAL_OUT hook.
 	 */
-	if (addr_type == RTN_LOCAL) {
-		fl4.daddr = iph->daddr;
-		if (type == RTN_LOCAL)
-			fl4.saddr = iph->saddr;
-		fl4.flowi4_tos = RT_TOS(iph->tos);
-		fl4.flowi4_oif = skb->sk ? skb->sk->sk_bound_dev_if : 0;
-		fl4.flowi4_mark = skb->mark;
-		fl4.flowi4_flags = skb->sk ? inet_sk_flowi_flags(skb->sk) : 0;
-		rt = ip_route_output_key(net, &fl4);
-		if (IS_ERR(rt))
-			return -1;
+	fl4.daddr = iph->daddr;
+	fl4.saddr = saddr;
+	fl4.flowi4_tos = RT_TOS(iph->tos);
+	fl4.flowi4_oif = skb->sk ? skb->sk->sk_bound_dev_if : 0;
+	fl4.flowi4_mark = skb->mark;
+	fl4.flowi4_flags = skb->sk ? inet_sk_flowi_flags(skb->sk) : flags;
+	rt = ip_route_output_key(net, &fl4);
+	if (IS_ERR(rt))
+		return -1;
 
-		/* Drop old route. */
-		skb_dst_drop(skb);
-		skb_dst_set(skb, &rt->dst);
-	} else {
-		/* non-local src, find valid iif to satisfy
-		 * rp-filter when calling ip_route_input. */
-		fl4.daddr = iph->saddr;
-		rt = ip_route_output_key(net, &fl4);
-		if (IS_ERR(rt))
-			return -1;
-
-		orefdst = skb->_skb_refdst;
-		if (ip_route_input(skb, iph->daddr, iph->saddr,
-				   RT_TOS(iph->tos), rt->dst.dev) != 0) {
-			dst_release(&rt->dst);
-			return -1;
-		}
-		dst_release(&rt->dst);
-		refdst_drop(orefdst);
-	}
+	/* Drop old route. */
+	skb_dst_drop(skb);
+	skb_dst_set(skb, &rt->dst);
 
 	if (skb_dst(skb)->error)
 		return -1;

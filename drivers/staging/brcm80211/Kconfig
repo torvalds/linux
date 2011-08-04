@@ -7,6 +7,7 @@ config BRCMSMAC
 	default n
 	depends on PCI
 	depends on WLAN && MAC80211
+	depends on X86 || MIPS
 	select BRCMUTIL
 	select FW_LOADER
 	select CRC_CCITT
@@ -20,6 +21,7 @@ config BRCMFMAC
 	default n
 	depends on MMC
 	depends on WLAN && CFG80211
+	depends on X86 || MIPS
 	select BRCMUTIL
 	select FW_LOADER
 	select WIRELESS_EXT

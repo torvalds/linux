@@ -7402,24 +7402,10 @@ static int __perf_cgroup_move(void *info)
 	return 0;
 }
 
-static void perf_cgroup_move(struct task_struct *task)
+static void
+perf_cgroup_attach_task(struct cgroup *cgrp, struct task_struct *task)
 {
 	task_function_call(task, __perf_cgroup_move, task);
-}
-
-static void perf_cgroup_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-		struct cgroup *old_cgrp, struct task_struct *task,
-		bool threadgroup)
-{
-	perf_cgroup_move(task);
-	if (threadgroup) {
-		struct task_struct *c;
-		rcu_read_lock();
-		list_for_each_entry_rcu(c, &task->thread_group, thread_group) {
-			perf_cgroup_move(c);
-		}
-		rcu_read_unlock();
-	}
 }
 
 static void perf_cgroup_exit(struct cgroup_subsys *ss, struct cgroup *cgrp,
@@ -7433,7 +7419,7 @@ static void perf_cgroup_exit(struct cgroup_subsys *ss, struct cgroup *cgrp,
 	if (!(task->flags & PF_EXITING))
 		return;
 
-	perf_cgroup_move(task);
+	perf_cgroup_attach_task(cgrp, task);
 }
 
 struct cgroup_subsys perf_subsys = {
@@ -7442,6 +7428,6 @@ struct cgroup_subsys perf_subsys = {
 	.create		= perf_cgroup_create,
 	.destroy	= perf_cgroup_destroy,
 	.exit		= perf_cgroup_exit,
-	.attach		= perf_cgroup_attach,
+	.attach_task	= perf_cgroup_attach_task,
 };
 #endif /* CONFIG_CGROUP_PERF */

@@ -526,7 +526,7 @@ static int drm_mmap_dma(struct file *filp, struct vm_area_struct *vma)
 static resource_size_t drm_core_get_reg_ofs(struct drm_device *dev)
 {
 #ifdef __alpha__
-	return dev->hose->dense_mem_base - dev->hose->mem_space->start;
+	return dev->hose->dense_mem_base;
 #else
 	return 0;
 #endif

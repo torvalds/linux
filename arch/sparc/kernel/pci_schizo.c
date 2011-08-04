@@ -264,7 +264,7 @@ static void schizo_check_iommu_error_pbm(struct pci_pbm_info *pbm,
 		default:
 			type_string = "ECC Error";
 			break;
-		};
+		}
 		printk("%s: IOMMU Error, type[%s]\n",
 		       pbm->name, type_string);
 
@@ -319,7 +319,7 @@ static void schizo_check_iommu_error_pbm(struct pci_pbm_info *pbm,
 			default:
 				type_string = "ECC Error";
 				break;
-			};
+			}
 			printk("%s: IOMMU TAG(%d)[error(%s) ctx(%x) wr(%d) str(%d) "
 			       "sz(%dK) vpg(%08lx)]\n",
 			       pbm->name, i, type_string,
@@ -1328,7 +1328,7 @@ static int __devinit schizo_pbm_init(struct pci_pbm_info *pbm,
 	default:
 		chipset_name = "SCHIZO";
 		break;
-	};
+	}
 
 	/* For SCHIZO, three OBP regs:
 	 * 1) PBM controller regs

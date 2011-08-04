@@ -121,9 +121,6 @@ struct btrfs_inode {
 	 */
 	u64 index_cnt;
 
-	/* the start of block group preferred for allocations. */
-	u64 block_group;
-
 	/* the fsync log has some corner cases that mean we have to check
 	 * directories to see if any unlinks have been done before
 	 * the directory was logged.  See tree-log.c for all the

@@ -46,7 +46,7 @@ static struct __initdata omap_gpio_platform_data omap7xx_mpu_gpio_config = {
 	.bank_stride		= 2,
 };
 
-static struct __initdata platform_device omap7xx_mpu_gpio = {
+static struct platform_device omap7xx_mpu_gpio = {
 	.name           = "omap_gpio",
 	.id             = 0,
 	.dev            = {
@@ -75,7 +75,7 @@ static struct __initdata omap_gpio_platform_data omap7xx_gpio1_config = {
 	.bank_width		= 32,
 };
 
-static struct __initdata platform_device omap7xx_gpio1 = {
+static struct platform_device omap7xx_gpio1 = {
 	.name           = "omap_gpio",
 	.id             = 1,
 	.dev            = {
@@ -104,7 +104,7 @@ static struct __initdata omap_gpio_platform_data omap7xx_gpio2_config = {
 	.bank_width		= 32,
 };
 
-static struct __initdata platform_device omap7xx_gpio2 = {
+static struct platform_device omap7xx_gpio2 = {
 	.name           = "omap_gpio",
 	.id             = 2,
 	.dev            = {
@@ -133,7 +133,7 @@ static struct __initdata omap_gpio_platform_data omap7xx_gpio3_config = {
 	.bank_width		= 32,
 };
 
-static struct __initdata platform_device omap7xx_gpio3 = {
+static struct platform_device omap7xx_gpio3 = {
 	.name           = "omap_gpio",
 	.id             = 3,
 	.dev            = {
@@ -162,7 +162,7 @@ static struct __initdata omap_gpio_platform_data omap7xx_gpio4_config = {
 	.bank_width		= 32,
 };
 
-static struct __initdata platform_device omap7xx_gpio4 = {
+static struct platform_device omap7xx_gpio4 = {
 	.name           = "omap_gpio",
 	.id             = 4,
 	.dev            = {
@@ -191,7 +191,7 @@ static struct __initdata omap_gpio_platform_data omap7xx_gpio5_config = {
 	.bank_width		= 32,
 };
 
-static struct __initdata platform_device omap7xx_gpio5 = {
+static struct platform_device omap7xx_gpio5 = {
 	.name           = "omap_gpio",
 	.id             = 5,
 	.dev            = {
@@ -220,7 +220,7 @@ static struct __initdata omap_gpio_platform_data omap7xx_gpio6_config = {
 	.bank_width		= 32,
 };
 
-static struct __initdata platform_device omap7xx_gpio6 = {
+static struct platform_device omap7xx_gpio6 = {
 	.name           = "omap_gpio",
 	.id             = 6,
 	.dev            = {

@@ -411,8 +411,7 @@ static void __init u300_timer_init(void)
 	/* Use general purpose timer 2 as clock source */
 	if (clocksource_mmio_init(U300_TIMER_APP_VBASE + U300_TIMER_APP_GPT2CC,
 			"GPT2", rate, 300, 32, clocksource_mmio_readl_up))
-		printk(KERN_ERR "timer: failed to initialize clock "
-		       "source %s\n", clocksource_u300_1mhz.name);
+		pr_err("timer: failed to initialize U300 clock source\n");
 
 	clockevents_calc_mult_shift(&clockevent_u300_1mhz,
 				    rate, APPTIMER_MIN_RANGE);

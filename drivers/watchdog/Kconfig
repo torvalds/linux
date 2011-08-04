@@ -535,8 +535,7 @@ config I6300ESB_WDT
 
 config INTEL_SCU_WATCHDOG
 	bool "Intel SCU Watchdog for Mobile Platforms"
-	depends on WATCHDOG
-	depends on INTEL_SCU_IPC
+	depends on X86_MRST
 	---help---
 	  Hardware driver for the watchdog time built into the Intel SCU
 	  for Intel Mobile Platforms.
@@ -600,8 +599,7 @@ config IT87_WDT
 
 config HP_WATCHDOG
 	tristate "HP ProLiant iLO2+ Hardware Watchdog Timer"
-	depends on X86
-	default m
+	depends on X86 && PCI
 	help
 	  A software monitoring watchdog and NMI sourcing driver. This driver
 	  will detect lockups and provide a stack trace. This is a driver that

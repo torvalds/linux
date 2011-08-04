@@ -1,6 +1,8 @@
 #ifndef __OMAP_COMMON_BOARD_DEVICES__
 #define __OMAP_COMMON_BOARD_DEVICES__
 
+#define NAND_BLOCK_SIZE	SZ_128K
+
 struct twl4030_platform_data;
 struct mtd_partition;
 

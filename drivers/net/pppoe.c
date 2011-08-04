@@ -348,8 +348,9 @@ static int pppoe_device_event(struct notifier_block *this,
 
 	/* Only look at sockets that are using this specific device. */
 	switch (event) {
+	case NETDEV_CHANGEADDR:
 	case NETDEV_CHANGEMTU:
-		/* A change in mtu is a bad thing, requiring
+		/* A change in mtu or address is a bad thing, requiring
 		 * LCP re-negotiation.
 		 */
 

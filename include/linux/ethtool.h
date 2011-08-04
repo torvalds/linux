@@ -268,7 +268,7 @@ struct ethtool_pauseparam {
 	__u32	cmd;	/* ETHTOOL_{G,S}PAUSEPARAM */
 
 	/* If the link is being auto-negotiated (via ethtool_cmd.autoneg
-	 * being true) the user may set 'autonet' here non-zero to have the
+	 * being true) the user may set 'autoneg' here non-zero to have the
 	 * pause parameters be auto-negotiated too.  In such a case, the
 	 * {rx,tx}_pause values below determine what capabilities are
 	 * advertised.
@@ -811,7 +811,7 @@ bool ethtool_invalid_flags(struct net_device *dev, u32 data, u32 supported);
  * @get_tx_csum: Deprecated as redundant. Report whether transmit checksums
  *	are turned on or off.
  * @set_tx_csum: Deprecated in favour of generic netdev features.  Turn
- *	transmit checksums on or off.  Returns a egative error code or zero.
+ *	transmit checksums on or off.  Returns a negative error code or zero.
  * @get_sg: Deprecated as redundant.  Report whether scatter-gather is
  *	enabled.  
  * @set_sg: Deprecated in favour of generic netdev features.  Turn
@@ -1087,7 +1087,7 @@ struct ethtool_ops {
 /* The following are all involved in forcing a particular link
  * mode for the device for setting things.  When getting the
  * devices settings, these indicate the current mode and whether
- * it was foced up into this mode or autonegotiated.
+ * it was forced up into this mode or autonegotiated.
  */
 
 /* The forced speed, 10Mb, 100Mb, gigabit, 2.5Gb, 10GbE. */

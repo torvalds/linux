@@ -60,7 +60,7 @@ struct code_header {
 	    HPI_VER_MINOR(HPI_VER) * 100 + HPI_VER_RELEASE(HPI_VER)))
 
 /***********************************************************************/
-#include "linux/pci.h"
+#include <linux/pci.h>
 /*-------------------------------------------------------------------*/
 short hpi_dsp_code_open(u32 adapter, struct dsp_code *ps_dsp_code,
 	u32 *pos_error_code)

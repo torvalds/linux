@@ -12,6 +12,10 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
 */
+
+#ifndef __PLAT_DEVS_H
+#define __PLAT_DEVS_H __FILE__
+
 #include <linux/platform_device.h>
 
 struct s3c24xx_uart_resources {
@@ -75,10 +79,8 @@ extern struct platform_device s5pc100_device_spi1;
 extern struct platform_device s5pc100_device_spi2;
 extern struct platform_device s5pv210_device_spi0;
 extern struct platform_device s5pv210_device_spi1;
-extern struct platform_device s5p6440_device_spi0;
-extern struct platform_device s5p6440_device_spi1;
-extern struct platform_device s5p6450_device_spi0;
-extern struct platform_device s5p6450_device_spi1;
+extern struct platform_device s5p64x0_device_spi0;
+extern struct platform_device s5p64x0_device_spi1;
 
 extern struct platform_device s3c_device_hwmon;
 
@@ -161,3 +163,5 @@ extern struct platform_device s3c_device_ac97;
  */
 extern void *s3c_set_platdata(void *pd, size_t pdsize,
 			      struct platform_device *pdev);
+
+#endif /* __PLAT_DEVS_H */

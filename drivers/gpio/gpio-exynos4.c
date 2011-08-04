@@ -21,16 +21,37 @@
 #include <plat/gpio-cfg.h>
 #include <plat/gpio-cfg-helpers.h>
 
+int s3c_gpio_setpull_exynos4(struct s3c_gpio_chip *chip,
+				unsigned int off, s3c_gpio_pull_t pull)
+{
+	if (pull == S3C_GPIO_PULL_UP)
+		pull = 3;
+
+	return s3c_gpio_setpull_updown(chip, off, pull);
+}
+
+s3c_gpio_pull_t s3c_gpio_getpull_exynos4(struct s3c_gpio_chip *chip,
+						unsigned int off)
+{
+	s3c_gpio_pull_t pull;
+
+	pull = s3c_gpio_getpull_updown(chip, off);
+	if (pull == 3)
+		pull = S3C_GPIO_PULL_UP;
+
+	return pull;
+}
+
 static struct s3c_gpio_cfg gpio_cfg = {
 	.set_config	= s3c_gpio_setcfg_s3c64xx_4bit,
-	.set_pull	= s3c_gpio_setpull_updown,
-	.get_pull	= s3c_gpio_getpull_updown,
+	.set_pull	= s3c_gpio_setpull_exynos4,
+	.get_pull	= s3c_gpio_getpull_exynos4,
 };
 
 static struct s3c_gpio_cfg gpio_cfg_noint = {
 	.set_config	= s3c_gpio_setcfg_s3c64xx_4bit,
-	.set_pull	= s3c_gpio_setpull_updown,
-	.get_pull	= s3c_gpio_getpull_updown,
+	.set_pull	= s3c_gpio_setpull_exynos4,
+	.get_pull	= s3c_gpio_getpull_exynos4,
 };
 
 /*

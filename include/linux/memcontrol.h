@@ -84,6 +84,7 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
 
 extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
 extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+extern struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm);
 
 static inline
 int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
@@ -242,6 +243,11 @@ mem_cgroup_move_lists(struct page *page, enum lru_list from, enum lru_list to)
 }
 
 static inline struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+{
+	return NULL;
+}
+
+static inline struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
 {
 	return NULL;
 }

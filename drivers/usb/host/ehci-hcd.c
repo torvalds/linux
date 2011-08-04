@@ -1,4 +1,8 @@
 /*
+ * Enhanced Host Controller Interface (EHCI) driver for USB.
+ *
+ * Maintainer: Alan Stern <stern@rowland.harvard.edu>
+ *
  * Copyright (c) 2000-2004 by David Brownell
  *
  * This program is free software; you can redistribute it and/or modify it

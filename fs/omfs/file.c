@@ -4,7 +4,6 @@
  * Released under GPL v2.
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/buffer_head.h>

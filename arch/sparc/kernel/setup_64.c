@@ -209,7 +209,7 @@ void __init per_cpu_patch(void)
 		default:
 			prom_printf("Unknown cpu type, halting.\n");
 			prom_halt();
-		};
+		}
 
 		*(unsigned int *) (addr +  0) = insns[0];
 		wmb();
