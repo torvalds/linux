@@ -3,6 +3,7 @@
 
 struct usb_mixer_interface {
 	struct snd_usb_audio *chip;
+	struct usb_host_interface *hostif;
 	struct list_head list;
 	unsigned int ignore_ctl_error;
 	struct urb *urb;
