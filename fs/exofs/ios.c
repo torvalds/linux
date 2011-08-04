@@ -305,20 +305,21 @@ int exofs_check_io(struct exofs_io_state *ios, u64 *resid)
 struct _striping_info {
 	u64 obj_offset;
 	u64 group_length;
+	u64 M; /* for truncate */
 	unsigned dev;
 	unsigned unit_off;
 };
 
-static void _calc_stripe_info(struct exofs_io_state *ios, u64 file_offset,
+static void _calc_stripe_info(struct exofs_layout *layout, u64 file_offset,
 			      struct _striping_info *si)
 {
-	u32	stripe_unit = ios->layout->stripe_unit;
-	u32	group_width = ios->layout->group_width;
-	u64	group_depth = ios->layout->group_depth;
+	u32	stripe_unit = layout->stripe_unit;
+	u32	group_width = layout->group_width;
+	u64	group_depth = layout->group_depth;
 
 	u32	U = stripe_unit * group_width;
 	u64	T = U * group_depth;
-	u64	S = T * ios->layout->group_count;
+	u64	S = T * layout->group_count;
 	u64	M = div64_u64(file_offset, S);
 
 	/*
@@ -333,7 +334,7 @@ static void _calc_stripe_info(struct exofs_io_state *ios, u64 file_offset,
 
 	/* "H - (N * U)" is just "H % U" so it's bound to u32 */
 	si->dev = (u32)(H - (N * U)) / stripe_unit + G * group_width;
-	si->dev *= ios->layout->mirrors_p1;
+	si->dev *= layout->mirrors_p1;
 
 	div_u64_rem(file_offset, stripe_unit, &si->unit_off);
 
@@ -341,6 +342,7 @@ static void _calc_stripe_info(struct exofs_io_state *ios, u64 file_offset,
 				  (M * group_depth * stripe_unit);
 
 	si->group_length = T - H;
+	si->M = M;
 }
 
 static int _add_stripe_unit(struct exofs_io_state *ios,  unsigned *cur_pg,
@@ -454,7 +456,7 @@ static int _prepare_for_striping(struct exofs_io_state *ios)
 		if (ios->kern_buff) {
 			struct exofs_per_dev_state *per_dev = &ios->per_dev[0];
 
-			_calc_stripe_info(ios, ios->offset, &si);
+			_calc_stripe_info(ios->layout, ios->offset, &si);
 			per_dev->offset = si.obj_offset;
 			per_dev->dev = si.dev;
 
@@ -468,7 +470,7 @@ static int _prepare_for_striping(struct exofs_io_state *ios)
 	}
 
 	while (length) {
-		_calc_stripe_info(ios, offset, &si);
+		_calc_stripe_info(ios->layout, offset, &si);
 
 		if (length < si.group_length)
 			si.group_length = length;
@@ -745,6 +747,31 @@ static int _truncate_mirrors(struct exofs_io_state *ios, unsigned cur_comp,
 	return 0;
 }
 
+struct _trunc_info {
+	struct _striping_info si;
+	u64 prev_group_obj_off;
+	u64 next_group_obj_off;
+
+	unsigned first_group_dev;
+	unsigned nex_group_dev;
+	unsigned max_devs;
+};
+
+void _calc_trunk_info(struct exofs_layout *layout, u64 file_offset,
+		       struct _trunc_info *ti)
+{
+	unsigned stripe_unit = layout->stripe_unit;
+
+	_calc_stripe_info(layout, file_offset, &ti->si);
+
+	ti->prev_group_obj_off = ti->si.M * stripe_unit;
+	ti->next_group_obj_off = ti->si.M ? (ti->si.M - 1) * stripe_unit : 0;
+
+	ti->first_group_dev = ti->si.dev - (ti->si.dev % layout->group_width);
+	ti->nex_group_dev = ti->first_group_dev + layout->group_width;
+	ti->max_devs = layout->group_width * layout->group_count;
+}
+
 int exofs_oi_truncate(struct exofs_i_info *oi, u64 size)
 {
 	struct exofs_sb_info *sbi = oi->vfs_inode.i_sb->s_fs_info;
@@ -753,14 +780,16 @@ int exofs_oi_truncate(struct exofs_i_info *oi, u64 size)
 		struct osd_attr attr;
 		__be64 newsize;
 	} *size_attrs;
-	struct _striping_info si;
+	struct _trunc_info ti;
 	int i, ret;
 
 	ret = exofs_get_io_state(&sbi->layout, &ios);
 	if (unlikely(ret))
 		return ret;
 
-	size_attrs = kcalloc(ios->layout->group_width, sizeof(*size_attrs),
+	_calc_trunk_info(ios->layout, size, &ti);
+
+	size_attrs = kcalloc(ti.max_devs, sizeof(*size_attrs),
 			     GFP_KERNEL);
 	if (unlikely(!size_attrs)) {
 		ret = -ENOMEM;
@@ -769,26 +798,30 @@ int exofs_oi_truncate(struct exofs_i_info *oi, u64 size)
 
 	ios->obj.id = exofs_oi_objno(oi);
 	ios->cred = oi->i_cred;
-
 	ios->numdevs = ios->layout->s_numdevs;
-	_calc_stripe_info(ios, size, &si);
 
-	for (i = 0; i < ios->layout->group_width; ++i) {
+	for (i = 0; i < ti.max_devs; ++i) {
 		struct exofs_trunc_attr *size_attr = &size_attrs[i];
 		u64 obj_size;
 
-		if (i < si.dev)
-			obj_size = si.obj_offset +
-					ios->layout->stripe_unit - si.unit_off;
-		else if (i == si.dev)
-			obj_size = si.obj_offset;
-		else /* i > si.dev */
-			obj_size = si.obj_offset - si.unit_off;
+		if (i < ti.first_group_dev)
+			obj_size = ti.prev_group_obj_off;
+		else if (i >= ti.nex_group_dev)
+			obj_size = ti.next_group_obj_off;
+		else if (i < ti.si.dev) /* dev within this group */
+			obj_size = ti.si.obj_offset +
+				      ios->layout->stripe_unit - ti.si.unit_off;
+		else if (i == ti.si.dev)
+			obj_size = ti.si.obj_offset;
+		else /* i > ti.dev */
+			obj_size = ti.si.obj_offset - ti.si.unit_off;
 
 		size_attr->newsize = cpu_to_be64(obj_size);
 		size_attr->attr = g_attr_logical_length;
 		size_attr->attr.val_ptr = &size_attr->newsize;
 
+		EXOFS_DBGMSG("trunc(0x%llx) obj_offset=0x%llx dev=%d\n",
+			     _LLU(ios->obj.id), _LLU(obj_size), i);
 		ret = _truncate_mirrors(ios, i * ios->layout->mirrors_p1,
 					&size_attr->attr);
 		if (unlikely(ret))
