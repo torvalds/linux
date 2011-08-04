@@ -479,11 +479,8 @@ static int alarm_timer_set(struct k_itimer *timr, int flags,
 	if (!rtcdev)
 		return -ENOTSUPP;
 
-	/* Save old values */
-	old_setting->it_interval =
-			ktime_to_timespec(timr->it.alarmtimer.period);
-	old_setting->it_value =
-			ktime_to_timespec(timr->it.alarmtimer.node.expires);
+	if (old_setting)
+		alarm_timer_get(timr, old_setting);
 
 	/* If the timer was already set, cancel it */
 	alarm_cancel(&timr->it.alarmtimer);
