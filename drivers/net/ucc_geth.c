@@ -1761,10 +1761,12 @@ static int init_phy(struct net_device *dev)
 	if (priv->phy_interface == PHY_INTERFACE_MODE_SGMII)
 		uec_configure_serdes(dev);
 
-	phydev->supported &= (ADVERTISED_10baseT_Half |
-				 ADVERTISED_10baseT_Full |
-				 ADVERTISED_100baseT_Half |
-				 ADVERTISED_100baseT_Full);
+	phydev->supported &= (SUPPORTED_MII |
+			      SUPPORTED_Autoneg |
+			      ADVERTISED_10baseT_Half |
+			      ADVERTISED_10baseT_Full |
+			      ADVERTISED_100baseT_Half |
+			      ADVERTISED_100baseT_Full);
 
 	if (priv->max_speed == SPEED_1000)
 		phydev->supported |= ADVERTISED_1000baseT_Full;
