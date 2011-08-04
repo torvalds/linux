@@ -1086,7 +1086,7 @@ static inline void ab3550_remove_debugfs(void)
  * This sets up a default config in the AB3550 chip so that it
  * will work as expected.
  */
-static int __init ab3550_setup(struct ab3550 *ab)
+static int __devinit ab3550_setup(struct ab3550 *ab)
 {
 	int err = 0;
 	int i;
@@ -1193,7 +1193,7 @@ struct ab_family_id {
 	char	*name;
 };
 
-static const struct ab_family_id ids[] __initdata = {
+static const struct ab_family_id ids[] __devinitconst = {
 	/* AB3550 */
 	{
 		.id = AB3550_P1A,
@@ -1205,7 +1205,7 @@ static const struct ab_family_id ids[] __initdata = {
 	}
 };
 
-static int __init ab3550_probe(struct i2c_client *client,
+static int __devinit ab3550_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
 	struct ab3550 *ab;
@@ -1326,7 +1326,7 @@ exit_no_detect:
 	return err;
 }
 
-static int __exit ab3550_remove(struct i2c_client *client)
+static int __devexit ab3550_remove(struct i2c_client *client)
 {
 	struct ab3550 *ab = i2c_get_clientdata(client);
 	int num_i2c_clients = AB3550_NUM_BANKS;
@@ -1359,7 +1359,7 @@ static struct i2c_driver ab3550_driver = {
 	},
 	.id_table	= ab3550_id,
 	.probe		= ab3550_probe,
-	.remove		= __exit_p(ab3550_remove),
+	.remove		= __devexit_p(ab3550_remove),
 };
 
 static int __init ab3550_i2c_init(void)
