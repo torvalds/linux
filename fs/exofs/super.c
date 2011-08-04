@@ -698,6 +698,8 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 		odi.osdname_len = strlen(opts->dev_name);
 		odi.osdname = (u8 *)opts->dev_name;
 		od = osduld_info_lookup(&odi);
+		kfree(opts->dev_name);
+		opts->dev_name = NULL;
 	} else {
 		od = osduld_path_lookup(opts->dev_name);
 	}
@@ -806,16 +808,12 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 
 	_exofs_print_device("Mounting", opts->dev_name, sbi->layout.s_ods[0],
 			    sbi->layout.s_pid);
-	if (opts->is_osdname)
-		kfree(opts->dev_name);
 	return 0;
 
 free_sbi:
 	EXOFS_ERR("Unable to mount exofs on %s pid=0x%llx err=%d\n",
 		  opts->dev_name, sbi->layout.s_pid, ret);
 	exofs_free_sbi(sbi);
-	if (opts->is_osdname)
-		kfree(opts->dev_name);
 	return ret;
 }
 
