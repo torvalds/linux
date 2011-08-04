@@ -20,6 +20,7 @@
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/dma-mapping.h>
 
 #include <mach/hardware.h>
 #include <mach/map.h>
@@ -145,6 +146,7 @@ void __init s3c64xx_init_io(struct map_desc *mach_desc, int size)
 	/* initialise the io descriptors we need for initialisation */
 	iotable_init(s3c_iodesc, ARRAY_SIZE(s3c_iodesc));
 	iotable_init(mach_desc, size);
+	init_consistent_dma_size(SZ_8M);
 
 	idcode = __raw_readl(S3C_VA_SYS + 0x118);
 	if (!idcode) {
