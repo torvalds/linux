@@ -21,8 +21,10 @@ static inline int lg3ff_init(struct hid_device *hdev) { return -1; }
 
 #ifdef CONFIG_LOGIWII_FF
 int lg4ff_init(struct hid_device *hdev);
+int lg4ff_deinit(struct hid_device *hdev);
 #else
 static inline int lg4ff_init(struct hid_device *hdev) { return -1; }
+static inline int lg4ff_deinit(struct hid_device *hdev) { return -1; }
 #endif
 
 #endif

@@ -406,6 +406,15 @@ err_free:
 	return ret;
 }
 
+static void lg_remove(struct hid_device *hdev)
+{
+	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
+	if(quirks & LG_FF4)
+		lg4ff_deinit(hdev);
+
+	hid_hw_stop(hdev);
+}
+
 static const struct hid_device_id lg_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_MX3000_RECEIVER),
 		.driver_data = LG_RDESC | LG_WIRELESS },
@@ -481,6 +490,7 @@ static struct hid_driver lg_driver = {
 	.input_mapped = lg_input_mapped,
 	.event = lg_event,
 	.probe = lg_probe,
+	.remove = lg_remove,
 };
 
 static int __init lg_init(void)
