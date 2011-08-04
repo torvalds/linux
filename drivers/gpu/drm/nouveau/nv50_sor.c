@@ -124,7 +124,7 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 		if (mode == DRM_MODE_DPMS_ON) {
 			u8 status = DP_SET_POWER_D0;
 			nouveau_dp_auxch(auxch, 8, DP_SET_POWER, &status, 1);
-			nouveau_dp_link_train(encoder);
+			nouveau_dp_link_train(encoder, nv_encoder->dp.datarate);
 		} else {
 			u8 status = DP_SET_POWER_D3;
 			nouveau_dp_auxch(auxch, 8, DP_SET_POWER, &status, 1);
@@ -194,8 +194,6 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	NV_DEBUG_KMS(dev, "or %d type %d -> crtc %d\n",
 		     nv_encoder->or, nv_encoder->dcb->type, crtc->index);
 
-	nv50_sor_dpms(encoder, DRM_MODE_DPMS_ON);
-
 	switch (nv_encoder->dcb->type) {
 	case OUTPUT_TMDS:
 		if (nv_encoder->dcb->sorconf.link & 1) {
@@ -208,10 +206,13 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		break;
 	case OUTPUT_DP:
 		nv_connector = nouveau_encoder_connector_get(nv_encoder);
-		if (nv_connector && nv_connector->base.display_info.bpc == 6)
+		if (nv_connector && nv_connector->base.display_info.bpc == 6) {
+			nv_encoder->dp.datarate = crtc->mode->clock * 18 / 8;
 			mode_ctl |= 0x00020000;
-		else
+		} else {
+			nv_encoder->dp.datarate = crtc->mode->clock * 24 / 8;
 			mode_ctl |= 0x00050000;
+		}
 
 		if (nv_encoder->dcb->sorconf.link & 1)
 			mode_ctl |= 0x00000800;
@@ -232,6 +233,8 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC)
 		mode_ctl |= NV50_EVO_SOR_MODE_CTRL_NVSYNC;
+
+	nv50_sor_dpms(encoder, DRM_MODE_DPMS_ON);
 
 	ret = RING_SPACE(evo, 2);
 	if (ret) {

@@ -507,7 +507,7 @@ nouveau_dp_link_train_commit(struct drm_encoder *encoder, uint8_t *config)
 }
 
 bool
-nouveau_dp_link_train(struct drm_encoder *encoder)
+nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;

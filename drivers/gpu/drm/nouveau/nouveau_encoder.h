@@ -53,6 +53,7 @@ struct nouveau_encoder {
 			int link_nr;
 			int link_bw;
 			bool enhanced_frame;
+			u32 datarate;
 		} dp;
 	};
 };

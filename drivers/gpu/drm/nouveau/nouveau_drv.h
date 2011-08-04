@@ -1100,7 +1100,7 @@ int nouveau_ttm_mmap(struct file *, struct vm_area_struct *);
 int nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
 		     uint8_t *data, int data_nr);
 bool nouveau_dp_detect(struct drm_encoder *);
-bool nouveau_dp_link_train(struct drm_encoder *);
+bool nouveau_dp_link_train(struct drm_encoder *, u32 datarate);
 void nouveau_dp_tu_update(struct drm_device *, int, int, u32, u32);
 
 /* nv04_fb.c */
