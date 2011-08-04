@@ -562,34 +562,33 @@ static struct rtnl_link_stats64 *
 sl_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct net_device_stats *devstats = &dev->stats;
-	unsigned long c_rx_dropped = 0;
 #ifdef SL_INCLUDE_CSLIP
-	unsigned long c_rx_fifo_errors = 0;
-	unsigned long c_tx_fifo_errors = 0;
-	unsigned long c_collisions = 0;
 	struct slip *sl = netdev_priv(dev);
 	struct slcompress *comp = sl->slcomp;
-
-	if (comp) {
-		c_rx_fifo_errors = comp->sls_i_compressed;
-		c_rx_dropped     = comp->sls_i_tossed;
-		c_tx_fifo_errors = comp->sls_o_compressed;
-		c_collisions     = comp->sls_o_misses;
-	}
-	stats->rx_fifo_errors = sl->rx_compressed + c_rx_fifo_errors;
-	stats->tx_fifo_errors = sl->tx_compressed + c_tx_fifo_errors;
-	stats->collisions     = sl->tx_misses + c_collisions;
 #endif
 	stats->rx_packets     = devstats->rx_packets;
 	stats->tx_packets     = devstats->tx_packets;
 	stats->rx_bytes       = devstats->rx_bytes;
 	stats->tx_bytes       = devstats->tx_bytes;
-	stats->rx_dropped     = devstats->rx_dropped + c_rx_dropped;
+	stats->rx_dropped     = devstats->rx_dropped;
 	stats->tx_dropped     = devstats->tx_dropped;
 	stats->tx_errors      = devstats->tx_errors;
 	stats->rx_errors      = devstats->rx_errors;
 	stats->rx_over_errors = devstats->rx_over_errors;
 
+#ifdef SL_INCLUDE_CSLIP
+	if (comp) {
+		/* Generic compressed statistics */
+		stats->rx_compressed   = comp->sls_i_compressed;
+		stats->tx_compressed   = comp->sls_o_compressed;
+
+		/* Are we really still needs this? */
+		stats->rx_fifo_errors += comp->sls_i_compressed;
+		stats->rx_dropped     += comp->sls_i_tossed;
+		stats->tx_fifo_errors += comp->sls_o_compressed;
+		stats->collisions     += comp->sls_o_misses;
+	}
+#endif
 	return stats;
 }
 

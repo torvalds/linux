@@ -65,15 +65,6 @@ struct slip {
   unsigned char		*xbuff;		/* transmitter buffer		*/
   unsigned char         *xhead;         /* pointer to next byte to XMIT */
   int                   xleft;          /* bytes left in XMIT queue     */
-
-  /* SLIP interface statistics. */
-#ifdef SL_INCLUDE_CSLIP
-  unsigned long		tx_compressed;
-  unsigned long		rx_compressed;
-  unsigned long		tx_misses;
-#endif
-  /* Detailed SLIP statistics. */
-
   int			mtu;		/* Our mtu (to spot changes!)   */
   int                   buffsize;       /* Max buffers sizes            */
 
