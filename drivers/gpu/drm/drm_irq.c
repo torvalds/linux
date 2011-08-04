@@ -368,6 +368,9 @@ int drm_irq_install(struct drm_device *dev)
 		mutex_lock(&dev->struct_mutex);
 		dev->irq_enabled = 0;
 		mutex_unlock(&dev->struct_mutex);
+		if (!drm_core_check_feature(dev, DRIVER_MODESET))
+			vga_client_register(dev->pdev, NULL, NULL, NULL);
+		free_irq(drm_dev_to_irq(dev), dev);
 	}
 
 	return ret;
