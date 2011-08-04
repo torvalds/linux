@@ -1707,7 +1707,8 @@ static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp)
 	check_cpu_stall(rsp, rdp);
 
 	/* Is the RCU core waiting for a quiescent state from this CPU? */
-	if (rdp->qs_pending && !rdp->passed_quiesce) {
+	if (rcu_scheduler_fully_active &&
+	    rdp->qs_pending && !rdp->passed_quiesce) {
 
 		/*
 		 * If force_quiescent_state() coming soon and this CPU
