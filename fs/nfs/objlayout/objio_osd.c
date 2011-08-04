@@ -587,22 +587,19 @@ static void _calc_stripe_info(struct objio_state *ios, u64 file_offset,
 }
 
 static int _add_stripe_unit(struct objio_state *ios,  unsigned *cur_pg,
-		unsigned pgbase, struct _objio_per_comp *per_dev, int cur_len,
+		unsigned pgbase, struct _objio_per_comp *per_dev, int len,
 		gfp_t gfp_flags)
 {
 	unsigned pg = *cur_pg;
+	int cur_len = len;
 	struct request_queue *q =
 			osd_request_queue(_io_od(ios, per_dev->dev));
 
-	per_dev->length += cur_len;
-
 	if (per_dev->bio == NULL) {
-		unsigned stripes = ios->layout->num_comps /
-						     ios->layout->mirrors_p1;
-		unsigned pages_in_stripe = stripes *
+		unsigned pages_in_stripe = ios->layout->group_width *
 				      (ios->layout->stripe_unit / PAGE_SIZE);
 		unsigned bio_size = (ios->ol_state.nr_pages + pages_in_stripe) /
-				    stripes;
+				    ios->layout->group_width;
 
 		if (BIO_MAX_PAGES_KMALLOC < bio_size)
 			bio_size = BIO_MAX_PAGES_KMALLOC;
@@ -630,6 +627,7 @@ static int _add_stripe_unit(struct objio_state *ios,  unsigned *cur_pg,
 	}
 	BUG_ON(cur_len);
 
+	per_dev->length += len;
 	*cur_pg = pg;
 	return 0;
 }
