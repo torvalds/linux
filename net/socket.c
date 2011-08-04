@@ -1999,6 +1999,9 @@ int __sys_sendmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 	struct compat_mmsghdr __user *compat_entry;
 	struct msghdr msg_sys;
 
+	if (vlen > UIO_MAXIOV)
+		vlen = UIO_MAXIOV;
+
 	datagrams = 0;
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
