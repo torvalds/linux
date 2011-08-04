@@ -220,6 +220,16 @@ static int dvb_frontend_get_event(struct dvb_frontend *fe,
 	return 0;
 }
 
+static void dvb_frontend_clear_events(struct dvb_frontend *fe)
+{
+	struct dvb_frontend_private *fepriv = fe->frontend_priv;
+	struct dvb_fe_events *events = &fepriv->events;
+
+	mutex_lock(&events->mtx);
+	events->eventr = events->eventw;
+	mutex_unlock(&events->mtx);
+}
+
 static void dvb_frontend_init(struct dvb_frontend *fe)
 {
 	dprintk ("DVB: initialising adapter %i frontend %i (%s)...\n",
@@ -1891,6 +1901,7 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 		/* Request the search algorithm to search */
 		fepriv->algo_status |= DVBFE_ALGO_SEARCH_AGAIN;
 
+		dvb_frontend_clear_events(fe);
 		dvb_frontend_add_event(fe, 0);
 		dvb_frontend_wakeup(fe);
 		fepriv->status = 0;
