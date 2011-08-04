@@ -351,7 +351,7 @@ static struct saa7146_ext_vv vv_data;
 /* this function only gets called when the probing was successful */
 static int hexium_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_data *info)
 {
-	struct hexium *hexium = (struct hexium *) dev->ext_priv;
+	struct hexium *hexium;
 	int ret;
 
 	DEB_EE((".\n"));
