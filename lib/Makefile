@@ -115,6 +115,8 @@ obj-$(CONFIG_CPU_RMAP) += cpu_rmap.o
 
 obj-$(CONFIG_CORDIC) += cordic.o
 
+obj-$(CONFIG_LLIST) += llist.o
+
 hostprogs-y	:= gen_crc32table
 clean-files	:= crc32table.h
 

@@ -157,9 +157,10 @@ EXPORT_SYMBOL_GPL(apei_exec_noop);
  * Interpret the specified action. Go through whole action table,
  * execute all instructions belong to the action.
  */
-int apei_exec_run(struct apei_exec_context *ctx, u8 action)
+int __apei_exec_run(struct apei_exec_context *ctx, u8 action,
+		    bool optional)
 {
-	int rc;
+	int rc = -ENOENT;
 	u32 i, ip;
 	struct acpi_whea_header *entry;
 	apei_exec_ins_func_t run;
@@ -198,9 +199,9 @@ rewind:
 			goto rewind;
 	}
 
-	return 0;
+	return !optional && rc < 0 ? rc : 0;
 }
-EXPORT_SYMBOL_GPL(apei_exec_run);
+EXPORT_SYMBOL_GPL(__apei_exec_run);
 
 typedef int (*apei_exec_entry_func_t)(struct apei_exec_context *ctx,
 				      struct acpi_whea_header *entry,
@@ -603,3 +604,29 @@ struct dentry *apei_get_debugfs_dir(void)
 	return dapei;
 }
 EXPORT_SYMBOL_GPL(apei_get_debugfs_dir);
+
+int apei_osc_setup(void)
+{
+	static u8 whea_uuid_str[] = "ed855e0c-6c90-47bf-a62a-26de0fc5ad5c";
+	acpi_handle handle;
+	u32 capbuf[3];
+	struct acpi_osc_context context = {
+		.uuid_str	= whea_uuid_str,
+		.rev		= 1,
+		.cap.length	= sizeof(capbuf),
+		.cap.pointer	= capbuf,
+	};
+
+	capbuf[OSC_QUERY_TYPE] = OSC_QUERY_ENABLE;
+	capbuf[OSC_SUPPORT_TYPE] = 0;
+	capbuf[OSC_CONTROL_TYPE] = 0;
+
+	if (ACPI_FAILURE(acpi_get_handle(NULL, "\\_SB", &handle))
+	    || ACPI_FAILURE(acpi_run_osc(handle, &context)))
+		return -EIO;
+	else {
+		kfree(context.ret.pointer);
+		return 0;
+	}
+}
+EXPORT_SYMBOL_GPL(apei_osc_setup);
