@@ -357,6 +357,7 @@ static int tm6000_set_audio_std(struct tm6000_core *dev)
 		tm6000_set_reg(dev, TM6010_REQ08_RF1_AADC_POWER_DOWN, 0xfe);
 		tm6000_set_reg(dev, TM6010_REQ08_R1E_A_GAIN_DEEMPH_OUT, 0x13);
 		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x80);
+		tm6000_set_reg(dev, TM6010_REQ07_RFE_POWER_DOWN, 0xff);
 		return 0;
 	}
 
