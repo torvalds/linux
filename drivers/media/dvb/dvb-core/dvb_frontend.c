@@ -1827,6 +1827,13 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 			dtv_property_cache_sync(fe, c, &fepriv->parameters_in);
 		}
 
+		/*
+		 * Initialize output parameters to match the values given by
+		 * the user. FE_SET_FRONTEND triggers an initial frontend event
+		 * with status = 0, which copies output parameters to userspace.
+		 */
+		fepriv->parameters_out = fepriv->parameters_in;
+
 		memset(&fetunesettings, 0, sizeof(struct dvb_frontend_tune_settings));
 		memcpy(&fetunesettings.parameters, parg,
 		       sizeof (struct dvb_frontend_parameters));
