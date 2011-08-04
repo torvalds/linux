@@ -3112,7 +3112,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 
 	if (pipelined != obj->ring) {
 		ret = i915_gem_object_wait_rendering(obj);
-		if (ret)
+		if (ret == -ERESTARTSYS)
 			return ret;
 	}
 
