@@ -229,7 +229,7 @@ static void i8259A_shutdown(void)
 	 */
 	if (i8259A_auto_eoi >= 0) {
 		outb(0xff, PIC_MASTER_IMR);	/* mask all of 8259A-1 */
-		outb(0xff, PIC_SLAVE_IMR);	/* mask all of 8259A-1 */
+		outb(0xff, PIC_SLAVE_IMR);	/* mask all of 8259A-2 */
 	}
 }
 
