@@ -24,6 +24,7 @@
 #include "ordered-data.h"
 #include "transaction.h"
 #include "backref.h"
+#include "extent_io.h"
 
 /*
  * This is only the first step towards a full-features scrub. It reads all
@@ -360,13 +361,13 @@ out:
 
 static int scrub_fixup_readpage(u64 inum, u64 offset, u64 root, void *ctx)
 {
-	struct page *page;
+	struct page *page = NULL;
 	unsigned long index;
 	struct scrub_fixup_nodatasum *fixup = ctx;
 	int ret;
-	int corrected;
+	int corrected = 0;
 	struct btrfs_key key;
-	struct inode *inode;
+	struct inode *inode = NULL;
 	u64 end = offset + PAGE_SIZE - 1;
 	struct btrfs_root *local_root;
 
@@ -384,34 +385,75 @@ static int scrub_fixup_readpage(u64 inum, u64 offset, u64 root, void *ctx)
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 
-	ret = set_extent_bit(&BTRFS_I(inode)->io_tree, offset, end,
-				EXTENT_DAMAGED, 0, NULL, NULL, GFP_NOFS);
-
-	/* set_extent_bit should either succeed or give proper error */
-	WARN_ON(ret > 0);
-	if (ret)
-		return ret < 0 ? ret : -EFAULT;
-
 	index = offset >> PAGE_CACHE_SHIFT;
 
 	page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
-	if (!page)
-		return -ENOMEM;
+	if (!page) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
-	ret = extent_read_full_page(&BTRFS_I(inode)->io_tree, page,
-					btrfs_get_extent, fixup->mirror_num);
-	wait_on_page_locked(page);
-	corrected = !test_range_bit(&BTRFS_I(inode)->io_tree, offset, end,
-					EXTENT_DAMAGED, 0, NULL);
+	if (PageUptodate(page)) {
+		struct btrfs_mapping_tree *map_tree;
+		if (PageDirty(page)) {
+			/*
+			 * we need to write the data to the defect sector. the
+			 * data that was in that sector is not in memory,
+			 * because the page was modified. we must not write the
+			 * modified page to that sector.
+			 *
+			 * TODO: what could be done here: wait for the delalloc
+			 *       runner to write out that page (might involve
+			 *       COW) and see whether the sector is still
+			 *       referenced afterwards.
+			 *
+			 * For the meantime, we'll treat this error
+			 * incorrectable, although there is a chance that a
+			 * later scrub will find the bad sector again and that
+			 * there's no dirty page in memory, then.
+			 */
+			ret = -EIO;
+			goto out;
+		}
+		map_tree = &BTRFS_I(inode)->root->fs_info->mapping_tree;
+		ret = repair_io_failure(map_tree, offset, PAGE_SIZE,
+					fixup->logical, page,
+					fixup->mirror_num);
+		unlock_page(page);
+		corrected = !ret;
+	} else {
+		/*
+		 * we need to get good data first. the general readpage path
+		 * will call repair_io_failure for us, we just have to make
+		 * sure we read the bad mirror.
+		 */
+		ret = set_extent_bits(&BTRFS_I(inode)->io_tree, offset, end,
+					EXTENT_DAMAGED, GFP_NOFS);
+		if (ret) {
+			/* set_extent_bits should give proper error */
+			WARN_ON(ret > 0);
+			if (ret > 0)
+				ret = -EFAULT;
+			goto out;
+		}
 
-	if (corrected)
-		WARN_ON(!PageUptodate(page));
-	else
-		clear_extent_bit(&BTRFS_I(inode)->io_tree, offset, end,
-					EXTENT_DAMAGED, 0, 0, NULL, GFP_NOFS);
+		ret = extent_read_full_page(&BTRFS_I(inode)->io_tree, page,
+						btrfs_get_extent,
+						fixup->mirror_num);
+		wait_on_page_locked(page);
 
-	put_page(page);
-	iput(inode);
+		corrected = !test_range_bit(&BTRFS_I(inode)->io_tree, offset,
+						end, EXTENT_DAMAGED, 0, NULL);
+		if (!corrected)
+			clear_extent_bits(&BTRFS_I(inode)->io_tree, offset, end,
+						EXTENT_DAMAGED, GFP_NOFS);
+	}
+
+out:
+	if (page)
+		put_page(page);
+	if (inode)
+		iput(inode);
 
 	if (ret < 0)
 		return ret;
