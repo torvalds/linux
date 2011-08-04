@@ -1603,9 +1603,16 @@ static int tm6000_release(struct file *file)
 	dev->users--;
 
 	res_free(dev, fh);
+
 	if (!dev->users) {
+		int err;
+
 		tm6000_uninit_isoc(dev);
 		videobuf_mmap_free(&fh->vb_vidq);
+
+		err = tm6000_reset(dev);
+		if (err < 0)
+			dev_err(&vdev->dev, "reset failed: %d\n", err);
 	}
 
 	kfree(fh);

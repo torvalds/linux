@@ -311,6 +311,7 @@ int tm6000_set_reg_mask(struct tm6000_core *dev, u8 req, u16 value,
 						u16 index, u16 mask);
 int tm6000_i2c_reset(struct tm6000_core *dev, u16 tsleep);
 int tm6000_init(struct tm6000_core *dev);
+int tm6000_reset(struct tm6000_core *dev);
 
 int tm6000_init_analog_mode(struct tm6000_core *dev);
 int tm6000_init_digital_mode(struct tm6000_core *dev);
