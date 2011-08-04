@@ -572,7 +572,7 @@ static void scrub_fixup(struct scrub_bio *sbio, int ix)
 	struct scrub_dev *sdev = sbio->sdev;
 	struct btrfs_fs_info *fs_info = sdev->dev->dev_root->fs_info;
 	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
-	struct btrfs_multi_bio *multi = NULL;
+	struct btrfs_bio *bbio = NULL;
 	struct scrub_fixup_nodatasum *fixup;
 	u64 logical = sbio->logical + ix * PAGE_SIZE;
 	u64 length;
@@ -610,8 +610,8 @@ static void scrub_fixup(struct scrub_bio *sbio, int ix)
 
 	length = PAGE_SIZE;
 	ret = btrfs_map_block(map_tree, REQ_WRITE, logical, &length,
-			      &multi, 0);
-	if (ret || !multi || length < PAGE_SIZE) {
+			      &bbio, 0);
+	if (ret || !bbio || length < PAGE_SIZE) {
 		printk(KERN_ERR
 		       "scrub_fixup: btrfs_map_block failed us for %llu\n",
 		       (unsigned long long)logical);
@@ -619,19 +619,19 @@ static void scrub_fixup(struct scrub_bio *sbio, int ix)
 		return;
 	}
 
-	if (multi->num_stripes == 1)
+	if (bbio->num_stripes == 1)
 		/* there aren't any replicas */
 		goto uncorrectable;
 
 	/*
 	 * first find a good copy
 	 */
-	for (i = 0; i < multi->num_stripes; ++i) {
+	for (i = 0; i < bbio->num_stripes; ++i) {
 		if (i + 1 == sbio->spag[ix].mirror_num)
 			continue;
 
-		if (scrub_fixup_io(READ, multi->stripes[i].dev->bdev,
-				   multi->stripes[i].physical >> 9,
+		if (scrub_fixup_io(READ, bbio->stripes[i].dev->bdev,
+				   bbio->stripes[i].physical >> 9,
 				   sbio->bio->bi_io_vec[ix].bv_page)) {
 			/* I/O-error, this is not a good copy */
 			continue;
@@ -640,7 +640,7 @@ static void scrub_fixup(struct scrub_bio *sbio, int ix)
 		if (scrub_fixup_check(sbio, ix) == 0)
 			break;
 	}
-	if (i == multi->num_stripes)
+	if (i == bbio->num_stripes)
 		goto uncorrectable;
 
 	if (!sdev->readonly) {
@@ -655,7 +655,7 @@ static void scrub_fixup(struct scrub_bio *sbio, int ix)
 		}
 	}
 
-	kfree(multi);
+	kfree(bbio);
 	spin_lock(&sdev->stat_lock);
 	++sdev->stat.corrected_errors;
 	spin_unlock(&sdev->stat_lock);
@@ -665,7 +665,7 @@ static void scrub_fixup(struct scrub_bio *sbio, int ix)
 	return;
 
 uncorrectable:
-	kfree(multi);
+	kfree(bbio);
 	spin_lock(&sdev->stat_lock);
 	++sdev->stat.uncorrectable_errors;
 	spin_unlock(&sdev->stat_lock);
