@@ -2092,6 +2092,7 @@ static int velocity_receive_frame(struct velocity_info *vptr, int idx)
 	netif_rx(skb);
 
 	stats->rx_bytes += pkt_len;
+	stats->rx_packets++;
 
 	return 0;
 }
