@@ -50,14 +50,13 @@ static struct page **pcpu_get_pages_and_bitmap(struct pcpu_chunk *chunk,
 
 	if (!pages || !bitmap) {
 		if (may_alloc && !pages)
-			pages = pcpu_mem_alloc(pages_size);
+			pages = pcpu_mem_zalloc(pages_size);
 		if (may_alloc && !bitmap)
-			bitmap = pcpu_mem_alloc(bitmap_size);
+			bitmap = pcpu_mem_zalloc(bitmap_size);
 		if (!pages || !bitmap)
 			return NULL;
 	}
 
-	memset(pages, 0, pages_size);
 	bitmap_copy(bitmap, chunk->populated, pcpu_unit_pages);
 
 	*bitmapp = bitmap;

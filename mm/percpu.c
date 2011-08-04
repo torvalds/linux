@@ -273,11 +273,11 @@ static void __maybe_unused pcpu_next_pop(struct pcpu_chunk *chunk,
 	     (rs) = (re) + 1, pcpu_next_pop((chunk), &(rs), &(re), (end)))
 
 /**
- * pcpu_mem_alloc - allocate memory
+ * pcpu_mem_zalloc - allocate memory
  * @size: bytes to allocate
  *
  * Allocate @size bytes.  If @size is smaller than PAGE_SIZE,
- * kzalloc() is used; otherwise, vmalloc() is used.  The returned
+ * kzalloc() is used; otherwise, vzalloc() is used.  The returned
  * memory is always zeroed.
  *
  * CONTEXT:
@@ -286,7 +286,7 @@ static void __maybe_unused pcpu_next_pop(struct pcpu_chunk *chunk,
  * RETURNS:
  * Pointer to the allocated area on success, NULL on failure.
  */
-static void *pcpu_mem_alloc(size_t size)
+static void *pcpu_mem_zalloc(size_t size)
 {
 	if (WARN_ON_ONCE(!slab_is_available()))
 		return NULL;
@@ -302,7 +302,7 @@ static void *pcpu_mem_alloc(size_t size)
  * @ptr: memory to free
  * @size: size of the area
  *
- * Free @ptr.  @ptr should have been allocated using pcpu_mem_alloc().
+ * Free @ptr.  @ptr should have been allocated using pcpu_mem_zalloc().
  */
 static void pcpu_mem_free(void *ptr, size_t size)
 {
@@ -384,7 +384,7 @@ static int pcpu_extend_area_map(struct pcpu_chunk *chunk, int new_alloc)
 	size_t old_size = 0, new_size = new_alloc * sizeof(new[0]);
 	unsigned long flags;
 
-	new = pcpu_mem_alloc(new_size);
+	new = pcpu_mem_zalloc(new_size);
 	if (!new)
 		return -ENOMEM;
 
@@ -604,11 +604,12 @@ static struct pcpu_chunk *pcpu_alloc_chunk(void)
 {
 	struct pcpu_chunk *chunk;
 
-	chunk = pcpu_mem_alloc(pcpu_chunk_struct_size);
+	chunk = pcpu_mem_zalloc(pcpu_chunk_struct_size);
 	if (!chunk)
 		return NULL;
 
-	chunk->map = pcpu_mem_alloc(PCPU_DFL_MAP_ALLOC * sizeof(chunk->map[0]));
+	chunk->map = pcpu_mem_zalloc(PCPU_DFL_MAP_ALLOC *
+						sizeof(chunk->map[0]));
 	if (!chunk->map) {
 		kfree(chunk);
 		return NULL;
@@ -1889,7 +1890,7 @@ void __init percpu_init_late(void)
 
 		BUILD_BUG_ON(size > PAGE_SIZE);
 
-		map = pcpu_mem_alloc(size);
+		map = pcpu_mem_zalloc(size);
 		BUG_ON(!map);
 
 		spin_lock_irqsave(&pcpu_lock, flags);
