@@ -290,10 +290,11 @@ mptsas_add_fw_event(MPT_ADAPTER *ioc, struct fw_event_work *fw_event,
 	spin_lock_irqsave(&ioc->fw_event_lock, flags);
 	list_add_tail(&fw_event->list, &ioc->fw_event_list);
 	INIT_DELAYED_WORK(&fw_event->work, mptsas_firmware_event_work);
-	devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT "%s: add (fw_event=0x%p)\n",
-	    ioc->name, __func__, fw_event));
-	queue_delayed_work(ioc->fw_event_q, &fw_event->work,
-	    delay);
+	devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT "%s: add (fw_event=0x%p)"
+		"on cpuid %d\n", ioc->name, __func__,
+		fw_event, smp_processor_id()));
+	queue_delayed_work_on(smp_processor_id(), ioc->fw_event_q,
+	    &fw_event->work, delay);
 	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 }
 
@@ -305,10 +306,11 @@ mptsas_requeue_fw_event(MPT_ADAPTER *ioc, struct fw_event_work *fw_event,
 	unsigned long flags;
 	spin_lock_irqsave(&ioc->fw_event_lock, flags);
 	devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT "%s: reschedule task "
-	    "(fw_event=0x%p)\n", ioc->name, __func__, fw_event));
+	    "(fw_event=0x%p)on cpuid %d\n", ioc->name, __func__,
+		fw_event, smp_processor_id()));
 	fw_event->retries++;
-	queue_delayed_work(ioc->fw_event_q, &fw_event->work,
-	    msecs_to_jiffies(delay));
+	queue_delayed_work_on(smp_processor_id(), ioc->fw_event_q,
+	    &fw_event->work, msecs_to_jiffies(delay));
 	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 }
 
