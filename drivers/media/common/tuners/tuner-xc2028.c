@@ -614,6 +614,13 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 			p += len;
 			size -= len;
 		}
+
+		/* silently fail if the frontend doesn't support I2C flush */
+		rc = do_tuner_callback(fe, XC2028_I2C_FLUSH, 0);
+		if ((rc < 0) && (rc != -EINVAL)) {
+			tuner_err("error executing flush: %d\n", rc);
+			return rc;
+		}
 	}
 	return 0;
 }
