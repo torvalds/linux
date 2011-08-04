@@ -7354,6 +7354,7 @@ _scsih_remove(struct pci_dev *pdev)
 	}
 
 	sas_remove_host(shost);
+	mpt2sas_base_detach(ioc);
 	list_del(&ioc->list);
 	scsi_remove_host(shost);
 	scsi_host_put(shost);
