@@ -268,7 +268,7 @@ static void finish_read(struct ceph_osd_request *req, struct ceph_msg *msg)
  * start an async read(ahead) operation.  return nr_pages we submitted
  * a read for on success, or negative error code.
  */
-static int start_read(struct inode *inode, struct list_head *page_list)
+static int start_read(struct inode *inode, struct list_head *page_list, int max)
 {
 	struct ceph_osd_client *osdc =
 		&ceph_inode_to_client(inode)->client->osdc;
@@ -292,6 +292,8 @@ static int start_read(struct inode *inode, struct list_head *page_list)
 			break;
 		nr_pages++;
 		next_index++;
+		if (max && nr_pages == max)
+			break;
 	}
 	len = nr_pages << PAGE_CACHE_SHIFT;
 	dout("start_read %p nr_pages %d is %lld~%lld\n", inode, nr_pages,
@@ -358,11 +360,18 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 			  struct list_head *page_list, unsigned nr_pages)
 {
 	struct inode *inode = file->f_dentry->d_inode;
+	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	int rc = 0;
+	int max = 0;
 
-	dout("readpages %p file %p nr_pages %d\n", inode, file, nr_pages);
+	if (fsc->mount_options->rsize >= PAGE_CACHE_SIZE)
+		max = (fsc->mount_options->rsize + PAGE_CACHE_SIZE - 1)
+			>> PAGE_SHIFT;
+
+	dout("readpages %p file %p nr_pages %d max %d\n", inode, file, nr_pages,
+	     max);
 	while (!list_empty(page_list)) {
-		rc = start_read(inode, page_list);
+		rc = start_read(inode, page_list, max);
 		if (rc < 0)
 			goto out;
 		BUG_ON(rc == 0);
