@@ -34,7 +34,6 @@
 #include <linux/usb/ulpi.h>
 #include <mach/ulpi.h>
 
-#include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

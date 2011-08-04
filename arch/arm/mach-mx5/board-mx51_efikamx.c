@@ -32,7 +32,6 @@
 #include <mach/hardware.h>
 #include <mach/iomux-mx51.h>
 
-#include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
