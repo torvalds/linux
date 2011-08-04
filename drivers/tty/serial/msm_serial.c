@@ -19,6 +19,7 @@
 # define SUPPORT_SYSRQ
 #endif
 
+#include <linux/atomic.h>
 #include <linux/hrtimer.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -33,6 +34,8 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include "msm_serial.h"
 
@@ -856,12 +859,17 @@ static struct uart_driver msm_uart_driver = {
 	.cons = MSM_CONSOLE,
 };
 
+static atomic_t msm_uart_next_id = ATOMIC_INIT(0);
+
 static int __init msm_serial_probe(struct platform_device *pdev)
 {
 	struct msm_port *msm_port;
 	struct resource *resource;
 	struct uart_port *port;
 	int irq;
+
+	if (pdev->id == -1)
+		pdev->id = atomic_inc_return(&msm_uart_next_id) - 1;
 
 	if (unlikely(pdev->id < 0 || pdev->id >= UART_NR))
 		return -ENXIO;
@@ -920,11 +928,17 @@ static int __devexit msm_serial_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct of_device_id msm_match_table[] = {
+	{ .compatible = "qcom,msm-uart" },
+	{}
+};
+
 static struct platform_driver msm_platform_driver = {
 	.remove = msm_serial_remove,
 	.driver = {
 		.name = "msm_serial",
 		.owner = THIS_MODULE,
+		.of_match_table = msm_match_table,
 	},
 };
 
