@@ -157,7 +157,9 @@ static int hid_lg4ff_play(struct input_dev *dev, void *data, struct ff_effect *e
 	return 0;
 }
 
-static void hid_lg4ff_set_autocenter(struct input_dev *dev, u16 magnitude)
+/* Sends default autocentering command compatible with
+ * all wheels except Formula Force EX */
+static void hid_lg4ff_set_autocenter_default(struct input_dev *dev, u16 magnitude)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
@@ -168,6 +170,26 @@ static void hid_lg4ff_set_autocenter(struct input_dev *dev, u16 magnitude)
 	report->field[0]->value[2] = magnitude >> 13;
 	report->field[0]->value[3] = magnitude >> 13;
 	report->field[0]->value[4] = magnitude >> 8;
+	report->field[0]->value[5] = 0x00;
+	report->field[0]->value[6] = 0x00;
+
+	usbhid_submit_report(hid, report, USB_DIR_OUT);
+}
+
+/* Sends autocentering command compatible with Formula Force EX */
+static void hid_lg4ff_set_autocenter_ffex(struct input_dev *dev, u16 magnitude)
+{
+	struct hid_device *hid = input_get_drvdata(dev);
+	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
+	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
+	magnitude = magnitude * 90 / 65535;
+	
+
+	report->field[0]->value[0] = 0xfe;
+	report->field[0]->value[1] = 0x03;
+	report->field[0]->value[2] = magnitude >> 14;
+	report->field[0]->value[3] = magnitude >> 14;
+	report->field[0]->value[4] = magnitude;
 	report->field[0]->value[5] = 0x00;
 	report->field[0]->value[6] = 0x00;
 
@@ -390,8 +412,16 @@ int lg4ff_init(struct hid_device *hid)
 	if (error)
 		return error;
 
-	if (test_bit(FF_AUTOCENTER, dev->ffbit))
-		dev->ff->set_autocenter = hid_lg4ff_set_autocenter;
+	/* Check if autocentering is available and
+	 * set the centering force to zero by default */
+	if (test_bit(FF_AUTOCENTER, dev->ffbit)) {
+		if(rev_maj == FFEX_REV_MAJ && rev_min == FFEX_REV_MIN)	/* Formula Force EX expects different autocentering command */
+			dev->ff->set_autocenter = hid_lg4ff_set_autocenter_ffex;
+		else
+			dev->ff->set_autocenter = hid_lg4ff_set_autocenter_default;
+
+		dev->ff->set_autocenter(dev, 0);
+	}
 
 		/* Initialize device_list if this is the first device to handle by lg4ff */
 	if (!list_inited) {
