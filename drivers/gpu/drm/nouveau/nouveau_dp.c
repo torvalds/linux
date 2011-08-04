@@ -308,23 +308,39 @@ struct dp_state {
 static void
 dp_set_link_config(struct drm_device *dev, struct dp_state *dp)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	int or = dp->or, link = dp->link;
-	u32 clk_sor, dp_ctrl;
-	u8  sink[2];
+	u8 *bios, headerlen, sink[2];
+	u32 dp_ctrl;
 
 	NV_DEBUG_KMS(dev, "%d lanes at %d KB/s\n", dp->link_nr, dp->link_bw);
 
+	/* set selected link rate on source */
 	switch (dp->link_bw) {
 	case 270000:
-		clk_sor = 0x00040000;
+		nv_mask(dev, 0x614300 + (or * 0x800), 0x000c0000, 0x00040000);
 		sink[0] = DP_LINK_BW_2_7;
 		break;
 	default:
-		clk_sor = 0x00000000;
+		nv_mask(dev, 0x614300 + (or * 0x800), 0x000c0000, 0x00000000);
 		sink[0] = DP_LINK_BW_1_62;
 		break;
 	}
 
+	/* offset +0x0a of each dp encoder table entry is a pointer to another
+	 * table, that has (among other things) pointers to more scripts that
+	 * need to be executed, this time depending on link speed.
+	 */
+	bios = nouveau_bios_dp_table(dev, dp->dcb, &headerlen);
+	if (bios && (bios = ROMPTR(&dev_priv->vbios, bios[10]))) {
+		u16 script = ROM16(bios[2]);
+		if (dp->link_bw != 270000)
+			script = ROM16(bios[6]);
+
+		nouveau_bios_run_init_table(dev, script, dp->dcb, dp->crtc);
+	}
+
+	/* configure lane count on the source */
 	dp_ctrl = ((1 << dp->link_nr) - 1) << 16;
 	sink[1] = dp->link_nr;
 	if (dp->enh_frame) {
@@ -332,9 +348,9 @@ dp_set_link_config(struct drm_device *dev, struct dp_state *dp)
 		sink[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 	}
 
-	nv_mask(dev, 0x614300 + (or * 0x800), 0x000c0000, clk_sor);
 	nv_mask(dev, NV50_SOR_DP_CTRL(or, link), 0x001f4000, dp_ctrl);
 
+	/* inform the sink of the new configuration */
 	auxch_tx(dev, dp->auxch, 8, DP_LINK_BW_SET, sink, 2);
 }
 
