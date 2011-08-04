@@ -19,7 +19,7 @@ int lg3ff_init(struct hid_device *hdev);
 static inline int lg3ff_init(struct hid_device *hdev) { return -1; }
 #endif
 
-#ifdef CONFIG_LOGIWII_FF
+#ifdef CONFIG_LOGIWHEELS_FF
 int lg4ff_init(struct hid_device *hdev);
 int lg4ff_deinit(struct hid_device *hdev);
 #else

@@ -21,7 +21,7 @@ endif
 ifdef CONFIG_LOGIG940_FF
 	hid-logitech-y	+= hid-lg3ff.o
 endif
-ifdef CONFIG_LOGIWII_FF
+ifdef CONFIG_LOGIWHEELS_FF
 	hid-logitech-y	+= hid-lg4ff.o
 endif
 
