@@ -1171,7 +1171,7 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 	mutex_init(&dev->usb_lock);
 
 	/* Increment usage count */
-	tm6000_devused |= 1<<nr;
+	set_bit(nr, &tm6000_devused);
 	snprintf(dev->name, 29, "tm6000 #%d", nr);
 
 	dev->model = id->driver_info;
@@ -1287,7 +1287,7 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 err:
 	printk(KERN_ERR "tm6000: Error %d while registering\n", rc);
 
-	tm6000_devused &= ~(1<<nr);
+	clear_bit(nr, &tm6000_devused);
 	usb_put_dev(usbdev);
 
 	kfree(dev);
@@ -1345,6 +1345,7 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 	tm6000_close_extension(dev);
 	tm6000_remove_from_devlist(dev);
 
+	clear_bit(dev->devno, &tm6000_devused);
 	kfree(dev);
 }
 
