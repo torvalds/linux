@@ -1294,5 +1294,10 @@ void ath6kl_destroy(struct net_device *dev, unsigned int unregister)
 
 	wlan_node_table_cleanup(&ar->scan_table);
 
+	kfree(ar->fw_board);
+	kfree(ar->fw_otp);
+	kfree(ar->fw);
+	kfree(ar->fw_patch);
+
 	ath6kl_cfg80211_deinit(ar);
 }
