@@ -36,7 +36,7 @@
 #include <asm/pgtable.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <asm/localtimer.h>
+#include <asm/smp_twd.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -383,6 +383,23 @@ static void realview_eb11mp_fixup(void)
 	realview_eb_isp1761_resources[1].end	= IRQ_EB11MP_USB;
 }
 
+#ifdef CONFIG_HAVE_ARM_TWD
+static DEFINE_TWD_LOCAL_TIMER(twd_local_timer,
+			      REALVIEW_EB11MP_TWD_BASE,
+			      IRQ_LOCALTIMER);
+
+static void __init realview_eb_twd_init(void)
+{
+	if (core_tile_eb11mp() || core_tile_a9mp()) {
+		int err = twd_local_timer_register(&twd_local_timer);
+		if (err)
+			pr_err("twd_local_timer_register failed %d\n", err);
+	}
+}
+#else
+#define realview_eb_twd_init()	do { } while(0)
+#endif
+
 static void __init realview_eb_timer_init(void)
 {
 	unsigned int timer_irq;
@@ -392,15 +409,13 @@ static void __init realview_eb_timer_init(void)
 	timer2_va_base = __io_address(REALVIEW_EB_TIMER2_3_BASE);
 	timer3_va_base = __io_address(REALVIEW_EB_TIMER2_3_BASE) + 0x20;
 
-	if (core_tile_eb11mp() || core_tile_a9mp()) {
-#ifdef CONFIG_LOCAL_TIMERS
-		twd_base = __io_address(REALVIEW_EB11MP_TWD_BASE);
-#endif
+	if (core_tile_eb11mp() || core_tile_a9mp())
 		timer_irq = IRQ_EB11MP_TIMER0_1;
-	} else
+	else
 		timer_irq = IRQ_EB_TIMER0_1;
 
 	realview_timer_init(timer_irq);
+	realview_eb_twd_init();
 }
 
 static struct sys_timer realview_eb_timer = {
