@@ -441,6 +441,8 @@ static int alarm_timer_create(struct k_itimer *new_timer)
 static void alarm_timer_get(struct k_itimer *timr,
 				struct itimerspec *cur_setting)
 {
+	memset(cur_setting, 0, sizeof(struct itimerspec));
+
 	cur_setting->it_interval =
 			ktime_to_timespec(timr->it.alarmtimer.period);
 	cur_setting->it_value =
