@@ -29,15 +29,30 @@
 
 #include "usbhid/usbhid.h"
 #include "hid-lg.h"
+#include "hid-ids.h"
 
-struct lg4ff_device {
-	struct hid_report *report;
-};
-
-static const signed short ff4_wheel_ac[] = {
+static const signed short lg4ff_wheel_effects[] = {
 	FF_CONSTANT,
 	FF_AUTOCENTER,
 	-1
+};
+
+struct lg4ff_wheel {
+	const __u32 product_id;
+	const signed short *ff_effects;
+	const __u16 min_range;
+	const __u16 max_range;
+};
+
+static const struct lg4ff_wheel lg4ff_devices[] = {
+	{USB_DEVICE_ID_LOGITECH_WHEEL,       lg4ff_wheel_effects, 40, 270},
+	{USB_DEVICE_ID_LOGITECH_MOMO_WHEEL,  lg4ff_wheel_effects, 40, 270},
+	{USB_DEVICE_ID_LOGITECH_DFP_WHEEL,   lg4ff_wheel_effects, 40, 900},
+	{USB_DEVICE_ID_LOGITECH_G25_WHEEL,   lg4ff_wheel_effects, 40, 900},
+	{USB_DEVICE_ID_LOGITECH_DFGT_WHEEL,  lg4ff_wheel_effects, 40, 900},
+	{USB_DEVICE_ID_LOGITECH_G27_WHEEL,   lg4ff_wheel_effects, 40, 900},
+	{USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2, lg4ff_wheel_effects, 40, 270},
+	{USB_DEVICE_ID_LOGITECH_WII_WHEEL,   lg4ff_wheel_effects, 40, 270}
 };
 
 static int hid_lg4ff_play(struct input_dev *dev, void *data,
@@ -55,13 +70,12 @@ static int hid_lg4ff_play(struct input_dev *dev, void *data,
 		x = effect->u.ramp.start_level + 0x80;	/* 0x80 is no force */
 		CLAMP(x);
 		report->field[0]->value[0] = 0x11;	/* Slot 1 */
-		report->field[0]->value[1] = 0x10;
+		report->field[0]->value[1] = 0x08;
 		report->field[0]->value[2] = x;
-		report->field[0]->value[3] = 0x00;
+		report->field[0]->value[3] = 0x80;
 		report->field[0]->value[4] = 0x00;
-		report->field[0]->value[5] = 0x08;
+		report->field[0]->value[5] = 0x00;
 		report->field[0]->value[6] = 0x00;
-		dbg_hid("Autocenter, x=0x%02X\n", x);
 
 		usbhid_submit_report(hid, report, USB_DIR_OUT);
 		break;
@@ -74,15 +88,14 @@ static void hid_lg4ff_set_autocenter(struct input_dev *dev, u16 magnitude)
 	struct hid_device *hid = input_get_drvdata(dev);
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
 	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
-	__s32 *value = report->field[0]->value;
 
-	*value++ = 0xfe;
-	*value++ = 0x0d;
-	*value++ = 0x07;
-	*value++ = 0x07;
-	*value++ = (magnitude >> 8) & 0xff;
-	*value++ = 0x00;
-	*value = 0x00;
+	report->field[0]->value[0] = 0xfe;
+	report->field[0]->value[1] = 0x0d;
+	report->field[0]->value[2] = magnitude >> 13;
+	report->field[0]->value[3] = magnitude >> 13;
+	report->field[0]->value[4] = magnitude >> 8;
+	report->field[0]->value[5] = 0x00;
+	report->field[0]->value[6] = 0x00;
 
 	usbhid_submit_report(hid, report, USB_DIR_OUT);
 }
@@ -95,9 +108,7 @@ int lg4ff_init(struct hid_device *hid)
 	struct input_dev *dev = hidinput->input;
 	struct hid_report *report;
 	struct hid_field *field;
-	const signed short *ff_bits = ff4_wheel_ac;
-	int error;
-	int i;
+	int error, i, j;
 
 	/* Find the report to use */
 	if (list_empty(report_list)) {
@@ -117,9 +128,24 @@ int lg4ff_init(struct hid_device *hid)
 		hid_err(hid, "NULL field\n");
 		return -1;
 	}
+	
+	/* Check what wheel has been connected */
+	for (i = 0; i < ARRAY_SIZE(lg4ff_devices); i++) {
+		if (hid->product == lg4ff_devices[i].product_id) {
+			dbg_hid("Found compatible device, product ID %04X\n", lg4ff_devices[i].product_id);
+			break;
+		}
+	}
 
-	for (i = 0; ff_bits[i] >= 0; i++)
-		set_bit(ff_bits[i], dev->ffbit);
+	if (i == ARRAY_SIZE(lg4ff_devices)) {
+		hid_err(hid, "Device is not supported by lg4ff driver. If you think it should be, consider reporting a bug to"
+			     "LKML, Simon Wood <simon@mungewell.org> or Michal Maly <madcatxster@gmail.com>\n");
+		return -1;
+	}
+
+	/* Set supported force feedback capabilities */
+	for (j = 0; lg4ff_devices[i].ff_effects[j] >= 0; j++)
+		set_bit(lg4ff_devices[i].ff_effects[j], dev->ffbit);
 
 	error = input_ff_create_memless(dev, NULL, hid_lg4ff_play);
 
