@@ -304,6 +304,7 @@ static int snd_tm6000_hw_free(struct snd_pcm_substream *substream)
 		schedule_work(&core->wq_trigger);
 	}
 
+	dsp_buffer_free(substream);
 	return 0;
 }
 
