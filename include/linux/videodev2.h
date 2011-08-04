@@ -1151,6 +1151,7 @@ enum v4l2_ctrl_type {
 	V4L2_CTRL_TYPE_CTRL_CLASS    = 6,
 	V4L2_CTRL_TYPE_STRING        = 7,
 	V4L2_CTRL_TYPE_BITMASK       = 8,
+	V4L2_CTRL_TYPE_INTEGER_MENU = 9,
 };
 
 /*  Used in the VIDIOC_QUERYCTRL ioctl for querying controls */
@@ -1170,7 +1171,10 @@ struct v4l2_queryctrl {
 struct v4l2_querymenu {
 	__u32		id;
 	__u32		index;
-	__u8		name[32];	/* Whatever */
+	union {
+		__u8	name[32];	/* Whatever */
+		__s64	value;
+	};
 	__u32		reserved;
 };
 
