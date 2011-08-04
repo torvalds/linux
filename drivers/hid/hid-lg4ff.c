@@ -31,6 +31,17 @@
 #include "hid-lg.h"
 #include "hid-ids.h"
 
+#define DFGT_REV_MAJ 0x13
+#define DFGT_REV_MIN 0x22
+#define DFP_REV_MAJ 0x11
+#define DFP_REV_MIN 0x06
+#define FFEX_REV_MAJ 0x21
+#define FFEX_REV_MIN 0x00
+#define G25_REV_MAJ 0x12
+#define G25_REV_MIN 0x22
+#define G27_REV_MAJ 0x12
+#define G27_REV_MIN 0x38
+
 static const signed short lg4ff_wheel_effects[] = {
 	FF_CONSTANT,
 	FF_AUTOCENTER,
@@ -53,6 +64,46 @@ static const struct lg4ff_wheel lg4ff_devices[] = {
 	{USB_DEVICE_ID_LOGITECH_G27_WHEEL,   lg4ff_wheel_effects, 40, 900},
 	{USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2, lg4ff_wheel_effects, 40, 270},
 	{USB_DEVICE_ID_LOGITECH_WII_WHEEL,   lg4ff_wheel_effects, 40, 270}
+};
+
+struct lg4ff_native_cmd {
+	const __u8 cmd_num;	/* Number of commands to send */
+	const __u8 cmd[];
+};
+
+struct lg4ff_usb_revision {
+	const __u16 rev_maj;
+	const __u16 rev_min;
+	const struct lg4ff_native_cmd *command;
+};
+
+static const struct lg4ff_native_cmd native_dfp = {
+	1,
+	{0xf8, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}
+};
+
+static const struct lg4ff_native_cmd native_dfgt = {
+	2,
+	{0xf8, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00,	/* 1st command */
+	 0xf8, 0x09, 0x03, 0x01, 0x00, 0x00, 0x00}	/* 2nd command */
+};
+
+static const struct lg4ff_native_cmd native_g25 = {
+	1,
+	{0xf8, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00}
+};
+
+static const struct lg4ff_native_cmd native_g27 = {
+	2,
+	{0xf8, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00,	/* 1st command */
+	 0xf8, 0x09, 0x04, 0x01, 0x00, 0x00, 0x00}	/* 2nd command */
+};
+
+static const struct lg4ff_usb_revision lg4ff_revs[] = {
+	{DFGT_REV_MAJ, DFGT_REV_MIN, &native_dfgt},	/* Driving Force GT */
+	{DFP_REV_MAJ,  DFP_REV_MIN,  &native_dfp},	/* Driving Force Pro */
+	{G25_REV_MAJ,  G25_REV_MIN,  &native_g25},	/* G25 */
+	{G27_REV_MAJ,  G27_REV_MIN,  &native_g27},	/* G27 */
 };
 
 static int hid_lg4ff_play(struct input_dev *dev, void *data,
@@ -100,6 +151,20 @@ static void hid_lg4ff_set_autocenter(struct input_dev *dev, u16 magnitude)
 	usbhid_submit_report(hid, report, USB_DIR_OUT);
 }
 
+static void hid_lg4ff_switch_native(struct hid_device *hid, const struct lg4ff_native_cmd *cmd)
+{
+	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
+	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
+	__u8 i, j;
+
+	j = 0;
+	while (j < 7*cmd->cmd_num) {
+		for (i = 0; i < 7; i++)
+			report->field[0]->value[i] = cmd->cmd[j++];
+
+		usbhid_submit_report(hid, report, USB_DIR_OUT);
+	}
+}
 
 int lg4ff_init(struct hid_device *hid)
 {
@@ -108,7 +173,9 @@ int lg4ff_init(struct hid_device *hid)
 	struct input_dev *dev = hidinput->input;
 	struct hid_report *report;
 	struct hid_field *field;
+	struct usb_device_descriptor *udesc = 0;
 	int error, i, j;
+	__u16 bcdDevice, rev_maj, rev_min;
 
 	/* Find the report to use */
 	if (list_empty(report_list)) {
@@ -141,6 +208,28 @@ int lg4ff_init(struct hid_device *hid)
 		hid_err(hid, "Device is not supported by lg4ff driver. If you think it should be, consider reporting a bug to"
 			     "LKML, Simon Wood <simon@mungewell.org> or Michal Maly <madcatxster@gmail.com>\n");
 		return -1;
+	}
+
+	/* Attempt to switch wheel to native mode when applicable */
+	udesc = &(hid_to_usb_dev(hid)->descriptor);
+	if (!udesc) {
+		hid_err(hid, "NULL USB device descriptor\n");
+		return -1;
+	}
+	bcdDevice = le16_to_cpu(udesc->bcdDevice);
+	rev_maj = bcdDevice >> 8;
+	rev_min = bcdDevice & 0xff;
+
+	if (lg4ff_devices[i].product_id == USB_DEVICE_ID_LOGITECH_WHEEL) {
+		dbg_hid("Generic wheel detected, can it do native?\n");
+		dbg_hid("USB revision: %2x.%02x\n", rev_maj, rev_min);
+
+		for (j = 0; j < ARRAY_SIZE(lg4ff_revs); j++) {
+			if (lg4ff_revs[j].rev_maj == rev_maj && lg4ff_revs[j].rev_min == rev_min) {
+				hid_lg4ff_switch_native(hid, lg4ff_revs[j].command);
+				hid_info(hid, "Switched to native mode\n");
+			}
+		}
 	}
 
 	/* Set supported force feedback capabilities */
