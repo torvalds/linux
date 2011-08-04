@@ -26,4 +26,6 @@ bcmdhd-objs += wl_cfg80211.o wl_cfgp2p.o dhd_linux_mon.o
 DHDCFLAGS += -DWL_CFG80211
 endif
 EXTRA_CFLAGS = $(DHDCFLAGS)
+ifeq ($(CONFIG_BCMDHD),m)
 EXTRA_LDFLAGS += --strip-debug
+endif
