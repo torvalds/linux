@@ -3319,12 +3319,18 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 	} else {
 		struct net_device *dev = adapter->netdev;
 
-		if (adapter->ixgbe_ieee_ets)
-			dev->dcbnl_ops->ieee_setets(dev,
-						    adapter->ixgbe_ieee_ets);
-		if (adapter->ixgbe_ieee_pfc)
-			dev->dcbnl_ops->ieee_setpfc(dev,
-						    adapter->ixgbe_ieee_pfc);
+		if (adapter->ixgbe_ieee_ets) {
+			struct ieee_ets *ets = adapter->ixgbe_ieee_ets;
+			int max_frame = dev->mtu + ETH_HLEN + ETH_FCS_LEN;
+
+			ixgbe_dcb_hw_ets(&adapter->hw, ets, max_frame);
+		}
+
+		if (adapter->ixgbe_ieee_pfc) {
+			struct ieee_pfc *pfc = adapter->ixgbe_ieee_pfc;
+
+			ixgbe_dcb_hw_pfc_config(&adapter->hw, pfc->pfc_en);
+		}
 	}
 
 	/* Enable RSS Hash per TC */

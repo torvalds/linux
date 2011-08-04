@@ -29,6 +29,7 @@
 #ifndef _DCB_CONFIG_H_
 #define _DCB_CONFIG_H_
 
+#include <linux/dcbnl.h>
 #include "ixgbe_type.h"
 
 /* DCB data structures */
@@ -147,11 +148,11 @@ void ixgbe_dcb_unpack_bwgid(struct ixgbe_dcb_config *, int, u8 *);
 void ixgbe_dcb_unpack_prio(struct ixgbe_dcb_config *, int, u8 *);
 
 /* DCB credits calculation */
-s32 ixgbe_ieee_credits(__u8 *bw, __u16 *refill, __u16 *max, int max_frame);
 s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_hw *,
 				   struct ixgbe_dcb_config *, int, u8);
 
 /* DCB hw initialization */
+s32 ixgbe_dcb_hw_ets(struct ixgbe_hw *hw, struct ieee_ets *ets, int max);
 s32 ixgbe_dcb_hw_ets_config(struct ixgbe_hw *hw, u16 *refill, u16 *max,
 			    u8 *bwg_id, u8 *prio_type, u8 *tc_prio);
 s32 ixgbe_dcb_hw_pfc_config(struct ixgbe_hw *hw, u8 pfc_en);
