@@ -869,7 +869,11 @@ static irqreturn_t at91_mci_irq(int irq, void *devid)
 static irqreturn_t at91_mmc_det_irq(int irq, void *_host)
 {
 	struct at91mci_host *host = _host;
-	int present = !gpio_get_value(irq_to_gpio(irq));
+	int present;
+
+	/* entering this ISR means that we have configured det_pin:
+	 * we can use its value in board structure */
+	present = !gpio_get_value(host->board->det_pin);
 
 	/*
 	 * we expect this irq on both insert and remove,
