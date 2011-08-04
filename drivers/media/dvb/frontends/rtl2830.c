@@ -31,45 +31,43 @@ int rtl2830_debug;
 module_param_named(debug, rtl2830_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
 
-/* write multiple registers */
-static int rtl2830_wr_regs(struct rtl2830_priv *priv, u16 reg, u8 *val, int len)
+/* write multiple hardware registers */
+static int rtl2830_wr(struct rtl2830_priv *priv, u8 reg, u8 *val, int len)
 {
 	int ret;
-	u8 buf[2+len];
+	u8 buf[1+len];
 	struct i2c_msg msg[1] = {
 		{
 			.addr = priv->cfg.i2c_addr,
 			.flags = 0,
-			.len = sizeof(buf),
+			.len = 1+len,
 			.buf = buf,
 		}
 	};
 
-	buf[0] = (reg >> 8) & 0xff;
-	buf[1] = (reg >> 0) & 0xff;
-	memcpy(&buf[2], val, len);
+	buf[0] = reg;
+	memcpy(&buf[1], val, len);
 
 	ret = i2c_transfer(priv->i2c, msg, 1);
 	if (ret == 1) {
 		ret = 0;
 	} else {
-		warn("i2c wr failed=%d reg=%04x len=%d", ret, reg, len);
+		warn("i2c wr failed=%d reg=%02x len=%d", ret, reg, len);
 		ret = -EREMOTEIO;
 	}
 	return ret;
 }
 
-/* read multiple registers */
-static int rtl2830_rd_regs(struct rtl2830_priv *priv, u16 reg, u8 *val, int len)
+/* read multiple hardware registers */
+static int rtl2830_rd(struct rtl2830_priv *priv, u8 reg, u8 *val, int len)
 {
 	int ret;
-	u8 buf[2];
 	struct i2c_msg msg[2] = {
 		{
 			.addr = priv->cfg.i2c_addr,
 			.flags = 0,
-			.len = sizeof(buf),
-			.buf = buf,
+			.len = 1,
+			.buf = &reg,
 		}, {
 			.addr = priv->cfg.i2c_addr,
 			.flags = I2C_M_RD,
@@ -78,17 +76,52 @@ static int rtl2830_rd_regs(struct rtl2830_priv *priv, u16 reg, u8 *val, int len)
 		}
 	};
 
-	buf[0] = (reg >> 8) & 0xff;
-	buf[1] = (reg >> 0) & 0xff;
-
 	ret = i2c_transfer(priv->i2c, msg, 2);
 	if (ret == 2) {
 		ret = 0;
 	} else {
-		warn("i2c rd failed=%d reg=%04x len=%d", ret, reg, len);
+		warn("i2c rd failed=%d reg=%02x len=%d", ret, reg, len);
 		ret = -EREMOTEIO;
 	}
 	return ret;
+}
+
+/* write multiple registers */
+static int rtl2830_wr_regs(struct rtl2830_priv *priv, u16 reg, u8 *val, int len)
+{
+	int ret;
+	u8 reg2 = (reg >> 0) & 0xff;
+	u8 page = (reg >> 8) & 0xff;
+
+	/* switch bank if needed */
+	if (page != priv->page) {
+		ret = rtl2830_wr(priv, 0x00, &page, 1);
+		if (ret)
+			return ret;
+
+		priv->page = page;
+	}
+
+	return rtl2830_wr(priv, reg2, val, len);
+}
+
+/* read multiple registers */
+static int rtl2830_rd_regs(struct rtl2830_priv *priv, u16 reg, u8 *val, int len)
+{
+	int ret;
+	u8 reg2 = (reg >> 0) & 0xff;
+	u8 page = (reg >> 8) & 0xff;
+
+	/* switch bank if needed */
+	if (page != priv->page) {
+		ret = rtl2830_wr(priv, 0x00, &page, 1);
+		if (ret)
+			return ret;
+
+		priv->page = page;
+	}
+
+	return rtl2830_rd(priv, reg2, val, len);
 }
 
 #if 0 /* currently not used */

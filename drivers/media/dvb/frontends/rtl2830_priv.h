@@ -42,6 +42,8 @@ struct rtl2830_priv {
 	struct dvb_frontend fe;
 	struct rtl2830_config cfg;
 	struct i2c_adapter tuner_i2c_adapter;
+
+	u8 page; /* active register page */
 };
 
 struct rtl2830_reg_val_mask {
