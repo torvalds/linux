@@ -267,9 +267,14 @@ int tm6000_init_analog_mode(struct tm6000_core *dev)
 	struct v4l2_frequency f;
 
 	if (dev->dev_type == TM6010) {
+		u8 active = TM6010_REQ07_RCC_ACTIVE_IF_AUDIO_ENABLE;
+
+		if (!dev->radio)
+			active |= TM6010_REQ07_RCC_ACTIVE_IF_VIDEO_ENABLE;
+
 		/* Enable video and audio */
 		tm6000_set_reg_mask(dev, TM6010_REQ07_RCC_ACTIVE_IF,
-							0x60, 0x60);
+							active, 0x60);
 		/* Disable TS input */
 		tm6000_set_reg_mask(dev, TM6010_REQ07_RC0_ACTIVE_VIDEO_SOURCE,
 							0x00, 0x40);
