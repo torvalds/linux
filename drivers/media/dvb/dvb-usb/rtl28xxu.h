@@ -62,10 +62,13 @@
 #define CMD_SYS_WR    (SYS | CMD_WR_FLAG)
 #define CMD_I2C_RD    (I2C)
 #define CMD_I2C_WR    (I2C | CMD_WR_FLAG)
+#define CMD_IR_RD     (CMD_SYS_RD | 0x01)
+#define CMD_IR_WR     (CMD_SYS_WR | 0x01)
 
 struct rtl28xxu_priv {
 	u8 chip_id;
 	u8 tuner;
+	bool rc_active;
 };
 
 enum rtl28xxu_chip_id {
@@ -76,9 +79,21 @@ enum rtl28xxu_chip_id {
 
 enum rtl28xxu_tuner {
 	TUNER_NONE = 0,
+
 	TUNER_RTL2830_QT1010,
 	TUNER_RTL2830_MT2060,
 	TUNER_RTL2830_MXL5005S,
+
+	TUNER_RTL2832_MT2266,
+	TUNER_RTL2832_FC2580,
+	TUNER_RTL2832_MT2063,
+	TUNER_RTL2832_MAX3543,
+	TUNER_RTL2832_TUA9001,
+	TUNER_RTL2832_MXL5007T,
+	TUNER_RTL2832_FC0012,
+	TUNER_RTL2832_E4000,
+	TUNER_RTL2832_TDA18272,
+	TUNER_RTL2832_FC0013,
 };
 
 struct rtl28xxu_req {
@@ -192,6 +207,8 @@ struct rtl28xxu_reg_val {
 #define SYS_GPIO_CFG0      0x3007 /* PAD configuration for GPIO0-GPIO3 */
 #define SYS_SYS2           0x3008 /* include GP_CFG1 and 3 reserved bytes */
 #define SYS_GPIO_CFG1      0x3008 /* PAD configuration for GPIO4 */
+#define SYS_DEMOD_CTL1     0x300B
+
 /* IrDA registers */
 #define SYS_IRRC_PSR       0x3020 /* IR protocol selection */
 #define SYS_IRRC_PER       0x3024 /* IR protocol extension */
@@ -206,5 +223,35 @@ struct rtl28xxu_reg_val {
 #define SYS_I2CMSTR        0x3048 /* I2C master SCL timing */
 #define SYS_I2CMSR         0x304C /* I2C master status */
 #define SYS_I2CMFR         0x3050 /* I2C master FIFO */
+
+/*
+ * IR registers
+ */
+#define IR_RX_BUF          0xFC00
+#define IR_RX_IE           0xFD00
+#define IR_RX_IF           0xFD01
+#define IR_RX_CTRL         0xFD02
+#define IR_RX_CFG          0xFD03
+#define IR_MAX_DURATION0   0xFD04
+#define IR_MAX_DURATION1   0xFD05
+#define IR_IDLE_LEN0       0xFD06
+#define IR_IDLE_LEN1       0xFD07
+#define IR_GLITCH_LEN      0xFD08
+#define IR_RX_BUF_CTRL     0xFD09
+#define IR_RX_BUF_DATA     0xFD0A
+#define IR_RX_BC           0xFD0B
+#define IR_RX_CLK          0xFD0C
+#define IR_RX_C_COUNT_L    0xFD0D
+#define IR_RX_C_COUNT_H    0xFD0E
+#define IR_SUSPEND_CTRL    0xFD10
+#define IR_ERR_TOL_CTRL    0xFD11
+#define IR_UNIT_LEN        0xFD12
+#define IR_ERR_TOL_LEN     0xFD13
+#define IR_MAX_H_TOL_LEN   0xFD14
+#define IR_MAX_L_TOL_LEN   0xFD15
+#define IR_MASK_CTRL       0xFD16
+#define IR_MASK_DATA       0xFD17
+#define IR_RES_MASK_ADDR   0xFD18
+#define IR_RES_MASK_T_LEN  0xFD19
 
 #endif
