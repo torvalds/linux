@@ -142,6 +142,7 @@ static noinline int run_scheduled_bios(struct btrfs_device *device)
 	unsigned long limit;
 	unsigned long last_waited = 0;
 	int force_reg = 0;
+	int sync_pending;
 	struct blk_plug plug;
 
 	/*
@@ -228,6 +229,22 @@ loop_lock:
 			wake_up(&fs_info->async_submit_wait);
 
 		BUG_ON(atomic_read(&cur->bi_cnt) == 0);
+
+		/*
+		 * if we're doing the sync list, record that our
+		 * plug has some sync requests on it
+		 *
+		 * If we're doing the regular list and there are
+		 * sync requests sitting around, unplug before
+		 * we add more
+		 */
+		if (pending_bios == &device->pending_sync_bios) {
+			sync_pending = 1;
+		} else if (sync_pending) {
+			blk_finish_plug(&plug);
+			blk_start_plug(&plug);
+			sync_pending = 0;
+		}
 
 		submit_bio(cur->bi_rw, cur);
 		num_run++;
