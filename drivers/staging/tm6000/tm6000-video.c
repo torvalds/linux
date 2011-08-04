@@ -754,7 +754,7 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	struct tm6000_fh     *fh  = vq->priv_data;
 	struct tm6000_buffer *buf = container_of(vb, struct tm6000_buffer, vb);
 	struct tm6000_core   *dev = fh->dev;
-	int rc = 0, urb_init = 0;
+	int rc = 0;
 
 	BUG_ON(NULL == fh->fmt);
 
@@ -780,13 +780,9 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 		rc = videobuf_iolock(vq, &buf->vb, NULL);
 		if (rc != 0)
 			goto fail;
-		urb_init = 1;
 	}
 
-	if (!dev->isoc_ctl.num_bufs)
-		urb_init = 1;
-
-	if (urb_init) {
+	if (!dev->isoc_ctl.num_bufs) {
 		rc = tm6000_prepare_isoc(dev);
 		if (rc < 0)
 			goto fail;
