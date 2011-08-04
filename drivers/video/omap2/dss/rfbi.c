@@ -957,10 +957,7 @@ static int omap_rfbihw_probe(struct platform_device *pdev)
 
 	msleep(10);
 
-	if (cpu_is_omap24xx() || cpu_is_omap34xx() || cpu_is_omap3630())
-		clk = dss_get_ick();
-	else
-		clk = clk_get(&pdev->dev, "ick");
+	clk = clk_get(&pdev->dev, "ick");
 	if (IS_ERR(clk)) {
 		DSSERR("can't get ick\n");
 		r = PTR_ERR(clk);
