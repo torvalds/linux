@@ -1168,6 +1168,7 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 		return -ENOMEM;
 	}
 	spin_lock_init(&dev->slock);
+	mutex_init(&dev->usb_lock);
 
 	/* Increment usage count */
 	tm6000_devused |= 1<<nr;

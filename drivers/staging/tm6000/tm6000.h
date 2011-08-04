@@ -245,6 +245,7 @@ struct tm6000_core {
 
 	/* locks */
 	struct mutex			lock;
+	struct mutex			usb_lock;
 
 	/* usb transfer */
 	struct usb_device		*udev;		/* the usb device */
