@@ -3771,6 +3771,10 @@ parse_init_table(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	int count = 0, i, ret;
 	uint8_t id;
 
+	/* catch NULL script pointers */
+	if (offset == 0)
+		return 0;
+
 	/*
 	 * Loop until INIT_DONE causes us to break out of the loop
 	 * (or until offset > bios length just in case... )
