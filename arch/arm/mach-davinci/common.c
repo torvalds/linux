@@ -12,6 +12,7 @@
 #include <linux/io.h>
 #include <linux/etherdevice.h>
 #include <linux/davinci_emac.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/tlb.h>
 #include <asm/mach/map.h>
@@ -85,6 +86,8 @@ void __init davinci_common_init(struct davinci_soc_info *soc_info)
 	if (davinci_soc_info.io_desc && (davinci_soc_info.io_desc_num > 0))
 		iotable_init(davinci_soc_info.io_desc,
 				davinci_soc_info.io_desc_num);
+
+	init_consistent_dma_size(14 << 20);
 
 	/*
 	 * Normally devicemaps_init() would flush caches and tlb after
