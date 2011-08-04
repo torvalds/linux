@@ -1863,10 +1863,10 @@ static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter, bool queues,
 		mask |= IXGBE_EIMS_GPI_SDP1;
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_82599EB:
-	case ixgbe_mac_X540:
-		mask |= IXGBE_EIMS_ECC;
 		mask |= IXGBE_EIMS_GPI_SDP1;
 		mask |= IXGBE_EIMS_GPI_SDP2;
+	case ixgbe_mac_X540:
+		mask |= IXGBE_EIMS_ECC;
 		mask |= IXGBE_EIMS_MAILBOX;
 		break;
 	default:
