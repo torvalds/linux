@@ -123,6 +123,12 @@ struct btrfs_inode {
 	 */
 	u64 last_unlink_trans;
 
+	/*
+	 * Number of bytes outstanding that are going to need csums.  This is
+	 * used in ENOSPC accounting.
+	 */
+	u64 csum_bytes;
+
 	/* flags field from the on disk inode */
 	u32 flags;
 

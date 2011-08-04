@@ -3984,11 +3984,19 @@ int btrfs_snap_reserve_metadata(struct btrfs_trans_handle *trans,
 	return block_rsv_migrate_bytes(src_rsv, dst_rsv, num_bytes);
 }
 
+/**
+ * drop_outstanding_extent - drop an outstanding extent
+ * @inode: the inode we're dropping the extent for
+ *
+ * This is called when we are freeing up an outstanding extent, either called
+ * after an error or after an extent is written.  This will return the number of
+ * reserved extents that need to be freed.  This must be called with
+ * BTRFS_I(inode)->lock held.
+ */
 static unsigned drop_outstanding_extent(struct inode *inode)
 {
 	unsigned dropped_extents = 0;
 
-	spin_lock(&BTRFS_I(inode)->lock);
 	BUG_ON(!BTRFS_I(inode)->outstanding_extents);
 	BTRFS_I(inode)->outstanding_extents--;
 
@@ -3998,19 +4006,70 @@ static unsigned drop_outstanding_extent(struct inode *inode)
 	 */
 	if (BTRFS_I(inode)->outstanding_extents >=
 	    BTRFS_I(inode)->reserved_extents)
-		goto out;
+		return 0;
 
 	dropped_extents = BTRFS_I(inode)->reserved_extents -
 		BTRFS_I(inode)->outstanding_extents;
 	BTRFS_I(inode)->reserved_extents -= dropped_extents;
-out:
-	spin_unlock(&BTRFS_I(inode)->lock);
 	return dropped_extents;
 }
 
-static u64 calc_csum_metadata_size(struct inode *inode, u64 num_bytes)
+/**
+ * calc_csum_metadata_size - return the amount of metada space that must be
+ *	reserved/free'd for the given bytes.
+ * @inode: the inode we're manipulating
+ * @num_bytes: the number of bytes in question
+ * @reserve: 1 if we are reserving space, 0 if we are freeing space
+ *
+ * This adjusts the number of csum_bytes in the inode and then returns the
+ * correct amount of metadata that must either be reserved or freed.  We
+ * calculate how many checksums we can fit into one leaf and then divide the
+ * number of bytes that will need to be checksumed by this value to figure out
+ * how many checksums will be required.  If we are adding bytes then the number
+ * may go up and we will return the number of additional bytes that must be
+ * reserved.  If it is going down we will return the number of bytes that must
+ * be freed.
+ *
+ * This must be called with BTRFS_I(inode)->lock held.
+ */
+static u64 calc_csum_metadata_size(struct inode *inode, u64 num_bytes,
+				   int reserve)
 {
-	return num_bytes >>= 3;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	u64 csum_size;
+	int num_csums_per_leaf;
+	int num_csums;
+	int old_csums;
+
+	if (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM &&
+	    BTRFS_I(inode)->csum_bytes == 0)
+		return 0;
+
+	old_csums = (int)div64_u64(BTRFS_I(inode)->csum_bytes, root->sectorsize);
+	if (reserve)
+		BTRFS_I(inode)->csum_bytes += num_bytes;
+	else
+		BTRFS_I(inode)->csum_bytes -= num_bytes;
+	csum_size = BTRFS_LEAF_DATA_SIZE(root) - sizeof(struct btrfs_item);
+	num_csums_per_leaf = (int)div64_u64(csum_size,
+					    sizeof(struct btrfs_csum_item) +
+					    sizeof(struct btrfs_disk_key));
+	num_csums = (int)div64_u64(BTRFS_I(inode)->csum_bytes, root->sectorsize);
+	num_csums = num_csums + num_csums_per_leaf - 1;
+	num_csums = num_csums / num_csums_per_leaf;
+
+	old_csums = old_csums + num_csums_per_leaf - 1;
+	old_csums = old_csums / num_csums_per_leaf;
+
+	/* No change, no need to reserve more */
+	if (old_csums == num_csums)
+		return 0;
+
+	if (reserve)
+		return btrfs_calc_trans_metadata_size(root,
+						      num_csums - old_csums);
+
+	return btrfs_calc_trans_metadata_size(root, old_csums - num_csums);
 }
 
 int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
@@ -4037,9 +4096,9 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 
 		to_reserve = btrfs_calc_trans_metadata_size(root, nr_extents);
 	}
+	to_reserve += calc_csum_metadata_size(inode, num_bytes, 1);
 	spin_unlock(&BTRFS_I(inode)->lock);
 
-	to_reserve += calc_csum_metadata_size(inode, num_bytes);
 	ret = reserve_metadata_bytes(NULL, root, block_rsv, to_reserve, 1);
 	if (ret) {
 		unsigned dropped;
@@ -4047,8 +4106,11 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 		 * We don't need the return value since our reservation failed,
 		 * we just need to clean up our counter.
 		 */
+		spin_lock(&BTRFS_I(inode)->lock);
 		dropped = drop_outstanding_extent(inode);
 		WARN_ON(dropped > 1);
+		BTRFS_I(inode)->csum_bytes -= num_bytes;
+		spin_unlock(&BTRFS_I(inode)->lock);
 		return ret;
 	}
 
@@ -4057,6 +4119,15 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	return 0;
 }
 
+/**
+ * btrfs_delalloc_release_metadata - release a metadata reservation for an inode
+ * @inode: the inode to release the reservation for
+ * @num_bytes: the number of bytes we're releasing
+ *
+ * This will release the metadata reservation for an inode.  This can be called
+ * once we complete IO for a given set of bytes to release their metadata
+ * reservations.
+ */
 void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -4064,9 +4135,11 @@ void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes)
 	unsigned dropped;
 
 	num_bytes = ALIGN(num_bytes, root->sectorsize);
+	spin_lock(&BTRFS_I(inode)->lock);
 	dropped = drop_outstanding_extent(inode);
 
-	to_free = calc_csum_metadata_size(inode, num_bytes);
+	to_free = calc_csum_metadata_size(inode, num_bytes, 0);
+	spin_unlock(&BTRFS_I(inode)->lock);
 	if (dropped > 0)
 		to_free += btrfs_calc_trans_metadata_size(root, dropped);
 
@@ -4074,6 +4147,21 @@ void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes)
 				to_free);
 }
 
+/**
+ * btrfs_delalloc_reserve_space - reserve data and metadata space for delalloc
+ * @inode: inode we're writing to
+ * @num_bytes: the number of bytes we want to allocate
+ *
+ * This will do the following things
+ *
+ * o reserve space in the data space info for num_bytes
+ * o reserve space in the metadata space info based on number of outstanding
+ *   extents and how much csums will be needed
+ * o add to the inodes ->delalloc_bytes
+ * o add it to the fs_info's delalloc inodes list.
+ *
+ * This will return 0 for success and -ENOSPC if there is no space left.
+ */
 int btrfs_delalloc_reserve_space(struct inode *inode, u64 num_bytes)
 {
 	int ret;
@@ -4091,6 +4179,19 @@ int btrfs_delalloc_reserve_space(struct inode *inode, u64 num_bytes)
 	return 0;
 }
 
+/**
+ * btrfs_delalloc_release_space - release data and metadata space for delalloc
+ * @inode: inode we're releasing space for
+ * @num_bytes: the number of bytes we want to free up
+ *
+ * This must be matched with a call to btrfs_delalloc_reserve_space.  This is
+ * called in the case that we don't need the metadata AND data reservations
+ * anymore.  So if there is an error or we insert an inline extent.
+ *
+ * This function will release the metadata space that was not used and will
+ * decrement ->delalloc_bytes and remove it from the fs_info delalloc_inodes
+ * list if there are no delalloc bytes left.
+ */
 void btrfs_delalloc_release_space(struct inode *inode, u64 num_bytes)
 {
 	btrfs_delalloc_release_metadata(inode, num_bytes);
