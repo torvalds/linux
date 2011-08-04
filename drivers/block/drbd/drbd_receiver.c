@@ -888,16 +888,11 @@ retry:
 		}
 	}
 
-	if (drbd_request_state(mdev, NS(conn, C_WF_REPORT_PARAMS)) < SS_SUCCESS)
-		return 0;
-
 	sock->sk->sk_sndtimeo = mdev->net_conf->timeout*HZ/10;
 	sock->sk->sk_rcvtimeo = MAX_SCHEDULE_TIMEOUT;
 
 	atomic_set(&mdev->packet_seq, 0);
 	mdev->peer_seq = 0;
-
-	drbd_thread_start(&mdev->asender);
 
 	if (drbd_send_protocol(mdev) == -1)
 		return -1;
@@ -907,6 +902,11 @@ retry:
 	drbd_send_state(mdev);
 	clear_bit(USE_DEGR_WFC_T, &mdev->flags);
 	clear_bit(RESIZE_PENDING, &mdev->flags);
+
+	if (drbd_request_state(mdev, NS(conn, C_WF_REPORT_PARAMS)) < SS_SUCCESS)
+		return 0;
+
+	drbd_thread_start(&mdev->asender);
 	mod_timer(&mdev->request_timer, jiffies + HZ); /* just start it here. */
 
 	return 1;

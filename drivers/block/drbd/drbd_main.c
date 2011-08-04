@@ -1318,7 +1318,7 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 		drbd_thread_stop_nowait(&mdev->receiver);
 
 	/* Upon network failure, we need to restart the receiver. */
-	if (os.conn > C_TEAR_DOWN &&
+	if (os.conn > C_WF_CONNECTION &&
 	    ns.conn <= C_TEAR_DOWN && ns.conn >= C_TIMEOUT)
 		drbd_thread_restart_nowait(&mdev->receiver);
 
