@@ -1891,8 +1891,8 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 		/* Request the search algorithm to search */
 		fepriv->algo_status |= DVBFE_ALGO_SEARCH_AGAIN;
 
-		dvb_frontend_wakeup(fe);
 		dvb_frontend_add_event(fe, 0);
+		dvb_frontend_wakeup(fe);
 		fepriv->status = 0;
 		err = 0;
 		break;
