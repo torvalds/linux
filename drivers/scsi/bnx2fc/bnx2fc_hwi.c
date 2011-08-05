@@ -1009,6 +1009,7 @@ int bnx2fc_process_new_cqes(struct bnx2fc_rport *tgt)
 	u32 cq_cons;
 	struct fcoe_cqe *cqe;
 	u32 num_free_sqes = 0;
+	u32 num_cqes = 0;
 	u16 wqe;
 
 	/*
@@ -1058,10 +1059,11 @@ unlock:
 				wake_up_process(fps->iothread);
 			else
 				bnx2fc_process_cq_compl(tgt, wqe);
+			num_free_sqes++;
 		}
 		cqe++;
 		tgt->cq_cons_idx++;
-		num_free_sqes++;
+		num_cqes++;
 
 		if (tgt->cq_cons_idx == BNX2FC_CQ_WQES_MAX) {
 			tgt->cq_cons_idx = 0;
@@ -1070,8 +1072,10 @@ unlock:
 				1 - tgt->cq_curr_toggle_bit;
 		}
 	}
-	if (num_free_sqes) {
-		bnx2fc_arm_cq(tgt);
+	if (num_cqes) {
+		/* Arm CQ only if doorbell is mapped */
+		if (tgt->ctx_base)
+			bnx2fc_arm_cq(tgt);
 		atomic_add(num_free_sqes, &tgt->free_sqes);
 	}
 	spin_unlock_bh(&tgt->cq_lock);

@@ -133,9 +133,9 @@ retry_ofld:
 		printk(KERN_ERR PFX "map doorbell failed - no mem\n");
 		/* upload will take care of cleaning up sess resc */
 		lport->tt.rport_logoff(rdata);
-	}
-	/* Arm CQ */
-	bnx2fc_arm_cq(tgt);
+	} else
+		/* Arm CQ */
+		bnx2fc_arm_cq(tgt);
 	return;
 
 ofld_err:
@@ -806,14 +806,14 @@ mem_alloc_failure:
 static void bnx2fc_free_session_resc(struct bnx2fc_hba *hba,
 						struct bnx2fc_rport *tgt)
 {
+	void __iomem *ctx_base_ptr;
+
 	BNX2FC_TGT_DBG(tgt, "Freeing up session resources\n");
 
-	if (tgt->ctx_base) {
-		iounmap(tgt->ctx_base);
-		tgt->ctx_base = NULL;
-	}
-
 	spin_lock_bh(&tgt->cq_lock);
+	ctx_base_ptr = tgt->ctx_base;
+	tgt->ctx_base = NULL;
+
 	/* Free LCQ */
 	if (tgt->lcq) {
 		dma_free_coherent(&hba->pcidev->dev, tgt->lcq_mem_size,
@@ -867,4 +867,7 @@ static void bnx2fc_free_session_resc(struct bnx2fc_hba *hba,
 		tgt->sq = NULL;
 	}
 	spin_unlock_bh(&tgt->cq_lock);
+
+	if (ctx_base_ptr)
+		iounmap(ctx_base_ptr);
 }
