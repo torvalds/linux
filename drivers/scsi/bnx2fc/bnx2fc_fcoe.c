@@ -771,8 +771,8 @@ static void bnx2fc_destroy_timer(unsigned long data)
 {
 	struct bnx2fc_hba *hba = (struct bnx2fc_hba *)data;
 
-	BNX2FC_MISC_DBG("ERROR:bnx2fc_destroy_timer - "
-		   "Destroy compl not received!!\n");
+	printk(KERN_ERR PFX "ERROR:bnx2fc_destroy_timer - "
+	       "Destroy compl not received!!\n");
 	set_bit(BNX2FC_FLAG_DESTROY_CMPL, &hba->flags);
 	wake_up_interruptible(&hba->destroy_wait);
 }
@@ -1701,6 +1701,7 @@ static void bnx2fc_fw_destroy(struct bnx2fc_hba *hba)
 			wait_event_interruptible(hba->destroy_wait,
 					test_bit(BNX2FC_FLAG_DESTROY_CMPL,
 						 &hba->flags));
+			clear_bit(BNX2FC_FLAG_DESTROY_CMPL, &hba->flags);
 			/* This should never happen */
 			if (signal_pending(current))
 				flush_signals(current);
