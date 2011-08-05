@@ -1251,7 +1251,6 @@ void bnx2fc_process_seq_cleanup_compl(struct bnx2fc_cmd *seq_clnp_req,
 			seq_clnp_req->xid);
 		goto free_cb_arg;
 	}
-	kref_get(&orig_io_req->refcount);
 
 	spin_unlock_bh(&tgt->tgt_lock);
 	rc = bnx2fc_send_srr(orig_io_req, offset, r_ctl);
