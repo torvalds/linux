@@ -106,7 +106,7 @@ static struct {
 	int irq;
 	struct clk *dss_clk;
 
-	u32	fifo_size[3];
+	u32	fifo_size[MAX_DSS_OVERLAYS];
 
 	spinlock_t irq_lock;
 	u32 irq_error_mask;
@@ -1024,7 +1024,7 @@ static void dispc_read_plane_fifo_sizes(void)
 
 	dss_feat_get_reg_field(FEAT_REG_FIFOSIZE, &start, &end);
 
-	for (plane = 0; plane < ARRAY_SIZE(dispc.fifo_size); ++plane) {
+	for (plane = 0; plane < dss_feat_get_num_ovls(); ++plane) {
 		size = REG_GET(DISPC_OVL_FIFO_SIZE_STATUS(plane), start, end);
 		size *= unit;
 		dispc.fifo_size[plane] = size;
