@@ -707,8 +707,7 @@ void ath9k_tasklet(unsigned long data)
 		 */
 		ath_dbg(common, ATH_DBG_PS,
 			"TSFOOR - Sync with next Beacon\n");
-		sc->ps_flags |= PS_WAIT_FOR_BEACON | PS_BEACON_SYNC |
-				PS_TSFOOR_SYNC;
+		sc->ps_flags |= PS_WAIT_FOR_BEACON | PS_BEACON_SYNC;
 	}
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
@@ -887,6 +886,7 @@ static void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 
 	ath9k_ps_wakeup(sc);
 	spin_lock_bh(&sc->sc_pcu_lock);
+	atomic_set(&ah->intr_ref_cnt, -1);
 
 	ath9k_hw_configpcipowersave(ah, 0, 0);
 

@@ -566,6 +566,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	ah->reg_ops.read = ath9k_ioread32;
 	ah->reg_ops.write = ath9k_iowrite32;
 	ah->reg_ops.rmw = ath9k_reg_rmw;
+	atomic_set(&ah->intr_ref_cnt, -1);
 	sc->sc_ah = ah;
 
 	if (!pdata) {
