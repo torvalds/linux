@@ -772,13 +772,10 @@ struct btrfs_space_info {
 struct btrfs_block_rsv {
 	u64 size;
 	u64 reserved;
-	u64 freed[2];
 	struct btrfs_space_info *space_info;
-	struct list_head list;
 	spinlock_t lock;
 	atomic_t usage;
 	unsigned int priority:8;
-	unsigned int durable:1;
 	unsigned int refill_used:1;
 	unsigned int full:1;
 };
@@ -840,7 +837,6 @@ struct btrfs_block_group_cache {
 	spinlock_t lock;
 	u64 pinned;
 	u64 reserved;
-	u64 reserved_pinned;
 	u64 bytes_super;
 	u64 flags;
 	u64 sectorsize;
@@ -918,11 +914,6 @@ struct btrfs_fs_info {
 	struct btrfs_block_rsv chunk_block_rsv;
 
 	struct btrfs_block_rsv empty_block_rsv;
-
-	/* list of block reservations that cross multiple transactions */
-	struct list_head durable_block_rsv_list;
-
-	struct mutex durable_block_rsv_mutex;
 
 	u64 generation;
 	u64 last_trans_committed;
@@ -2238,8 +2229,6 @@ void btrfs_init_block_rsv(struct btrfs_block_rsv *rsv);
 struct btrfs_block_rsv *btrfs_alloc_block_rsv(struct btrfs_root *root);
 void btrfs_free_block_rsv(struct btrfs_root *root,
 			  struct btrfs_block_rsv *rsv);
-void btrfs_add_durable_block_rsv(struct btrfs_fs_info *fs_info,
-				 struct btrfs_block_rsv *rsv);
 int btrfs_block_rsv_add(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root,
 			struct btrfs_block_rsv *block_rsv,

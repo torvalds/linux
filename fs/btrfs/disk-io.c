@@ -1665,8 +1665,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	btrfs_init_block_rsv(&fs_info->trans_block_rsv);
 	btrfs_init_block_rsv(&fs_info->chunk_block_rsv);
 	btrfs_init_block_rsv(&fs_info->empty_block_rsv);
-	INIT_LIST_HEAD(&fs_info->durable_block_rsv_list);
-	mutex_init(&fs_info->durable_block_rsv_mutex);
 	atomic_set(&fs_info->nr_async_submits, 0);
 	atomic_set(&fs_info->async_delalloc_pages, 0);
 	atomic_set(&fs_info->async_submit_draining, 0);

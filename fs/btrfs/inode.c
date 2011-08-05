@@ -2164,9 +2164,6 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode)
 	}
 	spin_unlock(&root->orphan_lock);
 
-	if (block_rsv)
-		btrfs_add_durable_block_rsv(root->fs_info, block_rsv);
-
 	/* grab metadata reservation from transaction handle */
 	if (reserve) {
 		ret = btrfs_orphan_reserve_metadata(trans, inode);
@@ -6505,7 +6502,6 @@ static int btrfs_truncate(struct inode *inode)
 	rsv = btrfs_alloc_block_rsv(root);
 	if (!rsv)
 		return -ENOMEM;
-	btrfs_add_durable_block_rsv(root->fs_info, rsv);
 
 	trans = btrfs_start_transaction(root, 4);
 	if (IS_ERR(trans)) {

@@ -3651,7 +3651,6 @@ int prepare_to_relocate(struct reloc_control *rc)
 		return ret;
 
 	rc->block_rsv->refill_used = 1;
-	btrfs_add_durable_block_rsv(rc->extent_root->fs_info, rc->block_rsv);
 
 	memset(&rc->cluster, 0, sizeof(rc->cluster));
 	rc->search_start = rc->block_group->key.objectid;

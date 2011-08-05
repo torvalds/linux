@@ -121,7 +121,6 @@ void btrfs_put_block_group(struct btrfs_block_group_cache *cache)
 	if (atomic_dec_and_test(&cache->count)) {
 		WARN_ON(cache->pinned > 0);
 		WARN_ON(cache->reserved > 0);
-		WARN_ON(cache->reserved_pinned > 0);
 		kfree(cache->free_space_ctl);
 		kfree(cache);
 	}
@@ -3662,7 +3661,6 @@ void btrfs_init_block_rsv(struct btrfs_block_rsv *rsv)
 	spin_lock_init(&rsv->lock);
 	atomic_set(&rsv->usage, 1);
 	rsv->priority = 6;
-	INIT_LIST_HEAD(&rsv->list);
 }
 
 struct btrfs_block_rsv *btrfs_alloc_block_rsv(struct btrfs_root *root)
@@ -3685,23 +3683,8 @@ void btrfs_free_block_rsv(struct btrfs_root *root,
 {
 	if (rsv && atomic_dec_and_test(&rsv->usage)) {
 		btrfs_block_rsv_release(root, rsv, (u64)-1);
-		if (!rsv->durable)
-			kfree(rsv);
+		kfree(rsv);
 	}
-}
-
-/*
- * make the block_rsv struct be able to capture freed space.
- * the captured space will re-add to the the block_rsv struct
- * after transaction commit
- */
-void btrfs_add_durable_block_rsv(struct btrfs_fs_info *fs_info,
-				 struct btrfs_block_rsv *block_rsv)
-{
-	block_rsv->durable = 1;
-	mutex_lock(&fs_info->durable_block_rsv_mutex);
-	list_add_tail(&block_rsv->list, &fs_info->durable_block_rsv_list);
-	mutex_unlock(&fs_info->durable_block_rsv_mutex);
 }
 
 int btrfs_block_rsv_add(struct btrfs_trans_handle *trans,
@@ -3745,9 +3728,7 @@ int btrfs_block_rsv_check(struct btrfs_trans_handle *trans,
 		ret = 0;
 	} else {
 		num_bytes -= block_rsv->reserved;
-		if (block_rsv->durable &&
-		    block_rsv->freed[0] + block_rsv->freed[1] >= num_bytes)
-			commit_trans = 1;
+		commit_trans = 1;
 	}
 	spin_unlock(&block_rsv->lock);
 	if (!ret)
@@ -3763,8 +3744,18 @@ int btrfs_block_rsv_check(struct btrfs_trans_handle *trans,
 	}
 
 	if (commit_trans) {
+		struct btrfs_space_info *sinfo = block_rsv->space_info;
+
 		if (trans)
 			return -EAGAIN;
+
+		spin_lock(&sinfo->lock);
+		if (sinfo->bytes_pinned < num_bytes) {
+			spin_unlock(&sinfo->lock);
+			return -ENOSPC;
+		}
+		spin_unlock(&sinfo->lock);
+
 		trans = btrfs_join_transaction(root);
 		BUG_ON(IS_ERR(trans));
 		ret = btrfs_commit_transaction(trans, root);
@@ -3884,10 +3875,6 @@ static void init_global_block_rsv(struct btrfs_fs_info *fs_info)
 	fs_info->dev_root->block_rsv = &fs_info->global_block_rsv;
 	fs_info->tree_root->block_rsv = &fs_info->global_block_rsv;
 	fs_info->chunk_root->block_rsv = &fs_info->chunk_block_rsv;
-
-	btrfs_add_durable_block_rsv(fs_info, &fs_info->global_block_rsv);
-
-	btrfs_add_durable_block_rsv(fs_info, &fs_info->delalloc_block_rsv);
 
 	update_global_block_rsv(fs_info);
 }
@@ -4447,13 +4434,8 @@ static int unpin_extent_range(struct btrfs_root *root, u64 start, u64 end)
 		spin_lock(&cache->lock);
 		cache->pinned -= len;
 		cache->space_info->bytes_pinned -= len;
-		if (cache->ro) {
+		if (cache->ro)
 			cache->space_info->bytes_readonly += len;
-		} else if (cache->reserved_pinned > 0) {
-			len = min(len, cache->reserved_pinned);
-			cache->reserved_pinned -= len;
-			cache->space_info->bytes_may_use += len;
-		}
 		spin_unlock(&cache->lock);
 		spin_unlock(&cache->space_info->lock);
 	}
@@ -4468,11 +4450,8 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct extent_io_tree *unpin;
-	struct btrfs_block_rsv *block_rsv;
-	struct btrfs_block_rsv *next_rsv;
 	u64 start;
 	u64 end;
-	int idx;
 	int ret;
 
 	if (fs_info->pinned_extents == &fs_info->freed_extents[0])
@@ -4494,30 +4473,6 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 		unpin_extent_range(root, start, end);
 		cond_resched();
 	}
-
-	mutex_lock(&fs_info->durable_block_rsv_mutex);
-	list_for_each_entry_safe(block_rsv, next_rsv,
-				 &fs_info->durable_block_rsv_list, list) {
-
-		idx = trans->transid & 0x1;
-		if (block_rsv->freed[idx] > 0) {
-			block_rsv_add_bytes(block_rsv,
-					    block_rsv->freed[idx], 0);
-			block_rsv->freed[idx] = 0;
-		}
-		if (atomic_read(&block_rsv->usage) == 0) {
-			btrfs_block_rsv_release(root, block_rsv, (u64)-1);
-
-			if (block_rsv->freed[0] == 0 &&
-			    block_rsv->freed[1] == 0) {
-				list_del_init(&block_rsv->list);
-				kfree(block_rsv);
-			}
-		} else {
-			btrfs_block_rsv_release(root, block_rsv, 0);
-		}
-	}
-	mutex_unlock(&fs_info->durable_block_rsv_mutex);
 
 	return 0;
 }
@@ -4820,36 +4775,18 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 		if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID) {
 			ret = check_ref_cleanup(trans, root, buf->start);
 			if (!ret)
-				goto pin;
+				goto out;
 		}
 
 		if (btrfs_header_flag(buf, BTRFS_HEADER_FLAG_WRITTEN)) {
 			pin_down_extent(root, cache, buf->start, buf->len, 1);
-			goto pin;
+			goto out;
 		}
 
 		WARN_ON(test_bit(EXTENT_BUFFER_DIRTY, &buf->bflags));
 
 		btrfs_add_free_space(cache, buf->start, buf->len);
 		btrfs_update_reserved_bytes(cache, buf->len, RESERVE_FREE);
-
-		goto out;
-	}
-pin:
-	if (block_rsv->durable && !cache->ro) {
-		ret = 0;
-		spin_lock(&cache->lock);
-		if (!cache->ro) {
-			cache->reserved_pinned += buf->len;
-			ret = 1;
-		}
-		spin_unlock(&cache->lock);
-
-		if (ret) {
-			spin_lock(&block_rsv->lock);
-			block_rsv->freed[trans->transid & 0x1] += buf->len;
-			spin_unlock(&block_rsv->lock);
-		}
 	}
 out:
 	/*
@@ -6705,12 +6642,9 @@ static int set_block_group_ro(struct btrfs_block_group_cache *cache, int force)
 		    cache->bytes_super - btrfs_block_group_used(&cache->item);
 
 	if (sinfo->bytes_used + sinfo->bytes_reserved + sinfo->bytes_pinned +
-	    sinfo->bytes_may_use + sinfo->bytes_readonly +
-	    cache->reserved_pinned + num_bytes + min_allocable_bytes <=
-	    sinfo->total_bytes) {
+	    sinfo->bytes_may_use + sinfo->bytes_readonly + num_bytes +
+	    min_allocable_bytes <= sinfo->total_bytes) {
 		sinfo->bytes_readonly += num_bytes;
-		sinfo->bytes_may_use += cache->reserved_pinned;
-		cache->reserved_pinned = 0;
 		cache->ro = 1;
 		ret = 0;
 	}
