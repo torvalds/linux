@@ -599,6 +599,7 @@ static unsigned long bdi_position_ratio(struct backing_dev_info *bdi,
 	 */
 	if (unlikely(bdi_thresh > thresh))
 		bdi_thresh = thresh;
+	bdi_thresh = max(bdi_thresh, (limit - dirty) / 8);
 	/*
 	 * scale global setpoint to bdi's:
 	 *	bdi_setpoint = setpoint * bdi_thresh / thresh
@@ -621,6 +622,20 @@ static unsigned long bdi_position_ratio(struct backing_dev_info *bdi,
 		do_div(pos_ratio, x_intercept - bdi_setpoint + 1);
 	} else
 		pos_ratio /= 4;
+
+	/*
+	 * bdi reserve area, safeguard against dirty pool underrun and disk idle
+	 * It may push the desired control point of global dirty pages higher
+	 * than setpoint.
+	 */
+	x_intercept = bdi_thresh / 2;
+	if (bdi_dirty < x_intercept) {
+		if (bdi_dirty > x_intercept / 8) {
+			pos_ratio *= x_intercept;
+			do_div(pos_ratio, bdi_dirty);
+		} else
+			pos_ratio *= 8;
+	}
 
 	return pos_ratio;
 }
