@@ -308,9 +308,6 @@ static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
 	u8 i;
 	u32 val;
 
-	if (ah->is_pciexpress != true || ah->aspm_enabled != true)
-		return;
-
 	/* Nothing to do on restore for 11N */
 	if (!power_off /* !restore */) {
 		if (AR_SREV_9280_20_OR_LATER(ah)) {

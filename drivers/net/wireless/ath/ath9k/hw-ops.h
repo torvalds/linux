@@ -24,6 +24,9 @@
 static inline void ath9k_hw_configpcipowersave(struct ath_hw *ah,
 					       bool power_off)
 {
+	if (ah->aspm_enabled != true)
+		return;
+
 	ath9k_hw_ops(ah)->config_pci_powersave(ah, power_off);
 }
 
