@@ -65,7 +65,6 @@ static void bnx2fc_recv_frame(struct sk_buff *skb);
 
 static void bnx2fc_start_disc(struct bnx2fc_interface *interface);
 static int bnx2fc_shost_config(struct fc_lport *lport, struct device *dev);
-static int bnx2fc_net_config(struct fc_lport *lp);
 static int bnx2fc_lport_config(struct fc_lport *lport);
 static int bnx2fc_em_config(struct fc_lport *lport);
 static int bnx2fc_bind_adapter_devices(struct bnx2fc_hba *hba);
@@ -737,7 +736,7 @@ void bnx2fc_get_link_state(struct bnx2fc_hba *hba)
 		clear_bit(ADAPTER_STATE_LINK_DOWN, &hba->adapter_state);
 }
 
-static int bnx2fc_net_config(struct fc_lport *lport)
+static int bnx2fc_net_config(struct fc_lport *lport, struct net_device *netdev)
 {
 	struct bnx2fc_hba *hba;
 	struct bnx2fc_interface *interface;
@@ -763,11 +762,16 @@ static int bnx2fc_net_config(struct fc_lport *lport)
 	bnx2fc_link_speed_update(lport);
 
 	if (!lport->vport) {
-		wwnn = fcoe_wwn_from_mac(interface->ctlr.ctl_src_addr, 1, 0);
+		if (fcoe_get_wwn(netdev, &wwnn, NETDEV_FCOE_WWNN))
+			wwnn = fcoe_wwn_from_mac(interface->ctlr.ctl_src_addr,
+						 1, 0);
 		BNX2FC_HBA_DBG(lport, "WWNN = 0x%llx\n", wwnn);
 		fc_set_wwnn(lport, wwnn);
 
-		wwpn = fcoe_wwn_from_mac(interface->ctlr.ctl_src_addr, 2, 0);
+		if (fcoe_get_wwn(netdev, &wwpn, NETDEV_FCOE_WWPN))
+			wwpn = fcoe_wwn_from_mac(interface->ctlr.ctl_src_addr,
+						 2, 0);
+
 		BNX2FC_HBA_DBG(lport, "WWPN = 0x%llx\n", wwpn);
 		fc_set_wwpn(lport, wwpn);
 	}
@@ -1367,7 +1371,7 @@ static struct fc_lport *bnx2fc_if_create(struct bnx2fc_interface *interface,
 		fc_set_wwpn(lport, vport->port_name);
 	}
 	/* Configure netdev and networking properties of the lport */
-	rc = bnx2fc_net_config(lport);
+	rc = bnx2fc_net_config(lport, interface->netdev);
 	if (rc) {
 		printk(KERN_ERR PFX "Error on bnx2fc_net_config\n");
 		goto lp_config_err;
