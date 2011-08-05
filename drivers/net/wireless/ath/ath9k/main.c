@@ -888,7 +888,7 @@ static void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 	spin_lock_bh(&sc->sc_pcu_lock);
 	atomic_set(&ah->intr_ref_cnt, -1);
 
-	ath9k_hw_configpcipowersave(ah, 0, 0);
+	ath9k_hw_configpcipowersave(ah, false);
 
 	if (!ah->curchan)
 		ah->curchan = ath9k_cmn_get_curchannel(sc->hw, ah);
@@ -969,7 +969,7 @@ void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw)
 
 	ath9k_hw_phy_disable(ah);
 
-	ath9k_hw_configpcipowersave(ah, 1, 1);
+	ath9k_hw_configpcipowersave(ah, true);
 
 	spin_unlock_bh(&sc->sc_pcu_lock);
 	ath9k_ps_restore(sc);
@@ -1069,7 +1069,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	init_channel = ath9k_cmn_get_curchannel(hw, ah);
 
 	/* Reset SERDES registers */
-	ath9k_hw_configpcipowersave(ah, 0, 0);
+	ath9k_hw_configpcipowersave(ah, false);
 
 	/*
 	 * The basic interface to setting the hardware in a good

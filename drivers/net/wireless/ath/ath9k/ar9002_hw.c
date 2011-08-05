@@ -303,8 +303,7 @@ static void ar9002_hw_init_mode_gain_regs(struct ath_hw *ah)
  * register as the other analog registers.  Hence the 9 writes.
  */
 static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
-					 int restore,
-					 int power_off)
+					 bool power_off)
 {
 	u8 i;
 	u32 val;
@@ -313,7 +312,7 @@ static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
 		return;
 
 	/* Nothing to do on restore for 11N */
-	if (!restore) {
+	if (!power_off /* !restore */) {
 		if (AR_SREV_9280_20_OR_LATER(ah)) {
 			/*
 			 * AR9280 2.0 or later chips use SerDes values from the

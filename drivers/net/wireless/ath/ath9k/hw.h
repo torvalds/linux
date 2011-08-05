@@ -606,8 +606,7 @@ struct ath_hw_private_ops {
  */
 struct ath_hw_ops {
 	void (*config_pci_powersave)(struct ath_hw *ah,
-				     int restore,
-				     int power_off);
+				     bool power_off);
 	void (*rx_enable)(struct ath_hw *ah);
 	void (*set_desc_link)(void *ds, u32 link);
 	bool (*calibrate)(struct ath_hw *ah,

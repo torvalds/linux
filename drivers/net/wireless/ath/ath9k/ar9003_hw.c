@@ -516,14 +516,13 @@ static void ar9003_hw_init_mode_gain_regs(struct ath_hw *ah)
  * register as the other analog registers.  Hence the 9 writes.
  */
 static void ar9003_hw_configpcipowersave(struct ath_hw *ah,
-					 int restore,
-					 int power_off)
+					 bool power_off)
 {
 	if (ah->is_pciexpress != true || ah->aspm_enabled != true)
 		return;
 
 	/* Nothing to do on restore for 11N */
-	if (!restore) {
+	if (!power_off /* !restore */) {
 		/* set bit 19 to allow forcing of pcie core into L1 state */
 		REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
 

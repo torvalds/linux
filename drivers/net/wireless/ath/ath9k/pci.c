@@ -35,6 +35,7 @@ static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
 	{ 0 }
 };
 
+
 /* return bus cachesize in 4B word units */
 static void ath_pci_read_cachesize(struct ath_common *common, int *csz)
 {
@@ -137,7 +138,7 @@ static void ath_pci_aspm_init(struct ath_common *common)
 	if (aspm & (PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1)) {
 		ah->aspm_enabled = true;
 		/* Initialize PCIe PM and SERDES registers. */
-		ath9k_hw_configpcipowersave(ah, 0, 0);
+		ath9k_hw_configpcipowersave(ah, false);
 	}
 }
 
