@@ -669,20 +669,22 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 		 * width left
 		 */
 		while (bd.remainder > (mbus->buswidth - 1)) {
-			size_t lli_len, tsize;
+			size_t lli_len, tsize, width;
 
 			/*
 			 * If enough left try to send max possible,
 			 * otherwise try to send the remainder
 			 */
 			lli_len = min(bd.remainder, max_bytes_per_lli);
+
 			/*
-			 * Check against minimum bus alignment: Calculate actual
+			 * Check against maximum bus alignment: Calculate actual
 			 * transfer size in relation to bus width and get a
-			 * maximum remainder of the smallest bus width - 1
+			 * maximum remainder of the highest bus width - 1
 			 */
-			tsize = lli_len / min(mbus->buswidth, sbus->buswidth);
-			lli_len	= tsize * min(mbus->buswidth, sbus->buswidth);
+			width = max(mbus->buswidth, sbus->buswidth);
+			lli_len = (lli_len / width) * width;
+			tsize = lli_len / bd.srcbus.buswidth;
 
 			dev_vdbg(&pl08x->adev->dev,
 				"%s fill lli with single lli chunk of "
