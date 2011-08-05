@@ -150,6 +150,8 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 	spin_lock(&root->fs_info->defrag_inodes_lock);
 	if (!BTRFS_I(inode)->in_defrag)
 		__btrfs_add_inode_defrag(inode, defrag);
+	else
+		kfree(defrag);
 	spin_unlock(&root->fs_info->defrag_inodes_lock);
 	return 0;
 }
