@@ -522,6 +522,7 @@ static void ath_beacon_config_ap(struct ath_softc *sc,
 	ath9k_beacon_init(sc, nexttbtt, intval);
 	sc->beacon.bmisscnt = 0;
 	ath9k_hw_set_interrupts(ah, ah->imask);
+	ath9k_hw_enable_interrupts(ah);
 }
 
 /*
@@ -652,8 +653,10 @@ static void ath_beacon_config_sta(struct ath_softc *sc,
 	 * If the beacon config is called beacause of TSFOOR,
 	 * Interrupts will be enabled back at the end of ath9k_tasklet
 	 */
-	if (!(sc->ps_flags & PS_TSFOOR_SYNC))
+	if (!(sc->ps_flags & PS_TSFOOR_SYNC)) {
 		ath9k_hw_set_interrupts(ah, ah->imask);
+		ath9k_hw_enable_interrupts(ah);
+	}
 }
 
 static void ath_beacon_config_adhoc(struct ath_softc *sc,
@@ -691,8 +694,10 @@ static void ath_beacon_config_adhoc(struct ath_softc *sc,
 	 * If the beacon config is called beacause of TSFOOR,
 	 * Interrupts will be enabled back at the end of ath9k_tasklet
 	 */
-	if (!(sc->ps_flags & PS_TSFOOR_SYNC))
+	if (!(sc->ps_flags & PS_TSFOOR_SYNC)) {
 		ath9k_hw_set_interrupts(ah, ah->imask);
+		ath9k_hw_enable_interrupts(ah);
+	}
 }
 
 static bool ath9k_allow_beacon_config(struct ath_softc *sc,

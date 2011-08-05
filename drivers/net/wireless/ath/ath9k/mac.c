@@ -929,9 +929,6 @@ void ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints)
 			REG_CLR_BIT(ah, AR_IMR_S5, AR_IMR_S5_TIM_TIMER);
 	}
 
-	if (ints & ATH9K_INT_GLOBAL)
-		ath9k_hw_enable_interrupts(ah);
-
 	return;
 }
 EXPORT_SYMBOL(ath9k_hw_set_interrupts);
