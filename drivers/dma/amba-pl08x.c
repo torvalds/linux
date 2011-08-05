@@ -1717,7 +1717,7 @@ static int pl08x_dma_init_virtual_channels(struct pl08x_driver_data *pl08x,
 			kfree(chan);
 			continue;
 		}
-		dev_info(&pl08x->adev->dev,
+		dev_dbg(&pl08x->adev->dev,
 			 "initialize virtual channel \"%s\"\n",
 			 chan->name);
 
@@ -1945,9 +1945,8 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 		spin_lock_init(&ch->lock);
 		ch->serving = NULL;
 		ch->signal = -1;
-		dev_info(&adev->dev,
-			 "physical channel %d is %s\n", i,
-			 pl08x_phy_channel_busy(ch) ? "BUSY" : "FREE");
+		dev_dbg(&adev->dev, "physical channel %d is %s\n",
+			i, pl08x_phy_channel_busy(ch) ? "BUSY" : "FREE");
 	}
 
 	/* Register as many memcpy channels as there are physical channels */
