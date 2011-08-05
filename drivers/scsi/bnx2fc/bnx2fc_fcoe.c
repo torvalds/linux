@@ -1028,8 +1028,20 @@ static int bnx2fc_vport_destroy(struct fc_vport *vport)
 	struct fc_lport *n_port = shost_priv(shost);
 	struct fc_lport *vn_port = vport->dd_data;
 	struct fcoe_port *port = lport_priv(vn_port);
+	struct fc_lport *v_port;
+	bool found = false;
 
 	mutex_lock(&n_port->lp_mutex);
+	list_for_each_entry(v_port, &n_port->vports, list)
+		if (v_port->vport == vport) {
+			found = true;
+			break;
+		}
+
+	if (!found) {
+		mutex_unlock(&n_port->lp_mutex);
+		return -ENOENT;
+	}
 	list_del(&vn_port->list);
 	mutex_unlock(&n_port->lp_mutex);
 	queue_work(bnx2fc_wq, &port->destroy_work);
