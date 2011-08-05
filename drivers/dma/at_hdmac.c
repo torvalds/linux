@@ -1301,15 +1301,13 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	if (dma_has_cap(DMA_MEMCPY, atdma->dma_common.cap_mask))
 		atdma->dma_common.device_prep_dma_memcpy = atc_prep_dma_memcpy;
 
-	if (dma_has_cap(DMA_SLAVE, atdma->dma_common.cap_mask))
+	if (dma_has_cap(DMA_SLAVE, atdma->dma_common.cap_mask)) {
 		atdma->dma_common.device_prep_slave_sg = atc_prep_slave_sg;
-
-	if (dma_has_cap(DMA_CYCLIC, atdma->dma_common.cap_mask))
+		/* controller can do slave DMA: can trigger cyclic transfers */
+		dma_cap_set(DMA_CYCLIC, atdma->dma_common.cap_mask);
 		atdma->dma_common.device_prep_dma_cyclic = atc_prep_dma_cyclic;
-
-	if (dma_has_cap(DMA_SLAVE, atdma->dma_common.cap_mask) ||
-	    dma_has_cap(DMA_CYCLIC, atdma->dma_common.cap_mask))
 		atdma->dma_common.device_control = atc_control;
+	}
 
 	dma_writel(atdma, EN, AT_DMA_ENABLE);
 
