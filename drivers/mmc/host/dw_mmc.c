@@ -699,7 +699,7 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 
 	/* DDR mode set */
-	if (ios->ddr) {
+	if (ios->timing == MMC_TIMING_UHS_DDR50) {
 		regs = mci_readl(slot->host, UHS_REG);
 		regs |= (0x1 << slot->id) << 16;
 		mci_writel(slot->host, UHS_REG, regs);
@@ -1646,7 +1646,7 @@ static int __init dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 			mmc->caps |= MMC_CAP_4_BIT_DATA;
 
 	if (host->pdata->quirks & DW_MCI_QUIRK_HIGHSPEED)
-		mmc->caps |= MMC_CAP_SD_HIGHSPEED;
+		mmc->caps |= MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED;
 
 #ifdef CONFIG_MMC_DW_IDMAC
 	mmc->max_segs = host->ring_size;
