@@ -71,6 +71,8 @@ struct dib0090_config {
 	u8 fref_clock_ratio;
 	u16 force_cband_input;
 	struct dib0090_wbd_slope *wbd;
+	u8 is_dib7090e;
+	u8 force_crystal_mode;
 };
 
 #if defined(CONFIG_DVB_TUNER_DIB0090) || (defined(CONFIG_DVB_TUNER_DIB0090_MODULE) && defined(MODULE))
@@ -83,6 +85,7 @@ extern int dib0090_gain_control(struct dvb_frontend *fe);
 extern enum frontend_tune_state dib0090_get_tune_state(struct dvb_frontend *fe);
 extern int dib0090_set_tune_state(struct dvb_frontend *fe, enum frontend_tune_state tune_state);
 extern void dib0090_get_current_gain(struct dvb_frontend *fe, u16 * rf, u16 * bb, u16 * rf_gain_limit, u16 * rflt);
+extern void dib0090_set_dc_servo(struct dvb_frontend *fe, u8 DC_servo_cutoff);
 #else
 static inline struct dvb_frontend *dib0090_register(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct dib0090_config *config)
 {
@@ -131,6 +134,11 @@ static inline int dib0090_set_tune_state(struct dvb_frontend *fe, enum frontend_
 }
 
 static inline void dib0090_get_current_gain(struct dvb_frontend *fe, u16 * rf, u16 * bb, u16 * rf_gain_limit, u16 * rflt)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+}
+
+static inline void dib0090_set_dc_servo(struct dvb_frontend *fe, u8 DC_servo_cutoff)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 }

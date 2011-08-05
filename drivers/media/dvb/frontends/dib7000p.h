@@ -56,7 +56,6 @@ extern int dib7000p_pid_filter(struct dvb_frontend *, u8 id, u16 pid, u8 onoff);
 extern int dib7000p_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff);
 extern int dib7000p_update_pll(struct dvb_frontend *fe, struct dibx000_bandwidth_config *bw);
 extern u32 dib7000p_ctrl_timf(struct dvb_frontend *fe, u8 op, u32 timf);
-extern int dib7090_agc_restart(struct dvb_frontend *fe, u8 restart);
 extern int dib7090_tuner_sleep(struct dvb_frontend *fe, int onoff);
 extern int dib7090_get_adc_power(struct dvb_frontend *fe);
 extern struct i2c_adapter *dib7090_get_i2c_tuner(struct dvb_frontend *fe);
@@ -120,12 +119,6 @@ static inline u32 dib7000p_ctrl_timf(struct dvb_frontend *fe, u8 op, u32 timf)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return 0;
-}
-
-static inline int dib7090_agc_restart(struct dvb_frontend *fe, u8 restart)
-{
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
-	return -ENODEV;
 }
 
 static inline int dib7090_tuner_sleep(struct dvb_frontend *fe, int onoff)

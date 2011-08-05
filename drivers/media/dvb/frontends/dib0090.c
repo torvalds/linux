@@ -1112,12 +1112,20 @@ void dib0090_pwm_gain_reset(struct dvb_frontend *fe)
 		else
 			dib0090_write_reg(state, 0x32, (0 << 11));
 
-		dib0090_write_reg(state, 0x04, 0x01);
+		dib0090_write_reg(state, 0x04, 0x03);
 		dib0090_write_reg(state, 0x39, (1 << 10));
 	}
 }
 
 EXPORT_SYMBOL(dib0090_pwm_gain_reset);
+
+void dib0090_set_dc_servo(struct dvb_frontend *fe, u8 DC_servo_cutoff)
+{
+	struct dib0090_state *state = fe->tuner_priv;
+	if (DC_servo_cutoff < 4)
+		dib0090_write_reg(state, 0x04, DC_servo_cutoff);
+}
+EXPORT_SYMBOL(dib0090_set_dc_servo);
 
 static u32 dib0090_get_slow_adc_val(struct dib0090_state *state)
 {
@@ -1505,7 +1513,10 @@ static int dib0090_reset(struct dvb_frontend *fe)
 		dib0090_set_EFUSE(state);
 
 	/* Congigure in function of the crystal */
-	if (state->config->io.clock_khz >= 24000)
+	if (state->config->force_crystal_mode != 0)
+		dib0090_write_reg(state, 0x14,
+				state->config->force_crystal_mode & 3);
+	else if (state->config->io.clock_khz >= 24000)
 		dib0090_write_reg(state, 0x14, 1);
 	else
 		dib0090_write_reg(state, 0x14, 2);

@@ -2092,6 +2092,14 @@ static int dib7090_agc_startup(struct dvb_frontend *fe, struct dvb_frontend_para
 	return 0;
 }
 
+static int dib7090_agc_restart(struct dvb_frontend *fe, u8 restart)
+{
+	deb_info("AGC restart callback: %d", restart);
+	if (restart == 0) /* before AGC startup */
+		dib0090_set_dc_servo(fe, 1);
+	return 0;
+}
+
 static struct dib0090_wbd_slope dib7090_wbd_table[] = {
 	{ 380,   81, 850, 64, 540,  4},
 	{ 860,   51, 866, 21,  375, 4},
