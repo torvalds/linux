@@ -284,6 +284,7 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 	struct btrfs_ordered_sum *sums;
 	struct btrfs_sector_sum *sector_sum;
 	struct btrfs_csum_item *item;
+	LIST_HEAD(tmplist);
 	unsigned long offset;
 	int ret;
 	size_t size;
@@ -358,7 +359,10 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 					MAX_ORDERED_SUM_BYTES(root));
 			sums = kzalloc(btrfs_ordered_sum_size(root, size),
 					GFP_NOFS);
-			BUG_ON(!sums);
+			if (!sums) {
+				ret = -ENOMEM;
+				goto fail;
+			}
 
 			sector_sum = sums->sums;
 			sums->bytenr = start;
@@ -380,12 +384,19 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 				offset += csum_size;
 				sector_sum++;
 			}
-			list_add_tail(&sums->list, list);
+			list_add_tail(&sums->list, &tmplist);
 		}
 		path->slots[0]++;
 	}
 	ret = 0;
 fail:
+	while (ret < 0 && !list_empty(&tmplist)) {
+		sums = list_entry(&tmplist, struct btrfs_ordered_sum, list);
+		list_del(&sums->list);
+		kfree(sums);
+	}
+	list_splice_tail(&tmplist, list);
+
 	btrfs_free_path(path);
 	return ret;
 }
