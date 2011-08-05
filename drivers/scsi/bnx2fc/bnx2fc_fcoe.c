@@ -2122,7 +2122,7 @@ static void bnx2fc_percpu_thread_create(unsigned int cpu)
 				(void *)p,
 				"bnx2fc_thread/%d", cpu);
 	/* bind thread to the cpu */
-	if (likely(!IS_ERR(p->iothread))) {
+	if (likely(!IS_ERR(thread))) {
 		kthread_bind(thread, cpu);
 		p->iothread = thread;
 		wake_up_process(thread);
@@ -2134,7 +2134,6 @@ static void bnx2fc_percpu_thread_destroy(unsigned int cpu)
 	struct bnx2fc_percpu_s *p;
 	struct task_struct *thread;
 	struct bnx2fc_work *work, *tmp;
-	LIST_HEAD(work_list);
 
 	BNX2FC_MISC_DBG("destroying io thread for CPU %d\n", cpu);
 
@@ -2146,7 +2145,7 @@ static void bnx2fc_percpu_thread_destroy(unsigned int cpu)
 
 
 	/* Free all work in the list */
-	list_for_each_entry_safe(work, tmp, &work_list, list) {
+	list_for_each_entry_safe(work, tmp, &p->work_list, list) {
 		list_del_init(&work->list);
 		bnx2fc_process_cq_compl(work->tgt, work->wqe);
 		kfree(work);
