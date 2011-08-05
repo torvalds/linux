@@ -298,6 +298,7 @@ nouveau_dp_bios_data(struct drm_device *dev, struct dcb_entry *dcb, u8 **entry)
 	switch (table[0]) {
 	case 0x20:
 	case 0x21:
+	case 0x30:
 		break;
 	default:
 		NV_ERROR(dev, "displayport table 0x%02x unknown\n", table[0]);
@@ -339,6 +340,7 @@ dp_set_link_config(struct drm_device *dev, struct dp_state *dp)
 	int or = dp->or, link = dp->link;
 	u8 *entry, sink[2];
 	u32 dp_ctrl;
+	u16 script;
 
 	NV_DEBUG_KMS(dev, "%d lanes at %d KB/s\n", dp->link_nr, dp->link_bw);
 
@@ -360,10 +362,17 @@ dp_set_link_config(struct drm_device *dev, struct dp_state *dp)
 	 */
 	entry = ROMPTR(&dev_priv->vbios, dp->entry[10]);
 	if (entry) {
-		while (dp->link_bw < (ROM16(entry[0]) * 10))
-			entry += 4;
+		if (dp->table[0] < 0x30) {
+			while (dp->link_bw < (ROM16(entry[0]) * 10))
+				entry += 4;
+			script = ROM16(entry[2]);
+		} else {
+			while (dp->link_bw < (entry[0] * 27000))
+				entry += 3;
+			script = ROM16(entry[1]);
+		}
 
-		nouveau_bios_run_init_table(dev, ROM16(entry[2]), dp->dcb, dp->crtc);
+		nouveau_bios_run_init_table(dev, script, dp->dcb, dp->crtc);
 	}
 
 	/* configure lane count on the source */
@@ -414,33 +423,50 @@ dp_link_train_commit(struct drm_device *dev, struct dp_state *dp)
 		shifts = nvaf_lane_map;
 
 	for (i = 0; i < dp->link_nr; i++) {
-		u8  lane = (dp->stat[4 + (i >> 1)] >> ((i & 1) * 4)) & 0xf;
 		u8 *conf = dp->entry + dp->table[4];
-		u8 *last = conf + (dp->entry[4] * dp->table[5]);
+		u8 lane = (dp->stat[4 + (i >> 1)] >> ((i & 1) * 4)) & 0xf;
+		u8 lpre = (lane & 0x0c) >> 2;
+		u8 lvsw = (lane & 0x03) >> 0;
 
-		while (conf < last) {
-			if ((lane  & 3) == conf[0] &&
-			    (lane >> 2) == conf[1])
-				break;
-			conf += 5;
-		}
+		mask |= 0xff << shifts[i];
+		unk |= 1 << (shifts[i] >> 3);
 
-		if (conf == last)
-			return -EINVAL;
-
-		dp->conf[i] = (conf[1] << 3) | conf[0];
-		if (conf[0] == DP_TRAIN_VOLTAGE_SWING_1200)
+		dp->conf[i] = (lpre << 3) | lvsw;
+		if (lvsw == DP_TRAIN_VOLTAGE_SWING_1200)
 			dp->conf[i] |= DP_TRAIN_MAX_SWING_REACHED;
-		if (conf[1] == DP_TRAIN_PRE_EMPHASIS_9_5)
+		if (lpre == DP_TRAIN_PRE_EMPHASIS_9_5)
 			dp->conf[i] |= DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
 
 		NV_DEBUG_KMS(dev, "config lane %d %02x\n", i, dp->conf[i]);
 
-		mask |= 0xff << shifts[i];
-		drv  |= conf[2] << shifts[i];
-		pre  |= conf[3] << shifts[i];
-		unk   = (unk & ~0x0000ff00) | (conf[4] << 8);
-		unk  |= 1 << (shifts[i] >> 3);
+		if (dp->table[0] < 0x30) {
+			u8 *last = conf + (dp->entry[4] * dp->table[5]);
+			while (lvsw != conf[0] || lpre != conf[1]) {
+				conf += dp->table[5];
+				if (conf >= last)
+					return -EINVAL;
+			}
+
+			conf += 2;
+		} else {
+			/* no lookup table anymore, set entries for each
+			 * combination of voltage swing and pre-emphasis
+			 * level allowed by the DP spec.
+			 */
+			switch (lvsw) {
+			case 0: lpre += 0; break;
+			case 1: lpre += 4; break;
+			case 2: lpre += 7; break;
+			case 3: lpre += 9; break;
+			}
+
+			conf = conf + (lpre * dp->table[5]);
+			conf++;
+		}
+
+		drv |= conf[0] << shifts[i];
+		pre |= conf[1] << shifts[i];
+		unk  = (unk & ~0x0000ff00) | (conf[2] << 8);
 	}
 
 	nv_mask(dev, NV50_SOR_DP_UNK118(or, link), mask, drv);
