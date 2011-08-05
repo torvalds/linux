@@ -1020,6 +1020,17 @@ static int bnx2fc_vport_create(struct fc_vport *vport, bool disabled)
 	struct bnx2fc_interface *interface = port->priv;
 	struct net_device *netdev = interface->netdev;
 	struct fc_lport *vn_port;
+	int rc;
+	char buf[32];
+
+	rc = fcoe_validate_vport_create(vport);
+	if (rc) {
+		fcoe_wwn_to_str(vport->port_name, buf, sizeof(buf));
+		printk(KERN_ERR PFX "Failed to create vport, "
+		       "WWPN (0x%s) already exists\n",
+		       buf);
+		return rc;
+	}
 
 	if (!test_bit(BNX2FC_FLAG_FW_INIT_DONE, &interface->hba->flags)) {
 		printk(KERN_ERR PFX "vn ports cannot be created on"
