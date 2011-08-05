@@ -1576,11 +1576,15 @@ int logfs_write_buf(struct inode *inode, struct page *page, long flags)
 static int __logfs_delete(struct inode *inode, struct page *page)
 {
 	long flags = WF_DELETE;
+	int err;
 
 	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
 
 	if (page->index < I0_BLOCKS)
 		return logfs_write_direct(inode, page, flags);
+	err = grow_inode(inode, page->index, 0);
+	if (err)
+		return err;
 	return logfs_write_rec(inode, page, page->index, 0, flags);
 }
 
