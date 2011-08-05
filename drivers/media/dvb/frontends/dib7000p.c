@@ -1876,7 +1876,8 @@ static int w7090p_tuner_rw_serpar(struct i2c_adapter *i2c_adap, struct i2c_msg m
 	return num;
 }
 
-int dib7090p_rw_on_apb(struct i2c_adapter *i2c_adap, struct i2c_msg msg[], int num, u16 apb_address)
+static int dib7090p_rw_on_apb(struct i2c_adapter *i2c_adap,
+		struct i2c_msg msg[], int num, u16 apb_address)
 {
 	struct dib7000p_state *state = i2c_get_adapdata(i2c_adap);
 	u16 word;

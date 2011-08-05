@@ -1328,7 +1328,7 @@ static int stk807xpvr_frontend_attach1(struct dvb_usb_adapter *adap)
 }
 
 /* STK8096GP */
-struct dibx000_agc_config dib8090_agc_config[2] = {
+static struct dibx000_agc_config dib8090_agc_config[2] = {
 	{
 	BAND_UHF | BAND_VHF | BAND_LBAND | BAND_SBAND,
 	/* P_agc_use_sd_mod1=0, P_agc_use_sd_mod2=0, P_agc_freq_pwm_div=1,
@@ -2152,7 +2152,7 @@ static struct dib0090_wbd_slope dib7090e_wbd_table[] = {
 	{ 0xFFFF, 0,   0, 0,   0,	0},
 };
 
-struct dibx000_agc_config dib7090_agc_config[2] = {
+static struct dibx000_agc_config dib7090_agc_config[2] = {
 	{
 		.band_caps      = BAND_UHF,
 		/* P_agc_use_sd_mod1=0, P_agc_use_sd_mod2=0, P_agc_freq_pwm_div=1, P_agc_inv_pwm1=0, P_agc_inv_pwm2=0,

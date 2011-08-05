@@ -1522,7 +1522,7 @@ static void dib0090_set_default_config(struct dib0090_state *state, const u16 * 
 #define POLY_MIN      (u8)  0
 #define POLY_MAX      (u8)  8
 
-void dib0090_set_EFUSE(struct dib0090_state *state)
+static void dib0090_set_EFUSE(struct dib0090_state *state)
 {
 	u8 c, h, n;
 	u16 e2, e4;
