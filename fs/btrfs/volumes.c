@@ -142,7 +142,7 @@ static noinline int run_scheduled_bios(struct btrfs_device *device)
 	unsigned long limit;
 	unsigned long last_waited = 0;
 	int force_reg = 0;
-	int sync_pending;
+	int sync_pending = 0;
 	struct blk_plug plug;
 
 	/*
