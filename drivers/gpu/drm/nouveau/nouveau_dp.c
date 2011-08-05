@@ -314,11 +314,10 @@ dp_set_link_config(struct drm_device *dev, struct dp_state *dp)
 	 */
 	bios = nouveau_bios_dp_table(dev, dp->dcb, &headerlen);
 	if (bios && (bios = ROMPTR(&dev_priv->vbios, bios[10]))) {
-		u16 script = ROM16(bios[2]);
-		if (dp->link_bw != 270000)
-			script = ROM16(bios[6]);
+		while (dp->link_bw < (ROM16(bios[0]) * 10))
+			bios += 4;
 
-		nouveau_bios_run_init_table(dev, script, dp->dcb, dp->crtc);
+		nouveau_bios_run_init_table(dev, ROM16(bios[2]), dp->dcb, dp->crtc);
 	}
 
 	/* configure lane count on the source */
