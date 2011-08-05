@@ -402,6 +402,7 @@ config GPIO_PCH
 config GPIO_ML_IOH
 	tristate "OKI SEMICONDUCTOR ML7213 IOH GPIO support"
 	depends on PCI
+	select GENERIC_IRQ_CHIP
 	help
 	  ML7213 is companion chip for Intel Atom E6xx series.
 	  This driver can be used for OKI SEMICONDUCTOR ML7213 IOH(Input/Output
