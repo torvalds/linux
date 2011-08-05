@@ -46,7 +46,7 @@ static void gfs2_ail_error(struct gfs2_glock *gl, const struct buffer_head *bh)
  * None of the buffers should be dirty, locked, or pinned.
  */
 
-static void __gfs2_ail_flush(struct gfs2_glock *gl)
+static void __gfs2_ail_flush(struct gfs2_glock *gl, unsigned long b_state)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct list_head *head = &gl->gl_ail_list;
@@ -60,7 +60,7 @@ static void __gfs2_ail_flush(struct gfs2_glock *gl)
 				bd_ail_gl_list);
 		bh = bd->bd_bh;
 		blocknr = bh->b_blocknr;
-		if (buffer_busy(bh))
+		if (bh->b_state & b_state)
 			gfs2_ail_error(gl, bh);
 		bh->b_private = NULL;
 		gfs2_remove_from_ail(bd); /* drops ref on bh */
@@ -99,7 +99,7 @@ static void gfs2_ail_empty_gl(struct gfs2_glock *gl)
 	BUG_ON(current->journal_info);
 	current->journal_info = &tr;
 
-	__gfs2_ail_flush(gl);
+	__gfs2_ail_flush(gl, (1ul << BH_Dirty)|(1ul << BH_Pinned)|(1ul << BH_Lock));
 
 	gfs2_trans_end(sdp);
 	gfs2_log_flush(sdp, NULL);
@@ -117,7 +117,7 @@ void gfs2_ail_flush(struct gfs2_glock *gl)
 	ret = gfs2_trans_begin(sdp, 0, revokes);
 	if (ret)
 		return;
-	__gfs2_ail_flush(gl);
+	__gfs2_ail_flush(gl, (1ul << BH_Dirty)|(1ul << BH_Pinned));
 	gfs2_trans_end(sdp);
 	gfs2_log_flush(sdp, NULL);
 }

@@ -590,6 +590,8 @@ static int gfs2_fsync(struct file *file, loff_t start, loff_t end,
 			mutex_unlock(&inode->i_mutex);
 			return ret;
 		}
+		if (gfs2_is_jdata(ip))
+			filemap_write_and_wait(mapping);
 		gfs2_ail_flush(ip->i_gl);
 		mutex_unlock(&inode->i_mutex);
 	}
