@@ -318,7 +318,7 @@ static void rk29_i2c_stop(struct rk29_i2c_data *i2c)
 	writel(0, i2c->regs + I2C_ISR);
 	rk29_i2c_disable_irqs(i2c);
 	
-	udelay(tmo);
+	//udelay(tmo);
 	return;
 }
 static void rk29_wait_while_busy(struct rk29_i2c_data *i2c)
