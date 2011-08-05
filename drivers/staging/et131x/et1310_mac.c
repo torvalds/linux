@@ -104,9 +104,9 @@
  */
 void ConfigMACRegs1(struct et131x_adapter *etdev)
 {
-	struct _MAC_t __iomem *pMac = &etdev->regs->mac;
-	MAC_STATION_ADDR1_t station1;
-	MAC_STATION_ADDR2_t station2;
+	struct mac_regs __iomem *pMac = &etdev->regs->mac;
+	u32 station1;
+	u32 station2;
 	u32 ipg;
 
 	/* First we need to reset everything.  Write to MAC configuration
@@ -136,14 +136,14 @@ void ConfigMACRegs1(struct et131x_adapter *etdev)
 	 * station address is used for generating and checking pause control
 	 * packets.
 	 */
-	station2.bits.Octet1 = etdev->addr[0];
-	station2.bits.Octet2 = etdev->addr[1];
-	station1.bits.Octet3 = etdev->addr[2];
-	station1.bits.Octet4 = etdev->addr[3];
-	station1.bits.Octet5 = etdev->addr[4];
-	station1.bits.Octet6 = etdev->addr[5];
-	writel(station1.value, &pMac->station_addr_1.value);
-	writel(station2.value, &pMac->station_addr_2.value);
+	station2 = (etdev->addr[1] << ET_MAC_STATION_ADDR2_OC2_SHIFT) |
+		   (etdev->addr[0] << ET_MAC_STATION_ADDR2_OC1_SHIFT);
+	station1 = (etdev->addr[5] << ET_MAC_STATION_ADDR1_OC6_SHIFT) |
+		   (etdev->addr[4] << ET_MAC_STATION_ADDR1_OC5_SHIFT) |
+		   (etdev->addr[3] << ET_MAC_STATION_ADDR1_OC4_SHIFT) |
+		    etdev->addr[2];
+	writel(station1, &pMac->station_addr_1);
+	writel(station2, &pMac->station_addr_2);
 
 	/* Max ethernet packet in bytes that will passed by the mac without
 	 * being truncated.  Allow the MAC to pass 4 more than our max packet
@@ -165,7 +165,7 @@ void ConfigMACRegs1(struct et131x_adapter *etdev)
 void ConfigMACRegs2(struct et131x_adapter *etdev)
 {
 	int32_t delay = 0;
-	struct _MAC_t __iomem *pMac = &etdev->regs->mac;
+	struct mac_regs __iomem *pMac = &etdev->regs->mac;
 	u32 cfg1;
 	u32 cfg2;
 	u32 ifctrl;
@@ -229,7 +229,7 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 	writel(ctl, &etdev->regs->txmac.ctl);
 
 	/* Ready to start the RXDMA/TXDMA engine */
-	if (etdev->Flags & fMP_ADAPTER_LOWER_POWER) {
+	if (etdev->flags & fMP_ADAPTER_LOWER_POWER) {
 		et131x_rx_dma_enable(etdev);
 		et131x_tx_dma_enable(etdev);
 	}
@@ -237,9 +237,9 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 
 void ConfigRxMacRegs(struct et131x_adapter *etdev)
 {
-	struct _RXMAC_t __iomem *pRxMac = &etdev->regs->rxmac;
-	RXMAC_WOL_SA_LO_t sa_lo;
-	RXMAC_WOL_SA_HI_t sa_hi;
+	struct rxmac_regs __iomem *pRxMac = &etdev->regs->rxmac;
+	u32 sa_lo;
+	u32 sa_hi = 0;
 	u32 pf_ctrl = 0;
 
 	/* Disable the MAC while it is being configured (also disable WOL) */
@@ -280,15 +280,15 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	writel(0, &pRxMac->mask4_word3);
 
 	/* Lets setup the WOL Source Address */
-	sa_lo.bits.sa3 = etdev->addr[2];
-	sa_lo.bits.sa4 = etdev->addr[3];
-	sa_lo.bits.sa5 = etdev->addr[4];
-	sa_lo.bits.sa6 = etdev->addr[5];
-	writel(sa_lo.value, &pRxMac->sa_lo.value);
+	sa_lo = (etdev->addr[2] << ET_WOL_LO_SA3_SHIFT) |
+		(etdev->addr[3] << ET_WOL_LO_SA4_SHIFT) |
+		(etdev->addr[4] << ET_WOL_LO_SA5_SHIFT) |
+		 etdev->addr[5];
+	writel(sa_lo, &pRxMac->sa_lo);
 
-	sa_hi.bits.sa1 = etdev->addr[0];
-	sa_hi.bits.sa2 = etdev->addr[1];
-	writel(sa_hi.value, &pRxMac->sa_hi.value);
+	sa_hi = (u32) (etdev->addr[0] << ET_WOL_HI_SA1_SHIFT) |
+	               etdev->addr[1];
+	writel(sa_hi, &pRxMac->sa_hi);
 
 	/* Disable all Packet Filtering */
 	writel(0, &pRxMac->pf_ctrl);
@@ -298,9 +298,9 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 		SetupDeviceForUnicast(etdev);
 		pf_ctrl |= 4;	/* Unicast filter */
 	} else {
-		writel(0, &pRxMac->uni_pf_addr1.value);
-		writel(0, &pRxMac->uni_pf_addr2.value);
-		writel(0, &pRxMac->uni_pf_addr3.value);
+		writel(0, &pRxMac->uni_pf_addr1);
+		writel(0, &pRxMac->uni_pf_addr2);
+		writel(0, &pRxMac->uni_pf_addr3);
 	}
 
 	/* Let's initialize the Multicast hash */
@@ -384,31 +384,64 @@ void ConfigMacStatRegs(struct et131x_adapter *etdev)
 	struct macstat_regs __iomem *macstat =
 		&etdev->regs->macstat;
 
-	/* Next we need to initialize all the MAC_STAT registers to zero on
+	/* Next we need to initialize all the macstat registers to zero on
 	 * the device.
 	 */
-	writel(0, &macstat->RFcs);
-	writel(0, &macstat->RAln);
-	writel(0, &macstat->RFlr);
-	writel(0, &macstat->RDrp);
-	writel(0, &macstat->RCde);
-	writel(0, &macstat->ROvr);
-	writel(0, &macstat->RFrg);
+	writel(0, &macstat->txrx_0_64_byte_frames);
+	writel(0, &macstat->txrx_65_127_byte_frames);
+	writel(0, &macstat->txrx_128_255_byte_frames);
+	writel(0, &macstat->txrx_256_511_byte_frames);
+	writel(0, &macstat->txrx_512_1023_byte_frames);
+	writel(0, &macstat->txrx_1024_1518_byte_frames);
+	writel(0, &macstat->txrx_1519_1522_gvln_frames);
 
-	writel(0, &macstat->TScl);
-	writel(0, &macstat->TDfr);
-	writel(0, &macstat->TMcl);
-	writel(0, &macstat->TLcl);
-	writel(0, &macstat->TNcl);
-	writel(0, &macstat->TOvr);
-	writel(0, &macstat->TUnd);
+	writel(0, &macstat->rx_bytes);
+	writel(0, &macstat->rx_packets);
+	writel(0, &macstat->rx_fcs_errs);
+	writel(0, &macstat->rx_multicast_packets);
+	writel(0, &macstat->rx_broadcast_packets);
+	writel(0, &macstat->rx_control_frames);
+	writel(0, &macstat->rx_pause_frames);
+	writel(0, &macstat->rx_unknown_opcodes);
+	writel(0, &macstat->rx_align_errs);
+	writel(0, &macstat->rx_frame_len_errs);
+	writel(0, &macstat->rx_code_errs);
+	writel(0, &macstat->rx_carrier_sense_errs);
+	writel(0, &macstat->rx_undersize_packets);
+	writel(0, &macstat->rx_oversize_packets);
+	writel(0, &macstat->rx_fragment_packets);
+	writel(0, &macstat->rx_jabbers);
+	writel(0, &macstat->rx_drops);
+
+	writel(0, &macstat->tx_bytes);
+	writel(0, &macstat->tx_packets);
+	writel(0, &macstat->tx_multicast_packets);
+	writel(0, &macstat->tx_broadcast_packets);
+	writel(0, &macstat->tx_pause_frames);
+	writel(0, &macstat->tx_deferred);
+	writel(0, &macstat->tx_excessive_deferred);
+	writel(0, &macstat->tx_single_collisions);
+	writel(0, &macstat->tx_multiple_collisions);
+	writel(0, &macstat->tx_late_collisions);
+	writel(0, &macstat->tx_excessive_collisions);
+	writel(0, &macstat->tx_total_collisions);
+	writel(0, &macstat->tx_pause_honored_frames);
+	writel(0, &macstat->tx_drops);
+	writel(0, &macstat->tx_jabbers);
+	writel(0, &macstat->tx_fcs_errs);
+	writel(0, &macstat->tx_control_frames);
+	writel(0, &macstat->tx_oversize_frames);
+	writel(0, &macstat->tx_undersize_frames);
+	writel(0, &macstat->tx_fragments);
+	writel(0, &macstat->carry_reg1);
+	writel(0, &macstat->carry_reg2);
 
 	/* Unmask any counters that we want to track the overflow of.
 	 * Initially this will be all counters.  It may become clear later
 	 * that we do not need to track all counters.
 	 */
-	writel(0xFFFFBE32, &macstat->Carry1M);
-	writel(0xFFFE7E8B, &macstat->Carry2M);
+	writel(0xFFFFBE32, &macstat->carry_reg1_mask);
+	writel(0xFFFE7E8B, &macstat->carry_reg2_mask);
 }
 
 void ConfigFlowControl(struct et131x_adapter *etdev)
@@ -452,26 +485,26 @@ void ConfigFlowControl(struct et131x_adapter *etdev)
  */
 void UpdateMacStatHostCounters(struct et131x_adapter *etdev)
 {
-	struct _ce_stats_t *stats = &etdev->Stats;
+	struct ce_stats *stats = &etdev->stats;
 	struct macstat_regs __iomem *macstat =
 		&etdev->regs->macstat;
 
-	stats->collisions += readl(&macstat->TNcl);
-	stats->first_collision += readl(&macstat->TScl);
-	stats->tx_deferred += readl(&macstat->TDfr);
-	stats->excessive_collisions += readl(&macstat->TMcl);
-	stats->late_collisions += readl(&macstat->TLcl);
-	stats->tx_uflo += readl(&macstat->TUnd);
-	stats->max_pkt_error += readl(&macstat->TOvr);
+	stats->collisions += readl(&macstat->tx_total_collisions);
+	stats->first_collision += readl(&macstat->tx_single_collisions);
+	stats->tx_deferred += readl(&macstat->tx_deferred);
+	stats->excessive_collisions += readl(&macstat->tx_multiple_collisions);
+	stats->late_collisions += readl(&macstat->tx_late_collisions);
+	stats->tx_uflo += readl(&macstat->tx_undersize_frames);
+	stats->max_pkt_error += readl(&macstat->tx_oversize_frames);
 
-	stats->alignment_err += readl(&macstat->RAln);
-	stats->crc_err += readl(&macstat->RCde);
-	stats->norcvbuf += readl(&macstat->RDrp);
-	stats->rx_ov_flow += readl(&macstat->ROvr);
-	stats->code_violations += readl(&macstat->RFcs);
-	stats->length_err += readl(&macstat->RFlr);
+	stats->alignment_err += readl(&macstat->rx_align_errs);
+	stats->crc_err += readl(&macstat->rx_code_errs);
+	stats->norcvbuf += readl(&macstat->rx_drops);
+	stats->rx_ov_flow += readl(&macstat->rx_oversize_packets);
+	stats->code_violations += readl(&macstat->rx_fcs_errs);
+	stats->length_err += readl(&macstat->rx_frame_len_errs);
 
-	stats->other_errors += readl(&macstat->RFrg);
+	stats->other_errors += readl(&macstat->rx_fragment_packets);
 }
 
 /**
@@ -484,17 +517,17 @@ void UpdateMacStatHostCounters(struct et131x_adapter *etdev)
  */
 void HandleMacStatInterrupt(struct et131x_adapter *etdev)
 {
-	u32 Carry1;
-	u32 Carry2;
+	u32 carry_reg1;
+	u32 carry_reg2;
 
 	/* Read the interrupt bits from the register(s).  These are Clear On
 	 * Write.
 	 */
-	Carry1 = readl(&etdev->regs->macstat.Carry1);
-	Carry2 = readl(&etdev->regs->macstat.Carry2);
+	carry_reg1 = readl(&etdev->regs->macstat.carry_reg1);
+	carry_reg2 = readl(&etdev->regs->macstat.carry_reg2);
 
-	writel(Carry1, &etdev->regs->macstat.Carry1);
-	writel(Carry2, &etdev->regs->macstat.Carry2);
+	writel(carry_reg2, &etdev->regs->macstat.carry_reg1);
+	writel(carry_reg2, &etdev->regs->macstat.carry_reg2);
 
 	/* We need to do update the host copy of all the MAC_STAT counters.
 	 * For each counter, check it's overflow bit.  If the overflow bit is
@@ -502,39 +535,39 @@ void HandleMacStatInterrupt(struct et131x_adapter *etdev)
 	 * revolution of the counter.  This routine is called when the counter
 	 * block indicates that one of the counters has wrapped.
 	 */
-	if (Carry1 & (1 << 14))
-		etdev->Stats.code_violations += COUNTER_WRAP_16_BIT;
-	if (Carry1 & (1 << 8))
-		etdev->Stats.alignment_err += COUNTER_WRAP_12_BIT;
-	if (Carry1 & (1 << 7))
-		etdev->Stats.length_err += COUNTER_WRAP_16_BIT;
-	if (Carry1 & (1 << 2))
-		etdev->Stats.other_errors += COUNTER_WRAP_16_BIT;
-	if (Carry1 & (1 << 6))
-		etdev->Stats.crc_err += COUNTER_WRAP_16_BIT;
-	if (Carry1 & (1 << 3))
-		etdev->Stats.rx_ov_flow += COUNTER_WRAP_16_BIT;
-	if (Carry1 & (1 << 0))
-		etdev->Stats.norcvbuf += COUNTER_WRAP_16_BIT;
-	if (Carry2 & (1 << 16))
-		etdev->Stats.max_pkt_error += COUNTER_WRAP_12_BIT;
-	if (Carry2 & (1 << 15))
-		etdev->Stats.tx_uflo += COUNTER_WRAP_12_BIT;
-	if (Carry2 & (1 << 6))
-		etdev->Stats.first_collision += COUNTER_WRAP_12_BIT;
-	if (Carry2 & (1 << 8))
-		etdev->Stats.tx_deferred += COUNTER_WRAP_12_BIT;
-	if (Carry2 & (1 << 5))
-		etdev->Stats.excessive_collisions += COUNTER_WRAP_12_BIT;
-	if (Carry2 & (1 << 4))
-		etdev->Stats.late_collisions += COUNTER_WRAP_12_BIT;
-	if (Carry2 & (1 << 2))
-		etdev->Stats.collisions += COUNTER_WRAP_12_BIT;
+	if (carry_reg1 & (1 << 14))
+		etdev->stats.code_violations += COUNTER_WRAP_16_BIT;
+	if (carry_reg1 & (1 << 8))
+		etdev->stats.alignment_err += COUNTER_WRAP_12_BIT;
+	if (carry_reg1 & (1 << 7))
+		etdev->stats.length_err += COUNTER_WRAP_16_BIT;
+	if (carry_reg1 & (1 << 2))
+		etdev->stats.other_errors += COUNTER_WRAP_16_BIT;
+	if (carry_reg1 & (1 << 6))
+		etdev->stats.crc_err += COUNTER_WRAP_16_BIT;
+	if (carry_reg1 & (1 << 3))
+		etdev->stats.rx_ov_flow += COUNTER_WRAP_16_BIT;
+	if (carry_reg1 & (1 << 0))
+		etdev->stats.norcvbuf += COUNTER_WRAP_16_BIT;
+	if (carry_reg2 & (1 << 16))
+		etdev->stats.max_pkt_error += COUNTER_WRAP_12_BIT;
+	if (carry_reg2 & (1 << 15))
+		etdev->stats.tx_uflo += COUNTER_WRAP_12_BIT;
+	if (carry_reg2 & (1 << 6))
+		etdev->stats.first_collision += COUNTER_WRAP_12_BIT;
+	if (carry_reg2 & (1 << 8))
+		etdev->stats.tx_deferred += COUNTER_WRAP_12_BIT;
+	if (carry_reg2 & (1 << 5))
+		etdev->stats.excessive_collisions += COUNTER_WRAP_12_BIT;
+	if (carry_reg2 & (1 << 4))
+		etdev->stats.late_collisions += COUNTER_WRAP_12_BIT;
+	if (carry_reg2 & (1 << 2))
+		etdev->stats.collisions += COUNTER_WRAP_12_BIT;
 }
 
 void SetupDeviceForMulticast(struct et131x_adapter *etdev)
 {
-	struct _RXMAC_t __iomem *rxmac = &etdev->regs->rxmac;
+	struct rxmac_regs __iomem *rxmac = &etdev->regs->rxmac;
 	uint32_t nIndex;
 	uint32_t result;
 	uint32_t hash1 = 0;
@@ -582,10 +615,10 @@ void SetupDeviceForMulticast(struct et131x_adapter *etdev)
 
 void SetupDeviceForUnicast(struct et131x_adapter *etdev)
 {
-	struct _RXMAC_t __iomem *rxmac = &etdev->regs->rxmac;
-	RXMAC_UNI_PF_ADDR1_t uni_pf1;
-	RXMAC_UNI_PF_ADDR2_t uni_pf2;
-	RXMAC_UNI_PF_ADDR3_t uni_pf3;
+	struct rxmac_regs __iomem *rxmac = &etdev->regs->rxmac;
+	u32 uni_pf1;
+	u32 uni_pf2;
+	u32 uni_pf3;
 	u32 pm_csr;
 
 	/* Set up unicast packet filter reg 3 to be the first two octets of
@@ -597,25 +630,25 @@ void SetupDeviceForUnicast(struct et131x_adapter *etdev)
 	 * Set up unicast packet filter reg 3 to be the octets 2 - 5 of the
 	 * MAC address for first address
 	 */
-	uni_pf3.bits.addr1_1 = etdev->addr[0];
-	uni_pf3.bits.addr1_2 = etdev->addr[1];
-	uni_pf3.bits.addr2_1 = etdev->addr[0];
-	uni_pf3.bits.addr2_2 = etdev->addr[1];
+	uni_pf3 = (etdev->addr[0] << ET_UNI_PF_ADDR2_1_SHIFT) |
+		  (etdev->addr[1] << ET_UNI_PF_ADDR2_2_SHIFT) |
+		  (etdev->addr[0] << ET_UNI_PF_ADDR1_1_SHIFT) |
+		   etdev->addr[1];
 
-	uni_pf2.bits.addr2_3 = etdev->addr[2];
-	uni_pf2.bits.addr2_4 = etdev->addr[3];
-	uni_pf2.bits.addr2_5 = etdev->addr[4];
-	uni_pf2.bits.addr2_6 = etdev->addr[5];
+	uni_pf2 = (etdev->addr[2] << ET_UNI_PF_ADDR2_3_SHIFT) |
+		  (etdev->addr[3] << ET_UNI_PF_ADDR2_4_SHIFT) |
+		  (etdev->addr[4] << ET_UNI_PF_ADDR2_5_SHIFT) |
+		   etdev->addr[5];
 
-	uni_pf1.bits.addr1_3 = etdev->addr[2];
-	uni_pf1.bits.addr1_4 = etdev->addr[3];
-	uni_pf1.bits.addr1_5 = etdev->addr[4];
-	uni_pf1.bits.addr1_6 = etdev->addr[5];
+	uni_pf1 = (etdev->addr[2] << ET_UNI_PF_ADDR1_3_SHIFT) |
+		  (etdev->addr[3] << ET_UNI_PF_ADDR1_4_SHIFT) |
+		  (etdev->addr[4] << ET_UNI_PF_ADDR1_5_SHIFT) |
+		   etdev->addr[5];
 
 	pm_csr = readl(&etdev->regs->global.pm_csr);
 	if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {
-		writel(uni_pf1.value, &rxmac->uni_pf_addr1.value);
-		writel(uni_pf2.value, &rxmac->uni_pf_addr2.value);
-		writel(uni_pf3.value, &rxmac->uni_pf_addr3.value);
+		writel(uni_pf1, &rxmac->uni_pf_addr1);
+		writel(uni_pf2, &rxmac->uni_pf_addr2);
+		writel(uni_pf3, &rxmac->uni_pf_addr3);
 	}
 }

@@ -46,7 +46,7 @@
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/cacheflush.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/cpu.h>
 #include <asm/mips_mt.h>
 #include <asm/processor.h>

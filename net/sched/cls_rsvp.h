@@ -130,7 +130,7 @@ static struct tcf_ext_map rsvp_ext_map = {
 		return r;				\
 }
 
-static int rsvp_classify(struct sk_buff *skb, struct tcf_proto *tp,
+static int rsvp_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			 struct tcf_result *res)
 {
 	struct rsvp_session **sht = ((struct rsvp_head *)tp->root)->ht;
@@ -167,7 +167,7 @@ restart:
 	dst = &nhptr->daddr;
 	protocol = nhptr->protocol;
 	xprt = ((u8 *)nhptr) + (nhptr->ihl<<2);
-	if (nhptr->frag_off & htons(IP_MF | IP_OFFSET))
+	if (ip_is_fragment(nhptr))
 		return -1;
 #endif
 

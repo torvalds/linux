@@ -188,6 +188,8 @@ static int br_rtm_setlink(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
 
 	p->state = new_state;
 	br_log_state(p);
+	br_ifinfo_notify(RTM_NEWLINK, p);
+
 	return 0;
 }
 
@@ -218,19 +220,24 @@ int __init br_netlink_init(void)
 	if (err < 0)
 		goto err1;
 
-	err = __rtnl_register(PF_BRIDGE, RTM_GETLINK, NULL, br_dump_ifinfo);
+	err = __rtnl_register(PF_BRIDGE, RTM_GETLINK, NULL,
+			      br_dump_ifinfo, NULL);
 	if (err)
 		goto err2;
-	err = __rtnl_register(PF_BRIDGE, RTM_SETLINK, br_rtm_setlink, NULL);
+	err = __rtnl_register(PF_BRIDGE, RTM_SETLINK,
+			      br_rtm_setlink, NULL, NULL);
 	if (err)
 		goto err3;
-	err = __rtnl_register(PF_BRIDGE, RTM_NEWNEIGH, br_fdb_add, NULL);
+	err = __rtnl_register(PF_BRIDGE, RTM_NEWNEIGH,
+			      br_fdb_add, NULL, NULL);
 	if (err)
 		goto err3;
-	err = __rtnl_register(PF_BRIDGE, RTM_DELNEIGH, br_fdb_delete, NULL);
+	err = __rtnl_register(PF_BRIDGE, RTM_DELNEIGH,
+			      br_fdb_delete, NULL, NULL);
 	if (err)
 		goto err3;
-	err = __rtnl_register(PF_BRIDGE, RTM_GETNEIGH, NULL, br_fdb_dump);
+	err = __rtnl_register(PF_BRIDGE, RTM_GETNEIGH,
+			      NULL, br_fdb_dump, NULL);
 	if (err)
 		goto err3;
 

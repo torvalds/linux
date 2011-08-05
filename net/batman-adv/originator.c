@@ -37,6 +37,14 @@ static void start_purge_timer(struct bat_priv *bat_priv)
 	queue_delayed_work(bat_event_workqueue, &bat_priv->orig_work, 1 * HZ);
 }
 
+/* returns 1 if they are the same originator */
+static int compare_orig(const struct hlist_node *node, const void *data2)
+{
+	const void *data1 = container_of(node, struct orig_node, hash_entry);
+
+	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
+}
+
 int originator_init(struct bat_priv *bat_priv)
 {
 	if (bat_priv->orig_hash)
@@ -77,7 +85,7 @@ struct neigh_node *orig_node_get_router(struct orig_node *orig_node)
 
 struct neigh_node *create_neighbor(struct orig_node *orig_node,
 				   struct orig_node *orig_neigh_node,
-				   uint8_t *neigh,
+				   const uint8_t *neigh,
 				   struct hard_iface *if_incoming)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
@@ -86,7 +94,7 @@ struct neigh_node *create_neighbor(struct orig_node *orig_node,
 	bat_dbg(DBG_BATMAN, bat_priv,
 		"Creating new last-hop neighbor of originator\n");
 
-	neigh_node = kzalloc(sizeof(struct neigh_node), GFP_ATOMIC);
+	neigh_node = kzalloc(sizeof(*neigh_node), GFP_ATOMIC);
 	if (!neigh_node)
 		return NULL;
 
@@ -137,6 +145,7 @@ static void orig_node_free_rcu(struct rcu_head *rcu)
 	tt_global_del_orig(orig_node->bat_priv, orig_node,
 			    "originator timed out");
 
+	kfree(orig_node->tt_buff);
 	kfree(orig_node->bcast_own);
 	kfree(orig_node->bcast_own_sum);
 	kfree(orig_node);
@@ -183,7 +192,7 @@ void originator_free(struct bat_priv *bat_priv)
 
 /* this function finds or creates an originator entry for the given
  * address if it does not exits */
-struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
+struct orig_node *get_orig_node(struct bat_priv *bat_priv, const uint8_t *addr)
 {
 	struct orig_node *orig_node;
 	int size;
@@ -196,7 +205,7 @@ struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
 	bat_dbg(DBG_BATMAN, bat_priv,
 		"Creating new originator: %pM\n", addr);
 
-	orig_node = kzalloc(sizeof(struct orig_node), GFP_ATOMIC);
+	orig_node = kzalloc(sizeof(*orig_node), GFP_ATOMIC);
 	if (!orig_node)
 		return NULL;
 
@@ -205,14 +214,20 @@ struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
 	spin_lock_init(&orig_node->ogm_cnt_lock);
 	spin_lock_init(&orig_node->bcast_seqno_lock);
 	spin_lock_init(&orig_node->neigh_list_lock);
+	spin_lock_init(&orig_node->tt_buff_lock);
 
 	/* extra reference for return */
 	atomic_set(&orig_node->refcount, 2);
 
+	orig_node->tt_poss_change = false;
 	orig_node->bat_priv = bat_priv;
 	memcpy(orig_node->orig, addr, ETH_ALEN);
 	orig_node->router = NULL;
+	orig_node->tt_crc = 0;
+	atomic_set(&orig_node->last_ttvn, 0);
 	orig_node->tt_buff = NULL;
+	orig_node->tt_buff_len = 0;
+	atomic_set(&orig_node->tt_size, 0);
 	orig_node->bcast_seqno_reset = jiffies - 1
 					- msecs_to_jiffies(RESET_PROTECTION_MS);
 	orig_node->batman_seqno_reset = jiffies - 1
@@ -322,9 +337,7 @@ static bool purge_orig_node(struct bat_priv *bat_priv,
 		if (purge_orig_neighbors(bat_priv, orig_node,
 							&best_neigh_node)) {
 			update_routes(bat_priv, orig_node,
-				      best_neigh_node,
-				      orig_node->tt_buff,
-				      orig_node->tt_buff_len);
+				      best_neigh_node);
 		}
 	}
 
@@ -419,9 +432,8 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 		goto out;
 	}
 
-	seq_printf(seq, "[B.A.T.M.A.N. adv %s%s, MainIF/MAC: %s/%pM (%s)]\n",
-		   SOURCE_VERSION, REVISION_VERSION_STR,
-		   primary_if->net_dev->name,
+	seq_printf(seq, "[B.A.T.M.A.N. adv %s, MainIF/MAC: %s/%pM (%s)]\n",
+		   SOURCE_VERSION, primary_if->net_dev->name,
 		   primary_if->net_dev->dev_addr, net_dev->name);
 	seq_printf(seq, "  %-15s %s (%s/%i) %17s [%10s]: %20s ...\n",
 		   "Originator", "last-seen", "#", TQ_MAX_VALUE, "Nexthop",
@@ -559,7 +571,7 @@ static int orig_node_del_if(struct orig_node *orig_node,
 	memcpy(data_ptr, orig_node->bcast_own, del_if_num * chunk_size);
 
 	/* copy second part */
-	memcpy(data_ptr + del_if_num * chunk_size,
+	memcpy((char *)data_ptr + del_if_num * chunk_size,
 	       orig_node->bcast_own + ((del_if_num + 1) * chunk_size),
 	       (max_if_num - del_if_num) * chunk_size);
 
@@ -579,7 +591,7 @@ free_bcast_own:
 	memcpy(data_ptr, orig_node->bcast_own_sum,
 	       del_if_num * sizeof(uint8_t));
 
-	memcpy(data_ptr + del_if_num * sizeof(uint8_t),
+	memcpy((char *)data_ptr + del_if_num * sizeof(uint8_t),
 	       orig_node->bcast_own_sum + ((del_if_num + 1) * sizeof(uint8_t)),
 	       (max_if_num - del_if_num) * sizeof(uint8_t));
 

@@ -9,7 +9,7 @@
 
 struct kconf_id;
 
-static struct kconf_id *kconf_id_lookup(register const char *str, register unsigned int len);
+static const struct kconf_id *kconf_id_lookup(register const char *str, register unsigned int len);
 
 %%
 mainmenu,	T_MAINMENU,	TF_COMMAND

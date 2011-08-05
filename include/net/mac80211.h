@@ -20,6 +20,7 @@
 #include <linux/device.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
+#include <asm/unaligned.h>
 
 /**
  * DOC: Introduction
@@ -191,6 +192,17 @@ enum ieee80211_bss_change {
  * filtering will be disabled.
  */
 #define IEEE80211_BSS_ARP_ADDR_LIST_LEN 4
+
+/**
+ * enum ieee80211_rssi_event - RSSI threshold event
+ * An indicator for when RSSI goes below/above a certain threshold.
+ * @RSSI_EVENT_HIGH: AP's rssi crossed the high threshold set by the driver.
+ * @RSSI_EVENT_LOW: AP's rssi crossed the low threshold set by the driver.
+ */
+enum ieee80211_rssi_event {
+	RSSI_EVENT_HIGH,
+	RSSI_EVENT_LOW,
+};
 
 /**
  * struct ieee80211_bss_conf - holds the BSS's changing parameters
@@ -933,6 +945,7 @@ enum set_key_cmd {
  * @aid: AID we assigned to the station if we're an AP
  * @supp_rates: Bitmap of supported rates (per band)
  * @ht_cap: HT capabilities of this STA; restricted to our own TX capabilities
+ * @wme: indicates whether the STA supports WME. Only valid during AP-mode.
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *), size is determined in hw information.
  */
@@ -941,6 +954,7 @@ struct ieee80211_sta {
 	u8 addr[ETH_ALEN];
 	u16 aid;
 	struct ieee80211_sta_ht_cap ht_cap;
+	bool wme;
 
 	/* must be last */
 	u8 drv_priv[0] __attribute__((__aligned__(sizeof(void *))));
@@ -957,21 +971,6 @@ struct ieee80211_sta {
  */
 enum sta_notify_cmd {
 	STA_NOTIFY_SLEEP, STA_NOTIFY_AWAKE,
-};
-
-/**
- * enum ieee80211_tkip_key_type - get tkip key
- *
- * Used by drivers which need to get a tkip key for skb. Some drivers need a
- * phase 1 key, others need a phase 2 key. A single function allows the driver
- * to get the key, this enum indicates what type of key is required.
- *
- * @IEEE80211_TKIP_P1_KEY: the driver needs a phase 1 key
- * @IEEE80211_TKIP_P2_KEY: the driver needs a phase 2 key
- */
-enum ieee80211_tkip_key_type {
-	IEEE80211_TKIP_P1_KEY,
-	IEEE80211_TKIP_P2_KEY,
 };
 
 /**
@@ -1587,6 +1586,20 @@ enum ieee80211_ampdu_mlme_action {
 };
 
 /**
+ * enum ieee80211_tx_sync_type - TX sync type
+ * @IEEE80211_TX_SYNC_AUTH: sync TX for authentication
+ *	(and possibly also before direct probe)
+ * @IEEE80211_TX_SYNC_ASSOC: sync TX for association
+ * @IEEE80211_TX_SYNC_ACTION: sync TX for action frame
+ *	(not implemented yet)
+ */
+enum ieee80211_tx_sync_type {
+	IEEE80211_TX_SYNC_AUTH,
+	IEEE80211_TX_SYNC_ASSOC,
+	IEEE80211_TX_SYNC_ACTION,
+};
+
+/**
  * struct ieee80211_ops - callbacks from mac80211 to the driver
  *
  * This structure contains various callbacks that the driver may
@@ -1626,6 +1639,10 @@ enum ieee80211_ampdu_mlme_action {
  *	ask the device to suspend. This is only invoked when WoWLAN is
  *	configured, otherwise the device is deconfigured completely and
  *	reconfigured at resume time.
+ *	The driver may also impose special conditions under which it
+ *	wants to use the "normal" suspend (deconfigure), say if it only
+ *	supports WoWLAN when the device is associated. In this case, it
+ *	must return 1 from this function.
  *
  * @resume: If WoWLAN was configured, this indicates that mac80211 is
  *	now resuming its operation, after this the device must be fully
@@ -1671,6 +1688,26 @@ enum ieee80211_ampdu_mlme_action {
  *	of the bss parameters has changed when a call is made. The callback
  *	can sleep.
  *
+ * @tx_sync: Called before a frame is sent to an AP/GO. In the GO case, the
+ *	driver should sync with the GO's powersaving so the device doesn't
+ *	transmit the frame while the GO is asleep. In the regular AP case
+ *	it may be used by drivers for devices implementing other restrictions
+ *	on talking to APs, e.g. due to regulatory enforcement or just HW
+ *	restrictions.
+ *	This function is called for every authentication, association and
+ *	action frame separately since applications might attempt to auth
+ *	with multiple APs before chosing one to associate to. If it returns
+ *	an error, the corresponding authentication, association or frame
+ *	transmission is aborted and reported as having failed. It is always
+ *	called after tuning to the correct channel.
+ *	The callback might be called multiple times before @finish_tx_sync
+ *	(but @finish_tx_sync will be called once for each) but in practice
+ *	this is unlikely to happen. It can also refuse in that case if the
+ *	driver cannot handle that situation.
+ *	This callback can sleep.
+ * @finish_tx_sync: Called as a counterpart to @tx_sync, unless that returned
+ *	an error. This callback can sleep.
+ *
  * @prepare_multicast: Prepare for multicast filter configuration.
  *	This callback is optional, and its return value is passed
  *	to configure_filter(). This callback must be atomic.
@@ -1694,6 +1731,12 @@ enum ieee80211_ampdu_mlme_action {
  * 	which set IEEE80211_KEY_FLAG_TKIP_REQ_RX_P1_KEY.
  *	The callback must be atomic.
  *
+ * @set_rekey_data: If the device supports GTK rekeying, for example while the
+ *	host is suspended, it can assign this callback to retrieve the data
+ *	necessary to do GTK rekeying, this is the KEK, KCK and replay counter.
+ *	After rekeying was done it should (for example during resume) notify
+ *	userspace of the new replay counter using ieee80211_gtk_rekey_notify().
+ *
  * @hw_scan: Ask the hardware to service the scan request, no need to start
  *	the scan state machine in stack. The scan must honour the channel
  *	configuration done by the regulatory agent in the wiphy's
@@ -1706,6 +1749,14 @@ enum ieee80211_ampdu_mlme_action {
  *	When the scan finishes, ieee80211_scan_completed() must be called;
  *	note that it also must be called when the scan cannot finish due to
  *	any error unless this callback returned a negative error code.
+ *	The callback can sleep.
+ *
+ * @cancel_hw_scan: Ask the low-level tp cancel the active hw scan.
+ *	The driver should ask the hardware to cancel the scan (if possible),
+ *	but the scan will be completed only after the driver will call
+ *	ieee80211_scan_completed().
+ *	This callback is needed for wowlan, to prevent enqueueing a new
+ *	scan_work after the low-level driver was already suspended.
  *	The callback can sleep.
  *
  * @sched_scan_start: Ask the hardware to start scanning repeatedly at
@@ -1816,6 +1867,7 @@ enum ieee80211_ampdu_mlme_action {
  *
  * @testmode_cmd: Implement a cfg80211 test mode command.
  *	The callback can sleep.
+ * @testmode_dump: Implement a cfg80211 test mode dump. The callback can sleep.
  *
  * @flush: Flush all pending frames from the hardware queue, making sure
  *	that the hardware queues are empty. If the parameter @drop is set
@@ -1860,6 +1912,8 @@ enum ieee80211_ampdu_mlme_action {
  * @set_bitrate_mask: Set a mask of rates to be used for rate control selection
  *	when transmitting a frame. Currently only legacy rates are handled.
  *	The callback can sleep.
+ * @rssi_callback: Notify driver when the average RSSI goes above/below
+ *	thresholds that were registered previously. The callback can sleep.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -1881,6 +1935,14 @@ struct ieee80211_ops {
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *info,
 				 u32 changed);
+
+	int (*tx_sync)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		       const u8 *bssid, enum ieee80211_tx_sync_type type);
+	void (*finish_tx_sync)(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       const u8 *bssid,
+			       enum ieee80211_tx_sync_type type);
+
 	u64 (*prepare_multicast)(struct ieee80211_hw *hw,
 				 struct netdev_hw_addr_list *mc_list);
 	void (*configure_filter)(struct ieee80211_hw *hw,
@@ -1897,8 +1959,13 @@ struct ieee80211_ops {
 				struct ieee80211_key_conf *conf,
 				struct ieee80211_sta *sta,
 				u32 iv32, u16 *phase1key);
+	void (*set_rekey_data)(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       struct cfg80211_gtk_rekey_data *data);
 	int (*hw_scan)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct cfg80211_scan_request *req);
+	void (*cancel_hw_scan)(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif);
 	int (*sched_scan_start)(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct cfg80211_sched_scan_request *req,
@@ -1936,6 +2003,9 @@ struct ieee80211_ops {
 	void (*set_coverage_class)(struct ieee80211_hw *hw, u8 coverage_class);
 #ifdef CONFIG_NL80211_TESTMODE
 	int (*testmode_cmd)(struct ieee80211_hw *hw, void *data, int len);
+	int (*testmode_dump)(struct ieee80211_hw *hw, struct sk_buff *skb,
+			     struct netlink_callback *cb,
+			     void *data, int len);
 #endif
 	void (*flush)(struct ieee80211_hw *hw, bool drop);
 	void (*channel_switch)(struct ieee80211_hw *hw,
@@ -1960,6 +2030,8 @@ struct ieee80211_ops {
 	bool (*tx_frames_pending)(struct ieee80211_hw *hw);
 	int (*set_bitrate_mask)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 				const struct cfg80211_bitrate_mask *mask);
+	void (*rssi_callback)(struct ieee80211_hw *hw,
+			      enum ieee80211_rssi_event rssi_event);
 };
 
 /**
@@ -2550,21 +2622,136 @@ struct sk_buff *
 ieee80211_get_buffered_bc(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 
 /**
- * ieee80211_get_tkip_key - get a TKIP rc4 for skb
+ * ieee80211_get_tkip_p1k_iv - get a TKIP phase 1 key for IV32
  *
- * This function computes a TKIP rc4 key for an skb. It computes
- * a phase 1 key if needed (iv16 wraps around). This function is to
- * be used by drivers which can do HW encryption but need to compute
- * to phase 1/2 key in SW.
+ * This function returns the TKIP phase 1 key for the given IV32.
  *
  * @keyconf: the parameter passed with the set key
- * @skb: the skb for which the key is needed
- * @type: TBD
- * @key: a buffer to which the key will be written
+ * @iv32: IV32 to get the P1K for
+ * @p1k: a buffer to which the key will be written, as 5 u16 values
  */
-void ieee80211_get_tkip_key(struct ieee80211_key_conf *keyconf,
-				struct sk_buff *skb,
-				enum ieee80211_tkip_key_type type, u8 *key);
+void ieee80211_get_tkip_p1k_iv(struct ieee80211_key_conf *keyconf,
+			       u32 iv32, u16 *p1k);
+
+/**
+ * ieee80211_get_tkip_p1k - get a TKIP phase 1 key
+ *
+ * This function returns the TKIP phase 1 key for the IV32 taken
+ * from the given packet.
+ *
+ * @keyconf: the parameter passed with the set key
+ * @skb: the packet to take the IV32 value from that will be encrypted
+ *	with this P1K
+ * @p1k: a buffer to which the key will be written, as 5 u16 values
+ */
+static inline void ieee80211_get_tkip_p1k(struct ieee80211_key_conf *keyconf,
+					  struct sk_buff *skb, u16 *p1k)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	const u8 *data = (u8 *)hdr + ieee80211_hdrlen(hdr->frame_control);
+	u32 iv32 = get_unaligned_le32(&data[4]);
+
+	ieee80211_get_tkip_p1k_iv(keyconf, iv32, p1k);
+}
+
+/**
+ * ieee80211_get_tkip_rx_p1k - get a TKIP phase 1 key for RX
+ *
+ * This function returns the TKIP phase 1 key for the given IV32
+ * and transmitter address.
+ *
+ * @keyconf: the parameter passed with the set key
+ * @ta: TA that will be used with the key
+ * @iv32: IV32 to get the P1K for
+ * @p1k: a buffer to which the key will be written, as 5 u16 values
+ */
+void ieee80211_get_tkip_rx_p1k(struct ieee80211_key_conf *keyconf,
+			       const u8 *ta, u32 iv32, u16 *p1k);
+
+/**
+ * ieee80211_get_tkip_p2k - get a TKIP phase 2 key
+ *
+ * This function computes the TKIP RC4 key for the IV values
+ * in the packet.
+ *
+ * @keyconf: the parameter passed with the set key
+ * @skb: the packet to take the IV32/IV16 values from that will be
+ *	encrypted with this key
+ * @p2k: a buffer to which the key will be written, 16 bytes
+ */
+void ieee80211_get_tkip_p2k(struct ieee80211_key_conf *keyconf,
+			    struct sk_buff *skb, u8 *p2k);
+
+/**
+ * struct ieee80211_key_seq - key sequence counter
+ *
+ * @tkip: TKIP data, containing IV32 and IV16 in host byte order
+ * @ccmp: PN data, most significant byte first (big endian,
+ *	reverse order than in packet)
+ * @aes_cmac: PN data, most significant byte first (big endian,
+ *	reverse order than in packet)
+ */
+struct ieee80211_key_seq {
+	union {
+		struct {
+			u32 iv32;
+			u16 iv16;
+		} tkip;
+		struct {
+			u8 pn[6];
+		} ccmp;
+		struct {
+			u8 pn[6];
+		} aes_cmac;
+	};
+};
+
+/**
+ * ieee80211_get_key_tx_seq - get key TX sequence counter
+ *
+ * @keyconf: the parameter passed with the set key
+ * @seq: buffer to receive the sequence data
+ *
+ * This function allows a driver to retrieve the current TX IV/PN
+ * for the given key. It must not be called if IV generation is
+ * offloaded to the device.
+ *
+ * Note that this function may only be called when no TX processing
+ * can be done concurrently, for example when queues are stopped
+ * and the stop has been synchronized.
+ */
+void ieee80211_get_key_tx_seq(struct ieee80211_key_conf *keyconf,
+			      struct ieee80211_key_seq *seq);
+
+/**
+ * ieee80211_get_key_rx_seq - get key RX sequence counter
+ *
+ * @keyconf: the parameter passed with the set key
+ * @tid: The TID, or -1 for the management frame value (CCMP only);
+ *	the value on TID 0 is also used for non-QoS frames. For
+ *	CMAC, only TID 0 is valid.
+ * @seq: buffer to receive the sequence data
+ *
+ * This function allows a driver to retrieve the current RX IV/PNs
+ * for the given key. It must not be called if IV checking is done
+ * by the device and not by mac80211.
+ *
+ * Note that this function may only be called when no RX processing
+ * can be done concurrently.
+ */
+void ieee80211_get_key_rx_seq(struct ieee80211_key_conf *keyconf,
+			      int tid, struct ieee80211_key_seq *seq);
+
+/**
+ * ieee80211_gtk_rekey_notify - notify userspace supplicant of rekeying
+ * @vif: virtual interface the rekeying was done on
+ * @bssid: The BSSID of the AP, for checking association
+ * @replay_ctr: the new replay counter after GTK rekeying
+ * @gfp: allocation flags
+ */
+void ieee80211_gtk_rekey_notify(struct ieee80211_vif *vif, const u8 *bssid,
+				const u8 *replay_ctr, gfp_t gfp);
+
 /**
  * ieee80211_wake_queue - wake specific queue
  * @hw: pointer as obtained from ieee80211_alloc_hw().
@@ -2830,6 +3017,33 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 			       struct ieee80211_sta *pubsta, bool block);
 
 /**
+ * ieee80211_iter_keys - iterate keys programmed into the device
+ * @hw: pointer obtained from ieee80211_alloc_hw()
+ * @vif: virtual interface to iterate, may be %NULL for all
+ * @iter: iterator function that will be called for each key
+ * @iter_data: custom data to pass to the iterator function
+ *
+ * This function can be used to iterate all the keys known to
+ * mac80211, even those that weren't previously programmed into
+ * the device. This is intended for use in WoWLAN if the device
+ * needs reprogramming of the keys during suspend. Note that due
+ * to locking reasons, it is also only safe to call this at few
+ * spots since it must hold the RTNL and be able to sleep.
+ *
+ * The order in which the keys are iterated matches the order
+ * in which they were originally installed and handed to the
+ * set_key callback.
+ */
+void ieee80211_iter_keys(struct ieee80211_hw *hw,
+			 struct ieee80211_vif *vif,
+			 void (*iter)(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      struct ieee80211_sta *sta,
+				      struct ieee80211_key_conf *key,
+				      void *data),
+			 void *iter_data);
+
+/**
  * ieee80211_ap_probereq_get - retrieve a Probe Request template
  * @hw: pointer obtained from ieee80211_alloc_hw().
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
@@ -2868,6 +3082,29 @@ void ieee80211_beacon_loss(struct ieee80211_vif *vif);
  * without connection recovery attempts.
  */
 void ieee80211_connection_loss(struct ieee80211_vif *vif);
+
+/**
+ * ieee80211_resume_disconnect - disconnect from AP after resume
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ *
+ * Instructs mac80211 to disconnect from the AP after resume.
+ * Drivers can use this after WoWLAN if they know that the
+ * connection cannot be kept up, for example because keys were
+ * used while the device was asleep but the replay counters or
+ * similar cannot be retrieved from the device during resume.
+ *
+ * Note that due to implementation issues, if the driver uses
+ * the reconfiguration functionality during resume the interface
+ * will still be added as associated first during resume and then
+ * disconnect normally later.
+ *
+ * This function can only be called from the resume callback and
+ * the driver must not be holding any of its own locks while it
+ * calls this function, or at least not any locks it needs in the
+ * key configuration paths (if it supports HW crypto).
+ */
+void ieee80211_resume_disconnect(struct ieee80211_vif *vif);
 
 /**
  * ieee80211_disable_dyn_ps - force mac80211 to temporarily disable dynamic psm
@@ -2914,6 +3151,16 @@ void ieee80211_enable_dyn_ps(struct ieee80211_vif *vif);
 void ieee80211_cqm_rssi_notify(struct ieee80211_vif *vif,
 			       enum nl80211_cqm_rssi_threshold_event rssi_event,
 			       gfp_t gfp);
+
+/**
+ * ieee80211_get_operstate - get the operstate of the vif
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ *
+ * The driver might need to know the operstate of the net_device
+ * (specifically, whether the link is IF_OPER_UP after resume)
+ */
+unsigned char ieee80211_get_operstate(struct ieee80211_vif *vif);
 
 /**
  * ieee80211_chswitch_done - Complete channel switch process
@@ -2964,6 +3211,23 @@ void ieee80211_ready_on_channel(struct ieee80211_hw *hw);
  * @hw: pointer as obtained from ieee80211_alloc_hw()
  */
 void ieee80211_remain_on_channel_expired(struct ieee80211_hw *hw);
+
+/**
+ * ieee80211_stop_rx_ba_session - callback to stop existing BA sessions
+ *
+ * in order not to harm the system performance and user experience, the device
+ * may request not to allow any rx ba session and tear down existing rx ba
+ * sessions based on system constraints such as periodic BT activity that needs
+ * to limit wlan activity (eg.sco or a2dp)."
+ * in such cases, the intention is to limit the duration of the rx ppdu and
+ * therefore prevent the peer device to use a-mpdu aggregation.
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @ba_rx_bitmap: Bit map of open rx ba per tid
+ * @addr: & to bssid mac address
+ */
+void ieee80211_stop_rx_ba_session(struct ieee80211_vif *vif, u16 ba_rx_bitmap,
+				  const u8 *addr);
 
 /* Rate control API */
 
@@ -3150,4 +3414,9 @@ ieee80211_vif_type_p2p(struct ieee80211_vif *vif)
 	return ieee80211_iftype_p2p(vif->type, vif->p2p);
 }
 
+void ieee80211_enable_rssi_reports(struct ieee80211_vif *vif,
+				   int rssi_min_thold,
+				   int rssi_max_thold);
+
+void ieee80211_disable_rssi_reports(struct ieee80211_vif *vif);
 #endif /* MAC80211_H */

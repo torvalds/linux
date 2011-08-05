@@ -120,6 +120,12 @@
 	std	r14,PACA_EXMC+EX_R14(r13);				    \
 	std	r15,PACA_EXMC+EX_R15(r13)
 
+#define PROLOG_ADDITION_DOORBELL_GEN					    \
+	lbz	r11,PACASOFTIRQEN(r13); /* are irqs soft-disabled ? */	    \
+	cmpwi	cr0,r11,0;		/* yes -> go out of line */	    \
+	beq	masked_doorbell_book3e
+
+
 /* Core exception code for all exceptions except TLB misses.
  * XXX: Needs to make SPRN_SPRG_GEN depend on exception type
  */
@@ -522,7 +528,13 @@ kernel_dbg_exc:
 	MASKABLE_EXCEPTION(0x260, perfmon, .performance_monitor_exception, ACK_NONE)
 
 /* Doorbell interrupt */
-	MASKABLE_EXCEPTION(0x2070, doorbell, .doorbell_exception, ACK_NONE)
+	START_EXCEPTION(doorbell)
+	NORMAL_EXCEPTION_PROLOG(0x2070, PROLOG_ADDITION_DOORBELL)
+	EXCEPTION_COMMON(0x2070, PACA_EXGEN, INTS_DISABLE_ALL)
+	CHECK_NAPPING()
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.doorbell_exception
+	b	.ret_from_except_lite
 
 /* Doorbell critical Interrupt */
 	START_EXCEPTION(doorbell_crit);
@@ -545,8 +557,16 @@ kernel_dbg_exc:
  * An interrupt came in while soft-disabled; clear EE in SRR1,
  * clear paca->hard_enabled and return.
  */
+masked_doorbell_book3e:
+	mtcr	r10
+	/* Resend the doorbell to fire again when ints enabled */
+	mfspr	r10,SPRN_PIR
+	PPC_MSGSND(r10)
+	b	masked_interrupt_book3e_common
+
 masked_interrupt_book3e:
 	mtcr	r10
+masked_interrupt_book3e_common:
 	stb	r11,PACAHARDIRQEN(r13)
 	mfspr	r10,SPRN_SRR1
 	rldicl	r11,r10,48,1		/* clear MSR_EE */

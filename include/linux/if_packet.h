@@ -49,6 +49,12 @@ struct sockaddr_ll {
 #define PACKET_VNET_HDR			15
 #define PACKET_TX_TIMESTAMP		16
 #define PACKET_TIMESTAMP		17
+#define PACKET_FANOUT			18
+
+#define PACKET_FANOUT_HASH		0
+#define PACKET_FANOUT_LB		1
+#define PACKET_FANOUT_CPU		2
+#define PACKET_FANOUT_FLAG_DEFRAG	0x8000
 
 struct tpacket_stats {
 	unsigned int	tp_packets;

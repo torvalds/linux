@@ -19,7 +19,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
-#include <linux/version.h>      /* for KERNEL_VERSION MACRO     */
 #include <linux/videodev2.h>
 #include <linux/io.h>
 #include <media/v4l2-device.h>
@@ -28,6 +27,7 @@
 MODULE_AUTHOR("Eric Lammerts, Russell Kroll, Quay Lu, Donald Song, Jason Lewis, Scott McGrath, William McGrath");
 MODULE_DESCRIPTION("A driver for the Trust FM Radio card.");
 MODULE_LICENSE("GPL");
+MODULE_VERSION("0.0.3");
 
 /* acceptable ports: 0x350 (JP3 shorted), 0x358 (JP3 open) */
 
@@ -41,8 +41,6 @@ static int radio_nr = -1;
 module_param(io, int, 0);
 MODULE_PARM_DESC(io, "I/O address of the Trust FM Radio card (0x350 or 0x358)");
 module_param(radio_nr, int, 0);
-
-#define RADIO_VERSION KERNEL_VERSION(0, 0, 2)
 
 struct trust {
 	struct v4l2_device v4l2_dev;
@@ -196,7 +194,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strlcpy(v->driver, "radio-trust", sizeof(v->driver));
 	strlcpy(v->card, "Trust FM Radio", sizeof(v->card));
 	strlcpy(v->bus_info, "ISA", sizeof(v->bus_info));
-	v->version = RADIO_VERSION;
 	v->capabilities = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
 	return 0;
 }

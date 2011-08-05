@@ -16,7 +16,7 @@
 #define _ASM_TILE_BITOPS_32_H
 
 #include <linux/compiler.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/system.h>
 
 /* Tile-specific routines to support <asm/bitops.h>. */

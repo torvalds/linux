@@ -189,6 +189,9 @@
 #define SPRN_CTR	0x009	/* Count Register */
 #define SPRN_DSCR	0x11
 #define SPRN_CFAR	0x1c	/* Come From Address Register */
+#define SPRN_AMR	0x1d	/* Authority Mask Register */
+#define SPRN_UAMOR	0x9d	/* User Authority Mask Override Register */
+#define SPRN_AMOR	0x15d	/* Authority Mask Override Register */
 #define SPRN_ACOP	0x1F	/* Available Coprocessor Register */
 #define SPRN_CTRLF	0x088
 #define SPRN_CTRLT	0x098
@@ -232,22 +235,28 @@
 #define   LPCR_VPM0	(1ul << (63-0))
 #define   LPCR_VPM1	(1ul << (63-1))
 #define   LPCR_ISL	(1ul << (63-2))
+#define   LPCR_VC_SH	(63-2)
 #define   LPCR_DPFD_SH	(63-11)
 #define   LPCR_VRMA_L	(1ul << (63-12))
 #define   LPCR_VRMA_LP0	(1ul << (63-15))
 #define   LPCR_VRMA_LP1	(1ul << (63-16))
+#define   LPCR_VRMASD_SH (63-16)
 #define   LPCR_RMLS    0x1C000000      /* impl dependent rmo limit sel */
+#define	  LPCR_RMLS_SH	(63-37)
 #define   LPCR_ILE     0x02000000      /* !HV irqs set MSR:LE */
 #define   LPCR_PECE	0x00007000	/* powersave exit cause enable */
 #define     LPCR_PECE0	0x00004000	/* ext. exceptions can cause exit */
 #define     LPCR_PECE1	0x00002000	/* decrementer can cause exit */
 #define     LPCR_PECE2	0x00001000	/* machine check etc can cause exit */
 #define   LPCR_MER	0x00000800	/* Mediated External Exception */
+#define   LPCR_LPES    0x0000000c
 #define   LPCR_LPES0   0x00000008      /* LPAR Env selector 0 */
 #define   LPCR_LPES1   0x00000004      /* LPAR Env selector 1 */
+#define   LPCR_LPES_SH	2
 #define   LPCR_RMI     0x00000002      /* real mode is cache inhibit */
 #define   LPCR_HDICE   0x00000001      /* Hyp Decr enable (HV,PR,EE) */
 #define SPRN_LPID	0x13F	/* Logical Partition Identifier */
+#define   LPID_RSVD	0x3ff		/* Reserved LPID for partn switching */
 #define	SPRN_HMER	0x150	/* Hardware m? error recovery */
 #define	SPRN_HMEER	0x151	/* Hardware m? enable error recovery */
 #define	SPRN_HEIR	0x153	/* Hypervisor Emulated Instruction Register */
@@ -298,6 +307,7 @@
 #define SPRN_HASH1	0x3D2		/* Primary Hash Address Register */
 #define SPRN_HASH2	0x3D3		/* Secondary Hash Address Resgister */
 #define SPRN_HID0	0x3F0		/* Hardware Implementation Register 0 */
+#define HID0_HDICE_SH	(63 - 23)	/* 970 HDEC interrupt enable */
 #define HID0_EMCP	(1<<31)		/* Enable Machine Check pin */
 #define HID0_EBA	(1<<29)		/* Enable Bus Address Parity */
 #define HID0_EBD	(1<<28)		/* Enable Bus Data Parity */
@@ -353,6 +363,13 @@
 #define SPRN_IABR2	0x3FA		/* 83xx */
 #define SPRN_IBCR	0x135		/* 83xx Insn Breakpoint Control Reg */
 #define SPRN_HID4	0x3F4		/* 970 HID4 */
+#define  HID4_LPES0	 (1ul << (63-0)) /* LPAR env. sel. bit 0 */
+#define	 HID4_RMLS2_SH	 (63 - 2)	/* Real mode limit bottom 2 bits */
+#define	 HID4_LPID5_SH	 (63 - 6)	/* partition ID bottom 4 bits */
+#define	 HID4_RMOR_SH	 (63 - 22)	/* real mode offset (16 bits) */
+#define  HID4_LPES1	 (1 << (63-57))	/* LPAR env. sel. bit 1 */
+#define  HID4_RMLS0_SH	 (63 - 58)	/* Real mode limit top bit */
+#define	 HID4_LPID1_SH	 0		/* partition ID top 2 bits */
 #define SPRN_HID4_GEKKO	0x3F3		/* Gekko HID4 */
 #define SPRN_HID5	0x3F6		/* 970 HID5 */
 #define SPRN_HID6	0x3F9	/* BE HID 6 */
@@ -802,28 +819,28 @@
 	mfspr	rX,SPRN_SPRG_PACA;			\
 	FTR_SECTION_ELSE_NESTED(66);			\
 	mfspr	rX,SPRN_SPRG_HPACA;			\
-	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_HVMODE_206, 66)
+	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_HVMODE, 66)
 
 #define SET_PACA(rX)					\
 	BEGIN_FTR_SECTION_NESTED(66);			\
 	mtspr	SPRN_SPRG_PACA,rX;			\
 	FTR_SECTION_ELSE_NESTED(66);			\
 	mtspr	SPRN_SPRG_HPACA,rX;			\
-	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_HVMODE_206, 66)
+	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_HVMODE, 66)
 
 #define GET_SCRATCH0(rX)				\
 	BEGIN_FTR_SECTION_NESTED(66);			\
 	mfspr	rX,SPRN_SPRG_SCRATCH0;			\
 	FTR_SECTION_ELSE_NESTED(66);			\
 	mfspr	rX,SPRN_SPRG_HSCRATCH0;			\
-	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_HVMODE_206, 66)
+	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_HVMODE, 66)
 
 #define SET_SCRATCH0(rX)				\
 	BEGIN_FTR_SECTION_NESTED(66);			\
 	mtspr	SPRN_SPRG_SCRATCH0,rX;			\
 	FTR_SECTION_ELSE_NESTED(66);			\
 	mtspr	SPRN_SPRG_HSCRATCH0,rX;			\
-	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_HVMODE_206, 66)
+	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_HVMODE, 66)
 
 #else /* CONFIG_PPC_BOOK3S_64 */
 #define GET_SCRATCH0(rX)	mfspr	rX,SPRN_SPRG_SCRATCH0
@@ -872,8 +889,8 @@
 #define SPRN_SPRG_WSCRATCH2	SPRN_SPRG4W
 #define SPRN_SPRG_RSCRATCH3	SPRN_SPRG5R
 #define SPRN_SPRG_WSCRATCH3	SPRN_SPRG5W
-#define SPRN_SPRG_RSCRATCH_MC	SPRN_SPRG6R
-#define SPRN_SPRG_WSCRATCH_MC	SPRN_SPRG6W
+#define SPRN_SPRG_RSCRATCH_MC	SPRN_SPRG1
+#define SPRN_SPRG_WSCRATCH_MC	SPRN_SPRG1
 #define SPRN_SPRG_RSCRATCH4	SPRN_SPRG7R
 #define SPRN_SPRG_WSCRATCH4	SPRN_SPRG7W
 #ifdef CONFIG_E200

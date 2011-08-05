@@ -198,7 +198,7 @@ static int irlan_client_ctrl_data_indication(void *instance, void *sap,
 
 	IRDA_DEBUG(2, "%s()\n", __func__ );
 
-	self = (struct irlan_cb *) instance;
+	self = instance;
 
 	IRDA_ASSERT(self != NULL, return -1;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return -1;);
@@ -226,8 +226,8 @@ static void irlan_client_ctrl_disconnect_indication(void *instance, void *sap,
 
 	IRDA_DEBUG(4, "%s(), reason=%d\n", __func__ , reason);
 
-	self = (struct irlan_cb *) instance;
-	tsap = (struct tsap_cb *) sap;
+	self = instance;
+	tsap = sap;
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
@@ -298,7 +298,7 @@ static void irlan_client_ctrl_connect_confirm(void *instance, void *sap,
 
 	IRDA_DEBUG(4, "%s()\n", __func__ );
 
-	self = (struct irlan_cb *) instance;
+	self = instance;
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
@@ -542,7 +542,7 @@ void irlan_client_get_value_confirm(int result, __u16 obj_id,
 
 	IRDA_ASSERT(priv != NULL, return;);
 
-	self = (struct irlan_cb *) priv;
+	self = priv;
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 
 	/* We probably don't need to make any more queries */

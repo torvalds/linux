@@ -356,7 +356,7 @@ static int __devinit nuc900_ac97_drvprobe(struct platform_device *pdev)
 	nuc900_audio->irq_num = platform_get_irq(pdev, 0);
 	if (!nuc900_audio->irq_num) {
 		ret = -EBUSY;
-		goto out2;
+		goto out3;
 	}
 
 	nuc900_ac97_data = nuc900_audio;

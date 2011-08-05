@@ -195,8 +195,6 @@ static int pacpi_port_start(struct ata_port *ap)
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	struct pata_acpi *acpi;
 
-	int ret;
-
 	if (ap->acpi_handle == NULL)
 		return -ENODEV;
 
@@ -205,11 +203,7 @@ static int pacpi_port_start(struct ata_port *ap)
 		return -ENOMEM;
 	acpi->mask[0] = pacpi_discover_modes(ap, &ap->link.device[0]);
 	acpi->mask[1] = pacpi_discover_modes(ap, &ap->link.device[1]);
-	ret = ata_bmdma_port_start(ap);
-	if (ret < 0)
-		return ret;
-
-	return ret;
+	return ata_bmdma_port_start(ap);
 }
 
 static struct scsi_host_template pacpi_sht = {

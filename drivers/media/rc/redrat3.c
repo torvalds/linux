@@ -205,6 +205,7 @@ struct redrat3_dev {
 
 	/* rx signal timeout timer */
 	struct timer_list rx_timeout;
+	u32 hw_timeout;
 
 	/* Is the device currently receiving? */
 	bool recv_in_progress;
@@ -414,20 +415,10 @@ static u32 redrat3_us_to_len(u32 microsec)
 
 }
 
-/* timer callback to send long trailing space on receive timeout */
+/* timer callback to send reset event */
 static void redrat3_rx_timeout(unsigned long data)
 {
 	struct redrat3_dev *rr3 = (struct redrat3_dev *)data;
-	DEFINE_IR_RAW_EVENT(rawir);
-
-	rawir.pulse = false;
-	rawir.duration = rr3->rc->timeout;
-	rr3_dbg(rr3->dev, "storing trailing space with duration %d\n",
-		rawir.duration);
-	ir_raw_event_store_with_filter(rr3->rc, &rawir);
-
-	rr3_dbg(rr3->dev, "calling ir_raw_event_handle\n");
-	ir_raw_event_handle(rr3->rc);
 
 	rr3_dbg(rr3->dev, "calling ir_raw_event_reset\n");
 	ir_raw_event_reset(rr3->rc);
@@ -438,7 +429,7 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 	DEFINE_IR_RAW_EVENT(rawir);
 	struct redrat3_signal_header header;
 	struct device *dev;
-	int i;
+	int i, trailer = 0;
 	unsigned long delay;
 	u32 mod_freq, single_len;
 	u16 *len_vals;
@@ -464,7 +455,8 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 	if (!(header.length >= RR3_HEADER_LENGTH))
 		dev_warn(dev, "read returned less than rr3 header len\n");
 
-	delay = usecs_to_jiffies(rr3->rc->timeout / 1000);
+	/* Make sure we reset the IR kfifo after a bit of inactivity */
+	delay = usecs_to_jiffies(rr3->hw_timeout);
 	mod_timer(&rr3->rx_timeout, jiffies + delay);
 
 	memcpy(&tmp32, sig_data + RR3_PAUSE_OFFSET, sizeof(tmp32));
@@ -506,9 +498,6 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 		u16 val = len_vals[data_vals[i]];
 		single_len = redrat3_len_to_us((u32)be16_to_cpu(val));
 
-		/* cap the value to IR_MAX_DURATION */
-		single_len &= IR_MAX_DURATION;
-
 		/* we should always get pulse/space/pulse/space samples */
 		if (i % 2)
 			rawir.pulse = false;
@@ -516,6 +505,12 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 			rawir.pulse = true;
 
 		rawir.duration = US_TO_NS(single_len);
+		/* Save initial pulse length to fudge trailer */
+		if (i == 0)
+			trailer = rawir.duration;
+		/* cap the value to IR_MAX_DURATION */
+		rawir.duration &= IR_MAX_DURATION;
+
 		rr3_dbg(dev, "storing %s with duration %d (i: %d)\n",
 			rawir.pulse ? "pulse" : "space", rawir.duration, i);
 		ir_raw_event_store_with_filter(rr3->rc, &rawir);
@@ -525,7 +520,10 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 	if (i % 2) {
 		rawir.pulse = false;
 		/* this duration is made up, and may not be ideal... */
-		rawir.duration = rr3->rc->timeout / 2;
+		if (trailer < US_TO_NS(1000))
+			rawir.duration = US_TO_NS(2800);
+		else
+			rawir.duration = trailer;
 		rr3_dbg(dev, "storing trailing space with duration %d\n",
 			rawir.duration);
 		ir_raw_event_store_with_filter(rr3->rc, &rawir);
@@ -629,36 +627,31 @@ static inline void redrat3_delete(struct redrat3_dev *rr3,
 	kfree(rr3);
 }
 
-static u32 redrat3_get_timeout(struct device *dev,
-			       struct rc_dev *rc, struct usb_device *udev)
+static u32 redrat3_get_timeout(struct redrat3_dev *rr3)
 {
 	u32 *tmp;
-	u32 timeout = MS_TO_NS(150); /* a sane default, if things go haywire */
+	u32 timeout = MS_TO_US(150); /* a sane default, if things go haywire */
 	int len, ret, pipe;
 
 	len = sizeof(*tmp);
 	tmp = kzalloc(len, GFP_KERNEL);
 	if (!tmp) {
-		dev_warn(dev, "Memory allocation faillure\n");
+		dev_warn(rr3->dev, "Memory allocation faillure\n");
 		return timeout;
 	}
 
-	pipe = usb_rcvctrlpipe(udev, 0);
-	ret = usb_control_msg(udev, pipe, RR3_GET_IR_PARAM,
+	pipe = usb_rcvctrlpipe(rr3->udev, 0);
+	ret = usb_control_msg(rr3->udev, pipe, RR3_GET_IR_PARAM,
 			      USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 			      RR3_IR_IO_SIG_TIMEOUT, 0, tmp, len, HZ * 5);
 	if (ret != len) {
-		dev_warn(dev, "Failed to read timeout from hardware\n");
+		dev_warn(rr3->dev, "Failed to read timeout from hardware\n");
 		return timeout;
 	}
 
-	timeout = US_TO_NS(redrat3_len_to_us(be32_to_cpu(*tmp)));
-	if (timeout < rc->min_timeout)
-		timeout = rc->min_timeout;
-	else if (timeout > rc->max_timeout)
-		timeout = rc->max_timeout;
+	timeout = redrat3_len_to_us(be32_to_cpu(*tmp));
 
-	rr3_dbg(dev, "Got timeout of %d ms\n", timeout / (1000 * 1000));
+	rr3_dbg(rr3->dev, "Got timeout of %d ms\n", timeout / 1000);
 	return timeout;
 }
 
@@ -1110,9 +1103,7 @@ static struct rc_dev *redrat3_init_rc_dev(struct redrat3_dev *rr3)
 	rc->priv = rr3;
 	rc->driver_type = RC_DRIVER_IR_RAW;
 	rc->allowed_protos = RC_TYPE_ALL;
-	rc->min_timeout = MS_TO_NS(RR3_RX_MIN_TIMEOUT);
-	rc->max_timeout = MS_TO_NS(RR3_RX_MAX_TIMEOUT);
-	rc->timeout = redrat3_get_timeout(dev, rc, rr3->udev);
+	rc->timeout = US_TO_NS(2750);
 	rc->tx_ir = redrat3_transmit_ir;
 	rc->s_tx_carrier = redrat3_set_tx_carrier;
 	rc->driver_name = DRIVER_NAME;
@@ -1186,7 +1177,7 @@ static int __devinit redrat3_dev_probe(struct usb_interface *intf,
 	rr3 = kzalloc(sizeof(*rr3), GFP_KERNEL);
 	if (rr3 == NULL) {
 		dev_err(dev, "Memory allocation failure\n");
-		goto error;
+		goto no_endpoints;
 	}
 
 	rr3->dev = &intf->dev;
@@ -1242,6 +1233,9 @@ static int __devinit redrat3_dev_probe(struct usb_interface *intf,
 	if (retval < 0)
 		goto error;
 
+	/* store current hardware timeout, in us, will use for kfifo resets */
+	rr3->hw_timeout = redrat3_get_timeout(rr3);
+
 	/* default.. will get overridden by any sends with a freq defined */
 	rr3->carrier = 38000;
 
@@ -1280,6 +1274,7 @@ static void __devexit redrat3_dev_disconnect(struct usb_interface *intf)
 
 	usb_set_intfdata(intf, NULL);
 	rc_unregister_device(rr3->rc);
+	del_timer_sync(&rr3->rx_timeout);
 	redrat3_delete(rr3, udev);
 
 	rr3_ftr(&intf->dev, "RedRat3 IR Transceiver now disconnected\n");

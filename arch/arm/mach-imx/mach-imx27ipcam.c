@@ -50,6 +50,8 @@ static const int mx27ipcam_pins[] __initconst = {
 
 static void __init mx27ipcam_init(void)
 {
+	imx27_soc_init();
+
 	mxc_gpio_setup_multiple_pins(mx27ipcam_pins, ARRAY_SIZE(mx27ipcam_pins),
 		"mx27ipcam");
 

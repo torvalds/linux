@@ -589,6 +589,7 @@ einval:	li	v0, -ENOSYS
 	sys	sys_open_by_handle_at	3	/* 4340 */
 	sys	sys_clock_adjtime	2
 	sys	sys_syncfs		1
+	sys	sys_sendmmsg		4
 	sys	sys_setns		2
 	.endm
 

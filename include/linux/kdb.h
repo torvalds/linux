@@ -16,7 +16,7 @@
 #ifdef	CONFIG_KGDB_KDB
 #include <linux/init.h>
 #include <linux/sched.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #define KDB_POLL_FUNC_MAX	5
 extern int kdb_poll_idx;

@@ -30,6 +30,7 @@
 #include <linux/init.h>
 #include <linux/etherdevice.h>
 #include <linux/ip.h>
+#include <linux/ratelimit.h>
 #include <linux/string.h>
 #include <net/dst.h>
 #ifdef CONFIG_XFRM
@@ -37,7 +38,7 @@
 #include <net/xfrm.h>
 #endif /* CONFIG_XFRM */
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <asm/octeon/octeon.h>
 
@@ -446,7 +447,7 @@ dont_put_skbuff_in_hw:
 						 priv->queue + qos,
 						 pko_command, hw_buffer,
 						 CVMX_PKO_LOCK_NONE))) {
-		DEBUGPRINT("%s: Failed to send the packet\n", dev->name);
+		printk_ratelimited("%s: Failed to send the packet\n", dev->name);
 		queue_type = QUEUE_DROP;
 	}
 skip_xmit:
@@ -525,8 +526,8 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 	/* Get a work queue entry */
 	cvmx_wqe_t *work = cvmx_fpa_alloc(CVMX_FPA_WQE_POOL);
 	if (unlikely(work == NULL)) {
-		DEBUGPRINT("%s: Failed to allocate a work queue entry\n",
-			   dev->name);
+		printk_ratelimited("%s: Failed to allocate a work "
+				   "queue entry\n", dev->name);
 		priv->stats.tx_dropped++;
 		dev_kfree_skb(skb);
 		return 0;
@@ -535,8 +536,8 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 	/* Get a packet buffer */
 	packet_buffer = cvmx_fpa_alloc(CVMX_FPA_PACKET_POOL);
 	if (unlikely(packet_buffer == NULL)) {
-		DEBUGPRINT("%s: Failed to allocate a packet buffer\n",
-			   dev->name);
+		printk_ratelimited("%s: Failed to allocate a packet buffer\n",
+				   dev->name);
 		cvmx_fpa_free(work, CVMX_FPA_WQE_POOL, DONT_WRITEBACK(1));
 		priv->stats.tx_dropped++;
 		dev_kfree_skb(skb);

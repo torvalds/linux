@@ -26,7 +26,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/pgalloc.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/io.h>
 #include <asm/mmu_context.h>
 #include <asm/m32r.h>

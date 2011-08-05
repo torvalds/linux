@@ -131,7 +131,7 @@ int usb_hcd_sa1111_probe (const struct hc_driver *driver,
 	if (!hcd)
 		return -ENOMEM;
 	hcd->rsrc_start = dev->res.start;
-	hcd->rsrc_len = dev->res.end - dev->res.start + 1;
+	hcd->rsrc_len = resource_size(&dev->res);
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
 		dbg("request_mem_region failed");

@@ -85,7 +85,7 @@ static int validate_inode(struct ubifs_info *c, const struct inode *inode)
 	if (ui->data_len < 0 || ui->data_len > UBIFS_MAX_INO_DATA)
 		return 4;
 
-	if (ui->xattr && (inode->i_mode & S_IFMT) != S_IFREG)
+	if (ui->xattr && !S_ISREG(inode->i_mode))
 		return 5;
 
 	if (!ubifs_compr_present(ui->compr_type)) {
@@ -94,7 +94,7 @@ static int validate_inode(struct ubifs_info *c, const struct inode *inode)
 			   ubifs_compr_name(ui->compr_type));
 	}
 
-	err = dbg_check_dir_size(c, inode);
+	err = dbg_check_dir(c, inode);
 	return err;
 }
 
@@ -914,7 +914,7 @@ static int check_volume_empty(struct ubifs_info *c)
 
 	c->empty = 1;
 	for (lnum = 0; lnum < c->leb_cnt; lnum++) {
-		err = ubi_is_mapped(c->ubi, lnum);
+		err = ubifs_is_mapped(c, lnum);
 		if (unlikely(err < 0))
 			return err;
 		if (err == 1) {

@@ -16,6 +16,7 @@
 #include <linux/statfs.h>
 #include <linux/types.h>
 #include <linux/pid_namespace.h>
+#include <linux/namei.h>
 #include <asm/uaccess.h>
 #include "os.h"
 
@@ -573,9 +574,10 @@ static int hppfs_readdir(struct file *file, void *ent, filldir_t filldir)
 	return err;
 }
 
-static int hppfs_fsync(struct file *file, int datasync)
+static int hppfs_fsync(struct file *file, loff_t start, loff_t end,
+		       int datasync)
 {
-	return 0;
+	return filemap_write_and_wait_range(file->f_mapping, start, end);
 }
 
 static const struct file_operations hppfs_dir_fops = {

@@ -91,7 +91,6 @@ static int af9015_rw_udev(struct usb_device *udev, struct req_t *req)
 	case GET_CONFIG:
 	case READ_MEMORY:
 	case RECONNECT_USB:
-	case GET_IR_CODE:
 		write = 0;
 		break;
 	case READ_I2C:
@@ -163,13 +162,6 @@ static int af9015_rw_udev(struct usb_device *udev, struct req_t *req)
 
 	deb_xfer("<<< ");
 	debug_dump(buf, act_len, deb_xfer);
-
-	/* remote controller query status is 1 if remote code is not received */
-	if (req->cmd == GET_IR_CODE && buf[1] == 1) {
-		buf[1] = 0; /* clear command "error" status */
-		memset(&buf[2], 0, req->data_len);
-		buf[3] = 1; /* no remote code received mark */
-	}
 
 	/* check status */
 	if (buf[1]) {
@@ -292,6 +284,10 @@ Due to that the only way to select correct tuner is use demodulator I2C-gate.
 		}
 
 		if (num > i + 1 && (msg[i+1].flags & I2C_M_RD)) {
+			if (msg[i].len > 3 || msg[i+1].len > 61) {
+				ret = -EOPNOTSUPP;
+				goto error;
+			}
 			if (msg[i].addr ==
 				af9015_af9013_config[0].demod_address)
 				req.cmd = READ_MEMORY;
@@ -306,12 +302,16 @@ Due to that the only way to select correct tuner is use demodulator I2C-gate.
 			ret = af9015_ctrl_msg(d, &req);
 			i += 2;
 		} else if (msg[i].flags & I2C_M_RD) {
-			ret = -EINVAL;
-			if (msg[i].addr ==
-				af9015_af9013_config[0].demod_address)
+			if (msg[i].len > 61) {
+				ret = -EOPNOTSUPP;
 				goto error;
-			else
-				req.cmd = READ_I2C;
+			}
+			if (msg[i].addr ==
+				af9015_af9013_config[0].demod_address) {
+				ret = -EINVAL;
+				goto error;
+			}
+			req.cmd = READ_I2C;
 			req.i2c_addr = msg[i].addr;
 			req.addr = addr;
 			req.mbox = mbox;
@@ -321,6 +321,10 @@ Due to that the only way to select correct tuner is use demodulator I2C-gate.
 			ret = af9015_ctrl_msg(d, &req);
 			i += 1;
 		} else {
+			if (msg[i].len > 21) {
+				ret = -EOPNOTSUPP;
+				goto error;
+			}
 			if (msg[i].addr ==
 				af9015_af9013_config[0].demod_address)
 				req.cmd = WRITE_MEMORY;
@@ -735,6 +739,7 @@ static const struct af9015_rc_setup af9015_rc_setup_hashes[] = {
 	{ 0xb8feb708, RC_MAP_MSI_DIGIVOX_II },
 	{ 0xa3703d00, RC_MAP_ALINK_DTU_M },
 	{ 0x9b7dc64e, RC_MAP_TOTAL_MEDIA_IN_HAND }, /* MYGICTV U718 */
+	{ 0x5d49e3db, RC_MAP_DIGITTRADE }, /* LC-Power LC-USB-DVBT */
 	{ }
 };
 
@@ -749,6 +754,8 @@ static const struct af9015_rc_setup af9015_rc_setup_usbids[] = {
 		RC_MAP_AZUREWAVE_AD_TU700 },
 	{ (USB_VID_MSI_2 << 16) + USB_PID_MSI_DIGI_VOX_MINI_III,
 		RC_MAP_MSI_DIGIVOX_III },
+	{ (USB_VID_MSI_2 << 16) + USB_PID_MSI_DIGIVOX_DUO,
+		RC_MAP_MSI_DIGIVOX_III },
 	{ (USB_VID_LEADTEK << 16) + USB_PID_WINFAST_DTV_DONGLE_GOLD,
 		RC_MAP_LEADTEK_Y04G0051 },
 	{ (USB_VID_AVERMEDIA << 16) + USB_PID_AVERMEDIA_VOLAR_X,
@@ -759,6 +766,8 @@ static const struct af9015_rc_setup af9015_rc_setup_usbids[] = {
 		RC_MAP_DIGITALNOW_TINYTWIN },
 	{ (USB_VID_GTEK << 16) + USB_PID_TINYTWIN_3,
 		RC_MAP_DIGITALNOW_TINYTWIN },
+	{ (USB_VID_KWORLD_2 << 16) + USB_PID_SVEON_STV22,
+		RC_MAP_MSI_DIGIVOX_III },
 	{ }
 };
 
@@ -1082,44 +1091,11 @@ error:
 	return ret;
 }
 
-/* init 2nd I2C adapter */
-static int af9015_i2c_init(struct dvb_usb_device *d)
-{
-	int ret;
-	struct af9015_state *state = d->priv;
-	deb_info("%s:\n", __func__);
-
-	strncpy(state->i2c_adap.name, d->desc->name,
-		sizeof(state->i2c_adap.name));
-	state->i2c_adap.algo      = d->props.i2c_algo;
-	state->i2c_adap.algo_data = NULL;
-	state->i2c_adap.dev.parent = &d->udev->dev;
-
-	i2c_set_adapdata(&state->i2c_adap, d);
-
-	ret = i2c_add_adapter(&state->i2c_adap);
-	if (ret < 0)
-		err("could not add i2c adapter");
-
-	return ret;
-}
-
 static int af9015_af9013_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	int ret;
-	struct af9015_state *state = adap->dev->priv;
-	struct i2c_adapter *i2c_adap;
 
-	if (adap->id == 0) {
-		/* select I2C adapter */
-		i2c_adap = &adap->dev->i2c_adap;
-
-		deb_info("%s: init I2C\n", __func__);
-		ret = af9015_i2c_init(adap->dev);
-	} else {
-		/* select I2C adapter */
-		i2c_adap = &state->i2c_adap;
-
+	if (adap->id == 1) {
 		/* copy firmware to 2nd demodulator */
 		if (af9015_config.dual_mode) {
 			ret = af9015_copy_firmware(adap->dev);
@@ -1136,7 +1112,7 @@ static int af9015_af9013_frontend_attach(struct dvb_usb_adapter *adap)
 
 	/* attach demodulator */
 	adap->fe = dvb_attach(af9013_attach, &af9015_af9013_config[adap->id],
-		i2c_adap);
+		&adap->dev->i2c_adap);
 
 	return adap->fe == NULL ? -ENODEV : 0;
 }
@@ -1206,57 +1182,56 @@ static struct mxl5007t_config af9015_mxl5007t_config = {
 
 static int af9015_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	struct af9015_state *state = adap->dev->priv;
-	struct i2c_adapter *i2c_adap;
 	int ret;
 	deb_info("%s:\n", __func__);
-
-	/* select I2C adapter */
-	if (adap->id == 0)
-		i2c_adap = &adap->dev->i2c_adap;
-	else
-		i2c_adap = &state->i2c_adap;
 
 	switch (af9015_af9013_config[adap->id].tuner) {
 	case AF9013_TUNER_MT2060:
 	case AF9013_TUNER_MT2060_2:
-		ret = dvb_attach(mt2060_attach, adap->fe, i2c_adap,
+		ret = dvb_attach(mt2060_attach, adap->fe, &adap->dev->i2c_adap,
 			&af9015_mt2060_config,
 			af9015_config.mt2060_if1[adap->id])
 			== NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_QT1010:
 	case AF9013_TUNER_QT1010A:
-		ret = dvb_attach(qt1010_attach, adap->fe, i2c_adap,
+		ret = dvb_attach(qt1010_attach, adap->fe, &adap->dev->i2c_adap,
 			&af9015_qt1010_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_TDA18271:
-		ret = dvb_attach(tda18271_attach, adap->fe, 0xc0, i2c_adap,
+		ret = dvb_attach(tda18271_attach, adap->fe, 0xc0,
+			&adap->dev->i2c_adap,
 			&af9015_tda18271_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_TDA18218:
-		ret = dvb_attach(tda18218_attach, adap->fe, i2c_adap,
+		ret = dvb_attach(tda18218_attach, adap->fe,
+			&adap->dev->i2c_adap,
 			&af9015_tda18218_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_MXL5003D:
-		ret = dvb_attach(mxl5005s_attach, adap->fe, i2c_adap,
+		ret = dvb_attach(mxl5005s_attach, adap->fe,
+			&adap->dev->i2c_adap,
 			&af9015_mxl5003_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_MXL5005D:
 	case AF9013_TUNER_MXL5005R:
-		ret = dvb_attach(mxl5005s_attach, adap->fe, i2c_adap,
+		ret = dvb_attach(mxl5005s_attach, adap->fe,
+			&adap->dev->i2c_adap,
 			&af9015_mxl5005_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_ENV77H11D5:
-		ret = dvb_attach(dvb_pll_attach, adap->fe, 0xc0, i2c_adap,
+		ret = dvb_attach(dvb_pll_attach, adap->fe, 0xc0,
+			&adap->dev->i2c_adap,
 			DVB_PLL_TDA665X) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_MC44S803:
-		ret = dvb_attach(mc44s803_attach, adap->fe, i2c_adap,
+		ret = dvb_attach(mc44s803_attach, adap->fe,
+			&adap->dev->i2c_adap,
 			&af9015_mc44s803_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_MXL5007T:
-		ret = dvb_attach(mxl5007t_attach, adap->fe, i2c_adap,
+		ret = dvb_attach(mxl5007t_attach, adap->fe,
+			&adap->dev->i2c_adap,
 			0xc0, &af9015_mxl5007t_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_UNKNOWN:
@@ -1309,6 +1284,7 @@ static struct usb_device_id af9015_usb_table[] = {
 		USB_PID_TERRATEC_CINERGY_T_STICK_DUAL_RC)},
 /* 35 */{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A850T)},
 	{USB_DEVICE(USB_VID_GTEK,      USB_PID_TINYTWIN_3)},
+	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_SVEON_STV22)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1502,7 +1478,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.i2c_algo = &af9015_i2c_algo,
 
-		.num_device_descs = 9, /* check max from dvb-usb.h */
+		.num_device_descs = 10, /* check max from dvb-usb.h */
 		.devices = {
 			{
 				.name = "Xtensions XD-380",
@@ -1552,6 +1528,11 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 				.name = "AverMedia AVerTV Volar Black HD " \
 					"(A850)",
 				.cold_ids = {&af9015_usb_table[20], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "Sveon STV22 Dual USB DVB-T Tuner HDTV",
+				.cold_ids = {&af9015_usb_table[37], NULL},
 				.warm_ids = {NULL},
 			},
 		}
@@ -1704,33 +1685,11 @@ static int af9015_usb_probe(struct usb_interface *intf,
 	return ret;
 }
 
-static void af9015_i2c_exit(struct dvb_usb_device *d)
-{
-	struct af9015_state *state = d->priv;
-	deb_info("%s:\n", __func__);
-
-	/* remove 2nd I2C adapter */
-	if (d->state & DVB_USB_STATE_I2C)
-		i2c_del_adapter(&state->i2c_adap);
-}
-
-static void af9015_usb_device_exit(struct usb_interface *intf)
-{
-	struct dvb_usb_device *d = usb_get_intfdata(intf);
-	deb_info("%s:\n", __func__);
-
-	/* remove 2nd I2C adapter */
-	if (d != NULL && d->desc != NULL)
-		af9015_i2c_exit(d);
-
-	dvb_usb_device_exit(intf);
-}
-
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver af9015_usb_driver = {
 	.name = "dvb_usb_af9015",
 	.probe = af9015_usb_probe,
-	.disconnect = af9015_usb_device_exit,
+	.disconnect = dvb_usb_device_exit,
 	.id_table = af9015_usb_table,
 };
 

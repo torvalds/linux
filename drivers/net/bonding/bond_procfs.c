@@ -125,6 +125,7 @@ static void bond_info_show_master(struct seq_file *seq)
 		seq_puts(seq, "\n802.3ad info\n");
 		seq_printf(seq, "LACP rate: %s\n",
 			   (bond->params.lacp_fast) ? "fast" : "slow");
+		seq_printf(seq, "Min links: %d\n", bond->params.min_links);
 		seq_printf(seq, "Aggregator selection policy (ad_select): %s\n",
 			   ad_select_tbl[bond->params.ad_select].modename);
 

@@ -294,9 +294,11 @@ static irqreturn_t fsl_dma_isr(int irq, void *dev_id)
  * Regardless of where the memory is actually allocated, since the device can
  * technically DMA to any 36-bit address, we do need to set the DMA mask to 36.
  */
-static int fsl_dma_new(struct snd_card *card, struct snd_soc_dai *dai,
-	struct snd_pcm *pcm)
+static int fsl_dma_new(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_card *card = rtd->card->snd_card;
+	struct snd_soc_dai *dai = rtd->cpu_dai;
+	struct snd_pcm *pcm = rtd->pcm;
 	static u64 fsl_dma_dmamask = DMA_BIT_MASK(36);
 	int ret;
 
@@ -939,7 +941,7 @@ static int __devinit fsl_soc_dma_probe(struct platform_device *pdev)
 
 	iprop = of_get_property(ssi_np, "fsl,fifo-depth", NULL);
 	if (iprop)
-		dma->ssi_fifo_depth = *iprop;
+		dma->ssi_fifo_depth = be32_to_cpup(iprop);
 	else
                 /* Older 8610 DTs didn't have the fifo-depth property */
 		dma->ssi_fifo_depth = 8;

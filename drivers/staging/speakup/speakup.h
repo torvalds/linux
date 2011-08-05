@@ -1,6 +1,5 @@
 #ifndef _SPEAKUP_H
 #define _SPEAKUP_H
-#include <linux/version.h>
 
 #include "spk_types.h"
 #include "i18n.h"

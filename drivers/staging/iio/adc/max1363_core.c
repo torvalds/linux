@@ -1255,11 +1255,14 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	struct regulator *reg;
 
 	reg = regulator_get(&client->dev, "vcc");
-	if (!IS_ERR(reg)) {
-		ret = regulator_enable(reg);
-		if (ret)
-			goto error_put_reg;
+	if (IS_ERR(reg)) {
+		ret = PTR_ERR(reg);
+		goto error_out;
 	}
+
+	ret = regulator_enable(reg);
+	if (ret)
+		goto error_put_reg;
 
 	indio_dev = iio_allocate_device(sizeof(struct max1363_state));
 	if (indio_dev == NULL) {
@@ -1323,6 +1326,7 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	}
 
 	return 0;
+
 error_uninit_ring:
 	iio_ring_buffer_unregister(indio_dev->ring);
 error_cleanup_ring:
@@ -1335,12 +1339,10 @@ error_free_device:
 	else
 		iio_device_unregister(indio_dev);
 error_disable_reg:
-	if (!IS_ERR(st->reg))
-		regulator_disable(st->reg);
+	regulator_disable(reg);
 error_put_reg:
-	if (!IS_ERR(st->reg))
-		regulator_put(st->reg);
-
+	regulator_put(reg);
+error_out:
 	return ret;
 }
 

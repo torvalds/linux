@@ -3458,9 +3458,10 @@ static int __devinit atyfb_setup_generic(struct pci_dev *pdev,
 
 	raddr = addr + 0x7ff000UL;
 	rrp = &pdev->resource[2];
-	if ((rrp->flags & IORESOURCE_MEM) && request_mem_region(rrp->start, rrp->end - rrp->start + 1, "atyfb")) {
+	if ((rrp->flags & IORESOURCE_MEM) &&
+	    request_mem_region(rrp->start, resource_size(rrp), "atyfb")) {
 		par->aux_start = rrp->start;
-		par->aux_size = rrp->end - rrp->start + 1;
+		par->aux_size = resource_size(rrp);
 		raddr = rrp->start;
 		PRINTKI("using auxiliary register aperture\n");
 	}
@@ -3550,7 +3551,7 @@ static int __devinit atyfb_pci_probe(struct pci_dev *pdev,
 
 	/* Reserve space */
 	res_start = rp->start;
-	res_size = rp->end - rp->start + 1;
+	res_size = resource_size(rp);
 	if (!request_mem_region(res_start, res_size, "atyfb"))
 		return -EBUSY;
 

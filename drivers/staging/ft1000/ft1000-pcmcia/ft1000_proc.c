@@ -53,7 +53,7 @@ int ft1000ReadProc(char *page, char **start, off_t off,
 	struct net_device *dev;
 	int len;
 	int i;
-	FT1000_INFO *info;
+	struct ft1000_info *info;
 	char *status[] =
 		{ "Idle (Disconnect)", "Searching", "Active (Connected)",
 		"Waiting for L2", "Sleep", "No Coverage", "", ""
@@ -75,16 +75,14 @@ int ft1000ReadProc(char *page, char **start, off_t off,
 	/* Wrap-around */
 
 	if (info->AsicID == ELECTRABUZZ_ID) {
-		if (info->DspHibernateFlag == 0) {
-			if (info->ProgConStat != 0xFF) {
-				info->LedStat =
-					ft1000_read_dpram(dev, FT1000_DSP_LED);
-				info->ConStat =
-					ft1000_read_dpram(dev,
-							  FT1000_DSP_CON_STATE);
-			} else {
-				info->ConStat = 0xf;
-			}
+		if (info->ProgConStat != 0xFF) {
+			info->LedStat =
+				ft1000_read_dpram(dev, FT1000_DSP_LED);
+			info->ConStat =
+				ft1000_read_dpram(dev,
+						  FT1000_DSP_CON_STATE);
+		} else {
+			info->ConStat = 0xf;
 		}
 	} else {
 		if (info->ProgConStat != 0xFF) {
@@ -172,7 +170,7 @@ static int ft1000NotifyProc(struct notifier_block *this, unsigned long event,
 				void *ptr)
 {
 	struct net_device *dev = ptr;
-	FT1000_INFO *info;
+	struct ft1000_info *info;
 
 	info = netdev_priv(dev);
 
@@ -193,7 +191,7 @@ static struct notifier_block ft1000_netdev_notifier = {
 
 void ft1000InitProc(struct net_device *dev)
 {
-	FT1000_INFO *info;
+	struct ft1000_info *info;
 
 	info = netdev_priv(dev);
 
@@ -206,7 +204,7 @@ void ft1000InitProc(struct net_device *dev)
 
 void ft1000CleanupProc(struct net_device *dev)
 {
-	FT1000_INFO *info;
+	struct ft1000_info *info;
 
 	info = netdev_priv(dev);
 

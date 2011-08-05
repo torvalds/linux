@@ -121,15 +121,13 @@
 	.endm
 #else	/* CONFIG_THUMB2_KERNEL */
 	.macro	svc_exit, rpsr
+	ldr	lr, [sp, #S_SP]			@ top of the stack
+	ldrd	r0, r1, [sp, #S_LR]		@ calling lr and pc
 	clrex					@ clear the exclusive monitor
-	ldr	r0, [sp, #S_SP]			@ top of the stack
-	ldr	r1, [sp, #S_PC]			@ return address
-	tst	r0, #4				@ orig stack 8-byte aligned?
-	stmdb	r0, {r1, \rpsr}			@ rfe context
+	stmdb	lr!, {r0, r1, \rpsr}		@ calling lr and rfe context
 	ldmia	sp, {r0 - r12}
-	ldr	lr, [sp, #S_LR]
-	addeq	sp, sp, #S_FRAME_SIZE - 8	@ aligned
-	addne	sp, sp, #S_FRAME_SIZE - 4	@ not aligned
+	mov	sp, lr
+	ldr	lr, [sp], #4
 	rfeia	sp!
 	.endm
 
@@ -164,25 +162,6 @@
 	nop
 	.endm
 #endif	/* !CONFIG_THUMB2_KERNEL */
-
-	@
-	@ Debug exceptions are taken as prefetch or data aborts.
-	@ We must disable preemption during the handler so that
-	@ we can access the debug registers safely.
-	@
-	.macro	debug_entry, fsr
-#if defined(CONFIG_HAVE_HW_BREAKPOINT) && defined(CONFIG_PREEMPT)
-	ldr	r4, =0x40f		@ mask out fsr.fs
-	and	r5, r4, \fsr
-	cmp	r5, #2			@ debug exception
-	bne	1f
-	get_thread_info r10
-	ldr	r6, [r10, #TI_PREEMPT]	@ get preempt count
-	add	r11, r6, #1		@ increment it
-	str	r11, [r10, #TI_PREEMPT]
-1:
-#endif
-	.endm
 
 /*
  * These are the registers used in the syscall handler, and allow us to

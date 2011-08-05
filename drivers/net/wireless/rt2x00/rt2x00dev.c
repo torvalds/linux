@@ -583,6 +583,18 @@ void rt2x00lib_rxdone(struct queue_entry *entry)
 	rt2x00dev->ops->lib->fill_rxdone(entry, &rxdesc);
 
 	/*
+	 * Check for valid size in case we get corrupted descriptor from
+	 * hardware.
+	 */
+	if (unlikely(rxdesc.size == 0 ||
+		     rxdesc.size > entry->queue->data_size)) {
+		WARNING(rt2x00dev, "Wrong frame size %d max %d.\n",
+			rxdesc.size, entry->queue->data_size);
+		dev_kfree_skb(entry->skb);
+		goto renew_skb;
+	}
+
+	/*
 	 * The data behind the ieee80211 header must be
 	 * aligned on a 4 byte boundary.
 	 */
@@ -642,6 +654,7 @@ void rt2x00lib_rxdone(struct queue_entry *entry)
 
 	ieee80211_rx_ni(rt2x00dev->hw, entry->skb);
 
+renew_skb:
 	/*
 	 * Replace the skb with the freshly allocated one.
 	 */

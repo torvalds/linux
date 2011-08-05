@@ -1796,7 +1796,7 @@ static struct mr_table *ipmr_rt_fib_lookup(struct net *net, struct sk_buff *skb)
 	struct flowi4 fl4 = {
 		.daddr = iph->daddr,
 		.saddr = iph->saddr,
-		.flowi4_tos = iph->tos,
+		.flowi4_tos = RT_TOS(iph->tos),
 		.flowi4_oif = rt->rt_oif,
 		.flowi4_iif = rt->rt_iif,
 		.flowi4_mark = rt->rt_mark,
@@ -2544,7 +2544,8 @@ int __init ip_mr_init(void)
 		goto add_proto_fail;
 	}
 #endif
-	rtnl_register(RTNL_FAMILY_IPMR, RTM_GETROUTE, NULL, ipmr_rtm_dumproute);
+	rtnl_register(RTNL_FAMILY_IPMR, RTM_GETROUTE,
+		      NULL, ipmr_rtm_dumproute, NULL);
 	return 0;
 
 #ifdef CONFIG_IP_PIMSM_V2

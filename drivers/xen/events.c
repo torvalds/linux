@@ -615,11 +615,6 @@ static int find_irq_by_gsi(unsigned gsi)
 	return -1;
 }
 
-int xen_allocate_pirq_gsi(unsigned gsi)
-{
-	return gsi;
-}
-
 /*
  * Do not make any assumptions regarding the relationship between the
  * IRQ number returned here and the Xen pirq argument.
@@ -1693,6 +1688,6 @@ void __init xen_init_IRQ(void)
 	} else {
 		irq_ctx_init(smp_processor_id());
 		if (xen_initial_domain())
-			xen_setup_pirqs();
+			pci_xen_initial_domain();
 	}
 }

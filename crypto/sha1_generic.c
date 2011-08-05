@@ -43,25 +43,26 @@ static int sha1_update(struct shash_desc *desc, const u8 *data,
 	unsigned int partial, done;
 	const u8 *src;
 
-	partial = sctx->count & 0x3f;
+	partial = sctx->count % SHA1_BLOCK_SIZE;
 	sctx->count += len;
 	done = 0;
 	src = data;
 
-	if ((partial + len) > 63) {
+	if ((partial + len) >= SHA1_BLOCK_SIZE) {
 		u32 temp[SHA_WORKSPACE_WORDS];
 
 		if (partial) {
 			done = -partial;
-			memcpy(sctx->buffer + partial, data, done + 64);
+			memcpy(sctx->buffer + partial, data,
+			       done + SHA1_BLOCK_SIZE);
 			src = sctx->buffer;
 		}
 
 		do {
 			sha_transform(sctx->state, src, temp);
-			done += 64;
+			done += SHA1_BLOCK_SIZE;
 			src = data + done;
-		} while (done + 63 < len);
+		} while (done + SHA1_BLOCK_SIZE <= len);
 
 		memset(temp, 0, sizeof(temp));
 		partial = 0;

@@ -38,7 +38,7 @@
 #include <linux/in6.h>
 #include <net/netlink.h>
 #include <net/request_sock.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 struct cipso_v4_doi;
 

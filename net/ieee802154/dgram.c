@@ -1,5 +1,5 @@
 /*
- * ZigBee socket interface
+ * IEEE 802.15.4 dgram socket interface
  *
  * Copyright 2007, 2008 Siemens AG
  *

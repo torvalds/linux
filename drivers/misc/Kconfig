@@ -245,8 +245,7 @@ config SGI_XP
 
 config CS5535_MFGPT
 	tristate "CS5535/CS5536 Geode Multi-Function General Purpose Timer (MFGPT) support"
-	depends on PCI
-	depends on X86
+	depends on PCI && X86 && MFD_CS5535
 	default n
 	help
 	  This driver provides access to MFGPT functionality for other
@@ -489,6 +488,15 @@ config PCH_PHUB
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called pch_phub.
+
+config USB_SWITCH_FSA9480
+	tristate "FSA9480 USB Switch"
+	depends on I2C
+	help
+	  The FSA9480 is a USB port accessory detector and switch.
+	  The FSA9480 is fully controlled using I2C and enables USB data,
+	  stereo and mono audio, video, microphone and UART data to use
+	  a common connector port.
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"

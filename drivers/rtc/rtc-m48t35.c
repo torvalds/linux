@@ -154,7 +154,7 @@ static int __devinit m48t35_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->size = res->end - res->start + 1;
+	priv->size = resource_size(res);
 	/*
 	 * kludge: remove the #ifndef after ioc3 resource
 	 * conflicts are resolved

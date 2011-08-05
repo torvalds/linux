@@ -367,7 +367,7 @@ req_retry_pinned:
 		in += inp;
 	} else {
 		in = pack_sg_list(chan->sg, out, VIRTQUEUE_NUM, rdata,
-				client->msize);
+				req->rc->capacity);
 	}
 
 	err = virtqueue_add_buf(chan->vq, chan->sg, out, in, req->tc);
@@ -592,7 +592,7 @@ static struct p9_trans_module p9_virtio_trans = {
 	.close = p9_virtio_close,
 	.request = p9_virtio_request,
 	.cancel = p9_virtio_cancel,
-	.maxsize = PAGE_SIZE*16,
+	.maxsize = PAGE_SIZE*VIRTQUEUE_NUM,
 	.pref = P9_TRANS_PREF_PAYLOAD_SEP,
 	.def = 0,
 	.owner = THIS_MODULE,

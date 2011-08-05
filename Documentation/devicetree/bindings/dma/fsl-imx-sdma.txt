@@ -1,0 +1,17 @@
+* Freescale Smart Direct Memory Access (SDMA) Controller for i.MX
+
+Required properties:
+- compatible : Should be "fsl,<chip>-sdma"
+- reg : Should contain SDMA registers location and length
+- interrupts : Should contain SDMA interrupt
+- fsl,sdma-ram-script-name : Should contain the full path of SDMA RAM
+  scripts firmware
+
+Examples:
+
+sdma@83fb0000 {
+	compatible = "fsl,imx51-sdma", "fsl,imx35-sdma";
+	reg = <0x83fb0000 0x4000>;
+	interrupts = <6>;
+	fsl,sdma-ram-script-name = "sdma-imx51.bin";
+};

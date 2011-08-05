@@ -221,13 +221,13 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 	ring_space = pci_alloc_consistent (pdev, TX_TOTAL_SIZE, &ring_dma);
 	if (!ring_space)
 		goto err_out_iounmap;
-	np->tx_ring = (struct netdev_desc *) ring_space;
+	np->tx_ring = ring_space;
 	np->tx_ring_dma = ring_dma;
 
 	ring_space = pci_alloc_consistent (pdev, RX_TOTAL_SIZE, &ring_dma);
 	if (!ring_space)
 		goto err_out_unmap_tx;
-	np->rx_ring = (struct netdev_desc *) ring_space;
+	np->rx_ring = ring_space;
 	np->rx_ring_dma = ring_dma;
 
 	/* Parse eeprom data */

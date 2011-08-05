@@ -80,7 +80,7 @@ struct bfa_adapter_attr {
 
 enum {
 	BFA_IOC_DRIVER_LEN	= 16,
-	BFA_IOC_CHIP_REV_LEN 	= 8,
+	BFA_IOC_CHIP_REV_LEN	= 8,
 };
 
 /**
@@ -153,6 +153,7 @@ struct bfa_ioc_drv_stats {
 	u32	enable_reqs;
 	u32	disable_replies;
 	u32	enable_replies;
+	u32	rsvd;
 };
 
 /**
@@ -174,7 +175,7 @@ enum bfa_ioc_type {
  */
 struct bfa_ioc_attr {
 	enum bfa_ioc_type ioc_type;
-	enum bfa_ioc_state 		state;		/*!< IOC state      */
+	enum bfa_ioc_state		state;		/*!< IOC state      */
 	struct bfa_adapter_attr adapter_attr;	/*!< HBA attributes */
 	struct bfa_ioc_driver_attr driver_attr;	/*!< driver attr    */
 	struct bfa_ioc_pci_attr pci_attr;

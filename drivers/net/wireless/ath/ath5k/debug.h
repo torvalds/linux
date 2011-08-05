@@ -61,7 +61,6 @@
 #ifndef _ATH5K_DEBUG_H
 #define _ATH5K_DEBUG_H
 
-struct ath5k_softc;
 struct ath5k_hw;
 struct sk_buff;
 struct ath5k_buf;
@@ -127,39 +126,39 @@ enum ath5k_debug_level {
 	} while (0)
 
 void
-ath5k_debug_init_device(struct ath5k_softc *sc);
+ath5k_debug_init_device(struct ath5k_hw *ah);
 
 void
-ath5k_debug_printrxbuffs(struct ath5k_softc *sc, struct ath5k_hw *ah);
+ath5k_debug_printrxbuffs(struct ath5k_hw *ah);
 
 void
-ath5k_debug_dump_bands(struct ath5k_softc *sc);
+ath5k_debug_dump_bands(struct ath5k_hw *ah);
 
 void
-ath5k_debug_printtxbuf(struct ath5k_softc *sc, struct ath5k_buf *bf);
+ath5k_debug_printtxbuf(struct ath5k_hw *ah, struct ath5k_buf *bf);
 
 #else /* no debugging */
 
 #include <linux/compiler.h>
 
 static inline void __attribute__ ((format (printf, 3, 4)))
-ATH5K_DBG(struct ath5k_softc *sc, unsigned int m, const char *fmt, ...) {}
+ATH5K_DBG(struct ath5k_hw *ah, unsigned int m, const char *fmt, ...) {}
 
 static inline void __attribute__ ((format (printf, 3, 4)))
-ATH5K_DBG_UNLIMIT(struct ath5k_softc *sc, unsigned int m, const char *fmt, ...)
+ATH5K_DBG_UNLIMIT(struct ath5k_hw *ah, unsigned int m, const char *fmt, ...)
 {}
 
 static inline void
-ath5k_debug_init_device(struct ath5k_softc *sc) {}
+ath5k_debug_init_device(struct ath5k_hw *ah) {}
 
 static inline void
-ath5k_debug_printrxbuffs(struct ath5k_softc *sc, struct ath5k_hw *ah) {}
+ath5k_debug_printrxbuffs(struct ath5k_hw *ah) {}
 
 static inline void
-ath5k_debug_dump_bands(struct ath5k_softc *sc) {}
+ath5k_debug_dump_bands(struct ath5k_hw *ah) {}
 
 static inline void
-ath5k_debug_printtxbuf(struct ath5k_softc *sc, struct ath5k_buf *bf) {}
+ath5k_debug_printtxbuf(struct ath5k_hw *ah, struct ath5k_buf *bf) {}
 
 #endif /* ifdef CONFIG_ATH5K_DEBUG */
 

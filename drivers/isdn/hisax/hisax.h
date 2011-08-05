@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
+#include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/timer.h>
 #include <linux/wait.h>

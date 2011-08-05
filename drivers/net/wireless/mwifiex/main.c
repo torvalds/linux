@@ -26,16 +26,11 @@
 
 const char driver_version[] = "mwifiex " VERSION " (%s) ";
 
-struct mwifiex_adapter *g_adapter;
-EXPORT_SYMBOL_GPL(g_adapter);
-
 static struct mwifiex_bss_attr mwifiex_bss_sta[] = {
 	{MWIFIEX_BSS_TYPE_STA, MWIFIEX_DATA_FRAME_TYPE_ETH_II, true, 0, 0},
 };
 
 static int drv_mode = DRV_MODE_STA;
-
-static char fw_name[32] = DEFAULT_FW_NAME;
 
 /* Supported drv_mode table */
 static struct mwifiex_drv_mode mwifiex_drv_mode_tbl[] = {
@@ -62,7 +57,8 @@ static struct mwifiex_drv_mode mwifiex_drv_mode_tbl[] = {
  * proper cleanup before exiting.
  */
 static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
-			    struct mwifiex_drv_mode *drv_mode_ptr)
+			    struct mwifiex_drv_mode *drv_mode_ptr,
+			    void **padapter)
 {
 	struct mwifiex_adapter *adapter;
 	int i;
@@ -71,7 +67,7 @@ static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
 	if (!adapter)
 		return -ENOMEM;
 
-	g_adapter = adapter;
+	*padapter = adapter;
 	adapter->card = card;
 
 	/* Save interface specific operations in adapter */
@@ -326,7 +322,7 @@ exit_main_proc:
  * and initializing the private structures.
  */
 static int
-mwifiex_init_sw(void *card, struct mwifiex_if_ops *if_ops)
+mwifiex_init_sw(void *card, struct mwifiex_if_ops *if_ops, void **padapter)
 {
 	int i;
 	struct mwifiex_drv_mode *drv_mode_ptr;
@@ -345,7 +341,7 @@ mwifiex_init_sw(void *card, struct mwifiex_if_ops *if_ops)
 		return -1;
 	}
 
-	if (mwifiex_register(card, if_ops, drv_mode_ptr))
+	if (mwifiex_register(card, if_ops, drv_mode_ptr, padapter))
 		return -1;
 
 	return 0;
@@ -384,20 +380,8 @@ static int mwifiex_init_hw_fw(struct mwifiex_adapter *adapter)
 
 	memset(&fw, 0, sizeof(struct mwifiex_fw_image));
 
-	switch (adapter->revision_id) {
-	case SD8787_W0:
-	case SD8787_W1:
-		strcpy(fw_name, SD8787_W1_FW_NAME);
-		break;
-	case SD8787_A0:
-	case SD8787_A1:
-		strcpy(fw_name, SD8787_AX_FW_NAME);
-		break;
-	default:
-		break;
-	}
-
-	err = request_firmware(&adapter->firmware, fw_name, adapter->dev);
+	err = request_firmware(&adapter->firmware, adapter->fw_name,
+			       adapter->dev);
 	if (err < 0) {
 		dev_err(adapter->dev, "request_firmware() returned"
 				" error code %#x\n", err);
@@ -569,7 +553,7 @@ static int
 mwifiex_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
-	struct sockaddr *hw_addr = (struct sockaddr *) addr;
+	struct sockaddr *hw_addr = addr;
 	int ret;
 
 	memcpy(priv->curr_addr, hw_addr->sa_data, ETH_ALEN);
@@ -869,12 +853,10 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 	if (down_interruptible(sem))
 		goto exit_sem_err;
 
-	if (mwifiex_init_sw(card, if_ops)) {
+	if (mwifiex_init_sw(card, if_ops, (void **)&adapter)) {
 		pr_err("%s: software init failed\n", __func__);
 		goto err_init_sw;
 	}
-
-	adapter = g_adapter;
 
 	adapter->hw_status = MWIFIEX_HW_STATUS_INITIALIZING;
 	adapter->surprise_removed = false;

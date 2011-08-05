@@ -754,6 +754,16 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 	 */
 
 	list_for_each_entry_safe(chunk, tmp, &q->control_chunk_list, list) {
+		/* RFC 5061, 5.3
+		 * F1) This means that until such time as the ASCONF
+		 * containing the add is acknowledged, the sender MUST
+		 * NOT use the new IP address as a source for ANY SCTP
+		 * packet except on carrying an ASCONF Chunk.
+		 */
+		if (asoc->src_out_of_asoc_ok &&
+		    chunk->chunk_hdr->type != SCTP_CID_ASCONF)
+			continue;
+
 		list_del_init(&chunk->list);
 
 		/* Pick the right transport to use. */
@@ -880,6 +890,9 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 			BUG();
 		}
 	}
+
+	if (q->asoc->src_out_of_asoc_ok)
+		goto sctp_flush_out;
 
 	/* Is it OK to send data chunks?  */
 	switch (asoc->state) {

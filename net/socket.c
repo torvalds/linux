@@ -467,7 +467,7 @@ static struct socket *sock_alloc(void)
 	struct inode *inode;
 	struct socket *sock;
 
-	inode = new_inode(sock_mnt->mnt_sb);
+	inode = new_inode_pseudo(sock_mnt->mnt_sb);
 	if (!inode)
 		return NULL;
 
@@ -580,7 +580,7 @@ int sock_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 }
 EXPORT_SYMBOL(sock_sendmsg);
 
-int sock_sendmsg_nosec(struct socket *sock, struct msghdr *msg, size_t size)
+static int sock_sendmsg_nosec(struct socket *sock, struct msghdr *msg, size_t size)
 {
 	struct kiocb iocb;
 	struct sock_iocb siocb;

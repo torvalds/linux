@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/i2c-tegra.h>
+#include <linux/of_i2c.h>
 
 #include <asm/unaligned.h>
 
@@ -546,6 +547,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	struct resource *iomem;
 	struct clk *clk;
 	struct clk *i2c_clk;
+	const unsigned int *prop;
 	void *base;
 	int irq;
 	int ret = 0;
@@ -603,7 +605,17 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	i2c_dev->irq = irq;
 	i2c_dev->cont_id = pdev->id;
 	i2c_dev->dev = &pdev->dev;
-	i2c_dev->bus_clk_rate = pdata ? pdata->bus_clk_rate : 100000;
+
+	i2c_dev->bus_clk_rate = 100000; /* default clock rate */
+	if (pdata) {
+		i2c_dev->bus_clk_rate = pdata->bus_clk_rate;
+
+	} else if (i2c_dev->dev->of_node) {    /* if there is a device tree node ... */
+		prop = of_get_property(i2c_dev->dev->of_node,
+				"clock-frequency", NULL);
+		if (prop)
+			i2c_dev->bus_clk_rate = be32_to_cpup(prop);
+	}
 
 	if (pdev->id == 3)
 		i2c_dev->is_dvc = 1;
@@ -633,12 +645,15 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	i2c_dev->adapter.algo = &tegra_i2c_algo;
 	i2c_dev->adapter.dev.parent = &pdev->dev;
 	i2c_dev->adapter.nr = pdev->id;
+	i2c_dev->adapter.dev.of_node = pdev->dev.of_node;
 
 	ret = i2c_add_numbered_adapter(&i2c_dev->adapter);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to add I2C adapter\n");
 		goto err_free_irq;
 	}
+
+	of_i2c_register_devices(&i2c_dev->adapter);
 
 	return 0;
 err_free_irq:

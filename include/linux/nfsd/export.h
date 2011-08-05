@@ -133,8 +133,6 @@ __be32 check_nfsd_access(struct svc_export *exp, struct svc_rqst *rqstp);
 int			nfsd_export_init(void);
 void			nfsd_export_shutdown(void);
 void			nfsd_export_flush(void);
-void			exp_readlock(void);
-void			exp_readunlock(void);
 struct svc_export *	rqst_exp_get_by_name(struct svc_rqst *,
 					     struct path *);
 struct svc_export *	rqst_exp_parent(struct svc_rqst *,
