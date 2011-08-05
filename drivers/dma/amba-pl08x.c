@@ -1619,38 +1619,40 @@ static void pl08x_tasklet(unsigned long data)
 static irqreturn_t pl08x_irq(int irq, void *dev)
 {
 	struct pl08x_driver_data *pl08x = dev;
-	u32 mask = 0;
-	u32 val;
-	int i;
+	u32 mask = 0, err, tc, i;
 
-	val = readl(pl08x->base + PL080_ERR_STATUS);
-	if (val) {
-		/* An error interrupt (on one or more channels) */
-		dev_err(&pl08x->adev->dev,
-			"%s error interrupt, register value 0x%08x\n",
-				__func__, val);
-		/*
-		 * Simply clear ALL PL08X error interrupts,
-		 * regardless of channel and cause
-		 * FIXME: should be 0x00000003 on PL081 really.
-		 */
-		writel(0x000000FF, pl08x->base + PL080_ERR_CLEAR);
+	/* check & clear - ERR & TC interrupts */
+	err = readl(pl08x->base + PL080_ERR_STATUS);
+	if (err) {
+		dev_err(&pl08x->adev->dev, "%s error interrupt, register value 0x%08x\n",
+			__func__, err);
+		writel(err, pl08x->base + PL080_ERR_CLEAR);
 	}
-	val = readl(pl08x->base + PL080_INT_STATUS);
+	tc = readl(pl08x->base + PL080_INT_STATUS);
+	if (tc)
+		writel(tc, pl08x->base + PL080_TC_CLEAR);
+
+	if (!err && !tc)
+		return IRQ_NONE;
+
 	for (i = 0; i < pl08x->vd->channels; i++) {
-		if ((1 << i) & val) {
+		if (((1 << i) & err) || ((1 << i) & tc)) {
 			/* Locate physical channel */
 			struct pl08x_phy_chan *phychan = &pl08x->phy_chans[i];
 			struct pl08x_dma_chan *plchan = phychan->serving;
 
+			if (!plchan) {
+				dev_err(&pl08x->adev->dev,
+					"%s Error TC interrupt on unused channel: 0x%08x\n",
+					__func__, i);
+				continue;
+			}
+
 			/* Schedule tasklet on this channel */
 			tasklet_schedule(&plchan->tasklet);
-
 			mask |= (1 << i);
 		}
 	}
-	/* Clear only the terminal interrupts on channels we processed */
-	writel(mask, pl08x->base + PL080_TC_CLEAR);
 
 	return mask ? IRQ_HANDLED : IRQ_NONE;
 }
