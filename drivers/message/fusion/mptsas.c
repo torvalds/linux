@@ -1950,6 +1950,15 @@ static enum blk_eh_timer_return mptsas_eh_timed_out(struct scsi_cmnd *sc)
 		goto done;
 	}
 
+	/* In case if IOC is in reset from internal context.
+	*  Do not execute EEH for the same IOC. SML should to reset timer.
+	*/
+	if (ioc->ioc_reset_in_progress) {
+		dtmprintk(ioc, printk(MYIOC_s_WARN_FMT ": %s: ioc is in reset,"
+		    "SML need to reset the timer (sc=%p)\n",
+		    ioc->name, __func__, sc));
+		rc = BLK_EH_RESET_TIMER;
+	}
 	vdevice = sc->device->hostdata;
 	if (vdevice && vdevice->vtarget && (vdevice->vtarget->inDMD
 		|| vdevice->vtarget->deleted)) {
