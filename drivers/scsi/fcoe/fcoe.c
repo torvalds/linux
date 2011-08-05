@@ -138,7 +138,6 @@ static int fcoe_vport_create(struct fc_vport *, bool disabled);
 static int fcoe_vport_disable(struct fc_vport *, bool disable);
 static void fcoe_set_vport_symbolic_name(struct fc_vport *);
 static void fcoe_set_port_id(struct fc_lport *, u32, struct fc_frame *);
-static int fcoe_validate_vport_create(struct fc_vport *);
 
 static struct libfc_function_template fcoe_libfc_fcn_templ = {
 	.frame_send = fcoe_xmit,
@@ -574,23 +573,6 @@ static int fcoe_lport_config(struct fc_lport *lport)
 	lport->lso_max = 0;
 
 	return 0;
-}
-
-/**
- * fcoe_get_wwn() - Get the world wide name from LLD if it supports it
- * @netdev: the associated net device
- * @wwn: the output WWN
- * @type: the type of WWN (WWPN or WWNN)
- *
- * Returns: 0 for success
- */
-static int fcoe_get_wwn(struct net_device *netdev, u64 *wwn, int type)
-{
-	const struct net_device_ops *ops = netdev->netdev_ops;
-
-	if (ops->ndo_fcoe_get_wwn)
-		return ops->ndo_fcoe_get_wwn(netdev, wwn, type);
-	return -EINVAL;
 }
 
 /**
@@ -2444,7 +2426,7 @@ static int fcoe_vport_create(struct fc_vport *vport, bool disabled)
 
 	rc = fcoe_validate_vport_create(vport);
 	if (rc) {
-		wwn_to_str(vport->port_name, buf, sizeof(buf));
+		fcoe_wwn_to_str(vport->port_name, buf, sizeof(buf));
 		printk(KERN_ERR "fcoe: Failed to create vport, "
 			"WWPN (0x%s) already exists\n",
 			buf);
@@ -2595,50 +2577,4 @@ static void fcoe_set_port_id(struct fc_lport *lport,
 
 	if (fp && fc_frame_payload_op(fp) == ELS_FLOGI)
 		fcoe_ctlr_recv_flogi(&fcoe->ctlr, lport, fp);
-}
-
-/**
- * fcoe_validate_vport_create() - Validate a vport before creating it
- * @vport: NPIV port to be created
- *
- * This routine is meant to add validation for a vport before creating it
- * via fcoe_vport_create().
- * Current validations are:
- *      - WWPN supplied is unique for given lport
- *
- *
-*/
-static int fcoe_validate_vport_create(struct fc_vport *vport)
-{
-	struct Scsi_Host *shost = vport_to_shost(vport);
-	struct fc_lport *n_port = shost_priv(shost);
-	struct fc_lport *vn_port;
-	int rc = 0;
-	char buf[32];
-
-	mutex_lock(&n_port->lp_mutex);
-
-	wwn_to_str(vport->port_name, buf, sizeof(buf));
-	/* Check if the wwpn is not same as that of the lport */
-	if (!memcmp(&n_port->wwpn, &vport->port_name, sizeof(u64))) {
-		FCOE_DBG("vport WWPN 0x%s is same as that of the "
-			"base port WWPN\n", buf);
-		rc = -EINVAL;
-		goto out;
-	}
-
-	/* Check if there is any existing vport with same wwpn */
-	list_for_each_entry(vn_port, &n_port->vports, list) {
-		if (!memcmp(&vn_port->wwpn, &vport->port_name, sizeof(u64))) {
-			FCOE_DBG("vport with given WWPN 0x%s already "
-			"exists\n", buf);
-			rc = -EINVAL;
-			break;
-		}
-	}
-
-out:
-	mutex_unlock(&n_port->lp_mutex);
-
-	return rc;
 }
