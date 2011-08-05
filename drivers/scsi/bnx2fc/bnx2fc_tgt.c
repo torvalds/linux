@@ -624,7 +624,6 @@ static void bnx2fc_free_conn_id(struct bnx2fc_hba *hba, u32 conn_id)
 	/* called with hba mutex held */
 	spin_lock_bh(&hba->hba_lock);
 	hba->tgt_ofld_list[conn_id] = NULL;
-	hba->next_conn_id = conn_id;
 	spin_unlock_bh(&hba->hba_lock);
 }
 
