@@ -844,7 +844,6 @@ static int hidp_setup_input(struct hidp_session *session,
 	if (err < 0) {
 		input_free_device(input);
 		session->input = NULL;
-		hci_conn_put_device(session->conn);
 		return err;
 	}
 
