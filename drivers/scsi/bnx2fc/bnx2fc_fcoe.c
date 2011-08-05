@@ -547,6 +547,14 @@ static void bnx2fc_recv_frame(struct sk_buff *skb)
 			break;
 		}
 	}
+
+	if (fh->fh_r_ctl == FC_RCTL_BA_ABTS) {
+		/* Drop incoming ABTS */
+		put_cpu();
+		kfree_skb(skb);
+		return;
+	}
+
 	if (le32_to_cpu(fr_crc(fp)) !=
 			~crc32(~0, skb->data, fr_len)) {
 		if (stats->InvalidCRCCount < 5)
