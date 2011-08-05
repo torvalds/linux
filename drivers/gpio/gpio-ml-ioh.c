@@ -63,6 +63,7 @@ struct ioh_regs {
  * @pm_reg:	To store contents of PM register.
  * @im0_reg:	To store contents of interrupt mode regist0
  * @im1_reg:	To store contents of interrupt mode regist1
+ * @use_sel_reg: To store contents of GPIO_USE_SEL0~3
  */
 struct ioh_gpio_reg_data {
 	u32 ien_reg;
@@ -71,6 +72,7 @@ struct ioh_gpio_reg_data {
 	u32 pm_reg;
 	u32 im0_reg;
 	u32 im1_reg;
+	u32 use_sel_reg;
 };
 
 /**
@@ -81,6 +83,7 @@ struct ioh_gpio_reg_data {
  * @gpio:			Data for GPIO infrastructure.
  * @ioh_gpio_reg:		Memory mapped Register data is saved here
  *				when suspend.
+ * @gpio_use_sel:		Save GPIO_USE_SEL1~4 register for PM
  * @ch:				Indicate GPIO channel
  * @irq_base:		Save base of IRQ number for interrupt
  * @spinlock:		Used for register access protection in
@@ -92,6 +95,7 @@ struct ioh_gpio {
 	struct device *dev;
 	struct gpio_chip gpio;
 	struct ioh_gpio_reg_data ioh_gpio_reg;
+	u32 gpio_use_sel;
 	struct mutex lock;
 	int ch;
 	int irq_base;
@@ -169,12 +173,25 @@ static int ioh_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
  */
 static void ioh_gpio_save_reg_conf(struct ioh_gpio *chip)
 {
-	chip->ioh_gpio_reg.po_reg = ioread32(&chip->reg->regs[chip->ch].po);
-	chip->ioh_gpio_reg.pm_reg = ioread32(&chip->reg->regs[chip->ch].pm);
-	chip->ioh_gpio_reg.ien_reg = ioread32(&chip->reg->regs[chip->ch].ien);
-	chip->ioh_gpio_reg.imask_reg = ioread32(&chip->reg->regs[chip->ch].imask);
-	chip->ioh_gpio_reg.im0_reg = ioread32(&chip->reg->regs[chip->ch].im_0);
-	chip->ioh_gpio_reg.im1_reg = ioread32(&chip->reg->regs[chip->ch].im_1);
+	int i;
+
+	for (i = 0; i < 8; i ++, chip++) {
+		chip->ioh_gpio_reg.po_reg =
+					ioread32(&chip->reg->regs[chip->ch].po);
+		chip->ioh_gpio_reg.pm_reg =
+					ioread32(&chip->reg->regs[chip->ch].pm);
+		chip->ioh_gpio_reg.ien_reg =
+				       ioread32(&chip->reg->regs[chip->ch].ien);
+		chip->ioh_gpio_reg.imask_reg =
+				     ioread32(&chip->reg->regs[chip->ch].imask);
+		chip->ioh_gpio_reg.im0_reg =
+				      ioread32(&chip->reg->regs[chip->ch].im_0);
+		chip->ioh_gpio_reg.im1_reg =
+				      ioread32(&chip->reg->regs[chip->ch].im_1);
+		if (i < 4)
+			chip->ioh_gpio_reg.use_sel_reg =
+					   ioread32(&chip->reg->ioh_sel_reg[i]);
+	}
 }
 
 /*
@@ -182,12 +199,25 @@ static void ioh_gpio_save_reg_conf(struct ioh_gpio *chip)
  */
 static void ioh_gpio_restore_reg_conf(struct ioh_gpio *chip)
 {
-	iowrite32(chip->ioh_gpio_reg.po_reg, &chip->reg->regs[chip->ch].po);
-	iowrite32(chip->ioh_gpio_reg.pm_reg, &chip->reg->regs[chip->ch].pm);
-	iowrite32(chip->ioh_gpio_reg.ien_reg, &chip->reg->regs[chip->ch].ien);
-	iowrite32(chip->ioh_gpio_reg.imask_reg, &chip->reg->regs[chip->ch].imask);
-	iowrite32(chip->ioh_gpio_reg.im0_reg, &chip->reg->regs[chip->ch].im_0);
-	iowrite32(chip->ioh_gpio_reg.im1_reg, &chip->reg->regs[chip->ch].im_1);
+	int i;
+
+	for (i = 0; i < 8; i ++, chip++) {
+		iowrite32(chip->ioh_gpio_reg.po_reg,
+			  &chip->reg->regs[chip->ch].po);
+		iowrite32(chip->ioh_gpio_reg.pm_reg,
+			  &chip->reg->regs[chip->ch].pm);
+		iowrite32(chip->ioh_gpio_reg.ien_reg,
+			  &chip->reg->regs[chip->ch].ien);
+		iowrite32(chip->ioh_gpio_reg.imask_reg,
+			  &chip->reg->regs[chip->ch].imask);
+		iowrite32(chip->ioh_gpio_reg.im0_reg,
+			  &chip->reg->regs[chip->ch].im_0);
+		iowrite32(chip->ioh_gpio_reg.im1_reg,
+			  &chip->reg->regs[chip->ch].im_1);
+		if (i < 4)
+			iowrite32(chip->ioh_gpio_reg.use_sel_reg,
+				  &chip->reg->ioh_sel_reg[i]);
+	}
 }
 #endif
 
@@ -485,8 +515,11 @@ static int ioh_gpio_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	s32 ret;
 	struct ioh_gpio *chip = pci_get_drvdata(pdev);
+	unsigned long flags;
 
+	spin_lock_irqsave(&chip->spinlock, flags);
 	ioh_gpio_save_reg_conf(chip);
+	spin_unlock_irqrestore(&chip->spinlock, flags);
 
 	ret = pci_save_state(pdev);
 	if (ret) {
@@ -506,6 +539,7 @@ static int ioh_gpio_resume(struct pci_dev *pdev)
 {
 	s32 ret;
 	struct ioh_gpio *chip = pci_get_drvdata(pdev);
+	unsigned long flags;
 
 	ret = pci_enable_wake(pdev, PCI_D0, 0);
 
@@ -517,9 +551,11 @@ static int ioh_gpio_resume(struct pci_dev *pdev)
 	}
 	pci_restore_state(pdev);
 
+	spin_lock_irqsave(&chip->spinlock, flags);
 	iowrite32(0x01, &chip->reg->srst);
 	iowrite32(0x00, &chip->reg->srst);
 	ioh_gpio_restore_reg_conf(chip);
+	spin_unlock_irqrestore(&chip->spinlock, flags);
 
 	return 0;
 }
