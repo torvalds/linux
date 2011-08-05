@@ -284,7 +284,6 @@ static int ioh_gpio_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct ioh_gpio *chip = pci_get_drvdata(pdev);
 
 	ioh_gpio_save_reg_conf(chip);
-	ioh_gpio_restore_reg_conf(chip);
 
 	ret = pci_save_state(pdev);
 	if (ret) {
