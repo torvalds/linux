@@ -641,6 +641,7 @@ static void _dispc_set_scale_coef(enum omap_plane plane, int hscaleup,
 
 static void _dispc_setup_color_conv_coef(void)
 {
+	int i;
 	const struct color_conv_coef {
 		int  ry,  rcr,  rcb,   gy,  gcr,  gcb,   by,  bcr,  bcb;
 		int  full_range;
@@ -654,34 +655,23 @@ static void _dispc_setup_color_conv_coef(void)
 
 	ct = &ctbl_bt601_5;
 
-	dispc_write_reg(DISPC_OVL_CONV_COEF(OMAP_DSS_VIDEO1, 0),
-		CVAL(ct->rcr, ct->ry));
-	dispc_write_reg(DISPC_OVL_CONV_COEF(OMAP_DSS_VIDEO1, 1),
-		CVAL(ct->gy,  ct->rcb));
-	dispc_write_reg(DISPC_OVL_CONV_COEF(OMAP_DSS_VIDEO1, 2),
-		CVAL(ct->gcb, ct->gcr));
-	dispc_write_reg(DISPC_OVL_CONV_COEF(OMAP_DSS_VIDEO1, 3),
-		CVAL(ct->bcr, ct->by));
-	dispc_write_reg(DISPC_OVL_CONV_COEF(OMAP_DSS_VIDEO1, 4),
-		CVAL(0, ct->bcb));
+	for (i = 1; i < dss_feat_get_num_ovls(); i++) {
+		dispc_write_reg(DISPC_OVL_CONV_COEF(i, 0),
+			CVAL(ct->rcr, ct->ry));
+		dispc_write_reg(DISPC_OVL_CONV_COEF(i, 1),
+			CVAL(ct->gy,  ct->rcb));
+		dispc_write_reg(DISPC_OVL_CONV_COEF(i, 2),
+			CVAL(ct->gcb, ct->gcr));
+		dispc_write_reg(DISPC_OVL_CONV_COEF(i, 3),
+			CVAL(ct->bcr, ct->by));
+		dispc_write_reg(DISPC_OVL_CONV_COEF(i, 4),
+			CVAL(0, ct->bcb));
 
-	dispc_write_reg(DISPC_OVL_CONV_COEF(OMAP_DSS_VIDEO2, 0),
-		CVAL(ct->rcr, ct->ry));
-	dispc_write_reg(DISPC_OVL_CONV_COEF(OMAP_DSS_VIDEO2, 1),
-		CVAL(ct->gy, ct->rcb));
-	dispc_write_reg(DISPC_OVL_CONV_COEF(OMAP_DSS_VIDEO2, 2),
-		CVAL(ct->gcb, ct->gcr));
-	dispc_write_reg(DISPC_OVL_CONV_COEF(OMAP_DSS_VIDEO2, 3),
-		CVAL(ct->bcr, ct->by));
-	dispc_write_reg(DISPC_OVL_CONV_COEF(OMAP_DSS_VIDEO2, 4),
-		CVAL(0, ct->bcb));
+		REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(i), ct->full_range,
+			11, 11);
+	}
 
 #undef CVAL
-
-	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(OMAP_DSS_VIDEO1),
-		ct->full_range, 11, 11);
-	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(OMAP_DSS_VIDEO2),
-		ct->full_range, 11, 11);
 }
 
 
