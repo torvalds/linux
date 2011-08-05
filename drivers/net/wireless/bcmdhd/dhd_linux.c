@@ -1385,7 +1385,7 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 	struct sk_buff *skb;
 	uchar *eth;
 	uint len;
-	void *data, *pnext, *save_pktbuf;
+	void *data, *pnext = NULL, *save_pktbuf;
 	int i;
 	dhd_if_t *ifp;
 	wl_event_msg_t event;
@@ -1397,6 +1397,16 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 	for (i = 0; pktbuf && i < numpkt; i++, pktbuf = pnext) {
 		struct ether_header *eh;
 		struct dot11_llc_snap_header *lsh;
+
+		ifp = dhd->iflist[ifidx];
+
+		/* Dropping packets before registering net device to avoid kernel panic */
+		if (!ifp->net || ifp->net->reg_state != NETREG_REGISTERED) {
+			DHD_ERROR(("%s: net device is NOT registered yet. drop packet\n",
+			__FUNCTION__));
+			PKTFREE(dhdp->osh, pktbuf, TRUE);
+			continue;
+		}
 
 		pnext = PKTNEXT(dhdp->osh, pktbuf);
 		PKTSETNEXT(wl->sh.osh, pktbuf, NULL);
@@ -1486,14 +1496,6 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 
 		dhdp->dstats.rx_bytes += skb->len;
 		dhdp->rx_packets++; /* Local count */
-
-		/* Dropping packets before registering net device to avoid kernel panic */
-		if (!ifp->net || ifp->net->reg_state != NETREG_REGISTERED) {
-			DHD_ERROR(("%s: net device is NOT registered yet. drop [%s] packet\n",
-			__FUNCTION__, (ntoh16(skb->protocol) == ETHER_TYPE_BRCM) ? "event" : "data"));
-			PKTFREE(dhdp->osh, pktbuf, TRUE);
-			continue;
-		}
 
 		if (in_interrupt()) {
 			netif_rx(skb);
@@ -3057,6 +3059,7 @@ void dhd_detach(dhd_pub_t *dhdp)
 {
 	dhd_info_t *dhd;
 	unsigned long flags;
+	int timer_valid = FALSE;
 
 	if (!dhdp)
 		return;
@@ -3118,17 +3121,23 @@ void dhd_detach(dhd_pub_t *dhdp)
 		if (ifp->net->netdev_ops == &dhd_ops_pri)
 #endif
 		{
-			unregister_netdev(ifp->net);
+			if (ifp->net) {
+				unregister_netdev(ifp->net);
+				free_netdev(ifp->net);
+				ifp->net = NULL;
+			}
 			MFREE(dhd->pub.osh, ifp, sizeof(*ifp));
-
+			dhd->iflist[0] = NULL;
 		}
 	}
 
 	/* Clear the watchdog timer */
 	flags = dhd_os_spin_lock(&dhd->pub);
+	timer_valid = dhd->wd_timer_valid;
 	dhd->wd_timer_valid = FALSE;
 	dhd_os_spin_unlock(&dhd->pub, flags);
-	del_timer_sync(&dhd->timer);
+	if (timer_valid)
+		del_timer_sync(&dhd->timer);
 
 	if (dhd->dhd_state & DHD_ATTACH_STATE_THREADS_CREATED) {
 #ifdef DHDTHREAD

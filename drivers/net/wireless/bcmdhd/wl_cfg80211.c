@@ -3913,9 +3913,9 @@ static void wl_free_wdev(struct wl_priv *wl)
 		}
 	}
 	wiphy_unregister(wdev->wiphy);
+	wdev->wiphy->dev.parent = NULL;
 	wiphy_free(wdev->wiphy);
 	kfree(wdev);
-	wl_to_wdev(wl) = NULL;
 }
 
 static s32 wl_inform_bss(struct wl_priv *wl)
@@ -4740,7 +4740,7 @@ static s32 wl_init_priv_mem(struct wl_priv *wl)
 		WL_ERR(("Ioctl buf alloc failed\n"));
 		goto init_priv_mem_out;
 	}
-	wl->escan_ioctl_buf = (void *)kzalloc(WL_IOCTL_LEN_MAX, GFP_KERNEL);
+	wl->escan_ioctl_buf = (void *)kzalloc(WLC_IOCTL_MAXLEN, GFP_KERNEL);
 	if (unlikely(!wl->escan_ioctl_buf)) {
 		WL_ERR(("Ioctl buf alloc failed\n"));
 		goto init_priv_mem_out;
@@ -4809,24 +4809,20 @@ static void wl_deinit_priv_mem(struct wl_priv *wl)
 
 static s32 wl_create_event_handler(struct wl_priv *wl)
 {
+	int ret = 0;
 	WL_DBG(("Enter \n"));
-	sema_init(&wl->event_sync, 0);
-	wl->event_tsk = kthread_run(wl_event_handler, wl, "wl_event_handler");
-	if (IS_ERR(wl->event_tsk)) {
-		wl->event_tsk = NULL;
-		WL_ERR(("failed to create event thread\n"));
-		return -ENOMEM;
-	}
-	return 0;
+
+	wl->event_tsk.thr_pid = DHD_PID_KT_INVALID;
+	PROC_START(wl_event_handler, wl, &wl->event_tsk, 0);
+	if (wl->event_tsk.thr_pid < 0)
+		ret = -ENOMEM;
+	return ret;
 }
 
 static void wl_destroy_event_handler(struct wl_priv *wl)
 {
-	if (wl->event_tsk) {
-		send_sig(SIGTERM, wl->event_tsk, 1);
-		kthread_stop(wl->event_tsk);
-		wl->event_tsk = NULL;
-	}
+	if (wl->event_tsk.thr_pid >= 0)
+		PROC_STOP(&wl->event_tsk);
 }
 
 static void wl_term_iscan(struct wl_priv *wl)
@@ -5367,29 +5363,32 @@ void wl_cfg80211_detach(void)
 	if (wl->p2p_supported)
 		wl_cfgp2p_deinit_priv(wl);
 	wl_deinit_priv(wl);
-	wl_free_wdev(wl);
 	wl_set_drvdata(wl_cfg80211_dev, NULL);
 	kfree(wl_cfg80211_dev);
 	wl_cfg80211_dev = NULL;
 	wl_clear_sdio_func();
+	wl_free_wdev(wl);
 }
 
 static void wl_wakeup_event(struct wl_priv *wl)
 {
-	up(&wl->event_sync);
+	if (wl->event_tsk.thr_pid >= 0)
+		up(&wl->event_tsk.sema);
 }
 
 static s32 wl_event_handler(void *data)
 {
 	struct net_device *netdev;
-	struct wl_priv *wl = (struct wl_priv *)data;
-	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1 };
+	struct wl_priv *wl = NULL;
 	struct wl_event_q *e;
+	tsk_ctl_t *tsk = (tsk_ctl_t *)data;
 
-	sched_setscheduler(current, SCHED_FIFO, &param);
-	allow_signal(SIGTERM);
-	while (likely(!down_interruptible(&wl->event_sync))) {
-		if (kthread_should_stop())
+	wl = (struct wl_priv *)tsk->parent;
+	complete(&tsk->completed);
+
+	while (down_interruptible (&tsk->sema) == 0) {
+		SMP_RD_BARRIER_DEPENDS();
+		if (tsk->terminated)
 			break;
 		e = wl_deq_event(wl);
 		if (unlikely(!e)) {
@@ -5400,14 +5399,16 @@ static s32 wl_event_handler(void *data)
 		netdev = dhd_idx2net((struct dhd_pub *)(wl->pub), e->emsg.ifidx);
 		if (!netdev)
 			netdev = wl_to_prmry_ndev(wl);
-		if (wl->evt_handler[e->etype]) {
+		if (e->etype < WLC_E_LAST && wl->evt_handler[e->etype]) {
 			wl->evt_handler[e->etype] (wl, netdev, &e->emsg, e->edata);
 		} else {
 			WL_DBG(("Unknown Event (%d): ignoring\n", e->etype));
 		}
 		wl_put_event(e);
 	}
+
 	WL_DBG(("%s was terminated\n", __func__));
+	complete_and_exit(&tsk->completed, 0);
 	return 0;
 }
 

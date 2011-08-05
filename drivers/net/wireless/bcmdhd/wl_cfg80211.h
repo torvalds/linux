@@ -347,7 +347,6 @@ struct wl_priv {
 	struct ether_addr bssid;	/* bssid of currently engaged network */
 
 	/* for synchronization of main event thread */
-	struct semaphore event_sync;
 	struct wl_profile *profile;	/* holding dongle profile */
 	struct wl_iscan_ctrl *iscan;	/* iscan controller */
 
@@ -357,7 +356,7 @@ struct wl_priv {
 	/* control firwmare and nvram paramter downloading */
 	struct wl_fw_ctrl *fw;
 	struct wl_pmk_list *pmk_list;	/* wpa2 pmk list */
-	struct task_struct *event_tsk;	/* task of main event handler thread */
+	tsk_ctl_t event_tsk;		/* task of main event handler thread */
 	unsigned long status;		/* current dongle status */
 	void *pub;
 	u32 channel;		/* current channel */

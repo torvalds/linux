@@ -338,10 +338,10 @@ int wl_android_wifi_off(struct net_device *dev)
 	dhd_net_if_lock(dev);
 	if (g_wifi_on) {
 		dhd_dev_reset(dev, 1);
-		dhd_customer_gpio_wlan_ctrl(WLAN_RESET_OFF);
 		sdioh_stop(NULL);
 		/* clean up dtim_skip setting */
 		net_os_set_dtim_skip(dev, TRUE);
+		dhd_customer_gpio_wlan_ctrl(WLAN_RESET_OFF);
 		g_wifi_on = 0;
 	}
 	dhd_net_if_unlock(dev);
