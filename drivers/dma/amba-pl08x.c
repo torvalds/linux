@@ -497,9 +497,13 @@ struct pl08x_lli_build_data {
 };
 
 /*
- * Autoselect a master bus to use for the transfer this prefers the
- * destination bus if both available if fixed address on one bus the
- * other will be chosen
+ * Autoselect a master bus to use for the transfer. Slave will be the chosen as
+ * victim in case src & dest are not similarly aligned. i.e. If after aligning
+ * masters address with width requirements of transfer (by sending few byte by
+ * byte data), slave is still not aligned, then its width will be reduced to
+ * BYTE.
+ * - prefers the destination bus if both available
+ * - if fixed address on one bus the other will be chosen
  */
 static void pl08x_choose_master_bus(struct pl08x_lli_build_data *bd,
 	struct pl08x_bus_data **mbus, struct pl08x_bus_data **sbus, u32 cctl)
@@ -625,11 +629,6 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 	/* We need to count this down to zero */
 	bd.remainder = txd->len;
 
-	/*
-	 * Choose bus to align to
-	 * - prefers destination bus if both available
-	 * - if fixed address on one bus chooses other
-	 */
 	pl08x_choose_master_bus(&bd, &mbus, &sbus, cctl);
 
 	dev_vdbg(&pl08x->adev->dev, "src=0x%08x%s/%u dst=0x%08x%s/%u len=%zu llimax=%zu\n",
