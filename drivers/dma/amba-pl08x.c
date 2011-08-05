@@ -559,6 +559,14 @@ static void pl08x_fill_lli_for_desc(struct pl08x_lli_build_data *bd,
 	bd->remainder -= len;
 }
 
+static inline void prep_byte_width_lli(struct pl08x_lli_build_data *bd,
+		u32 *cctl, u32 len, int num_llis, size_t *total_bytes)
+{
+	*cctl = pl08x_cctl_bits(*cctl, 1, 1, len);
+	pl08x_fill_lli_for_desc(bd, num_llis, len, *cctl);
+	(*total_bytes) += len;
+}
+
 /*
  * This fills in the table of LLIs for the transfer descriptor
  * Note that we assume we never have to change the burst sizes
@@ -570,7 +578,7 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 	struct pl08x_bus_data *mbus, *sbus;
 	struct pl08x_lli_build_data bd;
 	int num_llis = 0;
-	u32 cctl;
+	u32 cctl, early_bytes = 0;
 	size_t max_bytes_per_lli, total_bytes = 0;
 	struct pl08x_lli *llis_va;
 
@@ -619,29 +627,27 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 		 mbus == &bd.srcbus ? "src" : "dst",
 		 sbus == &bd.srcbus ? "src" : "dst");
 
-	if (txd->len < mbus->buswidth) {
-		/* Less than a bus width available - send as single bytes */
-		while (bd.remainder) {
-			dev_vdbg(&pl08x->adev->dev,
-				 "%s single byte LLIs for a transfer of "
-				 "less than a bus width (remain 0x%08x)\n",
-				 __func__, bd.remainder);
-			cctl = pl08x_cctl_bits(cctl, 1, 1, 1);
-			pl08x_fill_lli_for_desc(&bd, num_llis++, 1, cctl);
-			total_bytes++;
-		}
-	} else {
-		/* Make one byte LLIs until master bus is aligned */
-		while ((mbus->addr) % (mbus->buswidth)) {
-			dev_vdbg(&pl08x->adev->dev,
-				"%s adjustment lli for less than bus width "
-				 "(remain 0x%08x)\n",
-				 __func__, bd.remainder);
-			cctl = pl08x_cctl_bits(cctl, 1, 1, 1);
-			pl08x_fill_lli_for_desc(&bd, num_llis++, 1, cctl);
-			total_bytes++;
-		}
+	/*
+	 * Send byte by byte for following cases
+	 * - Less than a bus width available
+	 * - until master bus is aligned
+	 */
+	if (bd.remainder < mbus->buswidth)
+		early_bytes = bd.remainder;
+	else if ((mbus->addr) % (mbus->buswidth)) {
+		early_bytes = mbus->buswidth - (mbus->addr) % (mbus->buswidth);
+		if ((bd.remainder - early_bytes) < mbus->buswidth)
+			early_bytes = bd.remainder;
+	}
 
+	if (early_bytes) {
+		dev_vdbg(&pl08x->adev->dev, "%s byte width LLIs "
+				"(remain 0x%08x)\n", __func__, bd.remainder);
+		prep_byte_width_lli(&bd, &cctl, early_bytes, num_llis++,
+				&total_bytes);
+	}
+
+	if (bd.remainder) {
 		/*
 		 * Master now aligned
 		 * - if slave is not then we must set its width down
@@ -692,13 +698,12 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 		/*
 		 * Send any odd bytes
 		 */
-		while (bd.remainder) {
-			cctl = pl08x_cctl_bits(cctl, 1, 1, 1);
+		if (bd.remainder) {
 			dev_vdbg(&pl08x->adev->dev,
-				"%s align with boundary, single odd byte (remain %zu)\n",
+				"%s align with boundary, send odd bytes (remain %zu)\n",
 				__func__, bd.remainder);
-			pl08x_fill_lli_for_desc(&bd, num_llis++, 1, cctl);
-			total_bytes++;
+			prep_byte_width_lli(&bd, &cctl, bd.remainder,
+					num_llis++, &total_bytes);
 		}
 	}
 
