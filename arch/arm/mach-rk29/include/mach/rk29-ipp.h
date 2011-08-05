@@ -20,12 +20,19 @@ struct rk29_ipp_image
 struct rk29_ipp_req {
 	struct rk29_ipp_image src0; // source0 image
 	struct rk29_ipp_image dst0; // destination0 image
-	struct rk29_ipp_image src1; // source1 image
-	struct rk29_ipp_image dst1; // destination1 image
+	//struct rk29_ipp_image src1; // source1 image
+	//struct rk29_ipp_image dst1; // destination1 image
 	uint32_t src_vir_w;
 	uint32_t dst_vir_w;
 	uint32_t timeout;
+	
 	uint32_t flag; //rotate
+
+	/*store_clip_mode 
+	    0:when src width is not 64-bits aligned,use dummy data make it 64-bits aligned  1:packed
+	   we usually set to 0
+	*/
+	uint8_t store_clip_mode;
 	
 	//deinterlace_enable 1:enable 0:disable
 	uint8_t deinterlace_enable;
@@ -105,6 +112,7 @@ typedef enum
 #define IPP_PROCESS_ST			(0x50)
 
 /*ipp config*/
+#define STORE_CLIP_MODE			(1<<26)
 #define DEINTERLACE_ENABLE		(1<<24)
 #define ROT_ENABLE				(1<<8)
 #define PRE_SCALE				(1<<4)

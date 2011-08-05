@@ -176,15 +176,14 @@ struct rk29_nand_platform_data rk29_nand_data = {
 * author: zyw@rock-chips.com
 *****************************************************************************************/
 #define FB_ID                       0
-#define FB_DISPLAY_ON_PIN           INVALID_GPIO// RK29_PIN6_PD0
-//#define FB_LCD_STANDBY_PIN          INVALID_GPIO
-#define FB_LCD_STANDBY_PIN          RK29_PIN6_PD1
+#define FB_DISPLAY_ON_PIN           RK29_PIN6_PD1
+#define FB_LCD_STANDBY_PIN          RK29_PIN1_PD6
 #define FB_LCD_CABC_EN_PIN          RK29_PIN6_PD2
 #define FB_MCU_FMK_PIN              INVALID_GPIO
 
 #define FB_DISPLAY_ON_VALUE         GPIO_HIGH
-//#define FB_LCD_STANDBY_VALUE        GPIO_HIGH
-#define FB_LCD_STANDBY_VALUE        GPIO_LOW
+#define FB_LCD_STANDBY_VALUE        GPIO_HIGH
+//#define FB_LCD_STANDBY_VALUE        GPIO_LOW
 
 static int rk29_lcd_io_init(void)
 {
