@@ -418,6 +418,24 @@ int dib7000p_set_wbd_ref(struct dvb_frontend *demod, u16 value)
 }
 EXPORT_SYMBOL(dib7000p_set_wbd_ref);
 
+int dib7000p_get_agc_values(struct dvb_frontend *fe,
+		u16 *agc_global, u16 *agc1, u16 *agc2, u16 *wbd)
+{
+	struct dib7000p_state *state = fe->demodulator_priv;
+
+	if (agc_global != NULL)
+		*agc_global = dib7000p_read_word(state, 394);
+	if (agc1 != NULL)
+		*agc1 = dib7000p_read_word(state, 392);
+	if (agc2 != NULL)
+		*agc2 = dib7000p_read_word(state, 393);
+	if (wbd != NULL)
+		*wbd = dib7000p_read_word(state, 397);
+
+	return 0;
+}
+EXPORT_SYMBOL(dib7000p_get_agc_values);
+
 static void dib7000p_reset_pll(struct dib7000p_state *state)
 {
 	struct dibx000_bandwidth_config *bw = &state->cfg.bw[0];

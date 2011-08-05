@@ -80,14 +80,21 @@ extern struct dvb_frontend *dib0090_register(struct dvb_frontend *fe, struct i2c
 extern struct dvb_frontend *dib0090_fw_register(struct dvb_frontend *fe, struct i2c_adapter *i2c, const struct dib0090_config *config);
 extern void dib0090_dcc_freq(struct dvb_frontend *fe, u8 fast);
 extern void dib0090_pwm_gain_reset(struct dvb_frontend *fe);
-extern u16 dib0090_get_wbd_offset(struct dvb_frontend *tuner);
+extern u16 dib0090_get_wbd_target(struct dvb_frontend *tuner);
+extern u16 dib0090_get_wbd_offset(struct dvb_frontend *fe);
 extern int dib0090_gain_control(struct dvb_frontend *fe);
 extern enum frontend_tune_state dib0090_get_tune_state(struct dvb_frontend *fe);
 extern int dib0090_set_tune_state(struct dvb_frontend *fe, enum frontend_tune_state tune_state);
 extern void dib0090_get_current_gain(struct dvb_frontend *fe, u16 * rf, u16 * bb, u16 * rf_gain_limit, u16 * rflt);
 extern void dib0090_set_dc_servo(struct dvb_frontend *fe, u8 DC_servo_cutoff);
+extern int dib0090_set_switch(struct dvb_frontend *fe, u8 sw1, u8 sw2, u8 sw3);
+extern int dib0090_set_vga(struct dvb_frontend *fe, u8 onoff);
+extern int dib0090_update_rframp_7090(struct dvb_frontend *fe,
+		u8 cfg_sensitivity);
+extern int dib0090_update_tuning_table_7090(struct dvb_frontend *fe,
+		u8 cfg_sensitivity);
 #else
-static inline struct dvb_frontend *dib0090_register(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct dib0090_config *config)
+static inline struct dvb_frontend *dib0090_register(struct dvb_frontend *fe, struct i2c_adapter *i2c, const struct dib0090_config *config)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
@@ -109,7 +116,13 @@ static inline void dib0090_pwm_gain_reset(struct dvb_frontend *fe)
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 }
 
-static inline u16 dib0090_get_wbd_offset(struct dvb_frontend *tuner)
+static inline u16 dib0090_get_wbd_target(struct dvb_frontend *tuner)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return 0;
+}
+
+static inline u16 dib0090_get_wbd_offset(struct dvb_frontend *fe)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return 0;
@@ -141,6 +154,33 @@ static inline void dib0090_get_current_gain(struct dvb_frontend *fe, u16 * rf, u
 static inline void dib0090_set_dc_servo(struct dvb_frontend *fe, u8 DC_servo_cutoff)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+}
+
+static inline int dib0090_set_switch(struct dvb_frontend *fe,
+		u8 sw1, u8 sw2, u8 sw3)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return -ENODEV;
+}
+
+static inline int dib0090_set_vga(struct dvb_frontend *fe, u8 onoff)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return -ENODEV;
+}
+
+static inline int dib0090_update_rframp_7090(struct dvb_frontend *fe,
+		u8 cfg_sensitivity)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return -ENODEV;
+}
+
+static inline int dib0090_update_tuning_table_7090(struct dvb_frontend *fe,
+		u8 cfg_sensitivity)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return -ENODEV;
 }
 #endif
 
