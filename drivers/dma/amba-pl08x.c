@@ -604,23 +604,17 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 	bd.srcbus.buswidth = bd.srcbus.maxwidth;
 	bd.dstbus.buswidth = bd.dstbus.maxwidth;
 
-	/*
-	 * Bytes transferred == tsize * MIN(buswidths), not max(buswidths)
-	 */
-	max_bytes_per_lli = min(bd.srcbus.buswidth, bd.dstbus.buswidth) *
-		PL080_CONTROL_TRANSFER_SIZE_MASK;
-
 	/* We need to count this down to zero */
 	bd.remainder = txd->len;
 
 	pl08x_choose_master_bus(&bd, &mbus, &sbus, cctl);
 
-	dev_vdbg(&pl08x->adev->dev, "src=0x%08x%s/%u dst=0x%08x%s/%u len=%zu llimax=%zu\n",
+	dev_vdbg(&pl08x->adev->dev, "src=0x%08x%s/%u dst=0x%08x%s/%u len=%zu\n",
 		 bd.srcbus.addr, cctl & PL080_CONTROL_SRC_INCR ? "+" : "",
 		 bd.srcbus.buswidth,
 		 bd.dstbus.addr, cctl & PL080_CONTROL_DST_INCR ? "+" : "",
 		 bd.dstbus.buswidth,
-		 bd.remainder, max_bytes_per_lli);
+		 bd.remainder);
 	dev_vdbg(&pl08x->adev->dev, "mbus=%s sbus=%s\n",
 		 mbus == &bd.srcbus ? "src" : "dst",
 		 sbus == &bd.srcbus ? "src" : "dst");
@@ -659,6 +653,10 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 
 			sbus->buswidth = 1;
 		}
+
+		/* Bytes transferred = tsize * src width, not MIN(buswidths) */
+		max_bytes_per_lli = bd.srcbus.buswidth *
+			PL080_CONTROL_TRANSFER_SIZE_MASK;
 
 		/*
 		 * Make largest possible LLIs until less than one bus
