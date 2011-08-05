@@ -76,7 +76,7 @@ static void bnx2fc_offload_session(struct fcoe_port *port,
 	if (rval) {
 		printk(KERN_ERR PFX "Failed to allocate conn id for "
 			"port_id (%6x)\n", rport->port_id);
-		goto ofld_err;
+		goto tgt_init_err;
 	}
 
 	/* Allocate session resources */
@@ -141,11 +141,12 @@ retry_ofld:
 ofld_err:
 	/* couldn't offload the session. log off from this rport */
 	BNX2FC_TGT_DBG(tgt, "bnx2fc_offload_session - offload error\n");
-	lport->tt.rport_logoff(rdata);
 	/* Free session resources */
 	bnx2fc_free_session_resc(hba, tgt);
+tgt_init_err:
 	if (tgt->fcoe_conn_id != -1)
 		bnx2fc_free_conn_id(hba, tgt->fcoe_conn_id);
+	lport->tt.rport_logoff(rdata);
 }
 
 void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
@@ -790,8 +791,6 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 	return 0;
 
 mem_alloc_failure:
-	bnx2fc_free_session_resc(hba, tgt);
-	bnx2fc_free_conn_id(hba, tgt->fcoe_conn_id);
 	return -ENOMEM;
 }
 
