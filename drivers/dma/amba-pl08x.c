@@ -149,14 +149,6 @@ struct pl08x_driver_data {
  * PL08X specific defines
  */
 
-/*
- * Memory boundaries: the manual for PL08x says that the controller
- * cannot read past a 1KiB boundary, so these defines are used to
- * create transfer LLIs that do not cross such boundaries.
- */
-#define PL08X_BOUNDARY_SHIFT		(10)	/* 1KB 0x400 */
-#define PL08X_BOUNDARY_SIZE		(1 << PL08X_BOUNDARY_SHIFT)
-
 /* Size (bytes) of each LLI buffer allocated for one transfer */
 # define PL08X_LLI_TSFR_SIZE	0x2000
 
@@ -568,18 +560,6 @@ static void pl08x_fill_lli_for_desc(struct pl08x_lli_build_data *bd,
 }
 
 /*
- * Return number of bytes to fill to boundary, or len.
- * This calculation works for any value of addr.
- */
-static inline size_t pl08x_pre_boundary(u32 addr, size_t len)
-{
-	size_t boundary_len = PL08X_BOUNDARY_SIZE -
-			(addr & (PL08X_BOUNDARY_SIZE - 1));
-
-	return min(boundary_len, len);
-}
-
-/*
  * This fills in the table of LLIs for the transfer descriptor
  * Note that we assume we never have to change the burst sizes
  * Return 0 for error
@@ -685,118 +665,30 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 		 * width left
 		 */
 		while (bd.remainder > (mbus->buswidth - 1)) {
-			size_t lli_len, target_len, tsize, odd_bytes;
+			size_t lli_len, tsize;
 
 			/*
 			 * If enough left try to send max possible,
 			 * otherwise try to send the remainder
 			 */
-			target_len = min(bd.remainder, max_bytes_per_lli);
-
+			lli_len = min(bd.remainder, max_bytes_per_lli);
 			/*
-			 * Set bus lengths for incrementing buses to the
-			 * number of bytes which fill to next memory boundary,
-			 * limiting on the target length calculated above.
+			 * Check against minimum bus alignment: Calculate actual
+			 * transfer size in relation to bus width and get a
+			 * maximum remainder of the smallest bus width - 1
 			 */
-			if (cctl & PL080_CONTROL_SRC_INCR)
-				bd.srcbus.fill_bytes =
-					pl08x_pre_boundary(bd.srcbus.addr,
-						target_len);
-			else
-				bd.srcbus.fill_bytes = target_len;
+			tsize = lli_len / min(mbus->buswidth, sbus->buswidth);
+			lli_len	= tsize * min(mbus->buswidth, sbus->buswidth);
 
-			if (cctl & PL080_CONTROL_DST_INCR)
-				bd.dstbus.fill_bytes =
-					pl08x_pre_boundary(bd.dstbus.addr,
-						target_len);
-			else
-				bd.dstbus.fill_bytes = target_len;
+			dev_vdbg(&pl08x->adev->dev,
+				"%s fill lli with single lli chunk of "
+				"size 0x%08zx (remainder 0x%08zx)\n",
+				__func__, lli_len, bd.remainder);
 
-			/* Find the nearest */
-			lli_len	= min(bd.srcbus.fill_bytes,
-				      bd.dstbus.fill_bytes);
-
-			BUG_ON(lli_len > bd.remainder);
-
-			if (lli_len <= 0) {
-				dev_err(&pl08x->adev->dev,
-					"%s lli_len is %zu, <= 0\n",
-						__func__, lli_len);
-				return 0;
-			}
-
-			if (lli_len == target_len) {
-				/*
-				 * Can send what we wanted.
-				 * Maintain alignment
-				 */
-				lli_len	= (lli_len/mbus->buswidth) *
-							mbus->buswidth;
-				odd_bytes = 0;
-			} else {
-				/*
-				 * So now we know how many bytes to transfer
-				 * to get to the nearest boundary.  The next
-				 * LLI will past the boundary.  However, we
-				 * may be working to a boundary on the slave
-				 * bus.  We need to ensure the master stays
-				 * aligned, and that we are working in
-				 * multiples of the bus widths.
-				 */
-				odd_bytes = lli_len % mbus->buswidth;
-				lli_len -= odd_bytes;
-
-			}
-
-			if (lli_len) {
-				/*
-				 * Check against minimum bus alignment:
-				 * Calculate actual transfer size in relation
-				 * to bus width an get a maximum remainder of
-				 * the smallest bus width - 1
-				 */
-				/* FIXME: use round_down()? */
-				tsize = lli_len / min(mbus->buswidth,
-						      sbus->buswidth);
-				lli_len	= tsize * min(mbus->buswidth,
-						      sbus->buswidth);
-
-				if (target_len != lli_len) {
-					dev_vdbg(&pl08x->adev->dev,
-					"%s can't send what we want. Desired 0x%08zx, lli of 0x%08zx bytes in txd of 0x%08zx\n",
-					__func__, target_len, lli_len, txd->len);
-				}
-
-				cctl = pl08x_cctl_bits(cctl,
-						       bd.srcbus.buswidth,
-						       bd.dstbus.buswidth,
-						       tsize);
-
-				dev_vdbg(&pl08x->adev->dev,
-					"%s fill lli with single lli chunk of size 0x%08zx (remainder 0x%08zx)\n",
-					__func__, lli_len, bd.remainder);
-				pl08x_fill_lli_for_desc(&bd, num_llis++,
-					lli_len, cctl);
-				total_bytes += lli_len;
-			}
-
-			if (odd_bytes) {
-				/*
-				 * Creep past the boundary, maintaining
-				 * master alignment
-				 */
-				int j;
-				for (j = 0; (j < mbus->buswidth)
-						&& (bd.remainder); j++) {
-					cctl = pl08x_cctl_bits(cctl, 1, 1, 1);
-					dev_vdbg(&pl08x->adev->dev,
-						"%s align with boundary, single byte (remain 0x%08zx)\n",
-						__func__, bd.remainder);
-					pl08x_fill_lli_for_desc(&bd,
-						num_llis++, 1, cctl);
-					total_bytes++;
-				}
-			}
+			cctl = pl08x_cctl_bits(cctl, bd.srcbus.buswidth,
+					bd.dstbus.buswidth, tsize);
+			pl08x_fill_lli_for_desc(&bd, num_llis++, lli_len, cctl);
+			total_bytes += lli_len;
 		}
 
 		/*
@@ -811,6 +703,7 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 			total_bytes++;
 		}
 	}
+
 	if (total_bytes != txd->len) {
 		dev_err(&pl08x->adev->dev,
 			"%s size of encoded lli:s don't match total txd, transferred 0x%08zx from size 0x%08zx\n",
