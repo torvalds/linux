@@ -337,9 +337,16 @@ dp_set_link_config(struct drm_device *dev, struct dp_state *dp)
 static void
 dp_set_training_pattern(struct drm_device *dev, struct dp_state *dp, u8 tp)
 {
+	u8 sink_tp;
+
 	NV_DEBUG_KMS(dev, "training pattern %d\n", tp);
+
 	nv_mask(dev, NV50_SOR_DP_CTRL(dp->or, dp->link), 0x0f000000, tp << 24);
-	auxch_tx(dev, dp->auxch, 8, DP_TRAINING_PATTERN_SET, &tp, 1);
+
+	auxch_tx(dev, dp->auxch, 9, DP_TRAINING_PATTERN_SET, &sink_tp, 1);
+	sink_tp &= ~DP_TRAINING_PATTERN_MASK;
+	sink_tp |= tp;
+	auxch_tx(dev, dp->auxch, 8, DP_TRAINING_PATTERN_SET, &sink_tp, 1);
 }
 
 static const u8 nv50_lane_map[] = { 16, 8, 0, 24 };
