@@ -370,7 +370,7 @@ static void ar9003_hw_spur_ofdm_work(struct ath_hw *ah,
 			else
 				spur_subchannel_sd = 0;
 
-			spur_freq_sd = ((freq_offset + 10) << 9) / 11;
+			spur_freq_sd = (freq_offset << 9) / 11;
 
 		} else {
 			if (REG_READ_FIELD(ah, AR_PHY_GEN_CTRL,
@@ -379,7 +379,7 @@ static void ar9003_hw_spur_ofdm_work(struct ath_hw *ah,
 			else
 				spur_subchannel_sd = 1;
 
-			spur_freq_sd = ((freq_offset - 10) << 9) / 11;
+			spur_freq_sd = (freq_offset << 9) / 11;
 
 		}
 
