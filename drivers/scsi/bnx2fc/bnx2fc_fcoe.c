@@ -2378,6 +2378,7 @@ static struct fc_function_template bnx2fc_transport_function = {
 	.vport_create = bnx2fc_vport_create,
 	.vport_delete = bnx2fc_vport_destroy,
 	.vport_disable = bnx2fc_vport_disable,
+	.bsg_request = fc_lport_bsg_request,
 };
 
 static struct fc_function_template bnx2fc_vport_xport_function = {
@@ -2411,6 +2412,7 @@ static struct fc_function_template bnx2fc_vport_xport_function = {
 	.get_fc_host_stats = fc_get_host_stats,
 	.issue_fc_host_lip = bnx2fc_fcoe_reset,
 	.terminate_rport_io = fc_rport_terminate_io,
+	.bsg_request = fc_lport_bsg_request,
 };
 
 /**
