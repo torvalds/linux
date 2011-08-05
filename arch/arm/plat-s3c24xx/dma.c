@@ -712,7 +712,7 @@ static struct s3c2410_dma_chan *s3c2410_dma_map_channel(int channel);
  * get control of an dma channel
 */
 
-int s3c2410_dma_request(unsigned int channel,
+int s3c2410_dma_request(enum dma_ch channel,
 			struct s3c2410_dma_client *client,
 			void *dev)
 {
@@ -783,7 +783,7 @@ EXPORT_SYMBOL(s3c2410_dma_request);
  * allowed to go through.
 */
 
-int s3c2410_dma_free(unsigned int channel, struct s3c2410_dma_client *client)
+int s3c2410_dma_free(enum dma_ch channel, struct s3c2410_dma_client *client)
 {
 	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
 	unsigned long flags;
@@ -974,7 +974,7 @@ static int s3c2410_dma_started(struct s3c2410_dma_chan *chan)
 }
 
 int
-s3c2410_dma_ctrl(unsigned int channel, enum s3c2410_chan_op op)
+s3c2410_dma_ctrl(enum dma_ch channel, enum s3c2410_chan_op op)
 {
 	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
 
@@ -1021,7 +1021,7 @@ EXPORT_SYMBOL(s3c2410_dma_ctrl);
  * xfersize:     size of unit in bytes (1,2,4)
 */
 
-int s3c2410_dma_config(unsigned int channel,
+int s3c2410_dma_config(enum dma_ch channel,
 		       int xferunit)
 {
 	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
@@ -1100,7 +1100,7 @@ EXPORT_SYMBOL(s3c2410_dma_config);
  * devaddr:   physical address of the source
 */
 
-int s3c2410_dma_devconfig(unsigned int channel,
+int s3c2410_dma_devconfig(enum dma_ch channel,
 			  enum s3c2410_dmasrc source,
 			  unsigned long devaddr)
 {
@@ -1173,7 +1173,7 @@ EXPORT_SYMBOL(s3c2410_dma_devconfig);
  * returns the current transfer points for the dma source and destination
 */
 
-int s3c2410_dma_getposition(unsigned int channel, dma_addr_t *src, dma_addr_t *dst)
+int s3c2410_dma_getposition(enum dma_ch channel, dma_addr_t *src, dma_addr_t *dst)
 {
 	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
 

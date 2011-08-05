@@ -252,7 +252,7 @@ draw_auto(struct radeon_device *rdev)
 
 }
 
-/* emits 36 */
+/* emits 39 */
 static void
 set_default_state(struct radeon_device *rdev)
 {
@@ -531,6 +531,11 @@ set_default_state(struct radeon_device *rdev)
 		radeon_ring_write(rdev, (SQ_DYN_GPR_CNTL_PS_FLUSH_REQ - PACKET3_SET_CONFIG_REG_START) >> 2);
 		radeon_ring_write(rdev, 0);
 
+		/* setup LDS */
+		radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+		radeon_ring_write(rdev, (SQ_LDS_RESOURCE_MGMT - PACKET3_SET_CONFIG_REG_START) >> 2);
+		radeon_ring_write(rdev, 0x10001000);
+
 		/* SQ config */
 		radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 11));
 		radeon_ring_write(rdev, (SQ_CONFIG - PACKET3_SET_CONFIG_REG_START) >> 2);
@@ -773,7 +778,7 @@ int evergreen_blit_prepare_copy(struct radeon_device *rdev, int size_bytes)
 	/* calculate number of loops correctly */
 	ring_size = num_loops * dwords_per_loop;
 	/* set default  + shaders */
-	ring_size += 52; /* shaders + def state */
+	ring_size += 55; /* shaders + def state */
 	ring_size += 10; /* fence emit for VB IB */
 	ring_size += 5; /* done copy */
 	ring_size += 10; /* fence emit for done copy */
