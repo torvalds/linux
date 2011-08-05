@@ -295,7 +295,7 @@ static int cmtp_session(void *arg)
 	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
-		if (kthread_should_stop())
+		if (atomic_read(&session->terminate))
 			break;
 		if (sk->sk_state != BT_CONNECTED)
 			break;
@@ -416,7 +416,8 @@ int cmtp_del_connection(struct cmtp_conndel_req *req)
 		skb_queue_purge(&session->transmit);
 
 		/* Stop session thread */
-		kthread_stop(session->task);
+		atomic_inc(&session->terminate);
+		wake_up_process(session->task);
 	} else
 		err = -ENOENT;
 
