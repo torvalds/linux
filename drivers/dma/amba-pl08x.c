@@ -66,11 +66,6 @@
  *    after the final transfer signalled by LBREQ or LSREQ.  The DMAC
  *    will then move to the next LLI entry.
  *
- * Only the former works sanely with scatter lists, so we only implement
- * the DMAC flow control method.  However, peripherals which use the LBREQ
- * and LSREQ signals (eg, MMCI) are unable to use this mode, which through
- * these hardware restrictions prevents them from using scatter DMA.
- *
  * Global TODO:
  * - Break out common code from arch/arm/mach-s3c64xx and share
  */
@@ -616,6 +611,49 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 	dev_vdbg(&pl08x->adev->dev, "mbus=%s sbus=%s\n",
 		 mbus == &bd.srcbus ? "src" : "dst",
 		 sbus == &bd.srcbus ? "src" : "dst");
+
+	/*
+	 * Zero length is only allowed if all these requirements are met:
+	 * - flow controller is peripheral.
+	 * - src.addr is aligned to src.width
+	 * - dst.addr is aligned to dst.width
+	 *
+	 * sg_len == 1 should be true, as there can be two cases here:
+	 * - Memory addresses are contiguous and are not scattered. Here, Only
+	 * one sg will be passed by user driver, with memory address and zero
+	 * length. We pass this to controller and after the transfer it will
+	 * receive the last burst request from peripheral and so transfer
+	 * finishes.
+	 *
+	 * - Memory addresses are scattered and are not contiguous. Here,
+	 * Obviously as DMA controller doesn't know when a lli's transfer gets
+	 * over, it can't load next lli. So in this case, there has to be an
+	 * assumption that only one lli is supported. Thus, we can't have
+	 * scattered addresses.
+	 */
+	if (!bd.remainder) {
+		u32 fc = (txd->ccfg & PL080_CONFIG_FLOW_CONTROL_MASK) >>
+			PL080_CONFIG_FLOW_CONTROL_SHIFT;
+		if (!((fc >= PL080_FLOW_SRC2DST_DST) &&
+					(fc <= PL080_FLOW_SRC2DST_SRC))) {
+			dev_err(&pl08x->adev->dev, "%s sg len can't be zero",
+				__func__);
+			return 0;
+		}
+
+		if ((bd.srcbus.addr % bd.srcbus.buswidth) ||
+				(bd.srcbus.addr % bd.srcbus.buswidth)) {
+			dev_err(&pl08x->adev->dev,
+				"%s src & dst address must be aligned to src"
+				" & dst width if peripheral is flow controller",
+				__func__);
+			return 0;
+		}
+
+		cctl = pl08x_cctl_bits(cctl, bd.srcbus.buswidth,
+				bd.dstbus.buswidth, 0);
+		pl08x_fill_lli_for_desc(&bd, num_llis++, 0, cctl);
+	}
 
 	/*
 	 * Send byte by byte for following cases
@@ -1250,7 +1288,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
 	struct pl08x_driver_data *pl08x = plchan->host;
 	struct pl08x_txd *txd;
-	int ret;
+	int ret, tmp;
 
 	/*
 	 * Current implementation ASSUMES only one sg
@@ -1284,12 +1322,10 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 	txd->len = sgl->length;
 
 	if (direction == DMA_TO_DEVICE) {
-		txd->ccfg |= PL080_FLOW_MEM2PER << PL080_CONFIG_FLOW_CONTROL_SHIFT;
 		txd->cctl = plchan->dst_cctl;
 		txd->src_addr = sgl->dma_address;
 		txd->dst_addr = plchan->dst_addr;
 	} else if (direction == DMA_FROM_DEVICE) {
-		txd->ccfg |= PL080_FLOW_PER2MEM << PL080_CONFIG_FLOW_CONTROL_SHIFT;
 		txd->cctl = plchan->src_cctl;
 		txd->src_addr = plchan->src_addr;
 		txd->dst_addr = sgl->dma_address;
@@ -1298,6 +1334,15 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 			"%s direction unsupported\n", __func__);
 		return NULL;
 	}
+
+	if (plchan->cd->device_fc)
+		tmp = (direction == DMA_TO_DEVICE) ? PL080_FLOW_MEM2PER_PER :
+			PL080_FLOW_PER2MEM_PER;
+	else
+		tmp = (direction == DMA_TO_DEVICE) ? PL080_FLOW_MEM2PER :
+			PL080_FLOW_PER2MEM;
+
+	txd->ccfg |= tmp << PL080_CONFIG_FLOW_CONTROL_SHIFT;
 
 	ret = pl08x_prep_channel_resources(plchan, txd);
 	if (ret)
