@@ -270,11 +270,57 @@ nouveau_dp_tu_update(struct drm_device *dev, int or, int link, u32 clk, u32 bpp)
 							     unk);
 }
 
+u8 *
+nouveau_dp_bios_data(struct drm_device *dev, struct dcb_entry *dcb, u8 **entry)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nvbios *bios = &dev_priv->vbios;
+	struct bit_entry d;
+	u8 *table;
+	int i;
+
+	if (bit_table(dev, 'd', &d)) {
+		NV_ERROR(dev, "BIT 'd' table not found\n");
+		return NULL;
+	}
+
+	if (d.version != 1) {
+		NV_ERROR(dev, "BIT 'd' table version %d unknown\n", d.version);
+		return NULL;
+	}
+
+	table = ROMPTR(bios, d.data[0]);
+	if (!table) {
+		NV_ERROR(dev, "displayport table pointer invalid\n");
+		return NULL;
+	}
+
+	switch (table[0]) {
+	case 0x20:
+	case 0x21:
+		break;
+	default:
+		NV_ERROR(dev, "displayport table 0x%02x unknown\n", table[0]);
+		return NULL;
+	}
+
+	for (i = 0; i < table[3]; i++) {
+		*entry = ROMPTR(bios, table[table[1] + (i * table[2])]);
+		if (*entry && bios_encoder_match(dcb, ROM32((*entry)[0])))
+			return table;
+	}
+
+	NV_ERROR(dev, "displayport encoder table not found\n");
+	return NULL;
+}
+
 /******************************************************************************
  * link training
  *****************************************************************************/
 struct dp_state {
 	struct dcb_entry *dcb;
+	u8 *table;
+	u8 *entry;
 	int auxch;
 	int crtc;
 	int or;
@@ -291,7 +337,7 @@ dp_set_link_config(struct drm_device *dev, struct dp_state *dp)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	int or = dp->or, link = dp->link;
-	u8 *bios, headerlen, sink[2];
+	u8 *entry, sink[2];
 	u32 dp_ctrl;
 
 	NV_DEBUG_KMS(dev, "%d lanes at %d KB/s\n", dp->link_nr, dp->link_bw);
@@ -312,12 +358,12 @@ dp_set_link_config(struct drm_device *dev, struct dp_state *dp)
 	 * table, that has (among other things) pointers to more scripts that
 	 * need to be executed, this time depending on link speed.
 	 */
-	bios = nouveau_bios_dp_table(dev, dp->dcb, &headerlen);
-	if (bios && (bios = ROMPTR(&dev_priv->vbios, bios[10]))) {
-		while (dp->link_bw < (ROM16(bios[0]) * 10))
-			bios += 4;
+	entry = ROMPTR(&dev_priv->vbios, dp->entry[10]);
+	if (entry) {
+		while (dp->link_bw < (ROM16(entry[0]) * 10))
+			entry += 4;
 
-		nouveau_bios_run_init_table(dev, ROM16(bios[2]), dp->dcb, dp->crtc);
+		nouveau_bios_run_init_table(dev, ROM16(entry[2]), dp->dcb, dp->crtc);
 	}
 
 	/* configure lane count on the source */
@@ -357,7 +403,6 @@ dp_link_train_commit(struct drm_device *dev, struct dp_state *dp)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	u32 mask = 0, drv = 0, pre = 0, unk = 0;
-	u8  *bios, *last, headerlen;
 	const u8 *shifts;
 	int link = dp->link;
 	int or = dp->or;
@@ -368,11 +413,10 @@ dp_link_train_commit(struct drm_device *dev, struct dp_state *dp)
 	else
 		shifts = nvaf_lane_map;
 
-	bios = nouveau_bios_dp_table(dev, dp->dcb, &headerlen);
-	last = bios + headerlen + (bios[4] * 5);
 	for (i = 0; i < dp->link_nr; i++) {
 		u8  lane = (dp->stat[4 + (i >> 1)] >> ((i & 1) * 4)) & 0xf;
-		u8 *conf = bios + headerlen;
+		u8 *conf = dp->entry + dp->table[4];
+		u8 *last = conf + (dp->entry[4] * dp->table[5]);
 
 		while (conf < last) {
 			if ((lane  & 3) == conf[0] &&
@@ -500,14 +544,13 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate)
 	const u32 bw_list[] = { 270000, 162000, 0 };
 	const u32 *link_bw = bw_list;
 	struct dp_state dp;
-	u8 *bios, headerlen;
 
 	auxch = nouveau_i2c_find(dev, nv_encoder->dcb->i2c_index);
 	if (!auxch)
 		return false;
 
-	bios = nouveau_bios_dp_table(dev, nv_encoder->dcb, &headerlen);
-	if (!bios)
+	dp.table = nouveau_dp_bios_data(dev, nv_encoder->dcb, &dp.entry);
+	if (!dp.table)
 		return -EINVAL;
 
 	dp.dcb = nv_encoder->dcb;
@@ -524,16 +567,16 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate)
 	pgpio->irq_enable(dev, nv_connector->dcb->gpio_tag, false);
 
 	/* enable down-spreading, if possible */
-	if (headerlen >= 16) {
-		u16 script = ROM16(bios[14]);
+	if (dp.table[1] >= 16) {
+		u16 script = ROM16(dp.entry[14]);
 		if (nv_encoder->dp.dpcd[3] & 1)
-			script = ROM16(bios[12]);
+			script = ROM16(dp.entry[12]);
 
 		nouveau_bios_run_init_table(dev, script, dp.dcb, dp.crtc);
 	}
 
 	/* execute pre-train script from vbios */
-	nouveau_bios_run_init_table(dev, ROM16(bios[6]), dp.dcb, dp.crtc);
+	nouveau_bios_run_init_table(dev, ROM16(dp.entry[6]), dp.dcb, dp.crtc);
 
 	/* start off at highest link rate supported by encoder and display */
 	while (*link_bw > nv_encoder->dp.link_bw)
@@ -567,7 +610,7 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate)
 	dp_set_training_pattern(dev, &dp, DP_TRAINING_PATTERN_DISABLE);
 
 	/* execute post-train script from vbios */
-	nouveau_bios_run_init_table(dev, ROM16(bios[8]), dp.dcb, dp.crtc);
+	nouveau_bios_run_init_table(dev, ROM16(dp.entry[8]), dp.dcb, dp.crtc);
 
 	/* re-enable hotplug detect */
 	pgpio->irq_enable(dev, nv_connector->dcb->gpio_tag, true);

@@ -291,7 +291,6 @@ struct nvbios {
 		struct dcb_entry *output;
 		int crtc;
 		uint16_t script_table_ptr;
-		uint16_t dp_table_ptr;
 	} display;
 
 	struct {

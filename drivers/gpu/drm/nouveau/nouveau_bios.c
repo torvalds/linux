@@ -1182,18 +1182,16 @@ init_dp_condition(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	struct dcb_entry *dcb = bios->display.output;
 	struct drm_device *dev = bios->dev;
 	uint8_t cond = bios->data[offset + 1];
-	uint8_t *table, headerlen;
+	uint8_t *table, *entry;
 
 	BIOSLOG(bios, "0x%04X: subop 0x%02X\n", offset, cond);
 
 	if (!iexec->execute)
 		return 3;
 
-	table = nouveau_bios_dp_table(dev, dcb, &headerlen);
-	if (!table) {
-		NV_ERROR(dev, "0x%04X: INIT_3A: no encoder table!!\n", offset);
+	table = nouveau_dp_bios_data(dev, dcb, &entry);
+	if (!table)
 		return 3;
-	}
 
 	switch (cond) {
 	case 0:
@@ -1207,7 +1205,7 @@ init_dp_condition(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		break;
 	case 1:
 	case 2:
-		if (!(table[5] & cond))
+		if (!(entry[5] & cond))
 			iexec->execute = false;
 		break;
 	case 5:
@@ -4454,40 +4452,6 @@ bios_encoder_match(struct dcb_entry *dcb, u32 hash)
 	}
 }
 
-void *
-nouveau_bios_dp_table(struct drm_device *dev, struct dcb_entry *dcbent,
-		      uint8_t *headerlen)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
-	uint8_t *table, *entry;
-	int i;
-
-	if (!bios->display.dp_table_ptr) {
-		NV_ERROR(dev, "No pointer to DisplayPort table\n");
-		return NULL;
-	}
-	table = &bios->data[bios->display.dp_table_ptr];
-
-	if (table[0] != 0x20 && table[0] != 0x21) {
-		NV_ERROR(dev, "DisplayPort table version 0x%02x unknown\n",
-			 table[0]);
-		return NULL;
-	}
-
-	entry = table + table[1];
-	for (i = 0; i < table[3]; i++, entry += table[2]) {
-		u8 *etable = ROMPTR(bios, entry[0]);
-		if (etable && bios_encoder_match(dcbent, ROM32(etable[0]))) {
-			*headerlen = table[4];
-			return etable;
-		}
-	}
-
-	NV_ERROR(dev, "DisplayPort encoder table not found\n");
-	return NULL;
-}
-
 int
 nouveau_bios_run_display_table(struct drm_device *dev, u16 type, int pclk,
 			       struct dcb_entry *dcbent, int crtc)
@@ -5503,14 +5467,6 @@ parse_bit_U_tbl_entry(struct drm_device *dev, struct nvbios *bios,
 	return 0;
 }
 
-static int
-parse_bit_displayport_tbl_entry(struct drm_device *dev, struct nvbios *bios,
-				struct bit_entry *bitentry)
-{
-	bios->display.dp_table_ptr = ROM16(bios->data[bitentry->offset]);
-	return 0;
-}
-
 struct bit_table {
 	const char id;
 	int (* const parse_fn)(struct drm_device *, struct nvbios *, struct bit_entry *);
@@ -5584,7 +5540,6 @@ parse_bit_structure(struct nvbios *bios, const uint16_t bitoffset)
 	parse_bit_table(bios, bitoffset, &BIT_TABLE('L', lvds));
 	parse_bit_table(bios, bitoffset, &BIT_TABLE('T', tmds));
 	parse_bit_table(bios, bitoffset, &BIT_TABLE('U', U));
-	parse_bit_table(bios, bitoffset, &BIT_TABLE('d', displayport));
 
 	return 0;
 }

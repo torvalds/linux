@@ -1080,8 +1080,6 @@ extern int get_pll_limits(struct drm_device *, uint32_t limit_match,
 			  struct pll_lims *);
 extern int nouveau_bios_run_display_table(struct drm_device *, u16 id, int clk,
 					  struct dcb_entry *, int crtc);
-extern void *nouveau_bios_dp_table(struct drm_device *, struct dcb_entry *,
-				   u8 *headerlen);
 extern bool nouveau_bios_fp_mode(struct drm_device *, struct drm_display_mode *);
 extern uint8_t *nouveau_bios_embedded_edid(struct drm_device *);
 extern int nouveau_bios_parse_lvds_table(struct drm_device *, int pxclk,
@@ -1103,6 +1101,7 @@ int nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
 bool nouveau_dp_detect(struct drm_encoder *);
 bool nouveau_dp_link_train(struct drm_encoder *, u32 datarate);
 void nouveau_dp_tu_update(struct drm_device *, int, int, u32, u32);
+u8 *nouveau_dp_bios_data(struct drm_device *, struct dcb_entry *, u8 **);
 
 /* nv04_fb.c */
 extern int  nv04_fb_init(struct drm_device *);
