@@ -342,15 +342,24 @@ dp_set_training_pattern(struct drm_device *dev, struct dp_state *dp, u8 tp)
 	auxch_tx(dev, dp->auxch, 8, DP_TRAINING_PATTERN_SET, &tp, 1);
 }
 
+static const u8 nv50_lane_map[] = { 16, 8, 0, 24 };
+static const u8 nvaf_lane_map[] = { 24, 16, 8, 0 };
+
 static int
 dp_link_train_commit(struct drm_device *dev, struct dp_state *dp)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	u32 mask = 0, drv = 0, pre = 0, unk = 0;
-	u8  shifts[4] = { 16, 8, 0, 24 };
 	u8  *bios, *last, headerlen;
+	const u8 *shifts;
 	int link = dp->link;
 	int or = dp->or;
 	int i;
+
+	if (dev_priv->chipset != 0xaf)
+		shifts = nv50_lane_map;
+	else
+		shifts = nvaf_lane_map;
 
 	bios = nouveau_bios_dp_table(dev, dp->dcb, &headerlen);
 	last = bios + headerlen + (bios[4] * 5);
