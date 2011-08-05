@@ -4426,55 +4426,32 @@ int nouveau_bios_parse_lvds_table(struct drm_device *dev, int pxclk, bool *dl, b
 	return 0;
 }
 
-static uint8_t *
-bios_output_config_match(struct drm_device *dev, struct dcb_entry *dcbent,
-			 uint16_t record, int record_len, int record_nr,
-			 bool match_link)
+/* BIT 'U'/'d' table encoder subtables have hashes matching them to
+ * a particular set of encoders.
+ *
+ * This function returns true if a particular DCB entry matches.
+ */
+bool
+bios_encoder_match(struct dcb_entry *dcb, u32 hash)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
-	uint32_t entry;
-	uint16_t table;
-	int i, v;
+	if ((hash & 0x000000f0) != (dcb->location << 4))
+		return false;
+	if ((hash & 0x0000000f) != dcb->type)
+		return false;
+	if (!(hash & (dcb->or << 16)))
+		return false;
 
-	switch (dcbent->type) {
+	switch (dcb->type) {
 	case OUTPUT_TMDS:
 	case OUTPUT_LVDS:
 	case OUTPUT_DP:
-		break;
-	default:
-		match_link = false;
-		break;
-	}
-
-	for (i = 0; i < record_nr; i++, record += record_len) {
-		table = ROM16(bios->data[record]);
-		if (!table)
-			continue;
-		entry = ROM32(bios->data[table]);
-
-		if (match_link) {
-			v = (entry & 0x00c00000) >> 22;
-			if (!(v & dcbent->sorconf.link))
-				continue;
+		if (hash & 0x00c00000) {
+			if (!(hash & (dcb->sorconf.link << 22)))
+				return false;
 		}
-
-		v = (entry & 0x000f0000) >> 16;
-		if (!(v & dcbent->or))
-			continue;
-
-		v = (entry & 0x000000f0) >> 4;
-		if (v != dcbent->location)
-			continue;
-
-		v = (entry & 0x0000000f);
-		if (v != dcbent->type)
-			continue;
-
-		return &bios->data[table];
+	default:
+		return true;
 	}
-
-	return NULL;
 }
 
 void *
@@ -4483,7 +4460,8 @@ nouveau_bios_dp_table(struct drm_device *dev, struct dcb_entry *dcbent,
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nvbios *bios = &dev_priv->vbios;
-	uint8_t *table;
+	uint8_t *table, *entry;
+	int i;
 
 	if (!bios->display.dp_table_ptr) {
 		NV_ERROR(dev, "No pointer to DisplayPort table\n");
@@ -4497,10 +4475,17 @@ nouveau_bios_dp_table(struct drm_device *dev, struct dcb_entry *dcbent,
 		return NULL;
 	}
 
-	*headerlen = table[4];
-	return bios_output_config_match(dev, dcbent,
-					bios->display.dp_table_ptr + table[1],
-					table[2], table[3], table[0] >= 0x21);
+	entry = table + table[1];
+	for (i = 0; i < table[3]; i++, entry += table[2]) {
+		u8 *etable = ROMPTR(bios, entry[0]);
+		if (etable && bios_encoder_match(dcbent, ROM32(etable[0]))) {
+			*headerlen = table[4];
+			return etable;
+		}
+	}
+
+	NV_ERROR(dev, "DisplayPort encoder table not found\n");
+	return NULL;
 }
 
 int
@@ -4535,7 +4520,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, u16 type, int pclk,
 	uint8_t *table = &bios->data[bios->display.script_table_ptr];
 	uint8_t *otable = NULL;
 	uint16_t script;
-	int i = 0;
+	int i;
 
 	if (!bios->display.script_table_ptr) {
 		NV_ERROR(dev, "No pointer to output script table\n");
@@ -4587,9 +4572,12 @@ nouveau_bios_run_display_table(struct drm_device *dev, u16 type, int pclk,
 
 	NV_DEBUG_KMS(dev, "Searching for output entry for %d %d %d\n",
 			dcbent->type, dcbent->location, dcbent->or);
-	otable = bios_output_config_match(dev, dcbent, table[1] +
-					  bios->display.script_table_ptr,
-					  table[2], table[3], table[0] >= 0x21);
+	for (i = 0; i < table[3]; i++) {
+		otable = ROMPTR(bios, table[table[1] + (i * table[2])]);
+		if (otable && bios_encoder_match(dcbent, ROM32(otable[0])))
+			break;
+	}
+
 	if (!otable) {
 		NV_DEBUG_KMS(dev, "failed to match any output table\n");
 		return 1;
