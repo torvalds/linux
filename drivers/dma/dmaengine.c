@@ -62,9 +62,9 @@
 #include <linux/slab.h>
 
 static DEFINE_MUTEX(dma_list_mutex);
+static DEFINE_IDR(dma_idr);
 static LIST_HEAD(dma_device_list);
 static long dmaengine_ref_count;
-static struct idr dma_idr;
 
 /* --- sysfs implementation --- */
 
@@ -1050,8 +1050,6 @@ EXPORT_SYMBOL_GPL(dma_run_dependencies);
 
 static int __init dma_bus_init(void)
 {
-	idr_init(&dma_idr);
-	mutex_init(&dma_list_mutex);
 	return class_register(&dma_devclass);
 }
 arch_initcall(dma_bus_init);
