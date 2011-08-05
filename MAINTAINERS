@@ -2643,9 +2643,8 @@ S:	Maintained
 F:	arch/x86/math-emu/
 
 FRAME RELAY DLCI/FRAD (Sangoma drivers too)
-M:	Mike McLagan <mike.mclagan@linux.org>
 L:	netdev@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/net/wan/dlci.c
 F:	drivers/net/wan/sdla.c
 
@@ -4415,10 +4414,10 @@ F:	net/*/netfilter/
 F:	net/netfilter/
 
 NETLABEL
-M:	Paul Moore <paul.moore@hp.com>
+M:	Paul Moore <paul@paul-moore.com>
 W:	http://netlabel.sf.net
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	Documentation/netlabel/
 F:	include/net/netlabel.h
 F:	net/netlabel/
@@ -4463,7 +4462,6 @@ F:	include/linux/netdevice.h
 NETWORKING [IPv4/IPv6]
 M:	"David S. Miller" <davem@davemloft.net>
 M:	Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>
-M:	"Pekka Savola (ipv6)" <pekkas@netcore.fi>
 M:	James Morris <jmorris@namei.org>
 M:	Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>
 M:	Patrick McHardy <kaber@trash.net>
@@ -4476,7 +4474,7 @@ F:	include/net/ip*
 F:	arch/x86/net/*
 
 NETWORKING [LABELED] (NetLabel, CIPSO, Labeled IPsec, SECMARK)
-M:	Paul Moore <paul.moore@hp.com>
+M:	Paul Moore <paul@paul-moore.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 
