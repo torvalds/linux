@@ -486,6 +486,7 @@ static void logfs_kill_sb(struct super_block *sb)
 	/* Alias entries slow down mount, so evict as many as possible */
 	sync_filesystem(sb);
 	logfs_write_anchor(sb);
+	free_areas(sb);
 
 	/*
 	 * From this point on alias entries are simply dropped - and any
