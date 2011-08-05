@@ -1735,6 +1735,11 @@ static void bnx2fc_start_disc(struct bnx2fc_interface *interface)
 		if (++wait_cnt > 12)
 			break;
 	}
+
+	/* Reset max receive frame size to default */
+	if (fc_set_mfs(lport, BNX2FC_MFS))
+		return;
+
 	fc_lport_init(lport);
 	fc_fabric_login(lport);
 }
