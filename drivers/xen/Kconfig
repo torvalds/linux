@@ -11,7 +11,7 @@ config XEN_BALLOON
 
 config XEN_SELFBALLOONING
 	bool "Dynamically self-balloon kernel memory to target"
-	depends on XEN && XEN_BALLOON && CLEANCACHE && SWAP
+	depends on XEN && XEN_BALLOON && CLEANCACHE && SWAP && XEN_TMEM
 	default n
 	help
 	  Self-ballooning dynamically balloons available kernel memory driven
