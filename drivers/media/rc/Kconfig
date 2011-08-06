@@ -109,16 +109,18 @@ config IR_LIRC_CODEC
 	   the LIRC interface.
 
 config RC_ATI_REMOTE
-	tristate "ATI / X10 USB RF remote control"
+	tristate "ATI / X10 based USB RF remote controls"
 	depends on USB_ARCH_HAS_HCD
 	depends on RC_CORE
 	select USB
 	help
-	   Say Y here if you want to use an ATI or X10 "Lola" USB remote control.
+	   Say Y here if you want to use an X10 based USB remote control.
 	   These are RF remotes with USB receivers.
-	   The ATI remote comes with many of ATI's All-In-Wonder video cards.
-	   The X10 "Lola" remote is available at:
-	      <http://www.x10.com/products/lola_sg1.htm>
+
+	   Such devices include the ATI remote that comes with many of ATI's
+	   All-In-Wonder video cards, the X10 "Lola" remote, NVIDIA RF remote,
+	   Medion RF remote, and SnapStream FireFly remote.
+
 	   This driver provides mouse pointer, left and right mouse buttons,
 	   and maps all the other remote buttons to keypress events.
 
