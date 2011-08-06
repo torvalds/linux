@@ -2089,9 +2089,10 @@ static int wpa_supplicant_ioctl(struct net_device *dev, struct iw_point *p)
 	param = (struct ieee_param *)_malloc(p->length);
 	if (param == NULL)
 		return -ENOMEM;
-	if (copy_from_user(param, p->pointer, p->length))
+	if (copy_from_user(param, p->pointer, p->length)) {
 		kfree((u8 *)param);
 		return -EFAULT;
+	}
 	switch (param->cmd) {
 	case IEEE_CMD_SET_WPA_PARAM:
 		ret = wpa_set_param(dev, param->u.wpa_param.name,
