@@ -99,6 +99,7 @@ enum {
 
 struct acpi_battery {
 	struct mutex lock;
+	struct mutex sysfs_lock;
 	struct power_supply bat;
 	struct acpi_device *device;
 	struct notifier_block pm_nb;
@@ -573,16 +574,16 @@ static int sysfs_add_battery(struct acpi_battery *battery)
 
 static void sysfs_remove_battery(struct acpi_battery *battery)
 {
-	mutex_lock(&battery->lock);
+	mutex_lock(&battery->sysfs_lock);
 	if (!battery->bat.dev) {
-		mutex_unlock(&battery->lock);
+		mutex_unlock(&battery->sysfs_lock);
 		return;
 	}
 
 	device_remove_file(battery->bat.dev, &alarm_attr);
 	power_supply_unregister(&battery->bat);
 	battery->bat.dev = NULL;
-	mutex_unlock(&battery->lock);
+	mutex_unlock(&battery->sysfs_lock);
 }
 
 /*
@@ -982,6 +983,7 @@ static int acpi_battery_add(struct acpi_device *device)
 	strcpy(acpi_device_class(device), ACPI_BATTERY_CLASS);
 	device->driver_data = battery;
 	mutex_init(&battery->lock);
+	mutex_init(&battery->sysfs_lock);
 	if (ACPI_SUCCESS(acpi_get_handle(battery->device->handle,
 			"_BIX", &handle)))
 		set_bit(ACPI_BATTERY_XINFO_PRESENT, &battery->flags);
@@ -1010,6 +1012,7 @@ static int acpi_battery_add(struct acpi_device *device)
 fail:
 	sysfs_remove_battery(battery);
 	mutex_destroy(&battery->lock);
+	mutex_destroy(&battery->sysfs_lock);
 	kfree(battery);
 	return result;
 }
@@ -1027,6 +1030,7 @@ static int acpi_battery_remove(struct acpi_device *device, int type)
 #endif
 	sysfs_remove_battery(battery);
 	mutex_destroy(&battery->lock);
+	mutex_destroy(&battery->sysfs_lock);
 	kfree(battery);
 	return 0;
 }
