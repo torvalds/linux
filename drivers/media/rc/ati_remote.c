@@ -105,7 +105,7 @@
 #define NVIDIA_REMOTE_PRODUCT_ID	0x0005
 #define MEDION_REMOTE_PRODUCT_ID	0x0006
 
-#define DRIVER_VERSION	        "2.2.1"
+#define DRIVER_VERSION		"2.2.1"
 #define DRIVER_AUTHOR           "Torrey Hoffman <thoffman@arnor.net>"
 #define DRIVER_DESC             "ATI/X10 RF USB Remote Control"
 
@@ -481,7 +481,7 @@ static void ati_remote_input_report(struct urb *urb)
 	/* Mask unwanted remote channels.  */
 	/* note: remote_num is 0-based, channel 1 on remote == 0 here */
 	remote_num = (data[3] >> 4) & 0x0f;
-        if (channel_mask & (1 << (remote_num + 1))) {
+	if (channel_mask & (1 << (remote_num + 1))) {
 		dbginfo(&ati_remote->interface->dev,
 			"Masked input from channel 0x%02x: data %02x,%02x, mask= 0x%02lx\n",
 			remote_num, data[1], data[2], channel_mask);
@@ -630,7 +630,7 @@ static int ati_remote_alloc_buffers(struct usb_device *udev,
 		return -1;
 
 	ati_remote->outbuf = usb_alloc_coherent(udev, DATA_BUFSIZE, GFP_ATOMIC,
-					        &ati_remote->outbuf_dma);
+						&ati_remote->outbuf_dma);
 	if (!ati_remote->outbuf)
 		return -1;
 
