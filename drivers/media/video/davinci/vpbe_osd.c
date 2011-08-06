@@ -1162,7 +1162,7 @@ static int osd_probe(struct platform_device *pdev)
 		goto free_mem;
 	}
 	osd->osd_base_phys = res->start;
-	osd->osd_size = res->end - res->start + 1;
+	osd->osd_size = resource_size(res);
 	if (!request_mem_region(osd->osd_base_phys, osd->osd_size,
 				MODULE_NAME)) {
 		dev_err(osd->dev, "Unable to reserve OSD MMIO region\n");
