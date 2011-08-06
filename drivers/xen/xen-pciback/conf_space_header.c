@@ -187,7 +187,7 @@ static inline void read_dev_bar(struct pci_dev *dev,
 
 	bar_info->val = res[pos].start |
 			(res[pos].flags & PCI_REGION_FLAG_MASK);
-	bar_info->len_val = res[pos].end - res[pos].start + 1;
+	bar_info->len_val = resource_size(&res[pos]);
 }
 
 static void *bar_init(struct pci_dev *dev, int offset)
