@@ -1650,7 +1650,7 @@ static int ql_mii_setup(struct ql3_adapter *qdev)
 				 SUPPORTED_1000baseT_Half |	\
 				 SUPPORTED_1000baseT_Full |	\
 				 SUPPORTED_Autoneg |		\
-				 SUPPORTED_TP);			\
+				 SUPPORTED_TP)			\
 
 static u32 ql_supported_modes(struct ql3_adapter *qdev)
 {
