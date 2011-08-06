@@ -76,11 +76,8 @@ do {  \
 	} \
 } while (0)
 
-#define P9_DUMP_PKT(way, pdu) p9pdu_dump(way, pdu)
-
 #else
 #define P9_DPRINTK(level, format, arg...)  do { } while (0)
-#define P9_DUMP_PKT(way, pdu) do { } while (0)
 #endif
 
 

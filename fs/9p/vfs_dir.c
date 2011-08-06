@@ -165,9 +165,8 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		}
 		while (rdir->head < rdir->tail) {
 			p9stat_init(&st);
-			err = p9stat_read(rdir->buf + rdir->head,
-						rdir->tail - rdir->head, &st,
-						fid->clnt->proto_version);
+			err = p9stat_read(fid->clnt, rdir->buf + rdir->head,
+					  rdir->tail - rdir->head, &st);
 			if (err) {
 				P9_DPRINTK(P9_DEBUG_VFS, "returned %d\n", err);
 				err = -EIO;
@@ -241,10 +240,9 @@ static int v9fs_dir_readdir_dotl(struct file *filp, void *dirent,
 
 		while (rdir->head < rdir->tail) {
 
-			err = p9dirent_read(rdir->buf + rdir->head,
-						rdir->tail - rdir->head,
-						&curdirent,
-						fid->clnt->proto_version);
+			err = p9dirent_read(fid->clnt, rdir->buf + rdir->head,
+					    rdir->tail - rdir->head,
+					    &curdirent);
 			if (err < 0) {
 				P9_DPRINTK(P9_DEBUG_VFS, "returned %d\n", err);
 				err = -EIO;
