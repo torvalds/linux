@@ -4,7 +4,6 @@
 #include <linux/sched.h>
 
 #define CPUPRI_NR_PRIORITIES	(MAX_RT_PRIO + 2)
-#define CPUPRI_NR_PRI_WORDS	BITS_TO_LONGS(CPUPRI_NR_PRIORITIES)
 
 #define CPUPRI_INVALID -1
 #define CPUPRI_IDLE     0
@@ -18,7 +17,6 @@ struct cpupri_vec {
 
 struct cpupri {
 	struct cpupri_vec pri_to_cpu[CPUPRI_NR_PRIORITIES];
-	long              pri_active[CPUPRI_NR_PRI_WORDS];
 	int               cpu_to_pri[NR_CPUS];
 };
 

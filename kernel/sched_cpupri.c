@@ -152,8 +152,7 @@ void cpupri_set(struct cpupri *cp, int cpu, int newpri)
 	 * If the cpu was currently mapped to a different value, we
 	 * need to map it to the new value then remove the old value.
 	 * Note, we must add the new value first, otherwise we risk the
-	 * cpu being cleared from pri_active, and this cpu could be
-	 * missed for a push or pull.
+	 * cpu being missed by the priority loop in cpupri_find.
 	 */
 	if (likely(newpri != CPUPRI_INVALID)) {
 		struct cpupri_vec *vec = &cp->pri_to_cpu[newpri];
