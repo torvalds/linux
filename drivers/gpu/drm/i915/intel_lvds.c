@@ -72,14 +72,16 @@ static void intel_lvds_enable(struct intel_lvds *intel_lvds)
 {
 	struct drm_device *dev = intel_lvds->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 ctl_reg, lvds_reg;
+	u32 ctl_reg, lvds_reg, stat_reg;
 
 	if (HAS_PCH_SPLIT(dev)) {
 		ctl_reg = PCH_PP_CONTROL;
 		lvds_reg = PCH_LVDS;
+		stat_reg = PCH_PP_STATUS;
 	} else {
 		ctl_reg = PP_CONTROL;
 		lvds_reg = LVDS;
+		stat_reg = PP_STATUS;
 	}
 
 	I915_WRITE(lvds_reg, I915_READ(lvds_reg) | LVDS_PORT_EN);
@@ -94,17 +96,16 @@ static void intel_lvds_enable(struct intel_lvds *intel_lvds)
 		DRM_DEBUG_KMS("applying panel-fitter: %x, %x\n",
 			      intel_lvds->pfit_control,
 			      intel_lvds->pfit_pgm_ratios);
-		if (wait_for((I915_READ(PP_STATUS) & PP_ON) == 0, 1000)) {
-			DRM_ERROR("timed out waiting for panel to power off\n");
-		} else {
-			I915_WRITE(PFIT_PGM_RATIOS, intel_lvds->pfit_pgm_ratios);
-			I915_WRITE(PFIT_CONTROL, intel_lvds->pfit_control);
-			intel_lvds->pfit_dirty = false;
-		}
+
+		I915_WRITE(PFIT_PGM_RATIOS, intel_lvds->pfit_pgm_ratios);
+		I915_WRITE(PFIT_CONTROL, intel_lvds->pfit_control);
+		intel_lvds->pfit_dirty = false;
 	}
 
 	I915_WRITE(ctl_reg, I915_READ(ctl_reg) | POWER_TARGET_ON);
 	POSTING_READ(lvds_reg);
+	if (wait_for((I915_READ(stat_reg) & PP_ON) != 0, 1000))
+		DRM_ERROR("timed out waiting for panel to power on\n");
 
 	intel_panel_enable_backlight(dev);
 }
@@ -113,24 +114,25 @@ static void intel_lvds_disable(struct intel_lvds *intel_lvds)
 {
 	struct drm_device *dev = intel_lvds->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 ctl_reg, lvds_reg;
+	u32 ctl_reg, lvds_reg, stat_reg;
 
 	if (HAS_PCH_SPLIT(dev)) {
 		ctl_reg = PCH_PP_CONTROL;
 		lvds_reg = PCH_LVDS;
+		stat_reg = PCH_PP_STATUS;
 	} else {
 		ctl_reg = PP_CONTROL;
 		lvds_reg = LVDS;
+		stat_reg = PP_STATUS;
 	}
 
 	intel_panel_disable_backlight(dev);
 
 	I915_WRITE(ctl_reg, I915_READ(ctl_reg) & ~POWER_TARGET_ON);
+	if (wait_for((I915_READ(stat_reg) & PP_ON) == 0, 1000))
+		DRM_ERROR("timed out waiting for panel to power off\n");
 
 	if (intel_lvds->pfit_control) {
-		if (wait_for((I915_READ(PP_STATUS) & PP_ON) == 0, 1000))
-			DRM_ERROR("timed out waiting for panel to power off\n");
-
 		I915_WRITE(PFIT_CONTROL, 0);
 		intel_lvds->pfit_dirty = true;
 	}
