@@ -5644,13 +5644,11 @@ brcmf_sdbrcm_chip_attach(struct brcmf_bus *bus, u32 regs)
 	BRCMF_TRACE(("%s: Enter\n", __func__));
 
 	/* alloc chip_info_t */
-	ci = kmalloc(sizeof(struct chip_info), GFP_ATOMIC);
+	ci = kzalloc(sizeof(struct chip_info), GFP_ATOMIC);
 	if (NULL == ci) {
 		BRCMF_ERROR(("%s: malloc failed!\n", __func__));
 		return -ENOMEM;
 	}
-
-	memset((unsigned char *)ci, 0, sizeof(struct chip_info));
 
 	/* bus/core/clk setup for register access */
 	/* Try forcing SDIO core to do ALPAvail request only */
