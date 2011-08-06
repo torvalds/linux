@@ -35,7 +35,7 @@ static struct via_port_cfg adap_configs[] = {
  * The OLPC XO-1.5 puts the camera power and reset lines onto
  * GPIO 2C.
  */
-static const struct via_port_cfg olpc_adap_configs[] = {
+static struct via_port_cfg olpc_adap_configs[] = {
 	[VIA_PORT_26]	= { VIA_PORT_I2C,  VIA_MODE_I2C, VIASR, 0x26 },
 	[VIA_PORT_31]	= { VIA_PORT_I2C,  VIA_MODE_I2C, VIASR, 0x31 },
 	[VIA_PORT_25]	= { VIA_PORT_GPIO, VIA_MODE_GPIO, VIASR, 0x25 },
