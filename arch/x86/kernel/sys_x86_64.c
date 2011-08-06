@@ -18,10 +18,6 @@
 #include <asm/ia32.h>
 #include <asm/syscalls.h>
 
-struct __read_mostly va_alignment va_align = {
-	.flags = -1,
-};
-
 /*
  * Align a virtual address to avoid aliasing in the I$ on AMD F15h.
  *

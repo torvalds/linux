@@ -31,6 +31,10 @@
 #include <linux/sched.h>
 #include <asm/elf.h>
 
+struct __read_mostly va_alignment va_align = {
+	.flags = -1,
+};
+
 static unsigned int stack_maxrandom_size(void)
 {
 	unsigned int max = 0;
@@ -41,7 +45,6 @@ static unsigned int stack_maxrandom_size(void)
 
 	return max;
 }
-
 
 /*
  * Top of mmap area (just below the process stack).
