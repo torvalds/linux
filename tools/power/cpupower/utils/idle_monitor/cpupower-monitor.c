@@ -43,6 +43,12 @@ static struct cpupower_topology cpu_top;
 /* ToDo: Document this in the manpage */
 static char range_abbr[RANGE_MAX] = { 'T', 'C', 'P', 'M', };
 
+static void print_wrong_arg_exit(void)
+{
+	printf(_("invalid or unknown argument\n"));
+	exit(EXIT_FAILURE);
+}
+
 long long timespec_diff_us(struct timespec start, struct timespec end)
 {
 	struct timespec temp;
@@ -54,21 +60,6 @@ long long timespec_diff_us(struct timespec start, struct timespec end)
 		temp.tv_nsec = end.tv_nsec - start.tv_nsec;
 	}
 	return (temp.tv_sec * 1000000) + (temp.tv_nsec / 1000);
-}
-
-void monitor_help(void)
-{
-	printf(_("cpupower monitor: [-m <mon1>,[<mon2>],.. ] command\n"));
-	printf(_("cpupower monitor: [-m <mon1>,[<mon2>],.. ] [ -i interval_sec ]\n"));
-	printf(_("cpupower monitor: -l\n"));
-	printf(_("\t command: pass an arbitrary command to measure specific workload\n"));
-	printf(_("\t -i: time intervall to measure for in seconds (default 1)\n"));
-	printf(_("\t -l: list available CPU sleep monitors (for use with -m)\n"));
-	printf(_("\t -m: show specific CPU sleep monitors only (in same order)\n"));
-	printf(_("\t -h: print this help\n"));
-	printf("\n");
-	printf(_("only one of: -l, -m are allowed\nIf none of them is passed,"));
-	printf(_(" all supported monitors are shown\n"));
 }
 
 void print_n_spaces(int n)
@@ -246,7 +237,6 @@ static void parse_monitor_param(char *param)
 	if (hits == 0) {
 		printf(_("No matching monitor found in %s, "
 			 "try -l option\n"), param);
-		monitor_help();
 		exit(EXIT_FAILURE);
 	}
 	/* Override detected/registerd monitors array with requested one */
@@ -343,37 +333,27 @@ static void cmdline(int argc, char *argv[])
 	int opt;
 	progname = basename(argv[0]);
 
-	while ((opt = getopt(argc, argv, "+hli:m:")) != -1) {
+	while ((opt = getopt(argc, argv, "+li:m:")) != -1) {
 		switch (opt) {
-		case 'h':
-			monitor_help();
-			exit(EXIT_SUCCESS);
 		case 'l':
-			if (mode) {
-				monitor_help();
-				exit(EXIT_FAILURE);
-			}
+			if (mode)
+				print_wrong_arg_exit();
 			mode = list;
 			break;
 		case 'i':
 			/* only allow -i with -m or no option */
-			if (mode && mode != show) {
-				monitor_help();
-				exit(EXIT_FAILURE);
-			}
+			if (mode && mode != show)
+				print_wrong_arg_exit();
 			interval = atoi(optarg);
 			break;
 		case 'm':
-			if (mode) {
-				monitor_help();
-				exit(EXIT_FAILURE);
-			}
+			if (mode)
+				print_wrong_arg_exit();
 			mode = show;
 			show_monitors_param = optarg;
 			break;
 		default:
-			monitor_help();
-			exit(EXIT_FAILURE);
+			print_wrong_arg_exit();
 		}
 	}
 	if (!mode)
