@@ -400,52 +400,20 @@ out:
 
 static void intel_lvds_prepare(struct drm_encoder *encoder)
 {
-	struct drm_device *dev = encoder->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_lvds *intel_lvds = to_intel_lvds(encoder);
 
-	/* We try to do the minimum that is necessary in order to unlock
-	 * the registers for mode setting.
-	 *
-	 * On Ironlake, this is quite simple as we just set the unlock key
-	 * and ignore all subtleties. (This may cause some issues...)
-	 *
+	/*
 	 * Prior to Ironlake, we must disable the pipe if we want to adjust
 	 * the panel fitter. However at all other times we can just reset
 	 * the registers regardless.
 	 */
-
-	if (HAS_PCH_SPLIT(dev)) {
-		I915_WRITE(PCH_PP_CONTROL,
-			   I915_READ(PCH_PP_CONTROL) | PANEL_UNLOCK_REGS);
-	} else if (intel_lvds->pfit_dirty) {
-		I915_WRITE(PP_CONTROL,
-			   (I915_READ(PP_CONTROL) | PANEL_UNLOCK_REGS)
-			   & ~POWER_TARGET_ON);
-	} else {
-		I915_WRITE(PP_CONTROL,
-			   I915_READ(PP_CONTROL) | PANEL_UNLOCK_REGS);
-	}
+	if (!HAS_PCH_SPLIT(encoder->dev) && intel_lvds->pfit_dirty)
+		intel_lvds_disable(intel_lvds);
 }
 
 static void intel_lvds_commit(struct drm_encoder *encoder)
 {
-	struct drm_device *dev = encoder->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_lvds *intel_lvds = to_intel_lvds(encoder);
-
-	/* Undo any unlocking done in prepare to prevent accidental
-	 * adjustment of the registers.
-	 */
-	if (HAS_PCH_SPLIT(dev)) {
-		u32 val = I915_READ(PCH_PP_CONTROL);
-		if ((val & PANEL_UNLOCK_REGS) == PANEL_UNLOCK_REGS)
-			I915_WRITE(PCH_PP_CONTROL, val & 0x3);
-	} else {
-		u32 val = I915_READ(PP_CONTROL);
-		if ((val & PANEL_UNLOCK_REGS) == PANEL_UNLOCK_REGS)
-			I915_WRITE(PP_CONTROL, val & 0x3);
-	}
 
 	/* Always do a full power on as we do not know what state
 	 * we were left in.
@@ -1042,6 +1010,19 @@ out:
 		pwm = I915_READ(BLC_PWM_PCH_CTL1);
 		pwm |= PWM_PCH_ENABLE;
 		I915_WRITE(BLC_PWM_PCH_CTL1, pwm);
+		/*
+		 * Unlock registers and just
+		 * leave them unlocked
+		 */
+		I915_WRITE(PCH_PP_CONTROL,
+			   I915_READ(PCH_PP_CONTROL) | PANEL_UNLOCK_REGS);
+	} else {
+		/*
+		 * Unlock registers and just
+		 * leave them unlocked
+		 */
+		I915_WRITE(PP_CONTROL,
+			   I915_READ(PP_CONTROL) | PANEL_UNLOCK_REGS);
 	}
 	dev_priv->lid_notifier.notifier_call = intel_lid_notify;
 	if (acpi_lid_notifier_register(&dev_priv->lid_notifier)) {
