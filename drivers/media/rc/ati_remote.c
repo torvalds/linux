@@ -151,11 +151,11 @@ MODULE_PARM_DESC(mouse, "Enable mouse device, default = yes");
 #define err(format, arg...) printk(KERN_ERR format , ## arg)
 
 static struct usb_device_id ati_remote_table[] = {
-	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, LOLA_REMOTE_PRODUCT_ID) },
-	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, LOLA2_REMOTE_PRODUCT_ID) },
-	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, ATI_REMOTE_PRODUCT_ID) },
-	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, NVIDIA_REMOTE_PRODUCT_ID) },
-	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, MEDION_REMOTE_PRODUCT_ID) },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, LOLA_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_ATI_X10 },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, LOLA2_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_ATI_X10 },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, ATI_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_ATI_X10 },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, NVIDIA_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_ATI_X10 },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, MEDION_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_MEDION_X10 },
 	{}	/* Terminating entry */
 };
 
@@ -714,8 +714,6 @@ static void ati_remote_rc_init(struct ati_remote *ati_remote)
 
 	usb_to_input_id(ati_remote->udev, &rdev->input_id);
 	rdev->dev.parent = &ati_remote->interface->dev;
-
-	rdev->map_name = RC_MAP_ATI_X10;
 }
 
 static int ati_remote_initialize(struct ati_remote *ati_remote)
@@ -826,6 +824,11 @@ static int ati_remote_probe(struct usb_interface *interface, const struct usb_de
 
 	snprintf(ati_remote->mouse_name, sizeof(ati_remote->mouse_name),
 		 "%s mouse", ati_remote->rc_name);
+
+	if (id->driver_info)
+		rc_dev->map_name = (const char *)id->driver_info;
+	else
+		rc_dev->map_name = RC_MAP_ATI_X10;
 
 	ati_remote_rc_init(ati_remote);
 	mutex_init(&ati_remote->open_mutex);
