@@ -1142,11 +1142,6 @@ static void rt61pci_start_queue(struct data_queue *queue)
 		rt2x00pci_register_write(rt2x00dev, TXRX_CSR0, reg);
 		break;
 	case QID_BEACON:
-		/*
-		 * Allow the tbtt tasklet to be scheduled.
-		 */
-		tasklet_enable(&rt2x00dev->tbtt_tasklet);
-
 		rt2x00pci_register_read(rt2x00dev, TXRX_CSR9, &reg);
 		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
 		rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 1);
@@ -1230,7 +1225,7 @@ static void rt61pci_stop_queue(struct data_queue *queue)
 		/*
 		 * Wait for possibly running tbtt tasklets.
 		 */
-		tasklet_disable(&rt2x00dev->tbtt_tasklet);
+		tasklet_kill(&rt2x00dev->tbtt_tasklet);
 		break;
 	default:
 		break;
@@ -1731,13 +1726,6 @@ static void rt61pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 
 		rt2x00pci_register_read(rt2x00dev, MCU_INT_SOURCE_CSR, &reg);
 		rt2x00pci_register_write(rt2x00dev, MCU_INT_SOURCE_CSR, reg);
-
-		/*
-		 * Enable tasklets.
-		 */
-		tasklet_enable(&rt2x00dev->txstatus_tasklet);
-		tasklet_enable(&rt2x00dev->rxdone_tasklet);
-		tasklet_enable(&rt2x00dev->autowake_tasklet);
 	}
 
 	/*
@@ -1772,9 +1760,10 @@ static void rt61pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 		/*
 		 * Ensure that all tasklets are finished.
 		 */
-		tasklet_disable(&rt2x00dev->txstatus_tasklet);
-		tasklet_disable(&rt2x00dev->rxdone_tasklet);
-		tasklet_disable(&rt2x00dev->autowake_tasklet);
+		tasklet_kill(&rt2x00dev->txstatus_tasklet);
+		tasklet_kill(&rt2x00dev->rxdone_tasklet);
+		tasklet_kill(&rt2x00dev->autowake_tasklet);
+		tasklet_kill(&rt2x00dev->tbtt_tasklet);
 	}
 }
 
@@ -2300,22 +2289,24 @@ static void rt61pci_txstatus_tasklet(unsigned long data)
 {
 	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
 	rt61pci_txdone(rt2x00dev);
-	rt61pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_TXDONE);
+	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		rt61pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_TXDONE);
 }
 
 static void rt61pci_tbtt_tasklet(unsigned long data)
 {
 	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
 	rt2x00lib_beacondone(rt2x00dev);
-	rt61pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_BEACON_DONE);
+	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		rt61pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_BEACON_DONE);
 }
 
 static void rt61pci_rxdone_tasklet(unsigned long data)
 {
 	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
 	if (rt2x00pci_rxdone(rt2x00dev))
-		rt2x00pci_rxdone(rt2x00dev);
-	else
+		tasklet_schedule(&rt2x00dev->rxdone_tasklet);
+	else if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt61pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_RXDONE);
 }
 
@@ -2325,7 +2316,8 @@ static void rt61pci_autowake_tasklet(unsigned long data)
 	rt61pci_wakeup(rt2x00dev);
 	rt2x00pci_register_write(rt2x00dev,
 				 M2H_CMD_DONE_CSR, 0xffffffff);
-	rt61pci_enable_mcu_interrupt(rt2x00dev, MCU_INT_MASK_CSR_TWAKEUP);
+	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		rt61pci_enable_mcu_interrupt(rt2x00dev, MCU_INT_MASK_CSR_TWAKEUP);
 }
 
 static irqreturn_t rt61pci_interrupt(int irq, void *dev_instance)
