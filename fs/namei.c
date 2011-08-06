@@ -186,7 +186,7 @@ static int check_acl(struct inode *inode, int mask)
 		/* no ->get_acl() calls in RCU mode... */
 		if (acl == ACL_NOT_CACHED)
 			return -ECHILD;
-	        return posix_acl_permission(inode, acl, mask);
+	        return posix_acl_permission(inode, acl, mask & ~MAY_NOT_BLOCK);
 	}
 
 	acl = get_cached_acl(inode, ACL_TYPE_ACCESS);
