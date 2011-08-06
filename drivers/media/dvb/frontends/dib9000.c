@@ -1180,8 +1180,8 @@ static int dib9000_fw_get_channel(struct dvb_frontend *fe, struct dvb_frontend_p
 
 	DibAcquireLock(&state->platform.risc.mem_mbx_lock);
 	if (dib9000_fw_memmbx_sync(state, FE_SYNC_CHANNEL) < 0) {
-		goto error;
 		ret = -EIO;
+		goto error;
 	}
 
 	dib9000_risc_mem_read(state, FE_MM_R_CHANNEL_UNION,
