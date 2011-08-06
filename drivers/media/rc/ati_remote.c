@@ -107,6 +107,7 @@
 #define ATI_REMOTE_PRODUCT_ID		0x0004
 #define NVIDIA_REMOTE_PRODUCT_ID	0x0005
 #define MEDION_REMOTE_PRODUCT_ID	0x0006
+#define FIREFLY_REMOTE_PRODUCT_ID	0x0008
 
 #define DRIVER_VERSION		"2.2.1"
 #define DRIVER_AUTHOR           "Torrey Hoffman <thoffman@arnor.net>"
@@ -156,6 +157,7 @@ static struct usb_device_id ati_remote_table[] = {
 	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, ATI_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_ATI_X10 },
 	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, NVIDIA_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_ATI_X10 },
 	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, MEDION_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_MEDION_X10 },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, FIREFLY_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_SNAPSTREAM_FIREFLY },
 	{}	/* Terminating entry */
 };
 
@@ -482,7 +484,15 @@ static void ati_remote_input_report(struct urb *urb)
 
 	scancode[0] = (((data[1] - ((remote_num + 1) << 4)) & 0xf0) | (data[1] & 0x0f));
 
-	scancode[1] = data[2];
+	/*
+	 * Some devices (e.g. SnapStream Firefly) use 8080 as toggle code,
+	 * so we have to clear them. The first bit is a bit tricky as the
+	 * "non-toggled" state depends on remote_num, so we xor it with the
+	 * second bit which is only used for toggle.
+	 */
+	scancode[0] ^= (data[2] & 0x80);
+
+	scancode[1] = data[2] & ~0x80;
 
 	/* Look up event code index in mouse translation table. */
 	index = ati_remote_event_lookup(remote_num, scancode[0], scancode[1]);
@@ -546,7 +556,8 @@ static void ati_remote_input_report(struct urb *urb)
 			 * it would cause ghost repeats which would be a
 			 * regression for this driver.
 			 */
-			rc_keydown_notimeout(ati_remote->rdev, rc_code, 0);
+			rc_keydown_notimeout(ati_remote->rdev, rc_code,
+					     data[2]);
 			rc_keyup(ati_remote->rdev);
 			return;
 		}
