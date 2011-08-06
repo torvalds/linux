@@ -1618,18 +1618,20 @@ static void ktsb_phys_patch(void)
 {
 	extern unsigned int __swapper_tsb_phys_patch;
 	extern unsigned int __swapper_tsb_phys_patch_end;
-	extern unsigned int __swapper_4m_tsb_phys_patch;
-	extern unsigned int __swapper_4m_tsb_phys_patch_end;
 	unsigned long ktsb_pa;
 
 	ktsb_pa = kern_base + ((unsigned long)&swapper_tsb[0] - KERNBASE);
 	patch_one_ktsb_phys(&__swapper_tsb_phys_patch,
 			    &__swapper_tsb_phys_patch_end, ktsb_pa);
 #ifndef CONFIG_DEBUG_PAGEALLOC
+	{
+	extern unsigned int __swapper_4m_tsb_phys_patch;
+	extern unsigned int __swapper_4m_tsb_phys_patch_end;
 	ktsb_pa = (kern_base +
 		   ((unsigned long)&swapper_4m_tsb[0] - KERNBASE));
 	patch_one_ktsb_phys(&__swapper_4m_tsb_phys_patch,
 			    &__swapper_4m_tsb_phys_patch_end, ktsb_pa);
+	}
 #endif
 }
 
