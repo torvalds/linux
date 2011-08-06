@@ -631,13 +631,12 @@ struct hpi_control_cache *hpi_alloc_control_cache(const u32 control_count,
 	if (!p_cache)
 		return NULL;
 
-	p_cache->p_info =
-		kmalloc(sizeof(*p_cache->p_info) * control_count, GFP_KERNEL);
+	p_cache->p_info = kzalloc(sizeof(*p_cache->p_info) * control_count,
+				  GFP_KERNEL);
 	if (!p_cache->p_info) {
 		kfree(p_cache);
 		return NULL;
 	}
-	memset(p_cache->p_info, 0, sizeof(*p_cache->p_info) * control_count);
 	p_cache->cache_size_in_bytes = size_in_bytes;
 	p_cache->control_count = control_count;
 	p_cache->p_cache = p_dsp_control_buffer;
