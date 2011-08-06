@@ -693,7 +693,7 @@ static void ati_remote_input_init(struct ati_remote *ati_remote)
 	idev->phys = ati_remote->mouse_phys;
 
 	usb_to_input_id(ati_remote->udev, &idev->id);
-	idev->dev.parent = &ati_remote->udev->dev;
+	idev->dev.parent = &ati_remote->interface->dev;
 }
 
 static void ati_remote_rc_init(struct ati_remote *ati_remote)
@@ -712,7 +712,7 @@ static void ati_remote_rc_init(struct ati_remote *ati_remote)
 	rdev->input_phys = ati_remote->rc_phys;
 
 	usb_to_input_id(ati_remote->udev, &rdev->input_id);
-	rdev->dev.parent = &ati_remote->udev->dev;
+	rdev->dev.parent = &ati_remote->interface->dev;
 
 	rdev->map_name = RC_MAP_ATI_X10;
 }
