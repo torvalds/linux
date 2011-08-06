@@ -201,7 +201,6 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 	struct fb_info *info)
 {
 	int depth, refresh;
-	struct VideoModeTable *vmode_entry;
 	struct viafb_par *ppar = info->par;
 	u32 line;
 
@@ -211,8 +210,10 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 	if (var->vmode & FB_VMODE_INTERLACED || var->vmode & FB_VMODE_DOUBLE)
 		return -EINVAL;
 
-	vmode_entry = viafb_get_mode(var->xres, var->yres);
-	if (!vmode_entry) {
+	/* the refresh rate is not important here, as we only want to know
+	 * whether the resolution exists
+	 */
+	if (!viafb_get_best_mode(var->xres, var->yres, 60)) {
 		DEBUG_MSG(KERN_INFO
 			  "viafb: Mode %dx%dx%d not supported!!\n",
 			  var->xres, var->yres, var->bits_per_pixel);
@@ -254,7 +255,8 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 		get_var_refresh(var));
 
 	/* Adjust var according to our driver's own table */
-	viafb_fill_var_timing_info(var, refresh, vmode_entry);
+	viafb_fill_var_timing_info(var,
+		viafb_get_best_mode(var->xres, var->yres, refresh));
 	if (var->accel_flags & FB_ACCELF_TEXT &&
 		!ppar->shared->vdev->engine_mmio)
 		var->accel_flags = 0;
@@ -1816,9 +1818,8 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 	default_var.xres_virtual = default_xres;
 	default_var.yres_virtual = default_yres;
 	default_var.bits_per_pixel = viafb_bpp;
-	viafb_fill_var_timing_info(&default_var, viafb_get_refresh(
-		default_var.xres, default_var.yres, viafb_refresh),
-		viafb_get_mode(default_var.xres, default_var.yres));
+	viafb_fill_var_timing_info(&default_var, viafb_get_best_mode(
+		default_var.xres, default_var.yres, viafb_refresh));
 	viafb_setup_fixinfo(&viafbinfo->fix, viaparinfo);
 	viafbinfo->var = default_var;
 
@@ -1857,9 +1858,8 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 		default_var.xres_virtual = viafb_second_xres;
 		default_var.yres_virtual = viafb_second_yres;
 		default_var.bits_per_pixel = viafb_bpp1;
-		viafb_fill_var_timing_info(&default_var, viafb_get_refresh(
-			default_var.xres, default_var.yres, viafb_refresh1),
-			viafb_get_mode(default_var.xres, default_var.yres));
+		viafb_fill_var_timing_info(&default_var, viafb_get_best_mode(
+			default_var.xres, default_var.yres, viafb_refresh1));
 
 		viafb_setup_fixinfo(&viafbinfo1->fix, viaparinfo1);
 		viafb_check_var(&default_var, viafbinfo1);
@@ -2032,9 +2032,9 @@ int __init viafb_init(void)
 		return r;
 #endif
 	if (parse_mode(viafb_mode, &dummy_x, &dummy_y)
-		|| !viafb_get_mode(dummy_x, dummy_y)
+		|| !viafb_get_best_mode(dummy_x, dummy_y, viafb_refresh)
 		|| parse_mode(viafb_mode1, &dummy_x, &dummy_y)
-		|| !viafb_get_mode(dummy_x, dummy_y)
+		|| !viafb_get_best_mode(dummy_x, dummy_y, viafb_refresh1)
 		|| viafb_bpp < 0 || viafb_bpp > 32
 		|| viafb_bpp1 < 0 || viafb_bpp1 > 32
 		|| parse_active_dev())

@@ -2035,19 +2035,11 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 
 int viafb_get_pixclock(int hres, int vres, int vmode_refresh)
 {
-	int i;
 	struct crt_mode_table *best;
-	struct VideoModeTable *vmode = viafb_get_mode(hres, vres);
 
-	if (!vmode)
+	best = viafb_get_best_mode(hres, vres, vmode_refresh);
+	if (!best)
 		return RES_640X480_60HZ_PIXCLOCK;
-
-	best = &vmode->crtc[0];
-	for (i = 1; i < vmode->mode_array; i++) {
-		if (abs(vmode->crtc[i].refresh_rate - vmode_refresh)
-			< abs(best->refresh_rate - vmode_refresh))
-			best = &vmode->crtc[i];
-	}
 
 	return 1000000000 / (best->crtc.hor_total * best->crtc.ver_total)
 		* 1000 / best->refresh_rate;
@@ -2055,19 +2047,11 @@ int viafb_get_pixclock(int hres, int vres, int vmode_refresh)
 
 int viafb_get_refresh(int hres, int vres, u32 long_refresh)
 {
-	int i;
 	struct crt_mode_table *best;
-	struct VideoModeTable *vmode = viafb_get_mode(hres, vres);
 
-	if (!vmode)
+	best = viafb_get_best_mode(hres, vres, long_refresh);
+	if (!best)
 		return 60;
-
-	best = &vmode->crtc[0];
-	for (i = 1; i < vmode->mode_array; i++) {
-		if (abs(vmode->crtc[i].refresh_rate - long_refresh)
-			< abs(best->refresh_rate - long_refresh))
-			best = &vmode->crtc[i];
-	}
 
 	if (abs(best->refresh_rate - long_refresh) > 3) {
 		if (hres == 1200 && vres == 900)
@@ -2170,21 +2154,14 @@ void viafb_set_dpa_gfx(int output_interface, struct GFX_DPA_SETTING\
 }
 
 /*According var's xres, yres fill var's other timing information*/
-void viafb_fill_var_timing_info(struct fb_var_screeninfo *var, int refresh,
-	struct VideoModeTable *vmode_tbl)
+void viafb_fill_var_timing_info(struct fb_var_screeninfo *var,
+	struct crt_mode_table *mode)
 {
-	struct crt_mode_table *crt_timing = NULL;
 	struct display_timing crt_reg;
-	int i = 0, index = 0;
-	crt_timing = vmode_tbl->crtc;
-	for (i = 0; i < vmode_tbl->mode_array; i++) {
-		index = i;
-		if (crt_timing[i].refresh_rate == refresh)
-			break;
-	}
 
-	crt_reg = crt_timing[index].crtc;
-	var->pixclock = viafb_get_pixclock(var->xres, var->yres, refresh);
+	crt_reg = mode->crtc;
+	var->pixclock = viafb_get_pixclock(var->xres, var->yres,
+		mode->refresh_rate);
 	var->left_margin =
 	    crt_reg.hor_total - (crt_reg.hor_sync_start + crt_reg.hor_sync_end);
 	var->right_margin = crt_reg.hor_sync_start - crt_reg.hor_addr;
@@ -2194,8 +2171,8 @@ void viafb_fill_var_timing_info(struct fb_var_screeninfo *var, int refresh,
 	var->lower_margin = crt_reg.ver_sync_start - crt_reg.ver_addr;
 	var->vsync_len = crt_reg.ver_sync_end;
 	var->sync = 0;
-	if (crt_timing[index].h_sync_polarity == POSITIVE)
+	if (mode->h_sync_polarity == POSITIVE)
 		var->sync |= FB_SYNC_HOR_HIGH_ACT;
-	if (crt_timing[index].v_sync_polarity == POSITIVE)
+	if (mode->v_sync_polarity == POSITIVE)
 		var->sync |= FB_SYNC_VERT_HIGH_ACT;
 }
