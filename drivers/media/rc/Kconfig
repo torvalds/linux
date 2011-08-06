@@ -111,6 +111,7 @@ config IR_LIRC_CODEC
 config RC_ATI_REMOTE
 	tristate "ATI / X10 USB RF remote control"
 	depends on USB_ARCH_HAS_HCD
+	depends on RC_CORE
 	select USB
 	help
 	   Say Y here if you want to use an ATI or X10 "Lola" USB remote control.
