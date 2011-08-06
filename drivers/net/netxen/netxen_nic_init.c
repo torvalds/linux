@@ -26,6 +26,7 @@
 #include <linux/netdevice.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/if_vlan.h>
 #include "netxen_nic.h"
 #include "netxen_nic_hw.h"
 
@@ -1619,6 +1620,7 @@ netxen_process_lro(struct netxen_adapter *adapter,
 	int index;
 	u16 lro_length, length, data_offset;
 	u32 seq_number;
+	u8 vhdr_len;
 
 	if (unlikely(ring > adapter->max_rds_rings))
 		return NULL;
@@ -1652,8 +1654,10 @@ netxen_process_lro(struct netxen_adapter *adapter,
 	skb_pull(skb, l2_hdr_offset);
 	skb->protocol = eth_type_trans(skb, netdev);
 
-	iph = (struct iphdr *)skb->data;
-	th = (struct tcphdr *)(skb->data + (iph->ihl << 2));
+	if (skb->protocol == htons(ETH_P_8021Q))
+		vhdr_len = VLAN_HLEN;
+	iph = (struct iphdr *)(skb->data + vhdr_len);
+	th = (struct tcphdr *)((skb->data + vhdr_len) + (iph->ihl << 2));
 
 	length = (iph->ihl << 2) + (th->doff << 2) + lro_length;
 	iph->tot_len = htons(length);
