@@ -980,8 +980,8 @@ static void assert_transcoder_disabled(struct drm_i915_private *dev_priv,
 	     pipe_name(pipe));
 }
 
-static bool dp_pipe_enabled(struct drm_i915_private *dev_priv, enum pipe pipe,
-			    int reg, u32 port_sel, u32 val)
+static bool dp_pipe_enabled(struct drm_i915_private *dev_priv,
+			    enum pipe pipe, u32 port_sel, u32 val)
 {
 	if ((val & DP_PORT_EN) == 0)
 		return false;
@@ -1049,7 +1049,7 @@ static void assert_pch_dp_disabled(struct drm_i915_private *dev_priv,
 				   enum pipe pipe, int reg, u32 port_sel)
 {
 	u32 val = I915_READ(reg);
-	WARN(dp_pipe_enabled(dev_priv, pipe, reg, port_sel, val),
+	WARN(dp_pipe_enabled(dev_priv, pipe, port_sel, val),
 	     "PCH DP (0x%08x) enabled on transcoder %c, should be disabled\n",
 	     reg, pipe_name(pipe));
 }
@@ -1407,7 +1407,7 @@ static void disable_pch_dp(struct drm_i915_private *dev_priv,
 			   enum pipe pipe, int reg, u32 port_sel)
 {
 	u32 val = I915_READ(reg);
-	if (dp_pipe_enabled(dev_priv, pipe, reg, port_sel, val)) {
+	if (dp_pipe_enabled(dev_priv, pipe, port_sel, val)) {
 		DRM_DEBUG_KMS("Disabling pch dp %x on pipe %d\n", reg, pipe);
 		I915_WRITE(reg, val & ~DP_PORT_EN);
 	}
