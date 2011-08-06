@@ -2033,18 +2033,6 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 	return 1;
 }
 
-int viafb_get_pixclock(int hres, int vres, int vmode_refresh)
-{
-	struct crt_mode_table *best;
-
-	best = viafb_get_best_mode(hres, vres, vmode_refresh);
-	if (!best)
-		return RES_640X480_60HZ_PIXCLOCK;
-
-	return 1000000000 / (best->crtc.hor_total * best->crtc.ver_total)
-		* 1000 / best->refresh_rate;
-}
-
 int viafb_get_refresh(int hres, int vres, u32 long_refresh)
 {
 	struct crt_mode_table *best;
@@ -2160,8 +2148,8 @@ void viafb_fill_var_timing_info(struct fb_var_screeninfo *var,
 	struct display_timing crt_reg;
 
 	crt_reg = mode->crtc;
-	var->pixclock = viafb_get_pixclock(var->xres, var->yres,
-		mode->refresh_rate);
+	var->pixclock = 1000000000 / (crt_reg.hor_total * crt_reg.ver_total)
+		* 1000 / mode->refresh_rate;
 	var->left_margin =
 	    crt_reg.hor_total - (crt_reg.hor_sync_start + crt_reg.hor_sync_end);
 	var->right_margin = crt_reg.hor_sync_start - crt_reg.hor_addr;

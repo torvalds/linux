@@ -636,10 +636,6 @@
 #define V_SYNC_SATRT_SHADOW_INDEX   18
 #define V_SYNC_END_SHADOW_INDEX     19
 
-/* Definition Video Mode Pixel Clock (picoseconds)
-*/
-#define RES_640X480_60HZ_PIXCLOCK    39722
-
 /* LCD display method
 */
 #define     LCD_EXPANDSION              0x00
