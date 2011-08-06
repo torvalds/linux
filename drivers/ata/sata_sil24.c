@@ -268,7 +268,7 @@ union sil24_cmd_block {
 	struct sil24_atapi_block atapi;
 };
 
-static struct sil24_cerr_info {
+static const struct sil24_cerr_info {
 	unsigned int err_mask, action;
 	const char *desc;
 } sil24_cerr_db[] = {
@@ -1019,7 +1019,7 @@ static void sil24_error_intr(struct ata_port *ap)
 
 	/* deal with command error */
 	if (irq_stat & PORT_IRQ_ERROR) {
-		struct sil24_cerr_info *ci = NULL;
+		const struct sil24_cerr_info *ci = NULL;
 		unsigned int err_mask = 0, action = 0;
 		u32 context, cerr;
 		int pmp;
