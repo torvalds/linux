@@ -928,7 +928,7 @@ void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg)
 	int i = 0;
 	char *arg_save = 0, *arg_org = 0;
 
-	arg_save = kmalloc(strlen(arg) + 1, GFP_ATOMIC);
+	arg_save = kstrdup(arg, GFP_ATOMIC);
 	if (!arg_save) {
 		BRCMF_ERROR(("%s: kmalloc failed\n", __func__));
 		goto fail;
@@ -941,8 +941,6 @@ void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg)
 		BRCMF_ERROR(("%s: kmalloc failed\n", __func__));
 		goto fail;
 	}
-
-	strcpy(arg_save, arg);
 
 	argv[i] = strsep(&arg_save, " ");
 	while (argv[i++])
