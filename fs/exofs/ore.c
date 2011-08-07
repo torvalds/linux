@@ -43,6 +43,10 @@
 #define ORE_DBGMSG2(M...) do {} while (0)
 /* #define ORE_DBGMSG2 ORE_DBGMSG */
 
+MODULE_AUTHOR("Boaz Harrosh <bharrosh@panasas.com>");
+MODULE_DESCRIPTION("Objects Raid Engine ore.ko");
+MODULE_LICENSE("GPL");
+
 static u8 *_ios_cred(struct ore_io_state *ios, unsigned index)
 {
 	return ios->comps->comps[index & ios->comps->single_comp].cred;
@@ -84,12 +88,14 @@ int  ore_get_rw_state(struct ore_layout *layout, struct ore_components *comps,
 	*pios = ios;
 	return 0;
 }
+EXPORT_SYMBOL(ore_get_rw_state);
 
 int  ore_get_io_state(struct ore_layout *layout, struct ore_components *comps,
 		      struct ore_io_state **ios)
 {
 	return ore_get_rw_state(layout, comps, true, 0, 0, ios);
 }
+EXPORT_SYMBOL(ore_get_io_state);
 
 void ore_put_io_state(struct ore_io_state *ios)
 {
@@ -108,6 +114,7 @@ void ore_put_io_state(struct ore_io_state *ios)
 		kfree(ios);
 	}
 }
+EXPORT_SYMBOL(ore_put_io_state);
 
 static void _sync_done(struct ore_io_state *ios, void *p)
 {
@@ -236,6 +243,7 @@ int ore_check_io(struct ore_io_state *ios, u64 *resid)
 
 	return acumulated_lin_err;
 }
+EXPORT_SYMBOL(ore_check_io);
 
 /*
  * L - logical offset into the file
@@ -487,6 +495,7 @@ int ore_create(struct ore_io_state *ios)
 out:
 	return ret;
 }
+EXPORT_SYMBOL(ore_create);
 
 int ore_remove(struct ore_io_state *ios)
 {
@@ -511,6 +520,7 @@ int ore_remove(struct ore_io_state *ios)
 out:
 	return ret;
 }
+EXPORT_SYMBOL(ore_remove);
 
 static int _write_mirror(struct ore_io_state *ios, int cur_comp)
 {
@@ -617,6 +627,7 @@ int ore_write(struct ore_io_state *ios)
 	ret = ore_io_execute(ios);
 	return ret;
 }
+EXPORT_SYMBOL(ore_write);
 
 static int _read_mirror(struct ore_io_state *ios, unsigned cur_comp)
 {
@@ -685,6 +696,7 @@ int ore_read(struct ore_io_state *ios)
 	ret = ore_io_execute(ios);
 	return ret;
 }
+EXPORT_SYMBOL(ore_read);
 
 int extract_attr_from_ios(struct ore_io_state *ios, struct osd_attr *attr)
 {
@@ -706,6 +718,7 @@ int extract_attr_from_ios(struct ore_io_state *ios, struct osd_attr *attr)
 
 	return -EIO;
 }
+EXPORT_SYMBOL(extract_attr_from_ios);
 
 static int _truncate_mirrors(struct ore_io_state *ios, unsigned cur_comp,
 			     struct osd_attr *attr)
@@ -815,6 +828,8 @@ out:
 	ore_put_io_state(ios);
 	return ret;
 }
+EXPORT_SYMBOL(ore_truncate);
 
 const struct osd_attr g_attr_logical_length = ATTR_DEF(
 	OSD_APAGE_OBJECT_INFORMATION, OSD_ATTR_OI_LOGICAL_LENGTH, 8);
+EXPORT_SYMBOL(g_attr_logical_length);
