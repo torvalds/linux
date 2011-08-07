@@ -1937,9 +1937,8 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 		if (viafb_SAMM_ON &&
 			(viaparinfo->lvds_setting_info->iga_path == IGA2)) {
 			viaparinfo->lvds_setting_info->bpp = video_bpp1;
-			viafb_lcd_set_mode(crt_timing1, viaparinfo->
-				lvds_setting_info,
-				     &viaparinfo->chip_info->lvds_chip_info);
+			viafb_lcd_set_mode(viaparinfo->lvds_setting_info,
+				&viaparinfo->chip_info->lvds_chip_info);
 		} else {
 			/* IGA1 doesn't have LCD scaling, so set it center. */
 			if (viaparinfo->lvds_setting_info->iga_path == IGA1) {
@@ -1947,18 +1946,16 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 				    LCD_CENTERING;
 			}
 			viaparinfo->lvds_setting_info->bpp = video_bpp;
-			viafb_lcd_set_mode(crt_timing, viaparinfo->
-				lvds_setting_info,
-				     &viaparinfo->chip_info->lvds_chip_info);
+			viafb_lcd_set_mode(viaparinfo->lvds_setting_info,
+				&viaparinfo->chip_info->lvds_chip_info);
 		}
 	}
 	if (viafb_LCD2_ON) {
 		if (viafb_SAMM_ON &&
 			(viaparinfo->lvds_setting_info2->iga_path == IGA2)) {
 			viaparinfo->lvds_setting_info2->bpp = video_bpp1;
-			viafb_lcd_set_mode(crt_timing1, viaparinfo->
-				lvds_setting_info2,
-				     &viaparinfo->chip_info->lvds_chip_info2);
+			viafb_lcd_set_mode(viaparinfo->lvds_setting_info2,
+				&viaparinfo->chip_info->lvds_chip_info2);
 		} else {
 			/* IGA1 doesn't have LCD scaling, so set it center. */
 			if (viaparinfo->lvds_setting_info2->iga_path == IGA1) {
@@ -1966,9 +1963,8 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 				    LCD_CENTERING;
 			}
 			viaparinfo->lvds_setting_info2->bpp = video_bpp;
-			viafb_lcd_set_mode(crt_timing, viaparinfo->
-				lvds_setting_info2,
-				     &viaparinfo->chip_info->lvds_chip_info2);
+			viafb_lcd_set_mode(viaparinfo->lvds_setting_info2,
+				&viaparinfo->chip_info->lvds_chip_info2);
 		}
 	}
 

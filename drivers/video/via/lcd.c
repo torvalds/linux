@@ -548,9 +548,8 @@ static void lcd_patch_skew(struct lvds_setting_information
 }
 
 /* LCD Set Mode */
-void viafb_lcd_set_mode(struct crt_mode_table *mode_crt_table,
-		  struct lvds_setting_information *plvds_setting_info,
-		  struct lvds_chip_information *plvds_chip_info)
+void viafb_lcd_set_mode(struct lvds_setting_information *plvds_setting_info,
+	struct lvds_chip_information *plvds_chip_info)
 {
 	int set_iga = plvds_setting_info->iga_path;
 	int mode_bpp = plvds_setting_info->bpp;
@@ -560,15 +559,14 @@ void viafb_lcd_set_mode(struct crt_mode_table *mode_crt_table,
 	int panel_vres = plvds_setting_info->lcd_panel_vres;
 	u32 clock;
 	struct display_timing mode_crt_reg, panel_crt_reg, timing;
-	struct crt_mode_table *panel_crt_table = NULL;
-	struct VideoModeTable *vmode_tbl = viafb_get_mode(panel_hres,
-		panel_vres);
+	struct crt_mode_table *mode_crt_table, *panel_crt_table;
 
 	DEBUG_MSG(KERN_INFO "viafb_lcd_set_mode!!\n");
 	/* Get mode table */
+	mode_crt_table = viafb_get_best_mode(set_hres, set_vres, 60);
 	mode_crt_reg = mode_crt_table->crtc;
 	/* Get panel table Pointer */
-	panel_crt_table = vmode_tbl->crtc;
+	panel_crt_table = viafb_get_best_mode(panel_hres, panel_vres, 60);
 	panel_crt_reg = panel_crt_table->crtc;
 	DEBUG_MSG(KERN_INFO "bellow viafb_lcd_set_mode!!\n");
 	if (VT1636_LVDS == plvds_chip_info->lvds_chip_name)
