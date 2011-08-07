@@ -1769,24 +1769,9 @@ static u8 get_sync(struct fb_info *info)
 	return polarity;
 }
 
-int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
-	struct VideoModeTable *vmode_tbl1, int video_bpp1)
+static void hw_init(void)
 {
-	int i, j;
-	int port;
-	u32 devices = viaparinfo->shared->iga1_devices
-		| viaparinfo->shared->iga2_devices;
-	u8 value, index, mask;
-	struct crt_mode_table *crt_timing;
-	struct crt_mode_table *crt_timing1 = NULL;
-	struct fb_var_screeninfo var2;
-
-	device_screen_off();
-	crt_timing = vmode_tbl->crtc;
-
-	if (viafb_SAMM_ON == 1) {
-		crt_timing1 = vmode_tbl1->crtc;
-	}
+	int i;
 
 	inb(VIAStatus);
 	outb(0x00, VIAAR);
@@ -1825,9 +1810,8 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 		break;
 	}
 
+	/* probably this should go to the scaling code one day */
 	viafb_write_regx(scaling_parameters, ARRAY_SIZE(scaling_parameters));
-	device_off();
-	via_set_state(devices, VIA_STATE_OFF);
 
 	/* Fill VPIT Parameters */
 	/* Write Misc Register */
@@ -1853,6 +1837,31 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 	inb(VIAStatus);
 	outb(0x20, VIAAR);
 
+	load_fix_bit_crtc_reg();
+}
+
+int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
+	struct VideoModeTable *vmode_tbl1, int video_bpp1)
+{
+	int j;
+	int port;
+	u32 devices = viaparinfo->shared->iga1_devices
+		| viaparinfo->shared->iga2_devices;
+	u8 value, index, mask;
+	struct crt_mode_table *crt_timing;
+	struct crt_mode_table *crt_timing1 = NULL;
+	struct fb_var_screeninfo var2;
+
+	device_screen_off();
+	crt_timing = vmode_tbl->crtc;
+	if (viafb_SAMM_ON == 1)
+		crt_timing1 = vmode_tbl1->crtc;
+
+	device_off();
+	via_set_state(devices, VIA_STATE_OFF);
+
+	hw_init();
+
 	/* Update Patch Register */
 
 	if ((viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266
@@ -1868,7 +1877,6 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 		}
 	}
 
-	load_fix_bit_crtc_reg();
 	via_set_primary_pitch(viafbinfo->fix.line_length);
 	via_set_secondary_pitch(viafb_dual_fb ? viafbinfo1->fix.line_length
 		: viafbinfo->fix.line_length);
