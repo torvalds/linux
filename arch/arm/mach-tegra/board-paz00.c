@@ -91,11 +91,33 @@ static struct platform_device wifi_rfkill_device = {
 	},
 };
 
+static struct gpio_led gpio_leds[] = {
+	{
+		.name			= "wifi-led",
+		.default_trigger	= "rfkill0",
+		.gpio			= TEGRA_WIFI_LED,
+	},
+};
+
+static struct gpio_led_platform_data gpio_led_info = {
+	.leds		= gpio_leds,
+	.num_leds	= ARRAY_SIZE(gpio_leds),
+};
+
+static struct platform_device leds_gpio = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &gpio_led_info,
+        },
+};
+
 static struct platform_device *paz00_devices[] __initdata = {
 	&debug_uart,
 	&tegra_sdhci_device1,
 	&tegra_sdhci_device4,
 	&wifi_rfkill_device,
+	&leds_gpio,
 };
 
 static void paz00_i2c_init(void)
