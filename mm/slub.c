@@ -701,7 +701,7 @@ static u8 *check_bytes(u8 *start, u8 value, unsigned int bytes)
 		return check_bytes8(start, value, bytes);
 
 	value64 = value | value << 8 | value << 16 | value << 24;
-	value64 = value64 | value64 << 32;
+	value64 = (value64 & 0xffffffff) | value64 << 32;
 	prefix = 8 - ((unsigned long)start) % 8;
 
 	if (prefix) {
