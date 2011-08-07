@@ -1840,23 +1840,16 @@ static void hw_init(void)
 	load_fix_bit_crtc_reg();
 }
 
-int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
-	struct VideoModeTable *vmode_tbl1, int video_bpp1)
+int viafb_setmode(int video_bpp, int video_bpp1)
 {
 	int j;
 	int port;
 	u32 devices = viaparinfo->shared->iga1_devices
 		| viaparinfo->shared->iga2_devices;
 	u8 value, index, mask;
-	struct crt_mode_table *crt_timing;
-	struct crt_mode_table *crt_timing1 = NULL;
 	struct fb_var_screeninfo var2;
 
 	device_screen_off();
-	crt_timing = vmode_tbl->crtc;
-	if (viafb_SAMM_ON == 1)
-		crt_timing1 = vmode_tbl1->crtc;
-
 	device_off();
 	via_set_state(devices, VIA_STATE_OFF);
 
@@ -1865,9 +1858,8 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 	/* Update Patch Register */
 
 	if ((viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266
-	    || viaparinfo->chip_info->gfx_chip_name == UNICHROME_K400)
-	    && vmode_tbl->crtc[0].crtc.hor_addr == 1024
-	    && vmode_tbl->crtc[0].crtc.ver_addr == 768) {
+		|| viaparinfo->chip_info->gfx_chip_name == UNICHROME_K400)
+		&& viafbinfo->var.xres == 1024 && viafbinfo->var.yres == 768) {
 		for (j = 0; j < res_patch_table[0].table_length; j++) {
 			index = res_patch_table[0].io_reg_table[j].index;
 			port = res_patch_table[0].io_reg_table[j].port;
@@ -1898,8 +1890,7 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 		var2 = viafbinfo1->var;
 	} else if (viafb_SAMM_ON) {
 		viafb_fill_var_timing_info(&var2, viafb_get_best_mode(
-			vmode_tbl1->crtc->crtc.hor_addr,
-			vmode_tbl1->crtc->crtc.ver_addr, viafb_refresh1));
+			viafb_second_xres, viafb_second_yres, viafb_refresh1));
 		var2.bits_per_pixel = viafbinfo->var.bits_per_pixel;
 	}
 
@@ -1916,7 +1907,7 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 		/* Patch if set_hres is not 8 alignment (1366) to viafb_setmode
 		to 8 alignment (1368),there is several pixels (2 pixels)
 		on right side of screen. */
-		if (vmode_tbl->crtc[0].crtc.hor_addr % 8) {
+		if (viafbinfo->var.xres % 8) {
 			viafb_unlock_crt();
 			viafb_write_reg(CR02, VIACR,
 				viafb_read_reg(VIACR, CR02) - 1);
@@ -1974,8 +1965,8 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 
 	/* If set mode normally, save resolution information for hot-plug . */
 	if (!viafb_hotplug) {
-		viafb_hotplug_Xres = vmode_tbl->crtc[0].crtc.hor_addr;
-		viafb_hotplug_Yres = vmode_tbl->crtc[0].crtc.ver_addr;
+		viafb_hotplug_Xres = viafbinfo->var.xres;
+		viafb_hotplug_Yres = viafbinfo->var.yres;
 		viafb_hotplug_bpp = video_bpp;
 		viafb_hotplug_refresh = viafb_refresh;
 

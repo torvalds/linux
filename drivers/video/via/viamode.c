@@ -896,7 +896,7 @@ static struct crt_mode_table *get_best_mode(struct VideoModeTable *vmt,
 	return best;
 }
 
-struct VideoModeTable *viafb_get_mode(int hres, int vres)
+static struct VideoModeTable *viafb_get_mode(int hres, int vres)
 {
 	return get_modes(viafb_modes, ARRAY_SIZE(viafb_modes), hres, vres);
 }
@@ -906,7 +906,7 @@ struct crt_mode_table *viafb_get_best_mode(int hres, int vres, int refresh)
 	return get_best_mode(viafb_get_mode(hres, vres), refresh);
 }
 
-struct VideoModeTable *viafb_get_rb_mode(int hres, int vres)
+static struct VideoModeTable *viafb_get_rb_mode(int hres, int vres)
 {
 	return get_modes(viafb_rb_modes, ARRAY_SIZE(viafb_rb_modes), hres,
 		vres);

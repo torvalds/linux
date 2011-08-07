@@ -60,9 +60,7 @@ extern struct io_reg PM1024x768[];
 extern struct patch_table res_patch_table[];
 extern struct VPITTable VPIT;
 
-struct VideoModeTable *viafb_get_mode(int hres, int vres);
 struct crt_mode_table *viafb_get_best_mode(int hres, int vres, int refresh);
-struct VideoModeTable *viafb_get_rb_mode(int hres, int vres);
 struct crt_mode_table *viafb_get_best_rb_mode(int hres, int vres, int refresh);
 
 #endif /* __VIAMODE_H__ */

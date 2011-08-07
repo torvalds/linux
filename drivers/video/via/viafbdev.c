@@ -38,8 +38,6 @@ static char *viafb_mode1;
 static int viafb_bpp = 32;
 static int viafb_bpp1 = 32;
 
-static unsigned int viafb_second_xres = 640;
-static unsigned int viafb_second_yres = 480;
 static unsigned int viafb_second_offset;
 static int viafb_second_size;
 
@@ -267,7 +265,6 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 static int viafb_set_par(struct fb_info *info)
 {
 	struct viafb_par *viapar = info->par;
-	struct VideoModeTable *vmode_entry, *vmode_entry1 = NULL;
 	int refresh;
 	DEBUG_MSG(KERN_INFO "viafb_set_par!\n");
 
@@ -276,10 +273,7 @@ static int viafb_set_par(struct fb_info *info)
 	viafb_update_device_setting(viafbinfo->var.xres, viafbinfo->var.yres,
 		viafbinfo->var.bits_per_pixel, 0);
 
-	vmode_entry = viafb_get_mode(viafbinfo->var.xres, viafbinfo->var.yres);
 	if (viafb_dual_fb) {
-		vmode_entry1 = viafb_get_mode(viafbinfo1->var.xres,
-			viafbinfo1->var.yres);
 		viafb_update_device_setting(viafbinfo1->var.xres,
 			viafbinfo1->var.yres, viafbinfo1->var.bits_per_pixel,
 			1);
@@ -287,8 +281,6 @@ static int viafb_set_par(struct fb_info *info)
 		DEBUG_MSG(KERN_INFO
 		"viafb_second_xres = %d, viafb_second_yres = %d, bpp = %d\n",
 			  viafb_second_xres, viafb_second_yres, viafb_bpp1);
-		vmode_entry1 = viafb_get_mode(viafb_second_xres,
-			viafb_second_yres);
 
 		viafb_update_device_setting(viafb_second_xres,
 			viafb_second_yres, viafb_bpp1, 1);
@@ -296,7 +288,8 @@ static int viafb_set_par(struct fb_info *info)
 
 	refresh = viafb_get_refresh(info->var.xres, info->var.yres,
 		get_var_refresh(&info->var));
-	if (vmode_entry) {
+	if (viafb_get_best_mode(viafbinfo->var.xres, viafbinfo->var.yres,
+		refresh)) {
 		if (viafb_dual_fb && viapar->iga_path == IGA2) {
 			viafb_bpp1 = info->var.bits_per_pixel;
 			viafb_refresh1 = refresh;
@@ -309,8 +302,7 @@ static int viafb_set_par(struct fb_info *info)
 			info->flags &= ~FBINFO_HWACCEL_DISABLED;
 		else
 			info->flags |= FBINFO_HWACCEL_DISABLED;
-		viafb_setmode(vmode_entry, info->var.bits_per_pixel,
-			vmode_entry1, viafb_bpp1);
+		viafb_setmode(info->var.bits_per_pixel, viafb_bpp1);
 		viafb_pan_display(&info->var, info);
 	}
 
