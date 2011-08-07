@@ -122,7 +122,7 @@ int radeon_gem_set_domain(struct drm_gem_object *gobj,
 	}
 	if (domain == RADEON_GEM_DOMAIN_CPU) {
 		/* Asking for cpu access wait for object idle */
-		r = radeon_bo_wait(robj, NULL, false);
+		r = radeon_bo_wait(robj, NULL, false, TTM_USAGE_READWRITE);
 		if (r) {
 			printk(KERN_ERR "Failed to wait for object !\n");
 			return r;
@@ -273,7 +273,7 @@ int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 	}
 	robj = gem_to_radeon_bo(gobj);
-	r = radeon_bo_wait(robj, &cur_placement, true);
+	r = radeon_bo_wait(robj, &cur_placement, true, TTM_USAGE_READWRITE);
 	switch (cur_placement) {
 	case TTM_PL_VRAM:
 		args->domain = RADEON_GEM_DOMAIN_VRAM;
@@ -303,9 +303,39 @@ int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 	}
 	robj = gem_to_radeon_bo(gobj);
-	r = radeon_bo_wait(robj, NULL, false);
+	r = radeon_bo_wait(robj, NULL, false, TTM_USAGE_READWRITE);
 	/* callback hw specific functions if any */
 	if (robj->rdev->asic->ioctl_wait_idle)
+		robj->rdev->asic->ioctl_wait_idle(robj->rdev, robj);
+	drm_gem_object_unreference_unlocked(gobj);
+	return r;
+}
+
+int radeon_gem_wait_ioctl(struct drm_device *dev, void *data,
+			  struct drm_file *filp)
+{
+	struct drm_radeon_gem_wait *args = data;
+	struct drm_gem_object *gobj;
+	struct radeon_bo *robj;
+	bool no_wait = (args->flags & RADEON_GEM_NO_WAIT) != 0;
+	enum ttm_buffer_usage usage = 0;
+	int r;
+
+	if (args->flags & RADEON_GEM_USAGE_READ)
+		usage |= TTM_USAGE_READ;
+	if (args->flags & RADEON_GEM_USAGE_WRITE)
+		usage |= TTM_USAGE_WRITE;
+	if (!usage)
+		usage = TTM_USAGE_READWRITE;
+
+	gobj = drm_gem_object_lookup(dev, filp, args->handle);
+	if (gobj == NULL) {
+		return -ENOENT;
+	}
+	robj = gem_to_radeon_bo(gobj);
+	r = radeon_bo_wait(robj, NULL, no_wait, usage);
+	/* callback hw specific functions if any */
+	if (!no_wait && robj->rdev->asic->ioctl_wait_idle)
 		robj->rdev->asic->ioctl_wait_idle(robj->rdev, robj);
 	drm_gem_object_unreference_unlocked(gobj);
 	return r;

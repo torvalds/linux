@@ -509,6 +509,7 @@ typedef struct {
 #define DRM_RADEON_GEM_SET_TILING	0x28
 #define DRM_RADEON_GEM_GET_TILING	0x29
 #define DRM_RADEON_GEM_BUSY		0x2a
+#define DRM_RADEON_GEM_WAIT		0x2b
 
 #define DRM_IOCTL_RADEON_CP_INIT    DRM_IOW( DRM_COMMAND_BASE + DRM_RADEON_CP_INIT, drm_radeon_init_t)
 #define DRM_IOCTL_RADEON_CP_START   DRM_IO(  DRM_COMMAND_BASE + DRM_RADEON_CP_START)
@@ -550,6 +551,7 @@ typedef struct {
 #define DRM_IOCTL_RADEON_GEM_SET_TILING	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_SET_TILING, struct drm_radeon_gem_set_tiling)
 #define DRM_IOCTL_RADEON_GEM_GET_TILING	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_GET_TILING, struct drm_radeon_gem_get_tiling)
 #define DRM_IOCTL_RADEON_GEM_BUSY	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_BUSY, struct drm_radeon_gem_busy)
+#define DRM_IOCTL_RADEON_GEM_WAIT	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_WAIT, struct drm_radeon_gem_wait)
 
 typedef struct drm_radeon_init {
 	enum {
@@ -844,6 +846,15 @@ struct drm_radeon_gem_wait_idle {
 struct drm_radeon_gem_busy {
 	uint32_t	handle;
 	uint32_t        domain;
+};
+
+#define RADEON_GEM_NO_WAIT	0x1
+#define RADEON_GEM_USAGE_READ	0x2
+#define RADEON_GEM_USAGE_WRITE	0x4
+
+struct drm_radeon_gem_wait {
+	uint32_t	handle;
+	uint32_t        flags;  /* one of RADEON_GEM_* */
 };
 
 struct drm_radeon_gem_pread {
