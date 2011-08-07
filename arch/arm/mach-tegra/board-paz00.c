@@ -114,8 +114,8 @@ static struct platform_device leds_gpio = {
 
 static struct platform_device *paz00_devices[] __initdata = {
 	&debug_uart,
-	&tegra_sdhci_device1,
 	&tegra_sdhci_device4,
+	&tegra_sdhci_device1,
 	&wifi_rfkill_device,
 	&leds_gpio,
 };
