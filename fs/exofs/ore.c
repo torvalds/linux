@@ -23,81 +23,87 @@
  */
 
 #include <linux/slab.h>
-#include <scsi/scsi_device.h>
 #include <asm/div64.h>
 
-#include "exofs.h"
+#include <scsi/osd_ore.h>
 
-#define EXOFS_DBGMSG2(M...) do {} while (0)
-/* #define EXOFS_DBGMSG2 EXOFS_DBGMSG */
+#define ORE_ERR(fmt, a...) printk(KERN_ERR "ore: " fmt, ##a)
 
-void exofs_make_credential(u8 cred_a[OSD_CAP_LEN], const struct osd_obj_id *obj)
+#ifdef CONFIG_EXOFS_DEBUG
+#define ORE_DBGMSG(fmt, a...) \
+	printk(KERN_NOTICE "ore @%s:%d: " fmt, __func__, __LINE__, ##a)
+#else
+#define ORE_DBGMSG(fmt, a...) \
+	do { if (0) printk(fmt, ##a); } while (0)
+#endif
+
+/* u64 has problems with printk this will cast it to unsigned long long */
+#define _LLU(x) (unsigned long long)(x)
+
+#define ORE_DBGMSG2(M...) do {} while (0)
+/* #define ORE_DBGMSG2 ORE_DBGMSG */
+
+MODULE_AUTHOR("Boaz Harrosh <bharrosh@panasas.com>");
+MODULE_DESCRIPTION("Objects Raid Engine ore.ko");
+MODULE_LICENSE("GPL");
+
+static u8 *_ios_cred(struct ore_io_state *ios, unsigned index)
 {
-	osd_sec_init_nosec_doall_caps(cred_a, obj, false, true);
+	return ios->comps->comps[index & ios->comps->single_comp].cred;
 }
 
-int exofs_read_kern(struct osd_dev *od, u8 *cred, struct osd_obj_id *obj,
-		    u64 offset, void *p, unsigned length)
+static struct osd_obj_id *_ios_obj(struct ore_io_state *ios, unsigned index)
 {
-	struct osd_request *or = osd_start_request(od, GFP_KERNEL);
-/*	struct osd_sense_info osi = {.key = 0};*/
-	int ret;
-
-	if (unlikely(!or)) {
-		EXOFS_DBGMSG("%s: osd_start_request failed.\n", __func__);
-		return -ENOMEM;
-	}
-	ret = osd_req_read_kern(or, obj, offset, p, length);
-	if (unlikely(ret)) {
-		EXOFS_DBGMSG("%s: osd_req_read_kern failed.\n", __func__);
-		goto out;
-	}
-
-	ret = osd_finalize_request(or, 0, cred, NULL);
-	if (unlikely(ret)) {
-		EXOFS_DBGMSG("Failed to osd_finalize_request() => %d\n", ret);
-		goto out;
-	}
-
-	ret = osd_execute_request(or);
-	if (unlikely(ret))
-		EXOFS_DBGMSG("osd_execute_request() => %d\n", ret);
-	/* osd_req_decode_sense(or, ret); */
-
-out:
-	osd_end_request(or);
-	return ret;
+	return &ios->comps->comps[index & ios->comps->single_comp].obj;
 }
 
-int exofs_get_io_state(struct exofs_layout *layout,
-		       struct exofs_io_state **pios)
+static struct osd_dev *_ios_od(struct ore_io_state *ios, unsigned index)
 {
-	struct exofs_io_state *ios;
+	return ios->comps->ods[index];
+}
+
+int  ore_get_rw_state(struct ore_layout *layout, struct ore_components *comps,
+		      bool is_reading, u64 offset, u64 length,
+		      struct ore_io_state **pios)
+{
+	struct ore_io_state *ios;
 
 	/*TODO: Maybe use kmem_cach per sbi of size
 	 * exofs_io_state_size(layout->s_numdevs)
 	 */
-	ios = kzalloc(exofs_io_state_size(layout->s_numdevs), GFP_KERNEL);
+	ios = kzalloc(ore_io_state_size(comps->numdevs), GFP_KERNEL);
 	if (unlikely(!ios)) {
-		EXOFS_DBGMSG("Failed kzalloc bytes=%d\n",
-			     exofs_io_state_size(layout->s_numdevs));
+		ORE_DBGMSG("Failed kzalloc bytes=%d\n",
+			     ore_io_state_size(comps->numdevs));
 		*pios = NULL;
 		return -ENOMEM;
 	}
 
 	ios->layout = layout;
-	ios->obj.partition = layout->s_pid;
+	ios->comps = comps;
+	ios->offset = offset;
+	ios->length = length;
+	ios->reading = is_reading;
+
 	*pios = ios;
 	return 0;
 }
+EXPORT_SYMBOL(ore_get_rw_state);
 
-void exofs_put_io_state(struct exofs_io_state *ios)
+int  ore_get_io_state(struct ore_layout *layout, struct ore_components *comps,
+		      struct ore_io_state **ios)
+{
+	return ore_get_rw_state(layout, comps, true, 0, 0, ios);
+}
+EXPORT_SYMBOL(ore_get_io_state);
+
+void ore_put_io_state(struct ore_io_state *ios)
 {
 	if (ios) {
 		unsigned i;
 
 		for (i = 0; i < ios->numdevs; i++) {
-			struct exofs_per_dev_state *per_dev = &ios->per_dev[i];
+			struct ore_per_dev_state *per_dev = &ios->per_dev[i];
 
 			if (per_dev->or)
 				osd_end_request(per_dev->or);
@@ -108,31 +114,9 @@ void exofs_put_io_state(struct exofs_io_state *ios)
 		kfree(ios);
 	}
 }
+EXPORT_SYMBOL(ore_put_io_state);
 
-unsigned exofs_layout_od_id(struct exofs_layout *layout,
-			    osd_id obj_no, unsigned layout_index)
-{
-/*	switch (layout->lay_func) {
-	case LAYOUT_MOVING_WINDOW:
-	{*/
-		unsigned dev_mod = obj_no;
-
-		return (layout_index + dev_mod * layout->mirrors_p1) %
-							      layout->s_numdevs;
-/*	}
-	case LAYOUT_FUNC_IMPLICT:
-		return layout->devs[layout_index];
-	}*/
-}
-
-static inline struct osd_dev *exofs_ios_od(struct exofs_io_state *ios,
-					   unsigned layout_index)
-{
-	return ios->layout->s_ods[
-		exofs_layout_od_id(ios->layout, ios->obj.id, layout_index)];
-}
-
-static void _sync_done(struct exofs_io_state *ios, void *p)
+static void _sync_done(struct ore_io_state *ios, void *p)
 {
 	struct completion *waiting = p;
 
@@ -141,20 +125,20 @@ static void _sync_done(struct exofs_io_state *ios, void *p)
 
 static void _last_io(struct kref *kref)
 {
-	struct exofs_io_state *ios = container_of(
-					kref, struct exofs_io_state, kref);
+	struct ore_io_state *ios = container_of(
+					kref, struct ore_io_state, kref);
 
 	ios->done(ios, ios->private);
 }
 
 static void _done_io(struct osd_request *or, void *p)
 {
-	struct exofs_io_state *ios = p;
+	struct ore_io_state *ios = p;
 
 	kref_put(&ios->kref, _last_io);
 }
 
-static int exofs_io_execute(struct exofs_io_state *ios)
+static int ore_io_execute(struct ore_io_state *ios)
 {
 	DECLARE_COMPLETION_ONSTACK(wait);
 	bool sync = (ios->done == NULL);
@@ -170,9 +154,9 @@ static int exofs_io_execute(struct exofs_io_state *ios)
 		if (unlikely(!or))
 			continue;
 
-		ret = osd_finalize_request(or, 0, ios->cred, NULL);
+		ret = osd_finalize_request(or, 0, _ios_cred(ios, i), NULL);
 		if (unlikely(ret)) {
-			EXOFS_DBGMSG("Failed to osd_finalize_request() => %d\n",
+			ORE_DBGMSG("Failed to osd_finalize_request() => %d\n",
 				     ret);
 			return ret;
 		}
@@ -194,7 +178,7 @@ static int exofs_io_execute(struct exofs_io_state *ios)
 
 	if (sync) {
 		wait_for_completion(&wait);
-		ret = exofs_check_io(ios, NULL);
+		ret = ore_check_io(ios, NULL);
 	}
 	return ret;
 }
@@ -214,7 +198,7 @@ static void _clear_bio(struct bio *bio)
 	}
 }
 
-int exofs_check_io(struct exofs_io_state *ios, u64 *resid)
+int ore_check_io(struct ore_io_state *ios, u64 *resid)
 {
 	enum osd_err_priority acumulated_osd_err = 0;
 	int acumulated_lin_err = 0;
@@ -235,7 +219,7 @@ int exofs_check_io(struct exofs_io_state *ios, u64 *resid)
 		if (OSD_ERR_PRI_CLEAR_PAGES == osi.osd_err_pri) {
 			/* start read offset passed endof file */
 			_clear_bio(ios->per_dev[i].bio);
-			EXOFS_DBGMSG("start read offset passed end of file "
+			ORE_DBGMSG("start read offset passed end of file "
 				"offset=0x%llx, length=0x%llx\n",
 				_LLU(ios->per_dev[i].offset),
 				_LLU(ios->per_dev[i].length));
@@ -259,6 +243,7 @@ int exofs_check_io(struct exofs_io_state *ios, u64 *resid)
 
 	return acumulated_lin_err;
 }
+EXPORT_SYMBOL(ore_check_io);
 
 /*
  * L - logical offset into the file
@@ -305,20 +290,21 @@ int exofs_check_io(struct exofs_io_state *ios, u64 *resid)
 struct _striping_info {
 	u64 obj_offset;
 	u64 group_length;
+	u64 M; /* for truncate */
 	unsigned dev;
 	unsigned unit_off;
 };
 
-static void _calc_stripe_info(struct exofs_io_state *ios, u64 file_offset,
+static void _calc_stripe_info(struct ore_layout *layout, u64 file_offset,
 			      struct _striping_info *si)
 {
-	u32	stripe_unit = ios->layout->stripe_unit;
-	u32	group_width = ios->layout->group_width;
-	u64	group_depth = ios->layout->group_depth;
+	u32	stripe_unit = layout->stripe_unit;
+	u32	group_width = layout->group_width;
+	u64	group_depth = layout->group_depth;
 
 	u32	U = stripe_unit * group_width;
 	u64	T = U * group_depth;
-	u64	S = T * ios->layout->group_count;
+	u64	S = T * layout->group_count;
 	u64	M = div64_u64(file_offset, S);
 
 	/*
@@ -333,7 +319,7 @@ static void _calc_stripe_info(struct exofs_io_state *ios, u64 file_offset,
 
 	/* "H - (N * U)" is just "H % U" so it's bound to u32 */
 	si->dev = (u32)(H - (N * U)) / stripe_unit + G * group_width;
-	si->dev *= ios->layout->mirrors_p1;
+	si->dev *= layout->mirrors_p1;
 
 	div_u64_rem(file_offset, stripe_unit, &si->unit_off);
 
@@ -341,15 +327,16 @@ static void _calc_stripe_info(struct exofs_io_state *ios, u64 file_offset,
 				  (M * group_depth * stripe_unit);
 
 	si->group_length = T - H;
+	si->M = M;
 }
 
-static int _add_stripe_unit(struct exofs_io_state *ios,  unsigned *cur_pg,
-		unsigned pgbase, struct exofs_per_dev_state *per_dev,
+static int _add_stripe_unit(struct ore_io_state *ios,  unsigned *cur_pg,
+		unsigned pgbase, struct ore_per_dev_state *per_dev,
 		int cur_len)
 {
 	unsigned pg = *cur_pg;
 	struct request_queue *q =
-			osd_request_queue(exofs_ios_od(ios, per_dev->dev));
+			osd_request_queue(_ios_od(ios, per_dev->dev));
 
 	per_dev->length += cur_len;
 
@@ -361,7 +348,7 @@ static int _add_stripe_unit(struct exofs_io_state *ios,  unsigned *cur_pg,
 
 		per_dev->bio = bio_kmalloc(GFP_KERNEL, bio_size);
 		if (unlikely(!per_dev->bio)) {
-			EXOFS_DBGMSG("Failed to allocate BIO size=%u\n",
+			ORE_DBGMSG("Failed to allocate BIO size=%u\n",
 				     bio_size);
 			return -ENOMEM;
 		}
@@ -387,7 +374,7 @@ static int _add_stripe_unit(struct exofs_io_state *ios,  unsigned *cur_pg,
 	return 0;
 }
 
-static int _prepare_one_group(struct exofs_io_state *ios, u64 length,
+static int _prepare_one_group(struct ore_io_state *ios, u64 length,
 			      struct _striping_info *si)
 {
 	unsigned stripe_unit = ios->layout->stripe_unit;
@@ -400,7 +387,7 @@ static int _prepare_one_group(struct exofs_io_state *ios, u64 length,
 	int ret = 0;
 
 	while (length) {
-		struct exofs_per_dev_state *per_dev = &ios->per_dev[dev];
+		struct ore_per_dev_state *per_dev = &ios->per_dev[dev];
 		unsigned cur_len, page_off = 0;
 
 		if (!per_dev->length) {
@@ -443,7 +430,7 @@ out:
 	return ret;
 }
 
-static int _prepare_for_striping(struct exofs_io_state *ios)
+static int _prepare_for_striping(struct ore_io_state *ios)
 {
 	u64 length = ios->length;
 	u64 offset = ios->offset;
@@ -452,9 +439,9 @@ static int _prepare_for_striping(struct exofs_io_state *ios)
 
 	if (!ios->pages) {
 		if (ios->kern_buff) {
-			struct exofs_per_dev_state *per_dev = &ios->per_dev[0];
+			struct ore_per_dev_state *per_dev = &ios->per_dev[0];
 
-			_calc_stripe_info(ios, ios->offset, &si);
+			_calc_stripe_info(ios->layout, ios->offset, &si);
 			per_dev->offset = si.obj_offset;
 			per_dev->dev = si.dev;
 
@@ -468,7 +455,7 @@ static int _prepare_for_striping(struct exofs_io_state *ios)
 	}
 
 	while (length) {
-		_calc_stripe_info(ios, offset, &si);
+		_calc_stripe_info(ios->layout, offset, &si);
 
 		if (length < si.group_length)
 			si.group_length = length;
@@ -485,57 +472,59 @@ out:
 	return ret;
 }
 
-int exofs_sbi_create(struct exofs_io_state *ios)
+int ore_create(struct ore_io_state *ios)
 {
 	int i, ret;
 
-	for (i = 0; i < ios->layout->s_numdevs; i++) {
+	for (i = 0; i < ios->comps->numdevs; i++) {
 		struct osd_request *or;
 
-		or = osd_start_request(exofs_ios_od(ios, i), GFP_KERNEL);
+		or = osd_start_request(_ios_od(ios, i), GFP_KERNEL);
 		if (unlikely(!or)) {
-			EXOFS_ERR("%s: osd_start_request failed\n", __func__);
+			ORE_ERR("%s: osd_start_request failed\n", __func__);
 			ret = -ENOMEM;
 			goto out;
 		}
 		ios->per_dev[i].or = or;
 		ios->numdevs++;
 
-		osd_req_create_object(or, &ios->obj);
+		osd_req_create_object(or, _ios_obj(ios, i));
 	}
-	ret = exofs_io_execute(ios);
+	ret = ore_io_execute(ios);
 
 out:
 	return ret;
 }
+EXPORT_SYMBOL(ore_create);
 
-int exofs_sbi_remove(struct exofs_io_state *ios)
+int ore_remove(struct ore_io_state *ios)
 {
 	int i, ret;
 
-	for (i = 0; i < ios->layout->s_numdevs; i++) {
+	for (i = 0; i < ios->comps->numdevs; i++) {
 		struct osd_request *or;
 
-		or = osd_start_request(exofs_ios_od(ios, i), GFP_KERNEL);
+		or = osd_start_request(_ios_od(ios, i), GFP_KERNEL);
 		if (unlikely(!or)) {
-			EXOFS_ERR("%s: osd_start_request failed\n", __func__);
+			ORE_ERR("%s: osd_start_request failed\n", __func__);
 			ret = -ENOMEM;
 			goto out;
 		}
 		ios->per_dev[i].or = or;
 		ios->numdevs++;
 
-		osd_req_remove_object(or, &ios->obj);
+		osd_req_remove_object(or, _ios_obj(ios, i));
 	}
-	ret = exofs_io_execute(ios);
+	ret = ore_io_execute(ios);
 
 out:
 	return ret;
 }
+EXPORT_SYMBOL(ore_remove);
 
-static int _sbi_write_mirror(struct exofs_io_state *ios, int cur_comp)
+static int _write_mirror(struct ore_io_state *ios, int cur_comp)
 {
-	struct exofs_per_dev_state *master_dev = &ios->per_dev[cur_comp];
+	struct ore_per_dev_state *master_dev = &ios->per_dev[cur_comp];
 	unsigned dev = ios->per_dev[cur_comp].dev;
 	unsigned last_comp = cur_comp + ios->layout->mirrors_p1;
 	int ret = 0;
@@ -544,12 +533,12 @@ static int _sbi_write_mirror(struct exofs_io_state *ios, int cur_comp)
 		return 0; /* Just an empty slot */
 
 	for (; cur_comp < last_comp; ++cur_comp, ++dev) {
-		struct exofs_per_dev_state *per_dev = &ios->per_dev[cur_comp];
+		struct ore_per_dev_state *per_dev = &ios->per_dev[cur_comp];
 		struct osd_request *or;
 
-		or = osd_start_request(exofs_ios_od(ios, dev), GFP_KERNEL);
+		or = osd_start_request(_ios_od(ios, dev), GFP_KERNEL);
 		if (unlikely(!or)) {
-			EXOFS_ERR("%s: osd_start_request failed\n", __func__);
+			ORE_ERR("%s: osd_start_request failed\n", __func__);
 			ret = -ENOMEM;
 			goto out;
 		}
@@ -563,7 +552,7 @@ static int _sbi_write_mirror(struct exofs_io_state *ios, int cur_comp)
 				bio = bio_kmalloc(GFP_KERNEL,
 						  master_dev->bio->bi_max_vecs);
 				if (unlikely(!bio)) {
-					EXOFS_DBGMSG(
+					ORE_DBGMSG(
 					      "Failed to allocate BIO size=%u\n",
 					      master_dev->bio->bi_max_vecs);
 					ret = -ENOMEM;
@@ -582,25 +571,29 @@ static int _sbi_write_mirror(struct exofs_io_state *ios, int cur_comp)
 				bio->bi_rw |= REQ_WRITE;
 			}
 
-			osd_req_write(or, &ios->obj, per_dev->offset, bio,
-				      per_dev->length);
-			EXOFS_DBGMSG("write(0x%llx) offset=0x%llx "
+			osd_req_write(or, _ios_obj(ios, dev), per_dev->offset,
+				      bio, per_dev->length);
+			ORE_DBGMSG("write(0x%llx) offset=0x%llx "
 				      "length=0x%llx dev=%d\n",
-				     _LLU(ios->obj.id), _LLU(per_dev->offset),
+				     _LLU(_ios_obj(ios, dev)->id),
+				     _LLU(per_dev->offset),
 				     _LLU(per_dev->length), dev);
 		} else if (ios->kern_buff) {
-			ret = osd_req_write_kern(or, &ios->obj, per_dev->offset,
-					   ios->kern_buff, ios->length);
+			ret = osd_req_write_kern(or, _ios_obj(ios, dev),
+						 per_dev->offset,
+						 ios->kern_buff, ios->length);
 			if (unlikely(ret))
 				goto out;
-			EXOFS_DBGMSG2("write_kern(0x%llx) offset=0x%llx "
+			ORE_DBGMSG2("write_kern(0x%llx) offset=0x%llx "
 				      "length=0x%llx dev=%d\n",
-				     _LLU(ios->obj.id), _LLU(per_dev->offset),
+				     _LLU(_ios_obj(ios, dev)->id),
+				     _LLU(per_dev->offset),
 				     _LLU(ios->length), dev);
 		} else {
-			osd_req_set_attributes(or, &ios->obj);
-			EXOFS_DBGMSG2("obj(0x%llx) set_attributes=%d dev=%d\n",
-				     _LLU(ios->obj.id), ios->out_attr_len, dev);
+			osd_req_set_attributes(or, _ios_obj(ios, dev));
+			ORE_DBGMSG2("obj(0x%llx) set_attributes=%d dev=%d\n",
+				     _LLU(_ios_obj(ios, dev)->id),
+				     ios->out_attr_len, dev);
 		}
 
 		if (ios->out_attr)
@@ -616,7 +609,7 @@ out:
 	return ret;
 }
 
-int exofs_sbi_write(struct exofs_io_state *ios)
+int ore_write(struct ore_io_state *ios)
 {
 	int i;
 	int ret;
@@ -626,52 +619,55 @@ int exofs_sbi_write(struct exofs_io_state *ios)
 		return ret;
 
 	for (i = 0; i < ios->numdevs; i += ios->layout->mirrors_p1) {
-		ret = _sbi_write_mirror(ios, i);
+		ret = _write_mirror(ios, i);
 		if (unlikely(ret))
 			return ret;
 	}
 
-	ret = exofs_io_execute(ios);
+	ret = ore_io_execute(ios);
 	return ret;
 }
+EXPORT_SYMBOL(ore_write);
 
-static int _sbi_read_mirror(struct exofs_io_state *ios, unsigned cur_comp)
+static int _read_mirror(struct ore_io_state *ios, unsigned cur_comp)
 {
 	struct osd_request *or;
-	struct exofs_per_dev_state *per_dev = &ios->per_dev[cur_comp];
-	unsigned first_dev = (unsigned)ios->obj.id;
+	struct ore_per_dev_state *per_dev = &ios->per_dev[cur_comp];
+	struct osd_obj_id *obj = _ios_obj(ios, cur_comp);
+	unsigned first_dev = (unsigned)obj->id;
 
 	if (ios->pages && !per_dev->length)
 		return 0; /* Just an empty slot */
 
 	first_dev = per_dev->dev + first_dev % ios->layout->mirrors_p1;
-	or = osd_start_request(exofs_ios_od(ios, first_dev), GFP_KERNEL);
+	or = osd_start_request(_ios_od(ios, first_dev), GFP_KERNEL);
 	if (unlikely(!or)) {
-		EXOFS_ERR("%s: osd_start_request failed\n", __func__);
+		ORE_ERR("%s: osd_start_request failed\n", __func__);
 		return -ENOMEM;
 	}
 	per_dev->or = or;
 
 	if (ios->pages) {
-		osd_req_read(or, &ios->obj, per_dev->offset,
+		osd_req_read(or, obj, per_dev->offset,
 				per_dev->bio, per_dev->length);
-		EXOFS_DBGMSG("read(0x%llx) offset=0x%llx length=0x%llx"
-			     " dev=%d\n", _LLU(ios->obj.id),
+		ORE_DBGMSG("read(0x%llx) offset=0x%llx length=0x%llx"
+			     " dev=%d\n", _LLU(obj->id),
 			     _LLU(per_dev->offset), _LLU(per_dev->length),
 			     first_dev);
 	} else if (ios->kern_buff) {
-		int ret = osd_req_read_kern(or, &ios->obj, per_dev->offset,
+		int ret = osd_req_read_kern(or, obj, per_dev->offset,
 					    ios->kern_buff, ios->length);
-		EXOFS_DBGMSG2("read_kern(0x%llx) offset=0x%llx "
+		ORE_DBGMSG2("read_kern(0x%llx) offset=0x%llx "
 			      "length=0x%llx dev=%d ret=>%d\n",
-			      _LLU(ios->obj.id), _LLU(per_dev->offset),
+			      _LLU(obj->id), _LLU(per_dev->offset),
 			      _LLU(ios->length), first_dev, ret);
 		if (unlikely(ret))
 			return ret;
 	} else {
-		osd_req_get_attributes(or, &ios->obj);
-		EXOFS_DBGMSG2("obj(0x%llx) get_attributes=%d dev=%d\n",
-			      _LLU(ios->obj.id), ios->in_attr_len, first_dev);
+		osd_req_get_attributes(or, obj);
+		ORE_DBGMSG2("obj(0x%llx) get_attributes=%d dev=%d\n",
+			      _LLU(obj->id),
+			      ios->in_attr_len, first_dev);
 	}
 	if (ios->out_attr)
 		osd_req_add_set_attr_list(or, ios->out_attr, ios->out_attr_len);
@@ -682,7 +678,7 @@ static int _sbi_read_mirror(struct exofs_io_state *ios, unsigned cur_comp)
 	return 0;
 }
 
-int exofs_sbi_read(struct exofs_io_state *ios)
+int ore_read(struct ore_io_state *ios)
 {
 	int i;
 	int ret;
@@ -692,16 +688,17 @@ int exofs_sbi_read(struct exofs_io_state *ios)
 		return ret;
 
 	for (i = 0; i < ios->numdevs; i += ios->layout->mirrors_p1) {
-		ret = _sbi_read_mirror(ios, i);
+		ret = _read_mirror(ios, i);
 		if (unlikely(ret))
 			return ret;
 	}
 
-	ret = exofs_io_execute(ios);
+	ret = ore_io_execute(ios);
 	return ret;
 }
+EXPORT_SYMBOL(ore_read);
 
-int extract_attr_from_ios(struct exofs_io_state *ios, struct osd_attr *attr)
+int extract_attr_from_ios(struct ore_io_state *ios, struct osd_attr *attr)
 {
 	struct osd_attr cur_attr = {.attr_page = 0}; /* start with zeros */
 	void *iter = NULL;
@@ -721,83 +718,118 @@ int extract_attr_from_ios(struct exofs_io_state *ios, struct osd_attr *attr)
 
 	return -EIO;
 }
+EXPORT_SYMBOL(extract_attr_from_ios);
 
-static int _truncate_mirrors(struct exofs_io_state *ios, unsigned cur_comp,
+static int _truncate_mirrors(struct ore_io_state *ios, unsigned cur_comp,
 			     struct osd_attr *attr)
 {
 	int last_comp = cur_comp + ios->layout->mirrors_p1;
 
 	for (; cur_comp < last_comp; ++cur_comp) {
-		struct exofs_per_dev_state *per_dev = &ios->per_dev[cur_comp];
+		struct ore_per_dev_state *per_dev = &ios->per_dev[cur_comp];
 		struct osd_request *or;
 
-		or = osd_start_request(exofs_ios_od(ios, cur_comp), GFP_KERNEL);
+		or = osd_start_request(_ios_od(ios, cur_comp), GFP_KERNEL);
 		if (unlikely(!or)) {
-			EXOFS_ERR("%s: osd_start_request failed\n", __func__);
+			ORE_ERR("%s: osd_start_request failed\n", __func__);
 			return -ENOMEM;
 		}
 		per_dev->or = or;
 
-		osd_req_set_attributes(or, &ios->obj);
+		osd_req_set_attributes(or, _ios_obj(ios, cur_comp));
 		osd_req_add_set_attr_list(or, attr, 1);
 	}
 
 	return 0;
 }
 
-int exofs_oi_truncate(struct exofs_i_info *oi, u64 size)
+struct _trunc_info {
+	struct _striping_info si;
+	u64 prev_group_obj_off;
+	u64 next_group_obj_off;
+
+	unsigned first_group_dev;
+	unsigned nex_group_dev;
+	unsigned max_devs;
+};
+
+void _calc_trunk_info(struct ore_layout *layout, u64 file_offset,
+		       struct _trunc_info *ti)
 {
-	struct exofs_sb_info *sbi = oi->vfs_inode.i_sb->s_fs_info;
-	struct exofs_io_state *ios;
+	unsigned stripe_unit = layout->stripe_unit;
+
+	_calc_stripe_info(layout, file_offset, &ti->si);
+
+	ti->prev_group_obj_off = ti->si.M * stripe_unit;
+	ti->next_group_obj_off = ti->si.M ? (ti->si.M - 1) * stripe_unit : 0;
+
+	ti->first_group_dev = ti->si.dev - (ti->si.dev % layout->group_width);
+	ti->nex_group_dev = ti->first_group_dev + layout->group_width;
+	ti->max_devs = layout->group_width * layout->group_count;
+}
+
+int ore_truncate(struct ore_layout *layout, struct ore_components *comps,
+		   u64 size)
+{
+	struct ore_io_state *ios;
 	struct exofs_trunc_attr {
 		struct osd_attr attr;
 		__be64 newsize;
 	} *size_attrs;
-	struct _striping_info si;
+	struct _trunc_info ti;
 	int i, ret;
 
-	ret = exofs_get_io_state(&sbi->layout, &ios);
+	ret = ore_get_io_state(layout, comps, &ios);
 	if (unlikely(ret))
 		return ret;
 
-	size_attrs = kcalloc(ios->layout->group_width, sizeof(*size_attrs),
+	_calc_trunk_info(ios->layout, size, &ti);
+
+	size_attrs = kcalloc(ti.max_devs, sizeof(*size_attrs),
 			     GFP_KERNEL);
 	if (unlikely(!size_attrs)) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	ios->obj.id = exofs_oi_objno(oi);
-	ios->cred = oi->i_cred;
+	ios->numdevs = ios->comps->numdevs;
 
-	ios->numdevs = ios->layout->s_numdevs;
-	_calc_stripe_info(ios, size, &si);
-
-	for (i = 0; i < ios->layout->group_width; ++i) {
+	for (i = 0; i < ti.max_devs; ++i) {
 		struct exofs_trunc_attr *size_attr = &size_attrs[i];
 		u64 obj_size;
 
-		if (i < si.dev)
-			obj_size = si.obj_offset +
-					ios->layout->stripe_unit - si.unit_off;
-		else if (i == si.dev)
-			obj_size = si.obj_offset;
-		else /* i > si.dev */
-			obj_size = si.obj_offset - si.unit_off;
+		if (i < ti.first_group_dev)
+			obj_size = ti.prev_group_obj_off;
+		else if (i >= ti.nex_group_dev)
+			obj_size = ti.next_group_obj_off;
+		else if (i < ti.si.dev) /* dev within this group */
+			obj_size = ti.si.obj_offset +
+				      ios->layout->stripe_unit - ti.si.unit_off;
+		else if (i == ti.si.dev)
+			obj_size = ti.si.obj_offset;
+		else /* i > ti.dev */
+			obj_size = ti.si.obj_offset - ti.si.unit_off;
 
 		size_attr->newsize = cpu_to_be64(obj_size);
 		size_attr->attr = g_attr_logical_length;
 		size_attr->attr.val_ptr = &size_attr->newsize;
 
+		ORE_DBGMSG("trunc(0x%llx) obj_offset=0x%llx dev=%d\n",
+			     _LLU(comps->comps->obj.id), _LLU(obj_size), i);
 		ret = _truncate_mirrors(ios, i * ios->layout->mirrors_p1,
 					&size_attr->attr);
 		if (unlikely(ret))
 			goto out;
 	}
-	ret = exofs_io_execute(ios);
+	ret = ore_io_execute(ios);
 
 out:
 	kfree(size_attrs);
-	exofs_put_io_state(ios);
+	ore_put_io_state(ios);
 	return ret;
 }
+EXPORT_SYMBOL(ore_truncate);
+
+const struct osd_attr g_attr_logical_length = ATTR_DEF(
+	OSD_APAGE_OBJECT_INFORMATION, OSD_ATTR_OI_LOGICAL_LENGTH, 8);
+EXPORT_SYMBOL(g_attr_logical_length);
