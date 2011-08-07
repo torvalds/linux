@@ -892,20 +892,3 @@ error:
 	nvc0_graph_destroy(dev, NVOBJ_ENGINE_GR);
 	return ret;
 }
-
-MODULE_FIRMWARE("nouveau/nvc0_fuc409c");
-MODULE_FIRMWARE("nouveau/nvc0_fuc409d");
-MODULE_FIRMWARE("nouveau/nvc0_fuc41ac");
-MODULE_FIRMWARE("nouveau/nvc0_fuc41ad");
-MODULE_FIRMWARE("nouveau/nvc3_fuc409c");
-MODULE_FIRMWARE("nouveau/nvc3_fuc409d");
-MODULE_FIRMWARE("nouveau/nvc3_fuc41ac");
-MODULE_FIRMWARE("nouveau/nvc3_fuc41ad");
-MODULE_FIRMWARE("nouveau/nvc4_fuc409c");
-MODULE_FIRMWARE("nouveau/nvc4_fuc409d");
-MODULE_FIRMWARE("nouveau/nvc4_fuc41ac");
-MODULE_FIRMWARE("nouveau/nvc4_fuc41ad");
-MODULE_FIRMWARE("nouveau/fuc409c");
-MODULE_FIRMWARE("nouveau/fuc409d");
-MODULE_FIRMWARE("nouveau/fuc41ac");
-MODULE_FIRMWARE("nouveau/fuc41ad");
