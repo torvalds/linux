@@ -18,14 +18,12 @@
 #include <linux/netdevice.h>
 #include <linux/if_ether.h>
 #include <linux/if_arp.h>
-#include <asm/string.h>
-#include "rtllib.h"
-
-
+#include <linux/string.h>
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
-
 #include <linux/crc32.h>
+
+#include "rtllib.h"
 
 struct rtllib_tkip_data {
 #define TKIP_KEY_LEN 32
@@ -39,7 +37,7 @@ struct rtllib_tkip_data {
 
 	u32 rx_iv32;
 	u16 rx_iv16;
-      bool initialized;
+	bool initialized;
 	u16 rx_ttak[5];
 	int rx_phase1_done;
 	u32 rx_iv32_new;
@@ -58,7 +56,7 @@ struct rtllib_tkip_data {
 	u8 rx_hdr[16], tx_hdr[16];
 };
 
-static void * rtllib_tkip_init(int key_idx)
+static void *rtllib_tkip_init(int key_idx)
 {
 	struct rtllib_tkip_data *priv;
 
@@ -181,8 +179,7 @@ static inline u16 Mk16_le(u16 *v)
 }
 
 
-static const u16 Sbox[256] =
-{
+static const u16 Sbox[256] = {
 	0xC6A5, 0xF884, 0xEE99, 0xF68D, 0xFF0D, 0xD6BD, 0xDEB1, 0x9154,
 	0x6050, 0x0203, 0xCEA9, 0x567D, 0xE719, 0xB562, 0x4DE6, 0xEC9A,
 	0x8F45, 0x1F9D, 0x8940, 0xFA87, 0xEF15, 0xB2EB, 0x8EC9, 0xFB0B,
@@ -303,7 +300,8 @@ static int rtllib_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		int len;
 	u8 *pos;
 	struct rtllib_hdr_4addr *hdr;
-	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb +
+				    MAX_DEV_ADDR_SIZE);
 	struct blkcipher_desc desc = {.tfm = tkey->tx_tfm_arc4};
 	int ret = 0;
 	u8 rc4key[16],  *icv;
@@ -322,7 +320,8 @@ static int rtllib_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 					tkey->tx_iv32);
 			tkey->tx_phase1_done = 1;
 		}
-		tkip_mixing_phase2(rc4key, tkey->key, tkey->tx_ttak, tkey->tx_iv16);
+		tkip_mixing_phase2(rc4key, tkey->key, tkey->tx_ttak,
+				   tkey->tx_iv16);
 	} else
 	tkey->tx_phase1_done = 1;
 
@@ -360,7 +359,7 @@ static int rtllib_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 
 		crypto_blkcipher_setkey(tkey->tx_tfm_arc4, rc4key, 16);
-		ret= crypto_blkcipher_encrypt(&desc, &sg, &sg, len + 4);
+		ret = crypto_blkcipher_encrypt(&desc, &sg, &sg, len + 4);
 	}
 
 	tkey->tx_iv16++;
@@ -384,7 +383,8 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u32 iv32;
 	u16 iv16;
 	struct rtllib_hdr_4addr *hdr;
-	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb +
+				    MAX_DEV_ADDR_SIZE);
 	struct blkcipher_desc desc = {.tfm = tkey->rx_tfm_arc4};
 	u8 rc4key[16];
 	u8 icv[4];
@@ -422,23 +422,25 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	iv32 = pos[4] | (pos[5] << 8) | (pos[6] << 16) | (pos[7] << 24);
 	pos += 8;
 
-	if (!tcb_desc->bHwSec || (skb->cb[0] == 1))
-	{
+	if (!tcb_desc->bHwSec || (skb->cb[0] == 1)) {
 		if ((iv32 < tkey->rx_iv32 ||
-		(iv32 == tkey->rx_iv32 && iv16 <= tkey->rx_iv16))&&tkey->initialized) {
+		    (iv32 == tkey->rx_iv32 && iv16 <= tkey->rx_iv16)) &&
+		    tkey->initialized) {
 			if (net_ratelimit()) {
-				printk(KERN_DEBUG "TKIP: replay detected: STA=" MAC_FMT
-				" previous TSC %08x%04x received TSC "
-				"%08x%04x\n", MAC_ARG(hdr->addr2),
-				tkey->rx_iv32, tkey->rx_iv16, iv32, iv16);
+				printk(KERN_DEBUG "TKIP: replay detected: STA="
+				       MAC_FMT
+				       " previous TSC %08x%04x received TSC "
+				      "%08x%04x\n", MAC_ARG(hdr->addr2),
+				      tkey->rx_iv32, tkey->rx_iv16, iv32, iv16);
 			}
 			tkey->dot11RSNAStatsTKIPReplays++;
 			return -4;
 		}
-                tkey->initialized = true;
+		tkey->initialized = true;
 
 		if (iv32 != tkey->rx_iv32 || !tkey->rx_phase1_done) {
-			tkip_mixing_phase1(tkey->rx_ttak, tkey->key, hdr->addr2, iv32);
+			tkip_mixing_phase1(tkey->rx_ttak, tkey->key,
+					   hdr->addr2, iv32);
 			tkey->rx_phase1_done = 1;
 		}
 		tkip_mixing_phase2(rc4key, tkey->key, tkey->rx_ttak, iv16);
@@ -451,7 +453,7 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		if (crypto_blkcipher_decrypt(&desc, &sg, &sg, plen + 4)) {
 			if (net_ratelimit()) {
 				printk(KERN_DEBUG ": TKIP: failed to decrypt "
-						"received packet from " MAC_FMT "\n",
+				       "received packet from " MAC_FMT "\n",
 						MAC_ARG(hdr->addr2));
 			}
 			return -7;
@@ -465,8 +467,9 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 		if (memcmp(icv, pos + plen, 4) != 0) {
 			if (iv32 != tkey->rx_iv32) {
-				/* Previously cached Phase1 result was already lost, so
-				* it needs to be recalculated for the next packet. */
+				/* Previously cached Phase1 result was already
+				 * lost, so it needs to be recalculated for the
+				 * next packet. */
 				tkey->rx_phase1_done = 0;
 			}
 			if (net_ratelimit()) {
@@ -493,26 +496,26 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 }
 
 
-static int michael_mic(struct crypto_hash *tfm_michael, u8 * key, u8 * hdr,
-                       u8 * data, size_t data_len, u8 * mic)
+static int michael_mic(struct crypto_hash *tfm_michael, u8 *key, u8 *hdr,
+		       u8 *data, size_t data_len, u8 *mic)
 {
-        struct hash_desc desc;
-        struct scatterlist sg[2];
+	struct hash_desc desc;
+	struct scatterlist sg[2];
 
-        if (tfm_michael == NULL) {
-                printk(KERN_WARNING "michael_mic: tfm_michael == NULL\n");
-                return -1;
-        }
-        sg_init_table(sg, 2);
-        sg_set_buf(&sg[0], hdr, 16);
-        sg_set_buf(&sg[1], data, data_len);
+	if (tfm_michael == NULL) {
+		printk(KERN_WARNING "michael_mic: tfm_michael == NULL\n");
+		return -1;
+	}
+	sg_init_table(sg, 2);
+	sg_set_buf(&sg[0], hdr, 16);
+	sg_set_buf(&sg[1], data, data_len);
 
-        if (crypto_hash_setkey(tfm_michael, key, 8))
-                return -1;
+	if (crypto_hash_setkey(tfm_michael, key, 8))
+		return -1;
 
-        desc.tfm = tfm_michael;
-        desc.flags = 0;
-        return crypto_hash_digest(&desc, sg, data_len + 16, mic);
+	desc.tfm = tfm_michael;
+	desc.flags = 0;
+	return crypto_hash_digest(&desc, sg, data_len + 16, mic);
 }
 
 static void michael_mic_hdr(struct sk_buff *skb, u8 *hdr)
@@ -563,12 +566,11 @@ static int rtllib_michael_mic_add(struct sk_buff *skb, int hdr_len, void *priv)
 
 	michael_mic_hdr(skb, tkey->tx_hdr);
 
-	if (RTLLIB_QOS_HAS_SEQ(le16_to_cpu(hdr->frame_ctl))) {
+	if (RTLLIB_QOS_HAS_SEQ(le16_to_cpu(hdr->frame_ctl)))
 		tkey->tx_hdr[12] = *(skb->data + hdr_len - 2) & 0x07;
-	}
 	pos = skb_put(skb, 8);
 	if (michael_mic(tkey->tx_tfm_michael, &tkey->key[16], tkey->tx_hdr,
-				skb->data + hdr_len, skb->len - 8 - hdr_len, pos))
+	    skb->data + hdr_len, skb->len - 8 - hdr_len, pos))
 		return -1;
 
 	return 0;
@@ -597,7 +599,8 @@ static void rtllib_michael_mic_failure(struct net_device *dev,
 }
 
 static int rtllib_michael_mic_verify(struct sk_buff *skb, int keyidx,
-				     int hdr_len, void *priv, struct rtllib_device* ieee)
+				     int hdr_len, void *priv,
+				     struct rtllib_device *ieee)
 {
 	struct rtllib_tkip_data *tkey = priv;
 	u8 mic[8];
@@ -609,29 +612,30 @@ static int rtllib_michael_mic_verify(struct sk_buff *skb, int keyidx,
 		return -1;
 
 	michael_mic_hdr(skb, tkey->rx_hdr);
-	if (RTLLIB_QOS_HAS_SEQ(le16_to_cpu(hdr->frame_ctl))) {
+	if (RTLLIB_QOS_HAS_SEQ(le16_to_cpu(hdr->frame_ctl)))
 		tkey->rx_hdr[12] = *(skb->data + hdr_len - 2) & 0x07;
-	}
 
 	if (michael_mic(tkey->rx_tfm_michael, &tkey->key[24], tkey->rx_hdr,
-				skb->data + hdr_len, skb->len - 8 - hdr_len, mic))
+			skb->data + hdr_len, skb->len - 8 - hdr_len, mic))
 		return -1;
 
-	if ((memcmp(mic, skb->data + skb->len - 8, 8) != 0)||(ieee->force_mic_error)) {
+	if ((memcmp(mic, skb->data + skb->len - 8, 8) != 0) ||
+	   (ieee->force_mic_error)) {
 		struct rtllib_hdr_4addr *hdr;
 		hdr = (struct rtllib_hdr_4addr *) skb->data;
 		printk(KERN_DEBUG "%s: Michael MIC verification failed for "
 		       "MSDU from " MAC_FMT " keyidx=%d\n",
 		       skb->dev ? skb->dev->name : "N/A", MAC_ARG(hdr->addr2),
 		       keyidx);
-                printk("%d, force_mic_error = %d\n", (memcmp(mic, skb->data + skb->len - 8, 8) != 0),\
-                        ieee->force_mic_error);
+		printk(KERN_DEBUG "%d, force_mic_error = %d\n",
+		       (memcmp(mic, skb->data + skb->len - 8, 8) != 0),\
+			ieee->force_mic_error);
 		if (skb->dev) {
-                        printk("skb->dev != NULL\n");
+			printk(KERN_INFO "skb->dev != NULL\n");
 			rtllib_michael_mic_failure(skb->dev, hdr, keyidx);
-                }
+		}
 		tkey->dot11RSNAStatsTKIPLocalMICFailures++;
-                ieee->force_mic_error = false;
+		ieee->force_mic_error = false;
 		return -1;
 	}
 
@@ -711,7 +715,7 @@ static int rtllib_tkip_get_key(void *key, int len, u8 *seq, void *priv)
 }
 
 
-static char * rtllib_tkip_print_stats(char *p, void *priv)
+static char *rtllib_tkip_print_stats(char *p, void *priv)
 {
 	struct rtllib_tkip_data *tkip = priv;
 	p += sprintf(p, "key[%d] alg=TKIP key_set=%d "
@@ -751,7 +755,7 @@ static struct rtllib_crypto_ops rtllib_crypt_tkip = {
 	.print_stats		= rtllib_tkip_print_stats,
 	.extra_prefix_len	= 4 + 4, /* IV + ExtIV */
 	.extra_postfix_len	= 8 + 4, /* MIC + ICV */
-	.owner		        = THIS_MODULE,
+	.owner			= THIS_MODULE,
 };
 
 
@@ -768,5 +772,5 @@ void __exit rtllib_crypto_tkip_exit(void)
 
 void rtllib_tkip_null(void)
 {
-        return;
+	return;
 }

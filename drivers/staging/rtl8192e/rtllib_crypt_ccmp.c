@@ -18,7 +18,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_ether.h>
 #include <linux/if_arp.h>
-#include <asm/string.h>
+#include <linux/string.h>
 #include <linux/wireless.h>
 #include "rtllib.h"
 
@@ -56,10 +56,10 @@ struct rtllib_ccmp_data {
 void rtllib_ccmp_aes_encrypt(struct crypto_tfm *tfm,
 			     const u8 pt[16], u8 ct[16])
 {
-	crypto_cipher_encrypt_one((void*)tfm, ct, pt);
+	crypto_cipher_encrypt_one((void *)tfm, ct, pt);
 }
 
-static void * rtllib_ccmp_init(int key_idx)
+static void *rtllib_ccmp_init(int key_idx)
 {
 	struct rtllib_ccmp_data *priv;
 
@@ -69,7 +69,7 @@ static void * rtllib_ccmp_init(int key_idx)
 	memset(priv, 0, sizeof(*priv));
 	priv->key_idx = key_idx;
 
-	priv->tfm = (void*)crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC);
+	priv->tfm = (void *)crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tfm)) {
 		printk(KERN_DEBUG "rtllib_crypt_ccmp: could not allocate "
 		       "crypto API aes\n");
@@ -81,7 +81,7 @@ static void * rtllib_ccmp_init(int key_idx)
 fail:
 	if (priv) {
 		if (priv->tfm)
-			crypto_free_cipher((void*)priv->tfm);
+			crypto_free_cipher((void *)priv->tfm);
 		kfree(priv);
 	}
 
@@ -93,7 +93,7 @@ static void rtllib_ccmp_deinit(void *priv)
 {
 	struct rtllib_ccmp_data *_priv = priv;
 	if (_priv && _priv->tfm)
-		crypto_free_cipher((void*)_priv->tfm);
+		crypto_free_cipher((void *)_priv->tfm);
 	kfree(priv);
 }
 
@@ -124,7 +124,7 @@ static void ccmp_init_blocks(struct crypto_tfm *tfm,
 	/*
 	qc_included = ((WLAN_FC_GET_TYPE(fc) == RTLLIB_FTYPE_DATA) &&
 		       (WLAN_FC_GET_STYPE(fc) & 0x08));
-        */
+	*/
 	qc_included = ((WLAN_FC_GET_TYPE(fc) == RTLLIB_FTYPE_DATA) &&
 		       (WLAN_FC_GET_STYPE(fc) & 0x80));
 	aad_len = 22;
@@ -192,7 +192,8 @@ static int rtllib_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	int data_len, i;
 	u8 *pos;
 	struct rtllib_hdr_4addr *hdr;
-	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb +
+				    MAX_DEV_ADDR_SIZE);
 	if (skb_headroom(skb) < CCMP_HDR_LEN ||
 	    skb_tailroom(skb) < CCMP_MIC_LEN ||
 	    skb->len < hdr_len)
@@ -232,7 +233,8 @@ static int rtllib_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 		mic = skb_put(skb, CCMP_MIC_LEN);
 
-		ccmp_init_blocks(key->tfm, hdr, key->tx_pn, data_len, b0, b, s0);
+		ccmp_init_blocks(key->tfm, hdr, key->tx_pn, data_len,
+				 b0, b, s0);
 
 		blocks = (data_len + AES_BLOCK_LEN - 1) / AES_BLOCK_LEN;
 		last = data_len % AES_BLOCK_LEN;
@@ -262,7 +264,8 @@ static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	struct rtllib_ccmp_data *key = priv;
 	u8 keyidx, *pos;
 	struct rtllib_hdr_4addr *hdr;
-	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb +
+				    MAX_DEV_ADDR_SIZE);
 	u8 pn[6];
 
 	if (skb->len < hdr_len + CCMP_HDR_LEN + CCMP_MIC_LEN) {
@@ -308,7 +311,8 @@ static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -4;
 	}
 	if (!tcb_desc->bHwSec) {
-		size_t data_len = skb->len - hdr_len - CCMP_HDR_LEN - CCMP_MIC_LEN;
+		size_t data_len = skb->len - hdr_len - CCMP_HDR_LEN -
+				  CCMP_MIC_LEN;
 		u8 *mic = skb->data + skb->len - CCMP_MIC_LEN;
 		u8 *b0 = key->rx_b0;
 		u8 *b = key->rx_b;
@@ -376,7 +380,7 @@ static int rtllib_ccmp_set_key(void *key, int len, u8 *seq, void *priv)
 			data->rx_pn[4] = seq[1];
 			data->rx_pn[5] = seq[0];
 		}
-		crypto_cipher_setkey((void*)data->tfm, data->key, CCMP_TK_LEN);
+		crypto_cipher_setkey((void *)data->tfm, data->key, CCMP_TK_LEN);
 	} else if (len == 0)
 		data->key_set = 0;
 	else
@@ -410,7 +414,7 @@ static int rtllib_ccmp_get_key(void *key, int len, u8 *seq, void *priv)
 }
 
 
-static char * rtllib_ccmp_print_stats(char *p, void *priv)
+static char *rtllib_ccmp_print_stats(char *p, void *priv)
 {
 	struct rtllib_ccmp_data *ccmp = priv;
 	p += sprintf(p, "key[%d] alg=CCMP key_set=%d "

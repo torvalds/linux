@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/skbuff.h>
-#include <asm/string.h>
+#include <linux/string.h>
 #include "rtllib.h"
 
 #include <linux/crypto.h>
@@ -29,12 +29,12 @@ struct prism2_wep_data {
 	u8 key[WEP_KEY_LEN + 1];
 	u8 key_len;
 	u8 key_idx;
-        struct crypto_blkcipher *tx_tfm;
-        struct crypto_blkcipher *rx_tfm;
+	struct crypto_blkcipher *tx_tfm;
+	struct crypto_blkcipher *rx_tfm;
 };
 
 
-static void * prism2_wep_init(int keyidx)
+static void *prism2_wep_init(int keyidx)
 {
 	struct prism2_wep_data *priv;
 
@@ -45,19 +45,19 @@ static void * prism2_wep_init(int keyidx)
 	priv->key_idx = keyidx;
 
 	priv->tx_tfm = crypto_alloc_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
-        if (IS_ERR(priv->tx_tfm)) {
-                printk(KERN_DEBUG "rtllib_crypt_wep: could not allocate "
-                       "crypto API arc4\n");
-                priv->tx_tfm = NULL;
-                goto fail;
-        }
-        priv->rx_tfm = crypto_alloc_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
-        if (IS_ERR(priv->rx_tfm)) {
-                printk(KERN_DEBUG "rtllib_crypt_wep: could not allocate "
-                       "crypto API arc4\n");
-                priv->rx_tfm = NULL;
-                goto fail;
-        }
+	if (IS_ERR(priv->tx_tfm)) {
+		printk(KERN_DEBUG "rtllib_crypt_wep: could not allocate "
+		       "crypto API arc4\n");
+		priv->tx_tfm = NULL;
+		goto fail;
+	}
+	priv->rx_tfm = crypto_alloc_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(priv->rx_tfm)) {
+		printk(KERN_DEBUG "rtllib_crypt_wep: could not allocate "
+		       "crypto API arc4\n");
+		priv->rx_tfm = NULL;
+		goto fail;
+	}
 
 	/* start WEP IV from a random value */
 	get_random_bytes(&priv->iv, 4);
@@ -66,12 +66,12 @@ static void * prism2_wep_init(int keyidx)
 
 fail:
 	if (priv) {
-                if (priv->tx_tfm)
-                        crypto_free_blkcipher(priv->tx_tfm);
-                if (priv->rx_tfm)
-                        crypto_free_blkcipher(priv->rx_tfm);
-                kfree(priv);
-        }
+		if (priv->tx_tfm)
+			crypto_free_blkcipher(priv->tx_tfm);
+		if (priv->rx_tfm)
+			crypto_free_blkcipher(priv->rx_tfm);
+		kfree(priv);
+	}
 	return NULL;
 }
 
@@ -81,11 +81,11 @@ static void prism2_wep_deinit(void *priv)
 	struct prism2_wep_data *_priv = priv;
 
 	if (_priv) {
-                if (_priv->tx_tfm)
-                        crypto_free_blkcipher(_priv->tx_tfm);
-                if (_priv->rx_tfm)
-                        crypto_free_blkcipher(_priv->rx_tfm);
-        }
+		if (_priv->tx_tfm)
+			crypto_free_blkcipher(_priv->tx_tfm);
+		if (_priv->rx_tfm)
+			crypto_free_blkcipher(_priv->rx_tfm);
+	}
 	kfree(priv);
 }
 
@@ -101,14 +101,17 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u32 klen, len;
 	u8 key[WEP_KEY_LEN + 3];
 	u8 *pos;
-	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb +
+				    MAX_DEV_ADDR_SIZE);
 	struct blkcipher_desc desc = {.tfm = wep->tx_tfm};
 	u32 crc;
 	u8 *icv;
 	struct scatterlist sg;
 	if (skb_headroom(skb) < 4 || skb_tailroom(skb) < 4 ||
 	    skb->len < hdr_len){
-		printk("Error!!!headroom=%d tailroom=%d skblen=%d hdr_len=%d\n",skb_headroom(skb),skb_tailroom(skb),skb->len,hdr_len);
+		printk(KERN_ERR "Error!!! headroom=%d tailroom=%d skblen=%d"
+		       " hdr_len=%d\n", skb_headroom(skb), skb_tailroom(skb),
+		       skb->len, hdr_len);
 		return -1;
 	}
 	len = skb->len - hdr_len;
@@ -157,8 +160,8 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 }
 
 
-/* Perform WEP decryption on given struct buffer. Buffer includes whole WEP part of
- * the frame: IV (4 bytes), encrypted payload (including SNAP header),
+/* Perform WEP decryption on given struct buffer. Buffer includes whole WEP
+ * part of the frame: IV (4 bytes), encrypted payload (including SNAP header),
  * ICV (4 bytes). len includes both IV and ICV.
  *
  * Returns 0 if frame was decrypted successfully and ICV was correct and -1 on
@@ -170,7 +173,8 @@ static int prism2_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u32  klen, plen;
 	u8 key[WEP_KEY_LEN + 3];
 	u8 keyidx, *pos;
-	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb +
+				    MAX_DEV_ADDR_SIZE);
 	struct blkcipher_desc desc = {.tfm = wep->rx_tfm};
 	u32 crc;
 	u8 icv[4];
@@ -245,7 +249,7 @@ static int prism2_wep_get_key(void *key, int len, u8 *seq, void *priv)
 }
 
 
-static char * prism2_wep_print_stats(char *p, void *priv)
+static char *prism2_wep_print_stats(char *p, void *priv)
 {
 	struct prism2_wep_data *wep = priv;
 	p += sprintf(p, "key[%d] alg=WEP len=%d\n",
@@ -284,5 +288,5 @@ void __exit rtllib_crypto_wep_exit(void)
 
 void rtllib_wep_null(void)
 {
-        return;
+	return;
 }
