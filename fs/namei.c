@@ -308,6 +308,26 @@ int generic_permission(struct inode *inode, int mask)
 	return -EACCES;
 }
 
+/*
+ * We _really_ want to just do "generic_permission()" without
+ * even looking at the inode->i_op values. So we keep a cache
+ * flag in inode->i_opflags, that says "this has not special
+ * permission function, use the fast case".
+ */
+static inline int do_inode_permission(struct inode *inode, int mask)
+{
+	if (unlikely(!(inode->i_opflags & IOP_FASTPERM))) {
+		if (likely(inode->i_op->permission))
+			return inode->i_op->permission(inode, mask);
+
+		/* This gets set once for the inode lifetime */
+		spin_lock(&inode->i_lock);
+		inode->i_opflags |= IOP_FASTPERM;
+		spin_unlock(&inode->i_lock);
+	}
+	return generic_permission(inode, mask);
+}
+
 /**
  * inode_permission  -  check for access rights to a given inode
  * @inode:	inode to check permission on
@@ -322,7 +342,7 @@ int inode_permission(struct inode *inode, int mask)
 {
 	int retval;
 
-	if (mask & MAY_WRITE) {
+	if (unlikely(mask & MAY_WRITE)) {
 		umode_t mode = inode->i_mode;
 
 		/*
@@ -339,11 +359,7 @@ int inode_permission(struct inode *inode, int mask)
 			return -EACCES;
 	}
 
-	if (inode->i_op->permission)
-		retval = inode->i_op->permission(inode, mask);
-	else
-		retval = generic_permission(inode, mask);
-
+	retval = do_inode_permission(inode, mask);
 	if (retval)
 		return retval;
 
@@ -1245,6 +1261,26 @@ static void terminate_walk(struct nameidata *nd)
 	}
 }
 
+/*
+ * Do we need to follow links? We _really_ want to be able
+ * to do this check without having to look at inode->i_op,
+ * so we keep a cache of "no, this doesn't need follow_link"
+ * for the common case.
+ */
+static inline int do_follow_link(struct inode *inode, int follow)
+{
+	if (unlikely(!(inode->i_opflags & IOP_NOFOLLOW))) {
+		if (likely(inode->i_op->follow_link))
+			return follow;
+
+		/* This gets set once for the inode lifetime */
+		spin_lock(&inode->i_lock);
+		inode->i_opflags |= IOP_NOFOLLOW;
+		spin_unlock(&inode->i_lock);
+	}
+	return 0;
+}
+
 static inline int walk_component(struct nameidata *nd, struct path *path,
 		struct qstr *name, int type, int follow)
 {
@@ -1267,7 +1303,7 @@ static inline int walk_component(struct nameidata *nd, struct path *path,
 		terminate_walk(nd);
 		return -ENOENT;
 	}
-	if (unlikely(inode->i_op->follow_link) && follow) {
+	if (do_follow_link(inode, follow)) {
 		if (nd->flags & LOOKUP_RCU) {
 			if (unlikely(unlazy_walk(nd, path->dentry))) {
 				terminate_walk(nd);
@@ -1317,6 +1353,26 @@ static inline int nested_symlink(struct path *path, struct nameidata *nd)
 	current->link_count--;
 	nd->depth--;
 	return res;
+}
+
+/*
+ * We really don't want to look at inode->i_op->lookup
+ * when we don't have to. So we keep a cache bit in
+ * the inode ->i_opflags field that says "yes, we can
+ * do lookup on this inode".
+ */
+static inline int can_lookup(struct inode *inode)
+{
+	if (likely(inode->i_opflags & IOP_LOOKUP))
+		return 1;
+	if (likely(!inode->i_op->lookup))
+		return 0;
+
+	/* We do this once for the lifetime of the inode */
+	spin_lock(&inode->i_lock);
+	inode->i_opflags |= IOP_LOOKUP;
+	spin_unlock(&inode->i_lock);
+	return 1;
 }
 
 /*
@@ -1398,10 +1454,10 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			if (err)
 				return err;
 		}
+		if (can_lookup(nd->inode))
+			continue;
 		err = -ENOTDIR; 
-		if (!nd->inode->i_op->lookup)
-			break;
-		continue;
+		break;
 		/* here ends the main loop */
 
 last_component:
