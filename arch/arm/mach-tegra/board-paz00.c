@@ -26,6 +26,7 @@
 #include <linux/pda_power.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
+#include <linux/rfkill-gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -75,10 +76,26 @@ static struct platform_device debug_uart = {
 	},
 };
 
+static struct rfkill_gpio_platform_data wifi_rfkill_platform_data = {
+	.name		= "wifi_rfkill",
+	.reset_gpio	= TEGRA_WIFI_RST,
+	.shutdown_gpio	= TEGRA_WIFI_PWRN,
+	.type	= RFKILL_TYPE_WLAN,
+};
+
+static struct platform_device wifi_rfkill_device = {
+	.name	= "rfkill_gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &wifi_rfkill_platform_data,
+	},
+};
+
 static struct platform_device *paz00_devices[] __initdata = {
 	&debug_uart,
 	&tegra_sdhci_device1,
 	&tegra_sdhci_device4,
+	&wifi_rfkill_device,
 };
 
 static void paz00_i2c_init(void)
