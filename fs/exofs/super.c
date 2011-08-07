@@ -263,19 +263,19 @@ static int __sbi_read_stats(struct exofs_sb_info *sbi)
 	struct osd_attr attrs[] = {
 		[0] = g_attr_sb_stats,
 	};
-	struct exofs_io_state *ios;
+	struct ore_io_state *ios;
 	int ret;
 
-	ret = exofs_get_io_state(&sbi->layout, &sbi->comps, &ios);
+	ret = ore_get_io_state(&sbi->layout, &sbi->comps, &ios);
 	if (unlikely(ret)) {
-		EXOFS_ERR("%s: exofs_get_io_state failed.\n", __func__);
+		EXOFS_ERR("%s: ore_get_io_state failed.\n", __func__);
 		return ret;
 	}
 
 	ios->in_attr = attrs;
 	ios->in_attr_len = ARRAY_SIZE(attrs);
 
-	ret = exofs_sbi_read(ios);
+	ret = ore_read(ios);
 	if (unlikely(ret)) {
 		EXOFS_ERR("Error reading super_block stats => %d\n", ret);
 		goto out;
@@ -302,13 +302,13 @@ static int __sbi_read_stats(struct exofs_sb_info *sbi)
 	}
 
 out:
-	exofs_put_io_state(ios);
+	ore_put_io_state(ios);
 	return ret;
 }
 
-static void stats_done(struct exofs_io_state *ios, void *p)
+static void stats_done(struct ore_io_state *ios, void *p)
 {
-	exofs_put_io_state(ios);
+	ore_put_io_state(ios);
 	/* Good thanks nothing to do anymore */
 }
 
@@ -318,12 +318,12 @@ int exofs_sbi_write_stats(struct exofs_sb_info *sbi)
 	struct osd_attr attrs[] = {
 		[0] = g_attr_sb_stats,
 	};
-	struct exofs_io_state *ios;
+	struct ore_io_state *ios;
 	int ret;
 
-	ret = exofs_get_io_state(&sbi->layout, &sbi->comps, &ios);
+	ret = ore_get_io_state(&sbi->layout, &sbi->comps, &ios);
 	if (unlikely(ret)) {
-		EXOFS_ERR("%s: exofs_get_io_state failed.\n", __func__);
+		EXOFS_ERR("%s: ore_get_io_state failed.\n", __func__);
 		return ret;
 	}
 
@@ -337,10 +337,10 @@ int exofs_sbi_write_stats(struct exofs_sb_info *sbi)
 	ios->out_attr = attrs;
 	ios->out_attr_len = ARRAY_SIZE(attrs);
 
-	ret = exofs_sbi_write(ios);
+	ret = ore_write(ios);
 	if (unlikely(ret)) {
-		EXOFS_ERR("%s: exofs_sbi_write failed.\n", __func__);
-		exofs_put_io_state(ios);
+		EXOFS_ERR("%s: ore_write failed.\n", __func__);
+		ore_put_io_state(ios);
 	}
 
 	return ret;
@@ -359,9 +359,9 @@ int exofs_sync_fs(struct super_block *sb, int wait)
 {
 	struct exofs_sb_info *sbi;
 	struct exofs_fscb *fscb;
-	struct exofs_comp one_comp;
-	struct exofs_components comps;
-	struct exofs_io_state *ios;
+	struct ore_comp one_comp;
+	struct ore_components comps;
+	struct ore_io_state *ios;
 	int ret = -ENOMEM;
 
 	fscb = kmalloc(sizeof(*fscb), GFP_KERNEL);
@@ -380,7 +380,7 @@ int exofs_sync_fs(struct super_block *sb, int wait)
 
 	exofs_init_comps(&comps, &one_comp, sbi, EXOFS_SUPER_ID);
 
-	ret = exofs_get_io_state(&sbi->layout, &comps, &ios);
+	ret = ore_get_io_state(&sbi->layout, &comps, &ios);
 	if (unlikely(ret))
 		goto out;
 
@@ -397,9 +397,9 @@ int exofs_sync_fs(struct super_block *sb, int wait)
 	ios->offset = 0;
 	ios->kern_buff = fscb;
 
-	ret = exofs_sbi_write(ios);
+	ret = ore_write(ios);
 	if (unlikely(ret))
-		EXOFS_ERR("%s: exofs_sbi_write failed.\n", __func__);
+		EXOFS_ERR("%s: ore_write failed.\n", __func__);
 	else
 		sb->s_dirt = 0;
 
@@ -407,7 +407,7 @@ int exofs_sync_fs(struct super_block *sb, int wait)
 	unlock_super(sb);
 out:
 	EXOFS_DBGMSG("s_nextid=0x%llx ret=%d\n", _LLU(sbi->s_nextid), ret);
-	exofs_put_io_state(ios);
+	ore_put_io_state(ios);
 	kfree(fscb);
 	return ret;
 }
@@ -562,7 +562,7 @@ static int _read_and_match_data_map(struct exofs_sb_info *sbi, unsigned numdevs,
 	return 0;
 }
 
-static unsigned __ra_pages(struct exofs_layout *layout)
+static unsigned __ra_pages(struct ore_layout *layout)
 {
 	const unsigned _MIN_RA = 32; /* min 128K read-ahead */
 	unsigned ra_pages = layout->group_width * layout->stripe_unit /
@@ -609,7 +609,7 @@ static int exofs_read_lookup_dev_table(struct exofs_sb_info *sbi,
 				       struct osd_dev *fscb_od,
 				       unsigned table_count)
 {
-	struct exofs_comp comp;
+	struct ore_comp comp;
 	struct exofs_device_table *dt;
 	unsigned table_bytes = table_count * sizeof(dt->dt_dev_table[0]) +
 					     sizeof(*dt);
@@ -747,7 +747,7 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 	struct exofs_sb_info *sbi;	/*extended info                  */
 	struct osd_dev *od;		/* Master device                 */
 	struct exofs_fscb fscb;		/*on-disk superblock info        */
-	struct exofs_comp comp;
+	struct ore_comp comp;
 	unsigned table_count;
 	int ret;
 
@@ -913,7 +913,7 @@ static int exofs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
 	struct exofs_sb_info *sbi = sb->s_fs_info;
-	struct exofs_io_state *ios;
+	struct ore_io_state *ios;
 	struct osd_attr attrs[] = {
 		ATTR_DEF(OSD_APAGE_PARTITION_QUOTAS,
 			OSD_ATTR_PQ_CAPACITY_QUOTA, sizeof(__be64)),
@@ -924,16 +924,16 @@ static int exofs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	uint64_t used = ULLONG_MAX;
 	int ret;
 
-	ret = exofs_get_io_state(&sbi->layout, &sbi->comps, &ios);
+	ret = ore_get_io_state(&sbi->layout, &sbi->comps, &ios);
 	if (ret) {
-		EXOFS_DBGMSG("exofs_get_io_state failed.\n");
+		EXOFS_DBGMSG("ore_get_io_state failed.\n");
 		return ret;
 	}
 
 	ios->in_attr = attrs;
 	ios->in_attr_len = ARRAY_SIZE(attrs);
 
-	ret = exofs_sbi_read(ios);
+	ret = ore_read(ios);
 	if (unlikely(ret))
 		goto out;
 
@@ -962,7 +962,7 @@ static int exofs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_namelen = EXOFS_NAME_LEN;
 
 out:
-	exofs_put_io_state(ios);
+	ore_put_io_state(ios);
 	return ret;
 }
 
