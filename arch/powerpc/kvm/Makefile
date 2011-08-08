@@ -43,6 +43,7 @@ kvm-book3s_64-objs-$(CONFIG_KVM_BOOK3S_64_PR) := \
 	fpu.o \
 	book3s_paired_singles.o \
 	book3s_pr.o \
+	book3s_pr_papr.o \
 	book3s_emulate.o \
 	book3s_interrupts.o \
 	book3s_mmu_hpte.o \
