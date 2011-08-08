@@ -1519,7 +1519,7 @@ static int __devexit wm8753_spi_remove(struct spi_device *spi)
 
 static struct spi_driver wm8753_spi_driver = {
 	.driver = {
-		.name	= "wm8753-codec",
+		.name	= "wm8753",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= wm8753_spi_probe,
@@ -1563,7 +1563,7 @@ MODULE_DEVICE_TABLE(i2c, wm8753_i2c_id);
 
 static struct i2c_driver wm8753_i2c_driver = {
 	.driver = {
-		.name = "wm8753-codec",
+		.name = "wm8753",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8753_i2c_probe,
