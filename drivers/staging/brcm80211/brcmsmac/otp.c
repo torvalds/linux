@@ -16,6 +16,7 @@
 
 #include <linux/io.h>
 #include <linux/errno.h>
+#include <linux/string.h>
 
 #include <brcm_hw_ids.h>
 #include <chipcommon.h>
