@@ -35,26 +35,8 @@
 #include "sdio_host.h"
 
 /* register access macros */
-#ifndef __BIG_ENDIAN
-#ifndef __mips__
 #define R_REG(r, typ) \
 	brcmf_sdcard_reg_read(NULL, (r), sizeof(typ))
-#else				/* __mips__ */
-#define R_REG(r, typ) \
-	({ \
-		__typeof(*(r)) __osl_v; \
-		__asm__ __volatile__("sync"); \
-		__osl_v = brcmf_sdcard_reg_read(NULL, (r),\
-					  sizeof(typ)); \
-		__asm__ __volatile__("sync"); \
-		__osl_v; \
-	})
-#endif				/* __mips__ */
-
-#else				/* __BIG_ENDIAN */
-#define R_REG(r, typ) \
-	brcmf_sdcard_reg_read(NULL, (r), sizeof(typ))
-#endif				/* __BIG_ENDIAN */
 
 #define OR_REG(r, v, typ) \
 	brcmf_sdcard_reg_write(NULL, (r), sizeof(typ), R_REG(r, typ) | (v))
