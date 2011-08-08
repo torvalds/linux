@@ -152,6 +152,7 @@ struct brcmf_sdmmc_instance {
 	struct sdioh_info *sd;
 	struct sdio_func *func[SDIOD_MAX_IOFUNCS];
 	u32 host_claimed;
+	atomic_t suspend;	/* suspend flag */
 };
 
 struct brcmf_sdio_dev {
