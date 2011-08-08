@@ -186,7 +186,7 @@ static int check_acl(struct inode *inode, int mask)
 		/* no ->get_acl() calls in RCU mode... */
 		if (acl == ACL_NOT_CACHED)
 			return -ECHILD;
-	        return posix_acl_permission(inode, acl, mask);
+	        return posix_acl_permission(inode, acl, mask & ~MAY_NOT_BLOCK);
 	}
 
 	acl = get_cached_acl(inode, ACL_TYPE_ACCESS);
@@ -1267,7 +1267,7 @@ static void terminate_walk(struct nameidata *nd)
  * so we keep a cache of "no, this doesn't need follow_link"
  * for the common case.
  */
-static inline int do_follow_link(struct inode *inode, int follow)
+static inline int should_follow_link(struct inode *inode, int follow)
 {
 	if (unlikely(!(inode->i_opflags & IOP_NOFOLLOW))) {
 		if (likely(inode->i_op->follow_link))
@@ -1303,7 +1303,7 @@ static inline int walk_component(struct nameidata *nd, struct path *path,
 		terminate_walk(nd);
 		return -ENOENT;
 	}
-	if (do_follow_link(inode, follow)) {
+	if (should_follow_link(inode, follow)) {
 		if (nd->flags & LOOKUP_RCU) {
 			if (unlikely(unlazy_walk(nd, path->dentry))) {
 				terminate_walk(nd);
