@@ -59,66 +59,11 @@ enum txd_range {
 	DMA_RANGE_TRANSFERED
 };
 
-/* dma opsvec */
-struct di_fcn_s {
-	void (*detach)(struct dma_pub *dmah);
-	void (*txinit)(struct dma_pub *dmah);
-	bool (*txreset)(struct dma_pub *dmah);
-	bool (*txenabled)(struct dma_pub *dmah);
-	void (*txsuspend)(struct dma_pub *dmah);
-	void (*txresume)(struct dma_pub *dmah);
-	bool (*txsuspended)(struct dma_pub *dmah);
-	bool (*txsuspendedidle)(struct dma_pub *dmah);
-	int (*txfast)(struct dma_pub *dmah, struct sk_buff *p, bool commit);
-	int (*txunframed)(struct dma_pub *dmah, void *p, uint len, bool commit);
-
-	void *(*getpos)(struct dma_pub *di, bool direction);
-	bool (*txstopped)(struct dma_pub *dmah);
-	void (*txreclaim)(struct dma_pub *dmah, enum txd_range range);
-	void *(*getnexttxp)(struct dma_pub *dmah, enum txd_range range);
-	void *(*peeknexttxp) (struct dma_pub *dmah);
-	void (*txblock) (struct dma_pub *dmah);
-	void (*txunblock) (struct dma_pub *dmah);
-	uint (*txactive)(struct dma_pub *dmah);
-	void (*txrotate) (struct dma_pub *dmah);
-
-	void (*rxinit)(struct dma_pub *dmah);
-	bool (*rxreset)(struct dma_pub *dmah);
-	bool (*rxidle)(struct dma_pub *dmah);
-	bool (*rxstopped)(struct dma_pub *dmah);
-	bool (*rxenable)(struct dma_pub *dmah);
-	bool (*rxenabled)(struct dma_pub *dmah);
-	void *(*rx)(struct dma_pub *dmah);
-	bool (*rxfill)(struct dma_pub *dmah);
-	void (*rxreclaim)(struct dma_pub *dmah);
-	void *(*getnextrxp)(struct dma_pub *dmah, bool forceall);
-	void *(*peeknextrxp)(struct dma_pub *dmah);
-	void (*rxparam_get)(struct dma_pub *dmah, u16 *rxoffset,
-			    u16 *rxbufsize);
-
-	void (*fifoloopbackenable)(struct dma_pub *dmah);
-	unsigned long (*d_getvar)(struct dma_pub *dmah, const char *name);
-
-	void (*counterreset)(struct dma_pub *dmah);
-	uint (*ctrlflags)(struct dma_pub *dmah, uint mask, uint flags);
-	char *(*dump)(struct dma_pub *dmah, struct brcmu_strbuf *b,
-		      bool dumpring);
-	char *(*dumptx)(struct dma_pub *dmah, struct brcmu_strbuf *b,
-			bool dumpring);
-	char *(*dumprx)(struct dma_pub *dmah, struct brcmu_strbuf *b,
-			bool dumpring);
-	uint (*rxactive)(struct dma_pub *dmah);
-	uint (*txpending)(struct dma_pub *dmah);
-	uint (*txcommitted)(struct dma_pub *dmah);
-	uint endnum;
-};
-
 /*
  * Exported data structure (read-only)
  */
 /* export structure */
 struct dma_pub {
-	const struct di_fcn_s *di_fn;	/* DMA function pointers */
 	uint txavail;		/* # free tx descriptors */
 	uint dmactrlflags;	/* dma control flags */
 
@@ -134,49 +79,22 @@ extern struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 			    uint nrxd, uint rxbufsize, int rxextheadroom,
 			    uint nrxpost, uint rxoffset, uint *msg_level);
 
-extern const struct di_fcn_s dma64proc;
-
-#define dma_detach(di)			(dma64proc.detach(di))
-#define dma_txreset(di)			(dma64proc.txreset(di))
-#define dma_rxreset(di)			(dma64proc.rxreset(di))
-#define dma_rxidle(di)			(dma64proc.rxidle(di))
-#define dma_txinit(di)                  (dma64proc.txinit(di))
-#define dma_txenabled(di)               (dma64proc.txenabled(di))
-#define dma_rxinit(di)                  (dma64proc.rxinit(di))
-#define dma_txsuspend(di)               (dma64proc.txsuspend(di))
-#define dma_txresume(di)                (dma64proc.txresume(di))
-#define dma_txsuspended(di)             (dma64proc.txsuspended(di))
-#define dma_txsuspendedidle(di)         (dma64proc.txsuspendedidle(di))
-#define dma_txfast(di, p, commit)	(dma64proc.txfast(di, p, commit))
-#define dma_txunframed(di, p, l, commit)(dma64proc.txunframed(di, p, l, commit))
-#define dma_getpos(di, dir)		(dma64proc.getpos(di, dir))
-#define dma_fifoloopbackenable(di)      (dma64proc.fifoloopbackenable(di))
-#define dma_txstopped(di)               (dma64proc.txstopped(di))
-#define dma_rxstopped(di)               (dma64proc.rxstopped(di))
-#define dma_rxenable(di)                (dma64proc.rxenable(di))
-#define dma_rxenabled(di)               (dma64proc.rxenabled(di))
-#define dma_rx(di)                      (dma64proc.rx(di))
-#define dma_rxfill(di)                  (dma64proc.rxfill(di))
-#define dma_txreclaim(di, range)	(dma64proc.txreclaim(di, range))
-#define dma_rxreclaim(di)               (dma64proc.rxreclaim(di))
-#define dma_getvar(di, name)		(dma64proc.d_getvar(di, name))
-#define dma_getnexttxp(di, range)	(dma64proc.getnexttxp(di, range))
-#define dma_getnextrxp(di, forceall)    (dma64proc.getnextrxp(di, forceall))
-#define dma_peeknexttxp(di)             (dma64proc.peeknexttxp(di))
-#define dma_peeknextrxp(di)             (dma64proc.peeknextrxp(di))
-#define dma_rxparam_get(di, off, bufs)	(dma64proc.rxparam_get(di, off, bufs))
-
-#define dma_txblock(di)                 (dma64proc.txblock(di))
-#define dma_txunblock(di)               (dma64proc.txunblock(di))
-#define dma_txactive(di)                (dma64proc.txactive(di))
-#define dma_rxactive(di)                (dma64proc.rxactive(di))
-#define dma_txrotate(di)                (dma64proc.txrotate(di))
-#define dma_counterreset(di)            (dma64proc.counterreset(di))
-#define dma_ctrlflags(di, mask, flags) \
-	(dma64proc.ctrlflags((di), (mask), (flags)))
-#define dma_txpending(di)		(dma64proc.txpending(di))
-#define dma_txcommitted(di)		(dma64proc.txcommitted(di))
-
+void dma_rxinit(struct dma_pub *pub);
+void *dma_rx(struct dma_pub *pub);
+bool dma_rxfill(struct dma_pub *pub);
+bool dma_rxreset(struct dma_pub *pub);
+bool dma_txreset(struct dma_pub *pub);
+void dma_txinit(struct dma_pub *pub);
+int dma_txfast(struct dma_pub *pub, struct sk_buff *p0, bool commit);
+void dma_txsuspend(struct dma_pub *pub);
+bool dma_txsuspended(struct dma_pub *pub);
+void dma_txresume(struct dma_pub *pub);
+void dma_txreclaim(struct dma_pub *pub, enum txd_range range);
+void dma_rxreclaim(struct dma_pub *pub);
+void dma_detach(struct dma_pub *pub);
+unsigned long dma_getvar(struct dma_pub *pub, const char *name);
+void *dma_getnexttxp(struct dma_pub *pub, enum txd_range range);
+void dma_counterreset(struct dma_pub *pub);
 
 void dma_walk_packets(struct dma_pub *dmah, void (*callback_fnc)
 		      (void *pkt, void *arg_a), void *arg_a);
