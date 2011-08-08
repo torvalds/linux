@@ -425,8 +425,6 @@ struct si_pub {
 #define CCPLL_ENAB(sih)		((sih)->cccaps & CC_CAP_PLL_MASK)
 #endif
 
-typedef void (*gpio_handler_t) (u32 stat, void *arg);
-
 /* External PA enable mask */
 #define GPIO_CTRL_EPA_EN_MASK 0x40
 
@@ -444,14 +442,10 @@ typedef void (*gpio_handler_t) (u32 stat, void *arg);
 #define	IS_SIM(chippkg)	\
 	((chippkg == HDLSIM_PKG_ID) || (chippkg == HWSIM_PKG_ID))
 
-typedef u32(*si_intrsoff_t) (void *intr_arg);
-typedef void (*si_intrsrestore_t) (void *intr_arg, u32 arg);
-typedef bool(*si_intrsenabled_t) (void *intr_arg);
-
 struct gpioh_item {
 	void *arg;
 	bool level;
-	gpio_handler_t handler;
+	void (*handler) (u32 stat, void *arg);
 	u32 event;
 	struct gpioh_item *next;
 };
@@ -462,9 +456,11 @@ struct si_info {
 	void *pbus;		/* handle to bus (pci/sdio/..) */
 	uint dev_coreid;	/* the core provides driver functions */
 	void *intr_arg;		/* interrupt callback function arg */
-	si_intrsoff_t intrsoff_fn;	/* turns chip interrupts off */
-	si_intrsrestore_t intrsrestore_fn; /* restore chip interrupts */
-	si_intrsenabled_t intrsenabled_fn; /* check if interrupts are enabled */
+	u32 (*intrsoff_fn) (void *intr_arg); /* turns chip interrupts off */
+	/* restore chip interrupts */
+	void (*intrsrestore_fn) (void *intr_arg, u32 arg);
+	/* check if interrupts are enabled */
+	bool (*intrsenabled_fn) (void *intr_arg);
 
 	void *pch;		/* PCI/E core handle */
 

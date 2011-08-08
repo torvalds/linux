@@ -1279,9 +1279,9 @@ ai_register_intr_callback(struct si_pub *sih, void *intrsoff_fn,
 
 	sii = SI_INFO(sih);
 	sii->intr_arg = intr_arg;
-	sii->intrsoff_fn = (si_intrsoff_t) intrsoff_fn;
-	sii->intrsrestore_fn = (si_intrsrestore_t) intrsrestore_fn;
-	sii->intrsenabled_fn = (si_intrsenabled_t) intrsenabled_fn;
+	sii->intrsoff_fn = (u32 (*)(void *)) intrsoff_fn;
+	sii->intrsrestore_fn = (void (*) (void *, u32)) intrsrestore_fn;
+	sii->intrsenabled_fn = (bool (*)(void *)) intrsenabled_fn;
 	/* save current core id.  when this function called, the current core
 	 * must be the core which provides driver functions(il, et, wl, etc.)
 	 */
