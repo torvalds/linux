@@ -385,7 +385,6 @@ typedef volatile struct fifo64 fifo64_t;
 typedef volatile struct d11regs d11regs_t;
 typedef volatile struct dma32diag dma32diag_t;
 typedef volatile struct dma64regs dma64regs_t;
-typedef struct brcms_rateset wlc_rateset_t;
 typedef volatile union pmqreg pmqreg_t;
 
 /* brcm_msg_level is a bit vector with defs in defs.h */

@@ -392,13 +392,15 @@ struct brcms_band {
 
 	struct scb *hwrs_scb;	/* permanent scb for hw rateset */
 
-	wlc_rateset_t defrateset;	/* band-specific copy of default_bss.rateset */
+	/* band-specific copy of default_bss.rateset */
+	struct brcms_c_rateset defrateset;
 
 	u32 rspec_override;	/* 802.11 rate override */
 	u32 mrspec_override;	/* multicast rate override */
 	u8 band_stf_ss_mode;	/* Configured STF type, 0:siso; 1:cdd */
 	s8 band_stf_stbc_tx;	/* STBC TX 0:off; 1:force on; -1:auto */
-	wlc_rateset_t hw_rateset;	/* rates supported by chip (phy-specific) */
+	/* rates supported by chip (phy-specific) */
+	struct brcms_c_rateset hw_rateset;
 	u8 basic_rate[BRCM_MAXRATE + 1]; /* basic rates indexed by rate */
 	bool mimo_cap_40;	/* 40 MHz cap enabled on this band */
 	s8 antgain;		/* antenna gain from srom */
@@ -751,10 +753,8 @@ struct brcms_c_info {
 	u16 prb_resp_timeout;	/* do not send prb resp if request older than this,
 					 * 0 = disable
 					 */
-
-	wlc_rateset_t sup_rates_override;	/* use only these rates in 11g supported rates if
-						 * specifed
-						 */
+	/* use only these rates in 11g supported rates if specified */
+	struct brcms_c_rateset sup_rates_override;
 
 	u16 home_chanspec;	/* shared home chanspec */
 
@@ -1040,7 +1040,7 @@ extern void brcms_c_beacon_phytxctl_txant_upd(struct brcms_c_info *wlc,
 extern void brcms_c_mod_prb_rsp_rate_table(struct brcms_c_info *wlc,
 					   uint frame_len);
 extern u32 brcms_c_lowest_basic_rspec(struct brcms_c_info *wlc,
-					     wlc_rateset_t *rs);
+					     struct brcms_c_rateset *rs);
 extern void brcms_c_radio_disable(struct brcms_c_info *wlc);
 extern void brcms_c_bcn_li_upd(struct brcms_c_info *wlc);
 extern void brcms_c_set_home_chanspec(struct brcms_c_info *wlc,

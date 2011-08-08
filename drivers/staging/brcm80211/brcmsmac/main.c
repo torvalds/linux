@@ -381,7 +381,8 @@ static void brcms_c_tx_prec_map_init(struct brcms_c_info *wlc);
 static void brcms_c_watchdog(void *arg);
 static void brcms_c_watchdog_by_timer(void *arg);
 static u16 brcms_c_rate_shm_offset(struct brcms_c_info *wlc, u8 rate);
-static int brcms_c_set_rateset(struct brcms_c_info *wlc, wlc_rateset_t *rs_arg);
+static int brcms_c_set_rateset(struct brcms_c_info *wlc,
+			       struct brcms_c_rateset *rs_arg);
 static u8 brcms_c_local_constraint_qdbm(struct brcms_c_info *wlc);
 
 /* send and receive */
@@ -3720,7 +3721,7 @@ void brcms_c_set_chanspec(struct brcms_c_info *wlc, u16 chanspec)
 }
 
 u32 brcms_c_lowest_basic_rspec(struct brcms_c_info *wlc,
-				      wlc_rateset_t *rs)
+				      struct brcms_c_rateset *rs)
 {
 	u32 lowest_basic_rspec;
 	uint i;
@@ -3876,7 +3877,7 @@ static void brcms_c_ucode_mac_upd(struct brcms_c_info *wlc)
 static void brcms_c_bandinit_ordered(struct brcms_c_info *wlc,
 				     u16 chanspec)
 {
-	wlc_rateset_t default_rateset;
+	struct brcms_c_rateset default_rateset;
 	uint parkband;
 	uint i, band_order[2];
 
@@ -5711,7 +5712,7 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 {
 	int ret = 0;
 	uint i;
-	wlc_rateset_t rs;
+	struct brcms_c_rateset rs;
 	/* Default to 54g Auto */
 	/* Advertise and use shortslot (-1/0/1 Auto/Off/On) */
 	s8 shortslot = BRCMS_SHORTSLOT_AUTO;
@@ -5750,10 +5751,10 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 		brcms_c_protection_upd(wlc, BRCMS_PROT_G_USER, gmode);
 
 	/* Clear supported rates filter */
-	memset(&wlc->sup_rates_override, 0, sizeof(wlc_rateset_t));
+	memset(&wlc->sup_rates_override, 0, sizeof(struct brcms_c_rateset));
 
 	/* Clear rateset override */
-	memset(&rs, 0, sizeof(wlc_rateset_t));
+	memset(&rs, 0, sizeof(struct brcms_c_rateset));
 
 	switch (gmode) {
 	case GMODE_LEGACY_B:
@@ -5938,12 +5939,13 @@ int brcms_c_set_nmode(struct brcms_c_info *wlc, s32 nmode)
 	return err;
 }
 
-static int brcms_c_set_rateset(struct brcms_c_info *wlc, wlc_rateset_t *rs_arg)
+static int
+brcms_c_set_rateset(struct brcms_c_info *wlc, struct brcms_c_rateset *rs_arg)
 {
-	wlc_rateset_t rs, new;
+	struct brcms_c_rateset rs, new;
 	uint bandunit;
 
-	memcpy(&rs, rs_arg, sizeof(wlc_rateset_t));
+	memcpy(&rs, rs_arg, sizeof(struct brcms_c_rateset));
 
 	/* check for bad count value */
 	if ((rs.count == 0) || (rs.count > BRCMS_NUMRATES))
@@ -5951,7 +5953,7 @@ static int brcms_c_set_rateset(struct brcms_c_info *wlc, wlc_rateset_t *rs_arg)
 
 	/* try the current band */
 	bandunit = wlc->band->bandunit;
-	memcpy(&new, &rs, sizeof(wlc_rateset_t));
+	memcpy(&new, &rs, sizeof(struct brcms_c_rateset));
 	if (brcms_c_rate_hwrs_filter_sort_validate
 	    (&new, &wlc->bandstate[bandunit]->hw_rateset, true,
 	     wlc->stf->txstreams))
@@ -5960,7 +5962,7 @@ static int brcms_c_set_rateset(struct brcms_c_info *wlc, wlc_rateset_t *rs_arg)
 	/* try the other band */
 	if (IS_MBAND_UNLOCKED(wlc)) {
 		bandunit = OTHERBANDUNIT(wlc);
-		memcpy(&new, &rs, sizeof(wlc_rateset_t));
+		memcpy(&new, &rs, sizeof(struct brcms_c_rateset));
 		if (brcms_c_rate_hwrs_filter_sort_validate(&new,
 						       &wlc->
 						       bandstate[bandunit]->
@@ -5973,9 +5975,10 @@ static int brcms_c_set_rateset(struct brcms_c_info *wlc, wlc_rateset_t *rs_arg)
 
  good:
 	/* apply new rateset */
-	memcpy(&wlc->default_bss->rateset, &new, sizeof(wlc_rateset_t));
+	memcpy(&wlc->default_bss->rateset, &new,
+	       sizeof(struct brcms_c_rateset));
 	memcpy(&wlc->bandstate[bandunit]->defrateset, &new,
-	       sizeof(wlc_rateset_t));
+	       sizeof(struct brcms_c_rateset));
 	return 0;
 }
 
@@ -6132,7 +6135,7 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 
 	case BRCM_GET_CURR_RATESET:{
 			wl_rateset_t *ret_rs = (wl_rateset_t *) arg;
-			wlc_rateset_t *rs;
+			struct brcms_c_rateset *rs;
 
 			if (wlc->pub->associated)
 				rs = &current_bss->rateset;
@@ -6151,7 +6154,7 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 		}
 
 	case BRCM_SET_RATESET:{
-			wlc_rateset_t rs;
+			struct brcms_c_rateset rs;
 			wl_rateset_t *in_rs = (wl_rateset_t *) arg;
 
 			if (len < (int)(in_rs->count + sizeof(in_rs->count))) {
@@ -6164,7 +6167,7 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 				break;
 			}
 
-			memset(&rs, 0, sizeof(wlc_rateset_t));
+			memset(&rs, 0, sizeof(struct brcms_c_rateset));
 
 			/* Copy only legacy rateset section */
 			rs.count = in_rs->count;
@@ -8486,7 +8489,8 @@ brcms_c_calc_cts_time(struct brcms_c_info *wlc, u32 rspec,
 }
 
 /* derive wlc->band->basic_rate[] table from 'rateset' */
-void brcms_c_rate_lookup_init(struct brcms_c_info *wlc, wlc_rateset_t *rateset)
+void brcms_c_rate_lookup_init(struct brcms_c_info *wlc,
+			      struct brcms_c_rateset *rateset)
 {
 	u8 rate;
 	u8 mandatory;
@@ -8610,9 +8614,10 @@ static void brcms_c_write_rate_shm(struct brcms_c_info *wlc, u8 rate,
 	brcms_c_write_shm(wlc, (basic_table + index * 2), basic_ptr);
 }
 
-static const wlc_rateset_t *brcms_c_rateset_get_hwrs(struct brcms_c_info *wlc)
+static const struct brcms_c_rateset *
+brcms_c_rateset_get_hwrs(struct brcms_c_info *wlc)
 {
-	const wlc_rateset_t *rs_dflt;
+	const struct brcms_c_rateset *rs_dflt;
 
 	if (BRCMS_PHY_11N_CAP(wlc->band)) {
 		if (BAND_5G(wlc->band->bandtype))
@@ -8629,8 +8634,8 @@ static const wlc_rateset_t *brcms_c_rateset_get_hwrs(struct brcms_c_info *wlc)
 
 void brcms_c_set_ratetable(struct brcms_c_info *wlc)
 {
-	const wlc_rateset_t *rs_dflt;
-	wlc_rateset_t rs;
+	const struct brcms_c_rateset *rs_dflt;
+	struct brcms_c_rateset rs;
 	u8 rate, basic_rate;
 	uint i;
 
@@ -8665,7 +8670,7 @@ void brcms_c_set_ratetable(struct brcms_c_info *wlc)
 bool brcms_c_valid_rate(struct brcms_c_info *wlc, u32 rspec, int band,
 		    bool verbose)
 {
-	wlc_rateset_t *hw_rateset;
+	struct brcms_c_rateset *hw_rateset;
 	uint i;
 
 	if ((band == BRCM_BAND_AUTO) || (band == wlc->band->bandtype)) {
@@ -8723,8 +8728,8 @@ static void brcms_c_update_mimo_band_bwcap(struct brcms_c_info *wlc, u8 bwcap)
 
 void brcms_c_mod_prb_rsp_rate_table(struct brcms_c_info *wlc, uint frame_len)
 {
-	const wlc_rateset_t *rs_dflt;
-	wlc_rateset_t rs;
+	const struct brcms_c_rateset *rs_dflt;
+	struct brcms_c_rateset rs;
 	u8 rate;
 	u16 entry_ptr;
 	u8 plcp[D11_PHY_HDR_LEN];
@@ -9037,7 +9042,7 @@ void brcms_c_bsscfg_reprate_init(struct brcms_bss_cfg *bsscfg)
 	memset((char *)bsscfg->txrspec, 0, sizeof(bsscfg->txrspec));
 }
 
-void brcms_default_rateset(struct brcms_c_info *wlc, wlc_rateset_t *rs)
+void brcms_default_rateset(struct brcms_c_info *wlc, struct brcms_c_rateset *rs)
 {
 	brcms_c_rateset_default(rs, NULL, wlc->band->phytype,
 		wlc->band->bandtype, false, BRCMS_RATE_MASK_FULL,

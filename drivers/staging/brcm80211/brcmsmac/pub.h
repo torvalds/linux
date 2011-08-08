@@ -125,7 +125,7 @@ struct brcms_tunables {
 	int memreserved;	/* memory reserved for BMAC's USB dma rx */
 };
 
-struct brcms_rateset {
+struct brcms_c_rateset {
 	uint count;		/* number of rates in rates[] */
 	 /* rates in 500kbps units w/hi bit set if basic */
 	u8 rates[BRCMS_NUMRATES];
@@ -173,7 +173,7 @@ struct brcms_bss_info {
 	u16 atim_window;	/* units are Kusec */
 	u16 chanspec;	/* Channel num, bw, ctrl_sb and band */
 	s8 infra;		/* 0=IBSS, 1=infrastructure, 2=unknown */
-	wlc_rateset_t rateset;	/* supported rates */
+	struct brcms_c_rateset rateset;	/* supported rates */
 	u8 dtim_period;	/* DTIM period */
 	s8 phy_noise;		/* noise right after tx (in dBm) */
 	u16 capability;	/* Capability information */
@@ -592,8 +592,9 @@ extern struct brcms_pub *brcms_c_pub(void *wlc);
 extern void brcms_c_mhf(struct brcms_c_info *wlc, u8 idx, u16 mask, u16 val,
 		    int bands);
 extern void brcms_c_rate_lookup_init(struct brcms_c_info *wlc,
-				     wlc_rateset_t *rateset);
-extern void brcms_default_rateset(struct brcms_c_info *wlc, wlc_rateset_t *rs);
+				     struct brcms_c_rateset *rateset);
+extern void brcms_default_rateset(struct brcms_c_info *wlc,
+				  struct brcms_c_rateset *rs);
 
 extern void brcms_c_ampdu_flush(struct brcms_c_info *wlc,
 			    struct ieee80211_sta *sta, u16 tid);
