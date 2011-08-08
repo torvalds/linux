@@ -81,9 +81,8 @@
 #define	DMEMS_CORE_ID		0x835	/* SDR/DDR1 memory controller core */
 #define	DEF_SHIM_COMP		0x837	/* SHIM component in ubus/6362 */
 #define OOB_ROUTER_CORE_ID	0x367	/* OOB router core ID */
-#define	DEF_AI_COMP		0xfff	/* Default component, in ai chips it maps all
-					 * unused address ranges
-					 */
+/* Default component, in ai chips it maps all unused address ranges */
+#define	DEF_AI_COMP		0xfff
 
 /* Common core control flags */
 #define	SICF_BIST_EN		0x8000

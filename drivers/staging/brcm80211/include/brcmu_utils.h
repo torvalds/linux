@@ -264,7 +264,8 @@ struct brcmu_tlv {
 	u8 data[1];
 };
 
-#define ETHER_ADDR_STR_LEN	18	/* 18-bytes of Ethernet address buffer length */
+/* 18-bytes of Ethernet address buffer length */
+#define ETHER_ADDR_STR_LEN	18
 
 /* externs */
 /* crc */
