@@ -74,7 +74,6 @@ typedef void *(*di_peeknexttxp_t) (struct dma_pub *dmah);
 typedef void *(*di_peeknextrxp_t) (struct dma_pub *dmah);
 typedef void (*di_rxparam_get_t) (struct dma_pub *dmah, u16 *rxoffset,
 				  u16 *rxbufsize);
-typedef uint(*di_txactive_t) (struct dma_pub *dmah);
 typedef uint(*di_ctrlflags_t) (struct dma_pub *dmah, uint mask, uint flags);
 typedef char *(*di_dump_t) (struct dma_pub *dmah, struct brcmu_strbuf *b,
 			    bool dumpring);
@@ -82,9 +81,6 @@ typedef char *(*di_dumptx_t) (struct dma_pub *dmah, struct brcmu_strbuf *b,
 			      bool dumpring);
 typedef char *(*di_dumprx_t) (struct dma_pub *dmah, struct brcmu_strbuf *b,
 			      bool dumpring);
-typedef uint(*di_rxactive_t) (struct dma_pub *dmah);
-typedef uint(*di_txpending_t) (struct dma_pub *dmah);
-typedef uint(*di_txcommitted_t) (struct dma_pub *dmah);
 
 /* dma opsvec */
 struct di_fcn_s {
@@ -105,7 +101,7 @@ struct di_fcn_s {
 	di_peeknexttxp_t peeknexttxp;
 	void (*txblock) (struct dma_pub *dmah);
 	void (*txunblock) (struct dma_pub *dmah);
-	di_txactive_t txactive;
+	uint (*txactive)(struct dma_pub *dmah);
 	void (*txrotate) (struct dma_pub *dmah);
 
 	void (*rxinit)(struct dma_pub *dmah);
@@ -128,9 +124,9 @@ struct di_fcn_s {
 	di_dump_t dump;
 	di_dumptx_t dumptx;
 	di_dumprx_t dumprx;
-	di_rxactive_t rxactive;
-	di_txpending_t txpending;
-	di_txcommitted_t txcommitted;
+	uint (*rxactive)(struct dma_pub *dmah);
+	uint (*txpending)(struct dma_pub *dmah);
+	uint (*txcommitted)(struct dma_pub *dmah);
 	uint endnum;
 };
 

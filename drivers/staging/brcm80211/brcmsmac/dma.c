@@ -404,7 +404,7 @@ const struct di_fcn_s dma64proc = {
 	(di_peeknexttxp_t) _dma_peeknexttxp,
 	(void (*)(struct dma_pub *)) _dma_txblock,
 	(void (*)(struct dma_pub *)) _dma_txunblock,
-	(di_txactive_t) _dma_txactive,
+	(uint (*)(struct dma_pub *)) _dma_txactive,
 	(void (*)(struct dma_pub *)) dma64_txrotate,
 
 	(void (*)(struct dma_pub *)) _dma_rxinit,
@@ -427,9 +427,9 @@ const struct di_fcn_s dma64proc = {
 	NULL,
 	NULL,
 	NULL,
-	(di_rxactive_t) _dma_rxactive,
-	(di_txpending_t) _dma_txpending,
-	(di_txcommitted_t) _dma_txcommitted,
+	(uint (*)(struct dma_pub *)) _dma_rxactive,
+	(uint (*)(struct dma_pub *)) _dma_txpending,
+	(uint (*)(struct dma_pub *)) _dma_txcommitted,
 	39
 };
 
