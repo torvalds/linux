@@ -18,7 +18,6 @@
 #define	_BRCM_SDH_H_
 
 #include <linux/skbuff.h>
-extern const uint brcmf_sdio_msglevel;
 
 #define SDIO_FUNC_0		0
 #define SDIO_FUNC_1		1
