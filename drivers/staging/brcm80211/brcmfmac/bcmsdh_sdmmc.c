@@ -143,6 +143,7 @@ module_param(clockoverride, int, 0644);
 MODULE_PARM_DESC(clockoverride, "SDIO card clock override");
 
 struct brcmf_sdmmc_instance *gInstance;
+static atomic_t brcmf_mmc_suspend;
 
 struct device sdmmc_dev;
 
@@ -157,31 +158,44 @@ static const struct sdio_device_id brcmf_sdmmc_ids[] = {
 	{ /* end: all zeroes */ },
 };
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static const struct dev_pm_ops brcmf_sdio_pm_ops = {
 	.suspend	= brcmf_sdio_suspend,
 	.resume		= brcmf_sdio_resume,
 };
-#endif	/* CONFIG_PM */
+#endif	/* CONFIG_PM_SLEEP */
 
 static struct sdio_driver brcmf_sdmmc_driver = {
 	.probe = brcmf_ops_sdio_probe,
 	.remove = brcmf_ops_sdio_remove,
 	.name = "brcmfmac",
 	.id_table = brcmf_sdmmc_ids,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.drv = {
 		.pm = &brcmf_sdio_pm_ops,
 	},
-#endif	/* CONFIG_PM */
+#endif	/* CONFIG_PM_SLEEP */
 };
 
 MODULE_DEVICE_TABLE(sdio, brcmf_sdmmc_ids);
 
-BRCMF_PM_RESUME_WAIT_INIT(sdioh_request_byte_wait);
-BRCMF_PM_RESUME_WAIT_INIT(sdioh_request_word_wait);
-BRCMF_PM_RESUME_WAIT_INIT(sdioh_request_packet_wait);
-BRCMF_PM_RESUME_WAIT_INIT(sdioh_request_buffer_wait);
+#ifdef CONFIG_PM_SLEEP
+DECLARE_WAIT_QUEUE_HEAD(sdioh_request_byte_wait);
+DECLARE_WAIT_QUEUE_HEAD(sdioh_request_word_wait);
+DECLARE_WAIT_QUEUE_HEAD(sdioh_request_packet_wait);
+DECLARE_WAIT_QUEUE_HEAD(sdioh_request_buffer_wait);
+#define BRCMF_PM_RESUME_WAIT(a) do { \
+		int retry = 0; \
+		while (atomic_read(&brcmf_mmc_suspend) && retry++ != 30) { \
+			wait_event_timeout(a, false, HZ/100); \
+		} \
+	}	while (0)
+#define BRCMF_PM_RESUME_RETURN_ERROR(a)	\
+	do { if (atomic_read(&brcmf_mmc_suspend)) return a; } while (0)
+#else
+#define BRCMF_PM_RESUME_WAIT(a)
+#define BRCMF_PM_RESUME_RETURN_ERROR(a)
+#endif		/* CONFIG_PM_SLEEP */
 
 static int
 brcmf_sdioh_card_regread(struct sdioh_info *sd, int func, u32 regaddr,
@@ -1049,6 +1063,7 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 			sd_trace(("NIC found, calling brcmf_sdio_probe...\n"));
 			ret = brcmf_sdio_probe(&sdmmc_dev);
 		}
+		atomic_set(&brcmf_mmc_suspend, false);
 	}
 
 	gInstance->func[func->num] = func;
@@ -1077,13 +1092,15 @@ static void brcmf_ops_sdio_remove(struct sdio_func *func)
 }
 
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int brcmf_sdio_suspend(struct device *dev)
 {
 	mmc_pm_flag_t sdio_flags;
 	int ret = 0;
 
 	sd_trace(("%s\n", __func__));
+
+	atomic_set(&brcmf_mmc_suspend, true);
 
 	sdio_flags = sdio_get_host_pm_caps(gInstance->func[1]);
 	if (!(sdio_flags & MMC_PM_KEEP_POWER)) {
@@ -1105,9 +1122,10 @@ static int brcmf_sdio_suspend(struct device *dev)
 static int brcmf_sdio_resume(struct device *dev)
 {
 	brcmf_sdio_wdtmr_enable(true);
+	atomic_set(&brcmf_mmc_suspend, false);
 	return 0;
 }
-#endif		/* CONFIG_PM */
+#endif		/* CONFIG_PM_SLEEP */
 
 int brcmf_sdioh_osinit(struct sdioh_info *sd)
 {

@@ -2102,10 +2102,6 @@ static s32 brcmf_cfg80211_resume(struct wiphy *wiphy)
 	 */
 	WL_TRACE("Enter\n");
 
-#if defined(CONFIG_PM_SLEEP)
-	atomic_set(&brcmf_mmc_suspend, false);
-#endif	/*  defined(CONFIG_PM_SLEEP) */
-
 	if (test_bit(WL_STATUS_READY, &cfg_priv->status))
 		brcmf_invoke_iscan(wiphy_to_cfg(wiphy));
 
@@ -2166,10 +2162,6 @@ static s32 brcmf_cfg80211_suspend(struct wiphy *wiphy,
 		WL_INFO("Enable MPC\n");
 		brcmf_set_mpc(ndev, 1);
 	}
-
-#if defined(CONFIG_PM_SLEEP)
-	atomic_set(&brcmf_mmc_suspend, true);
-#endif	/*  defined(CONFIG_PM_SLEEP) */
 
 	WL_TRACE("Exit\n");
 

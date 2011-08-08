@@ -43,11 +43,6 @@
 #include "wl_cfg80211.h"
 #include "bcmchip.h"
 
-#if defined(CONFIG_PM_SLEEP)
-#include <linux/suspend.h>
-atomic_t brcmf_mmc_suspend;
-#endif	/*  defined(CONFIG_PM_SLEEP) */
-
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN fullmac driver.");
 MODULE_SUPPORTED_DEVICE("Broadcom 802.11n WLAN fullmac cards");
@@ -1274,9 +1269,6 @@ struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
 	 */
 	memcpy(netdev_priv(net), &drvr_priv, sizeof(drvr_priv));
 
-#if defined(CONFIG_PM_SLEEP)
-	atomic_set(&brcmf_mmc_suspend, false);
-#endif	/* defined(CONFIG_PM_SLEEP) */
 	return &drvr_priv->pub;
 
 fail:

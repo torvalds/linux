@@ -620,18 +620,6 @@ struct bcmevent_name {
 };
 
 #if defined(CONFIG_PM_SLEEP)
-extern atomic_t brcmf_mmc_suspend;
-#define BRCMF_PM_RESUME_WAIT_INIT(a) DECLARE_WAIT_QUEUE_HEAD(a);
-#define _BRCMF_PM_RESUME_WAIT(a, b) do { \
-		int retry = 0; \
-		while (atomic_read(&brcmf_mmc_suspend) && retry++ != b) { \
-			wait_event_timeout(a, false, HZ/100); \
-		} \
-	}	while (0)
-#define BRCMF_PM_RESUME_WAIT(a)	_BRCMF_PM_RESUME_WAIT(a, 30)
-#define BRCMF_PM_RESUME_RETURN_ERROR(a)	\
-	do { if (atomic_read(&brcmf_mmc_suspend)) return a; } while (0)
-
 #define BRCMF_SPINWAIT_SLEEP_INIT(a) DECLARE_WAIT_QUEUE_HEAD(a);
 #define BRCMF_SPINWAIT_SLEEP(a, exp, us) do { \
 		uint countdown = (us) + 9999; \
@@ -642,11 +630,6 @@ extern atomic_t brcmf_mmc_suspend;
 	} while (0)
 
 #else
-
-#define BRCMF_PM_RESUME_WAIT_INIT(a)
-#define BRCMF_PM_RESUME_WAIT(a)
-#define BRCMF_PM_RESUME_RETURN_ERROR(a)
-
 #define BRCMF_SPINWAIT_SLEEP_INIT(a)
 #define BRCMF_SPINWAIT_SLEEP(a, exp, us)  do { \
 		uint countdown = (us) + 9; \
