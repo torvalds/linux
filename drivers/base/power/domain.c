@@ -98,7 +98,7 @@ int __pm_genpd_poweron(struct generic_pm_domain *genpd)
 	for (;;) {
 		prepare_to_wait(&genpd->status_wait_queue, &wait,
 				TASK_UNINTERRUPTIBLE);
-		if (genpd->status != GPD_STATE_WAIT_PARENT)
+		if (genpd->status != GPD_STATE_WAIT_MASTER)
 			break;
 		mutex_unlock(&genpd->lock);
 
@@ -124,7 +124,7 @@ int __pm_genpd_poweron(struct generic_pm_domain *genpd)
 	 */
 	list_for_each_entry(link, &genpd->slave_links, slave_node) {
 		genpd_sd_counter_inc(link->master);
-		genpd->status = GPD_STATE_WAIT_PARENT;
+		genpd->status = GPD_STATE_WAIT_MASTER;
 
 		mutex_unlock(&genpd->lock);
 
@@ -258,7 +258,7 @@ static void __pm_genpd_restore_device(struct dev_list_entry *dle,
  */
 static bool genpd_abort_poweroff(struct generic_pm_domain *genpd)
 {
-	return genpd->status == GPD_STATE_WAIT_PARENT
+	return genpd->status == GPD_STATE_WAIT_MASTER
 		|| genpd->status == GPD_STATE_ACTIVE || genpd->resume_count > 0;
 }
 
@@ -300,7 +300,7 @@ static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
 	 * (4) System suspend is in progress.
 	 */
 	if (genpd->status == GPD_STATE_POWER_OFF
-	    || genpd->status == GPD_STATE_WAIT_PARENT
+	    || genpd->status == GPD_STATE_WAIT_MASTER
 	    || genpd->resume_count > 0 || genpd->prepared_count > 0)
 		return 0;
 
