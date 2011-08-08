@@ -243,7 +243,6 @@ void brcms_c_ampdu_detach(struct ampdu_info *ampdu)
 	for (i = 0; i < AMPDU_INI_FREE; i++)
 		kfree(ampdu->ini_free[i]);
 
-	brcms_c_module_unregister(ampdu->wlc->pub, "ampdu", ampdu);
 	kfree(ampdu);
 }
 
