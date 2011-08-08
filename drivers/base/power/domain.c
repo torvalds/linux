@@ -93,12 +93,7 @@ int pm_genpd_poweron(struct generic_pm_domain *genpd)
 	int ret = 0;
 
  start:
-	if (parent) {
-		genpd_acquire_lock(parent);
-		mutex_lock_nested(&genpd->lock, SINGLE_DEPTH_NESTING);
-	} else {
-		mutex_lock(&genpd->lock);
-	}
+	mutex_lock(&genpd->lock);
 
 	if (genpd->status == GPD_STATE_ACTIVE
 	    || (genpd->prepared_count > 0 && genpd->suspend_power_off))
@@ -109,31 +104,33 @@ int pm_genpd_poweron(struct generic_pm_domain *genpd)
 		goto out;
 	}
 
-	if (parent && parent->status != GPD_STATE_ACTIVE) {
+	if (parent) {
+		genpd_sd_counter_inc(parent);
+
 		mutex_unlock(&genpd->lock);
-		genpd_release_lock(parent);
 
 		ret = pm_genpd_poweron(parent);
-		if (ret)
+		if (ret) {
+			genpd_sd_counter_dec(parent);
 			return ret;
+		}
 
+		parent = NULL;
 		goto start;
 	}
 
-	if (genpd->power_on) {
+	if (genpd->power_on)
 		ret = genpd->power_on(genpd);
-		if (ret)
-			goto out;
-	}
 
-	genpd_set_active(genpd);
-	if (parent)
-		genpd_sd_counter_inc(parent);
+	if (ret) {
+		if (genpd->parent)
+			genpd_sd_counter_dec(genpd->parent);
+	} else {
+		genpd_set_active(genpd);
+	}
 
  out:
 	mutex_unlock(&genpd->lock);
-	if (parent)
-		genpd_release_lock(parent);
 
 	return ret;
 }
@@ -293,7 +290,8 @@ static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
 	genpd->poweroff_task = current;
 
 	list_for_each_entry_reverse(dle, &genpd->dev_list, node) {
-		ret = __pm_genpd_save_device(dle, genpd);
+		ret = atomic_read(&genpd->sd_count) == 0 ?
+			__pm_genpd_save_device(dle, genpd) : -EBUSY;
 		if (ret) {
 			genpd_set_active(genpd);
 			goto out;
@@ -308,38 +306,32 @@ static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
 		}
 	}
 
-	parent = genpd->parent;
-	if (parent) {
-		mutex_unlock(&genpd->lock);
-
-		genpd_acquire_lock(parent);
-		mutex_lock_nested(&genpd->lock, SINGLE_DEPTH_NESTING);
-
-		if (genpd_abort_poweroff(genpd)) {
-			genpd_release_lock(parent);
+	if (genpd->power_off) {
+		if (atomic_read(&genpd->sd_count) > 0) {
+			ret = -EBUSY;
 			goto out;
 		}
-	}
 
-	if (genpd->power_off) {
+		/*
+		 * If sd_count > 0 at this point, one of the children hasn't
+		 * managed to call pm_genpd_poweron() for the parent yet after
+		 * incrementing it.  In that case pm_genpd_poweron() will wait
+		 * for us to drop the lock, so we can call .power_off() and let
+		 * the pm_genpd_poweron() restore power for us (this shouldn't
+		 * happen very often).
+		 */
 		ret = genpd->power_off(genpd);
 		if (ret == -EBUSY) {
 			genpd_set_active(genpd);
-			if (parent)
-				genpd_release_lock(parent);
-
 			goto out;
 		}
 	}
 
 	genpd->status = GPD_STATE_POWER_OFF;
 
-	if (parent) {
-		if (genpd_sd_counter_dec(parent))
-			genpd_queue_power_off_work(parent);
-
-		genpd_release_lock(parent);
-	}
+	parent = genpd->parent;
+	if (parent && genpd_sd_counter_dec(parent))
+		genpd_queue_power_off_work(parent);
 
  out:
 	genpd->poweroff_task = NULL;
