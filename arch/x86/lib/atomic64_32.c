@@ -4,7 +4,7 @@
 
 #include <asm/processor.h>
 #include <asm/cmpxchg.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 long long atomic64_read_cx8(long long, const atomic64_t *v);
 EXPORT_SYMBOL(atomic64_read_cx8);

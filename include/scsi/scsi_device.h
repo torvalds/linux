@@ -7,7 +7,7 @@
 #include <linux/workqueue.h>
 #include <linux/blkdev.h>
 #include <scsi/scsi.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 struct request_queue;
 struct scsi_cmnd;

@@ -498,7 +498,7 @@ crc_err:
 			stats = per_cpu_ptr(lport->dev_stats, get_cpu());
 			stats->ErrorFrames++;
 			/* per cpu count, not total count, but OK for limit */
-			if (stats->InvalidCRCCount++ < 5)
+			if (stats->InvalidCRCCount++ < FC_MAX_ERROR_CNT)
 				printk(KERN_WARNING "libfc: CRC error on data "
 				       "frame for port (%6.6x)\n",
 				       lport->port_id);
@@ -690,7 +690,7 @@ static int fc_fcp_send_data(struct fc_fcp_pkt *fsp, struct fc_seq *seq,
 }
 
 /**
- * fc_fcp_abts_resp() - Send an ABTS response
+ * fc_fcp_abts_resp() - Receive an ABTS response
  * @fsp: The FCP packet that is being aborted
  * @fp:	 The response frame
  */
@@ -730,7 +730,7 @@ static void fc_fcp_abts_resp(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 }
 
 /**
- * fc_fcp_recv() - Reveive an FCP frame
+ * fc_fcp_recv() - Receive an FCP frame
  * @seq: The sequence the frame is on
  * @fp:	 The received frame
  * @arg: The related FCP packet
@@ -1084,6 +1084,7 @@ static int fc_fcp_pkt_send(struct fc_lport *lport, struct fc_fcp_pkt *fsp)
 	rc = lport->tt.fcp_cmd_send(lport, fsp, fc_fcp_recv);
 	if (unlikely(rc)) {
 		spin_lock_irqsave(&si->scsi_queue_lock, flags);
+		fsp->cmd->SCp.ptr = NULL;
 		list_del(&fsp->list);
 		spin_unlock_irqrestore(&si->scsi_queue_lock, flags);
 	}
@@ -1645,12 +1646,10 @@ static void fc_fcp_srr(struct fc_fcp_pkt *fsp, enum fc_rctl r_ctl, u32 offset)
 	struct fc_seq *seq;
 	struct fcp_srr *srr;
 	struct fc_frame *fp;
-	u8 cdb_op;
 	unsigned int rec_tov;
 
 	rport = fsp->rport;
 	rpriv = rport->dd_data;
-	cdb_op = fsp->cdb_cmd.fc_cdb[0];
 
 	if (!(rpriv->flags & FC_RP_FLAGS_RETRY) ||
 	    rpriv->rp_state != RPORT_ST_READY)

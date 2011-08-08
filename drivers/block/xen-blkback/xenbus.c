@@ -357,14 +357,13 @@ static int xen_vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
 	}
 
 	vbd->bdev = bdev;
-	vbd->size = vbd_sz(vbd);
-
 	if (vbd->bdev->bd_disk == NULL) {
 		DPRINTK("xen_vbd_create: device %08x doesn't exist.\n",
 			vbd->pdevice);
 		xen_vbd_free(vbd);
 		return -ENOENT;
 	}
+	vbd->size = vbd_sz(vbd);
 
 	if (vbd->bdev->bd_disk->flags & GENHD_FL_CD || cdrom)
 		vbd->type |= VDISK_CDROM;
@@ -685,7 +684,7 @@ again:
 
 	err = xenbus_switch_state(dev, XenbusStateConnected);
 	if (err)
-		xenbus_dev_fatal(dev, err, "switching to Connected state",
+		xenbus_dev_fatal(dev, err, "%s: switching to Connected state",
 				 dev->nodename);
 
 	return;

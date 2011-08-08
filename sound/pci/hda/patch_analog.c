@@ -213,7 +213,9 @@ static int ad198x_build_controls(struct hda_codec *codec)
 			return err;
 	}
 	if (spec->multiout.dig_out_nid) {
-		err = snd_hda_create_spdif_out_ctls(codec, spec->multiout.dig_out_nid);
+		err = snd_hda_create_spdif_out_ctls(codec,
+						    spec->multiout.dig_out_nid,
+						    spec->multiout.dig_out_nid);
 		if (err < 0)
 			return err;
 		err = snd_hda_create_spdif_share_sw(codec,
@@ -506,9 +508,11 @@ static void ad198x_power_eapd_write(struct hda_codec *codec, hda_nid_t front,
 				hda_nid_t hp)
 {
 	struct ad198x_spec *spec = codec->spec;
-	snd_hda_codec_write(codec, front, 0, AC_VERB_SET_EAPD_BTLENABLE,
+	if (snd_hda_query_pin_caps(codec, front) & AC_PINCAP_EAPD)
+		snd_hda_codec_write(codec, front, 0, AC_VERB_SET_EAPD_BTLENABLE,
 			    !spec->inv_eapd ? 0x00 : 0x02);
-	snd_hda_codec_write(codec, hp, 0, AC_VERB_SET_EAPD_BTLENABLE,
+	if (snd_hda_query_pin_caps(codec, hp) & AC_PINCAP_EAPD)
+		snd_hda_codec_write(codec, hp, 0, AC_VERB_SET_EAPD_BTLENABLE,
 			    !spec->inv_eapd ? 0x00 : 0x02);
 }
 
@@ -524,6 +528,10 @@ static void ad198x_power_eapd(struct hda_codec *codec)
 	case 0x11d4184a:
 	case 0x11d4194a:
 	case 0x11d4194b:
+	case 0x11d41988:
+	case 0x11d4198b:
+	case 0x11d4989a:
+	case 0x11d4989b:
 		ad198x_power_eapd_write(codec, 0x12, 0x11);
 		break;
 	case 0x11d41981:
@@ -532,12 +540,6 @@ static void ad198x_power_eapd(struct hda_codec *codec)
 		break;
 	case 0x11d41986:
 		ad198x_power_eapd_write(codec, 0x1b, 0x1a);
-		break;
-	case 0x11d41988:
-	case 0x11d4198b:
-	case 0x11d4989a:
-	case 0x11d4989b:
-		ad198x_power_eapd_write(codec, 0x29, 0x22);
 		break;
 	}
 }
@@ -561,7 +563,7 @@ static void ad198x_free(struct hda_codec *codec)
 	snd_hda_detach_beep_device(codec);
 }
 
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 static int ad198x_suspend(struct hda_codec *codec, pm_message_t state)
 {
 	ad198x_shutup(codec);
@@ -577,7 +579,7 @@ static const struct hda_codec_ops ad198x_patch_ops = {
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	.check_power_status = ad198x_check_power_status,
 #endif
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 	.suspend = ad198x_suspend,
 #endif
 	.reboot_notify = ad198x_shutup,
@@ -1920,7 +1922,8 @@ static int patch_ad1981(struct hda_codec *codec)
 		spec->mixers[0] = ad1981_hp_mixers;
 		spec->num_init_verbs = 2;
 		spec->init_verbs[1] = ad1981_hp_init_verbs;
-		spec->multiout.dig_out_nid = 0;
+		if (!is_jack_available(codec, 0x0a))
+			spec->multiout.dig_out_nid = 0;
 		spec->input_mux = &ad1981_hp_capture_source;
 
 		codec->patch_ops.init = ad1981_hp_init;

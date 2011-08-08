@@ -175,16 +175,18 @@ static int tweak_reset_device_cmd(struct urb *urb)
 	dev_info(&urb->dev->dev, "usb_queue_reset_device\n");
 
 	/*
-	 * usb_lock_device_for_reset caused a deadlock: it causes the driver
-	 * to unbind. In the shutdown the rx thread is signalled to shut down
-	 * but this thread is pending in the usb_lock_device_for_reset.
-	 *
-	 * Instead queue the reset.
-	 *
-	 * Unfortunatly an existing usbip connection will be dropped due to
-	 * driver unbinding.
+	 * With the implementation of pre_reset and post_reset the driver no 
+	 * longer unbinds. This allows the use of synchronous reset.
 	 */
-	usb_queue_reset_device(sdev->interface);
+
+	if (usb_lock_device_for_reset(sdev->udev, sdev->interface)<0)
+	{
+		dev_err(&urb->dev->dev, "could not obtain lock to reset device\n");
+		return 0;
+	}
+	usb_reset_device(sdev->udev);
+	usb_unlock_device(sdev->udev);
+
 	return 0;
 }
 
@@ -304,18 +306,18 @@ static int stub_recv_cmd_unlink(struct stub_device *sdev,
 static int valid_request(struct stub_device *sdev, struct usbip_header *pdu)
 {
 	struct usbip_device *ud = &sdev->ud;
+	int valid = 0;
 
 	if (pdu->base.devid == sdev->devid) {
 		spin_lock(&ud->lock);
 		if (ud->status == SDEV_ST_USED) {
 			/* A request is valid. */
-			spin_unlock(&ud->lock);
-			return 1;
+			valid = 1;
 		}
 		spin_unlock(&ud->lock);
 	}
 
-	return 0;
+	return valid;
 }
 
 static struct stub_priv *stub_priv_alloc(struct stub_device *sdev,

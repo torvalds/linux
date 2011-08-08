@@ -90,6 +90,7 @@ struct nmk_gpio_platform_data {
 	int num_gpio;
 	u32 (*get_secondary_status)(unsigned int bank);
 	void (*set_ioforce)(bool enable);
+	bool supports_sleepmode;
 };
 
 #endif /* __ASM_PLAT_GPIO_H */

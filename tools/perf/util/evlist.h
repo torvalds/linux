@@ -66,7 +66,9 @@ int perf_evlist__create_maps(struct perf_evlist *evlist, pid_t target_pid,
 void perf_evlist__delete_maps(struct perf_evlist *evlist);
 int perf_evlist__set_filters(struct perf_evlist *evlist);
 
-u64 perf_evlist__sample_type(struct perf_evlist *evlist);
-bool perf_evlist__sample_id_all(const struct perf_evlist *evlist);
+u64 perf_evlist__sample_type(const struct perf_evlist *evlist);
+bool perf_evlist__sample_id_all(const const struct perf_evlist *evlist);
 
+bool perf_evlist__valid_sample_type(const struct perf_evlist *evlist);
+bool perf_evlist__valid_sample_id_all(const struct perf_evlist *evlist);
 #endif /* __PERF_EVLIST_H */

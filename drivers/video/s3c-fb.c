@@ -235,13 +235,12 @@ static int s3c_fb_check_var(struct fb_var_screeninfo *var,
 			    struct fb_info *info)
 {
 	struct s3c_fb_win *win = info->par;
-	struct s3c_fb_pd_win *windata = win->windata;
 	struct s3c_fb *sfb = win->parent;
 
 	dev_dbg(sfb->dev, "checking parameters\n");
 
-	var->xres_virtual = max((unsigned int)windata->virtual_x, var->xres);
-	var->yres_virtual = max((unsigned int)windata->virtual_y, var->yres);
+	var->xres_virtual = max(var->xres_virtual, var->xres);
+	var->yres_virtual = max(var->yres_virtual, var->yres);
 
 	if (!s3c_fb_validate_win_bpp(win, var->bits_per_pixel)) {
 		dev_dbg(sfb->dev, "win %d: unsupported bpp %d\n",
@@ -558,6 +557,13 @@ static int s3c_fb_set_par(struct fb_info *info)
 	vidosd_set_alpha(win, alpha);
 	vidosd_set_size(win, data);
 
+	/* Enable DMA channel for this window */
+	if (sfb->variant.has_shadowcon) {
+		data = readl(sfb->regs + SHADOWCON);
+		data |= SHADOWCON_CHx_ENABLE(win_no);
+		writel(data, sfb->regs + SHADOWCON);
+	}
+
 	data = WINCONx_ENWIN;
 
 	/* note, since we have to round up the bits-per-pixel, we end up
@@ -636,13 +642,6 @@ static int s3c_fb_set_par(struct fb_info *info)
 
 	writel(data, regs + sfb->variant.wincon + (win_no * 4));
 	writel(0x0, regs + sfb->variant.winmap + (win_no * 4));
-
-	/* Enable DMA channel for this window */
-	if (sfb->variant.has_shadowcon) {
-		data = readl(sfb->regs + SHADOWCON);
-		data |= SHADOWCON_CHx_ENABLE(win_no);
-		writel(data, sfb->regs + SHADOWCON);
-	}
 
 	shadow_protect_win(win, 0);
 
@@ -1487,11 +1486,10 @@ static int __devexit s3c_fb_remove(struct platform_device *pdev)
 
 	release_mem_region(sfb->regs_res->start, resource_size(sfb->regs_res));
 
-	kfree(sfb);
-
 	pm_runtime_put_sync(sfb->dev);
 	pm_runtime_disable(sfb->dev);
 
+	kfree(sfb);
 	return 0;
 }
 

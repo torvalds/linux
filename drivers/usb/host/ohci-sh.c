@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2008 Renesas Solutions Corp.
  *
- * Author : Yoshihiro Shimoda <shimoda.yoshihiro@renesas.com>
+ * Author : Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

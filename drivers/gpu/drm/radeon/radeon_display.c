@@ -264,6 +264,8 @@ static void radeon_unpin_work_func(struct work_struct *__work)
 		radeon_bo_unreserve(work->old_rbo);
 	} else
 		DRM_ERROR("failed to reserve buffer after flip\n");
+
+	drm_gem_object_unreference_unlocked(&work->old_rbo->gem_base);
 	kfree(work);
 }
 
@@ -280,7 +282,7 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 	spin_lock_irqsave(&rdev->ddev->event_lock, flags);
 	work = radeon_crtc->unpin_work;
 	if (work == NULL ||
-	    !radeon_fence_signaled(work->fence)) {
+	    (work->fence && !radeon_fence_signaled(work->fence))) {
 		spin_unlock_irqrestore(&rdev->ddev->event_lock, flags);
 		return;
 	}
@@ -346,7 +348,6 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	struct radeon_framebuffer *new_radeon_fb;
 	struct drm_gem_object *obj;
 	struct radeon_bo *rbo;
-	struct radeon_fence *fence;
 	struct radeon_unpin_work *work;
 	unsigned long flags;
 	u32 tiling_flags, pitch_pixels;
@@ -357,42 +358,35 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	if (work == NULL)
 		return -ENOMEM;
 
-	r = radeon_fence_create(rdev, &fence);
-	if (unlikely(r != 0)) {
-		kfree(work);
-		DRM_ERROR("flip queue: failed to create fence.\n");
-		return -ENOMEM;
-	}
 	work->event = event;
 	work->rdev = rdev;
 	work->crtc_id = radeon_crtc->crtc_id;
-	work->fence = radeon_fence_ref(fence);
 	old_radeon_fb = to_radeon_framebuffer(crtc->fb);
 	new_radeon_fb = to_radeon_framebuffer(fb);
 	/* schedule unpin of the old buffer */
 	obj = old_radeon_fb->obj;
+	/* take a reference to the old object */
+	drm_gem_object_reference(obj);
 	rbo = gem_to_radeon_bo(obj);
 	work->old_rbo = rbo;
+	obj = new_radeon_fb->obj;
+	rbo = gem_to_radeon_bo(obj);
+	if (rbo->tbo.sync_obj)
+		work->fence = radeon_fence_ref(rbo->tbo.sync_obj);
 	INIT_WORK(&work->work, radeon_unpin_work_func);
 
 	/* We borrow the event spin lock for protecting unpin_work */
 	spin_lock_irqsave(&dev->event_lock, flags);
 	if (radeon_crtc->unpin_work) {
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-		kfree(work);
-		radeon_fence_unref(&fence);
-
 		DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
-		return -EBUSY;
+		r = -EBUSY;
+		goto unlock_free;
 	}
 	radeon_crtc->unpin_work = work;
 	radeon_crtc->deferred_flip_completion = 0;
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	/* pin the new buffer */
-	obj = new_radeon_fb->obj;
-	rbo = gem_to_radeon_bo(obj);
-
 	DRM_DEBUG_DRIVER("flip-ioctl() cur_fbo = %p, cur_bbo = %p\n",
 			 work->old_rbo, rbo);
 
@@ -460,45 +454,28 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 		goto pflip_cleanup1;
 	}
 
-	/* 32 ought to cover us */
-	r = radeon_ring_lock(rdev, 32);
-	if (r) {
-		DRM_ERROR("failed to lock the ring before flip\n");
-		goto pflip_cleanup2;
-	}
-
-	/* emit the fence */
-	radeon_fence_emit(rdev, fence);
 	/* set the proper interrupt */
 	radeon_pre_page_flip(rdev, radeon_crtc->crtc_id);
-	/* fire the ring */
-	radeon_ring_unlock_commit(rdev);
 
 	return 0;
 
-pflip_cleanup2:
-	drm_vblank_put(dev, radeon_crtc->crtc_id);
-
 pflip_cleanup1:
-	r = radeon_bo_reserve(rbo, false);
-	if (unlikely(r != 0)) {
+	if (unlikely(radeon_bo_reserve(rbo, false) != 0)) {
 		DRM_ERROR("failed to reserve new rbo in error path\n");
 		goto pflip_cleanup;
 	}
-	r = radeon_bo_unpin(rbo);
-	if (unlikely(r != 0)) {
-		radeon_bo_unreserve(rbo);
-		r = -EINVAL;
+	if (unlikely(radeon_bo_unpin(rbo) != 0)) {
 		DRM_ERROR("failed to unpin new rbo in error path\n");
-		goto pflip_cleanup;
 	}
 	radeon_bo_unreserve(rbo);
 
 pflip_cleanup:
 	spin_lock_irqsave(&dev->event_lock, flags);
 	radeon_crtc->unpin_work = NULL;
+unlock_free:
+	drm_gem_object_unreference_unlocked(old_radeon_fb->obj);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
-	radeon_fence_unref(&fence);
+	radeon_fence_unref(&work->fence);
 	kfree(work);
 
 	return r;
@@ -774,8 +751,17 @@ static int radeon_ddc_dump(struct drm_connector *connector)
 	if (!radeon_connector->ddc_bus)
 		return -1;
 	edid = drm_get_edid(connector, &radeon_connector->ddc_bus->adapter);
+	/* Log EDID retrieval status here. In particular with regard to
+	 * connectors with requires_extended_probe flag set, that will prevent
+	 * function radeon_dvi_detect() to fetch EDID on this connector,
+	 * as long as there is no valid EDID header found */
 	if (edid) {
+		DRM_INFO("Radeon display connector %s: Found valid EDID",
+				drm_get_connector_name(connector));
 		kfree(edid);
+	} else {
+		DRM_INFO("Radeon display connector %s: No monitor connected or invalid EDID",
+				drm_get_connector_name(connector));
 	}
 	return ret;
 }

@@ -700,8 +700,7 @@ static int mt9t031_runtime_suspend(struct device *dev)
 static int mt9t031_runtime_resume(struct device *dev)
 {
 	struct video_device *vdev = to_video_device(dev);
-	struct soc_camera_device *icd = container_of(vdev->parent,
-		struct soc_camera_device, dev);
+	struct soc_camera_device *icd = dev_get_drvdata(vdev->parent);
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t031 *mt9t031 = to_mt9t031(client);

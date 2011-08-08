@@ -23,7 +23,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/io.h>
-
+#include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 

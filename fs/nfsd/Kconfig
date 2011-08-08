@@ -28,18 +28,6 @@ config NFSD
 
 	  If unsure, say N.
 
-config NFSD_DEPRECATED
-	bool "Include support for deprecated syscall interface to NFSD"
-	depends on NFSD
-	default y
-	help
-	  The syscall interface to nfsd was obsoleted in 2.6.0 by a new
-	  filesystem based interface.  The old interface is due for removal
-	  in 2.6.40.  If you wish to remove the interface before then
-	  say N.
-
-	  In unsure, say Y.
-
 config NFSD_V2_ACL
 	bool
 	depends on NFSD
@@ -82,6 +70,7 @@ config NFSD_V4
 	select NFSD_V3
 	select FS_POSIX_ACL
 	select SUNRPC_GSS
+	select CRYPTO
 	help
 	  This option enables support in your system's NFS server for
 	  version 4 of the NFS protocol (RFC 3530).

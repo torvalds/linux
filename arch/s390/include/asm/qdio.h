@@ -139,110 +139,47 @@ struct slib {
 	struct slibe slibe[QDIO_MAX_BUFFERS_PER_Q];
 } __attribute__ ((packed, aligned(2048)));
 
-/**
- * struct sbal_flags - storage block address list flags
- * @last: last entry
- * @cont: contiguous storage
- * @frag: fragmentation
- */
-struct sbal_flags {
-	u8	: 1;
-	u8 last : 1;
-	u8 cont : 1;
-	u8	: 1;
-	u8 frag : 2;
-	u8	: 2;
-} __attribute__ ((packed));
+#define SBAL_EFLAGS_LAST_ENTRY		0x40
+#define SBAL_EFLAGS_CONTIGUOUS		0x20
+#define SBAL_EFLAGS_FIRST_FRAG		0x04
+#define SBAL_EFLAGS_MIDDLE_FRAG		0x08
+#define SBAL_EFLAGS_LAST_FRAG		0x0c
+#define SBAL_EFLAGS_MASK		0x6f
 
-#define SBAL_FLAGS_FIRST_FRAG		0x04000000UL
-#define SBAL_FLAGS_MIDDLE_FRAG		0x08000000UL
-#define SBAL_FLAGS_LAST_FRAG		0x0c000000UL
-#define SBAL_FLAGS_LAST_ENTRY		0x40000000UL
-#define SBAL_FLAGS_CONTIGUOUS		0x20000000UL
-
-#define SBAL_FLAGS0_DATA_CONTINUATION	0x20UL
+#define SBAL_SFLAGS0_PCI_REQ		0x40
+#define SBAL_SFLAGS0_DATA_CONTINUATION	0x20
 
 /* Awesome OpenFCP extensions */
-#define SBAL_FLAGS0_TYPE_STATUS		0x00UL
-#define SBAL_FLAGS0_TYPE_WRITE		0x08UL
-#define SBAL_FLAGS0_TYPE_READ		0x10UL
-#define SBAL_FLAGS0_TYPE_WRITE_READ	0x18UL
-#define SBAL_FLAGS0_MORE_SBALS		0x04UL
-#define SBAL_FLAGS0_COMMAND		0x02UL
-#define SBAL_FLAGS0_LAST_SBAL		0x00UL
-#define SBAL_FLAGS0_ONLY_SBAL		SBAL_FLAGS0_COMMAND
-#define SBAL_FLAGS0_MIDDLE_SBAL		SBAL_FLAGS0_MORE_SBALS
-#define SBAL_FLAGS0_FIRST_SBAL SBAL_FLAGS0_MORE_SBALS | SBAL_FLAGS0_COMMAND
-#define SBAL_FLAGS0_PCI			0x40
-
-/**
- * struct sbal_sbalf_0 - sbal flags for sbale 0
- * @pci: PCI indicator
- * @cont: data continuation
- * @sbtype: storage-block type (FCP)
- */
-struct sbal_sbalf_0 {
-	u8	  : 1;
-	u8 pci	  : 1;
-	u8 cont   : 1;
-	u8 sbtype : 2;
-	u8	  : 3;
-} __attribute__ ((packed));
-
-/**
- * struct sbal_sbalf_1 - sbal flags for sbale 1
- * @key: storage key
- */
-struct sbal_sbalf_1 {
-	u8     : 4;
-	u8 key : 4;
-} __attribute__ ((packed));
-
-/**
- * struct sbal_sbalf_14 - sbal flags for sbale 14
- * @erridx: error index
- */
-struct sbal_sbalf_14 {
-	u8	  : 4;
-	u8 erridx : 4;
-} __attribute__ ((packed));
-
-/**
- * struct sbal_sbalf_15 - sbal flags for sbale 15
- * @reason: reason for error state
- */
-struct sbal_sbalf_15 {
-	u8 reason;
-} __attribute__ ((packed));
-
-/**
- * union sbal_sbalf - storage block address list flags
- * @i0: sbalf0
- * @i1: sbalf1
- * @i14: sbalf14
- * @i15: sblaf15
- * @value: raw value
- */
-union sbal_sbalf {
-	struct sbal_sbalf_0  i0;
-	struct sbal_sbalf_1  i1;
-	struct sbal_sbalf_14 i14;
-	struct sbal_sbalf_15 i15;
-	u8 value;
-};
+#define SBAL_SFLAGS0_TYPE_STATUS	0x00
+#define SBAL_SFLAGS0_TYPE_WRITE		0x08
+#define SBAL_SFLAGS0_TYPE_READ		0x10
+#define SBAL_SFLAGS0_TYPE_WRITE_READ	0x18
+#define SBAL_SFLAGS0_MORE_SBALS		0x04
+#define SBAL_SFLAGS0_COMMAND		0x02
+#define SBAL_SFLAGS0_LAST_SBAL		0x00
+#define SBAL_SFLAGS0_ONLY_SBAL		SBAL_SFLAGS0_COMMAND
+#define SBAL_SFLAGS0_MIDDLE_SBAL	SBAL_SFLAGS0_MORE_SBALS
+#define SBAL_SFLAGS0_FIRST_SBAL (SBAL_SFLAGS0_MORE_SBALS | SBAL_SFLAGS0_COMMAND)
 
 /**
  * struct qdio_buffer_element - SBAL entry
- * @flags: flags
+ * @eflags: SBAL entry flags
+ * @scount: SBAL count
+ * @sflags: whole SBAL flags
  * @length: length
  * @addr: address
 */
 struct qdio_buffer_element {
-	u32 flags;
+	u8 eflags;
+	/* private: */
+	u8 res1;
+	/* public: */
+	u8 scount;
+	u8 sflags;
 	u32 length;
 #ifdef CONFIG_32BIT
 	/* private: */
-	void *reserved;
+	void *res2;
 	/* public: */
 #endif
 	void *addr;

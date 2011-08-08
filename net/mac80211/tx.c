@@ -589,6 +589,9 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 			break;
 		}
 
+		if (unlikely(tx->key && tx->key->flags & KEY_FLAG_TAINTED))
+			return TX_DROP;
+
 		if (!skip_hw && tx->key &&
 		    tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)
 			info->control.hw_key = &tx->key->conf;
@@ -1474,13 +1477,14 @@ static bool ieee80211_tx(struct ieee80211_sub_if_data *sdata,
 
 /* device xmit handlers */
 
-static int ieee80211_skb_resize(struct ieee80211_local *local,
+static int ieee80211_skb_resize(struct ieee80211_sub_if_data *sdata,
 				struct sk_buff *skb,
 				int head_need, bool may_encrypt)
 {
+	struct ieee80211_local *local = sdata->local;
 	int tail_need = 0;
 
-	if (may_encrypt && local->crypto_tx_tailroom_needed_cnt) {
+	if (may_encrypt && sdata->crypto_tx_tailroom_needed_cnt) {
 		tail_need = IEEE80211_ENCRYPT_TAILROOM;
 		tail_need -= skb_tailroom(skb);
 		tail_need = max_t(int, tail_need, 0);
@@ -1573,7 +1577,7 @@ static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 	headroom -= skb_headroom(skb);
 	headroom = max_t(int, 0, headroom);
 
-	if (ieee80211_skb_resize(local, skb, headroom, may_encrypt)) {
+	if (ieee80211_skb_resize(sdata, skb, headroom, may_encrypt)) {
 		dev_kfree_skb(skb);
 		rcu_read_unlock();
 		return;
@@ -1940,7 +1944,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		head_need += IEEE80211_ENCRYPT_HEADROOM;
 		head_need += local->tx_headroom;
 		head_need = max_t(int, 0, head_need);
-		if (ieee80211_skb_resize(local, skb, head_need, true))
+		if (ieee80211_skb_resize(sdata, skb, head_need, true))
 			goto fail;
 	}
 

@@ -19,7 +19,6 @@ config DEFCONFIG_LIST
 config CONSTRUCTORS
 	bool
 	depends on !UML
-	default y
 
 config HAVE_IRQ_WORK
 	bool
@@ -203,6 +202,15 @@ config KERNEL_LZO
 	  (both compression and decompression) is the fastest.
 
 endchoice
+
+config DEFAULT_HOSTNAME
+	string "Default hostname"
+	default "(none)"
+	help
+	  This option determines the default system hostname before userspace
+	  calls sethostname(2). The kernel traditionally uses "(none)" here,
+	  but you may wish to use a different default here to make a minimal
+	  system more usable with less configuration.
 
 config SWAP
 	bool "Support for paging of anonymous memory (swap)"
@@ -665,7 +673,7 @@ config CGROUP_MEM_RES_CTLR_SWAP
 	  be careful about enabling this. When memory resource controller
 	  is disabled by boot option, this will be automatically disabled and
 	  there will be no overhead from this. Even when you set this config=y,
-	  if boot option "noswapaccount" is set, swap will not be accounted.
+	  if boot option "swapaccount=0" is set, swap will not be accounted.
 	  Now, memory usage of swap_cgroup is 2 bytes per entry. If swap page
 	  size is 4096bytes, 512k per 1Gbytes of swap.
 config CGROUP_MEM_RES_CTLR_SWAP_ENABLED
@@ -680,7 +688,7 @@ config CGROUP_MEM_RES_CTLR_SWAP_ENABLED
 	  parameter should have this option unselected.
 	  For those who want to have the feature enabled by default should
 	  select this option (if, for some reason, they need to disable it
-	  then noswapaccount does the trick).
+	  then swapaccount=0 does the trick).
 
 config CGROUP_PERF
 	bool "Enable perf_event per-cpu per-container group (cgroup) monitoring"
@@ -909,6 +917,8 @@ config ANON_INODES
 
 menuconfig EXPERT
 	bool "Configure standard kernel features (expert users)"
+	# Unhide debug options, to make the on-by-default options visible
+	select DEBUG_KERNEL
 	help
 	  This option allows certain base kernel options and settings
           to be disabled or tweaked. This is for specialized
@@ -999,13 +1009,18 @@ config ELF_CORE
 	help
 	  Enable support for generating core dumps. Disabling saves about 4k.
 
+
 config PCSPKR_PLATFORM
 	bool "Enable PC-Speaker support" if EXPERT
-	depends on ALPHA || X86 || MIPS || PPC_PREP || PPC_CHRP || PPC_PSERIES
+	depends on HAVE_PCSPKR_PLATFORM
+	select I8253_LOCK
 	default y
 	help
           This option allows to disable the internal PC-Speaker
           support, saving some memory.
+
+config HAVE_PCSPKR_PLATFORM
+	bool
 
 config BASE_FULL
 	default y

@@ -52,12 +52,7 @@ static const struct be_ethtool_stat et_stats[] = {
 	{NETSTAT_INFO(tx_errors)},
 	{NETSTAT_INFO(rx_dropped)},
 	{NETSTAT_INFO(tx_dropped)},
-	{DRVSTAT_TX_INFO(be_tx_rate)},
-	{DRVSTAT_TX_INFO(be_tx_reqs)},
-	{DRVSTAT_TX_INFO(be_tx_wrbs)},
-	{DRVSTAT_TX_INFO(be_tx_stops)},
-	{DRVSTAT_TX_INFO(be_tx_events)},
-	{DRVSTAT_TX_INFO(be_tx_compl)},
+	{DRVSTAT_INFO(be_tx_events)},
 	{DRVSTAT_INFO(rx_crc_errors)},
 	{DRVSTAT_INFO(rx_alignment_symbol_errors)},
 	{DRVSTAT_INFO(rx_pause_frames)},
@@ -107,9 +102,20 @@ static const struct be_ethtool_stat et_rx_stats[] = {
 	{DRVSTAT_RX_INFO(rx_compl)},
 	{DRVSTAT_RX_INFO(rx_mcast_pkts)},
 	{DRVSTAT_RX_INFO(rx_post_fail)},
+	{DRVSTAT_RX_INFO(rx_dropped)},
 	{ERXSTAT_INFO(rx_drops_no_fragments)}
 };
 #define ETHTOOL_RXSTATS_NUM (ARRAY_SIZE(et_rx_stats))
+
+/* Stats related to multi TX queues */
+static const struct be_ethtool_stat et_tx_stats[] = {
+	{DRVSTAT_TX_INFO(be_tx_rate)},
+	{DRVSTAT_TX_INFO(be_tx_reqs)},
+	{DRVSTAT_TX_INFO(be_tx_wrbs)},
+	{DRVSTAT_TX_INFO(be_tx_stops)},
+	{DRVSTAT_TX_INFO(be_tx_compl)}
+};
+#define ETHTOOL_TXSTATS_NUM (ARRAY_SIZE(et_tx_stats))
 
 static const char et_self_tests[][ETH_GSTRING_LEN] = {
 	"MAC Loopback test",
@@ -253,16 +259,14 @@ be_get_ethtool_stats(struct net_device *netdev,
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct be_rx_obj *rxo;
+	struct be_tx_obj *txo;
 	void *p = NULL;
-	int i, j;
+	int i, j, base;
 
 	for (i = 0; i < ETHTOOL_STATS_NUM; i++) {
 		switch (et_stats[i].type) {
 		case NETSTAT:
 			p = &netdev->stats;
-			break;
-		case DRVSTAT_TX:
-			p = &adapter->tx_stats;
 			break;
 		case DRVSTAT:
 			p = &adapter->drv_stats;
@@ -274,6 +278,7 @@ be_get_ethtool_stats(struct net_device *netdev,
 				*(u64 *)p: *(u32 *)p;
 	}
 
+	base = ETHTOOL_STATS_NUM;
 	for_all_rx_queues(adapter, rxo, j) {
 		for (i = 0; i < ETHTOOL_RXSTATS_NUM; i++) {
 			switch (et_rx_stats[i].type) {
@@ -285,8 +290,18 @@ be_get_ethtool_stats(struct net_device *netdev,
 								rxo->q.id;
 				break;
 			}
-			data[ETHTOOL_STATS_NUM + j * ETHTOOL_RXSTATS_NUM + i] =
+			data[base + j * ETHTOOL_RXSTATS_NUM + i] =
 				(et_rx_stats[i].size == sizeof(u64)) ?
+					*(u64 *)p: *(u32 *)p;
+		}
+	}
+
+	base = ETHTOOL_STATS_NUM + adapter->num_rx_qs * ETHTOOL_RXSTATS_NUM;
+	for_all_tx_queues(adapter, txo, j) {
+		for (i = 0; i < ETHTOOL_TXSTATS_NUM; i++) {
+			p = (u8 *)&txo->stats + et_tx_stats[i].offset;
+			data[base + j * ETHTOOL_TXSTATS_NUM + i] =
+				(et_tx_stats[i].size == sizeof(u64)) ?
 					*(u64 *)p: *(u32 *)p;
 		}
 	}
@@ -312,6 +327,13 @@ be_get_stat_strings(struct net_device *netdev, uint32_t stringset,
 				data += ETH_GSTRING_LEN;
 			}
 		}
+		for (i = 0; i < adapter->num_tx_qs; i++) {
+			for (j = 0; j < ETHTOOL_TXSTATS_NUM; j++) {
+				sprintf(data, "txq%d: %s", i,
+					et_tx_stats[j].desc);
+				data += ETH_GSTRING_LEN;
+			}
+		}
 		break;
 	case ETH_SS_TEST:
 		for (i = 0; i < ETHTOOL_TESTS_NUM; i++) {
@@ -331,7 +353,8 @@ static int be_get_sset_count(struct net_device *netdev, int stringset)
 		return ETHTOOL_TESTS_NUM;
 	case ETH_SS_STATS:
 		return ETHTOOL_STATS_NUM +
-			adapter->num_rx_qs * ETHTOOL_RXSTATS_NUM;
+			adapter->num_rx_qs * ETHTOOL_RXSTATS_NUM +
+			adapter->num_tx_qs * ETHTOOL_TXSTATS_NUM;
 	default:
 		return -EINVAL;
 	}
@@ -386,7 +409,7 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		}
 		status = be_cmd_get_phy_info(adapter, &phy_cmd);
 		if (!status) {
-			resp = (struct be_cmd_resp_get_phy_info *) phy_cmd.va;
+			resp = phy_cmd.va;
 			intf_type = le16_to_cpu(resp->interface_type);
 
 			switch (intf_type) {
@@ -457,10 +480,10 @@ be_get_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 	struct be_adapter *adapter = netdev_priv(netdev);
 
 	ring->rx_max_pending = adapter->rx_obj[0].q.len;
-	ring->tx_max_pending = adapter->tx_obj.q.len;
+	ring->tx_max_pending = adapter->tx_obj[0].q.len;
 
 	ring->rx_pending = atomic_read(&adapter->rx_obj[0].q.used);
-	ring->tx_pending = atomic_read(&adapter->tx_obj.q.used);
+	ring->tx_pending = atomic_read(&adapter->tx_obj[0].q.used);
 }
 
 static void
@@ -690,7 +713,7 @@ be_read_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 	status = be_cmd_get_seeprom_data(adapter, &eeprom_cmd);
 
 	if (!status) {
-		resp = (struct be_cmd_resp_seeprom_read *) eeprom_cmd.va;
+		resp = eeprom_cmd.va;
 		memcpy(data, resp->seeprom_data + eeprom->offset, eeprom->len);
 	}
 	dma_free_coherent(&adapter->pdev->dev, eeprom_cmd.size, eeprom_cmd.va,

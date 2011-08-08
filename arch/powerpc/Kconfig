@@ -134,6 +134,9 @@ config PPC
 	select GENERIC_IRQ_SHOW_LEVEL
 	select HAVE_RCU_TABLE_FREE if SMP
 	select HAVE_SYSCALL_TRACEPOINTS
+	select HAVE_BPF_JIT if (PPC64 && NET)
+	select HAVE_ARCH_JUMP_LABEL
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 
 config EARLY_PRINTK
 	bool
@@ -841,7 +844,7 @@ config LOWMEM_CAM_NUM
 
 config RELOCATABLE
 	bool "Build a relocatable kernel (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && ADVANCED_OPTIONS && FLATMEM && FSL_BOOKE
+	depends on EXPERIMENTAL && ADVANCED_OPTIONS && FLATMEM && (FSL_BOOKE || PPC_47x)
 	help
 	  This builds a kernel image that is capable of running at the
 	  location the kernel is loaded at (some alignment restrictions may

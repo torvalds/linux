@@ -302,7 +302,8 @@ nlmclnt_call(struct rpc_cred *cred, struct nlm_rqst *req, u32 proc)
 				/* We appear to be out of the grace period */
 				wake_up_all(&host->h_gracewait);
 			}
-			dprintk("lockd: server returns status %d\n", resp->status);
+			dprintk("lockd: server returns status %d\n",
+				ntohl(resp->status));
 			return 0;	/* Okay, call complete */
 		}
 
@@ -690,7 +691,8 @@ nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 		goto out;
 
 	if (resp->status != nlm_lck_denied_nolocks)
-		printk("lockd: unexpected unlock status: %d\n", resp->status);
+		printk("lockd: unexpected unlock status: %d\n",
+			ntohl(resp->status));
 	/* What to do now? I'm out of my depth... */
 	status = -ENOLCK;
 out:
@@ -708,7 +710,13 @@ static void nlmclnt_unlock_callback(struct rpc_task *task, void *data)
 
 	if (task->tk_status < 0) {
 		dprintk("lockd: unlock failed (err = %d)\n", -task->tk_status);
-		goto retry_rebind;
+		switch (task->tk_status) {
+		case -EACCES:
+		case -EIO:
+			goto die;
+		default:
+			goto retry_rebind;
+		}
 	}
 	if (status == NLM_LCK_DENIED_GRACE_PERIOD) {
 		rpc_delay(task, NLMCLNT_GRACE_WAIT);
@@ -837,6 +845,7 @@ nlm_stat_to_errno(__be32 status)
 		return -ENOLCK;
 #endif
 	}
-	printk(KERN_NOTICE "lockd: unexpected server status %d\n", status);
+	printk(KERN_NOTICE "lockd: unexpected server status %d\n",
+		 ntohl(status));
 	return -ENOLCK;
 }

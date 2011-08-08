@@ -981,11 +981,11 @@ config RTC_DRV_COH901331
 
 
 config RTC_DRV_STMP
-	tristate "Freescale STMP3xxx RTC"
-	depends on ARCH_STMP3XXX
+	tristate "Freescale STMP3xxx/i.MX23/i.MX28 RTC"
+	depends on ARCH_MXS
 	help
 	  If you say yes here you will get support for the onboard
-	  STMP3xxx RTC.
+	  STMP3xxx/i.MX23/i.MX28 RTC.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-stmp3xxx.
@@ -1006,10 +1006,10 @@ config RTC_DRV_MC13XXX
 
 config RTC_DRV_MPC5121
 	tristate "Freescale MPC5121 built-in RTC"
-	depends on PPC_MPC512x && RTC_CLASS
+	depends on PPC_MPC512x || PPC_MPC52xx
 	help
 	  If you say yes here you will get support for the
-	  built-in RTC MPC5121.
+	  built-in RTC on MPC5121 or on MPC5200.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-mpc5121.
@@ -1034,6 +1034,16 @@ config RTC_DRV_LPC32XX
 	  This driver can also be buillt as a module. If so, the module
 	  will be called rtc-lpc32xx.
 
+config RTC_DRV_PM8XXX
+	tristate "Qualcomm PMIC8XXX RTC"
+	depends on MFD_PM8XXX
+	help
+	  If you say yes here you get support for the
+	  Qualcomm PMIC8XXX RTC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rtc-pm8xxx.
+
 config RTC_DRV_TEGRA
 	tristate "NVIDIA Tegra Internal RTC driver"
 	depends on RTC_CLASS && ARCH_TEGRA
@@ -1050,5 +1060,14 @@ config RTC_DRV_TILE
 	help
 	  Enable support for the Linux driver side of the Tilera
 	  hypervisor's real-time clock interface.
+
+config RTC_DRV_PUV3
+	tristate "PKUnity v3 RTC support"
+	depends on ARCH_PUV3
+	help
+	  This enables support for the RTC in the PKUnity-v3 SoCs.
+
+	  This drive can also be built as a module. If so, the module
+	  will be called rtc-puv3.
 
 endif # RTC_CLASS

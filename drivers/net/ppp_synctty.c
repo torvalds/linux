@@ -44,6 +44,7 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 #include <asm/uaccess.h>
@@ -381,7 +382,7 @@ ppp_sync_poll(struct tty_struct *tty, struct file *file, poll_table *wait)
 }
 
 /* May sleep, don't call from interrupt level or with interrupts disabled */
-static unsigned int
+static void
 ppp_sync_receive(struct tty_struct *tty, const unsigned char *buf,
 		  char *cflags, int count)
 {
@@ -389,7 +390,7 @@ ppp_sync_receive(struct tty_struct *tty, const unsigned char *buf,
 	unsigned long flags;
 
 	if (!ap)
-		return -ENODEV;
+		return;
 	spin_lock_irqsave(&ap->recv_lock, flags);
 	ppp_sync_input(ap, buf, cflags, count);
 	spin_unlock_irqrestore(&ap->recv_lock, flags);
@@ -397,8 +398,6 @@ ppp_sync_receive(struct tty_struct *tty, const unsigned char *buf,
 		tasklet_schedule(&ap->tsk);
 	sp_put(ap);
 	tty_unthrottle(tty);
-
-	return count;
 }
 
 static void

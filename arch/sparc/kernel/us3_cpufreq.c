@@ -71,7 +71,7 @@ static unsigned long get_current_freq(unsigned int cpu, unsigned long safari_cfg
 		break;
 	default:
 		BUG();
-	};
+	}
 
 	return ret;
 }
@@ -125,7 +125,7 @@ static void us3_set_cpu_divider_index(unsigned int cpu, unsigned int index)
 
 	default:
 		BUG();
-	};
+	}
 
 	reg = read_safari_cfg();
 

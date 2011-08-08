@@ -829,7 +829,7 @@ static bool ar9002_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 	if (AR_SREV_9271(ah)) {
 		if (!ar9285_hw_cl_cal(ah, chan))
 			return false;
-	} else if (AR_SREV_9285_12_OR_LATER(ah)) {
+	} else if (AR_SREV_9285(ah) && AR_SREV_9285_12_OR_LATER(ah)) {
 		if (!ar9285_hw_clc(ah, chan))
 			return false;
 	} else {

@@ -447,11 +447,6 @@ static void smc_setmulticast(int ioaddr, struct net_device *dev)
 	netdev_for_each_mc_addr(ha, dev) {
 		int position;
 
-		/* make sure this is a multicast address - shouldn't this
-		   be a given if we have it here ? */
-		if (!(*ha->addr & 1))
-			continue;
-
 		/* only use the low order bits */
 		position = ether_crc_le(6, ha->addr) & 0x3f;
 

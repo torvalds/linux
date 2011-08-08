@@ -16,7 +16,8 @@ config CPU_EXYNOS4210
 	  Enable EXYNOS4210 CPU support
 
 config EXYNOS4_MCT
-	bool "Kernel timer support by MCT"
+	bool
+	default y
 	help
 	  Use MCT (Multi Core Timer) as kernel timers
 
@@ -24,6 +25,11 @@ config EXYNOS4_DEV_AHCI
 	bool
 	help
 	  Compile in platform device definitions for AHCI
+
+config EXYNOS4_SETUP_FIMD0
+	bool
+	help
+	  Common setup code for FIMD0.
 
 config EXYNOS4_DEV_PD
 	bool
@@ -34,6 +40,11 @@ config EXYNOS4_DEV_SYSMMU
 	bool
 	help
 	  Common setup code for SYSTEM MMU in EXYNOS4
+
+config EXYNOS4_DEV_DWMCI
+	bool
+	help
+	  Compile in platform device definitions for DWMCI
 
 config EXYNOS4_SETUP_I2C1
 	bool
@@ -91,6 +102,11 @@ config EXYNOS4_SETUP_FIMC
 	help
 	  Common setup code for the camera interfaces.
 
+config EXYNOS4_SETUP_USB_PHY
+	bool
+	help
+	  Common setup code for USB PHY controller
+
 # machine support
 
 menu "EXYNOS4 Machines"
@@ -98,6 +114,7 @@ menu "EXYNOS4 Machines"
 config MACH_SMDKC210
 	bool "SMDKC210"
 	select CPU_EXYNOS4210
+	select S5P_DEV_FIMD0
 	select S3C_DEV_RTC
 	select S3C_DEV_WDT
 	select S3C_DEV_I2C1
@@ -105,8 +122,11 @@ config MACH_SMDKC210
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
 	select S3C_DEV_HSMMC3
+	select SAMSUNG_DEV_PWM
+	select SAMSUNG_DEV_BACKLIGHT
 	select EXYNOS4_DEV_PD
 	select EXYNOS4_DEV_SYSMMU
+	select EXYNOS4_SETUP_FIMD0
 	select EXYNOS4_SETUP_I2C1
 	select EXYNOS4_SETUP_SDHCI
 	help
@@ -115,6 +135,7 @@ config MACH_SMDKC210
 config MACH_SMDKV310
 	bool "SMDKV310"
 	select CPU_EXYNOS4210
+	select S5P_DEV_FIMD0
 	select S3C_DEV_RTC
 	select S3C_DEV_WDT
 	select S3C_DEV_I2C1
@@ -122,9 +143,13 @@ config MACH_SMDKV310
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
 	select S3C_DEV_HSMMC3
+	select SAMSUNG_DEV_BACKLIGHT
+	select EXYNOS4_DEV_AHCI
 	select SAMSUNG_DEV_KEYPAD
 	select EXYNOS4_DEV_PD
+	select SAMSUNG_DEV_PWM
 	select EXYNOS4_DEV_SYSMMU
+	select EXYNOS4_SETUP_FIMD0
 	select EXYNOS4_SETUP_I2C1
 	select EXYNOS4_SETUP_KEYPAD
 	select EXYNOS4_SETUP_SDHCI
@@ -148,13 +173,22 @@ config MACH_ARMLEX4210
 config MACH_UNIVERSAL_C210
 	bool "Mobile UNIVERSAL_C210 Board"
 	select CPU_EXYNOS4210
+	select S5P_GPIO_INT
+	select S5P_DEV_FIMC0
+	select S5P_DEV_FIMC1
+	select S5P_DEV_FIMC2
+	select S5P_DEV_FIMC3
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC2
 	select S3C_DEV_HSMMC3
 	select S3C_DEV_I2C1
+	select S3C_DEV_I2C3
 	select S3C_DEV_I2C5
+	select S5P_DEV_MFC
 	select S5P_DEV_ONENAND
+	select EXYNOS4_DEV_PD
 	select EXYNOS4_SETUP_I2C1
+	select EXYNOS4_SETUP_I2C3
 	select EXYNOS4_SETUP_I2C5
 	select EXYNOS4_SETUP_SDHCI
 	help
@@ -171,12 +205,16 @@ config MACH_NURI
 	select S3C_DEV_I2C1
 	select S3C_DEV_I2C3
 	select S3C_DEV_I2C5
+	select S5P_DEV_MFC
 	select S5P_DEV_USB_EHCI
+	select EXYNOS4_DEV_PD
 	select EXYNOS4_SETUP_I2C1
 	select EXYNOS4_SETUP_I2C3
 	select EXYNOS4_SETUP_I2C5
 	select EXYNOS4_SETUP_SDHCI
+	select EXYNOS4_SETUP_USB_PHY
 	select SAMSUNG_DEV_PWM
+	select SAMSUNG_DEV_ADC
 	help
 	  Machine support for Samsung Mobile NURI Board.
 

@@ -504,7 +504,7 @@ static int __btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 		BUG_ON(!new_device);
 		memcpy(new_device, device, sizeof(*new_device));
 		new_device->name = kstrdup(device->name, GFP_NOFS);
-		BUG_ON(!new_device->name);
+		BUG_ON(device->name && !new_device->name);
 		new_device->bdev = NULL;
 		new_device->writeable = 0;
 		new_device->in_fs_metadata = 0;
@@ -689,12 +689,8 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 	transid = btrfs_super_generation(disk_super);
 	if (disk_super->label[0])
 		printk(KERN_INFO "device label %s ", disk_super->label);
-	else {
-		/* FIXME, make a readl uuid parser */
-		printk(KERN_INFO "device fsid %llx-%llx ",
-		       *(unsigned long long *)disk_super->fsid,
-		       *(unsigned long long *)(disk_super->fsid + 8));
-	}
+	else
+		printk(KERN_INFO "device fsid %pU ", disk_super->fsid);
 	printk(KERN_CONT "devid %llu transid %llu %s\n",
 	       (unsigned long long)devid, (unsigned long long)transid, path);
 	ret = device_list_add(path, disk_super, devid, fs_devices_ret);
@@ -1041,7 +1037,8 @@ static noinline int find_next_chunk(struct btrfs_root *root,
 	struct btrfs_key found_key;
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
 
 	key.objectid = objectid;
 	key.offset = (u64)-1;
@@ -2065,8 +2062,10 @@ int btrfs_balance(struct btrfs_root *dev_root)
 
 	/* step two, relocate all the chunks */
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
-
+	if (!path) {
+		ret = -ENOMEM;
+		goto error;
+	}
 	key.objectid = BTRFS_FIRST_CHUNK_TREE_OBJECTID;
 	key.offset = (u64)-1;
 	key.type = BTRFS_CHUNK_ITEM_KEY;
@@ -2102,7 +2101,8 @@ int btrfs_balance(struct btrfs_root *dev_root)
 					   chunk_root->root_key.objectid,
 					   found_key.objectid,
 					   found_key.offset);
-		BUG_ON(ret && ret != -ENOSPC);
+		if (ret && ret != -ENOSPC)
+			goto error;
 		key.offset = found_key.offset - 1;
 	}
 	ret = 0;
@@ -2664,7 +2664,8 @@ static noinline int init_first_rw_device(struct btrfs_trans_handle *trans,
 
 	ret = find_next_chunk(fs_info->chunk_root,
 			      BTRFS_FIRST_CHUNK_TREE_OBJECTID, &chunk_offset);
-	BUG_ON(ret);
+	if (ret)
+		return ret;
 
 	alloc_profile = BTRFS_BLOCK_GROUP_METADATA |
 			(fs_info->metadata_alloc_profile &
@@ -3598,7 +3599,7 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 	if (!sb)
 		return -ENOMEM;
 	btrfs_set_buffer_uptodate(sb);
-	btrfs_set_buffer_lockdep_class(sb, 0);
+	btrfs_set_buffer_lockdep_class(root->root_key.objectid, sb, 0);
 
 	write_extent_buffer(sb, super_copy, 0, BTRFS_SUPER_INFO_SIZE);
 	array_size = btrfs_super_sys_array_size(super_copy);

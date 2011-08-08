@@ -5,6 +5,7 @@ struct clkops {
 	void			(*enable)(struct clk *);
 	void			(*disable)(struct clk *);
 	unsigned long		(*getrate)(struct clk *);
+	int			(*setrate)(struct clk *, unsigned long);
 };
 
 struct clk {

@@ -33,7 +33,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "w1.h"
 #include "w1_log.h"

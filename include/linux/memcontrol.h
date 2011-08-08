@@ -39,6 +39,16 @@ extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 					struct mem_cgroup *mem_cont,
 					int active, int file);
 
+struct memcg_scanrecord {
+	struct mem_cgroup *mem; /* scanend memory cgroup */
+	struct mem_cgroup *root; /* scan target hierarchy root */
+	int context;		/* scanning context (see memcontrol.c) */
+	unsigned long nr_scanned[2]; /* the number of scanned pages */
+	unsigned long nr_rotated[2]; /* the number of rotated pages */
+	unsigned long nr_freed[2]; /* the number of freed pages */
+	unsigned long elapsed; /* nsec of time elapsed while scanning */
+};
+
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
 /*
  * All "charge" functions with gfp_mask should use GFP_KERNEL or
@@ -76,14 +86,13 @@ extern void mem_cgroup_uncharge_end(void);
 
 extern void mem_cgroup_uncharge_page(struct page *page);
 extern void mem_cgroup_uncharge_cache_page(struct page *page);
-extern int mem_cgroup_shmem_charge_fallback(struct page *page,
-			struct mm_struct *mm, gfp_t gfp_mask);
 
 extern void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask);
 int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
 
 extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
 extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+extern struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm);
 
 static inline
 int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
@@ -110,14 +119,22 @@ int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg);
 int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg);
 int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
 unsigned long mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg,
-						struct zone *zone,
-						enum lru_list lru);
+					int nid, int zid, unsigned int lrumask);
 struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
 						      struct zone *zone);
 struct zone_reclaim_stat*
 mem_cgroup_get_reclaim_stat_from_page(struct page *page);
 extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
 					struct task_struct *p);
+
+extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
+						  gfp_t gfp_mask, bool noswap,
+						  struct memcg_scanrecord *rec);
+extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+						gfp_t gfp_mask, bool noswap,
+						struct zone *zone,
+						struct memcg_scanrecord *rec,
+						unsigned long *nr_scanned);
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
 extern int do_swap_account;
@@ -206,12 +223,6 @@ static inline void mem_cgroup_uncharge_cache_page(struct page *page)
 {
 }
 
-static inline int mem_cgroup_shmem_charge_fallback(struct page *page,
-			struct mm_struct *mm, gfp_t gfp_mask)
-{
-	return 0;
-}
-
 static inline void mem_cgroup_add_lru_list(struct page *page, int lru)
 {
 }
@@ -242,6 +253,11 @@ mem_cgroup_move_lists(struct page *page, enum lru_list from, enum lru_list to)
 }
 
 static inline struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+{
+	return NULL;
+}
+
+static inline struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
 {
 	return NULL;
 }
@@ -307,8 +323,8 @@ mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg)
 }
 
 static inline unsigned long
-mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg, struct zone *zone,
-			     enum lru_list lru)
+mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg, int nid, int zid,
+				unsigned int lru_mask)
 {
 	return 0;
 }

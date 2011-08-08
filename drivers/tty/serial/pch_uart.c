@@ -14,6 +14,7 @@
  *along with this program; if not, write to the Free Software
  *Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307, USA.
  */
+#include <linux/kernel.h>
 #include <linux/serial_reg.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -44,6 +45,7 @@ enum {
 /* Set the max number of UART port
  * Intel EG20T PCH: 4 port
  * OKI SEMICONDUCTOR ML7213 IOH: 3 port
+ * OKI SEMICONDUCTOR ML7223 IOH: 2 port
 */
 #define PCH_UART_NR	4
 
@@ -136,8 +138,6 @@ enum {
 
 #define PCH_UART_DLL		0x00
 #define PCH_UART_DLM		0x01
-
-#define DIV_ROUND(a, b)	(((a) + ((b)/2)) / (b))
 
 #define PCH_UART_IID_RLS	(PCH_UART_IIR_REI)
 #define PCH_UART_IID_RDR	(PCH_UART_IIR_RRI)
@@ -316,7 +316,7 @@ static int pch_uart_hal_set_line(struct eg20t_port *priv, int baud,
 	unsigned int dll, dlm, lcr;
 	int div;
 
-	div = DIV_ROUND(priv->base_baud / 16, baud);
+	div = DIV_ROUND_CLOSEST(priv->base_baud / 16, baud);
 	if (div < 0 || USHRT_MAX <= div) {
 		dev_err(priv->port.dev, "Invalid Baud(div=0x%x)\n", div);
 		return -EINVAL;
@@ -1397,6 +1397,7 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	int fifosize, base_baud;
 	int port_type;
 	struct pch_uart_driver_data *board;
+	const char *board_name;
 
 	board = &drv_dat[id->driver_data];
 	port_type = board->port_type;
@@ -1412,7 +1413,8 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	base_baud = 1843200; /* 1.8432MHz */
 
 	/* quirk for CM-iTC board */
-	if (strstr(dmi_get_system_info(DMI_BOARD_NAME), "CM-iTC"))
+	board_name = dmi_get_system_info(DMI_BOARD_NAME);
+	if (board_name && strstr(board_name, "CM-iTC"))
 		base_baud = 192000000; /* 192.0MHz */
 
 	switch (port_type) {
@@ -1426,6 +1428,8 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "Invalid Port Type(=%d)\n", port_type);
 		goto init_port_hal_free;
 	}
+
+	pci_enable_msi(pdev);
 
 	iobase = pci_resource_start(pdev, 0);
 	mapbase = pci_resource_start(pdev, 1);
@@ -1483,6 +1487,8 @@ static void pch_uart_pci_remove(struct pci_dev *pdev)
 	struct eg20t_port *priv;
 
 	priv = (struct eg20t_port *)pci_get_drvdata(pdev);
+
+	pci_disable_msi(pdev);
 	pch_uart_exit_port(priv);
 	pci_disable_device(pdev);
 	kfree(priv);
@@ -1566,6 +1572,7 @@ static int __devinit pch_uart_pci_probe(struct pci_dev *pdev,
 	return ret;
 
 probe_disable_device:
+	pci_disable_msi(pdev);
 	pci_disable_device(pdev);
 probe_error:
 	return ret;

@@ -11,7 +11,7 @@
  */
 
 /* This file should be up to date with:
- *  - Revision J, 06/03/2010; ADSP-BF542/BF544/BF547/BF548/BF549 Blackfin Processor Anomaly List
+ *  - Revision K, 05/23/2011; ADSP-BF542/BF544/BF547/BF548/BF549 Blackfin Processor Anomaly List
  */
 
 #ifndef _MACH_ANOMALY_H_
@@ -29,25 +29,147 @@
 /* Rx.H Cannot Be Used to Access 16-bit System MMR Registers */
 #define ANOMALY_05000122 (1)
 /* Data Corruption/Core Hang with L2/L3 Configured in Writeback Cache Mode */
-#define ANOMALY_05000220 (1)
+#define ANOMALY_05000220 (__SILICON_REVISION__ < 4)
 /* False Hardware Error from an Access in the Shadow of a Conditional Branch */
 #define ANOMALY_05000245 (1)
 /* Sensitivity To Noise with Slow Input Edge Rates on External SPORT TX and RX Clocks */
 #define ANOMALY_05000265 (1)
 /* Certain Data Cache Writethrough Modes Fail for Vddint <= 0.9V */
 #define ANOMALY_05000272 (1)
-/* False Hardware Error Exception when ISR Context Is Not Restored */
+/* False Hardware Errors Caused by Fetches at the Boundary of Reserved Memory */
+#define ANOMALY_05000310 (1)
+/* FIFO Boot Mode Not Functional */
+#define ANOMALY_05000325 (__SILICON_REVISION__ < 2)
+/* bfrom_SysControl() Firmware Function Performs Improper System Reset */
+/*
+ * Note: anomaly sheet says this is fixed with bf54x-0.2+, but testing
+ *       shows that the fix itself does not cover all cases.
+ */
+#define ANOMALY_05000353 (1)
+/* Serial Port (SPORT) Multichannel Transmit Failure when Channel 0 Is Disabled */
+#define ANOMALY_05000357 (1)
+/* External Memory Read Access Hangs Core With PLL Bypass */
+#define ANOMALY_05000360 (1)
+/* DMAs that Go Urgent during Tight Core Writes to External Memory Are Blocked */
+#define ANOMALY_05000365 (1)
+/* Addressing Conflict between Boot ROM and Asynchronous Memory */
+#define ANOMALY_05000369 (1)
+/* Possible RETS Register Corruption when Subroutine Is under 5 Cycles in Duration */
+#define ANOMALY_05000371 (__SILICON_REVISION__ < 2)
+/* Security/Authentication Speedpath Causes Authentication To Fail To Initiate */
+#define ANOMALY_05000378 (__SILICON_REVISION__ < 2)
+/* 16-Bit NAND FLASH Boot Mode Is Not Functional */
+#define ANOMALY_05000379 (1)
+/* Lockbox SESR Disallows Certain User Interrupts */
+#define ANOMALY_05000404 (__SILICON_REVISION__ < 2)
+/* Lockbox SESR Firmware Does Not Save/Restore Full Context */
+#define ANOMALY_05000405 (1)
+/* Lockbox SESR Argument Checking Does Not Check L2 Memory Protection Range */
+#define ANOMALY_05000406 (__SILICON_REVISION__ < 2)
+/* Lockbox SESR Firmware Arguments Are Not Retained After First Initialization */
+#define ANOMALY_05000407 (__SILICON_REVISION__ < 2)
+/* Lockbox Firmware Memory Cleanup Routine Does not Clear Registers */
+#define ANOMALY_05000408 (1)
+/* Lockbox firmware leaves MDMA0 channel enabled */
+#define ANOMALY_05000409 (__SILICON_REVISION__ < 2)
+/* bfrom_SysControl() Firmware Function Cannot be Used to Enter Power Saving Modes */
+#define ANOMALY_05000411 (__SILICON_REVISION__ < 2)
+/* NAND Boot Mode Not Compatible With Some NAND Flash Devices */
+#define ANOMALY_05000413 (__SILICON_REVISION__ < 2)
+/* OTP_CHECK_FOR_PREV_WRITE Bit is Not Functional in bfrom_OtpWrite() API */
+#define ANOMALY_05000414 (__SILICON_REVISION__ < 2)
+/* Speculative Fetches Can Cause Undesired External FIFO Operations */
+#define ANOMALY_05000416 (1)
+/* Multichannel SPORT Channel Misalignment Under Specific Configuration */
+#define ANOMALY_05000425 (__SILICON_REVISION__ < 4)
+/* Speculative Fetches of Indirect-Pointer Instructions Can Cause False Hardware Errors */
+#define ANOMALY_05000426 (1)
+/* CORE_EPPI_PRIO bit and SYS_EPPI_PRIO bit in the HMDMA1_CONTROL register are not functional */
+#define ANOMALY_05000427 (__SILICON_REVISION__ < 2)
+/* WB_EDGE Bit in NFC_IRQSTAT Incorrectly Reflects Buffer Status Instead of IRQ Status */
+#define ANOMALY_05000429 (__SILICON_REVISION__ < 2)
+/* Software System Reset Corrupts PLL_LOCKCNT Register */
+#define ANOMALY_05000430 (__SILICON_REVISION__ >= 2)
+/* Incorrect Use of Stack in Lockbox Firmware During Authentication */
+#define ANOMALY_05000431 (__SILICON_REVISION__ < 3)
+/* SW Breakpoints Ignored Upon Return From Lockbox Authentication */
+#define ANOMALY_05000434 (1)
+/* IFLUSH Instruction at End of Hardware Loop Causes Infinite Stall */
+#define ANOMALY_05000443 (1)
+/* CDMAPRIO and L2DMAPRIO Bits in the SYSCR Register Are Not Functional */
+#define ANOMALY_05000446 (1)
+/* UART IrDA Receiver Fails on Extended Bit Pulses */
+#define ANOMALY_05000447 (1)
+/* DDR Clock Duty Cycle Spec Violation (tCH, tCL) */
+#define ANOMALY_05000448 (__SILICON_REVISION__ == 1)
+/* Reduced Timing Margins on DDR Output Setup and Hold (tDS and tDH) */
+#define ANOMALY_05000449 (__SILICON_REVISION__ == 1)
+/* USB DMA Short Packet Data Corruption */
+#define ANOMALY_05000450 (1)
+/* USB Receive Interrupt Is Not Generated in DMA Mode 1 */
+#define ANOMALY_05000456 (1)
+/* Host DMA Port Responds to Certain Bus Activity Without HOST_CE Assertion */
+#define ANOMALY_05000457 (1)
+/* USB DMA Mode 1 Failure When Multiple USB DMA Channels Are Concurrently Enabled */
+#define ANOMALY_05000460 (__SILICON_REVISION__ < 4)
+/* False Hardware Error when RETI Points to Invalid Memory */
+#define ANOMALY_05000461 (1)
+/* Synchronization Problem at Startup May Cause SPORT Transmit Channels to Misalign */
+#define ANOMALY_05000462 (__SILICON_REVISION__ < 4)
+/* USB DMA RX Data Corruption */
+#define ANOMALY_05000463 (__SILICON_REVISION__ < 4)
+/* USB TX DMA Hang */
+#define ANOMALY_05000464 (__SILICON_REVISION__ < 4)
+/* USB Rx DMA Hang */
+#define ANOMALY_05000465 (1)
+/* TxPktRdy Bit Not Set for Transmit Endpoint When Core and DMA Access USB Endpoint FIFOs Simultaneously */
+#define ANOMALY_05000466 (__SILICON_REVISION__ < 4)
+/* Possible USB RX Data Corruption When Control & Data EP FIFOs are Accessed via the Core */
+#define ANOMALY_05000467 (__SILICON_REVISION__ < 4)
+/* Interrupted SPORT Receive Data Register Read Results In Underflow when SLEN > 15 */
+#define ANOMALY_05000473 (1)
+/* Access to DDR SDRAM Causes System Hang with Certain PLL Settings */
+#define ANOMALY_05000474 (__SILICON_REVISION__ < 4)
+/* TESTSET Instruction Cannot Be Interrupted */
+#define ANOMALY_05000477 (1)
+/* Reads of ITEST_COMMAND and ITEST_DATA Registers Cause Cache Corruption */
+#define ANOMALY_05000481 (1)
+/* Possible USB Data Corruption When Multiple Endpoints Are Accessed by the Core */
+#define ANOMALY_05000483 (1)
+/* DDR Trim May Not Be Performed for Certain VLEV Values in OTP Page PBS00L */
+#define ANOMALY_05000484 (__SILICON_REVISION__ < 3)
+/* PLL_CTL Change Using bfrom_SysControl() Can Result in Processor Overclocking */
+#define ANOMALY_05000485 (__SILICON_REVISION__ > 1 && __SILICON_REVISION__ < 4)
+/* PLL May Latch Incorrect Values Coming Out of Reset */
+#define ANOMALY_05000489 (1)
+/* SPI Master Boot Can Fail Under Certain Conditions */
+#define ANOMALY_05000490 (1)
+/* Instruction Memory Stalls Can Cause IFLUSH to Fail */
+#define ANOMALY_05000491 (1)
+/* EXCPT Instruction May Be Lost If NMI Happens Simultaneously */
+#define ANOMALY_05000494 (1)
+/* CNT_COMMAND Functionality Depends on CNT_IMASK Configuration */
+#define ANOMALY_05000498 (1)
+/* Nand Flash Controller Hangs When the AMC Requests the Async Pins During the last 16 Bytes of a Page Write Operation. */
+#define ANOMALY_05000500 (1)
+/* RXS Bit in SPI_STAT May Become Stuck In RX DMA Modes */
+#define ANOMALY_05000501 (1)
+/* Async Memory Writes May Be Skipped When Using Odd Clock Ratios */
+#define ANOMALY_05000502 (1)
+
+/*
+ * These anomalies have been "phased" out of analog.com anomaly sheets and are
+ * here to show running on older silicon just isn't feasible.
+ */
+
+/* False Hardware Error when ISR Context Is Not Restored */
 #define ANOMALY_05000281 (__SILICON_REVISION__ < 1)
 /* SSYNCs After Writes To CAN/DMA MMR Registers Are Not Always Handled Correctly */
 #define ANOMALY_05000304 (__SILICON_REVISION__ < 1)
-/* False Hardware Errors Caused by Fetches at the Boundary of Reserved Memory */
-#define ANOMALY_05000310 (1)
 /* Errors when SSYNC, CSYNC, or Loads to LT, LB and LC Registers Are Interrupted */
 #define ANOMALY_05000312 (__SILICON_REVISION__ < 1)
 /* TWI Slave Boot Mode Is Not Functional */
 #define ANOMALY_05000324 (__SILICON_REVISION__ < 1)
-/* FIFO Boot Mode Not Functional */
-#define ANOMALY_05000325 (__SILICON_REVISION__ < 2)
 /* Data Lost When Core and DMA Accesses Are Made to the USB FIFO Simultaneously */
 #define ANOMALY_05000327 (__SILICON_REVISION__ < 1)
 /* Incorrect Access of OTP_STATUS During otp_write() Function */
@@ -80,40 +202,18 @@
 #define ANOMALY_05000349 (__SILICON_REVISION__ < 1)
 /* PLL Status Register Is Inaccurate */
 #define ANOMALY_05000351 (__SILICON_REVISION__ < 1)
-/* bfrom_SysControl() Firmware Function Performs Improper System Reset */
-/*
- * Note: anomaly sheet says this is fixed with bf54x-0.2+, but testing
- *       shows that the fix itself does not cover all cases.
- */
-#define ANOMALY_05000353 (1)
 /* Regulator Programming Blocked when Hibernate Wakeup Source Remains Active */
 #define ANOMALY_05000355 (__SILICON_REVISION__ < 1)
 /* System Stalled During A Core Access To AMC While A Core Access To NFC FIFO Is Required */
 #define ANOMALY_05000356 (__SILICON_REVISION__ < 1)
-/* Serial Port (SPORT) Multichannel Transmit Failure when Channel 0 Is Disabled */
-#define ANOMALY_05000357 (1)
-/* External Memory Read Access Hangs Core With PLL Bypass */
-#define ANOMALY_05000360 (1)
-/* DMAs that Go Urgent during Tight Core Writes to External Memory Are Blocked */
-#define ANOMALY_05000365 (1)
 /* WURESET Bit In SYSCR Register Does Not Properly Indicate Hibernate Wake-Up */
 #define ANOMALY_05000367 (__SILICON_REVISION__ < 1)
-/* Addressing Conflict between Boot ROM and Asynchronous Memory */
-#define ANOMALY_05000369 (1)
 /* Default PLL MSEL and SSEL Settings Can Cause 400MHz Product To Violate Specifications */
 #define ANOMALY_05000370 (__SILICON_REVISION__ < 1)
-/* Possible RETS Register Corruption when Subroutine Is under 5 Cycles in Duration */
-#define ANOMALY_05000371 (__SILICON_REVISION__ < 2)
 /* USB DP/DM Data Pins May Lose State When Entering Hibernate */
 #define ANOMALY_05000372 (__SILICON_REVISION__ < 1)
-/* Security/Authentication Speedpath Causes Authentication To Fail To Initiate */
-#define ANOMALY_05000378 (__SILICON_REVISION__ < 2)
-/* 16-Bit NAND FLASH Boot Mode Is Not Functional */
-#define ANOMALY_05000379 (1)
 /* 8-Bit NAND Flash Boot Mode Not Functional */
 #define ANOMALY_05000382 (__SILICON_REVISION__ < 1)
-/* Some ATAPI Modes Are Not Functional */
-#define ANOMALY_05000383 (1)
 /* Boot from OTP Memory Not Functional */
 #define ANOMALY_05000385 (__SILICON_REVISION__ < 1)
 /* bfrom_SysControl() Firmware Routine Not Functional */
@@ -140,92 +240,10 @@
 #define ANOMALY_05000396 (__SILICON_REVISION__ < 1)
 /* BK_ONES, BK_ZEROS, and BK_DATECODE Constants Not Functional */
 #define ANOMALY_05000397 (__SILICON_REVISION__ < 1)
-/* Lockbox SESR Disallows Certain User Interrupts */
-#define ANOMALY_05000404 (__SILICON_REVISION__ < 2)
-/* Lockbox SESR Firmware Does Not Save/Restore Full Context */
-#define ANOMALY_05000405 (1)
-/* Lockbox SESR Argument Checking Does Not Check L2 Memory Protection Range */
-#define ANOMALY_05000406 (__SILICON_REVISION__ < 2)
-/* Lockbox SESR Firmware Arguments Are Not Retained After First Initialization */
-#define ANOMALY_05000407 (__SILICON_REVISION__ < 2)
-/* Lockbox Firmware Memory Cleanup Routine Does not Clear Registers */
-#define ANOMALY_05000408 (1)
-/* Lockbox firmware leaves MDMA0 channel enabled */
-#define ANOMALY_05000409 (__SILICON_REVISION__ < 2)
-/* bfrom_SysControl() Firmware Function Cannot be Used to Enter Power Saving Modes */
-#define ANOMALY_05000411 (__SILICON_REVISION__ < 2)
-/* NAND Boot Mode Not Compatible With Some NAND Flash Devices */
-#define ANOMALY_05000413 (__SILICON_REVISION__ < 2)
-/* OTP_CHECK_FOR_PREV_WRITE Bit is Not Functional in bfrom_OtpWrite() API */
-#define ANOMALY_05000414 (__SILICON_REVISION__ < 2)
-/* Speculative Fetches Can Cause Undesired External FIFO Operations */
-#define ANOMALY_05000416 (1)
-/* Multichannel SPORT Channel Misalignment Under Specific Configuration */
-#define ANOMALY_05000425 (1)
-/* Speculative Fetches of Indirect-Pointer Instructions Can Cause False Hardware Errors */
-#define ANOMALY_05000426 (1)
-/* CORE_EPPI_PRIO bit and SYS_EPPI_PRIO bit in the HMDMA1_CONTROL register are not functional */
-#define ANOMALY_05000427 (__SILICON_REVISION__ < 2)
-/* WB_EDGE Bit in NFC_IRQSTAT Incorrectly Reflects Buffer Status Instead of IRQ Status */
-#define ANOMALY_05000429 (__SILICON_REVISION__ < 2)
-/* Software System Reset Corrupts PLL_LOCKCNT Register */
-#define ANOMALY_05000430 (__SILICON_REVISION__ >= 2)
-/* Incorrect Use of Stack in Lockbox Firmware During Authentication */
-#define ANOMALY_05000431 (__SILICON_REVISION__ < 3)
-/* SW Breakpoints Ignored Upon Return From Lockbox Authentication */
-#define ANOMALY_05000434 (1)
 /* OTP Write Accesses Not Supported */
 #define ANOMALY_05000442 (__SILICON_REVISION__ < 1)
-/* IFLUSH Instruction at End of Hardware Loop Causes Infinite Stall */
-#define ANOMALY_05000443 (1)
-/* CDMAPRIO and L2DMAPRIO Bits in the SYSCR Register Are Not Functional */
-#define ANOMALY_05000446 (1)
-/* UART IrDA Receiver Fails on Extended Bit Pulses */
-#define ANOMALY_05000447 (1)
-/* DDR Clock Duty Cycle Spec Violation (tCH, tCL) */
-#define ANOMALY_05000448 (__SILICON_REVISION__ == 1)
-/* Reduced Timing Margins on DDR Output Setup and Hold (tDS and tDH) */
-#define ANOMALY_05000449 (__SILICON_REVISION__ == 1)
-/* USB DMA Mode 1 Short Packet Data Corruption */
-#define ANOMALY_05000450 (1)
 /* Incorrect Default Hysteresis Setting for RESET, NMI, and BMODE Signals */
 #define ANOMALY_05000452 (__SILICON_REVISION__ < 1)
-/* USB Receive Interrupt Is Not Generated in DMA Mode 1 */
-#define ANOMALY_05000456 (1)
-/* Host DMA Port Responds to Certain Bus Activity Without HOST_CE Assertion */
-#define ANOMALY_05000457 (1)
-/* USB DMA Mode 1 Failure When Multiple USB DMA Channels Are Concurrently Enabled */
-#define ANOMALY_05000460 (1)
-/* False Hardware Error when RETI Points to Invalid Memory */
-#define ANOMALY_05000461 (1)
-/* Synchronization Problem at Startup May Cause SPORT Transmit Channels to Misalign */
-#define ANOMALY_05000462 (1)
-/* USB DMA RX Data Corruption */
-#define ANOMALY_05000463 (1)
-/* USB TX DMA Hang */
-#define ANOMALY_05000464 (1)
-/* USB Rx DMA hang */
-#define ANOMALY_05000465 (1)
-/* TxPktRdy Bit Not Set for Transmit Endpoint When Core and DMA Access USB Endpoint FIFOs Simultaneously */
-#define ANOMALY_05000466 (1)
-/* Possible RX data corruption when control & data EP FIFOs are accessed via the core */
-#define ANOMALY_05000467 (1)
-/* Interrupted 32-Bit SPORT Data Register Access Results In Underflow */
-#define ANOMALY_05000473 (1)
-/* Access to DDR-SDRAM causes system hang under certain PLL/VR settings */
-#define ANOMALY_05000474 (1)
-/* TESTSET Instruction Cannot Be Interrupted */
-#define ANOMALY_05000477 (1)
-/* Reads of ITEST_COMMAND and ITEST_DATA Registers Cause Cache Corruption */
-#define ANOMALY_05000481 (1)
-/* Possible USB Data Corruption When Multiple Endpoints Are Accessed by the Core */
-#define ANOMALY_05000483 (1)
-/* DDR Trim May Not Be Performed for Certain VLEV Values in OTP Page PBS00L */
-#define ANOMALY_05000484 (__SILICON_REVISION__ < 3)
-/* PLL_CTL Change Using bfrom_SysControl() Can Result in Processor Overclocking */
-#define ANOMALY_05000485 (__SILICON_REVISION__ >= 2)
-/* IFLUSH sucks at life */
-#define ANOMALY_05000491 (1)
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000099 (0)

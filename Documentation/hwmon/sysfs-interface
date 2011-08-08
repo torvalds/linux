@@ -139,6 +139,29 @@ in[0-*]_input	Voltage input value.
 		thumb: drivers should report the voltage values at the
 		"pins" of the chip.
 
+in[0-*]_average
+		Average voltage
+		Unit: millivolt
+		RO
+
+in[0-*]_lowest
+		Historical minimum voltage
+		Unit: millivolt
+		RO
+
+in[0-*]_highest
+		Historical maximum voltage
+		Unit: millivolt
+		RO
+
+in[0-*]_reset_history
+		Reset inX_lowest and inX_highest
+		WO
+
+in_reset_history
+		Reset inX_lowest and inX_highest for all sensors
+		WO
+
 in[0-*]_label	Suggested voltage channel label.
 		Text string
 		Should only be created if the driver has hints about what
@@ -406,6 +429,29 @@ curr[1-*]_crit	Current critical high value.
 curr[1-*]_input	Current input value
 		Unit: milliampere
 		RO
+
+curr[1-*]_average
+		Average current use
+		Unit: milliampere
+		RO
+
+curr[1-*]_lowest
+		Historical minimum current
+		Unit: milliampere
+		RO
+
+curr[1-*]_highest
+		Historical maximum current
+		Unit: milliampere
+		RO
+
+curr[1-*]_reset_history
+		Reset currX_lowest and currX_highest
+		WO
+
+curr_reset_history
+		Reset currX_lowest and currX_highest for all sensors
+		WO
 
 Also see the Alarms section for status flags associated with currents.
 

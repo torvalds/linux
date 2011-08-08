@@ -1107,19 +1107,20 @@ static enum print_line_t trace_stack_print(struct trace_iterator *iter,
 {
 	struct stack_entry *field;
 	struct trace_seq *s = &iter->seq;
-	int i;
+	unsigned long *p;
+	unsigned long *end;
 
 	trace_assign_type(field, iter->ent);
+	end = (unsigned long *)((long)iter->ent + iter->ent_size);
 
 	if (!trace_seq_puts(s, "<stack trace>\n"))
 		goto partial;
-	for (i = 0; i < FTRACE_STACK_ENTRIES; i++) {
-		if (!field->caller[i] || (field->caller[i] == ULONG_MAX))
-			break;
+
+	for (p = field->caller; p && *p != ULONG_MAX && p < end; p++) {
 		if (!trace_seq_puts(s, " => "))
 			goto partial;
 
-		if (!seq_print_ip_sym(s, field->caller[i], flags))
+		if (!seq_print_ip_sym(s, *p, flags))
 			goto partial;
 		if (!trace_seq_puts(s, "\n"))
 			goto partial;

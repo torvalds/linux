@@ -17,28 +17,9 @@
 
 #include "bfad_drv.h"
 #include "bfa_modules.h"
-#include "bfi_ctreg.h"
+#include "bfi_reg.h"
 
 BFA_TRC_FILE(HAL, IOCFC_CT);
-
-static u32 __ct_msix_err_vec_reg[] = {
-	HOST_MSIX_ERR_INDEX_FN0,
-	HOST_MSIX_ERR_INDEX_FN1,
-	HOST_MSIX_ERR_INDEX_FN2,
-	HOST_MSIX_ERR_INDEX_FN3,
-};
-
-static void
-bfa_hwct_msix_lpu_err_set(struct bfa_s *bfa, bfa_boolean_t msix, int vec)
-{
-	int fn = bfa_ioc_pcifn(&bfa->ioc);
-	void __iomem *kva = bfa_ioc_bar0(&bfa->ioc);
-
-	if (msix)
-		writel(vec, kva + __ct_msix_err_vec_reg[fn]);
-	else
-		writel(0, kva + __ct_msix_err_vec_reg[fn]);
-}
 
 /*
  * Dummy interrupt handler for handling spurious interrupt during chip-reinit.
@@ -53,7 +34,7 @@ bfa_hwct_reginit(struct bfa_s *bfa)
 {
 	struct bfa_iocfc_regs_s	*bfa_regs = &bfa->iocfc.bfa_regs;
 	void __iomem *kva = bfa_ioc_bar0(&bfa->ioc);
-	int			i, q, fn = bfa_ioc_pcifn(&bfa->ioc);
+	int	fn = bfa_ioc_pcifn(&bfa->ioc);
 
 	if (fn == 0) {
 		bfa_regs->intr_status = (kva + HOSTFN0_INT_STATUS);
@@ -62,26 +43,16 @@ bfa_hwct_reginit(struct bfa_s *bfa)
 		bfa_regs->intr_status = (kva + HOSTFN1_INT_STATUS);
 		bfa_regs->intr_mask   = (kva + HOSTFN1_INT_MSK);
 	}
+}
 
-	for (i = 0; i < BFI_IOC_MAX_CQS; i++) {
-		/*
-		 * CPE registers
-		 */
-		q = CPE_Q_NUM(fn, i);
-		bfa_regs->cpe_q_pi[i] = (kva + CPE_PI_PTR_Q(q << 5));
-		bfa_regs->cpe_q_ci[i] = (kva + CPE_CI_PTR_Q(q << 5));
-		bfa_regs->cpe_q_depth[i] = (kva + CPE_DEPTH_Q(q << 5));
-		bfa_regs->cpe_q_ctrl[i] = (kva + CPE_QCTRL_Q(q << 5));
+void
+bfa_hwct2_reginit(struct bfa_s *bfa)
+{
+	struct bfa_iocfc_regs_s *bfa_regs = &bfa->iocfc.bfa_regs;
+	void __iomem	*kva = bfa_ioc_bar0(&bfa->ioc);
 
-		/*
-		 * RME registers
-		 */
-		q = CPE_Q_NUM(fn, i);
-		bfa_regs->rme_q_pi[i] = (kva + RME_PI_PTR_Q(q << 5));
-		bfa_regs->rme_q_ci[i] = (kva + RME_CI_PTR_Q(q << 5));
-		bfa_regs->rme_q_depth[i] = (kva + RME_DEPTH_Q(q << 5));
-		bfa_regs->rme_q_ctrl[i] = (kva + RME_QCTRL_Q(q << 5));
-	}
+	bfa_regs->intr_status = (kva + CT2_HOSTFN_INT_STATUS);
+	bfa_regs->intr_mask   = (kva + CT2_HOSTFN_INTR_MASK);
 }
 
 void
@@ -93,22 +64,45 @@ bfa_hwct_reqq_ack(struct bfa_s *bfa, int reqq)
 	writel(r32, bfa->iocfc.bfa_regs.cpe_q_ctrl[reqq]);
 }
 
+/*
+ * Actions to respond RME Interrupt for Catapult ASIC:
+ * - Write 1 to Interrupt Status register (INTx only - done in bfa_intx())
+ * - Acknowledge by writing to RME Queue Control register
+ * - Update CI
+ */
 void
-bfa_hwct_rspq_ack(struct bfa_s *bfa, int rspq)
+bfa_hwct_rspq_ack(struct bfa_s *bfa, int rspq, u32 ci)
 {
 	u32	r32;
 
 	r32 = readl(bfa->iocfc.bfa_regs.rme_q_ctrl[rspq]);
 	writel(r32, bfa->iocfc.bfa_regs.rme_q_ctrl[rspq]);
+
+	bfa_rspq_ci(bfa, rspq) = ci;
+	writel(ci, bfa->iocfc.bfa_regs.rme_q_ci[rspq]);
+	mmiowb();
+}
+
+/*
+ * Actions to respond RME Interrupt for Catapult2 ASIC:
+ * - Write 1 to Interrupt Status register (INTx only - done in bfa_intx())
+ * - Update CI
+ */
+void
+bfa_hwct2_rspq_ack(struct bfa_s *bfa, int rspq, u32 ci)
+{
+	bfa_rspq_ci(bfa, rspq) = ci;
+	writel(ci, bfa->iocfc.bfa_regs.rme_q_ci[rspq]);
+	mmiowb();
 }
 
 void
 bfa_hwct_msix_getvecs(struct bfa_s *bfa, u32 *msix_vecs_bmap,
 		 u32 *num_vecs, u32 *max_vec_bit)
 {
-	*msix_vecs_bmap = (1 << BFA_MSIX_CT_MAX) - 1;
-	*max_vec_bit = (1 << (BFA_MSIX_CT_MAX - 1));
-	*num_vecs = BFA_MSIX_CT_MAX;
+	*msix_vecs_bmap = (1 << BFI_MSIX_CT_MAX) - 1;
+	*max_vec_bit = (1 << (BFI_MSIX_CT_MAX - 1));
+	*num_vecs = BFI_MSIX_CT_MAX;
 }
 
 /*
@@ -117,7 +111,7 @@ bfa_hwct_msix_getvecs(struct bfa_s *bfa, u32 *msix_vecs_bmap,
 void
 bfa_hwct_msix_init(struct bfa_s *bfa, int nvecs)
 {
-	WARN_ON((nvecs != 1) && (nvecs != BFA_MSIX_CT_MAX));
+	WARN_ON((nvecs != 1) && (nvecs != BFI_MSIX_CT_MAX));
 	bfa_trc(bfa, nvecs);
 
 	bfa->msix.nvecs = nvecs;
@@ -125,7 +119,19 @@ bfa_hwct_msix_init(struct bfa_s *bfa, int nvecs)
 }
 
 void
-bfa_hwct_msix_install(struct bfa_s *bfa)
+bfa_hwct_msix_ctrl_install(struct bfa_s *bfa)
+{
+	if (bfa->msix.nvecs == 0)
+		return;
+
+	if (bfa->msix.nvecs == 1)
+		bfa->msix.handler[BFI_MSIX_LPU_ERR_CT] = bfa_msix_all;
+	else
+		bfa->msix.handler[BFI_MSIX_LPU_ERR_CT] = bfa_msix_lpu_err;
+}
+
+void
+bfa_hwct_msix_queue_install(struct bfa_s *bfa)
 {
 	int i;
 
@@ -133,19 +139,16 @@ bfa_hwct_msix_install(struct bfa_s *bfa)
 		return;
 
 	if (bfa->msix.nvecs == 1) {
-		for (i = 0; i < BFA_MSIX_CT_MAX; i++)
+		for (i = BFI_MSIX_CPE_QMIN_CT; i < BFI_MSIX_CT_MAX; i++)
 			bfa->msix.handler[i] = bfa_msix_all;
 		return;
 	}
 
-	for (i = BFA_MSIX_CPE_Q0; i <= BFA_MSIX_CPE_Q3; i++)
+	for (i = BFI_MSIX_CPE_QMIN_CT; i <= BFI_MSIX_CPE_QMAX_CT; i++)
 		bfa->msix.handler[i] = bfa_msix_reqq;
 
-	for (; i <= BFA_MSIX_RME_Q3; i++)
+	for (i = BFI_MSIX_RME_QMIN_CT; i <= BFI_MSIX_RME_QMAX_CT; i++)
 		bfa->msix.handler[i] = bfa_msix_rspq;
-
-	WARN_ON(i != BFA_MSIX_LPU_ERR);
-	bfa->msix.handler[BFA_MSIX_LPU_ERR] = bfa_msix_lpu_err;
 }
 
 void
@@ -153,7 +156,7 @@ bfa_hwct_msix_uninstall(struct bfa_s *bfa)
 {
 	int i;
 
-	for (i = 0; i < BFA_MSIX_CT_MAX; i++)
+	for (i = 0; i < BFI_MSIX_CT_MAX; i++)
 		bfa->msix.handler[i] = bfa_hwct_msix_dummy;
 }
 
@@ -164,13 +167,12 @@ void
 bfa_hwct_isr_mode_set(struct bfa_s *bfa, bfa_boolean_t msix)
 {
 	bfa_trc(bfa, 0);
-	bfa_hwct_msix_lpu_err_set(bfa, msix, BFA_MSIX_LPU_ERR);
 	bfa_ioc_isr_mode_set(&bfa->ioc, msix);
 }
 
 void
 bfa_hwct_msix_get_rme_range(struct bfa_s *bfa, u32 *start, u32 *end)
 {
-	*start = BFA_MSIX_RME_Q0;
-	*end = BFA_MSIX_RME_Q3;
+	*start = BFI_MSIX_RME_QMIN_CT;
+	*end = BFI_MSIX_RME_QMAX_CT;
 }

@@ -518,22 +518,18 @@ static int blkvsc_remove(struct hv_device *dev)
 
 	blkvsc_do_operation(blkdev, DO_FLUSH);
 
-	blk_cleanup_queue(blkdev->gd->queue);
+	if (blkdev->users == 0) {
+		del_gendisk(blkdev->gd);
+		put_disk(blkdev->gd);
+		blk_cleanup_queue(blkdev->gd->queue);
 
-	/*
-	 * Call to the vsc driver to let it know that the device is being
-	 * removed
-	 */
-	storvsc_dev_remove(dev);
+		storvsc_dev_remove(blkdev->device_ctx);
 
-	del_gendisk(blkdev->gd);
-
-	kmem_cache_destroy(blkdev->request_pool);
-
-	kfree(blkdev);
+		kmem_cache_destroy(blkdev->request_pool);
+		kfree(blkdev);
+	}
 
 	return 0;
-
 }
 
 static void blkvsc_shutdown(struct hv_device *dev)
@@ -568,13 +564,23 @@ static int blkvsc_release(struct gendisk *disk, fmode_t mode)
 	struct block_device_context *blkdev = disk->private_data;
 	unsigned long flags;
 
-	if (blkdev->users == 1) {
-		blkvsc_do_operation(blkdev, DO_FLUSH);
-	}
-
 	spin_lock_irqsave(&blkdev->lock, flags);
-	blkdev->users--;
-	spin_unlock_irqrestore(&blkdev->lock, flags);
+
+	if ((--blkdev->users == 0) && (blkdev->shutting_down)) {
+		blk_stop_queue(blkdev->gd->queue);
+		spin_unlock_irqrestore(&blkdev->lock, flags);
+
+		blkvsc_do_operation(blkdev, DO_FLUSH);
+		del_gendisk(blkdev->gd);
+		put_disk(blkdev->gd);
+		blk_cleanup_queue(blkdev->gd->queue);
+
+		storvsc_dev_remove(blkdev->device_ctx);
+
+		kmem_cache_destroy(blkdev->request_pool);
+		kfree(blkdev);
+	} else
+		spin_unlock_irqrestore(&blkdev->lock, flags);
 
 	return 0;
 }
@@ -824,7 +830,6 @@ static int blkvsc_drv_init(void)
 	BUILD_BUG_ON(sizeof(sector_t) != 8);
 
 	memcpy(&drv->dev_type, &dev_type, sizeof(struct hv_guid));
-	drv->name = drv_name;
 	drv->driver.name = drv_name;
 
 	/* The driver belongs to vmbus */
@@ -921,7 +926,6 @@ static int blkvsc_probe(struct hv_device *dev)
 	else
 		blkdev->gd->first_minor = 0;
 	blkdev->gd->fops = &block_ops;
-	blkdev->gd->events = DISK_EVENT_MEDIA_CHANGE;
 	blkdev->gd->private_data = blkdev;
 	blkdev->gd->driverfs_dev = &(blkdev->device_ctx->device);
 	sprintf(blkdev->gd->disk_name, "hd%c", 'a' + major_info.index);

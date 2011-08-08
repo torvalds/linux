@@ -10,6 +10,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -1891,9 +1892,9 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 
 	txpriority = index;
 
-	if (ieee80211_is_data_qos(wh->frame_control) &&
-	    skb->protocol != cpu_to_be16(ETH_P_PAE) &&
-	    sta->ht_cap.ht_supported && priv->ap_fw) {
+	if (priv->ap_fw && sta && sta->ht_cap.ht_supported
+			&& skb->protocol != cpu_to_be16(ETH_P_PAE)
+			&& ieee80211_is_data_qos(wh->frame_control)) {
 		tid = qos & 0xf;
 		mwl8k_tx_count_packet(sta, tid);
 		spin_lock(&priv->stream_lock);
@@ -2474,6 +2475,7 @@ struct mwl8k_cmd_set_hw_spec {
  * faster client.
  */
 #define MWL8K_SET_HW_SPEC_FLAG_ENABLE_LIFE_TIME_EXPIRY	0x00000400
+#define MWL8K_SET_HW_SPEC_FLAG_GENERATE_CCMP_HDR	0x00000200
 #define MWL8K_SET_HW_SPEC_FLAG_HOST_DECR_MGMT		0x00000080
 #define MWL8K_SET_HW_SPEC_FLAG_HOSTFORM_PROBERESP	0x00000020
 #define MWL8K_SET_HW_SPEC_FLAG_HOSTFORM_BEACON		0x00000010
@@ -2510,7 +2512,8 @@ static int mwl8k_cmd_set_hw_spec(struct ieee80211_hw *hw)
 	cmd->flags = cpu_to_le32(MWL8K_SET_HW_SPEC_FLAG_HOST_DECR_MGMT |
 				 MWL8K_SET_HW_SPEC_FLAG_HOSTFORM_PROBERESP |
 				 MWL8K_SET_HW_SPEC_FLAG_HOSTFORM_BEACON |
-				 MWL8K_SET_HW_SPEC_FLAG_ENABLE_LIFE_TIME_EXPIRY);
+				 MWL8K_SET_HW_SPEC_FLAG_ENABLE_LIFE_TIME_EXPIRY |
+				 MWL8K_SET_HW_SPEC_FLAG_GENERATE_CCMP_HDR);
 	cmd->num_tx_desc_per_queue = cpu_to_le32(MWL8K_TX_DESCS);
 	cmd->total_rxd = cpu_to_le32(MWL8K_RX_DESCS);
 

@@ -136,7 +136,7 @@ struct sysfs_addrm_cxt {
  * instance).
  */
 struct sysfs_super_info {
-	const void *ns[KOBJ_NS_TYPES];
+	void *ns[KOBJ_NS_TYPES];
 };
 #define sysfs_info(SB) ((struct sysfs_super_info *)(SB->s_fs_info))
 extern struct sysfs_dirent sysfs_root;
@@ -201,7 +201,7 @@ static inline void __sysfs_put(struct sysfs_dirent *sd)
 struct inode *sysfs_get_inode(struct super_block *sb, struct sysfs_dirent *sd);
 void sysfs_evict_inode(struct inode *inode);
 int sysfs_sd_setattr(struct sysfs_dirent *sd, struct iattr *iattr);
-int sysfs_permission(struct inode *inode, int mask, unsigned int flags);
+int sysfs_permission(struct inode *inode, int mask);
 int sysfs_setattr(struct dentry *dentry, struct iattr *iattr);
 int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat);
 int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,

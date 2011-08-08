@@ -267,19 +267,19 @@ struct txdma_regs {			/* Location: */
 	u32 service_complete;		/*  0x1028 */
 	u32 cache_rd_index;		/*  0x102C */
 	u32 cache_wr_index;		/*  0x1030 */
-	u32 TxDmaError;			/*  0x1034 */
-	u32 DescAbortCount;		/*  0x1038 */
-	u32 PayloadAbortCnt;		/*  0x103c */
-	u32 WriteBackAbortCnt;		/*  0x1040 */
-	u32 DescTimeoutCnt;		/*  0x1044 */
-	u32 PayloadTimeoutCnt;		/*  0x1048 */
-	u32 WriteBackTimeoutCnt;	/*  0x104c */
-	u32 DescErrorCount;		/*  0x1050 */
-	u32 PayloadErrorCnt;		/*  0x1054 */
-	u32 WriteBackErrorCnt;		/*  0x1058 */
-	u32 DroppedTLPCount;		/*  0x105c */
-	u32 NewServiceComplete;		/*  0x1060 */
-	u32 EthernetPacketCount;	/*  0x1064 */
+	u32 tx_dma_error;		/*  0x1034 */
+	u32 desc_abort_cnt;		/*  0x1038 */
+	u32 payload_abort_cnt;		/*  0x103c */
+	u32 writeback_abort_cnt;	/*  0x1040 */
+	u32 desc_timeout_cnt;		/*  0x1044 */
+	u32 payload_timeout_cnt;	/*  0x1048 */
+	u32 writeback_timeout_cnt;	/*  0x104c */
+	u32 desc_error_cnt;		/*  0x1050 */
+	u32 payload_error_cnt;		/*  0x1054 */
+	u32 writeback_error_cnt;	/*  0x1058 */
+	u32 dropped_tlp_cnt;		/*  0x105c */
+	u32 new_service_complete;	/*  0x1060 */
+	u32 ethernet_packet_cnt;	/*  0x1064 */
 };
 
 /* END OF TXDMA REGISTER ADDRESS MAP */
@@ -700,42 +700,27 @@ struct txmac_regs {			/* Location: */
 /*
  * structure for Wake On Lan Source Address Lo reg in rxmac address map
  * located at address 0x4010
+ *
+ * 31-24: sa3
+ * 23-16: sa4
+ * 15-8: sa5
+ * 7-0: sa6
  */
-typedef union _RXMAC_WOL_SA_LO_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 sa3:8;	/* bits 24-31 */
-		u32 sa4:8;	/* bits 16-23 */
-		u32 sa5:8;	/* bits 8-15 */
-		u32 sa6:8;	/* bits 0-7 */
-#else
-		u32 sa6:8;	/* bits 0-7 */
-		u32 sa5:8;	/* bits 8-15 */
-		u32 sa4:8;	/* bits 16-23 */
-		u32 sa3:8;	/* bits 24-31 */
-#endif
-	} bits;
-} RXMAC_WOL_SA_LO_t, *PRXMAC_WOL_SA_LO_t;
+
+#define ET_WOL_LO_SA3_SHIFT 24
+#define ET_WOL_LO_SA4_SHIFT 16
+#define ET_WOL_LO_SA5_SHIFT 8
 
 /*
  * structure for Wake On Lan Source Address Hi reg in rxmac address map
  * located at address 0x4014
+ *
+ * 31-16: reserved
+ * 15-8: sa1
+ * 7-0: sa2
  */
-typedef union _RXMAC_WOL_SA_HI_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved:16;	/* bits 16-31 */
-		u32 sa1:8;		/* bits 8-15 */
-		u32 sa2:8;		/* bits 0-7 */
-#else
-		u32 sa2:8;		/* bits 0-7 */
-		u32 sa1:8;		/* bits 8-15 */
-		u32 reserved:16;	/* bits 16-31 */
-#endif
-	} bits;
-} RXMAC_WOL_SA_HI_t, *PRXMAC_WOL_SA_HI_t;
+
+#define ET_WOL_HI_SA1_SHIFT 8
 
 /*
  * structure for Wake On Lan mask reg in rxmac address map
@@ -746,65 +731,45 @@ typedef union _RXMAC_WOL_SA_HI_t {
 /*
  * structure for Unicast Paket Filter Address 1 reg in rxmac address map
  * located at address 0x4068
+ *
+ * 31-24: addr1_3
+ * 23-16: addr1_4
+ * 15-8: addr1_5
+ * 7-0: addr1_6
  */
-typedef union _RXMAC_UNI_PF_ADDR1_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 addr1_3:8;	/* bits 24-31 */
-		u32 addr1_4:8;	/* bits 16-23 */
-		u32 addr1_5:8;	/* bits 8-15 */
-		u32 addr1_6:8;	/* bits 0-7 */
-#else
-		u32 addr1_6:8;	/* bits 0-7 */
-		u32 addr1_5:8;	/* bits 8-15 */
-		u32 addr1_4:8;	/* bits 16-23 */
-		u32 addr1_3:8;	/* bits 24-31 */
-#endif
-	} bits;
-} RXMAC_UNI_PF_ADDR1_t, *PRXMAC_UNI_PF_ADDR1_t;
+
+#define ET_UNI_PF_ADDR1_3_SHIFT 24
+#define ET_UNI_PF_ADDR1_4_SHIFT 16
+#define ET_UNI_PF_ADDR1_5_SHIFT 8
 
 /*
  * structure for Unicast Paket Filter Address 2 reg in rxmac address map
  * located at address 0x406C
+ *
+ * 31-24: addr2_3
+ * 23-16: addr2_4
+ * 15-8: addr2_5
+ * 7-0: addr2_6
  */
-typedef union _RXMAC_UNI_PF_ADDR2_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 addr2_3:8;	/* bits 24-31 */
-		u32 addr2_4:8;	/* bits 16-23 */
-		u32 addr2_5:8;	/* bits 8-15 */
-		u32 addr2_6:8;	/* bits 0-7 */
-#else
-		u32 addr2_6:8;	/* bits 0-7 */
-		u32 addr2_5:8;	/* bits 8-15 */
-		u32 addr2_4:8;	/* bits 16-23 */
-		u32 addr2_3:8;	/* bits 24-31 */
-#endif
-	} bits;
-} RXMAC_UNI_PF_ADDR2_t, *PRXMAC_UNI_PF_ADDR2_t;
+
+#define ET_UNI_PF_ADDR2_3_SHIFT 24
+#define ET_UNI_PF_ADDR2_4_SHIFT 16
+#define ET_UNI_PF_ADDR2_5_SHIFT 8
 
 /*
  * structure for Unicast Paket Filter Address 1 & 2 reg in rxmac address map
  * located at address 0x4070
+ *
+ * 31-24: addr2_1
+ * 23-16: addr2_2
+ * 15-8: addr1_1
+ * 7-0: addr1_2
  */
-typedef union _RXMAC_UNI_PF_ADDR3_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 addr2_1:8;	/* bits 24-31 */
-		u32 addr2_2:8;	/* bits 16-23 */
-		u32 addr1_1:8;	/* bits 8-15 */
-		u32 addr1_2:8;	/* bits 0-7 */
-#else
-		u32 addr1_2:8;	/* bits 0-7 */
-		u32 addr1_1:8;	/* bits 8-15 */
-		u32 addr2_2:8;	/* bits 16-23 */
-		u32 addr2_1:8;	/* bits 24-31 */
-#endif
-	} bits;
-} RXMAC_UNI_PF_ADDR3_t, *PRXMAC_UNI_PF_ADDR3_t;
+
+#define ET_UNI_PF_ADDR2_1_SHIFT 24
+#define ET_UNI_PF_ADDR2_2_SHIFT 16
+#define ET_UNI_PF_ADDR1_1_SHIFT 8
+
 
 /*
  * structure for Multicast Hash reg in rxmac address map
@@ -888,13 +853,13 @@ typedef union _RXMAC_UNI_PF_ADDR3_t {
 /*
  * Rx MAC Module of JAGCore Address Mapping
  */
-typedef struct _RXMAC_t {				/* Location: */
+struct rxmac_regs {					/* Location: */
 	u32 ctrl;					/*  0x4000 */
 	u32 crc0;					/*  0x4004 */
 	u32 crc12;					/*  0x4008 */
 	u32 crc34;					/*  0x400C */
-	RXMAC_WOL_SA_LO_t sa_lo;			/*  0x4010 */
-	RXMAC_WOL_SA_HI_t sa_hi;			/*  0x4014 */
+	u32 sa_lo;					/*  0x4010 */
+	u32 sa_hi;					/*  0x4014 */
 	u32 mask0_word0;				/*  0x4018 */
 	u32 mask0_word1;				/*  0x401C */
 	u32 mask0_word2;				/*  0x4020 */
@@ -915,9 +880,9 @@ typedef struct _RXMAC_t {				/* Location: */
 	u32 mask4_word1;				/*  0x405C */
 	u32 mask4_word2;				/*  0x4060 */
 	u32 mask4_word3;				/*  0x4064 */
-	RXMAC_UNI_PF_ADDR1_t uni_pf_addr1;		/*  0x4068 */
-	RXMAC_UNI_PF_ADDR2_t uni_pf_addr2;		/*  0x406C */
-	RXMAC_UNI_PF_ADDR3_t uni_pf_addr3;		/*  0x4070 */
+	u32 uni_pf_addr1;				/*  0x4068 */
+	u32 uni_pf_addr2;				/*  0x406C */
+	u32 uni_pf_addr3;				/*  0x4070 */
 	u32 multi_hash1;				/*  0x4074 */
 	u32 multi_hash2;				/*  0x4078 */
 	u32 multi_hash3;				/*  0x407C */
@@ -930,7 +895,7 @@ typedef struct _RXMAC_t {				/* Location: */
 
 	u32 mif_ctrl;					/*  0x4098 */
 	u32 err_reg;					/*  0x409C */
-} RXMAC_t, *PRXMAC_t;
+};
 
 /* END OF RXMAC REGISTER ADDRESS MAP */
 
@@ -1123,47 +1088,33 @@ typedef struct _RXMAC_t {				/* Location: */
 /*
  * structure for Mac Station Address, Part 1 reg in mac address map.
  * located at address 0x5040
+ *
+ * 31-24: Octet6
+ * 23-16: Octet5
+ * 15-8: Octet4
+ * 7-0: Octet3
  */
-typedef union _MAC_STATION_ADDR1_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 Octet6:8;	/* bits 24-31 */
-		u32 Octet5:8;	/* bits 16-23 */
-		u32 Octet4:8;	/* bits 8-15 */
-		u32 Octet3:8;	/* bits 0-7 */
-#else
-		u32 Octet3:8;	/* bits 0-7 */
-		u32 Octet4:8;	/* bits 8-15 */
-		u32 Octet5:8;	/* bits 16-23 */
-		u32 Octet6:8;	/* bits 24-31 */
-#endif
-	} bits;
-} MAC_STATION_ADDR1_t, *PMAC_STATION_ADDR1_t;
+
+#define ET_MAC_STATION_ADDR1_OC6_SHIFT 24
+#define ET_MAC_STATION_ADDR1_OC5_SHIFT 16
+#define ET_MAC_STATION_ADDR1_OC4_SHIFT 8
 
 /*
  * structure for Mac Station Address, Part 2 reg in mac address map.
  * located at address 0x5044
+ *
+ * 31-24: Octet2
+ * 23-16: Octet1
+ * 15-0: reserved
  */
-typedef union _MAC_STATION_ADDR2_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 Octet2:8;	/* bits 24-31 */
-		u32 Octet1:8;	/* bits 16-23 */
-		u32 reserved:16;	/* bits 0-15 */
-#else
-		u32 reserved:16;	/* bit 0-15 */
-		u32 Octet1:8;	/* bits 16-23 */
-		u32 Octet2:8;	/* bits 24-31 */
-#endif
-	} bits;
-} MAC_STATION_ADDR2_t, *PMAC_STATION_ADDR2_t;
+
+#define ET_MAC_STATION_ADDR2_OC2_SHIFT 24
+#define ET_MAC_STATION_ADDR2_OC1_SHIFT 16
 
 /*
  * MAC Module of JAGCore Address Mapping
  */
-typedef struct _MAC_t {					/* Location: */
+struct mac_regs {					/* Location: */
 	u32 cfg1;					/*  0x5000 */
 	u32 cfg2;					/*  0x5004 */
 	u32 ipg;					/*  0x5008 */
@@ -1180,9 +1131,9 @@ typedef struct _MAC_t {					/* Location: */
 	u32 mii_mgmt_indicator;				/*  0x5034 */
 	u32 if_ctrl;					/*  0x5038 */
 	u32 if_stat;					/*  0x503C */
-	MAC_STATION_ADDR1_t station_addr_1;		/*  0x5040 */
-	MAC_STATION_ADDR2_t station_addr_2;		/*  0x5044 */
-} MAC_t, *PMAC_t;
+	u32 station_addr_1;				/*  0x5040 */
+	u32 station_addr_2;				/*  0x5044 */
+};
 
 /* END OF MAC REGISTER ADDRESS MAP */
 
@@ -1253,148 +1204,148 @@ struct macstat_regs {			/* Location: */
 	u32 pad[32];			/*  0x6000 - 607C */
 
 	/* Tx/Rx 0-64 Byte Frame Counter */
-	u32 TR64;			/*  0x6080 */
+	u32 txrx_0_64_byte_frames;	/*  0x6080 */
 
 	/* Tx/Rx 65-127 Byte Frame Counter */
-	u32 TR127;			/*  0x6084 */
+	u32 txrx_65_127_byte_frames;	/*  0x6084 */
 
 	/* Tx/Rx 128-255 Byte Frame Counter */
-	u32 TR255;			/*  0x6088 */
+	u32 txrx_128_255_byte_frames;	/*  0x6088 */
 
 	/* Tx/Rx 256-511 Byte Frame Counter */
-	u32 TR511;			/*  0x608C */
+	u32 txrx_256_511_byte_frames;	/*  0x608C */
 
 	/* Tx/Rx 512-1023 Byte Frame Counter */
-	u32 TR1K;			/*  0x6090 */
+	u32 txrx_512_1023_byte_frames;	/*  0x6090 */
 
 	/* Tx/Rx 1024-1518 Byte Frame Counter */
-	u32 TRMax;			/*  0x6094 */
+	u32 txrx_1024_1518_byte_frames;	/*  0x6094 */
 
 	/* Tx/Rx 1519-1522 Byte Good VLAN Frame Count */
-	u32 TRMgv;			/*  0x6098 */
+	u32 txrx_1519_1522_gvln_frames;	/*  0x6098 */
 
 	/* Rx Byte Counter */
-	u32 RByt;			/*  0x609C */
+	u32 rx_bytes;			/*  0x609C */
 
 	/* Rx Packet Counter */
-	u32 RPkt;			/*  0x60A0 */
+	u32 rx_packets;			/*  0x60A0 */
 
 	/* Rx FCS Error Counter */
-	u32 RFcs;			/*  0x60A4 */
+	u32 rx_fcs_errs;		/*  0x60A4 */
 
 	/* Rx Multicast Packet Counter */
-	u32 RMca;			/*  0x60A8 */
+	u32 rx_multicast_packets;	/*  0x60A8 */
 
 	/* Rx Broadcast Packet Counter */
-	u32 RBca;			/*  0x60AC */
+	u32 rx_broadcast_packets;	/*  0x60AC */
 
 	/* Rx Control Frame Packet Counter */
-	u32 RxCf;			/*  0x60B0 */
+	u32 rx_control_frames;		/*  0x60B0 */
 
 	/* Rx Pause Frame Packet Counter */
-	u32 RxPf;			/*  0x60B4 */
+	u32 rx_pause_frames;		/*  0x60B4 */
 
 	/* Rx Unknown OP Code Counter */
-	u32 RxUo;			/*  0x60B8 */
+	u32 rx_unknown_opcodes;		/*  0x60B8 */
 
 	/* Rx Alignment Error Counter */
-	u32 RAln;			/*  0x60BC */
+	u32 rx_align_errs;		/*  0x60BC */
 
 	/* Rx Frame Length Error Counter */
-	u32 RFlr;			/*  0x60C0 */
+	u32 rx_frame_len_errs;		/*  0x60C0 */
 
 	/* Rx Code Error Counter */
-	u32 RCde;			/*  0x60C4 */
+	u32 rx_code_errs;		/*  0x60C4 */
 
 	/* Rx Carrier Sense Error Counter */
-	u32 RCse;			/*  0x60C8 */
+	u32 rx_carrier_sense_errs;	/*  0x60C8 */
 
 	/* Rx Undersize Packet Counter */
-	u32 RUnd;			/*  0x60CC */
+	u32 rx_undersize_packets;	/*  0x60CC */
 
 	/* Rx Oversize Packet Counter */
-	u32 ROvr;			/*  0x60D0 */
+	u32 rx_oversize_packets;	/*  0x60D0 */
 
 	/* Rx Fragment Counter */
-	u32 RFrg;			/*  0x60D4 */
+	u32 rx_fragment_packets;	/*  0x60D4 */
 
 	/* Rx Jabber Counter */
-	u32 RJbr;			/*  0x60D8 */
+	u32 rx_jabbers;			/*  0x60D8 */
 
 	/* Rx Drop */
-	u32 RDrp;			/*  0x60DC */
+	u32 rx_drops;			/*  0x60DC */
 
 	/* Tx Byte Counter */
-	u32 TByt;			/*  0x60E0 */
+	u32 tx_bytes;			/*  0x60E0 */
 
 	/* Tx Packet Counter */
-	u32 TPkt;			/*  0x60E4 */
+	u32 tx_packets;			/*  0x60E4 */
 
 	/* Tx Multicast Packet Counter */
-	u32 TMca;			/*  0x60E8 */
+	u32 tx_multicast_packets;	/*  0x60E8 */
 
 	/* Tx Broadcast Packet Counter */
-	u32 TBca;			/*  0x60EC */
+	u32 tx_broadcast_packets;	/*  0x60EC */
 
 	/* Tx Pause Control Frame Counter */
-	u32 TxPf;			/*  0x60F0 */
+	u32 tx_pause_frames;		/*  0x60F0 */
 
 	/* Tx Deferral Packet Counter */
-	u32 TDfr;			/*  0x60F4 */
+	u32 tx_deferred;		/*  0x60F4 */
 
 	/* Tx Excessive Deferral Packet Counter */
-	u32 TEdf;			/*  0x60F8 */
+	u32 tx_excessive_deferred;	/*  0x60F8 */
 
 	/* Tx Single Collision Packet Counter */
-	u32 TScl;			/*  0x60FC */
+	u32 tx_single_collisions;	/*  0x60FC */
 
 	/* Tx Multiple Collision Packet Counter */
-	u32 TMcl;			/*  0x6100 */
+	u32 tx_multiple_collisions;	/*  0x6100 */
 
 	/* Tx Late Collision Packet Counter */
-	u32 TLcl;			/*  0x6104 */
+	u32 tx_late_collisions;		/*  0x6104 */
 
 	/* Tx Excessive Collision Packet Counter */
-	u32 TXcl;			/*  0x6108 */
+	u32 tx_excessive_collisions;	/*  0x6108 */
 
 	/* Tx Total Collision Packet Counter */
-	u32 TNcl;			/*  0x610C */
+	u32 tx_total_collisions;	/*  0x610C */
 
 	/* Tx Pause Frame Honored Counter */
-	u32 TPfh;			/*  0x6110 */
+	u32 tx_pause_honored_frames;	/*  0x6110 */
 
 	/* Tx Drop Frame Counter */
-	u32 TDrp;			/*  0x6114 */
+	u32 tx_drops;			/*  0x6114 */
 
 	/* Tx Jabber Frame Counter */
-	u32 TJbr;			/*  0x6118 */
+	u32 tx_jabbers;			/*  0x6118 */
 
 	/* Tx FCS Error Counter */
-	u32 TFcs;			/*  0x611C */
+	u32 tx_fcs_errs;		/*  0x611C */
 
 	/* Tx Control Frame Counter */
-	u32 TxCf;			/*  0x6120 */
+	u32 tx_control_frames;		/*  0x6120 */
 
 	/* Tx Oversize Frame Counter */
-	u32 TOvr;			/*  0x6124 */
+	u32 tx_oversize_frames;		/*  0x6124 */
 
 	/* Tx Undersize Frame Counter */
-	u32 TUnd;			/*  0x6128 */
+	u32 tx_undersize_frames;	/*  0x6128 */
 
 	/* Tx Fragments Frame Counter */
-	u32 TFrg;			/*  0x612C */
+	u32 tx_fragments;		/*  0x612C */
 
 	/* Carry Register One Register */
-	u32 Carry1;			/*  0x6130 */
+	u32 carry_reg1;			/*  0x6130 */
 
 	/* Carry Register Two Register */
-	u32 Carry2;			/*  0x6134 */
+	u32 carry_reg2;			/*  0x6134 */
 
 	/* Carry Register One Mask Register */
-	u32 Carry1M;			/*  0x6138 */
+	u32 carry_reg1_mask;		/*  0x6138 */
 
 	/* Carry Register Two Mask Register */
-	u32 Carry2M;			/*  0x613C */
+	u32 carry_reg2_mask;		/*  0x613C */
 };
 
 /* END OF MAC STAT REGISTER ADDRESS MAP */
@@ -1448,7 +1399,7 @@ struct mmc_regs {		/* Location: */
 /*
  * JAGCore Address Mapping
  */
-typedef struct _ADDRESS_MAP_t {
+struct address_map {
 	struct global_regs global;
 	/* unused section of global address map */
 	u8 unused_global[4096 - sizeof(struct global_regs)];
@@ -1461,12 +1412,12 @@ typedef struct _ADDRESS_MAP_t {
 	struct txmac_regs txmac;
 	/* unused section of txmac address map */
 	u8 unused_txmac[4096 - sizeof(struct txmac_regs)];
-	RXMAC_t rxmac;
+	struct rxmac_regs rxmac;
 	/* unused section of rxmac address map */
-	u8 unused_rxmac[4096 - sizeof(RXMAC_t)];
-	MAC_t mac;
+	u8 unused_rxmac[4096 - sizeof(struct rxmac_regs)];
+	struct mac_regs mac;
 	/* unused section of mac address map */
-	u8 unused_mac[4096 - sizeof(MAC_t)];
+	u8 unused_mac[4096 - sizeof(struct mac_regs)];
 	struct macstat_regs macstat;
 	/* unused section of mac stat address map */
 	u8 unused_mac_stat[4096 - sizeof(struct macstat_regs)];
@@ -1478,6 +1429,6 @@ typedef struct _ADDRESS_MAP_t {
 
 	u8 unused_exp_rom[4096];	/* MGS-size TBD */
 	u8 unused__[524288];	/* unused section of address map */
-} ADDRESS_MAP_t, *PADDRESS_MAP_t;
+};
 
 #endif /* _ET1310_ADDRESS_MAP_H_ */

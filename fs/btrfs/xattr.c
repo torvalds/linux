@@ -102,43 +102,57 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 	if (!path)
 		return -ENOMEM;
 
-	/* first lets see if we already have this xattr */
-	di = btrfs_lookup_xattr(trans, root, path, btrfs_ino(inode), name,
-				strlen(name), -1);
-	if (IS_ERR(di)) {
-		ret = PTR_ERR(di);
-		goto out;
-	}
-
-	/* ok we already have this xattr, lets remove it */
-	if (di) {
-		/* if we want create only exit */
-		if (flags & XATTR_CREATE) {
-			ret = -EEXIST;
+	if (flags & XATTR_REPLACE) {
+		di = btrfs_lookup_xattr(trans, root, path, btrfs_ino(inode), name,
+					name_len, -1);
+		if (IS_ERR(di)) {
+			ret = PTR_ERR(di);
 			goto out;
-		}
-
-		ret = btrfs_delete_one_dir_name(trans, root, path, di);
-		BUG_ON(ret);
-		btrfs_release_path(path);
-
-		/* if we don't have a value then we are removing the xattr */
-		if (!value)
-			goto out;
-	} else {
-		btrfs_release_path(path);
-
-		if (flags & XATTR_REPLACE) {
-			/* we couldn't find the attr to replace */
+		} else if (!di) {
 			ret = -ENODATA;
 			goto out;
 		}
+		ret = btrfs_delete_one_dir_name(trans, root, path, di);
+		if (ret)
+			goto out;
+		btrfs_release_path(path);
 	}
 
-	/* ok we have to create a completely new xattr */
+again:
 	ret = btrfs_insert_xattr_item(trans, root, path, btrfs_ino(inode),
 				      name, name_len, value, size);
-	BUG_ON(ret);
+	if (ret == -EEXIST) {
+		if (flags & XATTR_CREATE)
+			goto out;
+		/*
+		 * We can't use the path we already have since we won't have the
+		 * proper locking for a delete, so release the path and
+		 * re-lookup to delete the thing.
+		 */
+		btrfs_release_path(path);
+		di = btrfs_lookup_xattr(trans, root, path, btrfs_ino(inode),
+					name, name_len, -1);
+		if (IS_ERR(di)) {
+			ret = PTR_ERR(di);
+			goto out;
+		} else if (!di) {
+			/* Shouldn't happen but just in case... */
+			btrfs_release_path(path);
+			goto again;
+		}
+
+		ret = btrfs_delete_one_dir_name(trans, root, path, di);
+		if (ret)
+			goto out;
+
+		/*
+		 * We have a value to set, so go back and try to insert it now.
+		 */
+		if (value) {
+			btrfs_release_path(path);
+			goto again;
+		}
+	}
 out:
 	btrfs_free_path(path);
 	return ret;
@@ -157,8 +171,6 @@ int __btrfs_setxattr(struct btrfs_trans_handle *trans,
 	trans = btrfs_start_transaction(root, 2);
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
-
-	btrfs_set_trans_block_group(trans, inode);
 
 	ret = do_setxattr(trans, inode, name, value, size, flags);
 	if (ret)

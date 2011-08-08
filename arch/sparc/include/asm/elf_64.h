@@ -59,15 +59,33 @@
 #define R_SPARC_6		45
 
 /* Bits present in AT_HWCAP, primarily for Sparc32.  */
+#define HWCAP_SPARC_FLUSH       0x00000001
+#define HWCAP_SPARC_STBAR       0x00000002
+#define HWCAP_SPARC_SWAP        0x00000004
+#define HWCAP_SPARC_MULDIV      0x00000008
+#define HWCAP_SPARC_V9		0x00000010
+#define HWCAP_SPARC_ULTRA3	0x00000020
+#define HWCAP_SPARC_BLKINIT	0x00000040
+#define HWCAP_SPARC_N2		0x00000080
 
-#define HWCAP_SPARC_FLUSH       1    /* CPU supports flush instruction. */
-#define HWCAP_SPARC_STBAR       2
-#define HWCAP_SPARC_SWAP        4
-#define HWCAP_SPARC_MULDIV      8
-#define HWCAP_SPARC_V9		16
-#define HWCAP_SPARC_ULTRA3	32
-#define HWCAP_SPARC_BLKINIT	64
-#define HWCAP_SPARC_N2		128
+/* Solaris compatible AT_HWCAP bits. */
+#define AV_SPARC_MUL32		0x00000100 /* 32x32 multiply is efficient */
+#define AV_SPARC_DIV32		0x00000200 /* 32x32 divide is efficient */
+#define AV_SPARC_FSMULD		0x00000400 /* 'fsmuld' is efficient */
+#define AV_SPARC_V8PLUS		0x00000800 /* v9 insn available to 32bit */
+#define AV_SPARC_POPC		0x00001000 /* 'popc' is efficient */
+#define AV_SPARC_VIS		0x00002000 /* VIS insns available */
+#define AV_SPARC_VIS2		0x00004000 /* VIS2 insns available */
+#define AV_SPARC_ASI_BLK_INIT	0x00008000 /* block init ASIs available */
+#define AV_SPARC_FMAF		0x00010000 /* fused multiply-add */
+#define AV_SPARC_VIS3		0x00020000 /* VIS3 insns available */
+#define AV_SPARC_HPC		0x00040000 /* HPC insns available */
+#define AV_SPARC_RANDOM		0x00080000 /* 'random' insn available */
+#define AV_SPARC_TRANS		0x00100000 /* transaction insns available */
+#define AV_SPARC_FJFMAU		0x00200000 /* unfused multiply-add */
+#define AV_SPARC_IMA		0x00400000 /* integer multiply-add */
+#define AV_SPARC_ASI_CACHE_SPARING \
+				0x00800000 /* cache sparing ASIs available */
 
 #define CORE_DUMP_USE_REGSET
 
@@ -162,31 +180,8 @@ typedef struct {
 #define ELF_ET_DYN_BASE		0x0000010000000000UL
 #define COMPAT_ELF_ET_DYN_BASE	0x0000000070000000UL
 
-
-/* This yields a mask that user programs can use to figure out what
-   instruction set this cpu supports.  */
-
-/* On Ultra, we support all of the v8 capabilities. */
-static inline unsigned int sparc64_elf_hwcap(void)
-{
-	unsigned int cap = (HWCAP_SPARC_FLUSH | HWCAP_SPARC_STBAR |
-			    HWCAP_SPARC_SWAP | HWCAP_SPARC_MULDIV |
-			    HWCAP_SPARC_V9);
-
-	if (tlb_type == cheetah || tlb_type == cheetah_plus)
-		cap |= HWCAP_SPARC_ULTRA3;
-	else if (tlb_type == hypervisor) {
-		if (sun4v_chip_type == SUN4V_CHIP_NIAGARA1 ||
-		    sun4v_chip_type == SUN4V_CHIP_NIAGARA2)
-			cap |= HWCAP_SPARC_BLKINIT;
-		if (sun4v_chip_type == SUN4V_CHIP_NIAGARA2)
-			cap |= HWCAP_SPARC_N2;
-	}
-
-	return cap;
-}
-
-#define ELF_HWCAP	sparc64_elf_hwcap();
+extern unsigned long sparc64_elf_hwcap;
+#define ELF_HWCAP	sparc64_elf_hwcap
 
 /* This yields a string that ld.so will use to load implementation
    specific libraries for optimization.  This is more specific in

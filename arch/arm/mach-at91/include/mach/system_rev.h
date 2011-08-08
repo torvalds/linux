@@ -13,13 +13,13 @@
  * the 16-31 bit are reserved for at91 generic information
  *
  * bit 31:
- *	0 => nand 16 bit
- *	1 => nand 8 bit
+ *	0 => nand 8 bit
+ *	1 => nand 16 bit
  */
-#define BOARD_HAVE_NAND_8BIT	(1 << 31)
-static int inline board_have_nand_8bit(void)
+#define BOARD_HAVE_NAND_16BIT	(1 << 31)
+static inline int board_have_nand_16bit(void)
 {
-	return system_rev & BOARD_HAVE_NAND_8BIT;
+	return system_rev & BOARD_HAVE_NAND_16BIT;
 }
 
 #endif /* __ARCH_SYSTEM_REV_H__ */

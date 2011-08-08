@@ -828,6 +828,8 @@ struct wl1271_acx_sta_config_memory {
 	u8 tx_free_req;
 	u8 rx_free_req;
 	u8 tx_min;
+	u8 fwlog_blocks;
+	u8 padding[3];
 } __packed;
 
 struct wl1271_acx_mem_map {
@@ -1153,7 +1155,20 @@ struct wl1271_acx_fw_tsf_information {
 	u8 padding[3];
 } __packed;
 
-struct wl1271_acx_max_tx_retry {
+struct wl1271_acx_ps_rx_streaming {
+	struct acx_header header;
+
+	u8 tid;
+	u8 enable;
+
+	/* interval between triggers (10-100 msec) */
+	u8 period;
+
+	/* timeout before first trigger (0-200 msec) */
+	u8 timeout;
+} __packed;
+
+struct wl1271_acx_ap_max_tx_retry {
 	struct acx_header header;
 
 	/*
@@ -1384,7 +1399,8 @@ int wl1271_acx_set_ba_session(struct wl1271 *wl,
 int wl1271_acx_set_ba_receiver_session(struct wl1271 *wl, u8 tid_index, u16 ssn,
 				       bool enable);
 int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime);
-int wl1271_acx_max_tx_retry(struct wl1271 *wl);
+int wl1271_acx_ps_rx_streaming(struct wl1271 *wl, bool enable);
+int wl1271_acx_ap_max_tx_retry(struct wl1271 *wl);
 int wl1271_acx_config_ps(struct wl1271 *wl);
 int wl1271_acx_set_inconnection_sta(struct wl1271 *wl, u8 *addr);
 int wl1271_acx_set_ap_beacon_filter(struct wl1271 *wl, bool enable);

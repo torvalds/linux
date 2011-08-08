@@ -54,6 +54,13 @@ void __init s3c_init_vic_timer_irq(unsigned int num, unsigned int timer_irq)
 
 	s3c_tgc = irq_alloc_generic_chip("s3c-timer", 1, timer_irq,
 					 S3C64XX_TINT_CSTAT, handle_level_irq);
+
+	if (!s3c_tgc) {
+		pr_err("%s: irq_alloc_generic_chip for IRQ %d failed\n",
+		       __func__, timer_irq);
+		return;
+	}
+
 	ct = s3c_tgc->chip_types;
 	ct->chip.irq_mask = irq_gc_mask_clr_bit;
 	ct->chip.irq_unmask = irq_gc_mask_set_bit;

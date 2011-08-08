@@ -33,7 +33,7 @@
 #include <net/netfilter/nf_log.h>
 #include <net/netfilter/nfnetlink_log.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #ifdef CONFIG_BRIDGE_NETFILTER
 #include "../bridge/br_private.h"
@@ -456,7 +456,8 @@ __build_packet_message(struct nfulnl_instance *inst,
 	if (skb->mark)
 		NLA_PUT_BE32(inst->skb, NFULA_MARK, htonl(skb->mark));
 
-	if (indev && skb->dev) {
+	if (indev && skb->dev &&
+	    skb->mac_header != skb->network_header) {
 		struct nfulnl_msg_packet_hw phw;
 		int len = dev_parse_header(skb, phw.hw_addr);
 		if (len > 0) {

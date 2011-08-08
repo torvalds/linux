@@ -1287,7 +1287,7 @@ extern int ext4_init_inode_table(struct super_block *sb, ext4_group_t group,
 			   group, used_blks,
 			   ext4_itable_unused_count(sb, gdp));
 		ret = 1;
-		goto out;
+		goto err_out;
 	}
 
 	blk = ext4_inode_table(sb, gdp) + used_blks;

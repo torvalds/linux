@@ -12,7 +12,6 @@
 
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <linux/gpio.h>
 #include <mach/hardware.h>
 #include <mach/imx-uart.h>
 #include <mach/irqs.h>
@@ -119,66 +118,3 @@ struct platform_device mxc_usbh2_device = {
 		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 };
-
-static struct mxc_gpio_port mxc_gpio_ports[] = {
-	{
-		.chip.label = "gpio-0",
-		.base = MX51_IO_ADDRESS(MX51_GPIO1_BASE_ADDR),
-		.irq = MX51_MXC_INT_GPIO1_LOW,
-		.irq_high = MX51_MXC_INT_GPIO1_HIGH,
-		.virtual_irq_start = MXC_GPIO_IRQ_START
-	},
-	{
-		.chip.label = "gpio-1",
-		.base = MX51_IO_ADDRESS(MX51_GPIO2_BASE_ADDR),
-		.irq = MX51_MXC_INT_GPIO2_LOW,
-		.irq_high = MX51_MXC_INT_GPIO2_HIGH,
-		.virtual_irq_start = MXC_GPIO_IRQ_START + 32 * 1
-	},
-	{
-		.chip.label = "gpio-2",
-		.base = MX51_IO_ADDRESS(MX51_GPIO3_BASE_ADDR),
-		.irq = MX51_MXC_INT_GPIO3_LOW,
-		.irq_high = MX51_MXC_INT_GPIO3_HIGH,
-		.virtual_irq_start = MXC_GPIO_IRQ_START + 32 * 2
-	},
-	{
-		.chip.label = "gpio-3",
-		.base = MX51_IO_ADDRESS(MX51_GPIO4_BASE_ADDR),
-		.irq = MX51_MXC_INT_GPIO4_LOW,
-		.irq_high = MX51_MXC_INT_GPIO4_HIGH,
-		.virtual_irq_start = MXC_GPIO_IRQ_START + 32 * 3
-	},
-	{
-		.chip.label = "gpio-4",
-		.base = MX53_IO_ADDRESS(MX53_GPIO5_BASE_ADDR),
-		.irq = MX53_INT_GPIO5_LOW,
-		.irq_high = MX53_INT_GPIO5_HIGH,
-		.virtual_irq_start = MXC_GPIO_IRQ_START + 32 * 4
-	},
-	{
-		.chip.label = "gpio-5",
-		.base = MX53_IO_ADDRESS(MX53_GPIO6_BASE_ADDR),
-		.irq = MX53_INT_GPIO6_LOW,
-		.irq_high = MX53_INT_GPIO6_HIGH,
-		.virtual_irq_start = MXC_GPIO_IRQ_START + 32 * 5
-	},
-	{
-		.chip.label = "gpio-6",
-		.base = MX53_IO_ADDRESS(MX53_GPIO7_BASE_ADDR),
-		.irq = MX53_INT_GPIO7_LOW,
-		.irq_high = MX53_INT_GPIO7_HIGH,
-		.virtual_irq_start = MXC_GPIO_IRQ_START + 32 * 6
-	},
-};
-
-int __init imx51_register_gpios(void)
-{
-	return mxc_gpio_init(mxc_gpio_ports, 4);
-}
-
-int __init imx53_register_gpios(void)
-{
-	return mxc_gpio_init(mxc_gpio_ports, ARRAY_SIZE(mxc_gpio_ports));
-}
-

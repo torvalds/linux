@@ -37,6 +37,7 @@
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/genalloc.h>
+#include <linux/ratelimit.h>
 #include "iw_cxgb4.h"
 
 #define RANDOM_SIZE 16
@@ -311,8 +312,8 @@ u32 c4iw_pblpool_alloc(struct c4iw_rdev *rdev, int size)
 {
 	unsigned long addr = gen_pool_alloc(rdev->pbl_pool, size);
 	PDBG("%s addr 0x%x size %d\n", __func__, (u32)addr, size);
-	if (!addr && printk_ratelimit())
-		printk(KERN_WARNING MOD "%s: Out of PBL memory\n",
+	if (!addr)
+		printk_ratelimited(KERN_WARNING MOD "%s: Out of PBL memory\n",
 		       pci_name(rdev->lldi.pdev));
 	return (u32)addr;
 }
@@ -373,8 +374,8 @@ u32 c4iw_rqtpool_alloc(struct c4iw_rdev *rdev, int size)
 {
 	unsigned long addr = gen_pool_alloc(rdev->rqt_pool, size << 6);
 	PDBG("%s addr 0x%x size %d\n", __func__, (u32)addr, size << 6);
-	if (!addr && printk_ratelimit())
-		printk(KERN_WARNING MOD "%s: Out of RQT memory\n",
+	if (!addr)
+		printk_ratelimited(KERN_WARNING MOD "%s: Out of RQT memory\n",
 		       pci_name(rdev->lldi.pdev));
 	return (u32)addr;
 }

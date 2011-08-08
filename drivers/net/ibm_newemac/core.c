@@ -39,6 +39,7 @@
 #include <linux/bitops.h>
 #include <linux/workqueue.h>
 #include <linux/of.h>
+#include <linux/of_net.h>
 #include <linux/slab.h>
 
 #include <asm/processor.h>
@@ -2506,18 +2507,6 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 {
 	struct device_node *np = dev->ofdev->dev.of_node;
 	const void *p;
-	unsigned int plen;
-	const char *pm, *phy_modes[] = {
-		[PHY_MODE_NA] = "",
-		[PHY_MODE_MII] = "mii",
-		[PHY_MODE_RMII] = "rmii",
-		[PHY_MODE_SMII] = "smii",
-		[PHY_MODE_RGMII] = "rgmii",
-		[PHY_MODE_TBI] = "tbi",
-		[PHY_MODE_GMII] = "gmii",
-		[PHY_MODE_RTBI] = "rtbi",
-		[PHY_MODE_SGMII] = "sgmii",
-	};
 
 	/* Read config from device-tree */
 	if (emac_read_uint_prop(np, "mal-device", &dev->mal_ph, 1))
@@ -2566,23 +2555,9 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 		dev->mal_burst_size = 256;
 
 	/* PHY mode needs some decoding */
-	dev->phy_mode = PHY_MODE_NA;
-	pm = of_get_property(np, "phy-mode", &plen);
-	if (pm != NULL) {
-		int i;
-		for (i = 0; i < ARRAY_SIZE(phy_modes); i++)
-			if (!strcasecmp(pm, phy_modes[i])) {
-				dev->phy_mode = i;
-				break;
-			}
-	}
-
-	/* Backward compat with non-final DT */
-	if (dev->phy_mode == PHY_MODE_NA && pm != NULL && plen == 4) {
-		u32 nmode = *(const u32 *)pm;
-		if (nmode > PHY_MODE_NA && nmode <= PHY_MODE_SGMII)
-			dev->phy_mode = nmode;
-	}
+	dev->phy_mode = of_get_phy_mode(np);
+	if (dev->phy_mode < 0)
+		dev->phy_mode = PHY_MODE_NA;
 
 	/* Check EMAC version */
 	if (of_device_is_compatible(np, "ibm,emac4sync")) {
@@ -2770,7 +2745,7 @@ static int __devinit emac_probe(struct platform_device *ofdev)
 	}
 	// TODO : request_mem_region
 	dev->emacp = ioremap(dev->rsrc_regs.start,
-			     dev->rsrc_regs.end - dev->rsrc_regs.start + 1);
+			     resource_size(&dev->rsrc_regs));
 	if (dev->emacp == NULL) {
 		printk(KERN_ERR "%s: Can't map device registers!\n",
 		       np->full_name);

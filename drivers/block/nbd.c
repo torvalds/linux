@@ -192,7 +192,8 @@ static int sock_xmit(struct nbd_device *lo, int send, void *buf, int size,
 			if (lo->xmit_timeout)
 				del_timer_sync(&ti);
 		} else
-			result = kernel_recvmsg(sock, &msg, &iov, 1, size, 0);
+			result = kernel_recvmsg(sock, &msg, &iov, 1, size,
+						msg.msg_flags);
 
 		if (signal_pending(current)) {
 			siginfo_t info;
@@ -753,8 +754,25 @@ static int __init nbd_init(void)
 		return -ENOMEM;
 
 	part_shift = 0;
-	if (max_part > 0)
+	if (max_part > 0) {
 		part_shift = fls(max_part);
+
+		/*
+		 * Adjust max_part according to part_shift as it is exported
+		 * to user space so that user can know the max number of
+		 * partition kernel should be able to manage.
+		 *
+		 * Note that -1 is required because partition 0 is reserved
+		 * for the whole disk.
+		 */
+		max_part = (1UL << part_shift) - 1;
+	}
+
+	if ((1UL << part_shift) > DISK_MAX_PARTS)
+		return -EINVAL;
+
+	if (nbds_max > 1UL << (MINORBITS - part_shift))
+		return -EINVAL;
 
 	for (i = 0; i < nbds_max; i++) {
 		struct gendisk *disk = alloc_disk(1 << part_shift);

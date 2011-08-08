@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/dma-mapping.h>
@@ -320,6 +321,9 @@ static void macb_tx(struct macb *bp)
 		/*Mark all the buffer as used to avoid sending a lost buffer*/
 		for (i = 0; i < TX_RING_SIZE; i++)
 			bp->tx_ring[i].ctrl = MACB_BIT(TX_USED);
+
+		/* Add wrap bit */
+		bp->tx_ring[TX_RING_SIZE - 1].ctrl |= MACB_BIT(TX_WRAP);
 
 		/* free transmit buffer in upper layer*/
 		for (tail = bp->tx_tail; tail != head; tail = NEXT_TX(tail)) {
@@ -668,6 +672,8 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	entry = NEXT_TX(entry);
 	bp->tx_head = entry;
+
+	skb_tx_timestamp(skb);
 
 	macb_writel(bp, NCR, macb_readl(bp, NCR) | MACB_BIT(TSTART));
 
@@ -1169,7 +1175,7 @@ static int __init macb_probe(struct platform_device *pdev)
 	clk_enable(bp->hclk);
 #endif
 
-	bp->regs = ioremap(regs->start, regs->end - regs->start + 1);
+	bp->regs = ioremap(regs->start, resource_size(regs));
 	if (!bp->regs) {
 		dev_err(&pdev->dev, "failed to map registers, aborting.\n");
 		err = -ENOMEM;

@@ -95,7 +95,7 @@ static int irq_tab[4] __initdata = {
  * map the specified device/slot/pin to an IRQ.  This works out such
  * that slot 9 pin 1 is INT0, pin 2 is INT1, and slot 10 pin 1 is INT1.
  */
-static int __init integrator_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init integrator_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int intnr = ((slot - 9) + (pin - 1)) & 3;
 

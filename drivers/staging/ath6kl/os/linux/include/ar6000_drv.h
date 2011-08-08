@@ -52,7 +52,6 @@
 #include "aggr_recv_api.h"
 #include <host_version.h>
 #include <linux/rtnetlink.h>
-#include <linux/init.h>
 #include <linux/moduleparam.h>
 #include "ar6000_api.h"
 #ifdef CONFIG_HOST_TCMD_SUPPORT
@@ -546,15 +545,9 @@ struct ar6_softc {
     s8 arMaxRetries;
     u8 arPhyCapability;
 #ifdef CONFIG_HOST_TCMD_SUPPORT
-    u8 tcmdRxReport;
-    u32 tcmdRxTotalPkt;
-    s32 tcmdRxRssi;
-    u32 tcmdPm;
     u32 arTargetMode;
-    u32 tcmdRxcrcErrPkt;
-    u32 tcmdRxsecErrPkt;
-    u16 tcmdRateCnt[TCMD_MAX_RATES];
-    u16 tcmdRateCntShortGuard[TCMD_MAX_RATES];
+    void *tcmd_rx_report;
+    int tcmd_rx_report_len;
 #endif
     AR6000_WLAN_STATE       arWlanState;
     struct ar_node_mapping  arNodeMap[MAX_NODE_NUM];
@@ -651,6 +644,15 @@ struct ar6_softc {
     void                    *arApDev;
 #endif
     u8 arAutoAuthStage;
+
+	u8 *fw_otp;
+	size_t fw_otp_len;
+	u8 *fw;
+	size_t fw_len;
+	u8 *fw_patch;
+	size_t fw_patch_len;
+	u8 *fw_data;
+	size_t fw_data_len;
 };
 
 #ifdef CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT

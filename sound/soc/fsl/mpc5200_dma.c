@@ -385,7 +385,7 @@ static int mpc5200_hpcd_probe(struct of_device *op)
 		dev_err(&op->dev, "Missing reg property\n");
 		return -ENODEV;
 	}
-	regs = ioremap(res.start, 1 + res.end - res.start);
+	regs = ioremap(res.start, resource_size(&res));
 	if (!regs) {
 		dev_err(&op->dev, "Could not map registers\n");
 		return -ENODEV;

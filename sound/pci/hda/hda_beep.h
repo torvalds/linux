@@ -50,7 +50,12 @@ int snd_hda_enable_beep_device(struct hda_codec *codec, int enable);
 int snd_hda_attach_beep_device(struct hda_codec *codec, int nid);
 void snd_hda_detach_beep_device(struct hda_codec *codec);
 #else
-#define snd_hda_attach_beep_device(...)		0
-#define snd_hda_detach_beep_device(...)
+static inline int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
+{
+	return 0;
+}
+static inline void snd_hda_detach_beep_device(struct hda_codec *codec)
+{
+}
 #endif
 #endif

@@ -426,7 +426,7 @@ int rs600_gart_init(struct radeon_device *rdev)
 	return radeon_gart_table_vram_alloc(rdev);
 }
 
-int rs600_gart_enable(struct radeon_device *rdev)
+static int rs600_gart_enable(struct radeon_device *rdev)
 {
 	u32 tmp;
 	int r, i;
@@ -440,8 +440,8 @@ int rs600_gart_enable(struct radeon_device *rdev)
 		return r;
 	radeon_gart_restore(rdev);
 	/* Enable bus master */
-	tmp = RREG32(R_00004C_BUS_CNTL) & C_00004C_BUS_MASTER_DIS;
-	WREG32(R_00004C_BUS_CNTL, tmp);
+	tmp = RREG32(RADEON_BUS_CNTL) & ~RS600_BUS_MASTER_DIS;
+	WREG32(RADEON_BUS_CNTL, tmp);
 	/* FIXME: setup default page */
 	WREG32_MC(R_000100_MC_PT0_CNTL,
 		  (S_000100_EFFECTIVE_L2_CACHE_SIZE(6) |
@@ -530,7 +530,7 @@ int rs600_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
 	addr = addr & 0xFFFFFFFFFFFFF000ULL;
 	addr |= R600_PTE_VALID | R600_PTE_SYSTEM | R600_PTE_SNOOPED;
 	addr |= R600_PTE_READABLE | R600_PTE_WRITEABLE;
-	writeq(addr, ((void __iomem *)ptr) + (i * 8));
+	writeq(addr, ptr + (i * 8));
 	return 0;
 }
 

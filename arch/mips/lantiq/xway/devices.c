@@ -16,11 +16,9 @@
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 #include <linux/etherdevice.h>
-#include <linux/reboot.h>
 #include <linux/time.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
-#include <linux/leds.h>
 
 #include <asm/bootinfo.h>
 #include <asm/irq.h>

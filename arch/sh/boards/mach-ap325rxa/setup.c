@@ -188,7 +188,7 @@ static void ap320_wvga_power_off(void *board_data)
 	__raw_writew(0, FPGA_LCDREG);
 }
 
-const static struct fb_videomode ap325rxa_lcdc_modes[] = {
+static const struct fb_videomode ap325rxa_lcdc_modes[] = {
 	{
 		.name = "LB070WV1",
 		.xres = 800,
@@ -332,8 +332,8 @@ static int camera_set_capture(struct soc_camera_platform_info *info,
 	return ret;
 }
 
-static int ap325rxa_camera_add(struct soc_camera_link *icl, struct device *dev);
-static void ap325rxa_camera_del(struct soc_camera_link *icl);
+static int ap325rxa_camera_add(struct soc_camera_device *icd);
+static void ap325rxa_camera_del(struct soc_camera_device *icd);
 
 static struct soc_camera_platform_info camera_info = {
 	.format_name = "UYVY",
@@ -359,37 +359,30 @@ static struct soc_camera_link camera_link = {
 	.priv		= &camera_info,
 };
 
-static void dummy_release(struct device *dev)
+static struct platform_device *camera_device;
+
+static void ap325rxa_camera_release(struct device *dev)
 {
+	soc_camera_platform_release(&camera_device);
 }
 
-static struct platform_device camera_device = {
-	.name		= "soc_camera_platform",
-	.dev		= {
-		.platform_data	= &camera_info,
-		.release	= dummy_release,
-	},
-};
-
-static int ap325rxa_camera_add(struct soc_camera_link *icl,
-			       struct device *dev)
+static int ap325rxa_camera_add(struct soc_camera_device *icd)
 {
-	if (icl != &camera_link || camera_probe() <= 0)
-		return -ENODEV;
+	int ret = soc_camera_platform_add(icd, &camera_device, &camera_link,
+					  ap325rxa_camera_release, 0);
+	if (ret < 0)
+		return ret;
 
-	camera_info.dev = dev;
+	ret = camera_probe();
+	if (ret < 0)
+		soc_camera_platform_del(icd, camera_device, &camera_link);
 
-	return platform_device_register(&camera_device);
+	return ret;
 }
 
-static void ap325rxa_camera_del(struct soc_camera_link *icl)
+static void ap325rxa_camera_del(struct soc_camera_device *icd)
 {
-	if (icl != &camera_link)
-		return;
-
-	platform_device_unregister(&camera_device);
-	memset(&camera_device.dev.kobj, 0,
-	       sizeof(camera_device.dev.kobj));
+	soc_camera_platform_del(icd, camera_device, &camera_link);
 }
 #endif /* CONFIG_I2C */
 

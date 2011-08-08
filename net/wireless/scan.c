@@ -100,14 +100,14 @@ void __cfg80211_sched_scan_results(struct work_struct *wk)
 	rdev = container_of(wk, struct cfg80211_registered_device,
 			    sched_scan_results_wk);
 
-	cfg80211_lock_rdev(rdev);
+	mutex_lock(&rdev->sched_scan_mtx);
 
 	/* we don't have sched_scan_req anymore if the scan is stopping */
 	if (rdev->sched_scan_req)
 		nl80211_send_sched_scan_results(rdev,
 						rdev->sched_scan_req->dev);
 
-	cfg80211_unlock_rdev(rdev);
+	mutex_unlock(&rdev->sched_scan_mtx);
 }
 
 void cfg80211_sched_scan_results(struct wiphy *wiphy)
@@ -123,27 +123,26 @@ void cfg80211_sched_scan_stopped(struct wiphy *wiphy)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
-	cfg80211_lock_rdev(rdev);
+	mutex_lock(&rdev->sched_scan_mtx);
 	__cfg80211_stop_sched_scan(rdev, true);
-	cfg80211_unlock_rdev(rdev);
+	mutex_unlock(&rdev->sched_scan_mtx);
 }
 EXPORT_SYMBOL(cfg80211_sched_scan_stopped);
 
 int __cfg80211_stop_sched_scan(struct cfg80211_registered_device *rdev,
 			       bool driver_initiated)
 {
-	int err;
 	struct net_device *dev;
 
-	ASSERT_RDEV_LOCK(rdev);
+	lockdep_assert_held(&rdev->sched_scan_mtx);
 
 	if (!rdev->sched_scan_req)
-		return 0;
+		return -ENOENT;
 
 	dev = rdev->sched_scan_req->dev;
 
 	if (!driver_initiated) {
-		err = rdev->ops->sched_scan_stop(&rdev->wiphy, dev);
+		int err = rdev->ops->sched_scan_stop(&rdev->wiphy, dev);
 		if (err)
 			return err;
 	}
@@ -153,7 +152,7 @@ int __cfg80211_stop_sched_scan(struct cfg80211_registered_device *rdev,
 	kfree(rdev->sched_scan_req);
 	rdev->sched_scan_req = NULL;
 
-	return err;
+	return 0;
 }
 
 static void bss_release(struct kref *ref)
@@ -267,13 +266,35 @@ static bool is_bss(struct cfg80211_bss *a,
 	return memcmp(ssidie + 2, ssid, ssid_len) == 0;
 }
 
+static bool is_mesh_bss(struct cfg80211_bss *a)
+{
+	const u8 *ie;
+
+	if (!WLAN_CAPABILITY_IS_STA_BSS(a->capability))
+		return false;
+
+	ie = cfg80211_find_ie(WLAN_EID_MESH_ID,
+			      a->information_elements,
+			      a->len_information_elements);
+	if (!ie)
+		return false;
+
+	ie = cfg80211_find_ie(WLAN_EID_MESH_CONFIG,
+			      a->information_elements,
+			      a->len_information_elements);
+	if (!ie)
+		return false;
+
+	return true;
+}
+
 static bool is_mesh(struct cfg80211_bss *a,
 		    const u8 *meshid, size_t meshidlen,
 		    const u8 *meshcfg)
 {
 	const u8 *ie;
 
-	if (!WLAN_CAPABILITY_IS_MBSS(a->capability))
+	if (!WLAN_CAPABILITY_IS_STA_BSS(a->capability))
 		return false;
 
 	ie = cfg80211_find_ie(WLAN_EID_MESH_ID,
@@ -311,7 +332,7 @@ static int cmp_bss(struct cfg80211_bss *a,
 	if (a->channel != b->channel)
 		return b->channel->center_freq - a->channel->center_freq;
 
-	if (WLAN_CAPABILITY_IS_MBSS(a->capability | b->capability)) {
+	if (is_mesh_bss(a) && is_mesh_bss(b)) {
 		r = cmp_ies(WLAN_EID_MESH_ID,
 			    a->information_elements,
 			    a->len_information_elements,
@@ -457,7 +478,6 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 		    struct cfg80211_internal_bss *res)
 {
 	struct cfg80211_internal_bss *found = NULL;
-	const u8 *meshid, *meshcfg;
 
 	/*
 	 * The reference to "res" is donated to this function.
@@ -469,22 +489,6 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 	}
 
 	res->ts = jiffies;
-
-	if (WLAN_CAPABILITY_IS_MBSS(res->pub.capability)) {
-		/* must be mesh, verify */
-		meshid = cfg80211_find_ie(WLAN_EID_MESH_ID,
-					  res->pub.information_elements,
-					  res->pub.len_information_elements);
-		meshcfg = cfg80211_find_ie(WLAN_EID_MESH_CONFIG,
-					   res->pub.information_elements,
-					   res->pub.len_information_elements);
-		if (!meshid || !meshcfg ||
-		    meshcfg[1] != sizeof(struct ieee80211_meshconf_ie)) {
-			/* bogus mesh */
-			kref_put(&res->ref, bss_release);
-			return NULL;
-		}
-	}
 
 	spin_lock_bh(&dev->bss_lock);
 
@@ -857,6 +861,10 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 		if (wreq->scan_type == IW_SCAN_TYPE_PASSIVE)
 			creq->n_ssids = 0;
 	}
+
+	for (i = 0; i < IEEE80211_NUM_BANDS; i++)
+		if (wiphy->bands[i])
+			creq->rates[i] = (1 << wiphy->bands[i]->n_bitrates) - 1;
 
 	rdev->scan_req = creq;
 	err = rdev->ops->scan(wiphy, dev, creq);

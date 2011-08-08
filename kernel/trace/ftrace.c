@@ -32,7 +32,6 @@
 
 #include <trace/events/sched.h>
 
-#include <asm/ftrace.h>
 #include <asm/setup.h>
 
 #include "trace_output.h"
@@ -82,14 +81,14 @@ static int ftrace_disabled __read_mostly;
 
 static DEFINE_MUTEX(ftrace_lock);
 
-static struct ftrace_ops ftrace_list_end __read_mostly =
-{
+static struct ftrace_ops ftrace_list_end __read_mostly = {
 	.func		= ftrace_stub,
 };
 
 static struct ftrace_ops *ftrace_global_list __read_mostly = &ftrace_list_end;
 static struct ftrace_ops *ftrace_ops_list __read_mostly = &ftrace_list_end;
 ftrace_func_t ftrace_trace_function __read_mostly = ftrace_stub;
+static ftrace_func_t __ftrace_trace_function_delay __read_mostly = ftrace_stub;
 ftrace_func_t __ftrace_trace_function __read_mostly = ftrace_stub;
 ftrace_func_t ftrace_pid_function __read_mostly = ftrace_stub;
 static struct ftrace_ops global_ops;
@@ -148,9 +147,11 @@ void clear_ftrace_function(void)
 {
 	ftrace_trace_function = ftrace_stub;
 	__ftrace_trace_function = ftrace_stub;
+	__ftrace_trace_function_delay = ftrace_stub;
 	ftrace_pid_function = ftrace_stub;
 }
 
+#undef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
 #ifndef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
 /*
  * For those archs that do not test ftrace_trace_stop in their
@@ -210,7 +211,12 @@ static void update_ftrace_function(void)
 #ifdef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	ftrace_trace_function = func;
 #else
+#ifdef CONFIG_DYNAMIC_FTRACE
+	/* do not update till all functions have been modified */
+	__ftrace_trace_function_delay = func;
+#else
 	__ftrace_trace_function = func;
+#endif
 	ftrace_trace_function = ftrace_test_stop_func;
 #endif
 }
@@ -785,8 +791,7 @@ static void unregister_ftrace_profiler(void)
 	unregister_ftrace_graph();
 }
 #else
-static struct ftrace_ops ftrace_profile_ops __read_mostly =
-{
+static struct ftrace_ops ftrace_profile_ops __read_mostly = {
 	.func		= function_profile_call,
 };
 
@@ -806,19 +811,10 @@ ftrace_profile_write(struct file *filp, const char __user *ubuf,
 		     size_t cnt, loff_t *ppos)
 {
 	unsigned long val;
-	char buf[64];		/* big enough to hold a number */
 	int ret;
 
-	if (cnt >= sizeof(buf))
-		return -EINVAL;
-
-	if (copy_from_user(&buf, ubuf, cnt))
-		return -EFAULT;
-
-	buf[cnt] = 0;
-
-	ret = strict_strtoul(buf, 10, &val);
-	if (ret < 0)
+	ret = kstrtoul_from_user(ubuf, cnt, 10, &val);
+	if (ret)
 		return ret;
 
 	val = !!val;
@@ -1182,8 +1178,14 @@ alloc_and_copy_ftrace_hash(int size_bits, struct ftrace_hash *hash)
 	return NULL;
 }
 
+static void
+ftrace_hash_rec_disable(struct ftrace_ops *ops, int filter_hash);
+static void
+ftrace_hash_rec_enable(struct ftrace_ops *ops, int filter_hash);
+
 static int
-ftrace_hash_move(struct ftrace_hash **dst, struct ftrace_hash *src)
+ftrace_hash_move(struct ftrace_ops *ops, int enable,
+		 struct ftrace_hash **dst, struct ftrace_hash *src)
 {
 	struct ftrace_func_entry *entry;
 	struct hlist_node *tp, *tn;
@@ -1193,7 +1195,14 @@ ftrace_hash_move(struct ftrace_hash **dst, struct ftrace_hash *src)
 	unsigned long key;
 	int size = src->count;
 	int bits = 0;
+	int ret;
 	int i;
+
+	/*
+	 * Remove the current set, update the hash and add
+	 * them back.
+	 */
+	ftrace_hash_rec_disable(ops, enable);
 
 	/*
 	 * If the new source is empty, just free dst and assign it
@@ -1215,9 +1224,10 @@ ftrace_hash_move(struct ftrace_hash **dst, struct ftrace_hash *src)
 	if (bits > FTRACE_HASH_MAX_BITS)
 		bits = FTRACE_HASH_MAX_BITS;
 
+	ret = -ENOMEM;
 	new_hash = alloc_ftrace_hash(bits);
 	if (!new_hash)
-		return -ENOMEM;
+		goto out;
 
 	size = 1 << src->size_bits;
 	for (i = 0; i < size; i++) {
@@ -1236,7 +1246,16 @@ ftrace_hash_move(struct ftrace_hash **dst, struct ftrace_hash *src)
 	rcu_assign_pointer(*dst, new_hash);
 	free_ftrace_hash_rcu(old_hash);
 
-	return 0;
+	ret = 0;
+ out:
+	/*
+	 * Enable regardless of ret:
+	 *  On success, we enable the new hash.
+	 *  On failure, we re-enable the original hash.
+	 */
+	ftrace_hash_rec_enable(ops, enable);
+
+	return ret;
 }
 
 /*
@@ -1596,6 +1615,12 @@ static int __ftrace_modify_code(void *data)
 {
 	int *command = data;
 
+	/*
+	 * Do not call function tracer while we update the code.
+	 * We are in stop machine, no worrying about races.
+	 */
+	function_trace_stop++;
+
 	if (*command & FTRACE_ENABLE_CALLS)
 		ftrace_replace_code(1);
 	else if (*command & FTRACE_DISABLE_CALLS)
@@ -1608,6 +1633,18 @@ static int __ftrace_modify_code(void *data)
 		ftrace_enable_ftrace_graph_caller();
 	else if (*command & FTRACE_STOP_FUNC_RET)
 		ftrace_disable_ftrace_graph_caller();
+
+#ifndef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	/*
+	 * For archs that call ftrace_test_stop_func(), we must
+	 * wait till after we update all the function callers
+	 * before we update the callback. This keeps different
+	 * ops that record different functions from corrupting
+	 * each other.
+	 */
+	__ftrace_trace_function = __ftrace_trace_function_delay;
+#endif
+	function_trace_stop--;
 
 	return 0;
 }
@@ -1744,10 +1781,36 @@ static cycle_t		ftrace_update_time;
 static unsigned long	ftrace_update_cnt;
 unsigned long		ftrace_update_tot_cnt;
 
+static int ops_traces_mod(struct ftrace_ops *ops)
+{
+	struct ftrace_hash *hash;
+
+	hash = ops->filter_hash;
+	return !!(!hash || !hash->count);
+}
+
 static int ftrace_update_code(struct module *mod)
 {
 	struct dyn_ftrace *p;
 	cycle_t start, stop;
+	unsigned long ref = 0;
+
+	/*
+	 * When adding a module, we need to check if tracers are
+	 * currently enabled and if they are set to trace all functions.
+	 * If they are, we need to enable the module functions as well
+	 * as update the reference counts for those function records.
+	 */
+	if (mod) {
+		struct ftrace_ops *ops;
+
+		for (ops = ftrace_ops_list;
+		     ops != &ftrace_list_end; ops = ops->next) {
+			if (ops->flags & FTRACE_OPS_FL_ENABLED &&
+			    ops_traces_mod(ops))
+				ref++;
+		}
+	}
 
 	start = ftrace_now(raw_smp_processor_id());
 	ftrace_update_cnt = 0;
@@ -1760,7 +1823,7 @@ static int ftrace_update_code(struct module *mod)
 
 		p = ftrace_new_addrs;
 		ftrace_new_addrs = p->newlist;
-		p->flags = 0L;
+		p->flags = ref;
 
 		/*
 		 * Do the initial record conversion from mcount jump
@@ -1783,7 +1846,7 @@ static int ftrace_update_code(struct module *mod)
 		 * conversion puts the module to the correct state, thus
 		 * passing the ftrace_make_call check.
 		 */
-		if (ftrace_start_up) {
+		if (ftrace_start_up && ref) {
 			int failed = __ftrace_replace_code(p, 1);
 			if (failed) {
 				ftrace_bug(failed, p->ip);
@@ -2407,10 +2470,9 @@ ftrace_match_module_records(struct ftrace_hash *hash, char *buff, char *mod)
  */
 
 static int
-ftrace_mod_callback(char *func, char *cmd, char *param, int enable)
+ftrace_mod_callback(struct ftrace_hash *hash,
+		    char *func, char *cmd, char *param, int enable)
 {
-	struct ftrace_ops *ops = &global_ops;
-	struct ftrace_hash *hash;
 	char *mod;
 	int ret = -EINVAL;
 
@@ -2429,11 +2491,6 @@ ftrace_mod_callback(char *func, char *cmd, char *param, int enable)
 	mod = strsep(&param, ":");
 	if (!strlen(mod))
 		return ret;
-
-	if (enable)
-		hash = ops->filter_hash;
-	else
-		hash = ops->notrace_hash;
 
 	ret = ftrace_match_module_records(hash, func, mod);
 	if (!ret)
@@ -2740,7 +2797,7 @@ static int ftrace_process_regex(struct ftrace_hash *hash,
 {
 	char *func, *command, *next = buff;
 	struct ftrace_func_command *p;
-	int ret;
+	int ret = -EINVAL;
 
 	func = strsep(&next, ":");
 
@@ -2760,7 +2817,7 @@ static int ftrace_process_regex(struct ftrace_hash *hash,
 	mutex_lock(&ftrace_cmd_mutex);
 	list_for_each_entry(p, &ftrace_commands, list) {
 		if (strcmp(p->name, command) == 0) {
-			ret = p->func(func, command, next, enable);
+			ret = p->func(hash, func, command, next, enable);
 			goto out_unlock;
 		}
 	}
@@ -2857,7 +2914,11 @@ ftrace_set_regex(struct ftrace_ops *ops, unsigned char *buf, int len,
 		ftrace_match_records(hash, buf, len);
 
 	mutex_lock(&ftrace_lock);
-	ret = ftrace_hash_move(orig_hash, hash);
+	ret = ftrace_hash_move(ops, enable, orig_hash, hash);
+	if (!ret && ops->flags & FTRACE_OPS_FL_ENABLED
+	    && ftrace_enabled)
+		ftrace_run_update_code(FTRACE_ENABLE_CALLS);
+
 	mutex_unlock(&ftrace_lock);
 
 	mutex_unlock(&ftrace_regex_lock);
@@ -3040,18 +3101,12 @@ ftrace_regex_release(struct inode *inode, struct file *file)
 			orig_hash = &iter->ops->notrace_hash;
 
 		mutex_lock(&ftrace_lock);
-		/*
-		 * Remove the current set, update the hash and add
-		 * them back.
-		 */
-		ftrace_hash_rec_disable(iter->ops, filter_hash);
-		ret = ftrace_hash_move(orig_hash, iter->hash);
-		if (!ret) {
-			ftrace_hash_rec_enable(iter->ops, filter_hash);
-			if (iter->ops->flags & FTRACE_OPS_FL_ENABLED
-			    && ftrace_enabled)
-				ftrace_run_update_code(FTRACE_ENABLE_CALLS);
-		}
+		ret = ftrace_hash_move(iter->ops, filter_hash,
+				       orig_hash, iter->hash);
+		if (!ret && (iter->ops->flags & FTRACE_OPS_FL_ENABLED)
+		    && ftrace_enabled)
+			ftrace_run_update_code(FTRACE_ENABLE_CALLS);
+
 		mutex_unlock(&ftrace_lock);
 	}
 	free_ftrace_hash(iter->hash);
@@ -3330,6 +3385,7 @@ static int ftrace_process_locs(struct module *mod,
 {
 	unsigned long *p;
 	unsigned long addr;
+	unsigned long flags = 0; /* Shut up gcc */
 
 	mutex_lock(&ftrace_lock);
 	p = start;
@@ -3346,7 +3402,19 @@ static int ftrace_process_locs(struct module *mod,
 		ftrace_record_ip(addr);
 	}
 
+	/*
+	 * We only need to disable interrupts on start up
+	 * because we are modifying code that an interrupt
+	 * may execute, and the modification is not atomic.
+	 * But for modules, nothing runs the code we modify
+	 * until we are finished with it, and there's no
+	 * reason to cause large interrupt latencies while we do it.
+	 */
+	if (!mod)
+		local_irq_save(flags);
 	ftrace_update_code(mod);
+	if (!mod)
+		local_irq_restore(flags);
 	mutex_unlock(&ftrace_lock);
 
 	return 0;

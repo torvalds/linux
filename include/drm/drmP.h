@@ -886,6 +886,8 @@ struct drm_driver {
 	 */
 	int (*gem_init_object) (struct drm_gem_object *obj);
 	void (*gem_free_object) (struct drm_gem_object *obj);
+	int (*gem_open_object) (struct drm_gem_object *, struct drm_file *);
+	void (*gem_close_object) (struct drm_gem_object *, struct drm_file *);
 
 	/* vga arb irq handler */
 	void (*vgaarb_irq)(struct drm_device *dev, bool state);
@@ -1539,6 +1541,8 @@ struct drm_gem_object *drm_gem_object_alloc(struct drm_device *dev,
 					    size_t size);
 int drm_gem_object_init(struct drm_device *dev,
 			struct drm_gem_object *obj, size_t size);
+int drm_gem_private_object_init(struct drm_device *dev,
+			struct drm_gem_object *obj, size_t size);
 void drm_gem_object_handle_free(struct drm_gem_object *obj);
 void drm_gem_vm_open(struct vm_area_struct *vma);
 void drm_gem_vm_close(struct vm_area_struct *vma);
@@ -1671,13 +1675,6 @@ static __inline__ int drm_pci_device_is_agp(struct drm_device *dev)
 
 	return pci_find_capability(dev->pdev, PCI_CAP_ID_AGP);
 }
-
-
-static __inline__ int drm_pci_device_is_pcie(struct drm_device *dev)
-{
-	return pci_find_capability(dev->pdev, PCI_CAP_ID_EXP);
-}
-
 
 extern int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver);
 extern void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver);

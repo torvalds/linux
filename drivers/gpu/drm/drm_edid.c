@@ -127,6 +127,23 @@ static const u8 edid_header[] = {
 	0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00
 };
 
+ /*
+ * Sanity check the header of the base EDID block.  Return 8 if the header
+ * is perfect, down to 0 if it's totally wrong.
+ */
+int drm_edid_header_is_valid(const u8 *raw_edid)
+{
+	int i, score = 0;
+
+	for (i = 0; i < sizeof(edid_header); i++)
+		if (raw_edid[i] == edid_header[i])
+			score++;
+
+	return score;
+}
+EXPORT_SYMBOL(drm_edid_header_is_valid);
+
+
 /*
  * Sanity check the EDID block (base or extension).  Return 0 if the block
  * doesn't check out, or 1 if it's valid.
@@ -139,12 +156,7 @@ drm_edid_block_valid(u8 *raw_edid)
 	struct edid *edid = (struct edid *)raw_edid;
 
 	if (raw_edid[0] == 0x00) {
-		int score = 0;
-
-		for (i = 0; i < sizeof(edid_header); i++)
-			if (raw_edid[i] == edid_header[i])
-				score++;
-
+		int score = drm_edid_header_is_valid(raw_edid);
 		if (score == 8) ;
 		else if (score >= 6) {
 			DRM_DEBUG("Fixing EDID header, your hardware may be failing\n");
@@ -184,9 +196,9 @@ drm_edid_block_valid(u8 *raw_edid)
 
 bad:
 	if (raw_edid) {
-		DRM_ERROR("Raw EDID:\n");
-		print_hex_dump_bytes(KERN_ERR, DUMP_PREFIX_NONE, raw_edid, EDID_LENGTH);
-		printk("\n");
+		printk(KERN_ERR "Raw EDID:\n");
+		print_hex_dump(KERN_ERR, " \t", DUMP_PREFIX_NONE, 16, 1,
+			       raw_edid, EDID_LENGTH, false);
 	}
 	return 0;
 }
@@ -258,6 +270,17 @@ drm_do_probe_ddc_edid(struct i2c_adapter *adapter, unsigned char *buf,
 	return ret == 2 ? 0 : -1;
 }
 
+static bool drm_edid_is_zero(u8 *in_edid, int length)
+{
+	int i;
+	u32 *raw_edid = (u32 *)in_edid;
+
+	for (i = 0; i < length / 4; i++)
+		if (*(raw_edid + i) != 0)
+			return false;
+	return true;
+}
+
 static u8 *
 drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 {
@@ -273,6 +296,10 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 			goto out;
 		if (drm_edid_block_valid(block))
 			break;
+		if (i == 0 && drm_edid_is_zero(block, EDID_LENGTH)) {
+			connector->null_edid_counter++;
+			goto carp;
+		}
 	}
 	if (i == 4)
 		goto carp;
@@ -1424,6 +1451,8 @@ EXPORT_SYMBOL(drm_detect_monitor_audio);
 static void drm_add_display_info(struct edid *edid,
 				 struct drm_display_info *info)
 {
+	u8 *edid_ext;
+
 	info->width_mm = edid->width_cm * 10;
 	info->height_mm = edid->height_cm * 10;
 
@@ -1468,6 +1497,13 @@ static void drm_add_display_info(struct edid *edid,
 		info->color_formats = DRM_COLOR_FORMAT_YCRCB444;
 	if (info->color_formats & DRM_EDID_FEATURE_RGB_YCRCB422)
 		info->color_formats = DRM_COLOR_FORMAT_YCRCB422;
+
+	/* Get data from CEA blocks if present */
+	edid_ext = drm_find_cea_extension(edid);
+	if (!edid_ext)
+		return;
+
+	info->cea_rev = edid_ext[1];
 }
 
 /**

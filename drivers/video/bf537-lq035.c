@@ -789,6 +789,7 @@ static int __devinit bfin_lq035_probe(struct platform_device *pdev)
 	i2c_add_driver(&ad5280_driver);
 
 	memset(&props, 0, sizeof(props));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = MAX_BRIGHENESS;
 	bl_dev = backlight_device_register("bf537-bl", NULL, NULL,
 					   &bfin_lq035fb_bl_ops, &props);

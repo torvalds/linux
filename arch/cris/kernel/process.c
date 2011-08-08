@@ -12,7 +12,7 @@
  * This file handles the architecture-dependent parts of process handling..
  */
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
 #include <asm/irq.h>

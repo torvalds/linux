@@ -146,6 +146,9 @@ static void rt2x00lib_autowakeup(struct work_struct *work)
 	struct rt2x00_dev *rt2x00dev =
 	    container_of(work, struct rt2x00_dev, autowakeup_work.work);
 
+	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
+		return;
+
 	if (rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_AWAKE))
 		ERROR(rt2x00dev, "Device failed to wakeup.\n");
 	clear_bit(CONFIG_POWERSAVING, &rt2x00dev->flags);
@@ -580,6 +583,18 @@ void rt2x00lib_rxdone(struct queue_entry *entry)
 	rt2x00dev->ops->lib->fill_rxdone(entry, &rxdesc);
 
 	/*
+	 * Check for valid size in case we get corrupted descriptor from
+	 * hardware.
+	 */
+	if (unlikely(rxdesc.size == 0 ||
+		     rxdesc.size > entry->queue->data_size)) {
+		WARNING(rt2x00dev, "Wrong frame size %d max %d.\n",
+			rxdesc.size, entry->queue->data_size);
+		dev_kfree_skb(entry->skb);
+		goto renew_skb;
+	}
+
+	/*
 	 * The data behind the ieee80211 header must be
 	 * aligned on a 4 byte boundary.
 	 */
@@ -639,6 +654,7 @@ void rt2x00lib_rxdone(struct queue_entry *entry)
 
 	ieee80211_rx_ni(rt2x00dev->hw, entry->skb);
 
+renew_skb:
 	/*
 	 * Replace the skb with the freshly allocated one.
 	 */
@@ -1160,6 +1176,7 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	 * Stop all work.
 	 */
 	cancel_work_sync(&rt2x00dev->intf_work);
+	cancel_delayed_work_sync(&rt2x00dev->autowakeup_work);
 	if (rt2x00_is_usb(rt2x00dev)) {
 		del_timer_sync(&rt2x00dev->txstatus_timer);
 		cancel_work_sync(&rt2x00dev->rxdone_work);

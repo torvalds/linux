@@ -900,6 +900,7 @@ nv_save_state_ext(struct drm_device *dev, int head,
 	}
 	/* NV11 and NV20 don't have this, they stop at 0x52. */
 	if (nv_gf4_disp_arch(dev)) {
+		rd_cio_state(dev, head, regp, NV_CIO_CRE_42);
 		rd_cio_state(dev, head, regp, NV_CIO_CRE_53);
 		rd_cio_state(dev, head, regp, NV_CIO_CRE_54);
 
@@ -1003,6 +1004,7 @@ nv_load_state_ext(struct drm_device *dev, int head,
 			nouveau_wait_eq(dev, 650000000, NV_PRMCIO_INP0__COLOR, 0x8, 0x0);
 		}
 
+		wr_cio_state(dev, head, regp, NV_CIO_CRE_42);
 		wr_cio_state(dev, head, regp, NV_CIO_CRE_53);
 		wr_cio_state(dev, head, regp, NV_CIO_CRE_54);
 

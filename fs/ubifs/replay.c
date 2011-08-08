@@ -523,8 +523,7 @@ static int is_last_bud(struct ubifs_info *c, struct ubifs_bud *bud)
 	if (!list_is_last(&next->list, &jh->buds_list))
 		return 0;
 
-	err = ubi_read(c->ubi, next->lnum, (char *)&data,
-		       next->start, 4);
+	err = ubifs_leb_read(c, next->lnum, (char *)&data, next->start, 4, 1);
 	if (err)
 		return 0;
 
@@ -557,8 +556,7 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 		 * these LEBs could possibly be written to at the power cut
 		 * time.
 		 */
-		sleb = ubifs_recover_leb(c, lnum, offs, c->sbuf,
-					 b->bud->jhead != GCHD);
+		sleb = ubifs_recover_leb(c, lnum, offs, c->sbuf, b->bud->jhead);
 	else
 		sleb = ubifs_scan(c, lnum, offs, c->sbuf, 0);
 	if (IS_ERR(sleb))

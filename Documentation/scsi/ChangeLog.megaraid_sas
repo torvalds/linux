@@ -1,3 +1,11 @@
+Release Date    : Tue. Jul 26, 2011 17:00:00 PST 2010 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+Current Version : 00.00.05.40-rc1
+Old Version     : 00.00.05.38-rc1
+    1. Fix FastPath I/O to work with degraded RAID 1.
+    2. Add .change_queue_depth support.
+-------------------------------------------------------------------------------
 Release Date    : Wed. May 11, 2011 17:00:00 PST 2010 -
 			(emaild-id:megaraidlinux@lsi.com)
 			Adam Radford

@@ -93,4 +93,8 @@ static inline ulong kvmppc_get_fault_dar(struct kvm_vcpu *vcpu)
 	return vcpu->arch.fault_dear;
 }
 
+static inline ulong kvmppc_get_msr(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.shared->msr;
+}
 #endif /* __ASM_KVM_BOOKE_H__ */

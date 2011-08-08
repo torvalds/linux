@@ -496,7 +496,7 @@ static s32 iwl4965_get_tx_atten_grp(u16 channel)
 	    channel <= CALIB_IWL_TX_ATTEN_GR4_LCH)
 		return CALIB_CH_GROUP_4;
 
-	return -1;
+	return -EINVAL;
 }
 
 static u32 iwl4965_get_sub_band(const struct iwl_priv *priv, u32 channel)
@@ -915,7 +915,7 @@ static int iwl4965_fill_txpower_tbl(struct iwl_priv *priv, u8 band, u16 channel,
 	if (txatten_grp < 0) {
 		IWL_ERR(priv, "Can't find txatten group for channel %d.\n",
 			  channel);
-		return -EINVAL;
+		return txatten_grp;
 	}
 
 	IWL_DEBUG_TXPOWER(priv, "channel %d belongs to txatten group %d\n",
@@ -1185,8 +1185,6 @@ static int iwl4965_send_rxon_assoc(struct iwl_priv *priv,
 
 	ret = iwl_legacy_send_cmd_pdu_async(priv, REPLY_RXON_ASSOC,
 				     sizeof(rxon_assoc), &rxon_assoc, NULL);
-	if (ret)
-		return ret;
 
 	return ret;
 }
@@ -1218,10 +1216,10 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *c
 	 * receive commit_rxon request
 	 * abort any previous channel switch if still in process
 	 */
-	if (priv->switch_rxon.switch_in_progress &&
-	    (priv->switch_rxon.channel != ctx->staging.channel)) {
+	if (test_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status) &&
+	    (priv->switch_channel != ctx->staging.channel)) {
 		IWL_DEBUG_11H(priv, "abort channel switch on %d\n",
-		      le16_to_cpu(priv->switch_rxon.channel));
+		      le16_to_cpu(priv->switch_channel));
 		iwl_legacy_chswitch_done(priv, false);
 	}
 
@@ -1237,6 +1235,11 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *c
 
 		memcpy(active_rxon, &ctx->staging, sizeof(*active_rxon));
 		iwl_legacy_print_rx_config_cmd(priv, ctx);
+		/*
+		 * We do not commit tx power settings while channel changing,
+		 * do it now if tx power changed.
+		 */
+		iwl_legacy_set_tx_power(priv, priv->tx_power_next, false);
 		return 0;
 	}
 
@@ -1403,9 +1406,6 @@ static int iwl4965_hw_channel_switch(struct iwl_priv *priv,
 		return rc;
 	}
 
-	priv->switch_rxon.channel = cmd.channel;
-	priv->switch_rxon.switch_in_progress = true;
-
 	return iwl_legacy_send_cmd_pdu(priv,
 			 REPLY_CHANNEL_SWITCH, sizeof(cmd), &cmd);
 }
@@ -1543,7 +1543,7 @@ static void iwl4965_temperature_calib(struct iwl_priv *priv)
 	s32 temp;
 
 	temp = iwl4965_hw_get_temperature(priv);
-	if (temp < 0)
+	if (IWL_TX_POWER_TEMPERATURE_OUT_OF_RANGE(temp))
 		return;
 
 	if (priv->temperature != temp) {
@@ -2073,7 +2073,6 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.is_valid_rtc_data_addr = iwl4965_hw_valid_rtc_data_addr,
 	.init_alive_start = iwl4965_init_alive_start,
 	.load_ucode = iwl4965_load_bsm,
-	.dump_nic_event_log = iwl4965_dump_nic_event_log,
 	.dump_nic_error_log = iwl4965_dump_nic_error_log,
 	.dump_fh = iwl4965_dump_fh,
 	.set_channel_switch = iwl4965_hw_channel_switch,
@@ -2104,7 +2103,6 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.tx_stats_read = iwl4965_ucode_tx_stats_read,
 		.general_stats_read = iwl4965_ucode_general_stats_read,
 	},
-	.check_plcp_health = iwl4965_good_plcp_health,
 };
 
 static const struct iwl_legacy_ops iwl4965_legacy_ops = {
@@ -2154,10 +2152,8 @@ static struct iwl_base_params iwl4965_base_params = {
 	.use_bsm = true,
 	.led_compensation = 61,
 	.chain_noise_num_beacons = IWL4965_CAL_NUM_BEACONS,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.temperature_kelvin = true,
-	.max_event_log_size = 512,
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,

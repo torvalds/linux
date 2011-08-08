@@ -32,27 +32,6 @@
 
 	.text
 
-	/* s3c_cpu_save
-	 *
-	 * entry:
-	 *	r1 = v:p offset
-	*/
-
-ENTRY(s3c_cpu_save)
-
-	stmfd	sp!, { r3 - r12, lr }
-	ldr	r3, =resume_with_mmu
-	bl	cpu_suspend
-
-	ldr	r0, =pm_cpu_sleep
-	ldr	r0, [ r0 ]
-	mov	pc, r0
-
-resume_with_mmu:
-	ldmfd	sp!, { r3 - r12, pc }
-
-	.ltorg
-
 	/* sleep magic, to allow the bootloader to check for an valid
 	 * image to resume to. Must be the first word before the
 	 * s3c_cpu_resume entry.

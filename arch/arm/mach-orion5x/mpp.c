@@ -24,7 +24,7 @@ static unsigned int __init orion5x_variant(void)
 
 	orion5x_pcie_id(&dev, &rev);
 
-	if (dev == MV88F5181_DEV_ID && rev >= MV88F5181L_REV_A0)
+	if (dev == MV88F5181_DEV_ID)
 		return MPP_F5181_MASK;
 
 	if (dev == MV88F5182_DEV_ID)

@@ -126,119 +126,66 @@ struct mi_regs {
 	u8 mi_res4[3];	/* Future use by MI working group(Reg 0x1D - 0x1F) */
 };
 
-/* MI Register 0: Basic mode control register */
-typedef union _MI_BMCR_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 reset:1;		/* bit 15 */
-		u16 loopback:1;		/* bit 14 */
-		u16 speed_sel:1;		/* bit 13 */
-		u16 enable_autoneg:1;	/* bit 12 */
-		u16 power_down:1;		/* bit 11 */
-		u16 isolate:1;		/* bit 10 */
-		u16 restart_autoneg:1;	/* bit 9 */
-		u16 duplex_mode:1;		/* bit 8 */
-		u16 col_test:1;		/* bit 7 */
-		u16 speed_1000_sel:1;	/* bit 6 */
-		u16 res1:6;		/* bits 0-5 */
-#else
-		u16 res1:6;		/* bits 0-5 */
-		u16 speed_1000_sel:1;	/* bit 6 */
-		u16 col_test:1;		/* bit 7 */
-		u16 duplex_mode:1;		/* bit 8 */
-		u16 restart_autoneg:1;	/* bit 9 */
-		u16 isolate:1;		/* bit 10 */
-		u16 power_down:1;		/* bit 11 */
-		u16 enable_autoneg:1;	/* bit 12 */
-		u16 speed_sel:1;		/* bit 13 */
-		u16 loopback:1;		/* bit 14 */
-		u16 reset:1;		/* bit 15 */
-#endif
-	} bits;
-} MI_BMCR_t, *PMI_BMCR_t;
+/*
+ * MI Register 0: Basic mode control register
+ *	15:	reset
+ *	14:	loopback
+ *	13:	speed_sel
+ *	12:	enable_autoneg
+ *	11:	power_down
+ *	10:	isolate
+ *	9:	restart_autoneg
+ *	8:	duplex_mode
+ *	7:	col_test
+ *	6:	speed_1000_sel
+ *	5-0:	res1
+ */
 
-/* MI Register 1:  Basic mode status register */
-typedef union _MI_BMSR_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 link_100T4:1;		/* bit 15 */
-		u16 link_100fdx:1;		/* bit 14 */
-		u16 link_100hdx:1;		/* bit 13 */
-		u16 link_10fdx:1;		/* bit 12 */
-		u16 link_10hdx:1;		/* bit 11 */
-		u16 link_100T2fdx:1;	/* bit 10 */
-		u16 link_100T2hdx:1;	/* bit 9 */
-		u16 extend_status:1;	/* bit 8 */
-		u16 res1:1;		/* bit 7 */
-		u16 preamble_supress:1;	/* bit 6 */
-		u16 auto_neg_complete:1;	/* bit 5 */
-		u16 remote_fault:1;	/* bit 4 */
-		u16 auto_neg_able:1;	/* bit 3 */
-		u16 link_status:1;		/* bit 2 */
-		u16 jabber_detect:1;	/* bit 1 */
-		u16 ext_cap:1;		/* bit 0 */
-#else
-		u16 ext_cap:1;		/* bit 0 */
-		u16 jabber_detect:1;	/* bit 1 */
-		u16 link_status:1;		/* bit 2 */
-		u16 auto_neg_able:1;	/* bit 3 */
-		u16 remote_fault:1;	/* bit 4 */
-		u16 auto_neg_complete:1;	/* bit 5 */
-		u16 preamble_supress:1;	/* bit 6 */
-		u16 res1:1;		/* bit 7 */
-		u16 extend_status:1;	/* bit 8 */
-		u16 link_100T2hdx:1;	/* bit 9 */
-		u16 link_100T2fdx:1;	/* bit 10 */
-		u16 link_10hdx:1;		/* bit 11 */
-		u16 link_10fdx:1;		/* bit 12 */
-		u16 link_100hdx:1;		/* bit 13 */
-		u16 link_100fdx:1;		/* bit 14 */
-		u16 link_100T4:1;		/* bit 15 */
-#endif
-	} bits;
-} MI_BMSR_t, *PMI_BMSR_t;
+/*
+ * MI Register 1:  Basic mode status register
+ *	15:	link_100T4
+ *	14:	link_100fdx
+ *	13:	link_100hdx
+ *	12:	link_10fdx
+ *	11:	link_10hdx
+ *	10:	link_100T2fdx
+ *	9:	link_100T2hdx
+ *	8:	extend_status
+ *	7:	res1
+ *	6:	preamble_supress
+ *	5:	auto_neg_complete
+ *	4:	remote_fault
+ *	3:	auto_neg_able
+ *	2:	link_status
+ *	1:	jabber_detect
+ *	0:	ext_cap
+ */
 
-/* MI Register 4: Auto-negotiation advertisement register */
-typedef union _MI_ANAR_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 np_indication:1;	/* bit 15 */
-		u16 res2:1;		/* bit 14 */
-		u16 remote_fault:1;	/* bit 13 */
-		u16 res1:1;		/* bit 12 */
-		u16 cap_asmpause:1;	/* bit 11 */
-		u16 cap_pause:1;		/* bit 10 */
-		u16 cap_100T4:1;		/* bit 9 */
-		u16 cap_100fdx:1;		/* bit 8 */
-		u16 cap_100hdx:1;		/* bit 7 */
-		u16 cap_10fdx:1;		/* bit 6 */
-		u16 cap_10hdx:1;		/* bit 5 */
-		u16 selector:5;		/* bits 0-4 */
-#else
-		u16 selector:5;		/* bits 0-4 */
-		u16 cap_10hdx:1;		/* bit 5 */
-		u16 cap_10fdx:1;		/* bit 6 */
-		u16 cap_100hdx:1;		/* bit 7 */
-		u16 cap_100fdx:1;		/* bit 8 */
-		u16 cap_100T4:1;		/* bit 9 */
-		u16 cap_pause:1;		/* bit 10 */
-		u16 cap_asmpause:1;	/* bit 11 */
-		u16 res1:1;		/* bit 12 */
-		u16 remote_fault:1;	/* bit 13 */
-		u16 res2:1;		/* bit 14 */
-		u16 np_indication:1;	/* bit 15 */
-#endif
-	} bits;
-} MI_ANAR_t, *PMI_ANAR_t;
+#define MI_BMSR_LINK_STATUS	  0x04
+#define MI_BMSR_AUTO_NEG_COMPLETE 0x20
+
+/*
+ * MI Register 4: Auto-negotiation advertisement register
+ *
+ *	15:	np_indication
+ *	14:	res2
+ *	13:	remote_fault
+ *	12:	res1
+ *	11:	cap_asmpause
+ *	10:	cap_pause
+ *	9:	cap_100T4
+ *	8:	cap_100fdx
+ *	7:	cap_100hdx
+ *	6:	cap_10fdx
+ *	5:	cap_10hdx
+ *	4-0:	selector
+ */
 
 /* MI Register 5: Auto-negotiation link partner advertisement register
  *	15:	np_indication
  *	14:	acknowledge
  *	13:	remote_fault
- *	12:	res1:1;		
+ *	12:	res1
  *	11:	cap_asmpause
  *	10:	cap_pause
  *	9:	cap_100T4
@@ -258,7 +205,7 @@ typedef union _MI_ANAR_t {
  *	0:	lp_an_able
  */
 
-/* MI Register 7: Auto-negotiation next page transmit reg(0x07) 
+/* MI Register 7: Auto-negotiation next page transmit reg(0x07)
  *	15:	np
  *	14:	reserved
  *	13:	msg_page
@@ -267,7 +214,7 @@ typedef union _MI_ANAR_t {
  *	10-0	msg
  */
 
-/* MI Register 8: Link Partner Next Page Reg(0x08) 
+/* MI Register 8: Link Partner Next Page Reg(0x08)
  *	15:	np
  *	14:	ack
  *	13:	msg_page
@@ -473,7 +420,7 @@ typedef union _MI_ANAR_t {
 #define TRUEPHY_ADV_DUPLEX_FULL         0x01
 #define TRUEPHY_ADV_DUPLEX_HALF         0x02
 #define TRUEPHY_ADV_DUPLEX_BOTH     \
-    (TRUEPHY_ADV_DUPLEX_FULL | TRUEPHY_ADV_DUPLEX_HALF)
+	(TRUEPHY_ADV_DUPLEX_FULL | TRUEPHY_ADV_DUPLEX_HALF)
 
 #define PHY_CONTROL                0x00	/* #define TRU_MI_CONTROL_REGISTER                 0 */
 #define PHY_STATUS                 0x01	/* #define TRU_MI_STATUS_REGISTER                  1 */

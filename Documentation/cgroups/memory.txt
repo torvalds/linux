@@ -1,8 +1,8 @@
 Memory Resource Controller
 
-NOTE: The Memory Resource Controller has been generically been referred
-      to as the memory controller in this document. Do not confuse memory
-      controller used here with the memory controller that is used in hardware.
+NOTE: The Memory Resource Controller has generically been referred to as the
+      memory controller in this document. Do not confuse memory controller
+      used here with the memory controller that is used in hardware.
 
 (For editors)
 In this document:
@@ -70,6 +70,7 @@ Brief summary of control files.
 				 (See sysctl's vm.swappiness)
  memory.move_charge_at_immigrate # set/show controls of moving charges
  memory.oom_control		 # set/show oom controls.
+ memory.numa_stat		 # show the number of memory usage per numa node
 
 1. History
 
@@ -181,7 +182,7 @@ behind this approach is that a cgroup that aggressively uses a shared
 page will eventually get charged for it (once it is uncharged from
 the cgroup that brought it in -- this will happen on memory pressure).
 
-Exception: If CONFIG_CGROUP_CGROUP_MEM_RES_CTLR_SWAP is not used..
+Exception: If CONFIG_CGROUP_CGROUP_MEM_RES_CTLR_SWAP is not used.
 When you do swapoff and make swapped-out pages of shmem(tmpfs) to
 be backed into memory in force, charges for pages are accounted against the
 caller of swapoff rather than the users of shmem.
@@ -213,7 +214,7 @@ affecting global LRU, memory+swap limit is better than just limiting swap from
 OS point of view.
 
 * What happens when a cgroup hits memory.memsw.limit_in_bytes
-When a cgroup his memory.memsw.limit_in_bytes, it's useless to do swap-out
+When a cgroup hits memory.memsw.limit_in_bytes, it's useless to do swap-out
 in this cgroup. Then, swap-out will not be done by cgroup routine and file
 caches are dropped. But as mentioned above, global LRU can do swapout memory
 from it for sanity of the system's memory management state. You can't forbid
@@ -263,16 +264,17 @@ b. Enable CONFIG_RESOURCE_COUNTERS
 c. Enable CONFIG_CGROUP_MEM_RES_CTLR
 d. Enable CONFIG_CGROUP_MEM_RES_CTLR_SWAP (to use swap extension)
 
-1. Prepare the cgroups
-# mkdir -p /cgroups
-# mount -t cgroup none /cgroups -o memory
+1. Prepare the cgroups (see cgroups.txt, Why are cgroups needed?)
+# mount -t tmpfs none /sys/fs/cgroup
+# mkdir /sys/fs/cgroup/memory
+# mount -t cgroup none /sys/fs/cgroup/memory -o memory
 
 2. Make the new group and move bash into it
-# mkdir /cgroups/0
-# echo $$ > /cgroups/0/tasks
+# mkdir /sys/fs/cgroup/memory/0
+# echo $$ > /sys/fs/cgroup/memory/0/tasks
 
 Since now we're in the 0 cgroup, we can alter the memory limit:
-# echo 4M > /cgroups/0/memory.limit_in_bytes
+# echo 4M > /sys/fs/cgroup/memory/0/memory.limit_in_bytes
 
 NOTE: We can use a suffix (k, K, m, M, g or G) to indicate values in kilo,
 mega or gigabytes. (Here, Kilo, Mega, Giga are Kibibytes, Mebibytes, Gibibytes.)
@@ -280,11 +282,11 @@ mega or gigabytes. (Here, Kilo, Mega, Giga are Kibibytes, Mebibytes, Gibibytes.)
 NOTE: We can write "-1" to reset the *.limit_in_bytes(unlimited).
 NOTE: We cannot set limits on the root cgroup any more.
 
-# cat /cgroups/0/memory.limit_in_bytes
+# cat /sys/fs/cgroup/memory/0/memory.limit_in_bytes
 4194304
 
 We can check the usage:
-# cat /cgroups/0/memory.usage_in_bytes
+# cat /sys/fs/cgroup/memory/0/memory.usage_in_bytes
 1216512
 
 A successful write to this file does not guarantee a successful set of
@@ -378,7 +380,7 @@ will be charged as a new owner of it.
 
 5.2 stat file
 
-memory.stat file includes following statistics
+5.2.1 memory.stat file includes following statistics
 
 # per-memory cgroup local status
 cache		- # of bytes of page cache memory.
@@ -436,6 +438,89 @@ Note:
 	 file_mapped is accounted only when the memory cgroup is owner of page
 	 cache.)
 
+5.2.2 memory.vmscan_stat
+
+memory.vmscan_stat includes statistics information for memory scanning and
+freeing, reclaiming. The statistics shows memory scanning information since
+memory cgroup creation and can be reset to 0 by writing 0 as
+
+ #echo 0 > ../memory.vmscan_stat
+
+This file contains following statistics.
+
+[param]_[file_or_anon]_pages_by_[reason]_[under_heararchy]
+[param]_elapsed_ns_by_[reason]_[under_hierarchy]
+
+For example,
+
+  scanned_file_pages_by_limit indicates the number of scanned
+  file pages at vmscan.
+
+Now, 3 parameters are supported
+
+  scanned - the number of pages scanned by vmscan
+  rotated - the number of pages activated at vmscan
+  freed   - the number of pages freed by vmscan
+
+If "rotated" is high against scanned/freed, the memcg seems busy.
+
+Now, 2 reason are supported
+
+  limit - the memory cgroup's limit
+  system - global memory pressure + softlimit
+           (global memory pressure not under softlimit is not handled now)
+
+When under_hierarchy is added in the tail, the number indicates the
+total memcg scan of its children and itself.
+
+elapsed_ns is a elapsed time in nanosecond. This may include sleep time
+and not indicates CPU usage. So, please take this as just showing
+latency.
+
+Here is an example.
+
+# cat /cgroup/memory/A/memory.vmscan_stat
+scanned_pages_by_limit 9471864
+scanned_anon_pages_by_limit 6640629
+scanned_file_pages_by_limit 2831235
+rotated_pages_by_limit 4243974
+rotated_anon_pages_by_limit 3971968
+rotated_file_pages_by_limit 272006
+freed_pages_by_limit 2318492
+freed_anon_pages_by_limit 962052
+freed_file_pages_by_limit 1356440
+elapsed_ns_by_limit 351386416101
+scanned_pages_by_system 0
+scanned_anon_pages_by_system 0
+scanned_file_pages_by_system 0
+rotated_pages_by_system 0
+rotated_anon_pages_by_system 0
+rotated_file_pages_by_system 0
+freed_pages_by_system 0
+freed_anon_pages_by_system 0
+freed_file_pages_by_system 0
+elapsed_ns_by_system 0
+scanned_pages_by_limit_under_hierarchy 9471864
+scanned_anon_pages_by_limit_under_hierarchy 6640629
+scanned_file_pages_by_limit_under_hierarchy 2831235
+rotated_pages_by_limit_under_hierarchy 4243974
+rotated_anon_pages_by_limit_under_hierarchy 3971968
+rotated_file_pages_by_limit_under_hierarchy 272006
+freed_pages_by_limit_under_hierarchy 2318492
+freed_anon_pages_by_limit_under_hierarchy 962052
+freed_file_pages_by_limit_under_hierarchy 1356440
+elapsed_ns_by_limit_under_hierarchy 351386416101
+scanned_pages_by_system_under_hierarchy 0
+scanned_anon_pages_by_system_under_hierarchy 0
+scanned_file_pages_by_system_under_hierarchy 0
+rotated_pages_by_system_under_hierarchy 0
+rotated_anon_pages_by_system_under_hierarchy 0
+rotated_file_pages_by_system_under_hierarchy 0
+freed_pages_by_system_under_hierarchy 0
+freed_anon_pages_by_system_under_hierarchy 0
+freed_file_pages_by_system_under_hierarchy 0
+elapsed_ns_by_system_under_hierarchy 0
+
 5.3 swappiness
 
 Similar to /proc/sys/vm/swappiness, but affecting a hierarchy of groups only.
@@ -464,6 +549,24 @@ value for efficient access. (Of course, when necessary, it's synchronized.)
 If you want to know more exact memory usage, you should use RSS+CACHE(+SWAP)
 value in memory.stat(see 5.2).
 
+5.6 numa_stat
+
+This is similar to numa_maps but operates on a per-memcg basis.  This is
+useful for providing visibility into the numa locality information within
+an memcg since the pages are allowed to be allocated from any physical
+node.  One of the usecases is evaluating application performance by
+combining this information with the application's cpu allocation.
+
+We export "total", "file", "anon" and "unevictable" pages per-node for
+each memcg.  The ouput format of memory.numa_stat is:
+
+total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
+file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
+anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
+unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
+
+And we have total = file + anon + unevictable.
+
 6. Hierarchy support
 
 The memory controller supports a deep hierarchy and hierarchical accounting.
@@ -471,13 +574,13 @@ The hierarchy is created by creating the appropriate cgroups in the
 cgroup filesystem. Consider for example, the following cgroup filesystem
 hierarchy
 
-		root
+	       root
 	     /  |   \
-           /	|    \
-	  a	b	c
-			| \
-			|  \
-			d   e
+            /	|    \
+	   a	b     c
+		      | \
+		      |  \
+		      d   e
 
 In the diagram above, with hierarchical accounting enabled, all memory
 usage of e, is accounted to its ancestors up until the root (i.e, c and root),

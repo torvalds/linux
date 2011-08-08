@@ -33,7 +33,7 @@
 #include <asm/irq.h>
 #include <asm/traps.h>
 #include <asm/unaligned.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/smp.h>
 #include <asm/pdc.h>
 #include <asm/pdc_chassis.h>

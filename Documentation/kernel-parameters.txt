@@ -163,6 +163,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 			See also Documentation/power/pm.txt, pci=noacpi
 
+	acpi_rsdp=	[ACPI,EFI,KEXEC]
+			Pass the RSDP address to the kernel, mostly used
+			on machines running EFI runtime service to boot the
+			second kernel for kdump.
+
 	acpi_apic_instance=	[ACPI, IOAPIC]
 			Format: <int>
 			2: use 2nd APIC table, if available
@@ -545,6 +550,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			[KNL] Change the default value for
 			/proc/<pid>/coredump_filter.
 			See also Documentation/filesystems/proc.txt.
+
+	cpuidle.off=1	[CPU_IDLE]
+			disable the cpuidle sub-system
 
 	cpcihp_generic=	[HW,PCI] Generic port I/O CompactPCI driver
 			Format:
@@ -999,7 +1007,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			With this option on every unmap_single operation will
 			result in a hardware IOTLB flush operation as opposed
 			to batching them for performance.
-
+		sp_off [Default Off]
+			By default, super page will be supported if Intel IOMMU
+			has the capability. With this option, super page will
+			not be supported.
 	intremap=	[X86-64, Intel-IOMMU]
 			Format: { on (default) | off | nosid }
 			on	enable Interrupt Remapping (default)
@@ -1155,10 +1166,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	kvm-amd.npt=	[KVM,AMD] Disable nested paging (virtualized MMU)
 			for all guests.
 			Default is 1 (enabled) if in 64bit or 32bit-PAE mode
-
-	kvm-intel.bypass_guest_pf=
-			[KVM,Intel] Disables bypassing of guest page faults
-			on Intel chips. Default is 1 (enabled)
 
 	kvm-intel.ept=	[KVM,Intel] Disable extended page tables
 			(virtualized MMU) support on capable Intel chips.
@@ -1734,6 +1741,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	no-kvmapf	[X86,KVM] Disable paravirtualized asynchronous page
 			fault handling.
 
+	no-steal-acc    [X86,KVM] Disable paravirtualized steal time accounting.
+			steal time is computed, but won't influence scheduler
+			behaviour
+
 	nolapic		[X86-32,APIC] Do not enable or use the local APIC.
 
 	nolapic_timer	[X86-32,APIC] Do not use the local APIC timer.
@@ -1843,7 +1854,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			See Documentation/sound/oss/oss-parameters.txt
 
 	panic=		[KNL] Kernel behaviour on panic: delay <timeout>
-			seconds before rebooting
+			timeout > 0: seconds before rebooting
+			timeout = 0: wait forever
+			timeout < 0: reboot immediately
 			Format: <timeout>
 
 	parkbd.port=	[HW] Parallel port number the keyboard adapter is
@@ -2012,6 +2025,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				the default.
 				off: Turn ECRC off
 				on: Turn ECRC on.
+		realloc		reallocate PCI resources if allocations done by BIOS
+				are erroneous.
 
 	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
 			Management.
@@ -2146,6 +2161,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			[HW,MOUSE] Controls Logitech smartscroll autorepeat.
 			0 = disabled, 1 = enabled (default).
 
+	pstore.backend=	Specify the name of the pstore backend to use
+
 	pt.		[PARIDE]
 			See Documentation/blockdev/paride.txt.
 
@@ -2231,6 +2248,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	ro		[KNL] Mount root device read-only on boot
 
 	root=		[KNL] Root filesystem
+			See name_to_dev_t comment in init/do_mounts.c.
 
 	rootdelay=	[KNL] Delay (in seconds) to pause before attempting to
 			mount the root filesystem
@@ -2521,6 +2539,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			<port#>,<js1>,<js2>,<js3>,<js4>,<js5>,<js6>,<js7>
 			See also Documentation/input/joystick-parport.txt
 
+	udbg-immortal	[PPC] When debugging early kernel crashes that
+			happen after console_init() and before a proper 
+			console driver takes over, this boot options might
+			help "seeing" what's going on.
+
 	uhash_entries=	[KNL,NET]
 			Set number of hash buckets for UDP/UDP-Lite connections
 
@@ -2534,6 +2557,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	unknown_nmi_panic
 			[X86] Cause panic on unknown NMI.
+
+	usbcore.authorized_default=
+			[USB] Default USB device authorization:
+			(default -1 = authorized except for wireless USB,
+			0 = not authorized, 1 = authorized)
 
 	usbcore.autosuspend=
 			[USB] The autosuspend time delay (in seconds) used
@@ -2595,6 +2623,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 					unlock ejectable media);
 				m = MAX_SECTORS_64 (don't transfer more
 					than 64 sectors = 32 KB at a time);
+				n = INITIAL_READ10 (force a retry of the
+					initial READ(10) command);
 				o = CAPACITY_OK (accept the capacity
 					reported by the device);
 				r = IGNORE_RESIDUE (the device reports

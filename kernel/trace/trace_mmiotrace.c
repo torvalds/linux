@@ -12,7 +12,7 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "trace.h"
 #include "trace_output.h"

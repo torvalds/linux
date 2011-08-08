@@ -4,8 +4,8 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 
+#include <linux/hardirq.h>
 #include <linux/init.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/types.h>
@@ -167,8 +167,8 @@ static inline void debugfs_tx(struct ser_device *ser, const u8 *data, int size)
 
 #endif
 
-static unsigned int ldisc_receive(struct tty_struct *tty,
-		const u8 *data, char *flags, int count)
+static void ldisc_receive(struct tty_struct *tty, const u8 *data,
+			char *flags, int count)
 {
 	struct sk_buff *skb = NULL;
 	struct ser_device *ser;
@@ -215,8 +215,6 @@ static unsigned int ldisc_receive(struct tty_struct *tty,
 	} else
 		++ser->dev->stats.rx_dropped;
 	update_tty_status(ser);
-
-	return count;
 }
 
 static int handle_tx(struct ser_device *ser)

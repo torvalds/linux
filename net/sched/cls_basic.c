@@ -39,7 +39,7 @@ static const struct tcf_ext_map basic_ext_map = {
 	.police = TCA_BASIC_POLICE
 };
 
-static int basic_classify(struct sk_buff *skb, struct tcf_proto *tp,
+static int basic_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			  struct tcf_result *res)
 {
 	int r;

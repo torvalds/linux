@@ -40,5 +40,6 @@ struct ceph_ioctl_dataloc {
 				   struct ceph_ioctl_dataloc)
 
 #define CEPH_IOC_LAZYIO _IO(CEPH_IOCTL_MAGIC, 4)
+#define CEPH_IOC_SYNCIO _IO(CEPH_IOCTL_MAGIC, 5)
 
 #endif

@@ -179,6 +179,7 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_232RL_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_8U2232C_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_4232H_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_232H_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_MICRO_CHAMELEON_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_RELAIS_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_OPENDCC_PID) },
@@ -647,6 +648,7 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, EVER_ECO_PRO_CDS) },
 	{ USB_DEVICE(FTDI_VID, FTDI_4N_GALAXY_DE_1_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_4N_GALAXY_DE_2_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_4N_GALAXY_DE_3_PID) },
 	{ USB_DEVICE(FTDI_VID, XSENS_CONVERTER_0_PID) },
 	{ USB_DEVICE(FTDI_VID, XSENS_CONVERTER_1_PID) },
 	{ USB_DEVICE(FTDI_VID, XSENS_CONVERTER_2_PID) },
@@ -847,7 +849,8 @@ static const char *ftdi_chip_name[] = {
 	[FT2232C] = "FT2232C",
 	[FT232RL] = "FT232RL",
 	[FT2232H] = "FT2232H",
-	[FT4232H] = "FT4232H"
+	[FT4232H] = "FT4232H",
+	[FT232H]  = "FT232H"
 };
 
 
@@ -1167,6 +1170,7 @@ static __u32 get_ftdi_divisor(struct tty_struct *tty,
 		break;
 	case FT2232H: /* FT2232H chip */
 	case FT4232H: /* FT4232H chip */
+	case FT232H:  /* FT232H chip */
 		if ((baud <= 12000000) & (baud >= 1200)) {
 			div_value = ftdi_2232h_baud_to_divisor(baud);
 		} else if (baud < 1200) {
@@ -1428,9 +1432,12 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 	} else if (version < 0x600) {
 		/* Assume it's an FT232BM (or FT245BM) */
 		priv->chip_type = FT232BM;
-	} else {
-		/* Assume it's an FT232R */
+	} else if (version < 0x900) {
+		/* Assume it's an FT232RL */
 		priv->chip_type = FT232RL;
+	} else {
+		/* Assume it's an FT232H */
+		priv->chip_type = FT232H;
 	}
 	dev_info(&udev->dev, "Detected %s\n", ftdi_chip_name[priv->chip_type]);
 }
@@ -1558,7 +1565,8 @@ static int create_sysfs_attrs(struct usb_serial_port *port)
 		     priv->chip_type == FT2232C ||
 		     priv->chip_type == FT232RL ||
 		     priv->chip_type == FT2232H ||
-		     priv->chip_type == FT4232H)) {
+		     priv->chip_type == FT4232H ||
+		     priv->chip_type == FT232H)) {
 			retval = device_create_file(&port->dev,
 						    &dev_attr_latency_timer);
 		}
@@ -1579,7 +1587,8 @@ static void remove_sysfs_attrs(struct usb_serial_port *port)
 		    priv->chip_type == FT2232C ||
 		    priv->chip_type == FT232RL ||
 		    priv->chip_type == FT2232H ||
-		    priv->chip_type == FT4232H) {
+		    priv->chip_type == FT4232H ||
+                    priv->chip_type == FT232H) {
 			device_remove_file(&port->dev, &dev_attr_latency_timer);
 		}
 	}
@@ -2211,6 +2220,7 @@ static int ftdi_tiocmget(struct tty_struct *tty)
 	case FT232RL:
 	case FT2232H:
 	case FT4232H:
+	case FT232H:
 		len = 2;
 		break;
 	default:

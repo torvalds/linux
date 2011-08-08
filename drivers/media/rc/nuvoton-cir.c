@@ -546,24 +546,18 @@ static int nvt_set_tx_carrier(struct rc_dev *dev, u32 carrier)
  * number may larger than TXFCONT (0xff). So in interrupt_handler, it has to
  * set TXFCONT as 0xff, until buf_count less than 0xff.
  */
-static int nvt_tx_ir(struct rc_dev *dev, int *txbuf, u32 n)
+static int nvt_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned n)
 {
 	struct nvt_dev *nvt = dev->priv;
 	unsigned long flags;
-	size_t cur_count;
 	unsigned int i;
 	u8 iren;
 	int ret;
 
 	spin_lock_irqsave(&nvt->tx.lock, flags);
 
-	if (n >= TX_BUF_LEN) {
-		nvt->tx.buf_count = cur_count = TX_BUF_LEN;
-		ret = TX_BUF_LEN;
-	} else {
-		nvt->tx.buf_count = cur_count = n;
-		ret = n;
-	}
+	ret = min((unsigned)(TX_BUF_LEN / sizeof(unsigned)), n);
+	nvt->tx.buf_count = (ret * sizeof(unsigned));
 
 	memcpy(nvt->tx.buf, txbuf, nvt->tx.buf_count);
 
@@ -991,7 +985,6 @@ static int nvt_open(struct rc_dev *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&nvt->nvt_lock, flags);
-	nvt->in_use = true;
 	nvt_enable_cir(nvt);
 	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
 
@@ -1004,7 +997,6 @@ static void nvt_close(struct rc_dev *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&nvt->nvt_lock, flags);
-	nvt->in_use = false;
 	nvt_disable_cir(nvt);
 	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
 }
@@ -1112,7 +1104,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	rdev->dev.parent = &pdev->dev;
 	rdev->driver_name = NVT_DRIVER_NAME;
 	rdev->map_name = RC_MAP_RC6_MCE;
-	rdev->timeout = US_TO_NS(1000);
+	rdev->timeout = MS_TO_NS(100);
 	/* rx resolution is hardwired to 50us atm, 1, 25, 100 also possible */
 	rdev->rx_resolution = US_TO_NS(CIR_SAMPLE_PERIOD);
 #if 0

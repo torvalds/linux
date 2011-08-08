@@ -56,7 +56,7 @@ static void __init yl9200_init_early(void)
 	at91rm9200_set_type(ARCH_REVISON_9200_PQFP);
 
 	/* Initialize processor: 18.432 MHz crystal */
-	at91rm9200_initialize(18432000);
+	at91_initialize(18432000);
 
 	/* Setup the LEDs D2=PB17 (timer), D3=PB16 (cpu) */
 	at91_init_leds(AT91_PIN_PB16, AT91_PIN_PB17);
@@ -78,12 +78,6 @@ static void __init yl9200_init_early(void)
 	/* set serial console to ttyS0 (ie, DBGU) */
 	at91_set_serial_console(0);
 }
-
-static void __init yl9200_init_irq(void)
-{
-	at91rm9200_init_interrupts(NULL);
-}
-
 
 /*
  * LEDs
@@ -599,8 +593,8 @@ static void __init yl9200_board_init(void)
 MACHINE_START(YL9200, "uCdragon YL-9200")
 	/* Maintainer: S.Birtles */
 	.timer		= &at91rm9200_timer,
-	.map_io		= at91rm9200_map_io,
+	.map_io		= at91_map_io,
 	.init_early	= yl9200_init_early,
-	.init_irq	= yl9200_init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= yl9200_board_init,
 MACHINE_END

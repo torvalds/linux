@@ -63,7 +63,7 @@ struct r100_cs_track {
 	unsigned			num_arrays;
 	unsigned			max_indx;
 	unsigned			color_channel_mask;
-	struct r100_cs_track_array	arrays[11];
+	struct r100_cs_track_array	arrays[16];
 	struct r100_cs_track_cb 	cb[R300_MAX_CB];
 	struct r100_cs_track_cb 	zb;
 	struct r100_cs_track_cb 	aa;
@@ -146,6 +146,12 @@ static inline int r100_packet3_load_vbpntr(struct radeon_cs_parser *p,
 	ib = p->ib->ptr;
 	track = (struct r100_cs_track *)p->track;
 	c = radeon_get_ib_value(p, idx++) & 0x1F;
+	if (c > 16) {
+	    DRM_ERROR("Only 16 vertex buffers are allowed %d\n",
+		      pkt->opcode);
+	    r100_cs_dump_packet(p, pkt);
+	    return -EINVAL;
+	}
 	track->num_arrays = c;
 	for (i = 0; i < (c - 1); i+=2, idx+=3) {
 		r = r100_cs_packet_next_reloc(p, &reloc);

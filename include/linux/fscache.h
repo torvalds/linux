@@ -204,6 +204,8 @@ extern bool __fscache_check_page_write(struct fscache_cookie *, struct page *);
 extern void __fscache_wait_on_page_write(struct fscache_cookie *, struct page *);
 extern bool __fscache_maybe_release_page(struct fscache_cookie *, struct page *,
 					 gfp_t);
+extern void __fscache_uncache_all_inode_pages(struct fscache_cookie *,
+					      struct inode *);
 
 /**
  * fscache_register_netfs - Register a filesystem as desiring caching services
@@ -641,6 +643,25 @@ bool fscache_maybe_release_page(struct fscache_cookie *cookie,
 	if (fscache_cookie_valid(cookie) && PageFsCache(page))
 		return __fscache_maybe_release_page(cookie, page, gfp);
 	return false;
+}
+
+/**
+ * fscache_uncache_all_inode_pages - Uncache all an inode's pages
+ * @cookie: The cookie representing the inode's cache object.
+ * @inode: The inode to uncache pages from.
+ *
+ * Uncache all the pages in an inode that are marked PG_fscache, assuming them
+ * to be associated with the given cookie.
+ *
+ * This function may sleep.  It will wait for pages that are being written out
+ * and will wait whilst the PG_fscache mark is removed by the cache.
+ */
+static inline
+void fscache_uncache_all_inode_pages(struct fscache_cookie *cookie,
+				     struct inode *inode)
+{
+	if (fscache_cookie_valid(cookie))
+		__fscache_uncache_all_inode_pages(cookie, inode);
 }
 
 #endif /* _LINUX_FSCACHE_H */

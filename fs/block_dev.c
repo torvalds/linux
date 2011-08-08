@@ -44,24 +44,28 @@ inline struct block_device *I_BDEV(struct inode *inode)
 {
 	return &BDEV_I(inode)->bdev;
 }
-
 EXPORT_SYMBOL(I_BDEV);
 
 /*
- * move the inode from it's current bdi to the a new bdi. if the inode is dirty
- * we need to move it onto the dirty list of @dst so that the inode is always
- * on the right list.
+ * Move the inode from its current bdi to a new bdi. If the inode is dirty we
+ * need to move it onto the dirty list of @dst so that the inode is always on
+ * the right list.
  */
 static void bdev_inode_switch_bdi(struct inode *inode,
 			struct backing_dev_info *dst)
 {
-	spin_lock(&inode_wb_list_lock);
+	struct backing_dev_info *old = inode->i_data.backing_dev_info;
+
+	if (unlikely(dst == old))		/* deadlock avoidance */
+		return;
+	bdi_lock_two(&old->wb, &dst->wb);
 	spin_lock(&inode->i_lock);
 	inode->i_data.backing_dev_info = dst;
 	if (inode->i_state & I_DIRTY)
 		list_move(&inode->i_wb_list, &dst->wb.b_dirty);
 	spin_unlock(&inode->i_lock);
-	spin_unlock(&inode_wb_list_lock);
+	spin_unlock(&old->wb.list_lock);
+	spin_unlock(&dst->wb.list_lock);
 }
 
 static sector_t max_block(struct block_device *bdev)
@@ -355,42 +359,47 @@ static loff_t block_llseek(struct file *file, loff_t offset, int origin)
 	mutex_lock(&bd_inode->i_mutex);
 	size = i_size_read(bd_inode);
 
+	retval = -EINVAL;
 	switch (origin) {
-		case 2:
+		case SEEK_END:
 			offset += size;
 			break;
-		case 1:
+		case SEEK_CUR:
 			offset += file->f_pos;
+		case SEEK_SET:
+			break;
+		default:
+			goto out;
 	}
-	retval = -EINVAL;
 	if (offset >= 0 && offset <= size) {
 		if (offset != file->f_pos) {
 			file->f_pos = offset;
 		}
 		retval = offset;
 	}
+out:
 	mutex_unlock(&bd_inode->i_mutex);
 	return retval;
 }
 	
-int blkdev_fsync(struct file *filp, int datasync)
+int blkdev_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
 {
 	struct inode *bd_inode = filp->f_mapping->host;
 	struct block_device *bdev = I_BDEV(bd_inode);
 	int error;
+	
+	error = filemap_write_and_wait_range(filp->f_mapping, start, end);
+	if (error)
+		return error;
 
 	/*
 	 * There is no need to serialise calls to blkdev_issue_flush with
 	 * i_mutex and doing so causes performance issues with concurrent
 	 * O_SYNC writers to a block device.
 	 */
-	mutex_unlock(&bd_inode->i_mutex);
-
 	error = blkdev_issue_flush(bdev, GFP_KERNEL, NULL);
 	if (error == -EOPNOTSUPP)
 		error = 0;
-
-	mutex_lock(&bd_inode->i_mutex);
 
 	return error;
 }
@@ -547,6 +556,7 @@ struct block_device *bdget(dev_t dev)
 
 	if (inode->i_state & I_NEW) {
 		bdev->bd_contains = NULL;
+		bdev->bd_super = NULL;
 		bdev->bd_inode = inode;
 		bdev->bd_block_size = (1 << inode->i_blkbits);
 		bdev->bd_part_count = 0;
@@ -762,7 +772,19 @@ static struct block_device *bd_start_claiming(struct block_device *bdev,
 	if (!disk)
 		return ERR_PTR(-ENXIO);
 
-	whole = bdget_disk(disk, 0);
+	/*
+	 * Normally, @bdev should equal what's returned from bdget_disk()
+	 * if partno is 0; however, some drivers (floppy) use multiple
+	 * bdev's for the same physical device and @bdev may be one of the
+	 * aliases.  Keep @bdev if partno is 0.  This means claimer
+	 * tracking is broken for those devices but it has always been that
+	 * way.
+	 */
+	if (partno)
+		whole = bdget_disk(disk, 0);
+	else
+		whole = bdgrab(bdev);
+
 	module_put(disk->fops->owner);
 	put_disk(disk);
 	if (!whole)
@@ -1272,8 +1294,8 @@ int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
 		 * individual writeable reference is too fragile given the
 		 * way @mode is used in blkdev_get/put().
 		 */
-		if ((disk->flags & GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE) &&
-		    !res && (mode & FMODE_WRITE) && !bdev->bd_write_holder) {
+		if (!res && (mode & FMODE_WRITE) && !bdev->bd_write_holder &&
+		    (disk->flags & GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE)) {
 			bdev->bd_write_holder = true;
 			disk_block_events(disk);
 		}
@@ -1435,6 +1457,8 @@ static int __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 
 int blkdev_put(struct block_device *bdev, fmode_t mode)
 {
+	mutex_lock(&bdev->bd_mutex);
+
 	if (mode & FMODE_EXCL) {
 		bool bdev_free;
 
@@ -1443,7 +1467,6 @@ int blkdev_put(struct block_device *bdev, fmode_t mode)
 		 * are protected with bdev_lock.  bd_mutex is to
 		 * synchronize disk_holder unlinking.
 		 */
-		mutex_lock(&bdev->bd_mutex);
 		spin_lock(&bdev_lock);
 
 		WARN_ON_ONCE(--bdev->bd_holders < 0);
@@ -1461,16 +1484,20 @@ int blkdev_put(struct block_device *bdev, fmode_t mode)
 		 * If this was the last claim, remove holder link and
 		 * unblock evpoll if it was a write holder.
 		 */
-		if (bdev_free) {
-			if (bdev->bd_write_holder) {
-				disk_unblock_events(bdev->bd_disk);
-				disk_check_events(bdev->bd_disk);
-				bdev->bd_write_holder = false;
-			}
+		if (bdev_free && bdev->bd_write_holder) {
+			disk_unblock_events(bdev->bd_disk);
+			bdev->bd_write_holder = false;
 		}
-
-		mutex_unlock(&bdev->bd_mutex);
 	}
+
+	/*
+	 * Trigger event checking and tell drivers to flush MEDIA_CHANGE
+	 * event.  This is to ensure detection of media removal commanded
+	 * from userland - e.g. eject(1).
+	 */
+	disk_flush_events(bdev->bd_disk, DISK_EVENT_MEDIA_CHANGE);
+
+	mutex_unlock(&bdev->bd_mutex);
 
 	return __blkdev_put(bdev, mode, 0);
 }

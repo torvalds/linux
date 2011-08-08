@@ -26,7 +26,6 @@ config ATH9K
 config ATH9K_PCI
 	bool "Atheros ath9k PCI/PCIe bus support"
 	depends on ATH9K && PCI
-	default PCI
 	---help---
 	  This option enables the PCI bus support in ath9k.
 

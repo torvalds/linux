@@ -183,8 +183,7 @@ struct uvc_xu_control {
  * Driver specific constants.
  */
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(1, 1, 0)
-#define DRIVER_VERSION		"v1.1.0"
+#define DRIVER_VERSION		"1.1.1"
 
 /* Number of isochronous URBs. */
 #define UVC_URBS		5
