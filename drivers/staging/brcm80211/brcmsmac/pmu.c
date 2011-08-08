@@ -320,8 +320,8 @@ void si_pmu_spuravoid(struct si_pub *sih, u8 spuravoid)
 	uint origidx, intr_val;
 
 	/* Remember original core before switch to chipc */
-	cc = (struct chipcregs *) ai_switch_core(sih, CC_CORE_ID, &origidx,
-					    &intr_val);
+	cc = (struct chipcregs *)
+			ai_switch_core(sih, CC_CORE_ID, &origidx, &intr_val);
 
 	/* update the pll changes */
 	si_pmu_spuravoid_pllupdate(sih, cc, spuravoid);

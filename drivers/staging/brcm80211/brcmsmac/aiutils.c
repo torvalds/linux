@@ -483,16 +483,16 @@ static void ai_hwfixup(struct si_info *sii)
 }
 
 /* parse the enumeration rom to identify all cores */
-void ai_scan(struct si_pub *sih, void *regs)
+void ai_scan(struct si_pub *sih, struct chipcregs *cc)
 {
 	struct si_info *sii = SI_INFO(sih);
-	struct chipcregs *cc = (struct chipcregs *) regs;
 	u32 erombase, *eromptr, *eromlim;
+	void *regs = cc;
 
 	erombase = R_REG(&cc->eromptr);
 
 	/* Set wrappers address */
-	sii->curwrap = (void *)((unsigned long)regs + SI_CORE_SIZE);
+	sii->curwrap = (void *)((unsigned long)cc + SI_CORE_SIZE);
 
 	/* Now point the window at the erom */
 	pci_write_config_dword(sii->pbus, PCI_BAR0_WIN, erombase);
@@ -671,7 +671,10 @@ void ai_scan(struct si_pub *sih, void *regs)
 
 /*
  * This function changes the logical "focus" to the indicated core.
- * Return the current core's virtual address.
+ * Return the current core's virtual address. Since each core starts with the
+ * same set of registers (BIST, clock control, etc), the returned address
+ * contains the first register of this 'common' register block (not to be
+ * confused with 'common core').
  */
 void *ai_setcoreidx(struct si_pub *sih, uint coreidx)
 {
@@ -864,8 +867,7 @@ static struct si_info *ai_doattach(struct si_info *sii, void *regs,
 				   struct pci_dev *sdh,
 				   char **vars, uint *varsz);
 static bool ai_buscore_prep(struct si_info *sii);
-static bool ai_buscore_setup(struct si_info *sii, struct chipcregs *cc,
-			     u32 savewin, uint *origidx, void *regs);
+static bool ai_buscore_setup(struct si_info *sii, u32 savewin, uint *origidx);
 static void ai_nvram_process(struct si_info *sii, char *pvars);
 
 /* dev path concatenation util */
@@ -916,12 +918,12 @@ static bool ai_buscore_prep(struct si_info *sii)
 }
 
 static bool
-ai_buscore_setup(struct si_info *sii, struct chipcregs *cc, u32 savewin,
-		 uint *origidx, void *regs)
+ai_buscore_setup(struct si_info *sii, u32 savewin, uint *origidx)
 {
 	bool pci, pcie;
 	uint i;
 	uint pciidx, pcieidx, pcirev, pcierev;
+	struct chipcregs *cc;
 
 	cc = ai_setcoreidx(&sii->pub, SI_CC_IDX);
 
@@ -977,7 +979,7 @@ ai_buscore_setup(struct si_info *sii, struct chipcregs *cc, u32 savewin,
 
 		/* find the core idx before entering this func. */
 		if ((savewin && (savewin == sii->coresba[i])) ||
-		    (regs == sii->regs[i]))
+		    (cc == sii->regs[i]))
 			*origidx = i;
 	}
 
@@ -1003,9 +1005,8 @@ ai_buscore_setup(struct si_info *sii, struct chipcregs *cc, u32 savewin,
 	/* fixup necessary chip/core configurations */
 	if (SI_FAST(sii)) {
 		if (!sii->pch) {
-			sii->pch = (void *)pcicore_init(
-				&sii->pub, sii->pbus,
-				(void *)PCIEREGS(sii));
+			sii->pch = pcicore_init(&sii->pub, sii->pbus,
+						(void *)PCIEREGS(sii));
 			if (sii->pch == NULL)
 				return false;
 		}
@@ -1108,7 +1109,7 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	if (socitype == SOCI_AI) {
 		SI_MSG(("Found chip type AI (0x%08x)\n", w));
 		/* pass chipc address instead of original core base */
-		ai_scan(&sii->pub, (void *)cc);
+		ai_scan(&sii->pub, cc);
 	} else {
 		SI_ERROR(("Found chip of unknown type (0x%08x)\n", w));
 		return NULL;
@@ -1120,13 +1121,13 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	}
 	/* bus/core/clk setup */
 	origidx = SI_CC_IDX;
-	if (!ai_buscore_setup(sii, cc, savewin, &origidx, regs)) {
+	if (!ai_buscore_setup(sii, savewin, &origidx)) {
 		SI_ERROR(("si_doattach: si_buscore_setup failed\n"));
 		goto exit;
 	}
 
 	/* Init nvram from sprom/otp if they exist */
-	if (srom_var_init(&sii->pub, regs, vars, varsz)) {
+	if (srom_var_init(&sii->pub, cc, vars, varsz)) {
 		SI_ERROR(("si_doattach: srom_var_init failed: bad srom\n"));
 		goto exit;
 	}
@@ -1327,9 +1328,9 @@ void *ai_switch_core(struct si_pub *sih, uint coreid, uint *origidx,
 		 */
 		*origidx = coreid;
 		if (coreid == CC_CORE_ID)
-			return (void *)CCREGS_FAST(sii);
+			return CCREGS_FAST(sii);
 		else if (coreid == sih->buscoretype)
-			return (void *)PCIEREGS(sii);
+			return PCIEREGS(sii);
 	}
 	INTR_OFF(sii, *intr_val);
 	*origidx = sii->curidx;
@@ -1553,9 +1554,8 @@ ai_slowclk_freq(struct si_info *sii, bool max_freq, struct chipcregs *cc)
 	return 0;
 }
 
-static void ai_clkctl_setdelay(struct si_info *sii, void *chipcregs)
+static void ai_clkctl_setdelay(struct si_info *sii, struct chipcregs *cc)
 {
-	struct chipcregs *cc = (struct chipcregs *) chipcregs;
 	uint slowmaxfreq, pll_delay, slowclk;
 	uint pll_on_delay, fref_sel_delay;
 
@@ -1611,7 +1611,7 @@ void ai_clkctl_init(struct si_pub *sih)
 		SET_REG(&cc->system_clk_ctl, SYCC_CD_MASK,
 			(ILP_DIV_1MHZ << SYCC_CD_SHIFT));
 
-	ai_clkctl_setdelay(sii, (void *)cc);
+	ai_clkctl_setdelay(sii, cc);
 
 	if (!fast)
 		ai_setcoreidx(sih, origidx);
@@ -1979,7 +1979,7 @@ void ai_pci_down(struct si_pub *sih)
 void ai_pci_setup(struct si_pub *sih, uint coremask)
 {
 	struct si_info *sii;
-	void *regs = NULL;
+	struct sbpciregs *regs = NULL;
 	u32 siflag = 0, w;
 	uint idx = 0;
 
@@ -2025,7 +2025,7 @@ void ai_pci_setup(struct si_pub *sih, uint coremask)
 int ai_pci_fixcfg(struct si_pub *sih)
 {
 	uint origidx;
-	void *regs = NULL;
+	struct sbpciregs *regs = NULL;
 
 	struct si_info *sii = SI_INFO(sih);
 
@@ -2095,7 +2095,7 @@ void ai_epa_4313war(struct si_pub *sih)
 	sii = SI_INFO(sih);
 	origidx = ai_coreidx(sih);
 
-	cc = (struct chipcregs *) ai_setcore(sih, CC_CORE_ID, 0);
+	cc = ai_setcore(sih, CC_CORE_ID, 0);
 
 	/* EPA Fix */
 	W_REG(&cc->gpiocontrol,

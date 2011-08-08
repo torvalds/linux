@@ -468,7 +468,7 @@ struct si_info {
 	/* check if interrupts are enabled */
 	bool (*intrsenabled_fn) (void *intr_arg);
 
-	void *pch;		/* PCI/E core handle */
+	struct pcicore_info *pch; /* PCI/E core handle */
 
 	char *vars;
 	uint varsz;
@@ -495,15 +495,12 @@ struct si_info {
 };
 
 /* AMBA Interconnect exported externs */
-extern void ai_scan(struct si_pub *sih, void *regs);
-
 extern uint ai_flag(struct si_pub *sih);
 extern void ai_setint(struct si_pub *sih, int siflag);
 extern uint ai_coreidx(struct si_pub *sih);
 extern uint ai_corevendor(struct si_pub *sih);
 extern uint ai_corerev(struct si_pub *sih);
 extern bool ai_iscoreup(struct si_pub *sih);
-extern void *ai_setcoreidx(struct si_pub *sih, uint coreidx);
 extern u32 ai_core_cflags(struct si_pub *sih, u32 mask, u32 val);
 extern void ai_core_cflags_wo(struct si_pub *sih, u32 mask, u32 val);
 extern u32 ai_core_sflags(struct si_pub *sih, u32 mask, u32 val);
