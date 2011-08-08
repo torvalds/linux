@@ -160,48 +160,63 @@ struct rte_console {
 #endif
 
 /* SBSDIO_DEVICE_CTL */
-#define SBSDIO_DEVCTL_SETBUSY		0x01	/* 1: device will assert busy signal when
-						 * receiving CMD53
-						 */
-#define SBSDIO_DEVCTL_SPI_INTR_SYNC	0x02	/* 1: assertion of sdio interrupt is
-						 * synchronous to the sdio clock
-						 */
-#define SBSDIO_DEVCTL_CA_INT_ONLY	0x04	/* 1: mask all interrupts to host
-						 * except the chipActive (rev 8)
-						 */
-#define SBSDIO_DEVCTL_PADS_ISO		0x08	/* 1: isolate internal sdio signals, put
-						 * external pads in tri-state; requires
-						 * sdio bus power cycle to clear (rev 9)
-						 */
-#define SBSDIO_DEVCTL_SB_RST_CTL	0x30	/* Force SD->SB reset mapping (rev 11) */
-#define SBSDIO_DEVCTL_RST_CORECTL	0x00	/*   Determined by CoreControl bit */
-#define SBSDIO_DEVCTL_RST_BPRESET	0x10	/*   Force backplane reset */
-#define SBSDIO_DEVCTL_RST_NOBPRESET	0x20	/*   Force no backplane reset */
+
+/* 1: device will assert busy signal when receiving CMD53 */
+#define SBSDIO_DEVCTL_SETBUSY		0x01
+/* 1: assertion of sdio interrupt is synchronous to the sdio clock */
+#define SBSDIO_DEVCTL_SPI_INTR_SYNC	0x02
+/* 1: mask all interrupts to host except the chipActive (rev 8) */
+#define SBSDIO_DEVCTL_CA_INT_ONLY	0x04
+/* 1: isolate internal sdio signals, put external pads in tri-state; requires
+ * sdio bus power cycle to clear (rev 9) */
+#define SBSDIO_DEVCTL_PADS_ISO		0x08
+/* Force SD->SB reset mapping (rev 11) */
+#define SBSDIO_DEVCTL_SB_RST_CTL	0x30
+/*   Determined by CoreControl bit */
+#define SBSDIO_DEVCTL_RST_CORECTL	0x00
+/*   Force backplane reset */
+#define SBSDIO_DEVCTL_RST_BPRESET	0x10
+/*   Force no backplane reset */
+#define SBSDIO_DEVCTL_RST_NOBPRESET	0x20
 
 /* SBSDIO_FUNC1_CHIPCLKCSR */
-#define SBSDIO_FORCE_ALP		0x01	/* Force ALP request to backplane */
-#define SBSDIO_FORCE_HT			0x02	/* Force HT request to backplane */
-#define SBSDIO_FORCE_ILP		0x04	/* Force ILP request to backplane */
-#define SBSDIO_ALP_AVAIL_REQ		0x08	/* Make ALP ready (power up xtal) */
-#define SBSDIO_HT_AVAIL_REQ		0x10	/* Make HT ready (power up PLL) */
-#define SBSDIO_FORCE_HW_CLKREQ_OFF	0x20	/* Squelch clock requests from HW */
-#define SBSDIO_ALP_AVAIL		0x40	/* Status: ALP is ready */
-#define SBSDIO_HT_AVAIL			0x80	/* Status: HT is ready */
 
-#define SBSDIO_AVBITS			(SBSDIO_HT_AVAIL | SBSDIO_ALP_AVAIL)
-#define SBSDIO_ALPAV(regval)		((regval) & SBSDIO_AVBITS)
-#define SBSDIO_HTAV(regval)		(((regval) & SBSDIO_AVBITS) == SBSDIO_AVBITS)
-#define SBSDIO_ALPONLY(regval)		(SBSDIO_ALPAV(regval) && !SBSDIO_HTAV(regval))
-#define SBSDIO_CLKAV(regval, alponly)	(SBSDIO_ALPAV(regval) && \
-					(alponly ? 1 : SBSDIO_HTAV(regval)))
+/* Force ALP request to backplane */
+#define SBSDIO_FORCE_ALP		0x01
+/* Force HT request to backplane */
+#define SBSDIO_FORCE_HT			0x02
+/* Force ILP request to backplane */
+#define SBSDIO_FORCE_ILP		0x04
+/* Make ALP ready (power up xtal) */
+#define SBSDIO_ALP_AVAIL_REQ		0x08
+/* Make HT ready (power up PLL) */
+#define SBSDIO_HT_AVAIL_REQ		0x10
+/* Squelch clock requests from HW */
+#define SBSDIO_FORCE_HW_CLKREQ_OFF	0x20
+/* Status: ALP is ready */
+#define SBSDIO_ALP_AVAIL		0x40
+/* Status: HT is ready */
+#define SBSDIO_HT_AVAIL			0x80
+
+#define SBSDIO_AVBITS		(SBSDIO_HT_AVAIL | SBSDIO_ALP_AVAIL)
+#define SBSDIO_ALPAV(regval)	((regval) & SBSDIO_AVBITS)
+#define SBSDIO_HTAV(regval)	(((regval) & SBSDIO_AVBITS) == SBSDIO_AVBITS)
+#define SBSDIO_ALPONLY(regval)	(SBSDIO_ALPAV(regval) && !SBSDIO_HTAV(regval))
+
+#define SBSDIO_CLKAV(regval, alponly) \
+	(SBSDIO_ALPAV(regval) && (alponly ? 1 : SBSDIO_HTAV(regval)))
+
 /* direct(mapped) cis space */
-#define SBSDIO_CIS_BASE_COMMON		0x1000	/* MAPPED common CIS address */
-#define SBSDIO_CIS_SIZE_LIMIT		0x200	/* maximum bytes in one CIS */
-#define SBSDIO_CIS_OFT_ADDR_MASK	0x1FFFF	/* cis offset addr is < 17 bits */
 
-#define SBSDIO_CIS_MANFID_TUPLE_LEN	6	/* manfid tuple length, include tuple,
-						 * link bytes
-						 */
+/* MAPPED common CIS address */
+#define SBSDIO_CIS_BASE_COMMON		0x1000
+/* maximum bytes in one CIS */
+#define SBSDIO_CIS_SIZE_LIMIT		0x200
+/* cis offset addr is < 17 bits */
+#define SBSDIO_CIS_OFT_ADDR_MASK	0x1FFFF
+
+/* manfid tuple length, include tuple, link bytes */
+#define SBSDIO_CIS_MANFID_TUPLE_LEN	6
 
 /* intstatus */
 #define I_SMB_SW0	(1 << 0)	/* To SB Mail S/W interrupt 0 */
@@ -408,12 +423,18 @@ struct rte_console {
 #define	SBIM_RJ			0x02000000	/* reject (sonics >= 2.3) */
 
 /* sbtmstatelow */
-#define	SBTML_RESET		0x0001	/* reset */
-#define	SBTML_REJ_MASK		0x0006	/* reject field */
-#define	SBTML_REJ		0x0002	/* reject */
-#define	SBTML_TMPREJ		0x0004	/* temporary reject, for error recovery */
 
-#define	SBTML_SICF_SHIFT	16	/* Shift to locate the SI control flags in sbtml */
+/* reset */
+#define	SBTML_RESET		0x0001
+/* reject field */
+#define	SBTML_REJ_MASK		0x0006
+/* reject */
+#define	SBTML_REJ		0x0002
+/* temporary reject, for error recovery */
+#define	SBTML_TMPREJ		0x0004
+
+/* Shift to locate the SI control flags in sbtml */
+#define	SBTML_SICF_SHIFT	16
 
 /* sbtmstatehigh */
 #define	SBTMH_SERR		0x0001	/* serror */
@@ -421,7 +442,8 @@ struct rte_console {
 #define	SBTMH_BUSY		0x0004	/* busy */
 #define	SBTMH_TO		0x0020	/* timeout (sonics >= 2.3) */
 
-#define	SBTMH_SISF_SHIFT	16	/* Shift to locate the SI status flags in sbtmh */
+/* Shift to locate the SI status flags in sbtmh */
+#define	SBTMH_SISF_SHIFT	16
 
 /* sbidlow */
 #define	SBIDL_INIT		0x80	/* initiator */
@@ -431,7 +453,8 @@ struct rte_console {
 #define	SBIDH_RCE_MASK		0x7000	/* revision code extension field */
 #define	SBIDH_RCE_SHIFT		8
 #define	SBCOREREV(sbidh) \
-	((((sbidh) & SBIDH_RCE_MASK) >> SBIDH_RCE_SHIFT) | ((sbidh) & SBIDH_RC_MASK))
+	((((sbidh) & SBIDH_RCE_MASK) >> SBIDH_RCE_SHIFT) | \
+	  ((sbidh) & SBIDH_RC_MASK))
 #define	SBIDH_CC_MASK		0x8ff0	/* core code */
 #define	SBIDH_CC_SHIFT		4
 #define	SBIDH_VC_MASK		0xffff0000	/* vendor code */
@@ -1333,8 +1356,8 @@ int brcmf_sdbrcm_bussleep(struct brcmf_bus *bus, bool sleep)
 
 /* Writes a HW/SW header into the packet and sends it. */
 /* Assumes: (a) header space already there, (b) caller holds lock */
-static int brcmf_sdbrcm_txpkt(struct brcmf_bus *bus, struct sk_buff *pkt, uint chan,
-			 bool free_pkt)
+static int brcmf_sdbrcm_txpkt(struct brcmf_bus *bus, struct sk_buff *pkt,
+			      uint chan, bool free_pkt)
 {
 	int ret;
 	u8 *frame;
@@ -1523,7 +1546,8 @@ int brcmf_sdbrcm_bus_txdata(struct brcmf_bus *bus, struct sk_buff *pkt)
 
 		/* Priority based enq */
 		spin_lock_bh(&bus->txqlock);
-		if (brcmf_c_prec_enq(bus->drvr, &bus->txq, pkt, prec) == false) {
+		if (brcmf_c_prec_enq(bus->drvr, &bus->txq, pkt, prec) ==
+		    false) {
 			skb_pull(pkt, SDPCM_HDRLEN);
 			brcmf_txcomplete(bus->drvr, pkt, false);
 			brcmu_pkt_buf_free_skb(pkt);
@@ -1804,7 +1828,8 @@ brcmf_sdbrcm_bus_txctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen)
 	return ret ? -EIO : 0;
 }
 
-int brcmf_sdbrcm_bus_rxctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen)
+int
+brcmf_sdbrcm_bus_rxctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen)
 {
 	int timeleft;
 	uint rxlen = 0;
@@ -2191,7 +2216,8 @@ xfer_done:
 }
 
 #ifdef BCMDBG
-static int brcmf_sdbrcm_readshared(struct brcmf_bus *bus, struct sdpcm_shared *sh)
+static int
+brcmf_sdbrcm_readshared(struct brcmf_bus *bus, struct sdpcm_shared *sh)
 {
 	u32 addr;
 	int rv;
@@ -2530,10 +2556,10 @@ err:
 	return bcmerror;
 }
 
-static int
-brcmf_sdbrcm_doiovar(struct brcmf_bus *bus, const struct brcmu_iovar *vi, u32 actionid,
-		const char *name, void *params, int plen, void *arg, int len,
-		int val_size)
+static int brcmf_sdbrcm_doiovar(struct brcmf_bus *bus,
+				const struct brcmu_iovar *vi, u32 actionid,
+				const char *name, void *params, int plen,
+				void *arg, int len, int val_size)
 {
 	int bcmerror = 0;
 	s32 int_val = 0;
@@ -3957,8 +3983,8 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 					save_pfirst = pnext;
 
 				continue;
-			} else if (brcmf_proto_hdrpull(bus->drvr, &ifidx, pfirst)
-					!= 0) {
+			} else if (brcmf_proto_hdrpull(bus->drvr, &ifidx,
+						       pfirst) != 0) {
 				BRCMF_ERROR(("%s: rx protocol error\n",
 					     __func__));
 				bus->drvr->rx_errors++;
@@ -4080,8 +4106,8 @@ brcmf_sdbrcm_readframes(struct brcmf_bus *bus, uint maxframes, bool *finished)
 						MAX_RX_DATASZ))
 						rdlen += pad;
 				} else if (rdlen % BRCMF_SDALIGN) {
-					rdlen +=
-					    BRCMF_SDALIGN - (rdlen % BRCMF_SDALIGN);
+					rdlen += BRCMF_SDALIGN -
+						 (rdlen % BRCMF_SDALIGN);
 				}
 			}
 
@@ -4103,11 +4129,11 @@ brcmf_sdbrcm_readframes(struct brcmf_bus *bus, uint maxframes, bool *finished)
 					bus->rxctl = bus->rxbuf;
 					if (brcmf_alignctl) {
 						bus->rxctl += firstread;
-						pad = ((unsigned long)bus->rxctl %
-						      BRCMF_SDALIGN);
+						pad = ((unsigned long)bus->rxctl
+							% BRCMF_SDALIGN);
 						if (pad)
 							bus->rxctl +=
-							    (BRCMF_SDALIGN - pad);
+							  (BRCMF_SDALIGN - pad);
 						bus->rxctl -= firstread;
 					}
 					rxbuf = bus->rxctl;
@@ -6503,8 +6529,8 @@ static const struct sdiod_drive_str sdiod_drive_strength_tab3[] = {
 
 #define SDIOD_DRVSTR_KEY(chip, pmu)     (((chip) << 16) | (pmu))
 
-static void
-brcmf_sdbrcm_sdiod_drive_strength_init(struct brcmf_bus *bus, u32 drivestrength) {
+static void brcmf_sdbrcm_sdiod_drive_strength_init(struct brcmf_bus *bus,
+						   u32 drivestrength) {
 	struct sdiod_drive_str *str_tab = NULL;
 	u32 str_mask = 0;
 	u32 str_shift = 0;
@@ -6775,8 +6801,8 @@ static int brcmf_sdbrcm_get_image(char *buf, int len, struct brcmf_bus *bus)
 MODULE_FIRMWARE(BCM4329_FW_NAME);
 MODULE_FIRMWARE(BCM4329_NV_NAME);
 
-static int
-brcmf_sdbrcm_ioctl_resp_wait(struct brcmf_bus *bus, uint *condition, bool *pending)
+static int brcmf_sdbrcm_ioctl_resp_wait(struct brcmf_bus *bus, uint *condition,
+					bool *pending)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	int timeout = msecs_to_jiffies(brcmf_ioctl_timeout_msec);

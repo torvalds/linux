@@ -134,8 +134,8 @@ module_param(brcmf_pktgen_len, uint, 0);
 
 static int brcmf_toe_get(struct brcmf_info *drvr_priv, int idx, u32 *toe_ol);
 static int brcmf_toe_set(struct brcmf_info *drvr_priv, int idx, u32 toe_ol);
-static int brcmf_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
-			    struct brcmf_event_msg *event_ptr,
+static int brcmf_host_event(struct brcmf_info *drvr_priv, int *ifidx,
+			    void *pktdata, struct brcmf_event_msg *event_ptr,
 			    void **data_ptr);
 
 static int brcmf_net2idx(struct brcmf_info *drvr_priv, struct net_device *net)
@@ -304,7 +304,8 @@ static void _brcmf_set_multicast_list(struct brcmf_info *drvr_priv, int ifidx)
 	}
 }
 
-static int _brcmf_set_mac_address(struct brcmf_info *drvr_priv, int ifidx, u8 *addr)
+static int
+_brcmf_set_mac_address(struct brcmf_info *drvr_priv, int ifidx, u8 *addr)
 {
 	char buf[32];
 	struct brcmf_ioctl ioc;
@@ -369,7 +370,8 @@ static void brcmf_op_if(struct brcmf_if *ifp)
 		}
 		if (ret == 0) {
 			strcpy(ifp->net->name, ifp->name);
-			memcpy(netdev_priv(ifp->net), &drvr_priv, sizeof(drvr_priv));
+			memcpy(netdev_priv(ifp->net), &drvr_priv,
+			       sizeof(drvr_priv));
 			err = brcmf_net_attach(&drvr_priv->pub, ifp->idx);
 			if (err != 0) {
 				BRCMF_ERROR(("%s: brcmf_net_attach failed, "
@@ -1025,7 +1027,8 @@ static int brcmf_netdev_ioctl_entry(struct net_device *net, struct ifreq *ifr,
 
 	/* check for local brcmf ioctl and handle it */
 	if (driver == BRCMF_IOCTL_MAGIC) {
-		bcmerror = brcmf_c_ioctl((void *)&drvr_priv->pub, &ioc, buf, buflen);
+		bcmerror = brcmf_c_ioctl((void *)&drvr_priv->pub, &ioc,
+					 buf, buflen);
 		if (bcmerror)
 			drvr_priv->pub.bcmerror = bcmerror;
 		goto done;
@@ -1055,9 +1058,8 @@ static int brcmf_netdev_ioctl_entry(struct net_device *net, struct ifreq *ifr,
 	if (is_set_key_cmd)
 		brcmf_netdev_wait_pend8021x(net);
 
-	bcmerror =
-	    brcmf_proto_ioctl(&drvr_priv->pub, ifidx, (struct brcmf_ioctl *)&ioc,
-			      buf, buflen);
+	bcmerror = brcmf_proto_ioctl(&drvr_priv->pub, ifidx,
+				     (struct brcmf_ioctl *)&ioc, buf, buflen);
 
 done:
 	if (!bcmerror && buf && ioc.buf) {
@@ -1254,8 +1256,8 @@ struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
 
 	if (brcmf_sysioc) {
 		init_waitqueue_head(&drvr_priv->sysioc_waitq);
-		drvr_priv->sysioc_tsk = kthread_run(_brcmf_sysioc_thread, drvr_priv,
-						"_brcmf_sysioc");
+		drvr_priv->sysioc_tsk = kthread_run(_brcmf_sysioc_thread,
+						    drvr_priv, "_brcmf_sysioc");
 		if (IS_ERR(drvr_priv->sysioc_tsk)) {
 			printk(KERN_WARNING
 				"_brcmf_sysioc thread failed to start\n");
@@ -1514,8 +1516,9 @@ int brcmf_os_proto_unblock(struct brcmf_pub *drvr)
 	return 0;
 }
 
-static int brcmf_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
-			    struct brcmf_event_msg *event, void **data)
+static int brcmf_host_event(struct brcmf_info *drvr_priv, int *ifidx,
+			    void *pktdata, struct brcmf_event_msg *event,
+			    void **data)
 {
 	int bcmerror = 0;
 

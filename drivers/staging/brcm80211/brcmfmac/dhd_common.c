@@ -660,20 +660,19 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 				 + be16_to_cpu(hdr.len)) = '\0';
 
 			if (be32_to_cpu(hdr.discarded_bytes)
-			    || be32_to_cpu(hdr.discarded_printf)) {
-				BRCMF_ERROR(
-				    ("\nWLC_E_TRACE: [Discarded traces in dongle -->"
-				     "discarded_bytes %d discarded_printf %d]\n",
-				     be32_to_cpu(hdr.discarded_bytes),
-				     be32_to_cpu(hdr.discarded_printf)));
-			}
+			    || be32_to_cpu(hdr.discarded_printf))
+				BRCMF_ERROR(("\nWLC_E_TRACE: [Discarded traces "
+					     "in dongle -->discarded_bytes %d "
+					     "discarded_printf %d]\n",
+					     be32_to_cpu(hdr.discarded_bytes),
+					     be32_to_cpu(hdr.discarded_printf)))
+					     ;
 
 			nblost = be32_to_cpu(hdr.seqnum) - seqnum_prev - 1;
-			if (nblost > 0) {
-				BRCMF_ERROR(
-				    ("\nWLC_E_TRACE: [Event lost --> seqnum %d nblost %d\n",
-				     be32_to_cpu(hdr.seqnum), nblost));
-			}
+			if (nblost > 0)
+				BRCMF_ERROR(("\nWLC_E_TRACE: [Event lost --> "
+					     "seqnum %d nblost %d\n",
+					     be32_to_cpu(hdr.seqnum), nblost));
 			seqnum_prev = be32_to_cpu(hdr.seqnum);
 
 			/* Display the trace buffer. Advance from \n to \n to

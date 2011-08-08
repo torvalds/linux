@@ -117,11 +117,16 @@
 #define BRCMF_SCAN_RESULTS_ABORTED	3
 #define BRCMF_SCAN_RESULTS_NO_MEM	4
 
-#define WL_SOFT_KEY	(1 << 0)	/* Indicates this key is using soft encrypt */
-#define BRCMF_PRIMARY_KEY	(1 << 1)	/* primary (ie tx) key */
-#define WL_KF_RES_4	(1 << 4)	/* Reserved for backward compat */
-#define WL_KF_RES_5	(1 << 5)	/* Reserved for backward compat */
-#define WL_IBSS_PEER_GROUP_KEY	(1 << 6)	/* Indicates a group key for a IBSS PEER */
+/* Indicates this key is using soft encrypt */
+#define WL_SOFT_KEY	(1 << 0)
+/* primary (ie tx) key */
+#define BRCMF_PRIMARY_KEY	(1 << 1)
+/* Reserved for backward compat */
+#define WL_KF_RES_4	(1 << 4)
+/* Reserved for backward compat */
+#define WL_KF_RES_5	(1 << 5)
+/* Indicates a group key for a IBSS PEER */
+#define WL_IBSS_PEER_GROUP_KEY	(1 << 6)
 
 /* For supporting multiple interfaces */
 #define BRCMF_MAX_IFS	16
@@ -333,13 +338,18 @@ enum brcmf_bus_state {
  * that indicates which bits within the pattern should be matched.
  */
 struct brcmf_pkt_filter_pattern {
-	u32 offset;		/* Offset within received packet to start pattern matching.
-				 * Offset '0' is the first byte of the ethernet header.
-				 */
-	u32 size_bytes;	/* Size of the pattern.  Bitmask must be the same size. */
-	u8 mask_and_pattern[1];	/* Variable length mask and pattern data.  mask starts
-					 * at offset 0.  Pattern immediately follows mask.
-					 */
+	/*
+	 * Offset within received packet to start pattern matching.
+	 * Offset '0' is the first byte of the ethernet header.
+	 */
+	u32 offset;
+	/* Size of the pattern.  Bitmask must be the same size.*/
+	u32 size_bytes;
+	/*
+	 * Variable length mask and pattern data. mask starts at offset 0.
+	 * Pattern immediately follows mask.
+	 */
+	u8 mask_and_pattern[1];
 };
 
 /* IOVAR "pkt_filter_add" parameter. Used to install packet filters. */
@@ -373,8 +383,8 @@ struct brcmf_bss_info {
 	u8 SSID_len;
 	u8 SSID[32];
 	struct {
-		uint count;	/* # rates in this set */
-		u8 rates[16];	/* rates in 500kbps units w/hi bit set if basic */
+		uint count;   /* # rates in this set */
+		u8 rates[16]; /* rates in 500kbps units w/hi bit set if basic */
 	} rateset;		/* supported rates */
 	u16 chanspec;	/* chanspec for bss */
 	u16 atim_window;	/* units are Kusec */
@@ -409,7 +419,7 @@ struct brcmf_scan_params {
 				 * DOT11_BSSTYPE_ANY/INFRASTRUCTURE/INDEPENDENT
 				 */
 	u8 scan_type;	/* flags, 0 use default */
-	s32 nprobes;		/* -1 use default, number of probes per channel */
+	s32 nprobes;	  /* -1 use default, number of probes per channel */
 	s32 active_time;	/* -1 use default, dwell time per channel for
 				 * active scanning
 				 */
@@ -460,11 +470,13 @@ struct brcmf_scan_results {
 
 /* used for association with a specific BSSID and chanspec list */
 struct brcmf_assoc_params {
-	u8 bssid[ETH_ALEN];	/* 00:00:00:00:00:00: broadcast scan */
-	s32 chanspec_num;	/* 0: all available channels,
-				 * otherwise count of chanspecs in chanspec_list
-				 */
-	u16 chanspec_list[1];	/* list of chanspecs */
+	/* 00:00:00:00:00:00: broadcast scan */
+	u8 bssid[ETH_ALEN];
+	/* 0: all available channels, otherwise count of chanspecs in
+	 * chanspec_list */
+	s32 chanspec_num;
+	/* list of chanspecs */
+	u16 chanspec_list[1];
 };
 #define BRCMF_ASSOC_PARAMS_FIXED_SIZE \
 	(sizeof(struct brcmf_assoc_params) - sizeof(u16))
@@ -495,8 +507,8 @@ struct brcmf_wsec_key {
 	u32 len;		/* key length */
 	u8 data[WLAN_MAX_KEY_LEN];	/* key data */
 	u32 pad_1[18];
-	u32 algo;		/* CRYPTO_ALGO_AES_CCM, CRYPTO_ALGO_WEP128, etc */
-	u32 flags;		/* misc flags */
+	u32 algo;	/* CRYPTO_ALGO_AES_CCM, CRYPTO_ALGO_WEP128, etc */
+	u32 flags;	/* misc flags */
 	u32 pad_2[2];
 	int pad_3;
 	int iv_initialized;	/* has IV been initialized already? */
@@ -558,32 +570,45 @@ struct brcmf_pub {
 	/* Dongle media info */
 	bool iswl;		/* Dongle-resident driver is wl */
 	unsigned long drv_version;	/* Version of dongle-resident driver */
-	u8 mac[ETH_ALEN];			/* MAC address obtained from dongle */
+	u8 mac[ETH_ALEN];		/* MAC address obtained from dongle */
 	struct dngl_stats dstats;	/* Stats for dongle-based data */
 
 	/* Additional stats for the bus level */
-	unsigned long tx_packets;	/* Data packets sent to dongle */
-	unsigned long tx_multicast;	/* Multicast data packets sent to dongle */
-	unsigned long tx_errors;	/* Errors in sending data to dongle */
-	unsigned long tx_ctlpkts;	/* Control packets sent to dongle */
-	unsigned long tx_ctlerrs;	/* Errors sending control frames to dongle */
-	unsigned long rx_packets;	/* Packets sent up the network interface */
-	unsigned long rx_multicast;	/* Multicast packets sent up the network
-					 interface */
-	unsigned long rx_errors;	/* Errors processing rx data packets */
-	unsigned long rx_ctlpkts;	/* Control frames processed from dongle */
-	unsigned long rx_ctlerrs;	/* Errors in processing rx control frames */
-	unsigned long rx_dropped;	/* Packets dropped locally (no memory) */
-	unsigned long rx_flushed;	/* Packets flushed due to
-				unscheduled sendup thread */
-	unsigned long wd_dpc_sched;	/* Number of times dpc scheduled by
-					 watchdog timer */
 
-	unsigned long rx_readahead_cnt;	/* Number of packets where header read-ahead
-					 was used. */
-	unsigned long tx_realloc;	/* Number of tx packets we had to realloc for
-					 headroom */
-	unsigned long fc_packets;	/* Number of flow control pkts recvd */
+	/* Data packets sent to dongle */
+	unsigned long tx_packets;
+	/* Multicast data packets sent to dongle */
+	unsigned long tx_multicast;
+	/* Errors in sending data to dongle */
+	unsigned long tx_errors;
+	/* Control packets sent to dongle */
+	unsigned long tx_ctlpkts;
+	/* Errors sending control frames to dongle */
+	unsigned long tx_ctlerrs;
+	/* Packets sent up the network interface */
+	unsigned long rx_packets;
+	/* Multicast packets sent up the network interface */
+	unsigned long rx_multicast;
+	/* Errors processing rx data packets */
+	unsigned long rx_errors;
+	/* Control frames processed from dongle */
+	unsigned long rx_ctlpkts;
+
+	/* Errors in processing rx control frames */
+	unsigned long rx_ctlerrs;
+	/* Packets dropped locally (no memory) */
+	unsigned long rx_dropped;
+	/* Packets flushed due to unscheduled sendup thread */
+	unsigned long rx_flushed;
+	/* Number of times dpc scheduled by watchdog timer */
+	unsigned long wd_dpc_sched;
+
+	/* Number of packets where header read-ahead was used. */
+	unsigned long rx_readahead_cnt;
+	/* Number of tx packets we had to realloc for headroom */
+	unsigned long tx_realloc;
+	/* Number of flow control pkts recvd */
+	unsigned long fc_packets;
 
 	/* Last error return */
 	int bcmerror;

@@ -40,46 +40,71 @@
 /* Maximum number of I/O funcs */
 #define SDIOD_MAX_IOFUNCS	7
 
-#define SBSDIO_NUM_FUNCTION		3	/* as of sdiod rev 0, supports 3 functions */
+/* as of sdiod rev 0, supports 3 functions */
+#define SBSDIO_NUM_FUNCTION		3
 
 /* function 1 miscellaneous registers */
-#define SBSDIO_SPROM_CS			0x10000	/* sprom command and status */
-#define SBSDIO_SPROM_INFO		0x10001	/* sprom info register */
-#define SBSDIO_SPROM_DATA_LOW		0x10002	/* sprom indirect access data byte 0 */
-#define SBSDIO_SPROM_DATA_HIGH		0x10003	/* sprom indirect access data byte 1 */
-#define SBSDIO_SPROM_ADDR_LOW		0x10004	/* sprom indirect access addr byte 0 */
-#define SBSDIO_SPROM_ADDR_HIGH		0x10005	/* sprom indirect access addr byte 0 */
-#define SBSDIO_CHIP_CTRL_DATA		0x10006	/* xtal_pu (gpio) output */
-#define SBSDIO_CHIP_CTRL_EN		0x10007	/* xtal_pu (gpio) enable */
-#define SBSDIO_WATERMARK		0x10008	/* rev < 7, watermark for sdio device */
-#define SBSDIO_DEVICE_CTL		0x10009	/* control busy signal generation */
 
-/* registers introduced in rev 8, some content (mask/bits) defs in sbsdpcmdev.h */
-#define SBSDIO_FUNC1_SBADDRLOW		0x1000A	/* SB Address Window Low (b15) */
-#define SBSDIO_FUNC1_SBADDRMID		0x1000B	/* SB Address Window Mid (b23:b16) */
-#define SBSDIO_FUNC1_SBADDRHIGH		0x1000C	/* SB Address Window High (b31:b24)    */
-#define SBSDIO_FUNC1_FRAMECTRL		0x1000D	/* Frame Control (frame term/abort) */
-#define SBSDIO_FUNC1_CHIPCLKCSR		0x1000E	/* ChipClockCSR (ALP/HT ctl/status) */
-#define SBSDIO_FUNC1_SDIOPULLUP		0x1000F	/* SdioPullUp (on cmd, d0-d2) */
-#define SBSDIO_FUNC1_WFRAMEBCLO		0x10019	/* Write Frame Byte Count Low */
-#define SBSDIO_FUNC1_WFRAMEBCHI		0x1001A	/* Write Frame Byte Count High */
-#define SBSDIO_FUNC1_RFRAMEBCLO		0x1001B	/* Read Frame Byte Count Low */
-#define SBSDIO_FUNC1_RFRAMEBCHI		0x1001C	/* Read Frame Byte Count High */
+/* sprom command and status */
+#define SBSDIO_SPROM_CS			0x10000
+/* sprom info register */
+#define SBSDIO_SPROM_INFO		0x10001
+/* sprom indirect access data byte 0 */
+#define SBSDIO_SPROM_DATA_LOW		0x10002
+/* sprom indirect access data byte 1 */
+#define SBSDIO_SPROM_DATA_HIGH		0x10003
+/* sprom indirect access addr byte 0 */
+#define SBSDIO_SPROM_ADDR_LOW		0x10004
+/* sprom indirect access addr byte 0 */
+#define SBSDIO_SPROM_ADDR_HIGH		0x10005
+/* xtal_pu (gpio) output */
+#define SBSDIO_CHIP_CTRL_DATA		0x10006
+/* xtal_pu (gpio) enable */
+#define SBSDIO_CHIP_CTRL_EN		0x10007
+/* rev < 7, watermark for sdio device */
+#define SBSDIO_WATERMARK		0x10008
+/* control busy signal generation */
+#define SBSDIO_DEVICE_CTL		0x10009
+
+/* SB Address Window Low (b15) */
+#define SBSDIO_FUNC1_SBADDRLOW		0x1000A
+/* SB Address Window Mid (b23:b16) */
+#define SBSDIO_FUNC1_SBADDRMID		0x1000B
+/* SB Address Window High (b31:b24)    */
+#define SBSDIO_FUNC1_SBADDRHIGH		0x1000C
+/* Frame Control (frame term/abort) */
+#define SBSDIO_FUNC1_FRAMECTRL		0x1000D
+/* ChipClockCSR (ALP/HT ctl/status) */
+#define SBSDIO_FUNC1_CHIPCLKCSR		0x1000E
+/* SdioPullUp (on cmd, d0-d2) */
+#define SBSDIO_FUNC1_SDIOPULLUP		0x1000F
+/* Write Frame Byte Count Low */
+#define SBSDIO_FUNC1_WFRAMEBCLO		0x10019
+/* Write Frame Byte Count High */
+#define SBSDIO_FUNC1_WFRAMEBCHI		0x1001A
+/* Read Frame Byte Count Low */
+#define SBSDIO_FUNC1_RFRAMEBCLO		0x1001B
+/* Read Frame Byte Count High */
+#define SBSDIO_FUNC1_RFRAMEBCHI		0x1001C
 
 #define SBSDIO_FUNC1_MISC_REG_START	0x10000	/* f1 misc register start */
 #define SBSDIO_FUNC1_MISC_REG_LIMIT	0x1001C	/* f1 misc register end */
 
 /* function 1 OCP space */
-#define SBSDIO_SB_OFT_ADDR_MASK		0x07FFF	/* sb offset addr is <= 15 bits, 32k */
-#define SBSDIO_SB_OFT_ADDR_LIMIT	0x08000
-#define SBSDIO_SB_ACCESS_2_4B_FLAG	0x08000	/* with b15, maps to 32-bit SB access */
 
-/* some duplication with sbsdpcmdev.h here */
+/* sb offset addr is <= 15 bits, 32k */
+#define SBSDIO_SB_OFT_ADDR_MASK		0x07FFF
+#define SBSDIO_SB_OFT_ADDR_LIMIT	0x08000
+/* with b15, maps to 32-bit SB access */
+#define SBSDIO_SB_ACCESS_2_4B_FLAG	0x08000
+
 /* valid bits in SBSDIO_FUNC1_SBADDRxxx regs */
+
 #define SBSDIO_SBADDRLOW_MASK		0x80	/* Valid bits in SBADDRLOW */
 #define SBSDIO_SBADDRMID_MASK		0xff	/* Valid bits in SBADDRMID */
 #define SBSDIO_SBADDRHIGH_MASK		0xffU	/* Valid bits in SBADDRHIGH */
-#define SBSDIO_SBWINDOW_MASK		0xffff8000	/* Address bits from SBADDR regs */
+/* Address bits from SBADDR regs */
+#define SBSDIO_SBWINDOW_MASK		0xffff8000
 
 #define SDIOH_READ              0	/* Read request */
 #define SDIOH_WRITE             1	/* Write request */
@@ -103,7 +128,7 @@ struct brcmf_sdreg {
 struct sdioh_info {
 	struct osl_info *osh;		/* osh handler */
 	bool client_intr_enabled;	/* interrupt connnected flag */
-	bool intr_handler_valid;	/* client driver interrupt handler valid */
+	bool intr_handler_valid; /* client driver interrupt handler valid */
 	void (*intr_handler)(void *);	/* registered interrupt handler */
 	void *intr_handler_arg;	/* argument to call interrupt handler */
 	u16 intmask;		/* Current active interrupts */
@@ -119,8 +144,8 @@ struct sdioh_info {
 	u32 com_cis_ptr;
 	u32 func_cis_ptr[SDIOD_MAX_IOFUNCS];
 	uint max_dma_len;
-	uint max_dma_descriptors;	/* DMA Descriptors supported by this controller. */
-	/*	SDDMA_DESCRIPTOR	SGList[32]; *//* Scatter/Gather DMA List */
+	/* DMA Descriptors supported by this controller. */
+	uint max_dma_descriptors;
 };
 
 struct brcmf_sdmmc_instance {
@@ -218,9 +243,13 @@ brcmf_sdcard_recv_buf(struct brcmf_sdio_card *card, u32 addr, uint fn,
 		      void *handle);
 
 /* Flags bits */
-#define SDIO_REQ_4BYTE	0x1	/* Four-byte target (backplane) width (vs. two-byte) */
-#define SDIO_REQ_FIXED	0x2	/* Fixed address (FIFO) (vs. incrementing address) */
-#define SDIO_REQ_ASYNC	0x4	/* Async request (vs. sync request) */
+
+/* Four-byte target (backplane) width (vs. two-byte) */
+#define SDIO_REQ_4BYTE	0x1
+/* Fixed address (FIFO) (vs. incrementing address) */
+#define SDIO_REQ_FIXED	0x2
+/* Async request (vs. sync request) */
+#define SDIO_REQ_ASYNC	0x4
 
 /* Pending (non-error) return code */
 #define BCME_PENDING	1

@@ -795,8 +795,8 @@ __brcmf_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 				sizeof(sr->ssid));
 		if (err) {
 			if (err == -EBUSY)
-				WL_INFO("system busy : scan for \"%s\" canceled\n",
-					sr->ssid.SSID);
+				WL_INFO("system busy : scan for \"%s\" "
+					"canceled\n", sr->ssid.SSID);
 			else
 				WL_ERR("WLC_SCAN error (%d)\n", err);
 
@@ -1098,7 +1098,8 @@ done:
 	return err;
 }
 
-static s32 brcmf_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
+static s32
+brcmf_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 {
 	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
 	s32 err = 0;
@@ -1113,8 +1114,8 @@ static s32 brcmf_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev
 	return err;
 }
 
-static s32
-brcmf_set_wpa_version(struct net_device *dev, struct cfg80211_connect_params *sme)
+static s32 brcmf_set_wpa_version(struct net_device *dev,
+				 struct cfg80211_connect_params *sme)
 {
 	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(dev);
 	struct brcmf_cfg80211_security *sec;
@@ -1178,7 +1179,8 @@ brcmf_set_auth_type(struct net_device *dev, struct cfg80211_connect_params *sme)
 }
 
 static s32
-brcmf_set_set_cipher(struct net_device *dev, struct cfg80211_connect_params *sme)
+brcmf_set_set_cipher(struct net_device *dev,
+		     struct cfg80211_connect_params *sme)
 {
 	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(dev);
 	struct brcmf_cfg80211_security *sec;
@@ -1428,7 +1430,8 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	memset(&join_params, 0, sizeof(join_params));
 	join_params_size = sizeof(join_params.ssid);
 
-	join_params.ssid.SSID_len = min(sizeof(join_params.ssid.SSID), sme->ssid_len);
+	join_params.ssid.SSID_len =
+		min(sizeof(join_params.ssid.SSID), sme->ssid_len);
 	memcpy(&join_params.ssid.SSID, sme->ssid, join_params.ssid.SSID_len);
 	join_params.ssid.SSID_len = cpu_to_le32(join_params.ssid.SSID_len);
 	brcmf_update_prof(cfg_priv, NULL, &join_params.ssid, WL_PROF_SSID);
@@ -1515,7 +1518,8 @@ brcmf_cfg80211_set_tx_power(struct wiphy *wiphy,
 	/* Make sure radio is off or on as far as software is concerned */
 	disable = WL_RADIO_SW_DISABLE << 16;
 	disable = cpu_to_le32(disable);
-	err = brcmf_dev_ioctl(ndev, BRCMF_C_SET_RADIO, &disable, sizeof(disable));
+	err = brcmf_dev_ioctl(ndev, BRCMF_C_SET_RADIO, &disable,
+			      sizeof(disable));
 	if (unlikely(err))
 		WL_ERR("WLC_SET_RADIO error (%d)\n", err);
 
@@ -2061,7 +2065,8 @@ brcmf_cfg80211_set_bitrate_mask(struct wiphy *wiphy, struct net_device *dev,
 
 	legacy = brcmf_find_msb(mask->control[IEEE80211_BAND_2GHZ].legacy);
 	if (!legacy)
-		legacy = brcmf_find_msb(mask->control[IEEE80211_BAND_5GHZ].legacy);
+		legacy = brcmf_find_msb(
+				mask->control[IEEE80211_BAND_5GHZ].legacy);
 
 	val = wl_g_rates[legacy - 1].bitrate * 100000;
 
