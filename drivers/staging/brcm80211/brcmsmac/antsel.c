@@ -18,7 +18,6 @@
 #include <net/mac80211.h>
 
 #include "types.h"
-#include "bmac.h"
 #include "main.h"
 #include "phy_shim.h"
 #include "antsel.h"

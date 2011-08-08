@@ -20,7 +20,6 @@
 #include <defs.h>
 #include "pub.h"
 #include "phy/phy_hal.h"
-#include "bmac.h"
 #include "main.h"
 #include "stf.h"
 #include "channel.h"

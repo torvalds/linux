@@ -242,6 +242,12 @@ extern const u8 prio2fifo[];
 
 #define BRCMS_UNIT(wlc)		((wlc)->pub->unit)
 
+#define brcms_b_copyfrom_shm(wlc_hw, offset, buf, len)                 \
+	brcms_b_copyfrom_objmem(wlc_hw, offset, buf, len, OBJADDR_SHM_SEL)
+
+#define brcms_b_copyto_shm(wlc_hw, offset, buf, len)                   \
+	brcms_b_copyto_objmem(wlc_hw, offset, buf, len, OBJADDR_SHM_SEL)
+
 struct brcms_protection {
 	bool _g;		/* use g spec protection, driver internal */
 	s8 g_override;	/* override for use of g spec protection */
@@ -1021,5 +1027,48 @@ extern bool brcms_c_ps_allowed(struct brcms_c_info *wlc);
 extern bool brcms_c_stay_awake(struct brcms_c_info *wlc);
 extern void brcms_c_wme_initparams_sta(struct brcms_c_info *wlc,
 				       struct wme_param_ie *pe);
+
+extern void brcms_b_antsel_type_set(struct brcms_hardware *wlc_hw,
+				     u8 antsel_type);
+
+/* chanspec, ucode interface */
+extern void brcms_b_set_chanspec(struct brcms_hardware *wlc_hw,
+				  chanspec_t chanspec,
+				  bool mute, struct txpwr_limits *txpwr);
+
+extern void brcms_b_write_shm(struct brcms_hardware *wlc_hw, uint offset,
+			      u16 v);
+extern u16 brcms_b_read_shm(struct brcms_hardware *wlc_hw, uint offset);
+
+extern void brcms_b_mhf(struct brcms_hardware *wlc_hw, u8 idx, u16 mask,
+			u16 val, int bands);
+
+extern void brcms_b_corereset(struct brcms_hardware *wlc_hw, u32 flags);
+
+extern void brcms_b_mctrl(struct brcms_hardware *wlc_hw, u32 mask, u32 val);
+
+extern void brcms_b_phy_reset(struct brcms_hardware *wlc_hw);
+extern void brcms_b_bw_set(struct brcms_hardware *wlc_hw, u16 bw);
+extern void brcms_b_core_phypll_reset(struct brcms_hardware *wlc_hw);
+extern void brcms_c_ucode_wake_override_set(struct brcms_hardware *wlc_hw,
+					u32 override_bit);
+extern void brcms_c_ucode_wake_override_clear(struct brcms_hardware *wlc_hw,
+					  u32 override_bit);
+extern void brcms_b_write_template_ram(struct brcms_hardware *wlc_hw,
+				       int offset, int len, void *buf);
+extern u16 brcms_b_rate_shm_offset(struct brcms_hardware *wlc_hw, u8 rate);
+extern void brcms_b_copyto_objmem(struct brcms_hardware *wlc_hw,
+				   uint offset, const void *buf, int len,
+				   u32 sel);
+extern void brcms_b_copyfrom_objmem(struct brcms_hardware *wlc_hw, uint offset,
+				     void *buf, int len, u32 sel);
+extern void brcms_b_switch_macfreq(struct brcms_hardware *wlc_hw, u8 spurmode);
+extern u16 brcms_b_get_txant(struct brcms_hardware *wlc_hw);
+extern void brcms_b_phyclk_fgc(struct brcms_hardware *wlc_hw, bool clk);
+extern void brcms_b_macphyclk_set(struct brcms_hardware *wlc_hw, bool clk);
+extern void brcms_b_core_phypll_ctl(struct brcms_hardware *wlc_hw, bool on);
+extern void brcms_b_txant_set(struct brcms_hardware *wlc_hw, u16 phytxant);
+extern void brcms_b_band_stf_ss_set(struct brcms_hardware *wlc_hw,
+				    u8 stf_mode);
 
 #endif				/* _BRCM_MAIN_H_ */

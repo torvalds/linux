@@ -23,7 +23,6 @@
 #include <linux/slab.h>
 #include <net/mac80211.h>
 
-#include "bmac.h"
 #include "main.h"
 #include "mac80211_if.h"
 #include "phy_shim.h"
