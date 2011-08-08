@@ -764,6 +764,13 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.flags			= 0,
 	},
 #endif
+#if defined (CONFIG_SND_SOC_WM8994)
+        {
+                .type                   = "wm8994",
+                .addr           = 0x1A,
+                .flags                  = 0,
+        },
+#endif
 #if defined (CONFIG_BATTERY_STC3100)
 	{
 		.type    		= "stc3100",
