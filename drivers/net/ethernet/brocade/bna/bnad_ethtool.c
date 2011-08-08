@@ -29,14 +29,14 @@
 
 #define BNAD_NUM_TXF_COUNTERS 12
 #define BNAD_NUM_RXF_COUNTERS 10
-#define BNAD_NUM_CQ_COUNTERS 3
+#define BNAD_NUM_CQ_COUNTERS (3 + 5)
 #define BNAD_NUM_RXQ_COUNTERS 6
 #define BNAD_NUM_TXQ_COUNTERS 5
 
 #define BNAD_ETHTOOL_STATS_NUM						\
 	(sizeof(struct rtnl_link_stats64) / sizeof(u64) +	\
 	sizeof(struct bnad_drv_stats) / sizeof(u64) +		\
-	offsetof(struct bfi_ll_stats, rxf_stats[0]) / sizeof(u64))
+	offsetof(struct bfi_enet_stats, rxf_stats[0]) / sizeof(u64))
 
 static char *bnad_net_stats_strings[BNAD_ETHTOOL_STATS_NUM] = {
 	"rx_packets",
@@ -277,7 +277,7 @@ bnad_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 	ioc_attr = kzalloc(sizeof(*ioc_attr), GFP_KERNEL);
 	if (ioc_attr) {
 		spin_lock_irqsave(&bnad->bna_lock, flags);
-		bfa_nw_ioc_get_attr(&bnad->bna.device.ioc, ioc_attr);
+		bfa_nw_ioc_get_attr(&bnad->bna.ioceth.ioc, ioc_attr);
 		spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
 		strncpy(drvinfo->fw_version, ioc_attr->adapter_attr.fw_ver,
@@ -462,8 +462,8 @@ bnad_get_pauseparam(struct net_device *netdev,
 	struct bnad *bnad = netdev_priv(netdev);
 
 	pauseparam->autoneg = 0;
-	pauseparam->rx_pause = bnad->bna.port.pause_config.rx_pause;
-	pauseparam->tx_pause = bnad->bna.port.pause_config.tx_pause;
+	pauseparam->rx_pause = bnad->bna.enet.pause_config.rx_pause;
+	pauseparam->tx_pause = bnad->bna.enet.pause_config.tx_pause;
 }
 
 static int
@@ -478,12 +478,12 @@ bnad_set_pauseparam(struct net_device *netdev,
 		return -EINVAL;
 
 	mutex_lock(&bnad->conf_mutex);
-	if (pauseparam->rx_pause != bnad->bna.port.pause_config.rx_pause ||
-	    pauseparam->tx_pause != bnad->bna.port.pause_config.tx_pause) {
+	if (pauseparam->rx_pause != bnad->bna.enet.pause_config.rx_pause ||
+	    pauseparam->tx_pause != bnad->bna.enet.pause_config.tx_pause) {
 		pause_config.rx_pause = pauseparam->rx_pause;
 		pause_config.tx_pause = pauseparam->tx_pause;
 		spin_lock_irqsave(&bnad->bna_lock, flags);
-		bna_port_pause_config(&bnad->bna.port, &pause_config, NULL);
+		bna_enet_pause_config(&bnad->bna.enet, &pause_config, NULL);
 		spin_unlock_irqrestore(&bnad->bna_lock, flags);
 	}
 	mutex_unlock(&bnad->conf_mutex);
@@ -495,7 +495,7 @@ bnad_get_strings(struct net_device *netdev, u32 stringset, u8 * string)
 {
 	struct bnad *bnad = netdev_priv(netdev);
 	int i, j, q_num;
-	u64 bmap;
+	u32 bmap;
 
 	mutex_lock(&bnad->conf_mutex);
 
@@ -508,9 +508,8 @@ bnad_get_strings(struct net_device *netdev, u32 stringset, u8 * string)
 			       ETH_GSTRING_LEN);
 			string += ETH_GSTRING_LEN;
 		}
-		bmap = (u64)bnad->bna.tx_mod.txf_bmap[0] |
-			((u64)bnad->bna.tx_mod.txf_bmap[1] << 32);
-		for (i = 0; bmap && (i < BFI_LL_TXF_ID_MAX); i++) {
+		bmap = bna_tx_rid_mask(&bnad->bna);
+		for (i = 0; bmap; i++) {
 			if (bmap & 1) {
 				sprintf(string, "txf%d_ucast_octets", i);
 				string += ETH_GSTRING_LEN;
@@ -540,9 +539,8 @@ bnad_get_strings(struct net_device *netdev, u32 stringset, u8 * string)
 			bmap >>= 1;
 		}
 
-		bmap = (u64)bnad->bna.rx_mod.rxf_bmap[0] |
-			((u64)bnad->bna.rx_mod.rxf_bmap[1] << 32);
-		for (i = 0; bmap && (i < BFI_LL_RXF_ID_MAX); i++) {
+		bmap = bna_rx_rid_mask(&bnad->bna);
+		for (i = 0; bmap; i++) {
 			if (bmap & 1) {
 				sprintf(string, "rxf%d_ucast_octets", i);
 				string += ETH_GSTRING_LEN;
@@ -663,18 +661,16 @@ bnad_get_stats_count_locked(struct net_device *netdev)
 {
 	struct bnad *bnad = netdev_priv(netdev);
 	int i, j, count, rxf_active_num = 0, txf_active_num = 0;
-	u64 bmap;
+	u32 bmap;
 
-	bmap = (u64)bnad->bna.tx_mod.txf_bmap[0] |
-			((u64)bnad->bna.tx_mod.txf_bmap[1] << 32);
-	for (i = 0; bmap && (i < BFI_LL_TXF_ID_MAX); i++) {
+	bmap = bna_tx_rid_mask(&bnad->bna);
+	for (i = 0; bmap; i++) {
 		if (bmap & 1)
 			txf_active_num++;
 		bmap >>= 1;
 	}
-	bmap = (u64)bnad->bna.rx_mod.rxf_bmap[0] |
-			((u64)bnad->bna.rx_mod.rxf_bmap[1] << 32);
-	for (i = 0; bmap && (i < BFI_LL_RXF_ID_MAX); i++) {
+	bmap = bna_rx_rid_mask(&bnad->bna);
+	for (i = 0; bmap; i++) {
 		if (bmap & 1)
 			rxf_active_num++;
 		bmap >>= 1;
@@ -787,7 +783,7 @@ bnad_get_ethtool_stats(struct net_device *netdev, struct ethtool_stats *stats,
 	unsigned long flags;
 	struct rtnl_link_stats64 *net_stats64;
 	u64 *stats64;
-	u64 bmap;
+	u32 bmap;
 
 	mutex_lock(&bnad->conf_mutex);
 	if (bnad_get_stats_count_locked(netdev) != stats->n_stats) {
@@ -818,20 +814,20 @@ bnad_get_ethtool_stats(struct net_device *netdev, struct ethtool_stats *stats,
 		buf[bi++] = stats64[i];
 
 	/* Fill hardware stats excluding the rxf/txf into ethtool bufs */
-	stats64 = (u64 *) bnad->stats.bna_stats->hw_stats;
+	stats64 = (u64 *) &bnad->stats.bna_stats->hw_stats;
 	for (i = 0;
-	     i < offsetof(struct bfi_ll_stats, rxf_stats[0]) / sizeof(u64);
+	     i < offsetof(struct bfi_enet_stats, rxf_stats[0]) /
+		sizeof(u64);
 	     i++)
 		buf[bi++] = stats64[i];
 
 	/* Fill txf stats into ethtool buffers */
-	bmap = (u64)bnad->bna.tx_mod.txf_bmap[0] |
-			((u64)bnad->bna.tx_mod.txf_bmap[1] << 32);
-	for (i = 0; bmap && (i < BFI_LL_TXF_ID_MAX); i++) {
+	bmap = bna_tx_rid_mask(&bnad->bna);
+	for (i = 0; bmap; i++) {
 		if (bmap & 1) {
 			stats64 = (u64 *)&bnad->stats.bna_stats->
-						hw_stats->txf_stats[i];
-			for (j = 0; j < sizeof(struct bfi_ll_stats_txf) /
+						hw_stats.txf_stats[i];
+			for (j = 0; j < sizeof(struct bfi_enet_stats_txf) /
 					sizeof(u64); j++)
 				buf[bi++] = stats64[j];
 		}
@@ -839,13 +835,12 @@ bnad_get_ethtool_stats(struct net_device *netdev, struct ethtool_stats *stats,
 	}
 
 	/*  Fill rxf stats into ethtool buffers */
-	bmap = (u64)bnad->bna.rx_mod.rxf_bmap[0] |
-			((u64)bnad->bna.rx_mod.rxf_bmap[1] << 32);
-	for (i = 0; bmap && (i < BFI_LL_RXF_ID_MAX); i++) {
+	bmap = bna_rx_rid_mask(&bnad->bna);
+	for (i = 0; bmap; i++) {
 		if (bmap & 1) {
 			stats64 = (u64 *)&bnad->stats.bna_stats->
-						hw_stats->rxf_stats[i];
-			for (j = 0; j < sizeof(struct bfi_ll_stats_rxf) /
+						hw_stats.rxf_stats[i];
+			for (j = 0; j < sizeof(struct bfi_enet_stats_rxf) /
 					sizeof(u64); j++)
 				buf[bi++] = stats64[j];
 		}

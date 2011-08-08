@@ -124,6 +124,7 @@ enum bfa_ioc_state {
 	BFA_IOC_DISABLED	= 10,	/*!< IOC is disabled */
 	BFA_IOC_FWMISMATCH	= 11,	/*!< IOC f/w different from drivers */
 	BFA_IOC_ENABLING	= 12,	/*!< IOC is being enabled */
+	BFA_IOC_HWFAIL		= 13,	/*!< PCI mapping doesn't exist */
 };
 
 /**
@@ -179,8 +180,19 @@ struct bfa_ioc_attr {
 	struct bfa_adapter_attr adapter_attr;	/*!< HBA attributes */
 	struct bfa_ioc_driver_attr driver_attr;	/*!< driver attr    */
 	struct bfa_ioc_pci_attr pci_attr;
-	u8				port_id;	/*!< port number    */
-	u8				rsvd[7];	/*!< 64bit align    */
+	u8				port_id;	/*!< port number */
+	u8				port_mode;	/*!< enum bfa_mode */
+	u8				cap_bm;		/*!< capability */
+	u8				port_mode_cfg;	/*!< enum bfa_mode */
+	u8				rsvd[4];	/*!< 64bit align */
+};
+
+/**
+ * Adapter capability mask definition
+ */
+enum {
+	BFA_CM_HBA	=	0x01,
+	BFA_CM_CNA	=	0x02,
 };
 
 /**
@@ -228,7 +240,7 @@ struct bfa_mfg_block {
 	mac_t		mfg_mac;	/*!< mac address */
 	u8		num_mac;	/*!< number of mac addresses */
 	u8		rsv2;
-	u32	mfg_type;	/*!< card type */
+	u32		card_type;	/*!< card type */
 	u8		rsv3[108];
 	u8		md5_chksum[BFA_MFG_CHKSUM_SIZE]; /*!< md5 checksum */
 };
@@ -242,5 +254,12 @@ struct bfa_mfg_block {
 #define bfa_asic_id_ct(devid)			\
 	((devid) == PCI_DEVICE_ID_BROCADE_CT ||	\
 	(devid) == PCI_DEVICE_ID_BROCADE_CT_FC)
+#define bfa_asic_id_ctc(devid) (bfa_asic_id_ct(devid))
+
+enum bfa_mode {
+	BFA_MODE_HBA		= 1,
+	BFA_MODE_CNA		= 2,
+	BFA_MODE_NIC		= 3
+};
 
 #endif /* __BFA_DEFS_H__ */

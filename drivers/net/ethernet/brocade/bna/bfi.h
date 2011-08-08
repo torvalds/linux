@@ -43,17 +43,21 @@ struct bfi_mhdr {
 	u8		msg_id;		/*!< msg opcode with in the class   */
 	union {
 		struct {
-			u8	rsvd;
-			u8	lpu_id;	/*!< msg destination		    */
+			u8	qid;
+			u8	fn_lpu;	/*!< msg destination		    */
 		} h2i;
 		u16	i2htok;	/*!< token in msgs to host	    */
 	} mtag;
 };
 
-#define bfi_h2i_set(_mh, _mc, _op, _lpuid) do {		\
+#define bfi_fn_lpu(__fn, __lpu)	((__fn) << 1 | (__lpu))
+#define bfi_mhdr_2_fn(_mh)	((_mh)->mtag.h2i.fn_lpu >> 1)
+#define bfi_mhdr_2_qid(_mh)	((_mh)->mtag.h2i.qid)
+
+#define bfi_h2i_set(_mh, _mc, _op, _fn_lpu) do {		\
 	(_mh).msg_class			= (_mc);		\
 	(_mh).msg_id			= (_op);		\
-	(_mh).mtag.h2i.lpu_id	= (_lpuid);			\
+	(_mh).mtag.h2i.fn_lpu	= (_fn_lpu);			\
 } while (0)
 
 #define bfi_i2h_set(_mh, _mc, _op, _i2htok) do {		\
@@ -149,6 +153,14 @@ struct bfi_mbmsg {
 };
 
 /**
+ * Supported PCI function class codes (personality)
+ */
+enum bfi_pcifn_class {
+	BFI_PCIFN_CLASS_FC	= 0x0c04,
+	BFI_PCIFN_CLASS_ETH	= 0x0200,
+};
+
+/**
  * Message Classes
  */
 enum bfi_mclass {
@@ -203,6 +215,21 @@ enum bfi_mclass {
  *----------------------------------------------------------------------
  */
 
+/**
+ * Different asic generations
+ */
+enum bfi_asic_gen {
+	BFI_ASIC_GEN_CB		= 1,
+	BFI_ASIC_GEN_CT		= 2,
+};
+
+enum bfi_asic_mode {
+	BFI_ASIC_MODE_FC	= 1,	/* FC upto 8G speed		*/
+	BFI_ASIC_MODE_FC16	= 2,	/* FC upto 16G speed		*/
+	BFI_ASIC_MODE_ETH	= 3,	/* Ethernet ports		*/
+	BFI_ASIC_MODE_COMBO	= 4,	/* FC 16G and Ethernet 10G port	*/
+};
+
 enum bfi_ioc_h2i_msgs {
 	BFI_IOC_H2I_ENABLE_REQ		= 1,
 	BFI_IOC_H2I_DISABLE_REQ		= 2,
@@ -215,8 +242,7 @@ enum bfi_ioc_i2h_msgs {
 	BFI_IOC_I2H_ENABLE_REPLY	= BFA_I2HM(1),
 	BFI_IOC_I2H_DISABLE_REPLY	= BFA_I2HM(2),
 	BFI_IOC_I2H_GETATTR_REPLY	= BFA_I2HM(3),
-	BFI_IOC_I2H_READY_EVENT		= BFA_I2HM(4),
-	BFI_IOC_I2H_HBEAT		= BFA_I2HM(5),
+	BFI_IOC_I2H_HBEAT		= BFA_I2HM(4),
 };
 
 /**
@@ -231,7 +257,8 @@ struct bfi_ioc_attr {
 	u64		mfg_pwwn;	/*!< Mfg port wwn	   */
 	u64		mfg_nwwn;	/*!< Mfg node wwn	   */
 	mac_t		mfg_mac;	/*!< Mfg mac		   */
-	u16	rsvd_a;
+	u8		port_mode;	/* enum bfi_port_mode	   */
+	u8		rsvd_a;
 	u64		pwwn;
 	u64		nwwn;
 	mac_t		mac;		/*!< PBC or Mfg mac	   */
@@ -284,17 +311,34 @@ struct bfi_ioc_getattr_reply {
 #define BFI_IOC_MD5SUM_SZ	4
 struct bfi_ioc_image_hdr {
 	u32	signature;	/*!< constant signature */
-	u32	rsvd_a;
+	u8	asic_gen;	/*!< asic generation */
+	u8	asic_mode;
+	u8	port0_mode;	/*!< device mode for port 0 */
+	u8	port1_mode;	/*!< device mode for port 1 */
 	u32	exec;		/*!< exec vector	*/
-	u32	param;		/*!< parameters		*/
+	u32	bootenv;	/*!< firmware boot env */
 	u32	rsvd_b[4];
 	u32	md5sum[BFI_IOC_MD5SUM_SZ];
 };
+
+#define BFI_FWBOOT_DEVMODE_OFF		4
+#define BFI_FWBOOT_TYPE_OFF		8
+#define BFI_FWBOOT_ENV_OFF		12
+#define BFI_FWBOOT_DEVMODE(__asic_gen, __asic_mode, __p0_mode, __p1_mode) \
+	(((u32)(__asic_gen)) << 24 |	\
+	 ((u32)(__asic_mode)) << 16 |	\
+	 ((u32)(__p0_mode)) << 8 |	\
+	 ((u32)(__p1_mode)))
 
 enum bfi_fwboot_type {
 	BFI_FWBOOT_TYPE_NORMAL	= 0,
 	BFI_FWBOOT_TYPE_FLASH	= 1,
 	BFI_FWBOOT_TYPE_MEMTEST	= 2,
+};
+
+enum bfi_port_mode {
+	BFI_PORT_MODE_FC	= 1,
+	BFI_PORT_MODE_ETH	= 2,
 };
 
 /**
@@ -362,8 +406,8 @@ enum {
  */
 struct bfi_ioc_ctrl_req {
 	struct bfi_mhdr mh;
-	u8			ioc_class;
-	u8			rsvd[3];
+	u16			clscode;
+	u16			rsvd;
 	u32		tv_sec;
 };
 
@@ -371,9 +415,11 @@ struct bfi_ioc_ctrl_req {
  * BFI_IOC_I2H_ENABLE_REPLY & BFI_IOC_I2H_DISABLE_REPLY messages
  */
 struct bfi_ioc_ctrl_reply {
-	struct bfi_mhdr mh;		/*!< Common msg header     */
+	struct bfi_mhdr mh;			/*!< Common msg header     */
 	u8			status;		/*!< enable/disable status */
-	u8			rsvd[3];
+	u8			port_mode;	/*!< enum bfa_mode */
+	u8			cap_bm;		/*!< capability bit mask */
+	u8			rsvd;
 };
 
 #define BFI_IOC_MSGSZ   8
@@ -393,7 +439,7 @@ union bfi_ioc_h2i_msg_u {
  */
 union bfi_ioc_i2h_msg_u {
 	struct bfi_mhdr mh;
-	struct bfi_ioc_rdy_event rdy_event;
+	struct bfi_ioc_ctrl_reply fw_event;
 	u32			mboxmsg[BFI_IOC_MSGSZ];
 };
 

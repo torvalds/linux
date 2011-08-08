@@ -44,6 +44,7 @@
 
 #define BNAD_MAX_RXS		1
 #define BNAD_MAX_RXPS_PER_RX	16
+#define BNAD_MAX_RXQ_PER_RXP	2
 
 /*
  * Control structure pointed to ccb->ctrl, which
@@ -76,6 +77,8 @@ struct bnad_rx_ctrl {
 #define BNAD_STATS_TIMER_FREQ		1000	/* in msecs */
 #define BNAD_DIM_TIMER_FREQ		1000	/* in msecs */
 
+#define BNAD_IOCETH_TIMEOUT	     10000
+
 #define BNAD_MAX_Q_DEPTH		0x10000
 #define BNAD_MIN_Q_DEPTH		0x200
 
@@ -92,6 +95,10 @@ struct bnad_rx_ctrl {
 /* Bit positions for rcb->flags */
 #define BNAD_RXQ_REFILL			0
 #define BNAD_RXQ_STARTED		1
+
+/* Resource limits */
+#define BNAD_NUM_TXQ			(bnad->num_tx * bnad->num_txq_per_tx)
+#define BNAD_NUM_RXP			(bnad->num_rx * bnad->num_rxp_per_rx)
 
 /*
  * DATA STRUCTURES
@@ -115,7 +122,8 @@ struct bnad_completion {
 	struct completion	tx_comp;
 	struct completion	rx_comp;
 	struct completion	stats_comp;
-	struct completion	port_comp;
+	struct completion	enet_comp;
+	struct completion	mtu_comp;
 
 	u8			ioc_comp_status;
 	u8			ucast_comp_status;
@@ -124,6 +132,7 @@ struct bnad_completion {
 	u8			rx_comp_status;
 	u8			stats_comp_status;
 	u8			port_comp_status;
+	u8			mtu_comp_status;
 };
 
 /* Tx Rx Control Stats */
@@ -145,6 +154,7 @@ struct bnad_drv_stats {
 	u64		netif_rx_dropped;
 
 	u64		link_toggle;
+	u64		cee_toggle;
 	u64		cee_up;
 
 	u64		rxp_info_alloc_failed;
@@ -174,12 +184,14 @@ struct bnad_rx_res_info {
 struct bnad_tx_info {
 	struct bna_tx *tx; /* 1:1 between tx_info & tx */
 	struct bna_tcb *tcb[BNAD_MAX_TXQ_PER_TX];
+	u32 tx_id;
 } ____cacheline_aligned;
 
 struct bnad_rx_info {
 	struct bna_rx *rx; /* 1:1 between rx_info & rx */
 
 	struct bnad_rx_ctrl rx_ctrl[BNAD_MAX_RXPS_PER_RX];
+	u32 rx_id;
 } ____cacheline_aligned;
 
 /* Unmap queues for Tx / Rx cleanup */
@@ -205,13 +217,18 @@ struct bnad_unmap_q {
 /* Defines for run_flags bit-mask */
 /* Set, tested & cleared using xxx_bit() functions */
 /* Values indicated bit positions */
-#define	BNAD_RF_CEE_RUNNING		1
+#define BNAD_RF_CEE_RUNNING		0
+#define BNAD_RF_MTU_SET		1
 #define BNAD_RF_MBOX_IRQ_DISABLED	2
-#define BNAD_RF_RX_STARTED		3
+#define BNAD_RF_NETDEV_REGISTERED	3
 #define BNAD_RF_DIM_TIMER_RUNNING	4
 #define BNAD_RF_STATS_TIMER_RUNNING	5
-#define BNAD_RF_TX_SHUTDOWN_DELAYED	6
-#define BNAD_RF_RX_SHUTDOWN_DELAYED	7
+#define BNAD_RF_TX_PRIO_SET		6
+
+
+/* Define for Fast Path flags */
+/* Defined as bit positions */
+#define BNAD_FP_IN_RX_PATH	      0
 
 struct bnad {
 	struct net_device	*netdev;
@@ -265,6 +282,7 @@ struct bnad {
 
 	/* Control path resources, memory & irq */
 	struct bna_res_info res_info[BNA_RES_T_MAX];
+	struct bna_res_info mod_res_info[BNA_MOD_RES_T_MAX];
 	struct bnad_tx_res_info tx_res_info[BNAD_MAX_TXS];
 	struct bnad_rx_res_info rx_res_info[BNAD_MAX_RXS];
 
@@ -302,10 +320,10 @@ extern void bnad_set_ethtool_ops(struct net_device *netdev);
 extern void bnad_tx_coalescing_timeo_set(struct bnad *bnad);
 extern void bnad_rx_coalescing_timeo_set(struct bnad *bnad);
 
-extern int bnad_setup_rx(struct bnad *bnad, uint rx_id);
-extern int bnad_setup_tx(struct bnad *bnad, uint tx_id);
-extern void bnad_cleanup_tx(struct bnad *bnad, uint tx_id);
-extern void bnad_cleanup_rx(struct bnad *bnad, uint rx_id);
+extern int bnad_setup_rx(struct bnad *bnad, u32 rx_id);
+extern int bnad_setup_tx(struct bnad *bnad, u32 tx_id);
+extern void bnad_cleanup_tx(struct bnad *bnad, u32 tx_id);
+extern void bnad_cleanup_rx(struct bnad *bnad, u32 rx_id);
 
 /* Timer start/stop protos */
 extern void bnad_dim_timer_start(struct bnad *bnad);

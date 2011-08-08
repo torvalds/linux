@@ -46,7 +46,8 @@ static void bfa_ioc_ct_sync_join(struct bfa_ioc *ioc);
 static void bfa_ioc_ct_sync_leave(struct bfa_ioc *ioc);
 static void bfa_ioc_ct_sync_ack(struct bfa_ioc *ioc);
 static bool bfa_ioc_ct_sync_complete(struct bfa_ioc *ioc);
-static enum bfa_status bfa_ioc_ct_pll_init(void __iomem *rb, bool fcmode);
+static enum bfa_status bfa_ioc_ct_pll_init(void __iomem *rb,
+				enum bfi_asic_mode asic_mode);
 
 static struct bfa_ioc_hwif nw_hwif_ct;
 
@@ -92,7 +93,7 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc *ioc)
 	/**
 	 * If bios boot (flash based) -- do not increment usage count
 	 */
-	if (bfa_cb_image_get_size(BFA_IOC_FWIMG_TYPE(ioc)) <
+	if (bfa_cb_image_get_size(bfa_ioc_asic_gen(ioc)) <
 						BFA_IOC_FWIMG_MINSZ)
 		return true;
 
@@ -142,7 +143,7 @@ bfa_ioc_ct_firmware_unlock(struct bfa_ioc *ioc)
 	/**
 	 * If bios boot (flash based) -- do not decrement usage count
 	 */
-	if (bfa_cb_image_get_size(BFA_IOC_FWIMG_TYPE(ioc)) <
+	if (bfa_cb_image_get_size(bfa_ioc_asic_gen(ioc)) <
 						BFA_IOC_FWIMG_MINSZ)
 		return;
 
@@ -165,22 +166,17 @@ bfa_ioc_ct_firmware_unlock(struct bfa_ioc *ioc)
 static void
 bfa_ioc_ct_notify_fail(struct bfa_ioc *ioc)
 {
-	if (ioc->cna) {
-		writel(__FW_INIT_HALT_P, ioc->ioc_regs.ll_halt);
-		writel(__FW_INIT_HALT_P, ioc->ioc_regs.alt_ll_halt);
-		/* Wait for halt to take effect */
-		readl(ioc->ioc_regs.ll_halt);
-		readl(ioc->ioc_regs.alt_ll_halt);
-	} else {
-		writel(~0U, ioc->ioc_regs.err_set);
-		readl(ioc->ioc_regs.err_set);
-	}
+	writel(__FW_INIT_HALT_P, ioc->ioc_regs.ll_halt);
+	writel(__FW_INIT_HALT_P, ioc->ioc_regs.alt_ll_halt);
+	/* Wait for halt to take effect */
+	readl(ioc->ioc_regs.ll_halt);
+	readl(ioc->ioc_regs.alt_ll_halt);
 }
 
 /**
  * Host to LPU mailbox message addresses
  */
-static struct { u32 hfn_mbox, lpu_mbox, hfn_pgn; } iocreg_fnreg[] = {
+static struct { u32 hfn_mbox, lpu_mbox, hfn_pgn; } ct_fnreg[] = {
 	{ HOSTFN0_LPU_MBOX0_0, LPU_HOSTFN0_MBOX0_0, HOST_PAGE_NUM_FN0 },
 	{ HOSTFN1_LPU_MBOX0_8, LPU_HOSTFN1_MBOX0_8, HOST_PAGE_NUM_FN1 },
 	{ HOSTFN2_LPU_MBOX0_0, LPU_HOSTFN2_MBOX0_0, HOST_PAGE_NUM_FN2 },
@@ -215,9 +211,9 @@ bfa_ioc_ct_reg_init(struct bfa_ioc *ioc)
 
 	rb = bfa_ioc_bar0(ioc);
 
-	ioc->ioc_regs.hfn_mbox = rb + iocreg_fnreg[pcifn].hfn_mbox;
-	ioc->ioc_regs.lpu_mbox = rb + iocreg_fnreg[pcifn].lpu_mbox;
-	ioc->ioc_regs.host_page_num_fn = rb + iocreg_fnreg[pcifn].hfn_pgn;
+	ioc->ioc_regs.hfn_mbox = rb + ct_fnreg[pcifn].hfn_mbox;
+	ioc->ioc_regs.lpu_mbox = rb + ct_fnreg[pcifn].lpu_mbox;
+	ioc->ioc_regs.host_page_num_fn = rb + ct_fnreg[pcifn].hfn_pgn;
 
 	if (ioc->port_id == 0) {
 		ioc->ioc_regs.heartbeat = rb + BFA_IOC0_HBEAT_REG;
@@ -323,11 +319,9 @@ bfa_ioc_ct_isr_mode_set(struct bfa_ioc *ioc, bool msix)
 static void
 bfa_ioc_ct_ownership_reset(struct bfa_ioc *ioc)
 {
-	if (ioc->cna) {
-		bfa_nw_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
-		writel(0, ioc->ioc_regs.ioc_usage_reg);
-		bfa_nw_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
-	}
+	bfa_nw_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
+	writel(0, ioc->ioc_regs.ioc_usage_reg);
+	bfa_nw_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
 
 	/*
 	 * Read the hw sem reg to make sure that it is locked
@@ -436,9 +430,10 @@ bfa_ioc_ct_sync_complete(struct bfa_ioc *ioc)
 }
 
 static enum bfa_status
-bfa_ioc_ct_pll_init(void __iomem *rb, bool fcmode)
+bfa_ioc_ct_pll_init(void __iomem *rb, enum bfi_asic_mode asic_mode)
 {
 	u32	pll_sclk, pll_fclk, r32;
+	bool fcmode = (asic_mode == BFI_ASIC_MODE_FC);
 
 	pll_sclk = __APP_PLL_SCLK_LRESETN | __APP_PLL_SCLK_ENARST |
 		__APP_PLL_SCLK_RSEL200500 | __APP_PLL_SCLK_P0_1(3U) |

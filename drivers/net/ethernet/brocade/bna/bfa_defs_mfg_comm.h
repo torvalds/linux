@@ -19,11 +19,12 @@
 #define __BFA_DEFS_MFG_COMM_H__
 
 #include "cna.h"
+#include "bfa_defs.h"
 
 /**
  * Manufacturing block version
  */
-#define BFA_MFG_VERSION				2
+#define BFA_MFG_VERSION				3
 #define BFA_MFG_VERSION_UNINIT			0xFF
 
 /**
@@ -95,26 +96,13 @@ enum {
 	(type) == BFA_MFG_TYPE_CNA10P1 || \
 	bfa_mfg_is_mezz(type)))
 
-#define bfa_mfg_adapter_prop_init_flash(card_type, prop)	\
+#define bfa_mfg_adapter_prop_init_flash_ct(mfgblk, prop)	\
 do {								\
-	switch ((card_type)) {					\
-	case BFA_MFG_TYPE_FC8P2:				\
+	switch ((mfgblk)->card_type) {				\
 	case BFA_MFG_TYPE_JAYHAWK:				\
 	case BFA_MFG_TYPE_ASTRA:				\
 		(prop) = BFI_ADAPTER_SETP(NPORTS, 2) |		\
 			BFI_ADAPTER_SETP(SPEED, 8);		\
-		break;						\
-	case BFA_MFG_TYPE_FC8P1:				\
-		(prop) = BFI_ADAPTER_SETP(NPORTS, 1) |		\
-			BFI_ADAPTER_SETP(SPEED, 8);		\
-		break;						\
-	case BFA_MFG_TYPE_FC4P2:				\
-		(prop) = BFI_ADAPTER_SETP(NPORTS, 2) |		\
-			BFI_ADAPTER_SETP(SPEED, 4);		\
-		break;						\
-	case BFA_MFG_TYPE_FC4P1:				\
-		(prop) = BFI_ADAPTER_SETP(NPORTS, 1) |		\
-			BFI_ADAPTER_SETP(SPEED, 4);		\
 		break;						\
 	case BFA_MFG_TYPE_CNA10P2:				\
 	case BFA_MFG_TYPE_WANCHESE:				\

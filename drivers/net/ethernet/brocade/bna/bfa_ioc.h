@@ -27,6 +27,7 @@
 #define BFA_IOC_HWSEM_TOV	500	/* msecs */
 #define BFA_IOC_HB_TOV		500	/* msecs */
 #define BFA_IOC_HWINIT_MAX	5
+#define BFA_IOC_POLL_TOV	200	/* msecs */
 
 /**
  * PCI device information required by IOC
@@ -169,8 +170,9 @@ struct bfa_ioc_hbfail_notify {
 struct bfa_iocpf {
 	bfa_fsm_t		fsm;
 	struct bfa_ioc		*ioc;
-	u32			retry_count;
+	bool			fw_mismatch_notified;
 	bool			auto_recover;
+	u32			poll_time;
 };
 
 struct bfa_ioc {
@@ -186,12 +188,10 @@ struct bfa_ioc {
 	void			*dbg_fwsave;
 	int			dbg_fwsave_len;
 	bool			dbg_fwsave_once;
-	enum bfi_mclass		ioc_mc;
+	enum bfi_pcifn_class	clscode;
 	struct bfa_ioc_regs	ioc_regs;
 	struct bfa_ioc_drv_stats stats;
 	bool			fcmode;
-	bool			ctdev;
-	bool			cna;
 	bool			pllinit;
 	bool			stats_busy;	/*!< outstanding stats */
 	u8			port_id;
@@ -202,10 +202,18 @@ struct bfa_ioc {
 	struct bfa_ioc_mbox_mod	mbox_mod;
 	struct bfa_ioc_hwif	*ioc_hwif;
 	struct bfa_iocpf	iocpf;
+	enum bfi_asic_gen	asic_gen;
+	enum bfi_asic_mode	asic_mode;
+	enum bfi_port_mode	port0_mode;
+	enum bfi_port_mode	port1_mode;
+	enum bfa_mode		port_mode;
+	u8			ad_cap_bm;	/*!< adapter cap bit mask */
+	u8			port_mode_cfg;	/*!< config port mode */
 };
 
 struct bfa_ioc_hwif {
-	enum bfa_status (*ioc_pll_init) (void __iomem *rb, bool fcmode);
+	enum bfa_status (*ioc_pll_init) (void __iomem *rb,
+						enum bfi_asic_mode m);
 	bool		(*ioc_firmware_lock)	(struct bfa_ioc *ioc);
 	void		(*ioc_firmware_unlock)	(struct bfa_ioc *ioc);
 	void		(*ioc_reg_init)	(struct bfa_ioc *ioc);
@@ -219,12 +227,14 @@ struct bfa_ioc_hwif {
 	void		(*ioc_sync_leave)	(struct bfa_ioc *ioc);
 	void		(*ioc_sync_ack)		(struct bfa_ioc *ioc);
 	bool		(*ioc_sync_complete)	(struct bfa_ioc *ioc);
+	bool		(*ioc_lpu_read_stat)	(struct bfa_ioc *ioc);
 };
 
 #define bfa_ioc_pcifn(__ioc)		((__ioc)->pcidev.pci_func)
 #define bfa_ioc_devid(__ioc)		((__ioc)->pcidev.device_id)
 #define bfa_ioc_bar0(__ioc)		((__ioc)->pcidev.pci_bar_kva)
 #define bfa_ioc_portid(__ioc)		((__ioc)->port_id)
+#define bfa_ioc_asic_gen(__ioc)		((__ioc)->asic_gen)
 #define bfa_ioc_fetch_stats(__ioc, __stats) \
 		(((__stats)->drv_stats) = (__ioc)->stats)
 #define bfa_ioc_clr_stats(__ioc)	\
@@ -245,7 +255,8 @@ struct bfa_ioc_hwif {
 	 (((__ioc)->fcmode) ? BFI_IMAGE_CT_FC : BFI_IMAGE_CT_CNA) :	\
 	 BFI_IMAGE_CB_FC)
 #define BFA_IOC_FW_SMEM_SIZE(__ioc)					\
-	(((__ioc)->ctdev) ? BFI_SMEM_CT_SIZE : BFI_SMEM_CB_SIZE)
+	((bfa_ioc_asic_gen(__ioc) == BFI_ASIC_GEN_CB)			\
+	? BFI_SMEM_CB_SIZE : BFI_SMEM_CT_SIZE)
 #define BFA_IOC_FLASH_CHUNK_NO(off)		(off / BFI_FLASH_CHUNK_SZ_WORDS)
 #define BFA_IOC_FLASH_OFFSET_IN_CHUNK(off)	(off % BFI_FLASH_CHUNK_SZ_WORDS)
 #define BFA_IOC_FLASH_CHUNK_ADDR(chunkno)  (chunkno * BFI_FLASH_CHUNK_SZ_WORDS)
@@ -266,12 +277,17 @@ void bfa_nw_ioc_mbox_regisr(struct bfa_ioc *ioc, enum bfi_mclass mc,
 
 #define bfa_ioc_pll_init_asic(__ioc) \
 	((__ioc)->ioc_hwif->ioc_pll_init((__ioc)->pcidev.pci_bar_kva, \
-			   (__ioc)->fcmode))
+			   (__ioc)->asic_mode))
 
 #define	bfa_ioc_isr_mode_set(__ioc, __msix)			\
 			((__ioc)->ioc_hwif->ioc_isr_mode_set(__ioc, __msix))
 #define	bfa_ioc_ownership_reset(__ioc)				\
 			((__ioc)->ioc_hwif->ioc_ownership_reset(__ioc))
+
+#define bfa_ioc_lpu_read_stat(__ioc) do {				\
+		if ((__ioc)->ioc_hwif->ioc_lpu_read_stat)		\
+			((__ioc)->ioc_hwif->ioc_lpu_read_stat(__ioc));	\
+} while (0)
 
 void bfa_nw_ioc_set_ct_hwif(struct bfa_ioc *ioc);
 
@@ -280,7 +296,7 @@ void bfa_nw_ioc_attach(struct bfa_ioc *ioc, void *bfa,
 void bfa_nw_ioc_auto_recover(bool auto_recover);
 void bfa_nw_ioc_detach(struct bfa_ioc *ioc);
 void bfa_nw_ioc_pci_init(struct bfa_ioc *ioc, struct bfa_pcidev *pcidev,
-		enum bfi_mclass mc);
+		enum bfi_pcifn_class clscode);
 u32 bfa_nw_ioc_meminfo(void);
 void bfa_nw_ioc_mem_claim(struct bfa_ioc *ioc,  u8 *dm_kva, u64 dm_pa);
 void bfa_nw_ioc_enable(struct bfa_ioc *ioc);
@@ -311,7 +327,7 @@ void bfa_nw_iocpf_sem_timeout(void *ioc);
 /*
  * F/W Image Size & Chunk
  */
-u32 *bfa_cb_image_get_chunk(int type, u32 off);
-u32 bfa_cb_image_get_size(int type);
+u32 *bfa_cb_image_get_chunk(enum bfi_asic_gen asic_gen, u32 off);
+u32 bfa_cb_image_get_size(enum bfi_asic_gen asic_gen);
 
 #endif /* __BFA_IOC_H__ */

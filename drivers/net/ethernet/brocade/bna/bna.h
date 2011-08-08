@@ -40,7 +40,7 @@ do {									\
 	(_qe)->cbarg = (_cbarg);					\
 } while (0)
 
-#define bna_is_small_rxq(rcb) ((rcb)->id == 1)
+#define bna_is_small_rxq(_id) ((_id) & 0x1)
 
 #define BNA_MAC_IS_EQUAL(_mac1, _mac2)					\
 	(!memcmp((_mac1), (_mac2), sizeof(mac_t)))
@@ -214,38 +214,59 @@ do {									\
 	}								\
 } while (0)
 
-#define	call_rxf_stop_cbfn(rxf, status)					\
+#define	call_rxf_stop_cbfn(rxf)						\
+do {									\
 	if ((rxf)->stop_cbfn) {						\
-		(*(rxf)->stop_cbfn)((rxf)->stop_cbarg, (status));	\
+		void (*cbfn)(struct bna_rx *);			\
+		struct bna_rx *cbarg;					\
+		cbfn = (rxf)->stop_cbfn;				\
+		cbarg = (rxf)->stop_cbarg;				\
 		(rxf)->stop_cbfn = NULL;				\
 		(rxf)->stop_cbarg = NULL;				\
-	}
+		cbfn(cbarg);						\
+	}								\
+} while (0)
 
-#define	call_rxf_start_cbfn(rxf, status)				\
+#define	call_rxf_start_cbfn(rxf)					\
+do {									\
 	if ((rxf)->start_cbfn) {					\
-		(*(rxf)->start_cbfn)((rxf)->start_cbarg, (status));	\
+		void (*cbfn)(struct bna_rx *);			\
+		struct bna_rx *cbarg;					\
+		cbfn = (rxf)->start_cbfn;				\
+		cbarg = (rxf)->start_cbarg;				\
 		(rxf)->start_cbfn = NULL;				\
 		(rxf)->start_cbarg = NULL;				\
-	}
+		cbfn(cbarg);						\
+	}								\
+} while (0)
 
-#define	call_rxf_cam_fltr_cbfn(rxf, status)				\
+#define	call_rxf_cam_fltr_cbfn(rxf)					\
+do {									\
 	if ((rxf)->cam_fltr_cbfn) {					\
-		(*(rxf)->cam_fltr_cbfn)((rxf)->cam_fltr_cbarg, rxf->rx,	\
-					(status));			\
+		void (*cbfn)(struct bnad *, struct bna_rx *);	\
+		struct bnad *cbarg;					\
+		cbfn = (rxf)->cam_fltr_cbfn;				\
+		cbarg = (rxf)->cam_fltr_cbarg;				\
 		(rxf)->cam_fltr_cbfn = NULL;				\
 		(rxf)->cam_fltr_cbarg = NULL;				\
-	}
+		cbfn(cbarg, rxf->rx);					\
+	}								\
+} while (0)
 
-#define	call_rxf_pause_cbfn(rxf, status)				\
+#define	call_rxf_pause_cbfn(rxf)					\
+do {									\
 	if ((rxf)->oper_state_cbfn) {					\
-		(*(rxf)->oper_state_cbfn)((rxf)->oper_state_cbarg, rxf->rx,\
-					(status));			\
-		(rxf)->rxf_flags &= ~BNA_RXF_FL_OPERSTATE_CHANGED;	\
+		void (*cbfn)(struct bnad *, struct bna_rx *);	\
+		struct bnad *cbarg;					\
+		cbfn = (rxf)->oper_state_cbfn;				\
+		cbarg = (rxf)->oper_state_cbarg;			\
 		(rxf)->oper_state_cbfn = NULL;				\
 		(rxf)->oper_state_cbarg = NULL;				\
-	}
+		cbfn(cbarg, rxf->rx);					\
+	}								\
+} while (0)
 
-#define	call_rxf_resume_cbfn(rxf, status) call_rxf_pause_cbfn(rxf, status)
+#define	call_rxf_resume_cbfn(rxf) call_rxf_pause_cbfn(rxf)
 
 #define is_xxx_enable(mode, bitmask, xxx) ((bitmask & xxx) && (mode & xxx))
 
@@ -331,6 +352,61 @@ do {									\
 	}								\
 } while (0)
 
+#define bna_tx_rid_mask(_bna) ((_bna)->tx_mod.rid_mask)
+
+#define bna_rx_rid_mask(_bna) ((_bna)->rx_mod.rid_mask)
+
+#define bna_tx_from_rid(_bna, _rid, _tx)				\
+do {								    \
+	struct bna_tx_mod *__tx_mod = &(_bna)->tx_mod;	  \
+	struct bna_tx *__tx;					    \
+	struct list_head *qe;					   \
+	_tx = NULL;						     \
+	list_for_each(qe, &__tx_mod->tx_active_q) {		     \
+		__tx = (struct bna_tx *)qe;			     \
+		if (__tx->rid == (_rid)) {			      \
+			(_tx) = __tx;				   \
+			break;					  \
+		}						       \
+	}							       \
+} while (0)
+
+#define bna_rx_from_rid(_bna, _rid, _rx)				\
+do {									\
+	struct bna_rx_mod *__rx_mod = &(_bna)->rx_mod;			\
+	struct bna_rx *__rx;						\
+	struct list_head *qe;						\
+	_rx = NULL;							\
+	list_for_each(qe, &__rx_mod->rx_active_q) {			\
+		__rx = (struct bna_rx *)qe;				\
+		if (__rx->rid == (_rid)) {				\
+			(_rx) = __rx;					\
+			break;						\
+		}							\
+	}								\
+} while (0)
+
+/**
+ *
+ *  Inline functions
+ *
+ */
+
+static inline struct bna_mac *bna_mac_find(struct list_head *q, u8 *addr)
+{
+	struct bna_mac *mac = NULL;
+	struct list_head *qe;
+	list_for_each(qe, q) {
+		if (BNA_MAC_IS_EQUAL(((struct bna_mac *)qe)->addr, addr)) {
+			mac = (struct bna_mac *)qe;
+			break;
+		}
+	}
+	return mac;
+}
+
+#define bna_attr(_bna) (&(_bna)->ioceth.attr)
+
 /**
  *
  * Function prototypes
@@ -341,14 +417,22 @@ do {									\
  * BNA
  */
 
+/* FW response handlers */
+void bna_bfi_stats_clr_rsp(struct bna *bna, struct bfi_msgq_mhdr *msghdr);
+
 /* APIs for BNAD */
 void bna_res_req(struct bna_res_info *res_info);
+void bna_mod_res_req(struct bna *bna, struct bna_res_info *res_info);
 void bna_init(struct bna *bna, struct bnad *bnad,
 			struct bfa_pcidev *pcidev,
 			struct bna_res_info *res_info);
+void bna_mod_init(struct bna *bna, struct bna_res_info *res_info);
 void bna_uninit(struct bna *bna);
+int bna_num_txq_set(struct bna *bna, int num_txq);
+int bna_num_rxp_set(struct bna *bna, int num_rxp);
 void bna_stats_get(struct bna *bna);
 void bna_get_perm_mac(struct bna *bna, u8 *mac);
+void bna_hw_stats_get(struct bna *bna);
 
 /* APIs for Rx */
 int bna_rit_mod_can_satisfy(struct bna_rit_mod *rit_mod, int seg_size);
@@ -360,6 +444,9 @@ void bna_ucam_mod_mac_put(struct bna_ucam_mod *ucam_mod,
 struct bna_mac *bna_mcam_mod_mac_get(struct bna_mcam_mod *mcam_mod);
 void bna_mcam_mod_mac_put(struct bna_mcam_mod *mcam_mod,
 			  struct bna_mac *mac);
+struct bna_mcam_handle *bna_mcam_mod_handle_get(struct bna_mcam_mod *mod);
+void bna_mcam_mod_handle_put(struct bna_mcam_mod *mcam_mod,
+			  struct bna_mcam_handle *handle);
 struct bna_rit_segment *
 bna_rit_mod_seg_get(struct bna_rit_mod *rit_mod, int seg_size);
 void bna_rit_mod_seg_put(struct bna_rit_mod *rit_mod,
@@ -409,6 +496,14 @@ void bna_port_cb_rx_stopped(struct bna_port *port,
 			    enum bna_cb_status status);
 
 /**
+ * ETHPORT
+ */
+
+/* Callbacks for RX */
+void bna_ethport_cb_rx_started(struct bna_ethport *ethport);
+void bna_ethport_cb_rx_stopped(struct bna_ethport *ethport);
+
+/**
  * IB
  */
 
@@ -420,6 +515,12 @@ void bna_ib_mod_uninit(struct bna_ib_mod *ib_mod);
 /**
  * TX MODULE AND TX
  */
+/* FW response handelrs */
+void bna_bfi_tx_enet_start_rsp(struct bna_tx *tx,
+			       struct bfi_msgq_mhdr *msghdr);
+void bna_bfi_tx_enet_stop_rsp(struct bna_tx *tx,
+			      struct bfi_msgq_mhdr *msghdr);
+void bna_bfi_bw_update_aen(struct bna_tx_mod *tx_mod);
 
 /* APIs for BNA */
 void bna_tx_mod_init(struct bna_tx_mod *tx_mod, struct bna *bna,
@@ -427,7 +528,7 @@ void bna_tx_mod_init(struct bna_tx_mod *tx_mod, struct bna *bna,
 void bna_tx_mod_uninit(struct bna_tx_mod *tx_mod);
 int bna_tx_state_get(struct bna_tx *tx);
 
-/* APIs for PORT */
+/* APIs for ENET */
 void bna_tx_mod_start(struct bna_tx_mod *tx_mod, enum bna_tx_type type);
 void bna_tx_mod_stop(struct bna_tx_mod *tx_mod, enum bna_tx_type type);
 void bna_tx_mod_fail(struct bna_tx_mod *tx_mod);
@@ -444,8 +545,8 @@ struct bna_tx *bna_tx_create(struct bna *bna, struct bnad *bnad,
 void bna_tx_destroy(struct bna_tx *tx);
 void bna_tx_enable(struct bna_tx *tx);
 void bna_tx_disable(struct bna_tx *tx, enum bna_cleanup_type type,
-		    void (*cbfn)(void *, struct bna_tx *,
-				 enum bna_cb_status));
+		    void (*cbfn)(void *, struct bna_tx *));
+void bna_tx_cleanup_complete(struct bna_tx *tx);
 void bna_tx_coalescing_timeo_set(struct bna_tx *tx, int coalescing_timeo);
 
 /**
@@ -473,6 +574,15 @@ void rxf_reset_packet_filter_promisc(struct bna_rxf *rxf);
 void rxf_reset_packet_filter_default(struct bna_rxf *rxf);
 void rxf_reset_packet_filter_allmulti(struct bna_rxf *rxf);
 
+/* FW response handlers */
+void bna_bfi_rx_enet_start_rsp(struct bna_rx *rx,
+			       struct bfi_msgq_mhdr *msghdr);
+void bna_bfi_rx_enet_stop_rsp(struct bna_rx *rx,
+			      struct bfi_msgq_mhdr *msghdr);
+void bna_bfi_rxf_cfg_rsp(struct bna_rxf *rxf, struct bfi_msgq_mhdr *msghdr);
+void bna_bfi_rxf_mcast_add_rsp(struct bna_rxf *rxf,
+			       struct bfi_msgq_mhdr *msghdr);
+
 /* APIs for BNA */
 void bna_rx_mod_init(struct bna_rx_mod *rx_mod, struct bna *bna,
 		     struct bna_res_info *res_info);
@@ -480,7 +590,7 @@ void bna_rx_mod_uninit(struct bna_rx_mod *rx_mod);
 int bna_rx_state_get(struct bna_rx *rx);
 int bna_rxf_state_get(struct bna_rxf *rxf);
 
-/* APIs for PORT */
+/* APIs for ENET */
 void bna_rx_mod_start(struct bna_rx_mod *rx_mod, enum bna_rx_type type);
 void bna_rx_mod_stop(struct bna_rx_mod *rx_mod, enum bna_rx_type type);
 void bna_rx_mod_fail(struct bna_rx_mod *rx_mod);
@@ -495,41 +605,83 @@ struct bna_rx *bna_rx_create(struct bna *bna, struct bnad *bnad,
 void bna_rx_destroy(struct bna_rx *rx);
 void bna_rx_enable(struct bna_rx *rx);
 void bna_rx_disable(struct bna_rx *rx, enum bna_cleanup_type type,
-		    void (*cbfn)(void *, struct bna_rx *,
-				 enum bna_cb_status));
+		    void (*cbfn)(void *, struct bna_rx *));
+void bna_rx_cleanup_complete(struct bna_rx *rx);
 void bna_rx_coalescing_timeo_set(struct bna_rx *rx, int coalescing_timeo);
 void bna_rx_dim_reconfig(struct bna *bna, const u32 vector[][BNA_BIAS_T_MAX]);
 void bna_rx_dim_update(struct bna_ccb *ccb);
 enum bna_cb_status
 bna_rx_ucast_set(struct bna_rx *rx, u8 *ucmac,
-		 void (*cbfn)(struct bnad *, struct bna_rx *,
-			      enum bna_cb_status));
+		 void (*cbfn)(struct bnad *, struct bna_rx *));
+enum bna_cb_status
+bna_rx_ucast_add(struct bna_rx *rx, u8* ucmac,
+		 void (*cbfn)(struct bnad *, struct bna_rx *));
+enum bna_cb_status
+bna_rx_ucast_del(struct bna_rx *rx, u8 *ucmac,
+		 void (*cbfn)(struct bnad *, struct bna_rx *));
 enum bna_cb_status
 bna_rx_mcast_add(struct bna_rx *rx, u8 *mcmac,
-		 void (*cbfn)(struct bnad *, struct bna_rx *,
-			      enum bna_cb_status));
+		 void (*cbfn)(struct bnad *, struct bna_rx *));
 enum bna_cb_status
 bna_rx_mcast_listset(struct bna_rx *rx, int count, u8 *mcmac,
-		     void (*cbfn)(struct bnad *, struct bna_rx *,
-				  enum bna_cb_status));
+		     void (*cbfn)(struct bnad *, struct bna_rx *));
 enum bna_cb_status
 bna_rx_mode_set(struct bna_rx *rx, enum bna_rxmode rxmode,
 		enum bna_rxmode bitmask,
-		void (*cbfn)(struct bnad *, struct bna_rx *,
-			     enum bna_cb_status));
+		void (*cbfn)(struct bnad *, struct bna_rx *));
 void bna_rx_vlan_add(struct bna_rx *rx, int vlan_id);
 void bna_rx_vlan_del(struct bna_rx *rx, int vlan_id);
 void bna_rx_vlanfilter_enable(struct bna_rx *rx);
-void bna_rx_hds_enable(struct bna_rx *rx, struct bna_rxf_hds *hds_config,
-		       void (*cbfn)(struct bnad *, struct bna_rx *,
-				    enum bna_cb_status));
+void bna_rx_hds_enable(struct bna_rx *rx, struct bna_hds_config *hds_config,
+		       void (*cbfn)(struct bnad *, struct bna_rx *));
 void bna_rx_hds_disable(struct bna_rx *rx,
-			void (*cbfn)(struct bnad *, struct bna_rx *,
-				     enum bna_cb_status));
+			void (*cbfn)(struct bnad *, struct bna_rx *));
+
+/**
+ * ENET
+ */
+
+/* API for RX */
+int bna_enet_mtu_get(struct bna_enet *enet);
+
+/* Callbacks for TX, RX */
+void bna_enet_cb_tx_stopped(struct bna_enet *enet);
+void bna_enet_cb_rx_stopped(struct bna_enet *enet);
+
+/* API for BNAD */
+void bna_enet_enable(struct bna_enet *enet);
+void bna_enet_disable(struct bna_enet *enet, enum bna_cleanup_type type,
+		      void (*cbfn)(void *));
+void bna_enet_pause_config(struct bna_enet *enet,
+			   struct bna_pause_config *pause_config,
+			   void (*cbfn)(struct bnad *));
+void bna_enet_mtu_set(struct bna_enet *enet, int mtu,
+		      void (*cbfn)(struct bnad *));
+void bna_enet_perm_mac_get(struct bna_enet *enet, mac_t *mac);
+
+/**
+ * IOCETH
+ */
+
+/* APIs for BNAD */
+void bna_ioceth_enable(struct bna_ioceth *ioceth);
+void bna_ioceth_disable(struct bna_ioceth *ioceth,
+			enum bna_cleanup_type type);
 
 /**
  * BNAD
  */
+
+/* Callbacks for ENET */
+void bnad_cb_ethport_link_status(struct bnad *bnad,
+			      enum bna_link_status status);
+
+/* Callbacks for IOCETH */
+void bnad_cb_ioceth_ready(struct bnad *bnad);
+void bnad_cb_ioceth_failed(struct bnad *bnad);
+void bnad_cb_ioceth_disabled(struct bnad *bnad);
+void bnad_cb_mbox_intr_enable(struct bnad *bnad);
+void bnad_cb_mbox_intr_disable(struct bnad *bnad);
 
 /* Callbacks for BNA */
 void bnad_cb_stats_get(struct bnad *bnad, enum bna_cb_status status,
