@@ -18,6 +18,7 @@
 #define _BRCM_TYPES_H_
 
 #include <linux/types.h>
+#include <linux/io.h>
 
 /* Bus types */
 #define	SI_BUS			0	/* SOC Interconnect */
