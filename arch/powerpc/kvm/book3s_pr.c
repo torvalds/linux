@@ -150,13 +150,15 @@ void kvmppc_set_pvr(struct kvm_vcpu *vcpu, u32 pvr)
 #ifdef CONFIG_PPC_BOOK3S_64
 	if ((pvr >= 0x330000) && (pvr < 0x70330000)) {
 		kvmppc_mmu_book3s_64_init(vcpu);
-		to_book3s(vcpu)->hior = 0xfff00000;
+		if (!to_book3s(vcpu)->hior_sregs)
+			to_book3s(vcpu)->hior = 0xfff00000;
 		to_book3s(vcpu)->msr_mask = 0xffffffffffffffffULL;
 	} else
 #endif
 	{
 		kvmppc_mmu_book3s_32_init(vcpu);
-		to_book3s(vcpu)->hior = 0;
+		if (!to_book3s(vcpu)->hior_sregs)
+			to_book3s(vcpu)->hior = 0;
 		to_book3s(vcpu)->msr_mask = 0xffffffffULL;
 	}
 
@@ -770,6 +772,9 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 		}
 	}
 
+	if (sregs->u.s.flags & KVM_SREGS_S_HIOR)
+		sregs->u.s.hior = to_book3s(vcpu)->hior;
+
 	return 0;
 }
 
@@ -805,6 +810,11 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 
 	/* Flush the MMU after messing with the segments */
 	kvmppc_mmu_pte_flush(vcpu, 0, 0);
+
+	if (sregs->u.s.flags & KVM_SREGS_S_HIOR) {
+		to_book3s(vcpu)->hior_sregs = true;
+		to_book3s(vcpu)->hior = sregs->u.s.hior;
+	}
 
 	return 0;
 }

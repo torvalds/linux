@@ -188,6 +188,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PPC_BOOKE_SREGS:
 #else
 	case KVM_CAP_PPC_SEGSTATE:
+	case KVM_CAP_PPC_HIOR:
 #endif
 	case KVM_CAP_PPC_UNSET_IRQ:
 	case KVM_CAP_PPC_IRQ_LEVEL:
