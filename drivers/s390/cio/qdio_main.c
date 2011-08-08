@@ -1592,12 +1592,9 @@ set:
 	used = atomic_add_return(count, &q->nr_buf_used) - count;
 	BUG_ON(used + count > QDIO_MAX_BUFFERS_PER_Q);
 
-	/* no need to signal as long as the adapter had free buffers */
-	if (used)
-		return 0;
-
 	if (need_siga_in(q))
 		return qdio_siga_input(q);
+
 	return 0;
 }
 

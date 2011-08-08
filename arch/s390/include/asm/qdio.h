@@ -279,6 +279,16 @@ struct qdio_outbuf_state {
 
 #define CHSC_AC1_INITIATE_INPUTQ	0x80
 
+
+/* qdio adapter-characteristics-1 flag */
+#define AC1_SIGA_INPUT_NEEDED		0x40	/* process input queues */
+#define AC1_SIGA_OUTPUT_NEEDED		0x20	/* process output queues */
+#define AC1_SIGA_SYNC_NEEDED		0x10	/* ask hypervisor to sync */
+#define AC1_AUTOMATIC_SYNC_ON_THININT	0x08	/* set by hypervisor */
+#define AC1_AUTOMATIC_SYNC_ON_OUT_PCI	0x04	/* set by hypervisor */
+#define AC1_SC_QEBSM_AVAILABLE		0x02	/* available for subchannel */
+#define AC1_SC_QEBSM_ENABLED		0x01	/* enabled for subchannel */
+
 #define CHSC_AC2_DATA_DIV_AVAILABLE	0x0010
 #define CHSC_AC2_DATA_DIV_ENABLED	0x0002
 

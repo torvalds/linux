@@ -87,15 +87,6 @@ enum qdio_irq_states {
 #define CHSC_FLAG_QDIO_CAPABILITY	0x80
 #define CHSC_FLAG_VALIDITY		0x40
 
-/* qdio adapter-characteristics-1 flag */
-#define AC1_SIGA_INPUT_NEEDED		0x40	/* process input queues */
-#define AC1_SIGA_OUTPUT_NEEDED		0x20	/* process output queues */
-#define AC1_SIGA_SYNC_NEEDED		0x10	/* ask hypervisor to sync */
-#define AC1_AUTOMATIC_SYNC_ON_THININT	0x08	/* set by hypervisor */
-#define AC1_AUTOMATIC_SYNC_ON_OUT_PCI	0x04	/* set by hypervisor */
-#define AC1_SC_QEBSM_AVAILABLE		0x02	/* available for subchannel */
-#define AC1_SC_QEBSM_ENABLED		0x01	/* enabled for subchannel */
-
 /* SIGA flags */
 #define QDIO_SIGA_WRITE		0x00
 #define QDIO_SIGA_READ		0x01
