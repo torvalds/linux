@@ -17,26 +17,14 @@
   $
  */
 
-#ifndef __MPUIRQ__
-#define __MPUIRQ__
+#ifndef __TIMERIRQ__
+#define __TIMERIRQ__
 
-#ifdef __KERNEL__
-#include <linux/i2c-dev.h>
-#include <linux/time.h>
-#else
-#include <sys/time.h>
-#endif
+#include "mpu.h"
 
-#define MPUIRQ_SET_TIMEOUT           _IOW(MPU_IOCTL, 0x40, unsigned long)
-#define MPUIRQ_GET_INTERRUPT_CNT     _IOR(MPU_IOCTL, 0x41, unsigned long)
-#define MPUIRQ_GET_IRQ_TIME          _IOR(MPU_IOCTL, 0x42, struct timeval)
-#define MPUIRQ_SET_FREQUENCY_DIVIDER _IOW(MPU_IOCTL, 0x43, unsigned long)
-
-#ifdef __KERNEL__
-
-void mpuirq_exit(void);
-int mpuirq_init(struct i2c_client *mpu_client);
-
-#endif
+#define TIMERIRQ_SET_TIMEOUT           _IOW(MPU_IOCTL, 0x60, unsigned long)
+#define TIMERIRQ_GET_INTERRUPT_CNT     _IOW(MPU_IOCTL, 0x61, unsigned long)
+#define TIMERIRQ_START                 _IOW(MPU_IOCTL, 0x62, unsigned long)
+#define TIMERIRQ_STOP                  _IO(MPU_IOCTL, 0x63)
 
 #endif
