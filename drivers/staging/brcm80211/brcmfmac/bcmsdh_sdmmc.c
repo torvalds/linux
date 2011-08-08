@@ -980,6 +980,8 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 			return -ENOMEM;
 		sdiodev->func1 = func;
 		dev_set_drvdata(&func->card->dev, sdiodev);
+
+		atomic_set(&brcmf_mmc_suspend, false);
 	}
 
 	gInstance->func[func->num] = func;
