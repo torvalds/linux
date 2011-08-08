@@ -1974,6 +1974,27 @@ out:
 	return rc;
 }
 
+struct iucv_interface iucv_if = {
+	.message_receive = iucv_message_receive,
+	.__message_receive = __iucv_message_receive,
+	.message_reply = iucv_message_reply,
+	.message_reject = iucv_message_reject,
+	.message_send = iucv_message_send,
+	.__message_send = __iucv_message_send,
+	.message_send2way = iucv_message_send2way,
+	.message_purge = iucv_message_purge,
+	.path_accept = iucv_path_accept,
+	.path_connect = iucv_path_connect,
+	.path_quiesce = iucv_path_quiesce,
+	.path_resume = iucv_path_resume,
+	.path_sever = iucv_path_sever,
+	.iucv_register = iucv_register,
+	.iucv_unregister = iucv_unregister,
+	.bus = NULL,
+	.root = NULL,
+};
+EXPORT_SYMBOL(iucv_if);
+
 /**
  * iucv_init
  *
@@ -2038,6 +2059,8 @@ static int __init iucv_init(void)
 	rc = bus_register(&iucv_bus);
 	if (rc)
 		goto out_reboot;
+	iucv_if.root = iucv_root;
+	iucv_if.bus = &iucv_bus;
 	return 0;
 
 out_reboot:
