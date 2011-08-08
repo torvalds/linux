@@ -446,23 +446,25 @@ static void iucv_sock_init(struct sock *sk, struct sock *parent)
 static struct sock *iucv_sock_alloc(struct socket *sock, int proto, gfp_t prio)
 {
 	struct sock *sk;
+	struct iucv_sock *iucv;
 
 	sk = sk_alloc(&init_net, PF_IUCV, prio, &iucv_proto);
 	if (!sk)
 		return NULL;
+	iucv = iucv_sk(sk);
 
 	sock_init_data(sock, sk);
-	INIT_LIST_HEAD(&iucv_sk(sk)->accept_q);
-	spin_lock_init(&iucv_sk(sk)->accept_q_lock);
-	skb_queue_head_init(&iucv_sk(sk)->send_skb_q);
-	INIT_LIST_HEAD(&iucv_sk(sk)->message_q.list);
-	spin_lock_init(&iucv_sk(sk)->message_q.lock);
-	skb_queue_head_init(&iucv_sk(sk)->backlog_skb_q);
-	iucv_sk(sk)->send_tag = 0;
-	iucv_sk(sk)->flags = 0;
-	iucv_sk(sk)->msglimit = IUCV_QUEUELEN_DEFAULT;
-	iucv_sk(sk)->path = NULL;
-	memset(&iucv_sk(sk)->src_user_id , 0, 32);
+	INIT_LIST_HEAD(&iucv->accept_q);
+	spin_lock_init(&iucv->accept_q_lock);
+	skb_queue_head_init(&iucv->send_skb_q);
+	INIT_LIST_HEAD(&iucv->message_q.list);
+	spin_lock_init(&iucv->message_q.lock);
+	skb_queue_head_init(&iucv->backlog_skb_q);
+	iucv->send_tag = 0;
+	iucv->flags = 0;
+	iucv->msglimit = IUCV_QUEUELEN_DEFAULT;
+	iucv->path = NULL;
+	memset(&iucv->src_user_id , 0, 32);
 
 	sk->sk_destruct = iucv_sock_destruct;
 	sk->sk_sndtimeo = IUCV_CONN_TIMEOUT;
@@ -669,7 +671,7 @@ static int iucv_sock_connect(struct socket *sock, struct sockaddr *addr,
 {
 	struct sockaddr_iucv *sa = (struct sockaddr_iucv *) addr;
 	struct sock *sk = sock->sk;
-	struct iucv_sock *iucv;
+	struct iucv_sock *iucv = iucv_sk(sk);
 	unsigned char user_data[16];
 	int err;
 
@@ -691,14 +693,13 @@ static int iucv_sock_connect(struct socket *sock, struct sockaddr *addr,
 	lock_sock(sk);
 
 	/* Set the destination information */
-	memcpy(iucv_sk(sk)->dst_user_id, sa->siucv_user_id, 8);
-	memcpy(iucv_sk(sk)->dst_name, sa->siucv_name, 8);
+	memcpy(iucv->dst_user_id, sa->siucv_user_id, 8);
+	memcpy(iucv->dst_name, sa->siucv_name, 8);
 
 	high_nmcpy(user_data, sa->siucv_name);
-	low_nmcpy(user_data, iucv_sk(sk)->src_name);
+	low_nmcpy(user_data, iucv->src_name);
 	ASCEBC(user_data, sizeof(user_data));
 
-	iucv = iucv_sk(sk);
 	/* Create path. */
 	iucv->path = iucv_path_alloc(iucv->msglimit,
 				     IUCV_IPRMDATA, GFP_KERNEL);
@@ -836,20 +837,21 @@ static int iucv_sock_getname(struct socket *sock, struct sockaddr *addr,
 {
 	struct sockaddr_iucv *siucv = (struct sockaddr_iucv *) addr;
 	struct sock *sk = sock->sk;
+	struct iucv_sock *iucv = iucv_sk(sk);
 
 	addr->sa_family = AF_IUCV;
 	*len = sizeof(struct sockaddr_iucv);
 
 	if (peer) {
-		memcpy(siucv->siucv_user_id, iucv_sk(sk)->dst_user_id, 8);
-		memcpy(siucv->siucv_name, &iucv_sk(sk)->dst_name, 8);
+		memcpy(siucv->siucv_user_id, iucv->dst_user_id, 8);
+		memcpy(siucv->siucv_name, iucv->dst_name, 8);
 	} else {
-		memcpy(siucv->siucv_user_id, iucv_sk(sk)->src_user_id, 8);
-		memcpy(siucv->siucv_name, iucv_sk(sk)->src_name, 8);
+		memcpy(siucv->siucv_user_id, iucv->src_user_id, 8);
+		memcpy(siucv->siucv_name, iucv->src_name, 8);
 	}
 	memset(&siucv->siucv_port, 0, sizeof(siucv->siucv_port));
 	memset(&siucv->siucv_addr, 0, sizeof(siucv->siucv_addr));
-	memset(siucv->siucv_nodeid, 0, sizeof(siucv->siucv_nodeid));
+	memset(&siucv->siucv_nodeid, 0, sizeof(siucv->siucv_nodeid));
 
 	return 0;
 }
