@@ -244,7 +244,7 @@ processor_set_cur_state(struct thermal_cooling_device *cdev,
 	return result;
 }
 
-struct thermal_cooling_device_ops processor_cooling_ops = {
+const struct thermal_cooling_device_ops processor_cooling_ops = {
 	.get_max_state = processor_get_max_state,
 	.get_cur_state = processor_get_cur_state,
 	.set_cur_state = processor_set_cur_state,

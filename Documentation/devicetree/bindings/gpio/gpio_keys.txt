@@ -10,7 +10,7 @@ Optional properties:
 Each button (key) is represented as a sub-node of "gpio-keys":
 Subnode properties:
 
-	- gpios: OF devcie-tree gpio specificatin.
+	- gpios: OF device-tree gpio specification.
 	- label: Descriptive name of the key.
 	- linux,code: Keycode to emit.
 

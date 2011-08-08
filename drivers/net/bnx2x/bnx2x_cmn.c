@@ -1989,14 +1989,20 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 		return -EINVAL;
 	}
 
+	/*
+	 * It's important to set the bp->state to the value different from
+	 * BNX2X_STATE_OPEN and only then stop the Tx. Otherwise bnx2x_tx_int()
+	 * may restart the Tx from the NAPI context (see bnx2x_tx_int()).
+	 */
+	bp->state = BNX2X_STATE_CLOSING_WAIT4_HALT;
+	smp_mb();
+
 	/* Stop Tx */
 	bnx2x_tx_disable(bp);
 
 #ifdef BCM_CNIC
 	bnx2x_cnic_notify(bp, CNIC_CTL_STOP_CMD);
 #endif
-	bp->state = BNX2X_STATE_CLOSING_WAIT4_HALT;
-	smp_mb();
 
 	bp->rx_mode = BNX2X_RX_MODE_NONE;
 

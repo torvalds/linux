@@ -110,7 +110,7 @@ static int post_dock_fixups(struct notifier_block *nb, unsigned long val,
 }
 
 
-static struct acpi_dock_ops acpiphp_dock_ops = {
+static const struct acpi_dock_ops acpiphp_dock_ops = {
 	.handler = handle_hotplug_event_func,
 };
 

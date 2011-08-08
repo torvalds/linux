@@ -56,6 +56,11 @@ MODULE_PARM_DESC(hotplug_wireless,
 		 "If your laptop needs that, please report to "
 		 "acpi4asus-user@lists.sourceforge.net.");
 
+/* Values for T101MT "Home" key */
+#define HOME_PRESS	0xe4
+#define HOME_HOLD	0xea
+#define HOME_RELEASE	0xe5
+
 static const struct key_entry eeepc_wmi_keymap[] = {
 	/* Sleep already handled via generic ACPI code */
 	{ KE_KEY, 0x30, { KEY_VOLUMEUP } },
@@ -71,6 +76,7 @@ static const struct key_entry eeepc_wmi_keymap[] = {
 	{ KE_KEY, 0xcc, { KEY_SWITCHVIDEOMODE } },
 	{ KE_KEY, 0xe0, { KEY_PROG1 } }, /* Task Manager */
 	{ KE_KEY, 0xe1, { KEY_F14 } }, /* Change Resolution */
+	{ KE_KEY, HOME_PRESS, { KEY_CONFIG } }, /* Home/Express gate key */
 	{ KE_KEY, 0xe8, { KEY_SCREENLOCK } },
 	{ KE_KEY, 0xe9, { KEY_BRIGHTNESS_ZERO } },
 	{ KE_KEY, 0xeb, { KEY_CAMERA_ZOOMOUT } },
@@ -80,6 +86,25 @@ static const struct key_entry eeepc_wmi_keymap[] = {
 	{ KE_KEY, 0xef, { KEY_CAMERA_RIGHT } },
 	{ KE_END, 0},
 };
+
+static void eeepc_wmi_key_filter(struct asus_wmi_driver *asus_wmi, int *code,
+				 unsigned int *value, bool *autorelease)
+{
+	switch (*code) {
+	case HOME_PRESS:
+		*value = 1;
+		*autorelease = 0;
+		break;
+	case HOME_HOLD:
+		*code = ASUS_WMI_KEY_IGNORE;
+		break;
+	case HOME_RELEASE:
+		*code = HOME_PRESS;
+		*value = 0;
+		*autorelease = 0;
+		break;
+	}
+}
 
 static acpi_status eeepc_wmi_parse_device(acpi_handle handle, u32 level,
 						 void *context, void **retval)
@@ -141,6 +166,7 @@ static void eeepc_dmi_check(struct asus_wmi_driver *driver)
 static void eeepc_wmi_quirks(struct asus_wmi_driver *driver)
 {
 	driver->hotplug_wireless = hotplug_wireless;
+	driver->wapf = -1;
 	eeepc_dmi_check(driver);
 }
 
@@ -151,6 +177,7 @@ static struct asus_wmi_driver asus_wmi_driver = {
 	.keymap = eeepc_wmi_keymap,
 	.input_name = "Eee PC WMI hotkeys",
 	.input_phys = EEEPC_WMI_FILE "/input0",
+	.key_filter = eeepc_wmi_key_filter,
 	.probe = eeepc_wmi_probe,
 	.quirks = eeepc_wmi_quirks,
 };

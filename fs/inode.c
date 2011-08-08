@@ -143,6 +143,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	inode->i_op = &empty_iops;
 	inode->i_fop = &empty_fops;
 	inode->i_nlink = 1;
+	inode->i_opflags = 0;
 	inode->i_uid = 0;
 	inode->i_gid = 0;
 	atomic_set(&inode->i_writecount, 0);

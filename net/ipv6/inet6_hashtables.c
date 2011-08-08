@@ -20,6 +20,7 @@
 #include <net/inet_connection_sock.h>
 #include <net/inet_hashtables.h>
 #include <net/inet6_hashtables.h>
+#include <net/secure_seq.h>
 #include <net/ip.h>
 
 int __inet6_hash(struct sock *sk, struct inet_timewait_sock *tw)

@@ -89,7 +89,7 @@ enum aat2870_id {
 
 /* Backlight current magnitude (mA) */
 enum aat2870_current {
-	AAT2870_CURRENT_0_45,
+	AAT2870_CURRENT_0_45 = 1,
 	AAT2870_CURRENT_0_90,
 	AAT2870_CURRENT_1_80,
 	AAT2870_CURRENT_2_70,

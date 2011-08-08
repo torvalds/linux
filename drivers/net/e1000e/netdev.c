@@ -31,12 +31,12 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
+#include <linux/interrupt.h>
 #include <linux/tcp.h>
 #include <linux/ipv6.h>
 #include <linux/slab.h>

@@ -610,8 +610,9 @@ EXPORT_SYMBOL(of_find_node_by_phandle);
  *
  * The out_value is modified only if a valid u32 value can be decoded.
  */
-int of_property_read_u32_array(const struct device_node *np, char *propname,
-			       u32 *out_values, size_t sz)
+int of_property_read_u32_array(const struct device_node *np,
+			       const char *propname, u32 *out_values,
+			       size_t sz)
 {
 	struct property *prop = of_find_property(np, propname, NULL);
 	const __be32 *val;
@@ -645,7 +646,7 @@ EXPORT_SYMBOL_GPL(of_property_read_u32_array);
  *
  * The out_string pointer is modified only if a valid string can be decoded.
  */
-int of_property_read_string(struct device_node *np, char *propname,
+int of_property_read_string(struct device_node *np, const char *propname,
 				const char **out_string)
 {
 	struct property *prop = of_find_property(np, propname, NULL);

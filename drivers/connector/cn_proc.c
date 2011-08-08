@@ -57,6 +57,7 @@ void proc_fork_connector(struct task_struct *task)
 	struct proc_event *ev;
 	__u8 buffer[CN_PROC_MSG_SIZE];
 	struct timespec ts;
+	struct task_struct *parent;
 
 	if (atomic_read(&proc_event_num_listeners) < 1)
 		return;
@@ -67,8 +68,11 @@ void proc_fork_connector(struct task_struct *task)
 	ktime_get_ts(&ts); /* get high res monotonic timestamp */
 	put_unaligned(timespec_to_ns(&ts), (__u64 *)&ev->timestamp_ns);
 	ev->what = PROC_EVENT_FORK;
-	ev->event_data.fork.parent_pid = task->real_parent->pid;
-	ev->event_data.fork.parent_tgid = task->real_parent->tgid;
+	rcu_read_lock();
+	parent = rcu_dereference(task->real_parent);
+	ev->event_data.fork.parent_pid = parent->pid;
+	ev->event_data.fork.parent_tgid = parent->tgid;
+	rcu_read_unlock();
 	ev->event_data.fork.child_pid = task->pid;
 	ev->event_data.fork.child_tgid = task->tgid;
 

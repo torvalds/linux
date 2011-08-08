@@ -13,7 +13,7 @@
  *
  *	Added conditional policy language extensions
  *
- * Updated: Hewlett-Packard <paul.moore@hp.com>
+ * Updated: Hewlett-Packard <paul@paul-moore.com>
  *
  *      Added support for NetLabel
  *      Added support for the policy capability bitmap

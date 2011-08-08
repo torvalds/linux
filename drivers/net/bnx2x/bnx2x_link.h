@@ -145,6 +145,8 @@ struct bnx2x_phy {
 #define FLAGS_SFP_NOT_APPROVED		(1<<7)
 #define FLAGS_MDC_MDIO_WA		(1<<8)
 #define FLAGS_DUMMY_READ		(1<<9)
+#define FLAGS_MDC_MDIO_WA_B0		(1<<10)
+#define FLAGS_TX_ERROR_CHECK		(1<<12)
 
 	/* preemphasis values for the rx side */
 	u16 rx_preemphasis[4];
@@ -276,7 +278,6 @@ struct link_vars {
 #define PHY_PHYSICAL_LINK_FLAG		(1<<2)
 #define PHY_HALF_OPEN_CONN_FLAG		(1<<3)
 #define PHY_OVER_CURRENT_FLAG		(1<<4)
-#define PHY_TX_ERROR_CHECK_FLAG		(1<<5)
 
 	u8 mac_type;
 #define MAC_TYPE_NONE		0

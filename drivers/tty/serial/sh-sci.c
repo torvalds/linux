@@ -1903,7 +1903,7 @@ static int __devinit sci_init_single(struct platform_device *dev,
 
 	if (p->regtype == SCIx_PROBE_REGTYPE) {
 		ret = sci_probe_regmap(p);
-		if (unlikely(ret != 0))
+		if (unlikely(ret))
 			return ret;
 	}
 

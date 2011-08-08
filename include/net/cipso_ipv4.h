@@ -8,7 +8,7 @@
  * have chosen to adopt the protocol and over the years it has become a
  * de-facto standard for labeled networking.
  *
- * Author: Paul Moore <paul.moore@hp.com>
+ * Author: Paul Moore <paul@paul-moore.com>
  *
  */
 
