@@ -109,6 +109,7 @@
 #include <linux/sysctl.h>
 #endif
 #include <net/atmclip.h>
+#include <net/secure_seq.h>
 
 #define RT_FL_TOS(oldflp4) \
     ((u32)(oldflp4->flowi4_tos & (IPTOS_RT_MASK | RTO_ONLINK)))
@@ -1628,16 +1629,18 @@ static int check_peer_redir(struct dst_entry *dst, struct inet_peer *peer)
 {
 	struct rtable *rt = (struct rtable *) dst;
 	__be32 orig_gw = rt->rt_gateway;
-	struct neighbour *n;
+	struct neighbour *n, *old_n;
 
 	dst_confirm(&rt->dst);
 
-	neigh_release(dst_get_neighbour(&rt->dst));
-	dst_set_neighbour(&rt->dst, NULL);
-
 	rt->rt_gateway = peer->redirect_learned.a4;
-	rt_bind_neighbour(rt);
-	n = dst_get_neighbour(&rt->dst);
+
+	n = ipv4_neigh_lookup(&rt->dst, &rt->rt_gateway);
+	if (IS_ERR(n))
+		return PTR_ERR(n);
+	old_n = xchg(&rt->dst._neighbour, n);
+	if (old_n)
+		neigh_release(old_n);
 	if (!n || !(n->nud_state & NUD_VALID)) {
 		if (n)
 			neigh_event_send(n, NULL);
@@ -1740,7 +1743,7 @@ void ip_rt_get_source(u8 *addr, struct sk_buff *skb, struct rtable *rt)
 		memset(&fl4, 0, sizeof(fl4));
 		fl4.daddr = iph->daddr;
 		fl4.saddr = iph->saddr;
-		fl4.flowi4_tos = iph->tos;
+		fl4.flowi4_tos = RT_TOS(iph->tos);
 		fl4.flowi4_oif = rt->dst.dev->ifindex;
 		fl4.flowi4_iif = skb->dev->ifindex;
 		fl4.flowi4_mark = skb->mark;

@@ -468,6 +468,7 @@ static const union acpi_predefined_info predefined_names[] =
 	{{"_SWS", 0, ACPI_RTYPE_INTEGER}},
 	{{"_TC1", 0, ACPI_RTYPE_INTEGER}},
 	{{"_TC2", 0, ACPI_RTYPE_INTEGER}},
+	{{"_TDL", 0, ACPI_RTYPE_INTEGER}},
 	{{"_TIP", 1, ACPI_RTYPE_INTEGER}},
 	{{"_TIV", 1, ACPI_RTYPE_INTEGER}},
 	{{"_TMP", 0, ACPI_RTYPE_INTEGER}},

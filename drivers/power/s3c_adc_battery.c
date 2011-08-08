@@ -266,7 +266,7 @@ static irqreturn_t s3c_adc_bat_charged(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init s3c_adc_bat_probe(struct platform_device *pdev)
+static int __devinit s3c_adc_bat_probe(struct platform_device *pdev)
 {
 	struct s3c_adc_client	*client;
 	struct s3c_adc_bat_pdata *pdata = pdev->dev.platform_data;

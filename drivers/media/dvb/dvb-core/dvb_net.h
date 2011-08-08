@@ -32,6 +32,8 @@
 
 #define DVB_NET_DEVICES_MAX 10
 
+#ifdef CONFIG_DVB_NET
+
 struct dvb_net {
 	struct dvb_device *dvbdev;
 	struct net_device *device[DVB_NET_DEVICES_MAX];
@@ -40,8 +42,25 @@ struct dvb_net {
 	struct dmx_demux *demux;
 };
 
-
 void dvb_net_release(struct dvb_net *);
 int  dvb_net_init(struct dvb_adapter *, struct dvb_net *, struct dmx_demux *);
+
+#else
+
+struct dvb_net {
+	struct dvb_device *dvbdev;
+};
+
+static inline void dvb_net_release(struct dvb_net *dvbnet)
+{
+}
+
+static inline int dvb_net_init(struct dvb_adapter *adap,
+			       struct dvb_net *dvbnet, struct dmx_demux *dmx)
+{
+	return 0;
+}
+
+#endif /* ifdef CONFIG_DVB_NET */
 
 #endif

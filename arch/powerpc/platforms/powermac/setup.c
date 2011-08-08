@@ -355,9 +355,6 @@ static int initializing = 1;
 static int pmac_late_init(void)
 {
 	initializing = 0;
-	/* this is udbg (which is __init) and we can later use it during
-	 * cpu hotplug (in smp_core99_kick_cpu) */
-	ppc_md.progress = NULL;
 	return 0;
 }
 machine_late_initcall(powermac, pmac_late_init);

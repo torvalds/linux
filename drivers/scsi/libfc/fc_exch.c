@@ -802,10 +802,8 @@ static struct fc_exch *fc_exch_find(struct fc_exch_mgr *mp, u16 xid)
 		pool = per_cpu_ptr(mp->pool, xid & fc_cpu_mask);
 		spin_lock_bh(&pool->lock);
 		ep = fc_exch_ptr_get(pool, (xid - mp->min_xid) >> fc_cpu_order);
-		if (ep) {
+		if (ep && ep->xid == xid)
 			fc_exch_hold(ep);
-			WARN_ON(ep->xid != xid);
-		}
 		spin_unlock_bh(&pool->lock);
 	}
 	return ep;
@@ -2465,8 +2463,11 @@ int fc_setup_exch_mgr(void)
 
 	fc_exch_workqueue = create_singlethread_workqueue("fc_exch_workqueue");
 	if (!fc_exch_workqueue)
-		return -ENOMEM;
+		goto err;
 	return 0;
+err:
+	kmem_cache_destroy(fc_em_cachep);
+	return -ENOMEM;
 }
 
 /**

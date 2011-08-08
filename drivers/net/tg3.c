@@ -190,6 +190,7 @@ static inline void _tg3_flag_clear(enum TG3_FLAGS flag, unsigned long *bits)
 
 /* minimum number of free TX descriptors required to wake up TX process */
 #define TG3_TX_WAKEUP_THRESH(tnapi)		((tnapi)->tx_pending / 4)
+#define TG3_TX_BD_DMA_MAX		4096
 
 #define TG3_RAW_IP_ALIGN 2
 
@@ -4824,7 +4825,7 @@ static void tg3_tx(struct tg3_napi *tnapi)
 	txq = netdev_get_tx_queue(tp->dev, index);
 
 	while (sw_idx != hw_idx) {
-		struct ring_info *ri = &tnapi->tx_buffers[sw_idx];
+		struct tg3_tx_ring_info *ri = &tnapi->tx_buffers[sw_idx];
 		struct sk_buff *skb = ri->skb;
 		int i, tx_bug = 0;
 
@@ -4840,6 +4841,12 @@ static void tg3_tx(struct tg3_napi *tnapi)
 
 		ri->skb = NULL;
 
+		while (ri->fragmented) {
+			ri->fragmented = false;
+			sw_idx = NEXT_TX(sw_idx);
+			ri = &tnapi->tx_buffers[sw_idx];
+		}
+
 		sw_idx = NEXT_TX(sw_idx);
 
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
@@ -4851,6 +4858,13 @@ static void tg3_tx(struct tg3_napi *tnapi)
 				       dma_unmap_addr(ri, mapping),
 				       skb_shinfo(skb)->frags[i].size,
 				       PCI_DMA_TODEVICE);
+
+			while (ri->fragmented) {
+				ri->fragmented = false;
+				sw_idx = NEXT_TX(sw_idx);
+				ri = &tnapi->tx_buffers[sw_idx];
+			}
+
 			sw_idx = NEXT_TX(sw_idx);
 		}
 
@@ -5901,40 +5915,100 @@ static inline int tg3_40bit_overflow_test(struct tg3 *tp, dma_addr_t mapping,
 #endif
 }
 
-static void tg3_set_txd(struct tg3_napi *tnapi, int entry,
-			dma_addr_t mapping, int len, u32 flags,
-			u32 mss_and_is_end)
+static inline void tg3_tx_set_bd(struct tg3_tx_buffer_desc *txbd,
+				 dma_addr_t mapping, u32 len, u32 flags,
+				 u32 mss, u32 vlan)
 {
-	struct tg3_tx_buffer_desc *txd = &tnapi->tx_ring[entry];
-	int is_end = (mss_and_is_end & 0x1);
-	u32 mss = (mss_and_is_end >> 1);
-	u32 vlan_tag = 0;
-
-	if (is_end)
-		flags |= TXD_FLAG_END;
-	if (flags & TXD_FLAG_VLAN) {
-		vlan_tag = flags >> 16;
-		flags &= 0xffff;
-	}
-	vlan_tag |= (mss << TXD_MSS_SHIFT);
-
-	txd->addr_hi = ((u64) mapping >> 32);
-	txd->addr_lo = ((u64) mapping & 0xffffffff);
-	txd->len_flags = (len << TXD_LEN_SHIFT) | flags;
-	txd->vlan_tag = vlan_tag << TXD_VLAN_TAG_SHIFT;
+	txbd->addr_hi = ((u64) mapping >> 32);
+	txbd->addr_lo = ((u64) mapping & 0xffffffff);
+	txbd->len_flags = (len << TXD_LEN_SHIFT) | (flags & 0x0000ffff);
+	txbd->vlan_tag = (mss << TXD_MSS_SHIFT) | (vlan << TXD_VLAN_TAG_SHIFT);
 }
 
-static void tg3_skb_error_unmap(struct tg3_napi *tnapi,
-				struct sk_buff *skb, int last)
+static bool tg3_tx_frag_set(struct tg3_napi *tnapi, u32 *entry, u32 *budget,
+			    dma_addr_t map, u32 len, u32 flags,
+			    u32 mss, u32 vlan)
+{
+	struct tg3 *tp = tnapi->tp;
+	bool hwbug = false;
+
+	if (tg3_flag(tp, SHORT_DMA_BUG) && len <= 8)
+		hwbug = 1;
+
+	if (tg3_4g_overflow_test(map, len))
+		hwbug = 1;
+
+	if (tg3_40bit_overflow_test(tp, map, len))
+		hwbug = 1;
+
+	if (tg3_flag(tp, 4K_FIFO_LIMIT)) {
+		u32 tmp_flag = flags & ~TXD_FLAG_END;
+		while (len > TG3_TX_BD_DMA_MAX) {
+			u32 frag_len = TG3_TX_BD_DMA_MAX;
+			len -= TG3_TX_BD_DMA_MAX;
+
+			if (len) {
+				tnapi->tx_buffers[*entry].fragmented = true;
+				/* Avoid the 8byte DMA problem */
+				if (len <= 8) {
+					len += TG3_TX_BD_DMA_MAX / 2;
+					frag_len = TG3_TX_BD_DMA_MAX / 2;
+				}
+			} else
+				tmp_flag = flags;
+
+			if (*budget) {
+				tg3_tx_set_bd(&tnapi->tx_ring[*entry], map,
+					      frag_len, tmp_flag, mss, vlan);
+				(*budget)--;
+				*entry = NEXT_TX(*entry);
+			} else {
+				hwbug = 1;
+				break;
+			}
+
+			map += frag_len;
+		}
+
+		if (len) {
+			if (*budget) {
+				tg3_tx_set_bd(&tnapi->tx_ring[*entry], map,
+					      len, flags, mss, vlan);
+				(*budget)--;
+				*entry = NEXT_TX(*entry);
+			} else {
+				hwbug = 1;
+			}
+		}
+	} else {
+		tg3_tx_set_bd(&tnapi->tx_ring[*entry], map,
+			      len, flags, mss, vlan);
+		*entry = NEXT_TX(*entry);
+	}
+
+	return hwbug;
+}
+
+static void tg3_tx_skb_unmap(struct tg3_napi *tnapi, u32 entry, int last)
 {
 	int i;
-	u32 entry = tnapi->tx_prod;
-	struct ring_info *txb = &tnapi->tx_buffers[entry];
+	struct sk_buff *skb;
+	struct tg3_tx_ring_info *txb = &tnapi->tx_buffers[entry];
+
+	skb = txb->skb;
+	txb->skb = NULL;
 
 	pci_unmap_single(tnapi->tp->pdev,
 			 dma_unmap_addr(txb, mapping),
 			 skb_headlen(skb),
 			 PCI_DMA_TODEVICE);
+
+	while (txb->fragmented) {
+		txb->fragmented = false;
+		entry = NEXT_TX(entry);
+		txb = &tnapi->tx_buffers[entry];
+	}
+
 	for (i = 0; i < last; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
@@ -5944,18 +6018,24 @@ static void tg3_skb_error_unmap(struct tg3_napi *tnapi,
 		pci_unmap_page(tnapi->tp->pdev,
 			       dma_unmap_addr(txb, mapping),
 			       frag->size, PCI_DMA_TODEVICE);
+
+		while (txb->fragmented) {
+			txb->fragmented = false;
+			entry = NEXT_TX(entry);
+			txb = &tnapi->tx_buffers[entry];
+		}
 	}
 }
 
 /* Workaround 4GB and 40-bit hardware DMA bugs. */
 static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
 				       struct sk_buff *skb,
-				       u32 base_flags, u32 mss)
+				       u32 *entry, u32 *budget,
+				       u32 base_flags, u32 mss, u32 vlan)
 {
 	struct tg3 *tp = tnapi->tp;
 	struct sk_buff *new_skb;
 	dma_addr_t new_addr = 0;
-	u32 entry = tnapi->tx_prod;
 	int ret = 0;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5701)
@@ -5976,24 +6056,22 @@ static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
 					  PCI_DMA_TODEVICE);
 		/* Make sure the mapping succeeded */
 		if (pci_dma_mapping_error(tp->pdev, new_addr)) {
-			ret = -1;
 			dev_kfree_skb(new_skb);
-
-		/* Make sure new skb does not cross any 4G boundaries.
-		 * Drop the packet if it does.
-		 */
-		} else if (tg3_4g_overflow_test(new_addr, new_skb->len)) {
-			pci_unmap_single(tp->pdev, new_addr, new_skb->len,
-					 PCI_DMA_TODEVICE);
 			ret = -1;
-			dev_kfree_skb(new_skb);
 		} else {
-			tnapi->tx_buffers[entry].skb = new_skb;
-			dma_unmap_addr_set(&tnapi->tx_buffers[entry],
+			base_flags |= TXD_FLAG_END;
+
+			tnapi->tx_buffers[*entry].skb = new_skb;
+			dma_unmap_addr_set(&tnapi->tx_buffers[*entry],
 					   mapping, new_addr);
 
-			tg3_set_txd(tnapi, entry, new_addr, new_skb->len,
-				    base_flags, 1 | (mss << 1));
+			if (tg3_tx_frag_set(tnapi, entry, budget, new_addr,
+					    new_skb->len, base_flags,
+					    mss, vlan)) {
+				tg3_tx_skb_unmap(tnapi, *entry, 0);
+				dev_kfree_skb(new_skb);
+				ret = -1;
+			}
 		}
 	}
 
@@ -6051,7 +6129,8 @@ tg3_tso_bug_end:
 static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
-	u32 len, entry, base_flags, mss;
+	u32 len, entry, base_flags, mss, vlan = 0;
+	u32 budget;
 	int i = -1, would_hit_hwbug;
 	dma_addr_t mapping;
 	struct tg3_napi *tnapi;
@@ -6063,12 +6142,14 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (tg3_flag(tp, ENABLE_TSS))
 		tnapi++;
 
+	budget = tg3_tx_avail(tnapi);
+
 	/* We are running in BH disabled context with netif_tx_lock
 	 * and TX reclaim runs via tp->napi.poll inside of a software
 	 * interrupt.  Furthermore, IRQ processing runs lockless so we have
 	 * no IRQ context deadlocks to worry about either.  Rejoice!
 	 */
-	if (unlikely(tg3_tx_avail(tnapi) <= (skb_shinfo(skb)->nr_frags + 1))) {
+	if (unlikely(budget <= (skb_shinfo(skb)->nr_frags + 1))) {
 		if (!netif_tx_queue_stopped(txq)) {
 			netif_tx_stop_queue(txq);
 
@@ -6153,9 +6234,12 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	if (vlan_tx_tag_present(skb))
-		base_flags |= (TXD_FLAG_VLAN |
-			       (vlan_tx_tag_get(skb) << 16));
+#ifdef BCM_KERNEL_SUPPORTS_8021Q
+	if (vlan_tx_tag_present(skb)) {
+		base_flags |= TXD_FLAG_VLAN;
+		vlan = vlan_tx_tag_get(skb);
+	}
+#endif
 
 	if (tg3_flag(tp, USE_JUMBO_BDFLAG) &&
 	    !mss && skb->len > VLAN_ETH_FRAME_LEN)
@@ -6174,25 +6258,23 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	would_hit_hwbug = 0;
 
-	if (tg3_flag(tp, SHORT_DMA_BUG) && len <= 8)
-		would_hit_hwbug = 1;
-
-	if (tg3_4g_overflow_test(mapping, len))
-		would_hit_hwbug = 1;
-
-	if (tg3_40bit_overflow_test(tp, mapping, len))
-		would_hit_hwbug = 1;
-
 	if (tg3_flag(tp, 5701_DMA_BUG))
 		would_hit_hwbug = 1;
 
-	tg3_set_txd(tnapi, entry, mapping, len, base_flags,
-		    (skb_shinfo(skb)->nr_frags == 0) | (mss << 1));
-
-	entry = NEXT_TX(entry);
+	if (tg3_tx_frag_set(tnapi, &entry, &budget, mapping, len, base_flags |
+			  ((skb_shinfo(skb)->nr_frags == 0) ? TXD_FLAG_END : 0),
+			    mss, vlan))
+		would_hit_hwbug = 1;
 
 	/* Now loop through additional data fragments, and queue them. */
 	if (skb_shinfo(skb)->nr_frags > 0) {
+		u32 tmp_mss = mss;
+
+		if (!tg3_flag(tp, HW_TSO_1) &&
+		    !tg3_flag(tp, HW_TSO_2) &&
+		    !tg3_flag(tp, HW_TSO_3))
+			tmp_mss = 0;
+
 		last = skb_shinfo(skb)->nr_frags - 1;
 		for (i = 0; i <= last; i++) {
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
@@ -6209,39 +6291,25 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			if (pci_dma_mapping_error(tp->pdev, mapping))
 				goto dma_error;
 
-			if (tg3_flag(tp, SHORT_DMA_BUG) &&
-			    len <= 8)
+			if (tg3_tx_frag_set(tnapi, &entry, &budget, mapping,
+					    len, base_flags |
+					    ((i == last) ? TXD_FLAG_END : 0),
+					    tmp_mss, vlan))
 				would_hit_hwbug = 1;
-
-			if (tg3_4g_overflow_test(mapping, len))
-				would_hit_hwbug = 1;
-
-			if (tg3_40bit_overflow_test(tp, mapping, len))
-				would_hit_hwbug = 1;
-
-			if (tg3_flag(tp, HW_TSO_1) ||
-			    tg3_flag(tp, HW_TSO_2) ||
-			    tg3_flag(tp, HW_TSO_3))
-				tg3_set_txd(tnapi, entry, mapping, len,
-					    base_flags, (i == last)|(mss << 1));
-			else
-				tg3_set_txd(tnapi, entry, mapping, len,
-					    base_flags, (i == last));
-
-			entry = NEXT_TX(entry);
 		}
 	}
 
 	if (would_hit_hwbug) {
-		tg3_skb_error_unmap(tnapi, skb, i);
+		tg3_tx_skb_unmap(tnapi, tnapi->tx_prod, i);
 
 		/* If the workaround fails due to memory/mapping
 		 * failure, silently drop this packet.
 		 */
-		if (tigon3_dma_hwbug_workaround(tnapi, skb, base_flags, mss))
+		entry = tnapi->tx_prod;
+		budget = tg3_tx_avail(tnapi);
+		if (tigon3_dma_hwbug_workaround(tnapi, skb, &entry, &budget,
+						base_flags, mss, vlan))
 			goto out_unlock;
-
-		entry = NEXT_TX(tnapi->tx_prod);
 	}
 
 	skb_tx_timestamp(skb);
@@ -6269,7 +6337,7 @@ out_unlock:
 	return NETDEV_TX_OK;
 
 dma_error:
-	tg3_skb_error_unmap(tnapi, skb, i);
+	tg3_tx_skb_unmap(tnapi, tnapi->tx_prod, i);
 	dev_kfree_skb(skb);
 	tnapi->tx_buffers[tnapi->tx_prod].skb = NULL;
 	return NETDEV_TX_OK;
@@ -6602,35 +6670,13 @@ static void tg3_free_rings(struct tg3 *tp)
 		if (!tnapi->tx_buffers)
 			continue;
 
-		for (i = 0; i < TG3_TX_RING_SIZE; ) {
-			struct ring_info *txp;
-			struct sk_buff *skb;
-			unsigned int k;
+		for (i = 0; i < TG3_TX_RING_SIZE; i++) {
+			struct sk_buff *skb = tnapi->tx_buffers[i].skb;
 
-			txp = &tnapi->tx_buffers[i];
-			skb = txp->skb;
-
-			if (skb == NULL) {
-				i++;
+			if (!skb)
 				continue;
-			}
 
-			pci_unmap_single(tp->pdev,
-					 dma_unmap_addr(txp, mapping),
-					 skb_headlen(skb),
-					 PCI_DMA_TODEVICE);
-			txp->skb = NULL;
-
-			i++;
-
-			for (k = 0; k < skb_shinfo(skb)->nr_frags; k++) {
-				txp = &tnapi->tx_buffers[i & (TG3_TX_RING_SIZE - 1)];
-				pci_unmap_page(tp->pdev,
-					       dma_unmap_addr(txp, mapping),
-					       skb_shinfo(skb)->frags[k].size,
-					       PCI_DMA_TODEVICE);
-				i++;
-			}
+			tg3_tx_skb_unmap(tnapi, i, skb_shinfo(skb)->nr_frags);
 
 			dev_kfree_skb_any(skb);
 		}
@@ -6762,9 +6808,9 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 		 */
 		if ((!i && !tg3_flag(tp, ENABLE_TSS)) ||
 		    (i && tg3_flag(tp, ENABLE_TSS))) {
-			tnapi->tx_buffers = kzalloc(sizeof(struct ring_info) *
-						    TG3_TX_RING_SIZE,
-						    GFP_KERNEL);
+			tnapi->tx_buffers = kzalloc(
+					       sizeof(struct tg3_tx_ring_info) *
+					       TG3_TX_RING_SIZE, GFP_KERNEL);
 			if (!tnapi->tx_buffers)
 				goto err_out;
 
@@ -8360,7 +8406,7 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	/* Program the jumbo buffer descriptor ring control
 	 * blocks on those devices that have them.
 	 */
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5719_A0 ||
 	    (tg3_flag(tp, JUMBO_CAPABLE) && !tg3_flag(tp, 5780_CLASS))) {
 
 		if (tg3_flag(tp, JUMBO_RING_ENABLE)) {
@@ -11204,6 +11250,7 @@ static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, int loopback_mode)
 {
 	u32 mac_mode, rx_start_idx, rx_idx, tx_idx, opaque_key;
 	u32 base_flags = 0, mss = 0, desc_idx, coal_now, data_off, val;
+	u32 budget;
 	struct sk_buff *skb, *rx_skb;
 	u8 *tx_data;
 	dma_addr_t map;
@@ -11363,6 +11410,10 @@ static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, int loopback_mode)
 		return -EIO;
 	}
 
+	val = tnapi->tx_prod;
+	tnapi->tx_buffers[val].skb = skb;
+	dma_unmap_addr_set(&tnapi->tx_buffers[val], mapping, map);
+
 	tw32_f(HOSTCC_MODE, tp->coalesce_mode | HOSTCC_MODE_ENABLE |
 	       rnapi->coal_now);
 
@@ -11370,8 +11421,13 @@ static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, int loopback_mode)
 
 	rx_start_idx = rnapi->hw_status->idx[0].rx_producer;
 
-	tg3_set_txd(tnapi, tnapi->tx_prod, map, tx_len,
-		    base_flags, (mss << 1) | 1);
+	budget = tg3_tx_avail(tnapi);
+	if (tg3_tx_frag_set(tnapi, &val, &budget, map, tx_len,
+			    base_flags | TXD_FLAG_END, mss, 0)) {
+		tnapi->tx_buffers[val].skb = NULL;
+		dev_kfree_skb(skb);
+		return -EIO;
+	}
 
 	tnapi->tx_prod++;
 
@@ -11394,7 +11450,7 @@ static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, int loopback_mode)
 			break;
 	}
 
-	pci_unmap_single(tp->pdev, map, tx_len, PCI_DMA_TODEVICE);
+	tg3_tx_skb_unmap(tnapi, tnapi->tx_prod - 1, 0);
 	dev_kfree_skb(skb);
 
 	if (tx_idx != tnapi->tx_prod)
@@ -13817,7 +13873,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tg3_flag_set(tp, 5705_PLUS);
 
 	/* Determine TSO capabilities */
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719)
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5719_A0)
 		; /* Do nothing. HW bug. */
 	else if (tg3_flag(tp, 57765_PLUS))
 		tg3_flag_set(tp, HW_TSO_3);
@@ -13880,11 +13936,14 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (tg3_flag(tp, 5755_PLUS))
 		tg3_flag_set(tp, SHORT_DMA_BUG);
 
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719)
+		tg3_flag_set(tp, 4K_FIFO_LIMIT);
+
 	if (tg3_flag(tp, 5717_PLUS))
 		tg3_flag_set(tp, LRG_PROD_RING_CAP);
 
 	if (tg3_flag(tp, 57765_PLUS) &&
-	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5719)
+	    tp->pci_chip_rev_id != CHIPREV_ID_5719_A0)
 		tg3_flag_set(tp, USE_JUMBO_BDFLAG);
 
 	if (!tg3_flag(tp, 5705_PLUS) ||

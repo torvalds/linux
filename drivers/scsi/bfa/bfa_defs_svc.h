@@ -268,6 +268,7 @@ struct bfa_fw_port_snsm_stats_s {
     u32    error_resets;       /*  error resets initiated by upsm      */
     u32    sync_lost;          /*  Sync loss count                     */
     u32    sig_lost;           /*  Signal loss count                   */
+	u32	asn8g_attempts;	/* SNSM HWSM at 8Gbps attempts */
 };
 
 struct bfa_fw_port_physm_stats_s {
@@ -468,6 +469,7 @@ struct bfa_fw_stats_s {
  * QoS states
  */
 enum bfa_qos_state {
+	BFA_QOS_DISABLED = 0,		/* QoS is disabled */
 	BFA_QOS_ONLINE = 1,		/*  QoS is online */
 	BFA_QOS_OFFLINE = 2,		/*  QoS is offline */
 };
@@ -670,6 +672,12 @@ struct bfa_itnim_iostats_s {
 	u32	tm_iocdowns;		/*  TM cleaned-up due to IOC down   */
 	u32	tm_cleanups;		/*  TM cleanup requests	*/
 	u32	tm_cleanup_comps;	/*  TM cleanup completions	*/
+	u32	lm_lun_across_sg;	/*  LM lun is across sg data buf */
+	u32	lm_lun_not_sup;		/*  LM lun not supported */
+	u32	lm_rpl_data_changed;	/*  LM report-lun data changed */
+	u32	lm_wire_residue_changed; /* LM report-lun rsp residue changed */
+	u32	lm_small_buf_addresidue; /* LM buf smaller than reported cnt */
+	u32	lm_lun_not_rdy;		/* LM lun not ready */
 };
 
 /* Modify char* port_stt[] in bfal_port.c if a new state was added */
@@ -785,7 +793,50 @@ enum bfa_port_linkstate_rsn {
 	CEE_ISCSI_PRI_PFC_OFF			= 42,
 	CEE_ISCSI_PRI_OVERLAP_FCOE_PRI		= 43
 };
+
+#define MAX_LUN_MASK_CFG 16
+
+/*
+ * Initially flash content may be fff. On making LUN mask enable and disable
+ * state chnage.  when report lun command is being processed it goes from
+ * BFA_LUN_MASK_ACTIVE to BFA_LUN_MASK_FETCH and comes back to
+ * BFA_LUN_MASK_ACTIVE.
+ */
+enum bfa_ioim_lun_mask_state_s {
+	BFA_IOIM_LUN_MASK_INACTIVE = 0,
+	BFA_IOIM_LUN_MASK_ACTIVE = 1,
+	BFA_IOIM_LUN_MASK_FETCHED = 2,
+};
+
+enum bfa_lunmask_state_s {
+	BFA_LUNMASK_DISABLED = 0x00,
+	BFA_LUNMASK_ENABLED = 0x01,
+	BFA_LUNMASK_MINCFG = 0x02,
+	BFA_LUNMASK_UNINITIALIZED = 0xff,
+};
+
 #pragma pack(1)
+/*
+ * LUN mask configuration
+ */
+struct bfa_lun_mask_s {
+	wwn_t		lp_wwn;
+	wwn_t		rp_wwn;
+	struct scsi_lun	lun;
+	u8		ua;
+	u8		rsvd[3];
+	u16		rp_tag;
+	u8		lp_tag;
+	u8		state;
+};
+
+#define MAX_LUN_MASK_CFG 16
+struct bfa_lunmask_cfg_s {
+	u32	status;
+	u32	rsvd;
+	struct bfa_lun_mask_s	lun_list[MAX_LUN_MASK_CFG];
+};
+
 /*
  *      Physical port configuration
  */
@@ -1227,5 +1278,53 @@ struct bfa_cee_stats_s {
 };
 
 #pragma pack()
+
+/*
+ *			AEN related definitions
+ */
+#define BFAD_NL_VENDOR_ID (((u64)0x01 << SCSI_NL_VID_TYPE_SHIFT) \
+			   | BFA_PCI_VENDOR_ID_BROCADE)
+
+/* BFA remote port events */
+enum bfa_rport_aen_event {
+	BFA_RPORT_AEN_ONLINE     = 1,   /* RPort online event */
+	BFA_RPORT_AEN_OFFLINE    = 2,   /* RPort offline event */
+	BFA_RPORT_AEN_DISCONNECT = 3,   /* RPort disconnect event */
+	BFA_RPORT_AEN_QOS_PRIO   = 4,   /* QOS priority change event */
+	BFA_RPORT_AEN_QOS_FLOWID = 5,   /* QOS flow Id change event */
+};
+
+struct bfa_rport_aen_data_s {
+	u16             vf_id;  /* vf_id of this logical port */
+	u16             rsvd[3];
+	wwn_t           ppwwn;  /* WWN of its physical port */
+	wwn_t           lpwwn;  /* WWN of this logical port */
+	wwn_t           rpwwn;  /* WWN of this remote port */
+	union {
+		struct bfa_rport_qos_attr_s qos;
+	} priv;
+};
+
+union bfa_aen_data_u {
+	struct bfa_adapter_aen_data_s	adapter;
+	struct bfa_port_aen_data_s	port;
+	struct bfa_lport_aen_data_s	lport;
+	struct bfa_rport_aen_data_s	rport;
+	struct bfa_itnim_aen_data_s	itnim;
+	struct bfa_audit_aen_data_s	audit;
+	struct bfa_ioc_aen_data_s	ioc;
+};
+
+#define BFA_AEN_MAX_ENTRY	512
+
+struct bfa_aen_entry_s {
+	struct list_head	qe;
+	enum bfa_aen_category   aen_category;
+	u32                     aen_type;
+	union bfa_aen_data_u    aen_data;
+	struct timeval          aen_tv;
+	u32                     seq_num;
+	u32                     bfad_num;
+};
 
 #endif /* __BFA_DEFS_SVC_H__ */

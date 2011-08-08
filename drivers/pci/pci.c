@@ -1905,7 +1905,7 @@ void pci_enable_ari(struct pci_dev *dev)
 {
 	int pos;
 	u32 cap;
-	u16 ctrl;
+	u16 flags, ctrl;
 	struct pci_dev *bridge;
 
 	if (!pci_is_pcie(dev) || dev->devfn)
@@ -1921,6 +1921,11 @@ void pci_enable_ari(struct pci_dev *dev)
 
 	pos = pci_pcie_cap(bridge);
 	if (!pos)
+		return;
+
+	/* ARI is a PCIe v2 feature */
+	pci_read_config_word(bridge, pos + PCI_EXP_FLAGS, &flags);
+	if ((flags & PCI_EXP_FLAGS_VERS) < 2)
 		return;
 
 	pci_read_config_dword(bridge, pos + PCI_EXP_DEVCAP2, &cap);
@@ -3186,7 +3191,7 @@ EXPORT_SYMBOL(pcie_get_readrq);
  * @rq: maximum memory read count in bytes
  *    valid values are 128, 256, 512, 1024, 2048, 4096
  *
- * If possible sets maximum read byte count
+ * If possible sets maximum memory read request in bytes
  */
 int pcie_set_readrq(struct pci_dev *dev, int rq)
 {
@@ -3209,7 +3214,7 @@ int pcie_set_readrq(struct pci_dev *dev, int rq)
 	if ((ctl & PCI_EXP_DEVCTL_READRQ) != v) {
 		ctl &= ~PCI_EXP_DEVCTL_READRQ;
 		ctl |= v;
-		err = pci_write_config_dword(dev, cap + PCI_EXP_DEVCTL, ctl);
+		err = pci_write_config_word(dev, cap + PCI_EXP_DEVCTL, ctl);
 	}
 
 out:

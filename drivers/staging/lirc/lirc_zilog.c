@@ -39,8 +39,6 @@
  *
  */
 
-
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kmod.h>
 #include <linux/kernel.h>

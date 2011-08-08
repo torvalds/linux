@@ -166,7 +166,7 @@ static int create_path(const char *nodepath)
 {
 	char *path;
 	char *s;
-	int err;
+	int err = 0;
 
 	/* parent directories do not exist, create them */
 	path = kstrdup(nodepath, GFP_KERNEL);
@@ -406,9 +406,10 @@ static int devtmpfsd(void *p)
 			requests = NULL;
 			spin_unlock(&req_lock);
 			while (req) {
+				struct req *next = req->next;
 				req->err = handle(req->name, req->mode, req->dev);
 				complete(&req->done);
-				req = req->next;
+				req = next;
 			}
 			spin_lock(&req_lock);
 		}

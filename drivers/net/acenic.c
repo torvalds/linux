@@ -1502,13 +1502,13 @@ static int __devinit ace_init(struct net_device *dev)
 	 * firmware to wipe the ring without re-initializing it.
 	 */
 	if (!test_and_set_bit(0, &ap->std_refill_busy))
-		ace_load_std_rx_ring(ap, RX_RING_SIZE);
+		ace_load_std_rx_ring(dev, RX_RING_SIZE);
 	else
 		printk(KERN_ERR "%s: Someone is busy refilling the RX ring\n",
 		       ap->name);
 	if (ap->version >= 2) {
 		if (!test_and_set_bit(0, &ap->mini_refill_busy))
-			ace_load_mini_rx_ring(ap, RX_MINI_SIZE);
+			ace_load_mini_rx_ring(dev, RX_MINI_SIZE);
 		else
 			printk(KERN_ERR "%s: Someone is busy refilling "
 			       "the RX mini ring\n", ap->name);
@@ -1584,9 +1584,10 @@ static void ace_watchdog(struct net_device *data)
 }
 
 
-static void ace_tasklet(unsigned long dev)
+static void ace_tasklet(unsigned long arg)
 {
-	struct ace_private *ap = netdev_priv((struct net_device *)dev);
+	struct net_device *dev = (struct net_device *) arg;
+	struct ace_private *ap = netdev_priv(dev);
 	int cur_size;
 
 	cur_size = atomic_read(&ap->cur_rx_bufs);
@@ -1595,7 +1596,7 @@ static void ace_tasklet(unsigned long dev)
 #ifdef DEBUG
 		printk("refilling buffers (current %i)\n", cur_size);
 #endif
-		ace_load_std_rx_ring(ap, RX_RING_SIZE - cur_size);
+		ace_load_std_rx_ring(dev, RX_RING_SIZE - cur_size);
 	}
 
 	if (ap->version >= 2) {
@@ -1606,7 +1607,7 @@ static void ace_tasklet(unsigned long dev)
 			printk("refilling mini buffers (current %i)\n",
 			       cur_size);
 #endif
-			ace_load_mini_rx_ring(ap, RX_MINI_SIZE - cur_size);
+			ace_load_mini_rx_ring(dev, RX_MINI_SIZE - cur_size);
 		}
 	}
 
@@ -1616,7 +1617,7 @@ static void ace_tasklet(unsigned long dev)
 #ifdef DEBUG
 		printk("refilling jumbo buffers (current %i)\n", cur_size);
 #endif
-		ace_load_jumbo_rx_ring(ap, RX_JUMBO_SIZE - cur_size);
+		ace_load_jumbo_rx_ring(dev, RX_JUMBO_SIZE - cur_size);
 	}
 	ap->tasklet_pending = 0;
 }
@@ -1642,8 +1643,9 @@ static void ace_dump_trace(struct ace_private *ap)
  * done only before the device is enabled, thus no interrupts are
  * generated and by the interrupt handler/tasklet handler.
  */
-static void ace_load_std_rx_ring(struct ace_private *ap, int nr_bufs)
+static void ace_load_std_rx_ring(struct net_device *dev, int nr_bufs)
 {
+	struct ace_private *ap = netdev_priv(dev);
 	struct ace_regs __iomem *regs = ap->regs;
 	short i, idx;
 
@@ -1657,11 +1659,10 @@ static void ace_load_std_rx_ring(struct ace_private *ap, int nr_bufs)
 		struct rx_desc *rd;
 		dma_addr_t mapping;
 
-		skb = dev_alloc_skb(ACE_STD_BUFSIZE + NET_IP_ALIGN);
+		skb = netdev_alloc_skb_ip_align(dev, ACE_STD_BUFSIZE);
 		if (!skb)
 			break;
 
-		skb_reserve(skb, NET_IP_ALIGN);
 		mapping = pci_map_page(ap->pdev, virt_to_page(skb->data),
 				       offset_in_page(skb->data),
 				       ACE_STD_BUFSIZE,
@@ -1705,8 +1706,9 @@ static void ace_load_std_rx_ring(struct ace_private *ap, int nr_bufs)
 }
 
 
-static void ace_load_mini_rx_ring(struct ace_private *ap, int nr_bufs)
+static void ace_load_mini_rx_ring(struct net_device *dev, int nr_bufs)
 {
+	struct ace_private *ap = netdev_priv(dev);
 	struct ace_regs __iomem *regs = ap->regs;
 	short i, idx;
 
@@ -1718,11 +1720,10 @@ static void ace_load_mini_rx_ring(struct ace_private *ap, int nr_bufs)
 		struct rx_desc *rd;
 		dma_addr_t mapping;
 
-		skb = dev_alloc_skb(ACE_MINI_BUFSIZE + NET_IP_ALIGN);
+		skb = netdev_alloc_skb_ip_align(dev, ACE_MINI_BUFSIZE);
 		if (!skb)
 			break;
 
-		skb_reserve(skb, NET_IP_ALIGN);
 		mapping = pci_map_page(ap->pdev, virt_to_page(skb->data),
 				       offset_in_page(skb->data),
 				       ACE_MINI_BUFSIZE,
@@ -1762,8 +1763,9 @@ static void ace_load_mini_rx_ring(struct ace_private *ap, int nr_bufs)
  * Load the jumbo rx ring, this may happen at any time if the MTU
  * is changed to a value > 1500.
  */
-static void ace_load_jumbo_rx_ring(struct ace_private *ap, int nr_bufs)
+static void ace_load_jumbo_rx_ring(struct net_device *dev, int nr_bufs)
 {
+	struct ace_private *ap = netdev_priv(dev);
 	struct ace_regs __iomem *regs = ap->regs;
 	short i, idx;
 
@@ -1774,11 +1776,10 @@ static void ace_load_jumbo_rx_ring(struct ace_private *ap, int nr_bufs)
 		struct rx_desc *rd;
 		dma_addr_t mapping;
 
-		skb = dev_alloc_skb(ACE_JUMBO_BUFSIZE + NET_IP_ALIGN);
+		skb = netdev_alloc_skb_ip_align(dev, ACE_JUMBO_BUFSIZE);
 		if (!skb)
 			break;
 
-		skb_reserve(skb, NET_IP_ALIGN);
 		mapping = pci_map_page(ap->pdev, virt_to_page(skb->data),
 				       offset_in_page(skb->data),
 				       ACE_JUMBO_BUFSIZE,
@@ -2196,7 +2197,7 @@ static irqreturn_t ace_interrupt(int irq, void *dev_id)
 #ifdef DEBUG
 				printk("low on std buffers %i\n", cur_size);
 #endif
-				ace_load_std_rx_ring(ap,
+				ace_load_std_rx_ring(dev,
 						     RX_RING_SIZE - cur_size);
 			} else
 				run_tasklet = 1;
@@ -2212,7 +2213,8 @@ static irqreturn_t ace_interrupt(int irq, void *dev_id)
 					printk("low on mini buffers %i\n",
 					       cur_size);
 #endif
-					ace_load_mini_rx_ring(ap, RX_MINI_SIZE - cur_size);
+					ace_load_mini_rx_ring(dev,
+							      RX_MINI_SIZE - cur_size);
 				} else
 					run_tasklet = 1;
 			}
@@ -2228,7 +2230,8 @@ static irqreturn_t ace_interrupt(int irq, void *dev_id)
 					printk("low on jumbo buffers %i\n",
 					       cur_size);
 #endif
-					ace_load_jumbo_rx_ring(ap, RX_JUMBO_SIZE - cur_size);
+					ace_load_jumbo_rx_ring(dev,
+							       RX_JUMBO_SIZE - cur_size);
 				} else
 					run_tasklet = 1;
 			}
@@ -2267,7 +2270,7 @@ static int ace_open(struct net_device *dev)
 
 	if (ap->jumbo &&
 	    !test_and_set_bit(0, &ap->jumbo_refill_busy))
-		ace_load_jumbo_rx_ring(ap, RX_JUMBO_SIZE);
+		ace_load_jumbo_rx_ring(dev, RX_JUMBO_SIZE);
 
 	if (dev->flags & IFF_PROMISC) {
 		cmd.evt = C_SET_PROMISC_MODE;
@@ -2575,7 +2578,7 @@ static int ace_change_mtu(struct net_device *dev, int new_mtu)
 			       "support\n", dev->name);
 			ap->jumbo = 1;
 			if (!test_and_set_bit(0, &ap->jumbo_refill_busy))
-				ace_load_jumbo_rx_ring(ap, RX_JUMBO_SIZE);
+				ace_load_jumbo_rx_ring(dev, RX_JUMBO_SIZE);
 			ace_set_rxtx_parms(dev, 1);
 		}
 	} else {

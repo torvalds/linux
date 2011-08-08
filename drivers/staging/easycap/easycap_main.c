@@ -158,10 +158,6 @@ static int easycap_open(struct inode *inode, struct file *file)
 		SAY("ERROR: peasycap is NULL\n");
 		return -EFAULT;
 	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: %p\n", peasycap);
-		return -EFAULT;
-	}
 	if (!peasycap->pusb_device) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		return -EFAULT;
@@ -695,10 +691,6 @@ static int videodev_release(struct video_device *pvideo_device)
 		SAY("ending unsuccessfully\n");
 		return -EFAULT;
 	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: %p\n", peasycap);
-		return -EFAULT;
-	}
 	if (0 != kill_video_urbs(peasycap)) {
 		SAM("ERROR: kill_video_urbs() failed\n");
 		return -EFAULT;
@@ -734,10 +726,6 @@ static void easycap_delete(struct kref *pkref)
 	peasycap = container_of(pkref, struct easycap, kref);
 	if (!peasycap) {
 		SAM("ERROR: peasycap is NULL: cannot perform deletions\n");
-		return;
-	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: %p\n", peasycap);
 		return;
 	}
 	kd = isdongle(peasycap);
@@ -889,20 +877,6 @@ static void easycap_delete(struct kref *pkref)
 	JOM(4, "easyoss_delete(): isoc audio buffers freed: %i pages\n",
 					m * (0x01 << AUDIO_ISOC_ORDER));
 /*---------------------------------------------------------------------------*/
-#ifdef CONFIG_EASYCAP_OSS
-	JOM(4, "freeing audio buffers.\n");
-	gone = 0;
-	for (k = 0;  k < peasycap->audio_buffer_page_many;  k++) {
-		if (peasycap->audio_buffer[k].pgo) {
-			free_page((unsigned long)peasycap->audio_buffer[k].pgo);
-			peasycap->audio_buffer[k].pgo = NULL;
-			peasycap->allocation_audio_page -= 1;
-			gone++;
-		}
-	}
-	JOM(4, "easyoss_delete(): audio buffers freed: %i pages\n", gone);
-#endif /* CONFIG_EASYCAP_OSS */
-/*---------------------------------------------------------------------------*/
 	JOM(4, "freeing easycap structure.\n");
 	allocation_video_urb    = peasycap->allocation_video_urb;
 	allocation_video_page   = peasycap->allocation_video_page;
@@ -912,8 +886,6 @@ static void easycap_delete(struct kref *pkref)
 	allocation_audio_page   = peasycap->allocation_audio_page;
 	allocation_audio_struct = peasycap->allocation_audio_struct;
 	registered_audio        = peasycap->registered_audio;
-
-	kfree(peasycap);
 
 	if (0 <= kd && DONGLE_MANY > kd) {
 		if (mutex_lock_interruptible(&mutex_dongle)) {
@@ -929,6 +901,9 @@ static void easycap_delete(struct kref *pkref)
 	} else {
 		SAY("ERROR: cannot purge dongle[].peasycap");
 	}
+
+	kfree(peasycap);
+
 /*---------------------------------------------------------------------------*/
 	SAY("%8i=video urbs    after all deletions\n", allocation_video_urb);
 	SAY("%8i=video pages   after all deletions\n", allocation_video_page);
@@ -961,10 +936,6 @@ static unsigned int easycap_poll(struct file *file, poll_table *wait)
 		SAY("ERROR:  peasycap is NULL\n");
 		return -EFAULT;
 	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: %p\n", peasycap);
-		return -EFAULT;
-	}
 	if (!peasycap->pusb_device) {
 		SAY("ERROR:  peasycap->pusb_device is NULL\n");
 		return -EFAULT;
@@ -992,11 +963,6 @@ static unsigned int easycap_poll(struct file *file, poll_table *wait)
 		peasycap = file->private_data;
 		if (!peasycap) {
 			SAY("ERROR:  peasycap is NULL\n");
-			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
-			return -ERESTARTSYS;
-		}
-		if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-			SAY("ERROR: bad peasycap: %p\n", peasycap);
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 			return -ERESTARTSYS;
 		}
@@ -2454,10 +2420,6 @@ static void easycap_vma_open(struct vm_area_struct *pvma)
 		SAY("ERROR: peasycap is NULL\n");
 		return;
 	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: %p\n", peasycap);
-		return;
-	}
 	peasycap->vma_many++;
 	JOT(8, "%i=peasycap->vma_many\n", peasycap->vma_many);
 	return;
@@ -2470,10 +2432,6 @@ static void easycap_vma_close(struct vm_area_struct *pvma)
 	peasycap = pvma->vm_private_data;
 	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
-		return;
-	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: %p\n", peasycap);
 		return;
 	}
 	peasycap->vma_many--;
@@ -2604,10 +2562,6 @@ static void easycap_complete(struct urb *purb)
 	peasycap = purb->context;
 	if (!peasycap) {
 		SAY("ERROR: easycap_complete(): peasycap is NULL\n");
-		return;
-	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: %p\n", peasycap);
 		return;
 	}
 	if (peasycap->video_eof)
@@ -3000,7 +2954,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
 	struct easycap_format *peasycap_format;
 	int fmtidx;
 	struct inputset *inputset;
-	struct v4l2_device *pv4l2_device;
 
 	usbdev = interface_to_usbdev(intf);
 
@@ -3054,7 +3007,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
 */
 /*---------------------------------------------------------------------------*/
 		peasycap->minor = -1;
-		strcpy(&peasycap->telltale[0], TELLTALE);
 		kref_init(&peasycap->kref);
 		JOM(8, "intf[%i]: after kref_init(..._video) "
 				"%i=peasycap->kref.refcount.counter\n",
@@ -3266,23 +3218,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
 			SAY("ERROR: peasycap is NULL when probing interface %i\n",
 								bInterfaceNumber);
 			return -ENODEV;
-		}
-/*---------------------------------------------------------------------------*/
-/*
- *  SOME VERSIONS OF THE videodev MODULE OVERWRITE THE DATA WHICH HAS
- *  BEEN WRITTEN BY THE CALL TO usb_set_intfdata() IN easycap_usb_probe(),
- *  REPLACING IT WITH A POINTER TO THE EMBEDDED v4l2_device STRUCTURE.
- *  TO DETECT THIS, THE STRING IN THE easycap.telltale[] BUFFER IS CHECKED.
-*/
-/*---------------------------------------------------------------------------*/
-		if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-			pv4l2_device = usb_get_intfdata(intf);
-			if (!pv4l2_device) {
-				SAY("ERROR: pv4l2_device is NULL\n");
-				return -ENODEV;
-			}
-			peasycap = (struct easycap *)
-				container_of(pv4l2_device, struct easycap, v4l2_device);
 		}
 	}
 /*---------------------------------------------------------------------------*/
@@ -3775,14 +3710,12 @@ static int easycap_usb_probe(struct usb_interface *intf,
  *  THE VIDEO DEVICE CAN BE REGISTERED NOW, AS IT IS READY.
  */
 /*--------------------------------------------------------------------------*/
-		if (0 != (v4l2_device_register(&(intf->dev),
-							&(peasycap->v4l2_device)))) {
+		if (v4l2_device_register(&intf->dev, &peasycap->v4l2_device)) {
 			SAM("v4l2_device_register() failed\n");
 			return -ENODEV;
-		} else {
-			JOM(4, "registered device instance: %s\n",
-						&(peasycap->v4l2_device.name[0]));
 		}
+		JOM(4, "registered device instance: %s\n",
+			peasycap->v4l2_device.name);
 /*---------------------------------------------------------------------------*/
 /*
  *                                 FIXME
@@ -3947,32 +3880,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
 		INIT_LIST_HEAD(&(peasycap->urb_audio_head));
 		peasycap->purb_audio_head = &(peasycap->urb_audio_head);
 
-#ifdef CONFIG_EASYCAP_OSS
-		JOM(4, "allocating an audio buffer\n");
-		JOM(4, ".... scattered over %i pages\n",
-						peasycap->audio_buffer_page_many);
-
-		for (k = 0;  k < peasycap->audio_buffer_page_many;  k++) {
-			if (peasycap->audio_buffer[k].pgo) {
-				SAM("ERROR: attempting to reallocate audio buffers\n");
-			} else {
-				pbuf = (void *) __get_free_page(GFP_KERNEL);
-				if (!pbuf) {
-					SAM("ERROR: Could not allocate audio "
-								"buffer page %i\n", k);
-					return -ENOMEM;
-				} else
-					peasycap->allocation_audio_page += 1;
-
-				peasycap->audio_buffer[k].pgo = pbuf;
-			}
-			peasycap->audio_buffer[k].pto = peasycap->audio_buffer[k].pgo;
-		}
-
-		peasycap->audio_fill = 0;
-		peasycap->audio_read = 0;
-		JOM(4, "allocation of audio buffer done:  %i pages\n", k);
-#endif /* CONFIG_EASYCAP_OSS */
 /*---------------------------------------------------------------------------*/
 		JOM(4, "allocating %i isoc audio buffers of size %i\n",
 			AUDIO_ISOC_BUFFER_MANY,
@@ -4049,11 +3956,7 @@ static int easycap_usb_probe(struct usb_interface *intf,
 					"peasycap->audio_isoc_buffer[.].pgo;\n");
 				JOM(4, "  purb->transfer_buffer_length = %i;\n",
 					peasycap->audio_isoc_buffer_size);
-#ifdef CONFIG_EASYCAP_OSS
-				JOM(4, "  purb->complete = easyoss_complete;\n");
-#else /* CONFIG_EASYCAP_OSS */
 				JOM(4, "  purb->complete = easycap_alsa_complete;\n");
-#endif /* CONFIG_EASYCAP_OSS */
 				JOM(4, "  purb->context = peasycap;\n");
 				JOM(4, "  purb->start_frame = 0;\n");
 				JOM(4, "  purb->number_of_packets = %i;\n",
@@ -4076,11 +3979,7 @@ static int easycap_usb_probe(struct usb_interface *intf,
 			purb->transfer_buffer = peasycap->audio_isoc_buffer[k].pgo;
 			purb->transfer_buffer_length =
 						peasycap->audio_isoc_buffer_size;
-#ifdef CONFIG_EASYCAP_OSS
-			purb->complete = easyoss_complete;
-#else /* CONFIG_EASYCAP_OSS */
 			purb->complete = easycap_alsa_complete;
-#endif /* CONFIG_EASYCAP_OSS */
 			purb->context = peasycap;
 			purb->start_frame = 0;
 			purb->number_of_packets = peasycap->audio_isoc_framesperdesc;
@@ -4103,7 +4002,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
  *  THE AUDIO DEVICE CAN BE REGISTERED NOW, AS IT IS READY.
  */
 /*---------------------------------------------------------------------------*/
-#ifndef CONFIG_EASYCAP_OSS
 		JOM(4, "initializing ALSA card\n");
 
 		rc = easycap_alsa_probe(peasycap);
@@ -4112,15 +4010,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
 			return -ENODEV;
 		}
 
-#else /* CONFIG_EASYCAP_OSS */
-		rc = usb_register_dev(intf, &easyoss_class);
-		if (rc) {
-			SAY("ERROR: usb_register_dev() failed\n");
-			usb_set_intfdata(intf, NULL);
-			return -ENODEV;
-		}
-		SAM("easyoss attached to minor #%d\n", intf->minor);
-#endif /* CONFIG_EASYCAP_OSS */
 
 		JOM(8, "kref_get() with %i=kref.refcount.counter\n",
 				peasycap->kref.refcount.counter);
@@ -4146,7 +4035,7 @@ static int easycap_usb_probe(struct usb_interface *intf,
  *  WHEN THIS FUNCTION IS CALLED THE EasyCAP HAS ALREADY BEEN PHYSICALLY
  *  UNPLUGGED.  HENCE peasycap->pusb_device IS NO LONGER VALID.
  *
- *  THIS FUNCTION AFFECTS BOTH OSS AND ALSA.  BEWARE.
+ *  THIS FUNCTION AFFECTS ALSA.  BEWARE.
  */
 /*---------------------------------------------------------------------------*/
 static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
@@ -4159,7 +4048,6 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 	struct list_head *plist_head;
 	struct data_urb *pdata_urb;
 	int minor, m, kd;
-	struct v4l2_device *pv4l2_device;
 
 	JOT(4, "\n");
 
@@ -4183,29 +4071,6 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 	peasycap = usb_get_intfdata(pusb_interface);
 	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
-		return;
-	}
-/*---------------------------------------------------------------------------*/
-/*
- *  SOME VERSIONS OF THE videodev MODULE OVERWRITE THE DATA WHICH HAS
- *  BEEN WRITTEN BY THE CALL TO usb_set_intfdata() IN easycap_usb_probe(),
- *  REPLACING IT WITH A POINTER TO THE EMBEDDED v4l2_device STRUCTURE.
- *  TO DETECT THIS, THE STRING IN THE easycap.telltale[] BUFFER IS CHECKED.
-*/
-/*---------------------------------------------------------------------------*/
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		pv4l2_device = usb_get_intfdata(pusb_interface);
-		if (!pv4l2_device) {
-			SAY("ERROR: pv4l2_device is NULL\n");
-			return;
-		}
-		peasycap = (struct easycap *)
-			container_of(pv4l2_device, struct easycap, v4l2_device);
-	}
-/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
-/*---------------------------------------------------------------------------*/
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: %p\n", peasycap);
 		return;
 	}
 /*---------------------------------------------------------------------------*/
@@ -4321,19 +4186,12 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 			JOM(4, "locked dongle[%i].mutex_audio\n", kd);
 		} else
 			SAY("ERROR: %i=kd is bad: cannot lock dongle\n", kd);
-#ifndef CONFIG_EASYCAP_OSS
 		if (0 != snd_card_free(peasycap->psnd_card)) {
 			SAY("ERROR: snd_card_free() failed\n");
 		} else {
 			peasycap->psnd_card = NULL;
 			(peasycap->registered_audio)--;
 		}
-#else /* CONFIG_EASYCAP_OSS */
-		usb_deregister_dev(pusb_interface, &easyoss_class);
-		peasycap->registered_audio--;
-		JOM(4, "intf[%i]: usb_deregister_dev()\n", bInterfaceNumber);
-		SAM("easyoss detached from minor #%d\n", minor);
-#endif /* CONFIG_EASYCAP_OSS */
 		if (0 <= kd && DONGLE_MANY > kd) {
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 			JOM(4, "unlocked dongle[%i].mutex_audio\n", kd);

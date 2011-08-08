@@ -314,6 +314,8 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 	}
 	spin_unlock(&cifs_file_list_lock);
 
+	cancel_work_sync(&cifs_file->oplock_break);
+
 	if (!tcon->need_reconnect && !cifs_file->invalidHandle) {
 		int xid, rc;
 
@@ -2418,31 +2420,6 @@ void cifs_oplock_break(struct work_struct *work)
 				 cinode->clientCanCacheRead ? 1 : 0);
 		cFYI(1, "Oplock release rc = %d", rc);
 	}
-
-	/*
-	 * We might have kicked in before is_valid_oplock_break()
-	 * finished grabbing reference for us.  Make sure it's done by
-	 * waiting for cifs_file_list_lock.
-	 */
-	spin_lock(&cifs_file_list_lock);
-	spin_unlock(&cifs_file_list_lock);
-
-	cifs_oplock_break_put(cfile);
-}
-
-/* must be called while holding cifs_file_list_lock */
-void cifs_oplock_break_get(struct cifsFileInfo *cfile)
-{
-	cifs_sb_active(cfile->dentry->d_sb);
-	cifsFileInfo_get(cfile);
-}
-
-void cifs_oplock_break_put(struct cifsFileInfo *cfile)
-{
-	struct super_block *sb = cfile->dentry->d_sb;
-
-	cifsFileInfo_put(cfile);
-	cifs_sb_deactive(sb);
 }
 
 const struct address_space_operations cifs_addr_ops = {

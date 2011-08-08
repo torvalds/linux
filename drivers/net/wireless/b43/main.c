@@ -4,7 +4,7 @@
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>
   Copyright (c) 2005 Stefano Brivio <stefano.brivio@polimi.it>
-  Copyright (c) 2005-2009 Michael Buesch <mb@bu3sch.de>
+  Copyright (c) 2005-2009 Michael Buesch <m@bues.ch>
   Copyright (c) 2005 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
 
@@ -1156,17 +1156,37 @@ void b43_power_saving_ctl_bits(struct b43_wldev *dev, unsigned int ps_flags)
 }
 
 #ifdef CONFIG_B43_BCMA
+static void b43_bcma_phy_reset(struct b43_wldev *dev)
+{
+	u32 flags;
+
+	/* Put PHY into reset */
+	flags = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
+	flags |= B43_BCMA_IOCTL_PHY_RESET;
+	flags |= B43_BCMA_IOCTL_PHY_BW_20MHZ; /* Make 20 MHz def */
+	bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, flags);
+	udelay(2);
+
+	/* Take PHY out of reset */
+	flags = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
+	flags &= ~B43_BCMA_IOCTL_PHY_RESET;
+	flags |= BCMA_IOCTL_FGC;
+	bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, flags);
+	udelay(1);
+
+	/* Do not force clock anymore */
+	flags = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
+	flags &= ~BCMA_IOCTL_FGC;
+	bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, flags);
+	udelay(1);
+}
+
 static void b43_bcma_wireless_core_reset(struct b43_wldev *dev, bool gmode)
 {
-	u32 flags = 0;
-
-	if (gmode)
-		flags = B43_BCMA_IOCTL_GMODE;
-	flags |= B43_BCMA_IOCTL_PHY_CLKEN;
-	flags |= B43_BCMA_IOCTL_PHY_BW_20MHZ; /* Make 20 MHz def */
-	b43_device_enable(dev, flags);
-
-	/* TODO: reset PHY */
+	b43_device_enable(dev, B43_BCMA_IOCTL_PHY_CLKEN);
+	bcma_core_set_clockmode(dev->dev->bdev, BCMA_CLKMODE_FAST);
+	b43_bcma_phy_reset(dev);
+	bcma_core_pll_ctl(dev->dev->bdev, 0x300, 0x3000000, true);
 }
 #endif
 
@@ -2814,12 +2834,12 @@ void b43_mac_phy_clock_set(struct b43_wldev *dev, bool on)
 	switch (dev->dev->bus_type) {
 #ifdef CONFIG_B43_BCMA
 	case B43_BUS_BCMA:
-		tmp = bcma_read32(dev->dev->bdev, BCMA_IOCTL);
+		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
 		if (on)
 			tmp |= B43_BCMA_IOCTL_MACPHYCLKEN;
 		else
 			tmp &= ~B43_BCMA_IOCTL_MACPHYCLKEN;
-		bcma_write32(dev->dev->bdev, BCMA_IOCTL, tmp);
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, tmp);
 		break;
 #endif
 #ifdef CONFIG_B43_SSB
@@ -4948,6 +4968,7 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 	struct b43_wl *wl = dev->wl;
 	struct pci_dev *pdev = NULL;
 	int err;
+	u32 tmp;
 	bool have_2ghz_phy = 0, have_5ghz_phy = 0;
 
 	/* Do NOT do any device initialization here.
@@ -4973,17 +4994,17 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 	switch (dev->dev->bus_type) {
 #ifdef CONFIG_B43_BCMA
 	case B43_BUS_BCMA:
-		/* FIXME */
-		have_2ghz_phy = 1;
-		have_5ghz_phy = 0;
+		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOST);
+		have_2ghz_phy = !!(tmp & B43_BCMA_IOST_2G_PHY);
+		have_5ghz_phy = !!(tmp & B43_BCMA_IOST_5G_PHY);
 		break;
 #endif
 #ifdef CONFIG_B43_SSB
 	case B43_BUS_SSB:
 		if (dev->dev->core_rev >= 5) {
-			u32 tmshigh = ssb_read32(dev->dev->sdev, SSB_TMSHIGH);
-			have_2ghz_phy = !!(tmshigh & B43_TMSHIGH_HAVE_2GHZ_PHY);
-			have_5ghz_phy = !!(tmshigh & B43_TMSHIGH_HAVE_5GHZ_PHY);
+			tmp = ssb_read32(dev->dev->sdev, SSB_TMSHIGH);
+			have_2ghz_phy = !!(tmp & B43_TMSHIGH_HAVE_2GHZ_PHY);
+			have_5ghz_phy = !!(tmp & B43_TMSHIGH_HAVE_5GHZ_PHY);
 		} else
 			B43_WARN_ON(1);
 		break;
@@ -5164,6 +5185,7 @@ static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
 	struct ssb_sprom *sprom = dev->bus_sprom;
 	struct ieee80211_hw *hw;
 	struct b43_wl *wl;
+	char chip_name[6];
 
 	hw = ieee80211_alloc_hw(sizeof(*wl), &b43_hw_ops);
 	if (!hw) {
@@ -5202,8 +5224,10 @@ static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
 	INIT_WORK(&wl->tx_work, b43_tx_work);
 	skb_queue_head_init(&wl->tx_queue);
 
-	b43info(wl, "Broadcom %04X WLAN found (core revision %u)\n",
-		dev->chip_id, dev->core_rev);
+	snprintf(chip_name, ARRAY_SIZE(chip_name),
+		 (dev->chip_id > 0x9999) ? "%d" : "%04X", dev->chip_id);
+	b43info(wl, "Broadcom %s WLAN found (core revision %u)\n", chip_name,
+		dev->core_rev);
 	return wl;
 }
 
@@ -5211,19 +5235,59 @@ static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
 static int b43_bcma_probe(struct bcma_device *core)
 {
 	struct b43_bus_dev *dev;
+	struct b43_wl *wl;
+	int err;
 
 	dev = b43_bus_dev_bcma_init(core);
 	if (!dev)
 		return -ENODEV;
 
-	b43err(NULL, "BCMA is not supported yet!");
-	kfree(dev);
-	return -EOPNOTSUPP;
+	wl = b43_wireless_init(dev);
+	if (IS_ERR(wl)) {
+		err = PTR_ERR(wl);
+		goto bcma_out;
+	}
+
+	err = b43_one_core_attach(dev, wl);
+	if (err)
+		goto bcma_err_wireless_exit;
+
+	err = ieee80211_register_hw(wl->hw);
+	if (err)
+		goto bcma_err_one_core_detach;
+	b43_leds_register(wl->current_dev);
+
+bcma_out:
+	return err;
+
+bcma_err_one_core_detach:
+	b43_one_core_detach(dev);
+bcma_err_wireless_exit:
+	ieee80211_free_hw(wl->hw);
+	return err;
 }
 
 static void b43_bcma_remove(struct bcma_device *core)
 {
-	/* TODO */
+	struct b43_wldev *wldev = bcma_get_drvdata(core);
+	struct b43_wl *wl = wldev->wl;
+
+	/* We must cancel any work here before unregistering from ieee80211,
+	 * as the ieee80211 unreg will destroy the workqueue. */
+	cancel_work_sync(&wldev->restart_work);
+
+	/* Restore the queues count before unregistering, because firmware detect
+	 * might have modified it. Restoring is important, so the networking
+	 * stack can properly free resources. */
+	wl->hw->queues = wl->mac80211_initially_registered_queues;
+	b43_leds_stop(wldev);
+	ieee80211_unregister_hw(wl->hw);
+
+	b43_one_core_detach(wldev->dev);
+
+	b43_leds_unregister(wl);
+
+	ieee80211_free_hw(wl->hw);
 }
 
 static struct bcma_driver b43_bcma_driver = {
@@ -5286,6 +5350,7 @@ static void b43_ssb_remove(struct ssb_device *sdev)
 {
 	struct b43_wl *wl = ssb_get_devtypedata(sdev);
 	struct b43_wldev *wldev = ssb_get_drvdata(sdev);
+	struct b43_bus_dev *dev = wldev->dev;
 
 	/* We must cancel any work here before unregistering from ieee80211,
 	 * as the ieee80211 unreg will destroy the workqueue. */
@@ -5301,14 +5366,14 @@ static void b43_ssb_remove(struct ssb_device *sdev)
 		ieee80211_unregister_hw(wl->hw);
 	}
 
-	b43_one_core_detach(wldev->dev);
+	b43_one_core_detach(dev);
 
 	if (list_empty(&wl->devlist)) {
 		b43_leds_unregister(wl);
 		/* Last core on the chip unregistered.
 		 * We can destroy common struct b43_wl.
 		 */
-		b43_wireless_exit(wldev->dev, wl);
+		b43_wireless_exit(dev, wl);
 	}
 }
 

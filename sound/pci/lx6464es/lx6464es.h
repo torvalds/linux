@@ -26,7 +26,7 @@
 #define LX6464ES_H
 
 #include <linux/spinlock.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>

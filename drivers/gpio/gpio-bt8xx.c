@@ -2,7 +2,7 @@
 
     bt8xx GPIO abuser
 
-    Copyright (C) 2008 Michael Buesch <mb@bu3sch.de>
+    Copyright (C) 2008 Michael Buesch <m@bues.ch>
 
     Please do _only_ contact the people listed _above_ with issues related to this driver.
     All the other people listed below are not related to this driver. Their names

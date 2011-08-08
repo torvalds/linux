@@ -31,7 +31,7 @@
 #include <net/sock.h>
 #include <net/netfilter/nf_queue.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #ifdef CONFIG_BRIDGE_NETFILTER
 #include "../bridge/br_private.h"

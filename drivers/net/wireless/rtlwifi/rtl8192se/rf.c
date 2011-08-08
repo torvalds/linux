@@ -27,6 +27,8 @@
  *
  *****************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "../wifi.h"
 #include "reg.h"
 #include "def.h"
@@ -507,7 +509,7 @@ bool rtl92s_phy_rf6052_config(struct ieee80211_hw *hw)
 		}
 
 		if (rtstatus != true) {
-			printk(KERN_ERR "Radio[%d] Fail!!", rfpath);
+			pr_err("Radio[%d] Fail!!\n", rfpath);
 			goto fail;
 		}
 

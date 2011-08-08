@@ -16,7 +16,7 @@
 #include <linux/cpumask.h>
 
 #include <asm/r4k-timer.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/barrier.h>
 #include <asm/mipsregs.h>
 

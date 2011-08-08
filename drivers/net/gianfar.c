@@ -388,12 +388,8 @@ static void gfar_init_mac(struct net_device *ndev)
 	if (priv->hwts_rx_en)
 		rctrl |= RCTRL_PRSDEP_INIT | RCTRL_TS_ENABLE;
 
-	/* keep vlan related bits if it's enabled */
-	if (ndev->features & NETIF_F_HW_VLAN_TX)
-		rctrl |= RCTRL_VLEX | RCTRL_PRSDEP_INIT;
-
 	if (ndev->features & NETIF_F_HW_VLAN_RX)
-		tctrl |= TCTRL_VLINS;
+		rctrl |= RCTRL_VLEX | RCTRL_PRSDEP_INIT;
 
 	/* Init rctrl based on our settings */
 	gfar_write(&regs->rctrl, rctrl);

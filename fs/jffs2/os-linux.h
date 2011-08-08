@@ -173,7 +173,7 @@ int jffs2_do_setattr (struct inode *, struct iattr *);
 struct inode *jffs2_iget(struct super_block *, unsigned long);
 void jffs2_evict_inode (struct inode *);
 void jffs2_dirty_inode(struct inode *inode, int flags);
-struct inode *jffs2_new_inode (struct inode *dir_i, int mode,
+struct inode *jffs2_new_inode (struct inode *dir_i, umode_t mode,
 			       struct jffs2_raw_inode *ri);
 int jffs2_statfs (struct dentry *, struct kstatfs *);
 int jffs2_remount_fs (struct super_block *, int *, char *);

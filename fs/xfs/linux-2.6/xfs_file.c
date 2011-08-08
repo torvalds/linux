@@ -149,7 +149,9 @@ xfs_file_fsync(
 
 	xfs_iflags_clear(ip, XFS_ITRUNCATED);
 
+	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	xfs_ioend_wait(ip);
+	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
 	if (mp->m_flags & XFS_MOUNT_BARRIER) {
 		/*
@@ -881,11 +883,14 @@ xfs_file_aio_write(
 	/* Handle various SYNC-type writes */
 	if ((file->f_flags & O_DSYNC) || IS_SYNC(inode)) {
 		loff_t end = pos + ret - 1;
+		int error;
 
 		xfs_rw_iunlock(ip, iolock);
-		ret = -xfs_file_fsync(file, pos, end,
+		error = xfs_file_fsync(file, pos, end,
 				      (file->f_flags & __O_SYNC) ? 0 : 1);
 		xfs_rw_ilock(ip, iolock);
+		if (error)
+			ret = error;
 	}
 
 out_unlock:

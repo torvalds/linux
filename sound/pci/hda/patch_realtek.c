@@ -895,13 +895,15 @@ static void alc_init_auto_hp(struct hda_codec *codec)
 	if (present == 3)
 		spec->automute_hp_lo = 1; /* both HP and LO automute */
 
-	if (!cfg->speaker_pins[0]) {
+	if (!cfg->speaker_pins[0] &&
+	    cfg->line_out_type == AUTO_PIN_SPEAKER_OUT) {
 		memcpy(cfg->speaker_pins, cfg->line_out_pins,
 		       sizeof(cfg->speaker_pins));
 		cfg->speaker_outs = cfg->line_outs;
 	}
 
-	if (!cfg->hp_pins[0]) {
+	if (!cfg->hp_pins[0] &&
+	    cfg->line_out_type == AUTO_PIN_HP_OUT) {
 		memcpy(cfg->hp_pins, cfg->line_out_pins,
 		       sizeof(cfg->hp_pins));
 		cfg->hp_outs = cfg->line_outs;
@@ -920,6 +922,7 @@ static void alc_init_auto_hp(struct hda_codec *codec)
 		spec->automute_mode = ALC_AUTOMUTE_PIN;
 	}
 	if (spec->automute && cfg->line_out_pins[0] &&
+	    cfg->speaker_pins[0] &&
 	    cfg->line_out_pins[0] != cfg->hp_pins[0] &&
 	    cfg->line_out_pins[0] != cfg->speaker_pins[0]) {
 		for (i = 0; i < cfg->line_outs; i++) {
@@ -1911,7 +1914,7 @@ static int alc_build_controls(struct hda_codec *codec)
 				return err;
 		}
 	}
-	if (spec->cap_mixer) {
+	if (spec->cap_mixer && spec->adc_nids) {
 		const char *kname = kctl ? kctl->id.name : NULL;
 		for (knew = spec->cap_mixer; knew->name; knew++) {
 			if (kname && strcmp(knew->name, kname) == 0)
@@ -2386,7 +2389,7 @@ static int alc_suspend(struct hda_codec *codec, pm_message_t state)
 }
 #endif
 
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 static int alc_resume(struct hda_codec *codec)
 {
 	msleep(150); /* to avoid pop noise */
@@ -2406,7 +2409,7 @@ static const struct hda_codec_ops alc_patch_ops = {
 	.init = alc_init,
 	.free = alc_free,
 	.unsol_event = alc_unsol_event,
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 	.resume = alc_resume,
 #endif
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -2801,7 +2804,8 @@ static int alc_auto_fill_dac_nids(struct hda_codec *codec)
 	int i;
 
  again:
-	spec->multiout.num_dacs = 0;
+	/* set num_dacs once to full for alc_auto_look_for_dac() */
+	spec->multiout.num_dacs = cfg->line_outs;
 	spec->multiout.hp_nid = 0;
 	spec->multiout.extra_out_nid[0] = 0;
 	memset(spec->private_dac_nids, 0, sizeof(spec->private_dac_nids));
@@ -2834,6 +2838,8 @@ static int alc_auto_fill_dac_nids(struct hda_codec *codec)
 		}
 	}
 
+	/* re-count num_dacs and squash invalid entries */
+	spec->multiout.num_dacs = 0;
 	for (i = 0; i < cfg->line_outs; i++) {
 		if (spec->private_dac_nids[i])
 			spec->multiout.num_dacs++;
@@ -3674,7 +3680,7 @@ static int patch_alc880(struct hda_codec *codec)
 	if (board_config != ALC_MODEL_AUTO)
 		setup_preset(codec, &alc880_presets[board_config]);
 
-	if (!spec->no_analog && !spec->adc_nids && spec->input_mux) {
+	if (!spec->no_analog && !spec->adc_nids) {
 		alc_auto_fill_adc_caps(codec);
 		alc_rebuild_imux_for_auto_mic(codec);
 		alc_remove_invalid_adc_nids(codec);
@@ -3801,7 +3807,7 @@ static int patch_alc260(struct hda_codec *codec)
 	if (board_config != ALC_MODEL_AUTO)
 		setup_preset(codec, &alc260_presets[board_config]);
 
-	if (!spec->no_analog && !spec->adc_nids && spec->input_mux) {
+	if (!spec->no_analog && !spec->adc_nids) {
 		alc_auto_fill_adc_caps(codec);
 		alc_rebuild_imux_for_auto_mic(codec);
 		alc_remove_invalid_adc_nids(codec);
@@ -3980,7 +3986,7 @@ static int patch_alc882(struct hda_codec *codec)
 	if (board_config != ALC_MODEL_AUTO)
 		setup_preset(codec, &alc882_presets[board_config]);
 
-	if (!spec->no_analog && !spec->adc_nids && spec->input_mux) {
+	if (!spec->no_analog && !spec->adc_nids) {
 		alc_auto_fill_adc_caps(codec);
 		alc_rebuild_imux_for_auto_mic(codec);
 		alc_remove_invalid_adc_nids(codec);
@@ -4134,7 +4140,7 @@ static int patch_alc262(struct hda_codec *codec)
 	if (board_config != ALC_MODEL_AUTO)
 		setup_preset(codec, &alc262_presets[board_config]);
 
-	if (!spec->no_analog && !spec->adc_nids && spec->input_mux) {
+	if (!spec->no_analog && !spec->adc_nids) {
 		alc_auto_fill_adc_caps(codec);
 		alc_rebuild_imux_for_auto_mic(codec);
 		alc_remove_invalid_adc_nids(codec);
@@ -4290,7 +4296,7 @@ static int patch_alc268(struct hda_codec *codec)
 					  (0 << AC_AMPCAP_MUTE_SHIFT));
 	}
 
-	if (!spec->no_analog && !spec->adc_nids && spec->input_mux) {
+	if (!spec->no_analog && !spec->adc_nids) {
 		alc_auto_fill_adc_caps(codec);
 		alc_rebuild_imux_for_auto_mic(codec);
 		alc_remove_invalid_adc_nids(codec);
@@ -4410,7 +4416,7 @@ static void alc269_shutup(struct hda_codec *codec)
 	}
 }
 
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 static int alc269_resume(struct hda_codec *codec)
 {
 	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x018) {
@@ -4433,7 +4439,7 @@ static int alc269_resume(struct hda_codec *codec)
 	hda_call_check_power_status(codec, 0x01);
 	return 0;
 }
-#endif /* SND_HDA_NEEDS_RESUME */
+#endif /* CONFIG_PM */
 
 static void alc269_fixup_hweq(struct hda_codec *codec,
 			       const struct alc_fixup *fix, int action)
@@ -4702,7 +4708,7 @@ static int patch_alc269(struct hda_codec *codec)
 	if (board_config != ALC_MODEL_AUTO)
 		setup_preset(codec, &alc269_presets[board_config]);
 
-	if (!spec->no_analog && !spec->adc_nids && spec->input_mux) {
+	if (!spec->no_analog && !spec->adc_nids) {
 		alc_auto_fill_adc_caps(codec);
 		alc_rebuild_imux_for_auto_mic(codec);
 		alc_remove_invalid_adc_nids(codec);
@@ -4725,7 +4731,7 @@ static int patch_alc269(struct hda_codec *codec)
 	spec->vmaster_nid = 0x02;
 
 	codec->patch_ops = alc_patch_ops;
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 	codec->patch_ops.resume = alc269_resume;
 #endif
 	if (board_config == ALC_MODEL_AUTO)
@@ -4840,7 +4846,7 @@ static int patch_alc861(struct hda_codec *codec)
 	if (board_config != ALC_MODEL_AUTO)
 		setup_preset(codec, &alc861_presets[board_config]);
 
-	if (!spec->no_analog && !spec->adc_nids && spec->input_mux) {
+	if (!spec->no_analog && !spec->adc_nids) {
 		alc_auto_fill_adc_caps(codec);
 		alc_rebuild_imux_for_auto_mic(codec);
 		alc_remove_invalid_adc_nids(codec);
@@ -4981,7 +4987,7 @@ static int patch_alc861vd(struct hda_codec *codec)
 		add_verb(spec, alc660vd_eapd_verbs);
 	}
 
-	if (!spec->no_analog && !spec->adc_nids && spec->input_mux) {
+	if (!spec->no_analog && !spec->adc_nids) {
 		alc_auto_fill_adc_caps(codec);
 		alc_rebuild_imux_for_auto_mic(codec);
 		alc_remove_invalid_adc_nids(codec);
@@ -5197,7 +5203,7 @@ static int patch_alc662(struct hda_codec *codec)
 	if (board_config != ALC_MODEL_AUTO)
 		setup_preset(codec, &alc662_presets[board_config]);
 
-	if (!spec->no_analog && !spec->adc_nids && spec->input_mux) {
+	if (!spec->no_analog && !spec->adc_nids) {
 		alc_auto_fill_adc_caps(codec);
 		alc_rebuild_imux_for_auto_mic(codec);
 		alc_remove_invalid_adc_nids(codec);
@@ -5333,7 +5339,7 @@ static int patch_alc680(struct hda_codec *codec)
 #endif
 	}
 
-	if (!spec->no_analog && !spec->adc_nids && spec->input_mux) {
+	if (!spec->no_analog && !spec->adc_nids) {
 		alc_auto_fill_adc_caps(codec);
 		alc_rebuild_imux_for_auto_mic(codec);
 		alc_remove_invalid_adc_nids(codec);

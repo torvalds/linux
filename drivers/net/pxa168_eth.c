@@ -1505,7 +1505,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 		err = -ENODEV;
 		goto err_netdev;
 	}
-	pep->base = ioremap(res->start, res->end - res->start + 1);
+	pep->base = ioremap(res->start, resource_size(res));
 	if (pep->base == NULL) {
 		err = -ENOMEM;
 		goto err_netdev;

@@ -85,9 +85,6 @@ static void iwl2000_nic_config(struct iwl_priv *priv)
 	if (priv->cfg->iq_invert)
 		iwl_set_bit(priv, CSR_GP_DRIVER_REG,
 			    CSR_GP_DRIVER_REG_BIT_RADIO_IQ_INVER);
-
-	if (priv->cfg->disable_otp_refresh)
-		iwl_write_prph(priv, APMG_ANALOG_SVR_REG, 0x80000010);
 }
 
 static struct iwl_sensitivity_ranges iwl2000_sensitivity = {
@@ -156,7 +153,7 @@ static int iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 		BIT(IWL_CALIB_TX_IQ)            |
 		BIT(IWL_CALIB_BASE_BAND);
 	if (priv->cfg->need_dc_calib)
-		priv->hw_params.calib_rt_cfg |= BIT(IWL_CALIB_CFG_DC_IDX);
+		priv->hw_params.calib_rt_cfg |= IWL_CALIB_CFG_DC_IDX;
 	if (priv->cfg->need_temp_offset_calib)
 		priv->hw_params.calib_init_cfg |= BIT(IWL_CALIB_TEMP_OFFSET);
 
@@ -167,9 +164,6 @@ static int iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 
 static struct iwl_lib_ops iwl2000_lib = {
 	.set_hw_params = iwl2000_hw_set_hw_params,
-	.rx_handler_setup = iwlagn_rx_handler_setup,
-	.setup_deferred_work = iwlagn_setup_deferred_work,
-	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
 	.nic_config = iwl2000_nic_config,
 	.eeprom_ops = {
 		.regulatory_bands = {
@@ -188,10 +182,9 @@ static struct iwl_lib_ops iwl2000_lib = {
 
 static struct iwl_lib_ops iwl2030_lib = {
 	.set_hw_params = iwl2000_hw_set_hw_params,
-	.rx_handler_setup = iwlagn_bt_rx_handler_setup,
-	.setup_deferred_work = iwlagn_bt_setup_deferred_work,
+	.bt_rx_handler_setup = iwlagn_bt_rx_handler_setup,
+	.bt_setup_deferred_work = iwlagn_bt_setup_deferred_work,
 	.cancel_deferred_work = iwlagn_bt_cancel_deferred_work,
-	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
 	.nic_config = iwl2000_nic_config,
 	.eeprom_ops = {
 		.regulatory_bands = {
@@ -206,22 +199,6 @@ static struct iwl_lib_ops iwl2030_lib = {
 		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
 	},
 	.temperature = iwlagn_temperature,
-};
-
-static const struct iwl_ops iwl2000_ops = {
-	.lib = &iwl2000_lib,
-};
-
-static const struct iwl_ops iwl2030_ops = {
-	.lib = &iwl2030_lib,
-};
-
-static const struct iwl_ops iwl105_ops = {
-	.lib = &iwl2000_lib,
-};
-
-static const struct iwl_ops iwl135_ops = {
-	.lib = &iwl2030_lib,
 };
 
 static struct iwl_base_params iwl2000_base_params = {
@@ -282,13 +259,12 @@ static struct iwl_bt_params iwl2030_bt_params = {
 	.ucode_api_min = IWL2000_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
-	.ops = &iwl2000_ops,					\
+	.lib = &iwl2000_lib,					\
 	.base_params = &iwl2000_base_params,			\
 	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
 	.led_mode = IWL_LED_RF_STATE,				\
-	.iq_invert = true,					\
-	.disable_otp_refresh = true				\
+	.iq_invert = true					\
 
 struct iwl_cfg iwl2000_2bgn_cfg = {
 	.name = "2000 Series 2x2 BGN",
@@ -307,7 +283,7 @@ struct iwl_cfg iwl2000_2bg_cfg = {
 	.ucode_api_min = IWL2030_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
-	.ops = &iwl2030_ops,					\
+	.lib = &iwl2030_lib,					\
 	.base_params = &iwl2030_base_params,			\
 	.bt_params = &iwl2030_bt_params,			\
 	.need_dc_calib = true,					\
@@ -333,13 +309,14 @@ struct iwl_cfg iwl2030_2bg_cfg = {
 	.ucode_api_min = IWL105_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
-	.ops = &iwl105_ops,					\
+	.lib = &iwl2000_lib,					\
 	.base_params = &iwl2000_base_params,			\
 	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.adv_pm = true,						\
-	.rx_with_siso_diversity = true				\
+	.rx_with_siso_diversity = true,				\
+	.iq_invert = true					\
 
 struct iwl_cfg iwl105_bg_cfg = {
 	.name = "105 Series 1x1 BG",
@@ -358,14 +335,15 @@ struct iwl_cfg iwl105_bgn_cfg = {
 	.ucode_api_min = IWL135_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
-	.ops = &iwl135_ops,					\
+	.lib = &iwl2030_lib,					\
 	.base_params = &iwl2030_base_params,			\
 	.bt_params = &iwl2030_bt_params,			\
 	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.adv_pm = true,						\
-	.rx_with_siso_diversity = true				\
+	.rx_with_siso_diversity = true,				\
+	.iq_invert = true					\
 
 struct iwl_cfg iwl135_bg_cfg = {
 	.name = "135 Series 1x1 BG/BT",

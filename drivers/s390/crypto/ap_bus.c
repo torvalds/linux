@@ -41,7 +41,7 @@
 #include <linux/mutex.h>
 #include <asm/reset.h>
 #include <asm/airq.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/system.h>
 #include <asm/isc.h>
 #include <linux/hrtimer.h>

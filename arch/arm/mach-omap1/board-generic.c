@@ -31,7 +31,7 @@
 static void __init omap_generic_init_irq(void)
 {
 	omap1_init_common_hw();
-	omap_init_irq();
+	omap1_init_irq();
 }
 
 /* assume no Mini-AB port */
@@ -99,5 +99,5 @@ MACHINE_START(OMAP_GENERIC, "Generic OMAP1510/1610/1710")
 	.reserve	= omap_reserve,
 	.init_irq	= omap_generic_init_irq,
 	.init_machine	= omap_generic_init,
-	.timer		= &omap_timer,
+	.timer		= &omap1_timer,
 MACHINE_END

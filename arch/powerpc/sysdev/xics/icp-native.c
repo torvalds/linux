@@ -256,7 +256,7 @@ static int __init icp_native_init_one_node(struct device_node *np,
 			return -1;
 		}
 
-		if (icp_native_map_one_cpu(*indx, r.start, r.end - r.start))
+		if (icp_native_map_one_cpu(*indx, r.start, resource_size(&r)))
 			return -1;
 
 		(*indx)++;

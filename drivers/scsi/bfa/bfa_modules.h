@@ -44,6 +44,7 @@ struct bfa_modules_s {
 	struct bfa_flash_s	flash;		/*  flash module */
 	struct bfa_diag_s	diag_mod;	/*  diagnostics module	*/
 	struct bfa_phy_s	phy;		/*  phy module		*/
+	struct bfa_dconf_mod_s	dconf_mod;	/*  DCONF common module	*/
 };
 
 /*
@@ -119,6 +120,7 @@ struct bfa_s {
 	struct list_head	reqq_waitq[BFI_IOC_MAX_CQS];
 	bfa_boolean_t		fcs;		/*  FCS is attached to BFA */
 	struct bfa_msix_s	msix;
+	int			bfa_aen_seq;
 };
 
 extern bfa_boolean_t bfa_auto_recover;
@@ -130,5 +132,6 @@ extern struct bfa_module_s hal_mod_lps;
 extern struct bfa_module_s hal_mod_uf;
 extern struct bfa_module_s hal_mod_rport;
 extern struct bfa_module_s hal_mod_fcp;
+extern struct bfa_module_s hal_mod_dconf;
 
 #endif /* __BFA_MODULES_H__ */

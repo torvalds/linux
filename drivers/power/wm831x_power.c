@@ -24,6 +24,9 @@ struct wm831x_power {
 	struct power_supply wall;
 	struct power_supply usb;
 	struct power_supply battery;
+	char wall_name[20];
+	char usb_name[20];
+	char battery_name[20];
 };
 
 static int wm831x_power_check_online(struct wm831x *wm831x, int supply,
@@ -486,6 +489,7 @@ static irqreturn_t wm831x_pwr_src_irq(int irq, void *data)
 static __devinit int wm831x_power_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
+	struct wm831x_pdata *wm831x_pdata = wm831x->dev->platform_data;
 	struct wm831x_power *power;
 	struct power_supply *usb;
 	struct power_supply *battery;
@@ -503,12 +507,28 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 	battery = &power->battery;
 	wall = &power->wall;
 
+	if (wm831x_pdata && wm831x_pdata->wm831x_num) {
+		snprintf(power->wall_name, sizeof(power->wall_name),
+			 "wm831x-wall.%d", wm831x_pdata->wm831x_num);
+		snprintf(power->battery_name, sizeof(power->wall_name),
+			 "wm831x-battery.%d", wm831x_pdata->wm831x_num);
+		snprintf(power->usb_name, sizeof(power->wall_name),
+			 "wm831x-usb.%d", wm831x_pdata->wm831x_num);
+	} else {
+		snprintf(power->wall_name, sizeof(power->wall_name),
+			 "wm831x-wall");
+		snprintf(power->battery_name, sizeof(power->wall_name),
+			 "wm831x-battery");
+		snprintf(power->usb_name, sizeof(power->wall_name),
+			 "wm831x-usb");
+	}
+
 	/* We ignore configuration failures since we can still read back
 	 * the status without enabling the charger.
 	 */
 	wm831x_config_battery(wm831x);
 
-	wall->name = "wm831x-wall";
+	wall->name = power->wall_name;
 	wall->type = POWER_SUPPLY_TYPE_MAINS;
 	wall->properties = wm831x_wall_props;
 	wall->num_properties = ARRAY_SIZE(wm831x_wall_props);
@@ -517,7 +537,7 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_kmalloc;
 
-	battery->name = "wm831x-battery";
+	battery->name = power->battery_name;
 	battery->properties = wm831x_bat_props;
 	battery->num_properties = ARRAY_SIZE(wm831x_bat_props);
 	battery->get_property = wm831x_bat_get_prop;
@@ -526,7 +546,7 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_wall;
 
-	usb->name = "wm831x-usb",
+	usb->name = power->usb_name,
 	usb->type = POWER_SUPPLY_TYPE_USB;
 	usb->properties = wm831x_usb_props;
 	usb->num_properties = ARRAY_SIZE(wm831x_usb_props);

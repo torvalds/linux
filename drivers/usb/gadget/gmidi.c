@@ -537,14 +537,16 @@ static int set_gmidi_config(struct gmidi_device *dev, gfp_t gfp_flags)
 	struct usb_ep *ep;
 	unsigned i;
 
-	err = usb_ep_enable(dev->in_ep, &bulk_in_desc);
+	dev->in_ep->desc = &bulk_in_desc;
+	err = usb_ep_enable(dev->in_ep);
 	if (err) {
 		ERROR(dev, "can't start %s: %d\n", dev->in_ep->name, err);
 		goto fail;
 	}
 	dev->in_ep->driver_data = dev;
 
-	err = usb_ep_enable(dev->out_ep, &bulk_out_desc);
+	dev->out_ep->desc = &bulk_out_desc;
+	err = usb_ep_enable(dev->out_ep);
 	if (err) {
 		ERROR(dev, "can't start %s: %d\n", dev->out_ep->name, err);
 		goto fail;
@@ -693,6 +695,7 @@ static int gmidi_setup(struct usb_gadget *gadget,
 		switch (w_value >> 8) {
 
 		case USB_DT_DEVICE:
+			device_desc.bMaxPacketSize0 = gadget->ep0->maxpacket;
 			value = min(w_length, (u16) sizeof(device_desc));
 			memcpy(req->buf, &device_desc, value);
 			break;
@@ -1246,8 +1249,6 @@ autoconf_fail:
 	}
 
 	dev->req->complete = gmidi_setup_complete;
-
-	device_desc.bMaxPacketSize0 = gadget->ep0->maxpacket;
 
 	gadget->ep0->driver_data = dev;
 

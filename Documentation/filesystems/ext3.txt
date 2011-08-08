@@ -147,15 +147,6 @@ grpjquota=<file>	during journal replay. They replace the above
 			package for more details
 			(http://sourceforge.net/projects/linuxquota).
 
-bh		(*)	ext3 associates buffer heads to data pages to
-nobh			(a) cache disk block mapping information
-			(b) link pages into transaction to provide
-			    ordering guarantees.
-			"bh" option forces use of buffer heads.
-			"nobh" option tries to avoid associating buffer
-			heads (supported only for "writeback" mode).
-
-
 Specification
 =============
 Ext3 shares all disk implementation with the ext2 filesystem, and adds
@@ -227,5 +218,5 @@ kernel source:	<file:fs/ext3/>
 programs: 	http://e2fsprogs.sourceforge.net/
 		http://ext2resize.sourceforge.net
 
-useful links:	http://www.ibm.com/developerworks/library/l-fs7.html
-		http://www.ibm.com/developerworks/library/l-fs8.html
+useful links:	http://www.ibm.com/developerworks/library/l-fs7/index.html
+        http://www.ibm.com/developerworks/library/l-fs8/index.html

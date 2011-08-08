@@ -22,7 +22,6 @@
 #include "mmu.h"
 #include "x86.h"
 #include "kvm_cache_regs.h"
-#include "x86.h"
 
 #include <linux/kvm_host.h>
 #include <linux/types.h>

@@ -14,7 +14,7 @@ int orinoco_download(struct orinoco_private *priv);
 void orinoco_cache_fw(struct orinoco_private *priv, int ap);
 void orinoco_uncache_fw(struct orinoco_private *priv);
 #else
-#define orinoco_cache_fw(priv, ap) do { } while(0)
+#define orinoco_cache_fw(priv, ap) do { } while (0)
 #define orinoco_uncache_fw(priv) do { } while (0)
 #endif
 

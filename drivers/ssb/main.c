@@ -3,7 +3,7 @@
  * Subsystem core
  *
  * Copyright 2005, Broadcom Corporation
- * Copyright 2006, 2007, Michael Buesch <mb@bu3sch.de>
+ * Copyright 2006, 2007, Michael Buesch <m@bues.ch>
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */
@@ -1266,7 +1266,10 @@ u32 ssb_dma_translation(struct ssb_device *dev)
 	case SSB_BUSTYPE_SSB:
 		return 0;
 	case SSB_BUSTYPE_PCI:
-		return SSB_PCI_DMA;
+		if (ssb_read32(dev, SSB_TMSHIGH) & SSB_TMSHIGH_DMA64)
+			return SSB_PCIE_DMA_H32;
+		else
+			return SSB_PCI_DMA;
 	default:
 		__ssb_dma_not_implemented(dev);
 	}

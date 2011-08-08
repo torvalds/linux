@@ -11,7 +11,7 @@ config XEN_BALLOON
 
 config XEN_SELFBALLOONING
 	bool "Dynamically self-balloon kernel memory to target"
-	depends on XEN && XEN_BALLOON && CLEANCACHE && SWAP
+	depends on XEN && XEN_BALLOON && CLEANCACHE && SWAP && XEN_TMEM
 	default n
 	help
 	  Self-ballooning dynamically balloons available kernel memory driven
@@ -25,6 +25,36 @@ config XEN_SELFBALLOONING
 	  is enabled by default but can be disabled with the 'noselfballooning'
 	  kernel boot parameter.  Note that systems without a sufficiently
 	  large swap device should not enable self-ballooning.
+
+config XEN_BALLOON_MEMORY_HOTPLUG
+	bool "Memory hotplug support for Xen balloon driver"
+	default n
+	depends on XEN_BALLOON && MEMORY_HOTPLUG
+	help
+	  Memory hotplug support for Xen balloon driver allows expanding memory
+	  available for the system above limit declared at system startup.
+	  It is very useful on critical systems which require long
+	  run without rebooting.
+
+	  Memory could be hotplugged in following steps:
+
+	    1) dom0: xl mem-max <domU> <maxmem>
+	       where <maxmem> is >= requested memory size,
+
+	    2) dom0: xl mem-set <domU> <memory>
+	       where <memory> is requested memory size; alternatively memory
+	       could be added by writing proper value to
+	       /sys/devices/system/xen_memory/xen_memory0/target or
+	       /sys/devices/system/xen_memory/xen_memory0/target_kb on dumU,
+
+	    3) domU: for i in /sys/devices/system/memory/memory*/state; do \
+	               [ "`cat "$i"`" = offline ] && echo online > "$i"; done
+
+	  Memory could be onlined automatically on domU by adding following line to udev rules:
+
+	  SUBSYSTEM=="memory", ACTION=="add", RUN+="/bin/sh -c '[ -f /sys$devpath/state ] && echo online > /sys$devpath/state'"
+
+	  In that case step 3 should be omitted.
 
 config XEN_SCRUB_PAGES
 	bool "Scrub pages before returning them to system"

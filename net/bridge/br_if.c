@@ -388,7 +388,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	br_ifinfo_notify(RTM_NEWLINK, p);
 
 	if (changed_addr)
-		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
+		call_netdevice_notifiers(NETDEV_CHANGEADDR, br->dev);
 
 	dev_set_mtu(br->dev, br_min_mtu(br));
 

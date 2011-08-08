@@ -553,8 +553,7 @@ static void __init setup_bootmem_allocator(void)
 
 #ifdef CONFIG_KEXEC
 	if (crashk_res.start != crashk_res.end)
-		reserve_bootmem(crashk_res.start,
-			crashk_res.end - crashk_res.start + 1, 0);
+		reserve_bootmem(crashk_res.start, resource_size(&crashk_res), 0);
 #endif
 }
 

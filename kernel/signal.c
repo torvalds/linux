@@ -3102,15 +3102,11 @@ SYSCALL_DEFINE0(sgetmask)
 
 SYSCALL_DEFINE1(ssetmask, int, newmask)
 {
-	int old;
+	int old = current->blocked.sig[0];
+	sigset_t newset;
 
-	spin_lock_irq(&current->sighand->siglock);
-	old = current->blocked.sig[0];
-
-	siginitset(&current->blocked, newmask & ~(sigmask(SIGKILL)|
-						  sigmask(SIGSTOP)));
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+	siginitset(&newset, newmask & ~(sigmask(SIGKILL) | sigmask(SIGSTOP)));
+	set_current_blocked(&newset);
 
 	return old;
 }
@@ -3167,11 +3163,8 @@ SYSCALL_DEFINE2(rt_sigsuspend, sigset_t __user *, unewset, size_t, sigsetsize)
 		return -EFAULT;
 	sigdelsetmask(&newset, sigmask(SIGKILL)|sigmask(SIGSTOP));
 
-	spin_lock_irq(&current->sighand->siglock);
 	current->saved_sigmask = current->blocked;
-	current->blocked = newset;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+	set_current_blocked(&newset);
 
 	current->state = TASK_INTERRUPTIBLE;
 	schedule();

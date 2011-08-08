@@ -303,7 +303,6 @@ sbni_pci_probe( struct net_device  *dev )
 	       != NULL ) {
 		int  pci_irq_line;
 		unsigned long  pci_ioaddr;
-		u16  subsys;
 
 		if( pdev->vendor != SBNI_PCI_VENDOR &&
 		    pdev->device != SBNI_PCI_DEVICE )
@@ -314,9 +313,7 @@ sbni_pci_probe( struct net_device  *dev )
 
 		/* Avoid already found cards from previous calls */
 		if( !request_region( pci_ioaddr, SBNI_IO_EXTENT, dev->name ) ) {
-			pci_read_config_word( pdev, PCI_SUBSYSTEM_ID, &subsys );
-
-			if (subsys != 2)
+			if (pdev->subsystem_device != 2)
 				continue;
 
 			/* Dual adapter is present */

@@ -310,7 +310,7 @@ is non-immutable. The operation must either configure the hardware or store
 the configuration information to be applied later.
 
 Link configuration must not have any side effect on other links. If an enabled
-link at a sink pad prevents another link at the same pad from being disabled,
+link at a sink pad prevents another link at the same pad from being enabled,
 the link_setup operation must return -EBUSY and can't implicitly disable the
 first enabled link.
 

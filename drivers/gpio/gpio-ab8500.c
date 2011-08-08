@@ -15,7 +15,6 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
-#include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
@@ -517,5 +516,5 @@ module_exit(ab8500_gpio_exit);
 
 MODULE_AUTHOR("BIBEK BASU <bibek.basu@stericsson.com>");
 MODULE_DESCRIPTION("Driver allows to use AB8500 unused pins to be used as GPIO");
-MODULE_ALIAS("AB8500 GPIO driver");
+MODULE_ALIAS("platform:ab8500-gpio");
 MODULE_LICENSE("GPL v2");

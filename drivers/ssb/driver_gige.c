@@ -3,7 +3,7 @@
  * Broadcom Gigabit Ethernet core driver
  *
  * Copyright 2008, Broadcom Corporation
- * Copyright 2008, Michael Buesch <mb@bu3sch.de>
+ * Copyright 2008, Michael Buesch <m@bues.ch>
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */

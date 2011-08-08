@@ -2,7 +2,7 @@
  * Handles operations such as session offload/upload etc, and manages
  * session resources such as connection id and qp resources.
  *
- * Copyright (c) 2008 - 2010 Broadcom Corporation
+ * Copyright (c) 2008 - 2011 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -65,7 +65,8 @@ static void bnx2fc_offload_session(struct fcoe_port *port,
 {
 	struct fc_lport *lport = rdata->local_port;
 	struct fc_rport *rport = rdata->rport;
-	struct bnx2fc_hba *hba = port->priv;
+	struct bnx2fc_interface *interface = port->priv;
+	struct bnx2fc_hba *hba = interface->hba;
 	int rval;
 	int i = 0;
 
@@ -237,7 +238,8 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 static void bnx2fc_upload_session(struct fcoe_port *port,
 					struct bnx2fc_rport *tgt)
 {
-	struct bnx2fc_hba *hba = port->priv;
+	struct bnx2fc_interface *interface = port->priv;
+	struct bnx2fc_hba *hba = interface->hba;
 
 	BNX2FC_TGT_DBG(tgt, "upload_session: active_ios = %d\n",
 		tgt->num_active_ios.counter);
@@ -316,7 +318,8 @@ static int bnx2fc_init_tgt(struct bnx2fc_rport *tgt,
 {
 
 	struct fc_rport *rport = rdata->rport;
-	struct bnx2fc_hba *hba = port->priv;
+	struct bnx2fc_interface *interface = port->priv;
+	struct bnx2fc_hba *hba = interface->hba;
 	struct b577xx_doorbell_set_prod *sq_db = &tgt->sq_db;
 	struct b577xx_fcoe_rx_doorbell *rx_db = &tgt->rx_db;
 
@@ -349,6 +352,14 @@ static int bnx2fc_init_tgt(struct bnx2fc_rport *tgt,
 	tgt->rq_prod_idx = 0x8000;
 	tgt->rq_cons_idx = 0;
 	atomic_set(&tgt->num_active_ios, 0);
+
+	if (rdata->flags & FC_RP_FLAGS_RETRY) {
+		tgt->dev_type = TYPE_TAPE;
+		tgt->io_timeout = 0; /* use default ULP timeout */
+	} else {
+		tgt->dev_type = TYPE_DISK;
+		tgt->io_timeout = BNX2FC_IO_TIMEOUT;
+	}
 
 	/* initialize sq doorbell */
 	sq_db->header.header = B577XX_DOORBELL_HDR_DB_TYPE;
@@ -392,7 +403,8 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 				enum fc_rport_event event)
 {
 	struct fcoe_port *port = lport_priv(lport);
-	struct bnx2fc_hba *hba = port->priv;
+	struct bnx2fc_interface *interface = port->priv;
+	struct bnx2fc_hba *hba = interface->hba;
 	struct fc_rport *rport = rdata->rport;
 	struct fc_rport_libfc_priv *rp;
 	struct bnx2fc_rport *tgt;
@@ -403,7 +415,7 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 	switch (event) {
 	case RPORT_EV_READY:
 		if (!rport) {
-			printk(KERN_ALERT PFX "rport is NULL: ERROR!\n");
+			printk(KERN_ERR PFX "rport is NULL: ERROR!\n");
 			break;
 		}
 
@@ -415,7 +427,7 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 			 * We should not come here, as lport will
 			 * take care of fabric login
 			 */
-			printk(KERN_ALERT PFX "%x - rport_event_handler ERROR\n",
+			printk(KERN_ERR PFX "%x - rport_event_handler ERROR\n",
 				rdata->ids.port_id);
 			break;
 		}
@@ -483,7 +495,7 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 			break;
 
 		if (!rport) {
-			printk(KERN_ALERT PFX "%x - rport not created Yet!!\n",
+			printk(KERN_INFO PFX "%x - rport not created Yet!!\n",
 				port_id);
 			break;
 		}
@@ -537,7 +549,8 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 struct bnx2fc_rport *bnx2fc_tgt_lookup(struct fcoe_port *port,
 					     u32 port_id)
 {
-	struct bnx2fc_hba *hba = port->priv;
+	struct bnx2fc_interface *interface = port->priv;
+	struct bnx2fc_hba *hba = interface->hba;
 	struct bnx2fc_rport *tgt;
 	struct fc_rport_priv *rdata;
 	int i;
@@ -552,7 +565,7 @@ struct bnx2fc_rport *bnx2fc_tgt_lookup(struct fcoe_port *port,
 						"obtained\n");
 					return tgt;
 				} else {
-					printk(KERN_ERR PFX "rport 0x%x "
+					BNX2FC_TGT_DBG(tgt, "rport 0x%x "
 						"is in DELETED state\n",
 						rdata->ids.port_id);
 					return NULL;
@@ -633,7 +646,7 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 	tgt->sq = dma_alloc_coherent(&hba->pcidev->dev, tgt->sq_mem_size,
 				     &tgt->sq_dma, GFP_KERNEL);
 	if (!tgt->sq) {
-		printk(KERN_ALERT PFX "unable to allocate SQ memory %d\n",
+		printk(KERN_ERR PFX "unable to allocate SQ memory %d\n",
 			tgt->sq_mem_size);
 		goto mem_alloc_failure;
 	}
@@ -646,7 +659,7 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 	tgt->cq = dma_alloc_coherent(&hba->pcidev->dev, tgt->cq_mem_size,
 				     &tgt->cq_dma, GFP_KERNEL);
 	if (!tgt->cq) {
-		printk(KERN_ALERT PFX "unable to allocate CQ memory %d\n",
+		printk(KERN_ERR PFX "unable to allocate CQ memory %d\n",
 			tgt->cq_mem_size);
 		goto mem_alloc_failure;
 	}
@@ -659,7 +672,7 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 	tgt->rq = dma_alloc_coherent(&hba->pcidev->dev, tgt->rq_mem_size,
 					&tgt->rq_dma, GFP_KERNEL);
 	if (!tgt->rq) {
-		printk(KERN_ALERT PFX "unable to allocate RQ memory %d\n",
+		printk(KERN_ERR PFX "unable to allocate RQ memory %d\n",
 			tgt->rq_mem_size);
 		goto mem_alloc_failure;
 	}
@@ -671,7 +684,7 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 	tgt->rq_pbl = dma_alloc_coherent(&hba->pcidev->dev, tgt->rq_pbl_size,
 					 &tgt->rq_pbl_dma, GFP_KERNEL);
 	if (!tgt->rq_pbl) {
-		printk(KERN_ALERT PFX "unable to allocate RQ PBL %d\n",
+		printk(KERN_ERR PFX "unable to allocate RQ PBL %d\n",
 			tgt->rq_pbl_size);
 		goto mem_alloc_failure;
 	}
@@ -697,7 +710,7 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 	tgt->xferq = dma_alloc_coherent(&hba->pcidev->dev, tgt->xferq_mem_size,
 					&tgt->xferq_dma, GFP_KERNEL);
 	if (!tgt->xferq) {
-		printk(KERN_ALERT PFX "unable to allocate XFERQ %d\n",
+		printk(KERN_ERR PFX "unable to allocate XFERQ %d\n",
 			tgt->xferq_mem_size);
 		goto mem_alloc_failure;
 	}
@@ -711,7 +724,7 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 	tgt->confq = dma_alloc_coherent(&hba->pcidev->dev, tgt->confq_mem_size,
 					&tgt->confq_dma, GFP_KERNEL);
 	if (!tgt->confq) {
-		printk(KERN_ALERT PFX "unable to allocate CONFQ %d\n",
+		printk(KERN_ERR PFX "unable to allocate CONFQ %d\n",
 			tgt->confq_mem_size);
 		goto mem_alloc_failure;
 	}
@@ -726,7 +739,7 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 					    tgt->confq_pbl_size,
 					    &tgt->confq_pbl_dma, GFP_KERNEL);
 	if (!tgt->confq_pbl) {
-		printk(KERN_ALERT PFX "unable to allocate CONFQ PBL %d\n",
+		printk(KERN_ERR PFX "unable to allocate CONFQ PBL %d\n",
 			tgt->confq_pbl_size);
 		goto mem_alloc_failure;
 	}
@@ -751,7 +764,7 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 					  tgt->conn_db_mem_size,
 					  &tgt->conn_db_dma, GFP_KERNEL);
 	if (!tgt->conn_db) {
-		printk(KERN_ALERT PFX "unable to allocate conn_db %d\n",
+		printk(KERN_ERR PFX "unable to allocate conn_db %d\n",
 						tgt->conn_db_mem_size);
 		goto mem_alloc_failure;
 	}
@@ -767,7 +780,7 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 				      &tgt->lcq_dma, GFP_KERNEL);
 
 	if (!tgt->lcq) {
-		printk(KERN_ALERT PFX "unable to allocate lcq %d\n",
+		printk(KERN_ERR PFX "unable to allocate lcq %d\n",
 		       tgt->lcq_mem_size);
 		goto mem_alloc_failure;
 	}

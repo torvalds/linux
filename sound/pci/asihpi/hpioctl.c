@@ -107,7 +107,6 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	union hpi_response_buffer_v1 *hr;
 	u16 res_max_size;
 	u32 uncopied_bytes;
-	struct hpi_adapter *pa = NULL;
 	int err = 0;
 
 	if (cmd != HPI_IOCTL_LINUX)
@@ -178,15 +177,21 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	} else {
 		u16 __user *ptr = NULL;
 		u32 size = 0;
-
+		u32 adapter_present;
 		/* -1=no data 0=read from user mem, 1=write to user mem */
 		int wrflag = -1;
-		u32 adapter = hm->h.adapter_index;
+		struct hpi_adapter *pa;
 
-		if ((adapter > HPI_MAX_ADAPTERS) || (!pa->type)) {
-			hpi_init_response(&hr->r0, HPI_OBJ_ADAPTER,
-				HPI_ADAPTER_OPEN,
-				HPI_ERROR_BAD_ADAPTER_NUMBER);
+		if (hm->h.adapter_index < HPI_MAX_ADAPTERS) {
+			pa = &adapters[hm->h.adapter_index];
+			adapter_present = pa->type;
+		} else {
+			adapter_present = 0;
+		}
+
+		if (!adapter_present) {
+			hpi_init_response(&hr->r0, hm->h.object,
+				hm->h.function, HPI_ERROR_BAD_ADAPTER_NUMBER);
 
 			uncopied_bytes =
 				copy_to_user(puhr, hr, sizeof(hr->h));
@@ -197,9 +202,7 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			goto out;
 		}
 
-		pa = &adapters[adapter];
-
-		if (mutex_lock_interruptible(&adapters[adapter].mutex)) {
+		if (mutex_lock_interruptible(&pa->mutex)) {
 			err = -EINTR;
 			goto out;
 		}
@@ -235,8 +238,7 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 							"stream buffer size %d\n",
 							size);
 
-						mutex_unlock(&adapters
-							[adapter].mutex);
+						mutex_unlock(&pa->mutex);
 						err = -EINVAL;
 						goto out;
 					}
@@ -277,7 +279,7 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					uncopied_bytes, size);
 		}
 
-		mutex_unlock(&adapters[adapter].mutex);
+		mutex_unlock(&pa->mutex);
 	}
 
 	/* on return response size must be set */

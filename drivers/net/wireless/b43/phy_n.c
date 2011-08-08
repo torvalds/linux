@@ -3,7 +3,7 @@
   Broadcom B43 wireless driver
   IEEE 802.11n PHY support
 
-  Copyright (c) 2008 Michael Buesch <mb@bu3sch.de>
+  Copyright (c) 2008 Michael Buesch <m@bues.ch>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -611,12 +611,12 @@ static void b43_nphy_bmac_clock_fgc(struct b43_wldev *dev, bool force)
 	switch (dev->dev->bus_type) {
 #ifdef CONFIG_B43_BCMA
 	case B43_BUS_BCMA:
-		tmp = bcma_read32(dev->dev->bdev, BCMA_IOCTL);
+		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
 		if (force)
 			tmp |= BCMA_IOCTL_FGC;
 		else
 			tmp &= ~BCMA_IOCTL_FGC;
-		bcma_write32(dev->dev->bdev, BCMA_IOCTL, tmp);
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, tmp);
 		break;
 #endif
 #ifdef CONFIG_B43_SSB

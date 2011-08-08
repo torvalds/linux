@@ -166,8 +166,10 @@ loff_t default_llseek(struct file *file, loff_t offset, int origin)
 			 * long as offset isn't at the end of the file then the
 			 * offset is data.
 			 */
-			if (offset >= inode->i_size)
-				return -ENXIO;
+			if (offset >= inode->i_size) {
+				retval = -ENXIO;
+				goto out;
+			}
 			break;
 		case SEEK_HOLE:
 			/*
@@ -175,8 +177,10 @@ loff_t default_llseek(struct file *file, loff_t offset, int origin)
 			 * as long as offset isn't i_size or larger, return
 			 * i_size.
 			 */
-			if (offset >= inode->i_size)
-				return -ENXIO;
+			if (offset >= inode->i_size) {
+				retval = -ENXIO;
+				goto out;
+			}
 			offset = inode->i_size;
 			break;
 	}

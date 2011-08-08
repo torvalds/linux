@@ -1542,7 +1542,7 @@ int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool skip_pcu)
 
 		/* AR5K_MODE_11B */
 		if (mode > 2) {
-			ATH5K_ERR(ah->ah_sc,
+			ATH5K_ERR(ah,
 				"unsupported channel mode: %d\n", mode);
 			return -EINVAL;
 		}

@@ -322,6 +322,9 @@ static void macb_tx(struct macb *bp)
 		for (i = 0; i < TX_RING_SIZE; i++)
 			bp->tx_ring[i].ctrl = MACB_BIT(TX_USED);
 
+		/* Add wrap bit */
+		bp->tx_ring[TX_RING_SIZE - 1].ctrl |= MACB_BIT(TX_WRAP);
+
 		/* free transmit buffer in upper layer*/
 		for (tail = bp->tx_tail; tail != head; tail = NEXT_TX(tail)) {
 			struct ring_info *rp = &bp->tx_skb[tail];
@@ -1172,7 +1175,7 @@ static int __init macb_probe(struct platform_device *pdev)
 	clk_enable(bp->hclk);
 #endif
 
-	bp->regs = ioremap(regs->start, regs->end - regs->start + 1);
+	bp->regs = ioremap(regs->start, resource_size(regs));
 	if (!bp->regs) {
 		dev_err(&pdev->dev, "failed to map registers, aborting.\n");
 		err = -ENOMEM;

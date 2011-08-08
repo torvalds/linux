@@ -192,8 +192,6 @@ again:
 
 	local64_add(delta, &event->count);
 	local64_sub(delta, &hwc->period_left);
-
-	return;
 }
 
 static void mipspmu_start(struct perf_event *event, int flags)

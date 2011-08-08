@@ -1747,6 +1747,8 @@ int transport_generic_handle_cdb(
 }
 EXPORT_SYMBOL(transport_generic_handle_cdb);
 
+static void transport_generic_request_failure(struct se_cmd *,
+			struct se_device *, int, int);
 /*
  * Used by fabric module frontends to queue tasks directly.
  * Many only be used from process context only
@@ -1754,6 +1756,8 @@ EXPORT_SYMBOL(transport_generic_handle_cdb);
 int transport_handle_cdb_direct(
 	struct se_cmd *cmd)
 {
+	int ret;
+
 	if (!cmd->se_lun) {
 		dump_stack();
 		pr_err("cmd->se_lun is NULL\n");
@@ -1765,8 +1769,31 @@ int transport_handle_cdb_direct(
 				" from interrupt context\n");
 		return -EINVAL;
 	}
-
-	return transport_generic_new_cmd(cmd);
+	/*
+	 * Set TRANSPORT_NEW_CMD state and cmd->t_transport_active=1 following
+	 * transport_generic_handle_cdb*() -> transport_add_cmd_to_queue()
+	 * in existing usage to ensure that outstanding descriptors are handled
+	 * correctly during shutdown via transport_generic_wait_for_tasks()
+	 *
+	 * Also, we don't take cmd->t_state_lock here as we only expect
+	 * this to be called for initial descriptor submission.
+	 */
+	cmd->t_state = TRANSPORT_NEW_CMD;
+	atomic_set(&cmd->t_transport_active, 1);
+	/*
+	 * transport_generic_new_cmd() is already handling QUEUE_FULL,
+	 * so follow TRANSPORT_NEW_CMD processing thread context usage
+	 * and call transport_generic_request_failure() if necessary..
+	 */
+	ret = transport_generic_new_cmd(cmd);
+	if (ret == -EAGAIN)
+		return 0;
+	else if (ret < 0) {
+		cmd->transport_error_status = ret;
+		transport_generic_request_failure(cmd, NULL, 0,
+				(cmd->data_direction != DMA_TO_DEVICE));
+	}
+	return 0;
 }
 EXPORT_SYMBOL(transport_handle_cdb_direct);
 
@@ -3324,7 +3351,7 @@ static int transport_generic_cmd_sequencer(
 			goto out_invalid_cdb_field;
 		}
 
-		cmd->t_task_lba = get_unaligned_be16(&cdb[2]);
+		cmd->t_task_lba = get_unaligned_be64(&cdb[2]);
 		passthrough = (dev->transport->transport_type ==
 				TRANSPORT_PLUGIN_PHBA_PDEV);
 		/*
@@ -4052,17 +4079,16 @@ static int transport_allocate_data_tasks(
 	struct se_task *task;
 	struct se_device *dev = cmd->se_dev;
 	unsigned long flags;
-	sector_t sectors;
 	int task_count, i, ret;
-	sector_t dev_max_sectors = dev->se_sub_dev->se_dev_attrib.max_sectors;
+	sector_t sectors, dev_max_sectors = dev->se_sub_dev->se_dev_attrib.max_sectors;
 	u32 sector_size = dev->se_sub_dev->se_dev_attrib.block_size;
 	struct scatterlist *sg;
 	struct scatterlist *cmd_sg;
 
 	WARN_ON(cmd->data_length % sector_size);
 	sectors = DIV_ROUND_UP(cmd->data_length, sector_size);
-	task_count = DIV_ROUND_UP(sectors, dev_max_sectors);
-
+	task_count = DIV_ROUND_UP_SECTOR_T(sectors, dev_max_sectors);
+	
 	cmd_sg = sgl;
 	for (i = 0; i < task_count; i++) {
 		unsigned int task_size;

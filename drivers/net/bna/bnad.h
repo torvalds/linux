@@ -68,10 +68,13 @@ struct bnad_rx_ctrl {
 
 #define BNAD_VERSION			"2.3.2.3"
 
+#define BNAD_MAILBOX_MSIX_INDEX		0
 #define BNAD_MAILBOX_MSIX_VECTORS	1
+#define BNAD_INTX_TX_IB_BITMASK		0x1
+#define BNAD_INTX_RX_IB_BITMASK		0x2
 
-#define BNAD_STATS_TIMER_FREQ		1000 	/* in msecs */
-#define BNAD_DIM_TIMER_FREQ		1000 	/* in msecs */
+#define BNAD_STATS_TIMER_FREQ		1000	/* in msecs */
+#define BNAD_DIM_TIMER_FREQ		1000	/* in msecs */
 
 #define BNAD_MAX_Q_DEPTH		0x10000
 #define BNAD_MIN_Q_DEPTH		0x200
@@ -102,12 +105,12 @@ enum bnad_intr_source {
 
 enum bnad_link_state {
 	BNAD_LS_DOWN		= 0,
-	BNAD_LS_UP 		= 1
+	BNAD_LS_UP		= 1
 };
 
 struct bnad_completion {
-	struct completion 	ioc_comp;
-	struct completion 	ucast_comp;
+	struct completion	ioc_comp;
+	struct completion	ucast_comp;
 	struct completion	mcast_comp;
 	struct completion	tx_comp;
 	struct completion	rx_comp;
@@ -125,7 +128,7 @@ struct bnad_completion {
 
 /* Tx Rx Control Stats */
 struct bnad_drv_stats {
-	u64 		netif_queue_stop;
+	u64		netif_queue_stop;
 	u64		netif_queue_wakeup;
 	u64		netif_queue_stopped;
 	u64		tso4;
@@ -188,7 +191,7 @@ struct bnad_skb_unmap {
 struct bnad_unmap_q {
 	u32		producer_index;
 	u32		consumer_index;
-	u32 		q_depth;
+	u32		q_depth;
 	/* This should be the last one */
 	struct bnad_skb_unmap unmap_array[1];
 };
@@ -211,7 +214,7 @@ struct bnad_unmap_q {
 #define BNAD_RF_RX_SHUTDOWN_DELAYED	7
 
 struct bnad {
-	struct net_device 	*netdev;
+	struct net_device	*netdev;
 
 	/* Data path */
 	struct bnad_tx_info tx_info[BNAD_MAX_TXS];
@@ -245,7 +248,7 @@ struct bnad {
 	u32		cfg_flags;
 	unsigned long		run_flags;
 
-	struct pci_dev 		*pcidev;
+	struct pci_dev		*pcidev;
 	u64		mmio_start;
 	u64		mmio_len;
 
@@ -278,7 +281,7 @@ struct bnad {
 	struct bnad_diag *diag;
 
 	char			adapter_name[BNAD_NAME_LEN];
-	char 			port_name[BNAD_NAME_LEN];
+	char			port_name[BNAD_NAME_LEN];
 	char			mbox_irq_name[BNAD_NAME_LEN];
 };
 
@@ -286,7 +289,7 @@ struct bnad {
  * EXTERN VARIABLES
  */
 extern struct firmware *bfi_fw;
-extern u32 		bnad_rxqs_per_cq;
+extern u32		bnad_rxqs_per_cq;
 
 /*
  * EXTERN PROTOTYPES
@@ -332,7 +335,7 @@ extern void bnad_netdev_hwstats_fill(struct bnad *bnad,
 }
 
 #define bnad_dim_timer_running(_bnad)				\
-	(((_bnad)->cfg_flags & BNAD_CF_DIM_ENABLED) && 		\
+	(((_bnad)->cfg_flags & BNAD_CF_DIM_ENABLED) &&		\
 	(test_bit(BNAD_RF_DIM_TIMER_RUNNING, &((_bnad)->run_flags))))
 
 #endif /* __BNAD_H__ */

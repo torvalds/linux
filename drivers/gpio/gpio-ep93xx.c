@@ -1,7 +1,7 @@
 /*
  * Generic EP93xx GPIO handling
  *
- * Copyright (c) 2008 Ryan Mallon <ryan@bluewatersys.com>
+ * Copyright (c) 2008 Ryan Mallon
  * Copyright (c) 2011 H Hartley Sweeten <hsweeten@visionengravers.com>
  *
  * Based on code originally from:

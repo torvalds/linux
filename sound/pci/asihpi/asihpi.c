@@ -41,30 +41,9 @@
 #include <sound/tlv.h>
 #include <sound/hwdep.h>
 
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("AudioScience inc. <support@audioscience.com>");
 MODULE_DESCRIPTION("AudioScience ALSA ASI5000 ASI6000 ASI87xx ASI89xx");
-
-#if defined CONFIG_SND_DEBUG
-/* copied from pcm_lib.c, hope later patch will make that version public
-and this copy can be removed */
-static inline void
-snd_pcm_debug_name(struct snd_pcm_substream *substream, char *buf, size_t size)
-{
-	snprintf(buf, size, "pcmC%dD%d%c:%d",
-		 substream->pcm->card->number,
-		 substream->pcm->device,
-		 substream->stream ? 'c' : 'p',
-		 substream->number);
-}
-#else
-static inline void
-snd_pcm_debug_name(struct snd_pcm_substream *substream, char *buf, size_t size)
-{
-	*buf = 0;
-}
-#endif
 
 #if defined CONFIG_SND_DEBUG_VERBOSE
 /**

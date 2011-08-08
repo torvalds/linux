@@ -27,6 +27,7 @@
 struct bfa_s;
 
 typedef void (*bfa_isr_func_t) (struct bfa_s *bfa, struct bfi_msg_s *m);
+typedef void (*bfa_cb_cbfn_status_t) (void *cbarg, bfa_status_t status);
 
 /*
  * Interrupt message handlers
@@ -121,6 +122,7 @@ bfa_reqq_winit(struct bfa_reqq_wait_s *wqe, void (*qresume) (void *cbarg),
 #define bfa_cb_queue(__bfa, __hcb_qe, __cbfn, __cbarg) do {	\
 		(__hcb_qe)->cbfn  = (__cbfn);      \
 		(__hcb_qe)->cbarg = (__cbarg);      \
+		(__hcb_qe)->pre_rmv = BFA_FALSE;		\
 		list_add_tail(&(__hcb_qe)->qe, &(__bfa)->comp_q);      \
 	} while (0)
 
@@ -134,6 +136,11 @@ bfa_reqq_winit(struct bfa_reqq_wait_s *wqe, void (*qresume) (void *cbarg),
 			(__hcb_qe)->once = BFA_TRUE;			\
 		}							\
 	} while (0)
+
+#define bfa_cb_queue_status(__bfa, __hcb_qe, __status) do {		\
+		(__hcb_qe)->fw_status = (__status);			\
+		list_add_tail(&(__hcb_qe)->qe, &(__bfa)->comp_q);	\
+} while (0)
 
 #define bfa_cb_queue_done(__hcb_qe) do {	\
 		(__hcb_qe)->once = BFA_FALSE;	\
@@ -177,7 +184,7 @@ struct bfa_msix_s {
 struct bfa_hwif_s {
 	void (*hw_reginit)(struct bfa_s *bfa);
 	void (*hw_reqq_ack)(struct bfa_s *bfa, int reqq);
-	void (*hw_rspq_ack)(struct bfa_s *bfa, int rspq);
+	void (*hw_rspq_ack)(struct bfa_s *bfa, int rspq, u32 ci);
 	void (*hw_msix_init)(struct bfa_s *bfa, int nvecs);
 	void (*hw_msix_ctrl_install)(struct bfa_s *bfa);
 	void (*hw_msix_queue_install)(struct bfa_s *bfa);
@@ -268,10 +275,8 @@ struct bfa_iocfc_s {
 	((__bfa)->iocfc.hwif.hw_msix_queue_install(__bfa))
 #define bfa_msix_uninstall(__bfa)					\
 	((__bfa)->iocfc.hwif.hw_msix_uninstall(__bfa))
-#define bfa_isr_rspq_ack(__bfa, __queue) do {				\
-	if ((__bfa)->iocfc.hwif.hw_rspq_ack)				\
-		(__bfa)->iocfc.hwif.hw_rspq_ack(__bfa, __queue);	\
-} while (0)
+#define bfa_isr_rspq_ack(__bfa, __queue, __ci)				\
+	((__bfa)->iocfc.hwif.hw_rspq_ack(__bfa, __queue, __ci))
 #define bfa_isr_reqq_ack(__bfa, __queue) do {				\
 	if ((__bfa)->iocfc.hwif.hw_reqq_ack)				\
 		(__bfa)->iocfc.hwif.hw_reqq_ack(__bfa, __queue);	\
@@ -311,7 +316,7 @@ void bfa_msix_rspq(struct bfa_s *bfa, int vec);
 void bfa_msix_lpu_err(struct bfa_s *bfa, int vec);
 
 void bfa_hwcb_reginit(struct bfa_s *bfa);
-void bfa_hwcb_rspq_ack(struct bfa_s *bfa, int rspq);
+void bfa_hwcb_rspq_ack(struct bfa_s *bfa, int rspq, u32 ci);
 void bfa_hwcb_msix_init(struct bfa_s *bfa, int nvecs);
 void bfa_hwcb_msix_ctrl_install(struct bfa_s *bfa);
 void bfa_hwcb_msix_queue_install(struct bfa_s *bfa);
@@ -324,7 +329,8 @@ void bfa_hwcb_msix_get_rme_range(struct bfa_s *bfa, u32 *start,
 void bfa_hwct_reginit(struct bfa_s *bfa);
 void bfa_hwct2_reginit(struct bfa_s *bfa);
 void bfa_hwct_reqq_ack(struct bfa_s *bfa, int rspq);
-void bfa_hwct_rspq_ack(struct bfa_s *bfa, int rspq);
+void bfa_hwct_rspq_ack(struct bfa_s *bfa, int rspq, u32 ci);
+void bfa_hwct2_rspq_ack(struct bfa_s *bfa, int rspq, u32 ci);
 void bfa_hwct_msix_init(struct bfa_s *bfa, int nvecs);
 void bfa_hwct_msix_ctrl_install(struct bfa_s *bfa);
 void bfa_hwct_msix_queue_install(struct bfa_s *bfa);
@@ -376,6 +382,22 @@ int bfa_iocfc_get_pbc_vports(struct bfa_s *bfa,
 #define bfa_get_fw_clock_res(__bfa)		\
 	((__bfa)->iocfc.cfgrsp->fwcfg.fw_tick_res)
 
+/*
+ * lun mask macros return NULL when min cfg is enabled and there is
+ * no memory allocated for lunmask.
+ */
+#define bfa_get_lun_mask(__bfa)					\
+	((&(__bfa)->modules.dconf_mod)->min_cfg) ? NULL :	\
+	 (&(BFA_DCONF_MOD(__bfa)->dconf->lun_mask))
+
+#define bfa_get_lun_mask_list(_bfa)				\
+	((&(_bfa)->modules.dconf_mod)->min_cfg) ? NULL :	\
+	 (bfa_get_lun_mask(_bfa)->lun_list)
+
+#define bfa_get_lun_mask_status(_bfa)				\
+	(((&(_bfa)->modules.dconf_mod)->min_cfg)		\
+	 ? BFA_LUNMASK_MINCFG : ((bfa_get_lun_mask(_bfa))->status))
+
 void bfa_get_pciids(struct bfa_pciid_s **pciids, int *npciids);
 void bfa_cfg_get_default(struct bfa_iocfc_cfg_s *cfg);
 void bfa_cfg_get_min(struct bfa_iocfc_cfg_s *cfg);
@@ -406,7 +428,22 @@ bfa_status_t bfa_iocfc_israttr_set(struct bfa_s *bfa,
 
 void bfa_iocfc_enable(struct bfa_s *bfa);
 void bfa_iocfc_disable(struct bfa_s *bfa);
+void bfa_iocfc_cb_dconf_modinit(struct bfa_s *bfa, bfa_status_t status);
 #define bfa_timer_start(_bfa, _timer, _timercb, _arg, _timeout)		\
 	bfa_timer_begin(&(_bfa)->timer_mod, _timer, _timercb, _arg, _timeout)
+
+struct bfa_cb_pending_q_s {
+	struct bfa_cb_qe_s	hcb_qe;
+	void			*data;  /* Driver buffer */
+};
+
+/* Common macros to operate on pending stats/attr apis */
+#define bfa_pending_q_init(__qe, __cbfn, __cbarg, __data) do {	\
+	bfa_q_qe_init(&((__qe)->hcb_qe.qe));			\
+	(__qe)->hcb_qe.cbfn = (__cbfn);				\
+	(__qe)->hcb_qe.cbarg = (__cbarg);			\
+	(__qe)->hcb_qe.pre_rmv = BFA_TRUE;			\
+	(__qe)->data = (__data);				\
+} while (0)
 
 #endif /* __BFA_H__ */

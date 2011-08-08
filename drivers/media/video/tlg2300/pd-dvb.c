@@ -7,7 +7,7 @@
 
 #include "vendorcmds.h"
 #include <linux/sched.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 static void dvb_urb_cleanup(struct pd_dvb_adapter *pd_dvb);
 

@@ -755,6 +755,8 @@ struct btrfs_space_info {
 				   chunks for this space */
 	unsigned int chunk_alloc:1;	/* set if we are allocating a chunk */
 
+	unsigned int flush:1;		/* set if we are trying to make space */
+
 	unsigned int force_alloc;	/* set if we need to force a chunk
 					   alloc for this space */
 
@@ -764,7 +766,7 @@ struct btrfs_space_info {
 	struct list_head block_groups[BTRFS_NR_RAID_TYPES];
 	spinlock_t lock;
 	struct rw_semaphore groups_sem;
-	atomic_t caching_threads;
+	wait_queue_head_t wait;
 };
 
 struct btrfs_block_rsv {
@@ -824,6 +826,7 @@ struct btrfs_caching_control {
 	struct list_head list;
 	struct mutex mutex;
 	wait_queue_head_t wait;
+	struct btrfs_work work;
 	struct btrfs_block_group_cache *block_group;
 	u64 progress;
 	atomic_t count;
@@ -1032,6 +1035,8 @@ struct btrfs_fs_info {
 	struct btrfs_workers endio_write_workers;
 	struct btrfs_workers endio_freespace_worker;
 	struct btrfs_workers submit_workers;
+	struct btrfs_workers caching_workers;
+
 	/*
 	 * fixup workers take dirty pages that didn't properly go through
 	 * the cow mechanism and make them safe to write.  It happens
@@ -2128,7 +2133,7 @@ static inline bool btrfs_mixed_space_info(struct btrfs_space_info *space_info)
 
 /* extent-tree.c */
 static inline u64 btrfs_calc_trans_metadata_size(struct btrfs_root *root,
-						 int num_items)
+						 unsigned num_items)
 {
 	return (root->leafsize + root->nodesize * (BTRFS_MAX_LEVEL - 1)) *
 		3 * num_items;
@@ -2222,9 +2227,6 @@ void btrfs_set_inode_space_info(struct btrfs_root *root, struct inode *ionde);
 void btrfs_clear_space_info_full(struct btrfs_fs_info *info);
 int btrfs_check_data_free_space(struct inode *inode, u64 bytes);
 void btrfs_free_reserved_data_space(struct inode *inode, u64 bytes);
-int btrfs_trans_reserve_metadata(struct btrfs_trans_handle *trans,
-				struct btrfs_root *root,
-				int num_items);
 void btrfs_trans_release_metadata(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root);
 int btrfs_orphan_reserve_metadata(struct btrfs_trans_handle *trans,
@@ -2330,7 +2332,7 @@ struct btrfs_path *btrfs_alloc_path(void);
 void btrfs_free_path(struct btrfs_path *p);
 void btrfs_set_path_blocking(struct btrfs_path *p);
 void btrfs_clear_path_blocking(struct btrfs_path *p,
-			       struct extent_buffer *held);
+			       struct extent_buffer *held, int held_rw);
 void btrfs_unlock_up_safe(struct btrfs_path *p, int level);
 
 int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
@@ -2404,8 +2406,8 @@ int btrfs_find_last_root(struct btrfs_root *root, u64 objectid, struct
 			 btrfs_root_item *item, struct btrfs_key *key);
 int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid);
 int btrfs_find_orphan_roots(struct btrfs_root *tree_root);
-int btrfs_set_root_node(struct btrfs_root_item *item,
-			struct extent_buffer *node);
+void btrfs_set_root_node(struct btrfs_root_item *item,
+			 struct extent_buffer *node);
 void btrfs_check_and_init_root_item(struct btrfs_root_item *item);
 
 /* dir-item.c */
@@ -2521,6 +2523,14 @@ struct extent_map *btrfs_get_extent_fiemap(struct inode *inode, struct page *pag
 #define PageChecked PageFsMisc
 #endif
 
+/* This forces readahead on a given range of bytes in an inode */
+static inline void btrfs_force_ra(struct address_space *mapping,
+				  struct file_ra_state *ra, struct file *file,
+				  pgoff_t offset, unsigned long req_size)
+{
+	page_cache_sync_readahead(mapping, ra, file, offset, req_size);
+}
+
 struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry);
 int btrfs_set_inode_index(struct inode *dir, u64 *index);
 int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
@@ -2549,9 +2559,6 @@ int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
 int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 			 size_t size, struct bio *bio, unsigned long bio_flags);
 
-unsigned long btrfs_force_ra(struct address_space *mapping,
-			      struct file_ra_state *ra, struct file *file,
-			      pgoff_t offset, pgoff_t last_index);
 int btrfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
 int btrfs_readpage(struct file *file, struct page *page);
 void btrfs_evict_inode(struct inode *inode);
@@ -2645,13 +2652,22 @@ do {								\
 
 /* acl.c */
 #ifdef CONFIG_BTRFS_FS_POSIX_ACL
-int btrfs_check_acl(struct inode *inode, int mask);
-#else
-#define btrfs_check_acl NULL
-#endif
+struct posix_acl *btrfs_get_acl(struct inode *inode, int type);
 int btrfs_init_acl(struct btrfs_trans_handle *trans,
 		   struct inode *inode, struct inode *dir);
 int btrfs_acl_chmod(struct inode *inode);
+#else
+#define btrfs_get_acl NULL
+static inline int btrfs_init_acl(struct btrfs_trans_handle *trans,
+				 struct inode *inode, struct inode *dir)
+{
+	return 0;
+}
+static inline int btrfs_acl_chmod(struct inode *inode)
+{
+	return 0;
+}
+#endif
 
 /* relocation.c */
 int btrfs_relocate_block_group(struct btrfs_root *root, u64 group_start);

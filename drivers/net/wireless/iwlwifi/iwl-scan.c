@@ -75,7 +75,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 	    test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return -EIO;
 
-	ret = trans_send_cmd(priv, &cmd);
+	ret = trans_send_cmd(&priv->trans, &cmd);
 	if (ret)
 		return ret;
 
@@ -565,10 +565,10 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 		goto out_settings;
 	}
 
-	if (priv->scan_type == IWL_SCAN_OFFCH_TX && priv->_agn.offchan_tx_skb) {
+	if (priv->scan_type == IWL_SCAN_OFFCH_TX && priv->offchan_tx_skb) {
 		ieee80211_tx_status_irqsafe(priv->hw,
-					    priv->_agn.offchan_tx_skb);
-		priv->_agn.offchan_tx_skb = NULL;
+					    priv->offchan_tx_skb);
+		priv->offchan_tx_skb = NULL;
 	}
 
 	if (priv->scan_type != IWL_SCAN_NORMAL && !aborted) {

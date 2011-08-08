@@ -52,7 +52,6 @@
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "mux.h"
 #include "hsmmc.h"
-#include "timer-gp.h"
 #include "common-board-devices.h"
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
@@ -206,12 +205,12 @@ static struct omap_dss_board_info omap3_stalker_dss_data = {
 	.default_device	= &omap3_stalker_dvi_device,
 };
 
-static struct regulator_consumer_supply omap3stalker_vmmc1_supply = {
-	.supply		= "vmmc",
+static struct regulator_consumer_supply omap3stalker_vmmc1_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
 
-static struct regulator_consumer_supply omap3stalker_vsim_supply = {
-	.supply		= "vmmc_aux",
+static struct regulator_consumer_supply omap3stalker_vsim_supply[] = {
+	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.0"),
 };
 
 /* VMMC1 for MMC1 pins CMD, CLK, DAT0..DAT3 (20 mA, plus card == max 220 mA) */
@@ -224,8 +223,8 @@ static struct regulator_init_data omap3stalker_vmmc1 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_VOLTAGE
 		| REGULATOR_CHANGE_MODE | REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &omap3stalker_vmmc1_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(omap3stalker_vmmc1_supply),
+	.consumer_supplies	= omap3stalker_vmmc1_supply,
 };
 
 /* VSIM for MMC1 pins DAT4..DAT7 (2 mA, plus card == max 50 mA) */
@@ -238,8 +237,8 @@ static struct regulator_init_data omap3stalker_vsim = {
 		.valid_ops_mask		= REGULATOR_CHANGE_VOLTAGE
 		| REGULATOR_CHANGE_MODE | REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &omap3stalker_vsim_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(omap3stalker_vsim_supply),
+	.consumer_supplies	= omap3stalker_vsim_supply,
 };
 
 static struct omap2_hsmmc_info mmc[] = {
@@ -321,10 +320,6 @@ omap3stalker_twl_gpio_setup(struct device *dev,
 	mmc[0].gpio_cd = gpio + 0;
 	omap2_hsmmc_init(mmc);
 
-	/* link regulators to MMC adapters */
-	omap3stalker_vmmc1_supply.dev = mmc[0].dev;
-	omap3stalker_vsim_supply.dev = mmc[0].dev;
-
 	/*
 	 * Most GPIOs are for USB OTG.  Some are mostly sent to
 	 * the P2 connector; notably LEDA for the LCD backlight.
@@ -352,10 +347,6 @@ static struct twl4030_gpio_platform_data omap3stalker_gpio_data = {
 	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.use_leds	= true,
 	.setup		= omap3stalker_twl_gpio_setup,
-};
-
-static struct twl4030_usb_data omap3stalker_usb_data = {
-	.usb_mode	= T2_USB_MODE_ULPI,
 };
 
 static uint32_t board_keymap[] = {
@@ -392,68 +383,10 @@ static struct twl4030_keypad_data omap3stalker_kp_data = {
 	.rep		= 1,
 };
 
-static struct twl4030_madc_platform_data omap3stalker_madc_data = {
-	.irq_line	= 1,
-};
-
-static struct twl4030_codec_audio_data omap3stalker_audio_data;
-
-static struct twl4030_codec_data omap3stalker_codec_data = {
-	.audio_mclk	= 26000000,
-	.audio		= &omap3stalker_audio_data,
-};
-
-static struct regulator_consumer_supply omap3_stalker_vdda_dac_supply =
-	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc");
-
-/* VDAC for DSS driving S-Video */
-static struct regulator_init_data omap3_stalker_vdac = {
-	.constraints		= {
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.apply_uV		= true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-		| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-		| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &omap3_stalker_vdda_dac_supply,
-};
-
-/* VPLL2 for digital video outputs */
-static struct regulator_consumer_supply omap3_stalker_vpll2_supplies[] = {
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi1"),
-};
-
-static struct regulator_init_data omap3_stalker_vpll2 = {
-	.constraints		= {
-		.name			= "VDVI",
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.apply_uV = true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-		| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-		| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(omap3_stalker_vpll2_supplies),
-	.consumer_supplies	= omap3_stalker_vpll2_supplies,
-};
-
 static struct twl4030_platform_data omap3stalker_twldata = {
-	.irq_base	= TWL4030_IRQ_BASE,
-	.irq_end	= TWL4030_IRQ_END,
-
 	/* platform_data for children goes here */
 	.keypad		= &omap3stalker_kp_data,
-	.madc		= &omap3stalker_madc_data,
-	.usb		= &omap3stalker_usb_data,
 	.gpio		= &omap3stalker_gpio_data,
-	.codec		= &omap3stalker_codec_data,
-	.vdac		= &omap3_stalker_vdac,
-	.vpll2		= &omap3_stalker_vpll2,
 	.vmmc1		= &omap3stalker_vmmc1,
 	.vsim		= &omap3stalker_vsim,
 };
@@ -474,6 +407,15 @@ static struct i2c_board_info __initdata omap3stalker_i2c_boardinfo3[] = {
 
 static int __init omap3_stalker_i2c_init(void)
 {
+	omap3_pmic_get_config(&omap3stalker_twldata,
+			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_MADC |
+			TWL_COMMON_PDATA_AUDIO,
+			TWL_COMMON_REGULATOR_VDAC | TWL_COMMON_REGULATOR_VPLL2);
+
+	omap3stalker_twldata.vdac->constraints.apply_uV = true;
+	omap3stalker_twldata.vpll2->constraints.apply_uV = true;
+	omap3stalker_twldata.vpll2->constraints.name = "VDVI";
+
 	omap3_pmic_init("twl4030", &omap3stalker_twldata);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	omap_register_i2c_bus(3, 400, omap3stalker_i2c_boardinfo3,
@@ -494,10 +436,7 @@ static void __init omap3_stalker_init_early(void)
 
 static void __init omap3_stalker_init_irq(void)
 {
-	omap_init_irq();
-#ifdef CONFIG_OMAP_32K_TIMER
-	omap2_gp_clockevent_set_gptimer(12);
-#endif
+	omap3_init_irq();
 }
 
 static struct platform_device *omap3_stalker_devices[] __initdata = {
@@ -560,5 +499,5 @@ MACHINE_START(SBC3530, "OMAP3 STALKER")
 	.init_early		= omap3_stalker_init_early,
 	.init_irq		= omap3_stalker_init_irq,
 	.init_machine		= omap3_stalker_init,
-	.timer			= &omap_timer,
+	.timer			= &omap3_secure_timer,
 MACHINE_END

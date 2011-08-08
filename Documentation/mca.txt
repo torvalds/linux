@@ -11,7 +11,7 @@ Adapter Detection
 
 The ideal MCA adapter detection is done through the use of the
 Programmable Option Select registers.  Generic functions for doing
-this have been added in include/linux/mca.h and arch/i386/kernel/mca.c.
+this have been added in include/linux/mca.h and arch/x86/kernel/mca_32.c.
 Everything needed to detect adapters and read (and write) configuration
 information is there.  A number of MCA-specific drivers already use
 this.  The typical probe code looks like the following:
@@ -81,7 +81,7 @@ more people use shared IRQs on PCI machines.
 In general, an interrupt must be acknowledged not only at the ICU (which
 is done automagically by the kernel), but at the device level.  In
 particular, IRQ 0 must be reset after a timer interrupt (now done in
-arch/i386/kernel/time.c) or the first timer interrupt hangs the system.
+arch/x86/kernel/time.c) or the first timer interrupt hangs the system.
 There were also problems with the 1.3.x floppy drivers, but that seems
 to have been fixed.
 
