@@ -136,9 +136,6 @@ struct brcmf_sdio_dev {
 	void *bus;
 };
 
-/* Detach - freeup resources allocated in attach */
-extern int brcmf_sdcard_detach(struct brcmf_sdio_card *card);
-
 /* Enable/disable SD interrupt */
 extern int brcmf_sdcard_intr_enable(struct brcmf_sdio_card *card);
 extern int brcmf_sdcard_intr_disable(struct brcmf_sdio_card *card);

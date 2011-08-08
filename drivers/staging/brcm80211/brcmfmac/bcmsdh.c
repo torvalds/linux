@@ -57,19 +57,6 @@ static struct brcmf_sdioh_driver drvinfo = { NULL, NULL };
 
 module_param(sd_f2_blocksize, int, 0);
 
-int brcmf_sdcard_detach(struct brcmf_sdio_card *card)
-{
-	if (card != NULL) {
-		if (card->sdioh) {
-			brcmf_sdioh_detach(card->sdioh);
-			card->sdioh = NULL;
-		}
-		kfree(card);
-	}
-
-	return 0;
-}
-
 int
 brcmf_sdcard_iovar_op(struct brcmf_sdio_card *card, const char *name,
 		void *params, int plen, void *arg, int len, bool set)
@@ -441,7 +428,6 @@ int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 
 	sdiodev->card->sdioh = brcmf_sdioh_attach((void *)0);
 	if (!sdiodev->card->sdioh) {
-		brcmf_sdcard_detach(sdiodev->card);
 		ret = -ENODEV;
 		goto out;
 	}
@@ -466,8 +452,8 @@ int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	}
 
 out:
-	if ((ret) && (sdiodev->card))
-		brcmf_sdcard_detach(sdiodev->card);
+	if (ret)
+		brcmf_sdio_remove(sdiodev);
 
 	return ret;
 }
@@ -475,8 +461,18 @@ EXPORT_SYMBOL(brcmf_sdio_probe);
 
 int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev)
 {
-	drvinfo.detach(sdiodev->bus);
-	brcmf_sdcard_detach(sdiodev->card);
+	if (sdiodev->bus) {
+		drvinfo.detach(sdiodev->bus);
+		sdiodev->bus = NULL;
+	}
+
+	if (sdiodev->card) {
+		if (sdiodev->card->sdioh)
+			brcmf_sdioh_detach(sdiodev->card->sdioh);
+		kfree(sdiodev->card);
+		sdiodev->card = NULL;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(brcmf_sdio_remove);
