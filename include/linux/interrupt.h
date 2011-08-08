@@ -17,7 +17,7 @@
 #include <linux/kref.h>
 #include <linux/workqueue.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/ptrace.h>
 #include <asm/system.h>
 #include <trace/events/irq.h>
@@ -414,6 +414,7 @@ enum
 	TASKLET_SOFTIRQ,
 	SCHED_SOFTIRQ,
 	HRTIMER_SOFTIRQ,
+	RCU_SOFTIRQ,    /* Preferable RCU should always be the last softirq */
 
 	NR_SOFTIRQS
 };

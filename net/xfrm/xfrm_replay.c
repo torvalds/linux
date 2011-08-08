@@ -265,7 +265,7 @@ static void xfrm_replay_advance_bmp(struct xfrm_state *x, __be32 net_seq)
 			bitnr = bitnr & 0x1F;
 			replay_esn->bmp[nr] |= (1U << bitnr);
 		} else {
-			nr = replay_esn->replay_window >> 5;
+			nr = (replay_esn->replay_window - 1) >> 5;
 			for (i = 0; i <= nr; i++)
 				replay_esn->bmp[i] = 0;
 
@@ -471,7 +471,7 @@ static void xfrm_replay_advance_esn(struct xfrm_state *x, __be32 net_seq)
 			bitnr = bitnr & 0x1F;
 			replay_esn->bmp[nr] |= (1U << bitnr);
 		} else {
-			nr = replay_esn->replay_window >> 5;
+			nr = (replay_esn->replay_window - 1) >> 5;
 			for (i = 0; i <= nr; i++)
 				replay_esn->bmp[i] = 0;
 

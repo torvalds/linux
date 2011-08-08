@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <asm/unaligned.h>
 #include "htc.h"
 
 /* identify firmware images */
@@ -49,6 +50,8 @@ static struct usb_device_id ath9k_hif_usb_ids[] = {
 	  .driver_info = AR9280_USB },  /* Netgear WNDA3200 */
 	{ USB_DEVICE(0x083A, 0xA704),
 	  .driver_info = AR9280_USB },  /* SMC Networks */
+	{ USB_DEVICE(0x0411, 0x017f),
+	  .driver_info = AR9280_USB },  /* Sony UWA-BR100 */
 
 	{ USB_DEVICE(0x0cf3, 0x20ff),
 	  .driver_info = STORAGE_DEVICE },
@@ -127,11 +130,13 @@ static int hif_usb_send_regout(struct hif_device_usb *hif_dev,
 static void hif_usb_mgmt_cb(struct urb *urb)
 {
 	struct cmd_buf *cmd = (struct cmd_buf *)urb->context;
-	struct hif_device_usb *hif_dev = cmd->hif_dev;
+	struct hif_device_usb *hif_dev;
 	bool txok = true;
 
 	if (!cmd || !cmd->skb || !cmd->hif_dev)
 		return;
+
+	hif_dev = cmd->hif_dev;
 
 	switch (urb->status) {
 	case 0:
@@ -555,8 +560,8 @@ static void ath9k_hif_usb_rx_stream(struct hif_device_usb *hif_dev,
 
 		ptr = (u8 *) skb->data;
 
-		pkt_len = ptr[index] + (ptr[index+1] << 8);
-		pkt_tag = ptr[index+2] + (ptr[index+3] << 8);
+		pkt_len = get_unaligned_le16(ptr + index);
+		pkt_tag = get_unaligned_le16(ptr + index + 2);
 
 		if (pkt_tag != ATH_USB_RX_STREAM_MODE_TAG) {
 			RX_STAT_INC(skb_dropped);

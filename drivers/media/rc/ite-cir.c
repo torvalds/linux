@@ -42,7 +42,6 @@
 #include <linux/bitops.h>
 #include <media/rc-core.h>
 #include <linux/pci_ids.h>
-#include <linux/delay.h>
 
 #include "ite-cir.h"
 
@@ -383,7 +382,7 @@ static int ite_set_tx_duty_cycle(struct rc_dev *rcdev, u32 duty_cycle)
 /* transmit out IR pulses; what you get here is a batch of alternating
  * pulse/space/pulse/space lengths that we should write out completely through
  * the FIFO, blocking on a full FIFO */
-static int ite_tx_ir(struct rc_dev *rcdev, int *txbuf, u32 n)
+static int ite_tx_ir(struct rc_dev *rcdev, unsigned *txbuf, unsigned n)
 {
 	unsigned long flags;
 	struct ite_dev *dev = rcdev->priv;
@@ -398,9 +397,6 @@ static int ite_tx_ir(struct rc_dev *rcdev, int *txbuf, u32 n)
 
 	/* clear the array just in case */
 	memset(last_sent, 0, ARRAY_SIZE(last_sent));
-
-	/* n comes in bytes; convert to ints */
-	n /= sizeof(int);
 
 	spin_lock_irqsave(&dev->lock, flags);
 
@@ -1347,6 +1343,7 @@ static const struct ite_dev_params ite_dev_descs[] = {
 	{	/* 0: ITE8704 */
 	       .model = "ITE8704 CIR transceiver",
 	       .io_region_size = IT87_IOREG_LENGTH,
+	       .io_rsrc_no = 0,
 	       .hw_tx_capable = true,
 	       .sample_period = (u32) (1000000000ULL / 115200),
 	       .tx_carrier_freq = 38000,
@@ -1371,6 +1368,7 @@ static const struct ite_dev_params ite_dev_descs[] = {
 	{	/* 1: ITE8713 */
 	       .model = "ITE8713 CIR transceiver",
 	       .io_region_size = IT87_IOREG_LENGTH,
+	       .io_rsrc_no = 0,
 	       .hw_tx_capable = true,
 	       .sample_period = (u32) (1000000000ULL / 115200),
 	       .tx_carrier_freq = 38000,
@@ -1395,6 +1393,7 @@ static const struct ite_dev_params ite_dev_descs[] = {
 	{	/* 2: ITE8708 */
 	       .model = "ITE8708 CIR transceiver",
 	       .io_region_size = IT8708_IOREG_LENGTH,
+	       .io_rsrc_no = 0,
 	       .hw_tx_capable = true,
 	       .sample_period = (u32) (1000000000ULL / 115200),
 	       .tx_carrier_freq = 38000,
@@ -1420,6 +1419,7 @@ static const struct ite_dev_params ite_dev_descs[] = {
 	{	/* 3: ITE8709 */
 	       .model = "ITE8709 CIR transceiver",
 	       .io_region_size = IT8709_IOREG_LENGTH,
+	       .io_rsrc_no = 2,
 	       .hw_tx_capable = true,
 	       .sample_period = (u32) (1000000000ULL / 115200),
 	       .tx_carrier_freq = 38000,
@@ -1461,6 +1461,7 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 	struct rc_dev *rdev = NULL;
 	int ret = -ENOMEM;
 	int model_no;
+	int io_rsrc_no;
 
 	ite_dbg("%s called", __func__);
 
@@ -1490,10 +1491,11 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 
 	/* get the description for the device */
 	dev_desc = &ite_dev_descs[model_no];
+	io_rsrc_no = dev_desc->io_rsrc_no;
 
 	/* validate pnp resources */
-	if (!pnp_port_valid(pdev, 0) ||
-	    pnp_port_len(pdev, 0) != dev_desc->io_region_size) {
+	if (!pnp_port_valid(pdev, io_rsrc_no) ||
+	    pnp_port_len(pdev, io_rsrc_no) != dev_desc->io_region_size) {
 		dev_err(&pdev->dev, "IR PNP Port not valid!\n");
 		goto failure;
 	}
@@ -1504,7 +1506,7 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 	}
 
 	/* store resource values */
-	itdev->cir_addr = pnp_port_start(pdev, 0);
+	itdev->cir_addr = pnp_port_start(pdev, io_rsrc_no);
 	itdev->cir_irq = pnp_irq(pdev, 0);
 
 	/* initialize spinlocks */

@@ -156,4 +156,5 @@ MACHINE_START(SFFSDR, "Lyrtech SFFSDR")
 	.init_irq     = davinci_irq_init,
 	.timer	      = &davinci_timer,
 	.init_machine = davinci_sffsdr_init,
+	.dma_zone_size	= SZ_128M,
 MACHINE_END

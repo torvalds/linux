@@ -44,7 +44,7 @@
  * SMP torture testing
  */
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/byteorder.h>
 
 #include <linux/compiler.h>
@@ -1285,8 +1285,7 @@ static void atl1_setup_mac_ctrl(struct atl1_adapter *adapter)
 	value |= (((u32) adapter->hw.preamble_len
 		   & MAC_CTRL_PRMLEN_MASK) << MAC_CTRL_PRMLEN_SHIFT);
 	/* vlan */
-	if (adapter->vlgrp)
-		value |= MAC_CTRL_RMV_VLAN;
+	__atlx_vlan_mode(netdev->features, &value);
 	/* rx checksum
 	   if (adapter->rx_csum)
 	   value |= MAC_CTRL_RX_CHKSUM_EN;
@@ -2023,13 +2022,14 @@ rrd_ok:
 		atl1_rx_checksum(adapter, rrd, skb);
 		skb->protocol = eth_type_trans(skb, adapter->netdev);
 
-		if (adapter->vlgrp && (rrd->pkt_flg & PACKET_FLAG_VLAN_INS)) {
+		if (rrd->pkt_flg & PACKET_FLAG_VLAN_INS) {
 			u16 vlan_tag = (rrd->vlan_tag >> 4) |
 					((rrd->vlan_tag & 7) << 13) |
 					((rrd->vlan_tag & 8) << 9);
-			vlan_hwaccel_rx(skb, adapter->vlgrp, vlan_tag);
-		} else
-			netif_rx(skb);
+
+			__vlan_hwaccel_put_tag(skb, vlan_tag);
+		}
+		netif_rx(skb);
 
 		/* let protocol layer free skb */
 		buffer_info->skb = NULL;
@@ -2783,8 +2783,7 @@ static int atl1_suspend(struct device *dev)
 			ctrl |= MAC_CTRL_DUPLX;
 		ctrl |= (((u32)adapter->hw.preamble_len &
 			MAC_CTRL_PRMLEN_MASK) << MAC_CTRL_PRMLEN_SHIFT);
-		if (adapter->vlgrp)
-			ctrl |= MAC_CTRL_RMV_VLAN;
+		__atlx_vlan_mode(netdev->features, &ctrl);
 		if (wufc & ATLX_WUFC_MAG)
 			ctrl |= MAC_CTRL_BC_EN;
 		iowrite32(ctrl, hw->hw_addr + REG_MAC_CTRL);
@@ -2874,9 +2873,10 @@ static const struct net_device_ops atl1_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= atl1_set_mac,
 	.ndo_change_mtu		= atl1_change_mtu,
+	.ndo_fix_features	= atlx_fix_features,
+	.ndo_set_features	= atlx_set_features,
 	.ndo_do_ioctl		= atlx_ioctl,
 	.ndo_tx_timeout		= atlx_tx_timeout,
-	.ndo_vlan_rx_register	= atlx_vlan_rx_register,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= atl1_poll_controller,
 #endif
@@ -2984,7 +2984,8 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 	netdev->features |= NETIF_F_SG;
 	netdev->features |= (NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX);
 
-	netdev->hw_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO;
+	netdev->hw_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO |
+			      NETIF_F_HW_VLAN_RX;
 
 	/* is this valid? see atl1_setup_mac_ctrl() */
 	netdev->features |= NETIF_F_RXCSUM;

@@ -184,7 +184,7 @@ Why:	/proc/<pid>/oom_adj allows userspace to influence the oom killer's
 
 	A much more powerful interface, /proc/<pid>/oom_score_adj, was
 	introduced with the oom killer rewrite that allows users to increase or
-	decrease the badness() score linearly.  This interface will replace
+	decrease the badness score linearly.  This interface will replace
 	/proc/<pid>/oom_adj.
 
 	A warning will be emitted to the kernel log if an application uses this
@@ -192,20 +192,6 @@ Why:	/proc/<pid>/oom_adj allows userspace to influence the oom killer's
 	suppressed until the kernel is rebooted.
 
 ---------------------------
-
-What:	CS5535/CS5536 obsolete GPIO driver
-When:	June 2011
-Files:	drivers/staging/cs5535_gpio/*
-Check:	drivers/staging/cs5535_gpio/cs5535_gpio.c
-Why:	A newer driver replaces this; it is drivers/gpio/cs5535-gpio.c, and
-	integrates with the Linux GPIO subsystem.  The old driver has been
-	moved to staging, and will be removed altogether around 2.6.40.
-	Please test the new driver, and ensure that the functionality you
-	need and any bugfixes from the old driver are available in the new
-	one.
-Who:	Andres Salomon <dilinger@queued.net>
-
---------------------------
 
 What:	remove EXPORT_SYMBOL(kernel_thread)
 When:	August 2006
@@ -294,7 +280,7 @@ When:	The schedule was July 2008, but it was decided that we are going to keep t
 Why:	The support code for the old firmware hurts code readability/maintainability
 	and slightly hurts runtime performance. Bugfixes for the old firmware
 	are not provided by Broadcom anymore.
-Who:	Michael Buesch <mb@bu3sch.de>
+Who:	Michael Buesch <m@bues.ch>
 
 ---------------------------
 
@@ -307,15 +293,6 @@ Why:	Non root users need to be part of /proc/sys/vm/hugetlb_shm_group or
 	inconsistent with mmap based allocations.  Hence it is being
 	deprecated.
 Who:	Ravikiran Thirumalai <kiran@scalex86.org>
-
----------------------------
-
-What:	CONFIG_THERMAL_HWMON
-When:	January 2009
-Why:	This option was introduced just to allow older lm-sensors userspace
-	to keep working over the upgrade to 2.6.26. At the scheduled time of
-	removal fixed lm-sensors (2.x or 3.x) should be readily available.
-Who:	Rene Herman <rene.herman@gmail.com>
 
 ---------------------------
 
@@ -430,7 +407,7 @@ Who:	Avi Kivity <avi@redhat.com>
 ----------------------------
 
 What:	iwlwifi 50XX module parameters
-When:	2.6.40
+When:	3.0
 Why:	The "..50" modules parameters were used to configure 5000 series and
 	up devices; different set of module parameters also available for 4965
 	with same functionalities. Consolidate both set into single place
@@ -441,7 +418,7 @@ Who:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
 ----------------------------
 
 What:	iwl4965 alias support
-When:	2.6.40
+When:	3.0
 Why:	Internal alias support has been present in module-init-tools for some
 	time, the MODULE_ALIAS("iwl4965") boilerplate aliases can be removed
 	with no impact.
@@ -474,57 +451,13 @@ Who:	FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
 
 ----------------------------
 
-What: 	DMA_xxBIT_MASK macros
-When:	Jun 2011
-Why:	DMA_xxBIT_MASK macros were replaced with DMA_BIT_MASK() macros.
-Who:	FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-
-----------------------------
-
-What:   namespace cgroup (ns_cgroup)
-When:   2.6.38
-Why:    The ns_cgroup leads to some problems:
-	* cgroup creation is out-of-control
-	* cgroup name can conflict when pids are looping
-	* it is not possible to have a single process handling
-	a lot of namespaces without falling in a exponential creation time
-	* we may want to create a namespace without creating a cgroup
-
-	The ns_cgroup is replaced by a compatibility flag 'clone_children',
-	where a newly created cgroup will copy the parent cgroup values.
-	The userspace has to manually create a cgroup and add a task to
-	the 'tasks' file.
-Who:    Daniel Lezcano <daniel.lezcano@free.fr>
-
-----------------------------
-
 What:	iwlwifi disable_hw_scan module parameters
-When:	2.6.40
+When:	3.0
 Why:	Hareware scan is the prefer method for iwlwifi devices for
 	scanning operation. Remove software scan support for all the
 	iwlwifi devices.
 
 Who:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
-
-----------------------------
-
-What:   access to nfsd auth cache through sys_nfsservctl or '.' files
-        in the 'nfsd' filesystem.
-When:   2.6.40
-Why:    This is a legacy interface which have been replaced by a more
-        dynamic cache.  Continuing to maintain this interface is an
-        unnecessary burden.
-Who:    NeilBrown <neilb@suse.de>
-
-----------------------------
-
-What:	cancel_rearming_delayed_work[queue]()
-When:	2.6.39
-
-Why:	The functions have been superceded by cancel_delayed_work_sync()
-	quite some time ago.  The conversion is trivial and there is no
-	in-kernel user left.
-Who:	Tejun Heo <tj@kernel.org>
 
 ----------------------------
 
@@ -542,22 +475,6 @@ What:	xt_connlimit rev 0
 When:	2012
 Who:	Jan Engelhardt <jengelh@medozas.de>
 Files:	net/netfilter/xt_connlimit.c
-
-----------------------------
-
-What:	noswapaccount kernel command line parameter
-When:	2.6.40
-Why:	The original implementation of memsw feature enabled by
-	CONFIG_CGROUP_MEM_RES_CTLR_SWAP could be disabled by the noswapaccount
-	kernel parameter (introduced in 2.6.29-rc1). Later on, this decision
-	turned out to be not ideal because we cannot have the feature compiled
-	in and disabled by default and let only interested to enable it
-	(e.g. general distribution kernels might need it). Therefore we have
-	added swapaccount[=0|1] parameter (introduced in 2.6.37) which provides
-	the both possibilities. If we remove noswapaccount we will have
-	less command line parameters with the same functionality and we
-	can also cleanup the parameter handling a bit ().
-Who:	Michal Hocko <mhocko@suse.cz>
 
 ----------------------------
 
@@ -579,7 +496,7 @@ Who:	Jean Delvare <khali@linux-fr.org>
 ----------------------------
 
 What:	Support for UVCIOC_CTRL_ADD in the uvcvideo driver
-When:	2.6.42
+When:	3.2
 Why:	The information passed to the driver by this ioctl is now queried
 	dynamically from the device.
 Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -587,7 +504,7 @@ Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 ----------------------------
 
 What:	Support for UVCIOC_CTRL_MAP_OLD in the uvcvideo driver
-When:	2.6.42
+When:	3.2
 Why:	Used only by applications compiled against older driver versions.
 	Superseded by UVCIOC_CTRL_MAP which supports V4L2 menu controls.
 Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -595,8 +512,83 @@ Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 ----------------------------
 
 What:	Support for UVCIOC_CTRL_GET and UVCIOC_CTRL_SET in the uvcvideo driver
-When:	2.6.42
+When:	3.2
 Why:	Superseded by the UVCIOC_CTRL_QUERY ioctl.
 Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 
 ----------------------------
+
+What:	Support for driver specific ioctls in the pwc driver (everything
+	defined in media/pwc-ioctl.h)
+When:	3.3
+Why:	This stems from the v4l1 era, with v4l2 everything can be done with
+	standardized v4l2 API calls
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	Driver specific sysfs API in the pwc driver
+When:	3.3
+Why:	Setting pan/tilt should be done with v4l2 controls, like with other
+	cams. The button is available as a standard input device
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	Driver specific use of pixfmt.priv in the pwc driver
+When:	3.3
+Why:	The .priv field never was intended for this, setting a framerate is
+	support using the standardized S_PARM ioctl
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	Software emulation of arbritary resolutions in the pwc driver
+When:	3.3
+Why:	The pwc driver claims to support any resolution between 160x120
+	and 640x480, but emulates this by simply drawing a black border
+	around the image. Userspace can draw its own black border if it
+	really wants one.
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	For VIDIOC_S_FREQUENCY the type field must match the device node's type.
+	If not, return -EINVAL.
+When:	3.2
+Why:	It makes no sense to switch the tuner to radio mode by calling
+	VIDIOC_S_FREQUENCY on a video node, or to switch the tuner to tv mode by
+	calling VIDIOC_S_FREQUENCY on a radio node. This is the first step of a
+	move to more consistent handling of tv and radio tuners.
+Who:	Hans Verkuil <hans.verkuil@cisco.com>
+
+----------------------------
+
+What:	Opening a radio device node will no longer automatically switch the
+	tuner mode from tv to radio.
+When:	3.3
+Why:	Just opening a V4L device should not change the state of the hardware
+	like that. It's very unexpected and against the V4L spec. Instead, you
+	switch to radio mode by calling VIDIOC_S_FREQUENCY. This is the second
+	and last step of the move to consistent handling of tv and radio tuners.
+Who:	Hans Verkuil <hans.verkuil@cisco.com>
+
+----------------------------
+
+What:	g_file_storage driver
+When:	3.8
+Why:	This driver has been superseded by g_mass_storage.
+Who:	Alan Stern <stern@rowland.harvard.edu>
+
+----------------------------
+
+What:   threeg and interface sysfs files in /sys/devices/platform/acer-wmi
+When:   2012
+Why:    In 3.0, we can now autodetect internal 3G device and already have
+	the threeg rfkill device. So, we plan to remove threeg sysfs support
+	for it's no longer necessary.
+
+	We also plan to remove interface sysfs file that exposed which ACPI-WMI
+	interface that was used by acer-wmi driver. It will replaced by
+	information log when acer-wmi initial.
+Who:    Lee, Chun-Yi <jlee@novell.com>

@@ -83,7 +83,8 @@ void __init mpc85xx_ds_pic_init(void)
 	if (of_flat_dt_is_compatible(root, "fsl,MPC8572DS-CAMP")) {
 		mpic = mpic_alloc(np, r.start,
 			MPIC_PRIMARY |
-			MPIC_BIG_ENDIAN | MPIC_BROKEN_FRR_NIRQS,
+			MPIC_BIG_ENDIAN | MPIC_BROKEN_FRR_NIRQS |
+			MPIC_SINGLE_DEST_CPU,
 			0, 256, " OpenPIC  ");
 	} else {
 		mpic = mpic_alloc(np, r.start,

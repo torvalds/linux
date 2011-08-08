@@ -409,14 +409,12 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nouveau_channel *evo = dispc->sync;
 	int ret;
 
-	ret = RING_SPACE(evo, 24);
+	ret = RING_SPACE(evo, chan ? 25 : 27);
 	if (unlikely(ret))
 		return ret;
 
 	/* synchronise with the rendering channel, if necessary */
 	if (likely(chan)) {
-		u64 offset = dispc->sem.bo->vma.offset + dispc->sem.offset;
-
 		ret = RING_SPACE(chan, 10);
 		if (ret) {
 			WIND_RING(evo);
@@ -438,6 +436,8 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			else
 				OUT_RING  (chan, chan->vram_handle);
 		} else {
+			u64 offset = chan->dispc_vma[nv_crtc->index].offset;
+			offset += dispc->sem.offset;
 			BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0010, 4);
 			OUT_RING  (chan, upper_32_bits(offset));
 			OUT_RING  (chan, lower_32_bits(offset));
@@ -458,8 +458,19 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	/* queue the flip on the crtc's "display sync" channel */
 	BEGIN_RING(evo, 0, 0x0100, 1);
 	OUT_RING  (evo, 0xfffe0000);
-	BEGIN_RING(evo, 0, 0x0084, 5);
-	OUT_RING  (evo, chan ? 0x00000100 : 0x00000010);
+	if (chan) {
+		BEGIN_RING(evo, 0, 0x0084, 1);
+		OUT_RING  (evo, 0x00000100);
+	} else {
+		BEGIN_RING(evo, 0, 0x0084, 1);
+		OUT_RING  (evo, 0x00000010);
+		/* allows gamma somehow, PDISP will bitch at you if
+		 * you don't wait for vblank before changing this..
+		 */
+		BEGIN_RING(evo, 0, 0x00e0, 1);
+		OUT_RING  (evo, 0x40000000);
+	}
+	BEGIN_RING(evo, 0, 0x0088, 4);
 	OUT_RING  (evo, dispc->sem.offset);
 	OUT_RING  (evo, 0xf00d0000 | dispc->sem.value);
 	OUT_RING  (evo, 0x74b1e000);
@@ -473,7 +484,7 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	OUT_RING  (evo, 0x00000000);
 	OUT_RING  (evo, 0x00000000);
 	BEGIN_RING(evo, 0, 0x0800, 5);
-	OUT_RING  (evo, (nv_fb->nvbo->bo.mem.start << PAGE_SHIFT) >> 8);
+	OUT_RING  (evo, nv_fb->nvbo->bo.offset >> 8);
 	OUT_RING  (evo, 0);
 	OUT_RING  (evo, (fb->height << 16) | fb->width);
 	OUT_RING  (evo, nv_fb->r_pitch);

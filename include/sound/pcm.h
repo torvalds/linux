@@ -507,6 +507,18 @@ void snd_pcm_detach_substream(struct snd_pcm_substream *substream);
 void snd_pcm_vma_notify_data(void *client, void *data);
 int snd_pcm_mmap_data(struct snd_pcm_substream *substream, struct file *file, struct vm_area_struct *area);
 
+
+#ifdef CONFIG_SND_DEBUG
+void snd_pcm_debug_name(struct snd_pcm_substream *substream,
+			   char *name, size_t len);
+#else
+static inline void
+snd_pcm_debug_name(struct snd_pcm_substream *substream, char *buf, size_t size)
+{
+	*buf = 0;
+}
+#endif
+
 /*
  *  PCM library
  */
@@ -749,17 +761,18 @@ static inline const struct snd_interval *hw_param_interval_c(const struct snd_pc
 	return &params->intervals[var - SNDRV_PCM_HW_PARAM_FIRST_INTERVAL];
 }
 
-#define params_access(p) ((__force snd_pcm_access_t)snd_mask_min(hw_param_mask((p), SNDRV_PCM_HW_PARAM_ACCESS)))
-#define params_format(p) ((__force snd_pcm_format_t)snd_mask_min(hw_param_mask((p), SNDRV_PCM_HW_PARAM_FORMAT)))
-#define params_subformat(p) snd_mask_min(hw_param_mask((p), SNDRV_PCM_HW_PARAM_SUBFORMAT))
-#define params_channels(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_CHANNELS)->min
-#define params_rate(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_RATE)->min
-#define params_period_size(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_PERIOD_SIZE)->min
-#define params_period_bytes(p) ((params_period_size(p)*snd_pcm_format_physical_width(params_format(p))*params_channels(p))/8)
-#define params_periods(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_PERIODS)->min
-#define params_buffer_size(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_BUFFER_SIZE)->min
-#define params_buffer_bytes(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_BUFFER_BYTES)->min
-
+#define params_channels(p) \
+	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_CHANNELS)->min)
+#define params_rate(p) \
+	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_RATE)->min)
+#define params_period_size(p) \
+	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_PERIOD_SIZE)->min)
+#define params_periods(p) \
+	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_PERIODS)->min)
+#define params_buffer_size(p) \
+	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_BUFFER_SIZE)->min)
+#define params_buffer_bytes(p) \
+	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_BUFFER_BYTES)->min)
 
 int snd_interval_refine(struct snd_interval *i, const struct snd_interval *v);
 void snd_interval_mul(const struct snd_interval *a, const struct snd_interval *b, struct snd_interval *c);

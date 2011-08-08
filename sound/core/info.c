@@ -531,7 +531,7 @@ int __init snd_info_init(void)
 {
 	struct proc_dir_entry *p;
 
-	p = create_proc_entry("asound", S_IFDIR | S_IRUGO | S_IXUGO, NULL);
+	p = proc_mkdir("asound", NULL);
 	if (p == NULL)
 		return -ENOMEM;
 	snd_proc_root = p;

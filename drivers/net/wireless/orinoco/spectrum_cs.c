@@ -11,9 +11,9 @@
  *
  * Copyright (C) 2002-2005 Pavel Roskin <proski@gnu.org>
  * Portions based on orinoco_cs.c:
- * 	Copyright (C) David Gibson, Linuxcare Australia
+ *	Copyright (C) David Gibson, Linuxcare Australia
  * Portions based on Spectrum24tDnld.c from original spectrum24 driver:
- * 	Copyright (C) Symbol Technologies.
+ *	Copyright (C) Symbol Technologies.
  *
  * See copyright notice in file main.c.
  */
@@ -125,7 +125,7 @@ failed:
 }
 
 /********************************************************************/
-/* Device methods     						    */
+/* Device methods						    */
 /********************************************************************/
 
 static int
@@ -150,7 +150,7 @@ spectrum_cs_stop_firmware(struct orinoco_private *priv, int idle)
 }
 
 /********************************************************************/
-/* PCMCIA stuff     						    */
+/* PCMCIA stuff							    */
 /********************************************************************/
 
 static int
@@ -197,7 +197,7 @@ static int
 spectrum_cs_config(struct pcmcia_device *link)
 {
 	struct orinoco_private *priv = link->priv;
-	hermes_t *hw = &priv->hw;
+	struct hermes *hw = &priv->hw;
 	int ret;
 	void __iomem *mem;
 

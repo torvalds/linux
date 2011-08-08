@@ -42,6 +42,7 @@ struct stmpe_variant_block {
  * @id_mask:	bits valid in CHIPID register for comparison with id_val
  * @num_gpios:	number of GPIOS
  * @af_bits:	number of bits used to specify the alternate function
+ * @regs: variant specific registers.
  * @blocks:	list of blocks present on this device
  * @num_blocks:	number of blocks present on this device
  * @num_irqs:	number of internal IRQs available on this device

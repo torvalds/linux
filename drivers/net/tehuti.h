@@ -250,7 +250,6 @@ struct bdx_priv {
 	struct rxf_fifo rxf_fifo0;
 	struct rxdb *rxdb;	/* rx dbs to store skb pointers */
 	int napi_stop;
-	struct vlan_group *vlgrp;
 
 	/* Tx FIFOs: 1 for data desc, 1 for empty (acks) desc */
 	struct txd_fifo txd_fifo0;

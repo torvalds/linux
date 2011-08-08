@@ -445,7 +445,7 @@ static void lola_reset_setups(struct lola *chip)
 	lola_setup_all_analog_gains(chip, PLAY, false); /* output, update */
 }
 
-static int lola_parse_tree(struct lola *chip)
+static int __devinit lola_parse_tree(struct lola *chip)
 {
 	unsigned int val;
 	int nid, err;
@@ -648,7 +648,7 @@ static int __devinit lola_create(struct snd_card *card, struct pci_dev *pci,
 		goto errout;
 
 	if (request_irq(pci->irq, lola_interrupt, IRQF_SHARED,
-			DRVNAME, chip)) {
+			KBUILD_MODNAME, chip)) {
 		printk(KERN_ERR SFX "unable to grab IRQ %d\n", pci->irq);
 		err = -EBUSY;
 		goto errout;
@@ -771,7 +771,7 @@ MODULE_DEVICE_TABLE(pci, lola_ids);
 
 /* pci_driver definition */
 static struct pci_driver driver = {
-	.name = DRVNAME,
+	.name = KBUILD_MODNAME,
 	.id_table = lola_ids,
 	.probe = lola_probe,
 	.remove = __devexit_p(lola_remove),

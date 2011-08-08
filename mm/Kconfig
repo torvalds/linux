@@ -356,7 +356,7 @@ config CLEANCACHE
 	  for clean pages that the kernel's pageframe replacement algorithm
 	  (PFRA) would like to keep around, but can't since there isn't enough
 	  memory.  So when the PFRA "evicts" a page, it first attempts to use
-	  cleancacne code to put the data contained in that page into
+	  cleancache code to put the data contained in that page into
 	  "transcendent memory", memory that is not directly accessible or
 	  addressable by the kernel and is of unknown and possibly
 	  time-varying size.  And when a cleancache-enabled

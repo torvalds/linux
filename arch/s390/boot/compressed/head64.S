@@ -7,14 +7,14 @@
  */
 
 #include <linux/init.h>
+#include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/page.h>
 #include "sizes.h"
 
 __HEAD
-	.globl	startup_continue
-startup_continue:
+ENTRY(startup_continue)
 	basr	%r13,0			# get base
 .LPG1:
 	# setup stack

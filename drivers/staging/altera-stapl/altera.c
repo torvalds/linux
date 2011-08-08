@@ -28,7 +28,7 @@
 #include <linux/string.h>
 #include <linux/firmware.h>
 #include <linux/slab.h>
-#include <staging/altera.h>
+#include "altera.h"
 #include "altera-exprt.h"
 #include "altera-jtag.h"
 
@@ -2430,16 +2430,23 @@ int altera_init(struct altera_config *config, const struct firmware *fw)
 	int index = 0;
 	s32 offset = 0L;
 	s32 error_address = 0L;
+	int retval = 0;
 
-	key = kzalloc(33 * sizeof(char), GFP_KERNEL);
-	if (!key)
-		return -ENOMEM;
-	value = kzalloc(257 * sizeof(char), GFP_KERNEL);
-	if (!value)
-		return -ENOMEM;
+	key = kzalloc(33, GFP_KERNEL);
+	if (!key) {
+		retval = -ENOMEM;
+		goto out;
+	}
+	value = kzalloc(257, GFP_KERNEL);
+	if (!value) {
+		retval = -ENOMEM;
+		goto free_key;
+	}
 	astate = kzalloc(sizeof(struct altera_state), GFP_KERNEL);
-	if (!astate)
-		return -ENOMEM;
+	if (!astate) {
+		retval = -ENOMEM;
+		goto free_value;
+	}
 
 	astate->config = config;
 	if (!astate->config->jtag_io) {
@@ -2518,10 +2525,12 @@ int altera_init(struct altera_config *config, const struct firmware *fw)
 	} else if (exec_result)
 		printk(KERN_ERR "%s: error %d\n", __func__, exec_result);
 
-	kfree(key);
-	kfree(value);
 	kfree(astate);
-
-	return 0;
+free_value:
+	kfree(value);
+free_key:
+	kfree(key);
+out:
+	return retval;
 }
 EXPORT_SYMBOL(altera_init);

@@ -29,6 +29,7 @@
 /* ethtool support for e1000 */
 
 #include <linux/netdevice.h>
+#include <linux/interrupt.h>
 #include <linux/ethtool.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
@@ -963,6 +964,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 
 	/* Disable all the interrupts */
 	ew32(IMC, 0xFFFFFFFF);
+	e1e_flush();
 	usleep_range(10000, 20000);
 
 	/* Test each interrupt */
@@ -995,6 +997,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 			adapter->test_icr = 0;
 			ew32(IMC, mask);
 			ew32(ICS, mask);
+			e1e_flush();
 			usleep_range(10000, 20000);
 
 			if (adapter->test_icr & mask) {
@@ -1013,6 +1016,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 		adapter->test_icr = 0;
 		ew32(IMS, mask);
 		ew32(ICS, mask);
+		e1e_flush();
 		usleep_range(10000, 20000);
 
 		if (!(adapter->test_icr & mask)) {
@@ -1031,6 +1035,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 			adapter->test_icr = 0;
 			ew32(IMC, ~mask & 0x00007FFF);
 			ew32(ICS, ~mask & 0x00007FFF);
+			e1e_flush();
 			usleep_range(10000, 20000);
 
 			if (adapter->test_icr) {
@@ -1042,6 +1047,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 
 	/* Disable all the interrupts */
 	ew32(IMC, 0xFFFFFFFF);
+	e1e_flush();
 	usleep_range(10000, 20000);
 
 	/* Unhook test interrupt handler */
@@ -1275,6 +1281,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 			     E1000_CTRL_FD);	 /* Force Duplex to FULL */
 
 		ew32(CTRL, ctrl_reg);
+		e1e_flush();
 		udelay(500);
 
 		return 0;
@@ -1417,6 +1424,7 @@ static int e1000_set_82571_fiber_loopback(struct e1000_adapter *adapter)
 	 */
 #define E1000_SERDES_LB_ON 0x410
 	ew32(SCTL, E1000_SERDES_LB_ON);
+	e1e_flush();
 	usleep_range(10000, 20000);
 
 	return 0;
@@ -1512,6 +1520,7 @@ static void e1000_loopback_cleanup(struct e1000_adapter *adapter)
 		    hw->phy.media_type == e1000_media_type_internal_serdes) {
 #define E1000_SERDES_LB_OFF 0x400
 			ew32(SCTL, E1000_SERDES_LB_OFF);
+			e1e_flush();
 			usleep_range(10000, 20000);
 			break;
 		}
@@ -1591,6 +1600,7 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 				k = 0;
 		}
 		ew32(TDT, k);
+		e1e_flush();
 		msleep(200);
 		time = jiffies; /* set the start time for the receive */
 		good_cnt = 0;

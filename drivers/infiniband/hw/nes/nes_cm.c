@@ -34,7 +34,7 @@
 
 #define TCPOPT_TIMESTAMP 8
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
@@ -1151,7 +1151,7 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 	}
 
 	if ((neigh == NULL) || (!(neigh->nud_state & NUD_VALID)))
-		neigh_event_send(rt->dst.neighbour, NULL);
+		neigh_event_send(dst_get_neighbour(&rt->dst), NULL);
 
 	ip_rt_put(rt);
 	return rc;

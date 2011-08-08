@@ -138,7 +138,7 @@ void ams_delta_latch2_write(u16 mask, u16 value)
 static void __init ams_delta_init_irq(void)
 {
 	omap1_init_common_hw();
-	omap_init_irq();
+	omap1_init_irq();
 }
 
 static struct map_desc ams_delta_io_desc[] __initdata = {
@@ -215,7 +215,7 @@ static struct omap_kp_platform_data ams_delta_kp_data __initdata = {
 	.delay		= 9,
 };
 
-static struct platform_device ams_delta_kp_device __initdata = {
+static struct platform_device ams_delta_kp_device = {
 	.name		= "omap-keypad",
 	.id		= -1,
 	.dev		= {
@@ -225,12 +225,12 @@ static struct platform_device ams_delta_kp_device __initdata = {
 	.resource	= ams_delta_kp_resources,
 };
 
-static struct platform_device ams_delta_lcd_device __initdata = {
+static struct platform_device ams_delta_lcd_device = {
 	.name	= "lcd_ams_delta",
 	.id	= -1,
 };
 
-static struct platform_device ams_delta_led_device __initdata = {
+static struct platform_device ams_delta_led_device = {
 	.name	= "ams-delta-led",
 	.id	= -1
 };
@@ -267,7 +267,7 @@ static struct soc_camera_link ams_delta_iclink = {
 	.power		= ams_delta_camera_power,
 };
 
-static struct platform_device ams_delta_camera_device __initdata = {
+static struct platform_device ams_delta_camera_device = {
 	.name   = "soc-camera-pdrv",
 	.id     = 0,
 	.dev    = {
@@ -391,7 +391,7 @@ MACHINE_START(AMS_DELTA, "Amstrad E3 (Delta)")
 	.reserve	= omap_reserve,
 	.init_irq	= ams_delta_init_irq,
 	.init_machine	= ams_delta_init,
-	.timer		= &omap_timer,
+	.timer		= &omap1_timer,
 MACHINE_END
 
 EXPORT_SYMBOL(ams_delta_latch1_write);

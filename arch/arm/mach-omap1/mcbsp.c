@@ -38,7 +38,7 @@ static void omap1_mcbsp_request(unsigned int id)
 	 * On 1510, 1610 and 1710, McBSP1 and McBSP3
 	 * are DSP public peripherals.
 	 */
-	if (id == OMAP_MCBSP1 || id == OMAP_MCBSP3) {
+	if (id == 0 || id == 2) {
 		if (dsp_use++ == 0) {
 			api_clk = clk_get(NULL, "api_ck");
 			dsp_clk = clk_get(NULL, "dsp_ck");
@@ -59,7 +59,7 @@ static void omap1_mcbsp_request(unsigned int id)
 
 static void omap1_mcbsp_free(unsigned int id)
 {
-	if (id == OMAP_MCBSP1 || id == OMAP_MCBSP3) {
+	if (id == 0 || id == 2) {
 		if (--dsp_use == 0) {
 			if (!IS_ERR(api_clk)) {
 				clk_disable(api_clk);

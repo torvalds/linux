@@ -123,7 +123,7 @@ static long apc_ioctl(struct file *f, unsigned int cmd, unsigned long __arg)
 
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }

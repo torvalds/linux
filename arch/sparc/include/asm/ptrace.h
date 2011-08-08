@@ -205,6 +205,7 @@ do {	current_thread_info()->syscall_noerror = 1; \
 } while (0)
 #define user_mode(regs) (!((regs)->tstate & TSTATE_PRIV))
 #define instruction_pointer(regs) ((regs)->tpc)
+#define instruction_pointer_set(regs, val) ((regs)->tpc = (val))
 #define user_stack_pointer(regs) ((regs)->u_regs[UREG_FP])
 #define regs_return_value(regs) ((regs)->u_regs[UREG_I0])
 #ifdef CONFIG_SMP
@@ -212,7 +213,6 @@ extern unsigned long profile_pc(struct pt_regs *);
 #else
 #define profile_pc(regs) instruction_pointer(regs)
 #endif
-extern void show_regs(struct pt_regs *);
 #endif /* (__KERNEL__) */
 
 #else /* __ASSEMBLY__ */
@@ -256,7 +256,6 @@ static inline bool pt_regs_clear_syscall(struct pt_regs *regs)
 #define instruction_pointer(regs) ((regs)->pc)
 #define user_stack_pointer(regs) ((regs)->u_regs[UREG_FP])
 unsigned long profile_pc(struct pt_regs *);
-extern void show_regs(struct pt_regs *);
 #endif /* (__KERNEL__) */
 
 #else /* (!__ASSEMBLY__) */

@@ -19,20 +19,18 @@
 #include <linux/netdevice.h>
 #include <linux/types.h>
 #include <linux/errno.h>
-#ifdef BCM_DCBNL
-#include <linux/dcbnl.h>
-#endif
+#include <linux/rtnetlink.h>
+#include <net/dcbnl.h>
 
 #include "bnx2x.h"
 #include "bnx2x_cmn.h"
 #include "bnx2x_dcb.h"
 
-
 /* forward declarations of dcbx related functions */
-static void bnx2x_dcbx_stop_hw_tx(struct bnx2x *bp);
+static int bnx2x_dcbx_stop_hw_tx(struct bnx2x *bp);
 static void bnx2x_pfc_set_pfc(struct bnx2x *bp);
 static void bnx2x_dcbx_update_ets_params(struct bnx2x *bp);
-static void bnx2x_dcbx_resume_hw_tx(struct bnx2x *bp);
+static int bnx2x_dcbx_resume_hw_tx(struct bnx2x *bp);
 static void bnx2x_dcbx_get_ets_pri_pg_tbl(struct bnx2x *bp,
 					  u32 *set_configuration_ets_pg,
 					  u32 *pri_pg_tbl);
@@ -47,34 +45,56 @@ static void bnx2x_dcbx_separate_pauseable_from_non(struct bnx2x *bp,
 				struct cos_help_data *cos_data,
 				u32 *pg_pri_orginal_spread,
 				struct dcbx_ets_feature *ets);
-static void bnx2x_pfc_fw_struct_e2(struct bnx2x *bp);
+static void bnx2x_dcbx_fw_struct(struct bnx2x *bp,
+				 struct bnx2x_func_tx_start_params*);
 
+/* helpers: read/write len bytes from addr into buff by REG_RD/REG_WR */
+static void bnx2x_read_data(struct bnx2x *bp, u32 *buff,
+				   u32 addr, u32 len)
+{
+	int i;
+	for (i = 0; i < len; i += 4, buff++)
+		*buff = REG_RD(bp, addr + i);
+}
+
+static void bnx2x_write_data(struct bnx2x *bp, u32 *buff,
+				    u32 addr, u32 len)
+{
+	int i;
+	for (i = 0; i < len; i += 4, buff++)
+		REG_WR(bp, addr + i, *buff);
+}
 
 static void bnx2x_pfc_set(struct bnx2x *bp)
 {
 	struct bnx2x_nig_brb_pfc_port_params pfc_params = {0};
 	u32 pri_bit, val = 0;
-	u8 pri;
+	int i;
+
+	pfc_params.num_of_rx_cos_priority_mask =
+					bp->dcbx_port_params.ets.num_of_cos;
 
 	/* Tx COS configuration */
-	if (bp->dcbx_port_params.ets.cos_params[0].pauseable)
-		pfc_params.rx_cos0_priority_mask =
-			bp->dcbx_port_params.ets.cos_params[0].pri_bitmask;
-	if (bp->dcbx_port_params.ets.cos_params[1].pauseable)
-		pfc_params.rx_cos1_priority_mask =
-			bp->dcbx_port_params.ets.cos_params[1].pri_bitmask;
+	for (i = 0; i < bp->dcbx_port_params.ets.num_of_cos; i++)
+		/*
+		 * We configure only the pauseable bits (non pauseable aren't
+		 * configured at all) it's done to avoid false pauses from
+		 * network
+		 */
+		pfc_params.rx_cos_priority_mask[i] =
+			bp->dcbx_port_params.ets.cos_params[i].pri_bitmask
+				& DCBX_PFC_PRI_PAUSE_MASK(bp);
 
-
-	/**
+	/*
 	 * Rx COS configuration
 	 * Changing PFC RX configuration .
 	 * In RX COS0 will always be configured to lossy and COS1 to lossless
 	 */
-	for (pri = 0 ; pri < MAX_PFC_PRIORITIES ; pri++) {
-		pri_bit = 1 << pri;
+	for (i = 0 ; i < MAX_PFC_PRIORITIES ; i++) {
+		pri_bit = 1 << i;
 
 		if (pri_bit & DCBX_PFC_PRI_PAUSE_MASK(bp))
-			val |= 1 << (pri * 4);
+			val |= 1 << (i * 4);
 	}
 
 	pfc_params.pkt_priority_to_cos = val;
@@ -200,7 +220,11 @@ static void bnx2x_dcbx_get_ap_feature(struct bnx2x *bp,
 	if (GET_FLAGS(error, DCBX_LOCAL_APP_ERROR))
 		DP(NETIF_MSG_LINK, "DCBX_LOCAL_APP_ERROR\n");
 
-	if (app->enabled && !GET_FLAGS(error, DCBX_LOCAL_APP_ERROR)) {
+	if (GET_FLAGS(error, DCBX_LOCAL_APP_MISMATCH))
+		DP(NETIF_MSG_LINK, "DCBX_LOCAL_APP_MISMATCH\n");
+
+	if (app->enabled &&
+	    !GET_FLAGS(error, DCBX_LOCAL_APP_ERROR | DCBX_LOCAL_APP_MISMATCH)) {
 
 		bp->dcbx_port_params.app.enabled = true;
 
@@ -253,12 +277,11 @@ static void bnx2x_dcbx_get_ets_feature(struct bnx2x *bp,
 
 
 	/* Clean up old settings of ets on COS */
-	for (i = 0; i < E2_NUM_OF_COS ; i++) {
-
+	for (i = 0; i < ARRAY_SIZE(bp->dcbx_port_params.ets.cos_params) ; i++) {
 		cos_params[i].pauseable = false;
-		cos_params[i].strict = BNX2X_DCBX_COS_NOT_STRICT;
+		cos_params[i].strict = BNX2X_DCBX_STRICT_INVALID;
 		cos_params[i].bw_tbl = DCBX_INVALID_COS_BW;
-		cos_params[i].pri_bitmask = DCBX_PFC_PRI_GET_NON_PAUSE(bp, 0);
+		cos_params[i].pri_bitmask = 0;
 	}
 
 	if (bp->dcbx_port_params.app.enabled &&
@@ -296,7 +319,7 @@ static void  bnx2x_dcbx_get_pfc_feature(struct bnx2x *bp,
 		DP(NETIF_MSG_LINK, "DCBX_LOCAL_PFC_ERROR\n");
 
 	if (bp->dcbx_port_params.app.enabled &&
-	   !GET_FLAGS(error, DCBX_LOCAL_PFC_ERROR) &&
+	   !GET_FLAGS(error, DCBX_LOCAL_PFC_ERROR | DCBX_LOCAL_PFC_MISMATCH) &&
 	   pfc->enabled) {
 		bp->dcbx_port_params.pfc.enabled = true;
 		bp->dcbx_port_params.pfc.priority_non_pauseable_mask =
@@ -305,6 +328,32 @@ static void  bnx2x_dcbx_get_pfc_feature(struct bnx2x *bp,
 		DP(NETIF_MSG_LINK, "DCBX_LOCAL_PFC_DISABLED\n");
 		bp->dcbx_port_params.pfc.enabled = false;
 		bp->dcbx_port_params.pfc.priority_non_pauseable_mask = 0;
+	}
+}
+
+/* maps unmapped priorities to to the same COS as L2 */
+static void bnx2x_dcbx_map_nw(struct bnx2x *bp)
+{
+	int i;
+	u32 unmapped = (1 << MAX_PFC_PRIORITIES) - 1; /* all ones */
+	u32 *ttp = bp->dcbx_port_params.app.traffic_type_priority;
+	u32 nw_prio = 1 << ttp[LLFC_TRAFFIC_TYPE_NW];
+	struct bnx2x_dcbx_cos_params *cos_params =
+			bp->dcbx_port_params.ets.cos_params;
+
+	/* get unmapped priorities by clearing mapped bits */
+	for (i = 0; i < LLFC_DRIVER_TRAFFIC_TYPE_MAX; i++)
+		unmapped &= ~(1 << ttp[i]);
+
+	/* find cos for nw prio and extend it with unmapped */
+	for (i = 0; i < ARRAY_SIZE(bp->dcbx_port_params.ets.cos_params); i++) {
+		if (cos_params[i].pri_bitmask & nw_prio) {
+			/* extend the bitmask with unmapped */
+			DP(NETIF_MSG_LINK,
+			   "cos %d extended with 0x%08x", i, unmapped);
+			cos_params[i].pri_bitmask |= unmapped;
+			break;
+		}
 	}
 }
 
@@ -317,6 +366,8 @@ static void bnx2x_get_dcbx_drv_param(struct bnx2x *bp,
 	bnx2x_dcbx_get_pfc_feature(bp, &features->pfc, error);
 
 	bnx2x_dcbx_get_ets_feature(bp, &features->ets, error);
+
+	bnx2x_dcbx_map_nw(bp);
 }
 
 #define DCBX_LOCAL_MIB_MAX_TRY_READ		(100)
@@ -325,8 +376,8 @@ static int bnx2x_dcbx_read_mib(struct bnx2x *bp,
 			       u32 offset,
 			       int read_mib_type)
 {
-	int max_try_read = 0, i;
-	u32 *buff, mib_size, prefix_seq_num, suffix_seq_num;
+	int max_try_read = 0;
+	u32 mib_size, prefix_seq_num, suffix_seq_num;
 	struct lldp_remote_mib *remote_mib ;
 	struct lldp_local_mib  *local_mib;
 
@@ -345,9 +396,7 @@ static int bnx2x_dcbx_read_mib(struct bnx2x *bp,
 	offset += BP_PORT(bp) * mib_size;
 
 	do {
-		buff = base_mib_addr;
-		for (i = 0; i < mib_size; i += 4, buff++)
-			*buff = REG_RD(bp, offset + i);
+		bnx2x_read_data(bp, base_mib_addr, offset, mib_size);
 
 		max_try_read++;
 
@@ -378,60 +427,50 @@ static int bnx2x_dcbx_read_mib(struct bnx2x *bp,
 
 static void bnx2x_pfc_set_pfc(struct bnx2x *bp)
 {
-	if (CHIP_IS_E2(bp)) {
-		if (BP_PORT(bp)) {
-			BNX2X_ERR("4 port mode is not supported");
-			return;
-		}
-
-		if (bp->dcbx_port_params.pfc.enabled)
-
-			/* 1. Fills up common PFC structures if required.*/
-			/* 2. Configure NIG, MAC and BRB via the elink:
-			 *    elink must first check if BMAC is not in reset
-			 *    and only then configures the BMAC
-			 *    Or, configure EMAC.
-			 */
-			bnx2x_pfc_set(bp);
-
-		else
-			bnx2x_pfc_clear(bp);
-	}
+	if (bp->dcbx_port_params.pfc.enabled &&
+	    !(bp->dcbx_error & DCBX_REMOTE_MIB_ERROR))
+		/*
+		 * 1. Fills up common PFC structures if required
+		 * 2. Configure NIG, MAC and BRB via the elink
+		 */
+		bnx2x_pfc_set(bp);
+	else
+		bnx2x_pfc_clear(bp);
 }
 
-static void bnx2x_dcbx_stop_hw_tx(struct bnx2x *bp)
+static int bnx2x_dcbx_stop_hw_tx(struct bnx2x *bp)
 {
-	DP(NETIF_MSG_LINK, "sending STOP TRAFFIC\n");
-	bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_STOP_TRAFFIC,
-		      0 /* connectionless */,
-		      0 /* dataHi is zero */,
-		      0 /* dataLo is zero */,
-		      1 /* common */);
+	struct bnx2x_func_state_params func_params = {0};
+
+	func_params.f_obj = &bp->func_obj;
+	func_params.cmd = BNX2X_F_CMD_TX_STOP;
+
+	DP(NETIF_MSG_LINK, "STOP TRAFFIC\n");
+	return bnx2x_func_state_change(bp, &func_params);
 }
 
-static void bnx2x_dcbx_resume_hw_tx(struct bnx2x *bp)
+static int bnx2x_dcbx_resume_hw_tx(struct bnx2x *bp)
 {
-	bnx2x_pfc_fw_struct_e2(bp);
-	DP(NETIF_MSG_LINK, "sending START TRAFFIC\n");
-	bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_START_TRAFFIC,
-		      0, /* connectionless */
-		      U64_HI(bnx2x_sp_mapping(bp, pfc_config)),
-		      U64_LO(bnx2x_sp_mapping(bp, pfc_config)),
-		      1  /* commmon */);
+	struct bnx2x_func_state_params func_params = {0};
+	struct bnx2x_func_tx_start_params *tx_params =
+		&func_params.params.tx_start;
+
+	func_params.f_obj = &bp->func_obj;
+	func_params.cmd = BNX2X_F_CMD_TX_START;
+
+	bnx2x_dcbx_fw_struct(bp, tx_params);
+
+	DP(NETIF_MSG_LINK, "START TRAFFIC\n");
+	return bnx2x_func_state_change(bp, &func_params);
 }
 
-static void bnx2x_dcbx_update_ets_params(struct bnx2x *bp)
+static void bnx2x_dcbx_2cos_limit_update_ets_config(struct bnx2x *bp)
 {
 	struct bnx2x_dcbx_pg_params *ets = &(bp->dcbx_port_params.ets);
-	u8	status = 0;
+	int rc = 0;
 
-	bnx2x_ets_disabled(&bp->link_params);
-
-	if (!ets->enabled)
-		return;
-
-	if ((ets->num_of_cos == 0) || (ets->num_of_cos > E2_NUM_OF_COS)) {
-		BNX2X_ERR("illegal num of cos= %x", ets->num_of_cos);
+	if (ets->num_of_cos == 0 || ets->num_of_cos > DCBX_COS_MAX_NUM_E2) {
+		BNX2X_ERR("Illegal number of COSes %d\n", ets->num_of_cos);
 		return;
 	}
 
@@ -440,9 +479,9 @@ static void bnx2x_dcbx_update_ets_params(struct bnx2x *bp)
 		return;
 
 	/* sanity */
-	if (((BNX2X_DCBX_COS_NOT_STRICT == ets->cos_params[0].strict) &&
+	if (((BNX2X_DCBX_STRICT_INVALID == ets->cos_params[0].strict) &&
 	     (DCBX_INVALID_COS_BW == ets->cos_params[0].bw_tbl)) ||
-	    ((BNX2X_DCBX_COS_NOT_STRICT == ets->cos_params[1].strict) &&
+	    ((BNX2X_DCBX_STRICT_INVALID == ets->cos_params[1].strict) &&
 	     (DCBX_INVALID_COS_BW == ets->cos_params[1].bw_tbl))) {
 		BNX2X_ERR("all COS should have at least bw_limit or strict"
 			    "ets->cos_params[0].strict= %x"
@@ -474,15 +513,69 @@ static void bnx2x_dcbx_update_ets_params(struct bnx2x *bp)
 
 		bnx2x_ets_bw_limit(&bp->link_params, bw_tbl_0, bw_tbl_1);
 	} else {
-		if (ets->cos_params[0].strict == BNX2X_DCBX_COS_HIGH_STRICT)
-			status = bnx2x_ets_strict(&bp->link_params, 0);
+		if (ets->cos_params[0].strict == BNX2X_DCBX_STRICT_COS_HIGHEST)
+			rc = bnx2x_ets_strict(&bp->link_params, 0);
 		else if (ets->cos_params[1].strict
-						== BNX2X_DCBX_COS_HIGH_STRICT)
-			status = bnx2x_ets_strict(&bp->link_params, 1);
-
-		if (status)
+					== BNX2X_DCBX_STRICT_COS_HIGHEST)
+			rc = bnx2x_ets_strict(&bp->link_params, 1);
+		if (rc)
 			BNX2X_ERR("update_ets_params failed\n");
 	}
+}
+
+/*
+ * In E3B0 the configuration may have more than 2 COS.
+ */
+void bnx2x_dcbx_update_ets_config(struct bnx2x *bp)
+{
+	struct bnx2x_dcbx_pg_params *ets = &(bp->dcbx_port_params.ets);
+	struct bnx2x_ets_params ets_params = { 0 };
+	u8 i;
+
+	ets_params.num_of_cos = ets->num_of_cos;
+
+	for (i = 0; i < ets->num_of_cos; i++) {
+		/* COS is SP */
+		if (ets->cos_params[i].strict != BNX2X_DCBX_STRICT_INVALID) {
+			if (ets->cos_params[i].bw_tbl != DCBX_INVALID_COS_BW) {
+				BNX2X_ERR("COS can't be not BW and not SP\n");
+				return;
+			}
+
+			ets_params.cos[i].state = bnx2x_cos_state_strict;
+			ets_params.cos[i].params.sp_params.pri =
+						ets->cos_params[i].strict;
+		} else { /* COS is BW */
+			if (ets->cos_params[i].bw_tbl == DCBX_INVALID_COS_BW) {
+				BNX2X_ERR("COS can't be not BW and not SP\n");
+				return;
+			}
+			ets_params.cos[i].state = bnx2x_cos_state_bw;
+			ets_params.cos[i].params.bw_params.bw =
+						(u8)ets->cos_params[i].bw_tbl;
+		}
+	}
+
+	/* Configure the ETS in HW */
+	if (bnx2x_ets_e3b0_config(&bp->link_params, &bp->link_vars,
+				  &ets_params)) {
+		BNX2X_ERR("bnx2x_ets_e3b0_config failed\n");
+		bnx2x_ets_disabled(&bp->link_params, &bp->link_vars);
+	}
+}
+
+static void bnx2x_dcbx_update_ets_params(struct bnx2x *bp)
+{
+	bnx2x_ets_disabled(&bp->link_params, &bp->link_vars);
+
+	if (!bp->dcbx_port_params.ets.enabled ||
+	    (bp->dcbx_error & DCBX_REMOTE_MIB_ERROR))
+		return;
+
+	if (CHIP_IS_E3B0(bp))
+		bnx2x_dcbx_update_ets_config(bp);
+	else
+		bnx2x_dcbx_2cos_limit_update_ets_config(bp);
 }
 
 #ifdef BCM_DCBNL
@@ -527,6 +620,7 @@ static int bnx2x_dcbx_read_shmem_neg_results(struct bnx2x *bp)
 		BNX2X_ERR("FW doesn't support dcbx_neg_res_offset\n");
 		return -EINVAL;
 	}
+
 	rc = bnx2x_dcbx_read_mib(bp, (u32 *)&local_mib, dcbx_neg_res_offset,
 				 DCBX_READ_LOCAL_MIB);
 
@@ -563,15 +657,6 @@ u8 bnx2x_dcbx_dcbnl_app_idtype(struct dcbx_app_priority_entry *ent)
 		DCB_APP_IDTYPE_ETHTYPE;
 }
 
-static inline
-void bnx2x_dcbx_invalidate_local_apps(struct bnx2x *bp)
-{
-	int i;
-	for (i = 0; i < DCBX_MAX_APP_PROTOCOL; i++)
-		bp->dcbx_local_feat.app.app_pri_tbl[i].appBitfield &=
-							~DCBX_APP_ENTRY_VALID;
-}
-
 int bnx2x_dcbnl_update_applist(struct bnx2x *bp, bool delall)
 {
 	int i, err = 0;
@@ -597,32 +682,50 @@ int bnx2x_dcbnl_update_applist(struct bnx2x *bp, bool delall)
 }
 #endif
 
+static inline void bnx2x_update_drv_flags(struct bnx2x *bp, u32 flags, u32 set)
+{
+	if (SHMEM2_HAS(bp, drv_flags)) {
+		u32 drv_flags;
+		bnx2x_acquire_hw_lock(bp, HW_LOCK_DRV_FLAGS);
+		drv_flags = SHMEM2_RD(bp, drv_flags);
+
+		if (set)
+			SET_FLAGS(drv_flags, flags);
+		else
+			RESET_FLAGS(drv_flags, flags);
+
+		SHMEM2_WR(bp, drv_flags, drv_flags);
+		DP(NETIF_MSG_HW, "drv_flags 0x%08x\n", drv_flags);
+		bnx2x_release_hw_lock(bp, HW_LOCK_DRV_FLAGS);
+	}
+}
+
+static inline void bnx2x_dcbx_update_tc_mapping(struct bnx2x *bp)
+{
+	u8 prio, cos;
+	for (cos = 0; cos < bp->dcbx_port_params.ets.num_of_cos; cos++) {
+		for (prio = 0; prio < BNX2X_MAX_PRIORITY; prio++) {
+			if (bp->dcbx_port_params.ets.cos_params[cos].pri_bitmask
+			    & (1 << prio)) {
+				bp->prio_to_cos[prio] = cos;
+				DP(NETIF_MSG_LINK,
+				   "tx_mapping %d --> %d\n", prio, cos);
+			}
+		}
+	}
+
+	/* setup tc must be called under rtnl lock, but we can't take it here
+	 * as we are handling an attetntion on a work queue which must be
+	 * flushed at some rtnl-locked contexts (e.g. if down)
+	 */
+	if (!test_and_set_bit(BNX2X_SP_RTNL_SETUP_TC, &bp->sp_rtnl_state))
+		schedule_delayed_work(&bp->sp_rtnl_task, 0);
+}
+
 void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state)
 {
 	switch (state) {
 	case BNX2X_DCBX_STATE_NEG_RECEIVED:
-#ifdef BCM_CNIC
-		if (bp->state != BNX2X_STATE_OPENING_WAIT4_LOAD) {
-			struct cnic_ops *c_ops;
-			struct cnic_eth_dev *cp = &bp->cnic_eth_dev;
-			bp->flags |= NO_ISCSI_OOO_FLAG | NO_ISCSI_FLAG;
-			cp->drv_state |= CNIC_DRV_STATE_NO_ISCSI_OOO;
-			cp->drv_state |= CNIC_DRV_STATE_NO_ISCSI;
-
-			rcu_read_lock();
-			c_ops = rcu_dereference(bp->cnic_ops);
-			if (c_ops) {
-				bnx2x_cnic_notify(bp, CNIC_CTL_STOP_ISCSI_CMD);
-				rcu_read_unlock();
-				return;
-			}
-			rcu_read_unlock();
-		}
-
-		/* fall through if no CNIC initialized  */
-	case BNX2X_DCBX_STATE_ISCSI_STOPPED:
-#endif
-
 		{
 			DP(NETIF_MSG_LINK, "BNX2X_DCBX_STATE_NEG_RECEIVED\n");
 #ifdef BCM_DCBNL
@@ -646,102 +749,53 @@ void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state)
 			bnx2x_get_dcbx_drv_param(bp, &bp->dcbx_local_feat,
 						 bp->dcbx_error);
 
-			if (bp->state != BNX2X_STATE_OPENING_WAIT4_LOAD) {
-#ifdef BCM_DCBNL
-				/**
-				 * Add new app tlvs to dcbnl
-				 */
-				bnx2x_dcbnl_update_applist(bp, false);
-#endif
-				bnx2x_dcbx_stop_hw_tx(bp);
-				return;
-			}
-			/* fall through */
+			/* mark DCBX result for PMF migration */
+			bnx2x_update_drv_flags(bp, DRV_FLAGS_DCB_CONFIGURED, 1);
 #ifdef BCM_DCBNL
 			/**
-			 * Invalidate the local app tlvs if they are not added
-			 * to the dcbnl app list to avoid deleting them from
-			 * the list later on
+			 * Add new app tlvs to dcbnl
 			 */
-			bnx2x_dcbx_invalidate_local_apps(bp);
+			bnx2x_dcbnl_update_applist(bp, false);
 #endif
+			bnx2x_dcbx_stop_hw_tx(bp);
+
+			/* reconfigure the netdevice with the results of the new
+			 * dcbx negotiation.
+			 */
+			bnx2x_dcbx_update_tc_mapping(bp);
+
+			return;
 		}
 	case BNX2X_DCBX_STATE_TX_PAUSED:
 		DP(NETIF_MSG_LINK, "BNX2X_DCBX_STATE_TX_PAUSED\n");
 		bnx2x_pfc_set_pfc(bp);
 
 		bnx2x_dcbx_update_ets_params(bp);
-		if (bp->state != BNX2X_STATE_OPENING_WAIT4_LOAD) {
-			bnx2x_dcbx_resume_hw_tx(bp);
-			return;
-		}
-		/* fall through */
+		bnx2x_dcbx_resume_hw_tx(bp);
+		return;
 	case BNX2X_DCBX_STATE_TX_RELEASED:
 		DP(NETIF_MSG_LINK, "BNX2X_DCBX_STATE_TX_RELEASED\n");
-		if (bp->state != BNX2X_STATE_OPENING_WAIT4_LOAD)
-			bnx2x_fw_command(bp, DRV_MSG_CODE_DCBX_PMF_DRV_OK, 0);
-
+		bnx2x_fw_command(bp, DRV_MSG_CODE_DCBX_PMF_DRV_OK, 0);
+#ifdef BCM_DCBNL
+		/*
+		 * Send a notification for the new negotiated parameters
+		 */
+		dcbnl_cee_notify(bp->dev, RTM_GETDCB, DCB_CMD_CEE_GET, 0, 0);
+#endif
 		return;
 	default:
 		BNX2X_ERR("Unknown DCBX_STATE\n");
 	}
 }
 
-
-#define LLDP_STATS_OFFSET(bp)		(BP_PORT(bp)*\
-					sizeof(struct lldp_dcbx_stat))
-
-/* calculate struct offset in array according to chip information */
-#define LLDP_PARAMS_OFFSET(bp)		(BP_PORT(bp)*sizeof(struct lldp_params))
-
 #define LLDP_ADMIN_MIB_OFFSET(bp)	(PORT_MAX*sizeof(struct lldp_params) + \
 				      BP_PORT(bp)*sizeof(struct lldp_admin_mib))
-
-static void bnx2x_dcbx_lldp_updated_params(struct bnx2x *bp,
-					   u32 dcbx_lldp_params_offset)
-{
-	struct lldp_params lldp_params = {0};
-	u32 i = 0, *buff = NULL;
-	u32 offset = dcbx_lldp_params_offset + LLDP_PARAMS_OFFSET(bp);
-
-	DP(NETIF_MSG_LINK, "lldp_offset 0x%x\n", offset);
-
-	if ((bp->lldp_config_params.overwrite_settings ==
-				BNX2X_DCBX_OVERWRITE_SETTINGS_ENABLE)) {
-		/* Read the data first */
-		buff = (u32 *)&lldp_params;
-		for (i = 0; i < sizeof(struct lldp_params); i += 4,  buff++)
-			*buff = REG_RD(bp, (offset + i));
-
-		lldp_params.msg_tx_hold =
-			(u8)bp->lldp_config_params.msg_tx_hold;
-		lldp_params.msg_fast_tx_interval =
-			(u8)bp->lldp_config_params.msg_fast_tx;
-		lldp_params.tx_crd_max =
-			(u8)bp->lldp_config_params.tx_credit_max;
-		lldp_params.msg_tx_interval =
-			(u8)bp->lldp_config_params.msg_tx_interval;
-		lldp_params.tx_fast =
-			(u8)bp->lldp_config_params.tx_fast;
-
-		/* Write the data.*/
-		buff = (u32 *)&lldp_params;
-		for (i = 0; i < sizeof(struct lldp_params); i += 4, buff++)
-			REG_WR(bp, (offset + i) , *buff);
-
-
-	} else if (BNX2X_DCBX_OVERWRITE_SETTINGS_ENABLE ==
-				bp->lldp_config_params.overwrite_settings)
-		bp->lldp_config_params.overwrite_settings =
-				BNX2X_DCBX_OVERWRITE_SETTINGS_INVALID;
-}
 
 static void bnx2x_dcbx_admin_mib_updated_params(struct bnx2x *bp,
 				u32 dcbx_lldp_params_offset)
 {
 	struct lldp_admin_mib admin_mib;
 	u32 i, other_traf_type = PREDEFINED_APP_IDX_MAX, traf_type = 0;
-	u32 *buff;
 	u32 offset = dcbx_lldp_params_offset + LLDP_ADMIN_MIB_OFFSET(bp);
 
 	/*shortcuts*/
@@ -749,18 +803,18 @@ static void bnx2x_dcbx_admin_mib_updated_params(struct bnx2x *bp,
 	struct bnx2x_config_dcbx_params *dp = &bp->dcbx_config_params;
 
 	memset(&admin_mib, 0, sizeof(struct lldp_admin_mib));
-	buff = (u32 *)&admin_mib;
+
 	/* Read the data first */
-	for (i = 0; i < sizeof(struct lldp_admin_mib); i += 4, buff++)
-		*buff = REG_RD(bp, (offset + i));
+	bnx2x_read_data(bp, (u32 *)&admin_mib, offset,
+			sizeof(struct lldp_admin_mib));
 
 	if (bp->dcbx_enabled == BNX2X_DCBX_ENABLED_ON_NEG_ON)
 		SET_FLAGS(admin_mib.ver_cfg_flags, DCBX_DCBX_ENABLED);
 	else
 		RESET_FLAGS(admin_mib.ver_cfg_flags, DCBX_DCBX_ENABLED);
 
-	if ((BNX2X_DCBX_OVERWRITE_SETTINGS_ENABLE ==
-				dp->overwrite_settings)) {
+	if (dp->overwrite_settings == BNX2X_DCBX_OVERWRITE_SETTINGS_ENABLE) {
+
 		RESET_FLAGS(admin_mib.ver_cfg_flags, DCBX_CEE_VERSION_MASK);
 		admin_mib.ver_cfg_flags |=
 			(dp->admin_dcbx_version << DCBX_CEE_VERSION_SHIFT) &
@@ -856,19 +910,17 @@ static void bnx2x_dcbx_admin_mib_updated_params(struct bnx2x *bp,
 
 		af->app.default_pri = (u8)dp->admin_default_priority;
 
-	} else if (BNX2X_DCBX_OVERWRITE_SETTINGS_ENABLE ==
-						dp->overwrite_settings)
-		dp->overwrite_settings = BNX2X_DCBX_OVERWRITE_SETTINGS_INVALID;
+	}
 
 	/* Write the data. */
-	buff = (u32 *)&admin_mib;
-	for (i = 0; i < sizeof(struct lldp_admin_mib); i += 4, buff++)
-		REG_WR(bp, (offset + i), *buff);
+	bnx2x_write_data(bp, (u32 *)&admin_mib, offset,
+			 sizeof(struct lldp_admin_mib));
+
 }
 
 void bnx2x_dcbx_set_state(struct bnx2x *bp, bool dcb_on, u32 dcbx_enabled)
 {
-	if (CHIP_IS_E2(bp) && !CHIP_MODE_IS_4_PORT(bp)) {
+	if (!CHIP_IS_E1x(bp)) {
 		bp->dcb_state = dcb_on;
 		bp->dcbx_enabled = dcbx_enabled;
 	} else {
@@ -966,7 +1018,7 @@ void bnx2x_dcbx_init(struct bnx2x *bp)
 	DP(NETIF_MSG_LINK, "dcb_state %d bp->port.pmf %d\n",
 	   bp->dcb_state, bp->port.pmf);
 
-	if (bp->dcb_state ==  BNX2X_DCB_STATE_ON && bp->port.pmf &&
+	if (bp->dcb_state == BNX2X_DCB_STATE_ON && bp->port.pmf &&
 	    SHMEM2_HAS(bp, dcbx_lldp_params_offset)) {
 		dcbx_lldp_params_offset =
 			SHMEM2_RD(bp, dcbx_lldp_params_offset);
@@ -974,56 +1026,21 @@ void bnx2x_dcbx_init(struct bnx2x *bp)
 		DP(NETIF_MSG_LINK, "dcbx_lldp_params_offset 0x%x\n",
 		   dcbx_lldp_params_offset);
 
-		if (SHMEM_LLDP_DCBX_PARAMS_NONE != dcbx_lldp_params_offset) {
-			bnx2x_dcbx_lldp_updated_params(bp,
-						       dcbx_lldp_params_offset);
+		bnx2x_update_drv_flags(bp, DRV_FLAGS_DCB_CONFIGURED, 0);
 
+		if (SHMEM_LLDP_DCBX_PARAMS_NONE != dcbx_lldp_params_offset) {
 			bnx2x_dcbx_admin_mib_updated_params(bp,
 				dcbx_lldp_params_offset);
 
-			/* set default configuration BC has */
-			bnx2x_dcbx_set_params(bp,
-					      BNX2X_DCBX_STATE_NEG_RECEIVED);
-
+			/* Let HW start negotiation */
 			bnx2x_fw_command(bp,
 					 DRV_MSG_CODE_DCBX_ADMIN_PMF_MSG, 0);
 		}
 	}
 }
-
-void bnx2x_dcb_init_intmem_pfc(struct bnx2x *bp)
-{
-	struct priority_cos pricos[MAX_PFC_TRAFFIC_TYPES];
-	u32 i = 0, addr;
-	memset(pricos, 0, sizeof(pricos));
-	/* Default initialization */
-	for (i = 0; i < MAX_PFC_TRAFFIC_TYPES; i++)
-		pricos[i].priority = LLFC_TRAFFIC_TYPE_TO_PRIORITY_UNMAPPED;
-
-	/* Store per port struct to internal memory */
-	addr = BAR_XSTRORM_INTMEM +
-			XSTORM_CMNG_PER_PORT_VARS_OFFSET(BP_PORT(bp)) +
-			offsetof(struct cmng_struct_per_port,
-				 traffic_type_to_priority_cos);
-	__storm_memset_struct(bp, addr, sizeof(pricos), (u32 *)pricos);
-
-
-	/* LLFC disabled.*/
-	REG_WR8(bp , BAR_XSTRORM_INTMEM +
-		    XSTORM_CMNG_PER_PORT_VARS_OFFSET(BP_PORT(bp)) +
-		    offsetof(struct cmng_struct_per_port, llfc_mode),
-			LLFC_MODE_NONE);
-
-	/* DCBX disabled.*/
-	REG_WR8(bp , BAR_XSTRORM_INTMEM +
-		    XSTORM_CMNG_PER_PORT_VARS_OFFSET(BP_PORT(bp)) +
-		    offsetof(struct cmng_struct_per_port, dcb_enabled),
-			DCB_DISABLED);
-}
-
 static void
 bnx2x_dcbx_print_cos_params(struct bnx2x *bp,
-			    struct flow_control_configuration *pfc_fw_cfg)
+			    struct bnx2x_func_tx_start_params *pfc_fw_cfg)
 {
 	u8 pri = 0;
 	u8 cos = 0;
@@ -1171,7 +1188,7 @@ static void bnx2x_dcbx_separate_pauseable_from_non(struct bnx2x *bp,
 			/* If we join a group and one is strict
 			 * than the bw rulls */
 			cos_data->data[entry].strict =
-						BNX2X_DCBX_COS_HIGH_STRICT;
+						BNX2X_DCBX_STRICT_COS_HIGHEST;
 	}
 	if ((0 == cos_data->data[0].pri_join_mask) &&
 	    (0 == cos_data->data[1].pri_join_mask))
@@ -1183,7 +1200,7 @@ static void bnx2x_dcbx_separate_pauseable_from_non(struct bnx2x *bp,
 #define POWER_OF_2(x)	((0 != x) && (0 == (x & (x-1))))
 #endif
 
-static void bxn2x_dcbx_single_pg_to_cos_params(struct bnx2x *bp,
+static void bnx2x_dcbx_2cos_limit_cee_single_pg_to_cos_params(struct bnx2x *bp,
 					      struct pg_help_data *pg_help_data,
 					      struct cos_help_data *cos_data,
 					      u32 pri_join_mask,
@@ -1263,14 +1280,16 @@ static void bxn2x_dcbx_single_pg_to_cos_params(struct bnx2x *bp,
 			if (DCBX_PFC_PRI_GET_PAUSE(bp, pri_join_mask) >
 			    DCBX_PFC_PRI_GET_NON_PAUSE(bp, pri_join_mask)) {
 				cos_data->data[0].strict =
-					BNX2X_DCBX_COS_HIGH_STRICT;
+					BNX2X_DCBX_STRICT_COS_HIGHEST;
 				cos_data->data[1].strict =
-					BNX2X_DCBX_COS_LOW_STRICT;
+					BNX2X_DCBX_STRICT_COS_NEXT_LOWER_PRI(
+						BNX2X_DCBX_STRICT_COS_HIGHEST);
 			} else {
 				cos_data->data[0].strict =
-					BNX2X_DCBX_COS_LOW_STRICT;
+					BNX2X_DCBX_STRICT_COS_NEXT_LOWER_PRI(
+						BNX2X_DCBX_STRICT_COS_HIGHEST);
 				cos_data->data[1].strict =
-					BNX2X_DCBX_COS_HIGH_STRICT;
+					BNX2X_DCBX_STRICT_COS_HIGHEST;
 			}
 			/* Pauseable */
 			cos_data->data[0].pausable = true;
@@ -1306,13 +1325,16 @@ static void bxn2x_dcbx_single_pg_to_cos_params(struct bnx2x *bp,
 			 * and that with the highest priority
 			 * gets the highest strict priority in the arbiter.
 			 */
-			cos_data->data[0].strict = BNX2X_DCBX_COS_LOW_STRICT;
-			cos_data->data[1].strict = BNX2X_DCBX_COS_HIGH_STRICT;
+			cos_data->data[0].strict =
+					BNX2X_DCBX_STRICT_COS_NEXT_LOWER_PRI(
+						BNX2X_DCBX_STRICT_COS_HIGHEST);
+			cos_data->data[1].strict =
+					BNX2X_DCBX_STRICT_COS_HIGHEST;
 		}
 	}
 }
 
-static void bnx2x_dcbx_two_pg_to_cos_params(
+static void bnx2x_dcbx_2cos_limit_cee_two_pg_to_cos_params(
 			    struct bnx2x		*bp,
 			    struct  pg_help_data	*pg_help_data,
 			    struct dcbx_ets_feature	*ets,
@@ -1322,7 +1344,7 @@ static void bnx2x_dcbx_two_pg_to_cos_params(
 			    u8				num_of_dif_pri)
 {
 	u8 i = 0;
-	u8 pg[E2_NUM_OF_COS] = {0};
+	u8 pg[DCBX_COS_MAX_NUM_E2] = { 0 };
 
 	/* If there are both pauseable and non-pauseable priorities,
 	 * the pauseable priorities go to the first queue and
@@ -1378,16 +1400,68 @@ static void bnx2x_dcbx_two_pg_to_cos_params(
 	}
 
 	/* There can be only one strict pg */
-	for (i = 0 ; i < E2_NUM_OF_COS; i++) {
+	for (i = 0 ; i < ARRAY_SIZE(pg); i++) {
 		if (pg[i] < DCBX_MAX_NUM_PG_BW_ENTRIES)
 			cos_data->data[i].cos_bw =
 				DCBX_PG_BW_GET(ets->pg_bw_tbl, pg[i]);
 		else
-			cos_data->data[i].strict = BNX2X_DCBX_COS_HIGH_STRICT;
+			cos_data->data[i].strict =
+						BNX2X_DCBX_STRICT_COS_HIGHEST;
 	}
 }
 
-static void bnx2x_dcbx_three_pg_to_cos_params(
+static int bnx2x_dcbx_join_pgs(
+			      struct bnx2x            *bp,
+			      struct dcbx_ets_feature *ets,
+			      struct pg_help_data     *pg_help_data,
+			      u8                      required_num_of_pg)
+{
+	u8 entry_joined    = pg_help_data->num_of_pg - 1;
+	u8 entry_removed   = entry_joined + 1;
+	u8 pg_joined       = 0;
+
+	if (required_num_of_pg == 0 || ARRAY_SIZE(pg_help_data->data)
+						<= pg_help_data->num_of_pg) {
+
+		BNX2X_ERR("required_num_of_pg can't be zero\n");
+		return -EINVAL;
+	}
+
+	while (required_num_of_pg < pg_help_data->num_of_pg) {
+		entry_joined = pg_help_data->num_of_pg - 2;
+		entry_removed = entry_joined + 1;
+		/* protect index */
+		entry_removed %= ARRAY_SIZE(pg_help_data->data);
+
+		pg_help_data->data[entry_joined].pg_priority |=
+			pg_help_data->data[entry_removed].pg_priority;
+
+		pg_help_data->data[entry_joined].num_of_dif_pri +=
+			pg_help_data->data[entry_removed].num_of_dif_pri;
+
+		if (pg_help_data->data[entry_joined].pg == DCBX_STRICT_PRI_PG ||
+		    pg_help_data->data[entry_removed].pg == DCBX_STRICT_PRI_PG)
+			/* Entries joined strict priority rules */
+			pg_help_data->data[entry_joined].pg =
+							DCBX_STRICT_PRI_PG;
+		else {
+			/* Entries can be joined join BW */
+			pg_joined = DCBX_PG_BW_GET(ets->pg_bw_tbl,
+					pg_help_data->data[entry_joined].pg) +
+				    DCBX_PG_BW_GET(ets->pg_bw_tbl,
+					pg_help_data->data[entry_removed].pg);
+
+			DCBX_PG_BW_SET(ets->pg_bw_tbl,
+				pg_help_data->data[entry_joined].pg, pg_joined);
+		}
+		/* Joined the entries */
+		pg_help_data->num_of_pg--;
+	}
+
+	return 0;
+}
+
+static void bnx2x_dcbx_2cos_limit_cee_three_pg_to_cos_params(
 			      struct bnx2x		*bp,
 			      struct pg_help_data	*pg_help_data,
 			      struct dcbx_ets_feature	*ets,
@@ -1459,24 +1533,203 @@ static void bnx2x_dcbx_three_pg_to_cos_params(
 				/* If we join a group and one is strict
 				 * than the bw rulls */
 				cos_data->data[1].strict =
-					BNX2X_DCBX_COS_HIGH_STRICT;
+					BNX2X_DCBX_STRICT_COS_HIGHEST;
 			}
 		}
 	}
 }
 
 
+static void bnx2x_dcbx_2cos_limit_cee_fill_cos_params(struct bnx2x *bp,
+				       struct pg_help_data *help_data,
+				       struct dcbx_ets_feature *ets,
+				       struct cos_help_data *cos_data,
+				       u32 *pg_pri_orginal_spread,
+				       u32 pri_join_mask,
+				       u8 num_of_dif_pri)
+{
+
+	/* default E2 settings */
+	cos_data->num_of_cos = DCBX_COS_MAX_NUM_E2;
+
+	switch (help_data->num_of_pg) {
+	case 1:
+		bnx2x_dcbx_2cos_limit_cee_single_pg_to_cos_params(
+					       bp,
+					       help_data,
+					       cos_data,
+					       pri_join_mask,
+					       num_of_dif_pri);
+		break;
+	case 2:
+		bnx2x_dcbx_2cos_limit_cee_two_pg_to_cos_params(
+					    bp,
+					    help_data,
+					    ets,
+					    cos_data,
+					    pg_pri_orginal_spread,
+					    pri_join_mask,
+					    num_of_dif_pri);
+		break;
+
+	case 3:
+		bnx2x_dcbx_2cos_limit_cee_three_pg_to_cos_params(
+					      bp,
+					      help_data,
+					      ets,
+					      cos_data,
+					      pg_pri_orginal_spread,
+					      pri_join_mask,
+					      num_of_dif_pri);
+		break;
+	default:
+		BNX2X_ERR("Wrong pg_help_data.num_of_pg\n");
+		bnx2x_dcbx_ets_disabled_entry_data(bp,
+						   cos_data, pri_join_mask);
+	}
+}
+
+static int bnx2x_dcbx_spread_strict_pri(struct bnx2x *bp,
+					struct cos_help_data *cos_data,
+					u8 entry,
+					u8 num_spread_of_entries,
+					u8 strict_app_pris)
+{
+	u8 strict_pri = BNX2X_DCBX_STRICT_COS_HIGHEST;
+	u8 num_of_app_pri = MAX_PFC_PRIORITIES;
+	u8 app_pri_bit = 0;
+
+	while (num_spread_of_entries && num_of_app_pri > 0) {
+		app_pri_bit = 1 << (num_of_app_pri - 1);
+		if (app_pri_bit & strict_app_pris) {
+			struct cos_entry_help_data *data = &cos_data->
+								data[entry];
+			num_spread_of_entries--;
+			if (num_spread_of_entries == 0) {
+				/* last entry needed put all the entries left */
+				data->cos_bw = DCBX_INVALID_COS_BW;
+				data->strict = strict_pri;
+				data->pri_join_mask = strict_app_pris;
+				data->pausable = DCBX_IS_PFC_PRI_SOME_PAUSE(bp,
+							data->pri_join_mask);
+			} else {
+				strict_app_pris &= ~app_pri_bit;
+
+				data->cos_bw = DCBX_INVALID_COS_BW;
+				data->strict = strict_pri;
+				data->pri_join_mask = app_pri_bit;
+				data->pausable = DCBX_IS_PFC_PRI_SOME_PAUSE(bp,
+							data->pri_join_mask);
+			}
+
+			strict_pri =
+			    BNX2X_DCBX_STRICT_COS_NEXT_LOWER_PRI(strict_pri);
+			entry++;
+		}
+
+		num_of_app_pri--;
+	}
+
+	if (num_spread_of_entries)
+		return -EINVAL;
+
+	return 0;
+}
+
+static u8 bnx2x_dcbx_cee_fill_strict_pri(struct bnx2x *bp,
+					 struct cos_help_data *cos_data,
+					 u8 entry,
+					 u8 num_spread_of_entries,
+					 u8 strict_app_pris)
+{
+
+	if (bnx2x_dcbx_spread_strict_pri(bp, cos_data, entry,
+					 num_spread_of_entries,
+					 strict_app_pris)) {
+		struct cos_entry_help_data *data = &cos_data->
+						    data[entry];
+		/* Fill BW entry */
+		data->cos_bw = DCBX_INVALID_COS_BW;
+		data->strict = BNX2X_DCBX_STRICT_COS_HIGHEST;
+		data->pri_join_mask = strict_app_pris;
+		data->pausable = DCBX_IS_PFC_PRI_SOME_PAUSE(bp,
+				 data->pri_join_mask);
+		return 1;
+	}
+
+	return num_spread_of_entries;
+}
+
+static void bnx2x_dcbx_cee_fill_cos_params(struct bnx2x *bp,
+					   struct pg_help_data *help_data,
+					   struct dcbx_ets_feature *ets,
+					   struct cos_help_data *cos_data,
+					   u32 pri_join_mask)
+
+{
+	u8 need_num_of_entries = 0;
+	u8 i = 0;
+	u8 entry = 0;
+
+	/*
+	 * if the number of requested PG-s in CEE is greater than 3
+	 * then the results are not determined since this is a violation
+	 * of the standard.
+	 */
+	if (help_data->num_of_pg > DCBX_COS_MAX_NUM_E3B0) {
+		if (bnx2x_dcbx_join_pgs(bp, ets, help_data,
+					DCBX_COS_MAX_NUM_E3B0)) {
+			BNX2X_ERR("Unable to reduce the number of PGs -"
+				  "we will disables ETS\n");
+			bnx2x_dcbx_ets_disabled_entry_data(bp, cos_data,
+							   pri_join_mask);
+			return;
+		}
+	}
+
+	for (i = 0 ; i < help_data->num_of_pg; i++) {
+		struct pg_entry_help_data *pg =  &help_data->data[i];
+		if (pg->pg < DCBX_MAX_NUM_PG_BW_ENTRIES) {
+			struct cos_entry_help_data *data = &cos_data->
+							    data[entry];
+			/* Fill BW entry */
+			data->cos_bw = DCBX_PG_BW_GET(ets->pg_bw_tbl, pg->pg);
+			data->strict = BNX2X_DCBX_STRICT_INVALID;
+			data->pri_join_mask = pg->pg_priority;
+			data->pausable = DCBX_IS_PFC_PRI_SOME_PAUSE(bp,
+						data->pri_join_mask);
+
+			entry++;
+		} else {
+			need_num_of_entries =  min_t(u8,
+				(u8)pg->num_of_dif_pri,
+				(u8)DCBX_COS_MAX_NUM_E3B0 -
+						 help_data->num_of_pg + 1);
+			/*
+			 * If there are still VOQ-s which have no associated PG,
+			 * then associate these VOQ-s to PG15. These PG-s will
+			 * be used for SP between priorities on PG15.
+			 */
+			entry += bnx2x_dcbx_cee_fill_strict_pri(bp, cos_data,
+				entry, need_num_of_entries, pg->pg_priority);
+		}
+	}
+
+	/* the entry will represent the number of COSes used */
+	cos_data->num_of_cos = entry;
+}
 static void bnx2x_dcbx_fill_cos_params(struct bnx2x *bp,
 				       struct pg_help_data *help_data,
 				       struct dcbx_ets_feature *ets,
 				       u32 *pg_pri_orginal_spread)
 {
-	struct cos_help_data         cos_data ;
+	struct cos_help_data         cos_data;
 	u8                    i                           = 0;
 	u32                   pri_join_mask               = 0;
 	u8                    num_of_dif_pri              = 0;
 
 	memset(&cos_data, 0, sizeof(cos_data));
+
 	/* Validate the pg value */
 	for (i = 0; i < help_data->num_of_pg ; i++) {
 		if (DCBX_STRICT_PRIORITY != help_data->data[i].pg &&
@@ -1487,74 +1740,64 @@ static void bnx2x_dcbx_fill_cos_params(struct bnx2x *bp,
 		num_of_dif_pri  += help_data->data[i].num_of_dif_pri;
 	}
 
-	/* default settings */
-	cos_data.num_of_cos = 2;
-	for (i = 0; i < E2_NUM_OF_COS ; i++) {
-		cos_data.data[i].pri_join_mask    = pri_join_mask;
-		cos_data.data[i].pausable         = false;
-		cos_data.data[i].strict           = BNX2X_DCBX_COS_NOT_STRICT;
-		cos_data.data[i].cos_bw           = DCBX_INVALID_COS_BW;
+	/* defaults */
+	cos_data.num_of_cos = 1;
+	for (i = 0; i < ARRAY_SIZE(cos_data.data); i++) {
+		cos_data.data[i].pri_join_mask = 0;
+		cos_data.data[i].pausable = false;
+		cos_data.data[i].strict = BNX2X_DCBX_STRICT_INVALID;
+		cos_data.data[i].cos_bw = DCBX_INVALID_COS_BW;
 	}
 
-	switch (help_data->num_of_pg) {
-	case 1:
-
-		bxn2x_dcbx_single_pg_to_cos_params(
-					       bp,
-					       help_data,
-					       &cos_data,
-					       pri_join_mask,
-					       num_of_dif_pri);
-		break;
-	case 2:
-		bnx2x_dcbx_two_pg_to_cos_params(
-					    bp,
-					    help_data,
-					    ets,
-					    &cos_data,
-					    pg_pri_orginal_spread,
-					    pri_join_mask,
-					    num_of_dif_pri);
-		break;
-
-	case 3:
-		bnx2x_dcbx_three_pg_to_cos_params(
-					      bp,
-					      help_data,
-					      ets,
-					      &cos_data,
-					      pg_pri_orginal_spread,
-					      pri_join_mask,
-					      num_of_dif_pri);
-
-		break;
-	default:
-		BNX2X_ERR("Wrong pg_help_data.num_of_pg\n");
-		bnx2x_dcbx_ets_disabled_entry_data(bp,
-						   &cos_data, pri_join_mask);
-	}
+	if (CHIP_IS_E3B0(bp))
+		bnx2x_dcbx_cee_fill_cos_params(bp, help_data, ets,
+					       &cos_data, pri_join_mask);
+	else /* E2 + E3A0 */
+		bnx2x_dcbx_2cos_limit_cee_fill_cos_params(bp,
+							  help_data, ets,
+							  &cos_data,
+							  pg_pri_orginal_spread,
+							  pri_join_mask,
+							  num_of_dif_pri);
 
 	for (i = 0; i < cos_data.num_of_cos ; i++) {
-		struct bnx2x_dcbx_cos_params *params =
+		struct bnx2x_dcbx_cos_params *p =
 			&bp->dcbx_port_params.ets.cos_params[i];
 
-		params->pauseable = cos_data.data[i].pausable;
-		params->strict = cos_data.data[i].strict;
-		params->bw_tbl = cos_data.data[i].cos_bw;
-		if (params->pauseable) {
-			params->pri_bitmask =
-			DCBX_PFC_PRI_GET_PAUSE(bp,
-					cos_data.data[i].pri_join_mask);
+		p->strict = cos_data.data[i].strict;
+		p->bw_tbl = cos_data.data[i].cos_bw;
+		p->pri_bitmask = cos_data.data[i].pri_join_mask;
+		p->pauseable = cos_data.data[i].pausable;
+
+		/* sanity */
+		if (p->bw_tbl != DCBX_INVALID_COS_BW ||
+		    p->strict != BNX2X_DCBX_STRICT_INVALID) {
+			if (p->pri_bitmask == 0)
+				BNX2X_ERR("Invalid pri_bitmask for %d\n", i);
+
+			if (CHIP_IS_E2(bp) || CHIP_IS_E3A0(bp)) {
+
+				if (p->pauseable &&
+				    DCBX_PFC_PRI_GET_NON_PAUSE(bp,
+						p->pri_bitmask) != 0)
+					BNX2X_ERR("Inconsistent config for "
+						  "pausable COS %d\n", i);
+
+				if (!p->pauseable &&
+				    DCBX_PFC_PRI_GET_PAUSE(bp,
+						p->pri_bitmask) != 0)
+					BNX2X_ERR("Inconsistent config for "
+						  "nonpausable COS %d\n", i);
+			}
+		}
+
+		if (p->pauseable)
 			DP(NETIF_MSG_LINK, "COS %d PAUSABLE prijoinmask 0x%x\n",
 				  i, cos_data.data[i].pri_join_mask);
-		} else {
-			params->pri_bitmask =
-			DCBX_PFC_PRI_GET_NON_PAUSE(bp,
-					cos_data.data[i].pri_join_mask);
+		else
 			DP(NETIF_MSG_LINK, "COS %d NONPAUSABLE prijoinmask "
 					  "0x%x\n",
 				  i, cos_data.data[i].pri_join_mask);
-		}
 	}
 
 	bp->dcbx_port_params.ets.num_of_cos = cos_data.num_of_cos ;
@@ -1574,30 +1817,26 @@ static void bnx2x_dcbx_get_ets_pri_pg_tbl(struct bnx2x *bp,
 	}
 }
 
-static void bnx2x_pfc_fw_struct_e2(struct bnx2x *bp)
+static void bnx2x_dcbx_fw_struct(struct bnx2x *bp,
+				 struct bnx2x_func_tx_start_params *pfc_fw_cfg)
 {
-	struct flow_control_configuration   *pfc_fw_cfg = NULL;
 	u16 pri_bit = 0;
 	u8 cos = 0, pri = 0;
 	struct priority_cos *tt2cos;
 	u32 *ttp = bp->dcbx_port_params.app.traffic_type_priority;
 
-	pfc_fw_cfg = (struct flow_control_configuration *)
-					bnx2x_sp(bp, pfc_config);
-	memset(pfc_fw_cfg, 0, sizeof(struct flow_control_configuration));
+	memset(pfc_fw_cfg, 0, sizeof(*pfc_fw_cfg));
+
+	/* to disable DCB - the structure must be zeroed */
+	if (bp->dcbx_error & DCBX_REMOTE_MIB_ERROR)
+		return;
 
 	/*shortcut*/
 	tt2cos = pfc_fw_cfg->traffic_type_to_priority_cos;
 
 	/* Fw version should be incremented each update */
 	pfc_fw_cfg->dcb_version = ++bp->dcb_version;
-	pfc_fw_cfg->dcb_enabled = DCB_ENABLED;
-
-	/* Default initialization */
-	for (pri = 0; pri < MAX_PFC_TRAFFIC_TYPES ; pri++) {
-		tt2cos[pri].priority = LLFC_TRAFFIC_TYPE_TO_PRIORITY_UNMAPPED;
-		tt2cos[pri].cos = 0;
-	}
+	pfc_fw_cfg->dcb_enabled = 1;
 
 	/* Fill priority parameters */
 	for (pri = 0; pri < LLFC_DRIVER_TRAFFIC_TYPE_MAX; pri++) {
@@ -1605,14 +1844,37 @@ static void bnx2x_pfc_fw_struct_e2(struct bnx2x *bp)
 		pri_bit = 1 << tt2cos[pri].priority;
 
 		/* Fill COS parameters based on COS calculated to
-		 * make it more generally for future use */
+		 * make it more general for future use */
 		for (cos = 0; cos < bp->dcbx_port_params.ets.num_of_cos; cos++)
 			if (bp->dcbx_port_params.ets.cos_params[cos].
 						pri_bitmask & pri_bit)
 					tt2cos[pri].cos = cos;
 	}
+
+	/* we never want the FW to add a 0 vlan tag */
+	pfc_fw_cfg->dont_add_pri_0_en = 1;
+
 	bnx2x_dcbx_print_cos_params(bp,	pfc_fw_cfg);
 }
+
+void bnx2x_dcbx_pmf_update(struct bnx2x *bp)
+{
+	/* if we need to syncronize DCBX result from prev PMF
+	 * read it from shmem and update bp accordingly
+	 */
+	if (SHMEM2_HAS(bp, drv_flags) &&
+	   GET_FLAGS(SHMEM2_RD(bp, drv_flags), DRV_FLAGS_DCB_CONFIGURED)) {
+		/* Read neg results if dcbx is in the FW */
+		if (bnx2x_dcbx_read_shmem_neg_results(bp))
+			return;
+
+		bnx2x_dump_dcbx_drv_param(bp, &bp->dcbx_local_feat,
+					  bp->dcbx_error);
+		bnx2x_get_dcbx_drv_param(bp, &bp->dcbx_local_feat,
+					 bp->dcbx_error);
+	}
+}
+
 /* DCB netlink */
 #ifdef BCM_DCBNL
 
@@ -1879,10 +2141,12 @@ static u8 bnx2x_dcbnl_get_numtcs(struct net_device *netdev, int tcid, u8 *num)
 	if (bp->dcb_state) {
 		switch (tcid) {
 		case DCB_NUMTCS_ATTR_PG:
-			*num = E2_NUM_OF_COS;
+			*num = CHIP_IS_E3B0(bp) ? DCBX_COS_MAX_NUM_E3B0 :
+						  DCBX_COS_MAX_NUM_E2;
 			break;
 		case DCB_NUMTCS_ATTR_PFC:
-			*num = E2_NUM_OF_COS;
+			*num = CHIP_IS_E3B0(bp) ? DCBX_COS_MAX_NUM_E3B0 :
+						  DCBX_COS_MAX_NUM_E2;
 			break;
 		default:
 			rval = -EINVAL;

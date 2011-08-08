@@ -3,7 +3,7 @@
  * Broadcom Gigabit Ethernet core driver
  *
  * Copyright 2008, Broadcom Corporation
- * Copyright 2008, Michael Buesch <mb@bu3sch.de>
+ * Copyright 2008, Michael Buesch <m@bues.ch>
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */
@@ -106,8 +106,9 @@ void gige_pcicfg_write32(struct ssb_gige *dev,
 	gige_write32(dev, SSB_GIGE_PCICFG + offset, value);
 }
 
-static int ssb_gige_pci_read_config(struct pci_bus *bus, unsigned int devfn,
-				    int reg, int size, u32 *val)
+static int __devinit ssb_gige_pci_read_config(struct pci_bus *bus,
+					      unsigned int devfn, int reg,
+					      int size, u32 *val)
 {
 	struct ssb_gige *dev = container_of(bus->ops, struct ssb_gige, pci_ops);
 	unsigned long flags;
@@ -136,8 +137,9 @@ static int ssb_gige_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int ssb_gige_pci_write_config(struct pci_bus *bus, unsigned int devfn,
-				     int reg, int size, u32 val)
+static int __devinit ssb_gige_pci_write_config(struct pci_bus *bus,
+					       unsigned int devfn, int reg,
+					       int size, u32 val)
 {
 	struct ssb_gige *dev = container_of(bus->ops, struct ssb_gige, pci_ops);
 	unsigned long flags;
@@ -166,7 +168,8 @@ static int ssb_gige_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int ssb_gige_probe(struct ssb_device *sdev, const struct ssb_device_id *id)
+static int __devinit ssb_gige_probe(struct ssb_device *sdev,
+				    const struct ssb_device_id *id)
 {
 	struct ssb_gige *dev;
 	u32 base, tmslow, tmshigh;

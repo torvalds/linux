@@ -1,0 +1,5 @@
+NVIDIA Tegra 2 SPI device
+
+Required properties:
+- compatible : should be "nvidia,tegra20-spi".
+- gpios : should specify GPIOs used for chipselect.

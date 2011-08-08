@@ -25,7 +25,7 @@
 #ifndef _ATL2_H_
 #define _ATL2_H_
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/netdevice.h>
 
 #ifndef _ATL2_HW_H_
@@ -453,9 +453,6 @@ struct atl2_adapter {
 	/* OS defined structs */
 	struct net_device *netdev;
 	struct pci_dev *pdev;
-#ifdef NETIF_F_HW_VLAN_TX
-	struct vlan_group *vlgrp;
-#endif
 	u32 wol;
 	u16 link_speed;
 	u16 link_duplex;

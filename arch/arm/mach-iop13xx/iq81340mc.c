@@ -30,7 +30,7 @@
 extern int init_atu; /* Flag to select which ATU(s) to initialize / disable */
 
 static int __init
-iq81340mc_pcix_map_irq(struct pci_dev *dev, u8 idsel, u8 pin)
+iq81340mc_pcix_map_irq(const struct pci_dev *dev, u8 idsel, u8 pin)
 {
 	switch (idsel) {
 	case 1:

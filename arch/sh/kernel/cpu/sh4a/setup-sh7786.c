@@ -1,7 +1,7 @@
 /*
  * SH7786 Setup
  *
- * Copyright (C) 2009 - 2010  Renesas Solutions Corp.
+ * Copyright (C) 2009 - 2011  Renesas Solutions Corp.
  * Kuninori Morimoto <morimoto.kuninori@renesas.com>
  * Paul Mundt <paul.mundt@renesas.com>
  *
@@ -33,6 +33,7 @@ static struct plat_sci_port scif0_platform_data = {
 	.scbrr_algo_id	= SCBRR_ALGO_1,
 	.type		= PORT_SCIF,
 	.irqs		= { 40, 41, 43, 42 },
+	.regtype	= SCIx_SH4_SCIF_FIFODATA_REGTYPE,
 };
 
 static struct platform_device scif0_device = {
@@ -53,6 +54,7 @@ static struct plat_sci_port scif1_platform_data = {
 	.scbrr_algo_id	= SCBRR_ALGO_1,
 	.type		= PORT_SCIF,
 	.irqs		= { 44, 44, 44, 44 },
+	.regtype	= SCIx_SH4_SCIF_FIFODATA_REGTYPE,
 };
 
 static struct platform_device scif1_device = {
@@ -70,6 +72,7 @@ static struct plat_sci_port scif2_platform_data = {
 	.scbrr_algo_id	= SCBRR_ALGO_1,
 	.type		= PORT_SCIF,
 	.irqs		= { 50, 50, 50, 50 },
+	.regtype	= SCIx_SH4_SCIF_FIFODATA_REGTYPE,
 };
 
 static struct platform_device scif2_device = {
@@ -87,6 +90,7 @@ static struct plat_sci_port scif3_platform_data = {
 	.scbrr_algo_id	= SCBRR_ALGO_1,
 	.type		= PORT_SCIF,
 	.irqs		= { 51, 51, 51, 51 },
+	.regtype	= SCIx_SH4_SCIF_FIFODATA_REGTYPE,
 };
 
 static struct platform_device scif3_device = {
@@ -104,6 +108,7 @@ static struct plat_sci_port scif4_platform_data = {
 	.scbrr_algo_id	= SCBRR_ALGO_1,
 	.type		= PORT_SCIF,
 	.irqs		= { 52, 52, 52, 52 },
+	.regtype	= SCIx_SH4_SCIF_FIFODATA_REGTYPE,
 };
 
 static struct platform_device scif4_device = {
@@ -121,6 +126,7 @@ static struct plat_sci_port scif5_platform_data = {
 	.scbrr_algo_id	= SCBRR_ALGO_1,
 	.type		= PORT_SCIF,
 	.irqs		= { 53, 53, 53, 53 },
+	.regtype	= SCIx_SH4_SCIF_FIFODATA_REGTYPE,
 };
 
 static struct platform_device scif5_device = {

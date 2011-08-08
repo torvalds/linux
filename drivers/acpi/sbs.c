@@ -112,7 +112,7 @@ struct acpi_battery {
 	u8 have_sysfs_alarm:1;
 };
 
-#define to_acpi_battery(x) container_of(x, struct acpi_battery, bat);
+#define to_acpi_battery(x) container_of(x, struct acpi_battery, bat)
 
 struct acpi_sbs {
 	struct power_supply charger;
@@ -129,6 +129,9 @@ struct acpi_sbs {
 };
 
 #define to_acpi_sbs(x) container_of(x, struct acpi_sbs, charger)
+
+static int acpi_sbs_remove(struct acpi_device *device, int type);
+static int acpi_battery_get_state(struct acpi_battery *battery);
 
 static inline int battery_scale(int log)
 {
@@ -195,6 +198,8 @@ static int acpi_sbs_battery_get_property(struct power_supply *psy,
 
 	if ((!battery->present) && psp != POWER_SUPPLY_PROP_PRESENT)
 		return -ENODEV;
+
+	acpi_battery_get_state(battery);
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		if (battery->rate_now < 0)
@@ -225,11 +230,17 @@ static int acpi_sbs_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_POWER_NOW:
 		val->intval = abs(battery->rate_now) *
 				acpi_battery_ipscale(battery) * 1000;
+		val->intval *= (acpi_battery_mode(battery)) ?
+				(battery->voltage_now *
+				acpi_battery_vscale(battery) / 1000) : 1;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
 	case POWER_SUPPLY_PROP_POWER_AVG:
 		val->intval = abs(battery->rate_avg) *
 				acpi_battery_ipscale(battery) * 1000;
+		val->intval *= (acpi_battery_mode(battery)) ?
+				(battery->voltage_now *
+				acpi_battery_vscale(battery) / 1000) : 1;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = battery->state_of_charge;
@@ -902,8 +913,6 @@ static void acpi_sbs_callback(void *context)
 		}
 	}
 }
-
-static int acpi_sbs_remove(struct acpi_device *device, int type);
 
 static int acpi_sbs_add(struct acpi_device *device)
 {

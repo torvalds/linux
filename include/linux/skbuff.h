@@ -20,7 +20,7 @@
 #include <linux/time.h>
 #include <linux/cache.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/types.h>
 #include <linux/spinlock.h>
 #include <linux/net.h>
@@ -187,6 +187,20 @@ enum {
 
 	/* ensure the originating sk reference is available on driver level */
 	SKBTX_DRV_NEEDS_SK_REF = 1 << 3,
+
+	/* device driver supports TX zero-copy buffers */
+	SKBTX_DEV_ZEROCOPY = 1 << 4,
+};
+
+/*
+ * The callback notifies userspace to release buffers when skb DMA is done in
+ * lower device, the skb last reference should be 0 when calling this.
+ * The desc is used to track userspace buffer index.
+ */
+struct ubuf_info {
+	void (*callback)(void *);
+	void *arg;
+	unsigned long desc;
 };
 
 /* This data is invariant across clones and lives at
@@ -211,6 +225,7 @@ struct skb_shared_info {
 	/* Intermediate layers must ensure that destructor_arg
 	 * remains valid until skb destructor */
 	void *		destructor_arg;
+
 	/* must be last field, see pskb_expand_head() */
 	skb_frag_t	frags[MAX_SKB_FRAGS];
 };
@@ -270,15 +285,12 @@ typedef unsigned char *sk_buff_data_t;
  *	struct sk_buff - socket buffer
  *	@next: Next buffer in list
  *	@prev: Previous buffer in list
- *	@sk: Socket we are owned by
  *	@tstamp: Time we arrived
+ *	@sk: Socket we are owned by
  *	@dev: Device we arrived on/are leaving by
- *	@transport_header: Transport layer header
- *	@network_header: Network layer header
- *	@mac_header: Link layer header
+ *	@cb: Control buffer. Free for use by every layer. Put private vars here
  *	@_skb_refdst: destination entry (with norefcount bit)
  *	@sp: the security path, used for xfrm
- *	@cb: Control buffer. Free for use by every layer. Put private vars here
  *	@len: Length of actual data
  *	@data_len: Data length
  *	@mac_len: Length of link layer header
@@ -286,40 +298,45 @@ typedef unsigned char *sk_buff_data_t;
  *	@csum: Checksum (must include start/offset pair)
  *	@csum_start: Offset from skb->head where checksumming should start
  *	@csum_offset: Offset from csum_start where checksum should be stored
+ *	@priority: Packet queueing priority
  *	@local_df: allow local fragmentation
  *	@cloned: Head may be cloned (check refcnt to be sure)
+ *	@ip_summed: Driver fed us an IP checksum
  *	@nohdr: Payload reference only, must not modify header
+ *	@nfctinfo: Relationship of this skb to the connection
  *	@pkt_type: Packet class
  *	@fclone: skbuff clone status
- *	@ip_summed: Driver fed us an IP checksum
- *	@priority: Packet queueing priority
- *	@users: User count - see {datagram,tcp}.c
- *	@protocol: Packet protocol from driver
- *	@truesize: Buffer size 
- *	@head: Head of buffer
- *	@data: Data head pointer
- *	@tail: Tail pointer
- *	@end: End pointer
- *	@destructor: Destruct function
- *	@mark: Generic packet mark
- *	@nfct: Associated connection, if any
  *	@ipvs_property: skbuff is owned by ipvs
  *	@peeked: this packet has been seen already, so stats have been
  *		done for it, don't do them again
  *	@nf_trace: netfilter packet trace flag
- *	@nfctinfo: Relationship of this skb to the connection
+ *	@protocol: Packet protocol from driver
+ *	@destructor: Destruct function
+ *	@nfct: Associated connection, if any
  *	@nfct_reasm: netfilter conntrack re-assembly pointer
  *	@nf_bridge: Saved data about a bridged frame - see br_netfilter.c
  *	@skb_iif: ifindex of device we arrived on
- *	@rxhash: the packet hash computed on receive
- *	@queue_mapping: Queue mapping for multiqueue devices
  *	@tc_index: Traffic control index
  *	@tc_verd: traffic control verdict
+ *	@rxhash: the packet hash computed on receive
+ *	@queue_mapping: Queue mapping for multiqueue devices
  *	@ndisc_nodetype: router type (from link layer)
+ *	@ooo_okay: allow the mapping of a socket to a queue to be changed
  *	@dma_cookie: a cookie to one of several possible DMA operations
  *		done by skb DMA functions
  *	@secmark: security marking
+ *	@mark: Generic packet mark
+ *	@dropcount: total number of sk_receive_queue overflows
  *	@vlan_tci: vlan tag control information
+ *	@transport_header: Transport layer header
+ *	@network_header: Network layer header
+ *	@mac_header: Link layer header
+ *	@tail: Tail pointer
+ *	@end: End pointer
+ *	@head: Head of buffer
+ *	@data: Data head pointer
+ *	@truesize: Buffer size
+ *	@users: User count - see {datagram,tcp}.c
  */
 
 struct sk_buff {
@@ -1256,6 +1273,11 @@ static inline void skb_reserve(struct sk_buff *skb, int len)
 	skb->tail += len;
 }
 
+static inline void skb_reset_mac_len(struct sk_buff *skb)
+{
+	skb->mac_len = skb->network_header - skb->mac_header;
+}
+
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 static inline unsigned char *skb_transport_header(const struct sk_buff *skb)
 {
@@ -1557,14 +1579,20 @@ static inline struct sk_buff *netdev_alloc_skb(struct net_device *dev,
 	return __netdev_alloc_skb(dev, length, GFP_ATOMIC);
 }
 
-static inline struct sk_buff *netdev_alloc_skb_ip_align(struct net_device *dev,
-		unsigned int length)
+static inline struct sk_buff *__netdev_alloc_skb_ip_align(struct net_device *dev,
+		unsigned int length, gfp_t gfp)
 {
-	struct sk_buff *skb = netdev_alloc_skb(dev, length + NET_IP_ALIGN);
+	struct sk_buff *skb = __netdev_alloc_skb(dev, length + NET_IP_ALIGN, gfp);
 
 	if (NET_IP_ALIGN && skb)
 		skb_reserve(skb, NET_IP_ALIGN);
 	return skb;
+}
+
+static inline struct sk_buff *netdev_alloc_skb_ip_align(struct net_device *dev,
+		unsigned int length)
+{
+	return __netdev_alloc_skb_ip_align(dev, length, GFP_ATOMIC);
 }
 
 /**
@@ -2023,8 +2051,7 @@ static inline void sw_tx_timestamp(struct sk_buff *skb)
  * skb_tx_timestamp() - Driver hook for transmit timestamping
  *
  * Ethernet MAC Drivers should call this function in their hard_xmit()
- * function as soon as possible after giving the sk_buff to the MAC
- * hardware, but before freeing the sk_buff.
+ * function immediately before giving the sk_buff to the MAC hardware.
  *
  * @skb: A socket buffer.
  */
@@ -2261,5 +2288,6 @@ static inline void skb_checksum_none_assert(struct sk_buff *skb)
 }
 
 bool skb_partial_csum_set(struct sk_buff *skb, u16 start, u16 off);
+
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_SKBUFF_H */

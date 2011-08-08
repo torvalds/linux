@@ -61,7 +61,6 @@ struct scoop_pcmcia_dev {
 struct scoop_pcmcia_config {
 	struct scoop_pcmcia_dev *devs;
 	int num_devs;
-	void (*pcmcia_init)(void);
 	void (*power_ctrl)(struct device *scoop, unsigned short cpr, int nr);
 };
 

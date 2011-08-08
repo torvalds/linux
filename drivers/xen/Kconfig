@@ -9,6 +9,53 @@ config XEN_BALLOON
 	  the system to expand the domain's memory allocation, or alternatively
 	  return unneeded memory to the system.
 
+config XEN_SELFBALLOONING
+	bool "Dynamically self-balloon kernel memory to target"
+	depends on XEN && XEN_BALLOON && CLEANCACHE && SWAP && XEN_TMEM
+	default n
+	help
+	  Self-ballooning dynamically balloons available kernel memory driven
+	  by the current usage of anonymous memory ("committed AS") and
+	  controlled by various sysfs-settable parameters.  Configuring
+	  FRONTSWAP is highly recommended; if it is not configured, self-
+	  ballooning is disabled by default but can be enabled with the
+	  'selfballooning' kernel boot parameter.  If FRONTSWAP is configured,
+	  frontswap-selfshrinking is enabled by default but can be disabled
+	  with the 'noselfshrink' kernel boot parameter; and self-ballooning
+	  is enabled by default but can be disabled with the 'noselfballooning'
+	  kernel boot parameter.  Note that systems without a sufficiently
+	  large swap device should not enable self-ballooning.
+
+config XEN_BALLOON_MEMORY_HOTPLUG
+	bool "Memory hotplug support for Xen balloon driver"
+	default n
+	depends on XEN_BALLOON && MEMORY_HOTPLUG
+	help
+	  Memory hotplug support for Xen balloon driver allows expanding memory
+	  available for the system above limit declared at system startup.
+	  It is very useful on critical systems which require long
+	  run without rebooting.
+
+	  Memory could be hotplugged in following steps:
+
+	    1) dom0: xl mem-max <domU> <maxmem>
+	       where <maxmem> is >= requested memory size,
+
+	    2) dom0: xl mem-set <domU> <memory>
+	       where <memory> is requested memory size; alternatively memory
+	       could be added by writing proper value to
+	       /sys/devices/system/xen_memory/xen_memory0/target or
+	       /sys/devices/system/xen_memory/xen_memory0/target_kb on dumU,
+
+	    3) domU: for i in /sys/devices/system/memory/memory*/state; do \
+	               [ "`cat "$i"`" = offline ] && echo online > "$i"; done
+
+	  Memory could be onlined automatically on domU by adding following line to udev rules:
+
+	  SUBSYSTEM=="memory", ACTION=="add", RUN+="/bin/sh -c '[ -f /sys$devpath/state ] && echo online > /sys$devpath/state'"
+
+	  In that case step 3 should be omitted.
+
 config XEN_SCRUB_PAGES
 	bool "Scrub pages before returning them to system"
 	depends on XEN_BALLOON
@@ -105,4 +152,33 @@ config SWIOTLB_XEN
 	depends on PCI
 	select SWIOTLB
 
+config XEN_TMEM
+	bool
+	default y if (CLEANCACHE || FRONTSWAP)
+	help
+	  Shim to interface in-kernel Transcendent Memory hooks
+	  (e.g. cleancache and frontswap) to Xen tmem hypercalls.
+
+config XEN_PCIDEV_BACKEND
+	tristate "Xen PCI-device backend driver"
+	depends on PCI && X86 && XEN
+	depends on XEN_BACKEND
+	default m
+	help
+	  The PCI device backend driver allows the kernel to export arbitrary
+	  PCI devices to other guests. If you select this to be a module, you
+	  will need to make sure no other driver has bound to the device(s)
+	  you want to make visible to other guests.
+
+	  The parameter "passthrough" allows you specify how you want the PCI
+	  devices to appear in the guest. You can choose the default (0) where
+	  PCI topology starts at 00.00.0, or (1) for passthrough if you want
+	  the PCI devices topology appear the same as in the host.
+
+	  The "hide" parameter (only applicable if backend driver is compiled
+	  into the kernel) allows you to bind the PCI devices to this module
+	  from the default device drivers. The argument is the list of PCI BDFs:
+	  xen-pciback.hide=(03:00.0)(04:00.0)
+
+	  If in doubt, say m.
 endmenu

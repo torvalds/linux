@@ -81,6 +81,7 @@ config S390
 	select INIT_ALL_POSSIBLE
 	select HAVE_IRQ_WORK
 	select HAVE_PERF_EVENTS
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_LZMA
@@ -89,6 +90,7 @@ config S390
 	select HAVE_GET_USER_PAGES_FAST
 	select HAVE_ARCH_MUTEX_CPU_RELAX
 	select HAVE_ARCH_JUMP_LABEL if !MARCH_G5
+	select HAVE_RCU_TABLE_FREE if SMP
 	select ARCH_INLINE_SPIN_TRYLOCK
 	select ARCH_INLINE_SPIN_TRYLOCK_BH
 	select ARCH_INLINE_SPIN_LOCK
@@ -272,11 +274,11 @@ config MARCH_Z10
 	  on older machines.
 
 config MARCH_Z196
-	bool "IBM zEnterprise 196"
+	bool "IBM zEnterprise 114 and 196"
 	help
-	  Select this to enable optimizations for IBM zEnterprise 196
-	  (2817 series). The kernel will be slightly faster but will not work
-	  on older machines.
+	  Select this to enable optimizations for IBM zEnterprise 114 and 196
+	  (2818 and 2817 series). The kernel will be slightly faster but will
+	  not work on older machines.
 
 endchoice
 
@@ -578,6 +580,7 @@ config S390_GUEST
 	def_bool y
 	prompt "s390 guest support for KVM (EXPERIMENTAL)"
 	depends on 64BIT && EXPERIMENTAL
+	select VIRTUALIZATION
 	select VIRTIO
 	select VIRTIO_RING
 	select VIRTIO_CONSOLE

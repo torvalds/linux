@@ -11,8 +11,8 @@
  * (at your option) any later version.
  */
 
-#ifndef _LINUX_MMC_DW_MMC_H_
-#define _LINUX_MMC_DW_MMC_H_
+#ifndef LINUX_MMC_DW_MMC_H
+#define LINUX_MMC_DW_MMC_H
 
 #define MAX_MCI_SLOTS	2
 
@@ -48,6 +48,7 @@ struct mmc_data;
  * @data: The data currently being transferred, or NULL if no data
  *	transfer is in progress.
  * @use_dma: Whether DMA channel is initialized or not.
+ * @using_dma: Whether DMA is in use for the current transfer.
  * @sg_dma: Bus address of DMA buffer.
  * @sg_cpu: Virtual address of DMA buffer.
  * @dma_ops: Pointer to platform-specific DMA callbacks.
@@ -74,7 +75,11 @@ struct mmc_data;
  * @pdev: Platform device associated with the MMC controller.
  * @pdata: Platform data associated with the MMC controller.
  * @slot: Slots sharing this MMC controller.
+ * @fifo_depth: depth of FIFO.
  * @data_shift: log2 of FIFO item size.
+ * @part_buf_start: Start index in part_buf.
+ * @part_buf_count: Bytes of partial data in part_buf.
+ * @part_buf: Simple buffer for partial fifo reads/writes.
  * @push_data: Pointer to FIFO push function.
  * @pull_data: Pointer to FIFO pull function.
  * @quirks: Set of quirks that apply to specific versions of the IP.
@@ -117,6 +122,7 @@ struct dw_mci {
 
 	/* DMA interface members*/
 	int			use_dma;
+	int			using_dma;
 
 	dma_addr_t		sg_dma;
 	void			*sg_cpu;
@@ -131,7 +137,7 @@ struct dw_mci {
 	u32			stop_cmdr;
 	u32			dir_status;
 	struct tasklet_struct	tasklet;
-	struct tasklet_struct	card_tasklet;
+	struct work_struct	card_work;
 	unsigned long		pending_events;
 	unsigned long		completed_events;
 	enum dw_mci_state	state;
@@ -146,7 +152,15 @@ struct dw_mci {
 	struct dw_mci_slot	*slot[MAX_MCI_SLOTS];
 
 	/* FIFO push and pull */
+	int			fifo_depth;
 	int			data_shift;
+	u8			part_buf_start;
+	u8			part_buf_count;
+	union {
+		u16		part_buf16;
+		u32		part_buf32;
+		u64		part_buf;
+	};
 	void (*push_data)(struct dw_mci *host, void *buf, int cnt);
 	void (*pull_data)(struct dw_mci *host, void *buf, int cnt);
 
@@ -196,6 +210,12 @@ struct dw_mci_board {
 	unsigned int bus_hz; /* Bus speed */
 
 	unsigned int caps;	/* Capabilities */
+	/*
+	 * Override fifo depth. If 0, autodetect it from the FIFOTH register,
+	 * but note that this may not be reliable after a bootloader has used
+	 * it.
+	 */
+	unsigned int fifo_depth;
 
 	/* delay in mS before detecting cards after interrupt */
 	u32 detect_delay_ms;
@@ -219,4 +239,4 @@ struct dw_mci_board {
 	struct block_settings *blk_settings;
 };
 
-#endif /* _LINUX_MMC_DW_MMC_H_ */
+#endif /* LINUX_MMC_DW_MMC_H */

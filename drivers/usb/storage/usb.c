@@ -440,7 +440,8 @@ static void adjust_quirks(struct us_data *us)
 			US_FL_NOT_LOCKABLE | US_FL_MAX_SECTORS_64 |
 			US_FL_CAPACITY_OK | US_FL_IGNORE_RESIDUE |
 			US_FL_SINGLE_LUN | US_FL_NO_WP_DETECT |
-			US_FL_NO_READ_DISC_INFO | US_FL_NO_READ_CAPACITY_16);
+			US_FL_NO_READ_DISC_INFO | US_FL_NO_READ_CAPACITY_16 |
+			US_FL_INITIAL_READ10);
 
 	p = quirks;
 	while (*p) {
@@ -489,6 +490,9 @@ static void adjust_quirks(struct us_data *us)
 			break;
 		case 'm':
 			f |= US_FL_MAX_SECTORS_64;
+			break;
+		case 'n':
+			f |= US_FL_INITIAL_READ10;
 			break;
 		case 'o':
 			f |= US_FL_CAPACITY_OK;
@@ -952,6 +956,13 @@ int usb_stor_probe2(struct us_data *us)
 	result = get_pipes(us);
 	if (result)
 		goto BadDevice;
+
+	/*
+	 * If the device returns invalid data for the first READ(10)
+	 * command, indicate the command should be retried.
+	 */
+	if (us->fflags & US_FL_INITIAL_READ10)
+		set_bit(US_FLIDX_REDO_READ10, &us->dflags);
 
 	/* Acquire all the other resources and add the host */
 	result = usb_stor_acquire_resources(us);

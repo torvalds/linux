@@ -609,16 +609,21 @@ static int setup_ibs_ctl(int ibs_eilvt_off)
 	return 0;
 }
 
+/*
+ * This runs only on the current cpu. We try to find an LVT offset and
+ * setup the local APIC. For this we must disable preemption. On
+ * success we initialize all nodes with this offset. This updates then
+ * the offset in the IBS_CTL per-node msr. The per-core APIC setup of
+ * the IBS interrupt vector is called from op_amd_setup_ctrs()/op_-
+ * amd_cpu_shutdown() using the new offset.
+ */
 static int force_ibs_eilvt_setup(void)
 {
 	int offset;
 	int ret;
 
-	/*
-	 * find the next free available EILVT entry, skip offset 0,
-	 * pin search to this cpu
-	 */
 	preempt_disable();
+	/* find the next free available EILVT entry, skip offset 0 */
 	for (offset = 1; offset < APIC_EILVT_NR_MAX; offset++) {
 		if (get_eilvt(offset))
 			break;

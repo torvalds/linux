@@ -617,7 +617,7 @@ static int kvm_vm_ioctl_set_msix_nr(struct kvm *kvm,
 	if (adev->entries_nr == 0) {
 		adev->entries_nr = entry_nr->entry_nr;
 		if (adev->entries_nr == 0 ||
-		    adev->entries_nr >= KVM_MAX_MSIX_PER_DEV) {
+		    adev->entries_nr > KVM_MAX_MSIX_PER_DEV) {
 			r = -EINVAL;
 			goto msix_nr_out;
 		}

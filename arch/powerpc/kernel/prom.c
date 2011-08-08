@@ -69,6 +69,7 @@ unsigned long tce_alloc_start, tce_alloc_end;
 u64 ppc64_rma_size;
 #endif
 static phys_addr_t first_memblock_size;
+static int __initdata boot_cpu_count;
 
 static int __init early_parse_mem(char *p)
 {
@@ -82,11 +83,29 @@ static int __init early_parse_mem(char *p)
 }
 early_param("mem", early_parse_mem);
 
+/*
+ * overlaps_initrd - check for overlap with page aligned extension of
+ * initrd.
+ */
+static inline int overlaps_initrd(unsigned long start, unsigned long size)
+{
+#ifdef CONFIG_BLK_DEV_INITRD
+	if (!initrd_start)
+		return 0;
+
+	return	(start + size) > _ALIGN_DOWN(initrd_start, PAGE_SIZE) &&
+			start <= _ALIGN_UP(initrd_end, PAGE_SIZE);
+#else
+	return 0;
+#endif
+}
+
 /**
  * move_device_tree - move tree to an unused area, if needed.
  *
  * The device tree may be allocated beyond our memory limit, or inside the
- * crash kernel region for kdump. If so, move it out of the way.
+ * crash kernel region for kdump, or within the page aligned range of initrd.
+ * If so, move it out of the way.
  */
 static void __init move_device_tree(void)
 {
@@ -99,7 +118,8 @@ static void __init move_device_tree(void)
 	size = be32_to_cpu(initial_boot_params->totalsize);
 
 	if ((memory_limit && (start + size) > PHYSICAL_START + memory_limit) ||
-			overlaps_crashkernel(start, size)) {
+			overlaps_crashkernel(start, size) ||
+			overlaps_initrd(start, size)) {
 		p = __va(memblock_alloc(size, PAGE_SIZE));
 		memcpy(p, initial_boot_params, size);
 		initial_boot_params = (struct boot_param_header *)p;
@@ -555,7 +575,9 @@ static void __init early_reserve_mem(void)
 #ifdef CONFIG_BLK_DEV_INITRD
 	/* then reserve the initrd, if any */
 	if (initrd_start && (initrd_end > initrd_start))
-		memblock_reserve(__pa(initrd_start), initrd_end - initrd_start);
+		memblock_reserve(_ALIGN_DOWN(__pa(initrd_start), PAGE_SIZE),
+			_ALIGN_UP(initrd_end, PAGE_SIZE) -
+			_ALIGN_DOWN(initrd_start, PAGE_SIZE));
 #endif /* CONFIG_BLK_DEV_INITRD */
 
 #ifdef CONFIG_PPC32
@@ -748,6 +770,13 @@ void __init early_init_devtree(void *params)
 	 */
 	of_scan_flat_dt(early_init_dt_scan_cpus, NULL);
 
+#if defined(CONFIG_SMP) && defined(CONFIG_PPC64)
+	/* We'll later wait for secondaries to check in; there are
+	 * NCPUS-1 non-boot CPUs  :-)
+	 */
+	spinning_secondaries = boot_cpu_count - 1;
+#endif
+
 	DBG(" <- early_init_devtree()\n");
 }
 
@@ -841,16 +870,14 @@ static int prom_reconfig_notifier(struct notifier_block *nb,
 	switch (action) {
 	case PSERIES_RECONFIG_ADD:
 		err = of_finish_dynamic_node(node);
-		if (err < 0) {
+		if (err < 0)
 			printk(KERN_ERR "finish_node returned %d\n", err);
-			err = NOTIFY_BAD;
-		}
 		break;
 	default:
-		err = NOTIFY_DONE;
+		err = 0;
 		break;
 	}
-	return err;
+	return notifier_from_errno(err);
 }
 
 static struct notifier_block prom_reconfig_nb = {

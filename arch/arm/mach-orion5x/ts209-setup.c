@@ -143,7 +143,8 @@ void __init qnap_ts209_pci_preinit(void)
 	}
 }
 
-static int __init qnap_ts209_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init qnap_ts209_pci_map_irq(const struct pci_dev *dev, u8 slot,
+	u8 pin)
 {
 	int irq;
 

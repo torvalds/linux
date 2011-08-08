@@ -115,7 +115,29 @@ struct bfad_im_s {
 	struct bfad_s         *bfad;
 	struct workqueue_struct *drv_workq;
 	char            drv_workq_name[KOBJ_NAME_LEN];
+	struct work_struct	aen_im_notify_work;
 };
+
+#define bfad_get_aen_entry(_drv, _entry) do {				\
+	unsigned long	_flags;						\
+	spin_lock_irqsave(&(_drv)->bfad_aen_spinlock, _flags);		\
+	bfa_q_deq(&(_drv)->free_aen_q, &(_entry));			\
+	if (_entry)							\
+		list_add_tail(&(_entry)->qe, &(_drv)->active_aen_q);	\
+	spin_unlock_irqrestore(&(_drv)->bfad_aen_spinlock, _flags);	\
+} while (0)
+
+/* post fc_host vendor event */
+#define bfad_im_post_vendor_event(_entry, _drv, _cnt, _cat, _evt) do {	      \
+	do_gettimeofday(&(_entry)->aen_tv);				      \
+	(_entry)->bfad_num = (_drv)->inst_no;				      \
+	(_entry)->seq_num = (_cnt);					      \
+	(_entry)->aen_category = (_cat);				      \
+	(_entry)->aen_type = (_evt);					      \
+	if ((_drv)->bfad_flags & BFAD_FC4_PROBE_DONE)			      \
+		queue_work((_drv)->im->drv_workq,			      \
+			   &(_drv)->im->aen_im_notify_work);		      \
+} while (0)
 
 struct Scsi_Host *bfad_scsi_host_alloc(struct bfad_im_port_s *im_port,
 				struct bfad_s *);
@@ -140,5 +162,8 @@ extern struct device_attribute *bfad_im_host_attrs[];
 extern struct device_attribute *bfad_im_vport_attrs[];
 
 irqreturn_t bfad_intx(int irq, void *dev_id);
+
+int bfad_im_bsg_request(struct fc_bsg_job *job);
+int bfad_im_bsg_timeout(struct fc_bsg_job *job);
 
 #endif

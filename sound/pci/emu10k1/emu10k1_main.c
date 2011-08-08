@@ -1440,6 +1440,14 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0102_chip = 1,
 	 .spk71 = 1,
 	 .emu_model = EMU_MODEL_EMU0404}, /* EMU 0404 */
+	/* EMU0404 PCIe */
+	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40051102,
+	 .driver = "Audigy2", .name = "E-mu 0404 PCIe [MAEM8984]",
+	 .id = "EMU0404",
+	 .emu10k2_chip = 1,
+	 .ca0108_chip = 1,
+	 .spk71 = 1,
+	 .emu_model = EMU_MODEL_EMU0404}, /* EMU 0404 PCIe ver_03 */
 	/* Note that all E-mu cards require kernel 2.6 or newer. */
 	{.vendor = 0x1102, .device = 0x0008,
 	 .driver = "Audigy2", .name = "SB Audigy 2 Value [Unknown]",
@@ -1904,7 +1912,7 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 
 	/* irq handler must be registered after I/O ports are activated */
 	if (request_irq(pci->irq, snd_emu10k1_interrupt, IRQF_SHARED,
-			"EMU10K1", emu)) {
+			KBUILD_MODNAME, emu)) {
 		err = -EBUSY;
 		goto error;
 	}

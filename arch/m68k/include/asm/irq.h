@@ -33,15 +33,6 @@
 #include <linux/spinlock_types.h>
 
 /*
- * The hardirq mask has to be large enough to have
- * space for potentially all IRQ sources in the system
- * nesting on a single CPU:
- */
-#if (1 << HARDIRQ_BITS) < NR_IRQS
-# error HARDIRQ_BITS is too low!
-#endif
-
-/*
  * Interrupt source definitions
  * General interrupt sources are the level 1-7.
  * Adding an interrupt service routine for one of these sources
@@ -130,5 +121,7 @@ asmlinkage void __m68k_handle_int(unsigned int, struct pt_regs *);
 #else
 #define irq_canonicalize(irq)  (irq)
 #endif /* CONFIG_MMU */
+
+asmlinkage void do_IRQ(int irq, struct pt_regs *regs);
 
 #endif /* _M68K_IRQ_H_ */

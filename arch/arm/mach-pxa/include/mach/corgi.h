@@ -34,7 +34,7 @@
 #define CORGI_GPIO_LCDCON_CS		(19) /* LCD Control Chip Select */
 #define CORGI_GPIO_MAX1111_CS		(20) /* MAX1111 Chip Select */
 #define CORGI_GPIO_ADC_TEMP_ON		(21) /* Select battery voltage or temperature */
-#define CORGI_GPIO_IR_ON			(22) /* Enable IR Transciever */
+#define CORGI_GPIO_IR_ON			(22) /* Enable IR Transceiver */
 #define CORGI_GPIO_ADS7846_CS		(24) /* ADS7846 Chip Select */
 #define CORGI_GPIO_SD_PWR			(33) /* MMC/SD Power */
 #define CORGI_GPIO_CHRG_ON			(38) /* Enable battery Charging */

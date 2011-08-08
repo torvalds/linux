@@ -903,6 +903,7 @@ void gfs2_meta_syncfs(struct gfs2_sbd *sdp)
 		if (gfs2_ail1_empty(sdp))
 			break;
 	}
+	gfs2_log_flush(sdp, NULL);
 }
 
 static inline int gfs2_jrnl_flush_reqd(struct gfs2_sbd *sdp)

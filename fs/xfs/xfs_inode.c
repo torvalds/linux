@@ -368,7 +368,7 @@ xfs_iformat(
 			/*
 			 * no local regular files yet
 			 */
-			if (unlikely((be16_to_cpu(dip->di_mode) & S_IFMT) == S_IFREG)) {
+			if (unlikely(S_ISREG(be16_to_cpu(dip->di_mode)))) {
 				xfs_warn(ip->i_mount,
 			"corrupt inode %Lu (local format for regular file).",
 					(unsigned long long) ip->i_ino);
@@ -1040,7 +1040,7 @@ xfs_ialloc(
 
 	if (pip && XFS_INHERIT_GID(pip)) {
 		ip->i_d.di_gid = pip->i_d.di_gid;
-		if ((pip->i_d.di_mode & S_ISGID) && (mode & S_IFMT) == S_IFDIR) {
+		if ((pip->i_d.di_mode & S_ISGID) && S_ISDIR(mode)) {
 			ip->i_d.di_mode |= S_ISGID;
 		}
 	}
@@ -1097,14 +1097,14 @@ xfs_ialloc(
 		if (pip && (pip->i_d.di_flags & XFS_DIFLAG_ANY)) {
 			uint	di_flags = 0;
 
-			if ((mode & S_IFMT) == S_IFDIR) {
+			if (S_ISDIR(mode)) {
 				if (pip->i_d.di_flags & XFS_DIFLAG_RTINHERIT)
 					di_flags |= XFS_DIFLAG_RTINHERIT;
 				if (pip->i_d.di_flags & XFS_DIFLAG_EXTSZINHERIT) {
 					di_flags |= XFS_DIFLAG_EXTSZINHERIT;
 					ip->i_d.di_extsize = pip->i_d.di_extsize;
 				}
-			} else if ((mode & S_IFMT) == S_IFREG) {
+			} else if (S_ISREG(mode)) {
 				if (pip->i_d.di_flags & XFS_DIFLAG_RTINHERIT)
 					di_flags |= XFS_DIFLAG_REALTIME;
 				if (pip->i_d.di_flags & XFS_DIFLAG_EXTSZINHERIT) {
@@ -1188,7 +1188,7 @@ xfs_isize_check(
 	int			nimaps;
 	xfs_bmbt_irec_t		imaps[2];
 
-	if ((ip->i_d.di_mode & S_IFMT) != S_IFREG)
+	if (!S_ISREG(ip->i_d.di_mode))
 		return;
 
 	if (XFS_IS_REALTIME_INODE(ip))
@@ -1828,7 +1828,7 @@ xfs_ifree(
 	ASSERT(ip->i_d.di_nextents == 0);
 	ASSERT(ip->i_d.di_anextents == 0);
 	ASSERT((ip->i_d.di_size == 0 && ip->i_size == 0) ||
-	       ((ip->i_d.di_mode & S_IFMT) != S_IFREG));
+	       (!S_ISREG(ip->i_d.di_mode)));
 	ASSERT(ip->i_d.di_nblocks == 0);
 
 	/*
@@ -2671,7 +2671,7 @@ xfs_iflush_int(
 			__func__, ip->i_ino, ip, ip->i_d.di_magic);
 		goto corrupt_out;
 	}
-	if ((ip->i_d.di_mode & S_IFMT) == S_IFREG) {
+	if (S_ISREG(ip->i_d.di_mode)) {
 		if (XFS_TEST_ERROR(
 		    (ip->i_d.di_format != XFS_DINODE_FMT_EXTENTS) &&
 		    (ip->i_d.di_format != XFS_DINODE_FMT_BTREE),
@@ -2681,7 +2681,7 @@ xfs_iflush_int(
 				__func__, ip->i_ino, ip);
 			goto corrupt_out;
 		}
-	} else if ((ip->i_d.di_mode & S_IFMT) == S_IFDIR) {
+	} else if (S_ISDIR(ip->i_d.di_mode)) {
 		if (XFS_TEST_ERROR(
 		    (ip->i_d.di_format != XFS_DINODE_FMT_EXTENTS) &&
 		    (ip->i_d.di_format != XFS_DINODE_FMT_BTREE) &&

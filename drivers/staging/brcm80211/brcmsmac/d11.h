@@ -14,23 +14,14 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_D11_H
-#define	_D11_H
+#ifndef	_BRCM_D11_H_
+#define	_BRCM_D11_H_
 
-#include <sbconfig.h>
+#include <linux/ieee80211.h>
 
-#ifndef WL_RSSI_ANT_MAX
-#define WL_RSSI_ANT_MAX		4	/* max possible rx antennas */
-#elif WL_RSSI_ANT_MAX != 4
-#error "WL_RSSI_ANT_MAX does not match"
-#endif
-
-/* cpp contortions to concatenate w/arg prescan */
-#ifndef	PAD
-#define	_PADLINE(line)	pad ## line
-#define	_XSTR(line)	_PADLINE(line)
-#define	PAD		_XSTR(__LINE__)
-#endif
+#include <defs.h>
+#include "pub.h"
+#include "dma.h"
 
 #define	BCN_TMPL_LEN		512	/* length of the BCN template area */
 
@@ -56,10 +47,16 @@
 #define	TX_DATA_FIFO		TX_AC_BE_FIFO
 #define	TX_CTL_FIFO		TX_AC_VO_FIFO
 
-typedef volatile struct {
+#ifndef WL_RSSI_ANT_MAX
+#define WL_RSSI_ANT_MAX		4	/* max possible rx antennas */
+#elif WL_RSSI_ANT_MAX != 4
+#error "WL_RSSI_ANT_MAX does not match"
+#endif
+
+struct intctrlregs {
 	u32 intstatus;
 	u32 intmask;
-} intctrlregs_t;
+};
 
 /* PIO structure,
  *  support two PIO format: 2 bytes access and 4 bytes access
@@ -67,55 +64,53 @@ typedef volatile struct {
  *  a pair of channels is defined for convenience
  */
 /* 2byte-wide pio register set per channel(xmt or rcv) */
-typedef volatile struct {
+struct pio2regs {
 	u16 fifocontrol;
 	u16 fifodata;
 	u16 fifofree;	/* only valid in xmt channel, not in rcv channel */
 	u16 PAD;
-} pio2regs_t;
+};
 
 /* a pair of pio channels(tx and rx) */
-typedef volatile struct {
+struct pio2regp {
 	pio2regs_t tx;
 	pio2regs_t rx;
-} pio2regp_t;
+};
 
 /* 4byte-wide pio register set per channel(xmt or rcv) */
-typedef volatile struct {
+struct pio4regs {
 	u32 fifocontrol;
 	u32 fifodata;
-} pio4regs_t;
+};
 
 /* a pair of pio channels(tx and rx) */
-typedef volatile struct {
+struct pio4regp {
 	pio4regs_t tx;
 	pio4regs_t rx;
-} pio4regp_t;
+};
 
 /* read: 32-bit register that can be read as 32-bit or as 2 16-bit
  * write: only low 16b-it half can be written
  */
-typedef volatile union {
+union pmqreg {
 	u32 pmqhostdata;	/* read only! */
 	struct {
 		u16 pmqctrlstatus;	/* read/write */
 		u16 PAD;
 	} w;
-} pmqreg_t;
+};
 
-typedef volatile struct {
+struct fifo64 {
 	dma64regs_t dmaxmt;	/* dma tx */
 	pio4regs_t piotx;	/* pio tx */
 	dma64regs_t dmarcv;	/* dma rx */
 	pio4regs_t piorx;	/* pio rx */
-} fifo64_t;
+};
 
 /*
  * Host Interface Registers
- * - primed from hnd_cores/dot11mac/systemC/registers/ihr.h
- * - but definitely not complete
  */
-typedef volatile struct _d11regs {
+struct d11regs {
 	/* Device Control ("semi-standard host registers") */
 	u32 PAD[3];		/* 0x0 - 0x8 */
 	u32 biststatus;	/* 0xC */
@@ -439,10 +434,7 @@ typedef volatile struct _d11regs {
 
 	/* SHM *//* 0x800 - 0xEFE */
 	u16 PAD[0x380];	/* 0x800 - 0xEFE */
-
-	/* SB configuration registers: 0xF00 */
-	sbconfig_t sbconfig;	/* sb config regs occupy top 256 bytes */
-} d11regs_t;
+};
 
 #define	PIHR_BASE	0x0400	/* byte address of packed IHR region */
 
@@ -629,12 +621,11 @@ typedef volatile struct _d11regs {
 #define	ANA_11N_013		5
 
 /* 802.11a PLCP header def */
-typedef struct ofdm_phy_hdr ofdm_phy_hdr_t;
 struct ofdm_phy_hdr {
 	u8 rlpt[3];		/* rate, length, parity, tail */
 	u16 service;
 	u8 pad;
-} __attribute__((packed));
+} __packed;
 
 #define	D11A_PHY_HDR_GRATE(phdr)	((phdr)->rlpt[0] & 0x0f)
 #define	D11A_PHY_HDR_GRES(phdr)		(((phdr)->rlpt[0] >> 4) & 0x01)
@@ -664,13 +655,12 @@ struct ofdm_phy_hdr {
 #define	D11A_PHY_PREHDR_TIME	(D11A_PHY_PRE_TIME + D11A_PHY_HDR_TIME)
 
 /* 802.11b PLCP header def */
-typedef struct cck_phy_hdr cck_phy_hdr_t;
 struct cck_phy_hdr {
 	u8 signal;
 	u8 service;
 	u16 length;
 	u16 crc;
-} __attribute__((packed));
+} __packed;
 
 #define	D11B_PHY_HDR_LEN	6
 
@@ -691,17 +681,17 @@ struct cck_phy_hdr {
 #define MIMO_PLCP_40MHZ		0x80	/* 40 Hz frame */
 #define MIMO_PLCP_AMPDU		0x08	/* ampdu */
 
-#define WLC_GET_CCK_PLCP_LEN(plcp) (plcp[4] + (plcp[5] << 8))
-#define WLC_GET_MIMO_PLCP_LEN(plcp) (plcp[1] + (plcp[2] << 8))
-#define WLC_SET_MIMO_PLCP_LEN(plcp, len) \
+#define BRCMS_GET_CCK_PLCP_LEN(plcp) (plcp[4] + (plcp[5] << 8))
+#define BRCMS_GET_MIMO_PLCP_LEN(plcp) (plcp[1] + (plcp[2] << 8))
+#define BRCMS_SET_MIMO_PLCP_LEN(plcp, len) \
 	do { \
 		plcp[1] = len & 0xff; \
 		plcp[2] = ((len >> 8) & 0xff); \
 	} while (0);
 
-#define WLC_SET_MIMO_PLCP_AMPDU(plcp) (plcp[3] |= MIMO_PLCP_AMPDU)
-#define WLC_CLR_MIMO_PLCP_AMPDU(plcp) (plcp[3] &= ~MIMO_PLCP_AMPDU)
-#define WLC_IS_MIMO_PLCP_AMPDU(plcp) (plcp[3] & MIMO_PLCP_AMPDU)
+#define BRCMS_SET_MIMO_PLCP_AMPDU(plcp) (plcp[3] |= MIMO_PLCP_AMPDU)
+#define BRCMS_CLR_MIMO_PLCP_AMPDU(plcp) (plcp[3] &= ~MIMO_PLCP_AMPDU)
+#define BRCMS_IS_MIMO_PLCP_AMPDU(plcp) (plcp[3] & MIMO_PLCP_AMPDU)
 
 /* The dot11a PLCP header is 5 bytes.  To simplify the software (so that we
  * don't need e.g. different tx DMA headers for 11a and 11b), the PLCP header has
@@ -710,7 +700,6 @@ struct cck_phy_hdr {
 #define	D11_PHY_HDR_LEN	6
 
 /* TX DMA buffer header */
-typedef struct d11txh d11txh_t;
 struct d11txh {
 	u16 MacTxControlLow;	/* 0x0 */
 	u16 MacTxControlHigh;	/* 0x1 */
@@ -746,7 +735,7 @@ struct d11txh {
 	u8 RTSPhyHeader[D11_PHY_HDR_LEN];	/* 0x2c - 0x2e */
 	struct ieee80211_rts rts_frame;	/* 0x2f - 0x36 */
 	u16 PAD;		/* 0x37 */
-} __attribute__((packed));
+} __packed;
 
 #define	D11_TXH_LEN		112	/* bytes */
 
@@ -854,7 +843,6 @@ struct d11txh {
 #define ABI_MAS_MRT_ANT_PTN_MASK	0x000f
 
 /* tx status packet */
-typedef struct tx_status tx_status_t;
 struct tx_status {
 	u16 framelen;
 	u16 PAD;
@@ -864,7 +852,7 @@ struct tx_status {
 	u16 sequence;
 	u16 phyerr;
 	u16 ackphyrxsh;
-} __attribute__((packed));
+} __packed;
 
 #define	TXSTATUS_LEN	16
 
@@ -1160,25 +1148,25 @@ struct tx_status {
 #define M_TX_IDLE_BUSY_RATIO_X_16_OFDM (0x5A * 2)
 
 /* CW RSSI for LCNPHY */
-#define M_LCN_RSSI_0 		0x1332
-#define M_LCN_RSSI_1 		0x1338
-#define M_LCN_RSSI_2 		0x133e
-#define M_LCN_RSSI_3 		0x1344
+#define M_LCN_RSSI_0		0x1332
+#define M_LCN_RSSI_1		0x1338
+#define M_LCN_RSSI_2		0x133e
+#define M_LCN_RSSI_3		0x1344
 
 /* SNR for LCNPHY */
-#define M_LCN_SNR_A_0 	0x1334
-#define M_LCN_SNR_B_0 	0x1336
+#define M_LCN_SNR_A_0	0x1334
+#define M_LCN_SNR_B_0	0x1336
 
-#define M_LCN_SNR_A_1 	0x133a
-#define M_LCN_SNR_B_1 	0x133c
+#define M_LCN_SNR_A_1	0x133a
+#define M_LCN_SNR_B_1	0x133c
 
-#define M_LCN_SNR_A_2 	0x1340
-#define M_LCN_SNR_B_2 	0x1342
+#define M_LCN_SNR_A_2	0x1340
+#define M_LCN_SNR_B_2	0x1342
 
-#define M_LCN_SNR_A_3 	0x1346
-#define M_LCN_SNR_B_3 	0x1348
+#define M_LCN_SNR_A_3	0x1346
+#define M_LCN_SNR_B_3	0x1348
 
-#define M_LCN_LAST_RESET 	(81*2)
+#define M_LCN_LAST_RESET	(81*2)
 #define M_LCN_LAST_LOC	(63*2)
 #define M_LCNPHY_RESET_STATUS (4902)
 #define M_LCNPHY_DSC_TIME	(0x98d*2)
@@ -1247,7 +1235,6 @@ struct tx_status {
 #define MIMO_ANTSEL_WAIT	50	/* 50us wait */
 #define MIMO_ANTSEL_OVERRIDE	0x8000	/* flag */
 
-typedef struct shm_acparams shm_acparams_t;
 struct shm_acparams {
 	u16 txop;
 	u16 cwmin;
@@ -1258,7 +1245,7 @@ struct shm_acparams {
 	u16 reggap;
 	u16 status;
 	u16 rsvd[8];
-} __attribute__((packed));
+} __packed;
 #define M_EDCF_QLEN	(16 * 2)
 
 #define WME_STATUS_NEWAC	(1 << 8)
@@ -1292,7 +1279,7 @@ struct shm_acparams {
 
 /* Flags in M_HOST_FLAGS4 */
 #define MHF4_BPHY_TXCORE0	0x0080	/* force bphy Tx on core 0 (board level WAR) */
-#define MHF4_EXTPA_ENABLE  	0x4000	/* for 4313A0 FEM boards */
+#define MHF4_EXTPA_ENABLE	0x4000	/* for 4313A0 FEM boards */
 
 /* Flags in M_HOST_FLAGS5 */
 #define MHF5_4313_GPIOCTRL	0x0001
@@ -1306,7 +1293,6 @@ struct shm_acparams {
 #define	PHY_NOISE_MASK		0x00ff
 
 /* Receive Frame Data Header for 802.11b DCF-only frames */
-typedef struct d11rxhdr d11rxhdr_t;
 struct d11rxhdr {
 	u16 RxFrameSize;	/* Actual byte length of the frame data received */
 	u16 PAD;
@@ -1320,21 +1306,20 @@ struct d11rxhdr {
 	u16 RxStatus2;	/* extended MAC Rx status */
 	u16 RxTSFTime;	/* RxTSFTime time of first MAC symbol + M_PHY_PLCPRX_DLY */
 	u16 RxChan;		/* gain code, channel radio code, and phy type */
-} __attribute__((packed));
+} __packed;
 
-#define	RXHDR_LEN		24	/* sizeof d11rxhdr_t */
+#define	RXHDR_LEN		24	/* sizeof struct d11rxhdr */
 #define	FRAMELEN(h)		((h)->RxFrameSize)
 
-typedef struct wlc_d11rxhdr wlc_d11rxhdr_t;
-struct wlc_d11rxhdr {
-	d11rxhdr_t rxhdr;
+struct brcms_d11rxhdr {
+	struct d11rxhdr rxhdr;
 	u32 tsf_l;		/* TSF_L reading */
 	s8 rssi;		/* computed instanteneous rssi in BMAC */
 	s8 rxpwr0;		/* obsoleted, place holder for legacy ROM code. use rxpwr[] */
 	s8 rxpwr1;		/* obsoleted, place holder for legacy ROM code. use rxpwr[] */
 	s8 do_rssi_ma;	/* do per-pkt sampling for per-antenna ma in HIGH */
 	s8 rxpwr[WL_RSSI_ANT_MAX];	/* rssi for supported antennas */
-} __attribute__((packed));
+} __packed;
 
 /* PhyRxStatus_0: */
 #define	PRXS0_FT_MASK		0x0003	/* NPHY only: CCK, OFDM, preN, N */
@@ -1473,7 +1458,7 @@ struct wlc_d11rxhdr {
 #define	DBGST_ASLEEP		4	/* asleep (PS mode) */
 
 /* Scratch Reg defs */
-typedef enum {
+enum _ePsmScratchPadRegDefinitions {
 	S_RSV0 = 0,
 	S_RSV1,
 	S_RSV2,
@@ -1551,7 +1536,7 @@ typedef enum {
 	S_MFGTEST_TMP0,		/* Temp register used for RX test calculations  0x3D */
 	S_RXESN,		/* Received end sequence number for A-MPDU BA   0x3E */
 	S_STREG6,		/* 0x3F */
-} ePsmScratchPadRegDefinitions;
+};
 
 #define S_BEACON_INDX	S_OLD_BREM
 #define S_PRS_INDX	S_OLD_CWWIN
@@ -1563,7 +1548,7 @@ typedef enum {
 #define SLOW_CTRL_FD		(1 << 8)
 
 /* ucode mac statistic counters in shared memory */
-typedef struct macstat {
+struct macstat {
 	u16 txallfrm;	/* 0x80 */
 	u16 txrtsfrm;	/* 0x82 */
 	u16 txctsfrm;	/* 0x84 */
@@ -1621,7 +1606,7 @@ typedef struct macstat {
 	u16 phywatchdog;	/* 0xfa # of phy watchdog events */
 	u16 PAD;
 	u16 bphy_badplcp;	/* bphy bad plcp */
-} macstat_t;
+};
 
 /* dot11 core-specific control flags */
 #define	SICF_PCLKE		0x0004	/* PHY clock enable */
@@ -1688,7 +1673,7 @@ typedef struct macstat {
 #define	BPHY_PEAK_ENERGY_HI	0x34
 #define	BPHY_SYNC_CTL		0x35
 #define	BPHY_TX_PWR_CTRL	0x36
-#define BPHY_TX_EST_PWR 	0x37
+#define BPHY_TX_EST_PWR		0x37
 #define	BPHY_STEP		0x38
 #define	BPHY_WARMUP		0x39
 #define	BPHY_LMS_CFF_READ	0x3a
@@ -1770,4 +1755,21 @@ typedef struct macstat {
 #define SHM_BYT_CNT	0x2	/* IHR location */
 #define MAX_BYT_CNT	0x600	/* Maximum frame len */
 
-#endif				/* _D11_H */
+struct d11cnt {
+	u32 txfrag;
+	u32 txmulti;
+	u32 txfail;
+	u32 txretry;
+	u32 txretrie;
+	u32 rxdup;
+	u32 txrts;
+	u32 txnocts;
+	u32 txnoack;
+	u32 rxfrag;
+	u32 rxmulti;
+	u32 rxcrc;
+	u32 txfrmsnt;
+	u32 rxundec;
+};
+
+#endif				/* _BRCM_D11_H_ */

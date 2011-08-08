@@ -211,9 +211,6 @@ choice
 	depends on ARCH_OMAP
 	default OMAP_PM_NOOP
 
-config OMAP_PM_NONE
-	bool "No PM layer"
-
 config OMAP_PM_NOOP
 	bool "No-op/debug PM layer"
 

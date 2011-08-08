@@ -408,7 +408,6 @@ void iwl3945_hw_rx_statistics(struct iwl_priv *priv,
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
 	iwl3945_accumulative_statistics(priv, (__le32 *)&pkt->u.raw);
 #endif
-	iwl_legacy_recover_from_statistics(priv, pkt);
 
 	memcpy(&priv->_3945.statistics, pkt->u.raw, sizeof(priv->_3945.statistics));
 }
@@ -1747,7 +1746,11 @@ int iwl3945_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		}
 
 		memcpy(active_rxon, staging_rxon, sizeof(*active_rxon));
-
+		/*
+		 * We do not commit tx power settings while channel changing,
+		 * do it now if tx power changed.
+		 */
+		iwl_legacy_set_tx_power(priv, priv->tx_power_next, false);
 		return 0;
 	}
 
@@ -2640,7 +2643,6 @@ static struct iwl_lib_ops iwl3945_lib = {
 	.txq_free_tfd = iwl3945_hw_txq_free_tfd,
 	.txq_init = iwl3945_hw_tx_queue_init,
 	.load_ucode = iwl3945_load_bsm,
-	.dump_nic_event_log = iwl3945_dump_nic_event_log,
 	.dump_nic_error_log = iwl3945_dump_nic_error_log,
 	.apm_ops = {
 		.init = iwl3945_apm_init,
@@ -2698,9 +2700,7 @@ static struct iwl_base_params iwl3945_base_params = {
 	.set_l0s = false,
 	.use_bsm = true,
 	.led_compensation = 64,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 	.wd_timeout = IWL_DEF_WD_TIMEOUT,
-	.max_event_log_size = 512,
 };
 
 static struct iwl_cfg iwl3945_bg_cfg = {

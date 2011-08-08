@@ -25,14 +25,14 @@
 	/* load board-specific initialization code */
 #include <mach/zboot.h>
 
-#ifdef CONFIG_ZBOOT_ROM_MMCIF
-	/* Load image from MMC */
-	adr	sp, __tmp_stack + 128
+#if defined(CONFIG_ZBOOT_ROM_MMCIF) || defined(CONFIG_ZBOOT_ROM_SH_MOBILE_SDHI)
+	/* Load image from MMC/SD */
+	adr	sp, __tmp_stack + 256
 	ldr	r0, __image_start
 	ldr	r1, __image_end
 	subs	r1, r1, r0
 	ldr	r0, __load_base
-	bl	mmcif_loader
+	bl	mmc_loader
 
 	/* Jump to loaded code */
 	ldr	r0, __loaded
@@ -51,9 +51,9 @@ __loaded:
 	.long	__continue
 	.align
 __tmp_stack:
-	.space	128
+	.space	256
 __continue:
-#endif /* CONFIG_ZBOOT_ROM_MMCIF */
+#endif /* CONFIG_ZBOOT_ROM_MMC || CONFIG_ZBOOT_ROM_SH_MOBILE_SDHI */
 
 	b	1f
 __atags:@ tag #1

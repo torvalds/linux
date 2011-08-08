@@ -534,6 +534,8 @@ Events that are never propagated by the driver:
 0x2404		System is waking up from hibernation to undock
 0x2405		System is waking up from hibernation to eject bay
 0x5010		Brightness level changed/control event
+0x6000		KEYBOARD: Numlock key pressed
+0x6005		KEYBOARD: Fn key pressed (TO BE VERIFIED)
 
 Events that are propagated by the driver to userspace:
 
@@ -545,6 +547,8 @@ Events that are propagated by the driver to userspace:
 0x3006		Bay hotplug request (hint to power up SATA link when
 		the optical drive tray is ejected)
 0x4003		Undocked (see 0x2x04), can sleep again
+0x4010		Docked into hotplug port replicator (non-ACPI dock)
+0x4011		Undocked from hotplug port replicator (non-ACPI dock)
 0x500B		Tablet pen inserted into its storage bay
 0x500C		Tablet pen removed from its storage bay
 0x6011		ALARM: battery is too hot
@@ -552,6 +556,7 @@ Events that are propagated by the driver to userspace:
 0x6021		ALARM: a sensor is too hot
 0x6022		ALARM: a sensor is extremely hot
 0x6030		System thermal table changed
+0x6040		Nvidia Optimus/AC adapter related (TO BE VERIFIED)
 
 Battery nearly empty alarms are a last resort attempt to get the
 operating system to hibernate or shutdown cleanly (0x2313), or shutdown

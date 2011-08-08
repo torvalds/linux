@@ -231,10 +231,6 @@ config PUV3_PWM
 	help
 	  Enable support for NB0916 PWM controllers
 
-config PUV3_RTC
-	tristate "PKUnity v3 RTC Support"
-	depends on !ARCH_FPGA
-
 if PUV3_NB0916
 
 menu "PKUnity NetBook-0916 Features"

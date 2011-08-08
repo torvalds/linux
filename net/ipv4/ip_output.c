@@ -182,6 +182,7 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 	struct rtable *rt = (struct rtable *)dst;
 	struct net_device *dev = dst->dev;
 	unsigned int hh_len = LL_RESERVED_SPACE(dev);
+	struct neighbour *neigh;
 
 	if (rt->rt_type == RTN_MULTICAST) {
 		IP_UPD_PO_STATS(dev_net(dev), IPSTATS_MIB_OUTMCAST, skb->len);
@@ -203,10 +204,15 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 		skb = skb2;
 	}
 
-	if (dst->hh)
-		return neigh_hh_output(dst->hh, skb);
-	else if (dst->neighbour)
-		return dst->neighbour->output(skb);
+	rcu_read_lock();
+	neigh = dst_get_neighbour(dst);
+	if (neigh) {
+		int res = neigh_output(neigh, skb);
+
+		rcu_read_unlock();
+		return res;
+	}
+	rcu_read_unlock();
 
 	if (net_ratelimit())
 		printk(KERN_DEBUG "ip_finish_output2: No header cache and no neighbour!\n");
@@ -489,7 +495,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 
 		if (first_len - hlen > mtu ||
 		    ((first_len - hlen) & 7) ||
-		    (iph->frag_off & htons(IP_MF|IP_OFFSET)) ||
+		    ip_is_fragment(iph) ||
 		    skb_cloned(skb))
 			goto slow_path;
 
@@ -734,7 +740,7 @@ static inline int ip_ufo_append_data(struct sock *sk,
 			int getfrag(void *from, char *to, int offset, int len,
 			       int odd, struct sk_buff *skb),
 			void *from, int length, int hh_len, int fragheaderlen,
-			int transhdrlen, int mtu, unsigned int flags)
+			int transhdrlen, int maxfraglen, unsigned int flags)
 {
 	struct sk_buff *skb;
 	int err;
@@ -767,7 +773,7 @@ static inline int ip_ufo_append_data(struct sock *sk,
 		skb->csum = 0;
 
 		/* specify the length of each IP datagram fragment */
-		skb_shinfo(skb)->gso_size = mtu - fragheaderlen;
+		skb_shinfo(skb)->gso_size = maxfraglen - fragheaderlen;
 		skb_shinfo(skb)->gso_type = SKB_GSO_UDP;
 		__skb_queue_tail(queue, skb);
 	}
@@ -799,9 +805,9 @@ static int __ip_append_data(struct sock *sk,
 	int csummode = CHECKSUM_NONE;
 	struct rtable *rt = (struct rtable *)cork->dst;
 
-	exthdrlen = transhdrlen ? rt->dst.header_len : 0;
-	length += exthdrlen;
-	transhdrlen += exthdrlen;
+	skb = skb_peek_tail(queue);
+
+	exthdrlen = !skb ? rt->dst.header_len : 0;
 	mtu = cork->fragsize;
 
 	hh_len = LL_RESERVED_SPACE(rt->dst.dev);
@@ -825,15 +831,13 @@ static int __ip_append_data(struct sock *sk,
 	    !exthdrlen)
 		csummode = CHECKSUM_PARTIAL;
 
-	skb = skb_peek_tail(queue);
-
 	cork->length += length;
 	if (((length > mtu) || (skb && skb_is_gso(skb))) &&
 	    (sk->sk_protocol == IPPROTO_UDP) &&
-	    (rt->dst.dev->features & NETIF_F_UFO)) {
+	    (rt->dst.dev->features & NETIF_F_UFO) && !rt->dst.header_len) {
 		err = ip_ufo_append_data(sk, queue, getfrag, from, length,
 					 hh_len, fragheaderlen, transhdrlen,
-					 mtu, flags);
+					 maxfraglen, flags);
 		if (err)
 			goto error;
 		return 0;
@@ -883,17 +887,16 @@ alloc_new_skb:
 			else
 				alloclen = fraglen;
 
+			alloclen += exthdrlen;
+
 			/* The last fragment gets additional space at tail.
 			 * Note, with MSG_MORE we overallocate on fragments,
 			 * because we have no idea what fragment will be
 			 * the last.
 			 */
-			if (datalen == length + fraggap) {
+			if (datalen == length + fraggap)
 				alloclen += rt->dst.trailer_len;
-				/* make sure mtu is not reached */
-				if (datalen > mtu - fragheaderlen - rt->dst.trailer_len)
-					datalen -= ALIGN(rt->dst.trailer_len, 8);
-			}
+
 			if (transhdrlen) {
 				skb = sock_alloc_send_skb(sk,
 						alloclen + hh_len + 15,
@@ -926,11 +929,11 @@ alloc_new_skb:
 			/*
 			 *	Find where to start putting bytes.
 			 */
-			data = skb_put(skb, fraglen);
+			data = skb_put(skb, fraglen + exthdrlen);
 			skb_set_network_header(skb, exthdrlen);
 			skb->transport_header = (skb->network_header +
 						 fragheaderlen);
-			data += fragheaderlen;
+			data += fragheaderlen + exthdrlen;
 
 			if (fraggap) {
 				skb->csum = skb_copy_and_csum_bits(
@@ -1064,7 +1067,7 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
 	 */
 	*rtp = NULL;
 	cork->fragsize = inet->pmtudisc == IP_PMTUDISC_PROBE ?
-			 rt->dst.dev->mtu : dst_mtu(rt->dst.path);
+			 rt->dst.dev->mtu : dst_mtu(&rt->dst);
 	cork->dst = &rt->dst;
 	cork->length = 0;
 	cork->tx_flags = ipc->tx_flags;

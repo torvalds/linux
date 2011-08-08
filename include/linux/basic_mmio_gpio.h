@@ -16,6 +16,7 @@
 #include <linux/gpio.h>
 #include <linux/types.h>
 #include <linux/compiler.h>
+#include <linux/spinlock_types.h>
 
 struct bgpio_pdata {
 	int base;

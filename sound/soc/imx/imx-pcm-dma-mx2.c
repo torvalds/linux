@@ -110,12 +110,12 @@ static int imx_ssi_dma_alloc(struct snd_pcm_substream *substream,
 		slave_config.direction = DMA_TO_DEVICE;
 		slave_config.dst_addr = dma_params->dma_addr;
 		slave_config.dst_addr_width = buswidth;
-		slave_config.dst_maxburst = dma_params->burstsize * buswidth;
+		slave_config.dst_maxburst = dma_params->burstsize;
 	} else {
 		slave_config.direction = DMA_FROM_DEVICE;
 		slave_config.src_addr = dma_params->dma_addr;
 		slave_config.src_addr_width = buswidth;
-		slave_config.src_maxburst = dma_params->burstsize * buswidth;
+		slave_config.src_maxburst = dma_params->burstsize;
 	}
 
 	ret = dmaengine_slave_config(iprtd->dma_chan, &slave_config);
@@ -337,3 +337,5 @@ static void __exit snd_imx_pcm_exit(void)
 	platform_driver_unregister(&imx_pcm_driver);
 }
 module_exit(snd_imx_pcm_exit);
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:imx-pcm-audio");

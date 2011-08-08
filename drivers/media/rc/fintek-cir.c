@@ -597,11 +597,16 @@ static void __devexit fintek_remove(struct pnp_dev *pdev)
 static int fintek_suspend(struct pnp_dev *pdev, pm_message_t state)
 {
 	struct fintek_dev *fintek = pnp_get_drvdata(pdev);
+	unsigned long flags;
 
 	fit_dbg("%s called", __func__);
 
+	spin_lock_irqsave(&fintek->fintek_lock, flags);
+
 	/* disable all CIR interrupts */
 	fintek_cir_reg_write(fintek, CIR_STATUS_IRQ_MASK, CIR_STATUS);
+
+	spin_unlock_irqrestore(&fintek->fintek_lock, flags);
 
 	fintek_config_mode_enable(fintek);
 

@@ -16,7 +16,7 @@
 
 #include <linux/bitops.h>
 #include <linux/compiler.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <linux/netfilter/nf_conntrack_tcp.h>
 #include <linux/netfilter/nf_conntrack_dccp.h>
@@ -305,6 +305,12 @@ static inline int nf_ct_is_dying(struct nf_conn *ct)
 static inline int nf_ct_is_untracked(const struct nf_conn *ct)
 {
 	return test_bit(IPS_UNTRACKED_BIT, &ct->status);
+}
+
+/* Packet is received from loopback */
+static inline bool nf_is_loopback_packet(const struct sk_buff *skb)
+{
+	return skb->dev && skb->skb_iif && skb->dev->flags & IFF_LOOPBACK;
 }
 
 extern int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp);

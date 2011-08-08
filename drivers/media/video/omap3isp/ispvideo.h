@@ -27,7 +27,6 @@
 #define OMAP3_ISP_VIDEO_H
 
 #include <linux/v4l2-mediabus.h>
-#include <linux/version.h>
 #include <media/media-entity.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-fh.h>
@@ -35,7 +34,7 @@
 #include "ispqueue.h"
 
 #define ISP_VIDEO_DRIVER_NAME		"ispvideo"
-#define ISP_VIDEO_DRIVER_VERSION	KERNEL_VERSION(0, 0, 1)
+#define ISP_VIDEO_DRIVER_VERSION	"0.0.2"
 
 struct isp_device;
 struct isp_video;

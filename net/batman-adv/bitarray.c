@@ -26,8 +26,8 @@
 
 /* returns true if the corresponding bit in the given seq_bits indicates true
  * and curr_seqno is within range of last_seqno */
-uint8_t get_bit_status(unsigned long *seq_bits, uint32_t last_seqno,
-		       uint32_t curr_seqno)
+int get_bit_status(const unsigned long *seq_bits, uint32_t last_seqno,
+		   uint32_t curr_seqno)
 {
 	int32_t diff, word_offset, word_num;
 
@@ -127,10 +127,10 @@ static void bit_reset_window(unsigned long *seq_bits)
  *  1 if the window was moved (either new or very old)
  *  0 if the window was not moved/shifted.
  */
-char bit_get_packet(void *priv, unsigned long *seq_bits,
-		    int32_t seq_num_diff, int8_t set_mark)
+int bit_get_packet(void *priv, unsigned long *seq_bits,
+		    int32_t seq_num_diff, int set_mark)
 {
-	struct bat_priv *bat_priv = (struct bat_priv *)priv;
+	struct bat_priv *bat_priv = priv;
 
 	/* sequence number is slightly older. We already got a sequence number
 	 * higher than this one, so we just mark it. */
@@ -190,7 +190,7 @@ char bit_get_packet(void *priv, unsigned long *seq_bits,
 /* count the hamming weight, how many good packets did we receive? just count
  * the 1's.
  */
-int bit_packet_count(unsigned long *seq_bits)
+int bit_packet_count(const unsigned long *seq_bits)
 {
 	int i, hamming = 0;
 

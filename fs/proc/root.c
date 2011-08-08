@@ -28,11 +28,12 @@ static int proc_test_super(struct super_block *sb, void *data)
 
 static int proc_set_super(struct super_block *sb, void *data)
 {
-	struct pid_namespace *ns;
-
-	ns = (struct pid_namespace *)data;
-	sb->s_fs_info = get_pid_ns(ns);
-	return set_anon_super(sb, NULL);
+	int err = set_anon_super(sb, NULL);
+	if (!err) {
+		struct pid_namespace *ns = (struct pid_namespace *)data;
+		sb->s_fs_info = get_pid_ns(ns);
+	}
+	return err;
 }
 
 static struct dentry *proc_mount(struct file_system_type *fs_type,
@@ -185,13 +186,13 @@ static const struct inode_operations proc_root_inode_operations = {
 struct proc_dir_entry proc_root = {
 	.low_ino	= PROC_ROOT_INO, 
 	.namelen	= 5, 
-	.name		= "/proc",
 	.mode		= S_IFDIR | S_IRUGO | S_IXUGO, 
 	.nlink		= 2, 
 	.count		= ATOMIC_INIT(1),
 	.proc_iops	= &proc_root_inode_operations, 
 	.proc_fops	= &proc_root_operations,
 	.parent		= &proc_root,
+	.name		= "/proc",
 };
 
 int pid_ns_prepare_proc(struct pid_namespace *ns)

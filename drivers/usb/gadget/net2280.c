@@ -63,6 +63,7 @@
 #include <linux/device.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/prefetch.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -1409,11 +1410,17 @@ static int net2280_pullup(struct usb_gadget *_gadget, int is_on)
 	return 0;
 }
 
+static int net2280_start(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *));
+static int net2280_stop(struct usb_gadget_driver *driver);
+
 static const struct usb_gadget_ops net2280_ops = {
 	.get_frame	= net2280_get_frame,
 	.wakeup		= net2280_wakeup,
 	.set_selfpowered = net2280_set_selfpowered,
 	.pullup		= net2280_pullup,
+	.start		= net2280_start,
+	.stop		= net2280_stop,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -1737,62 +1744,6 @@ static void set_fifo_mode (struct net2280 *dev, int mode)
 	list_add_tail (&dev->ep [6].ep.ep_list, &dev->gadget.ep_list);
 }
 
-/* just declare this in any driver that really need it */
-extern int net2280_set_fifo_mode (struct usb_gadget *gadget, int mode);
-
-/**
- * net2280_set_fifo_mode - change allocation of fifo buffers
- * @gadget: access to the net2280 device that will be updated
- * @mode: 0 for default, four 1kB buffers (ep-a through ep-d);
- *	1 for two 2kB buffers (ep-a and ep-b only);
- *	2 for one 2kB buffer (ep-a) and two 1kB ones (ep-b, ep-c).
- *
- * returns zero on success, else negative errno.  when this succeeds,
- * the contents of gadget->ep_list may have changed.
- *
- * you may only call this function when endpoints a-d are all disabled.
- * use it whenever extra hardware buffering can help performance, such
- * as before enabling "high bandwidth" interrupt endpoints that use
- * maxpacket bigger than 512 (when double buffering would otherwise
- * be unavailable).
- */
-int net2280_set_fifo_mode (struct usb_gadget *gadget, int mode)
-{
-	int			i;
-	struct net2280		*dev;
-	int			status = 0;
-	unsigned long		flags;
-
-	if (!gadget)
-		return -ENODEV;
-	dev = container_of (gadget, struct net2280, gadget);
-
-	spin_lock_irqsave (&dev->lock, flags);
-
-	for (i = 1; i <= 4; i++)
-		if (dev->ep [i].desc) {
-			status = -EINVAL;
-			break;
-		}
-	if (mode < 0 || mode > 2)
-		status = -EINVAL;
-	if (status == 0)
-		set_fifo_mode (dev, mode);
-	spin_unlock_irqrestore (&dev->lock, flags);
-
-	if (status == 0) {
-		if (mode == 1)
-			DEBUG (dev, "fifo:  ep-a 2K, ep-b 2K\n");
-		else if (mode == 2)
-			DEBUG (dev, "fifo:  ep-a 2K, ep-b 1K, ep-c 1K\n");
-		/* else all are 1K */
-	}
-	return status;
-}
-EXPORT_SYMBOL (net2280_set_fifo_mode);
-
-/*-------------------------------------------------------------------------*/
-
 /* keeping it simple:
  * - one bus driver, initted first;
  * - one function driver, initted second
@@ -1929,7 +1880,7 @@ static void ep0_start (struct net2280 *dev)
  * disconnect is reported.  then a host may connect again, or
  * the driver might get unbound.
  */
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int net2280_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	struct net2280		*dev = the_controller;
@@ -1993,7 +1944,6 @@ err_unbind:
 	dev->driver = NULL;
 	return retval;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 static void
 stop_activity (struct net2280 *dev, struct usb_gadget_driver *driver)
@@ -2021,7 +1971,7 @@ stop_activity (struct net2280 *dev, struct usb_gadget_driver *driver)
 	usb_reinit (dev);
 }
 
-int usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
+static int net2280_stop(struct usb_gadget_driver *driver)
 {
 	struct net2280	*dev = the_controller;
 	unsigned long	flags;
@@ -2048,8 +1998,6 @@ int usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 	DEBUG (dev, "unregistered driver '%s'\n", driver->driver.name);
 	return 0;
 }
-EXPORT_SYMBOL (usb_gadget_unregister_driver);
-
 
 /*-------------------------------------------------------------------------*/
 
@@ -2731,6 +2679,8 @@ static void net2280_remove (struct pci_dev *pdev)
 {
 	struct net2280		*dev = pci_get_drvdata (pdev);
 
+	usb_del_gadget_udc(&dev->gadget);
+
 	BUG_ON(dev->driver);
 
 	/* then clean up the resources we allocated during probe() */
@@ -2915,6 +2865,9 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 	retval = device_create_file (&pdev->dev, &dev_attr_registers);
 	if (retval) goto done;
 
+	retval = usb_add_gadget_udc(&pdev->dev, &dev->gadget);
+	if (retval)
+		goto done;
 	return 0;
 
 done:

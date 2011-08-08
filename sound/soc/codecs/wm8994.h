@@ -11,6 +11,7 @@
 
 #include <sound/soc.h>
 #include <linux/firmware.h>
+#include <linux/completion.h>
 
 #include "wm_hubs.h"
 
@@ -79,6 +80,8 @@ struct wm8994_priv {
 	int mclk[2];
 	int aifclk[2];
 	struct wm8994_fll_config fll[2], fll_suspend[2];
+	struct completion fll_locked[2];
+	bool fll_locked_irq;
 
 	int dac_rates[2];
 	int lrclk_shared[2];

@@ -51,7 +51,7 @@
 static void __init afeb9260_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
-	at91sam9260_initialize(18432000);
+	at91_initialize(18432000);
 
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
@@ -69,12 +69,6 @@ static void __init afeb9260_init_early(void)
 	/* set serial console to ttyS0 (ie, DBGU) */
 	at91_set_serial_console(0);
 }
-
-static void __init afeb9260_init_irq(void)
-{
-	at91sam9260_init_interrupts(NULL);
-}
-
 
 /*
  * USB Host port
@@ -219,9 +213,9 @@ static void __init afeb9260_board_init(void)
 MACHINE_START(AFEB9260, "Custom afeb9260 board")
 	/* Maintainer: Sergey Lapin <slapin@ossfans.org> */
 	.timer		= &at91sam926x_timer,
-	.map_io		= at91sam9260_map_io,
+	.map_io		= at91_map_io,
 	.init_early	= afeb9260_init_early,
-	.init_irq	= afeb9260_init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= afeb9260_board_init,
 MACHINE_END
 

@@ -755,7 +755,7 @@ void cpc_tty_receive(pc300dev_t *pc300dev)
 
 	dsr_rx = cpc_readb(card->hw.scabase + DSR_RX(ch));
 
-	cpc_tty = (st_cpc_tty_area *)pc300dev->cpc_tty; 
+	cpc_tty = pc300dev->cpc_tty;
 
 	while (1) { 
 		rx_len = 0;

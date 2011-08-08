@@ -76,6 +76,13 @@ A transfer's actual_length may be positive even when an error has been
 reported.  That's because transfers often involve several packets, so that
 one or more packets could finish before an error stops further endpoint I/O.
 
+For isochronous URBs, the urb status value is non-zero only if the URB is
+unlinked, the device is removed, the host controller is disabled, or the total
+transferred length is less than the requested length and the URB_SHORT_NOT_OK
+flag is set.  Completion handlers for isochronous URBs should only see
+urb->status set to zero, -ENOENT, -ECONNRESET, -ESHUTDOWN, or -EREMOTEIO.
+Individual frame descriptor status fields may report more status codes.
+
 
 0			Transfer completed successfully
 
@@ -132,7 +139,7 @@ one or more packets could finish before an error stops further endpoint I/O.
 			device removal events immediately.
 
 -EXDEV			ISO transfer only partially completed
-			look at individual frame status for details
+			(only set in iso_frame_desc[n].status, not urb->status)
 
 -EINVAL			ISO madness, if this happens: Log off and go home
 

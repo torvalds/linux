@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2009 Intel Corporation.
+  Copyright(c) 2007-2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -316,65 +316,6 @@ static int igb_set_pauseparam(struct net_device *netdev,
 
 	clear_bit(__IGB_RESETTING, &adapter->state);
 	return retval;
-}
-
-static u32 igb_get_rx_csum(struct net_device *netdev)
-{
-	struct igb_adapter *adapter = netdev_priv(netdev);
-	return !!(adapter->rx_ring[0]->flags & IGB_RING_FLAG_RX_CSUM);
-}
-
-static int igb_set_rx_csum(struct net_device *netdev, u32 data)
-{
-	struct igb_adapter *adapter = netdev_priv(netdev);
-	int i;
-
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		if (data)
-			adapter->rx_ring[i]->flags |= IGB_RING_FLAG_RX_CSUM;
-		else
-			adapter->rx_ring[i]->flags &= ~IGB_RING_FLAG_RX_CSUM;
-	}
-
-	return 0;
-}
-
-static u32 igb_get_tx_csum(struct net_device *netdev)
-{
-	return (netdev->features & NETIF_F_IP_CSUM) != 0;
-}
-
-static int igb_set_tx_csum(struct net_device *netdev, u32 data)
-{
-	struct igb_adapter *adapter = netdev_priv(netdev);
-
-	if (data) {
-		netdev->features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
-		if (adapter->hw.mac.type >= e1000_82576)
-			netdev->features |= NETIF_F_SCTP_CSUM;
-	} else {
-		netdev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-		                      NETIF_F_SCTP_CSUM);
-	}
-
-	return 0;
-}
-
-static int igb_set_tso(struct net_device *netdev, u32 data)
-{
-	struct igb_adapter *adapter = netdev_priv(netdev);
-
-	if (data) {
-		netdev->features |= NETIF_F_TSO;
-		netdev->features |= NETIF_F_TSO6;
-	} else {
-		netdev->features &= ~NETIF_F_TSO;
-		netdev->features &= ~NETIF_F_TSO6;
-	}
-
-	dev_info(&adapter->pdev->dev, "TSO is %s\n",
-		 data ? "Enabled" : "Disabled");
-	return 0;
 }
 
 static u32 igb_get_msglevel(struct net_device *netdev)
@@ -1284,6 +1225,7 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 
 	/* Disable all the interrupts */
 	wr32(E1000_IMC, ~0);
+	wrfl();
 	msleep(10);
 
 	/* Define all writable bits for ICS */
@@ -1327,6 +1269,7 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 
 			wr32(E1000_IMC, mask);
 			wr32(E1000_ICS, mask);
+			wrfl();
 			msleep(10);
 
 			if (adapter->test_icr & mask) {
@@ -1348,6 +1291,7 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 
 		wr32(E1000_IMS, mask);
 		wr32(E1000_ICS, mask);
+		wrfl();
 		msleep(10);
 
 		if (!(adapter->test_icr & mask)) {
@@ -1369,6 +1313,7 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 
 			wr32(E1000_IMC, ~mask);
 			wr32(E1000_ICS, ~mask);
+			wrfl();
 			msleep(10);
 
 			if (adapter->test_icr & mask) {
@@ -1380,6 +1325,7 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 
 	/* Disable all the interrupts */
 	wr32(E1000_IMC, ~0);
+	wrfl();
 	msleep(10);
 
 	/* Unhook test interrupt handler */
@@ -1520,6 +1466,22 @@ static int igb_setup_loopback_test(struct igb_adapter *adapter)
 
 	/* use CTRL_EXT to identify link type as SGMII can appear as copper */
 	if (reg & E1000_CTRL_EXT_LINK_MODE_MASK) {
+		if ((hw->device_id == E1000_DEV_ID_DH89XXCC_SGMII) ||
+		(hw->device_id == E1000_DEV_ID_DH89XXCC_SERDES) ||
+		(hw->device_id == E1000_DEV_ID_DH89XXCC_BACKPLANE) ||
+		(hw->device_id == E1000_DEV_ID_DH89XXCC_SFP)) {
+
+			/* Enable DH89xxCC MPHY for near end loopback */
+			reg = rd32(E1000_MPHY_ADDR_CTL);
+			reg = (reg & E1000_MPHY_ADDR_CTL_OFFSET_MASK) |
+			E1000_MPHY_PCS_CLK_REG_OFFSET;
+			wr32(E1000_MPHY_ADDR_CTL, reg);
+
+			reg = rd32(E1000_MPHY_DATA);
+			reg |= E1000_MPHY_PCS_CLK_REG_DIGINELBEN;
+			wr32(E1000_MPHY_DATA, reg);
+		}
+
 		reg = rd32(E1000_RCTL);
 		reg |= E1000_RCTL_LBM_TCVR;
 		wr32(E1000_RCTL, reg);
@@ -1560,6 +1522,23 @@ static void igb_loopback_cleanup(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 rctl;
 	u16 phy_reg;
+
+	if ((hw->device_id == E1000_DEV_ID_DH89XXCC_SGMII) ||
+	(hw->device_id == E1000_DEV_ID_DH89XXCC_SERDES) ||
+	(hw->device_id == E1000_DEV_ID_DH89XXCC_BACKPLANE) ||
+	(hw->device_id == E1000_DEV_ID_DH89XXCC_SFP)) {
+		u32 reg;
+
+		/* Disable near end loopback on DH89xxCC */
+		reg = rd32(E1000_MPHY_ADDR_CTL);
+		reg = (reg & E1000_MPHY_ADDR_CTL_OFFSET_MASK) |
+		E1000_MPHY_PCS_CLK_REG_OFFSET;
+		wr32(E1000_MPHY_ADDR_CTL, reg);
+
+		reg = rd32(E1000_MPHY_DATA);
+		reg &= ~E1000_MPHY_PCS_CLK_REG_DIGINELBEN;
+		wr32(E1000_MPHY_DATA, reg);
+	}
 
 	rctl = rd32(E1000_RCTL);
 	rctl &= ~(E1000_RCTL_LBM_TCVR | E1000_RCTL_LBM_MAC);
@@ -2207,14 +2186,6 @@ static const struct ethtool_ops igb_ethtool_ops = {
 	.set_ringparam          = igb_set_ringparam,
 	.get_pauseparam         = igb_get_pauseparam,
 	.set_pauseparam         = igb_set_pauseparam,
-	.get_rx_csum            = igb_get_rx_csum,
-	.set_rx_csum            = igb_set_rx_csum,
-	.get_tx_csum            = igb_get_tx_csum,
-	.set_tx_csum            = igb_set_tx_csum,
-	.get_sg                 = ethtool_op_get_sg,
-	.set_sg                 = ethtool_op_set_sg,
-	.get_tso                = ethtool_op_get_tso,
-	.set_tso                = igb_set_tso,
 	.self_test              = igb_diag_test,
 	.get_strings            = igb_get_strings,
 	.set_phys_id            = igb_set_phys_id,

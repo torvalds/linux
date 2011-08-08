@@ -34,7 +34,7 @@
 
 #include <linux/spinlock.h>
 #include "t3cdev.h"
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 enum {
 	L2T_STATE_VALID,	/* entry is up to date */

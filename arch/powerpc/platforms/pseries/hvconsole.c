@@ -73,7 +73,7 @@ int hvc_put_chars(uint32_t vtermno, const char *buf, int count)
 	if (ret == H_SUCCESS)
 		return count;
 	if (ret == H_BUSY)
-		return 0;
+		return -EAGAIN;
 	return -EIO;
 }
 

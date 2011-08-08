@@ -32,7 +32,7 @@ static const struct {
 	[SH_KEYSC_MODE_3] = { 2, 4, 7 },
 	[SH_KEYSC_MODE_4] = { 3, 6, 6 },
 	[SH_KEYSC_MODE_5] = { 4, 6, 7 },
-	[SH_KEYSC_MODE_6] = { 5, 7, 7 },
+	[SH_KEYSC_MODE_6] = { 5, 8, 8 },
 };
 
 struct sh_keysc_priv {
@@ -291,7 +291,7 @@ static int __devexit sh_keysc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#if CONFIG_PM_SLEEP
+#ifdef CONFIG_PM_SLEEP
 static int sh_keysc_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);

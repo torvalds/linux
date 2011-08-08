@@ -41,7 +41,7 @@ struct s3c2410_dma_chan *s3c_dma_lookup_channel(unsigned int channel)
  * irq?
 */
 
-int s3c2410_dma_set_opfn(unsigned int channel, s3c2410_dma_opfn_t rtn)
+int s3c2410_dma_set_opfn(enum dma_ch channel, s3c2410_dma_opfn_t rtn)
 {
 	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
 
@@ -56,7 +56,7 @@ int s3c2410_dma_set_opfn(unsigned int channel, s3c2410_dma_opfn_t rtn)
 }
 EXPORT_SYMBOL(s3c2410_dma_set_opfn);
 
-int s3c2410_dma_set_buffdone_fn(unsigned int channel, s3c2410_dma_cbfn_t rtn)
+int s3c2410_dma_set_buffdone_fn(enum dma_ch channel, s3c2410_dma_cbfn_t rtn)
 {
 	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
 
@@ -71,7 +71,7 @@ int s3c2410_dma_set_buffdone_fn(unsigned int channel, s3c2410_dma_cbfn_t rtn)
 }
 EXPORT_SYMBOL(s3c2410_dma_set_buffdone_fn);
 
-int s3c2410_dma_setflags(unsigned int channel, unsigned int flags)
+int s3c2410_dma_setflags(enum dma_ch channel, unsigned int flags)
 {
 	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
 

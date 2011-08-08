@@ -71,7 +71,6 @@ void r4k_wait_irqoff(void)
 	local_irq_enable();
 	__asm__(" 	.globl __pastwait	\n"
 		"__pastwait:			\n");
-	return;
 }
 
 /*

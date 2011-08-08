@@ -26,23 +26,48 @@
 #include <linux/mfd/ab8500/gpio.h>
 #include <linux/leds-lp5521.h>
 #include <linux/input.h>
+#include <linux/smsc911x.h>
 #include <linux/gpio_keys.h>
+#include <linux/delay.h>
 
+#include <linux/leds.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
 #include <plat/i2c.h>
 #include <plat/ste_dma40.h>
+#include <plat/pincfg.h>
 
 #include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
 #include <mach/irqs.h>
 
+#include "pins-db8500.h"
 #include "ste-dma40-db8500.h"
 #include "devices-db8500.h"
 #include "board-mop500.h"
 #include "board-mop500-regulators.h"
+
+static struct gpio_led snowball_led_array[] = {
+	{
+		.name = "user_led",
+		.default_trigger = "none",
+		.gpio = 142,
+	},
+};
+
+static struct gpio_led_platform_data snowball_led_data = {
+	.leds = snowball_led_array,
+	.num_leds = ARRAY_SIZE(snowball_led_array),
+};
+
+static struct platform_device snowball_led_dev = {
+	.name = "leds-gpio",
+	.dev = {
+		.platform_data = &snowball_led_data,
+	},
+};
 
 static struct ab8500_gpio_platform_data ab8500_gpio_pdata = {
 	.gpio_base		= MOP500_AB8500_GPIO(0),
@@ -64,6 +89,97 @@ static struct ab8500_gpio_platform_data ab8500_gpio_pdata = {
 	 */
 	.config_reg		= {0x00, 0x1E, 0x80, 0x01,
 					0x7A, 0x00, 0x00},
+};
+
+static struct gpio_keys_button snowball_key_array[] = {
+	{
+		.gpio           = 32,
+		.type           = EV_KEY,
+		.code           = KEY_1,
+		.desc           = "userpb",
+		.active_low     = 1,
+		.debounce_interval = 50,
+		.wakeup         = 1,
+	},
+	{
+		.gpio           = 151,
+		.type           = EV_KEY,
+		.code           = KEY_2,
+		.desc           = "extkb1",
+		.active_low     = 1,
+		.debounce_interval = 50,
+		.wakeup         = 1,
+	},
+	{
+		.gpio           = 152,
+		.type           = EV_KEY,
+		.code           = KEY_3,
+		.desc           = "extkb2",
+		.active_low     = 1,
+		.debounce_interval = 50,
+		.wakeup         = 1,
+	},
+	{
+		.gpio           = 161,
+		.type           = EV_KEY,
+		.code           = KEY_4,
+		.desc           = "extkb3",
+		.active_low     = 1,
+		.debounce_interval = 50,
+		.wakeup         = 1,
+	},
+	{
+		.gpio           = 162,
+		.type           = EV_KEY,
+		.code           = KEY_5,
+		.desc           = "extkb4",
+		.active_low     = 1,
+		.debounce_interval = 50,
+		.wakeup         = 1,
+	},
+};
+
+static struct gpio_keys_platform_data snowball_key_data = {
+	.buttons        = snowball_key_array,
+	.nbuttons       = ARRAY_SIZE(snowball_key_array),
+};
+
+static struct platform_device snowball_key_dev = {
+	.name           = "gpio-keys",
+	.id             = -1,
+	.dev            = {
+		.platform_data  = &snowball_key_data,
+	}
+};
+
+static struct smsc911x_platform_config snowball_sbnet_cfg = {
+	.irq_polarity = SMSC911X_IRQ_POLARITY_ACTIVE_HIGH,
+	.irq_type = SMSC911X_IRQ_TYPE_PUSH_PULL,
+	.flags = SMSC911X_USE_16BIT | SMSC911X_FORCE_INTERNAL_PHY,
+	.shift = 1,
+};
+
+static struct resource sbnet_res[] = {
+	{
+		.name = "smsc911x-memory",
+		.start = (0x5000 << 16),
+		.end  =  (0x5000 << 16) + 0xffff,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = NOMADIK_GPIO_TO_IRQ(140),
+		.end = NOMADIK_GPIO_TO_IRQ(140),
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
+	},
+};
+
+static struct platform_device snowball_sbnet_dev = {
+	.name           = "smsc911x",
+	.num_resources  = ARRAY_SIZE(sbnet_res),
+	.resource       = sbnet_res,
+	.dev            = {
+		.platform_data = &snowball_sbnet_cfg,
+	},
 };
 
 static struct ab8500_platform_data ab8500_platdata = {
@@ -292,8 +408,9 @@ static void mop500_prox_deactivate(struct device *dev)
 }
 
 /* add any platform devices here - TODO */
-static struct platform_device *platform_devs[] __initdata = {
+static struct platform_device *mop500_platform_devs[] __initdata = {
 	&mop500_gpio_keys_device,
+	&ab8500_device,
 };
 
 #ifdef CONFIG_STE_DMA40
@@ -393,12 +510,63 @@ static struct stedma40_chan_cfg uart2_dma_cfg_tx = {
 };
 #endif
 
+
+static pin_cfg_t mop500_pins_uart0[] = {
+	GPIO0_U0_CTSn   | PIN_INPUT_PULLUP,
+	GPIO1_U0_RTSn   | PIN_OUTPUT_HIGH,
+	GPIO2_U0_RXD    | PIN_INPUT_PULLUP,
+	GPIO3_U0_TXD    | PIN_OUTPUT_HIGH,
+};
+
+#define PRCC_K_SOFTRST_SET      0x18
+#define PRCC_K_SOFTRST_CLEAR    0x1C
+static void ux500_uart0_reset(void)
+{
+	void __iomem *prcc_rst_set, *prcc_rst_clr;
+
+	prcc_rst_set = (void __iomem *)IO_ADDRESS(U8500_CLKRST1_BASE +
+			PRCC_K_SOFTRST_SET);
+	prcc_rst_clr = (void __iomem *)IO_ADDRESS(U8500_CLKRST1_BASE +
+			PRCC_K_SOFTRST_CLEAR);
+
+	/* Activate soft reset PRCC_K_SOFTRST_CLEAR */
+	writel((readl(prcc_rst_clr) | 0x1), prcc_rst_clr);
+	udelay(1);
+
+	/* Release soft reset PRCC_K_SOFTRST_SET */
+	writel((readl(prcc_rst_set) | 0x1), prcc_rst_set);
+	udelay(1);
+}
+
+static void ux500_uart0_init(void)
+{
+	int ret;
+
+	ret = nmk_config_pins(mop500_pins_uart0,
+			ARRAY_SIZE(mop500_pins_uart0));
+	if (ret < 0)
+		pr_err("pl011: uart pins_enable failed\n");
+}
+
+static void ux500_uart0_exit(void)
+{
+	int ret;
+
+	ret = nmk_config_pins_sleep(mop500_pins_uart0,
+			ARRAY_SIZE(mop500_pins_uart0));
+	if (ret < 0)
+		pr_err("pl011: uart pins_disable failed\n");
+}
+
 static struct amba_pl011_data uart0_plat = {
 #ifdef CONFIG_STE_DMA40
 	.dma_filter = stedma40_filter,
 	.dma_rx_param = &uart0_dma_cfg_rx,
 	.dma_tx_param = &uart0_dma_cfg_tx,
 #endif
+	.init = ux500_uart0_init,
+	.exit = ux500_uart0_exit,
+	.reset = ux500_uart0_reset,
 };
 
 static struct amba_pl011_data uart1_plat = {
@@ -424,6 +592,13 @@ static void __init mop500_uart_init(void)
 	db8500_add_uart2(&uart2_plat);
 }
 
+static struct platform_device *snowball_platform_devs[] __initdata = {
+	&snowball_led_dev,
+	&snowball_key_dev,
+	&snowball_sbnet_dev,
+	&ab8500_device,
+};
+
 static void __init mop500_init_machine(void)
 {
 	int i2c0_devs;
@@ -433,23 +608,28 @@ static void __init mop500_init_machine(void)
 	 * all these GPIO pins to the internal GPIO controller
 	 * instead.
 	 */
-	if (machine_is_hrefv60())
-		mop500_gpio_keys[0].gpio = HREFV60_PROX_SENSE_GPIO;
-	else
-		mop500_gpio_keys[0].gpio = GPIO_PROX_SENSOR;
+	if (!machine_is_snowball()) {
+		if (machine_is_hrefv60())
+			mop500_gpio_keys[0].gpio = HREFV60_PROX_SENSE_GPIO;
+		else
+			mop500_gpio_keys[0].gpio = GPIO_PROX_SENSOR;
+	}
 
 	u8500_init_devices();
 
 	mop500_pins_init();
 
-	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
+	if (machine_is_snowball())
+		platform_add_devices(snowball_platform_devs,
+					ARRAY_SIZE(snowball_platform_devs));
+	else
+		platform_add_devices(mop500_platform_devs,
+					ARRAY_SIZE(mop500_platform_devs));
 
 	mop500_i2c_init();
 	mop500_sdi_init();
 	mop500_spi_init();
 	mop500_uart_init();
-
-	platform_device_register(&ab8500_device);
 
 	i2c0_devs = ARRAY_SIZE(mop500_i2c0_devices);
 	if (machine_is_hrefv60())
@@ -458,6 +638,9 @@ static void __init mop500_init_machine(void)
 	i2c_register_board_info(0, mop500_i2c0_devices, i2c0_devs);
 	i2c_register_board_info(2, mop500_i2c2_devices,
 				ARRAY_SIZE(mop500_i2c2_devices));
+
+	/* This board has full regulator constraints */
+	regulator_has_full_constraints();
 }
 
 MACHINE_START(U8500, "ST-Ericsson MOP500 platform")
@@ -474,6 +657,15 @@ MACHINE_START(HREFV60, "ST-Ericsson U8500 Platform HREFv60+")
 	.boot_params	= 0x100,
 	.map_io		= u8500_map_io,
 	.init_irq	= ux500_init_irq,
+	.timer		= &ux500_timer,
+	.init_machine	= mop500_init_machine,
+MACHINE_END
+
+MACHINE_START(SNOWBALL, "Calao Systems Snowball platform")
+	.boot_params	= 0x100,
+	.map_io		= u8500_map_io,
+	.init_irq	= ux500_init_irq,
+	/* we re-use nomadik timer here */
 	.timer		= &ux500_timer,
 	.init_machine	= mop500_init_machine,
 MACHINE_END

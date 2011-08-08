@@ -361,7 +361,7 @@ enum qeth_header_ids {
 
 static inline int qeth_is_last_sbale(struct qdio_buffer_element *sbale)
 {
-	return (sbale->flags & SBAL_FLAGS_LAST_ENTRY);
+	return (sbale->eflags & SBAL_EFLAGS_LAST_ENTRY);
 }
 
 enum qeth_qdio_buffer_states {
@@ -720,7 +720,7 @@ struct qeth_card {
 	wait_queue_head_t wait_q;
 	spinlock_t vlanlock;
 	spinlock_t mclock;
-	struct vlan_group *vlangrp;
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	struct list_head vid_list;
 	struct list_head mc_list;
 	struct work_struct kernel_thread_starter;

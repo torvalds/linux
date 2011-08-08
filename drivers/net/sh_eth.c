@@ -33,7 +33,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/ethtool.h>
-#include <asm/cacheflush.h>
 
 #include "sh_eth.h"
 
@@ -140,6 +139,8 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.tpauser	= 1,
 	.hw_swap	= 1,
 	.no_ade		= 1,
+	.rpadir		= 1,
+	.rpadir_value   = 2 << 16,
 };
 
 #define SH_GIGA_ETH_BASE	0xfee00000
@@ -864,6 +865,8 @@ static int sh_eth_txfree(struct net_device *ndev)
 			break;
 		/* Free the original skb. */
 		if (mdp->tx_skbuff[entry]) {
+			dma_unmap_single(&ndev->dev, txdesc->addr,
+					 txdesc->buffer_length, DMA_TO_DEVICE);
 			dev_kfree_skb_irq(mdp->tx_skbuff[entry]);
 			mdp->tx_skbuff[entry] = NULL;
 			freeNum++;
@@ -1184,8 +1187,8 @@ static void sh_eth_adjust_link(struct net_device *ndev)
 				mdp->cd->set_rate(ndev);
 		}
 		if (mdp->link == PHY_DOWN) {
-			sh_eth_write(ndev, (sh_eth_read(ndev, ECMR) & ~ECMR_TXF)
-					| ECMR_DM, ECMR);
+			sh_eth_write(ndev,
+				(sh_eth_read(ndev, ECMR) & ~ECMR_TXF), ECMR);
 			new_state = 1;
 			mdp->link = phydev->link;
 		}
@@ -1487,13 +1490,12 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	entry = mdp->cur_tx % TX_RING_SIZE;
 	mdp->tx_skbuff[entry] = skb;
 	txdesc = &mdp->tx_ring[entry];
-	txdesc->addr = virt_to_phys(skb->data);
 	/* soft swap. */
 	if (!mdp->cd->hw_swap)
 		sh_eth_soft_swap(phys_to_virt(ALIGN(txdesc->addr, 4)),
 				 skb->len + 2);
-	/* write back */
-	__flush_purge_region(skb->data, skb->len);
+	txdesc->addr = dma_map_single(&ndev->dev, skb->data, skb->len,
+				      DMA_TO_DEVICE);
 	if (skb->len < ETHERSMALL)
 		txdesc->buffer_length = ETHERSMALL;
 	else
@@ -1770,7 +1772,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	int ret, devno = 0;
 	struct resource *res;
 	struct net_device *ndev = NULL;
-	struct sh_eth_private *mdp;
+	struct sh_eth_private *mdp = NULL;
 	struct sh_eth_plat_data *pd;
 
 	/* get base addr */
@@ -1888,7 +1890,7 @@ out_unregister:
 
 out_release:
 	/* net_dev free */
-	if (mdp->tsu_addr)
+	if (mdp && mdp->tsu_addr)
 		iounmap(mdp->tsu_addr);
 	if (ndev)
 		free_netdev(ndev);

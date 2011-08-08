@@ -84,32 +84,42 @@ static ssize_t overlay_manager_store(struct omap_overlay *ovl, const char *buf,
 
 	old_mgr = ovl->manager;
 
+	r = dispc_runtime_get();
+	if (r)
+		return r;
+
 	/* detach old manager */
 	if (old_mgr) {
 		r = ovl->unset_manager(ovl);
 		if (r) {
 			DSSERR("detach failed\n");
-			return r;
+			goto err;
 		}
 
 		r = old_mgr->apply(old_mgr);
 		if (r)
-			return r;
+			goto err;
 	}
 
 	if (mgr) {
 		r = ovl->set_manager(ovl, mgr);
 		if (r) {
 			DSSERR("Failed to attach overlay\n");
-			return r;
+			goto err;
 		}
 
 		r = mgr->apply(mgr);
 		if (r)
-			return r;
+			goto err;
 	}
 
+	dispc_runtime_put();
+
 	return size;
+
+err:
+	dispc_runtime_put();
+	return r;
 }
 
 static ssize_t overlay_input_size_show(struct omap_overlay *ovl, char *buf)
@@ -237,6 +247,9 @@ static ssize_t overlay_global_alpha_store(struct omap_overlay *ovl,
 	int r;
 	u8 alpha;
 	struct omap_overlay_info info;
+
+	if (!dss_has_feature(FEAT_GLOBAL_ALPHA))
+		return -ENODEV;
 
 	r = kstrtou8(buf, 0, &alpha);
 	if (r)
@@ -504,7 +517,6 @@ static int omap_dss_set_manager(struct omap_overlay *ovl,
 
 	ovl->manager = mgr;
 
-	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 	/* XXX: When there is an overlay on a DSI manual update display, and
 	 * the overlay is first disabled, then moved to tv, and enabled, we
 	 * seem to get SYNC_LOST_DIGIT error.
@@ -518,7 +530,6 @@ static int omap_dss_set_manager(struct omap_overlay *ovl,
 	 * the overlay, but before moving the overlay to TV.
 	 */
 	dispc_set_channel_out(ovl->id, mgr->id);
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	return 0;
 }
@@ -719,6 +730,8 @@ void dss_recheck_connections(struct omap_dss_device *dssdev, bool force)
 	}
 
 	if (mgr) {
+		dispc_runtime_get();
+
 		for (i = 0; i < dss_feat_get_num_ovls(); i++) {
 			struct omap_overlay *ovl;
 			ovl = omap_dss_get_overlay(i);
@@ -728,6 +741,8 @@ void dss_recheck_connections(struct omap_dss_device *dssdev, bool force)
 				omap_dss_set_manager(ovl, mgr);
 			}
 		}
+
+		dispc_runtime_put();
 	}
 }
 

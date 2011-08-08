@@ -243,6 +243,8 @@ core_param(mx31lilly_baseboard, mx31lilly_baseboard, int, 0444);
 
 static void __init mx31lilly_board_init(void)
 {
+	imx31_soc_init();
+
 	switch (mx31lilly_baseboard) {
 	case MX31LILLY_NOBOARD:
 		break;

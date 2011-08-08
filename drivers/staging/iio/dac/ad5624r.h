@@ -53,7 +53,6 @@ struct ad5624r_chip_info {
  */
 
 struct ad5624r_state {
-	struct iio_dev			*indio_dev;
 	struct spi_device		*us;
 	const struct ad5624r_chip_info	*chip_info;
 	struct regulator		*reg;
