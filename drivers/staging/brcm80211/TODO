@@ -4,10 +4,6 @@ Bugs
 ====
 - none known at this moment
 
-brcmfmac
-=====================
-- ASSERTS deprecated in mainline, replace by warning + error handling
-
 brcm80211 info page
 =====================
 http://linuxwireless.org/en/users/Drivers/brcm80211
