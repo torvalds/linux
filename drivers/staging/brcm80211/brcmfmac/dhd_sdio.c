@@ -444,8 +444,6 @@ struct rte_console {
 	(((prio) == PRIO_8021D_NONE || (prio) == PRIO_8021D_BE) ? \
 	((prio^2)) : (prio))
 
-BRCMF_SPINWAIT_SLEEP_INIT(sdioh_spinwait_sleep);
-
 /*
  * Core reg address translation.
  * Both macro's returns a 32 bits byte address on the backplane bus.
@@ -1033,6 +1031,7 @@ static int brcmf_sdbrcm_htclk(struct brcmf_bus *bus, bool on, bool pendok)
 	int err;
 	u8 clkctl, clkreq, devctl;
 	struct brcmf_sdio_card *card;
+	unsigned long timeout;
 
 	BRCMF_TRACE(("%s: Enter\n", __func__));
 
@@ -1102,14 +1101,16 @@ static int brcmf_sdbrcm_htclk(struct brcmf_bus *bus, bool on, bool pendok)
 		}
 
 		/* Otherwise, wait here (polling) for HT Avail */
-		if (!SBSDIO_CLKAV(clkctl, bus->alp_only)) {
-			BRCMF_SPINWAIT_SLEEP(sdioh_spinwait_sleep,
-			       ((clkctl =
-				 brcmf_sdcard_cfg_read(card, SDIO_FUNC_1,
-					 SBSDIO_FUNC1_CHIPCLKCSR,
-						 &err)),
-				!SBSDIO_CLKAV(clkctl, bus->alp_only)),
-			       PMU_MAX_TRANSITION_DLY);
+		timeout = jiffies +
+			  msecs_to_jiffies(PMU_MAX_TRANSITION_DLY/1000);
+		while (!SBSDIO_CLKAV(clkctl, bus->alp_only)) {
+			clkctl = brcmf_sdcard_cfg_read(card, SDIO_FUNC_1,
+						       SBSDIO_FUNC1_CHIPCLKCSR,
+						       &err);
+			if (time_after(jiffies, timeout))
+				break;
+			else
+				usleep_range(5000, 10000);
 		}
 		if (err) {
 			BRCMF_ERROR(("%s: HT Avail request error: %d\n",

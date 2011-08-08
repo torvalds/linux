@@ -619,28 +619,6 @@ struct bcmevent_name {
 	const char *name;
 };
 
-#if defined(CONFIG_PM_SLEEP)
-#define BRCMF_SPINWAIT_SLEEP_INIT(a) DECLARE_WAIT_QUEUE_HEAD(a);
-#define BRCMF_SPINWAIT_SLEEP(a, exp, us) do { \
-		uint countdown = (us) + 9999; \
-		while ((exp) && (countdown >= 10000)) { \
-			wait_event_timeout(a, false, HZ/100); \
-			countdown -= 10000; \
-		} \
-	} while (0)
-
-#else
-#define BRCMF_SPINWAIT_SLEEP_INIT(a)
-#define BRCMF_SPINWAIT_SLEEP(a, exp, us)  do { \
-		uint countdown = (us) + 9; \
-		while ((exp) && (countdown >= 10)) { \
-			udelay(10);  \
-			countdown -= 10;  \
-		} \
-	} while (0)
-
-#endif	/* defined(CONFIG_PM_SLEEP) */
-
 /*
  * Insmod parameters for debug/test
  */
