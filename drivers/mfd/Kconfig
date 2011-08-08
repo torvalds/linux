@@ -500,6 +500,7 @@ config MFD_WM8994
 config MFD_PCF50633
 	tristate "Support for NXP PCF50633"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  Say yes here if you have NXP PCF50633 chip on your board.
 	  This core driver provides register access and IRQ handling

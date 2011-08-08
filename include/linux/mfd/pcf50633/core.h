@@ -21,6 +21,7 @@
 #include <linux/mfd/pcf50633/backlight.h>
 
 struct pcf50633;
+struct regmap;
 
 #define PCF50633_NUM_REGULATORS	11
 
@@ -134,7 +135,7 @@ enum {
 
 struct pcf50633 {
 	struct device *dev;
-	struct i2c_client *i2c_client;
+	struct regmap *regmap;
 
 	struct pcf50633_platform_data *pdata;
 	int irq;
