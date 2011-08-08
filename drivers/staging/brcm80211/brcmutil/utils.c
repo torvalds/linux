@@ -219,7 +219,7 @@ EXPORT_SYMBOL(brcmu_pktq_pdeq_tail);
 
 void
 brcmu_pktq_pflush(struct pktq *pq, int prec, bool dir,
-	    ifpkt_cb_t fn, void *arg)
+		  bool (*fn)(struct sk_buff *, void *), void *arg)
 {
 	struct pktq_prec *q;
 	struct sk_buff *p, *prev = NULL;
@@ -251,7 +251,7 @@ brcmu_pktq_pflush(struct pktq *pq, int prec, bool dir,
 EXPORT_SYMBOL(brcmu_pktq_pflush);
 
 void brcmu_pktq_flush(struct pktq *pq, bool dir,
-		ifpkt_cb_t fn, void *arg)
+		      bool (*fn)(struct sk_buff *, void *), void *arg)
 {
 	int prec;
 	for (prec = 0; prec < pq->num_prec; prec++)

@@ -72,9 +72,6 @@ struct pktq {
 	struct pktq_prec q[PKTQ_MAX_PREC];
 };
 
-/* fn(pkt, arg).  return true if pkt belongs to if */
-typedef bool(*ifpkt_cb_t) (struct sk_buff *, void *);
-
 /* operations on a specific precedence in packet queue */
 
 #define pktq_psetmax(pq, prec, _max)    ((pq)->q[prec].max = (_max))
@@ -98,8 +95,9 @@ extern struct sk_buff *brcmu_pkt_buf_get_skb(uint len);
 extern void brcmu_pkt_buf_free_skb(struct sk_buff *skb);
 
 /* Empty the queue at particular precedence level */
+/* callback function fn(pkt, arg) returns true if pkt belongs to if */
 extern void brcmu_pktq_pflush(struct pktq *pq, int prec,
-	bool dir, ifpkt_cb_t fn, void *arg);
+	bool dir, bool (*fn)(struct sk_buff *, void *), void *arg);
 
 /* operations on a set of precedences in packet queue */
 
@@ -127,7 +125,7 @@ extern void brcmu_pktq_init(struct pktq *pq, int num_prec, int max_len);
 /* prec_out may be NULL if caller is not interested in return value */
 extern struct sk_buff *brcmu_pktq_peek_tail(struct pktq *pq, int *prec_out);
 extern void brcmu_pktq_flush(struct pktq *pq, bool dir,
-	ifpkt_cb_t fn, void *arg);
+		bool (*fn)(struct sk_buff *, void *), void *arg);
 
 /* externs */
 /* packet */
