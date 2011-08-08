@@ -614,9 +614,8 @@ extern void brcms_c_set_ps_ctrl(struct brcms_c_info *wlc);
 extern void brcms_c_mctrl(struct brcms_c_info *wlc, u32 mask, u32 val);
 
 extern int brcms_c_module_register(struct brcms_pub *pub,
-			       const char *name, void *hdl,
-			       int (*watchdog_fn)(void *handle),
-			       int (*down_fn)(void *handle));
+				   const char *name, void *hdl,
+				   int (*down_fn)(void *handle));
 
 extern int brcms_c_module_unregister(struct brcms_pub *pub, const char *name,
 				 void *hdl);

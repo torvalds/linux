@@ -61,8 +61,6 @@ static void _brcms_timer(struct brcms_timer *t);
 static int ieee_hw_init(struct ieee80211_hw *hw);
 static int ieee_hw_rate_init(struct ieee80211_hw *hw);
 
-static int wl_linux_watchdog(void *ctx);
-
 /* Flags we support */
 #define MAC_FILTERS (FIF_PROMISC_IN_BSS | \
 	FIF_ALLMULTI | \
@@ -828,7 +826,7 @@ static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 	wl->irq = irq;
 
 	/* register module */
-	brcms_c_module_register(wl->pub, "linux", wl, wl_linux_watchdog, NULL);
+	brcms_c_module_register(wl->pub, "linux", wl, NULL);
 
 	if (ieee_hw_init(hw)) {
 		wiphy_err(wl->wiphy, "wl%d: %s: ieee_hw_init failed!\n", unit,
@@ -1699,16 +1697,6 @@ void brcms_free_timer(struct brcms_info *wl, struct brcms_timer *t)
 		tmp = tmp->next;
 	}
 
-}
-
-/*
- * runs in software irq context
- *
- * precondition: perimeter lock is not acquired
- */
-static int wl_linux_watchdog(void *ctx)
-{
-	return 0;
 }
 
 struct firmware_hdr {

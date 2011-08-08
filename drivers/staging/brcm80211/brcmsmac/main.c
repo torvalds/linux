@@ -5374,12 +5374,6 @@ static void brcms_c_watchdog(void *arg)
 			cfg->tk_cm_bt--;
 	END_FOREACH_BSS()
 
-	/* Call any registered watchdog handlers */
-	for (i = 0; i < BRCMS_MAXMODULES; i++) {
-		if (wlc->modulecb[i].watchdog_fn)
-			wlc->modulecb[i].watchdog_fn(wlc->modulecb[i].hdl);
-	}
-
 	if (BRCMS_ISNPHY(wlc->band) && !wlc->pub->tempsense_disable &&
 	    ((wlc->pub->now - wlc->tempsense_lasttime) >=
 	     BRCMS_TEMPSENSE_PERIOD)) {
@@ -6325,8 +6319,8 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
  * register watchdog and down handlers.
  */
 int brcms_c_module_register(struct brcms_pub *pub,
-		const char *name, void *hdl,
-		int (*w_fn)(void *handle), int (*d_fn)(void *handle))
+			    const char *name, void *hdl,
+			    int (*d_fn)(void *handle))
 {
 	struct brcms_c_info *wlc = (struct brcms_c_info *) pub->wlc;
 	int i;
@@ -6337,7 +6331,6 @@ int brcms_c_module_register(struct brcms_pub *pub,
 			strncpy(wlc->modulecb[i].name, name,
 				sizeof(wlc->modulecb[i].name) - 1);
 			wlc->modulecb[i].hdl = hdl;
-			wlc->modulecb[i].watchdog_fn = w_fn;
 			wlc->modulecb[i].down_fn = d_fn;
 			return 0;
 		}

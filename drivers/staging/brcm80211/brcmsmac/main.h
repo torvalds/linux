@@ -462,8 +462,6 @@ struct modulecb {
 	const struct brcmu_iovar *iovars;
 	/* handle passed when handler 'doiovar' is called */
 	void *hdl;
-	/* watchdog handler */
-	int (*watchdog_fn)(void *handle);
 
 	/* IOVar handler
 	 *
