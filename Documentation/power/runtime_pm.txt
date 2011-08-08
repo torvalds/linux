@@ -484,6 +484,7 @@ pm_runtime_resume()
 pm_runtime_get_sync()
 pm_runtime_put_sync()
 pm_runtime_put_sync_suspend()
+pm_runtime_put_sync_autosuspend()
 
 5. Runtime PM Initialization, Device Probing and Removal
 
