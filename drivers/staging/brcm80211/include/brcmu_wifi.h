@@ -20,8 +20,10 @@
 #include <linux/if_ether.h>		/* for ETH_ALEN */
 #include <linux/ieee80211.h>		/* for WLAN_PMKID_LEN */
 
-/* A chanspec holds the channel number, band, bandwidth and control sideband */
-typedef u16 chanspec_t;
+/*
+ * A chanspec (u16) holds the channel number, band, bandwidth and control
+ * sideband
+ */
 
 /* channel defines */
 #define CH_UPPER_SB			0x01
@@ -69,12 +71,12 @@ typedef u16 chanspec_t;
 				((channel) + CH_10MHZ_APART) : 0)
 #define CHSPEC_BANDUNIT(chspec)	(CHSPEC_IS5G(chspec) ? BAND_5G_INDEX : \
 						       BAND_2G_INDEX)
-#define CH20MHZ_CHSPEC(channel)	(chanspec_t)((chanspec_t)(channel) | WL_CHANSPEC_BW_20 | \
+#define CH20MHZ_CHSPEC(channel)	(u16)((u16)(channel) | WL_CHANSPEC_BW_20 | \
 				WL_CHANSPEC_CTL_SB_NONE | (((channel) <= CH_MAX_2G_CHANNEL) ? \
 				WL_CHANSPEC_BAND_2G : WL_CHANSPEC_BAND_5G))
 #define NEXT_20MHZ_CHAN(channel)	(((channel) < (MAXCHANNEL - CH_20MHZ_APART)) ? \
 					((channel) + CH_20MHZ_APART) : 0)
-#define CH40MHZ_CHSPEC(channel, ctlsb)	(chanspec_t) \
+#define CH40MHZ_CHSPEC(channel, ctlsb)	(u16) \
 					((channel) | (ctlsb) | WL_CHANSPEC_BW_40 | \
 					((channel) <= CH_MAX_2G_CHANNEL ? WL_CHANSPEC_BAND_2G : \
 					WL_CHANSPEC_BAND_5G))
@@ -142,14 +144,14 @@ typedef u16 chanspec_t;
  * combination could be legal given any set of circumstances.
  * RETURNS: true is the chanspec is malformed, false if it looks good.
  */
-extern bool brcmu_chspec_malformed(chanspec_t chanspec);
+extern bool brcmu_chspec_malformed(u16 chanspec);
 
 /*
  * This function returns the channel number that control traffic is being sent on, for legacy
  * channels this is just the channel number, for 40MHZ channels it is the upper or lowre 20MHZ
  * sideband depending on the chanspec selected
  */
-extern u8 brcmu_chspec_ctlchan(chanspec_t chspec);
+extern u8 brcmu_chspec_ctlchan(u16 chspec);
 
 /*
  * Return the channel number for a given frequency and base frequency.
@@ -218,26 +220,24 @@ extern int brcmu_mhz2channel(uint freq, uint start_factor);
 #define HT_CAP_RX_STBC_NO		0x0
 #define HT_CAP_RX_STBC_ONE_STREAM	0x1
 
-typedef struct _pmkid {
+struct pmkid {
 	u8 BSSID[ETH_ALEN];
 	u8 PMKID[WLAN_PMKID_LEN];
-} pmkid_t;
+};
 
-typedef struct _pmkid_list {
+struct pmkid_list {
 	u32 npmkid;
-	pmkid_t pmkid[1];
-} pmkid_list_t;
+	struct pmkid pmkid[1];
+};
 
-typedef struct _pmkid_cand {
+struct pmkid_cand {
 	u8 BSSID[ETH_ALEN];
 	u8 preauth;
-} pmkid_cand_t;
+};
 
-typedef struct _pmkid_cand_list {
+struct pmkid_cand_list {
 	u32 npmkid_cand;
-	pmkid_cand_t pmkid_cand[1];
-} pmkid_cand_list_t;
-
-typedef u8 ac_bitmap_t;
+	struct pmkid_cand pmkid_cand[1];
+};
 
 #endif				/* _BRCMU_WIFI_H_ */

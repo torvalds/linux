@@ -171,7 +171,7 @@ struct brcms_bss_info {
 	s16 SNR;		/* receive signal SNR in dB */
 	u16 beacon_period;	/* units are Kusec */
 	u16 atim_window;	/* units are Kusec */
-	chanspec_t chanspec;	/* Channel num, bw, ctrl_sb and band */
+	u16 chanspec;	/* Channel num, bw, ctrl_sb and band */
 	s8 infra;		/* 0=IBSS, 1=infrastructure, 2=unknown */
 	wlc_rateset_t rateset;	/* supported rates */
 	u8 dtim_period;	/* DTIM period */
@@ -265,7 +265,7 @@ struct brcms_pub {
 
 	int bcmerror;		/* last bcm error */
 
-	mbool radio_disabled;	/* bit vector for radio disabled reasons */
+	u32 radio_disabled;	/* bit vector for radio disabled reasons */
 	bool radio_active;	/* radio on/off state */
 	u16 roam_time_thresh;	/* Max. # secs. of not hearing beacons
 					 * before roaming.

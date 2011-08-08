@@ -98,8 +98,8 @@ struct locale_mimo_info {
 	u8 flags;
 };
 
-extern const chanvec_t chanvec_all_2G;
-extern const chanvec_t chanvec_all_5G;
+extern const struct brcms_chanvec chanvec_all_2G;
+extern const struct brcms_chanvec chanvec_all_5G;
 
 /*
  * Country names and abbreviations with locale defined from ISO 3166
@@ -120,13 +120,13 @@ extern u8 brcms_c_channel_locale_flags_in_band(struct brcms_cm_info *wlc_cm,
 					   uint bandunit);
 
 extern bool brcms_c_valid_chanspec_db(struct brcms_cm_info *wlc_cm,
-				      chanspec_t chspec);
+				      u16 chspec);
 
 extern void brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm,
-				   chanspec_t chanspec,
+				   u16 chanspec,
 				   struct txpwr_limits *txpwr);
 extern void brcms_c_channel_set_chanspec(struct brcms_cm_info *wlc_cm,
-				     chanspec_t chanspec,
+				     u16 chanspec,
 				     u8 local_constraint_qdbm);
 
 #endif				/* _WLC_CHANNEL_H */

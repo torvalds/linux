@@ -272,8 +272,8 @@ struct brcmf_cfg80211_assoc_ielen {
 
 /* wpa2 pmk list */
 struct brcmf_cfg80211_pmk_list {
-	pmkid_list_t pmkids;
-	pmkid_t foo[MAXPMKID - 1];
+	struct pmkid_list pmkids;
+	struct pmkid foo[MAXPMKID - 1];
 };
 
 /* dongle private data of cfg80211 interface */

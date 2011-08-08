@@ -21,7 +21,7 @@
  * combination could be legal given any set of circumstances.
  * RETURNS: true is the chanspec is malformed, false if it looks good.
  */
-bool brcmu_chspec_malformed(chanspec_t chanspec)
+bool brcmu_chspec_malformed(u16 chanspec)
 {
 	/* must be 2G or 5G band */
 	if (!CHSPEC_IS5G(chanspec) && !CHSPEC_IS2G(chanspec))
@@ -48,7 +48,7 @@ EXPORT_SYMBOL(brcmu_chspec_malformed);
  * channels this is just the channel number, for 40MHZ channels it is the upper or lowre 20MHZ
  * sideband depending on the chanspec selected
  */
-u8 brcmu_chspec_ctlchan(chanspec_t chspec)
+u8 brcmu_chspec_ctlchan(u16 chspec)
 {
 	u8 ctl_chan;
 

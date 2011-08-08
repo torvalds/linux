@@ -111,7 +111,7 @@ extern const struct brcms_mcs_info mcs_table[];
 #define PLCP3_STC_MASK          0x30
 #define PLCP3_STC_SHIFT         4
 
-/* Rate info table; takes a legacy rate or ratespec_t */
+/* Rate info table; takes a legacy rate or u32 */
 #define	IS_MCS(r)	(r & RSPEC_MIMORATE)
 #define	IS_OFDM(r)	(!IS_MCS(r) && (rate_info[(r) & RSPEC_RATE_MASK] & \
 					BRCMS_RATE_FLAG))
@@ -150,7 +150,7 @@ extern void brcms_c_rateset_copy(const struct brcms_rateset *src,
 			     struct brcms_rateset *dst);
 
 /* would be nice to have these documented ... */
-extern ratespec_t brcms_c_compute_rspec(struct d11rxhdr *rxh, u8 *plcp);
+extern u32 brcms_c_compute_rspec(struct d11rxhdr *rxh, u8 *plcp);
 
 extern void brcms_c_rateset_filter(struct brcms_rateset *src,
 	struct brcms_rateset *dst, bool basic_only, u8 rates, uint xmask,

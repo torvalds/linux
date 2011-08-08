@@ -37,7 +37,7 @@ static void brcms_c_stf_stbc_rx_ht_update(struct brcms_c_info *wlc, int val);
 
 static void _brcms_c_stf_phy_txant_upd(struct brcms_c_info *wlc);
 static u16 _brcms_c_stf_phytxchain_sel(struct brcms_c_info *wlc,
-				       ratespec_t rspec);
+				       u32 rspec);
 
 #define NSTS_1	1
 #define NSTS_2	2
@@ -94,7 +94,7 @@ void brcms_c_tempsense_upd(struct brcms_c_info *wlc)
 
 void
 brcms_c_stf_ss_algo_channel_get(struct brcms_c_info *wlc, u16 *ss_algo_channel,
-			    chanspec_t chanspec)
+			    u16 chanspec)
 {
 	struct tx_power power;
 	u8 siso_mcs_id, cdd_mcs_id, stbc_mcs_id;
@@ -444,7 +444,7 @@ void brcms_c_stf_phy_chain_calc(struct brcms_c_info *wlc)
 }
 
 static u16 _brcms_c_stf_phytxchain_sel(struct brcms_c_info *wlc,
-				       ratespec_t rspec)
+				       u32 rspec)
 {
 	u16 phytxant = wlc->stf->phytxant;
 
@@ -456,12 +456,12 @@ static u16 _brcms_c_stf_phytxchain_sel(struct brcms_c_info *wlc,
 	return phytxant;
 }
 
-u16 brcms_c_stf_phytxchain_sel(struct brcms_c_info *wlc, ratespec_t rspec)
+u16 brcms_c_stf_phytxchain_sel(struct brcms_c_info *wlc, u32 rspec)
 {
 	return _brcms_c_stf_phytxchain_sel(wlc, rspec);
 }
 
-u16 brcms_c_stf_d11hdrs_phyctl_txant(struct brcms_c_info *wlc, ratespec_t rspec)
+u16 brcms_c_stf_d11hdrs_phyctl_txant(struct brcms_c_info *wlc, u32 rspec)
 {
 	u16 phytxant = wlc->stf->phytxant;
 	u16 mask = PHY_TXC_ANT_MASK;

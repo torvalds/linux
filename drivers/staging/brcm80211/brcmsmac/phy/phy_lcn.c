@@ -1008,7 +1008,7 @@ static void wlc_lcnphy_a1(struct brcms_phy *pi, int cal_type,
 static void wlc_lcnphy_tx_iqlo_soft_cal_full(struct brcms_phy *pi);
 
 static void wlc_lcnphy_set_chanspec_tweaks(struct brcms_phy *pi,
-					   chanspec_t chanspec);
+					   u16 chanspec);
 static void wlc_lcnphy_agc_temp_init(struct brcms_phy *pi);
 static void wlc_lcnphy_temp_adj(struct brcms_phy *pi);
 static void wlc_lcnphy_clear_papd_comptable(struct brcms_phy *pi);
@@ -1200,7 +1200,7 @@ wlc_lcnphy_txrx_spur_avoidance_mode(struct brcms_phy *pi, bool enable)
 	wlapi_switch_macfreq(pi->sh->physhim, enable);
 }
 
-void wlc_phy_chanspec_set_lcnphy(struct brcms_phy *pi, chanspec_t chanspec)
+void wlc_phy_chanspec_set_lcnphy(struct brcms_phy *pi, u16 chanspec)
 {
 	u8 channel = CHSPEC_CHANNEL(chanspec);
 
@@ -2714,8 +2714,8 @@ wlc_lcnphy_start_tx_tone(struct brcms_phy *pi, s32 f_kHz, u16 max_val,
 	u8 phy_bw;
 	u16 num_samps, t, k;
 	u32 bw;
-	fixed theta = 0, rot = 0;
-	cs32 tone_samp;
+	s32 theta = 0, rot = 0;
+	struct cs32 tone_samp;
 	u32 data_buf[64];
 	u16 i_samp, q_samp;
 	struct phytbl_info tab;
@@ -3592,7 +3592,7 @@ void wlc_phy_cal_init_lcnphy(struct brcms_phy *pi)
 }
 
 static void
-wlc_lcnphy_set_chanspec_tweaks(struct brcms_phy *pi, chanspec_t chanspec)
+wlc_lcnphy_set_chanspec_tweaks(struct brcms_phy *pi, u16 chanspec)
 {
 	u8 channel = CHSPEC_CHANNEL(chanspec);
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
@@ -4841,7 +4841,7 @@ wlc_lcnphy_radio_2064_channel_tune_4313(struct brcms_phy *pi, u8 channel)
 	const struct chan_info_2064_lcnphy *ci;
 	u8 rfpll_doubler = 0;
 	u8 pll_pwrup, pll_pwrup_ovr;
-	fixed qFxtal, qFref, qFvco, qFcal;
+	s32 qFxtal, qFref, qFvco, qFcal;
 	u8 d15, d16, f16, e44, e45;
 	u32 div_int, div_frac, fvco3, fpfd, fref3, fcal_div;
 	u16 loop_bw, d30, setCount;

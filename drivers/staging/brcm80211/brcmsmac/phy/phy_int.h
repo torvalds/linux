@@ -570,7 +570,7 @@ struct brcms_phy_pub {
 struct phy_func_ptr {
 	void (*init) (struct brcms_phy *);
 	void (*calinit) (struct brcms_phy *);
-	void (*chanset) (struct brcms_phy *, chanspec_t);
+	void (*chanset) (struct brcms_phy *, u16 chanspec);
 	void (*txpwrrecalc) (struct brcms_phy *);
 	int (*longtrn) (struct brcms_phy *, int);
 	void (*txiqccget) (struct brcms_phy *, u16 *, u16 *);
@@ -602,7 +602,7 @@ struct brcms_phy {
 	bool phytest_on;
 	bool ofdm_rateset_war;
 	bool bf_preempt_4306;
-	chanspec_t radio_chanspec;
+	u16 radio_chanspec;
 	u8 antsel_type;
 	u16 bw;
 	u8 txpwr_percent;
@@ -618,7 +618,7 @@ struct brcms_phy {
 	int phynoise_chan_watchdog;
 	bool phynoise_polling;
 	bool disable_percal;
-	mbool measure_hold;
+	u32 measure_hold;
 
 	s16 txpa_2g[PWRTBL_NUM_COEFF];
 	s16 txpa_2g_low_temp[PWRTBL_NUM_COEFF];
@@ -829,11 +829,11 @@ struct brcms_phy {
 	u8 mphase_txcal_cmdidx;
 	u8 mphase_txcal_numcmds;
 	u16 mphase_txcal_bestcoeffs[11];
-	chanspec_t nphy_txiqlocal_chanspec;
-	chanspec_t nphy_iqcal_chanspec_2G;
-	chanspec_t nphy_iqcal_chanspec_5G;
-	chanspec_t nphy_rssical_chanspec_2G;
-	chanspec_t nphy_rssical_chanspec_5G;
+	u16 nphy_txiqlocal_chanspec;
+	u16 nphy_iqcal_chanspec_2G;
+	u16 nphy_iqcal_chanspec_5G;
+	u16 nphy_rssical_chanspec_2G;
+	u16 nphy_rssical_chanspec_5G;
 	struct wlapi_timer *phycal_timer;
 	bool use_int_tx_iqlo_cal_nphy;
 	bool internal_tx_iqlo_cal_tapoff_intpa_nphy;
@@ -926,9 +926,9 @@ struct brcms_phy {
 	struct wiphy *wiphy;
 };
 
-struct _cs32 {
-	fixed q;
-	fixed i;
+struct cs32 {
+	s32 q;
+	s32 i;
 };
 
 struct radio_regs {
@@ -1011,7 +1011,7 @@ extern void wlc_phy_table_data_write(struct brcms_phy *pi, uint width, u32 val);
 extern void write_phy_channel_reg(struct brcms_phy *pi, uint val);
 extern void wlc_phy_txpower_update_shm(struct brcms_phy *pi);
 
-extern void wlc_phy_cordic(fixed theta, cs32 *val);
+extern void wlc_phy_cordic(s32 theta, struct cs32 *val);
 extern u8 wlc_phy_nbits(s32 value);
 extern void wlc_phy_compute_dB(u32 *cmplx_pwr, s8 *p_dB, u8 core);
 
@@ -1042,14 +1042,14 @@ extern void wlc_phy_cal_init_nphy(struct brcms_phy *pi);
 extern void wlc_phy_cal_init_lcnphy(struct brcms_phy *pi);
 
 extern void wlc_phy_chanspec_set_nphy(struct brcms_phy *pi,
-				      chanspec_t chanspec);
+				      u16 chanspec);
 extern void wlc_phy_chanspec_set_lcnphy(struct brcms_phy *pi,
-					chanspec_t chanspec);
+					u16 chanspec);
 extern void wlc_phy_chanspec_set_fixup_lcnphy(struct brcms_phy *pi,
-					      chanspec_t chanspec);
+					      u16 chanspec);
 extern int wlc_phy_channel2freq(uint channel);
 extern int wlc_phy_chanspec_freq2bandrange_lpssn(uint);
-extern int wlc_phy_chanspec_bandrange_get(struct brcms_phy *, chanspec_t);
+extern int wlc_phy_chanspec_bandrange_get(struct brcms_phy *, u16 chanspec);
 
 extern void wlc_lcnphy_set_tx_pwr_ctrl(struct brcms_phy *pi, u16 mode);
 extern s8 wlc_lcnphy_get_current_tx_pwr_idx(struct brcms_phy *pi);
@@ -1218,7 +1218,7 @@ extern void wlc_phy_nphy_tkip_rifs_war(struct brcms_phy *pi, u8 rifs);
 void wlc_phy_get_pwrdet_offsets(struct brcms_phy *pi, s8 *cckoffset,
 				s8 *ofdmoffset);
 extern s8 wlc_phy_upd_rssi_offset(struct brcms_phy *pi, s8 rssi,
-				    chanspec_t chanspec);
+				    u16 chanspec);
 
 extern bool wlc_phy_n_txpower_ipa_ison(struct brcms_phy *pih);
 #endif				/* _BRCM_PHY_INT_H_ */

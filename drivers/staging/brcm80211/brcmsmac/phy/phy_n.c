@@ -14090,7 +14090,7 @@ static bool wlc_phy_chan2freq_nphy(struct brcms_phy *pi, uint channel, int *f,
 				   struct chan_info_nphy_radio205x **t1,
 				   struct chan_info_nphy_radio2057_rev5 **t2,
 				   struct chan_info_nphy_2055 **t3);
-static void wlc_phy_chanspec_nphy_setup(struct brcms_phy *pi, chanspec_t chans,
+static void wlc_phy_chanspec_nphy_setup(struct brcms_phy *pi, u16 chans,
 					const struct nphy_sfo_cfg *c);
 
 static void wlc_phy_adjust_rx_analpfbw_nphy(struct brcms_phy *pi,
@@ -14188,8 +14188,8 @@ static u16 wlc_phy_radio2057_rccal(struct brcms_phy *pi);
 static u16 wlc_phy_gen_load_samples_nphy(struct brcms_phy *pi, u32 f_kHz,
 					    u16 max_val,
 					    u8 dac_test_mode);
-static void wlc_phy_loadsampletable_nphy(struct brcms_phy *pi, cs32 *tone_buf,
-					 u16 num_samps);
+static void wlc_phy_loadsampletable_nphy(struct brcms_phy *pi,
+					 struct cs32 *tone_buf, u16 num_samps);
 static void wlc_phy_runsamples_nphy(struct brcms_phy *pi, u16 n, u16 lps,
 				    u16 wait, u8 iq, u8 dac_test_mode,
 				    bool modify_bbmult);
@@ -18912,7 +18912,7 @@ static void wlc_phy_spurwar_nphy(struct brcms_phy *pi)
 }
 
 static void
-wlc_phy_chanspec_nphy_setup(struct brcms_phy *pi, chanspec_t chanspec,
+wlc_phy_chanspec_nphy_setup(struct brcms_phy *pi, u16 chanspec,
 			    const struct nphy_sfo_cfg *ci)
 {
 	u16 val;
@@ -19047,7 +19047,7 @@ wlc_phy_chanspec_nphy_setup(struct brcms_phy *pi, chanspec_t chanspec,
 	wlc_phy_spurwar_nphy(pi);
 }
 
-void wlc_phy_chanspec_set_nphy(struct brcms_phy *pi, chanspec_t chanspec)
+void wlc_phy_chanspec_set_nphy(struct brcms_phy *pi, u16 chanspec)
 {
 	int freq;
 	struct chan_info_nphy_radio2057 *t0 = NULL;
@@ -22241,9 +22241,9 @@ wlc_phy_gen_load_samples_nphy(struct brcms_phy *pi, u32 f_kHz, u16 max_val,
 {
 	u8 phy_bw, is_phybw40;
 	u16 num_samps, t, spur;
-	fixed theta = 0, rot = 0;
+	s32 theta = 0, rot = 0;
 	u32 tbl_len;
-	cs32 *tone_buf = NULL;
+	struct cs32 *tone_buf = NULL;
 
 	is_phybw40 = CHSPEC_IS40(pi->radio_chanspec);
 	phy_bw = (is_phybw40 == 1) ? 40 : 20;
@@ -22258,7 +22258,7 @@ wlc_phy_gen_load_samples_nphy(struct brcms_phy *pi, u32 f_kHz, u16 max_val,
 		tbl_len = (phy_bw << 1);
 	}
 
-	tone_buf = kmalloc(sizeof(cs32) * tbl_len, GFP_ATOMIC);
+	tone_buf = kmalloc(sizeof(struct cs32) * tbl_len, GFP_ATOMIC);
 	if (tone_buf == NULL) {
 		return 0;
 	}
@@ -22305,7 +22305,7 @@ wlc_phy_tx_tone_nphy(struct brcms_phy *pi, u32 f_kHz, u16 max_val,
 }
 
 static void
-wlc_phy_loadsampletable_nphy(struct brcms_phy *pi, cs32 *tone_buf,
+wlc_phy_loadsampletable_nphy(struct brcms_phy *pi, struct cs32 *tone_buf,
 			     u16 num_samps)
 {
 	u16 t;

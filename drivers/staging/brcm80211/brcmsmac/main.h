@@ -394,8 +394,8 @@ struct brcms_band {
 
 	wlc_rateset_t defrateset;	/* band-specific copy of default_bss.rateset */
 
-	ratespec_t rspec_override;	/* 802.11 rate override */
-	ratespec_t mrspec_override;	/* multicast rate override */
+	u32 rspec_override;	/* 802.11 rate override */
+	u32 mrspec_override;	/* multicast rate override */
 	u8 band_stf_ss_mode;	/* Configured STF type, 0:siso; 1:cdd */
 	s8 band_stf_stbc_tx;	/* STBC TX 0:off; 1:force on; -1:auto */
 	wlc_rateset_t hw_rateset;	/* rates supported by chip (phy-specific) */
@@ -557,12 +557,12 @@ struct brcms_hardware {
 	bool up;		/* d11 hardware up and running */
 	uint now;		/* # elapsed seconds */
 	uint _nbands;		/* # bands supported */
-	chanspec_t chanspec;	/* bmac chanspec shadow */
+	u16 chanspec;	/* bmac chanspec shadow */
 
 	uint *txavail[NFIFO];	/* # tx descriptors available */
 	u16 *xmtfifo_sz;	/* fifo size in 256B for each xmt fifo */
 
-	mbool pllreq;		/* pll requests to keep PLL on */
+	u32 pllreq;		/* pll requests to keep PLL on */
 
 	u8 suspended_fifos;	/* Which TX fifo to remain awake for */
 	u32 maccontrol;	/* Cached value of maccontrol */
@@ -700,7 +700,7 @@ struct brcms_c_info {
 	u32 WDlast;		/* last time wlc_watchdog() was called */
 
 	/* WME */
-	ac_bitmap_t wme_dp;	/* Discard (oldest first) policy per AC */
+	u8 wme_dp;	/* AC bitmap. Discard (oldest first) policy per AC */
 	u16 edcf_txop[AC_COUNT];	/* current txop for each ac */
 
 	/*
@@ -756,10 +756,10 @@ struct brcms_c_info {
 						 * specifed
 						 */
 
-	chanspec_t home_chanspec;	/* shared home chanspec */
+	u16 home_chanspec;	/* shared home chanspec */
 
 	/* PHY parameters */
-	chanspec_t chanspec;	/* target operational channel */
+	u16 chanspec;	/* target operational channel */
 	u16 usr_fragthresh;	/* user configured fragmentation threshold */
 	u16 fragthresh[NFIFO];	/* per-fifo fragmentation thresholds */
 	u16 RTSThresh;	/* 802.11 dot11RTSThreshold */
@@ -778,7 +778,7 @@ struct brcms_c_info {
 
 	struct brcms_stf *stf;
 
-	ratespec_t bcn_rspec;	/* save bcn ratespec purpose */
+	u32 bcn_rspec;	/* save bcn ratespec purpose */
 
 	uint tempsense_lasttime;
 
@@ -865,9 +865,9 @@ struct brcms_bss_cfg {
 
 	int auth_atmptd;	/* auth type (open/shared) attempted */
 
-	pmkid_cand_t pmkid_cand[MAXPMKID];	/* PMKID candidate list */
+	struct pmkid_cand pmkid_cand[MAXPMKID];	/* PMKID candidate list */
 	uint npmkid_cand;	/* num PMKID candidates */
-	pmkid_t pmkid[MAXPMKID];	/* PMKID cache */
+	struct pmkid pmkid[MAXPMKID];	/* PMKID cache */
 	uint npmkid;		/* num cached PMKIDs */
 
 	struct brcms_bss_info *current_bss; /* BSS parms in ASSOCIATED state */
@@ -886,8 +886,8 @@ struct brcms_bss_cfg {
 	/* 'unique' ID of this bsscfg, assigned at bsscfg allocation */
 	u16 ID;
 
-	uint txrspecidx;	/* index into tx rate circular buffer */
-	ratespec_t txrspec[NTXRATE][2];	/* circular buffer of prev MPDUs tx rates */
+	uint txrspecidx;	 /* index into tx rate circular buffer */
+	u32 txrspec[NTXRATE][2]; /* circular buffer of prev MPDUs tx rates */
 };
 
 #define	CHANNEL_BANDUNIT(wlc, ch) (((ch) <= CH_MAX_2G_CHANNEL) ? BAND_2G_INDEX : BAND_5G_INDEX)
@@ -932,7 +932,7 @@ extern void brcms_c_write_template_ram(struct brcms_c_info *wlc, int offset,
 				       int len, void *buf);
 extern void brcms_c_write_hw_bcntemplates(struct brcms_c_info *wlc, void *bcn,
 					  int len, bool both);
-extern void brcms_c_pllreq(struct brcms_c_info *wlc, bool set, mbool req_bit);
+extern void brcms_c_pllreq(struct brcms_c_info *wlc, bool set, u32 req_bit);
 extern void brcms_c_reset_bmac_done(struct brcms_c_info *wlc);
 
 #if defined(BCMDBG)
@@ -945,7 +945,7 @@ extern void brcms_c_print_txdesc(struct d11txh *txh);
 extern void brcms_c_setxband(struct brcms_hardware *wlc_hw, uint bandunit);
 extern void brcms_c_coredisable(struct brcms_hardware *wlc_hw);
 
-extern bool brcms_c_valid_rate(struct brcms_c_info *wlc, ratespec_t rate,
+extern bool brcms_c_valid_rate(struct brcms_c_info *wlc, u32 rate,
 			       int band, bool verbose);
 extern void brcms_c_ap_upd(struct brcms_c_info *wlc);
 
@@ -971,14 +971,14 @@ extern void brcms_c_send_q(struct brcms_c_info *wlc);
 extern int brcms_c_prep_pdu(struct brcms_c_info *wlc, struct sk_buff *pdu,
 			    uint *fifo);
 
-extern u16 brcms_c_calc_lsig_len(struct brcms_c_info *wlc, ratespec_t ratespec,
+extern u16 brcms_c_calc_lsig_len(struct brcms_c_info *wlc, u32 ratespec,
 				uint mac_len);
-extern ratespec_t brcms_c_rspec_to_rts_rspec(struct brcms_c_info *wlc,
-					     ratespec_t rspec,
+extern u32 brcms_c_rspec_to_rts_rspec(struct brcms_c_info *wlc,
+					     u32 rspec,
 					     bool use_rspec, u16 mimo_ctlchbw);
 extern u16 brcms_c_compute_rtscts_dur(struct brcms_c_info *wlc, bool cts_only,
-				      ratespec_t rts_rate,
-				      ratespec_t frame_rate,
+				      u32 rts_rate,
+				      u32 frame_rate,
 				      u8 rts_preamble_type,
 				      u8 frame_preamble_type, uint frame_len,
 				      bool ba);
@@ -1012,15 +1012,15 @@ extern bool brcms_c_prec_enq(struct brcms_c_info *wlc, struct pktq *q,
 			     void *pkt, int prec);
 extern bool brcms_c_prec_enq_head(struct brcms_c_info *wlc, struct pktq *q,
 			      struct sk_buff *pkt, int prec, bool head);
-extern u16 brcms_c_phytxctl1_calc(struct brcms_c_info *wlc, ratespec_t rspec);
-extern void brcms_c_compute_plcp(struct brcms_c_info *wlc, ratespec_t rate,
+extern u16 brcms_c_phytxctl1_calc(struct brcms_c_info *wlc, u32 rspec);
+extern void brcms_c_compute_plcp(struct brcms_c_info *wlc, u32 rate,
 				 uint length, u8 *plcp);
 extern uint brcms_c_calc_frame_time(struct brcms_c_info *wlc,
-				    ratespec_t ratespec,
+				    u32 ratespec,
 				    u8 preamble_type, uint mac_len);
 
 extern void brcms_c_set_chanspec(struct brcms_c_info *wlc,
-				 chanspec_t chanspec);
+				 u16 chanspec);
 
 extern bool brcms_c_timers_init(struct brcms_c_info *wlc, int unit);
 
@@ -1036,15 +1036,15 @@ extern void brcms_c_edcf_setparams(struct brcms_c_info *wlc, bool suspend);
 extern void brcms_c_set_ratetable(struct brcms_c_info *wlc);
 extern int brcms_c_set_mac(struct brcms_bss_cfg *cfg);
 extern void brcms_c_beacon_phytxctl_txant_upd(struct brcms_c_info *wlc,
-					  ratespec_t bcn_rate);
+					  u32 bcn_rate);
 extern void brcms_c_mod_prb_rsp_rate_table(struct brcms_c_info *wlc,
 					   uint frame_len);
-extern ratespec_t brcms_c_lowest_basic_rspec(struct brcms_c_info *wlc,
+extern u32 brcms_c_lowest_basic_rspec(struct brcms_c_info *wlc,
 					     wlc_rateset_t *rs);
 extern void brcms_c_radio_disable(struct brcms_c_info *wlc);
 extern void brcms_c_bcn_li_upd(struct brcms_c_info *wlc);
 extern void brcms_c_set_home_chanspec(struct brcms_c_info *wlc,
-				      chanspec_t chanspec);
+				      u16 chanspec);
 extern bool brcms_c_ps_allowed(struct brcms_c_info *wlc);
 extern bool brcms_c_stay_awake(struct brcms_c_info *wlc);
 extern void brcms_c_wme_initparams_sta(struct brcms_c_info *wlc,
@@ -1055,7 +1055,7 @@ extern void brcms_b_antsel_type_set(struct brcms_hardware *wlc_hw,
 
 /* chanspec, ucode interface */
 extern void brcms_b_set_chanspec(struct brcms_hardware *wlc_hw,
-				  chanspec_t chanspec,
+				  u16 chanspec,
 				  bool mute, struct txpwr_limits *txpwr);
 
 extern void brcms_b_write_shm(struct brcms_hardware *wlc_hw, uint offset,

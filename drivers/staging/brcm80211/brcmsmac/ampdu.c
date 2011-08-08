@@ -460,8 +460,8 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 	struct scb_ampdu_tid_ini *ini;
 	u8 mcs = 0;
 	bool use_rts = false, use_cts = false;
-	ratespec_t rspec = 0, rspec_fallback = 0;
-	ratespec_t rts_rspec = 0, rts_rspec_fallback = 0;
+	u32 rspec = 0, rspec_fallback = 0;
+	u32 rts_rspec = 0, rts_rspec_fallback = 0;
 	u16 mimo_ctlchbw = PHY_TXC1_BW_20MHZ;
 	struct ieee80211_rts *rts;
 	u8 rr_retry_limit;

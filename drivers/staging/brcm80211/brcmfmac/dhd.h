@@ -376,7 +376,7 @@ struct brcmf_bss_info {
 		uint count;	/* # rates in this set */
 		u8 rates[16];	/* rates in 500kbps units w/hi bit set if basic */
 	} rateset;		/* supported rates */
-	chanspec_t chanspec;	/* chanspec for bss */
+	u16 chanspec;	/* chanspec for bss */
 	u16 atim_window;	/* units are Kusec */
 	u8 dtim_period;	/* DTIM period */
 	s16 RSSI;		/* receive signal strength (in dBm) */
@@ -464,10 +464,10 @@ struct brcmf_assoc_params {
 	s32 chanspec_num;	/* 0: all available channels,
 				 * otherwise count of chanspecs in chanspec_list
 				 */
-	chanspec_t chanspec_list[1];	/* list of chanspecs */
+	u16 chanspec_list[1];	/* list of chanspecs */
 };
 #define BRCMF_ASSOC_PARAMS_FIXED_SIZE \
-	(sizeof(struct brcmf_assoc_params) - sizeof(chanspec_t))
+	(sizeof(struct brcmf_assoc_params) - sizeof(u16))
 
 /* used for join with or without a specific bssid and channel list */
 struct brcmf_join_params {

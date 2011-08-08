@@ -2190,7 +2190,7 @@ brcmf_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *dev,
 			 struct cfg80211_pmksa *pmksa)
 {
 	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
-	struct _pmkid_list *pmkids = &cfg_priv->pmk_list->pmkids;
+	struct pmkid_list *pmkids = &cfg_priv->pmk_list->pmkids;
 	s32 err = 0;
 	int i;
 
@@ -2224,7 +2224,7 @@ brcmf_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *dev,
 		      struct cfg80211_pmksa *pmksa)
 {
 	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
-	struct _pmkid_list pmkid;
+	struct pmkid_list pmkid;
 	s32 err = 0;
 	int i;
 
@@ -2247,7 +2247,7 @@ brcmf_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *dev,
 	if ((cfg_priv->pmk_list->pmkids.npmkid > 0)
 	    && (i < cfg_priv->pmk_list->pmkids.npmkid)) {
 		memset(&cfg_priv->pmk_list->pmkids.pmkid[i], 0,
-		       sizeof(pmkid_t));
+		       sizeof(struct pmkid));
 		for (; i < (cfg_priv->pmk_list->pmkids.npmkid - 1); i++) {
 			memcpy(&cfg_priv->pmk_list->pmkids.pmkid[i].BSSID,
 			       &cfg_priv->pmk_list->pmkids.pmkid[i + 1].BSSID,
@@ -2780,7 +2780,7 @@ static void brcmf_clear_assoc_ies(struct brcmf_cfg80211_priv *cfg_priv)
 static void brcmf_ch_to_chanspec(int ch, struct brcmf_join_params *join_params,
 	size_t *join_params_size)
 {
-	chanspec_t chanspec = 0;
+	u16 chanspec = 0;
 
 	if (ch != 0) {
 		join_params->params.chanspec_num = 1;
@@ -2795,7 +2795,7 @@ static void brcmf_ch_to_chanspec(int ch, struct brcmf_join_params *join_params,
 		chanspec |= WL_CHANSPEC_CTL_SB_NONE;
 
 		*join_params_size += BRCMF_ASSOC_PARAMS_FIXED_SIZE +
-			join_params->params.chanspec_num * sizeof(chanspec_t);
+			join_params->params.chanspec_num * sizeof(u16);
 
 		join_params->params.chanspec_list[0] &= WL_CHANSPEC_CHAN_MASK;
 		join_params->params.chanspec_list[0] |= chanspec;

@@ -180,7 +180,6 @@
 
 #define	DMA_NONE(args)
 
-typedef unsigned long dmaaddr_t;
 #define PHYSADDRHI(_pa) (0)
 #define PHYSADDRHISET(_pa, _val)
 #define PHYSADDRLO(_pa) ((_pa))
@@ -206,7 +205,7 @@ static uint dma_msg_level;
 
 /* One physical DMA segment */
 struct dma_seg {
-	dmaaddr_t addr;
+	unsigned long addr;
 	u32 length;
 };
 
@@ -257,8 +256,10 @@ struct dma_info {
 	u16 txout;		/* index of next descriptor to post */
 	void **txp;		/* pointer to parallel array of pointers to packets */
 	struct dma_seg_map *txp_dmah;	/* DMA MAP meta-data handle */
-	dmaaddr_t txdpa;	/* Aligned physical address of descriptor ring */
-	dmaaddr_t txdpaorig;	/* Original physical address of descriptor ring */
+	/* Aligned physical address of descriptor ring */
+	unsigned long txdpa;
+	/* Original physical address of descriptor ring */
+	unsigned long txdpaorig;
 	u16 txdalign;	/* #bytes added to alloc'd mem to align txd */
 	u32 txdalloc;	/* #bytes allocated for the ring */
 	u32 xmtptrbase;	/* When using unaligned descriptors, the ptr register
@@ -271,8 +272,10 @@ struct dma_info {
 	u16 rxout;		/* index of next descriptor to post */
 	void **rxp;		/* pointer to parallel array of pointers to packets */
 	struct dma_seg_map *rxp_dmah;	/* DMA MAP meta-data handle */
-	dmaaddr_t rxdpa;	/* Aligned physical address of descriptor ring */
-	dmaaddr_t rxdpaorig;	/* Original physical address of descriptor ring */
+	/* Aligned physical address of descriptor ring */
+	unsigned long rxdpa;
+	/* Original physical address of descriptor ring */
+	unsigned long rxdpaorig;
 	u16 rxdalign;	/* #bytes added to alloc'd mem to align rxd */
 	u32 rxdalloc;	/* #bytes allocated for the ring */
 	u32 rcvptrbase;	/* Base for ptr reg when using unaligned descriptors */
@@ -331,7 +334,7 @@ static bool _dma_descriptor_align(struct dma_info *di);
 static bool _dma_alloc(struct dma_info *di, uint direction);
 static void _dma_detach(struct dma_info *di);
 static void _dma_ddtable_init(struct dma_info *di, uint direction,
-			      dmaaddr_t pa);
+			      unsigned long pa);
 static void _dma_rxinit(struct dma_info *di);
 static void *_dma_rx(struct dma_info *di);
 static bool _dma_rxfill(struct dma_info *di);
@@ -357,7 +360,7 @@ static uint _dma_ctrlflags(struct dma_info *di, uint mask, uint flags);
 static u8 dma_align_sizetobits(uint size);
 static void *dma_ringalloc(struct dma_info *di, u32 boundary, uint size,
 			   u16 *alignbits, uint *alloced,
-			   dmaaddr_t *descpa);
+			   unsigned long *descpa);
 
 /* Prototypes for 64-bit routines */
 static bool dma64_alloc(struct dma_info *di, uint direction);
@@ -623,7 +626,7 @@ static inline u32 parity32(u32 data)
 
 static inline void
 dma64_dd_upd(struct dma_info *di, struct dma64desc *ddring,
-	     dmaaddr_t pa, uint outidx, u32 *flags, u32 bufcount)
+	     unsigned long pa, uint outidx, u32 *flags, u32 bufcount)
 {
 	u32 ctrl2 = bufcount & D64_CTRL2_BC_MASK;
 
@@ -754,7 +757,8 @@ static bool _dma_isaddrext(struct dma_info *di)
 }
 
 /* initialize descriptor table base address */
-static void _dma_ddtable_init(struct dma_info *di, uint direction, dmaaddr_t pa)
+static void
+_dma_ddtable_init(struct dma_info *di, uint direction, unsigned long pa)
 {
 	if (!di->aligndesc_4k) {
 		if (direction == DMA_TX)
@@ -943,7 +947,7 @@ static bool _dma_rxfill(struct dma_info *di)
 	u32 flags = 0;
 	uint n;
 	uint i;
-	dmaaddr_t pa;
+	unsigned long pa;
 	uint extra_offset = 0;
 	bool ring_empty;
 
@@ -1194,7 +1198,7 @@ u8 dma_align_sizetobits(uint size)
  */
 static void *dma_ringalloc(struct dma_info *di, u32 boundary, uint size,
 			   u16 *alignbits, uint *alloced,
-			   dmaaddr_t *descpa)
+			   unsigned long *descpa)
 {
 	void *va;
 	u32 desc_strtaddr;
@@ -1487,7 +1491,7 @@ dma64_txunframed(struct dma_info *di, void *buf, uint len, bool commit)
 {
 	u16 txout;
 	u32 flags = 0;
-	dmaaddr_t pa;		/* phys addr */
+	unsigned long pa;		/* phys addr */
 
 	txout = di->txout;
 
@@ -1544,7 +1548,7 @@ static int dma64_txfast(struct dma_info *di, struct sk_buff *p0,
 	uint len;
 	u16 txout;
 	u32 flags = 0;
-	dmaaddr_t pa;
+	unsigned long pa;
 
 	DMA_TRACE(("%s: dma_txfast\n", di->name));
 
@@ -1702,7 +1706,7 @@ static void *dma64_getnexttxp(struct dma_info *di, enum txd_range range)
 		goto bogus;
 
 	for (i = start; i != end && !txp; i = NEXTTXD(i)) {
-		dmaaddr_t pa;
+		unsigned long pa;
 		struct dma_seg_map *map = NULL;
 		uint size, j, nsegs;
 
@@ -1753,7 +1757,7 @@ static void *dma64_getnextrxp(struct dma_info *di, bool forceall)
 {
 	uint i, curr;
 	void *rxp;
-	dmaaddr_t pa;
+	unsigned long pa;
 
 	i = di->rxin;
 

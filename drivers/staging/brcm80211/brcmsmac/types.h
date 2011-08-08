@@ -351,7 +351,6 @@ do {						\
 		W_REG((r), ((R_REG(r) & ~(mask)) | (val)))
 
 /* multi-bool data type: set of bools, mbool is true if any is set */
-typedef u32 mbool;
 #define mboolset(mb, bit)		((mb) |= (bit))	/* set one bool */
 #define mboolclr(mb, bit)		((mb) &= ~(bit))	/* clear one bool */
 #define mboolisset(mb, bit)		(((mb) & (bit)) != 0)	/* true if one bool is set */
@@ -387,10 +386,6 @@ typedef volatile struct d11regs d11regs_t;
 typedef volatile struct dma32diag dma32diag_t;
 typedef volatile struct dma64regs dma64regs_t;
 typedef struct brcms_rateset wlc_rateset_t;
-typedef u32 ratespec_t;
-typedef struct chanvec chanvec_t;
-typedef s32 fixed;
-typedef struct _cs32 cs32;
 typedef volatile union pmqreg pmqreg_t;
 
 /* brcm_msg_level is a bit vector with defs in defs.h */

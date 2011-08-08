@@ -328,10 +328,10 @@ brcms_c_rate_hwrs_filter_sort_validate(wlc_rateset_t *rs,
 }
 
 /* calculate the rate of a rx'd frame and return it as a ratespec */
-ratespec_t brcms_c_compute_rspec(struct d11rxhdr *rxh, u8 *plcp)
+u32 brcms_c_compute_rspec(struct d11rxhdr *rxh, u8 *plcp)
 {
 	int phy_type;
-	ratespec_t rspec = PHY_TXC1_BW_20MHZ << RSPEC_BW_SHIFT;
+	u32 rspec = PHY_TXC1_BW_20MHZ << RSPEC_BW_SHIFT;
 
 	phy_type =
 	    ((rxh->RxChan & RXS_CHAN_PHYTYPE_MASK) >> RXS_CHAN_PHYTYPE_SHIFT);
