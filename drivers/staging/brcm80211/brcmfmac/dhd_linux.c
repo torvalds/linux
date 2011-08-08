@@ -115,8 +115,6 @@ module_param(brcmf_pkt_filter_init, uint, 0);
 uint brcmf_master_mode = true;
 module_param(brcmf_master_mode, uint, 0);
 
-module_param(brcmf_dongle_memsize, int, 0);
-
 /* Contorl fw roaming */
 uint brcmf_roam = 1;
 
@@ -131,26 +129,6 @@ module_param_string(iface_name, iface_name, IFNAMSIZ, 0);
 
 /* IOCTL response timeout */
 int brcmf_ioctl_timeout_msec = IOCTL_RESP_TIMEOUT;
-
-/* Idle timeout for backplane clock */
-int brcmf_idletime = BRCMF_IDLETIME_TICKS;
-module_param(brcmf_idletime, int, 0);
-
-/* Use polling */
-uint brcmf_poll;
-module_param(brcmf_poll, uint, 0);
-
-/* Use interrupts */
-uint brcmf_intr = true;
-module_param(brcmf_intr, uint, 0);
-
-/* SDIO Drive Strength (in milliamps) */
-uint brcmf_sdiod_drive_strength = 6;
-module_param(brcmf_sdiod_drive_strength, uint, 0);
-
-/* Tx/Rx bounds */
-module_param(brcmf_txbound, uint, 0);
-module_param(brcmf_rxbound, uint, 0);
 
 #ifdef SDTEST
 /* Echo packet generator (pkts/s) */

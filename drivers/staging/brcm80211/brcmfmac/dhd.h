@@ -669,12 +669,6 @@ extern atomic_t brcmf_mmc_suspend;
  * Insmod parameters for debug/test
  */
 
-/* Use interrupts */
-extern uint brcmf_intr;
-
-/* Use polling */
-extern uint brcmf_poll;
-
 /* ARP offload agent mode */
 extern uint brcmf_arp_mode;
 
@@ -695,13 +689,6 @@ extern uint brcmf_roam;
 
 /* Roaming mode control */
 extern uint brcmf_radio_up;
-
-/* Initial idletime ticks (may be -1 for immediate idle, 0 for no idle) */
-extern int brcmf_idletime;
-#define BRCMF_IDLETIME_TICKS 1
-
-/* SDIO Drive Strength */
-extern uint brcmf_sdiod_drive_strength;
 
 /* Override to force tx queueing all the time */
 extern uint brcmf_force_tx_queueing;

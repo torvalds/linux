@@ -838,11 +838,29 @@ module_param(brcmf_console_ms, uint, 0);
 /* Tx/Rx bounds */
 uint brcmf_txbound;
 uint brcmf_rxbound;
+module_param(brcmf_txbound, uint, 0);
+module_param(brcmf_rxbound, uint, 0);
 uint brcmf_txminmax;
+
+int brcmf_idletime = 1;
+module_param(brcmf_idletime, int, 0);
+
+/* SDIO Drive Strength (in milliamps) */
+uint brcmf_sdiod_drive_strength = 6;
+module_param(brcmf_sdiod_drive_strength, uint, 0);
+
+/* Use polling */
+uint brcmf_poll;
+module_param(brcmf_poll, uint, 0);
+
+/* Use interrupts */
+uint brcmf_intr = true;
+module_param(brcmf_intr, uint, 0);
 
 /* override the RAM size if possible */
 #define DONGLE_MIN_MEMSIZE (128 * 1024)
 int brcmf_dongle_memsize;
+module_param(brcmf_dongle_memsize, int, 0);
 
 static bool brcmf_alignctl;
 
