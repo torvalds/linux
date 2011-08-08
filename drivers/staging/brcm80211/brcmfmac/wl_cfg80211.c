@@ -1420,11 +1420,6 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		goto done;
 	}
 
-	brcmf_update_prof(cfg_priv, NULL, sme->bssid, WL_PROF_BSSID);
-	/*
-	 **  Join with specific BSSID and cached SSID
-	 **  If SSID is zero join based on BSSID only
-	 */
 	memset(&join_params, 0, sizeof(join_params));
 	join_params_size = sizeof(join_params.ssid);
 
@@ -1433,10 +1428,7 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	join_params.ssid.SSID_len = cpu_to_le32(join_params.ssid.SSID_len);
 	brcmf_update_prof(cfg_priv, NULL, &join_params.ssid, WL_PROF_SSID);
 
-	if (sme->bssid)
-		memcpy(join_params.params.bssid, sme->bssid, ETH_ALEN);
-	else
-		memcpy(join_params.params.bssid, ether_bcast, ETH_ALEN);
+	memcpy(join_params.params.bssid, ether_bcast, ETH_ALEN);
 
 	if (join_params.ssid.SSID_len < IEEE80211_MAX_SSID_LEN) {
 		WL_CONN("ssid \"%s\", len (%d)\n",
