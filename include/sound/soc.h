@@ -19,6 +19,7 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/regmap.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/control.h>
@@ -260,6 +261,7 @@ extern struct snd_ac97_bus_ops soc_ac97_ops;
 enum snd_soc_control_type {
 	SND_SOC_I2C = 1,
 	SND_SOC_SPI,
+	SND_SOC_REGMAP,
 };
 
 enum snd_soc_compress_type {
@@ -576,6 +578,7 @@ struct snd_soc_codec {
 	const void *reg_def_copy;
 	const struct snd_soc_cache_ops *cache_ops;
 	struct mutex cache_rw_mutex;
+	int val_bytes;
 
 	/* dapm */
 	struct snd_soc_dapm_context dapm;
