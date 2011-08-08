@@ -4342,39 +4342,25 @@ static void wlc_lcnphy_tbl_init(struct brcms_phy *pi)
 	}
 
 	if (LCNREV_IS(pi->pubpi.phy_rev, 2)) {
+		const struct phytbl_info *tb;
+		int l;
+
 		if (CHSPEC_IS2G(pi->radio_chanspec)) {
-			for (idx = 0;
-			     idx < dot11lcnphytbl_rx_gain_info_2G_rev2_sz;
-			     idx++)
-				if (pi->sh->boardflags & BFL_EXTLNA)
-					wlc_lcnphy_write_table(
-						pi,
-						&
-						dot11lcnphytbl_rx_gain_info_extlna_2G_rev2
-						[idx]);
-				else
-					wlc_lcnphy_write_table(
-						pi,
-						&
-						dot11lcnphytbl_rx_gain_info_2G_rev2
-						[idx]);
+			l = dot11lcnphytbl_rx_gain_info_2G_rev2_sz;
+			if (pi->sh->boardflags & BFL_EXTLNA)
+				tb = dot11lcnphytbl_rx_gain_info_extlna_2G_rev2;
+			else
+				tb = dot11lcnphytbl_rx_gain_info_2G_rev2;
 		} else {
-			for (idx = 0;
-			     idx < dot11lcnphytbl_rx_gain_info_5G_rev2_sz;
-			     idx++)
-				if (pi->sh->boardflags & BFL_EXTLNA_5GHz)
-					wlc_lcnphy_write_table(
-						pi,
-						&
-						dot11lcnphytbl_rx_gain_info_extlna_5G_rev2
-						[idx]);
-				else
-					wlc_lcnphy_write_table(
-						pi,
-						&
-						dot11lcnphytbl_rx_gain_info_5G_rev2
-						[idx]);
+			l = dot11lcnphytbl_rx_gain_info_5G_rev2_sz;
+			if (pi->sh->boardflags & BFL_EXTLNA_5GHz)
+				tb = dot11lcnphytbl_rx_gain_info_extlna_5G_rev2;
+			else
+				tb = dot11lcnphytbl_rx_gain_info_5G_rev2;
 		}
+
+		for (idx = 0; idx < l; idx++)
+			wlc_lcnphy_write_table(pi, &tb[idx]);
 	}
 
 	if ((pi->sh->boardflags & BFL_FEM)
