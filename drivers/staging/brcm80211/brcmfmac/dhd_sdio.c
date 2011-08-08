@@ -126,8 +126,8 @@ struct rte_console {
 	 * (at risk of conflicting with
 	 * the real UART).  vcons_out is currently unused.
 	 */
-	volatile uint vcons_in;
-	volatile uint vcons_out;
+	uint vcons_in;
+	uint vcons_out;
 
 	/* Output (logging) buffer
 	 * Console output is written to a ring buffer log_buf at index log_idx.
