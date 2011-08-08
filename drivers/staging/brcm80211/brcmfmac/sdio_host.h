@@ -116,9 +116,6 @@
 #define SUCCESS	0
 #define ERROR	1
 
-/* forward declarations */
-struct brcmf_sdio_card;
-
 struct brcmf_sdreg {
 	int func;
 	int offset;
@@ -158,20 +155,22 @@ struct brcmf_sdmmc_instance {
 struct brcmf_sdio_dev {
 	struct sdio_func *func1;
 	struct sdio_func *func2;
-	struct brcmf_sdio_card *card;
+	void *sdioh;			/* sdioh handler */
+	u32 sbwad;			/* Save backplane window address */
+	bool regfail;			/* status of last reg_r/w call */
 	void *bus;
 };
 
 /* Enable/disable SD interrupt */
-extern int brcmf_sdcard_intr_enable(struct brcmf_sdio_card *card);
-extern int brcmf_sdcard_intr_disable(struct brcmf_sdio_card *card);
+extern int brcmf_sdcard_intr_enable(struct brcmf_sdio_dev *sdiodev);
+extern int brcmf_sdcard_intr_disable(struct brcmf_sdio_dev *sdiodev);
 
 /* Register/deregister device interrupt handler. */
 extern int
-brcmf_sdcard_intr_reg(struct brcmf_sdio_card *card,
+brcmf_sdcard_intr_reg(struct brcmf_sdio_dev *sdiodev,
 		      void (*fn)(void *), void *argh);
 
-extern int brcmf_sdcard_intr_dereg(struct brcmf_sdio_card *card);
+extern int brcmf_sdcard_intr_dereg(struct brcmf_sdio_dev *sdiodev);
 
 /* Access SDIO address space (e.g. CCCR) using CMD52 (single-byte interface).
  *   fn:   function number
@@ -179,17 +178,17 @@ extern int brcmf_sdcard_intr_dereg(struct brcmf_sdio_card *card);
  *   data: data byte to write
  *   err:  pointer to error code (or NULL)
  */
-extern u8 brcmf_sdcard_cfg_read(struct brcmf_sdio_card *card, uint func,
+extern u8 brcmf_sdcard_cfg_read(struct brcmf_sdio_dev *sdiodev, uint func,
 				u32 addr, int *err);
-extern void brcmf_sdcard_cfg_write(struct brcmf_sdio_card *card, uint func,
+extern void brcmf_sdcard_cfg_write(struct brcmf_sdio_dev *sdiodev, uint func,
 				   u32 addr, u8 data, int *err);
 
 /* Read/Write 4bytes from/to cfg space */
 extern u32
-brcmf_sdcard_cfg_read_word(struct brcmf_sdio_card *card, uint fnc_num,
+brcmf_sdcard_cfg_read_word(struct brcmf_sdio_dev *sdiodev, uint fnc_num,
 			   u32 addr, int *err);
 
-extern void brcmf_sdcard_cfg_write_word(struct brcmf_sdio_card *card,
+extern void brcmf_sdcard_cfg_write_word(struct brcmf_sdio_dev *sdiodev,
 					uint fnc_num, u32 addr,
 					u32 data, int *err);
 
@@ -200,7 +199,7 @@ extern void brcmf_sdcard_cfg_write_word(struct brcmf_sdio_card *card,
  * Internally, this routine uses the values from the cis base regs (0x9-0xB)
  * to form an SDIO-space address to read the data from.
  */
-extern int brcmf_sdcard_cis_read(struct brcmf_sdio_card *card, uint func,
+extern int brcmf_sdcard_cis_read(struct brcmf_sdio_dev *sdiodev, uint func,
 				 u8 *cis, uint length);
 
 /* Synchronous access to device (client) core registers via CMD53 to F1.
@@ -209,14 +208,14 @@ extern int brcmf_sdcard_cis_read(struct brcmf_sdio_card *card, uint func,
  *   data: data for register write
  */
 extern u32
-brcmf_sdcard_reg_read(struct brcmf_sdio_card *card, u32 addr, uint size);
+brcmf_sdcard_reg_read(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size);
 
 extern u32
-brcmf_sdcard_reg_write(struct brcmf_sdio_card *card, u32 addr, uint size,
+brcmf_sdcard_reg_write(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size,
 		       u32 data);
 
 /* Indicate if last reg read/write failed */
-extern bool brcmf_sdcard_regfail(struct brcmf_sdio_card *card);
+extern bool brcmf_sdcard_regfail(struct brcmf_sdio_dev *sdiodev);
 
 /* Buffer transfer to/from device (client) core via cmd53.
  *   fn:       function number
@@ -231,13 +230,13 @@ extern bool brcmf_sdcard_regfail(struct brcmf_sdio_card *card);
  * NOTE: Async operation is not currently supported.
  */
 extern int
-brcmf_sdcard_send_buf(struct brcmf_sdio_card *card, u32 addr, uint fn,
+brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		      uint flags, u8 *buf, uint nbytes, void *pkt,
 		      void (*complete)(void *handle, int status,
 				       bool sync_waiting),
 		      void *handle);
 extern int
-brcmf_sdcard_recv_buf(struct brcmf_sdio_card *card, u32 addr, uint fn,
+brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		      uint flags, u8 *buf, uint nbytes, struct sk_buff *pkt,
 		      void (*complete)(void *handle, int status,
 				       bool sync_waiting),
@@ -262,16 +261,16 @@ brcmf_sdcard_recv_buf(struct brcmf_sdio_card *card, u32 addr, uint fn,
  *   nbytes:   number of bytes to transfer to/from buf
  * Returns 0 or error code.
  */
-extern int brcmf_sdcard_rwdata(struct brcmf_sdio_card *card, uint rw, u32 addr,
-			       u8 *buf, uint nbytes);
+extern int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw,
+			       u32 addr, u8 *buf, uint nbytes);
 
 /* Issue an abort to the specified function */
-extern int brcmf_sdcard_abort(struct brcmf_sdio_card *card, uint fn);
+extern int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn);
 
 /* Miscellaneous knob tweaker. */
-extern int brcmf_sdcard_iovar_op(struct brcmf_sdio_card *card, const char *name,
-				 void *params, int plen, void *arg, int len,
-				 bool set);
+extern int brcmf_sdcard_iovar_op(struct brcmf_sdio_dev *sdiodev,
+				 const char *name, void *params, int plen,
+				 void *arg, int len, bool set);
 
 /* helper functions */
 
@@ -286,7 +285,7 @@ extern int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev);
 extern int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev);
 
 /* Function to return current window addr */
-extern u32 brcmf_sdcard_cur_sbwad(struct brcmf_sdio_card *card);
+extern u32 brcmf_sdcard_cur_sbwad(struct brcmf_sdio_dev *sdiodev);
 
 /* Allocate/init/free per-OS private data */
 extern int  brcmf_sdioh_osinit(struct sdioh_info *sd);
@@ -355,4 +354,7 @@ extern uint sd_f2_blocksize;
 
 extern struct brcmf_sdmmc_instance *gInstance;
 
+extern void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
+				u32 regsva, struct brcmf_sdio_dev *sdiodev);
+extern void brcmf_sdbrcm_disconnect(void *ptr);
 #endif				/* _BRCM_SDH_H_ */

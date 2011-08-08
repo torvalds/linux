@@ -75,7 +75,4 @@ extern void brcmf_bus_clearcounts(struct brcmf_pub *drvr);
 
 extern void brcmf_sdbrcm_wd_timer(struct brcmf_bus *bus, uint wdtick);
 
-extern void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
-				u32 regsva, void *card);
-extern void brcmf_sdbrcm_disconnect(void *ptr);
 #endif				/* _BRCMF_BUS_H_ */
