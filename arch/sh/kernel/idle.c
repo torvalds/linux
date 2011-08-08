@@ -22,7 +22,7 @@
 #include <linux/atomic.h>
 #include <asm/smp.h>
 
-static void (*pm_idle)(void);
+void (*pm_idle)(void);
 
 static int hlt_counter;
 
