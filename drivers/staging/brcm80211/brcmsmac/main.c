@@ -6253,14 +6253,13 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 
 			/* merge rateset coming in with the current mcsset */
 			if (N_ENAB(wlc->pub)) {
+				struct brcms_bss_info *mcsset_bss;
 				if (bsscfg->associated)
-					memcpy(rs.mcs,
-					       &current_bss->rateset.mcs[0],
-					       MCSSET_LEN);
+					mcsset_bss = current_bss;
 				else
-					memcpy(rs.mcs,
-					       &wlc->default_bss->rateset.mcs[0],
-					       MCSSET_LEN);
+					mcsset_bss = wlc->default_bss;
+				memcpy(rs.mcs, &mcsset_bss->rateset.mcs[0],
+				       MCSSET_LEN);
 			}
 
 			bcmerror = brcms_c_set_rateset(wlc, &rs);
