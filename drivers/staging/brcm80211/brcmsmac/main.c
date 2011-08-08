@@ -870,12 +870,6 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 		addrwidth =
 		    dma_addrwidth(wlc_hw->sih, DMAREG(wlc_hw, DMA_TX, 0));
 
-		if (!wl_alloc_dma_resources(wlc_hw->wlc->wl, addrwidth)) {
-			wiphy_err(wiphy, "wl%d: wlc_attach: alloc_dma_"
-				  "resources failed\n", unit);
-			return false;
-		}
-
 		/*
 		 * FIFO 0
 		 * TX: TX_AC_BK_FIFO (TX AC Background data packets)

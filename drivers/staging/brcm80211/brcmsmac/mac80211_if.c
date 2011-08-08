@@ -1444,14 +1444,6 @@ void brcms_intrson(struct brcms_info *wl)
 	INT_UNLOCK(wl, flags);
 }
 
-/*
- * precondition: perimeter lock has been acquired
- */
-bool wl_alloc_dma_resources(struct brcms_info *wl, uint addrwidth)
-{
-	return true;
-}
-
 u32 brcms_intrsoff(struct brcms_info *wl)
 {
 	unsigned long flags;

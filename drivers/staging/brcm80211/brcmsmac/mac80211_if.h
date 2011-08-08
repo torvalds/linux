@@ -87,7 +87,6 @@ extern int brcms_up(struct brcms_info *wl);
 extern void brcms_down(struct brcms_info *wl);
 extern void brcms_txflowcontrol(struct brcms_info *wl, struct brcms_if *wlif,
 				bool state, int prio);
-extern bool wl_alloc_dma_resources(struct brcms_info *wl, uint dmaddrwidth);
 extern bool brcms_rfkill_set_hw_state(struct brcms_info *wl);
 
 /* timer functions */
