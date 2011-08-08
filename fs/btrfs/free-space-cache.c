@@ -20,6 +20,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/math64.h>
+#include <linux/ratelimit.h>
 #include "ctree.h"
 #include "free-space-cache.h"
 #include "transaction.h"
@@ -341,11 +342,12 @@ int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 
 			gen = addr;
 			if (*gen != BTRFS_I(inode)->generation) {
-				printk(KERN_ERR "btrfs: space cache generation"
-				       " (%llu) does not match inode (%llu)\n",
-				       (unsigned long long)*gen,
-				       (unsigned long long)
-				       BTRFS_I(inode)->generation);
+				printk_ratelimited(KERN_ERR "btrfs: space cache"
+					" generation (%llu) does not match "
+					"inode (%llu)\n",
+					(unsigned long long)*gen,
+					(unsigned long long)
+					BTRFS_I(inode)->generation);
 				kunmap(page);
 				unlock_page(page);
 				page_cache_release(page);
