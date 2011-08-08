@@ -320,60 +320,38 @@ do {						\
 
 #define WL_ERROR_ON()		(brcm_msg_level & LOG_ERROR_VAL)
 
-/* register access macros */
-#ifndef __BIG_ENDIAN
-#ifndef __mips__
-#define R_REG(r) \
-	({\
-		sizeof(*(r)) == sizeof(u8) ? \
-		readb((u8 *)(r)) : \
-		sizeof(*(r)) == sizeof(u16) ? readw((u16 *)(r)) : \
-		readl((u32 *)(r)); \
-	})
-#else				/* __mips__ */
-#define R_REG(r) \
-	({ \
-		__typeof(*(r)) __osl_v; \
-		__asm__ __volatile__("sync"); \
-		switch (sizeof(*(r))) { \
-		case sizeof(u8): \
-			__osl_v = readb((u8 *)(r)); \
-			break; \
-		case sizeof(u16): \
-			__osl_v = readw((u16 *)(r)); \
-			break; \
-		case sizeof(u32): \
-			__osl_v = \
-			readl((u32 *)(r)); \
-			break; \
-		} \
-		__asm__ __volatile__("sync"); \
-		__osl_v; \
-	})
-#endif				/* __mips__ */
+/*
+ * Register access macros.
+ *
+ * These macro's take a pointer to the address to read as one of their
+ * arguments. The macro itself deduces the size of the IO transaction (u8, u16
+ * or u32). Advantage of this approach in combination with using a struct to
+ * define the registers in a register block, is that access size and access
+ * location are defined in only one spot. This reduces the risk of the
+ * programmer trying to use an unsupported transaction size on a register.
+ *
+ * For big endian operation, a byte swap has to be done. Eg, when attempting
+ * to read byte address 0, byte 3 should be read. This is accomplished
+ * using an xor ('^') operator.
+ */
 
-#define W_REG(r, v) do { \
-		switch (sizeof(*(r))) { \
-		case sizeof(u8): \
-			writeb((u8)(v), (u8 *)(r)); break; \
-		case sizeof(u16): \
-			writew((u16)(v), (u16 *)(r)); break; \
-		case sizeof(u32): \
-			writel((u32)(v), (u32 *)(r)); break; \
-		}; \
-	} while (0)
-#else				/* __BIG_ENDIAN */
+#ifndef __BIG_ENDIAN
+#define SWP2(r)	(r)
+#define SWP3(r) (r)
+#else
+#define SWP2(r)	((unsigned long)(r)^2)
+#define SWP3(r)	((unsigned long)(r)^3)
+#endif /* __BIG_ENDIAN */
+
 #define R_REG(r) \
 	({ \
 		__typeof(*(r)) __osl_v; \
 		switch (sizeof(*(r))) { \
 		case sizeof(u8): \
-			__osl_v = \
-			readb((u8 *)((unsigned long)(r)^3)); \
+			__osl_v = readb((u8 *)(SWP3(r))); \
 			break; \
 		case sizeof(u16): \
-			__osl_v = \
-			readw((u16 *)((unsigned long)(r)^2)); \
+			__osl_v = readw((u16 *)(SWP2(r))); \
 			break; \
 		case sizeof(u32): \
 			__osl_v = readl((u32 *)(r)); \
@@ -385,17 +363,16 @@ do {						\
 #define W_REG(r, v) do { \
 		switch (sizeof(*(r))) { \
 		case sizeof(u8):	\
-			writeb((u8)(v), \
-			(u8 *)((unsigned long)(r)^3)); break; \
+			writeb((u8)(v), (u8 *)(SWP3(r))); \
+			break; \
 		case sizeof(u16):	\
-			writew((u16)(v), \
-			(u16 *)((unsigned long)(r)^2)); break; \
+			writew((u16)(v), (u16 *)(SWP2(r))); \
+			break; \
 		case sizeof(u32):	\
-			writel((u32)(v), \
-			(u32 *)(r)); break; \
+			writel((u32)(v), (u32 *)(r)); \
+			break; \
 		} \
 	} while (0)
-#endif				/* __BIG_ENDIAN */
 
 #ifdef __mips__
 /*
