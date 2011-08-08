@@ -245,6 +245,12 @@ void fuse_release_common(struct file *file, int opcode)
 	req = ff->reserved_req;
 	fuse_prepare_release(ff, file->f_flags, opcode);
 
+	if (ff->flock) {
+		struct fuse_release_in *inarg = &req->misc.release.in;
+		inarg->release_flags |= FUSE_RELEASE_FLOCK_UNLOCK;
+		inarg->lock_owner = fuse_lock_owner_id(ff->fc,
+						       (fl_owner_t) file);
+	}
 	/* Hold vfsmount and dentry until release is finished */
 	path_get(&file->f_path);
 	req->misc.release.path = file->f_path;
@@ -1547,11 +1553,14 @@ static int fuse_file_flock(struct file *file, int cmd, struct file_lock *fl)
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	int err;
 
-	if (fc->no_lock) {
+	if (fc->no_flock) {
 		err = flock_lock_file_wait(file, fl);
 	} else {
+		struct fuse_file *ff = file->private_data;
+
 		/* emulate flock with POSIX locks */
 		fl->fl_owner = (fl_owner_t) file;
+		ff->flock = true;
 		err = fuse_setlk(file, fl, 1);
 	}
 
