@@ -648,7 +648,27 @@ program_interrupt:
 		break;
 	}
 	case BOOK3S_INTERRUPT_SYSCALL:
-		if (vcpu->arch.osi_enabled &&
+		if (vcpu->arch.papr_enabled &&
+		    (kvmppc_get_last_inst(vcpu) == 0x44000022) &&
+		    !(vcpu->arch.shared->msr & MSR_PR)) {
+			/* SC 1 papr hypercalls */
+			ulong cmd = kvmppc_get_gpr(vcpu, 3);
+			int i;
+
+			if (kvmppc_h_pr(vcpu, cmd) == EMULATE_DONE) {
+				r = RESUME_GUEST;
+				break;
+			}
+
+			run->papr_hcall.nr = cmd;
+			for (i = 0; i < 9; ++i) {
+				ulong gpr = kvmppc_get_gpr(vcpu, 4 + i);
+				run->papr_hcall.args[i] = gpr;
+			}
+			run->exit_reason = KVM_EXIT_PAPR_HCALL;
+			vcpu->arch.hcall_needed = 1;
+			r = RESUME_HOST;
+		} else if (vcpu->arch.osi_enabled &&
 		    (((u32)kvmppc_get_gpr(vcpu, 3)) == OSI_SC_MAGIC_R3) &&
 		    (((u32)kvmppc_get_gpr(vcpu, 4)) == OSI_SC_MAGIC_R4)) {
 			/* MOL hypercalls */
