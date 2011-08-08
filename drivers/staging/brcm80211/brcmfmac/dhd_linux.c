@@ -143,64 +143,6 @@ static int brcmf_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktd
 			    struct brcmf_event_msg *event_ptr,
 			    void **data_ptr);
 
-/*
- * Generalized timeout mechanism.  Uses spin sleep with exponential
- * back-off until
- * the sleep time reaches one jiffy, then switches over to task delay.  Usage:
- *
- *      brcmf_timeout_start(&tmo, usec);
- *      while (!brcmf_timeout_expired(&tmo))
- *              if (poll_something())
- *                      break;
- *      if (brcmf_timeout_expired(&tmo))
- *              fatal();
- */
-
-void brcmf_timeout_start(struct brcmf_timeout *tmo, uint usec)
-{
-	tmo->limit = usec;
-	tmo->increment = 0;
-	tmo->elapsed = 0;
-	tmo->tick = 1000000 / HZ;
-}
-
-int brcmf_timeout_expired(struct brcmf_timeout *tmo)
-{
-	/* Does nothing the first call */
-	if (tmo->increment == 0) {
-		tmo->increment = 1;
-		return 0;
-	}
-
-	if (tmo->elapsed >= tmo->limit)
-		return 1;
-
-	/* Add the delay that's about to take place */
-	tmo->elapsed += tmo->increment;
-
-	if (tmo->increment < tmo->tick) {
-		udelay(tmo->increment);
-		tmo->increment *= 2;
-		if (tmo->increment > tmo->tick)
-			tmo->increment = tmo->tick;
-	} else {
-		wait_queue_head_t delay_wait;
-		DECLARE_WAITQUEUE(wait, current);
-		int pending;
-		init_waitqueue_head(&delay_wait);
-		add_wait_queue(&delay_wait, &wait);
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
-		pending = signal_pending(current);
-		remove_wait_queue(&delay_wait, &wait);
-		set_current_state(TASK_RUNNING);
-		if (pending)
-			return 1;	/* Interrupted */
-	}
-
-	return 0;
-}
-
 static int brcmf_net2idx(struct brcmf_info *drvr_priv, struct net_device *net)
 {
 	int i = 0;

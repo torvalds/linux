@@ -3306,7 +3306,7 @@ void brcmf_sdbrcm_bus_stop(struct brcmf_bus *bus, bool enforce_mutex)
 int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr, bool enforce_mutex)
 {
 	struct brcmf_bus *bus = drvr->bus;
-	struct brcmf_timeout tmo;
+	unsigned long timeout;
 	uint retries = 0;
 	u8 ready, enable;
 	int err, ret = 0;
@@ -3358,16 +3358,20 @@ int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr, bool enforce_mutex)
 	brcmf_sdcard_cfg_write(bus->card, SDIO_FUNC_0, SDIO_CCCR_IOEx, enable,
 			       NULL);
 
-	/* Give the dongle some time to do its thing and set IOR2 */
-	brcmf_timeout_start(&tmo, BRCMF_WAIT_F2RDY * 1000);
-
+	timeout = jiffies + msecs_to_jiffies(BRCMF_WAIT_F2RDY);
 	ready = 0;
-	while (ready != enable && !brcmf_timeout_expired(&tmo))
+	while (enable != ready) {
 		ready = brcmf_sdcard_cfg_read(bus->card, SDIO_FUNC_0,
 					      SDIO_CCCR_IORx, NULL);
+		if (time_after(jiffies, timeout))
+			break;
+		else if (time_after(jiffies, timeout - BRCMF_WAIT_F2RDY + 50))
+			/* prevent busy waiting if it takes too long */
+			msleep_interruptible(20);
+	}
 
-	BRCMF_INFO(("%s: enable 0x%02x, ready 0x%02x (waited %uus)\n",
-		    __func__, enable, ready, tmo.elapsed));
+	BRCMF_INFO(("%s: enable 0x%02x, ready 0x%02x\n",
+		    __func__, enable, ready));
 
 	/* If F2 successfully enabled, set core and enable interrupts */
 	if (ready == enable) {

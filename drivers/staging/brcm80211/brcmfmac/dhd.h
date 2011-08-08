@@ -614,13 +614,6 @@ struct brcmf_if_event {
 	u8 bssidx;
 };
 
-struct brcmf_timeout {
-	u32 limit;		/* Expiration time (usec) */
-	u32 increment;	/* Current expiration increment (usec) */
-	u32 elapsed;		/* Current elapsed time (usec) */
-	u32 tick;		/* O/S tick time (usec) */
-};
-
 struct bcmevent_name {
 	uint event;
 	const char *name;
@@ -782,9 +775,6 @@ extern int brcmf_os_proto_unblock(struct brcmf_pub *drvr);
 #ifdef BCMDBG
 extern int brcmf_write_to_file(struct brcmf_pub *drvr, u8 *buf, int size);
 #endif				/* BCMDBG */
-
-extern void brcmf_timeout_start(struct brcmf_timeout *tmo, uint usec);
-extern int brcmf_timeout_expired(struct brcmf_timeout *tmo);
 
 extern int brcmf_ifname2idx(struct brcmf_info *drvr_priv, char *name);
 extern int brcmf_c_host_event(struct brcmf_info *drvr_priv, int *idx,
