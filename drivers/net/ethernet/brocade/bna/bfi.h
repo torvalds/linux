@@ -192,6 +192,8 @@ enum bfi_mclass {
 
 #define BFI_BOOT_LOADER_OS		0
 
+#define BFI_FWBOOT_ENV_OS		0
+
 #define BFI_BOOT_MEMTEST_RES_ADDR   0x900
 #define BFI_BOOT_MEMTEST_RES_SIG    0xA0A1A2A3
 
@@ -393,6 +395,105 @@ union bfi_ioc_i2h_msg_u {
 	struct bfi_mhdr mh;
 	struct bfi_ioc_rdy_event rdy_event;
 	u32			mboxmsg[BFI_IOC_MSGSZ];
+};
+
+/**
+ *----------------------------------------------------------------------
+ *				MSGQ
+ *----------------------------------------------------------------------
+ */
+
+enum bfi_msgq_h2i_msgs {
+	BFI_MSGQ_H2I_INIT_REQ	   = 1,
+	BFI_MSGQ_H2I_DOORBELL_PI	= 2,
+	BFI_MSGQ_H2I_DOORBELL_CI	= 3,
+	BFI_MSGQ_H2I_CMDQ_COPY_RSP      = 4,
+};
+
+enum bfi_msgq_i2h_msgs {
+	BFI_MSGQ_I2H_INIT_RSP	   = BFA_I2HM(BFI_MSGQ_H2I_INIT_REQ),
+	BFI_MSGQ_I2H_DOORBELL_PI	= BFA_I2HM(BFI_MSGQ_H2I_DOORBELL_PI),
+	BFI_MSGQ_I2H_DOORBELL_CI	= BFA_I2HM(BFI_MSGQ_H2I_DOORBELL_CI),
+	BFI_MSGQ_I2H_CMDQ_COPY_REQ      = BFA_I2HM(BFI_MSGQ_H2I_CMDQ_COPY_RSP),
+};
+
+/* Messages(commands/responsed/AENS will have the following header */
+struct bfi_msgq_mhdr {
+	u8	msg_class;
+	u8	msg_id;
+	u16	msg_token;
+	u16	num_entries;
+	u8	enet_id;
+	u8	rsvd[1];
+};
+
+#define bfi_msgq_mhdr_set(_mh, _mc, _mid, _tok, _enet_id) do {	\
+	(_mh).msg_class	 = (_mc);	\
+	(_mh).msg_id	    = (_mid);       \
+	(_mh).msg_token	 = (_tok);       \
+	(_mh).enet_id	   = (_enet_id);   \
+} while (0)
+
+/*
+ * Mailbox  for messaging interface
+ */
+#define BFI_MSGQ_CMD_ENTRY_SIZE	 (64)    /* TBD */
+#define BFI_MSGQ_RSP_ENTRY_SIZE	 (64)    /* TBD */
+
+#define bfi_msgq_num_cmd_entries(_size)				 \
+	(((_size) + BFI_MSGQ_CMD_ENTRY_SIZE - 1) / BFI_MSGQ_CMD_ENTRY_SIZE)
+
+struct bfi_msgq {
+	union bfi_addr_u addr;
+	u16 q_depth;     /* Total num of entries in the queue */
+	u8 rsvd[2];
+};
+
+/* BFI_ENET_MSGQ_CFG_REQ TBD init or cfg? */
+struct bfi_msgq_cfg_req {
+	struct bfi_mhdr mh;
+	struct bfi_msgq cmdq;
+	struct bfi_msgq rspq;
+};
+
+/* BFI_ENET_MSGQ_CFG_RSP */
+struct bfi_msgq_cfg_rsp {
+	struct bfi_mhdr mh;
+	u8 cmd_status;
+	u8 rsvd[3];
+};
+
+/* BFI_MSGQ_H2I_DOORBELL */
+struct bfi_msgq_h2i_db {
+	struct bfi_mhdr mh;
+	union {
+		u16 cmdq_pi;
+		u16 rspq_ci;
+	} idx;
+};
+
+/* BFI_MSGQ_I2H_DOORBELL */
+struct bfi_msgq_i2h_db {
+	struct bfi_mhdr mh;
+	union {
+		u16 rspq_pi;
+		u16 cmdq_ci;
+	} idx;
+};
+
+#define BFI_CMD_COPY_SZ 28
+
+/* BFI_MSGQ_H2I_CMD_COPY_RSP */
+struct bfi_msgq_h2i_cmdq_copy_rsp {
+	struct bfi_mhdr mh;
+	u8	      data[BFI_CMD_COPY_SZ];
+};
+
+/* BFI_MSGQ_I2H_CMD_COPY_REQ */
+struct bfi_msgq_i2h_cmdq_copy_req {
+	struct bfi_mhdr mh;
+	u16     offset;
+	u16     len;
 };
 
 #pragma pack()

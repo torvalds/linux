@@ -253,7 +253,9 @@ struct bfa_ioc_hwif {
 /**
  * IOC mailbox interface
  */
-void bfa_nw_ioc_mbox_queue(struct bfa_ioc *ioc, struct bfa_mbox_cmd *cmd);
+bool bfa_nw_ioc_mbox_queue(struct bfa_ioc *ioc,
+			struct bfa_mbox_cmd *cmd,
+			bfa_mbox_cmd_cbfn_t cbfn, void *cbarg);
 void bfa_nw_ioc_mbox_isr(struct bfa_ioc *ioc);
 void bfa_nw_ioc_mbox_regisr(struct bfa_ioc *ioc, enum bfi_mclass mc,
 		bfa_ioc_mbox_mcfunc_t cbfn, void *cbarg);

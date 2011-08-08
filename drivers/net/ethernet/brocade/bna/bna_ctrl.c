@@ -183,7 +183,8 @@ bna_ll_isr(void *llarg, struct bfi_mbmsg *msg)
 			if (to_post) {
 				mb_qe = bfa_q_first(&bna->mbox_mod.posted_q);
 				bfa_nw_ioc_mbox_queue(&bna->device.ioc,
-							&mb_qe->cmd);
+							&mb_qe->cmd, NULL,
+							NULL);
 			}
 		} else {
 			snprintf(message, BNA_MESSAGE_SIZE,
@@ -234,7 +235,8 @@ bna_mbox_send(struct bna *bna, struct bna_mbox_qe *mbox_qe)
 	bna->mbox_mod.msg_pending++;
 	if (bna->mbox_mod.state == BNA_MBOX_FREE) {
 		list_add_tail(&mbox_qe->qe, &bna->mbox_mod.posted_q);
-		bfa_nw_ioc_mbox_queue(&bna->device.ioc, &mbox_qe->cmd);
+		bfa_nw_ioc_mbox_queue(&bna->device.ioc, &mbox_qe->cmd,
+					NULL, NULL);
 		bna->mbox_mod.state = BNA_MBOX_POSTED;
 	} else {
 		list_add_tail(&mbox_qe->qe, &bna->mbox_mod.posted_q);
