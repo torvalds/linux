@@ -340,7 +340,6 @@ extern int brcmf_sdioh_abort(struct sdioh_info *si, uint fnc);
 /* Watchdog timer interface for pm ops */
 extern void brcmf_sdio_wdtmr_enable(bool enable);
 
-extern uint sd_msglevel;	/* Debug message level */
 extern uint sd_f2_blocksize;
 
 extern struct brcmf_sdmmc_instance *gInstance;

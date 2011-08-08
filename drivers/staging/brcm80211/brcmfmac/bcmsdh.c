@@ -98,8 +98,6 @@ static struct brcmf_sdioh_driver drvinfo = { NULL, NULL };
 
 /* Module parameters specific to each host-controller driver */
 
-module_param(sd_msglevel, uint, 0);
-
 module_param(sd_f2_blocksize, int, 0);
 
 struct brcmf_sdio_card*
