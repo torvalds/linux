@@ -89,9 +89,6 @@ struct sdio_hc {
 	bool oob_irq_registered;
 };
 
-/* local copy of bcm sd handler */
-static struct brcmf_sdio_card *l_card;
-
 const uint brcmf_sdio_msglevel = BRCMF_SD_ERROR_VAL;
 
 static struct sdio_hc *sdhcinfo;
@@ -115,9 +112,6 @@ brcmf_sdcard_attach(void *cfghdl, u32 *regsva, uint irq)
 		BRCMF_SD_ERROR(("sdcard_attach: out of memory"));
 		return NULL;
 	}
-
-	/* save the handler locally */
-	l_card = card;
 
 	card->sdioh = brcmf_sdioh_attach(cfghdl, irq);
 	if (!card->sdioh) {
@@ -144,7 +138,6 @@ int brcmf_sdcard_detach(struct brcmf_sdio_card *card)
 		kfree(card);
 	}
 
-	l_card = NULL;
 	return 0;
 }
 
@@ -184,9 +177,6 @@ u8 brcmf_sdcard_cfg_read(struct brcmf_sdio_card *card, uint fnc_num, u32 addr,
 	s32 retry = 0;
 	u8 data = 0;
 
-	if (!card)
-		card = l_card;
-
 	do {
 		if (retry)	/* wait for 1 ms till bus get settled down */
 			udelay(1000);
@@ -211,9 +201,6 @@ brcmf_sdcard_cfg_write(struct brcmf_sdio_card *card, uint fnc_num, u32 addr,
 	int status;
 	s32 retry = 0;
 
-	if (!card)
-		card = l_card;
-
 	do {
 		if (retry)	/* wait for 1 ms till bus get settled down */
 			udelay(1000);
@@ -235,9 +222,6 @@ u32 brcmf_sdcard_cfg_read_word(struct brcmf_sdio_card *card, uint fnc_num,
 	int status;
 	u32 data = 0;
 
-	if (!card)
-		card = l_card;
-
 	status = brcmf_sdioh_request_word(card->sdioh, SDIOH_CMD_TYPE_NORMAL,
 		SDIOH_READ, fnc_num, addr, &data, 4);
 
@@ -255,9 +239,6 @@ brcmf_sdcard_cfg_write_word(struct brcmf_sdio_card *card, uint fnc_num,
 			    u32 addr, u32 data, int *err)
 {
 	int status;
-
-	if (!card)
-		card = l_card;
 
 	status =
 	    brcmf_sdioh_request_word(card->sdioh, SDIOH_CMD_TYPE_NORMAL,
@@ -279,9 +260,6 @@ int brcmf_sdcard_cis_read(struct brcmf_sdio_card *card, uint func, u8 * cis,
 	u8 *ptr;
 	bool ascii = func & ~0xf;
 	func &= 0x7;
-
-	if (!card)
-		card = l_card;
 
 	status = brcmf_sdioh_cis_read(card->sdioh, func, cis, length);
 
@@ -334,9 +312,6 @@ u32 brcmf_sdcard_reg_read(struct brcmf_sdio_card *card, u32 addr, uint size)
 
 	BRCMF_SD_INFO(("%s:fun = 1, addr = 0x%x, ", __func__, addr));
 
-	if (!card)
-		card = l_card;
-
 	if (bar0 != card->sbwad) {
 		if (brcmf_sdcard_set_sbaddr_window(card, bar0))
 			return 0xFFFFFFFF;
@@ -385,9 +360,6 @@ u32 brcmf_sdcard_reg_write(struct brcmf_sdio_card *card, u32 addr, uint size,
 
 	BRCMF_SD_INFO(("%s:fun = 1, addr = 0x%x, uint%ddata = 0x%x\n",
 		     __func__, addr, size * 8, data));
-
-	if (!card)
-		card = l_card;
 
 	if (bar0 != card->sbwad) {
 		err = brcmf_sdcard_set_sbaddr_window(card, bar0);
@@ -522,9 +494,6 @@ int brcmf_sdcard_query_device(struct brcmf_sdio_card *card)
 
 u32 brcmf_sdcard_cur_sbwad(struct brcmf_sdio_card *card)
 {
-	if (!card)
-		card = l_card;
-
 	return card->sbwad;
 }
 

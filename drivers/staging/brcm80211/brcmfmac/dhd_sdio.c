@@ -889,7 +889,7 @@ r_sdreg32(struct brcmf_bus *bus, u32 *regvar, u32 reg_offset, u32 *retryvar)
 {
 	*retryvar = 0;
 	do {
-		*regvar = brcmf_sdcard_reg_read(NULL,
+		*regvar = brcmf_sdcard_reg_read(bus->card,
 				bus->ci->buscorebase + reg_offset, sizeof(u32));
 	} while (brcmf_sdcard_regfail(bus->card) &&
 		 (++(*retryvar) <= retry_limit));
@@ -907,7 +907,8 @@ w_sdreg32(struct brcmf_bus *bus, u32 regval, u32 reg_offset, u32 *retryvar)
 {
 	*retryvar = 0;
 	do {
-		brcmf_sdcard_reg_write(NULL, bus->ci->buscorebase + reg_offset,
+		brcmf_sdcard_reg_write(bus->card,
+				       bus->ci->buscorebase + reg_offset,
 				       sizeof(u32), regval);
 	} while (brcmf_sdcard_regfail(bus->card) &&
 		 (++(*retryvar) <= retry_limit));
@@ -5682,8 +5683,8 @@ brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, void *card, u32 regsva,
 	/* Set core control so an SDIO reset does a backplane reset */
 	reg_addr = bus->ci->buscorebase +
 		   offsetof(struct sdpcmd_regs, corecontrol);
-	reg_val = brcmf_sdcard_reg_read(NULL, reg_addr, sizeof(u32));
-	brcmf_sdcard_reg_write(NULL, reg_addr, sizeof(u32),
+	reg_val = brcmf_sdcard_reg_read(bus->card, reg_addr, sizeof(u32));
+	brcmf_sdcard_reg_write(bus->card, reg_addr, sizeof(u32),
 			       reg_val | CC_BPRESEN);
 
 	brcmu_pktq_init(&bus->txq, (PRIOMASK + 1), TXQLEN);
