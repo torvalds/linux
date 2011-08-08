@@ -841,12 +841,12 @@ static int brcmf_c_pattern_atoh(char *src, char *dst)
 	int i;
 	if (strncmp(src, "0x", 2) != 0 && strncmp(src, "0X", 2) != 0) {
 		BRCMF_ERROR(("Mask invalid format. Needs to start with 0x\n"));
-		return -1;
+		return -EINVAL;
 	}
 	src = src + 2;		/* Skip past 0x */
 	if (strlen(src) % 2 != 0) {
 		BRCMF_ERROR(("Mask invalid format. Length must be even.\n"));
-		return -1;
+		return -EINVAL;
 	}
 	for (i = 0; *src != '\0'; i++) {
 		char num[3];
