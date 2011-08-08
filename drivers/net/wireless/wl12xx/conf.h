@@ -713,8 +713,16 @@ struct conf_tx_settings {
 	/*
 	 * AP-mode - allow this number of TX retries to a station before an
 	 * event is triggered from FW.
+	 * In AP-mode the hlids of unreachable stations are given in the
+	 * "sta_tx_retry_exceeded" member in the event mailbox.
 	 */
-	u16 ap_max_tx_retries;
+	u8 max_tx_retries;
+
+	/*
+	 * AP-mode - after this number of seconds a connected station is
+	 * considered inactive.
+	 */
+	u16 ap_aging_period;
 
 	/*
 	 * Configuration for TID parameters.
@@ -1157,6 +1165,9 @@ struct conf_sched_scan_settings {
 	/* time to wait on the channel for passive scans (in TUs) */
 	u32 dwell_time_passive;
 
+	/* time to wait on the channel for DFS scans (in TUs) */
+	u32 dwell_time_dfs;
+
 	/* number of probe requests to send on each channel in active scans */
 	u8 num_probe_reqs;
 
@@ -1245,6 +1256,59 @@ struct conf_fm_coex {
 	u8 swallow_clk_diff;
 };
 
+struct conf_rx_streaming_settings {
+	/*
+	 * RX Streaming duration (in msec) from last tx/rx
+	 *
+	 * Range: u32
+	 */
+	u32 duration;
+
+	/*
+	 * Bitmap of tids to be polled during RX streaming.
+	 * (Note: it doesn't look like it really matters)
+	 *
+	 * Range: 0x1-0xff
+	 */
+	u8 queues;
+
+	/*
+	 * RX Streaming interval.
+	 * (Note:this value is also used as the rx streaming timeout)
+	 * Range: 0 (disabled), 10 - 100
+	 */
+	u8 interval;
+
+	/*
+	 * enable rx streaming also when there is no coex activity
+	 */
+	u8 always;
+};
+
+struct conf_fwlog {
+	/* Continuous or on-demand */
+	u8 mode;
+
+	/*
+	 * Number of memory blocks dedicated for the FW logger
+	 *
+	 * Range: 1-3, or 0 to disable the FW logger
+	 */
+	u8 mem_blocks;
+
+	/* Minimum log level threshold */
+	u8 severity;
+
+	/* Include/exclude timestamps from the log messages */
+	u8 timestamp;
+
+	/* See enum wl1271_fwlogger_output */
+	u8 output;
+
+	/* Regulates the frequency of log messages */
+	u8 threshold;
+};
+
 struct conf_drv_settings {
 	struct conf_sg_settings sg;
 	struct conf_rx_settings rx;
@@ -1260,6 +1324,8 @@ struct conf_drv_settings {
 	struct conf_memory_settings mem_wl127x;
 	struct conf_memory_settings mem_wl128x;
 	struct conf_fm_coex fm_coex;
+	struct conf_rx_streaming_settings rx_streaming;
+	struct conf_fwlog fwlog;
 	u8 hci_io_ds;
 };
 

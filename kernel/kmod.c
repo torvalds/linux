@@ -156,12 +156,6 @@ static int ____call_usermodehelper(void *data)
 	 */
 	set_user_nice(current, 0);
 
-	if (sub_info->init) {
-		retval = sub_info->init(sub_info);
-		if (retval)
-			goto fail;
-	}
-
 	retval = -ENOMEM;
 	new = prepare_kernel_cred(current);
 	if (!new)
@@ -172,6 +166,14 @@ static int ____call_usermodehelper(void *data)
 	new->cap_inheritable = cap_intersect(usermodehelper_inheritable,
 					     new->cap_inheritable);
 	spin_unlock(&umh_sysctl_lock);
+
+	if (sub_info->init) {
+		retval = sub_info->init(sub_info, new);
+		if (retval) {
+			abort_creds(new);
+			goto fail;
+		}
+	}
 
 	commit_creds(new);
 
@@ -272,7 +274,7 @@ static void __call_usermodehelper(struct work_struct *work)
  * (used for preventing user land processes from being created after the user
  * land has been frozen during a system-wide hibernation or suspend operation).
  */
-static int usermodehelper_disabled;
+static int usermodehelper_disabled = 1;
 
 /* Number of helpers running */
 static atomic_t running_helpers = ATOMIC_INIT(0);
@@ -388,7 +390,7 @@ EXPORT_SYMBOL(call_usermodehelper_setup);
  * context in which call_usermodehelper_exec is called.
  */
 void call_usermodehelper_setfns(struct subprocess_info *info,
-		    int (*init)(struct subprocess_info *info),
+		    int (*init)(struct subprocess_info *info, struct cred *new),
 		    void (*cleanup)(struct subprocess_info *info),
 		    void *data)
 {

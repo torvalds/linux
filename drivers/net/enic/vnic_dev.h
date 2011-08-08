@@ -109,11 +109,16 @@ int vnic_dev_open(struct vnic_dev *vdev, int arg);
 int vnic_dev_open_done(struct vnic_dev *vdev, int *done);
 int vnic_dev_init(struct vnic_dev *vdev, int arg);
 int vnic_dev_deinit(struct vnic_dev *vdev);
+void vnic_dev_intr_coal_timer_info_default(struct vnic_dev *vdev);
+int vnic_dev_intr_coal_timer_info(struct vnic_dev *vdev);
 int vnic_dev_hang_reset(struct vnic_dev *vdev, int arg);
 int vnic_dev_hang_reset_done(struct vnic_dev *vdev, int *done);
 void vnic_dev_set_intr_mode(struct vnic_dev *vdev,
 	enum vnic_dev_intr_mode intr_mode);
 enum vnic_dev_intr_mode vnic_dev_get_intr_mode(struct vnic_dev *vdev);
+u32 vnic_dev_intr_coal_timer_usec_to_hw(struct vnic_dev *vdev, u32 usec);
+u32 vnic_dev_intr_coal_timer_hw_to_usec(struct vnic_dev *vdev, u32 hw_cycles);
+u32 vnic_dev_get_intr_coal_timer_max(struct vnic_dev *vdev);
 void vnic_dev_unregister(struct vnic_dev *vdev);
 int vnic_dev_set_ig_vlan_rewrite_mode(struct vnic_dev *vdev,
 	u8 ig_vlan_rewrite_mode);

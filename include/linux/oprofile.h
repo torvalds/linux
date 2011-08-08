@@ -18,7 +18,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/printk.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
  
 /* Each escaped entry is prefixed by ESCAPE_CODE
  * then one of the following codes, then the

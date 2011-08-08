@@ -1123,7 +1123,7 @@ int lmLogOpen(struct super_block *sb)
 	bdev = blkdev_get_by_dev(sbi->logdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL,
 				 log);
 	if (IS_ERR(bdev)) {
-		rc = -PTR_ERR(bdev);
+		rc = PTR_ERR(bdev);
 		goto free;
 	}
 

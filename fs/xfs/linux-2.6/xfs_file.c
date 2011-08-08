@@ -127,22 +127,45 @@ xfs_iozero(
 STATIC int
 xfs_file_fsync(
 	struct file		*file,
+	loff_t			start,
+	loff_t			end,
 	int			datasync)
 {
 	struct inode		*inode = file->f_mapping->host;
 	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
 	int			error = 0;
 	int			log_flushed = 0;
 
 	trace_xfs_file_fsync(ip);
 
-	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
+	error = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (error)
+		return error;
+
+	if (XFS_FORCED_SHUTDOWN(mp))
 		return -XFS_ERROR(EIO);
 
 	xfs_iflags_clear(ip, XFS_ITRUNCATED);
 
+	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	xfs_ioend_wait(ip);
+	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
+
+	if (mp->m_flags & XFS_MOUNT_BARRIER) {
+		/*
+		 * If we have an RT and/or log subvolume we need to make sure
+		 * to flush the write cache the device used for file data
+		 * first.  This is to ensure newly written file data make
+		 * it to disk before logging the new inode size in case of
+		 * an extending write.
+		 */
+		if (XFS_IS_REALTIME_INODE(ip))
+			xfs_blkdev_issue_flush(mp->m_rtdev_targp);
+		else if (mp->m_logdev_targp != mp->m_ddev_targp)
+			xfs_blkdev_issue_flush(mp->m_ddev_targp);
+	}
 
 	/*
 	 * We always need to make sure that the required inode state is safe on
@@ -175,9 +198,9 @@ xfs_file_fsync(
 		 * updates.  The sync transaction will also force the log.
 		 */
 		xfs_iunlock(ip, XFS_ILOCK_SHARED);
-		tp = xfs_trans_alloc(ip->i_mount, XFS_TRANS_FSYNC_TS);
+		tp = xfs_trans_alloc(mp, XFS_TRANS_FSYNC_TS);
 		error = xfs_trans_reserve(tp, 0,
-				XFS_FSYNC_TS_LOG_RES(ip->i_mount), 0, 0, 0);
+				XFS_FSYNC_TS_LOG_RES(mp), 0, 0, 0);
 		if (error) {
 			xfs_trans_cancel(tp, 0);
 			return -error;
@@ -209,28 +232,25 @@ xfs_file_fsync(
 		 * force the log.
 		 */
 		if (xfs_ipincount(ip)) {
-			error = _xfs_log_force_lsn(ip->i_mount,
+			error = _xfs_log_force_lsn(mp,
 					ip->i_itemp->ili_last_lsn,
 					XFS_LOG_SYNC, &log_flushed);
 		}
 		xfs_iunlock(ip, XFS_ILOCK_SHARED);
 	}
 
-	if (ip->i_mount->m_flags & XFS_MOUNT_BARRIER) {
-		/*
-		 * If the log write didn't issue an ordered tag we need
-		 * to flush the disk cache for the data device now.
-		 */
-		if (!log_flushed)
-			xfs_blkdev_issue_flush(ip->i_mount->m_ddev_targp);
-
-		/*
-		 * If this inode is on the RT dev we need to flush that
-		 * cache as well.
-		 */
-		if (XFS_IS_REALTIME_INODE(ip))
-			xfs_blkdev_issue_flush(ip->i_mount->m_rtdev_targp);
-	}
+	/*
+	 * If we only have a single device, and the log force about was
+	 * a no-op we might have to flush the data device cache here.
+	 * This can only happen for fdatasync/O_DSYNC if we were overwriting
+	 * an already allocated file and thus do not have any metadata to
+	 * commit.
+	 */
+	if ((mp->m_flags & XFS_MOUNT_BARRIER) &&
+	    mp->m_logdev_targp == mp->m_ddev_targp &&
+	    !XFS_IS_REALTIME_INODE(ip) &&
+	    !log_flushed)
+		xfs_blkdev_issue_flush(mp->m_ddev_targp);
 
 	return -error;
 }
@@ -863,18 +883,14 @@ xfs_file_aio_write(
 	/* Handle various SYNC-type writes */
 	if ((file->f_flags & O_DSYNC) || IS_SYNC(inode)) {
 		loff_t end = pos + ret - 1;
-		int error, error2;
+		int error;
 
 		xfs_rw_iunlock(ip, iolock);
-		error = filemap_write_and_wait_range(mapping, pos, end);
+		error = xfs_file_fsync(file, pos, end,
+				      (file->f_flags & __O_SYNC) ? 0 : 1);
 		xfs_rw_ilock(ip, iolock);
-
-		error2 = -xfs_file_fsync(file,
-					 (file->f_flags & __O_SYNC) ? 0 : 1);
 		if (error)
 			ret = error;
-		else if (error2)
-			ret = error2;
 	}
 
 out_unlock:
@@ -932,7 +948,7 @@ xfs_file_fallocate(
 
 		iattr.ia_valid = ATTR_SIZE;
 		iattr.ia_size = new_size;
-		error = -xfs_setattr(ip, &iattr, XFS_ATTR_NOLOCK);
+		error = -xfs_setattr_size(ip, &iattr, XFS_ATTR_NOLOCK);
 	}
 
 out_unlock:

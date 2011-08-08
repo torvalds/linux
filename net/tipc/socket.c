@@ -36,9 +36,6 @@
 
 #include <net/sock.h>
 
-#include <linux/tipc.h>
-#include <linux/tipc_config.h>
-
 #include "core.h"
 #include "port.h"
 

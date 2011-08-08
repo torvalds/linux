@@ -632,14 +632,14 @@ late_initcall(uv_init_heartbeat);
 
 /* Direct Legacy VGA I/O traffic to designated IOH */
 int uv_set_vga_state(struct pci_dev *pdev, bool decode,
-		      unsigned int command_bits, bool change_bridge)
+		      unsigned int command_bits, u32 flags)
 {
 	int domain, bus, rc;
 
-	PR_DEVEL("devfn %x decode %d cmd %x chg_brdg %d\n",
-			pdev->devfn, decode, command_bits, change_bridge);
+	PR_DEVEL("devfn %x decode %d cmd %x flags %d\n",
+			pdev->devfn, decode, command_bits, flags);
 
-	if (!change_bridge)
+	if (!(flags & PCI_VGA_STATE_CHANGE_BRIDGE))
 		return 0;
 
 	if ((command_bits & PCI_COMMAND_IO) == 0)

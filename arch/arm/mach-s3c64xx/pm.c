@@ -112,7 +112,7 @@ void s3c_pm_save_core(void)
  * this.
  */
 
-static void s3c64xx_cpu_suspend(void)
+static int s3c64xx_cpu_suspend(unsigned long arg)
 {
 	unsigned long tmp;
 

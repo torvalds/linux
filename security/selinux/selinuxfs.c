@@ -2,7 +2,7 @@
  *
  *	Added conditional policy language extensions
  *
- *  Updated: Hewlett-Packard <paul.moore@hp.com>
+ *  Updated: Hewlett-Packard <paul@paul-moore.com>
  *
  *	Added support for the policy capability bitmap
  *
@@ -29,6 +29,7 @@
 #include <linux/audit.h>
 #include <linux/uaccess.h>
 #include <linux/kobject.h>
+#include <linux/ctype.h>
 
 /* selinuxfs pseudo filesystem for exporting the security policy API.
    Based on the proc code and the fs/nfsd/nfsctl.c code. */
@@ -751,6 +752,14 @@ out:
 	return length;
 }
 
+static inline int hexcode_to_int(int code) {
+	if (code == '\0' || !isxdigit(code))
+		return -1;
+	if (isdigit(code))
+		return code - '0';
+	return tolower(code) - 'a' + 10;
+}
+
 static ssize_t sel_write_create(struct file *file, char *buf, size_t size)
 {
 	char *scon = NULL, *tcon = NULL;
@@ -785,8 +794,34 @@ static ssize_t sel_write_create(struct file *file, char *buf, size_t size)
 	nargs = sscanf(buf, "%s %s %hu %s", scon, tcon, &tclass, namebuf);
 	if (nargs < 3 || nargs > 4)
 		goto out;
-	if (nargs == 4)
+	if (nargs == 4) {
+		/*
+		 * If and when the name of new object to be queried contains
+		 * either whitespace or multibyte characters, they shall be
+		 * encoded based on the percentage-encoding rule.
+		 * If not encoded, the sscanf logic picks up only left-half
+		 * of the supplied name; splitted by a whitespace unexpectedly.
+		 */
+		char   *r, *w;
+		int     c1, c2;
+
+		r = w = namebuf;
+		do {
+			c1 = *r++;
+			if (c1 == '+')
+				c1 = ' ';
+			else if (c1 == '%') {
+				if ((c1 = hexcode_to_int(*r++)) < 0)
+					goto out;
+				if ((c2 = hexcode_to_int(*r++)) < 0)
+					goto out;
+				c1 = (c1 << 4) | c2;
+			}
+			*w++ = c1;
+		} while (c1 != '\0');
+
 		objname = namebuf;
+	}
 
 	length = security_context_to_sid(scon, strlen(scon) + 1, &ssid);
 	if (length)
@@ -1949,6 +1984,7 @@ __initcall(init_sel_fs);
 void exit_sel_fs(void)
 {
 	kobject_put(selinuxfs_kobj);
+	kern_unmount(selinuxfs_mount);
 	unregister_filesystem(&sel_fs_type);
 }
 #endif

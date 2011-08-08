@@ -14,8 +14,7 @@ EXPORT_SYMBOL(__ashrdi3);
 EXPORT_SYMBOL(__lshrdi3);
 EXPORT_SYMBOL(__muldi3);
 
-#if !defined(__mc68020__) && !defined(__mc68030__) && \
-    !defined(__mc68040__) && !defined(__mc68060__) && !defined(__mcpu32__)
+#if defined(CONFIG_M68000) || defined(CONFIG_COLDFIRE)
 /*
  * Simpler 68k and ColdFire parts also need a few other gcc functions.
  */

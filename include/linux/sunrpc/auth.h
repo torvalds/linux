@@ -15,7 +15,7 @@
 #include <linux/sunrpc/msg_prot.h>
 #include <linux/sunrpc/xdr.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/rcupdate.h>
 
 /* size of the nodename buffer */

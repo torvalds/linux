@@ -17,8 +17,6 @@
  */
 #define PLAT_PHYS_OFFSET     UL(0x08000000)
 
-#define ARM_DMA_ZONE_SIZE	SZ_4M
-
 /*
  * Cache flushing area
  */

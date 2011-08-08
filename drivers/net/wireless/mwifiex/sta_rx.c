@@ -187,7 +187,7 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_adapter *adapter,
 	ret = mwifiex_11n_rx_reorder_pkt(priv, local_rx_pd->seq_num,
 					     local_rx_pd->priority, ta,
 					     (u8) local_rx_pd->rx_pkt_type,
-						(void *) skb);
+					     skb);
 
 	if (ret || (rx_pkt_type == PKT_TYPE_BAR)) {
 		if (priv && (ret == -1))

@@ -14,7 +14,7 @@
  *  Copyright (C) 2004-2005 Trusted Computer Solutions, Inc.
  *			    <dgoeddel@trustedcs.com>
  *  Copyright (C) 2006, 2007, 2009 Hewlett-Packard Development Company, L.P.
- *	Paul Moore <paul.moore@hp.com>
+ *	Paul Moore <paul@paul-moore.com>
  *  Copyright (C) 2007 Hitachi Software Engineering Co., Ltd.
  *		       Yuichi Nakamura <ynakam@hitachisoft.jp>
  *
@@ -57,7 +57,7 @@
 #include <net/netlabel.h>
 #include <linux/uaccess.h>
 #include <asm/ioctls.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>	/* for network interface checks */
@@ -1476,7 +1476,6 @@ static int inode_has_perm(const struct cred *cred,
 			  unsigned flags)
 {
 	struct inode_security_struct *isec;
-	struct common_audit_data ad;
 	u32 sid;
 
 	validate_creds(cred);
@@ -1487,13 +1486,19 @@ static int inode_has_perm(const struct cred *cred,
 	sid = cred_sid(cred);
 	isec = inode->i_security;
 
-	if (!adp) {
-		adp = &ad;
-		COMMON_AUDIT_DATA_INIT(&ad, INODE);
-		ad.u.inode = inode;
-	}
-
 	return avc_has_perm_flags(sid, isec->sid, isec->sclass, perms, adp, flags);
+}
+
+static int inode_has_perm_noadp(const struct cred *cred,
+				struct inode *inode,
+				u32 perms,
+				unsigned flags)
+{
+	struct common_audit_data ad;
+
+	COMMON_AUDIT_DATA_INIT(&ad, INODE);
+	ad.u.inode = inode;
+	return inode_has_perm(cred, inode, perms, &ad, flags);
 }
 
 /* Same as inode_has_perm, but pass explicit audit data containing
@@ -2048,7 +2053,7 @@ static int selinux_bprm_set_creds(struct linux_binprm *bprm)
 			u32 ptsid = 0;
 
 			rcu_read_lock();
-			tracer = tracehook_tracer_task(current);
+			tracer = ptrace_parent(current);
 			if (likely(tracer != NULL)) {
 				sec = __task_cred(tracer)->security;
 				ptsid = sec->sid;
@@ -2122,8 +2127,8 @@ static inline void flush_unauthorized_files(const struct cred *cred,
 						struct tty_file_private, list);
 			file = file_priv->file;
 			inode = file->f_path.dentry->d_inode;
-			if (inode_has_perm(cred, inode,
-					   FILE__READ | FILE__WRITE, NULL, 0)) {
+			if (inode_has_perm_noadp(cred, inode,
+					   FILE__READ | FILE__WRITE, 0)) {
 				drop_tty = 1;
 			}
 		}
@@ -2654,12 +2659,13 @@ static int selinux_inode_follow_link(struct dentry *dentry, struct nameidata *na
 	return dentry_has_perm(cred, dentry, FILE__READ);
 }
 
-static int selinux_inode_permission(struct inode *inode, int mask, unsigned flags)
+static int selinux_inode_permission(struct inode *inode, int mask)
 {
 	const struct cred *cred = current_cred();
 	struct common_audit_data ad;
 	u32 perms;
 	bool from_access;
+	unsigned flags = mask & MAY_NOT_BLOCK;
 
 	from_access = mask & MAY_ACCESS;
 	mask &= (MAY_READ|MAY_WRITE|MAY_EXEC|MAY_APPEND);
@@ -3228,7 +3234,7 @@ static int selinux_dentry_open(struct file *file, const struct cred *cred)
 	 * new inode label or new policy.
 	 * This check is not redundant - do not remove.
 	 */
-	return inode_has_perm(cred, inode, open_file_to_av(file), NULL, 0);
+	return inode_has_perm_noadp(cred, inode, open_file_to_av(file), 0);
 }
 
 /* task security operations */
@@ -5314,7 +5320,7 @@ static int selinux_setprocattr(struct task_struct *p,
 		   Otherwise, leave SID unchanged and fail. */
 		ptsid = 0;
 		task_lock(p);
-		tracer = tracehook_tracer_task(p);
+		tracer = ptrace_parent(p);
 		if (tracer)
 			ptsid = task_sid(tracer);
 		task_unlock(p);

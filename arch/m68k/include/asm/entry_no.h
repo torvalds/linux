@@ -96,11 +96,11 @@
 .endm
 
 .macro RDUSP
-	movel	sw_usp,%a2
+	movel	sw_usp,%a3
 .endm
 
 .macro WRUSP
-	movel	%a0,sw_usp
+	movel	%a3,sw_usp
 .endm
 
 #else /* !CONFIG_COLDFIRE_SW_A7 */
@@ -127,13 +127,13 @@
 .endm
 
 .macro RDUSP
-	/*move	%usp,%a2*/
-	.word	0x4e6a
+	/*move	%usp,%a3*/
+	.word	0x4e6b
 .endm
 
 .macro WRUSP
-	/*move	%a0,%usp*/
-	.word	0x4e60
+	/*move	%a3,%usp*/
+	.word	0x4e63
 .endm
 
 #endif /* !CONFIG_COLDFIRE_SW_A7 */

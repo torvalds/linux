@@ -31,7 +31,7 @@
 static struct omap_chip_id omap_chip;
 static unsigned int omap_revision;
 
-u32 omap3_features;
+u32 omap_features;
 
 unsigned int omap_rev(void)
 {
@@ -183,14 +183,14 @@ static void __init omap24xx_check_revision(void)
 #define OMAP3_CHECK_FEATURE(status,feat)				\
 	if (((status & OMAP3_ ##feat## _MASK) 				\
 		>> OMAP3_ ##feat## _SHIFT) != FEAT_ ##feat## _NONE) { 	\
-		omap3_features |= OMAP3_HAS_ ##feat;			\
+		omap_features |= OMAP3_HAS_ ##feat;			\
 	}
 
 static void __init omap3_check_features(void)
 {
 	u32 status;
 
-	omap3_features = 0;
+	omap_features = 0;
 
 	status = omap_ctrl_readl(OMAP3_CONTROL_OMAP_STATUS);
 
@@ -200,11 +200,11 @@ static void __init omap3_check_features(void)
 	OMAP3_CHECK_FEATURE(status, NEON);
 	OMAP3_CHECK_FEATURE(status, ISP);
 	if (cpu_is_omap3630())
-		omap3_features |= OMAP3_HAS_192MHZ_CLK;
+		omap_features |= OMAP3_HAS_192MHZ_CLK;
 	if (!cpu_is_omap3505() && !cpu_is_omap3517())
-		omap3_features |= OMAP3_HAS_IO_WAKEUP;
+		omap_features |= OMAP3_HAS_IO_WAKEUP;
 
-	omap3_features |= OMAP3_HAS_SDRC;
+	omap_features |= OMAP3_HAS_SDRC;
 
 	/*
 	 * TODO: Get additional info (where applicable)
@@ -212,9 +212,34 @@ static void __init omap3_check_features(void)
 	 */
 }
 
+static void __init omap4_check_features(void)
+{
+	u32 si_type;
+
+	if (cpu_is_omap443x())
+		omap_features |= OMAP4_HAS_MPU_1GHZ;
+
+
+	if (cpu_is_omap446x()) {
+		si_type =
+			read_tap_reg(OMAP4_CTRL_MODULE_CORE_STD_FUSE_PROD_ID_1);
+		switch ((si_type & (3 << 16)) >> 16) {
+		case 2:
+			/* High performance device */
+			omap_features |= OMAP4_HAS_MPU_1_5GHZ;
+			break;
+		case 1:
+		default:
+			/* Standard device */
+			omap_features |= OMAP4_HAS_MPU_1_2GHZ;
+			break;
+		}
+	}
+}
+
 static void __init ti816x_check_features(void)
 {
-	omap3_features = OMAP3_HAS_NEON;
+	omap_features = OMAP3_HAS_NEON;
 }
 
 static void __init omap3_check_revision(void)
@@ -344,10 +369,10 @@ static void __init omap4_check_revision(void)
 	rev = (idcode >> 28) & 0xf;
 
 	/*
-	 * Few initial ES2.0 samples IDCODE is same as ES1.0
+	 * Few initial 4430 ES2.0 samples IDCODE is same as ES1.0
 	 * Use ARM register to detect the correct ES version
 	 */
-	if (!rev) {
+	if (!rev && (hawkeye != 0xb94e)) {
 		idcode = read_cpuid(CPUID_ID);
 		rev = (idcode & 0xf) - 1;
 	}
@@ -375,6 +400,15 @@ static void __init omap4_check_revision(void)
 		default:
 			omap_revision = OMAP4430_REV_ES2_2;
 			omap_chip.oc |= CHIP_IS_OMAP4430ES2_2;
+		}
+		break;
+	case 0xb94e:
+		switch (rev) {
+		case 0:
+		default:
+			omap_revision = OMAP4460_REV_ES1_0;
+			omap_chip.oc |= CHIP_IS_OMAP4460ES1_0;
+			break;
 		}
 		break;
 	default:
@@ -518,6 +552,7 @@ void __init omap2_check_revision(void)
 		return;
 	} else if (cpu_is_omap44xx()) {
 		omap4_check_revision();
+		omap4_check_features();
 		return;
 	} else {
 		pr_err("OMAP revision unknown, please fix!\n");

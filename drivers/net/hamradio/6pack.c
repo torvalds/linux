@@ -36,7 +36,7 @@
 #include <linux/tcp.h>
 #include <linux/semaphore.h>
 #include <linux/compat.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #define SIXPACK_VERSION    "Revision: 0.3.0"
 
@@ -456,7 +456,7 @@ out:
  * a block of 6pack data has been received, which can now be decapsulated
  * and sent on to some IP layer for further processing.
  */
-static unsigned int sixpack_receive_buf(struct tty_struct *tty,
+static void sixpack_receive_buf(struct tty_struct *tty,
 	const unsigned char *cp, char *fp, int count)
 {
 	struct sixpack *sp;
@@ -464,11 +464,11 @@ static unsigned int sixpack_receive_buf(struct tty_struct *tty,
 	int count1;
 
 	if (!count)
-		return 0;
+		return;
 
 	sp = sp_get(tty);
 	if (!sp)
-		return -ENODEV;
+		return;
 
 	memcpy(buf, cp, count < sizeof(buf) ? count : sizeof(buf));
 
@@ -487,8 +487,6 @@ static unsigned int sixpack_receive_buf(struct tty_struct *tty,
 
 	sp_put(sp);
 	tty_unthrottle(tty);
-
-	return count1;
 }
 
 /*
@@ -694,10 +692,10 @@ static void sixpack_close(struct tty_struct *tty)
 {
 	struct sixpack *sp;
 
-	write_lock(&disc_data_lock);
+	write_lock_bh(&disc_data_lock);
 	sp = tty->disc_data;
 	tty->disc_data = NULL;
-	write_unlock(&disc_data_lock);
+	write_unlock_bh(&disc_data_lock);
 	if (!sp)
 		return;
 

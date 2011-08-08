@@ -159,7 +159,7 @@ nvc0_fbcon_accel_init(struct fb_info *info)
 	struct drm_device *dev = nfbdev->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
-	struct nouveau_bo *nvbo = nfbdev->nouveau_fb.nvbo;
+	struct nouveau_framebuffer *fb = &nfbdev->nouveau_fb;
 	int ret, format;
 
 	ret = nouveau_gpuobj_gr_new(chan, 0x902d, 0x902d);
@@ -203,8 +203,8 @@ nvc0_fbcon_accel_init(struct fb_info *info)
 	BEGIN_NVC0(chan, 2, NvSub2D, 0x0000, 1);
 	OUT_RING  (chan, 0x0000902d);
 	BEGIN_NVC0(chan, 2, NvSub2D, 0x0104, 2);
-	OUT_RING  (chan, upper_32_bits(chan->notifier_bo->bo.offset));
-	OUT_RING  (chan, lower_32_bits(chan->notifier_bo->bo.offset));
+	OUT_RING  (chan, upper_32_bits(chan->notifier_vma.offset));
+	OUT_RING  (chan, lower_32_bits(chan->notifier_vma.offset));
 	BEGIN_NVC0(chan, 2, NvSub2D, 0x0290, 1);
 	OUT_RING  (chan, 0);
 	BEGIN_NVC0(chan, 2, NvSub2D, 0x0888, 1);
@@ -249,8 +249,8 @@ nvc0_fbcon_accel_init(struct fb_info *info)
 	OUT_RING  (chan, info->fix.line_length);
 	OUT_RING  (chan, info->var.xres_virtual);
 	OUT_RING  (chan, info->var.yres_virtual);
-	OUT_RING  (chan, upper_32_bits(nvbo->vma.offset));
-	OUT_RING  (chan, lower_32_bits(nvbo->vma.offset));
+	OUT_RING  (chan, upper_32_bits(fb->vma.offset));
+	OUT_RING  (chan, lower_32_bits(fb->vma.offset));
 	BEGIN_NVC0(chan, 2, NvSub2D, 0x0230, 10);
 	OUT_RING  (chan, format);
 	OUT_RING  (chan, 1);
@@ -260,8 +260,8 @@ nvc0_fbcon_accel_init(struct fb_info *info)
 	OUT_RING  (chan, info->fix.line_length);
 	OUT_RING  (chan, info->var.xres_virtual);
 	OUT_RING  (chan, info->var.yres_virtual);
-	OUT_RING  (chan, upper_32_bits(nvbo->vma.offset));
-	OUT_RING  (chan, lower_32_bits(nvbo->vma.offset));
+	OUT_RING  (chan, upper_32_bits(fb->vma.offset));
+	OUT_RING  (chan, lower_32_bits(fb->vma.offset));
 	FIRE_RING (chan);
 
 	return 0;

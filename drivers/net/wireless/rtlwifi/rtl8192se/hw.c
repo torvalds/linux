@@ -27,6 +27,8 @@
  *
  *****************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "../wifi.h"
 #include "../efuse.h"
 #include "../base.h"
@@ -465,8 +467,7 @@ static u8 _rtl92ce_halset_sysclk(struct ieee80211_hw *hw, u8 data)
 			if ((tmpvalue & BIT(6)))
 				break;
 
-			printk(KERN_ERR "wait for BIT(6) return value %x\n",
-			       tmpvalue);
+			pr_err("wait for BIT(6) return value %x\n", tmpvalue);
 			if (waitcount == 0)
 				break;
 
@@ -516,7 +517,7 @@ static u8 _rtl92se_rf_onoff_detect(struct ieee80211_hw *hw)
 	mdelay(10);
 
 	/* check GPIO3 */
-	u1tmp = rtl_read_byte(rtlpriv, GPIO_IN);
+	u1tmp = rtl_read_byte(rtlpriv, GPIO_IN_SE);
 	retval = (u1tmp & HAL_8192S_HW_GPIO_OFF_BIT) ? ERFON : ERFOFF;
 
 	return retval;
@@ -884,12 +885,10 @@ static void _rtl92se_hw_configure(struct ieee80211_hw *hw)
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 
 	u8 reg_bw_opmode = 0;
-	u32 reg_ratr = 0, reg_rrsr = 0;
+	u32 reg_rrsr = 0;
 	u8 regtmp = 0;
 
 	reg_bw_opmode = BW_OPMODE_20MHZ;
-	reg_ratr = RATE_ALL_CCK | RATE_ALL_OFDM_AG | RATE_ALL_OFDM_1SS |
-				RATE_ALL_OFDM_2SS;
 	reg_rrsr = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
 
 	regtmp = rtl_read_byte(rtlpriv, INIRTSMCS_SEL);
@@ -996,7 +995,8 @@ int rtl92se_hw_init(struct ieee80211_hw *hw)
 
 		rtlpriv->psc.rfoff_reason = RF_CHANGE_BY_INIT;
 		rtlpriv->psc.rfpwr_state = ERFON;
-		rtl_ps_set_rf_state(hw, ERFOFF, rfoffreason, true);
+		/* FIXME: check spinlocks if this block is uncommented */
+		rtl_ps_set_rf_state(hw, ERFOFF, rfoffreason);
 	} else {
 		/* gpio radio on/off is out of adapter start */
 		if (rtlpriv->psc.hwradiooff == false) {
@@ -1107,7 +1107,7 @@ void rtl92se_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
 	if (rtlpriv->psc.rfpwr_state != ERFON)
 		return;
 
-	if (check_bssid == true) {
+	if (check_bssid) {
 		reg_rcr |= (RCR_CBSSID);
 		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RCR, (u8 *)(&reg_rcr));
 	} else if (check_bssid == false) {
@@ -1122,14 +1122,12 @@ static int _rtl92se_set_media_status(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 bt_msr = rtl_read_byte(rtlpriv, MSR);
-	enum led_ctl_mode ledaction = LED_CTL_NO_LINK;
 	u32 temp;
 	bt_msr &= ~MSR_LINK_MASK;
 
 	switch (type) {
 	case NL80211_IFTYPE_UNSPECIFIED:
 		bt_msr |= (MSR_LINK_NONE << MSR_LINK_SHIFT);
-		ledaction = LED_CTL_LINK;
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
 			 ("Set Network type to NO LINK!\n"));
 		break;
@@ -1140,7 +1138,6 @@ static int _rtl92se_set_media_status(struct ieee80211_hw *hw,
 		break;
 	case NL80211_IFTYPE_STATION:
 		bt_msr |= (MSR_LINK_MANAGED << MSR_LINK_SHIFT);
-		ledaction = LED_CTL_LINK;
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
 			 ("Set Network type to STA!\n"));
 		break;
@@ -1218,8 +1215,6 @@ void rtl92se_enable_interrupt(struct ieee80211_hw *hw)
 	rtl_write_dword(rtlpriv, INTA_MASK, rtlpci->irq_mask[0]);
 	/* Support Bit 32-37(Assign as Bit 0-5) interrupt setting now */
 	rtl_write_dword(rtlpriv, INTA_MASK + 4, rtlpci->irq_mask[1] & 0x3F);
-
-	rtlpci->irq_enabled = true;
 }
 
 void rtl92se_disable_interrupt(struct ieee80211_hw *hw)
@@ -1230,7 +1225,7 @@ void rtl92se_disable_interrupt(struct ieee80211_hw *hw)
 	rtl_write_dword(rtlpriv, INTA_MASK, 0);
 	rtl_write_dword(rtlpriv, INTA_MASK + 4, 0);
 
-	rtlpci->irq_enabled = false;
+	synchronize_irq(rtlpci->pdev->irq);
 }
 
 
@@ -1261,8 +1256,7 @@ static u8 _rtl92s_set_sysclk(struct ieee80211_hw *hw, u8 data)
 			if ((tmp & BIT(6)))
 				break;
 
-			printk(KERN_ERR "wait for BIT(6) return value %x\n",
-			       tmp);
+			pr_err("wait for BIT(6) return value %x\n", tmp);
 
 			if (waitcnt == 0)
 				break;
@@ -1321,7 +1315,7 @@ static void _rtl92s_phy_set_rfhalt(struct ieee80211_hw *hw)
 	if (u1btmp & BIT(7)) {
 		u1btmp &= ~(BIT(6) | BIT(7));
 		if (!_rtl92s_set_sysclk(hw, u1btmp)) {
-			printk(KERN_ERR "Switch ctrl path fail\n");
+			pr_err("Switch ctrl path fail\n");
 			return;
 		}
 	}
@@ -1655,7 +1649,7 @@ static void _rtl92se_read_adapter_info(struct ieee80211_hw *hw)
 		rtlefuse->autoload_failflag = false;
 	}
 
-	if (rtlefuse->autoload_failflag == true)
+	if (rtlefuse->autoload_failflag)
 		return;
 
 	_rtl8192se_get_IC_Inferiority(hw);
@@ -1688,7 +1682,7 @@ static void _rtl92se_read_adapter_info(struct ieee80211_hw *hw)
 		rtl_write_byte(rtlpriv, MACIDR0 + i, rtlefuse->dev_addr[i]);
 
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-		 (MAC_FMT "\n", MAC_ARG(rtlefuse->dev_addr)));
+		 ("%pM\n", rtlefuse->dev_addr));
 
 	/* Get Tx Power Level by Channel */
 	/* Read Tx power of Channel 1 ~ 14 from EEPROM. */
@@ -2271,7 +2265,7 @@ bool rtl92se_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-	enum rf_pwrstate rfpwr_toset, cur_rfstate;
+	enum rf_pwrstate rfpwr_toset /*, cur_rfstate */;
 	unsigned long flag = 0;
 	bool actuallyset = false;
 	bool turnonbypowerdomain = false;
@@ -2292,7 +2286,7 @@ bool rtl92se_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 		spin_unlock_irqrestore(&rtlpriv->locks.rf_ps_lock, flag);
 	}
 
-	cur_rfstate = ppsc->rfpwr_state;
+	/* cur_rfstate = ppsc->rfpwr_state;*/
 
 	/* because after _rtl92s_phy_set_rfhalt, all power
 	 * closed, so we must open some power for GPIO check,
@@ -2305,7 +2299,7 @@ bool rtl92se_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 
 	rfpwr_toset = _rtl92se_rf_onoff_detect(hw);
 
-	if ((ppsc->hwradiooff == true) && (rfpwr_toset == ERFON)) {
+	if ((ppsc->hwradiooff) && (rfpwr_toset == ERFON)) {
 		RT_TRACE(rtlpriv, COMP_RF, DBG_DMESG,
 			 ("RFKILL-HW Radio ON, RF ON\n"));
 

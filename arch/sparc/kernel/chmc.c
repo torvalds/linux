@@ -664,7 +664,7 @@ static void chmc_interpret_one_decode_reg(struct chmc *p, int which_bank, u64 va
 	case 0x0:
 		bp->interleave = 16;
 		break;
-	};
+	}
 
 	/* UK[10] is reserved, and UK[11] is not set for the SDRAM
 	 * bank size definition.

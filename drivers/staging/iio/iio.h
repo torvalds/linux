@@ -30,6 +30,7 @@
 enum iio_chan_type {
 	/* real channel types */
 	IIO_IN,
+	IIO_OUT,
 	IIO_CURRENT,
 	IIO_POWER,
 	IIO_ACCEL,
@@ -202,6 +203,9 @@ static inline s64 iio_get_time_ns(void)
  * call to iio_device_register. */
 #define IIO_VAL_INT 1
 #define IIO_VAL_INT_PLUS_MICRO 2
+#define IIO_VAL_INT_PLUS_NANO 3
+
+struct iio_trigger; /* forward declaration */
 
 /**
  * struct iio_info - constant information about device
@@ -217,12 +221,17 @@ static inline s64 iio_get_time_ns(void)
  *			contain the elements making up the returned value.
  * @write_raw:		function to write a value to the device.
  *			Parameters are the same as for read_raw.
+ * @write_raw_get_fmt:	callback function to query the expected
+ *			format/precision. If not set by the driver, write_raw
+ *			returns IIO_VAL_INT_PLUS_MICRO.
  * @read_event_config:	find out if the event is enabled.
  * @write_event_config:	set if the event is enabled.
  * @read_event_value:	read a value associated with the event. Meaning
  *			is event dependant. event_code specifies which event.
  * @write_event_value:	write the value associate with the event.
  *			Meaning is event dependent.
+ * @validate_trigger:	function to validate the trigger when the
+ *			current trigger gets changed.
  **/
 struct iio_info {
 	struct module			*driver_module;
@@ -242,6 +251,10 @@ struct iio_info {
 			 int val2,
 			 long mask);
 
+	int (*write_raw_get_fmt)(struct iio_dev *indio_dev,
+			 struct iio_chan_spec const *chan,
+			 long mask);
+
 	int (*read_event_config)(struct iio_dev *indio_dev,
 				 int event_code);
 
@@ -255,6 +268,9 @@ struct iio_info {
 	int (*write_event_value)(struct iio_dev *indio_dev,
 				 int event_code,
 				 int val);
+	int (*validate_trigger)(struct iio_dev *indio_dev,
+				struct iio_trigger *trig);
+
 };
 
 /**

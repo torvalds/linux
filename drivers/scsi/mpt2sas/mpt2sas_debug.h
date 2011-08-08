@@ -164,7 +164,7 @@ static inline void
 _debug_dump_mf(void *mpi_request, int sz)
 {
 	int i;
-	u32 *mfp = (u32 *)mpi_request;
+	__le32 *mfp = (__le32 *)mpi_request;
 
 	printk(KERN_INFO "mf:\n\t");
 	for (i = 0; i < sz; i++) {

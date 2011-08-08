@@ -67,24 +67,21 @@
 /**
  * struct adis16204_state - device instance specific data
  * @us:			actual spi_device
- * @indio_dev:		industrial I/O device structure
  * @trig:		data ready trigger registered with iio
  * @tx:			transmit buffer
  * @rx:			receive buffer
  * @buf_lock:		mutex to protect tx and rx
  **/
 struct adis16204_state {
-	struct spi_device		*us;
-	struct iio_dev			*indio_dev;
-	struct iio_trigger		*trig;
-	u8				*tx;
-	u8				*rx;
-	struct mutex			buf_lock;
+	struct spi_device	*us;
+	struct iio_trigger	*trig;
+	struct mutex		buf_lock;
+	u8			tx[ADIS16204_MAX_TX] ____cacheline_aligned;
+	u8			rx[ADIS16204_MAX_RX];
 };
 
 int adis16204_set_irq(struct iio_dev *indio_dev, bool enable);
 
-#ifdef CONFIG_IIO_RING_BUFFER
 enum adis16204_scan {
 	ADIS16204_SCAN_SUPPLY,
 	ADIS16204_SCAN_ACC_X,
@@ -93,6 +90,7 @@ enum adis16204_scan {
 	ADIS16204_SCAN_TEMP,
 };
 
+#ifdef CONFIG_IIO_RING_BUFFER
 void adis16204_remove_trigger(struct iio_dev *indio_dev);
 int adis16204_probe_trigger(struct iio_dev *indio_dev);
 

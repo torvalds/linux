@@ -54,7 +54,7 @@
 static void __init neocore926_init_early(void)
 {
 	/* Initialize processor: 20 MHz crystal */
-	at91sam9263_initialize(20000000);
+	at91_initialize(20000000);
 
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
@@ -65,12 +65,6 @@ static void __init neocore926_init_early(void)
 	/* set serial console to ttyS0 (ie, DBGU) */
 	at91_set_serial_console(0);
 }
-
-static void __init neocore926_init_irq(void)
-{
-	at91sam9263_init_interrupts(NULL);
-}
-
 
 /*
  * USB Host port
@@ -388,8 +382,8 @@ static void __init neocore926_board_init(void)
 MACHINE_START(NEOCORE926, "ADENEO NEOCORE 926")
 	/* Maintainer: ADENEO */
 	.timer		= &at91sam926x_timer,
-	.map_io		= at91sam9263_map_io,
+	.map_io		= at91_map_io,
 	.init_early	= neocore926_init_early,
-	.init_irq	= neocore926_init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= neocore926_board_init,
 MACHINE_END

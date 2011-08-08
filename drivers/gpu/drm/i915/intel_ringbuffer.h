@@ -165,7 +165,7 @@ void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring);
 int __must_check intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n);
 static inline int intel_wait_ring_idle(struct intel_ring_buffer *ring)
 {
-	return intel_wait_ring_buffer(ring, ring->space - 8);
+	return intel_wait_ring_buffer(ring, ring->size - 8);
 }
 
 int __must_check intel_ring_begin(struct intel_ring_buffer *ring, int n);

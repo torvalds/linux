@@ -64,7 +64,6 @@
 #define AT91SAM9RL_BASE_TSC	0xfffd0000
 #define AT91SAM9RL_BASE_UDPHS	0xfffd4000
 #define AT91SAM9RL_BASE_AC97C	0xfffd8000
-#define AT91_BASE_SYS		0xffffc000
 
 
 /*

@@ -1,0 +1,104 @@
+<refentry id="vidioc-g-dv-preset">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_G_DV_PRESET, VIDIOC_S_DV_PRESET</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_G_DV_PRESET</refname>
+    <refname>VIDIOC_S_DV_PRESET</refname>
+    <refpurpose>Query or select the DV preset of the current input or output</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_dv_preset *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_G_DV_PRESET, VIDIOC_S_DV_PRESET</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+    <para>To query and select the current DV preset, applications
+use the <constant>VIDIOC_G_DV_PRESET</constant> and <constant>VIDIOC_S_DV_PRESET</constant>
+ioctls which take a pointer to a &v4l2-dv-preset; type as argument.
+Applications must zero the reserved array in &v4l2-dv-preset;.
+<constant>VIDIOC_G_DV_PRESET</constant> returns a dv preset in the field
+<structfield>preset</structfield> of &v4l2-dv-preset;.</para>
+
+    <para><constant>VIDIOC_S_DV_PRESET</constant> accepts a pointer to a &v4l2-dv-preset;
+that has the preset value to be set. Applications must zero the reserved array in &v4l2-dv-preset;.
+If the preset is not supported, it returns an &EINVAL; </para>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>This ioctl is not supported, or the
+<constant>VIDIOC_S_DV_PRESET</constant>,<constant>VIDIOC_S_DV_PRESET</constant> parameter was unsuitable.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EBUSY</errorcode></term>
+	<listitem>
+	  <para>The device is busy and therefore can not change the preset.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+
+    <table pgwide="1" frame="none" id="v4l2-dv-preset">
+      <title>struct <structname>v4l2_dv_preset</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>preset</structfield></entry>
+	    <entry>Preset value to represent the digital video timings</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved[4]</structfield></entry>
+	    <entry>Reserved fields for future use</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+  <refsect1>
+    &return-value;
+  </refsect1>
+</refentry>

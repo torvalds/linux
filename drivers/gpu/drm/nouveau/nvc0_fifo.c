@@ -210,10 +210,10 @@ nvc0_fifo_unload_context(struct drm_device *dev)
 	int i;
 
 	for (i = 0; i < 128; i++) {
-		if (!(nv_rd32(dev, 0x003004 + (i * 4)) & 1))
+		if (!(nv_rd32(dev, 0x003004 + (i * 8)) & 1))
 			continue;
 
-		nv_mask(dev, 0x003004 + (i * 4), 0x00000001, 0x00000000);
+		nv_mask(dev, 0x003004 + (i * 8), 0x00000001, 0x00000000);
 		nv_wr32(dev, 0x002634, i);
 		if (!nv_wait(dev, 0x002634, 0xffffffff, i)) {
 			NV_INFO(dev, "PFIFO: kick ch %d failed: 0x%08x\n",

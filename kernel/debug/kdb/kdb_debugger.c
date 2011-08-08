@@ -30,6 +30,8 @@ EXPORT_SYMBOL_GPL(kdb_poll_funcs);
 int kdb_poll_idx = 1;
 EXPORT_SYMBOL_GPL(kdb_poll_idx);
 
+static struct kgdb_state *kdb_ks;
+
 int kdb_stub(struct kgdb_state *ks)
 {
 	int error = 0;
@@ -39,6 +41,7 @@ int kdb_stub(struct kgdb_state *ks)
 	kdb_dbtrap_t db_result = KDB_DB_NOBPT;
 	int i;
 
+	kdb_ks = ks;
 	if (KDB_STATE(REENTRY)) {
 		reason = KDB_REASON_SWITCH;
 		KDB_STATE_CLEAR(REENTRY);
@@ -123,20 +126,8 @@ int kdb_stub(struct kgdb_state *ks)
 	KDB_STATE_CLEAR(PAGER);
 	kdbnearsym_cleanup();
 	if (error == KDB_CMD_KGDB) {
-		if (KDB_STATE(DOING_KGDB) || KDB_STATE(DOING_KGDB2)) {
-	/*
-	 * This inteface glue which allows kdb to transition in into
-	 * the gdb stub.  In order to do this the '?' or '' gdb serial
-	 * packet response is processed here.  And then control is
-	 * passed to the gdbstub.
-	 */
-			if (KDB_STATE(DOING_KGDB))
-				gdbstub_state(ks, "?");
-			else
-				gdbstub_state(ks, "");
+		if (KDB_STATE(DOING_KGDB))
 			KDB_STATE_CLEAR(DOING_KGDB);
-			KDB_STATE_CLEAR(DOING_KGDB2);
-		}
 		return DBG_PASS_EVENT;
 	}
 	kdb_bp_install(ks->linux_regs);
@@ -166,3 +157,7 @@ int kdb_stub(struct kgdb_state *ks)
 	return kgdb_info[ks->cpu].ret_state;
 }
 
+void kdb_gdb_state_pass(char *buf)
+{
+	gdbstub_state(kdb_ks, buf);
+}

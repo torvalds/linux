@@ -671,7 +671,7 @@ static int proc_get_stats_rx(char *page, char **start,
 void rtl8192_proc_module_init(void)
 {
 	RT_TRACE(COMP_INIT, "Initializing proc filesystem");
-	rtl8192_proc=create_proc_entry(RTL819xU_MODULE_NAME, S_IFDIR, init_net.proc_net);
+	rtl8192_proc = proc_mkdir(RTL819xU_MODULE_NAME, init_net.proc_net);
 }
 
 
@@ -706,9 +706,7 @@ void rtl8192_proc_init_one(struct net_device *dev)
 {
 	struct proc_dir_entry *e;
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-	priv->dir_dev = create_proc_entry(dev->name,
-					  S_IFDIR | S_IRUGO | S_IXUGO,
-					  rtl8192_proc);
+	priv->dir_dev = proc_mkdir(dev->name, rtl8192_proc);
 	if (!priv->dir_dev) {
 		RT_TRACE(COMP_ERR, "Unable to initialize /proc/net/rtl8192/%s\n",
 		      dev->name);
@@ -2852,11 +2850,7 @@ static void rtl8192_init_priv_task(struct net_device* dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-#ifdef PF_SYNCTHREAD
-	priv->priv_wq = create_workqueue(DRV_NAME,0);
-#else
 	priv->priv_wq = create_workqueue(DRV_NAME);
-#endif
 
 	INIT_WORK(&priv->reset_wq, rtl8192_restart);
 

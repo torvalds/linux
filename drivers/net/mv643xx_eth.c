@@ -840,6 +840,8 @@ no_csum:
 
 	__skb_queue_tail(&txq->tx_skb, skb);
 
+	skb_tx_timestamp(skb);
+
 	/* ensure all other descriptors are written before first cmd_sts */
 	wmb();
 	desc->cmd_sts = cmd_sts;
@@ -859,7 +861,7 @@ no_csum:
 static netdev_tx_t mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
-	int queue;
+	int length, queue;
 	struct tx_queue *txq;
 	struct netdev_queue *nq;
 
@@ -881,10 +883,12 @@ static netdev_tx_t mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_OK;
 	}
 
+	length = skb->len;
+
 	if (!txq_submit_skb(txq, skb)) {
 		int entries_left;
 
-		txq->tx_bytes += skb->len;
+		txq->tx_bytes += length;
 		txq->tx_packets++;
 
 		entries_left = txq->tx_ring_size - txq->tx_desc_count;
@@ -2593,7 +2597,7 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	if (msp == NULL)
 		goto out;
 
-	msp->base = ioremap(res->start, res->end - res->start + 1);
+	msp->base = ioremap(res->start, resource_size(res));
 	if (msp->base == NULL)
 		goto out_free;
 

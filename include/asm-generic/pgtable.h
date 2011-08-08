@@ -88,7 +88,7 @@ static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
 	pmd_t pmd = *pmdp;
 	pmd_clear(mm, address, pmdp);
 	return pmd;
-})
+}
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 #endif
 

@@ -103,10 +103,9 @@ static void sun4d_sbus_handler_irq(int sbusl)
 
 	sbil = (sbusl << 2);
 	/* Loop for each pending SBI */
-	for (sbino = 0; bus_mask; sbino++) {
+	for (sbino = 0; bus_mask; sbino++, bus_mask >>= 1) {
 		unsigned int idx, mask;
 
-		bus_mask >>= 1;
 		if (!(bus_mask & 1))
 			continue;
 		/* XXX This seems to ACK the irq twice.  acquire_sbi()
@@ -118,19 +117,16 @@ static void sun4d_sbus_handler_irq(int sbusl)
 		mask &= (0xf << sbil);
 
 		/* Loop for each pending SBI slot */
-		idx = 0;
 		slot = (1 << sbil);
-		while (mask != 0) {
+		for (idx = 0; mask != 0; idx++, slot <<= 1) {
 			unsigned int pil;
 			struct irq_bucket *p;
 
-			idx++;
-			slot <<= 1;
 			if (!(mask & slot))
 				continue;
 
 			mask &= ~slot;
-			pil = sun4d_encode_irq(sbino, sbil, idx);
+			pil = sun4d_encode_irq(sbino, sbusl, idx);
 
 			p = irq_map[pil];
 			while (p) {
@@ -218,10 +214,10 @@ static void sun4d_unmask_irq(struct irq_data *data)
 
 #ifdef CONFIG_SMP
 	spin_lock_irqsave(&sun4d_imsk_lock, flags);
-	cc_set_imsk_other(cpuid, cc_get_imsk_other(cpuid) | ~(1 << real_irq));
+	cc_set_imsk_other(cpuid, cc_get_imsk_other(cpuid) & ~(1 << real_irq));
 	spin_unlock_irqrestore(&sun4d_imsk_lock, flags);
 #else
-	cc_set_imsk(cc_get_imsk() | ~(1 << real_irq));
+	cc_set_imsk(cc_get_imsk() & ~(1 << real_irq));
 #endif
 }
 
@@ -299,58 +295,19 @@ static void __init sun4d_load_profile_irqs(void)
 	}
 }
 
-unsigned int sun4d_build_device_irq(struct platform_device *op,
-                                    unsigned int real_irq)
+unsigned int _sun4d_build_device_irq(unsigned int real_irq,
+                                     unsigned int pil,
+                                     unsigned int board)
 {
-	struct device_node *dp = op->dev.of_node;
-	struct device_node *io_unit, *sbi = dp->parent;
-	const struct linux_prom_registers *regs;
 	struct sun4d_handler_data *handler_data;
-	unsigned int pil;
 	unsigned int irq;
-	int board, slot;
-	int sbusl;
-
-	irq = 0;
-	while (sbi) {
-		if (!strcmp(sbi->name, "sbi"))
-			break;
-
-		sbi = sbi->parent;
-	}
-	if (!sbi)
-		goto err_out;
-
-	regs = of_get_property(dp, "reg", NULL);
-	if (!regs)
-		goto err_out;
-
-	slot = regs->which_io;
-
-	/*
-	 *  If SBI's parent is not io-unit or the io-unit lacks
-	 * a "board#" property, something is very wrong.
-	 */
-	if (!sbi->parent || strcmp(sbi->parent->name, "io-unit")) {
-		printk("%s: Error, parent is not io-unit.\n", sbi->full_name);
-		goto err_out;
-	}
-	io_unit = sbi->parent;
-	board = of_getintprop_default(io_unit, "board#", -1);
-	if (board == -1) {
-		printk("%s: Error, lacks board# property.\n", io_unit->full_name);
-		goto err_out;
-	}
-
-	sbusl = pil_to_sbus[real_irq];
-	if (sbusl)
-		pil = sun4d_encode_irq(board, sbusl, slot);
-	else
-		pil = real_irq;
 
 	irq = irq_alloc(real_irq, pil);
-	if (irq == 0)
+	if (irq == 0) {
+		prom_printf("IRQ: allocate for %d %d %d failed\n",
+			real_irq, pil, board);
 		goto err_out;
+	}
 
 	handler_data = irq_get_handler_data(irq);
 	if (unlikely(handler_data))
@@ -368,8 +325,79 @@ unsigned int sun4d_build_device_irq(struct platform_device *op,
 	irq_set_handler_data(irq, handler_data);
 
 err_out:
-	return real_irq;
+	return irq;
 }
+
+
+
+unsigned int sun4d_build_device_irq(struct platform_device *op,
+                                    unsigned int real_irq)
+{
+	struct device_node *dp = op->dev.of_node;
+	struct device_node *board_parent, *bus = dp->parent;
+	char *bus_connection;
+	const struct linux_prom_registers *regs;
+	unsigned int pil;
+	unsigned int irq;
+	int board, slot;
+	int sbusl;
+
+	irq = real_irq;
+	while (bus) {
+		if (!strcmp(bus->name, "sbi")) {
+			bus_connection = "io-unit";
+			break;
+		}
+
+		if (!strcmp(bus->name, "bootbus")) {
+			bus_connection = "cpu-unit";
+			break;
+		}
+
+		bus = bus->parent;
+	}
+	if (!bus)
+		goto err_out;
+
+	regs = of_get_property(dp, "reg", NULL);
+	if (!regs)
+		goto err_out;
+
+	slot = regs->which_io;
+
+	/*
+	 * If Bus nodes parent is not io-unit/cpu-unit or the io-unit/cpu-unit
+	 * lacks a "board#" property, something is very wrong.
+	 */
+	if (!bus->parent || strcmp(bus->parent->name, bus_connection)) {
+		printk(KERN_ERR "%s: Error, parent is not %s.\n",
+			bus->full_name, bus_connection);
+		goto err_out;
+	}
+	board_parent = bus->parent;
+	board = of_getintprop_default(board_parent, "board#", -1);
+	if (board == -1) {
+		printk(KERN_ERR "%s: Error, lacks board# property.\n",
+			board_parent->full_name);
+		goto err_out;
+	}
+
+	sbusl = pil_to_sbus[real_irq];
+	if (sbusl)
+		pil = sun4d_encode_irq(board, sbusl, slot);
+	else
+		pil = real_irq;
+
+	irq = _sun4d_build_device_irq(real_irq, pil, board);
+err_out:
+	return irq;
+}
+
+unsigned int sun4d_build_timer_irq(unsigned int board, unsigned int real_irq)
+{
+	return _sun4d_build_device_irq(real_irq, real_irq, board);
+}
+
 
 static void __init sun4d_fixup_trap_table(void)
 {
@@ -402,6 +430,7 @@ static void __init sun4d_init_timers(irq_handler_t counter_fn)
 	unsigned int irq;
 	const u32 *reg;
 	int err;
+	int board;
 
 	dp = of_find_node_by_name(NULL, "cpu-unit");
 	if (!dp) {
@@ -414,11 +443,18 @@ static void __init sun4d_init_timers(irq_handler_t counter_fn)
 	 * bootbus.
 	 */
 	reg = of_get_property(dp, "reg", NULL);
-	of_node_put(dp);
 	if (!reg) {
 		prom_printf("sun4d_init_timers: No reg property\n");
 		prom_halt();
 	}
+
+	board = of_getintprop_default(dp, "board#", -1);
+	if (board == -1) {
+		prom_printf("sun4d_init_timers: No board# property on cpu-unit\n");
+		prom_halt();
+	}
+
+	of_node_put(dp);
 
 	res.start = reg[1];
 	res.end = reg[2] - 1;
@@ -434,7 +470,7 @@ static void __init sun4d_init_timers(irq_handler_t counter_fn)
 
 	master_l10_counter = &sun4d_timers->l10_cur_count;
 
-	irq = sun4d_build_device_irq(NULL, SUN4D_TIMER_IRQ);
+	irq = sun4d_build_timer_irq(board, SUN4D_TIMER_IRQ);
 	err = request_irq(irq, counter_fn, IRQF_TIMER, "timer", NULL);
 	if (err) {
 		prom_printf("sun4d_init_timers: request_irq() failed with %d\n",

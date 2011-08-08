@@ -27,6 +27,8 @@ struct ssb_sprom {
 	u8 et1mdcport;		/* MDIO for enet1 */
 	u8 board_rev;		/* Board revision number from SPROM. */
 	u8 country_code;	/* Country Code */
+	u16 leddc_on_time;	/* LED Powersave Duty Cycle On Count */
+	u16 leddc_off_time;	/* LED Powersave Duty Cycle Off Count */
 	u8 ant_available_a;	/* 2GHz antenna available bits (up to 4) */
 	u8 ant_available_bg;	/* 5GHz antenna available bits (up to 4) */
 	u16 pa0b0;
@@ -99,7 +101,7 @@ struct ssb_sprom {
 struct ssb_boardinfo {
 	u16 vendor;
 	u16 type;
-	u16 rev;
+	u8  rev;
 };
 
 

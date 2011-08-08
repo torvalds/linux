@@ -221,13 +221,13 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 	ring_space = pci_alloc_consistent (pdev, TX_TOTAL_SIZE, &ring_dma);
 	if (!ring_space)
 		goto err_out_iounmap;
-	np->tx_ring = (struct netdev_desc *) ring_space;
+	np->tx_ring = ring_space;
 	np->tx_ring_dma = ring_dma;
 
 	ring_space = pci_alloc_consistent (pdev, RX_TOTAL_SIZE, &ring_dma);
 	if (!ring_space)
 		goto err_out_unmap_tx;
-	np->rx_ring = (struct netdev_desc *) ring_space;
+	np->rx_ring = ring_space;
 	np->rx_ring_dma = ring_dma;
 
 	/* Parse eeprom data */
@@ -346,7 +346,7 @@ parse_eeprom (struct net_device *dev)
 	if (np->pdev->vendor == PCI_VENDOR_ID_DLINK) {	/* D-Link Only */
 		/* Check CRC */
 		crc = ~ether_crc_le (256 - 4, sromdata);
-		if (psrom->crc != crc) {
+		if (psrom->crc != cpu_to_le32(crc)) {
 			printk (KERN_ERR "%s: EEPROM data CRC error.\n",
 					dev->name);
 			return -1;

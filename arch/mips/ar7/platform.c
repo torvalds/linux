@@ -229,7 +229,7 @@ static struct resource cpmac_low_res[] = {
 		.name	= "irq",
 		.flags	= IORESOURCE_IRQ,
 		.start	= 27,
-		.end 	= 27,
+		.end	= 27,
 	},
 };
 

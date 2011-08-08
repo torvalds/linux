@@ -1334,9 +1334,9 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 		ip_vs_bind_pe(svc, pe);
 	}
 
-  out_unlock:
+out_unlock:
 	write_unlock_bh(&__ip_vs_svc_lock);
-  out:
+out:
 	ip_vs_scheduler_put(old_sched);
 	ip_vs_pe_put(old_pe);
 	return ret;
@@ -1483,7 +1483,7 @@ static int ip_vs_flush(struct net *net)
  *	Delete service by {netns} in the service table.
  *	Called by __ip_vs_cleanup()
  */
-void __ip_vs_service_cleanup(struct net *net)
+void ip_vs_service_net_cleanup(struct net *net)
 {
 	EnterFunction(2);
 	/* Check for "full" addressed entries */
@@ -1662,7 +1662,7 @@ proc_do_sync_mode(ctl_table *table, int write,
 /*
  *	IPVS sysctl table (under the /proc/sys/net/ipv4/vs/)
  *	Do not change order or insert new entries without
- *	align with netns init in __ip_vs_control_init()
+ *	align with netns init in ip_vs_control_net_init()
  */
 
 static struct ctl_table vs_vars[] = {
@@ -2469,7 +2469,7 @@ __ip_vs_get_service_entries(struct net *net,
 			count++;
 		}
 	}
-  out:
+out:
 	return ret;
 }
 
@@ -2707,7 +2707,7 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 		ret = -EINVAL;
 	}
 
-  out:
+out:
 	mutex_unlock(&__ip_vs_mutex);
 	return ret;
 }
@@ -3595,7 +3595,7 @@ static void ip_vs_genl_unregister(void)
  * per netns intit/exit func.
  */
 #ifdef CONFIG_SYSCTL
-int __net_init __ip_vs_control_init_sysctl(struct net *net)
+int __net_init ip_vs_control_net_init_sysctl(struct net *net)
 {
 	int idx;
 	struct netns_ipvs *ipvs = net_ipvs(net);
@@ -3654,7 +3654,7 @@ int __net_init __ip_vs_control_init_sysctl(struct net *net)
 	return 0;
 }
 
-void __net_init __ip_vs_control_cleanup_sysctl(struct net *net)
+void __net_init ip_vs_control_net_cleanup_sysctl(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
@@ -3665,8 +3665,8 @@ void __net_init __ip_vs_control_cleanup_sysctl(struct net *net)
 
 #else
 
-int __net_init __ip_vs_control_init_sysctl(struct net *net) { return 0; }
-void __net_init __ip_vs_control_cleanup_sysctl(struct net *net) { }
+int __net_init ip_vs_control_net_init_sysctl(struct net *net) { return 0; }
+void __net_init ip_vs_control_net_cleanup_sysctl(struct net *net) { }
 
 #endif
 
@@ -3674,7 +3674,7 @@ static struct notifier_block ip_vs_dst_notifier = {
 	.notifier_call = ip_vs_dst_event,
 };
 
-int __net_init __ip_vs_control_init(struct net *net)
+int __net_init ip_vs_control_net_init(struct net *net)
 {
 	int idx;
 	struct netns_ipvs *ipvs = net_ipvs(net);
@@ -3702,7 +3702,7 @@ int __net_init __ip_vs_control_init(struct net *net)
 	proc_net_fops_create(net, "ip_vs_stats_percpu", 0,
 			     &ip_vs_stats_percpu_fops);
 
-	if (__ip_vs_control_init_sysctl(net))
+	if (ip_vs_control_net_init_sysctl(net))
 		goto err;
 
 	return 0;
@@ -3712,13 +3712,13 @@ err:
 	return -ENOMEM;
 }
 
-void __net_exit __ip_vs_control_cleanup(struct net *net)
+void __net_exit ip_vs_control_net_cleanup(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	ip_vs_trash_cleanup(net);
 	ip_vs_stop_estimator(net, &ipvs->tot_stats);
-	__ip_vs_control_cleanup_sysctl(net);
+	ip_vs_control_net_cleanup_sysctl(net);
 	proc_net_remove(net, "ip_vs_stats_percpu");
 	proc_net_remove(net, "ip_vs_stats");
 	proc_net_remove(net, "ip_vs");
@@ -3771,6 +3771,7 @@ err_sock:
 void ip_vs_control_cleanup(void)
 {
 	EnterFunction(2);
+	unregister_netdevice_notifier(&ip_vs_dst_notifier);
 	ip_vs_genl_unregister();
 	nf_unregister_sockopt(&ip_vs_sockopts);
 	LeaveFunction(2);

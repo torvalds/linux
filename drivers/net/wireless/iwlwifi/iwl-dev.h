@@ -31,6 +31,7 @@
 #ifndef __iwl_dev_h__
 #define __iwl_dev_h__
 
+#include <linux/interrupt.h>
 #include <linux/pci.h> /* for struct pci_device_id */
 #include <linux/kernel.h>
 #include <linux/wait.h>
@@ -47,6 +48,10 @@
 #include "iwl-power.h"
 #include "iwl-agn-rs.h"
 #include "iwl-agn-tt.h"
+#include "iwl-bus.h"
+#include "iwl-trans.h"
+
+#define DRV_NAME        "iwlagn"
 
 struct iwl_tx_queue;
 
@@ -257,11 +262,9 @@ struct iwl_channel_info {
 
 enum {
 	CMD_SYNC = 0,
-	CMD_SIZE_NORMAL = 0,
-	CMD_NO_SKB = 0,
-	CMD_ASYNC = (1 << 1),
-	CMD_WANT_SKB = (1 << 2),
-	CMD_MAPPED = (1 << 3),
+	CMD_ASYNC = BIT(0),
+	CMD_WANT_SKB = BIT(1),
+	CMD_ON_DEMAND = BIT(2),
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
@@ -294,6 +297,16 @@ enum iwl_hcmd_dataflag {
 	IWL_HCMD_DFL_NOCOPY	= BIT(0),
 };
 
+/**
+ * struct iwl_host_cmd - Host command to the uCode
+ * @data: array of chunks that composes the data of the host command
+ * @reply_page: pointer to the page that holds the response to the host command
+ * @callback:
+ * @flags: can be CMD_* note CMD_WANT_SKB is incompatible withe CMD_ASYNC
+ * @len: array of the lenths of the chunks in data
+ * @dataflags:
+ * @id: id of the host command
+ */
 struct iwl_host_cmd {
 	const void *data[IWL_MAX_CMD_TFDS];
 	unsigned long reply_page;
@@ -385,13 +398,6 @@ struct iwl_tid_data {
 	struct iwl_ht_agg agg;
 };
 
-struct iwl_hw_key {
-	u32 cipher;
-	int keylen;
-	u8 keyidx;
-	u8 key[32];
-};
-
 union iwl_ht_rate_supp {
 	u16 rates;
 	struct {
@@ -444,7 +450,6 @@ struct iwl_station_entry {
 	struct iwl_addsta_cmd sta;
 	struct iwl_tid_data tid[MAX_TID_COUNT];
 	u8 used, ctxid;
-	struct iwl_hw_key keyinfo;
 	struct iwl_link_quality_cmd *lq;
 };
 
@@ -547,7 +552,8 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_INIT_ERRLOG_PTR	= 13,
 	IWL_UCODE_TLV_ENHANCE_SENS_TBL	= 14,
 	IWL_UCODE_TLV_PHY_CALIBRATION_SIZE = 15,
-	/* 16 and 17 reserved for future use */
+	IWL_UCODE_TLV_WOWLAN_INST	= 16,
+	IWL_UCODE_TLV_WOWLAN_DATA	= 17,
 	IWL_UCODE_TLV_FLAGS		= 18,
 };
 
@@ -631,7 +637,6 @@ struct iwl_sensitivity_ranges {
 /**
  * struct iwl_hw_params
  * @max_txq_num: Max # Tx queues supported
- * @dma_chnl_num: Number of Tx DMA/FIFO channels
  * @scd_bc_tbls_size: size of scheduler byte count tables
  * @tfd_size: TFD size
  * @tx/rx_chains_num: Number of TX/RX chains
@@ -653,7 +658,6 @@ struct iwl_sensitivity_ranges {
  */
 struct iwl_hw_params {
 	u8 max_txq_num;
-	u8 dma_chnl_num;
 	u16 scd_bc_tbls_size;
 	u32 tfd_size;
 	u8  tx_chains_num;
@@ -663,7 +667,6 @@ struct iwl_hw_params {
 	u16 max_rxq_size;
 	u16 max_rxq_log;
 	u32 rx_page_order;
-	u32 rx_wrt_ptr_reg;
 	u8  max_stations;
 	u8  ht40_channel;
 	u8  max_beacon_itrvl;	/* in 1024 ms */
@@ -694,8 +697,6 @@ struct iwl_hw_params {
  ****************************************************************************/
 extern void iwl_update_chain_flags(struct iwl_priv *priv);
 extern const u8 iwl_bcast_addr[ETH_ALEN];
-extern int iwl_rxq_stop(struct iwl_priv *priv);
-extern void iwl_txq_ctx_stop(struct iwl_priv *priv);
 extern int iwl_queue_space(const struct iwl_queue *q);
 static inline int iwl_queue_used(const struct iwl_queue *q, int i)
 {
@@ -982,17 +983,6 @@ struct traffic_stats {
 };
 
 /*
- * iwl_switch_rxon: "channel switch" structure
- *
- * @ switch_in_progress: channel switch in progress
- * @ channel: new channel
- */
-struct iwl_switch_rxon {
-	bool switch_in_progress;
-	__le16 channel;
-};
-
-/*
  * schedule the timer to wake up every UCODE_TRACE_PERIOD milliseconds
  * to perform continuous uCode event logging operation if enabled
  */
@@ -1163,6 +1153,8 @@ struct iwl_rxon_context {
 
 	__le32 station_flags;
 
+	int beacon_int;
+
 	struct {
 		bool non_gf_sta_present;
 		u8 protection;
@@ -1179,14 +1171,29 @@ enum iwl_scan_type {
 	IWL_SCAN_OFFCH_TX,
 };
 
+enum iwlagn_ucode_type {
+	IWL_UCODE_NONE,
+	IWL_UCODE_REGULAR,
+	IWL_UCODE_INIT,
+	IWL_UCODE_WOWLAN,
+};
+
 #ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
 struct iwl_testmode_trace {
+	u32 buff_size;
+	u32 total_size;
+	u32 num_chunks;
 	u8 *cpu_addr;
 	u8 *trace_addr;
 	dma_addr_t dma_addr;
 	bool trace_enabled;
 };
 #endif
+
+/* uCode ownership */
+#define IWL_OWNERSHIP_DRIVER	0
+#define IWL_OWNERSHIP_TM	1
+
 struct iwl_priv {
 
 	/* ieee device used by generic ieee processing code */
@@ -1254,11 +1261,8 @@ struct iwl_priv {
 	spinlock_t reg_lock;	/* protect hw register access */
 	struct mutex mutex;
 
-	/* basic pci-network driver stuff */
-	struct pci_dev *pci_dev;
-
-	/* pci hardware address support */
-	void __iomem *hw_base;
+	struct iwl_bus *bus;	/* bus specific data */
+	struct iwl_trans trans;
 
 	/* microcode/device supports multiple contexts */
 	u8 valid_contexts;
@@ -1278,16 +1282,21 @@ struct iwl_priv {
 	int fw_index;			/* firmware we're trying to load */
 	u32 ucode_ver;			/* version of ucode, copy of
 					   iwl_ucode.ver */
+
+	/* uCode owner: default: IWL_OWNERSHIP_DRIVER */
+	u8 ucode_owner;
+
 	struct fw_img ucode_rt;
 	struct fw_img ucode_init;
+	struct fw_img ucode_wowlan;
 
-	enum iwlagn_ucode_subtype ucode_type;
+	enum iwlagn_ucode_type ucode_type;
 	u8 ucode_write_complete;	/* the image write is complete */
 	char firmware_name[25];
 
 	struct iwl_rxon_context contexts[NUM_IWL_RXON_CTX];
 
-	struct iwl_switch_rxon switch_rxon;
+	__le16 switch_channel;
 
 	struct {
 		u32 error_event_table;
@@ -1352,6 +1361,8 @@ struct iwl_priv {
 
 	u8 mac80211_registered;
 
+	bool wowlan;
+
 	/* eeprom -- this is in the card's little endian byte order */
 	u8 *eeprom;
 	int    nvm_device_type;
@@ -1387,56 +1398,54 @@ struct iwl_priv {
 	} accum_stats, delta_stats, max_delta_stats;
 #endif
 
-	struct {
-		/* INT ICT Table */
-		__le32 *ict_tbl;
-		void *ict_tbl_vir;
-		dma_addr_t ict_tbl_dma;
-		dma_addr_t aligned_ict_tbl_dma;
-		int ict_index;
-		u32 inta;
-		bool use_ict;
-		/*
-		 * reporting the number of tids has AGG on. 0 means
-		 * no AGGREGATION
-		 */
-		u8 agg_tids_count;
+	/* INT ICT Table */
+	__le32 *ict_tbl;
+	void *ict_tbl_vir;
+	dma_addr_t ict_tbl_dma;
+	dma_addr_t aligned_ict_tbl_dma;
+	int ict_index;
+	u32 inta;
+	bool use_ict;
+	/*
+	 * reporting the number of tids has AGG on. 0 means
+	 * no AGGREGATION
+	 */
+	u8 agg_tids_count;
 
-		struct iwl_rx_phy_res last_phy_res;
-		bool last_phy_res_valid;
+	struct iwl_rx_phy_res last_phy_res;
+	bool last_phy_res_valid;
 
-		struct completion firmware_loading_complete;
+	struct completion firmware_loading_complete;
 
-		u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
-		u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
+	u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
+	u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
 
-		/*
-		 * chain noise reset and gain commands are the
-		 * two extra calibration commands follows the standard
-		 * phy calibration commands
-		 */
-		u8 phy_calib_chain_noise_reset_cmd;
-		u8 phy_calib_chain_noise_gain_cmd;
+	/*
+	 * chain noise reset and gain commands are the
+	 * two extra calibration commands follows the standard
+	 * phy calibration commands
+	 */
+	u8 phy_calib_chain_noise_reset_cmd;
+	u8 phy_calib_chain_noise_gain_cmd;
 
-		/* counts reply_tx error */
-		struct reply_tx_error_statistics reply_tx_stats;
-		struct reply_agg_tx_error_statistics reply_agg_tx_stats;
-		/* notification wait support */
-		struct list_head notif_waits;
-		spinlock_t notif_wait_lock;
-		wait_queue_head_t notif_waitq;
+	/* counts reply_tx error */
+	struct reply_tx_error_statistics reply_tx_stats;
+	struct reply_agg_tx_error_statistics reply_agg_tx_stats;
+	/* notification wait support */
+	struct list_head notif_waits;
+	spinlock_t notif_wait_lock;
+	wait_queue_head_t notif_waitq;
 
-		/* remain-on-channel offload support */
-		struct ieee80211_channel *hw_roc_channel;
-		struct delayed_work hw_roc_work;
-		enum nl80211_channel_type hw_roc_chantype;
-		int hw_roc_duration;
-		bool hw_roc_setup;
+	/* remain-on-channel offload support */
+	struct ieee80211_channel *hw_roc_channel;
+	struct delayed_work hw_roc_work;
+	enum nl80211_channel_type hw_roc_chantype;
+	int hw_roc_duration;
+	bool hw_roc_setup;
 
-		struct sk_buff *offchan_tx_skb;
-		int offchan_tx_timeout;
-		struct ieee80211_channel *offchan_tx_chan;
-	} _agn;
+	struct sk_buff *offchan_tx_skb;
+	int offchan_tx_timeout;
+	struct ieee80211_channel *offchan_tx_chan;
 
 	/* bt coex */
 	u8 bt_enable_flag;
@@ -1453,6 +1462,9 @@ struct iwl_priv {
 	u16 dynamic_frag_thresh;
 	u8 bt_ci_compliance;
 	struct work_struct bt_traffic_change_work;
+	bool bt_enable_pspoll;
+	struct iwl_rxon_context *cur_rssi_ctx;
+	bool bt_is_sco;
 
 	struct iwl_hw_params hw_params;
 
@@ -1503,6 +1515,7 @@ struct iwl_priv {
 	struct dentry *debugfs_dir;
 	u32 dbgfs_sram_offset, dbgfs_sram_len;
 	bool disable_ht40;
+	void *wowlan_sram;
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 
 	struct work_struct txpower_work;
@@ -1520,9 +1533,14 @@ struct iwl_priv {
 	bool led_registered;
 #ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
 	struct iwl_testmode_trace testmode_trace;
+	u32 tm_fixed_rate;
 #endif
-	u32 dbg_fixed_rate;
 
+	/* WoWLAN GTK rekey data */
+	u8 kck[NL80211_KCK_LEN], kek[NL80211_KEK_LEN];
+	__le64 replay_ctr;
+	__le16 last_seq_ctl;
+	bool have_rekey_data;
 }; /*iwl_priv */
 
 static inline void iwl_txq_ctx_activate(struct iwl_priv *priv, int txq_id)

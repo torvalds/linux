@@ -7,8 +7,8 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s(): " fmt, __func__
 
-#include <linux/version.h>
 #include <linux/fs.h>
+#include <linux/hardirq.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -139,17 +139,14 @@ static void close_work(struct work_struct *work)
 	struct chnl_net *dev = NULL;
 	struct list_head *list_node;
 	struct list_head *_tmp;
-	/* May be called with or without RTNL lock held */
-	int islocked = rtnl_is_locked();
-	if (!islocked)
-		rtnl_lock();
+
+	rtnl_lock();
 	list_for_each_safe(list_node, _tmp, &chnl_net_list) {
 		dev = list_entry(list_node, struct chnl_net, list_field);
 		if (dev->state == CAIF_SHUTDOWN)
 			dev_close(dev->netdev);
 	}
-	if (!islocked)
-		rtnl_unlock();
+	rtnl_unlock();
 }
 static DECLARE_WORK(close_worker, close_work);
 

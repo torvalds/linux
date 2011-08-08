@@ -13,8 +13,6 @@
 
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
-#include <linux/mtd/mtd.h>
-#include <linux/mtd/onenand.h>
 
 #include <mach/irqs.h>
 #include <mach/map.h>
@@ -43,13 +41,3 @@ struct platform_device s3c_device_onenand = {
 	.num_resources	= ARRAY_SIZE(s3c_onenand_resources),
 	.resource	= s3c_onenand_resources,
 };
-
-void s3c_onenand_set_platdata(struct onenand_platform_data *pdata)
-{
-	struct onenand_platform_data *pd;
-
-	pd = kmemdup(pdata, sizeof(struct onenand_platform_data), GFP_KERNEL);
-	if (!pd)
-		printk(KERN_ERR "%s: no memory for platform data\n", __func__);
-	s3c_device_onenand.dev.platform_data = pd;
-}

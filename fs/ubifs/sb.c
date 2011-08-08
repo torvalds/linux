@@ -674,15 +674,15 @@ static int fixup_leb(struct ubifs_info *c, int lnum, int len)
 
 	if (len == 0) {
 		dbg_mnt("unmap empty LEB %d", lnum);
-		return ubi_leb_unmap(c->ubi, lnum);
+		return ubifs_leb_unmap(c, lnum);
 	}
 
 	dbg_mnt("fixup LEB %d, data len %d", lnum, len);
-	err = ubi_read(c->ubi, lnum, c->sbuf, 0, len);
+	err = ubifs_leb_read(c, lnum, c->sbuf, 0, len, 1);
 	if (err)
 		return err;
 
-	return ubi_leb_change(c->ubi, lnum, c->sbuf, len, UBI_UNKNOWN);
+	return ubifs_leb_change(c, lnum, c->sbuf, len, UBI_UNKNOWN);
 }
 
 /**

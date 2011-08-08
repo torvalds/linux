@@ -627,6 +627,7 @@ struct radeon_dp_link_train_info {
 	u8 train_set[4];
 	u8 link_status[DP_LINK_STATUS_SIZE];
 	u8 tries;
+	bool use_dpencoder;
 };
 
 static void radeon_dp_update_vs_emph(struct radeon_dp_link_train_info *dp_info)
@@ -646,7 +647,7 @@ static void radeon_dp_set_tp(struct radeon_dp_link_train_info *dp_info, int tp)
 	int rtp = 0;
 
 	/* set training pattern on the source */
-	if (ASIC_IS_DCE4(dp_info->rdev)) {
+	if (ASIC_IS_DCE4(dp_info->rdev) || !dp_info->use_dpencoder) {
 		switch (tp) {
 		case DP_TRAINING_PATTERN_1:
 			rtp = ATOM_ENCODER_CMD_DP_LINK_TRAINING_PATTERN1;
@@ -706,7 +707,7 @@ static int radeon_dp_link_train_init(struct radeon_dp_link_train_info *dp_info)
 	radeon_write_dpcd_reg(dp_info->radeon_connector, DP_LINK_BW_SET, tmp);
 
 	/* start training on the source */
-	if (ASIC_IS_DCE4(dp_info->rdev))
+	if (ASIC_IS_DCE4(dp_info->rdev) || !dp_info->use_dpencoder)
 		atombios_dig_encoder_setup(dp_info->encoder,
 					   ATOM_ENCODER_CMD_DP_LINK_TRAINING_START, 0);
 	else
@@ -731,7 +732,7 @@ static int radeon_dp_link_train_finish(struct radeon_dp_link_train_info *dp_info
 			      DP_TRAINING_PATTERN_DISABLE);
 
 	/* disable the training pattern on the source */
-	if (ASIC_IS_DCE4(dp_info->rdev))
+	if (ASIC_IS_DCE4(dp_info->rdev) || !dp_info->use_dpencoder)
 		atombios_dig_encoder_setup(dp_info->encoder,
 					   ATOM_ENCODER_CMD_DP_LINK_TRAINING_COMPLETE, 0);
 	else
@@ -869,7 +870,8 @@ void radeon_dp_link_train(struct drm_encoder *encoder,
 	struct radeon_connector *radeon_connector;
 	struct radeon_connector_atom_dig *dig_connector;
 	struct radeon_dp_link_train_info dp_info;
- 	u8 tmp;
+	int index;
+	u8 tmp, frev, crev;
 
 	if (!radeon_encoder->enc_priv)
 		return;
@@ -883,6 +885,18 @@ void radeon_dp_link_train(struct drm_encoder *encoder,
 	if ((dig_connector->dp_sink_type != CONNECTOR_OBJECT_ID_DISPLAYPORT) &&
 	    (dig_connector->dp_sink_type != CONNECTOR_OBJECT_ID_eDP))
 		return;
+
+	/* DPEncoderService newer than 1.1 can't program properly the
+	 * training pattern. When facing such version use the
+	 * DIGXEncoderControl (X== 1 | 2)
+	 */
+	dp_info.use_dpencoder = true;
+	index = GetIndexIntoMasterTable(COMMAND, DPEncoderService);
+	if (atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev)) {
+		if (crev > 1) {
+			dp_info.use_dpencoder = false;
+		}
+	}
 
 	dp_info.enc_id = 0;
 	if (dig->dig_encoder)

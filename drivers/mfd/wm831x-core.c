@@ -295,7 +295,7 @@ int wm831x_set_bits(struct wm831x *wm831x, unsigned short reg,
 		goto out;
 
 	r &= ~mask;
-	r |= val;
+	r |= val & mask;
 
 	ret = wm831x_write(wm831x, reg, 2, &r);
 
@@ -305,146 +305,6 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm831x_set_bits);
-
-/**
- * wm831x_auxadc_read: Read a value from the WM831x AUXADC
- *
- * @wm831x: Device to read from.
- * @input: AUXADC input to read.
- */
-int wm831x_auxadc_read(struct wm831x *wm831x, enum wm831x_auxadc input)
-{
-	int ret, src, irq_masked, timeout;
-
-	/* Are we using the interrupt? */
-	irq_masked = wm831x_reg_read(wm831x, WM831X_INTERRUPT_STATUS_1_MASK);
-	irq_masked &= WM831X_AUXADC_DATA_EINT;
-
-	mutex_lock(&wm831x->auxadc_lock);
-
-	ret = wm831x_set_bits(wm831x, WM831X_AUXADC_CONTROL,
-			      WM831X_AUX_ENA, WM831X_AUX_ENA);
-	if (ret < 0) {
-		dev_err(wm831x->dev, "Failed to enable AUXADC: %d\n", ret);
-		goto out;
-	}
-
-	/* We force a single source at present */
-	src = input;
-	ret = wm831x_reg_write(wm831x, WM831X_AUXADC_SOURCE,
-			       1 << src);
-	if (ret < 0) {
-		dev_err(wm831x->dev, "Failed to set AUXADC source: %d\n", ret);
-		goto out;
-	}
-
-	/* Clear any notification from a very late arriving interrupt */
-	try_wait_for_completion(&wm831x->auxadc_done);
-
-	ret = wm831x_set_bits(wm831x, WM831X_AUXADC_CONTROL,
-			      WM831X_AUX_CVT_ENA, WM831X_AUX_CVT_ENA);
-	if (ret < 0) {
-		dev_err(wm831x->dev, "Failed to start AUXADC: %d\n", ret);
-		goto disable;
-	}
-
-	if (irq_masked) {
-		/* If we're not using interrupts then poll the
-		 * interrupt status register */
-		timeout = 5;
-		while (timeout) {
-			msleep(1);
-
-			ret = wm831x_reg_read(wm831x,
-					      WM831X_INTERRUPT_STATUS_1);
-			if (ret < 0) {
-				dev_err(wm831x->dev,
-					"ISR 1 read failed: %d\n", ret);
-				goto disable;
-			}
-
-			/* Did it complete? */
-			if (ret & WM831X_AUXADC_DATA_EINT) {
-				wm831x_reg_write(wm831x,
-						 WM831X_INTERRUPT_STATUS_1,
-						 WM831X_AUXADC_DATA_EINT);
-				break;
-			} else {
-				dev_err(wm831x->dev,
-					"AUXADC conversion timeout\n");
-				ret = -EBUSY;
-				goto disable;
-			}
-		}
-	} else {
-		/* If we are using interrupts then wait for the
-		 * interrupt to complete.  Use an extremely long
-		 * timeout to handle situations with heavy load where
-		 * the notification of the interrupt may be delayed by
-		 * threaded IRQ handling. */
-		if (!wait_for_completion_timeout(&wm831x->auxadc_done,
-						 msecs_to_jiffies(500))) {
-			dev_err(wm831x->dev, "Timed out waiting for AUXADC\n");
-			ret = -EBUSY;
-			goto disable;
-		}
-	}
-
-	ret = wm831x_reg_read(wm831x, WM831X_AUXADC_DATA);
-	if (ret < 0) {
-		dev_err(wm831x->dev, "Failed to read AUXADC data: %d\n", ret);
-	} else {
-		src = ((ret & WM831X_AUX_DATA_SRC_MASK)
-		       >> WM831X_AUX_DATA_SRC_SHIFT) - 1;
-
-		if (src == 14)
-			src = WM831X_AUX_CAL;
-
-		if (src != input) {
-			dev_err(wm831x->dev, "Data from source %d not %d\n",
-				src, input);
-			ret = -EINVAL;
-		} else {
-			ret &= WM831X_AUX_DATA_MASK;
-		}
-	}
-
-disable:
-	wm831x_set_bits(wm831x, WM831X_AUXADC_CONTROL, WM831X_AUX_ENA, 0);
-out:
-	mutex_unlock(&wm831x->auxadc_lock);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(wm831x_auxadc_read);
-
-static irqreturn_t wm831x_auxadc_irq(int irq, void *irq_data)
-{
-	struct wm831x *wm831x = irq_data;
-
-	complete(&wm831x->auxadc_done);
-
-	return IRQ_HANDLED;
-}
-
-/**
- * wm831x_auxadc_read_uv: Read a voltage from the WM831x AUXADC
- *
- * @wm831x: Device to read from.
- * @input: AUXADC input to read.
- */
-int wm831x_auxadc_read_uv(struct wm831x *wm831x, enum wm831x_auxadc input)
-{
-	int ret;
-
-	ret = wm831x_auxadc_read(wm831x, input);
-	if (ret < 0)
-		return ret;
-
-	ret *= 1465;
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(wm831x_auxadc_read_uv);
 
 static struct resource wm831x_dcdc1_resources[] = {
 	{
@@ -872,6 +732,9 @@ static struct mfd_cell wm8310_devs[] = {
 		.resources = wm831x_dcdc4_resources,
 	},
 	{
+		.name = "wm831x-clk",
+	},
+	{
 		.name = "wm831x-epe",
 		.id = 1,
 	},
@@ -974,11 +837,6 @@ static struct mfd_cell wm8310_devs[] = {
 		.name = "wm831x-power",
 		.num_resources = ARRAY_SIZE(wm831x_power_resources),
 		.resources = wm831x_power_resources,
-	},
-	{
-		.name = "wm831x-rtc",
-		.num_resources = ARRAY_SIZE(wm831x_rtc_resources),
-		.resources = wm831x_rtc_resources,
 	},
 	{
 		.name = "wm831x-status",
@@ -1028,6 +886,9 @@ static struct mfd_cell wm8311_devs[] = {
 		.resources = wm831x_dcdc4_resources,
 	},
 	{
+		.name = "wm831x-clk",
+	},
+	{
 		.name = "wm831x-epe",
 		.id = 1,
 	},
@@ -1108,11 +969,6 @@ static struct mfd_cell wm8311_devs[] = {
 		.resources = wm831x_power_resources,
 	},
 	{
-		.name = "wm831x-rtc",
-		.num_resources = ARRAY_SIZE(wm831x_rtc_resources),
-		.resources = wm831x_rtc_resources,
-	},
-	{
 		.name = "wm831x-status",
 		.id = 1,
 		.num_resources = ARRAY_SIZE(wm831x_status1_resources),
@@ -1123,11 +979,6 @@ static struct mfd_cell wm8311_devs[] = {
 		.id = 2,
 		.num_resources = ARRAY_SIZE(wm831x_status2_resources),
 		.resources = wm831x_status2_resources,
-	},
-	{
-		.name = "wm831x-touch",
-		.num_resources = ARRAY_SIZE(wm831x_touch_resources),
-		.resources = wm831x_touch_resources,
 	},
 	{
 		.name = "wm831x-watchdog",
@@ -1165,6 +1016,9 @@ static struct mfd_cell wm8312_devs[] = {
 		.resources = wm831x_dcdc4_resources,
 	},
 	{
+		.name = "wm831x-clk",
+	},
+	{
 		.name = "wm831x-epe",
 		.id = 1,
 	},
@@ -1269,11 +1123,6 @@ static struct mfd_cell wm8312_devs[] = {
 		.resources = wm831x_power_resources,
 	},
 	{
-		.name = "wm831x-rtc",
-		.num_resources = ARRAY_SIZE(wm831x_rtc_resources),
-		.resources = wm831x_rtc_resources,
-	},
-	{
 		.name = "wm831x-status",
 		.id = 1,
 		.num_resources = ARRAY_SIZE(wm831x_status1_resources),
@@ -1284,11 +1133,6 @@ static struct mfd_cell wm8312_devs[] = {
 		.id = 2,
 		.num_resources = ARRAY_SIZE(wm831x_status2_resources),
 		.resources = wm831x_status2_resources,
-	},
-	{
-		.name = "wm831x-touch",
-		.num_resources = ARRAY_SIZE(wm831x_touch_resources),
-		.resources = wm831x_touch_resources,
 	},
 	{
 		.name = "wm831x-watchdog",
@@ -1324,6 +1168,9 @@ static struct mfd_cell wm8320_devs[] = {
 		.id = 4,
 		.num_resources = ARRAY_SIZE(wm8320_dcdc4_buck_resources),
 		.resources = wm8320_dcdc4_buck_resources,
+	},
+	{
+		.name = "wm831x-clk",
 	},
 	{
 		.name = "wm831x-gpio",
@@ -1405,11 +1252,6 @@ static struct mfd_cell wm8320_devs[] = {
 		.resources = wm831x_on_resources,
 	},
 	{
-		.name = "wm831x-rtc",
-		.num_resources = ARRAY_SIZE(wm831x_rtc_resources),
-		.resources = wm831x_rtc_resources,
-	},
-	{
 		.name = "wm831x-status",
 		.id = 1,
 		.num_resources = ARRAY_SIZE(wm831x_status1_resources),
@@ -1428,6 +1270,22 @@ static struct mfd_cell wm8320_devs[] = {
 	},
 };
 
+static struct mfd_cell touch_devs[] = {
+	{
+		.name = "wm831x-touch",
+		.num_resources = ARRAY_SIZE(wm831x_touch_resources),
+		.resources = wm831x_touch_resources,
+	},
+};
+
+static struct mfd_cell rtc_devs[] = {
+	{
+		.name = "wm831x-rtc",
+		.num_resources = ARRAY_SIZE(wm831x_rtc_resources),
+		.resources = wm831x_rtc_resources,
+	},
+};
+
 static struct mfd_cell backlight_devs[] = {
 	{
 		.name = "wm831x-backlight",
@@ -1440,14 +1298,12 @@ static struct mfd_cell backlight_devs[] = {
 int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 {
 	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
-	int rev;
+	int rev, wm831x_num;
 	enum wm831x_parent parent;
 	int ret, i;
 
 	mutex_init(&wm831x->io_lock);
 	mutex_init(&wm831x->key_lock);
-	mutex_init(&wm831x->auxadc_lock);
-	init_completion(&wm831x->auxadc_done);
 	dev_set_drvdata(wm831x->dev, wm831x);
 
 	ret = wm831x_reg_read(wm831x, WM831X_PARENT_ID);
@@ -1592,45 +1448,51 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		}
 	}
 
+	/* Multiply by 10 as we have many subdevices of the same type */
+	if (pdata && pdata->wm831x_num)
+		wm831x_num = pdata->wm831x_num * 10;
+	else
+		wm831x_num = -1;
+
 	ret = wm831x_irq_init(wm831x, irq);
 	if (ret != 0)
 		goto err;
 
-	if (wm831x->irq_base) {
-		ret = request_threaded_irq(wm831x->irq_base +
-					   WM831X_IRQ_AUXADC_DATA,
-					   NULL, wm831x_auxadc_irq, 0,
-					   "auxadc", wm831x);
-		if (ret < 0)
-			dev_err(wm831x->dev, "AUXADC IRQ request failed: %d\n",
-				ret);
-	}
+	wm831x_auxadc_init(wm831x);
 
 	/* The core device is up, instantiate the subdevices. */
 	switch (parent) {
 	case WM8310:
-		ret = mfd_add_devices(wm831x->dev, -1,
+		ret = mfd_add_devices(wm831x->dev, wm831x_num,
 				      wm8310_devs, ARRAY_SIZE(wm8310_devs),
 				      NULL, wm831x->irq_base);
 		break;
 
 	case WM8311:
-		ret = mfd_add_devices(wm831x->dev, -1,
+		ret = mfd_add_devices(wm831x->dev, wm831x_num,
 				      wm8311_devs, ARRAY_SIZE(wm8311_devs),
 				      NULL, wm831x->irq_base);
+		if (!pdata || !pdata->disable_touch)
+			mfd_add_devices(wm831x->dev, wm831x_num,
+					touch_devs, ARRAY_SIZE(touch_devs),
+					NULL, wm831x->irq_base);
 		break;
 
 	case WM8312:
-		ret = mfd_add_devices(wm831x->dev, -1,
+		ret = mfd_add_devices(wm831x->dev, wm831x_num,
 				      wm8312_devs, ARRAY_SIZE(wm8312_devs),
 				      NULL, wm831x->irq_base);
+		if (!pdata || !pdata->disable_touch)
+			mfd_add_devices(wm831x->dev, wm831x_num,
+					touch_devs, ARRAY_SIZE(touch_devs),
+					NULL, wm831x->irq_base);
 		break;
 
 	case WM8320:
 	case WM8321:
 	case WM8325:
 	case WM8326:
-		ret = mfd_add_devices(wm831x->dev, -1,
+		ret = mfd_add_devices(wm831x->dev, wm831x_num,
 				      wm8320_devs, ARRAY_SIZE(wm8320_devs),
 				      NULL, wm831x->irq_base);
 		break;
@@ -1645,9 +1507,30 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		goto err_irq;
 	}
 
+	/* The RTC can only be used if the 32.768kHz crystal is
+	 * enabled; this can't be controlled by software at runtime.
+	 */
+	ret = wm831x_reg_read(wm831x, WM831X_CLOCK_CONTROL_2);
+	if (ret < 0) {
+		dev_err(wm831x->dev, "Failed to read clock status: %d\n", ret);
+		goto err_irq;
+	}
+
+	if (ret & WM831X_XTAL_ENA) {
+		ret = mfd_add_devices(wm831x->dev, wm831x_num,
+				      rtc_devs, ARRAY_SIZE(rtc_devs),
+				      NULL, wm831x->irq_base);
+		if (ret != 0) {
+			dev_err(wm831x->dev, "Failed to add RTC: %d\n", ret);
+			goto err_irq;
+		}
+	} else {
+		dev_info(wm831x->dev, "32.768kHz clock disabled, no RTC\n");
+	}
+
 	if (pdata && pdata->backlight) {
 		/* Treat errors as non-critical */
-		ret = mfd_add_devices(wm831x->dev, -1, backlight_devs,
+		ret = mfd_add_devices(wm831x->dev, wm831x_num, backlight_devs,
 				      ARRAY_SIZE(backlight_devs), NULL,
 				      wm831x->irq_base);
 		if (ret < 0)

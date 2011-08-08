@@ -187,7 +187,7 @@ static void mousedev_abs_event(struct input_dev *dev, struct mousedev *mousedev,
 		if (size == 0)
 			size = xres ? : 1;
 
-		clamp(value, min, max);
+		value = clamp(value, min, max);
 
 		mousedev->packet.x = ((value - min) * xres) / size;
 		mousedev->packet.abs_event = 1;
@@ -201,7 +201,7 @@ static void mousedev_abs_event(struct input_dev *dev, struct mousedev *mousedev,
 		if (size == 0)
 			size = yres ? : 1;
 
-		clamp(value, min, max);
+		value = clamp(value, min, max);
 
 		mousedev->packet.y = yres - ((value - min) * yres) / size;
 		mousedev->packet.abs_event = 1;

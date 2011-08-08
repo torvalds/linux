@@ -39,7 +39,7 @@
 label##_iSeries:							\
 	HMT_MEDIUM;							\
 	mtspr	SPRN_SPRG_SCRATCH0,r13;	/* save r13 */			\
-	EXCEPTION_PROLOG_1(area);					\
+	EXCEPTION_PROLOG_1(area, NOTEST, 0);				\
 	EXCEPTION_PROLOG_ISERIES_1;					\
 	b	label##_common
 
@@ -48,7 +48,7 @@ label##_iSeries:							\
 label##_iSeries:							\
 	HMT_MEDIUM;							\
 	mtspr	SPRN_SPRG_SCRATCH0,r13;	/* save r13 */			\
-	EXCEPTION_PROLOG_1(PACA_EXGEN);					\
+	EXCEPTION_PROLOG_1(PACA_EXGEN, NOTEST, 0);			\
 	lbz	r10,PACASOFTIRQEN(r13);					\
 	cmpwi	0,r10,0;						\
 	beq-	label##_iSeries_masked;					\

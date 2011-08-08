@@ -1199,7 +1199,7 @@ static int __devinit snd_fm801_create(struct snd_card *card,
 	chip->port = pci_resource_start(pci, 0);
 	if ((tea575x_tuner & TUNER_ONLY) == 0) {
 		if (request_irq(pci->irq, snd_fm801_interrupt, IRQF_SHARED,
-				"FM801", chip)) {
+				KBUILD_MODNAME, chip)) {
 			snd_printk(KERN_ERR "unable to grab IRQ %d\n", chip->irq);
 			snd_fm801_free(chip);
 			return -EBUSY;
@@ -1234,9 +1234,12 @@ static int __devinit snd_fm801_create(struct snd_card *card,
 	sprintf(chip->tea.bus_info, "PCI:%s", pci_name(pci));
 	if ((tea575x_tuner & TUNER_TYPE_MASK) > 0 &&
 	    (tea575x_tuner & TUNER_TYPE_MASK) < 4) {
-		if (snd_tea575x_init(&chip->tea))
+		if (snd_tea575x_init(&chip->tea)) {
 			snd_printk(KERN_ERR "TEA575x radio not found\n");
-	} else if ((tea575x_tuner & TUNER_TYPE_MASK) == 0)
+			snd_fm801_free(chip);
+			return -ENODEV;
+		}
+	} else if ((tea575x_tuner & TUNER_TYPE_MASK) == 0) {
 		/* autodetect tuner connection */
 		for (tea575x_tuner = 1; tea575x_tuner <= 3; tea575x_tuner++) {
 			chip->tea575x_tuner = tea575x_tuner;
@@ -1246,6 +1249,12 @@ static int __devinit snd_fm801_create(struct snd_card *card,
 				break;
 			}
 		}
+		if (tea575x_tuner == 4) {
+			snd_printk(KERN_ERR "TEA575x radio not found\n");
+			snd_fm801_free(chip);
+			return -ENODEV;
+		}
+	}
 	strlcpy(chip->tea.card, snd_fm801_tea575x_gpios[(tea575x_tuner & TUNER_TYPE_MASK) - 1].name, sizeof(chip->tea.card));
 #endif
 
@@ -1385,7 +1394,7 @@ static int snd_fm801_resume(struct pci_dev *pci)
 #endif
 
 static struct pci_driver driver = {
-	.name = "FM801",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_fm801_ids,
 	.probe = snd_card_fm801_probe,
 	.remove = __devexit_p(snd_card_fm801_remove),

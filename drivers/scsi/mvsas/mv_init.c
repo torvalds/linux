@@ -34,22 +34,25 @@ MODULE_PARM_DESC(collector, "\n"
 	"\tThe mvsas SAS LLDD supports both modes.\n"
 	"\tDefault: 1 (Direct Mode).\n");
 
+int interrupt_coalescing = 0x80;
+
 static struct scsi_transport_template *mvs_stt;
 struct kmem_cache *mvs_task_list_cache;
 static const struct mvs_chip_info mvs_chips[] = {
-	[chip_6320] =	{ 1, 2, 0x400, 17, 16,  9, &mvs_64xx_dispatch, },
-	[chip_6440] =	{ 1, 4, 0x400, 17, 16,  9, &mvs_64xx_dispatch, },
-	[chip_6485] =	{ 1, 8, 0x800, 33, 32, 10, &mvs_64xx_dispatch, },
-	[chip_9180] =	{ 2, 4, 0x800, 17, 64,  9, &mvs_94xx_dispatch, },
-	[chip_9480] =	{ 2, 4, 0x800, 17, 64,  9, &mvs_94xx_dispatch, },
-	[chip_9445] =	{ 1, 4, 0x800, 17, 64, 11, &mvs_94xx_dispatch, },
-	[chip_9485] =	{ 2, 4, 0x800, 17, 64, 11, &mvs_94xx_dispatch, },
-	[chip_1300] =	{ 1, 4, 0x400, 17, 16,  9, &mvs_64xx_dispatch, },
-	[chip_1320] =	{ 2, 4, 0x800, 17, 64,  9, &mvs_94xx_dispatch, },
+	[chip_6320] =	{ 1, 2, 0x400, 17, 16, 6,  9, &mvs_64xx_dispatch, },
+	[chip_6440] =	{ 1, 4, 0x400, 17, 16, 6,  9, &mvs_64xx_dispatch, },
+	[chip_6485] =	{ 1, 8, 0x800, 33, 32, 6, 10, &mvs_64xx_dispatch, },
+	[chip_9180] =	{ 2, 4, 0x800, 17, 64, 8,  9, &mvs_94xx_dispatch, },
+	[chip_9480] =	{ 2, 4, 0x800, 17, 64, 8,  9, &mvs_94xx_dispatch, },
+	[chip_9445] =	{ 1, 4, 0x800, 17, 64, 8, 11, &mvs_94xx_dispatch, },
+	[chip_9485] =	{ 2, 4, 0x800, 17, 64, 8, 11, &mvs_94xx_dispatch, },
+	[chip_1300] =	{ 1, 4, 0x400, 17, 16, 6,  9, &mvs_64xx_dispatch, },
+	[chip_1320] =	{ 2, 4, 0x800, 17, 64, 8,  9, &mvs_94xx_dispatch, },
 };
 
+struct device_attribute *mvst_host_attrs[];
+
 #define SOC_SAS_NUM 2
-#define SG_MX 64
 
 static struct scsi_host_template mvs_sht = {
 	.module			= THIS_MODULE,
@@ -66,7 +69,7 @@ static struct scsi_host_template mvs_sht = {
 	.can_queue		= 1,
 	.cmd_per_lun		= 1,
 	.this_id		= -1,
-	.sg_tablesize		= SG_MX,
+	.sg_tablesize		= SG_ALL,
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.eh_device_reset_handler = sas_eh_device_reset_handler,
@@ -74,6 +77,7 @@ static struct scsi_host_template mvs_sht = {
 	.slave_alloc		= mvs_slave_alloc,
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
+	.shost_attrs		= mvst_host_attrs,
 };
 
 static struct sas_domain_function_template mvs_transport_ops = {
@@ -100,6 +104,7 @@ static void __devinit mvs_phy_init(struct mvs_info *mvi, int phy_id)
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 
 	phy->mvi = mvi;
+	phy->port = NULL;
 	init_timer(&phy->timer);
 	sas_phy->enabled = (phy_id < mvi->chip->n_phy) ? 1 : 0;
 	sas_phy->class = SAS;
@@ -128,7 +133,7 @@ static void mvs_free(struct mvs_info *mvi)
 	if (mvi->flags & MVF_FLAG_SOC)
 		slot_nr = MVS_SOC_SLOTS;
 	else
-		slot_nr = MVS_SLOTS;
+		slot_nr = MVS_CHIP_SLOT_SZ;
 
 	if (mvi->dma_pool)
 		pci_pool_destroy(mvi->dma_pool);
@@ -148,25 +153,26 @@ static void mvs_free(struct mvs_info *mvi)
 		dma_free_coherent(mvi->dev,
 				  sizeof(*mvi->slot) * slot_nr,
 				  mvi->slot, mvi->slot_dma);
-#ifndef DISABLE_HOTPLUG_DMA_FIX
+
 	if (mvi->bulk_buffer)
 		dma_free_coherent(mvi->dev, TRASH_BUCKET_SIZE,
 				  mvi->bulk_buffer, mvi->bulk_buffer_dma);
-#endif
+	if (mvi->bulk_buffer1)
+		dma_free_coherent(mvi->dev, TRASH_BUCKET_SIZE,
+				  mvi->bulk_buffer1, mvi->bulk_buffer_dma1);
 
 	MVS_CHIP_DISP->chip_iounmap(mvi);
 	if (mvi->shost)
 		scsi_host_put(mvi->shost);
 	list_for_each_entry(mwq, &mvi->wq_list, entry)
 		cancel_delayed_work(&mwq->work_q);
+	kfree(mvi->tags);
 	kfree(mvi);
 }
 
-#ifdef MVS_USE_TASKLET
-struct tasklet_struct	mv_tasklet;
+#ifdef CONFIG_SCSI_MVSAS_TASKLET
 static void mvs_tasklet(unsigned long opaque)
 {
-	unsigned long flags;
 	u32 stat;
 	u16 core_nr, i = 0;
 
@@ -179,35 +185,49 @@ static void mvs_tasklet(unsigned long opaque)
 	if (unlikely(!mvi))
 		BUG_ON(1);
 
+	stat = MVS_CHIP_DISP->isr_status(mvi, mvi->pdev->irq);
+	if (!stat)
+		goto out;
+
 	for (i = 0; i < core_nr; i++) {
 		mvi = ((struct mvs_prv_info *)sha->lldd_ha)->mvi[i];
-		stat = MVS_CHIP_DISP->isr_status(mvi, mvi->irq);
-		if (stat)
-			MVS_CHIP_DISP->isr(mvi, mvi->irq, stat);
+		MVS_CHIP_DISP->isr(mvi, mvi->pdev->irq, stat);
 	}
+out:
+	MVS_CHIP_DISP->interrupt_enable(mvi);
 
 }
 #endif
 
 static irqreturn_t mvs_interrupt(int irq, void *opaque)
 {
-	u32 core_nr, i = 0;
+	u32 core_nr;
 	u32 stat;
 	struct mvs_info *mvi;
 	struct sas_ha_struct *sha = opaque;
+#ifndef CONFIG_SCSI_MVSAS_TASKLET
+	u32 i;
+#endif
 
 	core_nr = ((struct mvs_prv_info *)sha->lldd_ha)->n_host;
 	mvi = ((struct mvs_prv_info *)sha->lldd_ha)->mvi[0];
 
 	if (unlikely(!mvi))
 		return IRQ_NONE;
+#ifdef CONFIG_SCSI_MVSAS_TASKLET
+	MVS_CHIP_DISP->interrupt_disable(mvi);
+#endif
 
 	stat = MVS_CHIP_DISP->isr_status(mvi, irq);
-	if (!stat)
+	if (!stat) {
+	#ifdef CONFIG_SCSI_MVSAS_TASKLET
+		MVS_CHIP_DISP->interrupt_enable(mvi);
+	#endif
 		return IRQ_NONE;
+	}
 
-#ifdef MVS_USE_TASKLET
-	tasklet_schedule(&mv_tasklet);
+#ifdef CONFIG_SCSI_MVSAS_TASKLET
+	tasklet_schedule(&((struct mvs_prv_info *)sha->lldd_ha)->mv_tasklet);
 #else
 	for (i = 0; i < core_nr; i++) {
 		mvi = ((struct mvs_prv_info *)sha->lldd_ha)->mvi[i];
@@ -225,7 +245,7 @@ static int __devinit mvs_alloc(struct mvs_info *mvi, struct Scsi_Host *shost)
 	if (mvi->flags & MVF_FLAG_SOC)
 		slot_nr = MVS_SOC_SLOTS;
 	else
-		slot_nr = MVS_SLOTS;
+		slot_nr = MVS_CHIP_SLOT_SZ;
 
 	spin_lock_init(&mvi->lock);
 	for (i = 0; i < mvi->chip->n_phy; i++) {
@@ -273,13 +293,18 @@ static int __devinit mvs_alloc(struct mvs_info *mvi, struct Scsi_Host *shost)
 		goto err_out;
 	memset(mvi->slot, 0, sizeof(*mvi->slot) * slot_nr);
 
-#ifndef DISABLE_HOTPLUG_DMA_FIX
 	mvi->bulk_buffer = dma_alloc_coherent(mvi->dev,
 				       TRASH_BUCKET_SIZE,
 				       &mvi->bulk_buffer_dma, GFP_KERNEL);
 	if (!mvi->bulk_buffer)
 		goto err_out;
-#endif
+
+	mvi->bulk_buffer1 = dma_alloc_coherent(mvi->dev,
+				       TRASH_BUCKET_SIZE,
+				       &mvi->bulk_buffer_dma1, GFP_KERNEL);
+	if (!mvi->bulk_buffer1)
+		goto err_out;
+
 	sprintf(pool_name, "%s%d", "mvs_dma_pool", mvi->id);
 	mvi->dma_pool = pci_pool_create(pool_name, mvi->pdev, MVS_SLOT_BUF_SZ, 16, 0);
 	if (!mvi->dma_pool) {
@@ -354,11 +379,12 @@ static struct mvs_info *__devinit mvs_pci_alloc(struct pci_dev *pdev,
 				const struct pci_device_id *ent,
 				struct Scsi_Host *shost, unsigned int id)
 {
-	struct mvs_info *mvi;
+	struct mvs_info *mvi = NULL;
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
 
-	mvi = kzalloc(sizeof(*mvi) + MVS_SLOTS * sizeof(struct mvs_slot_info),
-			GFP_KERNEL);
+	mvi = kzalloc(sizeof(*mvi) +
+		(1L << mvs_chips[ent->driver_data].slot_width) *
+		sizeof(struct mvs_slot_info), GFP_KERNEL);
 	if (!mvi)
 		return NULL;
 
@@ -367,7 +393,6 @@ static struct mvs_info *__devinit mvs_pci_alloc(struct pci_dev *pdev,
 	mvi->chip_id = ent->driver_data;
 	mvi->chip = &mvs_chips[mvi->chip_id];
 	INIT_LIST_HEAD(&mvi->wq_list);
-	mvi->irq = pdev->irq;
 
 	((struct mvs_prv_info *)sha->lldd_ha)->mvi[id] = mvi;
 	((struct mvs_prv_info *)sha->lldd_ha)->n_phy = mvi->chip->n_phy;
@@ -375,9 +400,10 @@ static struct mvs_info *__devinit mvs_pci_alloc(struct pci_dev *pdev,
 	mvi->id = id;
 	mvi->sas = sha;
 	mvi->shost = shost;
-#ifdef MVS_USE_TASKLET
-	tasklet_init(&mv_tasklet, mvs_tasklet, (unsigned long)sha);
-#endif
+
+	mvi->tags = kzalloc(MVS_CHIP_SLOT_SZ>>3, GFP_KERNEL);
+	if (!mvi->tags)
+		goto err_out;
 
 	if (MVS_CHIP_DISP->chip_ioremap(mvi))
 		goto err_out;
@@ -388,7 +414,6 @@ err_out:
 	return NULL;
 }
 
-/* move to PCI layer or libata core? */
 static int pci_go_64(struct pci_dev *pdev)
 {
 	int rc;
@@ -450,7 +475,7 @@ static int __devinit mvs_prep_sas_ha_init(struct Scsi_Host *shost,
 	((struct mvs_prv_info *)sha->lldd_ha)->n_host = core_nr;
 
 	shost->transportt = mvs_stt;
-	shost->max_id = 128;
+	shost->max_id = MVS_MAX_DEVICES;
 	shost->max_lun = ~0;
 	shost->max_channel = 1;
 	shost->max_cmd_len = 16;
@@ -493,11 +518,12 @@ static void  __devinit mvs_post_sas_ha_init(struct Scsi_Host *shost,
 	if (mvi->flags & MVF_FLAG_SOC)
 		can_queue = MVS_SOC_CAN_QUEUE;
 	else
-		can_queue = MVS_CAN_QUEUE;
+		can_queue = MVS_CHIP_SLOT_SZ;
 
 	sha->lldd_queue_size = can_queue;
+	shost->sg_tablesize = min_t(u16, SG_ALL, MVS_MAX_SG);
 	shost->can_queue = can_queue;
-	mvi->shost->cmd_per_lun = MVS_SLOTS/sha->num_phys;
+	mvi->shost->cmd_per_lun = MVS_QUEUE_SIZE;
 	sha->core.shost = mvi->shost;
 }
 
@@ -518,6 +544,7 @@ static int __devinit mvs_pci_init(struct pci_dev *pdev,
 {
 	unsigned int rc, nhost = 0;
 	struct mvs_info *mvi;
+	struct mvs_prv_info *mpi;
 	irq_handler_t irq_handler = mvs_interrupt;
 	struct Scsi_Host *shost = NULL;
 	const struct mvs_chip_info *chip;
@@ -569,6 +596,9 @@ static int __devinit mvs_pci_init(struct pci_dev *pdev,
 			goto err_out_regions;
 		}
 
+		memset(&mvi->hba_info_param, 0xFF,
+			sizeof(struct hba_info_page));
+
 		mvs_init_sas_add(mvi);
 
 		mvi->instance = nhost;
@@ -579,8 +609,9 @@ static int __devinit mvs_pci_init(struct pci_dev *pdev,
 		}
 		nhost++;
 	} while (nhost < chip->n_host);
-#ifdef MVS_USE_TASKLET
-	tasklet_init(&mv_tasklet, mvs_tasklet,
+	mpi = (struct mvs_prv_info *)(SHOST_TO_SAS_HA(shost)->lldd_ha);
+#ifdef CONFIG_SCSI_MVSAS_TASKLET
+	tasklet_init(&(mpi->mv_tasklet), mvs_tasklet,
 		     (unsigned long)SHOST_TO_SAS_HA(shost));
 #endif
 
@@ -625,8 +656,8 @@ static void __devexit mvs_pci_remove(struct pci_dev *pdev)
 	core_nr = ((struct mvs_prv_info *)sha->lldd_ha)->n_host;
 	mvi = ((struct mvs_prv_info *)sha->lldd_ha)->mvi[0];
 
-#ifdef MVS_USE_TASKLET
-	tasklet_kill(&mv_tasklet);
+#ifdef CONFIG_SCSI_MVSAS_TASKLET
+	tasklet_kill(&((struct mvs_prv_info *)sha->lldd_ha)->mv_tasklet);
 #endif
 
 	pci_set_drvdata(pdev, NULL);
@@ -635,7 +666,7 @@ static void __devexit mvs_pci_remove(struct pci_dev *pdev)
 	scsi_remove_host(mvi->shost);
 
 	MVS_CHIP_DISP->interrupt_disable(mvi);
-	free_irq(mvi->irq, sha);
+	free_irq(mvi->pdev->irq, sha);
 	for (i = 0; i < core_nr; i++) {
 		mvi = ((struct mvs_prv_info *)sha->lldd_ha)->mvi[i];
 		mvs_free(mvi);
@@ -703,6 +734,70 @@ static struct pci_driver mvs_pci_driver = {
 	.remove		= __devexit_p(mvs_pci_remove),
 };
 
+static ssize_t
+mvs_show_driver_version(struct device *cdev,
+		struct device_attribute *attr,  char *buffer)
+{
+	return snprintf(buffer, PAGE_SIZE, "%s\n", DRV_VERSION);
+}
+
+static DEVICE_ATTR(driver_version,
+			 S_IRUGO,
+			 mvs_show_driver_version,
+			 NULL);
+
+static ssize_t
+mvs_store_interrupt_coalescing(struct device *cdev,
+			struct device_attribute *attr,
+			const char *buffer, size_t size)
+{
+	int val = 0;
+	struct mvs_info *mvi = NULL;
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	u8 i, core_nr;
+	if (buffer == NULL)
+		return size;
+
+	if (sscanf(buffer, "%d", &val) != 1)
+		return -EINVAL;
+
+	if (val >= 0x10000) {
+		mv_dprintk("interrupt coalescing timer %d us is"
+			"too long\n", val);
+		return strlen(buffer);
+	}
+
+	interrupt_coalescing = val;
+
+	core_nr = ((struct mvs_prv_info *)sha->lldd_ha)->n_host;
+	mvi = ((struct mvs_prv_info *)sha->lldd_ha)->mvi[0];
+
+	if (unlikely(!mvi))
+		return -EINVAL;
+
+	for (i = 0; i < core_nr; i++) {
+		mvi = ((struct mvs_prv_info *)sha->lldd_ha)->mvi[i];
+		if (MVS_CHIP_DISP->tune_interrupt)
+			MVS_CHIP_DISP->tune_interrupt(mvi,
+				interrupt_coalescing);
+	}
+	mv_dprintk("set interrupt coalescing time to %d us\n",
+		interrupt_coalescing);
+	return strlen(buffer);
+}
+
+static ssize_t mvs_show_interrupt_coalescing(struct device *cdev,
+			struct device_attribute *attr, char *buffer)
+{
+	return snprintf(buffer, PAGE_SIZE, "%d\n", interrupt_coalescing);
+}
+
+static DEVICE_ATTR(interrupt_coalescing,
+			 S_IRUGO|S_IWUSR,
+			 mvs_show_interrupt_coalescing,
+			 mvs_store_interrupt_coalescing);
+
 /* task handler */
 struct task_struct *mvs_th;
 static int __init mvs_init(void)
@@ -738,6 +833,12 @@ static void __exit mvs_exit(void)
 	sas_release_transport(mvs_stt);
 	kmem_cache_destroy(mvs_task_list_cache);
 }
+
+struct device_attribute *mvst_host_attrs[] = {
+	&dev_attr_driver_version,
+	&dev_attr_interrupt_coalescing,
+	NULL,
+};
 
 module_init(mvs_init);
 module_exit(mvs_exit);

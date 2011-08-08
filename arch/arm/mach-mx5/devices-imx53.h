@@ -32,3 +32,11 @@ extern const struct imx_spi_imx_data imx53_ecspi_data[];
 extern const struct imx_imx2_wdt_data imx53_imx2_wdt_data[];
 #define imx53_add_imx2_wdt(id, pdata)	\
 	imx_add_imx2_wdt(&imx53_imx2_wdt_data[id])
+
+extern const struct imx_imx_ssi_data imx53_imx_ssi_data[];
+#define imx53_add_imx_ssi(id, pdata)	\
+	imx_add_imx_ssi(&imx53_imx_ssi_data[id], pdata)
+
+extern const struct imx_imx_keypad_data imx53_imx_keypad_data;
+#define imx53_add_imx_keypad(pdata)	\
+	imx_add_imx_keypad(&imx53_imx_keypad_data, pdata)

@@ -1,0 +1,21 @@
+* ARM Primecell Peripherals
+
+ARM, Ltd. Primecell peripherals have a standard id register that can be used to
+identify the peripheral type, vendor, and revision. This value can be used for
+driver matching.
+
+Required properties:
+
+- compatible : should be a specific value for peripheral and "arm,primecell"
+
+Optional properties:
+
+- arm,primecell-periphid : Value to override the h/w value with
+
+Example:
+
+serial@fff36000 {
+	compatible = "arm,pl011", "arm,primecell";
+	arm,primecell-periphid = <0x00341011>;
+};
+

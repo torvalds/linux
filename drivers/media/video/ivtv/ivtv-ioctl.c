@@ -757,7 +757,6 @@ static int ivtv_querycap(struct file *file, void *fh, struct v4l2_capability *vc
 	strlcpy(vcap->driver, IVTV_DRIVER_NAME, sizeof(vcap->driver));
 	strlcpy(vcap->card, itv->card_name, sizeof(vcap->card));
 	snprintf(vcap->bus_info, sizeof(vcap->bus_info), "PCI:%s", pci_name(itv->pdev));
-	vcap->version = IVTV_DRIVER_VERSION; 	    /* version */
 	vcap->capabilities = itv->v4l2_cap; 	    /* capabilities */
 	return 0;
 }
@@ -1071,28 +1070,8 @@ static int ivtv_g_std(struct file *file, void *fh, v4l2_std_id *std)
 	return 0;
 }
 
-int ivtv_s_std(struct file *file, void *fh, v4l2_std_id *std)
+void ivtv_s_std_enc(struct ivtv *itv, v4l2_std_id *std)
 {
-	DEFINE_WAIT(wait);
-	struct ivtv *itv = fh2id(fh)->itv;
-	struct yuv_playback_info *yi = &itv->yuv_info;
-	int f;
-
-	if ((*std & V4L2_STD_ALL) == 0)
-		return -EINVAL;
-
-	if (*std == itv->std)
-		return 0;
-
-	if (test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags) ||
-	    atomic_read(&itv->capturing) > 0 ||
-	    atomic_read(&itv->decoding) > 0) {
-		/* Switching standard would turn off the radio or mess
-		   with already running streams, prevent that by
-		   returning EBUSY. */
-		return -EBUSY;
-	}
-
 	itv->std = *std;
 	itv->is_60hz = (*std & V4L2_STD_525_60) ? 1 : 0;
 	itv->is_50hz = !itv->is_60hz;
@@ -1106,48 +1085,79 @@ int ivtv_s_std(struct file *file, void *fh, v4l2_std_id *std)
 	if (itv->hw_flags & IVTV_HW_CX25840)
 		itv->vbi.sliced_decoder_line_size = itv->is_60hz ? 272 : 284;
 
-	IVTV_DEBUG_INFO("Switching standard to %llx.\n", (unsigned long long)itv->std);
-
 	/* Tuner */
 	ivtv_call_all(itv, core, s_std, itv->std);
+}
 
-	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
-		/* set display standard */
-		itv->std_out = *std;
-		itv->is_out_60hz = itv->is_60hz;
-		itv->is_out_50hz = itv->is_50hz;
-		ivtv_call_all(itv, video, s_std_output, itv->std_out);
+void ivtv_s_std_dec(struct ivtv *itv, v4l2_std_id *std)
+{
+	struct yuv_playback_info *yi = &itv->yuv_info;
+	DEFINE_WAIT(wait);
+	int f;
 
-		/*
-		 * The next firmware call is time sensitive. Time it to
-		 * avoid risk of a hard lock, by trying to ensure the call
-		 * happens within the first 100 lines of the top field.
-		 * Make 4 attempts to sync to the decoder before giving up.
-		 */
-		for (f = 0; f < 4; f++) {
-			prepare_to_wait(&itv->vsync_waitq, &wait,
-					TASK_UNINTERRUPTIBLE);
-			if ((read_reg(IVTV_REG_DEC_LINE_FIELD) >> 16) < 100)
-				break;
-			schedule_timeout(msecs_to_jiffies(25));
-		}
-		finish_wait(&itv->vsync_waitq, &wait);
+	/* set display standard */
+	itv->std_out = *std;
+	itv->is_out_60hz = (*std & V4L2_STD_525_60) ? 1 : 0;
+	itv->is_out_50hz = !itv->is_out_60hz;
+	ivtv_call_all(itv, video, s_std_output, itv->std_out);
 
-		if (f == 4)
-			IVTV_WARN("Mode change failed to sync to decoder\n");
-
-		ivtv_vapi(itv, CX2341X_DEC_SET_STANDARD, 1, itv->is_out_50hz);
-		itv->main_rect.left = itv->main_rect.top = 0;
-		itv->main_rect.width = 720;
-		itv->main_rect.height = itv->cxhdl.height;
-		ivtv_vapi(itv, CX2341X_OSD_SET_FRAMEBUFFER_WINDOW, 4,
-			720, itv->main_rect.height, 0, 0);
-		yi->main_rect = itv->main_rect;
-		if (!itv->osd_info) {
-			yi->osd_full_w = 720;
-			yi->osd_full_h = itv->is_out_50hz ? 576 : 480;
-		}
+	/*
+	 * The next firmware call is time sensitive. Time it to
+	 * avoid risk of a hard lock, by trying to ensure the call
+	 * happens within the first 100 lines of the top field.
+	 * Make 4 attempts to sync to the decoder before giving up.
+	 */
+	for (f = 0; f < 4; f++) {
+		prepare_to_wait(&itv->vsync_waitq, &wait,
+				TASK_UNINTERRUPTIBLE);
+		if ((read_reg(IVTV_REG_DEC_LINE_FIELD) >> 16) < 100)
+			break;
+		schedule_timeout(msecs_to_jiffies(25));
 	}
+	finish_wait(&itv->vsync_waitq, &wait);
+
+	if (f == 4)
+		IVTV_WARN("Mode change failed to sync to decoder\n");
+
+	ivtv_vapi(itv, CX2341X_DEC_SET_STANDARD, 1, itv->is_out_50hz);
+	itv->main_rect.left = 0;
+	itv->main_rect.top = 0;
+	itv->main_rect.width = 720;
+	itv->main_rect.height = itv->is_out_50hz ? 576 : 480;
+	ivtv_vapi(itv, CX2341X_OSD_SET_FRAMEBUFFER_WINDOW, 4,
+		720, itv->main_rect.height, 0, 0);
+	yi->main_rect = itv->main_rect;
+	if (!itv->osd_info) {
+		yi->osd_full_w = 720;
+		yi->osd_full_h = itv->is_out_50hz ? 576 : 480;
+	}
+}
+
+int ivtv_s_std(struct file *file, void *fh, v4l2_std_id *std)
+{
+	struct ivtv *itv = fh2id(fh)->itv;
+
+	if ((*std & V4L2_STD_ALL) == 0)
+		return -EINVAL;
+
+	if (*std == itv->std)
+		return 0;
+
+	if (test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags) ||
+	    atomic_read(&itv->capturing) > 0 ||
+	    atomic_read(&itv->decoding) > 0) {
+		/* Switching standard would mess with already running
+		   streams, prevent that by returning EBUSY. */
+		return -EBUSY;
+	}
+
+	IVTV_DEBUG_INFO("Switching standard to %llx.\n",
+		(unsigned long long)itv->std);
+
+	ivtv_s_std_enc(itv, std);
+	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT)
+		ivtv_s_std_dec(itv, std);
+
 	return 0;
 }
 
@@ -1173,14 +1183,10 @@ static int ivtv_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 
 	ivtv_call_all(itv, tuner, g_tuner, vt);
 
-	if (test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags)) {
+	if (vt->type == V4L2_TUNER_RADIO)
 		strlcpy(vt->name, "ivtv Radio Tuner", sizeof(vt->name));
-		vt->type = V4L2_TUNER_RADIO;
-	} else {
+	else
 		strlcpy(vt->name, "ivtv TV Tuner", sizeof(vt->name));
-		vt->type = V4L2_TUNER_ANALOG_TV;
-	}
-
 	return 0;
 }
 
@@ -1444,11 +1450,11 @@ static int ivtv_subscribe_event(struct v4l2_fh *fh, struct v4l2_event_subscripti
 	switch (sub->type) {
 	case V4L2_EVENT_VSYNC:
 	case V4L2_EVENT_EOS:
-		break;
+	case V4L2_EVENT_CTRL:
+		return v4l2_event_subscribe(fh, sub, 0);
 	default:
 		return -EINVAL;
 	}
-	return v4l2_event_subscribe(fh, sub);
 }
 
 static int ivtv_log_status(struct file *file, void *fh)

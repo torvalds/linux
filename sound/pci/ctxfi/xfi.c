@@ -80,11 +80,11 @@ ct_card_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		       "are 48000 and 44100, Value 48000 is assumed.\n");
 		reference_rate = 48000;
 	}
-	if ((multiple != 1) && (multiple != 2)) {
+	if ((multiple != 1) && (multiple != 2) && (multiple != 4)) {
 		printk(KERN_ERR "ctxfi: Invalid multiple value %u!!!\n",
 		       multiple);
 		printk(KERN_ERR "ctxfi: The valid values for multiple are "
-		       "1 and 2, Value 2 is assumed.\n");
+		       "1, 2 and 4, Value 2 is assumed.\n");
 		multiple = 2;
 	}
 	err = ct_atc_create(card, pci, reference_rate, multiple,
@@ -143,7 +143,7 @@ static int ct_card_resume(struct pci_dev *pci)
 #endif
 
 static struct pci_driver ct_driver = {
-	.name = "SB-XFi",
+	.name = KBUILD_MODNAME,
 	.id_table = ct_pci_dev_ids,
 	.probe = ct_card_probe,
 	.remove = __devexit_p(ct_card_remove),

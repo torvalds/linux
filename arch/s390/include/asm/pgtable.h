@@ -293,19 +293,6 @@ extern unsigned long VMALLOC_START;
  * swap pte is 1011 and 0001, 0011, 0101, 0111 are invalid.
  */
 
-/* Page status table bits for virtualization */
-#define RCP_ACC_BITS	0xf000000000000000UL
-#define RCP_FP_BIT	0x0800000000000000UL
-#define RCP_PCL_BIT	0x0080000000000000UL
-#define RCP_HR_BIT	0x0040000000000000UL
-#define RCP_HC_BIT	0x0020000000000000UL
-#define RCP_GR_BIT	0x0004000000000000UL
-#define RCP_GC_BIT	0x0002000000000000UL
-
-/* User dirty / referenced bit for KVM's migration feature */
-#define KVM_UR_BIT	0x0000800000000000UL
-#define KVM_UC_BIT	0x0000400000000000UL
-
 #ifndef __s390x__
 
 /* Bits in the segment table address-space-control-element */
@@ -324,6 +311,19 @@ extern unsigned long VMALLOC_START;
 
 #define _SEGMENT_ENTRY		(_SEGMENT_ENTRY_PTL)
 #define _SEGMENT_ENTRY_EMPTY	(_SEGMENT_ENTRY_INV)
+
+/* Page status table bits for virtualization */
+#define RCP_ACC_BITS	0xf0000000UL
+#define RCP_FP_BIT	0x08000000UL
+#define RCP_PCL_BIT	0x00800000UL
+#define RCP_HR_BIT	0x00400000UL
+#define RCP_HC_BIT	0x00200000UL
+#define RCP_GR_BIT	0x00040000UL
+#define RCP_GC_BIT	0x00020000UL
+
+/* User dirty / referenced bit for KVM's migration feature */
+#define KVM_UR_BIT	0x00008000UL
+#define KVM_UC_BIT	0x00004000UL
 
 #else /* __s390x__ */
 
@@ -366,6 +366,19 @@ extern unsigned long VMALLOC_START;
 
 #define _SEGMENT_ENTRY_LARGE	0x400	/* STE-format control, large page   */
 #define _SEGMENT_ENTRY_CO	0x100	/* change-recording override   */
+
+/* Page status table bits for virtualization */
+#define RCP_ACC_BITS	0xf000000000000000UL
+#define RCP_FP_BIT	0x0800000000000000UL
+#define RCP_PCL_BIT	0x0080000000000000UL
+#define RCP_HR_BIT	0x0040000000000000UL
+#define RCP_HC_BIT	0x0020000000000000UL
+#define RCP_GR_BIT	0x0004000000000000UL
+#define RCP_GC_BIT	0x0002000000000000UL
+
+/* User dirty / referenced bit for KVM's migration feature */
+#define KVM_UR_BIT	0x0000800000000000UL
+#define KVM_UC_BIT	0x0000400000000000UL
 
 #endif /* __s390x__ */
 
@@ -640,6 +653,48 @@ static inline void pgste_set_pte(pte_t *ptep, pgste_t pgste)
 		page_set_storage_key(address, nkey, 1);
 #endif
 }
+
+/**
+ * struct gmap_struct - guest address space
+ * @mm: pointer to the parent mm_struct
+ * @table: pointer to the page directory
+ * @crst_list: list of all crst tables used in the guest address space
+ */
+struct gmap {
+	struct list_head list;
+	struct mm_struct *mm;
+	unsigned long *table;
+	struct list_head crst_list;
+};
+
+/**
+ * struct gmap_rmap - reverse mapping for segment table entries
+ * @next: pointer to the next gmap_rmap structure in the list
+ * @entry: pointer to a segment table entry
+ */
+struct gmap_rmap {
+	struct list_head list;
+	unsigned long *entry;
+};
+
+/**
+ * struct gmap_pgtable - gmap information attached to a page table
+ * @vmaddr: address of the 1MB segment in the process virtual memory
+ * @mapper: list of segment table entries maping a page table
+ */
+struct gmap_pgtable {
+	unsigned long vmaddr;
+	struct list_head mapper;
+};
+
+struct gmap *gmap_alloc(struct mm_struct *mm);
+void gmap_free(struct gmap *gmap);
+void gmap_enable(struct gmap *gmap);
+void gmap_disable(struct gmap *gmap);
+int gmap_map_segment(struct gmap *gmap, unsigned long from,
+		     unsigned long to, unsigned long length);
+int gmap_unmap_segment(struct gmap *gmap, unsigned long to, unsigned long len);
+unsigned long gmap_fault(unsigned long address, struct gmap *);
 
 /*
  * Certain architectures need to do special things when PTEs

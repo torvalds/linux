@@ -10,7 +10,7 @@ config ARM
 	select GENERIC_ATOMIC64 if (CPU_V6 || !CPU_32v6K || !AEABI)
 	select HAVE_OPROFILE if (HAVE_PERF_EVENTS)
 	select HAVE_ARCH_KGDB
-	select HAVE_KPROBES if (!XIP_KERNEL && !THUMB2_KERNEL)
+	select HAVE_KPROBES if !XIP_KERNEL
 	select HAVE_KRETPROBES if (HAVE_KPROBES)
 	select HAVE_FUNCTION_TRACER if (!XIP_KERNEL)
 	select HAVE_FTRACE_MCOUNT_RECORD if (!XIP_KERNEL)
@@ -36,6 +36,9 @@ config ARM
 	  manufactured, but legacy ARM-based PC hardware remains popular in
 	  Europe.  There is an ARM Linux project with a web page at
 	  <http://www.arm.linux.org.uk/>.
+
+config ARM_HAS_SG_CHAIN
+	bool
 
 config HAVE_PWM
 	bool
@@ -239,6 +242,7 @@ config ARCH_INTEGRATOR
 	select ARM_AMBA
 	select ARCH_HAS_CPUFREQ
 	select CLKDEV_LOOKUP
+	select HAVE_MACH_CLKDEV
 	select ICST
 	select GENERIC_CLOCKEVENTS
 	select PLAT_VERSATILE
@@ -250,6 +254,7 @@ config ARCH_REALVIEW
 	bool "ARM Ltd. RealView family"
 	select ARM_AMBA
 	select CLKDEV_LOOKUP
+	select HAVE_MACH_CLKDEV
 	select ICST
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
@@ -265,6 +270,7 @@ config ARCH_VERSATILE
 	select ARM_AMBA
 	select ARM_VIC
 	select CLKDEV_LOOKUP
+	select HAVE_MACH_CLKDEV
 	select ICST
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
@@ -281,6 +287,7 @@ config ARCH_VEXPRESS
 	select ARM_AMBA
 	select ARM_TIMER_SP804
 	select CLKDEV_LOOKUP
+	select HAVE_MACH_CLKDEV
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
 	select HAVE_PATA_PLATFORM
@@ -321,7 +328,7 @@ config ARCH_CLPS711X
 
 config ARCH_CNS3XXX
 	bool "Cavium Networks CNS3XXX family"
-	select CPU_V6
+	select CPU_V6K
 	select GENERIC_CLOCKEVENTS
 	select ARM_GIC
 	select MIGHT_HAVE_PCI
@@ -336,6 +343,19 @@ config ARCH_GEMINI
 	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Support for the Cortina Systems Gemini family SoCs
+
+config ARCH_PRIMA2
+	bool "CSR SiRFSoC PRIMA2 ARM Cortex A9 Platform"
+	select CPU_V7
+	select GENERIC_TIME
+	select NO_IOPORT
+	select GENERIC_CLOCKEVENTS
+	select CLKDEV_LOOKUP
+	select GENERIC_IRQ_CHIP
+	select USE_OF
+	select ZONE_DMA
+	help
+          Support for CSR SiRFSoC ARM Cortex A9 Platform
 
 config ARCH_EBSA110
 	bool "EBSA-110"
@@ -376,6 +396,7 @@ config ARCH_MXC
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
+	select GENERIC_IRQ_CHIP
 	select HAVE_SCHED_CLOCK
 	help
 	  Support for Freescale MXC/iMX-based family of processors
@@ -490,14 +511,6 @@ config ARCH_KIRKWOOD
 	  Support for the following Marvell Kirkwood series SoCs:
 	  88F6180, 88F6192 and 88F6281.
 
-config ARCH_LOKI
-	bool "Marvell Loki (88RC8480)"
-	select CPU_FEROCEON
-	select GENERIC_CLOCKEVENTS
-	select PLAT_ORION
-	help
-	  Support for the Marvell Loki (88RC8480) SoC.
-
 config ARCH_LPC32XX
 	bool "NXP LPC32XX"
 	select CLKSRC_MMIO
@@ -591,7 +604,6 @@ config ARCH_TEGRA
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select HAVE_SCHED_CLOCK
-	select ARCH_HAS_BARRIERS if CACHE_L2X0
 	select ARCH_HAS_CPUFREQ
 	help
 	  This enables support for NVIDIA Tegra based systems (Tegra APX,
@@ -618,6 +630,8 @@ config ARCH_PXA
 	select TICK_ONESHOT
 	select PLAT_PXA
 	select SPARSE_IRQ
+	select AUTO_ZRELADDR
+	select MULTI_IRQ_HANDLER
 	help
 	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
 
@@ -638,10 +652,12 @@ config ARCH_SHMOBILE
 	bool "Renesas SH-Mobile / R-Mobile"
 	select HAVE_CLK
 	select CLKDEV_LOOKUP
+	select HAVE_MACH_CLKDEV
 	select GENERIC_CLOCKEVENTS
 	select NO_IOPORT
 	select SPARSE_IRQ
 	select MULTI_IRQ_HANDLER
+	select PM_GENERIC_DOMAINS if PM
 	help
 	  Support for Renesas's SH-Mobile and R-Mobile ARM platforms.
 
@@ -682,6 +698,7 @@ config ARCH_S3C2410
 	select GENERIC_GPIO
 	select ARCH_HAS_CPUFREQ
 	select HAVE_CLK
+	select CLKDEV_LOOKUP
 	select ARCH_USES_GETTIMEOFFSET
 	select HAVE_S3C2410_I2C if I2C
 	help
@@ -699,6 +716,7 @@ config ARCH_S3C64XX
 	select CPU_V6
 	select ARM_VIC
 	select HAVE_CLK
+	select CLKDEV_LOOKUP
 	select NO_IOPORT
 	select ARCH_USES_GETTIMEOFFSET
 	select ARCH_HAS_CPUFREQ
@@ -723,6 +741,8 @@ config ARCH_S5P64X0
 	select CPU_V6
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select GENERIC_CLOCKEVENTS
 	select HAVE_SCHED_CLOCK
@@ -736,6 +756,7 @@ config ARCH_S5PC100
 	bool "Samsung S5PC100"
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select CLKDEV_LOOKUP
 	select CPU_V7
 	select ARM_L1_CACHE_SHIFT_6
 	select ARCH_USES_GETTIMEOFFSET
@@ -749,8 +770,11 @@ config ARCH_S5PV210
 	bool "Samsung S5PV210/S5PC110"
 	select CPU_V7
 	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_HAS_HOLES_MEMORYMODEL
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
 	select ARM_L1_CACHE_SHIFT_6
 	select ARCH_HAS_CPUFREQ
 	select GENERIC_CLOCKEVENTS
@@ -765,8 +789,10 @@ config ARCH_EXYNOS4
 	bool "Samsung EXYNOS4"
 	select CPU_V7
 	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_HAS_HOLES_MEMORYMODEL
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select CLKDEV_LOOKUP
 	select ARCH_HAS_CPUFREQ
 	select GENERIC_CLOCKEVENTS
 	select HAVE_S3C_RTC if RTC_CLASS
@@ -808,6 +834,7 @@ config ARCH_U300
 	select ARM_VIC
 	select GENERIC_CLOCKEVENTS
 	select CLKDEV_LOOKUP
+	select HAVE_MACH_CLKDEV
 	select GENERIC_GPIO
 	help
 	  Support for ST-Ericsson U300 series mobile platforms.
@@ -852,6 +879,7 @@ config ARCH_OMAP
 	select HAVE_CLK
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_HAS_CPUFREQ
+	select CLKSRC_MMIO
 	select GENERIC_CLOCKEVENTS
 	select HAVE_SCHED_CLOCK
 	select ARCH_HAS_HOLES_MEMORYMODEL
@@ -879,6 +907,19 @@ config ARCH_VT8500
 	select HAVE_PWM
 	help
 	  Support for VIA/WonderMedia VT8500/WM85xx System-on-Chip.
+
+config ARCH_ZYNQ
+	bool "Xilinx Zynq ARM Cortex A9 Platform"
+	select CPU_V7
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	select CLKDEV_LOOKUP
+	select ARM_GIC
+	select ARM_AMBA
+	select ICST
+	select USE_OF
+	help
+	  Support for Xilinx Zynq ARM Cortex A9 Platform
 endchoice
 
 #
@@ -924,8 +965,6 @@ source "arch/arm/mach-kirkwood/Kconfig"
 
 source "arch/arm/mach-ks8695/Kconfig"
 
-source "arch/arm/mach-loki/Kconfig"
-
 source "arch/arm/mach-lpc32xx/Kconfig"
 
 source "arch/arm/mach-msm/Kconfig"
@@ -969,7 +1008,6 @@ source "arch/arm/plat-spear/Kconfig"
 source "arch/arm/plat-tcc/Kconfig"
 
 if ARCH_S3C2410
-source "arch/arm/mach-s3c2400/Kconfig"
 source "arch/arm/mach-s3c2410/Kconfig"
 source "arch/arm/mach-s3c2412/Kconfig"
 source "arch/arm/mach-s3c2416/Kconfig"
@@ -1346,7 +1384,6 @@ config SMP_ON_UP
 
 config HAVE_ARM_SCU
 	bool
-	depends on SMP
 	help
 	  This option enables support for the ARM system coherency unit
 
@@ -1679,6 +1716,7 @@ config USE_OF
 	bool "Flattened Device Tree support"
 	select OF
 	select OF_EARLY_FLATTREE
+	select IRQ_DOMAIN
 	help
 	  Include support for flattened device tree machine descriptions.
 
@@ -1715,17 +1753,34 @@ config ZBOOT_ROM
 	  Say Y here if you intend to execute your compressed kernel image
 	  (zImage) directly from ROM or flash.  If unsure, say N.
 
+choice
+	prompt "Include SD/MMC loader in zImage (EXPERIMENTAL)"
+	depends on ZBOOT_ROM && ARCH_SH7372 && EXPERIMENTAL
+	default ZBOOT_ROM_NONE
+	help
+	  Include experimental SD/MMC loading code in the ROM-able zImage.
+	  With this enabled it is possible to write the the ROM-able zImage
+	  kernel image to an MMC or SD card and boot the kernel straight
+	  from the reset vector. At reset the processor Mask ROM will load
+	  the first part of the the ROM-able zImage which in turn loads the
+	  rest the kernel image to RAM.
+
+config ZBOOT_ROM_NONE
+	bool "No SD/MMC loader in zImage (EXPERIMENTAL)"
+	help
+	  Do not load image from SD or MMC
+
 config ZBOOT_ROM_MMCIF
 	bool "Include MMCIF loader in zImage (EXPERIMENTAL)"
-	depends on ZBOOT_ROM && ARCH_SH7372 && EXPERIMENTAL
 	help
-	  Say Y here to include experimental MMCIF loading code in the
-	  ROM-able zImage. With this enabled it is possible to write the
-	  the ROM-able zImage kernel image to an MMC card and boot the
-	  kernel straight from the reset vector. At reset the processor
-	  Mask ROM will load the first part of the the ROM-able zImage
-	  which in turn loads the rest the kernel image to RAM using the
-	  MMCIF hardware block.
+	  Load image from MMCIF hardware block.
+
+config ZBOOT_ROM_SH_MOBILE_SDHI
+	bool "Include SuperH Mobile SDHI loader in zImage (EXPERIMENTAL)"
+	help
+	  Load image from SDHI hardware block
+
+endchoice
 
 config CMDLINE
 	string "Default kernel command string"
@@ -1874,10 +1929,6 @@ config CPU_FREQ_PXA
 	depends on CPU_FREQ && ARCH_PXA && PXA25x
 	default y
 	select CPU_FREQ_DEFAULT_GOV_USERSPACE
-
-config CPU_FREQ_S3C64XX
-	bool "CPUfreq support for Samsung S3C64XX CPUs"
-	depends on CPU_FREQ && CPU_S3C6410
 
 config CPU_FREQ_S3C
 	bool

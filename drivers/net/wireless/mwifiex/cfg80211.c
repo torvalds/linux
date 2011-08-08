@@ -672,6 +672,59 @@ static const u32 mwifiex_cipher_suites[] = {
 };
 
 /*
+ * CFG802.11 operation handler for setting bit rates.
+ *
+ * Function selects legacy bang B/G/BG from corresponding bitrates selection.
+ * Currently only 2.4GHz band is supported.
+ */
+static int mwifiex_cfg80211_set_bitrate_mask(struct wiphy *wiphy,
+				struct net_device *dev,
+				const u8 *peer,
+				const struct cfg80211_bitrate_mask *mask)
+{
+	struct mwifiex_ds_band_cfg band_cfg;
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	int index = 0, mode = 0, i;
+
+	/* Currently only 2.4GHz is supported */
+	for (i = 0; i < mwifiex_band_2ghz.n_bitrates; i++) {
+		/*
+		 * Rates below 6 Mbps in the table are CCK rates; 802.11b
+		 * and from 6 they are OFDM; 802.11G
+		 */
+		if (mwifiex_rates[i].bitrate == 60) {
+			index = 1 << i;
+			break;
+		}
+	}
+
+	if (mask->control[IEEE80211_BAND_2GHZ].legacy < index) {
+		mode = BAND_B;
+	} else {
+		mode = BAND_G;
+		if (mask->control[IEEE80211_BAND_2GHZ].legacy % index)
+			mode |=  BAND_B;
+	}
+
+	memset(&band_cfg, 0, sizeof(band_cfg));
+	band_cfg.config_bands = mode;
+
+	if (priv->bss_mode == NL80211_IFTYPE_ADHOC)
+		band_cfg.adhoc_start_band = mode;
+
+	band_cfg.sec_chan_offset = NO_SEC_CHANNEL;
+
+	if (mwifiex_set_radio_band_cfg(priv, &band_cfg))
+		return -EFAULT;
+
+	wiphy_debug(wiphy, "info: device configured in 802.11%s%s mode\n",
+				(mode & BAND_B) ? "b" : "",
+				(mode & BAND_G) ? "g" : "");
+
+	return 0;
+}
+
+/*
  * CFG802.11 operation handler for disconnection request.
  *
  * This function does not work when there is already a disconnection
@@ -960,7 +1013,7 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 		ret = mwifiex_set_gen_ie(priv, sme->ie, sme->ie_len);
 
 	if (sme->key) {
-		if (mwifiex_is_alg_wep(0) | mwifiex_is_alg_wep(0)) {
+		if (mwifiex_is_alg_wep(priv->sec_info.encryption_mode)) {
 			dev_dbg(priv->adapter->dev,
 				"info: setting wep encryption"
 				" with key len %d\n", sme->key_len);
@@ -1225,6 +1278,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.set_default_key = mwifiex_cfg80211_set_default_key,
 	.set_power_mgmt = mwifiex_cfg80211_set_power_mgmt,
 	.set_tx_power = mwifiex_cfg80211_set_tx_power,
+	.set_bitrate_mask = mwifiex_cfg80211_set_bitrate_mask,
 };
 
 /*
@@ -1287,6 +1341,8 @@ int mwifiex_register_cfg80211(struct net_device *dev, u8 *mac,
 	wdev_priv = wiphy_priv(wdev->wiphy);
 
 	*(unsigned long *) wdev_priv = (unsigned long) priv;
+
+	set_wiphy_dev(wdev->wiphy, (struct device *) priv->adapter->dev);
 
 	ret = wiphy_register(wdev->wiphy);
 	if (ret < 0) {

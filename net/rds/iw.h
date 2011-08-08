@@ -1,6 +1,7 @@
 #ifndef _RDS_IW_H
 #define _RDS_IW_H
 
+#include <linux/interrupt.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
 #include "rds.h"

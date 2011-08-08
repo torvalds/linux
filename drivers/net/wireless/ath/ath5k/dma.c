@@ -25,7 +25,7 @@
  *
  * Here we setup descriptor pointers (rxdp/txdp) start/stop dma engine and
  * handle queue setup for 5210 chipset (rest are handled on qcu.c).
- * Also we setup interrupt mask register (IMR) and read the various iterrupt
+ * Also we setup interrupt mask register (IMR) and read the various interrupt
  * status registers (ISR).
  *
  * TODO: Handle SISR on 5211+ and introduce a function to return the queue
@@ -73,7 +73,7 @@ static int ath5k_hw_stop_rx_dma(struct ath5k_hw *ah)
 		udelay(100);
 
 	if (!i)
-		ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_DMA,
+		ATH5K_DBG(ah, ATH5K_DEBUG_DMA,
 				"failed to stop RX DMA !\n");
 
 	return i ? 0 : -EBUSY;
@@ -100,7 +100,7 @@ u32 ath5k_hw_get_rxdp(struct ath5k_hw *ah)
 int ath5k_hw_set_rxdp(struct ath5k_hw *ah, u32 phys_addr)
 {
 	if (ath5k_hw_reg_read(ah, AR5K_CR) & AR5K_CR_RXE) {
-		ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_DMA,
+		ATH5K_DBG(ah, ATH5K_DEBUG_DMA,
 				"tried to set RXDP while rx was active !\n");
 		return -EIO;
 	}
@@ -243,7 +243,7 @@ static int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 			udelay(100);
 
 		if (AR5K_REG_READ_Q(ah, AR5K_QCU_TXE, queue))
-			ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_DMA,
+			ATH5K_DBG(ah, ATH5K_DEBUG_DMA,
 				"queue %i didn't stop !\n", queue);
 
 		/* Check for pending frames */
@@ -258,7 +258,7 @@ static int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 		/* For 2413+ order PCU to drop packets using
 		 * QUIET mechanism */
 		if (ah->ah_mac_version >= (AR5K_SREV_AR2414 >> 4) &&
-		pending){
+		    pending) {
 			/* Set periodicity and duration */
 			ath5k_hw_reg_write(ah,
 				AR5K_REG_SM(100, AR5K_QUIET_CTL2_QT_PER)|
@@ -295,7 +295,7 @@ static int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 					AR5K_DIAG_SW_CHANNEL_IDLE_HIGH);
 
 			if (pending)
-				ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_DMA,
+				ATH5K_DBG(ah, ATH5K_DEBUG_DMA,
 					"quiet mechanism didn't work q:%i !\n",
 					queue);
 		}
@@ -309,7 +309,7 @@ static int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 		/* Clear register */
 		ath5k_hw_reg_write(ah, 0, AR5K_QCU_TXD);
 		if (pending) {
-			ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_DMA,
+			ATH5K_DBG(ah, ATH5K_DEBUG_DMA,
 					"tx dma didn't stop (q:%i, frm:%i) !\n",
 					queue, pending);
 			return -EBUSY;
@@ -333,7 +333,7 @@ int ath5k_hw_stop_beacon_queue(struct ath5k_hw *ah, unsigned int queue)
 	int ret;
 	ret = ath5k_hw_stop_tx_dma(ah, queue);
 	if (ret) {
-		ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_DMA,
+		ATH5K_DBG(ah, ATH5K_DEBUG_DMA,
 				"beacon queue didn't stop !\n");
 		return -EIO;
 	}
@@ -726,7 +726,7 @@ enum ath5k_int ath5k_hw_set_imr(struct ath5k_hw *ah, enum ath5k_int new_mask)
 			int_mask |= AR5K_IMR_RXDOPPLER;
 
 		/* Note: Per queue interrupt masks
-		 * are set via reset_tx_queue (qcu.c) */
+		 * are set via ath5k_hw_reset_tx_queue() (qcu.c) */
 		ath5k_hw_reg_write(ah, int_mask, AR5K_PIMR);
 		ath5k_hw_reg_write(ah, simr2, AR5K_SIMR2);
 
@@ -783,7 +783,7 @@ void ath5k_hw_dma_init(struct ath5k_hw *ah)
 	 * for all PCI-E cards to be safe).
 	 *
 	 * XXX: need to check 5210 for this
-	 * TODO: Check out tx triger level, it's always 64 on dumps but I
+	 * TODO: Check out tx trigger level, it's always 64 on dumps but I
 	 * guess we can tweak it and see how it goes ;-)
 	 */
 	if (ah->ah_version != AR5K_AR5210) {

@@ -262,7 +262,6 @@ static bool nouveau_dsm_detect(void)
 		vga_count++;
 
 		retval = nouveau_dsm_pci_probe(pdev);
-		printk("ret val is %d\n", retval);
 		if (retval & NOUVEAU_DSM_HAS_MUX)
 			has_dsm |= 1;
 		if (retval & NOUVEAU_DSM_HAS_OPT)

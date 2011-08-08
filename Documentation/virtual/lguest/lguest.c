@@ -49,9 +49,9 @@
 #include <linux/virtio_rng.h>
 #include <linux/virtio_ring.h>
 #include <asm/bootparam.h>
-#include "../../include/linux/lguest_launcher.h"
+#include "../../../include/linux/lguest_launcher.h"
 /*L:110
- * We can ignore the 42 include files we need for this program, but I do want
+ * We can ignore the 43 include files we need for this program, but I do want
  * to draw attention to the use of kernel-style types.
  *
  * As Linus said, "C is a Spartan language, and so should your naming be."  I
@@ -65,7 +65,6 @@ typedef uint16_t u16;
 typedef uint8_t u8;
 /*:*/
 
-#define PAGE_PRESENT 0x7 	/* Present, RW, Execute */
 #define BRIDGE_PFX "bridge:"
 #ifndef SIOCBRADDIF
 #define SIOCBRADDIF	0x89a2		/* add interface to bridge      */
@@ -134,9 +133,6 @@ struct device {
 
 	/* Is it operational */
 	bool running;
-
-	/* Does Guest want an intrrupt on empty? */
-	bool irq_on_empty;
 
 	/* Device-specific data. */
 	void *priv;
@@ -637,10 +633,7 @@ static void trigger_irq(struct virtqueue *vq)
 
 	/* If they don't want an interrupt, don't send one... */
 	if (vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT) {
-		/* ... unless they've asked us to force one on empty. */
-		if (!vq->dev->irq_on_empty
-		    || lg_last_avail(vq) != vq->vring.avail->idx)
-			return;
+		return;
 	}
 
 	/* Send the Guest an interrupt tell them we used something up. */
@@ -867,8 +860,10 @@ static void console_output(struct virtqueue *vq)
 	/* writev can return a partial write, so we loop here. */
 	while (!iov_empty(iov, out)) {
 		int len = writev(STDOUT_FILENO, iov, out);
-		if (len <= 0)
-			err(1, "Write to stdout gave %i", len);
+		if (len <= 0) {
+			warn("Write to stdout gave %i (%d)", len, errno);
+			break;
+		}
 		iov_consume(iov, out, len);
 	}
 
@@ -904,7 +899,7 @@ static void net_output(struct virtqueue *vq)
 	 * same format: what a coincidence!
 	 */
 	if (writev(net_info->tunfd, iov, out) < 0)
-		errx(1, "Write to tun failed?");
+		warnx("Write to tun failed (%d)?", errno);
 
 	/*
 	 * Done with that one; wait_for_vq_desc() will send the interrupt if
@@ -961,7 +956,7 @@ static void net_input(struct virtqueue *vq)
 	 */
 	len = readv(net_info->tunfd, iov, in);
 	if (len <= 0)
-		err(1, "Failed to read from tun.");
+		warn("Failed to read from tun (%d).", errno);
 
 	/*
 	 * Mark that packet buffer as used, but don't interrupt here.  We want
@@ -1057,15 +1052,6 @@ static void create_thread(struct virtqueue *vq)
 	close(vq->eventfd);
 }
 
-static bool accepted_feature(struct device *dev, unsigned int bit)
-{
-	const u8 *features = get_feature_bits(dev) + dev->feature_len;
-
-	if (dev->feature_len < bit / CHAR_BIT)
-		return false;
-	return features[bit / CHAR_BIT] & (1 << (bit % CHAR_BIT));
-}
-
 static void start_device(struct device *dev)
 {
 	unsigned int i;
@@ -1078,8 +1064,6 @@ static void start_device(struct device *dev)
 	for (i = 0; i < dev->feature_len; i++)
 		verbose(" %02x", get_feature_bits(dev)
 			[dev->feature_len+i]);
-
-	dev->irq_on_empty = accepted_feature(dev, VIRTIO_F_NOTIFY_ON_EMPTY);
 
 	for (vq = dev->vq; vq; vq = vq->next) {
 		if (vq->service)
@@ -1110,9 +1094,10 @@ static void update_device_status(struct device *dev)
 		warnx("Device %s configuration FAILED", dev->name);
 		if (dev->running)
 			reset_device(dev);
-	} else if (dev->desc->status & VIRTIO_CONFIG_S_DRIVER_OK) {
-		if (!dev->running)
-			start_device(dev);
+	} else {
+		if (dev->running)
+			err(1, "Device %s features finalized twice", dev->name);
+		start_device(dev);
 	}
 }
 
@@ -1137,25 +1122,11 @@ static void handle_output(unsigned long addr)
 			return;
 		}
 
-		/*
-		 * Devices *can* be used before status is set to DRIVER_OK.
-		 * The original plan was that they would never do this: they
-		 * would always finish setting up their status bits before
-		 * actually touching the virtqueues.  In practice, we allowed
-		 * them to, and they do (eg. the disk probes for partition
-		 * tables as part of initialization).
-		 *
-		 * If we see this, we start the device: once it's running, we
-		 * expect the device to catch all the notifications.
-		 */
+		/* Devices should not be used before features are finalized. */
 		for (vq = i->vq; vq; vq = vq->next) {
 			if (addr != vq->config.pfn*getpagesize())
 				continue;
-			if (i->running)
-				errx(1, "Notification on running %s", i->name);
-			/* This just calls create_thread() for each virtqueue */
-			start_device(i);
-			return;
+			errx(1, "Notification on %s before setup!", i->name);
 		}
 	}
 
@@ -1387,7 +1358,7 @@ static void setup_console(void)
  * --sharenet=<name> option which opens or creates a named pipe.  This can be
  * used to send packets to another guest in a 1:1 manner.
  *
- * More sopisticated is to use one of the tools developed for project like UML
+ * More sophisticated is to use one of the tools developed for project like UML
  * to do networking.
  *
  * Faster is to do virtio bonding in kernel.  Doing this 1:1 would be
@@ -1397,7 +1368,7 @@ static void setup_console(void)
  * multiple inter-guest channels behind one interface, although it would
  * require some manner of hotplugging new virtio channels.
  *
- * Finally, we could implement a virtio network switch in the kernel.
+ * Finally, we could use a virtio network switch in the kernel, ie. vhost.
 :*/
 
 static u32 str2ip(const char *ipaddr)
@@ -1564,7 +1535,6 @@ static void setup_tun_net(char *arg)
 	/* Set up the tun device. */
 	configure_device(ipfd, tapif, ip);
 
-	add_feature(dev, VIRTIO_F_NOTIFY_ON_EMPTY);
 	/* Expect Guest to handle everything except UFO */
 	add_feature(dev, VIRTIO_NET_F_CSUM);
 	add_feature(dev, VIRTIO_NET_F_GUEST_CSUM);
@@ -2035,10 +2005,7 @@ int main(int argc, char *argv[])
 	/* Tell the entry path not to try to reload segment registers. */
 	boot->hdr.loadflags |= KEEP_SEGMENTS;
 
-	/*
-	 * We tell the kernel to initialize the Guest: this returns the open
-	 * /dev/lguest file descriptor.
-	 */
+	/* We tell the kernel to initialize the Guest. */
 	tell_kernel(start);
 
 	/* Ensure that we terminate if a device-servicing child dies. */

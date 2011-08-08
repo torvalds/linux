@@ -20,10 +20,6 @@
 #ifndef _VNIC_ENIC_H_
 #define _VNIC_ENIC_H_
 
-/* Hardware intr coalesce timer is in units of 1.5us */
-#define INTR_COALESCE_USEC_TO_HW(usec) ((usec) * 2/3)
-#define INTR_COALESCE_HW_TO_USEC(usec) ((usec) * 3/2)
-
 /* Device-specific region: enet configuration */
 struct vnic_enet_config {
 	u32 flags;
@@ -50,5 +46,12 @@ struct vnic_enet_config {
 #define VENETF_RSSHASH_IPV6_EX	0x200	/* Hash on IPv6 extended fields */
 #define VENETF_RSSHASH_TCPIPV6_EX 0x400	/* Hash on TCP + IPv6 ext. fields */
 #define VENETF_LOOP		0x800	/* Loopback enabled */
+
+#define VENET_INTR_TYPE_MIN	0	/* Timer specs min interrupt spacing */
+#define VENET_INTR_TYPE_IDLE	1	/* Timer specs idle time before irq */
+
+#define VENET_INTR_MODE_ANY	0	/* Try MSI-X, then MSI, then INTx */
+#define VENET_INTR_MODE_MSI	1	/* Try MSI then INTx */
+#define VENET_INTR_MODE_INTX	2	/* Try INTx only */
 
 #endif /* _VNIC_ENIC_H_ */

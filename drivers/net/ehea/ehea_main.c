@@ -683,24 +683,13 @@ static int get_skb_hdr(struct sk_buff *skb, void **iphdr,
 static void ehea_proc_skb(struct ehea_port_res *pr, struct ehea_cqe *cqe,
 			  struct sk_buff *skb)
 {
-	int vlan_extracted = ((cqe->status & EHEA_CQE_VLAN_TAG_XTRACT) &&
-			      pr->port->vgrp);
+	if (cqe->status & EHEA_CQE_VLAN_TAG_XTRACT)
+		__vlan_hwaccel_put_tag(skb, cqe->vlan_tag);
 
-	if (skb->dev->features & NETIF_F_LRO) {
-		if (vlan_extracted)
-			lro_vlan_hwaccel_receive_skb(&pr->lro_mgr, skb,
-						     pr->port->vgrp,
-						     cqe->vlan_tag,
-						     cqe);
-		else
-			lro_receive_skb(&pr->lro_mgr, skb, cqe);
-	} else {
-		if (vlan_extracted)
-			vlan_hwaccel_receive_skb(skb, pr->port->vgrp,
-						 cqe->vlan_tag);
-		else
-			netif_receive_skb(skb);
-	}
+	if (skb->dev->features & NETIF_F_LRO)
+		lro_receive_skb(&pr->lro_mgr, skb, cqe);
+	else
+		netif_receive_skb(skb);
 }
 
 static int ehea_proc_rwqes(struct net_device *dev,
@@ -2339,32 +2328,6 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static void ehea_vlan_rx_register(struct net_device *dev,
-				  struct vlan_group *grp)
-{
-	struct ehea_port *port = netdev_priv(dev);
-	struct ehea_adapter *adapter = port->adapter;
-	struct hcp_ehea_port_cb1 *cb1;
-	u64 hret;
-
-	port->vgrp = grp;
-
-	cb1 = (void *)get_zeroed_page(GFP_KERNEL);
-	if (!cb1) {
-		pr_err("no mem for cb1\n");
-		goto out;
-	}
-
-	hret = ehea_h_modify_ehea_port(adapter->handle, port->logical_port_id,
-				       H_PORT_CB1, H_PORT_CB1_ALL, cb1);
-	if (hret != H_SUCCESS)
-		pr_err("modify_ehea_port failed\n");
-
-	free_page((unsigned long)cb1);
-out:
-	return;
-}
-
 static void ehea_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 {
 	struct ehea_port *port = netdev_priv(dev);
@@ -2405,8 +2368,6 @@ static void ehea_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	struct hcp_ehea_port_cb1 *cb1;
 	int index;
 	u64 hret;
-
-	vlan_group_set_device(port->vgrp, vid, NULL);
 
 	cb1 = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!cb1) {
@@ -3202,7 +3163,6 @@ static const struct net_device_ops ehea_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_multicast_list	= ehea_set_multicast_list,
 	.ndo_change_mtu		= ehea_change_mtu,
-	.ndo_vlan_rx_register	= ehea_vlan_rx_register,
 	.ndo_vlan_rx_add_vid	= ehea_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= ehea_vlan_rx_kill_vid,
 	.ndo_tx_timeout		= ehea_tx_watchdog,

@@ -28,6 +28,8 @@
 
 #include "main.h"
 
+#define SD8787_DEFAULT_FW_NAME "mrvl/sd8787_uapsta.bin"
+
 #define BLOCK_MODE	1
 #define BYTE_MODE	0
 
@@ -52,10 +54,10 @@
 
 #define SDIO_MP_AGGR_DEF_PKT_LIMIT	8
 
-#define SDIO_MP_TX_AGGR_DEF_BUF_SIZE        (4096)	/* 4K */
+#define SDIO_MP_TX_AGGR_DEF_BUF_SIZE        (8192)	/* 8K */
 
 /* Multi port RX aggregation buffer size */
-#define SDIO_MP_RX_AGGR_DEF_BUF_SIZE        (4096)	/* 4K */
+#define SDIO_MP_RX_AGGR_DEF_BUF_SIZE        (16384)	/* 16K */
 
 /* Misc. Config Register : Auto Re-enable interrupts */
 #define AUTO_RE_ENABLE_INT              BIT(4)
@@ -167,8 +169,8 @@
 /* Rx unit register */
 #define CARD_RX_UNIT_REG		0x63
 
-/* Event header Len*/
-#define MWIFIEX_EVENT_HEADER_LEN           8
+/* Event header len w/o 4 bytes of interface header */
+#define MWIFIEX_EVENT_HEADER_LEN           4
 
 /* Max retry number of CMD53 write */
 #define MAX_WRITE_IOMEM_RETRY		2

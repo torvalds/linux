@@ -56,6 +56,161 @@ struct scsi_cdb_s {
 
 #define SCSI_MAX_ALLOC_LEN      0xFF    /* maximum allocarion length */
 
+#define SCSI_SENSE_CUR_ERR	0x70
+#define SCSI_SENSE_DEF_ERR	0x71
+
+/*
+ * SCSI additional sense codes
+ */
+#define SCSI_ASC_LUN_NOT_READY		0x04
+#define SCSI_ASC_LUN_NOT_SUPPORTED	0x25
+#define SCSI_ASC_TOCC			0x3F
+
+/*
+ * SCSI additional sense code qualifiers
+ */
+#define SCSI_ASCQ_MAN_INTR_REQ		0x03	/* manual intervention req */
+#define SCSI_ASCQ_RL_DATA_CHANGED	0x0E	/* report luns data changed */
+
+/*
+ * Methods of reporting informational exceptions
+ */
+#define SCSI_MP_IEC_UNIT_ATTN		0x2	/* generate unit attention */
+
+struct scsi_report_luns_data_s {
+	u32		lun_list_length;	/* length of LUN list length */
+	u32		reserved;
+	struct scsi_lun	lun[1];			/* first LUN in lun list */
+};
+
+struct scsi_inquiry_vendor_s {
+	u8	vendor_id[8];
+};
+
+struct scsi_inquiry_prodid_s {
+	u8	product_id[16];
+};
+
+struct scsi_inquiry_prodrev_s {
+	u8	product_rev[4];
+};
+
+struct scsi_inquiry_data_s {
+#ifdef __BIG_ENDIAN
+	u8		peripheral_qual:3;	/* peripheral qualifier */
+	u8		device_type:5;		/* peripheral device type */
+	u8		rmb:1;			/* removable medium bit */
+	u8		device_type_mod:7;	/* device type modifier */
+	u8		version;
+	u8		aenc:1;		/* async evt notification capability */
+	u8		trm_iop:1;	/* terminate I/O process */
+	u8		norm_aca:1;	/* normal ACA supported */
+	u8		hi_support:1;	/* SCSI-3: supports REPORT LUNS */
+	u8		rsp_data_format:4;
+	u8		additional_len;
+	u8		sccs:1;
+	u8		reserved1:7;
+	u8		reserved2:1;
+	u8		enc_serv:1;	/* enclosure service component */
+	u8		reserved3:1;
+	u8		multi_port:1;	/* multi-port device */
+	u8		m_chngr:1;	/* device in medium transport element */
+	u8		ack_req_q:1;	/* SIP specific bit */
+	u8		addr32:1;	/* SIP specific bit */
+	u8		addr16:1;	/* SIP specific bit */
+	u8		rel_adr:1;	/* relative address */
+	u8		w_bus32:1;
+	u8		w_bus16:1;
+	u8		synchronous:1;
+	u8		linked_commands:1;
+	u8		trans_dis:1;
+	u8		cmd_queue:1;	/* command queueing supported */
+	u8		soft_reset:1;	/* soft reset alternative (VS) */
+#else
+	u8		device_type:5;	/* peripheral device type */
+	u8		peripheral_qual:3; /* peripheral qualifier */
+	u8		device_type_mod:7; /* device type modifier */
+	u8		rmb:1;		/* removable medium bit */
+	u8		version;
+	u8		rsp_data_format:4;
+	u8		hi_support:1;	/* SCSI-3: supports REPORT LUNS */
+	u8		norm_aca:1;	/* normal ACA supported */
+	u8		terminate_iop:1;/* terminate I/O process */
+	u8		aenc:1;		/* async evt notification capability */
+	u8		additional_len;
+	u8		reserved1:7;
+	u8		sccs:1;
+	u8		addr16:1;	/* SIP specific bit */
+	u8		addr32:1;	/* SIP specific bit */
+	u8		ack_req_q:1;	/* SIP specific bit */
+	u8		m_chngr:1;	/* device in medium transport element */
+	u8		multi_port:1;	/* multi-port device */
+	u8		reserved3:1;	/* TBD - Vendor Specific */
+	u8		enc_serv:1;	/* enclosure service component */
+	u8		reserved2:1;
+	u8		soft_seset:1;	/* soft reset alternative (VS) */
+	u8		cmd_queue:1;	/* command queueing supported */
+	u8		trans_dis:1;
+	u8		linked_commands:1;
+	u8		synchronous:1;
+	u8		w_bus16:1;
+	u8		w_bus32:1;
+	u8		rel_adr:1;	/* relative address */
+#endif
+	struct scsi_inquiry_vendor_s	vendor_id;
+	struct scsi_inquiry_prodid_s	product_id;
+	struct scsi_inquiry_prodrev_s	product_rev;
+	u8		vendor_specific[20];
+	u8		reserved4[40];
+};
+
+/*
+ *	SCSI sense data format
+ */
+struct scsi_sense_s {
+#ifdef __BIG_ENDIAN
+	u8		valid:1;
+	u8		rsp_code:7;
+#else
+	u8		rsp_code:7;
+	u8		valid:1;
+#endif
+	u8		seg_num;
+#ifdef __BIG_ENDIAN
+	u8		file_mark:1;
+	u8		eom:1;		/* end of media */
+	u8		ili:1;		/* incorrect length indicator */
+	u8		reserved:1;
+	u8		sense_key:4;
+#else
+	u8		sense_key:4;
+	u8		reserved:1;
+	u8		ili:1;		/* incorrect length indicator */
+	u8		eom:1;		/* end of media */
+	u8		file_mark:1;
+#endif
+	u8		information[4];	/* device-type or cmd specific info */
+	u8		add_sense_length; /* additional sense length */
+	u8		command_info[4];/* command specific information */
+	u8		asc;		/* additional sense code */
+	u8		ascq;		/* additional sense code qualifier */
+	u8		fru_code;	/* field replaceable unit code */
+#ifdef __BIG_ENDIAN
+	u8		sksv:1;		/* sense key specific valid */
+	u8		c_d:1;		/* command/data bit */
+	u8		res1:2;
+	u8		bpv:1;		/* bit pointer valid */
+	u8		bpointer:3;	/* bit pointer */
+#else
+	u8		bpointer:3;	/* bit pointer */
+	u8		bpv:1;		/* bit pointer valid */
+	u8		res1:2;
+	u8		c_d:1;		/* command/data bit */
+	u8		sksv:1;		/* sense key specific valid */
+#endif
+	u8		fpointer[2];	/* field pointer */
+};
+
 /*
  * Fibre Channel Header Structure (FCHS) definition
  */
@@ -1021,7 +1176,7 @@ struct fc_symname_s {
 #define FC_ED_TOV	2
 #define FC_REC_TOV	(FC_ED_TOV + 1)
 #define FC_RA_TOV	10
-#define FC_ELS_TOV	(2 * FC_RA_TOV)
+#define FC_ELS_TOV	((2 * FC_RA_TOV) + 1)
 #define FC_FCCT_TOV	(3 * FC_RA_TOV)
 
 /*
@@ -1046,15 +1201,6 @@ struct fc_vft_s {
 	u32        res_b:1;
 	u32        hopct:8;
 	u32        res_c:24;
-};
-
-/*
- * FCP
- */
-enum {
-	FCP_RJT		= 0x01000000,	/* SRR reject */
-	FCP_SRR_ACCEPT	= 0x02000000,	/* SRR accept */
-	FCP_SRR		= 0x14000000,	/* Sequence Retransmission Request */
 };
 
 /*

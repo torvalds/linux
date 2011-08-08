@@ -172,7 +172,7 @@ static void __devexit snd_trident_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver driver = {
-	.name = "Trident4DWaveAudio",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_trident_ids,
 	.probe = snd_trident_probe,
 	.remove = __devexit_p(snd_trident_remove),

@@ -25,7 +25,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/wait.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "ctree.h"
 
@@ -75,7 +75,6 @@ struct btrfs_delayed_item {
 	struct list_head tree_list;	/* used for batch insert/delete items */
 	struct list_head readdir_list;	/* used for readdir items */
 	u64 bytes_reserved;
-	struct btrfs_block_rsv *block_rsv;
 	struct btrfs_delayed_node *delayed_node;
 	atomic_t refs;
 	int ins_or_del;
@@ -120,6 +119,7 @@ void btrfs_kill_delayed_inode_items(struct inode *inode);
 
 int btrfs_delayed_update_inode(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root, struct inode *inode);
+int btrfs_fill_inode(struct inode *inode, u32 *rdev);
 
 /* Used for drop dead root */
 void btrfs_kill_all_delayed_nodes(struct btrfs_root *root);
@@ -138,4 +138,8 @@ int btrfs_readdir_delayed_dir_index(struct file *filp, void *dirent,
 /* for init */
 int __init btrfs_delayed_inode_init(void);
 void btrfs_delayed_inode_exit(void);
+
+/* for debugging */
+void btrfs_assert_delayed_root_empty(struct btrfs_root *root);
+
 #endif

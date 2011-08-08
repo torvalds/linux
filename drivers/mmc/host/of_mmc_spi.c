@@ -25,6 +25,11 @@
 #include <linux/mmc/core.h>
 #include <linux/mmc/host.h>
 
+/* For archs that don't support NO_IRQ (such as mips), provide a dummy value */
+#ifndef NO_IRQ
+#define NO_IRQ 0
+#endif
+
 MODULE_LICENSE("GPL");
 
 enum {

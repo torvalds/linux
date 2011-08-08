@@ -154,6 +154,7 @@ static int ax_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	error = hid_hw_open(hdev);
 	if (error) {
 		dev_err(&hdev->dev, "hw open failed\n");
+		hid_hw_stop(hdev);
 		return error;
 	}
 

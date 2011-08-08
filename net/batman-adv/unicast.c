@@ -39,8 +39,8 @@ static struct sk_buff *frag_merge_packet(struct list_head *head,
 		(struct unicast_frag_packet *)skb->data;
 	struct sk_buff *tmp_skb;
 	struct unicast_packet *unicast_packet;
-	int hdr_len = sizeof(struct unicast_packet);
-	int uni_diff = sizeof(struct unicast_frag_packet) - hdr_len;
+	int hdr_len = sizeof(*unicast_packet);
+	int uni_diff = sizeof(*up) - hdr_len;
 
 	/* set skb to the first part and tmp_skb to the second part */
 	if (up->flags & UNI_FRAG_HEAD) {
@@ -53,7 +53,7 @@ static struct sk_buff *frag_merge_packet(struct list_head *head,
 	if (skb_linearize(skb) < 0 || skb_linearize(tmp_skb) < 0)
 		goto err;
 
-	skb_pull(tmp_skb, sizeof(struct unicast_frag_packet));
+	skb_pull(tmp_skb, sizeof(*up));
 	if (pskb_expand_head(skb, 0, tmp_skb->len, GFP_ATOMIC) < 0)
 		goto err;
 
@@ -99,8 +99,7 @@ static int frag_create_buffer(struct list_head *head)
 	struct frag_packet_list_entry *tfp;
 
 	for (i = 0; i < FRAG_BUFFER_SIZE; i++) {
-		tfp = kmalloc(sizeof(struct frag_packet_list_entry),
-			GFP_ATOMIC);
+		tfp = kmalloc(sizeof(*tfp), GFP_ATOMIC);
 		if (!tfp) {
 			frag_list_free(head);
 			return -ENOMEM;
@@ -115,7 +114,7 @@ static int frag_create_buffer(struct list_head *head)
 }
 
 static struct frag_packet_list_entry *frag_search_packet(struct list_head *head,
-						 struct unicast_frag_packet *up)
+					   const struct unicast_frag_packet *up)
 {
 	struct frag_packet_list_entry *tfp;
 	struct unicast_frag_packet *tmp_up = NULL;
@@ -218,14 +217,14 @@ out:
 }
 
 int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
-		  struct hard_iface *hard_iface, uint8_t dstaddr[])
+		  struct hard_iface *hard_iface, const uint8_t dstaddr[])
 {
 	struct unicast_packet tmp_uc, *unicast_packet;
 	struct hard_iface *primary_if;
 	struct sk_buff *frag_skb;
 	struct unicast_frag_packet *frag1, *frag2;
-	int uc_hdr_len = sizeof(struct unicast_packet);
-	int ucf_hdr_len = sizeof(struct unicast_frag_packet);
+	int uc_hdr_len = sizeof(*unicast_packet);
+	int ucf_hdr_len = sizeof(*frag1);
 	int data_len = skb->len - uc_hdr_len;
 	int large_tail = 0, ret = NET_RX_DROP;
 	uint16_t seqno;
@@ -250,14 +249,14 @@ int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	frag1 = (struct unicast_frag_packet *)skb->data;
 	frag2 = (struct unicast_frag_packet *)frag_skb->data;
 
-	memcpy(frag1, &tmp_uc, sizeof(struct unicast_packet));
+	memcpy(frag1, &tmp_uc, sizeof(tmp_uc));
 
 	frag1->ttl--;
 	frag1->version = COMPAT_VERSION;
 	frag1->packet_type = BAT_UNICAST_FRAG;
 
 	memcpy(frag1->orig, primary_if->net_dev->dev_addr, ETH_ALEN);
-	memcpy(frag2, frag1, sizeof(struct unicast_frag_packet));
+	memcpy(frag2, frag1, sizeof(*frag2));
 
 	if (data_len & 1)
 		large_tail = UNI_FRAG_LARGETAIL;
@@ -295,7 +294,7 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 
 	/* get routing information */
 	if (is_multicast_ether_addr(ethhdr->h_dest)) {
-		orig_node = (struct orig_node *)gw_get_selected_orig(bat_priv);
+		orig_node = gw_get_selected_orig(bat_priv);
 		if (orig_node)
 			goto find_router;
 	}
@@ -314,10 +313,7 @@ find_router:
 	if (!neigh_node)
 		goto out;
 
-	if (neigh_node->if_incoming->if_status != IF_ACTIVE)
-		goto out;
-
-	if (my_skb_head_push(skb, sizeof(struct unicast_packet)) < 0)
+	if (my_skb_head_push(skb, sizeof(*unicast_packet)) < 0)
 		goto out;
 
 	unicast_packet = (struct unicast_packet *)skb->data;
@@ -329,9 +325,12 @@ find_router:
 	unicast_packet->ttl = TTL;
 	/* copy the destination for faster routing */
 	memcpy(unicast_packet->dest, orig_node->orig, ETH_ALEN);
+	/* set the destination tt version number */
+	unicast_packet->ttvn =
+		(uint8_t)atomic_read(&orig_node->last_ttvn);
 
 	if (atomic_read(&bat_priv->fragmentation) &&
-	    data_len + sizeof(struct unicast_packet) >
+	    data_len + sizeof(*unicast_packet) >
 				neigh_node->if_incoming->net_dev->mtu) {
 		/* send frag skb decreases ttl */
 		unicast_packet->ttl++;

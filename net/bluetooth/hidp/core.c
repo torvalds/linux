@@ -464,7 +464,8 @@ static void hidp_idle_timeout(unsigned long arg)
 {
 	struct hidp_session *session = (struct hidp_session *) arg;
 
-	kthread_stop(session->task);
+	atomic_inc(&session->terminate);
+	wake_up_process(session->task);
 }
 
 static void hidp_set_timer(struct hidp_session *session)
@@ -535,7 +536,8 @@ static void hidp_process_hid_control(struct hidp_session *session,
 		skb_queue_purge(&session->ctrl_transmit);
 		skb_queue_purge(&session->intr_transmit);
 
-		kthread_stop(session->task);
+		atomic_inc(&session->terminate);
+		wake_up_process(current);
 	}
 }
 
@@ -706,9 +708,8 @@ static int hidp_session(void *arg)
 	add_wait_queue(sk_sleep(intr_sk), &intr_wait);
 	session->waiting_for_startup = 0;
 	wake_up_interruptible(&session->startup_queue);
-	while (!kthread_should_stop()) {
-		set_current_state(TASK_INTERRUPTIBLE);
-
+	set_current_state(TASK_INTERRUPTIBLE);
+	while (!atomic_read(&session->terminate)) {
 		if (ctrl_sk->sk_state != BT_CONNECTED ||
 				intr_sk->sk_state != BT_CONNECTED)
 			break;
@@ -726,6 +727,7 @@ static int hidp_session(void *arg)
 		hidp_process_transmit(session);
 
 		schedule();
+		set_current_state(TASK_INTERRUPTIBLE);
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(sk_sleep(intr_sk), &intr_wait);
@@ -1060,7 +1062,8 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 err_add_device:
 	hid_destroy_device(session->hid);
 	session->hid = NULL;
-	kthread_stop(session->task);
+	atomic_inc(&session->terminate);
+	wake_up_process(session->task);
 
 unlink:
 	hidp_del_timer(session);
@@ -1111,7 +1114,8 @@ int hidp_del_connection(struct hidp_conndel_req *req)
 			skb_queue_purge(&session->ctrl_transmit);
 			skb_queue_purge(&session->intr_transmit);
 
-			kthread_stop(session->task);
+			atomic_inc(&session->terminate);
+			wake_up_process(session->task);
 		}
 	} else
 		err = -ENOENT;

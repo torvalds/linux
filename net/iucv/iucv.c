@@ -51,7 +51,7 @@
 #include <linux/cpu.h>
 #include <linux/reboot.h>
 #include <net/iucv/iucv.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/ebcdic.h>
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -1988,12 +1988,13 @@ static int __init iucv_init(void)
 		rc = -EPROTONOSUPPORT;
 		goto out;
 	}
+	ctl_set_bit(0, 1);
 	rc = iucv_query_maxconn();
 	if (rc)
-		goto out;
+		goto out_ctl;
 	rc = register_external_interrupt(0x4000, iucv_external_interrupt);
 	if (rc)
-		goto out;
+		goto out_ctl;
 	iucv_root = root_device_register("iucv");
 	if (IS_ERR(iucv_root)) {
 		rc = PTR_ERR(iucv_root);
@@ -2055,6 +2056,8 @@ out_free:
 	root_device_unregister(iucv_root);
 out_int:
 	unregister_external_interrupt(0x4000, iucv_external_interrupt);
+out_ctl:
+	ctl_clear_bit(0, 1);
 out:
 	return rc;
 }

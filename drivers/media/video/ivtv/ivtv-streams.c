@@ -589,7 +589,7 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 		v4l2_subdev_call(itv->sd_audio, audio, s_stream, 1);
 		/* Avoid unpredictable PCI bus hang - disable video clocks */
 		v4l2_subdev_call(itv->sd_video, video, s_stream, 0);
-		ivtv_msleep_timeout(300, 1);
+		ivtv_msleep_timeout(300, 0);
 		ivtv_vapi(itv, CX2341X_ENC_INITIALIZE_INPUT, 0);
 		v4l2_subdev_call(itv->sd_video, video, s_stream, 1);
 	}
@@ -834,7 +834,7 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 		}
 
 		/* Handle any pending interrupts */
-		ivtv_msleep_timeout(100, 1);
+		ivtv_msleep_timeout(100, 0);
 	}
 
 	atomic_dec(&itv->capturing);

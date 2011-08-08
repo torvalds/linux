@@ -185,3 +185,37 @@ MSR_KVM_ASYNC_PF_EN: 0x4b564d02
 
 	Currently type 2 APF will be always delivered on the same vcpu as
 	type 1 was, but guest should not rely on that.
+
+MSR_KVM_STEAL_TIME: 0x4b564d03
+
+	data: 64-byte alignment physical address of a memory area which must be
+	in guest RAM, plus an enable bit in bit 0. This memory is expected to
+	hold a copy of the following structure:
+
+	struct kvm_steal_time {
+		__u64 steal;
+		__u32 version;
+		__u32 flags;
+		__u32 pad[12];
+	}
+
+	whose data will be filled in by the hypervisor periodically. Only one
+	write, or registration, is needed for each VCPU. The interval between
+	updates of this structure is arbitrary and implementation-dependent.
+	The hypervisor may update this structure at any time it sees fit until
+	anything with bit0 == 0 is written to it. Guest is required to make sure
+	this structure is initialized to zero.
+
+	Fields have the following meanings:
+
+		version: a sequence counter. In other words, guest has to check
+		this field before and after grabbing time information and make
+		sure they are both equal and even. An odd version indicates an
+		in-progress update.
+
+		flags: At this point, always zero. May be used to indicate
+		changes in this structure in the future.
+
+		steal: the amount of time in which this vCPU did not run, in
+		nanoseconds. Time during which the vcpu is idle, will not be
+		reported as steal time.

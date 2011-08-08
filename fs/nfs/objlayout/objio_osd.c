@@ -108,7 +108,6 @@ _dev_list_add(const struct nfs_server *nfss,
 		de = n;
 	}
 
-	atomic_inc(&de->id_node.ref);
 	return de;
 }
 
@@ -1005,6 +1004,18 @@ static bool objio_pg_test(struct nfs_pageio_descriptor *pgio,
 			OBJIO_LSEG(pgio->pg_lseg)->max_io_size;
 }
 
+static const struct nfs_pageio_ops objio_pg_read_ops = {
+	.pg_init = pnfs_generic_pg_init_read,
+	.pg_test = objio_pg_test,
+	.pg_doio = pnfs_generic_pg_readpages,
+};
+
+static const struct nfs_pageio_ops objio_pg_write_ops = {
+	.pg_init = pnfs_generic_pg_init_write,
+	.pg_test = objio_pg_test,
+	.pg_doio = pnfs_generic_pg_writepages,
+};
+
 static struct pnfs_layoutdriver_type objlayout_type = {
 	.id = LAYOUT_OSD2_OBJECTS,
 	.name = "LAYOUT_OSD2_OBJECTS",
@@ -1018,7 +1029,8 @@ static struct pnfs_layoutdriver_type objlayout_type = {
 
 	.read_pagelist           = objlayout_read_pagelist,
 	.write_pagelist          = objlayout_write_pagelist,
-	.pg_test                 = objio_pg_test,
+	.pg_read_ops             = &objio_pg_read_ops,
+	.pg_write_ops            = &objio_pg_write_ops,
 
 	.free_deviceid_node	 = objio_free_deviceid_node,
 
@@ -1052,6 +1064,8 @@ objlayout_exit(void)
 	printk(KERN_INFO "%s: Unregistered OSD pNFS Layout Driver\n",
 	       __func__);
 }
+
+MODULE_ALIAS("nfs-layouttype4-2");
 
 module_init(objlayout_init);
 module_exit(objlayout_exit);

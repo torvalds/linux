@@ -490,6 +490,8 @@ static struct platform_device *devices[] __initdata = {
  */
 static void __init armadillo5x0_init(void)
 {
+	imx31_soc_init();
+
 	mxc_iomux_setup_multiple_pins(armadillo5x0_pins,
 			ARRAY_SIZE(armadillo5x0_pins), "armadillo5x0");
 
