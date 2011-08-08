@@ -865,7 +865,7 @@ void wlc_phy_hw_state_upd(struct brcms_phy_pub *pih, bool newstate)
 void wlc_phy_init(struct brcms_phy_pub *pih, chanspec_t chanspec)
 {
 	u32 mc;
-	initfn_t phy_init = NULL;
+	void (*phy_init) (struct brcms_phy *) = NULL;
 	struct brcms_phy *pi = (struct brcms_phy *) pih;
 
 	if (pi->init_in_progress)
@@ -921,7 +921,7 @@ void wlc_phy_init(struct brcms_phy_pub *pih, chanspec_t chanspec)
 void wlc_phy_cal_init(struct brcms_phy_pub *pih)
 {
 	struct brcms_phy *pi = (struct brcms_phy *) pih;
-	initfn_t cal_init = NULL;
+	void (*cal_init)(struct brcms_phy *) = NULL;
 
 	if (WARN((R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC) != 0,
 		 "HW error: MAC enabled during phy cal\n"))
@@ -1329,8 +1329,7 @@ void wlc_phy_chanspec_set(struct brcms_phy_pub *ppi, chanspec_t chanspec)
 {
 	struct brcms_phy *pi = (struct brcms_phy *) ppi;
 	u16 m_cur_channel;
-	chansetfn_t chanspec_set = NULL;
-
+	void (*chanspec_set) (struct brcms_phy *, chanspec_t) = NULL;
 	m_cur_channel = CHSPEC_CHANNEL(chanspec);
 	if (CHSPEC_IS5G(chanspec))
 		m_cur_channel |= D11_CURCHANNEL_5G;
@@ -1671,7 +1670,7 @@ void wlc_phy_txpower_recalc_target(struct brcms_phy *pi)
 	u8 start_rate = 0;
 	chanspec_t chspec;
 	u32 band = CHSPEC2BAND(pi->radio_chanspec);
-	initfn_t txpwr_recalc_fn = NULL;
+	void (*txpwr_recalc_fn)(struct brcms_phy *) = NULL;
 
 	chspec = pi->radio_chanspec;
 	if (CHSPEC_CTL_SB(chspec) == WL_CHANSPEC_CTL_SB_NONE)

@@ -49,17 +49,6 @@ struct brcms_phy_srom_fem {
 	u8 antswctrllut;	/* antswctrl lookup table configuration: 32 possible choices */
 };
 
-typedef void (*initfn_t) (struct brcms_phy *);
-typedef void (*chansetfn_t) (struct brcms_phy *, chanspec_t);
-typedef int (*longtrnfn_t) (struct brcms_phy *, int);
-typedef void (*txiqccgetfn_t) (struct brcms_phy *, u16 *, u16 *);
-typedef void (*txiqccsetfn_t) (struct brcms_phy *, u16, u16);
-typedef u16(*txloccgetfn_t) (struct brcms_phy *);
-typedef void (*radioloftgetfn_t) (struct brcms_phy *, u8 *, u8 *, u8 *,
-				  u8 *);
-typedef s32(*rxsigpwrfn_t) (struct brcms_phy *, s32);
-typedef void (*detachfn_t) (struct brcms_phy *);
-
 #undef ISNPHY
 #undef ISLCNPHY
 #define ISNPHY(pi)	PHYTYPE_IS((pi)->pubpi.phy_type, PHY_TYPE_N)
@@ -579,18 +568,18 @@ struct brcms_phy_pub {
 };
 
 struct phy_func_ptr {
-	initfn_t init;
-	initfn_t calinit;
-	chansetfn_t chanset;
-	initfn_t txpwrrecalc;
-	longtrnfn_t longtrn;
-	txiqccgetfn_t txiqccget;
-	txiqccsetfn_t txiqccset;
-	txloccgetfn_t txloccget;
-	radioloftgetfn_t radioloftget;
-	initfn_t carrsuppr;
-	rxsigpwrfn_t rxsigpwr;
-	detachfn_t detach;
+	void (*init) (struct brcms_phy *);
+	void (*calinit) (struct brcms_phy *);
+	void (*chanset) (struct brcms_phy *, chanspec_t);
+	void (*txpwrrecalc) (struct brcms_phy *);
+	int (*longtrn) (struct brcms_phy *, int);
+	void (*txiqccget) (struct brcms_phy *, u16 *, u16 *);
+	void (*txiqccset) (struct brcms_phy *, u16, u16);
+	u16(*txloccget) (struct brcms_phy *);
+	void (*radioloftget) (struct brcms_phy *, u8 *, u8 *, u8 *, u8 *);
+	void (*carrsuppr) (struct brcms_phy *);
+	s32(*rxsigpwr) (struct brcms_phy *, s32);
+	void (*detach) (struct brcms_phy *);
 };
 
 struct brcms_phy {
