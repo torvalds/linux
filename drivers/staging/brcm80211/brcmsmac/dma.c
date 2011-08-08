@@ -533,12 +533,12 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 	di->aligndesc_4k = _dma_descriptor_align(di);
 	if (di->aligndesc_4k) {
 		di->dmadesc_align = D64RINGALIGN_BITS;
-		if ((ntxd < D64MAXDD / 2) && (nrxd < D64MAXDD / 2)) {
+		if ((ntxd < D64MAXDD / 2) && (nrxd < D64MAXDD / 2))
 			/* for smaller dd table, HW relax alignment reqmnt */
 			di->dmadesc_align = D64RINGALIGN_BITS - 1;
-		}
-	} else
+	} else {
 		di->dmadesc_align = 4;	/* 16 byte alignment */
+	}
 
 	DMA_NONE(("DMA descriptor align_needed %d, align %d\n",
 		  di->aligndesc_4k, di->dmadesc_align));
@@ -662,10 +662,9 @@ dma64_dd_upd(struct dma_info *di, struct dma64desc *ddring,
 		W_SM(&ddring[outidx].ctrl2, BUS_SWAP32(ctrl2));
 	}
 	if (di->dma.dmactrlflags & DMA_CTRL_PEN) {
-		if (DMA64_DD_PARITY(&ddring[outidx])) {
+		if (DMA64_DD_PARITY(&ddring[outidx]))
 			W_SM(&ddring[outidx].ctrl2,
 			     BUS_SWAP32(ctrl2 | D64_CTRL2_PARITY));
-		}
 	}
 }
 
@@ -743,18 +742,17 @@ static bool _dma_isaddrext(struct dma_info *di)
 
 	/* not all tx or rx channel are available */
 	if (di->d64txregs != NULL) {
-		if (!_dma64_addrext(di->d64txregs)) {
+		if (!_dma64_addrext(di->d64txregs))
 			DMA_ERROR(("%s: _dma_isaddrext: DMA64 tx doesn't have "
 				   "AE set\n", di->name));
-		}
 		return true;
 	} else if (di->d64rxregs != NULL) {
-		if (!_dma64_addrext(di->d64rxregs)) {
+		if (!_dma64_addrext(di->d64rxregs))
 			DMA_ERROR(("%s: _dma_isaddrext: DMA64 rx doesn't have "
 				   "AE set\n", di->name));
-		}
 		return true;
 	}
+
 	return false;
 }
 
@@ -1157,16 +1155,15 @@ static uint _dma_ctrlflags(struct dma_info *di, uint mask, uint flags)
 		control = R_REG(&di->d64txregs->control);
 		W_REG(&di->d64txregs->control,
 		      control | D64_XC_PD);
-		if (R_REG(&di->d64txregs->control) & D64_XC_PD) {
+		if (R_REG(&di->d64txregs->control) & D64_XC_PD)
 			/* We *can* disable it so it is supported,
 			 * restore control register
 			 */
 			W_REG(&di->d64txregs->control,
 			control);
-		} else {
+		else
 			/* Not supported, don't allow it to be enabled */
 			dmactrlflags &= ~DMA_CTRL_PEN;
-		}
 	}
 
 	di->dma.dmactrlflags = dmactrlflags;
@@ -1186,9 +1183,8 @@ static
 u8 dma_align_sizetobits(uint size)
 {
 	u8 bitpos = 0;
-	while (size >>= 1) {
+	while (size >>= 1)
 		bitpos++;
-	}
 	return bitpos;
 }
 
@@ -1521,10 +1517,9 @@ dma64_txunframed(struct dma_info *di, void *buf, uint len, bool commit)
 	di->txout = txout;
 
 	/* kick the chip */
-	if (commit) {
+	if (commit)
 		W_REG(&di->d64txregs->ptr,
 		      di->xmtptrbase + I2B(txout, struct dma64desc));
-	}
 
 	/* tx flow control */
 	di->dma.txavail = di->ntxd - NTXDACTIVE(di->txin, di->txout) - 1;

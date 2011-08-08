@@ -161,11 +161,10 @@ struct brcms_c_info *brcms_c_attach_malloc(uint unit, uint *err, uint devid)
 	} else {
 		int i;
 
-		for (i = 1; i < MAXBANDS; i++) {
+		for (i = 1; i < MAXBANDS; i++)
 			wlc->hw->bandstate[i] = (struct brcms_hw_band *)
 			    ((unsigned long)wlc->hw->bandstate[0] +
 			     (sizeof(struct brcms_hw_band) * i));
-		}
 	}
 
 	wlc->modulecb =
@@ -196,11 +195,10 @@ struct brcms_c_info *brcms_c_attach_malloc(uint unit, uint *err, uint devid)
 		goto fail;
 	} else {
 		int i;
-		for (i = 1; i < BRCMS_DEFAULT_KEYS; i++) {
+		for (i = 1; i < BRCMS_DEFAULT_KEYS; i++)
 			wlc->wsec_def_keys[i] = (struct wsec_key *)
 			    ((unsigned long)wlc->wsec_def_keys[0] +
 			     (sizeof(struct wsec_key) * i));
-		}
 	}
 
 	wlc->protection = kzalloc(sizeof(struct brcms_protection),
@@ -224,11 +222,10 @@ struct brcms_c_info *brcms_c_attach_malloc(uint unit, uint *err, uint devid)
 	} else {
 		int i;
 
-		for (i = 1; i < MAXBANDS; i++) {
+		for (i = 1; i < MAXBANDS; i++)
 			wlc->bandstate[i] = (struct brcms_band *)
 				((unsigned long)wlc->bandstate[0]
 				+ (sizeof(struct brcms_band)*i));
-		}
 	}
 
 	wlc->corestate = kzalloc(sizeof(struct brcms_core), GFP_ATOMIC);

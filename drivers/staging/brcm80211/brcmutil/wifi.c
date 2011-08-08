@@ -34,9 +34,8 @@ bool brcmu_chspec_malformed(u16 chanspec)
 	if (CHSPEC_IS20(chanspec)) {
 		if (!CHSPEC_SB_NONE(chanspec))
 			return true;
-	} else {
-		if (!CHSPEC_SB_UPPER(chanspec) && !CHSPEC_SB_LOWER(chanspec))
-			return true;
+	} else if (!CHSPEC_SB_UPPER(chanspec) && !CHSPEC_SB_LOWER(chanspec)) {
+		return true;
 	}
 
 	return false;
@@ -60,13 +59,12 @@ u8 brcmu_chspec_ctlchan(u16 chspec)
 		/* chanspec channel holds the centre frequency, use that and the
 		 * side band information to reconstruct the control channel number
 		 */
-		if (CHSPEC_CTL_SB(chspec) == WL_CHANSPEC_CTL_SB_UPPER) {
+		if (CHSPEC_CTL_SB(chspec) == WL_CHANSPEC_CTL_SB_UPPER)
 			/* control chan is the upper 20 MHZ SB of the 40MHZ channel */
 			ctl_chan = UPPER_20_SB(CHSPEC_CHANNEL(chspec));
-		} else {
+		else
 			/* control chan is the lower 20 MHZ SB of the 40MHZ channel */
 			ctl_chan = LOWER_20_SB(CHSPEC_CHANNEL(chspec));
-		}
 	}
 
 	return ctl_chan;

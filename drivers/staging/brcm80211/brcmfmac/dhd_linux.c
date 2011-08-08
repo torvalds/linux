@@ -412,12 +412,11 @@ static int _brcmf_set_mac_address(struct brcmf_info *drvr_priv, int ifidx, u8 *a
 	ioc.set = true;
 
 	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.buf, ioc.len);
-	if (ret < 0) {
+	if (ret < 0)
 		BRCMF_ERROR(("%s: set cur_etheraddr failed\n",
 			     brcmf_ifname(&drvr_priv->pub, ifidx)));
-	} else {
+	else
 		memcpy(drvr_priv->iflist[ifidx]->net->dev_addr, addr, ETH_ALEN);
-	}
 
 	return ret;
 }
@@ -771,9 +770,9 @@ void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx, struct sk_buff *skb,
 		drvr->dstats.rx_bytes += skb->len;
 		drvr->rx_packets++;	/* Local count */
 
-		if (in_interrupt()) {
+		if (in_interrupt())
 			netif_rx(skb);
-		} else {
+		else
 			/* If the receive is not processed inside an ISR,
 			 * the softirqd must be woken explicitly to service
 			 * the NET_RX_SOFTIRQ.  In 2.6 kernels, this is handled
@@ -781,7 +780,6 @@ void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx, struct sk_buff *skb,
 			 * to do it manually.
 			 */
 			netif_rx_ni(skb);
-		}
 	}
 }
 
@@ -816,10 +814,9 @@ static struct net_device_stats *brcmf_netdev_get_stats(struct net_device *net)
 
 	ifp = drvr_priv->iflist[ifidx];
 
-	if (drvr_priv->pub.up) {
+	if (drvr_priv->pub.up)
 		/* Use the protocol to get dongle stats */
 		brcmf_proto_dstats(&drvr_priv->pub);
-	}
 
 	/* Copy dongle stats to net device stats */
 	ifp->stats.rx_packets = drvr_priv->pub.dstats.rx_packets;

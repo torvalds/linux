@@ -545,19 +545,18 @@ static void brcms_c_ucode_bsinit(struct brcms_hardware *wlc_hw)
 
 	/* do band-specific ucode IHR, SHM, and SCR inits */
 	if (D11REV_IS(wlc_hw->corerev, 23)) {
-		if (BRCMS_ISNPHY(wlc_hw->band)) {
+		if (BRCMS_ISNPHY(wlc_hw->band))
 			brcms_c_write_inits(wlc_hw, d11n0bsinitvals16);
-		} else {
+		else
 			wiphy_err(wiphy, "%s: wl%d: unsupported phy in corerev"
 				  " %d\n", __func__, wlc_hw->unit,
 				  wlc_hw->corerev);
-		}
 	} else {
 		if (D11REV_IS(wlc_hw->corerev, 24)) {
-			if (BRCMS_ISLCNPHY(wlc_hw->band)) {
+			if (BRCMS_ISLCNPHY(wlc_hw->band))
 				brcms_c_write_inits(wlc_hw,
 						    d11lcn0bsinitvals24);
-			} else
+			else
 				wiphy_err(wiphy, "%s: wl%d: unsupported phy in"
 					  " core rev %d\n", __func__,
 					  wlc_hw->unit, wlc_hw->corerev);
@@ -651,9 +650,8 @@ brcms_b_dotxstatus(struct brcms_hardware *wlc_hw, struct tx_status *txs,
 	 *   transmission count)
 	 */
 	if (!(txs->status & TX_STATUS_AMPDU)
-	    && (txs->status & TX_STATUS_INTERMEDIATE)) {
+	    && (txs->status & TX_STATUS_INTERMEDIATE))
 		return false;
-	}
 
 	return brcms_c_dotxstatus(wlc_hw->wlc, txs, s2);
 }
@@ -747,9 +745,8 @@ bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded)
 	/* BCN template is available */
 	/* ZZZ: Use AP_ACTIVE ? */
 	if (AP_ENAB(wlc->pub) && (!APSTA_ENAB(wlc->pub))
-	    && (macintstatus & MI_BCNTPL)) {
+	    && (macintstatus & MI_BCNTPL))
 		brcms_c_update_beacon(wlc);
-	}
 
 	/* tx status */
 	if (macintstatus & MI_TFS) {
@@ -781,9 +778,8 @@ bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded)
 		brcms_b_tx_fifo_suspended(wlc_hw, TX_DATA_FIFO);
 
 	/* noise sample collected */
-	if (macintstatus & MI_BG_NOISE) {
+	if (macintstatus & MI_BG_NOISE)
 		wlc_phy_noise_sample_intr(wlc_hw->band->pi);
-	}
 
 	if (macintstatus & MI_GP0) {
 		wiphy_err(wiphy, "wl%d: PSM microcode watchdog fired at %d "
@@ -797,9 +793,8 @@ bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded)
 	}
 
 	/* gptimer timeout */
-	if (macintstatus & MI_TO) {
+	if (macintstatus & MI_TO)
 		W_REG(&regs->gptimer, 0);
-	}
 
 	if (macintstatus & MI_RFDISABLE) {
 		BCMMSG(wlc->wiphy, "wl%d: BMAC Detected a change on the"
@@ -1142,9 +1137,8 @@ static void brcms_c_write_mhf(struct brcms_hardware *wlc_hw, u16 *mhfs)
 		M_HOST_FLAGS5
 	};
 
-	for (idx = 0; idx < MHFMAX; idx++) {
+	for (idx = 0; idx < MHFMAX; idx++)
 		brcms_b_write_shm(wlc_hw, addr[idx], mhfs[idx]);
-	}
 }
 
 /* set the maccontrol register to desired reset state and
@@ -1400,13 +1394,12 @@ static void brcms_b_upd_synthpu(struct brcms_hardware *wlc_hw)
 	struct brcms_c_info *wlc = wlc_hw->wlc;
 	/* update SYNTHPU_DLY */
 
-	if (BRCMS_ISLCNPHY(wlc->band)) {
+	if (BRCMS_ISLCNPHY(wlc->band))
 		v = SYNTHPU_DLY_LPPHY_US;
-	} else if (BRCMS_ISNPHY(wlc->band) && (NREV_GE(wlc->band->phyrev, 3))) {
+	else if (BRCMS_ISNPHY(wlc->band) && (NREV_GE(wlc->band->phyrev, 3)))
 		v = SYNTHPU_DLY_NPHY_US;
-	} else {
+	else
 		v = SYNTHPU_DLY_BPHY_US;
-	}
 
 	brcms_b_write_shm(wlc_hw, M_SYNTHPU_DLY, v);
 }
@@ -1540,7 +1533,6 @@ void brcms_b_phy_reset(struct brcms_hardware *wlc_hw)
 			       (SICF_PRST | SICF_PCLKE));
 		phy_in_reset = true;
 	} else {
-
 		ai_core_cflags(wlc_hw->sih,
 			       (SICF_PRST | SICF_PCLKE | SICF_BWMASK),
 			       (SICF_PRST | SICF_PCLKE | phy_bw_clkbits));
@@ -1602,10 +1594,9 @@ void brcms_c_setxband(struct brcms_hardware *wlc_hw, uint bandunit)
 	wlc_hw->wlc->band = wlc_hw->wlc->bandstate[bandunit];
 
 	/* set gmode core flag */
-	if (wlc_hw->sbclk && !wlc_hw->noreset) {
+	if (wlc_hw->sbclk && !wlc_hw->noreset)
 		ai_core_cflags(wlc_hw->sih, SICF_GMODE,
 			       ((bandunit == 0) ? SICF_GMODE : 0));
-	}
 }
 
 static bool brcms_c_isgoodchip(struct brcms_hardware *wlc_hw)
@@ -1666,10 +1657,9 @@ static char *brcms_c_get_macaddr(struct brcms_hardware *wlc_hw)
 		varname = "il0macaddr";
 
 	macaddr = getvar(wlc_hw->vars, varname);
-	if (macaddr == NULL) {
+	if (macaddr == NULL)
 		wiphy_err(wlc_hw->wlc->wiphy, "wl%d: wlc_get_macaddr: macaddr "
 			  "getvar(%s) not found\n", wlc_hw->unit, varname);
-	}
 
 	return macaddr;
 }
@@ -1756,18 +1746,16 @@ void brcms_b_corereset(struct brcms_hardware *wlc_hw, u32 flags)
 	/* reset the dma engines except first time thru */
 	if (ai_iscoreup(wlc_hw->sih)) {
 		for (i = 0; i < NFIFO; i++)
-			if ((wlc_hw->di[i]) && (!dma_txreset(wlc_hw->di[i]))) {
+			if ((wlc_hw->di[i]) && (!dma_txreset(wlc_hw->di[i])))
 				wiphy_err(wlc_hw->wlc->wiphy, "wl%d: %s: "
 					  "dma_txreset[%d]: cannot stop dma\n",
 					   wlc_hw->unit, __func__, i);
-			}
 
 		if ((wlc_hw->di[RX_FIFO])
-		    && (!wlc_dma_rxreset(wlc_hw, RX_FIFO))) {
+		    && (!wlc_dma_rxreset(wlc_hw, RX_FIFO)))
 			wiphy_err(wlc_hw->wlc->wiphy, "wl%d: %s: dma_rxreset"
 				  "[%d]: cannot stop dma\n",
 				  wlc_hw->unit, __func__, RX_FIFO);
-		}
 	}
 	/* if noreset, just stop the psm and return */
 	if (wlc_hw->noreset) {
@@ -2120,10 +2108,9 @@ void brcms_b_fifoerrors(struct brcms_hardware *wlc_hw)
 			fatal = true;
 		}
 
-		if (intstatus & I_RU) {
+		if (intstatus & I_RU)
 			wiphy_err(wiphy, "wl%d: fifo %d: receive descriptor "
 				  "underflow\n", idx, unit);
-		}
 
 		if (intstatus & I_XU) {
 			wiphy_err(wiphy, "wl%d: fifo %d: transmit fifo "
@@ -2246,9 +2233,9 @@ static void brcms_b_mute(struct brcms_hardware *wlc_hw, bool on, u32 flags)
 				       null_ether_addr);
 	} else {
 		/* resume tx fifos */
-		if (!wlc_hw->wlc->tx_suspended) {
+		if (!wlc_hw->wlc->tx_suspended)
 			brcms_b_tx_fifo_resume(wlc_hw, TX_DATA_FIFO);
-		}
+
 		brcms_b_tx_fifo_resume(wlc_hw, TX_CTL_FIFO);
 		brcms_b_tx_fifo_resume(wlc_hw, TX_AC_BK_FIFO);
 		brcms_b_tx_fifo_resume(wlc_hw, TX_AC_VI_FIFO);
@@ -2367,7 +2354,7 @@ static inline u32 wlc_intstatus(struct brcms_c_info *wlc, bool in_isr)
 	W_REG(&regs->macintstatus, macintstatus);
 
 	/* MI_DMAINT is indication of non-zero intstatus */
-	if (macintstatus & MI_DMAINT) {
+	if (macintstatus & MI_DMAINT)
 		/*
 		 * only fifo interrupt enabled is I_RI in
 		 * RX_FIFO. If MI_DMAINT is set, assume it
@@ -2375,7 +2362,6 @@ static inline u32 wlc_intstatus(struct brcms_c_info *wlc, bool in_isr)
 		 */
 		W_REG(&regs->intctrlregs[RX_FIFO].intstatus,
 		      DEF_RXINTMASK);
-	}
 
 	return macintstatus;
 }
@@ -2702,10 +2688,9 @@ void brcms_b_core_phypll_ctl(struct brcms_hardware *wlc_hw, bool on)
 
 			tmp = R_REG(&regs->clk_ctl_st);
 			if ((tmp & (CCS_ERSRC_AVAIL_HT)) !=
-			    (CCS_ERSRC_AVAIL_HT)) {
+			    (CCS_ERSRC_AVAIL_HT))
 				wiphy_err(wlc_hw->wlc->wiphy, "%s: turn on PHY"
 					  " PLL failed\n", __func__);
-			}
 		} else {
 			OR_REG(&regs->clk_ctl_st,
 			       (CCS_ERSRC_REQ_D11PLL | CCS_ERSRC_REQ_PHYPLL));
@@ -2719,10 +2704,9 @@ void brcms_b_core_phypll_ctl(struct brcms_hardware *wlc_hw, bool on)
 			if ((tmp &
 			     (CCS_ERSRC_AVAIL_D11PLL | CCS_ERSRC_AVAIL_PHYPLL))
 			    !=
-			    (CCS_ERSRC_AVAIL_D11PLL | CCS_ERSRC_AVAIL_PHYPLL)) {
+			    (CCS_ERSRC_AVAIL_D11PLL | CCS_ERSRC_AVAIL_PHYPLL))
 				wiphy_err(wlc_hw->wlc->wiphy, "%s: turn on "
 					  "PHY PLL failed\n", __func__);
-			}
 		}
 	} else {
 		/* Since the PLL may be shared, other cores can still be requesting it;
@@ -2829,11 +2813,10 @@ brcms_b_read_objmem(struct brcms_hardware *wlc_hw, uint offset, u32 sel)
 
 	W_REG(&regs->objaddr, sel | (offset >> 2));
 	(void)R_REG(&regs->objaddr);
-	if (offset & 2) {
+	if (offset & 2)
 		v = R_REG(objdata_hi);
-	} else {
+	else
 		v = R_REG(objdata_lo);
-	}
 
 	return v;
 }
@@ -2848,11 +2831,10 @@ brcms_b_write_objmem(struct brcms_hardware *wlc_hw, uint offset, u16 v,
 
 	W_REG(&regs->objaddr, sel | (offset >> 2));
 	(void)R_REG(&regs->objaddr);
-	if (offset & 2) {
+	if (offset & 2)
 		W_REG(objdata_hi, v);
-	} else {
+	else
 		W_REG(objdata_lo, v);
-	}
 }
 
 /* Copy a buffer to shared memory of specified type .
@@ -2937,9 +2919,8 @@ void brcms_b_pllreq(struct brcms_hardware *wlc_hw, bool set, u32 req_bit)
 		mboolset(wlc_hw->pllreq, req_bit);
 
 		if (mboolisset(wlc_hw->pllreq, BRCMS_PLLREQ_FLIP)) {
-			if (!wlc_hw->sbclk) {
+			if (!wlc_hw->sbclk)
 				brcms_b_xtal(wlc_hw, ON);
-			}
 		}
 	} else {
 		if (!mboolisset(wlc_hw->pllreq, req_bit))
@@ -2948,9 +2929,8 @@ void brcms_b_pllreq(struct brcms_hardware *wlc_hw, bool set, u32 req_bit)
 		mboolclr(wlc_hw->pllreq, req_bit);
 
 		if (mboolisset(wlc_hw->pllreq, BRCMS_PLLREQ_FLIP)) {
-			if (wlc_hw->sbclk) {
+			if (wlc_hw->sbclk)
 				brcms_b_xtal(wlc_hw, OFF);
-			}
 		}
 	}
 
@@ -3111,22 +3091,20 @@ static void brcms_b_coreinit(struct brcms_c_info *wlc)
 				  " %d\n", __func__, wlc_hw->unit,
 				  wlc_hw->corerev);
 	} else if (D11REV_IS(wlc_hw->corerev, 24)) {
-		if (BRCMS_ISLCNPHY(wlc_hw->band)) {
+		if (BRCMS_ISLCNPHY(wlc_hw->band))
 			brcms_c_write_inits(wlc_hw, d11lcn0initvals24);
-		} else {
+		else
 			wiphy_err(wiphy, "%s: wl%d: unsupported phy in corerev"
 				  " %d\n", __func__, wlc_hw->unit,
 				  wlc_hw->corerev);
-		}
 	} else {
 		wiphy_err(wiphy, "%s: wl%d: unsupported corerev %d\n",
 			  __func__, wlc_hw->unit, wlc_hw->corerev);
 	}
 
 	/* For old ucode, txfifo sizes needs to be modified(increased) */
-	if (fifosz_fixup == true) {
+	if (fifosz_fixup == true)
 		brcms_b_corerev_fifofixup(wlc_hw);
-	}
 
 	/* check txfifo allocations match between ucode and driver */
 	buf[TX_AC_BE_FIFO] = brcms_b_read_shm(wlc_hw, M_FIFOSIZE0);
@@ -3161,11 +3139,10 @@ static void brcms_b_coreinit(struct brcms_c_info *wlc)
 		i = TX_ATIM_FIFO;
 		err = -1;
 	}
-	if (err != 0) {
+	if (err != 0)
 		wiphy_err(wiphy, "wlc_coreinit: txfifo mismatch: ucode size %d"
 			  " driver size %d index %d\n", buf[i],
 			  wlc_hw->xmtfifo_sz[i], i);
-	}
 
 	/* make sure we can still talk to the mac */
 	WARN_ON(R_REG(&regs->maccontrol) == 0xffffffff);
@@ -3409,10 +3386,9 @@ void brcms_c_init(struct brcms_c_info *wlc)
 		/* Uninitialized; read from HW */
 		int ac;
 
-		for (ac = 0; ac < AC_COUNT; ac++) {
+		for (ac = 0; ac < AC_COUNT; ac++)
 			wlc->wme_retries[ac] =
 			    brcms_c_read_shm(wlc, M_AC_TXLMT_ADDR(ac));
-		}
 	}
 }
 
@@ -3487,10 +3463,9 @@ int brcms_c_set_mac(struct brcms_bss_cfg *cfg)
 	int err = 0;
 	struct brcms_c_info *wlc = cfg->wlc;
 
-	if (cfg == wlc->cfg) {
+	if (cfg == wlc->cfg)
 		/* enter the MAC addr into the RXE match registers */
 		brcms_c_set_addrmatch(wlc, RCM_MAC_OFFSET, cfg->cur_etheraddr);
-	}
 
 	brcms_c_ampdu_macaddr_upd(wlc);
 
@@ -3505,13 +3480,12 @@ void brcms_c_set_bssid(struct brcms_bss_cfg *cfg)
 	struct brcms_c_info *wlc = cfg->wlc;
 
 	/* if primary config, we need to update BSSID in RXE match registers */
-	if (cfg == wlc->cfg) {
+	if (cfg == wlc->cfg)
 		brcms_c_set_addrmatch(wlc, RCM_BSSID_OFFSET, cfg->BSSID);
-	}
 #ifdef SUPPORT_HWKEYS
-	else if (BSSCFG_STA(cfg) && cfg->BSS) {
+	else if (BSSCFG_STA(cfg) && cfg->BSS)
 		brcms_c_rcmta_add_bssid(wlc, cfg);
-	}
+
 #endif
 }
 
@@ -3741,9 +3715,9 @@ u32 brcms_c_lowest_basic_rspec(struct brcms_c_info *wlc,
 	}
 #if NCONF
 	/* pick siso/cdd as default for OFDM (note no basic rate MCSs are supported yet) */
-	if (IS_OFDM(lowest_basic_rspec)) {
+	if (IS_OFDM(lowest_basic_rspec))
 		lowest_basic_rspec |= (wlc->stf->ss_opmode << RSPEC_STF_SHIFT);
-	}
+
 #endif
 
 	return lowest_basic_rspec;
@@ -3865,10 +3839,9 @@ static void brcms_c_ucode_mac_upd(struct brcms_c_info *wlc)
 			 * to set up a beacon for testing, the test routines should write it down,
 			 * not expect the inits to populate a bogus beacon.
 			 */
-			if (BRCMS_PHY_11N_CAP(wlc->band)) {
+			if (BRCMS_PHY_11N_CAP(wlc->band))
 				brcms_c_write_shm(wlc, M_BCN_TXTSF_OFFSET,
 					      wlc->band->bcntsfoff);
-			}
 		}
 	} else {
 		/* disable an active IBSS if we are not on the home channel */
@@ -4403,10 +4376,10 @@ int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
 
 	/* check device id(srom, nvram etc.) to set bands */
 	if (wlc_hw->deviceid == BCM43224_D11N_ID ||
-	    wlc_hw->deviceid == BCM43224_D11N_ID_VEN1) {
+	    wlc_hw->deviceid == BCM43224_D11N_ID_VEN1)
 		/* Dualband boards */
 		wlc_hw->_nbands = 2;
-	} else
+	else
 		wlc_hw->_nbands = 1;
 
 	if ((wlc_hw->sih->chip == BCM43225_CHIP_ID))
@@ -5070,11 +5043,10 @@ static void brcms_c_radio_hwdisable_upd(struct brcms_c_info *wlc)
 	if (wlc->pub->wlfeatureflag & WL_SWFL_NOHWRADIO || wlc->pub->hw_off)
 		return;
 
-	if (brcms_b_radio_read_hwdisabled(wlc->hw)) {
+	if (brcms_b_radio_read_hwdisabled(wlc->hw))
 		mboolset(wlc->pub->radio_disabled, WL_RADIO_HW_DISABLE);
-	} else {
+	else
 		mboolclr(wlc->pub->radio_disabled, WL_RADIO_HW_DISABLE);
-	}
 }
 
 /* return true if Minimum Power Consumption should be entered, false otherwise */
@@ -5134,9 +5106,9 @@ void brcms_c_radio_mpc_upd(struct brcms_c_info *wlc)
 	 * wlc->mpc_delay_off to wlc->mpc_dlycnt, so that we restart the countdown of mpc_delay_off
 	 */
 	if ((wlc->prev_non_delay_mpc == false) &&
-	    (brcms_c_is_non_delay_mpc(wlc) == true) && wlc->mpc_delay_off) {
+	    (brcms_c_is_non_delay_mpc(wlc) == true) && wlc->mpc_delay_off)
 		wlc->mpc_delay_off = wlc->mpc_dlycnt;
-	}
+
 	wlc->prev_non_delay_mpc = brcms_c_is_non_delay_mpc(wlc);
 }
 
@@ -5146,11 +5118,10 @@ void brcms_c_radio_mpc_upd(struct brcms_c_info *wlc)
  */
 static void brcms_c_radio_upd(struct brcms_c_info *wlc)
 {
-	if (wlc->pub->radio_disabled) {
+	if (wlc->pub->radio_disabled)
 		brcms_c_radio_disable(wlc);
-	} else {
+	else
 		brcms_c_radio_enable(wlc);
-	}
 }
 
 /* maintain LED behavior in down state */
@@ -5316,12 +5287,10 @@ static void brcms_c_watchdog(void *arg)
 
 	/* Manage TKIP countermeasures timers */
 	FOREACH_BSS(wlc, i, cfg)
-		if (cfg->tk_cm_dt) {
+		if (cfg->tk_cm_dt)
 			cfg->tk_cm_dt--;
-		}
-		if (cfg->tk_cm_bt) {
+		if (cfg->tk_cm_bt)
 			cfg->tk_cm_bt--;
-		}
 	END_FOREACH_BSS()
 
 	/* Call any registered watchdog handlers */
@@ -5453,13 +5422,12 @@ int brcms_c_up(struct brcms_c_info *wlc)
 	if ((wlc->pub->boardflags & BFL_FEM)
 	    && (wlc->pub->sih->chip == BCM4313_CHIP_ID)) {
 		if (wlc->pub->boardrev >= 0x1250
-		    && (wlc->pub->boardflags & BFL_FEM_BT)) {
+		    && (wlc->pub->boardflags & BFL_FEM_BT))
 			brcms_c_mhf(wlc, MHF5, MHF5_4313_GPIOCTRL,
 				MHF5_4313_GPIOCTRL, BRCM_BAND_ALL);
-		} else {
+		else
 			brcms_c_mhf(wlc, MHF4, MHF4_EXTPA_ENABLE,
 				    MHF4_EXTPA_ENABLE, BRCM_BAND_ALL);
-		}
 	}
 
 	/*
@@ -5504,11 +5472,10 @@ int brcms_c_up(struct brcms_c_info *wlc)
 	brcms_c_radio_monitor_stop(wlc);
 
 	/* Set EDCF hostflags */
-	if (EDCF_ENAB(wlc->pub)) {
+	if (EDCF_ENAB(wlc->pub))
 		brcms_c_mhf(wlc, MHF1, MHF1_EDCF, MHF1_EDCF, BRCM_BAND_ALL);
-	} else {
+	else
 		brcms_c_mhf(wlc, MHF1, MHF1_EDCF, 0, BRCM_BAND_ALL);
-	}
 
 	if (BRCMS_WAR16165(wlc))
 		brcms_c_mhf(wlc, MHF2, MHF2_PCISLOWCLKWAR, MHF2_PCISLOWCLKWAR,
@@ -5699,9 +5666,8 @@ uint brcms_c_down(struct brcms_c_info *wlc)
 	brcms_c_txflowcontrol_reset(wlc);
 
 	/* flush tx queues */
-	for (qi = wlc->tx_queues; qi != NULL; qi = qi->next) {
+	for (qi = wlc->tx_queues; qi != NULL; qi = qi->next)
 		brcmu_pktq_flush(&qi->q, true, NULL, NULL);
-	}
 
 	callbacks += brcms_b_down_finish(wlc->hw);
 
@@ -5813,21 +5779,19 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 			band->rspec_override = 0;
 			brcms_c_reprate_init(wlc);
 		}
-		if (band->mrspec_override && !IS_CCK(band->mrspec_override)) {
+		if (band->mrspec_override && !IS_CCK(band->mrspec_override))
 			band->mrspec_override = 0;
-		}
 	}
 
 	band->gmode = gmode;
 
 	wlc->shortslot_override = shortslot;
 
-	if (AP_ENAB(wlc->pub)) {
+	if (AP_ENAB(wlc->pub))
 		/* wlc->ap->shortslot_restrict = shortslot_restrict; */
 		wlc->PLCPHdr_override =
 		    (preamble !=
 		     BRCMS_PLCP_LONG) ? BRCMS_PLCP_SHORT : BRCMS_PLCP_AUTO;
-	}
 
 	if ((AP_ENAB(wlc->pub) && preamble != BRCMS_PLCP_LONG)
 	    || preamble == BRCMS_PLCP_SHORT)
@@ -6115,9 +6079,9 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 
 			brcms_b_retrylimit_upd(wlc->hw, wlc->SRL, wlc->LRL);
 
-			for (ac = 0; ac < AC_COUNT; ac++) {
+			for (ac = 0; ac < AC_COUNT; ac++)
 				BRCMS_WME_RETRY_SHORT_SET(wlc, ac, wlc->SRL);
-			}
+
 			brcms_c_wme_retries_write(wlc);
 		} else
 			bcmerror = -EINVAL;
@@ -6130,9 +6094,9 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 
 			brcms_b_retrylimit_upd(wlc->hw, wlc->SRL, wlc->LRL);
 
-			for (ac = 0; ac < AC_COUNT; ac++) {
+			for (ac = 0; ac < AC_COUNT; ac++)
 				BRCMS_WME_RETRY_LONG_SET(wlc, ac, wlc->LRL);
-			}
+
 			brcms_c_wme_retries_write(wlc);
 		} else
 			bcmerror = -EINVAL;
@@ -6250,13 +6214,12 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 		} else {
 			/* driver is down, so just update the brcms_c_info
 			 * value */
-			if (wlc->shortslot_override == BRCMS_SHORTSLOT_AUTO) {
+			if (wlc->shortslot_override == BRCMS_SHORTSLOT_AUTO)
 				wlc->shortslot = false;
-			} else {
+			else
 				wlc->shortslot =
 				    (wlc->shortslot_override ==
 				     BRCMS_SHORTSLOT_ON);
-			}
 		}
 
 		break;
@@ -6326,10 +6289,9 @@ static void brcms_c_wme_retries_write(struct brcms_c_info *wlc)
 	if (!wlc->clk)
 		return;
 
-	for (ac = 0; ac < AC_COUNT; ac++) {
+	for (ac = 0; ac < AC_COUNT; ac++)
 		brcms_c_write_shm(wlc, M_AC_TXLMT_ADDR(ac),
 				  wlc->wme_retries[ac]);
-	}
 }
 
 #ifdef BCMDBG
@@ -6431,9 +6393,8 @@ void brcms_c_statsupd(struct brcms_c_info *wlc)
 
 	/* merge counters from dma module */
 	for (i = 0; i < NFIFO; i++) {
-		if (wlc->hw->di[i]) {
+		if (wlc->hw->di[i])
 			dma_counterreset(wlc->hw->di[i]);
-		}
 	}
 }
 
@@ -6705,14 +6666,12 @@ void brcms_c_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
 	 */
 	if (!EDCF_ENAB(wlc->pub)
 	    || (wlc->pub->wlfeatureflag & WL_SWFL_FLOWCONTROL)) {
-		if (pktq_len(q) >= wlc->pub->tunables->datahiwat) {
+		if (pktq_len(q) >= wlc->pub->tunables->datahiwat)
 			brcms_c_txflowcontrol(wlc, qi, ON, ALLPRIO);
-		}
 	} else if (wlc->pub->_priofc) {
 		if (pktq_plen(q, wlc_prio2prec_map[prio]) >=
-		    wlc->pub->tunables->datahiwat) {
+		    wlc->pub->tunables->datahiwat)
 			brcms_c_txflowcontrol(wlc, qi, ON, prio);
-		}
 	}
 }
 
@@ -6769,10 +6728,9 @@ void brcms_c_send_q(struct brcms_c_info *wlc)
 			count = 1;
 			err = brcms_c_prep_pdu(wlc, pkt[0], &fifo);
 			if (!err) {
-				for (i = 0; i < count; i++) {
+				for (i = 0; i < count; i++)
 					brcms_c_txfifo(wlc, fifo, pkt[i], true,
 						       1);
-				}
 			}
 		}
 
@@ -6791,17 +6749,15 @@ void brcms_c_send_q(struct brcms_c_info *wlc)
 	if (!EDCF_ENAB(wlc->pub)
 	    || (wlc->pub->wlfeatureflag & WL_SWFL_FLOWCONTROL)) {
 		if (brcms_c_txflowcontrol_prio_isset(wlc, qi, ALLPRIO)
-		    && (pktq_len(q) < wlc->pub->tunables->datahiwat / 2)) {
+		    && (pktq_len(q) < wlc->pub->tunables->datahiwat / 2))
 			brcms_c_txflowcontrol(wlc, qi, OFF, ALLPRIO);
-		}
 	} else if (wlc->pub->_priofc) {
 		int prio;
 		for (prio = MAXPRIO; prio >= 0; prio--) {
 			if (brcms_c_txflowcontrol_prio_isset(wlc, qi, prio) &&
 			    (pktq_plen(q, wlc_prio2prec_map[prio]) <
-			     wlc->pub->tunables->datahiwat / 2)) {
+			    wlc->pub->tunables->datahiwat / 2))
 				brcms_c_txflowcontrol(wlc, qi, OFF, prio);
-			}
 		}
 	}
 	in_send_q = false;
@@ -6840,10 +6796,8 @@ brcms_c_txfifo(struct brcms_c_info *wlc, uint fifo, struct sk_buff *p,
 	/* When a BC/MC frame is being committed to the BCMC fifo via DMA (NOT PIO), update
 	 * ucode or BSS info as appropriate.
 	 */
-	if (fifo == TX_BCMC_FIFO) {
+	if (fifo == TX_BCMC_FIFO)
 		frameid = le16_to_cpu(txh->TxFrameID);
-
-	}
 
 	if (BRCMS_WAR16165(wlc))
 		brcms_c_war16165(wlc, true);
@@ -6862,22 +6816,20 @@ brcms_c_txfifo(struct brcms_c_info *wlc, uint fifo, struct sk_buff *p,
 	if (frameid != INVALIDFID)
 		BCMCFID(wlc, frameid);
 
-	if (dma_txfast(wlc->hw->di[fifo], p, commit) < 0) {
+	if (dma_txfast(wlc->hw->di[fifo], p, commit) < 0)
 		wiphy_err(wlc->wiphy, "txfifo: fatal, toss frames !!!\n");
-	}
 }
 
 void
 brcms_c_compute_plcp(struct brcms_c_info *wlc, u32 rspec,
 		     uint length, u8 *plcp)
 {
-	if (IS_MCS(rspec)) {
+	if (IS_MCS(rspec))
 		brcms_c_compute_mimo_plcp(rspec, length, plcp);
-	} else if (IS_OFDM(rspec)) {
+	else if (IS_OFDM(rspec))
 		brcms_c_compute_ofdm_plcp(rspec, length, plcp);
-	} else {
+	else
 		brcms_c_compute_cck_plcp(wlc, rspec, length, plcp);
-	}
 	return;
 }
 
@@ -7032,12 +6984,14 @@ brcms_c_compute_rtscts_dur(struct brcms_c_info *wlc, bool cts_only,
 
 	sifs = SIFS(wlc->band);
 
-	if (!cts_only) {	/* RTS/CTS */
+	if (!cts_only) {
+		/* RTS/CTS */
 		dur = 3 * sifs;
 		dur +=
 		    (u16) brcms_c_calc_cts_time(wlc, rts_rate,
 					       rts_preamble_type);
-	} else {		/* CTS-TO-SELF */
+	} else {
+		/* CTS-TO-SELF */
 		dur = 2 * sifs;
 	}
 
@@ -7108,11 +7062,10 @@ brcms_c_rspec_to_rts_rspec(struct brcms_c_info *wlc, u32 rspec,
 {
 	u32 rts_rspec = 0;
 
-	if (use_rspec) {
+	if (use_rspec)
 		/* use frame rate as rts rate */
 		rts_rspec = rspec;
-
-	} else if (wlc->band->gmode && wlc->protection->_g && !IS_CCK(rspec)) {
+	else if (wlc->band->gmode && wlc->protection->_g && !IS_CCK(rspec))
 		/* Use 11Mbps as the g protection RTS target rate and fallback.
 		 * Use the BRCMS_BASIC_RATE() lookup to find the best basic rate
 		 * under the target in case 11 Mbps is not Basic.
@@ -7120,13 +7073,12 @@ brcms_c_rspec_to_rts_rspec(struct brcms_c_info *wlc, u32 rspec,
 		 * if the OFDM rate we are protecting is 6 or 9 Mbps, 11 is more robust.
 		 */
 		rts_rspec = BRCMS_BASIC_RATE(wlc, BRCM_RATE_11M);
-	} else {
+	else
 		/* calculate RTS rate and fallback rate based on the frame rate
 		 * RTS must be sent at a basic rate since it is a
 		 * control frame, sec 9.6 of 802.11 spec
 		 */
 		rts_rspec = BRCMS_BASIC_RATE(wlc, rspec);
-	}
 
 	if (BRCMS_PHY_11N_CAP(wlc->band)) {
 		/* set rts txbw to correct side band */
@@ -7210,9 +7162,8 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	 * the packet itself, thus phylen = packet length + ICV_LEN + FCS_LEN
 	 * in this case
 	 */
-	if (key) {
+	if (key)
 		phylen += key->icv_len;
-	}
 
 	/* Get tx_info */
 	tx_info = IEEE80211_SKB_CB(p);
@@ -7233,9 +7184,8 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 			frameid = bcmc_fid_generate(wlc, NULL, txh);
 		} else {
 			/* Increment the counter for first fragment */
-			if (tx_info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT) {
+			if (tx_info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
 				SCB_SEQNUM(scb, p->priority)++;
-			}
 
 			/* extract fragment number from frame first */
 			seq = le16_to_cpu(seq) & FRAGNUM_MASK;
@@ -7256,9 +7206,8 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	txrate[1] = txrate[0] + 1;
 
 	/* if rate control algorithm didn't give us a fallback rate, use the primary rate */
-	if (txrate[1]->idx < 0) {
+	if (txrate[1]->idx < 0)
 		txrate[1] = txrate[0];
-	}
 
 	for (k = 0; k < hw->max_rates; k++) {
 		is_mcs[k] =
@@ -7280,6 +7229,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 		} else {
 			rate_val[k] = txrate[k]->idx;
 		}
+
 		/* Currently only support same setting for primay and fallback rates.
 		 * Unify flags for each rate into a single value for the frame
 		 */
@@ -7355,18 +7305,17 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 				} else if (IS_OFDM(rspec[k])) {
 					if (wlc->ofdm_40txbw != AUTO)
 						mimo_txbw = wlc->ofdm_40txbw;
-				} else {
-					if (wlc->cck_40txbw != AUTO)
-						mimo_txbw = wlc->cck_40txbw;
+				} else if (wlc->cck_40txbw != AUTO) {
+					mimo_txbw = wlc->cck_40txbw;
 				}
 			} else {
 				/* mcs32 is 40 b/w only.
 				 * This is possible for probe packets on a STA during SCAN
 				 */
-				if ((rspec[k] & RSPEC_RATE_MASK) == 32) {
+				if ((rspec[k] & RSPEC_RATE_MASK) == 32)
 					/* mcs 0 */
 					rspec[k] = RSPEC_MIMORATE;
-				}
+
 				mimo_txbw = PHY_TXC1_BW_20MHZ;
 			}
 
@@ -7405,9 +7354,8 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 				/* if SGI is selected, then forced mm for single stream */
 				if ((rspec[k] & RSPEC_SHORT_GI)
 				    && IS_SINGLE_STREAM(rspec[k] &
-							RSPEC_RATE_MASK)) {
+							RSPEC_RATE_MASK))
 					preamble_type[k] = BRCMS_MM_PREAMBLE;
-				}
 			}
 
 			/* should be better conditionalized */
@@ -7635,10 +7583,10 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 
 #ifdef SUPPORT_40MHZ
 	/* add null delimiter count */
-	if ((tx_info->flags & IEEE80211_TX_CTL_AMPDU) && IS_MCS(rspec)) {
+	if ((tx_info->flags & IEEE80211_TX_CTL_AMPDU) && IS_MCS(rspec))
 		txh->RTSPLCPFallback[AMPDU_FBR_NULL_DELIM] =
 		   brcm_c_ampdu_null_delim_cnt(wlc->ampdu, scb, rspec, phylen);
-	}
+
 #endif
 
 	/* Now that RTS/RTS FB preamble types are updated, write the final value */
@@ -7751,34 +7699,32 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 
 			/* update txop byte threshold (txop minus intraframe overhead) */
 			if (wlc->edcf_txop[ac] >= (dur - frag_dur)) {
-				{
-					uint newfragthresh;
+				uint newfragthresh;
 
+				newfragthresh =
+				    brcms_c_calc_frame_len(wlc,
+					rspec[0], preamble_type[0],
+					(wlc->edcf_txop[ac] -
+						(dur - frag_dur)));
+				/* range bound the fragthreshold */
+				if (newfragthresh < DOT11_MIN_FRAG_LEN)
 					newfragthresh =
-					    brcms_c_calc_frame_len(wlc,
-						rspec[0], preamble_type[0],
-						(wlc->edcf_txop[ac] -
-							(dur - frag_dur)));
-					/* range bound the fragthreshold */
-					if (newfragthresh < DOT11_MIN_FRAG_LEN)
-						newfragthresh =
-						    DOT11_MIN_FRAG_LEN;
-					else if (newfragthresh >
-						 wlc->usr_fragthresh)
-						newfragthresh =
-						    wlc->usr_fragthresh;
-					/* update the fragthresh and do txc update */
-					if (wlc->fragthresh[queue] !=
-					    (u16) newfragthresh) {
-						wlc->fragthresh[queue] =
-						    (u16) newfragthresh;
-					}
-				}
-			} else
+					    DOT11_MIN_FRAG_LEN;
+				else if (newfragthresh >
+					 wlc->usr_fragthresh)
+					newfragthresh =
+					    wlc->usr_fragthresh;
+				/* update the fragthresh and do txc update */
+				if (wlc->fragthresh[queue] !=
+				    (u16) newfragthresh)
+					wlc->fragthresh[queue] =
+					    (u16) newfragthresh;
+			} else {
 				wiphy_err(wlc->wiphy, "wl%d: %s txop invalid "
 					  "for rate %d\n",
 					  wlc->pub->unit, fifo_names[queue],
 					  RSPEC2RATE(rspec[0]));
+			}
 
 			if (dur > wlc->edcf_txop[ac])
 				wiphy_err(wlc->wiphy, "wl%d: %s: %s txop "
@@ -7797,10 +7743,9 @@ void brcms_c_tbtt(struct brcms_c_info *wlc)
 {
 	struct brcms_bss_cfg *cfg = wlc->cfg;
 
-	if (!cfg->BSS) {
+	if (!cfg->BSS)
 		/* DirFrmQ is now valid...defer setting until end of ATIM window */
 		wlc->qvalid |= MCMD_DIRFRMQVAL;
-	}
 }
 
 static void brcms_c_war16165(struct brcms_c_info *wlc, bool tx)
@@ -7991,9 +7936,8 @@ brcms_c_txfifo_complete(struct brcms_c_info *wlc, uint fifo, s8 txpktpend)
 
 	/* Clear MHF2_TXBCMC_NOW flag if BCMC fifo has drained */
 	if (AP_ENAB(wlc->pub) &&
-	    !TXPKTPENDGET(wlc, TX_BCMC_FIFO)) {
+	    !TXPKTPENDGET(wlc, TX_BCMC_FIFO))
 		brcms_c_mhf(wlc, MHF2, MHF2_TXBCMC_NOW, 0, BRCM_BAND_AUTO);
-	}
 
 	/* figure out which bsscfg is being worked on... */
 }
@@ -8252,9 +8196,8 @@ void brcms_c_recv(struct brcms_c_info *wlc, struct sk_buff *p)
 	}
 
 	/* check received pkt has at least frame control field */
-	if (len < D11_PHY_HDR_LEN + sizeof(h->frame_control)) {
+	if (len < D11_PHY_HDR_LEN + sizeof(h->frame_control))
 		goto toss;
-	}
 
 	is_amsdu = rxh->RxStatus2 & RXS_AMSDU_MASK;
 
@@ -8659,12 +8602,11 @@ void brcms_c_set_ratetable(struct brcms_c_info *wlc)
 		 * which a response ACK/CTS should be sent.
 		 */
 		basic_rate = BRCMS_BASIC_RATE(wlc, rate);
-		if (basic_rate == 0) {
+		if (basic_rate == 0)
 			/* This should only happen if we are using a
 			 * restricted rateset.
 			 */
 			basic_rate = rs.rates[0] & BRCMS_RATE_MASK;
-		}
 
 		brcms_c_write_rate_shm(wlc, rate, basic_rate);
 	}
@@ -8680,14 +8622,13 @@ bool brcms_c_valid_rate(struct brcms_c_info *wlc, u32 rspec, int band,
 	struct brcms_c_rateset *hw_rateset;
 	uint i;
 
-	if ((band == BRCM_BAND_AUTO) || (band == wlc->band->bandtype)) {
+	if ((band == BRCM_BAND_AUTO) || (band == wlc->band->bandtype))
 		hw_rateset = &wlc->band->hw_rateset;
-	} else if (NBANDS(wlc) > 1) {
+	else if (NBANDS(wlc) > 1)
 		hw_rateset = &wlc->bandstate[OTHERBANDUNIT(wlc)]->hw_rateset;
-	} else {
+	else
 		/* other band specified and we are a single band device */
 		return false;
-	}
 
 	/* check if this is a mimo rate */
 	if (IS_MCS(rspec)) {
@@ -8701,10 +8642,9 @@ bool brcms_c_valid_rate(struct brcms_c_info *wlc, u32 rspec, int band,
 		if (hw_rateset->rates[i] == RSPEC2RATE(rspec))
 			return true;
  error:
-	if (verbose) {
+	if (verbose)
 		wiphy_err(wlc->wiphy, "wl%d: valid_rate: rate spec 0x%x "
 			  "not in hw_rateset\n", wlc->pub->unit, rspec);
-	}
 
 	return false;
 }
@@ -8809,13 +8749,12 @@ brcms_c_bcn_prb_template(struct brcms_c_info *wlc, u16 type,
 	plcp = (struct cck_phy_hdr *) buf;
 
 	/* PLCP for Probe Response frames are filled in from core's rate table */
-	if (type == IEEE80211_STYPE_BEACON && !MBSS_BCN_ENAB(cfg)) {
+	if (type == IEEE80211_STYPE_BEACON && !MBSS_BCN_ENAB(cfg))
 		/* fill in PLCP */
 		brcms_c_compute_plcp(wlc, bcn_rspec,
 				 (DOT11_MAC_HDR_LEN + body_len + FCS_LEN),
 				 (u8 *) plcp);
 
-	}
 	/* "Regular" and 16 MBSS but not for 4 MBSS */
 	/* Update the phytxctl for the beacon based on the rspec */
 	if (!SOFTBCN_ENAB(cfg))
@@ -8880,9 +8819,9 @@ void brcms_c_bss_update_beacon(struct brcms_c_info *wlc,
 	/* Clear the soft intmask */
 	wlc->defmacintmask &= ~MI_BCNTPL;
 
-	if (!cfg->up) {		/* Only allow updates on an UP bss */
+	if (!cfg->up)
+		/* Only allow updates on an UP bss */
 		return;
-	}
 
 	/* Optimize:  Some of if/else could be combined */
 	if (!MBSS_BCN_ENAB(cfg) && HWBCN_ENAB(cfg)) {
@@ -8894,10 +8833,10 @@ void brcms_c_bss_update_beacon(struct brcms_c_info *wlc,
 		/* Check if both templates are in use, if so sched. an interrupt
 		 *      that will call back into this routine
 		 */
-		if ((R_REG(&regs->maccommand) & both_valid) == both_valid) {
+		if ((R_REG(&regs->maccommand) & both_valid) == both_valid)
 			/* clear any previous status */
 			W_REG(&regs->macintstatus, MI_BCNTPL);
-		}
+
 		/* Check that after scheduling the interrupt both of the
 		 *      templates are still busy. if not clear the int. & remask
 		 */
@@ -9103,9 +9042,8 @@ mac80211_wlc_set_nrate(struct brcms_c_info *wlc, struct brcms_band *cur_band,
 				  == NRATE_OVERRIDE_MCS_ONLY);
 	int bcmerror = 0;
 
-	if (!ismcs) {
+	if (!ismcs)
 		return (u32) rate;
-	}
 
 	/* validate the combination of rate/mcs/stf is allowed */
 	if (N_ENAB(wlc->pub) && ismcs) {
@@ -9196,9 +9134,8 @@ mac80211_wlc_set_nrate(struct brcms_c_info *wlc, struct brcms_band *cur_band,
 		rspec |= RSPEC_SHORT_GI;
 
 	if ((rate != 0)
-	    && !brcms_c_valid_rate(wlc, rspec, cur_band->bandtype, true)) {
+	    && !brcms_c_valid_rate(wlc, rspec, cur_band->bandtype, true))
 		return rate;
-	}
 
 	return rspec;
 done:
@@ -9329,11 +9266,10 @@ brcms_c_txflowcontrol_prio_isset(struct brcms_c_info *wlc,
 {
 	uint prio_mask;
 
-	if (prio == ALLPRIO) {
+	if (prio == ALLPRIO)
 		prio_mask = TXQ_STOP_FOR_PRIOFC_MASK;
-	} else {
+	else
 		prio_mask = NBITVAL(prio);
-	}
 
 	return (q->stopped & prio_mask) == prio_mask;
 }
@@ -9348,11 +9284,10 @@ void brcms_c_txflowcontrol(struct brcms_c_info *wlc,
 
 	BCMMSG(wlc->wiphy, "flow control kicks in\n");
 
-	if (prio == ALLPRIO) {
+	if (prio == ALLPRIO)
 		prio_bits = TXQ_STOP_FOR_PRIOFC_MASK;
-	} else {
+	else
 		prio_bits = NBITVAL(prio);
-	}
 
 	cur_bits = qi->stopped & prio_bits;
 
@@ -9360,23 +9295,22 @@ void brcms_c_txflowcontrol(struct brcms_c_info *wlc,
 	 * Otherwise update the bit and continue
 	 */
 	if (on) {
-		if (cur_bits == prio_bits) {
+		if (cur_bits == prio_bits)
 			return;
-		}
+
 		mboolset(qi->stopped, prio_bits);
 	} else {
-		if (cur_bits == 0) {
+		if (cur_bits == 0)
 			return;
-		}
+
 		mboolclr(qi->stopped, prio_bits);
 	}
 
 	/* If there is a flow control override we will not change the external
 	 * flow control state.
 	 */
-	if (qi->stopped & ~TXQ_STOP_FOR_PRIOFC_MASK) {
+	if (qi->stopped & ~TXQ_STOP_FOR_PRIOFC_MASK)
 		return;
-	}
 
 	brcms_c_txflowcontrol_signal(wlc, qi, on, prio);
 }
@@ -9398,9 +9332,8 @@ brcms_c_txflowcontrol_override(struct brcms_c_info *wlc,
 		/* if there was a previous override bit on, then setting this
 		 * makes no difference.
 		 */
-		if (prev_override) {
+		if (prev_override)
 			return;
-		}
 
 		brcms_c_txflowcontrol_signal(wlc, qi, ON, ALLPRIO);
 	} else {
@@ -9409,9 +9342,8 @@ brcms_c_txflowcontrol_override(struct brcms_c_info *wlc,
 		 * flow control if it was the only bit set. For any other
 		 * override setting, just return
 		 */
-		if (prev_override != override) {
+		if (prev_override != override)
 			return;
-		}
 
 		if (qi->stopped == 0) {
 			brcms_c_txflowcontrol_signal(wlc, qi, OFF, ALLPRIO);
@@ -9555,9 +9487,8 @@ void brcms_c_wait_for_tx_completion(struct brcms_c_info *wlc, bool drop)
 
 	/* wait for queue and DMA fifos to run dry */
 	while (!pktq_empty(&wlc->pkt_queue->q) ||
-	       TXPKTPENDTOT(wlc) > 0) {
+	       TXPKTPENDTOT(wlc) > 0)
 		brcms_msleep(wlc->wl, 1);
-	}
 }
 
 int brcms_c_set_par(struct brcms_c_info *wlc, enum wlc_par_id par_id,

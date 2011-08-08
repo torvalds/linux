@@ -217,10 +217,10 @@ brcms_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	err = brcms_up(wl);
 	UNLOCK(wl);
 
-	if (err != 0) {
+	if (err != 0)
 		wiphy_err(hw->wiphy, "%s: brcms_up() returned %d\n", __func__,
 			  err);
-	}
+
 	return err;
 }
 
@@ -307,9 +307,9 @@ static int brcms_ops_config(struct ieee80211_hw *hw, u32 changed)
 				  "\n", __func__, conf->power_level * 4,
 				  new_int);
 	}
-	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+	if (changed & IEEE80211_CONF_CHANGE_CHANNEL)
 		err = ieee_set_channel(hw, conf->channel, conf->channel_type);
-	}
+
 	if (changed & IEEE80211_CONF_CHANGE_RETRY_LIMITS) {
 		if (brcms_c_set
 		    (wl->wlc, BRCM_SET_SRL,
@@ -420,32 +420,36 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 				  info->bssid);
 		UNLOCK(wl);
 	}
-	if (changed & BSS_CHANGED_BEACON) {
+	if (changed & BSS_CHANGED_BEACON)
 		/* Beacon data changed, retrieve new beacon (beaconing modes) */
 		wiphy_err(wiphy, "%s: beacon changed\n", __func__);
-	}
+
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
 		/* Beaconing should be enabled/disabled (beaconing modes) */
 		wiphy_err(wiphy, "%s: Beacon enabled: %s\n", __func__,
 			  info->enable_beacon ? "true" : "false");
 	}
+
 	if (changed & BSS_CHANGED_CQM) {
 		/* Connection quality monitor config changed */
 		wiphy_err(wiphy, "%s: cqm change: threshold %d, hys %d "
 			  " (implement)\n", __func__, info->cqm_rssi_thold,
 			  info->cqm_rssi_hyst);
 	}
+
 	if (changed & BSS_CHANGED_IBSS) {
 		/* IBSS join status changed */
 		wiphy_err(wiphy, "%s: IBSS joined: %s (implement)\n", __func__,
 			  info->ibss_joined ? "true" : "false");
 	}
+
 	if (changed & BSS_CHANGED_ARP_FILTER) {
 		/* Hardware ARP filter address list or state changed */
 		wiphy_err(wiphy, "%s: arp filtering: enabled %s, count %d"
 			  " (implement)\n", __func__, info->arp_filter_enabled ?
 			  "true" : "false", info->arp_addr_cnt);
 	}
+
 	if (changed & BSS_CHANGED_QOS) {
 		/*
 		 * QoS for this association was enabled/disabled.
@@ -757,9 +761,8 @@ static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 	unit = n_adapters_found;
 	err = 0;
 
-	if (unit < 0) {
+	if (unit < 0)
 		return NULL;
-	}
 
 	/* allocate private info */
 	hw = pci_get_drvdata(btparam);	/* btparam == pdev */
@@ -816,10 +819,9 @@ static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 
 	wl->pub->ieee_hw = hw;
 
-	if (brcms_c_set_par(wl->wlc, IOV_MPC, 0) < 0) {
+	if (brcms_c_set_par(wl->wlc, IOV_MPC, 0) < 0)
 		wiphy_err(wl->wiphy, "wl%d: Error setting MPC variable to 0\n",
 			  unit);
-	}
 
 	/* register our interrupt handler */
 	if (request_irq(irq, brcms_isr, IRQF_SHARED, KBUILD_MODNAME, wl)) {
@@ -843,19 +845,17 @@ static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 	SET_IEEE80211_PERM_ADDR(hw, perm);
 
 	err = ieee80211_register_hw(hw);
-	if (err) {
+	if (err)
 		wiphy_err(wl->wiphy, "%s: ieee80211_register_hw failed, status"
 			  "%d\n", __func__, err);
-	}
 
 	if (wl->pub->srom_ccode[0])
 		err = brcms_set_hint(wl, wl->pub->srom_ccode);
 	else
 		err = brcms_set_hint(wl, "US");
-	if (err) {
+	if (err)
 		wiphy_err(wl->wiphy, "%s: regulatory_hint failed, status %d\n",
 			  __func__, err);
-	}
 
 	n_adapters_found++;
 	return wl;
@@ -1064,12 +1064,11 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 	/* Assume all bands use the same phy.  True for 11n devices. */
 	if (NBANDS_PUB(wl->pub) > 1) {
 		has_5g++;
-		if (phy_list[0] == 'n' || phy_list[0] == 'c') {
+		if (phy_list[0] == 'n' || phy_list[0] == 'c')
 			hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			    &brcms_band_5GHz_nphy;
-		} else {
+		else
 			return -EPERM;
-		}
 	}
 	return 0;
 }
@@ -1337,9 +1336,8 @@ static void brcms_free(struct brcms_info *wl)
 	/* kill dpc */
 	tasklet_kill(&wl->tasklet);
 
-	if (wl->pub) {
+	if (wl->pub)
 		brcms_c_module_unregister(wl->pub, "linux", wl);
-	}
 
 	/* free common resources */
 	if (wl->wlc) {
@@ -1368,9 +1366,9 @@ static void brcms_free(struct brcms_info *wl)
 	 * so we cannot unmap the chip registers until after calling unregister_netdev() .
 	 */
 	if (wl->regsva && wl->bcm_bustype != SDIO_BUS &&
-	    wl->bcm_bustype != JTAG_BUS) {
+	    wl->bcm_bustype != JTAG_BUS)
 		iounmap((void *)wl->regsva);
-	}
+
 	wl->regsva = NULL;
 }
 
@@ -1558,10 +1556,9 @@ static void brcms_dpc(unsigned long data)
 	/* re-schedule dpc */
 	if (wl->resched)
 		tasklet_schedule(&wl->tasklet);
-	else {
+	else
 		/* re-enable interrupts */
 		brcms_intrson(wl);
-	}
 
  done:
 	UNLOCK(wl);
@@ -1645,10 +1642,10 @@ void brcms_add_timer(struct brcms_info *wl, struct brcms_timer *t, uint ms,
 		     int periodic)
 {
 #ifdef BCMDBG
-	if (t->set) {
+	if (t->set)
 		wiphy_err(wl->wiphy, "%s: Already set. Name: %s, per %d\n",
 			  __func__, t->name, periodic);
-	}
+
 #endif
 	t->ms = ms;
 	t->periodic = (bool) periodic;
@@ -1668,9 +1665,9 @@ bool brcms_del_timer(struct brcms_info *wl, struct brcms_timer *t)
 {
 	if (t->set) {
 		t->set = false;
-		if (!del_timer(&t->timer)) {
+		if (!del_timer(&t->timer))
 			return false;
-		}
+
 		atomic_dec(&wl->callbacks);
 	}
 

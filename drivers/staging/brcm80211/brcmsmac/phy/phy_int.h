@@ -246,7 +246,7 @@ enum phy_cal_mode {
 
 #define MOD_PHY_REG(pi, phy_type, reg_name, field, value) \
 	mod_phy_reg(pi, phy_type##_##reg_name, phy_type##_##reg_name##_##field##_MASK, \
-	(value) << phy_type##_##reg_name##_##field##_##SHIFT);
+	(value) << phy_type##_##reg_name##_##field##_##SHIFT)
 #define READ_PHY_REG(pi, phy_type, reg_name, field) \
 	((read_phy_reg(pi, phy_type##_##reg_name) & phy_type##_##reg_name##_##field##_##MASK)\
 	>> phy_type##_##reg_name##_##field##_##SHIFT)

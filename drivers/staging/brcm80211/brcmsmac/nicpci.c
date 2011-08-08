@@ -399,6 +399,7 @@ static bool pcie_mdiosetblock(struct pcicore_info *pi, uint blk)
 	while (i < pcie_serdes_spinwait) {
 		if (R_REG(&pcieregs->mdiocontrol) & MDIOCTL_ACCESS_DONE)
 			break;
+
 		udelay(1000);
 		i++;
 	}
@@ -823,6 +824,7 @@ void pcicore_fixcfg(void *pch, void *regs)
 		reg16 = &pcieregs->sprom[SRSH_PI_OFFSET];
 	else if (sii->pub.buscoretype == PCI_CORE_ID)
 		reg16 = &pciregs->sprom[SRSH_PI_OFFSET];
+
 	pciidx = ai_coreidx(&sii->pub);
 	val16 = R_REG(reg16);
 	if (((val16 & SRSH_PI_MASK) >> SRSH_PI_SHIFT) != (u16)pciidx) {

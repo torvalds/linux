@@ -184,12 +184,12 @@ static u16 ipxotp_read_bit(void *oh, struct chipcregs *cc, uint off)
 	     ((st = R_REG(&cc->otpprog)) & OTPP_START_BUSY)
 	     && (k < OTPP_TRIES); k++)
 		;
-	if (k >= OTPP_TRIES) {
+	if (k >= OTPP_TRIES)
 		return 0xffff;
-	}
-	if (st & OTPP_READERR) {
+
+	if (st & OTPP_READERR)
 		return 0xffff;
-	}
+
 	st = (st & OTPP_VALUE_MASK) >> OTPP_VALUE_SHIFT;
 
 	return (int)st;
@@ -245,9 +245,8 @@ static void _ipxotp_init(struct otpinfo *oi, struct chipcregs *cc)
 	     ((st = R_REG(&cc->otpprog)) & OTPP_START_BUSY)
 	     && (k < OTPP_TRIES); k++)
 		;
-	if (k >= OTPP_TRIES) {
+	if (k >= OTPP_TRIES)
 		return;
-	}
 
 	/* Read OTP lock bits and subregion programmed indication bits */
 	oi->status = R_REG(&cc->otpstatus);
@@ -493,9 +492,8 @@ void *otp_init(struct si_pub *sih)
 	if (OTPTYPE_IPX(oi->ccrev))
 		oi->fn = &ipxotp_fn;
 
-	if (oi->fn == NULL) {
+	if (oi->fn == NULL)
 		return NULL;
-	}
 
 	oi->sih = sih;
 

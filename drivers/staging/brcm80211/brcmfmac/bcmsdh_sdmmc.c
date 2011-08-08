@@ -218,10 +218,9 @@ static int brcmf_sdioh_enablefuncs(struct sdioh_info *sd)
 	sdio_claim_host(gInstance->func[1]);
 	err_ret = sdio_enable_func(gInstance->func[1]);
 	sdio_release_host(gInstance->func[1]);
-	if (err_ret) {
+	if (err_ret)
 		sd_err(("brcmf_sdioh_enablefuncs: Failed to enable F1 "
 			"Err: 0x%08x\n", err_ret));
-	}
 
 	return false;
 }
@@ -763,35 +762,32 @@ brcmf_sdioh_request_word(struct sdioh_info *sd, uint cmd_type, uint rw,
 	sdio_claim_host(gInstance->func[func]);
 
 	if (rw) {		/* CMD52 Write */
-		if (nbytes == 4) {
+		if (nbytes == 4)
 			sdio_writel(gInstance->func[func], *word, addr,
 				    &err_ret);
-		} else if (nbytes == 2) {
+		else if (nbytes == 2)
 			sdio_writew(gInstance->func[func], (*word & 0xFFFF),
 				    addr, &err_ret);
-		} else {
+		else
 			sd_err(("%s: Invalid nbytes: %d\n", __func__, nbytes));
-		}
 	} else {		/* CMD52 Read */
-		if (nbytes == 4) {
+		if (nbytes == 4)
 			*word =
 			    sdio_readl(gInstance->func[func], addr, &err_ret);
-		} else if (nbytes == 2) {
+		else if (nbytes == 2)
 			*word =
 			    sdio_readw(gInstance->func[func], addr,
 				       &err_ret) & 0xFFFF;
-		} else {
+		else
 			sd_err(("%s: Invalid nbytes: %d\n", __func__, nbytes));
-		}
 	}
 
 	/* Release host controller */
 	sdio_release_host(gInstance->func[func]);
 
-	if (err_ret) {
+	if (err_ret)
 		sd_err(("brcmf: Failed to %s word, Err: 0x%08x\n",
 			rw ? "Write" : "Read", err_ret));
-	}
 
 	return err_ret;
 }

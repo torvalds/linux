@@ -1127,10 +1127,9 @@ static int brcmf_sdbrcm_htclk(struct brcmf_bus *bus, bool on, bool pendok)
 
 #if defined(BCMDBG)
 		if (bus->alp_only != true) {
-			if (SBSDIO_ALPONLY(clkctl)) {
+			if (SBSDIO_ALPONLY(clkctl))
 				BRCMF_ERROR(("%s: HT Clock should be on.\n",
 					     __func__));
-			}
 		}
 #endif				/* defined (BCMDBG) */
 
@@ -1428,9 +1427,8 @@ static int brcmf_sdbrcm_txpkt(struct brcmf_bus *bus, struct sk_buff *pkt, uint c
 	}
 
 	/* Some controllers have trouble with odd bytes -- round to even */
-	if (forcealign && (len & (ALIGNMENT - 1))) {
+	if (forcealign && (len & (ALIGNMENT - 1)))
 			len = roundup(len, ALIGNMENT);
-	}
 
 	do {
 		ret = brcmf_sdbrcm_send_buf(bus, brcmf_sdcard_cur_sbwad(card),
@@ -1782,10 +1780,10 @@ brcmf_sdbrcm_bus_txctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen)
 				}
 
 			}
-			if (ret == 0) {
+			if (ret == 0)
 				bus->tx_seq =
 				    (bus->tx_seq + 1) % SDPCM_SEQUENCE_WRAP;
-			}
+
 		} while ((ret < 0) && retries++ < TXRETRIES);
 	}
 
@@ -2181,10 +2179,9 @@ brcmf_sdbrcm_membytes(struct brcmf_bus *bus, bool write, u32 address, u8 *data,
 xfer_done:
 	/* Return the window to backplane enumeration space for core access */
 	if (brcmf_sdbrcm_set_siaddr_window(bus,
-					   brcmf_sdcard_cur_sbwad(bus->card))) {
+					   brcmf_sdcard_cur_sbwad(bus->card)))
 		BRCMF_ERROR(("%s: FAILED to set window back to 0x%x\n",
 			     __func__, brcmf_sdcard_cur_sbwad(bus->card)));
-	}
 
 	return bcmerror;
 }
@@ -2287,13 +2284,12 @@ static int brcmf_sdbrcm_checkdied(struct brcmf_bus *bus, u8 *data, uint size)
 		    "msgtrace address : 0x%08X\nconsole address  : 0x%08X\n",
 		    sdpcm_shared.msgtrace_addr, sdpcm_shared.console_addr);
 
-	if ((sdpcm_shared.flags & SDPCM_SHARED_ASSERT_BUILT) == 0) {
+	if ((sdpcm_shared.flags & SDPCM_SHARED_ASSERT_BUILT) == 0)
 		/* NOTE: Misspelled assert is intentional - DO NOT FIX.
 		 * (Avoids conflict with real asserts for programmatic
 		 * parsing of output.)
 		 */
 		brcmu_bprintf(&strbuf, "Assrt not built in dongle\n");
-	}
 
 	if ((sdpcm_shared.flags & (SDPCM_SHARED_ASSERT | SDPCM_SHARED_TRAP)) ==
 	    0) {
@@ -2358,10 +2354,10 @@ static int brcmf_sdbrcm_checkdied(struct brcmf_bus *bus, u8 *data, uint size)
 		BRCMF_ERROR(("%s: %s\n", __func__, strbuf.origbuf));
 
 #ifdef BCMDBG
-	if (sdpcm_shared.flags & SDPCM_SHARED_TRAP) {
+	if (sdpcm_shared.flags & SDPCM_SHARED_TRAP)
 		/* Mem dump to a file on device */
 		brcmf_sdbrcm_mem_dump(bus);
-	}
+
 #endif				/* BCMDBG */
 
 done:
@@ -2591,11 +2587,10 @@ brcmf_sdbrcm_doiovar(struct brcmf_bus *bus, const struct brcmu_iovar *vi, u32 ac
 		if (bus->drvr->up) {
 			BRCMF_INTR(("%s: %s SDIO interrupts\n", __func__,
 				    bus->intr ? "enable" : "disable"));
-			if (bus->intr) {
+			if (bus->intr)
 				brcmf_sdcard_intr_enable(bus->card);
-			} else {
+			else
 				brcmf_sdcard_intr_disable(bus->card);
-			}
 		}
 		break;
 
@@ -3016,10 +3011,10 @@ static int brcmf_sdbrcm_write_vars(struct brcmf_bus *bus)
 				     varsize, varaddr));
 		}
 		/* Compare the org NVRAM with the one read from RAM */
-		if (memcmp(vbuffer, nvram_ularray, varsize)) {
+		if (memcmp(vbuffer, nvram_ularray, varsize))
 			BRCMF_ERROR(("%s: Downloaded NVRAM image is "
 				     "corrupted.\n", __func__));
-		} else
+		else
 			BRCMF_ERROR(("%s: Download/Upload/Compare of"
 				     " NVRAM ok.\n", __func__));
 
@@ -3249,10 +3244,9 @@ void brcmf_sdbrcm_bus_stop(struct brcmf_bus *bus, bool enforce_mutex)
 				       SBSDIO_FUNC1_CHIPCLKCSR,
 				       (saveclk | SBSDIO_FORCE_HT), &err);
 	}
-	if (err) {
+	if (err)
 		BRCMF_ERROR(("%s: Failed to force clock for F2: err %d\n",
 			     __func__, err));
-	}
 
 	/* Turn off the bus (F2), free any pending packets */
 	BRCMF_INTR(("%s: disable SDIO interrupts\n", __func__));
@@ -3456,13 +3450,12 @@ static void brcmf_sdbrcm_rxfail(struct brcmf_bus *bus, bool abort, bool rtx)
 		lastrbc = (hi << 8) + lo;
 	}
 
-	if (!retries) {
+	if (!retries)
 		BRCMF_ERROR(("%s: count never zeroed: last 0x%04x\n",
 			     __func__, lastrbc));
-	} else {
+	else
 		BRCMF_INFO(("%s: flush took %d iterations\n", __func__,
 			    (0xffff - retries)));
-	}
 
 	if (rtx) {
 		bus->rxrtx++;
@@ -3936,11 +3929,11 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 
 			if (pfirst->len == 0) {
 				brcmu_pkt_buf_free_skb(pfirst);
-				if (plast) {
+				if (plast)
 					plast->next = pnext;
-				} else {
+				else
 					save_pfirst = pnext;
-				}
+
 				continue;
 			} else if (brcmf_proto_hdrpull(bus->drvr, &ifidx, pfirst)
 					!= 0) {
@@ -3948,11 +3941,11 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 					     __func__));
 				bus->drvr->rx_errors++;
 				brcmu_pkt_buf_free_skb(pfirst);
-				if (plast) {
+				if (plast)
 					plast->next = pnext;
-				} else {
+				else
 					save_pfirst = pnext;
-				}
+
 				continue;
 			}
 
@@ -4647,10 +4640,9 @@ static u32 brcmf_sdbrcm_hostmail(struct brcmf_bus *bus)
 			 HMB_DATA_NAKHANDLED |
 			 HMB_DATA_FC |
 			 HMB_DATA_FWREADY |
-			 HMB_DATA_FCDATA_MASK | HMB_DATA_VERSION_MASK)) {
+			 HMB_DATA_FCDATA_MASK | HMB_DATA_VERSION_MASK))
 		BRCMF_ERROR(("Unknown mailbox data content: 0x%02x\n",
 			     hmb_data));
-	}
 
 	return intstatus;
 }
@@ -5773,13 +5765,13 @@ static bool brcmf_sdbrcm_probe_init(struct brcmf_bus *bus, void *card)
 		 default to use if supported */
 	if (brcmf_sdcard_iovar_op(card, "sd_rxchain", NULL, 0,
 			    &bus->sd_rxchain, sizeof(s32),
-			    false) != 0) {
+			    false) != 0)
 		bus->sd_rxchain = false;
-	} else {
+	else
 		BRCMF_INFO(("%s: bus module (through sdiocard API) %s"
 			    " chaining\n", __func__, bus->sd_rxchain
 			    ? "supports" : "does not support"));
-	}
+
 	bus->use_rxchain = (bool) bus->sd_rxchain;
 
 	return true;
@@ -5864,9 +5856,8 @@ static void brcmf_sdbrcm_disconnect(void *ptr)
 
 	BRCMF_TRACE(("%s: Enter\n", __func__));
 
-	if (bus) {
+	if (bus)
 		brcmf_sdbrcm_release(bus);
-	}
 
 	BRCMF_TRACE(("%s: Disconnected\n", __func__));
 }
@@ -6085,10 +6076,9 @@ static int _brcmf_sdbrcm_download_firmware(struct brcmf_bus *bus)
 	}
 
 	/* External nvram takes precedence if specified */
-	if (brcmf_sdbrcm_download_nvram(bus)) {
+	if (brcmf_sdbrcm_download_nvram(bus))
 		BRCMF_ERROR(("%s: dongle nvram file download failed\n",
 			     __func__));
-	}
 
 	/* Take arm out of reset */
 	if (brcmf_sdbrcm_download_state(bus, false)) {

@@ -901,21 +901,20 @@ sprom_read_pci(struct si_pub *sih, u16 *sprom, uint wordoff,
 
 	if (check_crc) {
 
-		if (buf[0] == 0xffff) {
+		if (buf[0] == 0xffff)
 			/* The hardware thinks that an srom that starts with 0xffff
 			 * is blank, regardless of the rest of the content, so declare
 			 * it bad.
 			 */
 			return -ENODATA;
-		}
 
 		/* fixup the endianness so crc8 will pass */
 		htol16_buf(buf, nwords * 2);
 		if (brcmu_crc8((u8 *) buf, nwords * 2, CRC8_INIT_VALUE) !=
-		    CRC8_GOOD_VALUE) {
+		    CRC8_GOOD_VALUE)
 			/* DBG only pci always read srom4 first, then srom8/9 */
 			err = -EIO;
-		}
+
 		/* now correct the endianness of the byte array */
 		ltoh16_buf(buf, nwords * 2);
 	}
@@ -930,9 +929,8 @@ static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz)
 	int err = 0;
 
 	otp = kzalloc(OTP_SZ_MAX, GFP_ATOMIC);
-	if (otp == NULL) {
+	if (otp == NULL)
 		return -ENOMEM;
-	}
 
 	err = otp_read_region(sih, OTP_HW_RGN, (u16 *) otp, &sz);
 
@@ -941,20 +939,19 @@ static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz)
 	kfree(otp);
 
 	/* Check CRC */
-	if (buf[0] == 0xffff) {
+	if (buf[0] == 0xffff)
 		/* The hardware thinks that an srom that starts with 0xffff
 		 * is blank, regardless of the rest of the content, so declare
 		 * it bad.
 		 */
 		return -ENODATA;
-	}
 
 	/* fixup the endianness so crc8 will pass */
 	htol16_buf(buf, bufsz);
 	if (brcmu_crc8((u8 *) buf, SROM4_WORDS * 2, CRC8_INIT_VALUE) !=
-	    CRC8_GOOD_VALUE) {
+	    CRC8_GOOD_VALUE)
 		err = -EIO;
-	}
+
 	/* now correct the endianness of the byte array */
 	ltoh16_buf(buf, bufsz);
 

@@ -387,10 +387,10 @@ get_erom_ent(struct si_pub *sih, u32 **eromptr, u32 mask, u32 match)
 	}
 
 	SI_VMSG(("%s: Returning ent 0x%08x\n", __func__, ent));
-	if (inv + nom) {
+	if (inv + nom)
 		SI_VMSG(("  after %d invalid and %d non-matching entries\n",
 			 inv, nom));
-	}
+
 	return ent;
 }
 
@@ -511,9 +511,8 @@ void ai_scan(struct si_pub *sih, void *regs)
 			if (cid == OOB_ROUTER_CORE_ID) {
 				asd = get_asd(sih, &eromptr, 0, 0, AD_ST_SLAVE,
 					      &addrl, &addrh, &sizel, &sizeh);
-				if (asd != 0) {
+				if (asd != 0)
 					sii->oob_router = addrl;
-				}
 			}
 			continue;
 		}
@@ -650,13 +649,13 @@ void *ai_setcoreidx(struct si_pub *sih, uint coreidx)
 	switch (sih->bustype) {
 	case SI_BUS:
 		/* map new one */
-		if (!sii->regs[coreidx]) {
+		if (!sii->regs[coreidx])
 			sii->regs[coreidx] = REG_MAP(addr, SI_CORE_SIZE);
-		}
+
 		sii->curmap = regs = sii->regs[coreidx];
-		if (!sii->wrappers[coreidx]) {
+		if (!sii->wrappers[coreidx])
 			sii->wrappers[coreidx] = REG_MAP(wrap, SI_CORE_SIZE);
-		}
+
 		sii->curwrap = sii->wrappers[coreidx];
 		break;
 
@@ -1063,9 +1062,8 @@ static __used void ai_nvram_process(struct si_info *sii, char *pvars)
 		break;
 	}
 
-	if (sii->pub.boardtype == 0) {
+	if (sii->pub.boardtype == 0)
 		SI_ERROR(("si_doattach: unknown board type\n"));
-	}
 
 	sii->pub.boardflags = getintvar(pvars, "boardflags");
 }
@@ -1195,9 +1193,8 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	ai_corereg(sih, SI_CC_IDX, offsetof(struct chipcregs, gpiotimerval),
 		   ~0, w);
 
-	if (PCIE(sii)) {
+	if (PCIE(sii))
 		pcicore_attach(sii->pch, pvars, SI_DOATTACH);
-	}
 
 	if (sih->chip == BCM43224_CHIP_ID) {
 		/*
@@ -1435,10 +1432,10 @@ uint ai_corereg(struct si_pub *sih, uint coreidx, uint regoff, uint mask,
 		/* If internal bus, we can always get at everything */
 		fast = true;
 		/* map if does not exist */
-		if (!sii->regs[coreidx]) {
+		if (!sii->regs[coreidx])
 			sii->regs[coreidx] = REG_MAP(sii->coresba[coreidx],
 						     SI_CORE_SIZE);
-		}
+
 		r = (u32 *) ((unsigned char *) sii->regs[coreidx] + regoff);
 	} else if (sih->bustype == PCI_BUS) {
 		/*
@@ -2187,16 +2184,15 @@ void ai_chipcontrl_epa4331(struct si_pub *sih, bool on)
 	val = R_REG(&cc->chipcontrol);
 
 	if (on) {
-		if (sih->chippkg == 9 || sih->chippkg == 0xb) {
+		if (sih->chippkg == 9 || sih->chippkg == 0xb)
 			/* Ext PA Controls for 4331 12x9 Package */
 			W_REG(&cc->chipcontrol, val |
 			      (CCTRL4331_EXTPA_EN |
 			       CCTRL4331_EXTPA_ON_GPIO2_5));
-		} else {
+		else
 			/* Ext PA Controls for 4331 12x12 Package */
 			W_REG(&cc->chipcontrol,
 			      val | (CCTRL4331_EXTPA_EN));
-		}
 	} else {
 		val &= ~(CCTRL4331_EXTPA_EN | CCTRL4331_EXTPA_ON_GPIO2_5);
 		W_REG(&cc->chipcontrol, val);

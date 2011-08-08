@@ -195,9 +195,8 @@ void brcms_c_ampdu_detach(struct ampdu_info *ampdu)
 		return;
 
 	/* free all ini's which were to be freed on callbacks which were never called */
-	for (i = 0; i < AMPDU_INI_FREE; i++) {
+	for (i = 0; i < AMPDU_INI_FREE; i++)
 		kfree(ampdu->ini_free[i]);
-	}
 
 	brcms_c_module_unregister(ampdu->wlc->pub, "ampdu", ampdu);
 	kfree(ampdu);
@@ -317,9 +316,9 @@ static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 	txunfl_ratio = current_ampdu_cnt / fifo->accum_txfunfl;
 
 	if (txunfl_ratio > ampdu->tx_max_funl) {
-		if (current_ampdu_cnt >= FFPLD_MAX_AMPDU_CNT) {
+		if (current_ampdu_cnt >= FFPLD_MAX_AMPDU_CNT)
 			fifo->accum_txfunfl = 0;
-		}
+
 		return 0;
 	}
 	max_mpdu =
@@ -486,10 +485,9 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 	/* Let pressure continue to build ... */
 	qlen = pktq_plen(&qi->q, prec);
 	if (ini->tx_in_transit > 0 &&
-	    qlen < min(scb_ampdu->max_pdu, ini->ba_wsize)) {
+	    qlen < min(scb_ampdu->max_pdu, ini->ba_wsize))
 		/* Collect multiple MPDU's to be sent in the next AMPDU */
 		return -EBUSY;
-	}
 
 	/* at this point we intend to transmit an AMPDU */
 	rr_retry_limit = ampdu->rr_retry_limit_tid[tid];
@@ -665,9 +663,8 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 			break;
 		}
 
-		if (count == scb_ampdu->max_pdu) {
+		if (count == scb_ampdu->max_pdu)
 			break;
-		}
 
 		/* check to see if the next pkt is a candidate for aggregation */
 		p = pktq_ppeek(&qi->q, prec);
@@ -797,10 +794,10 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 
 		/* inform rate_sel if it this is a rate probe pkt */
 		frameid = le16_to_cpu(txh->TxFrameID);
-		if (frameid & TXFID_RATE_PROBE_MASK) {
+		if (frameid & TXFID_RATE_PROBE_MASK)
 			wiphy_err(wiphy, "%s: XXX what to do with "
 				  "TXFID_RATE_PROBE_MASK!?\n", __func__);
-		}
+
 		for (i = 0; i < count; i++)
 			brcms_c_txfifo(wlc, fifo, pkt[i], i == (count - 1),
 				   ampdu->txpkt_weight);
@@ -833,9 +830,8 @@ brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 		while (((s1 = R_REG(&wlc->regs->frmtxstatus)) & TXS_V) == 0) {
 			udelay(1);
 			status_delay++;
-			if (status_delay > 10) {
+			if (status_delay > 10)
 				return; /* error condition */
-			}
 		}
 
 		s2 = R_REG(&wlc->regs->frmtxstatus2);
@@ -923,9 +919,8 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 	supr_status = txs->status & TX_STATUS_SUPR_MASK;
 
 	if (txs->status & TX_STATUS_ACK_RCV) {
-		if (TX_STATUS_SUPR_UF == supr_status) {
+		if (TX_STATUS_SUPR_UF == supr_status)
 			update_rate = false;
-		}
 
 		WARN_ON(!(txs->status & TX_STATUS_INTERMEDIATE));
 		start_seq = txs->sequence >> SEQNUM_SHIFT;
@@ -973,9 +968,8 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				   notify rate adaptation.
 				 */
 				if (brcms_c_ffpld_check_txfunfl(wlc,
-							prio2fifo[tid]) > 0) {
+					prio2fifo[tid]) > 0)
 					tx_error = true;
-				}
 			}
 		} else if (txs->phyerr) {
 			update_rate = false;
@@ -1211,9 +1205,8 @@ void brcms_c_ampdu_flush(struct brcms_c_info *wlc,
 
 	ampdu_pars.sta = sta;
 	ampdu_pars.tid = tid;
-	for (prec = 0; prec < pq->num_prec; prec++) {
+	for (prec = 0; prec < pq->num_prec; prec++)
 		brcmu_pktq_pflush(pq, prec, true, cb_del_ampdu_pkt,
 			    (void *)&ampdu_pars);
-	}
 	brcms_c_inval_dma_pkts(wlc->hw, sta, dma_cb_fn_ampdu);
 }

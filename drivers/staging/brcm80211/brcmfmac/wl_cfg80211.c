@@ -677,12 +677,12 @@ brcmf_run_iscan(struct brcmf_cfg80211_iscan_ctrl *iscan,
 	err = brcmf_dev_iovar_setbuf(iscan->dev, "iscan", params, params_size,
 				iscan->ioctl_buf, BRCMF_C_IOCTL_SMLEN);
 	if (unlikely(err)) {
-		if (err == -EBUSY) {
+		if (err == -EBUSY)
 			WL_INFO("system busy : iscan canceled\n");
-		} else {
+		else
 			WL_ERR("error (%d)\n", err);
-		}
 	}
+
 	kfree(params);
 	return err;
 }
@@ -790,12 +790,12 @@ __brcmf_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 		err = brcmf_dev_ioctl(ndev, BRCMF_C_SCAN, &sr->ssid,
 				sizeof(sr->ssid));
 		if (err) {
-			if (err == -EBUSY) {
+			if (err == -EBUSY)
 				WL_INFO("system busy : scan for \"%s\" canceled\n",
 					sr->ssid.SSID);
-			} else {
+			else
 				WL_ERR("WLC_SCAN error (%d)\n", err);
-			}
+
 			brcmf_set_mpc(ndev, 1);
 			goto scan_out;
 		}
@@ -1049,6 +1049,7 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	} else {
 		memcpy(join_params.params.bssid, ether_bcast, ETH_ALEN);
 	}
+
 	brcmf_update_prof(cfg_priv, NULL,
 			  &join_params.params.bssid, WL_PROF_BSSID);
 
@@ -1430,10 +1431,9 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 
 	memcpy(join_params.params.bssid, ether_bcast, ETH_ALEN);
 
-	if (join_params.ssid.SSID_len < IEEE80211_MAX_SSID_LEN) {
+	if (join_params.ssid.SSID_len < IEEE80211_MAX_SSID_LEN)
 		WL_CONN("ssid \"%s\", len (%d)\n",
 		       join_params.ssid.SSID, join_params.ssid.SSID_len);
-	}
 
 	brcmf_ch_to_chanspec(cfg_priv->channel,
 			     &join_params, &join_params_size);
@@ -1946,9 +1946,9 @@ brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 		scb_val.val = 0;
 		err = brcmf_dev_ioctl(dev, BRCMF_C_GET_RSSI, &scb_val,
 				sizeof(struct brcmf_scb_val));
-		if (unlikely(err)) {
+		if (unlikely(err))
 			WL_ERR("Could not get rssi (%d)\n", err);
-		}
+
 		rssi = le32_to_cpu(scb_val.val);
 		sinfo->filled |= STATION_INFO_SIGNAL;
 		sinfo->signal = rssi;
@@ -3523,13 +3523,13 @@ static s32 brcmf_event_handler(void *data)
 			BUG();
 		}
 		WL_INFO("event type (%d)\n", e->etype);
-		if (cfg_priv->el.handler[e->etype]) {
+		if (cfg_priv->el.handler[e->etype])
 			cfg_priv->el.handler[e->etype](cfg_priv,
 						       cfg_to_ndev(cfg_priv),
 						       &e->emsg, e->edata);
-		} else {
+		else
 			WL_INFO("Unknown Event (%d): ignoring\n", e->etype);
-		}
+
 		brcmf_put_event(e);
 	}
 	WL_INFO("was terminated\n");

@@ -244,9 +244,8 @@ brcmu_pktq_pflush(struct pktq *pq, int prec, bool dir,
 		}
 	}
 
-	if (q->head == NULL) {
+	if (q->head == NULL)
 		q->tail = NULL;
-	}
 }
 EXPORT_SYMBOL(brcmu_pktq_pflush);
 
@@ -404,26 +403,23 @@ int brcmu_iovar_lencheck(const struct brcmu_iovar *vi, void *arg, int len,
 	case IOVT_UINT16:
 	case IOVT_UINT32:
 		/* all integers are s32 sized args at the ioctl interface */
-		if (len < (int)sizeof(int)) {
+		if (len < (int)sizeof(int))
 			bcmerror = -EOVERFLOW;
-		}
 		break;
 
 	case IOVT_BUFFER:
 		/* buffer must meet minimum length requirement */
-		if (len < vi->minlen) {
+		if (len < vi->minlen)
 			bcmerror = -EOVERFLOW;
-		}
 		break;
 
 	case IOVT_VOID:
-		if (!set) {
+		if (!set)
 			/* Cannot return nil... */
 			bcmerror = -ENOTSUPP;
-		} else if (len) {
+		else if (len)
 			/* Set is an action w/o parameters */
 			bcmerror = -ENOBUFS;
-		}
 		break;
 
 	default:
@@ -670,10 +666,9 @@ u16 brcmu_qdbm_to_mw(u8 qdbm)
 	uint factor = 1;
 	int idx = qdbm - QDBM_OFFSET;
 
-	if (idx >= QDBM_TABLE_LEN) {
+	if (idx >= QDBM_TABLE_LEN)
 		/* clamp to max u16 mW value */
 		return 0xFFFF;
-	}
 
 	/* scale the qdBm index up to the range of the table 0-40
 	 * where an offset of 40 qdBm equals a factor of 10 mW.

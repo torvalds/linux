@@ -284,18 +284,17 @@ bool brcmf_c_prec_enq(struct brcmf_pub *drvr, struct pktq *q,
 		/* Evict packet according to discard policy */
 		p = discard_oldest ? brcmu_pktq_pdeq(q, eprec) :
 			brcmu_pktq_pdeq_tail(q, eprec);
-		if (p == NULL) {
+		if (p == NULL)
 			BRCMF_ERROR(("%s: brcmu_pktq_penq() failed, oldest %d.",
 				     __func__, discard_oldest));
-		}
+
 		brcmu_pkt_buf_free_skb(p);
 	}
 
 	/* Enqueue */
 	p = brcmu_pktq_penq(q, prec, pkt);
-	if (p == NULL) {
+	if (p == NULL)
 		BRCMF_ERROR(("%s: brcmu_pktq_penq() failed.", __func__));
-	}
 
 	return p != NULL;
 }
@@ -542,20 +541,19 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 
 	case BRCMF_E_ASSOC:
 	case BRCMF_E_REASSOC:
-		if (status == BRCMF_E_STATUS_SUCCESS) {
+		if (status == BRCMF_E_STATUS_SUCCESS)
 			BRCMF_EVENT(("MACEVENT: %s, MAC %s, SUCCESS\n",
 				     event_name, eabuf));
-		} else if (status == BRCMF_E_STATUS_TIMEOUT) {
+		else if (status == BRCMF_E_STATUS_TIMEOUT)
 			BRCMF_EVENT(("MACEVENT: %s, MAC %s, TIMEOUT\n",
 				     event_name, eabuf));
-		} else if (status == BRCMF_E_STATUS_FAIL) {
+		else if (status == BRCMF_E_STATUS_FAIL)
 			BRCMF_EVENT(("MACEVENT: %s, MAC %s, FAILURE,"
 				     " reason %d\n", event_name, eabuf,
 				     (int)reason));
-		} else {
+		else
 			BRCMF_EVENT(("MACEVENT: %s, MAC %s, unexpected status "
 				     "%d\n", event_name, eabuf, (int)status));
-		}
 		break;
 
 	case BRCMF_E_DEAUTH_IND:
@@ -574,16 +572,16 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 			sprintf(err_msg, "AUTH unknown: %d", (int)auth_type);
 			auth_str = err_msg;
 		}
-		if (event_type == BRCMF_E_AUTH_IND) {
+		if (event_type == BRCMF_E_AUTH_IND)
 			BRCMF_EVENT(("MACEVENT: %s, MAC %s, %s\n", event_name,
 				     eabuf, auth_str));
-		} else if (status == BRCMF_E_STATUS_SUCCESS) {
+		else if (status == BRCMF_E_STATUS_SUCCESS)
 			BRCMF_EVENT(("MACEVENT: %s, MAC %s, %s, SUCCESS\n",
 				     event_name, eabuf, auth_str));
-		} else if (status == BRCMF_E_STATUS_TIMEOUT) {
+		else if (status == BRCMF_E_STATUS_TIMEOUT)
 			BRCMF_EVENT(("MACEVENT: %s, MAC %s, %s, TIMEOUT\n",
 				     event_name, eabuf, auth_str));
-		} else if (status == BRCMF_E_STATUS_FAIL) {
+		else if (status == BRCMF_E_STATUS_FAIL) {
 			BRCMF_EVENT(("MACEVENT: %s, MAC %s, %s, FAILURE, "
 				     "reason %d\n",
 				     event_name, eabuf, auth_str, (int)reason));
@@ -594,29 +592,27 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 	case BRCMF_E_JOIN:
 	case BRCMF_E_ROAM:
 	case BRCMF_E_SET_SSID:
-		if (status == BRCMF_E_STATUS_SUCCESS) {
+		if (status == BRCMF_E_STATUS_SUCCESS)
 			BRCMF_EVENT(("MACEVENT: %s, MAC %s\n", event_name,
 				     eabuf));
-		} else if (status == BRCMF_E_STATUS_FAIL) {
+		else if (status == BRCMF_E_STATUS_FAIL)
 			BRCMF_EVENT(("MACEVENT: %s, failed\n", event_name));
-		} else if (status == BRCMF_E_STATUS_NO_NETWORKS) {
+		else if (status == BRCMF_E_STATUS_NO_NETWORKS)
 			BRCMF_EVENT(("MACEVENT: %s, no networks found\n",
 				     event_name));
-		} else {
+		else
 			BRCMF_EVENT(("MACEVENT: %s, unexpected status %d\n",
 				     event_name, (int)status));
-		}
 		break;
 
 	case BRCMF_E_BEACON_RX:
-		if (status == BRCMF_E_STATUS_SUCCESS) {
+		if (status == BRCMF_E_STATUS_SUCCESS)
 			BRCMF_EVENT(("MACEVENT: %s, SUCCESS\n", event_name));
-		} else if (status == BRCMF_E_STATUS_FAIL) {
+		else if (status == BRCMF_E_STATUS_FAIL)
 			BRCMF_EVENT(("MACEVENT: %s, FAIL\n", event_name));
-		} else {
+		else
 			BRCMF_EVENT(("MACEVENT: %s, status %d\n", event_name,
 				     status));
-		}
 		break;
 
 	case BRCMF_E_LINK:
@@ -1111,11 +1107,10 @@ int brcmf_c_preinit_ioctls(struct brcmf_pub *drvr)
 	/* Set Country code */
 	if (drvr->country_code[0] != 0) {
 		if (brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_COUNTRY,
-				     drvr->country_code,
-				     sizeof(drvr->country_code)) < 0) {
+					      drvr->country_code,
+					      sizeof(drvr->country_code)) < 0)
 			BRCMF_ERROR(("%s: country code setting failed\n",
 				     __func__));
-		}
 	}
 
 	/* query for 'ver' to get version info from firmware */

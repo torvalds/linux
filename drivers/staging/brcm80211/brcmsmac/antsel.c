@@ -110,17 +110,16 @@ struct antsel_info *brcms_c_antsel_attach(struct brcms_c_info *wlc)
 			if (((u16) getintvar(asi->pub->vars, "aa2g") == 7) ||
 			    ((u16) getintvar(asi->pub->vars, "aa5g") == 7)) {
 				asi->antsel_avail = true;
-			} else
-			    if (((u16) getintvar(asi->pub->vars, "aa2g") ==
-				 3)
-				|| ((u16) getintvar(asi->pub->vars, "aa5g")
-				    == 3)) {
+			} else if (
+				(u16) getintvar(asi->pub->vars, "aa2g") == 3 ||
+				(u16) getintvar(asi->pub->vars, "aa5g") == 3) {
 				asi->antsel_avail = false;
 			} else {
 				asi->antsel_avail = false;
 				wiphy_err(wlc->wiphy, "antsel_attach: 2o3 "
 					  "board cfg invalid\n");
 			}
+
 			break;
 		default:
 			break;
