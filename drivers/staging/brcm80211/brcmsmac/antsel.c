@@ -259,7 +259,10 @@ static u8 brcms_c_antsel_id2antcfg(struct antsel_info *asi, u8 id)
 	return antcfg;
 }
 
-/* boardlevel antenna selection: convert ant_cfg to mimo_antsel (ucode interface) */
+/*
+ * boardlevel antenna selection:
+ *   convert ant_cfg to mimo_antsel (ucode interface)
+ */
 static u16 brcms_c_antsel_antcfg2antsel(struct antsel_info *asi, u8 ant_cfg)
 {
 	u8 idx = BRCMS_ANTIDX_11N(BRCMS_ANTSEL_11N(ant_cfg));
@@ -293,7 +296,10 @@ static int brcms_c_antsel_cfgupd(struct antsel_info *asi,
 	ant_cfg = antsel->ant_config[ANT_SELCFG_TX_DEF];
 	mimo_antsel = brcms_c_antsel_antcfg2antsel(asi, ant_cfg);
 	brcms_c_write_shm(wlc, M_MIMO_ANTSEL_TXDFLT, mimo_antsel);
-	/* Update driver stats for currently selected default tx/rx antenna config */
+	/*
+	 * Update driver stats for currently selected
+	 * default tx/rx antenna config
+	 */
 	asi->antcfg_cur.ant_config[ANT_SELCFG_TX_DEF] = ant_cfg;
 
 	/* 2) Update RX antconfig for all frames that are not unicast data
@@ -302,7 +308,10 @@ static int brcms_c_antsel_cfgupd(struct antsel_info *asi,
 	ant_cfg = antsel->ant_config[ANT_SELCFG_RX_DEF];
 	mimo_antsel = brcms_c_antsel_antcfg2antsel(asi, ant_cfg);
 	brcms_c_write_shm(wlc, M_MIMO_ANTSEL_RXDFLT, mimo_antsel);
-	/* Update driver stats for currently selected default tx/rx antenna config */
+	/*
+	 * Update driver stats for currently selected
+	 * default tx/rx antenna config
+	 */
 	asi->antcfg_cur.ant_config[ANT_SELCFG_RX_DEF] = ant_cfg;
 
 	return 0;

@@ -22,19 +22,32 @@
 #include "main.h"
 #include "ampdu.h"
 
-#define AMPDU_MAX_MPDU		32	/* max number of mpdus in an ampdu */
-#define AMPDU_NUM_MPDU_LEGACY	16	/* max number of mpdus in an ampdu to a legacy */
-#define AMPDU_TX_BA_MAX_WSIZE	64	/* max Tx ba window size (in pdu) */
-#define AMPDU_TX_BA_DEF_WSIZE	64	/* default Tx ba window size (in pdu) */
-#define AMPDU_RX_BA_DEF_WSIZE   64	/* max Rx ba window size (in pdu) */
-#define AMPDU_RX_BA_MAX_WSIZE   64	/* default Rx ba window size (in pdu) */
-#define	AMPDU_MAX_DUR		5	/* max dur of tx ampdu (in msec) */
-#define AMPDU_DEF_RETRY_LIMIT	5	/* default tx retry limit */
-#define AMPDU_DEF_RR_RETRY_LIMIT	2	/* default tx retry limit at reg rate */
-#define AMPDU_DEF_TXPKT_WEIGHT	2	/* default weight of ampdu in txfifo */
-#define AMPDU_DEF_FFPLD_RSVD	2048	/* default ffpld reserved bytes */
-#define AMPDU_INI_FREE		10	/* # of inis to be freed on detach */
-#define	AMPDU_SCB_MAX_RELEASE	20	/* max # of mpdus released at a time */
+/* max number of mpdus in an ampdu */
+#define AMPDU_MAX_MPDU			32
+/* max number of mpdus in an ampdu to a legacy */
+#define AMPDU_NUM_MPDU_LEGACY		16
+/* max Tx ba window size (in pdu) */
+#define AMPDU_TX_BA_MAX_WSIZE		64
+/* default Tx ba window size (in pdu) */
+#define AMPDU_TX_BA_DEF_WSIZE		64
+/* default Rx ba window size (in pdu) */
+#define AMPDU_RX_BA_DEF_WSIZE		64
+/* max Rx ba window size (in pdu) */
+#define AMPDU_RX_BA_MAX_WSIZE		64
+/* max dur of tx ampdu (in msec) */
+#define	AMPDU_MAX_DUR			5
+/* default tx retry limit */
+#define AMPDU_DEF_RETRY_LIMIT		5
+/* default tx retry limit at reg rate */
+#define AMPDU_DEF_RR_RETRY_LIMIT	2
+/* default weight of ampdu in txfifo */
+#define AMPDU_DEF_TXPKT_WEIGHT		2
+/* default ffpld reserved bytes */
+#define AMPDU_DEF_FFPLD_RSVD		2048
+/* # of inis to be freed on detach */
+#define AMPDU_INI_FREE			10
+/* max # of mpdus released at a time */
+#define	AMPDU_SCB_MAX_RELEASE		20
 
 #define NUM_FFPLD_FIFO 4	/* number of fifo concerned by pre-loading */
 #define FFPLD_TX_MAX_UNFL   200	/* default value of the average number of ampdu
@@ -59,44 +72,70 @@
  * some counters might be redundant with the ones in wlc or ampdu structures.
  * This allows to maintain a specific state independently of
  * how often and/or when the wlc counters are updated.
+ *
+ * ampdu_pld_size: number of bytes to be pre-loaded
+ * mcs2ampdu_table: per-mcs max # of mpdus in an ampdu
+ * prev_txfunfl: num of underflows last read from the HW macstats counter
+ * accum_txfunfl: num of underflows since we modified pld params
+ * accum_txampdu: num of tx ampdu since we modified pld params
+ * prev_txampdu: previous reading of tx ampdu
+ * dmaxferrate: estimated dma avg xfer rate in kbits/sec
  */
 struct brcms_fifo_info {
-	u16 ampdu_pld_size;	/* number of bytes to be pre-loaded */
-	u8 mcs2ampdu_table[FFPLD_MAX_MCS + 1];	/* per-mcs max # of mpdus in an ampdu */
-	u16 prev_txfunfl;	/* num of underflows last read from the HW macstats counter */
-	u32 accum_txfunfl;	/* num of underflows since we modified pld params */
-	u32 accum_txampdu;	/* num of tx ampdu since we modified pld params  */
-	u32 prev_txampdu;	/* previous reading of tx ampdu */
-	u32 dmaxferrate;	/* estimated dma avg xfer rate in kbits/sec */
+	u16 ampdu_pld_size;
+	u8 mcs2ampdu_table[FFPLD_MAX_MCS + 1];
+	u16 prev_txfunfl;
+	u32 accum_txfunfl;
+	u32 accum_txampdu;
+	u32 prev_txampdu;
+	u32 dmaxferrate;
 };
 
-/* AMPDU module specific state */
+/* AMPDU module specific state
+ *
+ * wlc: pointer to main wlc structure
+ * scb_handle: scb cubby handle to retrieve data from scb
+ * ini_enable: per-tid initiator enable/disable of ampdu
+ * ba_tx_wsize: Tx ba window size (in pdu)
+ * ba_rx_wsize: Rx ba window size (in pdu)
+ * retry_limit: mpdu transmit retry limit
+ * rr_retry_limit: mpdu transmit retry limit at regular rate
+ * retry_limit_tid: per-tid mpdu transmit retry limit
+ * rr_retry_limit_tid: per-tid mpdu transmit retry limit at regular rate
+ * mpdu_density: min mpdu spacing (0-7) ==> 2^(x-1)/8 usec
+ * max_pdu: max pdus allowed in ampdu
+ * dur: max duration of an ampdu (in msec)
+ * txpkt_weight: weight of ampdu in txfifo; reduces rate lag
+ * rx_factor: maximum rx ampdu factor (0-3) ==> 2^(13+x) bytes
+ * ffpld_rsvd: number of bytes to reserve for preload
+ * max_txlen: max size of ampdu per mcs, bw and sgi
+ * ini_free: array of ini's to be freed on detach
+ * mfbr: enable multiple fallback rate
+ * tx_max_funl: underflows should be kept such that
+ *		(tx_max_funfl*underflows) < tx frames
+ * fifo_tb: table of fifo infos
+ */
 struct ampdu_info {
-	struct brcms_c_info *wlc;	/* pointer to main wlc structure */
-	int scb_handle;		/* scb cubby handle to retrieve data from scb */
-	u8 ini_enable[AMPDU_MAX_SCB_TID];	/* per-tid initiator enable/disable of ampdu */
-	u8 ba_tx_wsize;	/* Tx ba window size (in pdu) */
-	u8 ba_rx_wsize;	/* Rx ba window size (in pdu) */
-	u8 retry_limit;	/* mpdu transmit retry limit */
-	u8 rr_retry_limit;	/* mpdu transmit retry limit at regular rate */
-	u8 retry_limit_tid[AMPDU_MAX_SCB_TID];	/* per-tid mpdu transmit retry limit */
-	/* per-tid mpdu transmit retry limit at regular rate */
+	struct brcms_c_info *wlc;
+	int scb_handle;
+	u8 ini_enable[AMPDU_MAX_SCB_TID];
+	u8 ba_tx_wsize;
+	u8 ba_rx_wsize;
+	u8 retry_limit;
+	u8 rr_retry_limit;
+	u8 retry_limit_tid[AMPDU_MAX_SCB_TID];
 	u8 rr_retry_limit_tid[AMPDU_MAX_SCB_TID];
-	u8 mpdu_density;	/* min mpdu spacing (0-7) ==> 2^(x-1)/8 usec */
-	s8 max_pdu;		/* max pdus allowed in ampdu */
-	u8 dur;		/* max duration of an ampdu (in msec) */
-	u8 txpkt_weight;	/* weight of ampdu in txfifo; reduces rate lag */
-	u8 rx_factor;	/* maximum rx ampdu factor (0-3) ==> 2^(13+x) bytes */
-	u32 ffpld_rsvd;	/* number of bytes to reserve for preload */
-	u32 max_txlen[MCS_TABLE_SIZE][2][2];	/* max size of ampdu per mcs, bw and sgi */
-	void *ini_free[AMPDU_INI_FREE];	/* array of ini's to be freed on detach */
-	bool mfbr;		/* enable multiple fallback rate */
-	u32 tx_max_funl;	/* underflows should be kept such that
-				 * (tx_max_funfl*underflows) < tx frames
-				 */
-	/* table of fifo infos */
+	u8 mpdu_density;
+	s8 max_pdu;
+	u8 dur;
+	u8 txpkt_weight;
+	u8 rx_factor;
+	u32 ffpld_rsvd;
+	u32 max_txlen[MCS_TABLE_SIZE][2][2];
+	void *ini_free[AMPDU_INI_FREE];
+	bool mfbr;
+	u32 tx_max_funl;
 	struct brcms_fifo_info fifo_tb[NUM_FFPLD_FIFO];
-
 };
 
 /* used for flushing ampdu packets */
@@ -163,7 +202,10 @@ struct ampdu_info *brcms_c_ampdu_attach(struct brcms_c_info *wlc)
 	ampdu->txpkt_weight = AMPDU_DEF_TXPKT_WEIGHT;
 
 	ampdu->ffpld_rsvd = AMPDU_DEF_FFPLD_RSVD;
-	/* bump max ampdu rcv size to 64k for all 11n devices except 4321A0 and 4321A1 */
+	/*
+	 * bump max ampdu rcv size to 64k for all 11n
+	 * devices except 4321A0 and 4321A1
+	 */
 	if (BRCMS_ISNPHY(wlc->band) && NREV_LT(wlc->band->phyrev, 2))
 		ampdu->rx_factor = IEEE80211_HT_MAX_AMPDU_32K;
 	else
@@ -194,7 +236,10 @@ void brcms_c_ampdu_detach(struct ampdu_info *ampdu)
 	if (!ampdu)
 		return;
 
-	/* free all ini's which were to be freed on callbacks which were never called */
+	/*
+	 * free all ini's which were to be freed on
+	 * callbacks which were never called
+	 */
 	for (i = 0; i < AMPDU_INI_FREE; i++)
 		kfree(ampdu->ini_free[i]);
 
@@ -220,7 +265,8 @@ static void brcms_c_scb_ampdu_update_config(struct ampdu_info *ampdu,
 	if (ampdu->max_pdu != AUTO)
 		scb_ampdu->max_pdu = (u8) ampdu->max_pdu;
 
-	scb_ampdu->release = min_t(u8, scb_ampdu->max_pdu, AMPDU_SCB_MAX_RELEASE);
+	scb_ampdu->release = min_t(u8, scb_ampdu->max_pdu,
+				   AMPDU_SCB_MAX_RELEASE);
 
 	if (scb_ampdu->max_rx_ampdu_bytes)
 		scb_ampdu->release = min_t(u8, scb_ampdu->release,
@@ -321,8 +367,8 @@ static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 
 		return 0;
 	}
-	max_mpdu =
-	    min_t(u8, fifo->mcs2ampdu_table[FFPLD_MAX_MCS], AMPDU_NUM_MPDU_LEGACY);
+	max_mpdu = min_t(u8, fifo->mcs2ampdu_table[FFPLD_MAX_MCS],
+			 AMPDU_NUM_MPDU_LEGACY);
 
 	/* In case max value max_pdu is already lower than
 	   the fifo depth, there is nothing more we can do.
@@ -344,11 +390,12 @@ static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 		brcms_c_scb_ampdu_update_config_all(ampdu);
 
 		/*
-		   compute a new dma xfer rate for max_mpdu @ max mcs.
-		   This is the minimum dma rate that
-		   can achieve no underflow condition for the current mpdu size.
+		 * compute a new dma xfer rate for max_mpdu @ max mcs.
+		 * This is the minimum dma rate that can achieve no
+		 * underflow condition for the current mpdu size.
+		 *
+		 * note : we divide/multiply by 100 to avoid integer overflows
 		 */
-		/* note : we divide/multiply by 100 to avoid integer overflows */
 		fifo->dmaxferrate =
 		    (((phy_rate / 100) *
 		      (max_mpdu * FFPLD_MPDU_SIZE - fifo->ampdu_pld_size))
@@ -387,8 +434,8 @@ static void brcms_c_ffpld_calc_mcs2ampdu_table(struct ampdu_info *ampdu, int f)
 
 	/* recompute the dma rate */
 	/* note : we divide/multiply by 100 to avoid integer overflows */
-	max_mpdu =
-	    min_t(u8, fifo->mcs2ampdu_table[FFPLD_MAX_MCS], AMPDU_NUM_MPDU_LEGACY);
+	max_mpdu = min_t(u8, fifo->mcs2ampdu_table[FFPLD_MAX_MCS],
+			 AMPDU_NUM_MPDU_LEGACY);
 	phy_rate = MCS_RATE(FFPLD_MAX_MCS, true, false);
 	dma_rate =
 	    (((phy_rate / 100) *
@@ -666,9 +713,13 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 		if (count == scb_ampdu->max_pdu)
 			break;
 
-		/* check to see if the next pkt is a candidate for aggregation */
+		/*
+		 * check to see if the next pkt is
+		 * a candidate for aggregation
+		 */
 		p = pktq_ppeek(&qi->q, prec);
-		tx_info = IEEE80211_SKB_CB(p);	/* tx_info must be checked with current p */
+		/* tx_info must be checked with current p */
+		tx_info = IEEE80211_SKB_CB(p);
 
 		if (p) {
 			if ((tx_info->flags & IEEE80211_TX_CTL_AMPDU) &&
@@ -683,7 +734,10 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 					continue;
 				}
 
-				/* check if there are enough descriptors available */
+				/*
+				 * check if there are enough
+				 * descriptors available
+				 */
 				if (TXAVAIL(wlc, fifo) <= (seg_cnt + 1)) {
 					wiphy_err(wiphy, "%s: No fifo space  "
 						  "!!\n", __func__);
@@ -962,10 +1016,13 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			    supr_status == TX_STATUS_SUPR_EXPTIME) {
 				retry = false;
 			} else if (supr_status == TX_STATUS_SUPR_EXPTIME) {
-				/* TX underflow : try tuning pre-loading or ampdu size */
+				/* TX underflow:
+				 *   try tuning pre-loading or ampdu size
+				 */
 			} else if (supr_status == TX_STATUS_SUPR_FRAG) {
-				/* if there were underflows, but pre-loading is not active,
-				   notify rate adaptation.
+				/*
+				 * if there were underflows, but pre-loading
+				 * is not active, notify rate adaptation.
 				 */
 				if (brcms_c_ffpld_check_txfunfl(wlc,
 					prio2fifo[tid]) > 0)
@@ -1013,7 +1070,10 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				ini->tx_in_transit--;
 				ini->txretry[index] = 0;
 
-				/* ampdu_ack_len: number of acked aggregated frames */
+				/*
+				 * ampdu_ack_len:
+				 *   number of acked aggregated frames
+				 */
 				/* ampdu_len: number of aggregated frames */
 				brcms_c_ampdu_rate_status(wlc, tx_info, txs,
 							  mcs);
@@ -1038,11 +1098,14 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			if (retry && (txrate[0].count < (int)retry_limit)) {
 				ini->txretry[index]++;
 				ini->tx_in_transit--;
-				/* Use high prededence for retransmit to give some punch */
+				/*
+				 * Use high prededence for retransmit to
+				 * give some punch
+				 */
 				/* brcms_c_txq_enq(wlc, scb, p,
 				 * BRCMS_PRIO_TO_PREC(tid)); */
 				brcms_c_txq_enq(wlc, scb, p,
-					    BRCMS_PRIO_TO_HI_PREC(tid));
+						BRCMS_PRIO_TO_HI_PREC(tid));
 			} else {
 				/* Retry timeout */
 				ini->tx_in_transit--;
@@ -1150,7 +1213,10 @@ void brcms_c_ampdu_shm_upd(struct ampdu_info *ampdu)
 {
 	struct brcms_c_info *wlc = ampdu->wlc;
 
-	/* Extend ucode internal watchdog timer to match larger received frames */
+	/*
+	 * Extend ucode internal watchdog timer to
+	 * match larger received frames
+	 */
 	if ((ampdu->rx_factor & IEEE80211_HT_AMPDU_PARM_FACTOR) ==
 	    IEEE80211_HT_MAX_AMPDU_64K) {
 		brcms_c_write_shm(wlc, M_MIMO_MAXSYM, MIMO_MAXSYM_MAX);

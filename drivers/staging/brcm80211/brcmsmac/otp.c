@@ -24,10 +24,14 @@
 
 #define OTPS_GUP_MASK		0x00000f00
 #define OTPS_GUP_SHIFT		8
-#define OTPS_GUP_HW		0x00000100	/* h/w subregion is programmed */
-#define OTPS_GUP_SW		0x00000200	/* s/w subregion is programmed */
-#define OTPS_GUP_CI		0x00000400	/* chipid/pkgopt subregion is programmed */
-#define OTPS_GUP_FUSE		0x00000800	/* fuse subregion is programmed */
+/* h/w subregion is programmed */
+#define OTPS_GUP_HW		0x00000100
+/* s/w subregion is programmed */
+#define OTPS_GUP_SW		0x00000200
+/* chipid/pkgopt subregion is programmed */
+#define OTPS_GUP_CI		0x00000400
+/* fuse subregion is programmed */
+#define OTPS_GUP_FUSE		0x00000800
 
 /* Fields in otpprog in rev >= 21 */
 #define OTPP_COL_MASK		0x000000ff
@@ -195,8 +199,9 @@ static u16 ipxotp_read_bit(void *oh, struct chipcregs *cc, uint off)
 	return (int)st;
 }
 
-/* Calculate max HW/SW region byte size by subtracting fuse region and checksum size,
- * osizew is oi->wsize (OTP size - GU size) in words
+/*
+ * Calculate max HW/SW region byte size by subtracting fuse region
+ * and checksum size, osizew is oi->wsize (OTP size - GU size) in words
  */
 static int ipxotp_max_rgnsz(struct si_pub *sih, int osizew)
 {
@@ -222,12 +227,18 @@ static void _ipxotp_init(struct otpinfo *oi, struct chipcregs *cc)
 	uint k;
 	u32 otpp, st;
 
-	/* record word offset of General Use Region for various chipcommon revs */
+	/*
+	 * record word offset of General Use Region
+	 * for various chipcommon revs
+	 */
 	if (oi->sih->ccrev == 21 || oi->sih->ccrev == 24
 	    || oi->sih->ccrev == 27) {
 		oi->otpgu_base = REVA4_OTPGU_BASE;
 	} else if (oi->sih->ccrev == 36) {
-		/* OTP size greater than equal to 2KB (128 words), otpgu_base is similar to rev23 */
+		/*
+		 * OTP size greater than equal to 2KB (128 words),
+		 * otpgu_base is similar to rev23
+		 */
 		if (oi->wsize >= 128)
 			oi->otpgu_base = REVB8_OTPGU_BASE;
 		else
@@ -262,8 +273,9 @@ static void _ipxotp_init(struct otpinfo *oi, struct chipcregs *cc)
 	}
 
 	/*
-	 * h/w region base and fuse region limit are fixed to the top and
-	 * the bottom of the general use region. Everything else can be flexible.
+	 * h/w region base and fuse region limit are fixed to
+	 * the top and the bottom of the general use region.
+	 * Everything else can be flexible.
 	 */
 	oi->hwbase = oi->otpgu_base + OTPGU_SROM_OFF;
 	oi->hwlim = oi->wsize;

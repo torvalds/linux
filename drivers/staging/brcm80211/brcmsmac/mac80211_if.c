@@ -606,7 +606,10 @@ brcms_ops_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	    IEEE80211_HT_CAP_SGI_20 |
 	    IEEE80211_HT_CAP_SGI_40 | IEEE80211_HT_CAP_40MHZ_INTOLERANT;
 
-	/* minstrel_ht initiates addBA on our behalf by calling ieee80211_start_tx_ba_session() */
+	/*
+	 * minstrel_ht initiates addBA on our behalf by calling
+	 * ieee80211_start_tx_ba_session()
+	 */
 	return 0;
 }
 
@@ -644,7 +647,10 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 				  tid);
 			return -EINVAL;
 		}
-		/* Future improvement: Use the starting sequence number provided ... */
+		/*
+		 * Future improvement:
+		 *   Use the starting sequence number provided ...
+		 */
 		*ssn = 0;
 		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
@@ -1019,8 +1025,9 @@ static struct ieee80211_supported_band brcms_band_5GHz_nphy = {
 	.bitrates = legacy_ratetable + 4,
 	.n_bitrates = ARRAY_SIZE(legacy_ratetable) - 4,
 	.ht_cap = {
-		   /* use IEEE80211_HT_CAP_* from include/linux/ieee80211.h */
-		   .cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20 | IEEE80211_HT_CAP_SGI_40 | IEEE80211_HT_CAP_40MHZ_INTOLERANT,	/* No 40 mhz yet */
+		   .cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20 |
+			  IEEE80211_HT_CAP_SGI_40 |
+			  IEEE80211_HT_CAP_40MHZ_INTOLERANT, /* No 40 mhz yet */
 		   .ht_supported = true,
 		   .ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K,
 		   .ampdu_density = AMPDU_DEF_MPDU_DENSITY,
@@ -1086,7 +1093,8 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
 	hw->queues = N_TX_QUEUES;
 	hw->max_rates = 2;	/* Primary rate and 1 fallback rate */
 
-	hw->channel_change_time = 7 * 1000;	/* channel change time is dependent on chip and band  */
+	/* channel change time is dependent on chip and band  */
+	hw->channel_change_time = 7 * 1000;
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
 	hw->rate_control_algorithm = "minstrel_ht";
@@ -1361,8 +1369,9 @@ static void brcms_free(struct brcms_info *wl)
 	}
 
 	/*
-	 * unregister_netdev() calls get_stats() which may read chip registers
-	 * so we cannot unmap the chip registers until after calling unregister_netdev() .
+	 * unregister_netdev() calls get_stats() which may read chip
+	 * registers so we cannot unmap the chip registers until
+	 * after calling unregister_netdev() .
 	 */
 	if (wl->regsva && wl->bcm_bustype != SDIO_BUS &&
 	    wl->bcm_bustype != JTAG_BUS)
@@ -1632,7 +1641,8 @@ struct brcms_timer *brcms_init_timer(struct brcms_info *wl,
 	return t;
 }
 
-/* BMAC_NOTE: Add timer adds only the kernel timer since it's going to be more accurate
+/*
+ * adds only the kernel timer since it's going to be more accurate
  * as well as it's easier to make it periodic
  *
  * precondition: perimeter lock has been acquired

@@ -33,8 +33,10 @@
 	((u8 *)curmap + PCI_BAR0_SPROM_OFFSET))
 
 #if defined(BCMDBG)
-#define WRITE_ENABLE_DELAY	500	/* 500 ms after write enable/disable toggle */
-#define WRITE_WORD_DELAY	20	/* 20 ms between each word write */
+/* 500 ms after write enable/disable toggle */
+#define WRITE_ENABLE_DELAY	500
+/* 20 ms between each word write */
+#define WRITE_WORD_DELAY	20
 #endif
 
 /* Maximum srom: 6 Kilobits == 768 bytes */
@@ -260,7 +262,8 @@
 /* Temp sense related entries */
 #define SROM8_MPWR_RAWTS		90
 #define SROM8_TS_SLP_OPT_CORRX	91
-/* FOC: freiquency offset correction, HWIQ: H/W IOCAL enable, IQSWP: IQ CAL swap disable */
+/* FOC: freiquency offset correction, HWIQ: H/W IOCAL enable,
+ * IQSWP: IQ CAL swap disable */
 #define SROM8_FOC_HWIQ_IQSWP	92
 
 /* Temperature delta for PHY calibration */
@@ -349,14 +352,17 @@
 #define SROM9_PO_LOFDM40DUP	203
 
 /* SROM flags (see sromvar_t) */
-#define SRFL_MORE	1	/* value continues as described by the next entry */
+
+/* value continues as described by the next entry */
+#define SRFL_MORE	1
 #define	SRFL_NOFFS	2	/* value bits can't be all one's */
 #define	SRFL_PRHEX	4	/* value is in hexdecimal format */
 #define	SRFL_PRSIGN	8	/* value is in signed decimal format */
 #define	SRFL_CCODE	0x10	/* value is in country code format */
 #define	SRFL_ETHADDR	0x20	/* value is an Ethernet address */
 #define SRFL_LEDDC	0x40	/* value is an LED duty cycle */
-#define SRFL_NOVAR	0x80	/* do not generate a nvram param, entry is for mfgc */
+/* do not generate a nvram param, entry is for mfgc */
+#define SRFL_NOVAR	0x80
 
 /* Max. nvram variable table size */
 #define	MAXSZ_NVRAM_VARS	4096
@@ -375,17 +381,18 @@ struct brcms_varbuf {
 	unsigned int size;	/* current (residual) size in bytes */
 };
 
-/* Assumptions:
- * - Ethernet address spans across 3 consective words
+/*
+ * Assumptions:
+ * - Ethernet address spans across 3 consecutive words
  *
  * Table rules:
- * - Add multiple entries next to each other if a value spans across multiple words
- *   (even multiple fields in the same word) with each entry except the last having
- *   it's SRFL_MORE bit set.
- * - Ethernet address entry does not follow above rule and must not have SRFL_MORE
- *   bit set. Its SRFL_ETHADDR bit implies it takes multiple words.
- * - The last entry's name field must be NULL to indicate the end of the table. Other
- *   entries must have non-NULL name.
+ * - Add multiple entries next to each other if a value spans across multiple
+ *   words (even multiple fields in the same word) with each entry except the
+ *   last having it's SRFL_MORE bit set.
+ * - Ethernet address entry does not follow above rule and must not have
+ *   SRFL_MORE bit set. Its SRFL_ETHADDR bit implies it takes multiple words.
+ * - The last entry's name field must be NULL to indicate the end of the table.
+ *   Other entries must have non-NULL name.
  */
 static const struct brcms_sromvar pci_sromvars[] = {
 	{"devid", 0xffffff00, SRFL_PRHEX | SRFL_NOVAR, PCI_F0DEVID, 0xffff},
@@ -810,12 +817,12 @@ static int varbuf_append(struct brcms_varbuf *b, const char *fmt, ...)
 	r = vsnprintf(b->buf, b->size, fmt, ap);
 	va_end(ap);
 
-	/* C99 snprintf behavior returns r >= size on overflow,
-	 * others return -1 on overflow.
-	 * All return -1 on format error.
-	 * We need to leave room for 2 null terminations, one for the current var
-	 * string, and one for final null of the var table. So check that the
-	 * strlen written, r, leaves room for 2 chars.
+	/*
+	 * C99 snprintf behavior returns r >= size on overflow,
+	 * others return -1 on overflow. All return -1 on format error.
+	 * We need to leave room for 2 null terminations, one for the current
+	 * var string, and one for final null of the var table. So check that
+	 * the strlen written, r, leaves room for 2 chars.
 	 */
 	if ((r == -1) || (r > (int)(b->size - 2))) {
 		b->size = 0;
@@ -902,9 +909,10 @@ sprom_read_pci(struct si_pub *sih, u16 *sprom, uint wordoff,
 	if (check_crc) {
 
 		if (buf[0] == 0xffff)
-			/* The hardware thinks that an srom that starts with 0xffff
-			 * is blank, regardless of the rest of the content, so declare
-			 * it bad.
+			/*
+			 * The hardware thinks that an srom that starts with
+			 * 0xffff is blank, regardless of the rest of the
+			 * content, so declare it bad.
 			 */
 			return -ENODATA;
 
@@ -1081,8 +1089,10 @@ _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, struct brcms_varbuf *b)
 			 *(oncount >> 24) (offcount >> 8)
 			 */
 			else if (flags & SRFL_LEDDC) {
-				u32 w32 = (((val >> 8) & 0xff) << 24) |	/* oncount */
-				    (((val & 0xff)) << 8);	/* offcount */
+				u32 w32 = /* oncount */
+					  (((val >> 8) & 0xff) << 24) |
+					  /* offcount */
+					  (((val & 0xff)) << 8);
 				varbuf_append(b, "leddc=%d", w32);
 			} else if (flags & SRFL_PRHEX)
 				varbuf_append(b, "%s=0x%x", name, val);
@@ -1116,7 +1126,6 @@ _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, struct brcms_varbuf *b)
 				if (pb + srv->off < off)
 					continue;
 
-				/* This entry is for mfgc only. Don't generate param for it, */
 				if (srv->flags & SRFL_NOVAR)
 					continue;
 
@@ -1124,8 +1133,8 @@ _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, struct brcms_varbuf *b)
 				val = (w & srv->mask) >> mask_shift(srv->mask);
 				width = mask_width(srv->mask);
 
-				/* Cheating: no per-path var is more than 1 word */
-
+				/* Cheating: no per-path var is more than
+				 * 1 word */
 				if ((srv->flags & SRFL_NOFFS)
 				    && ((int)val == (1 << width) - 1))
 					continue;
@@ -1203,7 +1212,10 @@ static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 		/* Bitmask for the sromrev */
 		sr = 1 << sromrev;
 
-		/* srom version check: Current valid versions: 1, 2, 3, 4, 5, 8, 9 */
+		/*
+		 * srom version check: Current valid versions: 1, 2, 3, 4, 5, 8,
+		 * 9
+		 */
 		if ((sr & 0x33e) == 0) {
 			err = -EINVAL;
 			goto errout;

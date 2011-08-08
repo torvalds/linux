@@ -53,8 +53,10 @@
  */
 #define SSID_FMT_BUF_LEN	((4 * IEEE80211_MAX_SSID_LEN) + 1)
 
-#define	TIMER_INTERVAL_WATCHDOG	1000	/* watchdog timer, in unit of ms */
-#define	TIMER_INTERVAL_RADIOCHK	800	/* radio monitor timer, in unit of ms */
+/* watchdog timer, in unit of ms */
+#define	TIMER_INTERVAL_WATCHDOG	1000
+/* radio monitor timer, in unit of ms */
+#define	TIMER_INTERVAL_RADIOCHK	800
 
 /* Max MPC timeout, in unit of watchdog */
 #ifndef BRCMS_MPC_MAX_DELAYCNT
@@ -65,12 +67,16 @@
 #define	BRCMS_MPC_MIN_DELAYCNT	1
 #define	BRCMS_MPC_THRESHOLD	3	/* MPC count threshold level */
 
-#define	BEACON_INTERVAL_DEFAULT	100	/* beacon interval, in unit of 1024TU */
-#define	DTIM_INTERVAL_DEFAULT	3	/* DTIM interval, in unit of beacon interval */
+/* beacon interval, in unit of 1024TU */
+#define	BEACON_INTERVAL_DEFAULT	100
+/* DTIM interval, in unit of beacon interval */
+#define	DTIM_INTERVAL_DEFAULT	3
 
 /* Scale down delays to accommodate QT slow speed */
-#define	BEACON_INTERVAL_DEF_QT	20	/* beacon interval, in unit of 1024TU */
-#define	DTIM_INTERVAL_DEF_QT	1	/* DTIM interval, in unit of beacon interval */
+/* beacon interval, in unit of 1024TU */
+#define	BEACON_INTERVAL_DEF_QT	20
+/* DTIM interval, in unit of beacon interval */
+#define	DTIM_INTERVAL_DEF_QT	1
 
 #define	TBTT_ALIGN_LEEWAY_US	100	/* min leeway before first TBTT in us */
 
@@ -163,26 +169,32 @@
 #define AC_VO			3
 
 /*
- * driver maintains internal 'tick'(wlc->pub->now) which increments in 1s OS timer(soft
- * watchdog) it is not a wall clock and won't increment when driver is in "down" state
- * this low resolution driver tick can be used for maintenance tasks such as phy
- * calibration and scb update
+ * driver maintains internal 'tick'(wlc->pub->now) which increments in 1s
+ * OS timer(soft watchdog) it is not a wall clock and won't increment when
+ * driver is in "down" state this low resolution driver tick can be used
+ * for maintenance tasks such as phy calibration and scb update
  */
 
-/* To inform the ucode of the last mcast frame posted so that it can clear moredata bit */
+/*
+ * To inform the ucode of the last mcast frame posted
+ * so that it can clear moredata bit
+ */
 #define BCMCFID(wlc, fid) brcms_b_write_shm((wlc)->hw, M_BCMC_FID, (fid))
 
 #define BRCMS_WAR16165(wlc) (wlc->pub->sih->bustype == PCI_BUS && \
 				(!AP_ENAB(wlc->pub)) && (wlc->war16165))
 
 /* Find basic rate for a given rate */
-#define BRCMS_BASIC_RATE(wlc, rspec)	(IS_MCS(rspec) ? \
-			(wlc)->band->basic_rate[mcs_table[rspec & RSPEC_RATE_MASK].leg_ofdm] : \
-			(wlc)->band->basic_rate[rspec & RSPEC_RATE_MASK])
+#define BRCMS_BASIC_RATE(wlc, rspec) \
+	(IS_MCS(rspec) \
+	? (wlc)->band->basic_rate[mcs_table[rspec & RSPEC_RATE_MASK].leg_ofdm] \
+	: (wlc)->band->basic_rate[rspec & RSPEC_RATE_MASK])
 
-#define FRAMETYPE(r, mimoframe)	(IS_MCS(r) ? mimoframe	: (IS_CCK(r) ? FT_CCK : FT_OFDM))
+#define FRAMETYPE(r, mimoframe)	\
+	(IS_MCS(r) ? mimoframe	: (IS_CCK(r) ? FT_CCK : FT_OFDM))
 
-#define RFDISABLE_DEFAULT	10000000	/* rfdisable delay timer 500 ms, runs of ALP clock */
+/* rfdisable delay timer 500 ms, runs of ALP clock */
+#define RFDISABLE_DEFAULT	10000000
 
 #define BRCMS_TEMPSENSE_PERIOD		10	/* 10 second timeout */
 
@@ -193,7 +205,8 @@
 /* precedences numbers for wlc queues. These are twice as may levels as
  * 802.1D priorities.
  * Odd numbers are used for HI priority traffic at same precedence levels
- * These constants are used ONLY by wlc_prio2prec_map.  Do not use them elsewhere.
+ * These constants are used ONLY by wlc_prio2prec_map.  Do not use them
+ * elsewhere.
  */
 #define	_BRCMS_PREC_NONE		0	/* None = - */
 #define	_BRCMS_PREC_BK		2	/* BK - Background */
@@ -216,11 +229,9 @@
 #define MBSS_PRB_ENAB(cfg)       0
 #define SOFTBCN_ENAB(pub)    (0)
 
-#define	TIMER_INTERVAL_WATCHDOG_BMAC	1000	/* watchdog timer, in unit of ms */
-
 #define	SYNTHPU_DLY_APHY_US	3700	/* a phy synthpu_dly time in us */
-#define	SYNTHPU_DLY_BPHY_US	1050	/* b/g phy synthpu_dly time in us, default */
-#define	SYNTHPU_DLY_NPHY_US	2048	/* n phy REV3 synthpu_dly time in us, default */
+#define	SYNTHPU_DLY_BPHY_US	1050	/* b/g phy synthpu_dly time in us */
+#define	SYNTHPU_DLY_NPHY_US	2048	/* n phy REV3 synthpu_dly time in us */
 #define	SYNTHPU_DLY_LPPHY_US	300	/* lpphy synthpu_dly time in us */
 
 #define	SYNTHPU_DLY_PHY_US_QT	100	/* QT synthpu_dly time in us */
@@ -244,7 +255,8 @@
  * the twiki is updated before making changes.
  */
 
-#define XMTFIFOTBL_STARTREV	20	/* Starting corerev for the fifo size table */
+/* Starting corerev for the fifo size table */
+#define XMTFIFOTBL_STARTREV	20
 
 /* Check if a particular BSS config is AP or STA */
 #define BSSCFG_AP(cfg)		(0)
@@ -487,11 +499,16 @@ const u8 wlc_prio2prec_map[] = {
 };
 
 static u16 xmtfifo_sz[][NFIFO] = {
-	{20, 192, 192, 21, 17, 5},	/* corerev 20: 5120, 49152, 49152, 5376, 4352, 1280 */
-	{9, 58, 22, 14, 14, 5},	/* corerev 21: 2304, 14848, 5632, 3584, 3584, 1280 */
-	{20, 192, 192, 21, 17, 5},	/* corerev 22: 5120, 49152, 49152, 5376, 4352, 1280 */
-	{20, 192, 192, 21, 17, 5},	/* corerev 23: 5120, 49152, 49152, 5376, 4352, 1280 */
-	{9, 58, 22, 14, 14, 5},	/* corerev 24: 2304, 14848, 5632, 3584, 3584, 1280 */
+	/* corerev 20: 5120, 49152, 49152, 5376, 4352, 1280 */
+	{20, 192, 192, 21, 17, 5},
+	/* corerev 21: 2304, 14848, 5632, 3584, 3584, 1280 */
+	{9, 58, 22, 14, 14, 5},
+	/* corerev 22: 5120, 49152, 49152, 5376, 4352, 1280 */
+	{20, 192, 192, 21, 17, 5},
+	/* corerev 23: 5120, 49152, 49152, 5376, 4352, 1280 */
+	{20, 192, 192, 21, 17, 5},
+	/* corerev 24: 2304, 14848, 5632, 3584, 3584, 1280 */
+	{9, 58, 22, 14, 14, 5},
 };
 
 static const u8 acbitmap2maxprio[] = {
@@ -631,7 +648,9 @@ brcms_b_recv(struct brcms_hardware *wlc_hw, uint fifo, bool bound)
 
 		wlc_rxhdr = (struct brcms_d11rxhdr *) p->data;
 
-		/* compute the RSSI from d11rxhdr and record it in wlc_rxd11hr */
+		/*
+		 * compute the RSSI from d11rxhdr and record it in wlc_rxd11hr
+		 */
 		wlc_phy_rssi_compute(wlc_hw->band->pi, wlc_rxhdr);
 
 		brcms_c_recv(wlc_hw->wlc, p);
@@ -645,9 +664,9 @@ brcms_b_dotxstatus(struct brcms_hardware *wlc_hw, struct tx_status *txs,
 		   u32 s2)
 {
 	/* discard intermediate indications for ucode with one legitimate case:
-	 *   e.g. if "useRTS" is set. ucode did a successful rts/cts exchange, but the subsequent
-	 *   tx of DATA failed. so it will start rts/cts from the beginning (resetting the rts
-	 *   transmission count)
+	 *   e.g. if "useRTS" is set. ucode did a successful rts/cts exchange,
+	 *   but the subsequent tx of DATA failed. so it will start rts/cts from
+	 *   the beginning (resetting the rts transmission count)
 	 */
 	if (!(txs->status & TX_STATUS_AMPDU)
 	    && (txs->status & TX_STATUS_INTERMEDIATE))
@@ -768,7 +787,10 @@ bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded)
 		wlc->qvalid = 0;
 	}
 
-	/* received data or control frame, MI_DMAINT is indication of RX_FIFO interrupt */
+	/*
+	 * received data or control frame, MI_DMAINT is
+	 * indication of RX_FIFO interrupt
+	 */
 	if (macintstatus & MI_DMAINT)
 		if (brcms_b_recv(wlc_hw, RX_FIFO, bounded))
 			wlc->macintstatus |= MI_DMAINT;
@@ -826,7 +848,9 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 {
 	uint i;
 	char name[8];
-	/* ucode host flag 2 needed for pio mode, independent of band and fifo */
+	/*
+	 * ucode host flag 2 needed for pio mode, independent of band and fifo
+	 */
 	u16 pio_mhf2 = 0;
 	struct brcms_hardware *wlc_hw = wlc->hw;
 	uint unit = wlc_hw->unit;
@@ -979,10 +1003,10 @@ static int brcms_b_bandtype(struct brcms_hardware *wlc_hw)
 static void brcms_b_clkctl_clk(struct brcms_hardware *wlc_hw, uint mode)
 {
 	if (PMUCTL_ENAB(wlc_hw->sih)) {
-		/* new chips with PMU, CCS_FORCEHT will distribute the HT clock on backplane,
-		 *  but mac core will still run on ALP(not HT) when it enters powersave mode,
-		 *      which means the FCA bit may not be set.
-		 *      should wakeup mac if driver wants it to run on HT.
+		/* new chips with PMU, CCS_FORCEHT will distribute the HT clock
+		 * on backplane, but mac core will still run on ALP(not HT) when
+		 * it enters powersave mode, which means the FCA bit may not be
+		 * set. Should wakeup mac if driver wants it to run on HT.
 		 */
 
 		if (wlc_hw->clk) {
@@ -1027,14 +1051,15 @@ static void brcms_b_clkctl_clk(struct brcms_hardware *wlc_hw, uint mode)
 			WARN_ON(!(ai_core_sflags(wlc_hw->sih, 0, 0) &
 				  SISF_FCLKA));
 
-		/* keep the ucode wake bit on if forcefastclk is on
-		 * since we do not want ucode to put us back to slow clock
-		 * when it dozes for PM mode.
-		 * Code below matches the wake override bit with current forcefastclk state
-		 * Only setting bit in wake_override instead of waking ucode immediately
-		 * since old code (wlc.c 1.4499) had this behavior. Older code set
-		 * wlc->forcefastclk but only had the wake happen if the wakup_ucode work
-		 * (protected by an up check) was executed just below.
+		/*
+		 * keep the ucode wake bit on if forcefastclk is on since we
+		 * do not want ucode to put us back to slow clock when it dozes
+		 * for PM mode. Code below matches the wake override bit with
+		 * current forcefastclk state. Only setting bit in wake_override
+		 * instead of waking ucode immediately since old code had this
+		 * behavior. Older code set wlc->forcefastclk but only had the
+		 * wake happen if the wakup_ucode work (protected by an up
+		 * check) was executed just below.
 		 */
 		if (wlc_hw->forcefastclk)
 			mboolset(wlc_hw->wake_override,
@@ -1176,7 +1201,10 @@ void brcms_b_mctrl(struct brcms_hardware *wlc_hw, u32 mask, u32 val)
 	brcms_c_mctrl_write(wlc_hw);
 }
 
-/* write the software state of maccontrol and overrides to the maccontrol register */
+/*
+ * write the software state of maccontrol and
+ * overrides to the maccontrol register
+ */
 static void brcms_c_mctrl_write(struct brcms_hardware *wlc_hw)
 {
 	u32 maccontrol = wlc_hw->maccontrol;
@@ -1418,7 +1446,10 @@ static void brcms_b_bsinit(struct brcms_c_info *wlc, u16 chanspec)
 
 	brcms_c_ucode_txant_set(wlc_hw);
 
-	/* cwmin is band-specific, update hardware with value for current band */
+	/*
+	 * cwmin is band-specific, update hardware
+	 * with value for current band
+	 */
 	brcms_b_set_cwmin(wlc_hw, wlc_hw->band->CWmin);
 	brcms_b_set_cwmax(wlc_hw, wlc_hw->band->CWmax);
 
@@ -1431,7 +1462,10 @@ static void brcms_b_bsinit(struct brcms_c_info *wlc, u16 chanspec)
 	brcms_b_write_shm(wlc_hw, M_PHYTYPE, (u16) wlc_hw->band->phytype);
 	brcms_b_write_shm(wlc_hw, M_PHYVER, (u16) wlc_hw->band->phyrev);
 
-	/* initialize the txphyctl1 rate table since shmem is shared between bands */
+	/*
+	 * initialize the txphyctl1 rate table since
+	 * shmem is shared between bands
+	 */
 	brcms_upd_ofdm_pctl1_table(wlc_hw);
 
 	brcms_b_upd_synthpu(wlc_hw);
@@ -1590,7 +1624,10 @@ void brcms_c_setxband(struct brcms_hardware *wlc_hw, uint bandunit)
 
 	wlc_hw->band = wlc_hw->bandstate[bandunit];
 
-	/* BMAC_NOTE: until we eliminate need for wlc->band refs in low level code */
+	/*
+	 * BMAC_NOTE:
+	 *   until we eliminate need for wlc->band refs in low level code
+	 */
 	wlc_hw->wlc->band = wlc_hw->wlc->bandstate[bandunit];
 
 	/* set gmode core flag */
@@ -1689,7 +1726,10 @@ bool brcms_b_radio_read_hwdisabled(struct brcms_hardware *wlc_hw)
 		 */
 		flags |= SICF_PCLKE;
 
-		/* AI chip doesn't restore bar0win2 on hibernation/resume, need sw fixup */
+		/*
+		 * AI chip doesn't restore bar0win2 on
+		 * hibernation/resume, need sw fixup
+		 */
 		if ((wlc_hw->sih->chip == BCM43224_CHIP_ID) ||
 		    (wlc_hw->sih->chip == BCM43225_CHIP_ID))
 			wlc_hw->regs = (struct d11regs *)
@@ -1771,12 +1811,15 @@ void brcms_b_corereset(struct brcms_hardware *wlc_hw, u32 flags)
 	 */
 	flags |= SICF_PCLKE;
 
-	/* reset the core
-	 * In chips with PMU, the fastclk request goes through d11 core reg 0x1e0, which
-	 *  is cleared by the core_reset. have to re-request it.
-	 *  This adds some delay and we can optimize it by also requesting fastclk through
-	 *  chipcommon during this period if necessary. But that has to work coordinate
-	 *  with other driver like mips/arm since they may touch chipcommon as well.
+	/*
+	 * reset the core
+	 * In chips with PMU, the fastclk request goes through d11 core
+	 * reg 0x1e0, which is cleared by the core_reset. have to re-request it.
+	 *
+	 * This adds some delay and we can optimize it by also requesting
+	 * fastclk through chipcommon during this period if necessary. But
+	 * that has to work coordinate with other driver like mips/arm since
+	 * they may touch chipcommon as well.
 	 */
 	wlc_hw->clk = false;
 	ai_core_reset(wlc_hw->sih, flags, resetbits);
@@ -1948,7 +1991,10 @@ static void brcms_c_gpio_init(struct brcms_c_info *wlc)
 				   ANTSEL_CLKDIV_4MHZ);
 	}
 
-	/* gpio 9 controls the PA.  ucode is responsible for wiggling out and oe */
+	/*
+	 * gpio 9 controls the PA. ucode is responsible
+	 * for wiggling out and oe
+	 */
 	if (wlc_hw->boardflags & BFL_PACTRL)
 		gm |= gc |= BOARD_GPIO_PACTRL;
 
@@ -2134,11 +2180,11 @@ void brcms_c_intrson(struct brcms_c_info *wlc)
 	W_REG(&wlc_hw->regs->macintmask, wlc->macintmask);
 }
 
-/* callback for siutils.c, which has only wlc handler, no wl
- * they both check up, not only because there is no need to off/restore d11 interrupt
- *  but also because per-port code may require sync with valid interrupt.
+/*
+ * callback for siutils.c, which has only wlc handler, no wl they both check
+ * up, not only because there is no need to off/restore d11 interrupt but also
+ * because per-port code may require sync with valid interrupt.
  */
-
 static u32 brcms_c_wlintrsoff(struct brcms_c_info *wlc)
 {
 	if (!wlc->hw->up)
@@ -2203,9 +2249,10 @@ static void brcms_b_tx_fifo_suspend(struct brcms_hardware *wlc_hw,
 	wlc_hw->suspended_fifos |= fifo;
 
 	if (wlc_hw->di[tx_fifo]) {
-		/* Suspending AMPDU transmissions in the middle can cause underflow
-		 * which may result in mismatch between ucode and driver
-		 * so suspend the mac before suspending the FIFO
+		/*
+		 * Suspending AMPDU transmissions in the middle can cause
+		 * underflow which may result in mismatch between ucode and
+		 * driver so suspend the mac before suspending the FIFO
 		 */
 		if (BRCMS_PHY_11N_CAP(wlc_hw->band))
 			brcms_c_suspend_mac_and_wait(wlc_hw->wlc);
@@ -2268,11 +2315,12 @@ static bool brcms_b_tx_fifo_suspended(struct brcms_hardware *wlc_hw,
 	/* check that a suspend has been requested and is no longer pending */
 
 	/*
-	 * for DMA mode, the suspend request is set in xmtcontrol of the DMA engine,
-	 * and the tx fifo suspend at the lower end of the MAC is acknowledged in the
-	 * chnstatus register.
-	 * The tx fifo suspend completion is independent of the DMA suspend completion and
-	 *   may be acked before or after the DMA is suspended.
+	 * for DMA mode, the suspend request is set in xmtcontrol of the DMA
+	 * engine, and the tx fifo suspend at the lower end of the MAC is
+	 * acknowledged in the chnstatus register.
+	 *
+	 * The tx fifo suspend completion is independent of the DMA suspend
+	 * completion and may be acked before or after the DMA is suspended.
 	 */
 	if (dma_txsuspended(wlc_hw->di[tx_fifo]) &&
 	    (R_REG(&wlc_hw->regs->chnstatus) &
@@ -2709,8 +2757,10 @@ void brcms_b_core_phypll_ctl(struct brcms_hardware *wlc_hw, bool on)
 					  "PHY PLL failed\n", __func__);
 		}
 	} else {
-		/* Since the PLL may be shared, other cores can still be requesting it;
-		 * so we'll deassert the request but not wait for status to comply.
+		/*
+		 * Since the PLL may be shared, other cores can still
+		 * be requesting it; so we'll deassert the request but
+		 * not wait for status to comply.
 		 */
 		AND_REG(&regs->clk_ctl_st, ~CCS_ERSRC_REQ_PHYPLL);
 		tmp = R_REG(&regs->clk_ctl_st);
@@ -2759,7 +2809,10 @@ static void brcms_b_xtal(struct brcms_hardware *wlc_hw, bool want)
 {
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d: want %d\n", wlc_hw->unit, want);
 
-	/* dont power down if plldown is false or we must poll hw radio disable */
+	/*
+	 * dont power down if plldown is false or
+	 * we must poll hw radio disable
+	 */
 	if (!want && wlc_hw->pllreq)
 		return;
 
@@ -2942,7 +2995,9 @@ void brcms_b_antsel_set(struct brcms_hardware *wlc_hw, u32 antsel_avail)
 	wlc_hw->antsel_avail = antsel_avail;
 }
 
-/* conditions under which the PM bit should be set in outgoing frames and STAY_AWAKE is meaningful
+/*
+ * conditions under which the PM bit should be set in outgoing frames
+ * and STAY_AWAKE is meaningful
  */
 bool brcms_c_ps_allowed(struct brcms_c_info *wlc)
 {
@@ -3259,7 +3314,8 @@ brcms_b_init(struct brcms_hardware *wlc_hw, u16 chanspec,
 	mboolset(wlc_hw->wake_override, BRCMS_WAKE_OVERRIDE_MACSUSPEND);
 
 	/*
-	 * initialize mac_suspend_depth to 1 to match ucode initial suspended state
+	 * initialize mac_suspend_depth to 1 to match ucode
+	 * initial suspended state
 	 */
 	wlc_hw->mac_suspend_depth = 1;
 
@@ -3280,8 +3336,10 @@ void brcms_c_init(struct brcms_c_info *wlc)
 
 	regs = wlc->regs;
 
-	/* This will happen if a big-hammer was executed. In that case, we want to go back
-	 * to the channel that we were on and not new channel
+	/*
+	 * This will happen if a big-hammer was executed. In
+	 * that case, we want to go back to the channel that
+	 * we were on and not new channel
 	 */
 	if (wlc->pub->associated)
 		chanspec = wlc->home_chanspec;
@@ -3341,7 +3399,10 @@ void brcms_c_init(struct brcms_c_info *wlc)
 	brcms_c_duty_cycle_set(wlc, wlc->tx_duty_cycle_ofdm, true, true);
 	brcms_c_duty_cycle_set(wlc, wlc->tx_duty_cycle_cck, false, true);
 
-	/* Update some shared memory locations related to max AMPDU size allowed to received */
+	/*
+	 * Update some shared memory locations related to
+	 * max AMPDU size allowed to received
+	 */
 	brcms_c_ampdu_shm_upd(wlc->ampdu);
 
 	/* band-specific inits */
@@ -3412,9 +3473,11 @@ void brcms_c_mac_promisc(struct brcms_c_info *wlc)
 {
 	u32 promisc_bits = 0;
 
-	/* promiscuous mode just sets MCTL_PROMISC
-	 * Note: APs get all BSS traffic without the need to set the MCTL_PROMISC bit
-	 * since all BSS data traffic is directed at the AP
+	/*
+	 * promiscuous mode just sets MCTL_PROMISC
+	 * Note: APs get all BSS traffic without the need to set
+	 * the MCTL_PROMISC bit since all BSS data traffic is
+	 * directed at the AP
 	 */
 	if (PROMISC_ENAB(wlc->pub) && !AP_ENAB(wlc->pub))
 		promisc_bits |= MCTL_PROMISC;
@@ -3559,7 +3622,10 @@ static u8 brcms_c_local_constraint_qdbm(struct brcms_c_info *wlc)
 	return local;
 }
 
-/* propagate home chanspec to all bsscfgs in case bsscfg->current_bss->chanspec is referenced */
+/*
+ * propagate home chanspec to all bsscfgs in
+ * case bsscfg->current_bss->chanspec is referenced
+ */
 void brcms_c_set_home_chanspec(struct brcms_c_info *wlc, u16 chanspec)
 {
 	if (wlc->home_chanspec != chanspec) {
@@ -3714,7 +3780,10 @@ u32 brcms_c_lowest_basic_rspec(struct brcms_c_info *wlc,
 		}
 	}
 #if NCONF
-	/* pick siso/cdd as default for OFDM (note no basic rate MCSs are supported yet) */
+	/*
+	 * pick siso/cdd as default for OFDM (note no basic
+	 * rate MCSs are supported yet)
+	 */
 	if (IS_OFDM(lowest_basic_rspec))
 		lowest_basic_rspec |= (wlc->stf->ss_opmode << RSPEC_STF_SHIFT);
 
@@ -3723,8 +3792,9 @@ u32 brcms_c_lowest_basic_rspec(struct brcms_c_info *wlc,
 	return lowest_basic_rspec;
 }
 
-/* This function changes the phytxctl for beacon based on current beacon ratespec AND txant
- * setting as per this table:
+/*
+ * This function changes the phytxctl for beacon based on current
+ * beacon ratespec AND txant setting as per this table:
  *  ratespec     CCK		ant = wlc->stf->txant
  *		OFDM		ant = 3
  */
@@ -3744,9 +3814,11 @@ void brcms_c_beacon_phytxctl_txant_upd(struct brcms_c_info *wlc,
 	brcms_c_write_shm(wlc, M_BCN_PCTLWD, phyctl);
 }
 
-/* centralized protection config change function to simplify debugging, no consistency checking
- * this should be called only on changes to avoid overhead in periodic function
-*/
+/*
+ * centralized protection config change function to simplify debugging, no
+ * consistency checking this should be called only on changes to avoid overhead
+ * in periodic function
+ */
 void brcms_c_protection_upd(struct brcms_c_info *wlc, uint idx, int val)
 {
 	BCMMSG(wlc->wiphy, "idx %d, val %d\n", idx, val);
@@ -3833,11 +3905,14 @@ static void brcms_c_ucode_mac_upd(struct brcms_c_info *wlc)
 	 */
 	if (wlc->home_chanspec == BRCMS_BAND_PI_RADIO_CHANSPEC) {
 		if (wlc->pub->associated) {
-			/* BMAC_NOTE: This is something that should be fixed in ucode inits.
-			 * I think that the ucode inits set up the bcn templates and shm values
-			 * with a bogus beacon. This should not be done in the inits. If ucode needs
-			 * to set up a beacon for testing, the test routines should write it down,
-			 * not expect the inits to populate a bogus beacon.
+			/*
+			 * BMAC_NOTE: This is something that should be fixed
+			 * in ucode inits. I think that the ucode inits set
+			 * up the bcn templates and shm values with a bogus
+			 * beacon. This should not be done in the inits. If
+			 * ucode needs to set up a beacon for testing, the
+			 * test routines should write it down, not expect the
+			 * inits to populate a bogus beacon.
 			 */
 			if (BRCMS_PHY_11N_CAP(wlc->band))
 				brcms_c_write_shm(wlc, M_BCN_TXTSF_OFFSET,
@@ -3861,8 +3936,8 @@ static void brcms_c_bandinit_ordered(struct brcms_c_info *wlc,
 
 	BCMMSG(wlc->wiphy, "wl%d\n", wlc->pub->unit);
 	/*
-	 * We might have been bandlocked during down and the chip power-cycled (hibernate).
-	 * figure out the right band to park on
+	 * We might have been bandlocked during down and the chip
+	 * power-cycled (hibernate). Figure out the right band to park on
 	 */
 	if (wlc->bandlocked || NBANDS(wlc) == 1) {
 		/* updated in brcms_c_bandlock() */
@@ -3939,7 +4014,10 @@ static void brcms_c_setband(struct brcms_c_info *wlc,
 	brcms_c_bsinit(wlc);
 }
 
-/* Initialize a WME Parameter Info Element with default STA parameters from WMM Spec, Table 12 */
+/*
+ * Initialize a WME Parameter Info Element with default
+ * STA parameters from WMM Spec, Table 12
+ */
 void
 brcms_c_wme_initparams_sta(struct brcms_c_info *wlc, struct wme_param_ie *pe)
 {
@@ -4165,7 +4243,8 @@ void brcms_c_info_init(struct brcms_c_info *wlc, int unit)
 	wlc->pub->_wme = AUTO;
 
 #ifdef BCMSDIODEV_ENABLED
-	wlc->pub->_priofc = true;	/* enable priority flow control for sdio dongle */
+	/* enable priority flow control for sdio dongle */
+	wlc->pub->_priofc = true;
 #endif
 
 	wlc->pub->_ampdu = AMPDU_AGG_HOST;
@@ -4263,9 +4342,8 @@ int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
 	brcms_b_info_init(wlc_hw);
 
 	/*
-	 * Do the hardware portion of the attach.
-	 * Also initialize software state that depends on the particular hardware
-	 * we are running.
+	 * Do the hardware portion of the attach. Also initialize software
+	 * state that depends on the particular hardware we are running.
 	 */
 	wlc_hw->sih = ai_attach(regsva, bustype, btparam,
 				&wlc_hw->vars, &wlc_hw->vars_size);
@@ -4338,8 +4416,9 @@ int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
 
 	/* request fastclock and force fastclock for the rest of attach
 	 * bring the d11 core out of reset.
-	 *   For PMU chips, the first wlc_clkctl_clk is no-op since core-clk is still false;
-	 *   But it will be called again inside wlc_corereset, after d11 is out of reset.
+	 *   For PMU chips, the first wlc_clkctl_clk is no-op since core-clk
+	 *   is still false; But it will be called again inside wlc_corereset,
+	 *   after d11 is out of reset.
 	 */
 	brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
 	brcms_b_corereset(wlc_hw, BRCMS_USE_COREFLAGS);
@@ -4505,11 +4584,14 @@ int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
 		}
 
  good_phy:
-		/* BMAC_NOTE: wlc->band->pi should not be set below and should be done in the
-		 * high level attach. However we can not make that change until all low level access
-		 * is changed to wlc_hw->band->pi. Instead do the wlc->band->pi init below, keeping
-		 * wlc_hw->band->pi as well for incremental update of low level fns, and cut over
-		 * low only init when all fns updated.
+		/*
+		 * BMAC_NOTE: wlc->band->pi should not be set below and should
+		 * be done in the high level attach. However we can not make
+		 * that change until all low level access is changed to
+		 * wlc_hw->band->pi. Instead do the wlc->band->pi init below,
+		 * keeping wlc_hw->band->pi as well for incremental update of
+		 * low level fns, and cut over low only init when all fns
+		 * updated.
 		 */
 		wlc->band->pi = wlc_hw->band->pi;
 		wlc->band->phytype = wlc_hw->band->phytype;
@@ -4541,7 +4623,7 @@ int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
 	/* turn off pll and xtal to match driver "down" state */
 	brcms_b_xtal(wlc_hw, OFF);
 
-	/* *********************************************************************
+	/* *******************************************************************
 	 * The hardware is in the DOWN state at this point. D11 core
 	 * or cores are in reset with clocks off, and the board PLLs
 	 * are off if possible.
@@ -4630,8 +4712,10 @@ void *brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	if (err)
 		goto fail;
 
-	/* for some states, due to different info pointer(e,g, wlc, wlc_hw) or master/slave split,
-	 * HIGH driver(both monolithic and HIGH_ONLY) needs to sync states FROM BMAC portion driver
+	/*
+	 * for some states, due to different info pointer(e,g, wlc, wlc_hw) or
+	 * master/slave split, HIGH driver(both monolithic and HIGH_ONLY) needs
+	 * to sync states FROM BMAC portion driver
 	 */
 	if (!brcms_c_state_bmac_sync(wlc)) {
 		err = 20;
@@ -4719,7 +4803,10 @@ void *brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 				   (bool) N_ENAB(wlc->pub));
 	}
 
-	/* update antenna config due to wlc->stf->txant/txchain/ant_rx_ovr change */
+	/*
+	 * update antenna config due to
+	 * wlc->stf->txant/txchain/ant_rx_ovr change
+	 */
 	brcms_c_stf_phy_txant_upd(wlc);
 
 	/* attach each modules */
@@ -4847,14 +4934,17 @@ static void brcms_c_attach_antgain_init(struct brcms_c_info *wlc)
 	} else {
 		s8 gain, fract;
 		/* Older sroms specified gain in whole dbm only.  In order
-		 * be able to specify qdbm granularity and remain backward compatible
-		 * the whole dbms are now encoded in only low 6 bits and remaining qdbms
-		 * are encoded in the hi 2 bits. 6 bit signed number ranges from
-		 * -32 - 31. Examples: 0x1 = 1 db,
+		 * be able to specify qdbm granularity and remain backward
+		 * compatible the whole dbms are now encoded in only
+		 * low 6 bits and remaining qdbms are encoded in the hi 2 bits.
+		 * 6 bit signed number ranges from -32 - 31.
+		 *
+		 * Examples:
+		 * 0x1 = 1 db,
 		 * 0xc1 = 1.75 db (1 + 3 quarters),
 		 * 0x3f = -1 (-1 + 0 quarters),
-		 * 0x7f = -.75 (-1 in low 6 bits + 1 quarters in hi 2 bits) = -3 qdbm.
-		 * 0xbf = -.50 (-1 in low 6 bits + 2 quarters in hi 2 bits) = -2 qdbm.
+		 * 0x7f = -.75 (-1 + 1 quarters) = -3 qdbm.
+		 * 0xbf = -.50 (-1 + 2 quarters) = -2 qdbm.
 		 */
 		gain = wlc->band->antgain & 0x3f;
 		gain <<= 2;	/* Sign extend */
@@ -4946,8 +5036,10 @@ int brcms_b_detach(struct brcms_c_info *wlc)
 	callbacks = 0;
 
 	if (wlc_hw->sih) {
-		/* detach interrupt sync mechanism since interrupt is disabled and per-port
-		 * interrupt object may has been freed. this must be done before sb core switch
+		/*
+		 * detach interrupt sync mechanism since interrupt is disabled
+		 * and per-port interrupt object may has been freed. this must
+		 * be done before sb core switch
 		 */
 		ai_deregister_intr_callback(wlc_hw->sih);
 
@@ -5050,7 +5142,10 @@ static void brcms_c_radio_hwdisable_upd(struct brcms_c_info *wlc)
 		mboolclr(wlc->pub->radio_disabled, WL_RADIO_HW_DISABLE);
 }
 
-/* return true if Minimum Power Consumption should be entered, false otherwise */
+/*
+ * return true if Minimum Power Consumption should
+ * be entered, false otherwise
+ */
 bool brcms_c_is_non_delay_mpc(struct brcms_c_info *wlc)
 {
 	return false;
@@ -5082,9 +5177,10 @@ void brcms_c_radio_mpc_upd(struct brcms_c_info *wlc)
 	}
 
 	/*
-	 * sync ismpc logic with WL_RADIO_MPC_DISABLE bit in wlc->pub->radio_disabled
-	 * to go ON, always call radio_upd synchronously
-	 * to go OFF, postpone radio_upd to later when context is safe(e.g. watchdog)
+	 * sync ismpc logic with WL_RADIO_MPC_DISABLE bit in
+	 * wlc->pub->radio_disabled to go ON, always call radio_upd
+	 * synchronously to go OFF, postpone radio_upd to later when
+	 * context is safe(e.g. watchdog)
 	 */
 	radio_state =
 	    (mboolisset(wlc->pub->radio_disabled, WL_RADIO_MPC_DISABLE) ? OFF :
@@ -5102,9 +5198,11 @@ void brcms_c_radio_mpc_upd(struct brcms_c_info *wlc)
 			wlc->mpc_dlycnt = BRCMS_MPC_MIN_DELAYCNT;
 		wlc->mpc_dur += OSL_SYSUPTIME() - wlc->mpc_laston_ts;
 	}
-	/* Below logic is meant to capture the transition from mpc off to mpc on for reasons
-	 * other than wlc->mpc_delay_off keeping the mpc off. In that case reset
-	 * wlc->mpc_delay_off to wlc->mpc_dlycnt, so that we restart the countdown of mpc_delay_off
+	/*
+	 * Below logic is meant to capture the transition from mpc off
+	 * to mpc on for reasons other than wlc->mpc_delay_off keeping
+	 * the mpc off. In that case reset wlc->mpc_delay_off to
+	 * wlc->mpc_dlycnt, so that we restart the countdown of mpc_delay_off
 	 */
 	if ((wlc->prev_non_delay_mpc == false) &&
 	    (brcms_c_is_non_delay_mpc(wlc) == true) && wlc->mpc_delay_off)
@@ -5128,8 +5226,10 @@ static void brcms_c_radio_upd(struct brcms_c_info *wlc)
 /* maintain LED behavior in down state */
 static void brcms_c_down_led_upd(struct brcms_c_info *wlc)
 {
-	/* maintain LEDs while in down state, turn on sbclk if not available yet */
-	/* turn on sbclk if necessary */
+	/*
+	 * maintain LEDs while in down state, turn on sbclk if
+	 * not available yet. Turn on sbclk if necessary
+	 */
 	if (!AP_ENAB(wlc->pub)) {
 		brcms_c_pllreq(wlc, true, BRCMS_PLLREQ_FLIP);
 
@@ -5142,7 +5242,8 @@ bool brcms_c_check_radio_disabled(struct brcms_c_info *wlc)
 {
 	brcms_c_radio_hwdisable_upd(wlc);
 
-	return mboolisset(wlc->pub->radio_disabled, WL_RADIO_HW_DISABLE) ? true : false;
+	return mboolisset(wlc->pub->radio_disabled, WL_RADIO_HW_DISABLE) ?
+			true : false;
 }
 
 void brcms_c_radio_disable(struct brcms_c_info *wlc)
@@ -5282,7 +5383,10 @@ static void brcms_c_watchdog(void *arg)
 
 	brcms_b_watchdog(wlc);
 
-	/* occasionally sample mac stat counters to detect 16-bit counter wrap */
+	/*
+	 * occasionally sample mac stat counters to
+	 * detect 16-bit counter wrap
+	 */
 	if ((wlc->pub->now % SW_TIMER_MAC_STAT_UPD) == 0)
 		brcms_c_statsupd(wlc);
 
@@ -5327,14 +5431,20 @@ void brcms_b_hw_up(struct brcms_hardware *wlc_hw)
 	if (wlc_hw->sih->bustype == PCI_BUS) {
 		ai_pci_fixcfg(wlc_hw->sih);
 
-		/* AI chip doesn't restore bar0win2 on hibernation/resume, need sw fixup */
+		/*
+		 * AI chip doesn't restore bar0win2 on
+		 * hibernation/resume, need sw fixup
+		 */
 		if ((wlc_hw->sih->chip == BCM43224_CHIP_ID) ||
 		    (wlc_hw->sih->chip == BCM43225_CHIP_ID))
 			wlc_hw->regs = (struct d11regs *)
 					ai_setcore(wlc_hw->sih, D11_CORE_ID, 0);
 	}
 
-	/* Inform phy that a POR reset has occurred so it does a complete phy init */
+	/*
+	 * Inform phy that a POR reset has occurred so
+	 * it does a complete phy init
+	 */
 	wlc_phy_por_inform(wlc_hw->band->pi);
 
 	wlc_hw->ucode_loaded = false;
@@ -5373,8 +5483,9 @@ int brcms_b_up_prep(struct brcms_hardware *wlc_hw)
 		ai_pci_setup(wlc_hw->sih, coremask);
 
 	/*
-	 * Need to read the hwradio status here to cover the case where the system
-	 * is loaded with the hw radio disabled. We do not want to bring the driver up in this case.
+	 * Need to read the hwradio status here to cover the case where the
+	 * system is loaded with the hw radio disabled. We do not want to
+	 * bring the driver up in this case.
 	 */
 	if (brcms_b_radio_read_hwdisabled(wlc_hw)) {
 		/* put SB PCI in down state again */
@@ -5432,10 +5543,11 @@ int brcms_c_up(struct brcms_c_info *wlc)
 	}
 
 	/*
-	 * Need to read the hwradio status here to cover the case where the system
-	 * is loaded with the hw radio disabled. We do not want to bring the driver up in this case.
-	 * if radio is disabled, abort up, lower power, start radio timer and return 0(for NDIS)
-	 * don't call radio_update to avoid looping brcms_c_up.
+	 * Need to read the hwradio status here to cover the case where the
+	 * system is loaded with the hw radio disabled. We do not want to bring
+	 * the driver up in this case. If radio is disabled, abort up, lower
+	 * power, start radio timer and return 0(for NDIS) don't call
+	 * radio_update to avoid looping brcms_c_up.
 	 *
 	 * brcms_b_up_prep() returns either 0 or -BCME_RADIOOFF only
 	 */
@@ -5513,14 +5625,18 @@ int brcms_c_up(struct brcms_c_info *wlc)
 	return 0;
 }
 
-/* Initialize the base precedence map for dequeueing from txq based on WME settings */
+/*
+ * Initialize the base precedence map for dequeueing
+ * from txq based on WME settings
+ */
 static void brcms_c_tx_prec_map_init(struct brcms_c_info *wlc)
 {
 	wlc->tx_prec_map = BRCMS_PREC_BMP_ALL;
 	memset(wlc->fifo2prec_map, 0, NFIFO * sizeof(u16));
 
-	/* For non-WME, both fifos have overlapping MAXPRIO. So just disable all precedences
-	 * if either is full.
+	/*
+	 * For non-WME, both fifos have overlapping MAXPRIO. So just
+	 * disable all precedences if either is full.
 	 */
 	if (!EDCF_ENAB(wlc->pub)) {
 		wlc->fifo2prec_map[TX_DATA_FIFO] = BRCMS_PREC_BMP_ALL;
@@ -5688,13 +5804,14 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 	/* Default to 54g Auto */
 	/* Advertise and use shortslot (-1/0/1 Auto/Off/On) */
 	s8 shortslot = BRCMS_SHORTSLOT_AUTO;
-	bool shortslot_restrict = false;	/* Restrict association to stations that support shortslot
-						 */
+	bool shortslot_restrict = false; /* Restrict association to stations
+					  * that support shortslot
+					  */
 	bool ofdm_basic = false;	/* Make 6, 12, and 24 basic rates */
 	/* Advertise and use short preambles (-1/0/1 Auto/Off/On) */
 	int preamble = BRCMS_PLCP_LONG;
-	bool preamble_restrict = false;	/* Restrict association to stations that support short
-					 * preambles
+	bool preamble_restrict = false;	/* Restrict association to stations
+					 * that support short preambles
 					 */
 	struct brcms_band *band;
 
@@ -5752,7 +5869,8 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 		break;
 
 	case GMODE_PERFORMANCE:
-		if (AP_ENAB(wlc->pub))	/* Put all rates into the Supported Rates element */
+		if (AP_ENAB(wlc->pub))
+			/* Put all rates into the Supported Rates element */
 			brcms_c_rateset_copy(&cck_ofdm_rates,
 					 &wlc->sup_rates_override);
 
@@ -6281,7 +6399,10 @@ brcms_c_module_unregister(struct brcms_pub *pub, const char *name, void *hdl)
 	return -ENODATA;
 }
 
-/* Write WME tunable parameters for retransmit/max rate from wlc struct to ucode */
+/*
+ * Write WME tunable parameters for retransmit/max rate
+ * from wlc struct to ucode
+ */
 static void brcms_c_wme_retries_write(struct brcms_c_info *wlc)
 {
 	int ac;
@@ -6661,9 +6782,11 @@ void brcms_c_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
 		brcmu_pkt_buf_free_skb(sdu);
 	}
 
-	/* Check if flow control needs to be turned on after enqueuing the packet
-	 *   Don't turn on flow control if EDCF is enabled. Driver would make the decision on what
-	 *   to drop instead of relying on stack to make the right decision
+	/*
+	 * Check if flow control needs to be turned on after enqueuing the
+	 * packet. Don't turn on flow control if EDCF is enabled. Driver
+	 * would make the decision on what to drop instead of relying on
+	 * stack to make the right decision
 	 */
 	if (!EDCF_ENAB(wlc->pub)
 	    || (wlc->pub->wlfeatureflag & WL_SWFL_FLOWCONTROL)) {
@@ -6686,7 +6809,10 @@ brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc, struct sk_buff *sdu,
 	struct scb *scb = &global_scb;
 	struct ieee80211_hdr *d11_header = (struct ieee80211_hdr *)(sdu->data);
 
-	/* 802.11 standard requires management traffic to go at highest priority */
+	/*
+	 * 802.11 standard requires management traffic
+	 * to go at highest priority
+	 */
 	prio = ieee80211_is_data(d11_header->frame_control) ? sdu->priority :
 		MAXPRIO;
 	fifo = prio2fifo[prio];
@@ -6737,8 +6863,10 @@ void brcms_c_send_q(struct brcms_c_info *wlc)
 
 		if (err == -EBUSY) {
 			brcmu_pktq_penq_head(q, prec, pkt[0]);
-			/* If send failed due to any other reason than a change in
-			 * HW FIFO condition, quit. Otherwise, read the new prec_map!
+			/*
+			 * If send failed due to any other reason than a
+			 * change in HW FIFO condition, quit. Otherwise,
+			 * read the new prec_map!
 			 */
 			if (prec_map == wlc->tx_prec_map)
 				break;
@@ -6746,7 +6874,10 @@ void brcms_c_send_q(struct brcms_c_info *wlc)
 		}
 	}
 
-	/* Check if flow control needs to be turned off after sending the packet */
+	/*
+	 * Check if flow control needs to be turned off after
+	 * sending the packet
+	 */
 	if (!EDCF_ENAB(wlc->pub)
 	    || (wlc->pub->wlfeatureflag & WL_SWFL_FLOWCONTROL)) {
 		if (brcms_c_txflowcontrol_prio_isset(wlc, qi, ALLPRIO)
@@ -6794,8 +6925,8 @@ brcms_c_txfifo(struct brcms_c_info *wlc, uint fifo, struct sk_buff *p,
 
 	txh = (struct d11txh *) (p->data);
 
-	/* When a BC/MC frame is being committed to the BCMC fifo via DMA (NOT PIO), update
-	 * ucode or BSS info as appropriate.
+	/* When a BC/MC frame is being committed to the BCMC fifo
+	 * via DMA (NOT PIO), update ucode or BSS info as appropriate.
 	 */
 	if (fifo == TX_BCMC_FIFO)
 		frameid = le16_to_cpu(txh->TxFrameID);
@@ -6804,8 +6935,9 @@ brcms_c_txfifo(struct brcms_c_info *wlc, uint fifo, struct sk_buff *p,
 		brcms_c_war16165(wlc, true);
 
 
-	/* Bump up pending count for if not using rpc. If rpc is used, this will be handled
-	 * in brcms_b_txfifo()
+	/*
+	 * Bump up pending count for if not using rpc. If rpc is
+	 * used, this will be handled in brcms_b_txfifo()
 	 */
 	if (commit) {
 		TXPKTPENDINC(wlc, fifo, txpktpend);
@@ -6842,9 +6974,9 @@ static void brcms_c_compute_mimo_plcp(u32 rspec, uint length, u8 *plcp)
 	if (RSPEC_IS40MHZ(rspec) || (mcs == 32))
 		plcp[0] |= MIMO_PLCP_40MHZ;
 	BRCMS_SET_MIMO_PLCP_LEN(plcp, length);
-	plcp[3] = RSPEC_MIMOPLCP3(rspec);	/* rspec already holds this byte */
-	plcp[3] |= 0x7;		/* set smoothing, not sounding ppdu & reserved */
-	plcp[4] = 0;		/* number of extension spatial streams bit 0 & 1 */
+	plcp[3] = RSPEC_MIMOPLCP3(rspec); /* rspec already holds this byte */
+	plcp[3] |= 0x7; /* set smoothing, not sounding ppdu & reserved */
+	plcp[4] = 0; /* number of extension spatial streams bit 0 & 1 */
 	plcp[5] = 0;
 }
 
@@ -6856,7 +6988,10 @@ brcms_c_compute_ofdm_plcp(u32 rspec, u32 length, u8 *plcp)
 	u32 tmp = 0;
 	int rate = RSPEC2RATE(rspec);
 
-	/* encode rate per 802.11a-1999 sec 17.3.4.1, with lsb transmitted first */
+	/*
+	 * encode rate per 802.11a-1999 sec 17.3.4.1, with lsb
+	 * transmitted first
+	 */
 	rate_signal = rate_info[rate] & BRCMS_RATE_MASK;
 	memset(plcp, 0, D11_PHY_HDR_LEN);
 	D11A_PHY_HDR_SRATE((struct ofdm_phy_hdr *) plcp, rate_signal);
@@ -6904,8 +7039,9 @@ static void brcms_c_cck_plcp_set(struct brcms_c_info *wlc, int rate_500,
 		break;
 
 	default:
-		wiphy_err(wlc->wiphy, "brcms_c_cck_plcp_set: unsupported rate %d"
-			  "\n", rate_500);
+		wiphy_err(wlc->wiphy,
+			  "brcms_c_cck_plcp_set: unsupported rate %d\n",
+			  rate_500);
 		rate_500 = BRCM_RATE_1M;
 		usec = length << 3;
 		break;
@@ -7036,8 +7172,11 @@ u16 brcms_c_phytxctl1_calc(struct brcms_c_info *wlc, u32 rspec)
 		phyctl1 |= (mcs_table[mcs].tx_phy_ctl3 << 8);
 	} else if (IS_CCK(rspec) && !BRCMS_ISLCNPHY(wlc->band)
 		   && !BRCMS_ISSSLPNPHY(wlc->band)) {
-		/* In CCK mode LPPHY overloads OFDM Modulation bits with CCK Data Rate */
-		/* Eventually MIMOPHY would also be converted to this format */
+		/*
+		 * In CCK mode LPPHY overloads OFDM Modulation bits with CCK
+		 * Data Rate. Eventually MIMOPHY would also be converted to
+		 * this format
+		 */
 		/* 0 = 1Mbps; 1 = 2Mbps; 2 = 5.5Mbps; 3 = 11Mbps */
 		phyctl1 = (bw | (RSPEC_STF(rspec) << PHY_TXC1_MODE_SHIFT));
 	} else {		/* legacy OFDM/CCK */
@@ -7070,8 +7209,9 @@ brcms_c_rspec_to_rts_rspec(struct brcms_c_info *wlc, u32 rspec,
 		/* Use 11Mbps as the g protection RTS target rate and fallback.
 		 * Use the BRCMS_BASIC_RATE() lookup to find the best basic rate
 		 * under the target in case 11 Mbps is not Basic.
-		 * 6 and 9 Mbps are not usually selected by rate selection, but even
-		 * if the OFDM rate we are protecting is 6 or 9 Mbps, 11 is more robust.
+		 * 6 and 9 Mbps are not usually selected by rate selection, but
+		 * even if the OFDM rate we are protecting is 6 or 9 Mbps, 11
+		 * is more robust.
 		 */
 		rts_rspec = BRCMS_BASIC_RATE(wlc, BRCM_RATE_11M);
 	else
@@ -7085,8 +7225,9 @@ brcms_c_rspec_to_rts_rspec(struct brcms_c_info *wlc, u32 rspec,
 		/* set rts txbw to correct side band */
 		rts_rspec &= ~RSPEC_BW_MASK;
 
-		/* if rspec/rspec_fallback is 40MHz, then send RTS on both 20MHz channel
-		 * (DUP), otherwise send RTS on control channel
+		/*
+		 * if rspec/rspec_fallback is 40MHz, then send RTS on both
+		 * 20MHz channel (DUP), otherwise send RTS on control channel
 		 */
 		if (RSPEC_IS40MHZ(rspec) && !IS_CCK(rts_rspec))
 			rts_rspec |= (PHY_TXC1_BW_40MHZ_DUP << RSPEC_BW_SHIFT);
@@ -7206,7 +7347,10 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	txrate[0] = tx_info->control.rates;
 	txrate[1] = txrate[0] + 1;
 
-	/* if rate control algorithm didn't give us a fallback rate, use the primary rate */
+	/*
+	 * if rate control algorithm didn't give us a fallback
+	 * rate, use the primary rate
+	 */
 	if (txrate[1]->idx < 0)
 		txrate[1] = txrate[0];
 
@@ -7231,8 +7375,10 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 			rate_val[k] = txrate[k]->idx;
 		}
 
-		/* Currently only support same setting for primay and fallback rates.
-		 * Unify flags for each rate into a single value for the frame
+		/*
+		 * Currently only support same setting for primay and
+		 * fallback rates. Unify flags for each rate into a
+		 * single value for the frame
 		 */
 		use_rts |=
 		    txrate[k]->
@@ -7246,7 +7392,11 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 
 		rspec[k] = mac80211_wlc_set_nrate(wlc, wlc->band, rate_val[k]);
 
-		/* (1) RATE: determine and validate primary rate and fallback rates */
+		/*
+		 * (1) RATE:
+		 *   determine and validate primary rate
+		 *   and fallback rates
+		 */
 		if (!RSPEC_ACTIVE(rspec[k])) {
 			rspec[k] = BRCM_RATE_1M;
 		} else {
@@ -7262,7 +7412,10 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 
 	if (N_ENAB(wlc->pub)) {
 		for (k = 0; k < hw->max_rates; k++) {
-			/* apply siso/cdd to single stream mcs's or ofdm if rspec is auto selected */
+			/*
+			 * apply siso/cdd to single stream mcs's or ofdm
+			 * if rspec is auto selected
+			 */
 			if (((IS_MCS(rspec[k]) &&
 			      IS_SINGLE_STREAM(rspec[k] & RSPEC_RATE_MASK)) ||
 			     IS_OFDM(rspec[k]))
@@ -7275,17 +7428,20 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 				    && BRCMS_STF_SS_STBC_TX(wlc, scb)) {
 					u8 stc;
 
-					stc = 1;	/* Nss for single stream is always 1 */
-					rspec[k] |=
-					    (PHY_TXC1_MODE_STBC <<
-					     RSPEC_STF_SHIFT) | (stc <<
-								 RSPEC_STC_SHIFT);
+					/* Nss for single stream is always 1 */
+					stc = 1;
+					rspec[k] |= (PHY_TXC1_MODE_STBC <<
+							RSPEC_STF_SHIFT) |
+						    (stc << RSPEC_STC_SHIFT);
 				} else
 					rspec[k] |=
 					    (phyctl1_stf << RSPEC_STF_SHIFT);
 			}
 
-			/* Is the phy configured to use 40MHZ frames? If so then pick the desired txbw */
+			/*
+			 * Is the phy configured to use 40MHZ frames? If
+			 * so then pick the desired txbw
+			 */
 			if (CHSPEC_WLC_BW(wlc->chanspec) == BRCMS_40_MHZ) {
 				/* default txbw is 20in40 SB */
 				mimo_ctlchbw = mimo_txbw =
@@ -7294,7 +7450,8 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 
 				if (IS_MCS(rspec[k])) {
 					/* mcs 32 must be 40b/w DUP */
-					if ((rspec[k] & RSPEC_RATE_MASK) == 32) {
+					if ((rspec[k] & RSPEC_RATE_MASK)
+					    == 32) {
 						mimo_txbw =
 						    PHY_TXC1_BW_40MHZ_DUP;
 						/* use override */
@@ -7310,8 +7467,10 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 					mimo_txbw = wlc->cck_40txbw;
 				}
 			} else {
-				/* mcs32 is 40 b/w only.
-				 * This is possible for probe packets on a STA during SCAN
+				/*
+				 * mcs32 is 40 b/w only.
+				 * This is possible for probe packets on
+				 * a STA during SCAN
 				 */
 				if ((rspec[k] & RSPEC_RATE_MASK) == 32)
 					/* mcs 0 */
@@ -7352,7 +7511,10 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 			if (IS_MCS(rspec[k])) {
 				preamble_type[k] = mimo_preamble_type;
 
-				/* if SGI is selected, then forced mm for single stream */
+				/*
+				 * if SGI is selected, then forced mm
+				 * for single stream
+				 */
 				if ((rspec[k] & RSPEC_SHORT_GI)
 				    && IS_SINGLE_STREAM(rspec[k] &
 							RSPEC_RATE_MASK))
@@ -7476,12 +7638,14 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	/* TxFrameID */
 	txh->TxFrameID = cpu_to_le16(frameid);
 
-	/* TxStatus, Note the case of recreating the first frag of a suppressed frame
-	 * then we may need to reset the retry cnt's via the status reg
+	/*
+	 * TxStatus, Note the case of recreating the first frag of a suppressed
+	 * frame then we may need to reset the retry cnt's via the status reg
 	 */
 	txh->TxStatus = cpu_to_le16(status);
 
-	/* extra fields for ucode AMPDU aggregation, the new fields are added to
+	/*
+	 * extra fields for ucode AMPDU aggregation, the new fields are added to
 	 * the END of previous structure so that it's compatible in driver.
 	 */
 	txh->MaxNMpdus = cpu_to_le16(0);
@@ -7590,10 +7754,16 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 
 #endif
 
-	/* Now that RTS/RTS FB preamble types are updated, write the final value */
+	/*
+	 * Now that RTS/RTS FB preamble types are updated, write
+	 * the final value
+	 */
 	txh->MacTxControlHigh = cpu_to_le16(mch);
 
-	/* MainRates (both the rts and frag plcp rates have been calculated now) */
+	/*
+	 * MainRates (both the rts and frag plcp rates have
+	 * been calculated now)
+	 */
 	txh->MainRates = cpu_to_le16(mainrates);
 
 	/* XtraFrameTypes */
@@ -7633,9 +7803,9 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 		}
 
 		/*
-		 * For mcs frames, if mixedmode(overloaded with long preamble) is going to be set,
-		 * fill in non-zero MModeLen and/or MModeFbrLen
-		 *  it will be unnecessary if they are separated
+		 * For mcs frames, if mixedmode(overloaded with long preamble)
+		 * is going to be set, fill in non-zero MModeLen and/or
+		 * MModeFbrLen it will be unnecessary if they are separated
 		 */
 		if (IS_MCS(rspec[0]) &&
 		    (preamble_type[0] == BRCMS_MM_PREAMBLE)) {
@@ -7657,7 +7827,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 		uint frag_dur, dur, dur_fallback;
 
 		/* WME: Update TXOP threshold */
-		if ((!(tx_info->flags & IEEE80211_TX_CTL_AMPDU)) && (frag == 0)) {
+		if (!(tx_info->flags & IEEE80211_TX_CTL_AMPDU) && frag == 0) {
 			frag_dur =
 			    brcms_c_calc_frame_time(wlc, rspec[0],
 					preamble_type[0], phylen);
@@ -7694,11 +7864,17 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 			}
 			/* NEED to set TxFesTimeNormal (hard) */
 			txh->TxFesTimeNormal = cpu_to_le16((u16) dur);
-			/* NEED to set fallback rate version of TxFesTimeNormal (hard) */
+			/*
+			 * NEED to set fallback rate version of
+			 * TxFesTimeNormal (hard)
+			 */
 			txh->TxFesTimeFallback =
 				cpu_to_le16((u16) dur_fallback);
 
-			/* update txop byte threshold (txop minus intraframe overhead) */
+			/*
+			 * update txop byte threshold (txop minus intraframe
+			 * overhead)
+			 */
 			if (wlc->edcf_txop[ac] >= (dur - frag_dur)) {
 				uint newfragthresh;
 
@@ -7745,7 +7921,10 @@ void brcms_c_tbtt(struct brcms_c_info *wlc)
 	struct brcms_bss_cfg *cfg = wlc->cfg;
 
 	if (!cfg->BSS)
-		/* DirFrmQ is now valid...defer setting until end of ATIM window */
+		/*
+		 * DirFrmQ is now valid...defer setting until end
+		 * of ATIM window
+		 */
 		wlc->qvalid |= MCMD_DIRFRMQVAL;
 }
 
@@ -7780,12 +7959,13 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs, u32 frm_tx2)
 	struct ieee80211_tx_rate *txrate;
 	int i;
 
-	(void)(frm_tx2);	/* Compiler reference to avoid unused variable warning */
+	/* Compiler reference to avoid unused variable warning */
+	(void)(frm_tx2);
 
 	/* discard intermediate indications for ucode with one legitimate case:
-	 *   e.g. if "useRTS" is set. ucode did a successful rts/cts exchange, but the subsequent
-	 *   tx of DATA failed. so it will start rts/cts from the beginning (resetting the rts
-	 *   transmission count)
+	 *   e.g. if "useRTS" is set. ucode did a successful rts/cts exchange,
+	 *   but the subsequent tx of DATA failed. so it will start rts/cts
+	 *   from the beginning (resetting the rts transmission count)
 	 */
 	if (!(txs->status & TX_STATUS_AMPDU)
 	    && (txs->status & TX_STATUS_INTERMEDIATE)) {
@@ -7877,13 +8057,22 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs, u32 frm_tx2)
 		ieee80211_tx_info_clear_status(tx_info);
 
 		if ((tx_frame_count > fbl) && (txrate[1].idx >= 0)) {
-			/* rate selection requested a fallback rate and we used it */
+			/*
+			 * rate selection requested a fallback rate
+			 * and we used it
+			 */
 			txrate[0].count = fbl;
 			txrate[1].count = tx_frame_count - fbl;
 		} else {
-			/* rate selection did not request fallback rate, or we didn't need it */
+			/*
+			 * rate selection did not request fallback rate, or
+			 * we didn't need it
+			 */
 			txrate[0].count = tx_frame_count;
-			/* rc80211_minstrel.c:minstrel_tx_status() expects unused rates to be marked with idx = -1 */
+			/*
+			 * rc80211_minstrel.c:minstrel_tx_status() expects
+			 * unused rates to be marked with idx = -1
+			 */
 			txrate[1].idx = -1;
 			txrate[1].count = 0;
 		}
@@ -8035,11 +8224,12 @@ prep_mac80211_status(struct brcms_c_info *wlc, struct d11rxhdr *rxh,
 		rx_status->freq = ieee80211_dsss_chan_to_freq(channel);
 	}
 
-	rx_status->signal = wlc_rxh->rssi;	/* signal */
+	rx_status->signal = wlc_rxh->rssi;
 
 	/* noise */
 	/* qual */
-	rx_status->antenna = (rxh->PhyRxStatus_0 & PRXS0_RXANT_UPSUBBAND) ? 1 : 0;	/* ant */
+	rx_status->antenna =
+		(rxh->PhyRxStatus_0 & PRXS0_RXANT_UPSUBBAND) ? 1 : 0;
 
 	plcp = p->data;
 
@@ -8253,14 +8443,16 @@ brcms_c_calc_lsig_len(struct brcms_c_info *wlc, u32 ratespec,
 		/* MCS_TXS(mcs) returns num tx streams - 1 */
 		int tot_streams = (MCS_TXS(mcs) + 1) + RSPEC_STC(ratespec);
 
-		/* the payload duration calculation matches that of regular ofdm */
+		/*
+		 * the payload duration calculation matches that
+		 * of regular ofdm
+		 */
 		/* 1000Ndbps = kbps * 4 */
 		kNdps =
 		    MCS_RATE(mcs, RSPEC_IS40MHZ(ratespec),
 			     RSPEC_ISSGI(ratespec)) * 4;
 
 		if (RSPEC_STC(ratespec) == 0)
-			/* NSyms = CEILING((SERVICE + 8*NBytes + TAIL) / Ndbps) */
 			nsyms =
 			    CEIL((APHY_SERVICE_NBITS + 8 * mac_len +
 				  APHY_TAIL_NBITS) * 1000, kNdps);
@@ -8271,15 +8463,22 @@ brcms_c_calc_lsig_len(struct brcms_c_info *wlc, u32 ratespec,
 			    CEIL((APHY_SERVICE_NBITS + 8 * mac_len +
 				  APHY_TAIL_NBITS) * 1000, 2 * kNdps);
 
-		nsyms += (tot_streams + 3);	/* (+3) account for HT-SIG(2) and HT-STF(1) */
-		/* 3 bytes/symbol @ legacy 6Mbps rate */
-		len = (3 * nsyms) - 3;	/* (-3) excluding service bits and tail bits */
+		/* (+3) account for HT-SIG(2) and HT-STF(1) */
+		nsyms += (tot_streams + 3);
+		/*
+		 * 3 bytes/symbol @ legacy 6Mbps rate
+		 * (-3) excluding service bits and tail bits
+		 */
+		len = (3 * nsyms) - 3;
 	}
 
 	return (u16) len;
 }
 
-/* calculate frame duration of a given rate and length, return time in usec unit */
+/*
+ * calculate frame duration of a given rate and length, return
+ * time in usec unit
+ */
 uint
 brcms_c_calc_frame_time(struct brcms_c_info *wlc, u32 ratespec,
 			u8 preamble_type, uint mac_len)
@@ -8309,7 +8508,6 @@ brcms_c_calc_frame_time(struct brcms_c_info *wlc, u32 ratespec,
 			     RSPEC_ISSGI(ratespec)) * 4;
 
 		if (RSPEC_STC(ratespec) == 0)
-			/* NSyms = CEILING((SERVICE + 8*NBytes + TAIL) / Ndbps) */
 			nsyms =
 			    CEIL((APHY_SERVICE_NBITS + 8 * mac_len +
 				  APHY_TAIL_NBITS) * 1000, kNdps);
@@ -8336,7 +8534,10 @@ brcms_c_calc_frame_time(struct brcms_c_info *wlc, u32 ratespec,
 		if (BAND_2G(wlc->band->bandtype))
 			dur += DOT11_OFDM_SIGNAL_EXTENSION;
 	} else {
-		/* calc # bits * 2 so factor of 2 in rate (1/2 mbps) will divide out */
+		/*
+		 * calc # bits * 2 so factor of 2 in rate (1/2 mbps)
+		 * will divide out
+		 */
 		mac_len = mac_len * 8 * 2;
 		/* calc ceiling of bits/rate = microseconds of air time */
 		dur = (mac_len + rate - 1) / rate;
@@ -8401,8 +8602,10 @@ brcms_c_calc_ba_time(struct brcms_c_info *wlc, u32 rspec,
 {
 	BCMMSG(wlc->wiphy, "wl%d: rspec 0x%x, "
 		 "preamble_type %d\n", wlc->pub->unit, rspec, preamble_type);
-	/* Spec 9.6: ack rate is the highest rate in BSSBasicRateSet that is less than
-	 * or equal to the rate of the immediately previous frame in the FES
+	/*
+	 * Spec 9.6: ack rate is the highest rate in BSSBasicRateSet that
+	 * is less than or equal to the rate of the immediately previous
+	 * frame in the FES
 	 */
 	rspec = BRCMS_BASIC_RATE(wlc, rspec);
 	/* BA len == 32 == 16(ctl hdr) + 4(ba len) + 8(bitmap) + 4(fcs) */
@@ -8419,8 +8622,10 @@ brcms_c_calc_ack_time(struct brcms_c_info *wlc, u32 rspec,
 
 	BCMMSG(wlc->wiphy, "wl%d: rspec 0x%x, preamble_type %d\n",
 		wlc->pub->unit, rspec, preamble_type);
-	/* Spec 9.6: ack rate is the highest rate in BSSBasicRateSet that is less than
-	 * or equal to the rate of the immediately previous frame in the FES
+	/*
+	 * Spec 9.6: ack rate is the highest rate in BSSBasicRateSet that
+	 * is less than or equal to the rate of the immediately previous
+	 * frame in the FES
 	 */
 	rspec = BRCMS_BASIC_RATE(wlc, rspec);
 	/* ACK frame len == 14 == 2(fc) + 2(dur) + 6(ra) + 4(fcs) */
@@ -8515,7 +8720,10 @@ void brcms_c_rate_lookup_init(struct brcms_c_info *wlc,
 			continue;
 
 		if (IS_OFDM(rate)) {
-			/* In 11g and 11a, the OFDM mandatory rates are 6, 12, and 24 Mbps */
+			/*
+			 * In 11g and 11a, the OFDM mandatory rates
+			 * are 6, 12, and 24 Mbps
+			 */
 			if (rate >= BRCM_RATE_24M)
 				mandatory = BRCM_RATE_24M;
 			else if (rate >= BRCM_RATE_12M)
@@ -8523,7 +8731,7 @@ void brcms_c_rate_lookup_init(struct brcms_c_info *wlc,
 			else
 				mandatory = BRCM_RATE_6M;
 		} else {
-			/* In 11b, all the CCK rates are mandatory 1 - 11 Mbps */
+			/* In 11b, all CCK rates are mandatory 1 - 11 Mbps */
 			mandatory = rate;
 		}
 
@@ -8691,7 +8899,10 @@ void brcms_c_mod_prb_rsp_rate_table(struct brcms_c_info *wlc, uint frame_len)
 	brcms_c_rateset_copy(rs_dflt, &rs);
 	brcms_c_rateset_mcs_upd(&rs, wlc->stf->txstreams);
 
-	/* walk the phy rate table and update MAC core SHM basic rate table entries */
+	/*
+	 * walk the phy rate table and update MAC core SHM
+	 * basic rate table entries
+	 */
 	for (i = 0; i < rs.count; i++) {
 		rate = rs.rates[i] & BRCMS_RATE_MASK;
 
@@ -8700,7 +8911,10 @@ void brcms_c_mod_prb_rsp_rate_table(struct brcms_c_info *wlc, uint frame_len)
 		/* Calculate the Probe Response PLCP for the given rate */
 		brcms_c_compute_plcp(wlc, rate, frame_len, plcp);
 
-		/* Calculate the duration of the Probe Response frame plus SIFS for the MAC */
+		/*
+		 * Calculate the duration of the Probe Response
+		 * frame plus SIFS for the MAC
+		 */
 		dur = (u16) brcms_c_calc_frame_time(wlc, rate,
 						BRCMS_LONG_PREAMBLE, frame_len);
 		dur += sifs;
@@ -8723,8 +8937,8 @@ void brcms_c_mod_prb_rsp_rate_table(struct brcms_c_info *wlc, uint frame_len)
  *
  *      *len on input contains the max length of the packet available.
  *
- *	The *len value is set to the number of bytes in buf used, and starts with the PLCP
- *	and included up to, but not including, the 4 byte FCS.
+ *	The *len value is set to the number of bytes in buf used, and starts
+ *	with the PLCP and included up to, but not including, the 4 byte FCS.
  */
 static void
 brcms_c_bcn_prb_template(struct brcms_c_info *wlc, u16 type,
@@ -8740,16 +8954,21 @@ brcms_c_bcn_prb_template(struct brcms_c_info *wlc, u16 type,
 		hdr_len = DOT11_MAC_HDR_LEN;
 	else
 		hdr_len = D11_PHY_HDR_LEN + DOT11_MAC_HDR_LEN;
-	body_len = *len - hdr_len;	/* calc buffer size provided for frame body */
 
-	*len = hdr_len + body_len;	/* return actual size */
+	/* calc buffer size provided for frame body */
+	body_len = *len - hdr_len;
+	/* return actual size */
+	*len = hdr_len + body_len;
 
 	/* format PHY and MAC headers */
 	memset((char *)buf, 0, hdr_len);
 
 	plcp = (struct cck_phy_hdr *) buf;
 
-	/* PLCP for Probe Response frames are filled in from core's rate table */
+	/*
+	 * PLCP for Probe Response frames are filled in from
+	 * core's rate table
+	 */
 	if (type == IEEE80211_STYPE_BEACON && !MBSS_BCN_ENAB(cfg))
 		/* fill in PLCP */
 		brcms_c_compute_plcp(wlc, bcn_rspec,
@@ -8807,10 +9026,11 @@ brcms_b_write_hw_bcntemplates(struct brcms_hardware *wlc_hw, void *bcn,
 	}
 }
 
-/* Update a beacon for a particular BSS
- * For MBSS, this updates the software template and sets "latest" to the index of the
- * template updated.
- * Otherwise, it updates the hardware template.
+/*
+ * Update a beacon for a particular BSS
+ * For MBSS, this updates the software template and sets "latest" to
+ * the index of the template updated. Otherwise, it updates the hardware
+ * template.
  */
 void brcms_c_bss_update_beacon(struct brcms_c_info *wlc,
 			       struct brcms_bss_cfg *cfg)
@@ -8907,7 +9127,10 @@ brcms_c_bss_update_probe_resp(struct brcms_c_info *wlc,
 	u16 prb_resp[BCN_TMPL_LEN / 2];
 	int len = BCN_TMPL_LEN;
 
-	/* write the probe response to hardware, or save in the config structure */
+	/*
+	 * write the probe response to hardware, or save in
+	 * the config structure
+	 */
 	if (!MBSS_PRB_ENAB(cfg)) {
 
 		/* create the probe response template */
@@ -8928,17 +9151,18 @@ brcms_c_bss_update_probe_resp(struct brcms_c_info *wlc,
 		brcms_c_shm_ssid_upd(wlc, cfg);
 
 		/*
-		 * Write PLCP headers and durations for probe response frames at all rates.
-		 * Use the actual frame length covered by the PLCP header for the call to
-		 * brcms_c_mod_prb_rsp_rate_table() by subtracting the PLCP len
-		 * and adding the FCS.
+		 * Write PLCP headers and durations for probe response frames
+		 * at all rates. Use the actual frame length covered by the
+		 * PLCP header for the call to brcms_c_mod_prb_rsp_rate_table()
+		 * by subtracting the PLCP len and adding the FCS.
 		 */
 		len += (-D11_PHY_HDR_LEN + FCS_LEN);
 		brcms_c_mod_prb_rsp_rate_table(wlc, (u16) len);
 
 		if (suspend)
 			brcms_c_enable_mac(wlc);
-	} else {		/* Generating probe resp in sw; update local template */
+	} else {
+		/* Generating probe resp in sw; update local template */
 		/* error: No software probe response support without MBSS */
 	}
 }
@@ -9076,7 +9300,10 @@ mac80211_wlc_set_nrate(struct brcms_c_info *wlc, struct brcms_band *cur_band,
 				stf = PHY_TXC1_MODE_SDM;
 			}
 		} else {
-			/* MCS 0-7 may use SISO, CDD, and for phy_rev >= 3 STBC */
+			/*
+			 * MCS 0-7 may use SISO, CDD, and for
+			 * phy_rev >= 3 STBC
+			 */
 			if ((stf > PHY_TXC1_MODE_STBC) ||
 			    (!BRCMS_STBC_CAP_PHY(wlc)
 			     && (stf == PHY_TXC1_MODE_STBC))) {

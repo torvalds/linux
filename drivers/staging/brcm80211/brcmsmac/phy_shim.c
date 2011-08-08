@@ -15,10 +15,11 @@
  */
 
 /*
- * This is "two-way" interface, acting as the SHIM layer between WL and PHY layer.
- *   WL driver can optinally call this translation layer to do some preprocessing, then reach PHY.
- *   On the PHY->WL driver direction, all calls go through this layer since PHY doesn't have the
- *   access to wlc_hw pointer.
+ * This is "two-way" interface, acting as the SHIM layer between driver
+ * and PHY layer. The driver can optionally call this translation layer
+ * to do some preprocessing, then reach PHY. On the PHY->driver direction,
+ * all calls go through this layer since PHY doesn't have access to the
+ * driver's brcms_hardware pointer.
  */
 #include <linux/slab.h>
 #include <net/mac80211.h>

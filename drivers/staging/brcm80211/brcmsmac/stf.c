@@ -68,7 +68,10 @@ static void brcms_c_stf_stbc_rx_ht_update(struct brcms_c_info *wlc, int val)
 	}
 }
 
-/* every WLC_TEMPSENSE_PERIOD seconds temperature check to decide whether to turn on/off txchain */
+/*
+ * every WLC_TEMPSENSE_PERIOD seconds temperature check to decide whether to
+ * turn on/off txchain.
+ */
 void brcms_c_tempsense_upd(struct brcms_c_info *wlc)
 {
 	struct brcms_phy_pub *pi = wlc->band->pi;
@@ -117,16 +120,19 @@ brcms_c_stf_ss_algo_channel_get(struct brcms_c_info *wlc, u16 *ss_algo_channel,
 
 	/* criteria to choose stf mode */
 
-	/* the "+3dbm (12 0.25db units)" is to account for the fact that with CDD, tx occurs
-	 * on both chains
+	/*
+	 * the "+3dbm (12 0.25db units)" is to account for the fact that with
+	 * CDD, tx occurs on both chains
 	 */
 	if (power.target[siso_mcs_id] > (power.target[cdd_mcs_id] + 12))
 		setbit(ss_algo_channel, PHY_TXC1_MODE_SISO);
 	else
 		setbit(ss_algo_channel, PHY_TXC1_MODE_CDD);
 
-	/* STBC is ORed into to algo channel as STBC requires per-packet SCB capability check
-	 * so cannot be default mode of operation. One of SISO, CDD have to be set
+	/*
+	 * STBC is ORed into to algo channel as STBC requires per-packet SCB
+	 * capability check so cannot be default mode of operation. One of
+	 * SISO, CDD have to be set
 	 */
 	if (power.target[siso_mcs_id] <= (power.target[stbc_mcs_id] + 12))
 		setbit(ss_algo_channel, PHY_TXC1_MODE_STBC);
@@ -229,7 +235,10 @@ int brcms_c_stf_txchain_set(struct brcms_c_info *wlc, s32 int_val, bool force)
 	    || !(txchain & wlc->stf->hw_txchain))
 		return -EINVAL;
 
-	/* if nrate override is configured to be non-SISO STF mode, reject reducing txchain to 1 */
+	/*
+	 * if nrate override is configured to be non-SISO STF mode, reject
+	 * reducing txchain to 1
+	 */
 	txstreams = (u8) BRCMS_BITSCNT(txchain);
 	if (txstreams > MAX_STREAMS_SUPPORTED)
 		return -EINVAL;
@@ -282,7 +291,10 @@ int brcms_c_stf_txchain_set(struct brcms_c_info *wlc, s32 int_val, bool force)
 	return 0;
 }
 
-/* update wlc->stf->ss_opmode which represents the operational stf_ss mode we're using */
+/*
+ * update wlc->stf->ss_opmode which represents the operational stf_ss mode
+ * we're using
+ */
 int brcms_c_stf_ss_update(struct brcms_c_info *wlc, struct brcms_band *band)
 {
 	int ret_code = 0;
@@ -291,7 +303,10 @@ int brcms_c_stf_ss_update(struct brcms_c_info *wlc, struct brcms_band *band)
 
 	prev_stf_ss = wlc->stf->ss_opmode;
 
-	/* NOTE: opmode can only be SISO or CDD as STBC is decided on a per-packet basis */
+	/*
+	 * NOTE: opmode can only be SISO or CDD as STBC is decided on a
+	 * per-packet basis
+	 */
 	if (BRCMS_STBC_CAP_PHY(wlc) &&
 	    wlc->stf->ss_algosel_auto
 	    && (wlc->stf->ss_algo_channel != (u16) -1)) {
@@ -333,7 +348,8 @@ int brcms_c_stf_attach(struct brcms_c_info *wlc)
 
 	if (BRCMS_STBC_CAP_PHY(wlc)) {
 		wlc->stf->ss_algosel_auto = true;
-		wlc->stf->ss_algo_channel = (u16) -1;	/* Init the default value */
+		/* Init the default value */
+		wlc->stf->ss_algo_channel = (u16) -1;
 	}
 	return 0;
 }
@@ -343,18 +359,20 @@ void brcms_c_stf_detach(struct brcms_c_info *wlc)
 }
 
 /*
- * Centralized txant update function. call it whenever wlc->stf->txant and/or wlc->stf->txchain
- *  change
+ * Centralized txant update function. call it whenever wlc->stf->txant and/or
+ * wlc->stf->txchain change.
  *
  * Antennas are controlled by ucode indirectly, which drives PHY or GPIO to
- *   achieve various tx/rx antenna selection schemes
+ * achieve various tx/rx antenna selection schemes
  *
- * legacy phy, bit 6 and bit 7 means antenna 0 and 1 respectively, bit6+bit7 means auto(last rx)
- * for NREV<3, bit 6 and bit 7 means antenna 0 and 1 respectively, bit6+bit7 means last rx and
- *    do tx-antenna selection for SISO transmissions
- * for NREV=3, bit 6 and bit _8_ means antenna 0 and 1 respectively, bit6+bit7 means last rx and
- *    do tx-antenna selection for SISO transmissions
- * for NREV>=7, bit 6 and bit 7 mean antenna 0 and 1 respectively, nit6+bit7 means both cores active
+ * legacy phy, bit 6 and bit 7 means antenna 0 and 1 respectively, bit6+bit7
+ * means auto(last rx).
+ * for NREV<3, bit 6 and bit 7 means antenna 0 and 1 respectively, bit6+bit7
+ * means last rx and do tx-antenna selection for SISO transmissions
+ * for NREV=3, bit 6 and bit _8_ means antenna 0 and 1 respectively, bit6+bit7
+ * means last rx and do tx-antenna selection for SISO transmissions
+ * for NREV>=7, bit 6 and bit 7 mean antenna 0 and 1 respectively, nit6+bit7
+ * means both cores active
 */
 static void _brcms_c_stf_phy_txant_upd(struct brcms_c_info *wlc)
 {

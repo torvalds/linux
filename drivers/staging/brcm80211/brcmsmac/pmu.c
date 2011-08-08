@@ -70,11 +70,13 @@
 #define PMURES_BIT(bit)	(1 << (bit))
 
 /* PMU corerev and chip specific PLL controls.
- * PMU<rev>_PLL<num>_XX where <rev> is PMU corerev and <num> is an arbitrary number
- * to differentiate different PLLs controlled by the same PMU rev.
+ * PMU<rev>_PLL<num>_XX where <rev> is PMU corerev and <num> is an arbitrary
+ * number to differentiate different PLLs controlled by the same PMU rev.
  */
-/* pllcontrol registers */
-/* ndiv_pwrdn, pwrdn_ch<x>, refcomp_pwrdn, dly_ch<x>, p1div, p2div, _bypass_sdmod */
+/* pllcontrol registers:
+ * ndiv_pwrdn, pwrdn_ch<x>, refcomp_pwrdn, dly_ch<x>,
+ * p1div, p2div, _bypass_sdmod
+ */
 #define PMU1_PLL0_PLLCTL0		0
 #define PMU1_PLL0_PLLCTL1		1
 #define PMU1_PLL0_PLLCTL2		2

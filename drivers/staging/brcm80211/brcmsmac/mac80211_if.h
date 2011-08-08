@@ -23,11 +23,6 @@
 /* softmac ioctl definitions */
 #define BRCMS_SET_SHORTSLOT_OVERRIDE		146
 
-
-/* BMAC Note: High-only driver is no longer working in softirq context as it needs to block and
- * sleep so perimeter lock has to be a semaphore instead of spinlock. This requires timers to be
- * submitted to workqueue instead of being on kernel timer
- */
 struct brcms_timer {
 	struct timer_list timer;
 	struct brcms_info *wl;
@@ -56,8 +51,8 @@ struct brcms_firmware {
 };
 
 struct brcms_info {
-	struct brcms_pub *pub;		/* pointer to public wlc state */
-	void *wlc;		/* pointer to private common os-independent data */
+	struct brcms_pub *pub;	/* pointer to public wlc state */
+	void *wlc;		/* pointer to private common data */
 	u32 magic;
 
 	int irq;

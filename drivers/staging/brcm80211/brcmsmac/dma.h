@@ -39,12 +39,12 @@ struct dma32diag {	/* diag access */
 
 /* dma registers per channel(xmt or rcv) */
 struct dma64regs {
-	u32 control;		/* enable, et al */
-	u32 ptr;		/* last descriptor posted to chip */
-	u32 addrlow;		/* descriptor ring base address low 32-bits (8K aligned) */
-	u32 addrhigh;	/* descriptor ring base address bits 63:32 (8K aligned) */
-	u32 status0;		/* current descriptor, xmt state */
-	u32 status1;		/* active descriptor, xmt error */
+	u32 control;	/* enable, et al */
+	u32 ptr;	/* last descriptor posted to chip */
+	u32 addrlow;	/* desc ring base address low 32-bits (8K aligned) */
+	u32 addrhigh;	/* desc ring base address bits 63:32 (8K aligned) */
+	u32 status0;	/* current descriptor, xmt state */
+	u32 status1;	/* active descriptor, xmt error */
 };
 
 /* map/unmap direction */
@@ -172,7 +172,8 @@ extern const struct di_fcn_s dma64proc;
 #define dma_rxactive(di)                (dma64proc.rxactive(di))
 #define dma_txrotate(di)                (dma64proc.txrotate(di))
 #define dma_counterreset(di)            (dma64proc.counterreset(di))
-#define dma_ctrlflags(di, mask, flags)  (dma64proc.ctrlflags((di), (mask), (flags)))
+#define dma_ctrlflags(di, mask, flags) \
+	(dma64proc.ctrlflags((di), (mask), (flags)))
 #define dma_txpending(di)		(dma64proc.txpending(di))
 #define dma_txcommitted(di)		(dma64proc.txcommitted(di))
 

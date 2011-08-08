@@ -242,16 +242,23 @@
 #define	SRC_PRESENT		0x00000001
 
 /* 4330 chip-specific ChipStatus register bits */
-#define CST4330_CHIPMODE_SDIOD(cs)	(((cs) & 0x7) < 6)	/* SDIO || gSPI */
-#define CST4330_CHIPMODE_USB20D(cs)	(((cs) & 0x7) >= 6)	/* USB || USBDA */
-#define CST4330_CHIPMODE_SDIO(cs)	(((cs) & 0x4) == 0)	/* SDIO */
-#define CST4330_CHIPMODE_GSPI(cs)	(((cs) & 0x6) == 4)	/* gSPI */
-#define CST4330_CHIPMODE_USB(cs)	(((cs) & 0x7) == 6)	/* USB packet-oriented */
-#define CST4330_CHIPMODE_USBDA(cs)	(((cs) & 0x7) == 7)	/* USB Direct Access */
+ /* SDIO || gSPI */
+#define CST4330_CHIPMODE_SDIOD(cs)	(((cs) & 0x7) < 6)
+ /* USB || USBDA */
+#define CST4330_CHIPMODE_USB20D(cs)	(((cs) & 0x7) >= 6)
+ /* SDIO */
+#define CST4330_CHIPMODE_SDIO(cs)	(((cs) & 0x4) == 0)
+ /* gSPI */
+#define CST4330_CHIPMODE_GSPI(cs)	(((cs) & 0x6) == 4)
+ /* USB packet-oriented */
+#define CST4330_CHIPMODE_USB(cs)	(((cs) & 0x7) == 6)
+ /* USB Direct Access */
+#define CST4330_CHIPMODE_USBDA(cs)	(((cs) & 0x7) == 7)
 #define	CST4330_OTP_PRESENT		0x00000010
 #define	CST4330_LPO_AUTODET_EN		0x00000020
 #define	CST4330_ARMREMAP_0		0x00000040
-#define	CST4330_SPROM_PRESENT		0x00000080	/* takes priority over OTP if both set */
+ /* takes priority over OTP if both set */
+#define	CST4330_SPROM_PRESENT		0x00000080
 #define	CST4330_ILPDIV_EN		0x00000100
 #define	CST4330_LPO_SEL			0x00000200
 #define	CST4330_RES_INIT_MODE_SHIFT	10

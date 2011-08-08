@@ -24,7 +24,8 @@
 #define OTP_SW_RGN	2
 #define OTP_CI_RGN	4
 #define OTP_FUSE_RGN	8
-#define OTP_ALL_RGN	0xf	/* From h/w region to end of OTP including checksum */
+/* From h/w region to end of OTP including checksum */
+#define OTP_ALL_RGN	0xf
 
 /* OTP Size */
 #define OTP_SZ_MAX		(6144/8)	/* maximum bytes in one CIS */
