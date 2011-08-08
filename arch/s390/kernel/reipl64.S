@@ -1,35 +1,79 @@
 /*
- *    Copyright IBM Corp 2000,2009
+ *    Copyright IBM Corp 2000,2011
  *    Author(s): Holger Smolinski <Holger.Smolinski@de.ibm.com>,
  *		 Denis Joseph Barrow,
  */
 
+#include <linux/linkage.h>
 #include <asm/asm-offsets.h>
+
+#
+# store_status
+#
+# Prerequisites to run this function:
+# - Prefix register is set to zero
+# - Original prefix register is stored in "dump_prefix_page"
+# - Lowcore protection is off
+#
+ENTRY(store_status)
+	/* Save register one and load save area base */
+	stg	%r1,__LC_SAVE_AREA_64(%r0)
+	lghi	%r1,SAVE_AREA_BASE
+	/* General purpose registers */
+	stmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	lg	%r2,__LC_SAVE_AREA_64(%r0)
+	stg	%r2,__LC_GPREGS_SAVE_AREA-SAVE_AREA_BASE+8(%r1)
+	/* Control registers */
+	stctg	%c0,%c15,__LC_CREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	/* Access registers */
+	stam	%a0,%a15,__LC_AREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	/* Floating point registers */
+	std	%f0, 0x00 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	std	%f1, 0x08 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	std	%f2, 0x10 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	std	%f3, 0x18 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	std	%f4, 0x20 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	std	%f5, 0x28 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	std	%f6, 0x30 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	std	%f7, 0x38 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	std	%f8, 0x40 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	std	%f9, 0x48 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	std	%f10,0x50 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	std	%f11,0x58 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	std	%f12,0x60 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	std	%f13,0x68 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	std	%f14,0x70 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	std	%f15,0x78 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	/* Floating point control register */
+	stfpc	__LC_FP_CREG_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	/* CPU timer */
+	stpt	__LC_CPU_TIMER_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	/* Saved prefix register */
+	larl	%r2,dump_prefix_page
+	mvc	__LC_PREFIX_SAVE_AREA-SAVE_AREA_BASE(4,%r1),0(%r2)
+	/* Clock comparator - seven bytes */
+	larl	%r2,.Lclkcmp
+	stckc	0(%r2)
+	mvc	__LC_CLOCK_COMP_SAVE_AREA-SAVE_AREA_BASE + 1(7,%r1),1(%r2)
+	/* Program status word */
+	epsw	%r2,%r3
+	st	%r2,__LC_PSW_SAVE_AREA-SAVE_AREA_BASE + 0(%r1)
+	st	%r3,__LC_PSW_SAVE_AREA-SAVE_AREA_BASE + 4(%r1)
+	larl	%r2,store_status
+	stg	%r2,__LC_PSW_SAVE_AREA-SAVE_AREA_BASE + 8(%r1)
+	br	%r14
+.align	8
+.Lclkcmp:	.quad	0x0000000000000000
 
 #
 # do_reipl_asm
 # Parameter: r2 = schid of reipl device
 #
 
-		.globl	do_reipl_asm
-do_reipl_asm:	basr	%r13,0
+ENTRY(do_reipl_asm)
+		basr	%r13,0
 .Lpg0:		lpswe	.Lnewpsw-.Lpg0(%r13)
-.Lpg1:		# do store status of all registers
-
-		stg	%r1,.Lregsave-.Lpg0(%r13)
-		lghi	%r1,0x1000
-		stmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-0x1000(%r1)
-		lg	%r0,.Lregsave-.Lpg0(%r13)
-		stg	%r0,__LC_GPREGS_SAVE_AREA-0x1000+8(%r1)
-		stctg	%c0,%c15,__LC_CREGS_SAVE_AREA-0x1000(%r1)
-		stam	%a0,%a15,__LC_AREGS_SAVE_AREA-0x1000(%r1)
-		lg	%r10,.Ldump_pfx-.Lpg0(%r13)
-		mvc	__LC_PREFIX_SAVE_AREA-0x1000(4,%r1),0(%r10)
-		stfpc	__LC_FP_CREG_SAVE_AREA-0x1000(%r1)
-		stckc	.Lclkcmp-.Lpg0(%r13)
-		mvc	__LC_CLOCK_COMP_SAVE_AREA-0x1000(7,%r1),.Lclkcmp-.Lpg0(%r13)
-		stpt	__LC_CPU_TIMER_SAVE_AREA-0x1000(%r1)
-		stg	%r13, __LC_PSW_SAVE_AREA-0x1000+8(%r1)
+.Lpg1:		brasl	%r14,store_status
 
 		lctlg	%c6,%c6,.Lall-.Lpg0(%r13)
 		lgr	%r1,%r2
@@ -66,10 +110,7 @@ do_reipl_asm:	basr	%r13,0
 		st	%r14,.Ldispsw+12-.Lpg0(%r13)
 		lpswe	.Ldispsw-.Lpg0(%r13)
 		.align	8
-.Lclkcmp:	.quad	0x0000000000000000
 .Lall:		.quad	0x00000000ff000000
-.Ldump_pfx:	.quad	dump_prefix_page
-.Lregsave:	.quad	0x0000000000000000
 		.align	16
 /*
  * These addresses have to be 31 bit otherwise

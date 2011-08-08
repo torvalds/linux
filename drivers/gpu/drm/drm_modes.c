@@ -994,9 +994,10 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 {
 	const char *name;
 	unsigned int namelen;
-	int res_specified = 0, bpp_specified = 0, refresh_specified = 0;
+	bool res_specified = false, bpp_specified = false, refresh_specified = false;
 	unsigned int xres = 0, yres = 0, bpp = 32, refresh = 0;
-	int yres_specified = 0, cvt = 0, rb = 0, interlace = 0, margins = 0;
+	bool yres_specified = false, cvt = false, rb = false;
+	bool interlace = false, margins = false, was_digit = false;
 	int i;
 	enum drm_connector_force force = DRM_FORCE_UNSPECIFIED;
 
@@ -1015,54 +1016,65 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	for (i = namelen-1; i >= 0; i--) {
 		switch (name[i]) {
 		case '@':
-			namelen = i;
 			if (!refresh_specified && !bpp_specified &&
-			    !yres_specified) {
+			    !yres_specified && !cvt && !rb && was_digit) {
 				refresh = simple_strtol(&name[i+1], NULL, 10);
-				refresh_specified = 1;
-				if (cvt || rb)
-					cvt = 0;
+				refresh_specified = true;
+				was_digit = false;
 			} else
 				goto done;
 			break;
 		case '-':
-			namelen = i;
-			if (!bpp_specified && !yres_specified) {
+			if (!bpp_specified && !yres_specified && !cvt &&
+			    !rb && was_digit) {
 				bpp = simple_strtol(&name[i+1], NULL, 10);
-				bpp_specified = 1;
-				if (cvt || rb)
-					cvt = 0;
+				bpp_specified = true;
+				was_digit = false;
 			} else
 				goto done;
 			break;
 		case 'x':
-			if (!yres_specified) {
+			if (!yres_specified && was_digit) {
 				yres = simple_strtol(&name[i+1], NULL, 10);
-				yres_specified = 1;
+				yres_specified = true;
+				was_digit = false;
 			} else
 				goto done;
 		case '0' ... '9':
+			was_digit = true;
 			break;
 		case 'M':
-			if (!yres_specified)
-				cvt = 1;
+			if (yres_specified || cvt || was_digit)
+				goto done;
+			cvt = true;
 			break;
 		case 'R':
-			if (cvt)
-				rb = 1;
+			if (yres_specified || cvt || rb || was_digit)
+				goto done;
+			rb = true;
 			break;
 		case 'm':
-			if (!cvt)
-				margins = 1;
+			if (cvt || yres_specified || was_digit)
+				goto done;
+			margins = true;
 			break;
 		case 'i':
-			if (!cvt)
-				interlace = 1;
+			if (cvt || yres_specified || was_digit)
+				goto done;
+			interlace = true;
 			break;
 		case 'e':
+			if (yres_specified || bpp_specified || refresh_specified ||
+			    was_digit || (force != DRM_FORCE_UNSPECIFIED))
+				goto done;
+
 			force = DRM_FORCE_ON;
 			break;
 		case 'D':
+			if (yres_specified || bpp_specified || refresh_specified ||
+			    was_digit || (force != DRM_FORCE_UNSPECIFIED))
+				goto done;
+
 			if ((connector->connector_type != DRM_MODE_CONNECTOR_DVII) &&
 			    (connector->connector_type != DRM_MODE_CONNECTOR_HDMIB))
 				force = DRM_FORCE_ON;
@@ -1070,17 +1082,37 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 				force = DRM_FORCE_ON_DIGITAL;
 			break;
 		case 'd':
+			if (yres_specified || bpp_specified || refresh_specified ||
+			    was_digit || (force != DRM_FORCE_UNSPECIFIED))
+				goto done;
+
 			force = DRM_FORCE_OFF;
 			break;
 		default:
 			goto done;
 		}
 	}
+
 	if (i < 0 && yres_specified) {
-		xres = simple_strtol(name, NULL, 10);
-		res_specified = 1;
+		char *ch;
+		xres = simple_strtol(name, &ch, 10);
+		if ((ch != NULL) && (*ch == 'x'))
+			res_specified = true;
+		else
+			i = ch - name;
+	} else if (!yres_specified && was_digit) {
+		/* catch mode that begins with digits but has no 'x' */
+		i = 0;
 	}
 done:
+	if (i >= 0) {
+		printk(KERN_WARNING
+			"parse error at position %i in video mode '%s'\n",
+			i, name);
+		mode->specified = false;
+		return false;
+	}
+
 	if (res_specified) {
 		mode->specified = true;
 		mode->xres = xres;
@@ -1096,9 +1128,10 @@ done:
 		mode->bpp_specified = true;
 		mode->bpp = bpp;
 	}
-	mode->rb = rb ? true : false;
-	mode->cvt = cvt  ? true : false;
-	mode->interlace = interlace ? true : false;
+	mode->rb = rb;
+	mode->cvt = cvt;
+	mode->interlace = interlace;
+	mode->margins = margins;
 	mode->force = force;
 
 	return true;

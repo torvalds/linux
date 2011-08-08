@@ -8,6 +8,8 @@ src/
 	- directory holding watchdog related example programs.
 watchdog-api.txt
 	- description of the Linux Watchdog driver API.
+watchdog-kernel-api.txt
+	- description of the Linux WatchDog Timer Driver Core kernel API.
 watchdog-parameters.txt
 	- information on driver parameters (for drivers other than
 	  the ones that have driver-specific files here)

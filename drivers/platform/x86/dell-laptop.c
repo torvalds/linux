@@ -612,7 +612,6 @@ static int __init dell_init(void)
 	if (!bufferpage)
 		goto fail_buffer;
 	buffer = page_address(bufferpage);
-	mutex_init(&buffer_mutex);
 
 	ret = dell_setup_rfkill();
 

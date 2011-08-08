@@ -998,9 +998,9 @@ static void usbhs_disable(struct device *dev)
 
 	if (is_omap_usbhs_rev2(omap)) {
 		if (is_ehci_tll_mode(pdata->port_mode[0]))
-			clk_enable(omap->usbtll_p1_fck);
+			clk_disable(omap->usbtll_p1_fck);
 		if (is_ehci_tll_mode(pdata->port_mode[1]))
-			clk_enable(omap->usbtll_p2_fck);
+			clk_disable(omap->usbtll_p2_fck);
 		clk_disable(omap->utmi_p2_fck);
 		clk_disable(omap->utmi_p1_fck);
 	}

@@ -299,7 +299,7 @@ static int sh7785lcr_clk_init(void)
 	int ret;
 
 	clk = clk_get(NULL, "extal");
-	if (!clk || IS_ERR(clk))
+	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 	ret = clk_set_rate(clk, 33333333);
 	clk_put(clk);

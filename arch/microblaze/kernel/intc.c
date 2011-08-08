@@ -134,7 +134,7 @@ void __init init_IRQ(void)
 	intr_type =
 		be32_to_cpup(of_get_property(intc,
 						"xlnx,kind-of-intr", NULL));
-	if (intr_type >= (1 << (nr_irq + 1)))
+	if (intr_type > (u32)((1ULL << nr_irq) - 1))
 		printk(KERN_INFO " ERROR: Mismatch in kind-of-intr param\n");
 
 #ifdef CONFIG_SELFMOD_INTC

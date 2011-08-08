@@ -1090,7 +1090,7 @@ static void nc_pmic_irq_cb(void *cb_data, u8 intsts)
 	if (intsts & 0x1) {
 		pr_debug("SST DBG:MAD headset detected\n");
 		/* send headset detect/undetect */
-		present = (value == 0x1) ? 1 : 0;
+		present = (value == 0x1) ? 3 : 0;
 		jack_event_flag = 1;
 		mjack->jack.type = SND_JACK_HEADSET;
 		hp_automute(SND_JACK_HEADSET, present);

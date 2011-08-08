@@ -4,11 +4,26 @@
 #include <linux/interrupt.h>
 
 #include <asm/traps.h>
+#include <asm/head.h>
+#include <asm/io.h>
 
 /* cpu.c */
 extern const char *sparc_pmu_type;
 extern unsigned int fsr_storage;
 extern int ncpus_probed;
+
+#ifdef CONFIG_SPARC64
+/* setup_64.c */
+struct seq_file;
+extern void cpucap_info(struct seq_file *);
+
+static inline unsigned long kimage_addr_to_ra(const char *p)
+{
+	unsigned long val = (unsigned long) p;
+
+	return kern_base + (val - KERNBASE);
+}
+#endif
 
 #ifdef CONFIG_SPARC32
 /* cpu.c */

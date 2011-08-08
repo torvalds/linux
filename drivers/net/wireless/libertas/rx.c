@@ -5,6 +5,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/etherdevice.h>
+#include <linux/hardirq.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <net/cfg80211.h>

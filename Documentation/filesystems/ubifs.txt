@@ -111,34 +111,6 @@ The following is an example of the kernel boot arguments to attach mtd0
 to UBI and mount volume "rootfs":
 ubi.mtd=0 root=ubi0:rootfs rootfstype=ubifs
 
-
-Module Parameters for Debugging
-===============================
-
-When UBIFS has been compiled with debugging enabled, there are 2 module
-parameters that are available to control aspects of testing and debugging.
-
-debug_chks	Selects extra checks that UBIFS can do while running:
-
-		Check					Flag value
-
-		General checks				1
-		Check Tree Node Cache (TNC)		2
-		Check indexing tree size		4
-		Check orphan area			8
-		Check old indexing tree			16
-		Check LEB properties (lprops)		32
-		Check leaf nodes and inodes		64
-
-debug_tsts	Selects a mode of testing, as follows:
-
-		Test mode				Flag value
-
-		Failure mode for recovery testing	4
-
-For example, set debug_chks to 3 to enable general and TNC checks.
-
-
 References
 ==========
 

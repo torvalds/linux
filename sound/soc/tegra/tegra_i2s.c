@@ -354,7 +354,6 @@ struct snd_soc_dai_driver tegra_i2s_dai[] = {
 static __devinit int tegra_i2s_platform_probe(struct platform_device *pdev)
 {
 	struct tegra_i2s * i2s;
-	char clk_name[12]; /* tegra-i2s.0 */
 	struct resource *mem, *memregion, *dmareq;
 	int ret;
 
@@ -389,8 +388,7 @@ static __devinit int tegra_i2s_platform_probe(struct platform_device *pdev)
 	}
 	dev_set_drvdata(&pdev->dev, i2s);
 
-	snprintf(clk_name, sizeof(clk_name), DRV_NAME ".%d", pdev->id);
-	i2s->clk_i2s = clk_get_sys(clk_name, NULL);
+	i2s->clk_i2s = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(i2s->clk_i2s)) {
 		dev_err(&pdev->dev, "Can't retrieve i2s clock\n");
 		ret = PTR_ERR(i2s->clk_i2s);

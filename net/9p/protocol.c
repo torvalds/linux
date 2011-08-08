@@ -44,30 +44,24 @@ p9pdu_writef(struct p9_fcall *pdu, int proto_version, const char *fmt, ...);
 void
 p9pdu_dump(int way, struct p9_fcall *pdu)
 {
-	int i, n;
-	u8 *data = pdu->sdata;
-	int datalen = pdu->size;
-	char buf[255];
-	int buflen = 255;
+	int len = pdu->size;
 
-	i = n = 0;
-	if (datalen > (buflen-16))
-		datalen = buflen-16;
-	while (i < datalen) {
-		n += scnprintf(buf + n, buflen - n, "%02x ", data[i]);
-		if (i%4 == 3)
-			n += scnprintf(buf + n, buflen - n, " ");
-		if (i%32 == 31)
-			n += scnprintf(buf + n, buflen - n, "\n");
-
-		i++;
+	if ((p9_debug_level & P9_DEBUG_VPKT) != P9_DEBUG_VPKT) {
+		if ((p9_debug_level & P9_DEBUG_PKT) == P9_DEBUG_PKT) {
+			if (len > 32)
+				len = 32;
+		} else {
+			/* shouldn't happen */
+			return;
+		}
 	}
-	n += scnprintf(buf + n, buflen - n, "\n");
 
 	if (way)
-		P9_DPRINTK(P9_DEBUG_PKT, "[[[(%d) %s\n", datalen, buf);
+		print_hex_dump_bytes("[9P] ", DUMP_PREFIX_OFFSET, pdu->sdata,
+									len);
 	else
-		P9_DPRINTK(P9_DEBUG_PKT, "]]](%d) %s\n", datalen, buf);
+		print_hex_dump_bytes("]9P[ ", DUMP_PREFIX_OFFSET, pdu->sdata,
+									len);
 }
 #else
 void
@@ -610,7 +604,7 @@ int p9stat_read(char *buf, int len, struct p9_wstat *st, int proto_version)
 	ret = p9pdu_readf(&fake_pdu, proto_version, "S", st);
 	if (ret) {
 		P9_DPRINTK(P9_DEBUG_9P, "<<< p9stat_read failed: %d\n", ret);
-		p9pdu_dump(1, &fake_pdu);
+		P9_DUMP_PKT(0, &fake_pdu);
 	}
 
 	return ret;
@@ -632,11 +626,7 @@ int p9pdu_finalize(struct p9_fcall *pdu)
 	err = p9pdu_writef(pdu, 0, "d", size);
 	pdu->size = size;
 
-#ifdef CONFIG_NET_9P_DEBUG
-	if ((p9_debug_level & P9_DEBUG_PKT) == P9_DEBUG_PKT)
-		p9pdu_dump(0, pdu);
-#endif
-
+	P9_DUMP_PKT(0, pdu);
 	P9_DPRINTK(P9_DEBUG_9P, ">>> size=%d type: %d tag: %d\n", pdu->size,
 							pdu->id, pdu->tag);
 
@@ -669,7 +659,7 @@ int p9dirent_read(char *buf, int len, struct p9_dirent *dirent,
 			&dirent->d_off, &dirent->d_type, &nameptr);
 	if (ret) {
 		P9_DPRINTK(P9_DEBUG_9P, "<<< p9dirent_read failed: %d\n", ret);
-		p9pdu_dump(1, &fake_pdu);
+		P9_DUMP_PKT(1, &fake_pdu);
 		goto out;
 	}
 

@@ -37,6 +37,8 @@ static void	bfa_fcs_itnim_prli_response(void *fcsarg,
 			 struct bfa_fcxp_s *fcxp, void *cbarg,
 			    bfa_status_t req_status, u32 rsp_len,
 			    u32 resid_len, struct fchs_s *rsp_fchs);
+static void	bfa_fcs_itnim_aen_post(struct bfa_fcs_itnim_s *itnim,
+			enum bfa_itnim_aen_event event);
 
 /*
  *  fcs_itnim_sm FCS itnim state machine events
@@ -54,6 +56,7 @@ enum bfa_fcs_itnim_event {
 	BFA_FCS_ITNIM_SM_INITIATOR = 9,	/*  rport is initiator */
 	BFA_FCS_ITNIM_SM_DELETE = 10,	/*  delete event from rport */
 	BFA_FCS_ITNIM_SM_PRLO = 11,	/*  delete event from rport */
+	BFA_FCS_ITNIM_SM_RSP_NOT_SUPP = 12, /* cmd not supported rsp */
 };
 
 static void	bfa_fcs_itnim_sm_offline(struct bfa_fcs_itnim_s *itnim,
@@ -178,6 +181,10 @@ bfa_fcs_itnim_sm_prli(struct bfa_fcs_itnim_s *itnim,
 				BFA_FCS_RETRY_TIMEOUT);
 		break;
 
+	case BFA_FCS_ITNIM_SM_RSP_NOT_SUPP:
+		bfa_sm_set_state(itnim, bfa_fcs_itnim_sm_offline);
+		break;
+
 	case BFA_FCS_ITNIM_SM_OFFLINE:
 		bfa_sm_set_state(itnim, bfa_fcs_itnim_sm_offline);
 		bfa_fcxp_discard(itnim->fcxp);
@@ -264,6 +271,7 @@ bfa_fcs_itnim_sm_hcb_online(struct bfa_fcs_itnim_s *itnim,
 		BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 		"Target (WWN = %s) is online for initiator (WWN = %s)\n",
 		rpwwn_buf, lpwwn_buf);
+		bfa_fcs_itnim_aen_post(itnim, BFA_ITNIM_AEN_ONLINE);
 		break;
 
 	case BFA_FCS_ITNIM_SM_OFFLINE:
@@ -300,14 +308,17 @@ bfa_fcs_itnim_sm_online(struct bfa_fcs_itnim_s *itnim,
 		bfa_itnim_offline(itnim->bfa_itnim);
 		wwn2str(lpwwn_buf, bfa_fcs_lport_get_pwwn(itnim->rport->port));
 		wwn2str(rpwwn_buf, itnim->rport->pwwn);
-		if (bfa_fcs_lport_is_online(itnim->rport->port) == BFA_TRUE)
+		if (bfa_fcs_lport_is_online(itnim->rport->port) == BFA_TRUE) {
 			BFA_LOG(KERN_ERR, bfad, bfa_log_level,
 			"Target (WWN = %s) connectivity lost for "
 			"initiator (WWN = %s)\n", rpwwn_buf, lpwwn_buf);
-		else
+			bfa_fcs_itnim_aen_post(itnim, BFA_ITNIM_AEN_DISCONNECT);
+		} else {
 			BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 			"Target (WWN = %s) offlined by initiator (WWN = %s)\n",
 			rpwwn_buf, lpwwn_buf);
+			bfa_fcs_itnim_aen_post(itnim, BFA_ITNIM_AEN_OFFLINE);
+		}
 		break;
 
 	case BFA_FCS_ITNIM_SM_DELETE:
@@ -374,6 +385,33 @@ bfa_fcs_itnim_sm_initiator(struct bfa_fcs_itnim_s *itnim,
 	default:
 		bfa_sm_fault(itnim->fcs, event);
 	}
+}
+
+static void
+bfa_fcs_itnim_aen_post(struct bfa_fcs_itnim_s *itnim,
+			enum bfa_itnim_aen_event event)
+{
+	struct bfa_fcs_rport_s *rport = itnim->rport;
+	struct bfad_s *bfad = (struct bfad_s *)itnim->fcs->bfad;
+	struct bfa_aen_entry_s	*aen_entry;
+
+	/* Don't post events for well known addresses */
+	if (BFA_FCS_PID_IS_WKA(rport->pid))
+		return;
+
+	bfad_get_aen_entry(bfad, aen_entry);
+	if (!aen_entry)
+		return;
+
+	aen_entry->aen_data.itnim.vf_id = rport->port->fabric->vf_id;
+	aen_entry->aen_data.itnim.ppwwn = bfa_fcs_lport_get_pwwn(
+					bfa_fcs_get_base_port(itnim->fcs));
+	aen_entry->aen_data.itnim.lpwwn = bfa_fcs_lport_get_pwwn(rport->port);
+	aen_entry->aen_data.itnim.rpwwn = rport->pwwn;
+
+	/* Send the AEN notification */
+	bfad_im_post_vendor_event(aen_entry, bfad, ++rport->fcs->fcs_aen_seq,
+				  BFA_AEN_CAT_ITNIM, event);
 }
 
 static void
@@ -447,6 +485,7 @@ bfa_fcs_itnim_prli_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 				itnim->rport->scsi_function =
 					 BFA_RPORT_INITIATOR;
 				itnim->stats.prli_rsp_acc++;
+				itnim->stats.initiator++;
 				bfa_sm_send_event(itnim,
 						  BFA_FCS_ITNIM_SM_RSP_OK);
 				return;
@@ -472,6 +511,10 @@ bfa_fcs_itnim_prli_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 		bfa_trc(itnim->fcs, ls_rjt->reason_code_expl);
 
 		itnim->stats.prli_rsp_rjt++;
+		if (ls_rjt->reason_code == FC_LS_RJT_RSN_CMD_NOT_SUPP) {
+			bfa_sm_send_event(itnim, BFA_FCS_ITNIM_SM_RSP_NOT_SUPP);
+			return;
+		}
 		bfa_sm_send_event(itnim, BFA_FCS_ITNIM_SM_RSP_ERROR);
 	}
 }

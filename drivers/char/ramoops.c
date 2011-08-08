@@ -19,18 +19,26 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/kmsg_dump.h>
 #include <linux/time.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/ramoops.h>
 
 #define RAMOOPS_KERNMSG_HDR "===="
+#define MIN_MEM_SIZE 4096UL
 
-#define RECORD_SIZE 4096UL
+static ulong record_size = MIN_MEM_SIZE;
+module_param(record_size, ulong, 0400);
+MODULE_PARM_DESC(record_size,
+		"size of each dump done on oops/panic");
 
 static ulong mem_address;
 module_param(mem_address, ulong, 0400);
@@ -52,9 +60,14 @@ static struct ramoops_context {
 	void *virt_addr;
 	phys_addr_t phys_addr;
 	unsigned long size;
+	unsigned long record_size;
+	int dump_oops;
 	int count;
 	int max_count;
 } oops_cxt;
+
+static struct platform_device *dummy;
+static struct ramoops_platform_data *dummy_data;
 
 static void ramoops_do_dump(struct kmsg_dumper *dumper,
 		enum kmsg_dump_reason reason, const char *s1, unsigned long l1,
@@ -74,13 +87,13 @@ static void ramoops_do_dump(struct kmsg_dumper *dumper,
 		return;
 
 	/* Only dump oopses if dump_oops is set */
-	if (reason == KMSG_DUMP_OOPS && !dump_oops)
+	if (reason == KMSG_DUMP_OOPS && !cxt->dump_oops)
 		return;
 
-	buf = cxt->virt_addr + (cxt->count * RECORD_SIZE);
+	buf = cxt->virt_addr + (cxt->count * cxt->record_size);
 	buf_orig = buf;
 
-	memset(buf, '\0', RECORD_SIZE);
+	memset(buf, '\0', cxt->record_size);
 	res = sprintf(buf, "%s", RAMOOPS_KERNMSG_HDR);
 	buf += res;
 	do_gettimeofday(&timestamp);
@@ -88,8 +101,8 @@ static void ramoops_do_dump(struct kmsg_dumper *dumper,
 	buf += res;
 
 	hdr_size = buf - buf_orig;
-	l2_cpy = min(l2, RECORD_SIZE - hdr_size);
-	l1_cpy = min(l1, RECORD_SIZE - hdr_size - l2_cpy);
+	l2_cpy = min(l2, cxt->record_size - hdr_size);
+	l1_cpy = min(l1, cxt->record_size - hdr_size - l2_cpy);
 
 	s2_start = l2 - l2_cpy;
 	s1_start = l1 - l1_cpy;
@@ -106,44 +119,59 @@ static int __init ramoops_probe(struct platform_device *pdev)
 	struct ramoops_context *cxt = &oops_cxt;
 	int err = -EINVAL;
 
-	if (pdata) {
-		mem_size = pdata->mem_size;
-		mem_address = pdata->mem_address;
-	}
-
-	if (!mem_size) {
-		printk(KERN_ERR "ramoops: invalid size specification");
+	if (!pdata->mem_size || !pdata->record_size) {
+		pr_err("The memory size and the record size must be "
+			"non-zero\n");
 		goto fail3;
 	}
 
-	rounddown_pow_of_two(mem_size);
+	rounddown_pow_of_two(pdata->mem_size);
+	rounddown_pow_of_two(pdata->record_size);
 
-	if (mem_size < RECORD_SIZE) {
-		printk(KERN_ERR "ramoops: size too small");
+	/* Check for the minimum memory size */
+	if (pdata->mem_size < MIN_MEM_SIZE &&
+			pdata->record_size < MIN_MEM_SIZE) {
+		pr_err("memory size too small, minium is %lu\n", MIN_MEM_SIZE);
 		goto fail3;
 	}
 
-	cxt->max_count = mem_size / RECORD_SIZE;
+	if (pdata->mem_size < pdata->record_size) {
+		pr_err("The memory size must be larger than the "
+			"records size\n");
+		goto fail3;
+	}
+
+	cxt->max_count = pdata->mem_size / pdata->record_size;
 	cxt->count = 0;
-	cxt->size = mem_size;
-	cxt->phys_addr = mem_address;
+	cxt->size = pdata->mem_size;
+	cxt->phys_addr = pdata->mem_address;
+	cxt->record_size = pdata->record_size;
+	cxt->dump_oops = pdata->dump_oops;
+	/*
+	 * Update the module parameter variables as well so they are visible
+	 * through /sys/module/ramoops/parameters/
+	 */
+	mem_size = pdata->mem_size;
+	mem_address = pdata->mem_address;
+	record_size = pdata->record_size;
+	dump_oops = pdata->dump_oops;
 
 	if (!request_mem_region(cxt->phys_addr, cxt->size, "ramoops")) {
-		printk(KERN_ERR "ramoops: request mem region failed");
+		pr_err("request mem region failed\n");
 		err = -EINVAL;
 		goto fail3;
 	}
 
 	cxt->virt_addr = ioremap(cxt->phys_addr,  cxt->size);
 	if (!cxt->virt_addr) {
-		printk(KERN_ERR "ramoops: ioremap failed");
+		pr_err("ioremap failed\n");
 		goto fail2;
 	}
 
 	cxt->dump.dump = ramoops_do_dump;
 	err = kmsg_dump_register(&cxt->dump);
 	if (err) {
-		printk(KERN_ERR "ramoops: registering kmsg dumper failed");
+		pr_err("registering kmsg dumper failed\n");
 		goto fail1;
 	}
 
@@ -162,7 +190,7 @@ static int __exit ramoops_remove(struct platform_device *pdev)
 	struct ramoops_context *cxt = &oops_cxt;
 
 	if (kmsg_dump_unregister(&cxt->dump) < 0)
-		printk(KERN_WARNING "ramoops: could not unregister kmsg_dumper");
+		pr_warn("could not unregister kmsg_dumper\n");
 
 	iounmap(cxt->virt_addr);
 	release_mem_region(cxt->phys_addr, cxt->size);
@@ -179,12 +207,39 @@ static struct platform_driver ramoops_driver = {
 
 static int __init ramoops_init(void)
 {
-	return platform_driver_probe(&ramoops_driver, ramoops_probe);
+	int ret;
+	ret = platform_driver_probe(&ramoops_driver, ramoops_probe);
+	if (ret == -ENODEV) {
+		/*
+		 * If we didn't find a platform device, we use module parameters
+		 * building platform data on the fly.
+		 */
+		pr_info("platform device not found, using module parameters\n");
+		dummy_data = kzalloc(sizeof(struct ramoops_platform_data),
+				     GFP_KERNEL);
+		if (!dummy_data)
+			return -ENOMEM;
+		dummy_data->mem_size = mem_size;
+		dummy_data->mem_address = mem_address;
+		dummy_data->record_size = record_size;
+		dummy_data->dump_oops = dump_oops;
+		dummy = platform_create_bundle(&ramoops_driver, ramoops_probe,
+			NULL, 0, dummy_data,
+			sizeof(struct ramoops_platform_data));
+
+		if (IS_ERR(dummy))
+			ret = PTR_ERR(dummy);
+		else
+			ret = 0;
+	}
+
+	return ret;
 }
 
 static void __exit ramoops_exit(void)
 {
 	platform_driver_unregister(&ramoops_driver);
+	kfree(dummy_data);
 }
 
 module_init(ramoops_init);

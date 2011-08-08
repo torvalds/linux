@@ -141,6 +141,8 @@ static void cy82c693_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 		pci_write_config_byte(dev, CY82_IDE_SLAVE_IOW, time_16);
 		pci_write_config_byte(dev, CY82_IDE_SLAVE_8BIT, time_8);
 	}
+	if (hwif->index > 0)
+		pci_dev_put(dev);
 }
 
 static void __devinit init_iops_cy82c693(ide_hwif_t *hwif)

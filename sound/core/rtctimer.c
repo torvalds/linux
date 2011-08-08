@@ -22,7 +22,7 @@
 
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/log2.h>
 #include <sound/core.h>
 #include <sound/timer.h>

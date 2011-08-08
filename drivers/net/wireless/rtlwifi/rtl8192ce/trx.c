@@ -225,7 +225,7 @@ static void _rtl92ce_query_rxphystatus(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct phy_sts_cck_8192s_t *cck_buf;
-	s8 rx_pwr_all, rx_pwr[4];
+	s8 rx_pwr_all = 0, rx_pwr[4];
 	u8 evm, pwdb_all, rf_rx_num = 0;
 	u8 i, max_spatial_stream;
 	u32 rssi, total_rssi = 0;
@@ -592,7 +592,6 @@ static void _rtl92ce_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 	struct ieee80211_hdr *hdr;
 	u8 *tmp_buf;
 	u8 *praddr;
-	u8 *psaddr;
 	__le16 fc;
 	u16 type, c_fc;
 	bool packet_matchbssid, packet_toself, packet_beacon;
@@ -604,7 +603,6 @@ static void _rtl92ce_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 	c_fc = le16_to_cpu(fc);
 	type = WLAN_FC_GET_TYPE(fc);
 	praddr = hdr->addr1;
-	psaddr = hdr->addr2;
 
 	packet_matchbssid =
 	    ((IEEE80211_FTYPE_CTL != type) &&
@@ -680,7 +678,7 @@ bool rtl92ce_rx_query_desc(struct ieee80211_hw *hw,
 						    GET_RX_DESC_PAGGR(pdesc));
 
 	rx_status->mactime = GET_RX_DESC_TSFL(pdesc);
-	if (phystatus == true) {
+	if (phystatus) {
 		p_drvinfo = (struct rx_fwinfo_92c *)(skb->data +
 						     stats->rx_bufshift);
 
@@ -929,9 +927,10 @@ void rtl92ce_tx_fill_cmddesc(struct ieee80211_hw *hw,
 
 void rtl92ce_set_desc(u8 *pdesc, bool istx, u8 desc_name, u8 *val)
 {
-	if (istx == true) {
+	if (istx) {
 		switch (desc_name) {
 		case HW_DESC_OWN:
+			wmb();
 			SET_TX_DESC_OWN(pdesc, 1);
 			break;
 		case HW_DESC_TX_NEXTDESC_ADDR:
@@ -945,6 +944,7 @@ void rtl92ce_set_desc(u8 *pdesc, bool istx, u8 desc_name, u8 *val)
 	} else {
 		switch (desc_name) {
 		case HW_DESC_RXOWN:
+			wmb();
 			SET_RX_DESC_OWN(pdesc, 1);
 			break;
 		case HW_DESC_RXBUFF_ADDR:
@@ -968,7 +968,7 @@ u32 rtl92ce_get_desc(u8 *p_desc, bool istx, u8 desc_name)
 {
 	u32 ret = 0;
 
-	if (istx == true) {
+	if (istx) {
 		switch (desc_name) {
 		case HW_DESC_OWN:
 			ret = GET_TX_DESC_OWN(p_desc);

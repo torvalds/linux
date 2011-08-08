@@ -1,5 +1,6 @@
 #ifndef P54PCI_H
 #define P54PCI_H
+#include <linux/interrupt.h>
 
 /*
  * Defines for PCI based mac80211 Prism54 driver

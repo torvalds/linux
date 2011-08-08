@@ -468,6 +468,7 @@ MACHINE_START(POODLE, "SHARP Poodle")
 	.map_io		= pxa25x_map_io,
 	.nr_irqs	= POODLE_NR_IRQS,	/* 4 for LoCoMo */
 	.init_irq	= pxa25x_init_irq,
+	.handle_irq	= pxa25x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= poodle_init,
 MACHINE_END

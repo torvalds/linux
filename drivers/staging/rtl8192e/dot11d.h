@@ -4,30 +4,30 @@
 #ifdef ENABLE_DOT11D
 #include "ieee80211.h"
 
-typedef struct _CHNL_TXPOWER_TRIPLE {
+struct _CHNL_TXPOWER_TRIPLE {
 	u8 FirstChnl;
 	u8  NumChnls;
 	u8  MaxTxPowerInDbm;
-} CHNL_TXPOWER_TRIPLE, *PCHNL_TXPOWER_TRIPLE;
+};
 
-typedef enum _DOT11D_STATE {
+enum _DOT11D_STATE {
 	DOT11D_STATE_NONE = 0,
 	DOT11D_STATE_LEARNED,
 	DOT11D_STATE_DONE,
-} DOT11D_STATE;
+};
 
 /**
  * struct _RT_DOT11D_INFO
  * @CountryIeLen: value greater than 0 if @CountryIeBuf contains
- * 	          valid country information element.
+ *		  valid country information element.
  * @chanell_map: holds channel values
  *		0 - invalid,
  *		1 - valid (active scan),
- *	 	2 - valid (passive scan)
+ *		2 - valid (passive scan)
  * @CountryIeSrcAddr - Source AP of the country IE
  */
 
-typedef struct _RT_DOT11D_INFO {
+struct _RT_DOT11D_INFO {
 	bool bEnabled;
 
 	u16 CountryIeLen;
@@ -39,7 +39,7 @@ typedef struct _RT_DOT11D_INFO {
 	u8 MaxTxPwrDbmList[MAX_CHANNEL_NUMBER+1];
 
 	DOT11D_STATE State;
-} RT_DOT11D_INFO, *PRT_DOT11D_INFO;
+};
 
 static inline void cpMacAddr(unsigned char *des, unsigned char *src)
 {
@@ -49,7 +49,7 @@ static inline void cpMacAddr(unsigned char *des, unsigned char *src)
 #define GET_DOT11D_INFO(__pIeeeDev) ((PRT_DOT11D_INFO) \
 			((__pIeeeDev)->pDot11dInfo))
 
-#define IS_DOT11D_ENABLE(__pIeeeDev) GET_DOT11D_INFO(__pIeeeDev)->bEnabled
+#define IS_DOT11D_ENABLE(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->bEnabled)
 #define IS_COUNTRY_IE_VALID(__pIeeeDev) \
 			(GET_DOT11D_INFO(__pIeeeDev)->CountryIeLen > 0)
 
@@ -66,9 +66,10 @@ static inline void cpMacAddr(unsigned char *des, unsigned char *src)
 	(__Ie).Octet, (__Ie).Length)))
 
 #define CIE_WATCHDOG_TH 1
-#define GET_CIE_WATCHDOG(__pIeeeDev) GET_DOT11D_INFO(__pIeeeDev)->CountryIeWatchdog
+#define GET_CIE_WATCHDOG(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)-> \
+							CountryIeWatchdog)
 #define RESET_CIE_WATCHDOG(__pIeeeDev) GET_CIE_WATCHDOG(__pIeeeDev) = 0
-#define UPDATE_CIE_WATCHDOG(__pIeeeDev) ++GET_CIE_WATCHDOG(__pIeeeDev)
+#define UPDATE_CIE_WATCHDOG(__pIeeeDev) (++GET_CIE_WATCHDOG(__pIeeeDev))
 
 #define IS_DOT11D_STATE_DONE(__pIeeeDev) \
 		(GET_DOT11D_INFO(__pIeeeDev)->State == DOT11D_STATE_DONE)

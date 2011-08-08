@@ -36,10 +36,9 @@
 #include "cx23885-reg.h"
 #include "media/cx2341x.h"
 
-#include <linux/version.h>
 #include <linux/mutex.h>
 
-#define CX23885_VERSION_CODE KERNEL_VERSION(0, 0, 2)
+#define CX23885_VERSION "0.0.3"
 
 #define UNSET (-1U)
 
@@ -86,6 +85,7 @@
 #define CX23885_BOARD_LEADTEK_WINFAST_PXTV1200 28
 #define CX23885_BOARD_GOTVIEW_X5_3D_HYBRID     29
 #define CX23885_BOARD_NETUP_DUAL_DVB_T_C_CI_RF 30
+#define CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H_XC4000 31
 
 #define GPIO_0 0x00000001
 #define GPIO_1 0x00000002

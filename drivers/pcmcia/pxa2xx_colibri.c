@@ -116,14 +116,6 @@ colibri_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 	return 0;
 }
 
-static void colibri_pcmcia_socket_init(struct soc_pcmcia_socket *skt)
-{
-}
-
-static void colibri_pcmcia_socket_suspend(struct soc_pcmcia_socket *skt)
-{
-}
-
 static struct pcmcia_low_level colibri_pcmcia_ops = {
 	.owner			= THIS_MODULE,
 
@@ -135,9 +127,6 @@ static struct pcmcia_low_level colibri_pcmcia_ops = {
 
 	.socket_state		= colibri_pcmcia_socket_state,
 	.configure_socket	= colibri_pcmcia_configure_socket,
-
-	.socket_init		= colibri_pcmcia_socket_init,
-	.socket_suspend		= colibri_pcmcia_socket_suspend,
 };
 
 static struct platform_device *colibri_pcmcia_device;

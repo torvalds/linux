@@ -4,7 +4,7 @@
 
 config PLAT_S3C24XX
 	bool
-	depends on ARCH_S3C2410 || ARCH_S3C24A0
+	depends on ARCH_S3C2410
 	default y
 	select NO_IOPORT
 	select ARCH_REQUIRE_GPIOLIB

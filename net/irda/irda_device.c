@@ -262,7 +262,7 @@ static void irda_task_timer_expired(void *data)
 
 	IRDA_DEBUG(2, "%s()\n", __func__);
 
-	task = (struct irda_task *) data;
+	task = data;
 
 	irda_task_kick(task);
 }

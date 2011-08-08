@@ -181,6 +181,7 @@ xfs_setfilesize(
 
 	isize = xfs_ioend_new_eof(ioend);
 	if (isize) {
+		trace_xfs_setfilesize(ip, ioend->io_offset, ioend->io_size);
 		ip->i_d.di_size = isize;
 		xfs_mark_inode_dirty(ip);
 	}
@@ -894,11 +895,6 @@ out_invalidate:
  * For unwritten space on the page we need to start the conversion to
  * regular allocated space.
  * For any other dirty buffer heads on the page we should flush them.
- *
- * If we detect that a transaction would be required to flush the page, we
- * have to check the process flags first, if we are already in a transaction
- * or disk I/O during allocations is off, we need to fail the writepage and
- * redirty the page.
  */
 STATIC int
 xfs_vm_writepage(
@@ -906,7 +902,6 @@ xfs_vm_writepage(
 	struct writeback_control *wbc)
 {
 	struct inode		*inode = page->mapping->host;
-	int			delalloc, unwritten;
 	struct buffer_head	*bh, *head;
 	struct xfs_bmbt_irec	imap;
 	xfs_ioend_t		*ioend = NULL, *iohead = NULL;
@@ -938,15 +933,10 @@ xfs_vm_writepage(
 		goto redirty;
 
 	/*
-	 * We need a transaction if there are delalloc or unwritten buffers
-	 * on the page.
-	 *
-	 * If we need a transaction and the process flags say we are already
-	 * in a transaction, or no IO is allowed then mark the page dirty
-	 * again and leave the page as is.
+	 * Given that we do not allow direct reclaim to call us, we should
+	 * never be called while in a filesystem transaction.
 	 */
-	xfs_count_page_state(page, &delalloc, &unwritten);
-	if ((current->flags & PF_FSTRANS) && (delalloc || unwritten))
+	if (WARN_ON(current->flags & PF_FSTRANS))
 		goto redirty;
 
 	/* Is this page beyond the end of the file? */
@@ -970,7 +960,7 @@ xfs_vm_writepage(
 	offset = page_offset(page);
 	type = IO_OVERWRITE;
 
-	if (wbc->sync_mode == WB_SYNC_NONE && wbc->nonblocking)
+	if (wbc->sync_mode == WB_SYNC_NONE)
 		nonblocking = 1;
 
 	do {
@@ -1339,6 +1329,9 @@ xfs_end_io_direct_write(
 	} else {
 		xfs_finish_ioend_sync(ioend);
 	}
+
+	/* XXX: probably should move into the real I/O completion handler */
+	inode_dio_done(ioend->io_inode);
 }
 
 STATIC ssize_t

@@ -13,7 +13,7 @@
 #include <linux/smp.h>
 #include <linux/init.h>
 #include <linux/reboot.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/ptrace.h>
 #include <asm/sigp.h>
 #include <asm/smp.h>

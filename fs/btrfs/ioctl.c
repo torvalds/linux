@@ -323,7 +323,7 @@ static noinline int create_subvol(struct btrfs_root *root,
 	struct btrfs_inode_item *inode_item;
 	struct extent_buffer *leaf;
 	struct btrfs_root *new_root;
-	struct dentry *parent = dget_parent(dentry);
+	struct dentry *parent = dentry->d_parent;
 	struct inode *dir;
 	int ret;
 	int err;
@@ -332,10 +332,8 @@ static noinline int create_subvol(struct btrfs_root *root,
 	u64 index = 0;
 
 	ret = btrfs_find_free_objectid(root->fs_info->tree_root, &objectid);
-	if (ret) {
-		dput(parent);
+	if (ret)
 		return ret;
-	}
 
 	dir = parent->d_inode;
 
@@ -346,10 +344,8 @@ static noinline int create_subvol(struct btrfs_root *root,
 	 * 2 - dir items
 	 */
 	trans = btrfs_start_transaction(root, 6);
-	if (IS_ERR(trans)) {
-		dput(parent);
+	if (IS_ERR(trans))
 		return PTR_ERR(trans);
-	}
 
 	leaf = btrfs_alloc_free_block(trans, root, root->leafsize,
 				      0, objectid, NULL, 0, 0, 0);
@@ -439,7 +435,6 @@ static noinline int create_subvol(struct btrfs_root *root,
 
 	d_instantiate(dentry, btrfs_lookup_dentry(dir, dentry));
 fail:
-	dput(parent);
 	if (async_transid) {
 		*async_transid = trans->transid;
 		err = btrfs_commit_transaction_async(trans, root, 1);
@@ -456,7 +451,6 @@ static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 			   bool readonly)
 {
 	struct inode *inode;
-	struct dentry *parent;
 	struct btrfs_pending_snapshot *pending_snapshot;
 	struct btrfs_trans_handle *trans;
 	int ret;
@@ -504,9 +498,7 @@ static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 	if (ret)
 		goto fail;
 
-	parent = dget_parent(dentry);
-	inode = btrfs_lookup_dentry(parent->d_inode, dentry);
-	dput(parent);
+	inode = btrfs_lookup_dentry(dentry->d_parent->d_inode, dentry);
 	if (IS_ERR(inode)) {
 		ret = PTR_ERR(inode);
 		goto fail;
@@ -867,8 +859,8 @@ again:
 	/* step one, lock all the pages */
 	for (i = 0; i < num_pages; i++) {
 		struct page *page;
-		page = grab_cache_page(inode->i_mapping,
-					    start_index + i);
+		page = find_or_create_page(inode->i_mapping,
+					    start_index + i, GFP_NOFS);
 		if (!page)
 			break;
 
@@ -938,7 +930,9 @@ again:
 			  GFP_NOFS);
 
 	if (i_done != num_pages) {
-		atomic_inc(&BTRFS_I(inode)->outstanding_extents);
+		spin_lock(&BTRFS_I(inode)->lock);
+		BTRFS_I(inode)->outstanding_extents++;
+		spin_unlock(&BTRFS_I(inode)->lock);
 		btrfs_delalloc_release_space(inode,
 				     (num_pages - i_done) << PAGE_CACHE_SHIFT);
 	}
@@ -1755,11 +1749,10 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 		key.objectid = key.offset;
 		key.offset = (u64)-1;
 		dirid = key.objectid;
-
 	}
 	if (ptr < name)
 		goto out;
-	memcpy(name, ptr, total_len);
+	memmove(name, ptr, total_len);
 	name[total_len]='\0';
 	ret = 0;
 out:

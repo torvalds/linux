@@ -528,7 +528,7 @@ static int genregs_set(struct task_struct *target,
 	return ret;
 }
 
-static void ptrace_triggered(struct perf_event *bp, int nmi,
+static void ptrace_triggered(struct perf_event *bp,
 			     struct perf_sample_data *data,
 			     struct pt_regs *regs)
 {
@@ -715,7 +715,8 @@ static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
 		attr.bp_type = HW_BREAKPOINT_W;
 		attr.disabled = 1;
 
-		bp = register_user_hw_breakpoint(&attr, ptrace_triggered, tsk);
+		bp = register_user_hw_breakpoint(&attr, ptrace_triggered,
+						 NULL, tsk);
 
 		/*
 		 * CHECKME: the previous code returned -EIO if the addr wasn't

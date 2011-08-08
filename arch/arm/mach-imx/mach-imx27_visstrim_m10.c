@@ -35,7 +35,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <mach/common.h>
-#include <mach/iomux.h>
+#include <mach/iomux-mx27.h>
 
 #include "devices-imx27.h"
 
@@ -243,6 +243,8 @@ static const struct imx_ssi_platform_data visstrim_m10_ssi_pdata __initconst = {
 static void __init visstrim_m10_board_init(void)
 {
 	int ret;
+
+	imx27_soc_init();
 
 	ret = mxc_gpio_setup_multiple_pins(visstrim_m10_pins,
 			ARRAY_SIZE(visstrim_m10_pins), "VISSTRIM_M10");

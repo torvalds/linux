@@ -16,6 +16,7 @@
 #include <linux/io.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
+#include <linux/pwm_backlight.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -29,6 +30,8 @@
 #include <plat/sdhci.h>
 #include <plat/iic.h>
 #include <plat/pd.h>
+#include <plat/gpio-cfg.h>
+#include <plat/backlight.h>
 
 #include <mach/map.h>
 
@@ -181,9 +184,12 @@ static struct platform_device *smdkv310_devices[] __initdata = {
 	&exynos4_device_pd[PD_CAM],
 	&exynos4_device_pd[PD_TV],
 	&exynos4_device_pd[PD_GPS],
+	&exynos4_device_spdif,
 	&exynos4_device_sysmmu,
 	&samsung_asoc_dma,
+	&samsung_asoc_idma,
 	&smdkv310_smsc911x,
+	&exynos4_device_ahci,
 };
 
 static void __init smdkv310_smsc911x_init(void)
@@ -209,6 +215,17 @@ static void __init smdkv310_smsc911x_init(void)
 		     (0x1 << S5P_SROM_BCX__TACS__SHIFT), S5P_SROM_BC1);
 }
 
+/* LCD Backlight data */
+static struct samsung_bl_gpio_info smdkv310_bl_gpio_info = {
+	.no = EXYNOS4_GPD0(1),
+	.func = S3C_GPIO_SFN(2),
+};
+
+static struct platform_pwm_backlight_data smdkv310_bl_data = {
+	.pwm_id = 1,
+	.pwm_period_ns  = 1000,
+};
+
 static void __init smdkv310_map_io(void)
 {
 	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
@@ -229,6 +246,8 @@ static void __init smdkv310_machine_init(void)
 	s3c_sdhci3_set_platdata(&smdkv310_hsmmc3_pdata);
 
 	samsung_keypad_set_platdata(&smdkv310_keypad_data);
+
+	samsung_bl_set(&smdkv310_bl_gpio_info, &smdkv310_bl_data);
 
 	platform_add_devices(smdkv310_devices, ARRAY_SIZE(smdkv310_devices));
 }

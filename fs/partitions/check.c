@@ -237,22 +237,22 @@ ssize_t part_size_show(struct device *dev,
 	return sprintf(buf, "%llu\n",(unsigned long long)p->nr_sects);
 }
 
-ssize_t part_ro_show(struct device *dev,
-		       struct device_attribute *attr, char *buf)
+static ssize_t part_ro_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
 {
 	struct hd_struct *p = dev_to_part(dev);
 	return sprintf(buf, "%d\n", p->policy ? 1 : 0);
 }
 
-ssize_t part_alignment_offset_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
+static ssize_t part_alignment_offset_show(struct device *dev,
+					  struct device_attribute *attr, char *buf)
 {
 	struct hd_struct *p = dev_to_part(dev);
 	return sprintf(buf, "%llu\n", (unsigned long long)p->alignment_offset);
 }
 
-ssize_t part_discard_alignment_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
+static ssize_t part_discard_alignment_show(struct device *dev,
+					   struct device_attribute *attr, char *buf)
 {
 	struct hd_struct *p = dev_to_part(dev);
 	return sprintf(buf, "%u\n", p->discard_alignment);

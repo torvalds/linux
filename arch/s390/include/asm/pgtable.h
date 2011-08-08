@@ -654,6 +654,48 @@ static inline void pgste_set_pte(pte_t *ptep, pgste_t pgste)
 #endif
 }
 
+/**
+ * struct gmap_struct - guest address space
+ * @mm: pointer to the parent mm_struct
+ * @table: pointer to the page directory
+ * @crst_list: list of all crst tables used in the guest address space
+ */
+struct gmap {
+	struct list_head list;
+	struct mm_struct *mm;
+	unsigned long *table;
+	struct list_head crst_list;
+};
+
+/**
+ * struct gmap_rmap - reverse mapping for segment table entries
+ * @next: pointer to the next gmap_rmap structure in the list
+ * @entry: pointer to a segment table entry
+ */
+struct gmap_rmap {
+	struct list_head list;
+	unsigned long *entry;
+};
+
+/**
+ * struct gmap_pgtable - gmap information attached to a page table
+ * @vmaddr: address of the 1MB segment in the process virtual memory
+ * @mapper: list of segment table entries maping a page table
+ */
+struct gmap_pgtable {
+	unsigned long vmaddr;
+	struct list_head mapper;
+};
+
+struct gmap *gmap_alloc(struct mm_struct *mm);
+void gmap_free(struct gmap *gmap);
+void gmap_enable(struct gmap *gmap);
+void gmap_disable(struct gmap *gmap);
+int gmap_map_segment(struct gmap *gmap, unsigned long from,
+		     unsigned long to, unsigned long length);
+int gmap_unmap_segment(struct gmap *gmap, unsigned long to, unsigned long len);
+unsigned long gmap_fault(unsigned long address, struct gmap *);
+
 /*
  * Certain architectures need to do special things when PTEs
  * within a page table are directly modified.  Thus, the following

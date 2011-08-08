@@ -69,7 +69,6 @@
 #include <net/mac80211.h>
 #include <net/netlink.h>
 
-
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-debug.h"
@@ -77,7 +76,7 @@
 #include "iwl-io.h"
 #include "iwl-agn.h"
 #include "iwl-testmode.h"
-
+#include "iwl-trans.h"
 
 /* The TLVs used in the gnl message policy between the kernel module and
  * user space application. iwl_testmode_gnl_msg_policy is to be carried
@@ -101,9 +100,12 @@ struct nla_policy iwl_testmode_gnl_msg_policy[IWL_TM_ATTR_MAX] = {
 	[IWL_TM_ATTR_EEPROM] = { .type = NLA_UNSPEC, },
 
 	[IWL_TM_ATTR_TRACE_ADDR] = { .type = NLA_UNSPEC, },
-	[IWL_TM_ATTR_TRACE_DATA] = { .type = NLA_UNSPEC, },
+	[IWL_TM_ATTR_TRACE_DUMP] = { .type = NLA_UNSPEC, },
+	[IWL_TM_ATTR_TRACE_SIZE] = { .type = NLA_U32, },
 
 	[IWL_TM_ATTR_FIXRATE] = { .type = NLA_U32, },
+
+	[IWL_TM_ATTR_UCODE_OWNER] = { .type = NLA_U8, },
 };
 
 /*
@@ -179,19 +181,19 @@ void iwl_testmode_init(struct iwl_priv *priv)
 
 static void iwl_trace_cleanup(struct iwl_priv *priv)
 {
-	struct device *dev = &priv->pci_dev->dev;
-
 	if (priv->testmode_trace.trace_enabled) {
 		if (priv->testmode_trace.cpu_addr &&
 		    priv->testmode_trace.dma_addr)
-			dma_free_coherent(dev,
-					TRACE_TOTAL_SIZE,
+			dma_free_coherent(priv->bus->dev,
+					priv->testmode_trace.total_size,
 					priv->testmode_trace.cpu_addr,
 					priv->testmode_trace.dma_addr);
 		priv->testmode_trace.trace_enabled = false;
 		priv->testmode_trace.cpu_addr = NULL;
 		priv->testmode_trace.trace_addr = NULL;
 		priv->testmode_trace.dma_addr = 0;
+		priv->testmode_trace.buff_size = 0;
+		priv->testmode_trace.total_size = 0;
 	}
 }
 
@@ -229,6 +231,7 @@ static int iwl_testmode_ucode(struct ieee80211_hw *hw, struct nlattr **tb)
 		return -ENOMSG;
 	}
 
+	cmd.flags = CMD_ON_DEMAND;
 	cmd.id = nla_get_u8(tb[IWL_TM_ATTR_UCODE_CMD_ID]);
 	cmd.data[0] = nla_data(tb[IWL_TM_ATTR_UCODE_CMD_DATA]);
 	cmd.len[0] = nla_len(tb[IWL_TM_ATTR_UCODE_CMD_DATA]);
@@ -236,7 +239,7 @@ static int iwl_testmode_ucode(struct ieee80211_hw *hw, struct nlattr **tb)
 	IWL_INFO(priv, "testmode ucode command ID 0x%x, flags 0x%x,"
 				" len %d\n", cmd.id, cmd.flags, cmd.len[0]);
 	/* ok, let's submit the command to ucode */
-	return iwl_send_cmd(priv, &cmd);
+	return trans_send_cmd(&priv->trans, &cmd);
 }
 
 
@@ -394,7 +397,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 
 	case IWL_TM_CMD_APP2DEV_LOAD_INIT_FW:
 		status = iwlagn_load_ucode_wait_alive(priv, &priv->ucode_init,
-					   UCODE_SUBTYPE_INIT, -1);
+						      IWL_UCODE_INIT);
 		if (status)
 			IWL_DEBUG_INFO(priv,
 				"Error loading init ucode: %d\n", status);
@@ -402,14 +405,13 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 
 	case IWL_TM_CMD_APP2DEV_CFG_INIT_CALIB:
 		iwl_testmode_cfg_init_calib(priv);
-		iwlagn_stop_device(priv);
+		trans_stop_device(&priv->trans);
 		break;
 
 	case IWL_TM_CMD_APP2DEV_LOAD_RUNTIME_FW:
 		status = iwlagn_load_ucode_wait_alive(priv,
 					   &priv->ucode_rt,
-					   UCODE_SUBTYPE_REGULAR,
-					   UCODE_SUBTYPE_REGULAR_NEW);
+					   IWL_UCODE_REGULAR);
 		if (status) {
 			IWL_DEBUG_INFO(priv,
 				"Error loading runtime ucode: %d\n", status);
@@ -450,7 +452,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 				       "Error finding fixrate setting\n");
 			return -ENOMSG;
 		}
-		priv->dbg_fixed_rate = nla_get_u32(tb[IWL_TM_ATTR_FIXRATE]);
+		priv->tm_fixed_rate = nla_get_u32(tb[IWL_TM_ATTR_FIXRATE]);
 		break;
 
 	default:
@@ -482,16 +484,29 @@ static int iwl_testmode_trace(struct ieee80211_hw *hw, struct nlattr **tb)
 	struct iwl_priv *priv = hw->priv;
 	struct sk_buff *skb;
 	int status = 0;
-	struct device *dev = &priv->pci_dev->dev;
+	struct device *dev = priv->bus->dev;
 
 	switch (nla_get_u32(tb[IWL_TM_ATTR_COMMAND])) {
 	case IWL_TM_CMD_APP2DEV_BEGIN_TRACE:
 		if (priv->testmode_trace.trace_enabled)
 			return -EBUSY;
 
+		if (!tb[IWL_TM_ATTR_TRACE_SIZE])
+			priv->testmode_trace.buff_size = TRACE_BUFF_SIZE_DEF;
+		else
+			priv->testmode_trace.buff_size =
+				nla_get_u32(tb[IWL_TM_ATTR_TRACE_SIZE]);
+		if (!priv->testmode_trace.buff_size)
+			return -EINVAL;
+		if (priv->testmode_trace.buff_size < TRACE_BUFF_SIZE_MIN ||
+		    priv->testmode_trace.buff_size > TRACE_BUFF_SIZE_MAX)
+			return -EINVAL;
+
+		priv->testmode_trace.total_size =
+			priv->testmode_trace.buff_size + TRACE_BUFF_PADD;
 		priv->testmode_trace.cpu_addr =
 			dma_alloc_coherent(dev,
-					   TRACE_TOTAL_SIZE,
+					   priv->testmode_trace.total_size,
 					   &priv->testmode_trace.dma_addr,
 					   GFP_KERNEL);
 		if (!priv->testmode_trace.cpu_addr)
@@ -500,7 +515,7 @@ static int iwl_testmode_trace(struct ieee80211_hw *hw, struct nlattr **tb)
 		priv->testmode_trace.trace_addr = (u8 *)PTR_ALIGN(
 			priv->testmode_trace.cpu_addr, 0x100);
 		memset(priv->testmode_trace.trace_addr, 0x03B,
-			TRACE_BUFF_SIZE);
+			priv->testmode_trace.buff_size);
 		skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy,
 			sizeof(priv->testmode_trace.dma_addr) + 20);
 		if (!skb) {
@@ -518,34 +533,14 @@ static int iwl_testmode_trace(struct ieee80211_hw *hw, struct nlattr **tb)
 				       "Error sending msg : %d\n",
 				       status);
 		}
+		priv->testmode_trace.num_chunks =
+			DIV_ROUND_UP(priv->testmode_trace.buff_size,
+				     TRACE_CHUNK_SIZE);
 		break;
 
 	case IWL_TM_CMD_APP2DEV_END_TRACE:
 		iwl_trace_cleanup(priv);
 		break;
-
-	case IWL_TM_CMD_APP2DEV_READ_TRACE:
-		if (priv->testmode_trace.trace_enabled &&
-		    priv->testmode_trace.trace_addr) {
-			skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy,
-				20 + TRACE_BUFF_SIZE);
-			if (skb == NULL) {
-				IWL_DEBUG_INFO(priv,
-					"Error allocating memory\n");
-				return -ENOMEM;
-			}
-			NLA_PUT(skb, IWL_TM_ATTR_TRACE_DATA,
-				TRACE_BUFF_SIZE,
-				priv->testmode_trace.trace_addr);
-			status = cfg80211_testmode_reply(skb);
-			if (status < 0) {
-				IWL_DEBUG_INFO(priv,
-				       "Error sending msg : %d\n", status);
-			}
-		} else
-			return -EFAULT;
-		break;
-
 	default:
 		IWL_DEBUG_INFO(priv, "Unknown testmode mem command ID\n");
 		return -ENOSYS;
@@ -559,6 +554,73 @@ nla_put_failure:
 		iwl_trace_cleanup(priv);
 	return -EMSGSIZE;
 }
+
+static int iwl_testmode_trace_dump(struct ieee80211_hw *hw, struct nlattr **tb,
+				   struct sk_buff *skb,
+				   struct netlink_callback *cb)
+{
+	struct iwl_priv *priv = hw->priv;
+	int idx, length;
+
+	if (priv->testmode_trace.trace_enabled &&
+	    priv->testmode_trace.trace_addr) {
+		idx = cb->args[4];
+		if (idx >= priv->testmode_trace.num_chunks)
+			return -ENOENT;
+		length = TRACE_CHUNK_SIZE;
+		if (((idx + 1) == priv->testmode_trace.num_chunks) &&
+		    (priv->testmode_trace.buff_size % TRACE_CHUNK_SIZE))
+			length = priv->testmode_trace.buff_size %
+				TRACE_CHUNK_SIZE;
+
+		NLA_PUT(skb, IWL_TM_ATTR_TRACE_DUMP, length,
+			priv->testmode_trace.trace_addr +
+			(TRACE_CHUNK_SIZE * idx));
+		idx++;
+		cb->args[4] = idx;
+		return 0;
+	} else
+		return -EFAULT;
+
+ nla_put_failure:
+	return -ENOBUFS;
+}
+
+/*
+ * This function handles the user application switch ucode ownership.
+ *
+ * It retrieves the mandatory fields IWL_TM_ATTR_UCODE_OWNER and
+ * decide who the current owner of the uCode
+ *
+ * If the current owner is OWNERSHIP_TM, then the only host command
+ * can deliver to uCode is from testmode, all the other host commands
+ * will dropped.
+ *
+ * default driver is the owner of uCode in normal operational mode
+ *
+ * @hw: ieee80211_hw object that represents the device
+ * @tb: gnl message fields from the user space
+ */
+static int iwl_testmode_ownership(struct ieee80211_hw *hw, struct nlattr **tb)
+{
+	struct iwl_priv *priv = hw->priv;
+	u8 owner;
+
+	if (!tb[IWL_TM_ATTR_UCODE_OWNER]) {
+		IWL_DEBUG_INFO(priv, "Error finding ucode owner\n");
+		return -ENOMSG;
+	}
+
+	owner = nla_get_u8(tb[IWL_TM_ATTR_UCODE_OWNER]);
+	if ((owner == IWL_OWNERSHIP_DRIVER) || (owner == IWL_OWNERSHIP_TM))
+		priv->ucode_owner = owner;
+	else {
+		IWL_DEBUG_INFO(priv, "Invalid owner\n");
+		return -EINVAL;
+	}
+	return 0;
+}
+
 
 /* The testmode gnl message handler that takes the gnl message from the
  * user space and parses it per the policy iwl_testmode_gnl_msg_policy, then
@@ -581,7 +643,7 @@ nla_put_failure:
  */
 int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 {
-	struct nlattr *tb[IWL_TM_ATTR_MAX - 1];
+	struct nlattr *tb[IWL_TM_ATTR_MAX];
 	struct iwl_priv *priv = hw->priv;
 	int result;
 
@@ -629,9 +691,61 @@ int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 		result = iwl_testmode_trace(hw, tb);
 		break;
 
+	case IWL_TM_CMD_APP2DEV_OWNERSHIP:
+		IWL_DEBUG_INFO(priv, "testmode change uCode ownership\n");
+		result = iwl_testmode_ownership(hw, tb);
+		break;
+
 	default:
 		IWL_DEBUG_INFO(priv, "Unknown testmode command\n");
 		result = -ENOSYS;
+		break;
+	}
+
+	mutex_unlock(&priv->mutex);
+	return result;
+}
+
+int iwl_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
+		      struct netlink_callback *cb,
+		      void *data, int len)
+{
+	struct nlattr *tb[IWL_TM_ATTR_MAX];
+	struct iwl_priv *priv = hw->priv;
+	int result;
+	u32 cmd;
+
+	if (cb->args[3]) {
+		/* offset by 1 since commands start at 0 */
+		cmd = cb->args[3] - 1;
+	} else {
+		result = nla_parse(tb, IWL_TM_ATTR_MAX - 1, data, len,
+				iwl_testmode_gnl_msg_policy);
+		if (result) {
+			IWL_DEBUG_INFO(priv,
+			       "Error parsing the gnl message : %d\n", result);
+			return result;
+		}
+
+		/* IWL_TM_ATTR_COMMAND is absolutely mandatory */
+		if (!tb[IWL_TM_ATTR_COMMAND]) {
+			IWL_DEBUG_INFO(priv,
+				"Error finding testmode command type\n");
+			return -ENOMSG;
+		}
+		cmd = nla_get_u32(tb[IWL_TM_ATTR_COMMAND]);
+		cb->args[3] = cmd + 1;
+	}
+
+	/* in case multiple accesses to the device happens */
+	mutex_lock(&priv->mutex);
+	switch (cmd) {
+	case IWL_TM_CMD_APP2DEV_READ_TRACE:
+		IWL_DEBUG_INFO(priv, "uCode trace cmd to driver\n");
+		result = iwl_testmode_trace_dump(hw, tb, skb, cb);
+		break;
+	default:
+		result = -EINVAL;
 		break;
 	}
 

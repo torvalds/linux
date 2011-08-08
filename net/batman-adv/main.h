@@ -27,8 +27,9 @@
 #define DRIVER_DESC   "B.A.T.M.A.N. advanced"
 #define DRIVER_DEVICE "batman-adv"
 
-#define SOURCE_VERSION "next"
-
+#ifndef SOURCE_VERSION
+#define SOURCE_VERSION "2011.3.0"
+#endif
 
 /* B.A.T.M.A.N. parameters */
 
@@ -42,14 +43,24 @@
  * -> TODO: check influence on TQ_LOCAL_WINDOW_SIZE */
 #define PURGE_TIMEOUT 200
 #define TT_LOCAL_TIMEOUT 3600 /* in seconds */
-
+#define TT_CLIENT_ROAM_TIMEOUT 600
 /* sliding packet range of received originator messages in squence numbers
  * (should be a multiple of our word size) */
 #define TQ_LOCAL_WINDOW_SIZE 64
+#define TT_REQUEST_TIMEOUT 3 /* seconds we have to keep pending tt_req */
+
 #define TQ_GLOBAL_WINDOW_SIZE 5
 #define TQ_LOCAL_BIDRECT_SEND_MINIMUM 1
 #define TQ_LOCAL_BIDRECT_RECV_MINIMUM 1
 #define TQ_TOTAL_BIDRECT_LIMIT 1
+
+#define TT_OGM_APPEND_MAX 3 /* number of OGMs sent with the last tt diff */
+
+#define ROAMING_MAX_TIME 20 /* Time in which a client can roam at most
+			     * ROAMING_MAX_COUNT times */
+#define ROAMING_MAX_COUNT 5
+
+#define NO_FLAGS 0
 
 #define NUM_WORDS (TQ_LOCAL_WINDOW_SIZE / WORD_BIT_SIZE)
 
@@ -72,12 +83,26 @@
 #define RESET_PROTECTION_MS 30000
 #define EXPECTED_SEQNO_RANGE	65536
 
-#define MESH_INACTIVE 0
-#define MESH_ACTIVE 1
-#define MESH_DEACTIVATING 2
+enum mesh_state {
+	MESH_INACTIVE,
+	MESH_ACTIVE,
+	MESH_DEACTIVATING
+};
 
 #define BCAST_QUEUE_LEN		256
 #define BATMAN_QUEUE_LEN	256
+
+enum uev_action {
+	UEV_ADD = 0,
+	UEV_DEL,
+	UEV_CHANGE
+};
+
+enum uev_type {
+	UEV_GW = 0
+};
+
+#define GW_THRESHOLD	50
 
 /*
  * Debug Messages
@@ -89,10 +114,12 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 /* all messages related to routing / flooding / broadcasting / etc */
-#define DBG_BATMAN 1
-/* route or tt entry added / changed / deleted */
-#define DBG_ROUTES 2
-#define DBG_ALL 3
+enum dbg_level {
+	DBG_BATMAN = 1 << 0,
+	DBG_ROUTES = 1 << 1, /* route added / changed / deleted */
+	DBG_TT	   = 1 << 2, /* translation table operations */
+	DBG_ALL    = 7
+};
 
 
 /*
@@ -118,12 +145,6 @@
 #include <linux/seq_file.h>
 #include "types.h"
 
-#ifndef REVISION_VERSION
-#define REVISION_VERSION_STR ""
-#else
-#define REVISION_VERSION_STR " "REVISION_VERSION
-#endif
-
 extern struct list_head hardif_list;
 
 extern unsigned char broadcast_addr[];
@@ -133,10 +154,10 @@ int mesh_init(struct net_device *soft_iface);
 void mesh_free(struct net_device *soft_iface);
 void inc_module_count(void);
 void dec_module_count(void);
-int is_my_mac(uint8_t *addr);
+int is_my_mac(const uint8_t *addr);
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
-int debug_log(struct bat_priv *bat_priv, char *fmt, ...);
+int debug_log(struct bat_priv *bat_priv, const char *fmt, ...) __printf(2, 3);
 
 #define bat_dbg(type, bat_priv, fmt, arg...)			\
 	do {							\
@@ -145,9 +166,10 @@ int debug_log(struct bat_priv *bat_priv, char *fmt, ...);
 	}							\
 	while (0)
 #else /* !CONFIG_BATMAN_ADV_DEBUG */
-static inline void bat_dbg(char type __always_unused,
+__printf(3, 4)
+static inline void bat_dbg(int type __always_unused,
 			   struct bat_priv *bat_priv __always_unused,
-			   char *fmt __always_unused, ...)
+			   const char *fmt __always_unused, ...)
 {
 }
 #endif
@@ -172,11 +194,32 @@ static inline void bat_dbg(char type __always_unused,
  *
  * note: can't use compare_ether_addr() as it requires aligned memory
  */
-static inline int compare_eth(void *data1, void *data2)
+
+static inline int compare_eth(const void *data1, const void *data2)
 {
 	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
 }
 
+
 #define atomic_dec_not_zero(v)	atomic_add_unless((v), -1, 0)
+
+/* Returns the smallest signed integer in two's complement with the sizeof x */
+#define smallest_signed_int(x) (1u << (7u + 8u * (sizeof(x) - 1u)))
+
+/* Checks if a sequence number x is a predecessor/successor of y.
+ * they handle overflows/underflows and can correctly check for a
+ * predecessor/successor unless the variable sequence number has grown by
+ * more then 2**(bitwidth(x)-1)-1.
+ * This means that for a uint8_t with the maximum value 255, it would think:
+ *  - when adding nothing - it is neither a predecessor nor a successor
+ *  - before adding more than 127 to the starting value - it is a predecessor,
+ *  - when adding 128 - it is neither a predecessor nor a successor,
+ *  - after adding more than 127 to the starting value - it is a successor */
+#define seq_before(x, y) ({typeof(x) _d1 = (x); \
+			  typeof(y) _d2 = (y); \
+			  typeof(x) _dummy = (_d1 - _d2); \
+			  (void) (&_d1 == &_d2); \
+			  _dummy > smallest_signed_int(_dummy); })
+#define seq_after(x, y) seq_before(y, x)
 
 #endif /* _NET_BATMAN_ADV_MAIN_H_ */

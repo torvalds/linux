@@ -19,6 +19,7 @@
 #include <linux/string.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
+#include <linux/syscore_ops.h>
 
 #include <asm/geode.h>
 #include <asm/setup.h>
@@ -29,6 +30,9 @@ struct olpc_platform_t olpc_platform_info;
 EXPORT_SYMBOL_GPL(olpc_platform_info);
 
 static DEFINE_SPINLOCK(ec_lock);
+
+/* EC event mask to be applied during suspend (defining wakeup sources). */
+static u16 ec_wakeup_mask;
 
 /* what the timeout *should* be (in ms) */
 #define EC_BASE_TIMEOUT 20
@@ -188,6 +192,88 @@ err:
 }
 EXPORT_SYMBOL_GPL(olpc_ec_cmd);
 
+void olpc_ec_wakeup_set(u16 value)
+{
+	ec_wakeup_mask |= value;
+}
+EXPORT_SYMBOL_GPL(olpc_ec_wakeup_set);
+
+void olpc_ec_wakeup_clear(u16 value)
+{
+	ec_wakeup_mask &= ~value;
+}
+EXPORT_SYMBOL_GPL(olpc_ec_wakeup_clear);
+
+/*
+ * Returns true if the compile and runtime configurations allow for EC events
+ * to wake the system.
+ */
+bool olpc_ec_wakeup_available(void)
+{
+	if (!machine_is_olpc())
+		return false;
+
+	/*
+	 * XO-1 EC wakeups are available when olpc-xo1-sci driver is
+	 * compiled in
+	 */
+#ifdef CONFIG_OLPC_XO1_SCI
+	if (olpc_platform_info.boardrev < olpc_board_pre(0xd0)) /* XO-1 */
+		return true;
+#endif
+
+	/*
+	 * XO-1.5 EC wakeups are available when olpc-xo15-sci driver is
+	 * compiled in
+	 */
+#ifdef CONFIG_OLPC_XO15_SCI
+	if (olpc_platform_info.boardrev >= olpc_board_pre(0xd0)) /* XO-1.5 */
+		return true;
+#endif
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(olpc_ec_wakeup_available);
+
+int olpc_ec_mask_write(u16 bits)
+{
+	if (olpc_platform_info.flags & OLPC_F_EC_WIDE_SCI) {
+		__be16 ec_word = cpu_to_be16(bits);
+		return olpc_ec_cmd(EC_WRITE_EXT_SCI_MASK, (void *) &ec_word, 2,
+				   NULL, 0);
+	} else {
+		unsigned char ec_byte = bits & 0xff;
+		return olpc_ec_cmd(EC_WRITE_SCI_MASK, &ec_byte, 1, NULL, 0);
+	}
+}
+EXPORT_SYMBOL_GPL(olpc_ec_mask_write);
+
+int olpc_ec_sci_query(u16 *sci_value)
+{
+	int ret;
+
+	if (olpc_platform_info.flags & OLPC_F_EC_WIDE_SCI) {
+		__be16 ec_word;
+		ret = olpc_ec_cmd(EC_EXT_SCI_QUERY,
+			NULL, 0, (void *) &ec_word, 2);
+		if (ret == 0)
+			*sci_value = be16_to_cpu(ec_word);
+	} else {
+		unsigned char ec_byte;
+		ret = olpc_ec_cmd(EC_SCI_QUERY, NULL, 0, &ec_byte, 1);
+		if (ret == 0)
+			*sci_value = ec_byte;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(olpc_ec_sci_query);
+
+static int olpc_ec_suspend(void)
+{
+	return olpc_ec_mask_write(ec_wakeup_mask);
+}
+
 static bool __init check_ofw_architecture(struct device_node *root)
 {
 	const char *olpc_arch;
@@ -242,6 +328,10 @@ static int __init add_xo1_platform_devices(void)
 	return 0;
 }
 
+static struct syscore_ops olpc_syscore_ops = {
+	.suspend = olpc_ec_suspend,
+};
+
 static int __init olpc_init(void)
 {
 	int r = 0;
@@ -266,6 +356,9 @@ static int __init olpc_init(void)
 			!cs5535_has_vsa2())
 		x86_init.pci.arch_init = pci_olpc_init;
 #endif
+	/* EC version 0x5f adds support for wide SCI mask */
+	if (olpc_platform_info.ecver >= 0x5f)
+		olpc_platform_info.flags |= OLPC_F_EC_WIDE_SCI;
 
 	printk(KERN_INFO "OLPC board revision %s%X (EC=%x)\n",
 			((olpc_platform_info.boardrev & 0xf) < 8) ? "pre" : "",
@@ -277,6 +370,8 @@ static int __init olpc_init(void)
 		if (r)
 			return r;
 	}
+
+	register_syscore_ops(&olpc_syscore_ops);
 
 	return 0;
 }

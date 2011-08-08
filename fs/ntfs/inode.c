@@ -2357,12 +2357,7 @@ static const char *es = "  Leaving inconsistent metadata.  Unmount and run "
  *
  * Returns 0 on success or -errno on error.
  *
- * Called with ->i_mutex held.  In all but one case ->i_alloc_sem is held for
- * writing.  The only case in the kernel where ->i_alloc_sem is not held is
- * mm/filemap.c::generic_file_buffered_write() where vmtruncate() is called
- * with the current i_size as the offset.  The analogous place in NTFS is in
- * fs/ntfs/file.c::ntfs_file_buffered_write() where we call vmtruncate() again
- * without holding ->i_alloc_sem.
+ * Called with ->i_mutex held.
  */
 int ntfs_truncate(struct inode *vi)
 {
@@ -2887,8 +2882,7 @@ void ntfs_truncate_vfs(struct inode *vi) {
  * We also abort all changes of user, group, and mode as we do not implement
  * the NTFS ACLs yet.
  *
- * Called with ->i_mutex held.  For the ATTR_SIZE (i.e. ->truncate) case, also
- * called with ->i_alloc_sem held for writing.
+ * Called with ->i_mutex held.
  */
 int ntfs_setattr(struct dentry *dentry, struct iattr *attr)
 {

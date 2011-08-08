@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, Intel Corporation.
+ * Copyright (c) 2009-2011, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -24,11 +24,6 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <linux/gpio.h>
-
-/*
- * MOORESTOWN defines
- */
-#define DELAY_TIME1 2000 /* 1000 = 1ms */
 
 /*
  * Display related stuff
@@ -61,16 +56,10 @@
 #define INTEL_DVO_CHIP_TMDS 2
 #define INTEL_DVO_CHIP_TVOUT 4
 
-enum mipi_panel_type {
-	NSC_800X480 = 1,
-	LGE_480X1024 = 2,
-	TPO_864X480 = 3
-};
-
-/**
+/*
  * Hold information useally put on the device driver privates here,
  * since it needs to be shared across multiple of devices drivers privates.
-*/
+ */
 struct psb_intel_mode_device {
 
 	/*
@@ -79,7 +68,7 @@ struct psb_intel_mode_device {
 	 size_t(*bo_offset) (struct drm_device *dev, void *bo);
 
 	/*
-	 * Cursor
+	 * Cursor (Can go ?)
 	 */
 	int cursor_needs_physical;
 
@@ -116,7 +105,7 @@ struct psb_intel_output {
 	void *dev_priv;
 
 	struct psb_intel_mode_device *mode_dev;
-
+	struct i2c_adapter *hdmi_i2c_adapter;	/* for control functions */
 };
 
 struct psb_intel_crtc_state {
@@ -234,5 +223,8 @@ extern int psb_intel_lvds_set_property(struct drm_connector *connector,
 					uint64_t value);
 extern void psb_intel_lvds_destroy(struct drm_connector *connector);
 extern const struct drm_encoder_funcs psb_intel_lvds_enc_funcs;
+
+extern void mdfldWaitForPipeDisable(struct drm_device *dev, int pipe);
+extern void mdfldWaitForPipeEnable(struct drm_device *dev, int pipe);
 
 #endif				/* __INTEL_DRV_H__ */

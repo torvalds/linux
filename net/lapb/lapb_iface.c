@@ -300,26 +300,26 @@ int lapb_disconnect_request(struct net_device *dev)
 		goto out;
 
 	switch (lapb->state) {
-		case LAPB_STATE_0:
-			rc = LAPB_NOTCONNECTED;
-			goto out_put;
+	case LAPB_STATE_0:
+		rc = LAPB_NOTCONNECTED;
+		goto out_put;
 
-		case LAPB_STATE_1:
+	case LAPB_STATE_1:
 #if LAPB_DEBUG > 1
-			printk(KERN_DEBUG "lapb: (%p) S1 TX DISC(1)\n", lapb->dev);
+		printk(KERN_DEBUG "lapb: (%p) S1 TX DISC(1)\n", lapb->dev);
 #endif
 #if LAPB_DEBUG > 0
-			printk(KERN_DEBUG "lapb: (%p) S1 -> S0\n", lapb->dev);
+		printk(KERN_DEBUG "lapb: (%p) S1 -> S0\n", lapb->dev);
 #endif
-			lapb_send_control(lapb, LAPB_DISC, LAPB_POLLON, LAPB_COMMAND);
-			lapb->state = LAPB_STATE_0;
-			lapb_start_t1timer(lapb);
-			rc = LAPB_NOTCONNECTED;
-			goto out_put;
+		lapb_send_control(lapb, LAPB_DISC, LAPB_POLLON, LAPB_COMMAND);
+		lapb->state = LAPB_STATE_0;
+		lapb_start_t1timer(lapb);
+		rc = LAPB_NOTCONNECTED;
+		goto out_put;
 
-		case LAPB_STATE_2:
-			rc = LAPB_OK;
-			goto out_put;
+	case LAPB_STATE_2:
+		rc = LAPB_OK;
+		goto out_put;
 	}
 
 	lapb_clear_queues(lapb);

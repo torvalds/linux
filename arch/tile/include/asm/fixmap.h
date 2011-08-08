@@ -75,12 +75,6 @@ extern void __set_fixmap(enum fixed_addresses idx,
 
 #define set_fixmap(idx, phys) \
 		__set_fixmap(idx, phys, PAGE_KERNEL)
-/*
- * Some hardware wants to get fixmapped without caching.
- */
-#define set_fixmap_nocache(idx, phys) \
-		__set_fixmap(idx, phys, PAGE_KERNEL_NOCACHE)
-
 #define clear_fixmap(idx) \
 		__set_fixmap(idx, 0, __pgprot(0))
 

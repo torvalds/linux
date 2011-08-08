@@ -1,5 +1,6 @@
 #ifdef __ASSEMBLY__
 
+#include <asm/asm.h>
 #include <asm/dwarf2.h>
 
 /* The annotation hides the frame from the unwinder and makes it look
@@ -7,13 +8,13 @@
    frame pointer later */
 #ifdef CONFIG_FRAME_POINTER
 	.macro FRAME
-	pushl_cfi %ebp
-	CFI_REL_OFFSET ebp,0
-	movl %esp,%ebp
+	__ASM_SIZE(push,_cfi)	%__ASM_REG(bp)
+	CFI_REL_OFFSET		__ASM_REG(bp), 0
+	__ASM_SIZE(mov)		%__ASM_REG(sp), %__ASM_REG(bp)
 	.endm
 	.macro ENDFRAME
-	popl_cfi %ebp
-	CFI_RESTORE ebp
+	__ASM_SIZE(pop,_cfi)	%__ASM_REG(bp)
+	CFI_RESTORE		__ASM_REG(bp)
 	.endm
 #else
 	.macro FRAME

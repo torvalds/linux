@@ -1,0 +1,165 @@
+<refentry id="vidioc-cropcap">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_CROPCAP</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_CROPCAP</refname>
+    <refpurpose>Information about the video cropping and scaling abilities</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_cropcap
+*<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_CROPCAP</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>Applications use this function to query the cropping
+limits, the pixel aspect of images and to calculate scale factors.
+They set the <structfield>type</structfield> field of a v4l2_cropcap
+structure to the respective buffer (stream) type and call the
+<constant>VIDIOC_CROPCAP</constant> ioctl with a pointer to this
+structure. Drivers fill the rest of the structure. The results are
+constant except when switching the video standard. Remember this
+switch can occur implicit when switching the video input or
+output.</para>
+
+    <table pgwide="1" frame="none" id="v4l2-cropcap">
+      <title>struct <structname>v4l2_cropcap</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>&v4l2-buf-type;</entry>
+	    <entry><structfield>type</structfield></entry>
+	    <entry>Type of the data stream, set by the application.
+Only these types are valid here:
+<constant>V4L2_BUF_TYPE_VIDEO_CAPTURE</constant>,
+<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT</constant>,
+<constant>V4L2_BUF_TYPE_VIDEO_OVERLAY</constant>, and custom (driver
+defined) types with code <constant>V4L2_BUF_TYPE_PRIVATE</constant>
+and higher.</entry>
+	  </row>
+	  <row>
+	    <entry>struct <link linkend="v4l2-rect-crop">v4l2_rect</link></entry>
+	    <entry><structfield>bounds</structfield></entry>
+	    <entry>Defines the window within capturing or output is
+possible, this may exclude for example the horizontal and vertical
+blanking areas. The cropping rectangle cannot exceed these limits.
+Width and height are defined in pixels, the driver writer is free to
+choose origin and units of the coordinate system in the analog
+domain.</entry>
+	  </row>
+	  <row>
+	    <entry>struct <link linkend="v4l2-rect-crop">v4l2_rect</link></entry>
+	    <entry><structfield>defrect</structfield></entry>
+	    <entry>Default cropping rectangle, it shall cover the
+"whole picture". Assuming pixel aspect 1/1 this could be for example a
+640&nbsp;&times;&nbsp;480 rectangle for NTSC, a
+768&nbsp;&times;&nbsp;576 rectangle for PAL and SECAM centered over
+the active picture area. The same co-ordinate system as for
+	    <structfield>bounds</structfield> is used.</entry>
+	  </row>
+	  <row>
+	    <entry>&v4l2-fract;</entry>
+	    <entry><structfield>pixelaspect</structfield></entry>
+	    <entry><para>This is the pixel aspect (y / x) when no
+scaling is applied, the ratio of the actual sampling
+frequency and the frequency required to get square
+pixels.</para><para>When cropping coordinates refer to square pixels,
+the driver sets <structfield>pixelaspect</structfield> to 1/1. Other
+common values are 54/59 for PAL and SECAM, 11/10 for NTSC sampled
+according to [<xref linkend="itu601" />].</para></entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <!-- NB this table is duplicated in the overlay chapter. -->
+
+    <table pgwide="1" frame="none" id="v4l2-rect-crop">
+      <title>struct <structname>v4l2_rect</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__s32</entry>
+	    <entry><structfield>left</structfield></entry>
+	    <entry>Horizontal offset of the top, left corner of the
+rectangle, in pixels.</entry>
+	  </row>
+	  <row>
+	    <entry>__s32</entry>
+	    <entry><structfield>top</structfield></entry>
+	    <entry>Vertical offset of the top, left corner of the
+rectangle, in pixels.</entry>
+	  </row>
+	  <row>
+	    <entry>__s32</entry>
+	    <entry><structfield>width</structfield></entry>
+	    <entry>Width of the rectangle, in pixels.</entry>
+	  </row>
+	  <row>
+	    <entry>__s32</entry>
+	    <entry><structfield>height</structfield></entry>
+	    <entry>Height of the rectangle, in pixels. Width
+and height cannot be negative, the fields are signed for
+hysterical reasons. <!-- video4linux-list@redhat.com
+on 22 Oct 2002 subject "Re:[V4L][patches!] Re:v4l2/kernel-2.5" -->
+</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The &v4l2-cropcap; <structfield>type</structfield> is
+invalid. This is not permitted for video capture, output and overlay devices,
+which must support <constant>VIDIOC_CROPCAP</constant>.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>

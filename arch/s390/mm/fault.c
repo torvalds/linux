@@ -299,13 +299,28 @@ static inline int do_exception(struct pt_regs *regs, int access,
 		goto out;
 
 	address = trans_exc_code & __FAIL_ADDR_MASK;
-	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, 0, regs, address);
+	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 	flags = FAULT_FLAG_ALLOW_RETRY;
 	if (access == VM_WRITE || (trans_exc_code & store_indication) == 0x400)
 		flags |= FAULT_FLAG_WRITE;
-retry:
 	down_read(&mm->mmap_sem);
 
+#ifdef CONFIG_PGSTE
+	if (test_tsk_thread_flag(current, TIF_SIE) && S390_lowcore.gmap) {
+		address = gmap_fault(address,
+				     (struct gmap *) S390_lowcore.gmap);
+		if (address == -EFAULT) {
+			fault = VM_FAULT_BADMAP;
+			goto out_up;
+		}
+		if (address == -ENOMEM) {
+			fault = VM_FAULT_OOM;
+			goto out_up;
+		}
+	}
+#endif
+
+retry:
 	fault = VM_FAULT_BADMAP;
 	vma = find_vma(mm, address);
 	if (!vma)
@@ -345,17 +360,18 @@ retry:
 	if (flags & FAULT_FLAG_ALLOW_RETRY) {
 		if (fault & VM_FAULT_MAJOR) {
 			tsk->maj_flt++;
-			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
+			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1,
 				      regs, address);
 		} else {
 			tsk->min_flt++;
-			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
+			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1,
 				      regs, address);
 		}
 		if (fault & VM_FAULT_RETRY) {
 			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
 			 * of starvation. */
 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
+			down_read(&mm->mmap_sem);
 			goto retry;
 		}
 	}

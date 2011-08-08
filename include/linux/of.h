@@ -195,6 +195,14 @@ extern struct device_node *of_find_node_with_property(
 extern struct property *of_find_property(const struct device_node *np,
 					 const char *name,
 					 int *lenp);
+extern int of_property_read_u32_array(const struct device_node *np,
+				      const char *propname,
+				      u32 *out_values,
+				      size_t sz);
+
+extern int of_property_read_string(struct device_node *np,
+				   const char *propname,
+				   const char **out_string);
 extern int of_device_is_compatible(const struct device_node *device,
 				   const char *);
 extern int of_device_is_available(const struct device_node *device);
@@ -227,12 +235,34 @@ extern void of_attach_node(struct device_node *);
 extern void of_detach_node(struct device_node *);
 #endif
 
-#else
+#else /* CONFIG_OF */
 
 static inline bool of_have_populated_dt(void)
 {
 	return false;
 }
 
+static inline int of_property_read_u32_array(const struct device_node *np,
+					     const char *propname,
+					     u32 *out_values, size_t sz)
+{
+	return -ENOSYS;
+}
+
+static inline int of_property_read_string(struct device_node *np,
+					  const char *propname,
+					  const char **out_string)
+{
+	return -ENOSYS;
+}
+
 #endif /* CONFIG_OF */
+
+static inline int of_property_read_u32(const struct device_node *np,
+				       const char *propname,
+				       u32 *out_value)
+{
+	return of_property_read_u32_array(np, propname, out_value, 1);
+}
+
 #endif /* _LINUX_OF_H */

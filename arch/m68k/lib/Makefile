@@ -9,6 +9,6 @@ lib-y	:= ashldi3.o ashrdi3.o lshrdi3.o muldi3.o \
 ifdef CONFIG_MMU
 lib-y	+= string.o uaccess.o checksum_mm.o
 else
-lib-y	+= mulsi3.o divsi3.o udivsi3.o modsi3.o umodsi3.o delay.o checksum_no.o
+lib-y	+= mulsi3.o divsi3.o udivsi3.o modsi3.o umodsi3.o checksum_no.o
 endif
 

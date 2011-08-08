@@ -70,7 +70,7 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/page.h>
 #include <asm/processor.h>
 

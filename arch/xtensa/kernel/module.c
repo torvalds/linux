@@ -24,26 +24,6 @@
 
 #undef DEBUG_RELOCATE
 
-void *module_alloc(unsigned long size)
-{
-	if (size == 0)
-		return NULL;
-	return vmalloc_exec(size);
-}
-
-void module_free(struct module *mod, void *module_region)
-{
-	vfree(module_region);
-}
-
-int module_frob_arch_sections(Elf32_Ehdr *hdr,
-    			      Elf32_Shdr *sechdrs,
-			      char *secstrings,
-			      struct module *mod)
-{
-	return 0;
-}
-
 static int
 decode_calln_opcode (unsigned char *location)
 {
@@ -64,18 +44,6 @@ decode_l32r_opcode (unsigned char *location)
 #ifdef __XTENSA_EL__
 	return (location[0] & 0xf) == 0x1;
 #endif
-}
-
-int apply_relocate(Elf32_Shdr *sechdrs,
-    		   const char *strtab,
-		   unsigned int symindex,
-		   unsigned int relsec,
-		   struct module *mod)
-{
-        printk(KERN_ERR "module %s: REL RELOCATION unsupported\n",
-               mod->name);
-        return -ENOEXEC;
-
 }
 
 int apply_relocate_add(Elf32_Shdr *sechdrs,
@@ -221,15 +189,4 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 		}
 	}
 	return 0;
-}
-
-int module_finalize(const Elf_Ehdr *hdr,
-    		    const Elf_Shdr *sechdrs,
-		    struct module *mod)
-{
-	return 0;
-}
-
-void module_arch_cleanup(struct module *mod)
-{
 }

@@ -1008,15 +1008,13 @@ static int ewrk3_rx(struct net_device *dev)
 							}
 						}
 						p = skb->data;	/* Look at the dest addr */
-						if (p[0] & 0x01) {	/* Multicast/Broadcast */
-							if ((*(s16 *) & p[0] == -1) && (*(s16 *) & p[2] == -1) && (*(s16 *) & p[4] == -1)) {
+						if (is_multicast_ether_addr(p)) {
+							if (is_broadcast_ether_addr(p)) {
 								lp->pktStats.broadcast++;
 							} else {
 								lp->pktStats.multicast++;
 							}
-						} else if ((*(s16 *) & p[0] == *(s16 *) & dev->dev_addr[0]) &&
-							   (*(s16 *) & p[2] == *(s16 *) & dev->dev_addr[2]) &&
-							   (*(s16 *) & p[4] == *(s16 *) & dev->dev_addr[4])) {
+						} else if (compare_ether_addr(p, dev->dev_addr) == 0) {
 							lp->pktStats.unicast++;
 						}
 						lp->pktStats.bins[0]++;		/* Duplicates stats.rx_packets */
@@ -1171,7 +1169,7 @@ static void SetMulticastFilter(struct net_device *dev)
 	struct netdev_hw_addr *ha;
 	u_long iobase = dev->base_addr;
 	int i;
-	char *addrs, bit, byte;
+	char bit, byte;
 	short __iomem *p = lp->mctbl;
 	u16 hashcode;
 	u32 crc;
@@ -1213,25 +1211,22 @@ static void SetMulticastFilter(struct net_device *dev)
 
 		/* Update table */
 		netdev_for_each_mc_addr(ha, dev) {
-			addrs = ha->addr;
-			if ((*addrs & 0x01) == 1) {	/* multicast address? */
-				crc = ether_crc_le(ETH_ALEN, addrs);
-				hashcode = crc & ((1 << 9) - 1);	/* hashcode is 9 LSb of CRC */
+			crc = ether_crc_le(ETH_ALEN, ha->addr);
+			hashcode = crc & ((1 << 9) - 1);	/* hashcode is 9 LSb of CRC */
 
-				byte = hashcode >> 3;	/* bit[3-8] -> byte in filter */
-				bit = 1 << (hashcode & 0x07);	/* bit[0-2] -> bit in byte */
+			byte = hashcode >> 3;	/* bit[3-8] -> byte in filter */
+			bit = 1 << (hashcode & 0x07);	/* bit[0-2] -> bit in byte */
 
-				if (lp->shmem_length == IO_ONLY) {
-					u_char tmp;
+			if (lp->shmem_length == IO_ONLY) {
+				u_char tmp;
 
-					outw(PAGE0_HTE + byte, EWRK3_PIR1);
-					tmp = inb(EWRK3_DATA);
-					tmp |= bit;
-					outw(PAGE0_HTE + byte, EWRK3_PIR1);
-					outb(tmp, EWRK3_DATA);
-				} else {
-					writeb(readb(lp->mctbl + byte) | bit, lp->mctbl + byte);
-				}
+				outw(PAGE0_HTE + byte, EWRK3_PIR1);
+				tmp = inb(EWRK3_DATA);
+				tmp |= bit;
+				outw(PAGE0_HTE + byte, EWRK3_PIR1);
+				outb(tmp, EWRK3_DATA);
+			} else {
+				writeb(readb(lp->mctbl + byte) | bit, lp->mctbl + byte);
 			}
 		}
 	}

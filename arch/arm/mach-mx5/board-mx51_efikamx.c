@@ -139,7 +139,7 @@ static void __init mx51_efikamx_board_id(void)
 	}
 }
 
-static struct gpio_led mx51_efikamx_leds[] = {
+static struct gpio_led mx51_efikamx_leds[] __initdata = {
 	{
 		.name = "efikamx:green",
 		.default_trigger = "default-on",
@@ -157,17 +157,10 @@ static struct gpio_led mx51_efikamx_leds[] = {
 	},
 };
 
-static struct gpio_led_platform_data mx51_efikamx_leds_data = {
+static const struct gpio_led_platform_data
+		mx51_efikamx_leds_data __initconst = {
 	.leds = mx51_efikamx_leds,
 	.num_leds = ARRAY_SIZE(mx51_efikamx_leds),
-};
-
-static struct platform_device mx51_efikamx_leds_device = {
-	.name = "leds-gpio",
-	.id = -1,
-	.dev = {
-		.platform_data = &mx51_efikamx_leds_data,
-	},
 };
 
 static struct gpio_keys_button mx51_efikamx_powerkey[] = {
@@ -236,6 +229,8 @@ late_initcall(mx51_efikamx_power_init);
 
 static void __init mx51_efikamx_init(void)
 {
+	imx51_soc_init();
+
 	mxc_iomux_v3_setup_multiple_pads(mx51efikamx_pads,
 					ARRAY_SIZE(mx51efikamx_pads));
 	efika_board_common_init();
@@ -248,7 +243,7 @@ static void __init mx51_efikamx_init(void)
 		mx51_efikamx_leds[2].default_trigger = "mmc1";
 	}
 
-	platform_device_register(&mx51_efikamx_leds_device);
+	gpio_led_register_device(-1, &mx51_efikamx_leds_data);
 	imx_add_gpio_keys(&mx51_efikamx_powerkey_data);
 
 	if (system_rev == 0x11) {

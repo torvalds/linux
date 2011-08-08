@@ -839,6 +839,9 @@ struct request *blk_get_request(struct request_queue *q, int rw, gfp_t gfp_mask)
 {
 	struct request *rq;
 
+	if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
+		return NULL;
+
 	BUG_ON(rw != READ && rw != WRITE);
 
 	spin_lock_irq(q->queue_lock);
@@ -1279,10 +1282,8 @@ get_rq:
 	init_request_from_bio(req, bio);
 
 	if (test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags) ||
-	    bio_flagged(bio, BIO_CPU_AFFINE)) {
-		req->cpu = blk_cpu_to_group(get_cpu());
-		put_cpu();
-	}
+	    bio_flagged(bio, BIO_CPU_AFFINE))
+		req->cpu = raw_smp_processor_id();
 
 	plug = current->plug;
 	if (plug) {
@@ -1302,7 +1303,10 @@ get_rq:
 				plug->should_sort = 1;
 		}
 		list_add_tail(&req->queuelist, &plug->list);
+		plug->count++;
 		drive_stat_acct(req, 1);
+		if (plug->count >= BLK_MAX_REQUEST_COUNT)
+			blk_flush_plug_list(plug, false);
 	} else {
 		spin_lock_irq(q->queue_lock);
 		add_acct_request(q, req, where);
@@ -1357,29 +1361,27 @@ static int __init setup_fail_make_request(char *str)
 }
 __setup("fail_make_request=", setup_fail_make_request);
 
-static int should_fail_request(struct bio *bio)
+static bool should_fail_request(struct hd_struct *part, unsigned int bytes)
 {
-	struct hd_struct *part = bio->bi_bdev->bd_part;
-
-	if (part_to_disk(part)->part0.make_it_fail || part->make_it_fail)
-		return should_fail(&fail_make_request, bio->bi_size);
-
-	return 0;
+	return part->make_it_fail && should_fail(&fail_make_request, bytes);
 }
 
 static int __init fail_make_request_debugfs(void)
 {
-	return init_fault_attr_dentries(&fail_make_request,
-					"fail_make_request");
+	struct dentry *dir = fault_create_debugfs_attr("fail_make_request",
+						NULL, &fail_make_request);
+
+	return IS_ERR(dir) ? PTR_ERR(dir) : 0;
 }
 
 late_initcall(fail_make_request_debugfs);
 
 #else /* CONFIG_FAIL_MAKE_REQUEST */
 
-static inline int should_fail_request(struct bio *bio)
+static inline bool should_fail_request(struct hd_struct *part,
+					unsigned int bytes)
 {
-	return 0;
+	return false;
 }
 
 #endif /* CONFIG_FAIL_MAKE_REQUEST */
@@ -1462,6 +1464,7 @@ static inline void __generic_make_request(struct bio *bio)
 	old_dev = 0;
 	do {
 		char b[BDEVNAME_SIZE];
+		struct hd_struct *part;
 
 		q = bdev_get_queue(bio->bi_bdev);
 		if (unlikely(!q)) {
@@ -1485,7 +1488,10 @@ static inline void __generic_make_request(struct bio *bio)
 		if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
 			goto end_io;
 
-		if (should_fail_request(bio))
+		part = bio->bi_bdev->bd_part;
+		if (should_fail_request(part, bio->bi_size) ||
+		    should_fail_request(&part_to_disk(part)->part0,
+					bio->bi_size))
 			goto end_io;
 
 		/*
@@ -1700,11 +1706,9 @@ int blk_insert_cloned_request(struct request_queue *q, struct request *rq)
 	if (blk_rq_check_limits(q, rq))
 		return -EIO;
 
-#ifdef CONFIG_FAIL_MAKE_REQUEST
-	if (rq->rq_disk && rq->rq_disk->part0.make_it_fail &&
-	    should_fail(&fail_make_request, blk_rq_bytes(rq)))
+	if (rq->rq_disk &&
+	    should_fail_request(&rq->rq_disk->part0, blk_rq_bytes(rq)))
 		return -EIO;
-#endif
 
 	spin_lock_irqsave(q->queue_lock, flags);
 
@@ -2626,6 +2630,7 @@ void blk_start_plug(struct blk_plug *plug)
 	INIT_LIST_HEAD(&plug->list);
 	INIT_LIST_HEAD(&plug->cb_list);
 	plug->should_sort = 0;
+	plug->count = 0;
 
 	/*
 	 * If this is a nested plug, don't actually assign it. It will be
@@ -2709,6 +2714,7 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 		return;
 
 	list_splice_init(&plug->list, &list);
+	plug->count = 0;
 
 	if (plug->should_sort) {
 		list_sort(NULL, &list, plug_rq_cmp);

@@ -32,7 +32,11 @@
 /* [R 1] ATC initalization done */
 #define ATC_REG_ATC_INIT_DONE					 0x1100bc
 /* [RC 6] Interrupt register #0 read clear */
-#define ATC_REG_ATC_INT_STS_CLR				 0x1101c0
+#define ATC_REG_ATC_INT_STS_CLR					 0x1101c0
+/* [RW 5] Parity mask register #0 read/write */
+#define ATC_REG_ATC_PRTY_MASK					 0x1101d8
+/* [RC 5] Parity register #0 read clear */
+#define ATC_REG_ATC_PRTY_STS_CLR				 0x1101d0
 /* [RW 19] Interrupt mask register #0 read/write */
 #define BRB1_REG_BRB1_INT_MASK					 0x60128
 /* [R 19] Interrupt register #0 read */
@@ -54,16 +58,20 @@
 /* [RW 10] The number of free blocks below which the full signal to class 0
  * is asserted */
 #define BRB1_REG_FULL_0_XOFF_THRESHOLD_0			 0x601d0
-/* [RW 10] The number of free blocks above which the full signal to class 0
+#define BRB1_REG_FULL_0_XOFF_THRESHOLD_1			 0x60230
+/* [RW 11] The number of free blocks above which the full signal to class 0
  * is de-asserted */
 #define BRB1_REG_FULL_0_XON_THRESHOLD_0				 0x601d4
-/* [RW 10] The number of free blocks below which the full signal to class 1
+#define BRB1_REG_FULL_0_XON_THRESHOLD_1				 0x60234
+/* [RW 11] The number of free blocks below which the full signal to class 1
  * is asserted */
 #define BRB1_REG_FULL_1_XOFF_THRESHOLD_0			 0x601d8
-/* [RW 10] The number of free blocks above which the full signal to class 1
+#define BRB1_REG_FULL_1_XOFF_THRESHOLD_1			 0x60238
+/* [RW 11] The number of free blocks above which the full signal to class 1
  * is de-asserted */
 #define BRB1_REG_FULL_1_XON_THRESHOLD_0				 0x601dc
-/* [RW 10] The number of free blocks below which the full signal to the LB
+#define BRB1_REG_FULL_1_XON_THRESHOLD_1				 0x6023c
+/* [RW 11] The number of free blocks below which the full signal to the LB
  * port is asserted */
 #define BRB1_REG_FULL_LB_XOFF_THRESHOLD				 0x601e0
 /* [RW 10] The number of free blocks above which the full signal to the LB
@@ -75,15 +83,49 @@
 /* [RW 10] The number of free blocks below which the High_llfc signal to
    interface #n is asserted. */
 #define BRB1_REG_HIGH_LLFC_LOW_THRESHOLD_0			 0x6013c
-/* [RW 23] LL RAM data. */
-#define BRB1_REG_LL_RAM 					 0x61000
+/* [RW 11] The number of blocks guarantied for the LB port */
+#define BRB1_REG_LB_GUARANTIED					 0x601ec
+/* [RW 11] The hysteresis on the guarantied buffer space for the Lb port
+ * before signaling XON. */
+#define BRB1_REG_LB_GUARANTIED_HYST				 0x60264
+/* [RW 24] LL RAM data. */
+#define BRB1_REG_LL_RAM						 0x61000
 /* [RW 10] The number of free blocks above which the Low_llfc signal to
    interface #n is de-asserted. */
 #define BRB1_REG_LOW_LLFC_HIGH_THRESHOLD_0			 0x6016c
 /* [RW 10] The number of free blocks below which the Low_llfc signal to
    interface #n is asserted. */
 #define BRB1_REG_LOW_LLFC_LOW_THRESHOLD_0			 0x6015c
-/* [RW 10] The number of blocks guarantied for the MAC port */
+/* [RW 11] The number of blocks guarantied for class 0 in MAC 0. The
+ * register is applicable only when per_class_guaranty_mode is set. */
+#define BRB1_REG_MAC_0_CLASS_0_GUARANTIED			 0x60244
+/* [RW 11] The hysteresis on the guarantied buffer space for class 0 in MAC
+ * 1 before signaling XON. The register is applicable only when
+ * per_class_guaranty_mode is set. */
+#define BRB1_REG_MAC_0_CLASS_0_GUARANTIED_HYST			 0x60254
+/* [RW 11] The number of blocks guarantied for class 1 in MAC 0. The
+ * register is applicable only when per_class_guaranty_mode is set. */
+#define BRB1_REG_MAC_0_CLASS_1_GUARANTIED			 0x60248
+/* [RW 11] The hysteresis on the guarantied buffer space for class 1in MAC 0
+ * before signaling XON. The register is applicable only when
+ * per_class_guaranty_mode is set. */
+#define BRB1_REG_MAC_0_CLASS_1_GUARANTIED_HYST			 0x60258
+/* [RW 11] The number of blocks guarantied for class 0in MAC1.The register
+ * is applicable only when per_class_guaranty_mode is set. */
+#define BRB1_REG_MAC_1_CLASS_0_GUARANTIED			 0x6024c
+/* [RW 11] The hysteresis on the guarantied buffer space for class 0 in MAC
+ * 1 before signaling XON. The register is applicable only when
+ * per_class_guaranty_mode is set. */
+#define BRB1_REG_MAC_1_CLASS_0_GUARANTIED_HYST			 0x6025c
+/* [RW 11] The number of blocks guarantied for class 1 in MAC 1. The
+ * register is applicable only when per_class_guaranty_mode is set. */
+#define BRB1_REG_MAC_1_CLASS_1_GUARANTIED			 0x60250
+/* [RW 11] The hysteresis on the guarantied buffer space for class 1 in MAC
+ * 1 before signaling XON. The register is applicable only when
+ * per_class_guaranty_mode is set. */
+#define BRB1_REG_MAC_1_CLASS_1_GUARANTIED_HYST			 0x60260
+/* [RW 11] The number of blocks guarantied for the MAC port. The register is
+ * applicable only when per_class_guaranty_mode is reset. */
 #define BRB1_REG_MAC_GUARANTIED_0				 0x601e8
 #define BRB1_REG_MAC_GUARANTIED_1				 0x60240
 /* [R 24] The number of full blocks. */
@@ -100,15 +142,19 @@
 /* [RW 10] The number of free blocks below which the pause signal to class 0
  * is asserted */
 #define BRB1_REG_PAUSE_0_XOFF_THRESHOLD_0			 0x601c0
-/* [RW 10] The number of free blocks above which the pause signal to class 0
+#define BRB1_REG_PAUSE_0_XOFF_THRESHOLD_1			 0x60220
+/* [RW 11] The number of free blocks above which the pause signal to class 0
  * is de-asserted */
 #define BRB1_REG_PAUSE_0_XON_THRESHOLD_0			 0x601c4
-/* [RW 10] The number of free blocks below which the pause signal to class 1
+#define BRB1_REG_PAUSE_0_XON_THRESHOLD_1			 0x60224
+/* [RW 11] The number of free blocks below which the pause signal to class 1
  * is asserted */
 #define BRB1_REG_PAUSE_1_XOFF_THRESHOLD_0			 0x601c8
-/* [RW 10] The number of free blocks above which the pause signal to class 1
+#define BRB1_REG_PAUSE_1_XOFF_THRESHOLD_1			 0x60228
+/* [RW 11] The number of free blocks above which the pause signal to class 1
  * is de-asserted */
 #define BRB1_REG_PAUSE_1_XON_THRESHOLD_0			 0x601cc
+#define BRB1_REG_PAUSE_1_XON_THRESHOLD_1			 0x6022c
 /* [RW 10] Write client 0: De-assert pause threshold. Not Functional */
 #define BRB1_REG_PAUSE_HIGH_THRESHOLD_0 			 0x60078
 #define BRB1_REG_PAUSE_HIGH_THRESHOLD_1 			 0x6007c
@@ -325,7 +371,7 @@
    mechanism. The fields are: [5:0] - message length; [12:6] - message
    pointer; 18:13] - next pointer. */
 #define CCM_REG_XX_DESCR_TABLE					 0xd0300
-#define CCM_REG_XX_DESCR_TABLE_SIZE				 36
+#define CCM_REG_XX_DESCR_TABLE_SIZE				 24
 /* [R 7] Used to read the value of XX protection Free counter. */
 #define CCM_REG_XX_FREE 					 0xd0184
 /* [RW 6] Initial value for the credit counter; responsible for fulfilling
@@ -422,6 +468,7 @@
 #define CFC_REG_NUM_LCIDS_ALLOC 				 0x104020
 /* [R 9] Number of Arriving LCIDs in Link List Block */
 #define CFC_REG_NUM_LCIDS_ARRIVING				 0x104004
+#define CFC_REG_NUM_LCIDS_INSIDE_PF				 0x104120
 /* [R 9] Number of Leaving LCIDs in Link List Block */
 #define CFC_REG_NUM_LCIDS_LEAVING				 0x104018
 #define CFC_REG_WEAK_ENABLE_PF					 0x104124
@@ -783,6 +830,7 @@
 /* [RW 3] The number of simultaneous outstanding requests to Context Fetch
    Interface. */
 #define DORQ_REG_OUTST_REQ					 0x17003c
+#define DORQ_REG_PF_USAGE_CNT					 0x1701d0
 #define DORQ_REG_REGN						 0x170038
 /* [R 4] Current value of response A counter credit. Initial credit is
    configured through write to ~dorq_registers_rsp_init_crd.rsp_init_crd
@@ -802,10 +850,12 @@
 /* [RW 28] TCM Header when both ULP and TCP context is loaded. */
 #define DORQ_REG_SHRT_CMHEAD					 0x170054
 #define HC_CONFIG_0_REG_ATTN_BIT_EN_0				 (0x1<<4)
+#define HC_CONFIG_0_REG_BLOCK_DISABLE_0				 (0x1<<0)
 #define HC_CONFIG_0_REG_INT_LINE_EN_0				 (0x1<<3)
 #define HC_CONFIG_0_REG_MSI_ATTN_EN_0				 (0x1<<7)
 #define HC_CONFIG_0_REG_MSI_MSIX_INT_EN_0			 (0x1<<2)
-#define HC_CONFIG_0_REG_SINGLE_ISR_EN_0 			 (0x1<<1)
+#define HC_CONFIG_0_REG_SINGLE_ISR_EN_0				 (0x1<<1)
+#define HC_CONFIG_1_REG_BLOCK_DISABLE_1				 (0x1<<0)
 #define HC_REG_AGG_INT_0					 0x108050
 #define HC_REG_AGG_INT_1					 0x108054
 #define HC_REG_ATTN_BIT 					 0x108120
@@ -844,6 +894,7 @@
 #define HC_REG_VQID_0						 0x108008
 #define HC_REG_VQID_1						 0x10800c
 #define IGU_BLOCK_CONFIGURATION_REG_BACKWARD_COMP_EN		 (0x1<<1)
+#define IGU_BLOCK_CONFIGURATION_REG_BLOCK_ENABLE		 (0x1<<0)
 #define IGU_REG_ATTENTION_ACK_BITS				 0x130108
 /* [R 4] Debug: attn_fsm */
 #define IGU_REG_ATTN_FSM					 0x130054
@@ -933,6 +984,14 @@
  * clear; 1 = set. Data valid only in addresses 0-4. all the rest are zero. */
 #define IGU_REG_WRITE_DONE_PENDING				 0x130480
 #define MCP_A_REG_MCPR_SCRATCH					 0x3a0000
+#define MCP_REG_MCPR_CPU_PROGRAM_COUNTER			 0x8501c
+#define MCP_REG_MCPR_GP_INPUTS					 0x800c0
+#define MCP_REG_MCPR_GP_OENABLE					 0x800c8
+#define MCP_REG_MCPR_GP_OUTPUTS					 0x800c4
+#define MCP_REG_MCPR_IMC_COMMAND				 0x85900
+#define MCP_REG_MCPR_IMC_DATAREG0				 0x85920
+#define MCP_REG_MCPR_IMC_SLAVE_CONTROL				 0x85904
+#define MCP_REG_MCPR_CPU_PROGRAM_COUNTER			 0x8501c
 #define MCP_REG_MCPR_NVM_ACCESS_ENABLE				 0x86424
 #define MCP_REG_MCPR_NVM_ADDR					 0x8640c
 #define MCP_REG_MCPR_NVM_CFG4					 0x8642c
@@ -1429,11 +1488,37 @@
 /* [RW 1] e1hmf for WOL. If clr WOL signal o the PXP will be send on bit 0
    only. */
 #define MISC_REG_E1HMF_MODE					 0xa5f8
+/* [R 1] Status of four port mode path swap input pin. */
+#define MISC_REG_FOUR_PORT_PATH_SWAP				 0xa75c
+/* [RW 2] 4 port path swap overwrite.[0] - Overwrite control; if it is 0 -
+   the path_swap output is equal to 4 port mode path swap input pin; if it
+   is 1 - the path_swap output is equal to bit[1] of this register; [1] -
+   Overwrite value. If bit[0] of this register is 1 this is the value that
+   receives the path_swap output. Reset on Hard reset. */
+#define MISC_REG_FOUR_PORT_PATH_SWAP_OVWR			 0xa738
+/* [R 1] Status of 4 port mode port swap input pin. */
+#define MISC_REG_FOUR_PORT_PORT_SWAP				 0xa754
+/* [RW 2] 4 port port swap overwrite.[0] - Overwrite control; if it is 0 -
+   the port_swap output is equal to 4 port mode port swap input pin; if it
+   is 1 - the port_swap output is equal to bit[1] of this register; [1] -
+   Overwrite value. If bit[0] of this register is 1 this is the value that
+   receives the port_swap output. Reset on Hard reset. */
+#define MISC_REG_FOUR_PORT_PORT_SWAP_OVWR			 0xa734
 /* [RW 32] Debug only: spare RW register reset by core reset */
 #define MISC_REG_GENERIC_CR_0					 0xa460
 #define MISC_REG_GENERIC_CR_1					 0xa464
 /* [RW 32] Debug only: spare RW register reset by por reset */
 #define MISC_REG_GENERIC_POR_1					 0xa474
+/* [RW 32] Bit[0]: EPIO MODE SEL: Setting this bit to 1 will allow SW/FW to
+   use all of the 32 Extended GPIO pins. Without setting this bit; an EPIO
+   can not be configured as an output. Each output has its output enable in
+   the MCP register space; but this bit needs to be set to make use of that.
+   Bit[3:1] spare. Bit[4]: WCVTMON_PWRDN: Powerdown for Warpcore VTMON. When
+   set to 1 - Powerdown. Bit[5]: WCVTMON_RESETB: Reset for Warpcore VTMON.
+   When set to 0 - vTMON is in reset. Bit[6]: setting this bit will change
+   the i/o to an output and will drive the TimeSync output. Bit[31:7]:
+   spare. Global register. Reset by hard reset. */
+#define MISC_REG_GEN_PURP_HWG					 0xa9a0
 /* [RW 32] GPIO. [31-28] FLOAT port 0; [27-24] FLOAT port 0; When any of
    these bits is written as a '1'; the corresponding SPIO bit will turn off
    it's drivers and become an input. This is the reset state of all GPIO
@@ -1636,9 +1721,47 @@
    in this register. address 0 - timer 1; address 1 - timer 2, ...  address 7 -
    timer 8 */
 #define MISC_REG_SW_TIMER_VAL					 0xa5c0
+/* [R 1] Status of two port mode path swap input pin. */
+#define MISC_REG_TWO_PORT_PATH_SWAP				 0xa758
+/* [RW 2] 2 port swap overwrite.[0] - Overwrite control; if it is 0 - the
+   path_swap output is equal to 2 port mode path swap input pin; if it is 1
+   - the path_swap output is equal to bit[1] of this register; [1] -
+   Overwrite value. If bit[0] of this register is 1 this is the value that
+   receives the path_swap output. Reset on Hard reset. */
+#define MISC_REG_TWO_PORT_PATH_SWAP_OVWR			 0xa72c
 /* [RW 1] Set by the MCP to remember if one or more of the drivers is/are
    loaded; 0-prepare; -unprepare */
 #define MISC_REG_UNPREPARED					 0xa424
+#define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_BRCST	 (0x1<<0)
+#define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_MLCST	 (0x1<<1)
+#define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_NO_VLAN	 (0x1<<4)
+#define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_UNCST	 (0x1<<2)
+#define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_VLAN	 (0x1<<3)
+/* [RW 5] MDIO PHY Address. The WC uses this address to determine whether or
+ * not it is the recipient of the message on the MDIO interface. The value
+ * is compared to the value on ctrl_md_devad. Drives output
+ * misc_xgxs0_phy_addr. Global register. */
+#define MISC_REG_WC0_CTRL_PHY_ADDR				 0xa9cc
+/* [RW 2] XMAC Core port mode. Indicates the number of ports on the system
+   side. This should be less than or equal to phy_port_mode; if some of the
+   ports are not used. This enables reduction of frequency on the core side.
+   This is a strap input for the XMAC_MP core. 00 - Single Port Mode; 01 -
+   Dual Port Mode; 10 - Tri Port Mode; 11 - Quad Port Mode. This is a strap
+   input for the XMAC_MP core; and should be changed only while reset is
+   held low. Reset on Hard reset. */
+#define MISC_REG_XMAC_CORE_PORT_MODE				 0xa964
+/* [RW 2] XMAC PHY port mode. Indicates the number of ports on the Warp
+   Core. This is a strap input for the XMAC_MP core. 00 - Single Port Mode;
+   01 - Dual Port Mode; 1x - Quad Port Mode; This is a strap input for the
+   XMAC_MP core; and should be changed only while reset is held low. Reset
+   on Hard reset. */
+#define MISC_REG_XMAC_PHY_PORT_MODE				 0xa960
+/* [RW 32] 1 [47] Packet Size = 64 Write to this register write bits 31:0.
+ * Reads from this register will clear bits 31:0. */
+#define MSTAT_REG_RX_STAT_GR64_LO				 0x200
+/* [RW 32] 1 [00] Tx Good Packet Count Write to this register write bits
+ * 31:0. Reads from this register will clear bits 31:0. */
+#define MSTAT_REG_TX_STAT_GTXPOK_LO				 0
 #define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_BRCST	 (0x1<<0)
 #define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_MLCST	 (0x1<<1)
 #define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_NO_VLAN	 (0x1<<4)
@@ -1837,6 +1960,10 @@
 #define NIG_REG_LLH1_FUNC_MEM					 0x161c0
 #define NIG_REG_LLH1_FUNC_MEM_ENABLE				 0x16160
 #define NIG_REG_LLH1_FUNC_MEM_SIZE				 16
+/* [RW 1] When this bit is set; the LLH will classify the packet before
+ * sending it to the BRB or calculating WoL on it. This bit controls port 1
+ * only. The legacy llh_multi_function_mode bit controls port 0. */
+#define NIG_REG_LLH1_MF_MODE					 0x18614
 /* [RW 8] init credit counter for port1 in LLH */
 #define NIG_REG_LLH1_XCM_INIT_CREDIT				 0x10564
 #define NIG_REG_LLH1_XCM_MASK					 0x10134
@@ -1858,11 +1985,25 @@
 /* [R 32] Interrupt register #0 read */
 #define NIG_REG_NIG_INT_STS_0					 0x103b0
 #define NIG_REG_NIG_INT_STS_1					 0x103c0
+/* [R 32] Legacy E1 and E1H location for parity error mask register. */
+#define NIG_REG_NIG_PRTY_MASK					 0x103dc
+/* [RW 32] Parity mask register #0 read/write */
+#define NIG_REG_NIG_PRTY_MASK_0					 0x183c8
+#define NIG_REG_NIG_PRTY_MASK_1					 0x183d8
 /* [R 32] Legacy E1 and E1H location for parity error status register. */
 #define NIG_REG_NIG_PRTY_STS					 0x103d0
 /* [R 32] Parity register #0 read */
 #define NIG_REG_NIG_PRTY_STS_0					 0x183bc
 #define NIG_REG_NIG_PRTY_STS_1					 0x183cc
+/* [R 32] Legacy E1 and E1H location for parity error status clear register. */
+#define NIG_REG_NIG_PRTY_STS_CLR				 0x103d4
+/* [RC 32] Parity register #0 read clear */
+#define NIG_REG_NIG_PRTY_STS_CLR_0				 0x183c0
+#define NIG_REG_NIG_PRTY_STS_CLR_1				 0x183d0
+#define MCPR_IMC_COMMAND_ENABLE					 (1L<<31)
+#define MCPR_IMC_COMMAND_IMC_STATUS_BITSHIFT			 16
+#define MCPR_IMC_COMMAND_OPERATION_BITSHIFT			 28
+#define MCPR_IMC_COMMAND_TRANSFER_ADDRESS_BITSHIFT		 8
 /* [RW 6] Bit-map indicating which L2 hdrs may appear after the basic
  * Ethernet header. */
 #define NIG_REG_P0_HDRS_AFTER_BASIC				 0x18038
@@ -1872,6 +2013,12 @@
 #define NIG_REG_P0_HWPFC_ENABLE				 0x18078
 #define NIG_REG_P0_LLH_FUNC_MEM2				 0x18480
 #define NIG_REG_P0_LLH_FUNC_MEM2_ENABLE			 0x18440
+/* [RW 1] Input enable for RX MAC interface. */
+#define NIG_REG_P0_MAC_IN_EN					 0x185ac
+/* [RW 1] Output enable for TX MAC interface */
+#define NIG_REG_P0_MAC_OUT_EN					 0x185b0
+/* [RW 1] Output enable for TX PAUSE signal to the MAC. */
+#define NIG_REG_P0_MAC_PAUSE_OUT_EN				 0x185b4
 /* [RW 32] Eight 4-bit configurations for specifying which COS (0-15 for
  * future expansion) each priorty is to be mapped to. Bits 3:0 specify the
  * COS for priority 0. Bits 31:28 specify the COS for priority 7. The 3-bit
@@ -1888,11 +2035,52 @@
  * than one bit may be set; allowing multiple priorities to be mapped to one
  * COS. */
 #define NIG_REG_P0_RX_COS1_PRIORITY_MASK			 0x1805c
+/* [RW 16] Bit-map indicating which SAFC/PFC priorities to map to COS 2. A
+ * priority is mapped to COS 2 when the corresponding mask bit is 1. More
+ * than one bit may be set; allowing multiple priorities to be mapped to one
+ * COS. */
+#define NIG_REG_P0_RX_COS2_PRIORITY_MASK			 0x186b0
+/* [RW 16] Bit-map indicating which SAFC/PFC priorities to map to COS 3. A
+ * priority is mapped to COS 3 when the corresponding mask bit is 1. More
+ * than one bit may be set; allowing multiple priorities to be mapped to one
+ * COS. */
+#define NIG_REG_P0_RX_COS3_PRIORITY_MASK			 0x186b4
+/* [RW 16] Bit-map indicating which SAFC/PFC priorities to map to COS 4. A
+ * priority is mapped to COS 4 when the corresponding mask bit is 1. More
+ * than one bit may be set; allowing multiple priorities to be mapped to one
+ * COS. */
+#define NIG_REG_P0_RX_COS4_PRIORITY_MASK			 0x186b8
+/* [RW 16] Bit-map indicating which SAFC/PFC priorities to map to COS 5. A
+ * priority is mapped to COS 5 when the corresponding mask bit is 1. More
+ * than one bit may be set; allowing multiple priorities to be mapped to one
+ * COS. */
+#define NIG_REG_P0_RX_COS5_PRIORITY_MASK			 0x186bc
+/* [R 1] RX FIFO for receiving data from MAC is empty. */
 /* [RW 15] Specify which of the credit registers the client is to be mapped
  * to. Bits[2:0] are for client 0; bits [14:12] are for client 4. For
  * clients that are not subject to WFQ credit blocking - their
  * specifications here are not used. */
 #define NIG_REG_P0_TX_ARB_CLIENT_CREDIT_MAP			 0x180f0
+/* [RW 32] Specify which of the credit registers the client is to be mapped
+ * to. This register specifies bits 31:0 of the 36-bit value. Bits[3:0] are
+ * for client 0; bits [35:32] are for client 8. For clients that are not
+ * subject to WFQ credit blocking - their specifications here are not used.
+ * This is a new register (with 2_) added in E3 B0 to accommodate the 9
+ * input clients to ETS arbiter. The reset default is set for management and
+ * debug to use credit registers 6, 7, and 8, respectively, and COSes 0-5 to
+ * use credit registers 0-5 respectively (0x543210876). Note that credit
+ * registers can not be shared between clients. */
+#define NIG_REG_P0_TX_ARB_CLIENT_CREDIT_MAP2_LSB		 0x18688
+/* [RW 4] Specify which of the credit registers the client is to be mapped
+ * to. This register specifies bits 35:32 of the 36-bit value. Bits[3:0] are
+ * for client 0; bits [35:32] are for client 8. For clients that are not
+ * subject to WFQ credit blocking - their specifications here are not used.
+ * This is a new register (with 2_) added in E3 B0 to accommodate the 9
+ * input clients to ETS arbiter. The reset default is set for management and
+ * debug to use credit registers 6, 7, and 8, respectively, and COSes 0-5 to
+ * use credit registers 0-5 respectively (0x543210876). Note that credit
+ * registers can not be shared between clients. */
+#define NIG_REG_P0_TX_ARB_CLIENT_CREDIT_MAP2_MSB		 0x1868c
 /* [RW 5] Specify whether the client competes directly in the strict
  * priority arbiter. The bits are mapped according to client ID (client IDs
  * are defined in tx_arb_priority_client). Default value is set to enable
@@ -1907,10 +2095,24 @@
  * reach. */
 #define NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_0			 0x1810c
 #define NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_1			 0x18110
+#define NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_2			 0x18114
+#define NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_3			 0x18118
+#define NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_4			 0x1811c
+#define NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_5			 0x186a0
+#define NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_6			 0x186a4
+#define NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_7			 0x186a8
+#define NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_8			 0x186ac
 /* [RW 32] Specify the weight (in bytes) to be added to credit register 0
  * when it is time to increment. */
 #define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_0			 0x180f8
 #define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_1			 0x180fc
+#define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_2			 0x18100
+#define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_3			 0x18104
+#define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_4			 0x18108
+#define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_5			 0x18690
+#define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_6			 0x18694
+#define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_7			 0x18698
+#define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_8			 0x1869c
 /* [RW 12] Specify the number of strict priority arbitration slots between
  * two round-robin arbitration slots to avoid starvation. A value of 0 means
  * no strict priority cycles - the strict priority with anti-starvation
@@ -1925,8 +2127,36 @@
  * for management at priority 0; debug traffic at priorities 1 and 2; COS0
  * traffic at priority 3; and COS1 traffic at priority 4. */
 #define NIG_REG_P0_TX_ARB_PRIORITY_CLIENT			 0x180e4
+/* [RW 6] Bit-map indicating which L2 hdrs may appear after the basic
+ * Ethernet header. */
+#define NIG_REG_P1_HDRS_AFTER_BASIC				 0x1818c
 #define NIG_REG_P1_LLH_FUNC_MEM2				 0x184c0
 #define NIG_REG_P1_LLH_FUNC_MEM2_ENABLE			 0x18460
+/* [RW 32] Specify the client number to be assigned to each priority of the
+ * strict priority arbiter. This register specifies bits 31:0 of the 36-bit
+ * value. Priority 0 is the highest priority. Bits [3:0] are for priority 0
+ * client; bits [35-32] are for priority 8 client. The clients are assigned
+ * the following IDs: 0-management; 1-debug traffic from this port; 2-debug
+ * traffic from other port; 3-COS0 traffic; 4-COS1 traffic; 5-COS2 traffic;
+ * 6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic. The reset value[35:0] is
+ * set to 0x345678021. This is a new register (with 2_) added in E3 B0 to
+ * accommodate the 9 input clients to ETS arbiter. */
+#define NIG_REG_P0_TX_ARB_PRIORITY_CLIENT2_LSB			 0x18680
+/* [RW 4] Specify the client number to be assigned to each priority of the
+ * strict priority arbiter. This register specifies bits 35:32 of the 36-bit
+ * value. Priority 0 is the highest priority. Bits [3:0] are for priority 0
+ * client; bits [35-32] are for priority 8 client. The clients are assigned
+ * the following IDs: 0-management; 1-debug traffic from this port; 2-debug
+ * traffic from other port; 3-COS0 traffic; 4-COS1 traffic; 5-COS2 traffic;
+ * 6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic. The reset value[35:0] is
+ * set to 0x345678021. This is a new register (with 2_) added in E3 B0 to
+ * accommodate the 9 input clients to ETS arbiter. */
+#define NIG_REG_P0_TX_ARB_PRIORITY_CLIENT2_MSB			 0x18684
+#define NIG_REG_P1_MAC_IN_EN					 0x185c0
+/* [RW 1] Output enable for TX MAC interface */
+#define NIG_REG_P1_MAC_OUT_EN					 0x185c4
+/* [RW 1] Output enable for TX PAUSE signal to the MAC. */
+#define NIG_REG_P1_MAC_PAUSE_OUT_EN				 0x185c8
 /* [RW 32] Eight 4-bit configurations for specifying which COS (0-15 for
  * future expansion) each priorty is to be mapped to. Bits 3:0 specify the
  * COS for priority 0. Bits 31:28 specify the COS for priority 7. The 3-bit
@@ -1943,6 +2173,105 @@
  * than one bit may be set; allowing multiple priorities to be mapped to one
  * COS. */
 #define NIG_REG_P1_RX_COS1_PRIORITY_MASK			 0x181b0
+/* [RW 16] Bit-map indicating which SAFC/PFC priorities to map to COS 2. A
+ * priority is mapped to COS 2 when the corresponding mask bit is 1. More
+ * than one bit may be set; allowing multiple priorities to be mapped to one
+ * COS. */
+#define NIG_REG_P1_RX_COS2_PRIORITY_MASK			 0x186f8
+/* [R 1] RX FIFO for receiving data from MAC is empty. */
+#define NIG_REG_P1_RX_MACFIFO_EMPTY				 0x1858c
+/* [R 1] TLLH FIFO is empty. */
+#define NIG_REG_P1_TLLH_FIFO_EMPTY				 0x18338
+/* [RW 32] Specify which of the credit registers the client is to be mapped
+ * to. This register specifies bits 31:0 of the 36-bit value. Bits[3:0] are
+ * for client 0; bits [35:32] are for client 8. For clients that are not
+ * subject to WFQ credit blocking - their specifications here are not used.
+ * This is a new register (with 2_) added in E3 B0 to accommodate the 9
+ * input clients to ETS arbiter. The reset default is set for management and
+ * debug to use credit registers 6, 7, and 8, respectively, and COSes 0-5 to
+ * use credit registers 0-5 respectively (0x543210876). Note that credit
+ * registers can not be shared between clients. Note also that there are
+ * only COS0-2 in port 1- there is a total of 6 clients in port 1. Only
+ * credit registers 0-5 are valid. This register should be configured
+ * appropriately before enabling WFQ. */
+#define NIG_REG_P1_TX_ARB_CLIENT_CREDIT_MAP2_LSB		 0x186e8
+/* [RW 4] Specify which of the credit registers the client is to be mapped
+ * to. This register specifies bits 35:32 of the 36-bit value. Bits[3:0] are
+ * for client 0; bits [35:32] are for client 8. For clients that are not
+ * subject to WFQ credit blocking - their specifications here are not used.
+ * This is a new register (with 2_) added in E3 B0 to accommodate the 9
+ * input clients to ETS arbiter. The reset default is set for management and
+ * debug to use credit registers 6, 7, and 8, respectively, and COSes 0-5 to
+ * use credit registers 0-5 respectively (0x543210876). Note that credit
+ * registers can not be shared between clients. Note also that there are
+ * only COS0-2 in port 1- there is a total of 6 clients in port 1. Only
+ * credit registers 0-5 are valid. This register should be configured
+ * appropriately before enabling WFQ. */
+#define NIG_REG_P1_TX_ARB_CLIENT_CREDIT_MAP2_MSB		 0x186ec
+/* [RW 9] Specify whether the client competes directly in the strict
+ * priority arbiter. The bits are mapped according to client ID (client IDs
+ * are defined in tx_arb_priority_client2): 0-management; 1-debug traffic
+ * from this port; 2-debug traffic from other port; 3-COS0 traffic; 4-COS1
+ * traffic; 5-COS2 traffic; 6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic.
+ * Default value is set to enable strict priorities for all clients. */
+#define NIG_REG_P1_TX_ARB_CLIENT_IS_STRICT			 0x18234
+/* [RW 9] Specify whether the client is subject to WFQ credit blocking. The
+ * bits are mapped according to client ID (client IDs are defined in
+ * tx_arb_priority_client2): 0-management; 1-debug traffic from this port;
+ * 2-debug traffic from other port; 3-COS0 traffic; 4-COS1 traffic; 5-COS2
+ * traffic; 6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic. Default value is
+ * 0 for not using WFQ credit blocking. */
+#define NIG_REG_P1_TX_ARB_CLIENT_IS_SUBJECT2WFQ			 0x18238
+#define NIG_REG_P1_TX_ARB_CREDIT_UPPER_BOUND_0			 0x18258
+#define NIG_REG_P1_TX_ARB_CREDIT_UPPER_BOUND_1			 0x1825c
+#define NIG_REG_P1_TX_ARB_CREDIT_UPPER_BOUND_2			 0x18260
+#define NIG_REG_P1_TX_ARB_CREDIT_UPPER_BOUND_3			 0x18264
+#define NIG_REG_P1_TX_ARB_CREDIT_UPPER_BOUND_4			 0x18268
+#define NIG_REG_P1_TX_ARB_CREDIT_UPPER_BOUND_5			 0x186f4
+/* [RW 32] Specify the weight (in bytes) to be added to credit register 0
+ * when it is time to increment. */
+#define NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_0			 0x18244
+#define NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_1			 0x18248
+#define NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_2			 0x1824c
+#define NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_3			 0x18250
+#define NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_4			 0x18254
+#define NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_5			 0x186f0
+/* [RW 12] Specify the number of strict priority arbitration slots between
+   two round-robin arbitration slots to avoid starvation. A value of 0 means
+   no strict priority cycles - the strict priority with anti-starvation
+   arbiter becomes a round-robin arbiter. */
+#define NIG_REG_P1_TX_ARB_NUM_STRICT_ARB_SLOTS			 0x18240
+/* [RW 32] Specify the client number to be assigned to each priority of the
+   strict priority arbiter. This register specifies bits 31:0 of the 36-bit
+   value. Priority 0 is the highest priority. Bits [3:0] are for priority 0
+   client; bits [35-32] are for priority 8 client. The clients are assigned
+   the following IDs: 0-management; 1-debug traffic from this port; 2-debug
+   traffic from other port; 3-COS0 traffic; 4-COS1 traffic; 5-COS2 traffic;
+   6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic. The reset value[35:0] is
+   set to 0x345678021. This is a new register (with 2_) added in E3 B0 to
+   accommodate the 9 input clients to ETS arbiter. Note that this register
+   is the same as the one for port 0, except that port 1 only has COS 0-2
+   traffic. There is no traffic for COS 3-5 of port 1. */
+#define NIG_REG_P1_TX_ARB_PRIORITY_CLIENT2_LSB			 0x186e0
+/* [RW 4] Specify the client number to be assigned to each priority of the
+   strict priority arbiter. This register specifies bits 35:32 of the 36-bit
+   value. Priority 0 is the highest priority. Bits [3:0] are for priority 0
+   client; bits [35-32] are for priority 8 client. The clients are assigned
+   the following IDs: 0-management; 1-debug traffic from this port; 2-debug
+   traffic from other port; 3-COS0 traffic; 4-COS1 traffic; 5-COS2 traffic;
+   6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic. The reset value[35:0] is
+   set to 0x345678021. This is a new register (with 2_) added in E3 B0 to
+   accommodate the 9 input clients to ETS arbiter. Note that this register
+   is the same as the one for port 0, except that port 1 only has COS 0-2
+   traffic. There is no traffic for COS 3-5 of port 1. */
+#define NIG_REG_P1_TX_ARB_PRIORITY_CLIENT2_MSB			 0x186e4
+/* [R 1] TX FIFO for transmitting data to MAC is empty. */
+#define NIG_REG_P1_TX_MACFIFO_EMPTY				 0x18594
+/* [R 1] FIFO empty status of the MCP TX FIFO used for storing MCP packets
+   forwarded to the host. */
+#define NIG_REG_P1_TX_MNG_HOST_FIFO_EMPTY			 0x182b8
+/* [RW 32] Specify the upper bound that credit register 0 is allowed to
+ * reach. */
 /* [RW 1] Pause enable for port0. This register may get 1 only when
    ~safc_enable.safc_enable = 0 and ppp_enable.ppp_enable =0 for the same
    port */
@@ -2026,12 +2355,45 @@
 #define NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_XGXS0_LINK_STATUS_SIZE 18
 /* [RW 31] The upper bound of the weight of COS0 in the ETS command arbiter. */
 #define PBF_REG_COS0_UPPER_BOUND				 0x15c05c
+/* [RW 31] The upper bound of the weight of COS0 in the ETS command arbiter
+ * of port 0. */
+#define PBF_REG_COS0_UPPER_BOUND_P0				 0x15c2cc
+/* [RW 31] The upper bound of the weight of COS0 in the ETS command arbiter
+ * of port 1. */
+#define PBF_REG_COS0_UPPER_BOUND_P1				 0x15c2e4
 /* [RW 31] The weight of COS0 in the ETS command arbiter. */
 #define PBF_REG_COS0_WEIGHT					 0x15c054
+/* [RW 31] The weight of COS0 in port 0 ETS command arbiter. */
+#define PBF_REG_COS0_WEIGHT_P0					 0x15c2a8
+/* [RW 31] The weight of COS0 in port 1 ETS command arbiter. */
+#define PBF_REG_COS0_WEIGHT_P1					 0x15c2c0
 /* [RW 31] The upper bound of the weight of COS1 in the ETS command arbiter. */
 #define PBF_REG_COS1_UPPER_BOUND				 0x15c060
 /* [RW 31] The weight of COS1 in the ETS command arbiter. */
 #define PBF_REG_COS1_WEIGHT					 0x15c058
+/* [RW 31] The weight of COS1 in port 0 ETS command arbiter. */
+#define PBF_REG_COS1_WEIGHT_P0					 0x15c2ac
+/* [RW 31] The weight of COS1 in port 1 ETS command arbiter. */
+#define PBF_REG_COS1_WEIGHT_P1					 0x15c2c4
+/* [RW 31] The weight of COS2 in port 0 ETS command arbiter. */
+#define PBF_REG_COS2_WEIGHT_P0					 0x15c2b0
+/* [RW 31] The weight of COS2 in port 1 ETS command arbiter. */
+#define PBF_REG_COS2_WEIGHT_P1					 0x15c2c8
+/* [RW 31] The weight of COS3 in port 0 ETS command arbiter. */
+#define PBF_REG_COS3_WEIGHT_P0					 0x15c2b4
+/* [RW 31] The weight of COS4 in port 0 ETS command arbiter. */
+#define PBF_REG_COS4_WEIGHT_P0					 0x15c2b8
+/* [RW 31] The weight of COS5 in port 0 ETS command arbiter. */
+#define PBF_REG_COS5_WEIGHT_P0					 0x15c2bc
+/* [R 11] Current credit for the LB queue in the tx port buffers in 16 byte
+ * lines. */
+#define PBF_REG_CREDIT_LB_Q					 0x140338
+/* [R 11] Current credit for queue 0 in the tx port buffers in 16 byte
+ * lines. */
+#define PBF_REG_CREDIT_Q0					 0x14033c
+/* [R 11] Current credit for queue 1 in the tx port buffers in 16 byte
+ * lines. */
+#define PBF_REG_CREDIT_Q1					 0x140340
 /* [RW 1] Disable processing further tasks from port 0 (after ending the
    current task in process). */
 #define PBF_REG_DISABLE_NEW_TASK_PROC_P0			 0x14005c
@@ -2042,6 +2404,52 @@
    current task in process). */
 #define PBF_REG_DISABLE_NEW_TASK_PROC_P4			 0x14006c
 #define PBF_REG_DISABLE_PF					 0x1402e8
+/* [RW 18] For port 0: For each client that is subject to WFQ (the
+ * corresponding bit is 1); indicates to which of the credit registers this
+ * client is mapped. For clients which are not credit blocked; their mapping
+ * is dont care. */
+#define PBF_REG_ETS_ARB_CLIENT_CREDIT_MAP_P0			 0x15c288
+/* [RW 9] For port 1: For each client that is subject to WFQ (the
+ * corresponding bit is 1); indicates to which of the credit registers this
+ * client is mapped. For clients which are not credit blocked; their mapping
+ * is dont care. */
+#define PBF_REG_ETS_ARB_CLIENT_CREDIT_MAP_P1			 0x15c28c
+/* [RW 6] For port 0: Bit per client to indicate if the client competes in
+ * the strict priority arbiter directly (corresponding bit = 1); or first
+ * goes to the RR arbiter (corresponding bit = 0); and then competes in the
+ * lowest priority in the strict-priority arbiter. */
+#define PBF_REG_ETS_ARB_CLIENT_IS_STRICT_P0			 0x15c278
+/* [RW 3] For port 1: Bit per client to indicate if the client competes in
+ * the strict priority arbiter directly (corresponding bit = 1); or first
+ * goes to the RR arbiter (corresponding bit = 0); and then competes in the
+ * lowest priority in the strict-priority arbiter. */
+#define PBF_REG_ETS_ARB_CLIENT_IS_STRICT_P1			 0x15c27c
+/* [RW 6] For port 0: Bit per client to indicate if the client is subject to
+ * WFQ credit blocking (corresponding bit = 1). */
+#define PBF_REG_ETS_ARB_CLIENT_IS_SUBJECT2WFQ_P0		 0x15c280
+/* [RW 3] For port 0: Bit per client to indicate if the client is subject to
+ * WFQ credit blocking (corresponding bit = 1). */
+#define PBF_REG_ETS_ARB_CLIENT_IS_SUBJECT2WFQ_P1		 0x15c284
+/* [RW 16] For port 0: The number of strict priority arbitration slots
+ * between 2 RR arbitration slots. A value of 0 means no strict priority
+ * cycles; i.e. the strict-priority w/ anti-starvation arbiter is a RR
+ * arbiter. */
+#define PBF_REG_ETS_ARB_NUM_STRICT_ARB_SLOTS_P0			 0x15c2a0
+/* [RW 16] For port 1: The number of strict priority arbitration slots
+ * between 2 RR arbitration slots. A value of 0 means no strict priority
+ * cycles; i.e. the strict-priority w/ anti-starvation arbiter is a RR
+ * arbiter. */
+#define PBF_REG_ETS_ARB_NUM_STRICT_ARB_SLOTS_P1			 0x15c2a4
+/* [RW 18] For port 0: Indicates which client is connected to each priority
+ * in the strict-priority arbiter. Priority 0 is the highest priority, and
+ * priority 5 is the lowest; to which the RR output is connected to (this is
+ * not configurable). */
+#define PBF_REG_ETS_ARB_PRIORITY_CLIENT_P0			 0x15c270
+/* [RW 9] For port 1: Indicates which client is connected to each priority
+ * in the strict-priority arbiter. Priority 0 is the highest priority, and
+ * priority 5 is the lowest; to which the RR output is connected to (this is
+ * not configurable). */
+#define PBF_REG_ETS_ARB_PRIORITY_CLIENT_P1			 0x15c274
 /* [RW 1] Indicates that ETS is performed between the COSes in the command
  * arbiter. If reset strict priority w/ anti-starvation will be performed
  * w/o WFQ. */
@@ -2049,14 +2457,25 @@
 /* [RW 6] Bit-map indicating which L2 hdrs may appear after the basic
  * Ethernet header. */
 #define PBF_REG_HDRS_AFTER_BASIC				 0x15c0a8
-/* [RW 1] Indicates which COS is conncted to the highest priority in the
- * command arbiter. */
+/* [RW 6] Bit-map indicating which L2 hdrs may appear after L2 tag 0 */
+#define PBF_REG_HDRS_AFTER_TAG_0				 0x15c0b8
+/* [R 1] Removed for E3 B0 - Indicates which COS is conncted to the highest
+ * priority in the command arbiter. */
 #define PBF_REG_HIGH_PRIORITY_COS_NUM				 0x15c04c
 #define PBF_REG_IF_ENABLE_REG					 0x140044
 /* [RW 1] Init bit. When set the initial credits are copied to the credit
    registers (except the port credits). Should be set and then reset after
    the configuration of the block has ended. */
 #define PBF_REG_INIT						 0x140000
+/* [RW 11] Initial credit for the LB queue in the tx port buffers in 16 byte
+ * lines. */
+#define PBF_REG_INIT_CRD_LB_Q					 0x15c248
+/* [RW 11] Initial credit for queue 0 in the tx port buffers in 16 byte
+ * lines. */
+#define PBF_REG_INIT_CRD_Q0					 0x15c230
+/* [RW 11] Initial credit for queue 1 in the tx port buffers in 16 byte
+ * lines. */
+#define PBF_REG_INIT_CRD_Q1					 0x15c234
 /* [RW 1] Init bit for port 0. When set the initial credit of port 0 is
    copied to the credit register. Should be set and then reset after the
    configuration of the port has ended. */
@@ -2069,6 +2488,15 @@
    copied to the credit register. Should be set and then reset after the
    configuration of the port has ended. */
 #define PBF_REG_INIT_P4 					 0x14000c
+/* [R 32] Cyclic counter for the amount credits in 16 bytes lines added for
+ * the LB queue. Reset upon init. */
+#define PBF_REG_INTERNAL_CRD_FREED_CNT_LB_Q			 0x140354
+/* [R 32] Cyclic counter for the amount credits in 16 bytes lines added for
+ * queue 0. Reset upon init. */
+#define PBF_REG_INTERNAL_CRD_FREED_CNT_Q0			 0x140358
+/* [R 32] Cyclic counter for the amount credits in 16 bytes lines added for
+ * queue 1. Reset upon init. */
+#define PBF_REG_INTERNAL_CRD_FREED_CNT_Q1			 0x14035c
 /* [RW 1] Enable for mac interface 0. */
 #define PBF_REG_MAC_IF0_ENABLE					 0x140030
 /* [RW 1] Enable for mac interface 1. */
@@ -2089,24 +2517,49 @@
 /* [RW 11] Initial credit for port 0 in the tx port buffers in 16 byte
    lines. */
 #define PBF_REG_P0_INIT_CRD					 0x1400d0
-/* [RW 1] Indication that pause is enabled for port 0. */
-#define PBF_REG_P0_PAUSE_ENABLE 				 0x140014
-/* [R 8] Number of tasks in port 0 task queue. */
+/* [R 32] Cyclic counter for the amount credits in 16 bytes lines added for
+ * port 0. Reset upon init. */
+#define PBF_REG_P0_INTERNAL_CRD_FREED_CNT			 0x140308
+/* [R 1] Removed for E3 B0 - Indication that pause is enabled for port 0. */
+#define PBF_REG_P0_PAUSE_ENABLE					 0x140014
+/* [R 8] Removed for E3 B0 - Number of tasks in port 0 task queue. */
 #define PBF_REG_P0_TASK_CNT					 0x140204
-/* [R 11] Current credit for port 1 in the tx port buffers in 16 byte lines. */
+/* [R 32] Removed for E3 B0 - Cyclic counter for number of 8 byte lines
+ * freed from the task queue of port 0. Reset upon init. */
+#define PBF_REG_P0_TQ_LINES_FREED_CNT				 0x1402f0
+/* [R 12] Number of 8 bytes lines occupied in the task queue of port 0. */
+#define PBF_REG_P0_TQ_OCCUPANCY					 0x1402fc
+/* [R 11] Removed for E3 B0 - Current credit for port 1 in the tx port
+ * buffers in 16 byte lines. */
 #define PBF_REG_P1_CREDIT					 0x140208
-/* [RW 11] Initial credit for port 1 in the tx port buffers in 16 byte
-   lines. */
+/* [R 11] Removed for E3 B0 - Initial credit for port 0 in the tx port
+ * buffers in 16 byte lines. */
 #define PBF_REG_P1_INIT_CRD					 0x1400d4
-/* [R 8] Number of tasks in port 1 task queue. */
+/* [R 32] Cyclic counter for the amount credits in 16 bytes lines added for
+ * port 1. Reset upon init. */
+#define PBF_REG_P1_INTERNAL_CRD_FREED_CNT			 0x14030c
+/* [R 8] Removed for E3 B0 - Number of tasks in port 1 task queue. */
 #define PBF_REG_P1_TASK_CNT					 0x14020c
+/* [R 32] Removed for E3 B0 - Cyclic counter for number of 8 byte lines
+ * freed from the task queue of port 1. Reset upon init. */
+#define PBF_REG_P1_TQ_LINES_FREED_CNT				 0x1402f4
+/* [R 12] Number of 8 bytes lines occupied in the task queue of port 1. */
+#define PBF_REG_P1_TQ_OCCUPANCY					 0x140300
 /* [R 11] Current credit for port 4 in the tx port buffers in 16 byte lines. */
 #define PBF_REG_P4_CREDIT					 0x140210
 /* [RW 11] Initial credit for port 4 in the tx port buffers in 16 byte
    lines. */
 #define PBF_REG_P4_INIT_CRD					 0x1400e0
-/* [R 8] Number of tasks in port 4 task queue. */
+/* [R 32] Cyclic counter for the amount credits in 16 bytes lines added for
+ * port 4. Reset upon init. */
+#define PBF_REG_P4_INTERNAL_CRD_FREED_CNT			 0x140310
+/* [R 8] Removed for E3 B0 - Number of tasks in port 4 task queue. */
 #define PBF_REG_P4_TASK_CNT					 0x140214
+/* [R 32] Removed for E3 B0 - Cyclic counter for number of 8 byte lines
+ * freed from the task queue of port 4. Reset upon init. */
+#define PBF_REG_P4_TQ_LINES_FREED_CNT				 0x1402f8
+/* [R 12] Number of 8 bytes lines occupied in the task queue of port 4. */
+#define PBF_REG_P4_TQ_OCCUPANCY					 0x140304
 /* [RW 5] Interrupt mask register #0 read/write */
 #define PBF_REG_PBF_INT_MASK					 0x1401d4
 /* [R 5] Interrupt register #0 read */
@@ -2115,6 +2568,27 @@
 #define PBF_REG_PBF_PRTY_MASK					 0x1401e4
 /* [RC 20] Parity register #0 read clear */
 #define PBF_REG_PBF_PRTY_STS_CLR				 0x1401dc
+/* [RW 16] The Ethernet type value for L2 tag 0 */
+#define PBF_REG_TAG_ETHERTYPE_0					 0x15c090
+/* [RW 4] The length of the info field for L2 tag 0. The length is between
+ * 2B and 14B; in 2B granularity */
+#define PBF_REG_TAG_LEN_0					 0x15c09c
+/* [R 32] Cyclic counter for number of 8 byte lines freed from the LB task
+ * queue. Reset upon init. */
+#define PBF_REG_TQ_LINES_FREED_CNT_LB_Q				 0x14038c
+/* [R 32] Cyclic counter for number of 8 byte lines freed from the task
+ * queue 0. Reset upon init. */
+#define PBF_REG_TQ_LINES_FREED_CNT_Q0				 0x140390
+/* [R 32] Cyclic counter for number of 8 byte lines freed from task queue 1.
+ * Reset upon init. */
+#define PBF_REG_TQ_LINES_FREED_CNT_Q1				 0x140394
+/* [R 13] Number of 8 bytes lines occupied in the task queue of the LB
+ * queue. */
+#define PBF_REG_TQ_OCCUPANCY_LB_Q				 0x1403a8
+/* [R 13] Number of 8 bytes lines occupied in the task queue of queue 0. */
+#define PBF_REG_TQ_OCCUPANCY_Q0					 0x1403ac
+/* [R 13] Number of 8 bytes lines occupied in the task queue of queue 1. */
+#define PBF_REG_TQ_OCCUPANCY_Q1					 0x1403b0
 #define PB_REG_CONTROL						 0
 /* [RW 2] Interrupt mask register #0 read/write */
 #define PB_REG_PB_INT_MASK					 0x28
@@ -2206,8 +2680,12 @@
 #define PGLUE_B_REG_PGLUE_B_INT_STS				 0x9298
 /* [RC 9] Interrupt register #0 read clear */
 #define PGLUE_B_REG_PGLUE_B_INT_STS_CLR			 0x929c
+/* [RW 2] Parity mask register #0 read/write */
+#define PGLUE_B_REG_PGLUE_B_PRTY_MASK				 0x92b4
 /* [R 2] Parity register #0 read */
 #define PGLUE_B_REG_PGLUE_B_PRTY_STS				 0x92a8
+/* [RC 2] Parity register #0 read clear */
+#define PGLUE_B_REG_PGLUE_B_PRTY_STS_CLR			 0x92ac
 /* [R 13] Details of first request received with error. [2:0] - PFID. [3] -
  * VF_VALID. [9:4] - VFID. [11:10] - Error Code - 0 - Indicates Completion
  * Timeout of a User Tx non-posted request. 1 - unsupported request. 2 -
@@ -2444,10 +2922,24 @@
 /* [RW 6] Bit-map indicating which L2 hdrs may appear after the basic
  * Ethernet header. */
 #define PRS_REG_HDRS_AFTER_BASIC				 0x40238
+/* [RW 6] Bit-map indicating which L2 hdrs may appear after the basic
+ * Ethernet header for port 0 packets. */
+#define PRS_REG_HDRS_AFTER_BASIC_PORT_0				 0x40270
+#define PRS_REG_HDRS_AFTER_BASIC_PORT_1				 0x40290
+/* [R 6] Bit-map indicating which L2 hdrs may appear after L2 tag 0 */
+#define PRS_REG_HDRS_AFTER_TAG_0				 0x40248
+/* [RW 6] Bit-map indicating which L2 hdrs may appear after L2 tag 0 for
+ * port 0 packets */
+#define PRS_REG_HDRS_AFTER_TAG_0_PORT_0				 0x40280
+#define PRS_REG_HDRS_AFTER_TAG_0_PORT_1				 0x402a0
 /* [RW 4] The increment value to send in the CFC load request message */
 #define PRS_REG_INC_VALUE					 0x40048
 /* [RW 6] Bit-map indicating which headers must appear in the packet */
 #define PRS_REG_MUST_HAVE_HDRS					 0x40254
+/* [RW 6] Bit-map indicating which headers must appear in the packet for
+ * port 0 packets */
+#define PRS_REG_MUST_HAVE_HDRS_PORT_0				 0x4028c
+#define PRS_REG_MUST_HAVE_HDRS_PORT_1				 0x402ac
 #define PRS_REG_NIC_MODE					 0x40138
 /* [RW 8] The 8-bit event ID for cases where there is no match on the
    connection. Used in packet start message to TCM. */
@@ -2496,6 +2988,11 @@
 #define PRS_REG_SERIAL_NUM_STATUS_MSB				 0x40158
 /* [R 4] debug only: SRC current credit. Transaction based. */
 #define PRS_REG_SRC_CURRENT_CREDIT				 0x4016c
+/* [RW 16] The Ethernet type value for L2 tag 0 */
+#define PRS_REG_TAG_ETHERTYPE_0					 0x401d4
+/* [RW 4] The length of the info field for L2 tag 0. The length is between
+ * 2B and 14B; in 2B granularity */
+#define PRS_REG_TAG_LEN_0					 0x4022c
 /* [R 8] debug only: TCM current credit. Cycle based. */
 #define PRS_REG_TCM_CURRENT_CREDIT				 0x40160
 /* [R 8] debug only: TSDM current credit. Transaction based. */
@@ -3080,6 +3577,7 @@
 #define QM_REG_BYTECREDITAFULLTHR				 0x168094
 /* [RW 4] The initial credit for interface */
 #define QM_REG_CMINITCRD_0					 0x1680cc
+#define QM_REG_BYTECRDCMDQ_0					 0x16e6e8
 #define QM_REG_CMINITCRD_1					 0x1680d0
 #define QM_REG_CMINITCRD_2					 0x1680d4
 #define QM_REG_CMINITCRD_3					 0x1680d8
@@ -3170,7 +3668,10 @@
 /* [RW 2] The PCI attributes field used in the PCI request. */
 #define QM_REG_PCIREQAT 					 0x168054
 #define QM_REG_PF_EN						 0x16e70c
-/* [R 16] The byte credit of port 0 */
+/* [R 24] The number of tasks stored in the QM for the PF. only even
+ * functions are valid in E2 (odd I registers will be hard wired to 0) */
+#define QM_REG_PF_USG_CNT_0					 0x16e040
+/* [R 16] NOT USED */
 #define QM_REG_PORT0BYTECRD					 0x168300
 /* [R 16] The byte credit of port 1 */
 #define QM_REG_PORT1BYTECRD					 0x168304
@@ -3725,7 +4226,7 @@
    mechanism. The fields are: [5:0] - length of the message; 15:6] - message
    pointer; 20:16] - next pointer. */
 #define TCM_REG_XX_DESCR_TABLE					 0x50280
-#define TCM_REG_XX_DESCR_TABLE_SIZE				 32
+#define TCM_REG_XX_DESCR_TABLE_SIZE				 29
 /* [R 6] Use to read the value of XX protection Free counter. */
 #define TCM_REG_XX_FREE 					 0x50178
 /* [RW 6] Initial value for the credit counter; responsible for fulfilling
@@ -3782,6 +4283,8 @@
 #define TM_REG_LIN0_LOGIC_ADDR					 0x164240
 /* [RW 18] Linear0 Max active cid (in banks of 32 entries). */
 #define TM_REG_LIN0_MAX_ACTIVE_CID				 0x164048
+/* [ST 16] Linear0 Number of scans counter. */
+#define TM_REG_LIN0_NUM_SCANS					 0x1640a0
 /* [WB 64] Linear0 phy address. */
 #define TM_REG_LIN0_PHY_ADDR					 0x164270
 /* [RW 1] Linear0 physical address valid. */
@@ -3789,6 +4292,7 @@
 #define TM_REG_LIN0_SCAN_ON					 0x1640d0
 /* [RW 24] Linear0 array scan timeout. */
 #define TM_REG_LIN0_SCAN_TIME					 0x16403c
+#define TM_REG_LIN0_VNIC_UC					 0x164128
 /* [RW 32] Linear1 logic address. */
 #define TM_REG_LIN1_LOGIC_ADDR					 0x164250
 /* [WB 64] Linear1 phy address. */
@@ -4175,6 +4679,8 @@
 #define UCM_REG_UCM_INT_MASK					 0xe01d4
 /* [R 11] Interrupt register #0 read */
 #define UCM_REG_UCM_INT_STS					 0xe01c8
+/* [RW 27] Parity mask register #0 read/write */
+#define UCM_REG_UCM_PRTY_MASK					 0xe01e4
 /* [R 27] Parity register #0 read */
 #define UCM_REG_UCM_PRTY_STS					 0xe01d8
 /* [RC 27] Parity register #0 read clear */
@@ -4248,7 +4754,7 @@
    mechanism. The fields are:[5:0] - message length; 14:6] - message
    pointer; 19:15] - next pointer. */
 #define UCM_REG_XX_DESCR_TABLE					 0xe0280
-#define UCM_REG_XX_DESCR_TABLE_SIZE				 32
+#define UCM_REG_XX_DESCR_TABLE_SIZE				 27
 /* [R 6] Use to read the XX protection Free counter. */
 #define UCM_REG_XX_FREE 					 0xe016c
 /* [RW 6] Initial value for the credit counter; responsible for fulfilling
@@ -4265,6 +4771,25 @@
    The fields are: [4:0] - tail pointer; 10:5] - Link List size; 15:11] -
    header pointer. */
 #define UCM_REG_XX_TABLE					 0xe0300
+#define UMAC_COMMAND_CONFIG_REG_IGNORE_TX_PAUSE			 (0x1<<28)
+#define UMAC_COMMAND_CONFIG_REG_LOOP_ENA			 (0x1<<15)
+#define UMAC_COMMAND_CONFIG_REG_NO_LGTH_CHECK			 (0x1<<24)
+#define UMAC_COMMAND_CONFIG_REG_PAD_EN				 (0x1<<5)
+#define UMAC_COMMAND_CONFIG_REG_PAUSE_IGNORE			 (0x1<<8)
+#define UMAC_COMMAND_CONFIG_REG_PROMIS_EN			 (0x1<<4)
+#define UMAC_COMMAND_CONFIG_REG_RX_ENA				 (0x1<<1)
+#define UMAC_COMMAND_CONFIG_REG_SW_RESET			 (0x1<<13)
+#define UMAC_COMMAND_CONFIG_REG_TX_ENA				 (0x1<<0)
+#define UMAC_REG_COMMAND_CONFIG					 0x8
+/* [RW 32] Register Bit 0 refers to Bit 16 of the MAC address; Bit 1 refers
+ * to bit 17 of the MAC address etc. */
+#define UMAC_REG_MAC_ADDR0					 0xc
+/* [RW 16] Register Bit 0 refers to Bit 0 of the MAC address; Register Bit 1
+ * refers to Bit 1 of the MAC address etc. Bits 16 to 31 are reserved. */
+#define UMAC_REG_MAC_ADDR1					 0x10
+/* [RW 14] Defines a 14-Bit maximum frame length used by the MAC receive
+ * logic to check frames. */
+#define UMAC_REG_MAXFR						 0x14
 /* [RW 8] The event id for aggregated interrupt 0 */
 #define USDM_REG_AGG_INT_EVENT_0				 0xc4038
 #define USDM_REG_AGG_INT_EVENT_1				 0xc403c
@@ -4696,8 +5221,13 @@
 #define XCM_REG_XCM_INT_MASK					 0x202b4
 /* [R 14] Interrupt register #0 read */
 #define XCM_REG_XCM_INT_STS					 0x202a8
+/* [RW 30] Parity mask register #0 read/write */
+#define XCM_REG_XCM_PRTY_MASK					 0x202c4
 /* [R 30] Parity register #0 read */
 #define XCM_REG_XCM_PRTY_STS					 0x202b8
+/* [RC 30] Parity register #0 read clear */
+#define XCM_REG_XCM_PRTY_STS_CLR				 0x202bc
+
 /* [RW 4] The size of AG context region 0 in REG-pairs. Designates the MS
    REG-pair number (e.g. if region 0 is 6 REG-pairs; the value should be 5).
    Is used to determine the number of the AG context REG-pairs written back;
@@ -4772,6 +5302,34 @@
 #define XCM_REG_XX_MSG_NUM					 0x20428
 /* [RW 8] The Event ID; sent to the STORM in case of XX overflow. */
 #define XCM_REG_XX_OVFL_EVNT_ID 				 0x20058
+#define XMAC_CLEAR_RX_LSS_STATUS_REG_CLEAR_LOCAL_FAULT_STATUS	 (0x1<<0)
+#define XMAC_CLEAR_RX_LSS_STATUS_REG_CLEAR_REMOTE_FAULT_STATUS	 (0x1<<1)
+#define XMAC_CTRL_REG_CORE_LOCAL_LPBK				 (0x1<<3)
+#define XMAC_CTRL_REG_RX_EN					 (0x1<<1)
+#define XMAC_CTRL_REG_SOFT_RESET				 (0x1<<6)
+#define XMAC_CTRL_REG_TX_EN					 (0x1<<0)
+#define XMAC_PAUSE_CTRL_REG_RX_PAUSE_EN				 (0x1<<18)
+#define XMAC_PAUSE_CTRL_REG_TX_PAUSE_EN				 (0x1<<17)
+#define XMAC_PFC_CTRL_HI_REG_PFC_REFRESH_EN			 (0x1<<0)
+#define XMAC_PFC_CTRL_HI_REG_PFC_STATS_EN			 (0x1<<3)
+#define XMAC_PFC_CTRL_HI_REG_RX_PFC_EN				 (0x1<<4)
+#define XMAC_PFC_CTRL_HI_REG_TX_PFC_EN				 (0x1<<5)
+#define XMAC_REG_CLEAR_RX_LSS_STATUS				 0x60
+#define XMAC_REG_CTRL						 0
+/* [RW 16] Upper 48 bits of ctrl_sa register. Used as the SA in PAUSE/PFC
+ * packets transmitted by the MAC */
+#define XMAC_REG_CTRL_SA_HI					 0x2c
+/* [RW 32] Lower 48 bits of ctrl_sa register. Used as the SA in PAUSE/PFC
+ * packets transmitted by the MAC */
+#define XMAC_REG_CTRL_SA_LO					 0x28
+#define XMAC_REG_PAUSE_CTRL					 0x68
+#define XMAC_REG_PFC_CTRL					 0x70
+#define XMAC_REG_PFC_CTRL_HI					 0x74
+#define XMAC_REG_RX_LSS_STATUS					 0x58
+/* [RW 14] Maximum packet size in receive direction; exclusive of preamble &
+ * CRC in strip mode */
+#define XMAC_REG_RX_MAX_SIZE					 0x40
+#define XMAC_REG_TX_CTRL					 0x20
 /* [RW 16] Indirect access to the XX table of the XX protection mechanism.
    The fields are:[4:0] - tail pointer; 9:5] - Link List size; 14:10] -
    header pointer. */
@@ -4846,6 +5404,10 @@
 #define XSDM_REG_NUM_OF_Q9_CMD					 0x166268
 /* [RW 13] The start address in the internal RAM for queue counters */
 #define XSDM_REG_Q_COUNTER_START_ADDR				 0x166010
+/* [W 17] Generate an operation after completion; bit-16 is
+ * AggVectIdx_valid; bits 15:8 are AggVectIdx; bits 7:5 are the TRIG and
+ * bits 4:0 are the T124Param[4:0] */
+#define XSDM_REG_OPERATION_GEN					 0x1664c4
 /* [R 1] pxp_ctrl rd_data fifo empty in sdm_dma_rsp block */
 #define XSDM_REG_RSP_PXP_CTRL_RDATA_EMPTY			 0x166548
 /* [R 1] parser fifo empty in sdm_sync block */
@@ -5019,6 +5581,7 @@
 #define BIGMAC_REGISTER_CNT_MAX_SIZE				 (0x05<<3)
 #define BIGMAC_REGISTER_RX_CONTROL				 (0x21<<3)
 #define BIGMAC_REGISTER_RX_LLFC_MSG_FLDS			 (0x46<<3)
+#define BIGMAC_REGISTER_RX_LSS_STATUS				 (0x43<<3)
 #define BIGMAC_REGISTER_RX_MAX_SIZE				 (0x23<<3)
 #define BIGMAC_REGISTER_RX_STAT_GR64				 (0x26<<3)
 #define BIGMAC_REGISTER_RX_STAT_GRIPJ				 (0x42<<3)
@@ -5034,6 +5597,7 @@
 #define BIGMAC2_REGISTER_PFC_CONTROL				 (0x06<<3)
 #define BIGMAC2_REGISTER_RX_CONTROL				 (0x3A<<3)
 #define BIGMAC2_REGISTER_RX_LLFC_MSG_FLDS			 (0x62<<3)
+#define BIGMAC2_REGISTER_RX_LSS_STAT				 (0x3E<<3)
 #define BIGMAC2_REGISTER_RX_MAX_SIZE				 (0x3C<<3)
 #define BIGMAC2_REGISTER_RX_STAT_GR64				 (0x40<<3)
 #define BIGMAC2_REGISTER_RX_STAT_GRIPJ				 (0x5f<<3)
@@ -5052,14 +5616,17 @@
 #define EMAC_LED_OVERRIDE					 (1L<<0)
 #define EMAC_LED_TRAFFIC					 (1L<<6)
 #define EMAC_MDIO_COMM_COMMAND_ADDRESS				 (0L<<26)
+#define EMAC_MDIO_COMM_COMMAND_READ_22				 (2L<<26)
 #define EMAC_MDIO_COMM_COMMAND_READ_45				 (3L<<26)
+#define EMAC_MDIO_COMM_COMMAND_WRITE_22				 (1L<<26)
 #define EMAC_MDIO_COMM_COMMAND_WRITE_45 			 (1L<<26)
 #define EMAC_MDIO_COMM_DATA					 (0xffffL<<0)
 #define EMAC_MDIO_COMM_START_BUSY				 (1L<<29)
 #define EMAC_MDIO_MODE_AUTO_POLL				 (1L<<4)
 #define EMAC_MDIO_MODE_CLAUSE_45				 (1L<<31)
-#define EMAC_MDIO_MODE_CLOCK_CNT				 (0x3fL<<16)
+#define EMAC_MDIO_MODE_CLOCK_CNT				 (0x3ffL<<16)
 #define EMAC_MDIO_MODE_CLOCK_CNT_BITSHIFT			 16
+#define EMAC_MDIO_STATUS_10MB					 (1L<<1)
 #define EMAC_MODE_25G_MODE					 (1L<<5)
 #define EMAC_MODE_HALF_DUPLEX					 (1L<<1)
 #define EMAC_MODE_PORT_GMII					 (2L<<2)
@@ -5070,6 +5637,7 @@
 #define EMAC_REG_EMAC_MAC_MATCH 				 0x10
 #define EMAC_REG_EMAC_MDIO_COMM 				 0xac
 #define EMAC_REG_EMAC_MDIO_MODE 				 0xb4
+#define EMAC_REG_EMAC_MDIO_STATUS				 0xb0
 #define EMAC_REG_EMAC_MODE					 0x0
 #define EMAC_REG_EMAC_RX_MODE					 0xc8
 #define EMAC_REG_EMAC_RX_MTU_SIZE				 0x9c
@@ -5128,16 +5696,30 @@
 #define MISC_REGISTERS_RESET_REG_1_RST_PXPV			 (0x1<<27)
 #define MISC_REGISTERS_RESET_REG_1_SET				 0x584
 #define MISC_REGISTERS_RESET_REG_2_CLEAR			 0x598
+#define MISC_REGISTERS_RESET_REG_2_MSTAT0			 (0x1<<24)
+#define MISC_REGISTERS_RESET_REG_2_MSTAT1			 (0x1<<25)
+#define MISC_REGISTERS_RESET_REG_2_PGLC				 (0x1<<19)
+#define MISC_REGISTERS_RESET_REG_2_RST_ATC			 (0x1<<17)
 #define MISC_REGISTERS_RESET_REG_2_RST_BMAC0			 (0x1<<0)
+#define MISC_REGISTERS_RESET_REG_2_RST_BMAC1			 (0x1<<1)
+#define MISC_REGISTERS_RESET_REG_2_RST_EMAC0			 (0x1<<2)
 #define MISC_REGISTERS_RESET_REG_2_RST_EMAC0_HARD_CORE		 (0x1<<14)
+#define MISC_REGISTERS_RESET_REG_2_RST_EMAC1			 (0x1<<3)
 #define MISC_REGISTERS_RESET_REG_2_RST_EMAC1_HARD_CORE		 (0x1<<15)
 #define MISC_REGISTERS_RESET_REG_2_RST_GRC			 (0x1<<4)
 #define MISC_REGISTERS_RESET_REG_2_RST_MCP_N_HARD_CORE_RST_B	 (0x1<<6)
+#define MISC_REGISTERS_RESET_REG_2_RST_MCP_N_RESET_CMN_CORE	 (0x1<<8)
+#define MISC_REGISTERS_RESET_REG_2_RST_MCP_N_RESET_CMN_CPU	 (0x1<<7)
 #define MISC_REGISTERS_RESET_REG_2_RST_MCP_N_RESET_REG_HARD_CORE (0x1<<5)
 #define MISC_REGISTERS_RESET_REG_2_RST_MDIO			 (0x1<<13)
 #define MISC_REGISTERS_RESET_REG_2_RST_MISC_CORE		 (0x1<<11)
+#define MISC_REGISTERS_RESET_REG_2_RST_PCI_MDIO			 (0x1<<13)
 #define MISC_REGISTERS_RESET_REG_2_RST_RBCN			 (0x1<<9)
 #define MISC_REGISTERS_RESET_REG_2_SET				 0x594
+#define MISC_REGISTERS_RESET_REG_2_UMAC0			 (0x1<<20)
+#define MISC_REGISTERS_RESET_REG_2_UMAC1			 (0x1<<21)
+#define MISC_REGISTERS_RESET_REG_2_XMAC				 (0x1<<22)
+#define MISC_REGISTERS_RESET_REG_2_XMAC_SOFT			 (0x1<<23)
 #define MISC_REGISTERS_RESET_REG_3_CLEAR			 0x5a8
 #define MISC_REGISTERS_RESET_REG_3_MISC_NIG_MUX_SERDES0_IDDQ	 (0x1<<1)
 #define MISC_REGISTERS_RESET_REG_3_MISC_NIG_MUX_SERDES0_PWRDWN	 (0x1<<2)
@@ -5160,74 +5742,86 @@
 #define MISC_REGISTERS_SPIO_OUTPUT_HIGH 			 1
 #define MISC_REGISTERS_SPIO_OUTPUT_LOW				 0
 #define MISC_REGISTERS_SPIO_SET_POS				 8
+#define HW_LOCK_DRV_FLAGS					 10
 #define HW_LOCK_MAX_RESOURCE_VALUE				 31
 #define HW_LOCK_RESOURCE_GPIO					 1
 #define HW_LOCK_RESOURCE_MDIO					 0
-#define HW_LOCK_RESOURCE_PORT0_ATT_MASK 			 3
-#define HW_LOCK_RESOURCE_RESERVED_08				 8
+#define HW_LOCK_RESOURCE_PORT0_ATT_MASK				 3
+#define HW_LOCK_RESOURCE_RECOVERY_LEADER_0			 8
+#define HW_LOCK_RESOURCE_RECOVERY_LEADER_1			 9
 #define HW_LOCK_RESOURCE_SPIO					 2
 #define HW_LOCK_RESOURCE_UNDI					 5
-#define PRS_FLAG_OVERETH_IPV4					 1
-#define AEU_INPUTS_ATTN_BITS_ATC_HW_INTERRUPT		      (0x1<<4)
-#define AEU_INPUTS_ATTN_BITS_ATC_PARITY_ERROR		      (0x1<<5)
-#define AEU_INPUTS_ATTN_BITS_BRB_PARITY_ERROR		      (1<<18)
-#define AEU_INPUTS_ATTN_BITS_CCM_HW_INTERRUPT		      (1<<31)
-#define AEU_INPUTS_ATTN_BITS_CDU_HW_INTERRUPT		      (1<<9)
-#define AEU_INPUTS_ATTN_BITS_CDU_PARITY_ERROR		      (1<<8)
-#define AEU_INPUTS_ATTN_BITS_CFC_HW_INTERRUPT		      (1<<7)
-#define AEU_INPUTS_ATTN_BITS_CFC_PARITY_ERROR		      (1<<6)
-#define AEU_INPUTS_ATTN_BITS_CSDM_HW_INTERRUPT		      (1<<29)
-#define AEU_INPUTS_ATTN_BITS_CSDM_PARITY_ERROR		      (1<<28)
-#define AEU_INPUTS_ATTN_BITS_CSEMI_HW_INTERRUPT 	      (1<<1)
-#define AEU_INPUTS_ATTN_BITS_CSEMI_PARITY_ERROR 	      (1<<0)
-#define AEU_INPUTS_ATTN_BITS_DEBUG_PARITY_ERROR 	      (1<<18)
-#define AEU_INPUTS_ATTN_BITS_DMAE_HW_INTERRUPT		      (1<<11)
-#define AEU_INPUTS_ATTN_BITS_DOORBELLQ_HW_INTERRUPT	      (1<<13)
-#define AEU_INPUTS_ATTN_BITS_DOORBELLQ_PARITY_ERROR	      (1<<12)
-#define AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_0		      (1<<5)
-#define AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_1		      (1<<9)
-#define AEU_INPUTS_ATTN_BITS_IGU_PARITY_ERROR		      (1<<12)
-#define AEU_INPUTS_ATTN_BITS_MCP_LATCHED_ROM_PARITY	      (1<<28)
-#define AEU_INPUTS_ATTN_BITS_MCP_LATCHED_SCPAD_PARITY	      (1<<31)
-#define AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_RX_PARITY	      (1<<29)
-#define AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_TX_PARITY	      (1<<30)
-#define AEU_INPUTS_ATTN_BITS_MISC_HW_INTERRUPT		      (1<<15)
-#define AEU_INPUTS_ATTN_BITS_MISC_PARITY_ERROR		      (1<<14)
-#define AEU_INPUTS_ATTN_BITS_PARSER_PARITY_ERROR	      (1<<20)
-#define AEU_INPUTS_ATTN_BITS_PBCLIENT_PARITY_ERROR	      (1<<0)
-#define AEU_INPUTS_ATTN_BITS_PBF_HW_INTERRUPT		      (1<<31)
-#define AEU_INPUTS_ATTN_BITS_PGLUE_HW_INTERRUPT	      (0x1<<2)
-#define AEU_INPUTS_ATTN_BITS_PGLUE_PARITY_ERROR	      (0x1<<3)
-#define AEU_INPUTS_ATTN_BITS_PXP_HW_INTERRUPT		      (1<<3)
-#define AEU_INPUTS_ATTN_BITS_PXP_PARITY_ERROR		      (1<<2)
-#define AEU_INPUTS_ATTN_BITS_PXPPCICLOCKCLIENT_HW_INTERRUPT   (1<<5)
-#define AEU_INPUTS_ATTN_BITS_PXPPCICLOCKCLIENT_PARITY_ERROR   (1<<4)
-#define AEU_INPUTS_ATTN_BITS_QM_HW_INTERRUPT		      (1<<3)
-#define AEU_INPUTS_ATTN_BITS_QM_PARITY_ERROR		      (1<<2)
-#define AEU_INPUTS_ATTN_BITS_SEARCHER_PARITY_ERROR	      (1<<22)
-#define AEU_INPUTS_ATTN_BITS_SPIO5			      (1<<15)
-#define AEU_INPUTS_ATTN_BITS_TCM_HW_INTERRUPT		      (1<<27)
-#define AEU_INPUTS_ATTN_BITS_TIMERS_HW_INTERRUPT	      (1<<5)
-#define AEU_INPUTS_ATTN_BITS_TSDM_HW_INTERRUPT		      (1<<25)
-#define AEU_INPUTS_ATTN_BITS_TSDM_PARITY_ERROR		      (1<<24)
-#define AEU_INPUTS_ATTN_BITS_TSEMI_HW_INTERRUPT 	      (1<<29)
-#define AEU_INPUTS_ATTN_BITS_TSEMI_PARITY_ERROR 	      (1<<28)
-#define AEU_INPUTS_ATTN_BITS_UCM_HW_INTERRUPT		      (1<<23)
-#define AEU_INPUTS_ATTN_BITS_UPB_HW_INTERRUPT		      (1<<27)
-#define AEU_INPUTS_ATTN_BITS_UPB_PARITY_ERROR		      (1<<26)
-#define AEU_INPUTS_ATTN_BITS_USDM_HW_INTERRUPT		      (1<<21)
-#define AEU_INPUTS_ATTN_BITS_USDM_PARITY_ERROR		      (1<<20)
-#define AEU_INPUTS_ATTN_BITS_USEMI_HW_INTERRUPT 	      (1<<25)
-#define AEU_INPUTS_ATTN_BITS_USEMI_PARITY_ERROR 	      (1<<24)
-#define AEU_INPUTS_ATTN_BITS_VAUX_PCI_CORE_PARITY_ERROR       (1<<16)
-#define AEU_INPUTS_ATTN_BITS_XCM_HW_INTERRUPT		      (1<<9)
-#define AEU_INPUTS_ATTN_BITS_XSDM_HW_INTERRUPT		      (1<<7)
-#define AEU_INPUTS_ATTN_BITS_XSDM_PARITY_ERROR		      (1<<6)
-#define AEU_INPUTS_ATTN_BITS_XSEMI_HW_INTERRUPT 	      (1<<11)
-#define AEU_INPUTS_ATTN_BITS_XSEMI_PARITY_ERROR 	      (1<<10)
+#define AEU_INPUTS_ATTN_BITS_ATC_HW_INTERRUPT			 (0x1<<4)
+#define AEU_INPUTS_ATTN_BITS_ATC_PARITY_ERROR			 (0x1<<5)
+#define AEU_INPUTS_ATTN_BITS_BRB_PARITY_ERROR			 (0x1<<18)
+#define AEU_INPUTS_ATTN_BITS_CCM_HW_INTERRUPT			 (0x1<<31)
+#define AEU_INPUTS_ATTN_BITS_CCM_PARITY_ERROR			 (0x1<<30)
+#define AEU_INPUTS_ATTN_BITS_CDU_HW_INTERRUPT			 (0x1<<9)
+#define AEU_INPUTS_ATTN_BITS_CDU_PARITY_ERROR			 (0x1<<8)
+#define AEU_INPUTS_ATTN_BITS_CFC_HW_INTERRUPT			 (0x1<<7)
+#define AEU_INPUTS_ATTN_BITS_CFC_PARITY_ERROR			 (0x1<<6)
+#define AEU_INPUTS_ATTN_BITS_CSDM_HW_INTERRUPT			 (0x1<<29)
+#define AEU_INPUTS_ATTN_BITS_CSDM_PARITY_ERROR			 (0x1<<28)
+#define AEU_INPUTS_ATTN_BITS_CSEMI_HW_INTERRUPT			 (0x1<<1)
+#define AEU_INPUTS_ATTN_BITS_CSEMI_PARITY_ERROR			 (0x1<<0)
+#define AEU_INPUTS_ATTN_BITS_DEBUG_PARITY_ERROR			 (0x1<<18)
+#define AEU_INPUTS_ATTN_BITS_DMAE_HW_INTERRUPT			 (0x1<<11)
+#define AEU_INPUTS_ATTN_BITS_DMAE_PARITY_ERROR			 (0x1<<10)
+#define AEU_INPUTS_ATTN_BITS_DOORBELLQ_HW_INTERRUPT		 (0x1<<13)
+#define AEU_INPUTS_ATTN_BITS_DOORBELLQ_PARITY_ERROR		 (0x1<<12)
+#define AEU_INPUTS_ATTN_BITS_GPIO0_FUNCTION_0			 (0x1<<2)
+#define AEU_INPUTS_ATTN_BITS_IGU_PARITY_ERROR			 (0x1<<12)
+#define AEU_INPUTS_ATTN_BITS_MCP_LATCHED_ROM_PARITY		 (0x1<<28)
+#define AEU_INPUTS_ATTN_BITS_MCP_LATCHED_SCPAD_PARITY		 (0x1<<31)
+#define AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_RX_PARITY		 (0x1<<29)
+#define AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_TX_PARITY		 (0x1<<30)
+#define AEU_INPUTS_ATTN_BITS_MISC_HW_INTERRUPT			 (0x1<<15)
+#define AEU_INPUTS_ATTN_BITS_MISC_PARITY_ERROR			 (0x1<<14)
+#define AEU_INPUTS_ATTN_BITS_NIG_PARITY_ERROR			 (0x1<<14)
+#define AEU_INPUTS_ATTN_BITS_PARSER_PARITY_ERROR		 (0x1<<20)
+#define AEU_INPUTS_ATTN_BITS_PBCLIENT_HW_INTERRUPT		 (0x1<<31)
+#define AEU_INPUTS_ATTN_BITS_PBCLIENT_PARITY_ERROR		 (0x1<<30)
+#define AEU_INPUTS_ATTN_BITS_PBF_PARITY_ERROR			 (0x1<<0)
+#define AEU_INPUTS_ATTN_BITS_PGLUE_HW_INTERRUPT			 (0x1<<2)
+#define AEU_INPUTS_ATTN_BITS_PGLUE_PARITY_ERROR			 (0x1<<3)
+#define AEU_INPUTS_ATTN_BITS_PXPPCICLOCKCLIENT_HW_INTERRUPT	 (0x1<<5)
+#define AEU_INPUTS_ATTN_BITS_PXPPCICLOCKCLIENT_PARITY_ERROR	 (0x1<<4)
+#define AEU_INPUTS_ATTN_BITS_PXP_HW_INTERRUPT			 (0x1<<3)
+#define AEU_INPUTS_ATTN_BITS_PXP_PARITY_ERROR			 (0x1<<2)
+#define AEU_INPUTS_ATTN_BITS_QM_HW_INTERRUPT			 (0x1<<3)
+#define AEU_INPUTS_ATTN_BITS_QM_PARITY_ERROR			 (0x1<<2)
+#define AEU_INPUTS_ATTN_BITS_SEARCHER_PARITY_ERROR		 (0x1<<22)
+#define AEU_INPUTS_ATTN_BITS_SPIO5				 (0x1<<15)
+#define AEU_INPUTS_ATTN_BITS_TCM_HW_INTERRUPT			 (0x1<<27)
+#define AEU_INPUTS_ATTN_BITS_TCM_PARITY_ERROR			 (0x1<<26)
+#define AEU_INPUTS_ATTN_BITS_TIMERS_HW_INTERRUPT		 (0x1<<5)
+#define AEU_INPUTS_ATTN_BITS_TIMERS_PARITY_ERROR		 (0x1<<4)
+#define AEU_INPUTS_ATTN_BITS_TSDM_HW_INTERRUPT			 (0x1<<25)
+#define AEU_INPUTS_ATTN_BITS_TSDM_PARITY_ERROR			 (0x1<<24)
+#define AEU_INPUTS_ATTN_BITS_TSEMI_HW_INTERRUPT			 (0x1<<29)
+#define AEU_INPUTS_ATTN_BITS_TSEMI_PARITY_ERROR			 (0x1<<28)
+#define AEU_INPUTS_ATTN_BITS_UCM_HW_INTERRUPT			 (0x1<<23)
+#define AEU_INPUTS_ATTN_BITS_UCM_PARITY_ERROR			 (0x1<<22)
+#define AEU_INPUTS_ATTN_BITS_UPB_HW_INTERRUPT			 (0x1<<27)
+#define AEU_INPUTS_ATTN_BITS_UPB_PARITY_ERROR			 (0x1<<26)
+#define AEU_INPUTS_ATTN_BITS_USDM_HW_INTERRUPT			 (0x1<<21)
+#define AEU_INPUTS_ATTN_BITS_USDM_PARITY_ERROR			 (0x1<<20)
+#define AEU_INPUTS_ATTN_BITS_USEMI_HW_INTERRUPT			 (0x1<<25)
+#define AEU_INPUTS_ATTN_BITS_USEMI_PARITY_ERROR			 (0x1<<24)
+#define AEU_INPUTS_ATTN_BITS_VAUX_PCI_CORE_PARITY_ERROR		 (0x1<<16)
+#define AEU_INPUTS_ATTN_BITS_XCM_HW_INTERRUPT			 (0x1<<9)
+#define AEU_INPUTS_ATTN_BITS_XCM_PARITY_ERROR			 (0x1<<8)
+#define AEU_INPUTS_ATTN_BITS_XSDM_HW_INTERRUPT			 (0x1<<7)
+#define AEU_INPUTS_ATTN_BITS_XSDM_PARITY_ERROR			 (0x1<<6)
+#define AEU_INPUTS_ATTN_BITS_XSEMI_HW_INTERRUPT			 (0x1<<11)
+#define AEU_INPUTS_ATTN_BITS_XSEMI_PARITY_ERROR			 (0x1<<10)
+
+#define AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_0			(0x1<<5)
+#define AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_1			(0x1<<9)
+
 #define RESERVED_GENERAL_ATTENTION_BIT_0	0
 
-#define EVEREST_GEN_ATTN_IN_USE_MASK		0x3ffe0
+#define EVEREST_GEN_ATTN_IN_USE_MASK		0x7ffe0
 #define EVEREST_LATCHED_ATTN_IN_USE_MASK	0xffe00000
 
 #define RESERVED_GENERAL_ATTENTION_BIT_6	6
@@ -5317,7 +5911,13 @@
 #define GRCBASE_HC		0x108000
 #define GRCBASE_PXP2		0x120000
 #define GRCBASE_PBF		0x140000
+#define GRCBASE_UMAC0		0x160000
+#define GRCBASE_UMAC1		0x160400
 #define GRCBASE_XPB		0x161000
+#define GRCBASE_MSTAT0	    0x162000
+#define GRCBASE_MSTAT1	    0x162800
+#define GRCBASE_XMAC0		0x163000
+#define GRCBASE_XMAC1		0x163800
 #define GRCBASE_TIMERS		0x164000
 #define GRCBASE_XSDM		0x166000
 #define GRCBASE_QM		0x168000
@@ -5883,6 +6483,10 @@
 #define MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_16G		0x0C00
 #define MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_1G_KX	0x0D00
 #define MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_10G_KX4	0x0E00
+#define MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_10G_KR	0x0F00
+#define MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_10G_XFI	0x1B00
+#define MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_20G_DXGXS	0x1E00
+#define MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_10G_SFI	0x1F00
 
 
 #define MDIO_REG_BANK_10G_PARALLEL_DETECT		0x8130
@@ -6032,15 +6636,11 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_PMA_REG_CTRL		0x0
 #define MDIO_PMA_REG_STATUS		0x1
 #define MDIO_PMA_REG_10G_CTRL2		0x7
+#define MDIO_PMA_REG_TX_DISABLE		0x0009
 #define MDIO_PMA_REG_RX_SD		0xa
 /*bcm*/
 #define MDIO_PMA_REG_BCM_CTRL		0x0096
 #define MDIO_PMA_REG_FEC_CTRL		0x00ab
-#define MDIO_PMA_REG_RX_ALARM_CTRL	0x9000
-#define MDIO_PMA_REG_LASI_CTRL		0x9002
-#define MDIO_PMA_REG_RX_ALARM		0x9003
-#define MDIO_PMA_REG_TX_ALARM		0x9004
-#define MDIO_PMA_REG_LASI_STATUS	0x9005
 #define MDIO_PMA_REG_PHY_IDENTIFIER	0xc800
 #define MDIO_PMA_REG_DIGITAL_CTRL	0xc808
 #define MDIO_PMA_REG_DIGITAL_STATUS	0xc809
@@ -6201,6 +6801,169 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_PMA_REG_84823_CTL_LED_CTL_1		0xa8e3
 #define MDIO_PMA_REG_84823_LED3_STRETCH_EN		0x0080
 
+/* BCM84833 only */
+#define MDIO_84833_TOP_CFG_XGPHY_STRAP1			0x401a
+#define MDIO_84833_SUPER_ISOLATE		0x8000
+/* These are mailbox register set used by 84833. */
+#define MDIO_84833_TOP_CFG_SCRATCH_REG0			0x4005
+#define MDIO_84833_TOP_CFG_SCRATCH_REG1			0x4006
+#define MDIO_84833_TOP_CFG_SCRATCH_REG2			0x4007
+#define MDIO_84833_TOP_CFG_SCRATCH_REG3			0x4008
+#define MDIO_84833_TOP_CFG_SCRATCH_REG4			0x4009
+#define MDIO_84833_TOP_CFG_DATA3_REG			0x4011
+#define MDIO_84833_TOP_CFG_DATA4_REG			0x4012
+
+/* Mailbox command set used by 84833. */
+#define PHY84833_DIAG_CMD_PAIR_SWAP_CHANGE		0x2
+/* Mailbox status set used by 84833. */
+#define PHY84833_CMD_RECEIVED				0x0001
+#define PHY84833_CMD_IN_PROGRESS			0x0002
+#define PHY84833_CMD_COMPLETE_PASS			0x0004
+#define PHY84833_CMD_COMPLETE_ERROR			0x0008
+#define PHY84833_CMD_OPEN_FOR_CMDS			0x0010
+#define PHY84833_CMD_SYSTEM_BOOT			0x0020
+#define PHY84833_CMD_NOT_OPEN_FOR_CMDS			0x0040
+#define PHY84833_CMD_CLEAR_COMPLETE			0x0080
+#define PHY84833_CMD_OPEN_OVERRIDE			0xa5a5
+
+
+/* 84833 F/W Feature Commands */
+#define PHY84833_DIAG_CMD_GET_EEE_MODE			0x27
+#define PHY84833_DIAG_CMD_SET_EEE_MODE			0x28
+
+/* Warpcore clause 45 addressing */
+#define MDIO_WC_DEVAD					0x3
+#define MDIO_WC_REG_IEEE0BLK_MIICNTL			0x0
+#define MDIO_WC_REG_IEEE0BLK_AUTONEGNP			0x7
+#define MDIO_WC_REG_AN_IEEE1BLK_AN_ADVERTISEMENT0	0x10
+#define MDIO_WC_REG_AN_IEEE1BLK_AN_ADVERTISEMENT1	0x11
+#define MDIO_WC_REG_PMD_IEEE9BLK_TENGBASE_KR_PMD_CONTROL_REGISTER_150  0x96
+#define MDIO_WC_REG_XGXSBLK0_XGXSCONTROL		0x8000
+#define MDIO_WC_REG_XGXSBLK0_MISCCONTROL1		0x800e
+#define MDIO_WC_REG_XGXSBLK1_DESKEW			0x8010
+#define MDIO_WC_REG_XGXSBLK1_LANECTRL0			0x8015
+#define MDIO_WC_REG_XGXSBLK1_LANECTRL1			0x8016
+#define MDIO_WC_REG_XGXSBLK1_LANECTRL2			0x8017
+#define MDIO_WC_REG_TX0_ANA_CTRL0			0x8061
+#define MDIO_WC_REG_TX1_ANA_CTRL0			0x8071
+#define MDIO_WC_REG_TX2_ANA_CTRL0			0x8081
+#define MDIO_WC_REG_TX3_ANA_CTRL0			0x8091
+#define MDIO_WC_REG_TX0_TX_DRIVER			0x8067
+#define MDIO_WC_REG_TX0_TX_DRIVER_IPRE_DRIVER_OFFSET		0x04
+#define MDIO_WC_REG_TX0_TX_DRIVER_IPRE_DRIVER_MASK			0x00f0
+#define MDIO_WC_REG_TX0_TX_DRIVER_IDRIVER_OFFSET		0x08
+#define MDIO_WC_REG_TX0_TX_DRIVER_IDRIVER_MASK				0x0f00
+#define MDIO_WC_REG_TX0_TX_DRIVER_POST2_COEFF_OFFSET		0x0c
+#define MDIO_WC_REG_TX0_TX_DRIVER_POST2_COEFF_MASK			0x7000
+#define MDIO_WC_REG_TX1_TX_DRIVER			0x8077
+#define MDIO_WC_REG_TX2_TX_DRIVER			0x8087
+#define MDIO_WC_REG_TX3_TX_DRIVER			0x8097
+#define MDIO_WC_REG_RX0_ANARXCONTROL1G			0x80b9
+#define MDIO_WC_REG_RX2_ANARXCONTROL1G			0x80d9
+#define MDIO_WC_REG_RX0_PCI_CTRL			0x80ba
+#define MDIO_WC_REG_RX1_PCI_CTRL			0x80ca
+#define MDIO_WC_REG_RX2_PCI_CTRL			0x80da
+#define MDIO_WC_REG_RX3_PCI_CTRL			0x80ea
+#define MDIO_WC_REG_XGXSBLK2_UNICORE_MODE_10G		0x8104
+#define MDIO_WC_REG_XGXS_STATUS3			0x8129
+#define MDIO_WC_REG_PAR_DET_10G_STATUS			0x8130
+#define MDIO_WC_REG_PAR_DET_10G_CTRL			0x8131
+#define MDIO_WC_REG_XGXS_X2_CONTROL2			0x8141
+#define MDIO_WC_REG_XGXS_RX_LN_SWAP1			0x816B
+#define MDIO_WC_REG_XGXS_TX_LN_SWAP1			0x8169
+#define MDIO_WC_REG_GP2_STATUS_GP_2_0			0x81d0
+#define MDIO_WC_REG_GP2_STATUS_GP_2_1			0x81d1
+#define MDIO_WC_REG_GP2_STATUS_GP_2_2			0x81d2
+#define MDIO_WC_REG_GP2_STATUS_GP_2_3			0x81d3
+#define MDIO_WC_REG_GP2_STATUS_GP_2_4			0x81d4
+#define MDIO_WC_REG_UC_INFO_B0_DEAD_TRAP		0x81EE
+#define MDIO_WC_REG_UC_INFO_B1_VERSION			0x81F0
+#define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_MODE		0x81F2
+#define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_LANE0_OFFSET	0x0
+#define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_MODE_DEFAULT	    0x0
+#define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_MODE_SFP_OPT_LR	    0x1
+#define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_MODE_SFP_DAC	    0x2
+#define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_MODE_SFP_XLAUI	    0x3
+#define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_MODE_LONG_CH_6G	    0x4
+#define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_LANE1_OFFSET	0x4
+#define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_LANE2_OFFSET	0x8
+#define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_LANE3_OFFSET	0xc
+#define MDIO_WC_REG_UC_INFO_B1_CRC			0x81FE
+#define MDIO_WC_REG_DSC_SMC				0x8213
+#define MDIO_WC_REG_DSC2B0_DSC_MISC_CTRL0		0x821e
+#define MDIO_WC_REG_TX_FIR_TAP				0x82e2
+#define MDIO_WC_REG_TX_FIR_TAP_PRE_TAP_OFFSET		0x00
+#define MDIO_WC_REG_TX_FIR_TAP_PRE_TAP_MASK			0x000f
+#define MDIO_WC_REG_TX_FIR_TAP_MAIN_TAP_OFFSET		0x04
+#define MDIO_WC_REG_TX_FIR_TAP_MAIN_TAP_MASK		0x03f0
+#define MDIO_WC_REG_TX_FIR_TAP_POST_TAP_OFFSET		0x0a
+#define MDIO_WC_REG_TX_FIR_TAP_POST_TAP_MASK		0x7c00
+#define MDIO_WC_REG_TX_FIR_TAP_ENABLE		0x8000
+#define MDIO_WC_REG_CL72_USERB0_CL72_MISC1_CONTROL	0x82e3
+#define MDIO_WC_REG_CL72_USERB0_CL72_OS_DEF_CTRL	0x82e6
+#define MDIO_WC_REG_CL72_USERB0_CL72_BR_DEF_CTRL	0x82e7
+#define MDIO_WC_REG_CL72_USERB0_CL72_2P5_DEF_CTRL	0x82e8
+#define MDIO_WC_REG_CL72_USERB0_CL72_MISC4_CONTROL	0x82ec
+#define MDIO_WC_REG_SERDESDIGITAL_CONTROL1000X1		0x8300
+#define MDIO_WC_REG_SERDESDIGITAL_CONTROL1000X2		0x8301
+#define MDIO_WC_REG_SERDESDIGITAL_CONTROL1000X3		0x8302
+#define MDIO_WC_REG_SERDESDIGITAL_STATUS1000X1		0x8304
+#define MDIO_WC_REG_SERDESDIGITAL_MISC1			0x8308
+#define MDIO_WC_REG_SERDESDIGITAL_MISC2			0x8309
+#define MDIO_WC_REG_DIGITAL3_UP1			0x8329
+#define MDIO_WC_REG_DIGITAL4_MISC3			0x833c
+#define MDIO_WC_REG_DIGITAL5_MISC6			0x8345
+#define MDIO_WC_REG_DIGITAL5_MISC7			0x8349
+#define MDIO_WC_REG_DIGITAL5_ACTUAL_SPEED		0x834e
+#define MDIO_WC_REG_DIGITAL6_MP5_NEXTPAGECTRL		0x8350
+#define MDIO_WC_REG_CL49_USERB0_CTRL			0x8368
+#define MDIO_WC_REG_TX66_CONTROL			0x83b0
+#define MDIO_WC_REG_RX66_CONTROL			0x83c0
+#define MDIO_WC_REG_RX66_SCW0				0x83c2
+#define MDIO_WC_REG_RX66_SCW1				0x83c3
+#define MDIO_WC_REG_RX66_SCW2				0x83c4
+#define MDIO_WC_REG_RX66_SCW3				0x83c5
+#define MDIO_WC_REG_RX66_SCW0_MASK			0x83c6
+#define MDIO_WC_REG_RX66_SCW1_MASK			0x83c7
+#define MDIO_WC_REG_RX66_SCW2_MASK			0x83c8
+#define MDIO_WC_REG_RX66_SCW3_MASK			0x83c9
+#define MDIO_WC_REG_FX100_CTRL1				0x8400
+#define MDIO_WC_REG_FX100_CTRL3				0x8402
+
+#define MDIO_WC_REG_MICROBLK_CMD			0xffc2
+#define MDIO_WC_REG_MICROBLK_DL_STATUS			0xffc5
+#define MDIO_WC_REG_MICROBLK_CMD3			0xffcc
+
+#define MDIO_WC_REG_AERBLK_AER				0xffde
+#define MDIO_WC_REG_COMBO_IEEE0_MIICTRL			0xffe0
+#define MDIO_WC_REG_COMBO_IEEE0_MIIISTAT		0xffe1
+
+#define MDIO_WC0_XGXS_BLK2_LANE_RESET			0x810A
+#define MDIO_WC0_XGXS_BLK2_LANE_RESET_RX_BITSHIFT	0
+#define MDIO_WC0_XGXS_BLK2_LANE_RESET_TX_BITSHIFT	4
+
+#define MDIO_WC0_XGXS_BLK6_XGXS_X2_CONTROL2		0x8141
+
+#define DIGITAL5_ACTUAL_SPEED_TX_MASK			0x003f
+
+/* 54618se */
+#define MDIO_REG_GPHY_PHYID_LSB				0x3
+#define MDIO_REG_GPHY_ID_54618SE		0x5cd5
+#define MDIO_REG_GPHY_CL45_ADDR_REG			0xd
+#define MDIO_REG_GPHY_CL45_DATA_REG			0xe
+#define MDIO_REG_GPHY_EEE_ADV			0x3c
+#define MDIO_REG_GPHY_EEE_1G		(0x1 << 2)
+#define MDIO_REG_GPHY_EEE_100		(0x1 << 1)
+#define MDIO_REG_GPHY_EEE_RESOLVED		0x803e
+#define MDIO_REG_INTR_STATUS				0x1a
+#define MDIO_REG_INTR_MASK				0x1b
+#define MDIO_REG_INTR_MASK_LINK_STATUS			(0x1 << 1)
+#define MDIO_REG_GPHY_SHADOW				0x1c
+#define MDIO_REG_GPHY_SHADOW_LED_SEL2			(0x0e << 10)
+#define MDIO_REG_GPHY_SHADOW_WR_ENA			(0x1 << 15)
+#define MDIO_REG_GPHY_SHADOW_AUTO_DET_MED		(0x1e << 10)
+#define MDIO_REG_GPHY_SHADOW_INVERT_FIB_SD		(0x1 << 8)
+
 #define IGU_FUNC_BASE			0x0400
 
 #define IGU_ADDR_MSIX			0x0000
@@ -6216,11 +6979,6 @@ Theotherbitsarereservedandshouldbezero*/
 #define IGU_ADDR_MSI_ADDR_LO	0x0211
 #define IGU_ADDR_MSI_ADDR_HI	0x0212
 #define IGU_ADDR_MSI_DATA		0x0213
-
-#define IGU_INT_ENABLE			0
-#define IGU_INT_DISABLE 		1
-#define IGU_INT_NOP				2
-#define IGU_INT_NOP2			3
 
 #define IGU_USE_REGISTER_ustorm_type_0_sb_cleanup  0
 #define IGU_USE_REGISTER_ustorm_type_1_sb_cleanup  1
@@ -6291,15 +7049,6 @@ Theotherbitsarereservedandshouldbezero*/
 #define IGU_NORM_NDSB_NUM_SEGS 1
 #define IGU_BC_BASE_DSB_PROD   128
 #define IGU_NORM_BASE_DSB_PROD 136
-
-#define IGU_CTRL_CMD_TYPE_WR\
-	1
-#define IGU_CTRL_CMD_TYPE_RD\
-	0
-
-#define IGU_SEG_ACCESS_NORM   0
-#define IGU_SEG_ACCESS_DEF    1
-#define IGU_SEG_ACCESS_ATTN   2
 
 	/* FID (if VF - [6] = 0; [5:0] = VF number; if PF - [6] = 1; \
 	[5:2] = 0; [1:0] = PF number) */

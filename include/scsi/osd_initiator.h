@@ -262,7 +262,7 @@ int osd_execute_request_async(struct osd_request *or,
  * osd_req_decode_sense_full - Decode sense information after execution.
  *
  * @or:           - osd_request to examine
- * @osi           - Recievs a more detailed error report information (optional).
+ * @osi           - Receives a more detailed error report information (optional).
  * @silent        - Do not print to dmsg (Even if enabled)
  * @bad_obj_list  - Some commands act on multiple objects. Failed objects will
  *                  be received here (optional)

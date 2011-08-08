@@ -141,25 +141,20 @@ omap_alloc_gc(void __iomem *base, unsigned int irq_start, unsigned int num)
 				IRQ_NOREQUEST | IRQ_NOPROBE, 0);
 }
 
-void __init omap_init_irq(void)
+static void __init omap_init_irq(u32 base, int nr_irqs)
 {
 	unsigned long nr_of_irqs = 0;
 	unsigned int nr_banks = 0;
 	int i, j;
 
+	omap_irq_base = ioremap(base, SZ_4K);
+	if (WARN_ON(!omap_irq_base))
+		return;
+
 	for (i = 0; i < ARRAY_SIZE(irq_banks); i++) {
-		unsigned long base = 0;
 		struct omap_irq_bank *bank = irq_banks + i;
 
-		if (cpu_is_omap24xx())
-			base = OMAP24XX_IC_BASE;
-		else if (cpu_is_omap34xx())
-			base = OMAP34XX_IC_BASE;
-
-		BUG_ON(!base);
-
-		if (cpu_is_ti816x())
-			bank->nr_irqs = 128;
+		bank->nr_irqs = nr_irqs;
 
 		/* Static mapping, never released */
 		bank->base_reg = ioremap(base, SZ_4K);
@@ -179,6 +174,21 @@ void __init omap_init_irq(void)
 
 	printk(KERN_INFO "Total of %ld interrupts on %d active controller%s\n",
 	       nr_of_irqs, nr_banks, nr_banks > 1 ? "s" : "");
+}
+
+void __init omap2_init_irq(void)
+{
+	omap_init_irq(OMAP24XX_IC_BASE, 96);
+}
+
+void __init omap3_init_irq(void)
+{
+	omap_init_irq(OMAP34XX_IC_BASE, 96);
+}
+
+void __init ti816x_init_irq(void)
+{
+	omap_init_irq(OMAP34XX_IC_BASE, 128);
 }
 
 #ifdef CONFIG_ARCH_OMAP3
