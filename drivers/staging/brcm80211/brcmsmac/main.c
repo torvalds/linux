@@ -6265,8 +6265,8 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
  * register watchdog and down handlers.
  */
 int brcms_c_module_register(struct brcms_pub *pub,
-			const char *name, void *hdl,
-			watchdog_fn_t w_fn, down_fn_t d_fn)
+		const char *name, void *hdl,
+		int (*w_fn)(void *handle), int (*d_fn)(void *handle))
 {
 	struct brcms_c_info *wlc = (struct brcms_c_info *) pub->wlc;
 	int i;

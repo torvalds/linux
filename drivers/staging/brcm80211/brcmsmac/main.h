@@ -408,11 +408,11 @@ struct brcms_band {
 	u16 bcntsfoff;	/* beacon tsf offset */
 };
 
-/* tx completion callback takes 3 args */
-typedef void (*pkcb_fn_t) (struct brcms_c_info *wlc, uint txstatus, void *arg);
-
 struct pkt_cb {
-	pkcb_fn_t fn;		/* function to call when tx frame completes */
+	/* function to call when tx frame completes */
+	/* tx completion callback takes 3 args */
+	void (*fn)(struct brcms_c_info *wlc, uint txstatus, void *arg);
+
 	void *arg;		/* void arg for fn */
 	u8 nextidx;		/* index of next call back if threading */
 	bool entered;		/* recursion check */
@@ -423,19 +423,41 @@ struct modulecb {
 	char name[32];		/* module name : NULL indicates empty array member */
 	const struct brcmu_iovar *iovars;	/* iovar table */
 	void *hdl;		/* handle passed when handler 'doiovar' is called */
-	watchdog_fn_t watchdog_fn;	/* watchdog handler */
-	iovar_fn_t iovar_fn;	/* iovar handler */
-	down_fn_t down_fn;	/* down handler. Note: the int returned
-				 * by the down function is a count of the
-				 * number of timers that could not be
-				 * freed.
-				 */
+	int (*watchdog_fn)(void *handle);	/* watchdog handler */
+
+	/* IOVar handler
+	 *
+	 * handle - a pointer value registered with the function
+	 * vi - iovar_info that was looked up
+	 * actionid - action ID, calculated by IOV_GVAL() and IOV_SVAL()
+	 *    based on varid.
+	 * name - the actual iovar name
+	 * params/plen - parameters and length for a get, input only.
+	 * arg/len - buffer and length for value to be set or retrieved,
+	 *      input or output.
+	 * vsize - value size, valid for integer type only.
+	 * wlcif - interface context (brcms_c_if pointer)
+	 *
+	 * All pointers may point into the same buffer.
+	 */
+	int (*iovar_fn)(void *handle, const struct brcmu_iovar *vi,
+			u32 actionid, const char *name, void *params,
+			uint plen, void *arg, int alen, int vsize,
+			struct brcms_c_if *wlcif);
+
+	int (*down_fn)(void *handle); /* down handler. Note: the int returned
+				       * by the down function is a count of the
+				       * number of timers that could not be
+				       * freed.
+				       */
+
 };
 
 /* dump control blocks */
 struct dumpcb_s {
 	const char *name;	/* dump name */
-	dump_fn_t dump_fn;	/* 'wl dump' handler */
+	/* 'wl dump' handler */
+	int (*dump_fn)(void *handle, struct brcmu_strbuf *b);
 	void *dump_fn_arg;
 	struct dumpcb_s *next;
 };

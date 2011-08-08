@@ -203,29 +203,6 @@ struct brcms_bss_info {
 #define IOVF_GET_BAND	(1<<13)	/* get requires fixed band */
 #define IOVF_OPEN_ALLOW	(1<<14)	/* set allowed iovar for opensrc */
 
-/* watchdog down and dump callback function proto's */
-typedef int (*watchdog_fn_t) (void *handle);
-typedef int (*down_fn_t) (void *handle);
-typedef int (*dump_fn_t) (void *handle, struct brcmu_strbuf *b);
-
-/* IOVar handler
- *
- * handle - a pointer value registered with the function
- * vi - iovar_info that was looked up
- * actionid - action ID, calculated by IOV_GVAL() and IOV_SVAL() based on varid.
- * name - the actual iovar name
- * params/plen - parameters and length for a get, input only.
- * arg/len - buffer and length for value to be set or retrieved, input or output.
- * vsize - value size, valid for integer type only.
- * wlcif - interface context (brcms_c_if pointer)
- *
- * All pointers may point into the same buffer.
- */
-typedef int (*iovar_fn_t) (void *handle, const struct brcmu_iovar *vi,
-			   u32 actionid, const char *name, void *params,
-			   uint plen, void *arg, int alen, int vsize,
-			   struct brcms_c_if *wlcif);
-
 #define MAC80211_PROMISC_BCNS	(1 << 0)
 #define MAC80211_SCAN		(1 << 1)
 
@@ -635,7 +612,9 @@ extern void brcms_c_mctrl(struct brcms_c_info *wlc, u32 mask, u32 val);
 
 extern int brcms_c_module_register(struct brcms_pub *pub,
 			       const char *name, void *hdl,
-			       watchdog_fn_t watchdog_fn, down_fn_t down_fn);
+			       int (*watchdog_fn)(void *handle),
+			       int (*down_fn)(void *handle));
+
 extern int brcms_c_module_unregister(struct brcms_pub *pub, const char *name,
 				 void *hdl);
 extern void brcms_c_suspend_mac_and_wait(struct brcms_c_info *wlc);
