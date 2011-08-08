@@ -59,23 +59,12 @@ enum txd_range {
 };
 
 /* dma function type */
-typedef bool(*di_txreset_t) (struct dma_pub *dmah);
-typedef bool(*di_rxreset_t) (struct dma_pub *dmah);
-typedef bool(*di_rxidle_t) (struct dma_pub *dmah);
-typedef bool(*di_txenabled_t) (struct dma_pub *dmah);
-typedef bool(*di_txsuspended_t) (struct dma_pub *dmah);
-typedef bool(*di_txsuspendedidle_t) (struct dma_pub *dmah);
 typedef int (*di_txfast_t) (struct dma_pub *dmah, struct sk_buff *p,
 			    bool commit);
 typedef int (*di_txunframed_t) (struct dma_pub *dmah, void *p, uint len,
 				bool commit);
 typedef void *(*di_getpos_t) (struct dma_pub *di, bool direction);
-typedef bool(*di_txstopped_t) (struct dma_pub *dmah);
-typedef bool(*di_rxstopped_t) (struct dma_pub *dmah);
-typedef bool(*di_rxenable_t) (struct dma_pub *dmah);
-typedef bool(*di_rxenabled_t) (struct dma_pub *dmah);
 typedef void *(*di_rx_t) (struct dma_pub *dmah);
-typedef bool(*di_rxfill_t) (struct dma_pub *dmah);
 typedef void (*di_txreclaim_t) (struct dma_pub *dmah, enum txd_range range);
 typedef unsigned long (*di_getvar_t) (struct dma_pub *dmah,
 				      const char *name);
@@ -101,16 +90,16 @@ typedef uint(*di_txcommitted_t) (struct dma_pub *dmah);
 struct di_fcn_s {
 	void (*detach)(struct dma_pub *dmah);
 	void (*txinit)(struct dma_pub *dmah);
-	di_txreset_t txreset;
-	di_txenabled_t txenabled;
+	bool (*txreset)(struct dma_pub *dmah);
+	bool (*txenabled)(struct dma_pub *dmah);
 	void (*txsuspend)(struct dma_pub *dmah);
 	void (*txresume)(struct dma_pub *dmah);
-	di_txsuspended_t txsuspended;
-	di_txsuspendedidle_t txsuspendedidle;
+	bool (*txsuspended)(struct dma_pub *dmah);
+	bool (*txsuspendedidle)(struct dma_pub *dmah);
 	di_txfast_t txfast;
 	di_txunframed_t txunframed;
 	di_getpos_t getpos;
-	di_txstopped_t txstopped;
+	bool (*txstopped)(struct dma_pub *dmah);
 	di_txreclaim_t txreclaim;
 	di_getnexttxp_t getnexttxp;
 	di_peeknexttxp_t peeknexttxp;
@@ -120,13 +109,13 @@ struct di_fcn_s {
 	void (*txrotate) (struct dma_pub *dmah);
 
 	void (*rxinit)(struct dma_pub *dmah);
-	di_rxreset_t rxreset;
-	di_rxidle_t rxidle;
-	di_rxstopped_t rxstopped;
-	di_rxenable_t rxenable;
-	di_rxenabled_t rxenabled;
+	bool (*rxreset)(struct dma_pub *dmah);
+	bool (*rxidle)(struct dma_pub *dmah);
+	bool (*rxstopped)(struct dma_pub *dmah);
+	bool (*rxenable)(struct dma_pub *dmah);
+	bool (*rxenabled)(struct dma_pub *dmah);
 	di_rx_t rx;
-	di_rxfill_t rxfill;
+	bool (*rxfill)(struct dma_pub *dmah);
 	void (*rxreclaim)(struct dma_pub *dmah);
 	di_getnextrxp_t getnextrxp;
 	di_peeknextrxp_t peeknextrxp;
