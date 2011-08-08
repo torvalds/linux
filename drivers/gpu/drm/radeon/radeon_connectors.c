@@ -478,11 +478,19 @@ static void radeon_fixup_lvds_native_mode(struct drm_encoder *encoder,
 {
 	struct radeon_encoder *radeon_encoder =	to_radeon_encoder(encoder);
 	struct drm_display_mode *native_mode = &radeon_encoder->native_mode;
+	struct drm_display_mode *t, *mode;
+
+	/* If the EDID preferred mode doesn't match the native mode, use it */
+	list_for_each_entry_safe(mode, t, &connector->probed_modes, head) {
+		if (mode->type & DRM_MODE_TYPE_PREFERRED) {
+			if (mode->hdisplay != native_mode->hdisplay ||
+			    mode->vdisplay != native_mode->vdisplay)
+				memcpy(native_mode, mode, sizeof(*mode));
+		}
+	}
 
 	/* Try to get native mode details from EDID if necessary */
 	if (!native_mode->clock) {
-		struct drm_display_mode *t, *mode;
-
 		list_for_each_entry_safe(mode, t, &connector->probed_modes, head) {
 			if (mode->hdisplay == native_mode->hdisplay &&
 			    mode->vdisplay == native_mode->vdisplay) {
@@ -493,6 +501,7 @@ static void radeon_fixup_lvds_native_mode(struct drm_encoder *encoder,
 			}
 		}
 	}
+
 	if (!native_mode->clock) {
 		DRM_DEBUG_KMS("No LVDS native mode details, disabling RMX\n");
 		radeon_encoder->rmx_type = RMX_OFF;
