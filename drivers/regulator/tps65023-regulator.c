@@ -284,6 +284,7 @@ static int tps65023_dcdc_set_voltage(struct regulator_dev *dev,
 	struct tps_pmic *tps = rdev_get_drvdata(dev);
 	int dcdc = rdev_get_id(dev);
 	int vsel;
+	int ret;
 
 	if (dcdc != TPS65023_DCDC_1)
 		return -EINVAL;
@@ -306,11 +307,21 @@ static int tps65023_dcdc_set_voltage(struct regulator_dev *dev,
 
 	*selector = vsel;
 
-	/* write to the register in case we found a match */
 	if (vsel == tps->info[dcdc]->table_len)
-		return -EINVAL;
-	else
-		return tps_65023_reg_write(tps, TPS65023_REG_DEF_CORE, vsel);
+		goto failed;
+
+	ret = tps_65023_reg_write(tps, TPS65023_REG_DEF_CORE, vsel);
+
+	/* Tell the chip that we have changed the value in DEFCORE
+	 * and its time to update the core voltage
+	 */
+	tps_65023_set_bits(tps, TPS65023_REG_CON_CTRL2,
+						TPS65023_REG_CTRL2_GO);
+
+	return ret;
+
+failed:
+	return -EINVAL;
 }
 
 static int tps65023_ldo_get_voltage(struct regulator_dev *dev)
