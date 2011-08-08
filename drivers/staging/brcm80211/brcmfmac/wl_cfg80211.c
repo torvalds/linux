@@ -1974,9 +1974,24 @@ brcmf_cfg80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 {
 	s32 pm;
 	s32 err = 0;
+	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
 
 	WL_TRACE("Enter\n");
-	CHECK_SYS_UP();
+
+	/*
+	 * Powersave enable/disable request is coming from the
+	 * cfg80211 even before the interface is up. In that
+	 * scenario, driver will be storing the power save
+	 * preference in cfg_priv struct to apply this to
+	 * FW later while initializing the dongle
+	 */
+	cfg_priv->pwr_save = enabled;
+	if (!test_bit(WL_STATUS_READY, &cfg_priv->status)) {
+
+		WL_INFO("Device is not ready,"
+			"storing the value in cfg_priv struct\n");
+		goto done;
+	}
 
 	pm = enabled ? PM_FAST : PM_OFF;
 	pm = cpu_to_le32(pm);
@@ -1989,6 +2004,7 @@ brcmf_cfg80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 		else
 			WL_ERR("error (%d)\n", err);
 	}
+done:
 	WL_TRACE("Exit\n");
 	return err;
 }
@@ -3390,11 +3406,12 @@ static s32 brcmf_init_iscan(struct brcmf_cfg80211_priv *cfg_priv)
 
 static s32 wl_init_priv(struct brcmf_cfg80211_priv *cfg_priv)
 {
-	struct wiphy *wiphy = cfg_to_wiphy(cfg_priv);
 	s32 err = 0;
 
 	cfg_priv->scan_request = NULL;
-	cfg_priv->pwr_save = !!(wiphy->flags & WIPHY_FLAG_PS_ON_BY_DEFAULT);
+#ifndef WL_POWERSAVE_DISABLED
+	cfg_priv->pwr_save = true;
+#endif /* WL_POWERSAVE_DISABLED */
 	cfg_priv->iscan_on = true;	/* iscan on & off switch.
 				 we enable iscan per default */
 	cfg_priv->roam_on = false;	/* roam on & off switch.
@@ -3811,6 +3828,7 @@ s32 brcmf_config_dongle(struct brcmf_cfg80211_priv *cfg_priv, bool need_lock)
 {
 	struct net_device *ndev;
 	struct wireless_dev *wdev;
+	s32 power_mode;
 	s32 err = 0;
 
 	if (cfg_priv->dongle_up)
@@ -3827,6 +3845,16 @@ s32 brcmf_config_dongle(struct brcmf_cfg80211_priv *cfg_priv, bool need_lock)
 	err = brcmf_dongle_eventmsg(ndev);
 	if (unlikely(err))
 		goto default_conf_out;
+
+	power_mode = cfg_priv->pwr_save ? PM_FAST : PM_OFF;
+	power_mode = cpu_to_le32(power_mode);
+	err = brcmf_dev_ioctl(ndev, BRCMF_C_SET_PM,
+				&power_mode, sizeof(power_mode));
+	if (err)
+		goto default_conf_out;
+	WL_INFO("power save set to %s\n",
+		(power_mode ? "enabled" : "disabled"));
+
 	err = brcmf_dongle_roam(ndev, (cfg_priv->roam_on ? 0 : 1),
 				WL_BEACON_TIMEOUT);
 	if (unlikely(err))

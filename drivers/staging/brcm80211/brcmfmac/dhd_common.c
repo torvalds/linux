@@ -1099,7 +1099,6 @@ int brcmf_c_preinit_ioctls(struct brcmf_pub *drvr)
 				 "event_msgs" + '\0' + bitvec  */
 	uint up = 0;
 	char buf[128], *ptr;
-	uint power_mode = PM_FAST;
 	u32 dongle_align = BRCMF_SDALIGN;
 	u32 glom = 0;
 	uint bcn_timeout = 3;
@@ -1127,10 +1126,6 @@ int brcmf_c_preinit_ioctls(struct brcmf_pub *drvr)
 	strsep(&ptr, "\n");
 	/* Print fw version info */
 	BRCMF_ERROR(("Firmware version = %s\n", buf));
-
-	/* Set PowerSave mode */
-	brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_PM, (char *)&power_mode,
-			 sizeof(power_mode));
 
 	/* Match Host and Dongle rx alignment */
 	brcmu_mkiovar("bus:txglomalign", (char *)&dongle_align, 4, iovbuf,
