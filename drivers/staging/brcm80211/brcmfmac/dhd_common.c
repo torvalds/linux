@@ -311,7 +311,7 @@ brcmf_c_iovar_op(struct brcmf_pub *drvr, const char *name,
 
 	BRCMF_TRACE(("%s: Enter\n", __func__));
 
-	if (name == NULL || len <= 0)
+	if (name == NULL || len < 0)
 		return -EINVAL;
 
 	/* Set does not take qualifiers */

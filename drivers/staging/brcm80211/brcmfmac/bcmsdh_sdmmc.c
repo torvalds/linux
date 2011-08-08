@@ -407,7 +407,7 @@ brcmf_sdioh_iovar_op(struct sdioh_info *si, const char *name,
 	bool bool_val;
 	u32 actionid;
 
-	if (name == NULL || len <= 0)
+	if (name == NULL || len < 0)
 		return -EINVAL;
 
 	/* Set does not take qualifiers */
