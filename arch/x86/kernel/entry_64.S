@@ -79,6 +79,7 @@ ENTRY(ftrace_caller)
 
 	MCOUNT_SAVE_FRAME
 
+	leaq function_trace_op, %rdx
 	movq 0x38(%rsp), %rdi
 	movq 8(%rbp), %rsi
 	subq $MCOUNT_INSN_SIZE, %rdi

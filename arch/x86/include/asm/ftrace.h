@@ -32,6 +32,10 @@
 #define MCOUNT_ADDR		((long)(mcount))
 #define MCOUNT_INSN_SIZE	5 /* sizeof mcount call */
 
+#if defined(CONFIG_DYNAMIC_FTRACE) && defined(CONFIG_X86_64)
+#define ARCH_SUPPORTS_FTRACE_OPS 1
+#endif
+
 #ifndef __ASSEMBLY__
 extern void mcount(void);
 extern atomic_t modifying_ftrace_code;

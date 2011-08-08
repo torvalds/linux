@@ -136,7 +136,8 @@ static int func_prolog_dec(struct trace_array *tr,
  * irqsoff uses its own tracer function to keep the overhead down:
  */
 static void
-irqsoff_tracer_call(unsigned long ip, unsigned long parent_ip)
+irqsoff_tracer_call(unsigned long ip, unsigned long parent_ip,
+		    struct ftrace_ops *op)
 {
 	struct trace_array *tr = irqsoff_trace;
 	struct trace_array_cpu *data;

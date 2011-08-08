@@ -1681,7 +1681,8 @@ static __init void event_trace_self_tests(void)
 static DEFINE_PER_CPU(atomic_t, ftrace_test_event_disable);
 
 static void
-function_test_events_call(unsigned long ip, unsigned long parent_ip)
+function_test_events_call(unsigned long ip, unsigned long parent_ip,
+			  struct ftrace_ops *op)
 {
 	struct ring_buffer_event *event;
 	struct ring_buffer *buffer;

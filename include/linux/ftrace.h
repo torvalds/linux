@@ -18,6 +18,15 @@
 
 #include <asm/ftrace.h>
 
+/*
+ * If the arch supports passing the variable contents of
+ * function_trace_op as the third parameter back from the
+ * mcount call, then the arch should define this as 1.
+ */
+#ifndef ARCH_SUPPORTS_FTRACE_OPS
+#define ARCH_SUPPORTS_FTRACE_OPS 0
+#endif
+
 struct module;
 struct ftrace_hash;
 
@@ -29,7 +38,10 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 		     void __user *buffer, size_t *lenp,
 		     loff_t *ppos);
 
-typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip);
+struct ftrace_ops;
+
+typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip,
+			      struct ftrace_ops *op);
 
 /*
  * FTRACE_OPS_FL_* bits denote the state of ftrace_ops struct and are
@@ -163,7 +175,7 @@ static inline int ftrace_function_local_disabled(struct ftrace_ops *ops)
 	return *this_cpu_ptr(ops->disabled);
 }
 
-extern void ftrace_stub(unsigned long a0, unsigned long a1);
+extern void ftrace_stub(unsigned long a0, unsigned long a1, struct ftrace_ops *op);
 
 #else /* !CONFIG_FUNCTION_TRACER */
 /*
