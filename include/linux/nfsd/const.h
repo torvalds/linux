@@ -15,11 +15,6 @@
 #include <linux/nfs4.h>
 
 /*
- * Maximum protocol version supported by knfsd
- */
-#define NFSSVC_MAXVERS		3
-
-/*
  * Maximum blocksizes supported by daemon under various circumstances.
  */
 #define NFSSVC_MAXBLKSIZE	RPCSVC_MAXPAYLOAD
@@ -41,14 +36,6 @@
  * size is rounded up to a page size when allocating space.
  */
 #define NFSD_BUFSIZE		((RPC_MAX_HEADER_WITH_AUTH+26)*XDR_UNIT + NFSSVC_MAXBLKSIZE)
-
-#ifdef CONFIG_NFSD_V4
-# define NFSSVC_XDRSIZE		NFS4_SVC_XDRSIZE
-#elif defined(CONFIG_NFSD_V3)
-# define NFSSVC_XDRSIZE		NFS3_SVC_XDRSIZE
-#else
-# define NFSSVC_XDRSIZE		NFS2_SVC_XDRSIZE
-#endif
 
 #endif /* __KERNEL__ */
 
