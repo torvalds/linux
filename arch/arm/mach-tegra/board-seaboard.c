@@ -69,6 +69,8 @@ static __initdata struct tegra_clk_init_table seaboard_clk_init_table[] = {
 	{ "pll_a_out0",	"pll_a",	11289600,	true },
 	{ "cdev1",	NULL,		0,		true },
 	{ "i2s1",	"pll_a_out0",	11289600,	false},
+	{ "usbd",	"clk_m",	12000000,	true},
+	{ "usb3",	"clk_m",	12000000,	true},
 	{ NULL,		NULL,		0,		0},
 };
 
@@ -182,6 +184,29 @@ static struct i2c_board_info __initdata wm8903_device = {
 	.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_CDC_IRQ),
 };
 
+static int seaboard_ehci_init(void)
+{
+	int gpio_status;
+
+	gpio_status = gpio_request(TEGRA_GPIO_USB1, "VBUS_USB1");
+	if (gpio_status < 0) {
+		pr_err("VBUS_USB1 request GPIO FAILED\n");
+		WARN_ON(1);
+	}
+
+	gpio_status = gpio_direction_output(TEGRA_GPIO_USB1, 1);
+	if (gpio_status < 0) {
+		pr_err("VBUS_USB1 request GPIO DIRECTION FAILED\n");
+		WARN_ON(1);
+	}
+	gpio_set_value(TEGRA_GPIO_USB1, 1);
+
+	platform_device_register(&tegra_ehci1_device);
+	platform_device_register(&tegra_ehci3_device);
+
+	return 0;
+}
+
 static void __init seaboard_i2c_init(void)
 {
 	gpio_request(TEGRA_GPIO_ISL29018_IRQ, "isl29018");
@@ -209,6 +234,8 @@ static void __init seaboard_common_init(void)
 	tegra_sdhci_device4.dev.platform_data = &sdhci_pdata4;
 
 	platform_add_devices(seaboard_devices, ARRAY_SIZE(seaboard_devices));
+
+	seaboard_ehci_init();
 }
 
 static void __init tegra_seaboard_init(void)
