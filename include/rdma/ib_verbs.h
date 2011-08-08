@@ -605,6 +605,13 @@ struct ib_qp_init_attr {
 	u8			port_num; /* special QP types only */
 };
 
+struct ib_qp_open_attr {
+	void                  (*event_handler)(struct ib_event *, void *);
+	void		       *qp_context;
+	u32			qp_num;
+	enum ib_qp_type		qp_type;
+};
+
 enum ib_rnr_timeout {
 	IB_RNR_TIMER_655_36 =  0,
 	IB_RNR_TIMER_000_01 =  1,
@@ -932,6 +939,9 @@ struct ib_qp {
 	struct ib_srq	       *srq;
 	struct ib_xrcd	       *xrcd; /* XRC TGT QPs only */
 	struct list_head	xrcd_list;
+	atomic_t		usecnt; /* count times opened */
+	struct list_head	open_list;
+	struct ib_qp           *real_qp;
 	struct ib_uobject      *uobject;
 	void                  (*event_handler)(struct ib_event *, void *);
 	void		       *qp_context;
@@ -1488,15 +1498,23 @@ int ib_query_qp(struct ib_qp *qp,
 int ib_destroy_qp(struct ib_qp *qp);
 
 /**
- * ib_release_qp - Release an external reference to a QP.
+ * ib_open_qp - Obtain a reference to an existing sharable QP.
+ * @xrcd - XRC domain
+ * @qp_open_attr: Attributes identifying the QP to open.
+ *
+ * Returns a reference to a sharable QP.
+ */
+struct ib_qp *ib_open_qp(struct ib_xrcd *xrcd,
+			 struct ib_qp_open_attr *qp_open_attr);
+
+/**
+ * ib_close_qp - Release an external reference to a QP.
  * @qp: The QP handle to release
  *
- * The specified QP handle is released by the caller.  If the QP is
- * referenced internally, it is not destroyed until all internal
- * references are released.  After releasing the qp, the caller
- * can no longer access it and all events on the QP are discarded.
+ * The opened QP handle is released by the caller.  The underlying
+ * shared QP is not destroyed until all internal references are released.
  */
-int ib_release_qp(struct ib_qp *qp);
+int ib_close_qp(struct ib_qp *qp);
 
 /**
  * ib_post_send - Posts a list of work requests to the send queue of
