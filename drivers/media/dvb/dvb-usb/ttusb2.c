@@ -30,6 +30,7 @@
 #include "tda826x.h"
 #include "tda10086.h"
 #include "tda1002x.h"
+#include "tda10048.h"
 #include "tda827x.h"
 #include "lnbp21.h"
 
@@ -82,7 +83,7 @@ static int ttusb2_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	static u8 obuf[60], ibuf[60];
-	int i,read;
+	int i, write_read, read;
 
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
@@ -91,28 +92,35 @@ static int ttusb2_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num
 		warn("more than 2 i2c messages at a time is not handled yet. TODO.");
 
 	for (i = 0; i < num; i++) {
-		read = i+1 < num && (msg[i+1].flags & I2C_M_RD);
+		write_read = i+1 < num && (msg[i+1].flags & I2C_M_RD);
+		read = msg[i].flags & I2C_M_RD;
 
-		obuf[0] = (msg[i].addr << 1) | read;
-		obuf[1] = msg[i].len;
+		obuf[0] = (msg[i].addr << 1) | (write_read | read);
+		if (read)
+			obuf[1] = 0;
+		else
+			obuf[1] = msg[i].len;
 
 		/* read request */
-		if (read)
+		if (write_read)
 			obuf[2] = msg[i+1].len;
+		else if (read)
+			obuf[2] = msg[i].len;
 		else
 			obuf[2] = 0;
 
-		memcpy(&obuf[3],msg[i].buf,msg[i].len);
+		memcpy(&obuf[3], msg[i].buf, msg[i].len);
 
 		if (ttusb2_msg(d, CMD_I2C_XFER, obuf, msg[i].len+3, ibuf, obuf[2] + 3) < 0) {
 			err("i2c transfer failed.");
 			break;
 		}
 
-		if (read) {
-			memcpy(msg[i+1].buf,&ibuf[3],msg[i+1].len);
+		if (write_read) {
+			memcpy(msg[i+1].buf, &ibuf[3], msg[i+1].len);
 			i++;
-		}
+		} else if (read)
+			memcpy(msg[i].buf, &ibuf[3], msg[i].len);
 	}
 
 	mutex_unlock(&d->i2c_mutex);
@@ -190,6 +198,25 @@ static struct tda10023_config tda10023_config = {
 	.deltaf = 0xa511,
 };
 
+static struct tda10048_config tda10048_config = {
+	.demod_address    = 0x10 >> 1,
+	.output_mode      = TDA10048_PARALLEL_OUTPUT,
+	.inversion        = TDA10048_INVERSION_ON,
+	.dtv6_if_freq_khz = TDA10048_IF_4000,
+	.dtv7_if_freq_khz = TDA10048_IF_4500,
+	.dtv8_if_freq_khz = TDA10048_IF_5000,
+	.clk_freq_khz     = TDA10048_CLK_16000,
+	.no_firmware      = 1,
+	.set_pll          = true ,
+	.pll_m            = 5,
+	.pll_n            = 3,
+	.pll_p            = 0,
+};
+
+static struct tda827x_config tda827x_config = {
+	.config = 0,
+};
+
 static int ttusb2_frontend_tda10086_attach(struct dvb_usb_adapter *adap)
 {
 	if (usb_set_interface(adap->dev->udev,0,3) < 0)
@@ -203,20 +230,56 @@ static int ttusb2_frontend_tda10086_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
+static int ttusb2_ct3650_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
+{
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
+
+	return adap->fe[0]->ops.i2c_gate_ctrl(adap->fe[0], enable);
+}
+
 static int ttusb2_frontend_tda10023_attach(struct dvb_usb_adapter *adap)
 {
 	if (usb_set_interface(adap->dev->udev, 0, 3) < 0)
 		err("set interface to alts=3 failed");
-	if ((adap->fe[0] = dvb_attach(tda10023_attach, &tda10023_config, &adap->dev->i2c_adap, 0x48)) == NULL) {
-		deb_info("TDA10023 attach failed\n");
-		return -ENODEV;
+
+	if (adap->fe[0] == NULL) {
+		/* FE 0 DVB-C */
+		adap->fe[0] = dvb_attach(tda10023_attach,
+			&tda10023_config, &adap->dev->i2c_adap, 0x48);
+
+		if (adap->fe[0] == NULL) {
+			deb_info("TDA10023 attach failed\n");
+			return -ENODEV;
+		}
+	} else {
+		adap->fe[1] = dvb_attach(tda10048_attach,
+			&tda10048_config, &adap->dev->i2c_adap);
+
+		if (adap->fe[1] == NULL) {
+			deb_info("TDA10048 attach failed\n");
+			return -ENODEV;
+		}
+
+		/* tuner is behind TDA10023 I2C-gate */
+		adap->fe[1]->ops.i2c_gate_ctrl = ttusb2_ct3650_i2c_gate_ctrl;
+
 	}
+
 	return 0;
 }
 
 static int ttusb2_tuner_tda827x_attach(struct dvb_usb_adapter *adap)
 {
-	if (dvb_attach(tda827x_attach, adap->fe[0], 0x61, &adap->dev->i2c_adap, NULL) == NULL) {
+	struct dvb_frontend *fe;
+
+	/* MFE: select correct FE to attach tuner since that's called twice */
+	if (adap->fe[1] == NULL)
+		fe = adap->fe[0];
+	else
+		fe = adap->fe[1];
+
+	/* attach tuner */
+	if (dvb_attach(tda827x_attach, fe, 0x61, &adap->dev->i2c_adap, &tda827x_config) == NULL) {
 		printk(KERN_ERR "%s: No tda827x found!\n", __func__);
 		return -ENODEV;
 	}
@@ -385,6 +448,7 @@ static struct dvb_usb_device_properties ttusb2_properties_ct3650 = {
 		{
 			.streaming_ctrl   = NULL,
 
+			.num_frontends    = 2,
 			.frontend_attach  = ttusb2_frontend_tda10023_attach,
 			.tuner_attach = ttusb2_tuner_tda827x_attach,
 
