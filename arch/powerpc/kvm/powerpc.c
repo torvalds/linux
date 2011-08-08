@@ -189,6 +189,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 #else
 	case KVM_CAP_PPC_SEGSTATE:
 	case KVM_CAP_PPC_HIOR:
+	case KVM_CAP_PPC_PAPR:
 #endif
 	case KVM_CAP_PPC_UNSET_IRQ:
 	case KVM_CAP_PPC_IRQ_LEVEL:
@@ -571,6 +572,10 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 	case KVM_CAP_PPC_OSI:
 		r = 0;
 		vcpu->arch.osi_enabled = true;
+		break;
+	case KVM_CAP_PPC_PAPR:
+		r = 0;
+		vcpu->arch.papr_enabled = true;
 		break;
 	default:
 		r = -EINVAL;
