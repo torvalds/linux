@@ -1279,8 +1279,8 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, u16 chanspec,
 	const struct country_info *country;
 	struct brcms_band *band;
 	const struct locale_info *li;
-	int conducted_max;
-	int conducted_ofdm_max;
+	int conducted_max = BRCMS_TXPWR_MAX;
+	int conducted_ofdm_max = BRCMS_TXPWR_MAX;
 	const struct locale_mimo_info *li_mimo;
 	int maxpwr20, maxpwr40;
 	int maxpwr_idx;
