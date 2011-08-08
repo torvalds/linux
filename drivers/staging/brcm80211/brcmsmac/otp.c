@@ -59,23 +59,15 @@
 
 #define MAXNUMRDES		9	/* Maximum OTP redundancy entries */
 
-/* OTP common function type */
-typedef int (*otp_status_t) (void *oh);
-typedef int (*otp_size_t) (void *oh);
-typedef void *(*otp_init_t) (struct si_pub *sih);
-typedef u16(*otp_read_bit_t) (void *oh, chipcregs_t *cc, uint off);
-typedef int (*otp_read_region_t) (struct si_pub *sih, int region, u16 *data,
-				  uint *wlen);
-typedef int (*otp_nvread_t) (void *oh, char *data, uint *len);
-
 /* OTP function struct */
 struct otp_fn_s {
-	otp_size_t size;
-	otp_read_bit_t read_bit;
-	otp_init_t init;
-	otp_read_region_t read_region;
-	otp_nvread_t nvread;
-	otp_status_t status;
+	int (*size)(void *oh);
+	u16 (*read_bit)(void *oh, chipcregs_t *cc, uint off);
+	void *(*init)(struct si_pub *sih);
+	int (*read_region)(struct si_pub *sih, int region, u16 *data,
+			   uint *wlen);
+	int (*nvread)(void *oh, char *data, uint *len);
+	int (*status)(void *oh);
 };
 
 struct otpinfo {
@@ -445,14 +437,14 @@ static int ipxotp_nvread(void *oh, char *data, uint *len)
 }
 
 static struct otp_fn_s ipxotp_fn = {
-	(otp_size_t) ipxotp_size,
-	(otp_read_bit_t) ipxotp_read_bit,
+	(int (*)(void *)) ipxotp_size,
+	(u16 (*)(void *, chipcregs_t *, uint)) ipxotp_read_bit,
 
-	(otp_init_t) ipxotp_init,
-	(otp_read_region_t) ipxotp_read_region,
-	(otp_nvread_t) ipxotp_nvread,
+	(void *(*)(struct si_pub *)) ipxotp_init,
+	(int (*)(struct si_pub *, int, u16 *, uint *)) ipxotp_read_region,
+	(int (*)(void *, char *, uint *)) ipxotp_nvread,
 
-	(otp_status_t) ipxotp_status
+	(int (*)(void *)) ipxotp_status
 };
 
 /*
