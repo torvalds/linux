@@ -489,8 +489,8 @@ static const u8 crc8_table[256] = {
 };
 
 u8 brcmu_crc8(u8 *pdata,	/* pointer to array of data to process */
-			 uint nbytes,	/* number of input data bytes to process */
-			 u8 crc	/* either CRC8_INIT_VALUE or previous return value */
+	      uint nbytes,	/* number of input data bytes to process */
+	      u8 crc	/* either CRC8_INIT_VALUE or previous return value */
 	) {
 	/* loop over the buffer data */
 	while (nbytes-- > 0)
@@ -586,7 +586,10 @@ brcmu_format_flags(const struct brcmu_bit_desc *bd, u32 flags, char *buf,
 }
 EXPORT_SYMBOL(brcmu_format_flags);
 
-/* print bytes formatted as hex to a string. return the resulting string length */
+/*
+ * print bytes formatted as hex to a string. return the resulting
+ * string length
+ */
 int brcmu_format_hex(char *str, const void *bytes, int len)
 {
 	int i;

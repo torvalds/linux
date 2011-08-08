@@ -43,9 +43,9 @@ bool brcmu_chspec_malformed(u16 chanspec)
 EXPORT_SYMBOL(brcmu_chspec_malformed);
 
 /*
- * This function returns the channel number that control traffic is being sent on, for legacy
- * channels this is just the channel number, for 40MHZ channels it is the upper or lowre 20MHZ
- * sideband depending on the chanspec selected
+ * This function returns the channel number that control traffic is being sent
+ * on, for legacy channels this is just the channel number, for 40MHZ channels
+ * it is the upper or lower 20MHZ sideband depending on the chanspec selected.
  */
 u8 brcmu_chspec_ctlchan(u16 chspec)
 {
@@ -55,15 +55,22 @@ u8 brcmu_chspec_ctlchan(u16 chspec)
 	if (CHSPEC_CTL_SB(chspec) == WL_CHANSPEC_CTL_SB_NONE) {
 		return CHSPEC_CHANNEL(chspec);
 	} else {
-		/* we only support 40MHZ with sidebands */
-		/* chanspec channel holds the centre frequency, use that and the
-		 * side band information to reconstruct the control channel number
+		/*
+		 * we only support 40MHZ with sidebands. chanspec channel holds
+		 * the centre frequency, use that and the side band information
+		 * to reconstruct the control channel number
 		 */
 		if (CHSPEC_CTL_SB(chspec) == WL_CHANSPEC_CTL_SB_UPPER)
-			/* control chan is the upper 20 MHZ SB of the 40MHZ channel */
+			/*
+			 * control chan is the upper 20 MHZ SB of the
+			 * 40MHZ channel
+			 */
 			ctl_chan = UPPER_20_SB(CHSPEC_CHANNEL(chspec));
 		else
-			/* control chan is the lower 20 MHZ SB of the 40MHZ channel */
+			/*
+			 * control chan is the lower 20 MHZ SB of the
+			 * 40MHZ channel
+			 */
 			ctl_chan = LOWER_20_SB(CHSPEC_CHANNEL(chspec));
 	}
 
