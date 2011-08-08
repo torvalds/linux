@@ -3858,37 +3858,6 @@ static void release_global_block_rsv(struct btrfs_fs_info *fs_info)
 	WARN_ON(fs_info->chunk_block_rsv.reserved > 0);
 }
 
-int btrfs_truncate_reserve_metadata(struct btrfs_trans_handle *trans,
-				    struct btrfs_root *root,
-				    struct btrfs_block_rsv *rsv)
-{
-	struct btrfs_block_rsv *trans_rsv = &root->fs_info->trans_block_rsv;
-	u64 num_bytes;
-	int ret;
-
-	/*
-	 * Truncate should be freeing data, but give us 2 items just in case it
-	 * needs to use some space.  We may want to be smarter about this in the
-	 * future.
-	 */
-	num_bytes = btrfs_calc_trans_metadata_size(root, 2);
-
-	/* We already have enough bytes, just return */
-	if (rsv->reserved >= num_bytes)
-		return 0;
-
-	num_bytes -= rsv->reserved;
-
-	/*
-	 * You should have reserved enough space before hand to do this, so this
-	 * should not fail.
-	 */
-	ret = block_rsv_migrate_bytes(trans_rsv, rsv, num_bytes);
-	BUG_ON(ret);
-
-	return 0;
-}
-
 void btrfs_trans_release_metadata(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root)
 {
