@@ -110,7 +110,16 @@ static const u16 VCORE_VSEL_table[] = {
 	1500, 1525, 1550, 1600,
 };
 
+/* Supported voltage values for LDO regulators for tps65020 */
+static const u16 TPS65020_LDO1_VSEL_table[] = {
+	1000, 1050, 1100, 1300,
+	1800, 2500, 3000, 3300,
+};
 
+static const u16 TPS65020_LDO2_VSEL_table[] = {
+	1000, 1050, 1100, 1300,
+	1800, 2500, 3000, 3300,
+};
 
 /* Supported voltage values for LDO regulators
  * for tps65021 and tps65023 */
@@ -548,6 +557,43 @@ static int __devexit tps_65023_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct tps_info tps65020_regs[] = {
+	{
+		.name = "VDCDC1",
+		.min_uV = 3300000,
+		.max_uV = 3300000,
+		.fixed	= 1,
+	},
+	{
+		.name = "VDCDC2",
+		.min_uV =  1800000,
+		.max_uV = 1800000,
+		.fixed = 1,
+	},
+	{
+		.name = "VDCDC3",
+		.min_uV =  800000,
+		.max_uV = 1600000,
+		.table_len = ARRAY_SIZE(VCORE_VSEL_table),
+		.table = VCORE_VSEL_table,
+	},
+
+	{
+		.name = "LDO1",
+		.min_uV = 1000000,
+		.max_uV = 3150000,
+		.table_len = ARRAY_SIZE(TPS65020_LDO1_VSEL_table),
+		.table = TPS65020_LDO1_VSEL_table,
+	},
+	{
+		.name = "LDO2",
+		.min_uV = 1050000,
+		.max_uV = 3300000,
+		.table_len = ARRAY_SIZE(TPS65020_LDO2_VSEL_table),
+		.table = TPS65020_LDO2_VSEL_table,
+	},
+};
+
 static const struct tps_info tps65021_regs[] = {
 	{
 		.name = "VDCDC1",
@@ -620,6 +666,11 @@ static const struct tps_info tps65023_regs[] = {
 	},
 };
 
+static struct tps_driver_data tps65020_drv_data = {
+	.info = tps65020_regs,
+	.core_regulator = TPS65023_DCDC_3,
+};
+
 static struct tps_driver_data tps65021_drv_data = {
 		.info = tps65021_regs,
 		.core_regulator = TPS65023_DCDC_3,
@@ -635,6 +686,8 @@ static const struct i2c_device_id tps_65023_id[] = {
 	.driver_data = (unsigned long) &tps65023_drv_data},
 	{.name = "tps65021",
 	.driver_data = (unsigned long) &tps65021_drv_data,},
+	{.name = "tps65020",
+	.driver_data = (unsigned long) &tps65020_drv_data},
 	{ },
 };
 
