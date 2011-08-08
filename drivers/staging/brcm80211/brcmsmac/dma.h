@@ -178,12 +178,6 @@ extern const struct di_fcn_s dma64proc;
 #define dma_txcommitted(di)		(dma64proc.txcommitted(di))
 
 
-/* return addresswidth allowed
- * This needs to be done after SB attach but before dma attach.
- * SB attach provides ability to probe backplane and dma core capabilities
- * This info is needed by DMA_ALLOC_CONSISTENT in dma attach
- */
-extern uint dma_addrwidth(struct si_pub *sih, void *dmaregs);
 void dma_walk_packets(struct dma_pub *dmah, void (*callback_fnc)
 		      (void *pkt, void *arg_a), void *arg_a);
 

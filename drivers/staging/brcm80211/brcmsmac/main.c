@@ -861,14 +861,7 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 	snprintf(name, sizeof(name), "wl%d", unit);
 
 	if (wlc_hw->di[0] == 0) {	/* Init FIFOs */
-		uint addrwidth;
 		int dma_attach_err = 0;
-		/* Find out the DMA addressing capability and let OS know
-		 * All the channels within one DMA core have 'common-minimum' same
-		 * capability
-		 */
-		addrwidth =
-		    dma_addrwidth(wlc_hw->sih, DMAREG(wlc_hw, DMA_TX, 0));
 
 		/*
 		 * FIFO 0

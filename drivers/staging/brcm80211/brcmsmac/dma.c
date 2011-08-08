@@ -159,14 +159,8 @@
 #define D64_RX_FRM_STS_DSCRCNT	0x0f000000  /* no. of descriptors used - 1 */
 #define D64_RX_FRM_STS_DATATYPE	0xf0000000	/* core-dependent data type */
 
-#define	DMADDRWIDTH_30  30	/* 30-bit addressing capability */
-#define	DMADDRWIDTH_32  32	/* 32-bit addressing capability */
-#define	DMADDRWIDTH_63  63	/* 64-bit addressing capability */
-#define	DMADDRWIDTH_64  64	/* 64-bit addressing capability */
-
 #define DMA64_DD_PARITY(dd) \
 	parity32((dd)->addrlow ^ (dd)->addrhigh ^ (dd)->ctrl1 ^ (dd)->ctrl2)
-
 
 /*
  * packet headroom necessary to accommodate the largest header
@@ -1934,23 +1928,6 @@ static void dma64_txrotate(struct dma_info *di)
 	/* kick the chip */
 	W_REG(&di->d64txregs->ptr,
 	      di->xmtptrbase + I2B(di->txout, struct dma64desc));
-}
-
-uint dma_addrwidth(struct si_pub *sih, void *dmaregs)
-{
-	/* Perform 64-bit checks only if we want to advertise 64-bit (> 32bit) capability) */
-	/* DMA engine is 64-bit capable */
-	if ((ai_core_sflags(sih, 0, 0) & SISF_DMA64) == SISF_DMA64) {
-		/* backplane are 64-bit capable */
-		if (ai_backplane64(sih))
-			/* If bus is System Backplane or PCIE then we can access 64-bits */
-			if ((sih->bustype == SI_BUS) ||
-			    ((sih->bustype == PCI_BUS) &&
-			     (sih->buscoretype == PCIE_CORE_ID)))
-				return DMADDRWIDTH_64;
-	}
-	/* DMA hardware not supported by this driver */
-	return DMADDRWIDTH_64;
 }
 
 /*
