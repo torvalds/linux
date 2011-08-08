@@ -940,9 +940,8 @@ static int match_child(struct device *dev, void *data)
 	return !strcmp(dev_name(dev), (char *)data);
 }
 
-
 /* MFC probe function */
-static int __devinit s5p_mfc_probe(struct platform_device *pdev)
+static int s5p_mfc_probe(struct platform_device *pdev)
 {
 	struct s5p_mfc_dev *dev;
 	struct video_device *vfd;
@@ -1236,7 +1235,7 @@ static const struct dev_pm_ops s5p_mfc_pm_ops = {
 			   NULL)
 };
 
-static struct platform_driver s5p_mfc_pdrv = {
+static struct platform_driver s5p_mfc_driver = {
 	.probe	= s5p_mfc_probe,
 	.remove	= __devexit_p(s5p_mfc_remove),
 	.driver	= {
@@ -1254,15 +1253,15 @@ static int __init s5p_mfc_init(void)
 	int ret;
 
 	pr_info("%s", banner);
-	ret = platform_driver_register(&s5p_mfc_pdrv);
+	ret = platform_driver_register(&s5p_mfc_driver);
 	if (ret)
 		pr_err("Platform device registration failed.\n");
 	return ret;
 }
 
-static void __devexit s5p_mfc_exit(void)
+static void __exit s5p_mfc_exit(void)
 {
-	platform_driver_unregister(&s5p_mfc_pdrv);
+	platform_driver_unregister(&s5p_mfc_driver);
 }
 
 module_init(s5p_mfc_init);
