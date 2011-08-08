@@ -107,7 +107,7 @@ static void mark_open_files_invalid(struct cifs_tcon *pTcon)
 static int
 cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 {
-	int rc = 0;
+	int rc;
 	struct cifs_ses *ses;
 	struct TCP_Server_Info *server;
 	struct nls_table *nls_codepage;
@@ -5720,6 +5720,7 @@ CIFSSMBQAllEAs(const int xid, struct cifs_tcon *tcon,
 	char *temp_ptr;
 	char *end_of_smb;
 	__u16 params, byte_count, data_offset;
+	unsigned int ea_name_len = ea_name ? strlen(ea_name) : 0;
 
 	cFYI(1, "In Query All EAs path %s", searchName);
 QAllEAsRetry:
@@ -5837,7 +5838,8 @@ QAllEAsRetry:
 		}
 
 		if (ea_name) {
-			if (strncmp(ea_name, temp_ptr, name_len) == 0) {
+			if (ea_name_len == name_len &&
+			    strncmp(ea_name, temp_ptr, name_len) == 0) {
 				temp_ptr += name_len + 1;
 				rc = value_len;
 				if (buf_size == 0)

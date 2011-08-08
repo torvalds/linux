@@ -97,24 +97,10 @@ extern unsigned int dss_debug;
 #define FLD_MOD(orig, val, start, end) \
 	(((orig) & ~FLD_MASK(start, end)) | FLD_VAL(val, start, end))
 
-enum omap_burst_size {
-	OMAP_DSS_BURST_4x32 = 0,
-	OMAP_DSS_BURST_8x32 = 1,
-	OMAP_DSS_BURST_16x32 = 2,
-};
-
 enum omap_parallel_interface_mode {
 	OMAP_DSS_PARALLELMODE_BYPASS,		/* MIPI DPI */
 	OMAP_DSS_PARALLELMODE_RFBI,		/* MIPI DBI */
 	OMAP_DSS_PARALLELMODE_DSI,
-};
-
-enum dss_clock {
-	DSS_CLK_ICK	= 1 << 0,	/* DSS_L3_ICLK and DSS_L4_ICLK */
-	DSS_CLK_FCK	= 1 << 1,	/* DSS1_ALWON_FCLK */
-	DSS_CLK_SYSCK	= 1 << 2,	/* DSS2_ALWON_FCLK */
-	DSS_CLK_TVFCK	= 1 << 3,	/* DSS_TV_FCLK */
-	DSS_CLK_VIDFCK	= 1 << 4,	/* DSS_96M_FCLK*/
 };
 
 enum dss_hdmi_venc_clk_source_select {
@@ -194,7 +180,7 @@ void dss_uninit_device(struct platform_device *pdev,
 bool dss_use_replication(struct omap_dss_device *dssdev,
 		enum omap_color_mode mode);
 void default_get_overlay_fifo_thresholds(enum omap_plane plane,
-		u32 fifo_size, enum omap_burst_size *burst_size,
+		u32 fifo_size, u32 burst_size,
 		u32 *fifo_low, u32 *fifo_high);
 
 /* manager */
@@ -220,13 +206,12 @@ void dss_recheck_connections(struct omap_dss_device *dssdev, bool force);
 int dss_init_platform_driver(void);
 void dss_uninit_platform_driver(void);
 
+int dss_runtime_get(void);
+void dss_runtime_put(void);
+
+struct clk *dss_get_ick(void);
+
 void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select);
-void dss_save_context(void);
-void dss_restore_context(void);
-void dss_clk_enable(enum dss_clock clks);
-void dss_clk_disable(enum dss_clock clks);
-unsigned long dss_clk_get_rate(enum dss_clock clk);
-int dss_need_ctx_restore(void);
 const char *dss_get_generic_clk_source_name(enum omap_dss_clk_source clk_src);
 void dss_dump_clocks(struct seq_file *s);
 
@@ -283,14 +268,14 @@ struct file_operations;
 int dsi_init_platform_driver(void);
 void dsi_uninit_platform_driver(void);
 
+int dsi_runtime_get(struct platform_device *dsidev);
+void dsi_runtime_put(struct platform_device *dsidev);
+
 void dsi_dump_clocks(struct seq_file *s);
 void dsi_create_debugfs_files_irq(struct dentry *debugfs_dir,
 		const struct file_operations *debug_fops);
 void dsi_create_debugfs_files_reg(struct dentry *debugfs_dir,
 		const struct file_operations *debug_fops);
-
-void dsi_save_context(void);
-void dsi_restore_context(void);
 
 int dsi_init_display(struct omap_dss_device *display);
 void dsi_irq_handler(void);
@@ -304,7 +289,7 @@ int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
 		bool enable_hsdiv);
 void dsi_pll_uninit(struct platform_device *dsidev, bool disconnect_lanes);
 void dsi_get_overlay_fifo_thresholds(enum omap_plane plane,
-		u32 fifo_size, enum omap_burst_size *burst_size,
+		u32 fifo_size, u32 burst_size,
 		u32 *fifo_low, u32 *fifo_high);
 void dsi_wait_pll_hsdiv_dispc_active(struct platform_device *dsidev);
 void dsi_wait_pll_hsdiv_dsi_active(struct platform_device *dsidev);
@@ -315,6 +300,13 @@ static inline int dsi_init_platform_driver(void)
 	return 0;
 }
 static inline void dsi_uninit_platform_driver(void)
+{
+}
+static inline int dsi_runtime_get(struct platform_device *dsidev)
+{
+	return 0;
+}
+static inline void dsi_runtime_put(struct platform_device *dsidev)
 {
 }
 static inline unsigned long dsi_get_pll_hsdiv_dispc_rate(struct platform_device *dsidev)
@@ -384,8 +376,8 @@ void dispc_dump_regs(struct seq_file *s);
 void dispc_irq_handler(void);
 void dispc_fake_vsync_irq(void);
 
-void dispc_save_context(void);
-void dispc_restore_context(void);
+int dispc_runtime_get(void);
+void dispc_runtime_put(void);
 
 void dispc_enable_sidle(void);
 void dispc_disable_sidle(void);
@@ -398,10 +390,12 @@ void dispc_enable_fifohandcheck(enum omap_channel channel, bool enable);
 void dispc_set_lcd_size(enum omap_channel channel, u16 width, u16 height);
 void dispc_set_digit_size(u16 width, u16 height);
 u32 dispc_get_plane_fifo_size(enum omap_plane plane);
-void dispc_setup_plane_fifo(enum omap_plane plane, u32 low, u32 high);
+void dispc_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high);
 void dispc_enable_fifomerge(bool enable);
-void dispc_set_burst_size(enum omap_plane plane,
-		enum omap_burst_size burst_size);
+u32 dispc_get_burst_size(enum omap_plane plane);
+void dispc_enable_cpr(enum omap_channel channel, bool enable);
+void dispc_set_cpr_coef(enum omap_channel channel,
+		struct omap_dss_cpr_coefs *coefs);
 
 void dispc_set_plane_ba0(enum omap_plane plane, u32 paddr);
 void dispc_set_plane_ba1(enum omap_plane plane, u32 paddr);

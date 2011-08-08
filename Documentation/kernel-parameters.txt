@@ -163,6 +163,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 			See also Documentation/power/pm.txt, pci=noacpi
 
+	acpi_rsdp=	[ACPI,EFI,KEXEC]
+			Pass the RSDP address to the kernel, mostly used
+			on machines running EFI runtime service to boot the
+			second kernel for kdump.
+
 	acpi_apic_instance=	[ACPI, IOAPIC]
 			Format: <int>
 			2: use 2nd APIC table, if available
@@ -545,6 +550,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			[KNL] Change the default value for
 			/proc/<pid>/coredump_filter.
 			See also Documentation/filesystems/proc.txt.
+
+	cpuidle.off=1	[CPU_IDLE]
+			disable the cpuidle sub-system
 
 	cpcihp_generic=	[HW,PCI] Generic port I/O CompactPCI driver
 			Format:
@@ -2153,6 +2161,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			[HW,MOUSE] Controls Logitech smartscroll autorepeat.
 			0 = disabled, 1 = enabled (default).
 
+	pstore.backend=	Specify the name of the pstore backend to use
+
 	pt.		[PARIDE]
 			See Documentation/blockdev/paride.txt.
 
@@ -2238,6 +2248,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	ro		[KNL] Mount root device read-only on boot
 
 	root=		[KNL] Root filesystem
+			See name_to_dev_t comment in init/do_mounts.c.
 
 	rootdelay=	[KNL] Delay (in seconds) to pause before attempting to
 			mount the root filesystem

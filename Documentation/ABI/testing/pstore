@@ -39,3 +39,9 @@ Description:	Generic interface to platform dependent persistent storage.
 		multiple) files based on the record size of the underlying
 		persistent storage until at least this amount is reached.
 		Default is 10 Kbytes.
+
+		Pstore only supports one backend at a time. If multiple
+		backends are available, the preferred backend may be
+		set by passing the pstore.backend= argument to the kernel at
+		boot time.
+

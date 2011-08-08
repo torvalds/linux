@@ -663,7 +663,9 @@ int btrfs_lookup_extent(struct btrfs_root *root, u64 start, u64 len)
 	struct btrfs_path *path;
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
+
 	key.objectid = start;
 	key.offset = len;
 	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
@@ -3272,6 +3274,9 @@ again:
 	}
 
 	ret = btrfs_alloc_chunk(trans, extent_root, flags);
+	if (ret < 0 && ret != -ENOSPC)
+		goto out;
+
 	spin_lock(&space_info->lock);
 	if (ret)
 		space_info->full = 1;
@@ -3281,6 +3286,7 @@ again:
 	space_info->force_alloc = CHUNK_ALLOC_NO_FORCE;
 	space_info->chunk_alloc = 0;
 	spin_unlock(&space_info->lock);
+out:
 	mutex_unlock(&extent_root->fs_info->chunk_mutex);
 	return ret;
 }
@@ -4456,7 +4462,9 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 				printk(KERN_ERR "umm, got %d back from search"
 				       ", was looking for %llu\n", ret,
 				       (unsigned long long)bytenr);
-				btrfs_print_leaf(extent_root, path->nodes[0]);
+				if (ret > 0)
+					btrfs_print_leaf(extent_root,
+							 path->nodes[0]);
 			}
 			BUG_ON(ret);
 			extent_slot = path->slots[0];
@@ -5073,7 +5081,9 @@ have_block_group:
 			 * group is does point to and try again
 			 */
 			if (!last_ptr_loop && last_ptr->block_group &&
-			    last_ptr->block_group != block_group) {
+			    last_ptr->block_group != block_group &&
+			    index <=
+				 get_block_group_index(last_ptr->block_group)) {
 
 				btrfs_put_block_group(block_group);
 				block_group = last_ptr->block_group;
@@ -5501,7 +5511,8 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 	u32 size = sizeof(*extent_item) + sizeof(*block_info) + sizeof(*iref);
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
 
 	path->leave_spinning = 1;
 	ret = btrfs_insert_empty_item(trans, fs_info->extent_root, path,
@@ -6272,10 +6283,14 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 	int level;
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
 
 	wc = kzalloc(sizeof(*wc), GFP_NOFS);
-	BUG_ON(!wc);
+	if (!wc) {
+		btrfs_free_path(path);
+		return -ENOMEM;
+	}
 
 	trans = btrfs_start_transaction(tree_root, 0);
 	BUG_ON(IS_ERR(trans));
@@ -6538,8 +6553,6 @@ static int set_block_group_ro(struct btrfs_block_group_cache *cache, int force)
 	u64 min_allocable_bytes;
 	int ret = -ENOSPC;
 
-	if (cache->ro)
-		return 0;
 
 	/*
 	 * We need some metadata space and system metadata space for
@@ -6555,6 +6568,12 @@ static int set_block_group_ro(struct btrfs_block_group_cache *cache, int force)
 
 	spin_lock(&sinfo->lock);
 	spin_lock(&cache->lock);
+
+	if (cache->ro) {
+		ret = 0;
+		goto out;
+	}
+
 	num_bytes = cache->key.offset - cache->reserved - cache->pinned -
 		    cache->bytes_super - btrfs_block_group_used(&cache->item);
 
@@ -6568,7 +6587,7 @@ static int set_block_group_ro(struct btrfs_block_group_cache *cache, int force)
 		cache->ro = 1;
 		ret = 0;
 	}
-
+out:
 	spin_unlock(&cache->lock);
 	spin_unlock(&sinfo->lock);
 	return ret;
@@ -7183,11 +7202,15 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	spin_unlock(&cluster->refill_lock);
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	inode = lookup_free_space_inode(root, block_group, path);
 	if (!IS_ERR(inode)) {
-		btrfs_orphan_add(trans, inode);
+		ret = btrfs_orphan_add(trans, inode);
+		BUG_ON(ret);
 		clear_nlink(inode);
 		/* One for the block groups ref */
 		spin_lock(&block_group->lock);

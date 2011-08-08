@@ -34,23 +34,23 @@ __setup("failslab=", setup_failslab);
 #ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
 static int __init failslab_debugfs_init(void)
 {
+	struct dentry *dir;
 	mode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
-	int err;
 
-	err = init_fault_attr_dentries(&failslab.attr, "failslab");
-	if (err)
-		return err;
+	dir = fault_create_debugfs_attr("failslab", NULL, &failslab.attr);
+	if (IS_ERR(dir))
+		return PTR_ERR(dir);
 
-	if (!debugfs_create_bool("ignore-gfp-wait", mode, failslab.attr.dir,
+	if (!debugfs_create_bool("ignore-gfp-wait", mode, dir,
 				&failslab.ignore_gfp_wait))
 		goto fail;
-	if (!debugfs_create_bool("cache-filter", mode, failslab.attr.dir,
+	if (!debugfs_create_bool("cache-filter", mode, dir,
 				&failslab.cache_filter))
 		goto fail;
 
 	return 0;
 fail:
-	cleanup_fault_attr_dentries(&failslab.attr);
+	debugfs_remove_recursive(dir);
 
 	return -ENOMEM;
 }

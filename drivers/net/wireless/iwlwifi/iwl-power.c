@@ -349,7 +349,8 @@ static void iwl_power_build_cmd(struct iwl_priv *priv,
 
 	if (priv->wowlan)
 		iwl_static_sleep_cmd(priv, cmd, IWL_POWER_INDEX_5, dtimper);
-	else if (priv->hw->conf.flags & IEEE80211_CONF_IDLE)
+	else if (!priv->cfg->base_params->no_idle_support &&
+		 priv->hw->conf.flags & IEEE80211_CONF_IDLE)
 		iwl_static_sleep_cmd(priv, cmd, IWL_POWER_INDEX_5, 20);
 	else if (iwl_tt_is_low_power_state(priv)) {
 		/* in thermal throttling low power state */

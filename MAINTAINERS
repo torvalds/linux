@@ -3366,6 +3366,12 @@ F:	drivers/net/ixgb/
 F:	drivers/net/ixgbe/
 F:	drivers/net/ixgbevf/
 
+INTEL MRST PMU DRIVER
+M:	Len Brown <len.brown@intel.com>
+L:	linux-pm@lists.linux-foundation.org
+S:	Supported
+F:	arch/x86/platform/mrst/pmu.*
+
 INTEL PRO/WIRELESS 2100 NETWORK CONNECTION SUPPORT
 L:	linux-wireless@vger.kernel.org
 S:	Orphan
@@ -4408,10 +4414,10 @@ F:	net/*/netfilter/
 F:	net/netfilter/
 
 NETLABEL
-M:	Paul Moore <paul.moore@hp.com>
+M:	Paul Moore <paul@paul-moore.com>
 W:	http://netlabel.sf.net
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	Documentation/netlabel/
 F:	include/net/netlabel.h
 F:	net/netlabel/
@@ -4456,7 +4462,6 @@ F:	include/linux/netdevice.h
 NETWORKING [IPv4/IPv6]
 M:	"David S. Miller" <davem@davemloft.net>
 M:	Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>
-M:	"Pekka Savola (ipv6)" <pekkas@netcore.fi>
 M:	James Morris <jmorris@namei.org>
 M:	Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>
 M:	Patrick McHardy <kaber@trash.net>
@@ -4469,7 +4474,7 @@ F:	include/net/ip*
 F:	arch/x86/net/*
 
 NETWORKING [LABELED] (NetLabel, CIPSO, Labeled IPsec, SECMARK)
-M:	Paul Moore <paul.moore@hp.com>
+M:	Paul Moore <paul@paul-moore.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 
@@ -4721,6 +4726,7 @@ S:	Maintained
 F:	drivers/of
 F:	include/linux/of*.h
 K:	of_get_property
+K:	of_match_table
 
 OPENRISC ARCHITECTURE
 M:	Jonas Bonn <jonas@southpole.se>
@@ -6317,6 +6323,7 @@ F:	include/linux/sysv_fs.h
 TARGET SUBSYSTEM
 M:	Nicholas A. Bellinger <nab@linux-iscsi.org>
 L:	linux-scsi@vger.kernel.org
+L:	target-devel@vger.kernel.org
 L:	http://groups.google.com/group/linux-iscsi-target-dev
 W:	http://www.linux-iscsi.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nab/lio-core-2.6.git master

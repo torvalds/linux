@@ -113,7 +113,7 @@ void rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * due to possible race conditions in mac80211.
 	 */
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
-		goto exit_fail;
+		goto exit_free_skb;
 
 	/*
 	 * Use the ATIM queue if appropriate and present.
@@ -127,7 +127,7 @@ void rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		ERROR(rt2x00dev,
 		      "Attempt to send packet over invalid queue %d.\n"
 		      "Please file bug report to %s.\n", qid, DRV_PROJECT);
-		goto exit_fail;
+		goto exit_free_skb;
 	}
 
 	/*
@@ -159,6 +159,7 @@ void rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
  exit_fail:
 	rt2x00queue_pause_queue(queue);
+ exit_free_skb:
 	dev_kfree_skb_any(skb);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_tx);

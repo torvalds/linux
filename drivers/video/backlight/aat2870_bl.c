@@ -44,7 +44,7 @@ static inline int aat2870_brightness(struct aat2870_bl_driver_data *aat2870_bl,
 	struct backlight_device *bd = aat2870_bl->bd;
 	int val;
 
-	val = brightness * aat2870_bl->max_current;
+	val = brightness * (aat2870_bl->max_current - 1);
 	val /= bd->props.max_brightness;
 
 	return val;
@@ -158,10 +158,10 @@ static int aat2870_bl_probe(struct platform_device *pdev)
 	props.type = BACKLIGHT_RAW;
 	bd = backlight_device_register("aat2870-backlight", &pdev->dev,
 				       aat2870_bl, &aat2870_bl_ops, &props);
-	if (!bd) {
+	if (IS_ERR(bd)) {
 		dev_err(&pdev->dev,
 			"Failed allocate memory for backlight device\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(bd);
 		goto out_kfree;
 	}
 
@@ -175,7 +175,7 @@ static int aat2870_bl_probe(struct platform_device *pdev)
 	else
 		aat2870_bl->channels = AAT2870_BL_CH_ALL;
 
-	if (pdata->max_brightness > 0)
+	if (pdata->max_current > 0)
 		aat2870_bl->max_current = pdata->max_current;
 	else
 		aat2870_bl->max_current = AAT2870_CURRENT_27_9;

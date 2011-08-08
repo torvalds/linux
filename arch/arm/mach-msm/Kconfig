@@ -11,6 +11,7 @@ config ARCH_MSM7X00A
 	select MSM_SMD
 	select MSM_SMD_PKG3
 	select CPU_V6
+	select GPIO_MSM_V1
 	select MSM_PROC_COMM
 	select HAS_MSM_DEBUG_UART_PHYS
 
@@ -22,6 +23,7 @@ config ARCH_MSM7X30
 	select MSM_VIC
 	select CPU_V7
 	select MSM_GPIOMUX
+	select GPIO_MSM_V1
 	select MSM_PROC_COMM
 	select HAS_MSM_DEBUG_UART_PHYS
 
@@ -33,6 +35,7 @@ config ARCH_QSD8X50
 	select MSM_VIC
 	select CPU_V7
 	select MSM_GPIOMUX
+	select GPIO_MSM_V1
 	select MSM_PROC_COMM
 	select HAS_MSM_DEBUG_UART_PHYS
 
@@ -44,6 +47,7 @@ config ARCH_MSM8X60
 	select ARM_GIC
 	select CPU_V7
 	select MSM_V2_TLMM
+	select GPIO_MSM_V2
 	select MSM_GPIOMUX
 	select MSM_SCM if SMP
 

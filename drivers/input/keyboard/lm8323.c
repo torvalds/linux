@@ -754,8 +754,11 @@ fail3:
 	device_remove_file(&client->dev, &dev_attr_disable_kp);
 fail2:
 	while (--pwm >= 0)
-		if (lm->pwm[pwm].enabled)
+		if (lm->pwm[pwm].enabled) {
+			device_remove_file(lm->pwm[pwm].cdev.dev,
+					   &dev_attr_time);
 			led_classdev_unregister(&lm->pwm[pwm].cdev);
+		}
 fail1:
 	input_free_device(idev);
 	kfree(lm);
@@ -775,8 +778,10 @@ static int __devexit lm8323_remove(struct i2c_client *client)
 	device_remove_file(&lm->client->dev, &dev_attr_disable_kp);
 
 	for (i = 0; i < 3; i++)
-		if (lm->pwm[i].enabled)
+		if (lm->pwm[i].enabled) {
+			device_remove_file(lm->pwm[i].cdev.dev, &dev_attr_time);
 			led_classdev_unregister(&lm->pwm[i].cdev);
+		}
 
 	kfree(lm);
 

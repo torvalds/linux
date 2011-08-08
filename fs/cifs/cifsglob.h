@@ -942,8 +942,6 @@ GLOBAL_EXTERN spinlock_t siduidlock;
 GLOBAL_EXTERN spinlock_t sidgidlock;
 
 void cifs_oplock_break(struct work_struct *work);
-void cifs_oplock_break_get(struct cifsFileInfo *cfile);
-void cifs_oplock_break_put(struct cifsFileInfo *cfile);
 
 extern const struct slow_work_ops cifs_oplock_break_ops;
 

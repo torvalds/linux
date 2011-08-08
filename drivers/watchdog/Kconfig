@@ -36,9 +36,6 @@ config WATCHDOG_CORE
 	  and gives them the /dev/watchdog interface (and later also the
 	  sysfs interface).
 
-	  To compile this driver as a module, choose M here: the module will
-	  be called watchdog.
-
 config WATCHDOG_NOWAYOUT
 	bool "Disable watchdog shutdown on close"
 	help

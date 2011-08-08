@@ -2557,6 +2557,7 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 	u16 offset, misc, misc2 = 0;
 	u8 rev, blocks, tmp;
 	int state_index = 0;
+	struct radeon_i2c_bus_rec i2c_bus;
 
 	rdev->pm.default_power_state_index = -1;
 
@@ -2575,7 +2576,6 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 	offset = combios_get_table_offset(dev, COMBIOS_OVERDRIVE_INFO_TABLE);
 	if (offset) {
 		u8 thermal_controller = 0, gpio = 0, i2c_addr = 0, clk_bit = 0, data_bit = 0;
-		struct radeon_i2c_bus_rec i2c_bus;
 
 		rev = RBIOS8(offset);
 
@@ -2615,6 +2615,25 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 				info.addr = i2c_addr >> 1;
 				strlcpy(info.type, name, sizeof(info.type));
 				i2c_new_device(&rdev->pm.i2c_bus->adapter, &info);
+			}
+		}
+	} else {
+		/* boards with a thermal chip, but no overdrive table */
+
+		/* Asus 9600xt has an f75375 on the monid bus */
+		if ((dev->pdev->device == 0x4152) &&
+		    (dev->pdev->subsystem_vendor == 0x1043) &&
+		    (dev->pdev->subsystem_device == 0xc002)) {
+			i2c_bus = combios_setup_i2c_bus(rdev, DDC_MONID, 0, 0);
+			rdev->pm.i2c_bus = radeon_i2c_lookup(rdev, &i2c_bus);
+			if (rdev->pm.i2c_bus) {
+				struct i2c_board_info info = { };
+				const char *name = "f75375";
+				info.addr = 0x28;
+				strlcpy(info.type, name, sizeof(info.type));
+				i2c_new_device(&rdev->pm.i2c_bus->adapter, &info);
+				DRM_INFO("Possible %s thermal controller at 0x%02x\n",
+					 name, info.addr);
 			}
 		}
 	}

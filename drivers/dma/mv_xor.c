@@ -1304,7 +1304,8 @@ static int mv_xor_shared_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 
-	msp->xor_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
+	msp->xor_base = devm_ioremap(&pdev->dev, res->start,
+				     resource_size(res));
 	if (!msp->xor_base)
 		return -EBUSY;
 

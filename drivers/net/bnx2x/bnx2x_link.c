@@ -1546,6 +1546,12 @@ static void bnx2x_umac_enable(struct link_params *params,
 			       vars->line_speed);
 		break;
 	}
+	if (!(vars->flow_ctrl & BNX2X_FLOW_CTRL_TX))
+		val |= UMAC_COMMAND_CONFIG_REG_IGNORE_TX_PAUSE;
+
+	if (!(vars->flow_ctrl & BNX2X_FLOW_CTRL_RX))
+		val |= UMAC_COMMAND_CONFIG_REG_PAUSE_IGNORE;
+
 	REG_WR(bp, umac_base + UMAC_REG_COMMAND_CONFIG, val);
 	udelay(50);
 
@@ -1661,10 +1667,20 @@ static void bnx2x_xmac_disable(struct link_params *params)
 {
 	u8 port = params->port;
 	struct bnx2x *bp = params->bp;
-	u32 xmac_base = (port) ? GRCBASE_XMAC1 : GRCBASE_XMAC0;
+	u32 pfc_ctrl, xmac_base = (port) ? GRCBASE_XMAC1 : GRCBASE_XMAC0;
 
 	if (REG_RD(bp, MISC_REG_RESET_REG_2) &
 	    MISC_REGISTERS_RESET_REG_2_XMAC) {
+		/*
+		 * Send an indication to change the state in the NIG back to XON
+		 * Clearing this bit enables the next set of this bit to get
+		 * rising edge
+		 */
+		pfc_ctrl = REG_RD(bp, xmac_base + XMAC_REG_PFC_CTRL_HI);
+		REG_WR(bp, xmac_base + XMAC_REG_PFC_CTRL_HI,
+		       (pfc_ctrl & ~(1<<1)));
+		REG_WR(bp, xmac_base + XMAC_REG_PFC_CTRL_HI,
+		       (pfc_ctrl | (1<<1)));
 		DP(NETIF_MSG_LINK, "Disable XMAC on port %x\n", port);
 		REG_WR(bp, xmac_base + XMAC_REG_CTRL, 0);
 		usleep_range(1000, 1000);
@@ -1728,6 +1744,10 @@ static int bnx2x_emac_enable(struct link_params *params,
 	u32 val;
 
 	DP(NETIF_MSG_LINK, "enabling EMAC\n");
+
+	/* Disable BMAC */
+	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_CLEAR,
+	       (MISC_REGISTERS_RESET_REG_2_RST_BMAC0 << port));
 
 	/* enable emac and not bmac */
 	REG_WR(bp, NIG_REG_EGRESS_EMAC0_PORT + port*4, 1);
@@ -2583,12 +2603,6 @@ static int bnx2x_bmac1_enable(struct link_params *params,
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC_REGISTER_RX_LLFC_MSG_FLDS,
 		    wb_data, 2);
 
-	if (vars->phy_flags & PHY_TX_ERROR_CHECK_FLAG) {
-		REG_RD_DMAE(bp, bmac_addr + BIGMAC_REGISTER_RX_LSS_STATUS,
-			    wb_data, 2);
-		if (wb_data[0] > 0)
-			return -ESRCH;
-	}
 	return 0;
 }
 
@@ -2653,16 +2667,6 @@ static int bnx2x_bmac2_enable(struct link_params *params,
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_CNT_MAX_SIZE, wb_data, 2);
 	udelay(30);
 	bnx2x_update_pfc_bmac2(params, vars, is_lb);
-
-	if (vars->phy_flags & PHY_TX_ERROR_CHECK_FLAG) {
-		REG_RD_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_RX_LSS_STAT,
-			    wb_data, 2);
-		if (wb_data[0] > 0) {
-			DP(NETIF_MSG_LINK, "Got bad LSS status 0x%x\n",
-				       wb_data[0]);
-			return -ESRCH;
-		}
-	}
 
 	return 0;
 }
@@ -2949,7 +2953,9 @@ static int bnx2x_cl45_read(struct bnx2x *bp, struct bnx2x_phy *phy,
 	u32 val;
 	u16 i;
 	int rc = 0;
-
+	if (phy->flags & FLAGS_MDC_MDIO_WA_B0)
+		bnx2x_bits_en(bp, phy->mdio_ctrl + EMAC_REG_EMAC_MDIO_STATUS,
+			      EMAC_MDIO_STATUS_10MB);
 	/* address */
 	val = ((phy->addr << 21) | (devad << 16) | reg |
 	       EMAC_MDIO_COMM_COMMAND_ADDRESS |
@@ -3003,6 +3009,9 @@ static int bnx2x_cl45_read(struct bnx2x *bp, struct bnx2x_phy *phy,
 		}
 	}
 
+	if (phy->flags & FLAGS_MDC_MDIO_WA_B0)
+		bnx2x_bits_dis(bp, phy->mdio_ctrl + EMAC_REG_EMAC_MDIO_STATUS,
+			       EMAC_MDIO_STATUS_10MB);
 	return rc;
 }
 
@@ -3012,6 +3021,9 @@ static int bnx2x_cl45_write(struct bnx2x *bp, struct bnx2x_phy *phy,
 	u32 tmp;
 	u8 i;
 	int rc = 0;
+	if (phy->flags & FLAGS_MDC_MDIO_WA_B0)
+		bnx2x_bits_en(bp, phy->mdio_ctrl + EMAC_REG_EMAC_MDIO_STATUS,
+			      EMAC_MDIO_STATUS_10MB);
 
 	/* address */
 
@@ -3065,7 +3077,9 @@ static int bnx2x_cl45_write(struct bnx2x *bp, struct bnx2x_phy *phy,
 			bnx2x_cl45_read(bp, phy, devad, 0xf, &temp_val);
 		}
 	}
-
+	if (phy->flags & FLAGS_MDC_MDIO_WA_B0)
+		bnx2x_bits_dis(bp, phy->mdio_ctrl + EMAC_REG_EMAC_MDIO_STATUS,
+			       EMAC_MDIO_STATUS_10MB);
 	return rc;
 }
 
@@ -4353,6 +4367,9 @@ void bnx2x_link_status_update(struct link_params *params,
 
 	vars->link_up = (vars->link_status & LINK_STATUS_LINK_UP);
 	vars->phy_flags = PHY_XGXS_FLAG;
+	if (vars->link_status & LINK_STATUS_PHYSICAL_LINK_FLAG)
+		vars->phy_flags |= PHY_PHYSICAL_LINK_FLAG;
+
 	if (vars->link_up) {
 		DP(NETIF_MSG_LINK, "phy link up\n");
 
@@ -4444,6 +4461,8 @@ void bnx2x_link_status_update(struct link_params *params,
 
 		/* indicate no mac active */
 		vars->mac_type = MAC_TYPE_NONE;
+		if (vars->link_status & LINK_STATUS_PHYSICAL_LINK_FLAG)
+			vars->phy_flags |= PHY_HALF_OPEN_CONN_FLAG;
 	}
 
 	/* Sync media type */
@@ -5903,20 +5922,30 @@ int bnx2x_set_led(struct link_params *params,
 				tmp = EMAC_RD(bp, EMAC_REG_EMAC_LED);
 				EMAC_WR(bp, EMAC_REG_EMAC_LED,
 					(tmp | EMAC_LED_OVERRIDE));
-				return rc;
+				/*
+				 * return here without enabling traffic
+				 * LED blink andsetting rate in ON mode.
+				 * In oper mode, enabling LED blink
+				 * and setting rate is needed.
+				 */
+				if (mode == LED_MODE_ON)
+					return rc;
 			}
-		} else if (SINGLE_MEDIA_DIRECT(params) &&
-			   (CHIP_IS_E1x(bp) ||
-			    CHIP_IS_E2(bp))) {
+		} else if (SINGLE_MEDIA_DIRECT(params)) {
 			/*
 			 * This is a work-around for HW issue found when link
 			 * is up in CL73
 			 */
-			REG_WR(bp, NIG_REG_LED_MODE_P0 + port*4, 0);
 			REG_WR(bp, NIG_REG_LED_10G_P0 + port*4, 1);
-		} else {
+			if (CHIP_IS_E1x(bp) ||
+			    CHIP_IS_E2(bp) ||
+			    (mode == LED_MODE_ON))
+				REG_WR(bp, NIG_REG_LED_MODE_P0 + port*4, 0);
+			else
+				REG_WR(bp, NIG_REG_LED_MODE_P0 + port*4,
+				       hw_led_mode);
+		} else
 			REG_WR(bp, NIG_REG_LED_MODE_P0 + port*4, hw_led_mode);
-		}
 
 		REG_WR(bp, NIG_REG_LED_CONTROL_OVERRIDE_TRAFFIC_P0 + port*4, 0);
 		/* Set blinking rate to ~15.9Hz */
@@ -6160,6 +6189,7 @@ static int bnx2x_update_link_down(struct link_params *params,
 	/* update shared memory */
 	vars->link_status &= ~(LINK_STATUS_SPEED_AND_DUPLEX_MASK |
 			       LINK_STATUS_LINK_UP |
+			       LINK_STATUS_PHYSICAL_LINK_FLAG |
 			       LINK_STATUS_AUTO_NEGOTIATE_COMPLETE |
 			       LINK_STATUS_RX_FLOW_CONTROL_FLAG_MASK |
 			       LINK_STATUS_TX_FLOW_CONTROL_FLAG_MASK |
@@ -6197,7 +6227,8 @@ static int bnx2x_update_link_up(struct link_params *params,
 	u8 port = params->port;
 	int rc = 0;
 
-	vars->link_status |= LINK_STATUS_LINK_UP;
+	vars->link_status |= (LINK_STATUS_LINK_UP |
+			      LINK_STATUS_PHYSICAL_LINK_FLAG);
 	vars->phy_flags |= PHY_PHYSICAL_LINK_FLAG;
 
 	if (vars->flow_ctrl & BNX2X_FLOW_CTRL_TX)
@@ -7998,6 +8029,9 @@ static void bnx2x_warpcore_set_limiting_mode(struct link_params *params,
 	bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
 			MDIO_WC_REG_UC_INFO_B1_FIRMWARE_MODE, &val);
 
+	/* Restart microcode to re-read the new mode */
+	bnx2x_warpcore_reset_lane(bp, phy, 1);
+	bnx2x_warpcore_reset_lane(bp, phy, 0);
 
 }
 
@@ -8116,7 +8150,6 @@ void bnx2x_handle_module_detect_int(struct link_params *params)
 				 offsetof(struct shmem_region, dev_info.
 					  port_feature_config[params->port].
 					  config));
-
 		bnx2x_set_gpio_int(bp, gpio_num,
 				   MISC_REGISTERS_GPIO_INT_OUTPUT_SET,
 				   gpio_port);
@@ -8125,8 +8158,9 @@ void bnx2x_handle_module_detect_int(struct link_params *params)
 		 * Disable transmit for this module
 		 */
 		phy->media_type = ETH_PHY_NOT_PRESENT;
-		if ((val & PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_MASK) ==
-		    PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_DISABLE_TX_LASER)
+		if (((val & PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_MASK) ==
+		     PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_DISABLE_TX_LASER) ||
+		    CHIP_IS_E3(bp))
 			bnx2x_sfp_set_transmitter(params, phy, 0);
 	}
 }
@@ -8227,9 +8261,6 @@ static u8 bnx2x_8706_config_init(struct bnx2x_phy *phy,
 	u32 tx_en_mode;
 	u16 cnt, val, tmp1;
 	struct bnx2x *bp = params->bp;
-
-	/* SPF+ PHY: Set flag to check for Tx error */
-	vars->phy_flags = PHY_TX_ERROR_CHECK_FLAG;
 
 	bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_2,
 		       MISC_REGISTERS_GPIO_OUTPUT_HIGH, params->port);
@@ -8414,9 +8445,6 @@ static int bnx2x_8726_config_init(struct bnx2x_phy *phy,
 	struct bnx2x *bp = params->bp;
 	DP(NETIF_MSG_LINK, "Initializing BCM8726\n");
 
-	/* SPF+ PHY: Set flag to check for Tx error */
-	vars->phy_flags = PHY_TX_ERROR_CHECK_FLAG;
-
 	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, MDIO_PMA_REG_CTRL, 1<<15);
 	bnx2x_wait_reset_complete(bp, phy, params);
 
@@ -8584,9 +8612,6 @@ static int bnx2x_8727_config_init(struct bnx2x_phy *phy,
 	u16 lasi_ctrl_val;
 	struct bnx2x *bp = params->bp;
 	/* Enable PMD link, MOD_ABS_FLT, and 1G link alarm */
-
-	/* SPF+ PHY: Set flag to check for Tx error */
-	vars->phy_flags = PHY_TX_ERROR_CHECK_FLAG;
 
 	bnx2x_wait_reset_complete(bp, phy, params);
 	rx_alarm_ctrl_val = (1<<2) | (1<<5) ;
@@ -9243,7 +9268,13 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 	if (phy->req_duplex == DUPLEX_FULL)
 		autoneg_val |= (1<<8);
 
-	bnx2x_cl45_write(bp, phy,
+	/*
+	 * Always write this if this is not 84833.
+	 * For 84833, write it only when it's a forced speed.
+	 */
+	if ((phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) ||
+		((autoneg_val & (1<<12)) == 0))
+		bnx2x_cl45_write(bp, phy,
 			 MDIO_AN_DEVAD,
 			 MDIO_AN_REG_8481_LEGACY_MII_CTRL, autoneg_val);
 
@@ -9257,13 +9288,12 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 			bnx2x_cl45_write(bp, phy,
 				 MDIO_AN_DEVAD, MDIO_AN_REG_CTRL,
 				 0x3200);
-	} else if (phy->req_line_speed != SPEED_10 &&
-		   phy->req_line_speed != SPEED_100) {
+	} else
 		bnx2x_cl45_write(bp, phy,
 				 MDIO_AN_DEVAD,
 				 MDIO_AN_REG_8481_10GBASE_T_AN_CTRL,
 				 1);
-	}
+
 	/* Save spirom version */
 	bnx2x_save_848xx_spirom_version(phy, params);
 
@@ -9756,11 +9786,9 @@ static void bnx2x_848x3_link_reset(struct bnx2x_phy *phy,
 		bnx2x_cl45_read(bp, phy,
 				MDIO_CTL_DEVAD,
 				0x400f, &val16);
-		/* Put to low power mode on newer FW */
-		if ((val16 & 0x303f) > 0x1009)
-			bnx2x_cl45_write(bp, phy,
-					MDIO_PMA_DEVAD,
-					MDIO_PMA_REG_CTRL, 0x800);
+		bnx2x_cl45_write(bp, phy,
+				MDIO_PMA_DEVAD,
+				MDIO_PMA_REG_CTRL, 0x800);
 	}
 }
 
@@ -10191,8 +10219,15 @@ static void bnx2x_54618se_link_reset(struct bnx2x_phy *phy,
 	u32 cfg_pin;
 	u8 port;
 
-	/* This works with E3 only, no need to check the chip
-	   before determining the port. */
+	/*
+	 * In case of no EPIO routed to reset the GPHY, put it
+	 * in low power mode.
+	 */
+	bnx2x_cl22_write(bp, phy, MDIO_PMA_REG_CTRL, 0x800);
+	/*
+	 * This works with E3 only, no need to check the chip
+	 * before determining the port.
+	 */
 	port = params->port;
 	cfg_pin = (REG_RD(bp, params->shmem_base +
 			offsetof(struct shmem_region,
@@ -10603,7 +10638,8 @@ static struct bnx2x_phy phy_warpcore = {
 	.type		= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT,
 	.addr		= 0xff,
 	.def_md_devad	= 0,
-	.flags		= FLAGS_HW_LOCK_REQUIRED,
+	.flags		= (FLAGS_HW_LOCK_REQUIRED |
+			   FLAGS_TX_ERROR_CHECK),
 	.rx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.mdio_ctrl	= 0,
@@ -10729,7 +10765,8 @@ static struct bnx2x_phy phy_8706 = {
 	.type		= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706,
 	.addr		= 0xff,
 	.def_md_devad	= 0,
-	.flags		= FLAGS_INIT_XGXS_FIRST,
+	.flags		= (FLAGS_INIT_XGXS_FIRST |
+			   FLAGS_TX_ERROR_CHECK),
 	.rx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.mdio_ctrl	= 0,
@@ -10760,7 +10797,8 @@ static struct bnx2x_phy phy_8726 = {
 	.addr		= 0xff,
 	.def_md_devad	= 0,
 	.flags		= (FLAGS_HW_LOCK_REQUIRED |
-			   FLAGS_INIT_XGXS_FIRST),
+			   FLAGS_INIT_XGXS_FIRST |
+			   FLAGS_TX_ERROR_CHECK),
 	.rx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.mdio_ctrl	= 0,
@@ -10791,7 +10829,8 @@ static struct bnx2x_phy phy_8727 = {
 	.type		= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
 	.addr		= 0xff,
 	.def_md_devad	= 0,
-	.flags		= FLAGS_FAN_FAILURE_DET_REQ,
+	.flags		= (FLAGS_FAN_FAILURE_DET_REQ |
+			   FLAGS_TX_ERROR_CHECK),
 	.rx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.mdio_ctrl	= 0,
@@ -11112,6 +11151,8 @@ static int bnx2x_populate_int_phy(struct bnx2x *bp, u32 shmem_base, u8 port,
 		 */
 		if (CHIP_REV(bp) == CHIP_REV_Ax)
 			phy->flags |= FLAGS_MDC_MDIO_WA;
+		else
+			phy->flags |= FLAGS_MDC_MDIO_WA_B0;
 	} else {
 		switch (switch_cfg) {
 		case SWITCH_CFG_1G:
@@ -11500,13 +11541,12 @@ void bnx2x_init_xmac_loopback(struct link_params *params,
 	 * Set WC to loopback mode since link is required to provide clock
 	 * to the XMAC in 20G mode
 	 */
-	if (vars->line_speed == SPEED_20000) {
-		bnx2x_set_aer_mmd(params, &params->phy[0]);
-		bnx2x_warpcore_reset_lane(bp, &params->phy[0], 0);
-		params->phy[INT_PHY].config_loopback(
+	bnx2x_set_aer_mmd(params, &params->phy[0]);
+	bnx2x_warpcore_reset_lane(bp, &params->phy[0], 0);
+	params->phy[INT_PHY].config_loopback(
 			&params->phy[INT_PHY],
 			params);
-	}
+
 	bnx2x_xmac_enable(params, vars, 1);
 	REG_WR(bp, NIG_REG_EGRESS_DRAIN0_MODE + params->port*4, 0);
 }
@@ -11684,12 +11724,16 @@ int bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
 	bnx2x_set_led(params, vars, LED_MODE_OFF, 0);
 
 	if (reset_ext_phy) {
+		bnx2x_set_mdio_clk(bp, params->chip_id, port);
 		for (phy_index = EXT_PHY1; phy_index < params->num_phys;
 		      phy_index++) {
-			if (params->phy[phy_index].link_reset)
+			if (params->phy[phy_index].link_reset) {
+				bnx2x_set_aer_mmd(params,
+						  &params->phy[phy_index]);
 				params->phy[phy_index].link_reset(
 					&params->phy[phy_index],
 					params);
+			}
 			if (params->phy[phy_index].flags &
 			    FLAGS_REARM_LATCH_SIGNAL)
 				clear_latch_ind = 1;
@@ -12178,10 +12222,6 @@ static void bnx2x_analyze_link_error(struct link_params *params,
 	u8 led_mode;
 	u32 half_open_conn = (vars->phy_flags & PHY_HALF_OPEN_CONN_FLAG) > 0;
 
-	/*DP(NETIF_MSG_LINK, "CHECK LINK: %x half_open:%x-> lss:%x\n",
-		       vars->link_up,
-		       half_open_conn, lss_status);*/
-
 	if ((lss_status ^ half_open_conn) == 0)
 		return;
 
@@ -12194,6 +12234,7 @@ static void bnx2x_analyze_link_error(struct link_params *params,
 	 * b. Update link_vars->link_up
 	 */
 	if (lss_status) {
+		DP(NETIF_MSG_LINK, "Remote Fault detected !!!\n");
 		vars->link_status &= ~LINK_STATUS_LINK_UP;
 		vars->link_up = 0;
 		vars->phy_flags |= PHY_HALF_OPEN_CONN_FLAG;
@@ -12203,6 +12244,7 @@ static void bnx2x_analyze_link_error(struct link_params *params,
 		 */
 		led_mode = LED_MODE_OFF;
 	} else {
+		DP(NETIF_MSG_LINK, "Remote Fault cleared\n");
 		vars->link_status |= LINK_STATUS_LINK_UP;
 		vars->link_up = 1;
 		vars->phy_flags &= ~PHY_HALF_OPEN_CONN_FLAG;
@@ -12219,6 +12261,15 @@ static void bnx2x_analyze_link_error(struct link_params *params,
 	bnx2x_notify_link_changed(bp);
 }
 
+/******************************************************************************
+* Description:
+*	This function checks for half opened connection change indication.
+*	When such change occurs, it calls the bnx2x_analyze_link_error
+*	to check if Remote Fault is set or cleared. Reception of remote fault
+*	status message in the MAC indicates that the peer's MAC has detected
+*	a fault, for example, due to break in the TX side of fiber.
+*
+******************************************************************************/
 static void bnx2x_check_half_open_conn(struct link_params *params,
 				       struct link_vars *vars)
 {
@@ -12229,9 +12280,28 @@ static void bnx2x_check_half_open_conn(struct link_params *params,
 	if ((vars->phy_flags & PHY_PHYSICAL_LINK_FLAG) == 0)
 		return;
 
-	if (!CHIP_IS_E3(bp) &&
+	if (CHIP_IS_E3(bp) &&
 	    (REG_RD(bp, MISC_REG_RESET_REG_2) &
-		   (MISC_REGISTERS_RESET_REG_2_RST_BMAC0 << params->port))) {
+	      (MISC_REGISTERS_RESET_REG_2_XMAC))) {
+		/* Check E3 XMAC */
+		/*
+		 * Note that link speed cannot be queried here, since it may be
+		 * zero while link is down. In case UMAC is active, LSS will
+		 * simply not be set
+		 */
+		mac_base = (params->port) ? GRCBASE_XMAC1 : GRCBASE_XMAC0;
+
+		/* Clear stick bits (Requires rising edge) */
+		REG_WR(bp, mac_base + XMAC_REG_CLEAR_RX_LSS_STATUS, 0);
+		REG_WR(bp, mac_base + XMAC_REG_CLEAR_RX_LSS_STATUS,
+		       XMAC_CLEAR_RX_LSS_STATUS_REG_CLEAR_LOCAL_FAULT_STATUS |
+		       XMAC_CLEAR_RX_LSS_STATUS_REG_CLEAR_REMOTE_FAULT_STATUS);
+		if (REG_RD(bp, mac_base + XMAC_REG_RX_LSS_STATUS))
+			lss_status = 1;
+
+		bnx2x_analyze_link_error(params, vars, lss_status);
+	} else if (REG_RD(bp, MISC_REG_RESET_REG_2) &
+		   (MISC_REGISTERS_RESET_REG_2_RST_BMAC0 << params->port)) {
 		/* Check E1X / E2 BMAC */
 		u32 lss_status_reg;
 		u32 wb_data[2];
@@ -12253,14 +12323,20 @@ static void bnx2x_check_half_open_conn(struct link_params *params,
 void bnx2x_period_func(struct link_params *params, struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
+	u16 phy_idx;
 	if (!params) {
-		DP(NETIF_MSG_LINK, "Ininitliazed params !\n");
+		DP(NETIF_MSG_LINK, "Uninitialized params !\n");
 		return;
 	}
-	/* DP(NETIF_MSG_LINK, "Periodic called vars->phy_flags 0x%x speed 0x%x
-	 RESET_REG_2 0x%x\n", vars->phy_flags, vars->line_speed,
-	  REG_RD(bp, MISC_REG_RESET_REG_2)); */
-	bnx2x_check_half_open_conn(params, vars);
+
+	for (phy_idx = INT_PHY; phy_idx < MAX_PHYS; phy_idx++) {
+		if (params->phy[phy_idx].flags & FLAGS_TX_ERROR_CHECK) {
+			bnx2x_set_aer_mmd(params, &params->phy[phy_idx]);
+			bnx2x_check_half_open_conn(params, vars);
+			break;
+		}
+	}
+
 	if (CHIP_IS_E3(bp))
 		bnx2x_check_over_curr(params, vars);
 }

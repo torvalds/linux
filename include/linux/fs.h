@@ -738,22 +738,54 @@ static inline int mapping_writably_mapped(struct address_space *mapping)
 struct posix_acl;
 #define ACL_NOT_CACHED ((void *)(-1))
 
+#define IOP_FASTPERM	0x0001
+#define IOP_LOOKUP	0x0002
+#define IOP_NOFOLLOW	0x0004
+
+/*
+ * Keep mostly read-only and often accessed (especially for
+ * the RCU path lookup and 'stat' data) fields at the beginning
+ * of the 'struct inode'
+ */
 struct inode {
-	/* RCU path lookup touches following: */
 	umode_t			i_mode;
+	unsigned short		i_opflags;
 	uid_t			i_uid;
 	gid_t			i_gid;
+	unsigned int		i_flags;
+
+#ifdef CONFIG_FS_POSIX_ACL
+	struct posix_acl	*i_acl;
+	struct posix_acl	*i_default_acl;
+#endif
+
 	const struct inode_operations	*i_op;
 	struct super_block	*i_sb;
+	struct address_space	*i_mapping;
 
-	spinlock_t		i_lock;	/* i_blocks, i_bytes, maybe i_size */
-	unsigned int		i_flags;
-	unsigned long		i_state;
 #ifdef CONFIG_SECURITY
 	void			*i_security;
 #endif
-	struct mutex		i_mutex;
 
+	/* Stat data, not accessed from path walking */
+	unsigned long		i_ino;
+	unsigned int		i_nlink;
+	dev_t			i_rdev;
+	loff_t			i_size;
+	struct timespec		i_atime;
+	struct timespec		i_mtime;
+	struct timespec		i_ctime;
+	unsigned int		i_blkbits;
+	blkcnt_t		i_blocks;
+
+#ifdef __NEED_I_SIZE_ORDERED
+	seqcount_t		i_size_seqcount;
+#endif
+
+	/* Misc */
+	unsigned long		i_state;
+	spinlock_t		i_lock;	/* i_blocks, i_bytes, maybe i_size */
+	struct mutex		i_mutex;
 
 	unsigned long		dirtied_when;	/* jiffies of first dirtying */
 
@@ -765,25 +797,12 @@ struct inode {
 		struct list_head	i_dentry;
 		struct rcu_head		i_rcu;
 	};
-	unsigned long		i_ino;
 	atomic_t		i_count;
-	unsigned int		i_nlink;
-	dev_t			i_rdev;
-	unsigned int		i_blkbits;
 	u64			i_version;
-	loff_t			i_size;
-#ifdef __NEED_I_SIZE_ORDERED
-	seqcount_t		i_size_seqcount;
-#endif
-	struct timespec		i_atime;
-	struct timespec		i_mtime;
-	struct timespec		i_ctime;
-	blkcnt_t		i_blocks;
 	unsigned short          i_bytes;
 	atomic_t		i_dio_count;
 	const struct file_operations	*i_fop;	/* former ->i_op->default_file_ops */
 	struct file_lock	*i_flock;
-	struct address_space	*i_mapping;
 	struct address_space	i_data;
 #ifdef CONFIG_QUOTA
 	struct dquot		*i_dquot[MAXQUOTAS];
@@ -806,10 +825,6 @@ struct inode {
 	atomic_t		i_readcount; /* struct files open RO */
 #endif
 	atomic_t		i_writecount;
-#ifdef CONFIG_FS_POSIX_ACL
-	struct posix_acl	*i_acl;
-	struct posix_acl	*i_default_acl;
-#endif
 	void			*i_private; /* fs or device private pointer */
 };
 
@@ -2317,11 +2332,18 @@ extern int should_remove_suid(struct dentry *);
 extern int file_remove_suid(struct file *);
 
 extern void __insert_inode_hash(struct inode *, unsigned long hashval);
-extern void remove_inode_hash(struct inode *);
 static inline void insert_inode_hash(struct inode *inode)
 {
 	__insert_inode_hash(inode, inode->i_ino);
 }
+
+extern void __remove_inode_hash(struct inode *);
+static inline void remove_inode_hash(struct inode *inode)
+{
+	if (!inode_unhashed(inode))
+		__remove_inode_hash(inode);
+}
+
 extern void inode_sb_list_add(struct inode *inode);
 
 #ifdef CONFIG_BLOCK

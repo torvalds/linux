@@ -285,11 +285,7 @@ static int io_submit_init(struct ext4_io_submit *io,
 	io_end = ext4_init_io_end(inode, GFP_NOFS);
 	if (!io_end)
 		return -ENOMEM;
-	do {
-		bio = bio_alloc(GFP_NOIO, nvecs);
-		nvecs >>= 1;
-	} while (bio == NULL);
-
+	bio = bio_alloc(GFP_NOIO, min(nvecs, BIO_MAX_PAGES));
 	bio->bi_sector = bh->b_blocknr * (bh->b_size >> 9);
 	bio->bi_bdev = bh->b_bdev;
 	bio->bi_private = io->io_end = io_end;

@@ -12,5 +12,8 @@
 # Kbuild - Gets included from the Kernels Makefile and build system
 #
 
-exofs-y := ios.o inode.o file.o symlink.o namei.o dir.o super.o
+# ore module library
+obj-$(CONFIG_ORE) += ore.o
+
+exofs-y := inode.o file.o symlink.o namei.o dir.o super.o
 obj-$(CONFIG_EXOFS_FS) += exofs.o

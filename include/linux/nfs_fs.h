@@ -569,12 +569,12 @@ extern struct posix_acl *nfs3_proc_getacl(struct inode *inode, int type);
 extern int nfs3_proc_setacl(struct inode *inode, int type,
 			    struct posix_acl *acl);
 extern int nfs3_proc_set_default_acl(struct inode *dir, struct inode *inode,
-		mode_t mode);
+		umode_t mode);
 extern void nfs3_forget_cached_acls(struct inode *inode);
 #else
 static inline int nfs3_proc_set_default_acl(struct inode *dir,
 					    struct inode *inode,
-					    mode_t mode)
+					    umode_t mode)
 {
 	return 0;
 }

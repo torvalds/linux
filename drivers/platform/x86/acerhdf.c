@@ -182,6 +182,7 @@ static const struct bios_settings_t bios_tbl[] = {
 	{"Acer", "Aspire 1810T",  "v1.3308", 0x55, 0x58, {0x9e, 0x00} },
 	{"Acer", "Aspire 1810TZ", "v1.3310", 0x55, 0x58, {0x9e, 0x00} },
 	{"Acer", "Aspire 1810T",  "v1.3310", 0x55, 0x58, {0x9e, 0x00} },
+	{"Acer", "Aspire 1810TZ", "v1.3314", 0x55, 0x58, {0x9e, 0x00} },
 	/* Acer 531 */
 	{"Acer", "AO531h", "v0.3201", 0x55, 0x58, {0x20, 0x00} },
 	/* Gateway */
@@ -703,15 +704,15 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Peter Feuerer");
 MODULE_DESCRIPTION("Aspire One temperature and fan driver");
 MODULE_ALIAS("dmi:*:*Acer*:pnAOA*:");
-MODULE_ALIAS("dmi:*:*Acer*:pnAspire 1410*:");
-MODULE_ALIAS("dmi:*:*Acer*:pnAspire 1810*:");
+MODULE_ALIAS("dmi:*:*Acer*:pnAspire*1410*:");
+MODULE_ALIAS("dmi:*:*Acer*:pnAspire*1810*:");
 MODULE_ALIAS("dmi:*:*Acer*:pnAO531*:");
 MODULE_ALIAS("dmi:*:*Gateway*:pnAOA*:");
 MODULE_ALIAS("dmi:*:*Gateway*:pnLT31*:");
-MODULE_ALIAS("dmi:*:*Packard Bell*:pnAOA*:");
-MODULE_ALIAS("dmi:*:*Packard Bell*:pnDOA*:");
-MODULE_ALIAS("dmi:*:*Packard Bell*:pnDOTMU*:");
-MODULE_ALIAS("dmi:*:*Packard Bell*:pnDOTMA*:");
+MODULE_ALIAS("dmi:*:*Packard*Bell*:pnAOA*:");
+MODULE_ALIAS("dmi:*:*Packard*Bell*:pnDOA*:");
+MODULE_ALIAS("dmi:*:*Packard*Bell*:pnDOTMU*:");
+MODULE_ALIAS("dmi:*:*Packard*Bell*:pnDOTMA*:");
 
 module_init(acerhdf_init);
 module_exit(acerhdf_exit);

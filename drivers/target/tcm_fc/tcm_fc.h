@@ -187,4 +187,9 @@ void ft_dump_cmd(struct ft_cmd *, const char *caller);
 
 ssize_t ft_format_wwn(char *, size_t, u64);
 
+/*
+ * Underlying HW specific helper function
+ */
+void ft_invl_hw_context(struct ft_cmd *);
+
 #endif /* __TCM_FC_H__ */
