@@ -1,6 +1,6 @@
 /* n2_core.c: Niagara2 Stream Processing Unit (SPU) crypto support.
  *
- * Copyright (C) 2010 David S. Miller <davem@davemloft.net>
+ * Copyright (C) 2010, 2011 David S. Miller <davem@davemloft.net>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -31,8 +31,8 @@
 #include "n2_core.h"
 
 #define DRV_MODULE_NAME		"n2_crypto"
-#define DRV_MODULE_VERSION	"0.1"
-#define DRV_MODULE_RELDATE	"April 29, 2010"
+#define DRV_MODULE_VERSION	"0.2"
+#define DRV_MODULE_RELDATE	"July 28, 2011"
 
 static char version[] __devinitdata =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
@@ -1823,22 +1823,17 @@ static int spu_mdesc_scan(struct mdesc_handle *mdesc, struct platform_device *de
 static int __devinit get_irq_props(struct mdesc_handle *mdesc, u64 node,
 				   struct spu_mdesc_info *ip)
 {
-	const u64 *intr, *ino;
-	int intr_len, ino_len;
+	const u64 *ino;
+	int ino_len;
 	int i;
 
-	intr = mdesc_get_property(mdesc, node, "intr", &intr_len);
-	if (!intr)
-		return -ENODEV;
-
 	ino = mdesc_get_property(mdesc, node, "ino", &ino_len);
-	if (!ino)
+	if (!ino) {
+		printk("NO 'ino'\n");
 		return -ENODEV;
+	}
 
-	if (intr_len != ino_len)
-		return -EINVAL;
-
-	ip->num_intrs = intr_len / sizeof(u64);
+	ip->num_intrs = ino_len / sizeof(u64);
 	ip->ino_table = kzalloc((sizeof(struct ino_blob) *
 				 ip->num_intrs),
 				GFP_KERNEL);
@@ -1847,7 +1842,7 @@ static int __devinit get_irq_props(struct mdesc_handle *mdesc, u64 node,
 
 	for (i = 0; i < ip->num_intrs; i++) {
 		struct ino_blob *b = &ip->ino_table[i];
-		b->intr = intr[i];
+		b->intr = i + 1;
 		b->ino = ino[i];
 	}
 
@@ -2204,6 +2199,10 @@ static struct of_device_id n2_crypto_match[] = {
 		.name = "n2cp",
 		.compatible = "SUNW,vf-cwq",
 	},
+	{
+		.name = "n2cp",
+		.compatible = "SUNW,kt-cwq",
+	},
 	{},
 };
 
@@ -2227,6 +2226,10 @@ static struct of_device_id n2_mau_match[] = {
 	{
 		.name = "ncp",
 		.compatible = "SUNW,vf-mau",
+	},
+	{
+		.name = "ncp",
+		.compatible = "SUNW,kt-mau",
 	},
 	{},
 };

@@ -241,7 +241,6 @@ typedef struct xfs_inode {
 	xfs_ifork_t		i_df;		/* data fork */
 
 	/* Transaction and locking information. */
-	struct xfs_trans	*i_transp;	/* ptr to owning transaction*/
 	struct xfs_inode_log_item *i_itemp;	/* logging information */
 	mrlock_t		i_lock;		/* inode lock */
 	mrlock_t		i_iolock;	/* inode IO lock */
@@ -264,7 +263,7 @@ typedef struct xfs_inode {
 	struct inode		i_vnode;	/* embedded VFS inode */
 } xfs_inode_t;
 
-#define XFS_ISIZE(ip)	(((ip)->i_d.di_mode & S_IFMT) == S_IFREG) ? \
+#define XFS_ISIZE(ip)	S_ISREG((ip)->i_d.di_mode) ? \
 				(ip)->i_size : (ip)->i_d.di_size;
 
 /* Convert from vfs inode to xfs inode */
@@ -384,6 +383,16 @@ static inline void xfs_ifunlock(xfs_inode_t *ip)
 #define XFS_IDIRTY_RELEASE	0x0040	/* dirty release already seen */
 
 /*
+ * Per-lifetime flags need to be reset when re-using a reclaimable inode during
+ * inode lookup. Thi prevents unintended behaviour on the new inode from
+ * ocurring.
+ */
+#define XFS_IRECLAIM_RESET_FLAGS	\
+	(XFS_IRECLAIMABLE | XFS_IRECLAIM | \
+	 XFS_IDIRTY_RELEASE | XFS_ITRUNCATED | \
+	 XFS_IFILESTREAM);
+
+/*
  * Flags for inode locking.
  * Bit ranges:	1<<1  - 1<<16-1 -- iolock/ilock modes (bitfield)
  *		1<<16 - 1<<32-1 -- lockdep annotation (integers)
@@ -448,16 +457,6 @@ static inline void xfs_ifunlock(xfs_inode_t *ip)
 extern struct lock_class_key xfs_iolock_reclaimable;
 
 /*
- * Flags for xfs_itruncate_start().
- */
-#define	XFS_ITRUNC_DEFINITE	0x1
-#define	XFS_ITRUNC_MAYBE	0x2
-
-#define XFS_ITRUNC_FLAGS \
-	{ XFS_ITRUNC_DEFINITE,	"DEFINITE" }, \
-	{ XFS_ITRUNC_MAYBE,	"MAYBE" }
-
-/*
  * For multiple groups support: if S_ISGID bit is set in the parent
  * directory, group of new file is set to that of the parent, and
  * new subdirectory gets S_ISGID bit from parent.
@@ -491,9 +490,10 @@ uint		xfs_ip2xflags(struct xfs_inode *);
 uint		xfs_dic2xflags(struct xfs_dinode *);
 int		xfs_ifree(struct xfs_trans *, xfs_inode_t *,
 			   struct xfs_bmap_free *);
-int		xfs_itruncate_start(xfs_inode_t *, uint, xfs_fsize_t);
-int		xfs_itruncate_finish(struct xfs_trans **, xfs_inode_t *,
-				     xfs_fsize_t, int, int);
+int		xfs_itruncate_extents(struct xfs_trans **, struct xfs_inode *,
+				      int, xfs_fsize_t);
+int		xfs_itruncate_data(struct xfs_trans **, struct xfs_inode *,
+				   xfs_fsize_t);
 int		xfs_iunlink(struct xfs_trans *, xfs_inode_t *);
 
 void		xfs_iext_realloc(xfs_inode_t *, int, int);
@@ -568,13 +568,6 @@ void		xfs_iext_irec_compact_full(xfs_ifork_t *);
 void		xfs_iext_irec_update_extoffs(xfs_ifork_t *, int, int);
 
 #define xfs_ipincount(ip)	((unsigned int) atomic_read(&ip->i_pincount))
-
-#ifdef DEBUG
-void		xfs_isize_check(struct xfs_mount *, struct xfs_inode *,
-				xfs_fsize_t);
-#else	/* DEBUG */
-#define xfs_isize_check(mp, ip, isize)
-#endif	/* DEBUG */
 
 #if defined(DEBUG)
 void		xfs_inobp_check(struct xfs_mount *, struct xfs_buf *);

@@ -39,8 +39,6 @@
  *
  */
 
-
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kmod.h>
 #include <linux/kernel.h>
@@ -475,13 +473,13 @@ static int lirc_thread(void *arg)
 	dprintk("poll thread started\n");
 
 	while (!kthread_should_stop()) {
+		set_current_state(TASK_INTERRUPTIBLE);
+
 		/* if device not opened, we can sleep half a second */
 		if (atomic_read(&ir->open_count) == 0) {
 			schedule_timeout(HZ/2);
 			continue;
 		}
-
-		set_current_state(TASK_INTERRUPTIBLE);
 
 		/*
 		 * This is ~113*2 + 24 + jitter (2*repeat gap + code length).

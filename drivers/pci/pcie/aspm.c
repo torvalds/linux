@@ -940,7 +940,7 @@ static int __init pcie_aspm_disable(char *str)
 		printk(KERN_INFO "PCIe ASPM is disabled\n");
 	} else if (!strcmp(str, "force")) {
 		aspm_force = 1;
-		printk(KERN_INFO "PCIe ASPM is forcedly enabled\n");
+		printk(KERN_INFO "PCIe ASPM is forcibly enabled\n");
 	}
 	return 1;
 }

@@ -259,8 +259,8 @@ nilfs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 		return 0;
 
 	/* Needs synchronization with the cleaner */
-	size = blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
-				  offset, nr_segs, nilfs_get_block, NULL);
+	size = blockdev_direct_IO(rw, iocb, inode, iov, offset, nr_segs,
+				  nilfs_get_block);
 
 	/*
 	 * In case of error extending write may have instantiated a few
@@ -778,6 +778,8 @@ int nilfs_setattr(struct dentry *dentry, struct iattr *iattr)
 
 	if ((iattr->ia_valid & ATTR_SIZE) &&
 	    iattr->ia_size != i_size_read(inode)) {
+		inode_dio_wait(inode);
+
 		err = vmtruncate(inode, iattr->ia_size);
 		if (unlikely(err))
 			goto out_err;
@@ -799,19 +801,14 @@ out_err:
 	return err;
 }
 
-int nilfs_permission(struct inode *inode, int mask, unsigned int flags)
+int nilfs_permission(struct inode *inode, int mask)
 {
-	struct nilfs_root *root;
-
-	if (flags & IPERM_FLAG_RCU)
-		return -ECHILD;
-
-	root = NILFS_I(inode)->i_root;
+	struct nilfs_root *root = NILFS_I(inode)->i_root;
 	if ((mask & MAY_WRITE) && root &&
 	    root->cno != NILFS_CPTREE_CURRENT_CNO)
 		return -EROFS; /* snapshot is not writable */
 
-	return generic_permission(inode, mask, flags, NULL);
+	return generic_permission(inode, mask);
 }
 
 int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh)

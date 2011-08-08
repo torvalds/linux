@@ -209,6 +209,7 @@ static void omap_kp_tasklet(unsigned long data)
 #endif
 		}
 	}
+	input_sync(omap_kp_data->input);
 	memcpy(keypad_state, new_state, sizeof(keypad_state));
 
 	if (key_down) {

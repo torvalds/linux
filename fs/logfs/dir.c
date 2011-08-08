@@ -371,11 +371,9 @@ static struct dentry *logfs_lookup(struct inode *dir, struct dentry *dentry,
 	page_cache_release(page);
 
 	inode = logfs_iget(dir->i_sb, ino);
-	if (IS_ERR(inode)) {
+	if (IS_ERR(inode))
 		printk(KERN_ERR"LogFS: Cannot read inode #%llx for dentry (%lx, %lx)n",
 				ino, dir->i_ino, index);
-		return ERR_CAST(inode);
-	}
 	return d_splice_alias(inode, dentry);
 }
 
@@ -553,13 +551,6 @@ static int logfs_symlink(struct inode *dir, struct dentry *dentry,
 	inode->i_mapping->a_ops = &logfs_reg_aops;
 
 	return __logfs_create(dir, dentry, inode, target, destlen);
-}
-
-static int logfs_permission(struct inode *inode, int mask, unsigned int flags)
-{
-	if (flags & IPERM_FLAG_RCU)
-		return -ECHILD;
-	return generic_permission(inode, mask, flags, NULL);
 }
 
 static int logfs_link(struct dentry *old_dentry, struct inode *dir,
@@ -820,7 +811,6 @@ const struct inode_operations logfs_dir_iops = {
 	.mknod		= logfs_mknod,
 	.rename		= logfs_rename,
 	.rmdir		= logfs_rmdir,
-	.permission	= logfs_permission,
 	.symlink	= logfs_symlink,
 	.unlink		= logfs_unlink,
 };

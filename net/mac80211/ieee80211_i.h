@@ -202,7 +202,22 @@ struct ieee80211_rx_data {
 	struct ieee80211_key *key;
 
 	unsigned int flags;
-	int queue;
+
+	/*
+	 * Index into sequence numbers array, 0..16
+	 * since the last (16) is used for non-QoS,
+	 * will be 16 on non-QoS frames.
+	 */
+	int seqno_idx;
+
+	/*
+	 * Index into the security IV/PN arrays, 0..16
+	 * since the last (16) is used for CCMP-encrypted
+	 * management frames, will be set to 16 on mgmt
+	 * frames and 0 on non-QoS frames.
+	 */
+	int security_idx;
+
 	u32 tkip_iv32;
 	u16 tkip_iv16;
 };
@@ -308,6 +323,7 @@ struct ieee80211_work {
 			u8 key[WLAN_KEY_LEN_WEP104];
 			u8 key_len, key_idx;
 			bool privacy;
+			bool synced;
 		} probe_auth;
 		struct {
 			struct cfg80211_bss *bss;
@@ -321,6 +337,7 @@ struct ieee80211_work {
 			u8 ssid_len;
 			u8 supp_rates_len;
 			bool wmm_used, use_11n, uapsd_used;
+			bool synced;
 		} assoc;
 		struct {
 			u32 duration;
@@ -417,6 +434,14 @@ struct ieee80211_if_managed {
 	 * generated for the current association.
 	 */
 	int last_cqm_event_signal;
+
+	/*
+	 * State variables for keeping track of RSSI of the AP currently
+	 * connected to and informing driver when RSSI has gone
+	 * below/above a certain threshold.
+	 */
+	int rssi_min_thold, rssi_max_thold;
+	int last_ave_beacon_signal;
 };
 
 struct ieee80211_if_ibss {
@@ -515,12 +540,14 @@ struct ieee80211_if_mesh {
  * @IEEE80211_SDATA_DONT_BRIDGE_PACKETS: bridge packets between
  *	associated stations and deliver multicast frames both
  *	back to wireless media and to the local net stack.
+ * @IEEE80211_SDATA_DISCONNECT_RESUME: Disconnect after resume.
  */
 enum ieee80211_sub_if_data_flags {
 	IEEE80211_SDATA_ALLMULTI		= BIT(0),
 	IEEE80211_SDATA_PROMISC			= BIT(1),
 	IEEE80211_SDATA_OPERATING_GMODE		= BIT(2),
 	IEEE80211_SDATA_DONT_BRIDGE_PACKETS	= BIT(3),
+	IEEE80211_SDATA_DISCONNECT_RESUME	= BIT(4),
 };
 
 /**
@@ -543,6 +570,9 @@ struct ieee80211_sub_if_data {
 
 	/* keys */
 	struct list_head key_list;
+
+	/* count for keys needing tailroom space allocation */
+	int crypto_tx_tailroom_needed_cnt;
 
 	struct net_device *dev;
 	struct ieee80211_local *local;
@@ -718,6 +748,7 @@ struct ieee80211_local {
 	struct workqueue_struct *workqueue;
 
 	unsigned long queue_stop_reasons[IEEE80211_MAX_QUEUES];
+	struct ieee80211_tx_queue_params tx_conf[IEEE80211_MAX_QUEUES];
 	/* also used to protect ampdu_ac_queue and amdpu_ac_stop_refcnt */
 	spinlock_t queue_stop_reason_lock;
 
@@ -774,9 +805,6 @@ struct ieee80211_local {
 	bool wowlan;
 
 	int tx_headroom; /* required headroom for hardware/radiotap */
-
-	/* count for keys needing tailroom space allocation */
-	int crypto_tx_tailroom_needed_cnt;
 
 	/* Tasklet and skb queue to process calls from IRQ mode. All frames
 	 * added to skb_queue will be processed, but frames in
@@ -1351,12 +1379,14 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 			     enum ieee80211_band band, u32 rate_mask,
 			     u8 channel);
 struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
-					  u8 *dst,
+					  u8 *dst, u32 ratemask,
 					  const u8 *ssid, size_t ssid_len,
-					  const u8 *ie, size_t ie_len);
+					  const u8 *ie, size_t ie_len,
+					  bool directed);
 void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 			      const u8 *ssid, size_t ssid_len,
-			      const u8 *ie, size_t ie_len);
+			      const u8 *ie, size_t ie_len,
+			      u32 ratemask, bool directed);
 
 void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
 				  const size_t supp_rates_len,

@@ -326,3 +326,52 @@ int kvm_s390_handle_b2(struct kvm_vcpu *vcpu)
 	}
 	return -EOPNOTSUPP;
 }
+
+static int handle_tprot(struct kvm_vcpu *vcpu)
+{
+	int base1 = (vcpu->arch.sie_block->ipb & 0xf0000000) >> 28;
+	int disp1 = (vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16;
+	int base2 = (vcpu->arch.sie_block->ipb & 0xf000) >> 12;
+	int disp2 = vcpu->arch.sie_block->ipb & 0x0fff;
+	u64 address1 = disp1 + base1 ? vcpu->arch.guest_gprs[base1] : 0;
+	u64 address2 = disp2 + base2 ? vcpu->arch.guest_gprs[base2] : 0;
+	struct vm_area_struct *vma;
+
+	vcpu->stat.instruction_tprot++;
+
+	/* we only handle the Linux memory detection case:
+	 * access key == 0
+	 * guest DAT == off
+	 * everything else goes to userspace. */
+	if (address2 & 0xf0)
+		return -EOPNOTSUPP;
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_DAT)
+		return -EOPNOTSUPP;
+
+
+	down_read(&current->mm->mmap_sem);
+	vma = find_vma(current->mm,
+			(unsigned long) __guestaddr_to_user(vcpu, address1));
+	if (!vma) {
+		up_read(&current->mm->mmap_sem);
+		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	}
+
+	vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
+	if (!(vma->vm_flags & VM_WRITE) && (vma->vm_flags & VM_READ))
+		vcpu->arch.sie_block->gpsw.mask |= (1ul << 44);
+	if (!(vma->vm_flags & VM_WRITE) && !(vma->vm_flags & VM_READ))
+		vcpu->arch.sie_block->gpsw.mask |= (2ul << 44);
+
+	up_read(&current->mm->mmap_sem);
+	return 0;
+}
+
+int kvm_s390_handle_e5(struct kvm_vcpu *vcpu)
+{
+	/* For e5xx... instructions we only handle TPROT */
+	if ((vcpu->arch.sie_block->ipa & 0x00ff) == 0x01)
+		return handle_tprot(vcpu);
+	return -EOPNOTSUPP;
+}
+

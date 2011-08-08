@@ -330,7 +330,7 @@ static int cx81801_hangup(struct tty_struct *tty)
 	return 0;
 }
 
-/* Line discipline .recieve_buf() */
+/* Line discipline .receive_buf() */
 static void cx81801_receive(struct tty_struct *tty,
 				const unsigned char *cp, char *fp, int count)
 {

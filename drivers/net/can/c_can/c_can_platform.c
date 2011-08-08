@@ -20,7 +20,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -28,7 +27,6 @@
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
 #include <linux/list.h>
-#include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>

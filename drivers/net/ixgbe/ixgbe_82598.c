@@ -1242,6 +1242,47 @@ static void ixgbe_set_lan_id_multi_port_pcie_82598(struct ixgbe_hw *hw)
 	}
 }
 
+/**
+ * ixgbe_set_rxpba_82598 - Configure packet buffers
+ * @hw: pointer to hardware structure
+ * @dcb_config: pointer to ixgbe_dcb_config structure
+ *
+ * Configure packet buffers.
+ */
+static void ixgbe_set_rxpba_82598(struct ixgbe_hw *hw, int num_pb, u32 headroom,
+				  int strategy)
+{
+	u32 rxpktsize = IXGBE_RXPBSIZE_64KB;
+	u8  i = 0;
+
+	if (!num_pb)
+		return;
+
+	/* Setup Rx packet buffer sizes */
+	switch (strategy) {
+	case PBA_STRATEGY_WEIGHTED:
+		/* Setup the first four at 80KB */
+		rxpktsize = IXGBE_RXPBSIZE_80KB;
+		for (; i < 4; i++)
+			IXGBE_WRITE_REG(hw, IXGBE_RXPBSIZE(i), rxpktsize);
+		/* Setup the last four at 48KB...don't re-init i */
+		rxpktsize = IXGBE_RXPBSIZE_48KB;
+		/* Fall Through */
+	case PBA_STRATEGY_EQUAL:
+	default:
+		/* Divide the remaining Rx packet buffer evenly among the TCs */
+		for (; i < IXGBE_MAX_PACKET_BUFFERS; i++)
+			IXGBE_WRITE_REG(hw, IXGBE_RXPBSIZE(i), rxpktsize);
+		break;
+	}
+
+	/* Setup Tx packet buffer sizes */
+	for (i = 0; i < IXGBE_MAX_PACKET_BUFFERS; i++)
+		IXGBE_WRITE_REG(hw, IXGBE_TXPBSIZE(i), IXGBE_TXPBSIZE_40KB);
+
+	return;
+}
+
 static struct ixgbe_mac_operations mac_ops_82598 = {
 	.init_hw		= &ixgbe_init_hw_generic,
 	.reset_hw		= &ixgbe_reset_hw_82598,
@@ -1257,6 +1298,7 @@ static struct ixgbe_mac_operations mac_ops_82598 = {
 	.read_analog_reg8	= &ixgbe_read_analog_reg8_82598,
 	.write_analog_reg8	= &ixgbe_write_analog_reg8_82598,
 	.setup_link		= &ixgbe_setup_mac_link_82598,
+	.set_rxpba		= &ixgbe_set_rxpba_82598,
 	.check_link		= &ixgbe_check_mac_link_82598,
 	.get_link_capabilities	= &ixgbe_get_link_capabilities_82598,
 	.led_on			= &ixgbe_led_on_generic,
@@ -1274,6 +1316,7 @@ static struct ixgbe_mac_operations mac_ops_82598 = {
 	.clear_vfta		= &ixgbe_clear_vfta_82598,
 	.set_vfta		= &ixgbe_set_vfta_82598,
 	.fc_enable		= &ixgbe_fc_enable_82598,
+	.set_fw_drv_ver         = NULL,
 	.acquire_swfw_sync      = &ixgbe_acquire_swfw_sync,
 	.release_swfw_sync      = &ixgbe_release_swfw_sync,
 };

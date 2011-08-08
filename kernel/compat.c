@@ -158,6 +158,7 @@ int put_compat_timespec(const struct timespec *ts, struct compat_timespec __user
 			__put_user(ts->tv_sec, &cts->tv_sec) ||
 			__put_user(ts->tv_nsec, &cts->tv_nsec)) ? -EFAULT : 0;
 }
+EXPORT_SYMBOL_GPL(put_compat_timespec);
 
 static long compat_nanosleep_restart(struct restart_block *restart)
 {
@@ -890,6 +891,7 @@ sigset_from_compat (sigset_t *set, compat_sigset_t *compat)
 	case 1: set->sig[0] = compat->sig[0] | (((long)compat->sig[1]) << 32 );
 	}
 }
+EXPORT_SYMBOL_GPL(sigset_from_compat);
 
 asmlinkage long
 compat_sys_rt_sigtimedwait (compat_sigset_t __user *uthese,
@@ -991,11 +993,8 @@ asmlinkage long compat_sys_rt_sigsuspend(compat_sigset_t __user *unewset, compat
 	sigset_from_compat(&newset, &newset32);
 	sigdelsetmask(&newset, sigmask(SIGKILL)|sigmask(SIGSTOP));
 
-	spin_lock_irq(&current->sighand->siglock);
 	current->saved_sigmask = current->blocked;
-	current->blocked = newset;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+	set_current_blocked(&newset);
 
 	current->state = TASK_INTERRUPTIBLE;
 	schedule();

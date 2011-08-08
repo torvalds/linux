@@ -143,7 +143,7 @@ static int ad799x_read_raw(struct iio_dev *dev_info,
 			   long m)
 {
 	int ret;
-	struct ad799x_state *st = dev_info->dev_data;
+	struct ad799x_state *st = iio_priv(dev_info);
 	unsigned int scale_uv;
 
 	switch (m) {
@@ -176,7 +176,7 @@ static ssize_t ad799x_read_frequency(struct device *dev,
 					char *buf)
 {
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad799x_state *st = iio_dev_get_devdata(dev_info);
+	struct ad799x_state *st = iio_priv(dev_info);
 
 	int ret, len = 0;
 	u8 val;
@@ -221,7 +221,7 @@ static ssize_t ad799x_write_frequency(struct device *dev,
 					 size_t len)
 {
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad799x_state *st = iio_dev_get_devdata(dev_info);
+	struct ad799x_state *st = iio_priv(dev_info);
 
 	long val;
 	int ret;
@@ -281,7 +281,7 @@ static ssize_t ad799x_read_channel_config(struct device *dev,
 					char *buf)
 {
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad799x_state *st = iio_dev_get_devdata(dev_info);
+	struct ad799x_state *st = iio_priv(dev_info);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 
 	int ret;
@@ -299,7 +299,7 @@ static ssize_t ad799x_write_channel_config(struct device *dev,
 					 size_t len)
 {
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad799x_state *st = iio_dev_get_devdata(dev_info);
+	struct ad799x_state *st = iio_priv(dev_info);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 
 	long val;
@@ -319,7 +319,7 @@ static ssize_t ad799x_write_channel_config(struct device *dev,
 static irqreturn_t ad799x_event_handler(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
-	struct ad799x_state *st = iio_dev_get_devdata(private);
+	struct ad799x_state *st = iio_priv(private);
 	u8 status;
 	int i, ret;
 
@@ -686,7 +686,6 @@ static int __devinit ad799x_probe(struct i2c_client *client,
 	indio_dev->name = id->name;
 	indio_dev->info = st->chip_info->info;
 	indio_dev->name = id->name;
-	indio_dev->dev_data = (void *)(st);
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->chip_info->channel;

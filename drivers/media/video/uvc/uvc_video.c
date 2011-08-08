@@ -19,7 +19,7 @@
 #include <linux/videodev2.h>
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/unaligned.h>
 
 #include <media/v4l2-common.h>
@@ -1255,8 +1255,10 @@ int uvc_video_enable(struct uvc_streaming *stream, int enable)
 
 	/* Commit the streaming parameters. */
 	ret = uvc_commit_video(stream, &stream->ctrl);
-	if (ret < 0)
+	if (ret < 0) {
+		uvc_queue_enable(&stream->queue, 0);
 		return ret;
+	}
 
 	return uvc_init_video(stream, GFP_KERNEL);
 }

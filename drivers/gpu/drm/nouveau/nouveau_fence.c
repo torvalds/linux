@@ -336,34 +336,32 @@ semaphore_acquire(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 {
 	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
 	struct nouveau_fence *fence = NULL;
+	u64 offset = chan->fence.vma.offset + sema->mem->start;
 	int ret;
 
 	if (dev_priv->chipset < 0x84) {
-		ret = RING_SPACE(chan, 3);
+		ret = RING_SPACE(chan, 4);
 		if (ret)
 			return ret;
 
-		BEGIN_RING(chan, NvSubSw, NV_SW_SEMAPHORE_OFFSET, 2);
-		OUT_RING  (chan, sema->mem->start);
+		BEGIN_RING(chan, NvSubSw, NV_SW_DMA_SEMAPHORE, 3);
+		OUT_RING  (chan, NvSema);
+		OUT_RING  (chan, offset);
 		OUT_RING  (chan, 1);
 	} else
 	if (dev_priv->chipset < 0xc0) {
-		struct nouveau_vma *vma = &dev_priv->fence.bo->vma;
-		u64 offset = vma->offset + sema->mem->start;
-
-		ret = RING_SPACE(chan, 5);
+		ret = RING_SPACE(chan, 7);
 		if (ret)
 			return ret;
 
+		BEGIN_RING(chan, NvSubSw, NV_SW_DMA_SEMAPHORE, 1);
+		OUT_RING  (chan, chan->vram_handle);
 		BEGIN_RING(chan, NvSubSw, 0x0010, 4);
 		OUT_RING  (chan, upper_32_bits(offset));
 		OUT_RING  (chan, lower_32_bits(offset));
 		OUT_RING  (chan, 1);
 		OUT_RING  (chan, 1); /* ACQUIRE_EQ */
 	} else {
-		struct nouveau_vma *vma = &dev_priv->fence.bo->vma;
-		u64 offset = vma->offset + sema->mem->start;
-
 		ret = RING_SPACE(chan, 5);
 		if (ret)
 			return ret;
@@ -391,35 +389,33 @@ semaphore_release(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 {
 	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
 	struct nouveau_fence *fence = NULL;
+	u64 offset = chan->fence.vma.offset + sema->mem->start;
 	int ret;
 
 	if (dev_priv->chipset < 0x84) {
-		ret = RING_SPACE(chan, 4);
-		if (ret)
-			return ret;
-
-		BEGIN_RING(chan, NvSubSw, NV_SW_SEMAPHORE_OFFSET, 1);
-		OUT_RING  (chan, sema->mem->start);
-		BEGIN_RING(chan, NvSubSw, NV_SW_SEMAPHORE_RELEASE, 1);
-		OUT_RING  (chan, 1);
-	} else
-	if (dev_priv->chipset < 0xc0) {
-		struct nouveau_vma *vma = &dev_priv->fence.bo->vma;
-		u64 offset = vma->offset + sema->mem->start;
-
 		ret = RING_SPACE(chan, 5);
 		if (ret)
 			return ret;
 
+		BEGIN_RING(chan, NvSubSw, NV_SW_DMA_SEMAPHORE, 2);
+		OUT_RING  (chan, NvSema);
+		OUT_RING  (chan, offset);
+		BEGIN_RING(chan, NvSubSw, NV_SW_SEMAPHORE_RELEASE, 1);
+		OUT_RING  (chan, 1);
+	} else
+	if (dev_priv->chipset < 0xc0) {
+		ret = RING_SPACE(chan, 7);
+		if (ret)
+			return ret;
+
+		BEGIN_RING(chan, NvSubSw, NV_SW_DMA_SEMAPHORE, 1);
+		OUT_RING  (chan, chan->vram_handle);
 		BEGIN_RING(chan, NvSubSw, 0x0010, 4);
 		OUT_RING  (chan, upper_32_bits(offset));
 		OUT_RING  (chan, lower_32_bits(offset));
 		OUT_RING  (chan, 1);
 		OUT_RING  (chan, 2); /* RELEASE */
 	} else {
-		struct nouveau_vma *vma = &dev_priv->fence.bo->vma;
-		u64 offset = vma->offset + sema->mem->start;
-
 		ret = RING_SPACE(chan, 5);
 		if (ret)
 			return ret;
@@ -504,22 +500,22 @@ nouveau_fence_channel_init(struct nouveau_channel *chan)
 	struct nouveau_gpuobj *obj = NULL;
 	int ret;
 
-	if (dev_priv->card_type >= NV_C0)
-		goto out_initialised;
+	if (dev_priv->card_type < NV_C0) {
+		/* Create an NV_SW object for various sync purposes */
+		ret = nouveau_gpuobj_gr_new(chan, NvSw, NV_SW);
+		if (ret)
+			return ret;
 
-	/* Create an NV_SW object for various sync purposes */
-	ret = nouveau_gpuobj_gr_new(chan, NvSw, NV_SW);
-	if (ret)
-		return ret;
+		ret = RING_SPACE(chan, 2);
+		if (ret)
+			return ret;
 
-	/* we leave subchannel empty for nvc0 */
-	ret = RING_SPACE(chan, 2);
-	if (ret)
-		return ret;
-	BEGIN_RING(chan, NvSubSw, 0, 1);
-	OUT_RING(chan, NvSw);
+		BEGIN_RING(chan, NvSubSw, 0, 1);
+		OUT_RING  (chan, NvSw);
+		FIRE_RING (chan);
+	}
 
-	/* Create a DMA object for the shared cross-channel sync area. */
+	/* Setup area of memory shared between all channels for x-chan sync */
 	if (USE_SEMA(dev) && dev_priv->chipset < 0x84) {
 		struct ttm_mem_reg *mem = &dev_priv->fence.bo->bo.mem;
 
@@ -534,23 +530,14 @@ nouveau_fence_channel_init(struct nouveau_channel *chan)
 		nouveau_gpuobj_ref(NULL, &obj);
 		if (ret)
 			return ret;
-
-		ret = RING_SPACE(chan, 2);
-		if (ret)
-			return ret;
-		BEGIN_RING(chan, NvSubSw, NV_SW_DMA_SEMAPHORE, 1);
-		OUT_RING(chan, NvSema);
 	} else {
-		ret = RING_SPACE(chan, 2);
+		/* map fence bo into channel's vm */
+		ret = nouveau_bo_vma_add(dev_priv->fence.bo, chan->vm,
+					 &chan->fence.vma);
 		if (ret)
 			return ret;
-		BEGIN_RING(chan, NvSubSw, NV_SW_DMA_SEMAPHORE, 1);
-		OUT_RING  (chan, chan->vram_handle); /* whole VM */
 	}
 
-	FIRE_RING(chan);
-
-out_initialised:
 	INIT_LIST_HEAD(&chan->fence.pending);
 	spin_lock_init(&chan->fence.lock);
 	atomic_set(&chan->fence.last_sequence_irq, 0);
@@ -560,10 +547,10 @@ out_initialised:
 void
 nouveau_fence_channel_fini(struct nouveau_channel *chan)
 {
+	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
 	struct nouveau_fence *tmp, *fence;
 
 	spin_lock(&chan->fence.lock);
-
 	list_for_each_entry_safe(fence, tmp, &chan->fence.pending, entry) {
 		fence->signalled = true;
 		list_del(&fence->entry);
@@ -573,8 +560,9 @@ nouveau_fence_channel_fini(struct nouveau_channel *chan)
 
 		kref_put(&fence->refcount, nouveau_fence_del);
 	}
-
 	spin_unlock(&chan->fence.lock);
+
+	nouveau_bo_vma_del(dev_priv->fence.bo, &chan->fence.vma);
 }
 
 int
@@ -586,7 +574,7 @@ nouveau_fence_init(struct drm_device *dev)
 
 	/* Create a shared VRAM heap for cross-channel sync. */
 	if (USE_SEMA(dev)) {
-		ret = nouveau_bo_new(dev, NULL, size, 0, TTM_PL_FLAG_VRAM,
+		ret = nouveau_bo_new(dev, size, 0, TTM_PL_FLAG_VRAM,
 				     0, 0, &dev_priv->fence.bo);
 		if (ret)
 			return ret;

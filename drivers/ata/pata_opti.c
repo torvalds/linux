@@ -167,10 +167,8 @@ static int opti_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.port_ops = &opti_port_ops
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
-	static int printed_version;
 
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &dev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&dev->dev, DRV_VERSION);
 
 	return ata_pci_sff_init_one(dev, ppi, &opti_sht, NULL, 0);
 }

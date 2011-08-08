@@ -2574,7 +2574,7 @@ static int s3c_hsotg_corereset(struct s3c_hsotg *hsotg)
 	return 0;
 }
 
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int s3c_hsotg_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	struct s3c_hsotg *hsotg = our_hsotg;
@@ -2680,9 +2680,9 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 
 	writel(0, hsotg->regs + S3C_DAINTMSK);
 
-	dev_info(hsotg->dev, "EP0: DIEPCTL0=0x%08x, DOEPCTL0=0x%08x\n",
-		 readl(hsotg->regs + S3C_DIEPCTL0),
-		 readl(hsotg->regs + S3C_DOEPCTL0));
+	dev_dbg(hsotg->dev, "EP0: DIEPCTL0=0x%08x, DOEPCTL0=0x%08x\n",
+		readl(hsotg->regs + S3C_DIEPCTL0),
+		readl(hsotg->regs + S3C_DOEPCTL0));
 
 	/* enable in and out endpoint interrupts */
 	s3c_hsotg_en_gsint(hsotg, S3C_GINTSTS_OEPInt | S3C_GINTSTS_IEPInt);
@@ -2701,7 +2701,7 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 	udelay(10);  /* see openiboot */
 	__bic32(hsotg->regs + S3C_DCTL, S3C_DCTL_PWROnPrgDone);
 
-	dev_info(hsotg->dev, "DCTL=0x%08x\n", readl(hsotg->regs + S3C_DCTL));
+	dev_dbg(hsotg->dev, "DCTL=0x%08x\n", readl(hsotg->regs + S3C_DCTL));
 
 	/* S3C_DxEPCTL_USBActEp says RO in manual, but seems to be set by
 	   writing to the EPCTL register.. */
@@ -2721,9 +2721,9 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 
 	s3c_hsotg_enqueue_setup(hsotg);
 
-	dev_info(hsotg->dev, "EP0: DIEPCTL0=0x%08x, DOEPCTL0=0x%08x\n",
-		 readl(hsotg->regs + S3C_DIEPCTL0),
-		 readl(hsotg->regs + S3C_DOEPCTL0));
+	dev_dbg(hsotg->dev, "EP0: DIEPCTL0=0x%08x, DOEPCTL0=0x%08x\n",
+		readl(hsotg->regs + S3C_DIEPCTL0),
+		readl(hsotg->regs + S3C_DOEPCTL0));
 
 	/* clear global NAKs */
 	writel(S3C_DCTL_CGOUTNak | S3C_DCTL_CGNPInNAK,
@@ -2745,9 +2745,8 @@ err:
 	hsotg->gadget.dev.driver = NULL;
 	return ret;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int s3c_hsotg_stop(struct usb_gadget_driver *driver)
 {
 	struct s3c_hsotg *hsotg = our_hsotg;
 	int ep;
@@ -2775,7 +2774,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 static int s3c_hsotg_gadget_getframe(struct usb_gadget *gadget)
 {
@@ -2784,6 +2782,8 @@ static int s3c_hsotg_gadget_getframe(struct usb_gadget *gadget)
 
 static struct usb_gadget_ops s3c_hsotg_gadget_ops = {
 	.get_frame	= s3c_hsotg_gadget_getframe,
+	.start		= s3c_hsotg_start,
+	.stop		= s3c_hsotg_stop,
 };
 
 /**
@@ -2921,9 +2921,9 @@ static void s3c_hsotg_init(struct s3c_hsotg *hsotg)
 
 	/* setup fifos */
 
-	dev_info(hsotg->dev, "GRXFSIZ=0x%08x, GNPTXFSIZ=0x%08x\n",
-		 readl(hsotg->regs + S3C_GRXFSIZ),
-		 readl(hsotg->regs + S3C_GNPTXFSIZ));
+	dev_dbg(hsotg->dev, "GRXFSIZ=0x%08x, GNPTXFSIZ=0x%08x\n",
+		readl(hsotg->regs + S3C_GRXFSIZ),
+		readl(hsotg->regs + S3C_GNPTXFSIZ));
 
 	s3c_hsotg_init_fifo(hsotg);
 
@@ -2945,6 +2945,7 @@ static void s3c_hsotg_init(struct s3c_hsotg *hsotg)
 
 static void s3c_hsotg_dump(struct s3c_hsotg *hsotg)
 {
+#ifdef DEBUG
 	struct device *dev = hsotg->dev;
 	void __iomem *regs = hsotg->regs;
 	u32 val;
@@ -2987,6 +2988,7 @@ static void s3c_hsotg_dump(struct s3c_hsotg *hsotg)
 
 	dev_info(dev, "DVBUSDIS=0x%08x, DVBUSPULSE=%08x\n",
 		 readl(regs + S3C_DVBUSDIS), readl(regs + S3C_DVBUSPULSE));
+#endif
 }
 
 
@@ -3401,12 +3403,21 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 	for (epnum = 0; epnum < S3C_HSOTG_EPS; epnum++)
 		s3c_hsotg_initep(hsotg, &hsotg->eps[epnum], epnum);
 
+	ret = usb_add_gadget_udc(&pdev->dev, &hsotg->gadget);
+	if (ret)
+		goto err_add_udc;
+
 	s3c_hsotg_create_debug(hsotg);
 
 	s3c_hsotg_dump(hsotg);
 
 	our_hsotg = hsotg;
 	return 0;
+
+err_add_udc:
+	s3c_hsotg_gate(pdev, false);
+	clk_disable(hsotg->clk);
+	clk_put(hsotg->clk);
 
 err_regs:
 	iounmap(hsotg->regs);
@@ -3424,6 +3435,8 @@ err_mem:
 static int __devexit s3c_hsotg_remove(struct platform_device *pdev)
 {
 	struct s3c_hsotg *hsotg = platform_get_drvdata(pdev);
+
+	usb_del_gadget_udc(&hsotg->gadget);
 
 	s3c_hsotg_delete_debug(hsotg);
 

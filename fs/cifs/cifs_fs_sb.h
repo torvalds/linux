@@ -42,6 +42,7 @@
 #define CIFS_MOUNT_MULTIUSER	0x20000 /* multiuser mount */
 #define CIFS_MOUNT_STRICT_IO	0x40000 /* strict cache mode */
 #define CIFS_MOUNT_RWPIDFORWARD	0x80000 /* use pid forwarding for rw */
+#define CIFS_MOUNT_POSIXACL	0x100000 /* mirror of MS_POSIXACL in mnt_cifs_flags */
 
 struct cifs_sb_info {
 	struct rb_root tlink_tree;

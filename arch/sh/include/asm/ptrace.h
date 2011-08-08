@@ -45,8 +45,6 @@
 #define GET_FP(regs)	((regs)->regs[14])
 #define GET_USP(regs)	((regs)->regs[15])
 
-extern void show_regs(struct pt_regs *);
-
 #define arch_has_single_step()	(1)
 
 /*

@@ -256,7 +256,7 @@ static void uwbd_event_handle(struct uwb_event *evt)
  * UWB Daemon
  *
  * Listens to all UWB notifications and takes care to track the state
- * of the UWB neighboorhood for the kernel. When we do a run, we
+ * of the UWB neighbourhood for the kernel. When we do a run, we
  * spinlock, move the list to a private copy and release the
  * lock. Hold it as little as possible. Not a conflict: it is
  * guaranteed we own the events in the private list.

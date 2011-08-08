@@ -826,7 +826,8 @@ static void ib_uverbs_remove_one(struct ib_device *device)
 
 static char *uverbs_devnode(struct device *dev, mode_t *mode)
 {
-	*mode = 0666;
+	if (mode)
+		*mode = 0666;
 	return kasprintf(GFP_KERNEL, "infiniband/%s", dev_name(dev));
 }
 

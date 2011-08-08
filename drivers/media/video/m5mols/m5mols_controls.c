@@ -2,10 +2,10 @@
  * Controls for M-5MOLS 8M Pixel camera sensor with ISP
  *
  * Copyright (C) 2011 Samsung Electronics Co., Ltd.
- * Author: HeungJun Kim, riverful.kim@samsung.com
+ * Author: HeungJun Kim <riverful.kim@samsung.com>
  *
  * Copyright (C) 2009 Samsung Electronics Co., Ltd.
- * Author: Dongsoo Nathaniel Kim, dongsoo45.kim@samsung.com
+ * Author: Dongsoo Nathaniel Kim <dongsoo45.kim@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -130,7 +130,7 @@ static struct m5mols_scenemode m5mols_default_scenemode[] = {
  *
  * WARNING: The execution order is important. Do not change the order.
  */
-int m5mols_do_scenemode(struct m5mols_info *info, u32 mode)
+int m5mols_do_scenemode(struct m5mols_info *info, u8 mode)
 {
 	struct v4l2_subdev *sd = &info->sd;
 	struct m5mols_scenemode scenemode = m5mols_default_scenemode[mode];

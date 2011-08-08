@@ -316,7 +316,7 @@ nfs3_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		 int flags, struct nfs_open_context *ctx)
 {
 	struct nfs3_createdata *data;
-	mode_t mode = sattr->ia_mode;
+	umode_t mode = sattr->ia_mode;
 	int status = -ENOMEM;
 
 	dprintk("NFS call  create %s\n", dentry->d_name.name);
@@ -562,7 +562,7 @@ static int
 nfs3_proc_mkdir(struct inode *dir, struct dentry *dentry, struct iattr *sattr)
 {
 	struct nfs3_createdata *data;
-	int mode = sattr->ia_mode;
+	umode_t mode = sattr->ia_mode;
 	int status = -ENOMEM;
 
 	dprintk("NFS call  mkdir %s\n", dentry->d_name.name);
@@ -681,7 +681,7 @@ nfs3_proc_mknod(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		dev_t rdev)
 {
 	struct nfs3_createdata *data;
-	mode_t mode = sattr->ia_mode;
+	umode_t mode = sattr->ia_mode;
 	int status = -ENOMEM;
 
 	dprintk("NFS call  mknod %s %u:%u\n", dentry->d_name.name,

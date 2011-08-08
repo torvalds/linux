@@ -264,7 +264,7 @@ mpc52xx_pci_setup(struct pci_controller *hose,
 			 (unsigned long long)res->flags);
 		out_be32(&pci_regs->iw0btar,
 		         MPC52xx_PCI_IWBTAR_TRANSLATION(res->start, res->start,
-		                  res->end - res->start + 1));
+							resource_size(res)));
 		iwcr0 = MPC52xx_PCI_IWCR_ENABLE | MPC52xx_PCI_IWCR_MEM;
 		if (res->flags & IORESOURCE_PREFETCH)
 			iwcr0 |= MPC52xx_PCI_IWCR_READ_MULTI;
@@ -278,7 +278,7 @@ mpc52xx_pci_setup(struct pci_controller *hose,
 		         res->start, res->end, res->flags);
 		out_be32(&pci_regs->iw1btar,
 		         MPC52xx_PCI_IWBTAR_TRANSLATION(res->start, res->start,
-		                  res->end - res->start + 1));
+							resource_size(res)));
 		iwcr1 = MPC52xx_PCI_IWCR_ENABLE | MPC52xx_PCI_IWCR_MEM;
 		if (res->flags & IORESOURCE_PREFETCH)
 			iwcr1 |= MPC52xx_PCI_IWCR_READ_MULTI;
@@ -300,7 +300,7 @@ mpc52xx_pci_setup(struct pci_controller *hose,
 	out_be32(&pci_regs->iw2btar,
 	         MPC52xx_PCI_IWBTAR_TRANSLATION(hose->io_base_phys,
 	                                        res->start,
-	                                        res->end - res->start + 1));
+						resource_size(res)));
 	iwcr2 = MPC52xx_PCI_IWCR_ENABLE | MPC52xx_PCI_IWCR_IO;
 
 	/* Set all the IWCR fields at once; they're in the same reg */
@@ -371,7 +371,7 @@ mpc52xx_add_bridge(struct device_node *node)
 
 	pr_debug("Adding MPC52xx PCI host bridge %s\n", node->full_name);
 
-	ppc_pci_add_flags(PPC_PCI_REASSIGN_ALL_BUS);
+	pci_add_flags(PCI_REASSIGN_ALL_BUS);
 
 	if (of_address_to_resource(node, 0, &rsrc) != 0) {
 		printk(KERN_ERR "Can't get %s resources\n", node->full_name);
@@ -402,7 +402,7 @@ mpc52xx_add_bridge(struct device_node *node)
 
 	hose->ops = &mpc52xx_pci_ops;
 
-	pci_regs = ioremap(rsrc.start, rsrc.end - rsrc.start + 1);
+	pci_regs = ioremap(rsrc.start, resource_size(&rsrc));
 	if (!pci_regs)
 		return -ENOMEM;
 

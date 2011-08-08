@@ -68,7 +68,6 @@ config VIDEO_V4L2_SUBDEV_API
 
 config DVB_CORE
 	tristate "DVB for Linux"
-	depends on NET && INET
 	select CRC32
 	help
 	  DVB core utility functions for device handling, software fallbacks etc.
@@ -84,6 +83,19 @@ config DVB_CORE
 	  mailing list.
 
 	  If unsure say N.
+
+config DVB_NET
+	bool "DVB Network Support"
+	default (NET && INET)
+	depends on NET && INET && DVB_CORE
+	help
+	  This option enables DVB Network Support which is a part of the DVB
+	  standard. It is used, for example, by automatic firmware updates used
+	  on Set-Top-Boxes. It can also be used to access the Internet via the
+	  DVB card, if the network provider supports it.
+
+	  You may want to disable the network support on embedded devices. If
+	  unsure say Y.
 
 config VIDEO_MEDIA
 	tristate

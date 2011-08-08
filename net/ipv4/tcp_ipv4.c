@@ -72,6 +72,7 @@
 #include <net/timewait_sock.h>
 #include <net/xfrm.h>
 #include <net/netdma.h>
+#include <net/secure_seq.h>
 
 #include <linux/inet.h>
 #include <linux/ipv6.h>
@@ -429,8 +430,8 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 			break;
 
 		icsk->icsk_backoff--;
-		inet_csk(sk)->icsk_rto = __tcp_set_rto(tp) <<
-					 icsk->icsk_backoff;
+		inet_csk(sk)->icsk_rto = (tp->srtt ? __tcp_set_rto(tp) :
+			TCP_TIMEOUT_INIT) << icsk->icsk_backoff;
 		tcp_bound_rto(sk);
 
 		skb = tcp_write_queue_head(sk);
@@ -1384,6 +1385,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 		isn = tcp_v4_init_sequence(skb);
 	}
 	tcp_rsk(req)->snt_isn = isn;
+	tcp_rsk(req)->snt_synack = tcp_time_stamp;
 
 	if (tcp_v4_send_synack(sk, dst, req,
 			       (struct request_values *)&tmp_ext) ||
@@ -1458,6 +1460,10 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 		newtp->advmss = tcp_sk(sk)->rx_opt.user_mss;
 
 	tcp_initialize_rcv_mss(newsk);
+	if (tcp_rsk(req)->snt_synack)
+		tcp_valid_rtt_meas(newsk,
+		    tcp_time_stamp - tcp_rsk(req)->snt_synack);
+	newtp->total_retrans = req->retrans;
 
 #ifdef CONFIG_TCP_MD5SIG
 	/* Copy over the MD5 key from the original socket */
@@ -1589,6 +1595,7 @@ int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 			goto discard;
 
 		if (nsk != sk) {
+			sock_rps_save_rxhash(nsk, skb->rxhash);
 			if (tcp_child_process(sk, nsk, skb)) {
 				rsk = nsk;
 				goto reset;
@@ -1854,7 +1861,7 @@ static int tcp_v4_init_sock(struct sock *sk)
 	 * algorithms that we must have the following bandaid to talk
 	 * efficiently to them.  -DaveM
 	 */
-	tp->snd_cwnd = 2;
+	tp->snd_cwnd = TCP_INIT_CWND;
 
 	/* See draft-stevens-tcpca-spec-01 for discussion of the
 	 * initialization of these values.

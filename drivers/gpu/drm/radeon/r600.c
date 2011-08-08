@@ -87,6 +87,10 @@ MODULE_FIRMWARE("radeon/CYPRESS_rlc.bin");
 MODULE_FIRMWARE("radeon/PALM_pfp.bin");
 MODULE_FIRMWARE("radeon/PALM_me.bin");
 MODULE_FIRMWARE("radeon/SUMO_rlc.bin");
+MODULE_FIRMWARE("radeon/SUMO_pfp.bin");
+MODULE_FIRMWARE("radeon/SUMO_me.bin");
+MODULE_FIRMWARE("radeon/SUMO2_pfp.bin");
+MODULE_FIRMWARE("radeon/SUMO2_me.bin");
 
 int r600_debugfs_mc_info_init(struct radeon_device *rdev);
 
@@ -586,6 +590,9 @@ void r600_pm_misc(struct radeon_device *rdev)
 	struct radeon_voltage *voltage = &ps->clock_info[req_cm_idx].voltage;
 
 	if ((voltage->type == VOLTAGE_SW) && voltage->voltage) {
+		/* 0xff01 is a flag rather then an actual voltage */
+		if (voltage->voltage == 0xff01)
+			return;
 		if (voltage->voltage != rdev->pm.current_vddc) {
 			radeon_atom_set_voltage(rdev, voltage->voltage, SET_VOLTAGE_TYPE_ASIC_VDDC);
 			rdev->pm.current_vddc = voltage->voltage;
@@ -1655,6 +1662,7 @@ void r600_gpu_init(struct radeon_device *rdev)
 									       R6XX_MAX_BACKENDS_MASK) >> 16)),
 							(cc_rb_backend_disable >> 16));
 	rdev->config.r600.tile_config = tiling_config;
+	rdev->config.r600.backend_map = backend_map;
 	tiling_config |= BACKEND_MAP(backend_map);
 	WREG32(GB_TILING_CONFIG, tiling_config);
 	WREG32(DCP_TILING_CONFIG, tiling_config & 0xffff);
@@ -2024,6 +2032,14 @@ int r600_init_microcode(struct radeon_device *rdev)
 		chip_name = "PALM";
 		rlc_chip_name = "SUMO";
 		break;
+	case CHIP_SUMO:
+		chip_name = "SUMO";
+		rlc_chip_name = "SUMO";
+		break;
+	case CHIP_SUMO2:
+		chip_name = "SUMO2";
+		rlc_chip_name = "SUMO";
+		break;
 	default: BUG();
 	}
 
@@ -2197,9 +2213,6 @@ int r600_cp_resume(struct radeon_device *rdev)
 
 	/* set the wb address whether it's enabled or not */
 	WREG32(CP_RB_RPTR_ADDR,
-#ifdef __BIG_ENDIAN
-	       RB_RPTR_SWAP(2) |
-#endif
 	       ((rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFFFFFFFC));
 	WREG32(CP_RB_RPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFF);
 	WREG32(SCRATCH_ADDR, ((rdev->wb.gpu_addr + RADEON_WB_SCRATCH_OFFSET) >> 8) & 0xFFFFFFFF);
@@ -2613,6 +2626,7 @@ void r600_fini(struct radeon_device *rdev)
 	r600_cp_fini(rdev);
 	r600_irq_fini(rdev);
 	radeon_wb_fini(rdev);
+	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	r600_pcie_gart_fini(rdev);
 	radeon_agp_fini(rdev);
@@ -2978,10 +2992,6 @@ int r600_irq_init(struct radeon_device *rdev)
 	/* RPTR_REARM only works if msi's are enabled */
 	if (rdev->msi_enabled)
 		ih_cntl |= RPTR_REARM;
-
-#ifdef __BIG_ENDIAN
-	ih_cntl |= IH_MC_SWAP(IH_MC_SWAP_32BIT);
-#endif
 	WREG32(IH_CNTL, ih_cntl);
 
 	/* force the active interrupt state to all disabled */
@@ -3282,16 +3292,23 @@ static inline u32 r600_get_ih_wptr(struct radeon_device *rdev)
 
 int r600_irq_process(struct radeon_device *rdev)
 {
-	u32 wptr = r600_get_ih_wptr(rdev);
-	u32 rptr = rdev->ih.rptr;
+	u32 wptr;
+	u32 rptr;
 	u32 src_id, src_data;
 	u32 ring_index;
 	unsigned long flags;
 	bool queue_hotplug = false;
 
-	DRM_DEBUG("r600_irq_process start: rptr %d, wptr %d\n", rptr, wptr);
-	if (!rdev->ih.enabled)
+	if (!rdev->ih.enabled || rdev->shutdown)
 		return IRQ_NONE;
+
+	/* No MSIs, need a dummy read to flush PCI DMAs */
+	if (!rdev->msi_enabled)
+		RREG32(IH_RB_WPTR);
+
+	wptr = r600_get_ih_wptr(rdev);
+	rptr = rdev->ih.rptr;
+	DRM_DEBUG("r600_irq_process start: rptr %d, wptr %d\n", rptr, wptr);
 
 	spin_lock_irqsave(&rdev->ih.lock, flags);
 
@@ -3299,12 +3316,11 @@ int r600_irq_process(struct radeon_device *rdev)
 		spin_unlock_irqrestore(&rdev->ih.lock, flags);
 		return IRQ_NONE;
 	}
-	if (rdev->shutdown) {
-		spin_unlock_irqrestore(&rdev->ih.lock, flags);
-		return IRQ_NONE;
-	}
 
 restart_ih:
+	/* Order reading of wptr vs. reading of IH ring data */
+	rmb();
+
 	/* display interrupts */
 	r600_irq_ack(rdev);
 
@@ -3432,7 +3448,7 @@ restart_ih:
 			radeon_fence_process(rdev);
 			break;
 		case 233: /* GUI IDLE */
-			DRM_DEBUG("IH: CP EOP\n");
+			DRM_DEBUG("IH: GUI idle\n");
 			rdev->pm.gui_idle = true;
 			wake_up(&rdev->irq.idle_queue);
 			break;

@@ -363,8 +363,7 @@ static int ieee80211_open(struct net_device *dev)
 	int err;
 
 	/* fail early if user set an invalid address */
-	if (!is_zero_ether_addr(dev->dev_addr) &&
-	    !is_valid_ether_addr(dev->dev_addr))
+	if (!is_valid_ether_addr(dev->dev_addr))
 		return -EADDRNOTAVAIL;
 
 	err = ieee80211_check_concurrent_iface(sdata, sdata->vif.type);
@@ -699,6 +698,7 @@ static const struct net_device_ops ieee80211_monitorif_ops = {
 static void ieee80211_if_setup(struct net_device *dev)
 {
 	ether_setup(dev);
+	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->netdev_ops = &ieee80211_dataif_ops;
 	dev->destructor = free_netdev;
 }
@@ -1130,8 +1130,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 	ASSERT_RTNL();
 
-	ndev = alloc_netdev_mq(sizeof(*sdata) + local->hw.vif_data_size,
-			       name, ieee80211_if_setup, local->hw.queues);
+	ndev = alloc_netdev_mqs(sizeof(*sdata) + local->hw.vif_data_size,
+				name, ieee80211_if_setup, local->hw.queues, 1);
 	if (!ndev)
 		return -ENOMEM;
 	dev_net_set(ndev, wiphy_net(local->hw.wiphy));
@@ -1144,6 +1144,10 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 				- ETH_HLEN /* ethernet hard_header_len */
 				+ IEEE80211_ENCRYPT_HEADROOM;
 	ndev->needed_tailroom = IEEE80211_ENCRYPT_TAILROOM;
+
+	ret = dev_alloc_name(ndev, ndev->name);
+	if (ret < 0)
+		goto fail;
 
 	ieee80211_assign_perm_addr(local, ndev, type);
 	memcpy(ndev->dev_addr, ndev->perm_addr, ETH_ALEN);

@@ -490,6 +490,13 @@ xfs_attr_remove_int(xfs_inode_t *dp, struct xfs_name *name, int flags)
 	args.whichfork = XFS_ATTR_FORK;
 
 	/*
+	 * we have no control over the attribute names that userspace passes us
+	 * to remove, so we have to allow the name lookup prior to attribute
+	 * removal to fail.
+	 */
+	args.op_flags = XFS_DA_OP_OKNOENT;
+
+	/*
 	 * Attach the dquots to the inode.
 	 */
 	error = xfs_qm_dqattach(dp, 0);
@@ -815,17 +822,21 @@ xfs_attr_inactive(xfs_inode_t *dp)
 	error = xfs_attr_root_inactive(&trans, dp);
 	if (error)
 		goto out;
+
 	/*
-	 * signal synchronous inactive transactions unless this
-	 * is a synchronous mount filesystem in which case we
-	 * know that we're here because we've been called out of
-	 * xfs_inactive which means that the last reference is gone
-	 * and the unlink transaction has already hit the disk so
-	 * async inactive transactions are safe.
+	 * Signal synchronous inactive transactions unless this is a
+	 * synchronous mount filesystem in which case we know that we're here
+	 * because we've been called out of xfs_inactive which means that the
+	 * last reference is gone and the unlink transaction has already hit
+	 * the disk so async inactive transactions are safe.
 	 */
-	if ((error = xfs_itruncate_finish(&trans, dp, 0LL, XFS_ATTR_FORK,
-				(!(mp->m_flags & XFS_MOUNT_WSYNC)
-				 ? 1 : 0))))
+	if (!(mp->m_flags & XFS_MOUNT_WSYNC)) {
+		if (dp->i_d.di_anextents > 0)
+			xfs_trans_set_sync(trans);
+	}
+
+	error = xfs_itruncate_extents(&trans, dp, XFS_ATTR_FORK, 0);
+	if (error)
 		goto out;
 
 	/*
@@ -1192,7 +1203,7 @@ xfs_attr_leaf_list(xfs_attr_list_context_t *context)
 		return XFS_ERROR(error);
 	ASSERT(bp != NULL);
 	leaf = bp->data;
-	if (unlikely(be16_to_cpu(leaf->hdr.info.magic) != XFS_ATTR_LEAF_MAGIC)) {
+	if (unlikely(leaf->hdr.info.magic != cpu_to_be16(XFS_ATTR_LEAF_MAGIC))) {
 		XFS_CORRUPTION_ERROR("xfs_attr_leaf_list", XFS_ERRLEVEL_LOW,
 				     context->dp->i_mount, leaf);
 		xfs_da_brelse(NULL, bp);
@@ -1599,9 +1610,8 @@ xfs_attr_node_removename(xfs_da_args_t *args)
 						     XFS_ATTR_FORK);
 		if (error)
 			goto out;
-		ASSERT(be16_to_cpu(((xfs_attr_leafblock_t *)
-				      bp->data)->hdr.info.magic)
-						       == XFS_ATTR_LEAF_MAGIC);
+		ASSERT((((xfs_attr_leafblock_t *)bp->data)->hdr.info.magic) ==
+		       cpu_to_be16(XFS_ATTR_LEAF_MAGIC));
 
 		if ((forkoff = xfs_attr_shortform_allfit(bp, dp))) {
 			xfs_bmap_init(args->flist, args->firstblock);
@@ -1866,11 +1876,11 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 				return(XFS_ERROR(EFSCORRUPTED));
 			}
 			node = bp->data;
-			if (be16_to_cpu(node->hdr.info.magic)
-							== XFS_ATTR_LEAF_MAGIC)
+			if (node->hdr.info.magic ==
+			    cpu_to_be16(XFS_ATTR_LEAF_MAGIC))
 				break;
-			if (unlikely(be16_to_cpu(node->hdr.info.magic)
-							!= XFS_DA_NODE_MAGIC)) {
+			if (unlikely(node->hdr.info.magic !=
+				     cpu_to_be16(XFS_DA_NODE_MAGIC))) {
 				XFS_CORRUPTION_ERROR("xfs_attr_node_list(3)",
 						     XFS_ERRLEVEL_LOW,
 						     context->dp->i_mount,
@@ -1905,8 +1915,8 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 	 */
 	for (;;) {
 		leaf = bp->data;
-		if (unlikely(be16_to_cpu(leaf->hdr.info.magic)
-						!= XFS_ATTR_LEAF_MAGIC)) {
+		if (unlikely(leaf->hdr.info.magic !=
+			     cpu_to_be16(XFS_ATTR_LEAF_MAGIC))) {
 			XFS_CORRUPTION_ERROR("xfs_attr_node_list(4)",
 					     XFS_ERRLEVEL_LOW,
 					     context->dp->i_mount, leaf);

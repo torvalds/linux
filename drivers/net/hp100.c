@@ -1580,11 +1580,11 @@ static netdev_tx_t hp100_start_xmit_bm(struct sk_buff *skb,
 	hp100_outl(ringptr->pdl_paddr, TX_PDA_L);	/* Low Prio. Queue */
 
 	lp->txrcommit++;
-	spin_unlock_irqrestore(&lp->lock, flags);
 
-	/* Update statistics */
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
+
+	spin_unlock_irqrestore(&lp->lock, flags);
 
 	return NETDEV_TX_OK;
 
@@ -2103,20 +2103,18 @@ static void hp100_set_multicast_list(struct net_device *dev)
 #endif
 			netdev_for_each_mc_addr(ha, dev) {
 				addrs = ha->addr;
-				if ((*addrs & 0x01) == 0x01) {	/* multicast address? */
 #ifdef HP100_DEBUG
-					printk("hp100: %s: multicast = %pM, ",
-						     dev->name, addrs);
+				printk("hp100: %s: multicast = %pM, ",
+					     dev->name, addrs);
 #endif
-					for (i = idx = 0; i < 6; i++) {
-						idx ^= *addrs++ & 0x3f;
-						printk(":%02x:", idx);
-					}
-#ifdef HP100_DEBUG
-					printk("idx = %i\n", idx);
-#endif
-					lp->hash_bytes[idx >> 3] |= (1 << (idx & 7));
+				for (i = idx = 0; i < 6; i++) {
+					idx ^= *addrs++ & 0x3f;
+					printk(":%02x:", idx);
 				}
+#ifdef HP100_DEBUG
+				printk("idx = %i\n", idx);
+#endif
+				lp->hash_bytes[idx >> 3] |= (1 << (idx & 7));
 			}
 		}
 #else

@@ -1194,12 +1194,10 @@ int __devexit s3c24xx_serial_remove(struct platform_device *dev)
 EXPORT_SYMBOL_GPL(s3c24xx_serial_remove);
 
 /* UART power management code */
-
-#ifdef CONFIG_PM
-
-static int s3c24xx_serial_suspend(struct platform_device *dev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int s3c24xx_serial_suspend(struct device *dev)
 {
-	struct uart_port *port = s3c24xx_dev_to_port(&dev->dev);
+	struct uart_port *port = s3c24xx_dev_to_port(dev);
 
 	if (port)
 		uart_suspend_port(&s3c24xx_uart_drv, port);
@@ -1207,9 +1205,9 @@ static int s3c24xx_serial_suspend(struct platform_device *dev, pm_message_t stat
 	return 0;
 }
 
-static int s3c24xx_serial_resume(struct platform_device *dev)
+static int s3c24xx_serial_resume(struct device *dev)
 {
-	struct uart_port *port = s3c24xx_dev_to_port(&dev->dev);
+	struct uart_port *port = s3c24xx_dev_to_port(dev);
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
 	if (port) {
@@ -1222,17 +1220,20 @@ static int s3c24xx_serial_resume(struct platform_device *dev)
 
 	return 0;
 }
-#endif
+
+static const struct dev_pm_ops s3c24xx_serial_pm_ops = {
+	.suspend = s3c24xx_serial_suspend,
+	.resume = s3c24xx_serial_resume,
+};
+#else /* !CONFIG_PM_SLEEP */
+#define s3c24xx_serial_pm_ops	NULL
+#endif /* CONFIG_PM_SLEEP */
 
 int s3c24xx_serial_init(struct platform_driver *drv,
 			struct s3c24xx_uart_info *info)
 {
 	dbg("s3c24xx_serial_init(%p,%p)\n", drv, info);
-
-#ifdef CONFIG_PM
-	drv->suspend = s3c24xx_serial_suspend;
-	drv->resume = s3c24xx_serial_resume;
-#endif
+	drv->driver.pm = &s3c24xx_serial_pm_ops;
 
 	return platform_driver_register(drv);
 }
@@ -1416,10 +1417,8 @@ s3c24xx_serial_console_setup(struct console *co, char *options)
 
 	/* is the port configured? */
 
-	if (port->mapbase == 0x0) {
-		co->index = 0;
-		port = &s3c24xx_serial_ports[co->index].port;
-	}
+	if (port->mapbase == 0x0)
+		return -ENODEV;
 
 	cons_uart = port;
 
@@ -1451,7 +1450,8 @@ static struct console s3c24xx_serial_console = {
 	.flags		= CON_PRINTBUFFER,
 	.index		= -1,
 	.write		= s3c24xx_serial_console_write,
-	.setup		= s3c24xx_serial_console_setup
+	.setup		= s3c24xx_serial_console_setup,
+	.data		= &s3c24xx_uart_drv,
 };
 
 int s3c24xx_serial_initconsole(struct platform_driver *drv,

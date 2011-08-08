@@ -48,6 +48,12 @@ struct r1_private_data_s {
 					    * (fresh device added).
 					    * Cleared when a sync completes.
 					    */
+	int			recovery_disabled; /* when the same as
+						    * mddev->recovery_disabled
+						    * we don't allow recovery
+						    * to be attempted as we
+						    * expect a read error
+						    */
 
 	wait_queue_head_t	wait_barrier;
 
@@ -95,7 +101,7 @@ struct r1bio_s {
 
 	struct list_head	retry_list;
 	/* Next two are only valid when R1BIO_BehindIO is set */
-	struct page		**behind_pages;
+	struct bio_vec		*behind_bvecs;
 	int			behind_page_count;
 	/*
 	 * if the IO is in WRITE direction, then multiple bios are used.
@@ -110,13 +116,24 @@ struct r1bio_s {
  * correct the read error.  To keep track of bad blocks on a per-bio
  * level, we store IO_BLOCKED in the appropriate 'bios' pointer
  */
-#define IO_BLOCKED ((struct bio*)1)
+#define IO_BLOCKED ((struct bio *)1)
+/* When we successfully write to a known bad-block, we need to remove the
+ * bad-block marking which must be done from process context.  So we record
+ * the success by setting bios[n] to IO_MADE_GOOD
+ */
+#define IO_MADE_GOOD ((struct bio *)2)
+
+#define BIO_SPECIAL(bio) ((unsigned long)bio <= 2)
 
 /* bits for r1bio.state */
 #define	R1BIO_Uptodate	0
 #define	R1BIO_IsSync	1
 #define	R1BIO_Degraded	2
 #define	R1BIO_BehindIO	3
+/* Set ReadError on bios that experience a readerror so that
+ * raid1d knows what to do with them.
+ */
+#define R1BIO_ReadError 4
 /* For write-behind requests, we call bi_end_io when
  * the last non-write-behind device completes, providing
  * any write was successful.  Otherwise we call when
@@ -125,5 +142,12 @@ struct r1bio_s {
  * Record that bi_end_io was called with this flag...
  */
 #define	R1BIO_Returned 6
+/* If a write for this request means we can clear some
+ * known-bad-block records, we set this flag
+ */
+#define	R1BIO_MadeGood 7
+#define	R1BIO_WriteError 8
+
+extern int md_raid1_congested(mddev_t *mddev, int bits);
 
 #endif

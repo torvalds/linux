@@ -1461,6 +1461,15 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 				"Read device characteristic failed, rc=%d", rc);
 		goto out_err3;
 	}
+
+	if ((device->features & DASD_FEATURE_USERAW) &&
+	    !(private->rdc_data.facilities.RT_in_LR)) {
+		dev_err(&device->cdev->dev, "The storage server does not "
+			"support raw-track access\n");
+		rc = -EINVAL;
+		goto out_err3;
+	}
+
 	/* find the valid cylinder size */
 	if (private->rdc_data.no_cyl == LV_COMPAT_CYL &&
 	    private->rdc_data.long_no_cyl)

@@ -16,19 +16,6 @@
 #include <asm/cacheflush.h>
 #include <asm/uaccess.h>
 
-void *module_alloc(unsigned long size)
-{
-	if (size == 0)
-		return NULL;
-	return vmalloc(size);
-}
-
-/* Free memory returned from module_alloc */
-void module_free(struct module *mod, void *module_region)
-{
-	vfree(module_region);
-}
-
 /* Transfer the section to the L1 memory */
 int
 module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
@@ -148,14 +135,6 @@ module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 	}
 
 	return 0;
-}
-
-int
-apply_relocate(Elf_Shdr * sechdrs, const char *strtab,
-	       unsigned int symindex, unsigned int relsec, struct module *mod)
-{
-	pr_err(".rel unsupported\n");
-	return -ENOEXEC;
 }
 
 /*************************************************************************/

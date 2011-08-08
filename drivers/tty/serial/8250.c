@@ -81,7 +81,7 @@ static unsigned int skip_txen_test; /* force skip of txen test at init time */
 #define DEBUG_INTR(fmt...)	do { } while (0)
 #endif
 
-#define PASS_LIMIT	256
+#define PASS_LIMIT	512
 
 #define BOTH_EMPTY 	(UART_LSR_TEMT | UART_LSR_THRE)
 
@@ -1107,7 +1107,7 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 			 */
 			DEBUG_AUTOCONF("Xscale ");
 			up->port.type = PORT_XSCALE;
-			up->capabilities |= UART_CAP_UUE;
+			up->capabilities |= UART_CAP_UUE | UART_CAP_RTOIE;
 			return;
 		}
 	} else {
@@ -3318,6 +3318,7 @@ void serial8250_unregister_port(int line)
 		uart->port.flags &= ~UPF_BOOT_AUTOCONF;
 		uart->port.type = PORT_UNKNOWN;
 		uart->port.dev = &serial8250_isa_devs->dev;
+		uart->capabilities = uart_config[uart->port.type].flags;
 		uart_add_one_port(&serial8250_reg, &uart->port);
 	} else {
 		uart->port.dev = NULL;

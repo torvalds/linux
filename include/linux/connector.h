@@ -44,7 +44,7 @@
 #define CN_VAL_DRBD			0x1
 #define CN_KVP_IDX			0x9	/* HyperV KVP */
 
-#define CN_NETLINK_USERS		9
+#define CN_NETLINK_USERS		10	/* Highest index + 1 */
 
 /*
  * Maximum connector's message size.
@@ -75,7 +75,7 @@ struct cn_msg {
 
 #ifdef __KERNEL__
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <linux/list.h>
 #include <linux/workqueue.h>

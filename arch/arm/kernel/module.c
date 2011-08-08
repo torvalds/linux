@@ -43,25 +43,7 @@ void *module_alloc(unsigned long size)
 				GFP_KERNEL, PAGE_KERNEL_EXEC, -1,
 				__builtin_return_address(0));
 }
-#else /* CONFIG_MMU */
-void *module_alloc(unsigned long size)
-{
-	return size == 0 ? NULL : vmalloc(size);
-}
-#endif /* !CONFIG_MMU */
-
-void module_free(struct module *module, void *region)
-{
-	vfree(region);
-}
-
-int module_frob_arch_sections(Elf_Ehdr *hdr,
-			      Elf_Shdr *sechdrs,
-			      char *secstrings,
-			      struct module *mod)
-{
-	return 0;
-}
+#endif
 
 int
 apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
@@ -193,8 +175,17 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 				offset -= 0x02000000;
 			offset += sym->st_value - loc;
 
-			/* only Thumb addresses allowed (no interworking) */
-			if (!(offset & 1) ||
+			/*
+			 * For function symbols, only Thumb addresses are
+			 * allowed (no interworking).
+			 *
+			 * For non-function symbols, the destination
+			 * has no specific ARM/Thumb disposition, so
+			 * the branch is resolved under the assumption
+			 * that interworking is not required.
+			 */
+			if ((ELF32_ST_TYPE(sym->st_info) == STT_FUNC &&
+				!(offset & 1)) ||
 			    offset <= (s32)0xff000000 ||
 			    offset >= (s32)0x01000000) {
 				pr_err("%s: section %u reloc %u sym '%s': relocation %u out of range (%#lx -> %#x)\n",
@@ -254,15 +245,6 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 		}
 	}
 	return 0;
-}
-
-int
-apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
-		   unsigned int symindex, unsigned int relsec, struct module *module)
-{
-	printk(KERN_ERR "module %s: ADD RELOCATION unsupported\n",
-	       module->name);
-	return -ENOEXEC;
 }
 
 struct mod_unwind_map {

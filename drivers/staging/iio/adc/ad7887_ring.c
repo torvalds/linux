@@ -64,7 +64,7 @@ error_ret:
  **/
 static int ad7887_ring_preenable(struct iio_dev *indio_dev)
 {
-	struct ad7887_state *st = indio_dev->dev_data;
+	struct ad7887_state *st = iio_priv(indio_dev);
 	struct iio_ring_buffer *ring = indio_dev->ring;
 
 	st->d_size = ring->scan_count *
@@ -100,7 +100,7 @@ static int ad7887_ring_preenable(struct iio_dev *indio_dev)
 
 static int ad7887_ring_postdisable(struct iio_dev *indio_dev)
 {
-	struct ad7887_state *st = indio_dev->dev_data;
+	struct ad7887_state *st = iio_priv(indio_dev);
 
 	/* dummy read: restore default CH0 settin */
 	return spi_sync(st->spi, &st->msg[AD7887_CH0]);
@@ -116,7 +116,7 @@ static irqreturn_t ad7887_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->private_data;
-	struct ad7887_state *st = iio_dev_get_devdata(indio_dev);
+	struct ad7887_state *st = iio_priv(indio_dev);
 	struct iio_ring_buffer *ring = indio_dev->ring;
 	s64 time_ns;
 	__u8 *buf;

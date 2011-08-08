@@ -21,7 +21,7 @@
 #include <linux/profile.h>
 #include <linux/smp.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/irq.h>
 #include <asm/sections.h>
 
@@ -34,7 +34,6 @@ extern void irq_work_interrupt(void);
 extern void spurious_interrupt(void);
 extern void thermal_interrupt(void);
 extern void reschedule_interrupt(void);
-extern void mce_self_interrupt(void);
 
 extern void invalidate_interrupt(void);
 extern void invalidate_interrupt0(void);

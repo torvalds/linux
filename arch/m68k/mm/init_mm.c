@@ -83,11 +83,6 @@ void __init mem_init(void)
 	int initpages = 0;
 	int i;
 
-#ifdef CONFIG_ATARI
-	if (MACH_IS_ATARI)
-		atari_stram_mem_init_hook();
-#endif
-
 	/* this will put all memory onto the freelists */
 	totalram_pages = num_physpages = 0;
 	for_each_online_pgdat(pgdat) {

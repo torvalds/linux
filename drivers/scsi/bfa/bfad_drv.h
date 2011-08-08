@@ -43,6 +43,7 @@
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/scsi_transport.h>
+#include <scsi/scsi_bsg_fc.h>
 
 #include "bfa_modules.h"
 #include "bfa_fcs.h"
@@ -55,7 +56,7 @@
 #ifdef BFA_DRIVER_VERSION
 #define BFAD_DRIVER_VERSION    BFA_DRIVER_VERSION
 #else
-#define BFAD_DRIVER_VERSION    "2.3.2.3"
+#define BFAD_DRIVER_VERSION    "3.0.2.2"
 #endif
 
 #define BFAD_PROTO_NAME FCPI_NAME
@@ -79,7 +80,7 @@
 #define BFAD_HAL_INIT_FAIL			0x00000100
 #define BFAD_FC4_PROBE_DONE			0x00000200
 #define BFAD_PORT_DELETE			0x00000001
-
+#define BFAD_INTX_ON				0x00000400
 /*
  * BFAD related definition
  */
@@ -92,6 +93,8 @@
  */
 #define BFAD_LUN_QUEUE_DEPTH	32
 #define BFAD_IO_MAX_SGE		SG_ALL
+#define BFAD_MIN_SECTORS	128 /* 64k   */
+#define BFAD_MAX_SECTORS	0xFFFF  /* 32 MB */
 
 #define bfad_isr_t irq_handler_t
 
@@ -110,6 +113,7 @@ struct bfad_msix_s {
 enum {
 	BFA_TRC_LDRV_BFAD		= 1,
 	BFA_TRC_LDRV_IM			= 2,
+	BFA_TRC_LDRV_BSG		= 3,
 };
 
 enum bfad_port_pvb_type {
@@ -189,8 +193,10 @@ struct bfad_s {
 	struct bfa_pcidev_s hal_pcidev;
 	struct bfa_ioc_pci_attr_s pci_attr;
 	void __iomem   *pci_bar0_kva;
+	void __iomem   *pci_bar2_kva;
 	struct completion comp;
 	struct completion suspend;
+	struct completion enable_comp;
 	struct completion disable_comp;
 	bfa_boolean_t   disable_active;
 	struct bfad_port_s     pport;	/* physical port of the BFAD */
@@ -218,6 +224,10 @@ struct bfad_s {
 	char *regdata;
 	u32 reglen;
 	struct dentry *bfad_dentry_files[5];
+	struct list_head	free_aen_q;
+	struct list_head	active_aen_q;
+	struct bfa_aen_entry_s	aen_list[BFA_AEN_MAX_ENTRY];
+	spinlock_t		bfad_aen_spinlock;
 };
 
 /* BFAD state machine events */
@@ -272,21 +282,6 @@ struct bfad_hal_comp {
 	bfa_status_t    status;
 	struct completion comp;
 };
-
-/*
- * Macro to obtain the immediate lower power
- * of two for the integer.
- */
-#define nextLowerInt(x)                         \
-do {                                            \
-	int __i;                                  \
-	(*x)--;					\
-	for (__i = 1; __i < (sizeof(int)*8); __i <<= 1) \
-		(*x) = (*x) | (*x) >> __i;	\
-	(*x)++;					\
-	(*x) = (*x) >> 1;			\
-} while (0)
-
 
 #define BFA_LOG(level, bfad, mask, fmt, arg...)				\
 do {									\
@@ -354,6 +349,7 @@ extern int      msix_disable_ct;
 extern int      fdmi_enable;
 extern int      supported_fc4s;
 extern int	pcie_max_read_reqsz;
+extern int	max_xfer_size;
 extern int bfa_debugfs_enable;
 extern struct mutex bfad_mutex;
 

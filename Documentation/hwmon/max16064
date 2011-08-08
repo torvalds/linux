@@ -50,6 +50,8 @@ in[1-4]_min_alarm	Voltage low alarm. From VOLTAGE_UV_WARNING status.
 in[1-4]_max_alarm	Voltage high alarm. From VOLTAGE_OV_WARNING status.
 in[1-4]_lcrit_alarm	Voltage critical low alarm. From VOLTAGE_UV_FAULT status.
 in[1-4]_crit_alarm	Voltage critical high alarm. From VOLTAGE_OV_FAULT status.
+in[1-4]_highest		Historical maximum voltage.
+in[1-4]_reset_history	Write any value to reset history.
 
 temp1_input		Measured temperature. From READ_TEMPERATURE_1 register.
 temp1_max		Maximum temperature. From OT_WARN_LIMIT register.
@@ -60,3 +62,5 @@ temp1_max_alarm		Chip temperature high alarm. Set by comparing
 temp1_crit_alarm	Chip temperature critical high alarm. Set by comparing
 			READ_TEMPERATURE_1 with OT_FAULT_LIMIT if TEMP_OT_FAULT
 			status is set.
+temp1_highest		Historical maximum temperature.
+temp1_reset_history	Write any value to reset history.

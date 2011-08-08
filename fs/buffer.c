@@ -1902,10 +1902,8 @@ int __block_write_begin(struct page *page, loff_t pos, unsigned len,
 		if (!buffer_uptodate(*wait_bh))
 			err = -EIO;
 	}
-	if (unlikely(err)) {
+	if (unlikely(err))
 		page_zero_new_buffers(page, from, to);
-		ClearPageUptodate(page);
-	}
 	return err;
 }
 EXPORT_SYMBOL(__block_write_begin);

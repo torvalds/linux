@@ -24,7 +24,11 @@
 #include <linux/types.h>
 #include <linux/videodev2.h>
 
+#include <linux/dma-mapping.h>
+
 #include <plat/cpu.h>
+
+#include "omap_voutlib.h"
 
 MODULE_AUTHOR("Texas Instruments");
 MODULE_DESCRIPTION("OMAP Video library");
@@ -193,7 +197,7 @@ int omap_vout_new_crop(struct v4l2_pix_format *pix,
 		return -EINVAL;
 
 	if (cpu_is_omap24xx()) {
-		if (crop->height != win->w.height) {
+		if (try_crop.height != win->w.height) {
 			/* If we're resizing vertically, we can't support a
 			 * crop width wider than 768 pixels.
 			 */
@@ -202,7 +206,7 @@ int omap_vout_new_crop(struct v4l2_pix_format *pix,
 		}
 	}
 	/* vertical resizing */
-	vresize = (1024 * crop->height) / win->w.height;
+	vresize = (1024 * try_crop.height) / win->w.height;
 	if (cpu_is_omap24xx() && (vresize > 2048))
 		vresize = 2048;
 	else if (cpu_is_omap34xx() && (vresize > 4096))
@@ -221,7 +225,7 @@ int omap_vout_new_crop(struct v4l2_pix_format *pix,
 			try_crop.height = 2;
 	}
 	/* horizontal resizing */
-	hresize = (1024 * crop->width) / win->w.width;
+	hresize = (1024 * try_crop.width) / win->w.width;
 	if (cpu_is_omap24xx() && (hresize > 2048))
 		hresize = 2048;
 	else if (cpu_is_omap34xx() && (hresize > 4096))
@@ -291,3 +295,45 @@ void omap_vout_new_format(struct v4l2_pix_format *pix,
 }
 EXPORT_SYMBOL_GPL(omap_vout_new_format);
 
+/*
+ * Allocate buffers
+ */
+unsigned long omap_vout_alloc_buffer(u32 buf_size, u32 *phys_addr)
+{
+	u32 order, size;
+	unsigned long virt_addr, addr;
+
+	size = PAGE_ALIGN(buf_size);
+	order = get_order(size);
+	virt_addr = __get_free_pages(GFP_KERNEL, order);
+	addr = virt_addr;
+
+	if (virt_addr) {
+		while (size > 0) {
+			SetPageReserved(virt_to_page(addr));
+			addr += PAGE_SIZE;
+			size -= PAGE_SIZE;
+		}
+	}
+	*phys_addr = (u32) virt_to_phys((void *) virt_addr);
+	return virt_addr;
+}
+
+/*
+ * Free buffers
+ */
+void omap_vout_free_buffer(unsigned long virtaddr, u32 buf_size)
+{
+	u32 order, size;
+	unsigned long addr = virtaddr;
+
+	size = PAGE_ALIGN(buf_size);
+	order = get_order(size);
+
+	while (size > 0) {
+		ClearPageReserved(virt_to_page(addr));
+		addr += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
+	free_pages((unsigned long) virtaddr, order);
+}

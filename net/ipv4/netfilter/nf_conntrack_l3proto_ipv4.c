@@ -101,7 +101,7 @@ static unsigned int ipv4_confirm(unsigned int hooknum,
 
 	/* This is where we call the helper: as the packet goes out. */
 	ct = nf_ct_get(skb, &ctinfo);
-	if (!ct || ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY)
+	if (!ct || ctinfo == IP_CT_RELATED_REPLY)
 		goto out;
 
 	help = nfct_help(ct);
@@ -121,7 +121,9 @@ static unsigned int ipv4_confirm(unsigned int hooknum,
 		return ret;
 	}
 
-	if (test_bit(IPS_SEQ_ADJUST_BIT, &ct->status)) {
+	/* adjust seqs for loopback traffic only in outgoing direction */
+	if (test_bit(IPS_SEQ_ADJUST_BIT, &ct->status) &&
+	    !nf_is_loopback_packet(skb)) {
 		typeof(nf_nat_seq_adjust_hook) seq_adjust;
 
 		seq_adjust = rcu_dereference(nf_nat_seq_adjust_hook);

@@ -28,6 +28,8 @@ extern struct platform_device lpc32xx_watchdog_device;
 extern struct platform_device lpc32xx_i2c0_device;
 extern struct platform_device lpc32xx_i2c1_device;
 extern struct platform_device lpc32xx_i2c2_device;
+extern struct platform_device lpc32xx_tsc_device;
+extern struct platform_device lpc32xx_rtc_device;
 
 /*
  * Other arch specific structures and functions

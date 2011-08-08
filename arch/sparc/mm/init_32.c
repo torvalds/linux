@@ -340,7 +340,7 @@ void __init paging_init(void)
 		prom_printf("paging_init: sparc_cpu_model = %d\n", sparc_cpu_model);
 		prom_printf("paging_init: Halting...\n");
 		prom_halt();
-	};
+	}
 
 	/* Initialize the protection map with non-constant, MMU dependent values. */
 	protection_map[0] = PAGE_NONE;

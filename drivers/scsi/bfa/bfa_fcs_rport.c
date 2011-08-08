@@ -20,6 +20,7 @@
  */
 
 #include "bfad_drv.h"
+#include "bfad_im.h"
 #include "bfa_fcs.h"
 #include "bfa_fcbuild.h"
 
@@ -262,6 +263,7 @@ bfa_fcs_rport_sm_plogiacc_sending(struct bfa_fcs_rport_s *rport,
 		break;
 
 	case RPSM_EVENT_PLOGI_RCVD:
+	case RPSM_EVENT_PLOGI_COMP:
 	case RPSM_EVENT_SCN:
 		/*
 		 * Ignore, SCN is possibly online notification.
@@ -470,6 +472,7 @@ bfa_fcs_rport_sm_hal_online(struct bfa_fcs_rport_s *rport,
 		break;
 
 	case RPSM_EVENT_PRLO_RCVD:
+	case RPSM_EVENT_PLOGI_COMP:
 		break;
 
 	case RPSM_EVENT_LOGO_RCVD:
@@ -484,9 +487,9 @@ bfa_fcs_rport_sm_hal_online(struct bfa_fcs_rport_s *rport,
 		break;
 
 	case RPSM_EVENT_PLOGI_RCVD:
-		bfa_sm_set_state(rport, bfa_fcs_rport_sm_plogiacc_sending);
+		rport->plogi_pending = BFA_TRUE;
+		bfa_sm_set_state(rport, bfa_fcs_rport_sm_hcb_offline);
 		bfa_sm_send_event(rport->bfa_rport, BFA_RPORT_SM_OFFLINE);
-		bfa_fcs_rport_send_plogiacc(rport, NULL);
 		break;
 
 	case RPSM_EVENT_DELETE:
@@ -891,6 +894,18 @@ bfa_fcs_rport_sm_hcb_offline(struct bfa_fcs_rport_s *rport,
 
 	switch (event) {
 	case RPSM_EVENT_HCB_OFFLINE:
+		if (bfa_fcs_lport_is_online(rport->port) &&
+		    (rport->plogi_pending)) {
+			rport->plogi_pending = BFA_FALSE;
+			bfa_sm_set_state(rport,
+				bfa_fcs_rport_sm_plogiacc_sending);
+			bfa_fcs_rport_send_plogiacc(rport, NULL);
+			break;
+		}
+		/*
+		 * !! fall through !!
+		 */
+
 	case RPSM_EVENT_ADDRESS_CHANGE:
 		if (bfa_fcs_lport_is_online(rport->port)) {
 			if (bfa_fcs_fabric_is_switched(rport->port->fabric)) {
@@ -921,6 +936,8 @@ bfa_fcs_rport_sm_hcb_offline(struct bfa_fcs_rport_s *rport,
 	case RPSM_EVENT_SCN:
 	case RPSM_EVENT_LOGO_RCVD:
 	case RPSM_EVENT_PRLO_RCVD:
+	case RPSM_EVENT_PLOGI_RCVD:
+	case RPSM_EVENT_LOGO_IMP:
 		/*
 		 * Ignore, already offline.
 		 */
@@ -957,10 +974,18 @@ bfa_fcs_rport_sm_hcb_logorcv(struct bfa_fcs_rport_s *rport,
 		 */
 		if (bfa_fcs_lport_is_online(rport->port) &&
 			(!BFA_FCS_PID_IS_WKA(rport->pid))) {
-			bfa_sm_set_state(rport,
-				bfa_fcs_rport_sm_nsdisc_sending);
-			rport->ns_retries = 0;
-			bfa_fcs_rport_send_nsdisc(rport, NULL);
+			if (bfa_fcs_fabric_is_switched(rport->port->fabric)) {
+				bfa_sm_set_state(rport,
+					bfa_fcs_rport_sm_nsdisc_sending);
+				rport->ns_retries = 0;
+				bfa_fcs_rport_send_nsdisc(rport, NULL);
+			} else {
+				/* For N2N  Direct Attach, try to re-login */
+				bfa_sm_set_state(rport,
+					bfa_fcs_rport_sm_plogi_sending);
+				rport->plogi_retries = 0;
+				bfa_fcs_rport_send_plogi(rport, NULL);
+			}
 		} else {
 			/*
 			 * if it is not a well known address, reset the
@@ -1356,7 +1381,8 @@ bfa_fcs_rport_send_plogi(void *rport_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 	len = fc_plogi_build(&fchs, bfa_fcxp_get_reqbuf(fcxp), rport->pid,
 				bfa_fcs_lport_get_fcid(port), 0,
 				port->port_cfg.pwwn, port->port_cfg.nwwn,
-				bfa_fcport_get_maxfrsize(port->fcs->bfa));
+				bfa_fcport_get_maxfrsize(port->fcs->bfa),
+				bfa_fcport_get_rx_bbcredit(port->fcs->bfa));
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 			FC_CLASS_3, len, &fchs, bfa_fcs_rport_plogi_response,
@@ -1476,7 +1502,8 @@ bfa_fcs_rport_send_plogiacc(void *rport_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 				 rport->pid, bfa_fcs_lport_get_fcid(port),
 				 rport->reply_oxid, port->port_cfg.pwwn,
 				 port->port_cfg.nwwn,
-				 bfa_fcport_get_maxfrsize(port->fcs->bfa));
+				 bfa_fcport_get_maxfrsize(port->fcs->bfa),
+				 bfa_fcport_get_rx_bbcredit(port->fcs->bfa));
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 			FC_CLASS_3, len, &fchs, NULL, NULL, FC_MAX_PDUSZ, 0);
@@ -2015,6 +2042,35 @@ bfa_fcs_rport_free(struct bfa_fcs_rport_s *rport)
 }
 
 static void
+bfa_fcs_rport_aen_post(struct bfa_fcs_rport_s *rport,
+			enum bfa_rport_aen_event event,
+			struct bfa_rport_aen_data_s *data)
+{
+	struct bfa_fcs_lport_s *port = rport->port;
+	struct bfad_s *bfad = (struct bfad_s *)port->fcs->bfad;
+	struct bfa_aen_entry_s  *aen_entry;
+
+	bfad_get_aen_entry(bfad, aen_entry);
+	if (!aen_entry)
+		return;
+
+	if (event == BFA_RPORT_AEN_QOS_PRIO)
+		aen_entry->aen_data.rport.priv.qos = data->priv.qos;
+	else if (event == BFA_RPORT_AEN_QOS_FLOWID)
+		aen_entry->aen_data.rport.priv.qos = data->priv.qos;
+
+	aen_entry->aen_data.rport.vf_id = rport->port->fabric->vf_id;
+	aen_entry->aen_data.rport.ppwwn = bfa_fcs_lport_get_pwwn(
+					bfa_fcs_get_base_port(rport->fcs));
+	aen_entry->aen_data.rport.lpwwn = bfa_fcs_lport_get_pwwn(rport->port);
+	aen_entry->aen_data.rport.rpwwn = rport->pwwn;
+
+	/* Send the AEN notification */
+	bfad_im_post_vendor_event(aen_entry, bfad, ++rport->fcs->fcs_aen_seq,
+				  BFA_AEN_CAT_RPORT, event);
+}
+
+static void
 bfa_fcs_rport_online_action(struct bfa_fcs_rport_s *rport)
 {
 	struct bfa_fcs_lport_s *port = rport->port;
@@ -2024,6 +2080,11 @@ bfa_fcs_rport_online_action(struct bfa_fcs_rport_s *rport)
 
 	rport->stats.onlines++;
 
+	if ((!rport->pid) || (!rport->pwwn)) {
+		bfa_trc(rport->fcs, rport->pid);
+		bfa_sm_fault(rport->fcs, rport->pid);
+	}
+
 	if (bfa_fcs_lport_is_initiator(port)) {
 		bfa_fcs_itnim_rport_online(rport->itnim);
 		if (!BFA_FCS_PID_IS_WKA(rport->pid))
@@ -2032,10 +2093,12 @@ bfa_fcs_rport_online_action(struct bfa_fcs_rport_s *rport)
 
 	wwn2str(lpwwn_buf, bfa_fcs_lport_get_pwwn(port));
 	wwn2str(rpwwn_buf, rport->pwwn);
-	if (!BFA_FCS_PID_IS_WKA(rport->pid))
+	if (!BFA_FCS_PID_IS_WKA(rport->pid)) {
 		BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 		"Remote port (WWN = %s) online for logical port (WWN = %s)\n",
 		rpwwn_buf, lpwwn_buf);
+		bfa_fcs_rport_aen_post(rport, BFA_RPORT_AEN_ONLINE, NULL);
+	}
 }
 
 static void
@@ -2047,20 +2110,26 @@ bfa_fcs_rport_offline_action(struct bfa_fcs_rport_s *rport)
 	char	rpwwn_buf[BFA_STRING_32];
 
 	rport->stats.offlines++;
+	rport->plogi_pending = BFA_FALSE;
 
 	wwn2str(lpwwn_buf, bfa_fcs_lport_get_pwwn(port));
 	wwn2str(rpwwn_buf, rport->pwwn);
 	if (!BFA_FCS_PID_IS_WKA(rport->pid)) {
-		if (bfa_fcs_lport_is_online(rport->port) == BFA_TRUE)
+		if (bfa_fcs_lport_is_online(rport->port) == BFA_TRUE) {
 			BFA_LOG(KERN_ERR, bfad, bfa_log_level,
 				"Remote port (WWN = %s) connectivity lost for "
 				"logical port (WWN = %s)\n",
 				rpwwn_buf, lpwwn_buf);
-		else
+			bfa_fcs_rport_aen_post(rport,
+				BFA_RPORT_AEN_DISCONNECT, NULL);
+		} else {
 			BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 				"Remote port (WWN = %s) offlined by "
 				"logical port (WWN = %s)\n",
 				rpwwn_buf, lpwwn_buf);
+			bfa_fcs_rport_aen_post(rport,
+				BFA_RPORT_AEN_OFFLINE, NULL);
+		}
 	}
 
 	if (bfa_fcs_lport_is_initiator(port)) {
@@ -2120,7 +2189,7 @@ bfa_fcs_rport_update(struct bfa_fcs_rport_s *rport, struct fc_logi_s *plogi)
 
 		port->fabric->bb_credit = be16_to_cpu(plogi->csp.bbcred);
 		bfa_fcport_set_tx_bbcredit(port->fcs->bfa,
-					  port->fabric->bb_credit);
+					  port->fabric->bb_credit, 0);
 	}
 
 }
@@ -2233,22 +2302,6 @@ bfa_fcs_rport_plogi_create(struct bfa_fcs_lport_s *port, struct fchs_s *fchs,
 	bfa_sm_send_event(rport, RPSM_EVENT_PLOGI_RCVD);
 }
 
-static int
-wwn_compare(wwn_t wwn1, wwn_t wwn2)
-{
-	u8		*b1 = (u8 *) &wwn1;
-	u8		*b2 = (u8 *) &wwn2;
-	int		i;
-
-	for (i = 0; i < sizeof(wwn_t); i++) {
-		if (b1[i] < b2[i])
-			return -1;
-		if (b1[i] > b2[i])
-			return 1;
-	}
-	return 0;
-}
-
 /*
  *	Called by bport/vport to handle PLOGI received from an existing
  *	 remote port.
@@ -2266,19 +2319,8 @@ bfa_fcs_rport_plogi(struct bfa_fcs_rport_s *rport, struct fchs_s *rx_fchs,
 	rport->reply_oxid = rx_fchs->ox_id;
 	bfa_trc(rport->fcs, rport->reply_oxid);
 
-	/*
-	 * In Switched fabric topology,
-	 * PLOGI to each other. If our pwwn is smaller, ignore it,
-	 * if it is not a well known address.
-	 * If the link topology is N2N,
-	 * this Plogi should be accepted.
-	 */
-	if ((wwn_compare(rport->port->port_cfg.pwwn, rport->pwwn) == -1) &&
-		(bfa_fcs_fabric_is_switched(rport->port->fabric)) &&
-		(!BFA_FCS_PID_IS_WKA(rport->pid))) {
-		bfa_trc(rport->fcs, rport->pid);
-		return;
-	}
+	rport->pid = rx_fchs->s_id;
+	bfa_trc(rport->fcs, rport->pid);
 
 	rport->stats.plogi_rcvd++;
 	bfa_sm_send_event(rport, RPSM_EVENT_PLOGI_RCVD);
@@ -2361,8 +2403,11 @@ bfa_cb_rport_qos_scn_flowid(void *cbarg,
 		struct bfa_rport_qos_attr_s new_qos_attr)
 {
 	struct bfa_fcs_rport_s *rport = (struct bfa_fcs_rport_s *) cbarg;
+	struct bfa_rport_aen_data_s aen_data;
 
 	bfa_trc(rport->fcs, rport->pwwn);
+	aen_data.priv.qos = new_qos_attr;
+	bfa_fcs_rport_aen_post(rport, BFA_RPORT_AEN_QOS_FLOWID, &aen_data);
 }
 
 /*
@@ -2385,8 +2430,11 @@ bfa_cb_rport_qos_scn_prio(void *cbarg,
 		struct bfa_rport_qos_attr_s new_qos_attr)
 {
 	struct bfa_fcs_rport_s *rport = (struct bfa_fcs_rport_s *) cbarg;
+	struct bfa_rport_aen_data_s aen_data;
 
 	bfa_trc(rport->fcs, rport->pwwn);
+	aen_data.priv.qos = new_qos_attr;
+	bfa_fcs_rport_aen_post(rport, BFA_RPORT_AEN_QOS_PRIO, &aen_data);
 }
 
 /*
@@ -2531,7 +2579,45 @@ bfa_fcs_rport_prlo(struct bfa_fcs_rport_s *rport, __be16 ox_id)
 	bfa_sm_send_event(rport, RPSM_EVENT_PRLO_RCVD);
 }
 
+void
+bfa_fcs_rport_get_attr(struct bfa_fcs_rport_s *rport,
+		struct bfa_rport_attr_s *rport_attr)
+{
+	struct bfa_rport_qos_attr_s qos_attr;
+	struct bfa_fcs_lport_s *port = rport->port;
+	bfa_port_speed_t rport_speed = rport->rpf.rpsc_speed;
 
+	memset(rport_attr, 0, sizeof(struct bfa_rport_attr_s));
+	memset(&qos_attr, 0, sizeof(struct bfa_rport_qos_attr_s));
+
+	rport_attr->pid = rport->pid;
+	rport_attr->pwwn = rport->pwwn;
+	rport_attr->nwwn = rport->nwwn;
+	rport_attr->cos_supported = rport->fc_cos;
+	rport_attr->df_sz = rport->maxfrsize;
+	rport_attr->state = bfa_fcs_rport_get_state(rport);
+	rport_attr->fc_cos = rport->fc_cos;
+	rport_attr->cisc = rport->cisc;
+	rport_attr->scsi_function = rport->scsi_function;
+	rport_attr->curr_speed  = rport->rpf.rpsc_speed;
+	rport_attr->assigned_speed  = rport->rpf.assigned_speed;
+
+	qos_attr.qos_priority = rport->bfa_rport->qos_attr.qos_priority;
+	qos_attr.qos_flow_id =
+		cpu_to_be32(rport->bfa_rport->qos_attr.qos_flow_id);
+	rport_attr->qos_attr = qos_attr;
+
+	rport_attr->trl_enforced = BFA_FALSE;
+	if (bfa_fcport_is_ratelim(port->fcs->bfa) &&
+	    (rport->scsi_function == BFA_RPORT_TARGET)) {
+		if (rport_speed == BFA_PORT_SPEED_UNKNOWN)
+			rport_speed =
+				bfa_fcport_get_ratelim_speed(rport->fcs->bfa);
+
+		if (rport_speed < bfa_fcs_lport_get_rport_max_speed(port))
+			rport_attr->trl_enforced = BFA_TRUE;
+	}
+}
 
 /*
  * Remote port implementation.

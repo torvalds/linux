@@ -50,7 +50,7 @@ static int koneplus_send_control(struct usb_device *usb_dev, uint value,
 	control.value = value;
 	control.request = request;
 
-	return roccat_common_send(usb_dev, KONEPLUS_USB_COMMAND_CONTROL,
+	return roccat_common_send(usb_dev, KONEPLUS_COMMAND_CONTROL,
 			&control, sizeof(struct koneplus_control));
 }
 
@@ -60,7 +60,7 @@ static int koneplus_receive_control_status(struct usb_device *usb_dev)
 	struct koneplus_control control;
 
 	do {
-		retval = roccat_common_receive(usb_dev, KONEPLUS_USB_COMMAND_CONTROL,
+		retval = roccat_common_receive(usb_dev, KONEPLUS_COMMAND_CONTROL,
 				&control, sizeof(struct koneplus_control));
 
 		/* check if we get a completely wrong answer */
@@ -120,7 +120,7 @@ static int koneplus_select_profile(struct usb_device *usb_dev, uint number,
 static int koneplus_get_info(struct usb_device *usb_dev,
 		struct koneplus_info *buf)
 {
-	return roccat_common_receive(usb_dev, KONEPLUS_USB_COMMAND_INFO,
+	return roccat_common_receive(usb_dev, KONEPLUS_COMMAND_INFO,
 			buf, sizeof(struct koneplus_info));
 }
 
@@ -134,14 +134,14 @@ static int koneplus_get_profile_settings(struct usb_device *usb_dev,
 	if (retval)
 		return retval;
 
-	return roccat_common_receive(usb_dev, KONEPLUS_USB_COMMAND_PROFILE_SETTINGS,
+	return roccat_common_receive(usb_dev, KONEPLUS_COMMAND_PROFILE_SETTINGS,
 			buf, sizeof(struct koneplus_profile_settings));
 }
 
 static int koneplus_set_profile_settings(struct usb_device *usb_dev,
 		struct koneplus_profile_settings const *settings)
 {
-	return koneplus_send(usb_dev, KONEPLUS_USB_COMMAND_PROFILE_SETTINGS,
+	return koneplus_send(usb_dev, KONEPLUS_COMMAND_PROFILE_SETTINGS,
 			settings, sizeof(struct koneplus_profile_settings));
 }
 
@@ -155,14 +155,14 @@ static int koneplus_get_profile_buttons(struct usb_device *usb_dev,
 	if (retval)
 		return retval;
 
-	return roccat_common_receive(usb_dev, KONEPLUS_USB_COMMAND_PROFILE_BUTTONS,
+	return roccat_common_receive(usb_dev, KONEPLUS_COMMAND_PROFILE_BUTTONS,
 			buf, sizeof(struct koneplus_profile_buttons));
 }
 
 static int koneplus_set_profile_buttons(struct usb_device *usb_dev,
 		struct koneplus_profile_buttons const *buttons)
 {
-	return koneplus_send(usb_dev, KONEPLUS_USB_COMMAND_PROFILE_BUTTONS,
+	return koneplus_send(usb_dev, KONEPLUS_COMMAND_PROFILE_BUTTONS,
 			buttons, sizeof(struct koneplus_profile_buttons));
 }
 
@@ -172,7 +172,7 @@ static int koneplus_get_actual_profile(struct usb_device *usb_dev)
 	struct koneplus_actual_profile buf;
 	int retval;
 
-	retval = roccat_common_receive(usb_dev, KONEPLUS_USB_COMMAND_ACTUAL_PROFILE,
+	retval = roccat_common_receive(usb_dev, KONEPLUS_COMMAND_ACTUAL_PROFILE,
 			&buf, sizeof(struct koneplus_actual_profile));
 
 	return retval ? retval : buf.actual_profile;
@@ -187,7 +187,7 @@ static int koneplus_set_actual_profile(struct usb_device *usb_dev,
 	buf.size = sizeof(struct koneplus_actual_profile);
 	buf.actual_profile = new_profile;
 
-	return koneplus_send(usb_dev, KONEPLUS_USB_COMMAND_ACTUAL_PROFILE,
+	return koneplus_send(usb_dev, KONEPLUS_COMMAND_ACTUAL_PROFILE,
 			&buf, sizeof(struct koneplus_actual_profile));
 }
 
@@ -240,12 +240,20 @@ static ssize_t koneplus_sysfs_write(struct file *fp, struct kobject *kobj,
 	return real_size;
 }
 
+static ssize_t koneplus_sysfs_write_talk(struct file *fp,
+		struct kobject *kobj, struct bin_attribute *attr, char *buf,
+		loff_t off, size_t count)
+{
+	return koneplus_sysfs_write(fp, kobj, buf, off, count,
+			sizeof(struct koneplus_talk), KONEPLUS_COMMAND_TALK);
+}
+
 static ssize_t koneplus_sysfs_write_macro(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count)
 {
 	return koneplus_sysfs_write(fp, kobj, buf, off, count,
-			sizeof(struct koneplus_macro), KONEPLUS_USB_COMMAND_MACRO);
+			sizeof(struct koneplus_macro), KONEPLUS_COMMAND_MACRO);
 }
 
 static ssize_t koneplus_sysfs_read_sensor(struct file *fp,
@@ -253,7 +261,7 @@ static ssize_t koneplus_sysfs_read_sensor(struct file *fp,
 		loff_t off, size_t count)
 {
 	return koneplus_sysfs_read(fp, kobj, buf, off, count,
-			sizeof(struct koneplus_sensor), KONEPLUS_USB_COMMAND_SENSOR);
+			sizeof(struct koneplus_sensor), KONEPLUS_COMMAND_SENSOR);
 }
 
 static ssize_t koneplus_sysfs_write_sensor(struct file *fp,
@@ -261,7 +269,7 @@ static ssize_t koneplus_sysfs_write_sensor(struct file *fp,
 		loff_t off, size_t count)
 {
 	return koneplus_sysfs_write(fp, kobj, buf, off, count,
-			sizeof(struct koneplus_sensor), KONEPLUS_USB_COMMAND_SENSOR);
+			sizeof(struct koneplus_sensor), KONEPLUS_COMMAND_SENSOR);
 }
 
 static ssize_t koneplus_sysfs_write_tcu(struct file *fp,
@@ -269,7 +277,7 @@ static ssize_t koneplus_sysfs_write_tcu(struct file *fp,
 		loff_t off, size_t count)
 {
 	return koneplus_sysfs_write(fp, kobj, buf, off, count,
-			sizeof(struct koneplus_tcu), KONEPLUS_USB_COMMAND_TCU);
+			sizeof(struct koneplus_tcu), KONEPLUS_COMMAND_TCU);
 }
 
 static ssize_t koneplus_sysfs_read_tcu_image(struct file *fp,
@@ -277,7 +285,7 @@ static ssize_t koneplus_sysfs_read_tcu_image(struct file *fp,
 		loff_t off, size_t count)
 {
 	return koneplus_sysfs_read(fp, kobj, buf, off, count,
-			sizeof(struct koneplus_tcu_image), KONEPLUS_USB_COMMAND_TCU);
+			sizeof(struct koneplus_tcu_image), KONEPLUS_COMMAND_TCU);
 }
 
 static ssize_t koneplus_sysfs_read_profilex_settings(struct file *fp,
@@ -423,6 +431,9 @@ static ssize_t koneplus_sysfs_set_actual_profile(struct device *dev,
 	if (retval)
 		return retval;
 
+	if (profile > 4)
+		return -EINVAL;
+
 	mutex_lock(&koneplus->koneplus_lock);
 
 	retval = koneplus_set_actual_profile(usb_dev, profile);
@@ -431,7 +442,7 @@ static ssize_t koneplus_sysfs_set_actual_profile(struct device *dev,
 		return retval;
 	}
 
-	koneplus->actual_profile = profile;
+	koneplus_profile_activated(koneplus, profile);
 
 	roccat_report.type = KONEPLUS_MOUSE_REPORT_BUTTON_TYPE_PROFILE;
 	roccat_report.data1 = profile + 1;
@@ -556,6 +567,11 @@ static struct bin_attribute koneplus_bin_attributes[] = {
 		.attr = { .name = "macro", .mode = 0220 },
 		.size = sizeof(struct koneplus_macro),
 		.write = koneplus_sysfs_write_macro
+	},
+	{
+		.attr = { .name = "talk", .mode = 0220 },
+		.size = sizeof(struct koneplus_talk),
+		.write = koneplus_sysfs_write_talk
 	},
 	__ATTR_NULL
 };
@@ -736,6 +752,9 @@ static int koneplus_raw_event(struct hid_device *hdev,
 
 	if (intf->cur_altsetting->desc.bInterfaceProtocol
 			!= USB_INTERFACE_PROTOCOL_MOUSE)
+		return 0;
+
+	if (koneplus == NULL)
 		return 0;
 
 	koneplus_keep_values_up_to_date(koneplus, data);

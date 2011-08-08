@@ -36,11 +36,13 @@
 
 #define BABBAGE_USB_HUB_RESET	IMX_GPIO_NR(1, 7)
 #define BABBAGE_USBH1_STP	IMX_GPIO_NR(1, 27)
-#define BABBAGE_PHY_RESET	IMX_GPIO_NR(2, 5)
+#define BABBAGE_USB_PHY_RESET	IMX_GPIO_NR(2, 5)
 #define BABBAGE_FEC_PHY_RESET	IMX_GPIO_NR(2, 14)
 #define BABBAGE_POWER_KEY	IMX_GPIO_NR(2, 21)
 #define BABBAGE_ECSPI1_CS0	IMX_GPIO_NR(4, 24)
 #define BABBAGE_ECSPI1_CS1	IMX_GPIO_NR(4, 25)
+#define BABBAGE_SD2_CD		IMX_GPIO_NR(1, 6)
+#define BABBAGE_SD2_WP		IMX_GPIO_NR(1, 5)
 
 /* USB_CTRL_1 */
 #define MX51_USB_CTRL_1_OFFSET			0x10
@@ -110,6 +112,9 @@ static iomux_v3_cfg_t mx51babbage_pads[] = {
 	/* USB HUB reset line*/
 	MX51_PAD_GPIO1_7__GPIO1_7,
 
+	/* USB PHY reset line */
+	MX51_PAD_EIM_D21__GPIO2_5,
+
 	/* FEC */
 	MX51_PAD_EIM_EB2__FEC_MDIO,
 	MX51_PAD_EIM_EB3__FEC_RDATA1,
@@ -139,6 +144,9 @@ static iomux_v3_cfg_t mx51babbage_pads[] = {
 	MX51_PAD_SD1_DATA1__SD1_DATA1,
 	MX51_PAD_SD1_DATA2__SD1_DATA2,
 	MX51_PAD_SD1_DATA3__SD1_DATA3,
+	/* CD/WP from controller */
+	MX51_PAD_GPIO1_0__SD1_CD,
+	MX51_PAD_GPIO1_1__SD1_WP,
 
 	/* SD 2 */
 	MX51_PAD_SD2_CMD__SD2_CMD,
@@ -147,6 +155,9 @@ static iomux_v3_cfg_t mx51babbage_pads[] = {
 	MX51_PAD_SD2_DATA1__SD2_DATA1,
 	MX51_PAD_SD2_DATA2__SD2_DATA2,
 	MX51_PAD_SD2_DATA3__SD2_DATA3,
+	/* CD/WP gpio */
+	MX51_PAD_GPIO1_6__GPIO1_6,
+	MX51_PAD_GPIO1_5__GPIO1_5,
 
 	/* eCSPI1 */
 	MX51_PAD_CSPI1_MISO__ECSPI1_MISO,
@@ -169,34 +180,31 @@ static struct imxi2c_platform_data babbage_hsi2c_data = {
 	.bitrate = 400000,
 };
 
+static struct gpio mx51_babbage_usbh1_gpios[] = {
+	{ BABBAGE_USBH1_STP, GPIOF_OUT_INIT_LOW, "usbh1_stp" },
+	{ BABBAGE_USB_PHY_RESET, GPIOF_OUT_INIT_LOW, "usbh1_phy_reset" },
+};
+
 static int gpio_usbh1_active(void)
 {
 	iomux_v3_cfg_t usbh1stp_gpio = MX51_PAD_USBH1_STP__GPIO1_27;
-	iomux_v3_cfg_t phyreset_gpio = MX51_PAD_EIM_D21__GPIO2_5;
 	int ret;
 
 	/* Set USBH1_STP to GPIO and toggle it */
 	mxc_iomux_v3_setup_pad(usbh1stp_gpio);
-	ret = gpio_request(BABBAGE_USBH1_STP, "usbh1_stp");
+	ret = gpio_request_array(mx51_babbage_usbh1_gpios,
+					ARRAY_SIZE(mx51_babbage_usbh1_gpios));
 
 	if (ret) {
-		pr_debug("failed to get MX51_PAD_USBH1_STP__GPIO_1_27: %d\n", ret);
+		pr_debug("failed to get USBH1 pins: %d\n", ret);
 		return ret;
 	}
-	gpio_direction_output(BABBAGE_USBH1_STP, 0);
-	gpio_set_value(BABBAGE_USBH1_STP, 1);
+
 	msleep(100);
-	gpio_free(BABBAGE_USBH1_STP);
-
-	/* De-assert USB PHY RESETB */
-	mxc_iomux_v3_setup_pad(phyreset_gpio);
-	ret = gpio_request(BABBAGE_PHY_RESET, "phy_reset");
-
-	if (ret) {
-		pr_debug("failed to get MX51_PAD_EIM_D21__GPIO_2_5: %d\n", ret);
-		return ret;
-	}
-	gpio_direction_output(BABBAGE_PHY_RESET, 1);
+	gpio_set_value(BABBAGE_USBH1_STP, 1);
+	gpio_set_value(BABBAGE_USB_PHY_RESET, 1);
+	gpio_free_array(mx51_babbage_usbh1_gpios,
+					ARRAY_SIZE(mx51_babbage_usbh1_gpios));
 	return 0;
 }
 
@@ -331,6 +339,18 @@ static const struct spi_imx_master mx51_babbage_spi_pdata __initconst = {
 	.num_chipselect = ARRAY_SIZE(mx51_babbage_spi_cs),
 };
 
+static const struct esdhc_platform_data mx51_babbage_sd1_data __initconst = {
+	.cd_type = ESDHC_CD_CONTROLLER,
+	.wp_type = ESDHC_WP_CONTROLLER,
+};
+
+static const struct esdhc_platform_data mx51_babbage_sd2_data __initconst = {
+	.cd_gpio = BABBAGE_SD2_CD,
+	.wp_gpio = BABBAGE_SD2_WP,
+	.cd_type = ESDHC_CD_GPIO,
+	.wp_type = ESDHC_WP_GPIO,
+};
+
 /*
  * Board specific initialization.
  */
@@ -339,6 +359,8 @@ static void __init mx51_babbage_init(void)
 	iomux_v3_cfg_t usbh1stp = MX51_PAD_USBH1_STP__USBH1_STP;
 	iomux_v3_cfg_t power_key = _MX51_PAD_EIM_A27__GPIO2_21 |
 		MUX_PAD_CTRL(PAD_CTL_SRE_FAST | PAD_CTL_DSE_HIGH | PAD_CTL_PUS_100K_UP);
+
+	imx51_soc_init();
 
 #if defined(CONFIG_CPU_FREQ_IMX)
 	get_cpu_op = mx51_get_cpu_op;
@@ -374,8 +396,8 @@ static void __init mx51_babbage_init(void)
 	mxc_iomux_v3_setup_pad(usbh1stp);
 	babbage_usbhub_reset();
 
-	imx51_add_sdhci_esdhc_imx(0, NULL);
-	imx51_add_sdhci_esdhc_imx(1, NULL);
+	imx51_add_sdhci_esdhc_imx(0, &mx51_babbage_sd1_data);
+	imx51_add_sdhci_esdhc_imx(1, &mx51_babbage_sd2_data);
 
 	spi_register_board_info(mx51_babbage_spi_board_info,
 		ARRAY_SIZE(mx51_babbage_spi_board_info));

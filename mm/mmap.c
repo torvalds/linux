@@ -122,9 +122,17 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
 		return 0;
 
 	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
-		unsigned long n;
+		free = global_page_state(NR_FREE_PAGES);
+		free += global_page_state(NR_FILE_PAGES);
 
-		free = global_page_state(NR_FILE_PAGES);
+		/*
+		 * shmem pages shouldn't be counted as free in this
+		 * case, they can't be purged, only swapped out, and
+		 * that won't affect the overall amount of available
+		 * memory in the system.
+		 */
+		free -= global_page_state(NR_SHMEM);
+
 		free += nr_swap_pages;
 
 		/*
@@ -136,34 +144,18 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
 		free += global_page_state(NR_SLAB_RECLAIMABLE);
 
 		/*
+		 * Leave reserved pages. The pages are not for anonymous pages.
+		 */
+		if (free <= totalreserve_pages)
+			goto error;
+		else
+			free -= totalreserve_pages;
+
+		/*
 		 * Leave the last 3% for root
 		 */
 		if (!cap_sys_admin)
 			free -= free / 32;
-
-		if (free > pages)
-			return 0;
-
-		/*
-		 * nr_free_pages() is very expensive on large systems,
-		 * only call if we're about to fail.
-		 */
-		n = nr_free_pages();
-
-		/*
-		 * Leave reserved pages. The pages are not for anonymous pages.
-		 */
-		if (n <= totalreserve_pages)
-			goto error;
-		else
-			n -= totalreserve_pages;
-
-		/*
-		 * Leave the last 3% for root
-		 */
-		if (!cap_sys_admin)
-			n -= n / 32;
-		free += n;
 
 		if (free > pages)
 			return 0;
@@ -906,14 +898,7 @@ struct anon_vma *find_mergeable_anon_vma(struct vm_area_struct *vma)
 	if (anon_vma)
 		return anon_vma;
 try_prev:
-	/*
-	 * It is potentially slow to have to call find_vma_prev here.
-	 * But it's only on the first write fault on the vma, not
-	 * every time, and we could devise a way to avoid it later
-	 * (e.g. stash info in next's anon_vma_node when assigning
-	 * an anon_vma, or when trying vma_merge).  Another time.
-	 */
-	BUG_ON(find_vma_prev(vma->vm_mm, vma->vm_start, &near) != vma);
+	near = vma->vm_prev;
 	if (!near)
 		goto none;
 
@@ -2044,9 +2029,10 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
 		return -EINVAL;
 
 	/* Find the first overlapping VMA */
-	vma = find_vma_prev(mm, start, &prev);
+	vma = find_vma(mm, start);
 	if (!vma)
 		return 0;
+	prev = vma->vm_prev;
 	/* we have  start < vma->vm_end  */
 
 	/* if it doesn't overlap, we have nothing.. */

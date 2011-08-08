@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/blkdev.h>
+#include <linux/dmi.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
@@ -44,7 +45,7 @@ MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
 static const char *driver_name = "storvsc";
 
 /* {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f} */
-static const struct hv_guid gStorVscDeviceType = {
+static const struct hv_guid stor_vsci_device_type = {
 	.data = {
 		0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d,
 		0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f
@@ -92,12 +93,8 @@ static int storvsc_device_configure(struct scsi_device *sdevice)
 	scsi_adjust_queue_depth(sdevice, MSG_SIMPLE_TAG,
 				STORVSC_MAX_IO_REQUESTS);
 
-	DPRINT_INFO(STORVSC_DRV, "sdev (%p) - setting max segment size to %ld",
-		    sdevice, PAGE_SIZE);
 	blk_queue_max_segment_size(sdevice->request_queue, PAGE_SIZE);
 
-	DPRINT_INFO(STORVSC_DRV, "sdev (%p) - adding merge bio vec routine",
-		    sdevice);
 	blk_queue_merge_bvec(sdevice->request_queue, storvsc_merge_bvec);
 
 	blk_queue_bounce_limit(sdevice->request_queue, BLK_BOUNCE_ANY);
@@ -308,31 +305,21 @@ static unsigned int copy_to_bounce_buffer(struct scatterlist *orig_sgl,
 }
 
 
-/*
- * storvsc_remove - Callback when our device is removed
- */
 static int storvsc_remove(struct hv_device *dev)
 {
 	struct Scsi_Host *host = dev_get_drvdata(&dev->device);
 	struct hv_host_device *host_dev =
 			(struct hv_host_device *)host->hostdata;
 
-	/*
-	 * Call to the vsc driver to let it know that the device is being
-	 * removed
-	 */
-	storvsc_dev_remove(dev);
+	scsi_remove_host(host);
 
+	scsi_host_put(host);
+
+	storvsc_dev_remove(dev);
 	if (host_dev->request_pool) {
 		kmem_cache_destroy(host_dev->request_pool);
 		host_dev->request_pool = NULL;
 	}
-
-	DPRINT_INFO(STORVSC, "removing host adapter (%p)...", host);
-	scsi_remove_host(host);
-
-	DPRINT_INFO(STORVSC, "releasing host adapter (%p)...", host);
-	scsi_host_put(host);
 	return 0;
 }
 
@@ -357,9 +344,6 @@ static int storvsc_get_chs(struct scsi_device *sdev, struct block_device * bdev,
 	info[1] = sectors_pt;
 	info[2] = (int)cylinders;
 
-	DPRINT_INFO(STORVSC_DRV, "CHS (%d, %d, %d)", (int)cylinders, heads,
-			sectors_pt);
-
 	return 0;
 }
 
@@ -370,7 +354,6 @@ static int storvsc_host_reset(struct hv_device *device)
 	struct vstor_packet *vstor_packet;
 	int ret, t;
 
-	DPRINT_INFO(STORVSC, "resetting host adapter...");
 
 	stor_device = get_stor_device(device);
 	if (!stor_device)
@@ -393,13 +376,12 @@ static int storvsc_host_reset(struct hv_device *device)
 	if (ret != 0)
 		goto cleanup;
 
-	t = wait_for_completion_timeout(&request->wait_event, HZ);
+	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
 	if (t == 0) {
 		ret = -ETIMEDOUT;
 		goto cleanup;
 	}
 
-	DPRINT_INFO(STORVSC, "host adapter reset completed");
 
 	/*
 	 * At this point, all outstanding requests in the adapter
@@ -422,16 +404,9 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 		(struct hv_host_device *)scmnd->device->host->hostdata;
 	struct hv_device *dev = host_dev->dev;
 
-	DPRINT_INFO(STORVSC_DRV, "sdev (%p) dev obj (%p) - host resetting...",
-		    scmnd->device, dev);
-
-	/* Invokes the vsc to reset the host/bus */
 	ret = storvsc_host_reset(dev);
 	if (ret != 0)
 		return ret;
-
-	DPRINT_INFO(STORVSC_DRV, "sdev (%p) dev obj (%p) - host reseted",
-		    scmnd->device, dev);
 
 	return ret;
 }
@@ -479,7 +454,6 @@ static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 	scmnd->host_scribble = NULL;
 	scmnd->scsi_done = NULL;
 
-	/* !!DO NOT MODIFY the scmnd after this call */
 	scsi_done_fn(scmnd);
 
 	kmem_cache_free(host_dev->request_pool, cmd_request);
@@ -510,8 +484,6 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 
 		cmd_request =
 			(struct storvsc_cmd_request *)scmnd->host_scribble;
-		DPRINT_INFO(STORVSC_DRV, "retrying scmnd %p cmd_request %p",
-			    scmnd, cmd_request);
 
 		goto retry_request;
 	}
@@ -752,11 +724,28 @@ static struct hv_driver storvsc_drv = {
 	.remove = storvsc_remove,
 };
 
-
 /*
- * storvsc_drv_init - StorVsc driver initialization.
+ * We use a DMI table to determine if we should autoload this driver  This is
+ * needed by distro tools to determine if the hyperv drivers should be
+ * installed and/or configured.  We don't do anything else with the table, but
+ * it needs to be present.
  */
-static int storvsc_drv_init(void)
+
+static const struct dmi_system_id __initconst
+hv_stor_dmi_table[] __maybe_unused  = {
+	{
+		.ident = "Hyper-V",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Virtual Machine"),
+			DMI_MATCH(DMI_BOARD_NAME, "Virtual Machine"),
+		},
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(dmi, hv_stor_dmi_table);
+
+static int __init storvsc_drv_init(void)
 {
 	int ret;
 	struct hv_driver *drv = &storvsc_drv;
@@ -775,14 +764,13 @@ static int storvsc_drv_init(void)
 	sizeof(struct vstor_packet) + sizeof(u64),
 	sizeof(u64)));
 
-	memcpy(&drv->dev_type, &gStorVscDeviceType,
+	memcpy(&drv->dev_type, &stor_vsci_device_type,
 	       sizeof(struct hv_guid));
 
 	if (max_outstanding_req_per_channel <
 	    STORVSC_MAX_IO_REQUESTS)
 		return -1;
 
-	drv->name = driver_name;
 	drv->driver.name = driver_name;
 
 
@@ -792,27 +780,13 @@ static int storvsc_drv_init(void)
 	return ret;
 }
 
-static void storvsc_drv_exit(void)
+static void __exit storvsc_drv_exit(void)
 {
 	vmbus_child_driver_unregister(&storvsc_drv.driver);
-}
-
-static int __init storvsc_init(void)
-{
-	int ret;
-
-	DPRINT_INFO(STORVSC_DRV, "Storvsc initializing....");
-	ret = storvsc_drv_init();
-	return ret;
-}
-
-static void __exit storvsc_exit(void)
-{
-	storvsc_drv_exit();
 }
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HV_DRV_VERSION);
 MODULE_DESCRIPTION("Microsoft Hyper-V virtual storage driver");
-module_init(storvsc_init);
-module_exit(storvsc_exit);
+module_init(storvsc_drv_init);
+module_exit(storvsc_drv_exit);

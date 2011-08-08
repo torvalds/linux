@@ -87,6 +87,8 @@ static inline void iriap_start_watchdog_timer(struct iriap_cb *self,
 			 iriap_watchdog_timer_expired);
 }
 
+static struct lock_class_key irias_objects_key;
+
 /*
  * Function iriap_init (void)
  *
@@ -113,6 +115,9 @@ int __init iriap_init(void)
 		hashbin_delete(iriap, NULL);
 		return -ENOMEM;
 	}
+
+	lockdep_set_class_and_name(&irias_objects->hb_spinlock, &irias_objects_key,
+				   "irias_objects");
 
 	/*
 	 *  Register some default services for IrLMP
@@ -300,7 +305,7 @@ static void iriap_disconnect_indication(void *instance, void *sap,
 
 	IRDA_DEBUG(4, "%s(), reason=%s\n", __func__, irlmp_reasons[reason]);
 
-	self = (struct iriap_cb *) instance;
+	self = instance;
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IAS_MAGIC, return;);
@@ -754,7 +759,7 @@ static void iriap_connect_confirm(void *instance, void *sap,
 {
 	struct iriap_cb *self;
 
-	self = (struct iriap_cb *) instance;
+	self = instance;
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IAS_MAGIC, return;);
@@ -786,7 +791,7 @@ static void iriap_connect_indication(void *instance, void *sap,
 
 	IRDA_DEBUG(1, "%s()\n", __func__);
 
-	self = (struct iriap_cb *) instance;
+	self = instance;
 
 	IRDA_ASSERT(skb != NULL, return;);
 	IRDA_ASSERT(self != NULL, goto out;);
@@ -834,7 +839,7 @@ static int iriap_data_indication(void *instance, void *sap,
 
 	IRDA_DEBUG(3, "%s()\n", __func__);
 
-	self = (struct iriap_cb *) instance;
+	self = instance;
 
 	IRDA_ASSERT(skb != NULL, return 0;);
 	IRDA_ASSERT(self != NULL, goto out;);

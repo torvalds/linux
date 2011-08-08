@@ -1,3 +1,10 @@
+config LEDS_GPIO_REGISTER
+	bool
+	help
+	  This option provides the function gpio_led_register_device.
+	  As this function is used by arch code it must not be compiled as a
+	  module.
+
 menuconfig NEW_LEDS
 	bool "LED Support"
 	help
@@ -7,21 +14,13 @@ menuconfig NEW_LEDS
 	  This is not related to standard keyboard LEDs which are controlled
 	  via the input system.
 
+if NEW_LEDS
+
 config LEDS_CLASS
 	bool "LED Class Support"
-	depends on NEW_LEDS
 	help
 	  This option enables the led sysfs class in /sys/class/leds.  You'll
 	  need this to do anything useful with LEDs.  If unsure, say N.
-
-config LEDS_GPIO_REGISTER
-	bool
-	help
-	  This option provides the function gpio_led_register_device.
-	  As this function is used by arch code it must not be compiled as a
-	  module.
-
-if NEW_LEDS
 
 comment "LED drivers"
 
@@ -93,7 +92,7 @@ config LEDS_NET48XX
 config LEDS_NET5501
 	tristate "LED Support for Soekris net5501 series Error LED"
 	depends on LEDS_TRIGGERS
-	depends on X86 && LEDS_GPIO_PLATFORM && GPIO_CS5535
+	depends on X86 && GPIO_CS5535
 	select LEDS_TRIGGER_DEFAULT_ON
 	default n
 	help
@@ -182,23 +181,6 @@ config LEDS_GPIO
 	  and they must be connected to the GPIO lines.  The LEDs must be
 	  defined as platform devices and/or OpenFirmware platform devices.
 	  The code to use these bindings can be selected below.
-
-config LEDS_GPIO_PLATFORM
-	bool "Platform device bindings for GPIO LEDs"
-	depends on LEDS_GPIO
-	default y
-	help
-	  Let the leds-gpio driver drive LEDs which have been defined as
-	  platform devices.  If you don't know what this means, say yes.
-
-config LEDS_GPIO_OF
-	bool "OpenFirmware platform device bindings for GPIO LEDs"
-	depends on LEDS_GPIO && OF_DEVICE
-	default y
-	help
-	  Let the leds-gpio driver drive LEDs which have been defined as
-	  of_platform devices.  For instance, LEDs which are listed in a "dts"
-	  file.
 
 config LEDS_LP3944
 	tristate "LED Support for N.S. LP3944 (Fun Light) I2C chip"
@@ -383,6 +365,7 @@ config LEDS_NS2
 config LEDS_NETXBIG
 	tristate "LED support for Big Network series LEDs"
 	depends on MACH_NET2BIG_V2 || MACH_NET5BIG_V2
+	depends on LEDS_CLASS
 	default y
 	help
 	  This option enable support for LEDs found on the LaCie 2Big
@@ -391,6 +374,7 @@ config LEDS_NETXBIG
 
 config LEDS_ASIC3
 	bool "LED support for the HTC ASIC3"
+	depends on LEDS_CLASS
 	depends on MFD_ASIC3
 	default y
 	help

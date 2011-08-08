@@ -903,7 +903,7 @@ static bool ignore_reg_update(struct wiphy *wiphy,
 	    initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
 	    !is_world_regdom(last_request->alpha2)) {
 		REG_DBG_PRINT("Ignoring regulatory request %s "
-			      "since the driver requires its own regulaotry "
+			      "since the driver requires its own regulatory "
 			      "domain to be set first",
 			      reg_initiator_name(initiator));
 		return true;
@@ -1125,12 +1125,13 @@ void wiphy_update_regulatory(struct wiphy *wiphy,
 	enum ieee80211_band band;
 
 	if (ignore_reg_update(wiphy, initiator))
-		goto out;
+		return;
+
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		if (wiphy->bands[band])
 			handle_band(wiphy, band, initiator);
 	}
-out:
+
 	reg_process_beacons(wiphy);
 	reg_process_ht_flags(wiphy);
 	if (wiphy->reg_notifier)

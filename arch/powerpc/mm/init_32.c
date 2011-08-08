@@ -191,53 +191,6 @@ void __init *early_get_page(void)
 		return __va(memblock_alloc(PAGE_SIZE, PAGE_SIZE));
 }
 
-/* Free up now-unused memory */
-static void free_sec(unsigned long start, unsigned long end, const char *name)
-{
-	unsigned long cnt = 0;
-
-	while (start < end) {
-		ClearPageReserved(virt_to_page(start));
-		init_page_count(virt_to_page(start));
-		free_page(start);
-		cnt++;
-		start += PAGE_SIZE;
- 	}
-	if (cnt) {
-		printk(" %ldk %s", cnt << (PAGE_SHIFT - 10), name);
-		totalram_pages += cnt;
-	}
-}
-
-void free_initmem(void)
-{
-#define FREESEC(TYPE) \
-	free_sec((unsigned long)(&__ ## TYPE ## _begin), \
-		 (unsigned long)(&__ ## TYPE ## _end), \
-		 #TYPE);
-
-	printk ("Freeing unused kernel memory:");
-	FREESEC(init);
- 	printk("\n");
-	ppc_md.progress = NULL;
-#undef FREESEC
-}
-
-#ifdef CONFIG_BLK_DEV_INITRD
-void free_initrd_mem(unsigned long start, unsigned long end)
-{
-	if (start < end)
-		printk ("Freeing initrd memory: %ldk freed\n", (end - start) >> 10);
-	for (; start < end; start += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(start));
-		init_page_count(virt_to_page(start));
-		free_page(start);
-		totalram_pages++;
-	}
-}
-#endif
-
-
 #ifdef CONFIG_8xx /* No 8xx specific .c file to put that in ... */
 void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 				phys_addr_t first_memblock_size)

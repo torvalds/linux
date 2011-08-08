@@ -965,6 +965,10 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 
 	mutex_lock(&sdata->u.ibss.mtx);
 
+	sdata->u.ibss.state = IEEE80211_IBSS_MLME_SEARCH;
+	memset(sdata->u.ibss.bssid, 0, ETH_ALEN);
+	sdata->u.ibss.ssid_len = 0;
+
 	active_ibss = ieee80211_sta_active_ibss(sdata);
 
 	if (!active_ibss && !is_zero_ether_addr(ifibss->bssid)) {
@@ -999,8 +1003,6 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 	kfree_skb(skb);
 
 	skb_queue_purge(&sdata->skb_queue);
-	memset(sdata->u.ibss.bssid, 0, ETH_ALEN);
-	sdata->u.ibss.ssid_len = 0;
 
 	del_timer_sync(&sdata->u.ibss.timer);
 

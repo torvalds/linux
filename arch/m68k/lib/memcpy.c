@@ -34,8 +34,10 @@ void *memcpy(void *to, const void *from, size_t n)
 	if (temp) {
 		long *lto = to;
 		const long *lfrom = from;
-#if defined(__mc68020__) || defined(__mc68030__) || \
-    defined(__mc68040__) || defined(__mc68060__) || defined(__mcpu32__)
+#if defined(CONFIG_M68000) || defined(CONFIG_COLDFIRE)
+		for (; temp; temp--)
+			*lto++ = *lfrom++;
+#else
 		asm volatile (
 			"	movel %2,%3\n"
 			"	andw  #7,%3\n"
@@ -56,9 +58,6 @@ void *memcpy(void *to, const void *from, size_t n)
 			"	jpl   4b"
 			: "=a" (lfrom), "=a" (lto), "=d" (temp), "=&d" (temp1)
 			: "0" (lfrom), "1" (lto), "2" (temp));
-#else
-		for (; temp; temp--)
-			*lto++ = *lfrom++;
 #endif
 		to = lto;
 		from = lfrom;

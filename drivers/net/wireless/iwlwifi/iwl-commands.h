@@ -188,6 +188,13 @@ enum {
 	REPLY_WIPAN_NOA_NOTIFICATION = 0xbc,
 	REPLY_WIPAN_DEACTIVATION_COMPLETE = 0xbd,
 
+	REPLY_WOWLAN_PATTERNS = 0xe0,
+	REPLY_WOWLAN_WAKEUP_FILTER = 0xe1,
+	REPLY_WOWLAN_TSC_RSC_PARAMS = 0xe2,
+	REPLY_WOWLAN_TKIP_PARAMS = 0xe3,
+	REPLY_WOWLAN_KEK_KCK_MATERIAL = 0xe4,
+	REPLY_WOWLAN_GET_STATUS = 0xe5,
+
 	REPLY_MAX = 0xff
 };
 
@@ -383,18 +390,6 @@ struct iwl_tx_ant_config_cmd {
  *****************************************************************************/
 
 #define UCODE_VALID_OK	cpu_to_le32(0x1)
-
-enum iwlagn_ucode_subtype {
-	UCODE_SUBTYPE_REGULAR	= 0,
-	UCODE_SUBTYPE_REGULAR_NEW = 1,
-	UCODE_SUBTYPE_INIT	= 9,
-
-	/*
-	 * Not a valid subtype, the ucode has just a u8, so
-	 * we can use something > 0xff for this value.
-	 */
-	UCODE_SUBTYPE_NONE_LOADED = 0x100,
-};
 
 /**
  * REPLY_ALIVE = 0x1 (response only, not a command)
@@ -844,6 +839,8 @@ struct iwl_qosparam_cmd {
 #define STA_KEY_MULTICAST_MSK        cpu_to_le16(0x4000)
 #define STA_KEY_MAX_NUM		8
 #define STA_KEY_MAX_NUM_PAN	16
+/* must not match WEP_INVALID_OFFSET */
+#define IWLAGN_HW_KEY_DEFAULT	0xfe
 
 /* Flags indicate whether to modify vs. don't change various station params */
 #define	STA_MODIFY_KEY_MASK		0x01
@@ -984,15 +981,26 @@ struct iwl_rem_sta_cmd {
 	u8 reserved2[2];
 } __packed;
 
-#define IWL_TX_FIFO_BK_MSK		cpu_to_le32(BIT(0))
-#define IWL_TX_FIFO_BE_MSK		cpu_to_le32(BIT(1))
-#define IWL_TX_FIFO_VI_MSK		cpu_to_le32(BIT(2))
-#define IWL_TX_FIFO_VO_MSK		cpu_to_le32(BIT(3))
+
+/* WiFi queues mask */
+#define IWL_SCD_BK_MSK			cpu_to_le32(BIT(0))
+#define IWL_SCD_BE_MSK			cpu_to_le32(BIT(1))
+#define IWL_SCD_VI_MSK			cpu_to_le32(BIT(2))
+#define IWL_SCD_VO_MSK			cpu_to_le32(BIT(3))
+#define IWL_SCD_MGMT_MSK		cpu_to_le32(BIT(3))
+
+/* PAN queues mask */
+#define IWL_PAN_SCD_BK_MSK		cpu_to_le32(BIT(4))
+#define IWL_PAN_SCD_BE_MSK		cpu_to_le32(BIT(5))
+#define IWL_PAN_SCD_VI_MSK		cpu_to_le32(BIT(6))
+#define IWL_PAN_SCD_VO_MSK		cpu_to_le32(BIT(7))
+#define IWL_PAN_SCD_MGMT_MSK		cpu_to_le32(BIT(7))
+#define IWL_PAN_SCD_MULTICAST_MSK	cpu_to_le32(BIT(8))
+
 #define IWL_AGG_TX_QUEUE_MSK		cpu_to_le32(0xffc00)
 
 #define IWL_DROP_SINGLE		0
-#define IWL_DROP_SELECTED	1
-#define IWL_DROP_ALL		2
+#define IWL_DROP_ALL		(BIT(IWL_RXON_CTX_BSS) | BIT(IWL_RXON_CTX_PAN))
 
 /*
  * REPLY_TXFIFO_FLUSH = 0x1e(command and response)
@@ -1932,6 +1940,9 @@ struct iwl_bt_cmd {
 /* Disable Sync PSPoll on SCO/eSCO */
 #define IWLAGN_BT_FLAG_SYNC_2_BT_DISABLE	BIT(7)
 
+#define IWLAGN_BT_PSP_MIN_RSSI_THRESHOLD	-75 /* dBm */
+#define IWLAGN_BT_PSP_MAX_RSSI_THRESHOLD	-65 /* dBm */
+
 #define IWLAGN_BT_PRIO_BOOST_MAX	0xFF
 #define IWLAGN_BT_PRIO_BOOST_MIN	0x00
 #define IWLAGN_BT_PRIO_BOOST_DEFAULT	0xF0
@@ -2457,8 +2468,8 @@ struct iwl_scanstart_notification {
 	__le32 status;
 } __packed;
 
-#define  SCAN_OWNER_STATUS 0x1;
-#define  MEASURE_OWNER_STATUS 0x2;
+#define  SCAN_OWNER_STATUS 0x1
+#define  MEASURE_OWNER_STATUS 0x2
 
 #define IWL_PROBE_STATUS_OK		0
 #define IWL_PROBE_STATUS_TX_FAILED	BIT(0)
@@ -3153,7 +3164,6 @@ struct iwl_enhance_sensitivity_cmd {
 /* The default calibrate table size if not specified by firmware */
 #define IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE	18
 enum {
-	IWL_PHY_CALIBRATE_DIFF_GAIN_CMD		= 7,
 	IWL_PHY_CALIBRATE_DC_CMD		= 8,
 	IWL_PHY_CALIBRATE_LO_CMD		= 9,
 	IWL_PHY_CALIBRATE_TX_IQ_CMD		= 11,
@@ -3166,22 +3176,36 @@ enum {
 
 #define IWL_MAX_PHY_CALIBRATE_TBL_SIZE		(253)
 
-#define IWL_CALIB_INIT_CFG_ALL	cpu_to_le32(0xffffffff)
-
 /* This enum defines the bitmap of various calibrations to enable in both
  * init ucode and runtime ucode through CALIBRATION_CFG_CMD.
  */
 enum iwl_ucode_calib_cfg {
-	IWL_CALIB_CFG_RX_BB_IDX,
-	IWL_CALIB_CFG_DC_IDX,
-	IWL_CALIB_CFG_TX_IQ_IDX,
-	IWL_CALIB_CFG_RX_IQ_IDX,
-	IWL_CALIB_CFG_NOISE_IDX,
-	IWL_CALIB_CFG_CRYSTAL_IDX,
-	IWL_CALIB_CFG_TEMPERATURE_IDX,
-	IWL_CALIB_CFG_PAPD_IDX,
+	IWL_CALIB_CFG_RX_BB_IDX			= BIT(0),
+	IWL_CALIB_CFG_DC_IDX			= BIT(1),
+	IWL_CALIB_CFG_LO_IDX			= BIT(2),
+	IWL_CALIB_CFG_TX_IQ_IDX			= BIT(3),
+	IWL_CALIB_CFG_RX_IQ_IDX			= BIT(4),
+	IWL_CALIB_CFG_NOISE_IDX			= BIT(5),
+	IWL_CALIB_CFG_CRYSTAL_IDX		= BIT(6),
+	IWL_CALIB_CFG_TEMPERATURE_IDX		= BIT(7),
+	IWL_CALIB_CFG_PAPD_IDX			= BIT(8),
+	IWL_CALIB_CFG_SENSITIVITY_IDX		= BIT(9),
+	IWL_CALIB_CFG_TX_PWR_IDX		= BIT(10),
 };
 
+#define IWL_CALIB_INIT_CFG_ALL	cpu_to_le32(IWL_CALIB_CFG_RX_BB_IDX |	\
+					IWL_CALIB_CFG_DC_IDX |		\
+					IWL_CALIB_CFG_LO_IDX |		\
+					IWL_CALIB_CFG_TX_IQ_IDX |	\
+					IWL_CALIB_CFG_RX_IQ_IDX |	\
+					IWL_CALIB_CFG_NOISE_IDX |	\
+					IWL_CALIB_CFG_CRYSTAL_IDX |	\
+					IWL_CALIB_CFG_TEMPERATURE_IDX |	\
+					IWL_CALIB_CFG_PAPD_IDX |	\
+					IWL_CALIB_CFG_SENSITIVITY_IDX |	\
+					IWL_CALIB_CFG_TX_PWR_IDX)
+
+#define IWL_CALIB_CFG_FLAG_SEND_COMPLETE_NTFY_MSK	cpu_to_le32(BIT(0))
 
 struct iwl_calib_cfg_elmnt_s {
 	__le32 is_enable;
@@ -3215,15 +3239,6 @@ struct iwl_calib_cmd {
 	u8 data[0];
 } __packed;
 
-/* IWL_PHY_CALIBRATE_DIFF_GAIN_CMD (7) */
-struct iwl_calib_diff_gain_cmd {
-	struct iwl_calib_hdr hdr;
-	s8 diff_gain_a;		/* see above */
-	s8 diff_gain_b;
-	s8 diff_gain_c;
-	u8 reserved1;
-} __packed;
-
 struct iwl_calib_xtal_freq_cmd {
 	struct iwl_calib_hdr hdr;
 	u8 cap_pin1;
@@ -3231,11 +3246,11 @@ struct iwl_calib_xtal_freq_cmd {
 	u8 pad[2];
 } __packed;
 
-#define DEFAULT_RADIO_SENSOR_OFFSET    2700
+#define DEFAULT_RADIO_SENSOR_OFFSET    cpu_to_le16(2700)
 struct iwl_calib_temperature_offset_cmd {
 	struct iwl_calib_hdr hdr;
-	s16 radio_sensor_offset;
-	s16 reserved;
+	__le16 radio_sensor_offset;
+	__le16 reserved;
 } __packed;
 
 /* IWL_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD */
@@ -3755,6 +3770,127 @@ struct iwl_bt_coex_prot_env_cmd {
 	u8 type; /* 0 .. 15 */
 	u8 reserved[2];
 } __attribute__((packed));
+
+/*
+ * REPLY_WOWLAN_PATTERNS
+ */
+#define IWLAGN_WOWLAN_MIN_PATTERN_LEN	16
+#define IWLAGN_WOWLAN_MAX_PATTERN_LEN	128
+
+struct iwlagn_wowlan_pattern {
+	u8 mask[IWLAGN_WOWLAN_MAX_PATTERN_LEN / 8];
+	u8 pattern[IWLAGN_WOWLAN_MAX_PATTERN_LEN];
+	u8 mask_size;
+	u8 pattern_size;
+	__le16 reserved;
+} __packed;
+
+#define IWLAGN_WOWLAN_MAX_PATTERNS	20
+
+struct iwlagn_wowlan_patterns_cmd {
+	__le32 n_patterns;
+	struct iwlagn_wowlan_pattern patterns[];
+} __packed;
+
+/*
+ * REPLY_WOWLAN_WAKEUP_FILTER
+ */
+enum iwlagn_wowlan_wakeup_filters {
+	IWLAGN_WOWLAN_WAKEUP_MAGIC_PACKET	= BIT(0),
+	IWLAGN_WOWLAN_WAKEUP_PATTERN_MATCH	= BIT(1),
+	IWLAGN_WOWLAN_WAKEUP_BEACON_MISS	= BIT(2),
+	IWLAGN_WOWLAN_WAKEUP_LINK_CHANGE	= BIT(3),
+	IWLAGN_WOWLAN_WAKEUP_GTK_REKEY_FAIL	= BIT(4),
+	IWLAGN_WOWLAN_WAKEUP_RFKILL		= BIT(5),
+	IWLAGN_WOWLAN_WAKEUP_UCODE_ERROR	= BIT(6),
+	IWLAGN_WOWLAN_WAKEUP_EAP_IDENT_REQ	= BIT(7),
+	IWLAGN_WOWLAN_WAKEUP_4WAY_HANDSHAKE	= BIT(8),
+	IWLAGN_WOWLAN_WAKEUP_ALWAYS		= BIT(9),
+	IWLAGN_WOWLAN_WAKEUP_ENABLE_NET_DETECT	= BIT(10),
+};
+
+struct iwlagn_wowlan_wakeup_filter_cmd {
+	__le32 enabled;
+	__le16 non_qos_seq;
+	u8 min_sleep_seconds;
+	u8 reserved;
+	__le16 qos_seq[8];
+};
+
+/*
+ * REPLY_WOWLAN_TSC_RSC_PARAMS
+ */
+#define IWLAGN_NUM_RSC	16
+
+struct tkip_sc {
+	__le16 iv16;
+	__le16 pad;
+	__le32 iv32;
+} __packed;
+
+struct iwlagn_tkip_rsc_tsc {
+	struct tkip_sc unicast_rsc[IWLAGN_NUM_RSC];
+	struct tkip_sc multicast_rsc[IWLAGN_NUM_RSC];
+	struct tkip_sc tsc;
+} __packed;
+
+struct aes_sc {
+	__le64 pn;
+} __packed;
+
+struct iwlagn_aes_rsc_tsc {
+	struct aes_sc unicast_rsc[IWLAGN_NUM_RSC];
+	struct aes_sc multicast_rsc[IWLAGN_NUM_RSC];
+	struct aes_sc tsc;
+} __packed;
+
+union iwlagn_all_tsc_rsc {
+	struct iwlagn_tkip_rsc_tsc tkip;
+	struct iwlagn_aes_rsc_tsc aes;
+};
+
+struct iwlagn_wowlan_rsc_tsc_params_cmd {
+	union iwlagn_all_tsc_rsc all_tsc_rsc;
+} __packed;
+
+/*
+ * REPLY_WOWLAN_TKIP_PARAMS
+ */
+#define IWLAGN_MIC_KEY_SIZE	8
+#define IWLAGN_P1K_SIZE		5
+struct iwlagn_mic_keys {
+	u8 tx[IWLAGN_MIC_KEY_SIZE];
+	u8 rx_unicast[IWLAGN_MIC_KEY_SIZE];
+	u8 rx_mcast[IWLAGN_MIC_KEY_SIZE];
+} __packed;
+
+struct iwlagn_p1k_cache {
+	__le16 p1k[IWLAGN_P1K_SIZE];
+} __packed;
+
+#define IWLAGN_NUM_RX_P1K_CACHE	2
+
+struct iwlagn_wowlan_tkip_params_cmd {
+	struct iwlagn_mic_keys mic_keys;
+	struct iwlagn_p1k_cache tx;
+	struct iwlagn_p1k_cache rx_uni[IWLAGN_NUM_RX_P1K_CACHE];
+	struct iwlagn_p1k_cache rx_multi[IWLAGN_NUM_RX_P1K_CACHE];
+} __packed;
+
+/*
+ * REPLY_WOWLAN_KEK_KCK_MATERIAL
+ */
+
+#define IWLAGN_KCK_MAX_SIZE	32
+#define IWLAGN_KEK_MAX_SIZE	32
+
+struct iwlagn_wowlan_kek_kck_material_cmd {
+	u8	kck[IWLAGN_KCK_MAX_SIZE];
+	u8	kek[IWLAGN_KEK_MAX_SIZE];
+	__le16	kck_len;
+	__le16	kek_len;
+	__le64	replay_ctr;
+} __packed;
 
 /******************************************************************************
  * (13)

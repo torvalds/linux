@@ -1,6 +1,0 @@
-These are a few tty/serial drivers that either do not build,
-or work if they do build, or if they seem to work, are for obsolete
-hardware, or are full of unfixable races and no one uses them anymore.
-
-If no one steps up to adopt any of these drivers, they will be removed
-in the 2.6.41 release.

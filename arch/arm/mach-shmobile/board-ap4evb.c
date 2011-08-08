@@ -443,7 +443,7 @@ static struct platform_device usb1_host_device = {
 	.resource	= usb1_host_resources,
 };
 
-const static struct fb_videomode ap4evb_lcdc_modes[] = {
+static const struct fb_videomode ap4evb_lcdc_modes[] = {
 	{
 #ifdef CONFIG_AP4EVB_QHD
 		.name		= "R63302(QHD)",
@@ -913,7 +913,7 @@ static struct i2c_board_info imx074_info = {
 	I2C_BOARD_INFO("imx074", 0x1a),
 };
 
-struct soc_camera_link imx074_link = {
+static struct soc_camera_link imx074_link = {
 	.bus_id		= 0,
 	.board_info	= &imx074_info,
 	.i2c_adapter_id	= 0,
@@ -957,19 +957,16 @@ static struct resource csi2_resources[] = {
 	},
 };
 
-static struct platform_device csi2_device = {
-	.name   = "sh-mobile-csi2",
-	.id     = 0,
+static struct sh_mobile_ceu_companion csi2 = {
+	.id		= 0,
 	.num_resources	= ARRAY_SIZE(csi2_resources),
 	.resource	= csi2_resources,
-	.dev    = {
-		.platform_data = &csi2_info,
-	},
+	.platform_data	= &csi2_info,
 };
 
 static struct sh_mobile_ceu_info sh_mobile_ceu_info = {
 	.flags = SH_CEU_FLAG_USE_8BIT_BUS,
-	.csi2_dev = &csi2_device.dev,
+	.csi2 = &csi2,
 };
 
 static struct resource ceu_resources[] = {
@@ -1013,7 +1010,6 @@ static struct platform_device *ap4evb_devices[] __initdata = {
 	&lcdc1_device,
 	&lcdc_device,
 	&hdmi_device,
-	&csi2_device,
 	&ceu_device,
 	&ap4evb_camera,
 	&meram_device,
@@ -1408,9 +1404,14 @@ static void __init ap4evb_init(void)
 
 	platform_add_devices(ap4evb_devices, ARRAY_SIZE(ap4evb_devices));
 
+	sh7372_add_device_to_domain(&sh7372_a4lc, &lcdc1_device);
+	sh7372_add_device_to_domain(&sh7372_a4lc, &lcdc_device);
+	sh7372_add_device_to_domain(&sh7372_a4mp, &fsi_device);
+
 	hdmi_init_pm_clock();
 	fsi_init_pm_clock();
 	sh7372_pm_init();
+	pm_clk_add(&fsi_device.dev, "spu2");
 }
 
 static void __init ap4evb_timer_init(void)

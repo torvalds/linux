@@ -66,6 +66,8 @@
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-agn-calib.h"
+#include "iwl-trans.h"
+#include "iwl-agn.h"
 
 /*****************************************************************************
  * INIT calibrations framework
@@ -87,6 +89,7 @@ int iwl_send_calib_results(struct iwl_priv *priv)
 
 	struct iwl_host_cmd hcmd = {
 		.id = REPLY_PHY_CALIBRATION_CMD,
+		.flags = CMD_SYNC,
 	};
 
 	for (i = 0; i < IWL_CALIB_MAX; i++) {
@@ -95,7 +98,7 @@ int iwl_send_calib_results(struct iwl_priv *priv)
 			hcmd.len[0] = priv->calib_results[i].buf_len;
 			hcmd.data[0] = priv->calib_results[i].buf;
 			hcmd.dataflags[0] = IWL_HCMD_DFL_NOCOPY;
-			ret = iwl_send_cmd_sync(priv, &hcmd);
+			ret = trans_send_cmd(&priv->trans, &hcmd);
 			if (ret) {
 				IWL_ERR(priv, "Error %d iteration %d\n",
 					ret, i);
@@ -481,7 +484,7 @@ static int iwl_sensitivity_write(struct iwl_priv *priv)
 	memcpy(&(priv->sensitivity_tbl[0]), &(cmd.table[0]),
 	       sizeof(u16)*HD_TABLE_SIZE);
 
-	return iwl_send_cmd(priv, &cmd_out);
+	return trans_send_cmd(&priv->trans, &cmd_out);
 }
 
 /* Prepare a SENSITIVITY_CMD, send to uCode if values have changed */
@@ -545,7 +548,7 @@ static int iwl_enhance_sensitivity_write(struct iwl_priv *priv)
 	       &(cmd.enhance_table[HD_INA_NON_SQUARE_DET_OFDM_INDEX]),
 	       sizeof(u16)*ENHANCE_HD_TABLE_ENTRIES);
 
-	return iwl_send_cmd(priv, &cmd_out);
+	return trans_send_cmd(&priv->trans, &cmd_out);
 }
 
 void iwl_init_sensitivity(struct iwl_priv *priv)
@@ -837,6 +840,65 @@ static void iwl_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
 			active_chains);
 }
 
+static void iwlagn_gain_computation(struct iwl_priv *priv,
+		u32 average_noise[NUM_RX_CHAINS],
+		u16 min_average_noise_antenna_i,
+		u32 min_average_noise,
+		u8 default_chain)
+{
+	int i;
+	s32 delta_g;
+	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
+
+	/*
+	 * Find Gain Code for the chains based on "default chain"
+	 */
+	for (i = default_chain + 1; i < NUM_RX_CHAINS; i++) {
+		if ((data->disconn_array[i])) {
+			data->delta_gain_code[i] = 0;
+			continue;
+		}
+
+		delta_g = (priv->cfg->base_params->chain_noise_scale *
+			((s32)average_noise[default_chain] -
+			(s32)average_noise[i])) / 1500;
+
+		/* bound gain by 2 bits value max, 3rd bit is sign */
+		data->delta_gain_code[i] =
+			min(abs(delta_g),
+			(long) CHAIN_NOISE_MAX_DELTA_GAIN_CODE);
+
+		if (delta_g < 0)
+			/*
+			 * set negative sign ...
+			 * note to Intel developers:  This is uCode API format,
+			 *   not the format of any internal device registers.
+			 *   Do not change this format for e.g. 6050 or similar
+			 *   devices.  Change format only if more resolution
+			 *   (i.e. more than 2 bits magnitude) is needed.
+			 */
+			data->delta_gain_code[i] |= (1 << 2);
+	}
+
+	IWL_DEBUG_CALIB(priv, "Delta gains: ANT_B = %d  ANT_C = %d\n",
+			data->delta_gain_code[1], data->delta_gain_code[2]);
+
+	if (!data->radio_write) {
+		struct iwl_calib_chain_noise_gain_cmd cmd;
+
+		memset(&cmd, 0, sizeof(cmd));
+
+		iwl_set_calib_hdr(&cmd.hdr,
+			priv->phy_calib_chain_noise_gain_cmd);
+		cmd.delta_gain_1 = data->delta_gain_code[1];
+		cmd.delta_gain_2 = data->delta_gain_code[2];
+		trans_send_cmd_pdu(&priv->trans, REPLY_PHY_CALIBRATION_CMD,
+			CMD_ASYNC, sizeof(cmd), &cmd);
+
+		data->radio_write = 1;
+		data->state = IWL_CHAIN_NOISE_CALIBRATED;
+	}
+}
 
 /*
  * Accumulate 16 beacons of signal and noise statistics for each of
@@ -991,16 +1053,14 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 	IWL_DEBUG_CALIB(priv, "min_average_noise = %d, antenna %d\n",
 			min_average_noise, min_average_noise_antenna_i);
 
-	if (priv->cfg->ops->utils->gain_computation)
-		priv->cfg->ops->utils->gain_computation(priv, average_noise,
+	iwlagn_gain_computation(priv, average_noise,
 				min_average_noise_antenna_i, min_average_noise,
 				find_first_chain(priv->cfg->valid_rx_ant));
 
 	/* Some power changes may have been made during the calibration.
 	 * Update and commit the RXON
 	 */
-	if (priv->cfg->ops->lib->update_chain_flags)
-		priv->cfg->ops->lib->update_chain_flags(priv);
+	iwl_update_chain_flags(priv);
 
 	data->state = IWL_CHAIN_NOISE_DONE;
 	iwl_power_update_mode(priv, false);

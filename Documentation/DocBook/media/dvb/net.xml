@@ -1,0 +1,29 @@
+<title>DVB Network API</title>
+<para>The DVB net device enables feeding of MPE (multi protocol encapsulation) packets
+received via DVB into the Linux network protocol stack, e.g. for internet via satellite
+applications. It can be accessed through <emphasis role="tt">/dev/dvb/adapter0/net0</emphasis>. Data types and
+and ioctl definitions can be accessed by including <emphasis role="tt">linux/dvb/net.h</emphasis> in your
+application.
+</para>
+<section id="dvb_net_types">
+<title>DVB Net Data Types</title>
+
+<section id="dvb-net-if">
+<title>struct dvb_net_if</title>
+<programlisting>
+struct dvb_net_if {
+	__u16 pid;
+	__u16 if_num;
+	__u8  feedtype;
+#define DVB_NET_FEEDTYPE_MPE 0	/&#x22C6; multi protocol encapsulation &#x22C6;/
+#define DVB_NET_FEEDTYPE_ULE 1	/&#x22C6; ultra lightweight encapsulation &#x22C6;/
+};
+</programlisting>
+</section>
+
+</section>
+<section id="net_fcalls">
+<title>DVB net Function Calls</title>
+<para>To be written&#x2026;
+</para>
+</section>

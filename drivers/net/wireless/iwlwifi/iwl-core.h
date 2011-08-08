@@ -76,95 +76,29 @@ struct iwl_cmd;
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2011 Intel Corporation"
 #define DRV_AUTHOR     "<ilw@linux.intel.com>"
 
-#define IWL_PCI_DEVICE(dev, subdev, cfg) \
-	.vendor = PCI_VENDOR_ID_INTEL,  .device = (dev), \
-	.subvendor = PCI_ANY_ID, .subdevice = (subdev), \
-	.driver_data = (kernel_ulong_t)&(cfg)
-
 #define TIME_UNIT		1024
 
-#define IWL_SKU_G       0x1
-#define IWL_SKU_A       0x2
-#define IWL_SKU_N       0x8
-
 #define IWL_CMD(x) case x: return #x
-
-struct iwl_hcmd_ops {
-	int (*commit_rxon)(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
-	void (*set_rxon_chain)(struct iwl_priv *priv,
-			       struct iwl_rxon_context *ctx);
-	int (*set_tx_ant)(struct iwl_priv *priv, u8 valid_tx_ant);
-	void (*send_bt_config)(struct iwl_priv *priv);
-	int (*set_pan_params)(struct iwl_priv *priv);
-};
-
-struct iwl_hcmd_utils_ops {
-	u16 (*build_addsta_hcmd)(const struct iwl_addsta_cmd *cmd, u8 *data);
-	void (*gain_computation)(struct iwl_priv *priv,
-			u32 *average_noise,
-			u16 min_average_noise_antennat_i,
-			u32 min_average_noise,
-			u8 default_chain);
-	void (*chain_noise_reset)(struct iwl_priv *priv);
-	void (*tx_cmd_protection)(struct iwl_priv *priv,
-				  struct ieee80211_tx_info *info,
-				  __le16 fc, __le32 *tx_flags);
-	int  (*calc_rssi)(struct iwl_priv *priv,
-			  struct iwl_rx_phy_res *rx_resp);
-	int (*request_scan)(struct iwl_priv *priv, struct ieee80211_vif *vif);
-	void (*post_scan)(struct iwl_priv *priv);
-};
-
-struct iwl_apm_ops {
-	int (*init)(struct iwl_priv *priv);
-	void (*config)(struct iwl_priv *priv);
-};
-
-struct iwl_temp_ops {
-	void (*temperature)(struct iwl_priv *priv);
-};
 
 struct iwl_lib_ops {
 	/* set hw dependent parameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
-	/* setup Rx handler */
-	void (*rx_handler_setup)(struct iwl_priv *priv);
-	/* setup deferred work */
-	void (*setup_deferred_work)(struct iwl_priv *priv);
+	/* setup BT Rx handler */
+	void (*bt_rx_handler_setup)(struct iwl_priv *priv);
+	/* setup BT related deferred work */
+	void (*bt_setup_deferred_work)(struct iwl_priv *priv);
 	/* cancel deferred work */
 	void (*cancel_deferred_work)(struct iwl_priv *priv);
-	/* check validity of rtc data address */
-	int (*is_valid_rtc_data_addr)(u32 addr);
 	int (*set_channel_switch)(struct iwl_priv *priv,
 				  struct ieee80211_channel_switch *ch_switch);
-	/* power management */
-	struct iwl_apm_ops apm_ops;
-
-	/* power */
-	int (*send_tx_power) (struct iwl_priv *priv);
-	void (*update_chain_flags)(struct iwl_priv *priv);
+	/* device specific configuration */
+	void (*nic_config)(struct iwl_priv *priv);
 
 	/* eeprom operations (as defined in iwl-eeprom.h) */
 	struct iwl_eeprom_ops eeprom_ops;
 
 	/* temperature */
-	struct iwl_temp_ops temp_ops;
-
-	int (*txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
-	void (*dev_txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
-
-};
-
-/* NIC specific ops */
-struct iwl_nic_ops {
-	void (*additional_nic_config)(struct iwl_priv *priv);
-};
-
-struct iwl_ops {
-	const struct iwl_lib_ops *lib;
-	const struct iwl_hcmd_ops *hcmd;
-	const struct iwl_hcmd_utils_ops *utils;
-	const struct iwl_nic_ops *nic;
+	void (*temperature)(struct iwl_priv *priv);
 };
 
 struct iwl_mod_params {
@@ -176,6 +110,12 @@ struct iwl_mod_params {
 	int restart_fw;		/* def: 1 = restart firmware */
 	bool plcp_check;	/* def: true = enable plcp health check */
 	bool ack_check;		/* def: false = disable ack health check */
+	bool wd_disable;	/* def: false = enable stuck queue check */
+	bool bt_coex_active;	/* def: true = enable bt coex */
+	int led_mode;		/* def: 0 = system default */
+	bool no_sleep_autoadjust; /* def: true = disable autoadjust */
+	bool power_save;	/* def: false = disable power save */
+	int power_level;	/* def: 1 = power level */
 };
 
 /*
@@ -195,6 +135,7 @@ struct iwl_mod_params {
  * @temperature_kelvin: temperature report by uCode in kelvin
  * @max_event_log_size: size of event log buffer size for ucode event logging
  * @shadow_reg_enable: HW shadhow register bit
+ * @no_idle_support: do not support idle mode
  */
 struct iwl_base_params {
 	int eeprom_size;
@@ -216,6 +157,7 @@ struct iwl_base_params {
 	bool temperature_kelvin;
 	u32 max_event_log_size;
 	const bool shadow_reg_enable;
+	const bool no_idle_support;
 };
 /*
  * @advanced_bt_coexist: support advanced bt coexist
@@ -225,7 +167,7 @@ struct iwl_base_params {
  * @ampdu_factor: Maximum A-MPDU length factor
  * @ampdu_density: Minimum A-MPDU spacing
  * @bt_sco_disable: uCode should not response to BT in SCO/ESCO mode
-*/
+ */
 struct iwl_bt_params {
 	bool advanced_bt_coexist;
 	u8 bt_init_traffic_load;
@@ -238,19 +180,31 @@ struct iwl_bt_params {
 };
 /*
  * @use_rts_for_aggregation: use rts/cts protection for HT traffic
-*/
+ */
 struct iwl_ht_params {
 	const bool ht_greenfield_support; /* if used set to true */
 	bool use_rts_for_aggregation;
+	enum ieee80211_smps_mode smps_mode;
 };
 
 /**
  * struct iwl_cfg
+ * @name: Offical name of the device
  * @fw_name_pre: Firmware filename prefix. The api version and extension
  *	(.ucode) will be added to filename before loading from disk. The
  *	filename is constructed as fw_name_pre<api>.ucode.
  * @ucode_api_max: Highest version of uCode API supported by driver.
  * @ucode_api_min: Lowest version of uCode API supported by driver.
+ * @valid_tx_ant: valid transmit antenna
+ * @valid_rx_ant: valid receive antenna
+ * @sku: sku information from EEPROM
+ * @eeprom_ver: EEPROM version
+ * @eeprom_calib_ver: EEPROM calibration version
+ * @lib: pointer to the lib ops
+ * @additional_nic_config: additional nic configuration
+ * @base_params: pointer to basic parameters
+ * @ht_params: point to ht patameters
+ * @bt_params: pointer to bt parameters
  * @pa_type: used by 6000 series only to identify the type of Power Amplifier
  * @need_dc_calib: need to perform init dc calibration
  * @need_temp_offset_calib: need to perform temperature offset calibration
@@ -260,7 +214,6 @@ struct iwl_ht_params {
  * @rx_with_siso_diversity: 1x1 device with rx antenna diversity
  * @internal_wimax_coex: internal wifi/wimax combo device
  * @iq_invert: I/Q inversion
- * @disable_otp_refresh: disable OTP refresh current limit
  *
  * We enable the driver to be backward compatible wrt API version. The
  * driver specifies which APIs it supports (with @ucode_api_max being the
@@ -277,11 +230,7 @@ struct iwl_ht_params {
  * }
  *
  * The ideal usage of this infrastructure is to treat a new ucode API
- * release as a new hardware revision. That is, through utilizing the
- * iwl_hcmd_utils_ops etc. we accommodate different command structures
- * and flows between hardware versions (4965/5000) as well as their API
- * versions.
- *
+ * release as a new hardware revision.
  */
 struct iwl_cfg {
 	/* params specific to an individual device within a device family */
@@ -291,10 +240,11 @@ struct iwl_cfg {
 	const unsigned int ucode_api_min;
 	u8   valid_tx_ant;
 	u8   valid_rx_ant;
-	unsigned int sku;
+	u16  sku;
 	u16  eeprom_ver;
 	u16  eeprom_calib_ver;
-	const struct iwl_ops *ops;
+	const struct iwl_lib_ops *lib;
+	void (*additional_nic_config)(struct iwl_priv *priv);
 	/* params not likely to change within a device family */
 	struct iwl_base_params *base_params;
 	/* params likely to change within a device family */
@@ -309,7 +259,6 @@ struct iwl_cfg {
 	const bool rx_with_siso_diversity;
 	const bool internal_wimax_coex;
 	const bool iq_invert;
-	const bool disable_otp_refresh;
 };
 
 /***************************
@@ -346,9 +295,6 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 int iwl_mac_change_interface(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     enum nl80211_iftype newtype, bool newp2p);
-int iwl_alloc_txq_mem(struct iwl_priv *priv);
-void iwl_free_txq_mem(struct iwl_priv *priv);
-
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 int iwl_alloc_traffic_mem(struct iwl_priv *priv);
 void iwl_free_traffic_mem(struct iwl_priv *priv);
@@ -390,40 +336,13 @@ static inline void iwl_update_stats(struct iwl_priv *priv, bool is_tx,
 /*****************************************************
 * RX
 ******************************************************/
-void iwl_cmd_queue_free(struct iwl_priv *priv);
-void iwl_cmd_queue_unmap(struct iwl_priv *priv);
-int iwl_rx_queue_alloc(struct iwl_priv *priv);
-void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
-				  struct iwl_rx_queue *q);
-int iwl_rx_queue_space(const struct iwl_rx_queue *q);
-void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
-
 void iwl_chswitch_done(struct iwl_priv *priv, bool is_success);
 
-/* TX helpers */
-
-/*****************************************************
-* TX
-******************************************************/
-void iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq);
-int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
-		      int slots_num, u32 txq_id);
-void iwl_tx_queue_reset(struct iwl_priv *priv, struct iwl_tx_queue *txq,
-			int slots_num, u32 txq_id);
-void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id);
-void iwl_tx_queue_unmap(struct iwl_priv *priv, int txq_id);
 void iwl_setup_watchdog(struct iwl_priv *priv);
 /*****************************************************
  * TX power
  ****************************************************/
 int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force);
-
-/*******************************************************************************
- * Rate
- ******************************************************************************/
-
-u8 iwl_rate_get_lowest_plcp(struct iwl_priv *priv,
-			    struct iwl_rxon_context *ctx);
 
 /*******************************************************************************
  * Scanning
@@ -469,50 +388,18 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
  *****************************************************/
 
 const char *get_cmd_string(u8 cmd);
-int __must_check iwl_send_cmd_sync(struct iwl_priv *priv,
-				   struct iwl_host_cmd *cmd);
-int iwl_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
-int __must_check iwl_send_cmd_pdu(struct iwl_priv *priv, u8 id,
-				  u16 len, const void *data);
-int iwl_send_cmd_pdu_async(struct iwl_priv *priv, u8 id, u16 len,
-			   const void *data,
-			   void (*callback)(struct iwl_priv *priv,
-					    struct iwl_device_cmd *cmd,
-					    struct iwl_rx_packet *pkt));
-
-int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
-
-
-/*****************************************************
- * PCI						     *
- *****************************************************/
-
-static inline u16 iwl_pcie_link_ctl(struct iwl_priv *priv)
-{
-	int pos;
-	u16 pci_lnk_ctl;
-	pos = pci_find_capability(priv->pci_dev, PCI_CAP_ID_EXP);
-	pci_read_config_word(priv->pci_dev, pos + PCI_EXP_LNKCTL, &pci_lnk_ctl);
-	return pci_lnk_ctl;
-}
-
 void iwl_bg_watchdog(unsigned long data);
 u32 iwl_usecs_to_beacons(struct iwl_priv *priv, u32 usec, u32 beacon_interval);
 __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 			   u32 addon, u32 beacon_interval);
 
 #ifdef CONFIG_PM
-int iwl_pci_suspend(struct device *device);
-int iwl_pci_resume(struct device *device);
-extern const struct dev_pm_ops iwl_pm_ops;
-
-#define IWL_PM_OPS	(&iwl_pm_ops)
-
-#else /* !CONFIG_PM */
-
-#define IWL_PM_OPS	NULL
-
+int iwl_suspend(struct iwl_priv *priv);
+int iwl_resume(struct iwl_priv *priv);
 #endif /* !CONFIG_PM */
+
+int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg);
+void __devexit iwl_remove(struct iwl_priv * priv);
 
 /*****************************************************
 *  Error Handling Debugging
@@ -560,6 +447,7 @@ void iwlcore_free_geos(struct iwl_priv *priv);
 #define STATUS_POWER_PMI	16
 #define STATUS_FW_ERROR		17
 #define STATUS_DEVICE_ENABLED	18
+#define STATUS_CHANNEL_SWITCH_PENDING 19
 
 
 static inline int iwl_is_ready(struct iwl_priv *priv)
@@ -612,11 +500,7 @@ void iwl_apm_stop(struct iwl_priv *priv);
 int iwl_apm_init(struct iwl_priv *priv);
 
 int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
-static inline int iwlcore_commit_rxon(struct iwl_priv *priv,
-				      struct iwl_rxon_context *ctx)
-{
-	return priv->cfg->ops->hcmd->commit_rxon(priv, ctx);
-}
+
 static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
 			struct iwl_priv *priv, enum ieee80211_band band)
 {
@@ -629,7 +513,6 @@ static inline bool iwl_advanced_bt_coexist(struct iwl_priv *priv)
 	       priv->cfg->bt_params->advanced_bt_coexist;
 }
 
-extern bool bt_coex_active;
 extern bool bt_siso_mode;
 
 

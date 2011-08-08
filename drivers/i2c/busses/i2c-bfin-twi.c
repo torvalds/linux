@@ -193,7 +193,13 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface,
 		return;
 	}
 	if (twi_int_status & MCOMP) {
-		if (iface->cur_mode == TWI_I2C_MODE_COMBINED) {
+		if ((read_MASTER_CTL(iface) & MEN) == 0 &&
+			(iface->cur_mode == TWI_I2C_MODE_REPEAT ||
+			iface->cur_mode == TWI_I2C_MODE_COMBINED)) {
+			iface->result = -1;
+			write_INT_MASK(iface, 0);
+			write_MASTER_CTL(iface, 0);
+		} else if (iface->cur_mode == TWI_I2C_MODE_COMBINED) {
 			if (iface->readNum == 0) {
 				/* set the read number to 1 and ask for manual
 				 * stop in block combine mode

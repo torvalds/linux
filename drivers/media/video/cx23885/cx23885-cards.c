@@ -25,15 +25,21 @@
 #include <linux/delay.h>
 #include <media/cx25840.h>
 #include <linux/firmware.h>
-#include <staging/altera.h>
 
+#include "../../../staging/altera-stapl/altera.h"
 #include "cx23885.h"
 #include "tuner-xc2028.h"
+#include "netup-eeprom.h"
 #include "netup-init.h"
 #include "altera-ci.h"
+#include "xc4000.h"
 #include "xc5000.h"
 #include "cx23888-ir.h"
 
+static unsigned int netup_card_rev = 1;
+module_param(netup_card_rev, int, 0644);
+MODULE_PARM_DESC(netup_card_rev,
+		"NetUP Dual DVB-T/C CI card revision");
 static unsigned int enable_885_ir;
 module_param(enable_885_ir, int, 0644);
 MODULE_PARM_DESC(enable_885_ir,
@@ -174,6 +180,34 @@ struct cx23885_board cx23885_boards[] = {
 	[CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H] = {
 		.name		= "Leadtek Winfast PxDVR3200 H",
 		.portc		= CX23885_MPEG_DVB,
+	},
+	[CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H_XC4000] = {
+		.name		= "Leadtek Winfast PxDVR3200 H XC4000",
+		.porta		= CX23885_ANALOG_VIDEO,
+		.portc		= CX23885_MPEG_DVB,
+		.tuner_type	= TUNER_XC4000,
+		.tuner_addr	= 0x61,
+		.radio_type	= TUNER_XC4000,
+		.radio_addr	= 0x61,
+		.input		= {{
+			.type	= CX23885_VMUX_TELEVISION,
+			.vmux	= CX25840_VIN2_CH1 |
+				  CX25840_VIN5_CH2 |
+				  CX25840_NONE0_CH3,
+		}, {
+			.type	= CX23885_VMUX_COMPOSITE1,
+			.vmux	= CX25840_COMPOSITE1,
+		}, {
+			.type	= CX23885_VMUX_SVIDEO,
+			.vmux	= CX25840_SVIDEO_LUMA3 |
+				  CX25840_SVIDEO_CHROMA4,
+		}, {
+			.type	= CX23885_VMUX_COMPONENT,
+			.vmux	= CX25840_VIN7_CH1 |
+				  CX25840_VIN6_CH2 |
+				  CX25840_VIN8_CH3 |
+				  CX25840_COMPONENT_ON,
+		} },
 	},
 	[CX23885_BOARD_COMPRO_VIDEOMATE_E650F] = {
 		.name		= "Compro VideoMate E650F",
@@ -432,6 +466,10 @@ struct cx23885_subid cx23885_subids[] = {
 		.subvendor = 0x107d,
 		.subdevice = 0x6681,
 		.card      = CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H,
+	}, {
+		.subvendor = 0x107d,
+		.subdevice = 0x6f39,
+		.card	   = CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H_XC4000,
 	}, {
 		.subvendor = 0x185b,
 		.subdevice = 0xe800,
@@ -749,6 +787,7 @@ int cx23885_tuner_callback(void *priv, int component, int command, int arg)
 	case CX23885_BOARD_HAUPPAUGE_HVR1500:
 	case CX23885_BOARD_HAUPPAUGE_HVR1500Q:
 	case CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H:
+	case CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H_XC4000:
 	case CX23885_BOARD_COMPRO_VIDEOMATE_E650F:
 	case CX23885_BOARD_COMPRO_VIDEOMATE_E800:
 	case CX23885_BOARD_LEADTEK_WINFAST_PXTV1200:
@@ -909,6 +948,7 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		cx_set(GP0_IO, 0x000f000f);
 		break;
 	case CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H:
+	case CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H_XC4000:
 	case CX23885_BOARD_COMPRO_VIDEOMATE_E650F:
 	case CX23885_BOARD_COMPRO_VIDEOMATE_E800:
 	case CX23885_BOARD_LEADTEK_WINFAST_PXTV1200:
@@ -1097,11 +1137,18 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
 	case CX23885_BOARD_HAUPPAUGE_HVR1200:
 	case CX23885_BOARD_HAUPPAUGE_HVR1400:
-	case CX23885_BOARD_HAUPPAUGE_HVR1270:
 	case CX23885_BOARD_HAUPPAUGE_HVR1275:
 	case CX23885_BOARD_HAUPPAUGE_HVR1255:
 	case CX23885_BOARD_HAUPPAUGE_HVR1210:
 		/* FIXME: Implement me */
+		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1270:
+		ret = cx23888_ir_probe(dev);
+		if (ret)
+			break;
+		dev->sd_ir = cx23885_find_hw(dev, CX23885_HW_888_IR);
+		v4l2_subdev_call(dev->sd_cx25840, core, s_io_pin_config,
+				 ir_rx_pin_cfg_count, ir_rx_pin_cfg);
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
@@ -1156,6 +1203,7 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 void cx23885_ir_fini(struct cx23885_dev *dev)
 {
 	switch (dev->board) {
+	case CX23885_BOARD_HAUPPAUGE_HVR1270:
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 		cx23885_irq_remove(dev, PCI_MSK_IR);
@@ -1199,6 +1247,7 @@ int netup_jtag_io(void *device, int tms, int tdi, int read_tdo)
 void cx23885_ir_pci_int_enable(struct cx23885_dev *dev)
 {
 	switch (dev->board) {
+	case CX23885_BOARD_HAUPPAUGE_HVR1270:
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 		if (dev->sd_ir)
@@ -1325,6 +1374,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1700:
 	case CX23885_BOARD_HAUPPAUGE_HVR1400:
 	case CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H:
+	case CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H_XC4000:
 	case CX23885_BOARD_COMPRO_VIDEOMATE_E650F:
 	case CX23885_BOARD_HAUPPAUGE_HVR1270:
 	case CX23885_BOARD_HAUPPAUGE_HVR1275:
@@ -1353,10 +1403,12 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1800lp:
 	case CX23885_BOARD_HAUPPAUGE_HVR1700:
 	case CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H:
+	case CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H_XC4000:
 	case CX23885_BOARD_COMPRO_VIDEOMATE_E650F:
 	case CX23885_BOARD_NETUP_DUAL_DVBS2_CI:
 	case CX23885_BOARD_NETUP_DUAL_DVB_T_C_CI_RF:
 	case CX23885_BOARD_COMPRO_VIDEOMATE_E800:
+	case CX23885_BOARD_HAUPPAUGE_HVR1270:
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_MYGICA_X8506:
 	case CX23885_BOARD_MAGICPRO_PROHDTVE2:
@@ -1383,6 +1435,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		const struct firmware *fw;
 		const char *filename = "dvb-netup-altera-01.fw";
 		char *action = "configure";
+		static struct netup_card_info cinfo;
 		struct altera_config netup_config = {
 			.dev = dev,
 			.action = action,
@@ -1390,6 +1443,21 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		};
 
 		netup_initialize(dev);
+
+		netup_get_card_info(&dev->i2c_bus[0].i2c_adap, &cinfo);
+		if (netup_card_rev)
+			cinfo.rev = netup_card_rev;
+
+		switch (cinfo.rev) {
+		case 0x4:
+			filename = "dvb-netup-altera-04.fw";
+			break;
+		default:
+			filename = "dvb-netup-altera-01.fw";
+			break;
+		}
+		printk(KERN_INFO "NetUP card rev=0x%x fw_filename=%s\n",
+				cinfo.rev, filename);
 
 		ret = request_firmware(&fw, filename, &dev->pci->dev);
 		if (ret != 0)

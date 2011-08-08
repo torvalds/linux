@@ -46,7 +46,7 @@ static int ceph_encode_fh(struct dentry *dentry, u32 *rawfh, int *max_len,
 	int type;
 	struct ceph_nfs_fh *fh = (void *)rawfh;
 	struct ceph_nfs_confh *cfh = (void *)rawfh;
-	struct dentry *parent = dentry->d_parent;
+	struct dentry *parent;
 	struct inode *inode = dentry->d_inode;
 	int connected_handle_length = sizeof(*cfh)/4;
 	int handle_length = sizeof(*fh)/4;
@@ -55,26 +55,33 @@ static int ceph_encode_fh(struct dentry *dentry, u32 *rawfh, int *max_len,
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EINVAL;
 
+	spin_lock(&dentry->d_lock);
+	parent = dget(dentry->d_parent);
+	spin_unlock(&dentry->d_lock);
+
 	if (*max_len >= connected_handle_length) {
 		dout("encode_fh %p connectable\n", dentry);
 		cfh->ino = ceph_ino(dentry->d_inode);
 		cfh->parent_ino = ceph_ino(parent->d_inode);
-		cfh->parent_name_hash = ceph_dentry_hash(parent);
+		cfh->parent_name_hash = ceph_dentry_hash(parent->d_inode,
+							 dentry);
 		*max_len = connected_handle_length;
 		type = 2;
 	} else if (*max_len >= handle_length) {
 		if (connectable) {
 			*max_len = connected_handle_length;
-			return 255;
+			type = 255;
+		} else {
+			dout("encode_fh %p\n", dentry);
+			fh->ino = ceph_ino(dentry->d_inode);
+			*max_len = handle_length;
+			type = 1;
 		}
-		dout("encode_fh %p\n", dentry);
-		fh->ino = ceph_ino(dentry->d_inode);
-		*max_len = handle_length;
-		type = 1;
 	} else {
 		*max_len = handle_length;
-		return 255;
+		type = 255;
 	}
+	dput(parent);
 	return type;
 }
 
@@ -109,7 +116,7 @@ static struct dentry *__fh_to_dentry(struct super_block *sb,
 		err = ceph_mdsc_do_request(mdsc, NULL, req);
 		inode = req->r_target_inode;
 		if (inode)
-			igrab(inode);
+			ihold(inode);
 		ceph_mdsc_put_request(req);
 		if (!inode)
 			return ERR_PTR(-ESTALE);
@@ -123,7 +130,6 @@ static struct dentry *__fh_to_dentry(struct super_block *sb,
 		return dentry;
 	}
 	err = ceph_init_dentry(dentry);
-
 	if (err < 0) {
 		iput(inode);
 		return ERR_PTR(err);
@@ -167,7 +173,7 @@ static struct dentry *__cfh_to_dentry(struct super_block *sb,
 		err = ceph_mdsc_do_request(mdsc, NULL, req);
 		inode = req->r_target_inode;
 		if (inode)
-			igrab(inode);
+			ihold(inode);
 		ceph_mdsc_put_request(req);
 		if (!inode)
 			return ERR_PTR(err ? err : -ESTALE);

@@ -360,18 +360,20 @@ Each directory contains:
         A file recording the current state of the device in the array
 	which can be a comma separated list of
 	      faulty   - device has been kicked from active use due to
-                         a detected fault
+                         a detected fault or it has unacknowledged bad
+                         blocks
 	      in_sync  - device is a fully in-sync member of the array
 	      writemostly - device will only be subject to read
 		         requests if there are no other options.
 			 This applies only to raid1 arrays.
-	      blocked  - device has failed, metadata is "external",
-	                 and the failure hasn't been acknowledged yet.
+	      blocked  - device has failed, and the failure hasn't been
+			 acknowledged yet by the metadata handler.
 			 Writes that would write to this device if
 			 it were not faulty are blocked.
 	      spare    - device is working, but not a full member.
 			 This includes spares that are in the process
 			 of being recovered to
+	      write_error - device has ever seen a write error.
 	This list may grow in future.
 	This can be written to.
 	Writing "faulty"  simulates a failure on the device.
@@ -379,9 +381,11 @@ Each directory contains:
 	Writing "writemostly" sets the writemostly flag.
 	Writing "-writemostly" clears the writemostly flag.
 	Writing "blocked" sets the "blocked" flag.
-	Writing "-blocked" clears the "blocked" flag and allows writes
-		to complete.
+	Writing "-blocked" clears the "blocked" flags and allows writes
+		to complete and possibly simulates an error.
 	Writing "in_sync" sets the in_sync flag.
+	Writing "write_error" sets writeerrorseen flag.
+	Writing "-write_error" clears writeerrorseen flag.
 
 	This file responds to select/poll. Any change to 'faulty'
 	or 'blocked' causes an event.
@@ -419,7 +423,6 @@ Each directory contains:
         written, it will be rejected.
 
       recovery_start
-
         When the device is not 'in_sync', this records the number of
 	sectors from the start of the device which are known to be
 	correct.  This is normally zero, but during a recovery
@@ -435,6 +438,20 @@ Each directory contains:
 	Setting this to 'none' is equivalent to setting 'in_sync'.
 	Setting to any other value also clears the 'in_sync' flag.
 	
+      bad_blocks
+	This gives the list of all known bad blocks in the form of
+	start address and length (in sectors respectively). If output
+	is too big to fit in a page, it will be truncated. Writing
+	"sector length" to this file adds new acknowledged (i.e.
+	recorded to disk safely) bad blocks.
+
+      unacknowledged_bad_blocks
+	This gives the list of known-but-not-yet-saved-to-disk bad
+	blocks in the same form of 'bad_blocks'. If output is too big
+	to fit in a page, it will be truncated. Writing to this file
+	adds bad blocks without acknowledging them. This is largely
+	for testing.
+
 
 
 An active md device will also contain and entry for each active device
@@ -555,7 +572,7 @@ also have
    sync_min
    sync_max
      The two values, given as numbers of sectors, indicate a range
-     withing the array where 'check'/'repair' will operate. Must be
+     within the array where 'check'/'repair' will operate. Must be
      a multiple of chunk_size. When it reaches "sync_max" it will
      pause, rather than complete.
      You can use 'select' or 'poll' on "sync_completed" to wait for

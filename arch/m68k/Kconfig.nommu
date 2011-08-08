@@ -14,6 +14,36 @@ config GENERIC_CLOCKEVENTS
 	bool
 	default n
 
+config M68000
+	bool
+	select CPU_HAS_NO_BITFIELDS
+	help
+	  The Freescale (was Motorola) 68000 CPU is the first generation of
+	  the well known M68K family of processors. The CPU core as well as
+	  being available as a stand alone CPU was also used in many
+	  System-On-Chip devices (eg 68328, 68302, etc). It does not contain
+	  a paging MMU.
+
+config MCPU32
+	bool
+	select CPU_HAS_NO_BITFIELDS
+	help
+	  The Freescale (was then Motorola) CPU32 is a CPU core that is
+	  based on the 68020 processor. For the most part it is used in
+	  System-On-Chip parts, and does not contain a paging MMU.
+
+config COLDFIRE
+	bool
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	select CPU_HAS_NO_BITFIELDS
+	help
+	  The Freescale ColdFire family of processors is a modern derivitive
+	  of the 68000 processor family. They are mainly targeted at embedded
+	  applications, and are all System-On-Chip (SOC) devices, as opposed
+	  to stand alone CPUs. They implement a subset of the original 68000
+	  processor instruction set.
+
 config COLDFIRE_SW_A7
 	bool
 	default n
@@ -36,26 +66,31 @@ choice
 
 config M68328
 	bool "MC68328"
+	select M68000
 	help
 	  Motorola 68328 processor support.
 
 config M68EZ328
 	bool "MC68EZ328"
+	select M68000
 	help
 	  Motorola 68EX328 processor support.
 
 config M68VZ328
 	bool "MC68VZ328"
+	select M68000
 	help
 	  Motorola 68VZ328 processor support.
 
 config M68360
 	bool "MC68360"
+	select MCPU32
 	help
 	  Motorola 68360 processor support.
 
 config M5206
 	bool "MCF5206"
+	select COLDFIRE
 	select COLDFIRE_SW_A7
 	select HAVE_MBAR
 	help
@@ -63,6 +98,7 @@ config M5206
 
 config M5206e
 	bool "MCF5206e"
+	select COLDFIRE
 	select COLDFIRE_SW_A7
 	select HAVE_MBAR
 	help
@@ -70,6 +106,7 @@ config M5206e
 
 config M520x
 	bool "MCF520x"
+	select COLDFIRE
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CACHE_SPLIT
 	help
@@ -77,6 +114,7 @@ config M520x
 
 config M523x
 	bool "MCF523x"
+	select COLDFIRE
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CACHE_SPLIT
 	select HAVE_IPSBAR
@@ -85,6 +123,7 @@ config M523x
 
 config M5249
 	bool "MCF5249"
+	select COLDFIRE
 	select COLDFIRE_SW_A7
 	select HAVE_MBAR
 	help
@@ -92,6 +131,7 @@ config M5249
 
 config M5271
 	bool "MCF5271"
+	select COLDFIRE
 	select HAVE_CACHE_SPLIT
 	select HAVE_IPSBAR
 	help
@@ -99,6 +139,7 @@ config M5271
 
 config M5272
 	bool "MCF5272"
+	select COLDFIRE
 	select COLDFIRE_SW_A7
 	select HAVE_MBAR
 	help
@@ -106,6 +147,7 @@ config M5272
 
 config M5275
 	bool "MCF5275"
+	select COLDFIRE
 	select HAVE_CACHE_SPLIT
 	select HAVE_IPSBAR
 	help
@@ -113,6 +155,7 @@ config M5275
 
 config M528x
 	bool "MCF528x"
+	select COLDFIRE
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CACHE_SPLIT
 	select HAVE_IPSBAR
@@ -121,6 +164,7 @@ config M528x
 
 config M5307
 	bool "MCF5307"
+	select COLDFIRE
 	select COLDFIRE_SW_A7
 	select HAVE_CACHE_CB
 	select HAVE_MBAR
@@ -129,12 +173,14 @@ config M5307
 
 config M532x
 	bool "MCF532x"
+	select COLDFIRE
 	select HAVE_CACHE_CB
 	help
 	  Freescale (Motorola) ColdFire 532x processor support.
 
 config M5407
 	bool "MCF5407"
+	select COLDFIRE
 	select COLDFIRE_SW_A7
 	select HAVE_CACHE_CB
 	select HAVE_MBAR
@@ -143,6 +189,7 @@ config M5407
 
 config M547x
 	bool "MCF547x"
+	select COLDFIRE
 	select HAVE_CACHE_CB
 	select HAVE_MBAR
 	help
@@ -150,6 +197,7 @@ config M547x
 
 config M548x
 	bool "MCF548x"
+	select COLDFIRE
 	select HAVE_CACHE_CB
 	select HAVE_MBAR
 	help
@@ -166,13 +214,6 @@ config M527x
 config M54xx
 	bool
 	depends on (M548x || M547x)
-	default y
-
-config COLDFIRE
-	bool
-	depends on (M5206 || M5206e || M520x || M523x || M5249 || M527x || M5272 || M528x || M5307 || M532x || M5407 || M54xx)
-	select GENERIC_GPIO
-	select ARCH_REQUIRE_GPIOLIB
 	default y
 
 config CLOCK_SET

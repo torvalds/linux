@@ -110,6 +110,35 @@ static struct file_system_type ext3_fs_type = {
 #define IS_EXT3_SB(sb) (0)
 #endif
 
+void *ext4_kvmalloc(size_t size, gfp_t flags)
+{
+	void *ret;
+
+	ret = kmalloc(size, flags);
+	if (!ret)
+		ret = __vmalloc(size, flags, PAGE_KERNEL);
+	return ret;
+}
+
+void *ext4_kvzalloc(size_t size, gfp_t flags)
+{
+	void *ret;
+
+	ret = kzalloc(size, flags);
+	if (!ret)
+		ret = __vmalloc(size, flags | __GFP_ZERO, PAGE_KERNEL);
+	return ret;
+}
+
+void ext4_kvfree(void *ptr)
+{
+	if (is_vmalloc_addr(ptr))
+		vfree(ptr);
+	else
+		kfree(ptr);
+
+}
+
 ext4_fsblk_t ext4_block_bitmap(struct super_block *sb,
 			       struct ext4_group_desc *bg)
 {
@@ -269,6 +298,7 @@ handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks)
 	journal_t *journal;
 	handle_t  *handle;
 
+	trace_ext4_journal_start(sb, nblocks, _RET_IP_);
 	if (sb->s_flags & MS_RDONLY)
 		return ERR_PTR(-EROFS);
 
@@ -789,11 +819,8 @@ static void ext4_put_super(struct super_block *sb)
 
 	for (i = 0; i < sbi->s_gdb_count; i++)
 		brelse(sbi->s_group_desc[i]);
-	kfree(sbi->s_group_desc);
-	if (is_vmalloc_addr(sbi->s_flex_groups))
-		vfree(sbi->s_flex_groups);
-	else
-		kfree(sbi->s_flex_groups);
+	ext4_kvfree(sbi->s_group_desc);
+	ext4_kvfree(sbi->s_flex_groups);
 	percpu_counter_destroy(&sbi->s_freeblocks_counter);
 	percpu_counter_destroy(&sbi->s_freeinodes_counter);
 	percpu_counter_destroy(&sbi->s_dirs_counter);
@@ -1976,15 +2003,11 @@ static int ext4_fill_flex_info(struct super_block *sb)
 			((le16_to_cpu(sbi->s_es->s_reserved_gdt_blocks) + 1) <<
 			      EXT4_DESC_PER_BLOCK_BITS(sb))) / groups_per_flex;
 	size = flex_group_count * sizeof(struct flex_groups);
-	sbi->s_flex_groups = kzalloc(size, GFP_KERNEL);
+	sbi->s_flex_groups = ext4_kvzalloc(size, GFP_KERNEL);
 	if (sbi->s_flex_groups == NULL) {
-		sbi->s_flex_groups = vzalloc(size);
-		if (sbi->s_flex_groups == NULL) {
-			ext4_msg(sb, KERN_ERR,
-				 "not enough memory for %u flex groups",
-				 flex_group_count);
-			goto failed;
-		}
+		ext4_msg(sb, KERN_ERR, "not enough memory for %u flex groups",
+			 flex_group_count);
+		goto failed;
 	}
 
 	for (i = 0; i < sbi->s_groups_count; i++) {
@@ -2243,6 +2266,12 @@ static void ext4_orphan_cleanup(struct super_block *sb,
  * in the vfs.  ext4 inode has 48 bits of i_block in fsblock units,
  * so that won't be a limiting factor.
  *
+ * However there is other limiting factor. We do store extents in the form
+ * of starting block and length, hence the resulting length of the extent
+ * covering maximum file size must fit into on-disk format containers as
+ * well. Given that length is always by 1 unit bigger than max unit (because
+ * we count 0 as well) we have to lower the s_maxbytes by one fs block.
+ *
  * Note, this does *not* consider any metadata overhead for vfs i_blocks.
  */
 static loff_t ext4_max_size(int blkbits, int has_huge_files)
@@ -2264,10 +2293,13 @@ static loff_t ext4_max_size(int blkbits, int has_huge_files)
 		upper_limit <<= blkbits;
 	}
 
-	/* 32-bit extent-start container, ee_block */
-	res = 1LL << 32;
+	/*
+	 * 32-bit extent-start container, ee_block. We lower the maxbytes
+	 * by one fs block, so ee_len can cover the extent of maximum file
+	 * size
+	 */
+	res = (1LL << 32) - 1;
 	res <<= blkbits;
-	res -= 1;
 
 	/* Sanity check against vm- & vfs- imposed limits */
 	if (res > upper_limit)
@@ -2374,17 +2406,25 @@ static unsigned long ext4_get_stripe_size(struct ext4_sb_info *sbi)
 	unsigned long stride = le16_to_cpu(sbi->s_es->s_raid_stride);
 	unsigned long stripe_width =
 			le32_to_cpu(sbi->s_es->s_raid_stripe_width);
+	int ret;
 
 	if (sbi->s_stripe && sbi->s_stripe <= sbi->s_blocks_per_group)
-		return sbi->s_stripe;
+		ret = sbi->s_stripe;
+	else if (stripe_width <= sbi->s_blocks_per_group)
+		ret = stripe_width;
+	else if (stride <= sbi->s_blocks_per_group)
+		ret = stride;
+	else
+		ret = 0;
 
-	if (stripe_width <= sbi->s_blocks_per_group)
-		return stripe_width;
+	/*
+	 * If the stripe width is 1, this makes no sense and
+	 * we set it to 0 to turn off stripe handling code.
+	 */
+	if (ret <= 1)
+		ret = 0;
 
-	if (stride <= sbi->s_blocks_per_group)
-		return stride;
-
-	return 0;
+	return ret;
 }
 
 /* sysfs supprt */
@@ -3399,8 +3439,9 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 			(EXT4_MAX_BLOCK_FILE_PHYS / EXT4_BLOCKS_PER_GROUP(sb)));
 	db_count = (sbi->s_groups_count + EXT4_DESC_PER_BLOCK(sb) - 1) /
 		   EXT4_DESC_PER_BLOCK(sb);
-	sbi->s_group_desc = kmalloc(db_count * sizeof(struct buffer_head *),
-				    GFP_KERNEL);
+	sbi->s_group_desc = ext4_kvmalloc(db_count *
+					  sizeof(struct buffer_head *),
+					  GFP_KERNEL);
 	if (sbi->s_group_desc == NULL) {
 		ext4_msg(sb, KERN_ERR, "not enough memory");
 		goto failed_mount;
@@ -3482,7 +3523,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 
 	INIT_LIST_HEAD(&sbi->s_orphan); /* unlinked but open files */
 	mutex_init(&sbi->s_orphan_lock);
-	mutex_init(&sbi->s_resize_lock);
+	sbi->s_resize_flags = 0;
 
 	sb->s_root = NULL;
 
@@ -3732,12 +3773,8 @@ failed_mount_wq:
 	}
 failed_mount3:
 	del_timer(&sbi->s_err_report);
-	if (sbi->s_flex_groups) {
-		if (is_vmalloc_addr(sbi->s_flex_groups))
-			vfree(sbi->s_flex_groups);
-		else
-			kfree(sbi->s_flex_groups);
-	}
+	if (sbi->s_flex_groups)
+		ext4_kvfree(sbi->s_flex_groups);
 	percpu_counter_destroy(&sbi->s_freeblocks_counter);
 	percpu_counter_destroy(&sbi->s_freeinodes_counter);
 	percpu_counter_destroy(&sbi->s_dirs_counter);
@@ -3747,7 +3784,7 @@ failed_mount3:
 failed_mount2:
 	for (i = 0; i < db_count; i++)
 		brelse(sbi->s_group_desc[i]);
-	kfree(sbi->s_group_desc);
+	ext4_kvfree(sbi->s_group_desc);
 failed_mount:
 	if (sbi->s_proc) {
 		remove_proc_entry(sb->s_id, ext4_proc_root);

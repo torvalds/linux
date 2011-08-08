@@ -17,7 +17,8 @@
  *  Vectors   0 ...  31 : system traps and exceptions - hardcoded events
  *  Vectors  32 ... 127 : device interrupts
  *  Vector  128         : legacy int80 syscall interface
- *  Vectors 129 ... INVALIDATE_TLB_VECTOR_START-1 : device interrupts
+ *  Vector  204         : legacy x86_64 vsyscall emulation
+ *  Vectors 129 ... INVALIDATE_TLB_VECTOR_START-1 except 204 : device interrupts
  *  Vectors INVALIDATE_TLB_VECTOR_START ... 255 : special interrupts
  *
  * 64-bit x86 has per CPU IDT tables, 32-bit has one shared IDT table.
@@ -49,6 +50,9 @@
 #define IA32_SYSCALL_VECTOR		0x80
 #ifdef CONFIG_X86_32
 # define SYSCALL_VECTOR			0x80
+#endif
+#ifdef CONFIG_X86_64
+# define VSYSCALL_EMU_VECTOR		0xcc
 #endif
 
 /*
@@ -108,11 +112,6 @@
 #define IRQ_WORK_VECTOR			0xf6
 
 #define UV_BAU_MESSAGE			0xf5
-
-/*
- * Self IPI vector for machine checks
- */
-#define MCE_SELF_VECTOR			0xf4
 
 /* Xen vector callback to receive events in a HVM domain */
 #define XEN_HVM_EVTCHN_CALLBACK		0xf3

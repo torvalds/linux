@@ -947,6 +947,7 @@ static int aem_register_sensors(struct aem_data *data,
 
 	/* Set up read-only sensors */
 	while (ro->label) {
+		sysfs_attr_init(&sensors->dev_attr.attr);
 		sensors->dev_attr.attr.name = ro->label;
 		sensors->dev_attr.attr.mode = S_IRUGO;
 		sensors->dev_attr.show = ro->show;
@@ -963,6 +964,7 @@ static int aem_register_sensors(struct aem_data *data,
 
 	/* Set up read-write sensors */
 	while (rw->label) {
+		sysfs_attr_init(&sensors->dev_attr.attr);
 		sensors->dev_attr.attr.name = rw->label;
 		sensors->dev_attr.attr.mode = S_IRUGO | S_IWUSR;
 		sensors->dev_attr.show = rw->show;

@@ -147,9 +147,15 @@ void __init xen_swiotlb_init(int verbose)
 {
 	unsigned long bytes;
 	int rc;
+	unsigned long nr_tbl;
 
-	xen_io_tlb_nslabs = (64 * 1024 * 1024 >> IO_TLB_SHIFT);
-	xen_io_tlb_nslabs = ALIGN(xen_io_tlb_nslabs, IO_TLB_SEGSIZE);
+	nr_tbl = swioltb_nr_tbl();
+	if (nr_tbl)
+		xen_io_tlb_nslabs = nr_tbl;
+	else {
+		xen_io_tlb_nslabs = (64 * 1024 * 1024 >> IO_TLB_SHIFT);
+		xen_io_tlb_nslabs = ALIGN(xen_io_tlb_nslabs, IO_TLB_SEGSIZE);
+	}
 
 	bytes = xen_io_tlb_nslabs << IO_TLB_SHIFT;
 

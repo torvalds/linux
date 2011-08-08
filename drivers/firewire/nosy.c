@@ -37,7 +37,7 @@
 #include <linux/uaccess.h>
 #include <linux/wait.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/byteorder.h>
 
 #include "nosy.h"

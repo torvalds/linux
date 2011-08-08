@@ -40,6 +40,7 @@
 #ifndef _SOCK_H
 #define _SOCK_H
 
+#include <linux/hardirq.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/list_nulls.h>
@@ -178,7 +179,6 @@ struct sock_common {
   *	@sk_dst_cache: destination cache
   *	@sk_dst_lock: destination cache lock
   *	@sk_policy: flow policy
-  *	@sk_rmem_alloc: receive queue bytes committed
   *	@sk_receive_queue: incoming packets
   *	@sk_wmem_alloc: transmit queue bytes committed
   *	@sk_write_queue: Packet sending queue
@@ -563,6 +563,7 @@ enum sock_flags {
 	SOCK_TIMESTAMPING_SYS_HARDWARE, /* %SOF_TIMESTAMPING_SYS_HARDWARE */
 	SOCK_FASYNC, /* fasync() active */
 	SOCK_RXQ_OVFL,
+	SOCK_ZEROCOPY, /* buffers from userspace */
 };
 
 static inline void sock_copy_flags(struct sock *nsk, struct sock *osk)
@@ -1302,8 +1303,7 @@ extern unsigned long sock_i_ino(struct sock *sk);
 static inline struct dst_entry *
 __sk_dst_get(struct sock *sk)
 {
-	return rcu_dereference_check(sk->sk_dst_cache, rcu_read_lock_held() ||
-						       sock_owned_by_user(sk) ||
+	return rcu_dereference_check(sk->sk_dst_cache, sock_owned_by_user(sk) ||
 						       lockdep_is_held(&sk->sk_lock.slock));
 }
 

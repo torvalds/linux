@@ -55,7 +55,7 @@
 #include <sound/pcm_params.h>
 #include <sound/asoundef.h>
 #include <sound/initval.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include "echoaudio.h"
 
 MODULE_FIRMWARE("ea/loader_dsp.fw");

@@ -447,6 +447,8 @@ static int clcdfb_register(struct clcd_fb *fb)
 		goto out;
 	}
 
+	fb->fb.device		= &fb->dev->dev;
+
 	fb->fb.fix.mmio_start	= fb->dev->res.start;
 	fb->fb.fix.mmio_len	= resource_size(&fb->dev->res);
 

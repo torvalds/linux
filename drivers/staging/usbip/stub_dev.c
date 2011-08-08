@@ -23,14 +23,10 @@
 #include "usbip_common.h"
 #include "stub.h"
 
-static int stub_probe(struct usb_interface *interface,
-		      const struct usb_device_id *id);
-static void stub_disconnect(struct usb_interface *interface);
-
 /*
  * Define device IDs here if you want to explicitly limit exportable devices.
- * In the most cases, wild card matching will be ok because driver binding can
- * be changed dynamically by a userland program.
+ * In most cases, wildcard matching will be okay because driver binding can be
+ * changed dynamically by a userland program.
  */
 static struct usb_device_id stub_table[] = {
 #if 0
@@ -54,16 +50,9 @@ static struct usb_device_id stub_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, stub_table);
 
-struct usb_driver stub_driver = {
-	.name		= "usbip",
-	.probe		= stub_probe,
-	.disconnect	= stub_disconnect,
-	.id_table	= stub_table,
-};
-
 /*
- * usbip_status shows status of usbip as long as this driver is bound to the
- * target device.
+ * usbip_status shows the status of usbip-host as long as this driver is bound
+ * to the target device.
  */
 static ssize_t show_status(struct device *dev, struct device_attribute *attr,
 			   char *buf)
@@ -207,10 +196,11 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	if (ud->tcp_tx && !task_is_dead(ud->tcp_tx))
 		kthread_stop(ud->tcp_tx);
 
-	/* 2. close the socket */
 	/*
-	 * tcp_socket is freed after threads are killed.
-	 * So usbip_xmit do not touch NULL socket.
+	 * 2. close the socket
+	 *
+	 * tcp_socket is freed after threads are killed so that usbip_xmit does
+	 * not touch NULL socket.
 	 */
 	if (ud->tcp_socket) {
 		sock_release(ud->tcp_socket);
@@ -230,8 +220,8 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 			list_del(&unlink->list);
 			kfree(unlink);
 		}
-		list_for_each_entry_safe(unlink, tmp,
-						 &sdev->unlink_free, list) {
+		list_for_each_entry_safe(unlink, tmp, &sdev->unlink_free,
+					 list) {
 			list_del(&unlink->list);
 			kfree(unlink);
 		}
@@ -258,22 +248,17 @@ static void stub_device_reset(struct usbip_device *ud)
 
 	/* try to reset the device */
 	ret = usb_reset_device(udev);
-
 	usb_unlock_device(udev);
 
 	spin_lock(&ud->lock);
 	if (ret) {
 		dev_err(&udev->dev, "device reset\n");
 		ud->status = SDEV_ST_ERROR;
-
 	} else {
 		dev_info(&udev->dev, "device reset\n");
 		ud->status = SDEV_ST_AVAILABLE;
-
 	}
 	spin_unlock(&ud->lock);
-
-	return;
 }
 
 static void stub_device_unusable(struct usbip_device *ud)
@@ -375,7 +360,7 @@ static int stub_probe(struct usb_interface *interface,
 
 	/* check we should claim or not by busid_table */
 	busid_priv = get_busid_priv(udev_busid);
-	if (!busid_priv  || (busid_priv->status == STUB_BUSID_REMOV) ||
+	if (!busid_priv || (busid_priv->status == STUB_BUSID_REMOV) ||
 	    (busid_priv->status == STUB_BUSID_OTHER)) {
 		dev_info(&interface->dev, "%s is not in match_busid table... "
 			 "skip!\n", udev_busid);
@@ -420,7 +405,6 @@ static int stub_probe(struct usb_interface *interface,
 				udev_busid);
 			usb_set_intfdata(interface, NULL);
 			busid_priv->interf_count--;
-
 			return err;
 		}
 
@@ -428,7 +412,7 @@ static int stub_probe(struct usb_interface *interface,
 		return 0;
 	}
 
-	/* ok. this is my device. */
+	/* ok, this is my device */
 	sdev = stub_device_alloc(udev, interface);
 	if (!sdev)
 		return -ENOMEM;
@@ -443,7 +427,6 @@ static int stub_probe(struct usb_interface *interface,
 	/* set private data to usb_interface */
 	usb_set_intfdata(interface, sdev);
 	busid_priv->interf_count++;
-
 	busid_priv->sdev = sdev;
 
 	err = stub_add_files(&interface->dev);
@@ -453,7 +436,6 @@ static int stub_probe(struct usb_interface *interface,
 		usb_put_intf(interface);
 
 		busid_priv->interf_count = 0;
-
 		busid_priv->sdev = NULL;
 		stub_device_free(sdev);
 		return err;
@@ -541,3 +523,29 @@ static void stub_disconnect(struct usb_interface *interface)
 		del_match_busid((char *)udev_busid);
 	}
 }
+
+/* 
+ * Presence of pre_reset and post_reset prevents the driver from being unbound
+ * when the device is being reset
+ */
+ 
+int stub_pre_reset(struct usb_interface *interface)
+{
+	dev_dbg(&interface->dev, "pre_reset\n");
+	return 0;
+}
+
+int stub_post_reset(struct usb_interface *interface)
+{
+	dev_dbg(&interface->dev, "post_reset\n");
+	return 0;
+}
+
+struct usb_driver stub_driver = {
+	.name		= "usbip-host",
+	.probe		= stub_probe,
+	.disconnect	= stub_disconnect,
+	.id_table	= stub_table,
+	.pre_reset	= stub_pre_reset,
+	.post_reset	= stub_post_reset,
+ };

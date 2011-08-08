@@ -520,7 +520,8 @@ static void pmic8xxx_kp_close(struct input_dev *dev)
  */
 static int __devinit pmic8xxx_kp_probe(struct platform_device *pdev)
 {
-	const struct pm8xxx_keypad_platform_data *pdata = mfd_get_data(pdev);
+	const struct pm8xxx_keypad_platform_data *pdata =
+					dev_get_platdata(&pdev->dev);
 	const struct matrix_keymap_data *keymap_data;
 	struct pmic8xxx_kp *kp;
 	int rc;
@@ -699,9 +700,9 @@ static int __devinit pmic8xxx_kp_probe(struct platform_device *pdev)
 	return 0;
 
 err_pmic_reg_read:
-	free_irq(kp->key_stuck_irq, NULL);
+	free_irq(kp->key_stuck_irq, kp);
 err_req_stuck_irq:
-	free_irq(kp->key_sense_irq, NULL);
+	free_irq(kp->key_sense_irq, kp);
 err_gpio_config:
 err_get_irq:
 	input_free_device(kp->input);
@@ -716,8 +717,8 @@ static int __devexit pmic8xxx_kp_remove(struct platform_device *pdev)
 	struct pmic8xxx_kp *kp = platform_get_drvdata(pdev);
 
 	device_init_wakeup(&pdev->dev, 0);
-	free_irq(kp->key_stuck_irq, NULL);
-	free_irq(kp->key_sense_irq, NULL);
+	free_irq(kp->key_stuck_irq, kp);
+	free_irq(kp->key_sense_irq, kp);
 	input_unregister_device(kp->input);
 	kfree(kp);
 

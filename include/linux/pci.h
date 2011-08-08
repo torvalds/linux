@@ -49,7 +49,7 @@
 #include <linux/compiler.h>
 #include <linux/errno.h>
 #include <linux/kobject.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/irqreturn.h>
@@ -843,8 +843,8 @@ void pci_enable_ido(struct pci_dev *dev, unsigned long type);
 void pci_disable_ido(struct pci_dev *dev, unsigned long type);
 
 enum pci_obff_signal_type {
-	PCI_EXP_OBFF_SIGNAL_L0,
-	PCI_EXP_OBFF_SIGNAL_ALWAYS,
+	PCI_EXP_OBFF_SIGNAL_L0 = 0,
+	PCI_EXP_OBFF_SIGNAL_ALWAYS = 1,
 };
 int pci_enable_obff(struct pci_dev *dev, enum pci_obff_signal_type);
 void pci_disable_obff(struct pci_dev *dev);
@@ -879,7 +879,7 @@ void pdev_enable_device(struct pci_dev *);
 void pdev_sort_resources(struct pci_dev *, struct resource_list *);
 int pci_enable_resources(struct pci_dev *, int mask);
 void pci_fixup_irqs(u8 (*)(struct pci_dev *, u8 *),
-		    int (*)(struct pci_dev *, u8, u8));
+		    int (*)(const struct pci_dev *, u8, u8));
 #define HAVE_PCI_REQ_REGIONS	2
 int __must_check pci_request_regions(struct pci_dev *, const char *);
 int __must_check pci_request_regions_exclusive(struct pci_dev *, const char *);
@@ -1588,6 +1588,45 @@ int pci_vpd_find_tag(const u8 *buf, unsigned int off, unsigned int len, u8 rdt);
  */
 int pci_vpd_find_info_keyword(const u8 *buf, unsigned int off,
 			      unsigned int len, const char *kw);
+
+/* PCI <-> OF binding helpers */
+#ifdef CONFIG_OF
+struct device_node;
+extern void pci_set_of_node(struct pci_dev *dev);
+extern void pci_release_of_node(struct pci_dev *dev);
+extern void pci_set_bus_of_node(struct pci_bus *bus);
+extern void pci_release_bus_of_node(struct pci_bus *bus);
+
+/* Arch may override this (weak) */
+extern struct device_node * __weak pcibios_get_phb_of_node(struct pci_bus *bus);
+
+static inline struct device_node *pci_device_to_OF_node(struct pci_dev *pdev)
+{
+	return pdev ? pdev->dev.of_node : NULL;
+}
+
+static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
+{
+	return bus ? bus->dev.of_node : NULL;
+}
+
+#else /* CONFIG_OF */
+static inline void pci_set_of_node(struct pci_dev *dev) { }
+static inline void pci_release_of_node(struct pci_dev *dev) { }
+static inline void pci_set_bus_of_node(struct pci_bus *bus) { }
+static inline void pci_release_bus_of_node(struct pci_bus *bus) { }
+#endif  /* CONFIG_OF */
+
+/**
+ * pci_find_upstream_pcie_bridge - find upstream PCIe-to-PCI bridge of a device
+ * @pdev: the PCI device
+ *
+ * if the device is PCIE, return NULL
+ * if the device isn't connected to a PCIe bridge (that is its parent is a
+ * legacy PCI bridge and the bridge is directly connected to bus 0), return its
+ * parent
+ */
+struct pci_dev *pci_find_upstream_pcie_bridge(struct pci_dev *pdev);
 
 #endif /* __KERNEL__ */
 #endif /* LINUX_PCI_H */

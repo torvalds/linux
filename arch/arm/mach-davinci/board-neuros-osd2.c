@@ -277,4 +277,5 @@ MACHINE_START(NEUROS_OSD2, "Neuros OSD2")
 	.init_irq	= davinci_irq_init,
 	.timer		= &davinci_timer,
 	.init_machine = davinci_ntosd2_init,
+	.dma_zone_size	= SZ_128M,
 MACHINE_END

@@ -504,7 +504,7 @@ N: Dominik Brodowski
 E: linux@brodo.de
 W: http://www.brodo.de/
 P: 1024D/725B37C6  190F 3E77 9C89 3B6D BECD  46EE 67C3 0308 725B 37C6
-D: parts of CPUFreq code, ACPI bugfixes
+D: parts of CPUFreq code, ACPI bugfixes, PCMCIA rewrite, cpufrequtils
 S: Tuebingen, Germany
 
 N: Andries Brouwer
@@ -517,6 +517,14 @@ S: The Netherlands
 N: Zach Brown
 E: zab@zabbo.net
 D: maestro pci sound
+
+N: David Brownell
+D: Kernel engineer, mentor, and friend.  Maintained USB EHCI and
+D: gadget layers, SPI subsystem, GPIO subsystem, and more than a few
+D: device drivers.  His encouragement also helped many engineers get
+D: started working on the Linux kernel.  David passed away in early
+D: 2011, and will be greatly missed.
+W: https://lkml.org/lkml/2011/4/5/36
 
 N: Gary Brubaker
 E: xavyer@ix.netcom.com
@@ -848,6 +856,10 @@ S: Dell Inc.
 S: One Dell Way
 S: Round Rock, TX  78682
 S: USA
+
+N: Mattia Dongili
+E: malattia@gmail.com
+D: cpufrequtils (precursor to cpupowerutils)
 
 N: Ben Dooks
 E: ben-linux@fluff.org
@@ -1874,6 +1886,11 @@ S: X/OS Experts in Open Systems BV
 S: Kruislaan 419
 S: 1098 VA Amsterdam 
 S: The Netherlands
+
+N: Goran Koruga
+E: korugag@siol.net
+D: cpufrequtils (precursor to cpupowerutils)
+S: Slovenia
 
 N: Jiri Kosina
 E: jikos@jikos.cz
@@ -2906,6 +2923,12 @@ D: Modularization of some filesystems
 D: /proc/sound, minor fixes
 S: Schlossbergring 9
 S: 79098 Freiburg
+S: Germany
+
+N: Thomas Renninger
+E: trenn@suse.de
+D: cpupowerutils
+S: SUSE Linux GmbH
 S: Germany
 
 N: Joerg Reuter

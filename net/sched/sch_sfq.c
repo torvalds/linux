@@ -157,7 +157,7 @@ static unsigned int sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 		iph = ip_hdr(skb);
 		h = (__force u32)iph->daddr;
 		h2 = (__force u32)iph->saddr ^ iph->protocol;
-		if (iph->frag_off & htons(IP_MF | IP_OFFSET))
+		if (ip_is_fragment(iph))
 			break;
 		poff = proto_ports_offset(iph->protocol);
 		if (poff >= 0 &&
@@ -410,7 +410,12 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	/* Return Congestion Notification only if we dropped a packet
 	 * from this flow.
 	 */
-	return (qlen != slot->qlen) ? NET_XMIT_CN : NET_XMIT_SUCCESS;
+	if (qlen != slot->qlen)
+		return NET_XMIT_CN;
+
+	/* As we dropped a packet, better let upper stack know this */
+	qdisc_tree_decrease_qlen(sch, 1);
+	return NET_XMIT_SUCCESS;
 }
 
 static struct sk_buff *

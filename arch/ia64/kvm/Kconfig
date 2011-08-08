@@ -49,6 +49,5 @@ config KVM_INTEL
 	  extensions.
 
 source drivers/vhost/Kconfig
-source drivers/virtio/Kconfig
 
 endif # VIRTUALIZATION

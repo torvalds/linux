@@ -1309,7 +1309,8 @@ static struct omap_ball __initdata omap4_wkup_cbl_cbs_ball[] = {
 #define omap4_wkup_cbl_cbs_ball  NULL
 #endif
 
-int __init omap4_mux_init(struct omap_board_mux *board_subset, int flags)
+int __init omap4_mux_init(struct omap_board_mux *board_subset,
+	struct omap_board_mux *board_wkup_subset, int flags)
 {
 	struct omap_ball *package_balls_core;
 	struct omap_ball *package_balls_wkup = omap4_wkup_cbl_cbs_ball;
@@ -1347,7 +1348,7 @@ int __init omap4_mux_init(struct omap_board_mux *board_subset, int flags)
 			    OMAP_MUX_GPIO_IN_MODE3,
 			    OMAP4_CTRL_MODULE_PAD_WKUP_MUX_PBASE,
 			    OMAP4_CTRL_MODULE_PAD_WKUP_MUX_SIZE,
-			    omap4_wkup_muxmodes, NULL, board_subset,
+			    omap4_wkup_muxmodes, NULL, board_wkup_subset,
 			    package_balls_wkup);
 
 	return ret;

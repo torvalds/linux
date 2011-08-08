@@ -76,6 +76,9 @@ struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 	unsigned long dt_root;
 	const char *model;
 
+	if (!dt_phys)
+		return NULL;
+
 	devtree = phys_to_virt(dt_phys);
 
 	/* check device tree validity */
@@ -129,17 +132,3 @@ struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 
 	return mdesc_best;
 }
-
-/**
- * irq_create_of_mapping - Hook to resolve OF irq specifier into a Linux irq#
- *
- * Currently the mapping mechanism is trivial; simple flat hwirq numbers are
- * mapped 1:1 onto Linux irq numbers.  Cascaded irq controllers are not
- * supported.
- */
-unsigned int irq_create_of_mapping(struct device_node *controller,
-				   const u32 *intspec, unsigned int intsize)
-{
-	return intspec[0];
-}
-EXPORT_SYMBOL_GPL(irq_create_of_mapping);

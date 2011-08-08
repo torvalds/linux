@@ -589,7 +589,8 @@ void fuse_release_common(struct file *file, int opcode);
 /**
  * Send FSYNC or FSYNCDIR request
  */
-int fuse_fsync_common(struct file *file, int datasync, int isdir);
+int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
+		      int datasync, int isdir);
 
 /**
  * Notify poll wakeup

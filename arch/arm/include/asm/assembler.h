@@ -13,6 +13,9 @@
  *  Do not include any C declarations in this file - it is included by
  *  assembler source.
  */
+#ifndef __ASM_ASSEMBLER_H__
+#define __ASM_ASSEMBLER_H__
+
 #ifndef __ASSEMBLY__
 #error "Only include this from assembly code"
 #endif
@@ -290,3 +293,13 @@
 	.macro	ldrusr, reg, ptr, inc, cond=al, rept=1, abort=9001f
 	usracc	ldr, \reg, \ptr, \inc, \cond, \rept, \abort
 	.endm
+
+/* Utility macro for declaring string literals */
+	.macro	string name:req, string
+	.type \name , #object
+\name:
+	.asciz "\string"
+	.size \name , . - \name
+	.endm
+
+#endif /* __ASM_ASSEMBLER_H__ */

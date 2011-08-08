@@ -560,6 +560,11 @@ struct xhci_slot_ctx {
 #define SLOT_STATE	(0x1f << 27)
 #define GET_SLOT_STATE(p)	(((p) & (0x1f << 27)) >> 27)
 
+#define SLOT_STATE_DISABLED	0
+#define SLOT_STATE_ENABLED	SLOT_STATE_DISABLED
+#define SLOT_STATE_DEFAULT	1
+#define SLOT_STATE_ADDRESSED	2
+#define SLOT_STATE_CONFIGURED	3
 
 /**
  * struct xhci_ep_ctx
@@ -869,6 +874,8 @@ struct xhci_transfer_event {
 #define COMP_PING_ERR	20
 /* Event Ring is full */
 #define COMP_ER_FULL	21
+/* Incompatible Device Error */
+#define COMP_DEV_ERR	22
 /* Missed Service Error - HC couldn't service an isoc ep within interval */
 #define COMP_MISSED_INT	23
 /* Successfully stopped command ring */
@@ -1064,6 +1071,13 @@ union xhci_trb {
 #define	TRB_NEC_CMD_COMP	48
 /* Get NEC firmware revision. */
 #define	TRB_NEC_GET_FW		49
+
+#define TRB_TYPE_LINK(x)	(((x) & TRB_TYPE_BITMASK) == TRB_TYPE(TRB_LINK))
+/* Above, but for __le32 types -- can avoid work by swapping constants: */
+#define TRB_TYPE_LINK_LE32(x)	(((x) & cpu_to_le32(TRB_TYPE_BITMASK)) == \
+				 cpu_to_le32(TRB_TYPE(TRB_LINK)))
+#define TRB_TYPE_NOOP_LE32(x)	(((x) & cpu_to_le32(TRB_TYPE_BITMASK)) == \
+				 cpu_to_le32(TRB_TYPE(TRB_TR_NOOP)))
 
 #define NEC_FW_MINOR(p)		(((p) >> 0) & 0xff)
 #define NEC_FW_MAJOR(p)		(((p) >> 8) & 0xff)
@@ -1302,6 +1316,8 @@ struct xhci_hcd {
  * commands.
  */
 #define XHCI_EP_LIMIT_QUIRK	(1 << 5)
+#define XHCI_BROKEN_MSI		(1 << 6)
+#define XHCI_RESET_ON_RESUME	(1 << 7)
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;
 	/* There are two roothubs to keep track of bus suspend info for */

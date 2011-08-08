@@ -294,6 +294,7 @@ struct iio_poll_func
 	pf->h = h;
 	pf->thread = thread;
 	pf->type = type;
+	pf->private_data = private;
 
 	return pf;
 }
@@ -339,6 +340,9 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 {
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
 	struct iio_trigger *oldtrig = dev_info->trig;
+	struct iio_trigger *trig;
+	int ret;
+
 	mutex_lock(&dev_info->mlock);
 	if (dev_info->currentmode == INDIO_RING_TRIGGERED) {
 		mutex_unlock(&dev_info->mlock);
@@ -346,7 +350,22 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 	}
 	mutex_unlock(&dev_info->mlock);
 
-	dev_info->trig = iio_trigger_find_by_name(buf, len);
+	trig = iio_trigger_find_by_name(buf, len);
+
+	if (trig && dev_info->info->validate_trigger) {
+		ret = dev_info->info->validate_trigger(dev_info, trig);
+		if (ret)
+			return ret;
+	}
+
+	if (trig && trig->validate_device) {
+		ret = trig->validate_device(trig, dev_info);
+		if (ret)
+			return ret;
+	}
+
+	dev_info->trig = trig;
+
 	if (oldtrig && dev_info->trig != oldtrig)
 		iio_put_trigger(oldtrig);
 	if (dev_info->trig)

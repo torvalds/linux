@@ -86,22 +86,24 @@ static const char *sw_event_names[PERF_COUNT_SW_MAX] = {
 
 #define MAX_ALIASES 8
 
-static const char *hw_cache[][MAX_ALIASES] = {
+static const char *hw_cache[PERF_COUNT_HW_CACHE_MAX][MAX_ALIASES] = {
  { "L1-dcache",	"l1-d",		"l1d",		"L1-data",		},
  { "L1-icache",	"l1-i",		"l1i",		"L1-instruction",	},
- { "LLC",	"L2"							},
+ { "LLC",	"L2",							},
  { "dTLB",	"d-tlb",	"Data-TLB",				},
  { "iTLB",	"i-tlb",	"Instruction-TLB",			},
  { "branch",	"branches",	"bpu",		"btb",		"bpc",	},
+ { "node",								},
 };
 
-static const char *hw_cache_op[][MAX_ALIASES] = {
+static const char *hw_cache_op[PERF_COUNT_HW_CACHE_OP_MAX][MAX_ALIASES] = {
  { "load",	"loads",	"read",					},
  { "store",	"stores",	"write",				},
  { "prefetch",	"prefetches",	"speculative-read", "speculative-load",	},
 };
 
-static const char *hw_cache_result[][MAX_ALIASES] = {
+static const char *hw_cache_result[PERF_COUNT_HW_CACHE_RESULT_MAX]
+				  [MAX_ALIASES] = {
  { "refs",	"Reference",	"ops",		"access",		},
  { "misses",	"miss",							},
 };
@@ -124,6 +126,7 @@ static unsigned long hw_cache_stat[C(MAX)] = {
  [C(DTLB)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
  [C(ITLB)]	= (CACHE_READ),
  [C(BPU)]	= (CACHE_READ),
+ [C(NODE)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
 };
 
 #define for_each_subsystem(sys_dir, sys_dirent, sys_next)	       \
@@ -393,7 +396,7 @@ parse_generic_hw_event(const char **str, struct perf_event_attr *attr)
 						PERF_COUNT_HW_CACHE_OP_MAX);
 			if (cache_op >= 0) {
 				if (!is_cache_op_valid(cache_type, cache_op))
-					return 0;
+					return EVT_FAILED;
 				continue;
 			}
 		}
@@ -475,7 +478,7 @@ parse_single_tracepoint_event(char *sys_name,
 /* sys + ':' + event + ':' + flags*/
 #define MAX_EVOPT_LEN	(MAX_EVENT_LENGTH * 2 + 2 + 128)
 static enum event_result
-parse_multiple_tracepoint_event(const struct option *opt, char *sys_name,
+parse_multiple_tracepoint_event(struct perf_evlist *evlist, char *sys_name,
 				const char *evt_exp, char *flags)
 {
 	char evt_path[MAXPATHLEN];
@@ -509,7 +512,7 @@ parse_multiple_tracepoint_event(const struct option *opt, char *sys_name,
 		if (len < 0)
 			return EVT_FAILED;
 
-		if (parse_events(opt, event_opt, 0))
+		if (parse_events(evlist, event_opt, 0))
 			return EVT_FAILED;
 	}
 
@@ -517,7 +520,7 @@ parse_multiple_tracepoint_event(const struct option *opt, char *sys_name,
 }
 
 static enum event_result
-parse_tracepoint_event(const struct option *opt, const char **strp,
+parse_tracepoint_event(struct perf_evlist *evlist, const char **strp,
 		       struct perf_event_attr *attr)
 {
 	const char *evt_name;
@@ -557,8 +560,8 @@ parse_tracepoint_event(const struct option *opt, const char **strp,
 		return EVT_FAILED;
 	if (strpbrk(evt_name, "*?")) {
 		*strp += strlen(sys_name) + evt_length + 1; /* 1 == the ':' */
-		return parse_multiple_tracepoint_event(opt, sys_name, evt_name,
-						       flags);
+		return parse_multiple_tracepoint_event(evlist, sys_name,
+						       evt_name, flags);
 	} else {
 		return parse_single_tracepoint_event(sys_name, evt_name,
 						     evt_length, attr, strp);
@@ -778,12 +781,12 @@ parse_event_modifier(const char **strp, struct perf_event_attr *attr)
  * Symbolic names are (almost) exactly matched.
  */
 static enum event_result
-parse_event_symbols(const struct option *opt, const char **str,
+parse_event_symbols(struct perf_evlist *evlist, const char **str,
 		    struct perf_event_attr *attr)
 {
 	enum event_result ret;
 
-	ret = parse_tracepoint_event(opt, str, attr);
+	ret = parse_tracepoint_event(evlist, str, attr);
 	if (ret != EVT_FAILED)
 		goto modifier;
 
@@ -822,9 +825,8 @@ modifier:
 	return ret;
 }
 
-int parse_events(const struct option *opt, const char *str, int unset __used)
+int parse_events(struct perf_evlist *evlist , const char *str, int unset __used)
 {
-	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
 	struct perf_event_attr attr;
 	enum event_result ret;
 	const char *ostr;
@@ -832,7 +834,7 @@ int parse_events(const struct option *opt, const char *str, int unset __used)
 	for (;;) {
 		ostr = str;
 		memset(&attr, 0, sizeof(attr));
-		ret = parse_event_symbols(opt, &str, &attr);
+		ret = parse_event_symbols(evlist, &str, &attr);
 		if (ret == EVT_FAILED)
 			return -1;
 
@@ -861,6 +863,13 @@ int parse_events(const struct option *opt, const char *str, int unset __used)
 	}
 
 	return 0;
+}
+
+int parse_events_option(const struct option *opt, const char *str,
+			int unset __used)
+{
+	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
+	return parse_events(evlist, str, unset);
 }
 
 int parse_filter(const struct option *opt, const char *str,

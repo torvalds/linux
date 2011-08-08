@@ -37,8 +37,7 @@ struct dst_entry {
 	unsigned long		_metrics;
 	unsigned long		expires;
 	struct dst_entry	*path;
-	struct neighbour	*neighbour;
-	struct hh_cache		*hh;
+	struct neighbour __rcu	*_neighbour;
 #ifdef CONFIG_XFRM
 	struct xfrm_state	*xfrm;
 #else
@@ -46,6 +45,14 @@ struct dst_entry {
 #endif
 	int			(*input)(struct sk_buff*);
 	int			(*output)(struct sk_buff*);
+
+	int			flags;
+#define DST_HOST		0x0001
+#define DST_NOXFRM		0x0002
+#define DST_NOPOLICY		0x0004
+#define DST_NOHASH		0x0008
+#define DST_NOCACHE		0x0010
+#define DST_NOCOUNT		0x0020
 
 	short			error;
 	short			obsolete;
@@ -62,7 +69,7 @@ struct dst_entry {
 	 * (L1_CACHE_SIZE would be too much)
 	 */
 #ifdef CONFIG_64BIT
-	long			__pad_to_align_refcnt[1];
+	long			__pad_to_align_refcnt[2];
 #endif
 	/*
 	 * __refcnt wants to be on a different cache line from
@@ -71,12 +78,6 @@ struct dst_entry {
 	atomic_t		__refcnt;	/* client references	*/
 	int			__use;
 	unsigned long		lastuse;
-	int			flags;
-#define DST_HOST		0x0001
-#define DST_NOXFRM		0x0002
-#define DST_NOPOLICY		0x0004
-#define DST_NOHASH		0x0008
-#define DST_NOCACHE		0x0010
 	union {
 		struct dst_entry	*next;
 		struct rtable __rcu	*rt_next;
@@ -84,6 +85,21 @@ struct dst_entry {
 		struct dn_route __rcu	*dn_next;
 	};
 };
+
+static inline struct neighbour *dst_get_neighbour(struct dst_entry *dst)
+{
+	return rcu_dereference(dst->_neighbour);
+}
+
+static inline struct neighbour *dst_get_neighbour_raw(struct dst_entry *dst)
+{
+	return rcu_dereference_raw(dst->_neighbour);
+}
+
+static inline void dst_set_neighbour(struct dst_entry *dst, struct neighbour *neigh)
+{
+	rcu_assign_pointer(dst->_neighbour, neigh);
+}
 
 extern u32 *dst_cow_metrics_generic(struct dst_entry *dst, unsigned long old);
 extern const u32 dst_default_metrics[RTAX_MAX];
@@ -370,8 +386,19 @@ static inline void dst_rcu_free(struct rcu_head *head)
 
 static inline void dst_confirm(struct dst_entry *dst)
 {
-	if (dst)
-		neigh_confirm(dst->neighbour);
+	if (dst) {
+		struct neighbour *n;
+
+		rcu_read_lock();
+		n = dst_get_neighbour(dst);
+		neigh_confirm(n);
+		rcu_read_unlock();
+	}
+}
+
+static inline struct neighbour *dst_neigh_lookup(const struct dst_entry *dst, const void *daddr)
+{
+	return dst->ops->neigh_lookup(dst, daddr);
 }
 
 static inline void dst_link_failure(struct sk_buff *skb)

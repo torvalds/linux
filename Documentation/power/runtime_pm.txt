@@ -1,39 +1,39 @@
-Run-time Power Management Framework for I/O Devices
+Runtime Power Management Framework for I/O Devices
 
 (C) 2009-2011 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
 (C) 2010 Alan Stern <stern@rowland.harvard.edu>
 
 1. Introduction
 
-Support for run-time power management (run-time PM) of I/O devices is provided
+Support for runtime power management (runtime PM) of I/O devices is provided
 at the power management core (PM core) level by means of:
 
 * The power management workqueue pm_wq in which bus types and device drivers can
   put their PM-related work items.  It is strongly recommended that pm_wq be
-  used for queuing all work items related to run-time PM, because this allows
+  used for queuing all work items related to runtime PM, because this allows
   them to be synchronized with system-wide power transitions (suspend to RAM,
   hibernation and resume from system sleep states).  pm_wq is declared in
   include/linux/pm_runtime.h and defined in kernel/power/main.c.
 
-* A number of run-time PM fields in the 'power' member of 'struct device' (which
+* A number of runtime PM fields in the 'power' member of 'struct device' (which
   is of the type 'struct dev_pm_info', defined in include/linux/pm.h) that can
-  be used for synchronizing run-time PM operations with one another.
+  be used for synchronizing runtime PM operations with one another.
 
-* Three device run-time PM callbacks in 'struct dev_pm_ops' (defined in
+* Three device runtime PM callbacks in 'struct dev_pm_ops' (defined in
   include/linux/pm.h).
 
 * A set of helper functions defined in drivers/base/power/runtime.c that can be
-  used for carrying out run-time PM operations in such a way that the
+  used for carrying out runtime PM operations in such a way that the
   synchronization between them is taken care of by the PM core.  Bus types and
   device drivers are encouraged to use these functions.
 
-The run-time PM callbacks present in 'struct dev_pm_ops', the device run-time PM
+The runtime PM callbacks present in 'struct dev_pm_ops', the device runtime PM
 fields of 'struct dev_pm_info' and the core helper functions provided for
-run-time PM are described below.
+runtime PM are described below.
 
-2. Device Run-time PM Callbacks
+2. Device Runtime PM Callbacks
 
-There are three device run-time PM callbacks defined in 'struct dev_pm_ops':
+There are three device runtime PM callbacks defined in 'struct dev_pm_ops':
 
 struct dev_pm_ops {
 	...
@@ -54,11 +54,10 @@ referred to as subsystem-level callbacks in what follows.
 By default, the callbacks are always invoked in process context with interrupts
 enabled.  However, subsystems can use the pm_runtime_irq_safe() helper function
 to tell the PM core that a device's ->runtime_suspend() and ->runtime_resume()
-callbacks should be invoked in atomic context with interrupts disabled
-(->runtime_idle() is still invoked the default way).  This implies that these
-callback routines must not block or sleep, but it also means that the
-synchronous helper functions listed at the end of Section 4 can be used within
-an interrupt handler or in an atomic context.
+callbacks should be invoked in atomic context with interrupts disabled.
+This implies that these callback routines must not block or sleep, but it also
+means that the synchronous helper functions listed at the end of Section 4 can
+be used within an interrupt handler or in an atomic context.
 
 The subsystem-level suspend callback is _entirely_ _responsible_ for handling
 the suspend of the device as appropriate, which may, but need not include
@@ -72,11 +71,11 @@ knows what to do to handle the device).
     not mean that the device has been put into a low power state.  It is
     supposed to mean, however, that the device will not process data and will
     not communicate with the CPU(s) and RAM until the subsystem-level resume
-    callback is executed for it.  The run-time PM status of a device after
+    callback is executed for it.  The runtime PM status of a device after
     successful execution of the subsystem-level suspend callback is 'suspended'.
 
   * If the subsystem-level suspend callback returns -EBUSY or -EAGAIN,
-    the device's run-time PM status is 'active', which means that the device
+    the device's runtime PM status is 'active', which means that the device
     _must_ be fully operational afterwards.
 
   * If the subsystem-level suspend callback returns an error code different
@@ -104,7 +103,7 @@ the device).
 
   * Once the subsystem-level resume callback has completed successfully, the PM
     core regards the device as fully operational, which means that the device
-    _must_ be able to complete I/O operations as needed.  The run-time PM status
+    _must_ be able to complete I/O operations as needed.  The runtime PM status
     of the device is then 'active'.
 
   * If the subsystem-level resume callback returns an error code, the PM core
@@ -130,7 +129,7 @@ device in that case.  The value returned by this callback is ignored by the PM
 core.
 
 The helper functions provided by the PM core, described in Section 4, guarantee
-that the following constraints are met with respect to the bus type's run-time
+that the following constraints are met with respect to the bus type's runtime
 PM callbacks:
 
 (1) The callbacks are mutually exclusive (e.g. it is forbidden to execute
@@ -142,7 +141,7 @@ PM callbacks:
 
 (2) ->runtime_idle() and ->runtime_suspend() can only be executed for 'active'
     devices (i.e. the PM core will only execute ->runtime_idle() or
-    ->runtime_suspend() for the devices the run-time PM status of which is
+    ->runtime_suspend() for the devices the runtime PM status of which is
     'active').
 
 (3) ->runtime_idle() and ->runtime_suspend() can only be executed for a device
@@ -151,7 +150,7 @@ PM callbacks:
     flag of which is set.
 
 (4) ->runtime_resume() can only be executed for 'suspended' devices  (i.e. the
-    PM core will only execute ->runtime_resume() for the devices the run-time
+    PM core will only execute ->runtime_resume() for the devices the runtime
     PM status of which is 'suspended').
 
 Additionally, the helper functions provided by the PM core obey the following
@@ -171,9 +170,9 @@ rules:
     scheduled requests to execute the other callbacks for the same device,
     except for scheduled autosuspends.
 
-3. Run-time PM Device Fields
+3. Runtime PM Device Fields
 
-The following device run-time PM fields are present in 'struct dev_pm_info', as
+The following device runtime PM fields are present in 'struct dev_pm_info', as
 defined in include/linux/pm.h:
 
   struct timer_list suspend_timer;
@@ -205,7 +204,7 @@ defined in include/linux/pm.h:
 
   unsigned int disable_depth;
     - used for disabling the helper funcions (they work normally if this is
-      equal to zero); the initial value of it is 1 (i.e. run-time PM is
+      equal to zero); the initial value of it is 1 (i.e. runtime PM is
       initially disabled for all devices)
 
   unsigned int runtime_error;
@@ -229,10 +228,10 @@ defined in include/linux/pm.h:
       suspend to complete; means "start a resume as soon as you've suspended"
 
   unsigned int run_wake;
-    - set if the device is capable of generating run-time wake-up events
+    - set if the device is capable of generating runtime wake-up events
 
   enum rpm_status runtime_status;
-    - the run-time PM status of the device; this field's initial value is
+    - the runtime PM status of the device; this field's initial value is
       RPM_SUSPENDED, which means that each device is initially regarded by the
       PM core as 'suspended', regardless of its real hardware status
 
@@ -243,7 +242,7 @@ defined in include/linux/pm.h:
       and pm_runtime_forbid() helper functions
 
   unsigned int no_callbacks;
-    - indicates that the device does not use the run-time PM callbacks (see
+    - indicates that the device does not use the runtime PM callbacks (see
       Section 8); it may be modified only by the pm_runtime_no_callbacks()
       helper function
 
@@ -270,16 +269,16 @@ defined in include/linux/pm.h:
 
 All of the above fields are members of the 'power' member of 'struct device'.
 
-4. Run-time PM Device Helper Functions
+4. Runtime PM Device Helper Functions
 
-The following run-time PM helper functions are defined in
+The following runtime PM helper functions are defined in
 drivers/base/power/runtime.c and include/linux/pm_runtime.h:
 
   void pm_runtime_init(struct device *dev);
-    - initialize the device run-time PM fields in 'struct dev_pm_info'
+    - initialize the device runtime PM fields in 'struct dev_pm_info'
 
   void pm_runtime_remove(struct device *dev);
-    - make sure that the run-time PM of the device will be disabled after
+    - make sure that the runtime PM of the device will be disabled after
       removing the device from device hierarchy
 
   int pm_runtime_idle(struct device *dev);
@@ -289,9 +288,10 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
 
   int pm_runtime_suspend(struct device *dev);
     - execute the subsystem-level suspend callback for the device; returns 0 on
-      success, 1 if the device's run-time PM status was already 'suspended', or
+      success, 1 if the device's runtime PM status was already 'suspended', or
       error code on failure, where -EAGAIN or -EBUSY means it is safe to attempt
-      to suspend the device again in future
+      to suspend the device again in future and -EACCES means that
+      'power.disable_depth' is different from 0
 
   int pm_runtime_autosuspend(struct device *dev);
     - same as pm_runtime_suspend() except that the autosuspend delay is taken
@@ -301,10 +301,11 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
 
   int pm_runtime_resume(struct device *dev);
     - execute the subsystem-level resume callback for the device; returns 0 on
-      success, 1 if the device's run-time PM status was already 'active' or
+      success, 1 if the device's runtime PM status was already 'active' or
       error code on failure, where -EAGAIN means it may be safe to attempt to
       resume the device again in future, but 'power.runtime_error' should be
-      checked additionally
+      checked additionally, and -EACCES means that 'power.disable_depth' is
+      different from 0
 
   int pm_request_idle(struct device *dev);
     - submit a request to execute the subsystem-level idle callback for the
@@ -321,7 +322,7 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       device in future, where 'delay' is the time to wait before queuing up a
       suspend work item in pm_wq, in milliseconds (if 'delay' is zero, the work
       item is queued up immediately); returns 0 on success, 1 if the device's PM
-      run-time status was already 'suspended', or error code if the request
+      runtime status was already 'suspended', or error code if the request
       hasn't been scheduled (or queued up if 'delay' is 0); if the execution of
       ->runtime_suspend() is already scheduled and not yet expired, the new
       value of 'delay' will be used as the time to wait
@@ -329,7 +330,7 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
   int pm_request_resume(struct device *dev);
     - submit a request to execute the subsystem-level resume callback for the
       device (the request is represented by a work item in pm_wq); returns 0 on
-      success, 1 if the device's run-time PM status was already 'active', or
+      success, 1 if the device's runtime PM status was already 'active', or
       error code if the request hasn't been queued up
 
   void pm_runtime_get_noresume(struct device *dev);
@@ -367,22 +368,32 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       pm_runtime_autosuspend(dev) and return its result
 
   void pm_runtime_enable(struct device *dev);
-    - enable the run-time PM helper functions to run the device bus type's
-      run-time PM callbacks described in Section 2
+    - decrement the device's 'power.disable_depth' field; if that field is equal
+      to zero, the runtime PM helper functions can execute subsystem-level
+      callbacks described in Section 2 for the device
 
   int pm_runtime_disable(struct device *dev);
-    - prevent the run-time PM helper functions from running subsystem-level
-      run-time PM callbacks for the device, make sure that all of the pending
-      run-time PM operations on the device are either completed or canceled;
+    - increment the device's 'power.disable_depth' field (if the value of that
+      field was previously zero, this prevents subsystem-level runtime PM
+      callbacks from being run for the device), make sure that all of the pending
+      runtime PM operations on the device are either completed or canceled;
       returns 1 if there was a resume request pending and it was necessary to
       execute the subsystem-level resume callback for the device to satisfy that
       request, otherwise 0 is returned
+
+  int pm_runtime_barrier(struct device *dev);
+    - check if there's a resume request pending for the device and resume it
+      (synchronously) in that case, cancel any other pending runtime PM requests
+      regarding it and wait for all runtime PM operations on it in progress to
+      complete; returns 1 if there was a resume request pending and it was
+      necessary to execute the subsystem-level resume callback for the device to
+      satisfy that request, otherwise 0 is returned
 
   void pm_suspend_ignore_children(struct device *dev, bool enable);
     - set/unset the power.ignore_children flag of the device
 
   int pm_runtime_set_active(struct device *dev);
-    - clear the device's 'power.runtime_error' flag, set the device's run-time
+    - clear the device's 'power.runtime_error' flag, set the device's runtime
       PM status to 'active' and update its parent's counter of 'active'
       children as appropriate (it is only valid to use this function if
       'power.runtime_error' is set or 'power.disable_depth' is greater than
@@ -390,7 +401,7 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       which is not active and the 'power.ignore_children' flag of which is unset
 
   void pm_runtime_set_suspended(struct device *dev);
-    - clear the device's 'power.runtime_error' flag, set the device's run-time
+    - clear the device's 'power.runtime_error' flag, set the device's runtime
       PM status to 'suspended' and update its parent's counter of 'active'
       children as appropriate (it is only valid to use this function if
       'power.runtime_error' is set or 'power.disable_depth' is greater than
@@ -399,6 +410,9 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
   bool pm_runtime_suspended(struct device *dev);
     - return true if the device's runtime PM status is 'suspended' and its
       'power.disable_depth' field is equal to zero, or false otherwise
+
+  bool pm_runtime_status_suspended(struct device *dev);
+    - return true if the device's runtime PM status is 'suspended'
 
   void pm_runtime_allow(struct device *dev);
     - set the power.runtime_auto flag for the device and decrease its usage
@@ -411,7 +425,7 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       effectively prevent the device from being power managed at run time)
 
   void pm_runtime_no_callbacks(struct device *dev);
-    - set the power.no_callbacks flag for the device and remove the run-time
+    - set the power.no_callbacks flag for the device and remove the runtime
       PM attributes from /sys/devices/.../power (or prevent them from being
       added when the device is registered)
 
@@ -431,7 +445,7 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
 
   void pm_runtime_set_autosuspend_delay(struct device *dev, int delay);
     - set the power.autosuspend_delay value to 'delay' (expressed in
-      milliseconds); if 'delay' is negative then run-time suspends are
+      milliseconds); if 'delay' is negative then runtime suspends are
       prevented
 
   unsigned long pm_runtime_autosuspend_expiration(struct device *dev);
@@ -468,78 +482,95 @@ pm_runtime_suspend()
 pm_runtime_autosuspend()
 pm_runtime_resume()
 pm_runtime_get_sync()
+pm_runtime_put_sync()
 pm_runtime_put_sync_suspend()
 
-5. Run-time PM Initialization, Device Probing and Removal
+5. Runtime PM Initialization, Device Probing and Removal
 
-Initially, the run-time PM is disabled for all devices, which means that the
-majority of the run-time PM helper funtions described in Section 4 will return
+Initially, the runtime PM is disabled for all devices, which means that the
+majority of the runtime PM helper funtions described in Section 4 will return
 -EAGAIN until pm_runtime_enable() is called for the device.
 
-In addition to that, the initial run-time PM status of all devices is
+In addition to that, the initial runtime PM status of all devices is
 'suspended', but it need not reflect the actual physical state of the device.
 Thus, if the device is initially active (i.e. it is able to process I/O), its
-run-time PM status must be changed to 'active', with the help of
+runtime PM status must be changed to 'active', with the help of
 pm_runtime_set_active(), before pm_runtime_enable() is called for the device.
 
-However, if the device has a parent and the parent's run-time PM is enabled,
+However, if the device has a parent and the parent's runtime PM is enabled,
 calling pm_runtime_set_active() for the device will affect the parent, unless
 the parent's 'power.ignore_children' flag is set.  Namely, in that case the
 parent won't be able to suspend at run time, using the PM core's helper
 functions, as long as the child's status is 'active', even if the child's
-run-time PM is still disabled (i.e. pm_runtime_enable() hasn't been called for
+runtime PM is still disabled (i.e. pm_runtime_enable() hasn't been called for
 the child yet or pm_runtime_disable() has been called for it).  For this reason,
 once pm_runtime_set_active() has been called for the device, pm_runtime_enable()
-should be called for it too as soon as reasonably possible or its run-time PM
+should be called for it too as soon as reasonably possible or its runtime PM
 status should be changed back to 'suspended' with the help of
 pm_runtime_set_suspended().
 
-If the default initial run-time PM status of the device (i.e. 'suspended')
+If the default initial runtime PM status of the device (i.e. 'suspended')
 reflects the actual state of the device, its bus type's or its driver's
 ->probe() callback will likely need to wake it up using one of the PM core's
 helper functions described in Section 4.  In that case, pm_runtime_resume()
-should be used.  Of course, for this purpose the device's run-time PM has to be
+should be used.  Of course, for this purpose the device's runtime PM has to be
 enabled earlier by calling pm_runtime_enable().
 
-If the device bus type's or driver's ->probe() or ->remove() callback runs
+If the device bus type's or driver's ->probe() callback runs
 pm_runtime_suspend() or pm_runtime_idle() or their asynchronous counterparts,
 they will fail returning -EAGAIN, because the device's usage counter is
-incremented by the core before executing ->probe() and ->remove().  Still, it
-may be desirable to suspend the device as soon as ->probe() or ->remove() has
-finished, so the PM core uses pm_runtime_idle_sync() to invoke the
-subsystem-level idle callback for the device at that time.
+incremented by the driver core before executing ->probe().  Still, it may be
+desirable to suspend the device as soon as ->probe() has finished, so the driver
+core uses pm_runtime_put_sync() to invoke the subsystem-level idle callback for
+the device at that time.
+
+Moreover, the driver core prevents runtime PM callbacks from racing with the bus
+notifier callback in __device_release_driver(), which is necessary, because the
+notifier is used by some subsystems to carry out operations affecting the
+runtime PM functionality.  It does so by calling pm_runtime_get_sync() before
+driver_sysfs_remove() and the BUS_NOTIFY_UNBIND_DRIVER notifications.  This
+resumes the device if it's in the suspended state and prevents it from
+being suspended again while those routines are being executed.
+
+To allow bus types and drivers to put devices into the suspended state by
+calling pm_runtime_suspend() from their ->remove() routines, the driver core
+executes pm_runtime_put_sync() after running the BUS_NOTIFY_UNBIND_DRIVER
+notifications in __device_release_driver().  This requires bus types and
+drivers to make their ->remove() callbacks avoid races with runtime PM directly,
+but also it allows of more flexibility in the handling of devices during the
+removal of their drivers.
 
 The user space can effectively disallow the driver of the device to power manage
 it at run time by changing the value of its /sys/devices/.../power/control
 attribute to "on", which causes pm_runtime_forbid() to be called.  In principle,
 this mechanism may also be used by the driver to effectively turn off the
-run-time power management of the device until the user space turns it on.
-Namely, during the initialization the driver can make sure that the run-time PM
+runtime power management of the device until the user space turns it on.
+Namely, during the initialization the driver can make sure that the runtime PM
 status of the device is 'active' and call pm_runtime_forbid().  It should be
 noted, however, that if the user space has already intentionally changed the
 value of /sys/devices/.../power/control to "auto" to allow the driver to power
 manage the device at run time, the driver may confuse it by using
 pm_runtime_forbid() this way.
 
-6. Run-time PM and System Sleep
+6. Runtime PM and System Sleep
 
-Run-time PM and system sleep (i.e., system suspend and hibernation, also known
+Runtime PM and system sleep (i.e., system suspend and hibernation, also known
 as suspend-to-RAM and suspend-to-disk) interact with each other in a couple of
 ways.  If a device is active when a system sleep starts, everything is
 straightforward.  But what should happen if the device is already suspended?
 
-The device may have different wake-up settings for run-time PM and system sleep.
-For example, remote wake-up may be enabled for run-time suspend but disallowed
+The device may have different wake-up settings for runtime PM and system sleep.
+For example, remote wake-up may be enabled for runtime suspend but disallowed
 for system sleep (device_may_wakeup(dev) returns 'false').  When this happens,
 the subsystem-level system suspend callback is responsible for changing the
 device's wake-up setting (it may leave that to the device driver's system
 suspend routine).  It may be necessary to resume the device and suspend it again
 in order to do so.  The same is true if the driver uses different power levels
-or other settings for run-time suspend and system sleep.
+or other settings for runtime suspend and system sleep.
 
-During system resume, devices generally should be brought back to full power,
-even if they were suspended before the system sleep began.  There are several
-reasons for this, including:
+During system resume, the simplest approach is to bring all devices back to full
+power, even if they had been suspended before the system suspend began.  There
+are several reasons for this, including:
 
   * The device might need to switch power levels, wake-up settings, etc.
 
@@ -554,22 +585,49 @@ reasons for this, including:
   * The device might need to be reset.
 
   * Even though the device was suspended, if its usage counter was > 0 then most
-    likely it would need a run-time resume in the near future anyway.
+    likely it would need a runtime resume in the near future anyway.
 
-  * Always going back to full power is simplest.
-
-If the device was suspended before the sleep began, then its run-time PM status
-will have to be updated to reflect the actual post-system sleep status.  The way
-to do this is:
+If the device had been suspended before the system suspend began and it's
+brought back to full power during resume, then its runtime PM status will have
+to be updated to reflect the actual post-system sleep status.  The way to do
+this is:
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
-The PM core always increments the run-time usage counter before calling the
-->prepare() callback and decrements it after calling the ->complete() callback.
-Hence disabling run-time PM temporarily like this will not cause any run-time
-suspend callbacks to be lost.
+The PM core always increments the runtime usage counter before calling the
+->suspend() callback and decrements it after calling the ->resume() callback.
+Hence disabling runtime PM temporarily like this will not cause any runtime
+suspend attempts to be permanently lost.  If the usage count goes to zero
+following the return of the ->resume() callback, the ->runtime_idle() callback
+will be invoked as usual.
+
+On some systems, however, system sleep is not entered through a global firmware
+or hardware operation.  Instead, all hardware components are put into low-power
+states directly by the kernel in a coordinated way.  Then, the system sleep
+state effectively follows from the states the hardware components end up in
+and the system is woken up from that state by a hardware interrupt or a similar
+mechanism entirely under the kernel's control.  As a result, the kernel never
+gives control away and the states of all devices during resume are precisely
+known to it.  If that is the case and none of the situations listed above takes
+place (in particular, if the system is not waking up from hibernation), it may
+be more efficient to leave the devices that had been suspended before the system
+suspend began in the suspended state.
+
+The PM core does its best to reduce the probability of race conditions between
+the runtime PM and system suspend/resume (and hibernation) callbacks by carrying
+out the following operations:
+
+  * During system suspend it calls pm_runtime_get_noresume() and
+    pm_runtime_barrier() for every device right before executing the
+    subsystem-level .suspend() callback for it.  In addition to that it calls
+    pm_runtime_disable() for every device right after executing the
+    subsystem-level .suspend() callback for it.
+
+  * During system resume it calls pm_runtime_enable() and pm_runtime_put_sync()
+    for every device right before and right after executing the subsystem-level
+    .resume() callback for it, respectively.
 
 7. Generic subsystem callbacks
 
@@ -595,40 +653,68 @@ driver/base/power/generic_ops.c:
       callback provided by its driver and return its result, or return 0 if not
       defined
 
+  int pm_generic_suspend_noirq(struct device *dev);
+    - if pm_runtime_suspended(dev) returns "false", invoke the ->suspend_noirq()
+      callback provided by the device's driver and return its result, or return
+      0 if not defined
+
   int pm_generic_resume(struct device *dev);
     - invoke the ->resume() callback provided by the driver of this device and,
       if successful, change the device's runtime PM status to 'active'
+
+  int pm_generic_resume_noirq(struct device *dev);
+    - invoke the ->resume_noirq() callback provided by the driver of this device
 
   int pm_generic_freeze(struct device *dev);
     - if the device has not been suspended at run time, invoke the ->freeze()
       callback provided by its driver and return its result, or return 0 if not
       defined
 
+  int pm_generic_freeze_noirq(struct device *dev);
+    - if pm_runtime_suspended(dev) returns "false", invoke the ->freeze_noirq()
+      callback provided by the device's driver and return its result, or return
+      0 if not defined
+
   int pm_generic_thaw(struct device *dev);
     - if the device has not been suspended at run time, invoke the ->thaw()
       callback provided by its driver and return its result, or return 0 if not
       defined
+
+  int pm_generic_thaw_noirq(struct device *dev);
+    - if pm_runtime_suspended(dev) returns "false", invoke the ->thaw_noirq()
+      callback provided by the device's driver and return its result, or return
+      0 if not defined
 
   int pm_generic_poweroff(struct device *dev);
     - if the device has not been suspended at run time, invoke the ->poweroff()
       callback provided by its driver and return its result, or return 0 if not
       defined
 
+  int pm_generic_poweroff_noirq(struct device *dev);
+    - if pm_runtime_suspended(dev) returns "false", run the ->poweroff_noirq()
+      callback provided by the device's driver and return its result, or return
+      0 if not defined
+
   int pm_generic_restore(struct device *dev);
     - invoke the ->restore() callback provided by the driver of this device and,
       if successful, change the device's runtime PM status to 'active'
 
+  int pm_generic_restore_noirq(struct device *dev);
+    - invoke the ->restore_noirq() callback provided by the device's driver
+
 These functions can be assigned to the ->runtime_idle(), ->runtime_suspend(),
-->runtime_resume(), ->suspend(), ->resume(), ->freeze(), ->thaw(), ->poweroff(),
-or ->restore() callback pointers in the subsystem-level dev_pm_ops structures.
+->runtime_resume(), ->suspend(), ->suspend_noirq(), ->resume(),
+->resume_noirq(), ->freeze(), ->freeze_noirq(), ->thaw(), ->thaw_noirq(),
+->poweroff(), ->poweroff_noirq(), ->restore(), ->restore_noirq() callback
+pointers in the subsystem-level dev_pm_ops structures.
 
 If a subsystem wishes to use all of them at the same time, it can simply assign
 the GENERIC_SUBSYS_PM_OPS macro, defined in include/linux/pm.h, to its
 dev_pm_ops structure pointer.
 
 Device drivers that wish to use the same function as a system suspend, freeze,
-poweroff and run-time suspend callback, and similarly for system resume, thaw,
-restore, and run-time resume, can achieve this with the help of the
+poweroff and runtime suspend callback, and similarly for system resume, thaw,
+restore, and runtime resume, can achieve this with the help of the
 UNIVERSAL_DEV_PM_OPS macro defined in include/linux/pm.h (possibly setting its
 last argument to NULL).
 
@@ -638,7 +724,7 @@ Some "devices" are only logical sub-devices of their parent and cannot be
 power-managed on their own.  (The prototype example is a USB interface.  Entire
 USB devices can go into low-power mode or send wake-up requests, but neither is
 possible for individual interfaces.)  The drivers for these devices have no
-need of run-time PM callbacks; if the callbacks did exist, ->runtime_suspend()
+need of runtime PM callbacks; if the callbacks did exist, ->runtime_suspend()
 and ->runtime_resume() would always return 0 without doing anything else and
 ->runtime_idle() would always call pm_runtime_suspend().
 
@@ -646,7 +732,7 @@ Subsystems can tell the PM core about these devices by calling
 pm_runtime_no_callbacks().  This should be done after the device structure is
 initialized and before it is registered (although after device registration is
 also okay).  The routine will set the device's power.no_callbacks flag and
-prevent the non-debugging run-time PM sysfs attributes from being created.
+prevent the non-debugging runtime PM sysfs attributes from being created.
 
 When power.no_callbacks is set, the PM core will not invoke the
 ->runtime_idle(), ->runtime_suspend(), or ->runtime_resume() callbacks.
@@ -654,7 +740,7 @@ Instead it will assume that suspends and resumes always succeed and that idle
 devices should be suspended.
 
 As a consequence, the PM core will never directly inform the device's subsystem
-or driver about run-time power changes.  Instead, the driver for the device's
+or driver about runtime power changes.  Instead, the driver for the device's
 parent must take responsibility for telling the device's driver when the
 parent's power state changes.
 
@@ -665,13 +751,13 @@ A device should be put in a low-power state only when there's some reason to
 think it will remain in that state for a substantial time.  A common heuristic
 says that a device which hasn't been used for a while is liable to remain
 unused; following this advice, drivers should not allow devices to be suspended
-at run-time until they have been inactive for some minimum period.  Even when
+at runtime until they have been inactive for some minimum period.  Even when
 the heuristic ends up being non-optimal, it will still prevent devices from
 "bouncing" too rapidly between low-power and full-power states.
 
 The term "autosuspend" is an historical remnant.  It doesn't mean that the
 device is automatically suspended (the subsystem or driver still has to call
-the appropriate PM routines); rather it means that run-time suspends will
+the appropriate PM routines); rather it means that runtime suspends will
 automatically be delayed until the desired period of inactivity has elapsed.
 
 Inactivity is determined based on the power.last_busy field.  Drivers should

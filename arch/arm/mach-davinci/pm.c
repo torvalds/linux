@@ -17,6 +17,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/delay.h>
+#include <asm/io.h>
 
 #include <mach/da8xx.h>
 #include <mach/sram.h>

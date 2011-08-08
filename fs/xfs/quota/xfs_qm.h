@@ -163,10 +163,4 @@ extern int		xfs_qm_scall_getqstat(xfs_mount_t *, fs_quota_stat_t *);
 extern int		xfs_qm_scall_quotaon(xfs_mount_t *, uint);
 extern int		xfs_qm_scall_quotaoff(xfs_mount_t *, uint);
 
-#ifdef DEBUG
-extern int		xfs_qm_internalqcheck(xfs_mount_t *);
-#else
-#define xfs_qm_internalqcheck(mp)	(0)
-#endif
-
 #endif /* __XFS_QM_H__ */

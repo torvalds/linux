@@ -19,6 +19,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/platform_device.h>
@@ -37,7 +38,7 @@
 #define KBC_ROW_SCAN_DLY	5
 
 /* KBC uses a 32KHz clock so a cycle = 1/32Khz */
-#define KBC_CYCLE_USEC	32
+#define KBC_CYCLE_MS	32
 
 /* KBC Registers */
 
@@ -647,7 +648,7 @@ static int __devinit tegra_kbc_probe(struct platform_device *pdev)
 	debounce_cnt = min(pdata->debounce_cnt, KBC_MAX_DEBOUNCE_CNT);
 	scan_time_rows = (KBC_ROW_SCAN_TIME + debounce_cnt) * num_rows;
 	kbc->repoll_dly = KBC_ROW_SCAN_DLY + scan_time_rows + pdata->repeat_cnt;
-	kbc->repoll_dly = ((kbc->repoll_dly * KBC_CYCLE_USEC) + 999) / 1000;
+	kbc->repoll_dly = DIV_ROUND_UP(kbc->repoll_dly, KBC_CYCLE_MS);
 
 	input_dev->name = pdev->name;
 	input_dev->id.bustype = BUS_HOST;
@@ -657,7 +658,7 @@ static int __devinit tegra_kbc_probe(struct platform_device *pdev)
 
 	input_set_drvdata(input_dev, kbc);
 
-	input_dev->evbit[0] = BIT_MASK(EV_KEY);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 
 	input_dev->keycode = kbc->keycode;

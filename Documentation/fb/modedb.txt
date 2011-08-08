@@ -20,7 +20,7 @@ in a video= option, fbmem considers that to be a global video mode option.
 
 Valid mode specifiers (mode_option argument):
 
-    <xres>x<yres>[M][R][-<bpp>][@<refresh>][i][m]
+    <xres>x<yres>[M][R][-<bpp>][@<refresh>][i][m][eDd]
     <name>[-<bpp>][@<refresh>]
 
 with <xres>, <yres>, <bpp> and <refresh> decimal numbers and <name> a string.
@@ -35,6 +35,21 @@ specified, add margins to the calculation (1.8% of xres rounded down to 8
 pixels and 1.8% of yres).
 
        Sample usage: 1024x768M@60m - CVT timing with margins
+
+DRM drivers also add options to enable or disable outputs:
+
+'e' will force the display to be enabled, i.e. it will override the detection
+if a display is connected. 'D' will force the display to be enabled and use
+digital output. This is useful for outputs that have both analog and digital
+signals (e.g. HDMI and DVI-I). For other outputs it behaves like 'e'. If 'd'
+is specified the output is disabled.
+
+You can additionally specify which output the options matches to.
+To force the VGA output to be enabled and drive a specific mode say:
+    video=VGA-1:1280x1024@60me
+
+Specifying the option multiple times for different ports is possible, e.g.:
+    video=LVDS-1:d video=HDMI-1:D
 
 ***** oOo ***** oOo ***** oOo ***** oOo ***** oOo ***** oOo ***** oOo *****
 
@@ -132,5 +147,5 @@ There may be more modes.
     tridentfb	- Trident (Cyber)blade chipset frame buffer
     vt8623fb	- VIA 8623 frame buffer
 
-BTW, only a few drivers use this at the moment. Others are to follow
-(feel free to send patches).
+BTW, only a few fb drivers use this at the moment. Others are to follow
+(feel free to send patches). The DRM drivers also support this.

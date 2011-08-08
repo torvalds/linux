@@ -55,11 +55,7 @@ build_path_from_dentry(struct dentry *direntry)
 	char dirsep;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
-
-	if (direntry == NULL)
-		return NULL;  /* not much we can do if dentry is freed and
-		we need to reopen the file after it was closed implicitly
-		when the server crashed */
+	unsigned seq;
 
 	dirsep = CIFS_DIR_SEP(cifs_sb);
 	if (tcon->Flags & SMB_SHARE_IS_IN_DFS)
@@ -68,22 +64,29 @@ build_path_from_dentry(struct dentry *direntry)
 		dfsplen = 0;
 cifs_bp_rename_retry:
 	namelen = dfsplen;
+	seq = read_seqbegin(&rename_lock);
+	rcu_read_lock();
 	for (temp = direntry; !IS_ROOT(temp);) {
 		namelen += (1 + temp->d_name.len);
 		temp = temp->d_parent;
 		if (temp == NULL) {
 			cERROR(1, "corrupt dentry");
+			rcu_read_unlock();
 			return NULL;
 		}
 	}
+	rcu_read_unlock();
 
 	full_path = kmalloc(namelen+1, GFP_KERNEL);
 	if (full_path == NULL)
 		return full_path;
 	full_path[namelen] = 0;	/* trailing null */
+	rcu_read_lock();
 	for (temp = direntry; !IS_ROOT(temp);) {
+		spin_lock(&temp->d_lock);
 		namelen -= 1 + temp->d_name.len;
 		if (namelen < 0) {
+			spin_unlock(&temp->d_lock);
 			break;
 		} else {
 			full_path[namelen] = dirsep;
@@ -91,14 +94,17 @@ cifs_bp_rename_retry:
 				temp->d_name.len);
 			cFYI(0, "name: %s", full_path + namelen);
 		}
+		spin_unlock(&temp->d_lock);
 		temp = temp->d_parent;
 		if (temp == NULL) {
 			cERROR(1, "corrupt dentry");
+			rcu_read_unlock();
 			kfree(full_path);
 			return NULL;
 		}
 	}
-	if (namelen != dfsplen) {
+	rcu_read_unlock();
+	if (namelen != dfsplen || read_seqretry(&rename_lock, seq)) {
 		cERROR(1, "did not end path lookup where expected namelen is %d",
 			namelen);
 		/* presumably this is only possible if racing with a rename
@@ -168,7 +174,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	if (oplockEnabled)
 		oplock = REQ_OPLOCK;
 
-	if (nd && (nd->flags & LOOKUP_OPEN))
+	if (nd)
 		oflags = nd->intent.open.file->f_flags;
 	else
 		oflags = O_RDONLY | O_CREAT;
@@ -203,7 +209,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		   which should be rare for path not covered on files) */
 	}
 
-	if (nd && (nd->flags & LOOKUP_OPEN)) {
+	if (nd) {
 		/* if the file is going to stay open, then we
 		   need to set the desired access properly */
 		desiredAccess = 0;
@@ -317,7 +323,7 @@ cifs_create_set_dentry:
 	else
 		cFYI(1, "Create worked, get_inode_info failed rc = %d", rc);
 
-	if (newinode && nd && (nd->flags & LOOKUP_OPEN)) {
+	if (newinode && nd) {
 		struct cifsFileInfo *pfile_info;
 		struct file *filp;
 
@@ -557,7 +563,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	 * reduction in network traffic in the other paths.
 	 */
 	if (pTcon->unix_ext) {
-		if (nd && !(nd->flags & (LOOKUP_PARENT | LOOKUP_DIRECTORY)) &&
+		if (nd && !(nd->flags & LOOKUP_DIRECTORY) &&
 		     (nd->flags & LOOKUP_OPEN) && !pTcon->broken_posix_open &&
 		     (nd->intent.open.file->f_flags & O_CREAT)) {
 			rc = cifs_posix_open(full_path, &newInode,
@@ -630,7 +636,7 @@ lookup_out:
 static int
 cifs_d_revalidate(struct dentry *direntry, struct nameidata *nd)
 {
-	if (nd->flags & LOOKUP_RCU)
+	if (nd && (nd->flags & LOOKUP_RCU))
 		return -ECHILD;
 
 	if (direntry->d_inode) {
@@ -652,10 +658,8 @@ cifs_d_revalidate(struct dentry *direntry, struct nameidata *nd)
 	 * case sensitive name which is specified by user if this is
 	 * for creation.
 	 */
-	if (!(nd->flags & (LOOKUP_CONTINUE | LOOKUP_PARENT))) {
-		if (nd->flags & (LOOKUP_CREATE | LOOKUP_RENAME_TARGET))
-			return 0;
-	}
+	if (nd->flags & (LOOKUP_CREATE | LOOKUP_RENAME_TARGET))
+		return 0;
 
 	if (time_after(jiffies, direntry->d_time + HZ) || !lookupCacheEnabled)
 		return 0;

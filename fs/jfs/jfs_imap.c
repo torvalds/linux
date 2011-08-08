@@ -397,7 +397,7 @@ int diRead(struct inode *ip)
 	release_metapage(mp);
 
 	/* set the ag for the inode */
-	JFS_IP(ip)->agno = BLKTOAG(agstart, sbi);
+	JFS_IP(ip)->agstart = agstart;
 	JFS_IP(ip)->active_ag = -1;
 
 	return (rc);
@@ -901,7 +901,7 @@ int diFree(struct inode *ip)
 
 	/* get the allocation group for this ino.
 	 */
-	agno = JFS_IP(ip)->agno;
+	agno = BLKTOAG(JFS_IP(ip)->agstart, JFS_SBI(ip->i_sb));
 
 	/* Lock the AG specific inode map information
 	 */
@@ -1315,12 +1315,11 @@ int diFree(struct inode *ip)
 static inline void
 diInitInode(struct inode *ip, int iagno, int ino, int extno, struct iag * iagp)
 {
-	struct jfs_sb_info *sbi = JFS_SBI(ip->i_sb);
 	struct jfs_inode_info *jfs_ip = JFS_IP(ip);
 
 	ip->i_ino = (iagno << L2INOSPERIAG) + ino;
 	jfs_ip->ixpxd = iagp->inoext[extno];
-	jfs_ip->agno = BLKTOAG(le64_to_cpu(iagp->agstart), sbi);
+	jfs_ip->agstart = le64_to_cpu(iagp->agstart);
 	jfs_ip->active_ag = -1;
 }
 
@@ -1379,7 +1378,7 @@ int diAlloc(struct inode *pip, bool dir, struct inode *ip)
 	 */
 
 	/* get the ag number of this iag */
-	agno = JFS_IP(pip)->agno;
+	agno = BLKTOAG(JFS_IP(pip)->agstart, JFS_SBI(pip->i_sb));
 
 	if (atomic_read(&JFS_SBI(pip->i_sb)->bmap->db_active[agno])) {
 		/*
@@ -2921,10 +2920,9 @@ int diExtendFS(struct inode *ipimap, struct inode *ipbmap)
 			continue;
 		}
 
-		/* agstart that computes to the same ag is treated as same; */
 		agstart = le64_to_cpu(iagp->agstart);
-		/* iagp->agstart = agstart & ~(mp->db_agsize - 1); */
 		n = agstart >> mp->db_agl2size;
+		iagp->agstart = cpu_to_le64((s64)n << mp->db_agl2size);
 
 		/* compute backed inodes */
 		numinos = (EXTSPERIAG - le32_to_cpu(iagp->nfreeexts))

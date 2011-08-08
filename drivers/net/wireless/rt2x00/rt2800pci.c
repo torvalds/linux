@@ -219,7 +219,7 @@ static void rt2800pci_start_queue(struct data_queue *queue)
 		break;
 	default:
 		break;
-	};
+	}
 }
 
 static void rt2800pci_kick_queue(struct data_queue *queue)
@@ -501,7 +501,9 @@ static int rt2800pci_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00pci_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000e1f);
 	rt2x00pci_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000e00);
 
-	if (rt2x00_rt(rt2x00dev, RT5390)) {
+	if (rt2x00_is_pcie(rt2x00dev) &&
+	    (rt2x00_rt(rt2x00dev, RT3572) ||
+	     rt2x00_rt(rt2x00dev, RT5390))) {
 		rt2x00pci_register_read(rt2x00dev, AUX_CTRL, &reg);
 		rt2x00_set_field32(&reg, AUX_CTRL_FORCE_PCIE_CLK, 1);
 		rt2x00_set_field32(&reg, AUX_CTRL_WAKE_PCIE_EN, 1);
@@ -1029,6 +1031,7 @@ static const struct ieee80211_ops rt2800pci_mac80211_ops = {
 	.flush			= rt2x00mac_flush,
 	.get_survey		= rt2800_get_survey,
 	.get_ringparam		= rt2x00mac_get_ringparam,
+	.tx_frames_pending	= rt2x00mac_tx_frames_pending,
 };
 
 static const struct rt2800_ops rt2800pci_rt2800_ops = {
@@ -1158,6 +1161,7 @@ static DEFINE_PCI_DEVICE_TABLE(rt2800pci_device_table) = {
 #endif
 #ifdef CONFIG_RT2800PCI_RT53XX
 	{ PCI_DEVICE(0x1814, 0x5390) },
+	{ PCI_DEVICE(0x1814, 0x539f) },
 #endif
 	{ 0, }
 };

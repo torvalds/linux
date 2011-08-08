@@ -346,6 +346,8 @@
 		#address-cells = <2>;
 		#size-cells = <1>;
 		reg = <0xa0005000 0x100>;	// BRx, ORx, etc.
+		interrupt-parent = <&mpic>;
+		interrupts = <19 2>;
 
 		ranges = <
 			0 0x0 0xfc000000 0x04000000	// NOR FLASH bank 1

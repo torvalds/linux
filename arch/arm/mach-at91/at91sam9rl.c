@@ -16,29 +16,15 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <mach/cpu.h>
+#include <mach/at91_dbgu.h>
 #include <mach/at91sam9rl.h>
 #include <mach/at91_pmc.h>
 #include <mach/at91_rstc.h>
 #include <mach/at91_shdwc.h>
 
+#include "soc.h"
 #include "generic.h"
 #include "clock.h"
-
-static struct map_desc at91sam9rl_io_desc[] __initdata = {
-	{
-		.virtual	= AT91_VA_BASE_SYS,
-		.pfn		= __phys_to_pfn(AT91_BASE_SYS),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	},
-};
-
-static struct map_desc at91sam9rl_sram_desc[] __initdata = {
-	{
-		.pfn		= __phys_to_pfn(AT91SAM9RL_SRAM_BASE),
-		.type		= MT_DEVICE,
-	}
-};
 
 /* --------------------------------------------------------------------
  *  Clocks
@@ -191,8 +177,8 @@ static struct clk *periph_clocks[] __initdata = {
 };
 
 static struct clk_lookup periph_clocks_lookups[] = {
-	CLKDEV_CON_DEV_ID("hclk", "atmel_usba_udc.0", &utmi_clk),
-	CLKDEV_CON_DEV_ID("pclk", "atmel_usba_udc.0", &udphs_clk),
+	CLKDEV_CON_DEV_ID("hclk", "atmel_usba_udc", &utmi_clk),
+	CLKDEV_CON_DEV_ID("pclk", "atmel_usba_udc", &udphs_clk),
 	CLKDEV_CON_DEV_ID("t0_clk", "atmel_tcb.0", &tc0_clk),
 	CLKDEV_CON_DEV_ID("t1_clk", "atmel_tcb.0", &tc1_clk),
 	CLKDEV_CON_DEV_ID("t2_clk", "atmel_tcb.0", &tc2_clk),
@@ -287,16 +273,11 @@ static void at91sam9rl_poweroff(void)
  *  AT91SAM9RL processor initialization
  * -------------------------------------------------------------------- */
 
-void __init at91sam9rl_map_io(void)
+static void __init at91sam9rl_map_io(void)
 {
-	unsigned long cidr, sram_size;
+	unsigned long sram_size;
 
-	/* Map peripherals */
-	iotable_init(at91sam9rl_io_desc, ARRAY_SIZE(at91sam9rl_io_desc));
-
-	cidr = at91_sys_read(AT91_DBGU_CIDR);
-
-	switch (cidr & AT91_CIDR_SRAMSIZ) {
+	switch (at91_soc_initdata.cidr & AT91_CIDR_SRAMSIZ) {
 		case AT91_CIDR_SRAMSIZ_32K:
 			sram_size = 2 * SZ_16K;
 			break;
@@ -305,24 +286,15 @@ void __init at91sam9rl_map_io(void)
 			sram_size = SZ_16K;
 	}
 
-	at91sam9rl_sram_desc->virtual = AT91_IO_VIRT_BASE - sram_size;
-	at91sam9rl_sram_desc->length = sram_size;
-
 	/* Map SRAM */
-	iotable_init(at91sam9rl_sram_desc, ARRAY_SIZE(at91sam9rl_sram_desc));
+	at91_init_sram(0, AT91SAM9RL_SRAM_BASE, sram_size);
 }
 
-void __init at91sam9rl_initialize(unsigned long main_clock)
+static void __init at91sam9rl_initialize(void)
 {
 	at91_arch_reset = at91sam9_alt_reset;
 	pm_power_off = at91sam9rl_poweroff;
 	at91_extern_irq = (1 << AT91SAM9RL_ID_IRQ0);
-
-	/* Init clock subsystem */
-	at91_clock_init(main_clock);
-
-	/* Register the processor-specific clocks */
-	at91sam9rl_register_clocks();
 
 	/* Register GPIO subsystem */
 	at91_gpio_init(at91sam9rl_gpio, 4);
@@ -370,14 +342,9 @@ static unsigned int at91sam9rl_default_irq_priority[NR_AIC_IRQS] __initdata = {
 	0,	/* Advanced Interrupt Controller */
 };
 
-void __init at91sam9rl_init_interrupts(unsigned int priority[NR_AIC_IRQS])
-{
-	if (!priority)
-		priority = at91sam9rl_default_irq_priority;
-
-	/* Initialize the AIC interrupt controller */
-	at91_aic_init(priority);
-
-	/* Enable GPIO interrupts */
-	at91_gpio_irq_setup();
-}
+struct at91_init_soc __initdata at91sam9rl_soc = {
+	.map_io = at91sam9rl_map_io,
+	.default_irq_priority = at91sam9rl_default_irq_priority,
+	.register_clocks = at91sam9rl_register_clocks,
+	.init = at91sam9rl_initialize,
+};

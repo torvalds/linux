@@ -340,7 +340,7 @@ static int intel_pmu_drain_bts_buffer(void)
 	 */
 	perf_prepare_sample(&header, &data, event, &regs);
 
-	if (perf_output_begin(&handle, event, header.size * (top - at), 1, 1))
+	if (perf_output_begin(&handle, event, header.size * (top - at)))
 		return 1;
 
 	for (; at < top; at++) {
@@ -616,7 +616,7 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 	else
 		regs.flags &= ~PERF_EFLAGS_EXACT;
 
-	if (perf_event_overflow(event, 1, &data, &regs))
+	if (perf_event_overflow(event, &data, &regs))
 		x86_pmu_stop(event, 0);
 }
 

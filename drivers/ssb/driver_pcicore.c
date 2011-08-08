@@ -3,7 +3,7 @@
  * Broadcom PCI-core driver
  *
  * Copyright 2005, Broadcom Corporation
- * Copyright 2006, 2007, Michael Buesch <mb@bu3sch.de>
+ * Copyright 2006, 2007, Michael Buesch <m@bues.ch>
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */
@@ -314,7 +314,7 @@ int ssb_pcicore_pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return ssb_mips_irq(extpci_core->dev) + 2;
 }
 
-static void ssb_pcicore_init_hostmode(struct ssb_pcicore *pc)
+static void __devinit ssb_pcicore_init_hostmode(struct ssb_pcicore *pc)
 {
 	u32 val;
 
@@ -379,7 +379,7 @@ static void ssb_pcicore_init_hostmode(struct ssb_pcicore *pc)
 	register_pci_controller(&ssb_pcicore_controller);
 }
 
-static int pcicore_is_in_hostmode(struct ssb_pcicore *pc)
+static int __devinit pcicore_is_in_hostmode(struct ssb_pcicore *pc)
 {
 	struct ssb_bus *bus = pc->dev->bus;
 	u16 chipid_top;
@@ -412,7 +412,7 @@ static int pcicore_is_in_hostmode(struct ssb_pcicore *pc)
  * Workarounds.
  **************************************************/
 
-static void ssb_pcicore_fix_sprom_core_index(struct ssb_pcicore *pc)
+static void __devinit ssb_pcicore_fix_sprom_core_index(struct ssb_pcicore *pc)
 {
 	u16 tmp = pcicore_read16(pc, SSB_PCICORE_SPROM(0));
 	if (((tmp & 0xF000) >> 12) != pc->dev->core_index) {
@@ -514,13 +514,22 @@ static void ssb_pcicore_pcie_setup_workarounds(struct ssb_pcicore *pc)
  * Generic and Clientmode operation code.
  **************************************************/
 
-static void ssb_pcicore_init_clientmode(struct ssb_pcicore *pc)
+static void __devinit ssb_pcicore_init_clientmode(struct ssb_pcicore *pc)
 {
+	ssb_pcicore_fix_sprom_core_index(pc);
+
 	/* Disable PCI interrupts. */
 	ssb_write32(pc->dev, SSB_INTVEC, 0);
+
+	/* Additional PCIe always once-executed workarounds */
+	if (pc->dev->id.coreid == SSB_DEV_PCIE) {
+		ssb_pcicore_serdes_workaround(pc);
+		/* TODO: ASPM */
+		/* TODO: Clock Request Update */
+	}
 }
 
-void ssb_pcicore_init(struct ssb_pcicore *pc)
+void __devinit ssb_pcicore_init(struct ssb_pcicore *pc)
 {
 	struct ssb_device *dev = pc->dev;
 
@@ -529,8 +538,6 @@ void ssb_pcicore_init(struct ssb_pcicore *pc)
 	if (!ssb_device_is_enabled(dev))
 		ssb_device_enable(dev, 0);
 
-	ssb_pcicore_fix_sprom_core_index(pc);
-
 #ifdef CONFIG_SSB_PCICORE_HOSTMODE
 	pc->hostmode = pcicore_is_in_hostmode(pc);
 	if (pc->hostmode)
@@ -538,11 +545,6 @@ void ssb_pcicore_init(struct ssb_pcicore *pc)
 #endif /* CONFIG_SSB_PCICORE_HOSTMODE */
 	if (!pc->hostmode)
 		ssb_pcicore_init_clientmode(pc);
-
-	/* Additional always once-executed workarounds */
-	ssb_pcicore_serdes_workaround(pc);
-	/* TODO: ASPM */
-	/* TODO: Clock Request Update */
 }
 
 static u32 ssb_pcie_read(struct ssb_pcicore *pc, u32 address)
