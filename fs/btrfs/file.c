@@ -74,7 +74,7 @@ struct inode_defrag {
  * If an existing record is found the defrag item you
  * pass in is freed
  */
-static int __btrfs_add_inode_defrag(struct inode *inode,
+static void __btrfs_add_inode_defrag(struct inode *inode,
 				    struct inode_defrag *defrag)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -106,11 +106,11 @@ static int __btrfs_add_inode_defrag(struct inode *inode,
 	BTRFS_I(inode)->in_defrag = 1;
 	rb_link_node(&defrag->rb_node, parent, p);
 	rb_insert_color(&defrag->rb_node, &root->fs_info->defrag_inodes);
-	return 0;
+	return;
 
 exists:
 	kfree(defrag);
-	return 0;
+	return;
 
 }
 
@@ -123,7 +123,6 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct inode_defrag *defrag;
-	int ret = 0;
 	u64 transid;
 
 	if (!btrfs_test_opt(root, AUTO_DEFRAG))
@@ -150,9 +149,9 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 
 	spin_lock(&root->fs_info->defrag_inodes_lock);
 	if (!BTRFS_I(inode)->in_defrag)
-		ret = __btrfs_add_inode_defrag(inode, defrag);
+		__btrfs_add_inode_defrag(inode, defrag);
 	spin_unlock(&root->fs_info->defrag_inodes_lock);
-	return ret;
+	return 0;
 }
 
 /*
@@ -855,7 +854,8 @@ int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
 	btrfs_drop_extent_cache(inode, start, end - 1, 0);
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
 again:
 	recow = 0;
 	split = start;
@@ -1059,7 +1059,7 @@ static int prepare_uptodate_page(struct page *page, u64 pos)
 static noinline int prepare_pages(struct btrfs_root *root, struct file *file,
 			 struct page **pages, size_t num_pages,
 			 loff_t pos, unsigned long first_index,
-			 unsigned long last_index, size_t write_bytes)
+			 size_t write_bytes)
 {
 	struct extent_state *cached_state = NULL;
 	int i;
@@ -1159,7 +1159,6 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct page **pages = NULL;
 	unsigned long first_index;
-	unsigned long last_index;
 	size_t num_written = 0;
 	int nrptrs;
 	int ret = 0;
@@ -1172,7 +1171,6 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 		return -ENOMEM;
 
 	first_index = pos >> PAGE_CACHE_SHIFT;
-	last_index = (pos + iov_iter_count(i)) >> PAGE_CACHE_SHIFT;
 
 	while (iov_iter_count(i) > 0) {
 		size_t offset = pos & (PAGE_CACHE_SIZE - 1);
@@ -1206,8 +1204,7 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 		 * contents of pages from loop to loop
 		 */
 		ret = prepare_pages(root, file, pages, num_pages,
-				    pos, first_index, last_index,
-				    write_bytes);
+				    pos, first_index, write_bytes);
 		if (ret) {
 			btrfs_delalloc_release_space(inode,
 					num_pages << PAGE_CACHE_SHIFT);

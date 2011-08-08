@@ -849,6 +849,34 @@ restart_crash:
 restart_go:
 #endif
 
+#
+# PSW restart interrupt handler
+#
+ENTRY(psw_restart_int_handler)
+	st	%r15,__LC_SAVE_AREA_64(%r0)	# save r15
+	basr	%r15,0
+0:	l	%r15,.Lrestart_stack-0b(%r15)	# load restart stack
+	l	%r15,0(%r15)
+	ahi	%r15,-SP_SIZE			# make room for pt_regs
+	stm	%r0,%r14,SP_R0(%r15)		# store gprs %r0-%r14 to stack
+	mvc	SP_R15(4,%r15),__LC_SAVE_AREA_64(%r0)# store saved %r15 to stack
+	mvc	SP_PSW(8,%r15),__LC_RST_OLD_PSW(%r0) # store restart old psw
+	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15) # set backchain to 0
+	basr	%r14,0
+1:	l	%r14,.Ldo_restart-1b(%r14)
+	basr	%r14,%r14
+
+	basr	%r14,0				# load disabled wait PSW if
+2:	lpsw	restart_psw_crash-2b(%r14)	# do_restart returns
+	.align 4
+.Ldo_restart:
+	.long	do_restart
+.Lrestart_stack:
+	.long	restart_stack
+	.align 8
+restart_psw_crash:
+	.long	0x000a0000,0x00000000 + restart_psw_crash
+
 	.section .kprobes.text, "ax"
 
 #ifdef CONFIG_CHECK_STACK

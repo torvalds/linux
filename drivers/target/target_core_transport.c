@@ -1747,6 +1747,8 @@ int transport_generic_handle_cdb(
 }
 EXPORT_SYMBOL(transport_generic_handle_cdb);
 
+static void transport_generic_request_failure(struct se_cmd *,
+			struct se_device *, int, int);
 /*
  * Used by fabric module frontends to queue tasks directly.
  * Many only be used from process context only
@@ -1754,6 +1756,8 @@ EXPORT_SYMBOL(transport_generic_handle_cdb);
 int transport_handle_cdb_direct(
 	struct se_cmd *cmd)
 {
+	int ret;
+
 	if (!cmd->se_lun) {
 		dump_stack();
 		pr_err("cmd->se_lun is NULL\n");
@@ -1765,8 +1769,31 @@ int transport_handle_cdb_direct(
 				" from interrupt context\n");
 		return -EINVAL;
 	}
-
-	return transport_generic_new_cmd(cmd);
+	/*
+	 * Set TRANSPORT_NEW_CMD state and cmd->t_transport_active=1 following
+	 * transport_generic_handle_cdb*() -> transport_add_cmd_to_queue()
+	 * in existing usage to ensure that outstanding descriptors are handled
+	 * correctly during shutdown via transport_generic_wait_for_tasks()
+	 *
+	 * Also, we don't take cmd->t_state_lock here as we only expect
+	 * this to be called for initial descriptor submission.
+	 */
+	cmd->t_state = TRANSPORT_NEW_CMD;
+	atomic_set(&cmd->t_transport_active, 1);
+	/*
+	 * transport_generic_new_cmd() is already handling QUEUE_FULL,
+	 * so follow TRANSPORT_NEW_CMD processing thread context usage
+	 * and call transport_generic_request_failure() if necessary..
+	 */
+	ret = transport_generic_new_cmd(cmd);
+	if (ret == -EAGAIN)
+		return 0;
+	else if (ret < 0) {
+		cmd->transport_error_status = ret;
+		transport_generic_request_failure(cmd, NULL, 0,
+				(cmd->data_direction != DMA_TO_DEVICE));
+	}
+	return 0;
 }
 EXPORT_SYMBOL(transport_handle_cdb_direct);
 
@@ -3324,7 +3351,7 @@ static int transport_generic_cmd_sequencer(
 			goto out_invalid_cdb_field;
 		}
 
-		cmd->t_task_lba = get_unaligned_be16(&cdb[2]);
+		cmd->t_task_lba = get_unaligned_be64(&cdb[2]);
 		passthrough = (dev->transport->transport_type ==
 				TRANSPORT_PLUGIN_PHBA_PDEV);
 		/*

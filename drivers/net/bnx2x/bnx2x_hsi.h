@@ -1204,6 +1204,8 @@ struct drv_port_mb {
 
 	#define LINK_STATUS_PFC_ENABLED				0x20000000
 
+	#define LINK_STATUS_PHYSICAL_LINK_FLAG			0x40000000
+
 	u32 port_stx;
 
 	u32 stat_nig_timer;

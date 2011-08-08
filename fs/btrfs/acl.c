@@ -28,8 +28,6 @@
 #include "btrfs_inode.h"
 #include "xattr.h"
 
-#ifdef CONFIG_BTRFS_FS_POSIX_ACL
-
 struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 {
 	int size;
@@ -111,7 +109,6 @@ static int btrfs_set_acl(struct btrfs_trans_handle *trans,
 	int ret, size = 0;
 	const char *name;
 	char *value = NULL;
-	mode_t mode;
 
 	if (acl) {
 		ret = posix_acl_valid(acl);
@@ -122,13 +119,11 @@ static int btrfs_set_acl(struct btrfs_trans_handle *trans,
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		mode = inode->i_mode;
 		name = POSIX_ACL_XATTR_ACCESS;
 		if (acl) {
-			ret = posix_acl_equiv_mode(acl, &mode);
+			ret = posix_acl_equiv_mode(acl, &inode->i_mode);
 			if (ret < 0)
 				return ret;
-			inode->i_mode = mode;
 		}
 		ret = 0;
 		break;
@@ -222,19 +217,16 @@ int btrfs_init_acl(struct btrfs_trans_handle *trans,
 	}
 
 	if (IS_POSIXACL(dir) && acl) {
-		mode_t mode = inode->i_mode;
-
 		if (S_ISDIR(inode->i_mode)) {
 			ret = btrfs_set_acl(trans, inode, acl,
 					    ACL_TYPE_DEFAULT);
 			if (ret)
 				goto failed;
 		}
-		ret = posix_acl_create(&acl, GFP_NOFS, &mode);
+		ret = posix_acl_create(&acl, GFP_NOFS, &inode->i_mode);
 		if (ret < 0)
 			return ret;
 
-		inode->i_mode = mode;
 		if (ret > 0) {
 			/* we need an acl */
 			ret = btrfs_set_acl(trans, inode, acl, ACL_TYPE_ACCESS);
@@ -282,18 +274,3 @@ const struct xattr_handler btrfs_xattr_acl_access_handler = {
 	.get	= btrfs_xattr_acl_get,
 	.set	= btrfs_xattr_acl_set,
 };
-
-#else /* CONFIG_BTRFS_FS_POSIX_ACL */
-
-int btrfs_acl_chmod(struct inode *inode)
-{
-	return 0;
-}
-
-int btrfs_init_acl(struct btrfs_trans_handle *trans,
-		   struct inode *inode, struct inode *dir)
-{
-	return 0;
-}
-
-#endif /* CONFIG_BTRFS_FS_POSIX_ACL */

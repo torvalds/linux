@@ -773,6 +773,11 @@ struct nfs3_getaclres {
 	struct posix_acl *	acl_default;
 };
 
+struct nfs4_string {
+	unsigned int len;
+	char *data;
+};
+
 #ifdef CONFIG_NFS_V4
 
 typedef u64 clientid4;
@@ -961,11 +966,6 @@ struct nfs4_server_caps_res {
 	u32				has_links;
 	u32				has_symlinks;
 	struct nfs4_sequence_res	seq_res;
-};
-
-struct nfs4_string {
-	unsigned int len;
-	char *data;
 };
 
 #define NFS4_PATHNAME_MAXCOMPONENTS 512

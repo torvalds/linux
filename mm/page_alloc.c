@@ -1409,14 +1409,11 @@ static int __init fail_page_alloc_debugfs(void)
 {
 	mode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
 	struct dentry *dir;
-	int err;
 
-	err = init_fault_attr_dentries(&fail_page_alloc.attr,
-				       "fail_page_alloc");
-	if (err)
-		return err;
-
-	dir = fail_page_alloc.attr.dir;
+	dir = fault_create_debugfs_attr("fail_page_alloc", NULL,
+					&fail_page_alloc.attr);
+	if (IS_ERR(dir))
+		return PTR_ERR(dir);
 
 	if (!debugfs_create_bool("ignore-gfp-wait", mode, dir,
 				&fail_page_alloc.ignore_gfp_wait))
@@ -1430,7 +1427,7 @@ static int __init fail_page_alloc_debugfs(void)
 
 	return 0;
 fail:
-	cleanup_fault_attr_dentries(&fail_page_alloc.attr);
+	debugfs_remove_recursive(dir);
 
 	return -ENOMEM;
 }

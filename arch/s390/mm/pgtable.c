@@ -528,6 +528,7 @@ static inline void page_table_free_pgste(unsigned long *table)
 static inline unsigned long *page_table_alloc_pgste(struct mm_struct *mm,
 						    unsigned long vmaddr)
 {
+	return NULL;
 }
 
 static inline void page_table_free_pgste(unsigned long *table)

@@ -11,7 +11,7 @@
  * Copyright (C) 2004-2006 Trusted Computer Solutions, Inc.
  */
 /*
- * Updated: Hewlett-Packard <paul.moore@hp.com>
+ * Updated: Hewlett-Packard <paul@paul-moore.com>
  *
  *	Added support to import/export the MLS label from NetLabel
  *

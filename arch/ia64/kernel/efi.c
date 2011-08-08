@@ -156,7 +156,7 @@ prefix##_get_next_variable (unsigned long *name_size, efi_char16_t *name,      \
 #define STUB_SET_VARIABLE(prefix, adjust_arg)				       \
 static efi_status_t							       \
 prefix##_set_variable (efi_char16_t *name, efi_guid_t *vendor,		       \
-		       unsigned long attr, unsigned long data_size,	       \
+		       u32 attr, unsigned long data_size,		       \
 		       void *data)					       \
 {									       \
 	struct ia64_fpreg fr[6];					       \

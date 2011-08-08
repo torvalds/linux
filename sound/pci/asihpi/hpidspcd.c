@@ -43,6 +43,7 @@ short hpi_dsp_code_open(u32 adapter, void *os_data, struct dsp_code *dsp_code,
 	struct pci_dev *dev = os_data;
 	struct code_header header;
 	char fw_name[20];
+	short err_ret = HPI_ERROR_DSP_FILE_NOT_FOUND;
 	int err;
 
 	sprintf(fw_name, "asihpi/dsp%04x.bin", adapter);
@@ -85,8 +86,10 @@ short hpi_dsp_code_open(u32 adapter, void *os_data, struct dsp_code *dsp_code,
 
 	HPI_DEBUG_LOG(DEBUG, "dsp code %s opened\n", fw_name);
 	dsp_code->pvt = kmalloc(sizeof(*dsp_code->pvt), GFP_KERNEL);
-	if (!dsp_code->pvt)
-		return HPI_ERROR_MEMORY_ALLOC;
+	if (!dsp_code->pvt) {
+		err_ret = HPI_ERROR_MEMORY_ALLOC;
+		goto error2;
+	}
 
 	dsp_code->pvt->dev = dev;
 	dsp_code->pvt->firmware = firmware;
@@ -99,7 +102,7 @@ error2:
 	release_firmware(firmware);
 error1:
 	dsp_code->block_length = 0;
-	return HPI_ERROR_DSP_FILE_NOT_FOUND;
+	return err_ret;
 }
 
 /*-------------------------------------------------------------------*/

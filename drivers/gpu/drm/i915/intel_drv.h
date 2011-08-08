@@ -178,9 +178,27 @@ struct intel_crtc {
 #define to_intel_encoder(x) container_of(x, struct intel_encoder, base)
 #define to_intel_framebuffer(x) container_of(x, struct intel_framebuffer, base)
 
+#define DIP_HEADER_SIZE	5
+
 #define DIP_TYPE_AVI    0x82
 #define DIP_VERSION_AVI 0x2
 #define DIP_LEN_AVI     13
+
+#define DIP_TYPE_SPD	0x3
+#define DIP_VERSION_SPD	0x1
+#define DIP_LEN_SPD	25
+#define DIP_SPD_UNKNOWN	0
+#define DIP_SPD_DSTB	0x1
+#define DIP_SPD_DVDP	0x2
+#define DIP_SPD_DVHS	0x3
+#define DIP_SPD_HDDVR	0x4
+#define DIP_SPD_DVC	0x5
+#define DIP_SPD_DSC	0x6
+#define DIP_SPD_VCD	0x7
+#define DIP_SPD_GAME	0x8
+#define DIP_SPD_PC	0x9
+#define DIP_SPD_BD	0xa
+#define DIP_SPD_SCD	0xb
 
 struct dip_infoframe {
 	uint8_t type;		/* HB0 */
@@ -206,6 +224,11 @@ struct dip_infoframe {
 			uint16_t left_bar_end;
 			uint16_t right_bar_start;
 		} avi;
+		struct {
+			uint8_t vn[8];
+			uint8_t pd[16];
+			uint8_t sdi;
+		} spd;
 		uint8_t payload[27];
 	} __attribute__ ((packed)) body;
 } __attribute__((packed));
