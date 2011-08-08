@@ -50,9 +50,6 @@ struct brcmf_sdio_card {
 	u32 sbwad;		/* Save backplane window address */
 };
 
-/* driver info, initialized when brcmf_sdio_register is called */
-static struct brcmf_sdioh_driver drvinfo = { NULL, NULL };
-
 /* Module parameters specific to each host-controller driver */
 
 module_param(sd_f2_blocksize, int, 0);
@@ -443,7 +440,7 @@ int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	vendevid = brcmf_sdcard_query_device(sdiodev->card);
 
 	/* try to attach to the target device */
-	sdiodev->bus = drvinfo.attach((vendevid >> 16), (vendevid & 0xFFFF),
+	sdiodev->bus = brcmf_sdbrcm_probe((vendevid >> 16), (vendevid & 0xFFFF),
 				  0, 0, 0, 0, regs, sdiodev->card);
 	if (!sdiodev->bus) {
 		BRCMF_ERROR(("%s: device attach failed\n", __func__));
@@ -462,7 +459,7 @@ EXPORT_SYMBOL(brcmf_sdio_probe);
 int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev)
 {
 	if (sdiodev->bus) {
-		drvinfo.detach(sdiodev->bus);
+		brcmf_sdbrcm_disconnect(sdiodev->bus);
 		sdiodev->bus = NULL;
 	}
 
@@ -477,10 +474,8 @@ int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev)
 }
 EXPORT_SYMBOL(brcmf_sdio_remove);
 
-int brcmf_sdio_register(struct brcmf_sdioh_driver *driver)
+int brcmf_sdio_register(void)
 {
-	drvinfo = *driver;
-
 	return brcmf_sdio_function_init();
 }
 

@@ -962,7 +962,6 @@ static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter);
 
 static void brcmf_sdbrcm_release(struct brcmf_bus *bus);
 static void brcmf_sdbrcm_release_malloc(struct brcmf_bus *bus);
-static void brcmf_sdbrcm_disconnect(void *ptr);
 static bool brcmf_sdbrcm_chipmatch(u16 chipid);
 static bool brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, void *card,
 				      u32 regsva, u16 devid);
@@ -5431,7 +5430,7 @@ static bool brcmf_sdbrcm_chipmatch(u16 chipid)
 	return false;
 }
 
-static void *brcmf_sdbrcm_probe(u16 venid, u16 devid, u16 bus_no,
+void *brcmf_sdbrcm_probe(u16 venid, u16 devid, u16 bus_no,
 			   u16 slot, u16 func, uint bustype, u32 regsva,
 			   void *card)
 {
@@ -5889,7 +5888,7 @@ static void brcmf_sdbrcm_release_dongle(struct brcmf_bus *bus)
 	BRCMF_TRACE(("%s: Disconnected\n", __func__));
 }
 
-static void brcmf_sdbrcm_disconnect(void *ptr)
+void brcmf_sdbrcm_disconnect(void *ptr)
 {
 	struct brcmf_bus *bus = (struct brcmf_bus *)ptr;
 
@@ -5900,16 +5899,6 @@ static void brcmf_sdbrcm_disconnect(void *ptr)
 
 	BRCMF_TRACE(("%s: Disconnected\n", __func__));
 }
-
-/* Register/Unregister functions are called by the main DHD entry
- * point (e.g. module insertion) to link with the bus driver, in
- * order to look for or await the device.
- */
-
-static struct brcmf_sdioh_driver brcmf_sdio = {
-	brcmf_sdbrcm_probe,
-	brcmf_sdbrcm_disconnect
-};
 
 int brcmf_bus_register(void)
 {
@@ -5930,7 +5919,7 @@ int brcmf_bus_register(void)
 		return -EINVAL;
 	} while (0);
 
-	return brcmf_sdio_register(&brcmf_sdio);
+	return brcmf_sdio_register();
 }
 
 void brcmf_bus_unregister(void)

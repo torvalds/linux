@@ -278,20 +278,11 @@ extern int brcmf_sdcard_iovar_op(struct brcmf_sdio_card *card, const char *name,
 
 /* helper functions */
 
-/* callback functions */
-struct brcmf_sdioh_driver {
-	/* attach to device */
-	void *(*attach) (u16 vend_id, u16 dev_id, u16 bus, u16 slot,
-			 u16 func, uint bustype, u32 regsva, void *param);
-	/* detach from device */
-	void (*detach) (void *ch);
-};
-
 struct sdioh_info;
 
 /* platform specific/high level functions */
 extern int brcmf_sdio_function_init(void);
-extern int brcmf_sdio_register(struct brcmf_sdioh_driver *driver);
+extern int brcmf_sdio_register(void);
 extern void brcmf_sdio_unregister(void);
 extern void brcmf_sdio_function_cleanup(void);
 extern int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev);
