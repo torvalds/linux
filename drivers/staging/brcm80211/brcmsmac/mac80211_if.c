@@ -85,7 +85,8 @@ static int __devinit brcms_pci_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *ent);
 static void brcms_remove(struct pci_dev *pdev);
 static void brcms_free(struct brcms_info *wl);
-static void brcms_set_basic_rate(struct wl_rateset *rs, u16 rate, bool is_br);
+static void brcms_set_basic_rate(struct brcm_rateset *rs, u16 rate,
+				 bool is_br);
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN driver.");
@@ -377,7 +378,7 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 		struct ieee80211_supported_band *bi;
 		u32 br_mask, i;
 		u16 rate;
-		struct wl_rateset rs;
+		struct brcm_rateset rs;
 		int error;
 
 		/* retrieve the current rates */
@@ -1374,7 +1375,7 @@ static void brcms_free(struct brcms_info *wl)
 }
 
 /* flags the given rate in rateset as requested */
-static void brcms_set_basic_rate(struct wl_rateset *rs, u16 rate, bool is_br)
+static void brcms_set_basic_rate(struct brcm_rateset *rs, u16 rate, bool is_br)
 {
 	u32 i;
 

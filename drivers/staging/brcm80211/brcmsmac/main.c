@@ -6134,7 +6134,8 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 		break;
 
 	case BRCM_GET_CURR_RATESET:{
-			wl_rateset_t *ret_rs = (wl_rateset_t *) arg;
+			struct brcm_rateset *ret_rs =
+						(struct brcm_rateset *) arg;
 			struct brcms_c_rateset *rs;
 
 			if (wlc->pub->associated)
@@ -6155,7 +6156,8 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 
 	case BRCM_SET_RATESET:{
 			struct brcms_c_rateset rs;
-			wl_rateset_t *in_rs = (wl_rateset_t *) arg;
+			struct brcm_rateset *in_rs =
+						(struct brcm_rateset *) arg;
 
 			if (len < (int)(in_rs->count + sizeof(in_rs->count))) {
 				bcmerror = -EOVERFLOW;

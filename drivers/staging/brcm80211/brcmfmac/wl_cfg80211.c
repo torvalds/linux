@@ -2025,7 +2025,7 @@ brcmf_cfg80211_set_bitrate_mask(struct wiphy *wiphy, struct net_device *dev,
 			     const u8 *addr,
 			     const struct cfg80211_bitrate_mask *mask)
 {
-	struct wl_rateset rateset;
+	struct brcm_rateset rateset;
 	s32 rate;
 	s32 val;
 	s32 err_bg;
