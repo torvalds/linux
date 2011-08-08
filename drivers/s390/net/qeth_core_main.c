@@ -995,27 +995,29 @@ static void qeth_get_channel_path_desc(struct qeth_card *card)
 	ccwdev = card->data.ccwdev;
 	chp_dsc = (struct channelPath_dsc *)ccw_device_get_chp_desc(ccwdev, 0);
 	if (chp_dsc != NULL) {
-		/* CHPP field bit 6 == 1 -> single queue */
-		if ((chp_dsc->chpp & 0x02) == 0x02) {
-			if ((atomic_read(&card->qdio.state) !=
-				QETH_QDIO_UNINITIALIZED) &&
-			    (card->qdio.no_out_queues == 4))
-				/* change from 4 to 1 outbound queues */
-				qeth_free_qdio_buffers(card);
-			card->qdio.no_out_queues = 1;
-			if (card->qdio.default_out_queue != 0)
-				dev_info(&card->gdev->dev,
+		if (card->info.type != QETH_CARD_TYPE_IQD) {
+			/* CHPP field bit 6 == 1 -> single queue */
+			if ((chp_dsc->chpp & 0x02) == 0x02) {
+				if ((atomic_read(&card->qdio.state) !=
+					QETH_QDIO_UNINITIALIZED) &&
+				    (card->qdio.no_out_queues == 4))
+					/* change from 4 to 1 outbound queues */
+					qeth_free_qdio_buffers(card);
+				card->qdio.no_out_queues = 1;
+				if (card->qdio.default_out_queue != 0)
+					dev_info(&card->gdev->dev,
 					"Priority Queueing not supported\n");
-			card->qdio.default_out_queue = 0;
-		} else {
-			if ((atomic_read(&card->qdio.state) !=
-				QETH_QDIO_UNINITIALIZED) &&
-			    (card->qdio.no_out_queues == 1)) {
-				/* change from 1 to 4 outbound queues */
-				qeth_free_qdio_buffers(card);
-				card->qdio.default_out_queue = 2;
+				card->qdio.default_out_queue = 0;
+			} else {
+				if ((atomic_read(&card->qdio.state) !=
+					QETH_QDIO_UNINITIALIZED) &&
+				    (card->qdio.no_out_queues == 1)) {
+					/* change from 1 to 4 outbound queues */
+					qeth_free_qdio_buffers(card);
+					card->qdio.default_out_queue = 2;
+				}
+				card->qdio.no_out_queues = 4;
 			}
-			card->qdio.no_out_queues = 4;
 		}
 		card->info.func_level = 0x4100 + chp_dsc->desc;
 		kfree(chp_dsc);
