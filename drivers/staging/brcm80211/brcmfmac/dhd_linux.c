@@ -28,8 +28,8 @@
 #include <linux/fcntl.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
-#include <linux/interrupt.h>
 #include <linux/hardirq.h>
+#include <linux/mutex.h>
 #include <net/cfg80211.h>
 #include <defs.h>
 #include <brcmu_utils.h>
@@ -75,7 +75,7 @@ struct brcmf_info {
 	/* OS/stack specifics */
 	struct brcmf_if *iflist[BRCMF_MAX_IFS];
 
-	struct semaphore proto_sem;
+	struct mutex proto_block;
 	wait_queue_head_t ioctl_resp_wait;
 
 	/* Thread to issue ioctl for multicast */
@@ -1314,7 +1314,7 @@ struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
 		goto fail;
 
 	net->netdev_ops = NULL;
-	sema_init(&drvr_priv->proto_sem, 1);
+	mutex_init(&drvr_priv->proto_block);
 	/* Initialize other structure content */
 	init_waitqueue_head(&drvr_priv->ioctl_resp_wait);
 
@@ -1584,7 +1584,7 @@ int brcmf_os_proto_block(struct brcmf_pub *drvr)
 	struct brcmf_info *drvr_priv = drvr->info;
 
 	if (drvr_priv) {
-		down(&drvr_priv->proto_sem);
+		mutex_lock(&drvr_priv->proto_block);
 		return 1;
 	}
 	return 0;
@@ -1595,7 +1595,7 @@ int brcmf_os_proto_unblock(struct brcmf_pub *drvr)
 	struct brcmf_info *drvr_priv = drvr->info;
 
 	if (drvr_priv) {
-		up(&drvr_priv->proto_sem);
+		mutex_unlock(&drvr_priv->proto_block);
 		return 1;
 	}
 
