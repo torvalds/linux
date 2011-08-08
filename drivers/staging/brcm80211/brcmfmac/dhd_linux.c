@@ -423,7 +423,7 @@ static int _brcmf_set_mac_address(struct brcmf_info *drvr_priv, int ifidx, u8 *a
 }
 
 #ifdef SOFTAP
-extern struct net_device *ap_net_dev;
+static struct net_device *ap_net_dev;
 #endif
 
 /* Virtual interfaces only ((ifp && ifp->info && ifp->idx == true) */
@@ -469,7 +469,7 @@ static void brcmf_op_if(struct brcmf_if *ifp)
 #ifdef SOFTAP
 				/* semaphore that the soft AP CODE
 					 waits on */
-				extern struct semaphore ap_eth_sema;
+				struct semaphore ap_eth_sema;
 
 				/* save ptr to wl0.1 netdev for use
 					 in wl_iw.c  */

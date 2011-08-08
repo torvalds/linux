@@ -103,15 +103,7 @@ static struct brcmf_sdioh_driver drvinfo = { NULL, NULL };
 
 module_param(sd_msglevel, uint, 0);
 
-extern uint sd_f2_blocksize;
 module_param(sd_f2_blocksize, int, 0);
-
-/* forward declarations */
-int brcmf_sdio_probe(struct device *dev);
-EXPORT_SYMBOL(brcmf_sdio_probe);
-
-int brcmf_sdio_remove(struct device *dev);
-EXPORT_SYMBOL(brcmf_sdio_remove);
 
 struct brcmf_sdio_card*
 brcmf_sdcard_attach(void *cfghdl, u32 *regsva, uint irq)
@@ -590,6 +582,7 @@ err:
 
 	return -ENODEV;
 }
+EXPORT_SYMBOL(brcmf_sdio_probe);
 
 int brcmf_sdio_remove(struct device *dev)
 {
@@ -619,6 +612,7 @@ int brcmf_sdio_remove(struct device *dev)
 	kfree(sdhc);
 	return 0;
 }
+EXPORT_SYMBOL(brcmf_sdio_remove);
 
 int brcmf_sdio_register(struct brcmf_sdioh_driver *driver)
 {
