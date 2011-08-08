@@ -331,7 +331,8 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 	if (btrfs_block_can_be_shared(root, buf)) {
 		ret = btrfs_lookup_extent_info(trans, root, buf->start,
 					       buf->len, &refs, &flags);
-		BUG_ON(ret);
+		if (ret)
+			return ret;
 		BUG_ON(refs == 0);
 	} else {
 		refs = 1;
@@ -375,7 +376,8 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 							  buf->start,
 							  buf->len,
 							  new_flags, 0);
-			BUG_ON(ret);
+			if (ret)
+				return ret;
 		}
 	} else {
 		if (flags & BTRFS_BLOCK_FLAG_FULL_BACKREF) {
@@ -415,7 +417,7 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_disk_key disk_key;
 	struct extent_buffer *cow;
-	int level;
+	int level, ret;
 	int last_ref = 0;
 	int unlock_orig = 0;
 	u64 parent_start;
@@ -467,7 +469,8 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 			    (unsigned long)btrfs_header_fsid(cow),
 			    BTRFS_FSID_SIZE);
 
-	update_ref_for_cow(trans, root, buf, cow, &last_ref);
+	ret = update_ref_for_cow(trans, root, buf, cow, &last_ref);
+	BUG_ON(ret);
 
 	if (root->ref_cows)
 		btrfs_reloc_cow_block(trans, root, buf, cow);
