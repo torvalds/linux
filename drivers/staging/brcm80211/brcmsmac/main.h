@@ -543,7 +543,7 @@ struct brcms_hardware {
 	struct si_pub *sih;	/* SI handle (cookie for siutils calls) */
 	char *vars;		/* "environment" name=value */
 	uint vars_size;		/* size of vars, free vars on detach */
-	d11regs_t *regs;	/* pointer to device registers */
+	struct d11regs *regs;	/* pointer to device registers */
 	void *physhim;		/* phy shim layer handler */
 	void *phy_sh;		/* pointer to shared phy state */
 	struct brcms_hw_band *band;/* pointer to active per-band state */
@@ -613,7 +613,7 @@ struct brcms_txq_info {
 struct brcms_c_info {
 	struct brcms_pub *pub;		/* pointer to wlc public state */
 	struct brcms_info *wl;	/* pointer to os-specific private state */
-	d11regs_t *regs;	/* pointer to device registers */
+	struct d11regs *regs;	/* pointer to device registers */
 
 	/* HW related state used primarily by BMAC */
 	struct brcms_hardware *hw;

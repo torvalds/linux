@@ -365,7 +365,7 @@ void write_phy_channel_reg(struct brcms_phy *pi, uint val)
 
 u16 read_phy_reg(struct brcms_phy *pi, u16 addr)
 {
-	d11regs_t *regs;
+	struct d11regs *regs;
 
 	regs = pi->regs;
 
@@ -377,7 +377,7 @@ u16 read_phy_reg(struct brcms_phy *pi, u16 addr)
 
 void write_phy_reg(struct brcms_phy *pi, u16 addr, u16 val)
 {
-	d11regs_t *regs;
+	struct d11regs *regs;
 
 	regs = pi->regs;
 
@@ -400,7 +400,7 @@ void write_phy_reg(struct brcms_phy *pi, u16 addr, u16 val)
 
 void and_phy_reg(struct brcms_phy *pi, u16 addr, u16 val)
 {
-	d11regs_t *regs;
+	struct d11regs *regs;
 
 	regs = pi->regs;
 
@@ -412,7 +412,7 @@ void and_phy_reg(struct brcms_phy *pi, u16 addr, u16 val)
 
 void or_phy_reg(struct brcms_phy *pi, u16 addr, u16 val)
 {
-	d11regs_t *regs;
+	struct d11regs *regs;
 
 	regs = pi->regs;
 
@@ -424,7 +424,7 @@ void or_phy_reg(struct brcms_phy *pi, u16 addr, u16 val)
 
 void mod_phy_reg(struct brcms_phy *pi, u16 addr, u16 mask, u16 val)
 {
-	d11regs_t *regs;
+	struct d11regs *regs;
 
 	regs = pi->regs;
 
@@ -543,7 +543,7 @@ wlc_phy_attach(struct shared_phy *sh, void *regs, int bandtype,
 		return NULL;
 	}
 	pi->wiphy = wiphy;
-	pi->regs = (d11regs_t *) regs;
+	pi->regs = (struct d11regs *) regs;
 	pi->sh = sh;
 	pi->phy_init_por = true;
 	pi->phy_wreg_limit = PHY_WREG_LIMIT;
@@ -1134,7 +1134,7 @@ wlc_phy_init_radio_regs(struct brcms_phy *pi, struct radio_regs *radioregs,
 void wlc_phy_do_dummy_tx(struct brcms_phy *pi, bool ofdm, bool pa_on)
 {
 #define	DUMMY_PKT_LEN	20
-	d11regs_t *regs = pi->regs;
+	struct d11regs *regs = pi->regs;
 	int i, count;
 	u8 ofdmpkt[DUMMY_PKT_LEN] = {
 		0xcc, 0x01, 0x02, 0x00, 0x00, 0x00, 0xd4, 0x00, 0x00, 0x00,
@@ -3134,12 +3134,13 @@ void wlc_lcnphy_epa_switch(struct brcms_phy *pi, bool mode)
 
 			}
 			ai_corereg(pi->sh->sih, SI_CC_IDX,
-				   offsetof(chipcregs_t, gpiocontrol), ~0x0,
-				   0x0);
+				   offsetof(struct chipcregs, gpiocontrol),
+				   ~0x0, 0x0);
 			ai_corereg(pi->sh->sih, SI_CC_IDX,
-				   offsetof(chipcregs_t, gpioout), 0x40, 0x40);
+				   offsetof(struct chipcregs, gpioout), 0x40,
+				   0x40);
 			ai_corereg(pi->sh->sih, SI_CC_IDX,
-				   offsetof(chipcregs_t, gpioouten), 0x40,
+				   offsetof(struct chipcregs, gpioouten), 0x40,
 				   0x40);
 		} else {
 			mod_phy_reg(pi, 0x44c, (0x1 << 2), (0) << 2);
@@ -3147,12 +3148,14 @@ void wlc_lcnphy_epa_switch(struct brcms_phy *pi, bool mode)
 			mod_phy_reg(pi, 0x44d, (0x1 << 2), (0) << 2);
 
 			ai_corereg(pi->sh->sih, SI_CC_IDX,
-				   offsetof(chipcregs_t, gpioout), 0x40, 0x00);
+				   offsetof(struct chipcregs, gpioout), 0x40,
+				   0x00);
 			ai_corereg(pi->sh->sih, SI_CC_IDX,
-				   offsetof(chipcregs_t, gpioouten), 0x40, 0x0);
+				   offsetof(struct chipcregs, gpioouten), 0x40,
+				   0x0);
 			ai_corereg(pi->sh->sih, SI_CC_IDX,
-				   offsetof(chipcregs_t, gpiocontrol), ~0x0,
-				   0x40);
+				   offsetof(struct chipcregs, gpiocontrol),
+				   ~0x0, 0x40);
 		}
 	}
 }

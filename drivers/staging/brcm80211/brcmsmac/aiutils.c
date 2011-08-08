@@ -437,7 +437,7 @@ static void ai_hwfixup(struct si_info *sii)
 void ai_scan(struct si_pub *sih, void *regs)
 {
 	struct si_info *sii = SI_INFO(sih);
-	chipcregs_t *cc = (chipcregs_t *) regs;
+	struct chipcregs *cc = (struct chipcregs *) regs;
 	u32 erombase, *eromptr, *eromlim;
 
 	erombase = R_REG(&cc->eromptr);
@@ -854,8 +854,9 @@ static struct si_info *ai_doattach(struct si_info *sii, void *regs,
 			      uint bustype, void *sdh, char **vars,
 			      uint *varsz);
 static bool ai_buscore_prep(struct si_info *sii, uint bustype);
-static bool ai_buscore_setup(struct si_info *sii, chipcregs_t *cc, uint bustype,
-			     u32 savewin, uint *origidx, void *regs);
+static bool ai_buscore_setup(struct si_info *sii, struct chipcregs *cc,
+			     uint bustype, u32 savewin, uint *origidx,
+			     void *regs);
 static void ai_nvram_process(struct si_info *sii, char *pvars);
 
 /* dev path concatenation util */
@@ -910,8 +911,9 @@ static bool ai_buscore_prep(struct si_info *sii, uint bustype)
 	return true;
 }
 
-static bool ai_buscore_setup(struct si_info *sii, chipcregs_t *cc, uint bustype,
-			     u32 savewin, uint *origidx, void *regs)
+static bool
+ai_buscore_setup(struct si_info *sii, struct chipcregs *cc, uint bustype,
+		 u32 savewin, uint *origidx, void *regs)
 {
 	bool pci, pcie;
 	uint i;
@@ -1074,7 +1076,7 @@ static struct si_info *ai_doattach(struct si_info *sii,
 {
 	struct si_pub *sih = &sii->pub;
 	u32 w, savewin;
-	chipcregs_t *cc;
+	struct chipcregs *cc;
 	char *pvars = NULL;
 	uint socitype;
 	uint origidx;
@@ -1106,9 +1108,9 @@ static struct si_info *ai_doattach(struct si_info *sii,
 			savewin = SI_ENUM_BASE;
 		pci_write_config_dword(sii->pbus, PCI_BAR0_WIN,
 				       SI_ENUM_BASE);
-		cc = (chipcregs_t *) regs;
+		cc = (struct chipcregs *) regs;
 	} else {
-		cc = (chipcregs_t *) REG_MAP(SI_ENUM_BASE, SI_CORE_SIZE);
+		cc = (struct chipcregs *) REG_MAP(SI_ENUM_BASE, SI_CORE_SIZE);
 	}
 
 	sih->bustype = bustype;
@@ -1167,7 +1169,7 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	ai_nvram_process(sii, pvars);
 
 	/* === NVRAM, clock is ready === */
-	cc = (chipcregs_t *) ai_setcore(sih, CC_CORE_ID, 0);
+	cc = (struct chipcregs *) ai_setcore(sih, CC_CORE_ID, 0);
 	W_REG(&cc->gpiopullup, 0);
 	W_REG(&cc->gpiopulldown, 0);
 	ai_setcoreidx(sih, origidx);
@@ -1190,7 +1192,8 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	w = getintvar(pvars, "leddc");
 	if (w == 0)
 		w = DEFAULT_GPIOTIMERVAL;
-	ai_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, gpiotimerval), ~0, w);
+	ai_corereg(sih, SI_CC_IDX, offsetof(struct chipcregs, gpiotimerval),
+		   ~0, w);
 
 	if (PCIE(sii)) {
 		pcicore_attach(sii->pch, pvars, SI_DOATTACH);
@@ -1204,7 +1207,7 @@ static struct si_info *ai_doattach(struct si_info *sii,
 		if (sih->chiprev == 0) {
 			SI_MSG(("Applying 43224A0 WARs\n"));
 			ai_corereg(sih, SI_CC_IDX,
-				   offsetof(chipcregs_t, chipcontrol),
+				   offsetof(struct chipcregs, chipcontrol),
 				   CCTRL43224_GPIO_TOGGLE,
 				   CCTRL43224_GPIO_TOGGLE);
 			si_pmu_chipcontrol(sih, 0, CCTRL_43224A0_12MA_LED_DRIVE,
@@ -1556,7 +1559,7 @@ void ai_core_reset(struct si_pub *sih, u32 bits, u32 resetbits)
 /* return the slow clock source - LPO, XTAL, or PCI */
 static uint ai_slowclk_src(struct si_info *sii)
 {
-	chipcregs_t *cc;
+	struct chipcregs *cc;
 	u32 val;
 
 	if (sii->pub.ccrev < 6) {
@@ -1568,7 +1571,7 @@ static uint ai_slowclk_src(struct si_info *sii)
 		}
 		return SCC_SS_XTAL;
 	} else if (sii->pub.ccrev < 10) {
-		cc = (chipcregs_t *) ai_setcoreidx(&sii->pub, sii->curidx);
+		cc = (struct chipcregs *) ai_setcoreidx(&sii->pub, sii->curidx);
 		return R_REG(&cc->slow_clk_ctl) & SCC_SS_MASK;
 	} else			/* Insta-clock */
 		return SCC_SS_XTAL;
@@ -1578,7 +1581,8 @@ static uint ai_slowclk_src(struct si_info *sii)
 * return the ILP (slowclock) min or max frequency
 * precondition: we've established the chip has dynamic clk control
 */
-static uint ai_slowclk_freq(struct si_info *sii, bool max_freq, chipcregs_t *cc)
+static uint
+ai_slowclk_freq(struct si_info *sii, bool max_freq, struct chipcregs *cc)
 {
 	u32 slowclk;
 	uint div;
@@ -1614,7 +1618,7 @@ static uint ai_slowclk_freq(struct si_info *sii, bool max_freq, chipcregs_t *cc)
 
 static void ai_clkctl_setdelay(struct si_info *sii, void *chipcregs)
 {
-	chipcregs_t *cc = (chipcregs_t *) chipcregs;
+	struct chipcregs *cc = (struct chipcregs *) chipcregs;
 	uint slowmaxfreq, pll_delay, slowclk;
 	uint pll_on_delay, fref_sel_delay;
 
@@ -1646,7 +1650,7 @@ void ai_clkctl_init(struct si_pub *sih)
 {
 	struct si_info *sii;
 	uint origidx = 0;
-	chipcregs_t *cc;
+	struct chipcregs *cc;
 	bool fast;
 
 	if (!CCCTL_ENAB(sih))
@@ -1656,11 +1660,11 @@ void ai_clkctl_init(struct si_pub *sih)
 	fast = SI_FAST(sii);
 	if (!fast) {
 		origidx = sii->curidx;
-		cc = (chipcregs_t *) ai_setcore(sih, CC_CORE_ID, 0);
+		cc = (struct chipcregs *) ai_setcore(sih, CC_CORE_ID, 0);
 		if (cc == NULL)
 			return;
 	} else {
-		cc = (chipcregs_t *) CCREGS_FAST(sii);
+		cc = (struct chipcregs *) CCREGS_FAST(sii);
 		if (cc == NULL)
 			return;
 	}
@@ -1684,7 +1688,7 @@ u16 ai_clkctl_fast_pwrup_delay(struct si_pub *sih)
 {
 	struct si_info *sii;
 	uint origidx = 0;
-	chipcregs_t *cc;
+	struct chipcregs *cc;
 	uint slowminfreq;
 	u16 fpdelay;
 	uint intr_val = 0;
@@ -1706,11 +1710,11 @@ u16 ai_clkctl_fast_pwrup_delay(struct si_pub *sih)
 	if (!fast) {
 		origidx = sii->curidx;
 		INTR_OFF(sii, intr_val);
-		cc = (chipcregs_t *) ai_setcore(sih, CC_CORE_ID, 0);
+		cc = (struct chipcregs *) ai_setcore(sih, CC_CORE_ID, 0);
 		if (cc == NULL)
 			goto done;
 	} else {
-		cc = (chipcregs_t *) CCREGS_FAST(sii);
+		cc = (struct chipcregs *) CCREGS_FAST(sii);
 		if (cc == NULL)
 			goto done;
 	}
@@ -1825,7 +1829,7 @@ bool ai_clkctl_cc(struct si_pub *sih, uint mode)
 static bool _ai_clkctl_cc(struct si_info *sii, uint mode)
 {
 	uint origidx = 0;
-	chipcregs_t *cc;
+	struct chipcregs *cc;
 	u32 scc;
 	uint intr_val = 0;
 	bool fast = SI_FAST(sii);
@@ -1843,9 +1847,9 @@ static bool _ai_clkctl_cc(struct si_info *sii, uint mode)
 		    (ai_corerev(&sii->pub) <= 7) && (sii->pub.ccrev >= 10))
 			goto done;
 
-		cc = (chipcregs_t *) ai_setcore(&sii->pub, CC_CORE_ID, 0);
+		cc = (struct chipcregs *) ai_setcore(&sii->pub, CC_CORE_ID, 0);
 	} else {
-		cc = (chipcregs_t *) CCREGS_FAST(sii);
+		cc = (struct chipcregs *) CCREGS_FAST(sii);
 		if (cc == NULL)
 			goto done;
 	}
@@ -2164,21 +2168,21 @@ u32 ai_gpiocontrol(struct si_pub *sih, u32 mask, u32 val, u8 priority)
 		val &= mask;
 	}
 
-	regoff = offsetof(chipcregs_t, gpiocontrol);
+	regoff = offsetof(struct chipcregs, gpiocontrol);
 	return ai_corereg(sih, SI_CC_IDX, regoff, mask, val);
 }
 
 void ai_chipcontrl_epa4331(struct si_pub *sih, bool on)
 {
 	struct si_info *sii;
-	chipcregs_t *cc;
+	struct chipcregs *cc;
 	uint origidx;
 	u32 val;
 
 	sii = SI_INFO(sih);
 	origidx = ai_coreidx(sih);
 
-	cc = (chipcregs_t *) ai_setcore(sih, CC_CORE_ID, 0);
+	cc = (struct chipcregs *) ai_setcore(sih, CC_CORE_ID, 0);
 
 	val = R_REG(&cc->chipcontrol);
 
@@ -2205,13 +2209,13 @@ void ai_chipcontrl_epa4331(struct si_pub *sih, bool on)
 void ai_epa_4313war(struct si_pub *sih)
 {
 	struct si_info *sii;
-	chipcregs_t *cc;
+	struct chipcregs *cc;
 	uint origidx;
 
 	sii = SI_INFO(sih);
 	origidx = ai_coreidx(sih);
 
-	cc = (chipcregs_t *) ai_setcore(sih, CC_CORE_ID, 0);
+	cc = (struct chipcregs *) ai_setcore(sih, CC_CORE_ID, 0);
 
 	/* EPA Fix */
 	W_REG(&cc->gpiocontrol,
@@ -2243,7 +2247,7 @@ bool ai_is_sprom_available(struct si_pub *sih)
 	if (sih->ccrev >= 31) {
 		struct si_info *sii;
 		uint origidx;
-		chipcregs_t *cc;
+		struct chipcregs *cc;
 		u32 sromctrl;
 
 		if ((sih->cccaps & CC_CAP_SROM) == 0)

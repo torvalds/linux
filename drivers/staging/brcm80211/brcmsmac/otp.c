@@ -62,7 +62,7 @@
 /* OTP function struct */
 struct otp_fn_s {
 	int (*size)(void *oh);
-	u16 (*read_bit)(void *oh, chipcregs_t *cc, uint off);
+	u16 (*read_bit)(void *oh, struct chipcregs *cc, uint off);
 	void *(*init)(struct si_pub *sih);
 	int (*read_region)(struct si_pub *sih, int region, u16 *data,
 			   uint *wlen);
@@ -156,7 +156,7 @@ static int ipxotp_size(void *oh)
 	return (int)oi->wsize * 2;
 }
 
-static u16 ipxotp_otpr(void *oh, chipcregs_t *cc, uint wn)
+static u16 ipxotp_otpr(void *oh, struct chipcregs *cc, uint wn)
 {
 	struct otpinfo *oi;
 
@@ -165,7 +165,7 @@ static u16 ipxotp_otpr(void *oh, chipcregs_t *cc, uint wn)
 	return R_REG(&cc->sromotp[wn]);
 }
 
-static u16 ipxotp_read_bit(void *oh, chipcregs_t *cc, uint off)
+static u16 ipxotp_read_bit(void *oh, struct chipcregs *cc, uint off)
 {
 	struct otpinfo *oi = (struct otpinfo *) oh;
 	uint k, row, col;
@@ -217,7 +217,7 @@ static int ipxotp_max_rgnsz(struct si_pub *sih, int osizew)
 	return ret;
 }
 
-static void _ipxotp_init(struct otpinfo *oi, chipcregs_t *cc)
+static void _ipxotp_init(struct otpinfo *oi, struct chipcregs *cc)
 {
 	uint k;
 	u32 otpp, st;
@@ -291,7 +291,7 @@ static void _ipxotp_init(struct otpinfo *oi, chipcregs_t *cc)
 static void *ipxotp_init(struct si_pub *sih)
 {
 	uint idx;
-	chipcregs_t *cc;
+	struct chipcregs *cc;
 	struct otpinfo *oi;
 
 	/* Make sure we're running IPX OTP */
@@ -350,7 +350,7 @@ static int ipxotp_read_region(void *oh, int region, u16 *data, uint *wlen)
 {
 	struct otpinfo *oi = (struct otpinfo *) oh;
 	uint idx;
-	chipcregs_t *cc;
+	struct chipcregs *cc;
 	uint base, i, sz;
 
 	/* Validate region selection */
@@ -438,7 +438,7 @@ static int ipxotp_nvread(void *oh, char *data, uint *len)
 
 static struct otp_fn_s ipxotp_fn = {
 	(int (*)(void *)) ipxotp_size,
-	(u16 (*)(void *, chipcregs_t *, uint)) ipxotp_read_bit,
+	(u16 (*)(void *, struct chipcregs *, uint)) ipxotp_read_bit,
 
 	(void *(*)(struct si_pub *)) ipxotp_init,
 	(int (*)(struct si_pub *, int, u16 *, uint *)) ipxotp_read_region,
@@ -474,7 +474,7 @@ u16 otp_read_bit(void *oh, uint offset)
 {
 	struct otpinfo *oi = (struct otpinfo *) oh;
 	uint idx = ai_coreidx(oi->sih);
-	chipcregs_t *cc = ai_setcoreidx(oi->sih, SI_CC_IDX);
+	struct chipcregs *cc = ai_setcoreidx(oi->sih, SI_CC_IDX);
 	u16 readBit = (u16) oi->fn->read_bit(oh, cc, offset);
 	ai_setcoreidx(oi->sih, idx);
 	return readBit;

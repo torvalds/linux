@@ -73,8 +73,8 @@ struct pio2regs {
 
 /* a pair of pio channels(tx and rx) */
 struct pio2regp {
-	pio2regs_t tx;
-	pio2regs_t rx;
+	struct pio2regs tx;
+	struct pio2regs rx;
 };
 
 /* 4byte-wide pio register set per channel(xmt or rcv) */
@@ -85,8 +85,8 @@ struct pio4regs {
 
 /* a pair of pio channels(tx and rx) */
 struct pio4regp {
-	pio4regs_t tx;
-	pio4regs_t rx;
+	struct pio4regs tx;
+	struct pio4regs rx;
 };
 
 /* read: 32-bit register that can be read as 32-bit or as 2 16-bit
@@ -101,10 +101,10 @@ union pmqreg {
 };
 
 struct fifo64 {
-	dma64regs_t dmaxmt;	/* dma tx */
-	pio4regs_t piotx;	/* pio tx */
-	dma64regs_t dmarcv;	/* dma rx */
-	pio4regs_t piorx;	/* pio rx */
+	struct dma64regs dmaxmt;	/* dma tx */
+	struct pio4regs piotx;	/* pio tx */
+	struct dma64regs dmarcv;	/* dma rx */
+	struct pio4regs piorx;	/* pio rx */
 };
 
 /*
@@ -120,7 +120,7 @@ struct d11regs {
 	u32 usectimer;	/* 0x1c *//* for corerev >= 26 */
 
 	/* Interrupt Control *//* 0x20 */
-	intctrlregs_t intctrlregs[8];
+	struct intctrlregs intctrlregs[8];
 
 	u32 PAD[40];		/* 0x60 - 0xFC */
 
@@ -139,7 +139,7 @@ struct d11regs {
 	u32 PAD[2];		/* 0x138 - 0x13C */
 
 	/* PMQ registers */
-	pmqreg_t pmqreg;	/* 0x140 */
+	union pmqreg pmqreg;	/* 0x140 */
 	u32 pmqpatl;		/* 0x144 */
 	u32 pmqpath;		/* 0x148 */
 	u32 PAD;		/* 0x14C */
@@ -179,10 +179,10 @@ struct d11regs {
 	u32 PAD[5];		/* 0x1ec - 0x1fc */
 
 	/* 0x200-0x37F dma/pio registers */
-	fifo64_t fifo64regs[6];
+	struct fifo64 fifo64regs[6];
 
 	/* FIFO diagnostic port access */
-	dma32diag_t dmafifo;	/* 0x380 - 0x38C */
+	struct dma32diag dmafifo;	/* 0x380 - 0x38C */
 
 	u32 aggfifocnt;	/* 0x390 */
 	u32 aggfifodata;	/* 0x394 */

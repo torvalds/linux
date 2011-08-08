@@ -374,18 +374,6 @@ struct tx_status;
 struct d11rxhdr;
 struct brcms_d11rxhdr;
 struct txpwr_limits;
-struct brcms_phy;
-
-typedef volatile struct intctrlregs intctrlregs_t;
-typedef volatile struct pio2regs pio2regs_t;
-typedef volatile struct pio2regp pio2regp_t;
-typedef volatile struct pio4regs pio4regs_t;
-typedef volatile struct pio4regp pio4regp_t;
-typedef volatile struct fifo64 fifo64_t;
-typedef volatile struct d11regs d11regs_t;
-typedef volatile struct dma32diag dma32diag_t;
-typedef volatile struct dma64regs dma64regs_t;
-typedef volatile union pmqreg pmqreg_t;
 
 /* brcm_msg_level is a bit vector with defs in defs.h */
 extern u32 brcm_msg_level;

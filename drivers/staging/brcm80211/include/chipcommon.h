@@ -19,7 +19,7 @@
 
 #include "defs.h"		/* for PAD macro */
 
-typedef volatile struct {
+struct chipcregs {
 	u32 chipid;		/* 0x0 */
 	u32 capabilities;
 	u32 corecontrol;	/* corerev >= 1 */
@@ -214,7 +214,7 @@ typedef volatile struct {
 	u32 pmu_xtalfreq;	/* 0x66C, pmurev >= 10 */
 	u32 PAD[100];
 	u16 sromotp[768];
-} chipcregs_t;
+};
 
 /* chipid */
 #define	CID_ID_MASK		0x0000ffff	/* Chip Id mask */

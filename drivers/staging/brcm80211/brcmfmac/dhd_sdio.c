@@ -475,7 +475,8 @@ BRCMF_SPINWAIT_SLEEP_INIT(sdioh_spinwait_sleep);
  * Core reg address translation.
  * Both macro's returns a 32 bits byte address on the backplane bus.
  */
-#define CORE_CC_REG(base, field)	(base + offsetof(chipcregs_t, field))
+#define CORE_CC_REG(base, field) \
+		(base + offsetof(struct chipcregs, field))
 #define CORE_BUS_REG(base, field) \
 		(base + offsetof(struct sdpcmd_regs, field))
 #define CORE_SB(base, field) \

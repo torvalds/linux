@@ -542,10 +542,10 @@ static void pcie_clkreq_upd(struct pcicore_info *pi, uint state)
 	case SI_PCIDOWN:
 		if (sih->buscorerev == 6) {	/* turn on serdes PLL down */
 			ai_corereg(sih, SI_CC_IDX,
-				   offsetof(chipcregs_t, chipcontrol_addr),
+				   offsetof(struct chipcregs, chipcontrol_addr),
 				   ~0, 0);
 			ai_corereg(sih, SI_CC_IDX,
-				   offsetof(chipcregs_t, chipcontrol_data),
+				   offsetof(struct chipcregs, chipcontrol_data),
 				   ~0x40, 0);
 		} else if (pi->pcie_pr42767) {
 			pcie_clkreq((void *)pi, 1, 1);
@@ -554,10 +554,10 @@ static void pcie_clkreq_upd(struct pcicore_info *pi, uint state)
 	case SI_PCIUP:
 		if (sih->buscorerev == 6) {	/* turn off serdes PLL down */
 			ai_corereg(sih, SI_CC_IDX,
-				   offsetof(chipcregs_t, chipcontrol_addr),
+				   offsetof(struct chipcregs, chipcontrol_addr),
 				   ~0, 0);
 			ai_corereg(sih, SI_CC_IDX,
-				   offsetof(chipcregs_t, chipcontrol_data),
+				   offsetof(struct chipcregs, chipcontrol_data),
 				   ~0x40, 0x40);
 		} else if (PCIE_ASPM(sih)) {	/* disable clkreq */
 			pcie_clkreq((void *)pi, 1, 0);
@@ -674,7 +674,7 @@ static void pcie_war_noplldown(struct pcicore_info *pi)
 	u16 *reg16;
 
 	/* turn off serdes PLL down */
-	ai_corereg(pi->sih, SI_CC_IDX, offsetof(chipcregs_t, chipcontrol),
+	ai_corereg(pi->sih, SI_CC_IDX, offsetof(struct chipcregs, chipcontrol),
 		   CHIPCTRL_4321_PLL_DOWN, CHIPCTRL_4321_PLL_DOWN);
 
 	/* clear srom shadow backdoor */

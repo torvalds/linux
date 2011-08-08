@@ -240,8 +240,10 @@ struct dma_info {
 
 	union {
 		struct {
-			dma64regs_t *txregs_64;	/* 64-bit dma tx engine registers */
-			dma64regs_t *rxregs_64;	/* 64-bit dma rx engine registers */
+			/* 64-bit dma tx engine registers */
+			struct dma64regs *txregs_64;
+			/* 64-bit dma rx engine registers */
+			struct dma64regs *rxregs_64;
 			/* pointer to dma64 tx descriptor ring */
 			struct dma64desc *txd_64;
 			/* pointer to dma64 rx descriptor ring */
@@ -385,7 +387,7 @@ static void dma64_txreclaim(struct dma_info *di, enum txd_range range);
 static bool dma64_txstopped(struct dma_info *di);
 static bool dma64_rxstopped(struct dma_info *di);
 static bool dma64_rxenabled(struct dma_info *di);
-static bool _dma64_addrext(dma64regs_t *dma64regs);
+static bool _dma64_addrext(struct dma64regs *dma64regs);
 
 static inline u32 parity32(u32 data);
 
@@ -459,8 +461,8 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 	di->dma64 = ((ai_core_sflags(sih, 0, 0) & SISF_DMA64) == SISF_DMA64);
 
 	/* init dma reg pointer */
-	di->d64txregs = (dma64regs_t *) dmaregstx;
-	di->d64rxregs = (dma64regs_t *) dmaregsrx;
+	di->d64txregs = (struct dma64regs *) dmaregstx;
+	di->d64rxregs = (struct dma64regs *) dmaregsrx;
 	di->dma.di_fn = (const struct di_fcn_s *)&dma64proc;
 
 	/* Default flags (which can be changed by the driver calling dma_ctrlflags
@@ -1683,7 +1685,7 @@ static void *dma64_getnexttxp(struct dma_info *di, enum txd_range range)
 	if (range == DMA_RANGE_ALL)
 		end = di->txout;
 	else {
-		dma64regs_t *dregs = di->d64txregs;
+		struct dma64regs *dregs = di->d64txregs;
 
 		end = (u16) (B2I(((R_REG(&dregs->status0) &
 				 D64_XS0_CD_MASK) -
@@ -1795,7 +1797,7 @@ static void *dma64_getnextrxp(struct dma_info *di, bool forceall)
 	return rxp;
 }
 
-static bool _dma64_addrext(dma64regs_t *dma64regs)
+static bool _dma64_addrext(struct dma64regs *dma64regs)
 {
 	u32 w;
 	OR_REG(&dma64regs->control, D64_XC_AE);

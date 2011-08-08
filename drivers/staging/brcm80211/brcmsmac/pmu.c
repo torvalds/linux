@@ -137,7 +137,8 @@ static void si_pmu_res_masks(struct si_pub *sih, u32 * pmin, u32 * pmax)
 }
 
 static void
-si_pmu_spuravoid_pllupdate(struct si_pub *sih, chipcregs_t *cc, u8 spuravoid)
+si_pmu_spuravoid_pllupdate(struct si_pub *sih, struct chipcregs *cc,
+			   u8 spuravoid)
 {
 	u32 tmp = 0;
 
@@ -209,7 +210,7 @@ u32 si_pmu_ilp_clock(struct si_pub *sih)
 	if (ilpcycles_per_sec == 0) {
 		u32 start, end, delta;
 		u32 origidx = ai_coreidx(sih);
-		chipcregs_t *cc = ai_setcoreidx(sih, SI_CC_IDX);
+		struct chipcregs *cc = ai_setcoreidx(sih, SI_CC_IDX);
 		start = R_REG(&cc->pmutimer);
 		mdelay(ILP_CALC_DUR);
 		end = R_REG(&cc->pmutimer);
@@ -240,7 +241,7 @@ u16 si_pmu_fast_pwrup_delay(struct si_pub *sih)
 
 void si_pmu_sprom_enable(struct si_pub *sih, bool enable)
 {
-	chipcregs_t *cc;
+	struct chipcregs *cc;
 	uint origidx;
 
 	/* Remember original core before switch to chipc */
@@ -254,34 +255,37 @@ void si_pmu_sprom_enable(struct si_pub *sih, bool enable)
 /* Read/write a chipcontrol reg */
 u32 si_pmu_chipcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val)
 {
-	ai_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, chipcontrol_addr), ~0,
-		   reg);
+	ai_corereg(sih, SI_CC_IDX, offsetof(struct chipcregs, chipcontrol_addr),
+		   ~0, reg);
 	return ai_corereg(sih, SI_CC_IDX,
-			  offsetof(chipcregs_t, chipcontrol_data), mask, val);
+			  offsetof(struct chipcregs, chipcontrol_data), mask,
+			  val);
 }
 
 /* Read/write a regcontrol reg */
 u32 si_pmu_regcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val)
 {
-	ai_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, regcontrol_addr), ~0,
-		   reg);
+	ai_corereg(sih, SI_CC_IDX, offsetof(struct chipcregs, regcontrol_addr),
+		   ~0, reg);
 	return ai_corereg(sih, SI_CC_IDX,
-			  offsetof(chipcregs_t, regcontrol_data), mask, val);
+			  offsetof(struct chipcregs, regcontrol_data), mask,
+			  val);
 }
 
 /* Read/write a pllcontrol reg */
 u32 si_pmu_pllcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val)
 {
-	ai_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, pllcontrol_addr), ~0,
-		   reg);
+	ai_corereg(sih, SI_CC_IDX, offsetof(struct chipcregs, pllcontrol_addr),
+		   ~0, reg);
 	return ai_corereg(sih, SI_CC_IDX,
-			  offsetof(chipcregs_t, pllcontrol_data), mask, val);
+			  offsetof(struct chipcregs, pllcontrol_data), mask,
+			  val);
 }
 
 /* PMU PLL update */
 void si_pmu_pllupd(struct si_pub *sih)
 {
-	ai_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, pmucontrol),
+	ai_corereg(sih, SI_CC_IDX, offsetof(struct chipcregs, pmucontrol),
 		   PCTL_PLL_PLLCTL_UPD, PCTL_PLL_PLLCTL_UPD);
 }
 
@@ -310,11 +314,11 @@ u32 si_pmu_alp_clock(struct si_pub *sih)
 
 void si_pmu_spuravoid(struct si_pub *sih, u8 spuravoid)
 {
-	chipcregs_t *cc;
+	struct chipcregs *cc;
 	uint origidx, intr_val;
 
 	/* Remember original core before switch to chipc */
-	cc = (chipcregs_t *) ai_switch_core(sih, CC_CORE_ID, &origidx,
+	cc = (struct chipcregs *) ai_switch_core(sih, CC_CORE_ID, &origidx,
 					    &intr_val);
 
 	/* update the pll changes */
@@ -327,7 +331,7 @@ void si_pmu_spuravoid(struct si_pub *sih, u8 spuravoid)
 /* initialize PMU */
 void si_pmu_init(struct si_pub *sih)
 {
-	chipcregs_t *cc;
+	struct chipcregs *cc;
 	uint origidx;
 
 	/* Remember original core before switch to chipc */
@@ -366,7 +370,7 @@ void si_pmu_swreg_init(struct si_pub *sih)
 /* initialize PLL */
 void si_pmu_pll_init(struct si_pub *sih, uint xtalfreq)
 {
-	chipcregs_t *cc;
+	struct chipcregs *cc;
 	uint origidx;
 
 	/* Remember original core before switch to chipc */
@@ -390,7 +394,7 @@ void si_pmu_pll_init(struct si_pub *sih, uint xtalfreq)
 /* initialize PMU resources */
 void si_pmu_res_init(struct si_pub *sih)
 {
-	chipcregs_t *cc;
+	struct chipcregs *cc;
 	uint origidx;
 	u32 min_mask = 0, max_mask = 0;
 
@@ -422,7 +426,7 @@ void si_pmu_res_init(struct si_pub *sih)
 
 u32 si_pmu_measure_alpclk(struct si_pub *sih)
 {
-	chipcregs_t *cc;
+	struct chipcregs *cc;
 	uint origidx;
 	u32 alp_khz;
 
