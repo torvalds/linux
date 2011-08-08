@@ -1132,16 +1132,13 @@ static void dtv_property_adv_params_sync(struct dvb_frontend *fe)
 	p->frequency = c->frequency;
 	p->inversion = c->inversion;
 
-	switch(c->modulation) {
-	case PSK_8:
-	case APSK_16:
-	case APSK_32:
-	case QPSK:
+	if (c->delivery_system == SYS_DSS ||
+	    c->delivery_system == SYS_DVBS ||
+	    c->delivery_system == SYS_DVBS2 ||
+	    c->delivery_system == SYS_ISDBS ||
+	    c->delivery_system == SYS_TURBO) {
 		p->u.qpsk.symbol_rate = c->symbol_rate;
 		p->u.qpsk.fec_inner = c->fec_inner;
-		break;
-	default:
-		break;
 	}
 
 	/* Fake out a generic DVB-T request so we pass validation in the ioctl */
