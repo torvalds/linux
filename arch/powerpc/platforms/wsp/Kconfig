@@ -1,5 +1,9 @@
 config PPC_WSP
 	bool
+	select PPC_A2
+	select PPC_SCOM
+	select PPC_XICS
+	select PPC_ICP_NATIVE
 	default n
 
 menu "WSP platform selection"
@@ -7,13 +11,9 @@ menu "WSP platform selection"
 
 config PPC_PSR2
 	bool "PSR-2 platform"
-	select PPC_A2
 	select GENERIC_TBSYNC
-	select PPC_SCOM
 	select EPAPR_BOOT
 	select PPC_WSP
-	select PPC_XICS
-	select PPC_ICP_NATIVE
 	default y
 
 endmenu
