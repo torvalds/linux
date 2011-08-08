@@ -29,6 +29,7 @@
 #include <soc.h>
 #include "dhd.h"
 #include "dhd_bus.h"
+#include "dhd_dbg.h"
 #include "sdio_host.h"
 
 #define SDIOH_API_ACCESS_RETRY_LIMIT	2
@@ -54,9 +55,6 @@
 #define BRCMF_SD_ERROR(x)
 #define BRCMF_SD_INFO(x)
 #endif				/* BCMDBG */
-
-/* debugging macros */
-#define SDLX_MSG(x)
 
 #define SDIOH_CMD_TYPE_NORMAL   0	/* Normal command */
 #define SDIOH_CMD_TYPE_APPEND   1	/* Append command */
@@ -486,7 +484,7 @@ int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 
 	card = brcmf_sdcard_attach((void *)0, &regs);
 	if (!card) {
-		SDLX_MSG(("%s: attach failed\n", __func__));
+		BRCMF_ERROR(("%s: attach failed\n", __func__));
 		goto err;
 	}
 	sdiodev->card = card;
@@ -498,7 +496,7 @@ int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	sdiodev->bus = drvinfo.attach((vendevid >> 16), (vendevid & 0xFFFF),
 				  0, 0, 0, 0, regs, card);
 	if (!sdiodev->bus) {
-		SDLX_MSG(("%s: device attach failed\n", __func__));
+		BRCMF_ERROR(("%s: device attach failed\n", __func__));
 		goto err;
 	}
 
@@ -525,7 +523,6 @@ int brcmf_sdio_register(struct brcmf_sdioh_driver *driver)
 {
 	drvinfo = *driver;
 
-	SDLX_MSG(("Linux Kernel SDIO/MMC Driver\n"));
 	return brcmf_sdio_function_init();
 }
 
