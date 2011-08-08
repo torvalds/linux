@@ -4287,16 +4287,17 @@ int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
 #endif
 	if (bustype != SI_BUS) {
 		char *var;
+		unsigned long res;
 
 		var = getvar(vars, "vendid");
-		if (var) {
-			vendor = (u16) simple_strtoul(var, NULL, 0);
+		if (var && !kstrtoul(var, 0, &res)) {
+			vendor = (u16)res;
 			wiphy_err(wiphy, "Overriding vendor id = 0x%x\n",
 				  vendor);
 		}
 		var = getvar(vars, "devid");
-		if (var) {
-			u16 devid = (u16) simple_strtoul(var, NULL, 0);
+		if (var && !kstrtoul(var, 0, &res)) {
+			u16 devid = (u16)res;
 			if (devid != 0xffff) {
 				device = devid;
 				wiphy_err(wiphy, "Overriding device id = 0x%x"
@@ -9596,10 +9597,11 @@ char *getvar(char *vars, const char *name)
 int getintvar(char *vars, const char *name)
 {
 	char *val;
+	unsigned long res;
 
 	val = getvar(vars, name);
-	if (val == NULL)
-		return 0;
+	if (val && !kstrtoul(val, 0, &res))
+		return res;
 
-	return simple_strtoul(val, NULL, 0);
+	return 0;
 }

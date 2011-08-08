@@ -174,12 +174,13 @@ char *phy_getvar(struct brcms_phy *pi, const char *name)
 int phy_getintvar(struct brcms_phy *pi, const char *name)
 {
 	char *val;
+	unsigned long res;
 
 	val = PHY_GETVAR(pi, name);
-	if (val == NULL)
-		return 0;
+	if (val && !kstrtoul(val, 0, &res))
+		return res;
 
-	return simple_strtoul(val, NULL, 0);
+	return 0;
 }
 
 void wlc_phyreg_enter(struct brcms_phy_pub *pih)
