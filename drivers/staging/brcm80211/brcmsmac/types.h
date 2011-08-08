@@ -305,11 +305,11 @@ do {						\
 		switch (sizeof(*(r))) { \
 		case sizeof(u8): \
 			__osl_v = \
-			readb((u8 *)((r)^3)); \
+			readb((u8 *)((unsigned long)(r)^3)); \
 			break; \
 		case sizeof(u16): \
 			__osl_v = \
-			readw((u16 *)((r)^2)); \
+			readw((u16 *)((unsigned long)(r)^2)); \
 			break; \
 		case sizeof(u32): \
 			__osl_v = readl((u32 *)(r)); \
@@ -322,10 +322,10 @@ do {						\
 		switch (sizeof(*(r))) { \
 		case sizeof(u8):	\
 			writeb((u8)(v), \
-			(u8 *)((r)^3)); break; \
+			(u8 *)((unsigned long)(r)^3)); break; \
 		case sizeof(u16):	\
 			writew((u16)(v), \
-			(u16 *)((r)^2)); break; \
+			(u16 *)((unsigned long)(r)^2)); break; \
 		case sizeof(u32):	\
 			writel((u32)(v), \
 			(u32 *)(r)); break; \

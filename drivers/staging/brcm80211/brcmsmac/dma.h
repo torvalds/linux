@@ -17,6 +17,7 @@
 #ifndef	_BRCM_DMA_H_
 #define	_BRCM_DMA_H_
 
+#include <linux/delay.h>
 #include "types.h"		/* forward structure declarations */
 
 /* DMA structure:
