@@ -56,16 +56,11 @@
 #include <linux/delay.h>
 #include "ft1000.h"
 
-int card_download(struct net_device *dev, const u8 *pFileStart, u32 FileLength);
-
-void ft1000InitProc(struct net_device *dev);
-void ft1000CleanupProc(struct net_device *dev);
-
-const struct firmware *fw_entry;
+static const struct firmware *fw_entry;
 
 static void ft1000_hbchk(u_long data);
 static struct timer_list poll_timer = {
-      function:ft1000_hbchk
+      .function = ft1000_hbchk
 };
 
 static u16 cmdbuffer[1024];
@@ -788,7 +783,7 @@ static void ft1000_hbchk(u_long data)
 // Output:
 //
 //---------------------------------------------------------------------------
-void ft1000_send_cmd (struct net_device *dev, u16 *ptempbuffer, int size, u16 qtype)
+static void ft1000_send_cmd (struct net_device *dev, u16 *ptempbuffer, int size, u16 qtype)
 {
 	struct ft1000_info *info = netdev_priv(dev);
 	int i;
@@ -873,7 +868,8 @@ void ft1000_send_cmd (struct net_device *dev, u16 *ptempbuffer, int size, u16 qt
 //          = 1 (successful)
 //
 //---------------------------------------------------------------------------
-bool ft1000_receive_cmd(struct net_device *dev, u16 * pbuffer, int maxsz, u16 *pnxtph)
+static bool ft1000_receive_cmd(struct net_device *dev, u16 *pbuffer,
+				int maxsz, u16 *pnxtph)
 {
 	struct ft1000_info *info = netdev_priv(dev);
 	u16 size;
@@ -966,7 +962,7 @@ bool ft1000_receive_cmd(struct net_device *dev, u16 * pbuffer, int maxsz, u16 *p
 //     none
 //
 //---------------------------------------------------------------------------
-void ft1000_proc_drvmsg(struct net_device *dev)
+static void ft1000_proc_drvmsg(struct net_device *dev)
 {
 	struct ft1000_info *info = netdev_priv(dev);
 	u16 msgtype;
@@ -1245,7 +1241,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 //              SUCCESS
 //
 //---------------------------------------------------------------------------
-int ft1000_parse_dpram_msg(struct net_device *dev)
+static int ft1000_parse_dpram_msg(struct net_device *dev)
 {
 	struct ft1000_info *info = netdev_priv(dev);
 	u16 doorbell;
@@ -1546,7 +1542,7 @@ static void ft1000_flush_fifo(struct net_device *dev, u16 DrvErrNum)
 //              SUCCESS
 //
 //---------------------------------------------------------------------------
-int ft1000_copy_up_pkt(struct net_device *dev)
+static int ft1000_copy_up_pkt(struct net_device *dev)
 {
 	u16 tempword;
 	struct ft1000_info *info = netdev_priv(dev);
@@ -1734,7 +1730,7 @@ int ft1000_copy_up_pkt(struct net_device *dev)
 //              SUCCESS
 //
 //---------------------------------------------------------------------------
-int ft1000_copy_down_pkt(struct net_device *dev, u16 * packet, u16 len)
+static int ft1000_copy_down_pkt(struct net_device *dev, u16 * packet, u16 len)
 {
 	struct ft1000_info *info = netdev_priv(dev);
 	union {
@@ -2102,7 +2098,7 @@ static const struct ethtool_ops ops = {
 };
 
 struct net_device *init_ft1000_card(struct pcmcia_device *link,
-					void *ft1000_reset)
+						void *ft1000_reset)
 {
 	struct ft1000_info *info;
 	struct net_device *dev;
