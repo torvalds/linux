@@ -396,7 +396,6 @@ armpmu_release_hardware(void)
 			free_irq(irq, NULL);
 	}
 
-	armpmu->stop();
 	release_pmu(ARM_PMU_DEVICE_CPU);
 }
 
