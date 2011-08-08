@@ -1041,7 +1041,7 @@ void wlc_lcnphy_read_table(struct brcms_phy *pi, struct phytbl_info *pti)
 
 static void
 wlc_lcnphy_common_read_table(struct brcms_phy *pi, u32 tbl_id,
-			     const void *tbl_ptr, u32 tbl_len,
+			     const u16 *tbl_ptr, u32 tbl_len,
 			     u32 tbl_width, u32 tbl_offset)
 {
 	struct phytbl_info tab;
@@ -1055,7 +1055,7 @@ wlc_lcnphy_common_read_table(struct brcms_phy *pi, u32 tbl_id,
 
 static void
 wlc_lcnphy_common_write_table(struct brcms_phy *pi, u32 tbl_id,
-			      const void *tbl_ptr, u32 tbl_len,
+			      const u16 *tbl_ptr, u32 tbl_len,
 			      u32 tbl_width, u32 tbl_offset)
 {
 
@@ -1965,13 +1965,12 @@ wlc_lcnphy_tx_iqlo_cal(struct brcms_phy *pi,
 	write_phy_reg(pi, 0x93d, 0xc0);
 
 	wlc_lcnphy_common_write_table(pi, LCNPHY_TBL_ID_IQLOCAL,
-				      (const void *)
 				      lcnphy_iqcal_loft_gainladder,
 				      ARRAY_SIZE(lcnphy_iqcal_loft_gainladder),
 				      16, 0);
 
 	wlc_lcnphy_common_write_table(pi, LCNPHY_TBL_ID_IQLOCAL,
-				      (const void *)lcnphy_iqcal_ir_gainladder,
+				      lcnphy_iqcal_ir_gainladder,
 				      ARRAY_SIZE(
 					      lcnphy_iqcal_ir_gainladder), 16,
 				      32);

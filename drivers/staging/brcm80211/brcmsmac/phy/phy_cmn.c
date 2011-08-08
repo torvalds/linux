@@ -123,7 +123,7 @@ const u8 ofdm_rate_lookup[] = {
 
 static void wlc_set_phy_uninitted(struct brcms_phy *pi);
 static u32 wlc_phy_get_radio_ver(struct brcms_phy *pi);
-static void wlc_phy_timercb_phycal(void *arg);
+static void wlc_phy_timercb_phycal(struct brcms_phy *pi);
 
 static bool wlc_phy_noise_calc_phy(struct brcms_phy *pi, u32 *cmplx_pwr,
 				   s8 *pwr_ant);
@@ -509,7 +509,7 @@ struct shared_phy *wlc_phy_shared_attach(struct shared_phy_params *shp)
 }
 
 struct brcms_phy_pub *
-wlc_phy_attach(struct shared_phy *sh, void *regs, int bandtype,
+wlc_phy_attach(struct shared_phy *sh, struct d11regs *regs, int bandtype,
 	       char *vars, struct wiphy *wiphy)
 {
 	struct brcms_phy *pi;
@@ -539,7 +539,7 @@ wlc_phy_attach(struct shared_phy *sh, void *regs, int bandtype,
 	if (pi == NULL)
 		return NULL;
 	pi->wiphy = wiphy;
-	pi->regs = (struct d11regs *) regs;
+	pi->regs = regs;
 	pi->sh = sh;
 	pi->phy_init_por = true;
 	pi->phy_wreg_limit = PHY_WREG_LIMIT;
@@ -720,9 +720,8 @@ u32 wlc_phy_get_coreflags(struct brcms_phy_pub *pih)
 	return pi->pubpi.coreflags;
 }
 
-static void wlc_phy_timercb_phycal(void *arg)
+static void wlc_phy_timercb_phycal(struct brcms_phy *pi)
 {
-	struct brcms_phy *pi = (struct brcms_phy *) arg;
 	uint delay = 5;
 
 	if (PHY_PERICAL_MPHASE_PENDING(pi)) {
@@ -2619,9 +2618,9 @@ void wlc_phy_compute_dB(u32 *cmplx_pwr, s8 *p_cmplx_pwr_dB, u8 core)
 	}
 }
 
-void wlc_phy_rssi_compute(struct brcms_phy_pub *pih, void *ctx)
+void wlc_phy_rssi_compute(struct brcms_phy_pub *pih,
+			  struct brcms_d11rxhdr *wlc_rxhdr)
 {
-	struct brcms_d11rxhdr *wlc_rxhdr = (struct brcms_d11rxhdr *) ctx;
 	struct d11rxhdr *rxh = &wlc_rxhdr->rxhdr;
 	int rssi = le16_to_cpu(rxh->PhyRxStatus_1) & PRXS1_JSSI_MASK;
 	uint radioid = pih->radioid;

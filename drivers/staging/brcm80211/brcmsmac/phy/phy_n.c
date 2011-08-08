@@ -18627,11 +18627,10 @@ wlc_phy_adjust_min_noisevar_nphy(struct brcms_phy *pi, int ntones,
 			offset = (tone_id >= 0) ?
 				 ((tone_id *
 				   2) + 1) : (tbllen + (tone_id * 2) + 1);
-			wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_NOISEVAR, 1,
-						 offset, 32,
-						 (void *)&pi->
-						 nphy_saved_noisevars.
-						 min_noise_vars[i]);
+			wlc_phy_table_write_nphy(
+				pi, NPHY_TBL_ID_NOISEVAR, 1,
+				offset, 32,
+				&pi->nphy_saved_noisevars.min_noise_vars[i]);
 		}
 
 		pi->nphy_saved_noisevars.bufcount = 0;
@@ -18652,8 +18651,7 @@ wlc_phy_adjust_min_noisevar_nphy(struct brcms_phy *pi, int ntones,
 						&pi->nphy_saved_noisevars.
 						min_noise_vars[i]);
 			wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_NOISEVAR, 1,
-						 offset, 32,
-						 (void *)&noise_var_buf[i]);
+						 offset, 32, &noise_var_buf[i]);
 			pi->nphy_saved_noisevars.bufcount++;
 		}
 
@@ -19296,8 +19294,7 @@ static void wlc_phy_restorecal_nphy(struct brcms_phy *pi)
 		loft_comp = &pi->calibration_cache.txcal_coeffs_5G[5];
 	}
 
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_IQLOCAL, 4, 80, 16,
-				 (void *)tbl_ptr);
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_IQLOCAL, 4, 80, 16, tbl_ptr);
 
 	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
 		txcal_coeffs_bphy[0] = tbl_ptr[0];
@@ -24307,7 +24304,7 @@ static void wlc_phy_tx_iq_war_nphy(struct brcms_phy *pi)
 {
 	struct nphy_iq_comp tx_comp;
 
-	wlc_phy_table_read_nphy(pi, 15, 4, 0x50, 16, (void *)&tx_comp);
+	wlc_phy_table_read_nphy(pi, 15, 4, 0x50, 16, &tx_comp);
 
 	wlapi_bmac_write_shm(pi->sh->physhim, M_20IN40_IQ, tx_comp.a0);
 	wlapi_bmac_write_shm(pi->sh->physhim, M_20IN40_IQ + 2, tx_comp.b0);
@@ -28684,23 +28681,15 @@ wlc_phy_txpwr_index_nphy(struct brcms_phy *pi, u8 core_mask, s8 txpwrindex,
 			wlc_phy_table_write_nphy(pi, 15, 1, 87, 16, &m1m2);
 
 			if (restore_cals) {
-
-				wlc_phy_table_write_nphy(pi, 15, 2,
-							 (80 + 2 * core), 16,
-							 (void *)&pi->
-							 nphy_txpwrindex[core].
-							 iqcomp_a);
-
-				wlc_phy_table_write_nphy(pi, 15, 1, (85 + core),
-							 16,
-							 &pi->
-							 nphy_txpwrindex[core].
-							 locomp);
-				wlc_phy_table_write_nphy(pi, 15, 1, (93 + core),
-							 16,
-							 (void *)&pi->
-							 nphy_txpwrindex[core].
-							 locomp);
+				wlc_phy_table_write_nphy(
+					pi, 15, 2, (80 + 2 * core), 16,
+					&pi->nphy_txpwrindex[core].iqcomp_a);
+				wlc_phy_table_write_nphy(
+					pi, 15, 1, (85 + core), 16,
+					&pi->nphy_txpwrindex[core].locomp);
+				wlc_phy_table_write_nphy(
+					pi, 15, 1, (93 + core), 16,
+					&pi->nphy_txpwrindex[core].locomp);
 			}
 
 			wlc_phy_txpwrctrl_enable_nphy(pi, pi->nphy_txpwrctrl);
@@ -28743,13 +28732,13 @@ wlc_phy_txpwr_index_nphy(struct brcms_phy *pi, u8 core_mask, s8 txpwrindex,
 
 				wlc_phy_table_read_nphy(pi, 15, 2,
 							(80 + 2 * core), 16,
-							(void *)&pi->
+							&pi->
 							nphy_txpwrindex[core].
 							iqcomp_a);
 
 				wlc_phy_table_read_nphy(pi, 15, 1, (85 + core),
 							16,
-							(void *)&pi->
+							&pi->
 							nphy_txpwrindex[core].
 							locomp);
 

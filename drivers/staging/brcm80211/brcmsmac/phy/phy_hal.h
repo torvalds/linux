@@ -103,6 +103,9 @@
 
 #define	BRCMS_RSSI_INVALID	 0	/* invalid RSSI value */
 
+struct d11regs;
+struct phy_shim_info;
+
 struct txpwr_limits {
 	u8 cck[BRCMS_NUM_RATES_CCK];
 	u8 ofdm[BRCMS_NUM_RATES_OFDM];
@@ -160,7 +163,7 @@ struct brcms_chanvec {
 
 struct shared_phy_params {
 	struct si_pub *sih;
-	void *physhim;
+	struct phy_shim_info *physhim;
 	uint unit;
 	uint corerev;
 	uint bustype;
@@ -181,7 +184,8 @@ struct shared_phy_params {
 
 
 extern struct shared_phy *wlc_phy_shared_attach(struct shared_phy_params *shp);
-extern struct brcms_phy_pub *wlc_phy_attach(struct shared_phy *sh, void *regs,
+extern struct brcms_phy_pub *wlc_phy_attach(struct shared_phy *sh,
+					    struct d11regs *regs,
 					    int bandtype, char *vars,
 					    struct wiphy *wiphy);
 extern void wlc_phy_detach(struct brcms_phy_pub *ppi);
@@ -209,7 +213,8 @@ extern void wlc_phy_chanspec_radio_set(struct brcms_phy_pub *ppi,
 extern u16 wlc_phy_bw_state_get(struct brcms_phy_pub *ppi);
 extern void wlc_phy_bw_state_set(struct brcms_phy_pub *ppi, u16 bw);
 
-extern void wlc_phy_rssi_compute(struct brcms_phy_pub *pih, void *ctx);
+extern void wlc_phy_rssi_compute(struct brcms_phy_pub *pih,
+				 struct brcms_d11rxhdr *wlc_rxhdr);
 extern void wlc_phy_por_inform(struct brcms_phy_pub *ppi);
 extern void wlc_phy_noise_sample_intr(struct brcms_phy_pub *ppi);
 extern bool wlc_phy_bist_check_phy(struct brcms_phy_pub *ppi);

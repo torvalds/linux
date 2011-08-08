@@ -41,6 +41,8 @@ extern u32 phyhal_msg_level;
 
 #define LCNXN_BASEREV		16
 
+struct phy_shim_info;
+
 struct brcms_phy_srom_fem {
 	/* TSSI positive slope, 1: positive, 0: negative */
 	u8 tssipos;
@@ -546,7 +548,7 @@ struct shared_phy {
 	struct brcms_phy *phy_head;
 	uint unit;
 	struct si_pub *sih;
-	void *physhim;
+	struct phy_shim_info *physhim;
 	uint corerev;
 	u32 machwcap;
 	bool up;
@@ -611,7 +613,6 @@ struct brcms_phy {
 	struct brcms_phy_pub pubpi_ro;
 	struct shared_phy *sh;
 	struct phy_func_ptr pi_fptr;
-	void *pi_ptr;
 
 	union {
 		struct brcms_phy_lcnphy *pi_lcnphy;

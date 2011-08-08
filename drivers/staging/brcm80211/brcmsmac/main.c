@@ -4528,9 +4528,10 @@ int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
 		    xmtfifo_sz[(wlc_hw->corerev - XMTFIFOTBL_STARTREV)];
 
 		/* Get a phy for this band */
-		wlc_hw->band->pi = wlc_phy_attach(wlc_hw->phy_sh,
-			(void *)regs, brcms_b_bandtype(wlc_hw), vars,
-			wlc->wiphy);
+		wlc_hw->band->pi =
+			wlc_phy_attach(wlc_hw->phy_sh, regs,
+				       brcms_b_bandtype(wlc_hw), vars,
+				       wlc->wiphy);
 		if (wlc_hw->band->pi == NULL) {
 			wiphy_err(wiphy, "wl%d: brcms_b_attach: wlc_phy_"
 				  "attach failed\n", unit);

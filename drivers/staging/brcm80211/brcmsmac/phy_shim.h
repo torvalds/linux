@@ -122,14 +122,16 @@
 #define BRCMS_N_TXRX_CHAIN0		0
 #define BRCMS_N_TXRX_CHAIN1		1
 
+struct brcms_phy;
+
 extern struct phy_shim_info *wlc_phy_shim_attach(struct brcms_hardware *wlc_hw,
 						void *wl, void *wlc);
 extern void wlc_phy_shim_detach(struct phy_shim_info *physhim);
 
 /* PHY to WL utility functions */
 extern struct wlapi_timer *wlapi_init_timer(struct phy_shim_info *physhim,
-					    void (*fn) (void *arg), void *arg,
-					    const char *name);
+					    void (*fn) (struct brcms_phy *pi),
+					    void *arg, const char *name);
 extern void wlapi_free_timer(struct phy_shim_info *physhim,
 			     struct wlapi_timer *t);
 extern void wlapi_add_timer(struct phy_shim_info *physhim,
