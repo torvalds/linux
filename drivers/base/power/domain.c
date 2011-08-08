@@ -89,12 +89,14 @@ static void genpd_set_active(struct generic_pm_domain *genpd)
  */
 int pm_genpd_poweron(struct generic_pm_domain *genpd)
 {
-	struct generic_pm_domain *parent = genpd->parent;
+	struct generic_pm_domain *parent;
 	int ret = 0;
 
- start:
 	mutex_lock(&genpd->lock);
 
+	parent = genpd->parent;
+
+ start:
 	if (genpd->status == GPD_STATE_ACTIVE
 	    || (genpd->prepared_count > 0 && genpd->suspend_power_off))
 		goto out;
@@ -110,29 +112,34 @@ int pm_genpd_poweron(struct generic_pm_domain *genpd)
 		mutex_unlock(&genpd->lock);
 
 		ret = pm_genpd_poweron(parent);
-		if (ret) {
-			genpd_sd_counter_dec(parent);
-			return ret;
-		}
+
+		mutex_lock(&genpd->lock);
+
+		if (ret)
+			goto err;
 
 		parent = NULL;
 		goto start;
 	}
 
-	if (genpd->power_on)
+	if (genpd->power_on) {
 		ret = genpd->power_on(genpd);
-
-	if (ret) {
-		if (genpd->parent)
-			genpd_sd_counter_dec(genpd->parent);
-	} else {
-		genpd_set_active(genpd);
+		if (ret)
+			goto err;
 	}
+
+	genpd_set_active(genpd);
 
  out:
 	mutex_unlock(&genpd->lock);
 
 	return ret;
+
+ err:
+	if (genpd->parent)
+		genpd_sd_counter_dec(genpd->parent);
+
+	goto out;
 }
 
 #endif /* CONFIG_PM */
