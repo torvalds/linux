@@ -2017,11 +2017,11 @@ static void brcms_c_write_inits(struct brcms_hardware *wlc_hw,
 			    const struct d11init *inits)
 {
 	int i;
-	volatile u8 *base;
+	u8 *base;
 
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
-	base = (volatile u8 *)wlc_hw->regs;
+	base = (u8 *)wlc_hw->regs;
 
 	for (i = 0; inits[i].addr != 0xffff; i++) {
 		if (inits[i].size == 2)
@@ -2822,8 +2822,8 @@ static u16
 brcms_b_read_objmem(struct brcms_hardware *wlc_hw, uint offset, u32 sel)
 {
 	struct d11regs *regs = wlc_hw->regs;
-	volatile u16 *objdata_lo = (volatile u16 *)&regs->objdata;
-	volatile u16 *objdata_hi = objdata_lo + 1;
+	u16 *objdata_lo = (u16 *)&regs->objdata;
+	u16 *objdata_hi = objdata_lo + 1;
 	u16 v;
 
 	W_REG(&regs->objaddr, sel | (offset >> 2));
@@ -2842,8 +2842,8 @@ brcms_b_write_objmem(struct brcms_hardware *wlc_hw, uint offset, u16 v,
 		     u32 sel)
 {
 	struct d11regs *regs = wlc_hw->regs;
-	volatile u16 *objdata_lo = (volatile u16 *)&regs->objdata;
-	volatile u16 *objdata_hi = objdata_lo + 1;
+	u16 *objdata_lo = (u16 *)&regs->objdata;
+	u16 *objdata_hi = objdata_lo + 1;
 
 	W_REG(&regs->objaddr, sel | (offset >> 2));
 	(void)R_REG(&regs->objaddr);

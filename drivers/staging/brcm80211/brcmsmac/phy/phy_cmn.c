@@ -205,7 +205,7 @@ void wlc_radioreg_enter(struct brcms_phy_pub *pih)
 void wlc_radioreg_exit(struct brcms_phy_pub *pih)
 {
 	struct brcms_phy *pi = (struct brcms_phy *) pih;
-	volatile u16 dummy;
+	u16 dummy;
 
 	dummy = R_REG(&pi->regs->phyversion);
 	pi->phy_wreg = 0;
