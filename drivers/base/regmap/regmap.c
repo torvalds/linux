@@ -101,6 +101,7 @@ struct regmap *regmap_init(struct device *dev,
 	map->writeable_reg = config->writeable_reg;
 	map->readable_reg = config->readable_reg;
 	map->volatile_reg = config->volatile_reg;
+	map->precious_reg = config->precious_reg;
 
 	switch (config->reg_bits) {
 	case 4:
