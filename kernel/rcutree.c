@@ -838,8 +838,11 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 	struct rcu_data *rdp = this_cpu_ptr(rsp->rda);
 	struct rcu_node *rnp = rcu_get_root(rsp);
 
-	if (!cpu_needs_another_gp(rsp, rdp) || rsp->fqs_active) {
-		if (cpu_needs_another_gp(rsp, rdp))
+	if (!rcu_scheduler_fully_active ||
+	    !cpu_needs_another_gp(rsp, rdp) ||
+	    rsp->fqs_active) {
+		if (rcu_scheduler_fully_active &&
+		    cpu_needs_another_gp(rsp, rdp))
 			rsp->fqs_need_gp = 1;
 		if (rnp->completed == rsp->completed) {
 			raw_spin_unlock_irqrestore(&rnp->lock, flags);
