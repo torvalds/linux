@@ -74,24 +74,7 @@ struct brcmf_sdio_card {
 	u32 sbwad;		/* Save backplane window address */
 };
 
-/**
- * SDIO Host Controller info
- */
-struct sdio_hc {
-	struct sdio_hc *next;
-	struct device *dev;	/* platform device handle */
-	void *regs;		/* SDIO Host Controller address */
-	struct brcmf_sdio_card *card;
-	void *ch;
-	unsigned int oob_irq;
-	unsigned long oob_flags;	/* OOB Host specifiction
-					as edge and etc */
-	bool oob_irq_registered;
-};
-
 const uint brcmf_sdio_msglevel = BRCMF_SD_ERROR_VAL;
-
-static struct sdio_hc *sdhcinfo;
 
 /* driver info, initialized when brcmf_sdio_register is called */
 static struct brcmf_sdioh_driver drvinfo = { NULL, NULL };
@@ -101,7 +84,7 @@ static struct brcmf_sdioh_driver drvinfo = { NULL, NULL };
 module_param(sd_f2_blocksize, int, 0);
 
 struct brcmf_sdio_card*
-brcmf_sdcard_attach(void *cfghdl, u32 *regsva, uint irq)
+brcmf_sdcard_attach(void *cfghdl, u32 *regsva)
 {
 	struct brcmf_sdio_card *card;
 
@@ -111,7 +94,7 @@ brcmf_sdcard_attach(void *cfghdl, u32 *regsva, uint irq)
 		return NULL;
 	}
 
-	card->sdioh = brcmf_sdioh_attach(cfghdl, irq);
+	card->sdioh = brcmf_sdioh_attach(cfghdl);
 	if (!card->sdioh) {
 		brcmf_sdcard_detach(card);
 		return NULL;
@@ -495,44 +478,26 @@ u32 brcmf_sdcard_cur_sbwad(struct brcmf_sdio_card *card)
 	return card->sbwad;
 }
 
-int brcmf_sdio_probe(struct device *dev)
+int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 {
-	struct sdio_hc *sdhc = NULL;
 	u32 regs = 0;
 	struct brcmf_sdio_card *card = NULL;
-	int irq = 0;
 	u32 vendevid;
-	unsigned long irq_flags = 0;
 
-	/* allocate SDIO Host Controller state info */
-	sdhc = kzalloc(sizeof(struct sdio_hc), GFP_ATOMIC);
-	if (!sdhc) {
-		SDLX_MSG(("%s: out of memory\n", __func__));
-		goto err;
-	}
-	sdhc->dev = (void *)dev;
-
-	card = brcmf_sdcard_attach((void *)0, &regs, irq);
+	card = brcmf_sdcard_attach((void *)0, &regs);
 	if (!card) {
 		SDLX_MSG(("%s: attach failed\n", __func__));
 		goto err;
 	}
+	sdiodev->card = card;
 
-	sdhc->card = card;
-	sdhc->oob_irq = irq;
-	sdhc->oob_flags = irq_flags;
-	sdhc->oob_irq_registered = false;	/* to make sure.. */
-
-	/* chain SDIO Host Controller info together */
-	sdhc->next = sdhcinfo;
-	sdhcinfo = sdhc;
 	/* Read the vendor/device ID from the CIS */
 	vendevid = brcmf_sdcard_query_device(card);
 
 	/* try to attach to the target device */
-	sdhc->ch = drvinfo.attach((vendevid >> 16), (vendevid & 0xFFFF),
+	sdiodev->bus = drvinfo.attach((vendevid >> 16), (vendevid & 0xFFFF),
 				  0, 0, 0, 0, regs, card);
-	if (!sdhc->ch) {
+	if (!sdiodev->bus) {
 		SDLX_MSG(("%s: device attach failed\n", __func__));
 		goto err;
 	}
@@ -541,42 +506,17 @@ int brcmf_sdio_probe(struct device *dev)
 
 	/* error handling */
 err:
-	if (sdhc) {
-		if (sdhc->card)
-			brcmf_sdcard_detach(sdhc->card);
-		kfree(sdhc);
-	}
+	if (sdiodev->card)
+		brcmf_sdcard_detach(sdiodev->card);
 
 	return -ENODEV;
 }
 EXPORT_SYMBOL(brcmf_sdio_probe);
 
-int brcmf_sdio_remove(struct device *dev)
+int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev)
 {
-	struct sdio_hc *sdhc, *prev;
-
-	sdhc = sdhcinfo;
-	drvinfo.detach(sdhc->ch);
-	brcmf_sdcard_detach(sdhc->card);
-	/* find the SDIO Host Controller state for this pdev
-		 and take it out from the list */
-	for (sdhc = sdhcinfo, prev = NULL; sdhc; sdhc = sdhc->next) {
-		if (sdhc->dev == (void *)dev) {
-			if (prev)
-				prev->next = sdhc->next;
-			else
-				sdhcinfo = NULL;
-			break;
-		}
-		prev = sdhc;
-	}
-	if (!sdhc) {
-		SDLX_MSG(("%s: failed\n", __func__));
-		return 0;
-	}
-
-	/* release SDIO Host Controller info */
-	kfree(sdhc);
+	drvinfo.detach(sdiodev->bus);
+	brcmf_sdcard_detach(sdiodev->card);
 	return 0;
 }
 EXPORT_SYMBOL(brcmf_sdio_remove);
@@ -594,10 +534,10 @@ void brcmf_sdio_unregister(void)
 	brcmf_sdio_function_cleanup();
 }
 
-void brcmf_sdio_wdtmr_enable(bool enable)
+void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev, bool enable)
 {
 	if (enable)
-		brcmf_sdbrcm_wd_timer(sdhcinfo->ch, brcmf_watchdog_ms);
+		brcmf_sdbrcm_wd_timer(sdiodev->bus, brcmf_watchdog_ms);
 	else
-		brcmf_sdbrcm_wd_timer(sdhcinfo->ch, 0);
+		brcmf_sdbrcm_wd_timer(sdiodev->bus, 0);
 }

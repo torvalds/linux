@@ -130,6 +130,13 @@ struct brcmf_sdmmc_instance {
 	u32 host_claimed;
 };
 
+struct brcmf_sdio_dev {
+	struct sdio_func *func1;
+	struct sdio_func *func2;
+	struct brcmf_sdio_card *card;
+	void *bus;
+};
+
 /* Attach and build an interface to the underlying SD host driver.
  *  - Allocates resources (structs, arrays, mem, OS handles, etc) needed by
  *    brcmf_sdcard.
@@ -139,7 +146,7 @@ struct brcmf_sdmmc_instance {
  *    most recent one) to enable single-instance implementations to pass NULL.
  */
 extern struct brcmf_sdio_card*
-brcmf_sdcard_attach(void *cfghdl, u32 *regsva, uint irq);
+brcmf_sdcard_attach(void *cfghdl, u32 *regsva);
 
 /* Detach - freeup resources allocated in attach */
 extern int brcmf_sdcard_detach(struct brcmf_sdio_card *card);
@@ -272,8 +279,8 @@ extern int brcmf_sdio_function_init(void);
 extern int brcmf_sdio_register(struct brcmf_sdioh_driver *driver);
 extern void brcmf_sdio_unregister(void);
 extern void brcmf_sdio_function_cleanup(void);
-extern int brcmf_sdio_probe(struct device *dev);
-extern int brcmf_sdio_remove(struct device *dev);
+extern int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev);
+extern int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev);
 
 /* Function to return current window addr */
 extern u32 brcmf_sdcard_cur_sbwad(struct brcmf_sdio_card *card);
@@ -290,7 +297,7 @@ extern void brcmf_sdioh_dev_intr_off(struct sdioh_info *sd);
  *  The handler shall be provided by all subsequent calls. No local cache
  *  cfghdl points to the starting address of pci device mapped memory
  */
-extern struct sdioh_info *brcmf_sdioh_attach(void *cfghdl, uint irq);
+extern struct sdioh_info *brcmf_sdioh_attach(void *cfghdl);
 extern int brcmf_sdioh_detach(struct sdioh_info *si);
 
 extern int
@@ -338,7 +345,8 @@ extern int brcmf_sdioh_iovar_op(struct sdioh_info *si, const char *name,
 extern int brcmf_sdioh_abort(struct sdioh_info *si, uint fnc);
 
 /* Watchdog timer interface for pm ops */
-extern void brcmf_sdio_wdtmr_enable(bool enable);
+extern void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev,
+				    bool enable);
 
 extern uint sd_f2_blocksize;
 

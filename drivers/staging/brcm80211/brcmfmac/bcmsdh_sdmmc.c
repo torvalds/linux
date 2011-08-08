@@ -68,8 +68,6 @@ uint sd_f2_blocksize = 512;	/* Default blocksize */
 struct brcmf_sdmmc_instance *gInstance;
 static atomic_t brcmf_mmc_suspend;
 
-struct device sdmmc_dev;
-
 /* devices we support, null terminated */
 static const struct sdio_device_id brcmf_sdmmc_ids[] = {
 	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4329)},
@@ -160,7 +158,7 @@ static int brcmf_sdioh_enablefuncs(struct sdioh_info *sd)
 /*
  *	Public entry points & extern's
  */
-struct sdioh_info *brcmf_sdioh_attach(void *bar0, uint irq)
+struct sdioh_info *brcmf_sdioh_attach(void *bar0)
 {
 	struct sdioh_info *sd;
 	int err_ret;
@@ -960,6 +958,7 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 {
 	int ret = 0;
 	static struct sdio_func sdio_func_0;
+	struct brcmf_sdio_dev *sdiodev;
 	BRCMF_TRACE(("sdio_probe: %s Enter\n", __func__));
 	BRCMF_TRACE(("sdio_probe: func->class=%x\n", func->class));
 	BRCMF_TRACE(("sdio_vendor: 0x%04x\n", func->vendor));
@@ -970,14 +969,30 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 		sdio_func_0.num = 0;
 		sdio_func_0.card = func->card;
 		gInstance->func[0] = &sdio_func_0;
+
+		if (dev_get_drvdata(&func->card->dev)) {
+			BRCMF_ERROR(("%s: card private drvdata occupied.\n",
+				     __func__));
+			return -ENXIO;
+		}
+		sdiodev = kzalloc(sizeof(struct brcmf_sdio_dev), GFP_KERNEL);
+		if (!sdiodev)
+			return -ENOMEM;
+		sdiodev->func1 = func;
+		dev_set_drvdata(&func->card->dev, sdiodev);
 	}
 
 	gInstance->func[func->num] = func;
 
 	if (func->num == 2) {
+		sdiodev = dev_get_drvdata(&func->card->dev);
+		if ((!sdiodev) || (sdiodev->func1->card != func->card))
+			return -ENODEV;
+		sdiodev->func2 = func;
+
 		brcmf_cfg80211_sdio_func(func);
 		BRCMF_TRACE(("F2 found, calling brcmf_sdio_probe...\n"));
-		ret = brcmf_sdio_probe(&sdmmc_dev);
+		ret = brcmf_sdio_probe(sdiodev);
 	}
 
 	return ret;
@@ -985,6 +1000,7 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 
 static void brcmf_ops_sdio_remove(struct sdio_func *func)
 {
+	struct brcmf_sdio_dev *sdiodev;
 	BRCMF_TRACE(("%s Enter\n", __func__));
 	BRCMF_INFO(("func->class=%x\n", func->class));
 	BRCMF_INFO(("sdio_vendor: 0x%04x\n", func->vendor));
@@ -992,8 +1008,11 @@ static void brcmf_ops_sdio_remove(struct sdio_func *func)
 	BRCMF_INFO(("Function#: 0x%04x\n", func->num));
 
 	if (func->num == 2) {
+		sdiodev = dev_get_drvdata(&func->card->dev);
 		BRCMF_TRACE(("F2 found, calling brcmf_sdio_remove...\n"));
-		brcmf_sdio_remove(&sdmmc_dev);
+		brcmf_sdio_remove(sdiodev);
+		dev_set_drvdata(&func->card->dev, NULL);
+		kfree(sdiodev);
 	}
 }
 
@@ -1002,6 +1021,8 @@ static void brcmf_ops_sdio_remove(struct sdio_func *func)
 static int brcmf_sdio_suspend(struct device *dev)
 {
 	mmc_pm_flag_t sdio_flags;
+	struct brcmf_sdio_dev *sdiodev;
+	struct sdio_func *func = dev_to_sdio_func(dev);
 	int ret = 0;
 
 	BRCMF_TRACE(("%s\n", __func__));
@@ -1020,14 +1041,19 @@ static int brcmf_sdio_suspend(struct device *dev)
 		return ret;
 	}
 
-	brcmf_sdio_wdtmr_enable(false);
+	sdiodev = dev_get_drvdata(&func->card->dev);
+	brcmf_sdio_wdtmr_enable(sdiodev, false);
 
 	return ret;
 }
 
 static int brcmf_sdio_resume(struct device *dev)
 {
-	brcmf_sdio_wdtmr_enable(true);
+	struct brcmf_sdio_dev *sdiodev;
+	struct sdio_func *func = dev_to_sdio_func(dev);
+
+	sdiodev = dev_get_drvdata(&func->card->dev);
+	brcmf_sdio_wdtmr_enable(sdiodev, true);
 	atomic_set(&brcmf_mmc_suspend, false);
 	return 0;
 }
@@ -1097,7 +1123,6 @@ int brcmf_sdio_function_init(void)
 	if (!gInstance)
 		return -ENOMEM;
 
-	memset(&sdmmc_dev, 0, sizeof(sdmmc_dev));
 	error = sdio_register_driver(&brcmf_sdmmc_driver);
 
 	return error;
