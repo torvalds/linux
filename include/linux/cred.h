@@ -269,7 +269,7 @@ static inline void put_cred(const struct cred *_cred)
  * since nobody else can modify it.
  */
 #define current_cred() \
-	(*(__force struct cred **)&current->cred)
+	rcu_dereference_protected(current->cred, 1)
 
 /**
  * __task_cred - Access a task's objective credentials
