@@ -110,6 +110,10 @@ struct qeth_perf_stats {
 
 	unsigned int sc_dp_p;
 	unsigned int sc_p_dp;
+	/* qdio_cq_handler: number of times called, time spent in */
+	__u64 cq_start_time;
+	unsigned int cq_cnt;
+	unsigned int cq_time;
 	/* qdio_input_handler: number of times called, time spent in */
 	__u64 inbound_start_time;
 	unsigned int inbound_cnt;
@@ -376,6 +380,11 @@ enum qeth_qdio_buffer_states {
 	 * outbound: filled by driver; owned by hardware in order to be sent
 	 */
 	QETH_QDIO_BUF_PRIMED,
+	/*
+	 * inbound: not applicable
+	 * outbound: handled via transfer pending / completion queue
+	 */
+	QETH_QDIO_BUF_HANDLED_DELAYED,
 };
 
 enum qeth_qdio_info_states {
@@ -413,8 +422,11 @@ struct qeth_qdio_out_buffer {
 	atomic_t state;
 	int next_element_to_fill;
 	struct sk_buff_head skb_list;
-	struct list_head ctx_list;
 	int is_header[16];
+
+	struct qaob *aob;
+	struct qeth_qdio_out_q *q;
+	struct qeth_qdio_out_buffer *next_pending;
 };
 
 struct qeth_card;
@@ -427,7 +439,8 @@ enum qeth_out_q_states {
 
 struct qeth_qdio_out_q {
 	struct qdio_buffer qdio_bufs[QDIO_MAX_BUFFERS_PER_Q];
-	struct qeth_qdio_out_buffer bufs[QDIO_MAX_BUFFERS_PER_Q];
+	struct qeth_qdio_out_buffer *bufs[QDIO_MAX_BUFFERS_PER_Q];
+	struct qdio_outbuf_state *bufstates; /* convenience pointer */
 	int queue_no;
 	struct qeth_card *card;
 	atomic_t state;
@@ -448,7 +461,9 @@ struct qeth_qdio_out_q {
 struct qeth_qdio_info {
 	atomic_t state;
 	/* input */
+	int no_in_queues;
 	struct qeth_qdio_q *in_q;
+	struct qeth_qdio_q *c_q;
 	struct qeth_qdio_buffer_pool in_buf_pool;
 	struct qeth_qdio_buffer_pool init_pool;
 	int in_buf_size;
@@ -456,6 +471,7 @@ struct qeth_qdio_info {
 	/* output */
 	int no_out_queues;
 	struct qeth_qdio_out_q **out_qs;
+	struct qdio_outbuf_state *out_bufstates;
 
 	/* priority queueing */
 	int do_prio_queueing;
@@ -525,6 +541,12 @@ enum qeth_cmd_buffer_state {
 	BUF_STATE_FREE,
 	BUF_STATE_LOCKED,
 	BUF_STATE_PROCESSED,
+};
+
+enum qeth_cq {
+	QETH_CQ_DISABLED = 0,
+	QETH_CQ_ENABLED = 1,
+	QETH_CQ_NOTAVAILABLE = 2,
 };
 
 struct qeth_ipato {
@@ -651,6 +673,7 @@ struct qeth_card_options {
 	int rx_sg_cb;
 	enum qeth_ipa_isolation_modes isolation;
 	int sniffer;
+	enum qeth_cq cq;
 };
 
 /*
@@ -888,6 +911,7 @@ void qeth_dbf_longtext(debug_info_t *id, int level, char *text, ...);
 int qeth_core_ethtool_get_settings(struct net_device *, struct ethtool_cmd *);
 int qeth_set_access_ctrl_online(struct qeth_card *card);
 int qeth_hdr_chk_and_bounce(struct sk_buff *, int);
+int qeth_configure_cq(struct qeth_card *, enum qeth_cq);
 int qeth_hw_trap(struct qeth_card *, enum qeth_diags_trap_action);
 int qeth_query_ipassists(struct qeth_card *, enum qeth_prot_versions prot);
 
