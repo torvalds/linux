@@ -678,8 +678,8 @@ drbd_set_role(struct drbd_device *device, enum drbd_role new_role, int force)
 	if (device->state.conn >= C_WF_REPORT_PARAMS) {
 		/* if this was forced, we should consider sync */
 		if (forced)
-			drbd_send_uuids(device);
-		drbd_send_current_state(device);
+			drbd_send_uuids(first_peer_device(device));
+		drbd_send_current_state(first_peer_device(device));
 	}
 
 	drbd_md_sync(device);
@@ -1364,8 +1364,12 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 
 	drbd_md_sync(device);
 
-	if (device->state.conn >= C_CONNECTED)
-		drbd_send_sync_param(device);
+	if (device->state.conn >= C_CONNECTED) {
+		struct drbd_peer_device *peer_device;
+
+		for_each_peer_device(peer_device, device)
+			drbd_send_sync_param(peer_device);
+	}
 
 	synchronize_rcu();
 	kfree(old_disk_conf);
@@ -2145,8 +2149,13 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 	synchronize_rcu();
 	kfree(old_net_conf);
 
-	if (connection->cstate >= C_WF_REPORT_PARAMS)
-		drbd_send_sync_param(minor_to_device(conn_lowest_minor(connection)));
+	if (connection->cstate >= C_WF_REPORT_PARAMS) {
+		struct drbd_peer_device *peer_device;
+		int vnr;
+
+		idr_for_each_entry(&connection->peer_devices, peer_device, vnr)
+			drbd_send_sync_param(peer_device);
+	}
 
 	goto done;
 
@@ -2514,8 +2523,8 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
 		if (dd == DS_GREW)
 			set_bit(RESIZE_PENDING, &device->flags);
 
-		drbd_send_uuids(device);
-		drbd_send_sizes(device, 1, ddsf);
+		drbd_send_uuids(first_peer_device(device));
+		drbd_send_sizes(first_peer_device(device), 1, ddsf);
 	}
 
  fail:
@@ -3244,7 +3253,7 @@ int drbd_adm_new_c_uuid(struct sk_buff *skb, struct genl_info *info)
 			retcode = ERR_IO_MD_DISK;
 		}
 		if (skip_initial_sync) {
-			drbd_send_uuids_skip_initial_sync(device);
+			drbd_send_uuids_skip_initial_sync(first_peer_device(device));
 			_drbd_uuid_set(device, UI_BITMAP, 0);
 			drbd_print_uuids(device, "cleared bitmap UUID");
 			spin_lock_irq(&device->resource->req_lock);

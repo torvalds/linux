@@ -887,36 +887,36 @@ extern int drbd_send_all(struct drbd_connection *, struct socket *, void *, size
 
 extern int __drbd_send_protocol(struct drbd_connection *connection, enum drbd_packet cmd);
 extern int drbd_send_protocol(struct drbd_connection *connection);
-extern int drbd_send_uuids(struct drbd_device *device);
-extern int drbd_send_uuids_skip_initial_sync(struct drbd_device *device);
-extern void drbd_gen_and_send_sync_uuid(struct drbd_device *device);
-extern int drbd_send_sizes(struct drbd_device *device, int trigger_reply, enum dds_flags flags);
-extern int drbd_send_state(struct drbd_device *device, union drbd_state s);
-extern int drbd_send_current_state(struct drbd_device *device);
-extern int drbd_send_sync_param(struct drbd_device *device);
+extern int drbd_send_uuids(struct drbd_peer_device *);
+extern int drbd_send_uuids_skip_initial_sync(struct drbd_peer_device *);
+extern void drbd_gen_and_send_sync_uuid(struct drbd_peer_device *);
+extern int drbd_send_sizes(struct drbd_peer_device *, int trigger_reply, enum dds_flags flags);
+extern int drbd_send_state(struct drbd_peer_device *, union drbd_state s);
+extern int drbd_send_current_state(struct drbd_peer_device *);
+extern int drbd_send_sync_param(struct drbd_peer_device *);
 extern void drbd_send_b_ack(struct drbd_connection *connection, u32 barrier_nr,
 			    u32 set_size);
-extern int drbd_send_ack(struct drbd_device *, enum drbd_packet,
+extern int drbd_send_ack(struct drbd_peer_device *, enum drbd_packet,
 			 struct drbd_peer_request *);
-extern void drbd_send_ack_rp(struct drbd_device *device, enum drbd_packet cmd,
+extern void drbd_send_ack_rp(struct drbd_peer_device *, enum drbd_packet,
 			     struct p_block_req *rp);
-extern void drbd_send_ack_dp(struct drbd_device *device, enum drbd_packet cmd,
+extern void drbd_send_ack_dp(struct drbd_peer_device *, enum drbd_packet,
 			     struct p_data *dp, int data_size);
-extern int drbd_send_ack_ex(struct drbd_device *device, enum drbd_packet cmd,
+extern int drbd_send_ack_ex(struct drbd_peer_device *, enum drbd_packet,
 			    sector_t sector, int blksize, u64 block_id);
-extern int drbd_send_out_of_sync(struct drbd_device *, struct drbd_request *);
-extern int drbd_send_block(struct drbd_device *, enum drbd_packet,
+extern int drbd_send_out_of_sync(struct drbd_peer_device *, struct drbd_request *);
+extern int drbd_send_block(struct drbd_peer_device *, enum drbd_packet,
 			   struct drbd_peer_request *);
-extern int drbd_send_dblock(struct drbd_device *device, struct drbd_request *req);
-extern int drbd_send_drequest(struct drbd_device *device, int cmd,
+extern int drbd_send_dblock(struct drbd_peer_device *, struct drbd_request *req);
+extern int drbd_send_drequest(struct drbd_peer_device *, int cmd,
 			      sector_t sector, int size, u64 block_id);
-extern int drbd_send_drequest_csum(struct drbd_device *device, sector_t sector,
+extern int drbd_send_drequest_csum(struct drbd_peer_device *, sector_t sector,
 				   int size, void *digest, int digest_size,
 				   enum drbd_packet cmd);
-extern int drbd_send_ov_request(struct drbd_device *device, sector_t sector, int size);
+extern int drbd_send_ov_request(struct drbd_peer_device *, sector_t sector, int size);
 
 extern int drbd_send_bitmap(struct drbd_device *device);
-extern void drbd_send_sr_reply(struct drbd_device *device, enum drbd_state_rv retcode);
+extern void drbd_send_sr_reply(struct drbd_peer_device *, enum drbd_state_rv retcode);
 extern void conn_send_sr_reply(struct drbd_connection *connection, enum drbd_state_rv retcode);
 extern void drbd_free_bc(struct drbd_backing_dev *ldev);
 extern void drbd_device_cleanup(struct drbd_device *device);
@@ -1343,18 +1343,18 @@ extern int drbd_submit_peer_request(struct drbd_device *,
 				    struct drbd_peer_request *, const unsigned,
 				    const int);
 extern int drbd_free_peer_reqs(struct drbd_device *, struct list_head *);
-extern struct drbd_peer_request *drbd_alloc_peer_req(struct drbd_device *, u64,
+extern struct drbd_peer_request *drbd_alloc_peer_req(struct drbd_peer_device *, u64,
 						     sector_t, unsigned int,
 						     gfp_t) __must_hold(local);
 extern void __drbd_free_peer_req(struct drbd_device *, struct drbd_peer_request *,
 				 int);
 #define drbd_free_peer_req(m,e) __drbd_free_peer_req(m, e, 0)
 #define drbd_free_net_peer_req(m,e) __drbd_free_peer_req(m, e, 1)
-extern struct page *drbd_alloc_pages(struct drbd_device *, unsigned int, bool);
+extern struct page *drbd_alloc_pages(struct drbd_peer_device *, unsigned int, bool);
 extern void drbd_set_recv_tcq(struct drbd_device *device, int tcq_enabled);
 extern void _drbd_clear_done_ee(struct drbd_device *device, struct list_head *to_be_freed);
 extern void conn_flush_workqueue(struct drbd_connection *connection);
-extern int drbd_connected(struct drbd_device *device);
+extern int drbd_connected(struct drbd_peer_device *);
 static inline void drbd_flush_workqueue(struct drbd_device *device)
 {
 	conn_flush_workqueue(first_peer_device(device)->connection);
@@ -1726,17 +1726,17 @@ static inline void request_ping(struct drbd_connection *connection)
 }
 
 extern void *conn_prepare_command(struct drbd_connection *, struct drbd_socket *);
-extern void *drbd_prepare_command(struct drbd_device *, struct drbd_socket *);
+extern void *drbd_prepare_command(struct drbd_peer_device *, struct drbd_socket *);
 extern int conn_send_command(struct drbd_connection *, struct drbd_socket *,
 			     enum drbd_packet, unsigned int, void *,
 			     unsigned int);
-extern int drbd_send_command(struct drbd_device *, struct drbd_socket *,
+extern int drbd_send_command(struct drbd_peer_device *, struct drbd_socket *,
 			     enum drbd_packet, unsigned int, void *,
 			     unsigned int);
 
 extern int drbd_send_ping(struct drbd_connection *connection);
 extern int drbd_send_ping_ack(struct drbd_connection *connection);
-extern int drbd_send_state_req(struct drbd_device *, union drbd_state, union drbd_state);
+extern int drbd_send_state_req(struct drbd_peer_device *, union drbd_state, union drbd_state);
 extern int conn_send_state_req(struct drbd_connection *, union drbd_state, union drbd_state);
 
 static inline void drbd_thread_stop(struct drbd_thread *thi)
