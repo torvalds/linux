@@ -70,6 +70,13 @@
 #define TPS65023_REG_CTRL2_DCDC1	BIT(2)
 #define TPS65023_REG_CTRL2_DCDC3	BIT(0)
 
+/* REG_CTRL2 bitfields */
+#define TPS65023_REG_CTRL2_GO		BIT(7)
+#define TPS65023_REG_CTRL2_CORE_ADJ	BIT(6)
+#define TPS65023_REG_CTRL2_DCDC2	BIT(2)
+#define TPS65023_REG_CTRL2_DCDC1	BIT(1)
+#define TPS65023_REG_CTRL2_DCDC3	BIT(0)
+
 /* LDO_CTRL bitfields */
 #define TPS65023_LDO_CTRL_LDOx_SHIFT(ldo_id)	((ldo_id)*4)
 #define TPS65023_LDO_CTRL_LDOx_MASK(ldo_id)	(0xF0 >> ((ldo_id)*4))
@@ -481,6 +488,10 @@ static int __devinit tps_65023_probe(struct i2c_client *client,
 	}
 
 	i2c_set_clientdata(client, tps);
+
+	/* Enable setting output voltage by I2C */
+	tps_65023_clear_bits(tps, TPS65023_REG_CON_CTRL2,
+						TPS65023_REG_CTRL2_CORE_ADJ);
 
 	/* Enable setting output voltage by I2C */
 	tps_65023_clear_bits(tps, TPS65023_REG_CON_CTRL2,
