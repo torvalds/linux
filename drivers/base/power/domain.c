@@ -81,19 +81,20 @@ static void genpd_set_active(struct generic_pm_domain *genpd)
 }
 
 /**
- * __pm_genpd_poweron - Restore power to a given PM domain and its parents.
+ * __pm_genpd_poweron - Restore power to a given PM domain and its masters.
  * @genpd: PM domain to power up.
  *
- * Restore power to @genpd and all of its parents so that it is possible to
+ * Restore power to @genpd and all of its masters so that it is possible to
  * resume a device belonging to it.
  */
 int __pm_genpd_poweron(struct generic_pm_domain *genpd)
 	__releases(&genpd->lock) __acquires(&genpd->lock)
 {
+	struct gpd_link *link;
 	DEFINE_WAIT(wait);
 	int ret = 0;
 
-	/* If the domain's parent is being waited for, we have to wait too. */
+	/* If the domain's master is being waited for, we have to wait too. */
 	for (;;) {
 		prepare_to_wait(&genpd->status_wait_queue, &wait,
 				TASK_UNINTERRUPTIBLE);
@@ -116,24 +117,31 @@ int __pm_genpd_poweron(struct generic_pm_domain *genpd)
 		return 0;
 	}
 
-	if (genpd->parent) {
-		genpd_sd_counter_inc(genpd->parent);
+	/*
+	 * The list is guaranteed not to change while the loop below is being
+	 * executed, unless one of the masters' .power_on() callbacks fiddles
+	 * with it.
+	 */
+	list_for_each_entry(link, &genpd->slave_links, slave_node) {
+		genpd_sd_counter_inc(link->master);
 		genpd->status = GPD_STATE_WAIT_PARENT;
 
 		mutex_unlock(&genpd->lock);
 
-		ret = pm_genpd_poweron(genpd->parent);
+		ret = pm_genpd_poweron(link->master);
 
 		mutex_lock(&genpd->lock);
 
 		/*
 		 * The "wait for parent" status is guaranteed not to change
-		 * while the parent is powering on.
+		 * while the master is powering on.
 		 */
 		genpd->status = GPD_STATE_POWER_OFF;
 		wake_up_all(&genpd->status_wait_queue);
-		if (ret)
+		if (ret) {
+			genpd_sd_counter_dec(link->master);
 			goto err;
+		}
 	}
 
 	if (genpd->power_on) {
@@ -147,14 +155,14 @@ int __pm_genpd_poweron(struct generic_pm_domain *genpd)
 	return 0;
 
  err:
-	if (genpd->parent)
-		genpd_sd_counter_dec(genpd->parent);
+	list_for_each_entry_continue_reverse(link, &genpd->slave_links, slave_node)
+		genpd_sd_counter_dec(link->master);
 
 	return ret;
 }
 
 /**
- * pm_genpd_poweron - Restore power to a given PM domain and its parents.
+ * pm_genpd_poweron - Restore power to a given PM domain and its masters.
  * @genpd: PM domain to power up.
  */
 int pm_genpd_poweron(struct generic_pm_domain *genpd)
@@ -278,8 +286,8 @@ void genpd_queue_power_off_work(struct generic_pm_domain *genpd)
 static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
 	__releases(&genpd->lock) __acquires(&genpd->lock)
 {
-	struct generic_pm_domain *parent;
 	struct dev_list_entry *dle;
+	struct gpd_link *link;
 	unsigned int not_suspended;
 	int ret = 0;
 
@@ -287,7 +295,7 @@ static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
 	/*
 	 * Do not try to power off the domain in the following situations:
 	 * (1) The domain is already in the "power off" state.
-	 * (2) The domain is waiting for its parent to power up.
+	 * (2) The domain is waiting for its master to power up.
 	 * (3) One of the domain's devices is being resumed right now.
 	 * (4) System suspend is in progress.
 	 */
@@ -349,8 +357,8 @@ static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
 		}
 
 		/*
-		 * If sd_count > 0 at this point, one of the children hasn't
-		 * managed to call pm_genpd_poweron() for the parent yet after
+		 * If sd_count > 0 at this point, one of the subdomains hasn't
+		 * managed to call pm_genpd_poweron() for the master yet after
 		 * incrementing it.  In that case pm_genpd_poweron() will wait
 		 * for us to drop the lock, so we can call .power_off() and let
 		 * the pm_genpd_poweron() restore power for us (this shouldn't
@@ -365,9 +373,10 @@ static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
 
 	genpd->status = GPD_STATE_POWER_OFF;
 
-	parent = genpd->parent;
-	if (parent && genpd_sd_counter_dec(parent))
-		genpd_queue_power_off_work(parent);
+	list_for_each_entry(link, &genpd->slave_links, slave_node) {
+		genpd_sd_counter_dec(link->master);
+		genpd_queue_power_off_work(link->master);
+	}
 
  out:
 	genpd->poweroff_task = NULL;
@@ -527,11 +536,11 @@ static inline void __pm_genpd_runtime_resume(struct device *dev,
 #ifdef CONFIG_PM_SLEEP
 
 /**
- * pm_genpd_sync_poweroff - Synchronously power off a PM domain and its parents.
+ * pm_genpd_sync_poweroff - Synchronously power off a PM domain and its masters.
  * @genpd: PM domain to power off, if possible.
  *
  * Check if the given PM domain can be powered off (during system suspend or
- * hibernation) and do that if so.  Also, in that case propagate to its parent.
+ * hibernation) and do that if so.  Also, in that case propagate to its masters.
  *
  * This function is only called in "noirq" stages of system power transitions,
  * so it need not acquire locks (all of the "noirq" callbacks are executed
@@ -539,7 +548,7 @@ static inline void __pm_genpd_runtime_resume(struct device *dev,
  */
 static void pm_genpd_sync_poweroff(struct generic_pm_domain *genpd)
 {
-	struct generic_pm_domain *parent = genpd->parent;
+	struct gpd_link *link;
 
 	if (genpd->status == GPD_STATE_POWER_OFF)
 		return;
@@ -552,9 +561,10 @@ static void pm_genpd_sync_poweroff(struct generic_pm_domain *genpd)
 		genpd->power_off(genpd);
 
 	genpd->status = GPD_STATE_POWER_OFF;
-	if (parent) {
-		genpd_sd_counter_dec(parent);
-		pm_genpd_sync_poweroff(parent);
+
+	list_for_each_entry(link, &genpd->slave_links, slave_node) {
+		genpd_sd_counter_dec(link->master);
+		pm_genpd_sync_poweroff(link->master);
 	}
 }
 
@@ -1173,7 +1183,7 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 			   struct generic_pm_domain *new_subdomain)
 {
-	struct generic_pm_domain *subdomain;
+	struct gpd_link *link;
 	int ret = 0;
 
 	if (IS_ERR_OR_NULL(genpd) || IS_ERR_OR_NULL(new_subdomain))
@@ -1196,16 +1206,23 @@ int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 		goto out;
 	}
 
-	list_for_each_entry(subdomain, &genpd->sd_list, sd_node) {
-		if (subdomain == new_subdomain) {
+	list_for_each_entry(link, &genpd->slave_links, slave_node) {
+		if (link->slave == new_subdomain && link->master == genpd) {
 			ret = -EINVAL;
 			goto out;
 		}
 	}
 
-	list_add_tail(&new_subdomain->sd_node, &genpd->sd_list);
-	new_subdomain->parent = genpd;
-	if (subdomain->status != GPD_STATE_POWER_OFF)
+	link = kzalloc(sizeof(*link), GFP_KERNEL);
+	if (!link) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	link->master = genpd;
+	list_add_tail(&link->master_node, &genpd->master_links);
+	link->slave = new_subdomain;
+	list_add_tail(&link->slave_node, &new_subdomain->slave_links);
+	if (new_subdomain->status != GPD_STATE_POWER_OFF)
 		genpd_sd_counter_inc(genpd);
 
  out:
@@ -1218,22 +1235,22 @@ int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 /**
  * pm_genpd_remove_subdomain - Remove a subdomain from an I/O PM domain.
  * @genpd: Master PM domain to remove the subdomain from.
- * @target: Subdomain to be removed.
+ * @subdomain: Subdomain to be removed.
  */
 int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
-			      struct generic_pm_domain *target)
+			      struct generic_pm_domain *subdomain)
 {
-	struct generic_pm_domain *subdomain;
+	struct gpd_link *link;
 	int ret = -EINVAL;
 
-	if (IS_ERR_OR_NULL(genpd) || IS_ERR_OR_NULL(target))
+	if (IS_ERR_OR_NULL(genpd) || IS_ERR_OR_NULL(subdomain))
 		return -EINVAL;
 
  start:
 	genpd_acquire_lock(genpd);
 
-	list_for_each_entry(subdomain, &genpd->sd_list, sd_node) {
-		if (subdomain != target)
+	list_for_each_entry(link, &genpd->master_links, master_node) {
+		if (link->slave != subdomain)
 			continue;
 
 		mutex_lock_nested(&subdomain->lock, SINGLE_DEPTH_NESTING);
@@ -1245,8 +1262,9 @@ int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 			goto start;
 		}
 
-		list_del(&subdomain->sd_node);
-		subdomain->parent = NULL;
+		list_del(&link->master_node);
+		list_del(&link->slave_node);
+		kfree(link);
 		if (subdomain->status != GPD_STATE_POWER_OFF)
 			genpd_sd_counter_dec(genpd);
 
@@ -1273,10 +1291,9 @@ void pm_genpd_init(struct generic_pm_domain *genpd,
 	if (IS_ERR_OR_NULL(genpd))
 		return;
 
-	INIT_LIST_HEAD(&genpd->sd_node);
-	genpd->parent = NULL;
+	INIT_LIST_HEAD(&genpd->master_links);
+	INIT_LIST_HEAD(&genpd->slave_links);
 	INIT_LIST_HEAD(&genpd->dev_list);
-	INIT_LIST_HEAD(&genpd->sd_list);
 	mutex_init(&genpd->lock);
 	genpd->gov = gov;
 	INIT_WORK(&genpd->power_off_work, genpd_power_off_work_fn);

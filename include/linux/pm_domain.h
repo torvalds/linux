@@ -26,9 +26,8 @@ struct dev_power_governor {
 struct generic_pm_domain {
 	struct dev_pm_domain domain;	/* PM domain operations */
 	struct list_head gpd_list_node;	/* Node in the global PM domains list */
-	struct list_head sd_node;	/* Node in the parent's subdomain list */
-	struct generic_pm_domain *parent;	/* Parent PM domain */
-	struct list_head sd_list;	/* List of dubdomains */
+	struct list_head master_links;	/* Links with PM domain as a master */
+	struct list_head slave_links;	/* Links with PM domain as a slave */
 	struct list_head dev_list;	/* List of devices */
 	struct mutex lock;
 	struct dev_power_governor *gov;
@@ -54,6 +53,13 @@ static inline struct generic_pm_domain *pd_to_genpd(struct dev_pm_domain *pd)
 {
 	return container_of(pd, struct generic_pm_domain, domain);
 }
+
+struct gpd_link {
+	struct generic_pm_domain *master;
+	struct list_head master_node;
+	struct generic_pm_domain *slave;
+	struct list_head slave_node;
+};
 
 struct dev_list_entry {
 	struct list_head node;
