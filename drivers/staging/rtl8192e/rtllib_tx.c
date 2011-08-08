@@ -286,7 +286,6 @@ rtllib_classify(struct sk_buff *skb, u8 bIsAmsdu)
 	}
 }
 
-#define SN_LESS(a, b)		(((a-b)&0x800)!=0)
 void rtllib_tx_query_agg_cap(struct rtllib_device* ieee, struct sk_buff* skb, struct cb_desc * tcb_desc)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
