@@ -34,35 +34,16 @@
 #include "dhd_dbg.h"
 #include "wl_cfg80211.h"
 
-#define BLOCK_SIZE_64 64
-#define BLOCK_SIZE_512 512
-#define BLOCK_SIZE_4318 64
-#define BLOCK_SIZE_4328 512
-
-/* private bus modes */
-#define SDIOH_MODE_SD4		2
-
 #define CLIENT_INTR		0x100	/* Get rid of this! */
 
 #if !defined(SDIO_VENDOR_ID_BROADCOM)
 #define SDIO_VENDOR_ID_BROADCOM		0x02d0
 #endif				/* !defined(SDIO_VENDOR_ID_BROADCOM) */
 
-#define SDIO_DEVICE_ID_BROADCOM_DEFAULT	0x0000
-
 #define DMA_ALIGN_MASK	0x03
 
-#if !defined(SDIO_DEVICE_ID_BROADCOM_4325_SDGWB)
-#define SDIO_DEVICE_ID_BROADCOM_4325_SDGWB	0x0492	/* BCM94325SDGWB */
-#endif		/* !defined(SDIO_DEVICE_ID_BROADCOM_4325_SDGWB) */
-#if !defined(SDIO_DEVICE_ID_BROADCOM_4325)
-#define SDIO_DEVICE_ID_BROADCOM_4325	0x0493
-#endif		/* !defined(SDIO_DEVICE_ID_BROADCOM_4325) */
 #if !defined(SDIO_DEVICE_ID_BROADCOM_4329)
 #define SDIO_DEVICE_ID_BROADCOM_4329	0x4329
-#endif		/* !defined(SDIO_DEVICE_ID_BROADCOM_4329) */
-#if !defined(SDIO_DEVICE_ID_BROADCOM_4319)
-#define SDIO_DEVICE_ID_BROADCOM_4319	0x4319
 #endif		/* !defined(SDIO_DEVICE_ID_BROADCOM_4329) */
 
 /* Common msglevel constants */
@@ -136,12 +117,6 @@ uint sd_f2_blocksize = 512;	/* Default blocksize */
 
 uint sd_msglevel = 0x01;
 
-/* module param defaults */
-static int clockoverride;
-
-module_param(clockoverride, int, 0644);
-MODULE_PARM_DESC(clockoverride, "SDIO card clock override");
-
 struct brcmf_sdmmc_instance *gInstance;
 static atomic_t brcmf_mmc_suspend;
 
@@ -149,12 +124,7 @@ struct device sdmmc_dev;
 
 /* devices we support, null terminated */
 static const struct sdio_device_id brcmf_sdmmc_ids[] = {
-	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_DEFAULT)},
-	{SDIO_DEVICE
-	 (SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4325_SDGWB)},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4325)},
 	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4329)},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4319)},
 	{ /* end: all zeroes */ },
 };
 
@@ -498,10 +468,10 @@ brcmf_sdioh_iovar_op(struct sdioh_info *si, const char *name,
 				maxsize = 32;
 				break;
 			case 1:
-				maxsize = BLOCK_SIZE_4318;
+				maxsize = 64;
 				break;
 			case 2:
-				maxsize = BLOCK_SIZE_4328;
+				maxsize = 512;
 				break;
 			default:
 				maxsize = 0;
@@ -1058,12 +1028,6 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 		sdio_func_0.num = 0;
 		sdio_func_0.card = func->card;
 		gInstance->func[0] = &sdio_func_0;
-		if (func->device == 0x4) {	/* 4318 */
-			gInstance->func[2] = NULL;
-			sd_trace(("NIC found, calling brcmf_sdio_probe...\n"));
-			ret = brcmf_sdio_probe(&sdmmc_dev);
-		}
-		atomic_set(&brcmf_mmc_suspend, false);
 	}
 
 	gInstance->func[func->num] = func;

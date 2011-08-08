@@ -1273,8 +1273,7 @@ int brcmf_sdbrcm_bussleep(struct brcmf_bus *bus, bool sleep)
 			SBSDIO_FORCE_HW_CLKREQ_OFF, NULL);
 
 		/* Isolate the bus */
-		if (bus->ci->chip != BCM4329_CHIP_ID
-		    && bus->ci->chip != BCM4319_CHIP_ID) {
+		if (bus->ci->chip != BCM4329_CHIP_ID) {
 			brcmf_sdcard_cfg_write(card, SDIO_FUNC_1,
 				SBSDIO_DEVICE_CTL,
 				SBSDIO_DEVCTL_PADS_ISO, NULL);
@@ -5401,11 +5400,7 @@ done:
 
 static bool brcmf_sdbrcm_chipmatch(u16 chipid)
 {
-	if (chipid == BCM4325_CHIP_ID)
-		return true;
 	if (chipid == BCM4329_CHIP_ID)
-		return true;
-	if (chipid == BCM4319_CHIP_ID)
 		return true;
 	return false;
 }
@@ -5461,21 +5456,11 @@ static void *brcmf_sdbrcm_probe(u16 venid, u16 devid, u16 bus_no,
 
 	/* Check the Device ID and make sure it's one that we support */
 	switch (devid) {
-	case BCM4325_D11DUAL_ID:	/* 4325 802.11a/g id */
-	case BCM4325_D11G_ID:	/* 4325 802.11g 2.4Ghz band id */
-	case BCM4325_D11A_ID:	/* 4325 802.11a 5Ghz band id */
-		BRCMF_INFO(("%s: found 4325 Dongle\n", __func__));
-		break;
 	case BCM4329_D11NDUAL_ID:	/* 4329 802.11n dualband device */
 	case BCM4329_D11N2G_ID:	/* 4329 802.11n 2.4G device */
 	case BCM4329_D11N5G_ID:	/* 4329 802.11n 5G device */
 	case 0x4329:
 		BRCMF_INFO(("%s: found 4329 Dongle\n", __func__));
-		break;
-	case BCM4319_D11N_ID:	/* 4319 802.11n id */
-	case BCM4319_D11N2G_ID:	/* 4319 802.11n2g id */
-	case BCM4319_D11N5G_ID:	/* 4319 802.11n5g id */
-		BRCMF_INFO(("%s: found 4319 Dongle\n", __func__));
 		break;
 	case 0:
 		BRCMF_INFO(("%s: allow device id 0, will check chip"
