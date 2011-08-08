@@ -459,17 +459,17 @@ static enum led_brightness asus_kled_cdev_get(struct led_classdev *led_cdev)
 
 static void asus_led_exit(struct asus_laptop *asus)
 {
-	if (asus->mled.led.dev)
+	if (!IS_ERR_OR_NULL(asus->mled.led.dev))
 		led_classdev_unregister(&asus->mled.led);
-	if (asus->tled.led.dev)
+	if (!IS_ERR_OR_NULL(asus->tled.led.dev))
 		led_classdev_unregister(&asus->tled.led);
-	if (asus->pled.led.dev)
+	if (!IS_ERR_OR_NULL(asus->pled.led.dev))
 		led_classdev_unregister(&asus->pled.led);
-	if (asus->rled.led.dev)
+	if (!IS_ERR_OR_NULL(asus->rled.led.dev))
 		led_classdev_unregister(&asus->rled.led);
-	if (asus->gled.led.dev)
+	if (!IS_ERR_OR_NULL(asus->gled.led.dev))
 		led_classdev_unregister(&asus->gled.led);
-	if (asus->kled.led.dev)
+	if (!IS_ERR_OR_NULL(asus->kled.led.dev))
 		led_classdev_unregister(&asus->kled.led);
 	if (asus->led_workqueue) {
 		destroy_workqueue(asus->led_workqueue);
