@@ -16,7 +16,6 @@
 #include "bfa_cs.h"
 #include "bfa_ioc.h"
 #include "cna.h"
-#include "bfi_ll.h"
 #include "bna_types.h"
 
 extern const u32 bna_napi_dim_vector[][BNA_BIAS_T_MAX];
