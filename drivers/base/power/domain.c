@@ -29,10 +29,20 @@ static struct generic_pm_domain *dev_to_genpd(struct device *dev)
 	return pd_to_genpd(dev->pm_domain);
 }
 
-static void genpd_sd_counter_dec(struct generic_pm_domain *genpd)
+static bool genpd_sd_counter_dec(struct generic_pm_domain *genpd)
 {
-	if (!WARN_ON(genpd->sd_count == 0))
-			genpd->sd_count--;
+	bool ret = false;
+
+	if (!WARN_ON(atomic_read(&genpd->sd_count) == 0))
+		ret = !!atomic_dec_and_test(&genpd->sd_count);
+
+	return ret;
+}
+
+static void genpd_sd_counter_inc(struct generic_pm_domain *genpd)
+{
+	atomic_inc(&genpd->sd_count);
+	smp_mb__after_atomic_inc();
 }
 
 static void genpd_acquire_lock(struct generic_pm_domain *genpd)
@@ -118,7 +128,7 @@ int pm_genpd_poweron(struct generic_pm_domain *genpd)
 
 	genpd_set_active(genpd);
 	if (parent)
-		parent->sd_count++;
+		genpd_sd_counter_inc(parent);
 
  out:
 	mutex_unlock(&genpd->lock);
@@ -254,7 +264,7 @@ static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
 	    || genpd->resume_count > 0)
 		return 0;
 
-	if (genpd->sd_count > 0)
+	if (atomic_read(&genpd->sd_count) > 0)
 		return -EBUSY;
 
 	not_suspended = 0;
@@ -325,8 +335,7 @@ static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
 	genpd->status = GPD_STATE_POWER_OFF;
 
 	if (parent) {
-		genpd_sd_counter_dec(parent);
-		if (parent->sd_count == 0)
+		if (genpd_sd_counter_dec(parent))
 			genpd_queue_power_off_work(parent);
 
 		genpd_release_lock(parent);
@@ -506,7 +515,8 @@ static void pm_genpd_sync_poweroff(struct generic_pm_domain *genpd)
 	if (genpd->status == GPD_STATE_POWER_OFF)
 		return;
 
-	if (genpd->suspended_count != genpd->device_count || genpd->sd_count > 0)
+	if (genpd->suspended_count != genpd->device_count
+	    || atomic_read(&genpd->sd_count) > 0)
 		return;
 
 	if (genpd->power_off)
@@ -1167,7 +1177,7 @@ int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 	list_add_tail(&new_subdomain->sd_node, &genpd->sd_list);
 	new_subdomain->parent = genpd;
 	if (subdomain->status != GPD_STATE_POWER_OFF)
-		genpd->sd_count++;
+		genpd_sd_counter_inc(genpd);
 
  out:
 	mutex_unlock(&new_subdomain->lock);
@@ -1242,7 +1252,7 @@ void pm_genpd_init(struct generic_pm_domain *genpd,
 	genpd->gov = gov;
 	INIT_WORK(&genpd->power_off_work, genpd_power_off_work_fn);
 	genpd->in_progress = 0;
-	genpd->sd_count = 0;
+	atomic_set(&genpd->sd_count, 0);
 	genpd->status = is_off ? GPD_STATE_POWER_OFF : GPD_STATE_ACTIVE;
 	init_waitqueue_head(&genpd->status_wait_queue);
 	genpd->poweroff_task = NULL;
