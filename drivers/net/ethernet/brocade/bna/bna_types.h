@@ -37,7 +37,6 @@ struct bna_rxq;
 struct bna_cq;
 struct bna_rx;
 struct bna_rxf;
-struct bna_port;
 struct bna_enet;
 struct bna;
 struct bnad;
@@ -90,21 +89,6 @@ enum bna_res_req_type {
 	BNA_RES_MEM_T_ATTR		= 1,
 	BNA_RES_MEM_T_FWTRC		= 2,
 	BNA_RES_MEM_T_STATS		= 3,
-	BNA_RES_MEM_T_SWSTATS		= 4,
-	BNA_RES_MEM_T_IBIDX		= 5,
-	BNA_RES_MEM_T_IB_ARRAY		= 6,
-	BNA_RES_MEM_T_INTR_ARRAY	= 7,
-	BNA_RES_MEM_T_IDXSEG_ARRAY	= 8,
-	BNA_RES_MEM_T_TX_ARRAY		= 9,
-	BNA_RES_MEM_T_TXQ_ARRAY		= 10,
-	BNA_RES_MEM_T_RX_ARRAY		= 11,
-	BNA_RES_MEM_T_RXP_ARRAY		= 12,
-	BNA_RES_MEM_T_RXQ_ARRAY		= 13,
-	BNA_RES_MEM_T_UCMAC_ARRAY	= 14,
-	BNA_RES_MEM_T_MCMAC_ARRAY	= 15,
-	BNA_RES_MEM_T_RIT_ENTRY		= 16,
-	BNA_RES_MEM_T_RIT_SEGMENT	= 17,
-	BNA_RES_INTR_T_MBOX		= 18,
 	BNA_RES_T_MAX
 };
 
@@ -148,11 +132,6 @@ enum bna_rx_mem_type {
 	BNA_RX_RES_MEM_T_RIT		= 13,
 	BNA_RX_RES_T_INTR		= 14,	/* Rx interrupts */
 	BNA_RX_RES_T_MAX		= 15
-};
-
-enum bna_mbox_state {
-	BNA_MBOX_FREE		= 0,
-	BNA_MBOX_POSTED		= 1
 };
 
 enum bna_tx_type {
@@ -200,14 +179,6 @@ enum bna_rx_event {
 	RX_E_CLEANUP_DONE		= 8,
 };
 
-enum bna_rx_state {
-	BNA_RX_STOPPED			= 1,
-	BNA_RX_RXF_START_WAIT		= 2,
-	BNA_RX_STARTED			= 3,
-	BNA_RX_RXF_STOP_WAIT		= 4,
-	BNA_RX_RXQ_STOP_WAIT		= 5,
-};
-
 enum bna_rx_flags {
 	BNA_RX_F_ENET_STARTED	= 1,
 	BNA_RX_F_ENABLED	= 2,
@@ -216,11 +187,6 @@ enum bna_rx_flags {
 enum bna_rx_mod_flags {
 	BNA_RX_MOD_F_ENET_STARTED	= 1,
 	BNA_RX_MOD_F_ENET_LOOPBACK	= 2,
-};
-
-enum bna_rxf_oper_state {
-	BNA_RXF_OPER_STATE_RUNNING	= 0x01, /* rxf operational */
-	BNA_RXF_OPER_STATE_PAUSED	= 0x02,	/* rxf in PAUSED state */
 };
 
 enum bna_rxf_flags {
@@ -237,24 +203,6 @@ enum bna_rxf_event {
 	RXF_E_FW_RESP			= 7,
 };
 
-enum bna_rxf_state {
-	BNA_RXF_STOPPED			= 1,
-	BNA_RXF_START_WAIT		= 2,
-	BNA_RXF_CAM_FLTR_MOD_WAIT	= 3,
-	BNA_RXF_STARTED			= 4,
-	BNA_RXF_CAM_FLTR_CLR_WAIT	= 5,
-	BNA_RXF_STOP_WAIT		= 6,
-	BNA_RXF_PAUSE_WAIT		= 7,
-	BNA_RXF_RESUME_WAIT		= 8,
-	BNA_RXF_STAT_CLR_WAIT		= 9,
-};
-
-enum bna_port_type {
-	BNA_PORT_T_REGULAR		= 0,
-	BNA_PORT_T_LOOPBACK_INTERNAL	= 1,
-	BNA_PORT_T_LOOPBACK_EXTERNAL	= 2,
-};
-
 enum bna_enet_type {
 	BNA_ENET_T_REGULAR		= 0,
 	BNA_ENET_T_LOOPBACK_INTERNAL	= 1,
@@ -267,23 +215,10 @@ enum bna_link_status {
 	BNA_CEE_UP		= 2
 };
 
-enum bna_llport_flags {
-	BNA_LLPORT_F_ADMIN_UP		= 1,
-	BNA_LLPORT_F_PORT_ENABLED	= 2,
-	BNA_LLPORT_F_RX_STARTED		= 4
-};
-
 enum bna_ethport_flags {
 	BNA_ETHPORT_F_ADMIN_UP		= 1,
 	BNA_ETHPORT_F_PORT_ENABLED	= 2,
 	BNA_ETHPORT_F_RX_STARTED	= 4,
-};
-
-enum bna_port_flags {
-	BNA_PORT_F_DEVICE_READY	= 1,
-	BNA_PORT_F_ENABLED	= 2,
-	BNA_PORT_F_PAUSE_CHANGED = 4,
-	BNA_PORT_F_MTU_CHANGED	= 8
 };
 
 enum bna_enet_flags {
@@ -418,32 +353,7 @@ struct bna_ioceth {
 
 /**
  *
- * Mail box
- *
- */
-
-struct bna_mbox_qe {
-	/* This should be the first one */
-	struct list_head			qe;
-
-	struct bfa_mbox_cmd cmd;
-	u32		cmd_len;
-	/* Callback for port, tx, rx, rxf */
-	void (*cbfn)(void *arg, int status);
-	void			*cbarg;
-};
-
-struct bna_mbox_mod {
-	enum bna_mbox_state state;
-	struct list_head			posted_q;
-	u32		msg_pending;
-	u32		msg_ctr;
-	struct bna *bna;
-};
-
-/**
- *
- * Port
+ * Enet
  *
  */
 
@@ -452,60 +362,6 @@ struct bna_pause_config {
 	enum bna_status tx_pause;
 	enum bna_status rx_pause;
 };
-
-struct bna_llport {
-	bfa_fsm_t		fsm;
-	enum bna_llport_flags flags;
-
-	enum bna_port_type type;
-
-	enum bna_link_status link_status;
-
-	int			rx_started_count;
-
-	void (*stop_cbfn)(struct bna_port *, enum bna_cb_status);
-
-	struct bna_mbox_qe mbox_qe;
-
-	struct bna *bna;
-};
-
-struct bna_port {
-	bfa_fsm_t		fsm;
-	enum bna_port_flags flags;
-
-	enum bna_port_type type;
-
-	struct bna_llport llport;
-
-	struct bna_pause_config pause_config;
-	u8			priority;
-	int			mtu;
-
-	/* Callback for bna_port_disable(), port_stop() */
-	void (*stop_cbfn)(void *, enum bna_cb_status);
-	void			*stop_cbarg;
-
-	/* Callback for bna_port_pause_config() */
-	void (*pause_cbfn)(struct bnad *, enum bna_cb_status);
-
-	/* Callback for bna_port_mtu_set() */
-	void (*mtu_cbfn)(struct bnad *, enum bna_cb_status);
-
-	void (*link_cbfn)(struct bnad *, enum bna_link_status);
-
-	struct bfa_wc		chld_stop_wc;
-
-	struct bna_mbox_qe mbox_qe;
-
-	struct bna *bna;
-};
-
-/**
- *
- * Enet
- *
- */
 
 struct bna_enet {
 	bfa_fsm_t		fsm;
@@ -568,27 +424,6 @@ struct bna_ethport {
  * Interrupt Block
  *
  */
-
-/* IB index segment structure */
-struct bna_ibidx_seg {
-	/* This should be the first one */
-	struct list_head			qe;
-
-	u8			ib_seg_size;
-	u8			ib_idx_tbl_offset;
-};
-
-/* Interrupt structure */
-struct bna_intr {
-	/* This should be the first one */
-	struct list_head			qe;
-	int			ref_count;
-
-	enum bna_intr_type intr_type;
-	int			vector;
-
-	struct bna_ib *ib;
-};
 
 /* Doorbell structure */
 struct bna_ib_dbell {
@@ -748,33 +583,6 @@ struct bna_tx_mod {
 	u32			rid_mask;
 
 	struct bna *bna;
-};
-
-/**
- *
- * Receive Indirection Table
- *
- */
-
-/* One row of RIT table */
-struct bna_rit_entry {
-	u8 large_rxq_id;	/* used for either large or data buffers */
-	u8 small_rxq_id;	/* used for either small or header buffers */
-};
-
-/* RIT segment */
-struct bna_rit_segment {
-	struct list_head			qe;
-
-	u32		rit_offset;
-	u32		rit_size;
-	/**
-	 * max_rit_size: Varies per RIT segment depending on how RIT is
-	 * partitioned
-	 */
-	u32		max_rit_size;
-
-	struct bna_rit_entry *rit;
 };
 
 /**
@@ -1122,42 +930,6 @@ struct bna_mcam_mod {
  * Statistics
  *
  */
-
-struct bna_tx_stats {
-	int			tx_state;
-	int			tx_flags;
-	int			num_txqs;
-	u32		txq_bmap[2];
-	int			txf_id;
-};
-
-struct bna_rx_stats {
-	int			rx_state;
-	int			rx_flags;
-	int			num_rxps;
-	int			num_rxqs;
-	u32		rxq_bmap[2];
-	u32		cq_bmap[2];
-	int			rxf_id;
-	int			rxf_state;
-	int			rxf_oper_state;
-	int			num_active_ucast;
-	int			num_active_mcast;
-	int			rxmode_active;
-	int			vlan_filter_status;
-	int			rss_status;
-	int			hds_status;
-};
-
-struct bna_sw_stats {
-	int			device_state;
-	int			port_state;
-	int			port_flags;
-	int			llport_state;
-	int			priority;
-	int			num_active_tx;
-	int			num_active_rx;
-};
 
 struct bna_stats {
 	struct bna_dma_addr	hw_stats_dma;

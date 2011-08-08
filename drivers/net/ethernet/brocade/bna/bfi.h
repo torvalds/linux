@@ -15,7 +15,6 @@
  * All rights reserved
  * www.brocade.com
  */
-
 #ifndef __BFI_H__
 #define __BFI_H__
 
@@ -28,12 +27,6 @@
  */
 #define	BFI_FLASH_CHUNK_SZ			256	/*!< Flash chunk size */
 #define	BFI_FLASH_CHUNK_SZ_WORDS	(BFI_FLASH_CHUNK_SZ/sizeof(u32))
-enum {
-	BFI_IMAGE_CB_FC,
-	BFI_IMAGE_CT_FC,
-	BFI_IMAGE_CT_CNA,
-	BFI_IMAGE_MAX,
-};
 
 /**
  * Msg header common to all msgs
@@ -195,15 +188,6 @@ enum bfi_mclass {
 #define BFI_IOC_MAX_CQS_ASIC	8
 #define BFI_IOC_MSGLEN_MAX	32	/* 32 bytes */
 
-#define BFI_BOOT_TYPE_OFF		8
-#define BFI_BOOT_LOADER_OFF		12
-
-#define BFI_BOOT_TYPE_NORMAL		0
-#define	BFI_BOOT_TYPE_FLASH		1
-#define	BFI_BOOT_TYPE_MEMTEST		2
-
-#define BFI_BOOT_LOADER_OS		0
-
 #define BFI_FWBOOT_ENV_OS		0
 
 #define BFI_BOOT_MEMTEST_RES_ADDR   0x900
@@ -344,12 +328,6 @@ enum bfi_port_mode {
 /**
  *  BFI_IOC_I2H_READY_EVENT message
  */
-struct bfi_ioc_rdy_event {
-	struct bfi_mhdr mh;		/*!< common msg header */
-	u8			init_status;	/*!< init event status */
-	u8			rsvd[3];
-};
-
 struct bfi_ioc_hbeat {
 	struct bfi_mhdr mh;		/*!< common msg header		*/
 	u32	   hb_count;	/*!< current heart beat count	*/

@@ -67,14 +67,6 @@ enum {
 #pragma pack(1)
 
 /**
- * Check if 1-port card
- */
-#define bfa_mfg_is_1port(type) (( \
-	(type) == BFA_MFG_TYPE_FC8P1 || \
-	(type) == BFA_MFG_TYPE_FC4P1 || \
-	(type) == BFA_MFG_TYPE_CNA10P1))
-
-/**
  * Check if Mezz card
  */
 #define bfa_mfg_is_mezz(type) (( \

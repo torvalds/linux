@@ -26,7 +26,6 @@
 #define BFA_IOC_TOV		3000	/* msecs */
 #define BFA_IOC_HWSEM_TOV	500	/* msecs */
 #define BFA_IOC_HB_TOV		500	/* msecs */
-#define BFA_IOC_HWINIT_MAX	5
 #define BFA_IOC_POLL_TOV	200	/* msecs */
 
 /**
@@ -250,10 +249,6 @@ struct bfa_ioc_hwif {
 #define bfa_ioc_stats_hb_count(_ioc, _hb_count)	\
 	((_ioc)->stats.hb_count = (_hb_count))
 #define BFA_IOC_FWIMG_MINSZ	(16 * 1024)
-#define BFA_IOC_FWIMG_TYPE(__ioc)					\
-	(((__ioc)->ctdev) ?						\
-	 (((__ioc)->fcmode) ? BFI_IMAGE_CT_FC : BFI_IMAGE_CT_CNA) :	\
-	 BFI_IMAGE_CB_FC)
 #define BFA_IOC_FW_SMEM_SIZE(__ioc)					\
 	((bfa_ioc_asic_gen(__ioc) == BFI_ASIC_GEN_CB)			\
 	? BFI_SMEM_CB_SIZE : BFI_SMEM_CT_SIZE)

@@ -32,14 +32,6 @@ extern const u32 bna_napi_dim_vector[][BNA_BIAS_T_MAX];
 /* Log string size */
 #define BNA_MESSAGE_SIZE		256
 
-/* MBOX API for PORT, TX, RX */
-#define bna_mbox_qe_fill(_qe, _cmd, _cmd_len, _cbfn, _cbarg)		\
-do {									\
-	memcpy(&((_qe)->cmd.msg[0]), (_cmd), (_cmd_len));	\
-	(_qe)->cbfn = (_cbfn);						\
-	(_qe)->cbarg = (_cbarg);					\
-} while (0)
-
 #define bna_is_small_rxq(_id) ((_id) & 0x1)
 
 #define BNA_MAC_IS_EQUAL(_mac1, _mac2)					\
@@ -176,32 +168,6 @@ do {								\
 
 #define BNA_Q_IN_USE_COUNT(_q_ptr)					\
 	(BNA_QE_IN_USE_CNT(&(_q_ptr)->q, (_q_ptr)->q.q_depth))
-
-/* These macros build the data portion of the TxQ/RxQ doorbell */
-#define BNA_DOORBELL_Q_PRD_IDX(_pi)	(0x80000000 | (_pi))
-#define BNA_DOORBELL_Q_STOP		(0x40000000)
-
-/* These macros build the data portion of the IB doorbell */
-#define BNA_DOORBELL_IB_INT_ACK(_timeout, _events) \
-	(0x80000000 | ((_timeout) << 16) | (_events))
-#define BNA_DOORBELL_IB_INT_DISABLE	(0x40000000)
-
-/* Set the coalescing timer for the given ib */
-#define bna_ib_coalescing_timer_set(_i_dbell, _cls_timer)		\
-	((_i_dbell)->doorbell_ack = BNA_DOORBELL_IB_INT_ACK((_cls_timer), 0));
-
-/* Acks 'events' # of events for a given ib */
-#define bna_ib_ack(_i_dbell, _events)					\
-	(writel(((_i_dbell)->doorbell_ack | (_events)), \
-		(_i_dbell)->doorbell_addr));
-
-#define bna_txq_prod_indx_doorbell(_tcb)				\
-	(writel(BNA_DOORBELL_Q_PRD_IDX((_tcb)->producer_index), \
-		(_tcb)->q_dbell));
-
-#define bna_rxq_prod_indx_doorbell(_rcb)				\
-	(writel(BNA_DOORBELL_Q_PRD_IDX((_rcb)->producer_index), \
-		(_rcb)->q_dbell));
 
 #define BNA_LARGE_PKT_SIZE		1000
 
@@ -435,7 +401,6 @@ void bna_get_perm_mac(struct bna *bna, u8 *mac);
 void bna_hw_stats_get(struct bna *bna);
 
 /* APIs for Rx */
-int bna_rit_mod_can_satisfy(struct bna_rit_mod *rit_mod, int seg_size);
 
 /* APIs for RxF */
 struct bna_mac *bna_ucam_mod_mac_get(struct bna_ucam_mod *ucam_mod);
@@ -447,53 +412,13 @@ void bna_mcam_mod_mac_put(struct bna_mcam_mod *mcam_mod,
 struct bna_mcam_handle *bna_mcam_mod_handle_get(struct bna_mcam_mod *mod);
 void bna_mcam_mod_handle_put(struct bna_mcam_mod *mcam_mod,
 			  struct bna_mcam_handle *handle);
-struct bna_rit_segment *
-bna_rit_mod_seg_get(struct bna_rit_mod *rit_mod, int seg_size);
-void bna_rit_mod_seg_put(struct bna_rit_mod *rit_mod,
-			struct bna_rit_segment *seg);
-
-/**
- * DEVICE
- */
-
-/* APIs for BNAD */
-void bna_device_enable(struct bna_device *device);
-void bna_device_disable(struct bna_device *device,
-			enum bna_cleanup_type type);
 
 /**
  * MBOX
  */
 
-/* APIs for PORT, TX, RX */
-void bna_mbox_handler(struct bna *bna, u32 intr_status);
-void bna_mbox_send(struct bna *bna, struct bna_mbox_qe *mbox_qe);
-
-/**
- * PORT
- */
-
-/* API for RX */
-int bna_port_mtu_get(struct bna_port *port);
-void bna_llport_rx_started(struct bna_llport *llport);
-void bna_llport_rx_stopped(struct bna_llport *llport);
-
 /* API for BNAD */
-void bna_port_enable(struct bna_port *port);
-void bna_port_disable(struct bna_port *port, enum bna_cleanup_type type,
-		      void (*cbfn)(void *, enum bna_cb_status));
-void bna_port_pause_config(struct bna_port *port,
-			   struct bna_pause_config *pause_config,
-			   void (*cbfn)(struct bnad *, enum bna_cb_status));
-void bna_port_mtu_set(struct bna_port *port, int mtu,
-		      void (*cbfn)(struct bnad *, enum bna_cb_status));
-void bna_port_mac_get(struct bna_port *port, mac_t *mac);
-
-/* Callbacks for TX, RX */
-void bna_port_cb_tx_stopped(struct bna_port *port,
-			    enum bna_cb_status status);
-void bna_port_cb_rx_stopped(struct bna_port *port,
-			    enum bna_cb_status status);
+void bna_mbox_handler(struct bna *bna, u32 intr_status);
 
 /**
  * ETHPORT
@@ -502,15 +427,6 @@ void bna_port_cb_rx_stopped(struct bna_port *port,
 /* Callbacks for RX */
 void bna_ethport_cb_rx_started(struct bna_ethport *ethport);
 void bna_ethport_cb_rx_stopped(struct bna_ethport *ethport);
-
-/**
- * IB
- */
-
-/* APIs for BNA */
-void bna_ib_mod_init(struct bna_ib_mod *ib_mod, struct bna *bna,
-		     struct bna_res_info *res_info);
-void bna_ib_mod_uninit(struct bna_ib_mod *ib_mod);
 
 /**
  * TX MODULE AND TX
@@ -526,14 +442,11 @@ void bna_bfi_bw_update_aen(struct bna_tx_mod *tx_mod);
 void bna_tx_mod_init(struct bna_tx_mod *tx_mod, struct bna *bna,
 		     struct bna_res_info *res_info);
 void bna_tx_mod_uninit(struct bna_tx_mod *tx_mod);
-int bna_tx_state_get(struct bna_tx *tx);
 
 /* APIs for ENET */
 void bna_tx_mod_start(struct bna_tx_mod *tx_mod, enum bna_tx_type type);
 void bna_tx_mod_stop(struct bna_tx_mod *tx_mod, enum bna_tx_type type);
 void bna_tx_mod_fail(struct bna_tx_mod *tx_mod);
-void bna_tx_mod_prio_changed(struct bna_tx_mod *tx_mod, int prio);
-void bna_tx_mod_cee_link_status(struct bna_tx_mod *tx_mod, int cee_link);
 
 /* APIs for BNAD */
 void bna_tx_res_req(int num_txq, int txq_depth,
@@ -553,27 +466,6 @@ void bna_tx_coalescing_timeo_set(struct bna_tx *tx, int coalescing_timeo);
  * RX MODULE, RX, RXF
  */
 
-/* Internal APIs */
-void rxf_cb_cam_fltr_mbox_cmd(void *arg, int status);
-void rxf_cam_mbox_cmd(struct bna_rxf *rxf, u8 cmd,
-		const struct bna_mac *mac_addr);
-void __rxf_vlan_filter_set(struct bna_rxf *rxf, enum bna_status status);
-void bna_rxf_adv_init(struct bna_rxf *rxf,
-		struct bna_rx *rx,
-		struct bna_rx_config *q_config);
-int rxf_process_packet_filter_ucast(struct bna_rxf *rxf);
-int rxf_process_packet_filter_promisc(struct bna_rxf *rxf);
-int rxf_process_packet_filter_default(struct bna_rxf *rxf);
-int rxf_process_packet_filter_allmulti(struct bna_rxf *rxf);
-int rxf_clear_packet_filter_ucast(struct bna_rxf *rxf);
-int rxf_clear_packet_filter_promisc(struct bna_rxf *rxf);
-int rxf_clear_packet_filter_default(struct bna_rxf *rxf);
-int rxf_clear_packet_filter_allmulti(struct bna_rxf *rxf);
-void rxf_reset_packet_filter_ucast(struct bna_rxf *rxf);
-void rxf_reset_packet_filter_promisc(struct bna_rxf *rxf);
-void rxf_reset_packet_filter_default(struct bna_rxf *rxf);
-void rxf_reset_packet_filter_allmulti(struct bna_rxf *rxf);
-
 /* FW response handlers */
 void bna_bfi_rx_enet_start_rsp(struct bna_rx *rx,
 			       struct bfi_msgq_mhdr *msghdr);
@@ -587,8 +479,6 @@ void bna_bfi_rxf_mcast_add_rsp(struct bna_rxf *rxf,
 void bna_rx_mod_init(struct bna_rx_mod *rx_mod, struct bna *bna,
 		     struct bna_res_info *res_info);
 void bna_rx_mod_uninit(struct bna_rx_mod *rx_mod);
-int bna_rx_state_get(struct bna_rx *rx);
-int bna_rxf_state_get(struct bna_rxf *rxf);
 
 /* APIs for ENET */
 void bna_rx_mod_start(struct bna_rx_mod *rx_mod, enum bna_rx_type type);
@@ -686,15 +576,5 @@ void bnad_cb_mbox_intr_disable(struct bnad *bnad);
 /* Callbacks for BNA */
 void bnad_cb_stats_get(struct bnad *bnad, enum bna_cb_status status,
 		       struct bna_stats *stats);
-
-/* Callbacks for DEVICE */
-void bnad_cb_device_enabled(struct bnad *bnad, enum bna_cb_status status);
-void bnad_cb_device_disabled(struct bnad *bnad, enum bna_cb_status status);
-void bnad_cb_device_enable_mbox_intr(struct bnad *bnad);
-void bnad_cb_device_disable_mbox_intr(struct bnad *bnad);
-
-/* Callbacks for port */
-void bnad_cb_port_link_status(struct bnad *bnad,
-			      enum bna_link_status status);
 
 #endif  /* __BNA_H__ */

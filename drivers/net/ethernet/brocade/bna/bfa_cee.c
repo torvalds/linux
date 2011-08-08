@@ -22,9 +22,6 @@
 #include "bfi_cna.h"
 #include "bfa_ioc.h"
 
-#define bfa_ioc_portid(__ioc) ((__ioc)->port_id)
-#define bfa_lpuid(__arg) bfa_ioc_portid(&(__arg)->ioc)
-
 static void bfa_cee_format_lldp_cfg(struct bfa_cee_lldp_cfg *lldp_cfg);
 static void bfa_cee_format_cee_cfg(void *buffer);
 
