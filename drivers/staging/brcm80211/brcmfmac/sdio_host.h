@@ -136,17 +136,6 @@ struct brcmf_sdio_dev {
 	void *bus;
 };
 
-/* Attach and build an interface to the underlying SD host driver.
- *  - Allocates resources (structs, arrays, mem, OS handles, etc) needed by
- *    brcmf_sdcard.
- *  - Returns the sdio card handle and virtual address base for register access.
- *    The returned handle should be used in all subsequent calls, but the bcmsh
- *    implementation may maintain a single "default" handle (e.g. the first or
- *    most recent one) to enable single-instance implementations to pass NULL.
- */
-extern struct brcmf_sdio_card*
-brcmf_sdcard_attach(void *cfghdl, u32 *regsva);
-
 /* Detach - freeup resources allocated in attach */
 extern int brcmf_sdcard_detach(struct brcmf_sdio_card *card);
 

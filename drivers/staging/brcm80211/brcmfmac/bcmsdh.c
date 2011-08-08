@@ -57,32 +57,6 @@ static struct brcmf_sdioh_driver drvinfo = { NULL, NULL };
 
 module_param(sd_f2_blocksize, int, 0);
 
-struct brcmf_sdio_card*
-brcmf_sdcard_attach(void *cfghdl, u32 *regsva)
-{
-	struct brcmf_sdio_card *card;
-
-	card = kzalloc(sizeof(struct brcmf_sdio_card), GFP_ATOMIC);
-	if (card == NULL) {
-		BRCMF_ERROR(("sdcard_attach: out of memory"));
-		return NULL;
-	}
-
-	card->sdioh = brcmf_sdioh_attach(cfghdl);
-	if (!card->sdioh) {
-		brcmf_sdcard_detach(card);
-		return NULL;
-	}
-
-	card->init_success = true;
-
-	*regsva = SI_ENUM_BASE;
-
-	/* Report the BAR, to fix if needed */
-	card->sbwad = SI_ENUM_BASE;
-	return card;
-}
-
 int brcmf_sdcard_detach(struct brcmf_sdio_card *card)
 {
 	if (card != NULL) {
@@ -455,35 +429,47 @@ u32 brcmf_sdcard_cur_sbwad(struct brcmf_sdio_card *card)
 int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 {
 	u32 regs = 0;
-	struct brcmf_sdio_card *card = NULL;
 	u32 vendevid;
+	int ret = 0;
 
-	card = brcmf_sdcard_attach((void *)0, &regs);
-	if (!card) {
-		BRCMF_ERROR(("%s: attach failed\n", __func__));
-		goto err;
+	sdiodev->card = kzalloc(sizeof(struct brcmf_sdio_card), GFP_ATOMIC);
+	if (sdiodev->card == NULL) {
+		BRCMF_ERROR(("sdcard_attach: out of memory"));
+		ret = -ENOMEM;
+		goto out;
 	}
-	sdiodev->card = card;
+
+	sdiodev->card->sdioh = brcmf_sdioh_attach((void *)0);
+	if (!sdiodev->card->sdioh) {
+		brcmf_sdcard_detach(sdiodev->card);
+		ret = -ENODEV;
+		goto out;
+	}
+
+	sdiodev->card->init_success = true;
+
+	regs = SI_ENUM_BASE;
+
+	/* Report the BAR, to fix if needed */
+	sdiodev->card->sbwad = SI_ENUM_BASE;
 
 	/* Read the vendor/device ID from the CIS */
-	vendevid = brcmf_sdcard_query_device(card);
+	vendevid = brcmf_sdcard_query_device(sdiodev->card);
 
 	/* try to attach to the target device */
 	sdiodev->bus = drvinfo.attach((vendevid >> 16), (vendevid & 0xFFFF),
-				  0, 0, 0, 0, regs, card);
+				  0, 0, 0, 0, regs, sdiodev->card);
 	if (!sdiodev->bus) {
 		BRCMF_ERROR(("%s: device attach failed\n", __func__));
-		goto err;
+		ret = -ENODEV;
+		goto out;
 	}
 
-	return 0;
-
-	/* error handling */
-err:
-	if (sdiodev->card)
+out:
+	if ((ret) && (sdiodev->card))
 		brcmf_sdcard_detach(sdiodev->card);
 
-	return -ENODEV;
+	return ret;
 }
 EXPORT_SYMBOL(brcmf_sdio_probe);
 
