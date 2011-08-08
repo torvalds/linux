@@ -709,10 +709,14 @@ static s32 brcmf_do_iscan(struct brcmf_cfg80211_priv *cfg_priv)
 	}
 	brcmf_set_mpc(ndev, 0);
 	cfg_priv->iscan_kickstart = true;
-	brcmf_run_iscan(iscan, &ssid, BRCMF_SCAN_ACTION_START);
+	err = brcmf_run_iscan(iscan, &ssid, BRCMF_SCAN_ACTION_START);
+	if (err) {
+		brcmf_set_mpc(ndev, 1);
+		cfg_priv->iscan_kickstart = false;
+		return err;
+	}
 	mod_timer(&iscan->timer, jiffies + iscan->timer_ms * HZ / 1000);
 	iscan->timer_on = 1;
-
 	return err;
 }
 
@@ -3165,12 +3169,17 @@ static void brcmf_destroy_event_handler(struct brcmf_cfg80211_priv *cfg_priv)
 static void brcmf_term_iscan(struct brcmf_cfg80211_priv *cfg_priv)
 {
 	struct brcmf_cfg80211_iscan_ctrl *iscan = cfg_to_iscan(cfg_priv);
+	struct brcmf_ssid ssid;
 
 	if (cfg_priv->iscan_on && iscan->tsk) {
 		iscan->state = WL_ISCAN_STATE_IDLE;
 		send_sig(SIGTERM, iscan->tsk, 1);
 		kthread_stop(iscan->tsk);
 		iscan->tsk = NULL;
+
+		/* Abort iscan running in FW */
+		memset(&ssid, 0, sizeof(ssid));
+		brcmf_run_iscan(iscan, &ssid, WL_SCAN_ACTION_ABORT);
 	}
 }
 
@@ -3237,6 +3246,7 @@ brcmf_get_iscan_results(struct brcmf_cfg80211_iscan_ctrl *iscan, u32 *status,
 	WL_SCAN("results->count = %d\n", results->count);
 	WL_SCAN("results->buflen = %d\n", results->buflen);
 	*status = le32_to_cpu(list_buf->status);
+	WL_SCAN("status = %d\n", *status);
 	*bss_list = results;
 
 	return err;
