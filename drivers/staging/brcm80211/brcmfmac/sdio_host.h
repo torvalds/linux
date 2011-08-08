@@ -268,9 +268,6 @@ extern int brcmf_sdcard_rwdata(struct brcmf_sdio_card *card, uint rw, u32 addr,
 /* Issue an abort to the specified function */
 extern int brcmf_sdcard_abort(struct brcmf_sdio_card *card, uint fn);
 
-/* Returns the "Device ID" of target device on the SDIO bus. */
-extern int brcmf_sdcard_query_device(struct brcmf_sdio_card *card);
-
 /* Miscellaneous knob tweaker. */
 extern int brcmf_sdcard_iovar_op(struct brcmf_sdio_card *card, const char *name,
 				 void *params, int plen, void *arg, int len,

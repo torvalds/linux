@@ -44,7 +44,6 @@
 struct brcmf_sdio_card {
 	bool init_success;	/* underlying driver successfully attached */
 	void *sdioh;		/* handler for sdioh */
-	u32 vendevid;	/* Target Vendor and Device ID on SD bus */
 	bool regfail;		/* Save status of last
 				 reg_read/reg_write call */
 	u32 sbwad;		/* Save backplane window address */
@@ -399,12 +398,6 @@ int brcmf_sdcard_abort(struct brcmf_sdio_card *card, uint fn)
 	return brcmf_sdioh_abort(card->sdioh, fn);
 }
 
-int brcmf_sdcard_query_device(struct brcmf_sdio_card *card)
-{
-	card->vendevid = (PCI_VENDOR_ID_BROADCOM << 16) | 0;
-	return card->vendevid;
-}
-
 u32 brcmf_sdcard_cur_sbwad(struct brcmf_sdio_card *card)
 {
 	return card->sbwad;
@@ -413,7 +406,6 @@ u32 brcmf_sdcard_cur_sbwad(struct brcmf_sdio_card *card)
 int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 {
 	u32 regs = 0;
-	u32 vendevid;
 	int ret = 0;
 
 	sdiodev->card = kzalloc(sizeof(struct brcmf_sdio_card), GFP_ATOMIC);
@@ -436,12 +428,8 @@ int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	/* Report the BAR, to fix if needed */
 	sdiodev->card->sbwad = SI_ENUM_BASE;
 
-	/* Read the vendor/device ID from the CIS */
-	vendevid = brcmf_sdcard_query_device(sdiodev->card);
-
 	/* try to attach to the target device */
-	sdiodev->bus = brcmf_sdbrcm_probe((vendevid >> 16), (vendevid & 0xFFFF),
-				  0, 0, 0, 0, regs, sdiodev->card);
+	sdiodev->bus = brcmf_sdbrcm_probe(0, 0, 0, 0, regs, sdiodev->card);
 	if (!sdiodev->bus) {
 		BRCMF_ERROR(("%s: device attach failed\n", __func__));
 		ret = -ENODEV;

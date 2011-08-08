@@ -625,8 +625,6 @@ struct brcmf_bus {
 	bool dpc_sched;		/* Indicates DPC schedule (intrpt rcvd) */
 	bool fcstate;		/* State of dongle flow-control */
 
-	u16 cl_devid;	/* cached devid for brcmf_sdio_probe_attach() */
-
 	uint blocksize;		/* Block size of SDIO transfers */
 	uint roundup;		/* Max roundup limit */
 
@@ -964,7 +962,7 @@ static void brcmf_sdbrcm_release(struct brcmf_bus *bus);
 static void brcmf_sdbrcm_release_malloc(struct brcmf_bus *bus);
 static bool brcmf_sdbrcm_chipmatch(u16 chipid);
 static bool brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, void *card,
-				      u32 regsva, u16 devid);
+				      u32 regsva);
 static bool brcmf_sdbrcm_probe_malloc(struct brcmf_bus *bus, void *card);
 static bool brcmf_sdbrcm_probe_init(struct brcmf_bus *bus, void *card);
 static void brcmf_sdbrcm_release_dongle(struct brcmf_bus *bus);
@@ -5430,9 +5428,8 @@ static bool brcmf_sdbrcm_chipmatch(u16 chipid)
 	return false;
 }
 
-void *brcmf_sdbrcm_probe(u16 venid, u16 devid, u16 bus_no,
-			   u16 slot, u16 func, uint bustype, u32 regsva,
-			   void *card)
+void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
+			 u32 regsva, void *card)
 {
 	int ret;
 	struct brcmf_bus *bus;
@@ -5459,44 +5456,9 @@ void *brcmf_sdbrcm_probe(u16 venid, u16 devid, u16 bus_no,
 	brcmf_c_init();
 
 	BRCMF_TRACE(("%s: Enter\n", __func__));
-	BRCMF_INFO(("%s: venid 0x%04x devid 0x%04x\n", __func__, venid, devid));
 
 	/* We make an assumption about address window mappings:
 	 * regsva == SI_ENUM_BASE*/
-
-	/* SDIO car passes venid and devid based on CIS parsing -- but
-	 * low-power start
-	 * means early parse could fail, so here we should get either an ID
-	 * we recognize OR (-1) indicating we must request power first.
-	 */
-	/* Check the Vendor ID */
-	switch (venid) {
-	case 0x0000:
-	case PCI_VENDOR_ID_BROADCOM:
-		break;
-	default:
-		BRCMF_ERROR(("%s: unknown vendor: 0x%04x\n", __func__, venid));
-		return NULL;
-	}
-
-	/* Check the Device ID and make sure it's one that we support */
-	switch (devid) {
-	case BCM4329_D11NDUAL_ID:	/* 4329 802.11n dualband device */
-	case BCM4329_D11N2G_ID:	/* 4329 802.11n 2.4G device */
-	case BCM4329_D11N5G_ID:	/* 4329 802.11n 5G device */
-	case 0x4329:
-		BRCMF_INFO(("%s: found 4329 Dongle\n", __func__));
-		break;
-	case 0:
-		BRCMF_INFO(("%s: allow device id 0, will check chip"
-			    " internals\n", __func__));
-		break;
-
-	default:
-		BRCMF_ERROR(("%s: skipping 0x%04x/0x%04x, not a dongle\n",
-			     __func__, venid, devid));
-		return NULL;
-	}
 
 	/* Allocate private bus interface state */
 	bus = kzalloc(sizeof(struct brcmf_bus), GFP_ATOMIC);
@@ -5506,14 +5468,13 @@ void *brcmf_sdbrcm_probe(u16 venid, u16 devid, u16 bus_no,
 		goto fail;
 	}
 	bus->card = card;
-	bus->cl_devid = (u16) devid;
 	bus->bus = BRCMF_BUS;
 	bus->tx_seq = SDPCM_SEQUENCE_WRAP - 1;
 	bus->usebufpool = false;	/* Use bufpool if allocated,
 					 else use locally malloced rxbuf */
 
 	/* attempt to attach to the dongle */
-	if (!(brcmf_sdbrcm_probe_attach(bus, card, regsva, devid))) {
+	if (!(brcmf_sdbrcm_probe_attach(bus, card, regsva))) {
 		BRCMF_ERROR(("%s: brcmf_sdbrcm_probe_attach failed\n",
 			     __func__));
 		goto fail;
@@ -5623,8 +5584,7 @@ fail:
 }
 
 static bool
-brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, void *card, u32 regsva,
-			  u16 devid)
+brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, void *card, u32 regsva)
 {
 	u8 clkctl = 0;
 	int err = 0;
@@ -6170,8 +6130,7 @@ int brcmf_bus_devreset(struct brcmf_pub *drvr, u8 flag)
 
 			/* Attempt to re-attach & download */
 			if (brcmf_sdbrcm_probe_attach(bus, bus->card,
-						      SI_ENUM_BASE,
-						      bus->cl_devid)) {
+						      SI_ENUM_BASE)) {
 				/* Attempt to download binary to the dongle */
 				if (brcmf_sdbrcm_probe_init(bus, bus->card)) {
 					/* Re-init bus, enable F2 transfer */
