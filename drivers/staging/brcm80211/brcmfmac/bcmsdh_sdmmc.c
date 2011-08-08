@@ -34,8 +34,6 @@
 #include "dhd_dbg.h"
 #include "wl_cfg80211.h"
 
-#define CLIENT_INTR		0x100	/* Get rid of this! */
-
 #if !defined(SDIO_VENDOR_ID_BROADCOM)
 #define SDIO_VENDOR_ID_BROADCOM		0x02d0
 #endif				/* !defined(SDIO_VENDOR_ID_BROADCOM) */
@@ -45,11 +43,6 @@
 #if !defined(SDIO_DEVICE_ID_BROADCOM_4329)
 #define SDIO_DEVICE_ID_BROADCOM_4329	0x4329
 #endif		/* !defined(SDIO_DEVICE_ID_BROADCOM_4329) */
-
-struct sdos_info {
-	struct sdioh_info *sd;
-	spinlock_t lock;
-};
 
 static void brcmf_sdioh_irqhandler(struct sdio_func *func);
 static void brcmf_sdioh_irqhandler_f2(struct sdio_func *func);
@@ -174,14 +167,8 @@ struct sdioh_info *brcmf_sdioh_attach(void *bar0)
 		BRCMF_ERROR(("sdioh_attach: out of memory\n"));
 		return NULL;
 	}
-	if (brcmf_sdioh_osinit(sd) != 0) {
-		BRCMF_ERROR(("%s:sdioh_sdmmc_osinit() failed\n", __func__));
-		kfree(sd);
-		return NULL;
-	}
 
 	sd->num_funcs = 2;
-	sd->use_client_ints = true;
 	sd->client_block_size[0] = 64;
 
 	gInstance->sd = sd;
@@ -233,9 +220,6 @@ extern int brcmf_sdioh_detach(struct sdioh_info *sd)
 		sdio_claim_host(gInstance->func[1]);
 		sdio_disable_func(gInstance->func[1]);
 		sdio_release_host(gInstance->func[1]);
-
-		/* deregister irq */
-		brcmf_sdioh_osfree(sd);
 
 		kfree(sd);
 	}
@@ -304,7 +288,6 @@ extern int brcmf_sdioh_interrupt_deregister(struct sdioh_info *sd)
 enum {
 	IOV_MSGLEVEL = 1,
 	IOV_BLOCKSIZE,
-	IOV_USEINTS,
 	IOV_NUMINTS,
 	IOV_DEVREG,
 	IOV_HCIREGS,
@@ -314,7 +297,6 @@ enum {
 const struct brcmu_iovar sdioh_iovars[] = {
 	{"sd_blocksize", IOV_BLOCKSIZE, 0, IOVT_UINT32, 0},/* ((fn << 16) |
 								 size) */
-	{"sd_ints", IOV_USEINTS, 0, IOVT_BOOL, 0},
 	{"sd_numints", IOV_NUMINTS, 0, IOVT_UINT32, 0},
 	{"sd_devreg", IOV_DEVREG, 0, IOVT_BUFFER, sizeof(struct brcmf_sdreg)}
 	,
@@ -427,20 +409,6 @@ brcmf_sdioh_iovar_op(struct sdioh_info *si, const char *name,
 	case IOV_GVAL(IOV_RXCHAIN):
 		int_val = false;
 		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_GVAL(IOV_USEINTS):
-		int_val = (s32) si->use_client_ints;
-		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_SVAL(IOV_USEINTS):
-		si->use_client_ints = (bool) int_val;
-		if (si->use_client_ints)
-			si->intmask |= CLIENT_INTR;
-		else
-			si->intmask &= ~CLIENT_INTR;
-
 		break;
 
 	case IOV_GVAL(IOV_NUMINTS):
@@ -881,20 +849,6 @@ extern int brcmf_sdioh_abort(struct sdioh_info *sd, uint func)
 	return 0;
 }
 
-/* Disable device interrupt */
-void brcmf_sdioh_dev_intr_off(struct sdioh_info *sd)
-{
-	BRCMF_TRACE(("%s: %d\n", __func__, sd->use_client_ints));
-	sd->intmask &= ~CLIENT_INTR;
-}
-
-/* Enable device interrupt */
-void brcmf_sdioh_dev_intr_on(struct sdioh_info *sd)
-{
-	BRCMF_TRACE(("%s: %d\n", __func__, sd->use_client_ints));
-	sd->intmask |= CLIENT_INTR;
-}
-
 /* Read client card reg */
 int
 brcmf_sdioh_card_regread(struct sdioh_info *sd, int func, u32 regaddr,
@@ -929,15 +883,8 @@ static void brcmf_sdioh_irqhandler(struct sdio_func *func)
 
 	sdio_release_host(gInstance->func[0]);
 
-	if (sd->use_client_ints) {
-		sd->intrcount++;
-		(sd->intr_handler) (sd->intr_handler_arg);
-	} else {
-		BRCMF_ERROR(("brcmf: ***IRQHandler\n"));
-
-		BRCMF_ERROR(("%s: Not ready for intr: enabled %d, handler %p\n",
-			__func__, sd->client_intr_enabled, sd->intr_handler));
-	}
+	sd->intrcount++;
+	(sd->intr_handler) (sd->intr_handler_arg);
 
 	sdio_claim_host(gInstance->func[0]);
 }
@@ -1059,58 +1006,6 @@ static int brcmf_sdio_resume(struct device *dev)
 	return 0;
 }
 #endif		/* CONFIG_PM_SLEEP */
-
-int brcmf_sdioh_osinit(struct sdioh_info *sd)
-{
-	struct sdos_info *sdos;
-
-	sdos = kmalloc(sizeof(struct sdos_info), GFP_ATOMIC);
-	sd->sdos_info = (void *)sdos;
-	if (sdos == NULL)
-		return -ENOMEM;
-
-	sdos->sd = sd;
-	spin_lock_init(&sdos->lock);
-	return 0;
-}
-
-void brcmf_sdioh_osfree(struct sdioh_info *sd)
-{
-	struct sdos_info *sdos;
-
-	sdos = (struct sdos_info *)sd->sdos_info;
-	kfree(sdos);
-}
-
-/* Interrupt enable/disable */
-int brcmf_sdioh_interrupt_set(struct sdioh_info *sd, bool enable)
-{
-	unsigned long flags;
-	struct sdos_info *sdos;
-
-	BRCMF_TRACE(("%s: %s\n", __func__, enable ? "Enabling" : "Disabling"));
-
-	sdos = (struct sdos_info *)sd->sdos_info;
-
-	if (enable && !(sd->intr_handler && sd->intr_handler_arg)) {
-		BRCMF_ERROR(("%s: no handler registered, will not enable\n",
-			__func__));
-		return -EINVAL;
-	}
-
-	/* Ensure atomicity for enable/disable calls */
-	spin_lock_irqsave(&sdos->lock, flags);
-
-	sd->client_intr_enabled = enable;
-	if (enable)
-		brcmf_sdioh_dev_intr_on(sd);
-	else
-		brcmf_sdioh_dev_intr_off(sd);
-
-	spin_unlock_irqrestore(&sdos->lock, flags);
-
-	return 0;
-}
 
 /*
  * module init

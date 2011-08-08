@@ -53,16 +53,6 @@ brcmf_sdcard_iovar_op(struct brcmf_sdio_dev *sdiodev, const char *name,
 				    len, set);
 }
 
-int brcmf_sdcard_intr_enable(struct brcmf_sdio_dev *sdiodev)
-{
-	return brcmf_sdioh_interrupt_set(sdiodev->sdioh, true);
-}
-
-int brcmf_sdcard_intr_disable(struct brcmf_sdio_dev *sdiodev)
-{
-	return brcmf_sdioh_interrupt_set(sdiodev->sdioh, false);
-}
-
 int brcmf_sdcard_intr_reg(struct brcmf_sdio_dev *sdiodev,
 			  void (*fn)(void *), void *argh)
 {

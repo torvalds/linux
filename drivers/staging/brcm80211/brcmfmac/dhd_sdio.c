@@ -655,7 +655,6 @@ struct brcmf_bus {
 	bool intr;		/* Use interrupts */
 	bool poll;		/* Use polling */
 	bool ipend;		/* Device interrupt is pending */
-	bool intdis;		/* Interrupts disabled by isr */
 	uint intrcount;		/* Count of device interrupt callbacks */
 	uint lastintrs;		/* Count as of last watchdog timer */
 	uint spurious;		/* Count of spurious interrupts */
@@ -1272,9 +1271,6 @@ int brcmf_sdbrcm_bussleep(struct brcmf_bus *bus, bool sleep)
 		if (bus->dpc_sched || bus->rxskip || pktq_len(&bus->txq))
 			return -EBUSY;
 
-		/* Disable SDIO interrupts (no longer interested) */
-		brcmf_sdcard_intr_disable(bus->sdiodev);
-
 		/* Make sure the controller has the bus up */
 		brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
 
@@ -1334,12 +1330,6 @@ int brcmf_sdbrcm_bussleep(struct brcmf_bus *bus, bool sleep)
 
 		/* Change state */
 		bus->sleeping = false;
-
-		/* Enable interrupts again */
-		if (bus->intr && (bus->drvr->busstate == BRCMF_BUS_DATA)) {
-			bus->intdis = false;
-			brcmf_sdcard_intr_enable(bus->sdiodev);
-		}
 	}
 
 	return 0;
@@ -2612,15 +2602,6 @@ static int brcmf_sdbrcm_doiovar(struct brcmf_bus *bus,
 
 	case IOV_SVAL(IOV_INTR):
 		bus->intr = bool_val;
-		bus->intdis = false;
-		if (bus->drvr->up) {
-			BRCMF_INTR(("%s: %s SDIO interrupts\n", __func__,
-				    bus->intr ? "enable" : "disable"));
-			if (bus->intr)
-				brcmf_sdcard_intr_enable(bus->sdiodev);
-			else
-				brcmf_sdcard_intr_disable(bus->sdiodev);
-		}
 		break;
 
 	case IOV_GVAL(IOV_POLLRATE):
@@ -3294,7 +3275,6 @@ void brcmf_sdbrcm_bus_stop(struct brcmf_bus *bus, bool enforce_mutex)
 
 	/* Turn off the bus (F2), free any pending packets */
 	BRCMF_INTR(("%s: disable SDIO interrupts\n", __func__));
-	brcmf_sdcard_intr_disable(bus->sdiodev);
 	brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_0, SDIO_CCCR_IOEx,
 			 SDIO_FUNC_ENABLE_1, NULL);
 
@@ -3411,17 +3391,6 @@ int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr, bool enforce_mutex)
 
 		/* Set bus state according to enable result */
 		drvr->busstate = BRCMF_BUS_DATA;
-
-		bus->intdis = false;
-		if (bus->intr) {
-			BRCMF_INTR(("%s: enable SDIO device interrupts\n",
-				    __func__));
-			brcmf_sdcard_intr_enable(bus->sdiodev);
-		} else {
-			BRCMF_INTR(("%s: disable SDIO interrupts\n", __func__));
-			brcmf_sdcard_intr_disable(bus->sdiodev);
-		}
-
 	}
 
 	else {
@@ -4854,17 +4823,6 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_bus *bus)
 	bus->intstatus = intstatus;
 
 clkwait:
-	/* Re-enable interrupts to detect new device events (mailbox, rx frame)
-	 * or clock availability.  (Allows tx loop to check ipend if desired.)
-	 * (Unless register access seems hosed, as we may not be able to ACK...)
-	 */
-	if (bus->intr && bus->intdis && !brcmf_sdcard_regfail(bus->sdiodev)) {
-		BRCMF_INTR(("%s: enable SDIO interrupts, rxdone %d"
-			    " framecnt %d\n", __func__, rxdone, framecnt));
-		bus->intdis = false;
-		brcmf_sdcard_intr_enable(bus->sdiodev);
-	}
-
 	if (DATAOK(bus) && bus->ctrl_frame_stat &&
 		(bus->clkstate == CLK_AVAIL)) {
 		int ret, i;
@@ -4982,13 +4940,8 @@ void brcmf_sdbrcm_isr(void *arg)
 	}
 
 	/* Disable additional interrupts (is this needed now)? */
-	if (bus->intr)
-		BRCMF_INTR(("%s: disable SDIO interrupts\n", __func__));
-	else
+	if (!bus->intr)
 		BRCMF_ERROR(("brcmf_sdbrcm_isr() w/o interrupt configured!\n"));
-
-	brcmf_sdcard_intr_disable(bus->sdiodev);
-	bus->intdis = true;
 
 #if defined(SDIO_ISR_THREAD)
 	BRCMF_TRACE(("Calling brcmf_sdbrcm_dpc() from %s\n", __func__));
@@ -5305,8 +5258,6 @@ extern bool brcmf_sdbrcm_bus_watchdog(struct brcmf_pub *drvr)
 			if (intstatus) {
 				bus->pollcnt++;
 				bus->ipend = true;
-				if (bus->intr)
-					brcmf_sdcard_intr_disable(bus->sdiodev);
 
 				bus->dpc_sched = true;
 				brcmf_sdbrcm_sched_dpc(bus);
@@ -5555,7 +5506,6 @@ void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
 	/* Register interrupt callback, but mask it (not operational yet). */
 	BRCMF_INTR(("%s: disable SDIO interrupts (not interested yet)\n",
 		    __func__));
-	brcmf_sdcard_intr_disable(bus->sdiodev);
 	ret = brcmf_sdcard_intr_reg(bus->sdiodev, brcmf_sdbrcm_isr, bus);
 	if (ret != 0) {
 		BRCMF_ERROR(("%s: FAILED: sdcard_intr_reg returned %d\n",
@@ -5804,7 +5754,6 @@ static void brcmf_sdbrcm_release(struct brcmf_bus *bus)
 
 	if (bus) {
 		/* De-register interrupt handler */
-		brcmf_sdcard_intr_disable(bus->sdiodev);
 		brcmf_sdcard_intr_dereg(bus->sdiodev);
 
 		if (bus->drvr) {

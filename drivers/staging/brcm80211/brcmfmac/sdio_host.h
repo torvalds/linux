@@ -124,18 +124,14 @@ struct brcmf_sdreg {
 
 struct sdioh_info {
 	struct osl_info *osh;		/* osh handler */
-	bool client_intr_enabled;	/* interrupt connnected flag */
 	bool intr_handler_valid; /* client driver interrupt handler valid */
 	void (*intr_handler)(void *);	/* registered interrupt handler */
 	void *intr_handler_arg;	/* argument to call interrupt handler */
-	u16 intmask;		/* Current active interrupts */
-	void *sdos_info;	/* Pointer to per-OS private data */
 
 	uint irq;		/* Client irq */
 	int intrcount;		/* Client interrupts */
 	bool sd_blockmode;	/* sd_blockmode == false => 64 Byte Cmd 53s. */
 	/*  Must be on for sd_multiblock to be effective */
-	bool use_client_ints;	/* If this is false, make sure to restore */
 	int client_block_size[SDIOD_MAX_IOFUNCS];	/* Blocksize */
 	u8 num_funcs;	/* Supported funcs on client */
 	u32 com_cis_ptr;
@@ -160,10 +156,6 @@ struct brcmf_sdio_dev {
 	bool regfail;			/* status of last reg_r/w call */
 	void *bus;
 };
-
-/* Enable/disable SD interrupt */
-extern int brcmf_sdcard_intr_enable(struct brcmf_sdio_dev *sdiodev);
-extern int brcmf_sdcard_intr_disable(struct brcmf_sdio_dev *sdiodev);
 
 /* Register/deregister device interrupt handler. */
 extern int
@@ -278,14 +270,6 @@ extern int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev);
 /* Function to return current window addr */
 extern u32 brcmf_sdcard_cur_sbwad(struct brcmf_sdio_dev *sdiodev);
 
-/* Allocate/init/free per-OS private data */
-extern int  brcmf_sdioh_osinit(struct sdioh_info *sd);
-extern void brcmf_sdioh_osfree(struct sdioh_info *sd);
-
-/* Core interrupt enable/disable of device interrupts */
-extern void brcmf_sdioh_dev_intr_on(struct sdioh_info *sd);
-extern void brcmf_sdioh_dev_intr_off(struct sdioh_info *sd);
-
 /* attach, return handler on success, NULL if failed.
  *  The handler shall be provided by all subsequent calls. No local cache
  *  cfghdl points to the starting address of pci device mapped memory
@@ -298,10 +282,6 @@ brcmf_sdioh_interrupt_register(struct sdioh_info *si,
 			       void (*sdioh_cb_fn)(void *), void *argh);
 
 extern int brcmf_sdioh_interrupt_deregister(struct sdioh_info *si);
-
-/* enable or disable SD interrupt */
-extern int
-brcmf_sdioh_interrupt_set(struct sdioh_info *si, bool enable_disable);
 
 /* read or write one byte using cmd52 */
 extern int
