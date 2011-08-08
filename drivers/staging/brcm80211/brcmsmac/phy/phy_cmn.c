@@ -119,7 +119,7 @@ const u8 ofdm_rate_lookup[] = {
 	BRCM_RATE_9M
 };
 
-#define PHY_WREG_LIMIT	24
+#define PHY_WREG_LIMIT  24
 
 static void wlc_set_phy_uninitted(struct brcms_phy *pi);
 static u32 wlc_phy_get_radio_ver(struct brcms_phy *pi);
@@ -142,7 +142,7 @@ static void wlc_phy_txpower_reg_limit_calc(struct brcms_phy *pi,
 static bool wlc_phy_cal_txpower_recalc_sw(struct brcms_phy *pi);
 
 static s8 wlc_user_txpwr_antport_to_rfport(struct brcms_phy *pi, uint chan,
-					     u32 band, u8 rate);
+					   u32 band, u8 rate);
 static void wlc_phy_upd_env_txpwr_rate_limits(struct brcms_phy *pi, u32 band);
 static s8 wlc_phy_env_measure_vbat(struct brcms_phy *pi);
 static s8 wlc_phy_env_measure_temperature(struct brcms_phy *pi);
@@ -581,11 +581,11 @@ wlc_phy_attach(struct shared_phy *sh, void *regs, int bandtype,
 
 	idcode = wlc_phy_get_radio_ver(pi);
 	pi->pubpi.radioid =
-	    (idcode & IDCODE_ID_MASK) >> IDCODE_ID_SHIFT;
+		(idcode & IDCODE_ID_MASK) >> IDCODE_ID_SHIFT;
 	pi->pubpi.radiorev =
-	    (idcode & IDCODE_REV_MASK) >> IDCODE_REV_SHIFT;
+		(idcode & IDCODE_REV_MASK) >> IDCODE_REV_SHIFT;
 	pi->pubpi.radiover =
-	    (idcode & IDCODE_VER_MASK) >> IDCODE_VER_SHIFT;
+		(idcode & IDCODE_VER_MASK) >> IDCODE_VER_SHIFT;
 	if (!VALID_RADIO(pi, pi->pubpi.radioid))
 		goto err;
 
@@ -595,7 +595,7 @@ wlc_phy_attach(struct shared_phy *sh, void *regs, int bandtype,
 
 	pi->bw = WL_CHANSPEC_BW_20;
 	pi->radio_chanspec =
-	    BAND_2G(bandtype) ? CH20MHZ_CHSPEC(1) : CH20MHZ_CHSPEC(36);
+		BAND_2G(bandtype) ? CH20MHZ_CHSPEC(1) : CH20MHZ_CHSPEC(36);
 
 	pi->rxiq_samps = PHY_NOISE_SAMPLE_LOG_NUM_NPHY;
 	pi->rxiq_antsel = ANT_RX_DIV_DEF;
@@ -617,7 +617,7 @@ wlc_phy_attach(struct shared_phy *sh, void *regs, int bandtype,
 
 	pi->phy_txcore_disable_temp = PHY_CHAIN_TX_DISABLE_TEMP;
 	pi->phy_txcore_enable_temp =
-	    PHY_CHAIN_TX_DISABLE_TEMP - PHY_HYSTERESIS_DELTATEMP;
+		PHY_CHAIN_TX_DISABLE_TEMP - PHY_HYSTERESIS_DELTATEMP;
 	pi->phy_tempsense_offset = 0;
 	pi->phy_txcore_heatedup = false;
 
@@ -640,8 +640,8 @@ wlc_phy_attach(struct shared_phy *sh, void *regs, int bandtype,
 	if (ISNPHY(pi)) {
 
 		pi->phycal_timer = wlapi_init_timer(pi->sh->physhim,
-							  wlc_phy_timercb_phycal,
-							  pi, "phycal");
+						    wlc_phy_timercb_phycal,
+						    pi, "phycal");
 		if (!pi->phycal_timer)
 			goto err;
 
@@ -664,7 +664,7 @@ wlc_phy_attach(struct shared_phy *sh, void *regs, int bandtype,
 
 	return &pi->pubpi_ro;
 
- err:
+err:
 	kfree(pi);
 	return NULL;
 }
@@ -688,7 +688,7 @@ void wlc_phy_detach(struct brcms_phy_pub *pih)
 			pi->sh->phy_head->next = NULL;
 
 		if (pi->pi_fptr.detach)
-			(pi->pi_fptr.detach) (pi);
+			(pi->pi_fptr.detach)(pi);
 
 		kfree(pi);
 	}
@@ -853,7 +853,7 @@ void wlc_phy_hw_state_upd(struct brcms_phy_pub *pih, bool newstate)
 void wlc_phy_init(struct brcms_phy_pub *pih, u16 chanspec)
 {
 	u32 mc;
-	void (*phy_init) (struct brcms_phy *) = NULL;
+	void (*phy_init)(struct brcms_phy *) = NULL;
 	struct brcms_phy *pi = (struct brcms_phy *) pih;
 
 	if (pi->init_in_progress)
@@ -889,7 +889,7 @@ void wlc_phy_init(struct brcms_phy_pub *pih, u16 chanspec)
 
 	wlc_phy_switch_radio((struct brcms_phy_pub *) pi, ON);
 
-	(*phy_init) (pi);
+	(*phy_init)(pi);
 
 	pi->phy_init_por = false;
 
@@ -916,7 +916,7 @@ void wlc_phy_cal_init(struct brcms_phy_pub *pih)
 	if (!pi->initialized) {
 		cal_init = pi->pi_fptr.calinit;
 		if (cal_init)
-			(*cal_init) (pi);
+			(*cal_init)(pi);
 
 		pi->initialized = true;
 	}
@@ -1108,7 +1108,7 @@ wlc_phy_init_radio_regs(struct brcms_phy *pi, struct radio_regs *radioregs,
 
 void wlc_phy_do_dummy_tx(struct brcms_phy *pi, bool ofdm, bool pa_on)
 {
-#define	DUMMY_PKT_LEN	20
+#define DUMMY_PKT_LEN   20
 	struct d11regs *regs = pi->regs;
 	int i, count;
 	u8 ofdmpkt[DUMMY_PKT_LEN] = {
@@ -1300,7 +1300,7 @@ void wlc_phy_chanspec_set(struct brcms_phy_pub *ppi, u16 chanspec)
 {
 	struct brcms_phy *pi = (struct brcms_phy *) ppi;
 	u16 m_cur_channel;
-	void (*chanspec_set) (struct brcms_phy *, u16) = NULL;
+	void (*chanspec_set)(struct brcms_phy *, u16) = NULL;
 	m_cur_channel = CHSPEC_CHANNEL(chanspec);
 	if (CHSPEC_IS5G(chanspec))
 		m_cur_channel |= D11_CURCHANNEL_5G;
@@ -1310,7 +1310,7 @@ void wlc_phy_chanspec_set(struct brcms_phy_pub *ppi, u16 chanspec)
 
 	chanspec_set = pi->pi_fptr.chanset;
 	if (chanspec_set)
-		(*chanspec_set) (pi, chanspec);
+		(*chanspec_set)(pi, chanspec);
 
 }
 
@@ -1409,9 +1409,8 @@ u16 wlc_phy_chanspec_band_firstch(struct brcms_phy_pub *ppi, uint band)
 				continue;
 
 			channel = UPPER_20_SB(channel);
-			chspec =
-			    channel | WL_CHANSPEC_BW_40 |
-			    WL_CHANSPEC_CTL_SB_LOWER;
+			chspec =  channel | WL_CHANSPEC_BW_40 |
+				  WL_CHANSPEC_CTL_SB_LOWER;
 			if (band == BRCM_BAND_2G)
 				chspec |= WL_CHANSPEC_BAND_2G;
 			else
@@ -1508,10 +1507,8 @@ int wlc_phy_txpower_set(struct brcms_phy_pub *ppi, uint qdbm, bool override)
 		if (!SCAN_INPROG_PHY(pi)) {
 			bool suspend;
 
-			suspend =
-			    (0 ==
-			     (R_REG(&pi->regs->maccontrol) &
-			      MCTL_EN_MAC));
+			suspend = (0 == (R_REG(&pi->regs->maccontrol) &
+					 MCTL_EN_MAC));
 
 			if (!suspend)
 				wlapi_suspend_mac_and_wait(pi->sh->physhim);
@@ -1588,7 +1585,8 @@ wlc_phy_txpower_sromlimit_max_get(struct brcms_phy_pub *ppi, uint chan,
 	pactrl = 0;
 
 	max_num_rate = ISNPHY(pi) ? TXP_NUM_RATES :
-	    ISLCNPHY(pi) ? (TXP_LAST_SISO_MCS_20 + 1) : (TXP_LAST_OFDM + 1);
+		       ISLCNPHY(pi) ? (TXP_LAST_SISO_MCS_20 +
+				       1) : (TXP_LAST_OFDM + 1);
 
 	for (rate = 0; rate < max_num_rate; rate++) {
 
@@ -1658,8 +1656,8 @@ void wlc_phy_txpower_recalc_target(struct brcms_phy *pi)
 			for (i = TXP_FIRST_SISO_MCS_20;
 			     i <= TXP_LAST_SISO_MCS_20; i++) {
 				pi->tx_srom_max_rate_2g[i - 8] =
-				    pi->tx_srom_max_2g -
-				    ((offset_mcs & 0xf) * 2);
+					pi->tx_srom_max_2g -
+					((offset_mcs & 0xf) * 2);
 				offset_mcs >>= 4;
 			}
 		} else {
@@ -1667,8 +1665,8 @@ void wlc_phy_txpower_recalc_target(struct brcms_phy *pi)
 			for (i = TXP_FIRST_SISO_MCS_20;
 			     i <= TXP_LAST_SISO_MCS_20; i++) {
 				pi->tx_srom_max_rate_2g[i - 8] =
-				    pi->tx_srom_max_2g -
-				    ((offset_mcs & 0xf) * 2);
+					pi->tx_srom_max_2g -
+					((offset_mcs & 0xf) * 2);
 				offset_mcs >>= 4;
 			}
 		}
@@ -1689,8 +1687,10 @@ void wlc_phy_txpower_recalc_target(struct brcms_phy *pi)
 
 		if (pi->user_txpwr_at_rfport)
 			tx_pwr_target[rate] +=
-			    wlc_user_txpwr_antport_to_rfport(pi, target_chan,
-							     band, rate);
+				wlc_user_txpwr_antport_to_rfport(pi,
+								 target_chan,
+								 band,
+								 rate);
 
 		{
 
@@ -1701,7 +1701,7 @@ void wlc_phy_txpower_recalc_target(struct brcms_phy *pi)
 			maxtxpwr = min(maxtxpwr, pi->txpwr_limit[rate]);
 
 			maxtxpwr =
-			    (maxtxpwr > pactrl) ? (maxtxpwr - pactrl) : 0;
+				(maxtxpwr > pactrl) ? (maxtxpwr - pactrl) : 0;
 
 			maxtxpwr = (maxtxpwr > 6) ? (maxtxpwr - 6) : 0;
 
@@ -1714,7 +1714,7 @@ void wlc_phy_txpower_recalc_target(struct brcms_phy *pi)
 		}
 
 		tx_pwr_target[rate] =
-		    min(tx_pwr_target[rate], pi->txpwr_env_limit[rate]);
+			min(tx_pwr_target[rate], pi->txpwr_env_limit[rate]);
 
 		if (tx_pwr_target[rate] > tx_pwr_max)
 			tx_pwr_max_rate_ind = rate;
@@ -1733,15 +1733,15 @@ void wlc_phy_txpower_recalc_target(struct brcms_phy *pi)
 
 		if (!pi->hwpwrctrl || ISNPHY(pi))
 			pi->tx_power_offset[rate] =
-			    pi->tx_power_max - pi->tx_power_target[rate];
+				pi->tx_power_max - pi->tx_power_target[rate];
 		else
 			pi->tx_power_offset[rate] =
-			    pi->tx_power_target[rate] - pi->tx_power_min;
+				pi->tx_power_target[rate] - pi->tx_power_min;
 	}
 
 	txpwr_recalc_fn = pi->pi_fptr.txpwrrecalc;
 	if (txpwr_recalc_fn)
-		(*txpwr_recalc_fn) (pi);
+		(*txpwr_recalc_fn)(pi);
 }
 
 void
@@ -1781,7 +1781,7 @@ wlc_phy_txpower_reg_limit_calc(struct brcms_phy *pi, struct txpwr_limits *txpwr,
 				txpwr_ptr1 = txpwr->mcs_40_siso;
 				txpwr_ptr2 = txpwr->ofdm_40_siso;
 				rate_start_index =
-				    WL_TX_POWER_OFDM40_SISO_FIRST;
+					WL_TX_POWER_OFDM40_SISO_FIRST;
 				break;
 			case 3:
 
@@ -1791,18 +1791,21 @@ wlc_phy_txpower_reg_limit_calc(struct brcms_phy *pi, struct txpwr_limits *txpwr,
 				break;
 			}
 
-			for (rate2 = 0; rate2 < BRCMS_NUM_RATES_OFDM; rate2++) {
+			for (rate2 = 0; rate2 < BRCMS_NUM_RATES_OFDM;
+			     rate2++) {
 				tmp_txpwr_limit[rate2] = 0;
 				tmp_txpwr_limit[BRCMS_NUM_RATES_OFDM + rate2] =
-				    txpwr_ptr1[rate2];
+					txpwr_ptr1[rate2];
 			}
-			wlc_phy_mcs_to_ofdm_powers_nphy(tmp_txpwr_limit, 0,
-				BRCMS_NUM_RATES_OFDM - 1, BRCMS_NUM_RATES_OFDM);
+			wlc_phy_mcs_to_ofdm_powers_nphy(
+				tmp_txpwr_limit, 0,
+				BRCMS_NUM_RATES_OFDM -
+				1, BRCMS_NUM_RATES_OFDM);
 			for (rate1 = rate_start_index, rate2 = 0;
 			     rate2 < BRCMS_NUM_RATES_OFDM; rate1++, rate2++)
 				pi->txpwr_limit[rate1] =
-				    min(txpwr_ptr2[rate2],
-					tmp_txpwr_limit[rate2]);
+					min(txpwr_ptr2[rate2],
+					    tmp_txpwr_limit[rate2]);
 		}
 
 		for (k = 0; k < 4; k++) {
@@ -1832,19 +1835,22 @@ wlc_phy_txpower_reg_limit_calc(struct brcms_phy *pi, struct txpwr_limits *txpwr,
 				rate_start_index = WL_TX_POWER_MCS40_CDD_FIRST;
 				break;
 			}
-			for (rate2 = 0; rate2 < BRCMS_NUM_RATES_OFDM; rate2++) {
+			for (rate2 = 0; rate2 < BRCMS_NUM_RATES_OFDM;
+			     rate2++) {
 				tmp_txpwr_limit[rate2] = 0;
 				tmp_txpwr_limit[BRCMS_NUM_RATES_OFDM + rate2] =
-				    txpwr_ptr1[rate2];
+					txpwr_ptr1[rate2];
 			}
-			wlc_phy_ofdm_to_mcs_powers_nphy(tmp_txpwr_limit, 0,
-				BRCMS_NUM_RATES_OFDM - 1, BRCMS_NUM_RATES_OFDM);
+			wlc_phy_ofdm_to_mcs_powers_nphy(
+				tmp_txpwr_limit, 0,
+				BRCMS_NUM_RATES_OFDM -
+				1, BRCMS_NUM_RATES_OFDM);
 			for (rate1 = rate_start_index, rate2 = 0;
 			     rate2 < BRCMS_NUM_RATES_MCS_1_STREAM;
 			     rate1++, rate2++)
 				pi->txpwr_limit[rate1] =
-				    min(txpwr_ptr2[rate2],
-					tmp_txpwr_limit[rate2]);
+					min(txpwr_ptr2[rate2],
+					    tmp_txpwr_limit[rate2]);
 		}
 
 		for (k = 0; k < 2; k++) {
@@ -1888,10 +1894,10 @@ wlc_phy_txpower_reg_limit_calc(struct brcms_phy *pi, struct txpwr_limits *txpwr,
 		pi->txpwr_limit[WL_TX_POWER_MCS_32] = txpwr->mcs32;
 
 		pi->txpwr_limit[WL_TX_POWER_MCS40_CDD_FIRST] =
-		    min(pi->txpwr_limit[WL_TX_POWER_MCS40_CDD_FIRST],
-			pi->txpwr_limit[WL_TX_POWER_MCS_32]);
+			min(pi->txpwr_limit[WL_TX_POWER_MCS40_CDD_FIRST],
+			    pi->txpwr_limit[WL_TX_POWER_MCS_32]);
 		pi->txpwr_limit[WL_TX_POWER_MCS_32] =
-		    pi->txpwr_limit[WL_TX_POWER_MCS40_CDD_FIRST];
+			pi->txpwr_limit[WL_TX_POWER_MCS40_CDD_FIRST];
 	}
 }
 
@@ -2005,9 +2011,9 @@ void wlc_phy_txpower_update_shm(struct brcms_phy *pi)
 			const u8 ucode_ofdm_rates[] = {
 				0x0c, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6c
 			};
-			offset = wlapi_bmac_rate_shm_offset(pi->sh->physhim,
-							    ucode_ofdm_rates[j -
-									     TXP_FIRST_OFDM]);
+			offset = wlapi_bmac_rate_shm_offset(
+				pi->sh->physhim,
+				ucode_ofdm_rates[j - TXP_FIRST_OFDM]);
 			wlapi_bmac_write_shm(pi->sh->physhim, offset + 6,
 					     pi->tx_power_offset[j]);
 			wlapi_bmac_write_shm(pi->sh->physhim, offset + 14,
@@ -2021,11 +2027,11 @@ void wlc_phy_txpower_update_shm(struct brcms_phy *pi)
 
 		for (i = TXP_FIRST_OFDM; i <= TXP_LAST_OFDM; i++)
 			pi->tx_power_offset[i] =
-			    (u8) roundup(pi->tx_power_offset[i], 8);
+				(u8) roundup(pi->tx_power_offset[i], 8);
 		wlapi_bmac_write_shm(pi->sh->physhim, M_OFDM_OFFSET,
-				     (u16) ((pi->
-						tx_power_offset[TXP_FIRST_OFDM]
-						+ 7) >> 3));
+				     (u16)
+				     ((pi->tx_power_offset[TXP_FIRST_OFDM]
+				       + 7) >> 3));
 	}
 }
 
@@ -2052,9 +2058,7 @@ void wlc_phy_txpower_hw_ctrl_set(struct brcms_phy_pub *ppi, bool hwpwrctrl)
 	pi->txpwrctrl = hwpwrctrl;
 
 	if (ISNPHY(pi)) {
-		suspend =
-		    (0 ==
-		     (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
+		suspend = (0 == (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
 		if (!suspend)
 			wlapi_suspend_mac_and_wait(pi->sh->physhim);
 
@@ -2092,38 +2096,31 @@ static u32 wlc_phy_txpower_est_power_nphy(struct brcms_phy *pi)
 	estPower1 = read_phy_reg(pi, 0x118);
 	estPower2 = read_phy_reg(pi, 0x119);
 
-	if ((estPower1 & (0x1 << 8))
-	    == (0x1 << 8))
-		pwr0 = (u8) (estPower1 & (0xff << 0))
-		    >> 0;
+	if ((estPower1 & (0x1 << 8)) == (0x1 << 8))
+		pwr0 = (u8) (estPower1 & (0xff << 0)) >> 0;
 	else
 		pwr0 = 0x80;
 
-	if ((estPower2 & (0x1 << 8))
-	    == (0x1 << 8))
-		pwr1 = (u8) (estPower2 & (0xff << 0))
-		    >> 0;
+	if ((estPower2 & (0x1 << 8)) == (0x1 << 8))
+		pwr1 = (u8) (estPower2 & (0xff << 0)) >> 0;
 	else
 		pwr1 = 0x80;
 
 	tx0_status = read_phy_reg(pi, 0x1ed);
 	tx1_status = read_phy_reg(pi, 0x1ee);
 
-	if ((tx0_status & (0x1 << 15))
-	    == (0x1 << 15))
-		adj_pwr0 = (u8) (tx0_status & (0xff << 0))
-		    >> 0;
+	if ((tx0_status & (0x1 << 15)) == (0x1 << 15))
+		adj_pwr0 = (u8) (tx0_status & (0xff << 0)) >> 0;
 	else
 		adj_pwr0 = 0x80;
-	if ((tx1_status & (0x1 << 15))
-	    == (0x1 << 15))
-		adj_pwr1 = (u8) (tx1_status & (0xff << 0))
-		    >> 0;
+	if ((tx1_status & (0x1 << 15)) == (0x1 << 15))
+		adj_pwr1 = (u8) (tx1_status & (0xff << 0)) >> 0;
 	else
 		adj_pwr1 = 0x80;
 
-	est_pwr =
-	    (u32) ((pwr0 << 24) | (pwr1 << 16) | (adj_pwr0 << 8) | adj_pwr1);
+	est_pwr = (u32) ((pwr0 << 24) | (pwr1 << 16) | (adj_pwr0 << 8) |
+			 adj_pwr1);
+
 	return est_pwr;
 }
 
@@ -2144,7 +2141,7 @@ wlc_phy_txpower_get_current(struct brcms_phy_pub *ppi, struct tx_power *power,
 		power->flags |= (WL_TX_POWER_F_MIMO);
 		if (pi->nphy_txpwrctrl == PHY_TPC_HW_ON)
 			power->flags |=
-			    (WL_TX_POWER_F_ENABLED | WL_TX_POWER_F_HW);
+				(WL_TX_POWER_F_ENABLED | WL_TX_POWER_F_HW);
 	} else if (ISLCNPHY(pi)) {
 		power->rf_cores = 1;
 		power->flags |= (WL_TX_POWER_F_SISO);
@@ -2207,16 +2204,18 @@ wlc_phy_txpower_get_current(struct brcms_phy_pub *ppi, struct tx_power *power,
 			power->tx_power_max[1] = pi->tx_power_max;
 
 			power->tx_power_max_rate_ind[0] =
-			    pi->tx_power_max_rate_ind;
+				pi->tx_power_max_rate_ind;
 			power->tx_power_max_rate_ind[1] =
-			    pi->tx_power_max_rate_ind;
+				pi->tx_power_max_rate_ind;
 
 			if (wlc_phy_tpc_isenabled_lcnphy(pi))
 				power->flags |=
-				    (WL_TX_POWER_F_HW | WL_TX_POWER_F_ENABLED);
+					(WL_TX_POWER_F_HW |
+					 WL_TX_POWER_F_ENABLED);
 			else
 				power->flags &=
-				    ~(WL_TX_POWER_F_HW | WL_TX_POWER_F_ENABLED);
+					~(WL_TX_POWER_F_HW |
+					  WL_TX_POWER_F_ENABLED);
 
 			wlc_lcnphy_get_tssi(pi, (s8 *) &power->est_Pout[0],
 					    (s8 *) &power->est_Pout_cck);
@@ -2261,8 +2260,7 @@ void wlc_phy_ant_rxdiv_set(struct brcms_phy_pub *ppi, u8 val)
 	if (!pi->sh->clk)
 		return;
 
-	suspend =
-	    (0 == (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
+	suspend = (0 == (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
 	if (!suspend)
 		wlapi_suspend_mac_and_wait(pi->sh->physhim);
 
@@ -2306,7 +2304,7 @@ wlc_phy_noise_calc_phy(struct brcms_phy *pi, u32 *cmplx_pwr, s8 *pwr_ant)
 		pwr_ant[i] = cmplx_pwr_dbm[i];
 	}
 	pi->nphy_noise_index =
-	    MODINC_POW2(pi->nphy_noise_index, PHY_NOISE_WINDOW_SZ);
+		MODINC_POW2(pi->nphy_noise_index, PHY_NOISE_WINDOW_SZ);
 	return true;
 }
 
@@ -2343,12 +2341,11 @@ wlc_phy_noise_sample_request(struct brcms_phy_pub *pih, u8 reason, u8 ch)
 	if (pi->phy_fixed_noise) {
 		if (ISNPHY(pi)) {
 			pi->nphy_noise_win[WL_ANT_IDX_1][pi->nphy_noise_index] =
-			    PHY_NOISE_FIXED_VAL_NPHY;
+				PHY_NOISE_FIXED_VAL_NPHY;
 			pi->nphy_noise_win[WL_ANT_IDX_2][pi->nphy_noise_index] =
-			    PHY_NOISE_FIXED_VAL_NPHY;
+				PHY_NOISE_FIXED_VAL_NPHY;
 			pi->nphy_noise_index = MODINC_POW2(pi->nphy_noise_index,
 							   PHY_NOISE_WINDOW_SZ);
-
 			noise_dbm = PHY_NOISE_FIXED_VAL_NPHY;
 		} else {
 			noise_dbm = PHY_NOISE_FIXED_VAL;
@@ -2413,15 +2410,14 @@ wlc_phy_noise_sample_request(struct brcms_phy_pub *pih, u8 reason, u8 ch)
 			wlapi_enable_mac(pi->sh->physhim);
 
 			for (i = 0; i < pi->pubpi.phy_corenum; i++)
-				cmplx_pwr[i] =
-				    (est[i].i_pwr +
-				     est[i].q_pwr) >> log_num_samps;
+				cmplx_pwr[i] = (est[i].i_pwr + est[i].q_pwr) >>
+					       log_num_samps;
 
 			wlc_phy_noise_calc_phy(pi, cmplx_pwr, noise_dbm_ant);
 
 			for (i = 0; i < pi->pubpi.phy_corenum; i++) {
 				pi->nphy_noise_win[i][pi->nphy_noise_index] =
-				    noise_dbm_ant[i];
+					noise_dbm_ant[i];
 
 				if (noise_dbm_ant[i] > noise_dbm)
 					noise_dbm = noise_dbm_ant[i];
@@ -2433,7 +2429,7 @@ wlc_phy_noise_sample_request(struct brcms_phy_pub *pih, u8 reason, u8 ch)
 		}
 	}
 
- done:
+done:
 
 	if (!wait_for_intr)
 		wlc_phy_noise_cb(pi, ch, noise_dbm);
@@ -2457,9 +2453,9 @@ static void wlc_phy_noise_cb(struct brcms_phy *pi, u8 channel, s8 noise_dbm)
 	if (pi->phynoise_state & PHY_NOISE_STATE_MON) {
 		if (pi->phynoise_chan_watchdog == channel) {
 			pi->sh->phy_noise_window[pi->sh->phy_noise_index] =
-			    noise_dbm;
+				noise_dbm;
 			pi->sh->phy_noise_index =
-			    MODINC(pi->sh->phy_noise_index, MA_WINDOW_SZ);
+				MODINC(pi->sh->phy_noise_index, MA_WINDOW_SZ);
 		}
 		pi->phynoise_state &= ~PHY_NOISE_STATE_MON;
 	}
@@ -2481,7 +2477,8 @@ static s8 wlc_phy_noise_read_shmem(struct brcms_phy *pi)
 	memset((u8 *) cmplx_pwr, 0, sizeof(cmplx_pwr));
 	memset((u8 *) noise_dbm_ant, 0, sizeof(noise_dbm_ant));
 
-	for (idx = 0, core = 0; core < pi->pubpi.phy_corenum; idx += 2, core++) {
+	for (idx = 0, core = 0; core < pi->pubpi.phy_corenum; idx += 2,
+	     core++) {
 		lo = wlapi_bmac_read_shm(pi->sh->physhim, M_PWRIND_MAP(idx));
 		hi = wlapi_bmac_read_shm(pi->sh->physhim,
 					 M_PWRIND_MAP(idx + 1));
@@ -2498,13 +2495,13 @@ static s8 wlc_phy_noise_read_shmem(struct brcms_phy *pi)
 
 	for (core = 0; core < pi->pubpi.phy_corenum; core++) {
 		pi->nphy_noise_win[core][pi->nphy_noise_index] =
-		    noise_dbm_ant[core];
+			noise_dbm_ant[core];
 
 		if (noise_dbm_ant[core] > noise_dbm)
 			noise_dbm = noise_dbm_ant[core];
 	}
 	pi->nphy_noise_index =
-	    MODINC_POW2(pi->nphy_noise_index, PHY_NOISE_WINDOW_SZ);
+		MODINC_POW2(pi->nphy_noise_index, PHY_NOISE_WINDOW_SZ);
 
 	return noise_dbm;
 
@@ -2665,7 +2662,7 @@ void wlc_phy_rssi_compute(struct brcms_phy_pub *pih, void *ctx)
 		rssi = wlc_phy_rssi_compute_nphy(pi, wlc_rxhdr);
 	}
 
- end:
+end:
 	wlc_rxhdr->rssi = (s8) rssi;
 }
 
@@ -2739,8 +2736,9 @@ void wlc_phy_watchdog(struct brcms_phy_pub *pih)
 		    ((pi->sh->now - pi->phy_lastcal) >=
 		     pi->sh->glacial_timer)) {
 			if (!(SCAN_RM_IN_PROGRESS(pi) || ASSOC_INPROG_PHY(pi)))
-				wlc_lcnphy_calib_modes(pi,
-						       LCNPHY_PERICAL_TEMPBASED_TXPWRCTRL);
+				wlc_lcnphy_calib_modes(
+					pi,
+					LCNPHY_PERICAL_TEMPBASED_TXPWRCTRL);
 			if (!
 			    (SCAN_RM_IN_PROGRESS(pi) || PLT_INPROG_PHY(pi)
 			     || ASSOC_INPROG_PHY(pi)
@@ -2763,7 +2761,7 @@ void wlc_phy_BSSinit(struct brcms_phy_pub *pih, bool bonlyap, int rssi)
 	if (ISLCNPHY(pi)) {
 		for (i = 0; i < MA_WINDOW_SZ; i++)
 			pi->sh->phy_noise_window[i] =
-			    PHY_NOISE_FIXED_VAL_LCNPHY;
+				PHY_NOISE_FIXED_VAL_LCNPHY;
 	}
 	pi->sh->phy_noise_index = 0;
 
@@ -2819,9 +2817,8 @@ void wlc_phy_cordic(s32 theta, struct cs32 *val)
 	angle = 0;
 
 	signtheta = (theta < 0) ? -1 : 1;
-	theta =
-	    ((theta + FIXED(180) * signtheta) % FIXED(360)) -
-	    FIXED(180) * signtheta;
+	theta =	((theta + FIXED(180) * signtheta) % FIXED(360)) -
+		FIXED(180) * signtheta;
 
 	if (FLOAT(theta) > 90) {
 		theta -= FIXED(180);
@@ -2895,8 +2892,9 @@ void wlc_phy_cal_perical(struct brcms_phy_pub *pih, u8 reason)
 			if (PHY_PERICAL_MPHASE_PENDING(pi))
 				wlc_phy_cal_perical_mphase_reset(pi);
 
-			wlc_phy_cal_perical_mphase_schedule(pi,
-							    PHY_PERICAL_INIT_DELAY);
+			wlc_phy_cal_perical_mphase_schedule(
+				pi,
+				PHY_PERICAL_INIT_DELAY);
 		}
 		break;
 
@@ -2921,9 +2919,9 @@ void wlc_phy_cal_perical(struct brcms_phy_pub *pih, u8 reason)
 		if (pi->phycal_tempdelta) {
 			nphy_currtemp = wlc_phy_tempsense_nphy(pi);
 			delta_temp =
-			    (nphy_currtemp > pi->nphy_lastcal_temp) ?
-			    nphy_currtemp - pi->nphy_lastcal_temp :
-			    pi->nphy_lastcal_temp - nphy_currtemp;
+				(nphy_currtemp > pi->nphy_lastcal_temp) ?
+				nphy_currtemp - pi->nphy_lastcal_temp :
+				pi->nphy_lastcal_temp - nphy_currtemp;
 
 			if ((delta_temp < (s16) pi->phycal_tempdelta) &&
 			    (pi->nphy_txiqlocal_chanspec ==
@@ -2936,8 +2934,9 @@ void wlc_phy_cal_perical(struct brcms_phy_pub *pih, u8 reason)
 		if (do_periodic_cal) {
 			if (pi->nphy_perical == PHY_PERICAL_MPHASE) {
 				if (!PHY_PERICAL_MPHASE_PENDING(pi))
-					wlc_phy_cal_perical_mphase_schedule(pi,
-									    PHY_PERICAL_WDOG_DELAY);
+					wlc_phy_cal_perical_mphase_schedule(
+						pi,
+						PHY_PERICAL_WDOG_DELAY);
 			} else if (pi->nphy_perical == PHY_PERICAL_SPHASE)
 				wlc_phy_cal_perical_nphy_run(pi,
 							     PHY_PERICAL_AUTO);
@@ -3035,11 +3034,11 @@ s8 wlc_phy_stf_ssmode_get(struct brcms_phy_pub *pih, u16 chanspec)
 	u8 siso_mcs_id, cdd_mcs_id;
 
 	siso_mcs_id =
-	    (CHSPEC_IS40(chanspec)) ? TXP_FIRST_MCS_40_SISO :
-	    TXP_FIRST_MCS_20_SISO;
+		(CHSPEC_IS40(chanspec)) ? TXP_FIRST_MCS_40_SISO :
+		TXP_FIRST_MCS_20_SISO;
 	cdd_mcs_id =
-	    (CHSPEC_IS40(chanspec)) ? TXP_FIRST_MCS_40_CDD :
-	    TXP_FIRST_MCS_20_CDD;
+		(CHSPEC_IS40(chanspec)) ? TXP_FIRST_MCS_40_CDD :
+		TXP_FIRST_MCS_20_CDD;
 
 	if (pi->tx_power_target[siso_mcs_id] >
 	    (pi->tx_power_target[cdd_mcs_id] + 12))

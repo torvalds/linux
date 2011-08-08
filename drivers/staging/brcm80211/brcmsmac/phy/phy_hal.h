@@ -126,28 +126,32 @@ struct txpwr_limits {
 
 struct tx_power {
 	u32 flags;
-	u16 chanspec;	/* txpwr report for this channel */
-	u16 local_chanspec;	/* channel on which we are associated */
-	u8 local_max;	/* local max according to the AP */
-	u8 local_constraint;	/* local constraint according to the AP */
-	s8 antgain[2];	/* Ant gain for each band - from SROM */
-	u8 rf_cores;		/* count of RF Cores being reported */
-	u8 est_Pout[4];	/* Latest tx power out estimate per RF chain */
-	u8 est_Pout_act[4];	/* Latest tx power out estimate per RF chain
-				 * without adjustment
-				 */
-	u8 est_Pout_cck;	/* Latest CCK tx power out estimate */
-	u8 tx_power_max[4];	/* Maximum target power among all rates */
-	u8 tx_power_max_rate_ind[4];	/* Index of the rate with the max target power */
-	u8 user_limit[WL_TX_POWER_RATES];	/* User limit */
-	u8 reg_limit[WL_TX_POWER_RATES];	/* Regulatory power limit */
-	u8 board_limit[WL_TX_POWER_RATES];	/* Max power board can support (SROM) */
-	u8 target[WL_TX_POWER_RATES];	/* Latest target power */
+	u16 chanspec;   /* txpwr report for this channel */
+	u16 local_chanspec;     /* channel on which we are associated */
+	u8 local_max;   /* local max according to the AP */
+	u8 local_constraint;    /* local constraint according to the AP */
+	s8 antgain[2];  /* Ant gain for each band - from SROM */
+	u8 rf_cores;            /* count of RF Cores being reported */
+	u8 est_Pout[4]; /* Latest tx power out estimate per RF chain */
+	u8 est_Pout_act[4];     /* Latest tx power out estimate per RF chain
+				 * without adjustment */
+	u8 est_Pout_cck;        /* Latest CCK tx power out estimate */
+	u8 tx_power_max[4];     /* Maximum target power among all rates */
+	/* Index of the rate with the max target power */
+	u8 tx_power_max_rate_ind[4];
+	/* User limit */
+	u8 user_limit[WL_TX_POWER_RATES];
+	/* Regulatory power limit */
+	u8 reg_limit[WL_TX_POWER_RATES];
+	/* Max power board can support (SROM) */
+	u8 board_limit[WL_TX_POWER_RATES];
+	/* Latest target power */
+	u8 target[WL_TX_POWER_RATES];
 };
 
 struct tx_inst_power {
-	u8 txpwr_est_Pout[2];	/* Latest estimate for 2.4 and 5 Ghz */
-	u8 txpwr_est_Pout_gofdm;	/* Pwr estimate for 2.4 OFDM */
+	u8 txpwr_est_Pout[2];   /* Latest estimate for 2.4 and 5 Ghz */
+	u8 txpwr_est_Pout_gofdm;        /* Pwr estimate for 2.4 OFDM */
 };
 
 struct brcms_chanvec {
@@ -178,7 +182,8 @@ struct shared_phy_params {
 
 extern struct shared_phy *wlc_phy_shared_attach(struct shared_phy_params *shp);
 extern struct brcms_phy_pub *wlc_phy_attach(struct shared_phy *sh, void *regs,
-				 int bandtype, char *vars, struct wiphy *wiphy);
+					    int bandtype, char *vars,
+					    struct wiphy *wiphy);
 extern void wlc_phy_detach(struct brcms_phy_pub *ppi);
 
 extern bool wlc_phy_get_phyversion(struct brcms_phy_pub *pih, u16 *phytype,
@@ -222,7 +227,7 @@ extern void wlc_phy_chanspec_ch14_widefilter_set(struct brcms_phy_pub *ppi,
 extern void wlc_phy_chanspec_band_validch(struct brcms_phy_pub *ppi, uint band,
 					  struct brcms_chanvec *channels);
 extern u16 wlc_phy_chanspec_band_firstch(struct brcms_phy_pub *ppi,
-						uint band);
+					 uint band);
 
 extern void wlc_phy_txpower_sromlimit(struct brcms_phy_pub *ppi, uint chan,
 				      u8 *_min_, u8 *_max_, int rate);
@@ -289,6 +294,6 @@ extern void wlc_phy_freqtrack_end(struct brcms_phy_pub *ppi);
 extern const u8 *wlc_phy_get_ofdm_rate_lookup(void);
 
 extern s8 wlc_phy_get_tx_power_offset_by_mcs(struct brcms_phy_pub *ppi,
-					       u8 mcs_offset);
+					     u8 mcs_offset);
 extern s8 wlc_phy_get_tx_power_offset(struct brcms_phy_pub *ppi, u8 tbl_offset);
-#endif				/* _BRCM_PHY_HAL_H_ */
+#endif                          /* _BRCM_PHY_HAL_H_ */

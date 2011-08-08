@@ -4522,7 +4522,8 @@ const struct phytbl_info mimophytbl_info_rev0[] = {
 	{&chanest_tbl_rev0,
 	 sizeof(chanest_tbl_rev0) / sizeof(chanest_tbl_rev0[0]), 22, 0, 32}
 	,
-	{&mcs_tbl_rev0, sizeof(mcs_tbl_rev0) / sizeof(mcs_tbl_rev0[0]), 18, 0, 8}
+	{&mcs_tbl_rev0, sizeof(mcs_tbl_rev0) / sizeof(mcs_tbl_rev0[0]), 18, 0,
+	 8}
 	,
 	{&noise_var_tbl0_rev0,
 	 sizeof(noise_var_tbl0_rev0) / sizeof(noise_var_tbl0_rev0[0]), 16, 0,
