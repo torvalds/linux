@@ -124,9 +124,6 @@ struct brcmf_sdreg {
 
 struct sdioh_info {
 	struct osl_info *osh;		/* osh handler */
-	bool intr_handler_valid; /* client driver interrupt handler valid */
-	void (*intr_handler)(void *);	/* registered interrupt handler */
-	void *intr_handler_arg;	/* argument to call interrupt handler */
 
 	uint irq;		/* Client irq */
 	int intrcount;		/* Client interrupts */
@@ -159,8 +156,7 @@ struct brcmf_sdio_dev {
 
 /* Register/deregister device interrupt handler. */
 extern int
-brcmf_sdcard_intr_reg(struct brcmf_sdio_dev *sdiodev,
-		      void (*fn)(void *), void *argh);
+brcmf_sdcard_intr_reg(struct brcmf_sdio_dev *sdiodev);
 
 extern int brcmf_sdcard_intr_dereg(struct brcmf_sdio_dev *sdiodev);
 
@@ -278,8 +274,7 @@ extern struct sdioh_info *brcmf_sdioh_attach(void *cfghdl);
 extern int brcmf_sdioh_detach(struct sdioh_info *si);
 
 extern int
-brcmf_sdioh_interrupt_register(struct sdioh_info *si,
-			       void (*sdioh_cb_fn)(void *), void *argh);
+brcmf_sdioh_interrupt_register(struct sdioh_info *si);
 
 extern int brcmf_sdioh_interrupt_deregister(struct sdioh_info *si);
 
@@ -328,4 +323,5 @@ extern struct brcmf_sdmmc_instance *gInstance;
 extern void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
 				u32 regsva, struct brcmf_sdio_dev *sdiodev);
 extern void brcmf_sdbrcm_disconnect(void *ptr);
+extern void brcmf_sdbrcm_isr(void *arg);
 #endif				/* _BRCM_SDH_H_ */

@@ -228,19 +228,9 @@ extern int brcmf_sdioh_detach(struct sdioh_info *sd)
 
 /* Configure callback to client when we receive client interrupt */
 extern int
-brcmf_sdioh_interrupt_register(struct sdioh_info *sd, void (*fn)(void *),
-			       void *argh)
+brcmf_sdioh_interrupt_register(struct sdioh_info *sd)
 {
 	BRCMF_TRACE(("%s: Entering\n", __func__));
-	if (fn == NULL) {
-		BRCMF_ERROR(("%s: interrupt handler is NULL, not registering\n",
-			__func__));
-		return -EINVAL;
-	}
-
-	sd->intr_handler = fn;
-	sd->intr_handler_arg = argh;
-	sd->intr_handler_valid = true;
 
 	/* register and unmask irq */
 	if (gInstance->func[2]) {
@@ -276,10 +266,6 @@ extern int brcmf_sdioh_interrupt_deregister(struct sdioh_info *sd)
 		/* Release host controller F2 */
 		sdio_release_host(gInstance->func[2]);
 	}
-
-	sd->intr_handler_valid = false;
-	sd->intr_handler = NULL;
-	sd->intr_handler_arg = NULL;
 
 	return 0;
 }
@@ -877,6 +863,7 @@ brcmf_sdioh_card_regread(struct sdioh_info *sd, int func, u32 regaddr,
 static void brcmf_sdioh_irqhandler(struct sdio_func *func)
 {
 	struct sdioh_info *sd;
+	struct brcmf_sdio_dev *sdiodev = dev_get_drvdata(&func->card->dev);
 
 	BRCMF_TRACE(("brcmf: ***IRQHandler\n"));
 	sd = gInstance->sd;
@@ -884,7 +871,7 @@ static void brcmf_sdioh_irqhandler(struct sdio_func *func)
 	sdio_release_host(gInstance->func[0]);
 
 	sd->intrcount++;
-	(sd->intr_handler) (sd->intr_handler_arg);
+	brcmf_sdbrcm_isr(sdiodev->bus);
 
 	sdio_claim_host(gInstance->func[0]);
 }

@@ -5424,6 +5424,7 @@ void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
 		goto fail;
 	}
 	bus->sdiodev = sdiodev;
+	sdiodev->bus = bus;
 	bus->bus = BRCMF_BUS;
 	bus->tx_seq = SDPCM_SEQUENCE_WRAP - 1;
 	bus->usebufpool = false;	/* Use bufpool if allocated,
@@ -5506,7 +5507,7 @@ void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
 	/* Register interrupt callback, but mask it (not operational yet). */
 	BRCMF_INTR(("%s: disable SDIO interrupts (not interested yet)\n",
 		    __func__));
-	ret = brcmf_sdcard_intr_reg(bus->sdiodev, brcmf_sdbrcm_isr, bus);
+	ret = brcmf_sdcard_intr_reg(bus->sdiodev);
 	if (ret != 0) {
 		BRCMF_ERROR(("%s: FAILED: sdcard_intr_reg returned %d\n",
 			     __func__, ret));
