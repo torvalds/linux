@@ -3939,6 +3939,7 @@ static int qeth_qdio_establish(struct qeth_card *card)
 	struct qdio_initialize init_data;
 	char *qib_param_field;
 	struct qdio_buffer **in_sbal_ptrs;
+	void (**queue_start_poll) (struct ccw_device *, int, unsigned long);
 	struct qdio_buffer **out_sbal_ptrs;
 	int i, j, k;
 	int rc = 0;
@@ -3947,8 +3948,10 @@ static int qeth_qdio_establish(struct qeth_card *card)
 
 	qib_param_field = kzalloc(QDIO_MAX_BUFFERS_PER_Q * sizeof(char),
 			      GFP_KERNEL);
-	if (!qib_param_field)
-		return -ENOMEM;
+	if (!qib_param_field) {
+		rc =  -ENOMEM;
+		goto out_free_nothing;
+	}
 
 	qeth_create_qib_param_field(card, qib_param_field);
 	qeth_create_qib_param_field_blkt(card, qib_param_field);
@@ -3956,20 +3959,26 @@ static int qeth_qdio_establish(struct qeth_card *card)
 	in_sbal_ptrs = kmalloc(QDIO_MAX_BUFFERS_PER_Q * sizeof(void *),
 			       GFP_KERNEL);
 	if (!in_sbal_ptrs) {
-		kfree(qib_param_field);
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto out_free_qib_param;
 	}
 	for (i = 0; i < QDIO_MAX_BUFFERS_PER_Q; ++i)
 		in_sbal_ptrs[i] = (struct qdio_buffer *)
 			virt_to_phys(card->qdio.in_q->bufs[i].buffer);
 
+	queue_start_poll = kmalloc(sizeof(void *) * 1, GFP_KERNEL);
+	if (!queue_start_poll) {
+		rc = -ENOMEM;
+		goto out_free_in_sbals;
+	}
+	queue_start_poll[0] = card->discipline.start_poll;
+
 	out_sbal_ptrs =
 		kmalloc(card->qdio.no_out_queues * QDIO_MAX_BUFFERS_PER_Q *
 			sizeof(void *), GFP_KERNEL);
 	if (!out_sbal_ptrs) {
-		kfree(in_sbal_ptrs);
-		kfree(qib_param_field);
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto out_free_queue_start_poll;
 	}
 	for (i = 0, k = 0; i < card->qdio.no_out_queues; ++i)
 		for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; ++j, ++k) {
@@ -3986,7 +3995,7 @@ static int qeth_qdio_establish(struct qeth_card *card)
 	init_data.no_output_qs           = card->qdio.no_out_queues;
 	init_data.input_handler          = card->discipline.input_handler;
 	init_data.output_handler         = card->discipline.output_handler;
-	init_data.queue_start_poll	 = card->discipline.start_poll;
+	init_data.queue_start_poll       = queue_start_poll;
 	init_data.int_parm               = (unsigned long) card;
 	init_data.input_sbal_addr_array  = (void **) in_sbal_ptrs;
 	init_data.output_sbal_addr_array = (void **) out_sbal_ptrs;
@@ -4008,8 +4017,13 @@ static int qeth_qdio_establish(struct qeth_card *card)
 	}
 out:
 	kfree(out_sbal_ptrs);
+out_free_queue_start_poll:
+	kfree(queue_start_poll);
+out_free_in_sbals:
 	kfree(in_sbal_ptrs);
+out_free_qib_param:
 	kfree(qib_param_field);
+out_free_nothing:
 	return rc;
 }
 

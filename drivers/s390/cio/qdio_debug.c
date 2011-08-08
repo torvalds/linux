@@ -76,6 +76,9 @@ static int qstat_show(struct seq_file *m, void *v)
 		case SLSB_P_OUTPUT_NOT_INIT:
 			seq_printf(m, "N");
 			break;
+		case SLSB_P_OUTPUT_PENDING:
+			seq_printf(m, "P");
+			break;
 		case SLSB_P_INPUT_PRIMED:
 		case SLSB_CU_OUTPUT_PRIMED:
 			seq_printf(m, "+");
