@@ -58,30 +58,6 @@ enum txd_range {
 	DMA_RANGE_TRANSFERED
 };
 
-/* dma function type */
-typedef int (*di_txfast_t) (struct dma_pub *dmah, struct sk_buff *p,
-			    bool commit);
-typedef int (*di_txunframed_t) (struct dma_pub *dmah, void *p, uint len,
-				bool commit);
-typedef void *(*di_getpos_t) (struct dma_pub *di, bool direction);
-typedef void *(*di_rx_t) (struct dma_pub *dmah);
-typedef void (*di_txreclaim_t) (struct dma_pub *dmah, enum txd_range range);
-typedef unsigned long (*di_getvar_t) (struct dma_pub *dmah,
-				      const char *name);
-typedef void *(*di_getnexttxp_t) (struct dma_pub *dmah, enum txd_range range);
-typedef void *(*di_getnextrxp_t) (struct dma_pub *dmah, bool forceall);
-typedef void *(*di_peeknexttxp_t) (struct dma_pub *dmah);
-typedef void *(*di_peeknextrxp_t) (struct dma_pub *dmah);
-typedef void (*di_rxparam_get_t) (struct dma_pub *dmah, u16 *rxoffset,
-				  u16 *rxbufsize);
-typedef uint(*di_ctrlflags_t) (struct dma_pub *dmah, uint mask, uint flags);
-typedef char *(*di_dump_t) (struct dma_pub *dmah, struct brcmu_strbuf *b,
-			    bool dumpring);
-typedef char *(*di_dumptx_t) (struct dma_pub *dmah, struct brcmu_strbuf *b,
-			      bool dumpring);
-typedef char *(*di_dumprx_t) (struct dma_pub *dmah, struct brcmu_strbuf *b,
-			      bool dumpring);
-
 /* dma opsvec */
 struct di_fcn_s {
 	void (*detach)(struct dma_pub *dmah);
@@ -92,13 +68,14 @@ struct di_fcn_s {
 	void (*txresume)(struct dma_pub *dmah);
 	bool (*txsuspended)(struct dma_pub *dmah);
 	bool (*txsuspendedidle)(struct dma_pub *dmah);
-	di_txfast_t txfast;
-	di_txunframed_t txunframed;
-	di_getpos_t getpos;
+	int (*txfast)(struct dma_pub *dmah, struct sk_buff *p, bool commit);
+	int (*txunframed)(struct dma_pub *dmah, void *p, uint len, bool commit);
+
+	void *(*getpos)(struct dma_pub *di, bool direction);
 	bool (*txstopped)(struct dma_pub *dmah);
-	di_txreclaim_t txreclaim;
-	di_getnexttxp_t getnexttxp;
-	di_peeknexttxp_t peeknexttxp;
+	void (*txreclaim)(struct dma_pub *dmah, enum txd_range range);
+	void *(*getnexttxp)(struct dma_pub *dmah, enum txd_range range);
+	void *(*peeknexttxp) (struct dma_pub *dmah);
 	void (*txblock) (struct dma_pub *dmah);
 	void (*txunblock) (struct dma_pub *dmah);
 	uint (*txactive)(struct dma_pub *dmah);
@@ -110,20 +87,25 @@ struct di_fcn_s {
 	bool (*rxstopped)(struct dma_pub *dmah);
 	bool (*rxenable)(struct dma_pub *dmah);
 	bool (*rxenabled)(struct dma_pub *dmah);
-	di_rx_t rx;
+	void *(*rx)(struct dma_pub *dmah);
 	bool (*rxfill)(struct dma_pub *dmah);
 	void (*rxreclaim)(struct dma_pub *dmah);
-	di_getnextrxp_t getnextrxp;
-	di_peeknextrxp_t peeknextrxp;
-	di_rxparam_get_t rxparam_get;
+	void *(*getnextrxp)(struct dma_pub *dmah, bool forceall);
+	void *(*peeknextrxp)(struct dma_pub *dmah);
+	void (*rxparam_get)(struct dma_pub *dmah, u16 *rxoffset,
+			    u16 *rxbufsize);
 
 	void (*fifoloopbackenable)(struct dma_pub *dmah);
-	di_getvar_t d_getvar;
+	unsigned long (*d_getvar)(struct dma_pub *dmah, const char *name);
+
 	void (*counterreset)(struct dma_pub *dmah);
-	di_ctrlflags_t ctrlflags;
-	di_dump_t dump;
-	di_dumptx_t dumptx;
-	di_dumprx_t dumprx;
+	uint (*ctrlflags)(struct dma_pub *dmah, uint mask, uint flags);
+	char *(*dump)(struct dma_pub *dmah, struct brcmu_strbuf *b,
+		      bool dumpring);
+	char *(*dumptx)(struct dma_pub *dmah, struct brcmu_strbuf *b,
+			bool dumpring);
+	char *(*dumprx)(struct dma_pub *dmah, struct brcmu_strbuf *b,
+			bool dumpring);
 	uint (*rxactive)(struct dma_pub *dmah);
 	uint (*txpending)(struct dma_pub *dmah);
 	uint (*txcommitted)(struct dma_pub *dmah);
