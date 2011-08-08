@@ -939,14 +939,14 @@ static u64 enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 	if (ret) {
 		dev_info(&dev->dev, "failed to map direct window for %s: %d\n",
 			 dn->full_name, ret);
-		goto out_clear_window;
+		goto out_free_window;
 	}
 
 	ret = prom_add_property(pdn, win64);
 	if (ret) {
 		dev_err(&dev->dev, "unable to add dma window property for %s: %d",
 			 pdn->full_name, ret);
-		goto out_clear_window;
+		goto out_free_window;
 	}
 
 	window->device = pdn;
@@ -957,6 +957,9 @@ static u64 enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 
 	dma_addr = of_read_number(&create.addr_hi, 2);
 	goto out_unlock;
+
+out_free_window:
+	kfree(window);
 
 out_clear_window:
 	remove_ddw(pdn);
