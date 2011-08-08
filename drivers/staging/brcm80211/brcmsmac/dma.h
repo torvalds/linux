@@ -59,15 +59,10 @@ enum txd_range {
 };
 
 /* dma function type */
-typedef void (*di_detach_t) (struct dma_pub *dmah);
 typedef bool(*di_txreset_t) (struct dma_pub *dmah);
 typedef bool(*di_rxreset_t) (struct dma_pub *dmah);
 typedef bool(*di_rxidle_t) (struct dma_pub *dmah);
-typedef void (*di_txinit_t) (struct dma_pub *dmah);
 typedef bool(*di_txenabled_t) (struct dma_pub *dmah);
-typedef void (*di_rxinit_t) (struct dma_pub *dmah);
-typedef void (*di_txsuspend_t) (struct dma_pub *dmah);
-typedef void (*di_txresume_t) (struct dma_pub *dmah);
 typedef bool(*di_txsuspended_t) (struct dma_pub *dmah);
 typedef bool(*di_txsuspendedidle_t) (struct dma_pub *dmah);
 typedef int (*di_txfast_t) (struct dma_pub *dmah, struct sk_buff *p,
@@ -75,7 +70,6 @@ typedef int (*di_txfast_t) (struct dma_pub *dmah, struct sk_buff *p,
 typedef int (*di_txunframed_t) (struct dma_pub *dmah, void *p, uint len,
 				bool commit);
 typedef void *(*di_getpos_t) (struct dma_pub *di, bool direction);
-typedef void (*di_fifoloopbackenable_t) (struct dma_pub *dmah);
 typedef bool(*di_txstopped_t) (struct dma_pub *dmah);
 typedef bool(*di_rxstopped_t) (struct dma_pub *dmah);
 typedef bool(*di_rxenable_t) (struct dma_pub *dmah);
@@ -83,7 +77,6 @@ typedef bool(*di_rxenabled_t) (struct dma_pub *dmah);
 typedef void *(*di_rx_t) (struct dma_pub *dmah);
 typedef bool(*di_rxfill_t) (struct dma_pub *dmah);
 typedef void (*di_txreclaim_t) (struct dma_pub *dmah, enum txd_range range);
-typedef void (*di_rxreclaim_t) (struct dma_pub *dmah);
 typedef unsigned long (*di_getvar_t) (struct dma_pub *dmah,
 				      const char *name);
 typedef void *(*di_getnexttxp_t) (struct dma_pub *dmah, enum txd_range range);
@@ -92,11 +85,7 @@ typedef void *(*di_peeknexttxp_t) (struct dma_pub *dmah);
 typedef void *(*di_peeknextrxp_t) (struct dma_pub *dmah);
 typedef void (*di_rxparam_get_t) (struct dma_pub *dmah, u16 *rxoffset,
 				  u16 *rxbufsize);
-typedef void (*di_txblock_t) (struct dma_pub *dmah);
-typedef void (*di_txunblock_t) (struct dma_pub *dmah);
 typedef uint(*di_txactive_t) (struct dma_pub *dmah);
-typedef void (*di_txrotate_t) (struct dma_pub *dmah);
-typedef void (*di_counterreset_t) (struct dma_pub *dmah);
 typedef uint(*di_ctrlflags_t) (struct dma_pub *dmah, uint mask, uint flags);
 typedef char *(*di_dump_t) (struct dma_pub *dmah, struct brcmu_strbuf *b,
 			    bool dumpring);
@@ -110,12 +99,12 @@ typedef uint(*di_txcommitted_t) (struct dma_pub *dmah);
 
 /* dma opsvec */
 struct di_fcn_s {
-	di_detach_t detach;
-	di_txinit_t txinit;
+	void (*detach)(struct dma_pub *dmah);
+	void (*txinit)(struct dma_pub *dmah);
 	di_txreset_t txreset;
 	di_txenabled_t txenabled;
-	di_txsuspend_t txsuspend;
-	di_txresume_t txresume;
+	void (*txsuspend)(struct dma_pub *dmah);
+	void (*txresume)(struct dma_pub *dmah);
 	di_txsuspended_t txsuspended;
 	di_txsuspendedidle_t txsuspendedidle;
 	di_txfast_t txfast;
@@ -125,12 +114,12 @@ struct di_fcn_s {
 	di_txreclaim_t txreclaim;
 	di_getnexttxp_t getnexttxp;
 	di_peeknexttxp_t peeknexttxp;
-	di_txblock_t txblock;
-	di_txunblock_t txunblock;
+	void (*txblock) (struct dma_pub *dmah);
+	void (*txunblock) (struct dma_pub *dmah);
 	di_txactive_t txactive;
-	di_txrotate_t txrotate;
+	void (*txrotate) (struct dma_pub *dmah);
 
-	di_rxinit_t rxinit;
+	void (*rxinit)(struct dma_pub *dmah);
 	di_rxreset_t rxreset;
 	di_rxidle_t rxidle;
 	di_rxstopped_t rxstopped;
@@ -138,14 +127,14 @@ struct di_fcn_s {
 	di_rxenabled_t rxenabled;
 	di_rx_t rx;
 	di_rxfill_t rxfill;
-	di_rxreclaim_t rxreclaim;
+	void (*rxreclaim)(struct dma_pub *dmah);
 	di_getnextrxp_t getnextrxp;
 	di_peeknextrxp_t peeknextrxp;
 	di_rxparam_get_t rxparam_get;
 
-	di_fifoloopbackenable_t fifoloopbackenable;
+	void (*fifoloopbackenable)(struct dma_pub *dmah);
 	di_getvar_t d_getvar;
-	di_counterreset_t counterreset;
+	void (*counterreset)(struct dma_pub *dmah);
 	di_ctrlflags_t ctrlflags;
 	di_dump_t dump;
 	di_dumptx_t dumptx;
