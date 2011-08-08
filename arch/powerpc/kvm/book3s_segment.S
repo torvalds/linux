@@ -213,10 +213,15 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 	beq	ld_last_inst
 	cmpwi	r12, BOOK3S_INTERRUPT_PROGRAM
 	beq	ld_last_inst
+	cmpwi	r12, BOOK3S_INTERRUPT_SYSCALL
+	beq	ld_last_prev_inst
 	cmpwi	r12, BOOK3S_INTERRUPT_ALIGNMENT
 	beq-	ld_last_inst
 
 	b	no_ld_last_inst
+
+ld_last_prev_inst:
+	addi	r3, r3, -4
 
 ld_last_inst:
 	/* Save off the guest instruction we're at */
