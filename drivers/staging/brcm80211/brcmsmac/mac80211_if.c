@@ -755,7 +755,7 @@ static int brcms_set_hint(struct brcms_info *wl, char *abbrev)
  */
 static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 				       unsigned long regs,
-				       void *btparam, uint irq)
+				       struct pci_dev *btparam, uint irq)
 {
 	struct brcms_info *wl = NULL;
 	int unit, err;
@@ -795,11 +795,11 @@ static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 	spin_lock_init(&wl->isr_lock);
 
 	/* prepare ucode */
-	if (brcms_request_fw(wl, (struct pci_dev *)btparam) < 0) {
+	if (brcms_request_fw(wl, btparam) < 0) {
 		wiphy_err(wl->wiphy, "%s: Failed to find firmware usually in "
 			  "%s\n", KBUILD_MODNAME, "/lib/firmware/brcm");
 		brcms_release_fw(wl);
-		brcms_remove((struct pci_dev *)btparam);
+		brcms_remove(btparam);
 		return NULL;
 	}
 

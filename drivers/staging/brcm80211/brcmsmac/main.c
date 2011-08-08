@@ -313,7 +313,7 @@ struct brcms_b_state;
 
 static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 			  uint unit, bool piomode, void *regsva,
-			  void *btparam);
+			  struct pci_dev *btparam);
 
 /* up/down, reset, clk */
 static void brcms_b_reset(struct brcms_hardware *wlc_hw);
@@ -4301,7 +4301,7 @@ struct brcms_pub *brcms_c_pub(void *wlc)
  *    put the whole chip in reset(driver down state), no clock
  */
 int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
-		   bool piomode, void *regsva, void *btparam)
+		   bool piomode, void *regsva, struct pci_dev *btparam)
 {
 	struct brcms_hardware *wlc_hw;
 	struct d11regs *regs;
@@ -4644,8 +4644,9 @@ int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
 /*
  * The common driver entry routine. Error codes should be unique
  */
-void *brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
-		 bool piomode, void *regsva, void *btparam, uint *perr)
+void *
+brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
+	       bool piomode, void *regsva, struct pci_dev *btparam, uint *perr)
 {
 	struct brcms_c_info *wlc;
 	uint err = 0;

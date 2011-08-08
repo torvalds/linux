@@ -861,7 +861,8 @@ u32 ai_core_sflags(struct si_pub *sih, u32 mask, u32 val)
 /* *************** from siutils.c ************** */
 /* local prototypes */
 static struct si_info *ai_doattach(struct si_info *sii, void *regs,
-				   void *sdh, char **vars, uint *varsz);
+				   struct pci_dev *sdh,
+				   char **vars, uint *varsz);
 static bool ai_buscore_prep(struct si_info *sii);
 static bool ai_buscore_setup(struct si_info *sii, struct chipcregs *cc,
 			     u32 savewin, uint *origidx, void *regs);
@@ -881,7 +882,8 @@ static bool ai_ispcie(struct si_info *sii);
  * vars - pointer to a pointer area for "environment" variables
  * varsz - pointer to int to return the size of the vars
  */
-struct si_pub *ai_attach(void *regs, void *sdh, char **vars, uint *varsz)
+struct si_pub *
+ai_attach(void *regs, struct pci_dev *sdh, char **vars, uint *varsz)
 {
 	struct si_info *sii;
 
@@ -1052,7 +1054,7 @@ static __used void ai_nvram_process(struct si_info *sii, char *pvars)
 }
 
 static struct si_info *ai_doattach(struct si_info *sii,
-				   void *regs, void *pbus,
+				   void *regs, struct pci_dev *pbus,
 				   char **vars, uint *varsz)
 {
 	struct si_pub *sih = &sii->pub;

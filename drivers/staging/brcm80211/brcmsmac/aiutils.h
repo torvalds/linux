@@ -446,6 +446,8 @@ struct si_pub {
 #define	IS_SIM(chippkg)	\
 	((chippkg == HDLSIM_PKG_ID) || (chippkg == HWSIM_PKG_ID))
 
+struct pci_dev;
+
 struct gpioh_item {
 	void *arg;
 	bool level;
@@ -515,7 +517,7 @@ extern u32 ai_addrspacesize(struct si_pub *sih, uint asidx);
 extern void ai_write_wrap_reg(struct si_pub *sih, u32 offset, u32 val);
 
 /* === exported functions === */
-extern struct si_pub *ai_attach(void *regs, void *sdh, char **vars,
+extern struct si_pub *ai_attach(void *regs, struct pci_dev *sdh, char **vars,
 				uint *varsz);
 extern void ai_detach(struct si_pub *sih);
 extern bool ai_pci_war16165(struct si_pub *sih);
