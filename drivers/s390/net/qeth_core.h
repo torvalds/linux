@@ -217,6 +217,7 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
  */
 #define QETH_TX_TIMEOUT		100 * HZ
 #define QETH_RCD_TIMEOUT	60 * HZ
+#define QETH_RECLAIM_WORK_TIME	HZ
 #define QETH_HEADER_SIZE	32
 #define QETH_MAX_PORTNO		15
 
@@ -265,6 +266,7 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
 
 /* large receive scatter gather copy break */
 #define QETH_RX_SG_CB (PAGE_SIZE >> 1)
+#define QETH_RX_PULL_LEN 256
 
 struct qeth_hdr_layer3 {
 	__u8  id;
@@ -382,6 +384,16 @@ enum qeth_qdio_buffer_states {
 	QETH_QDIO_BUF_PRIMED,
 	/*
 	 * inbound: not applicable
+	 * outbound: identified to be pending in TPQ
+	 */
+	QETH_QDIO_BUF_PENDING,
+	/*
+	 * inbound: not applicable
+	 * outbound: found in completion queue
+	 */
+	QETH_QDIO_BUF_IN_CQ,
+	/*
+	 * inbound: not applicable
 	 * outbound: handled via transfer pending / completion queue
 	 */
 	QETH_QDIO_BUF_HANDLED_DELAYED,
@@ -409,6 +421,7 @@ struct qeth_qdio_buffer {
 	struct qdio_buffer *buffer;
 	/* the buffer pool entry currently associated to this buffer */
 	struct qeth_buffer_pool_entry *pool_entry;
+	struct sk_buff *rx_skb;
 };
 
 struct qeth_qdio_q {
@@ -674,6 +687,7 @@ struct qeth_card_options {
 	enum qeth_ipa_isolation_modes isolation;
 	int sniffer;
 	enum qeth_cq cq;
+	char hsuid[9];
 };
 
 /*
@@ -771,6 +785,8 @@ struct qeth_card {
 	struct mutex discipline_mutex;
 	struct napi_struct napi;
 	struct qeth_rx rx;
+	struct delayed_work buffer_reclaim_work;
+	int reclaim_index;
 };
 
 struct qeth_card_list_struct {
@@ -836,6 +852,7 @@ int qeth_core_create_device_attributes(struct device *);
 void qeth_core_remove_device_attributes(struct device *);
 int qeth_core_create_osn_attributes(struct device *);
 void qeth_core_remove_osn_attributes(struct device *);
+void qeth_buffer_reclaim_work(struct work_struct *);
 
 /* exports for qeth discipline device drivers */
 extern struct qeth_card_list_struct qeth_core_card_list;
@@ -864,7 +881,7 @@ int qeth_check_qdio_errors(struct qeth_card *, struct qdio_buffer *,
 		unsigned int, const char *);
 void qeth_queue_input_buffer(struct qeth_card *, int);
 struct sk_buff *qeth_core_get_next_skb(struct qeth_card *,
-		struct qdio_buffer *, struct qdio_buffer_element **, int *,
+		struct qeth_qdio_buffer *, struct qdio_buffer_element **, int *,
 		struct qeth_hdr **);
 void qeth_schedule_recovery(struct qeth_card *);
 void qeth_qdio_start_poll(struct ccw_device *, int, unsigned long);

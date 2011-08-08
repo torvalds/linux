@@ -409,7 +409,7 @@ static int qeth_l2_process_inbound_buffer(struct qeth_card *card,
 	BUG_ON(!budget);
 	while (budget) {
 		skb = qeth_core_get_next_skb(card,
-			card->qdio.in_q->bufs[card->rx.b_index].buffer,
+			&card->qdio.in_q->bufs[card->rx.b_index],
 			&card->rx.b_element, &card->rx.e_offset, &hdr);
 		if (!skb) {
 			*done = 1;
