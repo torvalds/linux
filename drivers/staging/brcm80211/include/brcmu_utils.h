@@ -133,9 +133,6 @@ extern uint brcmu_pktfrombuf(struct sk_buff *p,
 	uint offset, int len, unsigned char *buf);
 extern uint brcmu_pkttotlen(struct sk_buff *p);
 
-/* ethernet address */
-extern int brcmu_ether_atoe(char *p, u8 *ea);
-
 /* ip address */
 struct ipv4_addr;
 

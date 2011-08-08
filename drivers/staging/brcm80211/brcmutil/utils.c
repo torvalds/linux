@@ -350,21 +350,6 @@ struct sk_buff *brcmu_pktq_mdeq(struct pktq *pq, uint prec_bmp,
 }
 EXPORT_SYMBOL(brcmu_pktq_mdeq);
 
-/* parse a xx:xx:xx:xx:xx:xx format ethernet address */
-int brcmu_ether_atoe(char *p, u8 *ea)
-{
-	int i = 0;
-
-	for (;;) {
-		ea[i++] = (char)simple_strtoul(p, &p, 16);
-		if (!*p++ || i == 6)
-			break;
-	}
-
-	return i == 6;
-}
-EXPORT_SYMBOL(brcmu_ether_atoe);
-
 #if defined(BCMDBG)
 /* pretty hex print a pkt buffer chain */
 void brcmu_prpkt(const char *msg, struct sk_buff *p0)

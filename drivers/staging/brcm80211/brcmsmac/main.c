@@ -15,6 +15,7 @@
  */
 
 #include <linux/pci_ids.h>
+#include <linux/if_ether.h>
 #include <net/mac80211.h>
 #include <brcm_hw_ids.h>
 #include <aiutils.h>
@@ -4584,8 +4585,8 @@ int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
 		err = 21;
 		goto fail;
 	}
-	brcmu_ether_atoe(macaddr, wlc_hw->etheraddr);
-	if (is_broadcast_ether_addr(wlc_hw->etheraddr) ||
+	if (!mac_pton(macaddr, wlc_hw->etheraddr) ||
+	    is_broadcast_ether_addr(wlc_hw->etheraddr) ||
 	    is_zero_ether_addr(wlc_hw->etheraddr)) {
 		wiphy_err(wiphy, "wl%d: brcms_b_attach: bad macaddr %s\n",
 			  unit, macaddr);
