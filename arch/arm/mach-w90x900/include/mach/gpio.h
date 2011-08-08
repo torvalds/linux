@@ -16,8 +16,6 @@
 #include <mach/hardware.h>
 #include <asm/irq.h>
 
-#define __ARM_GPIOLIB_TRIVIAL
-
 static inline int gpio_to_irq(unsigned gpio)
 {
 	return gpio;

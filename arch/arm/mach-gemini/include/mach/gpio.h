@@ -14,8 +14,6 @@
 
 #include <mach/irqs.h>
 
-#define __ARM_GPIOLIB_TRIVIAL
-
 #define gpio_to_irq(x)	((x) + GPIO_IRQ_BASE)
 #define irq_to_gpio(x)	((x) - GPIO_IRQ_BASE)
 

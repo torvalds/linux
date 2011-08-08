@@ -11,8 +11,6 @@
  * published by the Free Software Foundation.
 */
 
-#define __ARM_GPIOLIB_TRIVIAL
-
 /* some boards require extra gpio capacity to support external
  * devices that need GPIO.
  */

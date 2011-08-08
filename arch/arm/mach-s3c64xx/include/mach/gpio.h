@@ -12,8 +12,6 @@
  * published by the Free Software Foundation.
 */
 
-#define __ARM_GPIOLIB_TRIVIAL
-
 /* GPIO bank sizes */
 #define S3C64XX_GPIO_A_NR	(8)
 #define S3C64XX_GPIO_B_NR	(7)

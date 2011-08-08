@@ -49,6 +49,4 @@
  */
 #define LPC32XX_GPIO(x, y) ((x) + (y))
 
-#define __ARM_GPIOLIB_TRIVIAL
-
 #endif

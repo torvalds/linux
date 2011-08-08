@@ -18,6 +18,8 @@
 #include <mach/hardware.h>
 #include <asm/irq.h>
 
+#define __ARM_GPIOLIB_COMPLEX
+
 /* Switch type depending on platform/chip variant */
 #if defined(CONFIG_MACH_U300_BS2X) || defined(CONFIG_MACH_U300_BS330)
 #define U300_COH901335

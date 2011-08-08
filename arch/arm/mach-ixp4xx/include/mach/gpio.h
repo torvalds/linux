@@ -28,6 +28,8 @@
 #include <linux/kernel.h>
 #include <mach/hardware.h>
 
+#define __ARM_GPIOLIB_COMPLEX
+
 static inline int gpio_request(unsigned gpio, const char *label)
 {
 	return 0;

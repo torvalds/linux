@@ -21,6 +21,8 @@
 #include <mach/irqs.h>
 #include <mach/common.h>
 
+#define __ARM_GPIOLIB_COMPLEX
+
 #define DAVINCI_GPIO_BASE 0x01C67000
 
 enum davinci_gpio_type {

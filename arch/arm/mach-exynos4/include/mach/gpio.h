@@ -146,6 +146,4 @@ enum s5p_gpio_number {
 #define ARCH_NR_GPIOS		(EXYNOS4_GPZ(EXYNOS4_GPIO_Z_NR) +	\
 				 CONFIG_SAMSUNG_GPIO_EXTRA + 1)
 
-#define __ARM_GPIOLIB_TRIVIAL
-
 #endif /* __ASM_ARCH_GPIO_H */

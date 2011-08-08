@@ -28,6 +28,8 @@
 #include <asm/irq.h>
 #include <asm-generic/gpio.h>
 
+#define __ARM_GPIOLIB_COMPLEX
+
 static inline int gpio_get_value(unsigned gpio)
 {
 	if (__builtin_constant_p(gpio) && (gpio <= GPIO_MAX))

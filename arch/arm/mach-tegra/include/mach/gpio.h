@@ -25,8 +25,6 @@
 
 #define TEGRA_NR_GPIOS		INT_GPIO_NR
 
-#define __ARM_GPIOLIB_TRIVIAL
-
 #define TEGRA_GPIO_TO_IRQ(gpio) (INT_GPIO_BASE + (gpio))
 #define TEGRA_IRQ_TO_GPIO(irq) ((irq) - INT_GPIO_BASE)
 
