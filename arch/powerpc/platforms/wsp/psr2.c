@@ -63,6 +63,10 @@ static void __init psr2_setup_arch(void)
 #ifdef CONFIG_SMP
 	a2_setup_smp();
 #endif
+#ifdef CONFIG_PCI
+	wsp_setup_pci();
+#endif
+
 }
 
 static int __init psr2_probe(void)
