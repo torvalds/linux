@@ -120,41 +120,6 @@ brcmf_sdcard_cfg_write(struct brcmf_sdio_dev *sdiodev, uint fnc_num, u32 addr,
 		     __func__, fnc_num, addr, data));
 }
 
-u32 brcmf_sdcard_cfg_read_word(struct brcmf_sdio_dev *sdiodev, uint fnc_num,
-			       u32 addr, int *err)
-{
-	int status;
-	u32 data = 0;
-
-	status = brcmf_sdioh_request_word(sdiodev->sdioh, SDIOH_CMD_TYPE_NORMAL,
-		SDIOH_READ, fnc_num, addr, &data, 4);
-
-	if (err)
-		*err = status;
-
-	BRCMF_INFO(("%s:fun = %d, addr = 0x%x, u32data = 0x%x\n",
-		     __func__, fnc_num, addr, data));
-
-	return data;
-}
-
-void
-brcmf_sdcard_cfg_write_word(struct brcmf_sdio_dev *sdiodev, uint fnc_num,
-			    u32 addr, u32 data, int *err)
-{
-	int status;
-
-	status =
-	    brcmf_sdioh_request_word(sdiodev->sdioh, SDIOH_CMD_TYPE_NORMAL,
-			       SDIOH_WRITE, fnc_num, addr, &data, 4);
-
-	if (err)
-		*err = status;
-
-	BRCMF_INFO(("%s:fun = %d, addr = 0x%x, u32data = 0x%x\n",
-		     __func__, fnc_num, addr, data));
-}
-
 int brcmf_sdcard_cis_read(struct brcmf_sdio_dev *sdiodev, uint func, u8 * cis,
 			  uint length)
 {

@@ -183,15 +183,6 @@ extern u8 brcmf_sdcard_cfg_read(struct brcmf_sdio_dev *sdiodev, uint func,
 extern void brcmf_sdcard_cfg_write(struct brcmf_sdio_dev *sdiodev, uint func,
 				   u32 addr, u8 data, int *err);
 
-/* Read/Write 4bytes from/to cfg space */
-extern u32
-brcmf_sdcard_cfg_read_word(struct brcmf_sdio_dev *sdiodev, uint fnc_num,
-			   u32 addr, int *err);
-
-extern void brcmf_sdcard_cfg_write_word(struct brcmf_sdio_dev *sdiodev,
-					uint fnc_num, u32 addr,
-					u32 data, int *err);
-
 /* Read CIS content for specified function.
  *   fn:     function whose CIS is being requested (0 is common CIS)
  *   cis:    pointer to memory location to place results
