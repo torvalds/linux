@@ -55,7 +55,6 @@ enum {
 	IOV_LOGCAL,
 	IOV_LOGSTAMP,
 	IOV_GPIOOB,
-	IOV_IOCTLTIMEOUT,
 	IOV_LAST
 };
 
@@ -75,8 +74,6 @@ const struct brcmu_iovar brcmf_iovars[] = {
 	{"clearcounts", IOV_CLEARCOUNTS, 0, IOVT_VOID, 0}
 	,
 	{"gpioob", IOV_GPIOOB, 0, IOVT_UINT32, 0}
-	,
-	{"ioctl_timeout", IOV_IOCTLTIMEOUT, 0, IOVT_UINT32, 0}
 	,
 	{NULL, 0, 0, 0, 0}
 };
@@ -226,21 +223,6 @@ brcmf_c_doiovar(struct brcmf_pub *drvr, const struct brcmu_iovar *vi,
 		memset(&drvr->dstats, 0, sizeof(drvr->dstats));
 		brcmf_bus_clearcounts(drvr);
 		break;
-
-	case IOV_GVAL(IOV_IOCTLTIMEOUT):{
-			int_val = (s32) brcmf_os_get_ioctl_resp_timeout();
-			memcpy(arg, &int_val, sizeof(int_val));
-			break;
-		}
-
-	case IOV_SVAL(IOV_IOCTLTIMEOUT):{
-			if (int_val <= 0)
-				bcmerror = -EINVAL;
-			else
-				brcmf_os_set_ioctl_resp_timeout((unsigned int)
-							      int_val);
-			break;
-		}
 
 	default:
 		bcmerror = -ENOTSUPP;

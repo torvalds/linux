@@ -740,6 +740,7 @@ struct brcmf_bus {
 
 	spinlock_t txqlock;
 	wait_queue_head_t ctrl_wait;
+	wait_queue_head_t ioctl_resp_wait;
 
 	struct timer_list timer;
 	struct completion watchdog_wait;
@@ -856,6 +857,9 @@ module_param(brcmf_poll, uint, 0);
 /* Use interrupts */
 uint brcmf_intr = true;
 module_param(brcmf_intr, uint, 0);
+
+/* IOCTL response timeout */
+static int brcmf_ioctl_timeout_msec = IOCTL_RESP_TIMEOUT;
 
 /* override the RAM size if possible */
 #define DONGLE_MIN_MEMSIZE (128 * 1024)
@@ -1005,6 +1009,9 @@ static void brcmf_sdbrcm_sched_dpc(struct brcmf_bus *bus);
 static void brcmf_sdbrcm_sdlock(struct brcmf_bus *bus);
 static void brcmf_sdbrcm_sdunlock(struct brcmf_bus *bus);
 static int brcmf_sdbrcm_get_image(char *buf, int len, struct brcmf_bus *bus);
+static int brcmf_sdbrcm_ioctl_resp_wait(struct brcmf_bus *bus, uint *condition,
+					bool *pending);
+static int brcmf_sdbrcm_ioctl_resp_wake(struct brcmf_bus *bus);
 
 /* Packet free applicable unconditionally for sdio and sdspi.
  * Conditional if bufpool was present for gspi bus.
@@ -1832,7 +1839,7 @@ int brcmf_sdbrcm_bus_rxctl(struct brcmf_bus *bus, unsigned char *msg, uint msgle
 		return -EIO;
 
 	/* Wait until control frame is available */
-	timeleft = brcmf_os_ioctl_resp_wait(bus->drvr, &bus->rxlen, &pending);
+	timeleft = brcmf_sdbrcm_ioctl_resp_wait(bus, &bus->rxlen, &pending);
 
 	brcmf_sdbrcm_sdlock(bus);
 	rxlen = bus->rxlen;
@@ -1906,6 +1913,7 @@ enum {
 	IOV_SD1IDLE,
 	IOV_SLEEP,
 	IOV_WDTICK,
+	IOV_IOCTLTIMEOUT,
 	IOV_VARS
 };
 
@@ -1927,6 +1935,7 @@ const struct brcmu_iovar brcmf_sdio_iovars[] = {
 	{"sdalign", IOV_SDALIGN, 0, IOVT_BOOL, 0},
 	{"devreset", IOV_DEVRESET, 0, IOVT_BOOL, 0},
 	{"wdtick", IOV_WDTICK, 0, IOVT_UINT32, 0},
+	{"ioctl_timeout", IOV_IOCTLTIMEOUT, 0, IOVT_UINT32, 0},
 #ifdef BCMDBG
 	{"cons", IOV_CONS, 0, IOVT_BUFFER, 0}
 	,
@@ -2964,6 +2973,20 @@ brcmf_sdbrcm_doiovar(struct brcmf_bus *bus, const struct brcmu_iovar *vi, u32 ac
 		brcmf_sdbrcm_wd_timer(bus, (uint) int_val);
 		break;
 
+	case IOV_GVAL(IOV_IOCTLTIMEOUT):{
+			int_val = brcmf_ioctl_timeout_msec;
+			memcpy(arg, &int_val, sizeof(int_val));
+			break;
+		}
+
+	case IOV_SVAL(IOV_IOCTLTIMEOUT):{
+			if (int_val <= 0)
+				bcmerror = -EINVAL;
+			else
+				brcmf_ioctl_timeout_msec = int_val;
+			break;
+		}
+
 	default:
 		bcmerror = -ENOTSUPP;
 		break;
@@ -3293,7 +3316,7 @@ void brcmf_sdbrcm_bus_stop(struct brcmf_bus *bus, bool enforce_mutex)
 
 	/* Clear rx control and wake any waiters */
 	bus->rxlen = 0;
-	brcmf_os_ioctl_resp_wake(bus->drvr);
+	brcmf_sdbrcm_ioctl_resp_wake(bus);
 
 	/* Reset some F2 state stuff */
 	bus->rxskip = false;
@@ -3593,7 +3616,7 @@ gotpkt:
 
 done:
 	/* Awake any waiters */
-	brcmf_os_ioctl_resp_wake(bus->drvr);
+	brcmf_sdbrcm_ioctl_resp_wake(bus);
 }
 
 static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
@@ -5506,6 +5529,7 @@ static void *brcmf_sdbrcm_probe(u16 venid, u16 devid, u16 bus_no,
 
 	spin_lock_init(&bus->txqlock);
 	init_waitqueue_head(&bus->ctrl_wait);
+	init_waitqueue_head(&bus->ioctl_resp_wait);
 
 	/* Set up the watchdog timer */
 	init_timer(&bus->timer);
@@ -6779,3 +6803,33 @@ static int brcmf_sdbrcm_get_image(char *buf, int len, struct brcmf_bus *bus)
 
 MODULE_FIRMWARE(BCM4329_FW_NAME);
 MODULE_FIRMWARE(BCM4329_NV_NAME);
+
+static int
+brcmf_sdbrcm_ioctl_resp_wait(struct brcmf_bus *bus, uint *condition, bool *pending)
+{
+	DECLARE_WAITQUEUE(wait, current);
+	int timeout = msecs_to_jiffies(brcmf_ioctl_timeout_msec);
+
+	/* Wait until control frame is available */
+	add_wait_queue(&bus->ioctl_resp_wait, &wait);
+	set_current_state(TASK_INTERRUPTIBLE);
+
+	while (!(*condition) && (!signal_pending(current) && timeout))
+		timeout = schedule_timeout(timeout);
+
+	if (signal_pending(current))
+		*pending = true;
+
+	set_current_state(TASK_RUNNING);
+	remove_wait_queue(&bus->ioctl_resp_wait, &wait);
+
+	return timeout;
+}
+
+static int brcmf_sdbrcm_ioctl_resp_wake(struct brcmf_bus *bus)
+{
+	if (waitqueue_active(&bus->ioctl_resp_wait))
+		wake_up_interruptible(&bus->ioctl_resp_wait);
+
+	return 0;
+}

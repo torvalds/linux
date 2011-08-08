@@ -76,7 +76,6 @@ struct brcmf_info {
 	struct brcmf_if *iflist[BRCMF_MAX_IFS];
 
 	struct mutex proto_block;
-	wait_queue_head_t ioctl_resp_wait;
 
 	/* Thread to issue ioctl for multicast */
 	struct task_struct *sysioc_tsk;
@@ -126,9 +125,6 @@ char iface_name[IFNAMSIZ] = "wlan";
 module_param_string(iface_name, iface_name, IFNAMSIZ, 0);
 
 /* The following are specific to the SDIO dongle */
-
-/* IOCTL response timeout */
-int brcmf_ioctl_timeout_msec = IOCTL_RESP_TIMEOUT;
 
 #ifdef SDTEST
 /* Echo packet generator (pkts/s) */
@@ -1290,8 +1286,6 @@ struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
 
 	net->netdev_ops = NULL;
 	mutex_init(&drvr_priv->proto_block);
-	/* Initialize other structure content */
-	init_waitqueue_head(&drvr_priv->ioctl_resp_wait);
 
 	/* Link to info module */
 	drvr_priv->pub.info = drvr_priv;
@@ -1573,52 +1567,6 @@ int brcmf_os_proto_unblock(struct brcmf_pub *drvr)
 		mutex_unlock(&drvr_priv->proto_block);
 		return 1;
 	}
-
-	return 0;
-}
-
-unsigned int brcmf_os_get_ioctl_resp_timeout(void)
-{
-	return (unsigned int)brcmf_ioctl_timeout_msec;
-}
-
-void brcmf_os_set_ioctl_resp_timeout(unsigned int timeout_msec)
-{
-	brcmf_ioctl_timeout_msec = (int)timeout_msec;
-}
-
-int brcmf_os_ioctl_resp_wait(struct brcmf_pub *drvr, uint *condition,
-			     bool *pending)
-{
-	struct brcmf_info *drvr_priv = drvr->info;
-	DECLARE_WAITQUEUE(wait, current);
-	int timeout = brcmf_ioctl_timeout_msec;
-
-	/* Convert timeout in millsecond to jiffies */
-	timeout = timeout * HZ / 1000;
-
-	/* Wait until control frame is available */
-	add_wait_queue(&drvr_priv->ioctl_resp_wait, &wait);
-	set_current_state(TASK_INTERRUPTIBLE);
-
-	while (!(*condition) && (!signal_pending(current) && timeout))
-		timeout = schedule_timeout(timeout);
-
-	if (signal_pending(current))
-		*pending = true;
-
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&drvr_priv->ioctl_resp_wait, &wait);
-
-	return timeout;
-}
-
-int brcmf_os_ioctl_resp_wake(struct brcmf_pub *drvr)
-{
-	struct brcmf_info *drvr_priv = drvr->info;
-
-	if (waitqueue_active(&drvr_priv->ioctl_resp_wait))
-		wake_up_interruptible(&drvr_priv->ioctl_resp_wait);
 
 	return 0;
 }

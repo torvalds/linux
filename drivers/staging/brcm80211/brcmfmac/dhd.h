@@ -779,11 +779,6 @@ extern int brcmf_proto_cdc_query_ioctl(struct brcmf_pub *drvr, int ifidx,
 /* OS independent layer functions */
 extern int brcmf_os_proto_block(struct brcmf_pub *drvr);
 extern int brcmf_os_proto_unblock(struct brcmf_pub *drvr);
-extern int brcmf_os_ioctl_resp_wait(struct brcmf_pub *drvr, uint *condition,
-				  bool *pending);
-extern int brcmf_os_ioctl_resp_wake(struct brcmf_pub *drvr);
-extern unsigned int brcmf_os_get_ioctl_resp_timeout(void);
-extern void brcmf_os_set_ioctl_resp_timeout(unsigned int timeout_msec);
 #ifdef BCMDBG
 extern int brcmf_write_to_file(struct brcmf_pub *drvr, u8 *buf, int size);
 #endif				/* BCMDBG */
