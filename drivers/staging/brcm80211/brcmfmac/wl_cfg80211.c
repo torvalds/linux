@@ -3414,7 +3414,7 @@ static s32 wl_init_priv(struct brcmf_cfg80211_priv *cfg_priv)
 #endif /* WL_POWERSAVE_DISABLED */
 	cfg_priv->iscan_on = true;	/* iscan on & off switch.
 				 we enable iscan per default */
-	cfg_priv->roam_on = false;	/* roam on & off switch.
+	cfg_priv->roam_on = true;	/* roam on & off switch.
 				 we enable roam per default */
 
 	cfg_priv->iscan_kickstart = false;
