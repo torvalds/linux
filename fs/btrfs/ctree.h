@@ -774,9 +774,6 @@ struct btrfs_block_rsv {
 	u64 reserved;
 	struct btrfs_space_info *space_info;
 	spinlock_t lock;
-	atomic_t usage;
-	unsigned int priority:8;
-	unsigned int refill_used:1;
 	unsigned int full:1;
 };
 

@@ -3659,8 +3659,6 @@ void btrfs_init_block_rsv(struct btrfs_block_rsv *rsv)
 {
 	memset(rsv, 0, sizeof(*rsv));
 	spin_lock_init(&rsv->lock);
-	atomic_set(&rsv->usage, 1);
-	rsv->priority = 6;
 }
 
 struct btrfs_block_rsv *btrfs_alloc_block_rsv(struct btrfs_root *root)
@@ -3681,10 +3679,8 @@ struct btrfs_block_rsv *btrfs_alloc_block_rsv(struct btrfs_root *root)
 void btrfs_free_block_rsv(struct btrfs_root *root,
 			  struct btrfs_block_rsv *rsv)
 {
-	if (rsv && atomic_dec_and_test(&rsv->usage)) {
-		btrfs_block_rsv_release(root, rsv, (u64)-1);
-		kfree(rsv);
-	}
+	btrfs_block_rsv_release(root, rsv, (u64)-1);
+	kfree(rsv);
 }
 
 int btrfs_block_rsv_add(struct btrfs_trans_handle *trans,
@@ -3734,13 +3730,10 @@ int btrfs_block_rsv_check(struct btrfs_trans_handle *trans,
 	if (!ret)
 		return 0;
 
-	if (block_rsv->refill_used) {
-		ret = reserve_metadata_bytes(trans, root, block_rsv,
-					     num_bytes, 0);
-		if (!ret) {
-			block_rsv_add_bytes(block_rsv, num_bytes, 0);
-			return 0;
-		}
+	ret = reserve_metadata_bytes(trans, root, block_rsv, num_bytes, 0);
+	if (!ret) {
+		block_rsv_add_bytes(block_rsv, num_bytes, 0);
+		return 0;
 	}
 
 	if (commit_trans) {
@@ -3859,16 +3852,12 @@ static void init_global_block_rsv(struct btrfs_fs_info *fs_info)
 
 	space_info = __find_space_info(fs_info, BTRFS_BLOCK_GROUP_SYSTEM);
 	fs_info->chunk_block_rsv.space_info = space_info;
-	fs_info->chunk_block_rsv.priority = 10;
 
 	space_info = __find_space_info(fs_info, BTRFS_BLOCK_GROUP_METADATA);
 	fs_info->global_block_rsv.space_info = space_info;
-	fs_info->global_block_rsv.priority = 10;
-	fs_info->global_block_rsv.refill_used = 1;
 	fs_info->delalloc_block_rsv.space_info = space_info;
 	fs_info->trans_block_rsv.space_info = space_info;
 	fs_info->empty_block_rsv.space_info = space_info;
-	fs_info->empty_block_rsv.priority = 10;
 
 	fs_info->extent_root->block_rsv = &fs_info->global_block_rsv;
 	fs_info->csum_root->block_rsv = &fs_info->global_block_rsv;
