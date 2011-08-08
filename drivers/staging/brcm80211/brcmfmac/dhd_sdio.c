@@ -34,13 +34,6 @@
 #include <soc.h>
 #include "sdio_host.h"
 
-/* register access macros */
-#define R_REG(r, typ) \
-	brcmf_sdcard_reg_read(NULL, (r), sizeof(typ))
-
-#define OR_REG(r, v, typ) \
-	brcmf_sdcard_reg_write(NULL, (r), sizeof(typ), R_REG(r, typ) | (v))
-
 #ifdef BCMDBG
 
 /* ARM trap handling */
@@ -896,7 +889,8 @@ r_sdreg32(struct brcmf_bus *bus, u32 *regvar, u32 reg_offset, u32 *retryvar)
 {
 	*retryvar = 0;
 	do {
-		*regvar = R_REG(bus->ci->buscorebase + reg_offset, u32);
+		*regvar = brcmf_sdcard_reg_read(NULL,
+				bus->ci->buscorebase + reg_offset, sizeof(u32));
 	} while (brcmf_sdcard_regfail(bus->card) &&
 		 (++(*retryvar) <= retry_limit));
 	if (*retryvar) {
@@ -5618,6 +5612,8 @@ brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, void *card, u32 regsva,
 {
 	u8 clkctl = 0;
 	int err = 0;
+	int reg_addr;
+	u32 reg_val;
 
 	bus->alp_only = true;
 
@@ -5684,9 +5680,11 @@ brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, void *card, u32 regsva,
 	}
 
 	/* Set core control so an SDIO reset does a backplane reset */
-	OR_REG(bus->ci->buscorebase + offsetof(struct sdpcmd_regs,
-						       corecontrol),
-	       CC_BPRESEN, u32);
+	reg_addr = bus->ci->buscorebase +
+		   offsetof(struct sdpcmd_regs, corecontrol);
+	reg_val = brcmf_sdcard_reg_read(NULL, reg_addr, sizeof(u32));
+	brcmf_sdcard_reg_write(NULL, reg_addr, sizeof(u32),
+			       reg_val | CC_BPRESEN);
 
 	brcmu_pktq_init(&bus->txq, (PRIOMASK + 1), TXQLEN);
 
