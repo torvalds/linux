@@ -166,7 +166,6 @@ struct shared_phy_params {
 	struct phy_shim_info *physhim;
 	uint unit;
 	uint corerev;
-	uint bustype;
 	uint buscorerev;
 	char *vars;
 	u16 vid;

@@ -565,7 +565,6 @@ struct shared_phy {
 	uint boardvendor;
 	u32 boardflags;
 	u32 boardflags2;
-	uint bustype;
 	uint buscorerev;
 	uint fast_timer;
 	uint slow_timer;
@@ -1182,7 +1181,7 @@ extern void wlc_phy_table_write_nphy(struct brcms_phy *pi, u32, u32, u32,
 	 (pi->ipa5g_on && CHSPEC_IS5G(pi->radio_chanspec)))
 
 #define BRCMS_PHY_WAR_PR51571(pi) \
-	if (((pi)->sh->bustype == PCI_BUS) && NREV_LT((pi)->pubpi.phy_rev, 3)) \
+	if (NREV_LT((pi)->pubpi.phy_rev, 3)) \
 		(void)R_REG(&(pi)->regs->maccontrol)
 
 extern void wlc_phy_cal_perical_nphy_run(struct brcms_phy *pi, u8 caltype);

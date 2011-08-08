@@ -213,9 +213,7 @@ struct pcicore_info {
 
 /* debug/trace */
 #define	PCI_ERROR(args)
-#define PCIE_PUB(sih)							\
-	(((sih)->bustype == PCI_BUS) &&					\
-	 ((sih)->buscoretype == PCIE_CORE_ID))
+#define PCIE_PUB(sih) ((sih)->buscoretype == PCIE_CORE_ID)
 
 /* routines to access mdio slave device registers */
 static bool pcie_mdiosetblock(struct pcicore_info *pi, uint blk);

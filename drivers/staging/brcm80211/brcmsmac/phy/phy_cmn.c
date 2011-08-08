@@ -279,11 +279,9 @@ void write_radio_reg(struct brcms_phy *pi, u16 addr, u16 val)
 		W_REG(&pi->regs->phy4wdatalo, val);
 	}
 
-	if (pi->sh->bustype == PCI_BUS) {
-		if (++pi->phy_wreg >= pi->phy_wreg_limit) {
-			(void)R_REG(&pi->regs->maccontrol);
-			pi->phy_wreg = 0;
-		}
+	if (++pi->phy_wreg >= pi->phy_wreg_limit) {
+		(void)R_REG(&pi->regs->maccontrol);
+		pi->phy_wreg = 0;
 	}
 }
 
@@ -390,11 +388,9 @@ void write_phy_reg(struct brcms_phy *pi, u16 addr, u16 val)
 #else
 	W_REG((u32 *)(&regs->phyregaddr),
 	      addr | (val << 16));
-	if (pi->sh->bustype == PCI_BUS) {
-		if (++pi->phy_wreg >= pi->phy_wreg_limit) {
-			pi->phy_wreg = 0;
-			(void)R_REG(&regs->phyversion);
-		}
+	if (++pi->phy_wreg >= pi->phy_wreg_limit) {
+		pi->phy_wreg = 0;
+		(void)R_REG(&regs->phyversion);
 	}
 #endif
 }
@@ -496,7 +492,6 @@ struct shared_phy *wlc_phy_shared_attach(struct shared_phy_params *shp)
 	sh->boardvendor = shp->boardvendor;
 	sh->boardflags = shp->boardflags;
 	sh->boardflags2 = shp->boardflags2;
-	sh->bustype = shp->bustype;
 	sh->buscorerev = shp->buscorerev;
 
 	sh->fast_timer = PHY_SW_TIMER_FAST;

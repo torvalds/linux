@@ -860,8 +860,7 @@ static int varbuf_append(struct brcms_varbuf *b, const char *fmt, ...)
  * Initialize local vars from the right source for this platform.
  * Return 0 on success, nonzero on error.
  */
-int srom_var_init(struct si_pub *sih, uint bustype, void *curmap,
-		  char **vars, uint *count)
+int srom_var_init(struct si_pub *sih, void *curmap, char **vars, uint *count)
 {
 	uint len;
 
@@ -873,7 +872,7 @@ int srom_var_init(struct si_pub *sih, uint bustype, void *curmap,
 	*vars = NULL;
 	*count = 0;
 
-	if (curmap != NULL && bustype == PCI_BUS)
+	if (curmap != NULL)
 		return initvars_srom_pci(sih, curmap, vars, count);
 
 	return -EINVAL;

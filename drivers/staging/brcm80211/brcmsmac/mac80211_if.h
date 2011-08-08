@@ -60,8 +60,7 @@ struct brcms_info {
 	spinlock_t lock;	/* per-device perimeter lock */
 	spinlock_t isr_lock;	/* per-device ISR synchronization lock */
 
-	/* bus type and regsva for unmap in brcms_free() */
-	uint bcm_bustype;	/* bus type */
+	/* regsva for unmap in brcms_free() */
 	void *regsva;		/* opaque chip registers virtual address */
 
 	/* timer related fields */

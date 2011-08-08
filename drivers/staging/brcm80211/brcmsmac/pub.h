@@ -550,7 +550,7 @@ struct brcms_antselcfg {
 
 /* common functions for every port */
 extern void *brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device,
-			uint unit, bool piomode, void *regsva, uint bustype,
+			uint unit, bool piomode, void *regsva,
 			void *btparam, uint *perr);
 extern uint brcms_c_detach(struct brcms_c_info *wlc);
 extern int brcms_c_up(struct brcms_c_info *wlc);

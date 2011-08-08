@@ -451,14 +451,11 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 	 */
 	di->ddoffsetlow = 0;
 	di->dataoffsetlow = 0;
-	/* for pci bus, add offset */
-	if (sih->bustype == PCI_BUS) {
-		/* pcie with DMA64 */
-		di->ddoffsetlow = 0;
-		di->ddoffsethigh = SI_PCIE_DMA_H32;
-		di->dataoffsetlow = di->ddoffsetlow;
-		di->dataoffsethigh = di->ddoffsethigh;
-	}
+	/* add offset for pcie with DMA64 bus */
+	di->ddoffsetlow = 0;
+	di->ddoffsethigh = SI_PCIE_DMA_H32;
+	di->dataoffsetlow = di->ddoffsetlow;
+	di->dataoffsethigh = di->ddoffsethigh;
 #if defined(__mips__) && defined(IL_BIGENDIAN)
 	di->dataoffsetlow = di->dataoffsetlow + SI_SDRAM_SWAPPED;
 #endif				/* defined(__mips__) && defined(IL_BIGENDIAN) */

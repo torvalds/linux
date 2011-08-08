@@ -181,8 +181,7 @@
  */
 #define BCMCFID(wlc, fid) brcms_b_write_shm((wlc)->hw, M_BCMC_FID, (fid))
 
-#define BRCMS_WAR16165(wlc) (wlc->pub->sih->bustype == PCI_BUS && \
-				(!AP_ENAB(wlc->pub)) && (wlc->war16165))
+#define BRCMS_WAR16165(wlc) ((!AP_ENAB(wlc->pub)) && (wlc->war16165))
 
 /* Find basic rate for a given rate */
 #define BRCMS_BASIC_RATE(wlc, rspec) \
@@ -313,8 +312,8 @@ static void brcms_b_tx_fifo_resume(struct brcms_hardware *wlc_hw,
 struct brcms_b_state;
 
 static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
-			   uint unit, bool piomode, void *regsva, uint bustype,
-			   void *btparam);
+			  uint unit, bool piomode, void *regsva,
+			  void *btparam);
 
 /* up/down, reset, clk */
 static void brcms_b_reset(struct brcms_hardware *wlc_hw);
@@ -4302,7 +4301,7 @@ struct brcms_pub *brcms_c_pub(void *wlc)
  *    put the whole chip in reset(driver down state), no clock
  */
 int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
-		    bool piomode, void *regsva, uint bustype, void *btparam)
+		   bool piomode, void *regsva, void *btparam)
 {
 	struct brcms_hardware *wlc_hw;
 	struct d11regs *regs;
@@ -4313,6 +4312,8 @@ int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
 	bool wme = false;
 	struct shared_phy_params sha_params;
 	struct wiphy *wiphy = wlc->wiphy;
+	char *var;
+	unsigned long res;
 
 	BCMMSG(wlc->wiphy, "wl%d: vendor 0x%x device 0x%x\n", unit, vendor,
 		device);
@@ -4332,7 +4333,7 @@ int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
 	 * Do the hardware portion of the attach. Also initialize software
 	 * state that depends on the particular hardware we are running.
 	 */
-	wlc_hw->sih = ai_attach(regsva, bustype, btparam,
+	wlc_hw->sih = ai_attach(regsva, btparam,
 				&wlc_hw->vars, &wlc_hw->vars_size);
 	if (wlc_hw->sih == NULL) {
 		wiphy_err(wiphy, "wl%d: brcms_b_attach: si_attach failed\n",
@@ -4347,37 +4348,29 @@ int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
 	 * than those the BIOS recognizes for devices on PCMCIA_BUS,
 	 * SDIO_BUS, and SROMless devices on PCI_BUS.
 	 */
-#ifdef BCMBUSTYPE
-	bustype = BCMBUSTYPE;
-#endif
-	if (bustype != SI_BUS) {
-		char *var;
-		unsigned long res;
+	var = getvar(vars, "vendid");
+	if (var && !kstrtoul(var, 0, &res)) {
+		vendor = (u16)res;
+		wiphy_err(wiphy, "Overriding vendor id = 0x%x\n",
+			  vendor);
+	}
+	var = getvar(vars, "devid");
+	if (var && !kstrtoul(var, 0, &res)) {
+		u16 devid = (u16)res;
+		if (devid != 0xffff) {
+			device = devid;
+			wiphy_err(wiphy, "Overriding device id = 0x%x"
+				  "\n", device);
+		}
+	}
 
-		var = getvar(vars, "vendid");
-		if (var && !kstrtoul(var, 0, &res)) {
-			vendor = (u16)res;
-			wiphy_err(wiphy, "Overriding vendor id = 0x%x\n",
-				  vendor);
-		}
-		var = getvar(vars, "devid");
-		if (var && !kstrtoul(var, 0, &res)) {
-			u16 devid = (u16)res;
-			if (devid != 0xffff) {
-				device = devid;
-				wiphy_err(wiphy, "Overriding device id = 0x%x"
-					  "\n", device);
-			}
-		}
-
-		/* verify again the device is supported */
-		if (!brcms_c_chipmatch(vendor, device)) {
-			wiphy_err(wiphy, "wl%d: brcms_b_attach: Unsupported "
-				"vendor/device (0x%x/0x%x)\n",
-				 unit, vendor, device);
-			err = 12;
-			goto fail;
-		}
+	/* verify again the device is supported */
+	if (!brcms_c_chipmatch(vendor, device)) {
+		wiphy_err(wiphy, "wl%d: brcms_b_attach: Unsupported "
+			"vendor/device (0x%x/0x%x)\n",
+			 unit, vendor, device);
+		err = 12;
+		goto fail;
 	}
 
 	wlc_hw->vendorid = vendor;
@@ -4437,8 +4430,7 @@ int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
 	if (wlc_hw->boardflags & BFL_NOPLLDOWN)
 		brcms_b_pllreq(wlc_hw, true, BRCMS_PLLREQ_SHARED);
 
-	if ((wlc_hw->sih->bustype == PCI_BUS)
-	    && (ai_pci_war16165(wlc_hw->sih)))
+	if (ai_pci_war16165(wlc_hw->sih))
 		wlc->war16165 = true;
 
 	/* check device id(srom, nvram etc.) to set bands */
@@ -4491,7 +4483,6 @@ int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
 	sha_params.boardvendor = wlc_hw->sih->boardvendor;
 	sha_params.boardflags = wlc_hw->boardflags;
 	sha_params.boardflags2 = wlc_hw->boardflags2;
-	sha_params.bustype = wlc_hw->sih->bustype;
 	sha_params.buscorerev = wlc_hw->sih->buscorerev;
 
 	/* alloc and save pointer to shared phy state area */
@@ -4601,8 +4592,7 @@ int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
 	brcms_c_coredisable(wlc_hw);
 
 	/* Match driver "down" state */
-	if (wlc_hw->sih->bustype == PCI_BUS)
-		ai_pci_down(wlc_hw->sih);
+	ai_pci_down(wlc_hw->sih);
 
 	/* register sb interrupt callback functions */
 	ai_register_intr_callback(wlc_hw->sih, (void *)brcms_c_wlintrsoff,
@@ -4655,8 +4645,7 @@ int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
  * The common driver entry routine. Error codes should be unique
  */
 void *brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
-		 bool piomode, void *regsva, uint bustype, void *btparam,
-		 uint *perr)
+		 bool piomode, void *regsva, void *btparam, uint *perr)
 {
 	struct brcms_c_info *wlc;
 	uint err = 0;
@@ -4696,7 +4685,7 @@ void *brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	 * inside, no more in rest of the attach)
 	 */
 	err = brcms_b_attach(wlc, vendor, device, unit, piomode, regsva,
-			      bustype, btparam);
+			     btparam);
 	if (err)
 		goto fail;
 
@@ -5030,9 +5019,7 @@ int brcms_b_detach(struct brcms_c_info *wlc)
 		 * be done before sb core switch
 		 */
 		ai_deregister_intr_callback(wlc_hw->sih);
-
-		if (wlc_hw->sih->bustype == PCI_BUS)
-			ai_pci_sleep(wlc_hw->sih);
+		ai_pci_sleep(wlc_hw->sih);
 	}
 
 	brcms_b_detach_dmapio(wlc_hw);
@@ -5416,18 +5403,16 @@ void brcms_b_hw_up(struct brcms_hardware *wlc_hw)
 	ai_clkctl_init(wlc_hw->sih);
 	brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
 
-	if (wlc_hw->sih->bustype == PCI_BUS) {
-		ai_pci_fixcfg(wlc_hw->sih);
+	ai_pci_fixcfg(wlc_hw->sih);
 
-		/*
-		 * AI chip doesn't restore bar0win2 on
-		 * hibernation/resume, need sw fixup
-		 */
-		if ((wlc_hw->sih->chip == BCM43224_CHIP_ID) ||
-		    (wlc_hw->sih->chip == BCM43225_CHIP_ID))
-			wlc_hw->regs = (struct d11regs *)
-					ai_setcore(wlc_hw->sih, D11_CORE_ID, 0);
-	}
+	/*
+	 * AI chip doesn't restore bar0win2 on
+	 * hibernation/resume, need sw fixup
+	 */
+	if ((wlc_hw->sih->chip == BCM43224_CHIP_ID) ||
+	    (wlc_hw->sih->chip == BCM43225_CHIP_ID))
+		wlc_hw->regs = (struct d11regs *)
+				ai_setcore(wlc_hw->sih, D11_CORE_ID, 0);
 
 	/*
 	 * Inform phy that a POR reset has occurred so
@@ -5467,8 +5452,7 @@ int brcms_b_up_prep(struct brcms_hardware *wlc_hw)
 	 */
 	coremask = (1 << wlc_hw->wlc->core->coreidx);
 
-	if (wlc_hw->sih->bustype == PCI_BUS)
-		ai_pci_setup(wlc_hw->sih, coremask);
+	ai_pci_setup(wlc_hw->sih, coremask);
 
 	/*
 	 * Need to read the hwradio status here to cover the case where the
@@ -5477,14 +5461,12 @@ int brcms_b_up_prep(struct brcms_hardware *wlc_hw)
 	 */
 	if (brcms_b_radio_read_hwdisabled(wlc_hw)) {
 		/* put SB PCI in down state again */
-		if (wlc_hw->sih->bustype == PCI_BUS)
-			ai_pci_down(wlc_hw->sih);
+		ai_pci_down(wlc_hw->sih);
 		brcms_b_xtal(wlc_hw, OFF);
 		return -ENOMEDIUM;
 	}
 
-	if (wlc_hw->sih->bustype == PCI_BUS)
-		ai_pci_up(wlc_hw->sih);
+	ai_pci_up(wlc_hw->sih);
 
 	/* reset the d11 core */
 	brcms_b_corereset(wlc_hw, BRCMS_USE_COREFLAGS);
@@ -5707,8 +5689,7 @@ int brcms_b_down_finish(struct brcms_hardware *wlc_hw)
 
 		/* turn off primary xtal and pll */
 		if (!wlc_hw->noreset) {
-			if (wlc_hw->sih->bustype == PCI_BUS)
-				ai_pci_down(wlc_hw->sih);
+			ai_pci_down(wlc_hw->sih);
 			brcms_b_xtal(wlc_hw, OFF);
 		}
 	}

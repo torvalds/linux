@@ -330,10 +330,8 @@
 #define	ILP_DIV_5MHZ		0	/* ILP = 5 MHz */
 #define	ILP_DIV_1MHZ		4	/* ILP = 1 MHz */
 
-#define PCI(si)		(((si)->pub.bustype == PCI_BUS) &&	\
-			 ((si)->pub.buscoretype == PCI_CORE_ID))
-#define PCIE(si)	(((si)->pub.bustype == PCI_BUS) &&	\
-			 ((si)->pub.buscoretype == PCIE_CORE_ID))
+#define PCI(si)		((si)->pub.buscoretype == PCI_CORE_ID)
+#define PCIE(si)	((si)->pub.buscoretype == PCIE_CORE_ID)
 #define PCI_FORCEHT(si)	\
 	(PCIE(si) && (si->pub.chip == BCM4716_CHIP_ID))
 
@@ -351,7 +349,6 @@
  *   public (read-only) portion of aiutils handle returned by si_attach()
  */
 struct si_pub {
-	uint bustype;		/* SI_BUS, PCI_BUS */
 	uint buscoretype;	/* PCI_CORE_ID, PCIE_CORE_ID, PCMCIA_CORE_ID */
 	uint buscorerev;	/* buscore rev */
 	uint buscoreidx;	/* buscore index */
@@ -518,9 +515,8 @@ extern u32 ai_addrspacesize(struct si_pub *sih, uint asidx);
 extern void ai_write_wrap_reg(struct si_pub *sih, u32 offset, u32 val);
 
 /* === exported functions === */
-extern struct si_pub *ai_attach(void *regs, uint bustype,
-		       void *sdh, char **vars, uint *varsz);
-
+extern struct si_pub *ai_attach(void *regs, void *sdh, char **vars,
+				uint *varsz);
 extern void ai_detach(struct si_pub *sih);
 extern bool ai_pci_war16165(struct si_pub *sih);
 

@@ -755,7 +755,7 @@ static int brcms_set_hint(struct brcms_info *wl, char *abbrev)
  */
 static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 				       unsigned long regs,
-			    uint bustype, void *btparam, uint irq)
+				       void *btparam, uint irq)
 {
 	struct brcms_info *wl = NULL;
 	int unit, err;
@@ -786,14 +786,6 @@ static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 
 	base_addr = regs;
 
-	if (bustype == PCI_BUS || bustype == RPC_BUS) {
-		/* Do nothing */
-	} else {
-		bustype = PCI_BUS;
-		BCMMSG(wl->wiphy, "force to PCI\n");
-	}
-	wl->bcm_bustype = bustype;
-
 	wl->regsva = ioremap_nocache(base_addr, PCI_BAR0_WINSZ);
 	if (wl->regsva == NULL) {
 		wiphy_err(wl->wiphy, "wl%d: ioremap() failed\n", unit);
@@ -813,7 +805,7 @@ static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 
 	/* common load-time initialization */
 	wl->wlc = brcms_c_attach((void *)wl, vendor, device, unit, false,
-			     wl->regsva, wl->bcm_bustype, btparam, &err);
+				 wl->regsva, btparam, &err);
 	brcms_release_fw(wl);
 	if (!wl->wlc) {
 		wiphy_err(wl->wiphy, "%s: attach() failed with code %d\n",
@@ -1156,7 +1148,7 @@ brcms_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	memset(hw->priv, 0, sizeof(*wl));
 
 	wl = brcms_attach(pdev->vendor, pdev->device,
-			  pci_resource_start(pdev, 0), PCI_BUS, pdev,
+			  pci_resource_start(pdev, 0), pdev,
 			  pdev->irq);
 
 	if (!wl) {
@@ -1373,8 +1365,7 @@ static void brcms_free(struct brcms_info *wl)
 	 * registers so we cannot unmap the chip registers until
 	 * after calling unregister_netdev() .
 	 */
-	if (wl->regsva && wl->bcm_bustype != SDIO_BUS &&
-	    wl->bcm_bustype != JTAG_BUS)
+	if (wl->regsva)
 		iounmap((void *)wl->regsva);
 
 	wl->regsva = NULL;
