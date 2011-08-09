@@ -1,0 +1,7 @@
+#
+config INTEGRITY
+	def_bool y
+	depends on IMA || EVM
+
+source security/integrity/ima/Kconfig
+source security/integrity/evm/Kconfig
