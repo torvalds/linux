@@ -1557,7 +1557,8 @@ static inline void remove_partial(struct kmem_cache_node *n,
  * Must hold list_lock.
  */
 static inline int acquire_slab(struct kmem_cache *s,
-		struct kmem_cache_node *n, struct page *page)
+		struct kmem_cache_node *n, struct page *page,
+		struct kmem_cache_cpu *c)
 {
 	void *freelist;
 	unsigned long counters;
@@ -1586,9 +1587,9 @@ static inline int acquire_slab(struct kmem_cache *s,
 
 	if (freelist) {
 		/* Populate the per cpu freelist */
-		this_cpu_write(s->cpu_slab->freelist, freelist);
-		this_cpu_write(s->cpu_slab->page, page);
-		this_cpu_write(s->cpu_slab->node, page_to_nid(page));
+		c->freelist = freelist;
+		c->page = page;
+		c->node = page_to_nid(page);
 		return 1;
 	} else {
 		/*
@@ -1606,7 +1607,7 @@ static inline int acquire_slab(struct kmem_cache *s,
  * Try to allocate a partial slab from a specific node.
  */
 static struct page *get_partial_node(struct kmem_cache *s,
-					struct kmem_cache_node *n)
+		struct kmem_cache_node *n, struct kmem_cache_cpu *c)
 {
 	struct page *page;
 
@@ -1621,7 +1622,7 @@ static struct page *get_partial_node(struct kmem_cache *s,
 
 	spin_lock(&n->list_lock);
 	list_for_each_entry(page, &n->partial, lru)
-		if (acquire_slab(s, n, page))
+		if (acquire_slab(s, n, page, c))
 			goto out;
 	page = NULL;
 out:
@@ -1632,7 +1633,8 @@ out:
 /*
  * Get a page from somewhere. Search in increasing NUMA distances.
  */
-static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags)
+static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags,
+		struct kmem_cache_cpu *c)
 {
 #ifdef CONFIG_NUMA
 	struct zonelist *zonelist;
@@ -1672,7 +1674,7 @@ static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags)
 
 		if (n && cpuset_zone_allowed_hardwall(zone, flags) &&
 				n->nr_partial > s->min_partial) {
-			page = get_partial_node(s, n);
+			page = get_partial_node(s, n, c);
 			if (page) {
 				put_mems_allowed();
 				return page;
@@ -1687,16 +1689,17 @@ static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags)
 /*
  * Get a partial page, lock it and return it.
  */
-static struct page *get_partial(struct kmem_cache *s, gfp_t flags, int node)
+static struct page *get_partial(struct kmem_cache *s, gfp_t flags, int node,
+		struct kmem_cache_cpu *c)
 {
 	struct page *page;
 	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
 
-	page = get_partial_node(s, get_node(s, searchnode));
+	page = get_partial_node(s, get_node(s, searchnode), c);
 	if (page || node != NUMA_NO_NODE)
 		return page;
 
-	return get_any_partial(s, flags);
+	return get_any_partial(s, flags, c);
 }
 
 #ifdef CONFIG_PREEMPT
@@ -1765,9 +1768,6 @@ void init_kmem_cache_cpus(struct kmem_cache *s)
 	for_each_possible_cpu(cpu)
 		per_cpu_ptr(s->cpu_slab, cpu)->tid = init_tid(cpu);
 }
-/*
- * Remove the cpu slab
- */
 
 /*
  * Remove the cpu slab
@@ -2116,7 +2116,7 @@ load_freelist:
 	return object;
 
 new_slab:
-	page = get_partial(s, gfpflags, node);
+	page = get_partial(s, gfpflags, node, c);
 	if (page) {
 		stat(s, ALLOC_FROM_PARTIAL);
 		object = c->freelist;
