@@ -42,6 +42,7 @@ struct slabinfo {
 	unsigned long deactivate_remote_frees, order_fallback;
 	unsigned long cmpxchg_double_cpu_fail, cmpxchg_double_fail;
 	unsigned long alloc_node_mismatch, deactivate_bypass;
+	unsigned long cpu_partial_alloc, cpu_partial_free;
 	int numa[MAX_NODES];
 	int numa_partial[MAX_NODES];
 } slabinfo[MAX_SLABS];
@@ -454,6 +455,11 @@ static void slab_stats(struct slabinfo *s)
 		s->alloc_from_partial, s->free_remove_partial,
 		s->alloc_from_partial * 100 / total_alloc,
 		s->free_remove_partial * 100 / total_free);
+
+	printf("Cpu partial list     %8lu %8lu %3lu %3lu\n",
+		s->cpu_partial_alloc, s->cpu_partial_free,
+		s->cpu_partial_alloc * 100 / total_alloc,
+		s->cpu_partial_free * 100 / total_free);
 
 	printf("RemoteObj/SlabFrozen %8lu %8lu %3lu %3lu\n",
 		s->deactivate_remote_frees, s->free_frozen,
@@ -1209,6 +1215,8 @@ static void read_slab_dir(void)
 			slab->order_fallback = get_obj("order_fallback");
 			slab->cmpxchg_double_cpu_fail = get_obj("cmpxchg_double_cpu_fail");
 			slab->cmpxchg_double_fail = get_obj("cmpxchg_double_fail");
+			slab->cpu_partial_alloc = get_obj("cpu_partial_alloc");
+			slab->cpu_partial_free = get_obj("cpu_partial_free");
 			slab->alloc_node_mismatch = get_obj("alloc_node_mismatch");
 			slab->deactivate_bypass = get_obj("deactivate_bypass");
 			chdir("..");
