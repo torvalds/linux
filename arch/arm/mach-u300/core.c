@@ -68,25 +68,6 @@ static struct map_desc u300_io_desc[] __initdata = {
 		.length		= SZ_32K,
 		.type		= MT_DEVICE,
 	},
-	{
-		.virtual	= 0xffff2000, /* TCM memory */
-		.pfn		= __phys_to_pfn(0xffff2000),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	},
-
-	/*
-	 * This overlaps with the IRQ vectors etc at 0xffff0000, so these
-	 * may have to be moved to 0x00000000 in order to use the ROM.
-	 */
-	/*
-	{
-		.virtual	= U300_BOOTROM_VIRT_BASE,
-		.pfn		= __phys_to_pfn(U300_BOOTROM_PHYS_BASE),
-		.length		= SZ_64K,
-		.type		= MT_ROM,
-	},
-	*/
 };
 
 void __init u300_map_io(void)
