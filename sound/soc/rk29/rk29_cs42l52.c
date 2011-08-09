@@ -25,7 +25,7 @@
 #include "rk29_pcm.h"
 #include "rk29_i2s.h"
 
-#if 1
+#if 0
 #define	DBG(x...)	printk(KERN_INFO x)
 #else
 #define	DBG(x...)

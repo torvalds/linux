@@ -446,7 +446,7 @@ static struct reginfo sensor_720p[]=
 		
 	{0x3c07,0x07},
 	{0x3803,0xfa},
-	{0x3806,0x06},
+	{0x3806,0x06},////
 	{0x3807,0xa9},
 	{0x3808,0x05},
 	{0x3809,0x00},
@@ -459,18 +459,18 @@ static struct reginfo sensor_720p[]=
 	{0x3813,0x04},
 	{0x3a02,0x02},
 	{0x3a03,0xe4},
-	{0x3a08,0x01},
-	{0x3a09,0xbc},
-	{0x3a0a,0x01},
-	{0x3a0b,0x72},
+	{0x3a08,0x01},///
+	{0x3a09,0xbc},////
+	{0x3a0a,0x01},///
+	{0x3a0b,0x72},////
 	{0x3a0e,0x01},
 	{0x3a0d,0x02},
 	{0x3a14,0x02},
 	{0x3a15,0xe4},
-	{0x3002,0x00},
-	{0x4713,0x02},
+	{0x3002,0x00},///
+	{0x4713,0x02},///
 	{0x4837,0x16},
-	{0x3824,0x04},
+	{0x3824,0x04},///
 	{0x5001,0x83},
 	{0x3035,0x21},
 	{0x3036,0x46},
@@ -705,6 +705,7 @@ static struct reginfo sensor_svga[] =
 	{0x3814, 0x31},
 	{0x3815, 0x31},
 	{0x3803, 0x04},
+	{0x3806, 0x07},///
 	{0x3807, 0x9b},
 	{0x3808, 0x03},
 	{0x3809, 0x20},
@@ -2655,7 +2656,16 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,struct v4l2_mbus_framefmt *mf)
 				qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_DO_WHITE_BALANCE);
 				sensor_set_whiteBalance(icd, qctrl,sensor->info_priv.whiteBalance);
 			}
-            msleep(600);
+            #if CONFIG_SENSOR_Focus
+            if (sensor->info_priv.auto_focus == SENSOR_AF_MODE_AUTO) {
+                sensor_af_idlechk(client);
+                msleep(200);
+            } else {
+                msleep(500);
+            }
+            #else   
+            msleep(500);
+            #endif
 			sensor->info_priv.video2preview = false;
 			sensor->info_priv.snap2preview = false;
 		}

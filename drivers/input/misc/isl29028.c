@@ -71,6 +71,11 @@
 #define ISL_REG_ALSIR_LDATA	  (0x09)
 #define ISL_REG_ALSIR_HDATA	  (0x0a)
 
+
+#define ISL_REG_ALSIR_TH1	(0x05)
+#define ISL_REG_ALSIR_TH2	(0x06)
+#define ISL_REG_ALSIR_TH3	(0x07)
+
 struct isl29028_data {
 	struct input_dev         *psensor_input_dev;
 	struct input_dev         *lsensor_input_dev;
@@ -707,6 +712,24 @@ static int isl29028_config(struct i2c_client *client)
 	printk("%s: config isl29028 PROX_HT(0x04) reg %#x \n", __FUNCTION__, value);
 #endif
 
+	buf[0] = ISL_REG_ALSIR_TH1;
+	buf[1] = 0x0;
+	if ((ret = i2c_master_send(client, buf, 2)) < 2) {
+		printk("%s: config isl29028 register %#x err %d\n", __FUNCTION__, buf[0], ret);
+	}
+
+	buf[0] = ISL_REG_ALSIR_TH2;
+	buf[1] = 0xF0;
+	if ((ret = i2c_master_send(client, buf, 2)) < 2) {
+		printk("%s: config isl29028 register %#x err %d\n", __FUNCTION__, buf[0], ret);
+	}
+	
+	buf[0] = ISL_REG_ALSIR_TH3;
+	buf[1] = 0xFF;
+	if ((ret = i2c_master_send(client, buf, 2)) < 2) {
+		printk("%s: config isl29028 register %#x err %d\n", __FUNCTION__, buf[0], ret);
+	}
+	
 	mutex_unlock(&isl->lock);
 
 	return 0;

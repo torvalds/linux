@@ -158,6 +158,7 @@ void hdmi_unregister(struct hdmi *hdmi)
 	if(!hdmi)
 		return;
 	id = hdmi->id;
+	del_timer(&hdmi->timer);
 	flush_scheduled_work();
 	hdmi_remove_attrs(hdmi);
 	device_unregister(hdmi->dev);

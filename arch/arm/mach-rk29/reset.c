@@ -16,6 +16,8 @@
 #include <mach/memory.h>
 #include <mach/sram.h>
 #include <mach/pmu.h>
+#include <mach/loader.h>
+#include <mach/board.h>
 
 #include <asm/delay.h>
 #include <asm/tlbflush.h>
@@ -36,7 +38,7 @@ static void  pwm2gpiodefault(void)
 	memset((void *)RK29_PWM_BASE, 0, 0x40);
 } 
 
-
+#if 0
 extern void __rb( void*  );
 static void rb( void )
 {
@@ -51,6 +53,7 @@ static void rb( void )
     //while(testflag);    
     cb( uart_base );
 }
+#endif
 
 static volatile u32 __sramdata reboot_reason = 0;
 static void __sramfunc __noreturn rk29_rb_with_softreset(void)
@@ -116,13 +119,22 @@ static void __sramfunc __noreturn rk29_rb_with_softreset(void)
 void rk29_arch_reset(int mode, const char *cmd)
 {
 	void (*rb2)(void);
+	u32 boot_mode = BOOT_MODE_REBOOT;
 
 	if (cmd) {
-		if (!strcmp(cmd, "loader") || !strcmp(cmd, "bootloader"))
-			reboot_reason = 0x1888AAFF;
-		else if (!strcmp(cmd, "recovery"))
-			reboot_reason = 0x5242C303;
+		if (!strcmp(cmd, "loader") || !strcmp(cmd, "bootloader")) {
+			reboot_reason = SYS_LOADER_ERR_FLAG;
+		} else if (!strcmp(cmd, "recovery")) {
+			reboot_reason = SYS_LOADER_REBOOT_FLAG + BOOT_RECOVER;
+			boot_mode = BOOT_MODE_RECOVERY;
+		} else if (!strcmp(cmd, "charge")) {
+			boot_mode = BOOT_MODE_CHARGE;
+		}
+	} else {
+		if (system_state != SYSTEM_RESTART)
+			boot_mode = BOOT_MODE_PANIC;
 	}
+	writel(boot_mode, RK29_GRF_BASE + 0xdc); // GRF_OS_REG3
 
 	rb2 = (void(*)(void))((u32)rk29_rb_with_softreset - SRAM_CODE_OFFSET + 0x10130000);
 

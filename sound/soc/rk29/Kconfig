@@ -75,6 +75,94 @@ config SND_RK29_SOC_WM8994
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the WM8994.  
 
+if SND_SOC_WM8994
+choice
+  prompt "Chose earpiece type"
+
+	config SND_INSIDE_EARPIECE
+		tristate  "Inside earpiece"
+
+	config SND_OUTSIDE_EARPIECE
+		tristate  "Outside earpiece"
+
+	config SND_NO_EARPIECE
+		tristate  "No earpiece"
+endchoice
+
+choice
+  prompt "Chose BB input signal type"
+
+	config SND_BB_NORMAL_INPUT
+		tristate  "BB normal singnal input"
+
+	config SND_BB_DIFFERENTIAL_INPUT
+		tristate  "BB differential singnal input"
+
+endchoice
+
+config WM8994_SPEAKER_INCALL_VOL  
+	default 15
+	int "Setting the wm8994 speaker incall vol"
+	help
+	  -21dB to 12dB
+
+config WM8994_SPEAKER_INCALL_MIC_VOL  
+	default 15
+	int "Setting the wm8994 speaker incall mic vol"
+	help
+	  -22dB to 30dB
+
+config WM8994_SPEAKER_NORMAL_VOL  
+	default 15
+	int "Setting the wm8994 speaker normal vol"
+	help
+	  -57dB to 18dB
+
+if SND_INSIDE_EARPIECE||SND_OUTSIDE_EARPIECE
+config WM8994_EARPIECE_INCALL_VOL  
+	default 0
+	int "Setting the wm8994 earpiece incall vol(normal)"
+	help
+	  -27dB to 30dB
+endif
+
+config WM8994_HEADSET_INCALL_VOL
+	default 6
+	int "Setting the wm8994 headset incall vol"
+	help
+	  -12dB to 6dB
+
+config WM8994_HEADSET_INCALL_MIC_VOL  
+	default 30
+	int "Setting the wm8994 headset incall mic vol"
+	help
+	  -22dB to 30dB
+
+config WM8994_HEADSET_NORMAL_VOL  
+	default 15
+	int "Setting the wm8994 headset normal vol"
+	help
+	  -57dB to 6dB
+
+config WM8994_BT_INCALL_VOL  
+	default 30
+	int "Setting the wm8994 BT incall vol"
+	help
+	  0dB or 30dB
+
+config WM8994_BT_INCALL_MIC_VOL  
+	default -20
+	int "Setting the wm8994 BT incall mic vol"
+	help
+	  -57dB to 6dB
+
+config WM8994_RECORDER_VOL  
+	default 40
+	int "Setting the wm8994 recorder vol"
+	help
+	  -16dB to 60dB
+endif
+
 config SND_RK29_SOC_CS42L52
 	tristate "SoC I2S Audio support for rockchip - CS42L52"
 	depends on SND_RK29_SOC && I2C_RK29
