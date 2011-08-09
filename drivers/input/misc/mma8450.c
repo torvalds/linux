@@ -234,7 +234,7 @@ static const struct of_device_id mma8450_dt_ids[] = {
 	{ .compatible = "fsl,mma8450", },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(i2c, mma8450_dt_ids);
+MODULE_DEVICE_TABLE(of, mma8450_dt_ids);
 
 static struct i2c_driver mma8450_driver = {
 	.driver = {
