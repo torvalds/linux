@@ -2417,6 +2417,12 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	.idProduct = 0x1020,
 },
 
+/* KeithMcMillen Stringport */
+{
+	USB_DEVICE(0x1f38, 0x0001),
+	.bInterfaceClass = USB_CLASS_AUDIO,
+},
+
 /* Miditech devices */
 {
 	USB_DEVICE(0x4752, 0x0011),
