@@ -735,8 +735,7 @@ void mesh_path_flush_pending(struct mesh_path *mpath)
 {
 	struct sk_buff *skb;
 
-	while ((skb = skb_dequeue(&mpath->frame_queue)) &&
-			(mpath->flags & MESH_PATH_ACTIVE))
+	while ((skb = skb_dequeue(&mpath->frame_queue)) != NULL)
 		mesh_path_discard_frame(skb, mpath->sdata);
 }
 
