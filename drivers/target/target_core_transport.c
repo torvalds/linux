@@ -2053,8 +2053,14 @@ static void transport_generic_request_failure(
 		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
 		break;
 	}
-
-	if (!sc)
+	/*
+	 * If a fabric does not define a cmd->se_tfo->new_cmd_map caller,
+	 * make the call to transport_send_check_condition_and_sense()
+	 * directly.  Otherwise expect the fabric to make the call to
+	 * transport_send_check_condition_and_sense() after handling
+	 * possible unsoliticied write data payloads.
+	 */
+	if (!sc && !cmd->se_tfo->new_cmd_map)
 		transport_new_cmd_failure(cmd);
 	else {
 		ret = transport_send_check_condition_and_sense(cmd,
