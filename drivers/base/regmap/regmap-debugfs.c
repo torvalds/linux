@@ -29,7 +29,7 @@ static int regmap_map_open_file(struct inode *inode, struct file *file)
 static ssize_t regmap_map_read_file(struct file *file, char __user *user_buf,
 				    size_t count, loff_t *ppos)
 {
-	size_t reg_len, val_len, tot_len;
+	int reg_len, val_len, tot_len;
 	size_t buf_pos = 0;
 	loff_t p = 0;
 	ssize_t ret;
