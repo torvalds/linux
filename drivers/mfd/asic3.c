@@ -813,24 +813,43 @@ static int asic3_leds_disable(struct platform_device *pdev)
 	return 0;
 }
 
+static int asic3_leds_suspend(struct platform_device *pdev)
+{
+	const struct mfd_cell *cell = mfd_get_cell(pdev);
+	struct asic3 *asic = dev_get_drvdata(pdev->dev.parent);
+
+	while (asic3_gpio_get(&asic->gpio, ASIC3_GPIO(C, cell->id)) != 0)
+		msleep(1);
+
+	asic3_clk_disable(asic, &asic->clocks[clock_ledn[cell->id]]);
+
+	return 0;
+}
+
 static struct mfd_cell asic3_cell_leds[ASIC3_NUM_LEDS] = {
 	[0] = {
 		.name          = "leds-asic3",
 		.id            = 0,
 		.enable        = asic3_leds_enable,
 		.disable       = asic3_leds_disable,
+		.suspend       = asic3_leds_suspend,
+		.resume        = asic3_leds_enable,
 	},
 	[1] = {
 		.name          = "leds-asic3",
 		.id            = 1,
 		.enable        = asic3_leds_enable,
 		.disable       = asic3_leds_disable,
+		.suspend       = asic3_leds_suspend,
+		.resume        = asic3_leds_enable,
 	},
 	[2] = {
 		.name          = "leds-asic3",
 		.id            = 2,
 		.enable        = asic3_leds_enable,
 		.disable       = asic3_leds_disable,
+		.suspend       = asic3_leds_suspend,
+		.resume        = asic3_leds_enable,
 	},
 };
 
