@@ -695,7 +695,7 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 	u8 ttl, flags, hopcount;
 	u8 *orig_addr;
 	u32 orig_sn, metric;
-	u32 interval = cpu_to_le32(IEEE80211_MESH_RANN_INTERVAL);
+	u32 interval = ifmsh->mshcfg.dot11MeshHWMPRannInterval;
 	bool root_is_gate;
 
 	ttl = rann->rann_ttl;
@@ -743,7 +743,7 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 		mesh_path_sel_frame_tx(MPATH_RANN, flags, orig_addr,
 				       cpu_to_le32(orig_sn),
 				       0, NULL, 0, broadcast_addr,
-				       hopcount, ttl, interval,
+				       hopcount, ttl, cpu_to_le32(interval),
 				       cpu_to_le32(metric + mpath->metric),
 				       0, sdata);
 		mpath->sn = orig_sn;
@@ -1044,11 +1044,11 @@ void
 mesh_path_tx_root_frame(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	u32 interval = cpu_to_le32(IEEE80211_MESH_RANN_INTERVAL);
+	u32 interval = ifmsh->mshcfg.dot11MeshHWMPRannInterval;
 
 	mesh_path_sel_frame_tx(MPATH_RANN, 0, sdata->vif.addr,
 			       cpu_to_le32(++ifmsh->sn),
 			       0, NULL, 0, broadcast_addr,
 			       0, sdata->u.mesh.mshcfg.element_ttl,
-			       interval, 0, 0, sdata);
+			       cpu_to_le32(interval), 0, 0, sdata);
 }

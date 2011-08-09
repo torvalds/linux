@@ -372,6 +372,8 @@ IEEE80211_IF_FILE(min_discovery_timeout,
 		u.mesh.mshcfg.min_discovery_timeout, DEC);
 IEEE80211_IF_FILE(dot11MeshHWMPRootMode,
 		u.mesh.mshcfg.dot11MeshHWMPRootMode, DEC);
+IEEE80211_IF_FILE(dot11MeshHWMPRannInterval,
+		u.mesh.mshcfg.dot11MeshHWMPRannInterval, DEC);
 #endif
 
 
@@ -486,6 +488,7 @@ static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
 	MESHPARAMS_ADD(path_refresh_time);
 	MESHPARAMS_ADD(min_discovery_timeout);
 	MESHPARAMS_ADD(dot11MeshHWMPRootMode);
+	MESHPARAMS_ADD(dot11MeshHWMPRannInterval);
 #undef MESHPARAMS_ADD
 }
 #endif
