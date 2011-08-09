@@ -63,8 +63,9 @@ static inline void bnx2x_bz_fp(struct bnx2x *bp, int index)
 	fp->disable_tpa = ((bp->flags & TPA_ENABLE_FLAG) == 0);
 
 #ifdef BCM_CNIC
-	/* We don't want TPA on FCoE, FWD and OOO L2 rings */
-	bnx2x_fcoe(bp, disable_tpa) = 1;
+	/* We don't want TPA on an FCoE L2 ring */
+	if (IS_FCOE_FP(fp))
+		fp->disable_tpa = 1;
 #endif
 }
 
