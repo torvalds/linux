@@ -537,9 +537,6 @@ void tipc_link_stop(struct link *l_ptr)
 	l_ptr->proto_msg_queue = NULL;
 }
 
-/* LINK EVENT CODE IS NOT SUPPORTED AT PRESENT */
-#define link_send_event(fcn, l_ptr, up) do { } while (0)
-
 void tipc_link_reset(struct link *l_ptr)
 {
 	struct sk_buff *buf;
@@ -597,10 +594,6 @@ void tipc_link_reset(struct link *l_ptr)
 	l_ptr->fsm_msg_cnt = 0;
 	l_ptr->stale_count = 0;
 	link_reset_statistics(l_ptr);
-
-	link_send_event(tipc_cfg_link_event, l_ptr, 0);
-	if (!in_own_cluster(l_ptr->addr))
-		link_send_event(tipc_disc_link_event, l_ptr, 0);
 }
 
 
@@ -609,9 +602,6 @@ static void link_activate(struct link *l_ptr)
 	l_ptr->next_in_no = l_ptr->stats.recv_info = 1;
 	tipc_node_link_up(l_ptr->owner, l_ptr);
 	tipc_bearer_add_dest(l_ptr->b_ptr, l_ptr->addr);
-	link_send_event(tipc_cfg_link_event, l_ptr, 1);
-	if (!in_own_cluster(l_ptr->addr))
-		link_send_event(tipc_disc_link_event, l_ptr, 1);
 }
 
 /**
