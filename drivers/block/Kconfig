@@ -486,7 +486,7 @@ config XEN_BLKDEV_FRONTEND
 	  in another domain which drives the actual block device.
 
 config XEN_BLKDEV_BACKEND
-	tristate "Block-device backend driver"
+	tristate "Xen block-device backend driver"
 	depends on XEN_BACKEND
 	help
 	  The block-device backend driver allows the kernel to export its
