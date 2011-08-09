@@ -485,7 +485,7 @@ static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
 	MESHPARAMS_ADD(dot11MeshHWMPmaxPREQretries);
 	MESHPARAMS_ADD(path_refresh_time);
 	MESHPARAMS_ADD(min_discovery_timeout);
-
+	MESHPARAMS_ADD(dot11MeshHWMPRootMode);
 #undef MESHPARAMS_ADD
 }
 #endif
