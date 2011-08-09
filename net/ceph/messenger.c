@@ -2281,7 +2281,8 @@ EXPORT_SYMBOL(ceph_con_keepalive);
  * construct a new message with given type, size
  * the new msg has a ref count of 1.
  */
-struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags)
+struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
+			      bool can_fail)
 {
 	struct ceph_msg *m;
 
@@ -2333,7 +2334,7 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags)
 			m->front.iov_base = kmalloc(front_len, flags);
 		}
 		if (m->front.iov_base == NULL) {
-			pr_err("msg_new can't allocate %d bytes\n",
+			dout("ceph_msg_new can't allocate %d bytes\n",
 			     front_len);
 			goto out2;
 		}
@@ -2348,7 +2349,13 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags)
 out2:
 	ceph_msg_put(m);
 out:
-	pr_err("msg_new can't create type %d front %d\n", type, front_len);
+	if (!can_fail) {
+		pr_err("msg_new can't create type %d front %d\n", type,
+		       front_len);
+	} else {
+		dout("msg_new can't create type %d front %d\n", type,
+		     front_len);
+	}
 	return NULL;
 }
 EXPORT_SYMBOL(ceph_msg_new);
@@ -2398,7 +2405,7 @@ static struct ceph_msg *ceph_alloc_msg(struct ceph_connection *con,
 	}
 	if (!msg) {
 		*skip = 0;
-		msg = ceph_msg_new(type, front_len, GFP_NOFS);
+		msg = ceph_msg_new(type, front_len, GFP_NOFS, false);
 		if (!msg) {
 			pr_err("unable to allocate msg type %d len %d\n",
 			       type, front_len);
