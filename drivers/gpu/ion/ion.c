@@ -131,7 +131,7 @@ static void ion_buffer_add(struct ion_device *dev,
 }
 
 /* this function should only be called while dev->lock is held */
-struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
+static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 				     struct ion_device *dev,
 				     unsigned long len,
 				     unsigned long align,
@@ -181,7 +181,7 @@ static int ion_buffer_put(struct ion_buffer *buffer)
 	return kref_put(&buffer->ref, ion_buffer_destroy);
 }
 
-struct ion_handle *ion_handle_create(struct ion_client *client,
+static struct ion_handle *ion_handle_create(struct ion_client *client,
 				     struct ion_buffer *buffer)
 {
 	struct ion_handle *handle;
@@ -190,6 +190,7 @@ struct ion_handle *ion_handle_create(struct ion_client *client,
 	if (!handle)
 		return ERR_PTR(-ENOMEM);
 	kref_init(&handle->ref);
+	rb_init_node(&handle->node);
 	handle->client = client;
 	ion_buffer_get(buffer);
 	handle->buffer = buffer;
@@ -205,7 +206,8 @@ static void ion_handle_destroy(struct kref *kref)
 	 */
 	ion_buffer_put(handle->buffer);
 	mutex_lock(&handle->client->lock);
-	rb_erase(&handle->node, &handle->client->handles);
+	if (!RB_EMPTY_NODE(&handle->node))
+		rb_erase(&handle->node, &handle->client->handles);
 	mutex_unlock(&handle->client->lock);
 	kfree(handle);
 }
@@ -239,7 +241,7 @@ static struct ion_handle *ion_handle_lookup(struct ion_client *client,
 	return NULL;
 }
 
-bool ion_handle_validate(struct ion_client *client, struct ion_handle *handle)
+static bool ion_handle_validate(struct ion_client *client, struct ion_handle *handle)
 {
 	struct rb_node *n = client->handles.rb_node;
 
@@ -351,7 +353,7 @@ void ion_free(struct ion_client *client, struct ion_handle *handle)
 static void ion_client_get(struct ion_client *client);
 static int ion_client_put(struct ion_client *client);
 
-bool _ion_map(int *buffer_cnt, int *handle_cnt)
+static bool _ion_map(int *buffer_cnt, int *handle_cnt)
 {
 	bool map;
 
@@ -367,7 +369,7 @@ bool _ion_map(int *buffer_cnt, int *handle_cnt)
 	return map;
 }
 
-bool _ion_unmap(int *buffer_cnt, int *handle_cnt)
+static bool _ion_unmap(int *buffer_cnt, int *handle_cnt)
 {
 	BUG_ON(*handle_cnt == 0);
 	(*handle_cnt)--;
@@ -522,7 +524,7 @@ struct ion_buffer *ion_share(struct ion_client *client,
 		return ERR_PTR(-EINVAL);
 	}
 
-	/* don't not take an extra refernce here, the burden is on the caller
+	/* do not take an extra reference here, the burden is on the caller
 	 * to make sure the buffer doesn't go away while it's passing it
 	 * to another client -- ion_free should not be called on this handle
 	 * until the buffer has been imported into the other client
@@ -897,7 +899,7 @@ err1:
 	/* drop the reference to the handle */
 	ion_handle_put(handle);
 err:
-	/* drop the refernce to the client */
+	/* drop the reference to the client */
 	ion_client_put(client);
 	return ret;
 }

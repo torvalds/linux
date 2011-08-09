@@ -186,9 +186,14 @@ void ion_unmap_dma(struct ion_client *client, struct ion_handle *handle);
  * @client:	the client
  * @handle:	the handle to share
  *
- * Given a handle, return a buffer which exists in a global name
- * space and can be passed to other clients.  Should be passed into ion_import
+ * Given a handle, return a buffer, which exists in a global name
+ * space, and can be passed to other clients.  Should be passed into ion_import
  * to obtain a new handle for this buffer.
+ *
+ * NOTE: This function does do not an extra reference.  The burden is on the
+ * caller to make sure the buffer doesn't go away while it's being passed to
+ * another client.  That is, ion_free should not be called on this handle until
+ * the buffer has been imported into the other client.
  */
 struct ion_buffer *ion_share(struct ion_client *client,
 			     struct ion_handle *handle);
