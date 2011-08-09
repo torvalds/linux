@@ -5798,6 +5798,12 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 
 	DP(BNX2X_MSG_MCP, "starting common init  func %d\n", BP_ABS_FUNC(bp));
 
+	/*
+	 * take the UNDI lock to protect undi_unload flow from accessing
+	 * registers while we're resetting the chip
+	 */
+	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
+
 	bnx2x_reset_common(bp);
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_SET, 0xffffffff);
 
@@ -5807,6 +5813,8 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 		val |= MISC_REGISTERS_RESET_REG_2_MSTAT1;
 	}
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_SET, val);
+
+	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
 
 	bnx2x_init_block(bp, BLOCK_MISC, PHASE_COMMON);
 
