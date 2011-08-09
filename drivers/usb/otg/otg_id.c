@@ -44,16 +44,24 @@ static void __otg_id_notify(void)
 {
 	int ret;
 	struct otg_id_notifier_block *otg_id_nb;
-
+	bool proxy_wait = false;
 	if (plist_head_empty(&otg_id_plist))
 		return;
 
 	plist_for_each_entry(otg_id_nb, &otg_id_plist, p) {
-		ret = otg_id_nb->detect(otg_id_nb);
+		if (proxy_wait) {
+			if (otg_id_nb->proxy_wait)
+				ret = otg_id_nb->proxy_wait(otg_id_nb);
+		} else {
+			ret = otg_id_nb->detect(otg_id_nb);
+		}
 		if (ret == OTG_ID_HANDLED) {
 			otg_id_active = otg_id_nb;
 			return;
 		}
+		if (ret == OTG_ID_PROXY_WAIT)
+			proxy_wait = true;
+
 	}
 
 	WARN(1, "otg id event not handled");
