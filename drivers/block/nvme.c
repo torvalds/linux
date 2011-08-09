@@ -1054,6 +1054,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	case nvme_cmd_compare:
 		nents = nvme_map_user_pages(dev, io.opcode & 1, io.addr,
 								length, &sg);
+		break;
 	default:
 		return -EINVAL;
 	}
