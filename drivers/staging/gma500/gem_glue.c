@@ -20,26 +20,6 @@
 #include <drm/drmP.h>
 #include <drm/drm.h>
 
-/**
- * Initialize an already allocated GEM object of the specified size with
- * no GEM provided backing store. Instead the caller is responsible for
- * backing the object and handling it.
- */
-int drm_gem_private_object_init(struct drm_device *dev,
-			struct drm_gem_object *obj, size_t size)
-{
-	BUG_ON((size & (PAGE_SIZE - 1)) != 0);
-
-	obj->dev = dev;
-	obj->filp = NULL;
-
-	kref_init(&obj->refcount);
-	atomic_set(&obj->handle_count, 0);
-	obj->size = size;
-
-	return 0;
-}
-
 void drm_gem_object_release_wrap(struct drm_gem_object *obj)
 {
 	/* Remove the list map if one is present */
@@ -51,8 +31,7 @@ void drm_gem_object_release_wrap(struct drm_gem_object *obj)
 		kfree(list->map);
 		list->map = NULL;
 	}
-	if (obj->filp)
-		drm_gem_object_release(obj);
+	drm_gem_object_release(obj);
 }
 
 /**
