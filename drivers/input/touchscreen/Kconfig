@@ -733,6 +733,12 @@ config TOUCHSCREEN_NAS
           code includes that in its table of I2C devices.
 
           If unsure, say N (but it's safe to say "Y").
+          
+config LAIBAO_TS
+	tristate "LAIBAO touchscreen"
+	depends on I2C2_RK29
+	help
+	  RK29 LAIBAO touchscreen
 
 config TOUCHSCREEN_GT801_IIC
 	tristate "GT801_IIC based touchscreens"
