@@ -75,28 +75,51 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *c = dev_id;
 
-	/* disable and clear pending interrupt status */
-	__raw_writel(0x0, TIMERS_VIRT_BASE + TMR_IER(0));
-	__raw_writel(0x1, TIMERS_VIRT_BASE + TMR_ICR(0));
+	/*
+	 * Clear pending interrupt status.
+	 */
+	__raw_writel(0x01, TIMERS_VIRT_BASE + TMR_ICR(0));
+
+	/*
+	 * Disable timer 0.
+	 */
+	__raw_writel(0x02, TIMERS_VIRT_BASE + TMR_CER);
+
 	c->event_handler(c);
+
 	return IRQ_HANDLED;
 }
 
 static int timer_set_next_event(unsigned long delta,
 				struct clock_event_device *dev)
 {
-	unsigned long flags, next;
+	unsigned long flags;
 
 	local_irq_save(flags);
 
-	/* clear pending interrupt status and enable */
+	/*
+	 * Disable timer 0.
+	 */
+	__raw_writel(0x02, TIMERS_VIRT_BASE + TMR_CER);
+
+	/*
+	 * Clear and enable timer match 0 interrupt.
+	 */
 	__raw_writel(0x01, TIMERS_VIRT_BASE + TMR_ICR(0));
 	__raw_writel(0x01, TIMERS_VIRT_BASE + TMR_IER(0));
 
-	next = timer_read() + delta;
-	__raw_writel(next, TIMERS_VIRT_BASE + TMR_TN_MM(0, 0));
+	/*
+	 * Setup new clockevent timer value.
+	 */
+	__raw_writel(delta - 1, TIMERS_VIRT_BASE + TMR_TN_MM(0, 0));
+
+	/*
+	 * Enable timer 0.
+	 */
+	__raw_writel(0x03, TIMERS_VIRT_BASE + TMR_CER);
 
 	local_irq_restore(flags);
+
 	return 0;
 }
 
@@ -152,10 +175,10 @@ static void __init timer_config(void)
 		(TMR_CCR_CS_0(3) | TMR_CCR_CS_1(3));
 	__raw_writel(ccr, TIMERS_VIRT_BASE + TMR_CCR);
 
-	/* free-running mode */
-	__raw_writel(0x3, TIMERS_VIRT_BASE + TMR_CMR);
+	/* set timer 0 to periodic mode, and timer 1 to free-running mode */
+	__raw_writel(0x2, TIMERS_VIRT_BASE + TMR_CMR);
 
-	__raw_writel(0x0, TIMERS_VIRT_BASE + TMR_PLCR(0)); /* free-running */
+	__raw_writel(0x1, TIMERS_VIRT_BASE + TMR_PLCR(0)); /* periodic */
 	__raw_writel(0x7, TIMERS_VIRT_BASE + TMR_ICR(0));  /* clear status */
 	__raw_writel(0x0, TIMERS_VIRT_BASE + TMR_IER(0));
 
@@ -163,8 +186,8 @@ static void __init timer_config(void)
 	__raw_writel(0x7, TIMERS_VIRT_BASE + TMR_ICR(1));  /* clear status */
 	__raw_writel(0x0, TIMERS_VIRT_BASE + TMR_IER(1));
 
-	/* enable timer counter */
-	__raw_writel(0x3, TIMERS_VIRT_BASE + TMR_CER);
+	/* enable timer 1 counter */
+	__raw_writel(0x2, TIMERS_VIRT_BASE + TMR_CER);
 }
 
 static struct irqaction timer_irq = {
