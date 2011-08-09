@@ -417,12 +417,12 @@ static int read_i2c(struct nmk_i2c_dev *dev)
 	writel(readl(dev->virtbase + I2C_IMSCR) | irq_mask,
 			dev->virtbase + I2C_IMSCR);
 
-	timeout = wait_for_completion_interruptible_timeout(
+	timeout = wait_for_completion_timeout(
 		&dev->xfer_complete, dev->adap.timeout);
 
 	if (timeout < 0) {
 		dev_err(&dev->pdev->dev,
-			"wait_for_completion_interruptible_timeout"
+			"wait_for_completion_timeout"
 			"returned %d waiting for event\n", timeout);
 		status = timeout;
 	}
@@ -504,12 +504,12 @@ static int write_i2c(struct nmk_i2c_dev *dev)
 	writel(readl(dev->virtbase + I2C_IMSCR) | irq_mask,
 			dev->virtbase + I2C_IMSCR);
 
-	timeout = wait_for_completion_interruptible_timeout(
+	timeout = wait_for_completion_timeout(
 		&dev->xfer_complete, dev->adap.timeout);
 
 	if (timeout < 0) {
 		dev_err(&dev->pdev->dev,
-			"wait_for_completion_interruptible_timeout"
+			"wait_for_completion_timeout"
 			"returned %d waiting for event\n", timeout);
 		status = timeout;
 	}
