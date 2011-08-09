@@ -57,14 +57,14 @@ DEFINE_EVENT(regmap_reg, regmap_reg_read,
 
 DECLARE_EVENT_CLASS(regmap_block,
 
-	TP_PROTO(struct device *dev, unsigned int reg, size_t count),
+	TP_PROTO(struct device *dev, unsigned int reg, int count),
 
 	TP_ARGS(dev, reg, count),
 
 	TP_STRUCT__entry(
 		__string(	name,		dev_name(dev)	)
 		__field(	unsigned int,	reg		)
-		__field(	size_t,		count		)
+		__field(	int,		count		)
 	),
 
 	TP_fast_assign(
@@ -75,33 +75,33 @@ DECLARE_EVENT_CLASS(regmap_block,
 
 	TP_printk("%s reg=%x count=%d", __get_str(name),
 		  (unsigned int)__entry->reg,
-		  (size_t)__entry->count)
+		  (int)__entry->count)
 );
 
 DEFINE_EVENT(regmap_block, regmap_hw_read_start,
 
-	TP_PROTO(struct device *dev, unsigned int reg, size_t count),
+	TP_PROTO(struct device *dev, unsigned int reg, int count),
 
 	TP_ARGS(dev, reg, count)
 );
 
 DEFINE_EVENT(regmap_block, regmap_hw_read_done,
 
-	TP_PROTO(struct device *dev, unsigned int reg, size_t count),
+	TP_PROTO(struct device *dev, unsigned int reg, int count),
 
 	TP_ARGS(dev, reg, count)
 );
 
 DEFINE_EVENT(regmap_block, regmap_hw_write_start,
 
-	TP_PROTO(struct device *dev, unsigned int reg, size_t count),
+	TP_PROTO(struct device *dev, unsigned int reg, int count),
 
 	TP_ARGS(dev, reg, count)
 );
 
 DEFINE_EVENT(regmap_block, regmap_hw_write_done,
 
-	TP_PROTO(struct device *dev, unsigned int reg, size_t count),
+	TP_PROTO(struct device *dev, unsigned int reg, int count),
 
 	TP_ARGS(dev, reg, count)
 );
