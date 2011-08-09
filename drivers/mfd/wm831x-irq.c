@@ -596,8 +596,6 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 			 "No interrupt specified - functionality limited\n");
 	}
 
-
-
 	/* Enable top level interrupts, we mask at secondary level */
 	wm831x_reg_write(wm831x, WM831X_SYSTEM_INTERRUPTS_MASK, 0);
 
