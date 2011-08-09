@@ -83,7 +83,7 @@ u32 wl_dbg_level = WL_DBG_ERR;
 #define WL_TRACE(a) printk("%s ", __FUNCTION__); printk a
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 #define MACSTR "%02x:%02x:%02x:%02x:%02x:%02x"
-#define MAX_WAIT_TIME 3000
+#define MAX_WAIT_TIME 1500
 static s8 ioctlbuf[WLC_IOCTL_MAXLEN];
 
 #if defined(DHD_P2P_DEV_ADDR_FROM_SYSFS) && defined(CONFIG_SYSCTL)
@@ -1118,7 +1118,7 @@ wl_cfg80211_change_virtual_iface(struct wiphy *wiphy, struct net_device *ndev,
 }
 
 s32
-wl_cfg80211_notify_ifadd(struct net_device *net, s32 idx,
+wl_cfg80211_notify_ifadd(struct net_device *net, s32 idx, s32 bssidx,
 int (*_net_attach)(dhd_pub_t *dhdp, int ifidx))
 {
 	struct wl_priv *wl = WL_PRIV_GET();
@@ -1133,11 +1133,11 @@ int (*_net_attach)(dhd_pub_t *dhdp, int ifidx))
 		/* Assign the net device to CONNECT BSSCFG */
 		strncpy(net->name, wl->p2p->vir_ifname, IFNAMSIZ - 1);
 		wl_to_p2p_bss_ndev(wl, P2PAPI_BSSCFG_CONNECTION) = net;
-		wl_to_p2p_bss_bssidx(wl, P2PAPI_BSSCFG_CONNECTION) =
-			P2PAPI_BSSCFG_CONNECTION;
+		wl_to_p2p_bss_bssidx(wl, P2PAPI_BSSCFG_CONNECTION) = bssidx;
 		wl_to_p2p_bss_private(wl, P2PAPI_BSSCFG_CONNECTION) = _net_attach;
-		wl_clr_p2p_status(wl, IF_ADD);
 		net->ifindex = idx;
+		wl_clr_p2p_status(wl, IF_ADD);
+
 		wake_up_interruptible(&wl->dongle_event_wait);
 	}
 	return ret;
@@ -2153,7 +2153,10 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	memcpy(&join_params.ssid.SSID, sme->ssid, join_params.ssid.SSID_len);
 	join_params.ssid.SSID_len = htod32(join_params.ssid.SSID_len);
 	wl_update_prof(wl, NULL, &join_params.ssid, WL_PROF_SSID);
-	memcpy(&join_params.params.bssid, &ether_bcast, ETHER_ADDR_LEN);
+	if (sme->bssid)
+		memcpy(&join_params.params.bssid, sme->bssid, ETH_ALEN);
+	else
+		memcpy(&join_params.params.bssid, &ether_bcast, ETH_ALEN);
 
 	wl_ch_to_chanspec(wl->channel, &join_params, &join_params_size);
 	WL_DBG(("join_param_size %d\n", join_params_size));
@@ -2976,12 +2979,12 @@ wl_cfg80211_remain_on_channel(struct wiphy *wiphy, struct net_device *dev,
 		 * without turning on P2P
 		 */
 
+		p2p_on(wl) = true;
 		err = wl_cfgp2p_enable_discovery(wl, dev, NULL, 0);
 
 		if (unlikely(err)) {
 			goto exit;
 		}
-		p2p_on(wl) = true;
 	}
 	if (p2p_on(wl))
 		wl_cfgp2p_discover_listen(wl, target_channel, duration);
@@ -3926,13 +3929,6 @@ static s32 wl_inform_bss(struct wl_priv *wl)
 	s32 i;
 
 	bss_list = wl->bss_list;
-#if 0
-	if (unlikely(bss_list->version != WL_BSS_INFO_VERSION)) {
-		WL_ERR(("Version %d != WL_BSS_INFO_VERSION\n",
-			bss_list->version));
-		return -EOPNOTSUPP;
-	}
-#endif
 	WL_DBG(("scanned AP count (%d)\n", bss_list->count));
 	bi = next_bss(bss_list, bi);
 	for_each_bss(bss_list, bi, i) {
@@ -4279,6 +4275,14 @@ static s32 wl_get_assoc_ies(struct wl_priv *wl, struct net_device *ndev)
 	assoc_info.req_len = htod32(assoc_info.req_len);
 	assoc_info.resp_len = htod32(assoc_info.resp_len);
 	assoc_info.flags = htod32(assoc_info.flags);
+	if (conn_info->req_ie_len) {
+		conn_info->req_ie_len = 0;
+		bzero(conn_info->req_ie, sizeof(conn_info->req_ie));
+	}
+	if (conn_info->resp_ie_len) {
+		conn_info->resp_ie_len = 0;
+		bzero(conn_info->resp_ie, sizeof(conn_info->resp_ie));
+	}
 	if (assoc_info.req_len) {
 		err = wl_dev_bufvar_get(ndev, "assoc_req_ies", wl->extra_buf,
 			WL_ASSOC_INFO_MAX);
@@ -4290,11 +4294,15 @@ static s32 wl_get_assoc_ies(struct wl_priv *wl, struct net_device *ndev)
 		if (assoc_info.flags & WLC_ASSOC_REQ_IS_REASSOC) {
 			conn_info->req_ie_len -= ETHER_ADDR_LEN;
 		}
-		conn_info->req_ie =
-		    kmemdup(wl->extra_buf, conn_info->req_ie_len, GFP_KERNEL);
+		if (conn_info->req_ie_len <= MAX_REQ_LINE)
+			memcpy(conn_info->req_ie, wl->extra_buf, conn_info->req_ie_len);
+		else {
+			WL_ERR(("%s IE size %d above max %d size \n",
+				__FUNCTION__, conn_info->req_ie_len, MAX_REQ_LINE));
+			return err;
+		}
 	} else {
 		conn_info->req_ie_len = 0;
-		conn_info->req_ie = NULL;
 	}
 	if (assoc_info.resp_len) {
 		err = wl_dev_bufvar_get(ndev, "assoc_resp_ies", wl->extra_buf,
@@ -4304,11 +4312,15 @@ static s32 wl_get_assoc_ies(struct wl_priv *wl, struct net_device *ndev)
 			return err;
 		}
 		conn_info->resp_ie_len = assoc_info.resp_len -sizeof(struct dot11_assoc_resp);
-		conn_info->resp_ie =
-		    kmemdup(wl->extra_buf, conn_info->resp_ie_len, GFP_KERNEL);
+		if (conn_info->resp_ie_len <= MAX_REQ_LINE)
+			memcpy(conn_info->resp_ie, wl->extra_buf, conn_info->resp_ie_len);
+		else {
+			WL_ERR(("%s IE size %d above max %d size \n",
+				__FUNCTION__, conn_info->resp_ie_len, MAX_REQ_LINE));
+			return err;
+		}
 	} else {
 		conn_info->resp_ie_len = 0;
-		conn_info->resp_ie = NULL;
 	}
 	WL_DBG(("req len (%d) resp len (%d)\n", conn_info->req_ie_len,
 		conn_info->resp_ie_len));
@@ -4459,11 +4471,14 @@ wl_bss_connect_done(struct wl_priv *wl, struct net_device *ndev,
 	s32 err = 0;
 
 	WL_DBG((" enter\n"));
-	wl_get_assoc_ies(wl, ndev);
-	memcpy(&wl->bssid, &e->addr, ETHER_ADDR_LEN);
-	wl_update_bss_info(wl, ndev);
+
 	if (wl_get_drv_status(wl, CONNECTING)) {
 		wl_clr_drv_status(wl, CONNECTING);
+		if (completed) {
+			wl_get_assoc_ies(wl, ndev);
+			memcpy(&wl->bssid, &e->addr, ETHER_ADDR_LEN);
+			wl_update_bss_info(wl, ndev);
+		}
 		cfg80211_connect_result(ndev,
 			(u8 *)&wl->bssid,
 			conn_info->req_ie,
@@ -6267,11 +6282,7 @@ static void wl_link_down(struct wl_priv *wl)
 
 	WL_DBG(("In\n"));
 	wl->link_up = false;
-	kfree(conn_info->req_ie);
-	conn_info->req_ie = NULL;
 	conn_info->req_ie_len = 0;
-	kfree(conn_info->resp_ie);
-	conn_info->resp_ie = NULL;
 	conn_info->resp_ie_len = 0;
 }
 

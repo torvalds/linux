@@ -181,7 +181,8 @@ typedef BWL_PRE_PACKED_STRUCT struct bcm_event {
 #define WLC_E_EXCESS_PM_WAKE_EVENT	81	
 #define WLC_E_PFN_SCAN_NONE		82	
 #define WLC_E_PFN_SCAN_ALLGONE	83	
-#define WLC_E_LAST		84	
+#define WLC_E_GTK_PLUMBED 84
+#define WLC_E_LAST	85
 
 
 typedef struct {

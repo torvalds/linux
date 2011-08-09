@@ -29,7 +29,7 @@
 #include <proto/bcmeth.h>
 #include <proto/bcmevent.h>
 
-#if WLC_E_LAST != 84
+#if WLC_E_LAST != 85
 #error "You need to add an entry to bcmevent_names[] for the new event"
 #endif
 
@@ -115,7 +115,10 @@ const bcmevent_name_t bcmevent_names[] = {
 	{ WLC_E_CSA_COMPLETE_IND, "WLC_E_CSA_COMPLETE_IND" },
 	{ WLC_E_EXCESS_PM_WAKE_EVENT, "EXCESS_PM_WAKE_EVENT" },
 	{ WLC_E_PFN_SCAN_NONE, "PFN_SCAN_NONE" },
-	{ WLC_E_PFN_SCAN_ALLGONE, "PFN_SCAN_ALLGONE" }
+	{ WLC_E_PFN_SCAN_ALLGONE, "PFN_SCAN_ALLGONE" },
+#ifdef SOFTAP
+	{ WLC_E_GTK_PLUMBED, "GTK_PLUMBED" }
+#endif
 };
 
 

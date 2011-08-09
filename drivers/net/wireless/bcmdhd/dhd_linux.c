@@ -971,7 +971,8 @@ dhd_op_if(dhd_if_t *ifp)
 			memcpy(netdev_priv(ifp->net), &dhd, sizeof(dhd));
 #ifdef WL_CFG80211
 			if (dhd->dhd_state & DHD_ATTACH_STATE_CFG80211)
-				if (!wl_cfg80211_notify_ifadd(ifp->net, ifp->idx, dhd_net_attach)) {
+				if (!wl_cfg80211_notify_ifadd(ifp->net, ifp->idx, ifp->bssidx,
+					dhd_net_attach)) {
 					ifp->state = 0;
 					return;
 			}
@@ -2357,6 +2358,7 @@ dhd_add_if(dhd_info_t *dhd, int ifidx, void *handle, char *name,
 	if (handle == NULL) {
 		ifp->state = WLC_E_IF_ADD;
 		ifp->idx = ifidx;
+		ifp->bssidx = bssidx;
 		ASSERT(&dhd->thr_sysioc_ctl.thr_pid >= 0);
 		up(&dhd->thr_sysioc_ctl.sema);
 	} else

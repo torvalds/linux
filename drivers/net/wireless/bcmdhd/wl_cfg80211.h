@@ -274,10 +274,11 @@ struct wl_iscan_ctrl {
 };
 
 /* association inform */
+#define MAX_REQ_LINE 1024
 struct wl_connect_info {
-	u8 *req_ie;
+	u8 req_ie[MAX_REQ_LINE];
 	s32 req_ie_len;
-	u8 *resp_ie;
+	u8 resp_ie[MAX_REQ_LINE];
 	s32 resp_ie_len;
 };
 
@@ -498,7 +499,7 @@ extern void wl_cfg80211_set_sdio_func(void *func);	/* set sdio function info */
 extern struct sdio_func *wl_cfg80211_get_sdio_func(void);	/* set sdio function info */
 extern s32 wl_cfg80211_up(void);	/* dongle up */
 extern s32 wl_cfg80211_down(void);	/* dongle down */
-extern s32 wl_cfg80211_notify_ifadd(struct net_device *net, s32 idx,
+extern s32 wl_cfg80211_notify_ifadd(struct net_device *net, s32 idx, s32 bssidx,
 int (*_net_attach)(dhd_pub_t *dhdp, int ifidx));
 extern s32 wl_cfg80211_ifdel_ops(struct net_device *net);
 extern s32 wl_cfg80211_notify_ifdel(struct net_device *net);

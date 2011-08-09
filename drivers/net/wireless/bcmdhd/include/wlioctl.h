@@ -190,6 +190,7 @@ typedef struct wlc_ssid {
 #define WL_SCANFLAGS_RESERVED 0x02      
 #define WL_SCANFLAGS_PROHIBITED 0x04    
 
+#define WL_SCAN_PARAMS_SSID_MAX 	10
 typedef struct wl_scan_params {
 	wlc_ssid_t ssid;        
 	struct ether_addr bssid;    
