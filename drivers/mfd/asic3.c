@@ -968,6 +968,7 @@ static int __init asic3_probe(struct platform_device *pdev)
 		goto out_unmap;
 	}
 
+	asic->gpio.label = "asic3";
 	asic->gpio.base = pdata->gpio_base;
 	asic->gpio.ngpio = ASIC3_NUM_GPIOS;
 	asic->gpio.get = asic3_gpio_get;
