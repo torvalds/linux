@@ -219,8 +219,8 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 	mmc_start_request(host, mrq);
 
 #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
-    wait_for_completion_timeout(&complete,HZ*3); //for cmd dead. Modifyed by xbw at 2011-06-02
-#else    
+	wait_for_completion_timeout(&complete,HZ*3); //for cmd dead. Modifyed by xbw at 2011-06-02
+#else
 	wait_for_completion(&complete);
 #endif
 }
@@ -1432,7 +1432,7 @@ int mmc_erase_group_aligned(struct mmc_card *card, unsigned int from,
 }
 EXPORT_SYMBOL(mmc_erase_group_aligned);
 
-#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)  
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
 void mmc_rescan(struct work_struct *work)
 {
 	struct mmc_host *host =
@@ -1589,20 +1589,6 @@ void mmc_rescan(struct work_struct *work)
 	int err;
 	unsigned long flags;
 	int extend_wakelock = 0;
-	
-#if defined(CONFIG_SDMMC_RK29) && defined(CONFIG_SDMMC_RK29_OLD)  	
-	unsigned long flags;
-
-	spin_lock_irqsave(&host->lock, flags);
-
-	if (host->rescan_disable) {
-		spin_unlock_irqrestore(&host->lock, flags);
-		return;
-	}
-
-	spin_unlock_irqrestore(&host->lock, flags);
-#endif
-
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -1848,10 +1834,6 @@ int mmc_suspend_host(struct mmc_host *host)
 	if (host->bus_ops && !host->bus_dead) {
 		if (host->bus_ops->suspend)
 			err = host->bus_ops->suspend(host);
-			
-#if defined(CONFIG_SDMMC_RK29) && defined(CONFIG_SDMMC_RK29_OLD)
-        //deleted all detail code.
-#else
 		if (err == -ENOSYS || !host->bus_ops->resume) {
 			/*
 			 * We simply "remove" the card in this case.
@@ -1865,7 +1847,6 @@ int mmc_suspend_host(struct mmc_host *host)
 			host->pm_flags = 0;
 			err = 0;
 		}
-#endif		
 	}
 	mmc_bus_put(host);
 
@@ -1898,17 +1879,7 @@ int mmc_resume_host(struct mmc_host *host)
 			mmc_select_voltage(host, host->ocr);
 		}
 		BUG_ON(!host->bus_ops->resume);
-		
-#if defined(CONFIG_SDMMC_RK29) && defined(CONFIG_SDMMC_RK29_OLD)
-		err = host->bus_ops->resume(host);
-		if (err) {
-			printk(KERN_WARNING "%s: error %d during resume "
-					    "(card was removed?)\n",
-					    mmc_hostname(host), err);
-			err = 0;
-		}
-
-#elif defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)  
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
         //panic if the card is being removed during the resume, deleted by xbw at 2011-06-20
 		host->bus_ops->resume(host);
 
@@ -1919,7 +1890,7 @@ int mmc_resume_host(struct mmc_host *host)
 					    "(card was removed?)\n",
 					    mmc_hostname(host), err);
 			err = 0;
-		}		
+		}
 #endif
 	}
 	mmc_bus_put(host);
