@@ -51,12 +51,12 @@ static inline uint32_t timer_read(void)
 {
 	int delay = 100;
 
-	__raw_writel(1, TIMERS_VIRT_BASE + TMR_CVWR(0));
+	__raw_writel(1, TIMERS_VIRT_BASE + TMR_CVWR(1));
 
 	while (delay--)
 		cpu_relax();
 
-	return __raw_readl(TIMERS_VIRT_BASE + TMR_CVWR(0));
+	return __raw_readl(TIMERS_VIRT_BASE + TMR_CVWR(1));
 }
 
 unsigned long long notrace sched_clock(void)
