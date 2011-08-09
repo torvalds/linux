@@ -259,17 +259,6 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
                 printk(">>>>>> FB_DISPLAY_ON_PIN gpio_request err \n ");
             }
         }
-        else
-        {
-             ret = gpio_request(TOUCH_SCREEN_DISPLAY_PIN, NULL);
-             if(ret != 0)
-             {
-                 gpio_free(TOUCH_SCREEN_DISPLAY_PIN);
-                 printk(">>>>>> TOUCH_SCREEN_DISPLAY_PIN gpio_request err \n ");
-             }
-             gpio_direction_output(TOUCH_SCREEN_DISPLAY_PIN, 0);
-             gpio_set_value(TOUCH_SCREEN_DISPLAY_PIN, TOUCH_SCREEN_DISPLAY_VALUE);
-        }
     }
 
     if(fb_setting->disp_on_en)
@@ -283,17 +272,6 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
                  printk(">>>>>> FB_LCD_STANDBY_PIN gpio_request err \n ");
              }
         }
-        else
-        {
-             ret = gpio_request(TOUCH_SCREEN_STANDBY_PIN, NULL);
-             if(ret != 0)
-             {
-                 gpio_free(TOUCH_SCREEN_STANDBY_PIN);
-                 printk(">>>>>> TOUCH_SCREEN_STANDBY_PIN gpio_request err \n ");
-             }
-             gpio_direction_output(TOUCH_SCREEN_STANDBY_PIN, 0);
-             gpio_set_value(TOUCH_SCREEN_STANDBY_PIN, TOUCH_SCREEN_STANDBY_VALUE);
-         }
     }
 
     if(FB_LCD_CABC_EN_PIN != INVALID_GPIO)
@@ -833,7 +811,55 @@ static struct mma8452_platform_data mma8452_info = {
 
 };
 #endif
-
+#if defined (CONFIG_MPU_SENSORS_MPU3050)
+/*mpu3050*/
+static struct mpu3050_platform_data mpu3050_data = {
+		.int_config = 0x10,
+		//.orientation = { 1, 0, 0,0, -1, 0,0, 0, 1 },
+		//.orientation = { 0, 1, 0,-1, 0, 0,0, 0, -1 },
+		//.orientation = { -1, 0, 0,0, -1, 0,0, 0, -1 },
+		.orientation = { 0, 1, 0, -1, 0, 0, 0, 0, 1 },
+		.level_shifter = 0,
+#if defined (CONFIG_MPU_SENSORS_KXTF9)
+		.accel = {
+#ifdef CONFIG_MPU_SENSORS_MPU3050_MODULE
+				.get_slave_descr = NULL ,
+#else
+				.get_slave_descr = get_accel_slave_descr ,			
+#endif
+				.adapt_num = 0, // The i2c bus to which the mpu device is
+				// connected
+				//.irq = RK29_PIN0_PA3,
+				.bus = EXT_SLAVE_BUS_SECONDARY,  //The secondary I2C of MPU
+				.address = 0x0f,
+				//.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },
+				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
+				//.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
+				.orientation = { 0, 1 ,0, -1 ,0, 0, 0, 0, 1 },
+		},
+#endif
+#if defined (CONFIG_MPU_SENSORS_AK8975)
+		.compass = {
+#ifdef CONFIG_MPU_SENSORS_MPU3050_MODULE
+				.get_slave_descr = NULL,/*ak5883_get_slave_descr,*/
+#else
+				.get_slave_descr = get_compass_slave_descr,
+#endif						
+				.adapt_num = 0, // The i2c bus to which the compass device is. 
+				// It can be difference with mpu
+				// connected
+				//.irq = RK29_PIN0_PA4,
+				.bus = EXT_SLAVE_BUS_PRIMARY,
+				.address = 0x0d,
+				//.orientation = { -1, 0, 0,0, -1, 0,0, 0, 1 },
+				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
+				//.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
+				//.orientation = { 0, -1, 0, 1, 0, 0, 0, 0, 1 },
+				.orientation = { 0, 1, 0, -1, 0, 0, 0, 0, 1 },
+		},
+};
+#endif
+#endif
 #if defined (CONFIG_BATTERY_BQ27510)
 #define	DC_CHECK_PIN	RK29_PIN4_PA1
 #define	LI_LION_BAT_NUM	2
@@ -1066,6 +1092,17 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.irq			= RK29_PIN0_PA4,
 	},
 #endif
+/*mpu3050*/
+#if defined (CONFIG_MPU_SENSORS_MPU3050) 
+	{
+		.type 			= "mpu3050",
+		.addr			= 0x68,
+		.flags			= 0,
+		.irq			= RK29_PIN5_PA3,
+		.platform_data  = &mpu3050_data,
+	},
+#endif
+
 #if defined (CONFIG_SND_SOC_CS42L52)
 	{
 		.type    		= "cs42l52",
@@ -1792,6 +1829,10 @@ struct platform_device newton_usb_mass_storage_device = {
 	},
 };
 #endif
+static struct platform_device  rk29_cs42l52_device = {
+	.name		= "rk29_cs42l52",
+	.id		    = -1,
+};
 
 static void __init rk29_board_iomux_init(void)
 {
@@ -1941,6 +1982,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_LEDS_NEWTON_PWM
 	&rk29_device_pwm_leds,
+#endif
+#ifdef CONFIG_SND_RK29_SOC_CS42L52
+	&rk29_cs42l52_device,
 #endif
 };
 
