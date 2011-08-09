@@ -936,7 +936,7 @@ static void be_rx_eqd_update(struct be_adapter *adapter, struct be_rx_obj *rxo)
 		pkts = stats->rx_pkts;
 	} while (u64_stats_fetch_retry_bh(&stats->sync, start));
 
-	stats->rx_pps = (pkts - stats->rx_pkts_prev) / (delta / HZ);
+	stats->rx_pps = (unsigned long)(pkts - stats->rx_pkts_prev) / (delta / HZ);
 	stats->rx_pkts_prev = pkts;
 	stats->rx_jiffies = now;
 	eqd = stats->rx_pps / 110000;
