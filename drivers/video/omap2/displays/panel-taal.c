@@ -208,8 +208,6 @@ struct taal_data {
 
 	struct delayed_work te_timeout_work;
 
-	bool use_dsi_bl;
-
 	bool cabc_broken;
 	unsigned cabc_mode;
 
@@ -541,7 +539,6 @@ static int taal_bl_update_status(struct backlight_device *dev)
 {
 	struct omap_dss_device *dssdev = dev_get_drvdata(&dev->dev);
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
-	struct nokia_dsi_panel_data *panel_data = get_panel_data(dssdev);
 	int r;
 	int level;
 
@@ -555,23 +552,16 @@ static int taal_bl_update_status(struct backlight_device *dev)
 
 	mutex_lock(&td->lock);
 
-	if (td->use_dsi_bl) {
-		if (td->enabled) {
-			dsi_bus_lock(dssdev);
+	if (td->enabled) {
+		dsi_bus_lock(dssdev);
 
-			r = taal_wake_up(dssdev);
-			if (!r)
-				r = taal_dcs_write_1(td, DCS_BRIGHTNESS, level);
+		r = taal_wake_up(dssdev);
+		if (!r)
+			r = taal_dcs_write_1(td, DCS_BRIGHTNESS, level);
 
-			dsi_bus_unlock(dssdev);
-		} else {
-			r = 0;
-		}
+		dsi_bus_unlock(dssdev);
 	} else {
-		if (!panel_data->set_backlight)
-			r = -EINVAL;
-		else
-			r = panel_data->set_backlight(dssdev, level);
+		r = 0;
 	}
 
 	mutex_unlock(&td->lock);
@@ -950,7 +940,7 @@ static int taal_probe(struct omap_dss_device *dssdev)
 {
 	struct backlight_properties props;
 	struct taal_data *td;
-	struct backlight_device *bldev;
+	struct backlight_device *bldev = NULL;
 	struct nokia_dsi_panel_data *panel_data = get_panel_data(dssdev);
 	struct panel_config *panel_config = NULL;
 	int r, i;
@@ -1011,35 +1001,26 @@ static int taal_probe(struct omap_dss_device *dssdev)
 
 	taal_hw_reset(dssdev);
 
-	/* if no platform set_backlight() defined, presume DSI backlight
-	 * control */
-	memset(&props, 0, sizeof(struct backlight_properties));
-	if (!panel_data->set_backlight)
-		td->use_dsi_bl = true;
-
-	if (td->use_dsi_bl)
+	if (panel_data->use_dsi_backlight) {
+		memset(&props, 0, sizeof(struct backlight_properties));
 		props.max_brightness = 255;
-	else
-		props.max_brightness = 127;
 
-	props.type = BACKLIGHT_RAW;
-	bldev = backlight_device_register(dev_name(&dssdev->dev), &dssdev->dev,
-					dssdev, &taal_bl_ops, &props);
-	if (IS_ERR(bldev)) {
-		r = PTR_ERR(bldev);
-		goto err_bl;
-	}
+		props.type = BACKLIGHT_RAW;
+		bldev = backlight_device_register(dev_name(&dssdev->dev),
+				&dssdev->dev, dssdev, &taal_bl_ops, &props);
+		if (IS_ERR(bldev)) {
+			r = PTR_ERR(bldev);
+			goto err_bl;
+		}
 
-	td->bldev = bldev;
+		td->bldev = bldev;
 
-	bldev->props.fb_blank = FB_BLANK_UNBLANK;
-	bldev->props.power = FB_BLANK_UNBLANK;
-	if (td->use_dsi_bl)
+		bldev->props.fb_blank = FB_BLANK_UNBLANK;
+		bldev->props.power = FB_BLANK_UNBLANK;
 		bldev->props.brightness = 255;
-	else
-		bldev->props.brightness = 127;
 
-	taal_bl_update_status(bldev);
+		taal_bl_update_status(bldev);
+	}
 
 	if (panel_data->use_ext_te) {
 		int gpio = panel_data->ext_te_gpio;
@@ -1097,7 +1078,8 @@ err_irq:
 	if (panel_data->use_ext_te)
 		gpio_free(panel_data->ext_te_gpio);
 err_gpio:
-	backlight_device_unregister(bldev);
+	if (bldev != NULL)
+		backlight_device_unregister(bldev);
 err_bl:
 	destroy_workqueue(td->workqueue);
 err_wq:
@@ -1126,9 +1108,11 @@ static void __exit taal_remove(struct omap_dss_device *dssdev)
 	}
 
 	bldev = td->bldev;
-	bldev->props.power = FB_BLANK_POWERDOWN;
-	taal_bl_update_status(bldev);
-	backlight_device_unregister(bldev);
+	if (bldev != NULL) {
+		bldev->props.power = FB_BLANK_POWERDOWN;
+		taal_bl_update_status(bldev);
+		backlight_device_unregister(bldev);
+	}
 
 	taal_cancel_ulps_work(dssdev);
 	taal_cancel_esd_work(dssdev);
