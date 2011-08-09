@@ -447,9 +447,14 @@ static void gt819_queue_work(struct work_struct *work)
 		enable_irq(ts->irq);
 		dev_info(&ts->client->dev, "touch release\n");
 		return; 
+	}	
+	for(i=0;0!=points;)
+	{
+	if(points&0x01)
+		i++;
+	points>>=1;
 	}
-	for(i=0;0!=points;i++)
-		points>>=1;
+	
 	points = i;
 	points_chect = points;
 	ret = gt819_read_regs(ts->client,3, point_data, points*5+1);
