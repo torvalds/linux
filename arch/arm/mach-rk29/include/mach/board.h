@@ -280,6 +280,16 @@ struct nas_platform_data {
 };
 
 
+struct laibao_platform_data {
+    u16     model;
+
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*laibao_platform_sleep)(void);
+    int     (*laibao_platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+};
+
 struct akm8975_platform_data {
 	char layouts[3][3];
 	char project_name[64];
