@@ -31,11 +31,11 @@ int rtllib_wx_set_freq(struct rtllib_device *ieee, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
 {
 	int ret;
-	struct iw_freq *fwrq = & wrqu->freq;
+	struct iw_freq *fwrq = &wrqu->freq;
 
 	down(&ieee->wx_sem);
 
-	if (ieee->iw_mode == IW_MODE_INFRA){
+	if (ieee->iw_mode == IW_MODE_INFRA) {
 		ret = 0;
 		goto out;
 	}
@@ -56,11 +56,11 @@ int rtllib_wx_set_freq(struct rtllib_device *ieee, struct iw_request_info *a,
 		}
 	}
 
-	if (fwrq->e > 0 || fwrq->m > 14 || fwrq->m < 1 ){
+	if (fwrq->e > 0 || fwrq->m > 14 || fwrq->m < 1) {
 		ret = -EOPNOTSUPP;
 		goto out;
 
-	}else { /* Set the channel */
+	} else { /* Set the channel */
 
 		if (ieee->active_channel_map[fwrq->m] != 1) {
 			ret = -EINVAL;
@@ -69,11 +69,11 @@ int rtllib_wx_set_freq(struct rtllib_device *ieee, struct iw_request_info *a,
 		ieee->current_network.channel = fwrq->m;
 		ieee->set_chan(ieee->dev, ieee->current_network.channel);
 
-		if (ieee->iw_mode == IW_MODE_ADHOC || ieee->iw_mode == IW_MODE_MASTER)
-			if (ieee->state == RTLLIB_LINKED){
-
-			rtllib_stop_send_beacons(ieee);
-			rtllib_start_send_beacons(ieee);
+		if (ieee->iw_mode == IW_MODE_ADHOC ||
+		    ieee->iw_mode == IW_MODE_MASTER)
+			if (ieee->state == RTLLIB_LINKED) {
+				rtllib_stop_send_beacons(ieee);
+				rtllib_start_send_beacons(ieee);
 			}
 	}
 
@@ -88,11 +88,12 @@ int rtllib_wx_get_freq(struct rtllib_device *ieee,
 			     struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
 {
-	struct iw_freq *fwrq = & wrqu->freq;
+	struct iw_freq *fwrq = &wrqu->freq;
 
 	if (ieee->current_network.channel == 0)
 		return -1;
-	fwrq->m = rtllib_wlan_frequencies[ieee->current_network.channel-1] * 100000;
+	fwrq->m = rtllib_wlan_frequencies[ieee->current_network.channel-1] *
+		  100000;
 	fwrq->e = 1;
 	return 0;
 }
@@ -133,7 +134,7 @@ int rtllib_wx_set_wap(struct rtllib_device *ieee,
 {
 
 	int ret = 0;
-	u8 zero[] = {0,0,0,0,0,0};
+	u8 zero[] = {0, 0, 0, 0, 0, 0};
 	unsigned long flags;
 
 	short ifup = ieee->proto_started;
@@ -143,28 +144,28 @@ int rtllib_wx_set_wap(struct rtllib_device *ieee,
 
 	down(&ieee->wx_sem);
 	/* use ifconfig hw ether */
-	if (ieee->iw_mode == IW_MODE_MASTER){
+	if (ieee->iw_mode == IW_MODE_MASTER) {
 		ret = -1;
 		goto out;
 	}
 
-	if (temp->sa_family != ARPHRD_ETHER){
+	if (temp->sa_family != ARPHRD_ETHER) {
 		ret = -EINVAL;
 		goto out;
 	}
 
-        if (memcmp(temp->sa_data, zero,ETH_ALEN) == 0){
-                spin_lock_irqsave(&ieee->lock, flags);
-                memcpy(ieee->current_network.bssid, temp->sa_data, ETH_ALEN);
-                ieee->wap_set = 0;
-                spin_unlock_irqrestore(&ieee->lock, flags);
-                ret = -1;
-                goto out;
-        }
+	if (memcmp(temp->sa_data, zero, ETH_ALEN) == 0) {
+		spin_lock_irqsave(&ieee->lock, flags);
+		memcpy(ieee->current_network.bssid, temp->sa_data, ETH_ALEN);
+		ieee->wap_set = 0;
+		spin_unlock_irqrestore(&ieee->lock, flags);
+		ret = -1;
+		goto out;
+	}
 
 
 	if (ifup)
-		rtllib_stop_protocol(ieee,true);
+		rtllib_stop_protocol(ieee, true);
 
 	/* just to avoid to give inconsistent infos in the
 	 * get wx method. not really needed otherwise
@@ -173,7 +174,7 @@ int rtllib_wx_set_wap(struct rtllib_device *ieee,
 
 	ieee->cannot_notify = false;
 	memcpy(ieee->current_network.bssid, temp->sa_data, ETH_ALEN);
-	ieee->wap_set = (memcmp(temp->sa_data, zero,ETH_ALEN)!=0);
+	ieee->wap_set = (memcmp(temp->sa_data, zero, ETH_ALEN) != 0);
 
 	spin_unlock_irqrestore(&ieee->lock, flags);
 
@@ -184,9 +185,10 @@ out:
 	return ret;
 }
 
- int rtllib_wx_get_essid(struct rtllib_device *ieee, struct iw_request_info *a,union iwreq_data *wrqu,char *b)
+int rtllib_wx_get_essid(struct rtllib_device *ieee, struct iw_request_info *a,
+			 union iwreq_data *wrqu, char *b)
 {
-	int len,ret = 0;
+	int len, ret = 0;
 	unsigned long flags;
 
 	if (ieee->iw_mode == IW_MODE_MONITOR)
@@ -196,20 +198,20 @@ out:
 	spin_lock_irqsave(&ieee->lock, flags);
 
 	if (ieee->current_network.ssid[0] == '\0' ||
-		ieee->current_network.ssid_len == 0){
+		ieee->current_network.ssid_len == 0) {
 		ret = -1;
 		goto out;
 	}
 
 	if (ieee->state != RTLLIB_LINKED &&
 		ieee->state != RTLLIB_LINKED_SCANNING &&
-		ieee->ssid_set == 0){
+		ieee->ssid_set == 0) {
 		ret = -1;
 		goto out;
 	}
 	len = ieee->current_network.ssid_len;
 	wrqu->essid.length = len;
-	strncpy(b,ieee->current_network.ssid,len);
+	strncpy(b, ieee->current_network.ssid, len);
 	wrqu->essid.flags = 1;
 
 out:
@@ -235,7 +237,8 @@ int rtllib_wx_get_rate(struct rtllib_device *ieee,
 			     union iwreq_data *wrqu, char *extra)
 {
 	u32 tmp_rate = 0;
-        tmp_rate = TxCountToDataRate(ieee, ieee->softmac_stats.CurrentShowTxate);
+	tmp_rate = TxCountToDataRate(ieee,
+				     ieee->softmac_stats.CurrentShowTxate);
 	wrqu->bitrate.value = tmp_rate * 500000;
 
 	return 0;
@@ -248,8 +251,7 @@ int rtllib_wx_set_rts(struct rtllib_device *ieee,
 {
 	if (wrqu->rts.disabled || !wrqu->rts.fixed)
 		ieee->rts = DEFAULT_RTS_THRESHOLD;
-	else
-	{
+	else {
 		if (wrqu->rts.value < MIN_RTS_THRESHOLD ||
 				wrqu->rts.value > MAX_RTS_THRESHOLD)
 			return -EINVAL;
@@ -293,17 +295,17 @@ int rtllib_wx_set_mode(struct rtllib_device *ieee, struct iw_request_info *a,
 
 	if (wrqu->mode == IW_MODE_MONITOR) {
 		ieee->dev->type = ARPHRD_IEEE80211;
-		rtllib_EnableNetMonitorMode(ieee->dev,false);
+		rtllib_EnableNetMonitorMode(ieee->dev, false);
 	} else {
 		ieee->dev->type = ARPHRD_ETHER;
 		if (ieee->iw_mode == IW_MODE_MONITOR)
-			rtllib_DisableNetMonitorMode(ieee->dev,false);
+			rtllib_DisableNetMonitorMode(ieee->dev, false);
 	}
 
 	if (!ieee->proto_started) {
 		ieee->iw_mode = wrqu->mode;
 	} else {
-		rtllib_stop_protocol(ieee,true);
+		rtllib_stop_protocol(ieee, true);
 		ieee->iw_mode = wrqu->mode;
 		rtllib_start_protocol(ieee);
 	}
@@ -315,14 +317,15 @@ out:
 
 void rtllib_wx_sync_scan_wq(void *data)
 {
-	struct rtllib_device *ieee = container_of_work_rsl(data, struct rtllib_device, wx_sync_scan_wq);
+	struct rtllib_device *ieee = container_of_work_rsl(data,
+				     struct rtllib_device, wx_sync_scan_wq);
 	short chan;
-	enum ht_extchnl_offset chan_offset=0;
-	enum ht_channel_width bandwidth=0;
+	enum ht_extchnl_offset chan_offset = 0;
+	enum ht_channel_width bandwidth = 0;
 	int b40M = 0;
-	static int count = 0;
+	static int count;
 
-	if (!(ieee->softmac_features & IEEE_SOFTMAC_SCAN)){
+	if (!(ieee->softmac_features & IEEE_SOFTMAC_SCAN)) {
 		rtllib_start_scan_syncro(ieee, 0);
 		goto out;
 	}
@@ -346,15 +349,18 @@ void rtllib_wx_sync_scan_wq(void *data)
 	msleep(50);
 
 	if (ieee->ScanOperationBackupHandler)
-		ieee->ScanOperationBackupHandler(ieee->dev,SCAN_OPT_BACKUP);
+		ieee->ScanOperationBackupHandler(ieee->dev, SCAN_OPT_BACKUP);
 
-	if (ieee->pHTInfo->bCurrentHTSupport && ieee->pHTInfo->bEnableHT && ieee->pHTInfo->bCurBW40MHz) {
+	if (ieee->pHTInfo->bCurrentHTSupport && ieee->pHTInfo->bEnableHT &&
+	    ieee->pHTInfo->bCurBW40MHz) {
 		b40M = 1;
 		chan_offset = ieee->pHTInfo->CurSTAExtChnlOffset;
 		bandwidth = (enum ht_channel_width)ieee->pHTInfo->bCurBW40MHz;
-		RT_TRACE(COMP_DBG, "Scan in 40M, force to 20M first:%d, %d\n", chan_offset, bandwidth);
-		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
-		}
+		RT_TRACE(COMP_DBG, "Scan in 40M, force to 20M first:%d, %d\n",
+			 chan_offset, bandwidth);
+		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20,
+				       HT_EXTCHNL_OFFSET_NO_EXT);
+	}
 
 	rtllib_start_scan_syncro(ieee, 0);
 
@@ -372,7 +378,7 @@ void rtllib_wx_sync_scan_wq(void *data)
 	}
 
 	if (ieee->ScanOperationBackupHandler)
-		ieee->ScanOperationBackupHandler(ieee->dev,SCAN_OPT_RESTORE);
+		ieee->ScanOperationBackupHandler(ieee->dev, SCAN_OPT_RESTORE);
 
 	ieee->state = RTLLIB_LINKED;
 	ieee->link_change(ieee->dev);
@@ -381,9 +387,9 @@ void rtllib_wx_sync_scan_wq(void *data)
 	rtllib_sta_ps_send_null_frame(ieee, 0);
 
 	if (ieee->LinkDetectInfo.NumRecvBcnInPeriod == 0 ||
-	    ieee->LinkDetectInfo.NumRecvDataInPeriod == 0 ) {
+	    ieee->LinkDetectInfo.NumRecvDataInPeriod == 0) {
 		ieee->LinkDetectInfo.NumRecvBcnInPeriod = 1;
-		ieee->LinkDetectInfo.NumRecvDataInPeriod= 1;
+		ieee->LinkDetectInfo.NumRecvDataInPeriod = 1;
 	}
 
 	if (ieee->data_hard_resume)
@@ -407,12 +413,12 @@ int rtllib_wx_set_scan(struct rtllib_device *ieee, struct iw_request_info *a,
 
 	down(&ieee->wx_sem);
 
-	if (ieee->iw_mode == IW_MODE_MONITOR || !(ieee->proto_started)){
+	if (ieee->iw_mode == IW_MODE_MONITOR || !(ieee->proto_started)) {
 		ret = -1;
 		goto out;
 	}
 
-	if ( ieee->state == RTLLIB_LINKED){
+	if (ieee->state == RTLLIB_LINKED) {
 		queue_work_rsl(ieee->wq, &ieee->wx_sync_scan_wq);
 		/* intentionally forget to up sem */
 		return 0;
@@ -424,11 +430,11 @@ out:
 }
 
 int rtllib_wx_set_essid(struct rtllib_device *ieee,
-			      struct iw_request_info *a,
-			      union iwreq_data *wrqu, char *extra)
+			struct iw_request_info *a,
+			union iwreq_data *wrqu, char *extra)
 {
 
-	int ret=0,len,i;
+	int ret = 0, len, i;
 	short proto_started;
 	unsigned long flags;
 
@@ -437,27 +443,28 @@ int rtllib_wx_set_essid(struct rtllib_device *ieee,
 
 	proto_started = ieee->proto_started;
 
-	len = (wrqu->essid.length < IW_ESSID_MAX_SIZE) ? wrqu->essid.length : IW_ESSID_MAX_SIZE;
+	len = (wrqu->essid.length < IW_ESSID_MAX_SIZE) ? wrqu->essid.length :
+	       IW_ESSID_MAX_SIZE;
 
-	if (len > IW_ESSID_MAX_SIZE){
-		ret= -E2BIG;
+	if (len > IW_ESSID_MAX_SIZE) {
+		ret = -E2BIG;
 		goto out;
 	}
 
-	if (ieee->iw_mode == IW_MODE_MONITOR){
-		ret= -1;
+	if (ieee->iw_mode == IW_MODE_MONITOR) {
+		ret = -1;
 		goto out;
 	}
 
-	for (i=0; i<len; i++){
-		if (extra[i] < 0){
-			ret= -1;
+	for (i = 0; i < len; i++) {
+		if (extra[i] < 0) {
+			ret = -1;
 			goto out;
 		}
 	}
 
 	if (proto_started)
-		rtllib_stop_protocol(ieee,true);
+		rtllib_stop_protocol(ieee, true);
 
 
 	/* this is just to be sure that the GET wx callback
@@ -470,8 +477,7 @@ int rtllib_wx_set_essid(struct rtllib_device *ieee,
 		ieee->current_network.ssid_len = len;
 		ieee->cannot_notify = false;
 		ieee->ssid_set = 1;
-	}
-	else{
+	} else {
 		ieee->ssid_set = 0;
 		ieee->current_network.ssid[0] = '\0';
 		ieee->current_network.ssid_len = 0;
@@ -485,16 +491,16 @@ out:
 	return ret;
 }
 
- int rtllib_wx_get_mode(struct rtllib_device *ieee, struct iw_request_info *a,
-			     union iwreq_data *wrqu, char *b)
+int rtllib_wx_get_mode(struct rtllib_device *ieee, struct iw_request_info *a,
+		       union iwreq_data *wrqu, char *b)
 {
 	wrqu->mode = ieee->iw_mode;
 	return 0;
 }
 
- int rtllib_wx_set_rawtx(struct rtllib_device *ieee,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
+int rtllib_wx_set_rawtx(struct rtllib_device *ieee,
+			struct iw_request_info *info,
+			union iwreq_data *wrqu, char *extra)
 {
 
 	int *parms = (int *)extra;
@@ -511,9 +517,8 @@ out:
 	printk(KERN_INFO"raw TX is %s\n",
 	      ieee->raw_tx ? "enabled" : "disabled");
 
-	if (ieee->iw_mode == IW_MODE_MONITOR)
-	{
-		if (prev == 0 && ieee->raw_tx){
+	if (ieee->iw_mode == IW_MODE_MONITOR) {
+		if (prev == 0 && ieee->raw_tx) {
 			if (ieee->data_hard_resume)
 				ieee->data_hard_resume(ieee->dev);
 
@@ -552,33 +557,30 @@ int rtllib_wx_set_power(struct rtllib_device *ieee,
 {
 	int ret = 0;
 
-	if (
-		(!ieee->sta_wake_up) ||
-		(!ieee->enter_sleep_state) ||
-		(!ieee->ps_is_queue_empty)){
-
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,"%s(): PS mode is tryied to be use but driver missed a callback\n\n",__func__);
-
+	if ((!ieee->sta_wake_up) ||
+	    (!ieee->enter_sleep_state) ||
+	    (!ieee->ps_is_queue_empty)) {
+		RTLLIB_DEBUG(RTLLIB_DL_ERR, "%s(): PS mode is tryied to be use "
+			     "but driver missed a callback\n\n", __func__);
 		return -1;
 	}
 
 	down(&ieee->wx_sem);
 
-	if (wrqu->power.disabled){
-		RT_TRACE(COMP_DBG, "===>%s(): power disable\n",__func__);
+	if (wrqu->power.disabled) {
+		RT_TRACE(COMP_DBG, "===>%s(): power disable\n", __func__);
 		ieee->ps = RTLLIB_PS_DISABLED;
 		goto exit;
 	}
 	if (wrqu->power.flags & IW_POWER_TIMEOUT) {
 		ieee->ps_timeout = wrqu->power.value / 1000;
-		RT_TRACE(COMP_DBG, "===>%s():ps_timeout is %d\n",__func__,ieee->ps_timeout);
+		RT_TRACE(COMP_DBG, "===>%s():ps_timeout is %d\n", __func__,
+			 ieee->ps_timeout);
 	}
 
-	if (wrqu->power.flags & IW_POWER_PERIOD) {
-
+	if (wrqu->power.flags & IW_POWER_PERIOD)
 		ieee->ps_period = wrqu->power.value / 1000;
 
-	}
 	switch (wrqu->power.flags & IW_POWER_MODE) {
 	case IW_POWER_UNICAST_R:
 		ieee->ps = RTLLIB_PS_UNICAST;
@@ -609,7 +611,7 @@ int rtllib_wx_get_power(struct rtllib_device *ieee,
 				 struct iw_request_info *info,
 				 union iwreq_data *wrqu, char *extra)
 {
-	int ret =0;
+	int ret = 0;
 
 	down(&ieee->wx_sem);
 
@@ -628,7 +630,8 @@ int rtllib_wx_get_power(struct rtllib_device *ieee,
 		wrqu->power.value = ieee->ps_period * 1000;
 	}
 
-       if ((ieee->ps & (RTLLIB_PS_MBCAST | RTLLIB_PS_UNICAST)) == (RTLLIB_PS_MBCAST | RTLLIB_PS_UNICAST))
+	if ((ieee->ps & (RTLLIB_PS_MBCAST | RTLLIB_PS_UNICAST)) ==
+	    (RTLLIB_PS_MBCAST | RTLLIB_PS_UNICAST))
 		wrqu->power.flags |= IW_POWER_ALL_R;
 	else if (ieee->ps & RTLLIB_PS_MBCAST)
 		wrqu->power.flags |= IW_POWER_MULTICAST_R;
