@@ -1764,6 +1764,8 @@ int usb_hcd_alloc_bandwidth(struct usb_device *udev,
 		struct usb_interface *iface = usb_ifnum_to_if(udev,
 				cur_alt->desc.bInterfaceNumber);
 
+		if (!iface)
+			return -EINVAL;
 		if (iface->resetting_device) {
 			/*
 			 * The USB core just reset the device, so the xHCI host
