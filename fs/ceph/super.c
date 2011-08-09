@@ -430,20 +430,23 @@ struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 					struct ceph_options *opt)
 {
 	struct ceph_fs_client *fsc;
+	const unsigned supported_features =
+		CEPH_FEATURE_FLOCK |
+		CEPH_FEATURE_DIRLAYOUTHASH;
+	const unsigned required_features = 0;
 	int err = -ENOMEM;
 
 	fsc = kzalloc(sizeof(*fsc), GFP_KERNEL);
 	if (!fsc)
 		return ERR_PTR(-ENOMEM);
 
-	fsc->client = ceph_create_client(opt, fsc);
+	fsc->client = ceph_create_client(opt, fsc, supported_features,
+					 required_features);
 	if (IS_ERR(fsc->client)) {
 		err = PTR_ERR(fsc->client);
 		goto fail;
 	}
 	fsc->client->extra_mon_dispatch = extra_mon_dispatch;
-	fsc->client->supported_features |= CEPH_FEATURE_FLOCK |
-		CEPH_FEATURE_DIRLAYOUTHASH;
 	fsc->client->monc.want_mdsmap = 1;
 
 	fsc->mount_options = fsopt;
