@@ -6277,8 +6277,8 @@ static noinline int walk_up_tree(struct btrfs_trans_handle *trans,
  * also make sure backrefs for the shared block and all lower level
  * blocks are properly updated.
  */
-int btrfs_drop_snapshot(struct btrfs_root *root,
-			struct btrfs_block_rsv *block_rsv, int update_ref)
+void btrfs_drop_snapshot(struct btrfs_root *root,
+			 struct btrfs_block_rsv *block_rsv, int update_ref)
 {
 	struct btrfs_path *path;
 	struct btrfs_trans_handle *trans;
@@ -6291,13 +6291,16 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 	int level;
 
 	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
+	if (!path) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	wc = kzalloc(sizeof(*wc), GFP_NOFS);
 	if (!wc) {
 		btrfs_free_path(path);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto out;
 	}
 
 	trans = btrfs_start_transaction(tree_root, 0);
@@ -6326,7 +6329,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 		path->lowest_level = 0;
 		if (ret < 0) {
 			err = ret;
-			goto out;
+			goto out_free;
 		}
 		WARN_ON(ret > 0);
 
@@ -6433,11 +6436,14 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 		free_extent_buffer(root->commit_root);
 		kfree(root);
 	}
-out:
+out_free:
 	btrfs_end_transaction_throttle(trans, tree_root);
 	kfree(wc);
 	btrfs_free_path(path);
-	return err;
+out:
+	if (err)
+		btrfs_std_error(root->fs_info, err);
+	return;
 }
 
 /*
