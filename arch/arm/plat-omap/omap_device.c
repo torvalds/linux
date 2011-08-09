@@ -97,6 +97,14 @@
 static int omap_device_register(struct platform_device *pdev);
 static int omap_early_device_register(struct platform_device *pdev);
 
+static struct omap_device_pm_latency omap_default_latency[] = {
+	{
+		.deactivate_func = omap_device_idle_hwmods,
+		.activate_func   = omap_device_enable_hwmods,
+		.flags = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
+	}
+};
+
 /* Private functions */
 
 /**
@@ -510,8 +518,17 @@ struct platform_device *omap_device_build_ss(const char *pdev_name, int pdev_id,
 	if (ret)
 		goto odbs_exit3;
 
-	od->pm_lats = pm_lats;
+	if (!pm_lats) {
+		pm_lats = omap_default_latency;
+		pm_lats_cnt = ARRAY_SIZE(omap_default_latency);
+	}
+
 	od->pm_lats_cnt = pm_lats_cnt;
+	od->pm_lats = kmemdup(pm_lats,
+			sizeof(struct omap_device_pm_latency) * pm_lats_cnt,
+			GFP_KERNEL);
+	if (!od->pm_lats)
+		goto odbs_exit3;
 
 	for (i = 0; i < oh_cnt; i++) {
 		hwmods[i]->od = od;
