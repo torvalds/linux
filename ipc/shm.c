@@ -105,9 +105,16 @@ void shm_exit_ns(struct ipc_namespace *ns)
 }
 #endif
 
-void __init shm_init (void)
+static int __init ipc_ns_init(void)
 {
 	shm_init_ns(&init_ipc_ns);
+	return 0;
+}
+
+pure_initcall(ipc_ns_init);
+
+void __init shm_init (void)
+{
 	ipc_init_proc_interface("sysvipc/shm",
 #if BITS_PER_LONG <= 32
 				"       key      shmid perms       size  cpid  lpid nattch   uid   gid  cuid  cgid      atime      dtime      ctime        rss       swap\n",
@@ -294,7 +301,7 @@ static int shm_try_destroy_orphaned(int id, void *p, void *data)
 void shm_destroy_orphaned(struct ipc_namespace *ns)
 {
 	down_write(&shm_ids(ns).rw_mutex);
-	if (&shm_ids(ns).in_use)
+	if (shm_ids(ns).in_use)
 		idr_for_each(&shm_ids(ns).ipcs_idr, &shm_try_destroy_orphaned, ns);
 	up_write(&shm_ids(ns).rw_mutex);
 }
@@ -304,9 +311,12 @@ void exit_shm(struct task_struct *task)
 {
 	struct ipc_namespace *ns = task->nsproxy->ipc_ns;
 
+	if (shm_ids(ns).in_use == 0)
+		return;
+
 	/* Destroy all already created segments, but not mapped yet */
 	down_write(&shm_ids(ns).rw_mutex);
-	if (&shm_ids(ns).in_use)
+	if (shm_ids(ns).in_use)
 		idr_for_each(&shm_ids(ns).ipcs_idr, &shm_try_destroy_current, ns);
 	up_write(&shm_ids(ns).rw_mutex);
 }

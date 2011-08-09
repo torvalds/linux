@@ -978,7 +978,7 @@ struct iscsi_login *iscsi_target_init_negotiation(
 		pr_err("Unable to allocate memory for struct iscsi_login.\n");
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
-		goto out;
+		return NULL;
 	}
 
 	login->req = kzalloc(ISCSI_HDR_LEN, GFP_KERNEL);

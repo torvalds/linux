@@ -76,15 +76,15 @@ struct extent_io_ops {
 				    struct extent_state *state);
 	int (*writepage_end_io_hook)(struct page *page, u64 start, u64 end,
 				      struct extent_state *state, int uptodate);
-	int (*set_bit_hook)(struct inode *inode, struct extent_state *state,
-			    int *bits);
-	int (*clear_bit_hook)(struct inode *inode, struct extent_state *state,
-			      int *bits);
-	int (*merge_extent_hook)(struct inode *inode,
-				 struct extent_state *new,
-				 struct extent_state *other);
-	int (*split_extent_hook)(struct inode *inode,
-				 struct extent_state *orig, u64 split);
+	void (*set_bit_hook)(struct inode *inode, struct extent_state *state,
+			     int *bits);
+	void (*clear_bit_hook)(struct inode *inode, struct extent_state *state,
+			       int *bits);
+	void (*merge_extent_hook)(struct inode *inode,
+				  struct extent_state *new,
+				  struct extent_state *other);
+	void (*split_extent_hook)(struct inode *inode,
+				  struct extent_state *orig, u64 split);
 	int (*write_cache_pages_lock_hook)(struct page *page);
 };
 
@@ -108,8 +108,6 @@ struct extent_state {
 	wait_queue_head_t wq;
 	atomic_t refs;
 	unsigned long state;
-	u64 split_start;
-	u64 split_end;
 
 	/* for use by the FS */
 	u64 private;
