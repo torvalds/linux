@@ -282,8 +282,7 @@ void drbd_request_endio(struct bio *bio, int error)
 		complete_master_bio(device, &m);
 }
 
-void drbd_csum_ee(struct drbd_device *device, struct crypto_hash *tfm,
-		  struct drbd_peer_request *peer_req, void *digest)
+void drbd_csum_ee(struct crypto_hash *tfm, struct drbd_peer_request *peer_req, void *digest)
 {
 	struct hash_desc desc;
 	struct scatterlist sg;
@@ -310,7 +309,7 @@ void drbd_csum_ee(struct drbd_device *device, struct crypto_hash *tfm,
 	crypto_hash_final(&desc, digest);
 }
 
-void drbd_csum_bio(struct drbd_device *device, struct crypto_hash *tfm, struct bio *bio, void *digest)
+void drbd_csum_bio(struct crypto_hash *tfm, struct bio *bio, void *digest)
 {
 	struct hash_desc desc;
 	struct scatterlist sg;
@@ -350,7 +349,7 @@ static int w_e_send_csum(struct drbd_work *w, int cancel)
 	if (digest) {
 		sector_t sector = peer_req->i.sector;
 		unsigned int size = peer_req->i.size;
-		drbd_csum_ee(device, first_peer_device(device)->connection->csums_tfm, peer_req, digest);
+		drbd_csum_ee(first_peer_device(device)->connection->csums_tfm, peer_req, digest);
 		/* Free peer_req and pages before send.
 		 * In case we block on congestion, we could otherwise run into
 		 * some distributed deadlock, if the other side blocks on
@@ -1103,7 +1102,7 @@ int w_e_end_csum_rs_req(struct drbd_work *w, int cancel)
 			digest = kmalloc(digest_size, GFP_NOIO);
 		}
 		if (digest) {
-			drbd_csum_ee(device, first_peer_device(device)->connection->csums_tfm, peer_req, digest);
+			drbd_csum_ee(first_peer_device(device)->connection->csums_tfm, peer_req, digest);
 			eq = !memcmp(digest, di->digest, digest_size);
 			kfree(digest);
 		}
@@ -1155,7 +1154,7 @@ int w_e_end_ov_req(struct drbd_work *w, int cancel)
 	}
 
 	if (likely(!(peer_req->flags & EE_WAS_ERROR)))
-		drbd_csum_ee(device, first_peer_device(device)->connection->verify_tfm, peer_req, digest);
+		drbd_csum_ee(first_peer_device(device)->connection->verify_tfm, peer_req, digest);
 	else
 		memset(digest, 0, digest_size);
 
@@ -1221,7 +1220,7 @@ int w_e_end_ov_reply(struct drbd_work *w, int cancel)
 		digest_size = crypto_hash_digestsize(first_peer_device(device)->connection->verify_tfm);
 		digest = kmalloc(digest_size, GFP_NOIO);
 		if (digest) {
-			drbd_csum_ee(device, first_peer_device(device)->connection->verify_tfm, peer_req, digest);
+			drbd_csum_ee(first_peer_device(device)->connection->verify_tfm, peer_req, digest);
 
 			D_ASSERT(device, digest_size == di->digest_size);
 			eq = !memcmp(digest, di->digest, digest_size);

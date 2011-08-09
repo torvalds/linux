@@ -1560,7 +1560,7 @@ read_in_block(struct drbd_device *device, u64 id, sector_t sector,
 	}
 
 	if (dgs) {
-		drbd_csum_ee(device, first_peer_device(device)->connection->peer_integrity_tfm, peer_req, dig_vv);
+		drbd_csum_ee(first_peer_device(device)->connection->peer_integrity_tfm, peer_req, dig_vv);
 		if (memcmp(dig_in, dig_vv, dgs)) {
 			drbd_err(device, "Digest integrity check FAILED: %llus +%u\n",
 				(unsigned long long)sector, data_size);
@@ -1637,7 +1637,7 @@ static int recv_dless_read(struct drbd_device *device, struct drbd_request *req,
 	}
 
 	if (dgs) {
-		drbd_csum_bio(device, first_peer_device(device)->connection->peer_integrity_tfm, bio, dig_vv);
+		drbd_csum_bio(first_peer_device(device)->connection->peer_integrity_tfm, bio, dig_vv);
 		if (memcmp(dig_in, dig_vv, dgs)) {
 			drbd_err(device, "Digest integrity check FAILED. Broken NICs?\n");
 			return -EINVAL;

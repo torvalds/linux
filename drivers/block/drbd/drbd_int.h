@@ -1320,9 +1320,8 @@ static inline void ov_out_of_sync_print(struct drbd_device *device)
 }
 
 
-extern void drbd_csum_bio(struct drbd_device *, struct crypto_hash *, struct bio *, void *);
-extern void drbd_csum_ee(struct drbd_device *, struct crypto_hash *,
-			 struct drbd_peer_request *, void *);
+extern void drbd_csum_bio(struct crypto_hash *, struct bio *, void *);
+extern void drbd_csum_ee(struct crypto_hash *, struct drbd_peer_request *, void *);
 /* worker callbacks */
 extern int w_e_end_data_req(struct drbd_work *, int);
 extern int w_e_end_rsdata_req(struct drbd_work *, int);
