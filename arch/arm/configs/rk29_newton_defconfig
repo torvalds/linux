@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.32.27
-# Tue Aug  9 21:13:28 2011
+# Tue Aug  9 21:44:30 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -897,9 +897,6 @@ CONFIG_RK29_NEWTON=y
 # CONFIG_EEPROM_MAX6875 is not set
 # CONFIG_EEPROM_93CX6 is not set
 # CONFIG_RK29_SUPPORT_MODEM is not set
-# CONFIG_MODEM_ROCKCHIP_DEMO is not set
-# CONFIG_MODEM_LONGCHEER_U6300V is not set
-# CONFIG_MODEM_THINKWILL_MW100G is not set
 # CONFIG_RK29_GPS is not set
 
 #
@@ -1083,6 +1080,7 @@ CONFIG_INPUT_TOUCHSCREEN=y
 # CONFIG_EETI_EGALAX is not set
 # CONFIG_TOUCHSCREEN_IT7260 is not set
 # CONFIG_TOUCHSCREEN_NAS is not set
+# CONFIG_LAIBAO_TS is not set
 # CONFIG_TOUCHSCREEN_GT801_IIC is not set
 # CONFIG_TOUCHSCREEN_GT818_IIC is not set
 # CONFIG_D70_L3188A is not set
@@ -1366,8 +1364,6 @@ CONFIG_SOC_CAMERA_OV2655=y
 # CONFIG_SOC_CAMERA_OV2640 is not set
 # CONFIG_SOC_CAMERA_OV3640 is not set
 # CONFIG_SOC_CAMERA_OV5642 is not set
-# CONFIG_OV5642_AUTOFOCUS is not set
-# CONFIG_OV5642_FIXEDFOCUS is not set
 # CONFIG_SOC_CAMERA_OV5640 is not set
 # CONFIG_SOC_CAMERA_S5K6AA is not set
 # CONFIG_SOC_CAMERA_GT2005 is not set
@@ -1533,8 +1529,6 @@ CONFIG_LCD_AT070TN93=y
 # HDMI
 #
 # CONFIG_HDMI is not set
-# CONFIG_ANX7150 is not set
-# CONFIG_ANX9030 is not set
 
 #
 # Console display driver support
