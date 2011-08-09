@@ -830,6 +830,7 @@ config ARCH_U300
 	select HAVE_SCHED_CLOCK
 	select HAVE_TCM
 	select ARM_AMBA
+	select ARM_PATCH_PHYS_VIRT
 	select ARM_VIC
 	select GENERIC_CLOCKEVENTS
 	select CLKDEV_LOOKUP
