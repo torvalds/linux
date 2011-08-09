@@ -438,6 +438,7 @@ static struct cxd2820r_config em28xx_cxd2820r_config = {
 
 static struct tda18271_config em28xx_cxd2820r_tda18271_config = {
 	.output_opt = TDA18271_OUTPUT_LT_OFF,
+	.gate = TDA18271_GATE_DIGITAL,
 };
 
 /* ------------------------------------------------------------------ */
@@ -751,11 +752,9 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		dvb->fe[0] = dvb_attach(cxd2820r_attach,
 			&em28xx_cxd2820r_config, &dev->i2c_adap, NULL);
 		if (dvb->fe[0]) {
-			struct i2c_adapter *i2c_tuner;
-			i2c_tuner = cxd2820r_get_tuner_i2c_adapter(dvb->fe[0]);
 			/* FE 0 attach tuner */
 			if (!dvb_attach(tda18271_attach, dvb->fe[0], 0x60,
-				i2c_tuner, &em28xx_cxd2820r_tda18271_config)) {
+				&dev->i2c_adap, &em28xx_cxd2820r_tda18271_config)) {
 				dvb_frontend_detach(dvb->fe[0]);
 				result = -EINVAL;
 				goto out_free;
@@ -766,7 +765,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			dvb->fe[1]->id = 1;
 			/* FE 1 attach tuner */
 			if (!dvb_attach(tda18271_attach, dvb->fe[1], 0x60,
-				i2c_tuner, &em28xx_cxd2820r_tda18271_config)) {
+				&dev->i2c_adap, &em28xx_cxd2820r_tda18271_config)) {
 				dvb_frontend_detach(dvb->fe[1]);
 				/* leave FE 0 still active */
 			}
