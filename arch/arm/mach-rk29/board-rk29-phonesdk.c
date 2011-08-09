@@ -1612,10 +1612,10 @@ struct wm8994_pdata wm8994_platdata = {
 	.earpiece_incall_vol = 0,
 	.headset_incall_vol = 6,
 	.headset_incall_mic_vol = -6,
-	.headset_normal_vol = 6,
+	.headset_normal_vol = -6,
 	.BT_incall_vol = 0,
 	.BT_incall_mic_vol = 0,
-	.recorder_vol = 50,
+	.recorder_vol = 30,
 	
 };
 //#endif 
@@ -3096,7 +3096,7 @@ static struct cpufreq_frequency_table freq_table[] =
 	{ .index = 1200000, .frequency =  408000 },
 	{ .index = 1200000, .frequency =  600000 },
 	{ .index = 1200000, .frequency =  816000 },
-	{ .index = 1350000, .frequency = 1008000 },
+//	{ .index = 1300000, .frequency = 1008000 },
 	{ .frequency = CPUFREQ_TABLE_END },
 };
 

@@ -23,8 +23,8 @@
  *              connected to the secondary I2C interface of the gyroscope.
  *
  *  @{
- *      @file   adxl346.c
- *      @brief  Accelerometer setup and handling methods for AD adxl346.
+ *      @file   mma845x.c
+ *      @brief  Accelerometer setup and handling methods for Freescale MMA845X
  */
 
 /* ------------------ */
@@ -34,16 +34,23 @@
 #ifdef __KERNEL__
 #include <linux/module.h>
 #endif
+
+#include <stdlib.h>
 #include "mpu.h"
 #include "mlsl.h"
 #include "mlos.h"
+#include <string.h>
 
 #include <log.h>
 #undef MPL_LOG_TAG
 #define MPL_LOG_TAG "MPL-acc"
 
-#define ACCEL_ADI346_SLEEP_REG      (0x2D)
-#define ACCEL_ADI346_SLEEP_MASK     (0x04)
+#define ACCEL_MMA845X_CTRL_REG1      (0x2A)
+#define ACCEL_MMA845X_SLEEP_MASK     (0x01)
+
+/* full scale setting - register & mask */
+#define ACCEL_MMA845X_CFG_REG       (0x0E)
+#define ACCEL_MMA845X_CTRL_MASK     (0x03)
 
 /* --------------------- */
 /* -    Variables.     - */
@@ -53,7 +60,7 @@
     Accelerometer Initialization Functions
 *****************************************/
 
-int adxl346_suspend(void *mlsl_handle,
+int mma845x_suspend(void *mlsl_handle,
 		    struct ext_slave_descr *slave,
 		    struct ext_slave_platform_data *pdata)
 {
@@ -61,103 +68,91 @@ int adxl346_suspend(void *mlsl_handle,
 	unsigned char reg;
 	result =
 	    MLSLSerialRead(mlsl_handle, pdata->address,
-			   ACCEL_ADI346_SLEEP_REG, 1, &reg);
+			   ACCEL_MMA845X_CTRL_REG1, 1, &reg);
 	ERROR_CHECK(result);
-	reg |= ACCEL_ADI346_SLEEP_MASK;
+	reg &= ~ACCEL_MMA845X_SLEEP_MASK;
 	result =
 	    MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-				  ACCEL_ADI346_SLEEP_REG, reg);
+				  ACCEL_MMA845X_CTRL_REG1, reg);
 	ERROR_CHECK(result);
 	return result;
 }
 
-/* full scale setting - register & mask */
-#define ACCEL_ADI346_CTRL_REG      (0x31)
-#define ACCEL_ADI346_CTRL_MASK     (0x03)
 
-int adxl346_resume(void *mlsl_handle,
+int mma845x_resume(void *mlsl_handle,
 		   struct ext_slave_descr *slave,
 		   struct ext_slave_platform_data *pdata)
 {
 	int result = ML_SUCCESS;
 	unsigned char reg;
 
-	result =
-	    MLSLSerialRead(mlsl_handle, pdata->address,
-			   ACCEL_ADI346_SLEEP_REG, 1, &reg);
+	result = MLSLSerialRead(mlsl_handle, pdata->address,
+				ACCEL_MMA845X_CFG_REG, 1, &reg);
 	ERROR_CHECK(result);
-	reg &= ~ACCEL_ADI346_SLEEP_MASK;
-	/*wake up if sleeping */
-	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-				       ACCEL_ADI346_SLEEP_REG, reg);
-	ERROR_CHECK(result);
-	/*MLOSSleep(10) */
+
+	/* data rate = 200Hz */
 
 	/* Full Scale */
-	reg = 0x04;
-	reg &= ~ACCEL_ADI346_CTRL_MASK;
+	reg &= ~ACCEL_MMA845X_CTRL_MASK;
 	if (slave->range.mantissa == 4)
 		reg |= 0x1;
 	else if (slave->range.mantissa == 8)
 		reg |= 0x2;
-	else if (slave->range.mantissa == 16)
-		reg |= 0x3;
 	else {
 		slave->range.mantissa = 2;
 		reg |= 0x0;
 	}
 	slave->range.fraction = 0;
 
-	/* DATA_FORMAT: full resolution of +/-2g; data is left justified */
-	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address, 0x31, reg);
+	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
+				ACCEL_MMA845X_CFG_REG, reg);
 	ERROR_CHECK(result);
-	/* BW_RATE: normal power operation with output data rate of 200Hz */
-	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address, 0x2C, 0x0B);
+	/* 200Hz + active mode */
+	result =
+	    MLSLSerialWriteSingle(mlsl_handle, pdata->address,
+			    ACCEL_MMA845X_CTRL_REG1, 0x11);
 	ERROR_CHECK(result);
-	/* POWER_CTL: power on in measurement mode */
-	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address, 0x2D, 0x28);
-	ERROR_CHECK(result);
-	/*--- after wake up, it takes at least [1/(data rate) + 1.1]ms ==>
-	  6.1ms to get valid sensor data ---*/
-	MLOSSleep(10);
 
 	return result;
 }
 
-int adxl346_read(void *mlsl_handle,
+int mma845x_read(void *mlsl_handle,
 		 struct ext_slave_descr *slave,
 		 struct ext_slave_platform_data *pdata,
 		 unsigned char *data)
 {
 	int result;
+	unsigned char local_data[7]; /* Status register + 6 bytes data */
 	result = MLSLSerialRead(mlsl_handle, pdata->address,
-				slave->reg, slave->len, data);
+				slave->reg, sizeof(local_data), local_data);
+	ERROR_CHECK(result);
+	memcpy(data, &local_data[1], slave->len);
 	return result;
 }
 
-struct ext_slave_descr adxl346_descr = {
+struct ext_slave_descr mma845x_descr = {
 	/*.init             = */ NULL,
 	/*.exit             = */ NULL,
-	/*.suspend          = */ adxl346_suspend,
-	/*.resume           = */ adxl346_resume,
-	/*.read             = */ adxl346_read,
+	/*.suspend          = */ mma845x_suspend,
+	/*.resume           = */ mma845x_resume,
+	/*.read             = */ mma845x_read,
 	/*.config           = */ NULL,
 	/*.get_config       = */ NULL,
-	/*.name             = */ "adx1346",
+	/*.name             = */ "mma845x",
 	/*.type             = */ EXT_SLAVE_TYPE_ACCELEROMETER,
-	/*.id               = */ ACCEL_ID_ADI346,
-	/*.reg              = */ 0x32,
+	/*.id               = */ ACCEL_ID_MMA845X,
+	/*.reg              = */ 0x00,
 	/*.len              = */ 6,
-	/*.endian           = */ EXT_SLAVE_LITTLE_ENDIAN,
+	/*.endian           = */ EXT_SLAVE_FS16_BIG_ENDIAN,
 	/*.range            = */ {2, 0},
 };
 
-struct ext_slave_descr *adxl346_get_slave_descr(void)
+struct ext_slave_descr *mma845x_get_slave_descr(void)
 {
-	return &adxl346_descr;
+	return &mma845x_descr;
 }
-EXPORT_SYMBOL(adxl346_get_slave_descr);
+EXPORT_SYMBOL(mma845x_get_slave_descr);
 
 /**
  *  @}
-**/
+ */

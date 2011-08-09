@@ -267,6 +267,18 @@ struct cs42l52_platform_data {
     void    (*exit_platform_hw)(void);
 };
 
+//tcl miaozh add
+/*nas touch */
+struct nas_platform_data {
+    u16     model;
+
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*nas_platform_sleep)(void);
+    int     (*nas_platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+};
+
 
 struct akm8975_platform_data {
 	char layouts[3][3];
