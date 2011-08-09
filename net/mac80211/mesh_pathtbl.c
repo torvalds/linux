@@ -17,6 +17,12 @@
 #include "ieee80211_i.h"
 #include "mesh.h"
 
+#ifdef CONFIG_MAC80211_VERBOSE_MPATH_DEBUG
+#define mpath_dbg(fmt, args...)	printk(KERN_DEBUG fmt, ##args)
+#else
+#define mpath_dbg(fmt, args...)	do { (void)(0); } while (0)
+#endif
+
 /* There will be initially 2^INIT_PATHS_SIZE_ORDER buckets */
 #define INIT_PATHS_SIZE_ORDER	2
 
