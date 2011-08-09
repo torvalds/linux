@@ -8,8 +8,34 @@
  * published by the Free Software Foundation.
  */
 
-/* TODO: support ipv6 for iface_stat.
- * Currently if an iface is only v6 it will not have stats collected. */
+/*
+ * TODO: support ipv6 for iface_stat.
+ * Currently if an iface is only v6 it will not have stats collected.
+ */
+
+/* #define DEBUG */
+/* #define IDEBUG */
+/* #define MDEBUG */
+/* #define RDEBUG */
+
+/* Iface handling */
+#ifdef IDEBUG
+#define IF_DEBUG(...) pr_debug(__VA_ARGS__)
+#else
+#define IF_DEBUG(...) no_printk(__VA_ARGS__)
+#endif
+/* Iptable Matching */
+#ifdef MDEBUG
+#define MT_DEBUG(...) pr_debug(__VA_ARGS__)
+#else
+#define MT_DEBUG(...) no_printk(__VA_ARGS__)
+#endif
+/* Red-black tree handling */
+#ifdef RDEBUG
+#define RB_DEBUG(...) pr_debug(__VA_ARGS__)
+#else
+#define RB_DEBUG(...) no_printk(__VA_ARGS__)
+#endif
 
 #include <linux/file.h>
 #include <linux/inetdevice.h>
@@ -23,8 +49,10 @@
 #include <net/udp.h>
 
 #include <linux/netfilter/xt_socket.h>
-/* We only use the xt_socket funcs within a similar context to avoid unexpected
- * return values. */
+/*
+ * We only use the xt_socket funcs within a similar context to avoid unexpected
+ * return values.
+ */
 #define XT_SOCKET_SUPPORTED_HOOKS \
 	((1 << NF_INET_PRE_ROUTING) | (1 << NF_INET_LOCAL_IN))
 
@@ -61,7 +89,8 @@ module_param_named(stats_readall_gid, proc_stats_readall_gid, uint,
 module_param_named(ctrl_write_gid, proc_ctrl_write_gid, uint,
 		   S_IRUGO | S_IWUSR);
 
-/* After the kernel has initiallized this module, it is still possible
+/*
+ * After the kernel has initiallized this module, it is still possible
  * to make it passive:
  *  - do not register it via iptables.
  *   the matching code will not be invoked.
@@ -106,6 +135,14 @@ typedef uint64_t tag_t;  /* Only used via accessors */
 static const char *iface_stat_procdirname = "iface_stat";
 static struct proc_dir_entry *iface_stat_procdir;
 
+
+/*
+ * For now we only track 2 sets of counters.
+ * The default set is 0.
+ * Userspace can activate another set for a given uid being tracked.
+ */
+#define IFS_MAX_COUNTER_SETS 2
+
 enum ifs_tx_rx {
 	IFS_TX,
 	IFS_RX,
@@ -126,16 +163,22 @@ struct byte_packet_counters {
 };
 
 struct data_counters {
-	struct byte_packet_counters bpc[IFS_MAX_DIRECTIONS][IFS_MAX_PROTOS];
+	struct byte_packet_counters bpc[IFS_MAX_COUNTER_SETS][IFS_MAX_DIRECTIONS][IFS_MAX_PROTOS];
+};
+
+/* Generic tag based node used as a base for rb_tree ops. */
+struct tag_node {
+	struct rb_node node;
+	tag_t tag;
 };
 
 struct tag_stat {
-	struct rb_node node;
-	tag_t tag;
-
+	struct tag_node tn;
 	struct data_counters counters;
-	/* If this tag is acct_tag based, we need to count against the
-	 * matching parent uid_tag. */
+	/*
+	 * If this tag is acct_tag based, we need to count against the
+	 * matching parent uid_tag.
+	 */
 	struct data_counters *parent_counters;
 	struct proc_dir_entry *proc_ptr;
 };
@@ -171,6 +214,15 @@ struct sock_tag {
 static struct rb_root sock_tag_tree = RB_ROOT;
 static DEFINE_SPINLOCK(sock_tag_list_lock);
 
+/* Track the set active_set for the given tag. */
+struct tag_counter_set {
+	struct tag_node tn;
+	int active_set;
+};
+
+static struct rb_root tag_counter_set_tree = RB_ROOT;
+static DEFINE_SPINLOCK(tag_counter_set_list_lock);
+
 static bool qtaguid_mt(const struct sk_buff *skb, struct xt_action_param *par);
 
 /*----------------------------------------------*/
@@ -178,7 +230,6 @@ static inline int tag_compare(tag_t t1, tag_t t2)
 {
 	return t1 < t2 ? -1 : t1 == t2 ? 0 : 1;
 }
-
 
 static inline tag_t combine_atag_with_uid(tag_t acct_tag, uid_t uid)
 {
@@ -206,40 +257,42 @@ static inline bool valid_atag(tag_t tag)
 	return !(tag & 0xFFFFFFFFULL);
 }
 
-static inline void dc_add_byte_packets(struct data_counters *counters,
+static inline void dc_add_byte_packets(struct data_counters *counters, int set,
 				  enum ifs_tx_rx direction,
 				  enum ifs_proto ifs_proto,
 				  int bytes,
 				  int packets)
 {
-	counters->bpc[direction][ifs_proto].bytes += bytes;
-	counters->bpc[direction][ifs_proto].packets += packets;
+	counters->bpc[set][direction][ifs_proto].bytes += bytes;
+	counters->bpc[set][direction][ifs_proto].packets += packets;
 }
 
 static inline uint64_t dc_sum_bytes(struct data_counters *counters,
+				    int set,
 				    enum ifs_tx_rx direction)
 {
-	return counters->bpc[direction][IFS_TCP].bytes
-		+ counters->bpc[direction][IFS_UDP].bytes
-		+ counters->bpc[direction][IFS_PROTO_OTHER].bytes;
+	return counters->bpc[set][direction][IFS_TCP].bytes
+		+ counters->bpc[set][direction][IFS_UDP].bytes
+		+ counters->bpc[set][direction][IFS_PROTO_OTHER].bytes;
 }
 
 static inline uint64_t dc_sum_packets(struct data_counters *counters,
+				      int set,
 				      enum ifs_tx_rx direction)
 {
-	return counters->bpc[direction][IFS_TCP].packets
-		+ counters->bpc[direction][IFS_UDP].packets
-		+ counters->bpc[direction][IFS_PROTO_OTHER].packets;
+	return counters->bpc[set][direction][IFS_TCP].packets
+		+ counters->bpc[set][direction][IFS_UDP].packets
+		+ counters->bpc[set][direction][IFS_PROTO_OTHER].packets;
 }
 
-static struct tag_stat *tag_stat_tree_search(struct rb_root *root, tag_t tag)
+static struct tag_node *tag_node_tree_search(struct rb_root *root, tag_t tag)
 {
 	struct rb_node *node = root->rb_node;
 
 	while (node) {
-		struct tag_stat *data = rb_entry(node, struct tag_stat, node);
+		struct tag_node *data = rb_entry(node, struct tag_node, node);
 		int result = tag_compare(tag, data->tag);
-		pr_debug("qtaguid: tag_stat_tree_search(): tag=0x%llx"
+		RB_DEBUG("qtaguid: tag_node_tree_search(): tag=0x%llx"
 			 " (uid=%d)\n",
 			 data->tag,
 			 get_uid_from_tag(data->tag));
@@ -254,16 +307,16 @@ static struct tag_stat *tag_stat_tree_search(struct rb_root *root, tag_t tag)
 	return NULL;
 }
 
-static void tag_stat_tree_insert(struct tag_stat *data, struct rb_root *root)
+static void tag_node_tree_insert(struct tag_node *data, struct rb_root *root)
 {
 	struct rb_node **new = &(root->rb_node), *parent = NULL;
 
 	/* Figure out where to put new node */
 	while (*new) {
-		struct tag_stat *this = rb_entry(*new, struct tag_stat,
+		struct tag_node *this = rb_entry(*new, struct tag_node,
 						 node);
 		int result = tag_compare(data->tag, this->tag);
-		pr_debug("qtaguid: tag_stat_tree_insert(): tag=0x%llx"
+		RB_DEBUG("qtaguid: tag_node_tree_insert(): tag=0x%llx"
 			 " (uid=%d)\n",
 			 this->tag,
 			 get_uid_from_tag(this->tag));
@@ -279,6 +332,28 @@ static void tag_stat_tree_insert(struct tag_stat *data, struct rb_root *root)
 	/* Add new node and rebalance tree. */
 	rb_link_node(&data->node, parent, new);
 	rb_insert_color(&data->node, root);
+}
+
+static void tag_stat_tree_insert(struct tag_stat *data, struct rb_root *root)
+{
+	tag_node_tree_insert((struct tag_node *)data, root);
+}
+
+static struct tag_stat *tag_stat_tree_search(struct rb_root *root, tag_t tag)
+{
+	return (struct tag_stat *)tag_node_tree_search(root, tag);
+}
+
+static void tag_counter_set_tree_insert(struct tag_counter_set *data,
+					struct rb_root *root)
+{
+	tag_node_tree_insert((struct tag_node *)data, root);
+}
+
+static struct tag_counter_set *tag_counter_set_tree_search(struct rb_root *root,
+							   tag_t tag)
+{
+	return (struct tag_counter_set *)tag_node_tree_search(root, tag);
 }
 
 static struct sock_tag *sock_tag_tree_search(struct rb_root *root,
@@ -357,22 +432,45 @@ static int read_proc_bool(char *page, char **start, off_t off,
 	return len;
 }
 
-/* Find the entry for tracking the specified interface. */
-static struct iface_stat *get_iface_stat(const char *ifname)
+static int get_active_counter_set(tag_t tag)
 {
-	unsigned long flags;
-	struct iface_stat *iface_entry;
-	if (!ifname)
-		return NULL;
+	int active_set = 0;
+	struct tag_counter_set *tcs;
 
-	spin_lock_irqsave(&iface_stat_list_lock, flags);
+	MT_DEBUG("qtaguid: get_active_counter_set(tag=0x%llx)"
+		 " (uid=%d)\n",
+		 tag, get_uid_from_tag(tag));
+	/* For now we only handle UID tags for active sets */
+	tag = get_utag_from_tag(tag);
+	spin_lock_bh(&tag_counter_set_list_lock);
+	tcs = tag_counter_set_tree_search(&tag_counter_set_tree, tag);
+	if (tcs)
+		active_set = tcs->active_set;
+	spin_unlock_bh(&tag_counter_set_list_lock);
+	return active_set;
+}
+
+/* Find the entry for tracking the specified interface. */
+static struct iface_stat *get_iface_entry(const char *ifname)
+{
+	struct iface_stat *iface_entry;
+
+	/* Find the entry for tracking the specified tag within the interface */
+	if (ifname == NULL) {
+		pr_info("iface_stat: NULL device name\n");
+		return NULL;
+	}
+
+
+	/* Iterate over interfaces */
+	spin_lock_bh(&iface_stat_list_lock);
 	list_for_each_entry(iface_entry, &iface_stat_list, list) {
-		if (!strcmp(iface_entry->ifname, ifname))
+		if (!strcmp(ifname, iface_entry->ifname))
 			goto done;
 	}
 	iface_entry = NULL;
 done:
-	spin_unlock_irqrestore(&iface_stat_list_lock, flags);
+	spin_unlock_bh(&iface_stat_list_lock);
 	return iface_entry;
 }
 
@@ -384,7 +482,6 @@ done:
 void iface_stat_create(const struct net_device *net_dev)
 {
 	struct in_device *in_dev;
-	unsigned long flags;
 	struct iface_stat *new_iface;
 	struct proc_dir_entry *proc_entry;
 	const char *ifname;
@@ -394,26 +491,27 @@ void iface_stat_create(const struct net_device *net_dev)
 
 	ASSERT_RTNL(); /* No need for separate locking */
 
-	pr_debug("iface_stat: create(): netdev=%p->name=%s\n",
+	IF_DEBUG("qtaguid: iface_stat: create(): netdev=%p->name=%s\n",
 		 net_dev, net_dev ? net_dev->name : "");
 	if (!net_dev) {
-		pr_err("iface_stat: create(): no net dev!\n");
+		pr_err("qtaguid: iface_stat: create(): no net dev!\n");
 		return;
 	}
 
 	in_dev = __in_dev_get_rtnl(net_dev);
 	if (!in_dev) {
-		pr_err("iface_stat: create(): no inet dev!\n");
+		pr_err("qtaguid: iface_stat: create(): no inet dev!\n");
 		return;
 	}
 
-	pr_debug("iface_stat: create(): in_dev=%p\n", in_dev);
+	IF_DEBUG("qtaguid: iface_stat: create(): in_dev=%p\n", in_dev);
 	ifname = net_dev->name;
-	pr_debug("iface_stat: create(): ifname=%p\n", ifname);
+	IF_DEBUG("qtaguid: iface_stat: create(): ifname=%p\n", ifname);
 	for (ifa = in_dev->ifa_list; ifa; ifa = ifa->ifa_next) {
-		pr_debug("iface_stat: create(): for(): ifa=%p ifname=%p\n",
-			 ifa, ifname);
-		pr_debug("iface_stat: create(): ifname=%s ifa_label=%s\n",
+		IF_DEBUG("qtaguid: iface_stat: create(): for(): "
+			 "ifa=%p ifname=%p\n", ifa, ifname);
+		IF_DEBUG("qtaguid: iface_stat: create(): "
+			 "ifname=%s ifa_label=%s\n",
 			 ifname, ifa->ifa_label ? ifa->ifa_label : "(null)");
 		if (ifa->ifa_label && !strcmp(ifname, ifa->ifa_label))
 			break;
@@ -422,40 +520,42 @@ void iface_stat_create(const struct net_device *net_dev)
 	if (ifa) {
 		ipaddr = ifa->ifa_local;
 	} else {
-		pr_err("iface_stat: create(): dev %s has no matching IP\n",
-		       ifname);
+		IF_DEBUG("qtaguid: iface_stat: create(): "
+			 "dev %s has no matching IP\n",
+			 ifname);
 		return;
 	}
 
-	entry = get_iface_stat(net_dev->name);
+	entry = get_iface_entry(net_dev->name);
 	if (entry != NULL) {
-		pr_debug("iface_stat: create(): dev %s entry=%p\n", ifname,
-			 entry);
+		IF_DEBUG("qtaguid: iface_stat: create(): dev %s entry=%p\n",
+			 ifname, entry);
 		if (ipv4_is_loopback(ipaddr)) {
 			entry->active = false;
-			pr_debug("iface_stat: create(): disable tracking of "
-				 "loopback dev %s\n", ifname);
+			IF_DEBUG("qtaguid: iface_stat: create(): "
+				 "disable tracking of loopback dev %s\n",
+				 ifname);
 		} else {
 			entry->active = true;
-			pr_debug("iface_stat: create(): enable tracking of "
-				 "dev %s with ip=%pI4\n",
+			IF_DEBUG("qtaguid: iface_stat: create(): "
+				 "enable tracking of dev %s with ip=%pI4\n",
 				 ifname, &ipaddr);
 		}
 		return;
 	} else if (ipv4_is_loopback(ipaddr)) {
-		pr_debug("iface_stat: create(): ignore loopback dev %s"
+		IF_DEBUG("qtaguid: iface_stat: create(): ignore loopback dev %s"
 			 " ip=%pI4\n", ifname, &ipaddr);
 		return;
 	}
 
 	new_iface = kzalloc(sizeof(*new_iface), GFP_KERNEL);
 	if (new_iface == NULL) {
-		pr_err("iface_stat: create(): failed to alloc iface_stat\n");
+		pr_err("qtaguid: iface_stat: create(): failed to alloc iface_stat\n");
 		return;
 	}
 	new_iface->ifname = kstrdup(ifname, GFP_KERNEL);
 	if (new_iface->ifname == NULL) {
-		pr_err("iface_stat: create(): failed to alloc ifname\n");
+		pr_err("qtaguid: iface_stat: create(): failed to alloc ifname\n");
 		kfree(new_iface);
 		return;
 	}
@@ -464,14 +564,13 @@ void iface_stat_create(const struct net_device *net_dev)
 	new_iface->active = true;
 
 	new_iface->tag_stat_tree = RB_ROOT;
-	spin_lock_irqsave(&iface_stat_list_lock, flags);
+	spin_lock_bh(&iface_stat_list_lock);
 	list_add(&new_iface->list, &iface_stat_list);
-	spin_unlock_irqrestore(&iface_stat_list_lock, flags);
+	spin_unlock_bh(&iface_stat_list_lock);
 
 	proc_entry = proc_mkdir(ifname, iface_stat_procdir);
 	new_iface->proc_ptr = proc_entry;
 
-	/* TODO: make root access only */
 	create_proc_read_entry("tx_bytes", proc_iface_perms, proc_entry,
 			read_proc_u64, &new_iface->tx_bytes);
 	create_proc_read_entry("rx_bytes", proc_iface_perms, proc_entry,
@@ -483,63 +582,63 @@ void iface_stat_create(const struct net_device *net_dev)
 	create_proc_read_entry("active", proc_iface_perms, proc_entry,
 			read_proc_bool, &new_iface->active);
 
-	pr_debug("iface_stat: create(): done entry=%p dev=%s ip=%pI4\n",
-		 new_iface, ifname, &ipaddr);
+	IF_DEBUG("qtaguid: iface_stat: create(): done "
+		 "entry=%p dev=%s ip=%pI4\n", new_iface, ifname, &ipaddr);
 }
 
 static struct sock_tag *get_sock_stat_nl(const struct sock *sk)
 {
-	pr_debug("xt_qtaguid: get_sock_stat_nl(sk=%p)\n", sk);
+	MT_DEBUG("qtaguid: get_sock_stat_nl(sk=%p)\n", sk);
 	return sock_tag_tree_search(&sock_tag_tree, sk);
 }
 
 static struct sock_tag *get_sock_stat(const struct sock *sk)
 {
-	unsigned long flags;
 	struct sock_tag *sock_tag_entry;
-	pr_debug("xt_qtaguid: get_sock_stat(sk=%p)\n", sk);
+	MT_DEBUG("qtaguid: get_sock_stat(sk=%p)\n", sk);
 	if (!sk)
 		return NULL;
-	spin_lock_irqsave(&sock_tag_list_lock, flags);
+	spin_lock_bh(&sock_tag_list_lock);
 	sock_tag_entry = get_sock_stat_nl(sk);
-	spin_unlock_irqrestore(&sock_tag_list_lock, flags);
+	spin_unlock_bh(&sock_tag_list_lock);
 	return sock_tag_entry;
 }
 
 static void
-data_counters_update(struct data_counters *dc,  enum ifs_tx_rx direction,
-		int proto, int bytes)
+data_counters_update(struct data_counters *dc, int set,
+		     enum ifs_tx_rx direction, int proto, int bytes)
 {
 	switch (proto) {
 	case IPPROTO_TCP:
-		dc_add_byte_packets(dc, direction, IFS_TCP, bytes, 1);
+		dc_add_byte_packets(dc, set, direction, IFS_TCP, bytes, 1);
 		break;
 	case IPPROTO_UDP:
-		dc_add_byte_packets(dc, direction, IFS_UDP, bytes, 1);
+		dc_add_byte_packets(dc, set, direction, IFS_UDP, bytes, 1);
 		break;
 	case IPPROTO_IP:
 	default:
-		dc_add_byte_packets(dc, direction, IFS_PROTO_OTHER, bytes, 1);
+		dc_add_byte_packets(dc, set, direction, IFS_PROTO_OTHER, bytes,
+				    1);
 		break;
 	}
 }
-
 
 /*
  * Update stats for the specified interface. Do nothing if the entry
  * does not exist (when a device was never configured with an IP address).
  * Called when an device is being unregistered.
  */
-void iface_stat_update(struct net_device *dev)
+static void iface_stat_update(struct net_device *dev)
 {
 	struct rtnl_link_stats64 dev_stats, *stats;
 	struct iface_stat *entry;
 	stats = dev_get_stats(dev, &dev_stats);
 	ASSERT_RTNL();
 
-	entry = get_iface_stat(dev->name);
+	entry = get_iface_entry(dev->name);
 	if (entry == NULL) {
-		pr_debug("iface_stat: dev %s monitor not found\n", dev->name);
+		IF_DEBUG("qtaguid: iface_stat: dev %s monitor not found\n",
+			 dev->name);
 		return;
 	}
 	if (entry->active) {
@@ -548,72 +647,51 @@ void iface_stat_update(struct net_device *dev)
 		entry->rx_bytes += stats->rx_bytes;
 		entry->rx_packets += stats->rx_packets;
 		entry->active = false;
-		pr_debug("iface_stat: Updating stats for "
+		IF_DEBUG("qtaguid: iface_stat: Updating stats for "
 			"dev %s which went down\n", dev->name);
 	} else {
-		pr_debug("iface_stat: Did not update stats for "
+		IF_DEBUG("qtaguid: iface_stat: Did not update stats for "
 			"dev %s which went down\n", dev->name);
 	}
 }
-
 
 static void tag_stat_update(struct tag_stat *tag_entry,
 			enum ifs_tx_rx direction, int proto, int bytes)
 {
-	pr_debug("xt_qtaguid: tag_stat_update(tag=0x%llx (uid=%d) dir=%d "
-		"proto=%d bytes=%d)\n",
-		tag_entry->tag, get_uid_from_tag(tag_entry->tag), direction,
-		proto, bytes);
-	data_counters_update(&tag_entry->counters, direction, proto, bytes);
+	int active_set;
+	active_set = get_active_counter_set(tag_entry->tn.tag);
+	MT_DEBUG("qtaguid: tag_stat_update(tag=0x%llx (uid=%d) set=%d "
+		 "dir=%d proto=%d bytes=%d)\n",
+		 tag_entry->tn.tag, get_uid_from_tag(tag_entry->tn.tag),
+		 active_set, direction, proto, bytes);
+	data_counters_update(&tag_entry->counters, active_set, direction,
+			     proto, bytes);
 	if (tag_entry->parent_counters)
-		data_counters_update(tag_entry->parent_counters, direction,
-				proto, bytes);
+		data_counters_update(tag_entry->parent_counters, active_set,
+				     direction, proto, bytes);
 }
 
-
-/* Create a new entry for tracking the specified {acct_tag,uid_tag} within
+/*
+ * Create a new entry for tracking the specified {acct_tag,uid_tag} within
  * the interface.
- * iface_entry->tag_stat_list_lock should be held. */
+ * iface_entry->tag_stat_list_lock should be held.
+ */
 static struct tag_stat *create_if_tag_stat(struct iface_stat *iface_entry,
 					   tag_t tag)
 {
 	struct tag_stat *new_tag_stat_entry = NULL;
-	pr_debug("iface_stat: create_if_tag_stat(): ife=%p tag=0x%llx"
+	IF_DEBUG("qtaguid: iface_stat: create_if_tag_stat(): ife=%p tag=0x%llx"
 		 " (uid=%d)\n",
 		 iface_entry, tag, get_uid_from_tag(tag));
 	new_tag_stat_entry = kzalloc(sizeof(*new_tag_stat_entry), GFP_ATOMIC);
 	if (!new_tag_stat_entry) {
-		pr_err("iface_stat: failed to alloc new tag entry\n");
+		pr_err("qtaguid: iface_stat: failed to alloc new tag entry\n");
 		goto done;
 	}
-	new_tag_stat_entry->tag = tag;
+	new_tag_stat_entry->tn.tag = tag;
 	tag_stat_tree_insert(new_tag_stat_entry, &iface_entry->tag_stat_tree);
 done:
 	return new_tag_stat_entry;
-}
-
-static struct iface_stat *get_iface_entry(const char *ifname)
-{
-	struct iface_stat *iface_entry;
-	unsigned long flags;
-
-	/* Find the entry for tracking the specified tag within the interface */
-	if (ifname == NULL) {
-		pr_info("iface_stat: NULL device name\n");
-		return NULL;
-	}
-
-
-	/* Iterate over interfaces */
-	spin_lock_irqsave(&iface_stat_list_lock, flags);
-	list_for_each_entry(iface_entry, &iface_stat_list, list) {
-		if (!strcmp(ifname, iface_entry->ifname))
-			goto done;
-	}
-	iface_entry = NULL;
-done:
-	spin_unlock_irqrestore(&iface_stat_list_lock, flags);
-	return iface_entry;
 }
 
 static void if_tag_stat_update(const char *ifname, uid_t uid,
@@ -626,25 +704,29 @@ static void if_tag_stat_update(const char *ifname, uid_t uid,
 	struct data_counters *uid_tag_counters;
 	struct sock_tag *sock_tag_entry;
 	struct iface_stat *iface_entry;
-	unsigned long flags;
 	struct tag_stat *new_tag_stat;
-	pr_debug("xt_qtaguid: if_tag_stat_update(ifname=%s "
+	MT_DEBUG("qtaguid: if_tag_stat_update(ifname=%s "
 		"uid=%d sk=%p dir=%d proto=%d bytes=%d)\n",
 		 ifname, uid, sk, direction, proto, bytes);
 
 
 	iface_entry = get_iface_entry(ifname);
 	if (!iface_entry) {
-		pr_err("iface_stat: interface %s not found\n", ifname);
+		pr_err("qtaguid: iface_stat: interface %s not found\n", ifname);
 		return;
 	}
-	/* else { If the iface_entry becomes inactive, it is still ok
-	 * to process the data. } */
+	/*
+	 * else { If the iface_entry becomes inactive, it is still ok
+	 * to process the data. }
+	 */
 
-	pr_debug("iface_stat: stat_update() got entry=%p\n", iface_entry);
+	MT_DEBUG("qtaguid: iface_stat: stat_update() got entry=%p\n",
+		 iface_entry);
 
-	/* Look for a tagged sock.
-	 * It will have an acct_uid. */
+	/*
+	 * Look for a tagged sock.
+	 * It will have an acct_uid.
+	 */
 	sock_tag_entry = get_sock_stat(sk);
 	if (sock_tag_entry) {
 		tag = sock_tag_entry->tag;
@@ -655,19 +737,21 @@ static void if_tag_stat_update(const char *ifname, uid_t uid,
 		acct_tag = 0;
 		tag = combine_atag_with_uid(acct_tag, uid);
 	}
-	pr_debug("iface_stat: stat_update(): looking for tag=0x%llx (uid=%d)"
-		 " in ife=%p\n",
+	MT_DEBUG("qtaguid: iface_stat: stat_update(): "
+		 " looking for tag=0x%llx (uid=%d) in ife=%p\n",
 		 tag, get_uid_from_tag(tag), iface_entry);
 	/* Loop over tag list under this interface for {acct_tag,uid_tag} */
-	spin_lock_irqsave(&iface_entry->tag_stat_list_lock, flags);
+	spin_lock_bh(&iface_entry->tag_stat_list_lock);
 
 	tag_stat_entry = tag_stat_tree_search(&iface_entry->tag_stat_tree,
 					      tag);
 	if (tag_stat_entry) {
-		/* Updating the {acct_tag, uid_tag} entry handles both stats:
-		 * {0, uid_tag} will also get updated. */
+		/*
+		 * Updating the {acct_tag, uid_tag} entry handles both stats:
+		 * {0, uid_tag} will also get updated.
+		 */
 		tag_stat_update(tag_stat_entry, direction, proto, bytes);
-		spin_unlock_irqrestore(&iface_entry->tag_stat_list_lock, flags);
+		spin_unlock_bh(&iface_entry->tag_stat_list_lock);
 		return;
 	}
 
@@ -690,7 +774,7 @@ static void if_tag_stat_update(const char *ifname, uid_t uid,
 		new_tag_stat = create_if_tag_stat(iface_entry, tag);
 		new_tag_stat->parent_counters = uid_tag_counters;
 	}
-	spin_unlock_irqrestore(&iface_entry->tag_stat_list_lock, flags);
+	spin_unlock_bh(&iface_entry->tag_stat_list_lock);
 	tag_stat_update(new_tag_stat, direction, proto, bytes);
 }
 
@@ -701,7 +785,8 @@ static int iface_netdev_event_handler(struct notifier_block *nb,
 	if (unlikely(module_passive))
 		return NOTIFY_DONE;
 
-	pr_debug("iface_stat: netdev_event(): ev=0x%lx netdev=%p->name=%s\n",
+	IF_DEBUG("qtaguid: iface_stat: netdev_event(): "
+		 "ev=0x%lx netdev=%p->name=%s\n",
 		 event, dev, dev ? dev->name : "");
 
 	switch (event) {
@@ -731,7 +816,8 @@ static int iface_inetaddr_event_handler(struct notifier_block *nb,
 	if (unlikely(module_passive))
 		return NOTIFY_DONE;
 
-	pr_debug("iface_stat: inetaddr_event(): ev=0x%lx netdev=%p->name=%s\n",
+	IF_DEBUG("qtaguid: iface_stat: inetaddr_event(): "
+		 "ev=0x%lx netdev=%p->name=%s\n",
 		 event, dev, dev ? dev->name : "");
 
 	switch (event) {
@@ -756,18 +842,18 @@ static int __init iface_stat_init(struct proc_dir_entry *parent_procdir)
 
 	iface_stat_procdir = proc_mkdir(iface_stat_procdirname, parent_procdir);
 	if (!iface_stat_procdir) {
-		pr_err("iface_stat: failed to create proc entry\n");
+		pr_err("qtaguid: iface_stat: failed to create proc entry\n");
 		err = -1;
 		goto err;
 	}
 	err = register_netdevice_notifier(&iface_netdev_notifier_blk);
 	if (err) {
-		pr_err("iface_stat: failed to register dev event handler\n");
+		pr_err("qtaguid: iface_stat: failed to register dev event handler\n");
 		goto err_unreg_nd;
 	}
 	err = register_inetaddr_notifier(&iface_inetaddr_notifier_blk);
 	if (err) {
-		pr_err("iface_stat: failed to register dev event handler\n");
+		pr_err("qtaguid: iface_stat: failed to register dev event handler\n");
 		goto err_zap_entry;
 	}
 	return 0;
@@ -786,11 +872,13 @@ static struct sock *qtaguid_find_sk(const struct sk_buff *skb,
 	struct sock *sk;
 	unsigned int hook_mask = (1 << par->hooknum);
 
-	pr_debug("xt_qtaguid: find_sk(skb=%p) hooknum=%d family=%d\n", skb,
+	MT_DEBUG("qtaguid: find_sk(skb=%p) hooknum=%d family=%d\n", skb,
 		 par->hooknum, par->family);
 
-	/* Let's not abuse the the xt_socket_get*_sk(), or else it will
-	 * return garbage SKs. */
+	/*
+	 * Let's not abuse the the xt_socket_get*_sk(), or else it will
+	 * return garbage SKs.
+	 */
 	if (!(hook_mask & XT_SOCKET_SUPPORTED_HOOKS))
 		return NULL;
 
@@ -805,12 +893,13 @@ static struct sock *qtaguid_find_sk(const struct sk_buff *skb,
 		return NULL;
 	}
 
-	/* Seems to be issues on the file ptr for TCP_TIME_WAIT SKs.
+	/*
+	 * Seems to be issues on the file ptr for TCP_TIME_WAIT SKs.
 	 * http://kerneltrap.org/mailarchive/linux-netdev/2010/10/21/6287959
 	 * Not fixed in 3.0-r3 :(
 	 */
 	if (sk) {
-		pr_debug("xt_qtaguid: %p->sk_proto=%u "
+		MT_DEBUG("qtaguid: %p->sk_proto=%u "
 			 "->sk_state=%d\n", sk, sk->sk_protocol, sk->sk_state);
 		if (sk->sk_state  == TCP_TIME_WAIT) {
 			xt_socket_put_sk(sk);
@@ -827,14 +916,14 @@ static void account_for_uid(const struct sk_buff *skb,
 	const struct net_device *el_dev;
 
 	if (!skb->dev) {
-		pr_debug("xt_qtaguid[%d]: no skb->dev\n", par->hooknum);
+		MT_DEBUG("qtaguid[%d]: no skb->dev\n", par->hooknum);
 		el_dev = par->in ? : par->out;
 	} else {
 		const struct net_device *other_dev;
 		el_dev = skb->dev;
 		other_dev = par->in ? : par->out;
 		if (el_dev != other_dev) {
-			pr_debug("xt_qtaguid[%d]: skb->dev=%p %s vs "
+			MT_DEBUG("qtaguid[%d]: skb->dev=%p %s vs "
 				"par->(in/out)=%p %s\n",
 				par->hooknum, el_dev, el_dev->name, other_dev,
 				other_dev->name);
@@ -842,14 +931,14 @@ static void account_for_uid(const struct sk_buff *skb,
 	}
 
 	if (unlikely(!el_dev)) {
-		pr_info("xt_qtaguid[%d]: no par->in/out?!!\n", par->hooknum);
+		pr_info("qtaguid[%d]: no par->in/out?!!\n", par->hooknum);
 	} else if (unlikely(!el_dev->name)) {
-		pr_info("xt_qtaguid[%d]: no dev->name?!!\n", par->hooknum);
+		pr_info("qtaguid[%d]: no dev->name?!!\n", par->hooknum);
 	} else {
-		pr_debug("xt_qtaguid[%d]: dev name=%s type=%d\n",
-			par->hooknum,
-			el_dev->name,
-			el_dev->type);
+		MT_DEBUG("qtaguid[%d]: dev name=%s type=%d\n",
+			 par->hooknum,
+			 el_dev->name,
+			 el_dev->type);
 
 		if_tag_stat_update(el_dev->name, uid,
 				skb->sk ? skb->sk : alternate_sk,
@@ -867,7 +956,7 @@ static bool qtaguid_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	uid_t sock_uid;
 	bool res;
 
-	pr_debug("xt_qtaguid[%d]: entered skb=%p par->in=%p/out=%p fam=%d\n",
+	MT_DEBUG("qtaguid[%d]: entered skb=%p par->in=%p/out=%p fam=%d\n",
 		 par->hooknum, skb, par->in, par->out, par->family);
 
 	if (skb == NULL) {
@@ -878,35 +967,42 @@ static bool qtaguid_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	sk = skb->sk;
 
 	if (sk == NULL) {
-		/*  A missing sk->sk_socket happens when packets are in-flight
+		/*
+		 * A missing sk->sk_socket happens when packets are in-flight
 		 * and the matching socket is already closed and gone.
 		 */
 		sk = qtaguid_find_sk(skb, par);
-		/* If we got the socket from the find_sk(), we will need to put
-		 * it back, as nf_tproxy_get_sock_v4() got it. */
+		/*
+		 * If we got the socket from the find_sk(), we will need to put
+		 * it back, as nf_tproxy_get_sock_v4() got it.
+		 */
 		got_sock = sk;
 	}
-	pr_debug("xt_qtaguid[%d]: sk=%p got_sock=%d proto=%d\n",
+	MT_DEBUG("qtaguid[%d]: sk=%p got_sock=%d proto=%d\n",
 		par->hooknum, sk, got_sock, ip_hdr(skb)->protocol);
 	if (sk != NULL) {
-		pr_debug("xt_qtaguid[%d]: sk=%p->sk_socket=%p->file=%p\n",
+		MT_DEBUG("qtaguid[%d]: sk=%p->sk_socket=%p->file=%p\n",
 			par->hooknum, sk, sk->sk_socket,
 			sk->sk_socket ? sk->sk_socket->file : (void *)-1LL);
 		filp = sk->sk_socket ? sk->sk_socket->file : NULL;
-		pr_debug("xt_qtaguid[%d]: filp...uid=%d\n",
+		MT_DEBUG("qtaguid[%d]: filp...uid=%d\n",
 			par->hooknum, filp ? filp->f_cred->fsuid : -1);
 	}
 
 	if (sk == NULL || sk->sk_socket == NULL) {
-		/* Here, the qtaguid_find_sk() using connection tracking
+		/*
+		 * Here, the qtaguid_find_sk() using connection tracking
 		 * couldn't find the owner, so for now we just count them
-		 * against the system. */
-		/* TODO: unhack how to force just accounting.
+		 * against the system.
+		 */
+		/*
+		 * TODO: unhack how to force just accounting.
 		 * For now we only do iface stats when the uid-owner is not
-		 * requested */
+		 * requested.
+		 */
 		if (!(info->match & XT_QTAGUID_UID))
 			account_for_uid(skb, sk, 0, par);
-		pr_debug("xt_qtaguid[%d]: leaving (sk?sk->sk_socket)=%p\n",
+		MT_DEBUG("qtaguid[%d]: leaving (sk?sk->sk_socket)=%p\n",
 			par->hooknum,
 			sk ? sk->sk_socket : NULL);
 		res = (info->match ^ info->invert) == 0;
@@ -917,18 +1013,21 @@ static bool qtaguid_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	}
 	filp = sk->sk_socket->file;
 	if (filp == NULL) {
-		pr_debug("xt_qtaguid[%d]: leaving filp=NULL\n", par->hooknum);
+		MT_DEBUG("qtaguid[%d]: leaving filp=NULL\n", par->hooknum);
 		res = ((info->match ^ info->invert) &
 			(XT_QTAGUID_UID | XT_QTAGUID_GID)) == 0;
 		goto put_sock_ret_res;
 	}
 	sock_uid = filp->f_cred->fsuid;
-	/* TODO: unhack how to force just accounting.
-	 * For now we only do iface stats when the uid-owner is not requested */
+	/*
+	 * TODO: unhack how to force just accounting.
+	 * For now we only do iface stats when the uid-owner is not requested
+	 */
 	if (!(info->match & XT_QTAGUID_UID))
 		account_for_uid(skb, sk, sock_uid, par);
 
-	/* The following two tests fail the match when:
+	/*
+	 * The following two tests fail the match when:
 	 *    id not in range AND no inverted condition requested
 	 * or id     in range AND    inverted condition requested
 	 * Thus (!a && b) || (a && !b) == a ^ b
@@ -937,7 +1036,7 @@ static bool qtaguid_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		if ((filp->f_cred->fsuid >= info->uid_min &&
 		     filp->f_cred->fsuid <= info->uid_max) ^
 		    !(info->invert & XT_QTAGUID_UID)) {
-			pr_debug("xt_qtaguid[%d]: leaving uid not matching\n",
+			MT_DEBUG("qtaguid[%d]: leaving uid not matching\n",
 				 par->hooknum);
 			res = false;
 			goto put_sock_ret_res;
@@ -946,20 +1045,20 @@ static bool qtaguid_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		if ((filp->f_cred->fsgid >= info->gid_min &&
 				filp->f_cred->fsgid <= info->gid_max) ^
 			!(info->invert & XT_QTAGUID_GID)) {
-			pr_debug("xt_qtaguid[%d]: leaving gid not matching\n",
+			MT_DEBUG("qtaguid[%d]: leaving gid not matching\n",
 				par->hooknum);
 			res = false;
 			goto put_sock_ret_res;
 		}
 
-	pr_debug("xt_qtaguid[%d]: leaving matched\n", par->hooknum);
+	MT_DEBUG("qtaguid[%d]: leaving matched\n", par->hooknum);
 	res = true;
 
 put_sock_ret_res:
 	if (got_sock)
 		xt_socket_put_sk(sk);
 ret_res:
-	pr_debug("xt_qtaguid[%d]: left %d\n", par->hooknum, res);
+	MT_DEBUG("qtaguid[%d]: left %d\n", par->hooknum, res);
 	return res;
 }
 
@@ -973,7 +1072,6 @@ static int qtaguid_ctrl_proc_read(char *page, char **num_items_returned,
 {
 	char *outp = page;
 	int len;
-	unsigned long flags;
 	uid_t uid;
 	struct sock_tag *sock_tag_entry;
 	struct rb_node *node;
@@ -984,13 +1082,13 @@ static int qtaguid_ctrl_proc_read(char *page, char **num_items_returned,
 		return 0;
 	}
 
-	pr_debug("xt_qtaguid: proc ctrl page=%p off=%ld char_count=%d *eof=%d\n",
+	pr_debug("qtaguid: proc ctrl page=%p off=%ld char_count=%d *eof=%d\n",
 		page, items_to_skip, char_count, *eof);
 
 	if (*eof)
 		return 0;
 
-	spin_lock_irqsave(&sock_tag_list_lock, flags);
+	spin_lock_bh(&sock_tag_list_lock);
 	for (node = rb_first(&sock_tag_tree);
 	     node;
 	     node = rb_next(node)) {
@@ -998,7 +1096,7 @@ static int qtaguid_ctrl_proc_read(char *page, char **num_items_returned,
 			continue;
 		sock_tag_entry = rb_entry(node, struct sock_tag, node);
 		uid = get_uid_from_tag(sock_tag_entry->tag);
-		pr_debug("xt_qtaguid: proc_read(): sk=%p tag=0x%llx (uid=%d)\n",
+		pr_debug("qtaguid: proc_read(): sk=%p tag=0x%llx (uid=%d)\n",
 			sock_tag_entry->sk,
 			sock_tag_entry->tag,
 			uid);
@@ -1006,7 +1104,7 @@ static int qtaguid_ctrl_proc_read(char *page, char **num_items_returned,
 			       "sock=%p tag=0x%llx (uid=%u)\n",
 			       sock_tag_entry->sk, sock_tag_entry->tag, uid);
 		if (len >= char_count) {
-			spin_unlock_irqrestore(&sock_tag_list_lock, flags);
+			spin_unlock_bh(&sock_tag_list_lock);
 			*outp = '\0';
 			return outp - page;
 		}
@@ -1014,44 +1112,48 @@ static int qtaguid_ctrl_proc_read(char *page, char **num_items_returned,
 		char_count -= len;
 		(*num_items_returned)++;
 	}
-	spin_unlock_irqrestore(&sock_tag_list_lock, flags);
+	spin_unlock_bh(&sock_tag_list_lock);
 	*eof = 1;
 	return outp - page;
 }
 
-int can_impersonate_uid(uid_t uid)
+static bool can_manipulate_uids(void)
 {
-	return uid == current_fsuid()
-		|| !proc_ctrl_write_gid
-		|| in_egroup_p(proc_ctrl_write_gid);
+	return !proc_ctrl_write_gid || in_egroup_p(proc_ctrl_write_gid);
 }
 
-int can_read_other_uid_stats(uid_t uid)
+static bool can_impersonate_uid(uid_t uid)
 {
-	return uid == current_fsuid()
-		|| !proc_ctrl_write_gid
+	return uid == current_fsuid() || can_manipulate_uids();
+}
+
+static bool can_read_other_uid_stats(uid_t uid)
+{
+	return uid == current_fsuid() || !proc_ctrl_write_gid
 		|| in_egroup_p(proc_stats_readall_gid);
 }
 
-/* Delete socket tags, and stat tags associated with a given
- * accouting tag and uid. */
+/*
+ * Delete socket tags, and stat tags associated with a given
+ * accouting tag and uid.
+ */
 static int ctrl_cmd_delete(const char *input)
 {
 	char cmd;
-	uid_t uid = 0;
+	uid_t uid;
 	uid_t entry_uid;
-	tag_t acct_tag = 0;
+	tag_t acct_tag;
 	tag_t tag;
 	int res, argc;
-	unsigned long flags, flags2;
 	struct iface_stat *iface_entry;
 	struct rb_node *node;
 	struct sock_tag *st_entry;
 	struct tag_stat *ts_entry;
+	struct tag_counter_set *tcs_entry;
 
-	pr_debug("xt_qtaguid: ctrl_delete(%s): entered\n", input);
+	pr_debug("qtaguid: ctrl_delete(%s): entered\n", input);
 	argc = sscanf(input, "%c %llu %u", &cmd, &acct_tag, &uid);
-	pr_debug("xt_qtaguid: ctrl_delete(%s): argc=%d cmd=%c "
+	pr_debug("qtaguid: ctrl_delete(%s): argc=%d cmd=%c "
 		 "acct_tag=0x%llx uid=%u\n", input, argc, cmd,
 		 acct_tag, uid);
 	if (argc < 2) {
@@ -1059,20 +1161,21 @@ static int ctrl_cmd_delete(const char *input)
 		goto err;
 	}
 	if (!valid_atag(acct_tag)) {
-		pr_info("xt_qtaguid: ctrl_delete(%s): invalid tag\n", input);
+		pr_info("qtaguid: ctrl_delete(%s): invalid tag\n", input);
 		res = -EINVAL;
 		goto err;
 	}
 	if (argc < 3) {
 		uid = current_fsuid();
 	} else if (!can_impersonate_uid(uid)) {
-		pr_info("xt_qtaguid: ctrl_delete(%s): insuficient priv\n",
+		pr_info("qtaguid: ctrl_delete(%s): insuficient priv\n",
 			input);
 		res = -EPERM;
 		goto err;
 	}
 
-	spin_lock_irqsave(&sock_tag_list_lock, flags);
+	/* Delete socket tags */
+	spin_lock_bh(&sock_tag_list_lock);
 	node = rb_first(&sock_tag_tree);
 	while (node) {
 		st_entry = rb_entry(node, struct sock_tag, node);
@@ -1082,55 +1185,130 @@ static int ctrl_cmd_delete(const char *input)
 			continue;
 
 		if (!acct_tag || st_entry->tag == tag) {
-			pr_debug("xt_qtaguid: ctrl_delete(): "
-				 "erase sk=%p tag=0x%llx (uid=%d)\n",
+			pr_debug("qtaguid: ctrl_delete(): "
+				 "erase st: sk=%p tag=0x%llx (uid=%d)\n",
 				 st_entry->sk,
 				 st_entry->tag,
 				 entry_uid);
-			rb_erase(&ts_entry->node, &sock_tag_tree);
+			rb_erase(&st_entry->node, &sock_tag_tree);
 			kfree(st_entry);
 		}
 	}
-	spin_unlock_irqrestore(&sock_tag_list_lock, flags);
+	spin_unlock_bh(&sock_tag_list_lock);
 
-	/* If acct_tag is 0, then all entries belonging to uid are
-	 * erased. */
 	tag = combine_atag_with_uid(acct_tag, uid);
-	spin_lock_irqsave(&iface_stat_list_lock, flags);
+
+	/* Delete tag counter-sets */
+	spin_lock_bh(&tag_counter_set_list_lock);
+	tcs_entry = tag_counter_set_tree_search(&tag_counter_set_tree, tag);
+	if (tcs_entry) {
+		pr_debug("qtaguid: ctrl_delete(): "
+			 "erase tcs: tag=0x%llx (uid=%d) set=%d\n",
+			 tcs_entry->tn.tag,
+			 get_uid_from_tag(tcs_entry->tn.tag),
+			 tcs_entry->active_set);
+		rb_erase(&tcs_entry->tn.node, &tag_counter_set_tree);
+		kfree(tcs_entry);
+	}
+	spin_unlock_bh(&tag_counter_set_list_lock);
+
+	/*
+	 * If acct_tag is 0, then all entries belonging to uid are
+	 * erased.
+	 */
+	spin_lock_bh(&iface_stat_list_lock);
 	list_for_each_entry(iface_entry, &iface_stat_list, list) {
 
-		spin_lock_irqsave(&iface_entry->tag_stat_list_lock, flags2);
+		spin_lock_bh(&iface_entry->tag_stat_list_lock);
 		node = rb_first(&iface_entry->tag_stat_tree);
 		while (node) {
-			ts_entry = rb_entry(node, struct tag_stat, node);
-			entry_uid = get_uid_from_tag(ts_entry->tag);
+			ts_entry = rb_entry(node, struct tag_stat, tn.node);
+			entry_uid = get_uid_from_tag(ts_entry->tn.tag);
 			node = rb_next(node);
 			if (entry_uid != uid)
 				continue;
-			if (!acct_tag || ts_entry->tag == tag) {
-				pr_debug("xt_qtaguid: ctrl_delete(): erase "
-					 "%s 0x%llx %u\n",
+			if (!acct_tag || ts_entry->tn.tag == tag) {
+				pr_debug("qtaguid: ctrl_delete(): "
+					 "erase ts: %s 0x%llx %u\n",
 					 iface_entry->ifname,
-					 get_atag_from_tag(ts_entry->tag),
+					 get_atag_from_tag(ts_entry->tn.tag),
 					 entry_uid);
-				rb_erase(&ts_entry->node,
+				rb_erase(&ts_entry->tn.node,
 					 &iface_entry->tag_stat_tree);
 				kfree(ts_entry);
 			}
 		}
-		spin_unlock_irqrestore(&iface_entry->tag_stat_list_lock,
-				       flags2);
+		spin_unlock_bh(&iface_entry->tag_stat_list_lock);
 
 	}
-	spin_unlock_irqrestore(&iface_stat_list_lock, flags);
+	spin_unlock_bh(&iface_stat_list_lock);
 
 	res = 0;
 
 err:
-	pr_debug("xt_qtaguid: ctrl_delete(%s) res=%d\n", input, res);
+	pr_debug("qtaguid: ctrl_delete(%s) res=%d\n", input, res);
 	return res;
 }
 
+static int ctrl_cmd_counter_set(const char *input)
+{
+	char cmd;
+	uid_t uid = 0;
+	tag_t tag;
+	int res, argc;
+	struct tag_counter_set *tcs;
+	int counter_set;
+
+	pr_debug("qtaguid: ctrl_counterset(%s): entered\n", input);
+	argc = sscanf(input, "%c %d %u", &cmd, &counter_set, &uid);
+	pr_debug("qtaguid: ctrl_counterset(%s): argc=%d cmd=%c "
+		 "set=%d uid=%u\n", input, argc, cmd,
+		 counter_set, uid);
+	if (argc != 3) {
+		res = -EINVAL;
+		goto err;
+	}
+	if (counter_set < 0 || counter_set >= IFS_MAX_COUNTER_SETS) {
+		pr_info("qtaguid: ctrl_counterset(%s): invalid counter_set range\n",
+			input);
+		res = -EINVAL;
+		goto err;
+	}
+	if (!can_manipulate_uids()) {
+		pr_info("qtaguid: ctrl_counterset(%s): insufficient priv\n",
+			input);
+		res = -EPERM;
+		goto err;
+	}
+
+	tag = make_tag_from_uid(uid);
+	spin_lock_bh(&tag_counter_set_list_lock);
+	tcs = tag_counter_set_tree_search(&tag_counter_set_tree, tag);
+	if (!tcs) {
+		tcs = kzalloc(sizeof(*tcs), GFP_ATOMIC);
+		if (!tcs) {
+			spin_unlock_bh(&tag_counter_set_list_lock);
+			pr_err("qtaguid: ctrl_counterset(%s): "
+			       "failed to alloc counter set\n",
+			       input);
+			res = -ENOMEM;
+			goto err;
+		}
+		tcs->tn.tag = tag;
+		tag_counter_set_tree_insert(tcs, &tag_counter_set_tree);
+		pr_debug("qtaguid: ctrl_counterset(%s): added tcs tag=0x%llx "
+			 "(uid=%d) set=%d\n",
+			 input, tag, get_uid_from_tag(tag), counter_set);
+	}
+	tcs->active_set = counter_set;
+	spin_unlock_bh(&tag_counter_set_list_lock);
+
+	res = 0;
+
+err:
+	pr_debug("qtaguid: ctrl_counterset(%s) res=%d\n", input, res);
+	return res;
+}
 
 static int ctrl_cmd_tag(const char *input)
 {
@@ -1141,11 +1319,10 @@ static int ctrl_cmd_tag(const char *input)
 	struct socket *el_socket;
 	int res, argc;
 	struct sock_tag *sock_tag_entry;
-	unsigned long flags;
 
 	/* Unassigned args will get defaulted later. */
 	argc = sscanf(input, "%c %d %llu %u", &cmd, &sock_fd, &acct_tag, &uid);
-	pr_debug("xt_qtaguid: ctrl_tag(%s): argc=%d cmd=%c sock_fd=%d "
+	pr_debug("qtaguid: ctrl_tag(%s): argc=%d cmd=%c sock_fd=%d "
 		 "acct_tag=0x%llx uid=%u\n", input, argc, cmd, sock_fd,
 		 acct_tag, uid);
 	if (argc < 2) {
@@ -1154,35 +1331,34 @@ static int ctrl_cmd_tag(const char *input)
 	}
 	el_socket = sockfd_lookup(sock_fd, &res);
 	if (!el_socket) {
-		pr_info("xt_qtaguid: ctrl_tag(%s): failed to lookup"
+		pr_info("qtaguid: ctrl_tag(%s): failed to lookup"
 			" sock_fd=%d err=%d\n", input, sock_fd, res);
 		goto err;
 	}
 	if (argc < 3) {
 		acct_tag = 0;
 	} else if (!valid_atag(acct_tag)) {
-		pr_info("xt_qtaguid: ctrl_tag(%s): invalid tag\n", input);
+		pr_info("qtaguid: ctrl_tag(%s): invalid tag\n", input);
 		res = -EINVAL;
 		goto err;
 	}
 	if (argc < 4) {
 		uid = current_fsuid();
 	} else if (!can_impersonate_uid(uid)) {
-		pr_info("xt_qtaguid: ctrl_tag(%s): insuficient priv\n",
+		pr_info("qtaguid: ctrl_tag(%s): insuficient priv\n",
 			input);
 		res = -EPERM;
 		goto err;
 	}
 
-	spin_lock_irqsave(&sock_tag_list_lock, flags);
+	spin_lock_bh(&sock_tag_list_lock);
 	sock_tag_entry = get_sock_stat_nl(el_socket->sk);
 	if (sock_tag_entry) {
 		sock_tag_entry->tag = combine_atag_with_uid(acct_tag,
 							    uid);
 	} else {
-		spin_unlock_irqrestore(&sock_tag_list_lock, flags);
 		sock_tag_entry = kzalloc(sizeof(*sock_tag_entry),
-					 GFP_KERNEL);
+					 GFP_ATOMIC);
 		if (!sock_tag_entry) {
 			res = -ENOMEM;
 			goto err;
@@ -1190,22 +1366,20 @@ static int ctrl_cmd_tag(const char *input)
 		sock_tag_entry->sk = el_socket->sk;
 		sock_tag_entry->tag = combine_atag_with_uid(acct_tag,
 							    uid);
-		spin_lock_irqsave(&sock_tag_list_lock, flags);
 		sock_tag_tree_insert(sock_tag_entry, &sock_tag_tree);
 	}
-	spin_unlock_irqrestore(&sock_tag_list_lock, flags);
+	spin_unlock_bh(&sock_tag_list_lock);
 
-	pr_debug("xt_qtaguid: tag: sock_tag_entry->sk=%p "
+	pr_debug("qtaguid: tag: sock_tag_entry->sk=%p "
 		 "...->tag=0x%llx (uid=%u)\n",
 		 sock_tag_entry->sk, sock_tag_entry->tag,
 		 get_uid_from_tag(sock_tag_entry->tag));
 	res = 0;
 
 err:
-	pr_debug("xt_qtaguid: ctrl_tag(%s) res=%d\n", input, res);
+	pr_debug("qtaguid: ctrl_tag(%s) res=%d\n", input, res);
 	return res;
 }
-
 
 static int ctrl_cmd_untag(const char *input)
 {
@@ -1214,11 +1388,10 @@ static int ctrl_cmd_untag(const char *input)
 	struct socket *el_socket;
 	int res, argc;
 	struct sock_tag *sock_tag_entry;
-	unsigned long flags;
 
-	pr_debug("xt_qtaguid: ctrl_untag(%s): entered\n", input);
+	pr_debug("qtaguid: ctrl_untag(%s): entered\n", input);
 	argc = sscanf(input, "%c %d", &cmd, &sock_fd);
-	pr_debug("xt_qtaguid: ctrl_untag(%s): argc=%d cmd=%c sock_fd=%d\n",
+	pr_debug("qtaguid: ctrl_untag(%s): argc=%d cmd=%c sock_fd=%d\n",
 		 input, argc, cmd, sock_fd);
 	if (argc < 2) {
 		res = -EINVAL;
@@ -1226,26 +1399,26 @@ static int ctrl_cmd_untag(const char *input)
 	}
 	el_socket = sockfd_lookup(sock_fd, &res);
 	if (!el_socket) {
-		pr_info("xt_qtaguid: ctrl_untag(%s): failed to lookup"
+		pr_info("qtaguid: ctrl_untag(%s): failed to lookup"
 			" sock_fd=%d err=%d\n", input, sock_fd, res);
 		goto err;
 	}
-	spin_lock_irqsave(&sock_tag_list_lock, flags);
+	spin_lock_bh(&sock_tag_list_lock);
 	sock_tag_entry = get_sock_stat_nl(el_socket->sk);
 	if (!sock_tag_entry) {
-		spin_unlock_irqrestore(&sock_tag_list_lock, flags);
+		spin_unlock_bh(&sock_tag_list_lock);
 		res = -EINVAL;
 		goto err;
 	}
 	/* The socket already belongs to the current process
 	 * so it can do whatever it wants to it. */
 	rb_erase(&sock_tag_entry->node, &sock_tag_tree);
-	spin_unlock_irqrestore(&sock_tag_list_lock, flags);
+	spin_unlock_bh(&sock_tag_list_lock);
 	kfree(sock_tag_entry);
 
 	res = 0;
 err:
-	pr_debug("xt_qtaguid: ctrl_untag(%s): res=%d\n", input, res);
+	pr_debug("qtaguid: ctrl_untag(%s): res=%d\n", input, res);
 	return res;
 }
 
@@ -1254,12 +1427,16 @@ static int qtaguid_ctrl_parse(const char *input, int count)
 	char cmd;
 	int res;
 
-	pr_debug("xt_qtaguid: ctrl(%s): entered\n", input);
+	pr_debug("qtaguid: ctrl(%s): entered\n", input);
 	cmd = input[0];
 	/* Collect params for commands */
 	switch (cmd) {
 	case 'd':
 		res = ctrl_cmd_delete(input);
+		break;
+
+	case 's':
+		res = ctrl_cmd_counter_set(input);
 		break;
 
 	case 't':
@@ -1277,7 +1454,7 @@ static int qtaguid_ctrl_parse(const char *input, int count)
 	if (!res)
 		res = count;
 err:
-	pr_debug("xt_qtaguid: ctrl(%s): res=%d\n", input, res);
+	pr_debug("qtaguid: ctrl(%s): res=%d\n", input, res);
 	return res;
 }
 
@@ -1300,14 +1477,22 @@ static int qtaguid_ctrl_proc_write(struct file *file, const char __user *buffer,
 	return qtaguid_ctrl_parse(input_buf, count);
 }
 
-static int print_stats_line(char *outp, int char_count, int item_index,
-			    char *ifname, tag_t tag,
-			    struct data_counters *counters)
+struct proc_print_info {
+	char *outp;
+	char **num_items_returned;
+	struct iface_stat *iface_entry;
+	struct tag_stat *ts_entry;
+	int item_index;
+	int char_count;
+};
+
+static int pp_stats_line(struct proc_print_info *ppi, int cnt_set)
 {
 	int len;
-	if (!item_index) {
-		len = snprintf(outp, char_count,
-			       "idx iface acct_tag_hex uid_tag_int "
+	struct data_counters *cnts;
+	if (!ppi->item_index) {
+		len = snprintf(ppi->outp, ppi->char_count,
+			       "idx iface acct_tag_hex uid_tag_int cnt_set "
 			       "rx_bytes rx_packets "
 			       "tx_bytes tx_packets "
 			       "rx_tcp_packets rx_tcp_bytes "
@@ -1317,47 +1502,71 @@ static int print_stats_line(char *outp, int char_count, int item_index,
 			       "tx_udp_packets tx_udp_bytes "
 			       "tx_other_packets tx_other_bytes\n");
 	} else {
+		tag_t tag = ppi->ts_entry->tn.tag;
 		uid_t stat_uid = get_uid_from_tag(tag);
 		if (!can_read_other_uid_stats(stat_uid)) {
-			pr_debug("xt_qtaguid: insufficient priv for stat line:"
+			pr_debug("qtaguid: insufficient priv for stat line:"
 				 "%s 0x%llx %u\n",
-				 ifname, get_atag_from_tag(tag), stat_uid);
+				 ppi->iface_entry->ifname,
+				 get_atag_from_tag(tag), stat_uid);
 			return 0;
 		}
-		len = snprintf(outp, char_count,
-			       "%d %s 0x%llx %u "
-			       "%llu %llu "
-			       "%llu %llu "
-			       "%llu %llu "
-			       "%llu %llu "
-			       "%llu %llu "
-			       "%llu %llu "
-			       "%llu %llu "
-			       "%llu %llu\n",
-			       item_index,
-			       ifname,
-			       get_atag_from_tag(tag),
-			       stat_uid,
-			       dc_sum_bytes(counters, IFS_RX),
-			       dc_sum_packets(counters, IFS_RX),
-			       dc_sum_bytes(counters, IFS_TX),
-			       dc_sum_packets(counters, IFS_TX),
-			       counters->bpc[IFS_RX][IFS_TCP].bytes,
-			       counters->bpc[IFS_RX][IFS_TCP].packets,
-			       counters->bpc[IFS_RX][IFS_UDP].bytes,
-			       counters->bpc[IFS_RX][IFS_UDP].packets,
-			       counters->bpc[IFS_RX][IFS_PROTO_OTHER].bytes,
-			       counters->bpc[IFS_RX][IFS_PROTO_OTHER].packets,
-			       counters->bpc[IFS_TX][IFS_TCP].bytes,
-			       counters->bpc[IFS_TX][IFS_TCP].packets,
-			       counters->bpc[IFS_TX][IFS_UDP].bytes,
-			       counters->bpc[IFS_TX][IFS_UDP].packets,
-			       counters->bpc[IFS_TX][IFS_PROTO_OTHER].bytes,
-			       counters->bpc[IFS_TX][IFS_PROTO_OTHER].packets);
+		cnts = &ppi->ts_entry->counters;
+		len = snprintf(
+			ppi->outp, ppi->char_count,
+			"%d %s 0x%llx %u %u "
+			"%llu %llu "
+			"%llu %llu "
+			"%llu %llu "
+			"%llu %llu "
+			"%llu %llu "
+			"%llu %llu "
+			"%llu %llu "
+			"%llu %llu\n",
+			ppi->item_index,
+			ppi->iface_entry->ifname,
+			get_atag_from_tag(tag),
+			stat_uid,
+			cnt_set,
+			dc_sum_bytes(cnts, cnt_set, IFS_RX),
+			dc_sum_packets(cnts, cnt_set, IFS_RX),
+			dc_sum_bytes(cnts, cnt_set, IFS_TX),
+			dc_sum_packets(cnts, cnt_set, IFS_TX),
+			cnts->bpc[cnt_set][IFS_RX][IFS_TCP].bytes,
+			cnts->bpc[cnt_set][IFS_RX][IFS_TCP].packets,
+			cnts->bpc[cnt_set][IFS_RX][IFS_UDP].bytes,
+			cnts->bpc[cnt_set][IFS_RX][IFS_UDP].packets,
+			cnts->bpc[cnt_set][IFS_RX][IFS_PROTO_OTHER].bytes,
+			cnts->bpc[cnt_set][IFS_RX][IFS_PROTO_OTHER].packets,
+			cnts->bpc[cnt_set][IFS_TX][IFS_TCP].bytes,
+			cnts->bpc[cnt_set][IFS_TX][IFS_TCP].packets,
+			cnts->bpc[cnt_set][IFS_TX][IFS_UDP].bytes,
+			cnts->bpc[cnt_set][IFS_TX][IFS_UDP].packets,
+			cnts->bpc[cnt_set][IFS_TX][IFS_PROTO_OTHER].bytes,
+			cnts->bpc[cnt_set][IFS_TX][IFS_PROTO_OTHER].packets);
 	}
 	return len;
 }
 
+bool pp_sets(struct proc_print_info *ppi)
+{
+	int len;
+	int counter_set;
+	for (counter_set = 0; counter_set < IFS_MAX_COUNTER_SETS;
+	     counter_set++) {
+		len = pp_stats_line(ppi, counter_set);
+		if (len >= ppi->char_count) {
+			*ppi->outp = '\0';
+			return false;
+		}
+		if (len) {
+			ppi->outp += len;
+			ppi->char_count -= len;
+			(*ppi->num_items_returned)++;
+		}
+	}
+	return true;
+}
 
 /*
  * Procfs reader to get all tag stats using style "1)" as described in
@@ -1368,19 +1577,20 @@ static int qtaguid_stats_proc_read(char *page, char **num_items_returned,
 				off_t items_to_skip, int char_count, int *eof,
 				void *data)
 {
-	char *outp = page;
+	struct proc_print_info ppi;
 	int len;
-	unsigned long flags, flags2;
-	struct iface_stat *iface_entry;
-	struct tag_stat *ts_entry;
-	int item_index = 0;
+
+	ppi.outp = page;
+	ppi.item_index = 0;
+	ppi.char_count = char_count;
+	ppi.num_items_returned = num_items_returned;
 
 	if (unlikely(module_passive)) {
 		*eof = 1;
 		return 0;
 	}
 
-	pr_debug("xt_qtaguid:proc stats page=%p *num_items_returned=%p off=%ld "
+	pr_debug("qtaguid:proc stats page=%p *num_items_returned=%p off=%ld "
 		"char_count=%d *eof=%d\n", page, *num_items_returned,
 		items_to_skip, char_count, *eof);
 
@@ -1389,53 +1599,39 @@ static int qtaguid_stats_proc_read(char *page, char **num_items_returned,
 
 	if (!items_to_skip) {
 		/* The idx is there to help debug when things go belly up. */
-		len = print_stats_line(outp, char_count, /*index*/0, NULL,
-				       make_tag_from_uid(0), NULL);
+		len = pp_stats_line(&ppi, 0);
 		/* Don't advance the outp unless the whole line was printed */
-		if (len >= char_count) {
-			*outp = '\0';
-			return outp - page;
+		if (len >= ppi.char_count) {
+			*ppi.outp = '\0';
+			return ppi.outp - page;
 		}
-		outp += len;
-		char_count -= len;
+		ppi.outp += len;
+		ppi.char_count -= len;
 	}
-	spin_lock_irqsave(&iface_stat_list_lock, flags);
-	list_for_each_entry(iface_entry, &iface_stat_list, list) {
+
+	spin_lock_bh(&iface_stat_list_lock);
+	list_for_each_entry(ppi.iface_entry, &iface_stat_list, list) {
 		struct rb_node *node;
-		spin_lock_irqsave(&iface_entry->tag_stat_list_lock, flags2);
-		for (node = rb_first(&iface_entry->tag_stat_tree);
+		spin_lock_bh(&ppi.iface_entry->tag_stat_list_lock);
+		for (node = rb_first(&ppi.iface_entry->tag_stat_tree);
 		     node;
 		     node = rb_next(node)) {
-			ts_entry = rb_entry(node, struct tag_stat, node);
-			if (item_index++ < items_to_skip)
+			ppi.ts_entry = rb_entry(node, struct tag_stat, tn.node);
+			if (ppi.item_index++ < items_to_skip)
 				continue;
-			len = print_stats_line(outp, char_count,
-					       item_index,
-					       iface_entry->ifname,
-					       ts_entry->tag,
-					       &ts_entry->counters);
-			if (len >= char_count) {
-				*outp = '\0';
-				spin_unlock_irqrestore(
-					&iface_entry->tag_stat_list_lock,
-					flags2);
-				spin_unlock_irqrestore(
-					&iface_stat_list_lock, flags);
-				return outp - page;
-			}
-			if (len) {
-				outp += len;
-				char_count -= len;
-				(*num_items_returned)++;
+			if (!pp_sets(&ppi)) {
+				spin_unlock_bh(
+					&ppi.iface_entry->tag_stat_list_lock);
+				spin_unlock_bh(&iface_stat_list_lock);
+				return ppi.outp - page;
 			}
 		}
-		spin_unlock_irqrestore(&iface_entry->tag_stat_list_lock,
-				flags2);
+		spin_unlock_bh(&ppi.iface_entry->tag_stat_list_lock);
 	}
-	spin_unlock_irqrestore(&iface_stat_list_lock, flags);
+	spin_unlock_bh(&iface_stat_list_lock);
 
 	*eof = 1;
-	return outp - page;
+	return ppi.outp - page;
 }
 
 /*------------------------------------------*/
@@ -1444,7 +1640,7 @@ static int __init qtaguid_proc_register(struct proc_dir_entry **res_procdir)
 	int ret;
 	*res_procdir = proc_mkdir(module_procdirname, init_net.proc_net);
 	if (!*res_procdir) {
-		pr_err("xt_qtaguid: failed to create proc/.../xt_qtaguid\n");
+		pr_err("qtaguid: failed to create proc/.../xt_qtaguid\n");
 		ret = -ENOMEM;
 		goto no_dir;
 	}
@@ -1452,7 +1648,7 @@ static int __init qtaguid_proc_register(struct proc_dir_entry **res_procdir)
 	xt_qtaguid_ctrl_file = create_proc_entry("ctrl", proc_ctrl_perms,
 						*res_procdir);
 	if (!xt_qtaguid_ctrl_file) {
-		pr_err("xt_qtaguid: failed to create xt_qtaguid/ctrl "
+		pr_err("qtaguid: failed to create xt_qtaguid/ctrl "
 			" file\n");
 		ret = -ENOMEM;
 		goto no_ctrl_entry;
@@ -1463,7 +1659,7 @@ static int __init qtaguid_proc_register(struct proc_dir_entry **res_procdir)
 	xt_qtaguid_stats_file = create_proc_entry("stats", proc_stats_perms,
 						*res_procdir);
 	if (!xt_qtaguid_stats_file) {
-		pr_err("xt_qtaguid: failed to create xt_qtaguid/stats "
+		pr_err("qtaguid: failed to create xt_qtaguid/stats "
 			"file\n");
 		ret = -ENOMEM;
 		goto no_stats_entry;
@@ -1505,7 +1701,8 @@ static int __init qtaguid_mt_init(void)
 	return 0;
 }
 
-/* TODO: allow unloading of the module.
+/*
+ * TODO: allow unloading of the module.
  * For now stats are permanent.
  * Kconfig forces'y/n' and never an 'm'.
  */
