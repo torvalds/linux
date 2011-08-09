@@ -604,7 +604,7 @@ int tmem_get(struct tmem_pool *pool, struct tmem_oid *oidp, uint32_t index,
 	struct tmem_obj *obj;
 	void *pampd;
 	bool ephemeral = is_ephemeral(pool);
-	uint32_t ret = -1;
+	int ret = -1;
 	struct tmem_hashbucket *hb;
 	bool free = (get_and_free == 1) || ((get_and_free == 0) && ephemeral);
 	bool lock_held = false;
