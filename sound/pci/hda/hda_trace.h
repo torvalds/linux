@@ -87,6 +87,28 @@ DEFINE_EVENT(hda_power, hda_power_up,
 	TP_ARGS(codec)
 );
 
+TRACE_EVENT(hda_unsol_event,
+
+	TP_PROTO(struct hda_bus *bus, u32 res, u32 res_ex),
+
+	TP_ARGS(bus, res, res_ex),
+
+	TP_STRUCT__entry(
+		__field( unsigned int, card )
+		__field( u32, res )
+		__field( u32, res_ex )
+	),
+
+	TP_fast_assign(
+		__entry->card = (bus)->card->number;
+		__entry->res = res;
+		__entry->res_ex = res_ex;
+	),
+
+	TP_printk("[%d] res=%x, res_ex=%x", __entry->card,
+		  __entry->res, __entry->res_ex)
+);
+
 #endif /* _TRACE_HDA_H */
 
 /* This part must be outside protection */

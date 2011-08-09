@@ -529,7 +529,8 @@ Tracepoints
 The hd-audio driver gives a few basic tracepoints.
 `hda:hda_send_cmd` traces each CORB write while `hda:hda_get_response`
 traces the response from RIRB (only when read from the codec driver).
-`hda:hda_bus_reset` traces the bus-reset due to fatal error, etc, and
+`hda:hda_bus_reset` traces the bus-reset due to fatal error, etc,
+`hda:hda_unsol_event` traces the unsolicited events, and
 `hda:hda_power_down` and `hda:hda_power_up` trace the power down/up
 via power-saving behavior.
 
