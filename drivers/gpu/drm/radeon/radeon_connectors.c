@@ -60,6 +60,10 @@ void radeon_connector_hotplug(struct drm_connector *connector)
 
 	radeon_hpd_set_polarity(rdev, radeon_connector->hpd.hpd);
 
+	/* if the connector is already off, don't turn it back on */
+	if (connector->dpms != DRM_MODE_DPMS_ON)
+		return;
+
 	/* powering up/down the eDP panel generates hpd events which
 	 * can interfere with modesetting.
 	 */
