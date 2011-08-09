@@ -146,6 +146,7 @@ struct i2c_nmk_client {
  * @stop: stop condition
  * @xfer_complete: acknowledge completion for a I2C message
  * @result: controller propogated result
+ * @regulator: pointer to i2c regulator
  * @busy: Busy doing transfer
  */
 struct nmk_i2c_dev {
@@ -509,7 +510,7 @@ static int write_i2c(struct nmk_i2c_dev *dev)
 
 	if (timeout < 0) {
 		dev_err(&dev->pdev->dev,
-			"wait_for_completion_timeout"
+			"wait_for_completion_timeout "
 			"returned %d waiting for event\n", timeout);
 		status = timeout;
 	}
