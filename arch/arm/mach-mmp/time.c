@@ -145,23 +145,26 @@ static struct clocksource cksrc = {
 static void __init timer_config(void)
 {
 	uint32_t ccr = __raw_readl(TIMERS_VIRT_BASE + TMR_CCR);
-	uint32_t cer = __raw_readl(TIMERS_VIRT_BASE + TMR_CER);
-	uint32_t cmr = __raw_readl(TIMERS_VIRT_BASE + TMR_CMR);
 
-	__raw_writel(cer & ~0x1, TIMERS_VIRT_BASE + TMR_CER); /* disable */
+	__raw_writel(0x0, TIMERS_VIRT_BASE + TMR_CER); /* disable */
 
-	ccr &= (cpu_is_mmp2()) ? TMR_CCR_CS_0(0) : TMR_CCR_CS_0(3);
+	ccr &= (cpu_is_mmp2()) ? (TMR_CCR_CS_0(0) | TMR_CCR_CS_1(0)) :
+		(TMR_CCR_CS_0(3) | TMR_CCR_CS_1(3));
 	__raw_writel(ccr, TIMERS_VIRT_BASE + TMR_CCR);
 
 	/* free-running mode */
-	__raw_writel(cmr | 0x01, TIMERS_VIRT_BASE + TMR_CMR);
+	__raw_writel(0x3, TIMERS_VIRT_BASE + TMR_CMR);
 
 	__raw_writel(0x0, TIMERS_VIRT_BASE + TMR_PLCR(0)); /* free-running */
 	__raw_writel(0x7, TIMERS_VIRT_BASE + TMR_ICR(0));  /* clear status */
 	__raw_writel(0x0, TIMERS_VIRT_BASE + TMR_IER(0));
 
+	__raw_writel(0x0, TIMERS_VIRT_BASE + TMR_PLCR(1)); /* free-running */
+	__raw_writel(0x7, TIMERS_VIRT_BASE + TMR_ICR(1));  /* clear status */
+	__raw_writel(0x0, TIMERS_VIRT_BASE + TMR_IER(1));
+
 	/* enable timer counter */
-	__raw_writel(cer | 0x01, TIMERS_VIRT_BASE + TMR_CER);
+	__raw_writel(0x3, TIMERS_VIRT_BASE + TMR_CER);
 }
 
 static struct irqaction timer_irq = {
