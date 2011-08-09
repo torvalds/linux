@@ -60,8 +60,6 @@ typedef int (*regmap_hw_read)(struct device *dev,
 /**
  * Description of a hardware bus for the register map infrastructure.
  *
- * @list: Internal use.
- * @type: Bus type, used to identify bus to be used for a device.
  * @write: Write operation.
  * @gather_write: Write operation with split register/value, return -ENOTSUPP
  *                if not implemented  on a given device.
@@ -73,8 +71,6 @@ typedef int (*regmap_hw_read)(struct device *dev,
  *                  a read.
  */
 struct regmap_bus {
-	struct list_head list;
-	struct bus_type *type;
 	regmap_hw_write write;
 	regmap_hw_gather_write gather_write;
 	regmap_hw_read read;
