@@ -619,7 +619,8 @@ static void mesh_path_node_reclaim(struct rcu_head *rp)
 	struct mpath_node *node = container_of(rp, struct mpath_node, rcu);
 	struct ieee80211_sub_if_data *sdata = node->mpath->sdata;
 
-	del_timer_sync(&node->mpath->timer);
+	if (node->mpath->timer.function)
+		del_timer_sync(&node->mpath->timer);
 	atomic_dec(&sdata->u.mesh.mpaths);
 	kfree(node->mpath);
 	kfree(node);
@@ -768,7 +769,8 @@ static void mesh_path_node_free(struct hlist_node *p, bool free_leafs)
 	mpath = node->mpath;
 	hlist_del_rcu(p);
 	if (free_leafs) {
-		del_timer_sync(&mpath->timer);
+		if (mpath->timer.function)
+			del_timer_sync(&mpath->timer);
 		kfree(mpath);
 	}
 	kfree(node);
