@@ -81,6 +81,7 @@ enum mesh_deferred_task_flags {
  * @discovery_retries: number of discovery retries
  * @flags: mesh path flags, as specified on &enum mesh_path_flags
  * @state_lock: mesh path state lock
+ * @is_gate: the destination station of this path is a mesh gate
  *
  *
  * The combination of dst and sdata is unique in the mesh path table. Since the
@@ -104,6 +105,7 @@ struct mesh_path {
 	u8 discovery_retries;
 	enum mesh_path_flags flags;
 	spinlock_t state_lock;
+	bool is_gate;
 };
 
 /**
@@ -120,6 +122,9 @@ struct mesh_path {
  *	buckets
  * @mean_chain_len: maximum average length for the hash buckets' list, if it is
  *	reached, the table will grow
+ * @known_gates: list of known mesh gates and their mpaths by the station. The
+ * gate's mpath may or may not be resolved and active.
+ *
  * rcu_head: RCU head to free the table
  */
 struct mesh_table {
@@ -133,6 +138,8 @@ struct mesh_table {
 	int (*copy_node) (struct hlist_node *p, struct mesh_table *newtbl);
 	int size_order;
 	int mean_chain_len;
+	struct hlist_head *known_gates;
+	spinlock_t gates_lock;
 
 	struct rcu_head rcu_head;
 };
@@ -236,6 +243,10 @@ void mesh_path_flush(struct ieee80211_sub_if_data *sdata);
 void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
 		struct ieee80211_mgmt *mgmt, size_t len);
 int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata);
+
+int mesh_path_add_gate(struct mesh_path *mpath);
+int mesh_path_send_to_gates(struct mesh_path *mpath);
+int mesh_gate_num(struct ieee80211_sub_if_data *sdata);
 /* Mesh plinks */
 void mesh_neighbour_update(u8 *hw_addr, u32 rates,
 		struct ieee80211_sub_if_data *sdata,

@@ -66,6 +66,8 @@ static inline struct mesh_table *resize_dereference_mpp_paths(void)
 		lockdep_is_held(&pathtbl_resize_lock));
 }
 
+static int mesh_gate_add(struct mesh_table *tbl, struct mesh_path *mpath);
+
 /*
  * CAREFUL -- "tbl" must not be an expression,
  * in particular not an rcu_dereference(), since
@@ -109,6 +111,7 @@ static struct mesh_table *mesh_table_alloc(int size_order)
 			sizeof(newtbl->hash_rnd));
 	for (i = 0; i <= newtbl->hash_mask; i++)
 		spin_lock_init(&newtbl->hashwlock[i]);
+	spin_lock_init(&newtbl->gates_lock);
 
 	return newtbl;
 }
@@ -124,6 +127,7 @@ static void mesh_table_free(struct mesh_table *tbl, bool free_leafs)
 {
 	struct hlist_head *mesh_hash;
 	struct hlist_node *p, *q;
+	struct mpath_node *gate;
 	int i;
 
 	mesh_hash = tbl->hash_buckets;
@@ -135,6 +139,17 @@ static void mesh_table_free(struct mesh_table *tbl, bool free_leafs)
 		}
 		spin_unlock_bh(&tbl->hashwlock[i]);
 	}
+	if (free_leafs) {
+		spin_lock_bh(&tbl->gates_lock);
+		hlist_for_each_entry_safe(gate, p, q,
+					 tbl->known_gates, list) {
+			hlist_del(&gate->list);
+			kfree(gate);
+		}
+		kfree(tbl->known_gates);
+		spin_unlock_bh(&tbl->gates_lock);
+	}
+
 	__mesh_table_free(tbl);
 }
 
@@ -152,6 +167,7 @@ static int mesh_table_grow(struct mesh_table *oldtbl,
 	newtbl->free_node = oldtbl->free_node;
 	newtbl->mean_chain_len = oldtbl->mean_chain_len;
 	newtbl->copy_node = oldtbl->copy_node;
+	newtbl->known_gates = oldtbl->known_gates;
 	atomic_set(&newtbl->entries, atomic_read(&oldtbl->entries));
 
 	oldhash = oldtbl->hash_buckets;
@@ -209,6 +225,111 @@ void mesh_path_assign_nexthop(struct mesh_path *mpath, struct sta_info *sta)
 
 	skb_queue_splice(&tmpq, &mpath->frame_queue);
 	spin_unlock_irqrestore(&mpath->frame_queue.lock, flags);
+}
+
+static void prepare_for_gate(struct sk_buff *skb, char *dst_addr,
+			     struct mesh_path *gate_mpath)
+{
+	struct ieee80211_hdr *hdr;
+	struct ieee80211s_hdr *mshdr;
+	int mesh_hdrlen, hdrlen;
+	char *next_hop;
+
+	hdr = (struct ieee80211_hdr *) skb->data;
+	hdrlen = ieee80211_hdrlen(hdr->frame_control);
+	mshdr = (struct ieee80211s_hdr *) (skb->data + hdrlen);
+
+	if (!(mshdr->flags & MESH_FLAGS_AE)) {
+		/* size of the fixed part of the mesh header */
+		mesh_hdrlen = 6;
+
+		/* make room for the two extended addresses */
+		skb_push(skb, 2 * ETH_ALEN);
+		memmove(skb->data, hdr, hdrlen + mesh_hdrlen);
+
+		hdr = (struct ieee80211_hdr *) skb->data;
+
+		/* we preserve the previous mesh header and only add
+		 * the new addreses */
+		mshdr = (struct ieee80211s_hdr *) (skb->data + hdrlen);
+		mshdr->flags = MESH_FLAGS_AE_A5_A6;
+		memcpy(mshdr->eaddr1, hdr->addr3, ETH_ALEN);
+		memcpy(mshdr->eaddr2, hdr->addr4, ETH_ALEN);
+	}
+
+	/* update next hop */
+	hdr = (struct ieee80211_hdr *) skb->data;
+	rcu_read_lock();
+	next_hop = rcu_dereference(gate_mpath->next_hop)->sta.addr;
+	memcpy(hdr->addr1, next_hop, ETH_ALEN);
+	rcu_read_unlock();
+	memcpy(hdr->addr3, dst_addr, ETH_ALEN);
+}
+
+/**
+ *
+ * mesh_path_move_to_queue - Move or copy frames from one mpath queue to another
+ *
+ * This function is used to transfer or copy frames from an unresolved mpath to
+ * a gate mpath.  The function also adds the Address Extension field and
+ * updates the next hop.
+ *
+ * If a frame already has an Address Extension field, only the next hop and
+ * destination addresses are updated.
+ *
+ * The gate mpath must be an active mpath with a valid mpath->next_hop.
+ *
+ * @mpath: An active mpath the frames will be sent to (i.e. the gate)
+ * @from_mpath: The failed mpath
+ * @copy: When true, copy all the frames to the new mpath queue.  When false,
+ * move them.
+ */
+static void mesh_path_move_to_queue(struct mesh_path *gate_mpath,
+				    struct mesh_path *from_mpath,
+				    bool copy)
+{
+	struct sk_buff *skb, *cp_skb;
+	struct sk_buff_head gateq, failq;
+	unsigned long flags;
+	int num_skbs;
+
+	BUG_ON(gate_mpath == from_mpath);
+	BUG_ON(!gate_mpath->next_hop);
+
+	__skb_queue_head_init(&gateq);
+	__skb_queue_head_init(&failq);
+
+	spin_lock_irqsave(&from_mpath->frame_queue.lock, flags);
+	skb_queue_splice_init(&from_mpath->frame_queue, &failq);
+	spin_unlock_irqrestore(&from_mpath->frame_queue.lock, flags);
+
+	num_skbs = skb_queue_len(&failq);
+
+	while (num_skbs--) {
+		skb = __skb_dequeue(&failq);
+		if (copy)
+			cp_skb = skb_copy(skb, GFP_ATOMIC);
+
+		prepare_for_gate(skb, gate_mpath->dst, gate_mpath);
+		__skb_queue_tail(&gateq, skb);
+
+		if (copy && cp_skb)
+			__skb_queue_tail(&failq, cp_skb);
+	}
+
+	spin_lock_irqsave(&gate_mpath->frame_queue.lock, flags);
+	skb_queue_splice(&gateq, &gate_mpath->frame_queue);
+	mpath_dbg("Mpath queue for gate %pM has %d frames\n",
+			gate_mpath->dst,
+			skb_queue_len(&gate_mpath->frame_queue));
+	spin_unlock_irqrestore(&gate_mpath->frame_queue.lock, flags);
+
+	if (!copy)
+		return;
+
+	spin_lock_irqsave(&from_mpath->frame_queue.lock, flags);
+	skb_queue_splice(&failq, &from_mpath->frame_queue);
+	spin_unlock_irqrestore(&from_mpath->frame_queue.lock, flags);
 }
 
 
@@ -308,6 +429,109 @@ struct mesh_path *mesh_path_lookup_by_idx(int idx, struct ieee80211_sub_if_data 
 	}
 
 	return NULL;
+}
+
+static void mesh_gate_node_reclaim(struct rcu_head *rp)
+{
+	struct mpath_node *node = container_of(rp, struct mpath_node, rcu);
+	kfree(node);
+}
+
+/**
+ * mesh_gate_add - mark mpath as path to a mesh gate and add to known_gates
+ * @mesh_tbl: table which contains known_gates list
+ * @mpath: mpath to known mesh gate
+ *
+ * Returns: 0 on success
+ *
+ */
+static int mesh_gate_add(struct mesh_table *tbl, struct mesh_path *mpath)
+{
+	struct mpath_node *gate, *new_gate;
+	struct hlist_node *n;
+	int err;
+
+	rcu_read_lock();
+	tbl = rcu_dereference(tbl);
+
+	hlist_for_each_entry_rcu(gate, n, tbl->known_gates, list)
+		if (gate->mpath == mpath) {
+			err = -EEXIST;
+			goto err_rcu;
+		}
+
+	new_gate = kzalloc(sizeof(struct mpath_node), GFP_ATOMIC);
+	if (!new_gate) {
+		err = -ENOMEM;
+		goto err_rcu;
+	}
+
+	mpath->is_gate = true;
+	mpath->sdata->u.mesh.num_gates++;
+	new_gate->mpath = mpath;
+	spin_lock_bh(&tbl->gates_lock);
+	hlist_add_head_rcu(&new_gate->list, tbl->known_gates);
+	spin_unlock_bh(&tbl->gates_lock);
+	rcu_read_unlock();
+	mpath_dbg("Mesh path (%s): Recorded new gate: %pM. %d known gates\n",
+		  mpath->sdata->name, mpath->dst,
+		  mpath->sdata->u.mesh.num_gates);
+	return 0;
+err_rcu:
+	rcu_read_unlock();
+	return err;
+}
+
+/**
+ * mesh_gate_del - remove a mesh gate from the list of known gates
+ * @tbl: table which holds our list of known gates
+ * @mpath: gate mpath
+ *
+ * Returns: 0 on success
+ *
+ * Locking: must be called inside rcu_read_lock() section
+ */
+static int mesh_gate_del(struct mesh_table *tbl, struct mesh_path *mpath)
+{
+	struct mpath_node *gate;
+	struct hlist_node *p, *q;
+
+	tbl = rcu_dereference(tbl);
+
+	hlist_for_each_entry_safe(gate, p, q, tbl->known_gates, list)
+		if (gate->mpath == mpath) {
+			spin_lock_bh(&tbl->gates_lock);
+			hlist_del_rcu(&gate->list);
+			call_rcu(&gate->rcu, mesh_gate_node_reclaim);
+			spin_unlock_bh(&tbl->gates_lock);
+			mpath->sdata->u.mesh.num_gates--;
+			mpath->is_gate = false;
+			mpath_dbg("Mesh path (%s): Deleted gate: %pM. "
+				  "%d known gates\n", mpath->sdata->name,
+				  mpath->dst, mpath->sdata->u.mesh.num_gates);
+			break;
+		}
+
+	return 0;
+}
+
+/**
+ *
+ * mesh_path_add_gate - add the given mpath to a mesh gate to our path table
+ * @mpath: gate path to add to table
+ */
+int mesh_path_add_gate(struct mesh_path *mpath)
+{
+	return mesh_gate_add(mesh_paths, mpath);
+}
+
+/**
+ * mesh_gate_num - number of gates known to this interface
+ * @sdata: subif data
+ */
+int mesh_gate_num(struct ieee80211_sub_if_data *sdata)
+{
+	return sdata->u.mesh.num_gates;
 }
 
 /**
@@ -655,6 +879,8 @@ int mesh_path_del(u8 *addr, struct ieee80211_sub_if_data *sdata)
 		if (mpath->sdata == sdata &&
 		    memcmp(addr, mpath->dst, ETH_ALEN) == 0) {
 			spin_lock_bh(&mpath->state_lock);
+			if (mpath->is_gate)
+				mesh_gate_del(tbl, mpath);
 			mpath->flags |= MESH_PATH_RESOLVING;
 			hlist_del_rcu(&node->list);
 			call_rcu(&node->rcu, mesh_path_node_reclaim);
@@ -685,6 +911,58 @@ void mesh_path_tx_pending(struct mesh_path *mpath)
 	if (mpath->flags & MESH_PATH_ACTIVE)
 		ieee80211_add_pending_skbs(mpath->sdata->local,
 				&mpath->frame_queue);
+}
+
+/**
+ * mesh_path_send_to_gates - sends pending frames to all known mesh gates
+ *
+ * @mpath: mesh path whose queue will be emptied
+ *
+ * If there is only one gate, the frames are transferred from the failed mpath
+ * queue to that gate's queue.  If there are more than one gates, the frames
+ * are copied from each gate to the next.  After frames are copied, the
+ * mpath queues are emptied onto the transmission queue.
+ */
+int mesh_path_send_to_gates(struct mesh_path *mpath)
+{
+	struct ieee80211_sub_if_data *sdata = mpath->sdata;
+	struct hlist_node *n;
+	struct mesh_table *tbl;
+	struct mesh_path *from_mpath = mpath;
+	struct mpath_node *gate = NULL;
+	bool copy = false;
+	struct hlist_head *known_gates;
+
+	rcu_read_lock();
+	tbl = rcu_dereference(mesh_paths);
+	known_gates = tbl->known_gates;
+	rcu_read_unlock();
+
+	if (!known_gates)
+		return -EHOSTUNREACH;
+
+	hlist_for_each_entry_rcu(gate, n, known_gates, list) {
+		if (gate->mpath->sdata != sdata)
+			continue;
+
+		if (gate->mpath->flags & MESH_PATH_ACTIVE) {
+			mpath_dbg("Forwarding to %pM\n", gate->mpath->dst);
+			mesh_path_move_to_queue(gate->mpath, from_mpath, copy);
+			from_mpath = gate->mpath;
+			copy = true;
+		} else {
+			mpath_dbg("Not forwarding %p\n", gate->mpath);
+			mpath_dbg("flags %x\n", gate->mpath->flags);
+		}
+	}
+
+	hlist_for_each_entry_rcu(gate, n, known_gates, list)
+		if (gate->mpath->sdata == sdata) {
+			mpath_dbg("Sending to %pM\n", gate->mpath->dst);
+			mesh_path_tx_pending(gate->mpath);
+		}
+
+	return (from_mpath == mpath) ? -EHOSTUNREACH : 0;
 }
 
 /**
@@ -804,6 +1082,9 @@ int mesh_pathtbl_init(void)
 	tbl_path->free_node = &mesh_path_node_free;
 	tbl_path->copy_node = &mesh_path_node_copy;
 	tbl_path->mean_chain_len = MEAN_CHAIN_LEN;
+	tbl_path->known_gates = kzalloc(sizeof(struct hlist_head), GFP_ATOMIC);
+	INIT_HLIST_HEAD(tbl_path->known_gates);
+
 
 	tbl_mpp = mesh_table_alloc(INIT_PATHS_SIZE_ORDER);
 	if (!tbl_mpp) {
@@ -813,6 +1094,9 @@ int mesh_pathtbl_init(void)
 	tbl_mpp->free_node = &mesh_path_node_free;
 	tbl_mpp->copy_node = &mesh_path_node_copy;
 	tbl_mpp->mean_chain_len = MEAN_CHAIN_LEN;
+	/* XXX: not needed */
+	tbl_mpp->known_gates = kzalloc(sizeof(struct hlist_head), GFP_ATOMIC);
+	INIT_HLIST_HEAD(tbl_mpp->known_gates);
 
 	/* Need no locking since this is during init */
 	RCU_INIT_POINTER(mesh_paths, tbl_path);

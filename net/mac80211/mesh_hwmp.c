@@ -696,6 +696,7 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 	u8 *orig_addr;
 	u32 orig_sn, metric;
 	u32 interval = cpu_to_le32(IEEE80211_MESH_RANN_INTERVAL);
+	bool root_is_gate;
 
 	ttl = rann->rann_ttl;
 	if (ttl <= 1) {
@@ -704,12 +705,19 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 	}
 	ttl--;
 	flags = rann->rann_flags;
+	root_is_gate = !!(flags & RANN_FLAG_IS_GATE);
 	orig_addr = rann->rann_addr;
 	orig_sn = rann->rann_seq;
 	hopcount = rann->rann_hopcount;
 	hopcount++;
 	metric = rann->rann_metric;
-	mhwmp_dbg("received RANN from %pM\n", orig_addr);
+
+	/*  Ignore our own RANNs */
+	if (memcmp(orig_addr, sdata->vif.addr, ETH_ALEN) == 0)
+		return;
+
+	mhwmp_dbg("received RANN from %pM (is_gate=%d)", orig_addr,
+			root_is_gate);
 
 	rcu_read_lock();
 	mpath = mesh_path_lookup(orig_addr, sdata);
@@ -721,9 +729,16 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 			sdata->u.mesh.mshstats.dropped_frames_no_route++;
 			return;
 		}
-		mesh_queue_preq(mpath,
-				PREQ_Q_F_START | PREQ_Q_F_REFRESH);
 	}
+
+	if ((!(mpath->flags & (MESH_PATH_ACTIVE | MESH_PATH_RESOLVING)) ||
+	     time_after(jiffies, mpath->exp_time - 1*HZ)) &&
+	     !(mpath->flags & MESH_PATH_FIXED)) {
+		mhwmp_dbg("%s time to refresh root mpath %pM", sdata->name,
+							       orig_addr);
+		mesh_queue_preq(mpath, PREQ_Q_F_START | PREQ_Q_F_REFRESH);
+	}
+
 	if (mpath->sn < orig_sn) {
 		mesh_path_sel_frame_tx(MPATH_RANN, flags, orig_addr,
 				       cpu_to_le32(orig_sn),
@@ -733,6 +748,9 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 				       0, sdata);
 		mpath->sn = orig_sn;
 	}
+	if (root_is_gate)
+		mesh_path_add_gate(mpath);
+
 	rcu_read_unlock();
 }
 
@@ -994,25 +1012,32 @@ void mesh_path_timer(unsigned long data)
 {
 	struct mesh_path *mpath = (void *) data;
 	struct ieee80211_sub_if_data *sdata = mpath->sdata;
+	int ret;
 
 	if (sdata->local->quiescing)
 		return;
 
 	spin_lock_bh(&mpath->state_lock);
 	if (mpath->flags & MESH_PATH_RESOLVED ||
-			(!(mpath->flags & MESH_PATH_RESOLVING)))
+			(!(mpath->flags & MESH_PATH_RESOLVING))) {
 		mpath->flags &= ~(MESH_PATH_RESOLVING | MESH_PATH_RESOLVED);
-	else if (mpath->discovery_retries < max_preq_retries(sdata)) {
+		spin_unlock_bh(&mpath->state_lock);
+	} else if (mpath->discovery_retries < max_preq_retries(sdata)) {
 		++mpath->discovery_retries;
 		mpath->discovery_timeout *= 2;
+		spin_unlock_bh(&mpath->state_lock);
 		mesh_queue_preq(mpath, 0);
 	} else {
 		mpath->flags = 0;
 		mpath->exp_time = jiffies;
-		mesh_path_flush_pending(mpath);
+		spin_unlock_bh(&mpath->state_lock);
+		if (!mpath->is_gate && mesh_gate_num(sdata) > 0) {
+			ret = mesh_path_send_to_gates(mpath);
+			if (ret)
+				mhwmp_dbg("no gate was reachable");
+		} else
+			mesh_path_flush_pending(mpath);
 	}
-
-	spin_unlock_bh(&mpath->state_lock);
 }
 
 void

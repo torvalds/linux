@@ -633,6 +633,10 @@ struct ieee80211_rann_ie {
 	u32 rann_metric;
 } __attribute__ ((packed));
 
+enum ieee80211_rann_flags {
+	RANN_FLAG_IS_GATE = 1 << 0,
+};
+
 #define WLAN_SA_QUERY_TR_ID_LEN 2
 
 struct ieee80211_mgmt {

@@ -514,6 +514,7 @@ struct ieee80211_if_mesh {
 	struct mesh_config mshcfg;
 	u32 mesh_seqnum;
 	bool accepting_plinks;
+	int num_gates;
 	const u8 *ie;
 	u8 ie_len;
 	enum {
