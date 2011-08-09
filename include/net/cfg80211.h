@@ -756,6 +756,11 @@ struct mesh_config {
 	u16 dot11MeshHWMPnetDiameterTraversalTime;
 	u8  dot11MeshHWMPRootMode;
 	u16 dot11MeshHWMPRannInterval;
+	/* This is missnamed in draft 12.0: dot11MeshGateAnnouncementProtocol
+	 * set to true only means that the station will announce others it's a
+	 * mesh gate, but not necessarily using the gate announcement protocol.
+	 * Still keeping the same nomenclature to be in sync with the spec. */
+	bool  dot11MeshGateAnnouncementProtocol;
 };
 
 /**

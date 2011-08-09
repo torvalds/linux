@@ -1045,8 +1045,11 @@ mesh_path_tx_root_frame(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	u32 interval = ifmsh->mshcfg.dot11MeshHWMPRannInterval;
+	u8 flags;
 
-	mesh_path_sel_frame_tx(MPATH_RANN, 0, sdata->vif.addr,
+	flags = (ifmsh->mshcfg.dot11MeshGateAnnouncementProtocol)
+			? RANN_FLAG_IS_GATE : 0;
+	mesh_path_sel_frame_tx(MPATH_RANN, flags, sdata->vif.addr,
 			       cpu_to_le32(++ifmsh->sn),
 			       0, NULL, 0, broadcast_addr,
 			       0, sdata->u.mesh.mshcfg.element_ttl,
