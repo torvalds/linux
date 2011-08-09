@@ -944,7 +944,8 @@ int ipp_blit_sync(const struct rk29_ipp_req *req)
    
 	if(drvdata->ipp_result == 0)
 	{
-		wait_ret = wait_event_interruptible_timeout(hw_wait_queue, wq_condition, msecs_to_jiffies(req->timeout));
+		//wait_ret = wait_event_interruptible_timeout(hw_wait_queue, wq_condition, msecs_to_jiffies(req->timeout));
+		wait_ret = wait_event_timeout(hw_wait_queue, wq_condition, msecs_to_jiffies(req->timeout));
 #ifdef IPP_TEST
 		irq_end = ktime_get(); 
 		irq_end = ktime_sub(irq_end,irq_start);
@@ -990,6 +991,7 @@ int ipp_blit_sync(const struct rk29_ipp_req *req)
 #endif
 			
 			ipp_soft_reset();
+			drvdata->ipp_result = -EAGAIN;
 		}
 
 		ipp_power_off(NULL);
@@ -1133,7 +1135,8 @@ static irqreturn_t rk29_ipp_irq(int irq,  void *dev_id)
 
 	if(drvdata->issync)//sync
 	{
-		wake_up_interruptible_sync(&hw_wait_queue);
+		//wake_up_interruptible_sync(&hw_wait_queue);
+		wake_up(&hw_wait_queue);
 	}
 	else//async
 	{
@@ -1161,12 +1164,15 @@ static irqreturn_t rk29_ipp_irq(int irq,  void *dev_id)
 static int ipp_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	//printk("ipp_suspend\n");
-	//delay 20ms to wait hardware work completed
-	mdelay(20);
+	
+	if(drvdata->enable)
+	{
+		//delay 20ms to wait hardware work completed
+		mdelay(20);
 
-	//cancel the delay work, power off right now
-	cancel_delayed_work_sync(&drvdata->power_off_work);
-	ipp_power_off(NULL);
+		// power off right now
+	    ipp_power_off(NULL);
+	}
 
 	return 0;
 }
