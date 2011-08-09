@@ -27,15 +27,15 @@ struct spi_device;
  * @val_bits: Number of bits in a register value, mandatory.
  *
  * @max_register: Optional, specifies the maximum valid register index.
- * @writeable_register: Optional callback returning true if the register
- *                      can be written to.
- * @readable_register: Optional callback returning true if the register
- *                     can be read from.
- * @volatile_register: Optional callback returning true if the register
- *                     value can't be cached.
- * @precious_register: Optional callback returning true if the rgister
- *                     should not be read outside of a call from the driver
- *                     (eg, a clear on read interrupt status register).
+ * @writeable_reg: Optional callback returning true if the register
+ *                 can be written to.
+ * @readable_reg: Optional callback returning true if the register
+ *                can be read from.
+ * @volatile_reg: Optional callback returning true if the register
+ *                value can't be cached.
+ * @precious_reg: Optional callback returning true if the rgister
+ *                should not be read outside of a call from the driver
+ *                (eg, a clear on read interrupt status register).
  */
 struct regmap_config {
 	int reg_bits;
