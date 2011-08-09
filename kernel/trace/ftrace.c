@@ -103,7 +103,7 @@ static struct ftrace_ops control_ops;
 
 #if ARCH_SUPPORTS_FTRACE_OPS
 static void ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
-				 struct ftrace_ops *op);
+				 struct ftrace_ops *op, struct pt_regs *regs);
 #else
 /* See comment below, where ftrace_ops_list_func is defined */
 static void ftrace_ops_no_ops(unsigned long ip, unsigned long parent_ip);
@@ -121,7 +121,7 @@ static void ftrace_ops_no_ops(unsigned long ip, unsigned long parent_ip);
  */
 static void
 ftrace_global_list_func(unsigned long ip, unsigned long parent_ip,
-			struct ftrace_ops *op)
+			struct ftrace_ops *op, struct pt_regs *regs)
 {
 	if (unlikely(trace_recursion_test(TRACE_GLOBAL_BIT)))
 		return;
@@ -129,19 +129,19 @@ ftrace_global_list_func(unsigned long ip, unsigned long parent_ip,
 	trace_recursion_set(TRACE_GLOBAL_BIT);
 	op = rcu_dereference_raw(ftrace_global_list); /*see above*/
 	while (op != &ftrace_list_end) {
-		op->func(ip, parent_ip, op);
+		op->func(ip, parent_ip, op, regs);
 		op = rcu_dereference_raw(op->next); /*see above*/
 	};
 	trace_recursion_clear(TRACE_GLOBAL_BIT);
 }
 
 static void ftrace_pid_func(unsigned long ip, unsigned long parent_ip,
-			    struct ftrace_ops *op)
+			    struct ftrace_ops *op, struct pt_regs *regs)
 {
 	if (!test_tsk_trace_trace(current))
 		return;
 
-	ftrace_pid_function(ip, parent_ip, op);
+	ftrace_pid_function(ip, parent_ip, op, regs);
 }
 
 static void set_ftrace_pid_function(ftrace_func_t func)
@@ -763,7 +763,7 @@ ftrace_profile_alloc(struct ftrace_profile_stat *stat, unsigned long ip)
 
 static void
 function_profile_call(unsigned long ip, unsigned long parent_ip,
-		      struct ftrace_ops *ops)
+		      struct ftrace_ops *ops, struct pt_regs *regs)
 {
 	struct ftrace_profile_stat *stat;
 	struct ftrace_profile *rec;
@@ -793,7 +793,7 @@ function_profile_call(unsigned long ip, unsigned long parent_ip,
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 static int profile_graph_entry(struct ftrace_graph_ent *trace)
 {
-	function_profile_call(trace->func, 0, NULL);
+	function_profile_call(trace->func, 0, NULL, NULL);
 	return 1;
 }
 
@@ -2771,7 +2771,7 @@ static int __init ftrace_mod_cmd_init(void)
 device_initcall(ftrace_mod_cmd_init);
 
 static void function_trace_probe_call(unsigned long ip, unsigned long parent_ip,
-				      struct ftrace_ops *op)
+				      struct ftrace_ops *op, struct pt_regs *pt_regs)
 {
 	struct ftrace_func_probe *entry;
 	struct hlist_head *hhd;
@@ -3923,7 +3923,7 @@ ftrace_ops_test(struct ftrace_ops *ops, unsigned long ip)
 
 static void
 ftrace_ops_control_func(unsigned long ip, unsigned long parent_ip,
-			struct ftrace_ops *op)
+			struct ftrace_ops *op, struct pt_regs *regs)
 {
 	if (unlikely(trace_recursion_test(TRACE_CONTROL_BIT)))
 		return;
@@ -3938,7 +3938,7 @@ ftrace_ops_control_func(unsigned long ip, unsigned long parent_ip,
 	while (op != &ftrace_list_end) {
 		if (!ftrace_function_local_disabled(op) &&
 		    ftrace_ops_test(op, ip))
-			op->func(ip, parent_ip, op);
+			op->func(ip, parent_ip, op, regs);
 
 		op = rcu_dereference_raw(op->next);
 	};
@@ -3952,7 +3952,7 @@ static struct ftrace_ops control_ops = {
 
 static inline void
 __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
-		       struct ftrace_ops *ignored)
+		       struct ftrace_ops *ignored, struct pt_regs *regs)
 {
 	struct ftrace_ops *op;
 
@@ -3971,7 +3971,7 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
 	op = rcu_dereference_raw(ftrace_ops_list);
 	while (op != &ftrace_list_end) {
 		if (ftrace_ops_test(op, ip))
-			op->func(ip, parent_ip, op);
+			op->func(ip, parent_ip, op, regs);
 		op = rcu_dereference_raw(op->next);
 	};
 	preempt_enable_notrace();
@@ -3983,17 +3983,24 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
  * the list function ignores the op parameter, we do not want any
  * C side effects, where a function is called without the caller
  * sending a third parameter.
+ * Archs are to support both the regs and ftrace_ops at the same time.
+ * If they support ftrace_ops, it is assumed they support regs.
+ * If call backs want to use regs, they must either check for regs
+ * being NULL, or ARCH_SUPPORTS_FTRACE_SAVE_REGS.
+ * Note, ARCH_SUPPORT_SAVE_REGS expects a full regs to be saved.
+ * An architecture can pass partial regs with ftrace_ops and still
+ * set the ARCH_SUPPORT_FTARCE_OPS.
  */
 #if ARCH_SUPPORTS_FTRACE_OPS
 static void ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
-				 struct ftrace_ops *op)
+				 struct ftrace_ops *op, struct pt_regs *regs)
 {
-	__ftrace_ops_list_func(ip, parent_ip, NULL);
+	__ftrace_ops_list_func(ip, parent_ip, NULL, regs);
 }
 #else
 static void ftrace_ops_no_ops(unsigned long ip, unsigned long parent_ip)
 {
-	__ftrace_ops_list_func(ip, parent_ip, NULL);
+	__ftrace_ops_list_func(ip, parent_ip, NULL, NULL);
 }
 #endif
 

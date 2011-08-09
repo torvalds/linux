@@ -104,7 +104,8 @@ static inline void warn_failed_init_tracer(struct tracer *trace, int init_ret)
 static int trace_selftest_test_probe1_cnt;
 static void trace_selftest_test_probe1_func(unsigned long ip,
 					    unsigned long pip,
-					    struct ftrace_ops *op)
+					    struct ftrace_ops *op,
+					    struct pt_regs *pt_regs)
 {
 	trace_selftest_test_probe1_cnt++;
 }
@@ -112,7 +113,8 @@ static void trace_selftest_test_probe1_func(unsigned long ip,
 static int trace_selftest_test_probe2_cnt;
 static void trace_selftest_test_probe2_func(unsigned long ip,
 					    unsigned long pip,
-					    struct ftrace_ops *op)
+					    struct ftrace_ops *op,
+					    struct pt_regs *pt_regs)
 {
 	trace_selftest_test_probe2_cnt++;
 }
@@ -120,7 +122,8 @@ static void trace_selftest_test_probe2_func(unsigned long ip,
 static int trace_selftest_test_probe3_cnt;
 static void trace_selftest_test_probe3_func(unsigned long ip,
 					    unsigned long pip,
-					    struct ftrace_ops *op)
+					    struct ftrace_ops *op,
+					    struct pt_regs *pt_regs)
 {
 	trace_selftest_test_probe3_cnt++;
 }
@@ -128,7 +131,8 @@ static void trace_selftest_test_probe3_func(unsigned long ip,
 static int trace_selftest_test_global_cnt;
 static void trace_selftest_test_global_func(unsigned long ip,
 					    unsigned long pip,
-					    struct ftrace_ops *op)
+					    struct ftrace_ops *op,
+					    struct pt_regs *pt_regs)
 {
 	trace_selftest_test_global_cnt++;
 }
@@ -136,7 +140,8 @@ static void trace_selftest_test_global_func(unsigned long ip,
 static int trace_selftest_test_dyn_cnt;
 static void trace_selftest_test_dyn_func(unsigned long ip,
 					 unsigned long pip,
-					 struct ftrace_ops *op)
+					 struct ftrace_ops *op,
+					 struct pt_regs *pt_regs)
 {
 	trace_selftest_test_dyn_cnt++;
 }

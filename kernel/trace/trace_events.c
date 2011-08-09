@@ -1682,7 +1682,7 @@ static DEFINE_PER_CPU(atomic_t, ftrace_test_event_disable);
 
 static void
 function_test_events_call(unsigned long ip, unsigned long parent_ip,
-			  struct ftrace_ops *op)
+			  struct ftrace_ops *op, struct pt_regs *pt_regs)
 {
 	struct ring_buffer_event *event;
 	struct ring_buffer *buffer;

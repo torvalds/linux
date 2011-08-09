@@ -10,6 +10,7 @@
 #include <linux/kallsyms.h>
 #include <linux/linkage.h>
 #include <linux/bitops.h>
+#include <linux/ptrace.h>
 #include <linux/ktime.h>
 #include <linux/sched.h>
 #include <linux/types.h>
@@ -54,7 +55,7 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 struct ftrace_ops;
 
 typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip,
-			      struct ftrace_ops *op);
+			      struct ftrace_ops *op, struct pt_regs *regs);
 
 /*
  * FTRACE_OPS_FL_* bits denote the state of ftrace_ops struct and are
@@ -188,7 +189,8 @@ static inline int ftrace_function_local_disabled(struct ftrace_ops *ops)
 	return *this_cpu_ptr(ops->disabled);
 }
 
-extern void ftrace_stub(unsigned long a0, unsigned long a1, struct ftrace_ops *op);
+extern void ftrace_stub(unsigned long a0, unsigned long a1,
+			struct ftrace_ops *op, struct pt_regs *regs);
 
 #else /* !CONFIG_FUNCTION_TRACER */
 /*
