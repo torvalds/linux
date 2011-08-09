@@ -584,7 +584,7 @@ static int asic3_gpio_remove(struct platform_device *pdev)
 	return gpiochip_remove(&asic->gpio);
 }
 
-static int asic3_clk_enable(struct asic3 *asic, struct asic3_clk *clk)
+static void asic3_clk_enable(struct asic3 *asic, struct asic3_clk *clk)
 {
 	unsigned long flags;
 	u32 cdex;
@@ -596,8 +596,6 @@ static int asic3_clk_enable(struct asic3 *asic, struct asic3_clk *clk)
 		asic3_write_register(asic, ASIC3_OFFSET(CLOCK, CDEX), cdex);
 	}
 	spin_unlock_irqrestore(&asic->lock, flags);
-
-	return 0;
 }
 
 static void asic3_clk_disable(struct asic3 *asic, struct asic3_clk *clk)
