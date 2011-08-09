@@ -54,14 +54,6 @@ config U300_DEBUG
 	help
 		Debug support for U300 in sysfs, procfs etc.
 
-config MACH_U300_SEMI_IS_SHARED
-	bool "The SEMI is used by both the access and application side"
-	depends on MACH_U300
-	help
-		This makes it possible to use the SEMI (Shared External
-		Memory Interface) from both from access and application
-		side.
-
 config MACH_U300_SPIDUMMY
 	bool "SSP/SPI dummy chip"
 	select SPI
