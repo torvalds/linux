@@ -153,6 +153,7 @@ void kvmppc_set_pvr(struct kvm_vcpu *vcpu, u32 pvr)
 		if (!to_book3s(vcpu)->hior_sregs)
 			to_book3s(vcpu)->hior = 0xfff00000;
 		to_book3s(vcpu)->msr_mask = 0xffffffffffffffffULL;
+		vcpu->arch.cpu_type = KVM_CPU_3S_64;
 	} else
 #endif
 	{
@@ -160,7 +161,10 @@ void kvmppc_set_pvr(struct kvm_vcpu *vcpu, u32 pvr)
 		if (!to_book3s(vcpu)->hior_sregs)
 			to_book3s(vcpu)->hior = 0;
 		to_book3s(vcpu)->msr_mask = 0xffffffffULL;
+		vcpu->arch.cpu_type = KVM_CPU_3S_32;
 	}
+
+	kvmppc_sanity_check(vcpu);
 
 	/* If we are in hypervisor level on 970, we can tell the CPU to
 	 * treat DCBZ as 32 bytes store */
@@ -937,6 +941,12 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	int used_vsr;
 #endif
 	ulong ext_msr;
+
+	/* Check if we can run the vcpu at all */
+	if (!vcpu->arch.sane) {
+		kvm_run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		return -EINVAL;
+	}
 
 	/* No need to go into the guest when all we do is going out */
 	if (signal_pending(current)) {

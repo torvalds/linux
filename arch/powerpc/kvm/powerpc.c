@@ -95,6 +95,31 @@ int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 	return r;
 }
 
+int kvmppc_sanity_check(struct kvm_vcpu *vcpu)
+{
+	int r = false;
+
+	/* We have to know what CPU to virtualize */
+	if (!vcpu->arch.pvr)
+		goto out;
+
+	/* PAPR only works with book3s_64 */
+	if ((vcpu->arch.cpu_type != KVM_CPU_3S_64) && vcpu->arch.papr_enabled)
+		goto out;
+
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+	/* HV KVM can only do PAPR mode for now */
+	if (!vcpu->arch.papr_enabled)
+		goto out;
+#endif
+
+	r = true;
+
+out:
+	vcpu->arch.sane = r;
+	return r ? 0 : -EINVAL;
+}
+
 int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu)
 {
 	enum emulation_result er;
@@ -581,6 +606,9 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 		r = -EINVAL;
 		break;
 	}
+
+	if (!r)
+		r = kvmppc_sanity_check(vcpu);
 
 	return r;
 }

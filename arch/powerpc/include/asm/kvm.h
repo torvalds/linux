@@ -284,6 +284,11 @@ struct kvm_guest_debug_arch {
 #define KVM_INTERRUPT_UNSET	-2U
 #define KVM_INTERRUPT_SET_LEVEL	-3U
 
+#define KVM_CPU_440		1
+#define KVM_CPU_E500V2		2
+#define KVM_CPU_3S_32		3
+#define KVM_CPU_3S_64		4
+
 /* for KVM_CAP_SPAPR_TCE */
 struct kvm_create_spapr_tce {
 	__u64 liobn;

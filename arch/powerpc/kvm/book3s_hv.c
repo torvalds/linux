@@ -510,6 +510,9 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	spin_unlock(&vcore->lock);
 	vcpu->arch.vcore = vcore;
 
+	vcpu->arch.cpu_type = KVM_CPU_3S_64;
+	kvmppc_sanity_check(vcpu);
+
 	return vcpu;
 
 free_vcpu:
@@ -799,6 +802,11 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 int kvmppc_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 {
 	int r;
+
+	if (!vcpu->arch.sane) {
+		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		return -EINVAL;
+	}
 
 	do {
 		r = kvmppc_run_vcpu(run, vcpu);
