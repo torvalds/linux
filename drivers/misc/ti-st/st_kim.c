@@ -434,11 +434,17 @@ long st_kim_start(void *kim_data)
 {
 	long err = 0;
 	long retry = POR_RETRY_COUNT;
+	struct ti_st_plat_data	*pdata;
 	struct kim_data_s	*kim_gdata = (struct kim_data_s *)kim_data;
 
 	pr_info(" %s", __func__);
+	pdata = kim_gdata->kim_pdev->dev.platform_data;
 
 	do {
+		/* platform specific enabling code here */
+		if (pdata->chip_enable)
+			pdata->chip_enable(kim_gdata);
+
 		/* Configure BT nShutdown to HIGH state */
 		gpio_set_value(kim_gdata->nshutdown, GPIO_LOW);
 		mdelay(5);	/* FIXME: a proper toggle */
@@ -489,6 +495,8 @@ long st_kim_stop(void *kim_data)
 {
 	long err = 0;
 	struct kim_data_s	*kim_gdata = (struct kim_data_s *)kim_data;
+	struct ti_st_plat_data	*pdata =
+		kim_gdata->kim_pdev->dev.platform_data;
 
 	INIT_COMPLETION(kim_gdata->ldisc_installed);
 
@@ -515,6 +523,10 @@ long st_kim_stop(void *kim_data)
 	gpio_set_value(kim_gdata->nshutdown, GPIO_HIGH);
 	mdelay(1);
 	gpio_set_value(kim_gdata->nshutdown, GPIO_LOW);
+
+	/* platform specific disable */
+	if (pdata->chip_disable)
+		pdata->chip_disable(kim_gdata);
 	return err;
 }
 
