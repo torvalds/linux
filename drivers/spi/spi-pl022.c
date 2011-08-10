@@ -113,7 +113,6 @@
 #define SSP_CR0_MASK_CSS_ST	(0x1FUL << 16)
 #define SSP_CR0_MASK_FRF_ST	(0x3UL << 21)
 
-
 /*
  * SSP Control Register 0  - SSP_CR1
  */
@@ -282,7 +281,6 @@
 #define CLEAR_ALL_INTERRUPTS  0x3
 
 #define SPI_POLLING_TIMEOUT 1000
-
 
 /*
  * The type of reading going on on this chip
@@ -751,7 +749,6 @@ static void readwriter(struct pl022 *pl022)
 	 * should be empty
 	 */
 }
-
 
 /**
  * next_transfer - Move to the Next transfer in the current spi message
@@ -1534,8 +1531,7 @@ static void pump_messages(struct work_struct *work)
 	/* Initial message state */
 	pl022->cur_msg->state = STATE_START;
 	pl022->cur_transfer = list_entry(pl022->cur_msg->transfers.next,
-					    struct spi_transfer,
-					    transfer_list);
+					    struct spi_transfer, transfer_list);
 
 	/* Setup the SPI using the per chip configuration */
 	pl022->cur_chip = spi_get_ctldata(pl022->cur_msg->spi);
@@ -1557,7 +1553,6 @@ static void pump_messages(struct work_struct *work)
 		do_interrupt_dma_transfer(pl022);
 }
 
-
 static int __init init_queue(struct pl022 *pl022)
 {
 	INIT_LIST_HEAD(&pl022->queue);
@@ -1566,8 +1561,8 @@ static int __init init_queue(struct pl022 *pl022)
 	pl022->running = false;
 	pl022->busy = false;
 
-	tasklet_init(&pl022->pump_transfers,
-			pump_transfers,	(unsigned long)pl022);
+	tasklet_init(&pl022->pump_transfers, pump_transfers,
+			(unsigned long)pl022);
 
 	INIT_WORK(&pl022->pump_messages, pump_messages);
 	pl022->workqueue = create_singlethread_workqueue(
@@ -1577,7 +1572,6 @@ static int __init init_queue(struct pl022 *pl022)
 
 	return 0;
 }
-
 
 static int start_queue(struct pl022 *pl022)
 {
@@ -1600,7 +1594,6 @@ static int start_queue(struct pl022 *pl022)
 
 	return 0;
 }
-
 
 static int stop_queue(struct pl022 *pl022)
 {
@@ -1861,7 +1854,6 @@ static int calculate_effective_freq(struct pl022 *pl022,
 	return 0;
 }
 
-
 /*
  * A piece of default chip info unless the platform
  * supplies it.
@@ -1878,7 +1870,6 @@ static const struct pl022_config_chip pl022_default_chip_info = {
 	.duplex = SSP_MICROWIRE_CHANNEL_FULL_DUPLEX,
 	.cs_control = null_cs_control,
 };
-
 
 /**
  * pl022_setup - setup function registered to SPI master framework
@@ -1955,7 +1946,6 @@ static int pl022_setup(struct spi_device *spi)
 			"cpsdvsr is configured incorrectly\n");
 		goto err_config_params;
 	}
-
 
 	status = verify_controller_parameters(pl022, chip_info);
 	if (status) {
@@ -2096,7 +2086,8 @@ static int pl022_setup(struct spi_device *spi)
 	}
 	SSP_WRITE_BITS(chip->cr1, SSP_DISABLED, SSP_CR1_MASK_SSE, 1);
 	SSP_WRITE_BITS(chip->cr1, chip_info->hierarchy, SSP_CR1_MASK_MS, 2);
-	SSP_WRITE_BITS(chip->cr1, chip_info->slave_tx_disable, SSP_CR1_MASK_SOD, 3);
+	SSP_WRITE_BITS(chip->cr1, chip_info->slave_tx_disable, SSP_CR1_MASK_SOD,
+		3);
 
 	/* Save controller_state */
 	spi_set_ctldata(spi, chip);
@@ -2121,7 +2112,6 @@ static void pl022_cleanup(struct spi_device *spi)
 	spi_set_ctldata(spi, NULL);
 	kfree(chip);
 }
-
 
 static int __devinit
 pl022_probe(struct amba_device *adev, const struct amba_id *id)
@@ -2337,7 +2327,6 @@ static struct vendor_data vendor_arm = {
 	.loopback = true,
 };
 
-
 static struct vendor_data vendor_st = {
 	.fifodepth = 32,
 	.max_bpw = 32,
@@ -2392,9 +2381,9 @@ static struct amba_id pl022_ids[] = {
 		 * and 32 locations deep TX/RX FIFO but no extended
 		 * CR0/CR1 register
 		 */
-		.id     = 0x00080023,
-		.mask   = 0xffffffff,
-		.data   = &vendor_st_pl023,
+		.id	= 0x00080023,
+		.mask	= 0xffffffff,
+		.data	= &vendor_st_pl023,
 	},
 	{
 		.id	= 0x10080023,
@@ -2415,19 +2404,16 @@ static struct amba_driver pl022_driver = {
 	.resume         = pl022_resume,
 };
 
-
 static int __init pl022_init(void)
 {
 	return amba_driver_register(&pl022_driver);
 }
-
 subsys_initcall(pl022_init);
 
 static void __exit pl022_exit(void)
 {
 	amba_driver_unregister(&pl022_driver);
 }
-
 module_exit(pl022_exit);
 
 MODULE_AUTHOR("Linus Walleij <linus.walleij@stericsson.com>");
