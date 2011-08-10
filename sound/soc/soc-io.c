@@ -122,15 +122,19 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 	config.val_bits = data_bits;
 
 	switch (control) {
+#ifdef CONFIG_REGMAP_I2C
 	case SND_SOC_I2C:
 		codec->control_data = regmap_init_i2c(to_i2c_client(codec->dev),
 						      &config);
 		break;
+#endif
 
+#ifdef CONFIG_REGMAP_SPI
 	case SND_SOC_SPI:
 		codec->control_data = regmap_init_spi(to_spi_device(codec->dev),
 						      &config);
 		break;
+#endif
 
 	case SND_SOC_REGMAP:
 		/* Device has made its own regmap arrangements */
