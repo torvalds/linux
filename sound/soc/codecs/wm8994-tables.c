@@ -1635,8 +1635,8 @@ const u16 wm8994_reg_defaults[WM8994_CACHE_SIZE] = {
 	0x0000,     /* R58    - MICBIAS */
 	0x000D,     /* R59    - LDO 1 */
 	0x0003,     /* R60    - LDO 2 */
-	0x0000,     /* R61 */
-	0x0000,     /* R62 */
+	0x0039,     /* R61    - MICBIAS1 */
+	0x0039,     /* R62    - MICBIAS2 */
 	0x0000,     /* R63 */
 	0x0000,     /* R64 */
 	0x0000,     /* R65 */
