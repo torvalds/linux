@@ -20,6 +20,50 @@
 
 #include "internal.h"
 
+bool regmap_writeable(struct regmap *map, unsigned int reg)
+{
+	if (map->max_register && reg > map->max_register)
+		return false;
+
+	if (map->writeable_reg)
+		return map->writeable_reg(map->dev, reg);
+
+	return true;
+}
+
+bool regmap_readable(struct regmap *map, unsigned int reg)
+{
+	if (map->max_register && reg > map->max_register)
+		return false;
+
+	if (map->readable_reg)
+		return map->readable_reg(map->dev, reg);
+
+	return true;
+}
+
+bool regmap_volatile(struct regmap *map, unsigned int reg)
+{
+	if (map->max_register && reg > map->max_register)
+		return false;
+
+	if (map->volatile_reg)
+		return map->volatile_reg(map->dev, reg);
+
+	return true;
+}
+
+bool regmap_precious(struct regmap *map, unsigned int reg)
+{
+	if (map->max_register && reg > map->max_register)
+		return false;
+
+	if (map->precious_reg)
+		return map->precious_reg(map->dev, reg);
+
+	return false;
+}
+
 static void regmap_format_4_12_write(struct regmap *map,
 				     unsigned int reg, unsigned int val)
 {

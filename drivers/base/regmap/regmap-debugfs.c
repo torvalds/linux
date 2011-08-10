@@ -52,12 +52,10 @@ static ssize_t regmap_map_read_file(struct file *file, char __user *user_buf,
 	tot_len = reg_len + val_len + 3;      /* : \n */
 
 	for (i = 0; i < map->max_register; i++) {
-		if (map->readable_reg &&
-		    !map->readable_reg(map->dev, i))
+		if (!regmap_readable(map, i))
 			continue;
 
-		if (map->precious_reg &&
-		    map->precious_reg(map->dev, i))
+		if (regmap_precious(map, i))
 			continue;
 
 		/* If we're in the region the user is trying to read */

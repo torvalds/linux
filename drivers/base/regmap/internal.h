@@ -48,6 +48,11 @@ struct regmap {
 	bool (*precious_reg)(struct device *dev, unsigned int reg);
 };
 
+bool regmap_writeable(struct regmap *map, unsigned int reg);
+bool regmap_readable(struct regmap *map, unsigned int reg);
+bool regmap_volatile(struct regmap *map, unsigned int reg);
+bool regmap_precious(struct regmap *map, unsigned int reg);
+
 #ifdef CONFIG_DEBUG_FS
 extern void regmap_debugfs_initcall(void);
 extern void regmap_debugfs_init(struct regmap *map);
