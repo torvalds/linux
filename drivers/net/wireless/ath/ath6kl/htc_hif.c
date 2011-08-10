@@ -416,8 +416,8 @@ static int proc_pending_irqs(struct ath6kl_device *dev, bool *done)
 		 * improve performance by reducing context switching when
 		 * we rapidly pull packets.
 		 */
-		status = htc_rxmsg_pending_handler(dev->htc_cnxt,
-						   &lk_ahd, &fetched);
+		status = ath6kl_htc_rxmsg_pending_handler(dev->htc_cnxt,
+							  &lk_ahd, &fetched);
 		if (status)
 			goto out;
 

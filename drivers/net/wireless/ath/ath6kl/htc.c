@@ -689,9 +689,9 @@ static int htc_setup_tx_complete(struct htc_target *target)
 	return status;
 }
 
-void htc_set_credit_dist(struct htc_target *target,
-			 struct htc_credit_state_info *cred_dist_cntxt,
-			 u16 srvc_pri_order[], int list_len)
+void ath6kl_htc_set_credit_dist(struct htc_target *target,
+				struct htc_credit_state_info *cred_dist_cntxt,
+				u16 srvc_pri_order[], int list_len)
 {
 	struct htc_endpoint *endpoint;
 	int i, ep;
@@ -717,7 +717,7 @@ void htc_set_credit_dist(struct htc_target *target,
 	}
 }
 
-int htc_tx(struct htc_target *target, struct htc_packet *packet)
+int ath6kl_htc_tx(struct htc_target *target, struct htc_packet *packet)
 {
 	struct htc_endpoint *endpoint;
 	struct list_head queue;
@@ -745,8 +745,8 @@ int htc_tx(struct htc_target *target, struct htc_packet *packet)
 }
 
 /* flush endpoint TX queue */
-void htc_flush_txep(struct htc_target *target,
-		    enum htc_endpoint_id eid, u16 tag)
+void ath6kl_htc_flush_txep(struct htc_target *target,
+			   enum htc_endpoint_id eid, u16 tag)
 {
 	struct htc_packet *packet, *tmp_pkt;
 	struct list_head discard_q, container;
@@ -785,7 +785,7 @@ void htc_flush_txep(struct htc_target *target,
 
 }
 
-static void htc_flush_txep_all(struct htc_target *target)
+static void ath6kl_htc_flush_txep_all(struct htc_target *target)
 {
 	struct htc_endpoint *endpoint;
 	int i;
@@ -797,12 +797,12 @@ static void htc_flush_txep_all(struct htc_target *target)
 		if (endpoint->svc_id == 0)
 			/* not in use.. */
 			continue;
-		htc_flush_txep(target, i, HTC_TX_PACKET_TAG_ALL);
+		ath6kl_htc_flush_txep(target, i, HTC_TX_PACKET_TAG_ALL);
 	}
 }
 
-void htc_indicate_activity_change(struct htc_target *target,
-				  enum htc_endpoint_id eid, bool active)
+void ath6kl_htc_indicate_activity_change(struct htc_target *target,
+					 enum htc_endpoint_id eid, bool active)
 {
 	struct htc_endpoint *endpoint = &target->endpoint[eid];
 	bool dist = false;
@@ -869,7 +869,7 @@ static int htc_add_rxbuf(struct htc_target *target, struct htc_packet *packet)
 
 	INIT_LIST_HEAD(&queue);
 	list_add_tail(&packet->list, &queue);
-	return htc_add_rxbuf_multiple(target, &queue);
+	return ath6kl_htc_add_rxbuf_multiple(target, &queue);
 }
 
 static void htc_reclaim_rxbuf(struct htc_target *target,
@@ -1721,8 +1721,8 @@ static int htc_fetch_rxpkts(struct htc_target *target,
 	return status;
 }
 
-int htc_rxmsg_pending_handler(struct htc_target *target, u32 msg_look_ahead[],
-			      int *num_pkts)
+int ath6kl_htc_rxmsg_pending_handler(struct htc_target *target,
+				     u32 msg_look_ahead[], int *num_pkts)
 {
 	struct htc_packet *packets, *tmp_pkt;
 	struct htc_endpoint *endpoint;
@@ -1904,8 +1904,8 @@ fail_ctrl_rx:
 	return NULL;
 }
 
-int htc_add_rxbuf_multiple(struct htc_target *target,
-			   struct list_head *pkt_queue)
+int ath6kl_htc_add_rxbuf_multiple(struct htc_target *target,
+				  struct list_head *pkt_queue)
 {
 	struct htc_endpoint *endpoint;
 	struct htc_packet *first_pkt;
@@ -1966,7 +1966,7 @@ int htc_add_rxbuf_multiple(struct htc_target *target,
 	return status;
 }
 
-void htc_flush_rx_buf(struct htc_target *target)
+void ath6kl_htc_flush_rx_buf(struct htc_target *target)
 {
 	struct htc_endpoint *endpoint;
 	struct htc_packet *packet, *tmp_pkt;
@@ -1994,9 +1994,9 @@ void htc_flush_rx_buf(struct htc_target *target)
 	}
 }
 
-int htc_conn_service(struct htc_target *target,
-		     struct htc_service_connect_req *conn_req,
-		     struct htc_service_connect_resp *conn_resp)
+int ath6kl_htc_conn_service(struct htc_target *target,
+			    struct htc_service_connect_req *conn_req,
+			    struct htc_service_connect_resp *conn_resp)
 {
 	struct htc_packet *rx_pkt = NULL;
 	struct htc_packet *tx_pkt = NULL;
@@ -2154,7 +2154,8 @@ static void reset_ep_state(struct htc_target *target)
 	INIT_LIST_HEAD(&target->cred_dist_list);
 }
 
-int htc_get_rxbuf_num(struct htc_target *target, enum htc_endpoint_id endpoint)
+int ath6kl_htc_get_rxbuf_num(struct htc_target *target,
+			     enum htc_endpoint_id endpoint)
 {
 	int num;
 
@@ -2212,7 +2213,7 @@ static void htc_setup_msg_bndl(struct htc_target *target)
 	}
 }
 
-int htc_wait_target(struct htc_target *target)
+int ath6kl_htc_wait_target(struct htc_target *target)
 {
 	struct htc_packet *packet = NULL;
 	struct htc_ready_ext_msg *rdy_msg;
@@ -2275,7 +2276,7 @@ int htc_wait_target(struct htc_target *target)
 	connect.svc_id = HTC_CTRL_RSVD_SVC;
 
 	/* connect fake service */
-	status = htc_conn_service((void *)target, &connect, &resp);
+	status = ath6kl_htc_conn_service((void *)target, &connect, &resp);
 
 	if (status)
 		ath6kl_hif_cleanup_scatter(target->dev->ar);
@@ -2293,7 +2294,7 @@ fail_wait_target:
  * Start HTC, enable interrupts and let the target know
  * host has finished setup.
  */
-int htc_start(struct htc_target *target)
+int ath6kl_htc_start(struct htc_target *target)
 {
 	struct htc_packet *packet;
 	int status;
@@ -2327,13 +2328,13 @@ int htc_start(struct htc_target *target)
 	status = ath6kldev_unmask_intrs(target->dev);
 
 	if (status)
-		htc_stop(target);
+		ath6kl_htc_stop(target);
 
 	return status;
 }
 
 /* htc_stop: stop interrupt reception, and flush all queued buffers */
-void htc_stop(struct htc_target *target)
+void ath6kl_htc_stop(struct htc_target *target)
 {
 	spin_lock_bh(&target->htc_lock);
 	target->htc_flags |= HTC_OP_STATE_STOPPING;
@@ -2346,14 +2347,14 @@ void htc_stop(struct htc_target *target)
 	 */
 	ath6kldev_mask_intrs(target->dev);
 
-	htc_flush_txep_all(target);
+	ath6kl_htc_flush_txep_all(target);
 
-	htc_flush_rx_buf(target);
+	ath6kl_htc_flush_rx_buf(target);
 
 	reset_ep_state(target);
 }
 
-void *htc_create(struct ath6kl *ar)
+void *ath6kl_htc_create(struct ath6kl *ar)
 {
 	struct htc_target *target = NULL;
 	struct htc_packet *packet;
@@ -2422,7 +2423,7 @@ void *htc_create(struct ath6kl *ar)
 fail_create_htc:
 	if (i != NUM_CONTROL_BUFFERS || status) {
 		if (target) {
-			htc_cleanup(target);
+			ath6kl_htc_cleanup(target);
 			target = NULL;
 		}
 	}
@@ -2431,7 +2432,7 @@ fail_create_htc:
 }
 
 /* cleanup the HTC instance */
-void htc_cleanup(struct htc_target *target)
+void ath6kl_htc_cleanup(struct htc_target *target)
 {
 	struct htc_packet *packet, *tmp_packet;
 

@@ -221,7 +221,7 @@ int ath6kl_control_tx(void *devt, struct sk_buff *skb,
 	 * This interface is asynchronous, if there is an error, cleanup
 	 * will happen in the TX completion callback.
 	 */
-	htc_tx(ar->htc_target, &cookie->htc_pkt);
+	ath6kl_htc_tx(ar->htc_target, &cookie->htc_pkt);
 
 	return 0;
 
@@ -331,7 +331,7 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 	 * HTC interface is asynchronous, if this fails, cleanup will
 	 * happen in the ath6kl_tx_complete callback.
 	 */
-	htc_tx(ar->htc_target, &cookie->htc_pkt);
+	ath6kl_htc_tx(ar->htc_target, &cookie->htc_pkt);
 
 	return 0;
 
@@ -403,7 +403,7 @@ void ath6kl_indicate_tx_activity(void *devt, u8 traffic_class, bool active)
 
 notify_htc:
 	/* notify HTC, this may cause credit distribution changes */
-	htc_indicate_activity_change(ar->htc_target, eid, active);
+	ath6kl_htc_indicate_activity_change(ar->htc_target, eid, active);
 }
 
 enum htc_send_full_action ath6kl_tx_queue_full(struct htc_target *target,
@@ -611,8 +611,8 @@ void ath6kl_tx_data_cleanup(struct ath6kl *ar)
 
 	/* flush all the data (non-control) streams */
 	for (i = 0; i < WMM_NUM_AC; i++)
-		htc_flush_txep(ar->htc_target, ar->ac2ep_map[i],
-				 ATH6KL_DATA_PKT_TAG);
+		ath6kl_htc_flush_txep(ar->htc_target, ar->ac2ep_map[i],
+				      ATH6KL_DATA_PKT_TAG);
 }
 
 /* Rx functions */
@@ -672,7 +672,7 @@ void ath6kl_rx_refill(struct htc_target *target, enum htc_endpoint_id endpoint)
 	struct list_head queue;
 
 	n_buf_refill = ATH6KL_MAX_RX_BUFFERS -
-			  htc_get_rxbuf_num(ar->htc_target, endpoint);
+			  ath6kl_htc_get_rxbuf_num(ar->htc_target, endpoint);
 
 	if (n_buf_refill <= 0)
 		return;
@@ -695,7 +695,7 @@ void ath6kl_rx_refill(struct htc_target *target, enum htc_endpoint_id endpoint)
 	}
 
 	if (!list_empty(&queue))
-		htc_add_rxbuf_multiple(ar->htc_target, &queue);
+		ath6kl_htc_add_rxbuf_multiple(ar->htc_target, &queue);
 }
 
 void ath6kl_refill_amsdu_rxbufs(struct ath6kl *ar, int count)
