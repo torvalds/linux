@@ -303,7 +303,6 @@ void alarm_init(struct alarm *alarm, enum alarmtimer_type type,
 		enum alarmtimer_restart (*function)(struct alarm *, ktime_t))
 {
 	timerqueue_init(&alarm->node);
-	alarm->period = ktime_set(0, 0);
 	alarm->function = function;
 	alarm->type = type;
 	alarm->enabled = 0;
@@ -313,9 +312,8 @@ void alarm_init(struct alarm *alarm, enum alarmtimer_type type,
  * alarm_start - Sets an alarm to fire
  * @alarm: ptr to alarm to set
  * @start: time to run the alarm
- * @period: period at which the alarm will recur
  */
-void alarm_start(struct alarm *alarm, ktime_t start, ktime_t period)
+void alarm_start(struct alarm *alarm, ktime_t start)
 {
 	struct alarm_base *base = &alarm_bases[alarm->type];
 	unsigned long flags;
@@ -324,7 +322,6 @@ void alarm_start(struct alarm *alarm, ktime_t start, ktime_t period)
 	if (alarm->enabled)
 		alarmtimer_remove(base, alarm);
 	alarm->node.expires = start;
-	alarm->period = period;
 	alarmtimer_enqueue(base, alarm);
 	alarm->enabled = 1;
 	spin_unlock_irqrestore(&base->lock, flags);
@@ -405,13 +402,14 @@ static enum alarmtimer_restart alarm_handle_timer(struct alarm *alarm,
 							ktime_t now)
 {
 	struct k_itimer *ptr = container_of(alarm, struct k_itimer,
-						it.alarmtimer);
+						it.alarm.alarmtimer);
 	if (posix_timer_event(ptr, 0) != 0)
 		ptr->it_overrun++;
 
 	/* Re-add periodic timers */
-	if (alarm->period.tv64) {
-		ptr->it_overrun += alarm_forward(alarm, now, alarm->period);
+	if (ptr->it.alarm.interval.tv64) {
+		ptr->it_overrun += alarm_forward(alarm, now,
+						ptr->it.alarm.interval);
 		return ALARMTIMER_RESTART;
 	}
 	return ALARMTIMER_NORESTART;
@@ -471,7 +469,7 @@ static int alarm_timer_create(struct k_itimer *new_timer)
 
 	type = clock2alarm(new_timer->it_clock);
 	base = &alarm_bases[type];
-	alarm_init(&new_timer->it.alarmtimer, type, alarm_handle_timer);
+	alarm_init(&new_timer->it.alarm.alarmtimer, type, alarm_handle_timer);
 	return 0;
 }
 
@@ -488,9 +486,9 @@ static void alarm_timer_get(struct k_itimer *timr,
 	memset(cur_setting, 0, sizeof(struct itimerspec));
 
 	cur_setting->it_interval =
-			ktime_to_timespec(timr->it.alarmtimer.period);
+			ktime_to_timespec(timr->it.alarm.interval);
 	cur_setting->it_value =
-			ktime_to_timespec(timr->it.alarmtimer.node.expires);
+		ktime_to_timespec(timr->it.alarm.alarmtimer.node.expires);
 	return;
 }
 
@@ -505,7 +503,7 @@ static int alarm_timer_del(struct k_itimer *timr)
 	if (!rtcdev)
 		return -ENOTSUPP;
 
-	alarm_cancel(&timr->it.alarmtimer);
+	alarm_cancel(&timr->it.alarm.alarmtimer);
 	return 0;
 }
 
@@ -529,12 +527,12 @@ static int alarm_timer_set(struct k_itimer *timr, int flags,
 		alarm_timer_get(timr, old_setting);
 
 	/* If the timer was already set, cancel it */
-	alarm_cancel(&timr->it.alarmtimer);
+	alarm_cancel(&timr->it.alarm.alarmtimer);
 
 	/* start the timer */
-	alarm_start(&timr->it.alarmtimer,
-			timespec_to_ktime(new_setting->it_value),
-			timespec_to_ktime(new_setting->it_interval));
+	timr->it.alarm.interval = timespec_to_ktime(new_setting->it_interval);
+	alarm_start(&timr->it.alarm.alarmtimer,
+			timespec_to_ktime(new_setting->it_value));
 	return 0;
 }
 
@@ -567,7 +565,7 @@ static int alarmtimer_do_nsleep(struct alarm *alarm, ktime_t absexp)
 	alarm->data = (void *)current;
 	do {
 		set_current_state(TASK_INTERRUPTIBLE);
-		alarm_start(alarm, absexp, ktime_set(0, 0));
+		alarm_start(alarm, absexp);
 		if (likely(alarm->data))
 			schedule();
 
