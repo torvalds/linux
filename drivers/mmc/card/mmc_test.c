@@ -224,7 +224,7 @@ static void mmc_test_prepare_mrq(struct mmc_test_card *test,
 static int mmc_test_busy(struct mmc_command *cmd)
 {
 	return !(cmd->resp[0] & R1_READY_FOR_DATA) ||
-		(R1_CURRENT_STATE(cmd->resp[0]) == 7);
+		(R1_CURRENT_STATE(cmd->resp[0]) == R1_STATE_PRG);
 }
 
 /*
