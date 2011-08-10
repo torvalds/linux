@@ -256,8 +256,6 @@ static void reg_from_wait_to_run(vpu_reg *reg)
 
 	list_del_init(&reg->session_link);
 	list_add_tail(&reg->session_link, &reg->session->running);
-
-	atomic_add(1, &service.task_running);
 }
 
 static void reg_copy_from_hw(vpu_reg *reg, volatile u32 *src, u32 count)
@@ -315,7 +313,7 @@ void reg_copy_to_hw(vpu_reg *reg)
 {
 	int i;
 	u32 *src = (u32 *)&reg->reg[0];
-
+	atomic_add(1, &service.task_running);
 	switch (reg->type) {
 	case VPU_ENC : {
 		u32 *dst = (u32 *)enc_dev.hwregs;
@@ -376,6 +374,7 @@ void reg_copy_to_hw(vpu_reg *reg)
 	} break;
 	default : {
 		pr_err("unsupport session type %d", reg->type);
+		atomic_sub(1, &service.task_running);
 		break;
 	}
 	}
