@@ -592,11 +592,8 @@ static int ax88772_suspend (struct usb_interface *intf,
 {
 	struct usbnet *dev = usb_get_intfdata(intf);
 	u16 *medium;
-	printk("----> %s %d\n",__FUNCTION__,__LINE__);
-	
-	dev->asix_suspend = 1;
-	wait_event_interruptible_timeout(dev->intr_wait, dev->intr_complete == 1, HZ); // wait for intr_complete, then got to otg suspend
 
+#if 0
 	medium = kmalloc (2, GFP_ATOMIC);
 	if (!medium)
 		return axusbnet_suspend (intf, message);
@@ -606,6 +603,8 @@ static int ax88772_suspend (struct usb_interface *intf,
 			(*medium & ~AX88772_MEDIUM_RX_ENABLE), 0, 0, NULL);
 
 	kfree (medium);
+#endif
+
 	return axusbnet_suspend (intf, message);
 }
 
@@ -621,6 +620,7 @@ static int ax88772b_suspend (struct usb_interface *intf,
 	u16 *tmp16;
 	u8 *opt;
 
+#if 0
 	tmp16 = kmalloc (2, GFP_ATOMIC);
 	if (!tmp16)
 		return axusbnet_suspend (intf, message);
@@ -655,6 +655,8 @@ static int ax88772b_suspend (struct usb_interface *intf,
 	}
 
 	kfree (tmp16);
+#endif
+
 	return axusbnet_suspend (intf, message);
 }
 
@@ -662,7 +664,7 @@ static int ax88772_resume (struct usb_interface *intf)
 {
 	struct usbnet *dev = usb_get_intfdata(intf);
 
-	netif_carrier_off (dev->net);
+	//netif_carrier_off (dev->net);
 
 	return axusbnet_resume (intf);
 }
@@ -674,6 +676,7 @@ static int ax88772b_resume (struct usb_interface *intf)
 	int ret;
 	void *buf;
 
+#if 0
 	buf = kmalloc (6, GFP_KERNEL);
 
 	/* Initialize MII structure */
@@ -745,6 +748,8 @@ static int ax88772b_resume (struct usb_interface *intf)
 */
 	kfree (buf);
 	netif_carrier_off (dev->net);
+#endif
+	
 	return axusbnet_resume (intf);
 
 err_out:
