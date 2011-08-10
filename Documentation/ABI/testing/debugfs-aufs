@@ -1,0 +1,37 @@
+What:		/debug/aufs/si_<id>/
+Date:		March 2009
+Contact:	J. R. Okajima <hooanon05@yahoo.co.jp>
+Description:
+		Under /debug/aufs, a directory named si_<id> is created
+		per aufs mount, where <id> is a unique id generated
+		internally.
+
+What:		/debug/aufs/si_<id>/xib
+Date:		March 2009
+Contact:	J. R. Okajima <hooanon05@yahoo.co.jp>
+Description:
+		It shows the consumed blocks by xib (External Inode Number
+		Bitmap), its block size and file size.
+		When the aufs mount option 'noxino' is specified, it
+		will be empty. About XINO files, see the aufs manual.
+
+What:		/debug/aufs/si_<id>/xino0, xino1 ... xinoN
+Date:		March 2009
+Contact:	J. R. Okajima <hooanon05@yahoo.co.jp>
+Description:
+		It shows the consumed blocks by xino (External Inode Number
+		Translation Table), its link count, block size and file
+		size.
+		When the aufs mount option 'noxino' is specified, it
+		will be empty. About XINO files, see the aufs manual.
+
+What:		/debug/aufs/si_<id>/xigen
+Date:		March 2009
+Contact:	J. R. Okajima <hooanon05@yahoo.co.jp>
+Description:
+		It shows the consumed blocks by xigen (External Inode
+		Generation Table), its block size and file size.
+		If CONFIG_AUFS_EXPORT is disabled, this entry will not
+		be created.
+		When the aufs mount option 'noxino' is specified, it
+		will be empty. About XINO files, see the aufs manual.

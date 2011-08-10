@@ -1,0 +1,24 @@
+What:		/sys/fs/aufs/si_<id>/
+Date:		March 2009
+Contact:	J. R. Okajima <hooanon05@yahoo.co.jp>
+Description:
+		Under /sys/fs/aufs, a directory named si_<id> is created
+		per aufs mount, where <id> is a unique id generated
+		internally.
+
+What:		/sys/fs/aufs/si_<id>/br0, br1 ... brN
+Date:		March 2009
+Contact:	J. R. Okajima <hooanon05@yahoo.co.jp>
+Description:
+		It shows the abolute path of a member directory (which
+		is called branch) in aufs, and its permission.
+
+What:		/sys/fs/aufs/si_<id>/xi_path
+Date:		March 2009
+Contact:	J. R. Okajima <hooanon05@yahoo.co.jp>
+Description:
+		It shows the abolute path of XINO (External Inode Number
+		Bitmap, Translation Table and Generation Table) file
+		even if it is the default path.
+		When the aufs mount option 'noxino' is specified, it
+		will be empty. About XINO files, see the aufs manual.

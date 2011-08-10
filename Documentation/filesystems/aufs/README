@@ -1,0 +1,373 @@
+
+Aufs2.1 -- advanced multi layered unification filesystem version 2.1
+http://aufs.sf.net
+Junjiro R. Okajima
+
+
+0. Introduction
+----------------------------------------
+In the early days, aufs was entirely re-designed and re-implemented
+Unionfs Version 1.x series. After many original ideas, approaches,
+improvements and implementations, it becomes totally different from
+Unionfs while keeping the basic features.
+Recently, Unionfs Version 2.x series begin taking some of the same
+approaches to aufs1's.
+Unionfs is being developed by Professor Erez Zadok at Stony Brook
+University and his team.
+
+Aufs2.1 supports linux-2.6.31 and later. If you want older kernel version
+support, try aufs2 from aufs2-27..aufs2-30 GIT branches or aufs1 from
+CVS on SourceForge.
+By the way, generally "aufs2" means version 2.0 but sometimes it means
+whole version 2 series. For instance, the name of GIT tree "aufs2-2.6"
+means whole version 2 series and the name of branch in the GIT tree
+"aufs2-27" means version 2.0.
+
+Note: it becomes clear that "Aufs was rejected. Let's give it up."
+According to Christoph Hellwig, linux rejects all union-type filesystems
+but UnionMount.
+<http://marc.info/?l=linux-kernel&m=123938533724484&w=2>
+
+
+1. Features
+----------------------------------------
+- unite several directories into a single virtual filesystem. The member
+  directory is called as a branch.
+- you can specify the permission flags to the branch, which are 'readonly',
+  'readwrite' and 'whiteout-able.'
+- by upper writable branch, internal copyup and whiteout, files/dirs on
+  readonly branch are modifiable logically.
+- dynamic branch manipulation, add, del.
+- etc...
+
+Also there are many enhancements in aufs1, such as:
+- readdir(3) in userspace.
+- keep inode number by external inode number table
+- keep the timestamps of file/dir in internal copyup operation
+- seekable directory, supporting NFS readdir.
+- whiteout is hardlinked in order to reduce the consumption of inodes
+  on branch
+- do not copyup, nor create a whiteout when it is unnecessary
+- revert a single systemcall when an error occurs in aufs
+- remount interface instead of ioctl
+- maintain /etc/mtab by an external command, /sbin/mount.aufs.
+- loopback mounted filesystem as a branch
+- kernel thread for removing the dir who has a plenty of whiteouts
+- support copyup sparse file (a file which has a 'hole' in it)
+- default permission flags for branches
+- selectable permission flags for ro branch, whether whiteout can
+  exist or not
+- export via NFS.
+- support <sysfs>/fs/aufs and <debugfs>/aufs.
+- support multiple writable branches, some policies to select one
+  among multiple writable branches.
+- a new semantics for link(2) and rename(2) to support multiple
+  writable branches.
+- no glibc changes are required.
+- pseudo hardlink (hardlink over branches)
+- allow a direct access manually to a file on branch, e.g. bypassing aufs.
+  including NFS or remote filesystem branch.
+- userspace wrapper for pathconf(3)/fpathconf(3) with _PC_LINK_MAX.
+- and more...
+
+Currently these features are dropped temporary from aufs2.
+See design/08plan.txt in detail.
+- test only the highest one for the directory permission (dirperm1)
+- copyup on open (coo=)
+- nested mount, i.e. aufs as readonly no-whiteout branch of another aufs
+  (robr)
+- statistics of aufs thread (/sys/fs/aufs/stat)
+- delegation mode (dlgt)
+  a delegation of the internal branch access to support task I/O
+  accounting, which also supports Linux Security Modules (LSM) mainly
+  for Suse AppArmor.
+- intent.open/create (file open in a single lookup)
+
+Features or just an idea in the future (see also design/*.txt),
+- reorder the branch index without del/re-add.
+- permanent xino files for NFSD
+- an option for refreshing the opened files after add/del branches
+- 'move' policy for copy-up between two writable branches, after
+  checking free space.
+- light version, without branch manipulation. (unnecessary?)
+- copyup in userspace
+- inotify in userspace
+- readv/writev
+- xattr, acl
+
+
+2. Download
+----------------------------------------
+Kindly one of aufs user, the Center for Scientific Computing and Free
+Software (C3SL), Federal University of Parana offered me a public GIT
+tree space.
+And there are several GIT servers. See http://aufs.sf.net in detail.
+
+There are three GIT trees, aufs2-2.6, aufs2-standalone and aufs2-util.
+While the aufs2-util is always necessary, you need either of aufs2-2.6
+or aufs2-standalone.
+
+The aufs2-2.6 tree includes the whole linux-2.6 GIT tree,
+git://git.kernel.org/.../torvalds/linux-2.6.git.
+And you cannot select CONFIG_AUFS_FS=m for this version, eg. you cannot
+build aufs2 as an externel kernel module.
+If you already have linux-2.6 GIT tree, you may want to pull and merge
+the "aufs2.1" branch from this tree.
+
+On the other hand, the aufs2-standalone tree has only aufs source files
+and a necessary patch, and you can select CONFIG_AUFS_FS=m. In other
+words, the aufs2-standalone tree is generated from aufs2-2.6 tree by,
+- extract new files and modifications.
+- generate some patch files from modifications.
+- generate a ChangeLog file from git-log.
+- commit the files newly and no log messages. this is not git-pull.
+
+Both of aufs2-2.6 and aufs2-standalone trees have branches whose name is
+in form of "aufs2.1" or "aufs2.1-xx" where "xx" represents the linux kernel
+version, "linux-2.6.xx". For instance, "aufs2.1" (no -xx) for the latest
+-rc version, and "aufs2.1-31" for linux-2.6.31,
+
+o aufs2-2.6 tree
+$ git clone --reference /your/linux-2.6/git/tree \
+	http://git.c3sl.ufpr.br/pub/scm/aufs/aufs2-2.6.git \
+	aufs2-2.6.git
+- if you don't have linux-2.6 GIT tree, then remove "--reference ..."
+$ cd aufs2-2.6.git
+$ git checkout origin/aufs2.1-31
+
+o aufs2-standalone tree
+$ git clone http://git.c3sl.ufpr.br/pub/scm/aufs/aufs2-standalone.git \
+	aufs2-standalone.git
+$ cd aufs2-standalone.git
+$ git checkout origin/aufs2.1-31
+
+o aufs2-util tree
+$ git clone http://git.c3sl.ufpr.br/pub/scm/aufs/aufs2-util.git \
+	aufs2-util.git
+$ cd aufs2-util.git
+$ git checkout origin/aufs2.1
+
+o for advanced users
+$ git clone git://git.kernel.org/.../torvalds/linux-2.6.git linux-2.6.git
+  It will take very long time.
+
+$ cd linux-2.6.git
+$ git remote add aufs2 http://git.c3sl.ufpr.br/pub/scm/aufs/aufs2-2.6.git
+$ git checkout -b aufs2.1-31 v2.6.31
+$ git pull aufs2 aufs2.1-31
+  It may take long time again.
+  Once pulling completes, you've got linux-2.6.31 and aufs2.1 for it in a
+  branch named aufs2.1-31, and you can configure and build it.
+
+Or
+
+$ git checkout -t -b aufs2.1 master
+$ git pull aufs2 aufs2.1
+  then you've got the latest linux kernel and the latest aufs2.1 in a
+  branch named aufs2.1, and you can configure and build it.
+  But aufs is released once a week, so you may meet a compilation error
+  due to mismatching between the mainline and aufs2.1.
+
+Or you may want build linux-2.6.xx.yy instead of linux-2.6.xx, then here
+is an approach using linux-2.6-stable GIT tree.
+
+$ cd linux-2.6.git/..
+$ git clone -q --reference ./linux-2.6.git git://git.kernel.org/.../linux-2.6-stable.git \
+	linux-2.6-stable.git
+  It will take very long time.
+
+$ cd linux-2.6-stable.git
+$ git remote add aufs2 http://git.c3sl.ufpr.br/pub/scm/aufs/aufs2-2.6.git
+$ git checkout -b aufs2.1-31.1 v2.6.31.1
+$ git pull aufs2 aufs2.1-31
+  then you've got linux-2.6.31.1 and aufs2.1 for 2.6.31 in a branch named
+  aufs2.1-31.1, and you can configure and build it.
+  But the changes made by v2.6.xx.yy may conflict with aufs2.1-xx, since
+  aufs2.1-xx is for v2.6.xx only. In this case, you may find some patchces
+  for v2.6.xx.yy in aufs2-standalone.git#aufs2.1-xx branch if someone else
+  have ever requested me to support v2.6.xx.yy and I did it.
+
+You can also check what was changed by pulling aufs2.
+$ git diff v2.6.31.1..aufs2.1-31.1
+
+If you want to check the changed files other than fs/aufs, then try this.
+$ git diff v2.6.31.1..aufs2.1-31.1 |
+> awk '
+> /^diff / {new=1}
+> /^diff.*aufs/ {new=0}
+> new {print}
+> '
+
+
+3. Configuration and Compilation
+----------------------------------------
+Make sure you have git-checkout'ed the correct branch.
+
+For aufs2-2.6 tree,
+- enable CONFIG_EXPERIMENTAL and CONFIG_AUFS_FS.
+- set other aufs configurations if necessary.
+
+For aufs2-standalone tree,
+There are several ways to build.
+
+You may feel why aufs2-standalone.patch needs to export so many kernel
+symbols. Because you selected aufs2-standalone tree instead of aufs2-2.6
+tree. All symbols exported here are just for the external aufs module.
+If you don't like aufs2-standalone.patch, then try aufs2-2.6 tree.
+
+1.
+- apply ./aufs2-kbuild.patch to your kernel source files.
+- apply ./aufs2-base.patch too.
+- apply ./proc_map.patch too, if you want to make /proc/PID/maps (and
+  others including lsof(1)) show the file path on aufs instead of the
+  path on the branch fs.
+- apply ./aufs2-standalone.patch too, if you have a plan to set
+  CONFIG_AUFS_FS=m. otherwise you don't need ./aufs2-standalone.patch.
+- copy ./{Documentation,fs,include/linux/aufs_type.h} files to your
+  kernel source tree. Never copy ./include/linux/Kbuild.
+- enable CONFIG_EXPERIMENTAL and CONFIG_AUFS_FS, you can select either
+  =m or =y.
+- and build your kernel as usual.
+- install the built kernel.
+- install the header files too by "make headers_install".
+- and reboot your system.
+
+2.
+- module only (CONFIG_AUFS_FS=m).
+- apply ./aufs2-base.patch to your kernel source files.
+- apply ./proc_map.patch too to your kernel source files,
+  if you want to make /proc/PID/maps (and others including lsof(1)) show
+  the file path on aufs instead of the path on the branch fs.
+- apply ./aufs2-standalone.patch too.
+- build your kernel, don't forget "make headers_install", and reboot.
+- edit ./config.mk and set other aufs configurations if necessary.
+  Note: You should read ./fs/aufs/Kconfig carefully which describes
+  every aufs configurations.
+- build the module by simple "make".
+- you can specify ${KDIR} make variable which points to your kernel
+  source tree.
+- install the files
+  + run "make install" to install the aufs module, or copy the built
+    ./aufs.ko to /lib/modules/... and run depmod -a (or reboot simply).
+  + run "make headers_install" to install the aufs header file (you can
+    specify DESTDIR), or copty ./usr/include/linux/aufs_type.h to
+    /usr/include/linux or wherever you like.
+- no need to apply aufs2-kbuild.patch, nor copying source files to your
+  kernel source tree.
+
+Note: The haeder file aufs_type.h is necessary to build aufs2-util
+      as well as "make headers_install" in the kernel source tree.
+      headers_install is subject to be forgotten, but it is essentially
+      necessary, not only for building aufs2-util.
+      You may not meet problems without headers_install in some older
+      version though.
+
+And then,
+- read README in aufs2-util, build and install it
+- if you want to use readdir(3) in userspace or pathconf(3) wrapper,
+  then run "make install_ulib" too. And refer to the aufs manual in
+  detail.
+
+
+4. Usage
+----------------------------------------
+At first, make sure aufs2-util are installed, and please read the aufs
+manual, aufs.5 in aufs2-util.git tree.
+$ man -l aufs.5
+
+And then,
+$ mkdir /tmp/rw /tmp/aufs
+# mount -t aufs -o br=/tmp/rw:${HOME} none /tmp/aufs
+
+Here is another example. The result is equivalent.
+# mount -t aufs -o br=/tmp/rw=rw:${HOME}=ro none /tmp/aufs
+  Or
+# mount -t aufs -o br:/tmp/rw none /tmp/aufs
+# mount -o remount,append:${HOME} /tmp/aufs
+
+Then, you can see whole tree of your home dir through /tmp/aufs. If
+you modify a file under /tmp/aufs, the one on your home directory is
+not affected, instead the same named file will be newly created under
+/tmp/rw. And all of your modification to a file will be applied to
+the one under /tmp/rw. This is called the file based Copy on Write
+(COW) method.
+Aufs mount options are described in aufs.5.
+If you run chroot or something and make your aufs as a root directory,
+then you need to customize the shutdown script. See the aufs manual in
+detail.
+
+Additionally, there are some sample usages of aufs which are a
+diskless system with network booting, and LiveCD over NFS.
+See sample dir in CVS tree on SourceForge.
+
+
+5. Contact
+----------------------------------------
+When you have any problems or strange behaviour in aufs, please let me
+know with:
+- /proc/mounts (instead of the output of mount(8))
+- /sys/module/aufs/*
+- /sys/fs/aufs/* (if you have them)
+- /debug/aufs/* (if you have them)
+- linux kernel version
+  if your kernel is not plain, for example modified by distributor,
+  the url where i can download its source is necessary too.
+- aufs version which was printed at loading the module or booting the
+  system, instead of the date you downloaded.
+- configuration (define/undefine CONFIG_AUFS_xxx)
+- kernel configuration or /proc/config.gz (if you have it)
+- behaviour which you think to be incorrect
+- actual operation, reproducible one is better
+- mailto: aufs-users at lists.sourceforge.net
+
+Usually, I don't watch the Public Areas(Bugs, Support Requests, Patches,
+and Feature Requests) on SourceForge. Please join and write to
+aufs-users ML.
+
+
+6. Acknowledgements
+----------------------------------------
+Thanks to everyone who have tried and are using aufs, whoever
+have reported a bug or any feedback.
+
+Especially donators:
+Tomas Matejicek(slax.org) made a donation (much more than once).
+	Since Apr 2010, Tomas M (the author of Slax and Linux Live
+	scripts) is making "doubling" donations.
+	Unfortunately I cannot list all of the donators, but I really
+	appriciate.
+	It ends Aug 2010, but the ordinary donation URL is still available.
+	<http://sourceforge.net/donate/index.php?group_id=167503>
+Dai Itasaka made a donation (2007/8).
+Chuck Smith made a donation (2008/4, 10 and 12).
+Henk Schoneveld made a donation (2008/9).
+Chih-Wei Huang, ASUS, CTC donated Eee PC 4G (2008/10).
+Francois Dupoux made a donation (2008/11).
+Bruno Cesar Ribas and Luis Carlos Erpen de Bona, C3SL serves public
+	aufs2 GIT tree (2009/2).
+William Grant made a donation (2009/3).
+Patrick Lane made a donation (2009/4).
+The Mail Archive (mail-archive.com) made donations (2009/5).
+Nippy Networks (Ed Wildgoose) made a donation (2009/7).
+New Dream Network, LLC (www.dreamhost.com) made a donation (2009/11).
+Pavel Pronskiy made a donation (2011/2).
+Iridium and Inmarsat satellite phone retailer (www.mailasail.com), Nippy
+	Networks (Ed Wildgoose) made a donation for hardware (2011/3).
+Max Lekomcev (DOM-TV project) made a donation (2011/7).
+
+Thank you very much.
+Donations are always, including future donations, very important and
+helpful for me to keep on developing aufs.
+
+
+7.
+----------------------------------------
+If you are an experienced user, no explanation is needed. Aufs is
+just a linux filesystem.
+
+
+Enjoy!
+
+# Local variables: ;
+# mode: text;
+# End: ;
