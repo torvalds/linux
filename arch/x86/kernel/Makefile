@@ -17,19 +17,6 @@ CFLAGS_REMOVE_ftrace.o = -pg
 CFLAGS_REMOVE_early_printk.o = -pg
 endif
 
-#
-# vsyscalls (which work on the user stack) should have
-# no stack-protector checks:
-#
-nostackp := $(call cc-option, -fno-stack-protector)
-CFLAGS_vsyscall_64.o	:= $(PROFILING) -g0 $(nostackp)
-CFLAGS_hpet.o		:= $(nostackp)
-CFLAGS_paravirt.o	:= $(nostackp)
-GCOV_PROFILE_vsyscall_64.o	:= n
-GCOV_PROFILE_hpet.o		:= n
-GCOV_PROFILE_tsc.o		:= n
-GCOV_PROFILE_paravirt.o		:= n
-
 obj-y			:= process_$(BITS).o signal.o entry_$(BITS).o
 obj-y			+= traps.o irq.o irq_$(BITS).o dumpstack_$(BITS).o
 obj-y			+= time.o ioport.o ldt.o dumpstack.o
