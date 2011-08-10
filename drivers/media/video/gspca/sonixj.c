@@ -159,7 +159,7 @@ static const struct ctrl sd_ctrls[NCTRLS] = {
 #define CONTRAST_MAX 127
 		.maximum = CONTRAST_MAX,
 		.step    = 1,
-		.default_value = 63,
+		.default_value = 20,
 	    },
 	    .set_control = setcontrast
 	},
@@ -2021,13 +2021,13 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 	u8 k2;
 	u8 contrast[6];
 
-	k2 = sd->ctrls[CONTRAST].val * 0x30 / (CONTRAST_MAX + 1)
-				+ 0x10;		/* 10..40 */
+	k2 = sd->ctrls[CONTRAST].val * 37 / (CONTRAST_MAX + 1)
+				+ 37;		/* 37..73 */
 	contrast[0] = (k2 + 1) / 2;		/* red */
 	contrast[1] = 0;
 	contrast[2] = k2;			/* green */
 	contrast[3] = 0;
-	contrast[4] = (k2 + 1) / 5;		/* blue */
+	contrast[4] = k2 / 5;			/* blue */
 	contrast[5] = 0;
 	reg_w(gspca_dev, 0x84, contrast, sizeof contrast);
 }
