@@ -1,0 +1,47 @@
+
+# Copyright (C) 2010-2011 Junjiro R. Okajima
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+Dynamically customizable FS operations
+----------------------------------------------------------------------
+Generally FS operations (struct inode_operations, struct
+address_space_operations, struct file_operations, etc.) are defined as
+"static const", but it never means that FS have only one set of
+operation. Some FS have multiple sets of them. For instance, ext2 has
+three sets, one for XIP, for NOBH, and for normal.
+Since aufs overrides and redirects these operations, sometimes aufs has
+to change its behaviour according to the branch FS type. More imporantly
+VFS acts differently if a function (member in the struct) is set or
+not. It means aufs should have several sets of operations and select one
+among them according to the branch FS definition.
+
+In order to solve this problem and not to affect the behavour of VFS,
+aufs defines these operations dynamically. For instance, aufs defines
+aio_read function for struct file_operations, but it may not be set to
+the file_operations. When the branch FS doesn't have it, aufs doesn't
+set it to its file_operations while the function definition itself is
+still alive. So the behaviour of io_submit(2) will not change, and it
+will return an error when aio_read is not defined.
+
+The lifetime of these dynamically generated operation object is
+maintained by aufs branch object. When the branch is removed from aufs,
+the reference counter of the object is decremented. When it reaches
+zero, the dynamically generated operation object will be freed.
+
+This approach is designed to support AIO (io_submit), Direcit I/O and
+XIP mainly.
+Currently this approach is applied to file_operations and
+vm_operations_struct for regular files only.
