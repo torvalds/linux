@@ -473,6 +473,12 @@ long st_kim_start(void *kim_data)
 			pr_info("ldisc_install = 0");
 			sysfs_notify(&kim_gdata->kim_pdev->dev.kobj,
 					NULL, "install");
+			/* the following wait is never going to be completed,
+			 * since the ldisc was never installed, hence serving
+			 * as a mdelay of LDISC_TIME msecs */
+			err = wait_for_completion_timeout
+				(&kim_gdata->ldisc_installed,
+				 msecs_to_jiffies(LDISC_TIME));
 			err = -ETIMEDOUT;
 			continue;
 		} else {
@@ -485,6 +491,13 @@ long st_kim_start(void *kim_data)
 				pr_info("ldisc_install = 0");
 				sysfs_notify(&kim_gdata->kim_pdev->dev.kobj,
 						NULL, "install");
+				/* this wait might be completed, though in the
+				 * tty_close() since the ldisc is already
+				 * installed */
+				err = wait_for_completion_timeout
+					(&kim_gdata->ldisc_installed,
+					 msecs_to_jiffies(LDISC_TIME));
+				err = -EINVAL;
 				continue;
 			} else {	/* on success don't retry */
 				break;
