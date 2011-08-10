@@ -174,6 +174,7 @@ static enum hrtimer_restart alarmtimer_fired(struct hrtimer *timer)
 	unsigned long flags;
 	ktime_t now;
 	int ret = HRTIMER_NORESTART;
+	int restart = ALARMTIMER_NORESTART;
 
 	spin_lock_irqsave(&base->lock, flags);
 	now = base->gettime();
@@ -188,16 +189,16 @@ static enum hrtimer_restart alarmtimer_fired(struct hrtimer *timer)
 
 		timerqueue_del(&base->timerqueue, &alarm->node);
 		alarm->enabled = 0;
-		/* Re-add periodic timers */
-		if (alarm->period.tv64) {
-			alarm->node.expires = ktime_add(expired, alarm->period);
+
+		spin_unlock_irqrestore(&base->lock, flags);
+		if (alarm->function)
+			restart = alarm->function(alarm, now);
+		spin_lock_irqsave(&base->lock, flags);
+
+		if (restart != ALARMTIMER_NORESTART) {
 			timerqueue_add(&base->timerqueue, &alarm->node);
 			alarm->enabled = 1;
 		}
-		spin_unlock_irqrestore(&base->lock, flags);
-		if (alarm->function)
-			alarm->function(alarm, now);
-		spin_lock_irqsave(&base->lock, flags);
 	}
 
 	if (next) {
@@ -373,6 +374,11 @@ static enum alarmtimer_restart alarm_handle_timer(struct alarm *alarm,
 	if (posix_timer_event(ptr, 0) != 0)
 		ptr->it_overrun++;
 
+	/* Re-add periodic timers */
+	if (alarm->period.tv64) {
+		alarm->node.expires = ktime_add(now, alarm->period);
+		return ALARMTIMER_RESTART;
+	}
 	return ALARMTIMER_NORESTART;
 }
 
