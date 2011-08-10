@@ -34,6 +34,8 @@ struct ore_comp {
 
 struct ore_layout {
 	/* Our way of looking at the data_map */
+	enum pnfs_osd_raid_algorithm4
+		 raid_algorithm;
 	unsigned stripe_unit;
 	unsigned mirrors_p1;
 

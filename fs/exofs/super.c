@@ -481,64 +481,51 @@ static int _read_and_match_data_map(struct exofs_sb_info *sbi, unsigned numdevs,
 {
 	u64 stripe_length;
 
-	sbi->data_map.odm_num_comps   =
-				le32_to_cpu(dt->dt_data_map.cb_num_comps);
-	sbi->data_map.odm_stripe_unit =
+	sbi->layout.stripe_unit =
 				le64_to_cpu(dt->dt_data_map.cb_stripe_unit);
-	sbi->data_map.odm_group_width =
+	sbi->layout.group_width =
 				le32_to_cpu(dt->dt_data_map.cb_group_width);
-	sbi->data_map.odm_group_depth =
+	sbi->layout.group_depth =
 				le32_to_cpu(dt->dt_data_map.cb_group_depth);
-	sbi->data_map.odm_mirror_cnt  =
-				le32_to_cpu(dt->dt_data_map.cb_mirror_cnt);
-	sbi->data_map.odm_raid_algorithm  =
+	sbi->layout.mirrors_p1  =
+				le32_to_cpu(dt->dt_data_map.cb_mirror_cnt) + 1;
+	sbi->layout.raid_algorithm  =
 				le32_to_cpu(dt->dt_data_map.cb_raid_algorithm);
 
 /* FIXME: Only raid0 for now. if not so, do not mount */
-	if (sbi->data_map.odm_num_comps != numdevs) {
-		EXOFS_ERR("odm_num_comps(%u) != numdevs(%u)\n",
-			  sbi->data_map.odm_num_comps, numdevs);
-		return -EINVAL;
-	}
-	if (sbi->data_map.odm_raid_algorithm != PNFS_OSD_RAID_0) {
+	if (sbi->layout.raid_algorithm != PNFS_OSD_RAID_0) {
 		EXOFS_ERR("Only RAID_0 for now\n");
 		return -EINVAL;
 	}
-	if (0 != (numdevs % (sbi->data_map.odm_mirror_cnt + 1))) {
-		EXOFS_ERR("Data Map wrong, numdevs=%d mirrors=%d\n",
-			  numdevs, sbi->data_map.odm_mirror_cnt);
+	if (numdevs < (sbi->layout.group_width * sbi->layout.mirrors_p1)) {
+		EXOFS_ERR("Data Map wrong, "
+			  "numdevs=%d < group_width=%d * mirrors=%d\n",
+			  numdevs, sbi->layout.group_width,
+			  sbi->layout.mirrors_p1);
 		return -EINVAL;
 	}
 
-	if (0 != (sbi->data_map.odm_stripe_unit & ~PAGE_MASK)) {
+	if (0 != (sbi->layout.stripe_unit & ~PAGE_MASK)) {
 		EXOFS_ERR("Stripe Unit(0x%llx)"
 			  " must be Multples of PAGE_SIZE(0x%lx)\n",
-			  _LLU(sbi->data_map.odm_stripe_unit), PAGE_SIZE);
+			  _LLU(sbi->layout.stripe_unit), PAGE_SIZE);
 		return -EINVAL;
 	}
 
-	sbi->layout.stripe_unit = sbi->data_map.odm_stripe_unit;
-	sbi->layout.mirrors_p1 = sbi->data_map.odm_mirror_cnt + 1;
-
-	if (sbi->data_map.odm_group_width) {
-		sbi->layout.group_width = sbi->data_map.odm_group_width;
-		sbi->layout.group_depth = sbi->data_map.odm_group_depth;
+	if (sbi->layout.group_width) {
 		if (!sbi->layout.group_depth) {
 			EXOFS_ERR("group_depth == 0 && group_width != 0\n");
 			return -EINVAL;
 		}
-		sbi->layout.group_count = sbi->data_map.odm_num_comps /
-						sbi->layout.mirrors_p1 /
-						sbi->data_map.odm_group_width;
+		sbi->layout.group_count = numdevs / sbi->layout.mirrors_p1 /
+						sbi->layout.group_width;
 	} else {
-		if (sbi->data_map.odm_group_depth) {
+		if (sbi->layout.group_depth) {
 			printk(KERN_NOTICE "Warning: group_depth ignored "
-				"group_width == 0 && group_depth == %d\n",
-				sbi->data_map.odm_group_depth);
-			sbi->data_map.odm_group_depth = 0;
+				"group_width == 0 && group_depth == %lld\n",
+				_LLU(sbi->layout.group_depth));
 		}
-		sbi->layout.group_width = sbi->data_map.odm_num_comps /
-							sbi->layout.mirrors_p1;
+		sbi->layout.group_width = numdevs / sbi->layout.mirrors_p1;
 		sbi->layout.group_depth = -1;
 		sbi->layout.group_count = 1;
 	}
@@ -558,7 +545,7 @@ static int _read_and_match_data_map(struct exofs_sb_info *sbi, unsigned numdevs,
 		sbi->layout.group_width,
 		_LLU(sbi->layout.group_depth),
 		sbi->layout.mirrors_p1,
-		sbi->data_map.odm_raid_algorithm);
+		sbi->layout.raid_algorithm);
 	return 0;
 }
 
