@@ -1973,7 +1973,7 @@ pki_encrypt_session_key(struct key *auth_tok_key,
 {
 	struct ecryptfs_msg_ctx *msg_ctx = NULL;
 	char *payload = NULL;
-	size_t payload_len;
+	size_t payload_len = 0;
 	struct ecryptfs_message *msg;
 	int rc;
 
