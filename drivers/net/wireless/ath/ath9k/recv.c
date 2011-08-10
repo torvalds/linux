@@ -1784,11 +1784,6 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 	struct ieee80211_rx_status *rxs;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	/*
-	 * The hw can technically differ from common->hw when using ath9k
-	 * virtual wiphy so to account for that we iterate over the active
-	 * wiphys and find the appropriate wiphy and therefore hw.
-	 */
 	struct ieee80211_hw *hw = sc->hw;
 	struct ieee80211_hdr *hdr;
 	int retval;
