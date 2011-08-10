@@ -190,6 +190,7 @@ ov519		05a9:0519	OV519 Microphone
 ov519		05a9:0530	OmniVision
 ov519		05a9:2800	OmniVision SuperCAM
 ov519		05a9:4519	Webcam Classic
+ov534_9		05a9:8065	OmniVision test kit ov538+ov9712
 ov519		05a9:8519	OmniVision
 ov519		05a9:a511	D-Link USB Digital Video Camera
 ov519		05a9:a518	D-Link DSB-C310 Webcam
