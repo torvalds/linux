@@ -13,6 +13,11 @@ enum alarmtimer_type {
 	ALARM_NUMTYPE,
 };
 
+enum alarmtimer_restart {
+	ALARMTIMER_NORESTART,
+	ALARMTIMER_RESTART,
+};
+
 /**
  * struct alarm - Alarm timer structure
  * @node:	timerqueue node for adding to the event list this value
@@ -26,14 +31,14 @@ enum alarmtimer_type {
 struct alarm {
 	struct timerqueue_node	node;
 	ktime_t			period;
-	void			(*function)(struct alarm *);
+	enum alarmtimer_restart	(*function)(struct alarm *, ktime_t now);
 	enum alarmtimer_type	type;
 	bool			enabled;
 	void			*data;
 };
 
 void alarm_init(struct alarm *alarm, enum alarmtimer_type type,
-		void (*function)(struct alarm *));
+		enum alarmtimer_restart (*function)(struct alarm *, ktime_t));
 void alarm_start(struct alarm *alarm, ktime_t start, ktime_t period);
 void alarm_cancel(struct alarm *alarm);
 
