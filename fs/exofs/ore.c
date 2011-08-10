@@ -287,16 +287,8 @@ EXPORT_SYMBOL(ore_check_io);
  *
  *	O = L % stripe_unit + N * stripe_unit + M * group_depth * stripe_unit
  */
-struct _striping_info {
-	u64 obj_offset;
-	u64 group_length;
-	u64 M; /* for truncate */
-	unsigned dev;
-	unsigned unit_off;
-};
-
-static void _calc_stripe_info(struct ore_layout *layout, u64 file_offset,
-			      struct _striping_info *si)
+static void ore_calc_stripe_info(struct ore_layout *layout, u64 file_offset,
+				 struct ore_striping_info *si)
 {
 	u32	stripe_unit = layout->stripe_unit;
 	u32	group_width = layout->group_width;
@@ -375,7 +367,7 @@ static int _add_stripe_unit(struct ore_io_state *ios,  unsigned *cur_pg,
 }
 
 static int _prepare_one_group(struct ore_io_state *ios, u64 length,
-			      struct _striping_info *si)
+			      struct ore_striping_info *si)
 {
 	unsigned stripe_unit = ios->layout->stripe_unit;
 	unsigned mirrors_p1 = ios->layout->mirrors_p1;
@@ -434,14 +426,14 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 {
 	u64 length = ios->length;
 	u64 offset = ios->offset;
-	struct _striping_info si;
+	struct ore_striping_info si;
 	int ret = 0;
 
 	if (!ios->pages) {
 		if (ios->kern_buff) {
 			struct ore_per_dev_state *per_dev = &ios->per_dev[0];
 
-			_calc_stripe_info(ios->layout, ios->offset, &si);
+			ore_calc_stripe_info(ios->layout, ios->offset, &si);
 			per_dev->offset = si.obj_offset;
 			per_dev->dev = si.dev;
 
@@ -455,7 +447,7 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 	}
 
 	while (length) {
-		_calc_stripe_info(ios->layout, offset, &si);
+		ore_calc_stripe_info(ios->layout, offset, &si);
 
 		if (length < si.group_length)
 			si.group_length = length;
@@ -744,7 +736,7 @@ static int _truncate_mirrors(struct ore_io_state *ios, unsigned cur_comp,
 }
 
 struct _trunc_info {
-	struct _striping_info si;
+	struct ore_striping_info si;
 	u64 prev_group_obj_off;
 	u64 next_group_obj_off;
 
@@ -758,7 +750,7 @@ static void _calc_trunk_info(struct ore_layout *layout, u64 file_offset,
 {
 	unsigned stripe_unit = layout->stripe_unit;
 
-	_calc_stripe_info(layout, file_offset, &ti->si);
+	ore_calc_stripe_info(layout, file_offset, &ti->si);
 
 	ti->prev_group_obj_off = ti->si.M * stripe_unit;
 	ti->next_group_obj_off = ti->si.M ? (ti->si.M - 1) * stripe_unit : 0;

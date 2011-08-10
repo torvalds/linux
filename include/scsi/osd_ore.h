@@ -56,6 +56,14 @@ struct ore_components {
 	struct osd_dev	**ods;			/* osd_dev array              */
 };
 
+struct ore_striping_info {
+	u64 obj_offset;
+	u64 group_length;
+	u64 M; /* for truncate */
+	unsigned dev;
+	unsigned unit_off;
+};
+
 struct ore_io_state;
 typedef void (*ore_io_done_fn)(struct ore_io_state *ios, void *private);
 
