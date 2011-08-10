@@ -1019,11 +1019,11 @@ static int configure_dma(struct pl022 *pl022)
 	pages = (pl022->cur_transfer->len >> PAGE_SHIFT) + 1;
 	dev_dbg(&pl022->adev->dev, "using %d pages for transfer\n", pages);
 
-	ret = sg_alloc_table(&pl022->sgt_rx, pages, GFP_KERNEL);
+	ret = sg_alloc_table(&pl022->sgt_rx, pages, GFP_ATOMIC);
 	if (ret)
 		goto err_alloc_rx_sg;
 
-	ret = sg_alloc_table(&pl022->sgt_tx, pages, GFP_KERNEL);
+	ret = sg_alloc_table(&pl022->sgt_tx, pages, GFP_ATOMIC);
 	if (ret)
 		goto err_alloc_tx_sg;
 
