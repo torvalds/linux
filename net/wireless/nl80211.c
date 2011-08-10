@@ -178,6 +178,7 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_SCHED_SCAN_INTERVAL] = { .type = NLA_U32 },
 	[NL80211_ATTR_REKEY_DATA] = { .type = NLA_NESTED },
 	[NL80211_ATTR_SCAN_SUPP_RATES] = { .type = NLA_NESTED },
+	[NL80211_ATTR_HIDDEN_SSID] = { .type = NLA_U32 },
 };
 
 /* policy for the key attributes */
@@ -2009,6 +2010,34 @@ static int nl80211_addset_beacon(struct sk_buff *skb, struct genl_info *info)
 		err = cfg80211_validate_beacon_int(rdev, params.interval);
 		if (err)
 			return err;
+
+		/*
+		 * In theory, some of these attributes could be required for
+		 * NEW_BEACON, but since they were not used when the command was
+		 * originally added, keep them optional for old user space
+		 * programs to work with drivers that do not need the additional
+		 * information.
+		 */
+		if (info->attrs[NL80211_ATTR_SSID]) {
+			params.ssid = nla_data(info->attrs[NL80211_ATTR_SSID]);
+			params.ssid_len =
+				nla_len(info->attrs[NL80211_ATTR_SSID]);
+			if (params.ssid_len == 0 ||
+			    params.ssid_len > IEEE80211_MAX_SSID_LEN)
+				return -EINVAL;
+		}
+
+		if (info->attrs[NL80211_ATTR_HIDDEN_SSID]) {
+			params.hidden_ssid = nla_get_u32(
+				info->attrs[NL80211_ATTR_HIDDEN_SSID]);
+			if (params.hidden_ssid !=
+			    NL80211_HIDDEN_SSID_NOT_IN_USE &&
+			    params.hidden_ssid !=
+			    NL80211_HIDDEN_SSID_ZERO_LEN &&
+			    params.hidden_ssid !=
+			    NL80211_HIDDEN_SSID_ZERO_CONTENTS)
+				return -EINVAL;
+		}
 
 		call = rdev->ops->add_beacon;
 		break;
