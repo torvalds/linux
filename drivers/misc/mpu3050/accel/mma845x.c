@@ -35,11 +35,11 @@
 #include <linux/module.h>
 #endif
 
-#include <stdlib.h>
+//#include <stdlib.h>
 #include "mpu.h"
 #include "mlsl.h"
 #include "mlos.h"
-#include <string.h>
+//#include <string.h>
 
 #include <log.h>
 #undef MPL_LOG_TAG
