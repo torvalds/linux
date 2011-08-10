@@ -4828,11 +4828,20 @@ static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
 	return 0;
 }
 
+static int bond_get_tx_queues(struct net *net, struct nlattr *tb[],
+			      unsigned int *num_queues,
+			      unsigned int *real_num_queues)
+{
+	*num_queues = tx_queues;
+	return 0;
+}
+
 static struct rtnl_link_ops bond_link_ops __read_mostly = {
 	.kind		= "bond",
 	.priv_size	= sizeof(struct bonding),
 	.setup		= bond_setup,
 	.validate	= bond_validate,
+	.get_tx_queues	= bond_get_tx_queues,
 };
 
 /* Create a new bond based on the specified name and bonding parameters.
