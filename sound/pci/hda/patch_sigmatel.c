@@ -673,6 +673,7 @@ static int stac92xx_smux_enum_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+#ifdef CONFIG_SND_HDA_POWER_SAVE
 static int stac_vrefout_set(struct hda_codec *codec,
 					hda_nid_t nid, unsigned int new_vref)
 {
@@ -696,6 +697,7 @@ static int stac_vrefout_set(struct hda_codec *codec,
 
 	return 1;
 }
+#endif
 
 static unsigned int stac92xx_vref_set(struct hda_codec *codec,
 					hda_nid_t nid, unsigned int new_vref)
