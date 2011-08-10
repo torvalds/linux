@@ -80,9 +80,6 @@ static int gIER,gIFR,gBufA,gBufB;
 static u8 nubus_disabled;
 
 void via_debug_dump(void);
-irqreturn_t via1_irq(int, void *);
-irqreturn_t via2_irq(int, void *);
-irqreturn_t via_nubus_irq(int, void *);
 void via_irq_enable(int irq);
 void via_irq_disable(int irq);
 void via_irq_clear(int irq);
@@ -289,29 +286,6 @@ void __init via_init_clock(irq_handler_t func)
 }
 
 /*
- * Register the interrupt dispatchers for VIA or RBV machines only.
- */
-
-void __init via_register_interrupts(void)
-{
-	if (via_alt_mapping) {
-		if (request_irq(IRQ_AUTO_1, via1_irq, 0, "software",
-				(void *)via1))
-			pr_err("Couldn't register %s interrupt\n", "software");
-		if (request_irq(IRQ_AUTO_6, via1_irq, 0, "via1", (void *)via1))
-			pr_err("Couldn't register %s interrupt\n", "via1");
-	} else {
-		if (request_irq(IRQ_AUTO_1, via1_irq, 0, "via1", (void *)via1))
-			pr_err("Couldn't register %s interrupt\n", "via1");
-	}
-	if (request_irq(IRQ_AUTO_2, via2_irq, 0, "via2", (void *)via2))
-		pr_err("Couldn't register %s interrupt\n", "via2");
-	if (request_irq(IRQ_MAC_NUBUS, via_nubus_irq, 0, "nubus",
-			(void *)via2))
-		pr_err("Couldn't register %s interrupt\n", "nubus");
-}
-
-/*
  * Debugging dump, used in various places to see what's going on.
  */
 
@@ -443,6 +417,49 @@ void __init via_nubus_init(void)
  * via6522.c :-), disable/pending masks added.
  */
 
+#ifdef CONFIG_GENERIC_HARDIRQS
+void via1_irq(unsigned int irq, struct irq_desc *desc)
+{
+	int irq_num;
+	unsigned char irq_bit, events;
+
+	events = via1[vIFR] & via1[vIER] & 0x7F;
+	if (!events)
+		return;
+
+	irq_num = VIA1_SOURCE_BASE;
+	irq_bit = 1;
+	do {
+		if (events & irq_bit) {
+			via1[vIFR] = irq_bit;
+			generic_handle_irq(irq_num);
+		}
+		++irq_num;
+		irq_bit <<= 1;
+	} while (events >= irq_bit);
+}
+
+static void via2_irq(unsigned int irq, struct irq_desc *desc)
+{
+	int irq_num;
+	unsigned char irq_bit, events;
+
+	events = via2[gIFR] & via2[gIER] & 0x7F;
+	if (!events)
+		return;
+
+	irq_num = VIA2_SOURCE_BASE;
+	irq_bit = 1;
+	do {
+		if (events & irq_bit) {
+			via2[gIFR] = irq_bit | rbv_clear;
+			generic_handle_irq(irq_num);
+		}
+		++irq_num;
+		irq_bit <<= 1;
+	} while (events >= irq_bit);
+}
+#else
 irqreturn_t via1_irq(int irq, void *dev_id)
 {
 	int irq_num;
@@ -486,12 +503,49 @@ irqreturn_t via2_irq(int irq, void *dev_id)
 	} while (events >= irq_bit);
 	return IRQ_HANDLED;
 }
+#endif
 
 /*
  * Dispatch Nubus interrupts. We are called as a secondary dispatch by the
  * VIA2 dispatcher as a fast interrupt handler.
  */
 
+#ifdef CONFIG_GENERIC_HARDIRQS
+void via_nubus_irq(unsigned int irq, struct irq_desc *desc)
+{
+	int slot_irq;
+	unsigned char slot_bit, events;
+
+	events = ~via2[gBufA] & 0x7F;
+	if (rbv_present)
+		events &= via2[rSIER];
+	else
+		events &= ~via2[vDirA];
+	if (!events)
+		return;
+
+	do {
+		slot_irq = IRQ_NUBUS_F;
+		slot_bit = 0x40;
+		do {
+			if (events & slot_bit) {
+				events &= ~slot_bit;
+				generic_handle_irq(slot_irq);
+			}
+			--slot_irq;
+			slot_bit >>= 1;
+		} while (events);
+
+ 		/* clear the CA1 interrupt and make certain there's no more. */
+		via2[gIFR] = 0x02 | rbv_clear;
+		events = ~via2[gBufA] & 0x7F;
+		if (rbv_present)
+			events &= via2[rSIER];
+		else
+			events &= ~via2[vDirA];
+	} while (events);
+}
+#else
 irqreturn_t via_nubus_irq(int irq, void *dev_id)
 {
 	int slot_irq;
@@ -526,6 +580,43 @@ irqreturn_t via_nubus_irq(int irq, void *dev_id)
 			events &= ~via2[vDirA];
 	} while (events);
 	return IRQ_HANDLED;
+}
+#endif
+
+/*
+ * Register the interrupt dispatchers for VIA or RBV machines only.
+ */
+
+void __init via_register_interrupts(void)
+{
+#ifdef CONFIG_GENERIC_HARDIRQS
+	if (via_alt_mapping) {
+		/* software interrupt */
+		irq_set_chained_handler(IRQ_AUTO_1, via1_irq);
+		/* via1 interrupt */
+		irq_set_chained_handler(IRQ_AUTO_6, via1_irq);
+	} else {
+		irq_set_chained_handler(IRQ_AUTO_1, via1_irq);
+	}
+	irq_set_chained_handler(IRQ_AUTO_2, via2_irq);
+	irq_set_chained_handler(IRQ_MAC_NUBUS, via_nubus_irq);
+#else
+	if (via_alt_mapping) {
+		if (request_irq(IRQ_AUTO_1, via1_irq, 0, "software",
+				(void *)via1))
+			pr_err("Couldn't register %s interrupt\n", "software");
+		if (request_irq(IRQ_AUTO_6, via1_irq, 0, "via1", (void *)via1))
+			pr_err("Couldn't register %s interrupt\n", "via1");
+	} else {
+		if (request_irq(IRQ_AUTO_1, via1_irq, 0, "via1", (void *)via1))
+			pr_err("Couldn't register %s interrupt\n", "via1");
+	}
+	if (request_irq(IRQ_AUTO_2, via2_irq, 0, "via2", (void *)via2))
+		pr_err("Couldn't register %s interrupt\n", "via2");
+	if (request_irq(IRQ_MAC_NUBUS, via_nubus_irq, 0, "nubus",
+			(void *)via2))
+		pr_err("Couldn't register %s interrupt\n", "nubus");
+#endif
 }
 
 void via_irq_enable(int irq) {
