@@ -1158,7 +1158,7 @@ static void *zcache_pampd_create(char *data, size_t size, bool raw, int eph,
 	size_t clen;
 	int ret;
 	unsigned long count;
-	struct page *page = virt_to_page(data);
+	struct page *page = (struct page *)(data);
 	struct zcache_client *cli = pool->client;
 	uint16_t client_id = get_client_id_from_client(cli);
 	unsigned long zv_mean_zsize;
@@ -1227,7 +1227,7 @@ static int zcache_pampd_get_data(char *data, size_t *bufsize, bool raw,
 	int ret = 0;
 
 	BUG_ON(is_ephemeral(pool));
-	zv_decompress(virt_to_page(data), pampd);
+	zv_decompress((struct page *)(data), pampd);
 	return ret;
 }
 
@@ -1539,7 +1539,7 @@ static int zcache_put_page(int cli_id, int pool_id, struct tmem_oid *oidp,
 		goto out;
 	if (!zcache_freeze && zcache_do_preload(pool) == 0) {
 		/* preload does preempt_disable on success */
-		ret = tmem_put(pool, oidp, index, page_address(page),
+		ret = tmem_put(pool, oidp, index, (char *)(page),
 				PAGE_SIZE, 0, is_ephemeral(pool));
 		if (ret < 0) {
 			if (is_ephemeral(pool))
@@ -1572,7 +1572,7 @@ static int zcache_get_page(int cli_id, int pool_id, struct tmem_oid *oidp,
 	pool = zcache_get_pool_by_id(cli_id, pool_id);
 	if (likely(pool != NULL)) {
 		if (atomic_read(&pool->obj_count) > 0)
-			ret = tmem_get(pool, oidp, index, page_address(page),
+			ret = tmem_get(pool, oidp, index, (char *)(page),
 					&size, 0, is_ephemeral(pool));
 		zcache_put_pool(pool);
 	}
