@@ -36,11 +36,6 @@ MODULE_AUTHOR("Antonio Ospite <ospite@studenti.unina.it>");
 MODULE_DESCRIPTION("GSPCA/Kinect Sensor Device USB Camera Driver");
 MODULE_LICENSE("GPL");
 
-#ifdef GSPCA_DEBUG
-int gspca_debug = D_ERR | D_PROBE | D_CONF | D_STREAM | D_FRAM | D_PACK |
-	D_USBI | D_USBO | D_V4L2;
-#endif
-
 struct pkt_hdr {
 	uint8_t magic[2];
 	uint8_t pad;
