@@ -336,20 +336,48 @@ void alarm_start(struct alarm *alarm, ktime_t start)
 }
 
 /**
- * alarm_cancel - Tries to cancel an alarm timer
+ * alarm_try_to_cancel - Tries to cancel an alarm timer
  * @alarm: ptr to alarm to be canceled
+ *
+ * Returns 1 if the timer was canceled, 0 if it was not running,
+ * and -1 if the callback was running
  */
-void alarm_cancel(struct alarm *alarm)
+int alarm_try_to_cancel(struct alarm *alarm)
 {
 	struct alarm_base *base = &alarm_bases[alarm->type];
 	unsigned long flags;
-
+	int ret = -1;
 	spin_lock_irqsave(&base->lock, flags);
-	if (alarmtimer_is_queued(alarm))
+
+	if (alarmtimer_callback_running(alarm))
+		goto out;
+
+	if (alarmtimer_is_queued(alarm)) {
 		alarmtimer_remove(base, alarm);
+		ret = 1;
+	} else
+		ret = 0;
+out:
 	spin_unlock_irqrestore(&base->lock, flags);
+	return ret;
 }
 
+
+/**
+ * alarm_cancel - Spins trying to cancel an alarm timer until it is done
+ * @alarm: ptr to alarm to be canceled
+ *
+ * Returns 1 if the timer was canceled, 0 if it was not active.
+ */
+int alarm_cancel(struct alarm *alarm)
+{
+	for (;;) {
+		int ret = alarm_try_to_cancel(alarm);
+		if (ret >= 0)
+			return ret;
+		cpu_relax();
+	}
+}
 
 
 u64 alarm_forward(struct alarm *alarm, ktime_t now, ktime_t interval)
@@ -510,7 +538,9 @@ static int alarm_timer_del(struct k_itimer *timr)
 	if (!rtcdev)
 		return -ENOTSUPP;
 
-	alarm_cancel(&timr->it.alarm.alarmtimer);
+	if (alarm_try_to_cancel(&timr->it.alarm.alarmtimer) < 0)
+		return TIMER_RETRY;
+
 	return 0;
 }
 
@@ -534,7 +564,8 @@ static int alarm_timer_set(struct k_itimer *timr, int flags,
 		alarm_timer_get(timr, old_setting);
 
 	/* If the timer was already set, cancel it */
-	alarm_cancel(&timr->it.alarm.alarmtimer);
+	if (alarm_try_to_cancel(&timr->it.alarm.alarmtimer) < 0)
+		return TIMER_RETRY;
 
 	/* start the timer */
 	timr->it.alarm.interval = timespec_to_ktime(new_setting->it_interval);
