@@ -1,7 +1,20 @@
 /*
  $License:
     Copyright (C) 2010 InvenSense Corporation, All Rights Reserved.
- $
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  $
  */
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -16,8 +29,6 @@
 #include <linux/i2c-dev.h>
 #include <linux/workqueue.h>
 #include <linux/poll.h>
-#include <linux/gpio.h>
-#include <mach/gpio.h>
 
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -50,7 +61,7 @@ struct mpuirq_dev_data {
 };
 
 static struct mpuirq_dev_data mpuirq_dev_data;
-static struct irq_data mpuirq_data;
+static struct mpuirq_data mpuirq_data;
 static char *interface = MPUIRQ_NAME;
 
 static void mpu_accel_data_work_fcn(struct work_struct *work);
@@ -61,9 +72,6 @@ static int mpuirq_open(struct inode *inode, struct file *file)
 		"%s current->pid %d\n", __func__, current->pid);
 	mpuirq_dev_data.pid = current->pid;
 	file->private_data = &mpuirq_dev_data;
-	/* we could do some checking on the flags supplied by "open" */
-	/* i.e. O_NONBLOCK */
-	/* -> set some flag to disable interruptible_sleep_on in mpuirq_read */
 	return 0;
 }
 
@@ -81,7 +89,9 @@ static ssize_t mpuirq_read(struct file *file,
 	int len, err;
 	struct mpuirq_dev_data *p_mpuirq_dev_data = file->private_data;
 
-	if (!mpuirq_dev_data.data_ready) {
+	if (!mpuirq_dev_data.data_ready &&
+		mpuirq_dev_data.timeout &&
+		(!(file->f_flags & O_NONBLOCK))) {
 		wait_event_interruptible_timeout(mpuirq_wait,
 						 mpuirq_dev_data.
 						 data_ready,
@@ -195,22 +205,19 @@ static irqreturn_t mpuirq_handler(int irq, void *dev_id)
 
 	/* wake up (unblock) for reading data from userspace */
 	/* and ignore first interrupt generated in module init */
-	if (mpuirq_data.interruptcount > 1) {
-		mpuirq_dev_data.data_ready = 1;
+	mpuirq_dev_data.data_ready = 1;
 
-		do_gettimeofday(&irqtime);
-		mpuirq_data.irqtime = (((long long) irqtime.tv_sec) << 32);
-		mpuirq_data.irqtime += irqtime.tv_usec;
+	do_gettimeofday(&irqtime);
+	mpuirq_data.irqtime = (((long long) irqtime.tv_sec) << 32);
+	mpuirq_data.irqtime += irqtime.tv_usec;
 
-		if ((mpuirq_dev_data.accel_divider >= 0) &&
-		    (0 ==
-		     (mycount % (mpuirq_dev_data.accel_divider + 1)))) {
-			schedule_work((struct work_struct
-				       *) (&mpuirq_dev_data));
-		}
-
-		wake_up_interruptible(&mpuirq_wait);
+	if ((mpuirq_dev_data.accel_divider >= 0) &&
+		(0 == (mycount % (mpuirq_dev_data.accel_divider + 1)))) {
+		schedule_work((struct work_struct
+				*) (&mpuirq_dev_data));
 	}
+
+	wake_up_interruptible(&mpuirq_wait);
 
 	return IRQ_HANDLED;
 
@@ -267,28 +274,14 @@ int mpuirq_init(struct i2c_client *mpu_client)
 			flags = IRQF_TRIGGER_FALLING;
 		else
 			flags = IRQF_TRIGGER_RISING;
-		/* mpu irq register xxm*/
-		res = gpio_request(mpuirq_dev_data.irq, "mpu3050_int");
-		if(res)
-		{
-			printk("failed to request mpu3050_int GPIO %d\n",			
-						gpio_to_irq(mpuirq_dev_data.irq));
-			return res;
-		}
-		res = gpio_direction_input(mpuirq_dev_data.irq);
-		if(res)
-		{
-			printk("failed to set mpu3050_int GPIO input\n");
-			return res;
-		}
-		printk("gpio_to_irq(mpuirq_dev_data.irq) == %d \r\n",	
-				gpio_to_irq(mpuirq_dev_data.irq));
-		res =request_irq(gpio_to_irq(mpuirq_dev_data.irq), mpuirq_handler, flags,
-							interface,&mpuirq_dev_data.irq);
+
+		res =
+		    request_irq(mpuirq_dev_data.irq, mpuirq_handler, flags,
+				interface, &mpuirq_dev_data.irq);
 		if (res) {
 			dev_err(&mpu_client->adapter->dev,
-				"myirqtest: cannot register IRQ %d,return value is %d\n",
-				gpio_to_irq(mpuirq_dev_data.irq),res);
+				"myirqtest: cannot register IRQ %d\n",
+				mpuirq_dev_data.irq);
 		} else {
 			res = misc_register(&mpuirq_device);
 			if (res < 0) {

@@ -64,7 +64,9 @@ static struct map_desc rk29_io_desc[] __initdata = {
 #endif
 };
 
+extern void rk29_boot_mode_init_by_register(void);
 void __init rk29_map_common_io(void)
 {
 	iotable_init(rk29_io_desc, ARRAY_SIZE(rk29_io_desc));
+	rk29_boot_mode_init_by_register();
 }

@@ -270,8 +270,14 @@ static int rk29_sensor_io_init(void)
 
         if (camera_power != INVALID_GPIO) {
             ret = gpio_request(camera_power, "camera power");
-            if (ret)
-				goto sensor_io_int_loop_end;
+            if (ret) {
+                if (i == 0) {
+				    goto sensor_io_int_loop_end;
+                } else {
+                    if (camera_power != rk29_camera_platform_data.gpio_res[0].gpio_power)
+                        goto sensor_io_int_loop_end;
+                }
+            }
 			rk29_camera_platform_data.gpio_res[i].gpio_init |= RK29_CAM_POWERACTIVE_MASK;
             gpio_set_value(camera_reset, (((~camera_ioflag)&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
             gpio_direction_output(camera_power, (((~camera_ioflag)&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));

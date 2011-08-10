@@ -360,6 +360,7 @@ static bool fts_register_read(u8 reg_name, u8* rx_buf, int rx_length)
 E_UPGRADE_ERR_TYPE  fts_ctpm_fw_upgrade(u8* pbt_buf, int dw_lenth)
 {
     u8  cmd,reg_val[2] = {0};
+	u8  buffer[2] = {0};
     u8  packet_buf[FTS_PACKET_LENGTH + 6];
     u8  auc_i2c_write_buf[10];
     u8  bt_ecc;
@@ -502,7 +503,19 @@ E_UPGRADE_ERR_TYPE  fts_ctpm_fw_upgrade(u8* pbt_buf, int dw_lenth)
 
     /*******Step 7: reset the new FW**********/
     cmd_write(0x07,0x00,0x00,0x00,1);
-
+	mdelay(100);//100ms	
+	fts_register_read(0xfc, buffer, 1);	
+	if (buffer[0] == 1)
+	{
+	cmd=4;
+	fts_register_write(0xfc, &cmd);
+	mdelay(2500);//2500ms	
+	 do	
+	 {	
+	 fts_register_read(0xfc, buffer, 1);	
+	 mdelay(100);//100ms	
+	 }while (buffer[0] != 1); 		   	
+	}
     return ERR_OK;
 }
 
@@ -568,6 +581,7 @@ static void ft5406_queue_work(struct work_struct *work)
 #endif
 	if (ret < 0) {
 		dev_err(&data->client->dev, "ft5406_read_regs fail:%d!\n",ret);
+		enable_irq(data->irq);
 		return;
 	}
 #if 0

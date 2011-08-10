@@ -267,6 +267,28 @@ struct cs42l52_platform_data {
     void    (*exit_platform_hw)(void);
 };
 
+//tcl miaozh add
+/*nas touch */
+struct nas_platform_data {
+    u16     model;
+
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*nas_platform_sleep)(void);
+    int     (*nas_platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+};
+
+
+struct laibao_platform_data {
+    u16     model;
+
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*laibao_platform_sleep)(void);
+    int     (*laibao_platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+};
 
 struct akm8975_platform_data {
 	char layouts[3][3];
@@ -318,6 +340,8 @@ void __init board_power_init(void);
 #define BOOT_MODE_CHARGE		3
 #define BOOT_MODE_POWER_TEST		4
 #define BOOT_MODE_OFFMODE_CHARGING	5
+#define BOOT_MODE_REBOOT		6
+#define BOOT_MODE_PANIC			7
 int board_boot_mode(void);
 
 enum periph_pll {

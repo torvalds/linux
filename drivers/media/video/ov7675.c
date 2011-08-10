@@ -144,7 +144,7 @@ static struct reginfo sensor_init_data[] =
 	{0x0e, 0x61},
 	{0x0f, 0x4b},
 	{0x16, 0x02},
-	{0x1e, 0x07},       //0x27
+	{0x1e, 0x17},       //0x07//0x27
 	{0x21, 0x02},
 	{0x22, 0x91},
 	{0x29, 0x07},
@@ -181,22 +181,22 @@ static struct reginfo sensor_init_data[] =
 	{0x66, 0x05},
 	{0x94, 0x10},
 	{0x95, 0x12},
-	{0x7a, 0x24},
-	{0x7b, 0x04},
-	{0x7c, 0x07},
-	{0x7d, 0x12},
-	{0x7e, 0x2f},
-	{0x7f, 0x3f},
-	{0x80, 0x4d},
-	{0x81, 0x5a},
-	{0x82, 0x69},
-	{0x83, 0x74},
-	{0x84, 0x7f},
-	{0x85, 0x91},
-	{0x86, 0x9e},
-	{0x87, 0xbb},
-	{0x88, 0xd2},
-	{0x89, 0xe5},
+	{0x7a, 0x20},//	{0x7a, 0x24}, 
+	{0x7b, 0x16},//	{0x7b, 0x04}, 
+	{0x7c, 0x23},//	{0x7c, 0x07}, 
+	{0x7d, 0x3c},//	{0x7d, 0x12}, 
+	{0x7e, 0x5c},//	{0x7e, 0x2f}, 
+	{0x7f, 0x69},//	{0x7f, 0x3f}, 
+	{0x80, 0x75},//	{0x80, 0x4d}, 
+	{0x81, 0x7e},//	{0x81, 0x5a}, 
+	{0x82, 0x88},//	{0x82, 0x69}, 
+	{0x83, 0x8f},//	{0x83, 0x74}, 
+	{0x84, 0x96},//	{0x84, 0x7f}, 
+	{0x85, 0xa3},//	{0x85, 0x91}, 
+	{0x86, 0xaf},//	{0x86, 0x9e}, 
+	{0x87, 0xc4},//	{0x87, 0xbb}, 
+	{0x88, 0xd7},//	{0x88, 0xd2}, 
+	{0x89, 0xe8},//	{0x89, 0xe5}, 
 	{0x43, 0x0a},
 	{0x44, 0xf0},
 	{0x45, 0x34},
@@ -228,7 +228,7 @@ static struct reginfo sensor_init_data[] =
 	{0x75, 0x63},
 	{0x76, 0xe1},
 	{0x4c, 0x00},
-	{0x77, 0x01},
+	{0x77, 0x04},//0x01
 	{0x4b, 0x09},
 	{0xc9, 0x60},
 	{0x41, 0x38},
@@ -1214,7 +1214,7 @@ static int sensor_write(struct i2c_client *client, u8 reg, u8 val)
 
     while ((cnt-- > 0) && (err < 0)) {                       /* ddl@rock-chips.com :  Transfer again if transent is failed   */
         err = i2c_transfer(client->adapter, msg, 1);
-
+				udelay(50);
         if (err >= 0) {
             return 0;
         } else {
@@ -1230,13 +1230,10 @@ static int sensor_write(struct i2c_client *client, u8 reg, u8 val)
 static int sensor_read(struct i2c_client *client, u8 reg, u8 *val)
 {
     int err,cnt;
-    //u8 buf[2];
     u8 buf[1];
     struct i2c_msg msg[2];
-
-    //buf[0] = reg >> 8;
+   
     buf[0] = reg;
-    buf[1] = reg & 0xFF;
 
     msg[0].addr = client->addr;
     msg[0].flags = client->flags;
@@ -1270,7 +1267,6 @@ static int sensor_read(struct i2c_client *client, u8 reg, u8 *val)
 }
 
 /* write a array of registers  */
-#if 1
 static int sensor_write_array(struct i2c_client *client, struct reginfo *regarray)
 {
     int err = 0, cnt;
@@ -1311,27 +1307,24 @@ sensor_write_array_end:
 	sensor_task_lock(client,0);
 	return err;
 }
-#else
-static int sensor_write_array(struct i2c_client *client, struct reginfo *regarray)
+static int sensor_readchk_array(struct i2c_client *client, struct reginfo *regarray)
 {
-    int err;
+    int cnt;
     int i = 0;
-	u8 val_read;
+	char valchk;
+
+	cnt = 0;
+	valchk = 0;
     while (regarray[i].reg != 0)
     {
-        err = sensor_write(client, regarray[i].reg, regarray[i].val);
-        if (err != 0)
-        {
-            SENSOR_TR("%s..write failed current i = %d\n", SENSOR_NAME_STRING(),i);
-            return err;
-        }
-		err = sensor_read(client, regarray[i].reg, &val_read);
-		SENSOR_TR("%s..reg[0x%x]=0x%x,0x%x\n", SENSOR_NAME_STRING(),regarray[i].reg, val_read, regarray[i].val);
+		sensor_read(client, regarray[i].reg, &valchk);
+		if (valchk != regarray[i].val)
+			SENSOR_TR("%s Reg:0x%x read(0x%x, 0x%x) error\n",SENSOR_NAME_STRING(), regarray[i].reg, regarray[i].val, valchk);
+
         i++;
     }
     return 0;
 }
-#endif
 static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd cmd, int on)
 {
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
@@ -1343,10 +1336,12 @@ static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd
 		case Sensor_PowerDown:
 		{
 			if (icl->powerdown) {
+				if (on == 0)
+					mdelay(1);
 				ret = icl->powerdown(icd->pdev, on);
 				if (ret == RK29_CAM_IO_SUCCESS) {
 					if (on == 0) {
-						mdelay(2);
+						mdelay(20);
 						if (icl->reset)
 							icl->reset(icd->pdev);
 					}
@@ -1678,7 +1673,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
     }
     else if (((set_w <= 1280) && (set_h <= 1024)) && sensor_sxga[0].reg)
     {
-        winseqe_set_addr = sensor_sxga;
+		winseqe_set_addr = sensor_vga; //sensor_sxga;
         set_w = 1280;
         set_h = 1024;
     }

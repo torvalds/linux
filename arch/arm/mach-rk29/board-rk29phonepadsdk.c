@@ -60,6 +60,7 @@
 
 #include <linux/goodix_touch.h>
 
+#include <linux/mpu.h>
 #ifdef CONFIG_VIDEO_RK29
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
 /*---------------- Camera Sensor Configuration Macro Begin ------------------------*/
@@ -446,6 +447,7 @@ struct p1003_platform_data p1003_info = {
 };
 #endif
 #if defined (CONFIG_EETI_EGALAX)
+
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
 #define TOUCH_INT_PIN   RK29_PIN0_PA2
 
@@ -481,7 +483,125 @@ static struct eeti_egalax_platform_data eeti_egalax_info = {
   .disp_on_pin = TOUCH_SCREEN_DISPLAY_PIN,
   .disp_on_value = TOUCH_SCREEN_DISPLAY_VALUE,
 };
+
 #endif
+//tcl miaozh add
+/*Nas touch*/
+#if defined (CONFIG_TOUCHSCREEN_NAS)
+#define TOUCH_RESET_PIN RK29_PIN6_PC3
+#define TOUCH_INT_PIN   RK29_PIN0_PA2
+void nas_reset(void)
+{
+    msleep(5);
+    gpio_pull_updown(TOUCH_INT_PIN, 1);
+    gpio_direction_output(TOUCH_RESET_PIN, 0);
+    msleep(5);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+    msleep(200);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+}
+void nas_hold(void)
+{
+    printk("nas_hold()\n");
+    gpio_direction_output(TOUCH_RESET_PIN, 0);
+    msleep(5);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+    msleep(30);
+ }
+void nas_request_io(void)
+{
+    if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+      gpio_free(TOUCH_RESET_PIN);
+      printk("nas_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+
+    if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+      gpio_free(TOUCH_INT_PIN);
+      printk("nas_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+}
+	
+int nas_init_platform_hw(void)
+{
+		printk("enter %s()\n", __FUNCTION__);
+		//nas_request_io();
+		//nas_reset();
+    return 0;
+}
+
+
+struct nas_platform_data nas_info = {
+  .model= 1003,
+  .init_platform_hw= nas_init_platform_hw,
+
+};
+#endif
+
+#if defined (CONFIG_LAIBAO_TS)
+#define TOUCH_RESET_PIN RK29_PIN4_PD5//RK29_PIN6_PC3
+#define TOUCH_INT_PIN   RK29_PIN0_PA2
+void laibao_reset(void)
+{
+    msleep(5);
+    gpio_pull_updown(TOUCH_INT_PIN, 1);
+    gpio_direction_output(TOUCH_RESET_PIN, 0);
+    msleep(5);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+    msleep(200);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+}
+void laibao_hold(void)
+{
+    printk("nas_hold()\n");
+    gpio_direction_output(TOUCH_RESET_PIN, 0);
+    msleep(5);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+    msleep(30);
+ }
+void laibao_request_io(void)
+{
+    if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+      gpio_free(TOUCH_RESET_PIN);
+      printk("nas_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+
+    if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+      gpio_free(TOUCH_INT_PIN);
+      printk("nas_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+}
+	
+int laibao_init_platform_hw(void)
+{
+	printk("enter %s()\n", __FUNCTION__);
+	laibao_request_io();
+	laibao_reset();
+	
+    if(gpio_request(RK29_PIN6_PD3,NULL) != 0){
+      gpio_free(RK29_PIN6_PD3);
+      printk("mma8452_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+	
+    gpio_direction_output(RK29_PIN6_PD3, 0);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+
+
+    	return 0;
+}
+
+
+struct laibao_platform_data laibao_info = {
+  .model= 1003,
+  .init_platform_hw= laibao_init_platform_hw,
+
+};
+#endif
+
 
 #if defined (CONFIG_D70_L3188A)
 struct goodix_i2c_rmi_platform_data d70_l3188a_info = {
@@ -512,6 +632,57 @@ static struct mma8452_platform_data mma8452_info = {
   .swap_xy = 0,
   .init_platform_hw= mma8452_init_platform_hw,
 
+};
+#endif
+
+#if defined (CONFIG_MPU_SENSORS_MPU3050)
+/*mpu3050*/
+static struct mpu3050_platform_data mpu3050_data = {
+		.int_config = 0x10,
+		//.orientation = { 1, 0, 0,0, -1, 0,0, 0, 1 },
+		//.orientation = { 0, 1, 0,-1, 0, 0,0, 0, -1 },
+		//.orientation = { -1, 0, 0,0, -1, 0,0, 0, -1 },
+		.orientation = { 1, 0, 0, 0, 1, 0, 0, 0, -1 },
+		.level_shifter = 0,
+#if defined (CONFIG_MPU_SENSORS_KXTF9)
+		.accel = {
+#ifdef CONFIG_MPU_SENSORS_MPU3050_MODULE
+				.get_slave_descr = NULL ,
+#else
+				.get_slave_descr = get_accel_slave_descr ,			
+#endif
+				.adapt_num = 0, // The i2c bus to which the mpu device is
+				// connected
+				.irq = RK29_PIN0_PA3,
+				.bus = EXT_SLAVE_BUS_SECONDARY,  //The secondary I2C of MPU
+				.address = 0x0f,
+				//.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },
+				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
+				//.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
+				
+				.orientation = { 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+				//.orientation = { 0, 1, 0, -1, 0, 0, 0, 0, -1 },
+		},
+#endif
+#if defined (CONFIG_MPU_SENSORS_AK8975)
+		.compass = {
+#ifdef CONFIG_MPU_SENSORS_MPU3050_MODULE
+				.get_slave_descr = NULL,/*ak5883_get_slave_descr,*/
+#else
+				.get_slave_descr = get_compass_slave_descr,
+#endif						
+				.adapt_num = 0, // The i2c bus to which the compass device is. 
+				// It can be difference with mpu
+				// connected
+				.irq = RK29_PIN0_PA4,
+				.bus = EXT_SLAVE_BUS_PRIMARY,
+				.address = 0x0d,
+				//.orientation = { -1, 0, 0,0, -1, 0,0, 0, 1 },
+				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
+				//.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
+				.orientation = { 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+		},
+#endif
 };
 #endif
 
@@ -708,6 +879,13 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.flags			= 0,
 	},
 #endif
+#if defined (CONFIG_SND_SOC_WM8994)
+        {
+                .type                   = "wm8994",
+                .addr           = 0x1A,
+                .flags                  = 0,
+        },
+#endif
 #if defined (CONFIG_BATTERY_STC3100)
 	{
 		.type    		= "stc3100",
@@ -756,6 +934,16 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.irq			= RK29_PIN0_PA4,
 	},
 #endif
+/*mpu3050*/
+#if defined (CONFIG_MPU_SENSORS_MPU3050) 
+	{
+		.type 			= "mpu3050",
+		.addr			= 0x68,
+		.flags			= 0,
+		.irq			= RK29_PIN5_PA3,
+		.platform_data  = &mpu3050_data,
+	},
+#endif
 };
 #endif
 
@@ -767,14 +955,6 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 		.addr			= 0x40,
 		.flags			= 0,
 	},
-#endif
-#if defined (CONFIG_ANX7150) || defined (CONFIG_ANX7150_NEW)
-    {
-		.type           = "anx7150",
-        .addr           = 0x39,             //0x39, 0x3d
-        .flags          = 0,
-        .irq            = RK29_PIN1_PD7,
-    },
 #endif
 
 };
@@ -801,6 +981,28 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
       .platform_data  = &eeti_egalax_info,
     },
 #endif
+//tcl miaozh add
+#if defined (CONFIG_TOUCHSCREEN_NAS)
+    {
+      .type           = "nas_touch",
+      .addr           = (0x70>>1),
+      .flags          = 0, //I2C_M_NEED_DELAY
+      .irq            = RK29_PIN0_PA2,
+      .platform_data  = &nas_info,
+      //.udelay		  = 100
+    },
+#endif
+
+#if defined (CONFIG_LAIBAO_TS)
+    {
+      .type	      = "laibao_touch",
+      .addr	      = (0x70>>1),
+      .flags	      = 0,
+      .irq	      = RK29_PIN0_PA2,//gpio_to_irq(RK29_PIN0_PA2),
+      .platform_data  = &laibao_info,
+    },
+#endif
+
 #if defined (CONFIG_D70_L3188A)
     {
       .type           = "goodix-ts",
@@ -815,6 +1017,15 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
 
 #ifdef CONFIG_I2C3_RK29
 static struct i2c_board_info __initdata board_i2c3_devices[] = {
+#if defined (CONFIG_ANX7150) || defined (CONFIG_ANX7150_NEW)
+    {
+		.type           = "anx7150",
+        .addr           = 0x39,             //0x39, 0x3d
+        .flags          = 0,
+        .irq            = RK29_PIN1_PD7,
+    },
+#endif
+
 };
 #endif
 

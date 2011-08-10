@@ -317,7 +317,7 @@ void WriteParameter(char DH)
 void init_nt35510(void)
 {
 	WriteCommand(0X1100); 
-	msleep(120);
+	msleep(10);
 
 	WriteCommand(0X1300); 
 

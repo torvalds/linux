@@ -724,6 +724,22 @@ config TOUCHSCREEN_IT7260
 
 	  If unsure, say N (but it's safe to say "Y").
 
+config TOUCHSCREEN_NAS
+        tristate "NAS based touchscreens: NAS Interface"
+        depends on I2C2_RK29
+        help
+          Say Y here if you have a touchscreen interface using the
+          nas controller, and your board-specific initialization
+          code includes that in its table of I2C devices.
+
+          If unsure, say N (but it's safe to say "Y").
+          
+config LAIBAO_TS
+	tristate "LAIBAO touchscreen"
+	depends on I2C2_RK29
+	help
+	  RK29 LAIBAO touchscreen
+
 config TOUCHSCREEN_GT801_IIC
 	tristate "GT801_IIC based touchscreens"
 	depends on I2C2_RK29

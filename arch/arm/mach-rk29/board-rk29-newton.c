@@ -176,15 +176,14 @@ struct rk29_nand_platform_data rk29_nand_data = {
 * author: zyw@rock-chips.com
 *****************************************************************************************/
 #define FB_ID                       0
-#define FB_DISPLAY_ON_PIN           INVALID_GPIO// RK29_PIN6_PD0
-//#define FB_LCD_STANDBY_PIN          INVALID_GPIO
-#define FB_LCD_STANDBY_PIN          RK29_PIN6_PD1
+#define FB_DISPLAY_ON_PIN           RK29_PIN6_PD1
+#define FB_LCD_STANDBY_PIN          RK29_PIN1_PD6
 #define FB_LCD_CABC_EN_PIN          RK29_PIN6_PD2
 #define FB_MCU_FMK_PIN              INVALID_GPIO
 
 #define FB_DISPLAY_ON_VALUE         GPIO_HIGH
-//#define FB_LCD_STANDBY_VALUE        GPIO_HIGH
-#define FB_LCD_STANDBY_VALUE        GPIO_LOW
+#define FB_LCD_STANDBY_VALUE        GPIO_HIGH
+//#define FB_LCD_STANDBY_VALUE        GPIO_LOW
 
 static int rk29_lcd_io_init(void)
 {
@@ -260,17 +259,6 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
                 printk(">>>>>> FB_DISPLAY_ON_PIN gpio_request err \n ");
             }
         }
-        else
-        {
-             ret = gpio_request(TOUCH_SCREEN_DISPLAY_PIN, NULL);
-             if(ret != 0)
-             {
-                 gpio_free(TOUCH_SCREEN_DISPLAY_PIN);
-                 printk(">>>>>> TOUCH_SCREEN_DISPLAY_PIN gpio_request err \n ");
-             }
-             gpio_direction_output(TOUCH_SCREEN_DISPLAY_PIN, 0);
-             gpio_set_value(TOUCH_SCREEN_DISPLAY_PIN, TOUCH_SCREEN_DISPLAY_VALUE);
-        }
     }
 
     if(fb_setting->disp_on_en)
@@ -284,17 +272,6 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
                  printk(">>>>>> FB_LCD_STANDBY_PIN gpio_request err \n ");
              }
         }
-        else
-        {
-             ret = gpio_request(TOUCH_SCREEN_STANDBY_PIN, NULL);
-             if(ret != 0)
-             {
-                 gpio_free(TOUCH_SCREEN_STANDBY_PIN);
-                 printk(">>>>>> TOUCH_SCREEN_STANDBY_PIN gpio_request err \n ");
-             }
-             gpio_direction_output(TOUCH_SCREEN_STANDBY_PIN, 0);
-             gpio_set_value(TOUCH_SCREEN_STANDBY_PIN, TOUCH_SCREEN_STANDBY_VALUE);
-         }
     }
 
     if(FB_LCD_CABC_EN_PIN != INVALID_GPIO)
@@ -313,6 +290,7 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 
     return ret;
 }
+
 
 static struct rk29fb_info rk29_fb_info = {
     .fb_id   = FB_ID,
@@ -559,10 +537,12 @@ int ft5406_init_platform_hw(void)
     }
 
 	gpio_direction_output(TOUCH_RESET_PIN, 0);
-	gpio_direction_output(TOUCH_INT_PIN, 0);
-	gpio_set_value(TOUCH_INT_PIN,GPIO_HIGH);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+	mdelay(10);
+	gpio_direction_input(TOUCH_INT_PIN);
+	mdelay(10);
 	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
-	gpio_pull_updown(TOUCH_INT_PIN, 0);  
+	msleep(300);
     return 0;
 }
 
@@ -616,15 +596,11 @@ int gt819_init_platform_hw(void)
     }
 	gpio_direction_output(TOUCH_RESET_PIN, 0);
 	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
-	msleep(100);
-	gpio_direction_output(TOUCH_INT_PIN, 0);
-	gpio_set_value(TOUCH_INT_PIN,GPIO_LOW);
 	mdelay(10);
-	msleep(50);
+	gpio_direction_input(TOUCH_INT_PIN);
+	mdelay(10);
 	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
-	msleep(100);
-	gpio_direction_output(TOUCH_INT_PIN, 1);
-	gpio_pull_updown(TOUCH_INT_PIN, 0);  
+	msleep(300);
     return 0;
 }
 
@@ -647,10 +623,10 @@ int gt819_platform_wakeup(void)
 {
 	printk("gt819_platform_wakeup\n");
 	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
-	msleep(5);
-	gpio_set_value(TOUCH_INT_PIN, GPIO_LOW); 
-	msleep(20);
-	gpio_set_value(TOUCH_INT_PIN, GPIO_HIGH);
+	//msleep(5);
+	//gpio_set_value(TOUCH_INT_PIN, GPIO_LOW); 
+	//msleep(20);
+	//gpio_set_value(TOUCH_INT_PIN, GPIO_HIGH);
 	return 0;
 }
 struct goodix_platform_data goodix_info = {
@@ -684,7 +660,25 @@ struct cs42l52_platform_data cs42l52_info = {
 
 };
 #endif
+#if defined (CONFIG_BATTERY_BQ27541)
+#define	DC_CHECK_PIN	RK29_PIN4_PA1
+#define	LI_LION_BAT_NUM	1
+static int bq27541_init_dc_check_pin(void){	
+	if(gpio_request(DC_CHECK_PIN,"dc_check") != 0){      
+		gpio_free(DC_CHECK_PIN);      
+		printk("bq27541 init dc check pin request error\n");      
+		return -EIO;    
+	}	
+	gpio_direction_input(DC_CHECK_PIN);	
+	return 0;
+}
 
+struct bq27541_platform_data bq27541_info = {	
+	.init_dc_check_pin = bq27541_init_dc_check_pin,	
+	.dc_check_pin =  DC_CHECK_PIN,		
+	.bat_num = LI_LION_BAT_NUM,
+};
+#endif
 static struct android_pmem_platform_data android_pmem_pdata = {
 	.name		= "pmem",
 	.start		= PMEM_UI_BASE,
@@ -817,7 +811,55 @@ static struct mma8452_platform_data mma8452_info = {
 
 };
 #endif
-
+#if defined (CONFIG_MPU_SENSORS_MPU3050)
+/*mpu3050*/
+static struct mpu3050_platform_data mpu3050_data = {
+		.int_config = 0x10,
+		//.orientation = { 1, 0, 0,0, -1, 0,0, 0, 1 },
+		//.orientation = { 0, 1, 0,-1, 0, 0,0, 0, -1 },
+		//.orientation = { -1, 0, 0,0, -1, 0,0, 0, -1 },
+		.orientation = { 0, 1, 0, -1, 0, 0, 0, 0, 1 },
+		.level_shifter = 0,
+#if defined (CONFIG_MPU_SENSORS_KXTF9)
+		.accel = {
+#ifdef CONFIG_MPU_SENSORS_MPU3050_MODULE
+				.get_slave_descr = NULL ,
+#else
+				.get_slave_descr = get_accel_slave_descr ,			
+#endif
+				.adapt_num = 0, // The i2c bus to which the mpu device is
+				// connected
+				//.irq = RK29_PIN0_PA3,
+				.bus = EXT_SLAVE_BUS_SECONDARY,  //The secondary I2C of MPU
+				.address = 0x0f,
+				//.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },
+				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
+				//.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
+				.orientation = { 0, 1 ,0, -1 ,0, 0, 0, 0, 1 },
+		},
+#endif
+#if defined (CONFIG_MPU_SENSORS_AK8975)
+		.compass = {
+#ifdef CONFIG_MPU_SENSORS_MPU3050_MODULE
+				.get_slave_descr = NULL,/*ak5883_get_slave_descr,*/
+#else
+				.get_slave_descr = get_compass_slave_descr,
+#endif						
+				.adapt_num = 0, // The i2c bus to which the compass device is. 
+				// It can be difference with mpu
+				// connected
+				//.irq = RK29_PIN0_PA4,
+				.bus = EXT_SLAVE_BUS_PRIMARY,
+				.address = 0x0d,
+				//.orientation = { -1, 0, 0,0, -1, 0,0, 0, 1 },
+				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
+				//.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
+				//.orientation = { 0, -1, 0, 1, 0, 0, 0, 0, 1 },
+				.orientation = { 0, 1, 0, -1, 0, 0, 0, 0, 1 },
+		},
+};
+#endif
+#endif
 #if defined (CONFIG_BATTERY_BQ27510)
 #define	DC_CHECK_PIN	RK29_PIN4_PA1
 #define	LI_LION_BAT_NUM	2
@@ -838,25 +880,6 @@ struct bq27510_platform_data bq27510_info = {
 };
 #endif
 
-#if defined (CONFIG_BATTERY_BQ27541)
-#define	DC_CHECK_PIN	RK29_PIN4_PA1
-#define	LI_LION_BAT_NUM	1
-static int bq27541_init_dc_check_pin(void){	
-	if(gpio_request(DC_CHECK_PIN,"dc_check") != 0){      
-		gpio_free(DC_CHECK_PIN);      
-		printk("bq27541 init dc check pin request error\n");      
-		return -EIO;    
-	}	
-	gpio_direction_input(DC_CHECK_PIN);	
-	return 0;
-}
-
-struct bq27541_platform_data bq27541_info = {	
-	.init_dc_check_pin = bq27541_init_dc_check_pin,	
-	.dc_check_pin =  DC_CHECK_PIN,		
-	.bat_num = LI_LION_BAT_NUM,
-};
-#endif
 
 /*****************************************************************************************
  * i2c devices
@@ -1069,6 +1092,17 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.irq			= RK29_PIN0_PA4,
 	},
 #endif
+/*mpu3050*/
+#if defined (CONFIG_MPU_SENSORS_MPU3050) 
+	{
+		.type 			= "mpu3050",
+		.addr			= 0x68,
+		.flags			= 0,
+		.irq			= RK29_PIN5_PA3,
+		.platform_data  = &mpu3050_data,
+	},
+#endif
+
 #if defined (CONFIG_SND_SOC_CS42L52)
 	{
 		.type    		= "cs42l52",
@@ -1177,7 +1211,7 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
  * camera  devices
  * author: ddl@rock-chips.com
  *****************************************************************************************/
-#ifdef CONFIG_VIDEO_RK29 
+#ifdef CONFIG_VIDEO_RK29
 #define CONFIG_SENSOR_POWER_IOCTL_USR      0
 #define CONFIG_SENSOR_RESET_IOCTL_USR      0
 #define CONFIG_SENSOR_POWERDOWN_IOCTL_USR      0
@@ -1236,7 +1270,6 @@ static struct rk29camera_platform_ioctl_cb  sensor_ioctl_cb = {
     .sensor_flash_cb = NULL,
     #endif
 };
-
 #include "../../../drivers/media/video/rk29_camera.c"
 #endif
 /*****************************************************************************************
@@ -1294,6 +1327,7 @@ static int rk29_backlight_io_deinit(void)
     gpio_free(BL_EN_PIN);
     #endif
     rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE_GPIO);
+    
     return ret;
 }
 
@@ -1795,6 +1829,10 @@ struct platform_device newton_usb_mass_storage_device = {
 	},
 };
 #endif
+static struct platform_device  rk29_cs42l52_device = {
+	.name		= "rk29_cs42l52",
+	.id		    = -1,
+};
 
 static void __init rk29_board_iomux_init(void)
 {
@@ -1924,6 +1962,9 @@ static struct platform_device *devices[] __initdata = {
 	&android_usb_device,
 	&newton_usb_mass_storage_device,
 #endif
+#ifdef CONFIG_USB_ANDROID_RNDIS
+    &rk29_device_rndis,
+#endif
 #ifdef CONFIG_RK29_IPP
 	&rk29_device_ipp,
 #endif
@@ -1941,6 +1982,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_LEDS_NEWTON_PWM
 	&rk29_device_pwm_leds,
+#endif
+#ifdef CONFIG_SND_RK29_SOC_CS42L52
+	&rk29_cs42l52_device,
 #endif
 };
 
@@ -2260,7 +2304,7 @@ static void __init machine_rk29_mapio(void)
 	rk29_sram_init();
 	rk29_clock_init(periph_pll_default);
 	rk29_iomux_init();
-	ddr_init(DDR_TYPE, DDR_FREQ);
+    ddr_init(DDR_TYPE,DDR_FREQ);  // DDR3_1333H, 400
 }
 
 MACHINE_START(RK29, "RK29board")
