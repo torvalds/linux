@@ -65,11 +65,6 @@ config SAMSUNG_IRQ_VIC_TIMER
        help
          Internal configuration to build the VIC timer interrupt code.
 
-config SAMSUNG_IRQ_UART
-       bool
-       help
-         Internal configuration to build the IRQ UART demux code.
-
 # options for gpio configuration support
 
 config SAMSUNG_GPIOLIB_4BIT

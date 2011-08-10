@@ -37,41 +37,6 @@
 #define IRQ_VIC1_BASE		S5P_VIC1_BASE
 #define IRQ_VIC2_BASE		S5P_VIC2_BASE
 
-/* UART interrupts, each UART has 4 intterupts per channel so
- * use the space between the ISA and S3C main interrupts. Note, these
- * are not in the same order as the S3C24XX series! */
-
-#define IRQ_S5P_UART_BASE0	(16)
-#define IRQ_S5P_UART_BASE1	(20)
-#define IRQ_S5P_UART_BASE2	(24)
-#define IRQ_S5P_UART_BASE3	(28)
-
-#define UART_IRQ_RXD		(0)
-#define UART_IRQ_ERR		(1)
-#define UART_IRQ_TXD		(2)
-
-#define IRQ_S5P_UART_RX0	(IRQ_S5P_UART_BASE0 + UART_IRQ_RXD)
-#define IRQ_S5P_UART_TX0	(IRQ_S5P_UART_BASE0 + UART_IRQ_TXD)
-#define IRQ_S5P_UART_ERR0	(IRQ_S5P_UART_BASE0 + UART_IRQ_ERR)
-
-#define IRQ_S5P_UART_RX1	(IRQ_S5P_UART_BASE1 + UART_IRQ_RXD)
-#define IRQ_S5P_UART_TX1	(IRQ_S5P_UART_BASE1 + UART_IRQ_TXD)
-#define IRQ_S5P_UART_ERR1	(IRQ_S5P_UART_BASE1 + UART_IRQ_ERR)
-
-#define IRQ_S5P_UART_RX2	(IRQ_S5P_UART_BASE2 + UART_IRQ_RXD)
-#define IRQ_S5P_UART_TX2	(IRQ_S5P_UART_BASE2 + UART_IRQ_TXD)
-#define IRQ_S5P_UART_ERR2	(IRQ_S5P_UART_BASE2 + UART_IRQ_ERR)
-
-#define IRQ_S5P_UART_RX3	(IRQ_S5P_UART_BASE3 + UART_IRQ_RXD)
-#define IRQ_S5P_UART_TX3	(IRQ_S5P_UART_BASE3 + UART_IRQ_TXD)
-#define IRQ_S5P_UART_ERR3	(IRQ_S5P_UART_BASE3 + UART_IRQ_ERR)
-
-/* S3C compatibilty defines */
-#define IRQ_S3CUART_RX0		IRQ_S5P_UART_RX0
-#define IRQ_S3CUART_RX1		IRQ_S5P_UART_RX1
-#define IRQ_S3CUART_RX2		IRQ_S5P_UART_RX2
-#define IRQ_S3CUART_RX3		IRQ_S5P_UART_RX3
-
 /* VIC based IRQs */
 
 #define S5P_IRQ_VIC0(x)		(S5P_VIC0_BASE + (x))
