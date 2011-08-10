@@ -60,14 +60,6 @@ static struct musb_hdrc_platform_data musb_plat = {
 
 static u64 musb_dmamask = DMA_BIT_MASK(32);
 
-static struct omap_device_pm_latency omap_musb_latency[] = {
-	{
-		.deactivate_func	= omap_device_idle_hwmods,
-		.activate_func		= omap_device_enable_hwmods,
-		.flags			= OMAP_DEVICE_LATENCY_AUTO_ADJUST,
-	},
-};
-
 static void usb_musb_mux_init(struct omap_musb_board_data *board_data)
 {
 	switch (board_data->interface_type) {
@@ -150,8 +142,7 @@ void __init usb_musb_init(struct omap_musb_board_data *musb_board_data)
                 return;
 
 	pdev = omap_device_build(name, bus_id, oh, &musb_plat,
-			       sizeof(musb_plat), omap_musb_latency,
-			       ARRAY_SIZE(omap_musb_latency), false);
+			       sizeof(musb_plat), NULL, 0, false);
 	if (IS_ERR(pdev)) {
 		pr_err("Could not build omap_device for %s %s\n",
 						name, oh_name);
