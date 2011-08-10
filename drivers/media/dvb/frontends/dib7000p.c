@@ -81,13 +81,6 @@ enum dib7000p_power_mode {
 };
 
 /* dib7090 specific fonctions */
-#define MPEG_ON_DIBTX		1
-#define DIV_ON_DIBTX		2
-#define ADC_ON_DIBTX		3
-#define DEMOUT_ON_HOSTBUS	4
-#define DIBTX_ON_HOSTBUS	5
-#define MPEG_ON_HOSTBUS		6
-
 static int dib7090_set_output_mode(struct dvb_frontend *fe, int mode);
 static int dib7090_set_diversity_in(struct dvb_frontend *fe, int onoff);
 static void dib7090_setDibTxMux(struct dib7000p_state *state, int mode);

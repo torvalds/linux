@@ -276,4 +276,11 @@ struct dibSubbandSelection {
 #define DEMOD_TIMF_GET    0x01
 #define DEMOD_TIMF_UPDATE 0x02
 
+#define MPEG_ON_DIBTX		1
+#define DIV_ON_DIBTX		2
+#define ADC_ON_DIBTX		3
+#define DEMOUT_ON_HOSTBUS	4
+#define DIBTX_ON_HOSTBUS	5
+#define MPEG_ON_HOSTBUS		6
+
 #endif
