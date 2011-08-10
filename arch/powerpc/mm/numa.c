@@ -709,7 +709,6 @@ static void __init parse_drconf_memory(struct device_node *memory)
 
 static int __init parse_numa_properties(void)
 {
-	struct device_node *cpu = NULL;
 	struct device_node *memory;
 	int default_nid = 0;
 	unsigned long i;
@@ -732,6 +731,7 @@ static int __init parse_numa_properties(void)
 	 * each node to be onlined must have NODE_DATA etc backing it.
 	 */
 	for_each_present_cpu(i) {
+		struct device_node *cpu;
 		int nid;
 
 		cpu = of_get_cpu_node(i, NULL);
@@ -800,8 +800,9 @@ new_range:
 	}
 
 	/*
-	 * Now do the same thing for each MEMBLOCK listed in the ibm,dynamic-memory
-	 * property in the ibm,dynamic-reconfiguration-memory node.
+	 * Now do the same thing for each MEMBLOCK listed in the
+	 * ibm,dynamic-memory property in the
+	 * ibm,dynamic-reconfiguration-memory node.
 	 */
 	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (memory)
