@@ -834,7 +834,7 @@ static int __init ppc440spe_pciex_core_init(struct device_node *np)
 	return 3;
 }
 
-static int ppc440spe_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
+static int __init ppc440spe_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
 {
 	u32 val = 1 << 24;
 
@@ -872,12 +872,12 @@ static int ppc440spe_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
 	return ppc4xx_pciex_port_reset_sdr(port);
 }
 
-static int ppc440speA_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
+static int __init ppc440speA_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
 {
 	return ppc440spe_pciex_init_port_hw(port);
 }
 
-static int ppc440speB_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
+static int __init ppc440speB_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
 {
 	int rc = ppc440spe_pciex_init_port_hw(port);
 
@@ -936,7 +936,7 @@ static int __init ppc460ex_pciex_core_init(struct device_node *np)
 	return 2;
 }
 
-static int ppc460ex_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
+static int __init ppc460ex_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
 {
 	u32 val;
 	u32 utlset1;
@@ -1126,7 +1126,7 @@ static int __init ppc460sx_pciex_core_init(struct device_node *np)
 	return 2;
 }
 
-static int ppc460sx_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
+static int __init ppc460sx_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
 {
 
 	if (port->endpoint)
@@ -1218,7 +1218,7 @@ static void ppc405ex_pcie_phy_reset(struct ppc4xx_pciex_port *port)
 	mtdcri(SDR0, port->sdr_base + PESDRn_RCSSET, 0x00101000);
 }
 
-static int ppc405ex_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
+static int __init ppc405ex_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
 {
 	u32 val;
 
