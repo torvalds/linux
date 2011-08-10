@@ -2237,7 +2237,9 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
  err_start_queue:
  err_init_queue:
 	destroy_queue(pl022);
-	pl022_dma_remove(pl022);
+	if (platform_info->enable_dma)
+		pl022_dma_remove(pl022);
+
 	free_irq(adev->irq[0], pl022);
 	pm_runtime_disable(&adev->dev);
  err_no_irq:
@@ -2265,7 +2267,9 @@ pl022_remove(struct amba_device *adev)
 	if (destroy_queue(pl022) != 0)
 		dev_err(&adev->dev, "queue remove failed\n");
 	load_ssp_default_config(pl022);
-	pl022_dma_remove(pl022);
+	if (pl022->master_info->enable_dma)
+		pl022_dma_remove(pl022);
+
 	free_irq(adev->irq[0], pl022);
 	clk_disable(pl022->clk);
 	clk_put(pl022->clk);
