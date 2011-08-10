@@ -5680,7 +5680,13 @@ static  struct reginfo sensor_Effect_Green[] =
 
 static struct reginfo sensor_Effect_Solarize[] =
 {
-	
+	{0x098E, 0xE883, WORD_LEN, 0},	// MCU_ADDRESS [PRI_A_CONFIG_SYSCTRL_SELECT_FX]
+	{0x0990, 0x0004, WORD_LEN, 0},	// MCU_DATA_0
+	{0x098E, 0xEC83, WORD_LEN, 0},	// MCU_ADDRESS [PRI_B_CONFIG_SYSCTRL_SELECT_FX]
+	{0x0990, 0x0004, WORD_LEN, 0},	// MCU_DATA_0
+                                         
+	{0x098E, 0x8400, WORD_LEN, 0},	// MCU_ADDRESS [SEQ_CMD]
+	{0x0990, 0x0006, WORD_LEN, 0},	// MCU_DATA_0	
 	{SEQUENCE_END, 0x00}
 };
 
@@ -7253,6 +7259,8 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	        	SENSOR_TR("%s Capture 2 Preview failed !!\n", SENSOR_NAME_STRING());
 	        	goto sensor_s_fmt_end;
 	    	}
+            
+	        mdelay(200);  //delay  microseconds to forbid invalidate data
 			
             SENSOR_TR("%s Capture 2 Preview success\n", SENSOR_NAME_STRING());
 
