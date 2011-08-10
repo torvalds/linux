@@ -3417,16 +3417,18 @@ static int __finish_chunk_alloc(struct btrfs_trans_handle *trans,
 	key.offset = chunk_offset;
 
 	ret = btrfs_insert_item(trans, chunk_root, &key, chunk, item_size);
-	BUG_ON(ret);
 
-	if (map->type & BTRFS_BLOCK_GROUP_SYSTEM) {
+	if (ret == 0 && map->type & BTRFS_BLOCK_GROUP_SYSTEM) {
+		/*
+		 * TODO: Cleanup of inserted chunk root in case of
+		 * failure.
+		 */
 		ret = btrfs_add_system_chunk(chunk_root, &key, chunk,
 					     item_size);
-		BUG_ON(ret);
 	}
 
 	kfree(chunk);
-	return 0;
+	return ret;
 }
 
 /*
