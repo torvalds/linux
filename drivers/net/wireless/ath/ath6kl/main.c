@@ -375,7 +375,7 @@ void ath6kl_stop_endpoint(struct net_device *dev, bool keep_profile,
 
 	if (ar->htc_target) {
 		ath6kl_dbg(ATH6KL_DBG_TRC, "%s: shut down htc\n", __func__);
-		htc_stop(ar->htc_target);
+		ath6kl_htc_stop(ar->htc_target);
 	}
 
 	/*
@@ -568,7 +568,7 @@ int ath6k_setup_credit_dist(void *htc_handle,
 	servicepriority[4] = WMI_DATA_BK_SVC; /* lowest */
 
 	/* set priority list */
-	htc_set_credit_dist(htc_handle, cred_info, servicepriority, 5);
+	ath6kl_htc_set_credit_dist(htc_handle, cred_info, servicepriority, 5);
 
 	return 0;
 }

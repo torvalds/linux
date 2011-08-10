@@ -160,7 +160,7 @@ static int ath6kl_connectservice(struct ath6kl *ar,
 
 	memset(&response, 0, sizeof(response));
 
-	status = htc_conn_service(ar->htc_target, con_req, &response);
+	status = ath6kl_htc_conn_service(ar->htc_target, con_req, &response);
 	if (status) {
 		ath6kl_err("failed to connect to %s service status:%d\n",
 			   desc, status);
@@ -1069,7 +1069,7 @@ static int ath6kl_init(struct net_device *dev)
 	 * driver layer has to init BMI in order to set the host block
 	 * size.
 	 */
-	if (htc_wait_target(ar->htc_target)) {
+	if (ath6kl_htc_wait_target(ar->htc_target)) {
 		status = -EIO;
 		goto err_node_cleanup;
 	}
@@ -1098,7 +1098,7 @@ static int ath6kl_init(struct net_device *dev)
 	ath6kl_cookie_init(ar);
 
 	/* start HTC */
-	status = htc_start(ar->htc_target);
+	status = ath6kl_htc_start(ar->htc_target);
 
 	if (status) {
 		ath6kl_cookie_cleanup(ar);
@@ -1138,9 +1138,9 @@ static int ath6kl_init(struct net_device *dev)
 		goto ath6kl_init_done;
 
 err_htc_stop:
-	htc_stop(ar->htc_target);
+	ath6kl_htc_stop(ar->htc_target);
 err_rxbuf_cleanup:
-	htc_flush_rx_buf(ar->htc_target);
+	ath6kl_htc_flush_rx_buf(ar->htc_target);
 	ath6kl_cleanup_amsdu_rxbufs(ar);
 err_cleanup_scatter:
 	ath6kl_hif_cleanup_scatter(ar);
@@ -1179,7 +1179,7 @@ int ath6kl_core_init(struct ath6kl *ar)
 	if (ret)
 		goto err_bmi_cleanup;
 
-	ar->htc_target = htc_create(ar);
+	ar->htc_target = ath6kl_htc_create(ar);
 
 	if (!ar->htc_target) {
 		ret = -ENOMEM;
@@ -1217,7 +1217,7 @@ int ath6kl_core_init(struct ath6kl *ar)
 	return ret;
 
 err_htc_cleanup:
-	htc_cleanup(ar->htc_target);
+	ath6kl_htc_cleanup(ar->htc_target);
 err_bmi_cleanup:
 	ath6kl_bmi_cleanup(ar);
 err_wq:
@@ -1275,7 +1275,7 @@ void ath6kl_destroy(struct net_device *dev, unsigned int unregister)
 	destroy_workqueue(ar->ath6kl_wq);
 
 	if (ar->htc_target)
-		htc_cleanup(ar->htc_target);
+		ath6kl_htc_cleanup(ar->htc_target);
 
 	aggr_module_destroy(ar->aggr_cntxt);
 
