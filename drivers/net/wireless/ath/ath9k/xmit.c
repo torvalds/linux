@@ -551,7 +551,8 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		if (clear_filter)
 			tid->ac->clear_ps_filter = true;
 		list_splice(&bf_pending, &tid->buf_q);
-		ath_tx_queue_tid(txq, tid);
+		if (!an->sleeping)
+			ath_tx_queue_tid(txq, tid);
 		spin_unlock_bh(&txq->axq_lock);
 	}
 
@@ -1413,7 +1414,8 @@ static void ath_tx_send_ampdu(struct ath_softc *sc, struct ath_atx_tid *tid,
 		 */
 		TX_STAT_INC(txctl->txq->axq_qnum, a_queued_sw);
 		list_add_tail(&bf->list, &tid->buf_q);
-		ath_tx_queue_tid(txctl->txq, tid);
+		if (!txctl->an || !txctl->an->sleeping)
+			ath_tx_queue_tid(txctl->txq, tid);
 		return;
 	}
 
