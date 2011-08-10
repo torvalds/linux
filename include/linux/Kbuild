@@ -65,6 +65,7 @@ header-y += atmppp.h
 header-y += atmsap.h
 header-y += atmsvc.h
 header-y += audit.h
+header-y += aufs_type.h
 header-y += auto_fs.h
 header-y += auto_fs4.h
 header-y += auxvec.h
