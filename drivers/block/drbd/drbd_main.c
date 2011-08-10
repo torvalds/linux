@@ -368,14 +368,14 @@ restart:
 }
 
 static void drbd_thread_init(struct drbd_connection *connection, struct drbd_thread *thi,
-			     int (*func) (struct drbd_thread *), char *name)
+			     int (*func) (struct drbd_thread *), const char *name)
 {
 	spin_lock_init(&thi->t_lock);
 	thi->task    = NULL;
 	thi->t_state = NONE;
 	thi->function = func;
 	thi->connection = connection;
-	strncpy(thi->name, name, ARRAY_SIZE(thi->name));
+	thi->name = name;
 }
 
 int drbd_thread_start(struct drbd_thread *thi)
@@ -473,22 +473,6 @@ void _drbd_thread_stop(struct drbd_thread *thi, int restart, int wait)
 
 	if (wait)
 		wait_for_completion(&thi->stop);
-}
-
-static struct drbd_thread *drbd_task_to_thread(struct drbd_connection *connection, struct task_struct *task)
-{
-	struct drbd_thread *thi =
-		task == connection->receiver.task ? &connection->receiver :
-		task == connection->asender.task  ? &connection->asender :
-		task == connection->worker.task   ? &connection->worker : NULL;
-
-	return thi;
-}
-
-char *drbd_task_to_thread_name(struct drbd_connection *connection, struct task_struct *task)
-{
-	struct drbd_thread *thi = drbd_task_to_thread(connection, task);
-	return thi ? thi->name : task->comm;
 }
 
 int conn_lowest_minor(struct drbd_connection *connection)

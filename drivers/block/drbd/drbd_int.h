@@ -264,7 +264,7 @@ struct drbd_thread {
 	int (*function) (struct drbd_thread *);
 	struct drbd_connection *connection;
 	int reset_cpu_mask;
-	char name[9];
+	const char *name;
 };
 
 static inline enum drbd_thread_state get_t_state(struct drbd_thread *thi)
@@ -870,7 +870,6 @@ enum dds_flags {
 extern void drbd_init_set_defaults(struct drbd_device *device);
 extern int  drbd_thread_start(struct drbd_thread *thi);
 extern void _drbd_thread_stop(struct drbd_thread *thi, int restart, int wait);
-extern char *drbd_task_to_thread_name(struct drbd_connection *connection, struct task_struct *task);
 #ifdef CONFIG_SMP
 extern void drbd_thread_current_set_cpu(struct drbd_thread *thi);
 #else
