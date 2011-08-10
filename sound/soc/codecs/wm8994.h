@@ -83,6 +83,8 @@ struct wm8994_priv {
 	struct completion fll_locked[2];
 	bool fll_locked_irq;
 
+	int vmid_refcount;
+
 	int dac_rates[2];
 	int lrclk_shared[2];
 

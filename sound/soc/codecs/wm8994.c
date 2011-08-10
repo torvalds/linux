@@ -682,6 +682,97 @@ static int clk_sys_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static void vmid_reference(struct snd_soc_codec *codec)
+{
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+
+	wm8994->vmid_refcount++;
+
+	dev_dbg(codec->dev, "Referencing VMID, refcount is now %d\n",
+		wm8994->vmid_refcount);
+
+	if (wm8994->vmid_refcount == 1) {
+		/* Startup bias, VMID ramp & buffer */
+		snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
+				    WM8994_STARTUP_BIAS_ENA |
+				    WM8994_VMID_BUF_ENA |
+				    WM8994_VMID_RAMP_MASK,
+				    WM8994_STARTUP_BIAS_ENA |
+				    WM8994_VMID_BUF_ENA |
+				    (0x11 << WM8994_VMID_RAMP_SHIFT));
+
+		/* Main bias enable, VMID=2x40k */
+		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
+				    WM8994_BIAS_ENA |
+				    WM8994_VMID_SEL_MASK,
+				    WM8994_BIAS_ENA | 0x2);
+
+		msleep(20);
+	}
+}
+
+static void vmid_dereference(struct snd_soc_codec *codec)
+{
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+
+	wm8994->vmid_refcount--;
+
+	dev_dbg(codec->dev, "Dereferencing VMID, refcount is now %d\n",
+		wm8994->vmid_refcount);
+
+	if (wm8994->vmid_refcount == 0) {
+		/* Switch over to startup biases */
+		snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
+				    WM8994_BIAS_SRC |
+				    WM8994_STARTUP_BIAS_ENA |
+				    WM8994_VMID_BUF_ENA |
+				    WM8994_VMID_RAMP_MASK,
+				    WM8994_BIAS_SRC |
+				    WM8994_STARTUP_BIAS_ENA |
+				    WM8994_VMID_BUF_ENA |
+				    (1 << WM8994_VMID_RAMP_SHIFT));
+
+		/* Disable main biases */
+		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
+				    WM8994_BIAS_ENA |
+				    WM8994_VMID_SEL_MASK, 0);
+
+		/* Discharge line */
+		snd_soc_update_bits(codec, WM8994_ANTIPOP_1,
+				    WM8994_LINEOUT1_DISCH |
+				    WM8994_LINEOUT2_DISCH,
+				    WM8994_LINEOUT1_DISCH |
+				    WM8994_LINEOUT2_DISCH);
+
+		msleep(5);
+
+		/* Switch off startup biases */
+		snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
+				    WM8994_BIAS_SRC |
+				    WM8994_STARTUP_BIAS_ENA |
+				    WM8994_VMID_BUF_ENA |
+				    WM8994_VMID_RAMP_MASK, 0);
+	}
+}
+
+static int vmid_event(struct snd_soc_dapm_widget *w,
+		      struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		vmid_reference(codec);
+		break;
+
+	case SND_SOC_DAPM_POST_PMD:
+		vmid_dereference(codec);
+		break;
+	}
+
+	return 0;
+}
+
 static void wm8994_update_class_w(struct snd_soc_codec *codec)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
@@ -1209,7 +1300,8 @@ SND_SOC_DAPM_INPUT("Clock"),
 
 SND_SOC_DAPM_SUPPLY_S("MICBIAS Supply", 1, SND_SOC_NOPM, 0, 0, micbias_ev,
 		      SND_SOC_DAPM_PRE_PMU),
-SND_SOC_DAPM_SUPPLY("VMID", SND_SOC_NOPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_SUPPLY("VMID", SND_SOC_NOPM, 0, 0, vmid_event,
+		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 SND_SOC_DAPM_SUPPLY("CLK_SYS", SND_SOC_NOPM, 0, 0, clk_sys_event,
 		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
@@ -1633,10 +1725,12 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 			  unsigned int freq_in, unsigned int freq_out)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+	struct wm8994 *control = codec->control_data;
 	int reg_offset, ret;
 	struct fll_div fll;
 	u16 reg, aif1, aif2;
 	unsigned long timeout;
+	bool was_enabled;
 
 	aif1 = snd_soc_read(codec, WM8994_AIF1_CLOCKING_1)
 		& WM8994_AIF1CLK_ENA;
@@ -1656,6 +1750,9 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 	default:
 		return -EINVAL;
 	}
+
+	reg = snd_soc_read(codec, WM8994_FLL1_CONTROL_1 + reg_offset);
+	was_enabled = reg & WM8994_FLL1_ENA;
 
 	switch (src) {
 	case 0:
@@ -1723,6 +1820,21 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 
 	/* Enable (with fractional mode if required) */
 	if (freq_out) {
+		/* Enable VMID if we need it */
+		if (!was_enabled) {
+			switch (control->type) {
+			case WM8994:
+				vmid_reference(codec);
+				break;
+			case WM8958:
+				if (wm8994->revision < 1)
+					vmid_reference(codec);
+				break;
+			default:
+				break;
+			}
+		}
+
 		if (fll.k)
 			reg = WM8994_FLL1_ENA | WM8994_FLL1_FRAC;
 		else
@@ -1739,6 +1851,20 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 					 "Timed out waiting for FLL lock\n");
 		} else {
 			msleep(5);
+		}
+	} else {
+		if (was_enabled) {
+			switch (control->type) {
+			case WM8994:
+				vmid_dereference(codec);
+				break;
+			case WM8958:
+				if (wm8994->revision < 1)
+					vmid_dereference(codec);
+				break;
+			default:
+				break;
+			}
 		}
 	}
 
@@ -1856,9 +1982,6 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
-		/* VMID=2x40k */
-		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
-				    WM8994_VMID_SEL_MASK, 0x2);
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
@@ -1900,65 +2023,13 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 					    WM8994_LINEOUT2_DISCH,
 					    WM8994_LINEOUT1_DISCH |
 					    WM8994_LINEOUT2_DISCH);
-
-			/* Startup bias, VMID ramp & buffer */
-			snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
-					    WM8994_STARTUP_BIAS_ENA |
-					    WM8994_VMID_BUF_ENA |
-					    WM8994_VMID_RAMP_MASK,
-					    WM8994_STARTUP_BIAS_ENA |
-					    WM8994_VMID_BUF_ENA |
-					    (0x11 << WM8994_VMID_RAMP_SHIFT));
-
-			/* Main bias enable, VMID=2x40k */
-			snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
-					    WM8994_BIAS_ENA |
-					    WM8994_VMID_SEL_MASK,
-					    WM8994_BIAS_ENA | 0x2);
-
-			msleep(20);
 		}
 
-		/* VMID=2x500k */
-		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
-				    WM8994_VMID_SEL_MASK, 0x4);
 
 		break;
 
 	case SND_SOC_BIAS_OFF:
 		if (codec->dapm.bias_level == SND_SOC_BIAS_STANDBY) {
-			/* Switch over to startup biases */
-			snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
-					    WM8994_BIAS_SRC |
-					    WM8994_STARTUP_BIAS_ENA |
-					    WM8994_VMID_BUF_ENA |
-					    WM8994_VMID_RAMP_MASK,
-					    WM8994_BIAS_SRC |
-					    WM8994_STARTUP_BIAS_ENA |
-					    WM8994_VMID_BUF_ENA |
-					    (1 << WM8994_VMID_RAMP_SHIFT));
-
-			/* Disable main biases */
-			snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
-					    WM8994_BIAS_ENA |
-					    WM8994_VMID_SEL_MASK, 0);
-
-			/* Discharge line */
-			snd_soc_update_bits(codec, WM8994_ANTIPOP_1,
-					    WM8994_LINEOUT1_DISCH |
-					    WM8994_LINEOUT2_DISCH,
-					    WM8994_LINEOUT1_DISCH |
-					    WM8994_LINEOUT2_DISCH);
-
-			msleep(5);
-
-			/* Switch off startup biases */
-			snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
-					    WM8994_BIAS_SRC |
-					    WM8994_STARTUP_BIAS_ENA |
-					    WM8994_VMID_BUF_ENA |
-					    WM8994_VMID_RAMP_MASK, 0);
-
 			wm8994->cur_fw = NULL;
 
 			pm_runtime_put(codec->dev);
