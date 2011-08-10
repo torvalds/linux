@@ -85,6 +85,8 @@
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
+#include <linux/notifier.h>
 
 #include <plat/omap_device.h>
 #include <plat/omap_hwmod.h>
@@ -100,6 +102,7 @@ static struct omap_device *omap_device_alloc(struct platform_device *pdev,
 				      struct omap_hwmod **ohs, int oh_cnt,
 				      struct omap_device_pm_latency *pm_lats,
 				      int pm_lats_cnt);
+static void omap_device_delete(struct omap_device *od);
 
 
 static struct omap_device_pm_latency omap_default_latency[] = {
@@ -316,6 +319,96 @@ static void _add_hwmod_clocks_clkdev(struct omap_device *od,
 }
 
 
+static struct dev_pm_domain omap_device_pm_domain;
+
+/**
+ * omap_device_build_from_dt - build an omap_device with multiple hwmods
+ * @pdev_name: name of the platform_device driver to use
+ * @pdev_id: this platform_device's connection ID
+ * @oh: ptr to the single omap_hwmod that backs this omap_device
+ * @pdata: platform_data ptr to associate with the platform_device
+ * @pdata_len: amount of memory pointed to by @pdata
+ * @pm_lats: pointer to a omap_device_pm_latency array for this device
+ * @pm_lats_cnt: ARRAY_SIZE() of @pm_lats
+ * @is_early_device: should the device be registered as an early device or not
+ *
+ * Function for building an omap_device already registered from device-tree
+ *
+ * Returns 0 or PTR_ERR() on error.
+ */
+static int omap_device_build_from_dt(struct platform_device *pdev)
+{
+	struct omap_hwmod **hwmods;
+	struct omap_device *od;
+	struct omap_hwmod *oh;
+	struct device_node *node = pdev->dev.of_node;
+	const char *oh_name;
+	int oh_cnt, i, ret = 0;
+
+	oh_cnt = of_property_count_strings(node, "ti,hwmods");
+	if (!oh_cnt || IS_ERR_VALUE(oh_cnt)) {
+		dev_warn(&pdev->dev, "No 'hwmods' to build omap_device\n");
+		return -ENODEV;
+	}
+
+	hwmods = kzalloc(sizeof(struct omap_hwmod *) * oh_cnt, GFP_KERNEL);
+	if (!hwmods) {
+		ret = -ENOMEM;
+		goto odbfd_exit;
+	}
+
+	for (i = 0; i < oh_cnt; i++) {
+		of_property_read_string_index(node, "ti,hwmods", i, &oh_name);
+		oh = omap_hwmod_lookup(oh_name);
+		if (!oh) {
+			dev_err(&pdev->dev, "Cannot lookup hwmod '%s'\n",
+				oh_name);
+			ret = -EINVAL;
+			goto odbfd_exit1;
+		}
+		hwmods[i] = oh;
+	}
+
+	od = omap_device_alloc(pdev, hwmods, oh_cnt, NULL, 0);
+	if (!od) {
+		dev_err(&pdev->dev, "Cannot allocate omap_device for :%s\n",
+			oh_name);
+		ret = PTR_ERR(od);
+		goto odbfd_exit1;
+	}
+
+	if (of_get_property(node, "ti,no_idle_on_suspend", NULL))
+		omap_device_disable_idle_on_suspend(pdev);
+
+	pdev->dev.pm_domain = &omap_device_pm_domain;
+
+odbfd_exit1:
+	kfree(hwmods);
+odbfd_exit:
+	return ret;
+}
+
+static int _omap_device_notifier_call(struct notifier_block *nb,
+				      unsigned long event, void *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+
+	switch (event) {
+	case BUS_NOTIFY_ADD_DEVICE:
+		if (pdev->dev.of_node)
+			omap_device_build_from_dt(pdev);
+		break;
+
+	case BUS_NOTIFY_DEL_DEVICE:
+		if (pdev->archdata.od)
+			omap_device_delete(pdev->archdata.od);
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
+
 /* Public functions for use by core code */
 
 /**
@@ -499,6 +592,9 @@ oda_exit1:
 
 static void omap_device_delete(struct omap_device *od)
 {
+	if (!od)
+		return;
+
 	od->pdev->archdata.od = NULL;
 	kfree(od->pm_lats);
 	kfree(od->hwmods);
@@ -1038,8 +1134,13 @@ struct device omap_device_parent = {
 	.parent         = &platform_bus,
 };
 
+static struct notifier_block platform_nb = {
+	.notifier_call = _omap_device_notifier_call,
+};
+
 static int __init omap_device_init(void)
 {
+	bus_register_notifier(&platform_bus_type, &platform_nb);
 	return device_register(&omap_device_parent);
 }
 core_initcall(omap_device_init);
