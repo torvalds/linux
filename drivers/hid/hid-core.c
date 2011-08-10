@@ -1086,7 +1086,7 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 	struct hid_report *report;
 	char *buf;
 	unsigned int i;
-	int ret;
+	int ret = 0;
 
 	if (!hid)
 		return -ENODEV;
@@ -1145,7 +1145,7 @@ nomem:
 
 unlock:
 	up(&hid->driver_lock);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(hid_input_report);
 
