@@ -14,8 +14,6 @@
 #ifndef _WM8994_H
 #define _WM8994_H
 
-#define WM8994_NUM_REG   0x44
-
 /* WM8994 register space */
 #define WM8994_RESET     0x00
 #define wm8994_SYSCLK_3072M 0

@@ -51,6 +51,8 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/i2c-gpio.h>
+#include <linux/mfd/wm8994/pdata.h>
+#include <linux/mfd/wm8994/registers.h>
 
 #include "devices.h"
 #if defined(CONFIG_MU509)
@@ -705,7 +707,129 @@ struct bq27510_platform_data bq27510_info = {
 	.bat_num = LI_LION_BAT_NUM,
 };
 #endif
+/*****************************************************************************************
+ * wm8994  codec
+ * author: qjb@rock-chips.com
+ *****************************************************************************************/
+//#if defined(CONFIG_MFD_WM8994)
+#if defined (CONFIG_REGULATOR_WM8994)
+static struct regulator_consumer_supply wm8994_ldo1_consumers[] = {
+	{
+		.supply = "DBVDD",
+	},
+	{
+		.supply = "AVDD1",
+	},
+	{
+		.supply = "CPVDD",
+	},
+	{
+		.supply = "SPKVDD1",
+	}		
+};
+static struct regulator_consumer_supply wm8994_ldo2_consumers[] = {
+	{
+		.supply = "DCVDD",
+	},
+	{
+		.supply = "AVDD2",
+	},
+	{
+		.supply = "SPKVDD2",
+	}			
+};
+struct regulator_init_data regulator_init_data_ldo1 = {
+	.constraints = {
+		.name = "wm8994-ldo1",
+		.min_uA = 00000,
+		.max_uA = 18000,
+		.always_on = true,
+		.apply_uV = true,		
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_CURRENT,		
+	},
+	.num_consumer_supplies = ARRAY_SIZE(wm8994_ldo1_consumers),
+	.consumer_supplies = wm8994_ldo1_consumers,	
+};
+struct regulator_init_data regulator_init_data_ldo2 = {
+	.constraints = {
+		.name = "wm8994-ldo2",
+		.min_uA = 00000,
+		.max_uA = 18000,
+		.always_on = true,
+		.apply_uV = true,		
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_CURRENT,		
+	},
+	.num_consumer_supplies = ARRAY_SIZE(wm8994_ldo2_consumers),
+	.consumer_supplies = wm8994_ldo2_consumers,	
+};
+#endif 
+struct wm8994_drc_cfg wm8994_drc_cfg_pdata = {
+	.name = "wm8994_DRC",
+	.regs = {0,0,0,0,0},
+};
 
+struct wm8994_retune_mobile_cfg wm8994_retune_mobile_cfg_pdata = {
+	.name = "wm8994_EQ",
+	.rate = 0,
+	.regs = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,},
+}; 
+
+struct wm8994_pdata wm8994_platdata = {	
+#if defined (CONFIG_GPIO_WM8994)
+	.gpio_base = WM8994_GPIO_EXPANDER_BASE,
+	//Fill value to initialize the GPIO
+	.gpio_defaults ={},
+#endif	
+	//enable=0 disable ldo
+#if defined (CONFIG_REGULATOR_WM8994)	
+	.ldo = {
+		{
+			.enable = 0,
+			//RK29_PIN5_PA1
+			.supply = NULL,
+			.init_data = &regulator_init_data_ldo1,
+		},
+		{
+			.enable = 0,
+			.supply = NULL,		
+			.init_data = &regulator_init_data_ldo2,
+		}
+	},
+#endif 	
+	//DRC 0--use default
+	.num_drc_cfgs = 0,
+	.drc_cfgs = &wm8994_drc_cfg_pdata,
+	//EQ   0--use default 
+	.num_retune_mobile_cfgs = 0,
+	.retune_mobile_cfgs = &wm8994_retune_mobile_cfg_pdata,
+	
+	.lineout1_diff = 1,
+	.lineout2_diff = 1,
+	
+	.lineout1fb = 1,
+	.lineout2fb = 1,
+	
+	.micbias1_lvl = 1,
+	.micbias2_lvl = 1,
+	
+	.jd_scthr = 0,
+	.jd_thr = 0,
+
+	.PA_control_pin = 0,	
+	.Power_EN_Pin = RK29_PIN5_PA1,
+
+	.speaker_incall_vol = 0,
+	.speaker_incall_mic_vol = -9,
+	.speaker_normal_vol = 6,
+	.earpiece_incall_vol = 0,
+	.headset_incall_vol = 6,
+	.headset_incall_mic_vol = -6,
+	.headset_normal_vol = 6,
+	.BT_incall_vol = 0,
+	.BT_incall_mic_vol = 0,
+	.recorder_vol = 50,
+	
+};
 
 /*****************************************************************************************
  * i2c devices
@@ -880,11 +1004,12 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 	},
 #endif
 #if defined (CONFIG_SND_SOC_WM8994)
-        {
-                .type                   = "wm8994",
-                .addr           = 0x1A,
-                .flags                  = 0,
-        },
+	{
+		.type                   = "wm8994",
+		.addr           = 0x1A,
+		.flags                  = 0,
+		.platform_data          = &wm8994_platdata,
+	},
 #endif
 #if defined (CONFIG_BATTERY_STC3100)
 	{
