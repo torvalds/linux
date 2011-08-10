@@ -525,7 +525,7 @@ void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data)
 	if (ARRAY_SIZE(lcdc_resources) > 2) {
 		void __iomem *fb;
 		struct resource *fb_res = &lcdc_resources[2];
-		size_t fb_len = fb_res->end - fb_res->start + 1;
+		size_t fb_len = resource_size(fb_res);
 
 		fb = ioremap(fb_res->start, fb_len);
 		if (fb) {

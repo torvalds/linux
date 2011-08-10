@@ -82,23 +82,12 @@ static int cmx270_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 	return 0;
 }
 
-static void cmx270_pcmcia_socket_init(struct soc_pcmcia_socket *skt)
-{
-}
-
-static void cmx270_pcmcia_socket_suspend(struct soc_pcmcia_socket *skt)
-{
-}
-
-
 static struct pcmcia_low_level cmx270_pcmcia_ops __initdata = {
 	.owner			= THIS_MODULE,
 	.hw_init		= cmx270_pcmcia_hw_init,
 	.hw_shutdown		= cmx270_pcmcia_shutdown,
 	.socket_state		= cmx270_pcmcia_socket_state,
 	.configure_socket	= cmx270_pcmcia_configure_socket,
-	.socket_init		= cmx270_pcmcia_socket_init,
-	.socket_suspend		= cmx270_pcmcia_socket_suspend,
 	.nr			= 1,
 };
 

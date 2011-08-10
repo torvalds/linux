@@ -19,7 +19,7 @@
 #ifndef __BFA_IOC_H__
 #define __BFA_IOC_H__
 
-#include "bfa_sm.h"
+#include "bfa_cs.h"
 #include "bfi.h"
 #include "cna.h"
 
@@ -97,9 +97,12 @@ struct bfa_ioc_regs {
 /**
  * IOC Mailbox structures
  */
+typedef void (*bfa_mbox_cmd_cbfn_t)(void *cbarg);
 struct bfa_mbox_cmd {
 	struct list_head	qe;
-	u32			msg[BFI_IOC_MSGSZ];
+	bfa_mbox_cmd_cbfn_t     cbfn;
+	void		    *cbarg;
+	u32     msg[BFI_IOC_MSGSZ];
 };
 
 /**
@@ -130,6 +133,23 @@ struct bfa_ioc_cbfn {
 };
 
 /**
+ * IOC event notification mechanism.
+ */
+enum bfa_ioc_event {
+	BFA_IOC_E_ENABLED	= 1,
+	BFA_IOC_E_DISABLED	= 2,
+	BFA_IOC_E_FAILED	= 3,
+};
+
+typedef void (*bfa_ioc_notify_cbfn_t)(void *, enum bfa_ioc_event);
+
+struct bfa_ioc_notify {
+	struct list_head	qe;
+	bfa_ioc_notify_cbfn_t	cbfn;
+	void			*cbarg;
+};
+
+/**
  * Heartbeat failure notification queue element.
  */
 struct bfa_ioc_hbfail_notify {
@@ -141,7 +161,7 @@ struct bfa_ioc_hbfail_notify {
 /**
  * Initialize a heartbeat failure notification structure
  */
-#define bfa_ioc_hbfail_init(__notify, __cbfn, __cbarg) do {	\
+#define bfa_ioc_notify_init(__notify, __cbfn, __cbarg) do {	\
 	(__notify)->cbfn = (__cbfn);				\
 	(__notify)->cbarg = (__cbarg);				\
 } while (0)
@@ -155,25 +175,25 @@ struct bfa_iocpf {
 
 struct bfa_ioc {
 	bfa_fsm_t		fsm;
-	struct bfa 		*bfa;
-	struct bfa_pcidev 	pcidev;
-	struct timer_list 	ioc_timer;
-	struct timer_list 	iocpf_timer;
-	struct timer_list 	sem_timer;
+	struct bfa		*bfa;
+	struct bfa_pcidev	pcidev;
+	struct timer_list	ioc_timer;
+	struct timer_list	iocpf_timer;
+	struct timer_list	sem_timer;
 	struct timer_list	hb_timer;
 	u32			hb_count;
-	struct list_head	hb_notify_q;
+	struct list_head	notify_q;
 	void			*dbg_fwsave;
 	int			dbg_fwsave_len;
 	bool			dbg_fwsave_once;
 	enum bfi_mclass		ioc_mc;
-	struct bfa_ioc_regs 	ioc_regs;
+	struct bfa_ioc_regs	ioc_regs;
 	struct bfa_ioc_drv_stats stats;
 	bool			fcmode;
 	bool			ctdev;
 	bool			cna;
 	bool			pllinit;
-	bool   			stats_busy;	/*!< outstanding stats */
+	bool			stats_busy;	/*!< outstanding stats */
 	u8			port_id;
 
 	struct bfa_dma		attr_dma;
@@ -217,9 +237,11 @@ struct bfa_ioc_hwif {
 	BFI_ADAPTER_GETP(NPORTS, (__ioc)->attr->adapter_prop)
 
 #define bfa_ioc_stats(_ioc, _stats)	((_ioc)->stats._stats++)
+#define bfa_ioc_stats_hb_count(_ioc, _hb_count)	\
+	((_ioc)->stats.hb_count = (_hb_count))
 #define BFA_IOC_FWIMG_MINSZ	(16 * 1024)
 #define BFA_IOC_FWIMG_TYPE(__ioc)					\
-	(((__ioc)->ctdev) ? 						\
+	(((__ioc)->ctdev) ?						\
 	 (((__ioc)->fcmode) ? BFI_IMAGE_CT_FC : BFI_IMAGE_CT_CNA) :	\
 	 BFI_IMAGE_CB_FC)
 #define BFA_IOC_FW_SMEM_SIZE(__ioc)					\
@@ -263,9 +285,10 @@ void bfa_nw_ioc_enable(struct bfa_ioc *ioc);
 void bfa_nw_ioc_disable(struct bfa_ioc *ioc);
 
 void bfa_nw_ioc_error_isr(struct bfa_ioc *ioc);
+bool bfa_nw_ioc_is_disabled(struct bfa_ioc *ioc);
 void bfa_nw_ioc_get_attr(struct bfa_ioc *ioc, struct bfa_ioc_attr *ioc_attr);
-void bfa_nw_ioc_hbfail_register(struct bfa_ioc *ioc,
-	struct bfa_ioc_hbfail_notify *notify);
+void bfa_nw_ioc_notify_register(struct bfa_ioc *ioc,
+	struct bfa_ioc_notify *notify);
 bool bfa_nw_ioc_sem_get(void __iomem *sem_reg);
 void bfa_nw_ioc_sem_release(void __iomem *sem_reg);
 void bfa_nw_ioc_hw_sem_release(struct bfa_ioc *ioc);

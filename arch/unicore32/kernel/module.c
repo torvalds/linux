@@ -37,19 +37,6 @@ void *module_alloc(unsigned long size)
 	return __vmalloc_area(area, GFP_KERNEL, PAGE_KERNEL_EXEC);
 }
 
-void module_free(struct module *module, void *region)
-{
-	vfree(region);
-}
-
-int module_frob_arch_sections(Elf_Ehdr *hdr,
-			      Elf_Shdr *sechdrs,
-			      char *secstrings,
-			      struct module *mod)
-{
-	return 0;
-}
-
 int
 apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 	       unsigned int relindex, struct module *module)
@@ -127,26 +114,4 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 		}
 	}
 	return 0;
-}
-
-int
-apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
-		   unsigned int symindex, unsigned int relsec,
-		   struct module *module)
-{
-	printk(KERN_ERR "module %s: ADD RELOCATION unsupported\n",
-	       module->name);
-	return -ENOEXEC;
-}
-
-int
-module_finalize(const Elf32_Ehdr *hdr, const Elf_Shdr *sechdrs,
-		struct module *module)
-{
-	return 0;
-}
-
-void
-module_arch_cleanup(struct module *mod)
-{
 }

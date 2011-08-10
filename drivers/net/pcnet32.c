@@ -2570,7 +2570,6 @@ static void pcnet32_load_multicast(struct net_device *dev)
 	volatile __le16 *mcast_table = (__le16 *)ib->filter;
 	struct netdev_hw_addr *ha;
 	unsigned long ioaddr = dev->base_addr;
-	char *addrs;
 	int i;
 	u32 crc;
 
@@ -2590,13 +2589,7 @@ static void pcnet32_load_multicast(struct net_device *dev)
 
 	/* Add addresses */
 	netdev_for_each_mc_addr(ha, dev) {
-		addrs = ha->addr;
-
-		/* multicast address? */
-		if (!(*addrs & 1))
-			continue;
-
-		crc = ether_crc_le(6, addrs);
+		crc = ether_crc_le(6, ha->addr);
 		crc = crc >> 26;
 		mcast_table[crc >> 4] |= cpu_to_le16(1 << (crc & 0xf));
 	}

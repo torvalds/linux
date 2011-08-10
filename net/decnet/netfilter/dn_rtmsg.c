@@ -69,15 +69,15 @@ static void dnrmg_send_peer(struct sk_buff *skb)
 	int group = 0;
 	unsigned char flags = *skb->data;
 
-	switch(flags & DN_RT_CNTL_MSK) {
-		case DN_RT_PKT_L1RT:
-			group = DNRNG_NLGRP_L1;
-			break;
-		case DN_RT_PKT_L2RT:
-			group = DNRNG_NLGRP_L2;
-			break;
-		default:
-			return;
+	switch (flags & DN_RT_CNTL_MSK) {
+	case DN_RT_PKT_L1RT:
+		group = DNRNG_NLGRP_L1;
+		break;
+	case DN_RT_PKT_L2RT:
+		group = DNRNG_NLGRP_L2;
+		break;
+	default:
+		return;
 	}
 
 	skb2 = dnrmg_build_message(skb, &status);

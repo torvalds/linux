@@ -35,7 +35,7 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/irq.h>
 
 #include <mach/regs-clock.h>

@@ -393,5 +393,5 @@ module_exit(tsc_exit);
 
 MODULE_AUTHOR("Cyril Chemparathy");
 MODULE_DESCRIPTION("TNETV107X Touchscreen Driver");
-MODULE_ALIAS("platform: tnetv107x-ts");
+MODULE_ALIAS("platform:tnetv107x-ts");
 MODULE_LICENSE("GPL");

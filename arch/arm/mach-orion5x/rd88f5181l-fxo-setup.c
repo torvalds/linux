@@ -131,7 +131,7 @@ static void __init rd88f5181l_fxo_init(void)
 }
 
 static int __init
-rd88f5181l_fxo_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+rd88f5181l_fxo_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;
 

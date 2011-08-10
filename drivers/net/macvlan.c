@@ -414,7 +414,8 @@ static struct lock_class_key macvlan_netdev_addr_lock_key;
 #define MACVLAN_FEATURES \
 	(NETIF_F_SG | NETIF_F_ALL_CSUM | NETIF_F_HIGHDMA | NETIF_F_FRAGLIST | \
 	 NETIF_F_GSO | NETIF_F_TSO | NETIF_F_UFO | NETIF_F_GSO_ROBUST | \
-	 NETIF_F_TSO_ECN | NETIF_F_TSO6 | NETIF_F_GRO | NETIF_F_RXCSUM)
+	 NETIF_F_TSO_ECN | NETIF_F_TSO6 | NETIF_F_GRO | NETIF_F_RXCSUM | \
+	 NETIF_F_HW_VLAN_FILTER)
 
 #define MACVLAN_STATE_MASK \
 	((1<<__LINK_STATE_NOCARRIER) | (1<<__LINK_STATE_DORMANT))
@@ -509,6 +510,28 @@ static struct rtnl_link_stats64 *macvlan_dev_get_stats64(struct net_device *dev,
 	return stats;
 }
 
+static void macvlan_vlan_rx_add_vid(struct net_device *dev,
+				    unsigned short vid)
+{
+	struct macvlan_dev *vlan = netdev_priv(dev);
+	struct net_device *lowerdev = vlan->lowerdev;
+	const struct net_device_ops *ops = lowerdev->netdev_ops;
+
+	if (ops->ndo_vlan_rx_add_vid)
+		ops->ndo_vlan_rx_add_vid(lowerdev, vid);
+}
+
+static void macvlan_vlan_rx_kill_vid(struct net_device *dev,
+				     unsigned short vid)
+{
+	struct macvlan_dev *vlan = netdev_priv(dev);
+	struct net_device *lowerdev = vlan->lowerdev;
+	const struct net_device_ops *ops = lowerdev->netdev_ops;
+
+	if (ops->ndo_vlan_rx_kill_vid)
+		ops->ndo_vlan_rx_kill_vid(lowerdev, vid);
+}
+
 static void macvlan_ethtool_get_drvinfo(struct net_device *dev,
 					struct ethtool_drvinfo *drvinfo)
 {
@@ -541,13 +564,15 @@ static const struct net_device_ops macvlan_netdev_ops = {
 	.ndo_set_multicast_list	= macvlan_set_multicast_list,
 	.ndo_get_stats64	= macvlan_dev_get_stats64,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_vlan_rx_add_vid	= macvlan_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= macvlan_vlan_rx_kill_vid,
 };
 
 void macvlan_common_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 
-	dev->priv_flags	       &= ~IFF_XMIT_DST_RELEASE;
+	dev->priv_flags	       &= ~(IFF_XMIT_DST_RELEASE | IFF_TX_SKB_SHARING);
 	dev->netdev_ops		= &macvlan_netdev_ops;
 	dev->destructor		= free_netdev;
 	dev->header_ops		= &macvlan_hard_header_ops,

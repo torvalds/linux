@@ -272,6 +272,7 @@ static int __init msi_wmi_init(void)
 err_free_backlight:
 	backlight_device_unregister(backlight);
 err_free_input:
+	sparse_keymap_free(msi_wmi_input_dev);
 	input_unregister_device(msi_wmi_input_dev);
 err_uninstall_notifier:
 	wmi_remove_notify_handler(MSIWMI_EVENT_GUID);

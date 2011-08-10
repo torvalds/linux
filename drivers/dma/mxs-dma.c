@@ -327,10 +327,12 @@ static int mxs_dma_alloc_chan_resources(struct dma_chan *chan)
 
 	memset(mxs_chan->ccw, 0, PAGE_SIZE);
 
-	ret = request_irq(mxs_chan->chan_irq, mxs_dma_int_handler,
-				0, "mxs-dma", mxs_dma);
-	if (ret)
-		goto err_irq;
+	if (mxs_chan->chan_irq != NO_IRQ) {
+		ret = request_irq(mxs_chan->chan_irq, mxs_dma_int_handler,
+					0, "mxs-dma", mxs_dma);
+		if (ret)
+			goto err_irq;
+	}
 
 	ret = clk_enable(mxs_dma->clk);
 	if (ret)
@@ -535,6 +537,7 @@ static int mxs_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	switch (cmd) {
 	case DMA_TERMINATE_ALL:
 		mxs_dma_disable_chan(mxs_chan);
+		mxs_dma_reset_chan(mxs_chan);
 		break;
 	case DMA_PAUSE:
 		mxs_dma_pause_chan(mxs_chan);
@@ -707,6 +710,8 @@ static struct platform_device_id mxs_dma_type[] = {
 	}, {
 		.name = "mxs-dma-apbx",
 		.driver_data = MXS_DMA_APBX,
+	}, {
+		/* end of list */
 	}
 };
 

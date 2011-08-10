@@ -1025,6 +1025,8 @@ static void fc_lport_enter_reset(struct fc_lport *lport)
 			fc_vport_set_state(lport->vport, FC_VPORT_LINKDOWN);
 	}
 	fc_lport_state_enter(lport, LPORT_ST_RESET);
+	fc_host_post_event(lport->host, fc_get_event_number(),
+			   FCH_EVT_LIPRESET, 0);
 	fc_vports_linkchange(lport);
 	fc_lport_reset_locked(lport);
 	if (lport->link_up)
@@ -1350,7 +1352,6 @@ static void fc_lport_timeout(struct work_struct *work)
 		WARN_ON(1);
 		break;
 	case LPORT_ST_READY:
-		WARN_ON(1);
 		break;
 	case LPORT_ST_RESET:
 		break;

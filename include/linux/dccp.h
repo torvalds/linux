@@ -236,6 +236,7 @@ enum dccp_packet_dequeueing_policy {
 #ifdef __KERNEL__
 
 #include <linux/in.h>
+#include <linux/interrupt.h>
 #include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/uio.h>

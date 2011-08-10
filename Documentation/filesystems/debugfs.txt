@@ -73,8 +73,8 @@ the following functions can be used instead:
 				      struct dentry *parent, u16 *value);
     struct dentry *debugfs_create_x32(const char *name, mode_t mode,
 				      struct dentry *parent, u32 *value);
-
-Note that there is no debugfs_create_x64().
+    struct dentry *debugfs_create_x64(const char *name, mode_t mode,
+				      struct dentry *parent, u64 *value);
 
 These functions are useful as long as the developer knows the size of the
 value to be exported.  Some types can have different widths on different

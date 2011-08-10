@@ -23,7 +23,6 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/usb.h>
-#include <linux/version.h>
 #include <linux/slab.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
@@ -994,11 +993,7 @@ static int fill_board_specific_data(struct tm6000_core *dev)
 	if (rc < 0)
 		return rc;
 
-	rc = v4l2_device_register(&dev->udev->dev, &dev->v4l2_dev);
-	if (rc < 0)
-		return rc;
-
-	return rc;
+	return v4l2_device_register(&dev->udev->dev, &dev->v4l2_dev);
 }
 
 

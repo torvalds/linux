@@ -293,7 +293,7 @@ DECLARE_EVENT_CLASS(xfs_buf_class,
 		__entry->buffer_length = bp->b_buffer_length;
 		__entry->hold = atomic_read(&bp->b_hold);
 		__entry->pincount = atomic_read(&bp->b_pin_count);
-		__entry->lockval = xfs_buf_lock_value(bp);
+		__entry->lockval = bp->b_sema.count;
 		__entry->flags = bp->b_flags;
 		__entry->caller_ip = caller_ip;
 	),
@@ -323,7 +323,7 @@ DEFINE_BUF_EVENT(xfs_buf_bawrite);
 DEFINE_BUF_EVENT(xfs_buf_bdwrite);
 DEFINE_BUF_EVENT(xfs_buf_lock);
 DEFINE_BUF_EVENT(xfs_buf_lock_done);
-DEFINE_BUF_EVENT(xfs_buf_cond_lock);
+DEFINE_BUF_EVENT(xfs_buf_trylock);
 DEFINE_BUF_EVENT(xfs_buf_unlock);
 DEFINE_BUF_EVENT(xfs_buf_iowait);
 DEFINE_BUF_EVENT(xfs_buf_iowait_done);
@@ -366,7 +366,7 @@ DECLARE_EVENT_CLASS(xfs_buf_flags_class,
 		__entry->flags = flags;
 		__entry->hold = atomic_read(&bp->b_hold);
 		__entry->pincount = atomic_read(&bp->b_pin_count);
-		__entry->lockval = xfs_buf_lock_value(bp);
+		__entry->lockval = bp->b_sema.count;
 		__entry->caller_ip = caller_ip;
 	),
 	TP_printk("dev %d:%d bno 0x%llx len 0x%zx hold %d pincount %d "
@@ -409,7 +409,7 @@ TRACE_EVENT(xfs_buf_ioerror,
 		__entry->buffer_length = bp->b_buffer_length;
 		__entry->hold = atomic_read(&bp->b_hold);
 		__entry->pincount = atomic_read(&bp->b_pin_count);
-		__entry->lockval = xfs_buf_lock_value(bp);
+		__entry->lockval = bp->b_sema.count;
 		__entry->error = error;
 		__entry->flags = bp->b_flags;
 		__entry->caller_ip = caller_ip;
@@ -454,7 +454,7 @@ DECLARE_EVENT_CLASS(xfs_buf_item_class,
 		__entry->buf_flags = bip->bli_buf->b_flags;
 		__entry->buf_hold = atomic_read(&bip->bli_buf->b_hold);
 		__entry->buf_pincount = atomic_read(&bip->bli_buf->b_pin_count);
-		__entry->buf_lockval = xfs_buf_lock_value(bip->bli_buf);
+		__entry->buf_lockval = bip->bli_buf->b_sema.count;
 		__entry->li_desc = bip->bli_item.li_desc;
 		__entry->li_flags = bip->bli_item.li_flags;
 	),
@@ -571,7 +571,7 @@ DEFINE_INODE_EVENT(xfs_alloc_file_space);
 DEFINE_INODE_EVENT(xfs_free_file_space);
 DEFINE_INODE_EVENT(xfs_readdir);
 #ifdef CONFIG_XFS_POSIX_ACL
-DEFINE_INODE_EVENT(xfs_check_acl);
+DEFINE_INODE_EVENT(xfs_get_acl);
 #endif
 DEFINE_INODE_EVENT(xfs_vm_bmap);
 DEFINE_INODE_EVENT(xfs_file_ioctl);
@@ -998,7 +998,8 @@ DECLARE_EVENT_CLASS(xfs_simple_io_class,
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_ino_t, ino)
-		__field(loff_t, size)
+		__field(loff_t, isize)
+		__field(loff_t, disize)
 		__field(loff_t, new_size)
 		__field(loff_t, offset)
 		__field(size_t, count)
@@ -1006,16 +1007,18 @@ DECLARE_EVENT_CLASS(xfs_simple_io_class,
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
 		__entry->ino = ip->i_ino;
-		__entry->size = ip->i_d.di_size;
+		__entry->isize = ip->i_size;
+		__entry->disize = ip->i_d.di_size;
 		__entry->new_size = ip->i_new_size;
 		__entry->offset = offset;
 		__entry->count = count;
 	),
-	TP_printk("dev %d:%d ino 0x%llx size 0x%llx new_size 0x%llx "
+	TP_printk("dev %d:%d ino 0x%llx isize 0x%llx disize 0x%llx new_size 0x%llx "
 		  "offset 0x%llx count %zd",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
-		  __entry->size,
+		  __entry->isize,
+		  __entry->disize,
 		  __entry->new_size,
 		  __entry->offset,
 		  __entry->count)
@@ -1028,40 +1031,7 @@ DEFINE_EVENT(xfs_simple_io_class, name,	\
 DEFINE_SIMPLE_IO_EVENT(xfs_delalloc_enospc);
 DEFINE_SIMPLE_IO_EVENT(xfs_unwritten_convert);
 DEFINE_SIMPLE_IO_EVENT(xfs_get_blocks_notfound);
-
-
-TRACE_EVENT(xfs_itruncate_start,
-	TP_PROTO(struct xfs_inode *ip, xfs_fsize_t new_size, int flag,
-		 xfs_off_t toss_start, xfs_off_t toss_finish),
-	TP_ARGS(ip, new_size, flag, toss_start, toss_finish),
-	TP_STRUCT__entry(
-		__field(dev_t, dev)
-		__field(xfs_ino_t, ino)
-		__field(xfs_fsize_t, size)
-		__field(xfs_fsize_t, new_size)
-		__field(xfs_off_t, toss_start)
-		__field(xfs_off_t, toss_finish)
-		__field(int, flag)
-	),
-	TP_fast_assign(
-		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
-		__entry->size = ip->i_d.di_size;
-		__entry->new_size = new_size;
-		__entry->toss_start = toss_start;
-		__entry->toss_finish = toss_finish;
-		__entry->flag = flag;
-	),
-	TP_printk("dev %d:%d ino 0x%llx %s size 0x%llx new_size 0x%llx "
-		  "toss start 0x%llx toss finish 0x%llx",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->ino,
-		  __print_flags(__entry->flag, "|", XFS_ITRUNC_FLAGS),
-		  __entry->size,
-		  __entry->new_size,
-		  __entry->toss_start,
-		  __entry->toss_finish)
-);
+DEFINE_SIMPLE_IO_EVENT(xfs_setfilesize);
 
 DECLARE_EVENT_CLASS(xfs_itrunc_class,
 	TP_PROTO(struct xfs_inode *ip, xfs_fsize_t new_size),
@@ -1089,8 +1059,8 @@ DECLARE_EVENT_CLASS(xfs_itrunc_class,
 DEFINE_EVENT(xfs_itrunc_class, name, \
 	TP_PROTO(struct xfs_inode *ip, xfs_fsize_t new_size), \
 	TP_ARGS(ip, new_size))
-DEFINE_ITRUNC_EVENT(xfs_itruncate_finish_start);
-DEFINE_ITRUNC_EVENT(xfs_itruncate_finish_end);
+DEFINE_ITRUNC_EVENT(xfs_itruncate_data_start);
+DEFINE_ITRUNC_EVENT(xfs_itruncate_data_end);
 
 TRACE_EVENT(xfs_pagecache_inval,
 	TP_PROTO(struct xfs_inode *ip, xfs_off_t start, xfs_off_t finish),

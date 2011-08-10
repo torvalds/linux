@@ -12,6 +12,7 @@
 #ifndef _CTC_MPC_H_
 #define _CTC_MPC_H_
 
+#include <linux/interrupt.h>
 #include <linux/skbuff.h>
 #include "fsm.h"
 

@@ -24,7 +24,7 @@
 
 #include <linux/types.h>
 #include <linux/device.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #define W1_FAMILY_DEFAULT	0
 #define W1_FAMILY_SMEM_01	0x01
@@ -38,6 +38,7 @@
 #define W1_EEPROM_DS2431	0x2D
 #define W1_FAMILY_DS2760	0x30
 #define W1_FAMILY_DS2780	0x32
+#define W1_THERM_DS28EA00	0x42
 
 #define MAXNAMELEN		32
 

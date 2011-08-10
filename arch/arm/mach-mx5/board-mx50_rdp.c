@@ -192,6 +192,8 @@ static const struct imxi2c_platform_data i2c_data __initconst = {
  */
 static void __init mx50_rdp_board_init(void)
 {
+	imx50_soc_init();
+
 	mxc_iomux_v3_setup_multiple_pads(mx50_rdp_pads,
 					ARRAY_SIZE(mx50_rdp_pads));
 

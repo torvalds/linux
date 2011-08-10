@@ -61,9 +61,6 @@
 #define COMEDI_NUM_BOARD_MINORS 0x30
 #define COMEDI_FIRST_SUBDEVICE_MINOR COMEDI_NUM_BOARD_MINORS
 
-#define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, device, fmt...) \
-	device_create(cs, ((parent) ? (parent) : (device)), devt, drvdata, fmt)
-
 struct comedi_subdevice {
 	struct comedi_device *device;
 	int type;

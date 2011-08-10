@@ -86,17 +86,6 @@
 #define IXGBE_RTTPCS_ARBD_SHIFT 22
 #define IXGBE_RTTPCS_ARBD_DCB   0x4        /* Arbitration delay in DCB mode */
 
-#define IXGBE_TXPBSIZE_20KB     0x00005000 /* 20KB Packet Buffer */
-#define IXGBE_TXPBSIZE_40KB     0x0000A000 /* 40KB Packet Buffer */
-#define IXGBE_RXPBSIZE_48KB     0x0000C000 /* 48KB Packet Buffer */
-#define IXGBE_RXPBSIZE_64KB     0x00010000 /* 64KB Packet Buffer */
-#define IXGBE_RXPBSIZE_80KB     0x00014000 /* 80KB Packet Buffer */
-#define IXGBE_RXPBSIZE_128KB    0x00020000 /* 128KB Packet Buffer */
-#define IXGBE_TXPBSIZE_MAX	0x00028000 /* 160KB Packet Buffer*/
-
-#define IXGBE_TXPBTHRESH_DCB    0xA        /* THRESH value for DCB mode */
-#define IXGBE_TXPKT_SIZE_MAX    0xA        /* Max Tx Packet size  */
-
 /* SECTXMINIFG DCB */
 #define IXGBE_SECTX_DCB		0x00001F00 /* DCB TX Buffer IFG */
 
@@ -127,8 +116,7 @@ s32 ixgbe_dcb_config_tx_data_arbiter_82599(struct ixgbe_hw *hw,
 						u8 *prio_type,
 						u8 *prio_tc);
 
-s32 ixgbe_dcb_hw_config_82599(struct ixgbe_hw *hw,
-			      u8 rx_pba, u8 pfc_en, u16 *refill,
+s32 ixgbe_dcb_hw_config_82599(struct ixgbe_hw *hw, u8 pfc_en, u16 *refill,
 			      u16 *max, u8 *bwg_id, u8 *prio_type,
 			      u8 *prio_tc);
 

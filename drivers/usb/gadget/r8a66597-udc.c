@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2006-2009 Renesas Solutions Corp.
  *
- * Author : Yoshihiro Shimoda <shimoda.yoshihiro@renesas.com>
+ * Author : Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -576,7 +576,11 @@ static void init_controller(struct r8a66597 *r8a66597)
 	u16 endian = r8a66597->pdata->endian ? BIGEND : 0;
 
 	if (r8a66597->pdata->on_chip) {
-		r8a66597_bset(r8a66597, 0x04, SYSCFG1);
+		if (r8a66597->pdata->buswait)
+			r8a66597_write(r8a66597, r8a66597->pdata->buswait,
+					SYSCFG1);
+		else
+			r8a66597_write(r8a66597, 0x0f, SYSCFG1);
 		r8a66597_bset(r8a66597, HSE, SYSCFG0);
 
 		r8a66597_bclr(r8a66597, USBE, SYSCFG0);
@@ -618,6 +622,7 @@ static void disable_controller(struct r8a66597 *r8a66597)
 {
 	if (r8a66597->pdata->on_chip) {
 		r8a66597_bset(r8a66597, SCKE, SYSCFG0);
+		r8a66597_bclr(r8a66597, UTST, TESTMODE);
 
 		/* disable interrupts */
 		r8a66597_write(r8a66597, 0, INTENB0);
@@ -635,6 +640,7 @@ static void disable_controller(struct r8a66597 *r8a66597)
 		r8a66597_bclr(r8a66597, SCKE, SYSCFG0);
 
 	} else {
+		r8a66597_bclr(r8a66597, UTST, TESTMODE);
 		r8a66597_bclr(r8a66597, SCKE, SYSCFG0);
 		udelay(1);
 		r8a66597_bclr(r8a66597, PLLC, SYSCFG0);
@@ -999,10 +1005,29 @@ static void clear_feature(struct r8a66597 *r8a66597,
 
 static void set_feature(struct r8a66597 *r8a66597, struct usb_ctrlrequest *ctrl)
 {
+	u16 tmp;
+	int timeout = 3000;
 
 	switch (ctrl->bRequestType & USB_RECIP_MASK) {
 	case USB_RECIP_DEVICE:
-		control_end(r8a66597, 1);
+		switch (le16_to_cpu(ctrl->wValue)) {
+		case USB_DEVICE_TEST_MODE:
+			control_end(r8a66597, 1);
+			/* Wait for the completion of status stage */
+			do {
+				tmp = r8a66597_read(r8a66597, INTSTS0) & CTSQ;
+				udelay(1);
+			} while (tmp != CS_IDST || timeout-- > 0);
+
+			if (tmp == CS_IDST)
+				r8a66597_bset(r8a66597,
+					      le16_to_cpu(ctrl->wIndex >> 8),
+					      TESTMODE);
+			break;
+		default:
+			pipe_stall(r8a66597, 0);
+			break;
+		}
 		break;
 	case USB_RECIP_INTERFACE:
 		control_end(r8a66597, 1);
@@ -1410,7 +1435,7 @@ static struct usb_ep_ops r8a66597_ep_ops = {
 /*-------------------------------------------------------------------------*/
 static struct r8a66597 *the_controller;
 
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int r8a66597_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	struct r8a66597 *r8a66597 = the_controller;
@@ -1444,6 +1469,7 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 		goto error;
 	}
 
+	init_controller(r8a66597);
 	r8a66597_bset(r8a66597, VBSE, INTENB0);
 	if (r8a66597_read(r8a66597, INTSTS0) & VBSTS) {
 		r8a66597_start_xclock(r8a66597);
@@ -1462,9 +1488,8 @@ error:
 
 	return retval;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int r8a66597_stop(struct usb_gadget_driver *driver)
 {
 	struct r8a66597 *r8a66597 = the_controller;
 	unsigned long flags;
@@ -1475,20 +1500,16 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	spin_lock_irqsave(&r8a66597->lock, flags);
 	if (r8a66597->gadget.speed != USB_SPEED_UNKNOWN)
 		r8a66597_usb_disconnect(r8a66597);
+	r8a66597_bclr(r8a66597, VBSE, INTENB0);
+	disable_controller(r8a66597);
 	spin_unlock_irqrestore(&r8a66597->lock, flags);
 
-	r8a66597_bclr(r8a66597, VBSE, INTENB0);
-
 	driver->unbind(&r8a66597->gadget);
-
-	init_controller(r8a66597);
-	disable_controller(r8a66597);
 
 	device_del(&r8a66597->gadget.dev);
 	r8a66597->driver = NULL;
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 /*-------------------------------------------------------------------------*/
 static int r8a66597_get_frame(struct usb_gadget *_gadget)
@@ -1497,14 +1518,33 @@ static int r8a66597_get_frame(struct usb_gadget *_gadget)
 	return r8a66597_read(r8a66597, FRMNUM) & 0x03FF;
 }
 
+static int r8a66597_pullup(struct usb_gadget *gadget, int is_on)
+{
+	struct r8a66597 *r8a66597 = gadget_to_r8a66597(gadget);
+	unsigned long flags;
+
+	spin_lock_irqsave(&r8a66597->lock, flags);
+	if (is_on)
+		r8a66597_bset(r8a66597, DPRPU, SYSCFG0);
+	else
+		r8a66597_bclr(r8a66597, DPRPU, SYSCFG0);
+	spin_unlock_irqrestore(&r8a66597->lock, flags);
+
+	return 0;
+}
+
 static struct usb_gadget_ops r8a66597_gadget_ops = {
 	.get_frame		= r8a66597_get_frame,
+	.start			= r8a66597_start,
+	.stop			= r8a66597_stop,
+	.pullup			= r8a66597_pullup,
 };
 
 static int __exit r8a66597_remove(struct platform_device *pdev)
 {
 	struct r8a66597		*r8a66597 = dev_get_drvdata(&pdev->dev);
 
+	usb_del_gadget_udc(&r8a66597->gadget);
 	del_timer_sync(&r8a66597->timer);
 	iounmap(r8a66597->reg);
 	free_irq(platform_get_irq(pdev, 0), r8a66597);
@@ -1645,11 +1685,15 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 		goto clean_up3;
 	r8a66597->ep0_req->complete = nop_completion;
 
-	init_controller(r8a66597);
+	ret = usb_add_gadget_udc(&pdev->dev, &r8a66597->gadget);
+	if (ret)
+		goto err_add_udc;
 
 	dev_info(&pdev->dev, "version %s\n", DRIVER_VERSION);
 	return 0;
 
+err_add_udc:
+	r8a66597_free_request(&r8a66597->ep[0].ep, r8a66597->ep0_req);
 clean_up3:
 	free_irq(irq, r8a66597);
 clean_up2:
@@ -1679,6 +1723,7 @@ static struct platform_driver r8a66597_driver = {
 		.name =	(char *) udc_name,
 	},
 };
+MODULE_ALIAS("platform:r8a66597_udc");
 
 static int __init r8a66597_udc_init(void)
 {

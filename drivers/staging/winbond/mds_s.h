@@ -3,7 +3,7 @@
 
 #include <linux/timer.h>
 #include <linux/types.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "localpara.h"
 #include "mac_structures.h"

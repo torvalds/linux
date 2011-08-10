@@ -86,9 +86,6 @@ config SPI_BFIN_SPORT
 	help
 	  Enable support for a SPI bus via the Blackfin SPORT peripheral.
 
-	  This driver can also be built as a module.  If so, the module
-	  will be called spi_bfin_sport.
-
 config SPI_AU1550
 	tristate "Au1550/Au12x0 SPI Controller"
 	depends on (SOC_AU1550 || SOC_AU1200) && EXPERIMENTAL
@@ -96,9 +93,6 @@ config SPI_AU1550
 	help
 	  If you say yes to this option, support will be included for the
 	  Au1550 SPI controller (may also work with Au1200,Au1210,Au1250).
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called au1550_spi.
 
 config SPI_BITBANG
 	tristate "Utilities for Bitbanging SPI masters"
@@ -130,9 +124,6 @@ config SPI_COLDFIRE_QSPI
 	  This enables support for the Coldfire QSPI controller in master
 	  mode.
 
-	  This driver can also be built as a module.  If so, the module
-	  will be called coldfire_qspi.
-
 config SPI_DAVINCI
 	tristate "Texas Instruments DaVinci/DA8x/OMAP-L/AM1x SoC SPI controller"
 	depends on SPI_MASTER && ARCH_DAVINCI
@@ -140,18 +131,12 @@ config SPI_DAVINCI
 	help
 	  SPI master controller for DaVinci/DA8x/OMAP-L/AM1x SPI modules.
 
-	  This driver can also be built as a module. The module will be called
-	  davinci_spi.
-
 config SPI_EP93XX
 	tristate "Cirrus Logic EP93xx SPI controller"
 	depends on ARCH_EP93XX
 	help
 	  This enables using the Cirrus EP93xx SPI controller in master
 	  mode.
-
-	  To compile this driver as a module, choose M here. The module will be
-	  called ep93xx_spi.
 
 config SPI_GPIO
 	tristate "GPIO-based bitbanging SPI Master"
@@ -168,21 +153,6 @@ config SPI_GPIO
 	  making it unusually slow for SPI.  If your platform can inline
 	  GPIO operations, you should be able to leverage that for better
 	  speed with a custom version of this driver; see the source code.
-
-config SPI_IMX_VER_IMX1
-	def_bool y if SOC_IMX1
-
-config SPI_IMX_VER_0_0
-	def_bool y if SOC_IMX21 || SOC_IMX27
-
-config SPI_IMX_VER_0_4
-	def_bool y if SOC_IMX31
-
-config SPI_IMX_VER_0_7
-	def_bool y if ARCH_MX25 || SOC_IMX35 || SOC_IMX51 || SOC_IMX53
-
-config SPI_IMX_VER_2_3
-	def_bool y if SOC_IMX51 || SOC_IMX53
 
 config SPI_IMX
 	tristate "Freescale i.MX SPI controllers"
@@ -328,16 +298,6 @@ config SPI_S3C24XX_FIQ
 	  no free DMA channels, or when doing transfers that required both
 	  TX and RX data paths.
 
-config SPI_S3C24XX_GPIO
-	tristate "Samsung S3C24XX series SPI by GPIO"
-	depends on ARCH_S3C2410 && EXPERIMENTAL
-	select SPI_BITBANG
-	help
-	  SPI driver for Samsung S3C24XX series ARM SoCs using
-	  GPIO lines to provide the SPI bus. This can be used where
-	  the inbuilt hardware cannot provide the transfer mode, or
-	  where the board is using non hardware connected pins.
-
 config SPI_S3C64XX
 	tristate "Samsung S3C64XX series type SPI"
 	depends on (ARCH_S3C64XX || ARCH_S5P64X0)
@@ -385,15 +345,15 @@ config SPI_TI_SSP
 	  This selects an SPI master implementation using a TI sequencer
 	  serial port.
 
-	  To compile this driver as a module, choose M here: the
-	  module will be called ti-ssp-spi.
-
 config SPI_TOPCLIFF_PCH
-	tristate "Topcliff PCH SPI Controller"
+	tristate "Intel EG20T PCH/OKI SEMICONDUCTOR ML7213 IOH SPI controller"
 	depends on PCI
 	help
 	  SPI driver for the Topcliff PCH (Platform Controller Hub) SPI bus
 	  used in some x86 embedded processors.
+
+	  This driver also supports the ML7213, a companion chip for the
+	  Atom E6xx series and compatible with the Intel EG20T PCH.
 
 config SPI_TXX9
 	tristate "Toshiba TXx9 SPI controller"

@@ -223,8 +223,7 @@ static void ppp_tx_cp(struct net_device *dev, u16 pid, u8 code,
 	skb = dev_alloc_skb(sizeof(struct hdlc_header) +
 			    sizeof(struct cp_header) + magic_len + len);
 	if (!skb) {
-		printk(KERN_WARNING "%s: out of memory in ppp_tx_cp()\n",
-		       dev->name);
+		netdev_warn(dev, "out of memory in ppp_tx_cp()\n");
 		return;
 	}
 	skb_reserve(skb, sizeof(struct hdlc_header));
@@ -345,7 +344,7 @@ static void ppp_cp_event(struct net_device *dev, u16 pid, u16 event, u8 code,
 		ppp_tx_cp(dev, pid, CP_CODE_REJ, ++ppp->seq, len, data);
 
 	if (old_state != OPENED && proto->state == OPENED) {
-		printk(KERN_INFO "%s: %s up\n", dev->name, proto_name(pid));
+		netdev_info(dev, "%s up\n", proto_name(pid));
 		if (pid == PID_LCP) {
 			netif_dormant_off(dev);
 			ppp_cp_event(dev, PID_IPCP, START, 0, 0, 0, NULL);
@@ -356,7 +355,7 @@ static void ppp_cp_event(struct net_device *dev, u16 pid, u16 event, u8 code,
 		}
 	}
 	if (old_state == OPENED && proto->state != OPENED) {
-		printk(KERN_INFO "%s: %s down\n", dev->name, proto_name(pid));
+		netdev_info(dev, "%s down\n", proto_name(pid));
 		if (pid == PID_LCP) {
 			netif_dormant_on(dev);
 			ppp_cp_event(dev, PID_IPCP, STOP, 0, 0, 0, NULL);
@@ -585,7 +584,7 @@ static void ppp_timer(unsigned long arg)
 			break;
 		if (time_after(jiffies, ppp->last_pong +
 			       ppp->keepalive_timeout * HZ)) {
-			printk(KERN_INFO "%s: Link down\n", proto->dev->name);
+			netdev_info(proto->dev, "Link down\n");
 			ppp_cp_event(proto->dev, PID_LCP, STOP, 0, 0, 0, NULL);
 			ppp_cp_event(proto->dev, PID_LCP, START, 0, 0, 0, NULL);
 		} else {	/* send keep-alive packet */

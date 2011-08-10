@@ -29,8 +29,8 @@ Status: Works.  Only tested on DM7520-8.  Not SMP safe.
 
 Configuration options:
   [0] - PCI bus of device (optional)
-          If bus/slot is not specified, the first available PCI
-          device will be used.
+	If bus / slot is not specified, the first available PCI
+	device will be used.
   [1] - PCI slot of device (optional)
 */
 /*
@@ -186,7 +186,7 @@ Configuration options:
 		       | PLX_DEMAND_MODE_BIT)
 
 #define DMA_TRANSFER_BITS (\
-/* descriptors in PCI memory*/ 	PLX_DESC_IN_PCI_BIT \
+/* descriptors in PCI memory*/  PLX_DESC_IN_PCI_BIT \
 /* interrupt at end of block */ | PLX_INTR_TERM_COUNT \
 /* from board to PCI */		| PLX_XFER_LOCAL_TO_PCI)
 
@@ -869,7 +869,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	/* Show board configuration */
-	printk("%s:", dev->board_name);
+	printk(KERN_INFO "%s:", dev->board_name);
 
 	/*
 	 * Allocate the subdevice structures.  alloc_subdevice() is a
@@ -958,7 +958,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return ret;
 	}
 	dev->irq = devpriv->pci_dev->irq;
-	printk("( irq=%u )", dev->irq);
+	printk(KERN_INFO "( irq=%u )", dev->irq);
 
 	ret = rtd520_probe_fifo_depth(dev);
 	if (ret < 0)
@@ -1026,7 +1026,8 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 
 		RtdDma0Mode(dev, DMA_MODE_BITS);
-		RtdDma0Source(dev, DMAS_ADFIFO_HALF_FULL);	/* set DMA trigger source */
+		/* set DMA trigger source */
+		RtdDma0Source(dev, DMAS_ADFIFO_HALF_FULL);
 	} else {
 		printk(KERN_INFO "( no IRQ->no DMA )");
 	}
@@ -1202,11 +1203,13 @@ static unsigned short rtdConvertChanGain(struct comedi_device *dev,
 		CHAN_ARRAY_SET(devpriv->chanBipolar, chanIndex);
 	} else if (range < thisboard->rangeUniStart) {	/* second batch are +-10 */
 		r |= 0x100;	/* +-10 range */
-		r |= ((range - thisboard->range10Start) & 0x7) << 4;	/* gain */
+		/* gain */
+		r |= ((range - thisboard->range10Start) & 0x7) << 4;
 		CHAN_ARRAY_SET(devpriv->chanBipolar, chanIndex);
 	} else {		/* last batch is +10 */
 		r |= 0x200;	/* +10 range */
-		r |= ((range - thisboard->rangeUniStart) & 0x7) << 4;	/* gain */
+		/* gain */
+		r |= ((range - thisboard->rangeUniStart) & 0x7) << 4;
 		CHAN_ARRAY_CLEAR(devpriv->chanBipolar, chanIndex);
 	}
 
@@ -1336,7 +1339,8 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 		/*printk ("rtd520: Got 0x%x after %d usec\n", d, ii+1); */
 		d = d >> 3;	/* low 3 bits are marker lines */
 		if (CHAN_ARRAY_TEST(devpriv->chanBipolar, 0))
-			data[n] = d + 2048;	/* convert to comedi unsigned data */
+			/* convert to comedi unsigned data */
+			data[n] = d + 2048;
 		else
 			data[n] = d;
 	}

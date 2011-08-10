@@ -17,23 +17,21 @@ before actually making adjustments.
 
 Currently, these files might (depending on your configuration)
 show up in /proc/sys/kernel:
-- acpi_video_flags
+
 - acct
+- acpi_video_flags
+- auto_msgmni
 - bootloader_type	     [ X86 only ]
 - bootloader_version	     [ X86 only ]
 - callhome		     [ S390 only ]
-- auto_msgmni
 - core_pattern
 - core_pipe_limit
 - core_uses_pid
 - ctrl-alt-del
-- dentry-state
 - dmesg_restrict
 - domainname
 - hostname
 - hotplug
-- java-appletviewer           [ binfmt_java, obsolete ]
-- java-interpreter            [ binfmt_java, obsolete ]
 - kptr_restrict
 - kstack_depth_to_print       [ X86 only ]
 - l2cr                        [ PPC only ]
@@ -48,10 +46,14 @@ show up in /proc/sys/kernel:
 - overflowgid
 - overflowuid
 - panic
+- panic_on_oops
+- panic_on_unrecovered_nmi
 - pid_max
 - powersave-nap               [ PPC only ]
-- panic_on_unrecovered_nmi
 - printk
+- printk_delay
+- printk_ratelimit
+- printk_ratelimit_burst
 - randomize_va_space
 - real-root-dev               ==> Documentation/initrd.txt
 - reboot-cmd                  [ SPARC only ]
@@ -59,24 +61,17 @@ show up in /proc/sys/kernel:
 - rtsig-nr
 - sem
 - sg-big-buff                 [ generic SCSI device (sg) ]
+- shm_rmid_forced
 - shmall
 - shmmax                      [ sysv ipc ]
 - shmmni
+- softlockup_thresh
 - stop-a                      [ SPARC only ]
 - sysrq                       ==> Documentation/sysrq.txt
 - tainted
 - threads-max
 - unknown_nmi_panic
 - version
-
-==============================================================
-
-acpi_video_flags:
-
-flags
-
-See Doc*/kernel/power/video.txt, it allows mode of video boot to be
-set during run time.
 
 ==============================================================
 
@@ -94,6 +89,25 @@ seconds). Default:
 That is, suspend accounting if there left <= 2% free; resume it
 if we got >=4%; consider information about amount of free space
 valid for 30 seconds.
+
+==============================================================
+
+acpi_video_flags:
+
+flags
+
+See Doc*/kernel/power/video.txt, it allows mode of video boot to be
+set during run time.
+
+==============================================================
+
+auto_msgmni:
+
+Enables/Disables automatic recomputing of msgmni upon memory add/remove
+or upon ipc namespace creation/removal (see the msgmni description
+above). Echoing "1" into this file enables msgmni automatic recomputing.
+Echoing "0" turns it off. auto_msgmni default value is 1.
+
 
 ==============================================================
 
@@ -172,22 +186,24 @@ core_pattern is used to specify a core dumpfile pattern name.
 
 core_pipe_limit:
 
-This sysctl is only applicable when core_pattern is configured to pipe core
-files to a user space helper (when the first character of core_pattern is a '|',
-see above).  When collecting cores via a pipe to an application, it is
-occasionally useful for the collecting application to gather data about the
-crashing process from its /proc/pid directory.  In order to do this safely, the
-kernel must wait for the collecting process to exit, so as not to remove the
-crashing processes proc files prematurely.  This in turn creates the possibility
-that a misbehaving userspace collecting process can block the reaping of a
-crashed process simply by never exiting.  This sysctl defends against that.  It
-defines how many concurrent crashing processes may be piped to user space
-applications in parallel.  If this value is exceeded, then those crashing
-processes above that value are noted via the kernel log and their cores are
-skipped.  0 is a special value, indicating that unlimited processes may be
-captured in parallel, but that no waiting will take place (i.e. the collecting
-process is not guaranteed access to /proc/<crashing pid>/).  This value defaults
-to 0.
+This sysctl is only applicable when core_pattern is configured to pipe
+core files to a user space helper (when the first character of
+core_pattern is a '|', see above).  When collecting cores via a pipe
+to an application, it is occasionally useful for the collecting
+application to gather data about the crashing process from its
+/proc/pid directory.  In order to do this safely, the kernel must wait
+for the collecting process to exit, so as not to remove the crashing
+processes proc files prematurely.  This in turn creates the
+possibility that a misbehaving userspace collecting process can block
+the reaping of a crashed process simply by never exiting.  This sysctl
+defends against that.  It defines how many concurrent crashing
+processes may be piped to user space applications in parallel.  If
+this value is exceeded, then those crashing processes above that value
+are noted via the kernel log and their cores are skipped.  0 is a
+special value, indicating that unlimited processes may be captured in
+parallel, but that no waiting will take place (i.e. the collecting
+process is not guaranteed access to /proc/<crashing pid>/).  This
+value defaults to 0.
 
 ==============================================================
 
@@ -218,14 +234,14 @@ to decide what to do with it.
 
 dmesg_restrict:
 
-This toggle indicates whether unprivileged users are prevented from using
-dmesg(8) to view messages from the kernel's log buffer.  When
-dmesg_restrict is set to (0) there are no restrictions.  When
+This toggle indicates whether unprivileged users are prevented
+from using dmesg(8) to view messages from the kernel's log buffer.
+When dmesg_restrict is set to (0) there are no restrictions. When
 dmesg_restrict is set set to (1), users must have CAP_SYSLOG to use
 dmesg(8).
 
-The kernel config option CONFIG_SECURITY_DMESG_RESTRICT sets the default
-value of dmesg_restrict.
+The kernel config option CONFIG_SECURITY_DMESG_RESTRICT sets the
+default value of dmesg_restrict.
 
 ==============================================================
 
@@ -256,13 +272,6 @@ Default value is "/sbin/hotplug".
 
 ==============================================================
 
-l2cr: (PPC only)
-
-This flag controls the L2 cache of G3 processor boards. If
-0, the cache is disabled. Enabled if nonzero.
-
-==============================================================
-
 kptr_restrict:
 
 This toggle indicates whether restrictions are placed on
@@ -283,6 +292,13 @@ kernel stack.
 
 ==============================================================
 
+l2cr: (PPC only)
+
+This flag controls the L2 cache of G3 processor boards. If
+0, the cache is disabled. Enabled if nonzero.
+
+==============================================================
+
 modules_disabled:
 
 A toggle value indicating if modules are allowed to be loaded
@@ -290,6 +306,21 @@ in an otherwise modular kernel.  This toggle defaults to off
 (0), but can be set true (1).  Once true, modules can be
 neither loaded nor unloaded, and the toggle cannot be set back
 to false.
+
+==============================================================
+
+nmi_watchdog:
+
+Enables/Disables the NMI watchdog on x86 systems. When the value is
+non-zero the NMI watchdog is enabled and will continuously test all
+online cpus to determine whether or not they are still functioning
+properly. Currently, passing "nmi_watchdog=" parameter at boot time is
+required for this function to work.
+
+If LAPIC NMI watchdog method is in use (nmi_watchdog=2 kernel
+parameter), the NMI watchdog shares registers with oprofile. By
+disabling the NMI watchdog, oprofile may have more registers to
+utilize.
 
 ==============================================================
 
@@ -312,10 +343,10 @@ The only way to tune these values is to rebuild the kernel :-)
 
 overflowgid & overflowuid:
 
-if your architecture did not always support 32-bit UIDs (i.e. arm, i386,
-m68k, sh, and sparc32), a fixed UID and GID will be returned to
-applications that use the old 16-bit UID/GID system calls, if the actual
-UID or GID would exceed 65535.
+if your architecture did not always support 32-bit UIDs (i.e. arm,
+i386, m68k, sh, and sparc32), a fixed UID and GID will be returned to
+applications that use the old 16-bit UID/GID system calls, if the
+actual UID or GID would exceed 65535.
 
 These sysctls allow you to change the value of the fixed UID and GID.
 The default is 65534.
@@ -324,9 +355,22 @@ The default is 65534.
 
 panic:
 
-The value in this file represents the number of seconds the
-kernel waits before rebooting on a panic. When you use the
-software watchdog, the recommended setting is 60.
+The value in this file represents the number of seconds the kernel
+waits before rebooting on a panic. When you use the software watchdog,
+the recommended setting is 60.
+
+==============================================================
+
+panic_on_unrecovered_nmi:
+
+The default Linux behaviour on an NMI of either memory or unknown is
+to continue operation. For many environments such as scientific
+computing it is preferable that the box is taken out and the error
+dealt with than an uncorrected parity/ECC error get propagated.
+
+A small number of systems do generate NMI's for bizarre random reasons
+such as power management so the default is off. That sysctl works like
+the existing panic controls already in that directory.
 
 ==============================================================
 
@@ -376,6 +420,14 @@ the different loglevels.
 
 ==============================================================
 
+printk_delay:
+
+Delay each printk message in printk_delay milliseconds
+
+Value from 0 - 10000 is allowed.
+
+==============================================================
+
 printk_ratelimit:
 
 Some warning messages are rate limited. printk_ratelimit specifies
@@ -395,15 +447,7 @@ send before ratelimiting kicks in.
 
 ==============================================================
 
-printk_delay:
-
-Delay each printk message in printk_delay milliseconds
-
-Value from 0 - 10000 is allowed.
-
-==============================================================
-
-randomize-va-space:
+randomize_va_space:
 
 This option can be used to select the type of process address
 space randomization that is used in the system, for architectures
@@ -466,12 +510,33 @@ are doing anyway :)
 
 ==============================================================
 
-shmmax: 
+shmmax:
 
 This value can be used to query and set the run time limit
 on the maximum shared memory segment size that can be created.
-Shared memory segments up to 1Gb are now supported in the 
+Shared memory segments up to 1Gb are now supported in the
 kernel.  This value defaults to SHMMAX.
+
+==============================================================
+
+shm_rmid_forced:
+
+Linux lets you set resource limits, including how much memory one
+process can consume, via setrlimit(2).  Unfortunately, shared memory
+segments are allowed to exist without association with any process, and
+thus might not be counted against any resource limits.  If enabled,
+shared memory segments are automatically destroyed when their attach
+count becomes zero after a detach or a process termination.  It will
+also destroy segments that were created, but never attached to, on exit
+from the process.  The only use left for IPC_RMID is to immediately
+destroy an unattached segment.  Of course, this breaks the way things are
+defined, so some applications might stop working.  Note that this
+feature will do you no good unless you also configure your resource
+limits (in particular, RLIMIT_AS and RLIMIT_NPROC).  Most systems don't
+need this.
+
+Note that if you change this from 0 to 1, already created segments
+without users and with a dead originative process will be destroyed.
 
 ==============================================================
 
@@ -484,7 +549,7 @@ tunable to zero will disable the softlockup detection altogether.
 
 ==============================================================
 
-tainted: 
+tainted:
 
 Non-zero if the kernel has been tainted.  Numeric values, which
 can be ORed together:
@@ -509,49 +574,11 @@ can be ORed together:
 
 ==============================================================
 
-auto_msgmni:
-
-Enables/Disables automatic recomputing of msgmni upon memory add/remove or
-upon ipc namespace creation/removal (see the msgmni description above).
-Echoing "1" into this file enables msgmni automatic recomputing.
-Echoing "0" turns it off.
-auto_msgmni default value is 1.
-
-==============================================================
-
-nmi_watchdog:
-
-Enables/Disables the NMI watchdog on x86 systems.  When the value is non-zero
-the NMI watchdog is enabled and will continuously test all online cpus to
-determine whether or not they are still functioning properly. Currently,
-passing "nmi_watchdog=" parameter at boot time is required for this function
-to work.
-
-If LAPIC NMI watchdog method is in use (nmi_watchdog=2 kernel parameter), the
-NMI watchdog shares registers with oprofile. By disabling the NMI watchdog,
-oprofile may have more registers to utilize.
-
-==============================================================
-
 unknown_nmi_panic:
 
-The value in this file affects behavior of handling NMI. When the value is
-non-zero, unknown NMI is trapped and then panic occurs. At that time, kernel
-debugging information is displayed on console.
+The value in this file affects behavior of handling NMI. When the
+value is non-zero, unknown NMI is trapped and then panic occurs. At
+that time, kernel debugging information is displayed on console.
 
-NMI switch that most IA32 servers have fires unknown NMI up, for example.
-If a system hangs up, try pressing the NMI switch.
-
-==============================================================
-
-panic_on_unrecovered_nmi:
-
-The default Linux behaviour on an NMI of either memory or unknown is to continue
-operation. For many environments such as scientific computing it is preferable
-that the box is taken out and the error dealt with than an uncorrected
-parity/ECC error get propogated.
-
-A small number of systems do generate NMI's for bizarre random reasons such as
-power management so the default is off. That sysctl works like the existing
-panic controls already in that directory.
-
+NMI switch that most IA32 servers have fires unknown NMI up, for
+example.  If a system hangs up, try pressing the NMI switch.

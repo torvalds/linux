@@ -41,6 +41,17 @@ void ar6k_cfg80211_disconnect_event(struct ar6_softc *ar, u8 reason,
 
 void ar6k_cfg80211_tkip_micerr_event(struct ar6_softc *ar, u8 keyid, bool ismcast);
 
+#ifdef CONFIG_NL80211_TESTMODE
+void ar6000_testmode_rx_report_event(struct ar6_softc *ar, void *buf,
+				     int buf_len);
+#else
+static inline void ar6000_testmode_rx_report_event(struct ar6_softc *ar,
+						   void *buf, int buf_len) 
+{
+}
+#endif
+
+
 #endif /* _AR6K_CFG80211_H_ */
 
 

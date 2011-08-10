@@ -52,10 +52,6 @@ struct gether {
 	struct usb_ep			*in_ep;
 	struct usb_ep			*out_ep;
 
-	/* descriptors match device speed at gether_connect() time */
-	struct usb_endpoint_descriptor	*in;
-	struct usb_endpoint_descriptor	*out;
-
 	bool				is_zlp_ok;
 
 	u16				cdc_filter;

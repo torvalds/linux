@@ -17,6 +17,8 @@
 #include <asm/pgtable.h>
 #include <asm/ptrace.h>
 
+#include "proc-macros.S"
+
 	.text
 /*
  * cpu_arm740_proc_init()
@@ -115,42 +117,14 @@ __arm740_setup:
 
 	__INITDATA
 
-/*
- * Purpose : Function pointers used to access above functions - all calls
- *	     come through these
- */
-	.type	arm740_processor_functions, #object
-ENTRY(arm740_processor_functions)
-	.word	v4t_late_abort
-	.word	legacy_pabort
-	.word	cpu_arm740_proc_init
-	.word	cpu_arm740_proc_fin
-	.word	cpu_arm740_reset
-	.word   cpu_arm740_do_idle
-	.word	cpu_arm740_dcache_clean_area
-	.word	cpu_arm740_switch_mm
-	.word	0			@ cpu_*_set_pte
-	.word	0
-	.word	0
-	.word	0
-	.size	arm740_processor_functions, . - arm740_processor_functions
+	@ define struct processor (see <asm/proc-fns.h> and proc-macros.S)
+	define_processor_functions arm740, dabort=v4t_late_abort, pabort=legacy_pabort, nommu=1
 
 	.section ".rodata"
 
-	.type	cpu_arch_name, #object
-cpu_arch_name:
-	.asciz	"armv4"
-	.size	cpu_arch_name, . - cpu_arch_name
-
-	.type	cpu_elf_name, #object
-cpu_elf_name:
-	.asciz	"v4"
-	.size	cpu_elf_name, . - cpu_elf_name
-
-	.type	cpu_arm740_name, #object
-cpu_arm740_name:
-	.ascii	"ARM740T"
-	.size	cpu_arm740_name, . - cpu_arm740_name
+	string	cpu_arch_name, "armv4"
+	string	cpu_elf_name, "v4"
+	string	cpu_arm740_name, "ARM740T"
 
 	.align
 
@@ -170,5 +144,3 @@ __arm740_proc_info:
 	.long	0
 	.long	v3_cache_fns			@ cache model
 	.size	__arm740_proc_info, . - __arm740_proc_info
-
-

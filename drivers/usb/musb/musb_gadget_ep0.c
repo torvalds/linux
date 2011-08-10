@@ -88,7 +88,6 @@ static int service_tx_status_request(
 	case USB_RECIP_DEVICE:
 		result[0] = musb->is_self_powered << USB_DEVICE_SELF_POWERED;
 		result[0] |= musb->may_wakeup << USB_DEVICE_REMOTE_WAKEUP;
-#ifdef CONFIG_USB_MUSB_OTG
 		if (musb->g.is_otg) {
 			result[0] |= musb->g.b_hnp_enable
 				<< USB_DEVICE_B_HNP_ENABLE;
@@ -97,7 +96,6 @@ static int service_tx_status_request(
 			result[0] |= musb->g.a_hnp_support
 				<< USB_DEVICE_A_HNP_SUPPORT;
 		}
-#endif
 		break;
 
 	case USB_RECIP_INTERFACE:
@@ -392,7 +390,6 @@ __acquires(musb->lock)
 					if (handled > 0)
 						musb->test_mode = true;
 					break;
-#ifdef CONFIG_USB_MUSB_OTG
 				case USB_DEVICE_B_HNP_ENABLE:
 					if (!musb->g.is_otg)
 						goto stall;
@@ -409,7 +406,6 @@ __acquires(musb->lock)
 						goto stall;
 					musb->g.a_alt_hnp_support = 1;
 					break;
-#endif
 				case USB_DEVICE_DEBUG_MODE:
 					handled = 0;
 					break;
