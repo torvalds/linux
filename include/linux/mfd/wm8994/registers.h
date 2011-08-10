@@ -1922,6 +1922,44 @@
 #define WM8994_LDO2_DISCH_WIDTH                      1  /* LDO2_DISCH */
 
 /*
+ * R61 (0x3D) - MICBIAS1
+ */
+#define WM8958_MICB1_RATE                       0x0020  /* MICB1_RATE */
+#define WM8958_MICB1_RATE_MASK                  0x0020  /* MICB1_RATE */
+#define WM8958_MICB1_RATE_SHIFT                      5  /* MICB1_RATE */
+#define WM8958_MICB1_RATE_WIDTH                      1  /* MICB1_RATE */
+#define WM8958_MICB1_MODE                       0x0010  /* MICB1_MODE */
+#define WM8958_MICB1_MODE_MASK                  0x0010  /* MICB1_MODE */
+#define WM8958_MICB1_MODE_SHIFT                      4  /* MICB1_MODE */
+#define WM8958_MICB1_MODE_WIDTH                      1  /* MICB1_MODE */
+#define WM8958_MICB1_LVL_MASK                   0x000E  /* MICB1_LVL - [3:1] */
+#define WM8958_MICB1_LVL_SHIFT                       1  /* MICB1_LVL - [3:1] */
+#define WM8958_MICB1_LVL_WIDTH                       3  /* MICB1_LVL - [3:1] */
+#define WM8958_MICB1_DISCH                      0x0001  /* MICB1_DISCH */
+#define WM8958_MICB1_DISCH_MASK                 0x0001  /* MICB1_DISCH */
+#define WM8958_MICB1_DISCH_SHIFT                     0  /* MICB1_DISCH */
+#define WM8958_MICB1_DISCH_WIDTH                     1  /* MICB1_DISCH */
+
+/*
+ * R62 (0x3E) - MICBIAS2
+ */
+#define WM8958_MICB2_RATE                       0x0020  /* MICB2_RATE */
+#define WM8958_MICB2_RATE_MASK                  0x0020  /* MICB2_RATE */
+#define WM8958_MICB2_RATE_SHIFT                      5  /* MICB2_RATE */
+#define WM8958_MICB2_RATE_WIDTH                      1  /* MICB2_RATE */
+#define WM8958_MICB2_MODE                       0x0010  /* MICB2_MODE */
+#define WM8958_MICB2_MODE_MASK                  0x0010  /* MICB2_MODE */
+#define WM8958_MICB2_MODE_SHIFT                      4  /* MICB2_MODE */
+#define WM8958_MICB2_MODE_WIDTH                      1  /* MICB2_MODE */
+#define WM8958_MICB2_LVL_MASK                   0x000E  /* MICB2_LVL - [3:1] */
+#define WM8958_MICB2_LVL_SHIFT                       1  /* MICB2_LVL - [3:1] */
+#define WM8958_MICB2_LVL_WIDTH                       3  /* MICB2_LVL - [3:1] */
+#define WM8958_MICB2_DISCH                      0x0001  /* MICB2_DISCH */
+#define WM8958_MICB2_DISCH_MASK                 0x0001  /* MICB2_DISCH */
+#define WM8958_MICB2_DISCH_SHIFT                     0  /* MICB2_DISCH */
+#define WM8958_MICB2_DISCH_WIDTH                     1  /* MICB2_DISCH */
+
+/*
  * R76 (0x4C) - Charge Pump (1)
  */
 #define WM8994_CP_ENA                           0x8000  /* CP_ENA */
