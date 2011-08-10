@@ -144,7 +144,7 @@ void pci_iounmap(struct pci_dev *dev, void __iomem *addr)
 		return;
 	iounmap(addr);
 }
-#endif /* CONFIG_PCI */
 
 EXPORT_SYMBOL(pci_iomap);
 EXPORT_SYMBOL(pci_iounmap);
+#endif /* CONFIG_PCI */
