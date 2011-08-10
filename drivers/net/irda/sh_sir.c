@@ -513,7 +513,7 @@ static void sh_sir_tx(struct sh_sir_self *self, int phase)
 
 static int sh_sir_read_data(struct sh_sir_self *self)
 {
-	u16 val;
+	u16 val = 0;
 	int timeout = 1024;
 
 	while (timeout--) {
