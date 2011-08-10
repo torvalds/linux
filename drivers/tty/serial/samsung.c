@@ -83,6 +83,16 @@ static int s3c24xx_serial_txempty_nofifo(struct uart_port *port)
 	return (rd_regl(port, S3C2410_UTRSTAT) & S3C2410_UTRSTAT_TXE);
 }
 
+/*
+ * s3c64xx and later SoC's include the interrupt mask and status registers in
+ * the controller itself, unlike the s3c24xx SoC's which have these registers
+ * in the interrupt controller. Check if the port type is s3c64xx or higher.
+ */
+static int s3c24xx_serial_has_interrupt_mask(struct uart_port *port)
+{
+	return to_ourport(port)->info->type == PORT_S3C6400;
+}
+
 static void s3c24xx_serial_rx_enable(struct uart_port *port)
 {
 	unsigned long flags;
@@ -126,7 +136,11 @@ static void s3c24xx_serial_stop_tx(struct uart_port *port)
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
 	if (tx_enabled(port)) {
-		disable_irq_nosync(ourport->tx_irq);
+		if (s3c24xx_serial_has_interrupt_mask(port))
+			__set_bit(S3C64XX_UINTM_TXD,
+				portaddrl(port, S3C64XX_UINTM));
+		else
+			disable_irq_nosync(ourport->tx_irq);
 		tx_enabled(port) = 0;
 		if (port->flags & UPF_CONS_FLOW)
 			s3c24xx_serial_rx_enable(port);
@@ -141,11 +155,14 @@ static void s3c24xx_serial_start_tx(struct uart_port *port)
 		if (port->flags & UPF_CONS_FLOW)
 			s3c24xx_serial_rx_disable(port);
 
-		enable_irq(ourport->tx_irq);
+		if (s3c24xx_serial_has_interrupt_mask(port))
+			__clear_bit(S3C64XX_UINTM_TXD,
+				portaddrl(port, S3C64XX_UINTM));
+		else
+			enable_irq(ourport->tx_irq);
 		tx_enabled(port) = 1;
 	}
 }
-
 
 static void s3c24xx_serial_stop_rx(struct uart_port *port)
 {
@@ -153,7 +170,11 @@ static void s3c24xx_serial_stop_rx(struct uart_port *port)
 
 	if (rx_enabled(port)) {
 		dbg("s3c24xx_serial_stop_rx: port=%p\n", port);
-		disable_irq_nosync(ourport->rx_irq);
+		if (s3c24xx_serial_has_interrupt_mask(port))
+			__set_bit(S3C64XX_UINTM_RXD,
+				portaddrl(port, S3C64XX_UINTM));
+		else
+			disable_irq_nosync(ourport->rx_irq);
 		rx_enabled(port) = 0;
 	}
 }
@@ -320,6 +341,28 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 	return IRQ_HANDLED;
 }
 
+/* interrupt handler for s3c64xx and later SoC's.*/
+static irqreturn_t s3c64xx_serial_handle_irq(int irq, void *id)
+{
+	struct s3c24xx_uart_port *ourport = id;
+	struct uart_port *port = &ourport->port;
+	unsigned int pend = rd_regl(port, S3C64XX_UINTP);
+	unsigned long flags;
+	irqreturn_t ret = IRQ_HANDLED;
+
+	spin_lock_irqsave(&port->lock, flags);
+	if (pend & S3C64XX_UINTM_RXD_MSK) {
+		ret = s3c24xx_serial_rx_chars(irq, id);
+		wr_regl(port, S3C64XX_UINTP, S3C64XX_UINTM_RXD_MSK);
+	}
+	if (pend & S3C64XX_UINTM_TXD_MSK) {
+		ret = s3c24xx_serial_tx_chars(irq, id);
+		wr_regl(port, S3C64XX_UINTP, S3C64XX_UINTM_TXD_MSK);
+	}
+	spin_unlock_irqrestore(&port->lock, flags);
+	return ret;
+}
+
 static unsigned int s3c24xx_serial_tx_empty(struct uart_port *port)
 {
 	struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
@@ -377,18 +420,25 @@ static void s3c24xx_serial_shutdown(struct uart_port *port)
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
 	if (ourport->tx_claimed) {
-		free_irq(ourport->tx_irq, ourport);
+		if (!s3c24xx_serial_has_interrupt_mask(port))
+			free_irq(ourport->tx_irq, ourport);
 		tx_enabled(port) = 0;
 		ourport->tx_claimed = 0;
 	}
 
 	if (ourport->rx_claimed) {
-		free_irq(ourport->rx_irq, ourport);
+		if (!s3c24xx_serial_has_interrupt_mask(port))
+			free_irq(ourport->rx_irq, ourport);
 		ourport->rx_claimed = 0;
 		rx_enabled(port) = 0;
 	}
-}
 
+	/* Clear pending interrupts and mask all interrupts */
+	if (s3c24xx_serial_has_interrupt_mask(port)) {
+		wr_regl(port, S3C64XX_UINTP, 0xf);
+		wr_regl(port, S3C64XX_UINTM, 0xf);
+	}
+}
 
 static int s3c24xx_serial_startup(struct uart_port *port)
 {
@@ -433,6 +483,33 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 
  err:
 	s3c24xx_serial_shutdown(port);
+	return ret;
+}
+
+static int s3c64xx_serial_startup(struct uart_port *port)
+{
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
+	int ret;
+
+	dbg("s3c64xx_serial_startup: port=%p (%08lx,%p)\n",
+	    port->mapbase, port->membase);
+
+	ret = request_irq(port->irq, s3c64xx_serial_handle_irq, IRQF_SHARED,
+			  s3c24xx_serial_portname(port), ourport);
+	if (ret) {
+		printk(KERN_ERR "cannot get irq %d\n", port->irq);
+		return ret;
+	}
+
+	/* For compatibility with s3c24xx Soc's */
+	rx_enabled(port) = 1;
+	ourport->rx_claimed = 1;
+	tx_enabled(port) = 0;
+	ourport->tx_claimed = 1;
+
+	/* Enable Rx Interrupt */
+	__clear_bit(S3C64XX_UINTM_RXD, portaddrl(port, S3C64XX_UINTM));
+	dbg("s3c64xx_serial_startup ok\n");
 	return ret;
 }
 
@@ -879,7 +956,6 @@ static struct uart_ops s3c24xx_serial_ops = {
 	.verify_port	= s3c24xx_serial_verify_port,
 };
 
-
 static struct uart_driver s3c24xx_uart_drv = {
 	.owner		= THIS_MODULE,
 	.driver_name	= "s3c2410_serial",
@@ -895,7 +971,6 @@ static struct s3c24xx_uart_port s3c24xx_serial_ports[CONFIG_SERIAL_SAMSUNG_UARTS
 		.port = {
 			.lock		= __SPIN_LOCK_UNLOCKED(s3c24xx_serial_ports[0].port.lock),
 			.iotype		= UPIO_MEM,
-			.irq		= IRQ_S3CUART_RX0,
 			.uartclk	= 0,
 			.fifosize	= 16,
 			.ops		= &s3c24xx_serial_ops,
@@ -907,7 +982,6 @@ static struct s3c24xx_uart_port s3c24xx_serial_ports[CONFIG_SERIAL_SAMSUNG_UARTS
 		.port = {
 			.lock		= __SPIN_LOCK_UNLOCKED(s3c24xx_serial_ports[1].port.lock),
 			.iotype		= UPIO_MEM,
-			.irq		= IRQ_S3CUART_RX1,
 			.uartclk	= 0,
 			.fifosize	= 16,
 			.ops		= &s3c24xx_serial_ops,
@@ -921,7 +995,6 @@ static struct s3c24xx_uart_port s3c24xx_serial_ports[CONFIG_SERIAL_SAMSUNG_UARTS
 		.port = {
 			.lock		= __SPIN_LOCK_UNLOCKED(s3c24xx_serial_ports[2].port.lock),
 			.iotype		= UPIO_MEM,
-			.irq		= IRQ_S3CUART_RX2,
 			.uartclk	= 0,
 			.fifosize	= 16,
 			.ops		= &s3c24xx_serial_ops,
@@ -935,7 +1008,6 @@ static struct s3c24xx_uart_port s3c24xx_serial_ports[CONFIG_SERIAL_SAMSUNG_UARTS
 		.port = {
 			.lock		= __SPIN_LOCK_UNLOCKED(s3c24xx_serial_ports[3].port.lock),
 			.iotype		= UPIO_MEM,
-			.irq		= IRQ_S3CUART_RX3,
 			.uartclk	= 0,
 			.fifosize	= 16,
 			.ops		= &s3c24xx_serial_ops,
@@ -1077,6 +1149,10 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	port->dev	= &platdev->dev;
 	ourport->info	= info;
 
+	/* Startup sequence is different for s3c64xx and higher SoC's */
+	if (s3c24xx_serial_has_interrupt_mask(port))
+		s3c24xx_serial_ops.startup = s3c64xx_serial_startup;
+
 	/* copy the info in from provided structure */
 	ourport->port.fifosize = info->fifosize;
 
@@ -1115,6 +1191,13 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		ourport->tx_irq = ret;
 
 	ourport->clk	= clk_get(&platdev->dev, "uart");
+
+	/* Keep all interrupts masked and cleared */
+	if (s3c24xx_serial_has_interrupt_mask(port)) {
+		wr_regl(port, S3C64XX_UINTM, 0xf);
+		wr_regl(port, S3C64XX_UINTP, 0xf);
+		wr_regl(port, S3C64XX_UINTSP, 0xf);
+	}
 
 	dbg("port: map=%08x, mem=%08x, irq=%d (%d,%d), clock=%ld\n",
 	    port->mapbase, port->membase, port->irq,
