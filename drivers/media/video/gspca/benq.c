@@ -86,20 +86,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-static int sd_isoc_init(struct gspca_dev *gspca_dev)
-{
-	int ret;
-
-	ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface,
-		gspca_dev->nbalt - 1);
-	if (ret < 0) {
-		pr_err("usb_set_interface failed\n");
-		return ret;
-	}
-/*	reg_w(gspca_dev, 0x0003, 0x0002); */
-	return 0;
-}
-
 /* -- start the camera -- */
 static int sd_start(struct gspca_dev *gspca_dev)
 {
@@ -271,7 +257,6 @@ static const struct sd_desc sd_desc = {
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.init = sd_init,
-	.isoc_init = sd_isoc_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
