@@ -64,16 +64,21 @@ config GENERIC_CMOS_UPDATE
 if GENERIC_CLOCKEVENTS
 menu "Timers subsystem"
 
-# Core internal switch. Selected by NO_HZ / HIGH_RES_TIMERS. This is
+# Core internal switch. Selected by NO_HZ_COMMON / HIGH_RES_TIMERS. This is
 # only related to the tick functionality. Oneshot clockevent devices
 # are supported independ of this.
 config TICK_ONESHOT
 	bool
 
+config NO_HZ_COMMON
+	bool
+	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
+	select TICK_ONESHOT
+
 config NO_HZ
 	bool "Tickless System (Dynamic Ticks)"
 	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
-	select TICK_ONESHOT
+	select NO_HZ_COMMON
 	help
 	  This option enables a tickless system: timer interrupts will
 	  only trigger on an as-needed basis both when the system is
@@ -81,14 +86,14 @@ config NO_HZ
 
 config NO_HZ_EXTENDED
 	bool "Full dynticks system"
-	# NO_HZ dependency
+	# NO_HZ_COMMON dependency
 	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
 	# RCU_USER_QS
 	depends on HAVE_CONTEXT_TRACKING && SMP
 	# RCU_NOCB_CPU dependency
 	depends on TREE_RCU || TREE_PREEMPT_RCU
 	depends on VIRT_CPU_ACCOUNTING_GEN
-	select NO_HZ
+	select NO_HZ_COMMON
 	select RCU_USER_QS
 	select RCU_NOCB_CPU
 	select CONTEXT_TRACKING_FORCE

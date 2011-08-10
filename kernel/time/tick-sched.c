@@ -104,7 +104,7 @@ static void tick_sched_do_timer(ktime_t now)
 {
 	int cpu = smp_processor_id();
 
-#ifdef CONFIG_NO_HZ
+#ifdef CONFIG_NO_HZ_COMMON
 	/*
 	 * Check if the do_timer duty was dropped. We don't care about
 	 * concurrency: This happens only when the cpu in charge went
@@ -124,7 +124,7 @@ static void tick_sched_do_timer(ktime_t now)
 
 static void tick_sched_handle(struct tick_sched *ts, struct pt_regs *regs)
 {
-#ifdef CONFIG_NO_HZ
+#ifdef CONFIG_NO_HZ_COMMON
 	/*
 	 * When we are idle and the tick is stopped, we have to touch
 	 * the watchdog as we might not schedule for a really long
@@ -235,7 +235,7 @@ core_initcall(init_tick_nohz_extended);
 /*
  * NOHZ - aka dynamic tick functionality
  */
-#ifdef CONFIG_NO_HZ
+#ifdef CONFIG_NO_HZ_COMMON
 /*
  * NO HZ enabled ?
  */
@@ -907,7 +907,7 @@ static inline void tick_check_nohz(int cpu)
 static inline void tick_nohz_switch_to_nohz(void) { }
 static inline void tick_check_nohz(int cpu) { }
 
-#endif /* NO_HZ */
+#endif /* CONFIG_NO_HZ_COMMON */
 
 /*
  * Called from irq_enter to notify about the possible interruption of idle()
@@ -992,14 +992,14 @@ void tick_setup_sched_timer(void)
 		now = ktime_get();
 	}
 
-#ifdef CONFIG_NO_HZ
+#ifdef CONFIG_NO_HZ_COMMON
 	if (tick_nohz_enabled)
 		ts->nohz_mode = NOHZ_MODE_HIGHRES;
 #endif
 }
 #endif /* HIGH_RES_TIMERS */
 
-#if defined CONFIG_NO_HZ || defined CONFIG_HIGH_RES_TIMERS
+#if defined CONFIG_NO_HZ_COMMON || defined CONFIG_HIGH_RES_TIMERS
 void tick_cancel_sched_timer(int cpu)
 {
 	struct tick_sched *ts = &per_cpu(tick_cpu_sched, cpu);

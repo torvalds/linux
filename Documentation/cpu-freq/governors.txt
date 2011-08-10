@@ -131,8 +131,8 @@ sampling_rate_min:
 The sampling rate is limited by the HW transition latency:
 transition_latency * 100
 Or by kernel restrictions:
-If CONFIG_NO_HZ is set, the limit is 10ms fixed.
-If CONFIG_NO_HZ is not set or nohz=off boot parameter is used, the
+If CONFIG_NO_HZ_COMMON is set, the limit is 10ms fixed.
+If CONFIG_NO_HZ_COMMON is not set or nohz=off boot parameter is used, the
 limits depend on the CONFIG_HZ option:
 HZ=1000: min=20000us  (20ms)
 HZ=250:  min=80000us  (80ms)
