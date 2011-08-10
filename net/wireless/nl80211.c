@@ -185,6 +185,10 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_REKEY_DATA] = { .type = NLA_NESTED },
 	[NL80211_ATTR_SCAN_SUPP_RATES] = { .type = NLA_NESTED },
 	[NL80211_ATTR_HIDDEN_SSID] = { .type = NLA_U32 },
+	[NL80211_ATTR_IE_PROBE_RESP] = { .type = NLA_BINARY,
+					 .len = IEEE80211_MAX_DATA_LEN },
+	[NL80211_ATTR_IE_ASSOC_RESP] = { .type = NLA_BINARY,
+					 .len = IEEE80211_MAX_DATA_LEN },
 };
 
 /* policy for the key attributes */
@@ -1991,7 +1995,10 @@ static int nl80211_addset_beacon(struct sk_buff *skb, struct genl_info *info)
 	struct beacon_parameters params;
 	int haveinfo = 0, err;
 
-	if (!is_valid_ie_attr(info->attrs[NL80211_ATTR_BEACON_TAIL]))
+	if (!is_valid_ie_attr(info->attrs[NL80211_ATTR_BEACON_TAIL]) ||
+	    !is_valid_ie_attr(info->attrs[NL80211_ATTR_IE]) ||
+	    !is_valid_ie_attr(info->attrs[NL80211_ATTR_IE_PROBE_RESP]) ||
+	    !is_valid_ie_attr(info->attrs[NL80211_ATTR_IE_ASSOC_RESP]))
 		return -EINVAL;
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
@@ -2089,6 +2096,25 @@ static int nl80211_addset_beacon(struct sk_buff *skb, struct genl_info *info)
 
 	if (!haveinfo)
 		return -EINVAL;
+
+	if (info->attrs[NL80211_ATTR_IE]) {
+		params.beacon_ies = nla_data(info->attrs[NL80211_ATTR_IE]);
+		params.beacon_ies_len = nla_len(info->attrs[NL80211_ATTR_IE]);
+	}
+
+	if (info->attrs[NL80211_ATTR_IE_PROBE_RESP]) {
+		params.proberesp_ies =
+			nla_data(info->attrs[NL80211_ATTR_IE_PROBE_RESP]);
+		params.proberesp_ies_len =
+			nla_len(info->attrs[NL80211_ATTR_IE_PROBE_RESP]);
+	}
+
+	if (info->attrs[NL80211_ATTR_IE_ASSOC_RESP]) {
+		params.assocresp_ies =
+			nla_data(info->attrs[NL80211_ATTR_IE_ASSOC_RESP]);
+		params.assocresp_ies_len =
+			nla_len(info->attrs[NL80211_ATTR_IE_ASSOC_RESP]);
+	}
 
 	err = call(&rdev->wiphy, dev, &params);
 	if (!err && params.interval)
