@@ -71,6 +71,7 @@
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/input.h>
+#include <linux/semaphore.h>
 
 /*
  * We parse each description item into this structure. Short items data
@@ -475,6 +476,7 @@ struct hid_device {							/* device report descriptor */
 	unsigned country;						/* HID country */
 	struct hid_report_enum report_enum[HID_REPORT_TYPES];
 
+	struct semaphore driver_lock;					/* protects the current driver */
 	struct device dev;						/* device */
 	struct hid_driver *driver;
 	struct hid_ll_driver *ll_driver;

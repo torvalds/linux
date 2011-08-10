@@ -29,6 +29,7 @@
 #include <linux/wait.h>
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
+#include <linux/semaphore.h>
 
 #include <linux/hid.h>
 #include <linux/hiddev.h>
@@ -1087,14 +1088,23 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 	unsigned int i;
 	int ret;
 
-	if (!hid || !hid->driver)
+	if (!hid)
 		return -ENODEV;
+
+	if (down_trylock(&hid->driver_lock))
+		return -EBUSY;
+
+	if (!hid->driver) {
+		ret = -ENODEV;
+		goto unlock;
+	}
 	report_enum = hid->report_enum + type;
 	hdrv = hid->driver;
 
 	if (!size) {
 		dbg_hid("empty report\n");
-		return -1;
+		ret = -1;
+		goto unlock;
 	}
 
 	buf = kmalloc(sizeof(char) * HID_DEBUG_BUFSIZE, GFP_ATOMIC);
@@ -1118,17 +1128,23 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 nomem:
 	report = hid_get_report(report_enum, data);
 
-	if (!report)
-		return -1;
+	if (!report) {
+		ret = -1;
+		goto unlock;
+	}
 
 	if (hdrv && hdrv->raw_event && hid_match_report(hid, report)) {
 		ret = hdrv->raw_event(hid, report, data, size);
-		if (ret != 0)
-			return ret < 0 ? ret : 0;
+		if (ret != 0) {
+			ret = ret < 0 ? ret : 0;
+			goto unlock;
+		}
 	}
 
 	hid_report_raw_event(hid, type, data, size, interrupt);
 
+unlock:
+	up(&hid->driver_lock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(hid_input_report);
@@ -1617,6 +1633,9 @@ static int hid_device_probe(struct device *dev)
 	const struct hid_device_id *id;
 	int ret = 0;
 
+	if (down_interruptible(&hdev->driver_lock))
+		return -EINTR;
+
 	if (!hdev->driver) {
 		id = hid_match_device(hdev, hdrv);
 		if (id == NULL)
@@ -1633,14 +1652,20 @@ static int hid_device_probe(struct device *dev)
 		if (ret)
 			hdev->driver = NULL;
 	}
+
+	up(&hdev->driver_lock);
 	return ret;
 }
 
 static int hid_device_remove(struct device *dev)
 {
 	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
-	struct hid_driver *hdrv = hdev->driver;
+	struct hid_driver *hdrv;
 
+	if (down_interruptible(&hdev->driver_lock))
+		return -EINTR;
+
+	hdrv = hdev->driver;
 	if (hdrv) {
 		if (hdrv->remove)
 			hdrv->remove(hdev);
@@ -1649,6 +1674,7 @@ static int hid_device_remove(struct device *dev)
 		hdev->driver = NULL;
 	}
 
+	up(&hdev->driver_lock);
 	return 0;
 }
 
@@ -1996,6 +2022,7 @@ struct hid_device *hid_allocate_device(void)
 
 	init_waitqueue_head(&hdev->debug_wait);
 	INIT_LIST_HEAD(&hdev->debug_list);
+	sema_init(&hdev->driver_lock, 1);
 
 	return hdev;
 err:
