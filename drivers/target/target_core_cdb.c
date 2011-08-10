@@ -1077,8 +1077,6 @@ target_emulate_unmap(struct se_task *task)
 		size -= 16;
 	}
 
-	task->task_scsi_status = GOOD;
-	transport_complete_task(task, 1);
 err:
 	transport_kunmap_first_data_page(cmd);
 
@@ -1115,8 +1113,6 @@ target_emulate_write_same(struct se_task *task, u32 num_blocks)
 		return ret;
 	}
 
-	task->task_scsi_status = GOOD;
-	transport_complete_task(task, 1);
 	return 0;
 }
 
@@ -1228,8 +1224,14 @@ transport_emulate_control_cdb(struct se_task *task)
 
 	if (ret < 0)
 		return ret;
-	task->task_scsi_status = GOOD;
-	transport_complete_task(task, 1);
+	/*
+	 * Handle the successful completion here unless a caller
+	 * has explictly requested an asychronous completion.
+	 */
+	if (!(cmd->se_cmd_flags & SCF_EMULATE_CDB_ASYNC)) {
+		task->task_scsi_status = GOOD;
+		transport_complete_task(task, 1);
+	}
 
 	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
 }
