@@ -126,6 +126,8 @@ static struct rtc_device *alarmtimer_get_rtcdev(void)
 static void alarmtimer_enqueue(struct alarm_base *base, struct alarm *alarm)
 {
 	timerqueue_add(&base->timerqueue, &alarm->node);
+	alarm->state |= ALARMTIMER_STATE_ENQUEUED;
+
 	if (&alarm->node == timerqueue_getnext(&base->timerqueue)) {
 		hrtimer_try_to_cancel(&base->timer);
 		hrtimer_start(&base->timer, alarm->node.expires,
@@ -147,7 +149,12 @@ static void alarmtimer_remove(struct alarm_base *base, struct alarm *alarm)
 {
 	struct timerqueue_node *next = timerqueue_getnext(&base->timerqueue);
 
+	if (!(alarm->state & ALARMTIMER_STATE_ENQUEUED))
+		return;
+
 	timerqueue_del(&base->timerqueue, &alarm->node);
+	alarm->state &= ~ALARMTIMER_STATE_ENQUEUED;
+
 	if (next == &alarm->node) {
 		hrtimer_try_to_cancel(&base->timer);
 		next = timerqueue_getnext(&base->timerqueue);
@@ -188,16 +195,18 @@ static enum hrtimer_restart alarmtimer_fired(struct hrtimer *timer)
 		alarm = container_of(next, struct alarm, node);
 
 		timerqueue_del(&base->timerqueue, &alarm->node);
-		alarm->enabled = 0;
+		alarm->state &= ~ALARMTIMER_STATE_ENQUEUED;
 
+		alarm->state |= ALARMTIMER_STATE_CALLBACK;
 		spin_unlock_irqrestore(&base->lock, flags);
 		if (alarm->function)
 			restart = alarm->function(alarm, now);
 		spin_lock_irqsave(&base->lock, flags);
+		alarm->state &= ~ALARMTIMER_STATE_CALLBACK;
 
 		if (restart != ALARMTIMER_NORESTART) {
 			timerqueue_add(&base->timerqueue, &alarm->node);
-			alarm->enabled = 1;
+			alarm->state |= ALARMTIMER_STATE_ENQUEUED;
 		}
 	}
 
@@ -305,7 +314,7 @@ void alarm_init(struct alarm *alarm, enum alarmtimer_type type,
 	timerqueue_init(&alarm->node);
 	alarm->function = function;
 	alarm->type = type;
-	alarm->enabled = 0;
+	alarm->state = ALARMTIMER_STATE_INACTIVE;
 }
 
 /**
@@ -319,11 +328,10 @@ void alarm_start(struct alarm *alarm, ktime_t start)
 	unsigned long flags;
 
 	spin_lock_irqsave(&base->lock, flags);
-	if (alarm->enabled)
+	if (alarmtimer_active(alarm))
 		alarmtimer_remove(base, alarm);
 	alarm->node.expires = start;
 	alarmtimer_enqueue(base, alarm);
-	alarm->enabled = 1;
 	spin_unlock_irqrestore(&base->lock, flags);
 }
 
@@ -337,9 +345,8 @@ void alarm_cancel(struct alarm *alarm)
 	unsigned long flags;
 
 	spin_lock_irqsave(&base->lock, flags);
-	if (alarm->enabled)
+	if (alarmtimer_is_queued(alarm))
 		alarmtimer_remove(base, alarm);
-	alarm->enabled = 0;
 	spin_unlock_irqrestore(&base->lock, flags);
 }
 
