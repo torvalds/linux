@@ -23,6 +23,12 @@
 #include "nl80211.h"
 #include "reg.h"
 
+static bool nl80211_valid_auth_type(enum nl80211_auth_type auth_type);
+static int nl80211_crypto_settings(struct cfg80211_registered_device *rdev,
+				   struct genl_info *info,
+				   struct cfg80211_crypto_settings *settings,
+				   int cipher_limit);
+
 static int nl80211_pre_doit(struct genl_ops *ops, struct sk_buff *skb,
 			    struct genl_info *info);
 static void nl80211_post_doit(struct genl_ops *ops, struct sk_buff *skb,
@@ -2038,6 +2044,21 @@ static int nl80211_addset_beacon(struct sk_buff *skb, struct genl_info *info)
 			    NL80211_HIDDEN_SSID_ZERO_CONTENTS)
 				return -EINVAL;
 		}
+
+		params.privacy = !!info->attrs[NL80211_ATTR_PRIVACY];
+
+		if (info->attrs[NL80211_ATTR_AUTH_TYPE]) {
+			params.auth_type = nla_get_u32(
+				info->attrs[NL80211_ATTR_AUTH_TYPE]);
+			if (!nl80211_valid_auth_type(params.auth_type))
+				return -EINVAL;
+		} else
+			params.auth_type = NL80211_AUTHTYPE_AUTOMATIC;
+
+		err = nl80211_crypto_settings(rdev, info, &params.crypto,
+					      NL80211_MAX_NR_CIPHER_SUITES);
+		if (err)
+			return err;
 
 		call = rdev->ops->add_beacon;
 		break;
