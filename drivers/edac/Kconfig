@@ -41,7 +41,7 @@ config EDAC_DEBUG
 
 config EDAC_DECODE_MCE
 	tristate "Decode MCEs in human-readable form (only on AMD for now)"
-	depends on CPU_SUP_AMD && X86_MCE
+	depends on CPU_SUP_AMD && X86_MCE_AMD
 	default y
 	---help---
 	  Enable this option if you want to decode Machine Check Exceptions
@@ -173,8 +173,7 @@ config EDAC_I5400
 
 config EDAC_I7CORE
 	tristate "Intel i7 Core (Nehalem) processors"
-	depends on EDAC_MM_EDAC && PCI && X86
-	select EDAC_MCE
+	depends on EDAC_MM_EDAC && PCI && X86 && X86_MCE_INTEL
 	help
 	  Support for error detection and correction the Intel
 	  i7 Core (Nehalem) Integrated Memory Controller that exists on
