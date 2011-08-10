@@ -282,6 +282,7 @@ config LOGIWHEELS_FF
 	bool "Logitech wheels configuration and force feedback support"
 	depends on HID_LOGITECH
 	select INPUT_FF_MEMLESS
+	default LOGITECH_FF
 	help
 	  Say Y here if you want to enable force feedback and range setting
 	  support for following Logitech wheels:
