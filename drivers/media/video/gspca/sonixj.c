@@ -1,7 +1,7 @@
 /*
  * Sonix sn9c102p sn9c105 sn9c120 (jpeg) subdriver
  *
- * Copyright (C) 2009-2010 Jean-François Moine <http://moinejf.free.fr>
+ * Copyright (C) 2009-2011 Jean-François Moine <http://moinejf.free.fr>
  * Copyright (C) 2005 Michel Xhaard mxhaard@magic.fr
  *
  * This program is free software; you can redistribute it and/or modify
@@ -138,7 +138,7 @@ static void setillum(struct gspca_dev *gspca_dev);
 static void setfreq(struct gspca_dev *gspca_dev);
 
 static const struct ctrl sd_ctrls[NCTRLS] = {
-[BRIGHTNESS] =  {
+[BRIGHTNESS] = {
 	    {
 		.id      = V4L2_CID_BRIGHTNESS,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
@@ -739,7 +739,7 @@ static const u8 mi0360_sensor_init[][8] = {
 	{0xd1, 0x5d, 0x22, 0x00, 0x00, 0x00, 0x00, 0x10},
 	{0xd1, 0x5d, 0x24, 0x00, 0x00, 0x00, 0x00, 0x10},
 	{0xd1, 0x5d, 0x26, 0x00, 0x00, 0x00, 0x24, 0x10},
-	{0xd1, 0x5d, 0x2f, 0xf7, 0xB0, 0x00, 0x04, 0x10},
+	{0xd1, 0x5d, 0x2f, 0xf7, 0xb0, 0x00, 0x04, 0x10},
 	{0xd1, 0x5d, 0x31, 0x00, 0x00, 0x00, 0x00, 0x10},
 	{0xd1, 0x5d, 0x33, 0x00, 0x00, 0x01, 0x00, 0x10},
 	{0xb1, 0x5d, 0x3d, 0x06, 0x8f, 0x00, 0x00, 0x10},
@@ -2008,8 +2008,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	case SENSOR_OM6802:
 		expo = brightness << 2;
 		sd->exposure = setexposure(gspca_dev, expo);
-		k2 = brightness >> 3;
-		break;
+		return;			/* Y offset already set */
 	}
 
 	reg_w1(gspca_dev, 0x96, k2);	/* color matrix Y offset */
@@ -2509,9 +2508,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		break;
 	case SENSOR_HV7131R:
 	case SENSOR_MI0360:
-		if (mode)
-			reg01 |= SYS_SEL_48M;	/* 320x240: clk 48Mhz */
-		else
+		if (!mode)
 			reg01 &= ~SYS_SEL_48M;	/* 640x480: clk 24Mhz */
 		reg17 &= ~MCK_SIZE_MASK;
 		reg17 |= 0x01;			/* clock / 1 */
