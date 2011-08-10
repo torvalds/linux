@@ -29,8 +29,6 @@
 #include <linux/i2c-dev.h>
 #include <linux/workqueue.h>
 #include <linux/poll.h>
-#include <linux/gpio.h>
-#include <mach/gpio.h>
 
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -74,9 +72,6 @@ static int mpuirq_open(struct inode *inode, struct file *file)
 		"%s current->pid %d\n", __func__, current->pid);
 	mpuirq_dev_data.pid = current->pid;
 	file->private_data = &mpuirq_dev_data;
-	/* we could do some checking on the flags supplied by "open" */
-	/* i.e. O_NONBLOCK */
-	/* -> set some flag to disable interruptible_sleep_on in mpuirq_read */
 	return 0;
 }
 
@@ -279,24 +274,10 @@ int mpuirq_init(struct i2c_client *mpu_client)
 			flags = IRQF_TRIGGER_FALLING;
 		else
 			flags = IRQF_TRIGGER_RISING;
-		/* mpu irq register xxm*/
-		res = gpio_request(mpuirq_dev_data.irq, "mpu3050_int");
-		if(res)
-		{
-			printk("failed to request mpu3050_int GPIO %d\n",			
-						gpio_to_irq(mpuirq_dev_data.irq));
-			return res;
-		}
-		res = gpio_direction_input(mpuirq_dev_data.irq);
-		if(res)
-		{
-			printk("failed to set mpu3050_int GPIO input\n");
-			return res;
-		}
-		printk("gpio_to_irq(mpuirq_dev_data.irq) == %d \r\n",	
-				gpio_to_irq(mpuirq_dev_data.irq));
-		res =request_irq(gpio_to_irq(mpuirq_dev_data.irq), mpuirq_handler, flags,
-							interface,&mpuirq_dev_data.irq);
+
+		res =
+		    request_irq(mpuirq_dev_data.irq, mpuirq_handler, flags,
+				interface, &mpuirq_dev_data.irq);
 		if (res) {
 			dev_err(&mpu_client->adapter->dev,
 				"myirqtest: cannot register IRQ %d\n",

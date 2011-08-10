@@ -28,8 +28,6 @@
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
 #include <linux/poll.h>
-#include <linux/gpio.h>
-#include <mach/gpio.h>
 
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -227,25 +225,10 @@ int slaveirq_init(struct i2c_adapter *slave_adapter,
 	data->data_ready = 0;
 	data->timeout = 0;
 
-	/* mpu irq register xxm*/
-	res = gpio_request(data->irq, name);
-	if(res)
-	{
-		printk("failed to request %s GPIO %d\n",			
-					name,data->irq);
-		return res;
-	}
-	res = gpio_direction_input(data->irq);
-	if(res)
-	{
-		printk("failed to set %s GPIO input\n",name);
-		return res;
-	}
-	printk("%s registing irq  == %d \r\n",name,gpio_to_irq(data->irq));
-	//gpio_pull_updown(data->irq, GPIOPullUp);
-	//gpio_set_value(data->irq,GPIO_HIGH);
 	init_waitqueue_head(&data->slaveirq_wait);
-	res = request_irq(gpio_to_irq(data->irq), slaveirq_handler, IRQF_TRIGGER_FALLING,data->dev.name, data);
+
+	res = request_irq(data->irq, slaveirq_handler, IRQF_TRIGGER_RISING,
+			  data->dev.name, data);
 
 	if (res) {
 		dev_err(&slave_adapter->dev,
