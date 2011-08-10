@@ -278,7 +278,7 @@ static void __init initialize_cache_info(void)
 
 	DBG(" -> initialize_cache_info()\n");
 
-	for (np = NULL; (np = of_find_node_by_type(np, "cpu"));) {
+	for_each_node_by_type(np, "cpu") {
 		num_cpus += 1;
 
 		/* We're assuming *all* of the CPUs have the same

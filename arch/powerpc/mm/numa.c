@@ -710,7 +710,7 @@ static void __init parse_drconf_memory(struct device_node *memory)
 static int __init parse_numa_properties(void)
 {
 	struct device_node *cpu = NULL;
-	struct device_node *memory = NULL;
+	struct device_node *memory;
 	int default_nid = 0;
 	unsigned long i;
 
@@ -750,8 +750,8 @@ static int __init parse_numa_properties(void)
 	}
 
 	get_n_mem_cells(&n_mem_addr_cells, &n_mem_size_cells);
-	memory = NULL;
-	while ((memory = of_find_node_by_type(memory, "memory")) != NULL) {
+
+	for_each_node_by_type(memory, "memory") {
 		unsigned long start;
 		unsigned long size;
 		int nid;
@@ -1187,10 +1187,10 @@ static int hot_add_drconf_scn_to_nid(struct device_node *memory,
  */
 int hot_add_node_scn_to_nid(unsigned long scn_addr)
 {
-	struct device_node *memory = NULL;
+	struct device_node *memory;
 	int nid = -1;
 
-	while ((memory = of_find_node_by_type(memory, "memory")) != NULL) {
+	for_each_node_by_type(memory, "memory") {
 		unsigned long start, size;
 		int ranges;
 		const unsigned int *memcell_buf;
