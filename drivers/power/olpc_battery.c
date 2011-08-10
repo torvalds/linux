@@ -533,6 +533,24 @@ void olpc_battery_trigger_uevent(unsigned long cause)
 		kobject_uevent(&olpc_bat.dev->kobj, KOBJ_CHANGE);
 }
 
+static int olpc_battery_suspend(struct platform_device *pdev,
+				pm_message_t state)
+{
+	if (device_may_wakeup(olpc_ac.dev))
+		olpc_ec_wakeup_set(EC_SCI_SRC_ACPWR);
+	else
+		olpc_ec_wakeup_clear(EC_SCI_SRC_ACPWR);
+
+	if (device_may_wakeup(olpc_bat.dev))
+		olpc_ec_wakeup_set(EC_SCI_SRC_BATTERY | EC_SCI_SRC_BATSOC
+				   | EC_SCI_SRC_BATERR);
+	else
+		olpc_ec_wakeup_clear(EC_SCI_SRC_BATTERY | EC_SCI_SRC_BATSOC
+				     | EC_SCI_SRC_BATERR);
+
+	return 0;
+}
+
 static int __devinit olpc_battery_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -578,6 +596,11 @@ static int __devinit olpc_battery_probe(struct platform_device *pdev)
 	if (ret)
 		goto error_failed;
 
+	if (olpc_ec_wakeup_available()) {
+		device_set_wakeup_capable(olpc_ac.dev, true);
+		device_set_wakeup_capable(olpc_bat.dev, true);
+	}
+
 	return 0;
 
 error_failed:
@@ -612,6 +635,7 @@ static struct platform_driver olpc_battery_drv = {
 	},
 	.probe = olpc_battery_probe,
 	.remove = __devexit_p(olpc_battery_remove),
+	.suspend = olpc_battery_suspend,
 };
 
 static int __init olpc_bat_init(void)
