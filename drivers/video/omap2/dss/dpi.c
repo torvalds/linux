@@ -83,8 +83,10 @@ static int dpi_set_dsi_clk(struct omap_dss_device *dssdev, bool is_tft,
 	dss_select_dispc_clk_source(dssdev->clocks.dispc.dispc_fclk_src);
 
 	r = dispc_set_clock_div(dssdev->manager->id, &dispc_cinfo);
-	if (r)
+	if (r) {
+		dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
 		return r;
+	}
 
 	*fck = dsi_cinfo.dsi_pll_hsdiv_dispc_clk;
 	*lck_div = dispc_cinfo.lck_div;
