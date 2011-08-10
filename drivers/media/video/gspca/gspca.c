@@ -499,19 +499,6 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 }
 EXPORT_SYMBOL(gspca_frame_add);
 
-static int gspca_is_compressed(__u32 format)
-{
-	switch (format) {
-	case V4L2_PIX_FMT_MJPEG:
-	case V4L2_PIX_FMT_JPEG:
-	case V4L2_PIX_FMT_SPCA561:
-	case V4L2_PIX_FMT_PAC207:
-	case V4L2_PIX_FMT_MR97310A:
-		return 1;
-	}
-	return 0;
-}
-
 static int frame_alloc(struct gspca_dev *gspca_dev, struct file *file,
 			enum v4l2_memory memory, unsigned int count)
 {
@@ -1049,7 +1036,9 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 		return -EINVAL;		/* no more format */
 
 	fmtdesc->pixelformat = fmt_tb[index];
-	if (gspca_is_compressed(fmt_tb[index]))
+	if (gspca_dev->cam.cam_mode[i].sizeimage <
+			gspca_dev->cam.cam_mode[i].width *
+				gspca_dev->cam.cam_mode[i].height)
 		fmtdesc->flags = V4L2_FMT_FLAG_COMPRESSED;
 	fmtdesc->description[0] = fmtdesc->pixelformat & 0xff;
 	fmtdesc->description[1] = (fmtdesc->pixelformat >> 8) & 0xff;
