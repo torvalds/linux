@@ -347,6 +347,41 @@ void alarm_cancel(struct alarm *alarm)
 }
 
 
+
+u64 alarm_forward(struct alarm *alarm, ktime_t now, ktime_t interval)
+{
+	u64 overrun = 1;
+	ktime_t delta;
+
+	delta = ktime_sub(now, alarm->node.expires);
+
+	if (delta.tv64 < 0)
+		return 0;
+
+	if (unlikely(delta.tv64 >= interval.tv64)) {
+		s64 incr = ktime_to_ns(interval);
+
+		overrun = ktime_divns(delta, incr);
+
+		alarm->node.expires = ktime_add_ns(alarm->node.expires,
+							incr*overrun);
+
+		if (alarm->node.expires.tv64 > now.tv64)
+			return overrun;
+		/*
+		 * This (and the ktime_add() below) is the
+		 * correction for exact:
+		 */
+		overrun++;
+	}
+
+	alarm->node.expires = ktime_add(alarm->node.expires, interval);
+	return overrun;
+}
+
+
+
+
 /**
  * clock2alarm - helper that converts from clockid to alarmtypes
  * @clockid: clockid.
@@ -376,7 +411,7 @@ static enum alarmtimer_restart alarm_handle_timer(struct alarm *alarm,
 
 	/* Re-add periodic timers */
 	if (alarm->period.tv64) {
-		alarm->node.expires = ktime_add(now, alarm->period);
+		ptr->it_overrun += alarm_forward(alarm, now, alarm->period);
 		return ALARMTIMER_RESTART;
 	}
 	return ALARMTIMER_NORESTART;
