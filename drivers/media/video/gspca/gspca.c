@@ -887,6 +887,8 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 							gspca_dev->iface,
 							alt);
 				if (ret < 0) {
+					if (ret == -ENOSPC)
+						goto retry; /*fixme: ugly*/
 					pr_err("set alt %d err %d\n", alt, ret);
 					goto out;
 				}
@@ -942,6 +944,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 
 		/* the bandwidth is not wide enough
 		 * negotiate or try a lower alternate setting */
+retry:
 		PDEBUG(D_ERR|D_STREAM,
 			"alt %d - bandwidth not wide enough - trying again",
 			alt);
