@@ -83,15 +83,11 @@ static struct vme_bridge *find_bridge(struct vme_resource *resource)
 /*
  * Allocate a contiguous block of memory for use by the driver. This is used to
  * create the buffers for the slave windows.
- *
- * XXX VME bridges could be available on buses other than PCI. At the momment
- *     this framework only supports PCI devices.
  */
 void *vme_alloc_consistent(struct vme_resource *resource, size_t size,
 	dma_addr_t *dma)
 {
 	struct vme_bridge *bridge;
-	struct pci_dev *pdev;
 
 	if (resource == NULL) {
 		printk(KERN_ERR "No resource\n");
@@ -104,28 +100,29 @@ void *vme_alloc_consistent(struct vme_resource *resource, size_t size,
 		return NULL;
 	}
 
-	/* Find pci_dev container of dev */
 	if (bridge->parent == NULL) {
-		printk(KERN_ERR "Dev entry NULL\n");
+		printk(KERN_ERR "Dev entry NULL for"
+			" bridge %s\n", bridge->name);
 		return NULL;
 	}
-	pdev = container_of(bridge->parent, struct pci_dev, dev);
 
-	return pci_alloc_consistent(pdev, size, dma);
+	if (bridge->alloc_consistent == NULL) {
+		printk(KERN_ERR "alloc_consistent not supported by"
+			" bridge %s\n", bridge->name);
+		return NULL;
+	}
+
+	return bridge->alloc_consistent(bridge->parent, size, dma);
 }
 EXPORT_SYMBOL(vme_alloc_consistent);
 
 /*
  * Free previously allocated contiguous block of memory.
- *
- * XXX VME bridges could be available on buses other than PCI. At the momment
- *     this framework only supports PCI devices.
  */
 void vme_free_consistent(struct vme_resource *resource, size_t size,
 	void *vaddr, dma_addr_t dma)
 {
 	struct vme_bridge *bridge;
-	struct pci_dev *pdev;
 
 	if (resource == NULL) {
 		printk(KERN_ERR "No resource\n");
@@ -138,10 +135,19 @@ void vme_free_consistent(struct vme_resource *resource, size_t size,
 		return;
 	}
 
-	/* Find pci_dev container of dev */
-	pdev = container_of(bridge->parent, struct pci_dev, dev);
+	if (bridge->parent == NULL) {
+		printk(KERN_ERR "Dev entry NULL for"
+			" bridge %s\n", bridge->name);
+		return;
+	}
 
-	pci_free_consistent(pdev, size, vaddr, dma);
+	if (bridge->free_consistent == NULL) {
+		printk(KERN_ERR "free_consistent not supported by"
+			" bridge %s\n", bridge->name);
+		return;
+	}
+
+	bridge->free_consistent(bridge->parent, size, vaddr, dma);
 }
 EXPORT_SYMBOL(vme_free_consistent);
 

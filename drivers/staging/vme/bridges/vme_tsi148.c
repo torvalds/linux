@@ -2114,6 +2114,28 @@ static int tsi148_slot_get(struct vme_bridge *tsi148_bridge)
 	return (int)slot;
 }
 
+void *tsi148_alloc_consistent(struct device *parent, size_t size,
+	dma_addr_t *dma)
+{
+	struct pci_dev *pdev;
+
+	/* Find pci_dev container of dev */
+	pdev = container_of(parent, struct pci_dev, dev);
+
+	return pci_alloc_consistent(pdev, size, dma);
+}
+
+void tsi148_free_consistent(struct device *parent, size_t size, void *vaddr,
+	dma_addr_t dma)
+{
+	struct pci_dev *pdev;
+
+	/* Find pci_dev container of dev */
+	pdev = container_of(parent, struct pci_dev, dev);
+
+	pci_free_consistent(pdev, size, vaddr, dma);
+}
+
 static int __init tsi148_init(void)
 {
 	return pci_register_driver(&tsi148_driver);
@@ -2443,6 +2465,8 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	tsi148_bridge->lm_attach = tsi148_lm_attach;
 	tsi148_bridge->lm_detach = tsi148_lm_detach;
 	tsi148_bridge->slot_get = tsi148_slot_get;
+	tsi148_bridge->alloc_consistent = tsi148_alloc_consistent;
+	tsi148_bridge->free_consistent = tsi148_free_consistent;
 
 	data = ioread32be(tsi148_device->base + TSI148_LCSR_VSTAT);
 	dev_info(&pdev->dev, "Board is%s the VME system controller\n",
