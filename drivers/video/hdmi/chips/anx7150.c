@@ -159,10 +159,12 @@ static int anx7150_i2c_probe(struct i2c_client *client,const struct i2c_device_i
 	struct hdmi *hdmi = NULL;
 	struct anx7150_pdata *anx = NULL;
 
+#if defined(CONFIG_MACH_RK29_PHONEPADSDK)
 	gpio_request(HDMI_VDD_CTL, "hdmi pwr ctl");
 	gpio_direction_output(HDMI_VDD_CTL, GPIO_HIGH);
 	//gpio_set_value(HDMI_VDD_CTL, GPIO_HIGH); 
 	mdelay(10);
+#endif
 
 	hdmi = hdmi_register(sizeof(struct anx7150_pdata), &client->dev);
     if (!hdmi)
