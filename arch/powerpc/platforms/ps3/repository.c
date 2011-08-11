@@ -779,6 +779,72 @@ int ps3_repository_read_mm_info(u64 *rm_base, u64 *rm_size, u64 *region_total)
 }
 
 /**
+ * ps3_repository_read_highmem_region_count - Read the number of highmem regions
+ *
+ * Bootloaders must arrange the repository nodes such that regions are indexed
+ * with a region_index from 0 to region_count-1.
+ */
+
+int ps3_repository_read_highmem_region_count(unsigned int *region_count)
+{
+	int result;
+	u64 v1 = 0;
+
+	result = read_node(PS3_LPAR_ID_CURRENT,
+		make_first_field("highmem", 0),
+		make_field("region", 0),
+		make_field("count", 0),
+		0,
+		&v1, NULL);
+	*region_count = v1;
+	return result;
+}
+
+
+int ps3_repository_read_highmem_base(unsigned int region_index,
+	u64 *highmem_base)
+{
+	return read_node(PS3_LPAR_ID_CURRENT,
+		make_first_field("highmem", 0),
+		make_field("region", region_index),
+		make_field("base", 0),
+		0,
+		highmem_base, NULL);
+}
+
+int ps3_repository_read_highmem_size(unsigned int region_index,
+	u64 *highmem_size)
+{
+	return read_node(PS3_LPAR_ID_CURRENT,
+		make_first_field("highmem", 0),
+		make_field("region", region_index),
+		make_field("size", 0),
+		0,
+		highmem_size, NULL);
+}
+
+/**
+ * ps3_repository_read_highmem_info - Read high memory region info
+ * @region_index: Region index, {0,..,region_count-1}.
+ * @highmem_base: High memory base address.
+ * @highmem_size: High memory size.
+ *
+ * Bootloaders that preallocate highmem regions must place the
+ * region info into the repository at these well known nodes.
+ */
+
+int ps3_repository_read_highmem_info(unsigned int region_index,
+	u64 *highmem_base, u64 *highmem_size)
+{
+	int result;
+
+	*highmem_base = 0;
+	result = ps3_repository_read_highmem_base(region_index, highmem_base);
+	return result ? result
+		: ps3_repository_read_highmem_size(region_index, highmem_size);
+}
+
+/**
  * ps3_repository_read_num_spu_reserved - Number of physical spus reserved.
  * @num_spu: Number of physical spus.
  */
