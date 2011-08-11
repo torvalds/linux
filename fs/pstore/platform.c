@@ -25,10 +25,27 @@
 #include <linux/module.h>
 #include <linux/pstore.h>
 #include <linux/string.h>
+#include <linux/timer.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/workqueue.h>
 
 #include "internal.h"
+
+/*
+ * We defer making "oops" entries appear in pstore - see
+ * whether the system is actually still running well enough
+ * to let someone see the entry
+ */
+#define	PSTORE_INTERVAL	(60 * HZ)
+
+static int pstore_new_entry;
+
+static void pstore_timefunc(unsigned long);
+static DEFINE_TIMER(pstore_timer, pstore_timefunc, 0, 0);
+
+static void pstore_dowork(struct work_struct *);
+static DECLARE_WORK(pstore_work, pstore_dowork);
 
 /*
  * pstore_lock just protects "psinfo" during
@@ -100,9 +117,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		id = psinfo->write(PSTORE_TYPE_DMESG, part,
 				   hsize + l1_cpy + l2_cpy, psinfo);
 		if (reason == KMSG_DUMP_OOPS && pstore_is_mounted())
-			pstore_mkfile(PSTORE_TYPE_DMESG, psinfo->name, id,
-				      psinfo->buf, hsize + l1_cpy + l2_cpy,
-				      CURRENT_TIME, psinfo);
+			pstore_new_entry = 1;
 		l1 -= l1_cpy;
 		l2 -= l2_cpy;
 		total += l1_cpy + l2_cpy;
@@ -148,19 +163,24 @@ int pstore_register(struct pstore_info *psi)
 	}
 
 	if (pstore_is_mounted())
-		pstore_get_records();
+		pstore_get_records(0);
 
 	kmsg_dump_register(&pstore_dumper);
+
+	pstore_timer.expires = jiffies + PSTORE_INTERVAL;
+	add_timer(&pstore_timer);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pstore_register);
 
 /*
- * Read all the records from the persistent store. Create and
- * file files in our filesystem.
+ * Read all the records from the persistent store. Create
+ * files in our filesystem.  Don't warn about -EEXIST errors
+ * when we are re-scanning the backing store looking to add new
+ * error records.
  */
-void pstore_get_records(void)
+void pstore_get_records(int quiet)
 {
 	struct pstore_info *psi = psinfo;
 	ssize_t			size;
@@ -178,8 +198,9 @@ void pstore_get_records(void)
 		goto out;
 
 	while ((size = psi->read(&id, &type, &time, psi)) > 0) {
-		if (pstore_mkfile(type, psi->name, id, psi->buf, (size_t)size,
-				  time, psi))
+		rc = pstore_mkfile(type, psi->name, id, psi->buf, (size_t)size,
+				  time, psi);
+		if (rc && (rc != -EEXIST || !quiet))
 			failed++;
 	}
 	psi->close(psi);
@@ -189,6 +210,21 @@ out:
 	if (failed)
 		printk(KERN_WARNING "pstore: failed to load %d record(s) from '%s'\n",
 		       failed, psi->name);
+}
+
+static void pstore_dowork(struct work_struct *work)
+{
+	pstore_get_records(1);
+}
+
+static void pstore_timefunc(unsigned long dummy)
+{
+	if (pstore_new_entry) {
+		pstore_new_entry = 0;
+		schedule_work(&pstore_work);
+	}
+
+	mod_timer(&pstore_timer, jiffies + PSTORE_INTERVAL);
 }
 
 /*
