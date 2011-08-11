@@ -149,6 +149,10 @@ void print_results(int topology_depth, int cpu)
 	unsigned long long result;
 	cstate_t s;
 
+	/* Be careful CPUs may got resorted for pkg value do not just use cpu */
+	if (!bitmask_isbitset(cpus_chosen, cpu_top.core_info[cpu].cpu))
+		return;
+
 	if (topology_depth > 2)
 		printf("%4d|", cpu_top.core_info[cpu].pkg);
 	if (topology_depth > 1)
@@ -388,6 +392,10 @@ int cmd_monitor(int argc, char **argv)
 		printf(_("Cannot read number of available processors\n"));
 		return EXIT_FAILURE;
 	}
+
+	/* Default is: monitor all CPUs */
+	if (bitmask_isallclear(cpus_chosen))
+		bitmask_setall(cpus_chosen);
 
 	dprint("System has up to %d CPU cores\n", cpu_count);
 
