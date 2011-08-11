@@ -449,11 +449,6 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 		wiphy_err(wiphy, "%s: qos enabled: %s (implement)\n", __func__,
 			  info->qos ? "true" : "false");
 	}
-	if (changed & BSS_CHANGED_IDLE) {
-		/* Idle changed for this BSS/interface */
-		wiphy_err(wiphy, "%s: BSS idle: %s (implement)\n", __func__,
-			  info->idle ? "true" : "false");
-	}
 	return;
 }
 

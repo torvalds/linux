@@ -1578,13 +1578,15 @@ static void alc_init_auto_hp(struct hda_codec *codec)
 	if (present == 3)
 		spec->automute_hp_lo = 1; /* both HP and LO automute */
 
-	if (!cfg->speaker_pins[0]) {
+	if (!cfg->speaker_pins[0] &&
+	    cfg->line_out_type == AUTO_PIN_SPEAKER_OUT) {
 		memcpy(cfg->speaker_pins, cfg->line_out_pins,
 		       sizeof(cfg->speaker_pins));
 		cfg->speaker_outs = cfg->line_outs;
 	}
 
-	if (!cfg->hp_pins[0]) {
+	if (!cfg->hp_pins[0] &&
+	    cfg->line_out_type == AUTO_PIN_HP_OUT) {
 		memcpy(cfg->hp_pins, cfg->line_out_pins,
 		       sizeof(cfg->hp_pins));
 		cfg->hp_outs = cfg->line_outs;
@@ -1603,6 +1605,7 @@ static void alc_init_auto_hp(struct hda_codec *codec)
 		spec->automute_mode = ALC_AUTOMUTE_PIN;
 	}
 	if (spec->automute && cfg->line_out_pins[0] &&
+	    cfg->speaker_pins[0] &&
 	    cfg->line_out_pins[0] != cfg->hp_pins[0] &&
 	    cfg->line_out_pins[0] != cfg->speaker_pins[0]) {
 		for (i = 0; i < cfg->line_outs; i++) {

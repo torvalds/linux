@@ -651,6 +651,15 @@ struct ar6_softc {
     void                    *arApDev;
 #endif
     u8 arAutoAuthStage;
+
+	u8 *fw_otp;
+	size_t fw_otp_len;
+	u8 *fw;
+	size_t fw_len;
+	u8 *fw_patch;
+	size_t fw_patch_len;
+	u8 *fw_data;
+	size_t fw_data_len;
 };
 
 #ifdef CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT

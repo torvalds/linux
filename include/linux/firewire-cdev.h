@@ -475,6 +475,9 @@ union fw_cdev_event {
  *		of the bus.  This does not cause a bus reset to happen.
  * @bus_reset_closure: Value of &closure in this and subsequent bus reset events
  * @card:	The index of the card this device belongs to
+ *
+ * As a side effect, reception of %FW_CDEV_EVENT_BUS_RESET events to be read(2)
+ * is started by this ioctl.
  */
 struct fw_cdev_get_info {
 	__u32 version;
