@@ -32,14 +32,6 @@ config EP405
 	help
 	  This option enables support for the EP405/EP405PC boards.
 
-config HCU4
-	bool "Hcu4"
-	depends on 40x
-	default n
-	select 405GPR
-	help
-	  This option enables support for the Nestal Maschinen HCU4 board.
-
 config HOTFOOT
         bool "Hotfoot"
 	depends on 40x
