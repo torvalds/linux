@@ -1796,6 +1796,21 @@ struct i2c_gpio_platform_data default_i2c3_data = {
        .io_init = rk29_i2c3_io_init,
 };
 #endif
+
+#if defined (CONFIG_ANX7150)
+#define HDMI_VDD_CTL RK29_PIN6_PD3
+int anx7150_io_init(void)
+{
+	gpio_request(HDMI_VDD_CTL, "hdmi pwr ctl");
+	gpio_direction_output(HDMI_VDD_CTL, GPIO_HIGH);
+	//gpio_set_value(HDMI_VDD_CTL, GPIO_HIGH); 
+	mdelay(10);
+	return 0;
+}
+struct hdmi_platform_data anx7150_data = {
+	.io_init = anx7150_io_init,
+};
+#endif
 #ifdef CONFIG_I2C0_RK29
 static struct i2c_board_info __initdata board_i2c0_devices[] = {
 #if defined (CONFIG_RK1000_CONTROL)
@@ -1890,6 +1905,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
         .addr           = 0x39,             //0x39, 0x3d
         .flags          = 0,
         .irq            = RK29_PIN2_PA3,
+		.platform_data  = &anx7150_data,
     },
 #endif
 #if defined (CONFIG_GS_L3G4200D)

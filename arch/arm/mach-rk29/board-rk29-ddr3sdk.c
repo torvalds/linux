@@ -789,6 +789,15 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 #endif
 };
 #endif
+#if defined (CONFIG_ANX7150)
+int anx7150_io_init(void)
+{
+	return 0;
+}
+struct hdmi_platform_data anx7150_data  = {
+	.io_init = anx7150_io_init,
+};
+#endif
 
 #ifdef CONFIG_I2C1_RK29
 static struct i2c_board_info __initdata board_i2c1_devices[] = {
@@ -799,12 +808,13 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 		.flags			= 0,
 	},
 #endif
-#if defined (CONFIG_ANX7150) || defined (CONFIG_ANX7150_NEW)
+#if defined (CONFIG_ANX7150)
     {
 		.type           = "anx7150",
         .addr           = 0x39,             //0x39, 0x3d
         .flags          = 0,
         .irq            = RK29_PIN1_PD7,
+		.platform_data  = &anx7150_data,
     },
 #endif
 
