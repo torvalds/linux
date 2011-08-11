@@ -40,7 +40,7 @@
 #include <scsi/libiscsi.h>
 #include <scsi/scsi_transport_iscsi.h>
 
-#include "../../net/cnic_if.h"
+#include "../../net/ethernet/broadcom/cnic_if.h"
 #include "57xx_iscsi_hsi.h"
 #include "57xx_iscsi_constants.h"
 

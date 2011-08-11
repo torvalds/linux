@@ -1,0 +1,24 @@
+#
+# Ethernet LAN device configuration
+#
+
+menuconfig ETHERNET
+	bool "Ethernet driver support"
+	depends on NET
+	default y
+	---help---
+	  This section contains all the Ethernet device drivers.
+
+if ETHERNET
+
+source "drivers/net/ethernet/3com/Kconfig"
+source "drivers/net/ethernet/8390/Kconfig"
+source "drivers/net/ethernet/amd/Kconfig"
+source "drivers/net/ethernet/broadcom/Kconfig"
+source "drivers/net/ethernet/chelsio/Kconfig"
+source "drivers/net/ethernet/intel/Kconfig"
+source "drivers/net/ethernet/i825xx/Kconfig"
+source "drivers/net/ethernet/qlogic/Kconfig"
+source "drivers/net/ethernet/smsc/Kconfig"
+
+endif # ETHERNET

@@ -117,20 +117,20 @@ Maintainers List (try to look for most precise areas first)
 M:	Philip Blundell <philb@gnu.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/3c505*
+F:	drivers/net/ethernet/i825xx/3c505*
 
 3C59X NETWORK DRIVER
 M:	Steffen Klassert <klassert@mathematik.tu-chemnitz.de>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/networking/vortex.txt
-F:	drivers/net/3c59x.c
+F:	drivers/net/ethernet/3com/3c59x.c
 
 3CR990 NETWORK DRIVER
 M:	David Dillow <dave@thedillows.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/typhoon*
+F:	drivers/net/ethernet/3com/typhoon*
 
 3WARE SAS/SATA-RAID SCSI DRIVERS (3W-XXXX, 3W-9XXX, 3W-SAS)
 M:	Adam Radford <linuxraid@lsi.com>
@@ -170,8 +170,7 @@ F:	include/linux/serial_8250.h
 8390 NETWORK DRIVERS [WD80x3/SMC-ELITE, SMC-ULTRA, NE2000, 3C503, etc.]
 L:	netdev@vger.kernel.org
 S:	Orphan / Obsolete
-F:	drivers/net/*8390*
-F:	drivers/net/ax88796.c
+F:	drivers/net/ethernet/8390/
 
 9P FILE SYSTEM
 M:	Eric Van Hensbergen <ericvh@gmail.com>
@@ -214,7 +213,7 @@ ACENIC DRIVER
 M:	Jes Sorensen <jes@trained-monkey.org>
 L:	linux-acenic@sunsite.dk
 S:	Maintained
-F:	drivers/net/acenic*
+F:	drivers/net/ethernet/3com/acenic*
 
 ACER ASPIRE ONE TEMPERATURE AND FAN DRIVER
 M:	Peter Feuerer <peter@piie.net>
@@ -746,7 +745,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.arm.linux.org.uk/
 S:	Maintained
 F:	arch/arm/mach-ebsa110/
-F:	drivers/net/arm/am79c961a.*
+F:	drivers/net/ethernet/amd/am79c961a.*
 
 ARM/EZX SMARTPHONES (A780, A910, A1200, E680, ROKR E2 and ROKR E6)
 M:	Daniel Ribeiro <drwyrm@gmail.com>
@@ -1015,7 +1014,7 @@ F:	arch/arm/include/asm/hardware/ioc.h
 F:	arch/arm/include/asm/hardware/iomd.h
 F:	arch/arm/include/asm/hardware/memc.h
 F:	arch/arm/mach-rpc/
-F:	drivers/net/arm/ether*
+F:	drivers/net/arm/ether3*
 F:	drivers/scsi/arm/
 
 ARM/SHARK MACHINE SUPPORT
@@ -1527,27 +1526,27 @@ BROADCOM B44 10/100 ETHERNET DRIVER
 M:	Gary Zambrano <zambrano@broadcom.com>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	drivers/net/b44.*
+F:	drivers/net/ethernet/broadcom/b44.*
 
 BROADCOM BNX2 GIGABIT ETHERNET DRIVER
 M:	Michael Chan <mchan@broadcom.com>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	drivers/net/bnx2.*
-F:	drivers/net/bnx2_*
+F:	drivers/net/ethernet/broadcom/bnx2.*
+F:	drivers/net/ethernet/broadcom/bnx2_*
 
 BROADCOM BNX2X 10 GIGABIT ETHERNET DRIVER
 M:	Eilon Greenstein <eilong@broadcom.com>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	drivers/net/bnx2x/
+F:	drivers/net/ethernet/broadcom/bnx2x/
 
 BROADCOM TG3 GIGABIT ETHERNET DRIVER
 M:	Matt Carlson <mcarlson@broadcom.com>
 M:	Michael Chan <mchan@broadcom.com>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	drivers/net/tg3.*
+F:	drivers/net/ethernet/broadcom/tg3.*
 
 BROADCOM BRCM80211 IEEE802.11n WIRELESS DRIVER
 M:	Brett Rudley <brudley@broadcom.com>
@@ -1995,7 +1994,7 @@ M:	Divy Le Ray <divy@chelsio.com>
 L:	netdev@vger.kernel.org
 W:	http://www.chelsio.com
 S:	Supported
-F:	drivers/net/cxgb3/
+F:	drivers/net/ethernet/chelsio/cxgb3/
 
 CXGB3 IWARP RNIC DRIVER (IW_CXGB3)
 M:	Steve Wise <swise@chelsio.com>
@@ -2009,7 +2008,7 @@ M:	Dimitris Michailidis <dm@chelsio.com>
 L:	netdev@vger.kernel.org
 W:	http://www.chelsio.com
 S:	Supported
-F:	drivers/net/cxgb4/
+F:	drivers/net/ethernet/chelsio/cxgb4/
 
 CXGB4 IWARP RNIC DRIVER (IW_CXGB4)
 M:	Steve Wise <swise@chelsio.com>
@@ -2023,7 +2022,7 @@ M:	Casey Leedom <leedom@chelsio.com>
 L:	netdev@vger.kernel.org
 W:	http://www.chelsio.com
 S:	Supported
-F:	drivers/net/cxgb4vf/
+F:	drivers/net/ethernet/chelsio/cxgb4vf/
 
 STMMAC ETHERNET DRIVER
 M:	Giuseppe Cavallaro <peppe.cavallaro@st.com>
@@ -2511,7 +2510,7 @@ ETHEREXPRESS-16 NETWORK DRIVER
 M:	Philip Blundell <philb@gnu.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/eexpress.*
+F:	drivers/net/ethernet/i825xx/eexpress.*
 
 ETHERNET BRIDGE
 M:	Stephen Hemminger <shemminger@linux-foundation.org>
@@ -3341,13 +3340,13 @@ M:	Bruce Allan <bruce.w.allan@intel.com>
 M:	Carolyn Wyborny <carolyn.wyborny@intel.com>
 M:	Don Skidmore <donald.c.skidmore@intel.com>
 M:	Greg Rose <gregory.v.rose@intel.com>
-M:	PJ Waskiewicz <peter.p.waskiewicz.jr@intel.com>
+M:	Peter P Waskiewicz Jr <peter.p.waskiewicz.jr@intel.com>
 M:	Alex Duyck <alexander.h.duyck@intel.com>
 M:	John Ronciak <john.ronciak@intel.com>
 L:	e1000-devel@lists.sourceforge.net
 W:	http://e1000.sourceforge.net/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jkirsher/net-2.6.git
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jkirsher/net-next-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jkirsher/net.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jkirsher/net-next.git
 S:	Supported
 F:	Documentation/networking/e100.txt
 F:	Documentation/networking/e1000.txt
@@ -3357,14 +3356,7 @@ F:	Documentation/networking/igbvf.txt
 F:	Documentation/networking/ixgb.txt
 F:	Documentation/networking/ixgbe.txt
 F:	Documentation/networking/ixgbevf.txt
-F:	drivers/net/e100.c
-F:	drivers/net/e1000/
-F:	drivers/net/e1000e/
-F:	drivers/net/igb/
-F:	drivers/net/igbvf/
-F:	drivers/net/ixgb/
-F:	drivers/net/ixgbe/
-F:	drivers/net/ixgbevf/
+F:	drivers/net/ethernet/intel/
 
 INTEL MRST PMU DRIVER
 M:	Len Brown <len.brown@intel.com>
@@ -4507,7 +4499,7 @@ M:	Amit Kumar Salecha <amit.salecha@qlogic.com>
 L:	netdev@vger.kernel.org
 W:	http://www.qlogic.com
 S:	Supported
-F:	drivers/net/netxen/
+F:	drivers/net/ethernet/qlogic/netxen/
 
 NFS, SUNRPC, AND LOCKD CLIENTS
 M:	Trond Myklebust <Trond.Myklebust@netapp.com>
@@ -4941,7 +4933,7 @@ PCNET32 NETWORK DRIVER
 M:	Don Fry <pcnet32@frontier.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/pcnet32.c
+F:	drivers/net/ethernet/amd/pcnet32.c
 
 PCRYPT PARALLEL CRYPTO ENGINE
 M:	Steffen Klassert <steffen.klassert@secunet.com>
@@ -5253,7 +5245,7 @@ M:	linux-driver@qlogic.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/networking/LICENSE.qla3xxx
-F:	drivers/net/qla3xxx.*
+F:	drivers/net/ethernet/qlogic/qla3xxx.*
 
 QLOGIC QLCNIC (1/10)Gb ETHERNET DRIVER
 M:	Amit Kumar Salecha <amit.salecha@qlogic.com>
@@ -5261,7 +5253,7 @@ M:	Anirban Chakraborty <anirban.chakraborty@qlogic.com>
 M:	linux-driver@qlogic.com
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	drivers/net/qlcnic/
+F:	drivers/net/ethernet/qlogic/qlcnic/
 
 QLOGIC QLGE 10Gb ETHERNET DRIVER
 M:	Jitendra Kalsaria <jitendra.kalsaria@qlogic.com>
@@ -5269,7 +5261,7 @@ M:	Ron Mercer <ron.mercer@qlogic.com>
 M:	linux-driver@qlogic.com
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	drivers/net/qlge/
+F:	drivers/net/ethernet/qlogic/qlge/
 
 QNX4 FILESYSTEM
 M:	Anders Larsen <al@alarsen.net>
@@ -5877,7 +5869,7 @@ F:	mm/sl?b.c
 SMC91x ETHERNET DRIVER
 M:	Nicolas Pitre <nico@fluxnic.net>
 S:	Odd Fixes
-F:	drivers/net/smc91x.*
+F:	drivers/net/ethernet/smsc/smc91x.*
 
 SMM665 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
@@ -5912,13 +5904,13 @@ M:	Steve Glendinning <steve.glendinning@smsc.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	include/linux/smsc911x.h
-F:	drivers/net/smsc911x.*
+F:	drivers/net/ethernet/smsc/smsc911x.*
 
 SMSC9420 PCI ETHERNET DRIVER
 M:	Steve Glendinning <steve.glendinning@smsc.com>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	drivers/net/smsc9420.*
+F:	drivers/net/ethernet/smsc/smsc9420.*
 
 SN-IA64 (Itanium) SUB-PLATFORM
 M:	Jes Sorensen <jes@sgi.com>
@@ -6568,7 +6560,7 @@ W:	http://uclinux-h8.sourceforge.jp/
 S:	Supported
 F:	arch/h8300/
 F:	drivers/ide/ide-h8300.c
-F:	drivers/net/ne-h8300.c
+F:	drivers/net/ethernet/8390/ne-h8300.c
 
 UDF FILESYSTEM
 M:	Jan Kara <jack@suse.cz>
