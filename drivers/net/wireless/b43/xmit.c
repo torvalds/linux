@@ -797,6 +797,7 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		break;
 	case B43_PHYTYPE_N:
 	case B43_PHYTYPE_LP:
+	case B43_PHYTYPE_HT:
 		/* chanid is the SHM channel cookie. Which is the plain
 		 * channel number in b43. */
 		if (chanstat & B43_RX_CHAN_5GHZ) {
