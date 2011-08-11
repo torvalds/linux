@@ -134,7 +134,7 @@ static struct cpuidle_monitor *cpuidle_register(void)
 	/* Assume idle state count is the same for all CPUs */
 	cpuidle_sysfs_monitor.hw_states_num = sysfs_get_idlestate_count(0);
 
-	if (cpuidle_sysfs_monitor.hw_states_num == 0)
+	if (cpuidle_sysfs_monitor.hw_states_num <= 0)
 		return NULL;
 
 	for (num = 0; num < cpuidle_sysfs_monitor.hw_states_num; num++) {
