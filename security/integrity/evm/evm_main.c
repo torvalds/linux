@@ -324,7 +324,7 @@ int evm_inode_init_security(struct inode *inode,
 	int rc;
 
 	if (!evm_initialized || !evm_protected_xattr(lsm_xattr->name))
-		return -EOPNOTSUPP;
+		return 0;
 
 	xattr_data = kzalloc(sizeof(*xattr_data), GFP_NOFS);
 	if (!xattr_data)

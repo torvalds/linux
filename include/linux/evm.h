@@ -85,7 +85,7 @@ static inline int evm_inode_init_security(struct inode *inode,
 					  const struct xattr *xattr_array,
 					  struct xattr *evm)
 {
-	return -EOPNOTSUPP;
+	return 0;
 }
 
 #endif /* CONFIG_EVM_H */
