@@ -565,7 +565,7 @@ static u32 atmci_prepare_command(struct mmc_host *mmc,
 	return cmdr;
 }
 
-static void atmci_start_command(struct atmel_mci *host,
+static void atmci_send_command(struct atmel_mci *host,
 		struct mmc_command *cmd, u32 cmd_flags)
 {
 	WARN_ON(host->cmd);
@@ -581,7 +581,7 @@ static void atmci_start_command(struct atmel_mci *host,
 
 static void atmci_send_stop_cmd(struct atmel_mci *host, struct mmc_data *data)
 {
-	atmci_start_command(host, data->stop, host->stop_cmdr);
+	atmci_send_command(host, data->stop, host->stop_cmdr);
 	atmci_writel(host, ATMCI_IER, ATMCI_CMDRDY);
 }
 
@@ -1003,7 +1003,7 @@ static void atmci_start_request(struct atmel_mci *host,
 	iflags |= ATMCI_CMDRDY;
 	cmd = mrq->cmd;
 	cmdflags = atmci_prepare_command(slot->mmc, cmd);
-	atmci_start_command(host, cmd, cmdflags);
+	atmci_send_command(host, cmd, cmdflags);
 
 	if (data)
 		host->submit_data(host, data);
