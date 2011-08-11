@@ -615,9 +615,9 @@ static int convert_variable(Dwarf_Die *vr_die, struct probe_finder *pf)
 /* Find a variable in a scope DIE */
 static int find_variable(Dwarf_Die *sc_die, struct probe_finder *pf)
 {
-	Dwarf_Die vr_die, *scopes;
+	Dwarf_Die vr_die;
 	char buf[32], *ptr;
-	int ret, nscopes;
+	int ret = 0;
 
 	if (!is_c_varname(pf->pvar->var)) {
 		/* Copy raw parameters */
@@ -652,29 +652,16 @@ static int find_variable(Dwarf_Die *sc_die, struct probe_finder *pf)
 	if (pf->tvar->name == NULL)
 		return -ENOMEM;
 
-	pr_debug("Searching '%s' variable in context.\n",
-		 pf->pvar->var);
+	pr_debug("Searching '%s' variable in context.\n", pf->pvar->var);
 	/* Search child die for local variables and parameters. */
-	if (die_find_variable_at(sc_die, pf->pvar->var, pf->addr, &vr_die))
-		ret = convert_variable(&vr_die, pf);
-	else {
-		/* Search upper class */
-		nscopes = dwarf_getscopes_die(sc_die, &scopes);
-		ret = -ENOENT;
-		while (nscopes-- > 1) {
-			pr_debug("Searching variables in %s\n",
-				 dwarf_diename(&scopes[nscopes]));
-			/* We should check this scope, so give dummy address */
-			if (die_find_variable_at(&scopes[nscopes],
-						 pf->pvar->var, 0,
-						 &vr_die)) {
-				ret = convert_variable(&vr_die, pf);
-				break;
-			}
-		}
-		if (scopes)
-			free(scopes);
+	if (!die_find_variable_at(sc_die, pf->pvar->var, pf->addr, &vr_die)) {
+		/* Search again in global variables */
+		if (!die_find_variable_at(&pf->cu_die, pf->pvar->var, 0, &vr_die))
+			ret = -ENOENT;
 	}
+	if (ret == 0)
+		ret = convert_variable(&vr_die, pf);
+
 	if (ret < 0)
 		pr_warning("Failed to find '%s' in this function.\n",
 			   pf->pvar->var);
@@ -1242,8 +1229,8 @@ static int add_available_vars(Dwarf_Die *sc_die, struct probe_finder *pf)
 	struct available_var_finder *af =
 			container_of(pf, struct available_var_finder, pf);
 	struct variable_list *vl;
-	Dwarf_Die die_mem, *scopes = NULL;
-	int ret, nscopes;
+	Dwarf_Die die_mem;
+	int ret;
 
 	/* Check number of tevs */
 	if (af->nvls == af->max_vls) {
@@ -1273,12 +1260,7 @@ static int add_available_vars(Dwarf_Die *sc_die, struct probe_finder *pf)
 		goto out;
 	/* Don't need to search child DIE for externs. */
 	af->child = false;
-	nscopes = dwarf_getscopes_die(sc_die, &scopes);
-	while (nscopes-- > 1)
-		die_find_child(&scopes[nscopes], collect_variables_cb,
-			       (void *)af, &die_mem);
-	if (scopes)
-		free(scopes);
+	die_find_child(&pf->cu_die, collect_variables_cb, (void *)af, &die_mem);
 
 out:
 	if (strlist__empty(vl->vars)) {
