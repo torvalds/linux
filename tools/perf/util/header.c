@@ -189,8 +189,8 @@ int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
 			  const char *name, bool is_kallsyms)
 {
 	const size_t size = PATH_MAX;
-	char *realname, *filename = malloc(size),
-	     *linkname = malloc(size), *targetname;
+	char *realname, *filename = zalloc(size),
+	     *linkname = zalloc(size), *targetname;
 	int len, err = -1;
 
 	if (is_kallsyms) {
@@ -254,8 +254,8 @@ static int build_id_cache__add_b(const u8 *build_id, size_t build_id_size,
 int build_id_cache__remove_s(const char *sbuild_id, const char *debugdir)
 {
 	const size_t size = PATH_MAX;
-	char *filename = malloc(size),
-	     *linkname = malloc(size);
+	char *filename = zalloc(size),
+	     *linkname = zalloc(size);
 	int err = -1;
 
 	if (filename == NULL || linkname == NULL)
