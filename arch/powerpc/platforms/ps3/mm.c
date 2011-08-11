@@ -20,7 +20,6 @@
 
 #include <linux/kernel.h>
 #include <linux/export.h>
-#include <linux/memory_hotplug.h>
 #include <linux/memblock.h>
 #include <linux/slab.h>
 
@@ -98,7 +97,7 @@ struct mem_region {
  * The HV virtual address space (vas) allows for hotplug memory regions.
  * Memory regions can be created and destroyed in the vas at runtime.
  * @rm: real mode (bootmem) region
- * @r1: hotplug memory region(s)
+ * @r1: highmem region(s)
  *
  * ps3 addresses
  * virt_addr: a cpu 'translated' effective address
@@ -224,10 +223,6 @@ void ps3_mm_vas_destroy(void)
 	}
 }
 
-/*============================================================================*/
-/* memory hotplug routines                                                    */
-/*============================================================================*/
-
 /**
  * ps3_mm_region_create - create a memory region in the vas
  * @r: pointer to a struct mem_region to accept initialized values
@@ -327,56 +322,6 @@ zero_region:
 	r->size = r->base = r->offset = 0;
 	return result;
 }
-
-/**
- * ps3_mm_add_memory - hot add memory
- */
-
-static int __init ps3_mm_add_memory(void)
-{
-	int result;
-	unsigned long start_addr;
-	unsigned long start_pfn;
-	unsigned long nr_pages;
-
-	if (!firmware_has_feature(FW_FEATURE_PS3_LV1))
-		return -ENODEV;
-
-	BUG_ON(!mem_init_done);
-
-	if (!map.r1.size) {
-		DBG("%s:%d: No region 1, not adding memory\n",
-		    __func__, __LINE__);
-		return 0;
-	}
-
-	start_addr = map.rm.size;
-	start_pfn = start_addr >> PAGE_SHIFT;
-	nr_pages = (map.r1.size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-
-	DBG("%s:%d: start_addr %lxh, start_pfn %lxh, nr_pages %lxh\n",
-		__func__, __LINE__, start_addr, start_pfn, nr_pages);
-
-	result = add_memory(0, start_addr, map.r1.size);
-
-	if (result) {
-		pr_err("%s:%d: add_memory failed: (%d)\n",
-			__func__, __LINE__, result);
-		return result;
-	}
-
-	memblock_add(start_addr, map.r1.size);
-
-	result = online_pages(start_pfn, nr_pages);
-
-	if (result)
-		pr_err("%s:%d: online_pages failed: (%d)\n",
-			__func__, __LINE__, result);
-
-	return result;
-}
-
-device_initcall(ps3_mm_add_memory);
 
 /*============================================================================*/
 /* dma routines                                                               */
@@ -1270,6 +1215,15 @@ void __init ps3_mm_init(void)
 
 	/* correct map.total for the real total amount of memory we use */
 	map.total = map.rm.size + map.r1.size;
+
+	if (!map.r1.size) {
+		DBG("%s:%d: No highmem region found\n", __func__, __LINE__);
+	} else {
+		DBG("%s:%d: Adding highmem region: %llxh %llxh\n",
+			__func__, __LINE__, map.rm.size,
+			map.total - map.rm.size);
+		memblock_add(map.rm.size, map.total - map.rm.size);
+	}
 
 	DBG(" <- %s:%d\n", __func__, __LINE__);
 }
