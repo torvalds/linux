@@ -2297,6 +2297,12 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/wan/dscc4.c
 
+DYNAMIC DEBUG
+M:	Jason Baron <jbaron@redhat.com>
+S:	Maintained
+F:	lib/dynamic_debug.c
+F:	include/linux/dynamic_debug.h
+
 DZ DECSTATION DZ11 SERIAL DRIVER
 M:	"Maciej W. Rozycki" <macro@linux-mips.org>
 S:	Maintained
