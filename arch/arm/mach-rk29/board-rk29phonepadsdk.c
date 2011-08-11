@@ -428,6 +428,7 @@ int p1003_init_platform_hw(void)
 
     if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
       gpio_free(TOUCH_INT_PIN);
+	  gpio_free(TOUCH_RESET_PIN);
       printk("p1003_init_platform_hw gpio_request error\n");
       return -EIO;
     }
@@ -463,6 +464,7 @@ static int EETI_EGALAX_init_platform_hw(void)
 
     if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
       gpio_free(TOUCH_INT_PIN);
+	  gpio_free(TOUCH_RESET_PIN);
       printk("p1003_init_platform_hw gpio_request error\n");
       return -EIO;
     }
@@ -515,13 +517,14 @@ void nas_request_io(void)
     if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
       gpio_free(TOUCH_RESET_PIN);
       printk("nas_init_platform_hw gpio_request error\n");
-      return -EIO;
+      return ;
     }
 
     if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
       gpio_free(TOUCH_INT_PIN);
+	  gpio_free(TOUCH_RESET_PIN);
       printk("nas_init_platform_hw gpio_request error\n");
-      return -EIO;
+      return;
     }
 }
 	
@@ -567,13 +570,14 @@ void laibao_request_io(void)
     if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
       gpio_free(TOUCH_RESET_PIN);
       printk("nas_init_platform_hw gpio_request error\n");
-      return -EIO;
+      return ;
     }
 
     if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
       gpio_free(TOUCH_INT_PIN);
+	  gpio_free(TOUCH_RESET_PIN);
       printk("nas_init_platform_hw gpio_request error\n");
-      return -EIO;
+      return ;
     }
 }
 	
@@ -662,7 +666,7 @@ static struct mpu3050_platform_data mpu3050_data = {
 				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
 				//.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
 				
-				.orientation = { 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+				.orientation = { -1, 0, 0, 0, -1, 0, 0, 0, 1 },
 				//.orientation = { 0, 1, 0, -1, 0, 0, 0, 0, -1 },
 		},
 #endif
@@ -830,6 +834,26 @@ struct wm8994_pdata wm8994_platdata = {
 	.recorder_vol = 50,
 	
 };
+#if defined (CONFIG_BATTERY_BQ27541)
+#define	DC_CHECK_PIN	RK29_PIN4_PA1
+#define	LI_LION_BAT_NUM	2
+static int bq27541_init_dc_check_pin(void){	
+	if(gpio_request(DC_CHECK_PIN,"dc_check") != 0){      
+		gpio_free(DC_CHECK_PIN);      
+		printk("bq27541 init dc check pin request error\n");      
+		return -EIO;    
+	}	
+	gpio_direction_input(DC_CHECK_PIN);	
+	return 0;
+}
+
+struct bq27541_platform_data bq27541_info = {	
+	.init_dc_check_pin = bq27541_init_dc_check_pin,	
+	.dc_check_pin =  DC_CHECK_PIN,		
+	.bat_num = LI_LION_BAT_NUM,
+};
+#endif
+
 
 /*****************************************************************************************
  * i2c devices
@@ -1069,6 +1093,16 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.platform_data  = &mpu3050_data,
 	},
 #endif
+
+#if defined (CONFIG_BATTERY_BQ27541)
+	{
+		.type    		= "bq27541",
+		.addr           = 0x55,
+		.flags			= 0,
+		.platform_data  = &bq27541_info,
+	},
+#endif
+
 };
 #endif
 
