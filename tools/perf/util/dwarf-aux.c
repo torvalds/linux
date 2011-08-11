@@ -439,7 +439,7 @@ static int __die_walk_culines_cb(Dwarf_Die *sp_die, void *data)
 
 /**
  * die_walk_lines - Walk on lines inside given DIE
- * @rt_die: a root DIE (CU or subprogram)
+ * @rt_die: a root DIE (CU, subprogram or inlined_subroutine)
  * @callback: callback routine
  * @data: user data
  *
@@ -460,12 +460,12 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 	size_t nlines, i;
 
 	/* Get the CU die */
-	if (dwarf_tag(rt_die) == DW_TAG_subprogram)
+	if (dwarf_tag(rt_die) != DW_TAG_compile_unit)
 		cu_die = dwarf_diecu(rt_die, &die_mem, NULL, NULL);
 	else
 		cu_die = rt_die;
 	if (!cu_die) {
-		pr_debug2("Failed to get CU from subprogram\n");
+		pr_debug2("Failed to get CU from given DIE.\n");
 		return -EINVAL;
 	}
 
