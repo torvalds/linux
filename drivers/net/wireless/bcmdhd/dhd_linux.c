@@ -2261,6 +2261,7 @@ dhd_open(struct net_device *net)
 	if (ifidx == 0) {
 		atomic_set(&dhd->pend_8021x_cnt, 0);
 #if defined(WL_CFG80211)
+		printf("\n cfg %s\n", dhd_version);
 		wl_android_wifi_on(net);
 #endif
 

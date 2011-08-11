@@ -1553,8 +1553,10 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #endif
 #ifdef AP
 	uint32 mpc = 0; /* Turn MPC off for AP/APSTA mode */
+#endif /* AP */
+#if defined(AP) || defined(WLP2P)
 	uint32 apsta = 1; /* Enable APSTA mode */
-#endif
+#endif /* defined(AP) || defined(WLP2P) */
 #ifdef GET_CUSTOM_MAC_ENABLE
 	struct ether_addr ea_addr;
 #endif /* GET_CUSTOM_MAC_ENABLE */
@@ -1653,11 +1655,12 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	/* Turn off MPC in AP mode */
 	bcm_mkiovar("mpc", (char *)&mpc, 4, iovbuf, sizeof(iovbuf));
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-
+#endif /* AP */
+#if defined(AP) || defined(WLP2P)
 	/* Enable APSTA mode */
 	bcm_mkiovar("apsta", (char *)&apsta, 4, iovbuf, sizeof(iovbuf));
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-#endif
+#endif /* defined(AP) || defined(WLP2P) */
 #if defined(SOFTAP)
 	if (ap_fw_loaded == TRUE) {
 		dhd_wl_ioctl_cmd(dhd, WLC_SET_DTIMPRD, (char *)&dtim, sizeof(dtim), TRUE, 0);
