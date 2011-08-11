@@ -187,6 +187,8 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	int rates_idx = -1;
 	bool send_to_cooked;
 	bool acked;
+	struct ieee80211_bar *bar;
+	u16 tid;
 
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
 		if (info->status.rates[i].idx < 0) {
@@ -241,6 +243,22 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 						& IEEE80211_SCTL_SEQ);
 			ieee80211_send_bar(sta->sdata, hdr->addr1,
 					   tid, ssn);
+		}
+
+		if (!acked && ieee80211_is_back_req(fc)) {
+			/*
+			 * BAR failed, let's tear down the BA session as a
+			 * last resort as some STAs (Intel 5100 on Windows)
+			 * can get stuck when the BA window isn't flushed
+			 * correctly.
+			 */
+			bar = (struct ieee80211_bar *) skb->data;
+			if (!(bar->control & IEEE80211_BAR_CTRL_MULTI_TID)) {
+				tid = (bar->control &
+				       IEEE80211_BAR_CTRL_TID_INFO_MASK) >>
+				      IEEE80211_BAR_CTRL_TID_INFO_SHIFT;
+				ieee80211_stop_tx_ba_session(&sta->sta, tid);
+			}
 		}
 
 		if (info->flags & IEEE80211_TX_STAT_TX_FILTERED) {
