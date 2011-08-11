@@ -40,6 +40,9 @@ extern bool die_compare_name(Dwarf_Die *dw_die, const char *tname);
 /* Get callsite line number of inline-function instance */
 extern int die_get_call_lineno(Dwarf_Die *in_die);
 
+/* Get callsite file name of inlined function instance */
+extern const char *die_get_call_file(Dwarf_Die *in_die);
+
 /* Get type die */
 extern Dwarf_Die *die_get_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem);
 

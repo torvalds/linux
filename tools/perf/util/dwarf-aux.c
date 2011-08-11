@@ -198,6 +198,19 @@ static int die_get_attr_udata(Dwarf_Die *tp_die, unsigned int attr_name,
 	return 0;
 }
 
+/* Get attribute and translate it as a sdata */
+static int die_get_attr_sdata(Dwarf_Die *tp_die, unsigned int attr_name,
+			      Dwarf_Sword *result)
+{
+	Dwarf_Attribute attr;
+
+	if (dwarf_attr(tp_die, attr_name, &attr) == NULL ||
+	    dwarf_formsdata(&attr, result) != 0)
+		return -ENOENT;
+
+	return 0;
+}
+
 /**
  * die_is_signed_type - Check whether a type DIE is signed or not
  * @tp_die: a DIE of a type
@@ -249,6 +262,39 @@ int die_get_data_member_location(Dwarf_Die *mb_die, Dwarf_Word *offs)
 	}
 	return 0;
 }
+
+/* Get the call file index number in CU DIE */
+static int die_get_call_fileno(Dwarf_Die *in_die)
+{
+	Dwarf_Sword idx;
+
+	if (die_get_attr_sdata(in_die, DW_AT_call_file, &idx) == 0)
+		return (int)idx;
+	else
+		return -ENOENT;
+}
+
+/**
+ * die_get_call_file - Get callsite file name of inlined function instance
+ * @in_die: a DIE of an inlined function instance
+ *
+ * Get call-site file name of @in_die. This means from which file the inline
+ * function is called.
+ */
+const char *die_get_call_file(Dwarf_Die *in_die)
+{
+	Dwarf_Die cu_die;
+	Dwarf_Files *files;
+	int idx;
+
+	idx = die_get_call_fileno(in_die);
+	if (idx < 0 || !dwarf_diecu(in_die, &cu_die, NULL, NULL) ||
+	    dwarf_getsrcfiles(&cu_die, &files, NULL) != 0)
+		return NULL;
+
+	return dwarf_filesrc(files, idx, NULL, NULL);
+}
+
 
 /**
  * die_find_child - Generic DIE search function in DIE tree
@@ -376,7 +422,7 @@ Dwarf_Die *die_find_inlinefunc(Dwarf_Die *sp_die, Dwarf_Addr addr,
 
 /* Line walker internal parameters */
 struct __line_walk_param {
-	const char *fname;
+	bool recursive;
 	line_walk_callback_t callback;
 	void *data;
 	int retval;
@@ -385,39 +431,56 @@ struct __line_walk_param {
 static int __die_walk_funclines_cb(Dwarf_Die *in_die, void *data)
 {
 	struct __line_walk_param *lw = data;
-	Dwarf_Addr addr;
+	Dwarf_Addr addr = 0;
+	const char *fname;
 	int lineno;
 
 	if (dwarf_tag(in_die) == DW_TAG_inlined_subroutine) {
+		fname = die_get_call_file(in_die);
 		lineno = die_get_call_lineno(in_die);
-		if (lineno > 0 && dwarf_entrypc(in_die, &addr) == 0) {
-			lw->retval = lw->callback(lw->fname, lineno, addr,
-						  lw->data);
+		if (fname && lineno > 0 && dwarf_entrypc(in_die, &addr) == 0) {
+			lw->retval = lw->callback(fname, lineno, addr, lw->data);
 			if (lw->retval != 0)
 				return DIE_FIND_CB_END;
 		}
 	}
-	return DIE_FIND_CB_SIBLING;
+	if (!lw->recursive)
+		/* Don't need to search recursively */
+		return DIE_FIND_CB_SIBLING;
+
+	if (addr) {
+		fname = dwarf_decl_file(in_die);
+		if (fname && dwarf_decl_line(in_die, &lineno) == 0) {
+			lw->retval = lw->callback(fname, lineno, addr, lw->data);
+			if (lw->retval != 0)
+				return DIE_FIND_CB_END;
+		}
+	}
+
+	/* Continue to search nested inlined function call-sites */
+	return DIE_FIND_CB_CONTINUE;
 }
 
 /* Walk on lines of blocks included in given DIE */
-static int __die_walk_funclines(Dwarf_Die *sp_die,
+static int __die_walk_funclines(Dwarf_Die *sp_die, bool recursive,
 				line_walk_callback_t callback, void *data)
 {
 	struct __line_walk_param lw = {
+		.recursive = recursive,
 		.callback = callback,
 		.data = data,
 		.retval = 0,
 	};
 	Dwarf_Die die_mem;
 	Dwarf_Addr addr;
+	const char *fname;
 	int lineno;
 
 	/* Handle function declaration line */
-	lw.fname = dwarf_decl_file(sp_die);
-	if (lw.fname && dwarf_decl_line(sp_die, &lineno) == 0 &&
+	fname = dwarf_decl_file(sp_die);
+	if (fname && dwarf_decl_line(sp_die, &lineno) == 0 &&
 	    dwarf_entrypc(sp_die, &addr) == 0) {
-		lw.retval = callback(lw.fname, lineno, addr, data);
+		lw.retval = callback(fname, lineno, addr, data);
 		if (lw.retval != 0)
 			goto done;
 	}
@@ -430,7 +493,7 @@ static int __die_walk_culines_cb(Dwarf_Die *sp_die, void *data)
 {
 	struct __line_walk_param *lw = data;
 
-	lw->retval = __die_walk_funclines(sp_die, lw->callback, lw->data);
+	lw->retval = __die_walk_funclines(sp_die, true, lw->callback, lw->data);
 	if (lw->retval != 0)
 		return DWARF_CB_ABORT;
 
@@ -509,7 +572,11 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 	 * subroutines. We have to check functions list or given function.
 	 */
 	if (rt_die != cu_die)
-		ret = __die_walk_funclines(rt_die, callback, data);
+		/*
+		 * Don't need walk functions recursively, because nested
+		 * inlined functions don't have lines of the specified DIE.
+		 */
+		ret = __die_walk_funclines(rt_die, false, callback, data);
 	else {
 		struct __line_walk_param param = {
 			.callback = callback,
