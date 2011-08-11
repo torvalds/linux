@@ -88,8 +88,14 @@
 # define ATMCI_BLKE			(  1 <<   3)	/* Data Block Ended */
 # define ATMCI_DTIP			(  1 <<   4)	/* Data Transfer In Progress */
 # define ATMCI_NOTBUSY			(  1 <<   5)	/* Data Not Busy */
+# define ATMCI_ENDRX			(  1 <<   6)    /* End of RX Buffer */
+# define ATMCI_ENDTX			(  1 <<   7)    /* End of TX Buffer */
 # define ATMCI_SDIOIRQA			(  1 <<   8)	/* SDIO IRQ in slot A */
 # define ATMCI_SDIOIRQB			(  1 <<   9)	/* SDIO IRQ in slot B */
+# define ATMCI_SDIOWAIT			(  1 <<  12)    /* SDIO Read Wait Operation Status */
+# define ATMCI_CSRCV			(  1 <<  13)    /* CE-ATA Completion Signal Received */
+# define ATMCI_RXBUFF			(  1 <<  14)    /* RX Buffer Full */
+# define ATMCI_TXBUFE			(  1 <<  15)    /* TX Buffer Empty */
 # define ATMCI_RINDE			(  1 <<  16)	/* Response Index Error */
 # define ATMCI_RDIRE			(  1 <<  17)	/* Response Direction Error */
 # define ATMCI_RCRCE			(  1 <<  18)	/* Response CRC Error */
@@ -97,6 +103,13 @@
 # define ATMCI_RTOE			(  1 <<  20)	/* Response Time-Out Error */
 # define ATMCI_DCRCE			(  1 <<  21)	/* Data CRC Error */
 # define ATMCI_DTOE			(  1 <<  22)	/* Data Time-Out Error */
+# define ATMCI_CSTOE			(  1 <<  23)    /* Completion Signal Time-out Error */
+# define ATMCI_BLKOVRE			(  1 <<  24)    /* DMA Block Overrun Error */
+# define ATMCI_DMADONE			(  1 <<  25)    /* DMA Transfer Done */
+# define ATMCI_FIFOEMPTY		(  1 <<  26)    /* FIFO Empty Flag */
+# define ATMCI_XFRDONE			(  1 <<  27)    /* Transfer Done Flag */
+# define ATMCI_ACKRCV			(  1 <<  28)    /* Boot Operation Acknowledge Received */
+# define ATMCI_ACKRCVE			(  1 <<  29)    /* Boot Operation Acknowledge Error */
 # define ATMCI_OVRE			(  1 <<  30)	/* RX Overrun Error */
 # define ATMCI_UNRE			(  1 <<  31)	/* TX Underrun Error */
 #define ATMCI_DMA			0x0050	/* DMA Configuration[2] */
@@ -114,6 +127,7 @@
 #define ATMCI_WPSR			0x00e8	/* Write Protection Status[2] */
 # define ATMCI_GET_WP_VS(x)		((x) & 0x0f)
 # define ATMCI_GET_WP_VSRC(x)		(((x) >> 8) & 0xffff)
+#define ATMCI_VERSION			0x00FC  /* Version */
 #define ATMCI_FIFO_APERTURE		0x0200	/* FIFO Aperture[2] */
 
 /* This is not including the FIFO Aperture on MCI2 */
