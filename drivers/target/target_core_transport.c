@@ -2853,12 +2853,10 @@ static int transport_cmd_get_valid_sectors(struct se_cmd *cmd)
 			" transport_dev_end_lba(): %llu\n",
 			cmd->t_task_lba, sectors,
 			transport_dev_end_lba(dev));
-		pr_err("  We should return CHECK_CONDITION"
-		       " but we don't yet\n");
-		return 0;
+		return -EINVAL;
 	}
 
-	return sectors;
+	return 0;
 }
 
 static int target_check_write_same_discard(unsigned char *flags, struct se_device *dev)
@@ -3350,10 +3348,12 @@ static int transport_generic_cmd_sequencer(
 		cmd->se_cmd_flags |= SCF_EMULATE_CDB_ASYNC;
 		/*
 		 * Check to ensure that LBA + Range does not exceed past end of
-		 * device.
+		 * device for IBLOCK and FILEIO ->do_sync_cache() backend calls
 		 */
-		if (!transport_cmd_get_valid_sectors(cmd))
-			goto out_invalid_cdb_field;
+		if ((cmd->t_task_lba != 0) || (sectors != 0)) {
+			if (transport_cmd_get_valid_sectors(cmd) < 0)
+				goto out_invalid_cdb_field;
+		}
 		break;
 	case UNMAP:
 		size = get_unaligned_be16(&cdb[7]);
