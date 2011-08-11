@@ -660,6 +660,7 @@ static int find_variable(Dwarf_Die *sp_die, struct probe_finder *pf)
 	else {
 		/* Search upper class */
 		nscopes = dwarf_getscopes_die(sp_die, &scopes);
+		ret = -ENOENT;
 		while (nscopes-- > 1) {
 			pr_debug("Searching variables in %s\n",
 				 dwarf_diename(&scopes[nscopes]));
@@ -668,14 +669,12 @@ static int find_variable(Dwarf_Die *sp_die, struct probe_finder *pf)
 						 pf->pvar->var, 0,
 						 &vr_die)) {
 				ret = convert_variable(&vr_die, pf);
-				goto found;
+				break;
 			}
 		}
 		if (scopes)
 			free(scopes);
-		ret = -ENOENT;
 	}
-found:
 	if (ret < 0)
 		pr_warning("Failed to find '%s' in this function.\n",
 			   pf->pvar->var);
