@@ -785,6 +785,8 @@ extern const char *dev_driver_string(const struct device *dev);
 
 #ifdef CONFIG_PRINTK
 
+extern int __dev_printk(const char *level, const struct device *dev,
+			struct va_format *vaf);
 extern int dev_printk(const char *level, const struct device *dev,
 		      const char *fmt, ...)
 	__attribute__ ((format (printf, 3, 4)));
@@ -805,6 +807,9 @@ extern int _dev_info(const struct device *dev, const char *fmt, ...)
 
 #else
 
+static inline int __dev_printk(const char *level, const struct device *dev,
+			       struct va_format *vaf)
+	 { return 0; }
 static inline int dev_printk(const char *level, const struct device *dev,
 		      const char *fmt, ...)
 	__attribute__ ((format (printf, 3, 4)));

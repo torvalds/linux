@@ -30,6 +30,7 @@
 #include <linux/jump_label.h>
 #include <linux/hardirq.h>
 #include <linux/sched.h>
+#include <linux/device.h>
 
 extern struct _ddebug __start___verbose[];
 extern struct _ddebug __stop___verbose[];
@@ -455,6 +456,43 @@ int __dynamic_pr_debug(struct _ddebug *descriptor, const char *fmt, ...)
 	return res;
 }
 EXPORT_SYMBOL(__dynamic_pr_debug);
+
+int __dynamic_dev_dbg(struct _ddebug *descriptor,
+		      const struct device *dev, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+	int res;
+
+	BUG_ON(!descriptor);
+	BUG_ON(!fmt);
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	res = printk(KERN_DEBUG);
+	if (descriptor->flags & _DPRINTK_FLAGS_INCL_TID) {
+		if (in_interrupt())
+			res += printk(KERN_CONT "<intr> ");
+		else
+			res += printk(KERN_CONT "[%d] ", task_pid_vnr(current));
+	}
+	if (descriptor->flags & _DPRINTK_FLAGS_INCL_MODNAME)
+		res += printk(KERN_CONT "%s:", descriptor->modname);
+	if (descriptor->flags & _DPRINTK_FLAGS_INCL_FUNCNAME)
+		res += printk(KERN_CONT "%s:", descriptor->function);
+	if (descriptor->flags & _DPRINTK_FLAGS_INCL_LINENO)
+		res += printk(KERN_CONT "%d ", descriptor->lineno);
+
+	res += __dev_printk(KERN_CONT, dev, &vaf);
+
+	va_end(args);
+
+	return res;
+}
+EXPORT_SYMBOL(__dynamic_dev_dbg);
 
 static __initdata char ddebug_setup_string[1024];
 static __init int ddebug_setup_query(char *str)
