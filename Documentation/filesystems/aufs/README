@@ -1,5 +1,5 @@
 
-Aufs2.1 -- advanced multi layered unification filesystem version 2.1
+Aufs2.2 -- advanced multi layered unification filesystem version 2.2
 http://aufs.sf.net
 Junjiro R. Okajima
 
@@ -15,13 +15,15 @@ approaches to aufs1's.
 Unionfs is being developed by Professor Erez Zadok at Stony Brook
 University and his team.
 
-Aufs2.1 supports linux-2.6.31 and later. If you want older kernel version
-support, try aufs2 from aufs2-27..aufs2-30 GIT branches or aufs1 from
-CVS on SourceForge.
+Aufs2.2 supports linux-2.6.35..linux-2.6.39. If you want older kernel version
+support, try aufs2.1 from aufs2.1-31..aufs2.1-34, aufs2 from
+aufs2-27..aufs2-30 GIT branches or aufs1 from CVS on SourceForge.
 By the way, generally "aufs2" means version 2.0 but sometimes it means
 whole version 2 series. For instance, the name of GIT tree "aufs2-2.6"
 means whole version 2 series and the name of branch in the GIT tree
 "aufs2-27" means version 2.0.
+
+For linux-3.0 and later, try aufs3-standalone.git and aufs-util.git.
 
 Note: it becomes clear that "Aufs was rejected. Let's give it up."
 According to Christoph Hellwig, linux rejects all union-type filesystems
@@ -111,8 +113,6 @@ The aufs2-2.6 tree includes the whole linux-2.6 GIT tree,
 git://git.kernel.org/.../torvalds/linux-2.6.git.
 And you cannot select CONFIG_AUFS_FS=m for this version, eg. you cannot
 build aufs2 as an externel kernel module.
-If you already have linux-2.6 GIT tree, you may want to pull and merge
-the "aufs2.1" branch from this tree.
 
 On the other hand, the aufs2-standalone tree has only aufs source files
 and a necessary patch, and you can select CONFIG_AUFS_FS=m. In other
@@ -123,9 +123,8 @@ words, the aufs2-standalone tree is generated from aufs2-2.6 tree by,
 - commit the files newly and no log messages. this is not git-pull.
 
 Both of aufs2-2.6 and aufs2-standalone trees have branches whose name is
-in form of "aufs2.1" or "aufs2.1-xx" where "xx" represents the linux kernel
-version, "linux-2.6.xx". For instance, "aufs2.1" (no -xx) for the latest
--rc version, and "aufs2.1-31" for linux-2.6.31,
+in form of "aufs2.2-xx" where "xx" represents the linux kernel
+version, "linux-2.6.xx". For instance, "aufs2.2-35" for linux-2.6.35.
 
 o aufs2-2.6 tree
 $ git clone --reference /your/linux-2.6/git/tree \
@@ -133,19 +132,19 @@ $ git clone --reference /your/linux-2.6/git/tree \
 	aufs2-2.6.git
 - if you don't have linux-2.6 GIT tree, then remove "--reference ..."
 $ cd aufs2-2.6.git
-$ git checkout origin/aufs2.1-31
+$ git checkout origin/aufs2.2-35
 
 o aufs2-standalone tree
 $ git clone http://git.c3sl.ufpr.br/pub/scm/aufs/aufs2-standalone.git \
 	aufs2-standalone.git
 $ cd aufs2-standalone.git
-$ git checkout origin/aufs2.1-31
+$ git checkout origin/aufs2.2-35
 
 o aufs2-util tree
 $ git clone http://git.c3sl.ufpr.br/pub/scm/aufs/aufs2-util.git \
 	aufs2-util.git
 $ cd aufs2-util.git
-$ git checkout origin/aufs2.1
+$ git checkout origin/aufs2.2
 
 o for advanced users
 $ git clone git://git.kernel.org/.../torvalds/linux-2.6.git linux-2.6.git
@@ -153,20 +152,11 @@ $ git clone git://git.kernel.org/.../torvalds/linux-2.6.git linux-2.6.git
 
 $ cd linux-2.6.git
 $ git remote add aufs2 http://git.c3sl.ufpr.br/pub/scm/aufs/aufs2-2.6.git
-$ git checkout -b aufs2.1-31 v2.6.31
-$ git pull aufs2 aufs2.1-31
+$ git checkout -b aufs2.2-35 v2.6.35
+$ git pull aufs2 aufs2.2-35
   It may take long time again.
-  Once pulling completes, you've got linux-2.6.31 and aufs2.1 for it in a
-  branch named aufs2.1-31, and you can configure and build it.
-
-Or
-
-$ git checkout -t -b aufs2.1 master
-$ git pull aufs2 aufs2.1
-  then you've got the latest linux kernel and the latest aufs2.1 in a
-  branch named aufs2.1, and you can configure and build it.
-  But aufs is released once a week, so you may meet a compilation error
-  due to mismatching between the mainline and aufs2.1.
+  Once pulling completes, you've got linux-2.6.35 and aufs2.2 for it in a
+  branch named aufs2.2-35, and you can configure and build it.
 
 Or you may want build linux-2.6.xx.yy instead of linux-2.6.xx, then here
 is an approach using linux-2.6-stable GIT tree.
@@ -178,20 +168,20 @@ $ git clone -q --reference ./linux-2.6.git git://git.kernel.org/.../linux-2.6-st
 
 $ cd linux-2.6-stable.git
 $ git remote add aufs2 http://git.c3sl.ufpr.br/pub/scm/aufs/aufs2-2.6.git
-$ git checkout -b aufs2.1-31.1 v2.6.31.1
-$ git pull aufs2 aufs2.1-31
-  then you've got linux-2.6.31.1 and aufs2.1 for 2.6.31 in a branch named
-  aufs2.1-31.1, and you can configure and build it.
-  But the changes made by v2.6.xx.yy may conflict with aufs2.1-xx, since
-  aufs2.1-xx is for v2.6.xx only. In this case, you may find some patchces
-  for v2.6.xx.yy in aufs2-standalone.git#aufs2.1-xx branch if someone else
+$ git checkout -b aufs2.2-35.1 v2.6.35.1
+$ git pull aufs2 aufs2.2-35
+  then you've got linux-2.6.35.1 and aufs2.2 for 2.6.35 in a branch named
+  aufs2.2-35.1, and you can configure and build it.
+  But the changes made by v2.6.xx.yy may conflict with aufs2.2-xx, since
+  aufs2.2-xx is for v2.6.xx(.0) only. In this case, you may find some patchces
+  for v2.6.xx.yy in aufs2-standalone.git#aufs2.2-xx branch if someone else
   have ever requested me to support v2.6.xx.yy and I did it.
 
 You can also check what was changed by pulling aufs2.
-$ git diff v2.6.31.1..aufs2.1-31.1
+$ git diff v2.6.35.1..aufs2.2-35.1
 
 If you want to check the changed files other than fs/aufs, then try this.
-$ git diff v2.6.31.1..aufs2.1-31.1 |
+$ git diff v2.6.35.1..aufs2.2-35.1 |
 > awk '
 > /^diff / {new=1}
 > /^diff.*aufs/ {new=0}
