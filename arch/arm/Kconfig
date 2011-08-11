@@ -205,20 +205,12 @@ config ARM_PATCH_PHYS_VIRT
 	  kernel in system memory.
 
 	  This can only be used with non-XIP MMU kernels where the base
-	  of physical memory is at a 16MB boundary, or theoretically 64K
-	  for the MSM machine class.
+	  of physical memory is at a 16MB boundary.
 
 	  Only disable this option if you know that you do not require
 	  this feature (eg, building a kernel for a single machine) and
 	  you need to shrink the kernel to the minimal size.
 
-config ARM_PATCH_PHYS_VIRT_16BIT
-	def_bool y
-	depends on ARM_PATCH_PHYS_VIRT && ARCH_MSM
-	help
-	  This option extends the physical to virtual translation patching
-	  to allow physical memory down to a theoretical minimum of 64K
-	  boundaries.
 
 source "init/Kconfig"
 
