@@ -142,90 +142,142 @@ int mwifiex_request_set_multicast_list(struct mwifiex_private *priv,
 }
 
 /*
+ * This function fills bss descriptor structure using provided
+ * information.
+ */
+int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
+			      u8 *bssid, s32 rssi, u8 *ie_buf,
+			      size_t ie_len, u16 beacon_period,
+			      u16 cap_info_bitmap,
+			      struct mwifiex_bssdescriptor *bss_desc)
+{
+	int ret;
+
+	memcpy(bss_desc->mac_address, bssid, ETH_ALEN);
+	bss_desc->rssi = rssi;
+	bss_desc->beacon_buf = ie_buf;
+	bss_desc->beacon_buf_size = ie_len;
+	bss_desc->beacon_period = beacon_period;
+	bss_desc->cap_info_bitmap = cap_info_bitmap;
+	if (bss_desc->cap_info_bitmap & WLAN_CAPABILITY_PRIVACY) {
+		dev_dbg(priv->adapter->dev, "info: InterpretIE: AP WEP enabled\n");
+		bss_desc->privacy = MWIFIEX_802_11_PRIV_FILTER_8021X_WEP;
+	} else {
+		bss_desc->privacy = MWIFIEX_802_11_PRIV_FILTER_ACCEPT_ALL;
+	}
+	if (bss_desc->cap_info_bitmap & WLAN_CAPABILITY_IBSS)
+		bss_desc->bss_mode = NL80211_IFTYPE_ADHOC;
+	else
+		bss_desc->bss_mode = NL80211_IFTYPE_STATION;
+
+	ret = mwifiex_update_bss_desc_with_ie(priv->adapter, bss_desc,
+					      ie_buf, ie_len);
+
+	return ret;
+}
+
+/*
  * In Ad-Hoc mode, the IBSS is created if not found in scan list.
  * In both Ad-Hoc and infra mode, an deauthentication is performed
  * first.
  */
-int mwifiex_bss_start(struct mwifiex_private *priv,
-		      struct mwifiex_ssid_bssid *ssid_bssid)
+int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
+		      struct mwifiex_802_11_ssid *req_ssid)
 {
 	int ret;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	s32 i = -1;
+	struct mwifiex_bssdescriptor *bss_desc = NULL;
+	u8 *beacon_ie = NULL;
 
 	priv->scan_block = false;
-	if (!ssid_bssid)
-		return -1;
+
+	if (bss) {
+		/* Allocate and fill new bss descriptor */
+		bss_desc = kzalloc(sizeof(struct mwifiex_bssdescriptor),
+				GFP_KERNEL);
+		if (!bss_desc) {
+			dev_err(priv->adapter->dev, " failed to alloc bss_desc\n");
+			return -ENOMEM;
+		}
+		beacon_ie = kzalloc(bss->len_beacon_ies, GFP_KERNEL);
+		if (!beacon_ie) {
+			dev_err(priv->adapter->dev, " failed to alloc bss_desc\n");
+			return -ENOMEM;
+		}
+		memcpy(beacon_ie, bss->information_elements,
+		       bss->len_beacon_ies);
+		ret = mwifiex_fill_new_bss_desc(priv, bss->bssid, bss->signal,
+						beacon_ie, bss->len_beacon_ies,
+						bss->beacon_interval,
+						bss->capability, bss_desc);
+		if (ret)
+			goto done;
+	}
 
 	if (priv->bss_mode == NL80211_IFTYPE_STATION) {
 		/* Infra mode */
 		ret = mwifiex_deauthenticate(priv, NULL);
 		if (ret)
-			return ret;
+			goto done;
 
-		/* Search for the requested SSID in the scan table */
-		if (ssid_bssid->ssid.ssid_len)
-			i = mwifiex_find_ssid_in_list(priv, &ssid_bssid->ssid,
-						NULL, NL80211_IFTYPE_STATION);
-		else
-			i = mwifiex_find_bssid_in_list(priv,
-						(u8 *) &ssid_bssid->bssid,
-						NL80211_IFTYPE_STATION);
-		if (i < 0)
-			return -1;
+		ret = mwifiex_check_network_compatibility(priv, bss_desc);
+		if (ret)
+			goto done;
 
-		dev_dbg(adapter->dev,
-			"info: SSID found in scan list ... associating...\n");
+		dev_dbg(adapter->dev, "info: SSID found in scan list ... "
+				      "associating...\n");
+
+		if (!netif_queue_stopped(priv->netdev))
+			netif_stop_queue(priv->netdev);
 
 		/* Clear any past association response stored for
 		 * application retrieval */
 		priv->assoc_rsp_size = 0;
-		ret = mwifiex_associate(priv, &adapter->scan_table[i]);
-		if (ret)
-			return ret;
+		ret = mwifiex_associate(priv, bss_desc);
+		if (bss)
+			cfg80211_put_bss(bss);
 	} else {
 		/* Adhoc mode */
 		/* If the requested SSID matches current SSID, return */
-		if (ssid_bssid->ssid.ssid_len &&
+		if (bss_desc && bss_desc->ssid.ssid_len &&
 		    (!mwifiex_ssid_cmp
 		     (&priv->curr_bss_params.bss_descriptor.ssid,
-		      &ssid_bssid->ssid)))
+		      &bss_desc->ssid))) {
+			kfree(bss_desc);
+			kfree(beacon_ie);
 			return 0;
+		}
 
 		/* Exit Adhoc mode first */
 		dev_dbg(adapter->dev, "info: Sending Adhoc Stop\n");
 		ret = mwifiex_deauthenticate(priv, NULL);
 		if (ret)
-			return ret;
+			goto done;
 
 		priv->adhoc_is_link_sensed = false;
 
-		/* Search for the requested network in the scan table */
-		if (ssid_bssid->ssid.ssid_len)
-			i = mwifiex_find_ssid_in_list(priv,
-						      &ssid_bssid->ssid, NULL,
-						      NL80211_IFTYPE_ADHOC);
-		else
-			i = mwifiex_find_bssid_in_list(priv,
-						       (u8 *)&ssid_bssid->bssid,
-						       NL80211_IFTYPE_ADHOC);
+		ret = mwifiex_check_network_compatibility(priv, bss_desc);
 
-		if (i >= 0) {
+		if (!netif_queue_stopped(priv->netdev))
+			netif_stop_queue(priv->netdev);
+
+		if (!ret) {
 			dev_dbg(adapter->dev, "info: network found in scan"
 							" list. Joining...\n");
-			ret = mwifiex_adhoc_join(priv, &adapter->scan_table[i]);
-			if (ret)
-				return ret;
+			ret = mwifiex_adhoc_join(priv, bss_desc);
+			if (bss)
+				cfg80211_put_bss(bss);
 		} else {
 			dev_dbg(adapter->dev, "info: Network not found in "
 				"the list, creating adhoc with ssid = %s\n",
-			       ssid_bssid->ssid.ssid);
-			ret = mwifiex_adhoc_start(priv, &ssid_bssid->ssid);
-			if (ret)
-				return ret;
+				req_ssid->ssid);
+			ret = mwifiex_adhoc_start(priv, req_ssid);
 		}
 	}
 
+done:
+	kfree(bss_desc);
+	kfree(beacon_ie);
 	return ret;
 }
 
@@ -574,50 +626,6 @@ static int mwifiex_bss_ioctl_ibss_channel(struct mwifiex_private *priv,
 }
 
 /*
- * IOCTL request handler to find a particular BSS.
- *
- * The BSS can be searched with either a BSSID or a SSID. If none of
- * these are provided, just the best BSS (best RSSI) is returned.
- */
-int mwifiex_bss_ioctl_find_bss(struct mwifiex_private *priv,
-			       struct mwifiex_ssid_bssid *ssid_bssid)
-{
-	struct mwifiex_adapter *adapter = priv->adapter;
-	struct mwifiex_bssdescriptor *bss_desc;
-	u8 zero_mac[ETH_ALEN] = { 0, 0, 0, 0, 0, 0 };
-	u8 mac[ETH_ALEN];
-	int i = 0;
-
-	if (memcmp(ssid_bssid->bssid, zero_mac, sizeof(zero_mac))) {
-		i = mwifiex_find_bssid_in_list(priv,
-					       (u8 *) ssid_bssid->bssid,
-					       priv->bss_mode);
-		if (i < 0) {
-			memcpy(mac, ssid_bssid->bssid, sizeof(mac));
-			dev_err(adapter->dev, "cannot find bssid %pM\n", mac);
-			return -1;
-		}
-		bss_desc = &adapter->scan_table[i];
-		memcpy(&ssid_bssid->ssid, &bss_desc->ssid,
-				sizeof(struct mwifiex_802_11_ssid));
-	} else if (ssid_bssid->ssid.ssid_len) {
-		i = mwifiex_find_ssid_in_list(priv, &ssid_bssid->ssid, NULL,
-					      priv->bss_mode);
-		if (i < 0) {
-			dev_err(adapter->dev, "cannot find ssid %s\n",
-					ssid_bssid->ssid.ssid);
-			return -1;
-		}
-		bss_desc = &adapter->scan_table[i];
-		memcpy(ssid_bssid->bssid, bss_desc->mac_address, ETH_ALEN);
-	} else {
-		return mwifiex_find_best_network(priv, ssid_bssid);
-	}
-
-	return 0;
-}
-
-/*
  * IOCTL request handler to change Ad-Hoc channel.
  *
  * This function allocates the IOCTL request buffer, fills it
@@ -641,6 +649,8 @@ mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, int channel)
 	struct mwifiex_bss_info bss_info;
 	struct mwifiex_ssid_bssid ssid_bssid;
 	u16 curr_chan = 0;
+	struct cfg80211_bss *bss = NULL;
+	struct ieee80211_channel *chan;
 
 	memset(&bss_info, 0, sizeof(bss_info));
 
@@ -676,12 +686,20 @@ mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, int channel)
 		ret = -1;
 		goto done;
 	}
-	/* Start/Join Adhoc network */
-	memset(&ssid_bssid, 0, sizeof(struct mwifiex_ssid_bssid));
-	memcpy(&ssid_bssid.ssid, &bss_info.ssid,
-	       sizeof(struct mwifiex_802_11_ssid));
 
-	ret = mwifiex_bss_start(priv, &ssid_bssid);
+	chan = __ieee80211_get_channel(priv->wdev->wiphy,
+			ieee80211_channel_to_frequency(channel,
+						priv->curr_bss_params.band));
+
+	/* Find the BSS we want using available scan results */
+	bss = cfg80211_get_bss(priv->wdev->wiphy, chan, bss_info.bssid,
+			       bss_info.ssid.ssid, bss_info.ssid.ssid_len,
+			       WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
+	if (!bss)
+		wiphy_warn(priv->wdev->wiphy, "assoc: bss %pM not in scan results\n",
+			  bss_info.bssid);
+
+	ret = mwifiex_bss_start(priv, bss, &bss_info.ssid);
 done:
 	return ret;
 }

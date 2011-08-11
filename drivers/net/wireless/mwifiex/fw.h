@@ -821,6 +821,14 @@ struct host_cmd_ds_txpwr_cfg {
 	__le32 mode;
 } __packed;
 
+struct mwifiex_bcn_param {
+	u8 bssid[ETH_ALEN];
+	u8 rssi;
+	__le32 timestamp[2];
+	__le16 beacon_period;
+	__le16 cap_info_bitmap;
+} __packed;
+
 #define MWIFIEX_USER_SCAN_CHAN_MAX             50
 
 #define MWIFIEX_MAX_SSID_LIST_LENGTH         10
@@ -861,13 +869,6 @@ struct mwifiex_user_scan_ssid {
 } __packed;
 
 struct mwifiex_user_scan_cfg {
-	/*
-	 *  Flag set to keep the previous scan table intact
-	 *
-	 *  If set, the scan results will accumulate, replacing any previous
-	 *   matched entries for a BSS with the new scan data
-	 */
-	u8 keep_previous_scan;
 	/*
 	 *  BSS mode to be sent in the firmware command
 	 */

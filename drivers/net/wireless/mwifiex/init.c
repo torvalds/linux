@@ -152,19 +152,6 @@ static int mwifiex_init_priv(struct mwifiex_private *priv)
 static int mwifiex_allocate_adapter(struct mwifiex_adapter *adapter)
 {
 	int ret;
-	u32 buf_size;
-	struct mwifiex_bssdescriptor *temp_scan_table;
-
-	/* Allocate buffer to store the BSSID list */
-	buf_size = sizeof(struct mwifiex_bssdescriptor) * MWIFIEX_MAX_AP;
-	temp_scan_table = kzalloc(buf_size, GFP_KERNEL);
-	if (!temp_scan_table) {
-		dev_err(adapter->dev, "%s: failed to alloc temp_scan_table\n",
-		       __func__);
-		return -ENOMEM;
-	}
-
-	adapter->scan_table = temp_scan_table;
 
 	/* Allocate command buffer */
 	ret = mwifiex_alloc_cmd_buffer(adapter);
@@ -222,13 +209,7 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->active_scan_time = MWIFIEX_ACTIVE_SCAN_CHAN_TIME;
 	adapter->passive_scan_time = MWIFIEX_PASSIVE_SCAN_CHAN_TIME;
 
-	adapter->num_in_scan_table = 0;
-	memset(adapter->scan_table, 0,
-	       (sizeof(struct mwifiex_bssdescriptor) * MWIFIEX_MAX_AP));
 	adapter->scan_probes = 1;
-
-	memset(adapter->bcn_buf, 0, sizeof(adapter->bcn_buf));
-	adapter->bcn_buf_end = adapter->bcn_buf;
 
 	adapter->multiple_dtim = 1;
 
@@ -326,8 +307,6 @@ mwifiex_free_adapter(struct mwifiex_adapter *adapter)
 	del_timer(&adapter->cmd_timer);
 
 	dev_dbg(adapter->dev, "info: free scan table\n");
-	kfree(adapter->scan_table);
-	adapter->scan_table = NULL;
 
 	adapter->if_ops.cleanup_if(adapter);
 

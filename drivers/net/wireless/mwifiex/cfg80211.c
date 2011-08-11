@@ -793,139 +793,6 @@ static int mwifiex_cfg80211_inform_ibss_bss(struct mwifiex_private *priv)
 }
 
 /*
- * This function informs the CFG802.11 subsystem of a new BSS connection.
- *
- * The following information are sent to the CFG802.11 subsystem
- * to register the new BSS connection. If we do not register the new BSS,
- * a kernel panic will result.
- *      - MAC address
- *      - Capabilities
- *      - Beacon period
- *      - RSSI value
- *      - Channel
- *      - Supported rates IE
- *      - Extended capabilities IE
- *      - DS parameter set IE
- *      - HT Capability IE
- *      - Vendor Specific IE (221)
- *      - WPA IE
- *      - RSN IE
- */
-static int mwifiex_inform_bss_from_scan_result(struct mwifiex_private *priv,
-					       struct mwifiex_802_11_ssid *ssid)
-{
-	struct mwifiex_bssdescriptor *scan_table;
-	int i, j;
-	struct ieee80211_channel *chan;
-	u8 *ie, *ie_buf;
-	u32 ie_len;
-	u8 *beacon;
-	int beacon_size;
-	u8 element_id, element_len;
-
-#define MAX_IE_BUF	2048
-	ie_buf = kzalloc(MAX_IE_BUF, GFP_KERNEL);
-	if (!ie_buf) {
-		dev_err(priv->adapter->dev, "%s: failed to alloc ie_buf\n",
-						__func__);
-		return -ENOMEM;
-	}
-
-	scan_table = priv->adapter->scan_table;
-	for (i = 0; i < priv->adapter->num_in_scan_table; i++) {
-		if (ssid) {
-			/* Inform specific BSS only */
-			if (memcmp(ssid->ssid, scan_table[i].ssid.ssid,
-					   ssid->ssid_len))
-				continue;
-		}
-		memset(ie_buf, 0, MAX_IE_BUF);
-		ie_buf[0] = WLAN_EID_SSID;
-		ie_buf[1] = scan_table[i].ssid.ssid_len;
-		memcpy(&ie_buf[sizeof(struct ieee_types_header)],
-		       scan_table[i].ssid.ssid, ie_buf[1]);
-
-		ie = ie_buf + ie_buf[1] + sizeof(struct ieee_types_header);
-		ie_len = ie_buf[1] + sizeof(struct ieee_types_header);
-
-		ie[0] = WLAN_EID_SUPP_RATES;
-
-		for (j = 0; j < sizeof(scan_table[i].supported_rates); j++) {
-			if (!scan_table[i].supported_rates[j])
-				break;
-			else
-				ie[j + sizeof(struct ieee_types_header)] =
-					scan_table[i].supported_rates[j];
-		}
-
-		ie[1] = j;
-		ie_len += ie[1] + sizeof(struct ieee_types_header);
-
-		beacon = scan_table[i].beacon_buf;
-		beacon_size = scan_table[i].beacon_buf_size;
-
-		/* Skip time stamp, beacon interval and capability */
-
-		if (beacon) {
-			beacon += sizeof(scan_table[i].beacon_period)
-				+ sizeof(scan_table[i].time_stamp) +
-				+sizeof(scan_table[i].cap_info_bitmap);
-
-			beacon_size -= sizeof(scan_table[i].beacon_period)
-				+ sizeof(scan_table[i].time_stamp)
-				+ sizeof(scan_table[i].cap_info_bitmap);
-		}
-
-		while (beacon_size >= sizeof(struct ieee_types_header)) {
-			ie = ie_buf + ie_len;
-			element_id = *beacon;
-			element_len = *(beacon + 1);
-			if (beacon_size < (int) element_len +
-			    sizeof(struct ieee_types_header)) {
-				dev_err(priv->adapter->dev, "%s: in processing"
-					" IE, bytes left < IE length\n",
-					__func__);
-				break;
-			}
-			switch (element_id) {
-			case WLAN_EID_EXT_CAPABILITY:
-			case WLAN_EID_DS_PARAMS:
-			case WLAN_EID_HT_CAPABILITY:
-			case WLAN_EID_VENDOR_SPECIFIC:
-			case WLAN_EID_RSN:
-			case WLAN_EID_BSS_AC_ACCESS_DELAY:
-				ie[0] = element_id;
-				ie[1] = element_len;
-				memcpy(&ie[sizeof(struct ieee_types_header)],
-				       (u8 *) beacon
-				       + sizeof(struct ieee_types_header),
-				       element_len);
-				ie_len += ie[1] +
-					sizeof(struct ieee_types_header);
-				break;
-			default:
-				break;
-			}
-			beacon += element_len +
-					sizeof(struct ieee_types_header);
-			beacon_size -= element_len +
-					sizeof(struct ieee_types_header);
-		}
-		chan = ieee80211_get_channel(priv->wdev->wiphy,
-						scan_table[i].freq);
-		cfg80211_inform_bss(priv->wdev->wiphy, chan,
-					scan_table[i].mac_address,
-					0, scan_table[i].cap_info_bitmap,
-					scan_table[i].beacon_period,
-					ie_buf, ie_len,
-					scan_table[i].rssi, GFP_KERNEL);
-	}
-
-	kfree(ie_buf);
-	return 0;
-}
-
-/*
  * This function connects with a BSS.
  *
  * This function handles both Infra and Ad-Hoc modes. It also performs
@@ -937,8 +804,7 @@ static int mwifiex_inform_bss_from_scan_result(struct mwifiex_private *priv,
  * For Infra mode, the function returns failure if the specified SSID
  * is not found in scan table. However, for Ad-Hoc mode, it can create
  * the IBSS if it does not exist. On successful completion in either case,
- * the function notifies the CFG802.11 subsystem of the new BSS connection,
- * otherwise the kernel will panic.
+ * the function notifies the CFG802.11 subsystem of the new BSS connection.
  */
 static int
 mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
@@ -946,11 +812,11 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 		       struct cfg80211_connect_params *sme, bool privacy)
 {
 	struct mwifiex_802_11_ssid req_ssid;
-	struct mwifiex_ssid_bssid ssid_bssid;
 	int ret, auth_type = 0;
+	struct cfg80211_bss *bss = NULL;
+	u8 is_scanning_required = 0;
 
 	memset(&req_ssid, 0, sizeof(struct mwifiex_802_11_ssid));
-	memset(&ssid_bssid, 0, sizeof(struct mwifiex_ssid_bssid));
 
 	req_ssid.ssid_len = ssid_len;
 	if (ssid_len > IEEE80211_MAX_SSID_LEN) {
@@ -1028,30 +894,48 @@ done:
 		return -EFAULT;
 	}
 
+	/*
+	 * Scan entries are valid for some time (15 sec). So we can save one
+	 * active scan time if we just try cfg80211_get_bss first. If it fails
+	 * then request scan and cfg80211_get_bss() again for final output.
+	 */
+	while (1) {
+		if (is_scanning_required) {
+			/* Do specific SSID scanning */
+			if (mwifiex_request_scan(priv, &req_ssid)) {
+				dev_err(priv->adapter->dev, "scan error\n");
+				return -EFAULT;
+			}
+		}
 
-	memcpy(&ssid_bssid.ssid, &req_ssid, sizeof(struct mwifiex_802_11_ssid));
+		/* Find the BSS we want using available scan results */
+		if (mode == NL80211_IFTYPE_ADHOC)
+			bss = cfg80211_get_bss(priv->wdev->wiphy, channel,
+					       bssid, ssid, ssid_len,
+					       WLAN_CAPABILITY_IBSS,
+					       WLAN_CAPABILITY_IBSS);
+		else
+			bss = cfg80211_get_bss(priv->wdev->wiphy, channel,
+					       bssid, ssid, ssid_len,
+					       WLAN_CAPABILITY_ESS,
+					       WLAN_CAPABILITY_ESS);
 
-	if (mode != NL80211_IFTYPE_ADHOC) {
-		if (mwifiex_find_best_bss(priv, &ssid_bssid))
-			return -EFAULT;
-		/* Inform the BSS information to kernel, otherwise
-		 * kernel will give a panic after successful assoc */
-		if (mwifiex_inform_bss_from_scan_result(priv, &req_ssid))
-			return -EFAULT;
+		if (!bss) {
+			if (is_scanning_required) {
+				dev_warn(priv->adapter->dev, "assoc: requested "
+					 "bss not found in scan results\n");
+				break;
+			}
+			is_scanning_required = 1;
+		} else {
+			dev_dbg(priv->adapter->dev, "info: trying to associate to %s and bssid %pM\n",
+					(char *) req_ssid.ssid, bss->bssid);
+			memcpy(&priv->cfg_bssid, bss->bssid, ETH_ALEN);
+			break;
+		}
 	}
 
-	dev_dbg(priv->adapter->dev, "info: trying to associate to %s and bssid %pM\n",
-	       (char *) req_ssid.ssid, ssid_bssid.bssid);
-
-	memcpy(&priv->cfg_bssid, ssid_bssid.bssid, 6);
-
-	/* Connect to BSS by ESSID */
-	memset(&ssid_bssid.bssid, 0, ETH_ALEN);
-
-	if (!netif_queue_stopped(priv->netdev))
-		netif_stop_queue(priv->netdev);
-
-	if (mwifiex_bss_start(priv, &ssid_bssid))
+	if (mwifiex_bss_start(priv, bss, &req_ssid))
 		return -EFAULT;
 
 	if (mode == NL80211_IFTYPE_ADHOC) {
@@ -1416,13 +1300,8 @@ mwifiex_cfg80211_results(struct work_struct *work)
 					MWIFIEX_SCAN_TYPE_ACTIVE;
 			scan_req->chan_list[i].scan_time = 0;
 		}
-		if (mwifiex_set_user_scan_ioctl(priv, scan_req)) {
+		if (mwifiex_set_user_scan_ioctl(priv, scan_req))
 			ret = -EFAULT;
-			goto done;
-		}
-		if (mwifiex_inform_bss_from_scan_result(priv, NULL))
-			ret = -EFAULT;
-done:
 		priv->scan_result_status = ret;
 		dev_dbg(priv->adapter->dev, "info: %s: sending scan results\n",
 							__func__);

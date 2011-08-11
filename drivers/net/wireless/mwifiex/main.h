@@ -229,21 +229,6 @@ struct ieee_types_header {
 	u8 len;
 } __packed;
 
-struct ieee_obss_scan_param {
-	u16 obss_scan_passive_dwell;
-	u16 obss_scan_active_dwell;
-	u16 bss_chan_width_trigger_scan_int;
-	u16 obss_scan_passive_total;
-	u16 obss_scan_active_total;
-	u16 bss_width_chan_trans_delay;
-	u16 obss_scan_active_threshold;
-} __packed;
-
-struct ieee_types_obss_scan_param {
-	struct ieee_types_header ieee_hdr;
-	struct ieee_obss_scan_param obss_scan;
-} __packed;
-
 #define MWIFIEX_SUPPORTED_RATES                 14
 
 #define MWIFIEX_SUPPORTED_RATES_EXT             32
@@ -291,8 +276,6 @@ struct mwifiex_bssdescriptor {
 	u16 bss_co_2040_offset;
 	u8 *bcn_ext_cap;
 	u16 ext_cap_offset;
-	struct ieee_types_obss_scan_param *bcn_obss_scan;
-	u16 overlap_bss_offset;
 	struct ieee_types_vendor_specific *bcn_wpa_ie;
 	u16 wpa_offset;
 	struct ieee_types_generic *bcn_rsn_ie;
@@ -301,8 +284,6 @@ struct mwifiex_bssdescriptor {
 	u16 wapi_offset;
 	u8 *beacon_buf;
 	u32 beacon_buf_size;
-	u32 beacon_buf_size_max;
-
 };
 
 struct mwifiex_current_bss_params {
@@ -624,15 +605,11 @@ struct mwifiex_adapter {
 	u32 scan_processing;
 	u16 region_code;
 	struct mwifiex_802_11d_domain_reg domain_reg;
-	struct mwifiex_bssdescriptor *scan_table;
-	u32 num_in_scan_table;
 	u16 scan_probes;
 	u32 scan_mode;
 	u16 specific_scan_time;
 	u16 active_scan_time;
 	u16 passive_scan_time;
-	u8 bcn_buf[MAX_SCAN_BEACON_BUFFER];
-	u8 *bcn_buf_end;
 	u8 fw_bands;
 	u8 adhoc_start_band;
 	u8 config_bands;
@@ -765,13 +742,6 @@ void mwifiex_queue_scan_cmd(struct mwifiex_private *priv,
 			    struct cmd_ctrl_node *cmd_node);
 int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 			    struct host_cmd_ds_command *resp);
-s32 mwifiex_find_ssid_in_list(struct mwifiex_private *priv,
-				struct mwifiex_802_11_ssid *ssid, u8 *bssid,
-				u32 mode);
-s32 mwifiex_find_bssid_in_list(struct mwifiex_private *priv, u8 *bssid,
-				 u32 mode);
-int mwifiex_find_best_network(struct mwifiex_private *priv,
-			      struct mwifiex_ssid_bssid *req_ssid_bssid);
 s32 mwifiex_ssid_cmp(struct mwifiex_802_11_ssid *ssid1,
 		       struct mwifiex_802_11_ssid *ssid2);
 int mwifiex_associate(struct mwifiex_private *priv,
@@ -782,7 +752,6 @@ int mwifiex_cmd_802_11_associate(struct mwifiex_private *priv,
 int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 				 struct host_cmd_ds_command *resp);
 void mwifiex_reset_connect_state(struct mwifiex_private *priv);
-void mwifiex_2040_coex_event(struct mwifiex_private *priv);
 u8 mwifiex_band_to_radio_type(u8 band);
 int mwifiex_deauthenticate(struct mwifiex_private *priv, u8 *mac);
 int mwifiex_adhoc_start(struct mwifiex_private *priv,
@@ -922,8 +891,8 @@ int mwifiex_request_set_multicast_list(struct mwifiex_private *priv,
 int mwifiex_copy_mcast_addr(struct mwifiex_multicast_list *mlist,
 			    struct net_device *dev);
 int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter);
-int mwifiex_bss_start(struct mwifiex_private *priv,
-		      struct mwifiex_ssid_bssid *ssid_bssid);
+int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
+		      struct mwifiex_802_11_ssid *req_ssid);
 int mwifiex_set_hs_params(struct mwifiex_private *priv,
 			      u16 action, int cmd_type,
 			      struct mwifiex_ds_hs_cfg *hscfg);
@@ -934,8 +903,6 @@ int mwifiex_get_signal_info(struct mwifiex_private *priv,
 			    struct mwifiex_ds_get_signal *signal);
 int mwifiex_drv_get_data_rate(struct mwifiex_private *priv,
 			      struct mwifiex_rate_cfg *rate);
-int mwifiex_find_best_bss(struct mwifiex_private *priv,
-			  struct mwifiex_ssid_bssid *ssid_bssid);
 int mwifiex_request_scan(struct mwifiex_private *priv,
 			 struct mwifiex_802_11_ssid *req_ssid);
 int mwifiex_set_user_scan_ioctl(struct mwifiex_private *priv,
@@ -984,12 +951,20 @@ int mwifiex_main_process(struct mwifiex_adapter *);
 
 int mwifiex_bss_set_channel(struct mwifiex_private *,
 			    struct mwifiex_chan_freq_power *cfp);
-int mwifiex_bss_ioctl_find_bss(struct mwifiex_private *,
-			       struct mwifiex_ssid_bssid *);
 int mwifiex_set_radio_band_cfg(struct mwifiex_private *,
 			 struct mwifiex_ds_band_cfg *);
 int mwifiex_get_bss_info(struct mwifiex_private *,
 			 struct mwifiex_bss_info *);
+int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
+			      u8 *bssid, s32 rssi, u8 *ie_buf,
+			      size_t ie_len, u16 beacon_period,
+			      u16 cap_info_bitmap,
+			      struct mwifiex_bssdescriptor *bss_desc);
+int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
+				struct mwifiex_bssdescriptor *bss_entry,
+				u8 *ie_buf, u32 ie_len);
+int mwifiex_check_network_compatibility(struct mwifiex_private *priv,
+					struct mwifiex_bssdescriptor *bss_desc);
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);
