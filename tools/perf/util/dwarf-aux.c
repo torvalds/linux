@@ -307,6 +307,17 @@ static int die_get_call_fileno(Dwarf_Die *in_die)
 		return -ENOENT;
 }
 
+/* Get the declared file index number in CU DIE */
+static int die_get_decl_fileno(Dwarf_Die *pdie)
+{
+	Dwarf_Sword idx;
+
+	if (die_get_attr_sdata(pdie, DW_AT_decl_file, &idx) == 0)
+		return (int)idx;
+	else
+		return -ENOENT;
+}
+
 /**
  * die_get_call_file - Get callsite file name of inlined function instance
  * @in_die: a DIE of an inlined function instance
@@ -467,6 +478,7 @@ static int __die_walk_instances_cb(Dwarf_Die *inst, void *data)
 	Dwarf_Die origin_mem;
 	Dwarf_Attribute *attr;
 	Dwarf_Die *origin;
+	int tmp;
 
 	attr = dwarf_attr(inst, DW_AT_abstract_origin, &attr_mem);
 	if (attr == NULL)
@@ -475,6 +487,16 @@ static int __die_walk_instances_cb(Dwarf_Die *inst, void *data)
 	origin = dwarf_formref_die(attr, &origin_mem);
 	if (origin == NULL || origin->addr != iwp->addr)
 		return DIE_FIND_CB_CONTINUE;
+
+	/* Ignore redundant instances */
+	if (dwarf_tag(inst) == DW_TAG_inlined_subroutine) {
+		dwarf_decl_line(origin, &tmp);
+		if (die_get_call_lineno(inst) == tmp) {
+			tmp = die_get_decl_fileno(origin);
+			if (die_get_call_fileno(inst) == tmp)
+				return DIE_FIND_CB_CONTINUE;
+		}
+	}
 
 	iwp->retval = iwp->callback(inst, iwp->data);
 
