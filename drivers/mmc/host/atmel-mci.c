@@ -608,7 +608,7 @@ static void atmci_pdc_set_single_buf(struct atmel_mci *host,
 	}
 
 	atmci_writel(host, pointer_reg, sg_dma_address(host->sg));
-	if (host->data_size <= PAGE_SIZE) {
+	if (host->data_size <= sg_dma_len(host->sg)) {
 		if (host->data_size & 0x3) {
 			/* If size is different from modulo 4, transfer bytes */
 			atmci_writel(host, counter_reg, host->data_size);
@@ -620,8 +620,8 @@ static void atmci_pdc_set_single_buf(struct atmel_mci *host,
 		host->data_size = 0;
 	} else {
 		/* We assume the size of a page is 32-bits aligned */
-		atmci_writel(host, counter_reg, PAGE_SIZE / 4);
-		host->data_size -= PAGE_SIZE;
+		atmci_writel(host, counter_reg, sg_dma_len(host->sg) / 4);
+		host->data_size -= sg_dma_len(host->sg);
 		if (host->data_size)
 			host->sg = sg_next(host->sg);
 	}
@@ -808,7 +808,6 @@ atmci_prepare_data_pdc(struct atmel_mci *host, struct mmc_data *data)
 	/* Configure PDC */
 	host->data_size = data->blocks * data->blksz;
 	sg_len = dma_map_sg(&host->pdev->dev, data->sg, data->sg_len, dir);
-	BUG_ON(sg_len < host->data_size / PAGE_SIZE);
 	if (host->data_size)
 		atmci_pdc_set_both_buf(host,
 			((dir == DMA_FROM_DEVICE) ? XFER_RECEIVE : XFER_TRANSMIT));
