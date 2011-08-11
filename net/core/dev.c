@@ -2673,13 +2673,13 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	map = rcu_dereference(rxqueue->rps_map);
 	if (map) {
 		if (map->len == 1 &&
-		    !rcu_dereference_raw(rxqueue->rps_flow_table)) {
+		    !rcu_access_pointer(rxqueue->rps_flow_table)) {
 			tcpu = map->cpus[0];
 			if (cpu_online(tcpu))
 				cpu = tcpu;
 			goto done;
 		}
-	} else if (!rcu_dereference_raw(rxqueue->rps_flow_table)) {
+	} else if (!rcu_access_pointer(rxqueue->rps_flow_table)) {
 		goto done;
 	}
 
@@ -5727,8 +5727,8 @@ void netdev_run_todo(void)
 
 		/* paranoia */
 		BUG_ON(netdev_refcnt_read(dev));
-		WARN_ON(rcu_dereference_raw(dev->ip_ptr));
-		WARN_ON(rcu_dereference_raw(dev->ip6_ptr));
+		WARN_ON(rcu_access_pointer(dev->ip_ptr));
+		WARN_ON(rcu_access_pointer(dev->ip6_ptr));
 		WARN_ON(dev->dn_ptr);
 
 		if (dev->destructor)
@@ -5932,7 +5932,7 @@ void free_netdev(struct net_device *dev)
 	kfree(dev->_rx);
 #endif
 
-	kfree(rcu_dereference_raw(dev->ingress_queue));
+	kfree(rcu_dereference_protected(dev->ingress_queue, 1));
 
 	/* Flush device addresses */
 	dev_addr_flush(dev);

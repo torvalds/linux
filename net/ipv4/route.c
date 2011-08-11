@@ -324,7 +324,7 @@ static struct rtable *rt_cache_get_first(struct seq_file *seq)
 	struct rtable *r = NULL;
 
 	for (st->bucket = rt_hash_mask; st->bucket >= 0; --st->bucket) {
-		if (!rcu_dereference_raw(rt_hash_table[st->bucket].chain))
+		if (!rcu_access_pointer(rt_hash_table[st->bucket].chain))
 			continue;
 		rcu_read_lock_bh();
 		r = rcu_dereference_bh(rt_hash_table[st->bucket].chain);
@@ -350,7 +350,7 @@ static struct rtable *__rt_cache_get_next(struct seq_file *seq,
 		do {
 			if (--st->bucket < 0)
 				return NULL;
-		} while (!rcu_dereference_raw(rt_hash_table[st->bucket].chain));
+		} while (!rcu_access_pointer(rt_hash_table[st->bucket].chain));
 		rcu_read_lock_bh();
 		r = rcu_dereference_bh(rt_hash_table[st->bucket].chain);
 	}
@@ -762,7 +762,7 @@ static void rt_do_flush(struct net *net, int process_context)
 
 		if (process_context && need_resched())
 			cond_resched();
-		rth = rcu_dereference_raw(rt_hash_table[i].chain);
+		rth = rcu_access_pointer(rt_hash_table[i].chain);
 		if (!rth)
 			continue;
 

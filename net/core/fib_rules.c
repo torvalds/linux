@@ -545,7 +545,7 @@ static int fib_nl_fill_rule(struct sk_buff *skb, struct fib_rule *rule,
 	frh->flags = rule->flags;
 
 	if (rule->action == FR_ACT_GOTO &&
-	    rcu_dereference_raw(rule->ctarget) == NULL)
+	    rcu_access_pointer(rule->ctarget) == NULL)
 		frh->flags |= FIB_RULE_UNRESOLVED;
 
 	if (rule->iifname[0]) {
