@@ -331,12 +331,6 @@ int twl6030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 
 	/* install an irq handler to demultiplex the TWL6030 interrupt */
 	init_completion(&irq_event);
-	task = kthread_run(twl6030_irq_thread, (void *)irq_num, "twl6030-irq");
-	if (IS_ERR(task)) {
-		pr_err("twl6030: could not create irq %d thread!\n", irq_num);
-		status = PTR_ERR(task);
-		goto fail_kthread;
-	}
 
 	status = request_irq(irq_num, handle_twl6030_pih, IRQF_DISABLED,
 				"TWL6030-PIH", &irq_event);
@@ -344,11 +338,19 @@ int twl6030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 		pr_err("twl6030: could not claim irq%d: %d\n", irq_num, status);
 		goto fail_irq;
 	}
+
+	task = kthread_run(twl6030_irq_thread, (void *)irq_num, "twl6030-irq");
+	if (IS_ERR(task)) {
+		pr_err("twl6030: could not create irq %d thread!\n", irq_num);
+		status = PTR_ERR(task);
+		goto fail_kthread;
+	}
 	return status;
-fail_irq:
-	free_irq(irq_num, &irq_event);
 
 fail_kthread:
+	free_irq(irq_num, &irq_event);
+
+fail_irq:
 	for (i = irq_base; i < irq_end; i++)
 		irq_set_chip_and_handler(i, NULL, NULL);
 	return status;
