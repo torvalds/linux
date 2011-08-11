@@ -319,7 +319,7 @@ void __init at91_add_device_mci(short mmc_id, struct mci_platform_data *data)
 	if (!data)
 		return;
 
-	for (i = 0; i < ATMEL_MCI_MAX_NR_SLOTS; i++) {
+	for (i = 0; i < ATMCI_MAX_NR_SLOTS; i++) {
 		if (data->slot[i].bus_width) {
 			/* input/irq */
 			if (data->slot[i].detect_pin) {
