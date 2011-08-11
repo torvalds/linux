@@ -56,16 +56,12 @@ static struct dentry *ufs_lookup(struct inode * dir, struct dentry *dentry, stru
 
 	lock_ufs(dir->i_sb);
 	ino = ufs_inode_by_name(dir, &dentry->d_name);
-	if (ino) {
+	if (ino)
 		inode = ufs_iget(dir->i_sb, ino);
-		if (IS_ERR(inode)) {
-			unlock_ufs(dir->i_sb);
-			return ERR_CAST(inode);
-		}
-	}
 	unlock_ufs(dir->i_sb);
-	d_add(dentry, inode);
-	return NULL;
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
+	return d_splice_alias(inode, dentry);
 }
 
 /*

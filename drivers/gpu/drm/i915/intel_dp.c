@@ -50,7 +50,6 @@ struct intel_dp {
 	bool has_audio;
 	int force_audio;
 	uint32_t color_range;
-	int dpms_mode;
 	uint8_t link_bw;
 	uint8_t lane_count;
 	uint8_t dpcd[4];
@@ -138,8 +137,8 @@ intel_dp_max_lane_count(struct intel_dp *intel_dp)
 {
 	int max_lane_count = 4;
 
-	if (intel_dp->dpcd[0] >= 0x11) {
-		max_lane_count = intel_dp->dpcd[2] & 0x1f;
+	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11) {
+		max_lane_count = intel_dp->dpcd[DP_MAX_LANE_COUNT] & 0x1f;
 		switch (max_lane_count) {
 		case 1: case 2: case 4:
 			break;
@@ -153,7 +152,7 @@ intel_dp_max_lane_count(struct intel_dp *intel_dp)
 static int
 intel_dp_max_link_bw(struct intel_dp *intel_dp)
 {
-	int max_link_bw = intel_dp->dpcd[1];
+	int max_link_bw = intel_dp->dpcd[DP_MAX_LINK_RATE];
 
 	switch (max_link_bw) {
 	case DP_LINK_BW_1_62:
@@ -774,7 +773,8 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	/*
 	 * Check for DPCD version > 1.1 and enhanced framing support
 	 */
-	if (intel_dp->dpcd[0] >= 0x11 && (intel_dp->dpcd[2] & DP_ENHANCED_FRAME_CAP)) {
+	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11 &&
+	    (intel_dp->dpcd[DP_MAX_LANE_COUNT] & DP_ENHANCED_FRAME_CAP)) {
 		intel_dp->link_configuration[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 		intel_dp->DP |= DP_ENHANCED_FRAMING;
 	}
@@ -942,10 +942,43 @@ static void ironlake_edp_pll_off(struct drm_encoder *encoder)
 	udelay(200);
 }
 
+/* If the sink supports it, try to set the power state appropriately */
+static void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode)
+{
+	int ret, i;
+
+	/* Should have a valid DPCD by this point */
+	if (intel_dp->dpcd[DP_DPCD_REV] < 0x11)
+		return;
+
+	if (mode != DRM_MODE_DPMS_ON) {
+		ret = intel_dp_aux_native_write_1(intel_dp, DP_SET_POWER,
+						  DP_SET_POWER_D3);
+		if (ret != 1)
+			DRM_DEBUG_DRIVER("failed to write sink power state\n");
+	} else {
+		/*
+		 * When turning on, we need to retry for 1ms to give the sink
+		 * time to wake up.
+		 */
+		for (i = 0; i < 3; i++) {
+			ret = intel_dp_aux_native_write_1(intel_dp,
+							  DP_SET_POWER,
+							  DP_SET_POWER_D0);
+			if (ret == 1)
+				break;
+			msleep(1);
+		}
+	}
+}
+
 static void intel_dp_prepare(struct drm_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct drm_device *dev = encoder->dev;
+
+	/* Wake up the sink first */
+	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 
 	if (is_edp(intel_dp)) {
 		ironlake_edp_backlight_off(dev);
@@ -990,6 +1023,7 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 	if (mode != DRM_MODE_DPMS_ON) {
 		if (is_edp(intel_dp))
 			ironlake_edp_backlight_off(dev);
+		intel_dp_sink_dpms(intel_dp, mode);
 		intel_dp_link_down(intel_dp);
 		if (is_edp(intel_dp))
 			ironlake_edp_panel_off(dev);
@@ -998,6 +1032,7 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 	} else {
 		if (is_edp(intel_dp))
 			ironlake_edp_panel_vdd_on(intel_dp);
+		intel_dp_sink_dpms(intel_dp, mode);
 		if (!(dp_reg & DP_PORT_EN)) {
 			intel_dp_start_link_train(intel_dp);
 			if (is_edp(intel_dp)) {
@@ -1009,7 +1044,31 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 		if (is_edp(intel_dp))
 			ironlake_edp_backlight_on(dev);
 	}
-	intel_dp->dpms_mode = mode;
+}
+
+/*
+ * Native read with retry for link status and receiver capability reads for
+ * cases where the sink may still be asleep.
+ */
+static bool
+intel_dp_aux_native_read_retry(struct intel_dp *intel_dp, uint16_t address,
+			       uint8_t *recv, int recv_bytes)
+{
+	int ret, i;
+
+	/*
+	 * Sinks are *supposed* to come up within 1ms from an off state,
+	 * but we're also supposed to retry 3 times per the spec.
+	 */
+	for (i = 0; i < 3; i++) {
+		ret = intel_dp_aux_native_read(intel_dp, address, recv,
+					       recv_bytes);
+		if (ret == recv_bytes)
+			return true;
+		msleep(1);
+	}
+
+	return false;
 }
 
 /*
@@ -1019,14 +1078,10 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 static bool
 intel_dp_get_link_status(struct intel_dp *intel_dp)
 {
-	int ret;
-
-	ret = intel_dp_aux_native_read(intel_dp,
-				       DP_LANE0_1_STATUS,
-				       intel_dp->link_status, DP_LINK_STATUS_SIZE);
-	if (ret != DP_LINK_STATUS_SIZE)
-		return false;
-	return true;
+	return intel_dp_aux_native_read_retry(intel_dp,
+					      DP_LANE0_1_STATUS,
+					      intel_dp->link_status,
+					      DP_LINK_STATUS_SIZE);
 }
 
 static uint8_t
@@ -1515,10 +1570,21 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 static void
 intel_dp_check_link_status(struct intel_dp *intel_dp)
 {
+	int ret;
+
 	if (!intel_dp->base.base.crtc)
 		return;
 
 	if (!intel_dp_get_link_status(intel_dp)) {
+		intel_dp_link_down(intel_dp);
+		return;
+	}
+
+	/* Try to read receiver status if the link appears to be up */
+	ret = intel_dp_aux_native_read(intel_dp,
+				       0x000, intel_dp->dpcd,
+				       sizeof (intel_dp->dpcd));
+	if (ret != sizeof(intel_dp->dpcd)) {
 		intel_dp_link_down(intel_dp);
 		return;
 	}
@@ -1533,6 +1599,7 @@ static enum drm_connector_status
 ironlake_dp_detect(struct intel_dp *intel_dp)
 {
 	enum drm_connector_status status;
+	bool ret;
 
 	/* Can't disconnect eDP, but you can close the lid... */
 	if (is_edp(intel_dp)) {
@@ -1543,13 +1610,11 @@ ironlake_dp_detect(struct intel_dp *intel_dp)
 	}
 
 	status = connector_status_disconnected;
-	if (intel_dp_aux_native_read(intel_dp,
-				     0x000, intel_dp->dpcd,
-				     sizeof (intel_dp->dpcd))
-	    == sizeof(intel_dp->dpcd)) {
-		if (intel_dp->dpcd[0] != 0)
-			status = connector_status_connected;
-	}
+	ret = intel_dp_aux_native_read_retry(intel_dp,
+					     0x000, intel_dp->dpcd,
+					     sizeof (intel_dp->dpcd));
+	if (ret && intel_dp->dpcd[DP_DPCD_REV] != 0)
+		status = connector_status_connected;
 	DRM_DEBUG_KMS("DPCD: %hx%hx%hx%hx\n", intel_dp->dpcd[0],
 		      intel_dp->dpcd[1], intel_dp->dpcd[2], intel_dp->dpcd[3]);
 	return status;
@@ -1586,7 +1651,7 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 	if (intel_dp_aux_native_read(intel_dp, 0x000, intel_dp->dpcd,
 				     sizeof (intel_dp->dpcd)) == sizeof (intel_dp->dpcd))
 	{
-		if (intel_dp->dpcd[0] != 0)
+		if (intel_dp->dpcd[DP_DPCD_REV] != 0)
 			status = connector_status_connected;
 	}
 
@@ -1790,8 +1855,7 @@ intel_dp_hot_plug(struct intel_encoder *intel_encoder)
 {
 	struct intel_dp *intel_dp = container_of(intel_encoder, struct intel_dp, base);
 
-	if (intel_dp->dpms_mode == DRM_MODE_DPMS_ON)
-		intel_dp_check_link_status(intel_dp);
+	intel_dp_check_link_status(intel_dp);
 }
 
 /* Return which DP Port should be selected for Transcoder DP control */
@@ -1859,7 +1923,6 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 		return;
 
 	intel_dp->output_reg = output_reg;
-	intel_dp->dpms_mode = -1;
 
 	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
 	if (!intel_connector) {
@@ -1954,8 +2017,9 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 					       sizeof(intel_dp->dpcd));
 		ironlake_edp_panel_vdd_off(intel_dp);
 		if (ret == sizeof(intel_dp->dpcd)) {
-			if (intel_dp->dpcd[0] >= 0x11)
-				dev_priv->no_aux_handshake = intel_dp->dpcd[3] &
+			if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11)
+				dev_priv->no_aux_handshake =
+					intel_dp->dpcd[DP_MAX_DOWNSPREAD] &
 					DP_NO_AUX_HANDSHAKE_LINK_TRAINING;
 		} else {
 			/* if this fails, presume the device is a ghost */

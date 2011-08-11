@@ -84,8 +84,31 @@ DEFINE_PER_CPU(struct rcu_data, rcu_bh_data);
 
 static struct rcu_state *rcu_state;
 
+/*
+ * The rcu_scheduler_active variable transitions from zero to one just
+ * before the first task is spawned.  So when this variable is zero, RCU
+ * can assume that there is but one task, allowing RCU to (for example)
+ * optimized synchronize_sched() to a simple barrier().  When this variable
+ * is one, RCU must actually do all the hard work required to detect real
+ * grace periods.  This variable is also used to suppress boot-time false
+ * positives from lockdep-RCU error checking.
+ */
 int rcu_scheduler_active __read_mostly;
 EXPORT_SYMBOL_GPL(rcu_scheduler_active);
+
+/*
+ * The rcu_scheduler_fully_active variable transitions from zero to one
+ * during the early_initcall() processing, which is after the scheduler
+ * is capable of creating new tasks.  So RCU processing (for example,
+ * creating tasks for RCU priority boosting) must be delayed until after
+ * rcu_scheduler_fully_active transitions from zero to one.  We also
+ * currently delay invocation of any RCU callbacks until after this point.
+ *
+ * It might later prove better for people registering RCU callbacks during
+ * early boot to take responsibility for these callbacks, but one step at
+ * a time.
+ */
+static int rcu_scheduler_fully_active __read_mostly;
 
 #ifdef CONFIG_RCU_BOOST
 
@@ -98,7 +121,6 @@ DEFINE_PER_CPU(unsigned int, rcu_cpu_kthread_status);
 DEFINE_PER_CPU(int, rcu_cpu_kthread_cpu);
 DEFINE_PER_CPU(unsigned int, rcu_cpu_kthread_loops);
 DEFINE_PER_CPU(char, rcu_cpu_has_work);
-static char rcu_kthreads_spawnable;
 
 #endif /* #ifdef CONFIG_RCU_BOOST */
 
@@ -1467,6 +1489,8 @@ static void rcu_process_callbacks(struct softirq_action *unused)
  */
 static void invoke_rcu_callbacks(struct rcu_state *rsp, struct rcu_data *rdp)
 {
+	if (unlikely(!ACCESS_ONCE(rcu_scheduler_fully_active)))
+		return;
 	if (likely(!rsp->boost)) {
 		rcu_do_batch(rsp, rdp);
 		return;

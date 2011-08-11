@@ -1333,23 +1333,6 @@ int acpi_resources_are_enforced(void)
 EXPORT_SYMBOL(acpi_resources_are_enforced);
 
 /*
- * Create and initialize a spinlock.
- */
-acpi_status
-acpi_os_create_lock(acpi_spinlock *out_handle)
-{
-	spinlock_t *lock;
-
-	lock = ACPI_ALLOCATE(sizeof(spinlock_t));
-	if (!lock)
-		return AE_NO_MEMORY;
-	spin_lock_init(lock);
-	*out_handle = lock;
-
-	return AE_OK;
-}
-
-/*
  * Deallocate the memory for a spinlock.
  */
 void acpi_os_delete_lock(acpi_spinlock handle)

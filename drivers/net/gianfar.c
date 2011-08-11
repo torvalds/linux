@@ -2289,6 +2289,23 @@ static int gfar_set_mac_address(struct net_device *dev)
 	return 0;
 }
 
+/* Check if rx parser should be activated */
+void gfar_check_rx_parser_mode(struct gfar_private *priv)
+{
+	struct gfar __iomem *regs;
+	u32 tempval;
+
+	regs = priv->gfargrp[0].regs;
+
+	tempval = gfar_read(&regs->rctrl);
+	/* If parse is no longer required, then disable parser */
+	if (tempval & RCTRL_REQ_PARSER)
+		tempval |= RCTRL_PRSDEP_INIT;
+	else
+		tempval &= ~RCTRL_PRSDEP_INIT;
+	gfar_write(&regs->rctrl, tempval);
+}
+
 
 /* Enables and disables VLAN insertion/extraction */
 static void gfar_vlan_rx_register(struct net_device *dev,
@@ -2325,12 +2342,9 @@ static void gfar_vlan_rx_register(struct net_device *dev,
 		/* Disable VLAN tag extraction */
 		tempval = gfar_read(&regs->rctrl);
 		tempval &= ~RCTRL_VLEX;
-		/* If parse is no longer required, then disable parser */
-		if (tempval & RCTRL_REQ_PARSER)
-			tempval |= RCTRL_PRSDEP_INIT;
-		else
-			tempval &= ~RCTRL_PRSDEP_INIT;
 		gfar_write(&regs->rctrl, tempval);
+
+		gfar_check_rx_parser_mode(priv);
 	}
 
 	gfar_change_mtu(dev, dev->mtu);

@@ -47,10 +47,10 @@ static void __gfs2_ail_flush(struct gfs2_glock *gl)
 				bd_ail_gl_list);
 		bh = bd->bd_bh;
 		gfs2_remove_from_ail(bd);
-		spin_unlock(&sdp->sd_ail_lock);
-
 		bd->bd_bh = NULL;
 		bh->b_private = NULL;
+		spin_unlock(&sdp->sd_ail_lock);
+
 		bd->bd_blkno = bh->b_blocknr;
 		gfs2_log_lock(sdp);
 		gfs2_assert_withdraw(sdp, !buffer_busy(bh));
@@ -221,8 +221,10 @@ static void inode_go_inval(struct gfs2_glock *gl, int flags)
 		}
 	}
 
-	if (ip == GFS2_I(gl->gl_sbd->sd_rindex))
+	if (ip == GFS2_I(gl->gl_sbd->sd_rindex)) {
+		gfs2_log_flush(gl->gl_sbd, NULL);
 		gl->gl_sbd->sd_rindex_uptodate = 0;
+	}
 	if (ip && S_ISREG(ip->i_inode.i_mode))
 		truncate_inode_pages(ip->i_inode.i_mapping, 0);
 }

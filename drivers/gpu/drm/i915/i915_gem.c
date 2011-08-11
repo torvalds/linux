@@ -1374,25 +1374,24 @@ i915_gem_free_mmap_offset(struct drm_i915_gem_object *obj)
 }
 
 static uint32_t
-i915_gem_get_gtt_size(struct drm_i915_gem_object *obj)
+i915_gem_get_gtt_size(struct drm_device *dev, uint32_t size, int tiling_mode)
 {
-	struct drm_device *dev = obj->base.dev;
-	uint32_t size;
+	uint32_t gtt_size;
 
 	if (INTEL_INFO(dev)->gen >= 4 ||
-	    obj->tiling_mode == I915_TILING_NONE)
-		return obj->base.size;
+	    tiling_mode == I915_TILING_NONE)
+		return size;
 
 	/* Previous chips need a power-of-two fence region when tiling */
 	if (INTEL_INFO(dev)->gen == 3)
-		size = 1024*1024;
+		gtt_size = 1024*1024;
 	else
-		size = 512*1024;
+		gtt_size = 512*1024;
 
-	while (size < obj->base.size)
-		size <<= 1;
+	while (gtt_size < size)
+		gtt_size <<= 1;
 
-	return size;
+	return gtt_size;
 }
 
 /**
@@ -1403,59 +1402,52 @@ i915_gem_get_gtt_size(struct drm_i915_gem_object *obj)
  * potential fence register mapping.
  */
 static uint32_t
-i915_gem_get_gtt_alignment(struct drm_i915_gem_object *obj)
+i915_gem_get_gtt_alignment(struct drm_device *dev,
+			   uint32_t size,
+			   int tiling_mode)
 {
-	struct drm_device *dev = obj->base.dev;
-
 	/*
 	 * Minimum alignment is 4k (GTT page size), but might be greater
 	 * if a fence register is needed for the object.
 	 */
 	if (INTEL_INFO(dev)->gen >= 4 ||
-	    obj->tiling_mode == I915_TILING_NONE)
+	    tiling_mode == I915_TILING_NONE)
 		return 4096;
 
 	/*
 	 * Previous chips need to be aligned to the size of the smallest
 	 * fence register that can contain the object.
 	 */
-	return i915_gem_get_gtt_size(obj);
+	return i915_gem_get_gtt_size(dev, size, tiling_mode);
 }
 
 /**
  * i915_gem_get_unfenced_gtt_alignment - return required GTT alignment for an
  *					 unfenced object
- * @obj: object to check
+ * @dev: the device
+ * @size: size of the object
+ * @tiling_mode: tiling mode of the object
  *
  * Return the required GTT alignment for an object, only taking into account
  * unfenced tiled surface requirements.
  */
 uint32_t
-i915_gem_get_unfenced_gtt_alignment(struct drm_i915_gem_object *obj)
+i915_gem_get_unfenced_gtt_alignment(struct drm_device *dev,
+				    uint32_t size,
+				    int tiling_mode)
 {
-	struct drm_device *dev = obj->base.dev;
-	int tile_height;
-
 	/*
 	 * Minimum alignment is 4k (GTT page size) for sane hw.
 	 */
 	if (INTEL_INFO(dev)->gen >= 4 || IS_G33(dev) ||
-	    obj->tiling_mode == I915_TILING_NONE)
+	    tiling_mode == I915_TILING_NONE)
 		return 4096;
 
-	/*
-	 * Older chips need unfenced tiled buffers to be aligned to the left
-	 * edge of an even tile row (where tile rows are counted as if the bo is
-	 * placed in a fenced gtt region).
+	/* Previous hardware however needs to be aligned to a power-of-two
+	 * tile height. The simplest method for determining this is to reuse
+	 * the power-of-tile object size.
 	 */
-	if (IS_GEN2(dev))
-		tile_height = 16;
-	else if (obj->tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev))
-		tile_height = 32;
-	else
-		tile_height = 8;
-
-	return tile_height * obj->stride * 2;
+	return i915_gem_get_gtt_size(dev, size, tiling_mode);
 }
 
 int
@@ -2744,9 +2736,16 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 		return -EINVAL;
 	}
 
-	fence_size = i915_gem_get_gtt_size(obj);
-	fence_alignment = i915_gem_get_gtt_alignment(obj);
-	unfenced_alignment = i915_gem_get_unfenced_gtt_alignment(obj);
+	fence_size = i915_gem_get_gtt_size(dev,
+					   obj->base.size,
+					   obj->tiling_mode);
+	fence_alignment = i915_gem_get_gtt_alignment(dev,
+						     obj->base.size,
+						     obj->tiling_mode);
+	unfenced_alignment =
+		i915_gem_get_unfenced_gtt_alignment(dev,
+						    obj->base.size,
+						    obj->tiling_mode);
 
 	if (alignment == 0)
 		alignment = map_and_fenceable ? fence_alignment :
