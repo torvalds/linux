@@ -428,15 +428,10 @@ static int ddebug_exec_query(char *query_string)
 	return 0;
 }
 
-int __dynamic_pr_debug(struct _ddebug *descriptor, const char *fmt, ...)
+static int dynamic_emit_prefix(const struct _ddebug *descriptor)
 {
-	va_list args;
 	int res;
 
-	BUG_ON(!descriptor);
-	BUG_ON(!fmt);
-
-	va_start(args, fmt);
 	res = printk(KERN_DEBUG);
 	if (descriptor->flags & _DPRINTK_FLAGS_INCL_TID) {
 		if (in_interrupt())
@@ -450,7 +445,23 @@ int __dynamic_pr_debug(struct _ddebug *descriptor, const char *fmt, ...)
 		res += printk(KERN_CONT "%s:", descriptor->function);
 	if (descriptor->flags & _DPRINTK_FLAGS_INCL_LINENO)
 		res += printk(KERN_CONT "%d ", descriptor->lineno);
+
+	return res;
+}
+
+int __dynamic_pr_debug(struct _ddebug *descriptor, const char *fmt, ...)
+{
+	va_list args;
+	int res;
+
+	BUG_ON(!descriptor);
+	BUG_ON(!fmt);
+
+	va_start(args, fmt);
+
+	res = dynamic_emit_prefix(descriptor);
 	res += vprintk(fmt, args);
+
 	va_end(args);
 
 	return res;
@@ -472,20 +483,7 @@ int __dynamic_dev_dbg(struct _ddebug *descriptor,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	res = printk(KERN_DEBUG);
-	if (descriptor->flags & _DPRINTK_FLAGS_INCL_TID) {
-		if (in_interrupt())
-			res += printk(KERN_CONT "<intr> ");
-		else
-			res += printk(KERN_CONT "[%d] ", task_pid_vnr(current));
-	}
-	if (descriptor->flags & _DPRINTK_FLAGS_INCL_MODNAME)
-		res += printk(KERN_CONT "%s:", descriptor->modname);
-	if (descriptor->flags & _DPRINTK_FLAGS_INCL_FUNCNAME)
-		res += printk(KERN_CONT "%s:", descriptor->function);
-	if (descriptor->flags & _DPRINTK_FLAGS_INCL_LINENO)
-		res += printk(KERN_CONT "%d ", descriptor->lineno);
-
+	res = dynamic_emit_prefix(descriptor);
 	res += __dev_printk(KERN_CONT, dev, &vaf);
 
 	va_end(args);
