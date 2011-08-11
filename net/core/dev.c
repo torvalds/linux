@@ -6290,7 +6290,7 @@ const char *netdev_drivername(const struct net_device *dev)
 	return empty;
 }
 
-static int __netdev_printk(const char *level, const struct net_device *dev,
+int __netdev_printk(const char *level, const struct net_device *dev,
 			   struct va_format *vaf)
 {
 	int r;
@@ -6305,6 +6305,7 @@ static int __netdev_printk(const char *level, const struct net_device *dev,
 
 	return r;
 }
+EXPORT_SYMBOL(__netdev_printk);
 
 int netdev_printk(const char *level, const struct net_device *dev,
 		  const char *format, ...)
