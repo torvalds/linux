@@ -1441,7 +1441,7 @@ static const struct of_device_id sgtl5000_dt_ids[] = {
 	{ .compatible = "fsl,sgtl5000", },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(i2c, sgtl5000_dt_ids);
+MODULE_DEVICE_TABLE(of, sgtl5000_dt_ids);
 
 static struct i2c_driver sgtl5000_i2c_driver = {
 	.driver = {
