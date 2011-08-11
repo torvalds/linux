@@ -96,6 +96,9 @@ struct cpupower_topology {
 		int pkg;
 		int core;
 		int cpu;
+
+		/* flags */
+		unsigned int is_online:1;
 	} *core_info;
 };
 

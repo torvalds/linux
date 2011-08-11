@@ -56,6 +56,56 @@ static unsigned int sysfs_write_file(const char *path,
 	return (unsigned int) numwrite;
 }
 
+/*
+ * Detect whether a CPU is online
+ *
+ * Returns:
+ *     1 -> if CPU is online
+ *     0 -> if CPU is offline
+ *     negative errno values in error case
+ */
+int sysfs_is_cpu_online(unsigned int cpu)
+{
+	char path[SYSFS_PATH_MAX];
+	int fd;
+	ssize_t numread;
+	unsigned long long value;
+	char linebuf[MAX_LINE_LEN];
+	char *endp;
+	struct stat statbuf;
+
+	snprintf(path, sizeof(path), PATH_TO_CPU "cpu%u", cpu);
+
+	if (stat(path, &statbuf) != 0)
+		return 0;
+
+	/*
+	 * kernel without CONFIG_HOTPLUG_CPU
+	 * -> cpuX directory exists, but not cpuX/online file
+	 */
+	snprintf(path, sizeof(path), PATH_TO_CPU "cpu%u/online", cpu);
+	if (stat(path, &statbuf) != 0)
+		return 1;
+
+	fd = open(path, O_RDONLY);
+	if (fd == -1)
+		return -errno;
+
+	numread = read(fd, linebuf, MAX_LINE_LEN - 1);
+	if (numread < 1) {
+		close(fd);
+		return -EIO;
+	}
+	linebuf[numread] = '\0';
+	close(fd);
+
+	value = strtoull(linebuf, &endp, 0);
+	if (value > 1 || value < 0)
+		return -EINVAL;
+
+	return value;
+}
+
 /* CPUidle idlestate specific /sys/devices/system/cpu/cpuX/cpuidle/ access */
 
 /*

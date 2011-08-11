@@ -190,9 +190,13 @@ void print_results(int topology_depth, int cpu)
 			}
 		}
 	}
-	/* cpu offline */
-	if (cpu_top.core_info[cpu].pkg == -1 ||
-	    cpu_top.core_info[cpu].core == -1) {
+	/*
+	 * The monitor could still provide useful data, for example
+	 * AMD HW counters partly sit in PCI config space.
+	 * It's up to the monitor plug-in to check .is_online, this one
+	 * is just for additional info.
+	 */
+	if (!cpu_top.core_info[cpu].is_online) {
 		printf(_(" *is offline\n"));
 		return;
 	} else
