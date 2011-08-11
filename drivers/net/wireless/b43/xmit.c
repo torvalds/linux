@@ -338,10 +338,10 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 		}
 	}
 	if (b43_is_old_txhdr_format(dev)) {
-		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->old_format.plcp),
+		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->format_351.plcp),
 				      plcp_fragment_len, rate);
 	} else {
-		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->new_format.plcp),
+		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->format_410.plcp),
 				      plcp_fragment_len, rate);
 	}
 	b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->plcp_fb),
@@ -433,10 +433,10 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 
 			if (b43_is_old_txhdr_format(dev)) {
 				cts = (struct ieee80211_cts *)
-					(txhdr->old_format.rts_frame);
+					(txhdr->format_351.rts_frame);
 			} else {
 				cts = (struct ieee80211_cts *)
-					(txhdr->new_format.rts_frame);
+					(txhdr->format_410.rts_frame);
 			}
 			ieee80211_ctstoself_get(dev->wl->hw, info->control.vif,
 						fragment_data, fragment_len,
@@ -448,10 +448,10 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 
 			if (b43_is_old_txhdr_format(dev)) {
 				rts = (struct ieee80211_rts *)
-					(txhdr->old_format.rts_frame);
+					(txhdr->format_351.rts_frame);
 			} else {
 				rts = (struct ieee80211_rts *)
-					(txhdr->new_format.rts_frame);
+					(txhdr->format_410.rts_frame);
 			}
 			ieee80211_rts_get(dev->wl->hw, info->control.vif,
 					  fragment_data, fragment_len,
@@ -463,9 +463,9 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 
 		/* Generate the PLCP headers for the RTS/CTS frame */
 		if (b43_is_old_txhdr_format(dev))
-			plcp = &txhdr->old_format.rts_plcp;
+			plcp = &txhdr->format_351.rts_plcp;
 		else
-			plcp = &txhdr->new_format.rts_plcp;
+			plcp = &txhdr->format_410.rts_plcp;
 		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)plcp,
 				      len, rts_rate);
 		plcp = &txhdr->rts_plcp_fb;
@@ -474,10 +474,10 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 
 		if (b43_is_old_txhdr_format(dev)) {
 			hdr = (struct ieee80211_hdr *)
-				(&txhdr->old_format.rts_frame);
+				(&txhdr->format_351.rts_frame);
 		} else {
 			hdr = (struct ieee80211_hdr *)
-				(&txhdr->new_format.rts_frame);
+				(&txhdr->format_410.rts_frame);
 		}
 		txhdr->rts_dur_fb = hdr->duration_id;
 
@@ -506,9 +506,9 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 
 	/* Magic cookie */
 	if (b43_is_old_txhdr_format(dev))
-		txhdr->old_format.cookie = cpu_to_le16(cookie);
+		txhdr->format_351.cookie = cpu_to_le16(cookie);
 	else
-		txhdr->new_format.cookie = cpu_to_le16(cookie);
+		txhdr->format_410.cookie = cpu_to_le16(cookie);
 
 	if (phy->type == B43_PHYTYPE_N) {
 		txhdr->phy_ctl1 =

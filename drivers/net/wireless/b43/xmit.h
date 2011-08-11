@@ -46,7 +46,7 @@ struct b43_txhdr {
 	__le32 timeout;			/* Timeout */
 
 	union {
-		/* The new r410 format. */
+		/* Tested with 410.2160, 478.104 and 508.* */
 		struct {
 			__le16 mimo_antenna;		/* MIMO antenna select */
 			__le16 preload_size;		/* Preload size */
@@ -57,9 +57,9 @@ struct b43_txhdr {
 			__u8 rts_frame[16];		/* The RTS frame (if used) */
 			PAD_BYTES(2);
 			struct b43_plcp_hdr6 plcp;	/* Main PLCP header */
-		} new_format __packed;
+		} format_410 __packed;
 
-		/* The old r351 format. */
+		/* Tested with 351.126 */
 		struct {
 			PAD_BYTES(2);
 			__le16 cookie;			/* TX frame cookie */
@@ -68,7 +68,7 @@ struct b43_txhdr {
 			__u8 rts_frame[16];		/* The RTS frame (if used) */
 			PAD_BYTES(2);
 			struct b43_plcp_hdr6 plcp;	/* Main PLCP header */
-		} old_format __packed;
+		} format_351 __packed;
 
 	} __packed;
 } __packed;
