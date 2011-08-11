@@ -676,7 +676,15 @@ data_ready:
 		goto rx_error;
 	}
 
-	macstat = le32_to_cpu(rxhdr->mac_status);
+	switch (dev->fw.hdr_format) {
+	case B43_FW_HDR_598:
+		macstat = le32_to_cpu(rxhdr->format_598.mac_status);
+		break;
+	case B43_FW_HDR_410:
+	case B43_FW_HDR_351:
+		macstat = le32_to_cpu(rxhdr->format_351.mac_status);
+		break;
+	}
 	if (macstat & B43_RX_MAC_FCSERR) {
 		if (!(q->dev->wl->filter_flags & FIF_FCSFAIL)) {
 			/* Drop frames with failed FCS. */

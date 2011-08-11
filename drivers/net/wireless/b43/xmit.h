@@ -250,9 +250,23 @@ struct b43_rxhdr_fw4 {
 	} __packed;
 	__le16 phy_status2;	/* PHY RX Status 2 */
 	__le16 phy_status3;	/* PHY RX Status 3 */
-	__le32 mac_status;	/* MAC RX status */
-	__le16 mac_time;
-	__le16 channel;
+	union {
+		/* Tested with 598.314, 644.1001 and 666.2 */
+		struct {
+			__le16 phy_status4;	/* PHY RX Status 4 */
+			__le16 phy_status5;	/* PHY RX Status 5 */
+			__le32 mac_status;	/* MAC RX status */
+			__le16 mac_time;
+			__le16 channel;
+		} format_598 __packed;
+
+		/* Tested with 351.126, 410.2160, 478.104 and 508.* */
+		struct {
+			__le32 mac_status;	/* MAC RX status */
+			__le16 mac_time;
+			__le16 channel;
+		} format_351 __packed;
+	} __packed;
 } __packed;
 
 /* PHY RX Status 0 */

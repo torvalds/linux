@@ -653,8 +653,9 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	struct ieee80211_hdr *wlhdr;
 	const struct b43_rxhdr_fw4 *rxhdr = _rxhdr;
 	__le16 fctl;
-	u16 phystat0, phystat3, chanstat, mactime;
-	u32 macstat;
+	u16 phystat0, phystat3;
+	u16 uninitialized_var(chanstat), uninitialized_var(mactime);
+	u32 uninitialized_var(macstat);
 	u16 chanid;
 	u16 phytype;
 	int padding;
@@ -664,9 +665,19 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	/* Get metadata about the frame from the header. */
 	phystat0 = le16_to_cpu(rxhdr->phy_status0);
 	phystat3 = le16_to_cpu(rxhdr->phy_status3);
-	macstat = le32_to_cpu(rxhdr->mac_status);
-	mactime = le16_to_cpu(rxhdr->mac_time);
-	chanstat = le16_to_cpu(rxhdr->channel);
+	switch (dev->fw.hdr_format) {
+	case B43_FW_HDR_598:
+		macstat = le32_to_cpu(rxhdr->format_598.mac_status);
+		mactime = le16_to_cpu(rxhdr->format_598.mac_time);
+		chanstat = le16_to_cpu(rxhdr->format_598.channel);
+		break;
+	case B43_FW_HDR_410:
+	case B43_FW_HDR_351:
+		macstat = le32_to_cpu(rxhdr->format_351.mac_status);
+		mactime = le16_to_cpu(rxhdr->format_351.mac_time);
+		chanstat = le16_to_cpu(rxhdr->format_351.channel);
+		break;
+	}
 	phytype = chanstat & B43_RX_CHAN_PHYTYPE;
 
 	if (unlikely(macstat & B43_RX_MAC_FCSERR)) {

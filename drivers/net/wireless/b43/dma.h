@@ -162,12 +162,15 @@ struct b43_dmadesc_generic {
 
 /* Misc DMA constants */
 #define B43_DMA_RINGMEMSIZE		PAGE_SIZE
-#define B43_DMA0_RX_FRAMEOFFSET		30
+/* Offset of frame with actual data */
+#define B43_DMA0_RX_FW598_FO		38
+#define B43_DMA0_RX_FW351_FO		30
 
 /* DMA engine tuning knobs */
 #define B43_TXRING_SLOTS		256
 #define B43_RXRING_SLOTS		64
-#define B43_DMA0_RX_BUFFERSIZE		(B43_DMA0_RX_FRAMEOFFSET + IEEE80211_MAX_FRAME_LEN)
+#define B43_DMA0_RX_FW598_BUFSIZE	(B43_DMA0_RX_FW598_FO + IEEE80211_MAX_FRAME_LEN)
+#define B43_DMA0_RX_FW351_BUFSIZE	(B43_DMA0_RX_FW351_FO + IEEE80211_MAX_FRAME_LEN)
 
 /* Pointer poison */
 #define B43_DMA_PTR_POISON		((void *)ERR_PTR(-ENOMEM))
