@@ -694,6 +694,11 @@ struct b43_firmware_file {
 	enum b43_firmware_file_type type;
 };
 
+enum b43_firmware_hdr_format {
+	B43_FW_HDR_410,
+	B43_FW_HDR_351,
+};
+
 /* Pointers to the firmware data and meta information about it. */
 struct b43_firmware {
 	/* Microcode */
@@ -709,6 +714,9 @@ struct b43_firmware {
 	u16 rev;
 	/* Firmware patchlevel */
 	u16 patch;
+
+	/* Format of header used by firmware */
+	enum b43_firmware_hdr_format hdr_format;
 
 	/* Set to true, if we are using an opensource firmware.
 	 * Use this to check for proprietary vs opensource. */

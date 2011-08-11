@@ -337,12 +337,15 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 			memcpy(txhdr->iv, ((u8 *) wlhdr) + wlhdr_len, iv_len);
 		}
 	}
-	if (b43_is_old_txhdr_format(dev)) {
+	switch (dev->fw.hdr_format) {
+	case B43_FW_HDR_351:
 		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->format_351.plcp),
 				      plcp_fragment_len, rate);
-	} else {
+		break;
+	case B43_FW_HDR_410:
 		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->format_410.plcp),
 				      plcp_fragment_len, rate);
+		break;
 	}
 	b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->plcp_fb),
 			      plcp_fragment_len, rate_fb);
@@ -415,10 +418,10 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 	if ((rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS) ||
 	    (rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT)) {
 		unsigned int len;
-		struct ieee80211_hdr *hdr;
+		struct ieee80211_hdr *uninitialized_var(hdr);
 		int rts_rate, rts_rate_fb;
 		int rts_rate_ofdm, rts_rate_fb_ofdm;
-		struct b43_plcp_hdr6 *plcp;
+		struct b43_plcp_hdr6 *uninitialized_var(plcp);
 		struct ieee80211_rate *rts_cts_rate;
 
 		rts_cts_rate = ieee80211_get_rts_cts_rate(dev->wl->hw, info);
@@ -429,14 +432,17 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 		rts_rate_fb_ofdm = b43_is_ofdm_rate(rts_rate_fb);
 
 		if (rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
-			struct ieee80211_cts *cts;
+			struct ieee80211_cts *uninitialized_var(cts);
 
-			if (b43_is_old_txhdr_format(dev)) {
+			switch (dev->fw.hdr_format) {
+			case B43_FW_HDR_351:
 				cts = (struct ieee80211_cts *)
 					(txhdr->format_351.rts_frame);
-			} else {
+				break;
+			case B43_FW_HDR_410:
 				cts = (struct ieee80211_cts *)
 					(txhdr->format_410.rts_frame);
+				break;
 			}
 			ieee80211_ctstoself_get(dev->wl->hw, info->control.vif,
 						fragment_data, fragment_len,
@@ -444,14 +450,17 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 			mac_ctl |= B43_TXH_MAC_SENDCTS;
 			len = sizeof(struct ieee80211_cts);
 		} else {
-			struct ieee80211_rts *rts;
+			struct ieee80211_rts *uninitialized_var(rts);
 
-			if (b43_is_old_txhdr_format(dev)) {
+			switch (dev->fw.hdr_format) {
+			case B43_FW_HDR_351:
 				rts = (struct ieee80211_rts *)
 					(txhdr->format_351.rts_frame);
-			} else {
+				break;
+			case B43_FW_HDR_410:
 				rts = (struct ieee80211_rts *)
 					(txhdr->format_410.rts_frame);
+				break;
 			}
 			ieee80211_rts_get(dev->wl->hw, info->control.vif,
 					  fragment_data, fragment_len,
@@ -462,22 +471,29 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 		len += FCS_LEN;
 
 		/* Generate the PLCP headers for the RTS/CTS frame */
-		if (b43_is_old_txhdr_format(dev))
+		switch (dev->fw.hdr_format) {
+		case B43_FW_HDR_351:
 			plcp = &txhdr->format_351.rts_plcp;
-		else
+			break;
+		case B43_FW_HDR_410:
 			plcp = &txhdr->format_410.rts_plcp;
+			break;
+		}
 		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)plcp,
 				      len, rts_rate);
 		plcp = &txhdr->rts_plcp_fb;
 		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)plcp,
 				      len, rts_rate_fb);
 
-		if (b43_is_old_txhdr_format(dev)) {
+		switch (dev->fw.hdr_format) {
+		case B43_FW_HDR_351:
 			hdr = (struct ieee80211_hdr *)
 				(&txhdr->format_351.rts_frame);
-		} else {
+			break;
+		case B43_FW_HDR_410:
 			hdr = (struct ieee80211_hdr *)
 				(&txhdr->format_410.rts_frame);
+			break;
 		}
 		txhdr->rts_dur_fb = hdr->duration_id;
 
@@ -505,10 +521,14 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 	}
 
 	/* Magic cookie */
-	if (b43_is_old_txhdr_format(dev))
+	switch (dev->fw.hdr_format) {
+	case B43_FW_HDR_351:
 		txhdr->format_351.cookie = cpu_to_le16(cookie);
-	else
+		break;
+	case B43_FW_HDR_410:
 		txhdr->format_410.cookie = cpu_to_le16(cookie);
+		break;
+	}
 
 	if (phy->type == B43_PHYTYPE_N) {
 		txhdr->phy_ctl1 =

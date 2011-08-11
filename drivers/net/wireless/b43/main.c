@@ -2514,6 +2514,10 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 	}
 	dev->fw.rev = fwrev;
 	dev->fw.patch = fwpatch;
+	if (dev->fw.rev >= 410)
+		dev->fw.hdr_format = B43_FW_HDR_410;
+	else
+		dev->fw.hdr_format = B43_FW_HDR_351;
 	dev->fw.opensource = (fwdate == 0xFFFF);
 
 	/* Default to use-all-queues. */
@@ -2561,7 +2565,7 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 			dev->fw.rev, dev->fw.patch);
 	wiphy->hw_version = dev->dev->core_id;
 
-	if (b43_is_old_txhdr_format(dev)) {
+	if (dev->fw.hdr_format == B43_FW_HDR_351) {
 		/* We're over the deadline, but we keep support for old fw
 		 * until it turns out to be in major conflict with something new. */
 		b43warn(dev->wl, "You are using an old firmware image. "

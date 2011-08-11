@@ -166,19 +166,16 @@ struct b43_tx_legacy_rate_phy_ctl_entry {
 #define  B43_TXH_PHY1_MODUL_QAM256	0x2000 /* QAM256 */
 
 
-/* r351 firmware compatibility stuff. */
-static inline
-bool b43_is_old_txhdr_format(struct b43_wldev *dev)
-{
-	return (dev->fw.rev <= 351);
-}
-
 static inline
 size_t b43_txhdr_size(struct b43_wldev *dev)
 {
-	if (b43_is_old_txhdr_format(dev))
+	switch (dev->fw.hdr_format) {
+	case B43_FW_HDR_410:
+		return 104 + sizeof(struct b43_plcp_hdr6);
+	case B43_FW_HDR_351:
 		return 100 + sizeof(struct b43_plcp_hdr6);
-	return 104 + sizeof(struct b43_plcp_hdr6);
+	}
+	return 0;
 }
 
 
