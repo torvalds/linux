@@ -134,27 +134,27 @@ unsigned int max_delegations;
  * Open owner state (share locks)
  */
 
-/* hash tables for nfs4_stateowner */
-#define OWNER_HASH_BITS              8
-#define OWNER_HASH_SIZE             (1 << OWNER_HASH_BITS)
-#define OWNER_HASH_MASK             (OWNER_HASH_SIZE - 1)
+/* hash tables for open owners */
+#define OPEN_OWNER_HASH_BITS              8
+#define OPEN_OWNER_HASH_SIZE             (1 << OPEN_OWNER_HASH_BITS)
+#define OPEN_OWNER_HASH_MASK             (OPEN_OWNER_HASH_SIZE - 1)
 
-static unsigned int ownerid_hashval(const u32 id)
+static unsigned int open_ownerid_hashval(const u32 id)
 {
-	return id & OWNER_HASH_MASK;
+	return id & OPEN_OWNER_HASH_MASK;
 }
 
-static unsigned int ownerstr_hashval(u32 clientid, struct xdr_netobj *ownername)
+static unsigned int open_ownerstr_hashval(u32 clientid, struct xdr_netobj *ownername)
 {
 	unsigned int ret;
 
 	ret = opaque_hashval(ownername->data, ownername->len);
 	ret += clientid;
-	return ret & OWNER_HASH_MASK;
+	return ret & OPEN_OWNER_HASH_MASK;
 }
 
-static struct list_head	ownerid_hashtbl[OWNER_HASH_SIZE];
-static struct list_head	ownerstr_hashtbl[OWNER_HASH_SIZE];
+static struct list_head	open_ownerid_hashtbl[OPEN_OWNER_HASH_SIZE];
+static struct list_head	open_ownerstr_hashtbl[OPEN_OWNER_HASH_SIZE];
 
 /* hash table for nfs4_file */
 #define FILE_HASH_BITS                   8
@@ -2240,7 +2240,7 @@ alloc_init_open_stateowner(unsigned int strhashval, struct nfs4_client *clp, str
 
 	if (!(sop = alloc_stateowner(&open->op_owner)))
 		return NULL;
-	idhashval = ownerid_hashval(current_ownerid);
+	idhashval = open_ownerid_hashval(current_ownerid);
 	INIT_LIST_HEAD(&sop->so_idhash);
 	INIT_LIST_HEAD(&sop->so_strhash);
 	INIT_LIST_HEAD(&sop->so_perclient);
@@ -2248,8 +2248,8 @@ alloc_init_open_stateowner(unsigned int strhashval, struct nfs4_client *clp, str
 	INIT_LIST_HEAD(&sop->so_perstateid);  /* not used */
 	INIT_LIST_HEAD(&sop->so_close_lru);
 	sop->so_time = 0;
-	list_add(&sop->so_idhash, &ownerid_hashtbl[idhashval]);
-	list_add(&sop->so_strhash, &ownerstr_hashtbl[strhashval]);
+	list_add(&sop->so_idhash, &open_ownerid_hashtbl[idhashval]);
+	list_add(&sop->so_strhash, &open_ownerstr_hashtbl[strhashval]);
 	list_add(&sop->so_perclient, &clp->cl_openowners);
 	sop->so_is_open_owner = 1;
 	sop->so_id = current_ownerid++;
@@ -2313,7 +2313,7 @@ find_openstateowner_str(unsigned int hashval, struct nfsd4_open *open)
 {
 	struct nfs4_stateowner *so = NULL;
 
-	list_for_each_entry(so, &ownerstr_hashtbl[hashval], so_strhash) {
+	list_for_each_entry(so, &open_ownerstr_hashtbl[hashval], so_strhash) {
 		if (same_owner_str(so, &open->op_owner, &open->op_clientid))
 			return so;
 	}
@@ -2464,7 +2464,7 @@ nfsd4_process_open1(struct nfsd4_compound_state *cstate,
 	if (STALE_CLIENTID(&open->op_clientid))
 		return nfserr_stale_clientid;
 
-	strhashval = ownerstr_hashval(clientid->cl_id, &open->op_owner);
+	strhashval = open_ownerstr_hashval(clientid->cl_id, &open->op_owner);
 	sop = find_openstateowner_str(strhashval, open);
 	open->op_stateowner = sop;
 	if (!sop) {
@@ -4518,9 +4518,9 @@ nfs4_state_init(void)
 	for (i = 0; i < FILE_HASH_SIZE; i++) {
 		INIT_LIST_HEAD(&file_hashtbl[i]);
 	}
-	for (i = 0; i < OWNER_HASH_SIZE; i++) {
-		INIT_LIST_HEAD(&ownerstr_hashtbl[i]);
-		INIT_LIST_HEAD(&ownerid_hashtbl[i]);
+	for (i = 0; i < OPEN_OWNER_HASH_SIZE; i++) {
+		INIT_LIST_HEAD(&open_ownerstr_hashtbl[i]);
+		INIT_LIST_HEAD(&open_ownerid_hashtbl[i]);
 	}
 	for (i = 0; i < STATEID_HASH_SIZE; i++) {
 		INIT_LIST_HEAD(&stateid_hashtbl[i]);
