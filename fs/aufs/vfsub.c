@@ -575,6 +575,24 @@ long vfsub_splice_from(struct pipe_inode_info *pipe, struct file *out,
 	return err;
 }
 
+int vfsub_fsync(struct file *file, struct path *path, int datasync)
+{
+	int err;
+
+	/* file can be NULL */
+	lockdep_off();
+	err = vfs_fsync(file, datasync);
+	lockdep_on();
+	if (!err) {
+		if (!path) {
+			AuDebugOn(!file);
+			path = &file->f_path;
+		}
+		vfsub_update_h_iattr(path, /*did*/NULL); /*ignore*/
+	}
+	return err;
+}
+
 /* cf. open.c:do_sys_truncate() and do_sys_ftruncate() */
 int vfsub_trunc(struct path *h_path, loff_t length, unsigned int attr,
 		struct file *h_file)
