@@ -630,11 +630,7 @@ find_event_field(struct ftrace_event_call *call, char *name)
 
 static void filter_free_pred(struct filter_pred *pred)
 {
-	if (!pred)
-		return;
-
 	kfree(pred->field_name);
-	kfree(pred);
 }
 
 static void filter_clear_pred(struct filter_pred *pred)
@@ -1302,39 +1298,30 @@ parse_operand:
 	return 0;
 }
 
-static struct filter_pred *create_pred(int op, char *operand1, char *operand2)
+static struct filter_pred *create_pred(struct filter_parse_state *ps,
+				       int op, char *operand1, char *operand2)
 {
-	struct filter_pred *pred;
+	static struct filter_pred pred;
 
-	pred = kzalloc(sizeof(*pred), GFP_KERNEL);
-	if (!pred)
-		return NULL;
+	memset(&pred, 0, sizeof(pred));
+	pred.op = op;
 
-	pred->field_name = kstrdup(operand1, GFP_KERNEL);
-	if (!pred->field_name) {
-		kfree(pred);
+	if (op == OP_AND || op == OP_OR)
+		return &pred;
+
+	if (!operand1 || !operand2) {
+		parse_error(ps, FILT_ERR_MISSING_FIELD, 0);
 		return NULL;
 	}
 
-	strcpy(pred->regex.pattern, operand2);
-	pred->regex.len = strlen(pred->regex.pattern);
-
-	pred->op = op;
-
-	return pred;
-}
-
-static struct filter_pred *create_logical_pred(int op)
-{
-	struct filter_pred *pred;
-
-	pred = kzalloc(sizeof(*pred), GFP_KERNEL);
-	if (!pred)
+	pred.field_name = kstrdup(operand1, GFP_KERNEL);
+	if (!pred.field_name)
 		return NULL;
 
-	pred->op = op;
+	strcpy(pred.regex.pattern, operand2);
+	pred.regex.len = strlen(pred.regex.pattern);
 
-	return pred;
+	return &pred;
 }
 
 static int check_preds(struct filter_parse_state *ps)
@@ -1643,19 +1630,7 @@ static int replace_preds(struct ftrace_event_call *call,
 			goto fail;
 		}
 
-		if (elt->op == OP_AND || elt->op == OP_OR) {
-			pred = create_logical_pred(elt->op);
-			goto add_pred;
-		}
-
-		if (!operand1 || !operand2) {
-			parse_error(ps, FILT_ERR_MISSING_FIELD, 0);
-			err = -EINVAL;
-			goto fail;
-		}
-
-		pred = create_pred(elt->op, operand1, operand2);
-add_pred:
+		pred = create_pred(ps, elt->op, operand1, operand2);
 		if (!pred) {
 			err = -ENOMEM;
 			goto fail;
