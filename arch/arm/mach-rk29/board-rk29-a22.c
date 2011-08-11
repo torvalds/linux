@@ -1741,12 +1741,8 @@ struct i2c_gpio_platform_data default_i2c3_data = {
 #endif
 #if defined (CONFIG_ANX7150)
 #define HDMI_VDD_CTL RK29_PIN6_PD3
-int anx7150_io_init(void)
-{
-	return 0;
-}
 struct hdmi_platform_data anx7150_data  = {
-	.io_init = anx7150_io_init,
+	//.io_init = anx7150_io_init,
 };
 #endif
 

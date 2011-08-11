@@ -790,12 +790,8 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 };
 #endif
 #if defined (CONFIG_ANX7150)
-int anx7150_io_init(void)
-{
-	return 0;
-}
 struct hdmi_platform_data anx7150_data  = {
-	.io_init = anx7150_io_init,
+	//.io_init = anx7150_io_init,
 };
 #endif
 
