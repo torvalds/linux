@@ -34,6 +34,10 @@ extern const char *cu_get_comp_dir(Dwarf_Die *cu_die);
 extern int cu_find_lineinfo(Dwarf_Die *cudie, unsigned long addr,
 			    const char **fname, int *lineno);
 
+/* Walk on funcitons at given address */
+extern int cu_walk_functions_at(Dwarf_Die *cu_die, Dwarf_Addr addr,
+			int (*callback)(Dwarf_Die *, void *), void *data);
+
 /* Compare diename and tname */
 extern bool die_compare_name(Dwarf_Die *dw_die, const char *tname);
 

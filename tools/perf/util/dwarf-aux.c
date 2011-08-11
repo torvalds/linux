@@ -96,6 +96,39 @@ int cu_find_lineinfo(Dwarf_Die *cu_die, unsigned long addr,
 	return *lineno ?: -ENOENT;
 }
 
+static int __die_find_inline_cb(Dwarf_Die *die_mem, void *data);
+
+/**
+ * cu_walk_functions_at - Walk on function DIEs at given address
+ * @cu_die: A CU DIE
+ * @addr: An address
+ * @callback: A callback which called with found DIEs
+ * @data: A user data
+ *
+ * Walk on function DIEs at given @addr in @cu_die. Passed DIEs
+ * should be subprogram or inlined-subroutines.
+ */
+int cu_walk_functions_at(Dwarf_Die *cu_die, Dwarf_Addr addr,
+		    int (*callback)(Dwarf_Die *, void *), void *data)
+{
+	Dwarf_Die die_mem;
+	Dwarf_Die *sc_die;
+	int ret = -ENOENT;
+
+	/* Inlined function could be recursive. Trace it until fail */
+	for (sc_die = die_find_realfunc(cu_die, addr, &die_mem);
+	     sc_die != NULL;
+	     sc_die = die_find_child(sc_die, __die_find_inline_cb, &addr,
+				     &die_mem)) {
+		ret = callback(sc_die, data);
+		if (ret)
+			break;
+	}
+
+	return ret;
+
+}
+
 /**
  * die_compare_name - Compare diename and tname
  * @dw_die: a DIE
