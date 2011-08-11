@@ -1393,7 +1393,13 @@ static int line_range_inline_cb(Dwarf_Die *in_die, void *data)
 	struct dwarf_callback_param *param = data;
 
 	param->retval = find_line_range_by_line(in_die, param->data);
-	return DWARF_CB_ABORT;	/* No need to find other instances */
+
+	/*
+	 * We have to check all instances of inlined function, because
+	 * some execution paths can be optimized out depends on the
+	 * function argument of instances
+	 */
+	return DWARF_CB_OK;
 }
 
 /* Search function from function name */
