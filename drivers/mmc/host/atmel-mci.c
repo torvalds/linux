@@ -603,8 +603,8 @@ static void atmci_pdc_set_single_buf(struct atmel_mci *host,
 	}
 
 	if (buf_nb == PDC_SECOND_BUF) {
-		pointer_reg += 0x10;
-		counter_reg += 0x10;
+		pointer_reg += ATMEL_PDC_SCND_BUF_OFF;
+		counter_reg += ATMEL_PDC_SCND_BUF_OFF;
 	}
 
 	atmci_writel(host, pointer_reg, sg_dma_address(host->sg));
