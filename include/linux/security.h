@@ -2048,6 +2048,13 @@ static inline int security_inode_init_security(struct inode *inode,
 	return -EOPNOTSUPP;
 }
 
+int security_old_inode_init_security(struct inode *inode, struct inode *dir,
+				     const struct qstr *qstr, char **name,
+				     void **value, size_t *len)
+{
+	return -EOPNOTSUPP;
+}
+
 static inline int security_inode_create(struct inode *dir,
 					 struct dentry *dentry,
 					 int mode)
