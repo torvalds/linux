@@ -441,7 +441,7 @@ static inline int free_area(unsigned long pfn, unsigned long end, char *s)
 static inline void poison_init_mem(void *s, size_t count)
 {
 	u32 *p = (u32 *)s;
-	while ((count = count - 4))
+	for (; count != 0; count -= 4)
 		*p++ = 0xe7fddef0;
 }
 
