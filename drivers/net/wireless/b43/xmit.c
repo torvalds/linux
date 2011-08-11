@@ -338,6 +338,10 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 		}
 	}
 	switch (dev->fw.hdr_format) {
+	case B43_FW_HDR_598:
+		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->format_598.plcp),
+				      plcp_fragment_len, rate);
+		break;
 	case B43_FW_HDR_351:
 		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->format_351.plcp),
 				      plcp_fragment_len, rate);
@@ -435,6 +439,10 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 			struct ieee80211_cts *uninitialized_var(cts);
 
 			switch (dev->fw.hdr_format) {
+			case B43_FW_HDR_598:
+				cts = (struct ieee80211_cts *)
+					(txhdr->format_598.rts_frame);
+				break;
 			case B43_FW_HDR_351:
 				cts = (struct ieee80211_cts *)
 					(txhdr->format_351.rts_frame);
@@ -453,6 +461,10 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 			struct ieee80211_rts *uninitialized_var(rts);
 
 			switch (dev->fw.hdr_format) {
+			case B43_FW_HDR_598:
+				rts = (struct ieee80211_rts *)
+					(txhdr->format_598.rts_frame);
+				break;
 			case B43_FW_HDR_351:
 				rts = (struct ieee80211_rts *)
 					(txhdr->format_351.rts_frame);
@@ -472,6 +484,9 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 
 		/* Generate the PLCP headers for the RTS/CTS frame */
 		switch (dev->fw.hdr_format) {
+		case B43_FW_HDR_598:
+			plcp = &txhdr->format_598.rts_plcp;
+			break;
 		case B43_FW_HDR_351:
 			plcp = &txhdr->format_351.rts_plcp;
 			break;
@@ -486,6 +501,10 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 				      len, rts_rate_fb);
 
 		switch (dev->fw.hdr_format) {
+		case B43_FW_HDR_598:
+			hdr = (struct ieee80211_hdr *)
+				(&txhdr->format_598.rts_frame);
+			break;
 		case B43_FW_HDR_351:
 			hdr = (struct ieee80211_hdr *)
 				(&txhdr->format_351.rts_frame);
@@ -522,6 +541,9 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 
 	/* Magic cookie */
 	switch (dev->fw.hdr_format) {
+	case B43_FW_HDR_598:
+		txhdr->format_598.cookie = cpu_to_le16(cookie);
+		break;
 	case B43_FW_HDR_351:
 		txhdr->format_351.cookie = cpu_to_le16(cookie);
 		break;

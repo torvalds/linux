@@ -2514,7 +2514,9 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 	}
 	dev->fw.rev = fwrev;
 	dev->fw.patch = fwpatch;
-	if (dev->fw.rev >= 410)
+	if (dev->fw.rev >= 598)
+		dev->fw.hdr_format = B43_FW_HDR_598;
+	else if (dev->fw.rev >= 410)
 		dev->fw.hdr_format = B43_FW_HDR_410;
 	else
 		dev->fw.hdr_format = B43_FW_HDR_351;

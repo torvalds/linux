@@ -46,6 +46,23 @@ struct b43_txhdr {
 	__le32 timeout;			/* Timeout */
 
 	union {
+		/* Tested with 598.314, 644.1001 and 666.2 */
+		struct {
+			__le16 mimo_antenna;            /* MIMO antenna select */
+			__le16 preload_size;            /* Preload size */
+			PAD_BYTES(2);
+			__le16 cookie;                  /* TX frame cookie */
+			__le16 tx_status;               /* TX status */
+			__le16 max_n_mpdus;
+			__le16 max_a_bytes_mrt;
+			__le16 max_a_bytes_fbr;
+			__le16 min_m_bytes;
+			struct b43_plcp_hdr6 rts_plcp;  /* RTS PLCP header */
+			__u8 rts_frame[16];             /* The RTS frame (if used) */
+			PAD_BYTES(2);
+			struct b43_plcp_hdr6 plcp;      /* Main PLCP header */
+		} format_598 __packed;
+
 		/* Tested with 410.2160, 478.104 and 508.* */
 		struct {
 			__le16 mimo_antenna;		/* MIMO antenna select */
@@ -170,6 +187,8 @@ static inline
 size_t b43_txhdr_size(struct b43_wldev *dev)
 {
 	switch (dev->fw.hdr_format) {
+	case B43_FW_HDR_598:
+		return 112 + sizeof(struct b43_plcp_hdr6);
 	case B43_FW_HDR_410:
 		return 104 + sizeof(struct b43_plcp_hdr6);
 	case B43_FW_HDR_351:
