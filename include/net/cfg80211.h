@@ -426,6 +426,7 @@ struct station_parameters {
  * @STATION_INFO_RX_BITRATE: @rxrate fields are filled
  * @STATION_INFO_BSS_PARAM: @bss_param filled
  * @STATION_INFO_CONNECTED_TIME: @connected_time filled
+ * @STATION_INFO_ASSOC_REQ_IES: @assoc_req_ies filled
  */
 enum station_info_flags {
 	STATION_INFO_INACTIVE_TIME	= 1<<0,
@@ -444,7 +445,8 @@ enum station_info_flags {
 	STATION_INFO_SIGNAL_AVG		= 1<<13,
 	STATION_INFO_RX_BITRATE		= 1<<14,
 	STATION_INFO_BSS_PARAM          = 1<<15,
-	STATION_INFO_CONNECTED_TIME	= 1<<16
+	STATION_INFO_CONNECTED_TIME	= 1<<16,
+	STATION_INFO_ASSOC_REQ_IES	= 1<<17
 };
 
 /**

@@ -2209,7 +2209,7 @@ static int nl80211_send_station(struct sk_buff *msg, u32 pid, u32 seq,
 	}
 	nla_nest_end(msg, sinfoattr);
 
-	if (sinfo->assoc_req_ies)
+	if (sinfo->filled & STATION_INFO_ASSOC_REQ_IES)
 		NLA_PUT(msg, NL80211_ATTR_IE, sinfo->assoc_req_ies_len,
 			sinfo->assoc_req_ies);
 
