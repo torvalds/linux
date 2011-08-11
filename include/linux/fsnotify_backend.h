@@ -88,9 +88,10 @@ struct fsnotify_event_private_data;
  *		if the group is interested in this event.
  * handle_event - main call for a group to handle an fs event
  * free_group_priv - called when a group refcnt hits 0 to clean up the private union
- * freeing-mark - this means that a mark has been flagged to die when everything
- *		finishes using it.  The function is supplied with what must be a
- *		valid group and inode to use to clean up.
+ * freeing_mark - called when a mark is being destroyed for some reason.  The group
+ * 		MUST be holding a reference on each mark and that reference must be
+ * 		dropped in this function.  inotify uses this function to send
+ * 		userspace messages that marks have been removed.
  */
 struct fsnotify_ops {
 	bool (*should_send_event)(struct fsnotify_group *group, struct inode *inode,
