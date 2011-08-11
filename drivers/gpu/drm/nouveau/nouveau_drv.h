@@ -163,6 +163,9 @@ enum nouveau_flags {
 #define NVOBJ_ENGINE_COPY0	3
 #define NVOBJ_ENGINE_COPY1	4
 #define NVOBJ_ENGINE_MPEG	5
+#define NVOBJ_ENGINE_PPP	NVOBJ_ENGINE_MPEG
+#define NVOBJ_ENGINE_BSP	6
+#define NVOBJ_ENGINE_VP		7
 #define NVOBJ_ENGINE_DISPLAY	15
 #define NVOBJ_ENGINE_NR		16
 
@@ -1226,6 +1229,9 @@ extern int  nvc0_graph_isr_chid(struct drm_device *dev, u64 inst);
 /* nv84_crypt.c */
 extern int  nv84_crypt_create(struct drm_device *);
 
+/* nv98_crypt.c */
+extern int  nv98_crypt_create(struct drm_device *dev);
+
 /* nva3_copy.c */
 extern int  nva3_copy_create(struct drm_device *dev);
 
@@ -1237,6 +1243,17 @@ extern int  nv31_mpeg_create(struct drm_device *dev);
 
 /* nv50_mpeg.c */
 extern int  nv50_mpeg_create(struct drm_device *dev);
+
+/* nv84_bsp.c */
+/* nv98_bsp.c */
+extern int  nv84_bsp_create(struct drm_device *dev);
+
+/* nv84_vp.c */
+/* nv98_vp.c */
+extern int  nv84_vp_create(struct drm_device *dev);
+
+/* nv98_ppp.c */
+extern int  nv98_ppp_create(struct drm_device *dev);
 
 /* nv04_instmem.c */
 extern int  nv04_instmem_init(struct drm_device *);

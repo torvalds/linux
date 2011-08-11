@@ -679,6 +679,11 @@ nouveau_card_init(struct drm_device *dev)
 		case 0xa0:
 			nv84_crypt_create(dev);
 			break;
+		case 0x98:
+		case 0xaa:
+		case 0xac:
+			nv98_crypt_create(dev);
+			break;
 		}
 
 		switch (dev_priv->card_type) {
@@ -700,15 +705,25 @@ nouveau_card_init(struct drm_device *dev)
 			break;
 		}
 
+		if (dev_priv->chipset >= 0xa3 || dev_priv->chipset == 0x98) {
+			nv84_bsp_create(dev);
+			nv84_vp_create(dev);
+			nv98_ppp_create(dev);
+		} else
+		if (dev_priv->chipset >= 0x84) {
+			nv50_mpeg_create(dev);
+			nv84_bsp_create(dev);
+			nv84_vp_create(dev);
+		} else
+		if (dev_priv->chipset >= 0x50) {
+			nv50_mpeg_create(dev);
+		} else
 		if (dev_priv->card_type == NV_40 ||
 		    dev_priv->chipset == 0x31 ||
 		    dev_priv->chipset == 0x34 ||
-		    dev_priv->chipset == 0x36)
+		    dev_priv->chipset == 0x36) {
 			nv31_mpeg_create(dev);
-		else
-		if (dev_priv->card_type == NV_50 &&
-		    (dev_priv->chipset < 0x98 || dev_priv->chipset == 0xa0))
-			nv50_mpeg_create(dev);
+		}
 
 		for (e = 0; e < NVOBJ_ENGINE_NR; e++) {
 			if (dev_priv->eng[e]) {

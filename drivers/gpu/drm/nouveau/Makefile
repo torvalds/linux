@@ -19,9 +19,12 @@ nouveau-y := nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
              nv04_graph.o nv10_graph.o nv20_graph.o \
              nv40_graph.o nv50_graph.o nvc0_graph.o \
              nv40_grctx.o nv50_grctx.o nvc0_grctx.o \
-             nv84_crypt.o \
+             nv84_crypt.o nv98_crypt.o \
              nva3_copy.o nvc0_copy.o \
              nv31_mpeg.o nv50_mpeg.o \
+             nv84_bsp.o \
+             nv84_vp.o \
+             nv98_ppp.o \
              nv04_instmem.o nv50_instmem.o nvc0_instmem.o \
              nv04_dac.o nv04_dfp.o nv04_tv.o nv17_tv.o nv17_tv_modes.o \
              nv04_crtc.o nv04_display.o nv04_cursor.o \
