@@ -628,18 +628,6 @@ find_event_field(struct ftrace_event_call *call, char *name)
 	return __find_event_field(head, name);
 }
 
-static void filter_free_pred(struct filter_pred *pred)
-{
-	kfree(pred->field_name);
-}
-
-static void filter_clear_pred(struct filter_pred *pred)
-{
-	kfree(pred->field_name);
-	pred->field_name = NULL;
-	pred->regex.len = 0;
-}
-
 static int __alloc_pred_stack(struct pred_stack *stack, int n_preds)
 {
 	stack->preds = kzalloc(sizeof(*stack->preds)*(n_preds + 1), GFP_KERNEL);
@@ -692,11 +680,6 @@ static int filter_set_pred(struct event_filter *filter,
 	struct filter_pred *right;
 
 	*dest = *src;
-	if (src->field_name) {
-		dest->field_name = kstrdup(src->field_name, GFP_KERNEL);
-		if (!dest->field_name)
-			return -ENOMEM;
-	}
 	dest->index = idx;
 
 	if (dest->op == OP_OR || dest->op == OP_AND) {
@@ -737,11 +720,7 @@ static int filter_set_pred(struct event_filter *filter,
 
 static void __free_preds(struct event_filter *filter)
 {
-	int i;
-
 	if (filter->preds) {
-		for (i = 0; i < filter->a_preds; i++)
-			kfree(filter->preds[i].field_name);
 		kfree(filter->preds);
 		filter->preds = NULL;
 	}
@@ -839,16 +818,14 @@ static int filter_add_pred(struct filter_parse_state *ps,
 			   struct filter_pred *pred,
 			   struct pred_stack *stack)
 {
-	int idx, err;
+	int err;
 
 	if (WARN_ON(filter->n_preds == filter->a_preds)) {
 		parse_error(ps, FILT_ERR_TOO_MANY_PREDS, 0);
 		return -ENOSPC;
 	}
 
-	idx = filter->n_preds;
-	filter_clear_pred(&filter->preds[idx]);
-	err = filter_set_pred(filter, idx, stack, pred);
+	err = filter_set_pred(filter, filter->n_preds, stack, pred);
 	if (err)
 		return err;
 
@@ -930,20 +907,13 @@ static filter_pred_fn_t select_comparison_fn(int op, int field_size,
 }
 
 static int init_pred(struct filter_parse_state *ps,
-		     struct ftrace_event_call *call,
+		     struct ftrace_event_field *field,
 		     struct filter_pred *pred)
 
 {
-	struct ftrace_event_field *field;
 	filter_pred_fn_t fn = filter_pred_none;
 	unsigned long long val;
 	int ret;
-
-	field = find_event_field(call, pred->field_name);
-	if (!field) {
-		parse_error(ps, FILT_ERR_FIELD_NOT_FOUND, 0);
-		return -EINVAL;
-	}
 
 	pred->offset = field->offset;
 
@@ -1287,6 +1257,7 @@ static struct filter_pred *create_pred(struct filter_parse_state *ps,
 				       struct ftrace_event_call *call,
 				       int op, char *operand1, char *operand2)
 {
+	struct ftrace_event_field *field;
 	static struct filter_pred pred;
 
 	memset(&pred, 0, sizeof(pred));
@@ -1300,14 +1271,16 @@ static struct filter_pred *create_pred(struct filter_parse_state *ps,
 		return NULL;
 	}
 
-	pred.field_name = kstrdup(operand1, GFP_KERNEL);
-	if (!pred.field_name)
+	field = find_event_field(call, operand1);
+	if (!field) {
+		parse_error(ps, FILT_ERR_FIELD_NOT_FOUND, 0);
 		return NULL;
+	}
 
 	strcpy(pred.regex.pattern, operand2);
 	pred.regex.len = strlen(pred.regex.pattern);
 
-	return init_pred(ps, call, &pred) ? NULL : &pred;
+	return init_pred(ps, field, &pred) ? NULL : &pred;
 }
 
 static int check_preds(struct filter_parse_state *ps)
@@ -1618,18 +1591,16 @@ static int replace_preds(struct ftrace_event_call *call,
 
 		pred = create_pred(ps, call, elt->op, operand1, operand2);
 		if (!pred) {
-			err = -ENOMEM;
+			err = -EINVAL;
 			goto fail;
 		}
+
 		if (!dry_run) {
 			err = filter_add_pred(ps, filter, pred, &stack);
-			if (err) {
-				filter_free_pred(pred);
+			if (err)
 				goto fail;
-			}
 		}
 
-		filter_free_pred(pred);
 		operand1 = operand2 = NULL;
 	}
 
