@@ -411,13 +411,17 @@ nouveau_ioctl_fifo_alloc(struct drm_device *dev, void *data,
 		return ret;
 	init->channel  = chan->id;
 
-	if (chan->dma.ib_max)
-		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_VRAM |
-					NOUVEAU_GEM_DOMAIN_GART;
-	else if (chan->pushbuf_bo->bo.mem.mem_type == TTM_PL_VRAM)
+	if (nouveau_vram_pushbuf == 0) {
+		if (chan->dma.ib_max)
+			init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_VRAM |
+						NOUVEAU_GEM_DOMAIN_GART;
+		else if (chan->pushbuf_bo->bo.mem.mem_type == TTM_PL_VRAM)
+			init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_VRAM;
+		else
+			init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_GART;
+	} else {
 		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_VRAM;
-	else
-		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_GART;
+	}
 
 	if (dev_priv->card_type < NV_C0) {
 		init->subchan[0].handle = NvM2MF;
