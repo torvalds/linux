@@ -1729,17 +1729,9 @@ static irqreturn_t atmci_interrupt(int irq, void *dev_id)
 			tasklet_schedule(&host->tasklet);
 		}
 
-		if (pending & ATMCI_ENDTX) {
-			atmci_writel(host, ATMCI_IDR, ATMCI_ENDTX);
-			if (host->data_size) {
-				atmci_pdc_set_single_buf(host,
-						XFER_TRANSMIT, PDC_SECOND_BUF);
-				atmci_writel(host, ATMCI_IER, ATMCI_ENDTX);
-			}
-		}
-
 		if (pending & ATMCI_TXBUFE) {
 			atmci_writel(host, ATMCI_IDR, ATMCI_TXBUFE);
+			atmci_writel(host, ATMCI_IDR, ATMCI_ENDTX);
 			/*
 			 * We can receive this interruption before having configured
 			 * the second pdc buffer, so we need to reconfigure first and
@@ -1747,13 +1739,37 @@ static irqreturn_t atmci_interrupt(int irq, void *dev_id)
 			 */
 			if (host->data_size) {
 				atmci_pdc_set_both_buf(host, XFER_TRANSMIT);
+				atmci_writel(host, ATMCI_IER, ATMCI_ENDTX);
 				atmci_writel(host, ATMCI_IER, ATMCI_TXBUFE);
 			} else {
 				atmci_pdc_complete(host);
 			}
+		} else if (pending & ATMCI_ENDTX) {
+			atmci_writel(host, ATMCI_IDR, ATMCI_ENDTX);
+
+			if (host->data_size) {
+				atmci_pdc_set_single_buf(host,
+						XFER_TRANSMIT, PDC_SECOND_BUF);
+				atmci_writel(host, ATMCI_IER, ATMCI_ENDTX);
+			}
 		}
 
-		if (pending & ATMCI_ENDRX) {
+		if (pending & ATMCI_RXBUFF) {
+			atmci_writel(host, ATMCI_IDR, ATMCI_RXBUFF);
+			atmci_writel(host, ATMCI_IDR, ATMCI_ENDRX);
+			/*
+			 * We can receive this interruption before having configured
+			 * the second pdc buffer, so we need to reconfigure first and
+			 * second buffers again
+			 */
+			if (host->data_size) {
+				atmci_pdc_set_both_buf(host, XFER_RECEIVE);
+				atmci_writel(host, ATMCI_IER, ATMCI_ENDRX);
+				atmci_writel(host, ATMCI_IER, ATMCI_RXBUFF);
+			} else {
+				atmci_pdc_complete(host);
+			}
+		} else if (pending & ATMCI_ENDRX) {
 			atmci_writel(host, ATMCI_IDR, ATMCI_ENDRX);
 
 			if (host->data_size) {
@@ -1763,20 +1779,6 @@ static irqreturn_t atmci_interrupt(int irq, void *dev_id)
 			}
 		}
 
-		if (pending & ATMCI_RXBUFF) {
-			atmci_writel(host, ATMCI_IDR, ATMCI_RXBUFF);
-			/*
-			 * We can receive this interruption before having configured
-			 * the second pdc buffer, so we need to reconfigure first and
-			 * second buffers again
-			 */
-			if (host->data_size) {
-				atmci_pdc_set_both_buf(host, XFER_RECEIVE);
-				atmci_writel(host, ATMCI_IER, ATMCI_RXBUFF);
-			} else {
-				atmci_pdc_complete(host);
-			}
-		}
 
 		if (pending & ATMCI_NOTBUSY) {
 			atmci_writel(host, ATMCI_IDR,
