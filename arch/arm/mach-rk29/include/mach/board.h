@@ -38,6 +38,12 @@ struct led_newton_pwm_platform_data {
 	struct led_newton_pwm* leds;
 };
 
+struct hdmi_platform_data {
+	u32 hdmi_on_pin;
+	u32 hdmi_on_level;
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+};
 struct irda_info{
     u32 intr_pin;
     int (*iomux_init)(void);

@@ -10,8 +10,6 @@
 
 #define ANX7150_SCL_RATE 100 * 1000
 
-/* VCC_HDMI 's control */
-#define HDMI_VDD_CTL     RK29_PIN6_PD3
 
 /* HDMI auto switch */
 #define HDMI_AUTO_SWITCH HDMI_ENABLE
