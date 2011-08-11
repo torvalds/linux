@@ -1544,6 +1544,98 @@ err_put:
 	return ret;
 }
 
+ssize_t ib_uverbs_open_qp(struct ib_uverbs_file *file,
+			  const char __user *buf, int in_len, int out_len)
+{
+	struct ib_uverbs_open_qp        cmd;
+	struct ib_uverbs_create_qp_resp resp;
+	struct ib_udata                 udata;
+	struct ib_uqp_object           *obj;
+	struct ib_xrcd		       *xrcd;
+	struct ib_uobject	       *uninitialized_var(xrcd_uobj);
+	struct ib_qp                   *qp;
+	struct ib_qp_open_attr          attr;
+	int ret;
+
+	if (out_len < sizeof resp)
+		return -ENOSPC;
+
+	if (copy_from_user(&cmd, buf, sizeof cmd))
+		return -EFAULT;
+
+	INIT_UDATA(&udata, buf + sizeof cmd,
+		   (unsigned long) cmd.response + sizeof resp,
+		   in_len - sizeof cmd, out_len - sizeof resp);
+
+	obj = kmalloc(sizeof *obj, GFP_KERNEL);
+	if (!obj)
+		return -ENOMEM;
+
+	init_uobj(&obj->uevent.uobject, cmd.user_handle, file->ucontext, &qp_lock_key);
+	down_write(&obj->uevent.uobject.mutex);
+
+	xrcd = idr_read_xrcd(cmd.pd_handle, file->ucontext, &xrcd_uobj);
+	if (!xrcd) {
+		ret = -EINVAL;
+		goto err_put;
+	}
+
+	attr.event_handler = ib_uverbs_qp_event_handler;
+	attr.qp_context    = file;
+	attr.qp_num        = cmd.qpn;
+	attr.qp_type       = cmd.qp_type;
+
+	obj->uevent.events_reported = 0;
+	INIT_LIST_HEAD(&obj->uevent.event_list);
+	INIT_LIST_HEAD(&obj->mcast_list);
+
+	qp = ib_open_qp(xrcd, &attr);
+	if (IS_ERR(qp)) {
+		ret = PTR_ERR(qp);
+		goto err_put;
+	}
+
+	qp->uobject = &obj->uevent.uobject;
+
+	obj->uevent.uobject.object = qp;
+	ret = idr_add_uobj(&ib_uverbs_qp_idr, &obj->uevent.uobject);
+	if (ret)
+		goto err_destroy;
+
+	memset(&resp, 0, sizeof resp);
+	resp.qpn       = qp->qp_num;
+	resp.qp_handle = obj->uevent.uobject.id;
+
+	if (copy_to_user((void __user *) (unsigned long) cmd.response,
+			 &resp, sizeof resp)) {
+		ret = -EFAULT;
+		goto err_remove;
+	}
+
+	put_xrcd_read(xrcd_uobj);
+
+	mutex_lock(&file->mutex);
+	list_add_tail(&obj->uevent.uobject.list, &file->ucontext->qp_list);
+	mutex_unlock(&file->mutex);
+
+	obj->uevent.uobject.live = 1;
+
+	up_write(&obj->uevent.uobject.mutex);
+
+	return in_len;
+
+err_remove:
+	idr_remove_uobj(&ib_uverbs_qp_idr, &obj->uevent.uobject);
+
+err_destroy:
+	ib_destroy_qp(qp);
+
+err_put:
+	put_xrcd_read(xrcd_uobj);
+	put_uobj_write(&obj->uevent.uobject);
+	return ret;
+}
+
 ssize_t ib_uverbs_query_qp(struct ib_uverbs_file *file,
 			   const char __user *buf, int in_len,
 			   int out_len)

@@ -110,7 +110,8 @@ static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
 	[IB_USER_VERBS_CMD_DESTROY_SRQ]		= ib_uverbs_destroy_srq,
 	[IB_USER_VERBS_CMD_OPEN_XRCD]		= ib_uverbs_open_xrcd,
 	[IB_USER_VERBS_CMD_CLOSE_XRCD]		= ib_uverbs_close_xrcd,
-	[IB_USER_VERBS_CMD_CREATE_XSRQ]		= ib_uverbs_create_xsrq
+	[IB_USER_VERBS_CMD_CREATE_XSRQ]		= ib_uverbs_create_xsrq,
+	[IB_USER_VERBS_CMD_OPEN_QP]		= ib_uverbs_open_qp
 };
 
 static void ib_uverbs_add_one(struct ib_device *device);
