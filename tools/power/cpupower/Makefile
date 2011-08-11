@@ -24,7 +24,7 @@
 
 # Set the following to `true' to make a unstripped, unoptimized
 # binary. Leave this set to `false' for production use.
-DEBUG ?=	false
+DEBUG ?=	true
 
 # make the build silent. Set this to something else to make it noisy again.
 V ?=		false
