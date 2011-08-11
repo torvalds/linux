@@ -430,23 +430,35 @@ static int ddebug_exec_query(char *query_string)
 
 static int dynamic_emit_prefix(const struct _ddebug *descriptor)
 {
-	int res;
+	char tid[sizeof(int) + sizeof(int)/2 + 4];
+	char lineno[sizeof(int) + sizeof(int)/2];
 
-	res = printk(KERN_DEBUG);
 	if (descriptor->flags & _DPRINTK_FLAGS_INCL_TID) {
 		if (in_interrupt())
-			res += printk(KERN_CONT "<intr> ");
+			snprintf(tid, sizeof(tid), "%s", "<intr> ");
 		else
-			res += printk(KERN_CONT "[%d] ", task_pid_vnr(current));
+			snprintf(tid, sizeof(tid), "[%d] ",
+				 task_pid_vnr(current));
+	} else {
+		tid[0] = 0;
 	}
-	if (descriptor->flags & _DPRINTK_FLAGS_INCL_MODNAME)
-		res += printk(KERN_CONT "%s:", descriptor->modname);
-	if (descriptor->flags & _DPRINTK_FLAGS_INCL_FUNCNAME)
-		res += printk(KERN_CONT "%s:", descriptor->function);
-	if (descriptor->flags & _DPRINTK_FLAGS_INCL_LINENO)
-		res += printk(KERN_CONT "%d ", descriptor->lineno);
 
-	return res;
+	if (descriptor->flags & _DPRINTK_FLAGS_INCL_LINENO)
+		snprintf(lineno, sizeof(lineno), "%d", descriptor->lineno);
+	else
+		lineno[0] = 0;
+
+	return printk(KERN_DEBUG "%s%s%s%s%s%s",
+		      tid,
+		      (descriptor->flags & _DPRINTK_FLAGS_INCL_MODNAME) ?
+		      descriptor->modname : "",
+		      (descriptor->flags & _DPRINTK_FLAGS_INCL_MODNAME) ?
+		      ":" : "",
+		      (descriptor->flags & _DPRINTK_FLAGS_INCL_FUNCNAME) ?
+		      descriptor->function : "",
+		      (descriptor->flags & _DPRINTK_FLAGS_INCL_FUNCNAME) ?
+		      ":" : "",
+		      lineno);
 }
 
 int __dynamic_pr_debug(struct _ddebug *descriptor, const char *fmt, ...)
