@@ -185,6 +185,9 @@ struct rk29_nand_platform_data rk29_nand_data = {
 #define FB_LCD_STANDBY_VALUE        GPIO_HIGH
 //#define FB_LCD_STANDBY_VALUE        GPIO_LOW
 
+
+#define NEWTON_LCD_DISP				RK29_PIN1_PD6
+#define NEWTON_LCD_EN				RK29_PIN6_PD1
 static int rk29_lcd_io_init(void)
 {
     int ret = 0;
@@ -207,88 +210,36 @@ static struct rk29lcd_info rk29_lcd_info = {
 
 int rk29_fb_io_enable(void)
 {
-    if(FB_DISPLAY_ON_PIN != INVALID_GPIO)
-    {
-        gpio_direction_output(FB_DISPLAY_ON_PIN, 0);
-        gpio_set_value(FB_DISPLAY_ON_PIN, FB_DISPLAY_ON_VALUE);              
-    }
-    if(FB_LCD_STANDBY_PIN != INVALID_GPIO)
-    {
-        gpio_direction_output(FB_LCD_STANDBY_PIN, 0);
-        gpio_set_value(FB_LCD_STANDBY_PIN, FB_LCD_STANDBY_VALUE);             
-    }
+	gpio_direction_output(NEWTON_LCD_DISP, 0);
+	gpio_set_value(NEWTON_LCD_DISP,GPIO_HIGH);
+	gpio_direction_output(NEWTON_LCD_EN, 0);
+	gpio_set_value(NEWTON_LCD_EN,GPIO_HIGH);
     return 0;
 }
 
 int rk29_fb_io_disable(void)
 {
-    if(FB_DISPLAY_ON_PIN != INVALID_GPIO)
-    {
-        gpio_direction_output(FB_DISPLAY_ON_PIN, 0);
-        gpio_set_value(FB_DISPLAY_ON_PIN, !FB_DISPLAY_ON_VALUE);              
-    }
-    if(FB_LCD_STANDBY_PIN != INVALID_GPIO)
-    {
-        gpio_direction_output(FB_LCD_STANDBY_PIN, 0);
-        gpio_set_value(FB_LCD_STANDBY_PIN, !FB_LCD_STANDBY_VALUE);             
-    }
+	gpio_direction_output(NEWTON_LCD_DISP, 0);
+	gpio_set_value(NEWTON_LCD_DISP,GPIO_LOW);
+	gpio_direction_output(NEWTON_LCD_EN, 0);
+	gpio_set_value(NEWTON_LCD_EN,GPIO_LOW);
     return 0;
 }
 
 static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 {
-    int ret = 0;
-    if(fb_setting->mcu_fmk_en && (FB_MCU_FMK_PIN != INVALID_GPIO))
-    {
-        ret = gpio_request(FB_MCU_FMK_PIN, NULL);
-        if(ret != 0)
-        {
-            gpio_free(FB_MCU_FMK_PIN);
-            printk(">>>>>> FB_MCU_FMK_PIN gpio_request err \n ");
-        }
-        gpio_direction_input(FB_MCU_FMK_PIN);
+    if(gpio_request(NEWTON_LCD_DISP,NULL) != 0){
+      gpio_free(NEWTON_LCD_DISP);
+      printk("NEWTON_LCD_DISP gpio_request error\n");
+      return -EIO;
     }
-    if(fb_setting->disp_on_en)
-    {
-        if(FB_DISPLAY_ON_PIN != INVALID_GPIO)
-        {
-            ret = gpio_request(FB_DISPLAY_ON_PIN, NULL);
-            if(ret != 0)
-            {
-                gpio_free(FB_DISPLAY_ON_PIN);
-                printk(">>>>>> FB_DISPLAY_ON_PIN gpio_request err \n ");
-            }
-        }
+    if(gpio_request(NEWTON_LCD_EN,NULL) != 0){
+      gpio_free(NEWTON_LCD_EN);
+      printk("NEWTON_LCD_EN gpio_request error\n");
+      return -EIO;
     }
-
-    if(fb_setting->disp_on_en)
-    {
-        if(FB_LCD_STANDBY_PIN != INVALID_GPIO)
-        {
-             ret = gpio_request(FB_LCD_STANDBY_PIN, NULL);
-             if(ret != 0)
-             {
-                 gpio_free(FB_LCD_STANDBY_PIN);
-                 printk(">>>>>> FB_LCD_STANDBY_PIN gpio_request err \n ");
-             }
-        }
-    }
-
-    if(FB_LCD_CABC_EN_PIN != INVALID_GPIO)
-    {
-        ret = gpio_request(FB_LCD_CABC_EN_PIN, NULL);
-        if(ret != 0)
-        {
-            gpio_free(FB_LCD_CABC_EN_PIN);
-            printk(">>>>>> FB_LCD_CABC_EN_PIN gpio_request err \n ");
-        }
-        gpio_direction_output(FB_LCD_CABC_EN_PIN, 0);
-        gpio_set_value(FB_LCD_CABC_EN_PIN, GPIO_LOW);
-    }
-    
     rk29_fb_io_enable();   //enable it
-
-    return ret;
+    return 0;
 }
 
 
