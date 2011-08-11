@@ -80,6 +80,10 @@ extern Dwarf_Die *die_find_realfunc(Dwarf_Die *cu_die, Dwarf_Addr addr,
 extern Dwarf_Die *die_find_inlinefunc(Dwarf_Die *sp_die, Dwarf_Addr addr,
 				      Dwarf_Die *die_mem);
 
+/* Walk on the instances of given DIE */
+extern int die_walk_instances(Dwarf_Die *in_die,
+			      int (*callback)(Dwarf_Die *, void *), void *data);
+
 /* Walker on lines (Note: line number will not be sorted) */
 typedef int (* line_walk_callback_t) (const char *fname, int lineno,
 				      Dwarf_Addr addr, void *data);

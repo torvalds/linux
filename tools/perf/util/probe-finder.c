@@ -924,41 +924,38 @@ static int find_probe_point_lazy(Dwarf_Die *sp_die, struct probe_finder *pf)
 	return die_walk_lines(sp_die, probe_point_lazy_walker, pf);
 }
 
-/* Callback parameter with return value */
-struct dwarf_callback_param {
-	void *data;
-	int retval;
-};
-
 static int probe_point_inline_cb(Dwarf_Die *in_die, void *data)
 {
-	struct dwarf_callback_param *param = data;
-	struct probe_finder *pf = param->data;
+	struct probe_finder *pf = data;
 	struct perf_probe_point *pp = &pf->pev->point;
 	Dwarf_Addr addr;
+	int ret;
 
 	if (pp->lazy_line)
-		param->retval = find_probe_point_lazy(in_die, pf);
+		ret = find_probe_point_lazy(in_die, pf);
 	else {
 		/* Get probe address */
 		if (dwarf_entrypc(in_die, &addr) != 0) {
 			pr_warning("Failed to get entry address of %s.\n",
 				   dwarf_diename(in_die));
-			param->retval = -ENOENT;
-			return DWARF_CB_ABORT;
+			return -ENOENT;
 		}
 		pf->addr = addr;
 		pf->addr += pp->offset;
 		pr_debug("found inline addr: 0x%jx\n",
 			 (uintmax_t)pf->addr);
 
-		param->retval = call_probe_finder(in_die, pf);
-		if (param->retval < 0)
-			return DWARF_CB_ABORT;
+		ret = call_probe_finder(in_die, pf);
 	}
 
-	return DWARF_CB_OK;
+	return ret;
 }
+
+/* Callback parameter with return value for libdw */
+struct dwarf_callback_param {
+	void *data;
+	int retval;
+};
 
 /* Search function from function name */
 static int probe_point_search_cb(Dwarf_Die *sp_die, void *data)
@@ -996,14 +993,10 @@ static int probe_point_search_cb(Dwarf_Die *sp_die, void *data)
 			/* TODO: Check the address in this function */
 			param->retval = call_probe_finder(sp_die, pf);
 		}
-	} else {
-		struct dwarf_callback_param _param = {.data = (void *)pf,
-						      .retval = 0};
+	} else
 		/* Inlined function: search instances */
-		dwarf_func_inline_instances(sp_die, probe_point_inline_cb,
-					    &_param);
-		param->retval = _param.retval;
-	}
+		param->retval = die_walk_instances(sp_die,
+					probe_point_inline_cb, (void *)pf);
 
 	return DWARF_CB_ABORT; /* Exit; no same symbol in this CU. */
 }
@@ -1452,16 +1445,14 @@ static int find_line_range_by_line(Dwarf_Die *sp_die, struct line_finder *lf)
 
 static int line_range_inline_cb(Dwarf_Die *in_die, void *data)
 {
-	struct dwarf_callback_param *param = data;
-
-	param->retval = find_line_range_by_line(in_die, param->data);
+	find_line_range_by_line(in_die, data);
 
 	/*
 	 * We have to check all instances of inlined function, because
 	 * some execution paths can be optimized out depends on the
 	 * function argument of instances
 	 */
-	return DWARF_CB_OK;
+	return 0;
 }
 
 /* Search function from function name */
@@ -1489,15 +1480,10 @@ static int line_range_search_cb(Dwarf_Die *sp_die, void *data)
 		pr_debug("New line range: %d to %d\n", lf->lno_s, lf->lno_e);
 		lr->start = lf->lno_s;
 		lr->end = lf->lno_e;
-		if (dwarf_func_inline(sp_die)) {
-			struct dwarf_callback_param _param;
-			_param.data = (void *)lf;
-			_param.retval = 0;
-			dwarf_func_inline_instances(sp_die,
-						    line_range_inline_cb,
-						    &_param);
-			param->retval = _param.retval;
-		} else
+		if (dwarf_func_inline(sp_die))
+			param->retval = die_walk_instances(sp_die,
+						line_range_inline_cb, lf);
+		else
 			param->retval = find_line_range_by_line(sp_die, lf);
 		return DWARF_CB_ABORT;
 	}

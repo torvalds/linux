@@ -453,6 +453,64 @@ Dwarf_Die *die_find_inlinefunc(Dwarf_Die *sp_die, Dwarf_Addr addr,
 	return die_mem;
 }
 
+struct __instance_walk_param {
+	void    *addr;
+	int	(*callback)(Dwarf_Die *, void *);
+	void    *data;
+	int	retval;
+};
+
+static int __die_walk_instances_cb(Dwarf_Die *inst, void *data)
+{
+	struct __instance_walk_param *iwp = data;
+	Dwarf_Attribute attr_mem;
+	Dwarf_Die origin_mem;
+	Dwarf_Attribute *attr;
+	Dwarf_Die *origin;
+
+	attr = dwarf_attr(inst, DW_AT_abstract_origin, &attr_mem);
+	if (attr == NULL)
+		return DIE_FIND_CB_CONTINUE;
+
+	origin = dwarf_formref_die(attr, &origin_mem);
+	if (origin == NULL || origin->addr != iwp->addr)
+		return DIE_FIND_CB_CONTINUE;
+
+	iwp->retval = iwp->callback(inst, iwp->data);
+
+	return (iwp->retval) ? DIE_FIND_CB_END : DIE_FIND_CB_CONTINUE;
+}
+
+/**
+ * die_walk_instances - Walk on instances of given DIE
+ * @or_die: an abstract original DIE
+ * @callback: a callback function which is called with instance DIE
+ * @data: user data
+ *
+ * Walk on the instances of give @in_die. @in_die must be an inlined function
+ * declartion. This returns the return value of @callback if it returns
+ * non-zero value, or -ENOENT if there is no instance.
+ */
+int die_walk_instances(Dwarf_Die *or_die, int (*callback)(Dwarf_Die *, void *),
+		       void *data)
+{
+	Dwarf_Die cu_die;
+	Dwarf_Die die_mem;
+	struct __instance_walk_param iwp = {
+		.addr = or_die->addr,
+		.callback = callback,
+		.data = data,
+		.retval = -ENOENT,
+	};
+
+	if (dwarf_diecu(or_die, &cu_die, NULL, NULL) == NULL)
+		return -ENOENT;
+
+	die_find_child(&cu_die, __die_walk_instances_cb, &iwp, &die_mem);
+
+	return iwp.retval;
+}
+
 /* Line walker internal parameters */
 struct __line_walk_param {
 	bool recursive;
