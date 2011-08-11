@@ -121,8 +121,8 @@
 
 /* Register access macros */
 #define atmci_readl(port,reg)				\
-	__raw_readl((port)->regs + ATMCI_##reg)
+	__raw_readl((port)->regs + reg)
 #define atmci_writel(port,reg,value)			\
-	__raw_writel((value), (port)->regs + ATMCI_##reg)
+	__raw_writel((value), (port)->regs + reg)
 
 #endif /* __DRIVERS_MMC_ATMEL_MCI_H__ */
