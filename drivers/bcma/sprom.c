@@ -152,12 +152,18 @@ int bcma_sprom_get(struct bcma_bus *bus)
 	if (!sprom)
 		return -ENOMEM;
 
+	if (bus->chipinfo.id == 0x4331)
+		bcma_chipco_bcm4331_ext_pa_lines_ctl(&bus->drv_cc, false);
+
 	/* Most cards have SPROM moved by additional offset 0x30 (48 dwords).
 	 * According to brcm80211 this applies to cards with PCIe rev >= 6
 	 * TODO: understand this condition and use it */
 	offset = (bus->chipinfo.id == 0x4331) ? BCMA_CC_SPROM :
 		BCMA_CC_SPROM_PCIE6;
 	bcma_sprom_read(bus, offset, sprom);
+
+	if (bus->chipinfo.id == 0x4331)
+		bcma_chipco_bcm4331_ext_pa_lines_ctl(&bus->drv_cc, true);
 
 	err = bcma_sprom_valid(sprom);
 	if (err)

@@ -90,6 +90,24 @@ void bcma_pmu_swreg_init(struct bcma_drv_cc *cc)
 	}
 }
 
+/* Disable to allow reading SPROM. Don't know the adventages of enabling it. */
+void bcma_chipco_bcm4331_ext_pa_lines_ctl(struct bcma_drv_cc *cc, bool enable)
+{
+	struct bcma_bus *bus = cc->core->bus;
+	u32 val;
+
+	val = bcma_cc_read32(cc, BCMA_CC_CHIPCTL);
+	if (enable) {
+		val |= BCMA_CHIPCTL_4331_EXTPA_EN;
+		if (bus->chipinfo.pkg == 9 || bus->chipinfo.pkg == 11)
+			val |= BCMA_CHIPCTL_4331_EXTPA_ON_GPIO2_5;
+	} else {
+		val &= ~BCMA_CHIPCTL_4331_EXTPA_EN;
+		val &= ~BCMA_CHIPCTL_4331_EXTPA_ON_GPIO2_5;
+	}
+	bcma_cc_write32(cc, BCMA_CC_CHIPCTL, val);
+}
+
 void bcma_pmu_workarounds(struct bcma_drv_cc *cc)
 {
 	struct bcma_bus *bus = cc->core->bus;
@@ -99,7 +117,7 @@ void bcma_pmu_workarounds(struct bcma_drv_cc *cc)
 		bcma_chipco_chipctl_maskset(cc, 0, ~0, 0x7);
 		break;
 	case 0x4331:
-		pr_err("Enabling Ext PA lines not implemented\n");
+		/* BCM4331 workaround is SPROM-related, we put it in sprom.c */
 		break;
 	case 43224:
 		if (bus->chipinfo.rev == 0) {
