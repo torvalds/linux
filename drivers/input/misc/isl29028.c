@@ -91,6 +91,9 @@ struct isl29028_data {
 static struct early_suspend isl29028_early_suspend;
 #endif
 
+static irqreturn_t isl29028_psensor_irq_handler(int irq, void *data);
+
+
 int g_lightlevel = 8;
 
 static const int luxValues[8] = {
@@ -152,6 +155,35 @@ static int isl29028_write_reg(struct i2c_client *client, char reg, char value)
 
 static void isl29028_psensor_work_handler(struct work_struct *work)
 {
+#if 1
+	struct isl29028_data *isl = (struct isl29028_data *)container_of(work, struct isl29028_data, p_work.work);
+	int rc;
+
+	if (gpio_get_value(isl->client->irq)) {
+		D("line %d, input_report_abs 0 \n", __LINE__);
+		input_report_abs(isl->psensor_input_dev, ABS_DISTANCE, 1);
+		input_sync(isl->psensor_input_dev);
+		free_irq(isl->irq, (void *)isl);
+		rc = request_irq(isl->irq, isl29028_psensor_irq_handler,
+						IRQ_TYPE_EDGE_FALLING, isl->client->name, (void *)isl);
+		if (rc < 0) {
+			dev_err(&(isl->client->dev),"request_irq failed for gpio %d (%d)\n", isl->client->irq, rc);
+		}
+	}
+	else {
+		D("line %d, input_report_abs 0 \n", __LINE__);
+		input_report_abs(isl->psensor_input_dev, ABS_DISTANCE, 0);
+		input_sync(isl->psensor_input_dev);
+		free_irq(isl->irq, (void *)isl);
+		rc = request_irq(isl->irq, isl29028_psensor_irq_handler,
+						IRQ_TYPE_EDGE_RISING, isl->client->name, (void *)isl);
+		if (rc < 0) {
+			dev_err(&(isl->client->dev),"request_irq failed for gpio %d (%d)\n", isl->client->irq, rc);
+		}
+	}
+
+	return ;
+#else
 	struct isl29028_data *isl = (struct isl29028_data *)container_of(work, struct isl29028_data, p_work.work);
 	char reg, value, int_flag;
 
@@ -178,10 +210,18 @@ static void isl29028_psensor_work_handler(struct work_struct *work)
 	mutex_unlock(&isl->lock);
 
 	enable_irq(isl->irq);
+
+#endif
 }
 
 static irqreturn_t isl29028_psensor_irq_handler(int irq, void *data)
 {
+#if 1
+	struct isl29028_data *isl = (struct isl29028_data *)data;
+	//disable_irq_nosync(isl->irq);
+	schedule_delayed_work(&isl->p_work, msecs_to_jiffies(420));
+	return IRQ_HANDLED;
+#else
 	struct isl29028_data *isl = (struct isl29028_data *)data;
 	D("line %d, input_report_abs 0 \n", __LINE__);
 	input_report_abs(isl->psensor_input_dev, ABS_DISTANCE, 0);
@@ -191,13 +231,16 @@ static irqreturn_t isl29028_psensor_irq_handler(int irq, void *data)
 	schedule_delayed_work(&isl->p_work, msecs_to_jiffies(420));
 
 	return IRQ_HANDLED;
+#endif
 }
 
 static int isl29028_psensor_enable(struct i2c_client *client)
 {
-	char reg, value;
+	char reg, value, int_flag;
 	int ret;
 	struct isl29028_data *isl = (struct isl29028_data *)i2c_get_clientdata(client);
+
+	printk("line %d: enter func %s\n", __LINE__, __FUNCTION__);
 
 	mutex_lock(&isl->lock);
 	reg = ISL_REG_CONFIG;
@@ -208,6 +251,14 @@ static int isl29028_psensor_enable(struct i2c_client *client)
 	ret = isl29028_read_reg(client, reg, &value);
 	D("%s: configure reg value %#x ...\n", __FUNCTION__, value);	
 #endif
+
+	reg = ISL_REG_INT;
+	isl29028_read_reg(isl->client, reg, (char *)&int_flag);
+	if (!(int_flag >> 7)) {
+		printk("line %d: input_report_abs 1 \n", __LINE__);
+		input_report_abs(isl->psensor_input_dev, ABS_DISTANCE, 1);
+		input_sync(isl->psensor_input_dev);
+	}
 	mutex_unlock(&isl->lock);
 
 	//enable_irq(isl->irq);
@@ -219,6 +270,9 @@ static int isl29028_psensor_disable(struct i2c_client *client)
 {
 	char ret, reg, reg2, value, value2;
 	struct isl29028_data *isl = (struct isl29028_data *)i2c_get_clientdata(client);
+	printk("line %d: enter func %s\n", __LINE__, __FUNCTION__);
+
+	//disable_irq_nosync(isl->irq);
 
 	mutex_lock(&isl->lock);
 
@@ -240,9 +294,9 @@ static int isl29028_psensor_disable(struct i2c_client *client)
 #endif
 	mutex_unlock(&isl->lock);
 
-	disable_irq(isl->irq);
+	//disable_irq(isl->irq);
 	cancel_delayed_work_sync(&isl->p_work);
-	enable_irq(isl->irq);
+	//enable_irq(isl->irq);
 
 	return ret;
 }
@@ -372,11 +426,13 @@ static int register_psensor_device(struct i2c_client *client, struct isl29028_da
 	isl->irq = gpio_to_irq(client->irq);
 	//mdelay(1);
 	rc = request_irq(isl->irq, isl29028_psensor_irq_handler,
-					IRQ_TYPE_LEVEL_LOW, client->name, (void *)isl);
+					IRQ_TYPE_EDGE_FALLING, client->name, (void *)isl);
 	if (rc < 0) {
 		dev_err(&client->dev,"request_irq failed for gpio %d (%d)\n", client->irq, rc);
 		goto err_free_gpio;
 	}
+
+	//disable_irq_nosync(isl->irq);
 	
 	return 0;
 
@@ -739,9 +795,12 @@ static int isl29028_config(struct i2c_client *client)
 static void isl29028_suspend(struct early_suspend *h)
 {
 	struct i2c_client *client = container_of(isl29028_psensor_misc.parent, struct i2c_client, dev);
+	struct isl29028_data *isl = (struct isl29028_data *)i2c_get_clientdata(client);
+	
 	D("isl29028 early suspend ========================= \n");
 	if (misc_ps_opened)
-		isl29028_psensor_disable(client);	
+		enable_irq_wake(isl->irq);
+//		isl29028_psensor_disable(client);	
 	if (misc_ls_opened)
 		isl29028_lsensor_disable(client);	
 }
@@ -749,9 +808,12 @@ static void isl29028_suspend(struct early_suspend *h)
 static void isl29028_resume(struct early_suspend *h)
 {
 	struct i2c_client *client = container_of(isl29028_psensor_misc.parent, struct i2c_client, dev);
+	struct isl29028_data *isl = (struct isl29028_data *)i2c_get_clientdata(client);
+	
     D("isl29028 early resume ======================== \n"); 
 	if (misc_ps_opened)
-		isl29028_psensor_enable(client);	
+		disable_irq_wake(isl->irq);
+//		isl29028_psensor_enable(client);	
 	if (misc_ls_opened)
 		isl29028_lsensor_enable(client);	
 }
