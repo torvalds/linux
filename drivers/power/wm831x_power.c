@@ -95,6 +95,7 @@ struct wm831x_power {
 	struct work_struct batt_work;
 	struct timer_list timer;
 	struct wm_batt_priv_data batt_info;
+	struct wake_lock 	syslo_wake;
 	int interval;
 };
 
@@ -699,7 +700,8 @@ static irqreturn_t wm831x_syslo_irq(int irq, void *data)
 
 	/* Not much we can actually *do* but tell people for
 	 * posterity, we're probably about to run out of power. */
-	dev_crit(wm831x->dev, "SYSVDD under voltage\n");
+	dev_crit(wm831x->dev, "SYSVDD under voltage and wake lock 60s\n");
+	wake_lock_timeout(&wm831x_power->syslo_wake,60*HZ);//wait for android closing system
 	return IRQ_HANDLED;
 }
 
@@ -730,9 +732,11 @@ void wm831x_batt_vol_level(struct wm831x_power *wm831x_power, int batt_vol, int 
 {
 	int i, ret, status;
 	static int count = 0;
-	static int disp_plus = 100;
-	static int disp_minus = 100;
+	static int disp_plus = 1000;
+	static int disp_minus = 1000;
 	static int disp_curr = 0;
+	static int disp_num = 50;
+
 
 	*level = wm831x_power->batt_info.level;
 	ret = wm831x_bat_check_status(wm831x_power->wm831x, &status);
@@ -789,7 +793,7 @@ void wm831x_batt_vol_level(struct wm831x_power *wm831x_power, int batt_vol, int 
 			*level = 100;
 
 		// ³õÊ¼×´Ì¬
-		if ((disp_plus == 100) && (disp_minus == 100))
+		if ((disp_plus == 1000) && (disp_minus == 1000))
 		{
 			*level = *level;
 			disp_plus = 0;
@@ -797,16 +801,23 @@ void wm831x_batt_vol_level(struct wm831x_power *wm831x_power, int batt_vol, int 
 			disp_curr = 0;
 		}
 		else
-		{
-			if (*level <= (wm831x_power->batt_info.level-3)) 	
+		{			
+
+			if (*level <= (wm831x_power->batt_info.level-1)) 	
 			{
 				disp_plus = 0;
 				disp_curr = 0;
 				
-				if (++disp_minus > 4)
+				if (++disp_minus > disp_num)
 				{
-					*level = wm831x_power->batt_info.level - 3;
+					*level = wm831x_power->batt_info.level - 1;
 					disp_minus = 0;
+
+					if((*level < 17) || (*level > 85))
+					disp_num = 10;
+					else
+					disp_num = 50;
+
 				}
 				else
 				{
@@ -818,7 +829,7 @@ void wm831x_batt_vol_level(struct wm831x_power *wm831x_power, int batt_vol, int 
 				disp_plus = 0;
 				disp_minus = 0;
 
-				if (++disp_curr > 4)
+				if (++disp_curr > disp_num)
 				{
 					*level = *level;
 					disp_curr = 0;
@@ -828,15 +839,19 @@ void wm831x_batt_vol_level(struct wm831x_power *wm831x_power, int batt_vol, int 
 					*level = wm831x_power->batt_info.level;
 				}
 			}
-			else if (*level >= (wm831x_power->batt_info.level+3))
+			else if (*level >= (wm831x_power->batt_info.level+1))
 			{
 				disp_minus = 0;
 				disp_curr = 0;
 				
-				if (++disp_plus > 10)
+				if (++disp_plus > (disp_num<<1))
 				{
-					*level = wm831x_power->batt_info.level + 3;
+					*level = wm831x_power->batt_info.level + 1;
 					disp_plus = 0;
+					if((*level < 17) || (*level > 85))
+					disp_num = 10;
+					else
+					disp_num = 50;
 				}
 				else
 				{
@@ -1003,6 +1018,7 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 	power->batt_info.status    = POWER_SUPPLY_STATUS_DISCHARGING;
 	power->batt_info.health    = POWER_SUPPLY_HEALTH_GOOD;
 
+	wake_lock_init(&power->syslo_wake, WAKE_LOCK_SUSPEND, "wm831x_syslo_wake");
 	INIT_WORK(&power->batt_work, wm831x_batt_work);
 	setup_timer(&power->timer, wm831x_batt_timer_handler, (unsigned long)power);
 	power->timer.expires = jiffies + msecs_to_jiffies(1000);

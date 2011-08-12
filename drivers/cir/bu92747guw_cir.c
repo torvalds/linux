@@ -52,9 +52,6 @@ struct bu92747_data_info {
 	int base_clock;
 	int sys_clock;
 	struct delayed_work      dwork;
-	u8 inv;
-	u16 head_space_time;
-	u16 head_burst_time;
 };
 
 static struct miscdevice bu92747guw_device;
@@ -103,7 +100,7 @@ static int bu92747_stop(struct i2c_client *client)
 	reg_value[0] = reg_value[0]&0xfe;
 	reg_value[1] = reg_value[1]&0xf1;
 	bu92747_cir_i2c_set_regs(client, REG_SETTING0, reg_value, 2);
-	
+	start_flag = 0;
 	repeat_flag = -1;
 	BU92747_DBG("line %d: exit %s\n", __LINE__, __FUNCTION__);
 
@@ -117,13 +114,12 @@ static void bu92747_dwork_handler(struct work_struct *work)
 	
 	BU92747_DBG("------- sss  enter %s\n", __func__);
 
-	if ( !start_flag && (repeat_flag <= -1)){
+	if  ((repeat_flag != -10) && (repeat_flag <= -1)){
 		bu92747_stop(bu92747->client);
 		BU92747_DBG("----------exit %s\n", __func__);
 		return ;
 	}
 
-	start_flag = 0;
 	//set repeat=0
 	bu92747_cir_i2c_read_regs(bu92747->client, REG_SETTING1, reg_value, 1);
 	reg_value[0] &= 0xf0;
@@ -143,6 +139,7 @@ static void bu92747_dwork_handler(struct work_struct *work)
 	return;
 }
 
+
 static irqreturn_t bu92747_cir_irq(int irq, void *dev_id)
 {
 //	u8 reg_value[2];
@@ -150,12 +147,18 @@ static irqreturn_t bu92747_cir_irq(int irq, void *dev_id)
 	struct bu92747_data_info *bu92747 = (struct bu92747_data_info *)i2c_get_clientdata(client);
 
 	BU92747_DBG("----------enter %s  repeat_flag = %d\n", __func__, repeat_flag);
-	
 
-	if (((--repeat_flag%16) == 0) || (repeat_flag < 0)){
-		schedule_delayed_work(&bu92747->dwork, msecs_to_jiffies(0));
+
+	if (start_flag == 1){
+		if (repeat_flag == -10){
+			if ((bu92747->state++)%10 == 0){
+				schedule_delayed_work(&bu92747->dwork, msecs_to_jiffies(0));
+				bu92747->state = 0;
+			} 
+		}else if (((--repeat_flag%16) == 0) || (repeat_flag < 0)){
+			schedule_delayed_work(&bu92747->dwork, msecs_to_jiffies(0));
+		}
 	}
-
 	return IRQ_HANDLED;
 }
 
@@ -277,7 +280,10 @@ static int bu92747_set_format(struct i2c_client *client, struct rk29_cir_struct_
 	repeat_flag = cir->repeat;
 	printk("repeat 11111 =%d\n", repeat_flag);
 	
-	if (repeat_flag > 16){
+	if (repeat_flag == -1){
+		repeat_flag = -10;
+		repeat = 0;		
+	}else if (repeat_flag > 16){
 		repeat = 16; 
 	}else{
 		repeat = repeat_flag;
@@ -307,8 +313,7 @@ static int bu92747_set_format(struct i2c_client *client, struct rk29_cir_struct_
 	reg_value[9] = hhi>>8;
 	reg_value[10] = hhi&0xff;
 	BU92747_DBG("hlo = 0x%x, hhi = 0x%x\n", hlo, hhi);
-	bu92747->head_space_time = cir->head_space_time;
-	bu92747->head_burst_time = cir->head_burst_time;
+
 
 	//data0
 	d0lo = (cir->logic_low_space_time*sys_clock)/1000;
@@ -357,7 +362,7 @@ static int bu92747_set_format(struct i2c_client *client, struct rk29_cir_struct_
 		BU92747_DBG("reg_value[%d] = %d\n", 24+i, reg_value[24+i]);
 	}
 
-	bu92747_cir_i2c_set_regs(client, REG_SETTING0, reg_value, 23+i);
+	bu92747_cir_i2c_set_regs(client, REG_SETTING0, reg_value, 24+i);
 	
 
 	BU92747_DBG("line %d: exit %s\n", __LINE__, __FUNCTION__);
@@ -496,7 +501,7 @@ static int bu92747_set_pulse(struct i2c_client *client, struct rk29_cir_struct_i
 	reg_value[0] = reg_value[0] | (inv0<<1) | (inv1<<2);
 	bu92747_cir_i2c_set_regs(client, REG_SETTING0, reg_value, 1);
 	BU92747_DBG("inv0 = %d, inv1 = %d\n", inv0, inv1);
-	bu92747->inv = cir->inv;
+
 
 
 	//data0
@@ -548,8 +553,6 @@ static int bu92747_set_parameter(struct i2c_client *client, struct rk29_cir_stru
 	reg_value[2] = hhi>>8;
 	reg_value[3] = hhi&0xff;
 	BU92747_DBG("hlo = 0x%x, hhi = 0x%x\n", hlo, hhi);
-	bu92747->head_space_time = cir->head_space_time;
-	bu92747->head_burst_time = cir->head_burst_time;
 	bu92747_cir_i2c_set_regs(client, REG_HLO1, reg_value, 4);
 
 	//end
@@ -575,14 +578,19 @@ static int bu92747_set_repeat(struct i2c_client *client, struct rk29_cir_struct_
 
 	BU92747_DBG("line %d: enter %s\n", __LINE__, __FUNCTION__);
 
-	repeat_flag = cir->repeat;
+
+    repeat_flag = cir->repeat;
 	printk("repeat 11111 =%d\n", repeat_flag);
 	
-	if (repeat_flag > 16){
+	if (repeat_flag == -1){
+		repeat_flag = -10;
+		repeat = 0;		
+	}else if (repeat_flag > 16){
 		repeat = 16; 
 	}else{
 		repeat = repeat_flag;
 	}
+
 
 	repeat = repeat % 16;
 	
@@ -750,6 +758,7 @@ static int bu92747_open(struct inode *inode, struct file *file)
 	BU92747_DBG("line %d: enter %s\n", __LINE__, __FUNCTION__);
 
 	printk("bu92747_open\n");
+	bu92747->state = 0;
 //	if (BU92747_OPEN == bu92747->state) 
 //		return -EBUSY;
 //	bu92747->state = BU92747_OPEN;
@@ -767,7 +776,7 @@ static int bu92747_open(struct inode *inode, struct file *file)
 
 	//register init
 	bu92747_cir_init_device(client, bu92747);
-	start_flag = 0;
+	start_flag = -1;
 	BU92747_DBG("line %d: exit %s\n", __LINE__, __FUNCTION__);
 
 	return 0;

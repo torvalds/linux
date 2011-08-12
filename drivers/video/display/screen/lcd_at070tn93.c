@@ -11,22 +11,22 @@
 #define OUT_TYPE		SCREEN_RGB
 
 #define OUT_FACE		OUT_D888_P666  
-#define OUT_CLK			 58500000        // 65000000
-#define LCDC_ACLK        500000000//312000000           //29 lcdc axi DMA ÆµÂÊ
+#define OUT_CLK			33000000
+#define LCDC_ACLK       500000000           //29 lcdc axi DMA ÆµÂÊ
 
 /* Timing */
 #define H_PW			10
-#define H_BP			100
+#define H_BP			36
 #define H_VD			800
 #define H_FP			210
 
 #define V_PW			10
-#define V_BP			10
+#define V_BP			13
 #define V_VD			480
-#define V_FP			18
+#define V_FP			22
 
-#define LCD_WIDTH       202
-#define LCD_HEIGHT      152
+#define LCD_WIDTH       154
+#define LCD_HEIGHT      86
 /* Other */
 #define DCLK_POL		0
 #define SWAP_RB			0   

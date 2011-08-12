@@ -1,7 +1,20 @@
 /*
  $License:
     Copyright (C) 2010 InvenSense Corporation, All Rights Reserved.
- $
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  $
  */
 
 #include "mlsl.h"
@@ -83,7 +96,8 @@ tMLError MLSLSerialWriteSingle(void *sl_handle,
  */
 tMLError MLSLSerialWrite(void *sl_handle,
 			 unsigned char slaveAddr,
-			 unsigned short length, unsigned char const *data)
+			 unsigned short length,
+			 unsigned char const *data)
 {
 	tMLError result;
 	const unsigned short dataLength = length - 1;
@@ -174,10 +188,9 @@ tMLError MLSLSerialWriteMem(void *sl_handle,
 	unsigned short bytesWritten = 0;
 
 	if ((memAddr & 0xFF) + length > MPU_MEM_BANK_SIZE) {
-		printk
-		    ("memory read length (%d B) extends beyond its limits (%d) "
-		     "if started at location %d\n", length,
-		     MPU_MEM_BANK_SIZE, memAddr & 0xFF);
+		pr_err("memory read length (%d B) extends beyond its"
+			" limits (%d) if started at location %d\n", length,
+			MPU_MEM_BANK_SIZE, memAddr & 0xFF);
 		return ML_ERROR_INVALID_PARAMETER;
 	}
 	while (bytesWritten < length) {

@@ -21,6 +21,7 @@ struct rk2818_23d_data {
 	unsigned int ap_statue;
 	unsigned int ap_bp_wakeup;
 	unsigned int bp_ap_wakeup;
+	struct semaphore power_sem;
 };
 
 #define MODEM_NAME "mtk23d"

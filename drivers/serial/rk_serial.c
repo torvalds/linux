@@ -54,6 +54,7 @@
 
 #define PORT_RK		90
 #define UART_USR	0x1F	/* UART Status Register */
+#define UART_USR_BUSY (1)
 #define UART_IER_PTIME	0x80	/* Programmable THRE Interrupt Mode Enable */
 #define RX_TIMEOUT		(3000*10)  //uint ms
 
@@ -233,7 +234,7 @@ static inline void serial_dl_write(struct uart_rk_port *up, unsigned int value)
 
 static void serial_lcr_write(struct uart_rk_port *up, unsigned char value)
 {
-	unsigned int tmout = 10000;
+	unsigned int tmout = 15000;
 
 	for (;;) {
 		unsigned char lcr;
@@ -244,8 +245,11 @@ static void serial_lcr_write(struct uart_rk_port *up, unsigned char value)
 		/* Read the USR to clear any busy interrupts */
 		serial_in(up, UART_USR);
 		serial_in(up, UART_RX);
-		if (--tmout == 0)
+		if (--tmout == 0){
+			dev_info(up->port.dev, "set lcr timeout\n");
 			break;
+		}
+
 		udelay(1);
 	}
 }
@@ -491,7 +495,6 @@ err_out:
 /*RX*/
 static void serial_rk_dma_rxcb(void *buf, int size, enum rk29_dma_buffresult result) {
 
-//	printk("^\n");
 
 }
 
@@ -931,11 +934,13 @@ static irqreturn_t serial_rk_interrupt(int irq, void *dev_id)
 		 * interrupt meaning an LCR write attempt occured while the
 		 * UART was busy. The interrupt must be cleared by reading
 		 * the UART status register (USR) and the LCR re-written. */
-		serial_in(up, UART_USR);
-		serial_out(up, UART_LCR, up->lcr);
+		 		 
+		if(!(serial_in(up, UART_USR) & UART_USR_BUSY)){
+			//serial_out(up, UART_LCR, up->lcr);
+		}
 
 		handled = 1;
-		DEBUG_INTR("busy ");
+		dev_info(up->port.dev, "the serial is busy\n");
 	}
 	DEBUG_INTR("end(%d).\n", handled);
 
@@ -1114,6 +1119,8 @@ static int serial_rk_startup(struct uart_port *port)
 
 	up->mcr = 0;
 
+	clk_enable(up->clk);  // enable the config uart clock
+
 	/*
 	 * Clear the FIFO buffers and disable them.
 	 * (they will be reenabled in set_termios())
@@ -1127,6 +1134,7 @@ static int serial_rk_startup(struct uart_port *port)
 	(void) serial_in(up, UART_RX);
 	(void) serial_in(up, UART_IIR);
 	(void) serial_in(up, UART_MSR);
+	(void) serial_in(up, UART_USR);
 
 	/*
 	 * Now, initialize the UART
@@ -1153,6 +1161,7 @@ static int serial_rk_startup(struct uart_port *port)
 	serial_in(up, UART_RX);
 	serial_in(up, UART_IIR);
 	serial_in(up, UART_MSR);
+	serial_in(up, UART_USR);
 	up->lsr_saved_flags = 0;
 #if 0
 	up->msr_saved_flags = 0;
@@ -1176,8 +1185,7 @@ static int serial_rk_startup(struct uart_port *port)
 		up->port_activity = jiffies;
 
 	}else{
-		up->ier |= UART_IER_RDI;
-		up->ier |= UART_IER_RLSI;
+		up->ier = 0;
 		serial_out(up, UART_IER, up->ier);
 	}
 
@@ -1229,7 +1237,7 @@ serial_rk_set_termios(struct uart_port *port, struct ktermios *termios,
 {
 	struct uart_rk_port *up =
 		container_of(port, struct uart_rk_port, port);
-	unsigned char cval, fcr = 0;
+	unsigned char cval=0, fcr = 0;
 	unsigned long flags, bits;
 	unsigned int baud, quot;
 
@@ -1251,7 +1259,6 @@ serial_rk_set_termios(struct uart_port *port, struct ktermios *termios,
 		bits += 7;
 		break;
 	default:
-	case CS8:
 		cval = UART_LCR_WLEN8;
 		bits += 8;
 		break;
@@ -1287,7 +1294,17 @@ serial_rk_set_termios(struct uart_port *port, struct ktermios *termios,
 
 
 	dev_info(up->port.dev, "*****baud:%d*******\n", baud);
-	dev_info(up->port.dev, "*****quot:%d*******\n", quot);
+//	dev_info(up->port.dev, "*****quot:%d*******\n", quot);
+
+	int timeout = 10000000;
+	while(serial_in(up, UART_USR)&UART_USR_BUSY){
+	if(timeout-- == 0){
+	printk("rk29_serial_set_termios uart timeout,uart%d,ret=0x%x\n",up->port.line,serial_in(up, UART_USR));
+	break;
+	}
+	cpu_relax();
+	}
+	printk("%s:timeout=%d\n",__FUNCTION__,timeout);
 
 	if (baud < 2400){
 		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_TRIGGER_1;
@@ -1296,19 +1313,6 @@ serial_rk_set_termios(struct uart_port *port, struct ktermios *termios,
 		//added by hhb@rock-chips.com
 		if(up->prk29_uart_dma_t->use_timer == 1){
 			fcr = UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_00 | UART_FCR_T_TRIG_01;
-			//set time out value according to the baud rate
-/*
-			up->prk29_uart_dma_t->rx_timeout = bits*1000*1024/baud + 1;
-
-			if(up->prk29_uart_dma_t->rx_timeout < 10){
-				up->prk29_uart_dma_t->rx_timeout = 10;
-			}
-			if(up->prk29_uart_dma_t->rx_timeout > 25){
-				up->prk29_uart_dma_t->rx_timeout = 25;
-			}
-			printk("%s:time:%d, bits:%d, baud:%d\n", __func__, up->prk29_uart_dma_t->rx_timeout, bits, baud);
-			up->prk29_uart_dma_t->rx_timeout = 7;
-*/
 		}
 		else{
 			fcr = UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10 | UART_FCR_T_TRIG_01;
@@ -1326,7 +1330,6 @@ serial_rk_set_termios(struct uart_port *port, struct ktermios *termios,
 	up->mcr &= ~UART_MCR_AFE;
 	if (termios->c_cflag & CRTSCTS){
 		up->mcr |= UART_MCR_AFE;
-		//dev_info(up->port.dev, "*****UART_MCR_AFE*******\n");
 	}
 
 
@@ -1378,8 +1381,6 @@ serial_rk_set_termios(struct uart_port *port, struct ktermios *termios,
 		up->ier |= UART_IER_MSI;
 #endif
 
-	serial_out(up, UART_IER, up->ier);
-
 	serial_lcr_write(up, cval | UART_LCR_DLAB);/* set DLAB */
 
 	serial_dl_write(up, quot);
@@ -1387,10 +1388,12 @@ serial_rk_set_termios(struct uart_port *port, struct ktermios *termios,
 	serial_lcr_write(up, cval);		/* reset DLAB */
 	up->lcr = cval;				/* Save LCR */
 
-	serial_out(up, UART_FCR, fcr);		/* set fcr */
-//	fcr |= UART_FCR_DMA_SELECT;
-//	serial_out(up, UART_FCR, fcr);		/* set fcr */
 	serial_rk_set_mctrl(&up->port, up->port.mctrl);
+
+	serial_out(up, UART_FCR, fcr);		/* set fcr */
+	up->ier |= UART_IER_RDI;
+	up->ier |= UART_IER_RLSI;
+	serial_out(up, UART_IER, up->ier);
 
 	spin_unlock_irqrestore(&up->port.lock, flags);
 	/* Don't rewrite B0 */
@@ -1718,7 +1721,6 @@ static int __devinit serial_rk_probe(struct platform_device *pdev)
 		up->ier |= THRE_MODE;                   // enable THRE interrupt mode
 		serial_out(up, UART_IER, up->ier);
 	}
-	clk_enable(up->clk);  // enable the config uart clock
 
 	serial_rk_add_console_port(up);
 	ret = uart_add_one_port(&serial_rk_reg, &up->port);

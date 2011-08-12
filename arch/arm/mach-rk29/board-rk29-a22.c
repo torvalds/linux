@@ -87,11 +87,11 @@
 #define CONFIG_SENSOR_0 RK29_CAM_SENSOR_MT9T111  /* back camera sensor */
 #define CONFIG_SENSOR_IIC_ADDR_0 	    0x78
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_0    1
-#define CONFIG_SENSOR_POWER_PIN_0         INVALID_GPIO
+#define CONFIG_SENSOR_POWER_PIN_0         RK29_PIN5_PA0 //INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_0         INVALID_GPIO
 #define CONFIG_SENSOR_POWERDN_PIN_0       RK29_PIN6_PB7
 #define CONFIG_SENSOR_FALSH_PIN_0        RK29_PIN5_PD2   // RK29_PIN1_PA5
-#define CONFIG_SENSOR_POWERACTIVE_LEVEL_0 RK29_CAM_POWERACTIVE_L
+#define CONFIG_SENSOR_POWERACTIVE_LEVEL_0 RK29_CAM_POWERACTIVE_H  //RK29_CAM_POWERACTIVE_L
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_0 RK29_CAM_RESETACTIVE_L
 #define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_0 RK29_CAM_POWERDNACTIVE_H
 #define CONFIG_SENSOR_FLASHACTIVE_LEVEL_0 RK29_CAM_FLASHACTIVE_H
@@ -1739,6 +1739,13 @@ struct i2c_gpio_platform_data default_i2c3_data = {
        .io_init = rk29_i2c3_io_init,
 };
 #endif
+#if defined (CONFIG_ANX7150)
+#define HDMI_VDD_CTL RK29_PIN6_PD3
+struct hdmi_platform_data anx7150_data  = {
+	//.io_init = anx7150_io_init,
+};
+#endif
+
 #ifdef CONFIG_I2C0_RK29
 static struct i2c_board_info __initdata board_i2c0_devices[] = {
 #if defined (CONFIG_RK1000_CONTROL)
@@ -1850,6 +1857,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
         .addr           = 0x39,             //0x39, 0x3d
         .flags          = 0,
         .irq            = RK29_PIN2_PA3,
+		.platform_data  = &anx7150_data,
     },
 #endif
 #if defined (CONFIG_SENSORS_MPU3050) 

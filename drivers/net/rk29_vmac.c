@@ -1333,10 +1333,10 @@ static void vmac_set_multicast_list(struct net_device *dev)
 	spin_lock_irqsave(&ap->lock, flags);
 
 	promisc = !!(dev->flags & IFF_PROMISC);
-	reg = vmac_readl(ap, ENABLE);
+	reg = vmac_readl(ap, CONTROL);
 	if (promisc != !!(reg & PROM_MASK)) {
 		reg ^= PROM_MASK;
-		vmac_writel(ap, reg, ENABLE);
+		vmac_writel(ap, reg, CONTROL);
 	}
 
 	if (dev->flags & IFF_ALLMULTI)
