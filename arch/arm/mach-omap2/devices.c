@@ -16,6 +16,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
@@ -76,6 +77,10 @@ static int __init omap4_l3_init(void)
 	struct omap_hwmod *oh[3];
 	struct platform_device *pdev;
 	char oh_name[L3_MODULES_MAX_LEN];
+
+	/* If dtb is there, the devices will be created dynamically */
+	if (of_have_populated_dt())
+		return -ENODEV;
 
 	/*
 	 * To avoid code running on other OMAPs in

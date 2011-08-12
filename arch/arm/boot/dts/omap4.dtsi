@@ -63,10 +63,11 @@
 	 * hierarchy.
 	 */
 	ocp {
-		compatible = "simple-bus";
+		compatible = "ti,omap4-l3-noc", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
+		ti,hwmods = "l3_main_1", "l3_main_2", "l3_main_3";
 
 		gic: interrupt-controller@48241000 {
 			compatible = "arm,cortex-a9-gic";
