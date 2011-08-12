@@ -605,6 +605,9 @@ struct init_fw_ctrl_blk {
 /*	struct addr_ctrl_blk sec;*/
 };
 
+#define PRIMARI_ACB		0
+#define SECONDARY_ACB		1
+
 struct addr_ctrl_blk_def {
 	uint8_t reserved1[1];	/* 00 */
 	uint8_t control;	/* 01 */

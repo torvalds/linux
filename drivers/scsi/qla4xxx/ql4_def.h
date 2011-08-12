@@ -172,6 +172,7 @@
 #define RELOGIN_TOV			18
 #define ISNS_DEREG_TOV			5
 #define HBA_ONLINE_TOV			30
+#define DISABLE_ACB_TOV			30
 
 #define MAX_RESET_HA_RETRIES		2
 
@@ -616,6 +617,7 @@ struct scsi_qla_host {
 	uint16_t phy_port_cnt;
 	uint16_t iscsi_pci_func_cnt;
 	uint8_t model_name[16];
+	struct completion disable_acb_comp;
 };
 
 struct ql4_task_data {

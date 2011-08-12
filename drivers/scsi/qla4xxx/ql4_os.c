@@ -121,6 +121,7 @@ static int qla4xxx_slave_alloc(struct scsi_device *device);
 static int qla4xxx_slave_configure(struct scsi_device *device);
 static void qla4xxx_slave_destroy(struct scsi_device *sdev);
 static mode_t ql4_attr_is_visible(int param_type, int param);
+static int qla4xxx_host_reset(struct Scsi_Host *shost, int reset_type);
 
 static struct qla4_8xxx_legacy_intr_set legacy_intr[] =
     QLA82XX_LEGACY_INTR_CONFIG;
@@ -148,6 +149,7 @@ static struct scsi_host_template qla4xxx_driver_template = {
 
 	.max_sectors		= 0xFFFF,
 	.shost_attrs		= qla4xxx_host_attrs,
+	.host_reset		= qla4xxx_host_reset,
 	.vendor_id		= SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_QLOGIC,
 };
 
@@ -3133,6 +3135,7 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 
 	mutex_init(&ha->mbox_sem);
 	init_completion(&ha->mbx_intr_comp);
+	init_completion(&ha->disable_acb_comp);
 
 	spin_lock_init(&ha->hardware_lock);
 
@@ -3759,6 +3762,110 @@ static int qla4xxx_eh_host_reset(struct scsi_cmnd *cmd)
 		   return_status == FAILED ? "FAILED" : "SUCCEEDED");
 
 	return return_status;
+}
+
+static int qla4xxx_context_reset(struct scsi_qla_host *ha)
+{
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
+	struct addr_ctrl_blk_def *acb = NULL;
+	uint32_t acb_len = sizeof(struct addr_ctrl_blk_def);
+	int rval = QLA_SUCCESS;
+	dma_addr_t acb_dma;
+
+	acb = dma_alloc_coherent(&ha->pdev->dev,
+				 sizeof(struct addr_ctrl_blk_def),
+				 &acb_dma, GFP_KERNEL);
+	if (!acb) {
+		ql4_printk(KERN_ERR, ha, "%s: Unable to alloc acb\n",
+			   __func__);
+		rval = -ENOMEM;
+		goto exit_port_reset;
+	}
+
+	memset(acb, 0, acb_len);
+
+	rval = qla4xxx_get_acb(ha, acb_dma, PRIMARI_ACB, acb_len);
+	if (rval != QLA_SUCCESS) {
+		rval = -EIO;
+		goto exit_free_acb;
+	}
+
+	rval = qla4xxx_disable_acb(ha);
+	if (rval != QLA_SUCCESS) {
+		rval = -EIO;
+		goto exit_free_acb;
+	}
+
+	wait_for_completion_timeout(&ha->disable_acb_comp,
+				    DISABLE_ACB_TOV * HZ);
+
+	rval = qla4xxx_set_acb(ha, &mbox_cmd[0], &mbox_sts[0], acb_dma);
+	if (rval != QLA_SUCCESS) {
+		rval = -EIO;
+		goto exit_free_acb;
+	}
+
+exit_free_acb:
+	dma_free_coherent(&ha->pdev->dev, sizeof(struct addr_ctrl_blk_def),
+			  acb, acb_dma);
+exit_port_reset:
+	DEBUG2(ql4_printk(KERN_INFO, ha, "%s %s\n", __func__,
+			  rval == QLA_SUCCESS ? "SUCCEEDED" : "FAILED"));
+	return rval;
+}
+
+static int qla4xxx_host_reset(struct Scsi_Host *shost, int reset_type)
+{
+	struct scsi_qla_host *ha = to_qla_host(shost);
+	int rval = QLA_SUCCESS;
+
+	if (ql4xdontresethba) {
+		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: Don't Reset HBA\n",
+				  __func__));
+		rval = -EPERM;
+		goto exit_host_reset;
+	}
+
+	rval = qla4xxx_wait_for_hba_online(ha);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: Unable to reset host "
+				  "adapter\n", __func__));
+		rval = -EIO;
+		goto exit_host_reset;
+	}
+
+	if (test_bit(DPC_RESET_HA, &ha->dpc_flags))
+		goto recover_adapter;
+
+	switch (reset_type) {
+	case SCSI_ADAPTER_RESET:
+		set_bit(DPC_RESET_HA, &ha->dpc_flags);
+		break;
+	case SCSI_FIRMWARE_RESET:
+		if (!test_bit(DPC_RESET_HA, &ha->dpc_flags)) {
+			if (is_qla8022(ha))
+				/* set firmware context reset */
+				set_bit(DPC_RESET_HA_FW_CONTEXT,
+					&ha->dpc_flags);
+			else {
+				rval = qla4xxx_context_reset(ha);
+				goto exit_host_reset;
+			}
+		}
+		break;
+	}
+
+recover_adapter:
+	rval = qla4xxx_recover_adapter(ha);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: recover adapter fail\n",
+				  __func__));
+		rval = -EIO;
+	}
+
+exit_host_reset:
+	return rval;
 }
 
 /* PCI AER driver recovers from all correctable errors w/o

@@ -619,6 +619,8 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			else if ((mbox_sts[3] == ACB_STATE_ACQUIRING) &&
 			    (mbox_sts[2] == ACB_STATE_VALID))
 				set_bit(DPC_RESET_HA, &ha->dpc_flags);
+			else if ((mbox_sts[3] == ACB_STATE_UNCONFIGURED))
+				complete(&ha->disable_acb_comp);
 			break;
 
 		case MBOX_ASTS_MAC_ADDRESS_CHANGED:
