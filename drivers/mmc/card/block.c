@@ -117,9 +117,9 @@ static int mmc_blk_open(struct block_device *bdev, fmode_t mode)
 	
 #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
 	mutex_lock(&block_mutex); //added by xbw at 2011-04-21
-#endif
-
-	lock_kernel();
+#else
+	//lock_kernel(); // The feature of block_mutex is same with lock_kernel£¬but the better. noted by xbw at 2011-08-09 
+#endif	
 	if (md) {
 		if (md->usage == 2)
 			check_disk_change(bdev);
@@ -130,11 +130,12 @@ static int mmc_blk_open(struct block_device *bdev, fmode_t mode)
 			ret = -EROFS;
 		}
 	}
-	unlock_kernel();
-
 #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
 	mutex_unlock(&block_mutex);
-#endif	
+#else	
+	unlock_kernel();
+#endif
+	
 
 	return ret;
 }
@@ -145,14 +146,15 @@ static int mmc_blk_release(struct gendisk *disk, fmode_t mode)
 	
 #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
 	mutex_lock(&block_mutex); //added by xbw at 2011-04-21
-#endif
-
-	lock_kernel();
+#else
+	//lock_kernel(); // The feature of block_mutex is same with lock_kernel£¬but the better. noted by xbw at 2011-08-09
+#endif	
 	mmc_blk_put(md);
-	unlock_kernel();
-
+	
 #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)	
 	mutex_unlock(&block_mutex);
+#else
+    unlock_kernel();
 #endif
 
 	return 0;

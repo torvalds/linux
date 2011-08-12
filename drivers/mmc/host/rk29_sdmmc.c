@@ -2787,7 +2787,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	clk_enable(clk_get(&pdev->dev, "hclk_mmc"));
 
 	ret = -ENOMEM;
-	host->regs = ioremap(regs->start, regs->end - regs->start);
+	host->regs = ioremap(regs->start, regs->end - regs->start + 1);
 	if (!host->regs)
 	{
 	    host->errorstep = 0x8A;

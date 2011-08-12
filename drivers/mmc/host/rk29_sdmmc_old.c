@@ -1307,7 +1307,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		goto err_mmc_free_host;
 	}
 	
-	host->regs = ioremap(regs->start, regs->end - regs->start);
+	host->regs = ioremap(regs->start, regs->end - regs->start + 1);
 	if (!host->regs){
 		dev_err(&pdev->dev, "ioremap error\n");
 		ret = ENXIO;
