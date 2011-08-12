@@ -29,7 +29,7 @@
 #define MAX_LINKS 32		
 
 struct sockaddr_nl {
-	sa_family_t	nl_family;	/* AF_NETLINK	*/
+	__kernel_sa_family_t	nl_family;	/* AF_NETLINK	*/
 	unsigned short	nl_pad;		/* zero		*/
 	__u32		nl_pid;		/* port ID	*/
        	__u32		nl_groups;	/* multicast groups mask */
