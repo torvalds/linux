@@ -152,6 +152,24 @@ static void b43_radio_2059_init(struct b43_wldev *dev)
 }
 
 /**************************************************
+ * Various PHY ops
+ **************************************************/
+
+static void b43_phy_ht_zero_extg(struct b43_wldev *dev)
+{
+	u8 i, j;
+	u16 base[] = { 0x40, 0x60, 0x80 };
+
+	for (i = 0; i < ARRAY_SIZE(base); i++) {
+		for (j = 0; j < 4; j++)
+			b43_phy_write(dev, B43_PHY_EXTG(base[i] + j), 0);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(base); i++)
+		b43_phy_write(dev, B43_PHY_EXTG(base[i] + 0xc), 0);
+}
+
+/**************************************************
  * Channel switching ops.
  **************************************************/
 
@@ -256,6 +274,10 @@ static void b43_phy_ht_op_prepare_structs(struct b43_wldev *dev)
 static int b43_phy_ht_op_init(struct b43_wldev *dev)
 {
 	b43_phy_ht_tables_init(dev);
+
+	/* TODO: PHY ops on regs 0x0be, 0x23f 0x240 0x241 */
+
+	b43_phy_ht_zero_extg(dev);
 
 	return 0;
 }
