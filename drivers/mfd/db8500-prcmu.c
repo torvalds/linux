@@ -1081,6 +1081,132 @@ static int request_pll(u8 clock, bool enable)
 }
 
 /**
+ * prcmu_set_hwacc - set the power state of a h/w accelerator
+ * @hwacc_dev: The hardware accelerator (enum hw_acc_dev).
+ * @state: The new power state (enum hw_acc_state).
+ *
+ * This function sets the power state of a hardware accelerator.
+ * This function should not be called from interrupt context.
+ *
+ * NOTE! Deprecated, to be removed when all users switched over to use the
+ * regulator framework API.
+ */
+int prcmu_set_hwacc(u16 hwacc_dev, u8 state)
+{
+	int r = 0;
+	bool ram_retention = false;
+	bool enable, enable_ret;
+
+	/* check argument */
+	BUG_ON(hwacc_dev >= NUM_HW_ACC);
+
+	/* get state of switches */
+	enable = hwacc_enabled[hwacc_dev];
+	enable_ret = hwacc_ret_enabled[hwacc_dev];
+
+	/* set flag if retention is possible */
+	switch (hwacc_dev) {
+	case HW_ACC_SVAMMDSP:
+	case HW_ACC_SIAMMDSP:
+	case HW_ACC_ESRAM1:
+	case HW_ACC_ESRAM2:
+	case HW_ACC_ESRAM3:
+	case HW_ACC_ESRAM4:
+		ram_retention = true;
+		break;
+	}
+
+	/* check argument */
+	BUG_ON(state > HW_ON);
+	BUG_ON(state == HW_OFF_RAMRET && !ram_retention);
+
+	/* modify enable flags */
+	switch (state) {
+	case HW_OFF:
+		enable_ret = false;
+		enable = false;
+		break;
+	case HW_ON:
+		enable = true;
+		break;
+	case HW_OFF_RAMRET:
+		enable_ret = true;
+		enable = false;
+		break;
+	}
+
+	/* get regulator (lazy) */
+	if (hwacc_regulator[hwacc_dev] == NULL) {
+		hwacc_regulator[hwacc_dev] = regulator_get(NULL,
+			hwacc_regulator_name[hwacc_dev]);
+		if (IS_ERR(hwacc_regulator[hwacc_dev])) {
+			pr_err("prcmu: failed to get supply %s\n",
+				hwacc_regulator_name[hwacc_dev]);
+			r = PTR_ERR(hwacc_regulator[hwacc_dev]);
+			goto out;
+		}
+	}
+
+	if (ram_retention) {
+		if (hwacc_ret_regulator[hwacc_dev] == NULL) {
+			hwacc_ret_regulator[hwacc_dev] = regulator_get(NULL,
+				hwacc_ret_regulator_name[hwacc_dev]);
+			if (IS_ERR(hwacc_ret_regulator[hwacc_dev])) {
+				pr_err("prcmu: failed to get supply %s\n",
+					hwacc_ret_regulator_name[hwacc_dev]);
+				r = PTR_ERR(hwacc_ret_regulator[hwacc_dev]);
+				goto out;
+			}
+		}
+	}
+
+	/* set regulators */
+	if (ram_retention) {
+		if (enable_ret && !hwacc_ret_enabled[hwacc_dev]) {
+			r = regulator_enable(hwacc_ret_regulator[hwacc_dev]);
+			if (r < 0) {
+				pr_err("prcmu_set_hwacc: ret enable failed\n");
+				goto out;
+			}
+			hwacc_ret_enabled[hwacc_dev] = true;
+		}
+	}
+
+	if (enable && !hwacc_enabled[hwacc_dev]) {
+		r = regulator_enable(hwacc_regulator[hwacc_dev]);
+		if (r < 0) {
+			pr_err("prcmu_set_hwacc: enable failed\n");
+			goto out;
+		}
+		hwacc_enabled[hwacc_dev] = true;
+	}
+
+	if (!enable && hwacc_enabled[hwacc_dev]) {
+		r = regulator_disable(hwacc_regulator[hwacc_dev]);
+		if (r < 0) {
+			pr_err("prcmu_set_hwacc: disable failed\n");
+			goto out;
+		}
+		hwacc_enabled[hwacc_dev] = false;
+	}
+
+	if (ram_retention) {
+		if (!enable_ret && hwacc_ret_enabled[hwacc_dev]) {
+			r = regulator_disable(hwacc_ret_regulator[hwacc_dev]);
+			if (r < 0) {
+				pr_err("prcmu_set_hwacc: ret disable failed\n");
+				goto out;
+			}
+			hwacc_ret_enabled[hwacc_dev] = false;
+		}
+	}
+
+out:
+	return r;
+}
+EXPORT_SYMBOL(prcmu_set_hwacc);
+
+/**
  * db8500_prcmu_set_epod - set the state of a EPOD (power domain)
  * @epod_id: The EPOD to set
  * @epod_state: The new EPOD state
