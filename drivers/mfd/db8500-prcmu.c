@@ -1840,6 +1840,16 @@ void __init prcmu_early_init(void)
 	}
 }
 
+static void __init init_prcm_registers(void)
+{
+	u32 val;
+
+	val = readl(PRCM_A9PL_FORCE_CLKEN);
+	val &= ~(PRCM_A9PL_FORCE_CLKEN_PRCM_A9PL_FORCE_CLKEN |
+		PRCM_A9PL_FORCE_CLKEN_PRCM_A9AXI_FORCE_CLKEN);
+	writel(val, (PRCM_A9PL_FORCE_CLKEN));
+}
+
 /*
  * Power domain switches (ePODs) modeled as regulators for the DB8500 SoC
  */
@@ -2037,6 +2047,8 @@ static int __init db8500_prcmu_probe(struct platform_device *pdev)
 
 	if (ux500_is_svp())
 		return -ENODEV;
+
+	init_prcm_registers();
 
 	/* Clean up the mailbox interrupts after pre-kernel code. */
 	writel(ALL_MBOX_BITS, PRCM_ARM_IT1_CLR);
