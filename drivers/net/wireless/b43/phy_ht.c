@@ -169,6 +169,24 @@ static void b43_phy_ht_zero_extg(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_PHY_EXTG(base[i] + 0xc), 0);
 }
 
+static void b43_phy_ht_bphy_init(struct b43_wldev *dev)
+{
+	unsigned int i;
+	u16 val;
+
+	val = 0x1E1F;
+	for (i = 0; i < 16; i++) {
+		b43_phy_write(dev, B43_PHY_N_BMODE(0x88 + i), val);
+		val -= 0x202;
+	}
+	val = 0x3E3F;
+	for (i = 0; i < 16; i++) {
+		b43_phy_write(dev, B43_PHY_N_BMODE(0x98 + i), val);
+		val -= 0x202;
+	}
+	b43_phy_write(dev, B43_PHY_N_BMODE(0x38), 0x668);
+}
+
 /**************************************************
  * Channel switching ops.
  **************************************************/
@@ -321,6 +339,14 @@ static int b43_phy_ht_op_init(struct b43_wldev *dev)
 	b43_phy_force_clock(dev, false);
 
 	b43_mac_phy_clock_set(dev, true);
+
+	/* TODO: Some ops here */
+
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+		b43_phy_ht_bphy_init(dev);
+
+	b43_httab_write_bulk(dev, B43_HTTAB32(0x1a, 0xc0),
+			B43_HTTAB_1A_C0_LATE_SIZE, b43_httab_0x1a_0xc0_late);
 
 	return 0;
 }
