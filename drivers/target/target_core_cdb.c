@@ -920,8 +920,8 @@ target_emulate_modesense(struct se_cmd *cmd, int ten)
 		length += target_modesense_control(dev, &buf[offset+length]);
 		break;
 	default:
-		pr_err("Got Unknown Mode Page: 0x%02x\n",
-				cdb[2] & 0x3f);
+		pr_err("MODE SENSE: unimplemented page/subpage: 0x%02x/0x%02x\n",
+		       cdb[2] & 0x3f, cdb[3]);
 		return PYX_TRANSPORT_UNKNOWN_MODE_PAGE;
 	}
 	offset += length;
