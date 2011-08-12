@@ -532,7 +532,8 @@ out:
 
 /* ---------------------------------------------------------------------- */
 
-static int aufs_fsync_nondir(struct file *file, int datasync)
+static int aufs_fsync_nondir(struct file *file, loff_t start, loff_t end,
+			     int datasync)
 {
 	int err;
 	struct au_pin pin;
@@ -543,14 +544,8 @@ static int aufs_fsync_nondir(struct file *file, int datasync)
 
 	dentry = file->f_dentry;
 	inode = dentry->d_inode;
-	IMustLock(file->f_mapping->host);
-	if (inode != file->f_mapping->host) {
-		mutex_unlock(&file->f_mapping->host->i_mutex);
-		mutex_lock(&inode->i_mutex);
-	}
-	IMustLock(inode);
-
 	sb = dentry->d_sb;
+	mutex_lock(&inode->i_mutex);
 	err = si_read_lock(sb, AuLock_FLUSH | AuLock_NOPLM);
 	if (unlikely(err))
 		goto out;
@@ -579,10 +574,7 @@ out_unlock:
 out_si:
 	si_read_unlock(sb);
 out:
-	if (inode != file->f_mapping->host) {
-		mutex_unlock(&inode->i_mutex);
-		mutex_lock(&file->f_mapping->host->i_mutex);
-	}
+	mutex_unlock(&inode->i_mutex);
 	return err;
 }
 
