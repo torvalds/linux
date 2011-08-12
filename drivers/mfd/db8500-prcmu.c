@@ -1543,6 +1543,78 @@ int prcmu_stop_temp_sense(void)
 	return config_hot_period(0xFFFF);
 }
 
+static int prcmu_a9wdog(u8 cmd, u8 d0, u8 d1, u8 d2, u8 d3)
+{
+
+	mutex_lock(&mb4_transfer.lock);
+
+	while (readl(PRCM_MBOX_CPU_VAL) & MBOX_BIT(4))
+		cpu_relax();
+
+	writeb(d0, (tcdm_base + PRCM_REQ_MB4_A9WDOG_0));
+	writeb(d1, (tcdm_base + PRCM_REQ_MB4_A9WDOG_1));
+	writeb(d2, (tcdm_base + PRCM_REQ_MB4_A9WDOG_2));
+	writeb(d3, (tcdm_base + PRCM_REQ_MB4_A9WDOG_3));
+
+	writeb(cmd, (tcdm_base + PRCM_MBOX_HEADER_REQ_MB4));
+
+	writel(MBOX_BIT(4), PRCM_MBOX_CPU_SET);
+	wait_for_completion(&mb4_transfer.work);
+
+	mutex_unlock(&mb4_transfer.lock);
+
+	return 0;
+
+}
+
+int prcmu_config_a9wdog(u8 num, bool sleep_auto_off)
+{
+	BUG_ON(num == 0 || num > 0xf);
+	return prcmu_a9wdog(MB4H_A9WDOG_CONF, num, 0, 0,
+			    sleep_auto_off ? A9WDOG_AUTO_OFF_EN :
+			    A9WDOG_AUTO_OFF_DIS);
+}
+
+int prcmu_enable_a9wdog(u8 id)
+{
+	return prcmu_a9wdog(MB4H_A9WDOG_EN, id, 0, 0, 0);
+}
+
+int prcmu_disable_a9wdog(u8 id)
+{
+	return prcmu_a9wdog(MB4H_A9WDOG_DIS, id, 0, 0, 0);
+}
+
+int prcmu_kick_a9wdog(u8 id)
+{
+	return prcmu_a9wdog(MB4H_A9WDOG_KICK, id, 0, 0, 0);
+}
+
+/*
+ * timeout is 28 bit, in ms.
+ */
+#define MAX_WATCHDOG_TIMEOUT 131000
+int prcmu_load_a9wdog(u8 id, u32 timeout)
+{
+	if (timeout > MAX_WATCHDOG_TIMEOUT)
+		/*
+		 * Due to calculation bug in prcmu fw, timeouts
+		 * can't be bigger than 131 seconds.
+		 */
+		return -EINVAL;
+
+	return prcmu_a9wdog(MB4H_A9WDOG_LOAD,
+			    (id & A9WDOG_ID_MASK) |
+			    /*
+			     * Put the lowest 28 bits of timeout at
+			     * offset 4. Four first bits are used for id.
+			     */
+			    (u8)((timeout << 4) & 0xf0),
+			    (u8)((timeout >> 4) & 0xff),
+			    (u8)((timeout >> 12) & 0xff),
+			    (u8)((timeout >> 20) & 0xff));
+}
+
 /**
  * prcmu_set_clock_divider() - Configure the clock divider.
  * @clock:	The clock for which the request is made.
