@@ -136,12 +136,24 @@ static int tda18212_set_params(struct dvb_frontend *fe,
 	int ret, i;
 	u32 if_khz;
 	u8 buf[9];
+	#define DVBT_6   0
+	#define DVBT_7   1
+	#define DVBT_8   2
+	#define DVBT2_6  3
+	#define DVBT2_7  4
+	#define DVBT2_8  5
+	#define DVBC_6   6
+	#define DVBC_8   7
 	static const u8 bw_params[][3] = {
-		/*  0f    13    23 */
-		{ 0xb3, 0x20, 0x03 }, /* DVB-T 6 MHz */
-		{ 0xb3, 0x31, 0x01 }, /* DVB-T 7 MHz */
-		{ 0xb3, 0x22, 0x01 }, /* DVB-T 8 MHz */
-		{ 0x92, 0x53, 0x03 }, /* DVB-C */
+		     /* reg:   0f    13    23 */
+		[DVBT_6]  = { 0xb3, 0x20, 0x03 },
+		[DVBT_7]  = { 0xb3, 0x31, 0x01 },
+		[DVBT_8]  = { 0xb3, 0x22, 0x01 },
+		[DVBT2_6] = { 0xbc, 0x20, 0x03 },
+		[DVBT2_7] = { 0xbc, 0x72, 0x03 },
+		[DVBT2_8] = { 0xbc, 0x22, 0x01 },
+		[DVBC_6]  = { 0x92, 0x50, 0x03 },
+		[DVBC_8]  = { 0x92, 0x53, 0x03 },
 	};
 
 	dbg("delsys=%d RF=%d BW=%d\n",
@@ -155,15 +167,34 @@ static int tda18212_set_params(struct dvb_frontend *fe,
 		switch (c->bandwidth_hz) {
 		case 6000000:
 			if_khz = priv->cfg->if_dvbt_6;
-			i = 0;
+			i = DVBT_6;
 			break;
 		case 7000000:
 			if_khz = priv->cfg->if_dvbt_7;
-			i = 1;
+			i = DVBT_7;
 			break;
 		case 8000000:
 			if_khz = priv->cfg->if_dvbt_8;
-			i = 2;
+			i = DVBT_8;
+			break;
+		default:
+			ret = -EINVAL;
+			goto error;
+		}
+		break;
+	case SYS_DVBT2:
+		switch (c->bandwidth_hz) {
+		case 6000000:
+			if_khz = priv->cfg->if_dvbt2_6;
+			i = DVBT2_6;
+			break;
+		case 7000000:
+			if_khz = priv->cfg->if_dvbt2_7;
+			i = DVBT2_7;
+			break;
+		case 8000000:
+			if_khz = priv->cfg->if_dvbt2_8;
+			i = DVBT2_8;
 			break;
 		default:
 			ret = -EINVAL;
@@ -172,7 +203,7 @@ static int tda18212_set_params(struct dvb_frontend *fe,
 		break;
 	case SYS_DVBC_ANNEX_AC:
 		if_khz = priv->cfg->if_dvbc;
-		i = 3;
+		i = DVBC_8;
 		break;
 	default:
 		ret = -EINVAL;
