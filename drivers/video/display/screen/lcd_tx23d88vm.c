@@ -10,26 +10,31 @@
 /* Base */
 #define OUT_TYPE		SCREEN_RGB
 
-#define OUT_FACE		OUT_D888_P666  
-#define OUT_CLK			33000000
-#define LCDC_ACLK       500000000           //29 lcdc axi DMA ÆµÂÊ
+//#define OUT_FACE		OUT_D888_P666
+#define OUT_FACE		OUT_P888//modify by xhh
+
+
+#define OUT_CLK			 66000000//64000000
+#define LCDC_ACLK        500000000           //29 lcdc axi DMA ÆµÂÊ
 
 /* Timing */
 #define H_PW			10
-#define H_BP			36
-#define H_VD			800
-#define H_FP			210
+#define H_BP			20
+#define H_VD			1200
+#define H_FP			70
 
-#define V_PW			10
-#define V_BP			13
-#define V_VD			480
-#define V_FP			22
+#define V_PW			2
+#define V_BP			4
+#define V_VD			800
+#define V_FP			14
 
-#define LCD_WIDTH       154
-#define LCD_HEIGHT      86
+#define LCD_WIDTH       188
+#define LCD_HEIGHT      125
 /* Other */
 #define DCLK_POL		0
-#define SWAP_RB			0   
+//#define DCLK_POL		1//xhh
+#define SWAP_RB			0
+
 
 void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 {
@@ -71,6 +76,3 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
     screen->init = NULL;
     screen->standby = NULL;
 }
-
-
-

@@ -496,7 +496,7 @@ block:
 	if (netif_msg_rx_err (dev))
 		devdbg (dev, "no read resubmitted");
 }
-extern void dwc_otg_clear_halt(struct urb *_urb);
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
 static void intr_complete (struct urb *urb, struct pt_regs *regs)
 #else
@@ -505,10 +505,6 @@ static void intr_complete (struct urb *urb)
 {
 	struct usbnet	*dev = urb->context;
 	int		status = urb->status;
-	//devdbg(dev, "status %d running? %d\n", status,netif_running (dev->net));
-
-	dev->intr_complete = 1;
-	wake_up_interruptible(&dev->intr_wait);
 
 	switch (status) {
 	/* success */
@@ -521,28 +517,19 @@ static void intr_complete (struct urb *urb)
 	case -ESHUTDOWN:	/* hardware gone */
 		if (netif_msg_ifdown (dev))
 			devdbg (dev, "intr shutdown, code %d", status);
-		dwc_otg_clear_halt(urb);
-		break;
-		
-	//	return;
+		return;
 
 	/* NOTE:  not throttling like RX/TX, since this endpoint
 	 * already polls infrequently
 	 */
 	default:
 		devdbg (dev, "intr status %d", status);
-		if(status < 0)
-			dwc_otg_clear_halt(urb);
 		break;
 	}
 
-	if (!netif_running (dev->net) || dev->asix_suspend) {
-		dev->asix_suspend = 0;
-		devdbg (dev, "netif_running is false");
+	if (!netif_running (dev->net))
 		return;
-	}
 
-	dev->intr_complete = 0;
 	memset(urb->transfer_buffer, 0, urb->transfer_buffer_length);
 	status = usb_submit_urb (urb, GFP_ATOMIC);
 	if (status != 0 && netif_msg_timer (dev))
@@ -873,8 +860,6 @@ printk ("EVENT_TX_HALT\n");
 			if (status != -ESHUTDOWN)
 				netif_wake_queue (dev->net);
 		}
-		
-		//dwc_otg_clear_halt(urb);
 	}
 	if (test_bit (EVENT_RX_HALT, &dev->flags)) {
 printk ("EVENT_RX_HALT\n");
@@ -1257,10 +1242,6 @@ axusbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	 * bind() should set rx_urb_size in that case.
 	 */
 	dev->hard_mtu = net->mtu + net->hard_header_len;
-
-	dev->asix_suspend = 0;
-	dev->intr_complete = 1;
-	init_waitqueue_head(&dev->intr_wait);
 
 #if 0
 // dma_supported() is deeply broken on almost all architectures

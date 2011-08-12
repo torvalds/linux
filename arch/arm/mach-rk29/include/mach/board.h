@@ -38,6 +38,12 @@ struct led_newton_pwm_platform_data {
 	struct led_newton_pwm* leds;
 };
 
+struct hdmi_platform_data {
+	u32 hdmi_on_pin;
+	u32 hdmi_on_level;
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+};
 struct irda_info{
     u32 intr_pin;
     int (*iomux_init)(void);
@@ -191,6 +197,16 @@ struct eeti_egalax_platform_data{
     int     disp_on_pin;
     int     disp_on_value;
  
+};
+//added by zyw
+struct atmel_1386_platform_data {
+	u8    numtouch;	/* Number of touches to report	*/
+	int  (*init_platform_hw)(struct device *dev);
+	void  (*exit_platform_hw)(struct device *dev);
+	int   max_x;    /* The default reported X range   */  
+	int   max_y;    /* The default reported Y range   */
+	u8    (*valid_interrupt) (void);
+	u8    (*read_chg) (void);
 };
 
 /*sintex touch*/

@@ -51,6 +51,8 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/i2c-gpio.h>
+#include <linux/mfd/wm8994/pdata.h>
+#include <linux/mfd/wm8994/registers.h>
 
 #include "devices.h"
 #if defined(CONFIG_MU509)
@@ -426,6 +428,7 @@ int p1003_init_platform_hw(void)
 
     if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
       gpio_free(TOUCH_INT_PIN);
+	  gpio_free(TOUCH_RESET_PIN);
       printk("p1003_init_platform_hw gpio_request error\n");
       return -EIO;
     }
@@ -461,6 +464,7 @@ static int EETI_EGALAX_init_platform_hw(void)
 
     if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
       gpio_free(TOUCH_INT_PIN);
+	  gpio_free(TOUCH_RESET_PIN);
       printk("p1003_init_platform_hw gpio_request error\n");
       return -EIO;
     }
@@ -513,13 +517,14 @@ void nas_request_io(void)
     if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
       gpio_free(TOUCH_RESET_PIN);
       printk("nas_init_platform_hw gpio_request error\n");
-      return -EIO;
+      return ;
     }
 
     if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
       gpio_free(TOUCH_INT_PIN);
+	  gpio_free(TOUCH_RESET_PIN);
       printk("nas_init_platform_hw gpio_request error\n");
-      return -EIO;
+      return;
     }
 }
 	
@@ -565,13 +570,14 @@ void laibao_request_io(void)
     if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
       gpio_free(TOUCH_RESET_PIN);
       printk("nas_init_platform_hw gpio_request error\n");
-      return -EIO;
+      return ;
     }
 
     if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
       gpio_free(TOUCH_INT_PIN);
+	  gpio_free(TOUCH_RESET_PIN);
       printk("nas_init_platform_hw gpio_request error\n");
-      return -EIO;
+      return ;
     }
 }
 	
@@ -660,7 +666,7 @@ static struct mpu3050_platform_data mpu3050_data = {
 				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
 				//.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
 				
-				.orientation = { 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+				.orientation = { -1, 0, 0, 0, -1, 0, 0, 0, 1 },
 				//.orientation = { 0, 1, 0, -1, 0, 0, 0, 0, -1 },
 		},
 #endif
@@ -701,6 +707,148 @@ static int bq27510_init_dc_check_pin(void){
 
 struct bq27510_platform_data bq27510_info = {	
 	.init_dc_check_pin = bq27510_init_dc_check_pin,	
+	.dc_check_pin =  DC_CHECK_PIN,		
+	.bat_num = LI_LION_BAT_NUM,
+};
+#endif
+/*****************************************************************************************
+ * wm8994  codec
+ * author: qjb@rock-chips.com
+ *****************************************************************************************/
+//#if defined(CONFIG_MFD_WM8994)
+#if defined (CONFIG_REGULATOR_WM8994)
+static struct regulator_consumer_supply wm8994_ldo1_consumers[] = {
+	{
+		.supply = "DBVDD",
+	},
+	{
+		.supply = "AVDD1",
+	},
+	{
+		.supply = "CPVDD",
+	},
+	{
+		.supply = "SPKVDD1",
+	}		
+};
+static struct regulator_consumer_supply wm8994_ldo2_consumers[] = {
+	{
+		.supply = "DCVDD",
+	},
+	{
+		.supply = "AVDD2",
+	},
+	{
+		.supply = "SPKVDD2",
+	}			
+};
+struct regulator_init_data regulator_init_data_ldo1 = {
+	.constraints = {
+		.name = "wm8994-ldo1",
+		.min_uA = 00000,
+		.max_uA = 18000,
+		.always_on = true,
+		.apply_uV = true,		
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_CURRENT,		
+	},
+	.num_consumer_supplies = ARRAY_SIZE(wm8994_ldo1_consumers),
+	.consumer_supplies = wm8994_ldo1_consumers,	
+};
+struct regulator_init_data regulator_init_data_ldo2 = {
+	.constraints = {
+		.name = "wm8994-ldo2",
+		.min_uA = 00000,
+		.max_uA = 18000,
+		.always_on = true,
+		.apply_uV = true,		
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_CURRENT,		
+	},
+	.num_consumer_supplies = ARRAY_SIZE(wm8994_ldo2_consumers),
+	.consumer_supplies = wm8994_ldo2_consumers,	
+};
+#endif 
+struct wm8994_drc_cfg wm8994_drc_cfg_pdata = {
+	.name = "wm8994_DRC",
+	.regs = {0,0,0,0,0},
+};
+
+struct wm8994_retune_mobile_cfg wm8994_retune_mobile_cfg_pdata = {
+	.name = "wm8994_EQ",
+	.rate = 0,
+	.regs = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,},
+}; 
+
+struct wm8994_pdata wm8994_platdata = {	
+#if defined (CONFIG_GPIO_WM8994)
+	.gpio_base = WM8994_GPIO_EXPANDER_BASE,
+	//Fill value to initialize the GPIO
+	.gpio_defaults ={},
+#endif	
+	//enable=0 disable ldo
+#if defined (CONFIG_REGULATOR_WM8994)	
+	.ldo = {
+		{
+			.enable = 0,
+			//RK29_PIN5_PA1
+			.supply = NULL,
+			.init_data = &regulator_init_data_ldo1,
+		},
+		{
+			.enable = 0,
+			.supply = NULL,		
+			.init_data = &regulator_init_data_ldo2,
+		}
+	},
+#endif 	
+	//DRC 0--use default
+	.num_drc_cfgs = 0,
+	.drc_cfgs = &wm8994_drc_cfg_pdata,
+	//EQ   0--use default 
+	.num_retune_mobile_cfgs = 0,
+	.retune_mobile_cfgs = &wm8994_retune_mobile_cfg_pdata,
+	
+	.lineout1_diff = 1,
+	.lineout2_diff = 1,
+	
+	.lineout1fb = 1,
+	.lineout2fb = 1,
+	
+	.micbias1_lvl = 1,
+	.micbias2_lvl = 1,
+	
+	.jd_scthr = 0,
+	.jd_thr = 0,
+
+	.PA_control_pin = 0,	
+	.Power_EN_Pin = RK29_PIN5_PA1,
+
+	.speaker_incall_vol = 0,
+	.speaker_incall_mic_vol = -9,
+	.speaker_normal_vol = 6,
+	.earpiece_incall_vol = 0,
+	.headset_incall_vol = 6,
+	.headset_incall_mic_vol = -6,
+	.headset_normal_vol = 6,
+	.BT_incall_vol = 0,
+	.BT_incall_mic_vol = 0,
+	.recorder_vol = 50,
+	
+};
+#if defined (CONFIG_BATTERY_BQ27541)
+#define	DC_CHECK_PIN	RK29_PIN4_PA1
+#define	LI_LION_BAT_NUM	2
+static int bq27541_init_dc_check_pin(void){	
+	if(gpio_request(DC_CHECK_PIN,"dc_check") != 0){      
+		gpio_free(DC_CHECK_PIN);      
+		printk("bq27541 init dc check pin request error\n");      
+		return -EIO;    
+	}	
+	gpio_direction_input(DC_CHECK_PIN);	
+	return 0;
+}
+
+struct bq27541_platform_data bq27541_info = {	
+	.init_dc_check_pin = bq27541_init_dc_check_pin,	
 	.dc_check_pin =  DC_CHECK_PIN,		
 	.bat_num = LI_LION_BAT_NUM,
 };
@@ -880,11 +1028,12 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 	},
 #endif
 #if defined (CONFIG_SND_SOC_WM8994)
-        {
-                .type                   = "wm8994",
-                .addr           = 0x1A,
-                .flags                  = 0,
-        },
+	{
+		.type                   = "wm8994",
+		.addr           = 0x1A,
+		.flags                  = 0,
+		.platform_data          = &wm8994_platdata,
+	},
 #endif
 #if defined (CONFIG_BATTERY_STC3100)
 	{
@@ -944,6 +1093,16 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.platform_data  = &mpu3050_data,
 	},
 #endif
+
+#if defined (CONFIG_BATTERY_BQ27541)
+	{
+		.type    		= "bq27541",
+		.addr           = 0x55,
+		.flags			= 0,
+		.platform_data  = &bq27541_info,
+	},
+#endif
+
 };
 #endif
 
@@ -1014,6 +1173,20 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
 #endif
 };
 #endif
+#if defined (CONFIG_ANX7150)
+#define HDMI_VDD_CTL RK29_PIN6_PD3
+int anx7150_io_init(void)
+{
+	gpio_request(HDMI_VDD_CTL, "hdmi pwr ctl");
+	gpio_direction_output(HDMI_VDD_CTL, GPIO_HIGH);
+	//gpio_set_value(HDMI_VDD_CTL, GPIO_HIGH); 
+	mdelay(10);
+	return 0;
+}
+struct hdmi_platform_data anx7150_data = {
+	.io_init = anx7150_io_init,
+};
+#endif
 
 #ifdef CONFIG_I2C3_RK29
 static struct i2c_board_info __initdata board_i2c3_devices[] = {
@@ -1023,6 +1196,7 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
         .addr           = 0x39,             //0x39, 0x3d
         .flags          = 0,
         .irq            = RK29_PIN1_PD7,
+		.platform_data  = &anx7150_data,
     },
 #endif
 

@@ -2501,7 +2501,7 @@ static void rk29fb_early_resume(struct early_suspend *h)
         if(inf->clk){
             clk_enable(inf->aclk);
         }
-        msleep(100);
+        usleep_range(100*1000, 100*1000);
 	}
     LcdMskReg(inf, DSP_CTRL1, m_BLANK_MODE , v_BLANK_MODE(0));
     LcdMskReg(inf, SYS_CONFIG, m_STANDBY, v_STANDBY(0));
@@ -2515,9 +2515,9 @@ static void rk29fb_early_resume(struct early_suspend *h)
 		fbprintk(">>>>>> power on the screen! \n");
 		inf->cur_screen->standby(0);
 	}
-    msleep(10);
+    usleep_range(10*1000, 10*1000);
     memcpy((u8*)inf->preg, (u8*)&inf->regbak, 0xa4);  //resume reg
-    msleep(40);
+    usleep_range(40*1000, 40*1000);
     
     if((inf->cur_screen != &inf->panel2_info) && mach_info->io_enable)  // open lcd pwr when output screen is lcd
        mach_info->io_enable();  //close lcd out 

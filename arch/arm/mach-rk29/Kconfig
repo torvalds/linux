@@ -58,6 +58,13 @@ config MACH_RK29_newton
 		bool "ROCKCHIP Board Rk29 For project newton"
 		help
 		  Support for the ROCKCHIP Board For project newton.
+		  
+config MACH_RK29_P91
+	depends on ARCH_RK29
+	bool "ROCKCHIP Board Rk29 For P91"
+        help
+	  Support for the ROCKCHIP Board For Rk29 P91.
+	  
 endchoice
 
 choice DDR_TYPE
