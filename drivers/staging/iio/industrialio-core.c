@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include "iio.h"
 #include "trigger_consumer.h"
+#include "iio_core.h"
 
 #define IIO_ID_PREFIX "device"
 #define IIO_ID_FORMAT IIO_ID_PREFIX "%d"
@@ -35,7 +36,6 @@ static DEFINE_IDA(iio_chrdev_ida);
 static DEFINE_SPINLOCK(iio_ida_lock);
 
 dev_t iio_devt;
-EXPORT_SYMBOL(iio_devt);
 
 #define IIO_DEV_MAX 256
 struct bus_type iio_bus_type = {
@@ -90,7 +90,7 @@ static const char * const iio_chan_info_postfix[] = {
 };
 
 /* Return a negative errno on failure */
-int iio_get_new_ida_val(struct ida *this_ida)
+static int iio_get_new_ida_val(struct ida *this_ida)
 {
 	int ret;
 	int val;
@@ -109,15 +109,13 @@ ida_again:
 
 	return val;
 }
-EXPORT_SYMBOL(iio_get_new_ida_val);
 
-void iio_free_ida_val(struct ida *this_ida, int id)
+static void iio_free_ida_val(struct ida *this_ida, int id)
 {
 	spin_lock(&iio_ida_lock);
 	ida_remove(this_ida, id);
 	spin_unlock(&iio_ida_lock);
 }
-EXPORT_SYMBOL(iio_free_ida_val);
 
 int iio_push_event(struct iio_dev *dev_info,
 		   int ev_line,
@@ -532,6 +530,7 @@ static int __iio_build_postfix(struct iio_chan_spec const *chan,
 	return 0;
 }
 
+static
 int __iio_device_attr_init(struct device_attribute *dev_attr,
 			   const char *postfix,
 			   struct iio_chan_spec const *chan,
@@ -604,7 +603,7 @@ error_ret:
 	return ret;
 }
 
-void __iio_device_attr_deinit(struct device_attribute *dev_attr)
+static void __iio_device_attr_deinit(struct device_attribute *dev_attr)
 {
 	kfree(dev_attr->attr.name);
 }
@@ -903,7 +902,7 @@ static int iio_device_add_event_sysfs(struct iio_dev *dev_info,
 				      struct iio_chan_spec const *chan)
 {
 
-	int ret = 0, i, mask;
+	int ret = 0, i, mask = 0;
 	char *postfix;
 	if (!chan->event_mask)
 		return 0;
@@ -1114,8 +1113,9 @@ static void iio_device_unregister_eventset(struct iio_dev *dev_info)
 
 static void iio_dev_release(struct device *device)
 {
+	struct iio_dev *dev_info = container_of(device, struct iio_dev, dev);
 	iio_put();
-	kfree(to_iio_dev(device));
+	kfree(dev_info);
 }
 
 static struct device_type iio_dev_type = {

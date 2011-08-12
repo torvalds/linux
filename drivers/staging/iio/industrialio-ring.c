@@ -21,6 +21,7 @@
 #include <linux/poll.h>
 
 #include "iio.h"
+#include "iio_core.h"
 #include "ring_generic.h"
 
 /**

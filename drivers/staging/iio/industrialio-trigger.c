@@ -18,6 +18,7 @@
 
 #include "iio.h"
 #include "trigger.h"
+#include "iio_core.h"
 #include "trigger_consumer.h"
 
 /* RFC - Question of approach

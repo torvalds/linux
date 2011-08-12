@@ -23,9 +23,6 @@
  * Currently assumes nano seconds.
  */
 
-/* Event interface flags */
-#define IIO_BUSY_BIT_POS 1
-
 /* naughty temporary hack to match these against the event version
    - need to flattern these together */
 enum iio_chan_type {
@@ -131,19 +128,7 @@ struct iio_chan_spec {
 	unsigned		modified:1;
 	unsigned		indexed:1;
 };
-/* Meant for internal use only */
-void __iio_device_attr_deinit(struct device_attribute *dev_attr);
-int __iio_device_attr_init(struct device_attribute *dev_attr,
-			   const char *postfix,
-			   struct iio_chan_spec const *chan,
-			   ssize_t (*readfunc)(struct device *dev,
-					       struct device_attribute *attr,
-					       char *buf),
-			   ssize_t (*writefunc)(struct device *dev,
-						struct device_attribute *attr,
-						const char *buf,
-						size_t len),
-			   bool generic);
+
 #define IIO_ST(si, rb, sb, sh)						\
 	{ .sign = si, .realbits = rb, .storagebits = sb, .shift = sh }
 
@@ -166,20 +151,6 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 	{ .type = IIO_TIMESTAMP, .channel = -1,				\
 			.scan_index = _si, .scan_type = IIO_ST('s', 64, 64, 0) }
 
-int __iio_add_chan_devattr(const char *postfix,
-			   const char *group,
-			   struct iio_chan_spec const *chan,
-			   ssize_t (*func)(struct device *dev,
-					   struct device_attribute *attr,
-					   char *buf),
-			   ssize_t (*writefunc)(struct device *dev,
-						struct device_attribute *attr,
-						const char *buf,
-						size_t len),
-			   int mask,
-			   bool generic,
-			   struct device *dev,
-			   struct list_head *attr_list);
 /**
  * iio_get_time_ns() - utility function to get a time stamp for events etc
  **/
@@ -344,13 +315,6 @@ int iio_push_event(struct iio_dev *dev_info,
 		  int ev_code,
 		  s64 timestamp);
 
-/* Used to distinguish between bipolar and unipolar scan elemenents.
- * Whilst this may seem obvious, we may well want to change the representation
- * in the future!*/
-#define IIO_SIGNED(a) -(a)
-#define IIO_UNSIGNED(a) (a)
-
-extern dev_t iio_devt;
 extern struct bus_type iio_bus_type;
 
 /**
@@ -361,15 +325,6 @@ static inline void iio_put_device(struct iio_dev *dev)
 {
 	if (dev)
 		put_device(&dev->dev);
-};
-
-/**
- * to_iio_dev() - get iio_dev for which we have the struct device
- * @d: the struct device
- **/
-static inline struct iio_dev *to_iio_dev(struct device *d)
-{
-	return container_of(d, struct iio_dev, dev);
 };
 
 /* Can we make this smaller? */
@@ -396,22 +351,6 @@ static inline struct iio_dev *iio_priv_to_dev(void *priv)
  * @dev: the iio_dev associated with the device
  **/
 void iio_free_device(struct iio_dev *dev);
-
-/**
- * iio_put() - internal module reference count reduce
- **/
-void iio_put(void);
-
-/**
- * iio_get() - internal module reference count increase
- **/
-void iio_get(void);
-
-/**
- * iio_device_get_chrdev_minor() - get an unused minor number
- **/
-int iio_device_get_chrdev_minor(void);
-void iio_device_free_chrdev_minor(int val);
 
 /**
  * iio_ring_enabled() - helper function to test if any form of ring is enabled
