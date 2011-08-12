@@ -603,8 +603,13 @@ sub doprint {
 }
 
 sub run_command;
+sub start_monitor;
+sub end_monitor;
+sub wait_for_monitor;
 
 sub reboot {
+    my ($time) = @_;
+
     # try to reboot normally
     if (run_command $reboot) {
 	if (defined($powercycle_after_reboot)) {
@@ -614,6 +619,12 @@ sub reboot {
     } else {
 	# nope? power cycle it.
 	run_command "$power_cycle";
+    }
+
+    if (defined($time)) {
+	start_monitor;
+	wait_for_monitor $time;
+	end_monitor;
     }
 }
 
@@ -719,10 +730,7 @@ sub fail {
 	# no need to reboot for just building.
 	if (!do_not_reboot) {
 	    doprint "REBOOTING\n";
-	    reboot;
-	    start_monitor;
-	    wait_for_monitor $sleep_time;
-	    end_monitor;
+	    reboot $sleep_time;
 	}
 
 	my $name = "";
@@ -1356,10 +1364,7 @@ sub success {
 
     if ($i != $opt{"NUM_TESTS"} && !do_not_reboot) {
 	doprint "Reboot and wait $sleep_time seconds\n";
-	reboot;
-	start_monitor;
-	wait_for_monitor $sleep_time;
-	end_monitor;
+	reboot $sleep_time;
     }
 }
 
@@ -1500,10 +1505,7 @@ sub run_git_bisect {
 
 sub bisect_reboot {
     doprint "Reboot and sleep $bisect_sleep_time seconds\n";
-    reboot;
-    start_monitor;
-    wait_for_monitor $bisect_sleep_time;
-    end_monitor;
+    reboot $bisect_sleep_time;
 }
 
 # returns 1 on success, 0 on failure, -1 on skip
@@ -2066,10 +2068,7 @@ sub config_bisect {
 
 sub patchcheck_reboot {
     doprint "Reboot and sleep $patchcheck_sleep_time seconds\n";
-    reboot;
-    start_monitor;
-    wait_for_monitor $patchcheck_sleep_time;
-    end_monitor;
+    reboot $patchcheck_sleep_time;
 }
 
 sub patchcheck {
@@ -2659,10 +2658,7 @@ sub make_min_config {
 	}
 
 	doprint "Reboot and wait $sleep_time seconds\n";
-	reboot;
-	start_monitor;
-	wait_for_monitor $sleep_time;
-	end_monitor;
+	reboot $sleep_time;
     }
 
     success $i;
