@@ -20,21 +20,21 @@
 #include "rtl819x_BA.h"
 #include "rtl_core.h"
 
-void ActivateBAEntry(struct rtllib_device *ieee, struct ba_record *pBA,
-		     u16 Time)
+static void ActivateBAEntry(struct rtllib_device *ieee, struct ba_record *pBA,
+			    u16 Time)
 {
 	pBA->bValid = true;
 	if (Time != 0)
 		mod_timer(&pBA->Timer, jiffies + MSECS(Time));
 }
 
-void DeActivateBAEntry(struct rtllib_device *ieee, struct ba_record *pBA)
+static void DeActivateBAEntry(struct rtllib_device *ieee, struct ba_record *pBA)
 {
 	pBA->bValid = false;
 	del_timer_sync(&pBA->Timer);
 }
 
-u8 TxTsDeleteBA(struct rtllib_device *ieee, struct tx_ts_record *pTxTs)
+static u8 TxTsDeleteBA(struct rtllib_device *ieee, struct tx_ts_record *pTxTs)
 {
 	struct ba_record *pAdmittedBa = &pTxTs->TxAdmittedBARecord;
 	struct ba_record *pPendingBa = &pTxTs->TxPendingBARecord;
@@ -52,7 +52,7 @@ u8 TxTsDeleteBA(struct rtllib_device *ieee, struct tx_ts_record *pTxTs)
 	return bSendDELBA;
 }
 
-u8 RxTsDeleteBA(struct rtllib_device *ieee, struct rx_ts_record *pRxTs)
+static u8 RxTsDeleteBA(struct rtllib_device *ieee, struct rx_ts_record *pRxTs)
 {
 	struct ba_record *pBa = &pRxTs->RxAdmittedBARecord;
 	u8			bSendDELBA = false;
@@ -193,8 +193,8 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	return skb;
 }
 
-void rtllib_send_ADDBAReq(struct rtllib_device *ieee, u8 *dst,
-			  struct ba_record *pBA)
+static void rtllib_send_ADDBAReq(struct rtllib_device *ieee, u8 *dst,
+				 struct ba_record *pBA)
 {
 	struct sk_buff *skb = NULL;
 	skb = rtllib_ADDBA(ieee, dst, pBA, 0, ACT_ADDBAREQ);
@@ -209,8 +209,8 @@ void rtllib_send_ADDBAReq(struct rtllib_device *ieee, u8 *dst,
 	return;
 }
 
-void rtllib_send_ADDBARsp(struct rtllib_device *ieee, u8 *dst,
-			  struct ba_record *pBA, u16 StatusCode)
+static void rtllib_send_ADDBARsp(struct rtllib_device *ieee, u8 *dst,
+				 struct ba_record *pBA, u16 StatusCode)
 {
 	struct sk_buff *skb = NULL;
 	skb = rtllib_ADDBA(ieee, dst, pBA, StatusCode, ACT_ADDBARSP);
@@ -222,9 +222,9 @@ void rtllib_send_ADDBARsp(struct rtllib_device *ieee, u8 *dst,
 	return;
 }
 
-void rtllib_send_DELBA(struct rtllib_device *ieee, u8 *dst,
-		       struct ba_record *pBA, enum tr_select TxRxSelect,
-		       u16 ReasonCode)
+static void rtllib_send_DELBA(struct rtllib_device *ieee, u8 *dst,
+			      struct ba_record *pBA, enum tr_select TxRxSelect,
+			      u16 ReasonCode)
 {
 	struct sk_buff *skb = NULL;
 	skb = rtllib_DELBA(ieee, dst, pBA, TxRxSelect, ReasonCode);

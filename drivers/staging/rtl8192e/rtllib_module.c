@@ -68,7 +68,7 @@ static inline int rtllib_networks_allocate(struct rtllib_device *ieee)
 	if (ieee->networks)
 		return 0;
 
-	ieee->networks = kmalloc(
+	ieee->networks = kzalloc(
 		MAX_NETWORK_COUNT * sizeof(struct rtllib_network),
 		GFP_KERNEL);
 	if (!ieee->networks) {
@@ -76,9 +76,6 @@ static inline int rtllib_networks_allocate(struct rtllib_device *ieee)
 		       ieee->dev->name);
 		return -ENOMEM;
 	}
-
-	memset(ieee->networks, 0,
-	       MAX_NETWORK_COUNT * sizeof(struct rtllib_network));
 
 	return 0;
 }
@@ -223,7 +220,7 @@ u32 rtllib_debug_level;
 static int debug = \
 			    RTLLIB_DL_ERR
 			    ;
-struct proc_dir_entry *rtllib_proc;
+static struct proc_dir_entry *rtllib_proc;
 
 static int show_debug_level(char *page, char **start, off_t offset,
 			    int count, int *eof, void *data)
@@ -231,7 +228,7 @@ static int show_debug_level(char *page, char **start, off_t offset,
 	return snprintf(page, count, "0x%08X\n", rtllib_debug_level);
 }
 
-static int store_debug_level(struct file *file, const char *buffer,
+static int store_debug_level(struct file *file, const char __user *buffer,
 			     unsigned long count, void *data)
 {
 	char buf[] = "0x00000000";

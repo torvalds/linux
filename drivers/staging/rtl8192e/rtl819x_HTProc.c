@@ -214,7 +214,7 @@ void HTDebugHTInfo(u8 *InfoIE, u8 *TitleString)
 	return;
 }
 
-bool IsHTHalfNmode40Bandwidth(struct rtllib_device *ieee)
+static bool IsHTHalfNmode40Bandwidth(struct rtllib_device *ieee)
 {
 	bool			retValue = false;
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
@@ -233,7 +233,7 @@ bool IsHTHalfNmode40Bandwidth(struct rtllib_device *ieee)
 	return retValue;
 }
 
-bool IsHTHalfNmodeSGI(struct rtllib_device *ieee, bool is40MHz)
+static bool IsHTHalfNmodeSGI(struct rtllib_device *ieee, bool is40MHz)
 {
 	bool			retValue = false;
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
@@ -336,7 +336,7 @@ bool IsHTHalfNmodeAPs(struct rtllib_device *ieee)
 	return retValue;
 }
 
-void HTIOTPeerDetermine(struct rtllib_device *ieee)
+static void HTIOTPeerDetermine(struct rtllib_device *ieee)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	struct rtllib_network *net = &ieee->current_network;
@@ -378,40 +378,31 @@ void HTIOTPeerDetermine(struct rtllib_device *ieee)
 		     pHTInfo->IOTPeer);
 }
 
-u8 HTIOTActIsDisableMCS14(struct rtllib_device *ieee, u8 *PeerMacAddr)
+static u8 HTIOTActIsDisableMCS14(struct rtllib_device *ieee, u8 *PeerMacAddr)
 {
 	return 0;
 }
 
 
-bool HTIOTActIsDisableMCS15(struct rtllib_device *ieee)
+static bool HTIOTActIsDisableMCS15(struct rtllib_device *ieee)
 {
 	bool retValue = false;
 
 	return retValue;
 }
 
-bool HTIOTActIsDisableMCSTwoSpatialStream(struct rtllib_device *ieee)
+static bool HTIOTActIsDisableMCSTwoSpatialStream(struct rtllib_device *ieee)
 {
 	return false;
 }
 
-u8 HTIOTActIsDisableEDCATurbo(struct rtllib_device *ieee, u8 *PeerMacAddr)
+static u8 HTIOTActIsDisableEDCATurbo(struct rtllib_device *ieee, u8 *PeerMacAddr)
 {
 	return false;
 }
 
-
-bool HTIOTActIsEnableBETxOPLimit(struct rtllib_device *ieee)
-{
-	bool	retValue = false;
-
-	return retValue;
-}
-
-
-u8 HTIOTActIsMgntUseCCK6M(struct rtllib_device *ieee,
-			  struct rtllib_network *network)
+static u8 HTIOTActIsMgntUseCCK6M(struct rtllib_device *ieee,
+				 struct rtllib_network *network)
 {
 	u8	retValue = 0;
 
@@ -422,60 +413,7 @@ u8 HTIOTActIsMgntUseCCK6M(struct rtllib_device *ieee,
 	return retValue;
 }
 
-u8 HTIOTActWAIOTBroadcom(struct rtllib_device *ieee)
-{
-	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
-	u8		retValue = false;
-	u8		boundary = 59;
-
-	pHTInfo->bWAIotBroadcom = false;
-	if (ieee->pHTInfo->IOTPeer == HT_IOT_PEER_BROADCOM) {
-		if (ieee->current_network.bssht.bdBandWidth ==
-		    HT_CHANNEL_WIDTH_20_40) {
-			if (!(pHTInfo->bRegBW40MHz)) {
-				if (ieee->current_network.mode !=
-				    WIRELESS_MODE_B) {
-					pHTInfo->bWAIotBroadcom = true;
-
-					if (ieee->b_customer_lenovo_id)
-						boundary = 30;
-
-					if (ieee->current_network.RSSI >=
-					    boundary)
-						retValue = true;
-				}
-			}
-		}
-	}
-	return retValue;
-}
-
-u8 HTIOTActIsForcedCTS2Self(struct rtllib_device *ieee,
-			    struct rtllib_network *network)
-{
-	u8	retValue = 0;
-	if (ieee->pHTInfo->IOTPeer == HT_IOT_PEER_MARVELL)
-		retValue = 1;
-
-	return retValue;
-}
-
-u8 HTIOTActIsForcedRTSCTS(struct rtllib_device *ieee,
-			  struct rtllib_network *network)
-{
-	u8	retValue = 0;
-	return retValue;
-}
-
-u8 HTIOTActIsForcedAMSDU8K(struct rtllib_device *ieee,
-			   struct rtllib_network *network)
-{
-	u8 retValue = 0;
-
-	return retValue;
-}
-
-u8 HTIOTActIsCCDFsync(struct rtllib_device *ieee)
+static u8 HTIOTActIsCCDFsync(struct rtllib_device *ieee)
 {
 	u8	retValue = 0;
 
@@ -484,42 +422,7 @@ u8 HTIOTActIsCCDFsync(struct rtllib_device *ieee)
 	return retValue;
 }
 
-u8 HTIOCActRejcectADDBARequest(struct rtllib_network *network)
-{
-	u8	retValue = 0;
-
-	return retValue;
-}
-
-u8 HTIOTActIsEDCABiasRx(struct rtllib_device *ieee,
-			struct rtllib_network *network)
-{
-	u8	retValue = 0;
-
-	return retValue;
-}
-
-u8 HTIOTActDisableShortGI(struct rtllib_device *ieee,
-			  struct rtllib_network *network)
-{
-	u8	retValue = 0;
-	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
-
-	if (pHTInfo->IOTPeer == HT_IOT_PEER_RALINK)
-			retValue = 1;
-
-	return retValue;
-}
-
-u8 HTIOTActDisableHighPower(struct rtllib_device *ieee,
-			    struct rtllib_network *network)
-{
-	u8	retValue = 0;
-
-	return retValue;
-}
-
-void HTIOTActDetermineRaFunc(struct rtllib_device *ieee, bool bPeerRx2ss)
+static void HTIOTActDetermineRaFunc(struct rtllib_device *ieee, bool bPeerRx2ss)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	pHTInfo->IOTRaFunc &= HT_IOT_RAFUNC_DISABLE_ALL;
@@ -530,52 +433,6 @@ void HTIOTActDetermineRaFunc(struct rtllib_device *ieee, bool bPeerRx2ss)
 	if (pHTInfo->IOTAction & HT_IOT_ACT_AMSDU_ENABLE)
 		pHTInfo->IOTRaFunc |= HT_IOT_RAFUNC_TX_AMSDU;
 
-}
-
-
-u8 HTIOTActIsDisableTx40MHz(struct rtllib_device *ieee,
-			    struct rtllib_network *network)
-{
-	u8	retValue = 0;
-
-	return retValue;
-}
-
-u8 HTIOTActIsTxNoAggregation(struct rtllib_device *ieee,
-			     struct rtllib_network *network)
-{
-	u8 retValue = 0;
-
-	return retValue;
-}
-
-u8 HTIOTActIsDisableTx2SS(struct rtllib_device *ieee,
-			  struct rtllib_network *network)
-{
-	u8	retValue = 0;
-
-	return retValue;
-}
-
-bool HTIOCActIsDisableCckRate(struct rtllib_device *ieee,
-			      struct rtllib_network *network)
-{
-	bool	retValue = false;
-	return retValue;
-}
-
-bool HTIOCActAllowPeerAggOnePacket(struct rtllib_device *ieee,
-				   struct rtllib_network *network)
-{
-	bool	retValue = false;
-	return retValue;
-}
-
-bool HTIOTActIsNullDataPowerSaving(struct rtllib_device *ieee,
-				   struct rtllib_network *network)
-{
-	bool	retValue = false;
-	return retValue;
 }
 
 void HTResetIOTSetting(struct rt_hi_throughput *pHTInfo)
@@ -735,7 +592,7 @@ void HTConstructRT2RTAggElement(struct rtllib_device *ieee, u8 *posRT2RTAgg,
 	return;
 }
 
-u8 HT_PickMCSRate(struct rtllib_device *ieee, u8 *pOperateMCS)
+static u8 HT_PickMCSRate(struct rtllib_device *ieee, u8 *pOperateMCS)
 {
 	u8 i;
 	if (pOperateMCS == NULL) {
@@ -1148,7 +1005,7 @@ u8 HTCCheck(struct rtllib_device *ieee, u8 *pFrame)
 	return false;
 }
 
-void HTSetConnectBwModeCallback(struct rtllib_device *ieee)
+static void HTSetConnectBwModeCallback(struct rtllib_device *ieee)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 

@@ -20,15 +20,15 @@
 #include <linux/etherdevice.h>
 #include "rtl819x_TS.h"
 
-void TsSetupTimeOut(unsigned long data)
+static void TsSetupTimeOut(unsigned long data)
 {
 }
 
-void TsInactTimeout(unsigned long data)
+static void TsInactTimeout(unsigned long data)
 {
 }
 
-void RxPktPendingTimeout(unsigned long data)
+static void RxPktPendingTimeout(unsigned long data)
 {
 	struct rx_ts_record *pRxTs = (struct rx_ts_record *)data;
 	struct rtllib_device *ieee = container_of(pRxTs, struct rtllib_device,
@@ -97,7 +97,7 @@ void RxPktPendingTimeout(unsigned long data)
 	spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 }
 
-void TsAddBaProcess(unsigned long data)
+static void TsAddBaProcess(unsigned long data)
 {
 	struct tx_ts_record *pTxTs = (struct tx_ts_record *)data;
 	u8 num = pTxTs->num;
@@ -109,7 +109,7 @@ void TsAddBaProcess(unsigned long data)
 		     "started!!\n");
 }
 
-void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
+static void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
 {
 	memset(pTsCommonInfo->Addr, 0, 6);
 	memset(&pTsCommonInfo->TSpec, 0, sizeof(union tspec_body));
@@ -118,7 +118,7 @@ void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
 	pTsCommonInfo->TClasNum = 0;
 }
 
-void ResetTxTsEntry(struct tx_ts_record *pTS)
+static void ResetTxTsEntry(struct tx_ts_record *pTS)
 {
 	ResetTsCommonInfo(&pTS->TsCommonInfo);
 	pTS->TxCurSeq = 0;
@@ -130,7 +130,7 @@ void ResetTxTsEntry(struct tx_ts_record *pTS)
 	ResetBaEntry(&pTS->TxPendingBARecord);
 }
 
-void ResetRxTsEntry(struct rx_ts_record *pTS)
+static void ResetRxTsEntry(struct rx_ts_record *pTS)
 {
 	ResetTsCommonInfo(&pTS->TsCommonInfo);
 	pTS->RxIndicateSeq = 0xffff;
@@ -215,8 +215,8 @@ void TSInitialize(struct rtllib_device *ieee)
 
 }
 
-void AdmitTS(struct rtllib_device *ieee, struct ts_common_info *pTsCommonInfo,
-	     u32 InactTime)
+static void AdmitTS(struct rtllib_device *ieee,
+		    struct ts_common_info *pTsCommonInfo, u32 InactTime)
 {
 	del_timer_sync(&pTsCommonInfo->SetupTimer);
 	del_timer_sync(&pTsCommonInfo->InactTimer);
@@ -226,11 +226,12 @@ void AdmitTS(struct rtllib_device *ieee, struct ts_common_info *pTsCommonInfo,
 			  MSECS(InactTime));
 }
 
-struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee, u8 *Addr,
-					   u8 TID, enum tr_select TxRxSelect)
+static struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee,
+						  u8 *Addr, u8 TID,
+						  enum tr_select TxRxSelect)
 {
 	u8	dir;
-	bool	search_dir[4] = {0, 0, 0, 0};
+	bool	search_dir[4] = {0};
 	struct list_head *psearch_list;
 	struct ts_common_info *pRet = NULL;
 	if (ieee->iw_mode == IW_MODE_MASTER) {
@@ -283,9 +284,9 @@ struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee, u8 *Addr,
 		return NULL;
 }
 
-void MakeTSEntry(struct ts_common_info *pTsCommonInfo, u8 *Addr,
-		 union tspec_body *pTSPEC, union qos_tclas *pTCLAS,
-		 u8 TCLAS_Num, u8 TCLAS_Proc)
+static void MakeTSEntry(struct ts_common_info *pTsCommonInfo, u8 *Addr,
+			union tspec_body *pTSPEC, union qos_tclas *pTCLAS,
+			u8 TCLAS_Num, u8 TCLAS_Proc)
 {
 	u8	count;
 
@@ -418,8 +419,8 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	}
 }
 
-void RemoveTsEntry(struct rtllib_device *ieee, struct ts_common_info *pTs,
-		   enum tr_select TxRxSelect)
+static void RemoveTsEntry(struct rtllib_device *ieee, struct ts_common_info *pTs,
+			  enum tr_select TxRxSelect)
 {
 	del_timer_sync(&pTs->SetupTimer);
 	del_timer_sync(&pTs->InactTimer);
