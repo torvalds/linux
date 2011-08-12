@@ -432,8 +432,4 @@ static inline bool iio_ring_enabled(struct iio_dev *dev_info)
 		   | INDIO_RING_HARDWARE_BUFFER);
 };
 
-struct ida;
-
-int iio_get_new_ida_val(struct ida *this_ida);
-void iio_free_ida_val(struct ida *this_ida, int id);
 #endif /* _INDUSTRIAL_IO_H_ */
