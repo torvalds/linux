@@ -23,8 +23,6 @@
  * Currently assumes nano seconds.
  */
 
-/* naughty temporary hack to match these against the event version
-   - need to flattern these together */
 enum iio_chan_type {
 	/* real channel types */
 	IIO_IN,

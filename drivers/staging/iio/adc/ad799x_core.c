@@ -335,11 +335,11 @@ static irqreturn_t ad799x_event_handler(int irq, void *private)
 		if (status & (1 << i))
 			iio_push_event(indio_dev, 0,
 				       i & 0x1 ?
-				       IIO_UNMOD_EVENT_CODE(IIO_EV_CLASS_IN,
+				       IIO_UNMOD_EVENT_CODE(IIO_IN,
 							    (i >> 1),
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_RISING) :
-				       IIO_UNMOD_EVENT_CODE(IIO_EV_CLASS_IN,
+				       IIO_UNMOD_EVENT_CODE(IIO_IN,
 							    (i >> 1),
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_FALLING),

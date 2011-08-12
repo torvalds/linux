@@ -114,28 +114,6 @@ struct iio_const_attr {
 #define IIO_CONST_ATTR_TEMP_SCALE(_string)		\
 	IIO_CONST_ATTR(temp_scale, _string)
 
-/* must match our channel defs */
-#define IIO_EV_CLASS_IN			IIO_IN
-#define IIO_EV_CLASS_IN_DIFF		IIO_IN_DIFF
-#define IIO_EV_CLASS_ACCEL		IIO_ACCEL
-#define IIO_EV_CLASS_GYRO		IIO_GYRO
-#define IIO_EV_CLASS_MAGN		IIO_MAGN
-#define IIO_EV_CLASS_LIGHT		IIO_LIGHT
-#define IIO_EV_CLASS_PROXIMITY		IIO_PROXIMITY
-#define IIO_EV_CLASS_TEMP		IIO_TEMP
-
-#define IIO_EV_MOD_X			IIO_MOD_X
-#define IIO_EV_MOD_Y			IIO_MOD_Y
-#define IIO_EV_MOD_Z			IIO_MOD_Z
-#define IIO_EV_MOD_X_AND_Y		IIO_MOD_X_AND_Y
-#define IIO_EV_MOD_X_ANX_Z		IIO_MOD_X_AND_Z
-#define IIO_EV_MOD_Y_AND_Z		IIO_MOD_Y_AND_Z
-#define IIO_EV_MOD_X_AND_Y_AND_Z	IIO_MOD_X_AND_Y_AND_Z
-#define IIO_EV_MOD_X_OR_Y		IIO_MOD_X_OR_Y
-#define IIO_EV_MOD_X_OR_Z		IIO_MOD_X_OR_Z
-#define IIO_EV_MOD_Y_OR_Z		IIO_MOD_Y_OR_Z
-#define IIO_EV_MOD_X_OR_Y_OR_Z		IIO_MOD_X_OR_Y_OR_Z
-
 #define IIO_EV_TYPE_THRESH		0
 #define IIO_EV_TYPE_MAG			1
 #define IIO_EV_TYPE_ROC			2
@@ -159,10 +137,6 @@ struct iio_const_attr {
 
 #define IIO_UNMOD_EVENT_CODE(channelclass, number, type, direction)	\
 	IIO_EVENT_CODE(channelclass, 0, number, 0, type, direction)
-
-
-#define IIO_BUFFER_EVENT_CODE(code)		\
-	(IIO_EV_CLASS_BUFFER | (code << 8))
 
 #define IIO_EVENT_CODE_EXTRACT_DIR(mask) ((mask >> 24) & 0xf)
 

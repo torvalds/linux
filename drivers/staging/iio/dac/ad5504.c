@@ -251,7 +251,7 @@ static struct attribute_group ad5504_ev_attribute_group = {
 static irqreturn_t ad5504_event_handler(int irq, void *private)
 {
 	iio_push_event(private, 0,
-		       IIO_UNMOD_EVENT_CODE(IIO_EV_CLASS_TEMP,
+		       IIO_UNMOD_EVENT_CODE(IIO_TEMP,
 					    0,
 					    IIO_EV_TYPE_THRESH,
 					    IIO_EV_DIR_RISING),
