@@ -83,8 +83,8 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 	u16 tmp = 0;
 	u16 len = ieee->tx_headroom + 9;
 	RTLLIB_DEBUG(RTLLIB_DL_TRACE | RTLLIB_DL_BA, "========>%s(), frame(%d)"
-		     " sentd to:"MAC_FMT", ieee->dev:%p\n", __func__,
-		     type, MAC_ARG(Dst), ieee->dev);
+		     " sentd to: %pM, ieee->dev:%p\n", __func__,
+		     type, Dst, ieee->dev);
 	if (pBA == NULL || ieee == NULL) {
 		RTLLIB_DEBUG(RTLLIB_DL_ERR, "pBA(%p) is NULL or ieee(%p) is "
 			     "NULL\n", pBA, ieee);
@@ -150,8 +150,8 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	if (net_ratelimit())
 		RTLLIB_DEBUG(RTLLIB_DL_TRACE | RTLLIB_DL_BA,
 			     "========>%s(), Reason"
-			     "Code(%d) sentd to:"MAC_FMT"\n", __func__,
-			     ReasonCode, MAC_ARG(dst));
+			     "Code(%d) sentd to: %pM\n", __func__,
+			     ReasonCode, dst);
 
 	memset(&DelbaParamSet, 0, 2);
 
@@ -265,7 +265,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	pBaTimeoutVal = (u16 *)(tag + 5);
 	pBaStartSeqCtrl = (union sequence_control *)(req + 7);
 
-	RT_TRACE(COMP_DBG, "====>rx ADDBAREQ from :"MAC_FMT"\n", MAC_ARG(dst));
+	RT_TRACE(COMP_DBG, "====>rx ADDBAREQ from : %pM\n", dst);
 	if (ieee->current_network.qos_data.active == 0  ||
 	    (ieee->pHTInfo->bCurrentHTSupport == false) ||
 	    (ieee->pHTInfo->IOTAction & HT_IOT_ACT_REJECT_ADDBA_REQ)) {
@@ -347,7 +347,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	pBaParamSet = (union ba_param_set *)(tag + 5);
 	pBaTimeoutVal = (u16 *)(tag + 7);
 
-	RT_TRACE(COMP_DBG, "====>rx ADDBARSP from :"MAC_FMT"\n", MAC_ARG(dst));
+	RT_TRACE(COMP_DBG, "====>rx ADDBARSP from : %pM\n", dst);
 	if (ieee->current_network.qos_data.active == 0  ||
 	    ieee->pHTInfo->bCurrentHTSupport == false ||
 	    ieee->pHTInfo->bCurrentAMPDUEnable == false) {
@@ -459,8 +459,7 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 		if (!GetTs(ieee, (struct ts_common_info **)&pRxTs, dst,
 		    (u8)pDelBaParamSet->field.TID, RX_DIR, false)) {
 			RTLLIB_DEBUG(RTLLIB_DL_ERR,  "can't get TS for RXTS in "
-				     "%s().dst:"MAC_FMT" TID:%d\n", __func__,
-				     MAC_ARG(dst),
+				     "%s().dst: %pM TID:%d\n", __func__, dst,
 				     (u8)pDelBaParamSet->field.TID);
 			return -1;
 		}
