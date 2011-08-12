@@ -213,7 +213,7 @@ int rk29_fb_io_enable(void)
 	gpio_direction_output(NEWTON_LCD_DISP, 0);
 	gpio_set_value(NEWTON_LCD_DISP,GPIO_HIGH);
 	gpio_direction_output(NEWTON_LCD_EN, 0);
-	gpio_set_value(NEWTON_LCD_EN,GPIO_HIGH);
+	gpio_set_value(NEWTON_LCD_EN,GPIO_LOW);
     return 0;
 }
 
@@ -222,7 +222,7 @@ int rk29_fb_io_disable(void)
 	gpio_direction_output(NEWTON_LCD_DISP, 0);
 	gpio_set_value(NEWTON_LCD_DISP,GPIO_LOW);
 	gpio_direction_output(NEWTON_LCD_EN, 0);
-	gpio_set_value(NEWTON_LCD_EN,GPIO_LOW);
+	gpio_set_value(NEWTON_LCD_EN,GPIO_HIGH);
     return 0;
 }
 
