@@ -672,15 +672,6 @@ extern uint brcmf_radio_up;
 /* Override to force tx queueing all the time */
 extern uint brcmf_force_tx_queueing;
 
-#ifdef SDTEST
-/* Echo packet generator (SDIO), pkts/s */
-extern uint brcmf_pktgen;
-
-/* Echo packet len (0 => sawtooth, max 1800) */
-extern uint brcmf_pktgen_len;
-#define BRCMF_MAX_PKTGEN_LEN 1800
-#endif
-
 extern const struct bcmevent_name bcmevent_names[];
 extern const int bcmevent_names_size;
 
@@ -822,34 +813,6 @@ struct brcmf_c_ioctl {
 #define BRCMF_EVENT_VAL	0x0800
 #define BRCMF_BTA_VAL	0x1000
 #define BRCMF_ISCAN_VAL 0x2000
-
-#ifdef SDTEST
-/* For pktgen iovar */
-struct brcmf_pktgen {
-	uint version;		/* To allow structure change tracking */
-	uint freq;		/* Max ticks between tx/rx attempts */
-	uint count;		/* Test packets to send/rcv each attempt */
-	uint print;		/* Print counts every <print> attempts */
-	uint total;		/* Total packets (or bursts) */
-	uint minlen;		/* Minimum length of packets to send */
-	uint maxlen;		/* Maximum length of packets to send */
-	uint numsent;		/* Count of test packets sent */
-	uint numrcvd;		/* Count of test packets received */
-	uint numfail;		/* Count of test send failures */
-	uint mode;		/* Test mode (type of test packets) */
-	uint stop;		/* Stop after this many tx failures */
-};
-
-/* Version in case structure changes */
-#define BRCMF_PKTGEN_VERSION	2
-
-/* Type of test packets to use */
-#define BRCMF_PKTGEN_ECHO	1	/* Send echo requests */
-#define BRCMF_PKTGEN_SEND	2	/* Send discard packets */
-#define BRCMF_PKTGEN_RXBURST	3	/* Request dongle send N packets */
-#define BRCMF_PKTGEN_RECV		4	/* Continuous rx from continuous
-					 tx dongle */
-#endif				/* SDTEST */
 
 /* Enter idle immediately (no timeout) */
 #define BRCMF_IDLE_IMMEDIATE	(-1)
