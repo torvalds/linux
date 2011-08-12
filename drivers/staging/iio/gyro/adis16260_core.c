@@ -21,8 +21,6 @@
 #include "../iio.h"
 #include "../sysfs.h"
 #include "../ring_generic.h"
-#include "../adc/adc.h"
-#include "gyro.h"
 
 #include "adis16260.h"
 
