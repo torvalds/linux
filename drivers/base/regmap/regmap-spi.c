@@ -69,3 +69,5 @@ struct regmap *regmap_init_spi(struct spi_device *spi,
 	return regmap_init(&spi->dev, &regmap_spi, config);
 }
 EXPORT_SYMBOL_GPL(regmap_init_spi);
+
+MODULE_LICENSE("GPL");
