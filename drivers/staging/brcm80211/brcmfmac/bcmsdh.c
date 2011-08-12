@@ -385,10 +385,7 @@ bool brcmf_sdcard_regfail(struct brcmf_sdio_dev *sdiodev)
 int
 brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		      uint flags,
-		      u8 *buf, uint nbytes, struct sk_buff *pkt,
-		      void (*complete)(void *handle, int status,
-				       bool sync_waiting),
-		      void *handle)
+		      u8 *buf, uint nbytes, struct sk_buff *pkt)
 {
 	int status;
 	uint incr_fix;
@@ -426,10 +423,7 @@ brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 
 int
 brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, u8 *buf, uint nbytes, void *pkt,
-		      void (*complete)(void *handle, int status,
-				       bool sync_waiting),
-		      void *handle)
+		      uint flags, u8 *buf, uint nbytes, struct sk_buff *pkt)
 {
 	uint incr_fix;
 	uint width;

@@ -188,16 +188,10 @@ extern bool brcmf_sdcard_regfail(struct brcmf_sdio_dev *sdiodev);
  */
 extern int
 brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, u8 *buf, uint nbytes, void *pkt,
-		      void (*complete)(void *handle, int status,
-				       bool sync_waiting),
-		      void *handle);
+		      uint flags, u8 *buf, uint nbytes, struct sk_buff *pkt);
 extern int
 brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, u8 *buf, uint nbytes, struct sk_buff *pkt,
-		      void (*complete)(void *handle, int status,
-				       bool sync_waiting),
-		      void *handle);
+		      uint flags, u8 *buf, uint nbytes, struct sk_buff *pkt);
 
 /* Flags bits */
 
