@@ -425,8 +425,6 @@ void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
 	unsigned char *ptr_ie_buf = ie_buf;
 	unsigned char *ieeemgmtbuf = NULL;
 	u8 source_mac[ETH_ALEN];
-	u16 capa_mask;
-	u16 capa_val;
 
 	/* capinfo + listen interval */
 	u8 assoc_req_ie_offset = sizeof(u16) + sizeof(u16);
@@ -458,24 +456,6 @@ void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
 			return;
 		}
 	}
-
-	if (nw_type & ADHOC_NETWORK) {
-		capa_mask = WLAN_CAPABILITY_IBSS;
-		capa_val = WLAN_CAPABILITY_IBSS;
-	} else {
-		capa_mask = WLAN_CAPABILITY_ESS;
-		capa_val = WLAN_CAPABILITY_ESS;
-	}
-
-	/* Before informing the join/connect event, make sure that
-	 * bss entry is present in scan list, if it not present
-	 * construct and insert into scan list, otherwise that
-	 * event will be dropped on the way by cfg80211, due to
-	 * this keys will not be plumbed in case of WEP and
-	 * application will not be aware of join/connect status. */
-	bss = cfg80211_get_bss(ar->wdev->wiphy, NULL, bssid,
-			       ar->wdev->ssid, ar->wdev->ssid_len,
-			       capa_mask, capa_val);
 
 	/*
 	 * Earlier we were updating the cfg about bss by making a beacon frame
@@ -527,7 +507,6 @@ void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
 	ieeemgmtbuf = kzalloc(size, GFP_ATOMIC);
 	if (!ieeemgmtbuf) {
 		ath6kl_err("ieee mgmt buf alloc error\n");
-		cfg80211_put_bss(bss);
 		return;
 	}
 
