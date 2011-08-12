@@ -21,7 +21,6 @@
 #include <linux/netdevice.h>
 #include <linux/sched.h>
 #include <linux/etherdevice.h>
-#include <linux/wireless.h>
 #include <linux/ieee80211.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/uaccess.h>

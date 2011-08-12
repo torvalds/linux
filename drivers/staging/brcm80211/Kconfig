@@ -22,8 +22,6 @@ config BRCMFMAC
 	depends on WLAN && CFG80211
 	select BRCMUTIL
 	select FW_LOADER
-	select WIRELESS_EXT
-	select WEXT_PRIV
 	---help---
 	  This module adds support for embedded wireless adapters based on
 	  Broadcom IEEE802.11n FullMAC chipsets.  This driver uses the kernel's
