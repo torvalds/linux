@@ -203,7 +203,7 @@ struct adt7316_chip_info {
 #define ADT7316_TEMP_INT_MASK		0x1F
 #define ADT7516_AIN_INT_MASK		0xE0
 #define ADT7316_TEMP_AIN_INT_MASK	\
-	(ADT7316_TEMP_INT_MASK | ADT7316_TEMP_INT_MASK)
+	(ADT7316_TEMP_INT_MASK)
 
 /*
  * struct adt7316_chip_info - chip specifc information
