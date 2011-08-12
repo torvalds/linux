@@ -109,7 +109,10 @@ module_param_call(limit_avg_voltage, rk29_cpufreq_set_limit_avg_voltage, param_g
 
 static bool rk29_cpufreq_is_ondemand_policy(struct cpufreq_policy *policy)
 {
-	return (policy && policy->governor && (policy->governor->name[0] == 'o'));
+	char c = 0;
+	if (policy && policy->governor)
+		c = policy->governor->name[0];
+	return (c == 'o' || c == 'i' || c == 'c');
 }
 
 int board_update_cpufreq_table(struct cpufreq_frequency_table *table)
