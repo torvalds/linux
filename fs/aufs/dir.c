@@ -277,31 +277,15 @@ static int au_do_fsync_dir_no_file(struct dentry *dentry, int datasync)
 	bend = au_dbend(dentry);
 	for (bindex = au_dbstart(dentry); !err && bindex <= bend; bindex++) {
 		struct path h_path;
-		struct inode *h_inode;
 
 		if (au_test_ro(sb, bindex, inode))
 			continue;
 		h_path.dentry = au_h_dptr(dentry, bindex);
 		if (!h_path.dentry)
 			continue;
-		h_inode = h_path.dentry->d_inode;
-		if (!h_inode)
-			continue;
 
-		/* no mnt_want_write() */
-		/* cf. fs/nsfd/vfs.c and fs/nfsd/nfs4recover.c */
-		/* todo: inotiry fired? */
 		h_path.mnt = au_sbr_mnt(sb, bindex);
-		mutex_lock(&h_inode->i_mutex);
-		err = filemap_fdatawrite(h_inode->i_mapping);
-		AuDebugOn(!h_inode->i_fop);
-		if (!err && h_inode->i_fop->fsync)
-			err = h_inode->i_fop->fsync(NULL, datasync);
-		if (!err)
-			err = filemap_fdatawrite(h_inode->i_mapping);
-		if (!err)
-			vfsub_update_h_iattr(&h_path, /*did*/NULL); /*ignore*/
-		mutex_unlock(&h_inode->i_mutex);
+		err = vfsub_fsync(NULL, &h_path, datasync);
 	}
 
 	return err;
@@ -314,7 +298,6 @@ static int au_do_fsync_dir(struct file *file, int datasync)
 	struct file *h_file;
 	struct super_block *sb;
 	struct inode *inode;
-	struct mutex *h_mtx;
 
 	err = au_reval_and_lock_fdi(file, reopen_dir, /*wlock*/1);
 	if (unlikely(err))
@@ -328,14 +311,7 @@ static int au_do_fsync_dir(struct file *file, int datasync)
 		if (!h_file || au_test_ro(sb, bindex, inode))
 			continue;
 
-		err = vfs_fsync(h_file, datasync);
-		if (!err) {
-			h_mtx = &h_file->f_dentry->d_inode->i_mutex;
-			mutex_lock(h_mtx);
-			vfsub_update_h_iattr(&h_file->f_path, /*did*/NULL);
-			/*ignore*/
-			mutex_unlock(h_mtx);
-		}
+		err = vfsub_fsync(h_file, &h_file->f_path, datasync);
 	}
 
 out:
