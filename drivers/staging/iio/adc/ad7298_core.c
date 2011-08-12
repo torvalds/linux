@@ -18,7 +18,6 @@
 #include "../iio.h"
 #include "../sysfs.h"
 #include "../ring_generic.h"
-#include "adc.h"
 
 #include "ad7298.h"
 
