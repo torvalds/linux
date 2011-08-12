@@ -459,6 +459,35 @@ struct clk_mgt clk_mgt[PRCMU_NUM_REG_CLOCKS] = {
 	CLK_MGT_ENTRY(UICCCLK),
 };
 
+static struct regulator *hwacc_regulator[NUM_HW_ACC];
+static struct regulator *hwacc_ret_regulator[NUM_HW_ACC];
+
+static bool hwacc_enabled[NUM_HW_ACC];
+static bool hwacc_ret_enabled[NUM_HW_ACC];
+
+static const char *hwacc_regulator_name[NUM_HW_ACC] = {
+	[HW_ACC_SVAMMDSP]	= "hwacc-sva-mmdsp",
+	[HW_ACC_SVAPIPE]	= "hwacc-sva-pipe",
+	[HW_ACC_SIAMMDSP]	= "hwacc-sia-mmdsp",
+	[HW_ACC_SIAPIPE]	= "hwacc-sia-pipe",
+	[HW_ACC_SGA]		= "hwacc-sga",
+	[HW_ACC_B2R2]		= "hwacc-b2r2",
+	[HW_ACC_MCDE]		= "hwacc-mcde",
+	[HW_ACC_ESRAM1]		= "hwacc-esram1",
+	[HW_ACC_ESRAM2]		= "hwacc-esram2",
+	[HW_ACC_ESRAM3]		= "hwacc-esram3",
+	[HW_ACC_ESRAM4]		= "hwacc-esram4",
+};
+
+static const char *hwacc_ret_regulator_name[NUM_HW_ACC] = {
+	[HW_ACC_SVAMMDSP]	= "hwacc-sva-mmdsp-ret",
+	[HW_ACC_SIAMMDSP]	= "hwacc-sia-mmdsp-ret",
+	[HW_ACC_ESRAM1]		= "hwacc-esram1-ret",
+	[HW_ACC_ESRAM2]		= "hwacc-esram2-ret",
+	[HW_ACC_ESRAM3]		= "hwacc-esram3-ret",
+	[HW_ACC_ESRAM4]		= "hwacc-esram4-ret",
+};
+
 /*
 * Used by MCDE to setup all necessary PRCMU registers
 */
@@ -1023,6 +1052,34 @@ int prcmu_release_usb_wakeup_state(void)
 	return r;
 }
 
+static int request_pll(u8 clock, bool enable)
+{
+	int r = 0;
+
+	if (clock == PRCMU_PLLSOC1)
+		clock = (enable ? PLL_SOC1_ON : PLL_SOC1_OFF);
+	else
+		return -EINVAL;
+
+	mutex_lock(&mb1_transfer.lock);
+
+	while (readl(PRCM_MBOX_CPU_VAL) & MBOX_BIT(1))
+		cpu_relax();
+
+	writeb(MB1H_PLL_ON_OFF, (tcdm_base + PRCM_MBOX_HEADER_REQ_MB1));
+	writeb(clock, (tcdm_base + PRCM_REQ_MB1_PLL_ON_OFF));
+
+	writel(MBOX_BIT(1), PRCM_MBOX_CPU_SET);
+	wait_for_completion(&mb1_transfer.work);
+
+	if (mb1_transfer.ack.header != MB1H_PLL_ON_OFF)
+		r = -EIO;
+
+	mutex_unlock(&mb1_transfer.lock);
+
+	return r;
+}
+
 /**
  * db8500_prcmu_set_epod - set the state of a EPOD (power domain)
  * @epod_id: The EPOD to set
@@ -1220,6 +1277,26 @@ static int request_reg_clock(u8 clock, bool enable)
 	return 0;
 }
 
+static int request_sga_clock(u8 clock, bool enable)
+{
+	u32 val;
+	int ret;
+
+	if (enable) {
+		val = readl(PRCM_CGATING_BYPASS);
+		writel(val | PRCM_CGATING_BYPASS_ICN2, PRCM_CGATING_BYPASS);
+	}
+
+	ret = request_reg_clock(clock, enable);
+
+	if (!ret && !enable) {
+		val = readl(PRCM_CGATING_BYPASS);
+		writel(val & ~PRCM_CGATING_BYPASS_ICN2, PRCM_CGATING_BYPASS);
+	}
+
+	return ret;
+}
+
 /**
  * db8500_prcmu_request_clock() - Request for a clock to be enabled or disabled.
  * @clock:      The clock for which the request is made.
@@ -1230,12 +1307,16 @@ static int request_reg_clock(u8 clock, bool enable)
  */
 int db8500_prcmu_request_clock(u8 clock, bool enable)
 {
-	if (clock < PRCMU_NUM_REG_CLOCKS)
+	if (clock == PRCMU_SGACLK)
+		return request_sga_clock(clock, enable);
+	else if (clock < PRCMU_NUM_REG_CLOCKS)
 		return request_reg_clock(clock, enable);
 	else if (clock == PRCMU_TIMCLK)
 		return request_timclk(enable);
 	else if (clock == PRCMU_SYSCLK)
 		return request_sysclk(enable);
+	else if (clock == PRCMU_PLLSOC1)
+		return request_pll(clock, enable);
 	else
 		return -EINVAL;
 }
