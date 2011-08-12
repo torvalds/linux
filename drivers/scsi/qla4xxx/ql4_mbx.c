@@ -1425,18 +1425,21 @@ int qla4xxx_disable_acb(struct scsi_qla_host *ha)
 	return status;
 }
 
-int qla4xxx_get_acb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
-		    uint32_t *mbox_sts, dma_addr_t acb_dma)
+int qla4xxx_get_acb(struct scsi_qla_host *ha, dma_addr_t acb_dma,
+		    uint32_t acb_type, uint32_t len)
 {
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
 	int status = QLA_SUCCESS;
 
-	memset(mbox_cmd, 0, sizeof(mbox_cmd[0]) * MBOX_REG_COUNT);
-	memset(mbox_sts, 0, sizeof(mbox_sts[0]) * MBOX_REG_COUNT);
+	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
+	memset(&mbox_sts, 0, sizeof(mbox_sts));
+
 	mbox_cmd[0] = MBOX_CMD_GET_ACB;
-	mbox_cmd[1] = 0; /* Primary ACB */
+	mbox_cmd[1] = acb_type;
 	mbox_cmd[2] = LSDW(acb_dma);
 	mbox_cmd[3] = MSDW(acb_dma);
-	mbox_cmd[4] = sizeof(struct addr_ctrl_blk);
+	mbox_cmd[4] = len;
 
 	status = qla4xxx_mailbox_command(ha, 5, 5, &mbox_cmd[0], &mbox_sts[0]);
 	if (status != QLA_SUCCESS) {

@@ -56,8 +56,8 @@ int qla4xxx_conn_close_sess_logout(struct scsi_qla_host *ha,
 int qla4xxx_disable_acb(struct scsi_qla_host *ha);
 int qla4xxx_set_acb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
 		    uint32_t *mbox_sts, dma_addr_t acb_dma);
-int qla4xxx_get_acb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
-		    uint32_t *mbox_sts, dma_addr_t acb_dma);
+int qla4xxx_get_acb(struct scsi_qla_host *ha, dma_addr_t acb_dma,
+		    uint32_t acb_type, uint32_t len);
 int qla4xxx_get_ip_state(struct scsi_qla_host *ha, uint32_t acb_idx,
 			 uint32_t ip_idx, uint32_t *sts);
 void qla4xxx_mark_device_missing(struct iscsi_cls_session *cls_session);

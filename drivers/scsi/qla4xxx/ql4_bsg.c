@@ -381,6 +381,71 @@ leave:
 	return rval;
 }
 
+static int
+qla4xxx_bsg_get_acb(struct bsg_job *bsg_job)
+{
+	struct Scsi_Host *host = iscsi_job_to_shost(bsg_job);
+	struct scsi_qla_host *ha = to_qla_host(host);
+	struct iscsi_bsg_request *bsg_req = bsg_job->request;
+	struct iscsi_bsg_reply *bsg_reply = bsg_job->reply;
+	uint32_t acb_type = 0;
+	uint32_t len = 0;
+	dma_addr_t acb_dma;
+	uint8_t *acb = NULL;
+	int rval = -EINVAL;
+
+	bsg_reply->reply_payload_rcv_len = 0;
+
+	if (unlikely(pci_channel_offline(ha->pdev)))
+		goto leave;
+
+	/* Only 4022 and above adapters are supported */
+	if (is_qla4010(ha))
+		goto leave;
+
+	if (ql4xxx_reset_active(ha)) {
+		ql4_printk(KERN_ERR, ha, "%s: reset active\n", __func__);
+		rval = -EBUSY;
+		goto leave;
+	}
+
+	acb_type = bsg_req->rqst_data.h_vendor.vendor_cmd[1];
+	len = bsg_job->reply_payload.payload_len;
+	if (len < sizeof(struct addr_ctrl_blk)) {
+		ql4_printk(KERN_ERR, ha, "%s: invalid acb len %d\n",
+			   __func__, len);
+		rval = -EINVAL;
+		goto leave;
+	}
+
+	acb = dma_alloc_coherent(&ha->pdev->dev, len, &acb_dma, GFP_KERNEL);
+	if (!acb) {
+		ql4_printk(KERN_ERR, ha, "%s: dma alloc failed for acb "
+			   "data\n", __func__);
+		rval = -ENOMEM;
+		goto leave;
+	}
+
+	rval = qla4xxx_get_acb(ha, acb_dma, acb_type, len);
+	if (rval) {
+		ql4_printk(KERN_ERR, ha, "%s: get acb failed\n", __func__);
+		bsg_reply->result = DID_ERROR << 16;
+		rval = -EIO;
+	} else {
+		bsg_reply->reply_payload_rcv_len =
+			sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
+					    bsg_job->reply_payload.sg_cnt,
+					    acb, len);
+		bsg_reply->result = DID_OK << 16;
+	}
+
+	bsg_job_done(bsg_job, bsg_reply->result,
+		     bsg_reply->reply_payload_rcv_len);
+	dma_free_coherent(&ha->pdev->dev, len, acb, acb_dma);
+leave:
+	return rval;
+}
+
 /**
  * qla4xxx_process_vendor_specific - handle vendor specific bsg request
  * @job: iscsi_bsg_job to handle
@@ -410,6 +475,9 @@ int qla4xxx_process_vendor_specific(struct bsg_job *bsg_job)
 
 	case QLISCSI_VND_RESTORE_DEFAULTS:
 		return qla4xxx_restore_defaults(bsg_job);
+
+	case QLISCSI_VND_GET_ACB:
+		return qla4xxx_bsg_get_acb(bsg_job);
 
 	default:
 		ql4_printk(KERN_ERR, ha, "%s: invalid BSG vendor command: "
