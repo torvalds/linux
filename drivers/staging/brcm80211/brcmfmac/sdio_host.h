@@ -129,7 +129,6 @@ struct sdioh_info {
 	int intrcount;		/* Client interrupts */
 	bool sd_blockmode;	/* sd_blockmode == false => 64 Byte Cmd 53s. */
 	/*  Must be on for sd_multiblock to be effective */
-	int client_block_size[SDIOD_MAX_IOFUNCS];	/* Blocksize */
 	u8 num_funcs;	/* Supported funcs on client */
 	u32 com_cis_ptr;
 	u32 func_cis_ptr[SDIOD_MAX_IOFUNCS];

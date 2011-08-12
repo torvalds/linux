@@ -3168,24 +3168,6 @@ brcmf_sdbrcm_bus_iovar_op(struct brcmf_pub *drvr, const char *name,
 		bcmerror = brcmf_sdcard_iovar_op(bus->sdiodev, name, params,
 						 plen, arg, len, set);
 
-		/* Similar check for blocksize change */
-		if (set && strcmp(name, "sd_blocksize") == 0) {
-			s32 fnum = 2;
-			if (brcmf_sdcard_iovar_op
-			    (bus->sdiodev, "sd_blocksize", &fnum, sizeof(s32),
-			     &bus->blocksize, sizeof(s32),
-			     false) != 0) {
-				bus->blocksize = 0;
-				BRCMF_ERROR(("%s: fail on %s get\n", __func__,
-					     "sd_blocksize"));
-			} else {
-				BRCMF_INFO(("%s: noted sd_blocksize update,"
-					    " value now %d\n", __func__,
-					    bus->blocksize));
-			}
-		}
-		bus->roundup = min(max_roundup, bus->blocksize);
-
 		if (bus->idletime == BRCMF_IDLE_IMMEDIATE &&
 		    !bus->dpc_sched) {
 			bus->activity = false;
@@ -5679,8 +5661,6 @@ fail:
 
 static bool brcmf_sdbrcm_probe_init(struct brcmf_bus *bus)
 {
-	s32 fnum;
-
 	BRCMF_TRACE(("%s: Enter\n", __func__));
 
 #ifdef SDTEST
@@ -5705,16 +5685,7 @@ static bool brcmf_sdbrcm_probe_init(struct brcmf_bus *bus)
 	bus->idleclock = BRCMF_IDLE_ACTIVE;
 
 	/* Query the F2 block size, set roundup accordingly */
-	fnum = 2;
-	if (brcmf_sdcard_iovar_op(bus->sdiodev, "sd_blocksize", &fnum,
-				  sizeof(s32), &bus->blocksize,
-				  sizeof(s32), false) != 0) {
-		bus->blocksize = 0;
-		BRCMF_ERROR(("%s: fail on %s get\n", __func__, "sd_blocksize"));
-	} else {
-		BRCMF_INFO(("%s: Initial value for %s is %d\n",
-			    __func__, "sd_blocksize", bus->blocksize));
-	}
+	bus->blocksize = bus->sdiodev->func2->cur_blksize;
 	bus->roundup = min(max_roundup, bus->blocksize);
 
 	/* Query if bus module supports packet chaining,

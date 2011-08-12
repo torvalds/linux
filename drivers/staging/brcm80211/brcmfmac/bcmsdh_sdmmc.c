@@ -169,14 +169,12 @@ struct sdioh_info *brcmf_sdioh_attach(void *bar0)
 	}
 
 	sd->num_funcs = 2;
-	sd->client_block_size[0] = 64;
 
 	gInstance->sd = sd;
 
 	/* Claim host controller */
 	sdio_claim_host(gInstance->func[1]);
 
-	sd->client_block_size[1] = 64;
 	err_ret = sdio_set_block_size(gInstance->func[1], 64);
 	if (err_ret)
 		BRCMF_ERROR(("%s: Failed to set F1 blocksize\n", __func__));
@@ -188,7 +186,6 @@ struct sdioh_info *brcmf_sdioh_attach(void *bar0)
 		/* Claim host controller F2 */
 		sdio_claim_host(gInstance->func[2]);
 
-		sd->client_block_size[2] = sd_f2_blocksize;
 		err_ret =
 		    sdio_set_block_size(gInstance->func[2], sd_f2_blocksize);
 		if (err_ret)
@@ -273,7 +270,6 @@ extern int brcmf_sdioh_interrupt_deregister(struct sdioh_info *sd)
 /* IOVar table */
 enum {
 	IOV_MSGLEVEL = 1,
-	IOV_BLOCKSIZE,
 	IOV_NUMINTS,
 	IOV_DEVREG,
 	IOV_HCIREGS,
@@ -281,8 +277,6 @@ enum {
 };
 
 const struct brcmu_iovar sdioh_iovars[] = {
-	{"sd_blocksize", IOV_BLOCKSIZE, 0, IOVT_UINT32, 0},/* ((fn << 16) |
-								 size) */
 	{"sd_numints", IOV_NUMINTS, 0, IOVT_UINT32, 0},
 	{"sd_devreg", IOV_DEVREG, 0, IOVT_BUFFER, sizeof(struct brcmf_sdreg)}
 	,
@@ -346,52 +340,6 @@ brcmf_sdioh_iovar_op(struct sdioh_info *si, const char *name,
 
 	actionid = set ? IOV_SVAL(vi->varid) : IOV_GVAL(vi->varid);
 	switch (actionid) {
-	case IOV_GVAL(IOV_BLOCKSIZE):
-		if ((u32) int_val > si->num_funcs) {
-			bcmerror = -EINVAL;
-			break;
-		}
-		int_val = (s32) si->client_block_size[int_val];
-		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_SVAL(IOV_BLOCKSIZE):
-		{
-			uint func = ((u32) int_val >> 16);
-			uint blksize = (u16) int_val;
-			uint maxsize;
-
-			if (func > si->num_funcs) {
-				bcmerror = -EINVAL;
-				break;
-			}
-
-			switch (func) {
-			case 0:
-				maxsize = 32;
-				break;
-			case 1:
-				maxsize = 64;
-				break;
-			case 2:
-				maxsize = 512;
-				break;
-			default:
-				maxsize = 0;
-			}
-			if (blksize > maxsize) {
-				bcmerror = -EINVAL;
-				break;
-			}
-			if (!blksize)
-				blksize = maxsize;
-
-			/* Now set it */
-			si->client_block_size[func] = blksize;
-
-			break;
-		}
-
 	case IOV_GVAL(IOV_RXCHAIN):
 		int_val = false;
 		memcpy(arg, &int_val, val_size);
