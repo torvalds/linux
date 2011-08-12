@@ -1865,6 +1865,9 @@ struct wiphy {
 	 * you need use set_wiphy_dev() (see below) */
 	struct device dev;
 
+	/* protects ->resume, ->suspend sysfs callbacks against unregister hw */
+	bool registered;
+
 	/* dir in debugfs: ieee80211/<wiphyname> */
 	struct dentry *debugfsdir;
 
