@@ -122,23 +122,7 @@ struct brcmf_sdreg {
 	int value;
 };
 
-struct sdioh_info {
-	struct osl_info *osh;		/* osh handler */
-
-	uint irq;		/* Client irq */
-	int intrcount;		/* Client interrupts */
-	bool sd_blockmode;	/* sd_blockmode == false => 64 Byte Cmd 53s. */
-	/*  Must be on for sd_multiblock to be effective */
-	u8 num_funcs;	/* Supported funcs on client */
-	u32 com_cis_ptr;
-	u32 func_cis_ptr[SDIOD_MAX_IOFUNCS];
-	uint max_dma_len;
-	/* DMA Descriptors supported by this controller. */
-	uint max_dma_descriptors;
-};
-
 struct brcmf_sdmmc_instance {
-	struct sdioh_info *sd;
 	struct sdio_func *func[SDIOD_MAX_IOFUNCS];
 	u32 host_claimed;
 	atomic_t suspend;	/* suspend flag */
@@ -147,7 +131,8 @@ struct brcmf_sdmmc_instance {
 struct brcmf_sdio_dev {
 	struct sdio_func *func1;
 	struct sdio_func *func2;
-	void *sdioh;			/* sdioh handler */
+	u8 num_funcs;			/* Supported funcs on client */
+	u32 func_cis_ptr[SDIOD_MAX_IOFUNCS];
 	u32 sbwad;			/* Save backplane window address */
 	bool regfail;			/* status of last reg_r/w call */
 	void *bus;
@@ -250,10 +235,6 @@ extern int brcmf_sdcard_iovar_op(struct brcmf_sdio_dev *sdiodev,
 				 const char *name, void *params, int plen,
 				 void *arg, int len, bool set);
 
-/* helper functions */
-
-struct sdioh_info;
-
 /* platform specific/high level functions */
 extern int brcmf_sdio_function_init(void);
 extern int brcmf_sdio_register(void);
@@ -269,47 +250,47 @@ extern u32 brcmf_sdcard_cur_sbwad(struct brcmf_sdio_dev *sdiodev);
  *  The handler shall be provided by all subsequent calls. No local cache
  *  cfghdl points to the starting address of pci device mapped memory
  */
-extern struct sdioh_info *brcmf_sdioh_attach(void *cfghdl);
-extern int brcmf_sdioh_detach(struct sdioh_info *si);
+extern int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev);
+extern void brcmf_sdioh_detach(struct brcmf_sdio_dev *sdiodev);
 
 extern int
-brcmf_sdioh_interrupt_register(struct sdioh_info *si);
+brcmf_sdioh_interrupt_register(void);
 
-extern int brcmf_sdioh_interrupt_deregister(struct sdioh_info *si);
+extern int brcmf_sdioh_interrupt_deregister(void);
 
 /* read or write one byte using cmd52 */
-extern int
-brcmf_sdioh_request_byte(struct sdioh_info *si, uint rw, uint fnc, uint addr,
-			 u8 *byte);
+extern int brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw,
+				    uint fnc, uint addr, u8 *byte);
 
 /* read or write 2/4 bytes using cmd53 */
 extern int
-brcmf_sdioh_request_word(struct sdioh_info *si, uint cmd_type,
+brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev, uint cmd_type,
 			 uint rw, uint fnc, uint addr,
 			 u32 *word, uint nbyte);
 
 /* read or write any buffer using cmd53 */
 extern int
-brcmf_sdioh_request_buffer(struct sdioh_info *si, uint pio_dma,
+brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev, uint pio_dma,
 			   uint fix_inc, uint rw, uint fnc_num,
 			   u32 addr, uint regwidth,
 			   u32 buflen, u8 *buffer, struct sk_buff *pkt);
 
 /* get cis data */
-extern int
-brcmf_sdioh_cis_read(struct sdioh_info *si, uint fuc, u8 *cis, u32 length);
+extern int brcmf_sdioh_cis_read(struct brcmf_sdio_dev *sdiodev, uint fuc,
+				u8 *cis, u32 length);
 
-extern int
-brcmf_sdioh_cfg_read(struct sdioh_info *si, uint fuc, u32 addr, u8 *data);
-extern int
-brcmf_sdioh_cfg_write(struct sdioh_info *si, uint fuc, u32 addr, u8 *data);
+extern int brcmf_sdioh_cfg_read(struct brcmf_sdio_dev *sdiodev, uint fuc,
+				u32 addr, u8 *data);
+extern int brcmf_sdioh_cfg_write(struct brcmf_sdio_dev *sdiodev, uint fuc,
+				 u32 addr, u8 *data);
 
 /* handle iovars */
-extern int brcmf_sdioh_iovar_op(struct sdioh_info *si, const char *name,
-			  void *params, int plen, void *arg, int len, bool set);
+extern int brcmf_sdioh_iovar_op(struct brcmf_sdio_dev *sdiodev,
+				const char *name, void *params, int plen,
+				void *arg, int len, bool set);
 
 /* Issue abort to the specified function and clear controller as needed */
-extern int brcmf_sdioh_abort(struct sdioh_info *si, uint fnc);
+extern int brcmf_sdioh_abort(struct brcmf_sdio_dev *sdiodev, uint fnc);
 
 /* Watchdog timer interface for pm ops */
 extern void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev,
