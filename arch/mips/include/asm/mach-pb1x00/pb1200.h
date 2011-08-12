@@ -37,14 +37,14 @@
  * SPI and SMB are muxed on the Pb1200 board.
  * Refer to board documentation.
  */
-#define SPI_PSC_BASE		PSC0_BASE_ADDR
-#define SMBUS_PSC_BASE		PSC0_BASE_ADDR
+#define SPI_PSC_BASE		AU1550_PSC0_PHYS_ADDR
+#define SMBUS_PSC_BASE		AU1550_PSC0_PHYS_ADDR
 /*
  * AC97 and I2S are muxed on the Pb1200 board.
  * Refer to board documentation.
  */
-#define AC97_PSC_BASE       PSC1_BASE_ADDR
-#define I2S_PSC_BASE	PSC1_BASE_ADDR
+#define AC97_PSC_BASE       AU1550_PSC1_PHYS_ADDR
+#define I2S_PSC_BASE	AU1550_PSC1_PHYS_ADDR
 
 
 #define BCSR_SYSTEM_VDDI	0x001F

@@ -343,8 +343,8 @@ struct au1xmmc_platform_data au1xmmc_platdata[] = {
 
 static struct resource au1200_psc0_res[] = {
 	[0] = {
-		.start	= PSC0_PHYS_ADDR,
-		.end	= PSC0_PHYS_ADDR + 0x000fffff,
+		.start	= AU1550_PSC0_PHYS_ADDR,
+		.end	= AU1550_PSC0_PHYS_ADDR + 0xfff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -401,8 +401,8 @@ static struct platform_device db1200_spi_dev = {
 
 static struct resource au1200_psc1_res[] = {
 	[0] = {
-		.start	= PSC1_PHYS_ADDR,
-		.end	= PSC1_PHYS_ADDR + 0x000fffff,
+		.start	= AU1550_PSC1_PHYS_ADDR,
+		.end	= AU1550_PSC1_PHYS_ADDR + 0xfff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -510,32 +510,28 @@ static int __init db1200_dev_init(void)
 
 	/* Audio PSC clock is supplied externally. (FIXME: platdata!!) */
 	__raw_writel(PSC_SEL_CLK_SERCLK,
-		(void __iomem *)KSEG1ADDR(PSC1_PHYS_ADDR) + PSC_SEL_OFFSET);
+		(void __iomem *)KSEG1ADDR(AU1550_PSC1_PHYS_ADDR) + PSC_SEL_OFFSET);
 	wmb();
 
-	db1x_register_pcmcia_socket(PCMCIA_ATTR_PHYS_ADDR,
-				    PCMCIA_ATTR_PHYS_ADDR + 0x000400000 - 1,
-				    PCMCIA_MEM_PHYS_ADDR,
-				    PCMCIA_MEM_PHYS_ADDR  + 0x000400000 - 1,
-				    PCMCIA_IO_PHYS_ADDR,
-				    PCMCIA_IO_PHYS_ADDR   + 0x000010000 - 1,
-				    DB1200_PC0_INT,
-				    DB1200_PC0_INSERT_INT,
-				    /*DB1200_PC0_STSCHG_INT*/0,
-				    DB1200_PC0_EJECT_INT,
-				    0);
+	db1x_register_pcmcia_socket(
+		AU1000_PCMCIA_ATTR_PHYS_ADDR,
+		AU1000_PCMCIA_ATTR_PHYS_ADDR + 0x000400000 - 1,
+		AU1000_PCMCIA_MEM_PHYS_ADDR,
+		AU1000_PCMCIA_MEM_PHYS_ADDR  + 0x000400000 - 1,
+		AU1000_PCMCIA_IO_PHYS_ADDR,
+		AU1000_PCMCIA_IO_PHYS_ADDR   + 0x000010000 - 1,
+		DB1200_PC0_INT, DB1200_PC0_INSERT_INT,
+		/*DB1200_PC0_STSCHG_INT*/0, DB1200_PC0_EJECT_INT, 0);
 
-	db1x_register_pcmcia_socket(PCMCIA_ATTR_PHYS_ADDR + 0x004000000,
-				    PCMCIA_ATTR_PHYS_ADDR + 0x004400000 - 1,
-				    PCMCIA_MEM_PHYS_ADDR  + 0x004000000,
-				    PCMCIA_MEM_PHYS_ADDR  + 0x004400000 - 1,
-				    PCMCIA_IO_PHYS_ADDR   + 0x004000000,
-				    PCMCIA_IO_PHYS_ADDR   + 0x004010000 - 1,
-				    DB1200_PC1_INT,
-				    DB1200_PC1_INSERT_INT,
-				    /*DB1200_PC1_STSCHG_INT*/0,
-				    DB1200_PC1_EJECT_INT,
-				    1);
+	db1x_register_pcmcia_socket(
+		AU1000_PCMCIA_ATTR_PHYS_ADDR + 0x004000000,
+		AU1000_PCMCIA_ATTR_PHYS_ADDR + 0x004400000 - 1,
+		AU1000_PCMCIA_MEM_PHYS_ADDR  + 0x004000000,
+		AU1000_PCMCIA_MEM_PHYS_ADDR  + 0x004400000 - 1,
+		AU1000_PCMCIA_IO_PHYS_ADDR   + 0x004000000,
+		AU1000_PCMCIA_IO_PHYS_ADDR   + 0x004010000 - 1,
+		DB1200_PC1_INT, DB1200_PC1_INSERT_INT,
+		/*DB1200_PC1_STSCHG_INT*/0, DB1200_PC1_EJECT_INT, 1);
 
 	swapped = bcsr_read(BCSR_STATUS) & BCSR_STATUS_DB1200_SWAPBOOT;
 	db1x_register_norflash(64 << 20, 2, swapped);

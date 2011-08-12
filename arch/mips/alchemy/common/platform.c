@@ -194,8 +194,8 @@ static void __init alchemy_setup_usb(int ctype)
 #ifdef CONFIG_FB_AU1100
 static struct resource au1100_lcd_resources[] = {
 	[0] = {
-		.start          = LCD_PHYS_ADDR,
-		.end            = LCD_PHYS_ADDR + 0x800 - 1,
+		.start          = AU1100_LCD_PHYS_ADDR,
+		.end            = AU1100_LCD_PHYS_ADDR + 0x800 - 1,
 		.flags          = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -223,8 +223,8 @@ static struct platform_device au1100_lcd_device = {
 
 static struct resource au1200_lcd_resources[] = {
 	[0] = {
-		.start          = LCD_PHYS_ADDR,
-		.end            = LCD_PHYS_ADDR + 0x800 - 1,
+		.start          = AU1200_LCD_PHYS_ADDR,
+		.end            = AU1200_LCD_PHYS_ADDR + 0x800 - 1,
 		.flags          = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -328,8 +328,8 @@ static struct platform_device au1200_mmc1_device = {
 #ifdef SMBUS_PSC_BASE
 static struct resource pbdb_smbus_resources[] = {
 	{
-		.start	= CPHYSADDR(SMBUS_PSC_BASE),
-		.end	= CPHYSADDR(SMBUS_PSC_BASE + 0xfffff),
+		.start	= SMBUS_PSC_BASE,
+		.end	= SMBUS_PSC_BASE + 0xfff,
 		.flags	= IORESOURCE_MEM,
 	},
 };
