@@ -130,8 +130,8 @@ brcmf_sdcard_iovar_op(struct brcmf_sdio_dev *sdiodev, const char *name,
 					(struct brcmf_sdreg *) params;
 			u8 data = 0;
 
-			if (brcmf_sdioh_cfg_read
-			    (sdiodev, sd_ptr->func, sd_ptr->offset, &data)) {
+			if (brcmf_sdioh_request_byte(sdiodev, SDIOH_READ,
+					sd_ptr->func, sd_ptr->offset, &data)) {
 				bcmerror = -EIO;
 				break;
 			}
@@ -147,8 +147,8 @@ brcmf_sdcard_iovar_op(struct brcmf_sdio_dev *sdiodev, const char *name,
 					(struct brcmf_sdreg *) params;
 			u8 data = (u8) sd_ptr->value;
 
-			if (brcmf_sdioh_cfg_write
-			    (sdiodev, sd_ptr->func, sd_ptr->offset, &data)) {
+			if (brcmf_sdioh_request_byte(sdiodev, SDIOH_WRITE,
+					sd_ptr->func, sd_ptr->offset, &data)) {
 				bcmerror = -EIO;
 				break;
 			}
@@ -209,9 +209,8 @@ u8 brcmf_sdcard_cfg_read(struct brcmf_sdio_dev *sdiodev, uint fnc_num, u32 addr,
 	do {
 		if (retry)	/* wait for 1 ms till bus get settled down */
 			udelay(1000);
-		status =
-		    brcmf_sdioh_cfg_read(sdiodev, fnc_num, addr,
-				   (u8 *) &data);
+		status = brcmf_sdioh_request_byte(sdiodev, SDIOH_READ, fnc_num,
+						  addr, (u8 *) &data);
 	} while (status != 0
 		 && (retry++ < SDIOH_API_ACCESS_RETRY_LIMIT));
 	if (err)
@@ -233,9 +232,8 @@ brcmf_sdcard_cfg_write(struct brcmf_sdio_dev *sdiodev, uint fnc_num, u32 addr,
 	do {
 		if (retry)	/* wait for 1 ms till bus get settled down */
 			udelay(1000);
-		status =
-		    brcmf_sdioh_cfg_write(sdiodev, fnc_num, addr,
-				    (u8 *) &data);
+		status = brcmf_sdioh_request_byte(sdiodev, SDIOH_WRITE, fnc_num,
+						  addr, (u8 *) &data);
 	} while (status != 0
 		 && (retry++ < SDIOH_API_ACCESS_RETRY_LIMIT));
 	if (err)

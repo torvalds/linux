@@ -190,28 +190,6 @@ void brcmf_sdioh_detach(struct brcmf_sdio_dev *sdiodev)
 
 }
 
-extern int
-brcmf_sdioh_cfg_read(struct brcmf_sdio_dev *sdiodev, uint fnc_num, u32 addr,
-		     u8 *data)
-{
-	int status;
-	/* No lock needed since brcmf_sdioh_request_byte does locking */
-	status = brcmf_sdioh_request_byte(sdiodev, SDIOH_READ, fnc_num,
-					  addr, data);
-	return status;
-}
-
-extern int
-brcmf_sdioh_cfg_write(struct brcmf_sdio_dev *sdiodev, uint fnc_num, u32 addr,
-		      u8 *data)
-{
-	/* No lock needed since brcmf_sdioh_request_byte does locking */
-	int status;
-	status = brcmf_sdioh_request_byte(sdiodev, SDIOH_WRITE, fnc_num,
-					  addr, data);
-	return status;
-}
-
 static int brcmf_sdioh_get_cisaddr(struct brcmf_sdio_dev *sdiodev, u32 regaddr)
 {
 	/* read 24 bits and return valid 17 bit addr */
