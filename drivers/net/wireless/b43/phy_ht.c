@@ -279,6 +279,28 @@ static int b43_phy_ht_op_init(struct b43_wldev *dev)
 
 	b43_phy_ht_zero_extg(dev);
 
+	/* TODO: PHY op on reg B43_PHY_EXTG(0) */
+
+	b43_phy_write(dev, B43_PHY_HT_AFE_CTL1, 0);
+	b43_phy_write(dev, B43_PHY_HT_AFE_CTL3, 0);
+	b43_phy_write(dev, B43_PHY_HT_AFE_CTL5, 0);
+
+	b43_phy_write(dev, B43_PHY_EXTG(0x103), 0x20);
+	b43_phy_write(dev, B43_PHY_EXTG(0x101), 0x20);
+	b43_phy_write(dev, 0x20d, 0xb8);
+	b43_phy_write(dev, B43_PHY_EXTG(0x14f), 0xc8);
+	b43_phy_write(dev, 0x70, 0x50);
+	b43_phy_write(dev, 0x1ff, 0x30);
+
+	if (0) /* TODO: condition */
+		; /* TODO: PHY op on reg 0x217 */
+
+	; /* TODO: PHY op on reg 0xb0 */
+
+	; /* TODO: PHY ops on regs 0xb1, 0x32f, 0x077, 0x0b4, 0x17e */
+
+	b43_phy_write(dev, 0x0b9, 0x0072);
+
 	return 0;
 }
 
