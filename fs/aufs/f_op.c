@@ -570,22 +570,8 @@ static int aufs_fsync_nondir(struct file *file, int datasync)
 
 	err = -EINVAL;
 	h_file = au_hf_top(file);
-	if (h_file->f_op && h_file->f_op->fsync) {
-		struct mutex *h_mtx;
-
-		/*
-		 * no filemap_fdatawrite() since aufs file has no its own
-		 * mapping, but dir.
-		 */
-		h_mtx = &h_file->f_dentry->d_inode->i_mutex;
-		mutex_lock_nested(h_mtx, AuLsc_I_CHILD);
-		err = h_file->f_op->fsync(h_file, datasync);
-		if (!err)
-			vfsub_update_h_iattr(&h_file->f_path, /*did*/NULL);
-		/*ignore*/
-		au_cpup_attr_timesizes(inode);
-		mutex_unlock(h_mtx);
-	}
+	err = vfsub_fsync(h_file, &h_file->f_path, datasync);
+	au_cpup_attr_timesizes(inode);
 
 out_unlock:
 	di_read_unlock(dentry, AuLock_IR);
