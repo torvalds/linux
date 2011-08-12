@@ -197,6 +197,9 @@ static const u16 W83627EHF_REG_TEMP_CONFIG[] = { 0, 0x152, 0x252, 0 };
 #define W83627EHF_REG_ALARM2		0x45A
 #define W83627EHF_REG_ALARM3		0x45B
 
+#define W83627EHF_REG_CASEOPEN_DET	0x42 /* SMI STATUS #2 */
+#define W83627EHF_REG_CASEOPEN_CLR	0x46 /* SMI MASK #3 */
+
 /* SmartFan registers */
 #define W83627EHF_REG_FAN_STEPUP_TIME 0x0f
 #define W83627EHF_REG_FAN_STEPDOWN_TIME 0x0e
@@ -469,6 +472,7 @@ struct w83627ehf_data {
 	s16 temp_max[9];
 	s16 temp_max_hyst[9];
 	u32 alarms;
+	u8 caseopen;
 
 	u8 pwm_mode[4]; /* 0->DC variable voltage, 1->PWM variable duty cycle */
 	u8 pwm_enable[4]; /* 1->manual
@@ -873,6 +877,9 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 					W83627EHF_REG_ALARM2) << 8) |
 			       (w83627ehf_read_value(data,
 					W83627EHF_REG_ALARM3) << 16);
+
+		data->caseopen = w83627ehf_read_value(data,
+						W83627EHF_REG_CASEOPEN_DET);
 
 		data->last_updated = jiffies;
 		data->valid = 1;
@@ -1655,6 +1662,48 @@ show_vid(struct device *dev, struct device_attribute *attr, char *buf)
 }
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
 
+
+/* Case open detection */
+
+static ssize_t
+show_caseopen(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct w83627ehf_data *data = w83627ehf_update_device(dev);
+
+	return sprintf(buf, "%d\n",
+		!!(data->caseopen & to_sensor_dev_attr_2(attr)->index));
+}
+
+static ssize_t
+clear_caseopen(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct w83627ehf_data *data = dev_get_drvdata(dev);
+	unsigned long val;
+	u16 reg, mask;
+
+	if (strict_strtoul(buf, 10, &val) || val != 0)
+		return -EINVAL;
+
+	mask = to_sensor_dev_attr_2(attr)->nr;
+
+	mutex_lock(&data->update_lock);
+	reg = w83627ehf_read_value(data, W83627EHF_REG_CASEOPEN_CLR);
+	w83627ehf_write_value(data, W83627EHF_REG_CASEOPEN_CLR, reg | mask);
+	w83627ehf_write_value(data, W83627EHF_REG_CASEOPEN_CLR, reg & ~mask);
+	data->valid = 0;	/* Force cache refresh */
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static struct sensor_device_attribute_2 sda_caseopen[] = {
+	SENSOR_ATTR_2(intrusion0_alarm, S_IWUSR | S_IRUGO, show_caseopen,
+			clear_caseopen, 0x80, 0x10),
+	SENSOR_ATTR_2(intrusion1_alarm, S_IWUSR | S_IRUGO, show_caseopen,
+			clear_caseopen, 0x40, 0x40),
+};
+
 /*
  * Driver and device management
  */
@@ -1710,6 +1759,9 @@ static void w83627ehf_device_remove_files(struct device *dev)
 		device_remove_file(dev, &sda_temp_alarm[i].dev_attr);
 		device_remove_file(dev, &sda_temp_type[i].dev_attr);
 	}
+
+	device_remove_file(dev, &sda_caseopen[0].dev_attr);
+	device_remove_file(dev, &sda_caseopen[1].dev_attr);
 
 	device_remove_file(dev, &dev_attr_name);
 	device_remove_file(dev, &dev_attr_cpu0_vid);
@@ -2266,6 +2318,16 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 				&sda_temp_alarm[i].dev_attr))
 			|| (err = device_create_file(dev,
 				&sda_temp_type[i].dev_attr)))
+			goto exit_remove;
+	}
+
+	err = device_create_file(dev, &sda_caseopen[0].dev_attr);
+	if (err)
+		goto exit_remove;
+
+	if (sio_data->kind == nct6776) {
+		err = device_create_file(dev, &sda_caseopen[1].dev_attr);
+		if (err)
 			goto exit_remove;
 	}
 
