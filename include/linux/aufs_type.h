@@ -133,7 +133,12 @@ enum {
 /* borrowed from linux/include/linux/compiler-gcc3.h */
 #ifndef __aligned
 #define __aligned(x)			__attribute__((aligned(x)))
+#endif
+
+#ifdef __KERNEL__
+#ifndef __packed
 #define __packed			__attribute__((packed))
+#endif
 #endif
 
 struct au_rdu_cookie {
