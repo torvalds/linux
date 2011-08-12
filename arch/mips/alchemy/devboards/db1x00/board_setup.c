@@ -134,9 +134,7 @@ void __init board_setup(void)
 	/* initialize board register space */
 	bcsr_init(bcsr1, bcsr2);
 
-	/* Not valid for Au1550 */
-#if defined(CONFIG_IRDA) && \
-   (defined(CONFIG_SOC_AU1000) || defined(CONFIG_SOC_AU1100))
+#if defined(CONFIG_IRDA) && defined(CONFIG_AU1000_FIR)
 	{
 		u32 pin_func;
 

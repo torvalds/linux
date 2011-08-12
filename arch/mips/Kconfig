@@ -47,6 +47,8 @@ config MIPS_ALCHEMY
 	select GENERIC_GPIO
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select SYS_SUPPORTS_ZBOOT
+	select USB_ARCH_HAS_OHCI
+	select USB_ARCH_HAS_EHCI
 
 config AR7
 	bool "Texas Instruments AR7"

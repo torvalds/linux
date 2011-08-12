@@ -138,7 +138,7 @@ config MTD_NAND_RICOH
 
 config MTD_NAND_AU1550
 	tristate "Au1550/1200 NAND support"
-	depends on SOC_AU1200 || SOC_AU1550
+	depends on MIPS_ALCHEMY
 	help
 	  This enables the driver for the NAND flash controller on the
 	  AMD/Alchemy 1550 SOC.

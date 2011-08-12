@@ -189,159 +189,6 @@ static void __init alchemy_setup_usb(int ctype)
 	}
 }
 
-/*** AU1100 LCD controller ***/
-
-#ifdef CONFIG_FB_AU1100
-static struct resource au1100_lcd_resources[] = {
-	[0] = {
-		.start          = AU1100_LCD_PHYS_ADDR,
-		.end            = AU1100_LCD_PHYS_ADDR + 0x800 - 1,
-		.flags          = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start          = AU1100_LCD_INT,
-		.end            = AU1100_LCD_INT,
-		.flags          = IORESOURCE_IRQ,
-	}
-};
-
-static u64 au1100_lcd_dmamask = DMA_BIT_MASK(32);
-
-static struct platform_device au1100_lcd_device = {
-	.name           = "au1100-lcd",
-	.id             = 0,
-	.dev = {
-		.dma_mask               = &au1100_lcd_dmamask,
-		.coherent_dma_mask      = DMA_BIT_MASK(32),
-	},
-	.num_resources  = ARRAY_SIZE(au1100_lcd_resources),
-	.resource       = au1100_lcd_resources,
-};
-#endif
-
-#ifdef CONFIG_SOC_AU1200
-
-static struct resource au1200_lcd_resources[] = {
-	[0] = {
-		.start          = AU1200_LCD_PHYS_ADDR,
-		.end            = AU1200_LCD_PHYS_ADDR + 0x800 - 1,
-		.flags          = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start          = AU1200_LCD_INT,
-		.end            = AU1200_LCD_INT,
-		.flags          = IORESOURCE_IRQ,
-	}
-};
-
-static u64 au1200_lcd_dmamask = DMA_BIT_MASK(32);
-
-static struct platform_device au1200_lcd_device = {
-	.name           = "au1200-lcd",
-	.id             = 0,
-	.dev = {
-		.dma_mask               = &au1200_lcd_dmamask,
-		.coherent_dma_mask      = DMA_BIT_MASK(32),
-	},
-	.num_resources  = ARRAY_SIZE(au1200_lcd_resources),
-	.resource       = au1200_lcd_resources,
-};
-
-static u64 au1xxx_mmc_dmamask =  DMA_BIT_MASK(32);
-
-extern struct au1xmmc_platform_data au1xmmc_platdata[2];
-
-static struct resource au1200_mmc0_resources[] = {
-	[0] = {
-		.start          = AU1100_SD0_PHYS_ADDR,
-		.end            = AU1100_SD0_PHYS_ADDR + 0xfff,
-		.flags          = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start		= AU1200_SD_INT,
-		.end		= AU1200_SD_INT,
-		.flags		= IORESOURCE_IRQ,
-	},
-	[2] = {
-		.start		= AU1200_DSCR_CMD0_SDMS_TX0,
-		.end		= AU1200_DSCR_CMD0_SDMS_TX0,
-		.flags		= IORESOURCE_DMA,
-	},
-	[3] = {
-		.start          = AU1200_DSCR_CMD0_SDMS_RX0,
-		.end		= AU1200_DSCR_CMD0_SDMS_RX0,
-		.flags          = IORESOURCE_DMA,
-	}
-};
-
-static struct platform_device au1200_mmc0_device = {
-	.name = "au1xxx-mmc",
-	.id = 0,
-	.dev = {
-		.dma_mask		= &au1xxx_mmc_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-		.platform_data		= &au1xmmc_platdata[0],
-	},
-	.num_resources	= ARRAY_SIZE(au1200_mmc0_resources),
-	.resource	= au1200_mmc0_resources,
-};
-
-#ifndef CONFIG_MIPS_DB1200
-static struct resource au1200_mmc1_resources[] = {
-	[0] = {
-		.start          = AU1100_SD1_PHYS_ADDR,
-		.end            = AU1100_SD1_PHYS_ADDR + 0xfff,
-		.flags          = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start		= AU1200_SD_INT,
-		.end		= AU1200_SD_INT,
-		.flags		= IORESOURCE_IRQ,
-	},
-	[2] = {
-		.start		= AU1200_DSCR_CMD0_SDMS_TX1,
-		.end		= AU1200_DSCR_CMD0_SDMS_TX1,
-		.flags		= IORESOURCE_DMA,
-	},
-	[3] = {
-		.start          = AU1200_DSCR_CMD0_SDMS_RX1,
-		.end		= AU1200_DSCR_CMD0_SDMS_RX1,
-		.flags          = IORESOURCE_DMA,
-	}
-};
-
-static struct platform_device au1200_mmc1_device = {
-	.name = "au1xxx-mmc",
-	.id = 1,
-	.dev = {
-		.dma_mask		= &au1xxx_mmc_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-		.platform_data		= &au1xmmc_platdata[1],
-	},
-	.num_resources	= ARRAY_SIZE(au1200_mmc1_resources),
-	.resource	= au1200_mmc1_resources,
-};
-#endif /* #ifndef CONFIG_MIPS_DB1200 */
-#endif /* #ifdef CONFIG_SOC_AU1200 */
-
-/* All Alchemy demoboards with I2C have this #define in their headers */
-#ifdef SMBUS_PSC_BASE
-static struct resource pbdb_smbus_resources[] = {
-	{
-		.start	= SMBUS_PSC_BASE,
-		.end	= SMBUS_PSC_BASE + 0xfff,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device pbdb_smbus_device = {
-	.name		= "au1xpsc_smbus",
-	.id		= 0,	/* bus number */
-	.num_resources	= ARRAY_SIZE(pbdb_smbus_resources),
-	.resource	= pbdb_smbus_resources,
-};
-#endif
-
 /* Macro to help defining the Ethernet MAC resources */
 #define MAC_RES_COUNT	4	/* MAC regs, MAC en, MAC INT, MACDMA regs */
 #define MAC_RES(_base, _enable, _irq, _macdma)		\
@@ -503,33 +350,15 @@ static void __init alchemy_setup_macs(int ctype)
 	}
 }
 
-static struct platform_device *au1xxx_platform_devices[] __initdata = {
-#ifdef CONFIG_FB_AU1100
-	&au1100_lcd_device,
-#endif
-#ifdef CONFIG_SOC_AU1200
-	&au1200_lcd_device,
-	&au1200_mmc0_device,
-#ifndef CONFIG_MIPS_DB1200
-	&au1200_mmc1_device,
-#endif
-#endif
-#ifdef SMBUS_PSC_BASE
-	&pbdb_smbus_device,
-#endif
-};
-
 static int __init au1xxx_platform_init(void)
 {
-	int err, ctype = alchemy_get_cputype();
+	int ctype = alchemy_get_cputype();
 
 	alchemy_setup_uarts(ctype);
 	alchemy_setup_macs(ctype);
 	alchemy_setup_usb(ctype);
 
-	err = platform_add_devices(au1xxx_platform_devices,
-				   ARRAY_SIZE(au1xxx_platform_devices));
-	return err;
+	return 0;
 }
 
 arch_initcall(au1xxx_platform_init);

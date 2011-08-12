@@ -592,113 +592,6 @@ enum soc_au1200_ints {
 #endif /* !defined (_LANGUAGE_ASSEMBLY) */
 
 /*
- * SDRAM register offsets
- */
-#if defined(CONFIG_SOC_AU1000) || defined(CONFIG_SOC_AU1500) || \
-    defined(CONFIG_SOC_AU1100)
-#define MEM_SDMODE0		0x0000
-#define MEM_SDMODE1		0x0004
-#define MEM_SDMODE2		0x0008
-#define MEM_SDADDR0		0x000C
-#define MEM_SDADDR1		0x0010
-#define MEM_SDADDR2		0x0014
-#define MEM_SDREFCFG		0x0018
-#define MEM_SDPRECMD		0x001C
-#define MEM_SDAUTOREF		0x0020
-#define MEM_SDWRMD0		0x0024
-#define MEM_SDWRMD1		0x0028
-#define MEM_SDWRMD2		0x002C
-#define MEM_SDSLEEP		0x0030
-#define MEM_SDSMCKE		0x0034
-
-/*
- * MEM_SDMODE register content definitions
- */
-#define MEM_SDMODE_F		(1 << 22)
-#define MEM_SDMODE_SR		(1 << 21)
-#define MEM_SDMODE_BS		(1 << 20)
-#define MEM_SDMODE_RS		(3 << 18)
-#define MEM_SDMODE_CS		(7 << 15)
-#define MEM_SDMODE_TRAS 	(15 << 11)
-#define MEM_SDMODE_TMRD 	(3 << 9)
-#define MEM_SDMODE_TWR		(3 << 7)
-#define MEM_SDMODE_TRP		(3 << 5)
-#define MEM_SDMODE_TRCD 	(3 << 3)
-#define MEM_SDMODE_TCL		(7 << 0)
-
-#define MEM_SDMODE_BS_2Bank	(0 << 20)
-#define MEM_SDMODE_BS_4Bank	(1 << 20)
-#define MEM_SDMODE_RS_11Row	(0 << 18)
-#define MEM_SDMODE_RS_12Row	(1 << 18)
-#define MEM_SDMODE_RS_13Row	(2 << 18)
-#define MEM_SDMODE_RS_N(N)	((N) << 18)
-#define MEM_SDMODE_CS_7Col	(0 << 15)
-#define MEM_SDMODE_CS_8Col	(1 << 15)
-#define MEM_SDMODE_CS_9Col	(2 << 15)
-#define MEM_SDMODE_CS_10Col	(3 << 15)
-#define MEM_SDMODE_CS_11Col	(4 << 15)
-#define MEM_SDMODE_CS_N(N)	((N) << 15)
-#define MEM_SDMODE_TRAS_N(N)	((N) << 11)
-#define MEM_SDMODE_TMRD_N(N)	((N) << 9)
-#define MEM_SDMODE_TWR_N(N)	((N) << 7)
-#define MEM_SDMODE_TRP_N(N)	((N) << 5)
-#define MEM_SDMODE_TRCD_N(N)	((N) << 3)
-#define MEM_SDMODE_TCL_N(N)	((N) << 0)
-
-/*
- * MEM_SDADDR register contents definitions
- */
-#define MEM_SDADDR_E		(1 << 20)
-#define MEM_SDADDR_CSBA 	(0x03FF << 10)
-#define MEM_SDADDR_CSMASK	(0x03FF << 0)
-#define MEM_SDADDR_CSBA_N(N)	((N) & (0x03FF << 22) >> 12)
-#define MEM_SDADDR_CSMASK_N(N)	((N)&(0x03FF << 22) >> 22)
-
-/*
- * MEM_SDREFCFG register content definitions
- */
-#define MEM_SDREFCFG_TRC	(15 << 28)
-#define MEM_SDREFCFG_TRPM	(3 << 26)
-#define MEM_SDREFCFG_E		(1 << 25)
-#define MEM_SDREFCFG_RE 	(0x1ffffff << 0)
-#define MEM_SDREFCFG_TRC_N(N)	((N) << MEM_SDREFCFG_TRC)
-#define MEM_SDREFCFG_TRPM_N(N)	((N) << MEM_SDREFCFG_TRPM)
-#define MEM_SDREFCFG_REF_N(N)	(N)
-#endif
-
-/***********************************************************************/
-
-/*
- * Au1550 SDRAM Register Offsets
- */
-
-/***********************************************************************/
-
-#if defined(CONFIG_SOC_AU1550) || defined(CONFIG_SOC_AU1200)
-#define MEM_SDMODE0		0x0800
-#define MEM_SDMODE1		0x0808
-#define MEM_SDMODE2		0x0810
-#define MEM_SDADDR0		0x0820
-#define MEM_SDADDR1		0x0828
-#define MEM_SDADDR2		0x0830
-#define MEM_SDCONFIGA		0x0840
-#define MEM_SDCONFIGB		0x0848
-#define MEM_SDSTAT		0x0850
-#define MEM_SDERRADDR		0x0858
-#define MEM_SDSTRIDE0		0x0860
-#define MEM_SDSTRIDE1		0x0868
-#define MEM_SDSTRIDE2		0x0870
-#define MEM_SDWRMD0		0x0880
-#define MEM_SDWRMD1		0x0888
-#define MEM_SDWRMD2		0x0890
-#define MEM_SDPRECMD		0x08C0
-#define MEM_SDAUTOREF		0x08C8
-#define MEM_SDSREF		0x08D0
-#define MEM_SDSLEEP		MEM_SDSREF
-
-#endif
-
-/*
  * Physical base addresses for integrated peripherals
  * 0..au1000 1..au1500 2..au1100 3..au1550 4..au1200
  */
@@ -761,6 +654,92 @@ enum soc_au1200_ints {
 #define AU1000_PCMCIA_MEM_PHYS_ADDR	0xF80000000ULL /* 01234 */
 
 
+/* Au1000 SDRAM memory controller register offsets */
+#define AU1000_MEM_SDMODE0		0x0000
+#define AU1000_MEM_SDMODE1		0x0004
+#define AU1000_MEM_SDMODE2		0x0008
+#define AU1000_MEM_SDADDR0		0x000C
+#define AU1000_MEM_SDADDR1		0x0010
+#define AU1000_MEM_SDADDR2		0x0014
+#define AU1000_MEM_SDREFCFG		0x0018
+#define AU1000_MEM_SDPRECMD		0x001C
+#define AU1000_MEM_SDAUTOREF		0x0020
+#define AU1000_MEM_SDWRMD0		0x0024
+#define AU1000_MEM_SDWRMD1		0x0028
+#define AU1000_MEM_SDWRMD2		0x002C
+#define AU1000_MEM_SDSLEEP		0x0030
+#define AU1000_MEM_SDSMCKE		0x0034
+
+/* MEM_SDMODE register content definitions */
+#define MEM_SDMODE_F		(1 << 22)
+#define MEM_SDMODE_SR		(1 << 21)
+#define MEM_SDMODE_BS		(1 << 20)
+#define MEM_SDMODE_RS		(3 << 18)
+#define MEM_SDMODE_CS		(7 << 15)
+#define MEM_SDMODE_TRAS		(15 << 11)
+#define MEM_SDMODE_TMRD		(3 << 9)
+#define MEM_SDMODE_TWR		(3 << 7)
+#define MEM_SDMODE_TRP		(3 << 5)
+#define MEM_SDMODE_TRCD		(3 << 3)
+#define MEM_SDMODE_TCL		(7 << 0)
+
+#define MEM_SDMODE_BS_2Bank	(0 << 20)
+#define MEM_SDMODE_BS_4Bank	(1 << 20)
+#define MEM_SDMODE_RS_11Row	(0 << 18)
+#define MEM_SDMODE_RS_12Row	(1 << 18)
+#define MEM_SDMODE_RS_13Row	(2 << 18)
+#define MEM_SDMODE_RS_N(N)	((N) << 18)
+#define MEM_SDMODE_CS_7Col	(0 << 15)
+#define MEM_SDMODE_CS_8Col	(1 << 15)
+#define MEM_SDMODE_CS_9Col	(2 << 15)
+#define MEM_SDMODE_CS_10Col	(3 << 15)
+#define MEM_SDMODE_CS_11Col	(4 << 15)
+#define MEM_SDMODE_CS_N(N)	((N) << 15)
+#define MEM_SDMODE_TRAS_N(N)	((N) << 11)
+#define MEM_SDMODE_TMRD_N(N)	((N) << 9)
+#define MEM_SDMODE_TWR_N(N)	((N) << 7)
+#define MEM_SDMODE_TRP_N(N)	((N) << 5)
+#define MEM_SDMODE_TRCD_N(N)	((N) << 3)
+#define MEM_SDMODE_TCL_N(N)	((N) << 0)
+
+/* MEM_SDADDR register contents definitions */
+#define MEM_SDADDR_E		(1 << 20)
+#define MEM_SDADDR_CSBA		(0x03FF << 10)
+#define MEM_SDADDR_CSMASK	(0x03FF << 0)
+#define MEM_SDADDR_CSBA_N(N)	((N) & (0x03FF << 22) >> 12)
+#define MEM_SDADDR_CSMASK_N(N)	((N)&(0x03FF << 22) >> 22)
+
+/* MEM_SDREFCFG register content definitions */
+#define MEM_SDREFCFG_TRC	(15 << 28)
+#define MEM_SDREFCFG_TRPM	(3 << 26)
+#define MEM_SDREFCFG_E		(1 << 25)
+#define MEM_SDREFCFG_RE		(0x1ffffff << 0)
+#define MEM_SDREFCFG_TRC_N(N)	((N) << MEM_SDREFCFG_TRC)
+#define MEM_SDREFCFG_TRPM_N(N)	((N) << MEM_SDREFCFG_TRPM)
+#define MEM_SDREFCFG_REF_N(N)	(N)
+
+/* Au1550 SDRAM Register Offsets */
+#define AU1550_MEM_SDMODE0		0x0800
+#define AU1550_MEM_SDMODE1		0x0808
+#define AU1550_MEM_SDMODE2		0x0810
+#define AU1550_MEM_SDADDR0		0x0820
+#define AU1550_MEM_SDADDR1		0x0828
+#define AU1550_MEM_SDADDR2		0x0830
+#define AU1550_MEM_SDCONFIGA		0x0840
+#define AU1550_MEM_SDCONFIGB		0x0848
+#define AU1550_MEM_SDSTAT		0x0850
+#define AU1550_MEM_SDERRADDR		0x0858
+#define AU1550_MEM_SDSTRIDE0		0x0860
+#define AU1550_MEM_SDSTRIDE1		0x0868
+#define AU1550_MEM_SDSTRIDE2		0x0870
+#define AU1550_MEM_SDWRMD0		0x0880
+#define AU1550_MEM_SDWRMD1		0x0888
+#define AU1550_MEM_SDWRMD2		0x0890
+#define AU1550_MEM_SDPRECMD		0x08C0
+#define AU1550_MEM_SDAUTOREF		0x08C8
+#define AU1550_MEM_SDSREF		0x08D0
+#define AU1550_MEM_SDSLEEP		MEM_SDSREF
+
 /* Static Bus Controller */
 #define MEM_STCFG0		0xB4001000
 #define MEM_STTIME0		0xB4001004
@@ -778,14 +757,12 @@ enum soc_au1200_ints {
 #define MEM_STTIME3		0xB4001034
 #define MEM_STADDR3		0xB4001038
 
-#if defined(CONFIG_SOC_AU1550) || defined(CONFIG_SOC_AU1200)
 #define MEM_STNDCTL		0xB4001100
 #define MEM_STSTAT		0xB4001104
 
 #define MEM_STNAND_CMD		0x0
 #define MEM_STNAND_ADDR 	0x4
 #define MEM_STNAND_DATA 	0x20
-#endif
 
 
 /* Programmable Counters 0 and 1 */
@@ -1172,7 +1149,6 @@ enum soc_au1200_ints {
 #  define SYS_PF_MUST_BE_SET	((1 << 5) | (1 << 2))
 
 /* Au1200 only */
-#ifdef CONFIG_SOC_AU1200
 #define SYS_PINFUNC_DMA 	(1 << 31)
 #define SYS_PINFUNC_S0A 	(1 << 30)
 #define SYS_PINFUNC_S1A 	(1 << 29)
@@ -1200,7 +1176,6 @@ enum soc_au1200_ints {
 #define SYS_PINFUNC_P0B 	(1 << 4)
 #define SYS_PINFUNC_U0T 	(1 << 3)
 #define SYS_PINFUNC_S1B 	(1 << 2)
-#endif
 
 /* Power Management */
 #define SYS_SCRATCH0		0xB1900018
@@ -1256,12 +1231,12 @@ enum soc_au1200_ints {
 #  define SYS_CS_MI2_MASK	(0x7 << SYS_CS_MI2_BIT)
 #  define SYS_CS_DI2		(1 << 16)
 #  define SYS_CS_CI2		(1 << 15)
-#ifdef CONFIG_SOC_AU1100
+
 #  define SYS_CS_ML_BIT 	7
 #  define SYS_CS_ML_MASK	(0x7 << SYS_CS_ML_BIT)
 #  define SYS_CS_DL		(1 << 6)
 #  define SYS_CS_CL		(1 << 5)
-#else
+
 #  define SYS_CS_MUH_BIT	12
 #  define SYS_CS_MUH_MASK	(0x7 << SYS_CS_MUH_BIT)
 #  define SYS_CS_DUH		(1 << 11)
@@ -1270,7 +1245,7 @@ enum soc_au1200_ints {
 #  define SYS_CS_MUD_MASK	(0x7 << SYS_CS_MUD_BIT)
 #  define SYS_CS_DUD		(1 << 6)
 #  define SYS_CS_CUD		(1 << 5)
-#endif
+
 #  define SYS_CS_MIR_BIT	2
 #  define SYS_CS_MIR_MASK	(0x7 << SYS_CS_MIR_BIT)
 #  define SYS_CS_DIR		(1 << 1)

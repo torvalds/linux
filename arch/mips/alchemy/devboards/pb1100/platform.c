@@ -19,11 +19,39 @@
  */
 
 #include <linux/init.h>
+#include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
 
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-db1x00/bcsr.h>
 
 #include "../platform.h"
+
+static struct resource au1100_lcd_resources[] = {
+	[0] = {
+		.start	= AU1100_LCD_PHYS_ADDR,
+		.end	= AU1100_LCD_PHYS_ADDR + 0x800 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AU1100_LCD_INT,
+		.end	= AU1100_LCD_INT,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+static u64 au1100_lcd_dmamask = DMA_BIT_MASK(32);
+
+static struct platform_device au1100_lcd_device = {
+	.name		= "au1100-lcd",
+	.id		= 0,
+	.dev = {
+		.dma_mask		= &au1100_lcd_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.num_resources	= ARRAY_SIZE(au1100_lcd_resources),
+	.resource	= au1100_lcd_resources,
+};
 
 static int __init pb1100_dev_init(void)
 {
@@ -42,6 +70,7 @@ static int __init pb1100_dev_init(void)
 
 	swapped = bcsr_read(BCSR_STATUS) &  BCSR_STATUS_DB1000_SWAPBOOT;
 	db1x_register_norflash(64 * 1024 * 1024, 4, swapped);
+	platform_device_register(&au1100_lcd_device);
 
 	return 0;
 }

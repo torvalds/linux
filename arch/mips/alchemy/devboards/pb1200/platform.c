@@ -90,7 +90,7 @@ static int pb1200mmc1_card_inserted(void *mmc_host)
 	return (bcsr_read(BCSR_SIGSTAT) & BCSR_INT_SD1INSERT) ? 1 : 0;
 }
 
-const struct au1xmmc_platform_data au1xmmc_platdata[2] = {
+static struct au1xmmc_platform_data pb1200mmc_platdata[2] = {
 	[0] = {
 		.set_power	= pb1200mmc0_set_power,
 		.card_inserted	= pb1200mmc0_card_inserted,
@@ -106,6 +106,79 @@ const struct au1xmmc_platform_data au1xmmc_platdata[2] = {
 		.led		= &pb1200mmc_led,
 	},
 };
+
+static u64 au1xxx_mmc_dmamask =  DMA_BIT_MASK(32);
+
+static struct resource au1200_mmc0_res[] = {
+	[0] = {
+		.start	= AU1100_SD0_PHYS_ADDR,
+		.end	= AU1100_SD0_PHYS_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AU1200_SD_INT,
+		.end	= AU1200_SD_INT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= AU1200_DSCR_CMD0_SDMS_TX0,
+		.end	= AU1200_DSCR_CMD0_SDMS_TX0,
+		.flags	= IORESOURCE_DMA,
+	},
+	[3] = {
+		.start	= AU1200_DSCR_CMD0_SDMS_RX0,
+		.end	= AU1200_DSCR_CMD0_SDMS_RX0,
+		.flags	= IORESOURCE_DMA,
+	}
+};
+
+static struct platform_device pb1200_mmc0_dev = {
+	.name		= "au1xxx-mmc",
+	.id		= 0,
+	.dev = {
+		.dma_mask		= &au1xxx_mmc_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &pb1200mmc_platdata[0],
+	},
+	.num_resources	= ARRAY_SIZE(au1200_mmc0_res),
+	.resource	= au1200_mmc0_res,
+};
+
+static struct resource au1200_mmc1_res[] = {
+	[0] = {
+		.start	= AU1100_SD1_PHYS_ADDR,
+		.end	= AU1100_SD1_PHYS_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AU1200_SD_INT,
+		.end	= AU1200_SD_INT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= AU1200_DSCR_CMD0_SDMS_TX1,
+		.end	= AU1200_DSCR_CMD0_SDMS_TX1,
+		.flags	= IORESOURCE_DMA,
+	},
+	[3] = {
+		.start	= AU1200_DSCR_CMD0_SDMS_RX1,
+		.end	= AU1200_DSCR_CMD0_SDMS_RX1,
+		.flags	= IORESOURCE_DMA,
+	}
+};
+
+static struct platform_device pb1200_mmc1_dev = {
+	.name		= "au1xxx-mmc",
+	.id		= 1,
+	.dev = {
+		.dma_mask		= &au1xxx_mmc_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &pb1200mmc_platdata[1],
+	},
+	.num_resources	= ARRAY_SIZE(au1200_mmc1_res),
+	.resource	= au1200_mmc1_res,
+};
+
 
 static struct resource ide_resources[] = {
 	[0] = {
@@ -168,9 +241,69 @@ static struct platform_device smc91c111_device = {
 	.resource	= smc91c111_resources
 };
 
+static struct resource au1200_psc0_res[] = {
+	[0] = {
+		.start	= AU1550_PSC0_PHYS_ADDR,
+		.end	= AU1550_PSC0_PHYS_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AU1200_PSC0_INT,
+		.end	= AU1200_PSC0_INT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= AU1200_DSCR_CMD0_PSC0_TX,
+		.end	= AU1200_DSCR_CMD0_PSC0_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	[3] = {
+		.start	= AU1200_DSCR_CMD0_PSC0_RX,
+		.end	= AU1200_DSCR_CMD0_PSC0_RX,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device pb1200_i2c_dev = {
+	.name		= "au1xpsc_smbus",
+	.id		= 0,	/* bus number */
+	.num_resources	= ARRAY_SIZE(au1200_psc0_res),
+	.resource	= au1200_psc0_res,
+};
+
+static struct resource au1200_lcd_res[] = {
+	[0] = {
+		.start	= AU1200_LCD_PHYS_ADDR,
+		.end	= AU1200_LCD_PHYS_ADDR + 0x800 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AU1200_LCD_INT,
+		.end	= AU1200_LCD_INT,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+static u64 au1200_lcd_dmamask = DMA_BIT_MASK(32);
+
+static struct platform_device au1200_lcd_dev = {
+	.name		= "au1200-lcd",
+	.id		= 0,
+	.dev = {
+		.dma_mask		= &au1200_lcd_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.num_resources	= ARRAY_SIZE(au1200_lcd_res),
+	.resource	= au1200_lcd_res,
+};
+
 static struct platform_device *board_platform_devices[] __initdata = {
 	&ide_device,
-	&smc91c111_device
+	&smc91c111_device,
+	&pb1200_i2c_dev,
+	&pb1200_mmc0_dev,
+	&pb1200_mmc1_dev,
+	&au1200_lcd_dev,
 };
 
 static int __init board_register_devices(void)
