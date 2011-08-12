@@ -2241,9 +2241,8 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 	case WLAN_CATEGORY_MESH_ACTION:
 		if (!ieee80211_vif_is_mesh(&sdata->vif))
 			break;
-		goto queue;
-	case WLAN_CATEGORY_MESH_PATH_SEL:
-		if (!mesh_path_sel_is_hwmp(sdata))
+		if (mesh_action_is_path_sel(mgmt) &&
+		  (!mesh_path_sel_is_hwmp(sdata)))
 			break;
 		goto queue;
 	}

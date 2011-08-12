@@ -539,6 +539,7 @@ void mesh_plink_broken(struct sta_info *sta)
 	struct hlist_node *p;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	int i;
+	__le16 reason = cpu_to_le16(WLAN_REASON_MESH_PATH_DEST_UNREACHABLE);
 
 	rcu_read_lock();
 	tbl = rcu_dereference(mesh_paths);
@@ -553,8 +554,7 @@ void mesh_plink_broken(struct sta_info *sta)
 			spin_unlock_bh(&mpath->state_lock);
 			mesh_path_error_tx(sdata->u.mesh.mshcfg.element_ttl,
 					mpath->dst, cpu_to_le32(mpath->sn),
-					cpu_to_le16(PERR_RCODE_DEST_UNREACH),
-					bcast, sdata);
+					reason, bcast, sdata);
 		} else
 		spin_unlock_bh(&mpath->state_lock);
 	}
@@ -699,6 +699,7 @@ void mesh_path_discard_frame(struct sk_buff *skb,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct mesh_path *mpath;
 	u32 sn = 0;
+	__le16 reason = cpu_to_le16(WLAN_REASON_MESH_PATH_NOFORWARD);
 
 	if (memcmp(hdr->addr4, sdata->vif.addr, ETH_ALEN) != 0) {
 		u8 *ra, *da;
@@ -709,8 +710,7 @@ void mesh_path_discard_frame(struct sk_buff *skb,
 		if (mpath)
 			sn = ++mpath->sn;
 		mesh_path_error_tx(sdata->u.mesh.mshcfg.element_ttl, skb->data,
-				   cpu_to_le32(sn),
-				   cpu_to_le16(PERR_RCODE_NO_ROUTE), ra, sdata);
+				   cpu_to_le32(sn), reason, ra, sdata);
 	}
 
 	kfree_skb(skb);

@@ -13,10 +13,6 @@
 #include "ieee80211_i.h"
 #include "mesh.h"
 
-#define IEEE80211_MESH_PEER_INACTIVITY_LIMIT (1800 * HZ)
-#define IEEE80211_MESH_HOUSEKEEPING_INTERVAL (60 * HZ)
-#define IEEE80211_MESH_RANN_INTERVAL	     (1 * HZ)
-
 #define MESHCONF_CAPAB_ACCEPT_PLINKS 0x01
 #define MESHCONF_CAPAB_FORWARDING    0x08
 
@@ -26,6 +22,17 @@
 
 int mesh_allocated;
 static struct kmem_cache *rm_cache;
+
+#ifdef CONFIG_MAC80211_MESH
+bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt)
+{
+	return (mgmt->u.action.u.mesh_action.action_code ==
+			WLAN_MESH_ACTION_HWMP_PATH_SELECTION);
+}
+#else
+bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt)
+{ return false; }
+#endif
 
 void ieee80211s_init(void)
 {
@@ -671,8 +678,9 @@ static void ieee80211_mesh_rx_mgmt_action(struct ieee80211_sub_if_data *sdata,
 			break;
 		}
 		break;
-	case WLAN_CATEGORY_MESH_PATH_SEL:
-		mesh_rx_path_sel_frame(sdata, mgmt, len);
+	case WLAN_CATEGORY_MESH_ACTION:
+		if (mesh_action_is_path_sel(mgmt))
+			mesh_rx_path_sel_frame(sdata, mgmt, len);
 		break;
 	}
 }

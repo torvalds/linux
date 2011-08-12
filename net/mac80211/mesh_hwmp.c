@@ -68,12 +68,12 @@ static inline u32 u16_field_get(u8 *preq_elem, int offset, bool ae)
 #define PREP_IE_FLAGS(x)	PREQ_IE_FLAGS(x)
 #define PREP_IE_HOPCOUNT(x)	PREQ_IE_HOPCOUNT(x)
 #define PREP_IE_TTL(x)		PREQ_IE_TTL(x)
-#define PREP_IE_ORIG_ADDR(x)	(x + 3)
-#define PREP_IE_ORIG_SN(x)	u32_field_get(x, 9, 0)
+#define PREP_IE_ORIG_ADDR(x)	(AE_F_SET(x) ? x + 27 : x + 21)
+#define PREP_IE_ORIG_SN(x)	u32_field_get(x, 27, AE_F_SET(x))
 #define PREP_IE_LIFETIME(x)	u32_field_get(x, 13, AE_F_SET(x))
 #define PREP_IE_METRIC(x)	u32_field_get(x, 17, AE_F_SET(x))
-#define PREP_IE_TARGET_ADDR(x)	(AE_F_SET(x) ? x + 27 : x + 21)
-#define PREP_IE_TARGET_SN(x)	u32_field_get(x, 27, AE_F_SET(x))
+#define PREP_IE_TARGET_ADDR(x)	(x + 3)
+#define PREP_IE_TARGET_SN(x)	u32_field_get(x, 9, 0)
 
 #define PERR_IE_TTL(x)		(*(x))
 #define PERR_IE_TARGET_FLAGS(x)	(*(x + 2))
@@ -132,8 +132,9 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	/* BSSID == SA */
 	memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
-	mgmt->u.action.category = WLAN_CATEGORY_MESH_PATH_SEL;
-	mgmt->u.action.u.mesh_action.action_code = MESH_PATH_SEL_ACTION;
+	mgmt->u.action.category = WLAN_CATEGORY_MESH_ACTION;
+	mgmt->u.action.u.mesh_action.action_code =
+					WLAN_MESH_ACTION_HWMP_PATH_SELECTION;
 
 	switch (action) {
 	case MPATH_PREQ:
@@ -163,29 +164,37 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 	*pos++ = flags;
 	*pos++ = hop_count;
 	*pos++ = ttl;
-	if (action == MPATH_PREQ) {
-		memcpy(pos, &preq_id, 4);
-		pos += 4;
-	}
-	memcpy(pos, orig_addr, ETH_ALEN);
-	pos += ETH_ALEN;
-	memcpy(pos, &orig_sn, 4);
-	pos += 4;
-	if (action != MPATH_RANN) {
-		memcpy(pos, &lifetime, 4);
-		pos += 4;
-	}
-	memcpy(pos, &metric, 4);
-	pos += 4;
-	if (action == MPATH_PREQ) {
-		/* destination count */
-		*pos++ = 1;
-		*pos++ = target_flags;
-	}
-	if (action != MPATH_RANN) {
+	if (action == MPATH_PREP) {
 		memcpy(pos, target, ETH_ALEN);
 		pos += ETH_ALEN;
 		memcpy(pos, &target_sn, 4);
+		pos += 4;
+	} else {
+		if (action == MPATH_PREQ) {
+			memcpy(pos, &preq_id, 4);
+			pos += 4;
+		}
+		memcpy(pos, orig_addr, ETH_ALEN);
+		pos += ETH_ALEN;
+		memcpy(pos, &orig_sn, 4);
+		pos += 4;
+	}
+	memcpy(pos, &lifetime, 4);	/* interval for RANN */
+	pos += 4;
+	memcpy(pos, &metric, 4);
+	pos += 4;
+	if (action == MPATH_PREQ) {
+		*pos++ = 1; /* destination count */
+		*pos++ = target_flags;
+		memcpy(pos, target, ETH_ALEN);
+		pos += ETH_ALEN;
+		memcpy(pos, &target_sn, 4);
+		pos += 4;
+	} else if (action == MPATH_PREP) {
+		memcpy(pos, orig_addr, ETH_ALEN);
+		pos += ETH_ALEN;
+		memcpy(pos, &orig_sn, 4);
+		pos += 4;
 	}
 
 	ieee80211_tx_skb(sdata, skb);
@@ -224,9 +233,11 @@ int mesh_path_error_tx(u8 ttl, u8 *target, __le32 target_sn,
 
 	memcpy(mgmt->da, ra, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
-	/* BSSID is left zeroed, wildcard value */
-	mgmt->u.action.category = WLAN_CATEGORY_MESH_PATH_SEL;
-	mgmt->u.action.u.mesh_action.action_code = MESH_PATH_SEL_ACTION;
+	/* BSSID == SA */
+	memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
+	mgmt->u.action.category = WLAN_CATEGORY_MESH_ACTION;
+	mgmt->u.action.u.mesh_action.action_code =
+					WLAN_MESH_ACTION_HWMP_PATH_SELECTION;
 	ie_len = 15;
 	pos = skb_put(skb, 2 + ie_len);
 	*pos++ = WLAN_EID_PERR;
@@ -683,6 +694,7 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 	u8 ttl, flags, hopcount;
 	u8 *orig_addr;
 	u32 orig_sn, metric;
+	u32 interval = cpu_to_le32(IEEE80211_MESH_RANN_INTERVAL);
 
 	ttl = rann->rann_ttl;
 	if (ttl <= 1) {
@@ -715,7 +727,7 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 		mesh_path_sel_frame_tx(MPATH_RANN, flags, orig_addr,
 				       cpu_to_le32(orig_sn),
 				       0, NULL, 0, broadcast_addr,
-				       hopcount, ttl, 0,
+				       hopcount, ttl, interval,
 				       cpu_to_le32(metric + mpath->metric),
 				       0, sdata);
 		mpath->sn = orig_sn;
@@ -1006,10 +1018,11 @@ void
 mesh_path_tx_root_frame(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	u32 interval = cpu_to_le32(IEEE80211_MESH_RANN_INTERVAL);
 
 	mesh_path_sel_frame_tx(MPATH_RANN, 0, sdata->vif.addr,
 			       cpu_to_le32(++ifmsh->sn),
 			       0, NULL, 0, broadcast_addr,
 			       0, sdata->u.mesh.mshcfg.element_ttl,
-			       0, 0, 0, sdata);
+			       interval, 0, 0, sdata);
 }

@@ -629,6 +629,7 @@ struct ieee80211_rann_ie {
 	u8 rann_ttl;
 	u8 rann_addr[6];
 	u32 rann_seq;
+	u32 rann_interval;
 	u32 rann_metric;
 } __attribute__ ((packed));
 
@@ -1269,9 +1270,6 @@ enum ieee80211_category {
 	WLAN_CATEGORY_MULTIHOP_ACTION = 14,
 	WLAN_CATEGORY_SELF_PROTECTED = 15,
 	WLAN_CATEGORY_WMM = 17,
-	/* TODO: remove MESH_PATH_SEL after mesh is updated
-	 * to current 802.11s draft  */
-	WLAN_CATEGORY_MESH_PATH_SEL = 32,
 	WLAN_CATEGORY_VENDOR_SPECIFIC_PROTECTED = 126,
 	WLAN_CATEGORY_VENDOR_SPECIFIC = 127,
 };

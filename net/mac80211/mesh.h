@@ -166,6 +166,9 @@ struct mesh_rmc {
 	u32 idx_mask;
 };
 
+#define IEEE80211_MESH_PEER_INACTIVITY_LIMIT (1800 * HZ)
+#define IEEE80211_MESH_HOUSEKEEPING_INTERVAL (60 * HZ)
+#define IEEE80211_MESH_RANN_INTERVAL	     (1 * HZ)
 
 #define MESH_DEFAULT_BEACON_INTERVAL		1000 	/* in 1024 us units */
 
@@ -176,14 +179,6 @@ struct mesh_rmc {
 
 /* Maximum number of paths per interface */
 #define MESH_MAX_MPATHS		1024
-
-/* Pending ANA approval */
-#define MESH_PATH_SEL_ACTION	0
-
-/* PERR reason codes */
-#define PEER_RCODE_UNSPECIFIED  11
-#define PERR_RCODE_NO_ROUTE     12
-#define PERR_RCODE_DEST_UNREACH 13
 
 /* Public interfaces */
 /* Various */
@@ -276,6 +271,7 @@ void mesh_path_quiesce(struct ieee80211_sub_if_data *sdata);
 void mesh_path_restart(struct ieee80211_sub_if_data *sdata);
 void mesh_path_tx_root_frame(struct ieee80211_sub_if_data *sdata);
 
+bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt);
 extern int mesh_paths_generation;
 
 #ifdef CONFIG_MAC80211_MESH
