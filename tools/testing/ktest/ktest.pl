@@ -1272,15 +1272,15 @@ sub build {
 	# allow for empty configs
 	run_command "touch $output_config";
 
-	run_command "mv $output_config $outputdir/config_temp" or
-	    dodie "moving .config";
+	if (!$noclean) {
+	    run_command "mv $output_config $outputdir/config_temp" or
+		dodie "moving .config";
 
-	if (!$noclean && !run_command "$make mrproper") {
-	    dodie "make mrproper";
+	    run_command "$make mrproper" or dodie "make mrproper";
+
+	    run_command "mv $outputdir/config_temp $output_config" or
+		dodie "moving config_temp";
 	}
-
-	run_command "mv $outputdir/config_temp $output_config" or
-	    dodie "moving config_temp";
 
     } elsif (!$noclean) {
 	unlink "$output_config";
