@@ -12,7 +12,7 @@
 #ifndef _INDUSTRIAL_IO_SYSFS_H_
 #define _INDUSTRIAL_IO_SYSFS_H_
 
-#include "iio.h"
+struct iio_chan_spec;
 
 /**
  * struct iio_dev_attr - iio specific device attribute
