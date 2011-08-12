@@ -978,7 +978,7 @@ int register_efivars(struct efivars *efivars,
 	if (efivars->efi_pstore_info.buf) {
 		efivars->efi_pstore_info.bufsize = 1024;
 		efivars->efi_pstore_info.data = efivars;
-		mutex_init(&efivars->efi_pstore_info.buf_mutex);
+		spin_lock_init(&efivars->efi_pstore_info.buf_lock);
 		pstore_register(&efivars->efi_pstore_info);
 	}
 

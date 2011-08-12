@@ -28,6 +28,7 @@
 #include <linux/timer.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/hardirq.h>
 #include <linux/workqueue.h>
 
 #include "internal.h"
@@ -88,13 +89,20 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 	u64		id;
 	int		hsize;
 	unsigned int	part = 1;
+	unsigned long	flags = 0;
+	int		is_locked = 0;
 
 	if (reason < ARRAY_SIZE(reason_str))
 		why = reason_str[reason];
 	else
 		why = "Unknown";
 
-	mutex_lock(&psinfo->buf_mutex);
+	if (in_nmi()) {
+		is_locked = spin_trylock(&psinfo->buf_lock);
+		if (!is_locked)
+			pr_err("pstore dump routine blocked in NMI, may corrupt error record\n");
+	} else
+		spin_lock_irqsave(&psinfo->buf_lock, flags);
 	oopscount++;
 	while (total < kmsg_bytes) {
 		dst = psinfo->buf;
@@ -123,7 +131,11 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		total += l1_cpy + l2_cpy;
 		part++;
 	}
-	mutex_unlock(&psinfo->buf_mutex);
+	if (in_nmi()) {
+		if (is_locked)
+			spin_unlock(&psinfo->buf_lock);
+	} else
+		spin_unlock_irqrestore(&psinfo->buf_lock, flags);
 }
 
 static struct kmsg_dumper pstore_dumper = {
@@ -188,11 +200,12 @@ void pstore_get_records(int quiet)
 	enum pstore_type_id	type;
 	struct timespec		time;
 	int			failed = 0, rc;
+	unsigned long		flags;
 
 	if (!psi)
 		return;
 
-	mutex_lock(&psinfo->buf_mutex);
+	spin_lock_irqsave(&psinfo->buf_lock, flags);
 	rc = psi->open(psi);
 	if (rc)
 		goto out;
@@ -205,7 +218,7 @@ void pstore_get_records(int quiet)
 	}
 	psi->close(psi);
 out:
-	mutex_unlock(&psinfo->buf_mutex);
+	spin_unlock_irqrestore(&psinfo->buf_lock, flags);
 
 	if (failed)
 		printk(KERN_WARNING "pstore: failed to load %d record(s) from '%s'\n",
@@ -233,7 +246,8 @@ static void pstore_timefunc(unsigned long dummy)
  */
 int pstore_write(enum pstore_type_id type, char *buf, size_t size)
 {
-	u64	id;
+	u64		id;
+	unsigned long	flags;
 
 	if (!psinfo)
 		return -ENODEV;
@@ -241,13 +255,13 @@ int pstore_write(enum pstore_type_id type, char *buf, size_t size)
 	if (size > psinfo->bufsize)
 		return -EFBIG;
 
-	mutex_lock(&psinfo->buf_mutex);
+	spin_lock_irqsave(&psinfo->buf_lock, flags);
 	memcpy(psinfo->buf, buf, size);
 	id = psinfo->write(type, 0, size, psinfo);
 	if (pstore_is_mounted())
 		pstore_mkfile(PSTORE_TYPE_DMESG, psinfo->name, id, psinfo->buf,
 			      size, CURRENT_TIME, psinfo);
-	mutex_unlock(&psinfo->buf_mutex);
+	spin_unlock_irqrestore(&psinfo->buf_lock, flags);
 
 	return 0;
 }
