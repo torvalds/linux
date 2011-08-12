@@ -958,6 +958,7 @@ static int iio_device_add_event_sysfs(struct iio_dev *dev_info,
 			break;
 		default:
 			printk(KERN_INFO "currently unhandled type of event\n");
+			continue;
 		}
 		ret = __iio_add_chan_devattr(postfix,
 					     NULL,
