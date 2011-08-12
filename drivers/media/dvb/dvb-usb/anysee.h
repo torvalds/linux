@@ -69,6 +69,7 @@ struct anysee_state {
 #define ANYSEE_HW_507FA  15 /* E30 Combo Plus / E30 C Plus */
 #define ANYSEE_HW_508TC  18 /* E7 TC */
 #define ANYSEE_HW_508S2  19 /* E7 S2 */
+#define ANYSEE_HW_508T2C 20 /* E7 T2C */
 #define ANYSEE_HW_508PTC 21 /* E7 PTC Plus */
 #define ANYSEE_HW_508PS2 22 /* E7 PS2 Plus */
 

@@ -41,6 +41,7 @@
 #include "stv0900.h"
 #include "stv6110.h"
 #include "isl6423.h"
+#include "cxd2820r.h"
 
 /* debug */
 static int dvb_usb_anysee_debug;
@@ -309,6 +310,17 @@ static struct tda18212_config anysee_tda18212_config = {
 	.if_dvbc = 5000,
 };
 
+static struct tda18212_config anysee_tda18212_config2 = {
+	.i2c_address = 0x60 /* (0xc0 >> 1) */,
+	.if_dvbt_6 = 3550,
+	.if_dvbt_7 = 3700,
+	.if_dvbt_8 = 4150,
+	.if_dvbt2_6 = 3250,
+	.if_dvbt2_7 = 4000,
+	.if_dvbt2_8 = 4000,
+	.if_dvbc = 5000,
+};
+
 static struct cx24116_config anysee_cx24116_config = {
 	.demod_address = (0xaa >> 1),
 	.mpg_clk_pos_pol = 0x00,
@@ -337,6 +349,18 @@ static struct isl6423_config anysee_isl6423_config = {
 	.curlim  = SEC_CURRENT_LIM_OFF,
 	.mod_extern = 1,
 	.addr = (0x10 >> 1),
+};
+
+static struct cxd2820r_config anysee_cxd2820r_config = {
+	.i2c_address = 0x6d, /* (0xda >> 1) */
+	.ts_mode = 0x38,
+	.if_dvbt_6 = 3550,
+	.if_dvbt_7 = 3700,
+	.if_dvbt_8 = 4150,
+	.if_dvbt2_6 = 3250,
+	.if_dvbt2_7 = 4000,
+	.if_dvbt2_8 = 4000,
+	.if_dvbc = 5000,
 };
 
 /*
@@ -421,6 +445,14 @@ static struct isl6423_config anysee_isl6423_config = {
  * IOA[7] TS 1=enabled
  * IOE[5] STV0903 1=enabled
  *
+ * E7 T2C VID=1c73 PID=861f HW=20 FW=0.1 AMTCI=0.5 "anysee-E7T2C(LP)"
+ * PCB: 508T2C (rev0.3)
+ * parts: DNOQ44QCH106A(CXD2820R, TDA18212), TDA8024
+ * OEA=80 OEB=00 OEC=03 OED=f7 OEE=ff
+ * IOA=4d IOB=00 IOC=cc IOD=48 IOE=e4
+ * IOA[7] TS 1=enabled
+ * IOE[5] CXD2820R 1=enabled
+ *
  * E7 PTC VID=1c73 PID=861f HW=21 FW=0.1 AMTCI=?? "anysee-E7PTC(LP)"
  * PCB: 508PTC (rev0.5)
  * parts: ZL10353, TDA10023, DNOD44CDH086A(TDA18212)
@@ -437,7 +469,7 @@ static struct isl6423_config anysee_isl6423_config = {
  * IOD[6] ZL10353 1=enabled
  * IOE[0] IF 0=enabled
  *
- * E7 S2 VID=1c73 PID=861f HW=22 FW=0.1 AMTCI=?? "anysee-E7PS2(LP)"
+ * E7 PS2 VID=1c73 PID=861f HW=22 FW=0.1 AMTCI=?? "anysee-E7PS2(LP)"
  * PCB: 508PS2 (rev0.4)
  * parts: DNBU10512IST(STV0903, STV6110), ISL6423
  * OEA=80 OEB=00 OEC=03 OED=f7 OEE=ff
@@ -818,6 +850,32 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 			&adap->dev->i2c_adap, 0);
 
 		break;
+	case ANYSEE_HW_508T2C: /* 20 */
+		/* E7 T2C */
+
+		/* enable transport stream on IOA[7] */
+		ret = anysee_wr_reg_mask(adap->dev, REG_IOA, (1 << 7), 0x80);
+		if (ret)
+			goto error;
+
+		/* enable DVB-T/T2/C demod on IOE[5] */
+		ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (1 << 5), 0x20);
+		if (ret)
+			goto error;
+
+		if (state->fe_id == 0)  {
+			/* DVB-T/T2 */
+			adap->fe[0] = dvb_attach(cxd2820r_attach,
+				&anysee_cxd2820r_config,
+				&adap->dev->i2c_adap, NULL);
+		} else {
+			/* DVB-C */
+			adap->fe[1] = dvb_attach(cxd2820r_attach,
+				&anysee_cxd2820r_config,
+				&adap->dev->i2c_adap, adap->fe[0]);
+		}
+
+		break;
 	}
 
 	if (!adap->fe_adap[0].fe) {
@@ -928,6 +986,15 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 			fe = dvb_attach(isl6423_attach, adap->fe_adap[0].fe,
 				&adap->dev->i2c_adap, &anysee_isl6423_config);
 		}
+
+		break;
+
+	case ANYSEE_HW_508T2C: /* 20 */
+		/* E7 T2C */
+
+		/* attach tuner */
+		fe = dvb_attach(tda18212_attach, adap->fe[state->fe_id],
+			&adap->dev->i2c_adap, &anysee_tda18212_config2);
 
 		break;
 	default:

@@ -311,6 +311,7 @@ config DVB_USB_ANYSEE
 	select DVB_STV0900 if !DVB_FE_CUSTOMISE
 	select DVB_STV6110 if !DVB_FE_CUSTOMISE
 	select DVB_ISL6423 if !DVB_FE_CUSTOMISE
+	select DVB_CXD2820R if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the Anysee E30, Anysee E30 Plus or
 	  Anysee E30 C Plus DVB USB2.0 receiver.
