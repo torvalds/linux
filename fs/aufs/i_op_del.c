@@ -393,13 +393,10 @@ int aufs_rmdir(struct inode *dir, struct dentry *dentry)
 	err = aufs_read_lock(dentry, AuLock_DW | AuLock_FLUSH | AuLock_GEN);
 	if (unlikely(err))
 		goto out;
-
-	/* VFS already unhashes it */
-	inode = dentry->d_inode;
-	err = -ENOENT;
-	if (unlikely(!inode || !inode->i_nlink
-		     || IS_DEADDIR(inode)))
+	err = au_alive_dir(dentry);
+	if (unlikely(err))
 		goto out_unlock;
+	inode = dentry->d_inode;
 	IMustLock(inode);
 	err = -ENOTDIR;
 	if (unlikely(!S_ISDIR(inode->i_mode)))
