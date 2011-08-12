@@ -29,11 +29,6 @@
 #include "../iio.h"
 #include "../sysfs.h"
 #include "../ring_generic.h"
-#include "../accel/accel.h"
-#include "../adc/adc.h"
-#include "../gyro/gyro.h"
-#include "../magnetometer/magnet.h"
-
 #include "adis16400.h"
 
 #define DRIVER_NAME		"adis16400"
