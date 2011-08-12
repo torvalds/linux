@@ -21,6 +21,7 @@
 #include <linux/pci_ids.h>
 #include <linux/sched.h>
 #include <linux/completion.h>
+#include <linux/mmc/sdio_func.h>
 #include <linux/mmc/card.h>
 
 #include <defs.h>
@@ -162,9 +163,28 @@ exit:
 	return bcmerror;
 }
 
+static void brcmf_sdioh_irqhandler(struct sdio_func *func)
+{
+	struct brcmf_sdio_dev *sdiodev = dev_get_drvdata(&func->card->dev);
+
+	BRCMF_TRACE(("brcmf: ***IRQHandler\n"));
+
+	sdio_release_host(func);
+
+	brcmf_sdbrcm_isr(sdiodev->bus);
+
+	sdio_claim_host(func);
+}
+
 int brcmf_sdcard_intr_reg(struct brcmf_sdio_dev *sdiodev)
 {
-	return brcmf_sdioh_interrupt_register(sdiodev);
+	BRCMF_TRACE(("%s: Entering\n", __func__));
+
+	sdio_claim_host(sdiodev->func[1]);
+	sdio_claim_irq(sdiodev->func[1], brcmf_sdioh_irqhandler);
+	sdio_release_host(sdiodev->func[1]);
+
+	return 0;
 }
 
 int brcmf_sdcard_intr_dereg(struct brcmf_sdio_dev *sdiodev)

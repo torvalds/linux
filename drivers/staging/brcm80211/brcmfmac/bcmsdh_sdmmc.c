@@ -44,8 +44,6 @@
 #define SDIO_DEVICE_ID_BROADCOM_4329	0x4329
 #endif		/* !defined(SDIO_DEVICE_ID_BROADCOM_4329) */
 
-static void brcmf_sdioh_irqhandler(struct sdio_func *func);
-static void brcmf_sdioh_irqhandler_f2(struct sdio_func *func);
 static int brcmf_sdioh_get_cisaddr(struct brcmf_sdio_dev *sdiodev, u32 regaddr);
 static int brcmf_ops_sdio_probe(struct sdio_func *func,
 				const struct sdio_device_id *id);
@@ -190,28 +188,6 @@ void brcmf_sdioh_detach(struct brcmf_sdio_dev *sdiodev)
 	sdio_disable_func(sdiodev->func[1]);
 	sdio_release_host(sdiodev->func[1]);
 
-}
-
-/* Configure callback to client when we receive client interrupt */
-extern int
-brcmf_sdioh_interrupt_register(struct brcmf_sdio_dev *sdiodev)
-{
-	BRCMF_TRACE(("%s: Entering\n", __func__));
-
-	/* register and unmask irq */
-	if (sdiodev->func[2]) {
-		sdio_claim_host(sdiodev->func[2]);
-		sdio_claim_irq(sdiodev->func[2], brcmf_sdioh_irqhandler_f2);
-		sdio_release_host(sdiodev->func[2]);
-	}
-
-	if (sdiodev->func[1]) {
-		sdio_claim_host(sdiodev->func[1]);
-		sdio_claim_irq(sdiodev->func[1], brcmf_sdioh_irqhandler);
-		sdio_release_host(sdiodev->func[1]);
-	}
-
-	return 0;
 }
 
 int brcmf_sdioh_interrupt_deregister(struct brcmf_sdio_dev *sdiodev)
@@ -660,25 +636,6 @@ brcmf_sdioh_card_regread(struct brcmf_sdio_dev *sdiodev, int func, u32 regaddr,
 	}
 
 	return SUCCESS;
-}
-
-static void brcmf_sdioh_irqhandler(struct sdio_func *func)
-{
-	struct brcmf_sdio_dev *sdiodev = dev_get_drvdata(&func->card->dev);
-
-	BRCMF_TRACE(("brcmf: ***IRQHandler\n"));
-
-	sdio_release_host(func);
-
-	brcmf_sdbrcm_isr(sdiodev->bus);
-
-	sdio_claim_host(func);
-}
-
-/* interrupt handler for F2 (dummy handler) */
-static void brcmf_sdioh_irqhandler_f2(struct sdio_func *func)
-{
-	BRCMF_TRACE(("brcmf: ***IRQHandlerF2\n"));
 }
 
 static int brcmf_ops_sdio_probe(struct sdio_func *func,
