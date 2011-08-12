@@ -24,7 +24,6 @@
 #include <plat/exynos4.h>
 #include <plat/adc-core.h>
 #include <plat/sdhci.h>
-#include <plat/devs.h>
 #include <plat/fb-core.h>
 #include <plat/fimc-core.h>
 #include <plat/iic-core.h>
