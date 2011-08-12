@@ -697,7 +697,7 @@ static int __devinit tsl2563_probe(struct i2c_client *client,
 	struct tsl2563_platform_data *pdata = client->dev.platform_data;
 	int err = 0;
 	int ret;
-	u8 id;
+	u8 id = 0;
 
 	indio_dev = iio_allocate_device(sizeof(*chip));
 	if (!indio_dev)

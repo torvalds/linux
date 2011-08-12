@@ -582,7 +582,7 @@ error_unreg_dev:
 	iio_device_unregister(indio_dev);
 error_free_dev:
 	iio_free_device(indio_dev);
-error_ret:
+
 	return ret;
 }
 EXPORT_SYMBOL(ade7854_probe);

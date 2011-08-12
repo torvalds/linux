@@ -68,7 +68,7 @@ enum {
 	TSL258X_CHIP_UNKNOWN = 0,
 	TSL258X_CHIP_WORKING = 1,
 	TSL258X_CHIP_SUSPENDED = 2
-} TSL258X_CHIP_WORKING_STATUS;
+};
 
 /* Per-device data */
 struct taos_als_info {
@@ -114,7 +114,7 @@ struct taos_lux {
 /* This structure is intentionally large to accommodate updates via sysfs. */
 /* Sized to 11 = max 10 segments + 1 termination segment */
 /* Assumption is is one and only one type of glass used  */
-struct taos_lux taos_device_lux[11] = {
+static struct taos_lux taos_device_lux[11] = {
 	{  9830,  8520, 15729 },
 	{ 12452, 10807, 23344 },
 	{ 14746,  6383, 11705 },

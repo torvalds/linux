@@ -617,6 +617,8 @@ static IIO_DEV_ATTR_POWERDOWN_TIMER(S_IRUGO | S_IWUSR,
 		ad7150_store_powerdown_timer);
 
 static struct attribute *ad7150_attributes[] = {
+	&iio_dev_attr_available_conversion_modes.dev_attr.attr,
+	&iio_dev_attr_conversion_mode.dev_attr.attr,
 	&iio_dev_attr_available_threshold_modes.dev_attr.attr,
 	&iio_dev_attr_threshold_mode.dev_attr.attr,
 	&iio_dev_attr_ch1_threshold.dev_attr.attr,
