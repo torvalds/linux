@@ -169,6 +169,28 @@ static void b43_phy_ht_zero_extg(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_PHY_EXTG(base[i] + 0xc), 0);
 }
 
+/* Some unknown AFE (Analog Frondned) op */
+static void b43_phy_ht_afe_unk1(struct b43_wldev *dev)
+{
+	u8 i;
+
+	const u16 ctl_regs[3][2] = {
+		{ B43_PHY_HT_AFE_CTL1, B43_PHY_HT_AFE_CTL2 },
+		{ B43_PHY_HT_AFE_CTL3, B43_PHY_HT_AFE_CTL4 },
+		{ B43_PHY_HT_AFE_CTL5, B43_PHY_HT_AFE_CTL6},
+	};
+
+	for (i = 0; i < 3; i++) {
+		/* TODO: verify masks&sets */
+		b43_phy_set(dev, ctl_regs[i][1], 0x4);
+		b43_phy_set(dev, ctl_regs[i][0], 0x4);
+		b43_phy_mask(dev, ctl_regs[i][1], ~0x1);
+		b43_phy_set(dev, ctl_regs[i][0], 0x1);
+		b43_httab_write(dev, B43_HTTAB16(8, 5 + (i * 0x10)), 0);
+		b43_phy_mask(dev, ctl_regs[i][0], ~0x4);
+	}
+}
+
 static void b43_phy_ht_bphy_init(struct b43_wldev *dev)
 {
 	unsigned int i;
@@ -329,6 +351,10 @@ static int b43_phy_ht_op_init(struct b43_wldev *dev)
 	b43_phy_mask(dev, 0x17e, ~0x4000);
 
 	b43_phy_write(dev, 0x0b9, 0x0072);
+
+	/* TODO: Some ops here */
+
+	b43_phy_ht_afe_unk1(dev);
 
 	/* TODO: Some ops here */
 
