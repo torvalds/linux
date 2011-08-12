@@ -24,10 +24,11 @@
 #include <linux/platform_device.h>
 #include <linux/smc91x.h>
 
-#include <asm/mach-au1x00/au1xxx.h>
+#include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1100_mmc.h>
 #include <asm/mach-au1x00/au1xxx_dbdma.h>
 #include <asm/mach-db1x00/bcsr.h>
+#include <asm/mach-pb1x00/pb1200.h>
 
 #include "../platform.h"
 

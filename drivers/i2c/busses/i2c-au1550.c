@@ -36,7 +36,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 
-#include <asm/mach-au1x00/au1xxx.h>
+#include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1xxx_psc.h>
 
 struct i2c_au1550_data {

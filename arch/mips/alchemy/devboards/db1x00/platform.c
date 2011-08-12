@@ -21,7 +21,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 
-#include <asm/mach-au1x00/au1xxx.h>
+#include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-db1x00/bcsr.h>
 #include "../platform.h"
 
