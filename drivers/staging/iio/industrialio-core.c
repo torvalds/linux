@@ -725,19 +725,29 @@ static ssize_t iio_show_dev_name(struct device *dev,
 
 static DEVICE_ATTR(name, S_IRUGO, iio_show_dev_name, NULL);
 
+static struct attribute *iio_base_dummy_attrs[] = {
+	NULL
+};
+static struct attribute_group iio_base_dummy_group = {
+	.attrs = iio_base_dummy_attrs,
+};
+
 static int iio_device_register_sysfs(struct iio_dev *dev_info)
 {
 	int i, ret = 0;
 	struct iio_dev_attr *p, *n;
 
-	if (dev_info->info->attrs) {
+	if (dev_info->info->attrs)
 		ret = sysfs_create_group(&dev_info->dev.kobj,
 					 dev_info->info->attrs);
-		if (ret) {
-			dev_err(dev_info->dev.parent,
-				"Failed to register sysfs hooks\n");
-			goto error_ret;
-		}
+	else
+		ret = sysfs_create_group(&dev_info->dev.kobj,
+					 &iio_base_dummy_group);
+	
+	if (ret) {
+		dev_err(dev_info->dev.parent,
+			"Failed to register sysfs hooks\n");
+		goto error_ret;
 	}
 
 	/*
@@ -753,7 +763,7 @@ static int iio_device_register_sysfs(struct iio_dev *dev_info)
 			if (ret < 0)
 				goto error_clear_attrs;
 		}
-	if (dev_info->name) {
+	if (dev_info->name) { 
 		ret = sysfs_add_file_to_group(&dev_info->dev.kobj,
 					      &dev_attr_name.attr,
 					      NULL);
@@ -770,6 +780,8 @@ error_clear_attrs:
 	}
 	if (dev_info->info->attrs)
 		sysfs_remove_group(&dev_info->dev.kobj, dev_info->info->attrs);
+	else
+		sysfs_remove_group(&dev_info->dev.kobj, &iio_base_dummy_group);
 error_ret:
 	return ret;
 
@@ -790,6 +802,8 @@ static void iio_device_unregister_sysfs(struct iio_dev *dev_info)
 
 	if (dev_info->info->attrs)
 		sysfs_remove_group(&dev_info->dev.kobj, dev_info->info->attrs);
+	else
+		sysfs_remove_group(&dev_info->dev.kobj, &iio_base_dummy_group);
 }
 
 /* Return a negative errno on failure */
