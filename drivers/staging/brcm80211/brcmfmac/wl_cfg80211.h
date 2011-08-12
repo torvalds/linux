@@ -249,7 +249,7 @@ struct brcmf_cfg80211_iscan_ctrl {
 	u32 timer_on;
 	s32 state;
 	struct task_struct *tsk;
-	struct semaphore sync;
+	wait_queue_head_t waitq;
 	struct brcmf_cfg80211_iscan_eloop el;
 	void *data;
 	s8 ioctl_buf[BRCMF_C_IOCTL_SMLEN];
@@ -295,13 +295,12 @@ struct brcmf_cfg80211_priv {
 						 cfg80211 layer */
 	struct brcmf_cfg80211_ie ie;	/* information element object for
 					 internal purpose */
-	struct semaphore event_sync;	/* for synchronization of main event
-					 thread */
 	struct brcmf_cfg80211_profile *profile;	/* holding dongle profile */
 	struct brcmf_cfg80211_iscan_ctrl *iscan;	/* iscan controller */
 	struct brcmf_cfg80211_connect_info conn_info; /* association info */
 	struct brcmf_cfg80211_pmk_list *pmk_list;	/* wpa2 pmk list */
 	struct task_struct *event_tsk;	/* task of main event handler thread */
+	wait_queue_head_t event_waitq;	/* wait queue for main event handling */
 	unsigned long status;		/* current dongle status */
 	void *pub;
 	u32 channel;		/* current channel */
