@@ -355,6 +355,19 @@ struct scsi_host_template {
 	 */
 	enum blk_eh_timer_return (*eh_timed_out)(struct scsi_cmnd *);
 
+	/* This is an optional routine that allows transport to initiate
+	 * LLD adapter or firmware reset using sysfs attribute.
+	 *
+	 * Return values: 0 on success, -ve value on failure.
+	 *
+	 * Status: OPTIONAL
+	 */
+
+	int (*host_reset)(struct Scsi_Host *shost, int reset_type);
+#define SCSI_ADAPTER_RESET	1
+#define SCSI_FIRMWARE_RESET	2
+
+
 	/*
 	 * Name of proc directory
 	 */
