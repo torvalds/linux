@@ -655,9 +655,7 @@ static void __exit ft_exit(void)
 	synchronize_rcu();
 }
 
-#ifdef MODULE
 MODULE_DESCRIPTION("FC TCM fabric driver " FT_VERSION);
 MODULE_LICENSE("GPL");
 module_init(ft_init);
 module_exit(ft_exit);
-#endif /* MODULE */
