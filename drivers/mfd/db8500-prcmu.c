@@ -1836,6 +1836,17 @@ void db8500_prcmu_system_reset(u16 reset_code)
 }
 
 /**
+ * db8500_prcmu_get_reset_code - Retrieve SW reset reason code
+ *
+ * Retrieves the reset reason code stored by prcmu_system_reset() before
+ * last restart.
+ */
+u16 db8500_prcmu_get_reset_code(void)
+{
+	return readw(tcdm_base + PRCM_SW_RST_REASON);
+}
+
+/**
  * prcmu_reset_modem - ask the PRCMU to reset modem
  */
 void prcmu_modem_reset(void)
