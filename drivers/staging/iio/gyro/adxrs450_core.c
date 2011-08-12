@@ -35,21 +35,8 @@ static int adxrs450_spi_read_reg_16(struct iio_dev *indio_dev,
 				    u8 reg_address,
 				    u16 *val)
 {
-	struct spi_message msg;
 	struct adxrs450_state *st = iio_priv(indio_dev);
 	int ret;
-	struct spi_transfer xfers[] = {
-		{
-			.tx_buf = st->tx,
-			.bits_per_word = 8,
-			.len = 4,
-			.cs_change = 1,
-		}, {
-			.rx_buf = st->rx,
-			.bits_per_word = 8,
-			.len = 4,
-		},
-	};
 
 	mutex_lock(&st->buf_lock);
 	st->tx[0] = ADXRS450_READ_DATA | (reg_address >> 7);
@@ -60,10 +47,13 @@ static int adxrs450_spi_read_reg_16(struct iio_dev *indio_dev,
 	if (!(hweight32(be32_to_cpu(*(u32 *)st->tx)) & 1))
 		st->tx[3]  |= ADXRS450_P;
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfers[0], &msg);
-	spi_message_add_tail(&xfers[1], &msg);
-	ret = spi_sync(st->us, &msg);
+	ret = spi_write(st->us, st->tx, 4);
+	if (ret) {
+		dev_err(&st->us->dev, "problem while reading 16 bit register 0x%02x\n",
+			reg_address);
+		goto error_ret;
+	}
+	ret = spi_read(st->us, st->rx, 4);
 	if (ret) {
 		dev_err(&st->us->dev, "problem while reading 16 bit register 0x%02x\n",
 				reg_address);
@@ -88,15 +78,8 @@ static int adxrs450_spi_write_reg_16(struct iio_dev *indio_dev,
 				     u8 reg_address,
 				     u16 val)
 {
-	struct spi_message msg;
 	struct adxrs450_state *st = iio_priv(indio_dev);
 	int ret;
-	struct spi_transfer xfers = {
-		.tx_buf = st->tx,
-		.rx_buf = st->rx,
-		.bits_per_word = 8,
-		.len = 4,
-	};
 
 	mutex_lock(&st->buf_lock);
 	st->tx[0] = ADXRS450_WRITE_DATA | reg_address >> 7;
@@ -105,14 +88,12 @@ static int adxrs450_spi_write_reg_16(struct iio_dev *indio_dev,
 	st->tx[3] = val << 1;
 
 	if (!(hweight32(be32_to_cpu(*(u32 *)st->tx)) & 1))
-		st->tx[3]  |= ADXRS450_P;
+		st->tx[3] |= ADXRS450_P;
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfers, &msg);
-	ret = spi_sync(st->us, &msg);
+	ret = spi_write(st->us, st->tx, 4);
 	if (ret)
 		dev_err(&st->us->dev, "problem while writing 16 bit register 0x%02x\n",
-				reg_address);
+			reg_address);
 	msleep(1); /* enforce sequential transfer delay 0.1ms */
 	mutex_unlock(&st->buf_lock);
 	return ret;
@@ -125,21 +106,8 @@ static int adxrs450_spi_write_reg_16(struct iio_dev *indio_dev,
  **/
 static int adxrs450_spi_sensor_data(struct iio_dev *indio_dev, s16 *val)
 {
-	struct spi_message msg;
 	struct adxrs450_state *st = iio_priv(indio_dev);
 	int ret;
-	struct spi_transfer xfers[] = {
-		{
-			.tx_buf = st->tx,
-			.bits_per_word = 8,
-			.len = 4,
-			.cs_change = 1,
-		}, {
-			.rx_buf = st->rx,
-			.bits_per_word = 8,
-			.len = 4,
-		},
-	};
 
 	mutex_lock(&st->buf_lock);
 	st->tx[0] = ADXRS450_SENSOR_DATA;
@@ -147,10 +115,13 @@ static int adxrs450_spi_sensor_data(struct iio_dev *indio_dev, s16 *val)
 	st->tx[2] = 0;
 	st->tx[3] = 0;
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfers[0], &msg);
-	spi_message_add_tail(&xfers[1], &msg);
-	ret = spi_sync(st->us, &msg);
+	ret = spi_write(st->us, st->tx, 4);
+	if (ret) {
+		dev_err(&st->us->dev, "Problem while reading sensor data\n");
+		goto error_ret;
+	}
+
+	ret = spi_read(st->us, st->rx, 4);
 	if (ret) {
 		dev_err(&st->us->dev, "Problem while reading sensor data\n");
 		goto error_ret;
