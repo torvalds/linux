@@ -389,17 +389,18 @@ void transport_deregister_session(struct se_session *se_sess)
 {
 	struct se_portal_group *se_tpg = se_sess->se_tpg;
 	struct se_node_acl *se_nacl;
+	unsigned long flags;
 
 	if (!se_tpg) {
 		transport_free_session(se_sess);
 		return;
 	}
 
-	spin_lock_bh(&se_tpg->session_lock);
+	spin_lock_irqsave(&se_tpg->session_lock, flags);
 	list_del(&se_sess->sess_list);
 	se_sess->se_tpg = NULL;
 	se_sess->fabric_sess_ptr = NULL;
-	spin_unlock_bh(&se_tpg->session_lock);
+	spin_unlock_irqrestore(&se_tpg->session_lock, flags);
 
 	/*
 	 * Determine if we need to do extra work for this initiator node's
@@ -407,22 +408,22 @@ void transport_deregister_session(struct se_session *se_sess)
 	 */
 	se_nacl = se_sess->se_node_acl;
 	if (se_nacl) {
-		spin_lock_bh(&se_tpg->acl_node_lock);
+		spin_lock_irqsave(&se_tpg->acl_node_lock, flags);
 		if (se_nacl->dynamic_node_acl) {
 			if (!se_tpg->se_tpg_tfo->tpg_check_demo_mode_cache(
 					se_tpg)) {
 				list_del(&se_nacl->acl_list);
 				se_tpg->num_node_acls--;
-				spin_unlock_bh(&se_tpg->acl_node_lock);
+				spin_unlock_irqrestore(&se_tpg->acl_node_lock, flags);
 
 				core_tpg_wait_for_nacl_pr_ref(se_nacl);
 				core_free_device_list_for_node(se_nacl, se_tpg);
 				se_tpg->se_tpg_tfo->tpg_release_fabric_acl(se_tpg,
 						se_nacl);
-				spin_lock_bh(&se_tpg->acl_node_lock);
+				spin_lock_irqsave(&se_tpg->acl_node_lock, flags);
 			}
 		}
-		spin_unlock_bh(&se_tpg->acl_node_lock);
+		spin_unlock_irqrestore(&se_tpg->acl_node_lock, flags);
 	}
 
 	transport_free_session(se_sess);
