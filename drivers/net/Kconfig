@@ -934,6 +934,7 @@ config SPIDER_NET
 	tristate "Spider Gigabit Ethernet driver"
 	depends on PCI && (PPC_IBM_CELL_BLADE || PPC_CELLEB)
 	select FW_LOADER
+	select SUNGEM_PHY
 	help
 	  This driver supports the Gigabit Ethernet chips present on the
 	  Cell Processor-Based Blades from IBM.
@@ -1081,6 +1082,9 @@ menuconfig NETDEV_10000
 if NETDEV_10000
 
 config MDIO
+	tristate
+
+config SUNGEM_PHY
 	tristate
 
 endif # NETDEV_10000

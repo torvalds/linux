@@ -57,6 +57,7 @@ config SUNGEM
 	tristate "Sun GEM support"
 	depends on PCI
 	select CRC32
+	select SUNGEM_PHY
 	---help---
 	  Support for the Sun GEM chip, aka Sun GigabitEthernet/P 2.0.  See also
 	  <http://www.sun.com/products-n-solutions/hardware/docs/pdf/806-3985-10.pdf>.
