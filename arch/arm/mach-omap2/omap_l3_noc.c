@@ -127,7 +127,7 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 	return IRQ_HANDLED;
 }
 
-static int __init omap4_l3_probe(struct platform_device *pdev)
+static int __devinit omap4_l3_probe(struct platform_device *pdev)
 {
 	static struct omap4_l3 *l3;
 	struct resource	*res;
@@ -218,7 +218,7 @@ err0:
 	return ret;
 }
 
-static int __exit omap4_l3_remove(struct platform_device *pdev)
+static int __devexit omap4_l3_remove(struct platform_device *pdev)
 {
 	struct omap4_l3 *l3 = platform_get_drvdata(pdev);
 
@@ -232,16 +232,29 @@ static int __exit omap4_l3_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#if defined(CONFIG_OF)
+static const struct of_device_id l3_noc_match[] = {
+	{.compatible = "ti,omap4-l3-noc", },
+	{},
+}
+MODULE_DEVICE_TABLE(of, l3_noc_match);
+#else
+#define l3_noc_match NULL
+#endif
+
 static struct platform_driver omap4_l3_driver = {
-	.remove	= __exit_p(omap4_l3_remove),
-	.driver	= {
-	.name = "omap_l3_noc",
+	.probe		= omap4_l3_probe,
+	.remove		= __devexit_p(omap4_l3_remove),
+	.driver		= {
+		.name		= "omap_l3_noc",
+		.owner		= THIS_MODULE,
+		.of_match_table = l3_noc_match,
 	},
 };
 
 static int __init omap4_l3_init(void)
 {
-	return platform_driver_probe(&omap4_l3_driver, omap4_l3_probe);
+	return platform_driver_register(&omap4_l3_driver);
 }
 postcore_initcall_sync(omap4_l3_init);
 
