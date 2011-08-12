@@ -85,6 +85,8 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_CALIBBIAS_SHARED/2] = "calibbias",
 	[IIO_CHAN_INFO_PEAK_SHARED/2] = "peak_raw",
 	[IIO_CHAN_INFO_PEAK_SCALE_SHARED/2] = "peak_scale",
+	[IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SHARED/2]
+	= "quadrature_correction_raw",
 };
 
 /* Return a negative errno on failure */
