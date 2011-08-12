@@ -276,7 +276,6 @@ struct iio_info {
 /**
  * struct iio_dev - industrial I/O device
  * @id:			[INTERN] used to identify device internally
- * @dev_data:		[DRIVER] device specific data
  * @modes:		[DRIVER] operating modes supported by device
  * @currentmode:	[DRIVER] current operating mode
  * @dev:		[DRIVER] device structure, should be assigned a parent
@@ -296,7 +295,7 @@ struct iio_info {
  **/
 struct iio_dev {
 	int				id;
-	void				*dev_data;
+
 	int				modes;
 	int				currentmode;
 	struct device			dev;
@@ -369,16 +368,6 @@ static inline struct iio_dev *to_iio_dev(struct device *d)
 {
 	return container_of(d, struct iio_dev, dev);
 };
-
-/**
- * iio_dev_get_devdata() - helper function gets device specific data
- * @d: the iio_dev associated with the device
- **/
-static inline void *iio_dev_get_devdata(struct iio_dev *d)
-{
-	return d->dev_data;
-}
-
 
 /* Can we make this smaller? */
 #define IIO_ALIGN L1_CACHE_BYTES
