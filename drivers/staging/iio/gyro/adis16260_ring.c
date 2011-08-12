@@ -1,17 +1,10 @@
 #include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/gpio.h>
-#include <linux/workqueue.h>
 #include <linux/mutex.h>
-#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
-#include <linux/list.h>
 
 #include "../iio.h"
-#include "../sysfs.h"
 #include "../ring_sw.h"
 #include "../trigger.h"
 #include "adis16260.h"
