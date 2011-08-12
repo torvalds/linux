@@ -4097,9 +4097,6 @@ static int mwl8k_set_key(struct ieee80211_hw *hw,
 
 		if (rc)
 			goto out;
-
-		mwl8k_vif->is_hw_crypto_enabled = false;
-
 	}
 out:
 	return rc;
