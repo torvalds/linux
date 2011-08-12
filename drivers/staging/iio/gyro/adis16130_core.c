@@ -75,15 +75,24 @@ static int adis16130_spi_read(struct device *dev, u8 reg_addr,
 	int ret;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct adis16130_state *st = iio_priv(indio_dev);
+	struct spi_message msg;
+	struct spi_transfer xfer = {
+		.tx_buf = st->buf,
+		.rx_buf = st->buf,
+	};
 
 	mutex_lock(&st->buf_lock);
 
 	st->buf[0] = ADIS16130_CON_RD | reg_addr;
-	if (st->mode)
-		ret = spi_read(st->us, st->buf, 4);
-	else
-		ret = spi_read(st->us, st->buf, 3);
+	st->buf[1] = st->buf[2] = st->buf[3] = 0;
 
+	if (st->mode)
+		xfer.len = 4;
+	else
+		xfer.len = 3;
+	spi_message_init(&msg);
+	spi_message_add_tail(&xfer, &msg);
+	ret = spi_sync(st->us, &msg);
 	if (ret == 0) {
 		if (st->mode)
 			*val = (st->buf[1] << 16) |
