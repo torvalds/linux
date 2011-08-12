@@ -166,6 +166,9 @@ int qla4xxx_get_nvram(struct scsi_qla_host *ha, dma_addr_t nvram_dma,
 		      uint32_t offset, uint32_t size);
 int qla4xxx_set_nvram(struct scsi_qla_host *ha, dma_addr_t nvram_dma,
 		      uint32_t offset, uint32_t size);
+int qla4xxx_restore_factory_defaults(struct scsi_qla_host *ha,
+				     uint32_t region, uint32_t field0,
+				     uint32_t field1);
 
 /* BSG Functions */
 int qla4xxx_bsg_request(struct bsg_job *bsg_job);

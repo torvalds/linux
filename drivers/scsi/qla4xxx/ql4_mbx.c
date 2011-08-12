@@ -1744,3 +1744,29 @@ int qla4xxx_set_nvram(struct scsi_qla_host *ha, dma_addr_t nvram_dma,
 	}
 	return status;
 }
+
+int qla4xxx_restore_factory_defaults(struct scsi_qla_host *ha,
+				     uint32_t region, uint32_t field0,
+				     uint32_t field1)
+{
+	int status = QLA_SUCCESS;
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
+
+	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
+	memset(&mbox_sts, 0, sizeof(mbox_sts));
+
+	mbox_cmd[0] = MBOX_CMD_RESTORE_FACTORY_DEFAULTS;
+	mbox_cmd[3] = region;
+	mbox_cmd[4] = field0;
+	mbox_cmd[5] = field1;
+
+	status = qla4xxx_mailbox_command(ha, MBOX_REG_COUNT, 3, &mbox_cmd[0],
+					 &mbox_sts[0]);
+	if (status != QLA_SUCCESS) {
+		DEBUG2(ql4_printk(KERN_ERR, ha, "scsi%ld: %s: failed "
+				  "status %04X\n", ha->host_no, __func__,
+				  mbox_sts[0]));
+	}
+	return status;
+}
