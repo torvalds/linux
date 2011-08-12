@@ -1638,6 +1638,9 @@ static int zr364xx_probe(struct usb_interface *intf,
 
 	if (!cam->read_endpoint) {
 		dev_err(&intf->dev, "Could not find bulk-in endpoint\n");
+		video_device_release(cam->vdev);
+		kfree(cam);
+		cam = NULL;
 		return -ENOMEM;
 	}
 
