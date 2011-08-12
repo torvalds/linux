@@ -240,7 +240,7 @@ static inline int prcmu_set_power_state(u8 state, bool keep_ulp_clk,
 static inline int prcmu_set_epod(u16 epod_id, u8 epod_state)
 {
 	if (machine_is_u5500())
-		return db5500_prcmu_set_epod(epod_id, epod_state);
+		return -EINVAL;
 	else
 		return db8500_prcmu_set_epod(epod_id, epod_state);
 }
@@ -295,7 +295,7 @@ int prcmu_get_ddr_opp(void);
 static inline int prcmu_set_arm_opp(u8 opp)
 {
 	if (machine_is_u5500())
-		return db5500_prcmu_set_arm_opp(opp);
+		return -EINVAL;
 	else
 		return db8500_prcmu_set_arm_opp(opp);
 }
@@ -303,7 +303,7 @@ static inline int prcmu_set_arm_opp(u8 opp)
 static inline int prcmu_get_arm_opp(void)
 {
 	if (machine_is_u5500())
-		return db5500_prcmu_get_arm_opp();
+		return -EINVAL;
 	else
 		return db8500_prcmu_get_arm_opp();
 }
@@ -362,7 +362,7 @@ static inline int prcmu_enable_dsipll(void)
 static inline int prcmu_config_esram0_deep_sleep(u8 state)
 {
 	if (machine_is_u5500())
-		return db5500_prcmu_config_esram0_deep_sleep(state);
+		return -EINVAL;
 	else
 		return db8500_prcmu_config_esram0_deep_sleep(state);
 }

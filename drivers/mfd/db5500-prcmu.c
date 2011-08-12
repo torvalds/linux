@@ -20,11 +20,11 @@
 #include <linux/jiffies.h>
 #include <linux/bitops.h>
 #include <linux/interrupt.h>
-#include <linux/mfd/db5500-prcmu.h>
+#include <linux/mfd/dbx500-prcmu.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/db5500-regs.h>
-#include "db5500-prcmu-regs.h"
+#include "dbx500-prcmu-regs.h"
 
 #define _PRCM_MB_HEADER (tcdm_base + 0xFE8)
 #define PRCM_REQ_MB0_HEADER (_PRCM_MB_HEADER + 0x0)
@@ -315,31 +315,31 @@ static bool read_mailbox_0(void)
 		r = false;
 		break;
 	}
-	writel(MBOX_BIT(0), PRCM_ARM_IT1_CLEAR);
+	writel(MBOX_BIT(0), PRCM_ARM_IT1_CLR);
 	return r;
 }
 
 static bool read_mailbox_1(void)
 {
-	writel(MBOX_BIT(1), PRCM_ARM_IT1_CLEAR);
+	writel(MBOX_BIT(1), PRCM_ARM_IT1_CLR);
 	return false;
 }
 
 static bool read_mailbox_2(void)
 {
-	writel(MBOX_BIT(2), PRCM_ARM_IT1_CLEAR);
+	writel(MBOX_BIT(2), PRCM_ARM_IT1_CLR);
 	return false;
 }
 
 static bool read_mailbox_3(void)
 {
-	writel(MBOX_BIT(3), PRCM_ARM_IT1_CLEAR);
+	writel(MBOX_BIT(3), PRCM_ARM_IT1_CLR);
 	return false;
 }
 
 static bool read_mailbox_4(void)
 {
-	writel(MBOX_BIT(4), PRCM_ARM_IT1_CLEAR);
+	writel(MBOX_BIT(4), PRCM_ARM_IT1_CLR);
 	return false;
 }
 
@@ -360,19 +360,19 @@ static bool read_mailbox_5(void)
 		print_unknown_header_warning(5, header);
 		break;
 	}
-	writel(MBOX_BIT(5), PRCM_ARM_IT1_CLEAR);
+	writel(MBOX_BIT(5), PRCM_ARM_IT1_CLR);
 	return false;
 }
 
 static bool read_mailbox_6(void)
 {
-	writel(MBOX_BIT(6), PRCM_ARM_IT1_CLEAR);
+	writel(MBOX_BIT(6), PRCM_ARM_IT1_CLR);
 	return false;
 }
 
 static bool read_mailbox_7(void)
 {
-	writel(MBOX_BIT(7), PRCM_ARM_IT1_CLEAR);
+	writel(MBOX_BIT(7), PRCM_ARM_IT1_CLR);
 	return false;
 }
 
@@ -434,7 +434,7 @@ int __init db5500_prcmu_init(void)
 		return -ENODEV;
 
 	/* Clean up the mailbox interrupts after pre-kernel code. */
-	writel(ALL_MBOX_BITS, PRCM_ARM_IT1_CLEAR);
+	writel(ALL_MBOX_BITS, PRCM_ARM_IT1_CLR);
 
 	r = request_threaded_irq(IRQ_DB5500_PRCMU1, prcmu_irq_handler,
 		prcmu_irq_thread_fn, 0, "prcmu", NULL);

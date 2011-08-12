@@ -27,14 +27,14 @@
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/mfd/core.h>
-#include <linux/mfd/db8500-prcmu.h>
+#include <linux/mfd/dbx500-prcmu.h>
 #include <linux/regulator/db8500-prcmu.h>
 #include <linux/regulator/machine.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/db8500-regs.h>
 #include <mach/id.h>
-#include "db8500-prcmu-regs.h"
+#include "dbx500-prcmu-regs.h"
 
 /* Offset for the firmware version within the TCPM */
 #define PRCMU_FW_VERSION_OFFSET 0xA4
@@ -507,7 +507,7 @@ static struct {
 } prcmu_version;
 
 
-int prcmu_enable_dsipll(void)
+int db8500_prcmu_enable_dsipll(void)
 {
 	int i;
 	unsigned int plldsifreq;
@@ -542,7 +542,7 @@ int prcmu_enable_dsipll(void)
 	return 0;
 }
 
-int prcmu_disable_dsipll(void)
+int db8500_prcmu_disable_dsipll(void)
 {
 	/* Disable dsi pll */
 	writel(PRCMU_DISABLE_PLLDSI, PRCM_PLLDSI_ENABLE);
@@ -551,7 +551,7 @@ int prcmu_disable_dsipll(void)
 	return 0;
 }
 
-int prcmu_set_display_clocks(void)
+int db8500_prcmu_set_display_clocks(void)
 {
 	unsigned long flags;
 	unsigned int dsiclk;
@@ -734,7 +734,7 @@ unlock_and_return:
 	return r;
 }
 
-int prcmu_set_power_state(u8 state, bool keep_ulp_clk, bool keep_ap_pll)
+int db8500_prcmu_set_power_state(u8 state, bool keep_ulp_clk, bool keep_ap_pll)
 {
 	unsigned long flags;
 
@@ -791,7 +791,7 @@ static void config_wakeups(void)
 	last_abb_events = abb_events;
 }
 
-void prcmu_enable_wakeups(u32 wakeups)
+void db8500_prcmu_enable_wakeups(u32 wakeups)
 {
 	unsigned long flags;
 	u32 bits;
@@ -812,7 +812,7 @@ void prcmu_enable_wakeups(u32 wakeups)
 	spin_unlock_irqrestore(&mb0_transfer.lock, flags);
 }
 
-void prcmu_config_abb_event_readout(u32 abb_events)
+void db8500_prcmu_config_abb_event_readout(u32 abb_events)
 {
 	unsigned long flags;
 
@@ -824,7 +824,7 @@ void prcmu_config_abb_event_readout(u32 abb_events)
 	spin_unlock_irqrestore(&mb0_transfer.lock, flags);
 }
 
-void prcmu_get_abb_event_buffer(void __iomem **buf)
+void db8500_prcmu_get_abb_event_buffer(void __iomem **buf)
 {
 	if (readb(tcdm_base + PRCM_ACK_MB0_READ_POINTER) & 1)
 		*buf = (tcdm_base + PRCM_ACK_MB0_WAKEUP_1_4500);
@@ -833,13 +833,13 @@ void prcmu_get_abb_event_buffer(void __iomem **buf)
 }
 
 /**
- * prcmu_set_arm_opp - set the appropriate ARM OPP
+ * db8500_prcmu_set_arm_opp - set the appropriate ARM OPP
  * @opp: The new ARM operating point to which transition is to be made
  * Returns: 0 on success, non-zero on failure
  *
  * This function sets the the operating point of the ARM.
  */
-int prcmu_set_arm_opp(u8 opp)
+int db8500_prcmu_set_arm_opp(u8 opp)
 {
 	int r;
 
@@ -870,11 +870,11 @@ int prcmu_set_arm_opp(u8 opp)
 }
 
 /**
- * prcmu_get_arm_opp - get the current ARM OPP
+ * db8500_prcmu_get_arm_opp - get the current ARM OPP
  *
  * Returns: the current ARM OPP
  */
-int prcmu_get_arm_opp(void)
+int db8500_prcmu_get_arm_opp(void)
 {
 	return readb(tcdm_base + PRCM_ACK_MB1_CURRENT_ARM_OPP);
 }
@@ -1024,14 +1024,14 @@ int prcmu_release_usb_wakeup_state(void)
 }
 
 /**
- * prcmu_set_epod - set the state of a EPOD (power domain)
+ * db8500_prcmu_set_epod - set the state of a EPOD (power domain)
  * @epod_id: The EPOD to set
  * @epod_state: The new EPOD state
  *
  * This function sets the state of a EPOD (power domain). It may not be called
  * from interrupt context.
  */
-int prcmu_set_epod(u16 epod_id, u8 epod_state)
+int db8500_prcmu_set_epod(u16 epod_id, u8 epod_state)
 {
 	int r = 0;
 	bool ram_retention = false;
@@ -1221,14 +1221,14 @@ static int request_reg_clock(u8 clock, bool enable)
 }
 
 /**
- * prcmu_request_clock() - Request for a clock to be enabled or disabled.
+ * db8500_prcmu_request_clock() - Request for a clock to be enabled or disabled.
  * @clock:      The clock for which the request is made.
  * @enable:     Whether the clock should be enabled (true) or disabled (false).
  *
  * This function should only be used by the clock implementation.
  * Do not use it from any other place!
  */
-int prcmu_request_clock(u8 clock, bool enable)
+int db8500_prcmu_request_clock(u8 clock, bool enable)
 {
 	if (clock < PRCMU_NUM_REG_CLOCKS)
 		return request_reg_clock(clock, enable);
@@ -1240,7 +1240,7 @@ int prcmu_request_clock(u8 clock, bool enable)
 		return -EINVAL;
 }
 
-int prcmu_config_esram0_deep_sleep(u8 state)
+int db8500_prcmu_config_esram0_deep_sleep(u8 state)
 {
 	if ((state > ESRAM0_DEEP_SLEEP_STATE_RET) ||
 	    (state < ESRAM0_DEEP_SLEEP_STATE_OFF))
@@ -1515,18 +1515,18 @@ unlock_and_return:
 	mutex_unlock(&mb0_transfer.ac_wake_lock);
 }
 
-bool prcmu_is_ac_wake_requested(void)
+bool db8500_prcmu_is_ac_wake_requested(void)
 {
 	return (atomic_read(&ac_wake_req_state) != 0);
 }
 
 /**
- * prcmu_system_reset - System reset
+ * db8500_prcmu_system_reset - System reset
  *
- * Saves the reset reason code and then sets the APE_SOFRST register which
+ * Saves the reset reason code and then sets the APE_SOFTRST register which
  * fires interrupt to fw
  */
-void prcmu_system_reset(u16 reset_code)
+void db8500_prcmu_system_reset(u16 reset_code)
 {
 	writew(reset_code, (tcdm_base + PRCM_SW_RST_REASON));
 	writel(1, PRCM_APE_SOFTRST);
@@ -1782,7 +1782,7 @@ static struct irq_chip prcmu_irq_chip = {
 	.irq_unmask	= prcmu_irq_unmask,
 };
 
-void __init prcmu_early_init(void)
+void __init db8500_prcmu_early_init(void)
 {
 	unsigned int i;
 
