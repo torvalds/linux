@@ -21,7 +21,6 @@
 #include "../iio.h"
 #include "../sysfs.h"
 #include "../ring_sw.h"
-#include "../accel/accel.h"
 #include "../trigger.h"
 #include "ade7758.h"
 

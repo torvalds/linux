@@ -13,7 +13,6 @@
 #include "../iio.h"
 #include "../sysfs.h"
 #include "../ring_sw.h"
-#include "../accel/accel.h"
 #include "../trigger.h"
 #include "adis16260.h"
 

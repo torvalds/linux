@@ -7,7 +7,6 @@
 
 #include "../iio.h"
 #include "../ring_sw.h"
-#include "../accel/accel.h"
 #include "../trigger.h"
 #include "adis16400.h"
 
