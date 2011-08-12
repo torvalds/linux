@@ -112,6 +112,7 @@ struct vme_bridge {
 	/* Bridge Info - XXX Move to private structure? */
 	struct device *parent;	/* Parent device (eg. pdev->dev for PCI) */
 	void *driver_priv;	/* Private pointer for the bridge driver */
+	struct list_head bus_list; /* list of VME buses */
 
 	struct device dev[VME_SLOTS_MAX];	/* Device registered with
 						 * device model on VME bus
