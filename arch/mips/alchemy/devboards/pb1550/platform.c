@@ -19,12 +19,55 @@
  */
 
 #include <linux/init.h>
-
+#include <linux/platform_device.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-pb1x00/pb1550.h>
 #include <asm/mach-db1x00/bcsr.h>
 
 #include "../platform.h"
+
+static int pb1550_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
+{
+	if ((slot < 12) || (slot > 13) || pin == 0)
+		return -1;
+	if (slot == 12) {
+		switch (pin) {
+		case 1: return AU1500_PCI_INTB;
+		case 2: return AU1500_PCI_INTC;
+		case 3: return AU1500_PCI_INTD;
+		case 4: return AU1500_PCI_INTA;
+		}
+	}
+	if (slot == 13) {
+		switch (pin) {
+		case 1: return AU1500_PCI_INTA;
+		case 2: return AU1500_PCI_INTB;
+		case 3: return AU1500_PCI_INTC;
+		case 4: return AU1500_PCI_INTD;
+		}
+	}
+	return -1;
+}
+
+static struct resource alchemy_pci_host_res[] = {
+	[0] = {
+		.start	= AU1500_PCI_PHYS_ADDR,
+		.end	= AU1500_PCI_PHYS_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct alchemy_pci_platdata pb1550_pci_pd = {
+	.board_map_irq	= pb1550_map_pci_irq,
+};
+
+static struct platform_device pb1550_pci_host = {
+	.dev.platform_data = &pb1550_pci_pd,
+	.name		= "alchemy-pci",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(alchemy_pci_host_res),
+	.resource	= alchemy_pci_host_res,
+};
 
 static int __init pb1550_dev_init(void)
 {
@@ -57,7 +100,8 @@ static int __init pb1550_dev_init(void)
 
 	swapped = bcsr_read(BCSR_STATUS) & BCSR_STATUS_PB1550_SWAPBOOT;
 	db1x_register_norflash(128 * 1024 * 1024, 4, swapped);
+	platform_device_register(&pb1550_pci_host);
 
 	return 0;
 }
-device_initcall(pb1550_dev_init);
+arch_initcall(pb1550_dev_init);

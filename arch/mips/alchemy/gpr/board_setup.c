@@ -36,10 +36,6 @@
 
 #include <prom.h>
 
-char irq_tab_alchemy[][5] __initdata = {
-	[0] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTB, 0xff, 0xff },
-};
-
 static void gpr_reset(char *c)
 {
 	/* switch System-LED to orange (red# and green# on) */
@@ -76,12 +72,4 @@ void __init board_setup(void)
 
 	/* Take away Reset of UMTS-card */
 	alchemy_gpio_direction_output(215, 1);
-
-#ifdef CONFIG_PCI
-#if defined(__MIPSEB__)
-	au_writel(0xf | (2 << 6) | (1 << 4), Au1500_PCI_CFG);
-#else
-	au_writel(0xf, Au1500_PCI_CFG);
-#endif
-#endif
 }

@@ -14,5 +14,3 @@ obj-$(CONFIG_ALCHEMY_GPIOINT_AU1000) += irq.o
 ifeq ($(CONFIG_ALCHEMY_GPIO_INDIRECT),)
  obj-$(CONFIG_GPIOLIB) += gpiolib.o
 endif
-
-obj-$(CONFIG_PCI)		+= pci.o

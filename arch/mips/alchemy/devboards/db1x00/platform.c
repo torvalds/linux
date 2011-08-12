@@ -25,6 +25,8 @@
 #include <asm/mach-db1x00/bcsr.h>
 #include "../platform.h"
 
+struct pci_dev;
+
 /* DB1xxx PCMCIA interrupt sources:
  * CD0/1 	GPIO0/3
  * STSCHG0/1	GPIO1/4
@@ -83,6 +85,127 @@
 #define BOARD_FLASH_SIZE	0x04000000 /* 64MB */
 #define BOARD_FLASH_WIDTH	4 /* 32-bits */
 #endif
+#endif
+
+#ifdef CONFIG_PCI
+#ifdef CONFIG_MIPS_DB1500
+static int db1xxx_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
+{
+	if ((slot < 12) || (slot > 13) || pin == 0)
+		return -1;
+	if (slot == 12)
+		return (pin == 1) ? AU1500_PCI_INTA : 0xff;
+	if (slot == 13) {
+		switch (pin) {
+		case 1: return AU1500_PCI_INTA;
+		case 2: return AU1500_PCI_INTB;
+		case 3: return AU1500_PCI_INTC;
+		case 4: return AU1500_PCI_INTD;
+		}
+	}
+	return -1;
+}
+#endif
+
+#ifdef CONFIG_MIPS_DB1550
+static int db1xxx_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
+{
+	if ((slot < 11) || (slot > 13) || pin == 0)
+		return -1;
+	if (slot == 11)
+		return (pin == 1) ? AU1550_PCI_INTC : 0xff;
+	if (slot == 12) {
+		switch (pin) {
+		case 1: return AU1550_PCI_INTB;
+		case 2: return AU1550_PCI_INTC;
+		case 3: return AU1550_PCI_INTD;
+		case 4: return AU1550_PCI_INTA;
+		}
+	}
+	if (slot == 13) {
+		switch (pin) {
+		case 1: return AU1550_PCI_INTA;
+		case 2: return AU1550_PCI_INTB;
+		case 3: return AU1550_PCI_INTC;
+		case 4: return AU1550_PCI_INTD;
+		}
+	}
+	return -1;
+}
+#endif
+
+#ifdef CONFIG_MIPS_BOSPORUS
+static int db1xxx_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
+{
+	if ((slot < 11) || (slot > 13) || pin == 0)
+		return -1;
+	if (slot == 12)
+		return (pin == 1) ? AU1500_PCI_INTA : 0xff;
+	if (slot == 11) {
+		switch (pin) {
+		case 1: return AU1500_PCI_INTA;
+		case 2: return AU1500_PCI_INTB;
+		default: return 0xff;
+		}
+	}
+	if (slot == 13) {
+		switch (pin) {
+		case 1: return AU1500_PCI_INTA;
+		case 2: return AU1500_PCI_INTB;
+		case 3: return AU1500_PCI_INTC;
+		case 4: return AU1500_PCI_INTD;
+		}
+	}
+	return -1;
+}
+#endif
+
+#ifdef CONFIG_MIPS_MIRAGE
+static int db1xxx_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
+{
+	if ((slot < 11) || (slot > 13) || pin == 0)
+		return -1;
+	if (slot == 11)
+		return (pin == 1) ? AU1500_PCI_INTD : 0xff;
+	if (slot == 12)
+		return (pin == 3) ? AU1500_PCI_INTC : 0xff;
+	if (slot == 13) {
+		switch (pin) {
+		case 1: return AU1500_PCI_INTA;
+		case 2: return AU1500_PCI_INTB;
+		default: return 0xff;
+		}
+	}
+	return -1;
+}
+#endif
+
+static struct resource alchemy_pci_host_res[] = {
+	[0] = {
+		.start	= AU1500_PCI_PHYS_ADDR,
+		.end	= AU1500_PCI_PHYS_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct alchemy_pci_platdata db1xxx_pci_pd = {
+	.board_map_irq	= db1xxx_map_pci_irq,
+};
+
+static struct platform_device db1xxx_pci_host_dev = {
+	.dev.platform_data = &db1xxx_pci_pd,
+	.name		= "alchemy-pci",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(alchemy_pci_host_res),
+	.resource	= alchemy_pci_host_res,
+};
+
+static int __init db15x0_pci_init(void)
+{
+	return platform_device_register(&db1xxx_pci_host_dev);
+}
+/* must be arch_initcall; MIPS PCI scans busses in a subsys_initcall */
+arch_initcall(db15x0_pci_init);
 #endif
 
 static int __init db1xxx_dev_init(void)

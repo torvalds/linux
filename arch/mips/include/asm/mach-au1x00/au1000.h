@@ -254,6 +254,14 @@ enum alchemy_usb_block {
 };
 int alchemy_usb_control(int block, int enable);
 
+/* PCI controller platform data */
+struct alchemy_pci_platdata {
+	int (*board_map_irq)(const struct pci_dev *d, u8 slot, u8 pin);
+	int (*board_pci_idsel)(unsigned int devsel, int assert);
+	/* bits to set/clear in PCI_CONFIG register */
+	unsigned long pci_cfg_set;
+	unsigned long pci_cfg_clr;
+};
 
 /* SOC Interrupt numbers */
 
@@ -1309,58 +1317,30 @@ enum soc_au1200_ints {
 #  define AC97C_RS		(1 << 1)
 #  define AC97C_CE		(1 << 0)
 
-#if defined(CONFIG_SOC_AU1500) || defined(CONFIG_SOC_AU1550)
-/* Au1500 PCI Controller */
-#define Au1500_CFG_BASE 	0xB4005000	/* virtual, KSEG1 addr */
-#define Au1500_PCI_CMEM 	(Au1500_CFG_BASE + 0)
-#define Au1500_PCI_CFG		(Au1500_CFG_BASE + 4)
-#  define PCI_ERROR		((1 << 22) | (1 << 23) | (1 << 24) | \
-				 (1 << 25) | (1 << 26) | (1 << 27))
-#define Au1500_PCI_B2BMASK_CCH	(Au1500_CFG_BASE + 8)
-#define Au1500_PCI_B2B0_VID	(Au1500_CFG_BASE + 0xC)
-#define Au1500_PCI_B2B1_ID	(Au1500_CFG_BASE + 0x10)
-#define Au1500_PCI_MWMASK_DEV	(Au1500_CFG_BASE + 0x14)
-#define Au1500_PCI_MWBASE_REV_CCL (Au1500_CFG_BASE + 0x18)
-#define Au1500_PCI_ERR_ADDR	(Au1500_CFG_BASE + 0x1C)
-#define Au1500_PCI_SPEC_INTACK	(Au1500_CFG_BASE + 0x20)
-#define Au1500_PCI_ID		(Au1500_CFG_BASE + 0x100)
-#define Au1500_PCI_STATCMD	(Au1500_CFG_BASE + 0x104)
-#define Au1500_PCI_CLASSREV	(Au1500_CFG_BASE + 0x108)
-#define Au1500_PCI_HDRTYPE	(Au1500_CFG_BASE + 0x10C)
-#define Au1500_PCI_MBAR 	(Au1500_CFG_BASE + 0x110)
 
-#define Au1500_PCI_HDR		0xB4005100	/* virtual, KSEG1 addr */
-
-/*
- * All of our structures, like PCI resource, have 32-bit members.
- * Drivers are expected to do an ioremap on the PCI MEM resource, but it's
- * hard to store 0x4 0000 0000 in a 32-bit type.  We require a small patch
- * to __ioremap to check for addresses between (u32)Au1500_PCI_MEM_START and
- * (u32)Au1500_PCI_MEM_END and change those to the full 36-bit PCI MEM
- * addresses.  For PCI I/O, it's simpler because we get to do the ioremap
- * ourselves and then adjust the device's resources.
+/* The PCI chip selects are outside the 32bit space, and since we can't
+ * just program the 36bit addresses into BARs, we have to take a chunk
+ * out of the 32bit space and reserve it for PCI.  When these addresses
+ * are ioremap()ed, they'll be fixed up to the real 36bit address before
+ * being passed to the real ioremap function.
  */
-#define Au1500_EXT_CFG		0x600000000ULL
-#define Au1500_EXT_CFG_TYPE1	0x680000000ULL
-#define Au1500_PCI_IO_START	0x500000000ULL
-#define Au1500_PCI_IO_END	0x5000FFFFFULL
-#define Au1500_PCI_MEM_START	0x440000000ULL
-#define Au1500_PCI_MEM_END	0x44FFFFFFFULL
+#define ALCHEMY_PCI_MEMWIN_START	(AU1500_PCI_MEM_PHYS_ADDR >> 4)
+#define ALCHEMY_PCI_MEMWIN_END		(ALCHEMY_PCI_MEMWIN_START + 0x0FFFFFFF)
 
-#define PCI_IO_START	0x00001000
-#define PCI_IO_END	0x000FFFFF
-#define PCI_MEM_START	0x40000000
-#define PCI_MEM_END	0x4FFFFFFF
+/* for PCI IO it's simpler because we get to do the ioremap ourselves and then
+ * adjust the device's resources.
+ */
+#define ALCHEMY_PCI_IOWIN_START		0x00001000
+#define ALCHEMY_PCI_IOWIN_END		0x0000FFFF
 
-#define PCI_FIRST_DEVFN (0 << 3)
-#define PCI_LAST_DEVFN	(19 << 3)
+#ifdef CONFIG_PCI
 
 #define IOPORT_RESOURCE_START	0x00001000	/* skip legacy probing */
 #define IOPORT_RESOURCE_END	0xffffffff
 #define IOMEM_RESOURCE_START	0x10000000
 #define IOMEM_RESOURCE_END	0xfffffffffULL
 
-#else /* Au1000 and Au1100 and Au1200 */
+#else
 
 /* Don't allow any legacy ports probing */
 #define IOPORT_RESOURCE_START	0x10000000
@@ -1368,13 +1348,77 @@ enum soc_au1200_ints {
 #define IOMEM_RESOURCE_START	0x10000000
 #define IOMEM_RESOURCE_END	0xfffffffffULL
 
-#define PCI_IO_START	0
-#define PCI_IO_END	0
-#define PCI_MEM_START	0
-#define PCI_MEM_END	0
-#define PCI_FIRST_DEVFN 0
-#define PCI_LAST_DEVFN	0
-
 #endif
+
+/* PCI controller block register offsets */
+#define PCI_REG_CMEM		0x0000
+#define PCI_REG_CONFIG		0x0004
+#define PCI_REG_B2BMASK_CCH	0x0008
+#define PCI_REG_B2BBASE0_VID	0x000C
+#define PCI_REG_B2BBASE1_SID	0x0010
+#define PCI_REG_MWMASK_DEV	0x0014
+#define PCI_REG_MWBASE_REV_CCL	0x0018
+#define PCI_REG_ERR_ADDR	0x001C
+#define PCI_REG_SPEC_INTACK	0x0020
+#define PCI_REG_ID		0x0100
+#define PCI_REG_STATCMD		0x0104
+#define PCI_REG_CLASSREV	0x0108
+#define PCI_REG_PARAM		0x010C
+#define PCI_REG_MBAR		0x0110
+#define PCI_REG_TIMEOUT		0x0140
+
+/* PCI controller block register bits */
+#define PCI_CMEM_E		(1 << 28)	/* enable cacheable memory */
+#define PCI_CMEM_CMBASE(x)	(((x) & 0x3fff) << 14)
+#define PCI_CMEM_CMMASK(x)	((x) & 0x3fff)
+#define PCI_CONFIG_ERD		(1 << 27) /* pci error during R/W */
+#define PCI_CONFIG_ET		(1 << 26) /* error in target mode */
+#define PCI_CONFIG_EF		(1 << 25) /* fatal error */
+#define PCI_CONFIG_EP		(1 << 24) /* parity error */
+#define PCI_CONFIG_EM		(1 << 23) /* multiple errors */
+#define PCI_CONFIG_BM		(1 << 22) /* bad master error */
+#define PCI_CONFIG_PD		(1 << 20) /* PCI Disable */
+#define PCI_CONFIG_BME		(1 << 19) /* Byte Mask Enable for reads */
+#define PCI_CONFIG_NC		(1 << 16) /* mark mem access non-coherent */
+#define PCI_CONFIG_IA		(1 << 15) /* INTA# enabled (target mode) */
+#define PCI_CONFIG_IP		(1 << 13) /* int on PCI_PERR# */
+#define PCI_CONFIG_IS		(1 << 12) /* int on PCI_SERR# */
+#define PCI_CONFIG_IMM		(1 << 11) /* int on master abort */
+#define PCI_CONFIG_ITM		(1 << 10) /* int on target abort (as master) */
+#define PCI_CONFIG_ITT		(1 << 9)  /* int on target abort (as target) */
+#define PCI_CONFIG_IPB		(1 << 8)  /* int on PERR# in bus master acc */
+#define PCI_CONFIG_SIC_NO	(0 << 6)  /* no byte mask changes */
+#define PCI_CONFIG_SIC_BA_ADR	(1 << 6)  /* on byte/hw acc, invert adr bits */
+#define PCI_CONFIG_SIC_HWA_DAT	(2 << 6)  /* on halfword acc, swap data */
+#define PCI_CONFIG_SIC_ALL	(3 << 6)  /* swap data bytes on all accesses */
+#define PCI_CONFIG_ST		(1 << 5)  /* swap data by target transactions */
+#define PCI_CONFIG_SM		(1 << 4)  /* swap data from PCI ctl */
+#define PCI_CONFIG_AEN		(1 << 3)  /* enable internal arbiter */
+#define PCI_CONFIG_R2H		(1 << 2)  /* REQ2# to hi-prio arbiter */
+#define PCI_CONFIG_R1H		(1 << 1)  /* REQ1# to hi-prio arbiter */
+#define PCI_CONFIG_CH		(1 << 0)  /* PCI ctl to hi-prio arbiter */
+#define PCI_B2BMASK_B2BMASK(x)	(((x) & 0xffff) << 16)
+#define PCI_B2BMASK_CCH(x)	((x) & 0xffff) /* 16 upper bits of class code */
+#define PCI_B2BBASE0_VID_B0(x)	(((x) & 0xffff) << 16)
+#define PCI_B2BBASE0_VID_SV(x)	((x) & 0xffff)
+#define PCI_B2BBASE1_SID_B1(x)	(((x) & 0xffff) << 16)
+#define PCI_B2BBASE1_SID_SI(x)	((x) & 0xffff)
+#define PCI_MWMASKDEV_MWMASK(x) (((x) & 0xffff) << 16)
+#define PCI_MWMASKDEV_DEVID(x)	((x) & 0xffff)
+#define PCI_MWBASEREVCCL_BASE(x) (((x) & 0xffff) << 16)
+#define PCI_MWBASEREVCCL_REV(x)  (((x) & 0xff) << 8)
+#define PCI_MWBASEREVCCL_CCL(x)  ((x) & 0xff)
+#define PCI_ID_DID(x)		(((x) & 0xffff) << 16)
+#define PCI_ID_VID(x)		((x) & 0xffff)
+#define PCI_STATCMD_STATUS(x)	(((x) & 0xffff) << 16)
+#define PCI_STATCMD_CMD(x)	((x) & 0xffff)
+#define PCI_CLASSREV_CLASS(x)	(((x) & 0x00ffffff) << 8)
+#define PCI_CLASSREV_REV(x)	((x) & 0xff)
+#define PCI_PARAM_BIST(x)	(((x) & 0xff) << 24)
+#define PCI_PARAM_HT(x)		(((x) & 0xff) << 16)
+#define PCI_PARAM_LT(x)		(((x) & 0xff) << 8)
+#define PCI_PARAM_CLS(x)	((x) & 0xff)
+#define PCI_TIMEOUT_RETRIES(x)	(((x) & 0xff) << 8)	/* max retries */
+#define PCI_TIMEOUT_TO(x)	((x) & 0xff)	/* target ready timeout */
 
 #endif
