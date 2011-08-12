@@ -150,8 +150,6 @@ static int adis16400_spi_read_reg_16(struct iio_dev *indio_dev,
 	mutex_lock(&st->buf_lock);
 	st->tx[0] = ADIS16400_READ_REG(lower_reg_address);
 	st->tx[1] = 0;
-	st->tx[2] = 0;
-	st->tx[3] = 0;
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfers[0], &msg);
@@ -240,17 +238,18 @@ static ssize_t adis16400_write_reset(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf, size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	bool val;
+	int ret;
 
-	if (len < 1)
-		return -1;
-	switch (buf[0]) {
-	case '1':
-	case 'y':
-	case 'Y':
-		return adis16400_reset(indio_dev);
-	}
-	return -1;
+	ret = strtobool(buf, &val);
+	if (ret < 0)
+		return ret;
+	if (val)
+		ret = adis16400_reset(dev_get_drvdata(dev));
+	if (ret < 0)
+		return ret;
+
+	return len;
 }
 
 int adis16400_set_irq(struct iio_dev *indio_dev, bool enable)
