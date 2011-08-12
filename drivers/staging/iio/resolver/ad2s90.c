@@ -58,7 +58,6 @@ static struct attribute *ad2s90_attributes[] = {
 };
 
 static const struct attribute_group ad2s90_attribute_group = {
-	.name = DRV_NAME,
 	.attrs = ad2s90_attributes,
 };
 
