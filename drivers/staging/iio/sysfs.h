@@ -71,29 +71,13 @@ struct iio_const_attr {
 	struct iio_const_attr iio_const_attr_##_vname			\
 	= { .string = _string,						\
 	    .dev_attr = __ATTR(_name, S_IRUGO, iio_read_const_attr, NULL)}
+
 /* Generic attributes of onetype or another */
-
-/**
- * IIO_DEV_ATTR_REV - revision number for the device
- * @_show: output method for the attribute
- *
- * Very much device dependent.
- **/
-#define IIO_DEV_ATTR_REV(_show)			\
-	IIO_DEVICE_ATTR(revision, S_IRUGO, _show, NULL, 0)
-
 /**
  * IIO_DEV_ATTR_RESET: resets the device
  **/
 #define IIO_DEV_ATTR_RESET(_store)			\
 	IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, _store, 0)
-
-/**
- * IIO_CONST_ATTR_NAME - constant identifier
- * @_string: the name
- **/
-#define IIO_CONST_ATTR_NAME(_string)				\
-	IIO_CONST_ATTR(name, _string)
 
 /**
  * IIO_DEV_ATTR_SAMP_FREQ - sets any internal clock frequency
@@ -105,15 +89,11 @@ struct iio_const_attr {
 	IIO_DEVICE_ATTR(sampling_frequency, _mode, _show, _store, 0)
 
 /**
- * IIO_DEV_ATTR_AVAIL_SAMP_FREQ - list available sampling frequencies
+ * IIO_DEV_ATTR_SAMP_FREQ_AVAIL - list available sampling frequencies
  * @_show: output method for the attribute
  *
  * May be mode dependent on some devices
  **/
-/* Deprecated */
-#define IIO_DEV_ATTR_AVAIL_SAMP_FREQ(_show)				\
-	IIO_DEVICE_ATTR(available_sampling_frequency, S_IRUGO, _show, NULL, 0)
-
 #define IIO_DEV_ATTR_SAMP_FREQ_AVAIL(_show)				\
 	IIO_DEVICE_ATTR(sampling_frequency_available, S_IRUGO, _show, NULL, 0)
 /**
@@ -124,27 +104,6 @@ struct iio_const_attr {
  **/
 #define IIO_CONST_ATTR_SAMP_FREQ_AVAIL(_string)			\
 	IIO_CONST_ATTR(sampling_frequency_available, _string)
-
-/**
- * IIO_DEV_ATTR_SW_RING_ENABLE - enable software ring buffer
- * @_show: output method for the attribute
- * @_store: input method for the attribute
- *
- * Success may be dependent on attachment of trigger previously.
- **/
-#define IIO_DEV_ATTR_SW_RING_ENABLE(_show, _store)			\
-	IIO_DEVICE_ATTR(sw_ring_enable, S_IRUGO | S_IWUSR, _show, _store, 0)
-
-/**
- * IIO_DEV_ATTR_HW_RING_ENABLE - enable hardware ring buffer
- * @_show: output method for the attribute
- * @_store: input method for the attribute
- *
- * This is a different attribute from the software one as one can envision
- * schemes where a combination of the two may be used.
- **/
-#define IIO_DEV_ATTR_HW_RING_ENABLE(_show, _store)			\
-	IIO_DEVICE_ATTR(hw_ring_enable, S_IRUGO | S_IWUSR, _show, _store, 0)
 
 #define IIO_DEV_ATTR_TEMP_RAW(_show)			\
 	IIO_DEVICE_ATTR(temp_raw, S_IRUGO, _show, NULL, 0)
