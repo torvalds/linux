@@ -2684,6 +2684,10 @@ static u32 xhci_v1_0_td_remainder(int running_total, int trb_buff_len,
 {
 	int packets_transferred;
 
+	/* One TRB with a zero-length data packet. */
+	if (running_total == 0 && trb_buff_len == 0)
+		return 0;
+
 	/* All the TRB queueing functions don't count the current TRB in
 	 * running_total.
 	 */
@@ -3125,20 +3129,15 @@ static int count_isoc_trbs_needed(struct xhci_hcd *xhci,
 		struct urb *urb, int i)
 {
 	int num_trbs = 0;
-	u64 addr, td_len, running_total;
+	u64 addr, td_len;
 
 	addr = (u64) (urb->transfer_dma + urb->iso_frame_desc[i].offset);
 	td_len = urb->iso_frame_desc[i].length;
 
-	running_total = TRB_MAX_BUFF_SIZE - (addr & (TRB_MAX_BUFF_SIZE - 1));
-	running_total &= TRB_MAX_BUFF_SIZE - 1;
-	if (running_total != 0)
+	num_trbs = DIV_ROUND_UP(td_len + (addr & (TRB_MAX_BUFF_SIZE - 1)),
+			TRB_MAX_BUFF_SIZE);
+	if (num_trbs == 0)
 		num_trbs++;
-
-	while (running_total < td_len) {
-		num_trbs++;
-		running_total += TRB_MAX_BUFF_SIZE;
-	}
 
 	return num_trbs;
 }
@@ -3250,9 +3249,11 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		addr = start_addr + urb->iso_frame_desc[i].offset;
 		td_len = urb->iso_frame_desc[i].length;
 		td_remain_len = td_len;
-		/* FIXME: Ignoring zero-length packets, can those happen? */
 		total_packet_count = roundup(td_len,
 				le16_to_cpu(urb->ep->desc.wMaxPacketSize));
+		/* A zero-length transfer still involves at least one packet. */
+		if (total_packet_count == 0)
+			total_packet_count++;
 		burst_count = xhci_get_burst_count(xhci, urb->dev, urb,
 				total_packet_count);
 		residue = xhci_get_last_burst_packet_count(xhci,
