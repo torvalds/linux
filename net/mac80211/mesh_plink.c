@@ -195,7 +195,12 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 			memset(pos, 0, 2);
 			memcpy(pos + 2, &plid, 2);
 		}
-		mesh_mgmt_ies_add(skb, sdata);
+		if (mesh_add_srates_ie(skb, sdata) ||
+		    mesh_add_ext_srates_ie(skb, sdata) ||
+		    mesh_add_rsn_ie(skb, sdata) ||
+		    mesh_add_meshid_ie(skb, sdata) ||
+		    mesh_add_meshconf_ie(skb, sdata))
+			return -1;
 	}
 
 	/* Add Peer Link Management element */

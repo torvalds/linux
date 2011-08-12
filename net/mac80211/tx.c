@@ -2295,13 +2295,23 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 		memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
 		mgmt->u.beacon.beacon_int =
 			cpu_to_le16(sdata->vif.bss_conf.beacon_int);
-		mgmt->u.beacon.capab_info = 0x0; /* 0x0 for MPs */
+		mgmt->u.beacon.capab_info |= cpu_to_le16(
+			sdata->u.mesh.security ? WLAN_CAPABILITY_PRIVACY : 0);
 
 		pos = skb_put(skb, 2);
 		*pos++ = WLAN_EID_SSID;
 		*pos++ = 0x0;
 
-		mesh_mgmt_ies_add(skb, sdata);
+		if (mesh_add_srates_ie(skb, sdata) ||
+		    mesh_add_ds_params_ie(skb, sdata) ||
+		    mesh_add_ext_srates_ie(skb, sdata) ||
+		    mesh_add_rsn_ie(skb, sdata) ||
+		    mesh_add_meshid_ie(skb, sdata) ||
+		    mesh_add_meshconf_ie(skb, sdata) ||
+		    mesh_add_vendor_ies(skb, sdata)) {
+			pr_err("o11s: couldn't add ies!\n");
+			goto out;
+		}
 	} else {
 		WARN_ON(1);
 		goto out;

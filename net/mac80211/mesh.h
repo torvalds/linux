@@ -199,6 +199,20 @@ bool mesh_matches_local(struct ieee802_11_elems *ie,
 void mesh_ids_set_default(struct ieee80211_if_mesh *mesh);
 void mesh_mgmt_ies_add(struct sk_buff *skb,
 		struct ieee80211_sub_if_data *sdata);
+int mesh_add_meshconf_ie(struct sk_buff *skb,
+			 struct ieee80211_sub_if_data *sdata);
+int mesh_add_meshid_ie(struct sk_buff *skb,
+		       struct ieee80211_sub_if_data *sdata);
+int mesh_add_rsn_ie(struct sk_buff *skb,
+		    struct ieee80211_sub_if_data *sdata);
+int mesh_add_vendor_ies(struct sk_buff *skb,
+			struct ieee80211_sub_if_data *sdata);
+int mesh_add_srates_ie(struct sk_buff *skb,
+		       struct ieee80211_sub_if_data *sdata);
+int mesh_add_ext_srates_ie(struct sk_buff *skb,
+			   struct ieee80211_sub_if_data *sdata);
+int mesh_add_ds_params_ie(struct sk_buff *skb,
+			  struct ieee80211_sub_if_data *sdata);
 void mesh_rmc_free(struct ieee80211_sub_if_data *sdata);
 int mesh_rmc_init(struct ieee80211_sub_if_data *sdata);
 void ieee80211s_init(void);
