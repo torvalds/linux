@@ -4,7 +4,11 @@
 #include "phy_common.h"
 
 
+#define B43_PHY_HT_BBCFG			0x001 /* BB config */
+#define  B43_PHY_HT_BBCFG_RSTCCA		0x4000 /* Reset CCA */
+#define  B43_PHY_HT_BBCFG_RSTRX			0x8000 /* Reset RX */
 #define B43_PHY_HT_BANDCTL			0x009 /* Band control */
+#define  B43_PHY_HT_BANDCTL_5GHZ		0x0001 /* Use the 5GHz band */
 #define B43_PHY_HT_TABLE_ADDR			0x072 /* Table address */
 #define B43_PHY_HT_TABLE_DATALO			0x073 /* Table data low */
 #define B43_PHY_HT_TABLE_DATAHI			0x074 /* Table data high */

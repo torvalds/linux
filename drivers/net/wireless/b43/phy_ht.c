@@ -273,6 +273,8 @@ static void b43_phy_ht_op_prepare_structs(struct b43_wldev *dev)
 
 static int b43_phy_ht_op_init(struct b43_wldev *dev)
 {
+	u16 tmp;
+
 	b43_phy_ht_tables_init(dev);
 
 	/* TODO: PHY ops on regs 0x0be, 0x23f 0x240 0x241 */
@@ -300,6 +302,25 @@ static int b43_phy_ht_op_init(struct b43_wldev *dev)
 	; /* TODO: PHY ops on regs 0xb1, 0x32f, 0x077, 0x0b4, 0x17e */
 
 	b43_phy_write(dev, 0x0b9, 0x0072);
+
+	/* TODO: Some ops here */
+
+	/* Copy some tables entries */
+	tmp = b43_httab_read(dev, B43_HTTAB16(7, 0x144));
+	b43_httab_write(dev, B43_HTTAB16(7, 0x14a), tmp);
+	tmp = b43_httab_read(dev, B43_HTTAB16(7, 0x154));
+	b43_httab_write(dev, B43_HTTAB16(7, 0x15a), tmp);
+	tmp = b43_httab_read(dev, B43_HTTAB16(7, 0x164));
+	b43_httab_write(dev, B43_HTTAB16(7, 0x16a), tmp);
+
+	/* Reset CCA */
+	b43_phy_force_clock(dev, true);
+	tmp = b43_phy_read(dev, B43_PHY_HT_BBCFG);
+	b43_phy_write(dev, B43_PHY_HT_BBCFG, tmp | B43_PHY_HT_BBCFG_RSTCCA);
+	b43_phy_write(dev, B43_PHY_HT_BBCFG, tmp & ~B43_PHY_HT_BBCFG_RSTCCA);
+	b43_phy_force_clock(dev, false);
+
+	b43_mac_phy_clock_set(dev, true);
 
 	return 0;
 }
