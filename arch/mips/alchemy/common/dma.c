@@ -40,8 +40,6 @@
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1000_dma.h>
 
-#if defined(CONFIG_SOC_AU1000) || defined(CONFIG_SOC_AU1500) || \
-    defined(CONFIG_SOC_AU1100)
 /*
  * A note on resource allocation:
  *
@@ -170,13 +168,13 @@ int request_au1000_dma(int dev_id, const char *dev_str,
 	const struct dma_dev *dev;
 	int i, ret;
 
-#if defined(CONFIG_SOC_AU1100)
-	if (dev_id < 0 || dev_id >= (DMA_NUM_DEV + DMA_NUM_DEV_BANK2))
-		return -EINVAL;
-#else
-	if (dev_id < 0 || dev_id >= DMA_NUM_DEV)
-		return -EINVAL;
-#endif
+	if (alchemy_get_cputype() == ALCHEMY_CPU_AU1100) {
+		if (dev_id < 0 || dev_id >= (DMA_NUM_DEV + DMA_NUM_DEV_BANK2))
+			return -EINVAL;
+	} else {
+		if (dev_id < 0 || dev_id >= DMA_NUM_DEV)
+			return -EINVAL;
+	}
 
 	for (i = 0; i < NUM_AU1000_DMA_CHANNELS; i++)
 		if (au1000_dma_table[i].dev_id < 0)
@@ -239,30 +237,28 @@ EXPORT_SYMBOL(free_au1000_dma);
 
 static int __init au1000_dma_init(void)
 {
-        int base, i;
+	int base, i;
 
-        switch (alchemy_get_cputype()) {
-        case ALCHEMY_CPU_AU1000:
-                base = AU1000_DMA_INT_BASE;
-                break;
-        case ALCHEMY_CPU_AU1500:
-                base = AU1500_DMA_INT_BASE;
-                break;
-        case ALCHEMY_CPU_AU1100:
-                base = AU1100_DMA_INT_BASE;
-                break;
-        default:
-                goto out;
-        }
+	switch (alchemy_get_cputype()) {
+	case ALCHEMY_CPU_AU1000:
+		base = AU1000_DMA_INT_BASE;
+		break;
+	case ALCHEMY_CPU_AU1500:
+		base = AU1500_DMA_INT_BASE;
+		break;
+	case ALCHEMY_CPU_AU1100:
+		base = AU1100_DMA_INT_BASE;
+		break;
+	default:
+		goto out;
+	}
 
-        for (i = 0; i < NUM_AU1000_DMA_CHANNELS; i++)
-                au1000_dma_table[i].irq = base + i;
+	for (i = 0; i < NUM_AU1000_DMA_CHANNELS; i++)
+		au1000_dma_table[i].irq = base + i;
 
-        printk(KERN_INFO "Alchemy DMA initialized\n");
+	printk(KERN_INFO "Alchemy DMA initialized\n");
 
 out:
-        return 0;
+	return 0;
 }
 arch_initcall(au1000_dma_init);
-
-#endif /* AU1000 AU1500 AU1100 */

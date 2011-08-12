@@ -263,13 +263,13 @@ static struct resource au1200_mmc0_resources[] = {
 		.flags		= IORESOURCE_IRQ,
 	},
 	[2] = {
-		.start		= DSCR_CMD0_SDMS_TX0,
-		.end		= DSCR_CMD0_SDMS_TX0,
+		.start		= AU1200_DSCR_CMD0_SDMS_TX0,
+		.end		= AU1200_DSCR_CMD0_SDMS_TX0,
 		.flags		= IORESOURCE_DMA,
 	},
 	[3] = {
-		.start          = DSCR_CMD0_SDMS_RX0,
-		.end		= DSCR_CMD0_SDMS_RX0,
+		.start          = AU1200_DSCR_CMD0_SDMS_RX0,
+		.end		= AU1200_DSCR_CMD0_SDMS_RX0,
 		.flags          = IORESOURCE_DMA,
 	}
 };
@@ -299,13 +299,13 @@ static struct resource au1200_mmc1_resources[] = {
 		.flags		= IORESOURCE_IRQ,
 	},
 	[2] = {
-		.start		= DSCR_CMD0_SDMS_TX1,
-		.end		= DSCR_CMD0_SDMS_TX1,
+		.start		= AU1200_DSCR_CMD0_SDMS_TX1,
+		.end		= AU1200_DSCR_CMD0_SDMS_TX1,
 		.flags		= IORESOURCE_DMA,
 	},
 	[3] = {
-		.start          = DSCR_CMD0_SDMS_RX1,
-		.end		= DSCR_CMD0_SDMS_RX1,
+		.start          = AU1200_DSCR_CMD0_SDMS_RX1,
+		.end		= AU1200_DSCR_CMD0_SDMS_RX1,
 		.flags          = IORESOURCE_DMA,
 	}
 };

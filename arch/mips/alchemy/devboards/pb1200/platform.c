@@ -118,8 +118,8 @@ static struct resource ide_resources[] = {
 		.flags	= IORESOURCE_IRQ
 	},
 	[2] = {
-		.start	= DSCR_CMD0_DMA_REQ1,
-		.end	= DSCR_CMD0_DMA_REQ1,
+		.start	= AU1200_DSCR_CMD0_DMA_REQ1,
+		.end	= AU1200_DSCR_CMD0_DMA_REQ1,
 		.flags	= IORESOURCE_DMA,
 	},
 };
