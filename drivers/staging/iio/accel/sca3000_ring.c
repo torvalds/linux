@@ -24,7 +24,6 @@
 #include "../sysfs.h"
 #include "../ring_generic.h"
 #include "../ring_hw.h"
-#include "accel.h"
 #include "sca3000.h"
 
 /* RFC / future work

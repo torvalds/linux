@@ -22,7 +22,6 @@
 #include "../sysfs.h"
 #include "../ring_generic.h"
 
-#include "accel.h"
 #include "sca3000.h"
 
 enum sca3000_variant {

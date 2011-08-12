@@ -12,7 +12,6 @@
 #include "../sysfs.h"
 #include "../ring_sw.h"
 #include "../kfifo_buf.h"
-#include "accel.h"
 #include "../trigger.h"
 #include "lis3l02dq.h"
 

@@ -16,10 +16,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "accel.h"
-#include "inclinometer.h"
 #include "../ring_generic.h"
-#include "../adc/adc.h"
 
 #include "adis16203.h"
 

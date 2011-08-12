@@ -10,7 +10,6 @@
 #include "../iio.h"
 #include "../sysfs.h"
 #include "../ring_sw.h"
-#include "accel.h"
 #include "../trigger.h"
 #include "adis16201.h"
 

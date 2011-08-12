@@ -26,8 +26,6 @@
 #include "../sysfs.h"
 #include "../ring_generic.h"
 
-#include "accel.h"
-
 #include "lis3l02dq.h"
 
 /* At the moment the spi framework doesn't allow global setting of cs_change.

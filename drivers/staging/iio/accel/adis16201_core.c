@@ -18,10 +18,6 @@
 #include "../sysfs.h"
 #include "../ring_generic.h"
 
-#include "accel.h"
-#include "inclinometer.h"
-#include "../adc/adc.h"
-
 #include "adis16201.h"
 
 enum adis16201_chan {
