@@ -576,20 +576,6 @@ brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev, uint pio_dma,
 	return Status;
 }
 
-/* this function performs "abort" for both of host & device */
-extern int brcmf_sdioh_abort(struct brcmf_sdio_dev *sdiodev, uint func)
-{
-	char t_func = (char)func;
-	BRCMF_TRACE(("%s: Enter\n", __func__));
-
-	/* issue abort cmd52 command through F0 */
-	brcmf_sdioh_request_byte(sdiodev, SDIOH_WRITE, SDIO_FUNC_0,
-				 SDIO_CCCR_ABORT, &t_func);
-
-	BRCMF_TRACE(("%s: Exit\n", __func__));
-	return 0;
-}
-
 /* Read client card reg */
 int
 brcmf_sdioh_card_regread(struct brcmf_sdio_dev *sdiodev, int func, u32 regaddr,

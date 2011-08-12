@@ -21,6 +21,7 @@
 #include <linux/pci_ids.h>
 #include <linux/sched.h>
 #include <linux/completion.h>
+#include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/card.h>
 
@@ -476,7 +477,15 @@ int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw, u32 addr,
 
 int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn)
 {
-	return brcmf_sdioh_abort(sdiodev, fn);
+	char t_func = (char)fn;
+	BRCMF_TRACE(("%s: Enter\n", __func__));
+
+	/* issue abort cmd52 command through F0 */
+	brcmf_sdioh_request_byte(sdiodev, SDIOH_WRITE, SDIO_FUNC_0,
+				 SDIO_CCCR_ABORT, &t_func);
+
+	BRCMF_TRACE(("%s: Exit\n", __func__));
+	return 0;
 }
 
 u32 brcmf_sdcard_cur_sbwad(struct brcmf_sdio_dev *sdiodev)
