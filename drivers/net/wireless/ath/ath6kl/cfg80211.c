@@ -643,7 +643,7 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl *ar, u8 reason,
 						NULL, 0,
 						WLAN_STATUS_UNSPECIFIED_FAILURE,
 						GFP_KERNEL);
-		} else {
+		} else if (ar->sme_state == SME_CONNECTED) {
 			cfg80211_disconnected(ar->net_dev, reason,
 					      NULL, 0, GFP_KERNEL);
 		}
