@@ -2850,9 +2850,11 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
     chdir $builddir || die "can't change directory to $builddir";
 
-    if (!-d $tmpdir) {
-	mkpath($tmpdir) or
-	    die "can't create $tmpdir";
+    foreach my $dir ($tmpdir, $outputdir) {
+	if (!-d $dir) {
+	    mkpath($dir) or
+		die "can't create $dir";
+	}
     }
 
     $ENV{"SSH_USER"} = $ssh_user;
