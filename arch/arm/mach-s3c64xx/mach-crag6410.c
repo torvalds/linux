@@ -353,6 +353,12 @@ static struct pca953x_platform_data crag6410_pca_data = {
 	.irq_base	= 0,
 };
 
+/* VDDARM is controlled by DVS1 connected to GPK(0) */
+static struct wm831x_buckv_pdata vddarm_pdata = {
+	.dvs_control_src = 1,
+	.dvs_gpio = S3C64XX_GPK(0),
+};
+
 static struct regulator_consumer_supply vddarm_consumers[] __initdata = {
 	REGULATOR_SUPPLY("vddarm", NULL),
 };
@@ -368,6 +374,7 @@ static struct regulator_init_data vddarm __initdata = {
 	.num_consumer_supplies = ARRAY_SIZE(vddarm_consumers),
 	.consumer_supplies = vddarm_consumers,
 	.supply_regulator = "WALLVDD",
+	.driver_data = &vddarm_pdata,
 };
 
 static struct regulator_init_data vddint __initdata = {
@@ -503,6 +510,8 @@ static struct wm831x_pdata crag_pmic_pdata __initdata = {
 	.backup = &banff_backup_pdata,
 
 	.gpio_defaults = {
+		/* GPIO5: DVS1_REQ - CMOS, DBVDD, active high */
+		[4] = WM831X_GPN_DIR | WM831X_GPN_POL | WM831X_GPN_ENA | 0x8,
 		/* GPIO11: Touchscreen data - CMOS, DBVDD, active high*/
 		[10] = WM831X_GPN_POL | WM831X_GPN_ENA | 0x6,
 		/* GPIO12: Touchscreen pen down - CMOS, DBVDD, active high*/
