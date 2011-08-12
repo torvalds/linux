@@ -227,11 +227,21 @@ static int musb_otg_notifications(struct notifier_block *nb,
 		unsigned long event, void *unused)
 {
 	struct musb	*musb = container_of(nb, struct musb, nb);
+
+	musb->xceiv_event = event;
+	schedule_work(&musb->otg_notifier_work);
+
+	return 0;
+}
+
+static void musb_otg_notifier_work(struct work_struct *data_notifier_work)
+{
+	struct musb *musb = container_of(data_notifier_work, struct musb, otg_notifier_work);
 	struct device *dev = musb->controller;
 	struct musb_hdrc_platform_data *pdata = dev->platform_data;
 	struct omap_musb_board_data *data = pdata->board_data;
 
-	switch (event) {
+	switch (musb->xceiv_event) {
 	case USB_EVENT_ID:
 		dev_dbg(musb->controller, "ID GND\n");
 
@@ -295,6 +305,8 @@ static int omap2430_musb_init(struct musb *musb)
 		pr_err("HS USB OTG: no transceiver configured\n");
 		return -ENODEV;
 	}
+
+	INIT_WORK(&musb->otg_notifier_work, musb_otg_notifier_work);
 
 	status = pm_runtime_get_sync(dev);
 	if (status < 0) {
