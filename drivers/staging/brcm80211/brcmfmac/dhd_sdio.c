@@ -24,6 +24,7 @@
 #include <linux/sched.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/mmc/card.h>
 #include <linux/semaphore.h>
 #include <linux/firmware.h>
 #include <asm/unaligned.h>
@@ -5685,7 +5686,7 @@ static bool brcmf_sdbrcm_probe_init(struct brcmf_bus *bus)
 	bus->idleclock = BRCMF_IDLE_ACTIVE;
 
 	/* Query the F2 block size, set roundup accordingly */
-	bus->blocksize = bus->sdiodev->func2->cur_blksize;
+	bus->blocksize = bus->sdiodev->func[2]->cur_blksize;
 	bus->roundup = min(max_roundup, bus->blocksize);
 
 	/* Query if bus module supports packet chaining,
@@ -5828,7 +5829,7 @@ static int brcmf_sdbrcm_download_code_file(struct brcmf_bus *bus)
 
 	bus->fw_name = BCM4329_FW_NAME;
 	ret = request_firmware(&bus->firmware, bus->fw_name,
-			       &gInstance->func[2]->dev);
+			       &bus->sdiodev->func[2]->dev);
 	if (ret) {
 		BRCMF_ERROR(("%s: Fail to request firmware %d\n",
 			     __func__, ret));
@@ -5930,7 +5931,7 @@ static int brcmf_sdbrcm_download_nvram(struct brcmf_bus *bus)
 
 	bus->nv_name = BCM4329_NV_NAME;
 	ret = request_firmware(&bus->firmware, bus->nv_name,
-			       &gInstance->func[2]->dev);
+			       &bus->sdiodev->func[2]->dev);
 	if (ret) {
 		BRCMF_ERROR(("%s: Fail to request nvram %d\n", __func__, ret));
 		return ret;

@@ -58,8 +58,6 @@ static int brcmf_sdio_resume(struct device *dev);
 
 uint sd_f2_blocksize = 512;	/* Default blocksize */
 
-struct brcmf_sdmmc_instance *gInstance;
-
 /* devices we support, null terminated */
 static const struct sdio_device_id brcmf_sdmmc_ids[] = {
 	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4329)},
@@ -133,9 +131,9 @@ static int brcmf_sdioh_enablefuncs(struct brcmf_sdio_dev *sdiodev)
 	}
 
 	/* Enable Function 1 */
-	sdio_claim_host(gInstance->func[1]);
-	err_ret = sdio_enable_func(gInstance->func[1]);
-	sdio_release_host(gInstance->func[1]);
+	sdio_claim_host(sdiodev->func[1]);
+	err_ret = sdio_enable_func(sdiodev->func[1]);
+	sdio_release_host(sdiodev->func[1]);
 	if (err_ret)
 		BRCMF_ERROR(("brcmf_sdioh_enablefuncs: Failed to enable F1 "
 			"Err: 0x%08x\n", err_ret));
@@ -152,32 +150,23 @@ int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev)
 
 	BRCMF_TRACE(("%s\n", __func__));
 
-	if (gInstance == NULL) {
-		BRCMF_ERROR(("%s: SDIO Device not present\n", __func__));
-		err_ret = -ENODEV;
-		goto out;
-	}
-
 	sdiodev->num_funcs = 2;
 
-	sdio_claim_host(gInstance->func[1]);
-	err_ret = sdio_set_block_size(gInstance->func[1], 64);
-	sdio_release_host(gInstance->func[1]);
+	sdio_claim_host(sdiodev->func[1]);
+	err_ret = sdio_set_block_size(sdiodev->func[1], 64);
+	sdio_release_host(sdiodev->func[1]);
 	if (err_ret) {
 		BRCMF_ERROR(("%s: Failed to set F1 blocksize\n", __func__));
 		goto out;
 	}
 
-	if (gInstance->func[2]) {
-		sdio_claim_host(gInstance->func[2]);
-		err_ret =
-		    sdio_set_block_size(gInstance->func[2], sd_f2_blocksize);
-		sdio_release_host(gInstance->func[2]);
-		if (err_ret) {
-			BRCMF_ERROR(("%s: Failed to set F2 blocksize"
-				" to %d\n", __func__, sd_f2_blocksize));
-			goto out;
-		}
+	sdio_claim_host(sdiodev->func[2]);
+	err_ret = sdio_set_block_size(sdiodev->func[2], sd_f2_blocksize);
+	sdio_release_host(sdiodev->func[2]);
+	if (err_ret) {
+		BRCMF_ERROR(("%s: Failed to set F2 blocksize"
+			" to %d\n", __func__, sd_f2_blocksize));
+		goto out;
 	}
 
 	brcmf_sdioh_enablefuncs(sdiodev);
@@ -192,56 +181,56 @@ void brcmf_sdioh_detach(struct brcmf_sdio_dev *sdiodev)
 	BRCMF_TRACE(("%s\n", __func__));
 
 	/* Disable Function 2 */
-	sdio_claim_host(gInstance->func[2]);
-	sdio_disable_func(gInstance->func[2]);
-	sdio_release_host(gInstance->func[2]);
+	sdio_claim_host(sdiodev->func[2]);
+	sdio_disable_func(sdiodev->func[2]);
+	sdio_release_host(sdiodev->func[2]);
 
 	/* Disable Function 1 */
-	sdio_claim_host(gInstance->func[1]);
-	sdio_disable_func(gInstance->func[1]);
-	sdio_release_host(gInstance->func[1]);
+	sdio_claim_host(sdiodev->func[1]);
+	sdio_disable_func(sdiodev->func[1]);
+	sdio_release_host(sdiodev->func[1]);
 
 }
 
 /* Configure callback to client when we receive client interrupt */
 extern int
-brcmf_sdioh_interrupt_register(void)
+brcmf_sdioh_interrupt_register(struct brcmf_sdio_dev *sdiodev)
 {
 	BRCMF_TRACE(("%s: Entering\n", __func__));
 
 	/* register and unmask irq */
-	if (gInstance->func[2]) {
-		sdio_claim_host(gInstance->func[2]);
-		sdio_claim_irq(gInstance->func[2], brcmf_sdioh_irqhandler_f2);
-		sdio_release_host(gInstance->func[2]);
+	if (sdiodev->func[2]) {
+		sdio_claim_host(sdiodev->func[2]);
+		sdio_claim_irq(sdiodev->func[2], brcmf_sdioh_irqhandler_f2);
+		sdio_release_host(sdiodev->func[2]);
 	}
 
-	if (gInstance->func[1]) {
-		sdio_claim_host(gInstance->func[1]);
-		sdio_claim_irq(gInstance->func[1], brcmf_sdioh_irqhandler);
-		sdio_release_host(gInstance->func[1]);
+	if (sdiodev->func[1]) {
+		sdio_claim_host(sdiodev->func[1]);
+		sdio_claim_irq(sdiodev->func[1], brcmf_sdioh_irqhandler);
+		sdio_release_host(sdiodev->func[1]);
 	}
 
 	return 0;
 }
 
-extern int brcmf_sdioh_interrupt_deregister(void)
+int brcmf_sdioh_interrupt_deregister(struct brcmf_sdio_dev *sdiodev)
 {
 	BRCMF_TRACE(("%s: Entering\n", __func__));
 
-	if (gInstance->func[1]) {
+	if (sdiodev->func[1]) {
 		/* register and unmask irq */
-		sdio_claim_host(gInstance->func[1]);
-		sdio_release_irq(gInstance->func[1]);
-		sdio_release_host(gInstance->func[1]);
+		sdio_claim_host(sdiodev->func[1]);
+		sdio_release_irq(sdiodev->func[1]);
+		sdio_release_host(sdiodev->func[1]);
 	}
 
-	if (gInstance->func[2]) {
+	if (sdiodev->func[2]) {
 		/* Claim host controller F2 */
-		sdio_claim_host(gInstance->func[2]);
-		sdio_release_irq(gInstance->func[2]);
+		sdio_claim_host(sdiodev->func[2]);
+		sdio_release_irq(sdiodev->func[2]);
 		/* Release host controller F2 */
-		sdio_release_host(gInstance->func[2]);
+		sdio_release_host(sdiodev->func[2]);
 	}
 
 	return 0;
@@ -450,8 +439,8 @@ brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint func,
 	BRCMF_INFO(("%s: rw=%d, func=%d, addr=0x%05x\n", __func__, rw, func,
 		 regaddr));
 
-	BRCMF_PM_RESUME_WAIT(sdioh_request_byte_wait, gInstance);
-	BRCMF_PM_RESUME_RETURN_ERROR(-EIO, gInstance);
+	BRCMF_PM_RESUME_WAIT(sdioh_request_byte_wait, sdiodev);
+	BRCMF_PM_RESUME_RETURN_ERROR(-EIO, sdiodev);
 	if (rw) {		/* CMD52 Write */
 		if (func == 0) {
 			/* Can only directly write to some F0 registers.
@@ -459,13 +448,13 @@ brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint func,
 			 * as a special case.
 			 */
 			if (regaddr == SDIO_CCCR_IOEx) {
-				if (gInstance->func[2]) {
-					sdio_claim_host(gInstance->func[2]);
+				if (sdiodev->func[2]) {
+					sdio_claim_host(sdiodev->func[2]);
 					if (*byte & SDIO_FUNC_ENABLE_2) {
 						/* Enable Function 2 */
 						err_ret =
 						    sdio_enable_func
-						    (gInstance->func[2]);
+						    (sdiodev->func[2]);
 						if (err_ret)
 							BRCMF_ERROR((
 								"request_byte: "
@@ -476,7 +465,7 @@ brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint func,
 						/* Disable Function 2 */
 						err_ret =
 						    sdio_disable_func
-						    (gInstance->func[2]);
+						    (sdiodev->func[2]);
 						if (err_ret)
 							BRCMF_ERROR((
 								"request_byte: "
@@ -484,55 +473,55 @@ brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint func,
 								"failed:%d\n",
 								 err_ret));
 					}
-					sdio_release_host(gInstance->func[2]);
+					sdio_release_host(sdiodev->func[2]);
 				}
 			}
 			/* to allow abort command through F1 */
 			else if (regaddr == SDIO_CCCR_ABORT) {
-				sdio_claim_host(gInstance->func[func]);
+				sdio_claim_host(sdiodev->func[func]);
 				/*
 				 * this sdio_f0_writeb() can be replaced
 				 * with another api
 				 * depending upon MMC driver change.
 				 * As of this time, this is temporaray one
 				 */
-				sdio_writeb(gInstance->func[func], *byte,
+				sdio_writeb(sdiodev->func[func], *byte,
 					    regaddr, &err_ret);
-				sdio_release_host(gInstance->func[func]);
+				sdio_release_host(sdiodev->func[func]);
 			} else if (regaddr < 0xF0) {
 				BRCMF_ERROR(("brcmf: F0 Wr:0x%02x: write "
 					"disallowed\n", regaddr));
 			} else {
 				/* Claim host controller, perform F0 write,
 				 and release */
-				sdio_claim_host(gInstance->func[func]);
-				sdio_f0_writeb(gInstance->func[func], *byte,
+				sdio_claim_host(sdiodev->func[func]);
+				sdio_f0_writeb(sdiodev->func[func], *byte,
 					       regaddr, &err_ret);
-				sdio_release_host(gInstance->func[func]);
+				sdio_release_host(sdiodev->func[func]);
 			}
 		} else {
 			/* Claim host controller, perform Fn write,
 			 and release */
-			sdio_claim_host(gInstance->func[func]);
-			sdio_writeb(gInstance->func[func], *byte, regaddr,
+			sdio_claim_host(sdiodev->func[func]);
+			sdio_writeb(sdiodev->func[func], *byte, regaddr,
 				    &err_ret);
-			sdio_release_host(gInstance->func[func]);
+			sdio_release_host(sdiodev->func[func]);
 		}
 	} else {		/* CMD52 Read */
 		/* Claim host controller, perform Fn read, and release */
-		sdio_claim_host(gInstance->func[func]);
+		sdio_claim_host(sdiodev->func[func]);
 
 		if (func == 0) {
 			*byte =
-			    sdio_f0_readb(gInstance->func[func], regaddr,
+			    sdio_f0_readb(sdiodev->func[func], regaddr,
 					  &err_ret);
 		} else {
 			*byte =
-			    sdio_readb(gInstance->func[func], regaddr,
+			    sdio_readb(sdiodev->func[func], regaddr,
 				       &err_ret);
 		}
 
-		sdio_release_host(gInstance->func[func]);
+		sdio_release_host(sdiodev->func[func]);
 	}
 
 	if (err_ret)
@@ -557,17 +546,17 @@ brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev, uint cmd_type, uint rw,
 	BRCMF_INFO(("%s: cmd_type=%d, rw=%d, func=%d, addr=0x%05x, nbytes=%d\n",
 		 __func__, cmd_type, rw, func, addr, nbytes));
 
-	BRCMF_PM_RESUME_WAIT(sdioh_request_word_wait, gInstance);
-	BRCMF_PM_RESUME_RETURN_ERROR(-EIO, gInstance);
+	BRCMF_PM_RESUME_WAIT(sdioh_request_word_wait, sdiodev);
+	BRCMF_PM_RESUME_RETURN_ERROR(-EIO, sdiodev);
 	/* Claim host controller */
-	sdio_claim_host(gInstance->func[func]);
+	sdio_claim_host(sdiodev->func[func]);
 
 	if (rw) {		/* CMD52 Write */
 		if (nbytes == 4)
-			sdio_writel(gInstance->func[func], *word, addr,
+			sdio_writel(sdiodev->func[func], *word, addr,
 				    &err_ret);
 		else if (nbytes == 2)
-			sdio_writew(gInstance->func[func], (*word & 0xFFFF),
+			sdio_writew(sdiodev->func[func], (*word & 0xFFFF),
 				    addr, &err_ret);
 		else
 			BRCMF_ERROR(("%s: Invalid nbytes: %d\n",
@@ -575,10 +564,10 @@ brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev, uint cmd_type, uint rw,
 	} else {		/* CMD52 Read */
 		if (nbytes == 4)
 			*word =
-			    sdio_readl(gInstance->func[func], addr, &err_ret);
+			    sdio_readl(sdiodev->func[func], addr, &err_ret);
 		else if (nbytes == 2)
 			*word =
-			    sdio_readw(gInstance->func[func], addr,
+			    sdio_readw(sdiodev->func[func], addr,
 				       &err_ret) & 0xFFFF;
 		else
 			BRCMF_ERROR(("%s: Invalid nbytes: %d\n",
@@ -586,7 +575,7 @@ brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev, uint cmd_type, uint rw,
 	}
 
 	/* Release host controller */
-	sdio_release_host(gInstance->func[func]);
+	sdio_release_host(sdiodev->func[func]);
 
 	if (err_ret)
 		BRCMF_ERROR(("brcmf: Failed to %s word, Err: 0x%08x\n",
@@ -608,30 +597,30 @@ brcmf_sdioh_request_packet(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
 
 	BRCMF_TRACE(("%s: Enter\n", __func__));
 
-	BRCMF_PM_RESUME_WAIT(sdioh_request_packet_wait, gInstance);
-	BRCMF_PM_RESUME_RETURN_ERROR(-EIO, gInstance);
+	BRCMF_PM_RESUME_WAIT(sdioh_request_packet_wait, sdiodev);
+	BRCMF_PM_RESUME_RETURN_ERROR(-EIO, sdiodev);
 
 	/* Claim host controller */
-	sdio_claim_host(gInstance->func[func]);
+	sdio_claim_host(sdiodev->func[func]);
 	for (pnext = pkt; pnext; pnext = pnext->next) {
 		uint pkt_len = pnext->len;
 		pkt_len += 3;
 		pkt_len &= 0xFFFFFFFC;
 
 		if ((write) && (!fifo)) {
-			err_ret = sdio_memcpy_toio(gInstance->func[func], addr,
+			err_ret = sdio_memcpy_toio(sdiodev->func[func], addr,
 						   ((u8 *) (pnext->data)),
 						   pkt_len);
 		} else if (write) {
-			err_ret = sdio_memcpy_toio(gInstance->func[func], addr,
+			err_ret = sdio_memcpy_toio(sdiodev->func[func], addr,
 						   ((u8 *) (pnext->data)),
 						   pkt_len);
 		} else if (fifo) {
-			err_ret = sdio_readsb(gInstance->func[func],
+			err_ret = sdio_readsb(sdiodev->func[func],
 					      ((u8 *) (pnext->data)),
 					      addr, pkt_len);
 		} else {
-			err_ret = sdio_memcpy_fromio(gInstance->func[func],
+			err_ret = sdio_memcpy_fromio(sdiodev->func[func],
 						     ((u8 *) (pnext->data)),
 						     addr, pkt_len);
 		}
@@ -655,7 +644,7 @@ brcmf_sdioh_request_packet(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
 	}
 
 	/* Release host controller */
-	sdio_release_host(gInstance->func[func]);
+	sdio_release_host(sdiodev->func[func]);
 
 	BRCMF_TRACE(("%s: Exit\n", __func__));
 	return err_ret;
@@ -687,8 +676,8 @@ brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev, uint pio_dma,
 
 	BRCMF_TRACE(("%s: Enter\n", __func__));
 
-	BRCMF_PM_RESUME_WAIT(sdioh_request_buffer_wait, gInstance);
-	BRCMF_PM_RESUME_RETURN_ERROR(-EIO, gInstance);
+	BRCMF_PM_RESUME_WAIT(sdioh_request_buffer_wait, sdiodev);
+	BRCMF_PM_RESUME_RETURN_ERROR(-EIO, sdiodev);
 	/* Case 1: we don't have a packet. */
 	if (pkt == NULL) {
 		BRCMF_DATA(("%s: Creating new %s Packet, len=%d\n",
@@ -795,11 +784,11 @@ static void brcmf_sdioh_irqhandler(struct sdio_func *func)
 
 	BRCMF_TRACE(("brcmf: ***IRQHandler\n"));
 
-	sdio_release_host(gInstance->func[0]);
+	sdio_release_host(func);
 
 	brcmf_sdbrcm_isr(sdiodev->bus);
 
-	sdio_claim_host(gInstance->func[0]);
+	sdio_claim_host(func);
 }
 
 /* interrupt handler for F2 (dummy handler) */
@@ -812,7 +801,6 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 			      const struct sdio_device_id *id)
 {
 	int ret = 0;
-	static struct sdio_func sdio_func_0;
 	struct brcmf_sdio_dev *sdiodev;
 	BRCMF_TRACE(("sdio_probe: %s Enter\n", __func__));
 	BRCMF_TRACE(("sdio_probe: func->class=%x\n", func->class));
@@ -821,10 +809,6 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 	BRCMF_TRACE(("Function#: 0x%04x\n", func->num));
 
 	if (func->num == 1) {
-		sdio_func_0.num = 0;
-		sdio_func_0.card = func->card;
-		gInstance->func[0] = &sdio_func_0;
-
 		if (dev_get_drvdata(&func->card->dev)) {
 			BRCMF_ERROR(("%s: card private drvdata occupied.\n",
 				     __func__));
@@ -833,19 +817,18 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 		sdiodev = kzalloc(sizeof(struct brcmf_sdio_dev), GFP_KERNEL);
 		if (!sdiodev)
 			return -ENOMEM;
-		sdiodev->func1 = func;
+		sdiodev->func[0] = func->card->sdio_func[0];
+		sdiodev->func[1] = func;
 		dev_set_drvdata(&func->card->dev, sdiodev);
 
-		atomic_set(&gInstance->suspend, false);
+		atomic_set(&sdiodev->suspend, false);
 	}
-
-	gInstance->func[func->num] = func;
 
 	if (func->num == 2) {
 		sdiodev = dev_get_drvdata(&func->card->dev);
-		if ((!sdiodev) || (sdiodev->func1->card != func->card))
+		if ((!sdiodev) || (sdiodev->func[1]->card != func->card))
 			return -ENODEV;
-		sdiodev->func2 = func;
+		sdiodev->func[2] = func;
 
 		brcmf_cfg80211_sdio_func(func);
 		BRCMF_TRACE(("F2 found, calling brcmf_sdio_probe...\n"));
@@ -884,21 +867,22 @@ static int brcmf_sdio_suspend(struct device *dev)
 
 	BRCMF_TRACE(("%s\n", __func__));
 
-	atomic_set(&gInstance->suspend, true);
+	sdiodev = dev_get_drvdata(&func->card->dev);
 
-	sdio_flags = sdio_get_host_pm_caps(gInstance->func[1]);
+	atomic_set(&sdiodev->suspend, true);
+
+	sdio_flags = sdio_get_host_pm_caps(sdiodev->func[1]);
 	if (!(sdio_flags & MMC_PM_KEEP_POWER)) {
 		BRCMF_ERROR(("Host can't keep power while suspended\n"));
 		return -EINVAL;
 	}
 
-	ret = sdio_set_host_pm_flags(gInstance->func[1], MMC_PM_KEEP_POWER);
+	ret = sdio_set_host_pm_flags(sdiodev->func[1], MMC_PM_KEEP_POWER);
 	if (ret) {
 		BRCMF_ERROR(("Failed to set pm_flags\n"));
 		return ret;
 	}
 
-	sdiodev = dev_get_drvdata(&func->card->dev);
 	brcmf_sdio_wdtmr_enable(sdiodev, false);
 
 	return ret;
@@ -911,7 +895,7 @@ static int brcmf_sdio_resume(struct device *dev)
 
 	sdiodev = dev_get_drvdata(&func->card->dev);
 	brcmf_sdio_wdtmr_enable(sdiodev, true);
-	atomic_set(&gInstance->suspend, false);
+	atomic_set(&sdiodev->suspend, false);
 	return 0;
 }
 #endif		/* CONFIG_PM_SLEEP */
@@ -923,10 +907,6 @@ int brcmf_sdio_function_init(void)
 {
 	int error = 0;
 	BRCMF_TRACE(("brcmf_sdio_function_init: %s Enter\n", __func__));
-
-	gInstance = kzalloc(sizeof(struct brcmf_sdmmc_instance), GFP_KERNEL);
-	if (!gInstance)
-		return -ENOMEM;
 
 	error = sdio_register_driver(&brcmf_sdmmc_driver);
 
@@ -941,6 +921,4 @@ void brcmf_sdio_function_cleanup(void)
 	BRCMF_TRACE(("%s Enter\n", __func__));
 
 	sdio_unregister_driver(&brcmf_sdmmc_driver);
-
-	kfree(gInstance);
 }

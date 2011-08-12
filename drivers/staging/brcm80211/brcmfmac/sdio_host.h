@@ -122,20 +122,14 @@ struct brcmf_sdreg {
 	int value;
 };
 
-struct brcmf_sdmmc_instance {
-	struct sdio_func *func[SDIOD_MAX_IOFUNCS];
-	u32 host_claimed;
-	atomic_t suspend;	/* suspend flag */
-};
-
 struct brcmf_sdio_dev {
-	struct sdio_func *func1;
-	struct sdio_func *func2;
+	struct sdio_func *func[SDIO_MAX_FUNCS];
 	u8 num_funcs;			/* Supported funcs on client */
 	u32 func_cis_ptr[SDIOD_MAX_IOFUNCS];
 	u32 sbwad;			/* Save backplane window address */
 	bool regfail;			/* status of last reg_r/w call */
 	void *bus;
+	atomic_t suspend;		/* suspend flag */
 };
 
 /* Register/deregister device interrupt handler. */
@@ -253,10 +247,8 @@ extern u32 brcmf_sdcard_cur_sbwad(struct brcmf_sdio_dev *sdiodev);
 extern int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev);
 extern void brcmf_sdioh_detach(struct brcmf_sdio_dev *sdiodev);
 
-extern int
-brcmf_sdioh_interrupt_register(void);
-
-extern int brcmf_sdioh_interrupt_deregister(void);
+extern int brcmf_sdioh_interrupt_register(struct brcmf_sdio_dev *sdiodev);
+extern int brcmf_sdioh_interrupt_deregister(struct brcmf_sdio_dev *sdiodev);
 
 /* read or write one byte using cmd52 */
 extern int brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw,
@@ -297,8 +289,6 @@ extern void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev,
 				    bool enable);
 
 extern uint sd_f2_blocksize;
-
-extern struct brcmf_sdmmc_instance *gInstance;
 
 extern void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
 				u32 regsva, struct brcmf_sdio_dev *sdiodev);
