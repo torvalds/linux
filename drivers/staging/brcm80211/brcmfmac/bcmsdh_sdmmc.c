@@ -190,28 +190,6 @@ void brcmf_sdioh_detach(struct brcmf_sdio_dev *sdiodev)
 
 }
 
-int brcmf_sdioh_interrupt_deregister(struct brcmf_sdio_dev *sdiodev)
-{
-	BRCMF_TRACE(("%s: Entering\n", __func__));
-
-	if (sdiodev->func[1]) {
-		/* register and unmask irq */
-		sdio_claim_host(sdiodev->func[1]);
-		sdio_release_irq(sdiodev->func[1]);
-		sdio_release_host(sdiodev->func[1]);
-	}
-
-	if (sdiodev->func[2]) {
-		/* Claim host controller F2 */
-		sdio_claim_host(sdiodev->func[2]);
-		sdio_release_irq(sdiodev->func[2]);
-		/* Release host controller F2 */
-		sdio_release_host(sdiodev->func[2]);
-	}
-
-	return 0;
-}
-
 extern int
 brcmf_sdioh_cfg_read(struct brcmf_sdio_dev *sdiodev, uint fnc_num, u32 addr,
 		     u8 *data)

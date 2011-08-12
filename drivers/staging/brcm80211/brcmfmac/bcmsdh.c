@@ -189,7 +189,13 @@ int brcmf_sdcard_intr_reg(struct brcmf_sdio_dev *sdiodev)
 
 int brcmf_sdcard_intr_dereg(struct brcmf_sdio_dev *sdiodev)
 {
-	return brcmf_sdioh_interrupt_deregister(sdiodev);
+	BRCMF_TRACE(("%s: Entering\n", __func__));
+
+	sdio_claim_host(sdiodev->func[1]);
+	sdio_release_irq(sdiodev->func[1]);
+	sdio_release_host(sdiodev->func[1]);
+
+	return 0;
 }
 
 u8 brcmf_sdcard_cfg_read(struct brcmf_sdio_dev *sdiodev, uint fnc_num, u32 addr,

@@ -247,8 +247,6 @@ extern u32 brcmf_sdcard_cur_sbwad(struct brcmf_sdio_dev *sdiodev);
 extern int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev);
 extern void brcmf_sdioh_detach(struct brcmf_sdio_dev *sdiodev);
 
-extern int brcmf_sdioh_interrupt_deregister(struct brcmf_sdio_dev *sdiodev);
-
 /* read or write one byte using cmd52 */
 extern int brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw,
 				    uint fnc, uint addr, u8 *byte);
