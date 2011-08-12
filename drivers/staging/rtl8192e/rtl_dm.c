@@ -134,8 +134,7 @@ static	void dm_send_rssi_tofw(struct net_device *dev);
 static	void	dm_ctstoself(struct net_device *dev);
 /*---------------------------Define function prototype------------------------*/
 
-extern	void
-init_hal_dm(struct net_device *dev)
+void init_hal_dm(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	priv->DM_Type = DM_Type_ByDriver;
@@ -158,14 +157,14 @@ init_hal_dm(struct net_device *dev)
 	INIT_DELAYED_WORK_RSL(&priv->gpio_change_rf_wq, (void *)dm_CheckRfCtrlGPIO, dev);
 }
 
-extern void deinit_hal_dm(struct net_device *dev)
+void deinit_hal_dm(struct net_device *dev)
 {
 
 	dm_deInit_fsync(dev);
 
 }
 
-extern  void    hal_dm_watchdog(struct net_device *dev)
+void hal_dm_watchdog(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	if (priv->being_init_adapter)
@@ -191,7 +190,7 @@ extern  void    hal_dm_watchdog(struct net_device *dev)
 	dm_ctstoself(dev);
 }
 
-void dm_check_ac_dc_power(struct net_device *dev)
+static void dm_check_ac_dc_power(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	static char *ac_dc_check_script_path = "/etc/acpi/wireless-rtl-ac-dc-power.sh";
@@ -215,7 +214,7 @@ void dm_check_ac_dc_power(struct net_device *dev)
 };
 
 
-extern void init_rate_adaptive(struct net_device *dev)
+void init_rate_adaptive(struct net_device *dev)
 {
 
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -1528,10 +1527,7 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 	}
 	}
 
-extern void dm_cck_txpower_adjust(
-	struct net_device *dev,
-	bool  binch14
-)
+void dm_cck_txpower_adjust(struct net_device *dev, bool  binch14)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	if (priv->IC_Cut >= IC_VersionCut_D)
@@ -1540,9 +1536,7 @@ extern void dm_cck_txpower_adjust(
 		dm_CCKTxPowerAdjust_ThermalMeter(dev, binch14);
 }
 
-static void dm_txpower_reset_recovery(
-	struct net_device *dev
-)
+static void dm_txpower_reset_recovery(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -1570,7 +1564,7 @@ static void dm_txpower_reset_recovery(
 
 }
 
-extern void dm_restore_dynamic_mechanism_state(struct net_device *dev)
+void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32	reg_ratr = priv->rate_adaptive.last_ratr;
@@ -1624,7 +1618,7 @@ static void dm_bb_initialgain_restore(struct net_device *dev)
 }
 
 
-extern void dm_backup_dynamic_mechanism_state(struct net_device *dev)
+void dm_backup_dynamic_mechanism_state(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -1659,8 +1653,8 @@ static void dm_bb_initialgain_backup(struct net_device *dev)
 
 }
 
-extern void dm_change_dynamic_initgain_thresh(struct net_device *dev,
-					      u32 dm_type, u32 dm_value)
+void dm_change_dynamic_initgain_thresh(struct net_device *dev,
+				       u32 dm_type, u32 dm_value)
 {
 	if (dm_type == DIG_TYPE_THRESH_HIGH) {
 		dm_digtable.rssi_high_thresh = dm_value;
@@ -1704,75 +1698,6 @@ extern void dm_change_dynamic_initgain_thresh(struct net_device *dev,
 		dm_digtable.rx_gain_range_max = (u8)dm_value;
 	}
 }
-extern	void dm_change_fsync_setting(struct net_device *dev,
-	s32		DM_Type,
-	s32		DM_Value)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	if (DM_Type == 0) {
-		if (DM_Value > 1)
-			DM_Value = 1;
-		priv->framesyncMonitor = (u8)DM_Value;
-	}
-}
-
-extern void
-dm_change_rxpath_selection_setting(
-	struct net_device *dev,
-	s32		DM_Type,
-	s32		DM_Value)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	struct rate_adaptive *pRA = (struct rate_adaptive *)&(priv->rate_adaptive);
-
-
-	if (DM_Type == 0) {
-		if (DM_Value > 1)
-			DM_Value = 1;
-		DM_RxPathSelTable.Enable = (u8)DM_Value;
-	} else if (DM_Type == 1) {
-		if (DM_Value > 1)
-			DM_Value = 1;
-		DM_RxPathSelTable.DbgMode = (u8)DM_Value;
-	} else if (DM_Type == 2) {
-		if (DM_Value > 40)
-			DM_Value = 40;
-		DM_RxPathSelTable.SS_TH_low = (u8)DM_Value;
-	} else if (DM_Type == 3) {
-		if (DM_Value > 25)
-			DM_Value = 25;
-		DM_RxPathSelTable.diff_TH = (u8)DM_Value;
-	} else if (DM_Type == 4) {
-		if (DM_Value >= CCK_Rx_Version_MAX)
-			DM_Value = CCK_Rx_Version_1;
-		DM_RxPathSelTable.cck_method = (u8)DM_Value;
-	} else if (DM_Type == 10) {
-		if (DM_Value > 100)
-			DM_Value = 50;
-		DM_RxPathSelTable.rf_rssi[0] = (u8)DM_Value;
-	} else if (DM_Type == 11) {
-		if (DM_Value > 100)
-			DM_Value = 50;
-		DM_RxPathSelTable.rf_rssi[1] = (u8)DM_Value;
-	} else if (DM_Type == 12) {
-		if (DM_Value > 100)
-			DM_Value = 50;
-		DM_RxPathSelTable.rf_rssi[2] = (u8)DM_Value;
-	} else if (DM_Type == 13) {
-		if (DM_Value > 100)
-			DM_Value = 50;
-		DM_RxPathSelTable.rf_rssi[3] = (u8)DM_Value;
-	} else if (DM_Type == 20) {
-		if (DM_Value > 1)
-			DM_Value = 1;
-		pRA->ping_rssi_enable = (u8)DM_Value;
-	} else if (DM_Type == 21) {
-		if (DM_Value > 30)
-			DM_Value = 30;
-		pRA->ping_rssi_thresh_for_ra = DM_Value;
-	}
-}
 
 static void dm_dig_init(struct net_device *dev)
 {
@@ -1812,37 +1737,6 @@ static void dm_dig_init(struct net_device *dev)
 
 	dm_digtable.BackoffVal_range_max = DM_DIG_BACKOFF_MAX;
 	dm_digtable.BackoffVal_range_min = DM_DIG_BACKOFF_MIN;
-}
-
-void dm_FalseAlarmCounterStatistics(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	u32 ret_value;
-	struct false_alarm_stats *FalseAlmCnt = &(priv->FalseAlmCnt);
-
-	ret_value = rtl8192_QueryBBReg(dev, rOFDM_PHYCounter1, bMaskDWord);
-	FalseAlmCnt->Cnt_Parity_Fail = ((ret_value&0xffff0000)>>16);
-
-	ret_value = rtl8192_QueryBBReg(dev, rOFDM_PHYCounter2, bMaskDWord);
-	FalseAlmCnt->Cnt_Rate_Illegal = (ret_value&0xffff);
-	FalseAlmCnt->Cnt_Crc8_fail = ((ret_value&0xffff0000)>>16);
-	ret_value = rtl8192_QueryBBReg(dev, rOFDM_PHYCounter3, bMaskDWord);
-	FalseAlmCnt->Cnt_Mcs_fail = (ret_value&0xffff);
-
-	FalseAlmCnt->Cnt_Ofdm_fail = FalseAlmCnt->Cnt_Parity_Fail + FalseAlmCnt->Cnt_Rate_Illegal +
-				     FalseAlmCnt->Cnt_Crc8_fail + FalseAlmCnt->Cnt_Mcs_fail;
-
-	ret_value = rtl8192_QueryBBReg(dev, 0xc64, bMaskDWord);
-	FalseAlmCnt->Cnt_Cck_fail = (ret_value&0xffff);
-	FalseAlmCnt->Cnt_all = (FalseAlmCnt->Cnt_Parity_Fail +
-						FalseAlmCnt->Cnt_Rate_Illegal +
-						FalseAlmCnt->Cnt_Crc8_fail +
-						FalseAlmCnt->Cnt_Mcs_fail +
-						FalseAlmCnt->Cnt_Cck_fail);
-
-	RT_TRACE(COMP_DIG, "Cnt_Ofdm_fail = %d, Cnt_Cck_fail = %d, Cnt_all = %d\n",
-		 FalseAlmCnt->Cnt_Ofdm_fail, FalseAlmCnt->Cnt_Cck_fail,
-		 FalseAlmCnt->Cnt_all);
 }
 
 static void dm_ctrl_initgain_byrssi(struct net_device *dev)
@@ -2099,91 +1993,6 @@ static void dm_initial_gain(struct net_device *dev)
 	}
 }
 
-void dm_initial_gain_STABeforeConnect(
-	struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	u8 initial_gain = 0;
-	static u8 initialized, force_write;
-
-	RT_TRACE(COMP_DIG, "PreSTAConnectState = %x, CurSTAConnectState = %x\n",
-				dm_digtable.PreSTAConnectState, dm_digtable.CurSTAConnectState);
-
-
-	if ((dm_digtable.PreSTAConnectState == dm_digtable.CurSTAConnectState) ||
-		(dm_digtable.CurSTAConnectState == DIG_STA_BEFORE_CONNECT)) {
-		if (dm_digtable.CurSTAConnectState == DIG_STA_BEFORE_CONNECT) {
-			if (priv->rtllib->eRFPowerState != eRfOn)
-				return;
-
-			if (dm_digtable.Backoff_Enable_Flag == true) {
-				if (priv->FalseAlmCnt.Cnt_all > dm_digtable.FAHighThresh) {
-					if ((dm_digtable.backoff_val - 6) < dm_digtable.BackoffVal_range_min)
-						dm_digtable.backoff_val = dm_digtable.BackoffVal_range_min;
-					else
-						dm_digtable.backoff_val -= 6;
-				} else if (priv->FalseAlmCnt.Cnt_all < dm_digtable.FALowThresh) {
-					if ((dm_digtable.backoff_val + 6) > dm_digtable.BackoffVal_range_max)
-						dm_digtable.backoff_val = dm_digtable.BackoffVal_range_max;
-					else
-						dm_digtable.backoff_val += 6;
-				}
-			} else
-				dm_digtable.backoff_val = DM_DIG_BACKOFF;
-
-			if ((dm_digtable.rssi_val+10-dm_digtable.backoff_val) > dm_digtable.rx_gain_range_max)
-				dm_digtable.cur_ig_value = dm_digtable.rx_gain_range_max;
-			else if ((dm_digtable.rssi_val+10-dm_digtable.backoff_val) < dm_digtable.rx_gain_range_min)
-				dm_digtable.cur_ig_value = dm_digtable.rx_gain_range_min;
-			else
-				dm_digtable.cur_ig_value = dm_digtable.rssi_val + 10 -
-							   dm_digtable.backoff_val;
-
-			if (priv->FalseAlmCnt.Cnt_all > 10000)
-				dm_digtable.cur_ig_value = (dm_digtable.cur_ig_value > 0x33) ?
-							    dm_digtable.cur_ig_value : 0x33;
-
-			if (priv->FalseAlmCnt.Cnt_all > 16000)
-				dm_digtable.cur_ig_value = dm_digtable.rx_gain_range_max;
-
-		} else {
-			return;
-		}
-	} else {
-		dm_digtable.Dig_Ext_Port_Stage = DIG_EXT_PORT_STAGE_MAX;
-		priv->rtllib->SetFwCmdHandler(dev, FW_CMD_DIG_ENABLE);
-
-		dm_digtable.backoff_val = DM_DIG_BACKOFF;
-		dm_digtable.cur_ig_value = priv->DefaultInitialGain[0];
-		dm_digtable.pre_ig_value = 0;
-		return;
-	}
-
-	if (dm_digtable.pre_ig_value != rtl8192_QueryBBReg(dev,
-	    rOFDM0_XAAGCCore1, bMaskByte0))
-		force_write = 1;
-
-	if ((dm_digtable.pre_ig_value != dm_digtable.cur_ig_value) ||
-	     !initialized || force_write) {
-		priv->rtllib->SetFwCmdHandler(dev, FW_CMD_DIG_DISABLE);
-
-		initial_gain = (u8)dm_digtable.cur_ig_value;
-
-		rtl8192_setBBreg(dev, rOFDM0_XAAGCCore1, bMaskByte0,
-				 initial_gain);
-		rtl8192_setBBreg(dev, rOFDM0_XBAGCCore1, bMaskByte0,
-				 initial_gain);
-		dm_digtable.pre_ig_value = dm_digtable.cur_ig_value;
-		initialized = 1;
-		force_write = 0;
-	}
-
-	RT_TRACE(COMP_DIG, "CurIGValue = 0x%x, pre_ig_value = 0x%x, "
-		 "backoff_val = %d\n", dm_digtable.cur_ig_value,
-		 dm_digtable.pre_ig_value, dm_digtable.backoff_val);
-
-}
-
 static void dm_pd_th(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -2287,7 +2096,7 @@ static	void dm_cs_ratio(struct net_device *dev)
 	}
 }
 
-extern void dm_init_edca_turbo(struct net_device *dev)
+void dm_init_edca_turbo(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -2390,22 +2199,6 @@ dm_CheckEdcaTurbo_EXIT:
 	lastRxOkCnt = priv->stats.rxbytesunicast;
 }
 
-extern void DM_CTSToSelfSetting(struct net_device *dev, u32 DM_Type,
-				u32 DM_Value)
-{
-	struct r8192_priv *priv = rtllib_priv((struct net_device *)dev);
-
-	if (DM_Type == 0) {
-		if (DM_Value > 1)
-			DM_Value = 1;
-		priv->rtllib->bCTSToSelfEnable = (bool)DM_Value;
-	} else if (DM_Type == 1) {
-		if (DM_Value >= 50)
-			DM_Value = 50;
-		priv->rtllib->CTSToSelfTH = (u8)DM_Value;
-	}
-}
-
 static void dm_init_ctstoself(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv((struct net_device *)dev);
@@ -2454,7 +2247,7 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
 {
 }
 
-extern	void	dm_CheckRfCtrlGPIO(void *data)
+void dm_CheckRfCtrlGPIO(void *data)
 {
 	struct r8192_priv *priv = container_of_dwork_rsl(data,
 				  struct r8192_priv, gpio_change_rf_wq);
@@ -2791,7 +2584,7 @@ static void dm_deInit_fsync(struct net_device *dev)
 	del_timer_sync(&priv->fsync_timer);
 }
 
-extern void dm_fsync_timer_callback(unsigned long data)
+void dm_fsync_timer_callback(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *)data;
 	struct r8192_priv *priv = rtllib_priv((struct net_device *)data);
@@ -3091,7 +2884,7 @@ void dm_check_fsync(struct net_device *dev)
 	}
 }
 
-extern void dm_shadow_init(struct net_device *dev)
+void dm_shadow_init(struct net_device *dev)
 {
 	u8	page;
 	u16	offset;

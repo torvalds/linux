@@ -23,7 +23,7 @@
 #include "r8192E_firmware.h"
 #include <linux/firmware.h>
 
-extern void firmware_init_param(struct net_device *dev)
+void firmware_init_param(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_firmware *pfirmware = priv->pFirmware;
@@ -32,8 +32,8 @@ extern void firmware_init_param(struct net_device *dev)
 					     MAX_TRANSMIT_BUFFER_SIZE);
 }
 
-bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
-		      u32 buffer_len)
+static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
+			     u32 buffer_len)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	bool		    rt_status = true;
@@ -102,42 +102,7 @@ bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 	return rt_status;
 }
 
-bool fwSendNullPacket(struct net_device *dev, u32 Length)
-{
-	bool	rtStatus = true;
-	struct r8192_priv *priv = rtllib_priv(dev);
-	struct sk_buff	    *skb;
-	struct cb_desc *tcb_desc;
-	unsigned char	    *ptr_buf;
-	bool	bLastInitPacket = false;
-
-
-	skb  = dev_alloc_skb(Length + 4);
-	memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
-	tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
-	tcb_desc->queue_index = TXCMD_QUEUE;
-	tcb_desc->bCmdOrInit = DESC_PACKET_TYPE_INIT;
-	tcb_desc->bLastIniPkt = bLastInitPacket;
-	ptr_buf = skb_put(skb, Length);
-	memset(ptr_buf, 0, Length);
-	tcb_desc->txbuf_size = (u16)Length;
-
-	if (!priv->rtllib->check_nic_enough_desc(dev, tcb_desc->queue_index) ||
-	    (!skb_queue_empty(&priv->rtllib->skb_waitQ[tcb_desc->
-	    queue_index])) || (priv->rtllib->queue_stop)) {
-		RT_TRACE(COMP_FIRMWARE, "===================NULL packet========"
-			 "========> tx full!\n");
-		skb_queue_tail(&priv->rtllib->skb_waitQ[tcb_desc->queue_index],
-			       skb);
-	} else {
-		priv->rtllib->softmac_hard_start_xmit(skb, dev);
-	}
-
-	write_nic_byte(dev, TPPoll, TPPoll_CQ);
-	return rtStatus;
-}
-
-bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
+static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 {
 	bool		rt_status = true;
 	u32		CPU_status = 0;
@@ -184,7 +149,7 @@ CPUCheckMainCodeOKAndTurnOnCPU_Fail:
 	return rt_status;
 }
 
-bool CPUcheck_firmware_ready(struct net_device *dev)
+static bool CPUcheck_firmware_ready(struct net_device *dev)
 {
 
 	bool	rt_status = true;

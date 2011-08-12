@@ -22,7 +22,7 @@
 #include "dot11d.h"
 
 #define RATE_COUNT 12
-u32 rtl8192_rates[] = {
+static u32 rtl8192_rates[] = {
 	1000000, 2000000, 5500000, 11000000, 6000000, 9000000, 12000000,
 	18000000, 24000000, 36000000, 48000000, 54000000
 };
@@ -198,9 +198,9 @@ struct adhoc_peers_info {
 	unsigned char num;
 };
 
-int r8192_wx_get_adhoc_peers(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+static int r8192_wx_get_adhoc_peers(struct net_device *dev,
+				    struct iw_request_info *info,
+				    union iwreq_data *wrqu, char *extra)
 {
 	return 0;
 }
@@ -1293,7 +1293,7 @@ static iw_handler r8192_private_handler[] = {
 	(iw_handler)r8192_wx_get_PromiscuousMode,
 };
 
-struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
+static struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
