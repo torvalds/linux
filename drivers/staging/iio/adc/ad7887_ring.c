@@ -8,17 +8,14 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
 #include <linux/spi/spi.h>
 
 #include "../iio.h"
 #include "../ring_generic.h"
 #include "../ring_sw.h"
 #include "../trigger.h"
-#include "../sysfs.h"
 
 #include "ad7887.h"
 

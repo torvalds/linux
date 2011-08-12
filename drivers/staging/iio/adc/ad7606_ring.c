@@ -10,13 +10,11 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
 
 #include "../iio.h"
 #include "../ring_generic.h"
 #include "../ring_sw.h"
 #include "../trigger.h"
-#include "../sysfs.h"
 
 #include "ad7606.h"
 
