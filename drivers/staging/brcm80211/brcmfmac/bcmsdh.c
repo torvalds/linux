@@ -46,12 +46,120 @@
 
 module_param(sd_f2_blocksize, int, 0);
 
+/* IOVar table */
+enum {
+	IOV_MSGLEVEL = 1,
+	IOV_DEVREG,
+	IOV_HCIREGS,
+	IOV_RXCHAIN
+};
+
+const struct brcmu_iovar sdioh_iovars[] = {
+	{"sd_devreg", IOV_DEVREG, 0, IOVT_BUFFER, sizeof(struct brcmf_sdreg)}
+	,
+	{"sd_rxchain", IOV_RXCHAIN, 0, IOVT_BOOL, 0}
+	,
+	{NULL, 0, 0, 0, 0}
+};
+
 int
 brcmf_sdcard_iovar_op(struct brcmf_sdio_dev *sdiodev, const char *name,
 		void *params, int plen, void *arg, int len, bool set)
 {
-	return brcmf_sdioh_iovar_op(sdiodev, name, params, plen, arg,
-				    len, set);
+	const struct brcmu_iovar *vi = NULL;
+	int bcmerror = 0;
+	int val_size;
+	s32 int_val = 0;
+	bool bool_val;
+	u32 actionid;
+
+	if (name == NULL || len < 0)
+		return -EINVAL;
+
+	/* Set does not take qualifiers */
+	if (set && (params || plen))
+		return -EINVAL;
+
+	/* Get must have return space;*/
+	if (!set && !(arg && len))
+		return -EINVAL;
+
+	BRCMF_TRACE(("%s: Enter (%s %s)\n", __func__, (set ? "set" : "get"),
+		  name));
+
+	vi = brcmu_iovar_lookup(sdioh_iovars, name);
+	if (vi == NULL) {
+		bcmerror = -ENOTSUPP;
+		goto exit;
+	}
+
+	bcmerror = brcmu_iovar_lencheck(vi, arg, len, set);
+	if (bcmerror != 0)
+		goto exit;
+
+	/* Set up params so get and set can share the convenience variables */
+	if (params == NULL) {
+		params = arg;
+		plen = len;
+	}
+
+	if (vi->type == IOVT_VOID)
+		val_size = 0;
+	else if (vi->type == IOVT_BUFFER)
+		val_size = len;
+	else
+		val_size = sizeof(int);
+
+	if (plen >= (int)sizeof(int_val))
+		memcpy(&int_val, params, sizeof(int_val));
+
+	bool_val = (int_val != 0) ? true : false;
+
+	actionid = set ? IOV_SVAL(vi->varid) : IOV_GVAL(vi->varid);
+	switch (actionid) {
+	case IOV_GVAL(IOV_RXCHAIN):
+		int_val = false;
+		memcpy(arg, &int_val, val_size);
+		break;
+
+	case IOV_GVAL(IOV_DEVREG):
+		{
+			struct brcmf_sdreg *sd_ptr =
+					(struct brcmf_sdreg *) params;
+			u8 data = 0;
+
+			if (brcmf_sdioh_cfg_read
+			    (sdiodev, sd_ptr->func, sd_ptr->offset, &data)) {
+				bcmerror = -EIO;
+				break;
+			}
+
+			int_val = (int)data;
+			memcpy(arg, &int_val, sizeof(int_val));
+			break;
+		}
+
+	case IOV_SVAL(IOV_DEVREG):
+		{
+			struct brcmf_sdreg *sd_ptr =
+					(struct brcmf_sdreg *) params;
+			u8 data = (u8) sd_ptr->value;
+
+			if (brcmf_sdioh_cfg_write
+			    (sdiodev, sd_ptr->func, sd_ptr->offset, &data)) {
+				bcmerror = -EIO;
+				break;
+			}
+			break;
+		}
+
+	default:
+		bcmerror = -ENOTSUPP;
+		break;
+	}
+exit:
+
+	return bcmerror;
 }
 
 int brcmf_sdcard_intr_reg(struct brcmf_sdio_dev *sdiodev)

@@ -276,11 +276,6 @@ extern int brcmf_sdioh_cfg_read(struct brcmf_sdio_dev *sdiodev, uint fuc,
 extern int brcmf_sdioh_cfg_write(struct brcmf_sdio_dev *sdiodev, uint fuc,
 				 u32 addr, u8 *data);
 
-/* handle iovars */
-extern int brcmf_sdioh_iovar_op(struct brcmf_sdio_dev *sdiodev,
-				const char *name, void *params, int plen,
-				void *arg, int len, bool set);
-
 /* Issue abort to the specified function and clear controller as needed */
 extern int brcmf_sdioh_abort(struct brcmf_sdio_dev *sdiodev, uint fnc);
 
