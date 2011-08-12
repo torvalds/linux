@@ -1004,18 +1004,17 @@ error_ret:
 	return ret;
 }
 
-static inline void __iio_remove_all_event_sysfs(struct iio_dev *dev_info,
-						const char *groupname,
-						int num)
+static inline void __iio_remove_event_config_attrs(struct iio_dev *dev_info,
+						  int i)
 {
 	struct iio_dev_attr *p, *n;
 	list_for_each_entry_safe(p, n,
-				 &dev_info->event_interfaces[num].
+				 &dev_info->event_interfaces[i].
 				 dev_attr_list, l) {
 		sysfs_remove_file_from_group(&dev_info
-					     ->event_interfaces[num].dev.kobj,
+					     ->event_interfaces[i].dev.kobj,
 					     &p->dev_attr.attr,
-					     groupname);
+					     NULL);
 		kfree(p->dev_attr.attr.name);
 		kfree(p);
 	}
@@ -1025,7 +1024,7 @@ static inline int __iio_add_event_config_attrs(struct iio_dev *dev_info, int i)
 {
 	int j;
 	int ret;
-	INIT_LIST_HEAD(&dev_info->event_interfaces[0].dev_attr_list);
+	INIT_LIST_HEAD(&dev_info->event_interfaces[i].dev_attr_list);
 	/* Dynically created from the channels array */
 	if (dev_info->channels) {
 		for (j = 0; j < dev_info->num_channels; j++) {
@@ -1039,16 +1038,9 @@ static inline int __iio_add_event_config_attrs(struct iio_dev *dev_info, int i)
 	return 0;
 
 error_clear_attrs:
-	__iio_remove_all_event_sysfs(dev_info, NULL, i);
+	__iio_remove_event_config_attrs(dev_info, i);
 
 	return ret;
-}
-
-static inline int __iio_remove_event_config_attrs(struct iio_dev *dev_info,
-						  int i)
-{
-	__iio_remove_all_event_sysfs(dev_info, NULL, i);
-	return 0;
 }
 
 static int iio_device_register_eventset(struct iio_dev *dev_info)
