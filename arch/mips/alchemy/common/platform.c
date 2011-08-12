@@ -111,33 +111,83 @@ static void __init alchemy_setup_uarts(int ctype)
 		printk(KERN_INFO "Alchemy: failed to register UARTs\n");
 }
 
-/* OHCI (USB full speed host controller) */
-static struct resource au1xxx_usb_ohci_resources[] = {
-	[0] = {
-		.start		= USB_OHCI_BASE,
-		.end		= USB_OHCI_BASE + USB_OHCI_LEN - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start		= FOR_PLATFORM_C_USB_HOST_INT,
-		.end		= FOR_PLATFORM_C_USB_HOST_INT,
-		.flags		= IORESOURCE_IRQ,
-	},
+
+/* The dmamask must be set for OHCI/EHCI to work */
+static u64 alchemy_ohci_dmamask = DMA_BIT_MASK(32);
+static u64 __maybe_unused alchemy_ehci_dmamask = DMA_BIT_MASK(32);
+
+static unsigned long alchemy_ohci_data[][2] __initdata = {
+	[ALCHEMY_CPU_AU1000] = { AU1000_USB_OHCI_PHYS_ADDR, AU1000_USB_HOST_INT },
+	[ALCHEMY_CPU_AU1500] = { AU1000_USB_OHCI_PHYS_ADDR, AU1500_USB_HOST_INT },
+	[ALCHEMY_CPU_AU1100] = { AU1000_USB_OHCI_PHYS_ADDR, AU1100_USB_HOST_INT },
+	[ALCHEMY_CPU_AU1550] = { AU1550_USB_OHCI_PHYS_ADDR, AU1550_USB_HOST_INT },
+	[ALCHEMY_CPU_AU1200] = { AU1200_USB_OHCI_PHYS_ADDR, AU1200_USB_INT },
 };
 
-/* The dmamask must be set for OHCI to work */
-static u64 ohci_dmamask = DMA_BIT_MASK(32);
-
-static struct platform_device au1xxx_usb_ohci_device = {
-	.name		= "au1xxx-ohci",
-	.id		= 0,
-	.dev = {
-		.dma_mask		= &ohci_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-	.num_resources	= ARRAY_SIZE(au1xxx_usb_ohci_resources),
-	.resource	= au1xxx_usb_ohci_resources,
+static unsigned long alchemy_ehci_data[][2] __initdata = {
+	[ALCHEMY_CPU_AU1200] = { AU1200_USB_EHCI_PHYS_ADDR, AU1200_USB_INT },
 };
+
+static int __init _new_usbres(struct resource **r, struct platform_device **d)
+{
+	*r = kzalloc(sizeof(struct resource) * 2, GFP_KERNEL);
+	if (!*r)
+		return -ENOMEM;
+	*d = kzalloc(sizeof(struct platform_device), GFP_KERNEL);
+	if (!*d) {
+		kfree(*r);
+		return -ENOMEM;
+	}
+
+	(*d)->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	(*d)->num_resources = 2;
+	(*d)->resource = *r;
+
+	return 0;
+}
+
+static void __init alchemy_setup_usb(int ctype)
+{
+	struct resource *res;
+	struct platform_device *pdev;
+
+	/* setup OHCI0.  Every variant has one */
+	if (_new_usbres(&res, &pdev))
+		return;
+
+	res[0].start = alchemy_ohci_data[ctype][0];
+	res[0].end = res[0].start + 0x100 - 1;
+	res[0].flags = IORESOURCE_MEM;
+	res[1].start = alchemy_ohci_data[ctype][1];
+	res[1].end = res[1].start;
+	res[1].flags = IORESOURCE_IRQ;
+	pdev->name = "au1xxx-ohci";
+	pdev->id = 0;
+	pdev->dev.dma_mask = &alchemy_ohci_dmamask;
+
+	if (platform_device_register(pdev))
+		printk(KERN_INFO "Alchemy USB: cannot add OHCI0\n");
+
+
+	/* setup EHCI0: Au1200 */
+	if (ctype == ALCHEMY_CPU_AU1200) {
+		if (_new_usbres(&res, &pdev))
+			return;
+
+		res[0].start = alchemy_ehci_data[ctype][0];
+		res[0].end = res[0].start + 0x100 - 1;
+		res[0].flags = IORESOURCE_MEM;
+		res[1].start = alchemy_ehci_data[ctype][1];
+		res[1].end = res[1].start;
+		res[1].flags = IORESOURCE_IRQ;
+		pdev->name = "au1xxx-ehci";
+		pdev->id = 0;
+		pdev->dev.dma_mask = &alchemy_ehci_dmamask;
+
+		if (platform_device_register(pdev))
+			printk(KERN_INFO "Alchemy USB: cannot add EHCI0\n");
+	}
+}
 
 /*** AU1100 LCD controller ***/
 
@@ -170,86 +220,6 @@ static struct platform_device au1100_lcd_device = {
 #endif
 
 #ifdef CONFIG_SOC_AU1200
-/* EHCI (USB high speed host controller) */
-static struct resource au1xxx_usb_ehci_resources[] = {
-	[0] = {
-		.start		= USB_EHCI_BASE,
-		.end		= USB_EHCI_BASE + USB_EHCI_LEN - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start		= AU1200_USB_INT,
-		.end		= AU1200_USB_INT,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static u64 ehci_dmamask = DMA_BIT_MASK(32);
-
-static struct platform_device au1xxx_usb_ehci_device = {
-	.name		= "au1xxx-ehci",
-	.id		= 0,
-	.dev = {
-		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-	.num_resources	= ARRAY_SIZE(au1xxx_usb_ehci_resources),
-	.resource	= au1xxx_usb_ehci_resources,
-};
-
-/* Au1200 UDC (USB gadget controller) */
-static struct resource au1xxx_usb_gdt_resources[] = {
-	[0] = {
-		.start		= USB_UDC_BASE,
-		.end		= USB_UDC_BASE + USB_UDC_LEN - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start		= AU1200_USB_INT,
-		.end		= AU1200_USB_INT,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static u64 udc_dmamask = DMA_BIT_MASK(32);
-
-static struct platform_device au1xxx_usb_gdt_device = {
-	.name		= "au1xxx-udc",
-	.id		= 0,
-	.dev = {
-		.dma_mask		= &udc_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-	.num_resources	= ARRAY_SIZE(au1xxx_usb_gdt_resources),
-	.resource	= au1xxx_usb_gdt_resources,
-};
-
-/* Au1200 UOC (USB OTG controller) */
-static struct resource au1xxx_usb_otg_resources[] = {
-	[0] = {
-		.start		= USB_UOC_BASE,
-		.end		= USB_UOC_BASE + USB_UOC_LEN - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start		= AU1200_USB_INT,
-		.end		= AU1200_USB_INT,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static u64 uoc_dmamask = DMA_BIT_MASK(32);
-
-static struct platform_device au1xxx_usb_otg_device = {
-	.name		= "au1xxx-uoc",
-	.id		= 0,
-	.dev = {
-		.dma_mask		= &uoc_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-	.num_resources	= ARRAY_SIZE(au1xxx_usb_otg_resources),
-	.resource	= au1xxx_usb_otg_resources,
-};
 
 static struct resource au1200_lcd_resources[] = {
 	[0] = {
@@ -534,14 +504,10 @@ static void __init alchemy_setup_macs(int ctype)
 }
 
 static struct platform_device *au1xxx_platform_devices[] __initdata = {
-	&au1xxx_usb_ohci_device,
 #ifdef CONFIG_FB_AU1100
 	&au1100_lcd_device,
 #endif
 #ifdef CONFIG_SOC_AU1200
-	&au1xxx_usb_ehci_device,
-	&au1xxx_usb_gdt_device,
-	&au1xxx_usb_otg_device,
 	&au1200_lcd_device,
 	&au1200_mmc0_device,
 #ifndef CONFIG_MIPS_DB1200
@@ -559,6 +525,7 @@ static int __init au1xxx_platform_init(void)
 
 	alchemy_setup_uarts(ctype);
 	alchemy_setup_macs(ctype);
+	alchemy_setup_usb(ctype);
 
 	err = platform_add_devices(au1xxx_platform_devices,
 				   ARRAY_SIZE(au1xxx_platform_devices));

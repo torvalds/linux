@@ -833,56 +833,6 @@ enum soc_au1200_ints {
 #endif
 
 
-
-
-/* Au1000 */
-#ifdef CONFIG_SOC_AU1000
-
-#define USB_OHCI_BASE		0x10100000	/* phys addr for ioremap */
-#define USB_HOST_CONFIG 	0xB017FFFC
-#define FOR_PLATFORM_C_USB_HOST_INT AU1000_USB_HOST_INT
-#endif /* CONFIG_SOC_AU1000 */
-
-/* Au1500 */
-#ifdef CONFIG_SOC_AU1500
-
-#define USB_OHCI_BASE		0x10100000	/* phys addr for ioremap */
-#define USB_HOST_CONFIG 	0xB017fffc
-#define FOR_PLATFORM_C_USB_HOST_INT AU1500_USB_HOST_INT
-#endif /* CONFIG_SOC_AU1500 */
-
-/* Au1100 */
-#ifdef CONFIG_SOC_AU1100
-
-#define USB_OHCI_BASE		0x10100000	/* phys addr for ioremap */
-#define USB_HOST_CONFIG 	0xB017FFFC
-#define FOR_PLATFORM_C_USB_HOST_INT AU1100_USB_HOST_INT
-#endif /* CONFIG_SOC_AU1100 */
-
-#ifdef CONFIG_SOC_AU1550
-
-#define USB_OHCI_BASE		0x14020000	/* phys addr for ioremap */
-#define USB_OHCI_LEN		0x00060000
-#define USB_HOST_CONFIG 	0xB4027ffc
-#define FOR_PLATFORM_C_USB_HOST_INT AU1550_USB_HOST_INT
-#endif /* CONFIG_SOC_AU1550 */
-
-
-#ifdef CONFIG_SOC_AU1200
-
-#define USB_UOC_BASE		0x14020020
-#define USB_UOC_LEN		0x20
-#define USB_OHCI_BASE		0x14020100
-#define USB_OHCI_LEN		0x100
-#define USB_EHCI_BASE		0x14020200
-#define USB_EHCI_LEN		0x100
-#define USB_UDC_BASE		0x14022000
-#define USB_UDC_LEN		0x2000
-
-#define FOR_PLATFORM_C_USB_HOST_INT AU1200_USB_INT
-
-#endif /* CONFIG_SOC_AU1200 */
-
 /* Programmable Counters 0 and 1 */
 #define SYS_BASE		0xB1900000
 #define SYS_COUNTER_CNTRL	(SYS_BASE + 0x14)
@@ -952,11 +902,6 @@ enum soc_au1200_ints {
 #define I2S_CONTROL		0xB1000008
 #  define I2S_CONTROL_D 	(1 << 1)
 #  define I2S_CONTROL_CE	(1 << 0)
-
-/* USB Host Controller */
-#ifndef USB_OHCI_LEN
-#define USB_OHCI_LEN		0x00100000
-#endif
 
 
 /* Ethernet Controllers  */
