@@ -6776,6 +6776,16 @@ nouveau_bios_run_init_table(struct drm_device *dev, uint16_t table,
 	spin_unlock_bh(&bios->lock);
 }
 
+void
+nouveau_bios_init_exec(struct drm_device *dev, uint16_t table)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nvbios *bios = &dev_priv->vbios;
+	struct init_exec iexec = { true, false };
+
+	parse_init_table(bios, table, &iexec);
+}
+
 static bool NVInitVBIOS(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;

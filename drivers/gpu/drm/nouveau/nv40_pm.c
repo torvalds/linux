@@ -221,6 +221,7 @@ nv40_pm_clocks_set(struct drm_device *dev, void *pre_state)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv40_pm_state *info = pre_state;
 	unsigned long flags;
+	struct bit_entry M;
 	u32 crtc_mask = 0;
 	u8 sr1[2];
 	int i;
@@ -309,6 +310,10 @@ nv40_pm_clocks_set(struct drm_device *dev, void *pre_state)
 	nv_wr32(dev, 0x1002dc, 0x00000000);
 	nv_mask(dev, 0x100210, 0x80000000, 0x80000000);
 	udelay(100);
+
+	/* execute memory reset script from vbios */
+	if (!bit_table(dev, 'M', &M))
+		nouveau_bios_init_exec(dev, ROM16(M.data[0]));
 
 	/* make sure we're in vblank (hopefully the same one as before), and
 	 * then re-enable crtc memory access

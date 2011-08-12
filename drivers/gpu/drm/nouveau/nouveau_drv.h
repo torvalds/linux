@@ -1071,6 +1071,7 @@ extern void nouveau_bios_takedown(struct drm_device *dev);
 extern int nouveau_run_vbios_init(struct drm_device *);
 extern void nouveau_bios_run_init_table(struct drm_device *, uint16_t table,
 					struct dcb_entry *, int crtc);
+extern void nouveau_bios_init_exec(struct drm_device *, uint16_t table);
 extern struct dcb_gpio_entry *nouveau_bios_gpio_entry(struct drm_device *,
 						      enum dcb_gpio_tag);
 extern struct dcb_connector_table_entry *
