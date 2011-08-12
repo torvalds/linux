@@ -57,6 +57,12 @@ static int ade7758_trig_try_reen(struct iio_trigger *trig)
 	return 0;
 }
 
+static const struct iio_trigger_ops ade7758_trigger_ops = {
+	.owner = THIS_MODULE,
+	.set_trigger_state = &ade7758_data_rdy_trigger_set_state,
+	.try_reenable = &ade7758_trig_try_reen,
+};
+
 int ade7758_probe_trigger(struct iio_dev *indio_dev)
 {
 	struct ade7758_state *st = iio_priv(indio_dev);
@@ -79,10 +85,8 @@ int ade7758_probe_trigger(struct iio_dev *indio_dev)
 		goto error_free_trig;
 
 	st->trig->dev.parent = &st->us->dev;
-	st->trig->owner = THIS_MODULE;
+	st->trig->ops = &ade7758_trigger_ops;
 	st->trig->private_data = indio_dev;
-	st->trig->set_trigger_state = &ade7758_data_rdy_trigger_set_state;
-	st->trig->try_reenable = &ade7758_trig_try_reen;
 	ret = iio_trigger_register(st->trig);
 
 	/* select default trigger */

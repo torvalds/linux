@@ -107,6 +107,10 @@ static const struct attribute_group *iio_sysfs_trigger_attr_groups[] = {
 	NULL
 };
 
+static const struct iio_trigger_ops iio_sysfs_trigger_ops = {
+	.owner = THIS_MODULE,
+};
+
 static int iio_sysfs_trigger_probe(int id)
 {
 	struct iio_sysfs_trig *t;
@@ -135,7 +139,7 @@ static int iio_sysfs_trigger_probe(int id)
 	}
 
 	t->trig->dev.groups = iio_sysfs_trigger_attr_groups;
-	t->trig->owner = THIS_MODULE;
+	t->trig->ops = &iio_sysfs_trigger_ops;
 	t->trig->dev.parent = &iio_sysfs_trig_dev;
 
 	ret = iio_trigger_register(t->trig);

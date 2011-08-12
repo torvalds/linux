@@ -18,6 +18,11 @@ static int adis16400_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	return adis16400_set_irq(indio_dev, state);
 }
 
+static const struct iio_trigger_ops adis16400_trigger_ops = {
+	.owner = THIS_MODULE,
+	.set_trigger_state = &adis16400_data_rdy_trigger_set_state,
+};
+
 int adis16400_probe_trigger(struct iio_dev *indio_dev)
 {
 	int ret;
@@ -39,9 +44,8 @@ int adis16400_probe_trigger(struct iio_dev *indio_dev)
 	if (ret)
 		goto error_free_trig;
 	st->trig->dev.parent = &st->us->dev;
-	st->trig->owner = THIS_MODULE;
 	st->trig->private_data = indio_dev;
-	st->trig->set_trigger_state = &adis16400_data_rdy_trigger_set_state;
+	st->trig->ops = &adis16400_trigger_ops;
 	ret = iio_trigger_register(st->trig);
 
 	/* select default trigger */

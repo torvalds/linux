@@ -206,8 +206,8 @@ EXPORT_SYMBOL(iio_trigger_poll_chained);
 void iio_trigger_notify_done(struct iio_trigger *trig)
 {
 	trig->use_count--;
-	if (trig->use_count == 0 && trig->try_reenable)
-		if (trig->try_reenable(trig)) {
+	if (trig->use_count == 0 && trig->ops && trig->ops->try_reenable)
+		if (trig->ops->try_reenable(trig)) {
 			/* Missed and interrupt so launch new poll now */
 			iio_trigger_poll(trig, 0);
 		}
@@ -234,8 +234,8 @@ int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 	ret = request_threaded_irq(pf->irq, pf->h, pf->thread,
 				   pf->type, pf->name,
 				   pf);
-	if (trig->set_trigger_state && notinuse)
-		ret = trig->set_trigger_state(trig, true);
+	if (trig->ops && trig->ops->set_trigger_state && notinuse)
+		ret = trig->ops->set_trigger_state(trig, true);
 
 	return ret;
 }
@@ -249,8 +249,8 @@ int iio_trigger_dettach_poll_func(struct iio_trigger *trig,
 		= (bitmap_weight(trig->pool,
 				 CONFIG_IIO_CONSUMERS_PER_TRIGGER)
 		   == 1);
-	if (trig->set_trigger_state && no_other_users) {
-		ret = trig->set_trigger_state(trig, false);
+	if (trig->ops && trig->ops->set_trigger_state && no_other_users) {
+		ret = trig->ops->set_trigger_state(trig, false);
 		if (ret)
 			goto error_ret;
 	}
@@ -358,8 +358,8 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 			return ret;
 	}
 
-	if (trig && trig->validate_device) {
-		ret = trig->validate_device(trig, dev_info);
+	if (trig && trig->ops && trig->ops->validate_device) {
+		ret = trig->ops->validate_device(trig, dev_info);
 		if (ret)
 			return ret;
 	}

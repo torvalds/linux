@@ -16,6 +16,27 @@ struct iio_subirq {
 };
 
 /**
+ * struct iio_trigger_ops - operations structure for an iio_trigger.
+ * @owner:		used to monitor usage count of the trigger.
+ * @set_trigger_state:	switch on/off the trigger on demand
+ * @try_reenable:	function to reenable the trigger when the
+ *			use count is zero (may be NULL)
+ * @validate_device:	function to validate the device when the
+ *			current trigger gets changed.
+ *
+ * This is typically static const within a driver and shared by
+ * instances of a given device.
+ **/
+struct iio_trigger_ops {
+	struct module			*owner;
+	int (*set_trigger_state)(struct iio_trigger *trig, bool state);
+	int (*try_reenable)(struct iio_trigger *trig);
+	int (*validate_device)(struct iio_trigger *trig,
+			       struct iio_dev *indio_dev);
+};
+
+
+/**
  * struct iio_trigger - industrial I/O trigger device
  *
  * @id:			[INTERN] unique id number
@@ -26,11 +47,6 @@ struct iio_subirq {
  * @alloc_list:		[DRIVER] used for driver specific trigger list
  * @owner:		[DRIVER] used to monitor usage count of the trigger.
  * @use_count:		use count for the trigger
- * @set_trigger_state:	[DRIVER] switch on/off the trigger on demand
- * @try_reenable:	function to reenable the trigger when the
- *			use count is zero (may be NULL)
- * @validate_device:	function to validate the device when the
- *			current trigger gets changed.
  * @subirq_chip:	[INTERN] associate 'virtual' irq chip.
  * @subirq_base:	[INTERN] base number for irqs provided by trigger.
  * @subirqs:		[INTERN] information about the 'child' irqs.
@@ -38,6 +54,7 @@ struct iio_subirq {
  * @pool_lock:		[INTERN] protection of the irq pool.
  **/
 struct iio_trigger {
+	const struct iio_trigger_ops	*ops;
 	int				id;
 	const char			*name;
 	struct device			dev;
@@ -47,11 +64,6 @@ struct iio_trigger {
 	struct list_head		alloc_list;
 	struct module			*owner;
 	int use_count;
-
-	int (*set_trigger_state)(struct iio_trigger *trig, bool state);
-	int (*try_reenable)(struct iio_trigger *trig);
-	int (*validate_device)(struct iio_trigger *trig,
-			       struct iio_dev *indio_dev);
 
 	struct irq_chip			subirq_chip;
 	int				subirq_base;
@@ -93,12 +105,12 @@ static inline struct iio_trigger *to_iio_trigger(struct device *d)
 static inline void iio_put_trigger(struct iio_trigger *trig)
 {
 	put_device(&trig->dev);
-	module_put(trig->owner);
+	module_put(trig->ops->owner);
 };
 
 static inline void iio_get_trigger(struct iio_trigger *trig)
 {
-	__module_get(trig->owner);
+	__module_get(trig->ops->owner);
 	get_device(&trig->dev);
 };
 
