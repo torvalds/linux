@@ -548,9 +548,6 @@ static inline int snd_soc_lzo_get_blkpos(struct snd_soc_codec *codec,
 
 static inline int snd_soc_lzo_get_blksize(struct snd_soc_codec *codec)
 {
-	const struct snd_soc_codec_driver *codec_drv;
-
-	codec_drv = codec->driver;
 	return DIV_ROUND_UP(codec->reg_size, snd_soc_lzo_block_count());
 }
 
