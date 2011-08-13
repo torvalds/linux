@@ -1978,5 +1978,10 @@ requeue:
 
 	spin_unlock_bh(&sc->rx.rxbuflock);
 
+	if (!(ah->imask & ATH9K_INT_RXEOL)) {
+		ah->imask |= (ATH9K_INT_RXEOL | ATH9K_INT_RXORN);
+		ath9k_hw_set_interrupts(ah, ah->imask);
+	}
+
 	return 0;
 }
