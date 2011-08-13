@@ -152,8 +152,7 @@ static int max17042_get_property(struct power_supply *psy,
 				val->intval++;
 				val->intval *= -1;
 			}
-			val->intval >>= 4;
-			val->intval *= 1000000 * 25 / chip->pdata->r_sns;
+			val->intval *= 1562500 / chip->pdata->r_sns;
 		} else {
 			return -EINVAL;
 		}
