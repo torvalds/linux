@@ -644,8 +644,10 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
  * meet the minimum required mpdudensity.
  */
 static int ath_compute_num_delims(struct ath_softc *sc, struct ath_atx_tid *tid,
-				  struct ath_buf *bf, u16 frmlen)
+				  struct ath_buf *bf, u16 frmlen,
+				  bool first_subfrm)
 {
+#define FIRST_DESC_NDELIMS 60
 	struct sk_buff *skb = bf->bf_mpdu;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	u32 nsymbits, nsymbols;
@@ -666,6 +668,13 @@ static int ath_compute_num_delims(struct ath_softc *sc, struct ath_atx_tid *tid,
 	if ((fi->keyix != ATH9K_TXKEYIX_INVALID) &&
 	    !(sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA))
 		ndelim += ATH_AGGR_ENCRYPTDELIM;
+
+	/*
+	 * Add delimiter when using RTS/CTS with aggregation
+	 * and non enterprise AR9003 card
+	 */
+	if (first_subfrm)
+		ndelim = max(ndelim, FIRST_DESC_NDELIMS);
 
 	/*
 	 * Convert desired mpdu density from microeconds to bytes based
@@ -756,7 +765,6 @@ static enum ATH_AGGR_STATUS ath_tx_form_aggr(struct ath_softc *sc,
 			status = ATH_AGGR_LIMITED;
 			break;
 		}
-		nframes++;
 
 		/* add padding for previous frame to aggregation length */
 		al += bpad + al_delta;
@@ -765,9 +773,11 @@ static enum ATH_AGGR_STATUS ath_tx_form_aggr(struct ath_softc *sc,
 		 * Get the delimiters needed to meet the MPDU
 		 * density for this node.
 		 */
-		ndelim = ath_compute_num_delims(sc, tid, bf_first, fi->framelen);
+		ndelim = ath_compute_num_delims(sc, tid, bf_first, fi->framelen,
+						!nframes);
 		bpad = PADBYTES(al_delta) + (ndelim << 2);
 
+		nframes++;
 		bf->bf_next = NULL;
 		ath9k_hw_set_desc_link(sc->sc_ah, bf->bf_desc, 0);
 
