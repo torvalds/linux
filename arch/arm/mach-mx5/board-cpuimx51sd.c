@@ -108,7 +108,7 @@ static iomux_v3_cfg_t eukrea_cpuimx51sd_pads[] = {
 
 	/* Touchscreen */
 	/* IRQ */
-	_MX51_PAD_GPIO_NAND__GPIO_NAND | MUX_PAD_CTRL(PAD_CTL_PUS_22K_UP |
+	NEW_PAD_CTRL(MX51_PAD_GPIO_NAND__GPIO_NAND, PAD_CTL_PUS_22K_UP |
 			PAD_CTL_PKE | PAD_CTL_SRE_FAST |
 			PAD_CTL_DSE_HIGH | PAD_CTL_PUE | PAD_CTL_HYS),
 };

@@ -357,8 +357,8 @@ static const struct esdhc_platform_data mx51_babbage_sd2_data __initconst = {
 static void __init mx51_babbage_init(void)
 {
 	iomux_v3_cfg_t usbh1stp = MX51_PAD_USBH1_STP__USBH1_STP;
-	iomux_v3_cfg_t power_key = _MX51_PAD_EIM_A27__GPIO2_21 |
-		MUX_PAD_CTRL(PAD_CTL_SRE_FAST | PAD_CTL_DSE_HIGH | PAD_CTL_PUS_100K_UP);
+	iomux_v3_cfg_t power_key = NEW_PAD_CTRL(MX51_PAD_EIM_A27__GPIO2_21,
+		PAD_CTL_SRE_FAST | PAD_CTL_DSE_HIGH | PAD_CTL_PUS_100K_UP);
 
 	imx51_soc_init();
 
