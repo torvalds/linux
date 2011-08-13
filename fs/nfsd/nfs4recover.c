@@ -130,6 +130,7 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 	if (!rec_file || clp->cl_firststate)
 		return 0;
 
+	clp->cl_firststate = 1;
 	status = nfs4_save_creds(&original_cred);
 	if (status < 0)
 		return status;
@@ -144,10 +145,8 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 		goto out_unlock;
 	}
 	status = -EEXIST;
-	if (dentry->d_inode) {
-		dprintk("NFSD: nfsd4_create_clid_dir: DIRECTORY EXISTS\n");
+	if (dentry->d_inode)
 		goto out_put;
-	}
 	status = mnt_want_write(rec_file->f_path.mnt);
 	if (status)
 		goto out_put;
@@ -157,12 +156,14 @@ out_put:
 	dput(dentry);
 out_unlock:
 	mutex_unlock(&dir->d_inode->i_mutex);
-	if (status == 0) {
-		clp->cl_firststate = 1;
+	if (status == 0)
 		vfs_fsync(rec_file, 0);
-	}
+	else
+		printk(KERN_ERR "NFSD: failed to write recovery record"
+				" (err %d); please check that %s exists"
+				" and is writeable", status,
+				user_recovery_dirname);
 	nfs4_reset_creds(original_cred);
-	dprintk("NFSD: nfsd4_create_clid_dir returns %d\n", status);
 	return status;
 }
 
