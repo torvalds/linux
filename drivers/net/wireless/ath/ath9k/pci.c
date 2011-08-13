@@ -126,7 +126,7 @@ static void ath_pci_aspm_init(struct ath_common *common)
 		 * Both upstream and downstream PCIe components should
 		 * have the same ASPM settings.
 		 */
-		if (WARN_ON(!parent))
+		if (!parent)
 			return;
 
 		pos = pci_pcie_cap(parent);
@@ -137,7 +137,7 @@ static void ath_pci_aspm_init(struct ath_common *common)
 		return;
 	}
 
-	if (WARN_ON(!parent))
+	if (!parent)
 		return;
 
 	pos = pci_pcie_cap(parent);
