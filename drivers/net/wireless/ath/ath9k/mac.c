@@ -345,21 +345,8 @@ int ath9k_hw_setuptxqueue(struct ath_hw *ah, enum ath9k_tx_queue type,
 	}
 	memset(qi, 0, sizeof(struct ath9k_tx_queue_info));
 	qi->tqi_type = type;
-	if (qinfo == NULL) {
-		qi->tqi_qflags =
-			TXQ_FLAG_TXOKINT_ENABLE
-			| TXQ_FLAG_TXERRINT_ENABLE
-			| TXQ_FLAG_TXDESCINT_ENABLE | TXQ_FLAG_TXURNINT_ENABLE;
-		qi->tqi_aifs = INIT_AIFS;
-		qi->tqi_cwmin = ATH9K_TXQ_USEDEFAULT;
-		qi->tqi_cwmax = INIT_CWMAX;
-		qi->tqi_shretry = INIT_SH_RETRY;
-		qi->tqi_lgretry = INIT_LG_RETRY;
-		qi->tqi_physCompBuf = 0;
-	} else {
-		qi->tqi_physCompBuf = qinfo->tqi_physCompBuf;
-		(void) ath9k_hw_set_txq_props(ah, q, qinfo);
-	}
+	qi->tqi_physCompBuf = qinfo->tqi_physCompBuf;
+	(void) ath9k_hw_set_txq_props(ah, q, qinfo);
 
 	return q;
 }
