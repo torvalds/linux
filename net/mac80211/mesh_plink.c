@@ -19,8 +19,8 @@
 #define mpl_dbg(fmt, args...)	do { (void)(0); } while (0)
 #endif
 
-#define PLINK_GET_LLID(p) (p + 4)
-#define PLINK_GET_PLID(p) (p + 6)
+#define PLINK_GET_LLID(p) (p + 2)
+#define PLINK_GET_PLID(p) (p + 4)
 
 #define mod_plink_timer(s, t) (mod_timer(&s->plink_timer, \
 				jiffies + HZ * t / 1000))
@@ -147,9 +147,9 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 			sdata->u.mesh.ie_len);
 	struct ieee80211_mgmt *mgmt;
 	bool include_plid = false;
-	static const u8 meshpeeringproto[] = { 0x00, 0x0F, 0xAC, 0x2A };
+	int ie_len = 4;
+	u16 peering_proto = 0;
 	u8 *pos;
-	int ie_len;
 
 	if (!skb)
 		return -1;
@@ -158,24 +158,23 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 	 * common action part (1)
 	 */
 	mgmt = (struct ieee80211_mgmt *)
-		skb_put(skb, 25 + sizeof(mgmt->u.action.u.plink_action));
-	memset(mgmt, 0, 25 + sizeof(mgmt->u.action.u.plink_action));
+		skb_put(skb, 25 + sizeof(mgmt->u.action.u.self_prot));
+	memset(mgmt, 0, 25 + sizeof(mgmt->u.action.u.self_prot));
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_ACTION);
 	memcpy(mgmt->da, da, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
-	mgmt->u.action.category = WLAN_CATEGORY_MESH_ACTION;
-	mgmt->u.action.u.plink_action.action_code = action;
+	mgmt->u.action.category = WLAN_CATEGORY_SELF_PROTECTED;
+	mgmt->u.action.u.self_prot.action_code = action;
 
-	if (action == WLAN_SP_MESH_PEERING_CLOSE)
-		mgmt->u.action.u.plink_action.aux = reason;
-	else {
-		mgmt->u.action.u.plink_action.aux = cpu_to_le16(0x0);
+	if (action != WLAN_SP_MESH_PEERING_CLOSE) {
+		/* capability info */
+		pos = skb_put(skb, 2);
+		memset(pos, 0, 2);
 		if (action == WLAN_SP_MESH_PEERING_CONFIRM) {
-			pos = skb_put(skb, 4);
-			/* two-byte status code followed by two-byte AID */
-			memset(pos, 0, 2);
+			/* AID */
+			pos = skb_put(skb, 2);
 			memcpy(pos + 2, &plid, 2);
 		}
 		if (mesh_add_srates_ie(skb, sdata) ||
@@ -184,42 +183,50 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		    mesh_add_meshid_ie(skb, sdata) ||
 		    mesh_add_meshconf_ie(skb, sdata))
 			return -1;
+	} else {	/* WLAN_SP_MESH_PEERING_CLOSE */
+		if (mesh_add_meshid_ie(skb, sdata))
+			return -1;
 	}
 
-	/* Add Peer Link Management element */
+	/* Add Mesh Peering Management element */
 	switch (action) {
 	case WLAN_SP_MESH_PEERING_OPEN:
-		ie_len = 6;
 		break;
 	case WLAN_SP_MESH_PEERING_CONFIRM:
-		ie_len = 8;
+		ie_len += 2;
 		include_plid = true;
 		break;
 	case WLAN_SP_MESH_PEERING_CLOSE:
-	default:
-		if (!plid)
-			ie_len = 8;
-		else {
-			ie_len = 10;
+		if (plid) {
+			ie_len += 2;
 			include_plid = true;
 		}
+		ie_len += 2;	/* reason code */
 		break;
+	default:
+		return -EINVAL;
 	}
 
+	if (WARN_ON(skb_tailroom(skb) < 2 + ie_len))
+		return -ENOMEM;
+
 	pos = skb_put(skb, 2 + ie_len);
-	*pos++ = WLAN_EID_PEER_LINK;
+	*pos++ = WLAN_EID_PEER_MGMT;
 	*pos++ = ie_len;
-	memcpy(pos, meshpeeringproto, sizeof(meshpeeringproto));
-	pos += 4;
+	memcpy(pos, &peering_proto, 2);
+	pos += 2;
 	memcpy(pos, &llid, 2);
+	pos += 2;
 	if (include_plid) {
-		pos += 2;
 		memcpy(pos, &plid, 2);
+		pos += 2;
 	}
 	if (action == WLAN_SP_MESH_PEERING_CLOSE) {
-		pos += 2;
 		memcpy(pos, &reason, 2);
+		pos += 2;
 	}
+	if (mesh_add_vendor_ies(skb, sdata))
+		return -1;
 
 	ieee80211_tx_skb(sdata, skb);
 	return 0;
@@ -437,15 +444,15 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		return;
 	}
 
-	baseaddr = mgmt->u.action.u.plink_action.variable;
-	baselen = (u8 *) mgmt->u.action.u.plink_action.variable - (u8 *) mgmt;
-	if (mgmt->u.action.u.plink_action.action_code ==
+	baseaddr = mgmt->u.action.u.self_prot.variable;
+	baselen = (u8 *) mgmt->u.action.u.self_prot.variable - (u8 *) mgmt;
+	if (mgmt->u.action.u.self_prot.action_code ==
 						WLAN_SP_MESH_PEERING_CONFIRM) {
 		baseaddr += 4;
 		baselen += 4;
 	}
 	ieee802_11_parse_elems(baseaddr, len - baselen, &elems);
-	if (!elems.peer_link) {
+	if (!elems.peering) {
 		mpl_dbg("Mesh plink: missing necessary peer link ie\n");
 		return;
 	}
@@ -455,12 +462,12 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		return;
 	}
 
-	ftype = mgmt->u.action.u.plink_action.action_code;
-	ie_len = elems.peer_link_len;
-	if ((ftype == WLAN_SP_MESH_PEERING_OPEN && ie_len != 6) ||
-	    (ftype == WLAN_SP_MESH_PEERING_CONFIRM && ie_len != 8) ||
-	    (ftype == WLAN_SP_MESH_PEERING_CLOSE && ie_len != 8
-							&& ie_len != 10)) {
+	ftype = mgmt->u.action.u.self_prot.action_code;
+	ie_len = elems.peering_len;
+	if ((ftype == WLAN_SP_MESH_PEERING_OPEN && ie_len != 4) ||
+	    (ftype == WLAN_SP_MESH_PEERING_CONFIRM && ie_len != 6) ||
+	    (ftype == WLAN_SP_MESH_PEERING_CLOSE && ie_len != 6
+							&& ie_len != 8)) {
 		mpl_dbg("Mesh plink: incorrect plink ie length %d %d\n",
 		    ftype, ie_len);
 		return;
@@ -474,10 +481,10 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 	/* Note the lines below are correct, the llid in the frame is the plid
 	 * from the point of view of this host.
 	 */
-	memcpy(&plid, PLINK_GET_LLID(elems.peer_link), 2);
+	memcpy(&plid, PLINK_GET_LLID(elems.peering), 2);
 	if (ftype == WLAN_SP_MESH_PEERING_CONFIRM ||
-	    (ftype == WLAN_SP_MESH_PEERING_CLOSE && ie_len == 10))
-		memcpy(&llid, PLINK_GET_PLID(elems.peer_link), 2);
+	    (ftype == WLAN_SP_MESH_PEERING_CLOSE && ie_len == 8))
+		memcpy(&llid, PLINK_GET_PLID(elems.peering), 2);
 
 	rcu_read_lock();
 

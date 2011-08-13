@@ -736,19 +736,6 @@ struct ieee80211_mgmt {
 					__le16 params;
 					__le16 reason_code;
 				} __attribute__((packed)) delba;
-				struct{
-					u8 action_code;
-					/* capab_info for open and confirm,
-					 * reason for close
-					 */
-					__le16 aux;
-					/* Followed in plink_confirm by status
-					 * code, AID and supported rates,
-					 * and directly by supported rates in
-					 * plink_open and plink_close
-					 */
-					u8 variable[0];
-				} __attribute__((packed)) plink_action;
 				struct {
 					u8 action_code;
 					u8 variable[0];
@@ -1200,11 +1187,6 @@ enum ieee80211_eid {
 	WLAN_EID_MESH_ID = 114,
 	WLAN_EID_LINK_METRIC_REPORT = 115,
 	WLAN_EID_CONGESTION_NOTIFICATION = 116,
-	/* Note that the Peer Link IE has been replaced with the similar
-	 * Peer Management IE.  We will keep the former definition until mesh
-	 * code is changed to comply with latest 802.11s drafts.
-	 */
-	WLAN_EID_PEER_LINK = 55,  /* no longer in 802.11s drafts */
 	WLAN_EID_PEER_MGMT = 117,
 	WLAN_EID_CHAN_SWITCH_PARAM = 118,
 	WLAN_EID_MESH_AWAKE_WINDOW = 119,
