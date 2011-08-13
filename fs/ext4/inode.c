@@ -120,6 +120,12 @@ void ext4_evict_inode(struct inode *inode)
 	int err;
 
 	trace_ext4_evict_inode(inode);
+
+	mutex_lock(&inode->i_mutex);
+	ext4_flush_completed_IO(inode);
+	mutex_unlock(&inode->i_mutex);
+	ext4_ioend_wait(inode);
+
 	if (inode->i_nlink) {
 		/*
 		 * When journalling data dirty buffers are tracked only in the
