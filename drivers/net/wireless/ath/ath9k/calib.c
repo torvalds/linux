@@ -82,7 +82,6 @@ static void ath9k_hw_update_nfcal_hist_buffer(struct ath_hw *ah,
 					      int16_t *nfarray)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ieee80211_conf *conf = &common->hw->conf;
 	struct ath_nf_limits *limit;
 	struct ath9k_nfcal_hist *h;
 	bool high_nf_mid = false;
@@ -94,7 +93,7 @@ static void ath9k_hw_update_nfcal_hist_buffer(struct ath_hw *ah,
 
 	for (i = 0; i < NUM_NF_READINGS; i++) {
 		if (!(chainmask & (1 << i)) ||
-		    ((i >= AR5416_MAX_CHAINS) && !conf_is_ht40(conf)))
+		    ((i >= AR5416_MAX_CHAINS) && !IS_CHAN_HT40(ah->curchan)))
 			continue;
 
 		h[i].nfCalBuffer[h[i].currIndex] = nfarray[i];
