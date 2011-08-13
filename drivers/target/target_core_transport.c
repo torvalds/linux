@@ -4126,7 +4126,11 @@ static int transport_allocate_data_tasks(
 
 		/* Update new cdb with updated lba/sectors */
 		cmd->transport_split_cdb(task->task_lba, task->task_sectors, cdb);
-
+		/*
+		 * This now assumes that passed sg_ents are in PAGE_SIZE chunks
+		 * in order to calculate the number per task SGL entries
+		 */
+		task->task_sg_nents = DIV_ROUND_UP(task->task_size, PAGE_SIZE);
 		/*
 		 * Check if the fabric module driver is requesting that all
 		 * struct se_task->task_sg[] be chained together..  If so,
@@ -4136,7 +4140,6 @@ static int transport_allocate_data_tasks(
 		 * It's so much easier and only a waste when task_count > 1.
 		 * That is extremely rare.
 		 */
-		task->task_sg_nents = sgl_nents;
 		if (cmd->se_tfo->task_sg_chaining) {
 			task->task_sg_nents++;
 			task->task_padded_sg = 1;
