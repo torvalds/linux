@@ -22,6 +22,7 @@
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <linux/netdevice.h>
+#include <asm/io.h>
 #include <asm/uaccess.h>
 #include "ft1000.h"
 
