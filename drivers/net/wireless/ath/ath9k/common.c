@@ -169,6 +169,32 @@ void ath9k_cmn_update_txpow(struct ath_hw *ah, u16 cur_txpow,
 }
 EXPORT_SYMBOL(ath9k_cmn_update_txpow);
 
+void ath9k_cmn_init_crypto(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	int i = 0;
+
+	/* Get the hardware key cache size. */
+	common->keymax = AR_KEYTABLE_SIZE;
+
+	/*
+	 * Check whether the separate key cache entries
+	 * are required to handle both tx+rx MIC keys.
+	 * With split mic keys the number of stations is limited
+	 * to 27 otherwise 59.
+	 */
+	if (ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA)
+		common->crypt_caps |= ATH_CRYPT_CAP_MIC_COMBINED;
+
+	/*
+	 * Reset the key cache since some parts do not
+	 * reset the contents on initial power up.
+	 */
+	for (i = 0; i < common->keymax; i++)
+		ath_hw_keyreset(common, (u16) i);
+}
+EXPORT_SYMBOL(ath9k_cmn_init_crypto);
+
 static int __init ath9k_cmn_init(void)
 {
 	return 0;

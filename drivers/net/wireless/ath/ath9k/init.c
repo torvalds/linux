@@ -404,31 +404,6 @@ fail:
 	return error;
 }
 
-void ath9k_init_crypto(struct ath_softc *sc)
-{
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	int i = 0;
-
-	/* Get the hardware key cache size. */
-	common->keymax = AR_KEYTABLE_SIZE;
-
-	/*
-	 * Reset the key cache since some parts do not
-	 * reset the contents on initial power up.
-	 */
-	for (i = 0; i < common->keymax; i++)
-		ath_hw_keyreset(common, (u16) i);
-
-	/*
-	 * Check whether the separate key cache entries
-	 * are required to handle both tx+rx MIC keys.
-	 * With split mic keys the number of stations is limited
-	 * to 27 otherwise 59.
-	 */
-	if (sc->sc_ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA)
-		common->crypt_caps |= ATH_CRYPT_CAP_MIC_COMBINED;
-}
-
 static int ath9k_init_btcoex(struct ath_softc *sc)
 {
 	struct ath_txq *txq;
@@ -630,7 +605,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	if (ret)
 		goto err_btcoex;
 
-	ath9k_init_crypto(sc);
+	ath9k_cmn_init_crypto(sc->sc_ah);
 	ath9k_init_misc(sc);
 
 	return 0;

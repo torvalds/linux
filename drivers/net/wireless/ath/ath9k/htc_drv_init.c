@@ -572,25 +572,6 @@ err:
 	return -EINVAL;
 }
 
-static void ath9k_init_crypto(struct ath9k_htc_priv *priv)
-{
-	struct ath_common *common = ath9k_hw_common(priv->ah);
-	int i = 0;
-
-	/* Get the hardware key cache size. */
-	common->keymax = AR_KEYTABLE_SIZE;
-
-	if (priv->ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA)
-		common->crypt_caps |= ATH_CRYPT_CAP_MIC_COMBINED;
-
-	/*
-	 * Reset the key cache since some parts do not
-	 * reset the contents on initial power up.
-	 */
-	for (i = 0; i < common->keymax; i++)
-		ath_hw_keyreset(common, (u16) i);
-}
-
 static void ath9k_init_channels_rates(struct ath9k_htc_priv *priv)
 {
 	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ) {
@@ -720,7 +701,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	for (i = 0; i < ATH9K_HTC_MAX_BCN_VIF; i++)
 		priv->cur_beacon_conf.bslot[i] = NULL;
 
-	ath9k_init_crypto(priv);
+	ath9k_cmn_init_crypto(ah);
 	ath9k_init_channels_rates(priv);
 	ath9k_init_misc(priv);
 

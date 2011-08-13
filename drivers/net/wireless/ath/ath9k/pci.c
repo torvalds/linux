@@ -345,7 +345,7 @@ static int ath_pci_resume(struct device *device)
 	   * semi-random values after suspend/resume.
 	   */
 	ath9k_ps_wakeup(sc);
-	ath9k_init_crypto(sc);
+	ath9k_cmn_init_crypto(sc->sc_ah);
 	ath9k_ps_restore(sc);
 
 	sc->ps_idle = true;
