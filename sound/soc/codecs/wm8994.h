@@ -126,6 +126,8 @@ struct wm8994_priv {
 	struct soc_enum enh_eq_enum;
 
 	struct wm8994_micdet micdet[2];
+	bool detecting;
+	bool jack_mic;
 
 	wm8958_micdet_cb jack_cb;
 	void *jack_cb_data;
