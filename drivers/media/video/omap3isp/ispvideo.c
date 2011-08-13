@@ -1056,6 +1056,14 @@ error:
 		if (video->isp->pdata->set_constraints)
 			video->isp->pdata->set_constraints(video->isp, false);
 		media_entity_pipeline_stop(&video->video.entity);
+		/* The DMA queue must be emptied here, otherwise CCDC interrupts
+		 * that will get triggered the next time the CCDC is powered up
+		 * will try to access buffers that might have been freed but
+		 * still present in the DMA queue. This can easily get triggered
+		 * if the above omap3isp_pipeline_set_stream() call fails on a
+		 * system with a free-running sensor.
+		 */
+		INIT_LIST_HEAD(&video->dmaqueue);
 		video->queue = NULL;
 	}
 
