@@ -30,6 +30,4 @@
 #define gpio_cansleep		__gpio_cansleep
 #define gpio_to_irq		__gpio_to_irq
 
-#define irq_to_gpio(irq)	((irq) - MXS_GPIO_IRQ_START)
-
 #endif /* __MACH_MXS_GPIO_H__ */

@@ -86,6 +86,8 @@
 	.type = _type,							\
 }
 
+#define MXS_GPIO_NR(bank, nr)	((bank) * 32 + (nr))
+
 #define MXS_SET_ADDR		0x4
 #define MXS_CLR_ADDR		0x8
 #define MXS_TOG_ADDR		0xc
