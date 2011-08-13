@@ -56,11 +56,15 @@
 #define UART_USR	0x1F	/* UART Status Register */
 #define UART_USR_BUSY (1)
 #define UART_IER_PTIME	0x80	/* Programmable THRE Interrupt Mode Enable */
+#define UART_LSR_RFE	0x80    /* receive fifo error */
+#define UART_SRR		0x22    /* software reset register */
+#define UART_RESET		0x01
 #define RX_TIMEOUT		(3000*10)  //uint ms
 
 #define BOTH_EMPTY 	(UART_LSR_TEMT | UART_LSR_THRE)
 
 #define UART_NR	4   //uart port number
+#define POWER_MANEGEMENT 1
 
 /* configurate whether the port transmit-receive by DMA */
 #define OPEN_DMA      1
@@ -96,16 +100,17 @@ static struct uart_driver serial_rk_reg;
 /*
  * Debugging.
  */
-#define DBG_PORT 1
+#define DBG_PORT 1   //DBG_PORT which uart is used to print log message
+
 #ifdef CONFIG_SERIAL_CORE_CONSOLE
 #define uart_console(port)	((port)->cons && (port)->cons->index == (port)->line)
 #else
 #define uart_console(port)	(0)
 #endif
 
-#ifdef DEBUG
-extern void printascii(const char *);
+#define DEBUG 0
 
+extern void printascii(const char *);
 static void dbg(const char *fmt, ...)
 {
 	va_list va;
@@ -118,6 +123,7 @@ static void dbg(const char *fmt, ...)
 	printascii(buff);
 }
 
+#if DEBUG
 #define DEBUG_INTR(fmt...)	if (!uart_console(&up->port)) dbg(fmt)
 #else
 #define DEBUG_INTR(fmt...)	do { } while (0)
@@ -162,7 +168,7 @@ struct uart_rk_port {
 	unsigned char		lcr;
 	unsigned char		mcr;
 	unsigned char		iir;
-
+	unsigned char		fcr;
 	/*
 	 * Some bits in registers are cleared on a read, so they must
 	 * be saved whenever the register is read but the bits will not
@@ -226,32 +232,53 @@ static inline int serial_dl_read(struct uart_rk_port *up)
 }
 
 /* Uart divisor latch write */
-static inline void serial_dl_write(struct uart_rk_port *up, unsigned int value)
+static int serial_dl_write(struct uart_rk_port *up, unsigned int value)
 {
+	unsigned int tmout = 100;
+	if(up->port.line != DBG_PORT)
+	{
+		while(!(serial_in(up, UART_LCR) & UART_LCR_DLAB)){
+			if (--tmout == 0){
+				dbg("set serial.%d baudrate fail with DLAB not set\n", up->port.line);
+				return -1;
+			}
+		}
+
+		tmout = 15000;
+		while(serial_in(up, UART_USR) & UART_USR_BUSY){
+			if (--tmout == 0){
+				dbg("set serial.%d baudrate timeout\n", up->port.line);
+				return -1;
+			}
+		}
+	}
+
 	serial_out(up, UART_DLL, value & 0xff);
 	serial_out(up, UART_DLM, value >> 8 & 0xff);
+
+	return 0;
+
 }
 
-static void serial_lcr_write(struct uart_rk_port *up, unsigned char value)
+static int serial_lcr_write(struct uart_rk_port *up, unsigned char value)
 {
 	unsigned int tmout = 15000;
 
-	for (;;) {
-		unsigned char lcr;
-		serial_out(up, UART_LCR, value);
-		lcr = serial_in(up, UART_LCR);
-		if (lcr == value)
-			break;
-		/* Read the USR to clear any busy interrupts */
-		serial_in(up, UART_USR);
-		serial_in(up, UART_RX);
-		if (--tmout == 0){
-			dev_info(up->port.dev, "set lcr timeout\n");
-			break;
-		}
+	if(up->port.line != DBG_PORT)
+	{
+		while(serial_in(up, UART_USR) & UART_USR_BUSY){
 
-		udelay(1);
+			if (--tmout == 0){
+				dbg("set serial.%d lc r = 0x%02x timeout\n", up->port.line, value);
+				return -1;
+			}
+			udelay(1);
+		}
 	}
+
+	serial_out(up, UART_LCR, value);
+
+	return 0;
 }
 
 static inline void serial_rk_enable_ier_thri(struct uart_rk_port *up)
@@ -270,6 +297,29 @@ static inline void serial_rk_disable_ier_thri(struct uart_rk_port *up)
 		serial_out(up, UART_IER, up->ier);
 	}
 }
+#if 0
+static int rk29_uart_dump_register(struct uart_rk_port *up){
+
+	unsigned int reg_value = 0;
+
+	reg_value = serial_in(up, UART_IER);
+	dbg("UART_IER = 0x%0x\n", reg_value);
+	reg_value = serial_in(up, UART_IIR);
+	dbg("UART_IIR = 0x%0x\n", reg_value);
+    reg_value = serial_in(up, UART_LSR);
+    dbg("UART_LSR = 0x%0x\n", reg_value);
+    reg_value = serial_in(up, UART_MSR);
+    dbg("UART_MSR = 0x%0x\n", reg_value);
+    reg_value = serial_in(up, UART_MCR);
+    dbg("UART_MCR = 0x%0x\n", reg_value);
+    reg_value = serial_in(up, 0x21);
+    dbg("UART_RFL = 0x%0x\n", reg_value);
+    reg_value = serial_in(up, UART_LCR);
+    dbg("UART_LCR = 0x%0x\n", reg_value);
+	return 0;
+
+}
+#endif
 
 /*
  * FIFO support.
@@ -307,16 +357,7 @@ static void serial_rk_start_tx(struct uart_port *port)
 {
 	struct uart_rk_port *up =
 		container_of(port, struct uart_rk_port, port);
-/*
- *  struct circ_buf *xmit = &port->state->xmit;
-    int size = CIRC_CNT(xmit->head, xmit->tail, UART_XMIT_SIZE);
-	if(size > 64){
-		serial_rk_start_tx_dma(port);
-	}
-	else{
-		serial_rk_enable_ier_thri(up);
-	}
-*/
+
 
 	if(0 == serial_rk_start_tx_dma(port)){
 		serial_rk_enable_ier_thri(up);
@@ -729,8 +770,9 @@ receive_chars(struct uart_rk_port *up, unsigned int *status)
 	char flag;
 
 	do {
-		if (likely(lsr & UART_LSR_DR))
+		if (likely(lsr & UART_LSR_DR)){
 			ch = serial_in(up, UART_RX);
+		}
 		else
 			/*
 			 * Intel 82571 has a Serial Over Lan device that will
@@ -870,14 +912,14 @@ static void serial_rk_handle_port(struct uart_rk_port *up)
 	unsigned long flags;
 	spin_lock_irqsave(&up->port.lock, flags);
 
+	/* reading UART_LSR can automatically clears PE FE OE bits, except receive fifo error bit*/
 	status = serial_in(up, UART_LSR);
 
 	DEBUG_INTR("status = %x...", status);
-
+	/* DMA mode enable */
 	if(up->prk29_uart_dma_t->use_dma == 1) {
 
 		if(up->iir & UART_IIR_RLSI){
-
 			if (status & (UART_LSR_DR | UART_LSR_BI)) {
 				up->port_activity = jiffies;
 				up->ier &= ~UART_IER_RLSI;
@@ -885,20 +927,27 @@ static void serial_rk_handle_port(struct uart_rk_port *up)
 				serial_out(up, UART_IER, up->ier);
 				//receive_chars(up, &status);
 				//mod_timer(&up->prk29_uart_dma_t->rx_timer, jiffies +
-								//msecs_to_jiffies(up->prk29_uart_dma_t->rx_timeout));
+				//msecs_to_jiffies(up->prk29_uart_dma_t->rx_timeout));
 				if(serial_rk_start_rx_dma(&up->port) == -1){
 					receive_chars(up, &status);
 				}
 			}
 		}
 
-/*
-		if (status & UART_LSR_THRE) {
-			transmit_chars(up);
-		}
-*/
-
 	}else {   //dma mode disable
+
+		/*
+		 * when uart receive a serial of data which doesn't have stop bit and so on, that causes frame error,and
+		 * set UART_LSR_RFE to one,what is worse,we couldn't read the data in the receive fifo. So if
+		 * wo don't clear this bit and reset the receive fifo, the received data available interrupt would
+		 * occur continuously.  added by hhb@rock-chips.com 2011-08-05
+		 */
+
+		if (status & UART_LSR_RFE) {
+			status = serial_in(up, UART_LSR);
+			dev_info(up->port.dev, "error:lsr=0x%x\n", status);
+		//	rk29_uart_dump_register(up);
+		}
 
 		if (status & (UART_LSR_DR | UART_LSR_BI)) {
 			receive_chars(up, &status);
@@ -923,24 +972,26 @@ static irqreturn_t serial_rk_interrupt(int irq, void *dev_id)
 	unsigned int iir;
 
 	iir = serial_in(up, UART_IIR);
-	DEBUG_INTR("%s(%d) iir = 0x%02x ", __func__, irq, iir);
+
+	DEBUG_INTR("%s(%d) iir = 0x%02x\n", __func__, irq, iir);
+
 	up->iir = iir;
 
 	if (!(iir & UART_IIR_NO_INT)) {
 		serial_rk_handle_port(up);
 		handled = 1;
 	} else if ((iir & UART_IIR_BUSY) == UART_IIR_BUSY) {
+
 		/* The DesignWare APB UART has an Busy Detect (0x07)
 		 * interrupt meaning an LCR write attempt occured while the
 		 * UART was busy. The interrupt must be cleared by reading
 		 * the UART status register (USR) and the LCR re-written. */
-		 		 
-		if(!(serial_in(up, UART_USR) & UART_USR_BUSY)){
-			//serial_out(up, UART_LCR, up->lcr);
-		}
 
+		if(!(serial_in(up, UART_USR) & UART_USR_BUSY)){
+			serial_out(up, UART_LCR, up->lcr);
+		}
 		handled = 1;
-		dev_info(up->port.dev, "the serial is busy\n");
+		dbg("the serial.%d is busy\n", up->port.line);
 	}
 	DEBUG_INTR("end(%d).\n", handled);
 
@@ -1006,7 +1057,7 @@ static void serial_rk_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	mcr |= up->mcr;
 
 	serial_out(up, UART_MCR, mcr);
-	dev_dbg(port->dev, "-%s mcr: 0x%02x\n", __func__, mcr);
+	dev_dbg(port->dev, "-serial.%d %s mcr: 0x%02x\n", port->line, __func__, mcr);
 }
 
 static void serial_rk_break_ctl(struct uart_port *port, int break_state)
@@ -1139,14 +1190,14 @@ static int serial_rk_startup(struct uart_port *port)
 	/*
 	 * Now, initialize the UART
 	 */
-	serial_lcr_write(up, UART_LCR_WLEN8);
+	serial_lcr_write(up, UART_LCR_WLEN8 | UART_LCR_EPAR);
 
 	spin_lock_irqsave(&up->port.lock, flags);
 
 	/*
 	 * Most PC uarts need OUT2 raised to enable interrupts.
 	 */
-	up->port.mctrl |= TIOCM_OUT2;
+//	up->port.mctrl |= TIOCM_OUT2;
 
 	serial_rk_set_mctrl(&up->port, up->port.mctrl);
 
@@ -1157,16 +1208,15 @@ static int serial_rk_startup(struct uart_port *port)
 	 * saved flags to avoid getting false values from polling
 	 * routines or the previous session.
 	 */
-	serial_in(up, UART_LSR);
-	serial_in(up, UART_RX);
-	serial_in(up, UART_IIR);
-	serial_in(up, UART_MSR);
-	serial_in(up, UART_USR);
+	(void) serial_in(up, UART_LSR);
+	(void) serial_in(up, UART_RX);
+	(void) serial_in(up, UART_IIR);
+	(void) serial_in(up, UART_MSR);
+	(void) serial_in(up, UART_USR);
 	up->lsr_saved_flags = 0;
 #if 0
 	up->msr_saved_flags = 0;
 #endif
-
 
 	if (1 == up->prk29_uart_dma_t->use_dma) {
 
@@ -1213,7 +1263,7 @@ static void serial_rk_shutdown(struct uart_port *port)
 	serial_out(up, UART_IER, 0);
 
 	spin_lock_irqsave(&up->port.lock, flags);
-	up->port.mctrl &= ~TIOCM_OUT2;
+//	up->port.mctrl &= ~TIOCM_OUT2;
 	serial_rk_set_mctrl(&up->port, up->port.mctrl);
 	spin_unlock_irqrestore(&up->port.lock, flags);
 
@@ -1237,43 +1287,33 @@ serial_rk_set_termios(struct uart_port *port, struct ktermios *termios,
 {
 	struct uart_rk_port *up =
 		container_of(port, struct uart_rk_port, port);
-	unsigned char cval=0, fcr = 0;
-	unsigned long flags, bits;
+	unsigned char cval, fcr = 0;
+	unsigned long flags;
 	unsigned int baud, quot;
-
+	int timeout = 1000000;
 	dev_dbg(port->dev, "+%s\n", __func__);
 
-	//start bit
-	bits += 1;
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
 		cval = UART_LCR_WLEN5;
-		bits += 5;
 		break;
 	case CS6:
 		cval = UART_LCR_WLEN6;
-		bits += 6;
 		break;
 	case CS7:
 		cval = UART_LCR_WLEN7;
-		bits += 7;
 		break;
+	case CS8:
 	default:
 		cval = UART_LCR_WLEN8;
-		bits += 8;
 		break;
 	}
 
 	if (termios->c_cflag & CSTOPB){
 		cval |= UART_LCR_STOP;
-		bits += 2;
-	}
-	else{
-		bits += 1;
 	}
 	if (termios->c_cflag & PARENB){
 		cval |= UART_LCR_PARITY;
-		bits += 1;
 	}
 	if (!(termios->c_cflag & PARODD)){
 		cval |= UART_LCR_EPAR;
@@ -1282,6 +1322,7 @@ serial_rk_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (termios->c_cflag & CMSPAR)
 		cval |= UART_LCR_SPAR;
 #endif
+
 
 	/*
 	 * Ask the core to calculate the divisor for us.
@@ -1292,19 +1333,30 @@ serial_rk_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	quot = uart_get_divisor(port, baud);
 
+	dev_info(up->port.dev, "baud:%d\n", baud);
+//	dev_info(up->port.dev, "quot:%d\n", quot);
 
-	dev_info(up->port.dev, "*****baud:%d*******\n", baud);
-//	dev_info(up->port.dev, "*****quot:%d*******\n", quot);
+	/*
+	 * To wait long enough to avoid writting lcr when the uart is busy
+	 * because of data communication, so that we can set lcr and baud rate
+	 * successfully. added by hhb@rock-chips.com
+	 */
 
-	int timeout = 10000000;
-	while(serial_in(up, UART_USR)&UART_USR_BUSY){
-	if(timeout-- == 0){
-	printk("rk29_serial_set_termios uart timeout,uart%d,ret=0x%x\n",up->port.line,serial_in(up, UART_USR));
-	break;
+	while(serial_in(up, UART_USR) & UART_USR_BUSY){
+		if(--timeout == 0){
+			if(port->line != DBG_PORT){
+				serial_out(up, UART_SRR, UART_RESET);
+			}
+			dbg("rk_serial_set_termios uart.%d timeout,irq=%d,ret=0x%x  AND uart is reseted\n",
+					port->line, port->irq, serial_in(up, UART_USR));
+			break;
+		}
+		cpu_relax();
 	}
-	cpu_relax();
-	}
-	printk("%s:timeout=%d\n",__FUNCTION__,timeout);
+
+
+	printk("serial.%d timeout:%d\n", up->port.line,timeout);
+
 
 	if (baud < 2400){
 		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_TRIGGER_1;
@@ -1331,7 +1383,6 @@ serial_rk_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (termios->c_cflag & CRTSCTS){
 		up->mcr |= UART_MCR_AFE;
 	}
-
 
 	/*
 	 * Ok, we're now changing the port state.  Do it with
@@ -1381,25 +1432,49 @@ serial_rk_set_termios(struct uart_port *port, struct ktermios *termios,
 		up->ier |= UART_IER_MSI;
 #endif
 
-	serial_lcr_write(up, cval | UART_LCR_DLAB);/* set DLAB */
-
-	serial_dl_write(up, quot);
-
-	serial_lcr_write(up, cval);		/* reset DLAB */
 	up->lcr = cval;				/* Save LCR */
+	/* set DLAB */
+	if(serial_lcr_write(up, cval | UART_LCR_DLAB)){
+		dbg("serial.%d set DLAB fail\n", up->port.line);
+		serial_out(up, UART_SRR, UART_RESET);
+		goto fail;
+	}
 
-	serial_rk_set_mctrl(&up->port, up->port.mctrl);
+	/* set uart baud rate */
+	if(serial_dl_write(up, quot)){
+		dbg("serial.%d set dll fail\n", up->port.line);
+		serial_out(up, UART_SRR, UART_RESET);
+		goto fail;
+	}
 
-	serial_out(up, UART_FCR, fcr);		/* set fcr */
-	up->ier |= UART_IER_RDI;
-	up->ier |= UART_IER_RLSI;
-	serial_out(up, UART_IER, up->ier);
+	/* reset DLAB */
+	if(serial_lcr_write(up, cval)){
+		dbg("serial.%d reset DLAB fail\n", up->port.line);
+		serial_out(up, UART_SRR, UART_RESET);
+		goto fail;
+	}
+	else{
+		serial_rk_set_mctrl(&up->port, up->port.mctrl);
+		serial_out(up, UART_FCR, fcr);		/* set fcr */
+		up->fcr = fcr;
+		/* enable the uart interrupt last */
+		up->ier |= UART_IER_RDI;
+		up->ier |= UART_IER_RLSI;
+		serial_out(up, UART_IER, up->ier);
+	}
 
 	spin_unlock_irqrestore(&up->port.lock, flags);
+
 	/* Don't rewrite B0 */
 	if (tty_termios_baud_rate(termios))
 		tty_termios_encode_baud_rate(termios, baud, baud);
 	dev_dbg(port->dev, "-%s baud %d\n", __func__, baud);
+
+	return;
+
+fail:
+	spin_unlock_irqrestore(&up->port.lock, flags);
+
 }
 
 #if 0
@@ -1671,7 +1746,7 @@ static int __devinit serial_rk_probe(struct platform_device *pdev)
 		goto do_put_clk;
 	}
 	up->port.mapbase = mem->start;
-	up->port.irqflags = 0;
+	up->port.irqflags = IRQF_DISABLED;
 	up->port.uartclk = clk_get_rate(up->clk);
 
 	/* set dma config */
@@ -1768,8 +1843,13 @@ static int serial_rk_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct uart_rk_port *up = platform_get_drvdata(dev);
 
-	if (up)
+	if (up && up->port.line != DBG_PORT && POWER_MANEGEMENT){
 		uart_suspend_port(&serial_rk_reg, &up->port);
+	}
+	if(up->port.line == DBG_PORT && POWER_MANEGEMENT){
+		serial_rk_pm(&up->port, 1, 0);
+	}
+
 	return 0;
 }
 
@@ -1777,8 +1857,12 @@ static int serial_rk_resume(struct platform_device *dev)
 {
 	struct uart_rk_port *up = platform_get_drvdata(dev);
 
-	if (up)
+	if (up && up->port.line != DBG_PORT && POWER_MANEGEMENT){
 		uart_resume_port(&serial_rk_reg, &up->port);
+	}
+	if(up->port.line == DBG_PORT && POWER_MANEGEMENT){
+		serial_rk_pm(&up->port, 0, 1);
+	}
 	return 0;
 }
 
