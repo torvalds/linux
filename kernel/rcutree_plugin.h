@@ -483,16 +483,20 @@ static void rcu_print_detail_task_stall(struct rcu_state *rsp)
  * Scan the current list of tasks blocked within RCU read-side critical
  * sections, printing out the tid of each.
  */
-static void rcu_print_task_stall(struct rcu_node *rnp)
+static int rcu_print_task_stall(struct rcu_node *rnp)
 {
 	struct task_struct *t;
+	int ndetected = 0;
 
 	if (!rcu_preempt_blocked_readers_cgp(rnp))
-		return;
+		return 0;
 	t = list_entry(rnp->gp_tasks,
 		       struct task_struct, rcu_node_entry);
-	list_for_each_entry_continue(t, &rnp->blkd_tasks, rcu_node_entry)
+	list_for_each_entry_continue(t, &rnp->blkd_tasks, rcu_node_entry) {
 		printk(" P%d", t->pid);
+		ndetected++;
+	}
+	return ndetected;
 }
 
 /*
@@ -976,8 +980,9 @@ static void rcu_print_detail_task_stall(struct rcu_state *rsp)
  * Because preemptible RCU does not exist, we never have to check for
  * tasks blocked within RCU read-side critical sections.
  */
-static void rcu_print_task_stall(struct rcu_node *rnp)
+static int rcu_print_task_stall(struct rcu_node *rnp)
 {
+	return 0;
 }
 
 /*
