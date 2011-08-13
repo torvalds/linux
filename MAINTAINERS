@@ -213,7 +213,7 @@ ACENIC DRIVER
 M:	Jes Sorensen <jes@trained-monkey.org>
 L:	linux-acenic@sunsite.dk
 S:	Maintained
-F:	drivers/net/ethernet/3com/acenic*
+F:	drivers/net/ethernet/alteon/acenic*
 
 ACER ASPIRE ONE TEMPERATURE AND FAN DRIVER
 M:	Peter Feuerer <peter@piie.net>
