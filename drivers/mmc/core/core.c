@@ -219,8 +219,8 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 	mmc_start_request(host, mrq);
 
 #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
-    wait_for_completion_timeout(&complete,HZ*3); //for cmd dead. Modifyed by xbw at 2011-06-02
-#else    
+	wait_for_completion_timeout(&complete,HZ*3); //for cmd dead. Modifyed by xbw at 2011-06-02
+#else
 	wait_for_completion(&complete);
 #endif
 }
@@ -1432,16 +1432,25 @@ int mmc_erase_group_aligned(struct mmc_card *card, unsigned int from,
 }
 EXPORT_SYMBOL(mmc_erase_group_aligned);
 
-#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)  
 void mmc_rescan(struct work_struct *work)
 {
 	struct mmc_host *host =
 		container_of(work, struct mmc_host, detect.work);
 	u32 ocr;
 	int err;
+	unsigned long flags;
 	int extend_wakelock = 0;
 
-    
+	spin_lock_irqsave(&host->lock, flags);
+
+	if (host->rescan_disable) {
+		spin_unlock_irqrestore(&host->lock, flags);
+		return;
+	}
+
+	spin_unlock_irqrestore(&host->lock, flags);
+
+
 	mmc_bus_get(host);
 
 	/* if there is a card registered, check whether it is still present */
@@ -1472,32 +1481,36 @@ void mmc_rescan(struct work_struct *work)
 	 * release the lock here.
 	 */
 	mmc_bus_put(host);
+	
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
     printk("\n%s...%d..  ===== mmc_rescan Begin....======xbw[%s]=====\n",__FILE__, __LINE__, mmc_hostname(host));
+#endif
 
 	if (host->ops->get_cd && host->ops->get_cd(host) == 0)
 	{
-	    printk("\n=================\n%s..%d..  ====find no SDMMC host.====xbw[%s]=====\n", \
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
+        printk("\n=================\n%s..%d..  ====find no SDMMC host.====xbw[%s]=====\n", \
 	        __FUNCTION__, __LINE__, mmc_hostname(host));
-	        
+#endif
 		goto out;
 	}
 
 	mmc_claim_host(host);
-	
+
 	mmc_power_up(host);
 	
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)  
+	//sdio_reset(host);  //This does not make sense ,  deleted by xbw at 2011-08-08
+#else
+    sdio_reset(host);
+#endif
+
 	mmc_go_idle(host);
+	
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
+	//mmc_send_if_cond(host, host->ocr_avail); //This does not make sense, deleted by xbw at 2011-08-08
 
-    /*
-        In oder to improve the initialization process in rockchip IC, I modify the following code about the the initialization process of SDIO-SD-MMC.
-        So I deleted the CMD8 and add a conditional to distinguish between the two card type,i.e.SDMMC process and SDIO process.
-        For detail,please refer to "RK29XX Technical Reference Manual" and "SD-MMC-SDIO Specifications".
-        Noted by xbw@2011-04-09
-    */
-
-    //mmc_send_if_cond(host, host->ocr_avail); //deleted by xbw@2011-04-09
-
-     if( strncmp( mmc_hostname(host) ,"mmc0" , strlen("mmc0")) ){
+    if( strncmp( mmc_hostname(host) ,"mmc0" , strlen("mmc0")) ){
     	/*
     	 * First we search for SDIO...
     	 */
@@ -1520,140 +1533,8 @@ void mmc_rescan(struct work_struct *work)
     		goto out;
     	}
     }
-
-
-    /*
-     * ...then normal SD...
-     */
-    err = mmc_send_app_op_cond(host, 0, &ocr);
-    if (!err) {
-    	printk("\n%s..%d..  ===== Begin to identify card as SD-card ===xbw[%s]===\n",__FUNCTION__, __LINE__, mmc_hostname(host));
-
-    	if (mmc_attach_sd(host, ocr))
-    	{
-    	    printk("\n=====\n%s..%d..  ===== Initialize SD-card unsuccessfully!!! ===xbw[%s]===\n====\n",\
-    	        __FUNCTION__,  __LINE__, mmc_hostname(host));
-    	        
-    		mmc_power_off(host);
-    	}
-    	else
-    	{
-    	    printk("%s..%d..  ===== Initialize SD-card successfully. ===xbw[%s]===\n",__FUNCTION__,  __LINE__, mmc_hostname(host));
-    	}
-    	extend_wakelock = 1;
-    	goto out;
-    }
-
-    /*
-     * ...and finally MMC.
-     */
-    err = mmc_send_op_cond(host, 0, &ocr);
-    if (!err) {
-        printk("\n%s..%d..  ===== Begin to identify card as MMC-card ===xbw[%s]===\n", __FUNCTION__, __LINE__, mmc_hostname(host));
-
-    	if (mmc_attach_mmc(host, ocr))
-    	{
-    	    printk("\n =====\n%s..%d..  ===== Initialize MMC-card unsuccessfully!!! ===xbw[%s]===\n======\n",\
-    	        __FUNCTION__,  __LINE__, mmc_hostname(host));
-    	        
-    		mmc_power_off(host);
-    	}
-    	else
-    	{
-    	    printk("%s...%d..  ===== Initialize MMC-card successfully. ===xbw[%s]===\n",__FUNCTION__,  __LINE__, mmc_hostname(host));
-    	}
-    	extend_wakelock = 1;
-    	goto out;
-    }
-
-	mmc_release_host(host);
-	mmc_power_off(host);
-
-out:
-
-	if (extend_wakelock)
-		wake_lock_timeout(&mmc_delayed_work_wake_lock, HZ / 2);
-	else
-		wake_unlock(&mmc_delayed_work_wake_lock);
-
-	if (host->caps & MMC_CAP_NEEDS_POLL)
-		mmc_schedule_delayed_work(&host->detect, HZ);
-}
-
-#else
-void mmc_rescan(struct work_struct *work)
-{
-	struct mmc_host *host =
-		container_of(work, struct mmc_host, detect.work);
-	u32 ocr;
-	int err;
-	unsigned long flags;
-	int extend_wakelock = 0;
 	
-#if defined(CONFIG_SDMMC_RK29) && defined(CONFIG_SDMMC_RK29_OLD)  	
-	unsigned long flags;
-
-	spin_lock_irqsave(&host->lock, flags);
-
-	if (host->rescan_disable) {
-		spin_unlock_irqrestore(&host->lock, flags);
-		return;
-	}
-
-	spin_unlock_irqrestore(&host->lock, flags);
-#endif
-
-
-	spin_lock_irqsave(&host->lock, flags);
-
-	if (host->rescan_disable) {
-		spin_unlock_irqrestore(&host->lock, flags);
-		return;
-	}
-
-	spin_unlock_irqrestore(&host->lock, flags);
-
-
-	mmc_bus_get(host);
-
-	/* if there is a card registered, check whether it is still present */
-	if ((host->bus_ops != NULL) && host->bus_ops->detect && !host->bus_dead)
-		host->bus_ops->detect(host);
-
-	/* If the card was removed the bus will be marked
-	 * as dead - extend the wakelock so userspace
-	 * can respond */
-	if (host->bus_dead)
-		extend_wakelock = 1;
-
-	mmc_bus_put(host);
-
-
-	mmc_bus_get(host);
-
-	/* if there still is a card present, stop here */
-	if (host->bus_ops != NULL) {
-		mmc_bus_put(host);
-		goto out;
-	}
-
-	/* detect a newly inserted card */
-
-	/*
-	 * Only we can add a new handler, so it's safe to
-	 * release the lock here.
-	 */
-	mmc_bus_put(host);
-
-	if (host->ops->get_cd && host->ops->get_cd(host) == 0)
-		goto out;
-
-	mmc_claim_host(host);
-
-	mmc_power_up(host);
-	sdio_reset(host);
-	mmc_go_idle(host);
-
+#else
 	mmc_send_if_cond(host, host->ocr_avail);
 
 	/*
@@ -1673,14 +1554,32 @@ void mmc_rescan(struct work_struct *work)
 		}
 		goto out;
 	}
+#endif
 
 	/*
 	 * ...then normal SD...
 	 */
 	err = mmc_send_app_op_cond(host, 0, &ocr);
 	if (!err) {
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 	
+	    printk("\n%s..%d..  ===== Begin to identify card as SD-card ===xbw[%s]===\n",\
+	        __FUNCTION__, __LINE__, mmc_hostname(host));
+#endif
 		if (mmc_attach_sd(host, ocr))
+		{
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 			
+    		printk("\n=====\n%s..%d..  ===== Initialize SD-card unsuccessfully!!! ===xbw[%s]===\n====\n",\
+        	        __FUNCTION__,  __LINE__, mmc_hostname(host));
+#endif        	        
 			mmc_power_off(host);
+		}
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 					
+		else
+		{
+		    printk("%s..%d..  ===== Initialize SD-card successfully. ===xbw[%s]===\n",\
+		        __FUNCTION__,  __LINE__, mmc_hostname(host));
+		}
+#endif		
 		extend_wakelock = 1;
 		goto out;
 	}
@@ -1690,8 +1589,25 @@ void mmc_rescan(struct work_struct *work)
 	 */
 	err = mmc_send_op_cond(host, 0, &ocr);
 	if (!err) {
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 	
+	    printk("\n%s..%d..  ===== Begin to identify card as MMC-card ===xbw[%s]===\n",\
+	        __FUNCTION__, __LINE__, mmc_hostname(host));
+#endif
 		if (mmc_attach_mmc(host, ocr))
+		{
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
+            printk("\n =====\n%s..%d..  ===== Initialize MMC-card unsuccessfully!!! ===xbw[%s]===\n======\n",\
+    	        __FUNCTION__,  __LINE__, mmc_hostname(host));
+#endif		
 			mmc_power_off(host);
+		}
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)		
+		else
+		{
+		    printk("%s...%d..  ===== Initialize MMC-card successfully. ===xbw[%s]===\n",\
+		        __FUNCTION__,  __LINE__, mmc_hostname(host));
+		}
+#endif		
 		extend_wakelock = 1;
 		goto out;
 	}
@@ -1709,7 +1625,6 @@ out:
 	if (host->caps & MMC_CAP_NEEDS_POLL)
 		mmc_schedule_delayed_work(&host->detect, HZ);
 }
-#endif
 
 void mmc_start_host(struct mmc_host *host)
 {
@@ -1848,10 +1763,6 @@ int mmc_suspend_host(struct mmc_host *host)
 	if (host->bus_ops && !host->bus_dead) {
 		if (host->bus_ops->suspend)
 			err = host->bus_ops->suspend(host);
-			
-#if defined(CONFIG_SDMMC_RK29) && defined(CONFIG_SDMMC_RK29_OLD)
-        //deleted all detail code.
-#else
 		if (err == -ENOSYS || !host->bus_ops->resume) {
 			/*
 			 * We simply "remove" the card in this case.
@@ -1865,7 +1776,6 @@ int mmc_suspend_host(struct mmc_host *host)
 			host->pm_flags = 0;
 			err = 0;
 		}
-#endif		
 	}
 	mmc_bus_put(host);
 
@@ -1898,17 +1808,7 @@ int mmc_resume_host(struct mmc_host *host)
 			mmc_select_voltage(host, host->ocr);
 		}
 		BUG_ON(!host->bus_ops->resume);
-		
-#if defined(CONFIG_SDMMC_RK29) && defined(CONFIG_SDMMC_RK29_OLD)
-		err = host->bus_ops->resume(host);
-		if (err) {
-			printk(KERN_WARNING "%s: error %d during resume "
-					    "(card was removed?)\n",
-					    mmc_hostname(host), err);
-			err = 0;
-		}
-
-#elif defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)  
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
         //panic if the card is being removed during the resume, deleted by xbw at 2011-06-20
 		host->bus_ops->resume(host);
 
@@ -1919,7 +1819,7 @@ int mmc_resume_host(struct mmc_host *host)
 					    "(card was removed?)\n",
 					    mmc_hostname(host), err);
 			err = 0;
-		}		
+		}
 #endif
 	}
 	mmc_bus_put(host);

@@ -446,6 +446,7 @@ struct p1003_platform_data p1003_info = {
 };
 #endif
 #if defined (CONFIG_EETI_EGALAX)
+
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
 #define TOUCH_INT_PIN   RK29_PIN0_PA2
 
@@ -481,7 +482,62 @@ static struct eeti_egalax_platform_data eeti_egalax_info = {
   .disp_on_pin = TOUCH_SCREEN_DISPLAY_PIN,
   .disp_on_value = TOUCH_SCREEN_DISPLAY_VALUE,
 };
+
 #endif
+//tcl miaozh add
+/*Nas touch*/
+#if defined (CONFIG_TOUCHSCREEN_NAS)
+#define TOUCH_RESET_PIN RK29_PIN6_PC3
+#define TOUCH_INT_PIN   RK29_PIN0_PA2
+void nas_reset(void)
+{
+    msleep(5);
+    gpio_pull_updown(TOUCH_INT_PIN, 1);
+    gpio_direction_output(TOUCH_RESET_PIN, 0);
+    msleep(5);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+    msleep(200);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+}
+void nas_hold(void)
+{
+    printk("nas_hold()\n");
+    gpio_direction_output(TOUCH_RESET_PIN, 0);
+    msleep(5);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+    msleep(30);
+ }
+void nas_request_io(void)
+{
+    if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+      gpio_free(TOUCH_RESET_PIN);
+      printk("nas_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+
+    if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+      gpio_free(TOUCH_INT_PIN);
+      printk("nas_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+}
+	
+int nas_init_platform_hw(void)
+{
+		printk("enter %s()\n", __FUNCTION__);
+		//nas_request_io();
+		//nas_reset();
+    return 0;
+}
+
+
+struct nas_platform_data nas_info = {
+  .model= 1003,
+  .init_platform_hw= nas_init_platform_hw,
+
+};
+#endif
+
 
 #if defined (CONFIG_D70_L3188A)
 struct goodix_i2c_rmi_platform_data d70_l3188a_info = {
@@ -708,6 +764,13 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.flags			= 0,
 	},
 #endif
+#if defined (CONFIG_SND_SOC_WM8994)
+        {
+                .type                   = "wm8994",
+                .addr           = 0x1A,
+                .flags                  = 0,
+        },
+#endif
 #if defined (CONFIG_BATTERY_STC3100)
 	{
 		.type    		= "stc3100",
@@ -801,6 +864,18 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
       .platform_data  = &eeti_egalax_info,
     },
 #endif
+//tcl miaozh add
+#if defined (CONFIG_TOUCHSCREEN_NAS)
+    {
+      .type           = "nas_touch",
+      .addr           = (0x70>>1),
+      .flags          = 0, //I2C_M_NEED_DELAY
+      .irq            = RK29_PIN0_PA2,
+      .platform_data  = &nas_info,
+      //.udelay		  = 100
+    },
+#endif
+
 #if defined (CONFIG_D70_L3188A)
     {
       .type           = "goodix-ts",

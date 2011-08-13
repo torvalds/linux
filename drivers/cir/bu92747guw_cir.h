@@ -105,7 +105,7 @@ struct rk29_cir_struct_info {
 	u16  carry_high;                // carry_high
 	u16  carry_low;        // carry_low	
 	
-	u16  repeat;         // 是否是 重复帧
+	s32  repeat;         // 是否是 重复帧
 	u8   inv;                 //00 01 10 11   Lsb->inv0 
 	u8 frame_bit_len;           // 命令帧有效位数
 	

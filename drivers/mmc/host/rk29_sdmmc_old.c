@@ -1307,7 +1307,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		goto err_mmc_free_host;
 	}
 	
-	host->regs = ioremap(regs->start, regs->end - regs->start);
+	host->regs = ioremap(regs->start, regs->end - regs->start + 1);
 	if (!host->regs){
 		dev_err(&pdev->dev, "ioremap error\n");
 		ret = ENXIO;
@@ -1494,7 +1494,11 @@ static int rk29_sdmmc_suspend(struct platform_device *pdev, pm_message_t state)
 
 	dev_info(host->dev, "Enter rk29_sdmmc_suspend\n");
 	if(host->mmc && !host->is_sdio && host->gpio_det != INVALID_GPIO){
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
+		ret = mmc_suspend_host(host->mmc);
+#else
 		ret = mmc_suspend_host(host->mmc,state);
+#endif
 		if(!host->enable_sd_warkup)
 			free_irq(host->gpio_irq, host);
 	}

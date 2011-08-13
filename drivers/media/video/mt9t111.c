@@ -1816,8 +1816,10 @@ static struct reginfo sensor_init_data[] =
 {0x0014, 0x2046, WORD_LEN, 0 },  	// PLL_CONTROL
 {0x0022, 0x01E0, WORD_LEN, 0 },  	// VDD_DIS_COUNTER//208
 {0x001E, 0x0777, WORD_LEN, 0 },  	// PAD_SLEW_PAD_CONFIG
+//{0x001E, 0x0700, WORD_LEN, 0 },  	// PAD_SLEW_PAD_CONFIG
 {0x0016, 0x0400, WORD_LEN, 0 },  	// CLOCKS_CONTROL
 {0x001E, 0x0777, WORD_LEN, 0 },  	// PAD_SLEW_PAD_CONFIG
+//{0x001E, 0x0700, WORD_LEN, 0 },  	// PAD_SLEW_PAD_CONFIG
 {0x0018, 0x402D, WORD_LEN, 0 },  	// STANDBY_CONTROL_AND_STATUS
 {0x0018, 0x402C, WORD_LEN, 0 },  	// STANDBY_CONTROL_AND_STATUS
 
@@ -1863,10 +1865,12 @@ static struct reginfo sensor_init_data[] =
 //{0x0990, 0x0408, WORD_LEN, 0 },  	// MCU_DATA_0//
 //{0x098E, 0x482D, WORD_LEN, 0 },  	// MCU_ADDRESS//
 //{0x0990, 0x0308, WORD_LEN, 0 },  	// MCU_DATA_0//
+/*300w capture*/
 {0x098E, 0x6C00, WORD_LEN, 0 },  	// MCU_ADDRESS
 {0x0990, 0x0800, WORD_LEN, 0 },  	// MCU_DATA_0
 {0x098E, 0x6C02, WORD_LEN, 0 },  	// MCU_ADDRESS
 {0x0990, 0x0600, WORD_LEN, 0 },  	// MCU_DATA_0
+
 {0x098E, 0xEC8E, WORD_LEN, 0 },  	// MCU_ADDRESS
 {0x0990, 0x0000, WORD_LEN, 0 },  	// MCU_DATA_0
 {0x098E, 0x6CA0, WORD_LEN, 0 },  	// MCU_ADDRESS
@@ -5159,26 +5163,7 @@ static struct reginfo sensor_init_data[] =
 
 static struct reginfo sensor_720p[]=
 {
-	//{SEQUENCE_END, 0x00},
-	/*{0x098E, 0x843C, WORD_LEN, 0}, // LOGICAL_ADDRESS_ACCESS [CAM_CORE_A_Y_ADDR_START]
-	{0x843C, 0x01, BYTE_LEN, 0 }, // SEQ_STATE_CFG_5_MAX_FRAME_CNT
-	{0x8404, 0x01, BYTE_LEN, 0 }, // SEQ_CMD
-	{0x0016, 0x0447, WORD_LEN, 0},  // CLOCKS_CONTROL
-	{0xC83A, 0x0106, WORD_LEN, 0},  // CAM_CORE_A_Y_ADDR_START
-	{0xC83C, 0x0018, WORD_LEN, 0},  // CAM_CORE_A_X_ADDR_START
-	{0xC83E, 0x06B7, WORD_LEN, 0},  // CAM_CORE_A_Y_ADDR_END
-	{0xC840, 0x0A45, WORD_LEN, 0},  // CAM_CORE_A_X_ADDR_END
-	{0xC86C, 0x0518, WORD_LEN, 0},  // CAM_CORE_A_OUTPUT_SIZE_WIDTH
-	{0xC86E, 0x02D8, WORD_LEN, 0},  // CAM_CORE_A_OUTPUT_SIZE_HEIGHT
-	{0xC870, 0x0014, WORD_LEN, 0},  // CAM_CORE_A_RX_FIFO_TRIGGER_MARK
-	{0xC858, 0x0003, WORD_LEN, 0}, // CAM_CORE_A_COARSE_ITMIN
-	{0xC8B8, 0x0004, WORD_LEN, 0},  // CAM_OUTPUT_0_JPEG_CONTROL
-	{0xC8AA, 0x0500, WORD_LEN, 0},  // CAM_OUTPUT_0_IMAGE_WIDTH
-	{0xC8AC, 0x02D0, WORD_LEN, 0},  // CAM_OUTPUT_0_IMAGE_HEIGHT
-	{0xC8AE, 0x0001, WORD_LEN, 0},  // CAM_OUTPUT_0_OUTPUT_FORMAT
-	{0x8404, 0x06, BYTE_LEN, 0 },  // SEQ_CMD
 
-	{SEQUENCE_WAIT_MS,100, WORD_LEN, 0},*/
 	{SEQUENCE_PROPERTY,SEQUENCE_CAPTURE},
 	{SEQUENCE_END, 0x00}
 };
@@ -5196,6 +5181,12 @@ static struct reginfo sensor_1080p[]=
 static struct reginfo sensor_qxga[] =
 {
 	{SEQUENCE_PROPERTY,SEQUENCE_CAPTURE},
+	{0x098E, 0x6C00, WORD_LEN, 0},       // MCU_ADDRESS [PRI_B_IMAGE_WIDTH]
+	{0x0990, 0x0800, WORD_LEN, 0},       // MCU_DATA_0
+	{0x098E, 0x6C02, WORD_LEN, 0},       // MCU_ADDRESS [PRI_B_IMAGE_HEIGHT]
+	{0x0990, 0x0600, WORD_LEN, 0},       // MCU_DATA_0
+	{SEQUENCE_WAIT_MS,100, WORD_LEN, 0},
+	
 	{SEQUENCE_END, 0x00}
 };
 
@@ -5203,6 +5194,12 @@ static struct reginfo sensor_qxga[] =
 static struct reginfo sensor_uxga[] =
 {
 	{SEQUENCE_PROPERTY,SEQUENCE_CAPTURE},
+	{0x098E, 0x6C00, WORD_LEN, 0},       // MCU_ADDRESS [PRI_B_IMAGE_WIDTH]
+	{0x0990, 0x0640, WORD_LEN, 0},       // MCU_DATA_0
+	{0x098E, 0x6C02, WORD_LEN, 0},       // MCU_ADDRESS [PRI_B_IMAGE_HEIGHT]
+	{0x0990, 0x04B0, WORD_LEN, 0},       // MCU_DATA_0
+	{SEQUENCE_WAIT_MS,100, WORD_LEN, 0},
+	//{SEQUENCE_PROPERTY,SEQUENCE_CAPTURE},
 	{SEQUENCE_END, 0x00}
 };
 /* 1280X1024 SXGA */
@@ -5215,6 +5212,12 @@ static struct reginfo sensor_sxga[] =
 static struct reginfo sensor_xga[] =
 {
 	{SEQUENCE_PROPERTY,SEQUENCE_CAPTURE},
+	{0x098E, 0x6C00, WORD_LEN, 0},       // MCU_ADDRESS [PRI_B_IMAGE_WIDTH]
+	{0x0990, 0x0500, WORD_LEN, 0},       // MCU_DATA_0
+	{0x098E, 0x6C02, WORD_LEN, 0},       // MCU_ADDRESS [PRI_B_IMAGE_HEIGHT]
+	{0x0990, 0x03C0, WORD_LEN, 0},       // MCU_DATA_0
+	{SEQUENCE_WAIT_MS,100, WORD_LEN, 0},
+	//{SEQUENCE_PROPERTY,SEQUENCE_CAPTURE},
 	{SEQUENCE_END, 0x00}
 };
 
@@ -5228,25 +5231,14 @@ static struct reginfo sensor_svga[] =
 /* 640X480 VGA */
 static struct reginfo sensor_vga[] =
 {
-	//720p2vga
-    {0xC83A, 0x000C, WORD_LEN, 0},    // CAM_CORE_A_Y_ADDR_START
-    {0xC83C, 0x0018, WORD_LEN, 0},    // CAM_CORE_A_X_ADDR_START
-    {0xC83E, 0x07B1, WORD_LEN, 0 },    // CAM_CORE_A_Y_ADDR_END
-    {0xC840, 0x0A45, WORD_LEN, 0},    // CAM_CORE_A_X_ADDR_END
-    {0xC868, 0x0423, WORD_LEN, 0},    // CAM_CORE_A_FRAME_LENGTH_LINES
-    {0xC86A, 0x1194, WORD_LEN, 0},    // CAM_CORE_A_LINE_LENGTH_PCK
-    {0xC86C, 0x0518, WORD_LEN, 0},    // CAM_CORE_A_OUTPUT_SIZE_WIDTH
-    {0xC86E, 0x03D4, WORD_LEN, 0},    // CAM_CORE_A_OUTPUT_SIZE_HEIGHT
-    {0xC870, 0x0014, WORD_LEN, 0},  // CAM_CORE_A_RX_FIFO_TRIGGER_MARK
-    {0xC858, 0x0003, WORD_LEN, 0},  // CAM_CORE_A_COARSE_ITMIN
-    {0xC8A4, 0x0A28, WORD_LEN, 0},    // CAM_CORE_B_OUTPUT_SIZE_WIDTH
-    {0xC8A6, 0x07A0, WORD_LEN, 0 },    // CAM_CORE_B_OUTPUT_SIZE_HEIGHT
-    {0xC8AA, 0x0280, WORD_LEN, 0 },    // CAM_OUTPUT_0_IMAGE_WIDTH
-    {0xC8AC, 0x01E0, WORD_LEN, 0 },    // CAM_OUTPUT_0_IMAGE_HEIGHT
-    {0xC8AE, 0x0001, WORD_LEN, 0 },    // CAM_OUTPUT_0_OUTPUT_FORMAT
-    {0x8404, 0x06, BYTE_LEN, 0 }, // SEQ_CMD
-    {SEQUENCE_WAIT_MS,100, WORD_LEN, 0},
-    {SEQUENCE_END, 0x00}
+	{0x098E, 0x6800, WORD_LEN, 0},       // MCU_ADDRESS [PRI_A_IMAGE_WIDTH]
+	{0x0990, 0x0280, WORD_LEN, 0},       // MCU_DATA_0
+	{0x098E, 0x6802, WORD_LEN, 0},       // MCU_ADDRESS [PRI_A_IMAGE_HEIGHT]
+	{0x0990, 0x01E0, WORD_LEN, 0},       // MCU_DATA_0
+	{0x098E, 0x8400, WORD_LEN, 0},       // MCU_ADDRESS [SEQ_CMD]
+	{0x0990, 0x0006, WORD_LEN, 0},       // MCU_DATA_0
+    	{SEQUENCE_WAIT_MS,100, WORD_LEN, 0},
+    	{SEQUENCE_END, 0x00}
 };
 
 /* 352X288 CIF */
@@ -5258,6 +5250,7 @@ static struct reginfo sensor_cif[] =
 /* 320*240 QVGA */
 static  struct reginfo sensor_qvga[] =
 {
+	//{SEQUENCE_PROPERTY,SEQUENCE_CAPTURE},
 	{SEQUENCE_END, 0x00}
 };
 
@@ -5266,90 +5259,7 @@ static struct reginfo sensor_qcif[] =
 {
 	{SEQUENCE_END, 0x00}
 };
-#if 0
-/* 160X120 QQVGA*/
-static struct reginfo ov2655_qqvga[] =
-{
 
-    {0x300E, 0x34},
-    {0x3011, 0x01},
-    {0x3012, 0x10},
-    {0x302a, 0x02},
-    {0x302b, 0xE6},
-    {0x306f, 0x14},
-    {0x3362, 0x90},
-
-    {0x3070, 0x5d},
-    {0x3072, 0x5d},
-    {0x301c, 0x07},
-    {0x301d, 0x07},
-
-    {0x3020, 0x01},
-    {0x3021, 0x18},
-    {0x3022, 0x00},
-    {0x3023, 0x06},
-    {0x3024, 0x06},
-    {0x3025, 0x58},
-    {0x3026, 0x02},
-    {0x3027, 0x61},
-    {0x3088, 0x00},
-    {0x3089, 0xa0},
-    {0x308a, 0x00},
-    {0x308b, 0x78},
-    {0x3316, 0x64},
-    {0x3317, 0x25},
-    {0x3318, 0x80},
-    {0x3319, 0x08},
-    {0x331a, 0x0a},
-    {0x331b, 0x07},
-    {0x331c, 0x80},
-    {0x331d, 0x38},
-    {0x3100, 0x00},
-    {0x3302, 0x11},
-
-    {0x0, 0x0},
-};
-
-
-
-static  struct reginfo ov2655_Sharpness_auto[] =
-{
-    {0x3306, 0x00},
-};
-
-static  struct reginfo ov2655_Sharpness1[] =
-{
-    {0x3306, 0x08},
-    {0x3371, 0x00},
-};
-
-static  struct reginfo ov2655_Sharpness2[][3] =
-{
-    //Sharpness 2
-    {0x3306, 0x08},
-    {0x3371, 0x01},
-};
-
-static  struct reginfo ov2655_Sharpness3[] =
-{
-    //default
-    {0x3306, 0x08},
-    {0x332d, 0x02},
-};
-static  struct reginfo ov2655_Sharpness4[]=
-{
-    //Sharpness 4
-    {0x3306, 0x08},
-    {0x332d, 0x03},
-};
-
-static  struct reginfo ov2655_Sharpness5[] =
-{
-    //Sharpness 5
-    {0x3306, 0x08},
-    {0x332d, 0x04},
-};
-#endif
 static  struct reginfo sensor_Preview2Capture[]=
 {
 	//capture2preview
@@ -5364,11 +5274,6 @@ static  struct reginfo sensor_Preview2Capture[]=
 static  struct reginfo sensor_Capture2Preview[]=
 {
 	//snap2preview
-	/*{0x098E, 0x843C, WORD_LEN, 0}, 	// LOGICAL_ADDRESS_ACCESS [SEQ_STATE_CFG_5_MAX_FRAME_CNT]
-	{0x843C, 0x01, BYTE_LEN, 0 }, 	// SEQ_STATE_CFG_5_MAX_FRAME_CNT
-	{0x8404, 0x01, BYTE_LEN, 0 },	// SEQ_CMD
-	{0x0016, 0x0447, WORD_LEN, 0},	// CLOCKS_CONTRO*/
-
 	{0x098E, 0xEC05, WORD_LEN, 0}, 
 	{0x0990, 0x0005, WORD_LEN, 0}, 
 	{0x098E, 0x8400, WORD_LEN, 0}, 
@@ -6481,6 +6386,7 @@ static int sensor_read(struct i2c_client *client, u16 reg, u16 *val)
 {
     int err,cnt;
     u8 buf[2];
+    u16 temp_val;
     struct i2c_msg msg[2];
 
     buf[0] = reg >> 8;
@@ -6506,7 +6412,10 @@ static int sensor_read(struct i2c_client *client, u16 reg, u16 *val)
         err = i2c_transfer(client->adapter, msg, 2);
 
         if (err >= 0) {
-            *val = buf[0];
+		temp_val = buf[0];
+		temp_val = temp_val << 8;
+		temp_val = temp_val |buf[1];
+            	*val = temp_val;
             return 0;
         } else {
         	SENSOR_TR("\n %s read reg(0x%x val:0x%x) failed, try to read again! \n",SENSOR_NAME_STRING(),reg, *val);
@@ -7012,11 +6921,11 @@ static bool sensor_fmt_videochk(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
     bool ret = false;
 
-	if ((f->fmt.pix.width == 1280) && (f->fmt.pix.height == 720)) {
+	/*if ((f->fmt.pix.width == 1280) && (f->fmt.pix.height == 720)) {
 		ret = true;
 	} else if ((f->fmt.pix.width == 1920) && (f->fmt.pix.height == 1080)) {
 		ret = true;
-	}
+	}*/
 
 	if (ret == true)
 		SENSOR_DG("%s %dx%d is video format\n", __FUNCTION__, f->fmt.pix.width, f->fmt.pix.height);
@@ -7025,8 +6934,8 @@ static bool sensor_fmt_videochk(struct v4l2_subdev *sd, struct v4l2_format *f)
 static struct reginfo* sensor_fmt_catch(int set_w, int set_h, int *ret_w, int *ret_h)
 {
 	struct reginfo *winseqe_set_addr = NULL;
-    
-    if (set_w*240 == set_h*320) {        
+
+    if (set_w*240 == set_h*320) {   
         if (((set_w >= 320) && (set_h >= 240)) && (sensor_qvga[0].reg!=SEQUENCE_END)) {
             winseqe_set_addr = sensor_qvga;
             *ret_w = 320;
@@ -7062,7 +6971,7 @@ static struct reginfo* sensor_fmt_catch(int set_w, int set_h, int *ret_w, int *r
             *ret_w = 2048;
             *ret_h = 1536;
         } 
-       
+
         if (winseqe_set_addr == NULL) {
             if (((set_w <= 176) && (set_h <= 144)) && (sensor_qcif[0].reg!=SEQUENCE_END)) {
         		winseqe_set_addr = sensor_qcif;
@@ -7074,7 +6983,11 @@ static struct reginfo* sensor_fmt_catch(int set_w, int set_h, int *ret_w, int *r
                 *ret_h = 288;
             }
 
-            if (((set_w <= 1280) && (set_h <= 720)) && (sensor_720p[0].reg!=SEQUENCE_END)) {
+	   if (((set_w <= 640) && (set_h <= 480)) && (sensor_vga[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_vga;
+                *ret_w = 640;
+                *ret_h = 480;
+            } else if (((set_w <= 1280) && (set_h <= 720)) && (sensor_720p[0].reg!=SEQUENCE_END)) {
                 winseqe_set_addr = sensor_720p;
                 *ret_w = 1280;
                 *ret_h = 720;
@@ -7289,22 +7202,23 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
             SENSOR_TR("%s set format capability failed\n", SENSOR_NAME_STRING());
             goto sensor_s_fmt_end;
         }
+		
         sensor->info_priv.winseqe_cur_addr  = winseqe_set_addr;
 		if ((winseqe_set_addr[0].reg==SEQUENCE_PROPERTY) && (winseqe_set_addr[0].val==SEQUENCE_CAPTURE)) {
 		} else {
 			sensor->info_priv.preview_w = pix->width;
 			sensor->info_priv.preview_h = pix->height;
 		}
-    }
-
+    	}
+    	
 	if (winseqe_set_addr && (winseqe_set_addr[0].reg==SEQUENCE_PROPERTY) && (winseqe_set_addr[0].val==SEQUENCE_CAPTURE)) {
 
-	#if CONFIG_SENSOR_Flash
+	/*#if CONFIG_SENSOR_Flash
         	if( (sensor->info_priv.flash == 1)|| (sensor->info_priv.flash == 2)) {
            		sensor_ioctrl(icd, Sensor_Flash, Flash_On);
 			 //sensor_ioctrl(icd, Sensor_Flash, Flash_Torch);
         	}
-        #endif   
+        #endif   */
 		
 
 		ret |= sensor_write_array(client, sensor_Preview2Capture);
@@ -7316,19 +7230,24 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 
          SENSOR_TR("-----------%s  :   %s   :   %d  Preview 2 Capture success!\n", SENSOR_NAME_STRING(),__FUNCTION__,__LINE__);
 
-        /*#if CONFIG_SENSOR_Flash
+        #if CONFIG_SENSOR_Flash
         if( (sensor->info_priv.flash == 1)|| (sensor->info_priv.flash == 2)) {
            sensor_ioctrl(icd, Sensor_Flash, Flash_On);
 			 //sensor_ioctrl(icd, Sensor_Flash, Flash_Torch);
-            SENSOR_DG("----flash-------%s    sensor->info_priv.flash = %d ,flash on in capture!\n", SENSOR_NAME_STRING(),sensor->info_priv.flash);
+            //SENSOR_DG("----flash-------%s    sensor->info_priv.flash = %d ,flash on in capture!\n", SENSOR_NAME_STRING(),sensor->info_priv.flash);
         }
         #endif 
-        */
+       
 		sensor->info_priv.capture_w = set_w;
 		sensor->info_priv.capture_h = set_h;
 		sensor->info_priv.snap2preview = true;
 	} else if (sensor->info_priv.snap2preview == true) {
 		if (winseqe_set_addr || ((sensor->info_priv.preview_w == pix->width) && (sensor->info_priv.preview_h == pix->height))) {
+			#if CONFIG_SENSOR_Flash
+            if ((sensor->info_priv.flash == 1) || (sensor->info_priv.flash == 2)) {
+                sensor_ioctrl(icd, Sensor_Flash, Flash_Off);
+            }
+            #endif    
 			ret |= sensor_write_array(client, sensor_Capture2Preview);
 			if (ret != 0) {
 	        	SENSOR_TR("%s Capture 2 Preview failed !!\n", SENSOR_NAME_STRING());
@@ -7337,11 +7256,11 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 			
             SENSOR_TR("%s Capture 2 Preview success\n", SENSOR_NAME_STRING());
 
-            #if CONFIG_SENSOR_Flash
+           /* #if CONFIG_SENSOR_Flash
             if ((sensor->info_priv.flash == 1) || (sensor->info_priv.flash == 2)) {
                 sensor_ioctrl(icd, Sensor_Flash, Flash_Off);
             }
-            #endif        
+            #endif     */   
     		sensor->info_priv.preview_w = pix->width;
     		sensor->info_priv.preview_h = pix->height;
     		sensor->info_priv.snap2preview = false;
@@ -7857,7 +7776,7 @@ static int sensor_s_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
         SENSOR_TR("\n %s ioctrl id = 0x%x  is invalidate \n", SENSOR_NAME_STRING(), ctrl->id);
         return -EINVAL;
     }
-
+	
     switch (ctrl->id)
     {
 #if CONFIG_SENSOR_Brightness
@@ -8148,7 +8067,7 @@ static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
                     return -EINVAL;
                 sensor->info_priv.flash = ext_ctrl->value;
 
-                SENSOR_DG("%s flash is %x    %d\n",SENSOR_NAME_STRING(), sensor->info_priv.flash,__LINE__);
+                SENSOR_DG("--------flash------------%s flash is %x    %d\n",SENSOR_NAME_STRING(), sensor->info_priv.flash,__LINE__);
                 break;
             }
 #endif
@@ -8192,7 +8111,7 @@ static int sensor_s_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_control
     struct soc_camera_device *icd = client->dev.platform_data;
     int i, error_cnt=0, error_idx=-1;
     
-    SENSOR_DG("\n%s..%s.. \n",__FUNCTION__,SENSOR_NAME_STRING());
+    SENSOR_DG("\n%s..%s.. ext_ctrl->count = %d\n",__FUNCTION__,SENSOR_NAME_STRING(),ext_ctrl->count);
 
     for (i=0; i<ext_ctrl->count; i++) {
         if (sensor_s_ext_control(icd, &ext_ctrl->controls[i]) != 0) {

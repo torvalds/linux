@@ -49,7 +49,7 @@
 	#undef AUTO_DETECT_DISABLE
 #endif
 
-#define DEBUG
+//#define DEBUG
 #ifdef DEBUG
 #define SOCDBG(fmt, arg...)	printk(KERN_ERR "%s: %s() " fmt, SOC_CS42L52_NAME, __FUNCTION__, ##arg)
 #else
@@ -770,13 +770,15 @@ static int soc_cs42l52_add_widgets(struct snd_soc_codec *soc_codec)
 	snd_soc_dapm_new_widgets(soc_codec);
         return 0;
 }
-
+#if 0
 #define SOC_CS42L52_RATES ( SNDRV_PCM_RATE_8000  | SNDRV_PCM_RATE_11025 | \
                             SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 | \
                             SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
                             SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | \
                             SNDRV_PCM_RATE_96000 )
-
+#else
+#define SOC_CS42L52_RATES  SNDRV_PCM_RATE_44100
+#endif
 #define SOC_CS42L52_FORMATS ( SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_U16_LE | \
                               SNDRV_PCM_FMTBIT_S18_3LE | SNDRV_PCM_FMTBIT_U18_3LE | \
                               SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_U20_3LE | \

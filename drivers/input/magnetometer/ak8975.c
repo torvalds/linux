@@ -701,7 +701,30 @@ static void akm8975_early_resume(struct early_suspend *handler)
 	AKMDBG("resumed with flag=%d", 
 	       atomic_read(&reserve_open_flag));
 }
+static int akm8975_suspend(struct i2c_client *client, pm_message_t mesg)
+{
+	AKMFUNC("akm8975_early_suspend");
+	atomic_set(&suspend_flag, 1);
+	atomic_set(&reserve_open_flag, atomic_read(&open_flag));
+	atomic_set(&open_flag, 0);
+	wake_up(&open_wq);
+	disable_irq(this_client->irq);
+	AKMDBG("suspended with flag=%d", 
+	       atomic_read(&reserve_open_flag));
+	return 0;
+}
 
+static int akm8975_resume(struct i2c_client *client)
+{
+	AKMFUNC("akm8975_early_resume");
+	enable_irq(this_client->irq);
+	atomic_set(&suspend_flag, 0);
+	atomic_set(&open_flag, atomic_read(&reserve_open_flag));
+	wake_up(&open_wq);
+	AKMDBG("resumed with flag=%d", 
+	       atomic_read(&reserve_open_flag));
+	return 0;
+}
 /*********************************************/
 static struct file_operations akmd_fops = {
 	.owner = THIS_MODULE,
@@ -864,9 +887,9 @@ int akm8975_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	atomic_set(&a_flag, 1);
 	atomic_set(&mv_flag, 1);
 	
-	akm->akm_early_suspend.suspend = akm8975_early_suspend;
-	akm->akm_early_suspend.resume = akm8975_early_resume;
-	register_early_suspend(&akm->akm_early_suspend);
+	//akm->akm_early_suspend.suspend = akm8975_early_suspend;
+	//akm->akm_early_suspend.resume = akm8975_early_resume;
+	//register_early_suspend(&akm->akm_early_suspend);
 	
 	AKMDBG("successfully probed.");
 	return 0;
@@ -910,6 +933,8 @@ static const struct i2c_device_id akm8975_id[] = {
 static struct i2c_driver akm8975_driver = {
 	.probe		= akm8975_probe,
 	.remove 	= akm8975_remove,
+	.suspend = akm8975_suspend,
+	.resume = akm8975_resume,
 	.id_table	= akm8975_id,
 	.driver = {
 		.name = AKM8975_I2C_NAME,
