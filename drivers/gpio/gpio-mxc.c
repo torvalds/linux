@@ -337,6 +337,15 @@ static void __devinit mxc_gpio_get_hw(struct platform_device *pdev)
 	mxc_gpio_hwtype = hwtype;
 }
 
+static int mxc_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
+{
+	struct bgpio_chip *bgc = to_bgpio_chip(gc);
+	struct mxc_gpio_port *port =
+		container_of(bgc, struct mxc_gpio_port, bgc);
+
+	return port->virtual_irq_start + offset;
+}
+
 static int __devinit mxc_gpio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -403,6 +412,7 @@ static int __devinit mxc_gpio_probe(struct platform_device *pdev)
 	if (err)
 		goto out_iounmap;
 
+	port->bgc.gc.to_irq = mxc_gpio_to_irq;
 	port->bgc.gc.base = pdev->id * 32;
 	port->bgc.dir = port->bgc.read_reg(port->bgc.reg_dir);
 	port->bgc.data = port->bgc.read_reg(port->bgc.reg_set);
