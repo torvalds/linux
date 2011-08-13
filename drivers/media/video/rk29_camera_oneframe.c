@@ -1285,7 +1285,7 @@ static int rk29_camera_try_fmt(struct soc_camera_device *icd,
 	ret = v4l2_subdev_call(sd, video, try_mbus_fmt, &mf);
 	if (ret < 0)
 		goto RK29_CAMERA_TRY_FMT_END;
-    
+    RK29CAMERA_DG("%s mf.width:%d  mf.height:%d\n",__FUNCTION__,mf.width,mf.height);
 	#ifdef CONFIG_VIDEO_RK29_WORK_IPP       
 	if ((mf.width > usr_w) && (mf.height > usr_h)) {
 		if (is_capture) {
@@ -1298,7 +1298,9 @@ static int rk29_camera_try_fmt(struct soc_camera_device *icd,
 			pix->width = usr_w;
 			pix->height = usr_h;
 		} else {
-			RK29CAMERA_TR("vipmem for IPP is overflow, This resolution(%dx%d -> %dx%d) is invalidate!\n",pix->width,pix->height,usr_w,usr_h);
+			RK29CAMERA_TR("vipmem for IPP is overflow, This resolution(%dx%d -> %dx%d) is invalidate!\n",mf.width,mf.height,usr_w,usr_h);
+            pix->width = mf.width;
+            pix->height = mf.height;            
 		}
 	} else if ((mf.width < usr_w) && (mf.height < usr_h)) {
 		if (((usr_w>>1) < mf.width) && ((usr_h>>1) < mf.height)) {
@@ -1311,10 +1313,14 @@ static int rk29_camera_try_fmt(struct soc_camera_device *icd,
 				pix->width = usr_w;
 				pix->height = usr_h;
 			} else {
-				RK29CAMERA_TR("vipmem for IPP is overflow, This resolution(%dx%d -> %dx%d) is invalidate!\n",pix->width,pix->height,usr_w,usr_h);
+				RK29CAMERA_TR("vipmem for IPP is overflow, This resolution(%dx%d -> %dx%d) is invalidate!\n",mf.width,mf.height,usr_w,usr_h);
+                pix->width = mf.width;
+                pix->height = mf.height;
 			}
 		} else {
-			RK29CAMERA_TR("The aspect ratio(%dx%d/%dx%d) is bigger than 2 !\n",pix->width,pix->height,usr_w,usr_h);
+			RK29CAMERA_TR("The aspect ratio(%dx%d/%dx%d) is bigger than 2 !\n",mf.width,mf.height,usr_w,usr_h);
+            pix->width = mf.width;
+            pix->height = mf.height;
 		}
 	}
 	#else
