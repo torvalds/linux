@@ -130,7 +130,7 @@ static inline int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type,
 	if (mem_type)
 		*mem_type = bo->tbo.mem.mem_type;
 	if (bo->tbo.sync_obj)
-		r = ttm_bo_wait(&bo->tbo, true, true, no_wait);
+		r = ttm_bo_wait(&bo->tbo, true, true, no_wait, TTM_USAGE_READWRITE);
 	spin_unlock(&bo->tbo.bdev->fence_lock);
 	ttm_bo_unreserve(&bo->tbo);
 	return r;

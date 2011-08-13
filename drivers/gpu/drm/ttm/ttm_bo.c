@@ -498,7 +498,7 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 	int ret;
 
 	spin_lock(&bdev->fence_lock);
-	(void) ttm_bo_wait(bo, false, false, true);
+	(void) ttm_bo_wait(bo, false, false, true, TTM_USAGE_READWRITE);
 	if (!bo->sync_obj) {
 
 		spin_lock(&glob->lru_lock);
@@ -566,7 +566,8 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo,
 
 retry:
 	spin_lock(&bdev->fence_lock);
-	ret = ttm_bo_wait(bo, false, interruptible, no_wait_gpu);
+	ret = ttm_bo_wait(bo, false, interruptible, no_wait_gpu,
+			  TTM_USAGE_READWRITE);
 	spin_unlock(&bdev->fence_lock);
 
 	if (unlikely(ret != 0))
@@ -725,7 +726,8 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 	int ret = 0;
 
 	spin_lock(&bdev->fence_lock);
-	ret = ttm_bo_wait(bo, false, interruptible, no_wait_gpu);
+	ret = ttm_bo_wait(bo, false, interruptible, no_wait_gpu,
+			  TTM_USAGE_READWRITE);
 	spin_unlock(&bdev->fence_lock);
 
 	if (unlikely(ret != 0)) {
@@ -1072,7 +1074,8 @@ int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 	 * instead of doing it here.
 	 */
 	spin_lock(&bdev->fence_lock);
-	ret = ttm_bo_wait(bo, false, interruptible, no_wait_gpu);
+	ret = ttm_bo_wait(bo, false, interruptible, no_wait_gpu,
+			  TTM_USAGE_READWRITE);
 	spin_unlock(&bdev->fence_lock);
 	if (ret)
 		return ret;
@@ -1692,34 +1695,83 @@ out_unlock:
 	return ret;
 }
 
+static void ttm_bo_unref_sync_obj_locked(struct ttm_buffer_object *bo,
+					 void *sync_obj,
+					 void **extra_sync_obj)
+{
+	struct ttm_bo_device *bdev = bo->bdev;
+	struct ttm_bo_driver *driver = bdev->driver;
+	void *tmp_obj = NULL, *tmp_obj_read = NULL, *tmp_obj_write = NULL;
+
+	/* We must unref the sync obj wherever it's ref'd.
+	 * Note that if we unref bo->sync_obj, we can unref both the read
+	 * and write sync objs too, because they can't be newer than
+	 * bo->sync_obj, so they are no longer relevant. */
+	if (sync_obj == bo->sync_obj ||
+	    sync_obj == bo->sync_obj_read) {
+		tmp_obj_read = bo->sync_obj_read;
+		bo->sync_obj_read = NULL;
+	}
+	if (sync_obj == bo->sync_obj ||
+	    sync_obj == bo->sync_obj_write) {
+		tmp_obj_write = bo->sync_obj_write;
+		bo->sync_obj_write = NULL;
+	}
+	if (sync_obj == bo->sync_obj) {
+		tmp_obj = bo->sync_obj;
+		bo->sync_obj = NULL;
+	}
+
+	clear_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags);
+	spin_unlock(&bdev->fence_lock);
+	if (tmp_obj)
+		driver->sync_obj_unref(&tmp_obj);
+	if (tmp_obj_read)
+		driver->sync_obj_unref(&tmp_obj_read);
+	if (tmp_obj_write)
+		driver->sync_obj_unref(&tmp_obj_write);
+	if (extra_sync_obj)
+		driver->sync_obj_unref(extra_sync_obj);
+	spin_lock(&bdev->fence_lock);
+}
+
 int ttm_bo_wait(struct ttm_buffer_object *bo,
-		bool lazy, bool interruptible, bool no_wait)
+		bool lazy, bool interruptible, bool no_wait,
+		enum ttm_buffer_usage usage)
 {
 	struct ttm_bo_driver *driver = bo->bdev->driver;
 	struct ttm_bo_device *bdev = bo->bdev;
 	void *sync_obj;
 	void *sync_obj_arg;
 	int ret = 0;
+	void **bo_sync_obj;
 
-	if (likely(bo->sync_obj == NULL))
+	switch (usage) {
+	case TTM_USAGE_READ:
+		bo_sync_obj = &bo->sync_obj_read;
+		break;
+	case TTM_USAGE_WRITE:
+		bo_sync_obj = &bo->sync_obj_write;
+		break;
+	case TTM_USAGE_READWRITE:
+	default:
+		bo_sync_obj = &bo->sync_obj;
+	}
+
+	if (likely(*bo_sync_obj == NULL))
 		return 0;
 
-	while (bo->sync_obj) {
+	while (*bo_sync_obj) {
 
-		if (driver->sync_obj_signaled(bo->sync_obj, bo->sync_obj_arg)) {
-			void *tmp_obj = bo->sync_obj;
-			bo->sync_obj = NULL;
-			clear_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags);
-			spin_unlock(&bdev->fence_lock);
-			driver->sync_obj_unref(&tmp_obj);
-			spin_lock(&bdev->fence_lock);
+		if (driver->sync_obj_signaled(*bo_sync_obj, bo->sync_obj_arg)) {
+			ttm_bo_unref_sync_obj_locked(bo, *bo_sync_obj, NULL);
 			continue;
 		}
 
 		if (no_wait)
 			return -EBUSY;
 
-		sync_obj = driver->sync_obj_ref(bo->sync_obj);
+		sync_obj = driver->sync_obj_ref(*bo_sync_obj);
 		sync_obj_arg = bo->sync_obj_arg;
 		spin_unlock(&bdev->fence_lock);
 		ret = driver->sync_obj_wait(sync_obj, sync_obj_arg,
@@ -1730,16 +1782,9 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 			return ret;
 		}
 		spin_lock(&bdev->fence_lock);
-		if (likely(bo->sync_obj == sync_obj &&
+		if (likely(*bo_sync_obj == sync_obj &&
 			   bo->sync_obj_arg == sync_obj_arg)) {
-			void *tmp_obj = bo->sync_obj;
-			bo->sync_obj = NULL;
-			clear_bit(TTM_BO_PRIV_FLAG_MOVING,
-				  &bo->priv_flags);
-			spin_unlock(&bdev->fence_lock);
-			driver->sync_obj_unref(&sync_obj);
-			driver->sync_obj_unref(&tmp_obj);
-			spin_lock(&bdev->fence_lock);
+			ttm_bo_unref_sync_obj_locked(bo, *bo_sync_obj, &sync_obj);
 		} else {
 			spin_unlock(&bdev->fence_lock);
 			driver->sync_obj_unref(&sync_obj);
@@ -1763,7 +1808,7 @@ int ttm_bo_synccpu_write_grab(struct ttm_buffer_object *bo, bool no_wait)
 	if (unlikely(ret != 0))
 		return ret;
 	spin_lock(&bdev->fence_lock);
-	ret = ttm_bo_wait(bo, false, true, no_wait);
+	ret = ttm_bo_wait(bo, false, true, no_wait, TTM_USAGE_READWRITE);
 	spin_unlock(&bdev->fence_lock);
 	if (likely(ret == 0))
 		atomic_inc(&bo->cpu_writers);
@@ -1837,7 +1882,7 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 	 */
 
 	spin_lock(&bo->bdev->fence_lock);
-	ret = ttm_bo_wait(bo, false, false, false);
+	ret = ttm_bo_wait(bo, false, false, false, TTM_USAGE_READWRITE);
 	spin_unlock(&bo->bdev->fence_lock);
 
 	if (unlikely(ret != 0))

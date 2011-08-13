@@ -122,7 +122,7 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	spin_lock(&bdev->fence_lock);
 	if (test_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags)) {
-		ret = ttm_bo_wait(bo, false, true, false);
+		ret = ttm_bo_wait(bo, false, true, false, TTM_USAGE_READWRITE);
 		spin_unlock(&bdev->fence_lock);
 		if (unlikely(ret != 0)) {
 			retval = (ret != -ERESTARTSYS) ?

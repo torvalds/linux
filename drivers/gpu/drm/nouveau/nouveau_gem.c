@@ -589,7 +589,8 @@ nouveau_gem_pushbuf_reloc_apply(struct drm_device *dev,
 		}
 
 		spin_lock(&nvbo->bo.bdev->fence_lock);
-		ret = ttm_bo_wait(&nvbo->bo, false, false, false);
+		ret = ttm_bo_wait(&nvbo->bo, false, false, false,
+				  TTM_USAGE_READWRITE);
 		spin_unlock(&nvbo->bo.bdev->fence_lock);
 		if (ret) {
 			NV_ERROR(dev, "reloc wait_idle failed: %d\n", ret);
@@ -825,7 +826,7 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 	nvbo = nouveau_gem_object(gem);
 
 	spin_lock(&nvbo->bo.bdev->fence_lock);
-	ret = ttm_bo_wait(&nvbo->bo, true, true, no_wait);
+	ret = ttm_bo_wait(&nvbo->bo, true, true, no_wait, TTM_USAGE_READWRITE);
 	spin_unlock(&nvbo->bo.bdev->fence_lock);
 	drm_gem_object_unreference_unlocked(gem);
 	return ret;

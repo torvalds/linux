@@ -80,6 +80,7 @@ int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			p->relocs[i].lobj.wdomain = r->write_domain;
 			p->relocs[i].lobj.rdomain = r->read_domains;
 			p->relocs[i].lobj.tv.bo = &p->relocs[i].robj->tbo;
+			p->relocs[i].lobj.tv.usage = TTM_USAGE_READWRITE;
 			p->relocs[i].handle = r->handle;
 			p->relocs[i].flags = r->flags;
 			radeon_bo_list_add_object(&p->relocs[i].lobj,

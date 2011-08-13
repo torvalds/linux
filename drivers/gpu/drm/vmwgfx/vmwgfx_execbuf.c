@@ -224,6 +224,7 @@ static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
 	if (unlikely(cur_validate_node == sw_context->cur_val_buf)) {
 		val_buf = &sw_context->val_bufs[cur_validate_node];
 		val_buf->bo = ttm_bo_reference(bo);
+		val_buf->usage = TTM_USAGE_READWRITE;
 		val_buf->new_sync_obj_arg = (void *) dev_priv;
 		list_add_tail(&val_buf->head, &sw_context->validate_nodes);
 		++sw_context->cur_val_buf;

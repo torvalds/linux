@@ -44,6 +44,11 @@ struct ttm_bo_device;
 
 struct drm_mm_node;
 
+enum ttm_buffer_usage {
+    TTM_USAGE_READ = 1,
+    TTM_USAGE_WRITE = 2,
+    TTM_USAGE_READWRITE = TTM_USAGE_READ | TTM_USAGE_WRITE
+};
 
 /**
  * struct ttm_placement
@@ -174,7 +179,10 @@ struct ttm_tt;
  * the bo_device::lru_lock.
  * @reserved: Deadlock-free lock used for synchronization state transitions.
  * @sync_obj_arg: Opaque argument to synchronization object function.
- * @sync_obj: Pointer to a synchronization object.
+ * @sync_obj: Pointer to a synchronization object of a last read or write,
+ * whichever is later.
+ * @sync_obj_read: Pointer to a synchronization object of a last read.
+ * @sync_obj_write: Pointer to a synchronization object of a last write.
  * @priv_flags: Flags describing buffer object internal state.
  * @vm_rb: Rb node for the vm rb tree.
  * @vm_node: Address space manager node.
@@ -258,6 +266,8 @@ struct ttm_buffer_object {
 
 	void *sync_obj_arg;
 	void *sync_obj;
+	void *sync_obj_read;
+	void *sync_obj_write;
 	unsigned long priv_flags;
 
 	/**
@@ -325,6 +335,7 @@ ttm_bo_reference(struct ttm_buffer_object *bo)
  * @bo:  The buffer object.
  * @interruptible:  Use interruptible wait.
  * @no_wait:  Return immediately if buffer is busy.
+ * @usage:  Whether to wait for the last read and/or the last write.
  *
  * This function must be called with the bo::mutex held, and makes
  * sure any previous rendering to the buffer is completed.
@@ -334,7 +345,8 @@ ttm_bo_reference(struct ttm_buffer_object *bo)
  * Returns -ERESTARTSYS if interrupted by a signal.
  */
 extern int ttm_bo_wait(struct ttm_buffer_object *bo, bool lazy,
-		       bool interruptible, bool no_wait);
+		       bool interruptible, bool no_wait,
+		       enum ttm_buffer_usage usage);
 /**
  * ttm_bo_validate
  *

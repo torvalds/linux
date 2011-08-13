@@ -41,20 +41,26 @@
  * @bo:             refcounted buffer object pointer.
  * @new_sync_obj_arg: New sync_obj_arg for @bo, to be used once
  * adding a new sync object.
+ * @usage           Indicates how @bo is used by the device.
  * @reserved:       Indicates whether @bo has been reserved for validation.
  * @removed:        Indicates whether @bo has been removed from lru lists.
  * @put_count:      Number of outstanding references on bo::list_kref.
  * @old_sync_obj:   Pointer to a sync object about to be unreferenced
+ * @old_sync_obj_read: Pointer to a read sync object about to be unreferenced.
+ * @old_sync_obj_write: Pointer to a write sync object about to be unreferenced.
  */
 
 struct ttm_validate_buffer {
 	struct list_head head;
 	struct ttm_buffer_object *bo;
 	void *new_sync_obj_arg;
+	enum ttm_buffer_usage usage;
 	bool reserved;
 	bool removed;
 	int put_count;
 	void *old_sync_obj;
+	void *old_sync_obj_read;
+	void *old_sync_obj_write;
 };
 
 /**

@@ -221,8 +221,18 @@ void ttm_eu_fence_buffer_objects(struct list_head *list, void *sync_obj)
 
 	list_for_each_entry(entry, list, head) {
 		bo = entry->bo;
+		entry->old_sync_obj_read = NULL;
+		entry->old_sync_obj_write = NULL;
 		entry->old_sync_obj = bo->sync_obj;
 		bo->sync_obj = driver->sync_obj_ref(sync_obj);
+		if (entry->usage & TTM_USAGE_READ) {
+			entry->old_sync_obj_read = bo->sync_obj_read;
+			bo->sync_obj_read = driver->sync_obj_ref(sync_obj);
+		}
+		if (entry->usage & TTM_USAGE_WRITE) {
+			entry->old_sync_obj_write = bo->sync_obj_write;
+			bo->sync_obj_write = driver->sync_obj_ref(sync_obj);
+		}
 		bo->sync_obj_arg = entry->new_sync_obj_arg;
 		ttm_bo_unreserve_locked(bo);
 		entry->reserved = false;
@@ -231,8 +241,15 @@ void ttm_eu_fence_buffer_objects(struct list_head *list, void *sync_obj)
 	spin_unlock(&bdev->fence_lock);
 
 	list_for_each_entry(entry, list, head) {
-		if (entry->old_sync_obj)
+		if (entry->old_sync_obj) {
 			driver->sync_obj_unref(&entry->old_sync_obj);
+		}
+		if (entry->old_sync_obj_read) {
+			driver->sync_obj_unref(&entry->old_sync_obj_read);
+		}
+		if (entry->old_sync_obj_write) {
+			driver->sync_obj_unref(&entry->old_sync_obj_write);
+		}
 	}
 }
 EXPORT_SYMBOL(ttm_eu_fence_buffer_objects);
