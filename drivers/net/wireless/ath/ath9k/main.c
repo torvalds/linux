@@ -826,11 +826,9 @@ irqreturn_t ath_isr(int irq, void *dev)
 	if (status & ATH9K_INT_TXURN)
 		ath9k_hw_updatetxtriglevel(ah, true);
 
-	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
-		if (status & ATH9K_INT_RXEOL) {
-			ah->imask &= ~(ATH9K_INT_RXEOL | ATH9K_INT_RXORN);
-			ath9k_hw_set_interrupts(ah, ah->imask);
-		}
+	if (status & ATH9K_INT_RXEOL) {
+		ah->imask &= ~(ATH9K_INT_RXEOL | ATH9K_INT_RXORN);
+		ath9k_hw_set_interrupts(ah, ah->imask);
 	}
 
 	if (status & ATH9K_INT_MIB) {
