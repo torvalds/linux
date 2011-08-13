@@ -88,9 +88,6 @@ config USE_GENERIC_HARDIRQS
 	bool "Use genirq"
 	depends on MMU
 	depends on !APOLLO
-	depends on !MVME147
-	depends on !MVME16x
-	depends on !BVME6000
 	depends on !SUN3X
 	depends on !Q40
 	depends on !SUN3
