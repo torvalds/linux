@@ -732,7 +732,7 @@ static int isp_pipeline_enable(struct isp_pipeline *pipe,
 	struct media_pad *pad;
 	struct v4l2_subdev *subdev;
 	unsigned long flags;
-	int ret = 0;
+	int ret;
 
 	spin_lock_irqsave(&pipe->lock, flags);
 	pipe->state &= ~(ISP_PIPELINE_IDLE_INPUT | ISP_PIPELINE_IDLE_OUTPUT);
@@ -756,7 +756,7 @@ static int isp_pipeline_enable(struct isp_pipeline *pipe,
 
 		ret = v4l2_subdev_call(subdev, video, s_stream, mode);
 		if (ret < 0 && ret != -ENOIOCTLCMD)
-			break;
+			return ret;
 
 		if (subdev == &isp->isp_ccdc.subdev) {
 			v4l2_subdev_call(&isp->isp_aewb.subdev, video,
@@ -777,7 +777,7 @@ static int isp_pipeline_enable(struct isp_pipeline *pipe,
 	if (pipe->do_propagation && mode == ISP_PIPELINE_STREAM_SINGLESHOT)
 		atomic_inc(&pipe->frame_number);
 
-	return ret;
+	return 0;
 }
 
 static int isp_pipeline_wait_resizer(struct isp_device *isp)
