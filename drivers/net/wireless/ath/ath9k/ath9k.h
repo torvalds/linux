@@ -558,8 +558,7 @@ struct ath_ant_comb {
 #define SC_OP_BT_PRIORITY_DETECTED   BIT(12)
 #define SC_OP_BT_SCAN		     BIT(13)
 #define SC_OP_ANI_RUN		     BIT(14)
-#define SC_OP_ENABLE_APM	     BIT(15)
-#define SC_OP_PRIM_STA_VIF	     BIT(16)
+#define SC_OP_PRIM_STA_VIF	     BIT(15)
 
 /* Powersave flags */
 #define PS_WAIT_FOR_BEACON        BIT(0)

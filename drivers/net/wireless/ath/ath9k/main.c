@@ -565,7 +565,6 @@ set_timer:
 static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta)
 {
 	struct ath_node *an;
-	struct ath_hw *ah = sc->sc_ah;
 	an = (struct ath_node *)sta->drv_priv;
 
 #ifdef CONFIG_ATH9K_DEBUGFS
@@ -574,9 +573,6 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta)
 	spin_unlock(&sc->nodes_lock);
 	an->sta = sta;
 #endif
-	if ((ah->caps.hw_caps) & ATH9K_HW_CAP_APM)
-		sc->sc_flags |= SC_OP_ENABLE_APM;
-
 	if (sc->sc_flags & SC_OP_TXAGGR) {
 		ath_tx_node_init(sc, an);
 		an->maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +

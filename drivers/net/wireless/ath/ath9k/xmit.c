@@ -1584,9 +1584,9 @@ u8 ath_txchainmask_reduction(struct ath_softc *sc, u8 chainmask, u32 rate)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath9k_channel *curchan = ah->curchan;
-	if ((sc->sc_flags & SC_OP_ENABLE_APM) &&
-			(curchan->channelFlags & CHANNEL_5GHZ) &&
-			(chainmask == 0x7) && (rate < 0x90))
+	if ((ah->caps.hw_caps & ATH9K_HW_CAP_APM) &&
+	    (curchan->channelFlags & CHANNEL_5GHZ) &&
+	    (chainmask == 0x7) && (rate < 0x90))
 		return 0x3;
 	else
 		return chainmask;
