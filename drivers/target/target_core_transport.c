@@ -4044,8 +4044,6 @@ void transport_do_task_sg_chain(struct se_cmd *cmd)
 		if (!task->task_sg)
 			continue;
 
-		BUG_ON(!task->task_padded_sg);
-
 		if (!sg_first) {
 			sg_first = task->task_sg;
 			chained_nents = task->task_sg_nents;
@@ -4053,9 +4051,19 @@ void transport_do_task_sg_chain(struct se_cmd *cmd)
 			sg_chain(sg_prev, sg_prev_nents, task->task_sg);
 			chained_nents += task->task_sg_nents;
 		}
+		/*
+		 * For the padded tasks, use the extra SGL vector allocated
+		 * in transport_allocate_data_tasks() for the sg_prev_nents
+		 * offset into sg_chain() above..  The last task of a
+		 * multi-task list, or a single task will not have
+		 * task->task_sg_padded set..
+		 */
+		if (task->task_padded_sg)
+			sg_prev_nents = (task->task_sg_nents + 1);
+		else
+			sg_prev_nents = task->task_sg_nents;
 
 		sg_prev = task->task_sg;
-		sg_prev_nents = task->task_sg_nents;
 	}
 	/*
 	 * Setup the starting pointer and total t_tasks_sg_linked_no including
@@ -4107,7 +4115,7 @@ static int transport_allocate_data_tasks(
 	
 	cmd_sg = sgl;
 	for (i = 0; i < task_count; i++) {
-		unsigned int task_size;
+		unsigned int task_size, task_sg_nents_padded;
 		int count;
 
 		task = transport_generic_get_task(cmd, data_direction);
@@ -4135,24 +4143,24 @@ static int transport_allocate_data_tasks(
 		 * Check if the fabric module driver is requesting that all
 		 * struct se_task->task_sg[] be chained together..  If so,
 		 * then allocate an extra padding SG entry for linking and
-		 * marking the end of the chained SGL.
-		 * Possibly over-allocate task sgl size by using cmd sgl size.
-		 * It's so much easier and only a waste when task_count > 1.
-		 * That is extremely rare.
+		 * marking the end of the chained SGL for every task except
+		 * the last one for (task_count > 1) operation, or skipping
+		 * the extra padding for the (task_count == 1) case.
 		 */
-		if (cmd->se_tfo->task_sg_chaining) {
-			task->task_sg_nents++;
+		if (cmd->se_tfo->task_sg_chaining && (i < (task_count - 1))) {
+			task_sg_nents_padded = (task->task_sg_nents + 1);
 			task->task_padded_sg = 1;
-		}
+		} else
+			task_sg_nents_padded = task->task_sg_nents;
 
 		task->task_sg = kmalloc(sizeof(struct scatterlist) *
-					task->task_sg_nents, GFP_KERNEL);
+					task_sg_nents_padded, GFP_KERNEL);
 		if (!task->task_sg) {
 			cmd->se_dev->transport->free_task(task);
 			return -ENOMEM;
 		}
 
-		sg_init_table(task->task_sg, task->task_sg_nents);
+		sg_init_table(task->task_sg, task_sg_nents_padded);
 
 		task_size = task->task_size;
 
