@@ -209,6 +209,9 @@ static int __devinit max17042_probe(struct i2c_client *client,
 	if (!chip->pdata->enable_current_sense)
 		chip->battery.num_properties -= 2;
 
+	if (chip->pdata->r_sns == 0)
+		chip->pdata->r_sns = MAX17042_DEFAULT_SNS_RESISTOR;
+
 	ret = power_supply_register(&client->dev, &chip->battery);
 	if (ret) {
 		dev_err(&client->dev, "failed: power supply register\n");
@@ -225,9 +228,6 @@ static int __devinit max17042_probe(struct i2c_client *client,
 		max17042_write_reg(client, MAX17042_CGAIN, 0x0000);
 		max17042_write_reg(client, MAX17042_MiscCFG, 0x0003);
 		max17042_write_reg(client, MAX17042_LearnCFG, 0x0007);
-	} else {
-		if (chip->pdata->r_sns == 0)
-			chip->pdata->r_sns = MAX17042_DEFAULT_SNS_RESISTOR;
 	}
 
 	return 0;
