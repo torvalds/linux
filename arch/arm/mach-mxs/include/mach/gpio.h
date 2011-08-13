@@ -22,8 +22,6 @@
 
 #include <asm-generic/gpio.h>
 
-#define MXS_GPIO_NR(bank, nr)	((bank) * 32 + (nr))
-
 /* use gpiolib dispatchers */
 #define gpio_get_value		__gpio_get_value
 #define gpio_set_value		__gpio_set_value
