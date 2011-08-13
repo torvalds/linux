@@ -1163,6 +1163,59 @@ static const struct file_operations fops_regdump = {
 	.llseek = default_llseek,/* read accesses f_pos */
 };
 
+static ssize_t read_file_dump_nfcal(struct file *file, char __user *user_buf,
+				    size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath9k_nfcal_hist *h = sc->caldata.nfCalHist;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ieee80211_conf *conf = &common->hw->conf;
+	u32 len = 0, size = 1500;
+	u32 i, j;
+	ssize_t retval = 0;
+	char *buf;
+	u8 chainmask = (ah->rxchainmask << 3) | ah->rxchainmask;
+	u8 nread;
+
+	buf = kzalloc(size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	len += snprintf(buf + len, size - len,
+			"Channel Noise Floor : %d\n", ah->noise);
+	len += snprintf(buf + len, size - len,
+			"Chain | privNF | # Readings | NF Readings\n");
+	for (i = 0; i < NUM_NF_READINGS; i++) {
+		if (!(chainmask & (1 << i)) ||
+		    ((i >= AR5416_MAX_CHAINS) && !conf_is_ht40(conf)))
+			continue;
+
+		nread = AR_PHY_CCA_FILTERWINDOW_LENGTH - h[i].invalidNFcount;
+		len += snprintf(buf + len, size - len, " %d\t %d\t %d\t\t",
+				i, h[i].privNF, nread);
+		for (j = 0; j < nread; j++)
+			len += snprintf(buf + len, size - len,
+					" %d", h[i].nfCalBuffer[j]);
+		len += snprintf(buf + len, size - len, "\n");
+	}
+
+	if (len > size)
+		len = size;
+
+	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+
+	return retval;
+}
+
+static const struct file_operations fops_dump_nfcal = {
+	.read = read_file_dump_nfcal,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 static ssize_t read_file_base_eeprom(struct file *file, char __user *user_buf,
 				     size_t count, loff_t *ppos)
 {
@@ -1262,6 +1315,8 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    &ah->config.cwm_ignore_extcca);
 	debugfs_create_file("regdump", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_regdump);
+	debugfs_create_file("dump_nfcal", S_IRUSR, sc->debug.debugfs_phy, sc,
+			    &fops_dump_nfcal);
 	debugfs_create_file("base_eeprom", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_base_eeprom);
 	debugfs_create_file("modal_eeprom", S_IRUSR, sc->debug.debugfs_phy, sc,
