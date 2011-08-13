@@ -116,4 +116,6 @@
 	.type = _type,							\
 }
 
+#define IMX_GPIO_TO_IRQ(gpio)	(MXC_GPIO_IRQ_START + (gpio))
+
 #endif /* __ASM_ARCH_MXC_HARDWARE_H__ */

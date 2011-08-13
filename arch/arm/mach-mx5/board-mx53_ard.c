@@ -134,8 +134,8 @@ static struct resource ard_smsc911x_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	{
-		.start =  gpio_to_irq(ARD_ETHERNET_INT_B),
-		.end =  gpio_to_irq(ARD_ETHERNET_INT_B),
+		.start =  IMX_GPIO_TO_IRQ(ARD_ETHERNET_INT_B),
+		.end =  IMX_GPIO_TO_IRQ(ARD_ETHERNET_INT_B),
 		.flags = IORESOURCE_IRQ,
 	},
 };

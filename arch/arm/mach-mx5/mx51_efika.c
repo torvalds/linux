@@ -589,7 +589,7 @@ static struct spi_board_info mx51_efika_spi_board_info[] __initdata = {
 		.bus_num = 0,
 		.chip_select = 0,
 		.platform_data = &mx51_efika_mc13892_data,
-		.irq = gpio_to_irq(EFIKAMX_PMIC),
+		.irq = IMX_GPIO_TO_IRQ(EFIKAMX_PMIC),
 	},
 };
 
