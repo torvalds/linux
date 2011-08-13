@@ -839,19 +839,7 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 			       struct ath9k_channel *chan)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_hw_capabilities *pCap = &ah->caps;
-	int val;
 	bool txiqcal_done = false;
-
-	val = REG_READ(ah, AR_ENT_OTP);
-	ath_dbg(common, ATH_DBG_CALIBRATE, "ath9k: AR_ENT_OTP 0x%x\n", val);
-
-	/* Configure rx/tx chains before running AGC/TxiQ cals */
-	if (val & AR_ENT_OTP_CHAIN2_DISABLE)
-		ar9003_hw_set_chain_masks(ah, 0x3, 0x3);
-	else
-		ar9003_hw_set_chain_masks(ah, pCap->rx_chainmask,
-					  pCap->tx_chainmask);
 
 	/* Do Tx IQ Calibration */
 	REG_RMW_FIELD(ah, AR_PHY_TX_IQCAL_CONTROL_1,
@@ -886,9 +874,6 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 
 	if (txiqcal_done)
 		ar9003_hw_tx_iq_cal_post_proc(ah);
-
-	/* Revert chainmasks to their original values before NF cal */
-	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);
 
 	ath9k_hw_start_nfcal(ah, true);
 
