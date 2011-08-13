@@ -352,18 +352,45 @@ static int b43_phy_ht_op_init(struct b43_wldev *dev)
 
 	b43_phy_write(dev, 0x0b9, 0x0072);
 
-	/* TODO: Some ops here */
+	b43_httab_write_few(dev, B43_HTTAB16(7, 0x14e), 2, 0x010f, 0x010f);
+	b43_httab_write_few(dev, B43_HTTAB16(7, 0x15e), 2, 0x010f, 0x010f);
+	b43_httab_write_few(dev, B43_HTTAB16(7, 0x16e), 2, 0x010f, 0x010f);
 
 	b43_phy_ht_afe_unk1(dev);
 
-	/* TODO: Some ops here */
+	b43_httab_write_few(dev, B43_HTTAB16(7, 0x130), 9, 0x777, 0x111, 0x111,
+			    0x777, 0x111, 0x111, 0x777, 0x111, 0x111);
+
+	b43_httab_write(dev, B43_HTTAB16(7, 0x120), 0x0777);
+	b43_httab_write(dev, B43_HTTAB16(7, 0x124), 0x0777);
+
+	b43_httab_write(dev, B43_HTTAB16(8, 0x00), 0x02);
+	b43_httab_write(dev, B43_HTTAB16(8, 0x10), 0x02);
+	b43_httab_write(dev, B43_HTTAB16(8, 0x20), 0x02);
+
+	b43_httab_write_few(dev, B43_HTTAB16(8, 0x08), 4,
+			    0x8e, 0x96, 0x96, 0x96);
+	b43_httab_write_few(dev, B43_HTTAB16(8, 0x18), 4,
+			    0x8f, 0x9f, 0x9f, 0x9f);
+	b43_httab_write_few(dev, B43_HTTAB16(8, 0x28), 4,
+			    0x8f, 0x9f, 0x9f, 0x9f);
+
+	b43_httab_write_few(dev, B43_HTTAB16(8, 0x0c), 4, 0x2, 0x2, 0x2, 0x2);
+	b43_httab_write_few(dev, B43_HTTAB16(8, 0x1c), 4, 0x2, 0x2, 0x2, 0x2);
+	b43_httab_write_few(dev, B43_HTTAB16(8, 0x2c), 4, 0x2, 0x2, 0x2, 0x2);
 
 	b43_phy_maskset(dev, 0x0280, 0xff00, 0x3e);
 	b43_phy_maskset(dev, 0x0283, 0xff00, 0x3e);
 	b43_phy_maskset(dev, B43_PHY_OFDM(0x0141), 0xff00, 0x46);
 	b43_phy_maskset(dev, 0x0283, 0xff00, 0x40);
 
-	/* TODO: Some ops here */
+	b43_httab_write_few(dev, B43_HTTAB16(00, 0x8), 4,
+			    0x09, 0x0e, 0x13, 0x18);
+	b43_httab_write_few(dev, B43_HTTAB16(01, 0x8), 4,
+			    0x09, 0x0e, 0x13, 0x18);
+	/* TODO: Did wl mean 2 instead of 40? */
+	b43_httab_write_few(dev, B43_HTTAB16(40, 0x8), 4,
+			    0x09, 0x0e, 0x13, 0x18);
 
 	b43_phy_maskset(dev, B43_PHY_OFDM(0x24), 0x3f, 0xd);
 	b43_phy_maskset(dev, B43_PHY_OFDM(0x64), 0x3f, 0xd);
