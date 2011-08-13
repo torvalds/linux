@@ -31,6 +31,8 @@
 #include <linux/of_device.h>
 #include <asm-generic/bug.h>
 
+#define irq_to_gpio(irq)	((irq) - MXC_GPIO_IRQ_START)
+
 enum mxc_gpio_hwtype {
 	IMX1_GPIO,	/* runs on i.mx1 */
 	IMX21_GPIO,	/* runs on i.mx21 and i.mx27 */
