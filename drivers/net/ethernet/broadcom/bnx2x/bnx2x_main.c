@@ -4388,7 +4388,7 @@ static inline void bnx2x_handle_rx_mode_eqe(struct bnx2x *bp)
 static inline struct bnx2x_queue_sp_obj *bnx2x_cid_to_q_obj(
 	struct bnx2x *bp, u32 cid)
 {
-	DP(BNX2X_MSG_SP, "retrieving fp from cid %d", cid);
+	DP(BNX2X_MSG_SP, "retrieving fp from cid %d\n", cid);
 #ifdef BCM_CNIC
 	if (cid == BNX2X_FCOE_ETH_CID)
 		return &bnx2x_fcoe(bp, q_obj);
@@ -7176,7 +7176,7 @@ static inline void bnx2x_pf_q_prep_init(struct bnx2x *bp,
 	/* set maximum number of COSs supported by this queue */
 	init_params->max_cos = fp->max_cos;
 
-	DP(BNX2X_MSG_SP, "fp: %d setting queue params max cos to: %d",
+	DP(BNX2X_MSG_SP, "fp: %d setting queue params max cos to: %d\n",
 	    fp->index, init_params->max_cos);
 
 	/* set the context pointers queue object */
@@ -7209,7 +7209,7 @@ int bnx2x_setup_tx_only(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 
 	DP(BNX2X_MSG_SP, "preparing to send tx-only ramrod for connection:"
 			 "cos %d, primary cid %d, cid %d, "
-			 "client id %d, sp-client id %d, flags %lx",
+			 "client id %d, sp-client id %d, flags %lx\n",
 	   tx_index, q_params->q_obj->cids[FIRST_TX_COS_INDEX],
 	   q_params->q_obj->cids[tx_index], q_params->q_obj->cl_id,
 	   tx_only_params->gen_params.spcl_id, tx_only_params->flags);
@@ -7241,7 +7241,7 @@ int bnx2x_setup_queue(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	int rc;
 	u8 tx_index;
 
-	DP(BNX2X_MSG_SP, "setting up queue %d", fp->index);
+	DP(BNX2X_MSG_SP, "setting up queue %d\n", fp->index);
 
 	/* reset IGU state skip FCoE L2 queue */
 	if (!IS_FCOE_FP(fp))
@@ -7265,7 +7265,7 @@ int bnx2x_setup_queue(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		return rc;
 	}
 
-	DP(BNX2X_MSG_SP, "init complete");
+	DP(BNX2X_MSG_SP, "init complete\n");
 
 
 	/* Now move the Queue to the SETUP state... */
@@ -7319,7 +7319,7 @@ static int bnx2x_stop_queue(struct bnx2x *bp, int index)
 	struct bnx2x_queue_state_params q_params = {0};
 	int rc, tx_index;
 
-	DP(BNX2X_MSG_SP, "stopping queue %d cid %d", index, fp->cid);
+	DP(BNX2X_MSG_SP, "stopping queue %d cid %d\n", index, fp->cid);
 
 	q_params.q_obj = &fp->q_obj;
 	/* We want to wait for completion in this context */
@@ -7334,7 +7334,7 @@ static int bnx2x_stop_queue(struct bnx2x *bp, int index)
 		/* ascertain this is a normal queue*/
 		txdata = &fp->txdata[tx_index];
 
-		DP(BNX2X_MSG_SP, "stopping tx-only queue %d",
+		DP(BNX2X_MSG_SP, "stopping tx-only queue %d\n",
 							txdata->txq_index);
 
 		/* send halt terminate on tx-only connection */
@@ -10704,7 +10704,7 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 		return rc;
 	}
 
-	DP(NETIF_MSG_DRV, "max_non_def_sbs %d", max_non_def_sbs);
+	DP(NETIF_MSG_DRV, "max_non_def_sbs %d\n", max_non_def_sbs);
 
 	rc = bnx2x_init_bp(bp);
 	if (rc)
@@ -10759,15 +10759,14 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 
 	bnx2x_get_pcie_width_speed(bp, &pcie_width, &pcie_speed);
 
-	netdev_info(dev, "%s (%c%d) PCI-E x%d %s found at mem %lx,"
-	       " IRQ %d, ", board_info[ent->driver_data].name,
-	       (CHIP_REV(bp) >> 12) + 'A', (CHIP_METAL(bp) >> 4),
-	       pcie_width,
-	       ((!CHIP_IS_E2(bp) && pcie_speed == 2) ||
-		 (CHIP_IS_E2(bp) && pcie_speed == 1)) ?
-						"5GHz (Gen2)" : "2.5GHz",
-	       dev->base_addr, bp->pdev->irq);
-	pr_cont("node addr %pM\n", dev->dev_addr);
+	netdev_info(dev, "%s (%c%d) PCI-E x%d %s found at mem %lx, IRQ %d, node addr %pM\n",
+		    board_info[ent->driver_data].name,
+		    (CHIP_REV(bp) >> 12) + 'A', (CHIP_METAL(bp) >> 4),
+		    pcie_width,
+		    ((!CHIP_IS_E2(bp) && pcie_speed == 2) ||
+		     (CHIP_IS_E2(bp) && pcie_speed == 1)) ?
+		    "5GHz (Gen2)" : "2.5GHz",
+		    dev->base_addr, bp->pdev->irq, dev->dev_addr);
 
 	return 0;
 

@@ -350,7 +350,7 @@ static void bnx2x_dcbx_map_nw(struct bnx2x *bp)
 		if (cos_params[i].pri_bitmask & nw_prio) {
 			/* extend the bitmask with unmapped */
 			DP(NETIF_MSG_LINK,
-			   "cos %d extended with 0x%08x", i, unmapped);
+			   "cos %d extended with 0x%08x\n", i, unmapped);
 			cos_params[i].pri_bitmask |= unmapped;
 			break;
 		}

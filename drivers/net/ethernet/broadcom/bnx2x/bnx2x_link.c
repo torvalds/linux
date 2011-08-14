@@ -694,8 +694,8 @@ static int bnx2x_ets_e3b0_disabled(const struct link_params *params,
 	struct bnx2x *bp = params->bp;
 
 	if (!CHIP_IS_E3B0(bp)) {
-		DP(NETIF_MSG_LINK, "bnx2x_ets_e3b0_disabled the chip isn't E3B0"
-				   "\n");
+		DP(NETIF_MSG_LINK,
+		   "bnx2x_ets_e3b0_disabled the chip isn't E3B0\n");
 		return -EINVAL;
 	}
 
@@ -854,8 +854,8 @@ static int bnx2x_ets_e3b0_get_total_bw(
 		if (bnx2x_cos_state_bw == ets_params->cos[cos_idx].state) {
 
 			if (0 == ets_params->cos[cos_idx].params.bw_params.bw) {
-				DP(NETIF_MSG_LINK, "bnx2x_ets_E3B0_config BW"
-						   "was set to 0\n");
+				DP(NETIF_MSG_LINK,
+				   "bnx2x_ets_E3B0_config BW was set to 0\n");
 			return -EINVAL;
 		}
 		*total_bw +=
@@ -866,12 +866,12 @@ static int bnx2x_ets_e3b0_get_total_bw(
 	/*Check taotl BW is valid */
 	if ((100 != *total_bw) || (0 == *total_bw)) {
 		if (0 == *total_bw) {
-			DP(NETIF_MSG_LINK, "bnx2x_ets_E3B0_config toatl BW"
-					   "shouldn't be 0\n");
+			DP(NETIF_MSG_LINK,
+			   "bnx2x_ets_E3B0_config toatl BW shouldn't be 0\n");
 			return -EINVAL;
 		}
-		DP(NETIF_MSG_LINK, "bnx2x_ets_E3B0_config toatl BW should be"
-				   "100\n");
+		DP(NETIF_MSG_LINK,
+		   "bnx2x_ets_E3B0_config toatl BW should be 100\n");
 		/**
 		*   We can handle a case whre the BW isn't 100 this can happen
 		*   if the TC are joined.
@@ -908,13 +908,13 @@ static int bnx2x_ets_e3b0_sp_pri_to_cos_set(const struct link_params *params,
 
 	if (DCBX_INVALID_COS != sp_pri_to_cos[pri]) {
 		DP(NETIF_MSG_LINK, "bnx2x_ets_e3b0_sp_pri_to_cos_set invalid "
-				   "parameter There can't be two COS's with"
+				   "parameter There can't be two COS's with "
 				   "the same strict pri\n");
 		return -EINVAL;
 	}
 
 	if (pri > max_num_of_cos) {
-		DP(NETIF_MSG_LINK, "bnx2x_ets_e3b0_sp_pri_to_cos_set invalid"
+		DP(NETIF_MSG_LINK, "bnx2x_ets_e3b0_sp_pri_to_cos_set invalid "
 			       "parameter Illegal strict priority\n");
 	    return -EINVAL;
 	}
@@ -1090,8 +1090,8 @@ int bnx2x_ets_e3b0_config(const struct link_params *params,
 	u8 cos_entry = 0;
 
 	if (!CHIP_IS_E3B0(bp)) {
-		DP(NETIF_MSG_LINK, "bnx2x_ets_e3b0_disabled the chip isn't E3B0"
-				   "\n");
+		DP(NETIF_MSG_LINK,
+		   "bnx2x_ets_e3b0_disabled the chip isn't E3B0\n");
 		return -EINVAL;
 	}
 
@@ -1108,8 +1108,8 @@ int bnx2x_ets_e3b0_config(const struct link_params *params,
 	bnx2x_status = bnx2x_ets_e3b0_get_total_bw(params, ets_params,
 						   &total_bw);
 	if (0 != bnx2x_status) {
-		DP(NETIF_MSG_LINK, "bnx2x_ets_E3B0_config get_total_bw failed "
-				   "\n");
+		DP(NETIF_MSG_LINK,
+		   "bnx2x_ets_E3B0_config get_total_bw failed\n");
 		return -EINVAL;
 	}
 
@@ -1144,13 +1144,13 @@ int bnx2x_ets_e3b0_config(const struct link_params *params,
 				cos_entry);
 
 		} else {
-			DP(NETIF_MSG_LINK, "bnx2x_ets_e3b0_config cos state not"
-					   " valid\n");
+			DP(NETIF_MSG_LINK,
+			   "bnx2x_ets_e3b0_config cos state not valid\n");
 			return -EINVAL;
 		}
 		if (0 != bnx2x_status) {
-			DP(NETIF_MSG_LINK, "bnx2x_ets_e3b0_config set cos bw "
-					   "failed\n");
+			DP(NETIF_MSG_LINK,
+			   "bnx2x_ets_e3b0_config set cos bw failed\n");
 			return bnx2x_status;
 		}
 	}
@@ -1160,8 +1160,8 @@ int bnx2x_ets_e3b0_config(const struct link_params *params,
 							 sp_pri_to_cos);
 
 	if (0 != bnx2x_status) {
-		DP(NETIF_MSG_LINK, "bnx2x_ets_E3B0_config set_pri_cli_reg "
-				   "failed\n");
+		DP(NETIF_MSG_LINK,
+		   "bnx2x_ets_E3B0_config set_pri_cli_reg failed\n");
 		return bnx2x_status;
 	}
 
@@ -1618,8 +1618,8 @@ static void bnx2x_xmac_init(struct bnx2x *bp, u32 max_speed)
 
 	if (is_port4mode && (REG_RD(bp, MISC_REG_RESET_REG_2) &
 	     MISC_REGISTERS_RESET_REG_2_XMAC)) {
-		DP(NETIF_MSG_LINK, "XMAC already out of reset"
-				   " in 4-port mode\n");
+		DP(NETIF_MSG_LINK,
+		   "XMAC already out of reset in 4-port mode\n");
 		return;
 	}
 
@@ -1642,13 +1642,13 @@ static void bnx2x_xmac_init(struct bnx2x *bp, u32 max_speed)
 		/*  Set the number of ports on the system side to 1 */
 		REG_WR(bp, MISC_REG_XMAC_CORE_PORT_MODE, 0);
 		if (max_speed == SPEED_10000) {
-			DP(NETIF_MSG_LINK, "Init XMAC to 10G x 1"
-					   " port per path\n");
+			DP(NETIF_MSG_LINK,
+			   "Init XMAC to 10G x 1 port per path\n");
 			/* Set the number of ports on the Warp Core to 10G */
 			REG_WR(bp, MISC_REG_XMAC_PHY_PORT_MODE, 3);
 		} else {
-			DP(NETIF_MSG_LINK, "Init XMAC to 20G x 2 ports"
-					   " per path\n");
+			DP(NETIF_MSG_LINK,
+			   "Init XMAC to 20G x 2 ports per path\n");
 			/* Set the number of ports on the Warp Core to 20G */
 			REG_WR(bp, MISC_REG_XMAC_PHY_PORT_MODE, 1);
 		}
@@ -3959,8 +3959,8 @@ static void bnx2x_warpcore_set_sgmii_speed(struct bnx2x_phy *phy,
 			val16 |= 0x0040;
 			break;
 		default:
-			DP(NETIF_MSG_LINK, "Speed not supported: 0x%x"
-					   "\n", phy->req_line_speed);
+			DP(NETIF_MSG_LINK,
+			   "Speed not supported: 0x%x\n", phy->req_line_speed);
 			return;
 		}
 
@@ -4092,9 +4092,9 @@ static int bnx2x_get_mod_abs_int_cfg(struct bnx2x *bp,
 		 */
 		if ((cfg_pin < PIN_CFG_GPIO0_P0) ||
 		    (cfg_pin > PIN_CFG_GPIO3_P1)) {
-			DP(NETIF_MSG_LINK, "ERROR: Invalid cfg pin %x for "
-					   "module detect indication\n",
-				       cfg_pin);
+			DP(NETIF_MSG_LINK,
+			   "ERROR: Invalid cfg pin %x for module detect indication\n",
+			   cfg_pin);
 			return -EINVAL;
 		}
 
@@ -4222,8 +4222,9 @@ static void bnx2x_warpcore_config_init(struct bnx2x_phy *phy,
 			break;
 
 		default:
-			DP(NETIF_MSG_LINK, "Unsupported Serdes Net Interface "
-					   "0x%x\n", serdes_net_if);
+			DP(NETIF_MSG_LINK,
+			   "Unsupported Serdes Net Interface 0x%x\n",
+			   serdes_net_if);
 			return;
 		}
 	}
@@ -6127,8 +6128,8 @@ static int bnx2x_link_initialize(struct link_params *params,
 			if (phy_index == EXT_PHY2 &&
 			    (bnx2x_phy_selection(params) ==
 			     PORT_HW_CFG_PHY_SELECTION_FIRST_PHY)) {
-				DP(NETIF_MSG_LINK, "Not initializing"
-						" second phy\n");
+				DP(NETIF_MSG_LINK,
+				   "Not initializing second phy\n");
 				continue;
 			}
 			params->phy[phy_index].config_init(
@@ -6447,8 +6448,8 @@ int bnx2x_link_update(struct link_params *params, struct link_vars *vars)
 		 */
 		if (active_external_phy == EXT_PHY1) {
 			if (params->phy[EXT_PHY2].phy_specific_func) {
-				DP(NETIF_MSG_LINK, "Disabling TX on"
-						   " EXT_PHY2\n");
+				DP(NETIF_MSG_LINK,
+				   "Disabling TX on EXT_PHY2\n");
 				params->phy[EXT_PHY2].phy_specific_func(
 					&params->phy[EXT_PHY2],
 					params, DISABLE_TX);
@@ -7341,8 +7342,8 @@ static int bnx2x_8726_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 	u16 val = 0;
 	u16 i;
 	if (byte_cnt > 16) {
-		DP(NETIF_MSG_LINK, "Reading from eeprom is"
-			    " is limited to 0xf\n");
+		DP(NETIF_MSG_LINK,
+		   "Reading from eeprom is limited to 0xf\n");
 		return -EINVAL;
 	}
 	/* Set the read command byte count */
@@ -7413,8 +7414,8 @@ static int bnx2x_warpcore_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 					" addr %d, cnt %d\n",
 					addr, byte_cnt);*/
 	if (byte_cnt > 16) {
-		DP(NETIF_MSG_LINK, "Reading from eeprom is"
-			    " is limited to 16 bytes\n");
+		DP(NETIF_MSG_LINK,
+		   "Reading from eeprom is limited to 16 bytes\n");
 		return -EINVAL;
 	}
 
@@ -7443,8 +7444,8 @@ static int bnx2x_8727_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 	u16 val, i;
 
 	if (byte_cnt > 16) {
-		DP(NETIF_MSG_LINK, "Reading from eeprom is"
-			    " is limited to 0xf\n");
+		DP(NETIF_MSG_LINK,
+		   "Reading from eeprom is limited to 0xf\n");
 		return -EINVAL;
 	}
 
@@ -7591,13 +7592,14 @@ static int bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 			check_limiting_mode = 1;
 		} else if (copper_module_type &
 			SFP_EEPROM_FC_TX_TECH_BITMASK_COPPER_PASSIVE) {
-				DP(NETIF_MSG_LINK, "Passive Copper"
-					    " cable detected\n");
+				DP(NETIF_MSG_LINK,
+				   "Passive Copper cable detected\n");
 				*edc_mode =
 				      EDC_MODE_PASSIVE_DAC;
 		} else {
-			DP(NETIF_MSG_LINK, "Unknown copper-cable-"
-				     "type 0x%x !!!\n", copper_module_type);
+			DP(NETIF_MSG_LINK,
+			   "Unknown copper-cable-type 0x%x !!!\n",
+			   copper_module_type);
 			return -EINVAL;
 		}
 		break;
@@ -7635,8 +7637,8 @@ static int bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 						 SFP_EEPROM_OPTIONS_ADDR,
 						 SFP_EEPROM_OPTIONS_SIZE,
 						 options) != 0) {
-			DP(NETIF_MSG_LINK, "Failed to read Option"
-				" field from module EEPROM\n");
+			DP(NETIF_MSG_LINK,
+			   "Failed to read Option field from module EEPROM\n");
 			return -EINVAL;
 		}
 		if ((options[0] & SFP_EEPROM_OPTIONS_LINEAR_RX_OUT_MASK))
@@ -7677,15 +7679,15 @@ static int bnx2x_verify_sfp_module(struct bnx2x_phy *phy,
 		   FEATURE_CONFIG_BC_SUPPORTS_OPT_MDL_VRFY) {
 		/* Use first phy request only in case of non-dual media*/
 		if (DUAL_MEDIA(params)) {
-			DP(NETIF_MSG_LINK, "FW does not support OPT MDL "
-			   "verification\n");
+			DP(NETIF_MSG_LINK,
+			   "FW does not support OPT MDL verification\n");
 			return -EINVAL;
 		}
 		cmd = DRV_MSG_CODE_VRFY_FIRST_PHY_OPT_MDL;
 	} else {
 		/* No support in OPT MDL detection */
-		DP(NETIF_MSG_LINK, "FW does not support OPT MDL "
-			  "verification\n");
+		DP(NETIF_MSG_LINK,
+		   "FW does not support OPT MDL verification\n");
 		return -EINVAL;
 	}
 
@@ -7736,8 +7738,9 @@ static int bnx2x_wait_for_sfp_module_initialized(struct bnx2x_phy *phy,
 	for (timeout = 0; timeout < 60; timeout++) {
 		if (bnx2x_read_sfp_module_eeprom(phy, params, 1, 1, &val)
 		    == 0) {
-			DP(NETIF_MSG_LINK, "SFP+ module initialization "
-				     "took %d ms\n", timeout * 5);
+			DP(NETIF_MSG_LINK,
+			   "SFP+ module initialization took %d ms\n",
+			   timeout * 5);
 			return 0;
 		}
 		msleep(5);
@@ -8506,8 +8509,8 @@ static int bnx2x_8726_config_init(struct bnx2x_phy *phy,
 	/* Set TX PreEmphasis if needed */
 	if ((params->feature_config_flags &
 	     FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED)) {
-		DP(NETIF_MSG_LINK, "Setting TX_CTRL1 0x%x,"
-			 "TX_CTRL2 0x%x\n",
+		DP(NETIF_MSG_LINK,
+		   "Setting TX_CTRL1 0x%x, TX_CTRL2 0x%x\n",
 			 phy->tx_preemphasis[0],
 			 phy->tx_preemphasis[1]);
 		bnx2x_cl45_write(bp, phy,
@@ -8788,8 +8791,8 @@ static void bnx2x_8727_handle_mod_abs(struct bnx2x_phy *phy,
 	if (mod_abs & (1<<8)) {
 
 		/* Module is absent */
-		DP(NETIF_MSG_LINK, "MOD_ABS indication "
-			    "show module is absent\n");
+		DP(NETIF_MSG_LINK,
+		   "MOD_ABS indication show module is absent\n");
 		phy->media_type = ETH_PHY_NOT_PRESENT;
 		/*
 		 * 1. Set mod_abs to detect next module
@@ -8816,8 +8819,8 @@ static void bnx2x_8727_handle_mod_abs(struct bnx2x_phy *phy,
 
 	} else {
 		/* Module is present */
-		DP(NETIF_MSG_LINK, "MOD_ABS indication "
-			    "show module is present\n");
+		DP(NETIF_MSG_LINK,
+		   "MOD_ABS indication show module is present\n");
 		/*
 		 * First disable transmitter, and if the module is ok, the
 		 * module_detection will enable it
@@ -8908,8 +8911,9 @@ static u8 bnx2x_8727_read_status(struct bnx2x_phy *phy,
 		if ((val1 & (1<<8)) == 0) {
 			if (!CHIP_IS_E1x(bp))
 				oc_port = BP_PATH(bp) + (params->port << 1);
-			DP(NETIF_MSG_LINK, "8727 Power fault has been detected"
-				       " on port %d\n", oc_port);
+			DP(NETIF_MSG_LINK,
+			   "8727 Power fault has been detected on port %d\n",
+			   oc_port);
 			netdev_err(bp->dev, "Error:  Power fault on Port %d has"
 					    " been detected and the power to "
 					    "that SFP+ module has been removed"
@@ -9690,8 +9694,8 @@ static u8 bnx2x_848xx_read_status(struct bnx2x_phy *phy,
 				MDIO_AN_REG_8481_EXPANSION_REG_RD_RW,
 				&legacy_status);
 
-		DP(NETIF_MSG_LINK, "Legacy speed status"
-			     " = 0x%x\n", legacy_status);
+		DP(NETIF_MSG_LINK, "Legacy speed status = 0x%x\n",
+		   legacy_status);
 		link_up = ((legacy_status & (1<<11)) == (1<<11));
 		if (link_up) {
 			legacy_speed = (legacy_status & (3<<9));
@@ -9709,9 +9713,10 @@ static u8 bnx2x_848xx_read_status(struct bnx2x_phy *phy,
 			else
 				vars->duplex = DUPLEX_HALF;
 
-			DP(NETIF_MSG_LINK, "Link is up in %dMbps,"
-				   " is_duplex_full= %d\n", vars->line_speed,
-				   (vars->duplex == DUPLEX_FULL));
+			DP(NETIF_MSG_LINK,
+			   "Link is up in %dMbps, is_duplex_full= %d\n",
+			   vars->line_speed,
+			   (vars->duplex == DUPLEX_FULL));
 			/* Check legacy speed AN resolution */
 			bnx2x_cl45_read(bp, phy,
 					MDIO_AN_DEVAD,
@@ -10286,9 +10291,10 @@ static u8 bnx2x_54618se_read_status(struct bnx2x_phy *phy,
 		} else /* Should not happen */
 			vars->line_speed = 0;
 
-		DP(NETIF_MSG_LINK, "Link is up in %dMbps,"
-			   " is_duplex_full= %d\n", vars->line_speed,
-			   (vars->duplex == DUPLEX_FULL));
+		DP(NETIF_MSG_LINK,
+		   "Link is up in %dMbps, is_duplex_full= %d\n",
+		   vars->line_speed,
+		   (vars->duplex == DUPLEX_FULL));
 
 		/* Check legacy speed AN resolution */
 		bnx2x_cl22_read(bp, phy,
@@ -11336,8 +11342,9 @@ static void bnx2x_phy_def_cfg(struct link_params *params,
 						      dev_info.
 			port_hw_config[params->port].speed_capability_mask));
 	}
-	DP(NETIF_MSG_LINK, "Default config phy idx %x cfg 0x%x speed_cap_mask"
-		       " 0x%x\n", phy_index, link_config, phy->speed_cap_mask);
+	DP(NETIF_MSG_LINK,
+	   "Default config phy idx %x cfg 0x%x speed_cap_mask 0x%x\n",
+	   phy_index, link_config, phy->speed_cap_mask);
 
 	phy->req_duplex = DUPLEX_FULL;
 	switch (link_config  & PORT_FEATURE_LINK_SPEED_MASK) {

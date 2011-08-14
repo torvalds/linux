@@ -1289,7 +1289,7 @@ static inline void bnx2x_init_txdata(struct bnx2x *bp,
 	txdata->txq_index = txq_index;
 	txdata->tx_cons_sb = tx_cons_sb;
 
-	DP(BNX2X_MSG_SP, "created tx data cid %d, txq %d",
+	DP(BNX2X_MSG_SP, "created tx data cid %d, txq %d\n",
 	   txdata->cid, txdata->txq_index);
 }
 
@@ -1333,7 +1333,7 @@ static inline void bnx2x_init_fcoe_fp(struct bnx2x *bp)
 	bnx2x_init_txdata(bp, &bnx2x_fcoe(bp, txdata[0]),
 			  fp->cid, FCOE_TXQ_IDX(bp), BNX2X_FCOE_L2_TX_INDEX);
 
-	DP(BNX2X_MSG_SP, "created fcoe tx data (fp index %d)", fp->index);
+	DP(BNX2X_MSG_SP, "created fcoe tx data (fp index %d)\n", fp->index);
 
 	/* qZone id equals to FW (per path) client id */
 	bnx2x_fcoe(bp, cl_qzone_id) = bnx2x_fp_qzone_id(fp);

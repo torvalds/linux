@@ -953,15 +953,16 @@ void __bnx2x_link_report(struct bnx2x *bp)
 		netdev_err(bp->dev, "NIC Link is Down\n");
 		return;
 	} else {
+		const char *duplex;
+		const char *flow;
+
 		netif_carrier_on(bp->dev);
-		netdev_info(bp->dev, "NIC Link is Up, ");
-		pr_cont("%d Mbps ", cur_data.line_speed);
 
 		if (test_and_clear_bit(BNX2X_LINK_REPORT_FD,
 				       &cur_data.link_report_flags))
-			pr_cont("full duplex");
+			duplex = "full";
 		else
-			pr_cont("half duplex");
+			duplex = "half";
 
 		/* Handle the FC at the end so that only these flags would be
 		 * possibly set. This way we may easily check if there is no FC
@@ -970,16 +971,19 @@ void __bnx2x_link_report(struct bnx2x *bp)
 		if (cur_data.link_report_flags) {
 			if (test_bit(BNX2X_LINK_REPORT_RX_FC_ON,
 				     &cur_data.link_report_flags)) {
-				pr_cont(", receive ");
 				if (test_bit(BNX2X_LINK_REPORT_TX_FC_ON,
 				     &cur_data.link_report_flags))
-					pr_cont("& transmit ");
+					flow = "ON - receive & transmit";
+				else
+					flow = "ON - receive";
 			} else {
-				pr_cont(", transmit ");
+				flow = "ON - transmit";
 			}
-			pr_cont("flow control ON");
+		} else {
+			flow = "none";
 		}
-		pr_cont("\n");
+		netdev_info(bp->dev, "NIC Link is Up, %d Mbps %s duplex, Flow control: %s\n",
+			    cur_data.line_speed, duplex, flow);
 	}
 }
 
@@ -2584,7 +2588,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 
 	/* enable this debug print to view the transmission queue being used
-	DP(BNX2X_MSG_FP, "indices: txq %d, fp %d, txdata %d",
+	DP(BNX2X_MSG_FP, "indices: txq %d, fp %d, txdata %d\n",
 	   txq_index, fp_index, txdata_index); */
 
 	/* locate the fastpath and the txdata */
@@ -2593,7 +2597,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* enable this debug print to view the tranmission details
 	DP(BNX2X_MSG_FP,"transmitting packet cid %d fp index %d txdata_index %d"
-			" tx_data ptr %p fp pointer %p",
+			" tx_data ptr %p fp pointer %p\n",
 	   txdata->cid, fp_index, txdata_index, txdata, fp); */
 
 	if (unlikely(bnx2x_tx_avail(bp, txdata) <
@@ -2910,14 +2914,14 @@ int bnx2x_setup_tc(struct net_device *dev, u8 num_tc)
 	/* requested to support too many traffic classes */
 	if (num_tc > bp->max_cos) {
 		DP(NETIF_MSG_TX_ERR, "support for too many traffic classes"
-				     " requested: %d. max supported is %d",
+				     " requested: %d. max supported is %d\n",
 				     num_tc, bp->max_cos);
 		return -EINVAL;
 	}
 
 	/* declare amount of supported traffic classes */
 	if (netdev_set_num_tc(dev, num_tc)) {
-		DP(NETIF_MSG_TX_ERR, "failed to declare %d traffic classes",
+		DP(NETIF_MSG_TX_ERR, "failed to declare %d traffic classes\n",
 				     num_tc);
 		return -EINVAL;
 	}
@@ -2925,7 +2929,7 @@ int bnx2x_setup_tc(struct net_device *dev, u8 num_tc)
 	/* configure priority to traffic class mapping */
 	for (prio = 0; prio < BNX2X_MAX_PRIORITY; prio++) {
 		netdev_set_prio_tc_map(dev, prio, bp->prio_to_cos[prio]);
-		DP(BNX2X_MSG_SP, "mapping priority %d to tc %d",
+		DP(BNX2X_MSG_SP, "mapping priority %d to tc %d\n",
 		   prio, bp->prio_to_cos[prio]);
 	}
 
@@ -2934,10 +2938,10 @@ int bnx2x_setup_tc(struct net_device *dev, u8 num_tc)
 	   This can be used for ets or pfc, and save the effort of setting
 	   up a multio class queue disc or negotiating DCBX with a switch
 	netdev_set_prio_tc_map(dev, 0, 0);
-	DP(BNX2X_MSG_SP, "mapping priority %d to tc %d", 0, 0);
+	DP(BNX2X_MSG_SP, "mapping priority %d to tc %d\n", 0, 0);
 	for (prio = 1; prio < 16; prio++) {
 		netdev_set_prio_tc_map(dev, prio, 1);
-		DP(BNX2X_MSG_SP, "mapping priority %d to tc %d", prio, 1);
+		DP(BNX2X_MSG_SP, "mapping priority %d to tc %d\n", prio, 1);
 	} */
 
 	/* configure traffic class to transmission queue mapping */
@@ -2945,7 +2949,7 @@ int bnx2x_setup_tc(struct net_device *dev, u8 num_tc)
 		count = BNX2X_NUM_ETH_QUEUES(bp);
 		offset = cos * MAX_TXQS_PER_COS;
 		netdev_set_tc_queue(dev, cos, count, offset);
-		DP(BNX2X_MSG_SP, "mapping tc %d to offset %d count %d",
+		DP(BNX2X_MSG_SP, "mapping tc %d to offset %d count %d\n",
 		   cos, offset, count);
 	}
 
@@ -3033,7 +3037,7 @@ static void bnx2x_free_fp_mem_at(struct bnx2x *bp, int fp_index)
 			struct bnx2x_fp_txdata *txdata = &fp->txdata[cos];
 
 			DP(BNX2X_MSG_SP,
-			   "freeing tx memory of fp %d cos %d cid %d",
+			   "freeing tx memory of fp %d cos %d cid %d\n",
 			   fp_index, cos, txdata->cid);
 
 			BNX2X_FREE(txdata->tx_buf_ring);
@@ -3115,7 +3119,7 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 			struct bnx2x_fp_txdata *txdata = &fp->txdata[cos];
 
 			DP(BNX2X_MSG_SP, "allocating tx memory of "
-					 "fp %d cos %d",
+					 "fp %d cos %d\n",
 			   index, cos);
 
 			BNX2X_ALLOC(txdata->tx_buf_ring,
