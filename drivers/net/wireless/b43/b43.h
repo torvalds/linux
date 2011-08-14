@@ -594,6 +594,7 @@ struct b43_dma {
 	struct b43_dmaring *rx_ring;
 
 	u32 translation; /* Routing bits */
+	bool translation_in_low; /* Should translation bit go into low addr? */
 	bool parity; /* Check for parity */
 };
 

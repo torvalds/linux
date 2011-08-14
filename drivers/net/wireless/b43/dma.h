@@ -215,6 +215,12 @@ enum b43_dmatype {
 	B43_DMA_64BIT	= 64,
 };
 
+enum b43_addrtype {
+	B43_DMA_ADDR_LOW,
+	B43_DMA_ADDR_HIGH,
+	B43_DMA_ADDR_EXT,
+};
+
 struct b43_dmaring {
 	/* Lowlevel DMA ops. */
 	const struct b43_dma_ops *ops;
