@@ -1779,6 +1779,21 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	wl1271_debug(DEBUG_MAC80211, "mac80211 stop");
 }
 
+static u8 wl12xx_get_role_type(struct wl1271 *wl)
+{
+	switch (wl->bss_type) {
+	case BSS_TYPE_AP_BSS:
+		return WL1271_ROLE_AP;
+
+	case BSS_TYPE_STA_BSS:
+		return WL1271_ROLE_STA;
+
+	default:
+		wl1271_error("invalid bss_type: %d", wl->bss_type);
+	}
+	return WL12XX_INVALID_ROLE_TYPE;
+}
+
 static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif)
 {
@@ -1786,6 +1801,7 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 	struct wiphy *wiphy = hw->wiphy;
 	int retries = WL1271_BOOT_RETRIES;
 	int ret = 0;
+	u8 role_type;
 	bool booted = false;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 add interface type %d mac %pM",
@@ -1826,6 +1842,11 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		goto out;
 	}
 
+	role_type = wl12xx_get_role_type(wl);
+	if (role_type == WL12XX_INVALID_ROLE_TYPE) {
+		ret = -EINVAL;
+		goto out;
+	}
 	memcpy(wl->mac_addr, vif->addr, ETH_ALEN);
 
 	if (wl->state != WL1271_STATE_OFF) {
@@ -1844,6 +1865,10 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		ret = wl1271_boot(wl);
 		if (ret < 0)
 			goto power_off;
+
+		ret = wl12xx_cmd_role_enable(wl, role_type, &wl->role_id);
+		if (ret < 0)
+			goto irq_disable;
 
 		ret = wl1271_hw_init(wl);
 		if (ret < 0)
@@ -1909,6 +1934,7 @@ out:
 static void __wl1271_op_remove_interface(struct wl1271 *wl,
 					 bool reset_tx_queues)
 {
+	int ret;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 remove interface");
 
@@ -1932,6 +1958,21 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 		wl->scan.req = NULL;
 		ieee80211_scan_completed(wl->hw, true);
 	}
+
+	if (!test_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags)) {
+		/* disable active roles */
+		ret = wl1271_ps_elp_wakeup(wl);
+		if (ret < 0)
+			goto deinit;
+
+		ret = wl12xx_cmd_role_disable(wl, &wl->role_id);
+		if (ret < 0)
+			goto deinit;
+
+		wl1271_ps_elp_sleep(wl);
+	}
+deinit:
+	wl->sta_hlid = WL12XX_INVALID_LINK_ID;
 
 	/*
 	 * this must be before the cancel_work calls below, so that the work
