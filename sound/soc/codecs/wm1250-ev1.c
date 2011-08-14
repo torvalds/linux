@@ -74,7 +74,7 @@ static int __devinit wm1250_ev1_probe(struct i2c_client *i2c,
 		return -ENODEV;
 	}
 
-	dev_info(&i2c->dev, "revision %d\n", rev);
+	dev_info(&i2c->dev, "revision %d\n", rev + 1);
 
 	return snd_soc_register_codec(&i2c->dev, &soc_codec_dev_wm1250_ev1,
 				      &wm1250_ev1_dai, 1);
