@@ -656,12 +656,6 @@ size_t wl12xx_copy_fwlog(struct wl1271 *wl, u8 *memblock, size_t maxlen);
 /* Each RX/TX transaction requires an end-of-transaction transfer */
 #define WL12XX_QUIRK_END_OF_TRANSACTION		BIT(0)
 
-/*
- * Older firmwares use 2 spare TX blocks
- * (for STA < 6.1.3.50.58 or for AP < 6.2.0.0.47)
- */
-#define WL12XX_QUIRK_USE_2_SPARE_BLOCKS		BIT(1)
-
 /* WL128X requires aggregated packets to be aligned to the SDIO block size */
 #define WL12XX_QUIRK_BLOCKSIZE_ALIGNMENT	BIT(2)
 
