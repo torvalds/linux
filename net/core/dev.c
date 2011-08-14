@@ -133,6 +133,7 @@
 #include <linux/pci.h>
 #include <linux/inetdevice.h>
 #include <linux/cpu_rmap.h>
+#include <linux/if_tunnel.h>
 
 #include "net-sysfs.h"
 
@@ -2539,6 +2540,7 @@ void __skb_get_rxhash(struct sk_buff *skb)
 	nhoff = skb_network_offset(skb);
 	proto = skb->protocol;
 
+again:
 	switch (proto) {
 	case __constant_htons(ETH_P_IP):
 		if (!pskb_may_pull(skb, sizeof(*ip) + nhoff))
@@ -2565,6 +2567,11 @@ void __skb_get_rxhash(struct sk_buff *skb)
 		break;
 	default:
 		goto done;
+	}
+
+	switch (ip_proto) {
+	default:
+		break;
 	}
 
 	ports.v32 = 0;
