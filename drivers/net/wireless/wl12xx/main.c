@@ -2533,14 +2533,19 @@ static int wl1271_ap_init_hwenc(struct wl1271 *wl)
 	bool wep_key_added = false;
 
 	for (i = 0; i < MAX_NUM_KEYS; i++) {
+		u8 hlid;
 		if (wl->recorded_ap_keys[i] == NULL)
 			break;
 
 		key = wl->recorded_ap_keys[i];
+		hlid = key->hlid;
+		if (hlid == WL12XX_INVALID_LINK_ID)
+			hlid = wl->ap_bcast_hlid;
+
 		ret = wl1271_cmd_set_ap_key(wl, KEY_ADD_OR_REPLACE,
 					    key->id, key->key_type,
 					    key->key_size, key->key,
-					    key->hlid, key->tx_seq_32,
+					    hlid, key->tx_seq_32,
 					    key->tx_seq_16);
 		if (ret < 0)
 			goto out;
