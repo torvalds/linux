@@ -5703,7 +5703,7 @@ static struct snd_pcm_hardware snd_hdspm_playback_subinfo = {
 	.channels_max = HDSPM_MAX_CHANNELS,
 	.buffer_bytes_max =
 	    HDSPM_CHANNEL_BUFFER_BYTES * HDSPM_MAX_CHANNELS,
-	.period_bytes_min = (64 * 4),
+	.period_bytes_min = (32 * 4),
 	.period_bytes_max = (4096 * 4) * HDSPM_MAX_CHANNELS,
 	.periods_min = 2,
 	.periods_max = 512,
@@ -5728,7 +5728,7 @@ static struct snd_pcm_hardware snd_hdspm_capture_subinfo = {
 	.channels_max = HDSPM_MAX_CHANNELS,
 	.buffer_bytes_max =
 	    HDSPM_CHANNEL_BUFFER_BYTES * HDSPM_MAX_CHANNELS,
-	.period_bytes_min = (64 * 4),
+	.period_bytes_min = (32 * 4),
 	.period_bytes_max = (4096 * 4) * HDSPM_MAX_CHANNELS,
 	.periods_min = 2,
 	.periods_max = 512,
