@@ -5677,7 +5677,7 @@ static unsigned int period_sizes_old[] = {
 };
 
 static unsigned int period_sizes_new[] = {
-	32, 64, 128, 256, 512, 1024, 2048, 4096
+	64, 128, 256, 512, 1024, 2048, 4096, 32
 };
 
 /* RayDAT and AIO always have a buffer of 16384 samples per channel */
