@@ -1309,6 +1309,25 @@ struct conf_fwlog {
 	u8 threshold;
 };
 
+#define ACX_RATE_MGMT_NUM_OF_RATES 13
+struct conf_rate_policy_settings {
+	u16 rate_retry_score;
+	u16 per_add;
+	u16 per_th1;
+	u16 per_th2;
+	u16 max_per;
+	u8 inverse_curiosity_factor;
+	u8 tx_fail_low_th;
+	u8 tx_fail_high_th;
+	u8 per_alpha_shift;
+	u8 per_add_shift;
+	u8 per_beta1_shift;
+	u8 per_beta2_shift;
+	u8 rate_check_up;
+	u8 rate_check_down;
+	u8 rate_retry_policy[ACX_RATE_MGMT_NUM_OF_RATES];
+};
+
 struct conf_drv_settings {
 	struct conf_sg_settings sg;
 	struct conf_rx_settings rx;
@@ -1326,6 +1345,7 @@ struct conf_drv_settings {
 	struct conf_fm_coex fm_coex;
 	struct conf_rx_streaming_settings rx_streaming;
 	struct conf_fwlog fwlog;
+	struct conf_rate_policy_settings rate;
 	u8 hci_io_ds;
 };
 

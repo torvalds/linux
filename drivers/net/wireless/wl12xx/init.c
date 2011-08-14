@@ -715,6 +715,10 @@ int wl1271_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_free_memmap;
 
+	ret = wl12xx_acx_set_rate_mgmt_params(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
 	/* Configure initiator BA sessions policies */
 	ret = wl1271_set_ba_policies(wl);
 	if (ret < 0)
