@@ -834,8 +834,15 @@ static void wl12xx_fw_status(struct wl1271 *wl,
 		wl->tx_pkts_freed[i] = status->tx_released_pkts[i];
 	}
 
-	freed_blocks = le32_to_cpu(status->total_released_blks) -
-		       wl->tx_blocks_freed;
+	/* prevent wrap-around in total blocks counter */
+	if (likely(wl->tx_blocks_freed <=
+		   le32_to_cpu(status->total_released_blks)))
+		freed_blocks = le32_to_cpu(status->total_released_blks) -
+			       wl->tx_blocks_freed;
+	else
+		freed_blocks = 0x100000000LL - wl->tx_blocks_freed +
+			       le32_to_cpu(status->total_released_blks);
+
 	wl->tx_blocks_freed = le32_to_cpu(status->total_released_blks);
 
 	wl->tx_allocated_blocks -= freed_blocks;
