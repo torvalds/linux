@@ -29,9 +29,6 @@
 
 #define TX_HW_MGMT_PKT_LIFETIME_TU       2000
 #define TX_HW_AP_MODE_PKT_LIFETIME_TU    8000
-/* The chipset reference driver states, that the "aid" value 1
- * is for infra-BSS, but is still always used */
-#define TX_HW_DEFAULT_AID                1
 
 #define TX_HW_ATTR_SAVE_RETRIES          BIT(0)
 #define TX_HW_ATTR_HEADER_PAD            BIT(1)
@@ -116,12 +113,8 @@ struct wl1271_tx_hw_descr {
 	u8 id;
 	/* The packet TID value (as User-Priority) */
 	u8 tid;
-	union {
-		/* STA - Identifier of the remote STA in IBSS, 1 in infra-BSS */
-		u8 aid;
-		/* AP - host link ID (HLID) */
-		u8 hlid;
-	} __packed;
+	/* host link ID (HLID) */
+	u8 hlid;
 	u8 reserved;
 } __packed;
 
@@ -133,7 +126,8 @@ enum wl1271_tx_hw_res_status {
 	TX_TIMEOUT          = 4,
 	TX_KEY_NOT_FOUND    = 5,
 	TX_PEER_NOT_FOUND   = 6,
-	TX_SESSION_MISMATCH = 7
+	TX_SESSION_MISMATCH = 7,
+	TX_LINK_NOT_VALID   = 8,
 };
 
 struct wl1271_tx_hw_res_descr {
