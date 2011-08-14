@@ -2187,11 +2187,6 @@ static int wl1271_sta_handle_idle(struct wl1271 *wl, bool idle)
 			goto out;
 		set_bit(WL1271_FLAG_IDLE, &wl->flags);
 	} else {
-		/* increment the session counter */
-		wl->session_counter++;
-		if (wl->session_counter >= SESSION_COUNTER_MAX)
-			wl->session_counter = 0;
-
 		/* The current firmware only supports sched_scan in idle */
 		if (wl->sched_scanning) {
 			wl1271_scan_sched_scan_stop(wl);
@@ -4453,6 +4448,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->sta_hlid = WL12XX_INVALID_LINK_ID;
 	wl->dev_role_id = WL12XX_INVALID_ROLE_ID;
 	wl->dev_hlid = WL12XX_INVALID_LINK_ID;
+	wl->session_counter = 0;
 	setup_timer(&wl->rx_streaming_timer, wl1271_rx_streaming_timer,
 		    (unsigned long) wl);
 	wl->fwlog_size = 0;

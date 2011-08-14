@@ -458,6 +458,16 @@ static void wl12xx_free_link(struct wl1271 *wl, u8 *hlid)
 	*hlid = WL12XX_INVALID_LINK_ID;
 }
 
+static int wl12xx_get_new_session_id(struct wl1271 *wl)
+{
+	if (wl->session_counter >= SESSION_COUNTER_MAX)
+		wl->session_counter = 0;
+
+	wl->session_counter++;
+
+	return wl->session_counter;
+}
+
 int wl12xx_cmd_role_start_dev(struct wl1271 *wl)
 {
 	struct wl12xx_cmd_role_start *cmd;
@@ -580,7 +590,7 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl)
 			goto out_free;
 	}
 	cmd->sta.hlid = wl->sta_hlid;
-	cmd->sta.session = wl->session_counter;
+	cmd->sta.session = wl12xx_get_new_session_id(wl);
 	cmd->sta.remote_rates = cpu_to_le32(wl->rate_set);
 
 	wl1271_debug(DEBUG_CMD, "role start: roleid=%d, hlid=%d, session=%d "
