@@ -1866,6 +1866,20 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		if (ret < 0)
 			goto power_off;
 
+		if (wl->bss_type == BSS_TYPE_STA_BSS) {
+			/*
+			 * The device role is a special role used for
+			 * rx and tx frames prior to association (as
+			 * the STA role can get packets only from
+			 * its associated bssid)
+			 */
+			ret = wl12xx_cmd_role_enable(wl,
+							 WL1271_ROLE_DEVICE,
+							 &wl->dev_role_id);
+			if (ret < 0)
+				goto irq_disable;
+		}
+
 		ret = wl12xx_cmd_role_enable(wl, role_type, &wl->role_id);
 		if (ret < 0)
 			goto irq_disable;
@@ -1965,6 +1979,12 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 		if (ret < 0)
 			goto deinit;
 
+		if (wl->bss_type == BSS_TYPE_STA_BSS) {
+			ret = wl12xx_cmd_role_disable(wl, &wl->dev_role_id);
+			if (ret < 0)
+				goto deinit;
+		}
+
 		ret = wl12xx_cmd_role_disable(wl, &wl->role_id);
 		if (ret < 0)
 			goto deinit;
@@ -1973,6 +1993,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 	}
 deinit:
 	wl->sta_hlid = WL12XX_INVALID_LINK_ID;
+	wl->dev_hlid = WL12XX_INVALID_LINK_ID;
 
 	/*
 	 * this must be before the cancel_work calls below, so that the work
@@ -2023,6 +2044,7 @@ deinit:
 	wl->ap_ps_map = 0;
 	wl->sched_scanning = false;
 	wl->role_id = WL12XX_INVALID_ROLE_ID;
+	wl->dev_role_id = WL12XX_INVALID_ROLE_ID;
 	memset(wl->roles_map, 0, sizeof(wl->roles_map));
 	memset(wl->links_map, 0, sizeof(wl->links_map));
 
@@ -4365,7 +4387,8 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->tx_security_last_seq_lsb = 0;
 	wl->role_id = WL12XX_INVALID_ROLE_ID;
 	wl->sta_hlid = WL12XX_INVALID_LINK_ID;
-
+	wl->dev_role_id = WL12XX_INVALID_ROLE_ID;
+	wl->dev_hlid = WL12XX_INVALID_LINK_ID;
 	setup_timer(&wl->rx_streaming_timer, wl1271_rx_streaming_timer,
 		    (unsigned long) wl);
 	wl->fwlog_size = 0;

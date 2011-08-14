@@ -394,6 +394,7 @@ struct wl1271 {
 	u8 ssid_len;
 	int channel;
 	u8 role_id;
+	u8 dev_role_id;
 	u8 sta_hlid;
 	u8 dev_hlid;
 
