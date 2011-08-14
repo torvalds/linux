@@ -1203,6 +1203,10 @@ int wl1271_cmd_set_sta_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 	struct wl1271_cmd_set_keys *cmd;
 	int ret = 0;
 
+	/* hlid might have already been deleted */
+	if (wl->sta_hlid == WL12XX_INVALID_LINK_ID)
+		return 0;
+
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
 		ret = -ENOMEM;
