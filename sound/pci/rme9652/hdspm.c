@@ -5673,7 +5673,7 @@ static int snd_hdspm_prepare(struct snd_pcm_substream *substream)
 }
 
 static unsigned int period_sizes_old[] = {
-	64, 128, 256, 512, 1024, 2048, 4096
+	64, 128, 256, 512, 1024, 2048, 4096, 8192
 };
 
 static unsigned int period_sizes_new[] = {
