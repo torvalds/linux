@@ -1323,12 +1323,27 @@ static int hdspm_set_interrupt_interval(struct hdspm *s, unsigned int frames)
 
 	spin_lock_irq(&s->lock);
 
-	frames >>= 7;
-	n = 0;
-	while (frames) {
-		n++;
-		frames >>= 1;
+	if (32 == frames) {
+		/* Special case for new RME cards like RayDAT/AIO which
+		 * support period sizes of 32 samples. Since latency is
+		 * encoded in the three bits of HDSP_LatencyMask, we can only
+		 * have values from 0 .. 7. While 0 still means 64 samples and
+		 * 6 represents 4096 samples on all cards, 7 represents 8192
+		 * on older cards and 32 samples on new cards.
+		 *
+		 * In other words, period size in samples is calculated by
+		 * 2^(n+6) with n ranging from 0 .. 7.
+		 */
+		n = 7;
+	} else {
+		frames >>= 7;
+		n = 0;
+		while (frames) {
+			n++;
+			frames >>= 1;
+		}
 	}
+
 	s->control_register &= ~HDSPM_LatencyMask;
 	s->control_register |= hdspm_encode_latency(n);
 
