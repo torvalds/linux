@@ -2528,15 +2528,17 @@ __u32 __skb_get_rxhash(struct sk_buff *skb)
 	const struct ipv6hdr *ip6;
 	const struct iphdr *ip;
 	u8 ip_proto;
-	u32 addr1, addr2, ihl;
+	u32 addr1, addr2;
+	u16 proto;
 	union {
 		u32 v32;
 		u16 v16[2];
 	} ports;
 
 	nhoff = skb_network_offset(skb);
+	proto = skb->protocol;
 
-	switch (skb->protocol) {
+	switch (proto) {
 	case __constant_htons(ETH_P_IP):
 		if (!pskb_may_pull(skb, sizeof(*ip) + nhoff))
 			goto done;
@@ -2548,7 +2550,7 @@ __u32 __skb_get_rxhash(struct sk_buff *skb)
 			ip_proto = ip->protocol;
 		addr1 = (__force u32) ip->saddr;
 		addr2 = (__force u32) ip->daddr;
-		ihl = ip->ihl;
+		nhoff += ip->ihl * 4;
 		break;
 	case __constant_htons(ETH_P_IPV6):
 		if (!pskb_may_pull(skb, sizeof(*ip6) + nhoff))
@@ -2558,7 +2560,7 @@ __u32 __skb_get_rxhash(struct sk_buff *skb)
 		ip_proto = ip6->nexthdr;
 		addr1 = (__force u32) ip6->saddr.s6_addr32[3];
 		addr2 = (__force u32) ip6->daddr.s6_addr32[3];
-		ihl = (40 >> 2);
+		nhoff += 40;
 		break;
 	default:
 		goto done;
@@ -2567,7 +2569,7 @@ __u32 __skb_get_rxhash(struct sk_buff *skb)
 	ports.v32 = 0;
 	poff = proto_ports_offset(ip_proto);
 	if (poff >= 0) {
-		nhoff += ihl * 4 + poff;
+		nhoff += poff;
 		if (pskb_may_pull(skb, nhoff + 4)) {
 			ports.v32 = * (__force u32 *) (skb->data + nhoff);
 			if (ports.v16[1] < ports.v16[0])
