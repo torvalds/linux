@@ -144,3 +144,77 @@ nv50_pm_clock_set(struct drm_device *dev, void *pre_state)
 	kfree(state);
 }
 
+struct pwm_info {
+	int id;
+	int invert;
+	u8  tag;
+	u32 ctrl;
+	int line;
+};
+
+static int
+nv50_pm_fanspeed_pwm(struct drm_device *dev, struct pwm_info *pwm)
+{
+	struct dcb_gpio_entry *gpio;
+
+	gpio = nouveau_bios_gpio_entry(dev, 0x09);
+	if (gpio) {
+		pwm->tag = gpio->tag;
+		pwm->id = (gpio->line == 9) ? 1 : 0;
+		pwm->invert = gpio->state[0] & 1;
+		pwm->ctrl = (gpio->line < 16) ? 0xe100 : 0xe28c;
+		pwm->line = (gpio->line & 0xf);
+		return 0;
+	}
+
+	return -ENOENT;
+}
+
+int
+nv50_pm_fanspeed_get(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpio_engine *pgpio = &dev_priv->engine.gpio;
+	struct pwm_info pwm;
+	int ret;
+
+	ret = nv50_pm_fanspeed_pwm(dev, &pwm);
+	if (ret)
+		return ret;
+
+	if (nv_rd32(dev, pwm.ctrl) & (0x00000001 << pwm.line)) {
+		u32 divs = nv_rd32(dev, 0x00e114 + (pwm.id * 8));
+		u32 duty = nv_rd32(dev, 0x00e118 + (pwm.id * 8));
+		if (divs) {
+			divs = max(divs, duty);
+			if (pwm.invert)
+				duty = divs - duty;
+			return (duty * 100) / divs;
+		}
+
+		return 0;
+	}
+
+	return pgpio->get(dev, pwm.tag) * 100;
+}
+
+int
+nv50_pm_fanspeed_set(struct drm_device *dev, int percent)
+{
+	struct pwm_info pwm;
+	u32 divs, duty;
+	int ret;
+
+	ret = nv50_pm_fanspeed_pwm(dev, &pwm);
+	if (ret)
+		return ret;
+
+	divs = nv_rd32(dev, 0x00e114 + (pwm.id * 8));
+	duty = ((divs * percent) + 99) / 100;
+	if (pwm.invert)
+		duty = divs - duty;
+
+	nv_mask(dev, pwm.ctrl, 0x00010001 << pwm.line, 0x00000001 << pwm.line);
+	nv_wr32(dev, 0x00e118 + (pwm.id * 8), 0x80000000 | duty);
+	return 0;
+}

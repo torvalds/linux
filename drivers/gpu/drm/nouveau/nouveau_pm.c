@@ -167,8 +167,11 @@ nouveau_pm_perflvl_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 		}
 	}
 
-	if (pm->fanspeed_get)
-		perflvl->fanspeed = pm->fanspeed_get(dev);
+	if (pm->fanspeed_get) {
+		ret = pm->fanspeed_get(dev);
+		if (ret > 0)
+			perflvl->fanspeed = ret;
+	}
 
 	return 0;
 }

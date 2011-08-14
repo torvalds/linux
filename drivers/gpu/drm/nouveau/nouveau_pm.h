@@ -66,6 +66,8 @@ int nv50_pm_clock_get(struct drm_device *, u32 id);
 void *nv50_pm_clock_pre(struct drm_device *, struct nouveau_pm_level *,
 			u32 id, int khz);
 void nv50_pm_clock_set(struct drm_device *, void *);
+int nv50_pm_fanspeed_get(struct drm_device *);
+int nv50_pm_fanspeed_set(struct drm_device *, int percent);
 
 /* nva3_pm.c */
 int nva3_pm_clocks_get(struct drm_device *, struct nouveau_pm_level *);
