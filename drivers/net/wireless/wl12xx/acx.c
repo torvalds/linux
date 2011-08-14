@@ -528,13 +528,13 @@ out:
 	return ret;
 }
 
-int wl1271_acx_sta_sg_cfg(struct wl1271 *wl)
+int wl12xx_acx_sg_cfg(struct wl1271 *wl)
 {
-	struct acx_sta_bt_wlan_coex_param *param;
+	struct acx_bt_wlan_coex_param *param;
 	struct conf_sg_settings *c = &wl->conf.sg;
 	int i, ret;
 
-	wl1271_debug(DEBUG_ACX, "acx sg sta cfg");
+	wl1271_debug(DEBUG_ACX, "acx sg cfg");
 
 	param = kzalloc(sizeof(*param), GFP_KERNEL);
 	if (!param) {
@@ -543,38 +543,8 @@ int wl1271_acx_sta_sg_cfg(struct wl1271 *wl)
 	}
 
 	/* BT-WLAN coext parameters */
-	for (i = 0; i < CONF_SG_STA_PARAMS_MAX; i++)
-		param->params[i] = cpu_to_le32(c->sta_params[i]);
-	param->param_idx = CONF_SG_PARAMS_ALL;
-
-	ret = wl1271_cmd_configure(wl, ACX_SG_CFG, param, sizeof(*param));
-	if (ret < 0) {
-		wl1271_warning("failed to set sg config: %d", ret);
-		goto out;
-	}
-
-out:
-	kfree(param);
-	return ret;
-}
-
-int wl1271_acx_ap_sg_cfg(struct wl1271 *wl)
-{
-	struct acx_ap_bt_wlan_coex_param *param;
-	struct conf_sg_settings *c = &wl->conf.sg;
-	int i, ret;
-
-	wl1271_debug(DEBUG_ACX, "acx sg ap cfg");
-
-	param = kzalloc(sizeof(*param), GFP_KERNEL);
-	if (!param) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	/* BT-WLAN coext parameters */
-	for (i = 0; i < CONF_SG_AP_PARAMS_MAX; i++)
-		param->params[i] = cpu_to_le32(c->ap_params[i]);
+	for (i = 0; i < CONF_SG_PARAMS_MAX; i++)
+		param->params[i] = cpu_to_le32(c->params[i]);
 	param->param_idx = CONF_SG_PARAMS_ALL;
 
 	ret = wl1271_cmd_configure(wl, ACX_SG_CFG, param, sizeof(*param));

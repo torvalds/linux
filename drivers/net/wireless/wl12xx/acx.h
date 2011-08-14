@@ -302,22 +302,13 @@ struct acx_bt_wlan_coex {
 	u8 pad[3];
 } __packed;
 
-struct acx_sta_bt_wlan_coex_param {
+struct acx_bt_wlan_coex_param {
 	struct acx_header header;
 
-	__le32 params[CONF_SG_STA_PARAMS_MAX];
+	__le32 params[CONF_SG_PARAMS_MAX];
 	u8 param_idx;
 	u8 padding[3];
 } __packed;
-
-struct acx_ap_bt_wlan_coex_param {
-	struct acx_header header;
-
-	__le32 params[CONF_SG_AP_PARAMS_MAX];
-	u8 param_idx;
-	u8 padding[3];
-} __packed;
-
 
 struct acx_dco_itrim_params {
 	struct acx_header header;
@@ -1269,8 +1260,7 @@ int wl1271_acx_beacon_filter_opt(struct wl1271 *wl, bool enable_filter);
 int wl1271_acx_beacon_filter_table(struct wl1271 *wl);
 int wl1271_acx_conn_monit_params(struct wl1271 *wl, bool enable);
 int wl1271_acx_sg_enable(struct wl1271 *wl, bool enable);
-int wl1271_acx_sta_sg_cfg(struct wl1271 *wl);
-int wl1271_acx_ap_sg_cfg(struct wl1271 *wl);
+int wl12xx_acx_sg_cfg(struct wl1271 *wl);
 int wl1271_acx_cca_threshold(struct wl1271 *wl);
 int wl1271_acx_bcn_dtim_options(struct wl1271 *wl);
 int wl1271_acx_aid(struct wl1271 *wl, u16 aid);
