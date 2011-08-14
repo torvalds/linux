@@ -1044,12 +1044,12 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	ar->net_stats.rx_packets++;
 	ar->net_stats.rx_bytes += packet->act_len;
 
+	spin_unlock_bh(&ar->lock);
+
 	skb_put(skb, packet->act_len + HTC_HDR_LENGTH);
 	skb_pull(skb, HTC_HDR_LENGTH);
 
 	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, __func__, skb->data, skb->len);
-
-	spin_unlock_bh(&ar->lock);
 
 	skb->dev = ar->net_dev;
 
