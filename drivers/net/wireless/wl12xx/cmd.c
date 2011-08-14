@@ -1554,3 +1554,42 @@ out_free:
 out:
 	return ret;
 }
+
+int wl12xx_roc(struct wl1271 *wl, u8 role_id)
+{
+	int ret = 0;
+
+	if (WARN_ON(test_bit(role_id, wl->roc_map)))
+		return 0;
+
+	ret = wl12xx_cmd_roc(wl, role_id);
+	if (ret < 0)
+		goto out;
+
+	ret = wl1271_cmd_wait_for_event(wl,
+					REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID);
+	if (ret < 0) {
+		wl1271_error("cmd roc event completion error");
+		goto out;
+	}
+
+	__set_bit(role_id, wl->roc_map);
+out:
+	return ret;
+}
+
+int wl12xx_croc(struct wl1271 *wl, u8 role_id)
+{
+	int ret = 0;
+
+	if (WARN_ON(!test_bit(role_id, wl->roc_map)))
+		return 0;
+
+	ret = wl12xx_cmd_croc(wl, role_id);
+	if (ret < 0)
+		goto out;
+
+	__clear_bit(role_id, wl->roc_map);
+out:
+	return ret;
+}

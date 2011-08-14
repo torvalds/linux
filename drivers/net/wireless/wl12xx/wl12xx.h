@@ -319,7 +319,6 @@ struct wl1271_ap_key {
 
 enum wl12xx_flags {
 	WL1271_FLAG_STA_ASSOCIATED,
-	WL1271_FLAG_JOINED,
 	WL1271_FLAG_GPIO_POWER,
 	WL1271_FLAG_TX_QUEUE_STOPPED,
 	WL1271_FLAG_TX_PENDING,
@@ -402,6 +401,7 @@ struct wl1271 {
 
 	unsigned long links_map[BITS_TO_LONGS(WL12XX_MAX_LINKS)];
 	unsigned long roles_map[BITS_TO_LONGS(WL12XX_MAX_ROLES)];
+	unsigned long roc_map[BITS_TO_LONGS(WL12XX_MAX_ROLES)];
 
 	struct wl1271_acx_mem_map *target_mem_map;
 

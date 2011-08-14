@@ -440,6 +440,8 @@ static int wl1271_check_operstate(struct wl1271 *wl, unsigned char operstate)
 	if (ret < 0)
 		return ret;
 
+	wl12xx_croc(wl, wl->role_id);
+
 	wl1271_info("Association completed.");
 	return 0;
 }
@@ -2068,6 +2070,7 @@ deinit:
 	wl->dev_role_id = WL12XX_INVALID_ROLE_ID;
 	memset(wl->roles_map, 0, sizeof(wl->roles_map));
 	memset(wl->links_map, 0, sizeof(wl->links_map));
+	memset(wl->roc_map, 0, sizeof(wl->roc_map));
 
 	/* The system link is always allocated */
 	__set_bit(WL12XX_SYSTEM_HLID, wl->links_map);
@@ -2110,25 +2113,6 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	cancel_work_sync(&wl->recovery_work);
 }
 
-static int wl1271_dummy_join(struct wl1271 *wl)
-{
-	int ret = 0;
-	/* we need to use a dummy BSSID for now */
-	static const u8 dummy_bssid[ETH_ALEN] = { 0x0b, 0xad, 0xde,
-						  0xad, 0xbe, 0xef };
-
-	memcpy(wl->bssid, dummy_bssid, ETH_ALEN);
-
-	ret = wl12xx_cmd_role_start_sta(wl);
-	if (ret < 0)
-		goto out;
-
-	set_bit(WL1271_FLAG_JOINED, &wl->flags);
-
-out:
-	return ret;
-}
-
 static int wl1271_join(struct wl1271 *wl, bool set_assoc)
 {
 	int ret;
@@ -2151,8 +2135,6 @@ static int wl1271_join(struct wl1271 *wl, bool set_assoc)
 	ret = wl12xx_cmd_role_start_sta(wl);
 	if (ret < 0)
 		goto out;
-
-	set_bit(WL1271_FLAG_JOINED, &wl->flags);
 
 	if (!test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
 		goto out;
@@ -2193,7 +2175,6 @@ static int wl1271_unjoin(struct wl1271 *wl)
 	if (ret < 0)
 		goto out;
 
-	clear_bit(WL1271_FLAG_JOINED, &wl->flags);
 	memset(wl->bssid, 0, ETH_ALEN);
 
 	/* reset TX security counters on a clean disconnect */
@@ -2212,13 +2193,29 @@ static void wl1271_set_band_rate(struct wl1271 *wl)
 		wl->basic_rate_set = wl->conf.tx.basic_rate_5;
 }
 
+static bool wl12xx_is_roc(struct wl1271 *wl)
+{
+	u8 role_id;
+
+	role_id = find_first_bit(wl->roc_map, WL12XX_MAX_ROLES);
+	if (role_id >= WL12XX_MAX_ROLES)
+		return false;
+
+	return true;
+}
+
 static int wl1271_sta_handle_idle(struct wl1271 *wl, bool idle)
 {
 	int ret;
 
 	if (idle) {
-		if (test_bit(WL1271_FLAG_JOINED, &wl->flags)) {
-			ret = wl1271_unjoin(wl);
+		/* no need to croc if we weren't busy (e.g. during boot) */
+		if (wl12xx_is_roc(wl)) {
+			ret = wl12xx_croc(wl, wl->dev_role_id);
+			if (ret < 0)
+				goto out;
+
+			ret = wl12xx_cmd_role_stop_dev(wl);
 			if (ret < 0)
 				goto out;
 		}
@@ -2244,7 +2241,11 @@ static int wl1271_sta_handle_idle(struct wl1271 *wl, bool idle)
 			ieee80211_sched_scan_stopped(wl->hw);
 		}
 
-		ret = wl1271_dummy_join(wl);
+		ret = wl12xx_cmd_role_start_dev(wl);
+		if (ret < 0)
+			goto out;
+
+		ret = wl12xx_roc(wl, wl->dev_role_id);
 		if (ret < 0)
 			goto out;
 		clear_bit(WL1271_FLAG_IDLE, &wl->flags);
@@ -2324,11 +2325,34 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 				wl1271_warning("rate policy for channel "
 					       "failed %d", ret);
 
-			if (test_bit(WL1271_FLAG_JOINED, &wl->flags)) {
+			if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) {
+				if (wl12xx_is_roc(wl)) {
+					/* roaming */
+					ret = wl12xx_croc(wl, wl->dev_role_id);
+					if (ret < 0)
+						goto out_sleep;
+				}
 				ret = wl1271_join(wl, false);
 				if (ret < 0)
 					wl1271_warning("cmd join on channel "
 						       "failed %d", ret);
+			} else {
+				/*
+				 * change the ROC channel. do it only if we are
+				 * not idle. otherwise, CROC will be called
+				 * anyway.
+				 */
+				if (wl12xx_is_roc(wl) &&
+				    !(conf->flags & IEEE80211_CONF_IDLE)) {
+					ret = wl12xx_croc(wl, wl->dev_role_id);
+					if (ret < 0)
+						goto out_sleep;
+
+					ret = wl12xx_roc(wl, wl->dev_role_id);
+					if (ret < 0)
+						wl1271_warning("roc failed %d",
+							       ret);
+				}
 			}
 		}
 	}
@@ -2784,10 +2808,20 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
+	/* cancel ROC before scanning */
+	if (wl12xx_is_roc(wl)) {
+		if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) {
+			/* don't allow scanning right now */
+			ret = -EBUSY;
+			goto out_sleep;
+		}
+		wl12xx_croc(wl, wl->dev_role_id);
+		wl12xx_cmd_role_stop_dev(wl);
+	}
+
 	ret = wl1271_scan(hw->priv, ssid, len, req);
-
+out_sleep:
 	wl1271_ps_elp_sleep(wl);
-
 out:
 	mutex_unlock(&wl->mutex);
 
@@ -3311,7 +3345,9 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 			bool was_assoc =
 			    !!test_and_clear_bit(WL1271_FLAG_STA_ASSOCIATED,
 						 &wl->flags);
-			clear_bit(WL1271_FLAG_STA_STATE_SENT, &wl->flags);
+			bool was_ifup =
+			    !!test_and_clear_bit(WL1271_FLAG_STA_STATE_SENT,
+						 &wl->flags);
 			wl->aid = 0;
 
 			/* free probe-request template */
@@ -3338,8 +3374,32 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 
 			/* restore the bssid filter and go to dummy bssid */
 			if (was_assoc) {
+				u32 conf_flags = wl->hw->conf.flags;
+				/*
+				 * we might have to disable roc, if there was
+				 * no IF_OPER_UP notification.
+				 */
+				if (!was_ifup) {
+					ret = wl12xx_croc(wl, wl->role_id);
+					if (ret < 0)
+						goto out;
+				}
+				/*
+				 * (we also need to disable roc in case of
+				 * roaming on the same channel. until we will
+				 * have a better flow...)
+				 */
+				if (test_bit(wl->dev_role_id, wl->roc_map)) {
+					ret = wl12xx_croc(wl, wl->dev_role_id);
+					if (ret < 0)
+						goto out;
+				}
+
 				wl1271_unjoin(wl);
-				wl1271_dummy_join(wl);
+				if (!(conf_flags & IEEE80211_CONF_IDLE)) {
+					wl12xx_cmd_role_start_dev(wl);
+					wl12xx_roc(wl, wl->dev_role_id);
+				}
 			}
 		}
 	}
@@ -3400,7 +3460,29 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 			wl1271_warning("cmd join failed %d", ret);
 			goto out;
 		}
-		wl1271_check_operstate(wl, ieee80211_get_operstate(vif));
+
+		/* ROC until connected (after EAPOL exchange) */
+		if (!is_ibss) {
+			ret = wl12xx_roc(wl, wl->role_id);
+			if (ret < 0)
+				goto out;
+
+			wl1271_check_operstate(wl,
+					       ieee80211_get_operstate(vif));
+		}
+		/*
+		 * stop device role if started (we might already be in
+		 * STA role). TODO: make it better.
+		 */
+		if (wl->dev_role_id != WL12XX_INVALID_ROLE_ID) {
+			ret = wl12xx_croc(wl, wl->dev_role_id);
+			if (ret < 0)
+				goto out;
+
+			ret = wl12xx_cmd_role_stop_dev(wl);
+			if (ret < 0)
+				goto out;
+		}
 	}
 
 out:

@@ -33,6 +33,7 @@ void wl1271_scan_complete_work(struct work_struct *work)
 {
 	struct delayed_work *dwork;
 	struct wl1271 *wl;
+	int ret;
 
 	dwork = container_of(work, struct delayed_work, work);
 	wl = container_of(dwork, struct wl1271, scan_complete_work);
@@ -50,20 +51,27 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	wl->scan.state = WL1271_SCAN_STATE_IDLE;
 	memset(wl->scan.scanned_ch, 0, sizeof(wl->scan.scanned_ch));
 	wl->scan.req = NULL;
-	ieee80211_scan_completed(wl->hw, false);
 
-	/* restore hardware connection monitoring template */
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
 	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) {
-		if (wl1271_ps_elp_wakeup(wl) == 0) {
-			wl1271_cmd_build_ap_probe_req(wl, wl->probereq);
-			wl1271_ps_elp_sleep(wl);
-		}
+		/* restore hardware connection monitoring template */
+		wl1271_cmd_build_ap_probe_req(wl, wl->probereq);
+	} else {
+		/* restore remain on channel */
+		wl12xx_cmd_role_start_dev(wl);
+		wl12xx_roc(wl, wl->dev_role_id);
 	}
+	wl1271_ps_elp_sleep(wl);
 
 	if (wl->scan.failed) {
 		wl1271_info("Scan completed due to error.");
 		wl12xx_queue_recovery_work(wl);
 	}
+
+	ieee80211_scan_completed(wl->hw, false);
 
 out:
 	mutex_unlock(&wl->mutex);

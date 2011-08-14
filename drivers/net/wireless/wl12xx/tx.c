@@ -78,6 +78,7 @@ static int wl1271_tx_update_filters(struct wl1271 *wl,
 						 struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
+	int ret;
 
 	hdr = (struct ieee80211_hdr *)(skb->data +
 				       sizeof(struct wl1271_tx_hw_descr));
@@ -91,6 +92,18 @@ static int wl1271_tx_update_filters(struct wl1271 *wl,
 	if (!ieee80211_is_auth(hdr->frame_control))
 		return 0;
 
+	if (wl->dev_hlid != WL12XX_INVALID_LINK_ID)
+		goto out;
+
+	wl1271_debug(DEBUG_CMD, "starting device role for roaming");
+	ret = wl12xx_cmd_role_start_dev(wl);
+	if (ret < 0)
+		goto out;
+
+	ret = wl12xx_roc(wl, wl->dev_role_id);
+	if (ret < 0)
+		goto out;
+out:
 	return 0;
 }
 
