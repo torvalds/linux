@@ -38,7 +38,7 @@ static int wl1271_set_default_wep_key(struct wl1271 *wl, u8 id)
 
 	if (is_ap)
 		ret = wl12xx_cmd_set_default_wep_key(wl, id,
-						     WL1271_AP_BROADCAST_HLID);
+						     wl->ap_bcast_hlid);
 	else
 		ret = wl12xx_cmd_set_default_wep_key(wl, id, wl->sta_hlid);
 
@@ -168,9 +168,9 @@ u8 wl12xx_tx_get_hlid_ap(struct wl1271 *wl, struct sk_buff *skb)
 
 		hdr = (struct ieee80211_hdr *)skb->data;
 		if (ieee80211_is_mgmt(hdr->frame_control))
-			return WL1271_AP_GLOBAL_HLID;
+			return wl->ap_global_hlid;
 		else
-			return WL1271_AP_BROADCAST_HLID;
+			return wl->ap_bcast_hlid;
 	}
 }
 
@@ -317,17 +317,12 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 		else
 			rate_idx = ACX_TX_BASIC_RATE;
 	} else {
-		switch (hlid) {
-		case WL1271_AP_GLOBAL_HLID:
+		if (hlid == wl->ap_global_hlid)
 			rate_idx = ACX_TX_AP_MODE_MGMT_RATE;
-			break;
-		case WL1271_AP_BROADCAST_HLID:
+		else if (hlid == wl->ap_bcast_hlid)
 			rate_idx = ACX_TX_AP_MODE_BCST_RATE;
-			break;
-		default:
+		else
 			rate_idx = ac;
-			break;
-		}
 	}
 
 	tx_attr |= rate_idx << TX_HW_ATTR_OFST_RATE_POLICY;

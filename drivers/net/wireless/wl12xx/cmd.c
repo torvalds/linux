@@ -682,11 +682,19 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl)
 		goto out;
 	}
 
+	ret = wl12xx_allocate_link(wl, &wl->ap_global_hlid);
+	if (ret < 0)
+		goto out_free;
+
+	ret = wl12xx_allocate_link(wl, &wl->ap_bcast_hlid);
+	if (ret < 0)
+		goto out_free_global;
+
 	cmd->role_id = wl->role_id;
 	cmd->ap.aging_period = cpu_to_le16(wl->conf.tx.ap_aging_period);
 	cmd->ap.bss_index = WL1271_AP_BSS_INDEX;
-	cmd->ap.global_hlid = WL1271_AP_GLOBAL_HLID;
-	cmd->ap.broadcast_hlid = WL1271_AP_BROADCAST_HLID;
+	cmd->ap.global_hlid = wl->ap_global_hlid;
+	cmd->ap.broadcast_hlid = wl->ap_bcast_hlid;
 	cmd->ap.basic_rate_set = cpu_to_le32(wl->basic_rate_set);
 	cmd->ap.beacon_interval = cpu_to_le16(wl->beacon_int);
 	cmd->ap.dtim_interval = bss_conf->dtim_period;
@@ -713,8 +721,16 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl)
 	ret = wl1271_cmd_send(wl, CMD_ROLE_START, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
 		wl1271_error("failed to initiate cmd role start ap");
-		goto out_free;
+		goto out_free_bcast;
 	}
+
+	goto out_free;
+
+out_free_bcast:
+	wl12xx_free_link(wl, &wl->ap_bcast_hlid);
+
+out_free_global:
+	wl12xx_free_link(wl, &wl->ap_global_hlid);
 
 out_free:
 	kfree(cmd);
@@ -743,6 +759,9 @@ int wl12xx_cmd_role_stop_ap(struct wl1271 *wl)
 		wl1271_error("failed to initiate cmd role stop ap");
 		goto out_free;
 	}
+
+	wl12xx_free_link(wl, &wl->ap_bcast_hlid);
+	wl12xx_free_link(wl, &wl->ap_global_hlid);
 
 out_free:
 	kfree(cmd);
@@ -1253,7 +1272,7 @@ int wl1271_cmd_set_ap_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 	if (!cmd)
 		return -ENOMEM;
 
-	if (hlid == WL1271_AP_BROADCAST_HLID) {
+	if (hlid == wl->ap_bcast_hlid) {
 		if (key_type == KEY_WEP)
 			lid_type = WEP_DEFAULT_LID_TYPE;
 		else

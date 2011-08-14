@@ -1972,8 +1972,11 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 		wl1271_ps_elp_sleep(wl);
 	}
 deinit:
+	/* clear all hlids (except system_hlid) */
 	wl->sta_hlid = WL12XX_INVALID_LINK_ID;
 	wl->dev_hlid = WL12XX_INVALID_LINK_ID;
+	wl->ap_bcast_hlid = WL12XX_INVALID_LINK_ID;
+	wl->ap_global_hlid = WL12XX_INVALID_LINK_ID;
 
 	/*
 	 * this must be before the cancel_work calls below, so that the work
@@ -2538,7 +2541,7 @@ static int wl1271_ap_init_hwenc(struct wl1271 *wl)
 
 	if (wep_key_added) {
 		ret = wl12xx_cmd_set_default_wep_key(wl, wl->default_key,
-						     WL1271_AP_BROADCAST_HLID);
+						     wl->ap_bcast_hlid);
 		if (ret < 0)
 			goto out;
 	}
@@ -2563,7 +2566,7 @@ static int wl1271_set_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 			wl_sta = (struct wl1271_station *)sta->drv_priv;
 			hlid = wl_sta->hlid;
 		} else {
-			hlid = WL1271_AP_BROADCAST_HLID;
+			hlid = wl->ap_bcast_hlid;
 		}
 
 		if (!test_bit(WL1271_FLAG_AP_STARTED, &wl->flags)) {
@@ -4449,6 +4452,8 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->dev_role_id = WL12XX_INVALID_ROLE_ID;
 	wl->dev_hlid = WL12XX_INVALID_LINK_ID;
 	wl->session_counter = 0;
+	wl->ap_bcast_hlid = WL12XX_INVALID_LINK_ID;
+	wl->ap_global_hlid = WL12XX_INVALID_LINK_ID;
 	setup_timer(&wl->rx_streaming_timer, wl1271_rx_streaming_timer,
 		    (unsigned long) wl);
 	wl->fwlog_size = 0;
