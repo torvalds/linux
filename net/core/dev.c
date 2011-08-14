@@ -2570,6 +2570,28 @@ again:
 	}
 
 	switch (ip_proto) {
+	case IPPROTO_GRE:
+		if (pskb_may_pull(skb, nhoff + 16)) {
+			u8 *h = skb->data + nhoff;
+			__be16 flags = *(__be16 *)h;
+
+			/*
+			 * Only look inside GRE if version zero and no
+			 * routing
+			 */
+			if (!(flags & (GRE_VERSION|GRE_ROUTING))) {
+				proto = *(__be16 *)(h + 2);
+				nhoff += 4;
+				if (flags & GRE_CSUM)
+					nhoff += 4;
+				if (flags & GRE_KEY)
+					nhoff += 4;
+				if (flags & GRE_SEQ)
+					nhoff += 4;
+				goto again;
+			}
+		}
+		break;
 	default:
 		break;
 	}
