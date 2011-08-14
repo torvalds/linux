@@ -227,15 +227,11 @@ static int wl1271_ap_init_templates_config(struct wl1271 *wl)
 	return 0;
 }
 
-static int wl1271_init_rx_config(struct wl1271 *wl, u32 config, u32 filter)
+static int wl12xx_init_rx_config(struct wl1271 *wl)
 {
 	int ret;
 
 	ret = wl1271_acx_rx_msdu_life_time(wl);
-	if (ret < 0)
-		return ret;
-
-	ret = wl1271_acx_rx_config(wl, config, filter);
 	if (ret < 0)
 		return ret;
 
@@ -650,11 +646,7 @@ int wl1271_hw_init(struct wl1271 *wl)
 		return ret;
 
 	/* RX config */
-	ret = wl1271_init_rx_config(wl,
-				    RX_CFG_PROMISCUOUS | RX_CFG_TSF,
-				    RX_FILTER_OPTION_DEF);
-	/* RX_CONFIG_OPTION_ANY_DST_ANY_BSS,
-	   RX_FILTER_OPTION_FILTER_ALL); */
+	ret = wl12xx_init_rx_config(wl);
 	if (ret < 0)
 		goto out_free_memmap;
 

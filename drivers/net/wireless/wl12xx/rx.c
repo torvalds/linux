@@ -283,14 +283,3 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_common_status *status)
 			  jiffies + msecs_to_jiffies(timeout));
 	}
 }
-
-void wl1271_set_default_filters(struct wl1271 *wl)
-{
-	if (wl->bss_type == BSS_TYPE_AP_BSS) {
-		wl->rx_config = WL1271_DEFAULT_AP_RX_CONFIG;
-		wl->rx_filter = WL1271_DEFAULT_AP_RX_FILTER;
-	} else {
-		wl->rx_config = WL1271_DEFAULT_STA_RX_CONFIG;
-		wl->rx_filter = WL1271_DEFAULT_STA_RX_FILTER;
-	}
-}

@@ -167,9 +167,6 @@ static int wl1271_scan_send(struct wl1271 *wl, enum ieee80211_band band,
 	}
 
 	cmd->params.tx_rate = cpu_to_le32(basic_rate);
-	cmd->params.rx_config_options = cpu_to_le32(CFG_RX_ALL_GOOD);
-	cmd->params.rx_filter_options =
-		cpu_to_le32(CFG_RX_PRSP_EN | CFG_RX_MGMT_EN | CFG_RX_BCN_EN);
 
 	cmd->params.n_probe_reqs = wl->conf.scan.num_probe_reqs;
 	cmd->params.tx_rate = cpu_to_le32(basic_rate);

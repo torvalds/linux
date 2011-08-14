@@ -1991,7 +1991,6 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 	wl->session_counter = 0;
 	wl->rate_set = CONF_TX_RATE_MASK_BASIC;
 	wl->vif = NULL;
-	wl->filters = 0;
 	wl1271_free_ap_keys(wl);
 	memset(wl->ap_hlid_map, 0, sizeof(wl->ap_hlid_map));
 	wl->ap_fw_ps_map = 0;
@@ -2037,39 +2036,6 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	cancel_work_sync(&wl->recovery_work);
 }
 
-void wl1271_configure_filters(struct wl1271 *wl, unsigned int filters)
-{
-	wl1271_set_default_filters(wl);
-
-	/* combine requested filters with current filter config */
-	filters = wl->filters | filters;
-
-	wl1271_debug(DEBUG_FILTERS, "RX filters set: ");
-
-	if (filters & FIF_PROMISC_IN_BSS) {
-		wl1271_debug(DEBUG_FILTERS, " - FIF_PROMISC_IN_BSS");
-		wl->rx_config &= ~CFG_UNI_FILTER_EN;
-		wl->rx_config |= CFG_BSSID_FILTER_EN;
-	}
-	if (filters & FIF_BCN_PRBRESP_PROMISC) {
-		wl1271_debug(DEBUG_FILTERS, " - FIF_BCN_PRBRESP_PROMISC");
-		wl->rx_config &= ~CFG_BSSID_FILTER_EN;
-		wl->rx_config &= ~CFG_SSID_FILTER_EN;
-	}
-	if (filters & FIF_OTHER_BSS) {
-		wl1271_debug(DEBUG_FILTERS, " - FIF_OTHER_BSS");
-		wl->rx_config &= ~CFG_BSSID_FILTER_EN;
-	}
-	if (filters & FIF_CONTROL) {
-		wl1271_debug(DEBUG_FILTERS, " - FIF_CONTROL");
-		wl->rx_filter |= CFG_RX_CTL_EN;
-	}
-	if (filters & FIF_FCSFAIL) {
-		wl1271_debug(DEBUG_FILTERS, " - FIF_FCSFAIL");
-		wl->rx_filter |= CFG_RX_FCS_ERROR;
-	}
-}
-
 static int wl1271_dummy_join(struct wl1271 *wl)
 {
 	int ret = 0;
@@ -2078,9 +2044,6 @@ static int wl1271_dummy_join(struct wl1271 *wl)
 						  0xad, 0xbe, 0xef };
 
 	memcpy(wl->bssid, dummy_bssid, ETH_ALEN);
-
-	/* pass through frames from all BSS */
-	wl1271_configure_filters(wl, FIF_OTHER_BSS);
 
 	ret = wl1271_cmd_join(wl, wl->set_bss_type);
 	if (ret < 0)
@@ -2162,9 +2125,6 @@ static int wl1271_unjoin(struct wl1271 *wl)
 	/* reset TX security counters on a clean disconnect */
 	wl->tx_security_last_seq_lsb = 0;
 	wl->tx_security_seq = 0;
-
-	/* stop filtering packets based on bssid */
-	wl1271_configure_filters(wl, FIF_OTHER_BSS);
 
 out:
 	return ret;
@@ -2434,18 +2394,11 @@ static void wl1271_op_configure_filter(struct ieee80211_hw *hw,
 			goto out_sleep;
 	}
 
-	/* determine, whether supported filter values have changed */
-	if (changed == 0)
-		goto out_sleep;
-
-	/* configure filters */
-	wl->filters = *total;
-	wl1271_configure_filters(wl, 0);
-
-	/* apply configured filters */
-	ret = wl1271_acx_rx_config(wl, wl->rx_config, wl->rx_filter);
-	if (ret < 0)
-		goto out_sleep;
+	/*
+	 * the fw doesn't provide an api to configure the filters. instead,
+	 * the filters configuration is based on the active roles / ROC
+	 * state.
+	 */
 
 out_sleep:
 	wl1271_ps_elp_sleep(wl);
@@ -3167,9 +3120,6 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 			ret = wl1271_build_qos_null_data(wl);
 			if (ret < 0)
 				goto out;
-
-			/* filter out all packets not from this BSSID */
-			wl1271_configure_filters(wl, 0);
 
 			/* Need to update the BSSID (for filtering etc) */
 			do_join = true;
@@ -4363,8 +4313,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->beacon_int = WL1271_DEFAULT_BEACON_INT;
 	wl->default_key = 0;
 	wl->rx_counter = 0;
-	wl->rx_config = WL1271_DEFAULT_STA_RX_CONFIG;
-	wl->rx_filter = WL1271_DEFAULT_STA_RX_FILTER;
 	wl->psm_entry_retry = 0;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
 	wl->basic_rate_set = CONF_TX_RATE_MASK_BASIC;

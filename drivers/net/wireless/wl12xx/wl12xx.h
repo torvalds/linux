@@ -112,24 +112,6 @@ extern u32 wl12xx_debug_level;
 				       true);				\
 	} while (0)
 
-#define WL1271_DEFAULT_STA_RX_CONFIG (CFG_UNI_FILTER_EN |	\
-				  CFG_BSSID_FILTER_EN | \
-				  CFG_MC_FILTER_EN)
-
-#define WL1271_DEFAULT_STA_RX_FILTER (CFG_RX_RCTS_ACK | CFG_RX_PRSP_EN |  \
-				  CFG_RX_MGMT_EN | CFG_RX_DATA_EN |   \
-				  CFG_RX_CTL_EN | CFG_RX_BCN_EN |     \
-				  CFG_RX_AUTH_EN | CFG_RX_ASSOC_EN)
-
-#define WL1271_DEFAULT_AP_RX_CONFIG  0
-
-#define WL1271_DEFAULT_AP_RX_FILTER  (CFG_RX_RCTS_ACK | CFG_RX_PREQ_EN | \
-				  CFG_RX_MGMT_EN | CFG_RX_DATA_EN | \
-				  CFG_RX_CTL_EN | CFG_RX_AUTH_EN | \
-				  CFG_RX_ASSOC_EN)
-
-
-
 #define WL127X_FW_NAME "ti-connectivity/wl127x-fw-3.bin"
 #define WL128X_FW_NAME "ti-connectivity/wl128x-fw-3.bin"
 
@@ -531,10 +513,6 @@ struct wl1271 {
 	struct work_struct rx_streaming_enable_work;
 	struct work_struct rx_streaming_disable_work;
 	struct timer_list rx_streaming_timer;
-
-	unsigned int filters;
-	unsigned int rx_config;
-	unsigned int rx_filter;
 
 	struct completion *elp_compl;
 	struct completion *ps_compl;

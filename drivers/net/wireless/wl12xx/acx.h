@@ -160,94 +160,6 @@ struct acx_rx_msdu_lifetime {
 	__le32 lifetime;
 } __packed;
 
-/*
- * RX Config Options Table
- * Bit		Definition
- * ===		==========
- * 31:14		Reserved
- * 13		Copy RX Status - when set, write three receive status words
- *		to top of rx'd MPDUs.
- *		When cleared, do not write three status words (added rev 1.5)
- * 12		Reserved
- * 11		RX Complete upon FCS error - when set, give rx complete
- *		interrupt for FCS errors, after the rx filtering, e.g. unicast
- *		frames not to us with FCS error will not generate an interrupt.
- * 10		SSID Filter Enable - When set, the WiLink discards all beacon,
- *	        probe request, and probe response frames with an SSID that does
- *		not match the SSID specified by the host in the START/JOIN
- *		command.
- *		When clear, the WiLink receives frames with any SSID.
- * 9		Broadcast Filter Enable - When set, the WiLink discards all
- *		broadcast frames. When clear, the WiLink receives all received
- *		broadcast frames.
- * 8:6		Reserved
- * 5		BSSID Filter Enable - When set, the WiLink discards any frames
- *		with a BSSID that does not match the BSSID specified by the
- *		host.
- *		When clear, the WiLink receives frames from any BSSID.
- * 4		MAC Addr Filter - When set, the WiLink discards any frames
- *		with a destination address that does not match the MAC address
- *		of the adaptor.
- *		When clear, the WiLink receives frames destined to any MAC
- *		address.
- * 3		Promiscuous - When set, the WiLink receives all valid frames
- *		(i.e., all frames that pass the FCS check).
- *		When clear, only frames that pass the other filters specified
- *		are received.
- * 2		FCS - When set, the WiLink includes the FCS with the received
- *		frame.
- *		When cleared, the FCS is discarded.
- * 1		PLCP header - When set, write all data from baseband to frame
- *		buffer including PHY header.
- * 0		Reserved - Always equal to 0.
- *
- * RX Filter Options Table
- * Bit		Definition
- * ===		==========
- * 31:12		Reserved - Always equal to 0.
- * 11		Association - When set, the WiLink receives all association
- *		related frames (association request/response, reassocation
- *		request/response, and disassociation). When clear, these frames
- *		are discarded.
- * 10		Auth/De auth - When set, the WiLink receives all authentication
- *		and de-authentication frames. When clear, these frames are
- *		discarded.
- * 9		Beacon - When set, the WiLink receives all beacon frames.
- *		When clear, these frames are discarded.
- * 8		Contention Free - When set, the WiLink receives all contention
- *		free frames.
- *		When clear, these frames are discarded.
- * 7		Control - When set, the WiLink receives all control frames.
- *		When clear, these frames are discarded.
- * 6		Data - When set, the WiLink receives all data frames.
- *		When clear, these frames are discarded.
- * 5		FCS Error - When set, the WiLink receives frames that have FCS
- *		errors.
- *		When clear, these frames are discarded.
- * 4		Management - When set, the WiLink receives all management
- *		frames.
- *		When clear, these frames are discarded.
- * 3		Probe Request - When set, the WiLink receives all probe request
- *		frames.
- *		When clear, these frames are discarded.
- * 2		Probe Response - When set, the WiLink receives all probe
- *		response frames.
- *		When clear, these frames are discarded.
- * 1		RTS/CTS/ACK - When set, the WiLink receives all RTS, CTS and ACK
- *		frames.
- *		When clear, these frames are discarded.
- * 0		Rsvd Type/Sub Type - When set, the WiLink receives all frames
- *		that have reserved frame types and sub types as defined by the
- *		802.11 specification.
- *		When clear, these frames are discarded.
- */
-struct acx_rx_config {
-	struct acx_header header;
-
-	__le32 config_options;
-	__le32 filter_options;
-} __packed;
-
 struct acx_packet_detection {
 	struct acx_header header;
 
@@ -423,35 +335,6 @@ struct acx_event_mask {
 	__le32 event_mask;
 	__le32 high_event_mask; /* Unused */
 } __packed;
-
-#define CFG_RX_FCS		BIT(2)
-#define CFG_RX_ALL_GOOD		BIT(3)
-#define CFG_UNI_FILTER_EN	BIT(4)
-#define CFG_BSSID_FILTER_EN	BIT(5)
-#define CFG_MC_FILTER_EN	BIT(6)
-#define CFG_MC_ADDR0_EN		BIT(7)
-#define CFG_MC_ADDR1_EN		BIT(8)
-#define CFG_BC_REJECT_EN	BIT(9)
-#define CFG_SSID_FILTER_EN	BIT(10)
-#define CFG_RX_INT_FCS_ERROR	BIT(11)
-#define CFG_RX_INT_ENCRYPTED	BIT(12)
-#define CFG_RX_WR_RX_STATUS	BIT(13)
-#define CFG_RX_FILTER_NULTI	BIT(14)
-#define CFG_RX_RESERVE		BIT(15)
-#define CFG_RX_TIMESTAMP_TSF	BIT(16)
-
-#define CFG_RX_RSV_EN		BIT(0)
-#define CFG_RX_RCTS_ACK		BIT(1)
-#define CFG_RX_PRSP_EN		BIT(2)
-#define CFG_RX_PREQ_EN		BIT(3)
-#define CFG_RX_MGMT_EN		BIT(4)
-#define CFG_RX_FCS_ERROR	BIT(5)
-#define CFG_RX_DATA_EN		BIT(6)
-#define CFG_RX_CTL_EN		BIT(7)
-#define CFG_RX_CF_EN		BIT(8)
-#define CFG_RX_BCN_EN		BIT(9)
-#define CFG_RX_AUTH_EN		BIT(10)
-#define CFG_RX_ASSOC_EN		BIT(11)
 
 #define SCAN_PASSIVE		BIT(0)
 #define SCAN_5GHZ_BAND		BIT(1)
@@ -1342,7 +1225,6 @@ int wl1271_acx_feature_cfg(struct wl1271 *wl);
 int wl1271_acx_mem_map(struct wl1271 *wl,
 		       struct acx_header *mem_map, size_t len);
 int wl1271_acx_rx_msdu_life_time(struct wl1271 *wl);
-int wl1271_acx_rx_config(struct wl1271 *wl, u32 config, u32 filter);
 int wl1271_acx_pd_threshold(struct wl1271 *wl);
 int wl1271_acx_slot(struct wl1271 *wl, enum acx_slot_type slot_time);
 int wl1271_acx_group_address_tbl(struct wl1271 *wl, bool enable,

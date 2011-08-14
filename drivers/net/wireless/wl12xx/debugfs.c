@@ -366,9 +366,6 @@ static ssize_t driver_state_read(struct file *file, char __user *user_buf,
 	DRIVER_STATE_PRINT_INT(beacon_int);
 	DRIVER_STATE_PRINT_INT(psm_entry_retry);
 	DRIVER_STATE_PRINT_INT(ps_poll_failures);
-	DRIVER_STATE_PRINT_HEX(filters);
-	DRIVER_STATE_PRINT_HEX(rx_config);
-	DRIVER_STATE_PRINT_HEX(rx_filter);
 	DRIVER_STATE_PRINT_INT(power_level);
 	DRIVER_STATE_PRINT_INT(rssi_thold);
 	DRIVER_STATE_PRINT_INT(last_rssi_event);

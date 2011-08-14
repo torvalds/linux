@@ -183,34 +183,6 @@ out:
 	return ret;
 }
 
-int wl1271_acx_rx_config(struct wl1271 *wl, u32 config, u32 filter)
-{
-	struct acx_rx_config *rx_config;
-	int ret;
-
-	wl1271_debug(DEBUG_ACX, "acx rx config");
-
-	rx_config = kzalloc(sizeof(*rx_config), GFP_KERNEL);
-	if (!rx_config) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	rx_config->config_options = cpu_to_le32(config);
-	rx_config->filter_options = cpu_to_le32(filter);
-
-	ret = wl1271_cmd_configure(wl, ACX_RX_CFG,
-				   rx_config, sizeof(*rx_config));
-	if (ret < 0) {
-		wl1271_warning("failed to set rx config: %d", ret);
-		goto out;
-	}
-
-out:
-	kfree(rx_config);
-	return ret;
-}
-
 int wl1271_acx_pd_threshold(struct wl1271 *wl)
 {
 	struct acx_packet_detection *pd;

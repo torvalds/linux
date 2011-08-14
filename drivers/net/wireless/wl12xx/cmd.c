@@ -382,8 +382,6 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 	for (i = 0; i < ETH_ALEN; i++)
 		bssid[i] = wl->bssid[ETH_ALEN - i - 1];
 
-	join->rx_config_options = cpu_to_le32(wl->rx_config);
-	join->rx_filter_options = cpu_to_le32(wl->rx_filter);
 	join->bss_type = bss_type;
 	join->basic_rate_set = cpu_to_le32(wl->basic_rate_set);
 	join->supported_rate_set = cpu_to_le32(wl->rate_set);
@@ -1004,8 +1002,6 @@ int wl1271_cmd_disconnect(struct wl1271 *wl)
 		goto out;
 	}
 
-	cmd->rx_config_options = cpu_to_le32(wl->rx_config);
-	cmd->rx_filter_options = cpu_to_le32(wl->rx_filter);
 	/* disconnect reason is not used in immediate disconnections */
 	cmd->type = DISCONNECT_IMMEDIATE;
 

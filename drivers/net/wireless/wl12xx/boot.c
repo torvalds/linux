@@ -845,9 +845,6 @@ int wl1271_boot(struct wl1271 *wl)
 	/* Enable firmware interrupts now */
 	wl1271_boot_enable_interrupts(wl);
 
-	/* set the wl1271 default filters */
-	wl1271_set_default_filters(wl);
-
 	wl1271_event_mbox_config(wl);
 
 out:
