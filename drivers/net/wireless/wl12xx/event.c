@@ -291,7 +291,7 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 			wl1271_stop_ba_event(wl, mbox->rx_ba_allowed);
 	}
 
-	if ((vector & DUMMY_PACKET_EVENT_ID) && !is_ap) {
+	if ((vector & DUMMY_PACKET_EVENT_ID)) {
 		wl1271_debug(DEBUG_EVENT, "DUMMY_PACKET_ID_EVENT_ID");
 		if (wl->vif)
 			wl1271_tx_dummy_packet(wl);
