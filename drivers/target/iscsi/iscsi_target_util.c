@@ -243,7 +243,7 @@ struct iscsi_cmd *iscsit_allocate_se_cmd_for_tmr(
 	if (!cmd->tmr_req) {
 		pr_err("Unable to allocate memory for"
 			" Task Management command!\n");
-		return NULL;
+		goto out;
 	}
 	/*
 	 * TASK_REASSIGN for ERL=2 / connection stays inside of
@@ -298,8 +298,6 @@ struct iscsi_cmd *iscsit_allocate_se_cmd_for_tmr(
 	return cmd;
 out:
 	iscsit_release_cmd(cmd);
-	if (se_cmd)
-		transport_free_se_cmd(se_cmd);
 	return NULL;
 }
 
