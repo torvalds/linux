@@ -46,6 +46,7 @@ int wl1271_acx_wake_up_conditions(struct wl1271 *wl)
 		goto out;
 	}
 
+	wake_up->role_id = wl->role_id;
 	wake_up->wake_up_event = wl->conf.conn.wake_up_event;
 	wake_up->listen_interval = wl->conf.conn.listen_interval;
 
@@ -101,6 +102,7 @@ int wl1271_acx_tx_power(struct wl1271 *wl, int power)
 		goto out;
 	}
 
+	acx->role_id = wl->role_id;
 	acx->current_tx_power = power * 10;
 
 	ret = wl1271_cmd_configure(wl, DOT11_CUR_TX_PWR, acx, sizeof(*acx));
@@ -128,6 +130,7 @@ int wl1271_acx_feature_cfg(struct wl1271 *wl)
 	}
 
 	/* DF_ENCRYPTION_DISABLE and DF_SNIFF_MODE_ENABLE are disabled */
+	feature->role_id = wl->role_id;
 	feature->data_flow_options = 0;
 	feature->options = 0;
 
@@ -222,6 +225,7 @@ int wl1271_acx_slot(struct wl1271 *wl, enum acx_slot_type slot_time)
 		goto out;
 	}
 
+	slot->role_id = wl->role_id;
 	slot->wone_index = STATION_WONE_INDEX;
 	slot->slot_time = slot_time;
 
@@ -251,6 +255,7 @@ int wl1271_acx_group_address_tbl(struct wl1271 *wl, bool enable,
 	}
 
 	/* MAC filtering */
+	acx->role_id = wl->role_id;
 	acx->enabled = enable;
 	acx->num_groups = mc_list_len;
 	memcpy(acx->mac_table, mc_list, mc_list_len * ETH_ALEN);
@@ -280,6 +285,7 @@ int wl1271_acx_service_period_timeout(struct wl1271 *wl)
 
 	wl1271_debug(DEBUG_ACX, "acx service period timeout");
 
+	rx_timeout->role_id = wl->role_id;
 	rx_timeout->ps_poll_timeout = cpu_to_le16(wl->conf.rx.ps_poll_timeout);
 	rx_timeout->upsd_timeout = cpu_to_le16(wl->conf.rx.upsd_timeout);
 
@@ -316,6 +322,7 @@ int wl1271_acx_rts_threshold(struct wl1271 *wl, u32 rts_threshold)
 		goto out;
 	}
 
+	rts->role_id = wl->role_id;
 	rts->threshold = cpu_to_le16((u16)rts_threshold);
 
 	ret = wl1271_cmd_configure(wl, DOT11_RTS_THRESHOLD, rts, sizeof(*rts));
@@ -375,6 +382,7 @@ int wl1271_acx_beacon_filter_opt(struct wl1271 *wl, bool enable_filter)
 		goto out;
 	}
 
+	beacon_filter->role_id = wl->role_id;
 	beacon_filter->enable = enable_filter;
 
 	/*
@@ -411,6 +419,7 @@ int wl1271_acx_beacon_filter_table(struct wl1271 *wl)
 	}
 
 	/* configure default beacon pass-through rules */
+	ie_table->role_id = wl->role_id;
 	ie_table->num_ie = 0;
 	for (i = 0; i < wl->conf.conn.bcn_filt_ie_count; i++) {
 		struct conf_bcn_filt_rule *r = &(wl->conf.conn.bcn_filt_ie[i]);
@@ -472,6 +481,7 @@ int wl1271_acx_conn_monit_params(struct wl1271 *wl, bool enable)
 		timeout = wl->conf.conn.bss_lose_timeout;
 	}
 
+	acx->role_id = wl->role_id;
 	acx->synch_fail_thold = cpu_to_le32(threshold);
 	acx->bss_lose_timeout = cpu_to_le32(timeout);
 
@@ -619,6 +629,7 @@ int wl1271_acx_bcn_dtim_options(struct wl1271 *wl)
 		goto out;
 	}
 
+	bb->role_id = wl->role_id;
 	bb->beacon_rx_timeout = cpu_to_le16(wl->conf.conn.beacon_rx_timeout);
 	bb->broadcast_timeout = cpu_to_le16(wl->conf.conn.broadcast_timeout);
 	bb->rx_broadcast_in_ps = wl->conf.conn.rx_broadcast_in_ps;
@@ -648,6 +659,7 @@ int wl1271_acx_aid(struct wl1271 *wl, u16 aid)
 		goto out;
 	}
 
+	acx_aid->role_id = wl->role_id;
 	acx_aid->aid = cpu_to_le16(aid);
 
 	ret = wl1271_cmd_configure(wl, ACX_AID, acx_aid, sizeof(*acx_aid));
@@ -703,6 +715,7 @@ int wl1271_acx_set_preamble(struct wl1271 *wl, enum acx_preamble_type preamble)
 		goto out;
 	}
 
+	acx->role_id = wl->role_id;
 	acx->preamble = preamble;
 
 	ret = wl1271_cmd_configure(wl, ACX_PREAMBLE_TYPE, acx, sizeof(*acx));
@@ -730,6 +743,7 @@ int wl1271_acx_cts_protect(struct wl1271 *wl,
 		goto out;
 	}
 
+	acx->role_id = wl->role_id;
 	acx->ctsprotect = ctsprotect;
 
 	ret = wl1271_cmd_configure(wl, ACX_CTS_PROTECTION, acx, sizeof(*acx));
@@ -761,9 +775,8 @@ int wl1271_acx_statistics(struct wl1271 *wl, struct acx_statistics *stats)
 
 int wl1271_acx_sta_rate_policies(struct wl1271 *wl)
 {
-	struct acx_sta_rate_policy *acx;
+	struct acx_rate_policy *acx;
 	struct conf_tx_rate_class *c = &wl->conf.tx.sta_rc_conf;
-	int idx = 0;
 	int ret = 0;
 
 	wl1271_debug(DEBUG_ACX, "acx rate policies");
@@ -775,25 +788,30 @@ int wl1271_acx_sta_rate_policies(struct wl1271 *wl)
 		goto out;
 	}
 
+	wl1271_debug(DEBUG_ACX, "basic_rate: 0x%x, full_rate: 0x%x",
+		wl->basic_rate, wl->rate_set);
+
 	/* configure one basic rate class */
-	idx = ACX_TX_BASIC_RATE;
-	acx->rate_class[idx].enabled_rates = cpu_to_le32(wl->basic_rate);
-	acx->rate_class[idx].short_retry_limit = c->short_retry_limit;
-	acx->rate_class[idx].long_retry_limit = c->long_retry_limit;
-	acx->rate_class[idx].aflags = c->aflags;
+	acx->rate_policy_idx = cpu_to_le32(ACX_TX_BASIC_RATE);
+	acx->rate_policy.enabled_rates = cpu_to_le32(wl->basic_rate);
+	acx->rate_policy.short_retry_limit = c->short_retry_limit;
+	acx->rate_policy.long_retry_limit = c->long_retry_limit;
+	acx->rate_policy.aflags = c->aflags;
+
+	ret = wl1271_cmd_configure(wl, ACX_RATE_POLICY, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("Setting of rate policies failed: %d", ret);
+		goto out;
+	}
 
 	/* configure one AP supported rate class */
-	idx = ACX_TX_AP_FULL_RATE;
-	acx->rate_class[idx].enabled_rates = cpu_to_le32(wl->rate_set);
-	acx->rate_class[idx].short_retry_limit = c->short_retry_limit;
-	acx->rate_class[idx].long_retry_limit = c->long_retry_limit;
-	acx->rate_class[idx].aflags = c->aflags;
+	acx->rate_policy_idx = cpu_to_le32(ACX_TX_AP_FULL_RATE);
+	acx->rate_policy.enabled_rates = cpu_to_le32(wl->rate_set);
+	acx->rate_policy.short_retry_limit = c->short_retry_limit;
+	acx->rate_policy.long_retry_limit = c->long_retry_limit;
+	acx->rate_policy.aflags = c->aflags;
 
-	acx->rate_class_cnt = cpu_to_le32(ACX_TX_RATE_POLICY_CNT);
 
-	wl1271_debug(DEBUG_ACX, "basic_rate: 0x%x, full_rate: 0x%x",
-		acx->rate_class[ACX_TX_BASIC_RATE].enabled_rates,
-		acx->rate_class[ACX_TX_AP_FULL_RATE].enabled_rates);
 
 	ret = wl1271_cmd_configure(wl, ACX_RATE_POLICY, acx, sizeof(*acx));
 	if (ret < 0) {
@@ -809,7 +827,7 @@ out:
 int wl1271_acx_ap_rate_policy(struct wl1271 *wl, struct conf_tx_rate_class *c,
 		      u8 idx)
 {
-	struct acx_ap_rate_policy *acx;
+	struct acx_rate_policy *acx;
 	int ret = 0;
 
 	wl1271_debug(DEBUG_ACX, "acx ap rate policy %d rates 0x%x",
@@ -855,6 +873,7 @@ int wl1271_acx_ac_cfg(struct wl1271 *wl, u8 ac, u8 cw_min, u16 cw_max,
 		goto out;
 	}
 
+	acx->role_id = wl->role_id;
 	acx->ac = ac;
 	acx->cw_min = cw_min;
 	acx->cw_max = cpu_to_le16(cw_max);
@@ -888,6 +907,7 @@ int wl1271_acx_tid_cfg(struct wl1271 *wl, u8 queue_id, u8 channel_type,
 		goto out;
 	}
 
+	acx->role_id = wl->role_id;
 	acx->queue_id = queue_id;
 	acx->channel_type = channel_type;
 	acx->tsid = tsid;
@@ -967,52 +987,9 @@ out:
 	return ret;
 }
 
-int wl1271_acx_ap_mem_cfg(struct wl1271 *wl)
+int wl12xx_acx_mem_cfg(struct wl1271 *wl)
 {
-	struct wl1271_acx_ap_config_memory *mem_conf;
-	struct conf_memory_settings *mem;
-	int ret;
-
-	wl1271_debug(DEBUG_ACX, "wl1271 mem cfg");
-
-	mem_conf = kzalloc(sizeof(*mem_conf), GFP_KERNEL);
-	if (!mem_conf) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	if (wl->chip.id == CHIP_ID_1283_PG20)
-		/*
-		 * FIXME: The 128x AP FW does not yet support dynamic memory.
-		 * Use the base memory configuration for 128x for now. This
-		 * should be fine tuned in the future.
-		 */
-		mem = &wl->conf.mem_wl128x;
-	else
-		mem = &wl->conf.mem_wl127x;
-
-	/* memory config */
-	mem_conf->num_stations = mem->num_stations;
-	mem_conf->rx_mem_block_num = mem->rx_block_num;
-	mem_conf->tx_min_mem_block_num = mem->tx_min_block_num;
-	mem_conf->num_ssid_profiles = mem->ssid_profiles;
-	mem_conf->total_tx_descriptors = cpu_to_le32(ACX_TX_DESCRIPTORS);
-
-	ret = wl1271_cmd_configure(wl, ACX_MEM_CFG, mem_conf,
-				   sizeof(*mem_conf));
-	if (ret < 0) {
-		wl1271_warning("wl1271 mem config failed: %d", ret);
-		goto out;
-	}
-
-out:
-	kfree(mem_conf);
-	return ret;
-}
-
-int wl1271_acx_sta_mem_cfg(struct wl1271 *wl)
-{
-	struct wl1271_acx_sta_config_memory *mem_conf;
+	struct wl12xx_acx_config_memory *mem_conf;
 	struct conf_memory_settings *mem;
 	int ret;
 
@@ -1155,6 +1132,7 @@ int wl1271_acx_bet_enable(struct wl1271 *wl, bool enable)
 		goto out;
 	}
 
+	acx->role_id = wl->role_id;
 	acx->enable = enable ? CONF_BET_MODE_ENABLE : CONF_BET_MODE_DISABLE;
 	acx->max_consecutive = wl->conf.conn.bet_max_consecutive;
 
@@ -1182,6 +1160,7 @@ int wl1271_acx_arp_ip_filter(struct wl1271 *wl, u8 enable, __be32 address)
 		goto out;
 	}
 
+	acx->role_id = wl->role_id;
 	acx->version = ACX_IPV4_VERSION;
 	acx->enable = enable;
 
@@ -1241,6 +1220,7 @@ int wl1271_acx_keep_alive_mode(struct wl1271 *wl, bool enable)
 		goto out;
 	}
 
+	acx->role_id = wl->role_id;
 	acx->enabled = enable;
 
 	ret = wl1271_cmd_configure(wl, ACX_KEEP_ALIVE_MODE, acx, sizeof(*acx));
@@ -1267,6 +1247,7 @@ int wl1271_acx_keep_alive_config(struct wl1271 *wl, u8 index, u8 tpl_valid)
 		goto out;
 	}
 
+	acx->role_id = wl->role_id;
 	acx->period = cpu_to_le32(wl->conf.conn.keep_alive_interval);
 	acx->index = index;
 	acx->tpl_validation = tpl_valid;
@@ -1300,6 +1281,7 @@ int wl1271_acx_rssi_snr_trigger(struct wl1271 *wl, bool enable,
 
 	wl->last_rssi_event = -1;
 
+	acx->role_id = wl->role_id;
 	acx->pacing = cpu_to_le16(wl->conf.roam_trigger.trigger_pacing);
 	acx->metric = WL1271_ACX_TRIG_METRIC_RSSI_BEACON;
 	acx->type = WL1271_ACX_TRIG_TYPE_EDGE;
@@ -1338,6 +1320,7 @@ int wl1271_acx_rssi_snr_avg_weights(struct wl1271 *wl)
 		goto out;
 	}
 
+	acx->role_id = wl->role_id;
 	acx->rssi_beacon = c->avg_weight_rssi_beacon;
 	acx->rssi_data = c->avg_weight_rssi_data;
 	acx->snr_beacon = c->avg_weight_snr_beacon;
@@ -1359,7 +1342,6 @@ int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
 				    bool allow_ht_operation)
 {
 	struct wl1271_acx_ht_capabilities *acx;
-	u8 mac_address[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	int ret = 0;
 	u32 ht_capabilites = 0;
 
@@ -1390,7 +1372,7 @@ int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
 		acx->ampdu_min_spacing = ht_cap->ampdu_density;
 	}
 
-	memcpy(acx->mac_address, mac_address, ETH_ALEN);
+	acx->hlid = wl->sta_hlid;
 	acx->ht_capabilites = cpu_to_le32(ht_capabilites);
 
 	ret = wl1271_cmd_configure(wl, ACX_PEER_HT_CAP, acx, sizeof(*acx));
@@ -1418,6 +1400,7 @@ int wl1271_acx_set_ht_information(struct wl1271 *wl,
 		goto out;
 	}
 
+	acx->role_id = wl->role_id;
 	acx->ht_protection =
 		(u8)(ht_operation_mode & IEEE80211_HT_OP_MODE_PROTECTION);
 	acx->rifs_mode = 0;
@@ -1578,6 +1561,7 @@ int wl1271_acx_ps_rx_streaming(struct wl1271 *wl, bool enable)
 		if (!(conf_queues & BIT(i)))
 			continue;
 
+		rx_streaming->role_id = wl->role_id;
 		rx_streaming->tid = i;
 		rx_streaming->enable = enable_queues & BIT(i);
 		rx_streaming->period = wl->conf.rx_streaming.interval;
@@ -1607,6 +1591,7 @@ int wl1271_acx_ap_max_tx_retry(struct wl1271 *wl)
 	if (!acx)
 		return -ENOMEM;
 
+	acx->role_id = wl->role_id;
 	acx->max_tx_retry = cpu_to_le16(wl->conf.tx.max_tx_retries);
 
 	ret = wl1271_cmd_configure(wl, ACX_MAX_TX_FAILURE, acx, sizeof(*acx));

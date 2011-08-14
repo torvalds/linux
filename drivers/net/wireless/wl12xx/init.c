@@ -388,7 +388,7 @@ static int wl1271_sta_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_acx_sta_mem_cfg(wl);
+	ret = wl12xx_acx_mem_cfg(wl);
 	if (ret < 0)
 		return ret;
 
@@ -447,7 +447,7 @@ static int wl1271_ap_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_acx_ap_mem_cfg(wl);
+	ret = wl12xx_acx_mem_cfg(wl);
 	if (ret < 0)
 		return ret;
 

@@ -718,7 +718,7 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_free_memmap;
 
-	ret = wl1271_acx_sta_mem_cfg(wl);
+	ret = wl12xx_acx_mem_cfg(wl);
 	if (ret < 0)
 		goto out_free_memmap;
 
@@ -1981,6 +1981,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 	wl->ap_fw_ps_map = 0;
 	wl->ap_ps_map = 0;
 	wl->sched_scanning = false;
+	wl->role_id = WL12XX_INVALID_ROLE_ID;
 
 	/*
 	 * this is performed after the cancel_work calls and the associated
@@ -4317,6 +4318,8 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->sched_scanning = false;
 	wl->tx_security_seq = 0;
 	wl->tx_security_last_seq_lsb = 0;
+	wl->role_id = WL12XX_INVALID_ROLE_ID;
+	wl->sta_hlid = WL12XX_INVALID_LINK_ID;
 
 	setup_timer(&wl->rx_streaming_timer, wl1271_rx_streaming_timer,
 		    (unsigned long) wl);
