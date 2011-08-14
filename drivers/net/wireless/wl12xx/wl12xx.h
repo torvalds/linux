@@ -141,6 +141,7 @@ extern u32 wl12xx_debug_level;
 #define WL12XX_MAX_LINKS           8
 #define WL12XX_INVALID_ROLE_ID     0xff
 #define WL12XX_INVALID_LINK_ID     0xff
+#define WL12XX_SYSTEM_HLID         0
 #define WL1271_AP_GLOBAL_HLID      0
 #define WL1271_AP_BROADCAST_HLID   1
 #define WL1271_AP_STA_HLID_START   2
@@ -395,6 +396,7 @@ struct wl1271 {
 	int channel;
 	u8 role_id;
 	u8 dev_role_id;
+	u8 system_hlid;
 	u8 sta_hlid;
 	u8 dev_hlid;
 

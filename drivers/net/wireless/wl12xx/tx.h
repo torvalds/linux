@@ -210,7 +210,7 @@ void wl1271_tx_flush(struct wl1271 *wl);
 u8 wl1271_rate_to_idx(int rate, enum ieee80211_band band);
 u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set);
 u32 wl1271_tx_min_rate_get(struct wl1271 *wl);
-u8 wl1271_tx_get_hlid(struct sk_buff *skb);
+u8 wl12xx_tx_get_hlid_ap(struct wl1271 *wl, struct sk_buff *skb);
 void wl1271_tx_reset_link_queues(struct wl1271 *wl, u8 hlid);
 void wl1271_handle_tx_low_watermark(struct wl1271 *wl);
 

@@ -1491,7 +1491,7 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	q = wl1271_tx_get_queue(mapping);
 
 	if (wl->bss_type == BSS_TYPE_AP_BSS)
-		hlid = wl1271_tx_get_hlid(skb);
+		hlid = wl12xx_tx_get_hlid_ap(wl, skb);
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
 
@@ -2068,6 +2068,9 @@ deinit:
 	wl->dev_role_id = WL12XX_INVALID_ROLE_ID;
 	memset(wl->roles_map, 0, sizeof(wl->roles_map));
 	memset(wl->links_map, 0, sizeof(wl->links_map));
+
+	/* The system link is always allocated */
+	__set_bit(WL12XX_SYSTEM_HLID, wl->links_map);
 
 	/*
 	 * this is performed after the cancel_work calls and the associated
@@ -4407,6 +4410,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->tx_security_seq = 0;
 	wl->tx_security_last_seq_lsb = 0;
 	wl->role_id = WL12XX_INVALID_ROLE_ID;
+	wl->system_hlid = WL12XX_SYSTEM_HLID;
 	wl->sta_hlid = WL12XX_INVALID_LINK_ID;
 	wl->dev_role_id = WL12XX_INVALID_ROLE_ID;
 	wl->dev_hlid = WL12XX_INVALID_LINK_ID;
@@ -4414,6 +4418,9 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 		    (unsigned long) wl);
 	wl->fwlog_size = 0;
 	init_waitqueue_head(&wl->fwlog_waitq);
+
+	/* The system link is always allocated */
+	__set_bit(WL12XX_SYSTEM_HLID, wl->links_map);
 
 	memset(wl->tx_frames_map, 0, sizeof(wl->tx_frames_map));
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)

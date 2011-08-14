@@ -132,7 +132,12 @@ static void wl1271_tx_regulate_link(struct wl1271 *wl, u8 hlid)
 }
 #endif
 
-u8 wl1271_tx_get_hlid(struct sk_buff *skb)
+static bool wl12xx_is_dummy_packet(struct wl1271 *wl, struct sk_buff *skb)
+{
+	return wl->dummy_packet == skb;
+}
+
+u8 wl12xx_tx_get_hlid_ap(struct wl1271 *wl, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *control = IEEE80211_SKB_CB(skb);
 
@@ -145,12 +150,29 @@ u8 wl1271_tx_get_hlid(struct sk_buff *skb)
 	} else {
 		struct ieee80211_hdr *hdr;
 
+		if (!test_bit(WL1271_FLAG_AP_STARTED, &wl->flags))
+			return wl->system_hlid;
+
 		hdr = (struct ieee80211_hdr *)skb->data;
 		if (ieee80211_is_mgmt(hdr->frame_control))
 			return WL1271_AP_GLOBAL_HLID;
 		else
 			return WL1271_AP_BROADCAST_HLID;
 	}
+}
+
+static u8 wl1271_tx_get_hlid(struct wl1271 *wl, struct sk_buff *skb)
+{
+	if (wl12xx_is_dummy_packet(wl, skb))
+		return wl->system_hlid;
+
+	if (wl->bss_type == BSS_TYPE_AP_BSS)
+		return wl12xx_tx_get_hlid_ap(wl, skb);
+
+	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
+		return wl->sta_hlid;
+	else
+		return wl->dev_hlid;
 }
 
 static unsigned int wl12xx_calc_packet_alignment(struct wl1271 *wl,
@@ -219,11 +241,6 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 	}
 
 	return ret;
-}
-
-static bool wl12xx_is_dummy_packet(struct wl1271 *wl, struct sk_buff *skb)
-{
-	return wl->dummy_packet == skb;
 }
 
 static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
@@ -371,14 +388,7 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct sk_buff *skb,
 		}
 	}
 
-	if (wl->bss_type == BSS_TYPE_AP_BSS)
-		hlid = wl1271_tx_get_hlid(skb);
-	else
-		if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
-			hlid = wl->sta_hlid;
-		else
-			hlid = wl->dev_hlid;
-
+	hlid = wl1271_tx_get_hlid(wl, skb);
 	if (hlid == WL12XX_INVALID_LINK_ID) {
 		wl1271_error("invalid hlid. dropping skb 0x%p", skb);
 		return -EINVAL;
@@ -564,7 +574,7 @@ static void wl1271_skb_queue_head(struct wl1271 *wl, struct sk_buff *skb)
 	if (wl12xx_is_dummy_packet(wl, skb)) {
 		set_bit(WL1271_FLAG_DUMMY_PACKET_PENDING, &wl->flags);
 	} else if (wl->bss_type == BSS_TYPE_AP_BSS) {
-		u8 hlid = wl1271_tx_get_hlid(skb);
+		u8 hlid = wl1271_tx_get_hlid(wl, skb);
 		skb_queue_head(&wl->links[hlid].tx_queue[q], skb);
 
 		/* make sure we dequeue the same packet next time */
