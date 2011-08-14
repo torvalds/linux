@@ -137,6 +137,7 @@ extern u32 wl12xx_debug_level;
 #define WL1271_DEFAULT_BEACON_INT  100
 #define WL1271_DEFAULT_DTIM_PERIOD 1
 
+#define WL12XX_MAX_LINKS           8
 #define WL1271_AP_GLOBAL_HLID      0
 #define WL1271_AP_BROADCAST_HLID   1
 #define WL1271_AP_STA_HLID_START   2
@@ -230,23 +231,15 @@ struct wl1271_stats {
 /* Broadcast and Global links + links to stations */
 #define AP_MAX_LINKS               (AP_MAX_STATIONS + 2)
 
-/* FW status registers common for AP/STA */
-struct wl1271_fw_common_status {
+/* FW status registers */
+struct wl12xx_fw_status {
 	__le32 intr;
 	u8  fw_rx_counter;
 	u8  drv_rx_counter;
 	u8  reserved;
 	u8  tx_results_counter;
 	__le32 rx_pkt_descs[NUM_RX_PKT_DESC];
-	__le32 tx_released_blks[NUM_TX_QUEUES];
 	__le32 fw_localtime;
-} __packed;
-
-/* FW status registers for AP */
-struct wl1271_fw_ap_status {
-	struct wl1271_fw_common_status common;
-
-	/* Next fields valid only in AP FW */
 
 	/*
 	 * A bitmap (where each bit represents a single HLID)
@@ -254,29 +247,29 @@ struct wl1271_fw_ap_status {
 	 */
 	__le32 link_ps_bitmap;
 
-	/* Number of freed MBs per HLID */
-	u8 tx_lnk_free_blks[AP_MAX_LINKS];
-	u8 padding_1[1];
-} __packed;
+	/*
+	 * A bitmap (where each bit represents a single HLID) to indicate
+	 * if the station is in Fast mode
+	 */
+	__le32 link_fast_bitmap;
 
-/* FW status registers for STA */
-struct wl1271_fw_sta_status {
-	struct wl1271_fw_common_status common;
+	/* Cumulative counter of total released mem blocks since FW-reset */
+	__le32 total_released_blks;
 
-	u8  tx_total;
-	u8  reserved1;
-	__le16 reserved2;
+	/* Size (in Memory Blocks) of TX pool */
+	__le32 tx_total;
+
+	/* Cumulative counter of released mem-blocks per AC */
+	u8 tx_released_blks[NUM_TX_QUEUES];
+
+	/* Cumulative counter of freed MBs per HLID */
+	u8 tx_lnk_free_blks[WL12XX_MAX_LINKS];
+
+	/* Cumulative counter of released Voice memory blocks */
+	u8 tx_voice_released_blks;
+	u8 padding_1[7];
 	__le32 log_start_addr;
 } __packed;
-
-struct wl1271_fw_full_status {
-	union {
-		struct wl1271_fw_common_status common;
-		struct wl1271_fw_sta_status sta;
-		struct wl1271_fw_ap_status ap;
-	};
-} __packed;
-
 
 struct wl1271_rx_mem_pool_addr {
 	u32 addr;
@@ -401,7 +394,7 @@ struct wl1271 {
 	struct wl1271_acx_mem_map *target_mem_map;
 
 	/* Accounting for allocated / available TX blocks on HW */
-	u32 tx_blocks_freed[NUM_TX_QUEUES];
+	u32 tx_blocks_freed;
 	u32 tx_blocks_available;
 	u32 tx_allocated_blocks;
 	u32 tx_results_count;
@@ -537,7 +530,7 @@ struct wl1271 {
 	u32 buffer_cmd;
 	u32 buffer_busyword[WL1271_BUSY_WORD_CNT];
 
-	struct wl1271_fw_full_status *fw_status;
+	struct wl12xx_fw_status *fw_status;
 	struct wl1271_tx_hw_res_if *tx_res_if;
 
 	struct ieee80211_vif *vif;
