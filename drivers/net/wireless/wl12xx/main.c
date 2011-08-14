@@ -773,6 +773,7 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	return ret;
 }
 
+#if 0
 static void wl1271_irq_ps_regulate_link(struct wl1271 *wl, u8 hlid, u8 tx_blks)
 {
 	bool fw_ps;
@@ -823,6 +824,7 @@ static void wl1271_irq_update_links_status(struct wl1271 *wl,
 					    wl->links[hlid].allocated_blks);
 	}
 }
+#endif
 
 static void wl1271_fw_status(struct wl1271 *wl,
 			     struct wl1271_fw_full_status *full_status)
@@ -861,7 +863,9 @@ static void wl1271_fw_status(struct wl1271 *wl,
 
 	if (wl->bss_type == BSS_TYPE_AP_BSS) {
 		/* Update num of allocated TX blocks per link and ps status */
+#if 0
 		wl1271_irq_update_links_status(wl, &full_status->ap);
+#endif
 		wl->tx_blocks_available += freed_blocks;
 	} else {
 		int avail = full_status->sta.tx_total - wl->tx_allocated_blocks;

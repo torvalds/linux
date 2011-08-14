@@ -111,6 +111,7 @@ static void wl1271_tx_ap_update_inconnection_sta(struct wl1271 *wl,
 		wl1271_acx_set_inconnection_sta(wl, hdr->addr1);
 }
 
+#if 0
 static void wl1271_tx_regulate_link(struct wl1271 *wl, u8 hlid)
 {
 	bool fw_ps;
@@ -130,6 +131,7 @@ static void wl1271_tx_regulate_link(struct wl1271 *wl, u8 hlid)
 	if (fw_ps && tx_blks >= WL1271_PS_STA_MAX_BLOCKS)
 		wl1271_ps_link_start(wl, hlid, true);
 }
+#endif
 
 u8 wl1271_tx_get_hlid(struct sk_buff *skb)
 {
@@ -384,7 +386,9 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct sk_buff *skb,
 
 	if (wl->bss_type == BSS_TYPE_AP_BSS) {
 		wl1271_tx_ap_update_inconnection_sta(wl, skb);
+#if 0
 		wl1271_tx_regulate_link(wl, hlid);
+#endif
 	} else {
 		wl1271_tx_update_filters(wl, skb);
 	}
