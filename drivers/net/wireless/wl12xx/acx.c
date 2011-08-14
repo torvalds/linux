@@ -1309,13 +1309,15 @@ out:
 
 int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
 				    struct ieee80211_sta_ht_cap *ht_cap,
-				    bool allow_ht_operation)
+				    bool allow_ht_operation, u8 hlid)
 {
 	struct wl1271_acx_ht_capabilities *acx;
 	int ret = 0;
 	u32 ht_capabilites = 0;
 
-	wl1271_debug(DEBUG_ACX, "acx ht capabilities setting");
+	wl1271_debug(DEBUG_ACX, "acx ht capabilities setting "
+		     "sta supp: %d sta cap: %d", ht_cap->ht_supported,
+		     ht_cap->cap);
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 	if (!acx) {
@@ -1323,7 +1325,7 @@ int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
 		goto out;
 	}
 
-	if (allow_ht_operation) {
+	if (allow_ht_operation && ht_cap->ht_supported) {
 		/* no need to translate capabilities - use the spec values */
 		ht_capabilites = ht_cap->cap;
 
@@ -1338,7 +1340,7 @@ int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
 		acx->ampdu_min_spacing = ht_cap->ampdu_density;
 	}
 
-	acx->hlid = wl->sta_hlid;
+	acx->hlid = hlid;
 	acx->ht_capabilites = cpu_to_le32(ht_capabilites);
 
 	ret = wl1271_cmd_configure(wl, ACX_PEER_HT_CAP, acx, sizeof(*acx));

@@ -1268,7 +1268,7 @@ int wl1271_acx_rssi_snr_trigger(struct wl1271 *wl, bool enable,
 int wl1271_acx_rssi_snr_avg_weights(struct wl1271 *wl);
 int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
 				    struct ieee80211_sta_ht_cap *ht_cap,
-				    bool allow_ht_operation);
+				    bool allow_ht_operation, u8 hlid);
 int wl1271_acx_set_ht_information(struct wl1271 *wl,
 				   u16 ht_operation_mode);
 int wl12xx_acx_set_ba_initiator_policy(struct wl1271 *wl);
