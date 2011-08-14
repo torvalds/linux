@@ -779,7 +779,13 @@ static void wl12xx_irq_ps_regulate_link(struct wl1271 *wl, u8 hlid, u8 tx_pkts)
 
 bool wl1271_is_active_sta(struct wl1271 *wl, u8 hlid)
 {
-	int id = hlid - WL1271_AP_STA_HLID_START;
+	int id;
+
+	/* global/broadcast "stations" are always active */
+	if (hlid < WL1271_AP_STA_HLID_START)
+		return true;
+
+	id = hlid - WL1271_AP_STA_HLID_START;
 	return test_bit(id, wl->ap_hlid_map);
 }
 
@@ -1493,6 +1499,13 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	/* queue the packet */
 	if (wl->bss_type == BSS_TYPE_AP_BSS) {
+		if (!wl1271_is_active_sta(wl, hlid)) {
+			wl1271_debug(DEBUG_TX, "DROP skb hlid %d q %d",
+				     hlid, q);
+			dev_kfree_skb(skb);
+			goto out;
+		}
+
 		wl1271_debug(DEBUG_TX, "queue skb hlid %d q %d", hlid, q);
 		skb_queue_tail(&wl->links[hlid].tx_queue[q], skb);
 	} else {
@@ -1508,6 +1521,7 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	    !test_bit(WL1271_FLAG_TX_PENDING, &wl->flags))
 		ieee80211_queue_work(wl->hw, &wl->tx_work);
 
+out:
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 }
 
@@ -3695,7 +3709,7 @@ static int wl1271_allocate_sta(struct wl1271 *wl,
 	}
 
 	wl_sta = (struct wl1271_station *)sta->drv_priv;
-	__set_bit(id, wl->ap_hlid_map);
+	set_bit(id, wl->ap_hlid_map);
 	wl_sta->hlid = WL1271_AP_STA_HLID_START + id;
 	*hlid = wl_sta->hlid;
 	memcpy(wl->links[wl_sta->hlid].addr, sta->addr, ETH_ALEN);
@@ -3709,7 +3723,7 @@ static void wl1271_free_sta(struct wl1271 *wl, u8 hlid)
 	if (WARN_ON(!test_bit(id, wl->ap_hlid_map)))
 		return;
 
-	__clear_bit(id, wl->ap_hlid_map);
+	clear_bit(id, wl->ap_hlid_map);
 	memset(wl->links[hlid].addr, 0, ETH_ALEN);
 	wl->links[hlid].ba_bitmap = 0;
 	wl1271_tx_reset_link_queues(wl, hlid);
