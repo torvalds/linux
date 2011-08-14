@@ -363,60 +363,293 @@ static int wl1271_cmd_wait_for_event(struct wl1271 *wl, u32 mask)
 	return 0;
 }
 
-int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
+int wl12xx_cmd_role_enable(struct wl1271 *wl, u8 role_type, u8 *role_id)
 {
-	struct wl1271_cmd_join *join;
-	int ret, i;
-	u8 *bssid;
+	struct wl12xx_cmd_role_enable *cmd;
+	int ret;
 
-	join = kzalloc(sizeof(*join), GFP_KERNEL);
-	if (!join) {
+	wl1271_debug(DEBUG_CMD, "cmd role enable");
+
+	if (WARN_ON(*role_id != WL12XX_INVALID_ROLE_ID))
+		return -EBUSY;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	wl1271_debug(DEBUG_CMD, "cmd join");
-
-	/* Reverse order BSSID */
-	bssid = (u8 *) &join->bssid_lsb;
-	for (i = 0; i < ETH_ALEN; i++)
-		bssid[i] = wl->bssid[ETH_ALEN - i - 1];
-
-	join->bss_type = bss_type;
-	join->basic_rate_set = cpu_to_le32(wl->basic_rate_set);
-	join->supported_rate_set = cpu_to_le32(wl->rate_set);
-
-	if (wl->band == IEEE80211_BAND_5GHZ)
-		join->bss_type |= WL1271_JOIN_CMD_BSS_TYPE_5GHZ;
-
-	join->beacon_interval = cpu_to_le16(wl->beacon_int);
-	join->dtim_interval = WL1271_DEFAULT_DTIM_PERIOD;
-
-	join->channel = wl->channel;
-	join->ssid_len = wl->ssid_len;
-	memcpy(join->ssid, wl->ssid, wl->ssid_len);
-
-	join->ctrl |= wl->session_counter << WL1271_JOIN_CMD_TX_SESSION_OFFSET;
-
-	wl1271_debug(DEBUG_CMD, "cmd join: basic_rate_set=0x%x, rate_set=0x%x",
-		join->basic_rate_set, join->supported_rate_set);
-
-	ret = wl1271_cmd_send(wl, CMD_START_JOIN, join, sizeof(*join), 0);
-	if (ret < 0) {
-		wl1271_error("failed to initiate cmd join");
+	/* get role id */
+	cmd->role_id = find_first_zero_bit(wl->roles_map, WL12XX_MAX_ROLES);
+	if (cmd->role_id >= WL12XX_MAX_ROLES) {
+		ret = -EBUSY;
 		goto out_free;
 	}
 
-	ret = wl1271_cmd_wait_for_event(wl, JOIN_EVENT_COMPLETE_ID);
-	if (ret < 0)
-		wl1271_error("cmd join event completion error");
+	memcpy(cmd->mac_address, wl->mac_addr, ETH_ALEN);
+	cmd->role_type = role_type;
+
+	ret = wl1271_cmd_send(wl, CMD_ROLE_ENABLE, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to initiate cmd role enable");
+		goto out_free;
+	}
+
+	__set_bit(cmd->role_id, wl->roles_map);
+	*role_id = cmd->role_id;
 
 out_free:
-	kfree(join);
+	kfree(cmd);
 
 out:
 	return ret;
 }
+
+int wl12xx_cmd_role_disable(struct wl1271 *wl, u8 *role_id)
+{
+	struct wl12xx_cmd_role_disable *cmd;
+	int ret;
+
+	wl1271_debug(DEBUG_CMD, "cmd role disable");
+
+	if (WARN_ON(*role_id == WL12XX_INVALID_ROLE_ID))
+		return -ENOENT;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	cmd->role_id = *role_id;
+
+	ret = wl1271_cmd_send(wl, CMD_ROLE_DISABLE, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to initiate cmd role disable");
+		goto out_free;
+	}
+
+	__clear_bit(*role_id, wl->roles_map);
+	*role_id = WL12XX_INVALID_ROLE_ID;
+
+out_free:
+	kfree(cmd);
+
+out:
+	return ret;
+}
+
+static int wl12xx_allocate_link(struct wl1271 *wl, u8 *hlid)
+{
+	u8 link = find_first_zero_bit(wl->links_map, WL12XX_MAX_LINKS);
+	if (link >= WL12XX_MAX_LINKS)
+		return -EBUSY;
+
+	__set_bit(link, wl->links_map);
+	*hlid = link;
+	return 0;
+}
+
+static void wl12xx_free_link(struct wl1271 *wl, u8 *hlid)
+{
+	if (*hlid == WL12XX_INVALID_LINK_ID)
+		return;
+
+	__clear_bit(*hlid, wl->links_map);
+	*hlid = WL12XX_INVALID_LINK_ID;
+}
+
+int wl12xx_cmd_role_start_sta(struct wl1271 *wl)
+{
+	struct wl12xx_cmd_role_start *cmd;
+	int ret;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	wl1271_debug(DEBUG_CMD, "cmd role start sta %d", wl->role_id);
+
+	cmd->role_id = wl->role_id;
+	if (wl->band == IEEE80211_BAND_5GHZ)
+		cmd->band = WL12XX_BAND_5GHZ;
+	cmd->channel = wl->channel;
+	cmd->sta.basic_rate_set = cpu_to_le32(wl->basic_rate_set);
+	cmd->sta.beacon_interval = cpu_to_le16(wl->beacon_int);
+	cmd->sta.ssid_type = WL12XX_SSID_TYPE_ANY;
+	cmd->sta.ssid_len = wl->ssid_len;
+	memcpy(cmd->sta.ssid, wl->ssid, wl->ssid_len);
+	memcpy(cmd->sta.bssid, wl->bssid, ETH_ALEN);
+	cmd->sta.local_rates = cpu_to_le32(wl->rate_set);
+
+	if (wl->sta_hlid == WL12XX_INVALID_LINK_ID) {
+		ret = wl12xx_allocate_link(wl, &wl->sta_hlid);
+		if (ret)
+			goto out_free;
+	}
+	cmd->sta.hlid = wl->sta_hlid;
+	cmd->sta.session = wl->session_counter;
+	cmd->sta.remote_rates = cpu_to_le32(wl->rate_set);
+
+	wl1271_debug(DEBUG_CMD, "role start: roleid=%d, hlid=%d, session=%d "
+		     "basic_rate_set: 0x%x, remote_rates: 0x%x",
+		     wl->role_id, cmd->sta.hlid, cmd->sta.session,
+		     wl->basic_rate_set, wl->rate_set);
+
+	ret = wl1271_cmd_send(wl, CMD_ROLE_START, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to initiate cmd role start sta");
+		goto err_hlid;
+	}
+
+	goto out_free;
+
+err_hlid:
+	/* clear links on error. */
+	wl12xx_free_link(wl, &wl->sta_hlid);
+
+out_free:
+	kfree(cmd);
+
+out:
+	return ret;
+}
+
+int wl12xx_cmd_role_stop_sta(struct wl1271 *wl)
+{
+	struct wl12xx_cmd_role_stop *cmd;
+	int ret;
+
+	if (WARN_ON(wl->sta_hlid == WL12XX_INVALID_LINK_ID))
+		return -EINVAL;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	wl1271_debug(DEBUG_CMD, "cmd role stop sta %d", wl->role_id);
+
+	cmd->role_id = wl->role_id;
+	cmd->disc_type = DISCONNECT_IMMEDIATE;
+	cmd->reason = cpu_to_le16(WLAN_REASON_UNSPECIFIED);
+
+	ret = wl1271_cmd_send(wl, CMD_ROLE_STOP, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to initiate cmd role stop sta");
+		goto out_free;
+	}
+
+	ret = wl1271_cmd_wait_for_event(wl, DISCONNECT_EVENT_COMPLETE_ID);
+	if (ret < 0) {
+		wl1271_error("cmd role stop sta event completion error");
+		goto out_free;
+	}
+
+	wl12xx_free_link(wl, &wl->sta_hlid);
+
+out_free:
+	kfree(cmd);
+
+out:
+	return ret;
+}
+
+int wl12xx_cmd_role_start_ap(struct wl1271 *wl)
+{
+	struct wl12xx_cmd_role_start *cmd;
+	struct ieee80211_bss_conf *bss_conf = &wl->vif->bss_conf;
+	int ret;
+
+	wl1271_debug(DEBUG_CMD, "cmd role start ap %d", wl->role_id);
+
+	/*
+	 * We currently do not support hidden SSID. The real SSID
+	 * should be fetched from mac80211 first.
+	 */
+	if (wl->ssid_len == 0) {
+		wl1271_warning("Hidden SSID currently not supported for AP");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	cmd->role_id = wl->role_id;
+	cmd->ap.aging_period = cpu_to_le16(wl->conf.tx.ap_aging_period);
+	cmd->ap.bss_index = WL1271_AP_BSS_INDEX;
+	cmd->ap.global_hlid = WL1271_AP_GLOBAL_HLID;
+	cmd->ap.broadcast_hlid = WL1271_AP_BROADCAST_HLID;
+	cmd->ap.basic_rate_set = cpu_to_le32(wl->basic_rate_set);
+	cmd->ap.beacon_interval = cpu_to_le16(wl->beacon_int);
+	cmd->ap.dtim_interval = bss_conf->dtim_period;
+	cmd->ap.beacon_expiry = WL1271_AP_DEF_BEACON_EXP;
+	cmd->channel = wl->channel;
+	cmd->ap.ssid_len = wl->ssid_len;
+	cmd->ap.ssid_type = WL12XX_SSID_TYPE_PUBLIC;
+	memcpy(cmd->ap.ssid, wl->ssid, wl->ssid_len);
+	cmd->ap.local_rates = cpu_to_le32(0xffffffff);
+
+	switch (wl->band) {
+	case IEEE80211_BAND_2GHZ:
+		cmd->band = RADIO_BAND_2_4GHZ;
+		break;
+	case IEEE80211_BAND_5GHZ:
+		cmd->band = RADIO_BAND_5GHZ;
+		break;
+	default:
+		wl1271_warning("ap start - unknown band: %d", (int)wl->band);
+		cmd->band = RADIO_BAND_2_4GHZ;
+		break;
+	}
+
+	ret = wl1271_cmd_send(wl, CMD_ROLE_START, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to initiate cmd role start ap");
+		goto out_free;
+	}
+
+out_free:
+	kfree(cmd);
+
+out:
+	return ret;
+}
+
+int wl12xx_cmd_role_stop_ap(struct wl1271 *wl)
+{
+	struct wl12xx_cmd_role_stop *cmd;
+	int ret;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	wl1271_debug(DEBUG_CMD, "cmd role stop ap %d", wl->role_id);
+
+	cmd->role_id = wl->role_id;
+
+	ret = wl1271_cmd_send(wl, CMD_ROLE_STOP, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to initiate cmd role stop ap");
+		goto out_free;
+	}
+
+out_free:
+	kfree(cmd);
+
+out:
+	return ret;
+}
+
 
 /**
  * send test command to firmware
@@ -565,6 +798,7 @@ int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode)
 		goto out;
 	}
 
+	ps_params->role_id = wl->role_id;
 	ps_params->ps_mode = ps_mode;
 
 	ret = wl1271_cmd_send(wl, CMD_SET_PS_MODE, ps_params,
@@ -811,9 +1045,9 @@ int wl1271_build_qos_null_data(struct wl1271 *wl)
 				       wl->basic_rate);
 }
 
-int wl1271_cmd_set_sta_default_wep_key(struct wl1271 *wl, u8 id)
+int wl12xx_cmd_set_default_wep_key(struct wl1271 *wl, u8 id, u8 hlid)
 {
-	struct wl1271_cmd_set_sta_keys *cmd;
+	struct wl1271_cmd_set_keys *cmd;
 	int ret = 0;
 
 	wl1271_debug(DEBUG_CMD, "cmd set_default_wep_key %d", id);
@@ -824,7 +1058,9 @@ int wl1271_cmd_set_sta_default_wep_key(struct wl1271 *wl, u8 id)
 		goto out;
 	}
 
-	cmd->id = id;
+	cmd->hlid = hlid;
+	cmd->key_id = id;
+	cmd->lid_key_type = WEP_DEFAULT_LID_TYPE;
 	cmd->key_action = cpu_to_le16(KEY_SET_ID);
 	cmd->key_type = KEY_WEP;
 
@@ -840,42 +1076,11 @@ out:
 	return ret;
 }
 
-int wl1271_cmd_set_ap_default_wep_key(struct wl1271 *wl, u8 id)
-{
-	struct wl1271_cmd_set_ap_keys *cmd;
-	int ret = 0;
-
-	wl1271_debug(DEBUG_CMD, "cmd set_ap_default_wep_key %d", id);
-
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
-	if (!cmd) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	cmd->hlid = WL1271_AP_BROADCAST_HLID;
-	cmd->key_id = id;
-	cmd->lid_key_type = WEP_DEFAULT_LID_TYPE;
-	cmd->key_action = cpu_to_le16(KEY_SET_ID);
-	cmd->key_type = KEY_WEP;
-
-	ret = wl1271_cmd_send(wl, CMD_SET_KEYS, cmd, sizeof(*cmd), 0);
-	if (ret < 0) {
-		wl1271_warning("cmd set_ap_default_wep_key failed: %d", ret);
-		goto out;
-	}
-
-out:
-	kfree(cmd);
-
-	return ret;
-}
-
 int wl1271_cmd_set_sta_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 		       u8 key_size, const u8 *key, const u8 *addr,
 		       u32 tx_seq_32, u16 tx_seq_16)
 {
-	struct wl1271_cmd_set_sta_keys *cmd;
+	struct wl1271_cmd_set_keys *cmd;
 	int ret = 0;
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
@@ -884,8 +1089,14 @@ int wl1271_cmd_set_sta_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 		goto out;
 	}
 
-	if (key_type != KEY_WEP)
-		memcpy(cmd->addr, addr, ETH_ALEN);
+	cmd->hlid = wl->sta_hlid;
+
+	if (key_type == KEY_WEP)
+		cmd->lid_key_type = WEP_DEFAULT_LID_TYPE;
+	else if (is_broadcast_ether_addr(addr))
+		cmd->lid_key_type = BROADCAST_LID_TYPE;
+	else
+		cmd->lid_key_type = UNICAST_LID_TYPE;
 
 	cmd->key_action = cpu_to_le16(action);
 	cmd->key_size = key_size;
@@ -894,10 +1105,7 @@ int wl1271_cmd_set_sta_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 	cmd->ac_seq_num16[0] = cpu_to_le16(tx_seq_16);
 	cmd->ac_seq_num32[0] = cpu_to_le32(tx_seq_32);
 
-	/* we have only one SSID profile */
-	cmd->ssid_profile = 0;
-
-	cmd->id = id;
+	cmd->key_id = id;
 
 	if (key_type == KEY_TKIP) {
 		/*
@@ -928,11 +1136,15 @@ out:
 	return ret;
 }
 
+/*
+ * TODO: merge with sta/ibss into 1 set_key function.
+ * note there are slight diffs
+ */
 int wl1271_cmd_set_ap_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 			u8 key_size, const u8 *key, u8 hlid, u32 tx_seq_32,
 			u16 tx_seq_16)
 {
-	struct wl1271_cmd_set_ap_keys *cmd;
+	struct wl1271_cmd_set_keys *cmd;
 	int ret = 0;
 	u8 lid_type;
 
@@ -989,12 +1201,12 @@ out:
 	return ret;
 }
 
-int wl1271_cmd_disconnect(struct wl1271 *wl)
+int wl12xx_cmd_set_peer_state(struct wl1271 *wl)
 {
-	struct wl1271_cmd_disconnect *cmd;
+	struct wl12xx_cmd_set_peer_state *cmd;
 	int ret = 0;
 
-	wl1271_debug(DEBUG_CMD, "cmd disconnect");
+	wl1271_debug(DEBUG_CMD, "cmd set peer state (hlid=%d)", wl->sta_hlid);
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
@@ -1002,44 +1214,12 @@ int wl1271_cmd_disconnect(struct wl1271 *wl)
 		goto out;
 	}
 
-	/* disconnect reason is not used in immediate disconnections */
-	cmd->type = DISCONNECT_IMMEDIATE;
-
-	ret = wl1271_cmd_send(wl, CMD_DISCONNECT, cmd, sizeof(*cmd), 0);
-	if (ret < 0) {
-		wl1271_error("failed to send disconnect command");
-		goto out_free;
-	}
-
-	ret = wl1271_cmd_wait_for_event(wl, DISCONNECT_EVENT_COMPLETE_ID);
-	if (ret < 0)
-		wl1271_error("cmd disconnect event completion error");
-
-out_free:
-	kfree(cmd);
-
-out:
-	return ret;
-}
-
-int wl1271_cmd_set_sta_state(struct wl1271 *wl)
-{
-	struct wl1271_cmd_set_sta_state *cmd;
-	int ret = 0;
-
-	wl1271_debug(DEBUG_CMD, "cmd set sta state");
-
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
-	if (!cmd) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
+	cmd->hlid = wl->sta_hlid;
 	cmd->state = WL1271_CMD_STA_STATE_CONNECTED;
 
-	ret = wl1271_cmd_send(wl, CMD_SET_STA_STATE, cmd, sizeof(*cmd), 0);
+	ret = wl1271_cmd_send(wl, CMD_SET_PEER_STATE, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
-		wl1271_error("failed to send set STA state command");
+		wl1271_error("failed to send set peer state command");
 		goto out_free;
 	}
 
@@ -1049,106 +1229,12 @@ out_free:
 out:
 	return ret;
 }
-
-int wl1271_cmd_start_bss(struct wl1271 *wl)
+int wl12xx_cmd_add_peer(struct wl1271 *wl, struct ieee80211_sta *sta, u8 hlid)
 {
-	struct wl1271_cmd_bss_start *cmd;
-	struct ieee80211_bss_conf *bss_conf = &wl->vif->bss_conf;
+	struct wl12xx_cmd_add_peer *cmd;
 	int ret;
 
-	wl1271_debug(DEBUG_CMD, "cmd start bss");
-
-	/*
-	 * FIXME: We currently do not support hidden SSID. The real SSID
-	 * should be fetched from mac80211 first.
-	 */
-	if (wl->ssid_len == 0) {
-		wl1271_warning("Hidden SSID currently not supported for AP");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
-	if (!cmd) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	memcpy(cmd->bssid, bss_conf->bssid, ETH_ALEN);
-
-	cmd->aging_period = cpu_to_le16(wl->conf.tx.ap_aging_period);
-	cmd->bss_index = WL1271_AP_BSS_INDEX;
-	cmd->global_hlid = WL1271_AP_GLOBAL_HLID;
-	cmd->broadcast_hlid = WL1271_AP_BROADCAST_HLID;
-	cmd->basic_rate_set = cpu_to_le32(wl->basic_rate_set);
-	cmd->beacon_interval = cpu_to_le16(wl->beacon_int);
-	cmd->dtim_interval = bss_conf->dtim_period;
-	cmd->beacon_expiry = WL1271_AP_DEF_BEACON_EXP;
-	cmd->channel = wl->channel;
-	cmd->ssid_len = wl->ssid_len;
-	cmd->ssid_type = SSID_TYPE_PUBLIC;
-	memcpy(cmd->ssid, wl->ssid, wl->ssid_len);
-
-	switch (wl->band) {
-	case IEEE80211_BAND_2GHZ:
-		cmd->band = RADIO_BAND_2_4GHZ;
-		break;
-	case IEEE80211_BAND_5GHZ:
-		cmd->band = RADIO_BAND_5GHZ;
-		break;
-	default:
-		wl1271_warning("bss start - unknown band: %d", (int)wl->band);
-		cmd->band = RADIO_BAND_2_4GHZ;
-		break;
-	}
-
-	ret = wl1271_cmd_send(wl, CMD_BSS_START, cmd, sizeof(*cmd), 0);
-	if (ret < 0) {
-		wl1271_error("failed to initiate cmd start bss");
-		goto out_free;
-	}
-
-out_free:
-	kfree(cmd);
-
-out:
-	return ret;
-}
-
-int wl1271_cmd_stop_bss(struct wl1271 *wl)
-{
-	struct wl1271_cmd_bss_start *cmd;
-	int ret;
-
-	wl1271_debug(DEBUG_CMD, "cmd stop bss");
-
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
-	if (!cmd) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	cmd->bss_index = WL1271_AP_BSS_INDEX;
-
-	ret = wl1271_cmd_send(wl, CMD_BSS_STOP, cmd, sizeof(*cmd), 0);
-	if (ret < 0) {
-		wl1271_error("failed to initiate cmd stop bss");
-		goto out_free;
-	}
-
-out_free:
-	kfree(cmd);
-
-out:
-	return ret;
-}
-
-int wl1271_cmd_add_sta(struct wl1271 *wl, struct ieee80211_sta *sta, u8 hlid)
-{
-	struct wl1271_cmd_add_sta *cmd;
-	int ret;
-
-	wl1271_debug(DEBUG_CMD, "cmd add sta %d", (int)hlid);
+	wl1271_debug(DEBUG_CMD, "cmd add peer %d", (int)hlid);
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
@@ -1168,11 +1254,11 @@ int wl1271_cmd_add_sta(struct wl1271 *wl, struct ieee80211_sta *sta, u8 hlid)
 	cmd->supported_rates = cpu_to_le32(wl1271_tx_enabled_rates_get(wl,
 						sta->supp_rates[wl->band]));
 
-	wl1271_debug(DEBUG_CMD, "new sta rates: 0x%x", cmd->supported_rates);
+	wl1271_debug(DEBUG_CMD, "new peer rates: 0x%x", cmd->supported_rates);
 
-	ret = wl1271_cmd_send(wl, CMD_ADD_STA, cmd, sizeof(*cmd), 0);
+	ret = wl1271_cmd_send(wl, CMD_ADD_PEER, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
-		wl1271_error("failed to initiate cmd add sta");
+		wl1271_error("failed to initiate cmd add peer");
 		goto out_free;
 	}
 
@@ -1183,12 +1269,12 @@ out:
 	return ret;
 }
 
-int wl1271_cmd_remove_sta(struct wl1271 *wl, u8 hlid)
+int wl12xx_cmd_remove_peer(struct wl1271 *wl, u8 hlid)
 {
-	struct wl1271_cmd_remove_sta *cmd;
+	struct wl12xx_cmd_remove_peer *cmd;
 	int ret;
 
-	wl1271_debug(DEBUG_CMD, "cmd remove sta %d", (int)hlid);
+	wl1271_debug(DEBUG_CMD, "cmd remove peer %d", (int)hlid);
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
@@ -1201,9 +1287,9 @@ int wl1271_cmd_remove_sta(struct wl1271 *wl, u8 hlid)
 	cmd->reason_opcode = 0;
 	cmd->send_deauth_flag = 0;
 
-	ret = wl1271_cmd_send(wl, CMD_REMOVE_STA, cmd, sizeof(*cmd), 0);
+	ret = wl1271_cmd_send(wl, CMD_REMOVE_PEER, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
-		wl1271_error("failed to initiate cmd remove sta");
+		wl1271_error("failed to initiate cmd remove peer");
 		goto out_free;
 	}
 
@@ -1211,7 +1297,8 @@ int wl1271_cmd_remove_sta(struct wl1271 *wl, u8 hlid)
 	 * We are ok with a timeout here. The event is sometimes not sent
 	 * due to a firmware bug.
 	 */
-	wl1271_cmd_wait_for_event_or_timeout(wl, STA_REMOVE_COMPLETE_EVENT_ID);
+	wl1271_cmd_wait_for_event_or_timeout(wl,
+					     PEER_REMOVE_COMPLETE_EVENT_ID);
 
 out_free:
 	kfree(cmd);

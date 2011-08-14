@@ -404,12 +404,6 @@ static int wl1271_sta_hw_init_post_mem(struct wl1271 *wl)
 {
 	int ret, i;
 
-	ret = wl1271_cmd_set_sta_default_wep_key(wl, wl->default_key);
-	if (ret < 0) {
-		wl1271_warning("couldn't set default key");
-		return ret;
-	}
-
 	/* disable all keep-alive templates */
 	for (i = 0; i < CMD_TEMPL_KLV_IDX_MAX; i++) {
 		ret = wl1271_acx_keep_alive_config(wl, i,

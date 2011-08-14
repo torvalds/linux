@@ -37,9 +37,10 @@ static int wl1271_set_default_wep_key(struct wl1271 *wl, u8 id)
 	bool is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
 
 	if (is_ap)
-		ret = wl1271_cmd_set_ap_default_wep_key(wl, id);
+		ret = wl12xx_cmd_set_default_wep_key(wl, id,
+						     WL1271_AP_BROADCAST_HLID);
 	else
-		ret = wl1271_cmd_set_sta_default_wep_key(wl, id);
+		ret = wl12xx_cmd_set_default_wep_key(wl, id, wl->sta_hlid);
 
 	if (ret < 0)
 		return ret;

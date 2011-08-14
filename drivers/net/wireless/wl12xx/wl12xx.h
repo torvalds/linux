@@ -137,6 +137,7 @@ extern u32 wl12xx_debug_level;
 #define WL1271_DEFAULT_BEACON_INT  100
 #define WL1271_DEFAULT_DTIM_PERIOD 1
 
+#define WL12XX_MAX_ROLES           4
 #define WL12XX_MAX_LINKS           8
 #define WL12XX_INVALID_ROLE_ID     0xff
 #define WL12XX_INVALID_LINK_ID     0xff
@@ -394,6 +395,10 @@ struct wl1271 {
 	int channel;
 	u8 role_id;
 	u8 sta_hlid;
+	u8 dev_hlid;
+
+	unsigned long links_map[BITS_TO_LONGS(WL12XX_MAX_LINKS)];
+	unsigned long roles_map[BITS_TO_LONGS(WL12XX_MAX_ROLES)];
 
 	struct wl1271_acx_mem_map *target_mem_map;
 
