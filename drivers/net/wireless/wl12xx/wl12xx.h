@@ -424,7 +424,7 @@ struct wl1271 {
 
 	/* Accounting for allocated / available Tx packets in HW */
 	u32 tx_pkts_freed[NUM_TX_QUEUES];
-	u32 tx_allocated_pkts;
+	u32 tx_allocated_pkts[NUM_TX_QUEUES];
 
 	/* Transmitted TX packets counter for chipset interface */
 	u32 tx_packets_count;

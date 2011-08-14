@@ -827,7 +827,7 @@ static void wl12xx_fw_status(struct wl1271 *wl,
 
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
 		/* prevent wrap-around in freed-packets counter */
-		wl->tx_allocated_pkts -=
+		wl->tx_allocated_pkts[i] -=
 				(status->tx_released_pkts[i] -
 				wl->tx_pkts_freed[i]) & 0xff;
 
@@ -2060,9 +2060,10 @@ deinit:
 
 	wl->tx_blocks_freed = 0;
 
-	wl->tx_allocated_pkts = 0;
-	for (i = 0; i < NUM_TX_QUEUES; i++)
+	for (i = 0; i < NUM_TX_QUEUES; i++) {
 		wl->tx_pkts_freed[i] = 0;
+		wl->tx_allocated_pkts[i] = 0;
+	}
 
 	wl1271_debugfs_reset(wl);
 
