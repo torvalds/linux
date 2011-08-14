@@ -1065,9 +1065,8 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 		return;
 	}
 
-	min_hdr_len = sizeof(struct ethhdr);
-	min_hdr_len += sizeof(struct wmi_data_hdr) +
-		       sizeof(struct ath6kl_llc_snap_hdr);
+	min_hdr_len = sizeof(struct ethhdr) + sizeof(struct wmi_data_hdr) +
+		      sizeof(struct ath6kl_llc_snap_hdr);
 
 	dhdr = (struct wmi_data_hdr *) skb->data;
 
