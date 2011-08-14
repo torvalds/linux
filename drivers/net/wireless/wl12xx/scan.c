@@ -34,6 +34,7 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	struct delayed_work *dwork;
 	struct wl1271 *wl;
 	int ret;
+	bool is_sta, is_ibss;
 
 	dwork = container_of(work, struct delayed_work, work);
 	wl = container_of(dwork, struct wl1271, scan_complete_work);
@@ -59,7 +60,13 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) {
 		/* restore hardware connection monitoring template */
 		wl1271_cmd_build_ap_probe_req(wl, wl->probereq);
-	} else {
+	}
+
+	/* return to ROC if needed */
+	is_sta = (wl->bss_type == BSS_TYPE_STA_BSS);
+	is_ibss = (wl->bss_type == BSS_TYPE_IBSS);
+	if ((is_sta && !test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) ||
+	    (is_ibss && !test_bit(WL1271_FLAG_IBSS_JOINED, &wl->flags))) {
 		/* restore remain on channel */
 		wl12xx_cmd_role_start_dev(wl);
 		wl12xx_roc(wl, wl->dev_role_id);

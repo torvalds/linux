@@ -182,7 +182,8 @@ static u8 wl1271_tx_get_hlid(struct wl1271 *wl, struct sk_buff *skb)
 	if (wl->bss_type == BSS_TYPE_AP_BSS)
 		return wl12xx_tx_get_hlid_ap(wl, skb);
 
-	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
+	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags) ||
+	    test_bit(WL1271_FLAG_IBSS_JOINED, &wl->flags))
 		return wl->sta_hlid;
 	else
 		return wl->dev_hlid;
