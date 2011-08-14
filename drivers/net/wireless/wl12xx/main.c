@@ -2625,6 +2625,11 @@ static int wl1271_set_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 		if (action == KEY_REMOVE && !is_broadcast_ether_addr(addr))
 			return 0;
 
+		/* don't remove key if hlid was already deleted */
+		if (action == KEY_REMOVE &&
+		    wl->sta_hlid == WL12XX_INVALID_LINK_ID)
+			return 0;
+
 		ret = wl1271_cmd_set_sta_key(wl, action,
 					     id, key_type, key_size,
 					     key, addr, tx_seq_32,
