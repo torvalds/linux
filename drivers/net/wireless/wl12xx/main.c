@@ -755,8 +755,7 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	return ret;
 }
 
-#if 0
-static void wl1271_irq_ps_regulate_link(struct wl1271 *wl, u8 hlid, u8 tx_blks)
+static void wl12xx_irq_ps_regulate_link(struct wl1271 *wl, u8 hlid, u8 tx_pkts)
 {
 	bool fw_ps;
 
@@ -768,21 +767,29 @@ static void wl1271_irq_ps_regulate_link(struct wl1271 *wl, u8 hlid, u8 tx_blks)
 
 	/*
 	 * Wake up from high level PS if the STA is asleep with too little
-	 * blocks in FW or if the STA is awake.
+	 * packets in FW or if the STA is awake.
 	 */
-	if (!fw_ps || tx_blks < WL1271_PS_STA_MAX_BLOCKS)
+	if (!fw_ps || tx_pkts < WL1271_PS_STA_MAX_PACKETS)
 		wl1271_ps_link_end(wl, hlid);
 
 	/* Start high-level PS if the STA is asleep with enough blocks in FW */
-	else if (fw_ps && tx_blks >= WL1271_PS_STA_MAX_BLOCKS)
+	else if (fw_ps && tx_pkts >= WL1271_PS_STA_MAX_PACKETS)
 		wl1271_ps_link_start(wl, hlid, true);
 }
 
-static void wl1271_irq_update_links_status(struct wl1271 *wl,
-				       struct wl1271_fw_ap_status *status)
+bool wl1271_is_active_sta(struct wl1271 *wl, u8 hlid)
+{
+	int id = hlid - WL1271_AP_STA_HLID_START;
+	return test_bit(id, wl->ap_hlid_map);
+}
+
+static void wl12xx_irq_update_links_status(struct wl1271 *wl,
+					   struct wl12xx_fw_status *status)
 {
 	u32 cur_fw_ps_map;
-	u8 hlid;
+	u8 hlid, cnt;
+
+	/* TODO: also use link_fast_bitmap here */
 
 	cur_fw_ps_map = le32_to_cpu(status->link_ps_bitmap);
 	if (wl->ap_fw_ps_map != cur_fw_ps_map) {
@@ -795,18 +802,20 @@ static void wl1271_irq_update_links_status(struct wl1271 *wl,
 	}
 
 	for (hlid = WL1271_AP_STA_HLID_START; hlid < AP_MAX_LINKS; hlid++) {
-		u8 cnt = status->tx_lnk_free_blks[hlid] -
-			wl->links[hlid].prev_freed_blks;
+		if (!wl1271_is_active_sta(wl, hlid))
+			continue;
 
-		wl->links[hlid].prev_freed_blks =
-			status->tx_lnk_free_blks[hlid];
-		wl->links[hlid].allocated_blks -= cnt;
+		cnt = status->tx_lnk_free_pkts[hlid] -
+		      wl->links[hlid].prev_freed_pkts;
 
-		wl1271_irq_ps_regulate_link(wl, hlid,
-					    wl->links[hlid].allocated_blks);
+		wl->links[hlid].prev_freed_pkts =
+			status->tx_lnk_free_pkts[hlid];
+		wl->links[hlid].allocated_pkts -= cnt;
+
+		wl12xx_irq_ps_regulate_link(wl, hlid,
+					    wl->links[hlid].allocated_pkts);
 	}
 }
-#endif
 
 static void wl12xx_fw_status(struct wl1271 *wl,
 			     struct wl12xx_fw_status *status)
@@ -865,11 +874,8 @@ static void wl12xx_fw_status(struct wl1271 *wl,
 		clear_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags);
 
 	/* for AP update num of allocated TX blocks per link and ps status */
-	if (wl->bss_type == BSS_TYPE_AP_BSS) {
-#if 0
-		wl1271_irq_update_links_status(wl, status);
-#endif
-	}
+	if (wl->bss_type == BSS_TYPE_AP_BSS)
+		wl12xx_irq_update_links_status(wl, status);
 
 	/* update the host-chipset time offset */
 	getnstimeofday(&ts);
@@ -3709,12 +3715,6 @@ static void wl1271_free_sta(struct wl1271 *wl, u8 hlid)
 	wl1271_tx_reset_link_queues(wl, hlid);
 	__clear_bit(hlid, &wl->ap_ps_map);
 	__clear_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
-}
-
-bool wl1271_is_active_sta(struct wl1271 *wl, u8 hlid)
-{
-	int id = hlid - WL1271_AP_STA_HLID_START;
-	return test_bit(id, wl->ap_hlid_map);
 }
 
 static int wl1271_op_sta_add(struct ieee80211_hw *hw,

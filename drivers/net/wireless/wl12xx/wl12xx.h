@@ -152,15 +152,14 @@ extern u32 wl12xx_debug_level;
 #define WL1271_AP_STA_HLID_START   3
 
 /*
- * When in AP-mode, we allow (at least) this number of mem-blocks
+ * When in AP-mode, we allow (at least) this number of packets
  * to be transmitted to FW for a STA in PS-mode. Only when packets are
  * present in the FW buffers it will wake the sleeping STA. We want to put
  * enough packets for the driver to transmit all of its buffered data before
- * the STA goes to sleep again. But we don't want to take too much mem-blocks
+ * the STA goes to sleep again. But we don't want to take too much memory
  * as it might hurt the throughput of active STAs.
- * The number of blocks (18) is enough for 2 large packets.
  */
-#define WL1271_PS_STA_MAX_BLOCKS  (2 * 9)
+#define WL1271_PS_STA_MAX_PACKETS  2
 
 #define WL1271_AP_BSS_INDEX        0
 #define WL1271_AP_DEF_BEACON_EXP   20
@@ -237,8 +236,12 @@ struct wl1271_stats {
 
 #define AP_MAX_STATIONS            5
 
-/* Broadcast and Global links + links to stations */
-#define AP_MAX_LINKS               (AP_MAX_STATIONS + 2)
+/* Broadcast and Global links + system link + links to stations */
+/*
+ * TODO: when WL1271_AP_STA_HLID_START is no longer constant, change all
+ * the places that use this.
+ */
+#define AP_MAX_LINKS               (AP_MAX_STATIONS + 3)
 
 /* FW status registers */
 struct wl12xx_fw_status {
@@ -271,8 +274,8 @@ struct wl12xx_fw_status {
 	/* Cumulative counter of released packets per AC */
 	u8 tx_released_pkts[NUM_TX_QUEUES];
 
-	/* Cumulative counter of freed MBs per HLID */
-	u8 tx_lnk_free_blks[WL12XX_MAX_LINKS];
+	/* Cumulative counter of freed packets per HLID */
+	u8 tx_lnk_free_pkts[WL12XX_MAX_LINKS];
 
 	/* Cumulative counter of released Voice memory blocks */
 	u8 tx_voice_released_blks;
@@ -351,9 +354,9 @@ struct wl1271_link {
 	/* AP-mode - TX queue per AC in link */
 	struct sk_buff_head tx_queue[NUM_TX_QUEUES];
 
-	/* accounting for allocated / available TX blocks in FW */
-	u8 allocated_blks;
-	u8 prev_freed_blks;
+	/* accounting for allocated / freed packets in FW */
+	u8 allocated_pkts;
+	u8 prev_freed_pkts;
 
 	u8 addr[ETH_ALEN];
 

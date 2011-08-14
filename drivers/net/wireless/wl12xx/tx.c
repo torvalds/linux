@@ -123,27 +123,25 @@ static void wl1271_tx_ap_update_inconnection_sta(struct wl1271 *wl,
 		wl1271_acx_set_inconnection_sta(wl, hdr->addr1);
 }
 
-#if 0
 static void wl1271_tx_regulate_link(struct wl1271 *wl, u8 hlid)
 {
 	bool fw_ps;
-	u8 tx_blks;
+	u8 tx_pkts;
 
 	/* only regulate station links */
 	if (hlid < WL1271_AP_STA_HLID_START)
 		return;
 
 	fw_ps = test_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
-	tx_blks = wl->links[hlid].allocated_blks;
+	tx_pkts = wl->links[hlid].allocated_pkts;
 
 	/*
 	 * if in FW PS and there is enough data in FW we can put the link
 	 * into high-level PS and clean out its TX queues.
 	 */
-	if (fw_ps && tx_blks >= WL1271_PS_STA_MAX_BLOCKS)
+	if (fw_ps && tx_pkts >= WL1271_PS_STA_MAX_PACKETS)
 		wl1271_ps_link_start(wl, hlid, true);
 }
-#endif
 
 static bool wl12xx_is_dummy_packet(struct wl1271 *wl, struct sk_buff *skb)
 {
@@ -245,8 +243,9 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 		ac = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
 		wl->tx_allocated_pkts[ac]++;
 
-		if (wl->bss_type == BSS_TYPE_AP_BSS)
-			wl->links[hlid].allocated_blks += total_blocks;
+		if (wl->bss_type == BSS_TYPE_AP_BSS &&
+		    hlid >= WL1271_AP_STA_HLID_START)
+			wl->links[hlid].allocated_pkts++;
 
 		ret = 0;
 
@@ -414,9 +413,7 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct sk_buff *skb,
 
 	if (wl->bss_type == BSS_TYPE_AP_BSS) {
 		wl1271_tx_ap_update_inconnection_sta(wl, skb);
-#if 0
 		wl1271_tx_regulate_link(wl, hlid);
-#endif
 	} else {
 		wl1271_tx_update_filters(wl, skb);
 	}
@@ -888,8 +885,8 @@ void wl1271_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 	if (wl->bss_type == BSS_TYPE_AP_BSS) {
 		for (i = 0; i < AP_MAX_LINKS; i++) {
 			wl1271_tx_reset_link_queues(wl, i);
-			wl->links[i].allocated_blks = 0;
-			wl->links[i].prev_freed_blks = 0;
+			wl->links[i].allocated_pkts = 0;
+			wl->links[i].prev_freed_pkts = 0;
 		}
 
 		wl->last_tx_hlid = 0;
