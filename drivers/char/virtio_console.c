@@ -1675,13 +1675,11 @@ static int __devinit virtcons_probe(struct virtio_device *vdev)
 
 	multiport = false;
 	portdev->config.max_nr_ports = 1;
-	if (virtio_has_feature(vdev, VIRTIO_CONSOLE_F_MULTIPORT)) {
+	if (virtio_config_val(vdev, VIRTIO_CONSOLE_F_MULTIPORT,
+			      offsetof(struct virtio_console_config,
+				       max_nr_ports),
+			      &portdev->config.max_nr_ports) == 0)
 		multiport = true;
-		vdev->config->get(vdev, offsetof(struct virtio_console_config,
-						 max_nr_ports),
-				  &portdev->config.max_nr_ports,
-				  sizeof(portdev->config.max_nr_ports));
-	}
 
 	err = init_vqs(portdev);
 	if (err < 0) {
