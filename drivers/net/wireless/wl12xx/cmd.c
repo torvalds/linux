@@ -1321,12 +1321,12 @@ out:
 	return ret;
 }
 
-int wl12xx_cmd_set_peer_state(struct wl1271 *wl)
+int wl12xx_cmd_set_peer_state(struct wl1271 *wl, u8 hlid)
 {
 	struct wl12xx_cmd_set_peer_state *cmd;
 	int ret = 0;
 
-	wl1271_debug(DEBUG_CMD, "cmd set peer state (hlid=%d)", wl->sta_hlid);
+	wl1271_debug(DEBUG_CMD, "cmd set peer state (hlid=%d)", hlid);
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
@@ -1334,7 +1334,7 @@ int wl12xx_cmd_set_peer_state(struct wl1271 *wl)
 		goto out;
 	}
 
-	cmd->hlid = wl->sta_hlid;
+	cmd->hlid = hlid;
 	cmd->state = WL1271_CMD_STA_STATE_CONNECTED;
 
 	ret = wl1271_cmd_send(wl, CMD_SET_PEER_STATE, cmd, sizeof(*cmd), 0);

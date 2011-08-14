@@ -395,7 +395,7 @@ static int wl1271_check_operstate(struct wl1271 *wl, unsigned char operstate)
 	if (test_and_set_bit(WL1271_FLAG_STA_STATE_SENT, &wl->flags))
 		return 0;
 
-	ret = wl12xx_cmd_set_peer_state(wl);
+	ret = wl12xx_cmd_set_peer_state(wl, wl->sta_hlid);
 	if (ret < 0)
 		return ret;
 
@@ -3673,6 +3673,10 @@ static int wl1271_op_sta_add(struct ieee80211_hw *hw,
 		goto out_free_sta;
 
 	ret = wl12xx_cmd_add_peer(wl, sta, hlid);
+	if (ret < 0)
+		goto out_sleep;
+
+	ret = wl12xx_cmd_set_peer_state(wl, hlid);
 	if (ret < 0)
 		goto out_sleep;
 
