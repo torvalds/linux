@@ -617,6 +617,7 @@ out:
 	return ret;
 }
 
+/* use this function to stop ibss as well */
 int wl12xx_cmd_role_stop_sta(struct wl1271 *wl)
 {
 	struct wl12xx_cmd_role_stop *cmd;
@@ -762,6 +763,67 @@ int wl12xx_cmd_role_stop_ap(struct wl1271 *wl)
 
 	wl12xx_free_link(wl, &wl->ap_bcast_hlid);
 	wl12xx_free_link(wl, &wl->ap_global_hlid);
+
+out_free:
+	kfree(cmd);
+
+out:
+	return ret;
+}
+
+int wl12xx_cmd_role_start_ibss(struct wl1271 *wl)
+{
+	struct wl12xx_cmd_role_start *cmd;
+	struct ieee80211_bss_conf *bss_conf = &wl->vif->bss_conf;
+	int ret;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	wl1271_debug(DEBUG_CMD, "cmd role start ibss %d", wl->role_id);
+
+	cmd->role_id = wl->role_id;
+	if (wl->band == IEEE80211_BAND_5GHZ)
+		cmd->band = WL12XX_BAND_5GHZ;
+	cmd->channel = wl->channel;
+	cmd->ibss.basic_rate_set = cpu_to_le32(wl->basic_rate_set);
+	cmd->ibss.beacon_interval = cpu_to_le16(wl->beacon_int);
+	cmd->ibss.dtim_interval = bss_conf->dtim_period;
+	cmd->ibss.ssid_type = WL12XX_SSID_TYPE_ANY;
+	cmd->ibss.ssid_len = wl->ssid_len;
+	memcpy(cmd->ibss.ssid, wl->ssid, wl->ssid_len);
+	memcpy(cmd->ibss.bssid, wl->bssid, ETH_ALEN);
+	cmd->sta.local_rates = cpu_to_le32(wl->rate_set);
+
+	if (wl->sta_hlid == WL12XX_INVALID_LINK_ID) {
+		ret = wl12xx_allocate_link(wl, &wl->sta_hlid);
+		if (ret)
+			goto out_free;
+	}
+	cmd->ibss.hlid = wl->sta_hlid;
+	cmd->ibss.remote_rates = cpu_to_le32(wl->rate_set);
+
+	wl1271_debug(DEBUG_CMD, "role start: roleid=%d, hlid=%d, session=%d "
+		     "basic_rate_set: 0x%x, remote_rates: 0x%x",
+		     wl->role_id, cmd->sta.hlid, cmd->sta.session,
+		     wl->basic_rate_set, wl->rate_set);
+
+	wl1271_debug(DEBUG_CMD, "wl->bssid = %pM", wl->bssid);
+
+	ret = wl1271_cmd_send(wl, CMD_ROLE_START, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to initiate cmd role enable");
+		goto err_hlid;
+	}
+
+	goto out_free;
+
+err_hlid:
+	/* clear links on error. */
+	wl12xx_free_link(wl, &wl->sta_hlid);
 
 out_free:
 	kfree(cmd);
