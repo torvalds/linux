@@ -81,6 +81,16 @@ static void b43_phy_lcn_op_software_rfkill(struct b43_wldev *dev,
 	}
 }
 
+static void b43_phy_lcn_op_switch_analog(struct b43_wldev *dev, bool on)
+{
+	if (on) {
+		b43_phy_mask(dev, B43_PHY_LCN_AFE_CTL1, ~0x7);
+	} else {
+		b43_phy_set(dev, B43_PHY_LCN_AFE_CTL2, 0x7);
+		b43_phy_set(dev, B43_PHY_LCN_AFE_CTL1, 0x7);
+	}
+}
+
 static unsigned int b43_phy_lcn_op_get_default_chan(struct b43_wldev *dev)
 {
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
@@ -115,8 +125,8 @@ const struct b43_phy_operations b43_phyops_lcn = {
 	.radio_write		= b43_phy_lcn_op_radio_write,
 	*/
 	.software_rfkill	= b43_phy_lcn_op_software_rfkill,
-	/*
 	.switch_analog		= b43_phy_lcn_op_switch_analog,
+	/*
 	.switch_channel		= b43_phy_lcn_op_switch_channel,
 	*/
 	.get_default_chan	= b43_phy_lcn_op_get_default_chan,

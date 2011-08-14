@@ -4,6 +4,8 @@
 #include "phy_common.h"
 
 
+#define B43_PHY_LCN_AFE_CTL1			B43_PHY_OFDM(0x03B)
+#define B43_PHY_LCN_AFE_CTL2			B43_PHY_OFDM(0x03C)
 #define B43_PHY_LCN_RF_CTL1			B43_PHY_OFDM(0x04C)
 #define B43_PHY_LCN_RF_CTL2			B43_PHY_OFDM(0x04D)
 #define B43_PHY_LCN_RF_CTL3			B43_PHY_OFDM(0x0B0)
