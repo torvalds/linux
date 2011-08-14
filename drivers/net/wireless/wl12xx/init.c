@@ -515,6 +515,9 @@ int wl1271_init_ap_rates(struct wl1271 *wl)
 	else
 		supported_rates = CONF_TX_AP_ENABLED_RATES;
 
+	/* unconditionally enable HT rates */
+	supported_rates |= CONF_TX_MCS_RATES;
+
 	/* configure unicast TX rate classes */
 	for (i = 0; i < wl->conf.tx.ac_conf_count; i++) {
 		rc.enabled_rates = supported_rates;
