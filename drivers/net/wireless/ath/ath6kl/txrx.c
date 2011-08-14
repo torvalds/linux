@@ -1162,8 +1162,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	seq_no = wmi_data_hdr_get_seqno(dhdr);
 	meta_type = wmi_data_hdr_get_meta(dhdr);
 	dot11_hdr = wmi_data_hdr_get_dot11(dhdr);
-
-	ath6kl_wmi_data_hdr_remove(ar->wmi, skb);
+	skb_pull(skb, sizeof(struct wmi_data_hdr));
 
 	switch (meta_type) {
 	case WMI_META_VERSION_1:

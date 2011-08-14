@@ -376,16 +376,6 @@ int ath6kl_wmi_dot3_2_dix(struct sk_buff *skb)
 	return 0;
 }
 
-int ath6kl_wmi_data_hdr_remove(struct wmi *wmi, struct sk_buff *skb)
-{
-	if (WARN_ON(skb == NULL))
-		return -EINVAL;
-
-	skb_pull(skb, sizeof(struct wmi_data_hdr));
-
-	return 0;
-}
-
 static void ath6kl_wmi_convert_bssinfo_hdr2_to_hdr(struct sk_buff *skb,
 						   u8 *datap)
 {
