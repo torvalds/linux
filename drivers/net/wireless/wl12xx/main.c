@@ -4266,7 +4266,7 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 	 * should be the maximum length possible for a template, without
 	 * the IEEE80211 header of the template
 	 */
-	wl->hw->wiphy->max_scan_ie_len = WL1271_CMD_TEMPL_MAX_SIZE -
+	wl->hw->wiphy->max_scan_ie_len = WL1271_CMD_TEMPL_DFLT_SIZE -
 			sizeof(struct ieee80211_header);
 
 	/* make sure all our channels fit in the scanned_ch bitmask */
