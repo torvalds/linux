@@ -115,10 +115,6 @@ do {								 \
 		dev_info(&bp->pdev->dev, __fmt, ##__args);	 \
 } while (0)
 
-#define BNX2X_MAC_FMT		"%pM"
-#define BNX2X_MAC_PRN_LIST(mac)	(mac)
-
-
 #ifdef BNX2X_STOP_ON_ERROR
 void bnx2x_int_disable(struct bnx2x *bp);
 #define bnx2x_panic() do { \

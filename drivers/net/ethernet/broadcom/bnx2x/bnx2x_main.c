@@ -9315,9 +9315,8 @@ static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 				val = MF_CFG_RD(bp, func_ext_config[func].
 						    iscsi_mac_addr_lower);
 				bnx2x_set_mac_buf(iscsi_mac, val, val2);
-				BNX2X_DEV_INFO("Read iSCSI MAC: "
-					       BNX2X_MAC_FMT"\n",
-					       BNX2X_MAC_PRN_LIST(iscsi_mac));
+				BNX2X_DEV_INFO("Read iSCSI MAC: %pM\n",
+					       iscsi_mac);
 			} else
 				bp->flags |= NO_ISCSI_OOO_FLAG | NO_ISCSI_FLAG;
 
@@ -9327,9 +9326,8 @@ static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 				val = MF_CFG_RD(bp, func_ext_config[func].
 						    fcoe_mac_addr_lower);
 				bnx2x_set_mac_buf(fip_mac, val, val2);
-				BNX2X_DEV_INFO("Read FCoE L2 MAC to "
-					       BNX2X_MAC_FMT"\n",
-					       BNX2X_MAC_PRN_LIST(fip_mac));
+				BNX2X_DEV_INFO("Read FCoE L2 MAC to %pM\n",
+					       fip_mac);
 
 			} else
 				bp->flags |= NO_FCOE_FLAG;
@@ -9384,9 +9382,9 @@ static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 	if (!is_valid_ether_addr(bp->dev->dev_addr))
 		dev_err(&bp->pdev->dev,
 			"bad Ethernet MAC address configuration: "
-			BNX2X_MAC_FMT", change it manually before bringing up "
+			"%pM, change it manually before bringing up "
 			"the appropriate network interface\n",
-			BNX2X_MAC_PRN_LIST(bp->dev->dev_addr));
+			bp->dev->dev_addr);
 }
 
 static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)

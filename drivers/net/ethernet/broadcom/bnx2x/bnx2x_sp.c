@@ -707,9 +707,8 @@ static void bnx2x_set_one_mac_e2(struct bnx2x *bp,
 	bnx2x_vlan_mac_set_cmd_hdr_e2(bp, o, add, CLASSIFY_RULE_OPCODE_MAC,
 				      &rule_entry->mac.header);
 
-	DP(BNX2X_MSG_SP, "About to %s MAC "BNX2X_MAC_FMT" for "
-			 "Queue %d\n", (add ? "add" : "delete"),
-			 BNX2X_MAC_PRN_LIST(mac), raw->cl_id);
+	DP(BNX2X_MSG_SP, "About to %s MAC %pM for Queue %d\n",
+			 add ? "add" : "delete", mac, raw->cl_id);
 
 	/* Set a MAC itself */
 	bnx2x_set_fw_mac_addr(&rule_entry->mac.mac_msb,
@@ -801,9 +800,9 @@ static inline void bnx2x_vlan_mac_set_rdata_e1x(struct bnx2x *bp,
 	bnx2x_vlan_mac_set_cfg_entry_e1x(bp, o, add, opcode, mac, vlan_id,
 					 cfg_entry);
 
-	DP(BNX2X_MSG_SP, "%s MAC "BNX2X_MAC_FMT" CLID %d CAM offset %d\n",
-			 (add ? "setting" : "clearing"),
-			 BNX2X_MAC_PRN_LIST(mac), raw->cl_id, cam_offset);
+	DP(BNX2X_MSG_SP, "%s MAC %pM CLID %d CAM offset %d\n",
+			 add ? "setting" : "clearing",
+			 mac, raw->cl_id, cam_offset);
 }
 
 /**
@@ -2579,9 +2578,8 @@ static inline void bnx2x_mcast_hdl_pending_add_e2(struct bnx2x *bp,
 
 		cnt++;
 
-		DP(BNX2X_MSG_SP, "About to configure "BNX2X_MAC_FMT
-				 " mcast MAC\n",
-				 BNX2X_MAC_PRN_LIST(pmac_pos->mac));
+		DP(BNX2X_MSG_SP, "About to configure %pM mcast MAC\n",
+				 pmac_pos->mac);
 
 		list_del(&pmac_pos->link);
 
@@ -2702,9 +2700,8 @@ static inline void bnx2x_mcast_hdl_add(struct bnx2x *bp,
 
 		cnt++;
 
-		DP(BNX2X_MSG_SP, "About to configure "BNX2X_MAC_FMT
-				 " mcast MAC\n",
-				 BNX2X_MAC_PRN_LIST(mlist_pos->mac));
+		DP(BNX2X_MSG_SP, "About to configure %pM mcast MAC\n",
+				 mlist_pos->mac);
 	}
 
 	*line_idx = cnt;
@@ -2998,9 +2995,8 @@ static inline void bnx2x_mcast_hdl_add_e1h(struct bnx2x *bp,
 		bit = bnx2x_mcast_bin_from_mac(mlist_pos->mac);
 		BNX2X_57711_SET_MC_FILTER(mc_filter, bit);
 
-		DP(BNX2X_MSG_SP, "About to configure "
-				 BNX2X_MAC_FMT" mcast MAC, bin %d\n",
-				 BNX2X_MAC_PRN_LIST(mlist_pos->mac), bit);
+		DP(BNX2X_MSG_SP, "About to configure %pM mcast MAC, bin %d\n",
+				 mlist_pos->mac, bit);
 
 		/* bookkeeping... */
 		BIT_VEC64_SET_BIT(o->registry.aprox_match.vec,
@@ -3233,9 +3229,8 @@ static inline int bnx2x_mcast_handle_restore_cmd_e1(
 
 		i++;
 
-		  DP(BNX2X_MSG_SP, "About to configure "BNX2X_MAC_FMT
-				   " mcast MAC\n",
-				   BNX2X_MAC_PRN_LIST(cfg_data.mac));
+		  DP(BNX2X_MSG_SP, "About to configure %pM mcast MAC\n",
+				   cfg_data.mac);
 	}
 
 	*rdata_idx = i;
@@ -3270,9 +3265,8 @@ static inline int bnx2x_mcast_handle_pending_cmds_e1(
 
 			cnt++;
 
-			DP(BNX2X_MSG_SP, "About to configure "BNX2X_MAC_FMT
-					 " mcast MAC\n",
-					 BNX2X_MAC_PRN_LIST(pmac_pos->mac));
+			DP(BNX2X_MSG_SP, "About to configure %pM mcast MAC\n",
+					 pmac_pos->mac);
 		}
 		break;
 
@@ -3357,9 +3351,8 @@ static inline int bnx2x_mcast_refresh_registry_e1(struct bnx2x *bp,
 				&data->config_table[i].middle_mac_addr,
 				&data->config_table[i].lsb_mac_addr,
 				elem->mac);
-			DP(BNX2X_MSG_SP, "Adding registry entry for ["
-					 BNX2X_MAC_FMT"]\n",
-				   BNX2X_MAC_PRN_LIST(elem->mac));
+			DP(BNX2X_MSG_SP, "Adding registry entry for [%pM]\n",
+					 elem->mac);
 			list_add_tail(&elem->link,
 				      &o->registry.exact_match.macs);
 		}
