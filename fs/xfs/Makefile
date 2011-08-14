@@ -16,6 +16,8 @@
 # Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
 
+ccflags-y += -I$(src)			# needed for trace events
+
 ccflags-$(CONFIG_XFS_DEBUG) += -g
 
 obj-$(CONFIG_XFS_FS)		+= xfs.o
