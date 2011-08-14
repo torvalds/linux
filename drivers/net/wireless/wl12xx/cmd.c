@@ -1481,3 +1481,76 @@ out_free:
 out:
 	return ret;
 }
+
+static int wl12xx_cmd_roc(struct wl1271 *wl, u8 role_id)
+{
+	struct wl12xx_cmd_roc *cmd;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_CMD, "cmd roc %d (%d)", wl->channel, role_id);
+
+	if (WARN_ON(role_id == WL12XX_INVALID_ROLE_ID))
+		return -EINVAL;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	cmd->role_id = role_id;
+	cmd->channel = wl->channel;
+	switch (wl->band) {
+	case IEEE80211_BAND_2GHZ:
+		cmd->band = RADIO_BAND_2_4GHZ;
+		break;
+	case IEEE80211_BAND_5GHZ:
+		cmd->band = RADIO_BAND_5GHZ;
+		break;
+	default:
+		wl1271_error("roc - unknown band: %d", (int)wl->band);
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+
+	ret = wl1271_cmd_send(wl, CMD_REMAIN_ON_CHANNEL, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to send ROC command");
+		goto out_free;
+	}
+
+out_free:
+	kfree(cmd);
+
+out:
+	return ret;
+}
+
+static int wl12xx_cmd_croc(struct wl1271 *wl, u8 role_id)
+{
+	struct wl12xx_cmd_croc *cmd;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_CMD, "cmd croc (%d)", role_id);
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	cmd->role_id = role_id;
+
+	ret = wl1271_cmd_send(wl, CMD_CANCEL_REMAIN_ON_CHANNEL, cmd,
+			      sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to send ROC command");
+		goto out_free;
+	}
+
+out_free:
+	kfree(cmd);
+
+out:
+	return ret;
+}
