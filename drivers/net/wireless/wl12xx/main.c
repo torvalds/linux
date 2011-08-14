@@ -824,24 +824,13 @@ static void wl1271_irq_update_links_status(struct wl1271 *wl,
 	}
 }
 
-static u32 wl1271_tx_allocated_blocks(struct wl1271 *wl)
-{
-	int i;
-	u32 total_alloc_blocks = 0;
-
-	for (i = 0; i < NUM_TX_QUEUES; i++)
-		total_alloc_blocks += wl->tx_allocated_blocks[i];
-
-	return total_alloc_blocks;
-}
-
 static void wl1271_fw_status(struct wl1271 *wl,
 			     struct wl1271_fw_full_status *full_status)
 {
 	struct wl1271_fw_common_status *status = &full_status->common;
 	struct timespec ts;
 	u32 old_tx_blk_count = wl->tx_blocks_available;
-	u32 freed_blocks = 0, ac_freed_blocks;
+	u32 freed_blocks = 0;
 	int i;
 
 	if (wl->bss_type == BSS_TYPE_AP_BSS) {
@@ -861,23 +850,21 @@ static void wl1271_fw_status(struct wl1271 *wl,
 
 	/* update number of available TX blocks */
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
-		ac_freed_blocks = le32_to_cpu(status->tx_released_blks[i]) -
-				  wl->tx_blocks_freed[i];
-		freed_blocks += ac_freed_blocks;
-
-		wl->tx_allocated_blocks[i] -= ac_freed_blocks;
+		freed_blocks += le32_to_cpu(status->tx_released_blks[i]) -
+				wl->tx_blocks_freed[i];
 
 		wl->tx_blocks_freed[i] =
 			le32_to_cpu(status->tx_released_blks[i]);
 	}
+
+	wl->tx_allocated_blocks -= freed_blocks;
 
 	if (wl->bss_type == BSS_TYPE_AP_BSS) {
 		/* Update num of allocated TX blocks per link and ps status */
 		wl1271_irq_update_links_status(wl, &full_status->ap);
 		wl->tx_blocks_available += freed_blocks;
 	} else {
-		int avail = full_status->sta.tx_total -
-			    wl1271_tx_allocated_blocks(wl);
+		int avail = full_status->sta.tx_total - wl->tx_allocated_blocks;
 
 		/*
 		 * The FW might change the total number of TX memblocks before
@@ -2013,6 +2000,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 	wl->psm_entry_retry = 0;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
 	wl->tx_blocks_available = 0;
+	wl->tx_allocated_blocks = 0;
 	wl->tx_results_count = 0;
 	wl->tx_packets_count = 0;
 	wl->time_offset = 0;
@@ -2033,10 +2021,8 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 	 */
 	wl->flags = 0;
 
-	for (i = 0; i < NUM_TX_QUEUES; i++) {
+	for (i = 0; i < NUM_TX_QUEUES; i++)
 		wl->tx_blocks_freed[i] = 0;
-		wl->tx_allocated_blocks[i] = 0;
-	}
 
 	wl1271_debugfs_reset(wl);
 
