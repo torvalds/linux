@@ -14,6 +14,9 @@
  * Statistics and Link management by Yitchak Gertner
  *
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "bnx2x_stats.h"
 #include "bnx2x_cmn.h"
 
@@ -1194,14 +1197,13 @@ static void bnx2x_stats_update(struct bnx2x *bp)
 			struct bnx2x_fastpath *fp = &bp->fp[i];
 			struct bnx2x_eth_q_stats *qstats = &fp->eth_q_stats;
 
-			printk(KERN_DEBUG "%s: rx usage(%4u)  *rx_cons_sb(%u)"
-					  "  rx pkt(%lu)  rx calls(%lu %lu)\n",
-			       fp->name, (le16_to_cpu(*fp->rx_cons_sb) -
-			       fp->rx_comp_cons),
-			       le16_to_cpu(*fp->rx_cons_sb),
-			       bnx2x_hilo(&qstats->
-					  total_unicast_packets_received_hi),
-			       fp->rx_calls, fp->rx_pkt);
+			pr_debug("%s: rx usage(%4u)  *rx_cons_sb(%u)  rx pkt(%lu)  rx calls(%lu %lu)\n",
+				 fp->name, (le16_to_cpu(*fp->rx_cons_sb) -
+					    fp->rx_comp_cons),
+				 le16_to_cpu(*fp->rx_cons_sb),
+				 bnx2x_hilo(&qstats->
+					    total_unicast_packets_received_hi),
+				 fp->rx_calls, fp->rx_pkt);
 		}
 
 		for_each_eth_queue(bp, i) {
@@ -1210,27 +1212,25 @@ static void bnx2x_stats_update(struct bnx2x *bp)
 			struct bnx2x_eth_q_stats *qstats = &fp->eth_q_stats;
 			struct netdev_queue *txq;
 
-			printk(KERN_DEBUG "%s: tx pkt(%lu) (Xoff events %u)",
-				fp->name, bnx2x_hilo(
-				&qstats->total_unicast_packets_transmitted_hi),
-				qstats->driver_xoff);
+			pr_debug("%s: tx pkt(%lu) (Xoff events %u)",
+				 fp->name,
+				 bnx2x_hilo(
+					 &qstats->total_unicast_packets_transmitted_hi),
+				 qstats->driver_xoff);
 
 			for_each_cos_in_tx_queue(fp, cos) {
 				txdata = &fp->txdata[cos];
 				txq = netdev_get_tx_queue(bp->dev,
 						FP_COS_TO_TXQ(fp, cos));
 
-				printk(KERN_DEBUG "%d: tx avail(%4u)"
-				       "  *tx_cons_sb(%u)"
-				       "  tx calls (%lu)"
-				       "  %s\n",
-				       cos,
-				       bnx2x_tx_avail(bp, txdata),
-				       le16_to_cpu(*txdata->tx_cons_sb),
-				       txdata->tx_pkt,
-				       (netif_tx_queue_stopped(txq) ?
-					"Xoff" : "Xon")
-				       );
+				pr_debug("%d: tx avail(%4u)  *tx_cons_sb(%u)  tx calls (%lu)  %s\n",
+					 cos,
+					 bnx2x_tx_avail(bp, txdata),
+					 le16_to_cpu(*txdata->tx_cons_sb),
+					 txdata->tx_pkt,
+					 (netif_tx_queue_stopped(txq) ?
+					  "Xoff" : "Xon")
+					);
 			}
 		}
 	}

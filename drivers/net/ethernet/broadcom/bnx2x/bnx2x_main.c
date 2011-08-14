@@ -15,6 +15,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -350,17 +352,15 @@ static void bnx2x_dp_dmae(struct bnx2x *bp, struct dmae_command *dmae,
 	default:
 		if (src_type == DMAE_CMD_SRC_PCI)
 			DP(msglvl, "DMAE: opcode 0x%08x\n"
-			   DP_LEVEL "src_addr [%x:%08x]  len [%d * 4]  "
-				    "dst_addr [none]\n"
-			   DP_LEVEL "comp_addr [%x:%08x]  comp_val 0x%08x\n",
+			   "src_addr [%x:%08x]  len [%d * 4]  dst_addr [none]\n"
+			   "comp_addr [%x:%08x]  comp_val 0x%08x\n",
 			   dmae->opcode, dmae->src_addr_hi, dmae->src_addr_lo,
 			   dmae->len, dmae->comp_addr_hi, dmae->comp_addr_lo,
 			   dmae->comp_val);
 		else
 			DP(msglvl, "DMAE: opcode 0x%08x\n"
-			   DP_LEVEL "src_addr [%08x]  len [%d * 4]  "
-				    "dst_addr [none]\n"
-			   DP_LEVEL "comp_addr [%x:%08x]  comp_val 0x%08x\n",
+			   "src_addr [%08x]  len [%d * 4]  dst_addr [none]\n"
+			   "comp_addr [%x:%08x]  comp_val 0x%08x\n",
 			   dmae->opcode, dmae->src_addr_lo >> 2,
 			   dmae->len, dmae->comp_addr_hi, dmae->comp_addr_lo,
 			   dmae->comp_val);
@@ -789,18 +789,15 @@ void bnx2x_panic_dump(struct bnx2x *bp)
 	BNX2X_ERR("     def (");
 	for (i = 0; i < HC_SP_SB_MAX_INDICES; i++)
 		pr_cont("0x%x%s",
-		       bp->def_status_blk->sp_sb.index_values[i],
-		       (i == HC_SP_SB_MAX_INDICES - 1) ? ")  " : " ");
+			bp->def_status_blk->sp_sb.index_values[i],
+			(i == HC_SP_SB_MAX_INDICES - 1) ? ")  " : " ");
 
 	for (i = 0; i < sizeof(struct hc_sp_status_block_data)/sizeof(u32); i++)
 		*((u32 *)&sp_sb_data + i) = REG_RD(bp, BAR_CSTRORM_INTMEM +
 			CSTORM_SP_STATUS_BLOCK_DATA_OFFSET(func) +
 			i*sizeof(u32));
 
-	pr_cont("igu_sb_id(0x%x)  igu_seg_id(0x%x) "
-			 "pf_id(0x%x)  vnic_id(0x%x)  "
-			 "vf_id(0x%x)  vf_valid (0x%x) "
-			 "state(0x%x)\n",
+	pr_cont("igu_sb_id(0x%x)  igu_seg_id(0x%x) pf_id(0x%x)  vnic_id(0x%x)  vf_id(0x%x)  vf_valid (0x%x) state(0x%x)\n",
 	       sp_sb_data.igu_sb_id,
 	       sp_sb_data.igu_seg_id,
 	       sp_sb_data.p_func.pf_id,
@@ -3721,9 +3718,7 @@ static inline void bnx2x_clear_load_cnt(struct bnx2x *bp)
 
 static inline void _print_next_block(int idx, const char *blk)
 {
-	if (idx)
-		pr_cont(", ");
-	pr_cont("%s", blk);
+	pr_cont("%s%s", idx ? ", " : "", blk);
 }
 
 static inline int bnx2x_check_blocks_with_parity0(u32 sig, int par_num,

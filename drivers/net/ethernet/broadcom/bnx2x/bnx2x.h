@@ -66,69 +66,68 @@
 #define BNX2X_MSG_SP			0x100000 /* was: NETIF_MSG_INTR */
 #define BNX2X_MSG_FP			0x200000 /* was: NETIF_MSG_INTR */
 
-#define DP_LEVEL			KERN_NOTICE	/* was: KERN_DEBUG */
-
 /* regular debug print */
-#define DP(__mask, __fmt, __args...)				\
+#define DP(__mask, fmt, ...)					\
 do {								\
 	if (bp->msg_enable & (__mask))				\
-		printk(DP_LEVEL "[%s:%d(%s)]" __fmt,		\
-		       __func__, __LINE__,			\
-		       bp->dev ? (bp->dev->name) : "?",		\
-		       ##__args);				\
+		pr_notice("[%s:%d(%s)]" fmt,			\
+			  __func__, __LINE__,			\
+			  bp->dev ? (bp->dev->name) : "?",	\
+			  ##__VA_ARGS__);			\
 } while (0)
 
-#define DP_CONT(__mask, __fmt, __args...)			\
+#define DP_CONT(__mask, fmt, ...)				\
 do {								\
 	if (bp->msg_enable & (__mask))				\
-		pr_cont(__fmt, ##__args);			\
+		pr_cont(fmt, ##__VA_ARGS__);			\
 } while (0)
 
 /* errors debug print */
-#define BNX2X_DBG_ERR(__fmt, __args...)				\
+#define BNX2X_DBG_ERR(fmt, ...)					\
 do {								\
 	if (netif_msg_probe(bp))				\
-		pr_err("[%s:%d(%s)]" __fmt,			\
+		pr_err("[%s:%d(%s)]" fmt,			\
 		       __func__, __LINE__,			\
 		       bp->dev ? (bp->dev->name) : "?",		\
-		       ##__args);				\
+		       ##__VA_ARGS__);				\
 } while (0)
 
 /* for errors (never masked) */
-#define BNX2X_ERR(__fmt, __args...)				\
+#define BNX2X_ERR(fmt, ...)					\
 do {								\
-	pr_err("[%s:%d(%s)]" __fmt,				\
+	pr_err("[%s:%d(%s)]" fmt,				\
 	       __func__, __LINE__,				\
 	       bp->dev ? (bp->dev->name) : "?",			\
-	       ##__args);					\
-	} while (0)
+	       ##__VA_ARGS__);					\
+} while (0)
 
-#define BNX2X_ERROR(__fmt, __args...) do { \
-	pr_err("[%s:%d]" __fmt, __func__, __LINE__, ##__args); \
-	} while (0)
+#define BNX2X_ERROR(fmt, ...)					\
+	pr_err("[%s:%d]" fmt, __func__, __LINE__, ##__VA_ARGS__)
 
 
 /* before we have a dev->name use dev_info() */
-#define BNX2X_DEV_INFO(__fmt, __args...)			 \
+#define BNX2X_DEV_INFO(fmt, ...)				 \
 do {								 \
 	if (netif_msg_probe(bp))				 \
-		dev_info(&bp->pdev->dev, __fmt, ##__args);	 \
+		dev_info(&bp->pdev->dev, fmt, ##__VA_ARGS__);	 \
 } while (0)
 
 #ifdef BNX2X_STOP_ON_ERROR
 void bnx2x_int_disable(struct bnx2x *bp);
-#define bnx2x_panic() do { \
-		bp->panic = 1; \
-		BNX2X_ERR("driver assert\n"); \
-		bnx2x_int_disable(bp); \
-		bnx2x_panic_dump(bp); \
-	} while (0)
+#define bnx2x_panic()				\
+do {						\
+	bp->panic = 1;				\
+	BNX2X_ERR("driver assert\n");		\
+	bnx2x_int_disable(bp);			\
+	bnx2x_panic_dump(bp);			\
+} while (0)
 #else
-#define bnx2x_panic() do { \
-		bp->panic = 1; \
-		BNX2X_ERR("driver assert\n"); \
-		bnx2x_panic_dump(bp); \
-	} while (0)
+#define bnx2x_panic()				\
+do {						\
+	bp->panic = 1;				\
+	BNX2X_ERR("driver assert\n");		\
+	bnx2x_panic_dump(bp);			\
+} while (0)
 #endif
 
 #define bnx2x_mc_addr(ha)      ((ha)->addr)

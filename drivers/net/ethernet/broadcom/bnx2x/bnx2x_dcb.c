@@ -16,6 +16,9 @@
  * Written by: Dmitry Kravkov
  *
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/netdevice.h>
 #include <linux/types.h>
 #include <linux/errno.h>

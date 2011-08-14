@@ -14,6 +14,9 @@
  * Statistics and Link management by Yitchak Gertner
  *
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/types.h>
@@ -239,9 +242,9 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	cmd->maxrxpkt = 0;
 
 	DP(NETIF_MSG_LINK, "ethtool_cmd: cmd %d\n"
-	   DP_LEVEL "  supported 0x%x  advertising 0x%x  speed %u\n"
-	   DP_LEVEL "  duplex %d  port %d  phy_address %d  transceiver %d\n"
-	   DP_LEVEL "  autoneg %d  maxtxpkt %d  maxrxpkt %d\n",
+	   "  supported 0x%x  advertising 0x%x  speed %u\n"
+	   "  duplex %d  port %d  phy_address %d  transceiver %d\n"
+	   "  autoneg %d  maxtxpkt %d  maxrxpkt %d\n",
 	   cmd->cmd, cmd->supported, cmd->advertising,
 	   ethtool_cmd_speed(cmd),
 	   cmd->duplex, cmd->port, cmd->phy_address, cmd->transceiver,
@@ -482,7 +485,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	}
 
 	DP(NETIF_MSG_LINK, "req_line_speed %d\n"
-	   DP_LEVEL "  req_duplex %d  advertising 0x%x\n",
+	   "  req_duplex %d  advertising 0x%x\n",
 	   bp->link_params.req_line_speed[cfg_idx],
 	   bp->link_params.req_duplex[cfg_idx],
 	   bp->port.advertising[cfg_idx]);
@@ -1028,7 +1031,7 @@ static int bnx2x_get_eeprom(struct net_device *dev,
 		return -EAGAIN;
 
 	DP(BNX2X_MSG_NVM, "ethtool_eeprom: cmd %d\n"
-	   DP_LEVEL "  magic 0x%x  offset 0x%x (%d)  len 0x%x (%d)\n",
+	   "  magic 0x%x  offset 0x%x (%d)  len 0x%x (%d)\n",
 	   eeprom->cmd, eeprom->magic, eeprom->offset, eeprom->offset,
 	   eeprom->len, eeprom->len);
 
@@ -1199,7 +1202,7 @@ static int bnx2x_set_eeprom(struct net_device *dev,
 		return -EAGAIN;
 
 	DP(BNX2X_MSG_NVM, "ethtool_eeprom: cmd %d\n"
-	   DP_LEVEL "  magic 0x%x  offset 0x%x (%d)  len 0x%x (%d)\n",
+	   "  magic 0x%x  offset 0x%x (%d)  len 0x%x (%d)\n",
 	   eeprom->cmd, eeprom->magic, eeprom->offset, eeprom->offset,
 	   eeprom->len, eeprom->len);
 
@@ -1328,7 +1331,7 @@ static int bnx2x_set_ringparam(struct net_device *dev,
 	struct bnx2x *bp = netdev_priv(dev);
 
 	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
-		printk(KERN_ERR "Handling parity error recovery. Try again later\n");
+		pr_err("Handling parity error recovery. Try again later\n");
 		return -EAGAIN;
 	}
 
@@ -1359,7 +1362,7 @@ static void bnx2x_get_pauseparam(struct net_device *dev,
 			    BNX2X_FLOW_CTRL_TX);
 
 	DP(NETIF_MSG_LINK, "ethtool_pauseparam: cmd %d\n"
-	   DP_LEVEL "  autoneg %d  rx_pause %d  tx_pause %d\n",
+	   "  autoneg %d  rx_pause %d  tx_pause %d\n",
 	   epause->cmd, epause->autoneg, epause->rx_pause, epause->tx_pause);
 }
 
@@ -1372,7 +1375,7 @@ static int bnx2x_set_pauseparam(struct net_device *dev,
 		return 0;
 
 	DP(NETIF_MSG_LINK, "ethtool_pauseparam: cmd %d\n"
-	   DP_LEVEL "  autoneg %d  rx_pause %d  tx_pause %d\n",
+	   "  autoneg %d  rx_pause %d  tx_pause %d\n",
 	   epause->cmd, epause->autoneg, epause->rx_pause, epause->tx_pause);
 
 	bp->link_params.req_flow_ctrl[cfg_idx] = BNX2X_FLOW_CTRL_AUTO;
@@ -1970,7 +1973,7 @@ static void bnx2x_self_test(struct net_device *dev,
 	struct bnx2x *bp = netdev_priv(dev);
 	u8 is_serdes;
 	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
-		printk(KERN_ERR "Handling parity error recovery. Try again later\n");
+		pr_err("Handling parity error recovery. Try again later\n");
 		etest->flags |= ETH_TEST_FL_FAILED;
 		return;
 	}

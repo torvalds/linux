@@ -15,6 +15,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/interrupt.h>
@@ -3369,7 +3371,7 @@ int bnx2x_change_mtu(struct net_device *dev, int new_mtu)
 	struct bnx2x *bp = netdev_priv(dev);
 
 	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
-		printk(KERN_ERR "Handling parity error recovery. Try again later\n");
+		pr_err("Handling parity error recovery. Try again later\n");
 		return -EAGAIN;
 	}
 
@@ -3495,7 +3497,7 @@ int bnx2x_resume(struct pci_dev *pdev)
 	bp = netdev_priv(dev);
 
 	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
-		printk(KERN_ERR "Handling parity error recovery. Try again later\n");
+		pr_err("Handling parity error recovery. Try again later\n");
 		return -EAGAIN;
 	}
 
