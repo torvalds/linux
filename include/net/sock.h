@@ -686,13 +686,22 @@ static inline void sock_rps_reset_flow(const struct sock *sk)
 #endif
 }
 
-static inline void sock_rps_save_rxhash(struct sock *sk, u32 rxhash)
+static inline void sock_rps_save_rxhash(struct sock *sk,
+					const struct sk_buff *skb)
 {
 #ifdef CONFIG_RPS
-	if (unlikely(sk->sk_rxhash != rxhash)) {
+	if (unlikely(sk->sk_rxhash != skb->rxhash)) {
 		sock_rps_reset_flow(sk);
-		sk->sk_rxhash = rxhash;
+		sk->sk_rxhash = skb->rxhash;
 	}
+#endif
+}
+
+static inline void sock_rps_reset_rxhash(struct sock *sk)
+{
+#ifdef CONFIG_RPS
+	sock_rps_reset_flow(sk);
+	sk->sk_rxhash = 0;
 #endif
 }
 

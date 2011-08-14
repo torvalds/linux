@@ -325,7 +325,14 @@ static inline void skb_dst_force(struct sk_buff *skb)
 static inline void __skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev)
 {
 	skb->dev = dev;
-	skb->rxhash = 0;
+
+	/*
+	 * Clear rxhash so that we can recalulate the hash for the
+	 * encapsulated packet, unless we have already determine the hash
+	 * over the L4 4-tuple.
+	 */
+	if (!skb->l4_rxhash)
+		skb->rxhash = 0;
 	skb_set_queue_mapping(skb, 0);
 	skb_dst_drop(skb);
 	nf_reset(skb);
