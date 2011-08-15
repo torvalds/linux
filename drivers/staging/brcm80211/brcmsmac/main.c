@@ -239,8 +239,8 @@
 
 #define DMAREG(wlc_hw, direction, fifonum) \
 	((direction == DMA_TX) ? \
-		(void *)&(wlc_hw->regs->fifo64regs[fifonum].dmaxmt) : \
-		(void *)&(wlc_hw->regs->fifo64regs[fifonum].dmarcv))
+		&(wlc_hw->regs->fifo64regs[fifonum].dmaxmt) : \
+		&(wlc_hw->regs->fifo64regs[fifonum].dmarcv))
 
 #define APHY_SLOT_TIME		9
 #define BPHY_SLOT_TIME		20

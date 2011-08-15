@@ -80,7 +80,7 @@ extern struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 			    uint nrxpost, uint rxoffset, uint *msg_level);
 
 void dma_rxinit(struct dma_pub *pub);
-void *dma_rx(struct dma_pub *pub);
+struct sk_buff *dma_rx(struct dma_pub *pub);
 bool dma_rxfill(struct dma_pub *pub);
 bool dma_rxreset(struct dma_pub *pub);
 bool dma_txreset(struct dma_pub *pub);
@@ -93,7 +93,7 @@ void dma_txreclaim(struct dma_pub *pub, enum txd_range range);
 void dma_rxreclaim(struct dma_pub *pub);
 void dma_detach(struct dma_pub *pub);
 unsigned long dma_getvar(struct dma_pub *pub, const char *name);
-void *dma_getnexttxp(struct dma_pub *pub, enum txd_range range);
+struct sk_buff *dma_getnexttxp(struct dma_pub *pub, enum txd_range range);
 void dma_counterreset(struct dma_pub *pub);
 
 void dma_walk_packets(struct dma_pub *dmah, void (*callback_fnc)
