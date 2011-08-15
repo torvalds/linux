@@ -196,7 +196,7 @@ static int htc_issue_send(struct htc_target *target, struct htc_packet *packet)
 				 HIF_WR_SYNC_BLOCK_INC);
 
 		packet->status = status;
-		 packet->buf += HTC_HDR_LENGTH;
+		packet->buf += HTC_HDR_LENGTH;
 	} else
 		status = hif_write_async(target->dev->ar,
 				target->dev->ar->mbox_info.htc_addr,
