@@ -840,6 +840,13 @@ static int do_read(struct fsg_dev *fsg)
 			amount = min(amount, (unsigned int) PAGE_CACHE_SIZE -
 					partial_page);
 
+		/* kever@rk
+		 * max size for dwc_otg ctonroller is 64(max pkt sizt) * 1023(pkt)
+		 * because of the DOEPTSIZ.PKTCNT has only 10 bits
+		 */
+		if((fsg->cdev->gadget->speed != USB_SPEED_HIGH)&&(amount >0x8000))
+		    amount = 0x8000;
+
 		/* Wait for the next buffer to become available */
 		bh = fsg->next_buffhd_to_fill;
 		while (bh->state != BUF_STATE_EMPTY) {
@@ -1002,6 +1009,13 @@ static int do_write(struct fsg_dev *fsg)
 			amount_left_to_req -= amount;
 			if (amount_left_to_req == 0)
 				get_some_more = 0;
+				
+			/* kever@rk
+			 * max size for dwc_otg ctonroller is 64(max pkt sizt) * 1023(pkt)
+			 * because of the DOEPTSIZ.PKTCNT has only 10 bits
+			 */
+			if((fsg->cdev->gadget->speed != USB_SPEED_HIGH)&&(amount >0x8000))
+			    amount = 0x8000;
 
 			/* amount is always divisible by 512, hence by
 			 * the bulk-out maxpacket size */
