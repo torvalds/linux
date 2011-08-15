@@ -380,7 +380,7 @@ void write_phy_reg(struct brcms_phy *pi, u16 addr, u16 val)
 
 	regs = pi->regs;
 
-#ifdef __mips__
+#ifdef CONFIG_BCM47XX
 	W_REG_FLUSH(&regs->phyregaddr, addr);
 	W_REG(&regs->phyregdata, val);
 	if (addr == 0x72)

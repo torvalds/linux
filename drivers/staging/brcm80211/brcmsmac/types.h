@@ -362,7 +362,7 @@ do {						\
 		} \
 	} while (0)
 
-#ifdef __mips__
+#ifdef CONFIG_BCM47XX
 /*
  * bcm4716 (which includes 4717 & 4718), plus 4706 on PCIe can reorder
  * transactions. As a fix, a read after write is performed on certain places
@@ -371,7 +371,7 @@ do {						\
 #define W_REG_FLUSH(r, v)	({ W_REG((r), (v)); (void)R_REG(r); })
 #else
 #define W_REG_FLUSH(r, v)	W_REG((r), (v))
-#endif				/* __mips__ */
+#endif				/* CONFIG_BCM47XX */
 
 #define AND_REG(r, v)	W_REG((r), R_REG(r) & (v))
 #define OR_REG(r, v)	W_REG((r), R_REG(r) | (v))
