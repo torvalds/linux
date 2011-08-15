@@ -880,13 +880,15 @@ int srom_var_init(struct si_pub *sih, void *curmap, char **vars, uint *count)
 
 static inline void ltoh16_buf(u16 *buf, unsigned int size)
 {
-	for (size /= 2; size; size--)
+	size /= 2;
+	while (size--)
 		*(buf + size) = le16_to_cpu(*(buf + size));
 }
 
 static inline void htol16_buf(u16 *buf, unsigned int size)
 {
-	for (size /= 2; size; size--)
+	size /= 2;
+	while (size--)
 		*(buf + size) = cpu_to_le16(*(buf + size));
 }
 
