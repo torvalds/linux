@@ -23,7 +23,7 @@
 #include <plat/iommu.h>
 #include <plat/iovmm.h>
 
-#include "iopgtable.h"
+#include <plat/iopgtable.h>
 
 /*
  * A device driver needs to create address mappings between:
