@@ -725,11 +725,9 @@ static void _dispc_set_vid_size(enum omap_plane plane, int width, int height)
 
 static void _dispc_set_pre_mult_alpha(enum omap_plane plane, bool enable)
 {
-	if (!dss_has_feature(FEAT_PRE_MULT_ALPHA))
-		return;
+	struct omap_overlay *ovl = omap_dss_get_overlay(plane);
 
-	if (!dss_has_feature(FEAT_GLOBAL_ALPHA_VID1) &&
-		plane == OMAP_DSS_VIDEO1)
+	if ((ovl->caps & OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA) == 0)
 		return;
 
 	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), enable ? 1 : 0, 28, 28);
@@ -739,12 +737,9 @@ static void _dispc_setup_global_alpha(enum omap_plane plane, u8 global_alpha)
 {
 	static const unsigned shifts[] = { 0, 8, 16, };
 	int shift;
+	struct omap_overlay *ovl = omap_dss_get_overlay(plane);
 
-	if (!dss_has_feature(FEAT_GLOBAL_ALPHA))
-		return;
-
-	if (!dss_has_feature(FEAT_GLOBAL_ALPHA_VID1) &&
-		plane == OMAP_DSS_VIDEO1)
+	if ((ovl->caps & OMAP_DSS_OVL_CAP_GLOBAL_ALPHA) == 0)
 		return;
 
 	shift = shifts[plane];

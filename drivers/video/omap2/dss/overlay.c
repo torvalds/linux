@@ -248,7 +248,7 @@ static ssize_t overlay_global_alpha_store(struct omap_overlay *ovl,
 	u8 alpha;
 	struct omap_overlay_info info;
 
-	if (!dss_has_feature(FEAT_GLOBAL_ALPHA))
+	if ((ovl->caps & OMAP_DSS_OVL_CAP_GLOBAL_ALPHA) == 0)
 		return -ENODEV;
 
 	r = kstrtou8(buf, 0, &alpha);
@@ -257,14 +257,7 @@ static ssize_t overlay_global_alpha_store(struct omap_overlay *ovl,
 
 	ovl->get_overlay_info(ovl, &info);
 
-	/* Video1 plane does not support global alpha
-	 * to always make it 255 completely opaque
-	 */
-	if (!dss_has_feature(FEAT_GLOBAL_ALPHA_VID1) &&
-			ovl->id == OMAP_DSS_VIDEO1)
-		info.global_alpha = 255;
-	else
-		info.global_alpha = alpha;
+	info.global_alpha = alpha;
 
 	r = ovl->set_overlay_info(ovl, &info);
 	if (r)
@@ -293,20 +286,16 @@ static ssize_t overlay_pre_mult_alpha_store(struct omap_overlay *ovl,
 	u8 alpha;
 	struct omap_overlay_info info;
 
+	if ((ovl->caps & OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA) == 0)
+		return -ENODEV;
+
 	r = kstrtou8(buf, 0, &alpha);
 	if (r)
 		return r;
 
 	ovl->get_overlay_info(ovl, &info);
 
-	/* only GFX and Video2 plane support pre alpha multiplied
-	 * set zero for Video1 plane
-	 */
-	if (!dss_has_feature(FEAT_GLOBAL_ALPHA_VID1) &&
-		ovl->id == OMAP_DSS_VIDEO1)
-		info.pre_mult_alpha = 0;
-	else
-		info.pre_mult_alpha = alpha;
+	info.pre_mult_alpha = alpha;
 
 	r = ovl->set_overlay_info(ovl, &info);
 	if (r)
