@@ -27,7 +27,7 @@
 
 #define VERSION "2.0 B"
 
-#include "./ethernet/sun/sungem_phy.h"
+#include <linux/sungem_phy.h>
 
 extern int spider_net_stop(struct net_device *netdev);
 extern int spider_net_open(struct net_device *netdev);

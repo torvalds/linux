@@ -59,7 +59,7 @@
 #include <asm/pmac_feature.h>
 #endif
 
-#include "sungem_phy.h"
+#include <linux/sungem_phy.h>
 #include "sungem.h"
 
 /* Stripping FCS is causing problems, disabled for now */
