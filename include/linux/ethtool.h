@@ -121,20 +121,18 @@ struct ethtool_eeprom {
  * struct ethtool_coalesce - coalescing parameters for IRQs and stats updates
  * @cmd: ETHTOOL_{G,S}COALESCE
  * @rx_coalesce_usecs: How many usecs to delay an RX interrupt after
- *	a packet arrives.  If 0, only @rx_max_coalesced_frames is used.
+ *	a packet arrives.
  * @rx_max_coalesced_frames: Maximum number of packets to receive
- *	before an RX interrupt.  If 0, only @rx_coalesce_usecs is used.
+ *	before an RX interrupt.
  * @rx_coalesce_usecs_irq: Same as @rx_coalesce_usecs, except that
  *	this value applies while an IRQ is being serviced by the host.
  * @rx_max_coalesced_frames_irq: Same as @rx_max_coalesced_frames,
  *	except that this value applies while an IRQ is being serviced
  *	by the host.
  * @tx_coalesce_usecs: How many usecs to delay a TX interrupt after
- *	a packet is sent.  If 0, only @tx_max_coalesced_frames
- *	is used.
+ *	a packet is sent.
  * @tx_max_coalesced_frames: Maximum number of packets to be sent
- *	before a TX interrupt.  If 0, only @tx_coalesce_usecs is
- *     used.
+ *	before a TX interrupt.
  * @tx_coalesce_usecs_irq: Same as @tx_coalesce_usecs, except that
  *	this value applies while an IRQ is being serviced by the host.
  * @tx_max_coalesced_frames_irq: Same as @tx_max_coalesced_frames,
@@ -167,8 +165,13 @@ struct ethtool_eeprom {
  * @rate_sample_interval: How often to do adaptive coalescing packet rate
  *	sampling, measured in seconds.  Must not be zero.
  *
- * It is illegal to set both usecs and max frames to zero as this
- * would cause interrupts to never be generated.
+ * Each pair of (usecs, max_frames) fields specifies this exit
+ * condition for interrupt coalescing:
+ *	(usecs > 0 && time_since_first_completion >= usecs) ||
+ *	(max_frames > 0 && completed_frames >= max_frames)
+ * It is illegal to set both usecs and max_frames to zero as this
+ * would cause interrupts to never be generated.  To disable
+ * coalescing, set usecs = 0 and max_frames = 1.
  *
  * Adaptive RX/TX coalescing is an algorithm implemented by some
  * drivers to improve latency under low packet rates and improve
