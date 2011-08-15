@@ -219,9 +219,6 @@ static uint dma_msg_level;
 
 #define	DI_INFO(dmah)	((dma_info_t *)dmah)
 
-#define R_SM(r)		(*(r))
-#define W_SM(r, v)	(*(r) = (v))
-
 /* One physical DMA segment */
 struct dma_seg {
 	unsigned long addr;
@@ -593,13 +590,12 @@ dma64_dd_upd(struct dma_info *di, struct dma64desc *ddring,
 #else
 	if ((di->dataoffsetlow == 0) || !(PHYSADDRLO(pa) & PCI32ADDR_HIGH)) {
 #endif				/* defined(__mips__) && defined(IL_BIGENDIAN) */
-
-		W_SM(&ddring[outidx].addrlow,
-		     BUS_SWAP32(PHYSADDRLO(pa) + di->dataoffsetlow));
-		W_SM(&ddring[outidx].addrhigh,
-		     BUS_SWAP32(PHYSADDRHI(pa) + di->dataoffsethigh));
-		W_SM(&ddring[outidx].ctrl1, BUS_SWAP32(*flags));
-		W_SM(&ddring[outidx].ctrl2, BUS_SWAP32(ctrl2));
+		ddring[outidx].addrlow =
+		     BUS_SWAP32(PHYSADDRLO(pa) + di->dataoffsetlow);
+		ddring[outidx].addrhigh =
+		     BUS_SWAP32(PHYSADDRHI(pa) + di->dataoffsethigh);
+		ddring[outidx].ctrl1 = BUS_SWAP32(*flags);
+		ddring[outidx].ctrl2 = BUS_SWAP32(ctrl2);
 	} else {
 		/* address extension for 32-bit PCI */
 		u32 ae;
@@ -608,17 +604,17 @@ dma64_dd_upd(struct dma_info *di, struct dma64desc *ddring,
 		PHYSADDRLO(pa) &= ~PCI32ADDR_HIGH;
 
 		ctrl2 |= (ae << D64_CTRL2_AE_SHIFT) & D64_CTRL2_AE;
-		W_SM(&ddring[outidx].addrlow,
-		     BUS_SWAP32(PHYSADDRLO(pa) + di->dataoffsetlow));
-		W_SM(&ddring[outidx].addrhigh,
-		     BUS_SWAP32(0 + di->dataoffsethigh));
-		W_SM(&ddring[outidx].ctrl1, BUS_SWAP32(*flags));
-		W_SM(&ddring[outidx].ctrl2, BUS_SWAP32(ctrl2));
+		ddring[outidx].addrlow =
+		     BUS_SWAP32(PHYSADDRLO(pa) + di->dataoffsetlow);
+		ddring[outidx].addrhigh =
+		     BUS_SWAP32(0 + di->dataoffsethigh);
+		ddring[outidx].ctrl1 = BUS_SWAP32(*flags);
+		ddring[outidx].ctrl2 = BUS_SWAP32(ctrl2);
 	}
 	if (di->dma.dmactrlflags & DMA_CTRL_PEN) {
 		if (DMA64_DD_PARITY(&ddring[outidx]))
-			W_SM(&ddring[outidx].ctrl2,
-			     BUS_SWAP32(ctrl2 | D64_CTRL2_PARITY));
+			ddring[outidx].ctrl2 =
+			     BUS_SWAP32(ctrl2 | D64_CTRL2_PARITY);
 	}
 }
 
@@ -1369,8 +1365,8 @@ int dma_txfast(struct dma_pub *pub, struct sk_buff *p0, bool commit)
 
 	/* if last txd eof not set, fix it */
 	if (!(flags & D64_CTRL1_EOF))
-		W_SM(&di->txd64[PREVTXD(txout)].ctrl1,
-		     BUS_SWAP32(flags | D64_CTRL1_IOC | D64_CTRL1_EOF));
+		di->txd64[PREVTXD(txout)].ctrl1 =
+		     BUS_SWAP32(flags | D64_CTRL1_IOC | D64_CTRL1_EOF);
 
 	/* save the packet */
 	di->txp[PREVTXD(txout)] = p0;
@@ -1456,10 +1452,10 @@ struct sk_buff *dma_getnexttxp(struct dma_pub *pub, enum txd_range range)
 		uint size, j, nsegs;
 
 		PHYSADDRLOSET(pa,
-			      (BUS_SWAP32(R_SM(&di->txd64[i].addrlow)) -
+			      (BUS_SWAP32(di->txd64[i].addrlow) -
 			       di->dataoffsetlow));
 		PHYSADDRHISET(pa,
-			      (BUS_SWAP32(R_SM(&di->txd64[i].addrhigh)) -
+			      (BUS_SWAP32(di->txd64[i].addrhigh) -
 			       di->dataoffsethigh));
 
 		if (DMASGLIST_ENAB) {
@@ -1468,14 +1464,14 @@ struct sk_buff *dma_getnexttxp(struct dma_pub *pub, enum txd_range range)
 			nsegs = map->nsegs;
 		} else {
 			size =
-			    (BUS_SWAP32(R_SM(&di->txd64[i].ctrl2)) &
+			    (BUS_SWAP32(di->txd64[i].ctrl2) &
 			     D64_CTRL2_BC_MASK);
 			nsegs = 1;
 		}
 
 		for (j = nsegs; j > 0; j--) {
-			W_SM(&di->txd64[i].addrlow, 0xdeadbeef);
-			W_SM(&di->txd64[i].addrhigh, 0xdeadbeef);
+			di->txd64[i].addrlow = 0xdeadbeef;
+			di->txd64[i].addrhigh = 0xdeadbeef;
 
 			txp = di->txp[i];
 			di->txp[i] = NULL;
@@ -1524,17 +1520,17 @@ static struct sk_buff *dma64_getnextrxp(struct dma_info *di, bool forceall)
 	di->rxp[i] = NULL;
 
 	PHYSADDRLOSET(pa,
-		      (BUS_SWAP32(R_SM(&di->rxd64[i].addrlow)) -
+		      (BUS_SWAP32(di->rxd64[i].addrlow) -
 		       di->dataoffsetlow));
 	PHYSADDRHISET(pa,
-		      (BUS_SWAP32(R_SM(&di->rxd64[i].addrhigh)) -
+		      (BUS_SWAP32(di->rxd64[i].addrhigh) -
 		       di->dataoffsethigh));
 
 	/* clear this packet from the descriptor ring */
 	pci_unmap_single(di->pbus, pa, di->rxbufsize, PCI_DMA_FROMDEVICE);
 
-	W_SM(&di->rxd64[i].addrlow, 0xdeadbeef);
-	W_SM(&di->rxd64[i].addrhigh, 0xdeadbeef);
+	di->rxd64[i].addrlow = 0xdeadbeef;
+	di->rxd64[i].addrhigh = 0xdeadbeef;
 
 	di->rxin = NEXTRXD(i);
 
