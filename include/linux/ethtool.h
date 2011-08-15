@@ -122,8 +122,8 @@ struct ethtool_eeprom {
  * @cmd: ETHTOOL_{G,S}COALESCE
  * @rx_coalesce_usecs: How many usecs to delay an RX interrupt after
  *	a packet arrives.  If 0, only @rx_max_coalesced_frames is used.
- * @rx_max_coalesced_frames: How many packets to delay an RX interrupt
- *	after a packet arrives.  If 0, only @rx_coalesce_usecs is used.
+ * @rx_max_coalesced_frames: Maximum number of packets to receive
+ *	before an RX interrupt.  If 0, only @rx_coalesce_usecs is used.
  * @rx_coalesce_usecs_irq: Same as @rx_coalesce_usecs, except that
  *	this value applies while an IRQ is being serviced by the host.
  * @rx_max_coalesced_frames_irq: Same as @rx_max_coalesced_frames,
@@ -132,9 +132,9 @@ struct ethtool_eeprom {
  * @tx_coalesce_usecs: How many usecs to delay a TX interrupt after
  *	a packet is sent.  If 0, only @tx_max_coalesced_frames
  *	is used.
- * @tx_max_coalesced_frames: How many packets to delay a TX interrupt
- *	after a packet is sent.  If 0, only @tx_coalesce_usecs is
- *	used.
+ * @tx_max_coalesced_frames: Maximum number of packets to be sent
+ *	before a TX interrupt.  If 0, only @tx_coalesce_usecs is
+ *     used.
  * @tx_coalesce_usecs_irq: Same as @tx_coalesce_usecs, except that
  *	this value applies while an IRQ is being serviced by the host.
  * @tx_max_coalesced_frames_irq: Same as @tx_max_coalesced_frames,
@@ -149,21 +149,21 @@ struct ethtool_eeprom {
  * @pkt_rate_low: Threshold for low packet rate (packets per second).
  * @rx_coalesce_usecs_low: How many usecs to delay an RX interrupt after
  *	a packet arrives, when the packet rate is below @pkt_rate_low.
- * @rx_max_coalesced_frames_low: How many packets to delay an RX interrupt
- *	after a packet arrives, when the packet rate is below @pkt_rate_low.
+ * @rx_max_coalesced_frames_low: Maximum number of packets to be received
+ *	before an RX interrupt, when the packet rate is below @pkt_rate_low.
  * @tx_coalesce_usecs_low: How many usecs to delay a TX interrupt after
  *	a packet is sent, when the packet rate is below @pkt_rate_low.
- * @tx_max_coalesced_frames_low: How many packets to delay a TX interrupt
- *	after a packet is sent, when the packet rate is below @pkt_rate_low.
+ * @tx_max_coalesced_frames_low: Maximum nuumber of packets to be sent before
+ *	a TX interrupt, when the packet rate is below @pkt_rate_low.
  * @pkt_rate_high: Threshold for high packet rate (packets per second).
  * @rx_coalesce_usecs_high: How many usecs to delay an RX interrupt after
  *	a packet arrives, when the packet rate is above @pkt_rate_high.
- * @rx_max_coalesced_frames_high: How many packets to delay an RX interrupt
- *	after a packet arrives, when the packet rate is above @pkt_rate_high.
+ * @rx_max_coalesced_frames_high: Maximum number of packets to be received
+ *	before an RX interrupt, when the packet rate is above @pkt_rate_high.
  * @tx_coalesce_usecs_high: How many usecs to delay a TX interrupt after
  *	a packet is sent, when the packet rate is above @pkt_rate_high.
- * @tx_max_coalesced_frames_high: How many packets to delay a TX interrupt
- *	after a packet is sent, when the packet rate is above @pkt_rate_high.
+ * @tx_max_coalesced_frames_high: Maximum number of packets to be sent before
+ *	a TX interrupt, when the packet rate is above @pkt_rate_high.
  * @rate_sample_interval: How often to do adaptive coalescing packet rate
  *	sampling, measured in seconds.  Must not be zero.
  *
