@@ -151,6 +151,7 @@ struct carl9170_sta_tid {
 #define CARL9170_TX_TIMEOUT		2500
 #define CARL9170_JANITOR_DELAY		128
 #define CARL9170_QUEUE_STUCK_TIMEOUT	5500
+#define CARL9170_STAT_WORK		30000
 
 #define CARL9170_NUM_TX_AGG_MAX		30
 
@@ -332,11 +333,21 @@ struct ar9170 {
 
 	/* PHY */
 	struct ieee80211_channel *channel;
+	unsigned int num_channels;
 	int noise[4];
 	unsigned int chan_fail;
 	unsigned int total_chan_fail;
 	u8 heavy_clip;
 	u8 ht_settings;
+	struct {
+		u64 active;	/* usec */
+		u64 cca;	/* usec */
+		u64 tx_time;	/* usec */
+		u64 rx_total;
+		u64 rx_overrun;
+	} tally;
+	struct delayed_work stat_work;
+	struct survey_info *survey;
 
 	/* power calibration data */
 	u8 power_5G_leg[4];

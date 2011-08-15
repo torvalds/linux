@@ -1573,6 +1573,9 @@ int carl9170_get_noisefloor(struct ar9170 *ar)
 			AR9170_PHY_EXT_CCA_MIN_PWR, phy_res[i + 2]), 8);
 	}
 
+	if (ar->channel)
+		ar->survey[ar->channel->hw_value].noise = ar->noise[0];
+
 	return 0;
 }
 
@@ -1764,10 +1767,6 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 	} else {
 		ar->chan_fail = 0;
 	}
-
-	err = carl9170_get_noisefloor(ar);
-	if (err)
-		return err;
 
 	if (ar->heavy_clip) {
 		err = carl9170_write_reg(ar, AR9170_PHY_REG_HEAVY_CLIP_ENABLE,
