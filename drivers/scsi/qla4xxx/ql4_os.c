@@ -213,6 +213,7 @@ static mode_t ql4_attr_is_visible(int param_type, int param)
 		case ISCSI_PARAM_FIRST_BURST:
 		case ISCSI_PARAM_MAX_RECV_DLENGTH:
 		case ISCSI_PARAM_MAX_XMIT_DLENGTH:
+		case ISCSI_PARAM_IFACE_NAME:
 			return S_IRUGO;
 		default:
 			return 0;
