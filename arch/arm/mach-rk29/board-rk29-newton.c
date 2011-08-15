@@ -76,8 +76,8 @@
 #define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_0 RK29_CAM_POWERDNACTIVE_H
 #define CONFIG_SENSOR_FLASHACTIVE_LEVEL_0 RK29_CAM_FLASHACTIVE_L
 
-#define CONFIG_SENSOR_1                   RK29_CAM_SENSOR_OV2655                      /* front camera sensor */
-#define CONFIG_SENSOR_IIC_ADDR_1 	      0x60
+#define CONFIG_SENSOR_1                   RK29_CAM_SENSOR_OV3640                     /* front camera sensor */
+#define CONFIG_SENSOR_IIC_ADDR_1 	      0x78
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_1    1
 #define CONFIG_SENSOR_POWER_PIN_1         INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_1         INVALID_GPIO
