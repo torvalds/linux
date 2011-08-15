@@ -190,8 +190,8 @@ static inline int lbs_iface_active(struct lbs_private *priv)
 	int r;
 
 	r = netif_running(priv->dev);
-	if (priv->mesh_dev);
-		r |= netif_running(priv->dev);
+	if (priv->mesh_dev)
+		r |= netif_running(priv->mesh_dev);
 
 	return r;
 }
