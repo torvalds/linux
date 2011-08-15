@@ -65,7 +65,7 @@ void __init msp_serial_setup(void)
 	up.line         = 0;
 	up.private_data		= (void*)UART0_STATUS_REG;
 	if (early_serial_setup(&up))
-		printk(KERN_ERR "Early serial init of port 0 failed\n");
+		pr_err("Early serial init of port 0 failed\n");
 
 	/* Initialize the second serial port, if one exists */
 	switch (mips_machtype) {
@@ -89,5 +89,5 @@ void __init msp_serial_setup(void)
 	up.line         = 1;
 	up.private_data		= (void*)UART1_STATUS_REG;
 	if (early_serial_setup(&up))
-		printk(KERN_ERR "Early serial init of port 1 failed\n");
+		pr_err("Early serial init of port 1 failed\n");
 }
