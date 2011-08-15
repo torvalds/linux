@@ -39,25 +39,28 @@ struct max8997_data {
 	struct regulator_dev **rdev;
 	int ramp_delay; /* in mV/us */
 
+	bool buck1_gpiodvs;
+	bool buck2_gpiodvs;
+	bool buck5_gpiodvs;
 	u8 buck1_vol[8];
 	u8 buck2_vol[8];
 	u8 buck5_vol[8];
+	int buck125_gpios[3];
 	int buck125_gpioindex;
+	bool ignore_gpiodvs_side_effect;
 
 	u8 saved_states[MAX8997_REG_MAX];
 };
 
 static inline void max8997_set_gpio(struct max8997_data *max8997)
 {
-	struct max8997_platform_data *pdata =
-		dev_get_platdata(max8997->iodev->dev);
 	int set3 = (max8997->buck125_gpioindex) & 0x1;
 	int set2 = ((max8997->buck125_gpioindex) >> 1) & 0x1;
 	int set1 = ((max8997->buck125_gpioindex) >> 2) & 0x1;
 
-	gpio_set_value(pdata->buck125_gpios[0], set1);
-	gpio_set_value(pdata->buck125_gpios[1], set2);
-	gpio_set_value(pdata->buck125_gpios[2], set3);
+	gpio_set_value(max8997->buck125_gpios[0], set1);
+	gpio_set_value(max8997->buck125_gpios[1], set2);
+	gpio_set_value(max8997->buck125_gpios[2], set3);
 }
 
 struct voltage_map_desc {
@@ -380,8 +383,6 @@ static int max8997_get_voltage_register(struct regulator_dev *rdev,
 static int max8997_get_voltage(struct regulator_dev *rdev)
 {
 	struct max8997_data *max8997 = rdev_get_drvdata(rdev);
-	struct max8997_platform_data *pdata =
-		dev_get_platdata(max8997->iodev->dev);
 	struct i2c_client *i2c = max8997->iodev->i2c;
 	int reg, shift, mask, ret;
 	int rid = max8997_get_rid(rdev);
@@ -391,9 +392,9 @@ static int max8997_get_voltage(struct regulator_dev *rdev)
 	if (ret)
 		return ret;
 
-	if ((rid == MAX8997_BUCK1 && pdata->buck1_gpiodvs) ||
-			(rid == MAX8997_BUCK2 && pdata->buck2_gpiodvs) ||
-			(rid == MAX8997_BUCK5 && pdata->buck5_gpiodvs))
+	if ((rid == MAX8997_BUCK1 && max8997->buck1_gpiodvs) ||
+			(rid == MAX8997_BUCK2 && max8997->buck2_gpiodvs) ||
+			(rid == MAX8997_BUCK5 && max8997->buck5_gpiodvs))
 		reg += max8997->buck125_gpioindex;
 
 	ret = max8997_read_reg(i2c, reg, &val);
@@ -543,7 +544,8 @@ static int max8997_set_voltage_ldobuck(struct regulator_dev *rdev,
 			rid == MAX8997_BUCK4 || rid == MAX8997_BUCK5) {
 		/* If the voltage is increasing */
 		if (org < i)
-			udelay(desc->step * (i - org) / max8997->ramp_delay);
+			udelay(DIV_ROUND_UP(desc->step * (i - org),
+						max8997->ramp_delay));
 	}
 
 	return ret;
@@ -561,8 +563,6 @@ static int max8997_assess_side_effect(struct regulator_dev *rdev,
 		u8 new_val, int *best)
 {
 	struct max8997_data *max8997 = rdev_get_drvdata(rdev);
-	struct max8997_platform_data *pdata =
-		dev_get_platdata(max8997->iodev->dev);
 	int rid = max8997_get_rid(rdev);
 	u8 *buckx_val[3];
 	bool buckx_gpiodvs[3];
@@ -589,9 +589,9 @@ static int max8997_assess_side_effect(struct regulator_dev *rdev,
 	buckx_val[0] = max8997->buck1_vol;
 	buckx_val[1] = max8997->buck2_vol;
 	buckx_val[2] = max8997->buck5_vol;
-	buckx_gpiodvs[0] = pdata->buck1_gpiodvs;
-	buckx_gpiodvs[1] = pdata->buck2_gpiodvs;
-	buckx_gpiodvs[2] = pdata->buck5_gpiodvs;
+	buckx_gpiodvs[0] = max8997->buck1_gpiodvs;
+	buckx_gpiodvs[1] = max8997->buck2_gpiodvs;
+	buckx_gpiodvs[2] = max8997->buck5_gpiodvs;
 
 	for (i = 0; i < 8; i++) {
 		int others;
@@ -640,8 +640,6 @@ static int max8997_set_voltage_buck(struct regulator_dev *rdev,
 		int min_uV, int max_uV, unsigned *selector)
 {
 	struct max8997_data *max8997 = rdev_get_drvdata(rdev);
-	struct max8997_platform_data *pdata =
-		dev_get_platdata(max8997->iodev->dev);
 	int rid = max8997_get_rid(rdev);
 	const struct voltage_map_desc *desc;
 	int new_val, new_idx, damage, tmp_val, tmp_idx, tmp_dmg;
@@ -653,15 +651,15 @@ static int max8997_set_voltage_buck(struct regulator_dev *rdev,
 
 	switch (rid) {
 	case MAX8997_BUCK1:
-		if (pdata->buck1_gpiodvs)
+		if (max8997->buck1_gpiodvs)
 			gpio_dvs_mode = true;
 		break;
 	case MAX8997_BUCK2:
-		if (pdata->buck2_gpiodvs)
+		if (max8997->buck2_gpiodvs)
 			gpio_dvs_mode = true;
 		break;
 	case MAX8997_BUCK5:
-		if (pdata->buck5_gpiodvs)
+		if (max8997->buck5_gpiodvs)
 			gpio_dvs_mode = true;
 		break;
 	}
@@ -695,7 +693,7 @@ static int max8997_set_voltage_buck(struct regulator_dev *rdev,
 	new_idx = tmp_idx;
 	new_val = tmp_val;
 
-	if (pdata->ignore_gpiodvs_side_effect == false)
+	if (max8997->ignore_gpiodvs_side_effect == false)
 		return -EINVAL;
 
 	dev_warn(&rdev->dev, "MAX8997 GPIO-DVS Side Effect Warning: GPIO SET:"
@@ -993,6 +991,11 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 	i2c = max8997->iodev->i2c;
 
 	max8997->buck125_gpioindex = pdata->buck125_default_idx;
+	max8997->buck1_gpiodvs = pdata->buck1_gpiodvs;
+	max8997->buck2_gpiodvs = pdata->buck2_gpiodvs;
+	max8997->buck5_gpiodvs = pdata->buck5_gpiodvs;
+	memcpy(max8997->buck125_gpios, pdata->buck125_gpios, sizeof(int) * 3);
+	max8997->ignore_gpiodvs_side_effect = pdata->ignore_gpiodvs_side_effect;
 
 	for (i = 0; i < 8; i++) {
 		max8997->buck1_vol[i] = ret =
@@ -1124,6 +1127,10 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 				0x3f);
 	}
 
+	/* Misc Settings */
+	max8997->ramp_delay = 10; /* set 10mV/us, which is the default */
+	max8997_write_reg(i2c, MAX8997_REG_BUCKRAMP, (0xf << 4) | 0x9);
+
 	for (i = 0; i < pdata->num_regulators; i++) {
 		const struct voltage_map_desc *desc;
 		int id = pdata->regulators[i].id;
@@ -1147,10 +1154,6 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 			goto err;
 		}
 	}
-
-	/* Misc Settings */
-	max8997->ramp_delay = 10; /* set 10mV/us, which is the default */
-	max8997_write_reg(i2c, MAX8997_REG_BUCKRAMP, (0xf << 4) | 0x9);
 
 	return 0;
 err:

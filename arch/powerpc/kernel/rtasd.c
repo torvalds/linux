@@ -27,7 +27,7 @@
 #include <asm/rtas.h>
 #include <asm/prom.h>
 #include <asm/nvram.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/machdep.h>
 
 

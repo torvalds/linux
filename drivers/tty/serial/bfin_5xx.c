@@ -1304,8 +1304,7 @@ static int bfin_serial_probe(struct platform_device *pdev)
 			goto out_error_free_peripherals;
 		}
 
-		uart->port.membase = ioremap(res->start,
-			res->end - res->start);
+		uart->port.membase = ioremap(res->start, resource_size(res));
 		if (!uart->port.membase) {
 			dev_err(&pdev->dev, "Cannot map uart IO\n");
 			ret = -ENXIO;
@@ -1483,7 +1482,7 @@ static int bfin_earlyprintk_probe(struct platform_device *pdev)
 	}
 
 	bfin_earlyprintk_port.port.membase = ioremap(res->start,
-			res->end - res->start);
+						     resource_size(res));
 	if (!bfin_earlyprintk_port.port.membase) {
 		dev_err(&pdev->dev, "Cannot map uart IO\n");
 		ret = -ENXIO;

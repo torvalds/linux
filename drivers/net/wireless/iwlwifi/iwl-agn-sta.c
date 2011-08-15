@@ -33,9 +33,10 @@
 #include "iwl-core.h"
 #include "iwl-sta.h"
 #include "iwl-agn.h"
+#include "iwl-trans.h"
 
 static struct iwl_link_quality_cmd *
-iwl_sta_alloc_lq(struct iwl_priv *priv, u8 sta_id)
+iwl_sta_alloc_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx, u8 sta_id)
 {
 	int i, r;
 	struct iwl_link_quality_cmd *link_cmd;
@@ -47,9 +48,14 @@ iwl_sta_alloc_lq(struct iwl_priv *priv, u8 sta_id)
 		IWL_ERR(priv, "Unable to allocate memory for LQ cmd.\n");
 		return NULL;
 	}
+
+	lockdep_assert_held(&priv->mutex);
+
 	/* Set up the rate scaling to start at selected rate, fall back
 	 * all the way down to 1M in IEEE order, and then spin on 1M */
 	if (priv->band == IEEE80211_BAND_5GHZ)
+		r = IWL_RATE_6M_INDEX;
+	else if (ctx && ctx->vif && ctx->vif->p2p)
 		r = IWL_RATE_6M_INDEX;
 	else
 		r = IWL_RATE_1M_INDEX;
@@ -115,7 +121,7 @@ int iwlagn_add_bssid_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 	/* Set up default rate scaling table in device's station table */
-	link_cmd = iwl_sta_alloc_lq(priv, sta_id);
+	link_cmd = iwl_sta_alloc_lq(priv, ctx, sta_id);
 	if (!link_cmd) {
 		IWL_ERR(priv, "Unable to initialize rate scaling for station %pM.\n",
 			addr);
@@ -132,6 +138,14 @@ int iwlagn_add_bssid_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx
 
 	return 0;
 }
+
+/*
+ * static WEP keys
+ *
+ * For each context, the device has a table of 4 static WEP keys
+ * (one for each key index) that is updated with the following
+ * commands.
+ */
 
 static int iwl_send_static_wepkey_cmd(struct iwl_priv *priv,
 				      struct iwl_rxon_context *ctx,
@@ -175,7 +189,7 @@ static int iwl_send_static_wepkey_cmd(struct iwl_priv *priv,
 	cmd.len[0] = cmd_size;
 
 	if (not_empty || send_if_empty)
-		return iwl_send_cmd(priv, &cmd);
+		return trans_send_cmd(&priv->trans, &cmd);
 	else
 		return 0;
 }
@@ -226,9 +240,7 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 		return -EINVAL;
 	}
 
-	keyconf->flags &= ~IEEE80211_KEY_FLAG_GENERATE_IV;
-	keyconf->hw_key_idx = HW_KEY_DEFAULT;
-	priv->stations[ctx->ap_sta_id].keyinfo.cipher = keyconf->cipher;
+	keyconf->hw_key_idx = IWLAGN_HW_KEY_DEFAULT;
 
 	ctx->wep_keys[keyconf->keyidx].key_size = keyconf->keylen;
 	memcpy(&ctx->wep_keys[keyconf->keyidx].key, &keyconf->key,
@@ -241,166 +253,117 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 	return ret;
 }
 
-static int iwl_set_wep_dynamic_key_info(struct iwl_priv *priv,
-					struct iwl_rxon_context *ctx,
-					struct ieee80211_key_conf *keyconf,
-					u8 sta_id)
+/*
+ * dynamic (per-station) keys
+ *
+ * The dynamic keys are a little more complicated. The device has
+ * a key cache of up to STA_KEY_MAX_NUM/STA_KEY_MAX_NUM_PAN keys.
+ * These are linked to stations by a table that contains an index
+ * into the key table for each station/key index/{mcast,unicast},
+ * i.e. it's basically an array of pointers like this:
+ *	key_offset_t key_mapping[NUM_STATIONS][4][2];
+ * (it really works differently, but you can think of it as such)
+ *
+ * The key uploading and linking happens in the same command, the
+ * add station command with STA_MODIFY_KEY_MASK.
+ */
+
+static u8 iwlagn_key_sta_id(struct iwl_priv *priv,
+			    struct ieee80211_vif *vif,
+			    struct ieee80211_sta *sta)
+{
+	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
+	u8 sta_id = IWL_INVALID_STATION;
+
+	if (sta)
+		sta_id = iwl_sta_id(sta);
+
+	/*
+	 * The device expects GTKs for station interfaces to be
+	 * installed as GTKs for the AP station. If we have no
+	 * station ID, then use the ap_sta_id in that case.
+	 */
+	if (!sta && vif && vif_priv->ctx) {
+		switch (vif->type) {
+		case NL80211_IFTYPE_STATION:
+			sta_id = vif_priv->ctx->ap_sta_id;
+			break;
+		default:
+			/*
+			 * In all other cases, the key will be
+			 * used either for TX only or is bound
+			 * to a station already.
+			 */
+			break;
+		}
+	}
+
+	return sta_id;
+}
+
+static int iwlagn_send_sta_key(struct iwl_priv *priv,
+			       struct ieee80211_key_conf *keyconf,
+			       u8 sta_id, u32 tkip_iv32, u16 *tkip_p1k,
+			       u32 cmd_flags)
 {
 	unsigned long flags;
-	__le16 key_flags = 0;
+	__le16 key_flags;
 	struct iwl_addsta_cmd sta_cmd;
+	int i;
 
-	lockdep_assert_held(&priv->mutex);
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	memcpy(&sta_cmd, &priv->stations[sta_id].sta, sizeof(sta_cmd));
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
-	keyconf->flags &= ~IEEE80211_KEY_FLAG_GENERATE_IV;
+	key_flags = cpu_to_le16(keyconf->keyidx << STA_KEY_FLG_KEYID_POS);
+	key_flags |= STA_KEY_FLG_MAP_KEY_MSK;
 
-	key_flags |= (STA_KEY_FLG_WEP | STA_KEY_FLG_MAP_KEY_MSK);
-	key_flags |= cpu_to_le16(keyconf->keyidx << STA_KEY_FLG_KEYID_POS);
-	key_flags &= ~STA_KEY_FLG_INVALID;
-
-	if (keyconf->keylen == WEP_KEY_LEN_128)
+	switch (keyconf->cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
+		key_flags |= STA_KEY_FLG_CCMP;
+		memcpy(sta_cmd.key.key, keyconf->key, keyconf->keylen);
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
+		key_flags |= STA_KEY_FLG_TKIP;
+		sta_cmd.key.tkip_rx_tsc_byte2 = tkip_iv32;
+		for (i = 0; i < 5; i++)
+			sta_cmd.key.tkip_rx_ttak[i] = cpu_to_le16(tkip_p1k[i]);
+		memcpy(sta_cmd.key.key, keyconf->key, keyconf->keylen);
+		break;
+	case WLAN_CIPHER_SUITE_WEP104:
 		key_flags |= STA_KEY_FLG_KEY_SIZE_MSK;
+		/* fall through */
+	case WLAN_CIPHER_SUITE_WEP40:
+		key_flags |= STA_KEY_FLG_WEP;
+		memcpy(&sta_cmd.key.key[3], keyconf->key, keyconf->keylen);
+		break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
 
-	if (sta_id == ctx->bcast_sta_id)
+	if (!(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE))
 		key_flags |= STA_KEY_MULTICAST_MSK;
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
+	/* key pointer (offset) */
+	sta_cmd.key.key_offset = keyconf->hw_key_idx;
 
-	priv->stations[sta_id].keyinfo.cipher = keyconf->cipher;
-	priv->stations[sta_id].keyinfo.keylen = keyconf->keylen;
-	priv->stations[sta_id].keyinfo.keyidx = keyconf->keyidx;
+	sta_cmd.key.key_flags = key_flags;
+	sta_cmd.mode = STA_CONTROL_MODIFY_MSK;
+	sta_cmd.sta.modify_mask = STA_MODIFY_KEY_MASK;
 
-	memcpy(priv->stations[sta_id].keyinfo.key,
-				keyconf->key, keyconf->keylen);
-
-	memcpy(&priv->stations[sta_id].sta.key.key[3],
-				keyconf->key, keyconf->keylen);
-
-	if ((priv->stations[sta_id].sta.key.key_flags & STA_KEY_FLG_ENCRYPT_MSK)
-			== STA_KEY_FLG_NO_ENC)
-		priv->stations[sta_id].sta.key.key_offset =
-				 iwl_get_free_ucode_key_index(priv);
-	/* else, we are overriding an existing key => no need to allocated room
-	 * in uCode. */
-
-	WARN(priv->stations[sta_id].sta.key.key_offset == WEP_INVALID_OFFSET,
-		"no space for a new key");
-
-	priv->stations[sta_id].sta.key.key_flags = key_flags;
-	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
-	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
-
-	memcpy(&sta_cmd, &priv->stations[sta_id].sta, sizeof(struct iwl_addsta_cmd));
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
-
-	return iwl_send_add_sta(priv, &sta_cmd, CMD_SYNC);
-}
-
-static int iwl_set_ccmp_dynamic_key_info(struct iwl_priv *priv,
-					 struct iwl_rxon_context *ctx,
-					 struct ieee80211_key_conf *keyconf,
-					 u8 sta_id)
-{
-	unsigned long flags;
-	__le16 key_flags = 0;
-	struct iwl_addsta_cmd sta_cmd;
-
-	lockdep_assert_held(&priv->mutex);
-
-	key_flags |= (STA_KEY_FLG_CCMP | STA_KEY_FLG_MAP_KEY_MSK);
-	key_flags |= cpu_to_le16(keyconf->keyidx << STA_KEY_FLG_KEYID_POS);
-	key_flags &= ~STA_KEY_FLG_INVALID;
-
-	if (sta_id == ctx->bcast_sta_id)
-		key_flags |= STA_KEY_MULTICAST_MSK;
-
-	keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
-
-	spin_lock_irqsave(&priv->sta_lock, flags);
-	priv->stations[sta_id].keyinfo.cipher = keyconf->cipher;
-	priv->stations[sta_id].keyinfo.keylen = keyconf->keylen;
-
-	memcpy(priv->stations[sta_id].keyinfo.key, keyconf->key,
-	       keyconf->keylen);
-
-	memcpy(priv->stations[sta_id].sta.key.key, keyconf->key,
-	       keyconf->keylen);
-
-	if ((priv->stations[sta_id].sta.key.key_flags & STA_KEY_FLG_ENCRYPT_MSK)
-			== STA_KEY_FLG_NO_ENC)
-		priv->stations[sta_id].sta.key.key_offset =
-				 iwl_get_free_ucode_key_index(priv);
-	/* else, we are overriding an existing key => no need to allocated room
-	 * in uCode. */
-
-	WARN(priv->stations[sta_id].sta.key.key_offset == WEP_INVALID_OFFSET,
-		"no space for a new key");
-
-	priv->stations[sta_id].sta.key.key_flags = key_flags;
-	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
-	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
-
-	memcpy(&sta_cmd, &priv->stations[sta_id].sta, sizeof(struct iwl_addsta_cmd));
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
-
-	return iwl_send_add_sta(priv, &sta_cmd, CMD_SYNC);
-}
-
-static int iwl_set_tkip_dynamic_key_info(struct iwl_priv *priv,
-					 struct iwl_rxon_context *ctx,
-					 struct ieee80211_key_conf *keyconf,
-					 u8 sta_id)
-{
-	unsigned long flags;
-	int ret = 0;
-	__le16 key_flags = 0;
-
-	key_flags |= (STA_KEY_FLG_TKIP | STA_KEY_FLG_MAP_KEY_MSK);
-	key_flags |= cpu_to_le16(keyconf->keyidx << STA_KEY_FLG_KEYID_POS);
-	key_flags &= ~STA_KEY_FLG_INVALID;
-
-	if (sta_id == ctx->bcast_sta_id)
-		key_flags |= STA_KEY_MULTICAST_MSK;
-
-	keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
-	keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
-
-	spin_lock_irqsave(&priv->sta_lock, flags);
-
-	priv->stations[sta_id].keyinfo.cipher = keyconf->cipher;
-	priv->stations[sta_id].keyinfo.keylen = 16;
-
-	if ((priv->stations[sta_id].sta.key.key_flags & STA_KEY_FLG_ENCRYPT_MSK)
-			== STA_KEY_FLG_NO_ENC)
-		priv->stations[sta_id].sta.key.key_offset =
-				 iwl_get_free_ucode_key_index(priv);
-	/* else, we are overriding an existing key => no need to allocated room
-	 * in uCode. */
-
-	WARN(priv->stations[sta_id].sta.key.key_offset == WEP_INVALID_OFFSET,
-		"no space for a new key");
-
-	priv->stations[sta_id].sta.key.key_flags = key_flags;
-
-
-	/* This copy is acutally not needed: we get the key with each TX */
-	memcpy(priv->stations[sta_id].keyinfo.key, keyconf->key, 16);
-
-	memcpy(priv->stations[sta_id].sta.key.key, keyconf->key, 16);
-
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
-
-	return ret;
+	return iwl_send_add_sta(priv, &sta_cmd, cmd_flags);
 }
 
 void iwl_update_tkip_key(struct iwl_priv *priv,
-			 struct iwl_rxon_context *ctx,
+			 struct ieee80211_vif *vif,
 			 struct ieee80211_key_conf *keyconf,
 			 struct ieee80211_sta *sta, u32 iv32, u16 *phase1key)
 {
-	u8 sta_id;
-	unsigned long flags;
-	int i;
+	u8 sta_id = iwlagn_key_sta_id(priv, vif, sta);
+
+	if (sta_id == IWL_INVALID_STATION)
+		return;
 
 	if (iwl_scan_cancel(priv)) {
 		/* cancel scan failed, just live w/ bad key and rely
@@ -408,121 +371,110 @@ void iwl_update_tkip_key(struct iwl_priv *priv,
 		return;
 	}
 
-	sta_id = iwl_sta_id_or_broadcast(priv, ctx, sta);
-	if (sta_id == IWL_INVALID_STATION)
-		return;
-
-	spin_lock_irqsave(&priv->sta_lock, flags);
-
-	priv->stations[sta_id].sta.key.tkip_rx_tsc_byte2 = (u8) iv32;
-
-	for (i = 0; i < 5; i++)
-		priv->stations[sta_id].sta.key.tkip_rx_ttak[i] =
-			cpu_to_le16(phase1key[i]);
-
-	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
-	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
-
-	iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
-
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
-
+	iwlagn_send_sta_key(priv, keyconf, sta_id,
+			    iv32, phase1key, CMD_ASYNC);
 }
 
 int iwl_remove_dynamic_key(struct iwl_priv *priv,
 			   struct iwl_rxon_context *ctx,
 			   struct ieee80211_key_conf *keyconf,
-			   u8 sta_id)
+			   struct ieee80211_sta *sta)
 {
 	unsigned long flags;
-	u16 key_flags;
-	u8 keyidx;
 	struct iwl_addsta_cmd sta_cmd;
+	u8 sta_id = iwlagn_key_sta_id(priv, ctx->vif, sta);
+
+	/* if station isn't there, neither is the key */
+	if (sta_id == IWL_INVALID_STATION)
+		return -ENOENT;
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	memcpy(&sta_cmd, &priv->stations[sta_id].sta, sizeof(sta_cmd));
+	if (!(priv->stations[sta_id].used & IWL_STA_UCODE_ACTIVE))
+		sta_id = IWL_INVALID_STATION;
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+
+	if (sta_id == IWL_INVALID_STATION)
+		return 0;
 
 	lockdep_assert_held(&priv->mutex);
 
 	ctx->key_mapping_keys--;
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
-	key_flags = le16_to_cpu(priv->stations[sta_id].sta.key.key_flags);
-	keyidx = (key_flags >> STA_KEY_FLG_KEYID_POS) & 0x3;
-
 	IWL_DEBUG_WEP(priv, "Remove dynamic key: idx=%d sta=%d\n",
 		      keyconf->keyidx, sta_id);
 
-	if (keyconf->keyidx != keyidx) {
-		/* We need to remove a key with index different that the one
-		 * in the uCode. This means that the key we need to remove has
-		 * been replaced by another one with different index.
-		 * Don't do anything and return ok
-		 */
-		spin_unlock_irqrestore(&priv->sta_lock, flags);
-		return 0;
-	}
+	if (!test_and_clear_bit(keyconf->hw_key_idx, &priv->ucode_key_table))
+		IWL_ERR(priv, "offset %d not used in uCode key table.\n",
+			keyconf->hw_key_idx);
 
-	if (priv->stations[sta_id].sta.key.key_offset == WEP_INVALID_OFFSET) {
-		IWL_WARN(priv, "Removing wrong key %d 0x%x\n",
-			    keyconf->keyidx, key_flags);
-		spin_unlock_irqrestore(&priv->sta_lock, flags);
-		return 0;
-	}
-
-	if (!test_and_clear_bit(priv->stations[sta_id].sta.key.key_offset,
-		&priv->ucode_key_table))
-		IWL_ERR(priv, "index %d not used in uCode key table.\n",
-			priv->stations[sta_id].sta.key.key_offset);
-	memset(&priv->stations[sta_id].keyinfo, 0,
-					sizeof(struct iwl_hw_key));
-	memset(&priv->stations[sta_id].sta.key, 0,
-					sizeof(struct iwl_keyinfo));
-	priv->stations[sta_id].sta.key.key_flags =
-			STA_KEY_FLG_NO_ENC | STA_KEY_FLG_INVALID;
-	priv->stations[sta_id].sta.key.key_offset = WEP_INVALID_OFFSET;
-	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
-	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
-
-	if (iwl_is_rfkill(priv)) {
-		IWL_DEBUG_WEP(priv, "Not sending REPLY_ADD_STA command because RFKILL enabled.\n");
-		spin_unlock_irqrestore(&priv->sta_lock, flags);
-		return 0;
-	}
-	memcpy(&sta_cmd, &priv->stations[sta_id].sta, sizeof(struct iwl_addsta_cmd));
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	sta_cmd.key.key_flags = STA_KEY_FLG_NO_ENC | STA_KEY_FLG_INVALID;
+	sta_cmd.key.key_offset = WEP_INVALID_OFFSET;
+	sta_cmd.sta.modify_mask = STA_MODIFY_KEY_MASK;
+	sta_cmd.mode = STA_CONTROL_MODIFY_MSK;
 
 	return iwl_send_add_sta(priv, &sta_cmd, CMD_SYNC);
 }
 
-int iwl_set_dynamic_key(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
-			struct ieee80211_key_conf *keyconf, u8 sta_id)
+int iwl_set_dynamic_key(struct iwl_priv *priv,
+			struct iwl_rxon_context *ctx,
+			struct ieee80211_key_conf *keyconf,
+			struct ieee80211_sta *sta)
 {
+	struct ieee80211_key_seq seq;
+	u16 p1k[5];
 	int ret;
+	u8 sta_id = iwlagn_key_sta_id(priv, ctx->vif, sta);
+	const u8 *addr;
+
+	if (sta_id == IWL_INVALID_STATION)
+		return -EINVAL;
 
 	lockdep_assert_held(&priv->mutex);
 
+	keyconf->hw_key_idx = iwl_get_free_ucode_key_offset(priv);
+	if (keyconf->hw_key_idx == WEP_INVALID_OFFSET)
+		return -ENOSPC;
+
 	ctx->key_mapping_keys++;
-	keyconf->hw_key_idx = HW_KEY_DYNAMIC;
 
 	switch (keyconf->cipher) {
-	case WLAN_CIPHER_SUITE_CCMP:
-		ret = iwl_set_ccmp_dynamic_key_info(priv, ctx, keyconf, sta_id);
-		break;
 	case WLAN_CIPHER_SUITE_TKIP:
-		ret = iwl_set_tkip_dynamic_key_info(priv, ctx, keyconf, sta_id);
+		keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
+		keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
+
+		if (sta)
+			addr = sta->addr;
+		else /* station mode case only */
+			addr = ctx->active.bssid_addr;
+
+		/* pre-fill phase 1 key into device cache */
+		ieee80211_get_key_rx_seq(keyconf, 0, &seq);
+		ieee80211_get_tkip_rx_p1k(keyconf, addr, seq.tkip.iv32, p1k);
+		ret = iwlagn_send_sta_key(priv, keyconf, sta_id,
+					  seq.tkip.iv32, p1k, CMD_SYNC);
 		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+		keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
+		/* fall through */
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
-		ret = iwl_set_wep_dynamic_key_info(priv, ctx, keyconf, sta_id);
+		ret = iwlagn_send_sta_key(priv, keyconf, sta_id,
+					  0, NULL, CMD_SYNC);
 		break;
 	default:
-		IWL_ERR(priv,
-			"Unknown alg: %s cipher = %x\n", __func__,
-			keyconf->cipher);
+		IWL_ERR(priv, "Unknown cipher %x\n", keyconf->cipher);
 		ret = -EINVAL;
 	}
 
-	IWL_DEBUG_WEP(priv, "Set dynamic key: cipher=%x len=%d idx=%d sta=%d ret=%d\n",
+	if (ret) {
+		ctx->key_mapping_keys--;
+		clear_bit(keyconf->hw_key_idx, &priv->ucode_key_table);
+	}
+
+	IWL_DEBUG_WEP(priv, "Set dynamic key: cipher=%x len=%d idx=%d sta=%pM ret=%d\n",
 		      keyconf->cipher, keyconf->keylen, keyconf->keyidx,
-		      sta_id, ret);
+		      sta ? sta->addr : NULL, ret);
 
 	return ret;
 }
@@ -554,7 +506,7 @@ int iwlagn_alloc_bcast_station(struct iwl_priv *priv,
 	priv->stations[sta_id].used |= IWL_STA_BCAST;
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
-	link_cmd = iwl_sta_alloc_lq(priv, sta_id);
+	link_cmd = iwl_sta_alloc_lq(priv, ctx, sta_id);
 	if (!link_cmd) {
 		IWL_ERR(priv,
 			"Unable to initialize rate scaling for bcast station.\n");
@@ -574,14 +526,14 @@ int iwlagn_alloc_bcast_station(struct iwl_priv *priv,
  * Only used by iwlagn. Placed here to have all bcast station management
  * code together.
  */
-static int iwl_update_bcast_station(struct iwl_priv *priv,
-				    struct iwl_rxon_context *ctx)
+int iwl_update_bcast_station(struct iwl_priv *priv,
+			     struct iwl_rxon_context *ctx)
 {
 	unsigned long flags;
 	struct iwl_link_quality_cmd *link_cmd;
 	u8 sta_id = ctx->bcast_sta_id;
 
-	link_cmd = iwl_sta_alloc_lq(priv, sta_id);
+	link_cmd = iwl_sta_alloc_lq(priv, ctx, sta_id);
 	if (!link_cmd) {
 		IWL_ERR(priv, "Unable to initialize rate scaling for bcast station.\n");
 		return -ENOMEM;

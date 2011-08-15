@@ -555,11 +555,10 @@ reiserfs_xattr_set_handle(struct reiserfs_transaction_handle *th,
 
 		reiserfs_write_unlock(inode->i_sb);
 		mutex_lock_nested(&dentry->d_inode->i_mutex, I_MUTEX_XATTR);
-		down_write(&dentry->d_inode->i_alloc_sem);
+		inode_dio_wait(dentry->d_inode);
 		reiserfs_write_lock(inode->i_sb);
 
 		err = reiserfs_setattr(dentry, &newattrs);
-		up_write(&dentry->d_inode->i_alloc_sem);
 		mutex_unlock(&dentry->d_inode->i_mutex);
 	} else
 		update_ctime(inode);
@@ -868,27 +867,6 @@ out:
 	return err;
 }
 
-static int reiserfs_check_acl(struct inode *inode, int mask, unsigned int flags)
-{
-	struct posix_acl *acl;
-	int error = -EAGAIN; /* do regular unix permission checks by default */
-
-	if (flags & IPERM_FLAG_RCU)
-		return -ECHILD;
-
-	acl = reiserfs_get_acl(inode, ACL_TYPE_ACCESS);
-
-	if (acl) {
-		if (!IS_ERR(acl)) {
-			error = posix_acl_permission(inode, acl, mask);
-			posix_acl_release(acl);
-		} else if (PTR_ERR(acl) != -ENODATA)
-			error = PTR_ERR(acl);
-	}
-
-	return error;
-}
-
 static int create_privroot(struct dentry *dentry)
 {
 	int err;
@@ -952,10 +930,8 @@ static int xattr_mount_check(struct super_block *s)
 	return 0;
 }
 
-int reiserfs_permission(struct inode *inode, int mask, unsigned int flags)
+int reiserfs_permission(struct inode *inode, int mask)
 {
-	if (flags & IPERM_FLAG_RCU)
-		return -ECHILD;
 	/*
 	 * We don't do permission checks on the internal objects.
 	 * Permissions are determined by the "owning" object.
@@ -963,15 +939,7 @@ int reiserfs_permission(struct inode *inode, int mask, unsigned int flags)
 	if (IS_PRIVATE(inode))
 		return 0;
 
-#ifdef CONFIG_REISERFS_FS_XATTR
-	/*
-	 * Stat data v1 doesn't support ACLs.
-	 */
-	if (get_inode_sd_version(inode) != STAT_DATA_V1)
-		return generic_permission(inode, mask, flags,
-					reiserfs_check_acl);
-#endif
-	return generic_permission(inode, mask, flags, NULL);
+	return generic_permission(inode, mask);
 }
 
 static int xattr_hide_revalidate(struct dentry *dentry, struct nameidata *nd)

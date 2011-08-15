@@ -90,12 +90,10 @@ smbhash(unsigned char *out, const unsigned char *in, unsigned char *key)
 	sg_init_one(&sgout, out, 8);
 
 	rc = crypto_blkcipher_encrypt(&desc, &sgout, &sgin, 8);
-	if (rc) {
+	if (rc)
 		cERROR(1, "could not encrypt crypt key rc: %d\n", rc);
-		crypto_free_blkcipher(tfm_des);
-		goto smbhash_err;
-	}
 
+	crypto_free_blkcipher(tfm_des);
 smbhash_err:
 	return rc;
 }
@@ -159,8 +157,14 @@ mdfour(unsigned char *md4_hash, unsigned char *link_str, int link_len)
 		cERROR(1, "%s: Could not init md4 shash\n", __func__);
 		goto mdfour_err;
 	}
-	crypto_shash_update(&sdescmd4->shash, link_str, link_len);
+	rc = crypto_shash_update(&sdescmd4->shash, link_str, link_len);
+	if (rc) {
+		cERROR(1, "%s: Could not update with link_str\n", __func__);
+		goto mdfour_err;
+	}
 	rc = crypto_shash_final(&sdescmd4->shash, md4_hash);
+	if (rc)
+		cERROR(1, "%s: Could not genereate md4 hash\n", __func__);
 
 mdfour_err:
 	crypto_free_shash(md4);

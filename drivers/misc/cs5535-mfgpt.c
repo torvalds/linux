@@ -174,7 +174,7 @@ struct cs5535_mfgpt_timer *cs5535_mfgpt_alloc_timer(int timer_nr, int domain)
 		timer_nr = t < max ? (int) t : -1;
 	} else {
 		/* check if the requested timer's available */
-		if (test_bit(timer_nr, mfgpt->avail))
+		if (!test_bit(timer_nr, mfgpt->avail))
 			timer_nr = -1;
 	}
 

@@ -47,7 +47,7 @@ static uint32_t sg_dwiter_read_buffer(struct sg_mapping_iter *miter)
 
 static inline bool needs_unaligned_copy(const void *ptr)
 {
-#ifdef HAVE_EFFICIENT_UNALIGNED_ACCESS
+#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 	return false;
 #else
 	return ((ptr - NULL) & 3) != 0;

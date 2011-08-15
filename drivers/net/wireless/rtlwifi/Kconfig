@@ -21,6 +21,17 @@ config RTL8192SE
 
 	If you choose to build it as a module, it will be called rtl8192se
 
+config RTL8192DE
+	tristate "Realtek RTL8192DE/RTL8188DE PCIe Wireless Network Adapter"
+	depends on MAC80211 && EXPERIMENTAL
+	select FW_LOADER
+	select RTLWIFI
+	---help---
+	This is the driver for Realtek RTL8192DE/RTL8188DE 802.11n PCIe
+	wireless network adapters.
+
+	If you choose to build it as a module, it will be called rtl8192de
+
 config RTL8192CU
 	tristate "Realtek RTL8192CU/RTL8188CU USB Wireless Network Adapter"
 	depends on MAC80211 && USB && EXPERIMENTAL
@@ -35,10 +46,10 @@ config RTL8192CU
 
 config RTLWIFI
 	tristate
-	depends on RTL8192CE || RTL8192CU || RTL8192SE
+	depends on RTL8192CE || RTL8192CU || RTL8192SE || RTL8192DE
 	default m
 
 config RTL8192C_COMMON
 	tristate
-	depends on RTL8192CE || RTL8192CU || RTL8192SE
+	depends on RTL8192CE || RTL8192CU
 	default m

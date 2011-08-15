@@ -5,6 +5,8 @@
  * Released under the terms of the GNU GPL v2.0.
  */
 
+#include <stdarg.h>
+#include <stdlib.h>
 #include <string.h>
 #include "lkc.h"
 

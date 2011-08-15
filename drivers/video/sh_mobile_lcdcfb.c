@@ -24,7 +24,7 @@
 #include <linux/backlight.h>
 #include <linux/gpio.h>
 #include <video/sh_mobile_lcdc.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "sh_mobile_lcdcfb.h"
 #include "sh_mobile_meram.h"
@@ -470,7 +470,7 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 	unsigned long tmp;
 	int bpp = 0;
 	unsigned long ldddsr;
-	int k, m;
+	int k, m, ret;
 
 	/* enable clocks before accessing the hardware */
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
@@ -540,7 +540,7 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 
 		board_cfg = &ch->cfg.board_cfg;
 		if (board_cfg->setup_sys) {
-			int ret = board_cfg->setup_sys(board_cfg->board_data,
+			ret = board_cfg->setup_sys(board_cfg->board_data,
 						ch, &sh_mobile_lcdc_sys_bus_ops);
 			if (ret)
 				return ret;

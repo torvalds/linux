@@ -49,6 +49,12 @@ struct sockaddr_ll {
 #define PACKET_VNET_HDR			15
 #define PACKET_TX_TIMESTAMP		16
 #define PACKET_TIMESTAMP		17
+#define PACKET_FANOUT			18
+
+#define PACKET_FANOUT_HASH		0
+#define PACKET_FANOUT_LB		1
+#define PACKET_FANOUT_CPU		2
+#define PACKET_FANOUT_FLAG_DEFRAG	0x8000
 
 struct tpacket_stats {
 	unsigned int	tp_packets;
@@ -62,6 +68,7 @@ struct tpacket_auxdata {
 	__u16		tp_mac;
 	__u16		tp_net;
 	__u16		tp_vlan_tci;
+	__u16		tp_padding;
 };
 
 /* Rx ring - header status */
@@ -101,6 +108,7 @@ struct tpacket2_hdr {
 	__u32		tp_sec;
 	__u32		tp_nsec;
 	__u16		tp_vlan_tci;
+	__u16		tp_padding;
 };
 
 #define TPACKET2_HDRLEN		(TPACKET_ALIGN(sizeof(struct tpacket2_hdr)) + sizeof(struct sockaddr_ll))

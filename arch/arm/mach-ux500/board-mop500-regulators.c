@@ -77,7 +77,7 @@ static struct regulator_consumer_supply ab8500_vtvout_consumers[] = {
 static struct regulator_consumer_supply ab8500_vintcore_consumers[] = {
 	/* SoC core supply, no device */
 	REGULATOR_SUPPLY("v-intcore", NULL),
-	/* USB Transciever */
+	/* USB Transceiver */
 	REGULATOR_SUPPLY("vddulpivio18", "ab8500-usb.0"),
 };
 
@@ -272,7 +272,14 @@ struct regulator_init_data ab8500_regulators[AB8500_NUM_REGULATORS] = {
 			.max_uV = 2900000,
 			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE |
 					  REGULATOR_CHANGE_STATUS,
-			.boot_on = 1, /* must be on for display */
+			.boot_on = 1, /* display is on at boot */
+			/*
+			 * This voltage cannot be disabled right now because
+			 * it is somehow affecting the external MMC
+			 * functionality, though that typically will use
+			 * AUX3.
+			 */
+			.always_on = 1,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(ab8500_vaux1_consumers),
 		.consumer_supplies = ab8500_vaux1_consumers,

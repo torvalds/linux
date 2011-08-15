@@ -24,27 +24,6 @@ menuconfig STAGING
 
 if STAGING
 
-config STAGING_EXCLUDE_BUILD
-	bool "Exclude Staging drivers from being built" if STAGING
-	default y
-	---help---
-	  Are you sure you really want to build the staging drivers?
-	  They taint your kernel, don't live up to the normal Linux
-	  kernel quality standards, are a bit crufty around the edges,
-	  and might go off and kick your dog when you aren't paying
-	  attention.
-
-	  Say N here to be able to select and build the Staging drivers.
-	  This option is primarily here to prevent them from being built
-	  when selecting 'make allyesconfg' and 'make allmodconfig' so
-	  don't be all that put off, your dog will be just fine.
-
-if !STAGING_EXCLUDE_BUILD
-
-source "drivers/staging/tty/Kconfig"
-
-source "drivers/staging/generic_serial/Kconfig"
-
 source "drivers/staging/et131x/Kconfig"
 
 source "drivers/staging/slicoss/Kconfig"
@@ -117,8 +96,6 @@ source "drivers/staging/sep/Kconfig"
 
 source "drivers/staging/iio/Kconfig"
 
-source "drivers/staging/cs5535_gpio/Kconfig"
-
 source "drivers/staging/zram/Kconfig"
 
 source "drivers/staging/zcache/Kconfig"
@@ -137,8 +114,6 @@ source "drivers/staging/cxt1e1/Kconfig"
 
 source "drivers/staging/xgifb/Kconfig"
 
-source "drivers/staging/msm/Kconfig"
-
 source "drivers/staging/lirc/Kconfig"
 
 source "drivers/staging/easycap/Kconfig"
@@ -148,8 +123,6 @@ source "drivers/staging/solo6x10/Kconfig"
 source "drivers/staging/tidspbridge/Kconfig"
 
 source "drivers/staging/quickstart/Kconfig"
-
-source "drivers/staging/westbridge/Kconfig"
 
 source "drivers/staging/sbe-2t3e3/Kconfig"
 
@@ -177,5 +150,4 @@ source "drivers/staging/mei/Kconfig"
 
 source "drivers/staging/nvec/Kconfig"
 
-endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

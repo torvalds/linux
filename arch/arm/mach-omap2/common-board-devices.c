@@ -20,35 +20,14 @@
  *
  */
 
-#include <linux/i2c.h>
-#include <linux/i2c/twl.h>
-
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
-#include <plat/i2c.h>
 #include <plat/mcspi.h>
 #include <plat/nand.h>
 
 #include "common-board-devices.h"
-
-static struct i2c_board_info __initdata pmic_i2c_board_info = {
-	.addr		= 0x48,
-	.flags		= I2C_CLIENT_WAKE,
-};
-
-void __init omap_pmic_init(int bus, u32 clkrate,
-			   const char *pmic_type, int pmic_irq,
-			   struct twl4030_platform_data *pmic_data)
-{
-	strncpy(pmic_i2c_board_info.type, pmic_type,
-		sizeof(pmic_i2c_board_info.type));
-	pmic_i2c_board_info.irq = pmic_irq;
-	pmic_i2c_board_info.platform_data = pmic_data;
-
-	omap_register_i2c_bus(bus, clkrate, &pmic_i2c_board_info, 1);
-}
 
 #if defined(CONFIG_TOUCHSCREEN_ADS7846) || \
 	defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
@@ -85,17 +64,17 @@ void __init omap_ads7846_init(int bus_num, int gpio_pendown, int gpio_debounce,
 	struct spi_board_info *spi_bi = &ads7846_spi_board_info;
 	int err;
 
-	err = gpio_request(gpio_pendown, "TS PenDown");
-	if (err) {
-		pr_err("Could not obtain gpio for TS PenDown: %d\n", err);
-		return;
+	if (board_pdata && board_pdata->get_pendown_state) {
+		err = gpio_request_one(gpio_pendown, GPIOF_IN, "TSPenDown");
+		if (err) {
+			pr_err("Couldn't obtain gpio for TSPenDown: %d\n", err);
+			return;
+		}
+		gpio_export(gpio_pendown, 0);
+
+		if (gpio_debounce)
+			gpio_set_debounce(gpio_pendown, gpio_debounce);
 	}
-
-	gpio_direction_input(gpio_pendown);
-	gpio_export(gpio_pendown, 0);
-
-	if (gpio_debounce)
-		gpio_set_debounce(gpio_pendown, gpio_debounce);
 
 	ads7846_config.gpio_pendown = gpio_pendown;
 
@@ -115,9 +94,7 @@ void __init omap_ads7846_init(int bus_num, int gpio_pendown, int gpio_debounce,
 #endif
 
 #if defined(CONFIG_MTD_NAND_OMAP2) || defined(CONFIG_MTD_NAND_OMAP2_MODULE)
-static struct omap_nand_platform_data nand_data = {
-	.dma_channel	= -1,		/* disable DMA in OMAP NAND driver */
-};
+static struct omap_nand_platform_data nand_data;
 
 void __init omap_nand_flash_init(int options, struct mtd_partition *parts,
 				 int nr_parts)
@@ -148,7 +125,7 @@ void __init omap_nand_flash_init(int options, struct mtd_partition *parts,
 		nand_data.cs = nandcs;
 		nand_data.parts = parts;
 		nand_data.nr_parts = nr_parts;
-		nand_data.options = options;
+		nand_data.devsize = options;
 
 		printk(KERN_INFO "Registering NAND on CS%d\n", nandcs);
 		if (gpmc_nand_init(&nand_data) < 0)

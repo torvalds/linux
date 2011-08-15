@@ -7,6 +7,7 @@ config CIFS
 	select CRYPTO_MD5
 	select CRYPTO_HMAC
 	select CRYPTO_ARC4
+	select CRYPTO_ECB
 	select CRYPTO_DES
 	help
 	  This is the client VFS module for the Common Internet File System
@@ -148,13 +149,13 @@ config CIFS_FSCACHE
 
 config CIFS_ACL
 	  bool "Provide CIFS ACL support (EXPERIMENTAL)"
-	  depends on EXPERIMENTAL && CIFS_XATTR
+	  depends on EXPERIMENTAL && CIFS_XATTR && KEYS
 	  help
 	    Allows to fetch CIFS/NTFS ACL from the server.  The DACL blob
 	    is handed over to the application/caller.
 
 config CIFS_NFSD_EXPORT
 	  bool "Allow nfsd to export CIFS file system (EXPERIMENTAL)"
-	  depends on CIFS && EXPERIMENTAL
+	  depends on CIFS && EXPERIMENTAL && BROKEN
 	  help
 	   Allows NFS server to export a CIFS mounted share (nfsd over cifs)

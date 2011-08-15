@@ -30,7 +30,6 @@
  *		Changed API to V4L2
  */
 
-#include <linux/version.h>
 #include <linux/module.h>	/* Modules 			*/
 #include <linux/init.h>		/* Initdata			*/
 #include <linux/ioport.h>	/* request_region		*/
@@ -46,6 +45,7 @@
 MODULE_AUTHOR("Fred Gleason, Russell Kroll, Quay Lu, Donald Song, Jason Lewis, Scott McGrath, William McGrath");
 MODULE_DESCRIPTION("A driver for the ADS Cadet AM/FM/RDS radio card.");
 MODULE_LICENSE("GPL");
+MODULE_VERSION("0.3.4");
 
 static int io = -1;		/* default to isapnp activation */
 static int radio_nr = -1;
@@ -53,8 +53,6 @@ static int radio_nr = -1;
 module_param(io, int, 0);
 MODULE_PARM_DESC(io, "I/O address of Cadet card (0x330,0x332,0x334,0x336,0x338,0x33a,0x33c,0x33e)");
 module_param(radio_nr, int, 0);
-
-#define CADET_VERSION KERNEL_VERSION(0, 3, 3)
 
 #define RDS_BUFFER 256
 #define RDS_RX_FLAG 1
@@ -361,7 +359,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strlcpy(v->driver, "ADS Cadet", sizeof(v->driver));
 	strlcpy(v->card, "ADS Cadet", sizeof(v->card));
 	strlcpy(v->bus_info, "ISA", sizeof(v->bus_info));
-	v->version = CADET_VERSION;
 	v->capabilities = V4L2_CAP_TUNER | V4L2_CAP_RADIO |
 			  V4L2_CAP_READWRITE | V4L2_CAP_RDS_CAPTURE;
 	return 0;

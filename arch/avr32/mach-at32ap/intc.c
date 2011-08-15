@@ -107,7 +107,7 @@ void __init init_IRQ(void)
 
 	clk_enable(pclk);
 
-	intc0.regs = ioremap(regs->start, regs->end - regs->start + 1);
+	intc0.regs = ioremap(regs->start, resource_size(regs));
 	if (!intc0.regs) {
 		printk(KERN_EMERG "intc: failed to map registers (0x%08lx)\n",
 		       (unsigned long)regs->start);
@@ -167,14 +167,12 @@ static int intc_suspend(void)
 	return 0;
 }
 
-static int intc_resume(void)
+static void intc_resume(void)
 {
 	int i;
 
 	for (i = 0; i < 64; i++)
 		intc_writel(&intc0, INTPR0 + 4 * i, intc0.saved_ipr[i]);
-
-	return 0;
 }
 #else
 #define intc_suspend	NULL

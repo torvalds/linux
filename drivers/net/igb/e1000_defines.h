@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2009 Intel Corporation.
+  Copyright(c) 2007-2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -437,6 +437,7 @@
 #define E1000_RAH_POOL_1 0x00040000
 
 /* Error Codes */
+#define E1000_SUCCESS      0
 #define E1000_ERR_NVM      1
 #define E1000_ERR_PHY      2
 #define E1000_ERR_CONFIG   3
@@ -510,6 +511,16 @@
 #define E1000_GCR_CMPL_TMOUT_10ms       0x00001000
 #define E1000_GCR_CMPL_TMOUT_RESEND     0x00010000
 #define E1000_GCR_CAP_VER2              0x00040000
+
+/* mPHY Address Control and Data Registers */
+#define E1000_MPHY_ADDR_CTL          0x0024 /* mPHY Address Control Register */
+#define E1000_MPHY_ADDR_CTL_OFFSET_MASK 0xFFFF0000
+#define E1000_MPHY_DATA                 0x0E10 /* mPHY Data Register */
+
+/* mPHY PCS CLK Register */
+#define E1000_MPHY_PCS_CLK_REG_OFFSET  0x0004 /* mPHY PCS CLK AFE CSR Offset */
+/* mPHY Near End Digital Loopback Override Bit */
+#define E1000_MPHY_PCS_CLK_REG_DIGINELBEN 0x10
 
 /* PHY Control Register */
 #define MII_CR_FULL_DUPLEX      0x0100  /* FDX =1, half duplex =0 */
@@ -587,8 +598,8 @@
 #define E1000_NVM_POLL_READ     0    /* Flag for polling for read complete */
 
 /* NVM Word Offsets */
-#define NVM_ID_LED_SETTINGS        0x0004
-/* For SERDES output amplitude adjustment. */
+#define NVM_COMPAT                 0x0003
+#define NVM_ID_LED_SETTINGS        0x0004 /* SERDES output amplitude */
 #define NVM_INIT_CONTROL2_REG      0x000F
 #define NVM_INIT_CONTROL3_PORT_B   0x0014
 #define NVM_INIT_CONTROL3_PORT_A   0x0024

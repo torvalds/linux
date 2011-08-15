@@ -20,7 +20,6 @@
 
 #include <linux/pci.h>
 #include <linux/etherdevice.h>
-#include <linux/version.h>
 #include <linux/delay.h>
 #include <net/tcp.h>
 #include <net/ip.h>
@@ -87,6 +86,7 @@ static inline char *nic_name(struct pci_dev *pdev)
 
 #define MAX_RSS_QS		4	/* BE limit is 4 queues/port */
 #define MAX_RX_QS		(MAX_RSS_QS + 1) /* RSS qs + 1 def Rx */
+#define MAX_TX_QS		8
 #define BE_MAX_MSIX_VECTORS	(MAX_RX_QS + 1)/* RX + TX */
 #define BE_NAPI_WEIGHT		64
 #define MAX_RX_POST 		BE_NAPI_WEIGHT /* Frags posted at a time */
@@ -170,7 +170,6 @@ struct be_tx_stats {
 	u32 be_tx_reqs;		/* number of TX requests initiated */
 	u32 be_tx_stops;	/* number of times TX Q was stopped */
 	u32 be_tx_wrbs;		/* number of tx WRBs used */
-	u32 be_tx_events;	/* number of tx completion events  */
 	u32 be_tx_compl;	/* number of tx completion entries processed */
 	ulong be_tx_jiffies;
 	u64 be_tx_bytes;
@@ -184,6 +183,7 @@ struct be_tx_obj {
 	struct be_queue_info cq;
 	/* Remember the skbs that were transmitted */
 	struct sk_buff *sent_skb_list[TX_Q_LEN];
+	struct be_tx_stats stats;
 };
 
 /* Struct to remember the pages posted for rx frags */
@@ -199,6 +199,7 @@ struct be_rx_stats {
 	u32 rx_polls;	/* number of times NAPI called poll function */
 	u32 rx_events;	/* number of ucast rx completion events  */
 	u32 rx_compl;	/* number of rx completion entries processed */
+	ulong rx_dropped; /* number of skb allocation errors */
 	ulong rx_jiffies;
 	u64 rx_bytes;
 	u64 rx_bytes_prev;
@@ -319,8 +320,8 @@ struct be_adapter {
 
 	/* TX Rings */
 	struct be_eq_obj tx_eq;
-	struct be_tx_obj tx_obj;
-	struct be_tx_stats tx_stats;
+	struct be_tx_obj tx_obj[MAX_TX_QS];
+	u8 num_tx_qs;
 
 	u32 cache_line_break[8];
 
@@ -332,7 +333,6 @@ struct be_adapter {
 	u8 eq_next_idx;
 	struct be_drv_stats drv_stats;
 
-	struct vlan_group *vlan_grp;
 	u16 vlans_added;
 	u16 max_vlans;	/* Number of vlans supported */
 	u8 vlan_tag[VLAN_N_VID];
@@ -391,7 +391,7 @@ struct be_adapter {
 extern const struct ethtool_ops be_ethtool_ops;
 
 #define msix_enabled(adapter)		(adapter->num_msix_vec > 0)
-#define tx_stats(adapter)		(&adapter->tx_stats)
+#define tx_stats(txo)			(&txo->stats)
 #define rx_stats(rxo)			(&rxo->stats)
 
 #define BE_SET_NETDEV_OPS(netdev, ops)	(netdev->netdev_ops = ops)
@@ -404,6 +404,10 @@ extern const struct ethtool_ops be_ethtool_ops;
 #define for_all_rss_queues(adapter, rxo, i)				\
 	for (i = 0, rxo = &adapter->rx_obj[i+1]; i < (adapter->num_rx_qs - 1);\
 		i++, rxo++)
+
+#define for_all_tx_queues(adapter, txo, i)				\
+	for (i = 0, txo = &adapter->tx_obj[i]; i < adapter->num_tx_qs;	\
+		i++, txo++)
 
 #define PAGE_SHIFT_4K		12
 #define PAGE_SIZE_4K		(1 << PAGE_SHIFT_4K)

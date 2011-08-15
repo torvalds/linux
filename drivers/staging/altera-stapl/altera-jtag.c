@@ -26,7 +26,7 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/slab.h>
-#include <staging/altera.h>
+#include "altera.h"
 #include "altera-exprt.h"
 #include "altera-jtag.h"
 

@@ -488,134 +488,6 @@ static void iwl4965_bg_statistics_periodic(unsigned long data)
 	iwl_legacy_send_statistics_request(priv, CMD_ASYNC, false);
 }
 
-
-static void iwl4965_print_cont_event_trace(struct iwl_priv *priv, u32 base,
-					u32 start_idx, u32 num_events,
-					u32 mode)
-{
-	u32 i;
-	u32 ptr;        /* SRAM byte address of log data */
-	u32 ev, time, data; /* event log data */
-	unsigned long reg_flags;
-
-	if (mode == 0)
-		ptr = base + (4 * sizeof(u32)) + (start_idx * 2 * sizeof(u32));
-	else
-		ptr = base + (4 * sizeof(u32)) + (start_idx * 3 * sizeof(u32));
-
-	/* Make sure device is powered up for SRAM reads */
-	spin_lock_irqsave(&priv->reg_lock, reg_flags);
-	if (iwl_grab_nic_access(priv)) {
-		spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
-		return;
-	}
-
-	/* Set starting address; reads will auto-increment */
-	_iwl_legacy_write_direct32(priv, HBUS_TARG_MEM_RADDR, ptr);
-	rmb();
-
-	/*
-	 * "time" is actually "data" for mode 0 (no timestamp).
-	 * place event id # at far right for easier visual parsing.
-	 */
-	for (i = 0; i < num_events; i++) {
-		ev = _iwl_legacy_read_direct32(priv, HBUS_TARG_MEM_RDAT);
-		time = _iwl_legacy_read_direct32(priv, HBUS_TARG_MEM_RDAT);
-		if (mode == 0) {
-			trace_iwlwifi_legacy_dev_ucode_cont_event(priv,
-							0, time, ev);
-		} else {
-			data = _iwl_legacy_read_direct32(priv,
-						HBUS_TARG_MEM_RDAT);
-			trace_iwlwifi_legacy_dev_ucode_cont_event(priv,
-						time, data, ev);
-		}
-	}
-	/* Allow device to power down */
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
-}
-
-static void iwl4965_continuous_event_trace(struct iwl_priv *priv)
-{
-	u32 capacity;   /* event log capacity in # entries */
-	u32 base;       /* SRAM byte address of event log header */
-	u32 mode;       /* 0 - no timestamp, 1 - timestamp recorded */
-	u32 num_wraps;  /* # times uCode wrapped to top of log */
-	u32 next_entry; /* index of next entry to be written by uCode */
-
-	if (priv->ucode_type == UCODE_INIT)
-		base = le32_to_cpu(priv->card_alive_init.error_event_table_ptr);
-	else
-		base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
-	if (priv->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
-		capacity = iwl_legacy_read_targ_mem(priv, base);
-		num_wraps = iwl_legacy_read_targ_mem(priv,
-						base + (2 * sizeof(u32)));
-		mode = iwl_legacy_read_targ_mem(priv, base + (1 * sizeof(u32)));
-		next_entry = iwl_legacy_read_targ_mem(priv,
-						base + (3 * sizeof(u32)));
-	} else
-		return;
-
-	if (num_wraps == priv->event_log.num_wraps) {
-		iwl4965_print_cont_event_trace(priv,
-				       base, priv->event_log.next_entry,
-				       next_entry - priv->event_log.next_entry,
-				       mode);
-		priv->event_log.non_wraps_count++;
-	} else {
-		if ((num_wraps - priv->event_log.num_wraps) > 1)
-			priv->event_log.wraps_more_count++;
-		else
-			priv->event_log.wraps_once_count++;
-		trace_iwlwifi_legacy_dev_ucode_wrap_event(priv,
-				num_wraps - priv->event_log.num_wraps,
-				next_entry, priv->event_log.next_entry);
-		if (next_entry < priv->event_log.next_entry) {
-			iwl4965_print_cont_event_trace(priv, base,
-			       priv->event_log.next_entry,
-			       capacity - priv->event_log.next_entry,
-			       mode);
-
-			iwl4965_print_cont_event_trace(priv, base, 0,
-				next_entry, mode);
-		} else {
-			iwl4965_print_cont_event_trace(priv, base,
-			       next_entry, capacity - next_entry,
-			       mode);
-
-			iwl4965_print_cont_event_trace(priv, base, 0,
-				next_entry, mode);
-		}
-	}
-	priv->event_log.num_wraps = num_wraps;
-	priv->event_log.next_entry = next_entry;
-}
-
-/**
- * iwl4965_bg_ucode_trace - Timer callback to log ucode event
- *
- * The timer is continually set to execute every
- * UCODE_TRACE_PERIOD milliseconds after the last timer expired
- * this function is to perform continuous uCode event logging operation
- * if enabled
- */
-static void iwl4965_bg_ucode_trace(unsigned long data)
-{
-	struct iwl_priv *priv = (struct iwl_priv *)data;
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
-	if (priv->event_log.ucode_trace) {
-		iwl4965_continuous_event_trace(priv);
-		/* Reschedule the timer to occur in UCODE_TRACE_PERIOD */
-		mod_timer(&priv->ucode_trace,
-			 jiffies + msecs_to_jiffies(UCODE_TRACE_PERIOD));
-	}
-}
-
 static void iwl4965_rx_beacon_notif(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb)
 {
@@ -1612,7 +1484,7 @@ static const char * const desc_lookup_text[] = {
 	"NMI_INTERRUPT_DATA_ACTION_PT",
 	"NMI_TRM_HW_ER",
 	"NMI_INTERRUPT_TRM",
-	"NMI_INTERRUPT_BREAK_POINT"
+	"NMI_INTERRUPT_BREAK_POINT",
 	"DEBUG_0",
 	"DEBUG_1",
 	"DEBUG_2",
@@ -1709,209 +1581,6 @@ void iwl4965_dump_nic_error_log(struct iwl_priv *priv)
 	IWL_ERR(priv, "pc      blink1  blink2  ilink1  ilink2  hcmd\n");
 	IWL_ERR(priv, "0x%05X 0x%05X 0x%05X 0x%05X 0x%05X 0x%05X\n",
 		pc, blink1, blink2, ilink1, ilink2, hcmd);
-}
-
-#define EVENT_START_OFFSET  (4 * sizeof(u32))
-
-/**
- * iwl4965_print_event_log - Dump error event log to syslog
- *
- */
-static int iwl4965_print_event_log(struct iwl_priv *priv, u32 start_idx,
-			       u32 num_events, u32 mode,
-			       int pos, char **buf, size_t bufsz)
-{
-	u32 i;
-	u32 base;       /* SRAM byte address of event log header */
-	u32 event_size; /* 2 u32s, or 3 u32s if timestamp recorded */
-	u32 ptr;        /* SRAM byte address of log data */
-	u32 ev, time, data; /* event log data */
-	unsigned long reg_flags;
-
-	if (num_events == 0)
-		return pos;
-
-	if (priv->ucode_type == UCODE_INIT) {
-		base = le32_to_cpu(priv->card_alive_init.log_event_table_ptr);
-	} else {
-		base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
-	}
-
-	if (mode == 0)
-		event_size = 2 * sizeof(u32);
-	else
-		event_size = 3 * sizeof(u32);
-
-	ptr = base + EVENT_START_OFFSET + (start_idx * event_size);
-
-	/* Make sure device is powered up for SRAM reads */
-	spin_lock_irqsave(&priv->reg_lock, reg_flags);
-	iwl_grab_nic_access(priv);
-
-	/* Set starting address; reads will auto-increment */
-	_iwl_legacy_write_direct32(priv, HBUS_TARG_MEM_RADDR, ptr);
-	rmb();
-
-	/* "time" is actually "data" for mode 0 (no timestamp).
-	* place event id # at far right for easier visual parsing. */
-	for (i = 0; i < num_events; i++) {
-		ev = _iwl_legacy_read_direct32(priv, HBUS_TARG_MEM_RDAT);
-		time = _iwl_legacy_read_direct32(priv, HBUS_TARG_MEM_RDAT);
-		if (mode == 0) {
-			/* data, ev */
-			if (bufsz) {
-				pos += scnprintf(*buf + pos, bufsz - pos,
-						"EVT_LOG:0x%08x:%04u\n",
-						time, ev);
-			} else {
-				trace_iwlwifi_legacy_dev_ucode_event(priv, 0,
-					time, ev);
-				IWL_ERR(priv, "EVT_LOG:0x%08x:%04u\n",
-					time, ev);
-			}
-		} else {
-			data = _iwl_legacy_read_direct32(priv,
-						HBUS_TARG_MEM_RDAT);
-			if (bufsz) {
-				pos += scnprintf(*buf + pos, bufsz - pos,
-						"EVT_LOGT:%010u:0x%08x:%04u\n",
-						 time, data, ev);
-			} else {
-				IWL_ERR(priv, "EVT_LOGT:%010u:0x%08x:%04u\n",
-					time, data, ev);
-				trace_iwlwifi_legacy_dev_ucode_event(priv, time,
-					data, ev);
-			}
-		}
-	}
-
-	/* Allow device to power down */
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
-	return pos;
-}
-
-/**
- * iwl4965_print_last_event_logs - Dump the newest # of event log to syslog
- */
-static int iwl4965_print_last_event_logs(struct iwl_priv *priv, u32 capacity,
-				    u32 num_wraps, u32 next_entry,
-				    u32 size, u32 mode,
-				    int pos, char **buf, size_t bufsz)
-{
-	/*
-	 * display the newest DEFAULT_LOG_ENTRIES entries
-	 * i.e the entries just before the next ont that uCode would fill.
-	 */
-	if (num_wraps) {
-		if (next_entry < size) {
-			pos = iwl4965_print_event_log(priv,
-						capacity - (size - next_entry),
-						size - next_entry, mode,
-						pos, buf, bufsz);
-			pos = iwl4965_print_event_log(priv, 0,
-						  next_entry, mode,
-						  pos, buf, bufsz);
-		} else
-			pos = iwl4965_print_event_log(priv, next_entry - size,
-						  size, mode, pos, buf, bufsz);
-	} else {
-		if (next_entry < size) {
-			pos = iwl4965_print_event_log(priv, 0, next_entry,
-						  mode, pos, buf, bufsz);
-		} else {
-			pos = iwl4965_print_event_log(priv, next_entry - size,
-						  size, mode, pos, buf, bufsz);
-		}
-	}
-	return pos;
-}
-
-#define DEFAULT_DUMP_EVENT_LOG_ENTRIES (20)
-
-int iwl4965_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
-			    char **buf, bool display)
-{
-	u32 base;       /* SRAM byte address of event log header */
-	u32 capacity;   /* event log capacity in # entries */
-	u32 mode;       /* 0 - no timestamp, 1 - timestamp recorded */
-	u32 num_wraps;  /* # times uCode wrapped to top of log */
-	u32 next_entry; /* index of next entry to be written by uCode */
-	u32 size;       /* # entries that we'll print */
-	int pos = 0;
-	size_t bufsz = 0;
-
-	if (priv->ucode_type == UCODE_INIT) {
-		base = le32_to_cpu(priv->card_alive_init.log_event_table_ptr);
-	} else {
-		base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
-	}
-
-	if (!priv->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
-		IWL_ERR(priv,
-			"Invalid event log pointer 0x%08X for %s uCode\n",
-			base, (priv->ucode_type == UCODE_INIT) ? "Init" : "RT");
-		return -EINVAL;
-	}
-
-	/* event log header */
-	capacity = iwl_legacy_read_targ_mem(priv, base);
-	mode = iwl_legacy_read_targ_mem(priv, base + (1 * sizeof(u32)));
-	num_wraps = iwl_legacy_read_targ_mem(priv, base + (2 * sizeof(u32)));
-	next_entry = iwl_legacy_read_targ_mem(priv, base + (3 * sizeof(u32)));
-
-	size = num_wraps ? capacity : next_entry;
-
-	/* bail out if nothing in log */
-	if (size == 0) {
-		IWL_ERR(priv, "Start IWL Event Log Dump: nothing in log\n");
-		return pos;
-	}
-
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
-	if (!(iwl_legacy_get_debug_level(priv) & IWL_DL_FW_ERRORS) && !full_log)
-		size = (size > DEFAULT_DUMP_EVENT_LOG_ENTRIES)
-			? DEFAULT_DUMP_EVENT_LOG_ENTRIES : size;
-#else
-	size = (size > DEFAULT_DUMP_EVENT_LOG_ENTRIES)
-		? DEFAULT_DUMP_EVENT_LOG_ENTRIES : size;
-#endif
-	IWL_ERR(priv, "Start IWL Event Log Dump: display last %u entries\n",
-		size);
-
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
-	if (display) {
-		if (full_log)
-			bufsz = capacity * 48;
-		else
-			bufsz = size * 48;
-		*buf = kmalloc(bufsz, GFP_KERNEL);
-		if (!*buf)
-			return -ENOMEM;
-	}
-	if ((iwl_legacy_get_debug_level(priv) & IWL_DL_FW_ERRORS) || full_log) {
-		/*
-		 * if uCode has wrapped back to top of log,
-		 * start at the oldest entry,
-		 * i.e the next one that uCode would fill.
-		 */
-		if (num_wraps)
-			pos = iwl4965_print_event_log(priv, next_entry,
-						capacity - next_entry, mode,
-						pos, buf, bufsz);
-		/* (then/else) start at top of log */
-		pos = iwl4965_print_event_log(priv, 0,
-					  next_entry, mode, pos, buf, bufsz);
-	} else
-		pos = iwl4965_print_last_event_logs(priv, capacity, num_wraps,
-						next_entry, size, mode,
-						pos, buf, bufsz);
-#else
-	pos = iwl4965_print_last_event_logs(priv, capacity, num_wraps,
-					next_entry, size, mode,
-					pos, buf, bufsz);
-#endif
-	return pos;
 }
 
 static void iwl4965_rf_kill_ct_config(struct iwl_priv *priv)
@@ -2773,20 +2442,10 @@ int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_START:
 		IWL_DEBUG_HT(priv, "start Tx\n");
 		ret = iwl4965_tx_agg_start(priv, vif, sta, tid, ssn);
-		if (ret == 0) {
-			priv->_4965.agg_tids_count++;
-			IWL_DEBUG_HT(priv, "priv->_4965.agg_tids_count = %u\n",
-				     priv->_4965.agg_tids_count);
-		}
 		break;
 	case IEEE80211_AMPDU_TX_STOP:
 		IWL_DEBUG_HT(priv, "stop Tx\n");
 		ret = iwl4965_tx_agg_stop(priv, vif, sta, tid);
-		if ((ret == 0) && (priv->_4965.agg_tids_count > 0)) {
-			priv->_4965.agg_tids_count--;
-			IWL_DEBUG_HT(priv, "priv->_4965.agg_tids_count = %u\n",
-				     priv->_4965.agg_tids_count);
-		}
 		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 			ret = 0;
 		break;
@@ -2851,7 +2510,6 @@ void iwl4965_mac_channel_switch(struct ieee80211_hw *hw,
 
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	u16 ch;
-	unsigned long flags = 0;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
@@ -2861,73 +2519,73 @@ void iwl4965_mac_channel_switch(struct ieee80211_hw *hw,
 		goto out;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status) ||
-	    test_bit(STATUS_SCANNING, &priv->status))
+	    test_bit(STATUS_SCANNING, &priv->status) ||
+	    test_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status))
 		goto out;
 
 	if (!iwl_legacy_is_associated_ctx(ctx))
 		goto out;
 
-	/* channel switch in progress */
-	if (priv->switch_rxon.switch_in_progress == true)
+	if (!priv->cfg->ops->lib->set_channel_switch)
 		goto out;
 
-	if (priv->cfg->ops->lib->set_channel_switch) {
+	ch = channel->hw_value;
+	if (le16_to_cpu(ctx->active.channel) == ch)
+		goto out;
 
-		ch = channel->hw_value;
-		if (le16_to_cpu(ctx->active.channel) != ch) {
-			ch_info = iwl_legacy_get_channel_info(priv,
-						       channel->band,
-						       ch);
-			if (!iwl_legacy_is_channel_valid(ch_info)) {
-				IWL_DEBUG_MAC80211(priv, "invalid channel\n");
-				goto out;
-			}
-			spin_lock_irqsave(&priv->lock, flags);
-
-			priv->current_ht_config.smps = conf->smps_mode;
-
-			/* Configure HT40 channels */
-			ctx->ht.enabled = conf_is_ht(conf);
-			if (ctx->ht.enabled) {
-				if (conf_is_ht40_minus(conf)) {
-					ctx->ht.extension_chan_offset =
-					IEEE80211_HT_PARAM_CHA_SEC_BELOW;
-					ctx->ht.is_40mhz = true;
-				} else if (conf_is_ht40_plus(conf)) {
-					ctx->ht.extension_chan_offset =
-					IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
-					ctx->ht.is_40mhz = true;
-				} else {
-					ctx->ht.extension_chan_offset =
-						IEEE80211_HT_PARAM_CHA_SEC_NONE;
-					ctx->ht.is_40mhz = false;
-				}
-			} else
-				ctx->ht.is_40mhz = false;
-
-			if ((le16_to_cpu(ctx->staging.channel) != ch))
-				ctx->staging.flags = 0;
-
-			iwl_legacy_set_rxon_channel(priv, channel, ctx);
-			iwl_legacy_set_rxon_ht(priv, ht_conf);
-			iwl_legacy_set_flags_for_band(priv, ctx, channel->band,
-					       ctx->vif);
-			spin_unlock_irqrestore(&priv->lock, flags);
-
-			iwl_legacy_set_rate(priv);
-			/*
-			 * at this point, staging_rxon has the
-			 * configuration for channel switch
-			 */
-			if (priv->cfg->ops->lib->set_channel_switch(priv,
-								    ch_switch))
-				priv->switch_rxon.switch_in_progress = false;
-		}
+	ch_info = iwl_legacy_get_channel_info(priv, channel->band, ch);
+	if (!iwl_legacy_is_channel_valid(ch_info)) {
+		IWL_DEBUG_MAC80211(priv, "invalid channel\n");
+		goto out;
 	}
+
+	spin_lock_irq(&priv->lock);
+
+	priv->current_ht_config.smps = conf->smps_mode;
+
+	/* Configure HT40 channels */
+	ctx->ht.enabled = conf_is_ht(conf);
+	if (ctx->ht.enabled) {
+		if (conf_is_ht40_minus(conf)) {
+			ctx->ht.extension_chan_offset =
+				IEEE80211_HT_PARAM_CHA_SEC_BELOW;
+			ctx->ht.is_40mhz = true;
+		} else if (conf_is_ht40_plus(conf)) {
+			ctx->ht.extension_chan_offset =
+				IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
+			ctx->ht.is_40mhz = true;
+		} else {
+			ctx->ht.extension_chan_offset =
+				IEEE80211_HT_PARAM_CHA_SEC_NONE;
+			ctx->ht.is_40mhz = false;
+		}
+	} else
+		ctx->ht.is_40mhz = false;
+
+	if ((le16_to_cpu(ctx->staging.channel) != ch))
+		ctx->staging.flags = 0;
+
+	iwl_legacy_set_rxon_channel(priv, channel, ctx);
+	iwl_legacy_set_rxon_ht(priv, ht_conf);
+	iwl_legacy_set_flags_for_band(priv, ctx, channel->band, ctx->vif);
+
+	spin_unlock_irq(&priv->lock);
+
+	iwl_legacy_set_rate(priv);
+	/*
+	 * at this point, staging_rxon has the
+	 * configuration for channel switch
+	 */
+	set_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status);
+	priv->switch_channel = cpu_to_le16(ch);
+	if (priv->cfg->ops->lib->set_channel_switch(priv, ch_switch)) {
+		clear_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status);
+		priv->switch_channel = 0;
+		ieee80211_chswitch_done(ctx->vif, false);
+	}
+
 out:
 	mutex_unlock(&priv->mutex);
-	if (!priv->switch_rxon.switch_in_progress)
-		ieee80211_chswitch_done(ctx->vif, false);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
@@ -3034,10 +2692,6 @@ static void iwl4965_setup_deferred_work(struct iwl_priv *priv)
 	priv->statistics_periodic.data = (unsigned long)priv;
 	priv->statistics_periodic.function = iwl4965_bg_statistics_periodic;
 
-	init_timer(&priv->ucode_trace);
-	priv->ucode_trace.data = (unsigned long)priv;
-	priv->ucode_trace.function = iwl4965_bg_ucode_trace;
-
 	init_timer(&priv->watchdog);
 	priv->watchdog.data = (unsigned long)priv;
 	priv->watchdog.function = iwl_legacy_bg_watchdog;
@@ -3056,7 +2710,6 @@ static void iwl4965_cancel_deferred_work(struct iwl_priv *priv)
 	iwl_legacy_cancel_scan_deferred_work(priv);
 
 	del_timer_sync(&priv->statistics_periodic);
-	del_timer_sync(&priv->ucode_trace);
 }
 
 static void iwl4965_init_hw_rates(struct iwl_priv *priv,
@@ -3132,13 +2785,9 @@ static int iwl4965_init_drv(struct iwl_priv *priv)
 	priv->iw_mode = NL80211_IFTYPE_STATION;
 	priv->current_ht_config.smps = IEEE80211_SMPS_STATIC;
 	priv->missed_beacon_threshold = IWL_MISSED_BEACON_THRESHOLD_DEF;
-	priv->_4965.agg_tids_count = 0;
 
 	/* initialize force reset */
-	priv->force_reset[IWL_RF_RESET].reset_duration =
-		IWL_DELAY_NEXT_FORCE_RF_RESET;
-	priv->force_reset[IWL_FW_RESET].reset_duration =
-		IWL_DELAY_NEXT_FORCE_FW_RELOAD;
+	priv->force_reset.reset_duration = IWL_DELAY_NEXT_FORCE_FW_RELOAD;
 
 	/* Choose which receivers/antennas to use */
 	if (priv->cfg->ops->hcmd->set_rxon_chain)

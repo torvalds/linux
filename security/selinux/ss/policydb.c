@@ -13,7 +13,7 @@
  *
  *	Added conditional policy language extensions
  *
- * Updated: Hewlett-Packard <paul.moore@hp.com>
+ * Updated: Hewlett-Packard <paul@paul-moore.com>
  *
  *      Added support for the policy capability bitmap
  *
@@ -3221,6 +3221,9 @@ static int filename_trans_write(struct policydb *p, void *fp)
 	u32 nel;
 	__le32 buf[1];
 	int rc;
+
+	if (p->policyvers < POLICYDB_VERSION_FILENAME_TRANS)
+		return 0;
 
 	nel = 0;
 	rc = hashtab_map(p->filename_trans, hashtab_cnt, &nel);

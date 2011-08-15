@@ -407,11 +407,19 @@
 #endif
 #define TWL6030_IRQ_END		(TWL6030_IRQ_BASE + TWL6030_BASE_NR_IRQS)
 
+#define TWL6040_CODEC_IRQ_BASE	TWL6030_IRQ_END
+#ifdef CONFIG_TWL6040_CODEC
+#define TWL6040_CODEC_NR_IRQS	6
+#else
+#define TWL6040_CODEC_NR_IRQS	0
+#endif
+#define TWL6040_CODEC_IRQ_END	(TWL6040_CODEC_IRQ_BASE + TWL6040_CODEC_NR_IRQS)
+
 /* Total number of interrupts depends on the enabled blocks above */
-#if (TWL4030_GPIO_IRQ_END > TWL6030_IRQ_END)
+#if (TWL4030_GPIO_IRQ_END > TWL6040_CODEC_IRQ_END)
 #define TWL_IRQ_END 		TWL4030_GPIO_IRQ_END
 #else
-#define TWL_IRQ_END		TWL6030_IRQ_END
+#define TWL_IRQ_END		TWL6040_CODEC_IRQ_END
 #endif
 
 /* GPMC related */
@@ -428,7 +436,11 @@
 #define INTCPS_NR_IRQS		96
 
 #ifndef __ASSEMBLY__
-extern void omap_init_irq(void);
+extern void __iomem *omap_irq_base;
+void omap1_init_irq(void);
+void omap2_init_irq(void);
+void omap3_init_irq(void);
+void ti816x_init_irq(void);
 extern int omap_irq_pending(void);
 void omap_intc_save_context(void);
 void omap_intc_restore_context(void);

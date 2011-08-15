@@ -105,11 +105,8 @@ static bool ath_hw_keysetmac(struct ath_common *common,
 		if (mac[0] & 0x01)
 			unicast_flag = 0;
 
-		macHi = (mac[5] << 8) | mac[4];
-		macLo = (mac[3] << 24) |
-			(mac[2] << 16) |
-			(mac[1] << 8) |
-			mac[0];
+		macLo = get_unaligned_le32(mac);
+		macHi = get_unaligned_le16(mac + 4);
 		macLo >>= 1;
 		macLo |= (macHi & 1) << 31;
 		macHi >>= 1;

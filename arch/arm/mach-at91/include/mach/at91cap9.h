@@ -75,7 +75,6 @@
 #define AT91CAP9_BASE_EMAC		0xfffbc000
 #define AT91CAP9_BASE_ADC		0xfffc0000
 #define AT91CAP9_BASE_ISI		0xfffc4000
-#define AT91_BASE_SYS			0xffffe200
 
 /*
  * System Peripherals (offset from AT91_BASE_SYS)

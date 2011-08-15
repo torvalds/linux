@@ -33,7 +33,7 @@
 #include <linux/rcupdate.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/completion.h>
 #include <linux/moduleparam.h>
@@ -941,7 +941,6 @@ static void rcu_torture_timer(unsigned long unused)
 	idx = cur_ops->readlock();
 	completed = cur_ops->completed();
 	p = rcu_dereference_check(rcu_torture_current,
-				  rcu_read_lock_held() ||
 				  rcu_read_lock_bh_held() ||
 				  rcu_read_lock_sched_held() ||
 				  srcu_read_lock_held(&srcu_ctl));
@@ -1002,7 +1001,6 @@ rcu_torture_reader(void *arg)
 		idx = cur_ops->readlock();
 		completed = cur_ops->completed();
 		p = rcu_dereference_check(rcu_torture_current,
-					  rcu_read_lock_held() ||
 					  rcu_read_lock_bh_held() ||
 					  rcu_read_lock_sched_held() ||
 					  srcu_read_lock_held(&srcu_ctl));

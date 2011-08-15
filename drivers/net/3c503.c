@@ -49,6 +49,7 @@ static const char version[] =
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/ethtool.h>
 
 #include <asm/uaccess.h>
@@ -412,7 +413,7 @@ el2_open(struct net_device *dev)
 		outb_p(0x04 << ((*irqp == 9) ? 2 : *irqp), E33G_IDCFR);
 		outb_p(0x00, E33G_IDCFR);
 		msleep(1);
-		free_irq(*irqp, el2_probe_interrupt);
+		free_irq(*irqp, &seen);
 		if (!seen)
 			continue;
 
@@ -422,6 +423,7 @@ el2_open(struct net_device *dev)
 			continue;
 		if (retval < 0)
 			goto err_disable;
+		break;
 	} while (*++irqp);
 
 	if (*irqp == 0) {

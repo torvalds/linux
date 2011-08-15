@@ -154,12 +154,11 @@ extern int set_cifs_acl(struct cifs_ntsd *, __u32, struct inode *,
 extern void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 			       struct cifs_sb_info *cifs_sb);
 extern int cifs_match_super(struct super_block *, void *);
-extern void cifs_cleanup_volume_info(struct smb_vol **pvolume_info);
-extern int cifs_setup_volume_info(struct smb_vol **pvolume_info,
-				  char *mount_data, const char *devname);
-extern int cifs_mount(struct super_block *, struct cifs_sb_info *,
-		      struct smb_vol *, const char *);
-extern int cifs_umount(struct super_block *, struct cifs_sb_info *);
+extern void cifs_cleanup_volume_info(struct smb_vol *pvolume_info);
+extern struct smb_vol *cifs_get_volume_info(char *mount_data,
+					    const char *devname);
+extern int cifs_mount(struct cifs_sb_info *, struct smb_vol *);
+extern void cifs_umount(struct cifs_sb_info *);
 extern void cifs_dfs_release_automount_timer(void);
 void cifs_proc_init(void);
 void cifs_proc_clean(void);
@@ -218,7 +217,8 @@ extern int get_dfs_path(int xid, struct cifs_ses *pSesInfo,
 			struct dfs_info3_param **preferrals,
 			int remap);
 extern void reset_cifs_unix_caps(int xid, struct cifs_tcon *tcon,
-				 struct super_block *sb, struct smb_vol *vol);
+				 struct cifs_sb_info *cifs_sb,
+				 struct smb_vol *vol);
 extern int CIFSSMBQFSInfo(const int xid, struct cifs_tcon *tcon,
 			struct kstatfs *FSData);
 extern int SMBOldQFSInfo(const int xid, struct cifs_tcon *tcon,

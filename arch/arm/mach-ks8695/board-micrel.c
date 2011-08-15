@@ -24,7 +24,7 @@
 #include "generic.h"
 
 #ifdef CONFIG_PCI
-static int micrel_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int micrel_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	return KS8695_IRQ_EXTERN0;
 }

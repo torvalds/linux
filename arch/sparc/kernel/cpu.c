@@ -396,6 +396,7 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   , cpu_data(0).clock_tick
 #endif
 		);
+	cpucap_info(m);
 #ifdef CONFIG_SMP
 	smp_bogo(m);
 #endif
@@ -474,11 +475,18 @@ static void __init sun4v_cpu_probe(void)
 		sparc_pmu_type = "niagara2";
 		break;
 
+	case SUN4V_CHIP_NIAGARA3:
+		sparc_cpu_type = "UltraSparc T3 (Niagara3)";
+		sparc_fpu_type = "UltraSparc T3 integrated FPU";
+		sparc_pmu_type = "niagara3";
+		break;
+
 	default:
 		printk(KERN_WARNING "CPU: Unknown sun4v cpu type [%s]\n",
 		       prom_cpu_compatible);
 		sparc_cpu_type = "Unknown SUN4V CPU";
 		sparc_fpu_type = "Unknown SUN4V FPU";
+		sparc_pmu_type = "Unknown SUN4V PMU";
 		break;
 	}
 }

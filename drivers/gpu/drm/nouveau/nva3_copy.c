@@ -140,7 +140,7 @@ nva3_copy_init(struct drm_device *dev, int engine)
 }
 
 static int
-nva3_copy_fini(struct drm_device *dev, int engine)
+nva3_copy_fini(struct drm_device *dev, int engine, bool suspend)
 {
 	nv_mask(dev, 0x104048, 0x00000003, 0x00000000);
 

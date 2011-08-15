@@ -597,7 +597,7 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 	return;
 }
 
-void i915_save_display(struct drm_device *dev)
+static void i915_save_display(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -689,7 +689,7 @@ void i915_save_display(struct drm_device *dev)
 	i915_save_vga(dev);
 }
 
-void i915_restore_display(struct drm_device *dev)
+static void i915_restore_display(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -760,15 +760,13 @@ void i915_restore_display(struct drm_device *dev)
 	/* FIXME: restore TV & SDVO state */
 
 	/* only restore FBC info on the platform that supports FBC*/
+	intel_disable_fbc(dev);
 	if (I915_HAS_FBC(dev)) {
 		if (HAS_PCH_SPLIT(dev)) {
-			ironlake_disable_fbc(dev);
 			I915_WRITE(ILK_DPFC_CB_BASE, dev_priv->saveDPFC_CB_BASE);
 		} else if (IS_GM45(dev)) {
-			g4x_disable_fbc(dev);
 			I915_WRITE(DPFC_CB_BASE, dev_priv->saveDPFC_CB_BASE);
 		} else {
-			i8xx_disable_fbc(dev);
 			I915_WRITE(FBC_CFB_BASE, dev_priv->saveFBC_CFB_BASE);
 			I915_WRITE(FBC_LL_BASE, dev_priv->saveFBC_LL_BASE);
 			I915_WRITE(FBC_CONTROL2, dev_priv->saveFBC_CONTROL2);
@@ -780,6 +778,7 @@ void i915_restore_display(struct drm_device *dev)
 		I915_WRITE(CPU_VGACNTRL, dev_priv->saveVGACNTRL);
 	else
 		I915_WRITE(VGACNTRL, dev_priv->saveVGACNTRL);
+
 	I915_WRITE(VGA0, dev_priv->saveVGA0);
 	I915_WRITE(VGA1, dev_priv->saveVGA1);
 	I915_WRITE(VGA_PD, dev_priv->saveVGA_PD);
@@ -796,6 +795,8 @@ int i915_save_state(struct drm_device *dev)
 
 	pci_read_config_byte(dev->pdev, LBB, &dev_priv->saveLBB);
 
+	mutex_lock(&dev->struct_mutex);
+
 	/* Hardware status page */
 	dev_priv->saveHWS = I915_READ(HWS_PGA);
 
@@ -811,6 +812,7 @@ int i915_save_state(struct drm_device *dev)
 		dev_priv->saveFDI_RXB_IMR = I915_READ(_FDI_RXB_IMR);
 		dev_priv->saveMCHBAR_RENDER_STANDBY =
 			I915_READ(RSTDBYCTL);
+		dev_priv->savePCH_PORT_HOTPLUG = I915_READ(PCH_PORT_HOTPLUG);
 	} else {
 		dev_priv->saveIER = I915_READ(IER);
 		dev_priv->saveIMR = I915_READ(IMR);
@@ -835,6 +837,8 @@ int i915_save_state(struct drm_device *dev)
 	for (i = 0; i < 3; i++)
 		dev_priv->saveSWF2[i] = I915_READ(SWF30 + (i << 2));
 
+	mutex_unlock(&dev->struct_mutex);
+
 	return 0;
 }
 
@@ -844,6 +848,8 @@ int i915_restore_state(struct drm_device *dev)
 	int i;
 
 	pci_write_config_byte(dev->pdev, LBB, dev_priv->saveLBB);
+
+	mutex_lock(&dev->struct_mutex);
 
 	/* Hardware status page */
 	I915_WRITE(HWS_PGA, dev_priv->saveHWS);
@@ -858,10 +864,12 @@ int i915_restore_state(struct drm_device *dev)
 		I915_WRITE(GTIMR, dev_priv->saveGTIMR);
 		I915_WRITE(_FDI_RXA_IMR, dev_priv->saveFDI_RXA_IMR);
 		I915_WRITE(_FDI_RXB_IMR, dev_priv->saveFDI_RXB_IMR);
+		I915_WRITE(PCH_PORT_HOTPLUG, dev_priv->savePCH_PORT_HOTPLUG);
 	} else {
 		I915_WRITE(IER, dev_priv->saveIER);
 		I915_WRITE(IMR, dev_priv->saveIMR);
 	}
+	mutex_unlock(&dev->struct_mutex);
 
 	intel_init_clock_gating(dev);
 
@@ -870,8 +878,12 @@ int i915_restore_state(struct drm_device *dev)
 		intel_init_emon(dev);
 	}
 
-	if (IS_GEN6(dev))
+	if (IS_GEN6(dev)) {
 		gen6_enable_rps(dev_priv);
+		gen6_update_ring_freq(dev_priv);
+	}
+
+	mutex_lock(&dev->struct_mutex);
 
 	/* Cache mode state */
 	I915_WRITE (CACHE_MODE_0, dev_priv->saveCACHE_MODE_0 | 0xffff0000);
@@ -885,6 +897,8 @@ int i915_restore_state(struct drm_device *dev)
 	}
 	for (i = 0; i < 3; i++)
 		I915_WRITE(SWF30 + (i << 2), dev_priv->saveSWF2[i]);
+
+	mutex_unlock(&dev->struct_mutex);
 
 	intel_i2c_reset(dev);
 

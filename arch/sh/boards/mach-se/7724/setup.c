@@ -145,7 +145,7 @@ static struct platform_device nor_flash_device = {
 };
 
 /* LCDC */
-const static struct fb_videomode lcdc_720p_modes[] = {
+static const struct fb_videomode lcdc_720p_modes[] = {
 	{
 		.name		= "LB070WV1",
 		.sync		= 0, /* hsync and vsync are active low */
@@ -160,7 +160,7 @@ const static struct fb_videomode lcdc_720p_modes[] = {
 	},
 };
 
-const static struct fb_videomode lcdc_vga_modes[] = {
+static const struct fb_videomode lcdc_vga_modes[] = {
 	{
 		.name		= "LB070WV1",
 		.sync		= 0, /* hsync and vsync are active low */

@@ -1,0 +1,3 @@
+prima2 "cb" evalutation board
+Required root node properties:
+    - compatible = "sirf,prima2-cb", "sirf,prima2";

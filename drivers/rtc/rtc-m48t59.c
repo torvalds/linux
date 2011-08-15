@@ -433,7 +433,7 @@ static int __devinit m48t59_rtc_probe(struct platform_device *pdev)
 
 	if (!m48t59->ioaddr) {
 		/* ioaddr not mapped externally */
-		m48t59->ioaddr = ioremap(res->start, res->end - res->start + 1);
+		m48t59->ioaddr = ioremap(res->start, resource_size(res));
 		if (!m48t59->ioaddr)
 			goto out;
 	}

@@ -128,8 +128,8 @@ struct video_device
 	struct mutex *lock;
 };
 
-#define media_entity_to_video_device(entity) \
-	container_of(entity, struct video_device, entity)
+#define media_entity_to_video_device(__e) \
+	container_of(__e, struct video_device, entity)
 /* dev to video-device */
 #define to_video_device(cd) container_of(cd, struct video_device, dev)
 

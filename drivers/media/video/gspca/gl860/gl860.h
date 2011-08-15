@@ -18,7 +18,6 @@
  */
 #ifndef GL860_DEV_H
 #define GL860_DEV_H
-#include <linux/version.h>
 
 #include "gspca.h"
 

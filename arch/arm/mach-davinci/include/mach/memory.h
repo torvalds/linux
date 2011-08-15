@@ -41,11 +41,4 @@
  */
 #define CONSISTENT_DMA_SIZE (14<<20)
 
-/*
- * Restrict DMA-able region to workaround silicon bug.  The bug
- * restricts buffers available for DMA to video hardware to be
- * below 128M
- */
-#define ARM_DMA_ZONE_SIZE	SZ_128M
-
 #endif /* __ASM_ARCH_MEMORY_H */

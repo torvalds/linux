@@ -336,7 +336,8 @@ static inline void rt2x00debug_update_crypto(struct rt2x00_dev *rt2x00dev,
  */
 #ifdef CONFIG_RT2X00_LIB_CRYPTO
 enum cipher rt2x00crypto_key_to_cipher(struct ieee80211_key_conf *key);
-void rt2x00crypto_create_tx_descriptor(struct queue_entry *entry,
+void rt2x00crypto_create_tx_descriptor(struct rt2x00_dev *rt2x00dev,
+				       struct sk_buff *skb,
 				       struct txentry_desc *txdesc);
 unsigned int rt2x00crypto_tx_overhead(struct rt2x00_dev *rt2x00dev,
 				      struct sk_buff *skb);
@@ -354,7 +355,8 @@ static inline enum cipher rt2x00crypto_key_to_cipher(struct ieee80211_key_conf *
 	return CIPHER_NONE;
 }
 
-static inline void rt2x00crypto_create_tx_descriptor(struct queue_entry *entry,
+static inline void rt2x00crypto_create_tx_descriptor(struct rt2x00_dev *rt2x00dev,
+						     struct sk_buff *skb,
 						     struct txentry_desc *txdesc)
 {
 }

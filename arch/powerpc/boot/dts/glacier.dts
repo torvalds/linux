@@ -130,10 +130,16 @@
 		};
 
 		CRYPTO: crypto@180000 {
-			compatible = "amcc,ppc460gt-crypto", "amcc,ppc4xx-crypto";
+			compatible = "amcc,ppc460gt-crypto", "amcc,ppc460ex-crypto",
+				"amcc,ppc4xx-crypto";
 			reg = <4 0x00180000 0x80400>;
 			interrupt-parent = <&UIC0>;
 			interrupts = <0x1d 0x4>;
+		};
+
+		HWRNG: hwrng@110000 {
+			compatible = "amcc,ppc460ex-rng", "ppc4xx-rng";
+			reg = <4 0x00110000 0x50>;
 		};
 
 		MAL0: mcmal {

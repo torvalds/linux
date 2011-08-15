@@ -38,12 +38,6 @@ static DEFINE_SPINLOCK(irq_controller_lock);
 /* Address of GIC 0 CPU interface */
 void __iomem *gic_cpu_base_addr __read_mostly;
 
-struct gic_chip_data {
-	unsigned int irq_offset;
-	void __iomem *dist_base;
-	void __iomem *cpu_base;
-};
-
 /*
  * Supported arch specific GIC irq extension.
  * Default make them NULL.
@@ -179,22 +173,21 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 {
 	void __iomem *reg = gic_dist_base(d) + GIC_DIST_TARGET + (gic_irq(d) & ~3);
 	unsigned int shift = (d->irq % 4) * 8;
-	unsigned int cpu = cpumask_first(mask_val);
+	unsigned int cpu = cpumask_any_and(mask_val, cpu_online_mask);
 	u32 val, mask, bit;
 
-	if (cpu >= 8)
+	if (cpu >= 8 || cpu >= nr_cpu_ids)
 		return -EINVAL;
 
 	mask = 0xff << shift;
 	bit = 1 << (cpu + shift);
 
 	spin_lock(&irq_controller_lock);
-	d->node = cpu;
 	val = readl_relaxed(reg) & ~mask;
 	writel_relaxed(val | bit, reg);
 	spin_unlock(&irq_controller_lock);
 
-	return 0;
+	return IRQ_SET_MASK_OK;
 }
 #endif
 

@@ -207,6 +207,7 @@ static int hp_wmi_perform_query(int query, int write, void *buffer,
 	};
 	struct acpi_buffer input = { sizeof(struct bios_args), &args };
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
+	u32 rc;
 
 	if (WARN_ON(insize > sizeof(args.data)))
 		return -EINVAL;
@@ -224,13 +225,13 @@ static int hp_wmi_perform_query(int query, int write, void *buffer,
 	}
 
 	bios_return = (struct bios_return *)obj->buffer.pointer;
+	rc = bios_return->return_code;
 
-	if (bios_return->return_code) {
-		if (bios_return->return_code != HPWMI_RET_UNKNOWN_CMDTYPE)
-			pr_warn("query 0x%x returned error 0x%x\n",
-				query, bios_return->return_code);
+	if (rc) {
+		if (rc != HPWMI_RET_UNKNOWN_CMDTYPE)
+			pr_warn("query 0x%x returned error 0x%x\n", query, rc);
 		kfree(obj);
-		return bios_return->return_code;
+		return rc;
 	}
 
 	if (!outsize) {

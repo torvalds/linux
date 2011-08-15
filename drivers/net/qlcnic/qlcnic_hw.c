@@ -446,6 +446,13 @@ void qlcnic_set_multi(struct net_device *netdev)
 	}
 
 send_fw_cmd:
+	if (mode == VPORT_MISS_MODE_ACCEPT_ALL) {
+		qlcnic_alloc_lb_filters_mem(adapter);
+		adapter->mac_learn = 1;
+	} else {
+		adapter->mac_learn = 0;
+	}
+
 	qlcnic_nic_set_promisc(adapter, mode);
 }
 
@@ -531,6 +538,56 @@ void qlcnic_delete_lb_filters(struct qlcnic_adapter *adapter)
 			kfree(tmp_fil);
 		}
 	}
+}
+
+int qlcnic_set_fw_loopback(struct qlcnic_adapter *adapter, u8 flag)
+{
+	struct qlcnic_nic_req req;
+	int rv;
+
+	memset(&req, 0, sizeof(struct qlcnic_nic_req));
+
+	req.qhdr = cpu_to_le64(QLCNIC_HOST_REQUEST << 23);
+	req.req_hdr = cpu_to_le64(QLCNIC_H2C_OPCODE_CONFIG_LOOPBACK |
+		((u64) adapter->portnum << 16) | ((u64) 0x1 << 32));
+
+	req.words[0] = cpu_to_le64(flag);
+
+	rv = qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
+	if (rv != 0)
+		dev_err(&adapter->pdev->dev, "%sting loopback mode failed\n",
+				flag ? "Set" : "Reset");
+	return rv;
+}
+
+int qlcnic_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
+{
+	if (qlcnic_set_fw_loopback(adapter, mode))
+		return -EIO;
+
+	if (qlcnic_nic_set_promisc(adapter, VPORT_MISS_MODE_ACCEPT_ALL)) {
+		qlcnic_set_fw_loopback(adapter, mode);
+		return -EIO;
+	}
+
+	msleep(1000);
+	return 0;
+}
+
+void qlcnic_clear_lb_mode(struct qlcnic_adapter *adapter)
+{
+	int mode = VPORT_MISS_MODE_DROP;
+	struct net_device *netdev = adapter->netdev;
+
+	qlcnic_set_fw_loopback(adapter, 0);
+
+	if (netdev->flags & IFF_PROMISC)
+		mode = VPORT_MISS_MODE_ACCEPT_ALL;
+	else if (netdev->flags & IFF_ALLMULTI)
+		mode = VPORT_MISS_MODE_ACCEPT_MULTI;
+
+	qlcnic_nic_set_promisc(adapter, mode);
+	msleep(1000);
 }
 
 /*
@@ -1406,6 +1463,7 @@ qlcnic_dump_que(struct qlcnic_adapter *adapter, struct qlcnic_dump_entry *entry,
 
 	for (loop = 0; loop < que->no_ops; loop++) {
 		QLCNIC_WR_DUMP_REG(que->sel_addr, base, que_id);
+		addr = que->read_addr;
 		for (i = 0; i < cnt; i++) {
 			QLCNIC_RD_DUMP_REG(addr, base, &data);
 			*buffer++ = cpu_to_le32(data);
@@ -1508,18 +1566,26 @@ qlcnic_dump_l2_cache(struct qlcnic_adapter *adapter,
 
 	for (i = 0; i < l2->no_ops; i++) {
 		QLCNIC_WR_DUMP_REG(l2->addr, base, val);
-		do {
+		if (LSW(l2->ctrl_val))
 			QLCNIC_WR_DUMP_REG(l2->ctrl_addr, base,
 				LSW(l2->ctrl_val));
+		if (!poll_mask)
+			goto skip_poll;
+		do {
 			QLCNIC_RD_DUMP_REG(l2->ctrl_addr, base, &data);
 			if (!(data & poll_mask))
 				break;
 			msleep(1);
 			time_out++;
 		} while (time_out <= poll_to);
-		if (time_out > poll_to)
-			return -EINVAL;
 
+		if (time_out > poll_to) {
+			dev_err(&adapter->pdev->dev,
+				"Timeout exceeded in %s, aborting dump\n",
+				__func__);
+			return -EINVAL;
+		}
+skip_poll:
 		addr = l2->read_addr;
 		cnt = l2->read_addr_num;
 		while (cnt) {
@@ -1672,8 +1738,7 @@ int qlcnic_dump_fw(struct qlcnic_adapter *adapter)
 	tmpl_hdr->sys_info[1] = adapter->fw_version;
 
 	for (i = 0; i < no_entries; i++) {
-		entry = (struct qlcnic_dump_entry *) ((void *) tmpl_hdr +
-			entry_offset);
+		entry = (void *)tmpl_hdr + entry_offset;
 		if (!(entry->hdr.mask & tmpl_hdr->drv_cap_mask)) {
 			entry->hdr.flags |= QLCNIC_DUMP_SKIP;
 			entry_offset += entry->hdr.offset;

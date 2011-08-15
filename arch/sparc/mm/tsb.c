@@ -180,7 +180,7 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_idx, unsign
 		printk(KERN_ERR "TSB[%s:%d]: Impossible TSB size %lu, killing process.\n",
 		       current->comm, current->pid, tsb_bytes);
 		do_exit(SIGSEGV);
-	};
+	}
 	tte |= pte_sz_bits(page_sz);
 
 	if (tlb_type == cheetah_plus || tlb_type == hypervisor) {
@@ -215,7 +215,7 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_idx, unsign
 #endif
 		default:
 			BUG();
-		};
+		}
 		hp->assoc = 1;
 		hp->num_ttes = tsb_bytes / 16;
 		hp->ctx_idx = 0;
@@ -230,11 +230,13 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_idx, unsign
 #endif
 		default:
 			BUG();
-		};
+		}
 		hp->tsb_base = tsb_paddr;
 		hp->resv = 0;
 	}
 }
+
+struct kmem_cache *pgtable_cache __read_mostly;
 
 static struct kmem_cache *tsb_caches[8] __read_mostly;
 
@@ -252,6 +254,15 @@ static const char *tsb_cache_names[8] = {
 void __init pgtable_cache_init(void)
 {
 	unsigned long i;
+
+	pgtable_cache = kmem_cache_create("pgtable_cache",
+					  PAGE_SIZE, PAGE_SIZE,
+					  0,
+					  _clear_page);
+	if (!pgtable_cache) {
+		prom_printf("pgtable_cache_init(): Could not create!\n");
+		prom_halt();
+	}
 
 	for (i = 0; i < 8; i++) {
 		unsigned long size = 8192 << i;

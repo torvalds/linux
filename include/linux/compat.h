@@ -438,16 +438,7 @@ asmlinkage long compat_sys_ppoll(struct pollfd __user *ufds,
 				 struct compat_timespec __user *tsp,
 				 const compat_sigset_t __user *sigmask,
 				 compat_size_t sigsetsize);
-#if (defined(CONFIG_NFSD) || defined(CONFIG_NFSD_MODULE)) && \
-	!defined(CONFIG_NFSD_DEPRECATED)
-union compat_nfsctl_res;
-struct compat_nfsctl_arg;
-asmlinkage long compat_sys_nfsservctl(int cmd,
-				      struct compat_nfsctl_arg __user *arg,
-				      union compat_nfsctl_res __user *res);
-#else
 asmlinkage long compat_sys_nfsservctl(int cmd, void *notused, void *notused2);
-#endif
 asmlinkage long compat_sys_signalfd4(int ufd,
 				     const compat_sigset_t __user *sigmask,
 				     compat_size_t sigsetsize, int flags);
@@ -467,6 +458,8 @@ asmlinkage long compat_sys_setsockopt(int fd, int level, int optname,
 				      char __user *optval, unsigned int optlen);
 asmlinkage long compat_sys_sendmsg(int fd, struct compat_msghdr __user *msg,
 				   unsigned flags);
+asmlinkage long compat_sys_sendmmsg(int fd, struct compat_mmsghdr __user *mmsg,
+				    unsigned vlen, unsigned int flags);
 asmlinkage long compat_sys_recvmsg(int fd, struct compat_msghdr __user *msg,
 				   unsigned int flags);
 asmlinkage long compat_sys_recv(int fd, void __user *buf, size_t len,

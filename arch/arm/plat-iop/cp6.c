@@ -18,6 +18,7 @@
  */
 #include <linux/init.h>
 #include <asm/traps.h>
+#include <asm/ptrace.h>
 
 static int cp6_trap(struct pt_regs *regs, unsigned int instr)
 {

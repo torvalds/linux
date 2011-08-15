@@ -19,17 +19,7 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-#if defined(__mc68020__) || defined(__mc68030__) || \
-    defined(__mc68040__) || defined(__mc68060__) || defined(__mcpu32__)
-
-#define umul_ppmm(w1, w0, u, v) \
-  __asm__ ("mulu%.l %3,%1:%0"						\
-           : "=d" ((USItype)(w0)),					\
-             "=d" ((USItype)(w1))					\
-           : "%0" ((USItype)(u)),					\
-             "dmi" ((USItype)(v)))
-
-#else
+#if defined(CONFIG_M68000) || defined(CONFIG_COLDFIRE)
 
 #define SI_TYPE_SIZE 32
 #define __BITS4 (SI_TYPE_SIZE / 4)
@@ -60,6 +50,15 @@ Boston, MA 02111-1307, USA.  */
     (w1) = __x3 + __ll_highpart (__x1);					\
     (w0) = __ll_lowpart (__x1) * __ll_B + __ll_lowpart (__x0);		\
   } while (0)
+
+#else
+
+#define umul_ppmm(w1, w0, u, v) \
+  __asm__ ("mulu%.l %3,%1:%0"						\
+           : "=d" ((USItype)(w0)),					\
+             "=d" ((USItype)(w1))					\
+           : "%0" ((USItype)(u)),					\
+             "dmi" ((USItype)(v)))
 
 #endif
 

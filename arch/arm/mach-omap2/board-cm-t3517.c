@@ -48,6 +48,7 @@
 
 #include "mux.h"
 #include "control.h"
+#include "common-board-devices.h"
 
 #if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
 static struct gpio_led cm_t3517_leds[] = {
@@ -177,7 +178,7 @@ static struct usbhs_omap_board_data cm_t3517_ehci_pdata __initdata = {
 	.reset_gpio_port[2]  = -EINVAL,
 };
 
-static int cm_t3517_init_usbh(void)
+static int __init cm_t3517_init_usbh(void)
 {
 	int err;
 
@@ -203,8 +204,6 @@ static inline int cm_t3517_init_usbh(void)
 #endif
 
 #if defined(CONFIG_MTD_NAND_OMAP2) || defined(CONFIG_MTD_NAND_OMAP2_MODULE)
-#define NAND_BLOCK_SIZE		SZ_128K
-
 static struct mtd_partition cm_t3517_nand_partitions[] = {
 	{
 		.name           = "xloader",
@@ -237,7 +236,6 @@ static struct mtd_partition cm_t3517_nand_partitions[] = {
 static struct omap_nand_platform_data cm_t3517_nand_data = {
 	.parts			= cm_t3517_nand_partitions,
 	.nr_parts		= ARRAY_SIZE(cm_t3517_nand_partitions),
-	.dma_channel		= -1,	/* disable DMA in OMAP NAND driver */
 	.cs			= 0,
 };
 
@@ -305,7 +303,7 @@ MACHINE_START(CM_T3517, "Compulab CM-T3517")
 	.reserve        = omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= cm_t3517_init_early,
-	.init_irq	= omap_init_irq,
+	.init_irq	= omap3_init_irq,
 	.init_machine	= cm_t3517_init,
-	.timer		= &omap_timer,
+	.timer		= &omap3_timer,
 MACHINE_END

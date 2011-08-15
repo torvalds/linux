@@ -172,7 +172,7 @@ static struct pci_bus *cns3xxx_pci_scan_bus(int nr, struct pci_sys_data *sys)
 	return pci_scan_bus(sys->busnr, &cns3xxx_pcie_ops, sys);
 }
 
-static int cns3xxx_pcie_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int cns3xxx_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	struct cns3xxx_pcie *cnspci = pdev_to_cnspci(dev);
 	int irq = cnspci->irqs[slot];
@@ -368,6 +368,9 @@ static int cns3xxx_pcie_abort_handler(unsigned long addr, unsigned int fsr,
 static int __init cns3xxx_pcie_init(void)
 {
 	int i;
+
+	pcibios_min_io = 0;
+	pcibios_min_mem = 0;
 
 	hook_fault_code(16 + 6, cns3xxx_pcie_abort_handler, SIGBUS, 0,
 			"imprecise external abort");

@@ -16,13 +16,18 @@
 
 #include <asm/proc-fns.h>
 #include <asm/hardware/cache-l2x0.h>
+#include <asm/hardware/gic.h>
 
 #include <plat/cpu.h>
 #include <plat/clock.h>
+#include <plat/devs.h>
 #include <plat/exynos4.h>
+#include <plat/adc-core.h>
 #include <plat/sdhci.h>
 #include <plat/devs.h>
+#include <plat/fb-core.h>
 #include <plat/fimc-core.h>
+#include <plat/iic-core.h>
 
 #include <mach/regs-irq.h>
 
@@ -98,11 +103,21 @@ static struct map_desc exynos4_iodesc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= (unsigned long)S5P_VA_USB_HSPHY,
+		.virtual	= (unsigned long)S3C_VA_USB_HSPHY,
 		.pfn		= __phys_to_pfn(EXYNOS4_PA_HSPHY),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
-	}
+	}, {
+		.virtual	= (unsigned long)S5P_VA_GIC_CPU,
+		.pfn		= __phys_to_pfn(EXYNOS4_PA_GIC_CPU),
+		.length		= SZ_64K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_GIC_DIST,
+		.pfn		= __phys_to_pfn(EXYNOS4_PA_GIC_DIST),
+		.length		= SZ_64K,
+		.type		= MT_DEVICE,
+	},
 };
 
 static void exynos4_idle(void)
@@ -128,10 +143,19 @@ void __init exynos4_map_io(void)
 	exynos4_default_sdhci2();
 	exynos4_default_sdhci3();
 
+	s3c_adc_setname("samsung-adc-v3");
+
 	s3c_fimc_setname(0, "exynos4-fimc");
 	s3c_fimc_setname(1, "exynos4-fimc");
 	s3c_fimc_setname(2, "exynos4-fimc");
 	s3c_fimc_setname(3, "exynos4-fimc");
+
+	/* The I2C bus controllers are directly compatible with s3c2440 */
+	s3c_i2c0_setname("s3c2440-i2c");
+	s3c_i2c1_setname("s3c2440-i2c");
+	s3c_i2c2_setname("s3c2440-i2c");
+
+	s5p_fb_setname(0, "exynos4-fb");
 }
 
 void __init exynos4_init_clocks(int xtal)
@@ -144,21 +168,22 @@ void __init exynos4_init_clocks(int xtal)
 	exynos4_setup_clocks();
 }
 
+static void exynos4_gic_irq_eoi(struct irq_data *d)
+{
+	struct gic_chip_data *gic_data = irq_data_get_irq_chip_data(d);
+
+	gic_data->cpu_base = S5P_VA_GIC_CPU +
+			    (EXYNOS4_GIC_BANK_OFFSET * smp_processor_id());
+}
+
 void __init exynos4_init_irq(void)
 {
 	int irq;
 
-	gic_init(0, IRQ_LOCALTIMER, S5P_VA_GIC_DIST, S5P_VA_GIC_CPU);
+	gic_init(0, IRQ_SPI(0), S5P_VA_GIC_DIST, S5P_VA_GIC_CPU);
+	gic_arch_extn.irq_eoi = exynos4_gic_irq_eoi;
 
 	for (irq = 0; irq < MAX_COMBINER_NR; irq++) {
-
-		/*
-		 * From SPI(0) to SPI(39) and SPI(51), SPI(53) are
-		 * connected to the interrupt combiner. These irqs
-		 * should be initialized to support cascade interrupt.
-		 */
-		if ((irq >= 40) && !(irq == 51) && !(irq == 53))
-			continue;
 
 		combiner_init(irq, (void __iomem *)S5P_VA_COMBINER(irq),
 				COMBINER_IRQ(irq, 0));

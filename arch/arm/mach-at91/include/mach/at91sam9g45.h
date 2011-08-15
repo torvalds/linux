@@ -82,7 +82,6 @@
 #define AT91SAM9G45_BASE_TC3		0xfffd4000
 #define AT91SAM9G45_BASE_TC4		0xfffd4040
 #define AT91SAM9G45_BASE_TC5		0xfffd4080
-#define AT91_BASE_SYS			0xffffe200
 
 /*
  * System Peripherals (offset from AT91_BASE_SYS)

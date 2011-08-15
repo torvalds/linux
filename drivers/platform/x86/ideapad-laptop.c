@@ -32,13 +32,22 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
+#include <linux/backlight.h>
+#include <linux/fb.h>
 
 #define IDEAPAD_RFKILL_DEV_NUM	(3)
+
+#define CFG_BT_BIT	(16)
+#define CFG_3G_BIT	(17)
+#define CFG_WIFI_BIT	(18)
+#define CFG_CAMERA_BIT	(19)
 
 struct ideapad_private {
 	struct rfkill *rfk[IDEAPAD_RFKILL_DEV_NUM];
 	struct platform_device *platform_device;
 	struct input_dev *inputdev;
+	struct backlight_device *blightdev;
+	unsigned long cfg;
 };
 
 static acpi_handle ideapad_handle;
@@ -155,7 +164,7 @@ static int write_ec_cmd(acpi_handle handle, int cmd, unsigned long data)
 }
 
 /*
- * camera power
+ * sysfs
  */
 static ssize_t show_ideapad_cam(struct device *dev,
 				struct device_attribute *attr,
@@ -186,6 +195,44 @@ static ssize_t store_ideapad_cam(struct device *dev,
 
 static DEVICE_ATTR(camera_power, 0644, show_ideapad_cam, store_ideapad_cam);
 
+static ssize_t show_ideapad_cfg(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct ideapad_private *priv = dev_get_drvdata(dev);
+
+	return sprintf(buf, "0x%.8lX\n", priv->cfg);
+}
+
+static DEVICE_ATTR(cfg, 0444, show_ideapad_cfg, NULL);
+
+static struct attribute *ideapad_attributes[] = {
+	&dev_attr_camera_power.attr,
+	&dev_attr_cfg.attr,
+	NULL
+};
+
+static mode_t ideapad_is_visible(struct kobject *kobj,
+				 struct attribute *attr,
+				 int idx)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct ideapad_private *priv = dev_get_drvdata(dev);
+	bool supported;
+
+	if (attr == &dev_attr_camera_power.attr)
+		supported = test_bit(CFG_CAMERA_BIT, &(priv->cfg));
+	else
+		supported = true;
+
+	return supported ? attr->mode : 0;
+}
+
+static struct attribute_group ideapad_attribute_group = {
+	.is_visible = ideapad_is_visible,
+	.attrs = ideapad_attributes
+};
+
 /*
  * Rfkill
  */
@@ -197,9 +244,9 @@ struct ideapad_rfk_data {
 };
 
 const struct ideapad_rfk_data ideapad_rfk_data[] = {
-	{ "ideapad_wlan",	18, 0x15, RFKILL_TYPE_WLAN },
-	{ "ideapad_bluetooth",	16, 0x17, RFKILL_TYPE_BLUETOOTH },
-	{ "ideapad_3g",		17, 0x20, RFKILL_TYPE_WWAN },
+	{ "ideapad_wlan",      CFG_WIFI_BIT, 0x15, RFKILL_TYPE_WLAN },
+	{ "ideapad_bluetooth", CFG_BT_BIT,   0x17, RFKILL_TYPE_BLUETOOTH },
+	{ "ideapad_3g",        CFG_3G_BIT,   0x20, RFKILL_TYPE_WWAN },
 };
 
 static int ideapad_rfk_set(void *data, bool blocked)
@@ -265,8 +312,7 @@ static int __devinit ideapad_register_rfkill(struct acpi_device *adevice,
 	return 0;
 }
 
-static void __devexit ideapad_unregister_rfkill(struct acpi_device *adevice,
-						int dev)
+static void ideapad_unregister_rfkill(struct acpi_device *adevice, int dev)
 {
 	struct ideapad_private *priv = dev_get_drvdata(&adevice->dev);
 
@@ -280,15 +326,6 @@ static void __devexit ideapad_unregister_rfkill(struct acpi_device *adevice,
 /*
  * Platform device
  */
-static struct attribute *ideapad_attributes[] = {
-	&dev_attr_camera_power.attr,
-	NULL
-};
-
-static struct attribute_group ideapad_attribute_group = {
-	.attrs = ideapad_attributes
-};
-
 static int __devinit ideapad_platform_init(struct ideapad_private *priv)
 {
 	int result;
@@ -369,7 +406,7 @@ err_free_dev:
 	return error;
 }
 
-static void __devexit ideapad_input_exit(struct ideapad_private *priv)
+static void ideapad_input_exit(struct ideapad_private *priv)
 {
 	sparse_keymap_free(priv->inputdev);
 	input_unregister_device(priv->inputdev);
@@ -383,6 +420,98 @@ static void ideapad_input_report(struct ideapad_private *priv,
 }
 
 /*
+ * backlight
+ */
+static int ideapad_backlight_get_brightness(struct backlight_device *blightdev)
+{
+	unsigned long now;
+
+	if (read_ec_data(ideapad_handle, 0x12, &now))
+		return -EIO;
+	return now;
+}
+
+static int ideapad_backlight_update_status(struct backlight_device *blightdev)
+{
+	if (write_ec_cmd(ideapad_handle, 0x13, blightdev->props.brightness))
+		return -EIO;
+	if (write_ec_cmd(ideapad_handle, 0x33,
+			 blightdev->props.power == FB_BLANK_POWERDOWN ? 0 : 1))
+		return -EIO;
+
+	return 0;
+}
+
+static const struct backlight_ops ideapad_backlight_ops = {
+	.get_brightness = ideapad_backlight_get_brightness,
+	.update_status = ideapad_backlight_update_status,
+};
+
+static int ideapad_backlight_init(struct ideapad_private *priv)
+{
+	struct backlight_device *blightdev;
+	struct backlight_properties props;
+	unsigned long max, now, power;
+
+	if (read_ec_data(ideapad_handle, 0x11, &max))
+		return -EIO;
+	if (read_ec_data(ideapad_handle, 0x12, &now))
+		return -EIO;
+	if (read_ec_data(ideapad_handle, 0x18, &power))
+		return -EIO;
+
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = max;
+	props.type = BACKLIGHT_PLATFORM;
+	blightdev = backlight_device_register("ideapad",
+					      &priv->platform_device->dev,
+					      priv,
+					      &ideapad_backlight_ops,
+					      &props);
+	if (IS_ERR(blightdev)) {
+		pr_err("Could not register backlight device\n");
+		return PTR_ERR(blightdev);
+	}
+
+	priv->blightdev = blightdev;
+	blightdev->props.brightness = now;
+	blightdev->props.power = power ? FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
+	backlight_update_status(blightdev);
+
+	return 0;
+}
+
+static void ideapad_backlight_exit(struct ideapad_private *priv)
+{
+	if (priv->blightdev)
+		backlight_device_unregister(priv->blightdev);
+	priv->blightdev = NULL;
+}
+
+static void ideapad_backlight_notify_power(struct ideapad_private *priv)
+{
+	unsigned long power;
+	struct backlight_device *blightdev = priv->blightdev;
+
+	if (read_ec_data(ideapad_handle, 0x18, &power))
+		return;
+	blightdev->props.power = power ? FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
+}
+
+static void ideapad_backlight_notify_brightness(struct ideapad_private *priv)
+{
+	unsigned long now;
+
+	/* if we control brightness via acpi video driver */
+	if (priv->blightdev == NULL) {
+		read_ec_data(ideapad_handle, 0x12, &now);
+		return;
+	}
+
+	backlight_force_update(priv->blightdev, BACKLIGHT_UPDATE_HOTKEY);
+}
+
+/*
  * module init/exit
  */
 static const struct acpi_device_id ideapad_device_ids[] = {
@@ -393,10 +522,11 @@ MODULE_DEVICE_TABLE(acpi, ideapad_device_ids);
 
 static int __devinit ideapad_acpi_add(struct acpi_device *adevice)
 {
-	int ret, i, cfg;
+	int ret, i;
+	unsigned long cfg;
 	struct ideapad_private *priv;
 
-	if (read_method_int(adevice->handle, "_CFG", &cfg))
+	if (read_method_int(adevice->handle, "_CFG", (int *)&cfg))
 		return -ENODEV;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -404,6 +534,7 @@ static int __devinit ideapad_acpi_add(struct acpi_device *adevice)
 		return -ENOMEM;
 	dev_set_drvdata(&adevice->dev, priv);
 	ideapad_handle = adevice->handle;
+	priv->cfg = cfg;
 
 	ret = ideapad_platform_init(priv);
 	if (ret)
@@ -414,15 +545,25 @@ static int __devinit ideapad_acpi_add(struct acpi_device *adevice)
 		goto input_failed;
 
 	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++) {
-		if (test_bit(ideapad_rfk_data[i].cfgbit, (unsigned long *)&cfg))
+		if (test_bit(ideapad_rfk_data[i].cfgbit, &cfg))
 			ideapad_register_rfkill(adevice, i);
 		else
 			priv->rfk[i] = NULL;
 	}
 	ideapad_sync_rfk_state(adevice);
 
+	if (!acpi_video_backlight_support()) {
+		ret = ideapad_backlight_init(priv);
+		if (ret && ret != -ENODEV)
+			goto backlight_failed;
+	}
+
 	return 0;
 
+backlight_failed:
+	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
+		ideapad_unregister_rfkill(adevice, i);
+	ideapad_input_exit(priv);
 input_failed:
 	ideapad_platform_exit(priv);
 platform_failed:
@@ -435,6 +576,7 @@ static int __devexit ideapad_acpi_remove(struct acpi_device *adevice, int type)
 	struct ideapad_private *priv = dev_get_drvdata(&adevice->dev);
 	int i;
 
+	ideapad_backlight_exit(priv);
 	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
 		ideapad_unregister_rfkill(adevice, i);
 	ideapad_input_exit(priv);
@@ -459,12 +601,19 @@ static void ideapad_acpi_notify(struct acpi_device *adevice, u32 event)
 	vpc1 = (vpc2 << 8) | vpc1;
 	for (vpc_bit = 0; vpc_bit < 16; vpc_bit++) {
 		if (test_bit(vpc_bit, &vpc1)) {
-			if (vpc_bit == 9)
+			switch (vpc_bit) {
+			case 9:
 				ideapad_sync_rfk_state(adevice);
-			else if (vpc_bit == 4)
-				read_ec_data(handle, 0x12, &vpc2);
-			else
+				break;
+			case 4:
+				ideapad_backlight_notify_brightness(priv);
+				break;
+			case 2:
+				ideapad_backlight_notify_power(priv);
+				break;
+			default:
 				ideapad_input_report(priv, vpc_bit);
+			}
 		}
 	}
 }

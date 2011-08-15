@@ -6,11 +6,11 @@
 
 /*
  *
- * Each stripe contains one buffer per disc.  Each buffer can be in
+ * Each stripe contains one buffer per device.  Each buffer can be in
  * one of a number of states stored in "flags".  Changes between
- * these states happen *almost* exclusively under a per-stripe
- * spinlock.  Some very specific changes can happen in bi_end_io, and
- * these are not protected by the spin lock.
+ * these states happen *almost* exclusively under the protection of the
+ * STRIPE_ACTIVE flag.  Some very specific changes can happen in bi_end_io, and
+ * these are not protected by STRIPE_ACTIVE.
  *
  * The flag bits that are used to represent these states are:
  *   R5_UPTODATE and R5_LOCKED
@@ -76,12 +76,10 @@
  * block and the cached buffer are successfully written, any buffer on
  * a written list can be returned with b_end_io.
  *
- * The write list and read list both act as fifos.  The read list is
- * protected by the device_lock.  The write and written lists are
- * protected by the stripe lock.  The device_lock, which can be
- * claimed while the stipe lock is held, is only for list
- * manipulations and will only be held for a very short time.  It can
- * be claimed from interrupts.
+ * The write list and read list both act as fifos.  The read list,
+ * write list and written list are protected by the device_lock.
+ * The device_lock is only for list manipulations and will only be
+ * held for a very short time.  It can be claimed from interrupts.
  *
  *
  * Stripes in the stripe cache can be on one of two lists (or on
@@ -96,7 +94,6 @@
  *
  * The inactive_list, handle_list and hash bucket lists are all protected by the
  * device_lock.
- *  - stripes on the inactive_list never have their stripe_lock held.
  *  - stripes have a reference counter. If count==0, they are on a list.
  *  - If a stripe might need handling, STRIPE_HANDLE is set.
  *  - When refcount reaches zero, then if STRIPE_HANDLE it is put on
@@ -116,10 +113,10 @@
  *  attach a request to an active stripe (add_stripe_bh())
  *     lockdev attach-buffer unlockdev
  *  handle a stripe (handle_stripe())
- *     lockstripe clrSTRIPE_HANDLE ...
+ *     setSTRIPE_ACTIVE,  clrSTRIPE_HANDLE ...
  *		(lockdev check-buffers unlockdev) ..
  *		change-state ..
- *		record io/ops needed unlockstripe schedule io/ops
+ *		record io/ops needed clearSTRIPE_ACTIVE schedule io/ops
  *  release an active stripe (release_stripe())
  *     lockdev if (!--cnt) { if  STRIPE_HANDLE, add to handle_list else add to inactive-list } unlockdev
  *
@@ -128,8 +125,7 @@
  * on a cached buffer, and plus one if the stripe is undergoing stripe
  * operations.
  *
- * Stripe operations are performed outside the stripe lock,
- * the stripe operations are:
+ * The stripe operations are:
  * -copying data between the stripe cache and user application buffers
  * -computing blocks to save a disk access, or to recover a missing block
  * -updating the parity on a write operation (reconstruct write and
@@ -159,7 +155,8 @@
  */
 
 /*
- * Operations state - intermediate states that are visible outside of sh->lock
+ * Operations state - intermediate states that are visible outside of 
+ *   STRIPE_ACTIVE.
  * In general _idle indicates nothing is running, _run indicates a data
  * processing operation is active, and _result means the data processing result
  * is stable and can be acted upon.  For simple operations like biofill and
@@ -209,7 +206,6 @@ struct stripe_head {
 	short			ddf_layout;/* use DDF ordering to calculate Q */
 	unsigned long		state;		/* state flags */
 	atomic_t		count;	      /* nr of active thread/requests */
-	spinlock_t		lock;
 	int			bm_seq;	/* sequence number for bitmap flushes */
 	int			disks;		/* disks in stripe */
 	enum check_states	check_state;
@@ -240,19 +236,20 @@ struct stripe_head {
 };
 
 /* stripe_head_state - collects and tracks the dynamic state of a stripe_head
- *     for handle_stripe.  It is only valid under spin_lock(sh->lock);
+ *     for handle_stripe.
  */
 struct stripe_head_state {
 	int syncing, expanding, expanded;
 	int locked, uptodate, to_read, to_write, failed, written;
 	int to_fill, compute, req_compute, non_overwrite;
-	int failed_num;
+	int failed_num[2];
+	int p_failed, q_failed;
+	int dec_preread_active;
 	unsigned long ops_request;
-};
 
-/* r6_state - extra state data only relevant to r6 */
-struct r6_state {
-	int p_failed, q_failed, failed_num[2];
+	struct bio *return_bi;
+	mdk_rdev_t *blocked_rdev;
+	int handle_bad_blocks;
 };
 
 /* Flags */
@@ -268,14 +265,16 @@ struct r6_state {
 #define	R5_ReWrite	9	/* have tried to over-write the readerror */
 
 #define	R5_Expanded	10	/* This block now has post-expand data */
-#define	R5_Wantcompute	11 /* compute_block in progress treat as
-				    * uptodate
-				    */
-#define	R5_Wantfill	12 /* dev->toread contains a bio that needs
-				    * filling
-				    */
-#define R5_Wantdrain	13 /* dev->towrite needs to be drained */
-#define R5_WantFUA	14	/* Write should be FUA */
+#define	R5_Wantcompute	11	/* compute_block in progress treat as
+				 * uptodate
+				 */
+#define	R5_Wantfill	12	/* dev->toread contains a bio that needs
+				 * filling
+				 */
+#define	R5_Wantdrain	13	/* dev->towrite needs to be drained */
+#define	R5_WantFUA	14	/* Write should be FUA */
+#define	R5_WriteError	15	/* got a write error - need to record it */
+#define	R5_MadeGood	16	/* A bad block has been fixed by writing to it*/
 /*
  * Write method
  */
@@ -289,21 +288,25 @@ struct r6_state {
 /*
  * Stripe state
  */
-#define STRIPE_HANDLE		2
-#define	STRIPE_SYNCING		3
-#define	STRIPE_INSYNC		4
-#define	STRIPE_PREREAD_ACTIVE	5
-#define	STRIPE_DELAYED		6
-#define	STRIPE_DEGRADED		7
-#define	STRIPE_BIT_DELAY	8
-#define	STRIPE_EXPANDING	9
-#define	STRIPE_EXPAND_SOURCE	10
-#define	STRIPE_EXPAND_READY	11
-#define	STRIPE_IO_STARTED	12 /* do not count towards 'bypass_count' */
-#define	STRIPE_FULL_WRITE	13 /* all blocks are set to be overwritten */
-#define	STRIPE_BIOFILL_RUN	14
-#define	STRIPE_COMPUTE_RUN	15
-#define	STRIPE_OPS_REQ_PENDING	16
+enum {
+	STRIPE_ACTIVE,
+	STRIPE_HANDLE,
+	STRIPE_SYNC_REQUESTED,
+	STRIPE_SYNCING,
+	STRIPE_INSYNC,
+	STRIPE_PREREAD_ACTIVE,
+	STRIPE_DELAYED,
+	STRIPE_DEGRADED,
+	STRIPE_BIT_DELAY,
+	STRIPE_EXPANDING,
+	STRIPE_EXPAND_SOURCE,
+	STRIPE_EXPAND_READY,
+	STRIPE_IO_STARTED,	/* do not count towards 'bypass_count' */
+	STRIPE_FULL_WRITE,	/* all blocks are set to be overwritten */
+	STRIPE_BIOFILL_RUN,
+	STRIPE_COMPUTE_RUN,
+	STRIPE_OPS_REQ_PENDING,
+};
 
 /*
  * Operation request flags
@@ -336,7 +339,7 @@ struct r6_state {
  * PREREAD_ACTIVE.
  * In stripe_handle, if we find pre-reading is necessary, we do it if
  * PREREAD_ACTIVE is set, else we set DELAYED which will send it to the delayed queue.
- * HANDLE gets cleared if stripe_handle leave nothing locked.
+ * HANDLE gets cleared if stripe_handle leaves nothing locked.
  */
 
 
@@ -399,7 +402,7 @@ struct raid5_private_data {
 					    * (fresh device added).
 					    * Cleared when a sync completes.
 					    */
-
+	int			recovery_disabled;
 	/* per cpu variables */
 	struct raid5_percpu {
 		struct page	*spare_page; /* Used when checking P/Q in raid6 */

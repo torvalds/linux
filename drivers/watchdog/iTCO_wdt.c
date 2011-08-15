@@ -120,72 +120,12 @@ enum iTCO_chipsets {
 	TCO_3420,	/* 3420 */
 	TCO_3450,	/* 3450 */
 	TCO_EP80579,	/* EP80579 */
-	TCO_CPT1,	/* Cougar Point */
-	TCO_CPT2,	/* Cougar Point Desktop */
-	TCO_CPT3,	/* Cougar Point Mobile */
-	TCO_CPT4,	/* Cougar Point */
-	TCO_CPT5,	/* Cougar Point */
-	TCO_CPT6,	/* Cougar Point */
-	TCO_CPT7,	/* Cougar Point */
-	TCO_CPT8,	/* Cougar Point */
-	TCO_CPT9,	/* Cougar Point */
-	TCO_CPT10,	/* Cougar Point */
-	TCO_CPT11,	/* Cougar Point */
-	TCO_CPT12,	/* Cougar Point */
-	TCO_CPT13,	/* Cougar Point */
-	TCO_CPT14,	/* Cougar Point */
-	TCO_CPT15,	/* Cougar Point */
-	TCO_CPT16,	/* Cougar Point */
-	TCO_CPT17,	/* Cougar Point */
-	TCO_CPT18,	/* Cougar Point */
-	TCO_CPT19,	/* Cougar Point */
-	TCO_CPT20,	/* Cougar Point */
-	TCO_CPT21,	/* Cougar Point */
-	TCO_CPT22,	/* Cougar Point */
-	TCO_CPT23,	/* Cougar Point */
-	TCO_CPT24,	/* Cougar Point */
-	TCO_CPT25,	/* Cougar Point */
-	TCO_CPT26,	/* Cougar Point */
-	TCO_CPT27,	/* Cougar Point */
-	TCO_CPT28,	/* Cougar Point */
-	TCO_CPT29,	/* Cougar Point */
-	TCO_CPT30,	/* Cougar Point */
-	TCO_CPT31,	/* Cougar Point */
-	TCO_PBG1,	/* Patsburg */
-	TCO_PBG2,	/* Patsburg */
+	TCO_CPT,	/* Cougar Point */
+	TCO_CPTD,	/* Cougar Point Desktop */
+	TCO_CPTM,	/* Cougar Point Mobile */
+	TCO_PBG,	/* Patsburg */
 	TCO_DH89XXCC,	/* DH89xxCC */
-	TCO_PPT0,	/* Panther Point */
-	TCO_PPT1,	/* Panther Point */
-	TCO_PPT2,	/* Panther Point */
-	TCO_PPT3,	/* Panther Point */
-	TCO_PPT4,	/* Panther Point */
-	TCO_PPT5,	/* Panther Point */
-	TCO_PPT6,	/* Panther Point */
-	TCO_PPT7,	/* Panther Point */
-	TCO_PPT8,	/* Panther Point */
-	TCO_PPT9,	/* Panther Point */
-	TCO_PPT10,	/* Panther Point */
-	TCO_PPT11,	/* Panther Point */
-	TCO_PPT12,	/* Panther Point */
-	TCO_PPT13,	/* Panther Point */
-	TCO_PPT14,	/* Panther Point */
-	TCO_PPT15,	/* Panther Point */
-	TCO_PPT16,	/* Panther Point */
-	TCO_PPT17,	/* Panther Point */
-	TCO_PPT18,	/* Panther Point */
-	TCO_PPT19,	/* Panther Point */
-	TCO_PPT20,	/* Panther Point */
-	TCO_PPT21,	/* Panther Point */
-	TCO_PPT22,	/* Panther Point */
-	TCO_PPT23,	/* Panther Point */
-	TCO_PPT24,	/* Panther Point */
-	TCO_PPT25,	/* Panther Point */
-	TCO_PPT26,	/* Panther Point */
-	TCO_PPT27,	/* Panther Point */
-	TCO_PPT28,	/* Panther Point */
-	TCO_PPT29,	/* Panther Point */
-	TCO_PPT30,	/* Panther Point */
-	TCO_PPT31,	/* Panther Point */
+	TCO_PPT,	/* Panther Point */
 };
 
 static struct {
@@ -244,82 +184,13 @@ static struct {
 	{"3450", 2},
 	{"EP80579", 2},
 	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Cougar Point", 2},
-	{"Patsburg", 2},
+	{"Cougar Point Desktop", 2},
+	{"Cougar Point Mobile", 2},
 	{"Patsburg", 2},
 	{"DH89xxCC", 2},
 	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
-	{"Panther Point", 2},
 	{NULL, 0}
 };
-
-#define ITCO_PCI_DEVICE(dev, data) \
-	.vendor = PCI_VENDOR_ID_INTEL,	\
-	.device = dev,			\
-	.subvendor = PCI_ANY_ID,	\
-	.subdevice = PCI_ANY_ID,	\
-	.class = 0,			\
-	.class_mask = 0,		\
-	.driver_data = data
 
 /*
  * This data only exists for exporting the supported PCI ids
@@ -328,138 +199,138 @@ static struct {
  * functions that probably will be registered by other drivers.
  */
 static DEFINE_PCI_DEVICE_TABLE(iTCO_wdt_pci_tbl) = {
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801AA_0,	TCO_ICH)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801AB_0,	TCO_ICH0)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801BA_0,	TCO_ICH2)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801BA_10,	TCO_ICH2M)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801CA_0,	TCO_ICH3)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801CA_12,	TCO_ICH3M)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801DB_0,	TCO_ICH4)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801DB_12,	TCO_ICH4M)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801E_0,		TCO_CICH)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801EB_0,	TCO_ICH5)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ESB_1,		TCO_6300ESB)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH6_0,		TCO_ICH6)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH6_1,		TCO_ICH6M)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH6_2,		TCO_ICH6W)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ESB2_0,		TCO_631XESB)},
-	{ ITCO_PCI_DEVICE(0x2671,				TCO_631XESB)},
-	{ ITCO_PCI_DEVICE(0x2672,				TCO_631XESB)},
-	{ ITCO_PCI_DEVICE(0x2673,				TCO_631XESB)},
-	{ ITCO_PCI_DEVICE(0x2674,				TCO_631XESB)},
-	{ ITCO_PCI_DEVICE(0x2675,				TCO_631XESB)},
-	{ ITCO_PCI_DEVICE(0x2676,				TCO_631XESB)},
-	{ ITCO_PCI_DEVICE(0x2677,				TCO_631XESB)},
-	{ ITCO_PCI_DEVICE(0x2678,				TCO_631XESB)},
-	{ ITCO_PCI_DEVICE(0x2679,				TCO_631XESB)},
-	{ ITCO_PCI_DEVICE(0x267a,				TCO_631XESB)},
-	{ ITCO_PCI_DEVICE(0x267b,				TCO_631XESB)},
-	{ ITCO_PCI_DEVICE(0x267c,				TCO_631XESB)},
-	{ ITCO_PCI_DEVICE(0x267d,				TCO_631XESB)},
-	{ ITCO_PCI_DEVICE(0x267e,				TCO_631XESB)},
-	{ ITCO_PCI_DEVICE(0x267f,				TCO_631XESB)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH7_0,		TCO_ICH7)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH7_30,		TCO_ICH7DH)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH7_1,		TCO_ICH7M)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH7_31,		TCO_ICH7MDH)},
-	{ ITCO_PCI_DEVICE(0x27bc,				TCO_NM10)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH8_0,		TCO_ICH8)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH8_2,		TCO_ICH8DH)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH8_3,		TCO_ICH8DO)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH8_4,		TCO_ICH8M)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH8_1,		TCO_ICH8ME)},
-	{ ITCO_PCI_DEVICE(0x2918,				TCO_ICH9)},
-	{ ITCO_PCI_DEVICE(0x2916,				TCO_ICH9R)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH9_2,		TCO_ICH9DH)},
-	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH9_4,		TCO_ICH9DO)},
-	{ ITCO_PCI_DEVICE(0x2919,				TCO_ICH9M)},
-	{ ITCO_PCI_DEVICE(0x2917,				TCO_ICH9ME)},
-	{ ITCO_PCI_DEVICE(0x3a18,				TCO_ICH10)},
-	{ ITCO_PCI_DEVICE(0x3a16,				TCO_ICH10R)},
-	{ ITCO_PCI_DEVICE(0x3a1a,				TCO_ICH10D)},
-	{ ITCO_PCI_DEVICE(0x3a14,				TCO_ICH10DO)},
-	{ ITCO_PCI_DEVICE(0x3b00,				TCO_PCH)},
-	{ ITCO_PCI_DEVICE(0x3b01,				TCO_PCHM)},
-	{ ITCO_PCI_DEVICE(0x3b02,				TCO_P55)},
-	{ ITCO_PCI_DEVICE(0x3b03,				TCO_PM55)},
-	{ ITCO_PCI_DEVICE(0x3b06,				TCO_H55)},
-	{ ITCO_PCI_DEVICE(0x3b07,				TCO_QM57)},
-	{ ITCO_PCI_DEVICE(0x3b08,				TCO_H57)},
-	{ ITCO_PCI_DEVICE(0x3b09,				TCO_HM55)},
-	{ ITCO_PCI_DEVICE(0x3b0a,				TCO_Q57)},
-	{ ITCO_PCI_DEVICE(0x3b0b,				TCO_HM57)},
-	{ ITCO_PCI_DEVICE(0x3b0d,				TCO_PCHMSFF)},
-	{ ITCO_PCI_DEVICE(0x3b0f,				TCO_QS57)},
-	{ ITCO_PCI_DEVICE(0x3b12,				TCO_3400)},
-	{ ITCO_PCI_DEVICE(0x3b14,				TCO_3420)},
-	{ ITCO_PCI_DEVICE(0x3b16,				TCO_3450)},
-	{ ITCO_PCI_DEVICE(0x5031,				TCO_EP80579)},
-	{ ITCO_PCI_DEVICE(0x1c41,				TCO_CPT1)},
-	{ ITCO_PCI_DEVICE(0x1c42,				TCO_CPT2)},
-	{ ITCO_PCI_DEVICE(0x1c43,				TCO_CPT3)},
-	{ ITCO_PCI_DEVICE(0x1c44,				TCO_CPT4)},
-	{ ITCO_PCI_DEVICE(0x1c45,				TCO_CPT5)},
-	{ ITCO_PCI_DEVICE(0x1c46,				TCO_CPT6)},
-	{ ITCO_PCI_DEVICE(0x1c47,				TCO_CPT7)},
-	{ ITCO_PCI_DEVICE(0x1c48,				TCO_CPT8)},
-	{ ITCO_PCI_DEVICE(0x1c49,				TCO_CPT9)},
-	{ ITCO_PCI_DEVICE(0x1c4a,				TCO_CPT10)},
-	{ ITCO_PCI_DEVICE(0x1c4b,				TCO_CPT11)},
-	{ ITCO_PCI_DEVICE(0x1c4c,				TCO_CPT12)},
-	{ ITCO_PCI_DEVICE(0x1c4d,				TCO_CPT13)},
-	{ ITCO_PCI_DEVICE(0x1c4e,				TCO_CPT14)},
-	{ ITCO_PCI_DEVICE(0x1c4f,				TCO_CPT15)},
-	{ ITCO_PCI_DEVICE(0x1c50,				TCO_CPT16)},
-	{ ITCO_PCI_DEVICE(0x1c51,				TCO_CPT17)},
-	{ ITCO_PCI_DEVICE(0x1c52,				TCO_CPT18)},
-	{ ITCO_PCI_DEVICE(0x1c53,				TCO_CPT19)},
-	{ ITCO_PCI_DEVICE(0x1c54,				TCO_CPT20)},
-	{ ITCO_PCI_DEVICE(0x1c55,				TCO_CPT21)},
-	{ ITCO_PCI_DEVICE(0x1c56,				TCO_CPT22)},
-	{ ITCO_PCI_DEVICE(0x1c57,				TCO_CPT23)},
-	{ ITCO_PCI_DEVICE(0x1c58,				TCO_CPT24)},
-	{ ITCO_PCI_DEVICE(0x1c59,				TCO_CPT25)},
-	{ ITCO_PCI_DEVICE(0x1c5a,				TCO_CPT26)},
-	{ ITCO_PCI_DEVICE(0x1c5b,				TCO_CPT27)},
-	{ ITCO_PCI_DEVICE(0x1c5c,				TCO_CPT28)},
-	{ ITCO_PCI_DEVICE(0x1c5d,				TCO_CPT29)},
-	{ ITCO_PCI_DEVICE(0x1c5e,				TCO_CPT30)},
-	{ ITCO_PCI_DEVICE(0x1c5f,				TCO_CPT31)},
-	{ ITCO_PCI_DEVICE(0x1d40,				TCO_PBG1)},
-	{ ITCO_PCI_DEVICE(0x1d41,				TCO_PBG2)},
-	{ ITCO_PCI_DEVICE(0x2310,				TCO_DH89XXCC)},
-	{ ITCO_PCI_DEVICE(0x1e40,				TCO_PPT0)},
-	{ ITCO_PCI_DEVICE(0x1e41,				TCO_PPT1)},
-	{ ITCO_PCI_DEVICE(0x1e42,				TCO_PPT2)},
-	{ ITCO_PCI_DEVICE(0x1e43,				TCO_PPT3)},
-	{ ITCO_PCI_DEVICE(0x1e44,				TCO_PPT4)},
-	{ ITCO_PCI_DEVICE(0x1e45,				TCO_PPT5)},
-	{ ITCO_PCI_DEVICE(0x1e46,				TCO_PPT6)},
-	{ ITCO_PCI_DEVICE(0x1e47,				TCO_PPT7)},
-	{ ITCO_PCI_DEVICE(0x1e48,				TCO_PPT8)},
-	{ ITCO_PCI_DEVICE(0x1e49,				TCO_PPT9)},
-	{ ITCO_PCI_DEVICE(0x1e4a,				TCO_PPT10)},
-	{ ITCO_PCI_DEVICE(0x1e4b,				TCO_PPT11)},
-	{ ITCO_PCI_DEVICE(0x1e4c,				TCO_PPT12)},
-	{ ITCO_PCI_DEVICE(0x1e4d,				TCO_PPT13)},
-	{ ITCO_PCI_DEVICE(0x1e4e,				TCO_PPT14)},
-	{ ITCO_PCI_DEVICE(0x1e4f,				TCO_PPT15)},
-	{ ITCO_PCI_DEVICE(0x1e50,				TCO_PPT16)},
-	{ ITCO_PCI_DEVICE(0x1e51,				TCO_PPT17)},
-	{ ITCO_PCI_DEVICE(0x1e52,				TCO_PPT18)},
-	{ ITCO_PCI_DEVICE(0x1e53,				TCO_PPT19)},
-	{ ITCO_PCI_DEVICE(0x1e54,				TCO_PPT20)},
-	{ ITCO_PCI_DEVICE(0x1e55,				TCO_PPT21)},
-	{ ITCO_PCI_DEVICE(0x1e56,				TCO_PPT22)},
-	{ ITCO_PCI_DEVICE(0x1e57,				TCO_PPT23)},
-	{ ITCO_PCI_DEVICE(0x1e58,				TCO_PPT24)},
-	{ ITCO_PCI_DEVICE(0x1e59,				TCO_PPT25)},
-	{ ITCO_PCI_DEVICE(0x1e5a,				TCO_PPT26)},
-	{ ITCO_PCI_DEVICE(0x1e5b,				TCO_PPT27)},
-	{ ITCO_PCI_DEVICE(0x1e5c,				TCO_PPT28)},
-	{ ITCO_PCI_DEVICE(0x1e5d,				TCO_PPT29)},
-	{ ITCO_PCI_DEVICE(0x1e5e,				TCO_PPT30)},
-	{ ITCO_PCI_DEVICE(0x1e5f,				TCO_PPT31)},
+	{ PCI_VDEVICE(INTEL, 0x2410), TCO_ICH},
+	{ PCI_VDEVICE(INTEL, 0x2420), TCO_ICH0},
+	{ PCI_VDEVICE(INTEL, 0x2440), TCO_ICH2},
+	{ PCI_VDEVICE(INTEL, 0x244c), TCO_ICH2M},
+	{ PCI_VDEVICE(INTEL, 0x2480), TCO_ICH3},
+	{ PCI_VDEVICE(INTEL, 0x248c), TCO_ICH3M},
+	{ PCI_VDEVICE(INTEL, 0x24c0), TCO_ICH4},
+	{ PCI_VDEVICE(INTEL, 0x24cc), TCO_ICH4M},
+	{ PCI_VDEVICE(INTEL, 0x2450), TCO_CICH},
+	{ PCI_VDEVICE(INTEL, 0x24d0), TCO_ICH5},
+	{ PCI_VDEVICE(INTEL, 0x25a1), TCO_6300ESB},
+	{ PCI_VDEVICE(INTEL, 0x2640), TCO_ICH6},
+	{ PCI_VDEVICE(INTEL, 0x2641), TCO_ICH6M},
+	{ PCI_VDEVICE(INTEL, 0x2642), TCO_ICH6W},
+	{ PCI_VDEVICE(INTEL, 0x2670), TCO_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x2671), TCO_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x2672), TCO_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x2673), TCO_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x2674), TCO_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x2675), TCO_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x2676), TCO_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x2677), TCO_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x2678), TCO_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x2679), TCO_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x267a), TCO_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x267b), TCO_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x267c), TCO_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x267d), TCO_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x267e), TCO_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x267f), TCO_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x27b8), TCO_ICH7},
+	{ PCI_VDEVICE(INTEL, 0x27b0), TCO_ICH7DH},
+	{ PCI_VDEVICE(INTEL, 0x27b9), TCO_ICH7M},
+	{ PCI_VDEVICE(INTEL, 0x27bd), TCO_ICH7MDH},
+	{ PCI_VDEVICE(INTEL, 0x27bc), TCO_NM10},
+	{ PCI_VDEVICE(INTEL, 0x2810), TCO_ICH8},
+	{ PCI_VDEVICE(INTEL, 0x2812), TCO_ICH8DH},
+	{ PCI_VDEVICE(INTEL, 0x2814), TCO_ICH8DO},
+	{ PCI_VDEVICE(INTEL, 0x2815), TCO_ICH8M},
+	{ PCI_VDEVICE(INTEL, 0x2811), TCO_ICH8ME},
+	{ PCI_VDEVICE(INTEL, 0x2918), TCO_ICH9},
+	{ PCI_VDEVICE(INTEL, 0x2916), TCO_ICH9R},
+	{ PCI_VDEVICE(INTEL, 0x2912), TCO_ICH9DH},
+	{ PCI_VDEVICE(INTEL, 0x2914), TCO_ICH9DO},
+	{ PCI_VDEVICE(INTEL, 0x2919), TCO_ICH9M},
+	{ PCI_VDEVICE(INTEL, 0x2917), TCO_ICH9ME},
+	{ PCI_VDEVICE(INTEL, 0x3a18), TCO_ICH10},
+	{ PCI_VDEVICE(INTEL, 0x3a16), TCO_ICH10R},
+	{ PCI_VDEVICE(INTEL, 0x3a1a), TCO_ICH10D},
+	{ PCI_VDEVICE(INTEL, 0x3a14), TCO_ICH10DO},
+	{ PCI_VDEVICE(INTEL, 0x3b00), TCO_PCH},
+	{ PCI_VDEVICE(INTEL, 0x3b01), TCO_PCHM},
+	{ PCI_VDEVICE(INTEL, 0x3b02), TCO_P55},
+	{ PCI_VDEVICE(INTEL, 0x3b03), TCO_PM55},
+	{ PCI_VDEVICE(INTEL, 0x3b06), TCO_H55},
+	{ PCI_VDEVICE(INTEL, 0x3b07), TCO_QM57},
+	{ PCI_VDEVICE(INTEL, 0x3b08), TCO_H57},
+	{ PCI_VDEVICE(INTEL, 0x3b09), TCO_HM55},
+	{ PCI_VDEVICE(INTEL, 0x3b0a), TCO_Q57},
+	{ PCI_VDEVICE(INTEL, 0x3b0b), TCO_HM57},
+	{ PCI_VDEVICE(INTEL, 0x3b0d), TCO_PCHMSFF},
+	{ PCI_VDEVICE(INTEL, 0x3b0f), TCO_QS57},
+	{ PCI_VDEVICE(INTEL, 0x3b12), TCO_3400},
+	{ PCI_VDEVICE(INTEL, 0x3b14), TCO_3420},
+	{ PCI_VDEVICE(INTEL, 0x3b16), TCO_3450},
+	{ PCI_VDEVICE(INTEL, 0x5031), TCO_EP80579},
+	{ PCI_VDEVICE(INTEL, 0x1c41), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c42), TCO_CPTD},
+	{ PCI_VDEVICE(INTEL, 0x1c43), TCO_CPTM},
+	{ PCI_VDEVICE(INTEL, 0x1c44), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c45), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c46), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c47), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c48), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c49), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c4a), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c4b), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c4c), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c4d), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c4e), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c4f), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c50), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c51), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c52), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c53), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c54), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c55), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c56), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c57), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c58), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c59), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c5a), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c5b), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c5c), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c5d), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c5e), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1c5f), TCO_CPT},
+	{ PCI_VDEVICE(INTEL, 0x1d40), TCO_PBG},
+	{ PCI_VDEVICE(INTEL, 0x1d41), TCO_PBG},
+	{ PCI_VDEVICE(INTEL, 0x2310), TCO_DH89XXCC},
+	{ PCI_VDEVICE(INTEL, 0x1e40), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e41), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e42), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e43), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e44), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e45), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e46), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e47), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e48), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e49), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e4a), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e4b), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e4c), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e4d), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e4e), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e4f), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e50), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e51), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e52), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e53), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e54), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e55), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e56), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e57), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e58), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e59), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e5a), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e5b), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e5c), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e5d), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e5e), TCO_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1e5f), TCO_PPT},
 	{ 0, },			/* End of list */
 };
 MODULE_DEVICE_TABLE(pci, iTCO_wdt_pci_tbl);
@@ -1052,15 +923,10 @@ static void iTCO_wdt_shutdown(struct platform_device *dev)
 	iTCO_wdt_stop();
 }
 
-#define iTCO_wdt_suspend NULL
-#define iTCO_wdt_resume  NULL
-
 static struct platform_driver iTCO_wdt_driver = {
 	.probe          = iTCO_wdt_probe,
 	.remove         = __devexit_p(iTCO_wdt_remove),
 	.shutdown       = iTCO_wdt_shutdown,
-	.suspend        = iTCO_wdt_suspend,
-	.resume         = iTCO_wdt_resume,
 	.driver         = {
 		.owner  = THIS_MODULE,
 		.name   = DRV_NAME,

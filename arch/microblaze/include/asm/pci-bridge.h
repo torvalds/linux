@@ -10,31 +10,19 @@
 #include <linux/pci.h>
 #include <linux/list.h>
 #include <linux/ioport.h>
+#include <asm-generic/pci-bridge.h>
 
 struct device_node;
 
-enum {
-	/* Force re-assigning all resources (ignore firmware
-	 * setup completely)
-	 */
-	PCI_REASSIGN_ALL_RSRC	= 0x00000001,
-
-	/* Re-assign all bus numbers */
-	PCI_REASSIGN_ALL_BUS	= 0x00000002,
-
-	/* Do not try to assign, just use existing setup */
-	PCI_PROBE_ONLY		= 0x00000004,
-
-	/* Don't bother with ISA alignment unless the bridge has
-	 * ISA forwarding enabled
-	 */
-	PCI_CAN_SKIP_ISA_ALIGN	= 0x00000008,
-
-	/* Enable domain numbers in /proc */
-	PCI_ENABLE_PROC_DOMAINS	= 0x00000010,
-	/* ... except for domain 0 */
-	PCI_COMPAT_DOMAIN_0		= 0x00000020,
-};
+#ifdef CONFIG_PCI
+extern struct list_head hose_list;
+extern int pcibios_vaddr_is_ioport(void __iomem *address);
+#else
+static inline int pcibios_vaddr_is_ioport(void __iomem *address)
+{
+	return 0;
+}
+#endif
 
 /*
  * Structure of a PCI controller (host bridge)
@@ -110,16 +98,6 @@ static inline struct pci_controller *pci_bus_to_host(const struct pci_bus *bus)
 	return bus->sysdata;
 }
 
-static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
-{
-	struct pci_controller *host;
-
-	if (bus->self)
-		return pci_device_to_OF_node(bus->self);
-	host = pci_bus_to_host(bus);
-	return host ? host->dn : NULL;
-}
-
 static inline int isa_vaddr_is_ioport(void __iomem *address)
 {
 	/* No specific ISA handling on ppc32 at this stage, it
@@ -163,41 +141,6 @@ extern void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 extern struct pci_controller *pcibios_alloc_controller(struct device_node *dev);
 extern void pcibios_free_controller(struct pci_controller *phb);
 extern void pcibios_setup_phb_resources(struct pci_controller *hose);
-
-#ifdef CONFIG_PCI
-extern unsigned int pci_flags;
-
-static inline void pci_set_flags(int flags)
-{
-	pci_flags = flags;
-}
-
-static inline void pci_add_flags(int flags)
-{
-	pci_flags |= flags;
-}
-
-static inline int pci_has_flag(int flag)
-{
-	return pci_flags & flag;
-}
-
-extern struct list_head hose_list;
-
-extern int pcibios_vaddr_is_ioport(void __iomem *address);
-#else
-static inline int pcibios_vaddr_is_ioport(void __iomem *address)
-{
-	return 0;
-}
-
-static inline void pci_set_flags(int flags) { }
-static inline void pci_add_flags(int flags) { }
-static inline int pci_has_flag(int flag)
-{
-	return 0;
-}
-#endif	/* CONFIG_PCI */
 
 #endif	/* __KERNEL__ */
 #endif	/* _ASM_MICROBLAZE_PCI_BRIDGE_H */

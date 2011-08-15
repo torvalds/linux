@@ -477,8 +477,9 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	calc_layout(osdc, vino, layout, off, plen, req, ops);
 	req->r_file_layout = *layout;  /* keep a copy */
 
-	/* in case it differs from natural alignment that calc_layout
-	   filled in for us */
+	/* in case it differs from natural (file) alignment that
+	   calc_layout filled in for us */
+	req->r_num_pages = calc_pages_for(page_align, *plen);
 	req->r_page_alignment = page_align;
 
 	ceph_osdc_build_request(req, off, plen, ops,
@@ -1084,7 +1085,13 @@ static void handle_timeout(struct work_struct *work)
 		req = list_entry(osdc->req_lru.next, struct ceph_osd_request,
 				 r_req_lru_item);
 
+		/* hasn't been long enough since we sent it? */
 		if (time_before(jiffies, req->r_stamp + timeout))
+			break;
+
+		/* hasn't been long enough since it was acked? */
+		if (req->r_request->ack_stamp == 0 ||
+		    time_before(jiffies, req->r_request->ack_stamp + timeout))
 			break;
 
 		BUG_ON(req == last_req && req->r_stamp == last_stamp);
@@ -1142,6 +1149,13 @@ static void handle_osds_timeout(struct work_struct *work)
 
 	schedule_delayed_work(&osdc->osds_timeout_work,
 			      round_jiffies_relative(delay));
+}
+
+static void complete_request(struct ceph_osd_request *req)
+{
+	if (req->r_safe_callback)
+		req->r_safe_callback(req, NULL);
+	complete_all(&req->r_safe_completion);  /* fsync waiter */
 }
 
 /*
@@ -1226,11 +1240,8 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg,
 	else
 		complete_all(&req->r_completion);
 
-	if (flags & CEPH_OSD_FLAG_ONDISK) {
-		if (req->r_safe_callback)
-			req->r_safe_callback(req, msg);
-		complete_all(&req->r_safe_completion);  /* fsync waiter */
-	}
+	if (flags & CEPH_OSD_FLAG_ONDISK)
+		complete_request(req);
 
 done:
 	dout("req=%p req->r_linger=%d\n", req, req->r_linger);
@@ -1732,6 +1743,7 @@ int ceph_osdc_wait_request(struct ceph_osd_client *osdc,
 		__cancel_request(req);
 		__unregister_request(osdc, req);
 		mutex_unlock(&osdc->request_mutex);
+		complete_request(req);
 		dout("wait_request tid %llu canceled/timed out\n", req->r_tid);
 		return rc;
 	}
@@ -2022,8 +2034,9 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 		int want = calc_pages_for(req->r_page_alignment, data_len);
 
 		if (unlikely(req->r_num_pages < want)) {
-			pr_warning("tid %lld reply %d > expected %d pages\n",
-				   tid, want, m->nr_pages);
+			pr_warning("tid %lld reply has %d bytes %d pages, we"
+				   " had only %d pages ready\n", tid, data_len,
+				   want, req->r_num_pages);
 			*skip = 1;
 			ceph_msg_put(m);
 			m = NULL;

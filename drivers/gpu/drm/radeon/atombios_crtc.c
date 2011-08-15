@@ -671,6 +671,13 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 								DISPPLL_CONFIG_DUAL_LINK;
 					}
 				}
+				if (radeon_encoder_is_dp_bridge(encoder)) {
+					struct drm_encoder *ext_encoder = radeon_atom_get_external_encoder(encoder);
+					struct radeon_encoder *ext_radeon_encoder = to_radeon_encoder(ext_encoder);
+					args.v3.sInput.ucExtTransmitterID = ext_radeon_encoder->encoder_id;
+				} else
+					args.v3.sInput.ucExtTransmitterID = 0;
+
 				atom_execute_table(rdev->mode_info.atom_context,
 						   index, (uint32_t *)&args);
 				adjusted_clock = le32_to_cpu(args.v3.sOutput.ulDispPllFreq) * 10;
@@ -757,7 +764,7 @@ static void atombios_crtc_set_dcpll(struct drm_crtc *crtc,
 }
 
 static void atombios_crtc_program_pll(struct drm_crtc *crtc,
-				      int crtc_id,
+				      u32 crtc_id,
 				      int pll_id,
 				      u32 encoder_mode,
 				      u32 encoder_id,
@@ -844,8 +851,7 @@ static void atombios_crtc_program_pll(struct drm_crtc *crtc,
 			args.v5.ucPpll = pll_id;
 			break;
 		case 6:
-			args.v6.ulCrtcPclkFreq.ucCRTC = crtc_id;
-			args.v6.ulCrtcPclkFreq.ulPixelClock = cpu_to_le32(clock / 10);
+			args.v6.ulDispEngClkFreq = cpu_to_le32(crtc_id << 24 | clock / 10);
 			args.v6.ucRefDiv = ref_div;
 			args.v6.usFbDiv = cpu_to_le16(fb_div);
 			args.v6.ulFbDivDecFrac = cpu_to_le32(frac_fb_div * 100000);
@@ -1045,7 +1051,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	uint64_t fb_location;
 	uint32_t fb_format, fb_pitch_pixels, tiling_flags;
 	u32 fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_NONE);
-	u32 tmp;
+	u32 tmp, viewport_w, viewport_h;
 	int r;
 
 	/* no fb bound */
@@ -1171,8 +1177,10 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	y &= ~1;
 	WREG32(EVERGREEN_VIEWPORT_START + radeon_crtc->crtc_offset,
 	       (x << 16) | y);
+	viewport_w = crtc->mode.hdisplay;
+	viewport_h = (crtc->mode.vdisplay + 1) & ~1;
 	WREG32(EVERGREEN_VIEWPORT_SIZE + radeon_crtc->crtc_offset,
-	       (crtc->mode.hdisplay << 16) | crtc->mode.vdisplay);
+	       (viewport_w << 16) | viewport_h);
 
 	/* pageflip setup */
 	/* make sure flip is at vb rather than hb */
@@ -1213,7 +1221,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	uint64_t fb_location;
 	uint32_t fb_format, fb_pitch_pixels, tiling_flags;
 	u32 fb_swap = R600_D1GRPH_SWAP_ENDIAN_NONE;
-	u32 tmp;
+	u32 tmp, viewport_w, viewport_h;
 	int r;
 
 	/* no fb bound */
@@ -1338,8 +1346,10 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	y &= ~1;
 	WREG32(AVIVO_D1MODE_VIEWPORT_START + radeon_crtc->crtc_offset,
 	       (x << 16) | y);
+	viewport_w = crtc->mode.hdisplay;
+	viewport_h = (crtc->mode.vdisplay + 1) & ~1;
 	WREG32(AVIVO_D1MODE_VIEWPORT_SIZE + radeon_crtc->crtc_offset,
-	       (crtc->mode.hdisplay << 16) | crtc->mode.vdisplay);
+	       (viewport_w << 16) | viewport_h);
 
 	/* pageflip setup */
 	/* make sure flip is at vb rather than hb */

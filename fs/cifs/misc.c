@@ -585,15 +585,8 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 
 				cifs_set_oplock_level(pCifsInode,
 					pSMB->OplockLevel ? OPLOCK_READ : 0);
-				/*
-				 * cifs_oplock_break_put() can't be called
-				 * from here.  Get reference after queueing
-				 * succeeded.  cifs_oplock_break() will
-				 * synchronize using cifs_file_list_lock.
-				 */
-				if (queue_work(system_nrt_wq,
-					       &netfile->oplock_break))
-					cifs_oplock_break_get(netfile);
+				queue_work(system_nrt_wq,
+					   &netfile->oplock_break);
 				netfile->oplock_break_cancelled = false;
 
 				spin_unlock(&cifs_file_list_lock);

@@ -31,13 +31,13 @@ lib-$(CONFIG_SPARC64) += NGmemcpy.o NGcopy_from_user.o NGcopy_to_user.o
 lib-$(CONFIG_SPARC64) += NGpatch.o NGpage.o NGbzero.o
 
 lib-$(CONFIG_SPARC64) += NG2memcpy.o NG2copy_from_user.o NG2copy_to_user.o
-lib-$(CONFIG_SPARC64) +=  NG2patch.o NG2page.o
+lib-$(CONFIG_SPARC64) +=  NG2patch.o
 
 lib-$(CONFIG_SPARC64) += GENmemcpy.o GENcopy_from_user.o GENcopy_to_user.o
 lib-$(CONFIG_SPARC64) += GENpatch.o GENpage.o GENbzero.o
 
 lib-$(CONFIG_SPARC64) += copy_in_user.o user_fixup.o memmove.o
-lib-$(CONFIG_SPARC64) += mcount.o ipcsum.o xor.o
+lib-$(CONFIG_SPARC64) += mcount.o ipcsum.o xor.o hweight.o ffs.o
 
 obj-y                 += iomap.o
 obj-$(CONFIG_SPARC32) += atomic32.o

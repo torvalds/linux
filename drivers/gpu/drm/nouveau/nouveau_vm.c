@@ -58,6 +58,7 @@ nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_mem *node)
 			num -= len;
 			pte += len;
 			if (unlikely(end >= max)) {
+				phys += len << (bits + 12);
 				pde++;
 				pte = 0;
 			}
@@ -368,23 +369,26 @@ nouveau_vm_link(struct nouveau_vm *vm, struct nouveau_gpuobj *pgd)
 }
 
 static void
-nouveau_vm_unlink(struct nouveau_vm *vm, struct nouveau_gpuobj *pgd)
+nouveau_vm_unlink(struct nouveau_vm *vm, struct nouveau_gpuobj *mpgd)
 {
 	struct nouveau_vm_pgd *vpgd, *tmp;
+	struct nouveau_gpuobj *pgd = NULL;
 
-	if (!pgd)
+	if (!mpgd)
 		return;
 
 	mutex_lock(&vm->mm->mutex);
 	list_for_each_entry_safe(vpgd, tmp, &vm->pgd_list, head) {
-		if (vpgd->obj != pgd)
-			continue;
-
-		list_del(&vpgd->head);
-		nouveau_gpuobj_ref(NULL, &vpgd->obj);
-		kfree(vpgd);
+		if (vpgd->obj == mpgd) {
+			pgd = vpgd->obj;
+			list_del(&vpgd->head);
+			kfree(vpgd);
+			break;
+		}
 	}
 	mutex_unlock(&vm->mm->mutex);
+
+	nouveau_gpuobj_ref(NULL, &pgd);
 }
 
 static void
@@ -395,8 +399,8 @@ nouveau_vm_del(struct nouveau_vm *vm)
 	list_for_each_entry_safe(vpgd, tmp, &vm->pgd_list, head) {
 		nouveau_vm_unlink(vm, vpgd->obj);
 	}
-	WARN_ON(nouveau_mm_fini(&vm->mm) != 0);
 
+	nouveau_mm_fini(&vm->mm);
 	kfree(vm->pgt);
 	kfree(vm);
 }

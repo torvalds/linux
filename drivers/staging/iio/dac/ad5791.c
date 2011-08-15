@@ -76,7 +76,7 @@ static ssize_t ad5791_write_dac(struct device *dev,
 				 const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad5791_state *st = iio_dev_get_devdata(indio_dev);
+	struct ad5791_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	long readin;
 	int ret;
@@ -98,7 +98,7 @@ static ssize_t ad5791_read_dac(struct device *dev,
 					   char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad5791_state *st = iio_dev_get_devdata(indio_dev);
+	struct ad5791_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret;
 	int val;
@@ -118,7 +118,7 @@ static ssize_t ad5791_read_powerdown_mode(struct device *dev,
 				      struct device_attribute *attr, char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad5791_state *st = iio_dev_get_devdata(indio_dev);
+	struct ad5791_state *st = iio_priv(indio_dev);
 
 	const char mode[][14] = {"6kohm_to_gnd", "three_state"};
 
@@ -130,7 +130,7 @@ static ssize_t ad5791_write_powerdown_mode(struct device *dev,
 				       const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad5791_state *st = iio_dev_get_devdata(indio_dev);
+	struct ad5791_state *st = iio_priv(indio_dev);
 	int ret;
 
 	if (sysfs_streq(buf, "6kohm_to_gnd"))
@@ -148,7 +148,7 @@ static ssize_t ad5791_read_dac_powerdown(struct device *dev,
 					   char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad5791_state *st = iio_dev_get_devdata(indio_dev);
+	struct ad5791_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", st->pwr_down);
 }
@@ -160,7 +160,7 @@ static ssize_t ad5791_write_dac_powerdown(struct device *dev,
 	long readin;
 	int ret;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad5791_state *st = iio_dev_get_devdata(indio_dev);
+	struct ad5791_state *st = iio_priv(indio_dev);
 
 	ret = strict_strtol(buf, 10, &readin);
 	if (ret)
@@ -188,7 +188,7 @@ static ssize_t ad5791_show_scale(struct device *dev,
 				char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad5791_state *st = iio_dev_get_devdata(indio_dev);
+	struct ad5791_state *st = iio_priv(indio_dev);
 	/* Corresponds to Vref / 2^(bits) */
 	unsigned int scale_uv = (st->vref_mv * 1000) >> st->chip_info->bits;
 
@@ -201,7 +201,7 @@ static ssize_t ad5791_show_name(struct device *dev,
 				 char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad5791_state *st = iio_dev_get_devdata(indio_dev);
+	struct ad5791_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "%s\n", spi_get_device_id(st->spi)->name);
 }
@@ -295,36 +295,39 @@ static const struct iio_info ad5791_info = {
 static int __devinit ad5791_probe(struct spi_device *spi)
 {
 	struct ad5791_platform_data *pdata = spi->dev.platform_data;
+	struct iio_dev *indio_dev;
+	struct regulator *reg_vdd, *reg_vss;
 	struct ad5791_state *st;
 	int ret, pos_voltage_uv = 0, neg_voltage_uv = 0;
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
-	if (st == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-
-	spi_set_drvdata(spi, st);
-
-	st->reg_vdd = regulator_get(&spi->dev, "vdd");
-	if (!IS_ERR(st->reg_vdd)) {
-		ret = regulator_enable(st->reg_vdd);
+	reg_vdd = regulator_get(&spi->dev, "vdd");
+	if (!IS_ERR(reg_vdd)) {
+		ret = regulator_enable(reg_vdd);
 		if (ret)
 			goto error_put_reg_pos;
 
-		pos_voltage_uv = regulator_get_voltage(st->reg_vdd);
+		pos_voltage_uv = regulator_get_voltage(reg_vdd);
 	}
 
-	st->reg_vss = regulator_get(&spi->dev, "vss");
-	if (!IS_ERR(st->reg_vss)) {
-		ret = regulator_enable(st->reg_vss);
+	reg_vss = regulator_get(&spi->dev, "vss");
+	if (!IS_ERR(reg_vss)) {
+		ret = regulator_enable(reg_vss);
 		if (ret)
 			goto error_put_reg_neg;
 
-		neg_voltage_uv = regulator_get_voltage(st->reg_vss);
+		neg_voltage_uv = regulator_get_voltage(reg_vss);
 	}
 
-	if (!IS_ERR(st->reg_vss) && !IS_ERR(st->reg_vdd))
+	indio_dev = iio_allocate_device(sizeof(*st));
+	if (indio_dev == NULL) {
+		ret = -ENOMEM;
+		goto error_disable_reg_neg;
+	}
+	st = iio_priv(indio_dev);
+	st->pwr_down = true;
+	st->spi = spi;
+
+	if (!IS_ERR(reg_vss) && !IS_ERR(reg_vdd))
 		st->vref_mv = (pos_voltage_uv - neg_voltage_uv) / 1000;
 	else if (pdata)
 		st->vref_mv = pdata->vref_pos_mv - pdata->vref_neg_mv;
@@ -333,7 +336,7 @@ static int __devinit ad5791_probe(struct spi_device *spi)
 
 	ret = ad5791_spi_write(spi, AD5791_ADDR_SW_CTRL, AD5791_SWCTRL_RESET);
 	if (ret)
-		goto error_disable_reg_neg;
+		goto error_free_dev;
 
 	st->chip_info =
 		&ad5791_chip_info_tbl[spi_get_device_id(spi)->driver_data];
@@ -346,65 +349,60 @@ static int __devinit ad5791_probe(struct spi_device *spi)
 	ret = ad5791_spi_write(spi, AD5791_ADDR_CTRL, st->ctrl |
 		AD5791_CTRL_OPGND | AD5791_CTRL_DACTRI);
 	if (ret)
-		goto error_disable_reg_neg;
+		goto error_free_dev;
 
-	st->pwr_down = true;
+	st->reg_vdd = reg_vdd;
+	st->reg_vss = reg_vss;
 
-	st->spi = spi;
-	st->indio_dev = iio_allocate_device(0);
-	if (st->indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_disable_reg_neg;
-	}
-	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->info = &ad5791_info;
-	st->indio_dev->modes = INDIO_DIRECT_MODE;
+	spi_set_drvdata(spi, indio_dev);
+	indio_dev->dev.parent = &spi->dev;
+	indio_dev->info = &ad5791_info;
+	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(st->indio_dev);
+	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_free_dev;
 
 	return 0;
 
 error_free_dev:
-	iio_free_device(st->indio_dev);
+	iio_free_device(indio_dev);
 
 error_disable_reg_neg:
-	if (!IS_ERR(st->reg_vss))
-		regulator_disable(st->reg_vss);
+	if (!IS_ERR(reg_vss))
+		regulator_disable(reg_vss);
 error_put_reg_neg:
-	if (!IS_ERR(st->reg_vss))
-		regulator_put(st->reg_vss);
+	if (!IS_ERR(reg_vss))
+		regulator_put(reg_vss);
 
-	if (!IS_ERR(st->reg_vdd))
-		regulator_disable(st->reg_vdd);
+	if (!IS_ERR(reg_vdd))
+		regulator_disable(reg_vdd);
 error_put_reg_pos:
-	if (!IS_ERR(st->reg_vdd))
-		regulator_put(st->reg_vdd);
+	if (!IS_ERR(reg_vdd))
+		regulator_put(reg_vdd);
 
-	kfree(st);
 error_ret:
 	return ret;
 }
 
 static int __devexit ad5791_remove(struct spi_device *spi)
 {
-	struct ad5791_state *st = spi_get_drvdata(spi);
+	struct iio_dev *indio_dev = spi_get_drvdata(spi);
+	struct ad5791_state *st = iio_priv(indio_dev);
+	struct regulator *reg_vdd = st->reg_vdd;
+	struct regulator *reg_vss = st->reg_vss;
 
-	iio_device_unregister(st->indio_dev);
+	iio_device_unregister(indio_dev);
 
 	if (!IS_ERR(st->reg_vdd)) {
-		regulator_disable(st->reg_vdd);
-		regulator_put(st->reg_vdd);
+		regulator_disable(reg_vdd);
+		regulator_put(reg_vdd);
 	}
 
 	if (!IS_ERR(st->reg_vss)) {
-		regulator_disable(st->reg_vss);
-		regulator_put(st->reg_vss);
+		regulator_disable(reg_vss);
+		regulator_put(reg_vss);
 	}
-
-	kfree(st);
 
 	return 0;
 }
