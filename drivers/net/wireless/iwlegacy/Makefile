@@ -3,11 +3,8 @@ iwl-legacy-objs 		:= iwl-core.o iwl-eeprom.o iwl-hcmd.o iwl-power.o
 iwl-legacy-objs 		+= iwl-rx.o iwl-tx.o iwl-sta.o
 iwl-legacy-objs 		+= iwl-scan.o iwl-led.o
 iwl-legacy-$(CONFIG_IWLWIFI_LEGACY_DEBUGFS) += iwl-debugfs.o
-iwl-legacy-$(CONFIG_IWLWIFI_LEGACY_DEVICE_TRACING) += iwl-devtrace.o
 
 iwl-legacy-objs += $(iwl-legacy-m)
-
-CFLAGS_iwl-devtrace.o := -I$(src)
 
 # 4965
 obj-$(CONFIG_IWL4965)	+= iwl4965.o

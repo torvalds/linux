@@ -539,9 +539,6 @@ int iwl_legacy_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	dma_unmap_addr_set(out_meta, mapping, phys_addr);
 	dma_unmap_len_set(out_meta, len, fix_size);
 
-	trace_iwlwifi_legacy_dev_hcmd(priv, &out_cmd->hdr,
-						fix_size, cmd->flags);
-
 	priv->cfg->ops->lib->txq_attach_buf_to_tfd(priv, txq,
 						   phys_addr, fix_size, 1,
 						   U32_PAD(cmd->len));

@@ -43,23 +43,6 @@ config IWLWIFI_LEGACY_DEBUGFS
 	  is a low-impact option that allows getting insight into the
 	  driver's state at runtime.
 
-config IWLWIFI_LEGACY_DEVICE_TRACING
-	bool "iwlwifilegacy legacy device access tracing"
-	depends on IWLWIFI_LEGACY
-	depends on EVENT_TRACING
-	help
-	  Say Y here to trace all commands, including TX frames and IO
-	  accesses, sent to the device. If you say yes, iwlwifilegacy will
-	  register with the ftrace framework for event tracing and dump
-	  all this information to the ringbuffer, you may need to
-	  increase the ringbuffer size. See the ftrace documentation
-	  for more information.
-
-	  When tracing is not enabled, this option still has some
-	  (though rather small) overhead.
-
-	  If unsure, say Y so we can help you better when problems
-	  occur.
 endmenu
 
 config IWL4965

@@ -1246,7 +1246,6 @@ static void iwl3945_rx_handle(struct iwl_priv *priv)
 
 		len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 		len += sizeof(u32); /* account for status word */
-		trace_iwlwifi_legacy_dev_rx(priv, pkt, len);
 
 		/* Reclaim a command buffer only if this packet is a response
 		 *   to a (driver-originated) command.
@@ -1403,8 +1402,6 @@ void iwl3945_dump_nic_error_log(struct iwl_priv *priv)
 			"%-13s (0x%X) %010u 0x%05X 0x%05X 0x%05X 0x%05X %u\n\n",
 			iwl3945_desc_lookup(desc), desc, time, blink1, blink2,
 			ilink1, ilink2, data1);
-		trace_iwlwifi_legacy_dev_ucode_error(priv, desc, time, data1, 0,
-					0, blink1, blink2, ilink1, ilink2);
 	}
 }
 

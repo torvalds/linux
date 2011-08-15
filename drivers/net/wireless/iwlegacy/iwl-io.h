@@ -33,7 +33,6 @@
 
 #include "iwl-dev.h"
 #include "iwl-debug.h"
-#include "iwl-devtrace.h"
 
 /*
  * IO, register, and NIC memory access functions
@@ -65,7 +64,6 @@
 
 static inline void _iwl_legacy_write8(struct iwl_priv *priv, u32 ofs, u8 val)
 {
-	trace_iwlwifi_legacy_dev_iowrite8(priv, ofs, val);
 	iowrite8(val, priv->hw_base + ofs);
 }
 
@@ -86,7 +84,6 @@ __iwl_legacy_write8(const char *f, u32 l, struct iwl_priv *priv,
 
 static inline void _iwl_legacy_write32(struct iwl_priv *priv, u32 ofs, u32 val)
 {
-	trace_iwlwifi_legacy_dev_iowrite32(priv, ofs, val);
 	iowrite32(val, priv->hw_base + ofs);
 }
 
@@ -107,7 +104,6 @@ __iwl_legacy_write32(const char *f, u32 l, struct iwl_priv *priv,
 static inline u32 _iwl_legacy_read32(struct iwl_priv *priv, u32 ofs)
 {
 	u32 val = ioread32(priv->hw_base + ofs);
-	trace_iwlwifi_legacy_dev_ioread32(priv, ofs, val);
 	return val;
 }
 

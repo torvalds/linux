@@ -679,7 +679,6 @@ void iwl4965_rx_handle(struct iwl_priv *priv)
 
 		len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 		len += sizeof(u32); /* account for status word */
-		trace_iwlwifi_legacy_dev_rx(priv, pkt, len);
 
 		/* Reclaim a command buffer only if this packet is a response
 		 *   to a (driver-originated) command.
@@ -1568,10 +1567,6 @@ void iwl4965_dump_nic_error_log(struct iwl_priv *priv)
 	line = iwl_legacy_read_targ_mem(priv, base + 9 * sizeof(u32));
 	time = iwl_legacy_read_targ_mem(priv, base + 11 * sizeof(u32));
 	hcmd = iwl_legacy_read_targ_mem(priv, base + 22 * sizeof(u32));
-
-	trace_iwlwifi_legacy_dev_ucode_error(priv, desc,
-					time, data1, data2, line,
-				      blink1, blink2, ilink1, ilink2);
 
 	IWL_ERR(priv, "Desc                                  Time       "
 		"data1      data2      line\n");

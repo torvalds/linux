@@ -513,12 +513,6 @@ int iwl4965_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	pci_dma_sync_single_for_device(priv->pci_dev, txcmd_phys,
 				       firstlen, PCI_DMA_BIDIRECTIONAL);
 
-	trace_iwlwifi_legacy_dev_tx(priv,
-			     &((struct iwl_tfd *)txq->tfds)[txq->q.write_ptr],
-			     sizeof(struct iwl_tfd),
-			     &out_cmd->hdr, firstlen,
-			     skb->data + hdr_len, secondlen);
-
 	/* Tell device the write index *just past* this latest filled TFD */
 	q->write_ptr = iwl_legacy_queue_inc_wrap(q->write_ptr, q->n_bd);
 	iwl_legacy_txq_update_write_ptr(priv, txq);
