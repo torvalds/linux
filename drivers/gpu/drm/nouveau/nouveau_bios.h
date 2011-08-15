@@ -58,6 +58,8 @@ struct dcb_i2c_entry {
 enum dcb_gpio_tag {
 	DCB_GPIO_TVDAC0 = 0xc,
 	DCB_GPIO_TVDAC1 = 0x2d,
+	DCB_GPIO_PWM_FAN = 0x9,
+	DCB_GPIO_FAN_SENSE = 0x3d,
 };
 
 struct dcb_gpio_entry {

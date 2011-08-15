@@ -55,6 +55,10 @@ nouveau_temp_vbios_parse(struct drm_device *dev, u8 *temp)
 	temps->down_clock = 100;
 	temps->fan_boost = 90;
 
+	/* Set the default range for the pwm fan */
+	pm->fan.min_duty = 30;
+	pm->fan.max_duty = 100;
+
 	/* Set the known default values to setup the temperature sensor */
 	if (dev_priv->card_type >= NV_40) {
 		switch (dev_priv->chipset) {
@@ -156,11 +160,23 @@ nouveau_temp_vbios_parse(struct drm_device *dev, u8 *temp)
 		case 0x13:
 			sensor->slope_div = value;
 			break;
+		case 0x22:
+			pm->fan.min_duty = value & 0xff;
+			pm->fan.max_duty = (value & 0xff00) >> 8;
+			break;
 		}
 		temp += recordlen;
 	}
 
 	nouveau_temp_safety_checks(dev);
+
+	/* check the fan min/max settings */
+	if (pm->fan.min_duty < 10)
+		pm->fan.min_duty = 10;
+	if (pm->fan.max_duty > 100)
+		pm->fan.max_duty = 100;
+	if (pm->fan.max_duty < pm->fan.min_duty)
+		pm->fan.max_duty = pm->fan.min_duty;
 }
 
 static int
