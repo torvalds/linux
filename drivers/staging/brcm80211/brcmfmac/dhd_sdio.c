@@ -910,7 +910,7 @@ static int brcmf_sdbrcm_send_buf(struct brcmf_bus *bus, u32 addr, uint fn,
 			       uint flags, u8 *buf, uint nbytes,
 			       struct sk_buff *pkt);
 
-static bool brcmf_sdbrcm_download_firmware(struct brcmf_bus *bus, void *card);
+static bool brcmf_sdbrcm_download_firmware(struct brcmf_bus *bus);
 static int  _brcmf_sdbrcm_download_firmware(struct brcmf_bus *bus);
 
 static int brcmf_sdbrcm_download_code_file(struct brcmf_bus *bus);
@@ -3100,7 +3100,7 @@ int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr, bool enforce_mutex)
 
 	/* try to download image and nvram to the dongle */
 	if (drvr->busstate == BRCMF_BUS_DOWN) {
-		if (!(brcmf_sdbrcm_download_firmware(bus, bus->sdiodev)))
+		if (!(brcmf_sdbrcm_download_firmware(bus)))
 			return -1;
 	}
 
@@ -5122,7 +5122,7 @@ static bool brcmf_sdbrcm_probe_init(struct brcmf_bus *bus)
 }
 
 static bool
-brcmf_sdbrcm_download_firmware(struct brcmf_bus *bus, void *card)
+brcmf_sdbrcm_download_firmware(struct brcmf_bus *bus)
 {
 	bool ret;
 

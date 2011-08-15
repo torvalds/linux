@@ -978,7 +978,7 @@ static int brcmf_netdev_ioctl_entry(struct net_device *net, struct ifreq *ifr,
 		return -1;
 
 	if (cmd == SIOCETHTOOL)
-		return brcmf_ethtool(drvr_priv, (void *)ifr->ifr_data);
+		return brcmf_ethtool(drvr_priv, ifr->ifr_data);
 
 	if (cmd != SIOCDEVPRIVATE)
 		return -EOPNOTSUPP;
@@ -1140,12 +1140,12 @@ static int brcmf_netdev_open(struct net_device *net)
 }
 
 int
-brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx, void *handle, char *name,
-	   u8 *mac_addr, u32 flags, u8 bssidx)
+brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx, struct net_device *net,
+	     char *name, u8 *mac_addr, u32 flags, u8 bssidx)
 {
 	struct brcmf_if *ifp;
 
-	BRCMF_TRACE(("%s: idx %d, handle->%p\n", __func__, ifidx, handle));
+	BRCMF_TRACE(("%s: idx %d, handle->%p\n", __func__, ifidx, net));
 
 	ifp = drvr_priv->iflist[ifidx];
 	if (!ifp) {
@@ -1163,12 +1163,12 @@ brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx, void *handle, char *name,
 	if (mac_addr != NULL)
 		memcpy(&ifp->mac_addr, mac_addr, ETH_ALEN);
 
-	if (handle == NULL) {
+	if (net == NULL) {
 		ifp->state = BRCMF_E_IF_ADD;
 		ifp->idx = ifidx;
 		wake_up(&drvr_priv->sysioc_waitq);
 	} else
-		ifp->net = (struct net_device *)handle;
+		ifp->net = net;
 
 	return 0;
 }
@@ -1228,7 +1228,7 @@ struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
 			strcat(net->name, "%d");
 	}
 
-	if (brcmf_add_if(drvr_priv, 0, (void *)net, net->name, NULL, 0, 0) ==
+	if (brcmf_add_if(drvr_priv, 0, net, net->name, NULL, 0, 0) ==
 	    BRCMF_BAD_IF)
 		goto fail;
 
