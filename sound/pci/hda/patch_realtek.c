@@ -5314,14 +5314,9 @@ static int alc680_parse_auto_config(struct hda_codec *codec)
 
 /*
  */
-#ifdef CONFIG_SND_HDA_ENABLE_REALTEK_QUIRKS
-#include "alc680_quirks.c"
-#endif
-
 static int patch_alc680(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
-	int board_config;
 	int err;
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
@@ -5332,43 +5327,11 @@ static int patch_alc680(struct hda_codec *codec)
 
 	/* ALC680 has no aa-loopback mixer */
 
-	board_config = alc_board_config(codec, ALC680_MODEL_LAST,
-					alc680_models, alc680_cfg_tbl);
-
-	if (board_config < 0) {
-		printk(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
-		       codec->chip_name);
-		board_config = ALC_MODEL_AUTO;
-	}
-
-	if (board_config == ALC_MODEL_AUTO) {
-		/* automatic parse from the BIOS config */
-		err = alc680_parse_auto_config(codec);
-		if (err < 0) {
-			alc_free(codec);
-			return err;
-		}
-#ifdef CONFIG_SND_HDA_ENABLE_REALTEK_QUIRKS
-		else if (!err) {
-			printk(KERN_INFO
-			       "hda_codec: Cannot set up configuration "
-			       "from BIOS.  Using base mode...\n");
-			board_config = ALC680_BASE;
-		}
-#endif
-	}
-
-	if (board_config != ALC_MODEL_AUTO) {
-		setup_preset(codec, &alc680_presets[board_config]);
-#ifdef CONFIG_SND_HDA_ENABLE_REALTEK_QUIRKS
-		spec->stream_analog_capture = &alc680_pcm_analog_auto_capture;
-#endif
-	}
-
-	if (!spec->no_analog && !spec->adc_nids) {
-		alc_auto_fill_adc_caps(codec);
-		alc_rebuild_imux_for_auto_mic(codec);
-		alc_remove_invalid_adc_nids(codec);
+	/* automatic parse from the BIOS config */
+	err = alc680_parse_auto_config(codec);
+	if (err < 0) {
+		alc_free(codec);
+		return err;
 	}
 
 	if (!spec->no_analog && !spec->cap_mixer)
@@ -5377,8 +5340,7 @@ static int patch_alc680(struct hda_codec *codec)
 	spec->vmaster_nid = 0x02;
 
 	codec->patch_ops = alc_patch_ops;
-	if (board_config == ALC_MODEL_AUTO)
-		spec->init_hook = alc_auto_init_std;
+	spec->init_hook = alc_auto_init_std;
 
 	return 0;
 }
