@@ -29,9 +29,6 @@ ALC880
 
 ALC260
 ======
-  hp		HP machines
-  hp-3013	HP machines (3013-variant)
-  hp-dc7600	HP DC7600
   fujitsu	Fujitsu S7020
   acer		Acer TravelMate
   will		Will laptops (PB V7900)

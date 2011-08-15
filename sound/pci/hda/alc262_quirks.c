@@ -60,30 +60,34 @@ static const struct snd_kcontrol_new alc262_base_mixer[] = {
 	{ } /* end */
 };
 
-/* update HP, line and mono-out pins according to the master switch */
-#define alc262_hp_master_update		alc260_hp_master_update
-
-#define alc262_hp_master_sw_get		alc260_hp_master_sw_get
-#define alc262_hp_master_sw_put		alc260_hp_master_sw_put
-
-#define ALC262_HP_MASTER_SWITCH					\
-	{							\
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,		\
-		.name = "Master Playback Switch",		\
-		.info = snd_ctl_boolean_mono_info,		\
-		.get = alc262_hp_master_sw_get,			\
-		.put = alc262_hp_master_sw_put,			\
-	}, \
-	{							\
-		.iface = NID_MAPPING,				\
-		.name = "Master Playback Switch",		\
-		.private_value = 0x15 | (0x16 << 8) | (0x1b << 16),	\
-	}
-
 /* bind hp and internal speaker mute (with plug check) as master switch */
-#define alc262_hippo_master_update	alc262_hp_master_update
-#define alc262_hippo_master_sw_get	alc262_hp_master_sw_get
-#define alc262_hippo_master_sw_put	alc262_hp_master_sw_put
+static void alc262_hippo_master_update(struct hda_codec *codec)
+{
+	update_speakers(codec);
+}
+
+static int alc262_hippo_master_sw_get(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct alc_spec *spec = codec->spec;
+	*ucontrol->value.integer.value = !spec->master_mute;
+	return 0;
+}
+
+static int alc262_hippo_master_sw_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct alc_spec *spec = codec->spec;
+	int val = !*ucontrol->value.integer.value;
+
+	if (val == spec->master_mute)
+		return 0;
+	spec->master_mute = val;
+	alc262_hippo_master_update(codec);
+	return 1;
+}
 
 #define ALC262_HIPPO_MASTER_SWITCH				\
 	{							\
@@ -99,6 +103,9 @@ static const struct snd_kcontrol_new alc262_base_mixer[] = {
 		.subdevice = SUBDEV_HP(0) | (SUBDEV_LINE(0) << 8) | \
 			     (SUBDEV_SPEAKER(0) << 16), \
 	}
+
+#define alc262_hp_master_sw_get		alc262_hippo_master_sw_get
+#define alc262_hp_master_sw_put		alc262_hippo_master_sw_put
 
 static const struct snd_kcontrol_new alc262_hippo_mixer[] = {
 	ALC262_HIPPO_MASTER_SWITCH,
