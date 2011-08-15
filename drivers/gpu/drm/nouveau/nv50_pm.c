@@ -201,6 +201,8 @@ nv50_pm_fanspeed_get(struct drm_device *dev)
 int
 nv50_pm_fanspeed_set(struct drm_device *dev, int percent)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	struct pwm_info pwm;
 	u32 divs, duty;
 	int ret;
@@ -209,12 +211,20 @@ nv50_pm_fanspeed_set(struct drm_device *dev, int percent)
 	if (ret)
 		return ret;
 
-	divs = nv_rd32(dev, 0x00e114 + (pwm.id * 8));
+	divs = pm->pwm_divisor;
+	if (pm->fan.pwm_freq) {
+		/*XXX: PNVIO clock more than likely... */
+		divs = 1350000 / pm->fan.pwm_freq;
+		if (dev_priv->chipset < 0xa3)
+			divs /= 4;
+	}
+
 	duty = ((divs * percent) + 99) / 100;
 	if (pwm.invert)
 		duty = divs - duty;
 
 	nv_mask(dev, pwm.ctrl, 0x00010001 << pwm.line, 0x00000001 << pwm.line);
+	nv_wr32(dev, 0x00e114 + (pwm.id * 8), divs);
 	nv_wr32(dev, 0x00e118 + (pwm.id * 8), 0x80000000 | duty);
 	return 0;
 }

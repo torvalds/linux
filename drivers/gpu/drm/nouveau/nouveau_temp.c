@@ -164,6 +164,9 @@ nouveau_temp_vbios_parse(struct drm_device *dev, u8 *temp)
 			pm->fan.min_duty = value & 0xff;
 			pm->fan.max_duty = (value & 0xff00) >> 8;
 			break;
+		case 0x26:
+			pm->fan.pwm_freq = value;
+			break;
 		}
 		temp += recordlen;
 	}

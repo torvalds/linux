@@ -206,13 +206,12 @@ nouveau_perf_init(struct drm_device *dev)
 		if (version < 0x40) {
 			recordlen = perf[3] + (perf[4] * perf[5]);
 			entries   = perf[2];
+
+			pm->pwm_divisor = ROM16(perf[6]);
 		} else {
 			recordlen = perf[2] + (perf[3] * perf[4]);
 			entries   = perf[5];
 		}
-
-		if (version < 0x30)
-			pm->pwm_divisor = ROM16(perf[6]);
 	} else {
 		if (bios->data[bios->offset + 6] < 0x25) {
 			legacy_perf_init(dev);
