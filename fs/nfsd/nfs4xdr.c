@@ -2778,8 +2778,6 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 			read->rd_offset, resp->rqstp->rq_vec, read->rd_vlen,
 			&maxcount);
 
-	if (nfserr == nfserr_symlink)
-		nfserr = nfserr_inval;
 	if (nfserr)
 		return nfserr;
 	eof = (read->rd_offset + maxcount >=
@@ -2905,8 +2903,6 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 	    readdir->common.err == nfserr_toosmall &&
 	    readdir->buffer == page) 
 		nfserr = nfserr_toosmall;
-	if (nfserr == nfserr_symlink)
-		nfserr = nfserr_notdir;
 	if (nfserr)
 		goto err_no_verf;
 

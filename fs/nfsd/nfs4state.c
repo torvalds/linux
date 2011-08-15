@@ -4179,12 +4179,8 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (!nfsd4_has_session(cstate) && STALE_CLIENTID(&lockt->lt_clientid))
 		goto out;
 
-	if ((status = fh_verify(rqstp, &cstate->current_fh, S_IFREG, 0))) {
-		dprintk("NFSD: nfsd4_lockt: fh_verify() failed!\n");
-		if (status == nfserr_symlink)
-			status = nfserr_inval;
+	if ((status = fh_verify(rqstp, &cstate->current_fh, S_IFREG, 0)))
 		goto out;
-	}
 
 	inode = cstate->current_fh.fh_dentry->d_inode;
 	locks_init_lock(&file_lock);
