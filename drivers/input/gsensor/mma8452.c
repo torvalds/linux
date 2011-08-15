@@ -33,7 +33,7 @@
 #include <linux/earlysuspend.h>
 #endif
 
-#if 1
+#if 0
 #define mmaprintk(x...) printk(x)
 #else
 #define mmaprintk(x...)
@@ -457,8 +457,9 @@ static int mma8452_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int mma8452_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-	   unsigned long arg)
+//static int mma8452_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
+//	   unsigned long arg)
+static int mma8452_ioctl( struct file *file, unsigned int cmd,unsigned long arg)
 {
 
 	void __user *argp = (void __user *)arg;
