@@ -348,7 +348,7 @@ int security_inode_init_security(struct inode *inode, struct inode *dir,
 	int ret;
 
 	if (unlikely(IS_PRIVATE(inode)))
-		return -EOPNOTSUPP;
+		return 0;
 
 	memset(new_xattrs, 0, sizeof new_xattrs);
 	if (!initxattrs)
@@ -381,7 +381,7 @@ int security_old_inode_init_security(struct inode *inode, struct inode *dir,
 				     void **value, size_t *len)
 {
 	if (unlikely(IS_PRIVATE(inode)))
-		return -EOPNOTSUPP;
+		return 0;
 	return security_ops->inode_init_security(inode, dir, qstr, name, value,
 						 len);
 }
