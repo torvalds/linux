@@ -8,12 +8,9 @@ enum {
 	ALC268_AUTO,
 	ALC267_QUANTA_IL1,
 	ALC268_3ST,
-	ALC268_TOSHIBA,
 	ALC268_ACER,
 	ALC268_ACER_DMIC,
 	ALC268_ACER_ASPIRE_ONE,
-	ALC268_DELL,
-	ALC268_ZEPTO,
 #ifdef CONFIG_SND_DEBUG
 	ALC268_TEST,
 #endif
@@ -55,27 +52,10 @@ static const struct snd_kcontrol_new alc268_base_mixer[] = {
 	{ }
 };
 
-static const struct snd_kcontrol_new alc268_toshiba_mixer[] = {
-	/* output mixer control */
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x2, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x3, 0x0, HDA_OUTPUT),
-	ALC262_HIPPO_MASTER_SWITCH,
-	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Front Mic Boost Volume", 0x19, 0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Line In Boost Volume", 0x1a, 0, HDA_INPUT),
-	{ }
-};
-
 static const struct hda_verb alc268_eapd_verbs[] = {
 	{0x14, AC_VERB_SET_EAPD_BTLENABLE, 2},
 	{0x15, AC_VERB_SET_EAPD_BTLENABLE, 2},
 	{ }
-};
-
-/* Toshiba specific */
-static const struct hda_verb alc268_toshiba_verbs[] = {
-	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, ALC_HP_EVENT | AC_USRSP_EN},
-	{ } /* end */
 };
 
 /* Acer specific */
@@ -171,9 +151,6 @@ static const struct hda_verb alc268_acer_verbs[] = {
 	{ }
 };
 
-/* unsolicited event for HP jack sensing */
-#define alc268_toshiba_setup		alc262_hippo_setup
-
 static void alc268_acer_lc_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -184,39 +161,6 @@ static void alc268_acer_lc_setup(struct hda_codec *codec)
 	spec->ext_mic_pin = 0x18;
 	spec->int_mic_pin = 0x12;
 	spec->auto_mic = 1;
-}
-
-static const struct snd_kcontrol_new alc268_dell_mixer[] = {
-	/* output mixer control */
-	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x02, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Speaker Playback Switch", 0x14, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x03, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Internal Mic Boost Volume", 0x19, 0, HDA_INPUT),
-	{ }
-};
-
-static const struct hda_verb alc268_dell_verbs[] = {
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, ALC_HP_EVENT | AC_USRSP_EN},
-	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, ALC_MIC_EVENT | AC_USRSP_EN},
-	{ }
-};
-
-/* mute/unmute internal speaker according to the hp jack and mute state */
-static void alc268_dell_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x15;
-	spec->autocfg.speaker_pins[0] = 0x14;
-	spec->ext_mic_pin = 0x18;
-	spec->int_mic_pin = 0x19;
-	spec->auto_mic = 1;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_PIN;
 }
 
 static const struct snd_kcontrol_new alc267_quanta_il1_mixer[] = {
@@ -429,12 +373,9 @@ static const struct snd_kcontrol_new alc268_test_mixer[] = {
 static const char * const alc268_models[ALC268_MODEL_LAST] = {
 	[ALC267_QUANTA_IL1]	= "quanta-il1",
 	[ALC268_3ST]		= "3stack",
-	[ALC268_TOSHIBA]	= "toshiba",
 	[ALC268_ACER]		= "acer",
 	[ALC268_ACER_DMIC]	= "acer-dmic",
 	[ALC268_ACER_ASPIRE_ONE]	= "acer-aspire",
-	[ALC268_DELL]		= "dell",
-	[ALC268_ZEPTO]		= "zepto",
 #ifdef CONFIG_SND_DEBUG
 	[ALC268_TEST]		= "test",
 #endif
@@ -449,28 +390,8 @@ static const struct snd_pci_quirk alc268_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x0136, "Acer Aspire 5315", ALC268_ACER),
 	SND_PCI_QUIRK(0x1025, 0x015b, "Acer Aspire One",
 						ALC268_ACER_ASPIRE_ONE),
-	SND_PCI_QUIRK(0x1028, 0x0253, "Dell OEM", ALC268_DELL),
-	SND_PCI_QUIRK(0x1028, 0x02b0, "Dell Inspiron 910", ALC268_AUTO),
-	SND_PCI_QUIRK_MASK(0x1028, 0xfff0, 0x02b0,
-			"Dell Inspiron Mini9/Vostro A90", ALC268_DELL),
-	/* almost compatible with toshiba but with optional digital outs;
-	 * auto-probing seems working fine
-	 */
-	SND_PCI_QUIRK_MASK(0x103c, 0xff00, 0x3000, "HP TX25xx series",
-			   ALC268_AUTO),
 	SND_PCI_QUIRK(0x1043, 0x1205, "ASUS W7J", ALC268_3ST),
-	SND_PCI_QUIRK(0x1170, 0x0040, "ZEPTO", ALC268_ZEPTO),
-	SND_PCI_QUIRK(0x14c0, 0x0025, "COMPAL IFL90/JFL-92", ALC268_TOSHIBA),
 	SND_PCI_QUIRK(0x152d, 0x0771, "Quanta IL1", ALC267_QUANTA_IL1),
-	{}
-};
-
-/* Toshiba laptops have no unique PCI SSID but only codec SSID */
-static const struct snd_pci_quirk alc268_ssid_cfg_tbl[] = {
-	SND_PCI_QUIRK(0x1179, 0xff0a, "TOSHIBA X-200", ALC268_AUTO),
-	SND_PCI_QUIRK(0x1179, 0xff0e, "TOSHIBA X-200 HDMI", ALC268_AUTO),
-	SND_PCI_QUIRK_MASK(0x1179, 0xff00, 0xff00, "TOSHIBA A/Lx05",
-			   ALC268_TOSHIBA),
 	{}
 };
 
@@ -505,24 +426,6 @@ static const struct alc_config_preset alc268_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc268_modes),
 		.channel_mode = alc268_modes,
 		.input_mux = &alc268_capture_source,
-	},
-	[ALC268_TOSHIBA] = {
-		.mixers = { alc268_toshiba_mixer, alc268_capture_alt_mixer,
-			    alc268_beep_mixer },
-		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
-				alc268_toshiba_verbs },
-		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
-		.dac_nids = alc268_dac_nids,
-		.num_adc_nids = ARRAY_SIZE(alc268_adc_nids_alt),
-		.adc_nids = alc268_adc_nids_alt,
-		.capsrc_nids = alc268_capsrc_nids,
-		.hp_nid = 0x03,
-		.num_channel_mode = ARRAY_SIZE(alc268_modes),
-		.channel_mode = alc268_modes,
-		.input_mux = &alc268_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc268_toshiba_setup,
-		.init_hook = alc_inithook,
 	},
 	[ALC268_ACER] = {
 		.mixers = { alc268_acer_mixer, alc268_capture_alt_mixer,
@@ -576,42 +479,6 @@ static const struct alc_config_preset alc268_presets[] = {
 		.channel_mode = alc268_modes,
 		.unsol_event = alc_sku_unsol_event,
 		.setup = alc268_acer_lc_setup,
-		.init_hook = alc_inithook,
-	},
-	[ALC268_DELL] = {
-		.mixers = { alc268_dell_mixer, alc268_beep_mixer,
-			    alc268_capture_nosrc_mixer },
-		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
-				alc268_dell_verbs },
-		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
-		.dac_nids = alc268_dac_nids,
-		.num_adc_nids = ARRAY_SIZE(alc268_adc_nids_alt),
-		.adc_nids = alc268_adc_nids_alt,
-		.capsrc_nids = alc268_capsrc_nids,
-		.hp_nid = 0x02,
-		.num_channel_mode = ARRAY_SIZE(alc268_modes),
-		.channel_mode = alc268_modes,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc268_dell_setup,
-		.init_hook = alc_inithook,
-	},
-	[ALC268_ZEPTO] = {
-		.mixers = { alc268_base_mixer, alc268_capture_alt_mixer,
-			    alc268_beep_mixer },
-		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
-				alc268_toshiba_verbs },
-		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
-		.dac_nids = alc268_dac_nids,
-		.num_adc_nids = ARRAY_SIZE(alc268_adc_nids_alt),
-		.adc_nids = alc268_adc_nids_alt,
-		.capsrc_nids = alc268_capsrc_nids,
-		.hp_nid = 0x03,
-		.dig_out_nid = ALC268_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc268_modes),
-		.channel_mode = alc268_modes,
-		.input_mux = &alc268_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc268_toshiba_setup,
 		.init_hook = alc_inithook,
 	},
 #ifdef CONFIG_SND_DEBUG

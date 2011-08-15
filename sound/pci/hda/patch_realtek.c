@@ -4245,7 +4245,7 @@ static int patch_alc268(struct hda_codec *codec)
 
 	if (board_config < 0)
 		board_config = alc_board_codec_sid_config(codec,
-			ALC268_MODEL_LAST, alc268_models, alc268_ssid_cfg_tbl);
+			ALC268_MODEL_LAST, alc268_models, NULL);
 
 	if (board_config < 0) {
 		printk(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
