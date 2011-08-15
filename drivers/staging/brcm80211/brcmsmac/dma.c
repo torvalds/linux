@@ -18,10 +18,6 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 
-#if defined(__mips__)
-#include <asm/addrspace.h>
-#endif
-
 #include <brcmu_utils.h>
 #include <aiutils.h>
 #include "types.h"
