@@ -109,7 +109,6 @@ struct brcms_fifo_info {
  * rx_factor: maximum rx ampdu factor (0-3) ==> 2^(13+x) bytes
  * ffpld_rsvd: number of bytes to reserve for preload
  * max_txlen: max size of ampdu per mcs, bw and sgi
- * ini_free: array of ini's to be freed on detach
  * mfbr: enable multiple fallback rate
  * tx_max_funl: underflows should be kept such that
  *		(tx_max_funfl*underflows) < tx frames
@@ -132,7 +131,6 @@ struct ampdu_info {
 	u8 rx_factor;
 	u32 ffpld_rsvd;
 	u32 max_txlen[MCS_TABLE_SIZE][2][2];
-	void *ini_free[AMPDU_INI_FREE];
 	bool mfbr;
 	u32 tx_max_funl;
 	struct brcms_fifo_info fifo_tb[NUM_FFPLD_FIFO];
@@ -231,18 +229,6 @@ struct ampdu_info *brcms_c_ampdu_attach(struct brcms_c_info *wlc)
 
 void brcms_c_ampdu_detach(struct ampdu_info *ampdu)
 {
-	int i;
-
-	if (!ampdu)
-		return;
-
-	/*
-	 * free all ini's which were to be freed on
-	 * callbacks which were never called
-	 */
-	for (i = 0; i < AMPDU_INI_FREE; i++)
-		kfree(ampdu->ini_free[i]);
-
 	kfree(ampdu);
 }
 

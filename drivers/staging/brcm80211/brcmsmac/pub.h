@@ -228,8 +228,7 @@ struct brcms_bss_info {
  * The wlc handle points at this.
  */
 struct brcms_pub {
-	void *wlc;
-
+	struct brcms_c_info *wlc;
 	struct ieee80211_hw *ieee_hw;
 	struct scb *global_scb;
 	struct scb_ampdu *global_ampdu;
@@ -549,9 +548,9 @@ struct brcms_antselcfg {
 };
 
 /* common functions for every port */
-extern void *brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device,
-			uint unit, bool piomode, void *regsva,
-			struct pci_dev *btparam, uint *perr);
+struct brcms_c_info *
+brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
+	       bool piomode, void *regsva, struct pci_dev *btparam, uint *perr);
 extern uint brcms_c_detach(struct brcms_c_info *wlc);
 extern int brcms_c_up(struct brcms_c_info *wlc);
 extern uint brcms_c_down(struct brcms_c_info *wlc);
@@ -588,7 +587,7 @@ extern void brcms_c_set_addrmatch(struct brcms_c_info *wlc,
 extern void brcms_c_wme_setparams(struct brcms_c_info *wlc, u16 aci,
 			      const struct ieee80211_tx_queue_params *arg,
 			      bool suspend);
-extern struct brcms_pub *brcms_c_pub(void *wlc);
+extern struct brcms_pub *brcms_c_pub(struct brcms_c_info *wlc);
 
 /* common functions for every port */
 extern void brcms_c_mhf(struct brcms_c_info *wlc, u8 idx, u16 mask, u16 val,
@@ -614,11 +613,10 @@ extern void brcms_c_set_ps_ctrl(struct brcms_c_info *wlc);
 extern void brcms_c_mctrl(struct brcms_c_info *wlc, u32 mask, u32 val);
 
 extern int brcms_c_module_register(struct brcms_pub *pub,
-				   const char *name, void *hdl,
+				   const char *name, struct brcms_info *hdl,
 				   int (*down_fn)(void *handle));
-
 extern int brcms_c_module_unregister(struct brcms_pub *pub, const char *name,
-				 void *hdl);
+				     struct brcms_info *hdl);
 extern void brcms_c_suspend_mac_and_wait(struct brcms_c_info *wlc);
 extern void brcms_c_enable_mac(struct brcms_c_info *wlc);
 extern void brcms_c_associate_upd(struct brcms_c_info *wlc, bool state);

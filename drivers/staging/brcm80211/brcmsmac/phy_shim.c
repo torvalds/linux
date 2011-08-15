@@ -31,12 +31,13 @@
 /* PHY SHIM module specific state */
 struct phy_shim_info {
 	struct brcms_hardware *wlc_hw;	/* pointer to main wlc_hw structure */
-	void *wlc;		/* pointer to main wlc structure */
-	void *wl;		/* pointer to os-specific private state */
+	struct brcms_c_info *wlc;	/* pointer to main wlc structure */
+	struct brcms_info *wl; /* pointer to os-specific private state */
 };
 
 struct phy_shim_info *wlc_phy_shim_attach(struct brcms_hardware *wlc_hw,
-						       void *wl, void *wlc) {
+					  struct brcms_info *wl,
+					  struct brcms_c_info *wlc) {
 	struct phy_shim_info *physhim = NULL;
 
 	physhim = kzalloc(sizeof(struct phy_shim_info), GFP_ATOMIC);

@@ -229,7 +229,6 @@ struct dma_seg {
 };
 
 struct dma_seg_map {
-	void *oshdmah;	/* Opaque handle for OSL to store its information */
 	uint origsize;	/* Size of the virtual packet */
 	uint nsegs;
 	struct dma_seg segs[MAX_DMA_SEGS];

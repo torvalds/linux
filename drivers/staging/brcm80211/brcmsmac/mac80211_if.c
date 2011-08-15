@@ -802,7 +802,7 @@ static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 	}
 
 	/* common load-time initialization */
-	wl->wlc = brcms_c_attach((void *)wl, vendor, device, unit, false,
+	wl->wlc = brcms_c_attach(wl, vendor, device, unit, false,
 				 wl->regsva, btparam, &err);
 	brcms_release_fw(wl);
 	if (!wl->wlc) {
@@ -1782,7 +1782,7 @@ static int brcms_request_fw(struct brcms_info *wl, struct pci_dev *pdev)
 	char fw_name[100];
 	int i;
 
-	memset((void *)&wl->fw, 0, sizeof(struct brcms_firmware));
+	memset(&wl->fw, 0, sizeof(struct brcms_firmware));
 	for (i = 0; i < MAX_FW_IMAGES; i++) {
 		if (brcms_firmwares[i] == NULL)
 			break;

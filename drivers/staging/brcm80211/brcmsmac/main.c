@@ -367,9 +367,9 @@ static u32 brcms_c_wlintrsoff(struct brcms_c_info *wlc);
 static void brcms_c_wlintrsrestore(struct brcms_c_info *wlc, u32 macintmask);
 static void brcms_c_gpio_init(struct brcms_c_info *wlc);
 static void brcms_c_write_hw_bcntemplate0(struct brcms_hardware *wlc_hw,
-					  void *bcn, int len);
+					  u16 bcn[], int len);
 static void brcms_c_write_hw_bcntemplate1(struct brcms_hardware *wlc_hw,
-					  void *bcn, int len);
+					  u16 bcn[], int len);
 static void brcms_b_bsinit(struct brcms_c_info *wlc, u16 chanspec);
 static u32 brcms_c_setband_inact(struct brcms_c_info *wlc, uint bandunit);
 static void brcms_b_setband(struct brcms_hardware *wlc_hw, uint bandunit,
@@ -457,6 +457,8 @@ static uint brcms_c_down_del_timer(struct brcms_c_info *wlc);
 static void brcms_c_ofdm_rateset_war(struct brcms_c_info *wlc);
 static int _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 		      struct brcms_c_if *wlcif);
+static void brcms_c_write_hw_bcntemplates(struct brcms_c_info *wlc, u16 bcn[],
+					  int len, bool both);
 
 const u8 prio2fifo[NUMPRIO] = {
 	TX_AC_BE_FIFO,		/* 0    BE      AC_BE   Best Effort */
@@ -1375,7 +1377,7 @@ void brcms_b_bw_set(struct brcms_hardware *wlc_hw, u16 bw)
 }
 
 static void
-brcms_c_write_hw_bcntemplate0(struct brcms_hardware *wlc_hw, void *bcn,
+brcms_c_write_hw_bcntemplate0(struct brcms_hardware *wlc_hw, u16 bcn[],
 			      int len)
 {
 	struct d11regs *regs = wlc_hw->regs;
@@ -1389,7 +1391,7 @@ brcms_c_write_hw_bcntemplate0(struct brcms_hardware *wlc_hw, void *bcn,
 }
 
 static void
-brcms_c_write_hw_bcntemplate1(struct brcms_hardware *wlc_hw, void *bcn,
+brcms_c_write_hw_bcntemplate1(struct brcms_hardware *wlc_hw, u16 bcn[],
 			      int len)
 {
 	struct d11regs *regs = wlc_hw->regs;
@@ -4287,9 +4289,9 @@ static uint brcms_c_attach_module(struct brcms_c_info *wlc)
 	return err;
 }
 
-struct brcms_pub *brcms_c_pub(void *wlc)
+struct brcms_pub *brcms_c_pub(struct brcms_c_info *wlc)
 {
-	return ((struct brcms_c_info *) wlc)->pub;
+	return wlc->pub;
 }
 
 #define CHIP_SUPPORTS_11N(wlc)	1
@@ -4644,7 +4646,7 @@ int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
 /*
  * The common driver entry routine. Error codes should be unique
  */
-void *
+struct brcms_c_info *
 brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	       bool piomode, void *regsva, struct pci_dev *btparam, uint *perr)
 {
@@ -4884,7 +4886,7 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	if (perr)
 		*perr = 0;
 
-	return (void *)wlc;
+	return wlc;
 
  fail:
 	wiphy_err(wl->wiphy, "wl%d: %s: failed with err %d\n",
@@ -6319,7 +6321,7 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
  * register watchdog and down handlers.
  */
 int brcms_c_module_register(struct brcms_pub *pub,
-			    const char *name, void *hdl,
+			    const char *name, struct brcms_info *hdl,
 			    int (*d_fn)(void *handle))
 {
 	struct brcms_c_info *wlc = (struct brcms_c_info *) pub->wlc;
@@ -6340,8 +6342,8 @@ int brcms_c_module_register(struct brcms_pub *pub,
 }
 
 /* unregister module callbacks */
-int
-brcms_c_module_unregister(struct brcms_pub *pub, const char *name, void *hdl)
+int brcms_c_module_unregister(struct brcms_pub *pub, const char *name,
+			      struct brcms_info *hdl)
 {
 	struct brcms_c_info *wlc = (struct brcms_c_info *) pub->wlc;
 	int i;
@@ -6668,8 +6670,8 @@ static u16 brcms_c_rate_shm_offset(struct brcms_c_info *wlc, u8 rate)
  *
  * Returns true if packet consumed (queued), false if not.
  */
-bool
-brcms_c_prec_enq(struct brcms_c_info *wlc, struct pktq *q, void *pkt, int prec)
+bool brcms_c_prec_enq(struct brcms_c_info *wlc, struct pktq *q,
+		      struct sk_buff *pkt, int prec)
 {
 	return brcms_c_prec_enq_head(wlc, q, pkt, prec, false);
 }
@@ -6721,10 +6723,9 @@ brcms_c_prec_enq_head(struct brcms_c_info *wlc, struct pktq *q,
 	return true;
 }
 
-void brcms_c_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
-			     uint prec)
+void brcms_c_txq_enq(struct brcms_c_info *wlc, struct scb *scb,
+		     struct sk_buff *sdu, uint prec)
 {
-	struct brcms_c_info *wlc = (struct brcms_c_info *) ctx;
 	struct brcms_txq_info *qi = wlc->pkt_queue;	/* Check me */
 	struct pktq *q = &qi->q;
 	int prio;
@@ -6767,7 +6768,6 @@ brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc, struct sk_buff *sdu,
 {
 	u8 prio;
 	uint fifo;
-	void *pkt;
 	struct scb *scb = &global_scb;
 	struct ieee80211_hdr *d11_header = (struct ieee80211_hdr *)(sdu->data);
 
@@ -6778,12 +6778,11 @@ brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc, struct sk_buff *sdu,
 	prio = ieee80211_is_data(d11_header->frame_control) ? sdu->priority :
 		MAXPRIO;
 	fifo = prio2fifo[prio];
-	pkt = sdu;
 	if (unlikely
 	    (brcms_c_d11hdrs_mac80211(
-		wlc, hw, pkt, scb, 0, 1, fifo, 0, NULL, 0)))
+		wlc, hw, sdu, scb, 0, 1, fifo, 0, NULL, 0)))
 		return -EINVAL;
-	brcms_c_txq_enq(wlc, scb, pkt, BRCMS_PRIO_TO_PREC(prio));
+	brcms_c_txq_enq(wlc, scb, sdu, BRCMS_PRIO_TO_PREC(prio));
 	brcms_c_send_q(wlc);
 	return 0;
 }
@@ -8969,7 +8968,7 @@ int brcms_c_get_header_len()
 
 /* mac is assumed to be suspended at this point */
 void
-brcms_b_write_hw_bcntemplates(struct brcms_hardware *wlc_hw, void *bcn,
+brcms_b_write_hw_bcntemplates(struct brcms_hardware *wlc_hw, u16 bcn[],
 			      int len, bool both)
 {
 	struct d11regs *regs = wlc_hw->regs;
@@ -9424,8 +9423,8 @@ void brcms_c_write_template_ram(struct brcms_c_info *wlc, int offset, int len,
 	brcms_b_write_template_ram(wlc->hw, offset, len, buf);
 }
 
-void brcms_c_write_hw_bcntemplates(struct brcms_c_info *wlc, void *bcn, int len,
-			       bool both)
+void brcms_c_write_hw_bcntemplates(struct brcms_c_info *wlc, u16 bcn[], int len,
+				   bool both)
 {
 	brcms_b_write_hw_bcntemplates(wlc->hw, bcn, len, both);
 }

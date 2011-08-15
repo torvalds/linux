@@ -125,7 +125,8 @@
 struct brcms_phy;
 
 extern struct phy_shim_info *wlc_phy_shim_attach(struct brcms_hardware *wlc_hw,
-						void *wl, void *wlc);
+						 struct brcms_info *wl,
+						 struct brcms_c_info *wlc);
 extern void wlc_phy_shim_detach(struct phy_shim_info *physhim);
 
 /* PHY to WL utility functions */

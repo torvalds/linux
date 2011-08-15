@@ -461,7 +461,7 @@ struct modulecb {
 	/* iovar table */
 	const struct brcmu_iovar *iovars;
 	/* handle passed when handler 'doiovar' is called */
-	void *hdl;
+	struct brcms_info *hdl;
 
 	/* IOVar handler
 	 *
@@ -489,15 +489,6 @@ struct modulecb {
 				       * freed.
 				       */
 
-};
-
-/* dump control blocks */
-struct dumpcb_s {
-	const char *name;	/* dump name */
-	/* 'wl dump' handler */
-	int (*dump_fn)(void *handle, struct brcmu_strbuf *b);
-	void *dump_fn_arg;
-	struct dumpcb_s *next;
 };
 
 struct edcf_acparam {
@@ -580,8 +571,8 @@ struct brcms_hardware {
 	char *vars;		/* "environment" name=value */
 	uint vars_size;		/* size of vars, free vars on detach */
 	struct d11regs *regs;	/* pointer to device registers */
-	void *physhim;		/* phy shim layer handler */
-	void *phy_sh;		/* pointer to shared phy state */
+	struct phy_shim_info *physhim; /* phy shim layer handler */
+	struct shared_phy *phy_sh;	/* pointer to shared phy state */
 	struct brcms_hw_band *band;/* pointer to active per-band state */
 	/* band state per phy/radio */
 	struct brcms_hw_band *bandstate[MAXBANDS];
@@ -1082,16 +1073,14 @@ extern void brcms_c_txfifo(struct brcms_c_info *wlc, uint fifo,
 			   bool commit, s8 txpktpend);
 extern void brcms_c_txfifo_complete(struct brcms_c_info *wlc, uint fifo,
 				    s8 txpktpend);
-extern void brcms_c_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
-			    uint prec);
+extern void brcms_c_txq_enq(struct brcms_c_info *wlc, struct scb *scb,
+			    struct sk_buff *sdu, uint prec);
 extern void brcms_c_info_init(struct brcms_c_info *wlc, int unit);
 extern void brcms_c_print_txstatus(struct tx_status *txs);
 extern int brcms_c_xmtfifo_sz_get(struct brcms_c_info *wlc, uint fifo,
 				  uint *blocks);
 extern void brcms_c_write_template_ram(struct brcms_c_info *wlc, int offset,
 				       int len, void *buf);
-extern void brcms_c_write_hw_bcntemplates(struct brcms_c_info *wlc, void *bcn,
-					  int len, bool both);
 extern void brcms_c_pllreq(struct brcms_c_info *wlc, bool set, u32 req_bit);
 extern void brcms_c_reset_bmac_done(struct brcms_c_info *wlc);
 
@@ -1168,8 +1157,6 @@ extern void brcms_c_bss_update_probe_resp(struct brcms_c_info *wlc,
 extern bool brcms_c_ismpc(struct brcms_c_info *wlc);
 extern bool brcms_c_is_non_delay_mpc(struct brcms_c_info *wlc);
 extern void brcms_c_radio_mpc_upd(struct brcms_c_info *wlc);
-extern bool brcms_c_prec_enq(struct brcms_c_info *wlc, struct pktq *q,
-			     void *pkt, int prec);
 extern bool brcms_c_prec_enq_head(struct brcms_c_info *wlc, struct pktq *q,
 			      struct sk_buff *pkt, int prec, bool head);
 extern u16 brcms_c_phytxctl1_calc(struct brcms_c_info *wlc, u32 rspec);

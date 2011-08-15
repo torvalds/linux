@@ -51,8 +51,8 @@ struct brcms_firmware {
 };
 
 struct brcms_info {
-	struct brcms_pub *pub;	/* pointer to public wlc state */
-	void *wlc;		/* pointer to private common data */
+	struct brcms_pub *pub;		/* pointer to public wlc state */
+	struct brcms_c_info *wlc;	/* pointer to private common data */
 	u32 magic;
 
 	int irq;
