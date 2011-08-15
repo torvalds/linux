@@ -168,6 +168,24 @@ do_open_permission(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfs
 	return status;
 }
 
+static __be32 nfsd_check_obj_isreg(struct svc_fh *fh)
+{
+	umode_t mode = fh->fh_dentry->d_inode->i_mode;
+
+	if (S_ISREG(mode))
+		return nfs_ok;
+	if (S_ISDIR(mode))
+		return nfserr_isdir;
+	/*
+	 * Using err_symlink as our catch-all case may look odd; but
+	 * there's no other obvious error for this case in 4.0, and we
+	 * happen to know that it will cause the linux v4 client to do
+	 * the right thing on attempts to open something other than a
+	 * regular file.
+	 */
+	return nfserr_symlink;
+}
+
 static __be32
 do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open *open)
 {
@@ -216,6 +234,9 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 		status = nfsd_lookup(rqstp, current_fh,
 				     open->op_fname.data, open->op_fname.len, &resfh);
 		fh_unlock(current_fh);
+		if (status)
+			goto out;
+		status = nfsd_check_obj_isreg(&resfh);
 	}
 	if (status)
 		goto out;
