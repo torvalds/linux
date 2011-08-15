@@ -479,7 +479,7 @@ int cap_bprm_set_creds(struct linux_binprm *bprm)
 {
 	const struct cred *old = current_cred();
 	struct cred *new = bprm->cred;
-	bool effective, has_cap;
+	bool effective, has_cap = false;
 	int ret;
 
 	effective = false;
