@@ -770,7 +770,7 @@
 
 
 
-  will cause serial line 3 to accept input on the host's /dev/tty3 and
+  will cause serial line 3 to accept input on the host's /dev/tty2 and
   display output on an xterm.  That's a silly example - the most common
   use of this syntax is to reattach the main console to stdin and stdout
   as shown above.
