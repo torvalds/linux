@@ -252,7 +252,7 @@ struct dma_info {
 	uint *msg_level;	/* message level pointer */
 	char name[MAXNAMEL];	/* callers name for diag msgs */
 
-	void *pbus;		/* bus handle */
+	struct pci_dev *pbus;		/* bus handle */
 
 	bool dma64;	/* this dma engine is operating in 64-bit mode */
 	bool addrext;	/* this dma engine supports DmaExtendedAddrChanges */

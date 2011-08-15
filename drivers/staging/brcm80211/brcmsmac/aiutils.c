@@ -1850,7 +1850,7 @@ int ai_devpath(struct si_pub *sih, char *path, int size)
 		return -1;
 
 	slen = snprintf(path, (size_t) size, "pci/%u/%u/",
-		((struct pci_dev *)((SI_INFO(sih))->pbus))->bus->number,
+		(((SI_INFO(sih))->pbus))->bus->number,
 		PCI_SLOT(((struct pci_dev *)((SI_INFO(sih))->pbus))->devfn));
 
 	if (slen < 0 || slen >= size) {
@@ -2025,8 +2025,7 @@ void ai_pci_setup(struct si_pub *sih, uint coremask)
 int ai_pci_fixcfg(struct si_pub *sih)
 {
 	uint origidx;
-	struct sbpciregs *regs = NULL;
-
+	void *regs = NULL;
 	struct si_info *sii = SI_INFO(sih);
 
 	/* Fixup PI in SROM shadow area to enable the correct PCI core access */
@@ -2035,7 +2034,10 @@ int ai_pci_fixcfg(struct si_pub *sih)
 
 	/* check 'pi' is correct and fix it if not */
 	regs = ai_setcore(&sii->pub, sii->pub.buscoretype, 0);
-	pcicore_fixcfg(sii->pch, regs);
+	if (sii->pub.buscoretype == PCIE_CORE_ID)
+		pcicore_fixcfg_pcie(sii->pch, (struct sbpcieregs *)regs);
+	else if (sii->pub.buscoretype == PCI_CORE_ID)
+		pcicore_fixcfg_pci(sii->pch, (struct sbpciregs *)regs);
 
 	/* restore the original index */
 	ai_setcoreidx(&sii->pub, origidx);

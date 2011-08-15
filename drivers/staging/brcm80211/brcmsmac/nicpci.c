@@ -245,7 +245,8 @@ static void pcie_war_pci_setup(struct pcicore_info *pi);
 /* Initialize the PCI core.
  * It's caller's responsibility to make sure that this is done only once
  */
-void *pcicore_init(struct si_pub *sih, void *pdev, void *regs)
+struct pcicore_info *pcicore_init(struct si_pub *sih, struct pci_dev *pdev,
+				  void *regs)
 {
 	struct pcicore_info *pi;
 
@@ -271,7 +272,7 @@ void *pcicore_init(struct si_pub *sih, void *pdev, void *regs)
 	return pi;
 }
 
-void pcicore_deinit(void *pch)
+void pcicore_deinit(struct pcicore_info *pch)
 {
 	kfree(pch);
 }
@@ -279,7 +280,7 @@ void pcicore_deinit(void *pch)
 /* return cap_offset if requested capability exists in the PCI config space */
 /* Note that it's caller's responsibility to make sure it's a pci bus */
 u8
-pcicore_find_pci_capability(void *dev, u8 req_cap_id,
+pcicore_find_pci_capability(struct pci_dev *dev, u8 req_cap_id,
 			    unsigned char *buf, u32 *buflen)
 {
 	u8 cap_id;
@@ -484,9 +485,8 @@ pcie_mdiowrite(struct pcicore_info *pi, uint physmedia, uint regaddr, uint val)
 }
 
 /* ***** Support functions ***** */
-static u8 pcie_clkreq(void *pch, u32 mask, u32 val)
+static u8 pcie_clkreq(struct pcicore_info *pi, u32 mask, u32 val)
 {
-	struct pcicore_info *pi = pch;
 	u32 reg_val;
 	u8 offset;
 
@@ -536,7 +536,7 @@ static void pcie_clkreq_upd(struct pcicore_info *pi, uint state)
 	switch (state) {
 	case SI_DOATTACH:
 		if (PCIE_ASPM(sih))
-			pcie_clkreq((void *)pi, 1, 0);
+			pcie_clkreq(pi, 1, 0);
 		break;
 	case SI_PCIDOWN:
 		if (sih->buscorerev == 6) {	/* turn on serdes PLL down */
@@ -547,7 +547,7 @@ static void pcie_clkreq_upd(struct pcicore_info *pi, uint state)
 				   offsetof(struct chipcregs, chipcontrol_data),
 				   ~0x40, 0);
 		} else if (pi->pcie_pr42767) {
-			pcie_clkreq((void *)pi, 1, 1);
+			pcie_clkreq(pi, 1, 1);
 		}
 		break;
 	case SI_PCIUP:
@@ -559,7 +559,7 @@ static void pcie_clkreq_upd(struct pcicore_info *pi, uint state)
 				   offsetof(struct chipcregs, chipcontrol_data),
 				   ~0x40, 0x40);
 		} else if (PCIE_ASPM(sih)) {	/* disable clkreq */
-			pcie_clkreq((void *)pi, 1, 0);
+			pcie_clkreq(pi, 1, 0);
 		}
 		break;
 	}
@@ -729,9 +729,8 @@ static void pcie_war_pci_setup(struct pcicore_info *pi)
 }
 
 /* ***** Functions called during driver state changes ***** */
-void pcicore_attach(void *pch, char *pvars, int state)
+void pcicore_attach(struct pcicore_info *pi, char *pvars, int state)
 {
-	struct pcicore_info *pi = pch;
 	struct si_pub *sih = pi->sih;
 
 	/* Determine if this board needs override */
@@ -753,20 +752,16 @@ void pcicore_attach(void *pch, char *pvars, int state)
 
 }
 
-void pcicore_hwup(void *pch)
+void pcicore_hwup(struct pcicore_info *pi)
 {
-	struct pcicore_info *pi = pch;
-
 	if (!pi || !PCIE_PUB(pi->sih))
 		return;
 
 	pcie_war_pci_setup(pi);
 }
 
-void pcicore_up(void *pch, int state)
+void pcicore_up(struct pcicore_info *pi, int state)
 {
-	struct pcicore_info *pi = pch;
-
 	if (!pi || !PCIE_PUB(pi->sih))
 		return;
 
@@ -779,9 +774,8 @@ void pcicore_up(void *pch, int state)
 /* When the device is going to enter D3 state
  * (or the system is going to enter S3/S4 states)
  */
-void pcicore_sleep(void *pch)
+void pcicore_sleep(struct pcicore_info *pi)
 {
-	struct pcicore_info *pi = pch;
 	u32 w;
 
 	if (!pi || !PCIE_ASPM(pi->sih))
@@ -794,10 +788,8 @@ void pcicore_sleep(void *pch)
 	pi->pcie_pr42767 = false;
 }
 
-void pcicore_down(void *pch, int state)
+void pcicore_down(struct pcicore_info *pi, int state)
 {
-	struct pcicore_info *pi = pch;
-
 	if (!pi || !PCIE_PUB(pi->sih))
 		return;
 
@@ -808,20 +800,11 @@ void pcicore_down(void *pch, int state)
 }
 
 /* precondition: current core is sii->buscoretype */
-void pcicore_fixcfg(void *pch, void *regs)
+static void pcicore_fixcfg(struct pcicore_info *pi, u16 *reg16)
 {
-	struct pcicore_info *pi = pch;
 	struct si_info *sii = SI_INFO(pi->sih);
-	struct sbpciregs *pciregs = regs;
-	struct sbpcieregs *pcieregs = regs;
-	u16 val16, *reg16 = NULL;
+	u16 val16;
 	uint pciidx;
-
-	/* check 'pi' is correct and fix it if not */
-	if (sii->pub.buscoretype == PCIE_CORE_ID)
-		reg16 = &pcieregs->sprom[SRSH_PI_OFFSET];
-	else if (sii->pub.buscoretype == PCI_CORE_ID)
-		reg16 = &pciregs->sprom[SRSH_PI_OFFSET];
 
 	pciidx = ai_coreidx(&sii->pub);
 	val16 = R_REG(reg16);
@@ -832,11 +815,19 @@ void pcicore_fixcfg(void *pch, void *regs)
 	}
 }
 
-/* precondition: current core is pci core */
-void pcicore_pci_setup(void *pch, void *regs)
+void pcicore_fixcfg_pci(struct pcicore_info *pi, struct sbpciregs *pciregs)
 {
-	struct pcicore_info *pi = pch;
-	struct sbpciregs *pciregs = regs;
+	pcicore_fixcfg(pi, &pciregs->sprom[SRSH_PI_OFFSET]);
+}
+
+void pcicore_fixcfg_pcie(struct pcicore_info *pi, struct sbpcieregs *pcieregs)
+{
+	pcicore_fixcfg(pi, &pcieregs->sprom[SRSH_PI_OFFSET]);
+}
+
+/* precondition: current core is pci core */
+void pcicore_pci_setup(struct pcicore_info *pi, struct sbpciregs *pciregs)
+{
 	u32 w;
 
 	OR_REG(&pciregs->sbtopci2, SBTOPCI_PREF | SBTOPCI_BURST);
