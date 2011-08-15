@@ -707,10 +707,8 @@ void __init unflatten_device_tree(void)
 	__unflatten_device_tree(initial_boot_params, &allnodes,
 				early_init_dt_alloc_memory_arch);
 
-	/* Get pointer to OF "/chosen" node for use everywhere */
-	of_chosen = of_find_node_by_path("/chosen");
-	if (of_chosen == NULL)
-		of_chosen = of_find_node_by_path("/chosen@0");
+	/* Get pointer to "/chosen" and "/aliasas" nodes for use everywhere */
+	of_alias_scan(early_init_dt_alloc_memory_arch);
 }
 
 #endif /* CONFIG_OF_EARLY_FLATTREE */
