@@ -173,6 +173,12 @@ struct ethtool_eeprom {
  * would cause interrupts to never be generated.  To disable
  * coalescing, set usecs = 0 and max_frames = 1.
  *
+ * Some implementations ignore the value of max_frames and use the
+ * condition:
+ *	time_since_first_completion >= usecs
+ * This is deprecated.  Drivers for hardware that does not support
+ * counting completions should validate that max_frames == !rx_usecs.
+ *
  * Adaptive RX/TX coalescing is an algorithm implemented by some
  * drivers to improve latency under low packet rates and improve
  * throughput under high packet rates.  Some drivers only implement
