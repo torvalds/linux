@@ -802,7 +802,6 @@ static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 		from = 0;
 	}
 
-	gfs2_dinode_out(ip, dibh->b_data);
 	mark_inode_dirty(inode);
 
 	brelse(dibh);

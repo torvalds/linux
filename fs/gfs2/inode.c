@@ -729,8 +729,8 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 		gfs2_inplace_release(dip);
 	gfs2_quota_unlock(dip);
 	gfs2_alloc_put(dip);
-	gfs2_glock_dq_uninit_m(2, ghs);
 	mark_inode_dirty(inode);
+	gfs2_glock_dq_uninit_m(2, ghs);
 	d_instantiate(dentry, inode);
 	return 0;
 
@@ -926,8 +926,9 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	inc_nlink(&ip->i_inode);
 	ip->i_inode.i_ctime = CURRENT_TIME;
-	gfs2_dinode_out(ip, dibh->b_data);
-	mark_inode_dirty(&ip->i_inode);
+	ihold(inode);
+	d_instantiate(dentry, inode);
+	mark_inode_dirty(inode);
 
 out_brelse:
 	brelse(dibh);
@@ -949,11 +950,6 @@ out_child:
 out_parent:
 	gfs2_holder_uninit(ghs);
 	gfs2_holder_uninit(ghs + 1);
-	if (!error) {
-		ihold(inode);
-		d_instantiate(dentry, inode);
-		mark_inode_dirty(inode);
-	}
 	return error;
 }
 
@@ -1026,8 +1022,6 @@ static int gfs2_unlink_inode(struct gfs2_inode *dip,
 		clear_nlink(inode);
 	else
 		drop_nlink(inode);
-	gfs2_trans_add_bh(ip->i_gl, bh, 1);
-	gfs2_dinode_out(ip, bh->b_data);
 	mark_inode_dirty(inode);
 	if (inode->i_nlink == 0)
 		gfs2_unlink_di(inode);
@@ -1565,21 +1559,10 @@ int gfs2_permission(struct inode *inode, int mask)
 	return error;
 }
 
-static int __gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)
+static int __gfs2_setattr_simple(struct inode *inode, struct iattr *attr)
 {
-	struct inode *inode = &ip->i_inode;
-	struct buffer_head *dibh;
-	int error;
-
-	error = gfs2_meta_inode_buffer(ip, &dibh);
-	if (error)
-		return error;
-
 	setattr_copy(inode, attr);
 	mark_inode_dirty(inode);
-	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-	gfs2_dinode_out(ip, dibh->b_data);
-	brelse(dibh);
 	return 0;
 }
 
@@ -1591,19 +1574,19 @@ static int __gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)
  * Returns: errno
  */
 
-int gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)
+int gfs2_setattr_simple(struct inode *inode, struct iattr *attr)
 {
 	int error;
 
 	if (current->journal_info)
-		return __gfs2_setattr_simple(ip, attr);
+		return __gfs2_setattr_simple(inode, attr);
 
-	error = gfs2_trans_begin(GFS2_SB(&ip->i_inode), RES_DINODE, 0);
+	error = gfs2_trans_begin(GFS2_SB(inode), RES_DINODE, 0);
 	if (error)
 		return error;
 
-	error = __gfs2_setattr_simple(ip, attr);
-	gfs2_trans_end(GFS2_SB(&ip->i_inode));
+	error = __gfs2_setattr_simple(inode, attr);
+	gfs2_trans_end(GFS2_SB(inode));
 	return error;
 }
 
@@ -1641,7 +1624,7 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 	if (error)
 		goto out_gunlock_q;
 
-	error = gfs2_setattr_simple(ip, attr);
+	error = gfs2_setattr_simple(inode, attr);
 	if (error)
 		goto out_end_trans;
 
@@ -1697,12 +1680,12 @@ static int gfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	else if ((attr->ia_valid & ATTR_MODE) && IS_POSIXACL(inode))
 		error = gfs2_acl_chmod(ip, attr);
 	else
-		error = gfs2_setattr_simple(ip, attr);
+		error = gfs2_setattr_simple(inode, attr);
 
 out:
-	gfs2_glock_dq_uninit(&i_gh);
 	if (!error)
 		mark_inode_dirty(inode);
+	gfs2_glock_dq_uninit(&i_gh);
 	return error;
 }
 
