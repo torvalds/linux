@@ -613,21 +613,19 @@ void dss_init_overlays(struct platform_device *pdev)
 		case 0:
 			ovl->name = "gfx";
 			ovl->id = OMAP_DSS_GFX;
-			ovl->caps = OMAP_DSS_OVL_CAP_DISPC;
+			ovl->caps = 0;
 			ovl->info.global_alpha = 255;
 			break;
 		case 1:
 			ovl->name = "vid1";
 			ovl->id = OMAP_DSS_VIDEO1;
-			ovl->caps = OMAP_DSS_OVL_CAP_SCALE |
-				OMAP_DSS_OVL_CAP_DISPC;
+			ovl->caps = OMAP_DSS_OVL_CAP_SCALE;
 			ovl->info.global_alpha = 255;
 			break;
 		case 2:
 			ovl->name = "vid2";
 			ovl->id = OMAP_DSS_VIDEO2;
-			ovl->caps = OMAP_DSS_OVL_CAP_SCALE |
-				OMAP_DSS_OVL_CAP_DISPC;
+			ovl->caps = OMAP_DSS_OVL_CAP_SCALE;
 			ovl->info.global_alpha = 255;
 			break;
 		}

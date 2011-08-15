@@ -3058,9 +3058,6 @@ static void dispc_error_worker(struct work_struct *work)
 			struct omap_overlay *ovl;
 			ovl = omap_dss_get_overlay(i);
 
-			if (!(ovl->caps & OMAP_DSS_OVL_CAP_DISPC))
-				continue;
-
 			if (ovl->id == 0) {
 				dispc_enable_plane(ovl->id, 0);
 				dispc_go(ovl->manager->id);
@@ -3076,9 +3073,6 @@ static void dispc_error_worker(struct work_struct *work)
 			struct omap_overlay *ovl;
 			ovl = omap_dss_get_overlay(i);
 
-			if (!(ovl->caps & OMAP_DSS_OVL_CAP_DISPC))
-				continue;
-
 			if (ovl->id == 1) {
 				dispc_enable_plane(ovl->id, 0);
 				dispc_go(ovl->manager->id);
@@ -3093,9 +3087,6 @@ static void dispc_error_worker(struct work_struct *work)
 		for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
 			struct omap_overlay *ovl;
 			ovl = omap_dss_get_overlay(i);
-
-			if (!(ovl->caps & OMAP_DSS_OVL_CAP_DISPC))
-				continue;
 
 			if (ovl->id == 2) {
 				dispc_enable_plane(ovl->id, 0);
@@ -3130,9 +3121,6 @@ static void dispc_error_worker(struct work_struct *work)
 			for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
 				struct omap_overlay *ovl;
 				ovl = omap_dss_get_overlay(i);
-
-				if (!(ovl->caps & OMAP_DSS_OVL_CAP_DISPC))
-					continue;
 
 				if (ovl->id != 0 && ovl->manager == manager)
 					dispc_enable_plane(ovl->id, 0);
@@ -3170,9 +3158,6 @@ static void dispc_error_worker(struct work_struct *work)
 				struct omap_overlay *ovl;
 				ovl = omap_dss_get_overlay(i);
 
-				if (!(ovl->caps & OMAP_DSS_OVL_CAP_DISPC))
-					continue;
-
 				if (ovl->id != 0 && ovl->manager == manager)
 					dispc_enable_plane(ovl->id, 0);
 			}
@@ -3209,9 +3194,6 @@ static void dispc_error_worker(struct work_struct *work)
 				struct omap_overlay *ovl;
 				ovl = omap_dss_get_overlay(i);
 
-				if (!(ovl->caps & OMAP_DSS_OVL_CAP_DISPC))
-					continue;
-
 				if (ovl->id != 0 && ovl->manager == manager)
 					dispc_enable_plane(ovl->id, 0);
 			}
@@ -3228,9 +3210,7 @@ static void dispc_error_worker(struct work_struct *work)
 		for (i = 0; i < omap_dss_get_num_overlay_managers(); ++i) {
 			struct omap_overlay_manager *mgr;
 			mgr = omap_dss_get_overlay_manager(i);
-
-			if (mgr->caps & OMAP_DSS_OVL_CAP_DISPC)
-				mgr->device->driver->disable(mgr->device);
+			mgr->device->driver->disable(mgr->device);
 		}
 	}
 

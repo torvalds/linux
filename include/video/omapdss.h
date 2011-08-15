@@ -162,11 +162,10 @@ enum omap_dss_rotation_angle {
 
 enum omap_overlay_caps {
 	OMAP_DSS_OVL_CAP_SCALE = 1 << 0,
-	OMAP_DSS_OVL_CAP_DISPC = 1 << 1,
 };
 
 enum omap_overlay_manager_caps {
-	OMAP_DSS_OVL_MGR_CAP_DISPC = 1 << 0,
+	OMAP_DSS_DUMMY_VALUE, /* add a dummy value to prevent compiler error */
 };
 
 enum omap_dss_clk_source {
@@ -325,7 +324,7 @@ struct omap_overlay {
 
 	/* static fields */
 	const char *name;
-	int id;
+	enum omap_plane id;
 	enum omap_color_mode supported_modes;
 	enum omap_overlay_caps caps;
 
@@ -368,7 +367,7 @@ struct omap_overlay_manager {
 
 	/* static fields */
 	const char *name;
-	int id;
+	enum omap_channel id;
 	enum omap_overlay_manager_caps caps;
 	int num_overlays;
 	struct omap_overlay **overlays;

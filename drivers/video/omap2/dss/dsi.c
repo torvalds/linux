@@ -3648,161 +3648,6 @@ static void dsi_proto_timings(struct omap_dss_device *dssdev)
 			enter_hs_mode_lat, exit_hs_mode_lat);
 }
 
-
-#define DSI_DECL_VARS \
-	int __dsi_cb = 0; u32 __dsi_cv = 0;
-
-#define DSI_FLUSH(dsidev, ch) \
-	if (__dsi_cb > 0) { \
-		/*DSSDBG("sending long packet %#010x\n", __dsi_cv);*/ \
-		dsi_write_reg(dsidev, DSI_VC_LONG_PACKET_PAYLOAD(ch), __dsi_cv); \
-		__dsi_cb = __dsi_cv = 0; \
-	}
-
-#define DSI_PUSH(dsidev, ch, data) \
-	do { \
-		__dsi_cv |= (data) << (__dsi_cb * 8); \
-		/*DSSDBG("cv = %#010x, cb = %d\n", __dsi_cv, __dsi_cb);*/ \
-		if (++__dsi_cb > 3) \
-			DSI_FLUSH(dsidev, ch); \
-	} while (0)
-
-static int dsi_update_screen_l4(struct omap_dss_device *dssdev,
-			int x, int y, int w, int h)
-{
-	/* Note: supports only 24bit colors in 32bit container */
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	int first = 1;
-	int fifo_stalls = 0;
-	int max_dsi_packet_size;
-	int max_data_per_packet;
-	int max_pixels_per_packet;
-	int pixels_left;
-	int bytespp = dssdev->ctrl.pixel_size / 8;
-	int scr_width;
-	u32 __iomem *data;
-	int start_offset;
-	int horiz_inc;
-	int current_x;
-	struct omap_overlay *ovl;
-
-	debug_irq = 0;
-
-	DSSDBG("dsi_update_screen_l4 (%d,%d %dx%d)\n",
-			x, y, w, h);
-
-	ovl = dssdev->manager->overlays[0];
-
-	if (ovl->info.color_mode != OMAP_DSS_COLOR_RGB24U)
-		return -EINVAL;
-
-	if (dssdev->ctrl.pixel_size != 24)
-		return -EINVAL;
-
-	scr_width = ovl->info.screen_width;
-	data = ovl->info.vaddr;
-
-	start_offset = scr_width * y + x;
-	horiz_inc = scr_width - w;
-	current_x = x;
-
-	/* We need header(4) + DCSCMD(1) + pixels(numpix*bytespp) bytes
-	 * in fifo */
-
-	/* When using CPU, max long packet size is TX buffer size */
-	max_dsi_packet_size = dsi->vc[0].fifo_size * 32 * 4;
-
-	/* we seem to get better perf if we divide the tx fifo to half,
-	   and while the other half is being sent, we fill the other half
-	   max_dsi_packet_size /= 2; */
-
-	max_data_per_packet = max_dsi_packet_size - 4 - 1;
-
-	max_pixels_per_packet = max_data_per_packet / bytespp;
-
-	DSSDBG("max_pixels_per_packet %d\n", max_pixels_per_packet);
-
-	pixels_left = w * h;
-
-	DSSDBG("total pixels %d\n", pixels_left);
-
-	data += start_offset;
-
-	while (pixels_left > 0) {
-		/* 0x2c = write_memory_start */
-		/* 0x3c = write_memory_continue */
-		u8 dcs_cmd = first ? 0x2c : 0x3c;
-		int pixels;
-		DSI_DECL_VARS;
-		first = 0;
-
-#if 1
-		/* using fifo not empty */
-		/* TX_FIFO_NOT_EMPTY */
-		while (FLD_GET(dsi_read_reg(dsidev, DSI_VC_CTRL(0)), 5, 5)) {
-			fifo_stalls++;
-			if (fifo_stalls > 0xfffff) {
-				DSSERR("fifo stalls overflow, pixels left %d\n",
-						pixels_left);
-				dsi_if_enable(dsidev, 0);
-				return -EIO;
-			}
-			udelay(1);
-		}
-#elif 1
-		/* using fifo emptiness */
-		while ((REG_GET(dsidev, DSI_TX_FIFO_VC_EMPTINESS, 7, 0)+1)*4 <
-				max_dsi_packet_size) {
-			fifo_stalls++;
-			if (fifo_stalls > 0xfffff) {
-				DSSERR("fifo stalls overflow, pixels left %d\n",
-					       pixels_left);
-				dsi_if_enable(dsidev, 0);
-				return -EIO;
-			}
-		}
-#else
-		while ((REG_GET(dsidev, DSI_TX_FIFO_VC_EMPTINESS,
-				7, 0) + 1) * 4 == 0) {
-			fifo_stalls++;
-			if (fifo_stalls > 0xfffff) {
-				DSSERR("fifo stalls overflow, pixels left %d\n",
-					       pixels_left);
-				dsi_if_enable(dsidev, 0);
-				return -EIO;
-			}
-		}
-#endif
-		pixels = min(max_pixels_per_packet, pixels_left);
-
-		pixels_left -= pixels;
-
-		dsi_vc_write_long_header(dsidev, 0, DSI_DT_DCS_LONG_WRITE,
-				1 + pixels * bytespp, 0);
-
-		DSI_PUSH(dsidev, 0, dcs_cmd);
-
-		while (pixels-- > 0) {
-			u32 pix = __raw_readl(data++);
-
-			DSI_PUSH(dsidev, 0, (pix >> 16) & 0xff);
-			DSI_PUSH(dsidev, 0, (pix >> 8) & 0xff);
-			DSI_PUSH(dsidev, 0, (pix >> 0) & 0xff);
-
-			current_x++;
-			if (current_x == x+w) {
-				current_x = x;
-				data += horiz_inc;
-			}
-		}
-
-		DSI_FLUSH(dsidev, 0);
-	}
-
-	return 0;
-}
-
 static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 		u16 x, u16 y, u16 w, u16 h)
 {
@@ -3970,11 +3815,9 @@ int omap_dsi_prepare_update(struct omap_dss_device *dssdev,
 
 	dsi_perf_mark_setup(dsidev);
 
-	if (dssdev->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
-		dss_setup_partial_planes(dssdev, x, y, w, h,
-				enlarge_update_area);
-		dispc_set_lcd_size(dssdev->manager->id, *w, *h);
-	}
+	dss_setup_partial_planes(dssdev, x, y, w, h,
+			enlarge_update_area);
+	dispc_set_lcd_size(dssdev->manager->id, *w, *h);
 
 	return 0;
 }
@@ -3996,27 +3839,16 @@ int omap_dsi_update(struct omap_dss_device *dssdev,
 	 * see rather obscure HW error happening, as DSS halts. */
 	BUG_ON(x % 2 == 1);
 
-	if (dssdev->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
-		dsi->framedone_callback = callback;
-		dsi->framedone_data = data;
+	dsi->framedone_callback = callback;
+	dsi->framedone_data = data;
 
-		dsi->update_region.x = x;
-		dsi->update_region.y = y;
-		dsi->update_region.w = w;
-		dsi->update_region.h = h;
-		dsi->update_region.device = dssdev;
+	dsi->update_region.x = x;
+	dsi->update_region.y = y;
+	dsi->update_region.w = w;
+	dsi->update_region.h = h;
+	dsi->update_region.device = dssdev;
 
-		dsi_update_screen_dispc(dssdev, x, y, w, h);
-	} else {
-		int r;
-
-		r = dsi_update_screen_l4(dssdev, x, y, w, h);
-		if (r)
-			return r;
-
-		dsi_perf_show(dsidev, "L4");
-		callback(0, data);
-	}
+	dsi_update_screen_dispc(dssdev, x, y, w, h);
 
 	return 0;
 }

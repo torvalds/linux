@@ -1333,9 +1333,6 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 
 		ovl = omap_dss_get_overlay(i);
 
-		if (!(ovl->caps & OMAP_DSS_OVL_CAP_DISPC))
-			continue;
-
 		oc = &dss_cache.overlay_cache[ovl->id];
 
 		if (ovl->manager_changed) {
@@ -1387,9 +1384,6 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 	list_for_each_entry(mgr, &manager_list, list) {
 		struct omap_dss_device *dssdev;
 
-		if (!(mgr->caps & OMAP_DSS_OVL_MGR_CAP_DISPC))
-			continue;
-
 		mc = &dss_cache.manager_cache[mgr->id];
 
 		if (mgr->device_changed) {
@@ -1434,9 +1428,6 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 		u32 size, burst_size;
 
 		ovl = omap_dss_get_overlay(i);
-
-		if (!(ovl->caps & OMAP_DSS_OVL_CAP_DISPC))
-			continue;
 
 		oc = &dss_cache.overlay_cache[ovl->id];
 
@@ -1592,7 +1583,7 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 		mgr->enable = &dss_mgr_enable;
 		mgr->disable = &dss_mgr_disable;
 
-		mgr->caps = OMAP_DSS_OVL_MGR_CAP_DISPC;
+		mgr->caps = 0;
 		mgr->supported_displays =
 			dss_feat_get_supported_displays(mgr->id);
 
@@ -1608,42 +1599,6 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 			continue;
 		}
 	}
-
-#ifdef L4_EXAMPLE
-	{
-		int omap_dss_mgr_apply_l4(struct omap_overlay_manager *mgr)
-		{
-			DSSDBG("omap_dss_mgr_apply_l4(%s)\n", mgr->name);
-
-			return 0;
-		}
-
-		struct omap_overlay_manager *mgr;
-		mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
-
-		BUG_ON(mgr == NULL);
-
-		mgr->name = "l4";
-		mgr->supported_displays =
-			OMAP_DISPLAY_TYPE_DBI | OMAP_DISPLAY_TYPE_DSI;
-
-		mgr->set_device = &omap_dss_set_device;
-		mgr->unset_device = &omap_dss_unset_device;
-		mgr->apply = &omap_dss_mgr_apply_l4;
-		mgr->set_manager_info = &omap_dss_mgr_set_info;
-		mgr->get_manager_info = &omap_dss_mgr_get_info;
-
-		dss_overlay_setup_l4_manager(mgr);
-
-		omap_dss_add_overlay_manager(mgr);
-
-		r = kobject_init_and_add(&mgr->kobj, &manager_ktype,
-				&pdev->dev.kobj, "managerl4");
-
-		if (r)
-			DSSERR("failed to create sysfs file\n");
-	}
-#endif
 
 	return 0;
 }

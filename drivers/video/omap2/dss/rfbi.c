@@ -783,10 +783,8 @@ int omap_rfbi_prepare_update(struct omap_dss_device *dssdev,
 	if (*w == 0 || *h == 0)
 		return -EINVAL;
 
-	if (dssdev->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
-		dss_setup_partial_planes(dssdev, x, y, w, h, true);
-		dispc_set_lcd_size(dssdev->manager->id, *w, *h);
-	}
+	dss_setup_partial_planes(dssdev, x, y, w, h, true);
+	dispc_set_lcd_size(dssdev->manager->id, *w, *h);
 
 	return 0;
 }
@@ -796,22 +794,7 @@ int omap_rfbi_update(struct omap_dss_device *dssdev,
 		u16 x, u16 y, u16 w, u16 h,
 		void (*callback)(void *), void *data)
 {
-	if (dssdev->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
-		rfbi_transfer_area(dssdev, w, h, callback, data);
-	} else {
-		struct omap_overlay *ovl;
-		void __iomem *addr;
-		int scr_width;
-
-		ovl = dssdev->manager->overlays[0];
-		scr_width = ovl->info.screen_width;
-		addr = ovl->info.vaddr;
-
-		omap_rfbi_write_pixels(addr, scr_width, x, y, w, h);
-
-		callback(data);
-	}
-
+	rfbi_transfer_area(dssdev, w, h, callback, data);
 	return 0;
 }
 EXPORT_SYMBOL(omap_rfbi_update);
