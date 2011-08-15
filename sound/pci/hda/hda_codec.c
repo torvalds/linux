@@ -1693,6 +1693,29 @@ u32 snd_hda_query_pin_caps(struct hda_codec *codec, hda_nid_t nid)
 EXPORT_SYMBOL_HDA(snd_hda_query_pin_caps);
 
 /**
+ * snd_hda_override_pin_caps - Override the pin capabilities
+ * @codec: the CODEC
+ * @nid: the NID to override
+ * @caps: the capability bits to set
+ *
+ * Override the cached PIN capabilitiy bits value by the given one.
+ *
+ * Returns zero if successful or a negative error code.
+ */
+int snd_hda_override_pin_caps(struct hda_codec *codec, hda_nid_t nid,
+			      unsigned int caps)
+{
+	struct hda_amp_info *info;
+	info = get_alloc_amp_hash(codec, HDA_HASH_PINCAP_KEY(nid));
+	if (!info)
+		return -ENOMEM;
+	info->amp_caps = caps;
+	info->head.val |= INFO_AMP_CAPS;
+	return 0;
+}
+EXPORT_SYMBOL_HDA(snd_hda_override_pin_caps);
+
+/**
  * snd_hda_pin_sense - execute pin sense measurement
  * @codec: the CODEC to sense
  * @nid: the pin NID to sense
