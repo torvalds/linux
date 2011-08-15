@@ -117,99 +117,92 @@ struct ethtool_eeprom {
 	__u8	data[0];
 };
 
-/* for configuring coalescing parameters of chip */
+/**
+ * struct ethtool_coalesce - coalescing parameters of chip
+ * @cmd: ETHTOOL_{G,S}COALESCE
+ * @rx_coalesce_usecs: How many usecs to delay an RX interrupt after
+ *	a packet arrives.  If 0, only @rx_max_coalesced_frames is used.
+ * @rx_max_coalesced_frames: How many packets to delay an RX interrupt
+ *	after a packet arrives.  If 0, only @rx_coalesce_usecs is used.
+ * @rx_coalesce_usecs_irq: Same as @rx_coalesce_usecs, except that
+ *	this value applies while an IRQ is being serviced by the host.
+ * @rx_max_coalesced_frames_irq: Same as @rx_max_coalesced_frames,
+ *	except that this value applies while an IRQ is being serviced
+ *	by the host.
+ * @tx_coalesce_usecs: How many usecs to delay a TX interrupt after
+ *	a packet is sent.  If 0, only @tx_max_coalesced_frames
+ *	is used.
+ * @tx_max_coalesced_frames: How many packets to delay a TX interrupt
+ *	after a packet is sent.  If 0, only @tx_coalesce_usecs is
+ *	used.
+ * @tx_coalesce_usecs_irq: Same as @tx_coalesce_usecs, except that
+ *	this value applies while an IRQ is being serviced by the host.
+ * @tx_max_coalesced_frames_irq: Same as @tx_max_coalesced_frames,
+ *	except that this value applies while an IRQ is being serviced
+ *	by the host.
+ * @stats_block_coalesce_usecs: How many usecs to delay in-memory
+ *	statistics block updates.  Some drivers do not have an
+ *	in-memory statistic block, and in such cases this value is
+ *	ignored.  This value must not be zero.
+ * @use_adaptive_rx_coalesce: Enable adaptive RX coalescing.
+ * @use_adaptive_tx_coalesce: Enable adaptive TX coalescing.
+ * @pkt_rate_low: Threshold for low packet rate (packets per second).
+ * @rx_coalesce_usecs_low: How many usecs to delay an RX interrupt after
+ *	a packet arrives, when the packet rate is below @pkt_rate_low.
+ * @rx_max_coalesced_frames_low: How many packets to delay an RX interrupt
+ *	after a packet arrives, when the packet rate is below @pkt_rate_low.
+ * @tx_coalesce_usecs_low: How many usecs to delay a TX interrupt after
+ *	a packet is sent, when the packet rate is below @pkt_rate_low.
+ * @tx_max_coalesced_frames_low: How many packets to delay a TX interrupt
+ *	after a packet is sent, when the packet rate is below @pkt_rate_low.
+ * @pkt_rate_high: Threshold for high packet rate (packets per second).
+ * @rx_coalesce_usecs_high: How many usecs to delay an RX interrupt after
+ *	a packet arrives, when the packet rate is above @pkt_rate_high.
+ * @rx_max_coalesced_frames_high: How many packets to delay an RX interrupt
+ *	after a packet arrives, when the packet rate is above @pkt_rate_high.
+ * @tx_coalesce_usecs_high: How many usecs to delay a TX interrupt after
+ *	a packet is sent, when the packet rate is above @pkt_rate_high.
+ * @tx_max_coalesced_frames_high: How many packets to delay a TX interrupt
+ *	after a packet is sent, when the packet rate is above @pkt_rate_high.
+ * @rate_sample_interval: How often to do adaptive coalescing packet rate
+ *	sampling, measured in seconds.  Must not be zero.
+ *
+ * It is illegal to set both usecs and max frames to zero as this
+ * would cause interrupts to never be generated.
+ *
+ * Adaptive RX/TX coalescing is an algorithm implemented by some
+ * drivers to improve latency under low packet rates and improve
+ * throughput under high packet rates.  Some drivers only implement
+ * one of RX or TX adaptive coalescing.  Anything not implemented by
+ * the driver causes these values to be silently ignored.
+ *
+ * When the packet rate is below @pkt_rate_high but above
+ * @pkt_rate_low (both measured in packets per second) the
+ * normal {rx,tx}_* coalescing parameters are used.
+ */
 struct ethtool_coalesce {
-	__u32	cmd;	/* ETHTOOL_{G,S}COALESCE */
-
-	/* How many usecs to delay an RX interrupt after
-	 * a packet arrives.  If 0, only rx_max_coalesced_frames
-	 * is used.
-	 */
+	__u32	cmd;
 	__u32	rx_coalesce_usecs;
-
-	/* How many packets to delay an RX interrupt after
-	 * a packet arrives.  If 0, only rx_coalesce_usecs is
-	 * used.  It is illegal to set both usecs and max frames
-	 * to zero as this would cause RX interrupts to never be
-	 * generated.
-	 */
 	__u32	rx_max_coalesced_frames;
-
-	/* Same as above two parameters, except that these values
-	 * apply while an IRQ is being serviced by the host.  Not
-	 * all cards support this feature and the values are ignored
-	 * in that case.
-	 */
 	__u32	rx_coalesce_usecs_irq;
 	__u32	rx_max_coalesced_frames_irq;
-
-	/* How many usecs to delay a TX interrupt after
-	 * a packet is sent.  If 0, only tx_max_coalesced_frames
-	 * is used.
-	 */
 	__u32	tx_coalesce_usecs;
-
-	/* How many packets to delay a TX interrupt after
-	 * a packet is sent.  If 0, only tx_coalesce_usecs is
-	 * used.  It is illegal to set both usecs and max frames
-	 * to zero as this would cause TX interrupts to never be
-	 * generated.
-	 */
 	__u32	tx_max_coalesced_frames;
-
-	/* Same as above two parameters, except that these values
-	 * apply while an IRQ is being serviced by the host.  Not
-	 * all cards support this feature and the values are ignored
-	 * in that case.
-	 */
 	__u32	tx_coalesce_usecs_irq;
 	__u32	tx_max_coalesced_frames_irq;
-
-	/* How many usecs to delay in-memory statistics
-	 * block updates.  Some drivers do not have an in-memory
-	 * statistic block, and in such cases this value is ignored.
-	 * This value must not be zero.
-	 */
 	__u32	stats_block_coalesce_usecs;
-
-	/* Adaptive RX/TX coalescing is an algorithm implemented by
-	 * some drivers to improve latency under low packet rates and
-	 * improve throughput under high packet rates.  Some drivers
-	 * only implement one of RX or TX adaptive coalescing.  Anything
-	 * not implemented by the driver causes these values to be
-	 * silently ignored.
-	 */
 	__u32	use_adaptive_rx_coalesce;
 	__u32	use_adaptive_tx_coalesce;
-
-	/* When the packet rate (measured in packets per second)
-	 * is below pkt_rate_low, the {rx,tx}_*_low parameters are
-	 * used.
-	 */
 	__u32	pkt_rate_low;
 	__u32	rx_coalesce_usecs_low;
 	__u32	rx_max_coalesced_frames_low;
 	__u32	tx_coalesce_usecs_low;
 	__u32	tx_max_coalesced_frames_low;
-
-	/* When the packet rate is below pkt_rate_high but above
-	 * pkt_rate_low (both measured in packets per second) the
-	 * normal {rx,tx}_* coalescing parameters are used.
-	 */
-
-	/* When the packet rate is (measured in packets per second)
-	 * is above pkt_rate_high, the {rx,tx}_*_high parameters are
-	 * used.
-	 */
 	__u32	pkt_rate_high;
 	__u32	rx_coalesce_usecs_high;
 	__u32	rx_max_coalesced_frames_high;
 	__u32	tx_coalesce_usecs_high;
 	__u32	tx_max_coalesced_frames_high;
-
-	/* How often to do adaptive coalescing packet rate sampling,
-	 * measured in seconds.  Must not be zero.
-	 */
 	__u32	rate_sample_interval;
 };
 
