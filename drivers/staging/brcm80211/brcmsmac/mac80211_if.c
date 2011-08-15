@@ -1722,15 +1722,17 @@ int brcms_ucode_init_buf(struct brcms_info *wl, void **pbuf, u32 idx)
 		hdr = (struct firmware_hdr *)wl->fw.fw_hdr[i]->data;
 		for (entry = 0; entry < wl->fw.hdr_num_entries[i];
 		     entry++, hdr++) {
-			if (hdr->idx == idx) {
-				pdata = wl->fw.fw_bin[i]->data + hdr->offset;
-				*pbuf = kmalloc(hdr->len, GFP_ATOMIC);
+			u32 len = le32_to_cpu(hdr->len);
+			if (le32_to_cpu(hdr->idx) == idx) {
+				pdata = wl->fw.fw_bin[i]->data +
+					le32_to_cpu(hdr->offset);
+				*pbuf = kmalloc(len, GFP_ATOMIC);
 				if (*pbuf == NULL) {
 					wiphy_err(wl->wiphy, "fail to alloc %d"
-						  " bytes\n", hdr->len);
+						  " bytes\n", len);
 					goto fail;
 				}
-				memcpy(*pbuf, pdata, hdr->len);
+				memcpy(*pbuf, pdata, len);
 				return 0;
 			}
 		}
@@ -1755,14 +1757,15 @@ int brcms_ucode_init_uint(struct brcms_info *wl, u32 *data, u32 idx)
 		hdr = (struct firmware_hdr *)wl->fw.fw_hdr[i]->data;
 		for (entry = 0; entry < wl->fw.hdr_num_entries[i];
 		     entry++, hdr++) {
-			if (hdr->idx == idx) {
-				pdata = wl->fw.fw_bin[i]->data + hdr->offset;
-				if (hdr->len != 4) {
+			if (le32_to_cpu(hdr->idx) == idx) {
+				pdata = wl->fw.fw_bin[i]->data +
+					le32_to_cpu(hdr->offset);
+				if (le32_to_cpu(hdr->len) != 4) {
 					wiphy_err(wl->wiphy,
 						  "ERROR: fw hdr len\n");
 					return -ENOMSG;
 				}
-				*data = *((u32 *) pdata);
+				*data = le32_to_cpu(*((u32 *) pdata));
 				return 0;
 			}
 		}
@@ -1868,7 +1871,8 @@ int brcms_check_firmwares(struct brcms_info *wl)
 			ucode_hdr = (struct firmware_hdr *)fw_hdr->data;
 			for (entry = 0; entry < wl->fw.hdr_num_entries[i] &&
 			     !rc; entry++, ucode_hdr++) {
-				if (ucode_hdr->offset + ucode_hdr->len >
+				if (le32_to_cpu(ucode_hdr->offset) +
+				    le32_to_cpu(ucode_hdr->len) >
 				    fw->size) {
 					wiphy_err(wl->wiphy,
 						  "%s: conflicting bin/hdr\n",
