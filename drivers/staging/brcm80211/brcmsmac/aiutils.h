@@ -30,8 +30,6 @@
 #define SI_PCI_MEM_SZ		(64 * 1024 * 1024)
 /* Host Mode sb2pcitranslation1 (64 MB) */
 #define SI_PCI_CFG		0x0c000000
-/* Byteswapped Physical SDRAM */
-#define	SI_SDRAM_SWAPPED	0x10000000
 /* Region 2 for sdram (512 MB) */
 #define SI_SDRAM_R2		0x80000000
 

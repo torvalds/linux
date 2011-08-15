@@ -442,9 +442,6 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 	di->ddoffsethigh = SI_PCIE_DMA_H32;
 	di->dataoffsetlow = di->ddoffsetlow;
 	di->dataoffsethigh = di->ddoffsethigh;
-#if defined(__mips__) && defined(IL_BIGENDIAN)
-	di->dataoffsetlow = di->dataoffsetlow + SI_SDRAM_SWAPPED;
-#endif				/* defined(__mips__) && defined(IL_BIGENDIAN) */
 	/* WAR64450 : DMACtl.Addr ext fields are not supported in SDIOD core. */
 	if ((ai_coreid(sih) == SDIOD_CORE_ID)
 	    && ((ai_corerev(sih) > 0) && (ai_corerev(sih) <= 2)))
@@ -570,12 +567,7 @@ dma64_dd_upd(struct dma_info *di, struct dma64desc *ddring,
 	u32 ctrl2 = bufcount & D64_CTRL2_BC_MASK;
 
 	/* PCI bus with big(>1G) physical address, use address extension */
-#if defined(__mips__) && defined(IL_BIGENDIAN)
-	if ((di->dataoffsetlow == SI_SDRAM_SWAPPED)
-	    || !(pa & PCI32ADDR_HIGH)) {
-#else
 	if ((di->dataoffsetlow == 0) || !(pa & PCI32ADDR_HIGH)) {
-#endif				/* defined(__mips__) && defined(IL_BIGENDIAN) */
 		ddring[outidx].addrlow = cpu_to_le32(pa + di->dataoffsetlow);
 		ddring[outidx].addrhigh = cpu_to_le32(di->dataoffsethigh);
 		ddring[outidx].ctrl1 = cpu_to_le32(*flags);
