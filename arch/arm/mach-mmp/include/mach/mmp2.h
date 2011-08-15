@@ -30,6 +30,7 @@ extern struct pxa_device_desc mmp2_device_sdh1;
 extern struct pxa_device_desc mmp2_device_sdh2;
 extern struct pxa_device_desc mmp2_device_sdh3;
 extern struct pxa_device_desc mmp2_device_asram;
+extern struct pxa_device_desc mmp2_device_isram;
 
 static inline int mmp2_add_uart(int id)
 {
@@ -90,6 +91,11 @@ static inline int mmp2_add_sdhost(int id, struct sdhci_pxa_platdata *data)
 static inline int mmp2_add_asram(struct sram_platdata *data)
 {
 	return pxa_register_device(&mmp2_device_asram, data, sizeof(*data));
+}
+
+static inline int mmp2_add_isram(struct sram_platdata *data)
+{
+	return pxa_register_device(&mmp2_device_isram, data, sizeof(*data));
 }
 
 #endif /* __ASM_MACH_MMP2_H */

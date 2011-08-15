@@ -191,6 +191,11 @@ static struct sram_platdata mmp2_asram_platdata = {
 	.granularity	= SRAM_GRANULARITY,
 };
 
+static struct sram_platdata mmp2_isram_platdata = {
+	.pool_name	= "isram",
+	.granularity	= SRAM_GRANULARITY,
+};
+
 static void __init brownstone_init(void)
 {
 	mfp_config(ARRAY_AND_SIZE(brownstone_pin_config));
@@ -202,6 +207,7 @@ static void __init brownstone_init(void)
 	mmp2_add_sdhost(0, &mmp2_sdh_platdata_mmc0); /* SD/MMC */
 	mmp2_add_sdhost(2, &mmp2_sdh_platdata_mmc2); /* eMMC */
 	mmp2_add_asram(&mmp2_asram_platdata);
+	mmp2_add_isram(&mmp2_isram_platdata);
 
 	/* enable 5v regulator */
 	platform_device_register(&brownstone_v_5vp_device);

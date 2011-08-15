@@ -227,4 +227,6 @@ MMP2_DEVICE(sdh1, "sdhci-pxav3", 1, MMC2, 0xd4280800, 0x120);
 MMP2_DEVICE(sdh2, "sdhci-pxav3", 2, MMC3, 0xd4281000, 0x120);
 MMP2_DEVICE(sdh3, "sdhci-pxav3", 3, MMC4, 0xd4281800, 0x120);
 MMP2_DEVICE(asram, "asram", -1, NONE, 0xe0000000, 0x4000);
+/* 0xd1000000 ~ 0xd101ffff is reserved for secure processor */
+MMP2_DEVICE(isram, "isram", -1, NONE, 0xd1020000, 0x18000);
 
