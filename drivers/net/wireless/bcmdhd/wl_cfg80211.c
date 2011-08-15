@@ -2,13 +2,13 @@
  * Linux cfg80211 driver
  *
  * Copyright (C) 1999-2011, Broadcom Corporation
- * 
+ *
  *         Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -74,7 +74,7 @@
 #include <wl_cfgp2p.h>
 
 static struct sdio_func *cfg80211_sdio_func;
-static struct wl_dev *wl_cfg80211_dev;
+static struct wl_priv *wlcfg_drv_priv;
 
 u32 wl_dbg_level = WL_DBG_ERR;
 
@@ -339,8 +339,7 @@ static u32 wl_get_ielen(struct wl_priv *wl);
 
 static s32 wl_mode_to_nl80211_iftype(s32 mode);
 
-static struct wireless_dev *wl_alloc_wdev(s32 sizeof_iface,
-	struct device *dev);
+static struct wireless_dev *wl_alloc_wdev(struct device *sdiofunc_dev);
 static void wl_free_wdev(struct wl_priv *wl);
 
 static s32 wl_inform_bss(struct wl_priv *wl);
@@ -363,12 +362,6 @@ static s32 wl_init_priv_mem(struct wl_priv *wl);
 static void wl_deinit_priv_mem(struct wl_priv *wl);
 
 static void wl_delay(u32 ms);
-
-/*
- * store/restore cfg80211 instance data
- */
-static void wl_set_drvdata(struct wl_dev *dev, void *data);
-static void *wl_get_drvdata(struct wl_dev *dev);
 
 /*
  * ibss mode utilities
@@ -423,9 +416,9 @@ static void wl_iscan_timer(unsigned long data);
 static void wl_term_iscan(struct wl_priv *wl);
 static s32 wl_init_scan(struct wl_priv *wl);
 static s32 wl_iscan_thread(void *data);
-static s32 wl_run_iscan(struct wl_iscan_ctrl *iscan, struct wlc_ssid *ssid,
+static s32 wl_run_iscan(struct wl_iscan_ctrl *iscan, struct cfg80211_scan_request *request,
 	u16 action);
-static s32 wl_do_iscan(struct wl_priv *wl);
+static s32 wl_do_iscan(struct wl_priv *wl,  struct cfg80211_scan_request *request);
 static s32 wl_wakeup_iscan(struct wl_iscan_ctrl *iscan);
 static s32 wl_invoke_iscan(struct wl_priv *wl);
 static s32 wl_get_iscan_results(struct wl_iscan_ctrl *iscan, u32 *status,
@@ -474,23 +467,11 @@ int dhd_monitor_init(void *dhd_pub);
 int dhd_monitor_uninit(void);
 int dhd_start_xmit(struct sk_buff *skb, struct net_device *net);
 
-#define WL_PRIV_GET() 							\
-	({								\
-	struct wl_iface *ci = NULL;					\
-	if (unlikely(!(wl_cfg80211_dev && 				\
-		(ci = wl_get_drvdata(wl_cfg80211_dev))))) {		\
-		WL_ERR(("wl_cfg80211_dev is unavailable\n"));		\
-		BUG();							\
-	} 								\
-	ci_to_wl(ci);							\
-})
-
-#define CHECK_SYS_UP()							\
+#define CHECK_SYS_UP(wlpriv)							\
 do {									\
-	struct wl_priv *wl = WL_PRIV_GET();			\
-	if (unlikely(!wl_get_drv_status(wl, READY))) {	\
+	if (unlikely(!wl_get_drv_status(wlpriv, READY))) {	\
 		WL_INFO(("device is not ready : status (%d)\n",		\
-			(int)wl->status));				\
+			(int)wlpriv->status));			\
 		return -EIO;						\
 	}								\
 } while (0)
@@ -876,11 +857,10 @@ wl_cfg80211_add_virtual_iface(struct wiphy *wiphy, char *name,
 	s32 index = 0;
 	s32 mode = 0;
 	chanspec_t chspec;
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	struct net_device *_ndev;
 	dhd_pub_t *dhd = (dhd_pub_t *)(wl->pub);
 	int (*net_attach)(dhd_pub_t *dhdp, int ifidx);
-
 	WL_DBG(("if name: %s, type: %d\n", name, type));
 	switch (type) {
 	case NL80211_IFTYPE_ADHOC:
@@ -981,7 +961,6 @@ wl_cfg80211_add_virtual_iface(struct wiphy *wiphy, char *name,
 			wl_set_drv_status(wl, READY);
 			wl->p2p->vif_created = true;
 			set_mode_by_netdev(wl, _ndev, mode);
-			wl = wdev_to_wl(vwdev);
 			net_attach =  wl_to_p2p_bss_private(wl, P2PAPI_BSSCFG_CONNECTION);
 			rtnl_unlock();
 			if (net_attach && !net_attach(dhd, _ndev->ifindex))
@@ -1010,10 +989,9 @@ static s32
 wl_cfg80211_del_virtual_iface(struct wiphy *wiphy, struct net_device *dev)
 {
 	struct ether_addr p2p_mac;
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	s32 timeout = -1;
 	s32 ret = 0;
-
 	if (wl->p2p_supported) {
 		memcpy(p2p_mac.octet, wl->p2p->int_addr.octet, ETHER_ADDR_LEN);
 		if (wl->p2p->vif_created) {
@@ -1052,7 +1030,7 @@ wl_cfg80211_change_virtual_iface(struct wiphy *wiphy, struct net_device *ndev,
 	s32 wlif_type;
 	s32 mode = 0;
 	chanspec_t chspec;
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	WL_DBG(("Enter \n"));
 	switch (type) {
 	case NL80211_IFTYPE_MONITOR:
@@ -1121,7 +1099,7 @@ s32
 wl_cfg80211_notify_ifadd(struct net_device *net, s32 idx, s32 bssidx,
 int (*_net_attach)(dhd_pub_t *dhdp, int ifidx))
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wlcfg_drv_priv;
 	s32 ret = BCME_OK;
 	if (!net) {
 		WL_ERR(("net is NULL\n"));
@@ -1146,7 +1124,7 @@ int (*_net_attach)(dhd_pub_t *dhdp, int ifidx))
 s32
 wl_cfg80211_ifdel_ops(struct net_device *net)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wlcfg_drv_priv;
 
 	if (!net || !net->name) {
 		WL_DBG(("net is NULL\n"));
@@ -1172,7 +1150,7 @@ wl_cfg80211_ifdel_ops(struct net_device *net)
 s32
 wl_cfg80211_notify_ifdel(struct net_device *net)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wlcfg_drv_priv;
 
 
 	if (wl->p2p->vif_created) {
@@ -1208,7 +1186,7 @@ s32
 wl_cfg80211_is_progress_ifadd(void)
 {
 	s32 is_progress = 0;
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wlcfg_drv_priv;
 	if (wl_get_p2p_status(wl, IF_ADD))
 		is_progress = 1;
 	return is_progress;
@@ -1218,7 +1196,7 @@ s32
 wl_cfg80211_is_progress_ifchange(void)
 {
 	s32 is_progress = 0;
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wlcfg_drv_priv;
 	if (wl_get_p2p_status(wl, IF_CHANGING))
 		is_progress = 1;
 	return is_progress;
@@ -1228,7 +1206,7 @@ wl_cfg80211_is_progress_ifchange(void)
 s32
 wl_cfg80211_notify_ifchange(void)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wlcfg_drv_priv;
 	if (wl_get_p2p_status(wl, IF_CHANGING)) {
 		wl_set_p2p_status(wl, IF_CHANGED);
 		wake_up_interruptible(&wl->dongle_event_wait);
@@ -1236,8 +1214,16 @@ wl_cfg80211_notify_ifchange(void)
 	return 0;
 }
 
-static void wl_iscan_prep(struct wl_scan_params *params, struct wlc_ssid *ssid)
+static void wl_scan_prep(struct wl_scan_params *params, struct cfg80211_scan_request *request)
 {
+	u32 n_ssids = request->n_ssids;
+	u32 n_channels = request->n_channels;
+	u16 channel;
+	chanspec_t chanspec;
+	s32 i, offset;
+	char *ptr;
+	wlc_ssid_t ssid;
+
 	memcpy(&params->bssid, &ether_bcast, ETHER_ADDR_LEN);
 	params->bss_type = DOT11_BSSTYPE_ANY;
 	params->scan_type = 0;
@@ -1246,62 +1232,140 @@ static void wl_iscan_prep(struct wl_scan_params *params, struct wlc_ssid *ssid)
 	params->passive_time = -1;
 	params->home_time = -1;
 	params->channel_num = 0;
+	memset(&params->ssid, 0, sizeof(wlc_ssid_t));
+
+	WL_SCAN(("Preparing Scan request\n"));
+	WL_SCAN(("nprobes=%d\n", params->nprobes));
+	WL_SCAN(("active_time=%d\n", params->active_time));
+	WL_SCAN(("passive_time=%d\n", params->passive_time));
+	WL_SCAN(("home_time=%d\n", params->home_time));
+	WL_SCAN(("scan_type=%d\n", params->scan_type));
 
 	params->nprobes = htod32(params->nprobes);
 	params->active_time = htod32(params->active_time);
 	params->passive_time = htod32(params->passive_time);
 	params->home_time = htod32(params->home_time);
-	if (ssid && ssid->SSID_len)
-		memcpy(&params->ssid, ssid, sizeof(wlc_ssid_t));
 
+	/* Copy channel array if applicable */
+	WL_SCAN(("### List of channelspecs to scan ###\n"));
+	if (n_channels > 0) {
+		for (i = 0; i < n_channels; i++) {
+			chanspec = 0;
+			channel = ieee80211_frequency_to_channel(request->channels[i]->center_freq);
+			if (request->channels[i]->band == IEEE80211_BAND_2GHZ)
+				chanspec |= WL_CHANSPEC_BAND_2G;
+			else
+				chanspec |= WL_CHANSPEC_BAND_5G;
+
+			if (request->channels[i]->flags & IEEE80211_CHAN_NO_HT40) {
+				chanspec |= WL_CHANSPEC_BW_20;
+				chanspec |= WL_CHANSPEC_CTL_SB_NONE;
+			} else {
+				chanspec |= WL_CHANSPEC_BW_40;
+				if (request->channels[i]->flags & IEEE80211_CHAN_NO_HT40PLUS)
+					chanspec |= WL_CHANSPEC_CTL_SB_LOWER;
+				else
+					chanspec |= WL_CHANSPEC_CTL_SB_UPPER;
+			}
+
+			params->channel_list[i] = channel;
+			params->channel_list[i] &= WL_CHANSPEC_CHAN_MASK;
+			params->channel_list[i] |= chanspec;
+			WL_SCAN(("%d Channel spec: %x \n", i, params->channel_list[i]));
+			params->channel_list[i] = htod16(params->channel_list[i]);
+		}
+	} else {
+		WL_SCAN(("Scanning all channels\n"));
+	}
+
+	/* Copy ssid array if applicable */
+	WL_SCAN(("### List of SSIDs to scan ###\n"));
+	if (n_ssids > 0) {
+		offset = offsetof(wl_scan_params_t, channel_list) + n_channels * sizeof(u16);
+		offset = roundup(offset, sizeof(u32));
+		ptr = (char*)params + offset;
+		for (i = 0; i < n_ssids; i++) {
+			memset(&ssid, 0, sizeof(wlc_ssid_t));
+			ssid.SSID_len = request->ssids[i].ssid_len;
+			memcpy(ssid.SSID, request->ssids[i].ssid, ssid.SSID_len);
+			if (!ssid.SSID_len)
+				WL_SCAN(("%d: Broadcast scan\n", i));
+			else
+				WL_SCAN(("%d: scan  for  %s size =%d\n", i,
+				ssid.SSID, ssid.SSID_len));
+			memcpy(ptr, &ssid, sizeof(wlc_ssid_t));
+			ptr += sizeof(wlc_ssid_t);
+		}
+	} else {
+		WL_SCAN(("Broadcast scan\n"));
+	}
+	/* Adding mask to channel numbers */
+	params->channel_num =
+	        htod32((n_ssids << WL_SCAN_PARAMS_NSSID_SHIFT) |
+	               (n_channels & WL_SCAN_PARAMS_COUNT_MASK));
 }
 
 static s32
-wl_run_iscan(struct wl_iscan_ctrl *iscan, struct wlc_ssid *ssid, u16 action)
+wl_run_iscan(struct wl_iscan_ctrl *iscan, struct cfg80211_scan_request *request, u16 action)
 {
+	u32 n_channels;
+	u32 n_ssids;
 	s32 params_size =
-		(WL_SCAN_PARAMS_FIXED_SIZE + offsetof(wl_iscan_params_t, params));
+	    (WL_SCAN_PARAMS_FIXED_SIZE + offsetof(wl_iscan_params_t, params));
 	struct wl_iscan_params *params;
 	s32 err = 0;
 
-	if (ssid && ssid->SSID_len)
-		params_size += sizeof(struct wlc_ssid);
-	params = (struct wl_iscan_params *)kzalloc(params_size, GFP_KERNEL);
-	if (unlikely(!params))
-		return -ENOMEM;
-	memset(params, 0, params_size);
-	BUG_ON(unlikely(params_size >= WLC_IOCTL_SMLEN));
+	if (request != NULL) {
+		n_channels = request->n_channels;
+		n_ssids = request->n_ssids;
+		/* Allocate space for populating ssids in wl_iscan_params struct */
+		if (n_channels % 2)
+			/* If n_channels is odd, add a padd of u16 */
+			params_size += sizeof(u16) * (n_channels + 1);
+		else
+			params_size += sizeof(u16) * n_channels;
 
-	wl_iscan_prep(&params->params, ssid);
+		/* Allocate space for populating ssids in wl_iscan_params struct */
+		params_size += sizeof(struct wlc_ssid) * n_ssids;
+	}
+	params = (struct wl_iscan_params *)kzalloc(params_size, GFP_KERNEL);
+	if (!params) {
+		err = -ENOMEM;
+		goto done;
+	}
+
+	if (request != NULL)
+		wl_scan_prep(&params->params, request);
 
 	params->version = htod32(ISCAN_REQ_VERSION);
 	params->action = htod16(action);
 	params->scan_duration = htod16(0);
 
-	/* params_size += offsetof(wl_iscan_params_t, params); */
+	if (params_size + sizeof("iscan") >= WLC_IOCTL_MEDLEN) {
+		WL_ERR(("ioctl buffer length is not sufficient\n"));
+		err = -ENOMEM;
+		goto done;
+	}
 	err = wldev_iovar_setbuf(iscan->dev, "iscan", params, params_size,
-		iscan->ioctl_buf, WLC_IOCTL_SMLEN);
+		iscan->ioctl_buf, WLC_IOCTL_MEDLEN);
 	if (unlikely(err)) {
 		if (err == -EBUSY) {
-		WL_INFO(("system busy : iscan canceled\n"));
+			WL_INFO(("system busy : iscan canceled\n"));
 		} else {
 			WL_ERR(("error (%d)\n", err));
 		}
 	}
 	kfree(params);
+done:
 	return err;
 }
 
-static s32 wl_do_iscan(struct wl_priv *wl)
+static s32 wl_do_iscan(struct wl_priv *wl, struct cfg80211_scan_request *request)
 {
 	struct wl_iscan_ctrl *iscan = wl_to_iscan(wl);
 	struct net_device *ndev = wl_to_prmry_ndev(wl);
-	struct wlc_ssid ssid;
 	s32 passive_scan;
 	s32 err = 0;
-
-	/* Broadcast scan by default */
-	memset(&ssid, 0, sizeof(ssid));
 
 	iscan->state = WL_ISCAN_STATE_SCANING;
 
@@ -1313,7 +1377,7 @@ static s32 wl_do_iscan(struct wl_priv *wl)
 		return err;
 	}
 	wl->iscan_kickstart = true;
-	wl_run_iscan(iscan, &ssid, WL_SCAN_ACTION_START);
+	wl_run_iscan(iscan, request, WL_SCAN_ACTION_START);
 	mod_timer(&iscan->timer, jiffies + iscan->timer_ms * HZ / 1000);
 	iscan->timer_on = 1;
 
@@ -1321,9 +1385,12 @@ static s32 wl_do_iscan(struct wl_priv *wl)
 }
 
 static s32
-wl_run_escan(struct wl_priv *wl, struct net_device *ndev, wlc_ssid_t *ssid, uint16 action)
+wl_run_escan(struct wl_priv *wl, struct net_device *ndev,
+	struct cfg80211_scan_request *request, uint16 action)
 {
 	s32 err = BCME_OK;
+	u32 n_channels;
+	u32 n_ssids;
 	s32 params_size = (WL_SCAN_PARAMS_FIXED_SIZE + OFFSETOF(wl_escan_params_t, params));
 	wl_escan_params_t *params;
 	struct cfg80211_scan_request *scan_request = wl->scan_request;
@@ -1337,31 +1404,37 @@ wl_run_escan(struct wl_priv *wl, struct net_device *ndev, wlc_ssid_t *ssid, uint
 	if (!wl->p2p_supported || ((ndev == wl_to_prmry_ndev(wl)) &&
 		!p2p_scan(wl))) {
 		/* LEGACY SCAN TRIGGER */
-		WL_DBG(("LEGACY SCAN START\n"));
-		if (ssid && ssid->SSID_len) {
-			params_size += sizeof(wlc_ssid_t);
-		}
-		params = (wl_escan_params_t *) kmalloc(params_size, GFP_KERNEL);
+		WL_SCAN((" LEGACY E-SCAN START\n"));
 
-		if (params == NULL)
-			return -ENOMEM;
+		if (request != NULL) {
+			n_channels = request->n_channels;
+			n_ssids = request->n_ssids;
+			/* Allocate space for populating ssids in wl_iscan_params struct */
+			if (n_channels % 2)
+				/* If n_channels is odd, add a padd of u16 */
+				params_size += sizeof(u16) * (n_channels + 1);
+			else
+				params_size += sizeof(u16) * n_channels;
 
-		memset(params, 0, params_size);
-		memcpy(&params->params.bssid, &ether_bcast, ETHER_ADDR_LEN);
-		params->params.bss_type = DOT11_BSSTYPE_ANY;
-		params->params.scan_type = 0;
-		params->params.nprobes = htod32(-1);
-		params->params.active_time = htod32(-1);
-		params->params.passive_time = htod32(-1);
-		params->params.home_time = htod32(-1);
-		params->params.channel_num = 0;
-		if (ssid && ssid->SSID_len) {
-			memcpy(params->params.ssid.SSID, ssid->SSID, ssid->SSID_len);
-			params->params.ssid.SSID_len = htod32(ssid->SSID_len);
+			/* Allocate space for populating ssids in wl_iscan_params struct */
+			params_size += sizeof(struct wlc_ssid) * n_ssids;
 		}
+		params = (wl_escan_params_t *) kzalloc(params_size, GFP_KERNEL);
+		if (params == NULL) {
+			err = -ENOMEM;
+			goto exit;
+		}
+
+		if (request != NULL)
+			wl_scan_prep(&params->params, request);
 		params->version = htod32(ESCAN_REQ_VERSION);
 		params->action =  htod16(action);
 		params->sync_id = htod16(0x1234);
+		if (params_size + sizeof("escan") >= WLC_IOCTL_MEDLEN) {
+			WL_ERR(("ioctl buffer length not sufficient\n"));
+			err = -ENOMEM;
+			goto exit;
+		}
 		wldev_iovar_setbuf(ndev, "escan", params, params_size,
 			wl->escan_ioctl_buf, WLC_IOCTL_MEDLEN);
 		kfree(params);
@@ -1370,7 +1443,7 @@ wl_run_escan(struct wl_priv *wl, struct net_device *ndev, wlc_ssid_t *ssid, uint
 		/* P2P SCAN TRIGGER */
 		if (scan_request && scan_request->n_channels) {
 			num_chans = scan_request->n_channels;
-			WL_INFO((" chann number : %d\n", num_chans));
+			WL_SCAN((" chann number : %d\n", num_chans));
 			default_chan_list = kzalloc(num_chans * sizeof(*default_chan_list),
 				GFP_KERNEL);
 			if (default_chan_list == NULL) {
@@ -1407,12 +1480,13 @@ exit:
 
 
 static s32
-wl_do_escan(struct wl_priv *wl, struct wiphy *wiphy, struct net_device *ndev, wlc_ssid_t *ssid)
+wl_do_escan(struct wl_priv *wl, struct wiphy *wiphy, struct net_device *ndev,
+	struct cfg80211_scan_request *request)
 {
 	s32 err = BCME_OK;
 	s32 passive_scan;
 	wl_scan_results_t *results;
-	WL_DBG(("Enter \n"));
+	WL_SCAN(("Enter \n"));
 
 	wl->escan_info.wiphy = wiphy;
 	wl->escan_info.escan_state = WL_ESCAN_STATE_SCANING;
@@ -1428,7 +1502,7 @@ wl_do_escan(struct wl_priv *wl, struct wiphy *wiphy, struct net_device *ndev, wl
 	results->count = 0;
 	results->buflen = WL_SCAN_RESULTS_FIXED_SIZE;
 
-	wl_run_escan(wl, ndev, ssid, WL_SCAN_ACTION_START);
+	wl_run_escan(wl, ndev, request, WL_SCAN_ACTION_START);
 	return err;
 }
 
@@ -1437,15 +1511,16 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	struct cfg80211_scan_request *request,
 	struct cfg80211_ssid *this_ssid)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	struct cfg80211_ssid *ssids;
 	struct wl_scan_req *sr = wl_to_sr(wl);
-	wlc_ssid_t ssid_info;
 	s32 passive_scan;
 	bool iscan_req;
 	bool escan_req;
 	bool spec_scan;
+	bool p2p_ssid;
 	s32 err = 0;
+	s32 i;
 
 	if (unlikely(wl_get_drv_status(wl, SCANNING))) {
 		WL_ERR(("Scanning already : status (%d)\n", (int)wl->status));
@@ -1456,6 +1531,10 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 			(int)wl->status));
 		return -EAGAIN;
 	}
+	if (request->n_ssids > WL_SCAN_PARAMS_SSID_MAX) {
+		WL_ERR(("n_ssids > WL_SCAN_PARAMS_SSID_MAX\n"));
+		return -EOPNOTSUPP;
+	}
 
 	WL_DBG(("wiphy (%p)\n", wiphy));
 
@@ -1463,11 +1542,18 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	spec_scan = false;
 	if (request) {		/* scan bss */
 		ssids = request->ssids;
-		if (wl->iscan_on && (!ssids || !ssids->ssid_len)) {
+		if (wl->iscan_on && (!ssids || !ssids->ssid_len || request->n_ssids != 1)) {
 			iscan_req = true;
 		} else if (wl->escan_on) {
 			escan_req = true;
-			if (ssids->ssid_len && IS_P2P_SSID(ssids->ssid)) {
+			p2p_ssid = false;
+			for (i = 0; i < request->n_ssids; i++) {
+				if (ssids[i].ssid_len && IS_P2P_SSID(ssids[i].ssid)) {
+					p2p_ssid = true;
+					break;
+				}
+			}
+			if (p2p_ssid) {
 				if (wl->p2p_supported) {
 					/* p2p scan trigger */
 					if (p2p_on(wl) == false) {
@@ -1477,7 +1563,6 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 					}
 					p2p_scan(wl) = true;
 				}
-
 			} else {
 				/* legacy scan trigger
 				 * So, we have to disable p2p discovery if p2p discovery is on
@@ -1510,17 +1595,12 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	wl->scan_request = request;
 	wl_set_drv_status(wl, SCANNING);
 	if (iscan_req) {
-		err = wl_do_iscan(wl);
+		err = wl_do_iscan(wl, request);
 		if (likely(!err))
 			return err;
 		else
 			goto scan_out;
 	} else if (escan_req) {
-		WL_DBG(("ssid \"%s\", ssid_len (%d)\n",
-			ssids->ssid, ssids->ssid_len));
-
-		memcpy(ssid_info.SSID, ssids->ssid, ssids->ssid_len);
-		ssid_info.SSID_len = ssids->ssid_len;
 		if (wl->p2p_supported) {
 			if (p2p_on(wl) && p2p_scan(wl)) {
 
@@ -1532,7 +1612,7 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 				}
 			}
 		}
-		err = wl_do_escan(wl, wiphy, ndev, &ssid_info);
+		err = wl_do_escan(wl, wiphy, ndev, request);
 		if (likely(!err))
 			return err;
 		else
@@ -1546,18 +1626,18 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 		if (sr->ssid.SSID_len) {
 			memcpy(sr->ssid.SSID, ssids->ssid, sr->ssid.SSID_len);
 			sr->ssid.SSID_len = htod32(sr->ssid.SSID_len);
-			WL_DBG(("Specific scan ssid=\"%s\" len=%d\n",
+			WL_SCAN(("Specific scan ssid=\"%s\" len=%d\n",
 				sr->ssid.SSID, sr->ssid.SSID_len));
 			spec_scan = true;
 		} else {
-			WL_DBG(("Broadcast scan\n"));
+			WL_SCAN(("Broadcast scan\n"));
 		}
-		WL_DBG(("sr->ssid.SSID_len (%d)\n", sr->ssid.SSID_len));
+		WL_SCAN(("sr->ssid.SSID_len (%d)\n", sr->ssid.SSID_len));
 		passive_scan = wl->active_scan ? 0 : 1;
 		err = wldev_ioctl(ndev, WLC_SET_PASSIVE_SCAN,
 			&passive_scan, sizeof(passive_scan), false);
 		if (unlikely(err)) {
-			WL_ERR(("WLC_SET_PASSIVE_SCAN error (%d)\n", err));
+			WL_SCAN(("WLC_SET_PASSIVE_SCAN error (%d)\n", err));
 			goto scan_out;
 		}
 		err = wldev_ioctl(ndev, WLC_SCAN, &sr->ssid,
@@ -1586,9 +1666,10 @@ wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	struct cfg80211_scan_request *request)
 {
 	s32 err = 0;
+	struct wl_priv *wl = wiphy_priv(wiphy);
 
 	WL_DBG(("Enter \n"));
-	CHECK_SYS_UP();
+	CHECK_SYS_UP(wl);
 	err = __wl_cfg80211_scan(wiphy, ndev, request, NULL);
 	if (unlikely(err)) {
 		WL_ERR(("scan error (%d)\n", err));
@@ -1679,11 +1760,11 @@ static s32 wl_set_retry(struct net_device *dev, u32 retry, bool l)
 
 static s32 wl_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 {
-	struct wl_priv *wl = wiphy_to_wl(wiphy);
+	struct wl_priv *wl = (struct wl_priv *)wiphy_priv(wiphy);
 	struct net_device *ndev = wl_to_prmry_ndev(wl);
 	s32 err = 0;
 
-	CHECK_SYS_UP();
+	CHECK_SYS_UP(wl);
 	if (changed & WIPHY_PARAM_RTS_THRESHOLD &&
 		(wl->conf->rts_threshold != wiphy->rts_threshold)) {
 		wl->conf->rts_threshold = wiphy->rts_threshold;
@@ -1721,7 +1802,7 @@ static s32
 wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	struct cfg80211_ibss_params *params)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	struct cfg80211_bss *bss;
 	struct ieee80211_channel *chan;
 	struct wl_join_params join_params;
@@ -1730,7 +1811,7 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	s32 err = 0;
 
 	WL_TRACE(("In\n"));
-	CHECK_SYS_UP();
+	CHECK_SYS_UP(wl);
 	if (params->bssid) {
 		WL_ERR(("Invalid bssid\n"));
 		return -EOPNOTSUPP;
@@ -1791,10 +1872,10 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 
 static s32 wl_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	s32 err = 0;
 
-	CHECK_SYS_UP();
+	CHECK_SYS_UP(wl);
 	wl_link_down(wl);
 
 	return err;
@@ -1803,7 +1884,7 @@ static s32 wl_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 static s32
 wl_set_wpa_version(struct net_device *dev, struct cfg80211_connect_params *sme)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wlcfg_drv_priv;
 	struct wl_security *sec;
 	s32 val = 0;
 	s32 err = 0;
@@ -1833,7 +1914,7 @@ wl_set_wpa_version(struct net_device *dev, struct cfg80211_connect_params *sme)
 static s32
 wl_set_auth_type(struct net_device *dev, struct cfg80211_connect_params *sme)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wlcfg_drv_priv;
 	struct wl_security *sec;
 	s32 val = 0;
 	s32 err = 0;
@@ -1872,7 +1953,7 @@ wl_set_auth_type(struct net_device *dev, struct cfg80211_connect_params *sme)
 static s32
 wl_set_set_cipher(struct net_device *dev, struct cfg80211_connect_params *sme)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wlcfg_drv_priv;
 	struct wl_security *sec;
 	s32 pval = 0;
 	s32 gval = 0;
@@ -1944,7 +2025,7 @@ wl_set_set_cipher(struct net_device *dev, struct cfg80211_connect_params *sme)
 static s32
 wl_set_key_mgmt(struct net_device *dev, struct cfg80211_connect_params *sme)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wlcfg_drv_priv;
 	struct wl_security *sec;
 	s32 val = 0;
 	s32 err = 0;
@@ -2002,7 +2083,7 @@ static s32
 wl_set_set_sharedkey(struct net_device *dev,
 	struct cfg80211_connect_params *sme)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wlcfg_drv_priv;
 	struct wl_security *sec;
 	struct wl_wsec_key key;
 	s32 val;
@@ -2068,14 +2149,17 @@ static s32
 wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	struct cfg80211_connect_params *sme)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	struct ieee80211_channel *chan = sme->channel;
 	struct wl_join_params join_params;
 	size_t join_params_size;
 	s32 err = 0;
-
+	wpa_ie_fixed_t *wpa_ie;
+	bcm_tlv_t *wpa2_ie;
+	u8* wpaie  = 0;
+	u32 wpaie_len = 0;
 	WL_DBG(("In\n"));
-	CHECK_SYS_UP();
+	CHECK_SYS_UP(wl);
 
 	/*
 	 * Cancel ongoing scan to sync up with sme state machine of cfg80211.
@@ -2107,8 +2191,25 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 				VNDR_IE_ASSOCREQ_FLAG, sme->ie, sme->ie_len);
 		}
 
-	} else {
-		WL_INFO(("No P2PIE in beacon \n"));
+	} else if (dev == wl_to_prmry_ndev(wl)) {
+			/* find the RSN_IE */
+			if ((wpa2_ie = bcm_parse_tlvs((u8 *)sme->ie, sme->ie_len,
+				DOT11_MNG_RSN_ID)) != NULL) {
+				WL_DBG((" WPA2 IE is found\n"));
+			}
+			/* find the WPA_IE */
+			if ((wpa_ie = wl_cfgp2p_find_wpaie((u8 *)sme->ie,
+				sme->ie_len)) != NULL) {
+				WL_DBG((" WPA IE is found\n"));
+			}
+			if (wpa_ie != NULL || wpa2_ie != NULL) {
+				wpaie = (wpa_ie != NULL) ? (u8 *)wpa_ie : (u8 *)wpa2_ie;
+				wpaie_len = (wpa_ie != NULL) ? wpa_ie->length : wpa2_ie->len;
+				wpaie_len += WPA_RSN_IE_TAG_FIXED_LEN;
+				wldev_iovar_setbuf(dev, "wpaie", wpaie, wpaie_len,
+				ioctlbuf, sizeof(ioctlbuf));
+			}
+
 	}
 
 	if (unlikely(!sme->ssid)) {
@@ -2119,7 +2220,8 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		wl->channel = ieee80211_frequency_to_channel(chan->center_freq);
 		WL_DBG(("channel (%d), center_req (%d)\n", wl->channel,
 			chan->center_freq));
-	}
+	} else
+		wl->channel = 0;
 	WL_DBG(("ie (%p), ie_len (%zd)\n", sme->ie, sme->ie_len));
 	err = wl_set_wpa_version(dev, sme);
 	if (unlikely(err))
@@ -2179,13 +2281,13 @@ static s32
 wl_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	u16 reason_code)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	scb_val_t scbval;
 	bool act = false;
 	s32 err = 0;
 
 	WL_ERR(("Reason %d\n\n\n", reason_code));
-	CHECK_SYS_UP();
+	CHECK_SYS_UP(wl);
 	act = *(bool *) wl_read_prof(wl, WL_PROF_ACT);
 	if (likely(act)) {
 		scbval.val = reason_code;
@@ -2207,13 +2309,13 @@ wl_cfg80211_set_tx_power(struct wiphy *wiphy,
 	enum nl80211_tx_power_setting type, s32 dbm)
 {
 
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	struct net_device *ndev = wl_to_prmry_ndev(wl);
 	u16 txpwrmw;
 	s32 err = 0;
 	s32 disable = 0;
 
-	CHECK_SYS_UP();
+	CHECK_SYS_UP(wl);
 	switch (type) {
 	case NL80211_TX_POWER_AUTOMATIC:
 		break;
@@ -2256,13 +2358,13 @@ wl_cfg80211_set_tx_power(struct wiphy *wiphy,
 
 static s32 wl_cfg80211_get_tx_power(struct wiphy *wiphy, s32 *dbm)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	struct net_device *ndev = wl_to_prmry_ndev(wl);
 	s32 txpwrdbm;
 	u8 result;
 	s32 err = 0;
 
-	CHECK_SYS_UP();
+	CHECK_SYS_UP(wl);
 	err = wl_dev_intvar_get(ndev, "qtxpower", &txpwrdbm);
 	if (unlikely(err)) {
 		WL_ERR(("error (%d)\n", err));
@@ -2278,14 +2380,14 @@ static s32
 wl_cfg80211_config_default_key(struct wiphy *wiphy, struct net_device *dev,
 	u8 key_idx, bool unicast, bool multicast)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	u32 index;
 	s32 wsec;
 	s32 err = 0;
 	s32 bssidx = wl_cfgp2p_find_idx(wl, dev);
 
 	WL_DBG(("key index (%d)\n", key_idx));
-	CHECK_SYS_UP();
+	CHECK_SYS_UP(wl);
 	err = wldev_iovar_getint_bsscfg(dev, "wsec", &wsec, bssidx);
 	if (unlikely(err)) {
 		WL_ERR(("WLC_GET_WSEC error (%d)\n", err));
@@ -2308,7 +2410,7 @@ static s32
 wl_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 	u8 key_idx, const u8 *mac_addr, struct key_params *params)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	struct wl_wsec_key key;
 	s32 err = 0;
 	s32 bssidx = wl_cfgp2p_find_idx(wl, dev);
@@ -2407,10 +2509,10 @@ wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 	s32 err = 0;
 	u8 keybuf[8];
 	s32 bssidx = 0;
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	s32 mode = get_mode_by_netdev(wl, dev);
 	WL_DBG(("key index (%d)\n", key_idx));
-	CHECK_SYS_UP();
+	CHECK_SYS_UP(wl);
 
 	bssidx = wl_cfgp2p_find_idx(wl, dev);
 
@@ -2508,12 +2610,12 @@ wl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 	u8 key_idx, bool pairwise, const u8 *mac_addr)
 {
 	struct wl_wsec_key key;
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	s32 err = 0;
 	s32 bssidx = wl_cfgp2p_find_idx(wl, dev);
 
 	WL_DBG(("Enter\n"));
-	CHECK_SYS_UP();
+	CHECK_SYS_UP(wl);
 	memset(&key, 0, sizeof(key));
 
 	key.index = (u32) key_idx;
@@ -2557,14 +2659,14 @@ wl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct key_params params;
 	struct wl_wsec_key key;
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	struct wl_security *sec;
 	s32 wsec;
 	s32 err = 0;
 	s32 bssidx = wl_cfgp2p_find_idx(wl, dev);
 
 	WL_DBG(("key index (%d)\n", key_idx));
-	CHECK_SYS_UP();
+	CHECK_SYS_UP(wl);
 	memset(&key, 0, sizeof(key));
 	key.index = key_idx;
 	swap_key_to_BE(&key);
@@ -2610,7 +2712,6 @@ wl_cfg80211_config_default_mgmt_key(struct wiphy *wiphy,
 	struct net_device *dev, u8 key_idx)
 {
 	WL_INFO(("Not supported\n"));
-	CHECK_SYS_UP();
 	return -EOPNOTSUPP;
 }
 
@@ -2618,13 +2719,13 @@ static s32
 wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 	u8 *mac, struct station_info *sinfo)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	scb_val_t scb_val;
 	int rssi;
 	s32 rate;
 	s32 err = 0;
 
-	CHECK_SYS_UP();
+	CHECK_SYS_UP(wl);
 	if (unlikely
 		(memcmp(mac, wl_read_prof(wl, WL_PROF_BSSID), ETHER_ADDR_LEN))) {
 		WL_ERR(("Wrong Mac address\n"));
@@ -2675,8 +2776,9 @@ wl_cfg80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 {
 	s32 pm;
 	s32 err = 0;
+	struct wl_priv *wl = wiphy_priv(wiphy);
 
-	CHECK_SYS_UP();
+	CHECK_SYS_UP(wl);
 	pm = enabled ? PM_FAST : PM_OFF;
 	pm = htod32(pm);
 	WL_DBG(("power save %s\n", (pm ? "enabled" : "disabled")));
@@ -2720,7 +2822,7 @@ static __used u32 wl_find_msb(u16 bit16)
 
 static s32 wl_cfg80211_resume(struct wiphy *wiphy)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	s32 err = 0;
 
 	if (unlikely(!wl_get_drv_status(wl, READY))) {
@@ -2740,9 +2842,8 @@ static s32 wl_cfg80211_suspend(struct wiphy *wiphy, struct cfg80211_wowlan *wow)
 static s32 wl_cfg80211_suspend(struct wiphy *wiphy)
 #endif
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	s32 err = 0;
-
 	if (unlikely(!wl_get_drv_status(wl, READY))) {
 		WL_INFO(("device is not ready : status (%d)\n",
 			(int)wl->status));
@@ -2766,7 +2867,7 @@ wl_update_pmklist(struct net_device *dev, struct wl_pmk_list *pmk_list,
 	s32 err)
 {
 	int i, j;
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wlcfg_drv_priv;
 	struct net_device *primary_dev = wl_to_prmry_ndev(wl);
 
 	/* Firmware is supporting pmk list only for STA interface i.e. primary interface
@@ -2774,7 +2875,7 @@ wl_update_pmklist(struct net_device *dev, struct wl_pmk_list *pmk_list,
 	  * Do we really need to support PMK cache in P2P in firmware?
 	*/
 	if (primary_dev != dev) {
-		WL_ERR(("Not supporting Flushing pmklist on virtual"
+		WL_INFO(("Not supporting Flushing pmklist on virtual"
 			" interfaces than primary interface\n"));
 		return err;
 	}
@@ -2799,11 +2900,11 @@ static s32
 wl_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *dev,
 	struct cfg80211_pmksa *pmksa)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	s32 err = 0;
 	int i;
 
-	CHECK_SYS_UP();
+	CHECK_SYS_UP(wl);
 	for (i = 0; i < wl->pmk_list->pmkids.npmkid; i++)
 		if (!memcmp(pmksa->bssid, &wl->pmk_list->pmkids.pmkid[i].BSSID,
 			ETHER_ADDR_LEN))
@@ -2819,10 +2920,10 @@ wl_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *dev,
 		err = -EINVAL;
 	}
 	WL_DBG(("set_pmksa,IW_PMKSA_ADD - PMKID: %pM =\n",
-		&wl->pmk_list->pmkids.pmkid[wl->pmk_list->pmkids.npmkid].BSSID));
+		&wl->pmk_list->pmkids.pmkid[wl->pmk_list->pmkids.npmkid - 1].BSSID));
 	for (i = 0; i < WPA2_PMKID_LEN; i++) {
 		WL_DBG(("%02x\n",
-			wl->pmk_list->pmkids.pmkid[wl->pmk_list->pmkids.npmkid].
+			wl->pmk_list->pmkids.pmkid[wl->pmk_list->pmkids.npmkid - 1].
 			PMKID[i]));
 	}
 
@@ -2835,12 +2936,12 @@ static s32
 wl_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *dev,
 	struct cfg80211_pmksa *pmksa)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	struct _pmkid_list pmkid;
 	s32 err = 0;
 	int i;
 
-	CHECK_SYS_UP();
+	CHECK_SYS_UP(wl);
 	memcpy(&pmkid.pmkid[0].BSSID, pmksa->bssid, ETHER_ADDR_LEN);
 	memcpy(&pmkid.pmkid[0].PMKID, pmksa->pmkid, WPA2_PMKID_LEN);
 
@@ -2881,9 +2982,9 @@ wl_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *dev,
 static s32
 wl_cfg80211_flush_pmksa(struct wiphy *wiphy, struct net_device *dev)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	s32 err = 0;
-	CHECK_SYS_UP();
+	CHECK_SYS_UP(wl);
 	memset(wl->pmk_list, 0, sizeof(*wl->pmk_list));
 	err = wl_update_pmklist(dev, wl->pmk_list, err);
 	return err;
@@ -2959,7 +3060,7 @@ wl_cfg80211_remain_on_channel(struct wiphy *wiphy, struct net_device *dev,
 	s32 target_channel;
 
 	s32 err = BCME_OK;
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	dhd_pub_t *dhd = (dhd_pub_t *)(wl->pub);
 	WL_DBG(("Enter, netdev_ifidx: %d \n", dev->ifindex));
 	if (likely(wl_get_drv_status(wl, SCANNING))) {
@@ -3015,7 +3116,7 @@ wl_cfg80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 	wifi_p2p_ie_t *p2p_ie;
 	wpa_ie_fixed_t *wps_ie;
 	const struct ieee80211_mgmt *mgmt;
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	dhd_pub_t *dhd = (dhd_pub_t *)(wl->pub);
 	s32 err = BCME_OK;
 	s32 bssidx = 0;
@@ -3470,7 +3571,7 @@ wl_cfg80211_set_beacon(struct wiphy *wiphy, struct net_device *dev,
 	s32 err = BCME_OK;
 	bcm_tlv_t *ssid_ie;
 	wlc_ssid_t ssid;
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wiphy_priv(wiphy);
 	struct wl_join_params join_params;
 	wpa_ie_fixed_t *wps_ie;
 	wpa_ie_fixed_t *wpa_ie;
@@ -3760,7 +3861,6 @@ wl_cfg80211_set_beacon(struct wiphy *wiphy, struct net_device *dev,
 static s32
 wl_cfg80211_drv_start(struct wiphy *wiphy, struct net_device *dev)
 {
-	/* struct wl_priv *wl = wiphy_to_wl(wiphy); */
 	s32 err = 0;
 
 	printk("Android driver start command\n");
@@ -3770,7 +3870,6 @@ wl_cfg80211_drv_start(struct wiphy *wiphy, struct net_device *dev)
 static s32
 wl_cfg80211_drv_stop(struct wiphy *wiphy, struct net_device *dev)
 {
-	/* struct wl_priv *wl = wiphy_to_wl(wiphy); */
 	s32 err = 0;
 
 	printk("Android driver stop command\n");
@@ -3833,28 +3932,26 @@ static s32 wl_mode_to_nl80211_iftype(s32 mode)
 	return err;
 }
 
-static struct wireless_dev *wl_alloc_wdev(s32 sizeof_iface,
-	struct device *dev)
+static struct wireless_dev *wl_alloc_wdev(struct device *sdiofunc_dev)
 {
 	struct wireless_dev *wdev;
 	s32 err = 0;
-	struct wl_priv *wl;
 	wdev = kzalloc(sizeof(*wdev), GFP_KERNEL);
 	if (unlikely(!wdev)) {
 		WL_ERR(("Could not allocate wireless device\n"));
 		return ERR_PTR(-ENOMEM);
 	}
 	wdev->wiphy =
-	    wiphy_new(&wl_cfg80211_ops, sizeof(struct wl_priv) + sizeof_iface);
+	    wiphy_new(&wl_cfg80211_ops, sizeof(struct wl_priv));
 	if (unlikely(!wdev->wiphy)) {
 		WL_ERR(("Couldn not allocate wiphy device\n"));
 		err = -ENOMEM;
 		goto wiphy_new_out;
 	}
-	set_wiphy_dev(wdev->wiphy, dev);
-	wl = wiphy_to_wl(wdev->wiphy);
+	set_wiphy_dev(wdev->wiphy, sdiofunc_dev);
 	wdev->wiphy->max_scan_ie_len = WL_SCAN_IE_LEN_MAX;
-	wdev->wiphy->max_scan_ssids = WL_NUM_SCAN_MAX;
+	/* Report  how many SSIDs Driver can support per Scan request */
+	wdev->wiphy->max_scan_ssids = WL_SCAN_PARAMS_SSID_MAX;
 	wdev->wiphy->max_num_pmkids = WL_NUM_PMKIDS_MAX;
 	wdev->wiphy->interface_modes =
 	    BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_ADHOC)
@@ -3902,7 +3999,7 @@ wiphy_new_out:
 static void wl_free_wdev(struct wl_priv *wl)
 {
 	int i;
-	struct wireless_dev *wdev = wl_to_wdev(wl);
+	struct wireless_dev *wdev = wl->wdev;
 
 	if (unlikely(!wdev)) {
 		WL_ERR(("wdev is invalid\n"));
@@ -4178,12 +4275,10 @@ wl_notify_connect_status(struct wl_priv *wl, struct net_device *ndev,
 		} else if (wl_is_linkdown(wl, e)) {
 			if (wl_get_drv_status(wl, CONNECTED)) {
 				printk("link down, call cfg80211_disconnected ");
-				rtnl_lock();
 				cfg80211_disconnected(ndev, 0, NULL, 0, GFP_KERNEL);
 				wl_clr_drv_status(wl, CONNECTED);
 				wl_link_down(wl);
 				wl_init_prof(wl->profile);
-				rtnl_unlock();
 			} else if (wl_get_drv_status(wl, CONNECTING)) {
 				printk("link down, during connecting");
 				wl_bss_connect_done(wl, ndev, e, data, false);
@@ -4211,24 +4306,22 @@ wl_notify_roaming_status(struct wl_priv *wl, struct net_device *ndev,
 	s32 err = 0;
 	u32 event = be32_to_cpu(e->event_type);
 	u32 status = be32_to_cpu(e->status);
-
 	WL_DBG(("Enter \n"));
 	if (event == WLC_E_ROAM && status == WLC_E_STATUS_SUCCESS) {
-		if (test_bit(WL_STATUS_CONNECTED, &wl->status))
+		if (wl_get_drv_status(wl, CONNECTED))
 			wl_bss_roaming_done(wl, ndev, e, data);
 		else
 			wl_bss_connect_done(wl, ndev, e, data, true);
 		act = true;
 		wl_update_prof(wl, e, &act, WL_PROF_ACT);
 	}
-
 	return err;
 }
 
 static __used s32
 wl_dev_bufvar_set(struct net_device *dev, s8 *name, s8 *buf, s32 len)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wlcfg_drv_priv;
 	u32 buflen;
 
 	buflen = bcm_mkiovar(name, buf, len, wl->ioctl_buf, WL_IOCTL_LEN_MAX);
@@ -4241,7 +4334,7 @@ static s32
 wl_dev_bufvar_get(struct net_device *dev, s8 *name, s8 *buf,
 	s32 buf_len)
 {
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wlcfg_drv_priv;
 	u32 len;
 	s32 err = 0;
 
@@ -4449,6 +4542,7 @@ wl_bss_roaming_done(struct wl_priv *wl, struct net_device *ndev,
 	wl_get_assoc_ies(wl, ndev);
 	memcpy(&wl->bssid, &e->addr, ETHER_ADDR_LEN);
 	wl_update_bss_info(wl, ndev);
+	wl_update_pmklist(ndev, wl->pmk_list, err);
 	cfg80211_roamed(ndev,
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)
 		NULL,
@@ -4478,6 +4572,7 @@ wl_bss_connect_done(struct wl_priv *wl, struct net_device *ndev,
 			wl_get_assoc_ies(wl, ndev);
 			memcpy(&wl->bssid, &e->addr, ETHER_ADDR_LEN);
 			wl_update_bss_info(wl, ndev);
+			wl_update_pmklist(ndev, wl->pmk_list, err);
 		}
 		cfg80211_connect_result(ndev,
 			(u8 *)&wl->bssid,
@@ -5262,7 +5357,7 @@ s32 wl_cfg80211_sysctl_export_devaddr(void *data)
 	 * so that wpa_supplicant can access it
 	 */
 	dhd_pub_t *dhd = (dhd_pub_t *)data;
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wlcfg_drv_priv;
 
 	wl_cfgp2p_generate_bss_mac(&dhd->mac, &wl->p2p->dev_addr, &wl->p2p->int_addr);
 
@@ -5282,7 +5377,7 @@ s32 wl_cfg80211_attach_post(struct net_device *ndev)
 		WL_ERR(("ndev is invaild\n"));
 		return -ENODEV;
 	}
-	wl = WL_PRIV_GET();
+	wl = wlcfg_drv_priv;
 	if (wl && !wl_get_drv_status(wl, READY)) {
 			if (wl->wdev &&
 				wl_cfgp2p_supported(wl, ndev)) {
@@ -5307,7 +5402,6 @@ s32 wl_cfg80211_attach(struct net_device *ndev, void *data)
 {
 	struct wireless_dev *wdev;
 	struct wl_priv *wl;
-	struct wl_iface *ci;
 	s32 err = 0;
 
 	WL_TRACE(("In\n"));
@@ -5315,23 +5409,16 @@ s32 wl_cfg80211_attach(struct net_device *ndev, void *data)
 		WL_ERR(("ndev is invaild\n"));
 		return -ENODEV;
 	}
-	wl_cfg80211_dev = kzalloc(sizeof(struct wl_dev), GFP_KERNEL);
-	if (unlikely(!wl_cfg80211_dev)) {
-		WL_ERR(("wl_cfg80211_dev is invalid\n"));
-		return -ENOMEM;
-	}
 	WL_DBG(("func %p\n", wl_cfg80211_get_sdio_func()));
-	wdev = wl_alloc_wdev(sizeof(struct wl_iface), &wl_cfg80211_get_sdio_func()->dev);
+	wdev = wl_alloc_wdev(&wl_cfg80211_get_sdio_func()->dev);
 	if (unlikely(IS_ERR(wdev)))
 		return -ENOMEM;
 
 	wdev->iftype = wl_mode_to_nl80211_iftype(WL_MODE_BSS);
-	wl = wdev_to_wl(wdev);
+	wl = (struct wl_priv *)wiphy_priv(wdev->wiphy);
 	wl->wdev = wdev;
 	wl->pub = data;
 
-	ci = (struct wl_iface *)wl_to_ci(wl);
-	ci->wl = wl;
 	ndev->ieee80211_ptr = wdev;
 	SET_NETDEV_DEV(ndev, wiphy_dev(wdev->wiphy));
 	wdev->netdev = ndev;
@@ -5354,7 +5441,7 @@ s32 wl_cfg80211_attach(struct net_device *ndev, void *data)
 		goto cfg80211_attach_out;
 	}
 #endif
-	wl_set_drvdata(wl_cfg80211_dev, ci);
+	wlcfg_drv_priv = wl;
 	return err;
 
 cfg80211_attach_out:
@@ -5367,7 +5454,7 @@ void wl_cfg80211_detach(void)
 {
 	struct wl_priv *wl;
 
-	wl = WL_PRIV_GET();
+	wl = wlcfg_drv_priv;
 
 	WL_TRACE(("In\n"));
 #if defined(DHD_P2P_DEV_ADDR_FROM_SYSFS) && defined(CONFIG_SYSCTL)
@@ -5378,9 +5465,7 @@ void wl_cfg80211_detach(void)
 	if (wl->p2p_supported)
 		wl_cfgp2p_deinit_priv(wl);
 	wl_deinit_priv(wl);
-	wl_set_drvdata(wl_cfg80211_dev, NULL);
-	kfree(wl_cfg80211_dev);
-	wl_cfg80211_dev = NULL;
+	wlcfg_drv_priv = NULL;
 	wl_clear_sdio_func();
 	wl_free_wdev(wl);
 }
@@ -5421,7 +5506,6 @@ static s32 wl_event_handler(void *data)
 		}
 		wl_put_event(e);
 	}
-
 	WL_DBG(("%s was terminated\n", __func__));
 	complete_and_exit(&tsk->completed, 0);
 	return 0;
@@ -5431,7 +5515,7 @@ void
 wl_cfg80211_event(struct net_device *ndev, const wl_event_msg_t * e, void *data)
 {
 	u32 event_type = ntoh32(e->event_type);
-	struct wl_priv *wl = WL_PRIV_GET();
+	struct wl_priv *wl = wlcfg_drv_priv;
 
 #if (WL_DBG_LEVEL > 0)
 	s8 *estr = (event_type <= sizeof(wl_dbg_estr) / WL_DBG_ESTR_MAX - 1) ?
@@ -5635,14 +5719,12 @@ static s32 wl_dongle_eventmsg(struct net_device *ndev)
 	setbit(eventmask, WLC_E_DISASSOC_IND);
 	setbit(eventmask, WLC_E_DISASSOC);
 	setbit(eventmask, WLC_E_JOIN);
+	setbit(eventmask, WLC_E_ROAM);
 	setbit(eventmask, WLC_E_ASSOC_IND);
-	setbit(eventmask, WLC_E_PSK_SUP);
 	setbit(eventmask, WLC_E_LINK);
-	setbit(eventmask, WLC_E_NDIS_LINK);
 	setbit(eventmask, WLC_E_MIC_ERROR);
 	setbit(eventmask, WLC_E_PMKID_CACHE);
 	setbit(eventmask, WLC_E_TXFAIL);
-	setbit(eventmask, WLC_E_JOIN_START);
 	setbit(eventmask, WLC_E_SCAN_COMPLETE);
 	setbit(eventmask, WLC_E_ACTION_FRAME_RX);
 	setbit(eventmask, WLC_E_ACTION_FRAME_COMPLETE);
@@ -6072,6 +6154,7 @@ static s32 __wl_cfg80211_down(struct wl_priv *wl)
 	wl_clr_drv_status(wl, READY);
 	wl_clr_drv_status(wl, SCANNING);
 	wl_clr_drv_status(wl, SCAN_ABORTING);
+	wl_clr_drv_status(wl, CONNECTING);
 	wl_clr_drv_status(wl, CONNECTED);
 	if (wl_get_drv_status(wl, AP_CREATED)) {
 		wl_clr_drv_status(wl, AP_CREATED);
@@ -6097,7 +6180,7 @@ s32 wl_cfg80211_up(void)
 	s32 err = 0;
 
 	WL_TRACE(("In\n"));
-	wl = WL_PRIV_GET();
+	wl = wlcfg_drv_priv;
 	mutex_lock(&wl->usr_sync);
 	wl_cfg80211_attach_post(wl_to_prmry_ndev(wl));
 	err = __wl_cfg80211_up(wl);
@@ -6114,7 +6197,7 @@ s32 wl_cfg80211_down(void)
 	s32 err = 0;
 
 	WL_TRACE(("In\n"));
-	wl = WL_PRIV_GET();
+	wl = wlcfg_drv_priv;
 	mutex_lock(&wl->usr_sync);
 	err = __wl_cfg80211_down(wl);
 	mutex_unlock(&wl->usr_sync);
@@ -6311,22 +6394,12 @@ static void wl_delay(u32 ms)
 	}
 }
 
-static void wl_set_drvdata(struct wl_dev *dev, void *data)
-{
-	dev->driver_data = data;
-}
-
-static void *wl_get_drvdata(struct wl_dev *dev)
-{
-	return dev->driver_data;
-}
-
 s32 wl_cfg80211_read_fw(s8 *buf, u32 size)
 {
 	const struct firmware *fw_entry;
 	struct wl_priv *wl;
 
-	wl = WL_PRIV_GET();
+	wl = wlcfg_drv_priv;
 
 	fw_entry = wl->fw->fw_entry;
 
@@ -6342,7 +6415,7 @@ void wl_cfg80211_release_fw(void)
 {
 	struct wl_priv *wl;
 
-	wl = WL_PRIV_GET();
+	wl = wlcfg_drv_priv;
 	release_firmware(wl->fw->fw_entry);
 	wl->fw->ptr = 0;
 }
@@ -6355,7 +6428,7 @@ void *wl_cfg80211_request_fw(s8 *file_name)
 
 	WL_TRACE(("In\n"));
 	WL_DBG(("file name : \"%s\"\n", file_name));
-	wl = WL_PRIV_GET();
+	wl = wlcfg_drv_priv;
 
 	if (!test_bit(WL_FW_LOADING_DONE, &wl->fw->status)) {
 		err = request_firmware(&wl->fw->fw_entry, file_name,
@@ -6400,7 +6473,7 @@ s8 *wl_cfg80211_get_fwname(void)
 {
 	struct wl_priv *wl;
 
-	wl = WL_PRIV_GET();
+	wl = wlcfg_drv_priv;
 	strcpy(wl->fw->fw_name, WL_4329_FW_FILE);
 	return wl->fw->fw_name;
 }
@@ -6409,7 +6482,7 @@ s8 *wl_cfg80211_get_nvramname(void)
 {
 	struct wl_priv *wl;
 
-	wl = WL_PRIV_GET();
+	wl = wlcfg_drv_priv;
 	strcpy(wl->fw->nvram_name, WL_4329_NVRAM_FILE);
 	return wl->fw->nvram_name;
 }
@@ -6420,7 +6493,7 @@ s32 wl_cfg80211_get_p2p_dev_addr(struct net_device *net, struct ether_addr *p2pd
 	dhd_pub_t *dhd_pub;
 	struct ether_addr p2pif_addr;
 
-	wl = WL_PRIV_GET();
+	wl = wlcfg_drv_priv;
 	dhd_pub = (dhd_pub_t *)wl->pub;
 	wl_cfgp2p_generate_bss_mac(&dhd_pub->mac, p2pdev_addr, &p2pif_addr);
 

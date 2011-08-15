@@ -1533,6 +1533,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	uint32 dongle_align = DHD_SDALIGN;
 	uint32 glom = 0;
 	uint bcn_timeout = 4;
+	uint retry_max = 3;
 	int arpoe = 1;
 	int arp_ol = 0xf;
 	int scan_assoc_time = 40;
@@ -1610,8 +1611,8 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #endif /* SET_RANDOM_MAC_SOFTAP */
 
 	DHD_ERROR(("Firmware up: Broadcom Dongle Host Driver mac=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
-	       dhd->mac.octet[0], dhd->mac.octet[1], dhd->mac.octet[2],
-	       dhd->mac.octet[3], dhd->mac.octet[4], dhd->mac.octet[5]));
+	           dhd->mac.octet[0], dhd->mac.octet[1], dhd->mac.octet[2],
+	           dhd->mac.octet[3], dhd->mac.octet[4], dhd->mac.octet[5]));
 
 	/* Set Country code  */
 	if (dhd->dhd_cspec.ccode[0] != 0) {
@@ -1650,6 +1651,9 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 
 	/* Setup timeout if Beacons are lost and roam is off to report link down */
 	bcm_mkiovar("bcn_timeout", (char *)&bcn_timeout, 4, iovbuf, sizeof(iovbuf));
+	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
+	/* Setup assoc_retry_max count to reconnect target AP in dongle */
+	bcm_mkiovar("assoc_retry_max", (char *)&retry_max, 4, iovbuf, sizeof(iovbuf));
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
 #ifdef AP
 	/* Turn off MPC in AP mode */

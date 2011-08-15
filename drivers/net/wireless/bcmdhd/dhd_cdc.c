@@ -1920,7 +1920,6 @@ dhd_wlfc_init(dhd_pub_t *dhd)
 		WLFC_FLAGS_CREDIT_STATUS_SIGNALS |
 		WLFC_FLAGS_HOST_PROPTXSTATUS_ACTIVE : 0;
 
-	dhd->wlfc_state  = NULL;
 
 	/*
 	try to enable/disable signaling by sending "tlv" iovar. if that fails,
@@ -2297,15 +2296,14 @@ dhd_prot_init(dhd_pub_t *dhd)
 		goto done;
 
 
+#ifdef PROP_TXSTATUS
+	ret = dhd_wlfc_init(dhd);
+#endif
+
 	ret = dhd_preinit_ioctls(dhd);
 
 	/* Always assumes wl for now */
 	dhd->iswl = TRUE;
-
-#ifdef PROP_TXSTATUS
-	ret = dhd_wlfc_init(dhd);
-#endif
-	goto done;
 
 done:
 	return ret;

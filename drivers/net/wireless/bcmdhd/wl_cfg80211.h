@@ -52,6 +52,7 @@ struct wl_ibss;
 #define dtohchanspec(i) i
 
 #define WL_DBG_NONE	0
+#define WL_DBG_SCAN 	(1 << 3)
 #define WL_DBG_DBG 	(1 << 2)
 #define WL_DBG_INFO	(1 << 1)
 #define WL_DBG_ERR	(1 << 0)
@@ -74,6 +75,13 @@ do {										\
 			printk args;						\
 		}								\
 } while (0)
+#define	WL_SCAN(args)								\
+do {									\
+	if (wl_dbg_level & WL_DBG_SCAN) {			\
+		printk(KERN_ERR "CFG80211-SCAN) %s :", __func__);	\
+		printk args;							\
+	}									\
+} while (0)
 #if (WL_DBG_LEVEL > 0)
 #define	WL_DBG(args)								\
 do {									\
@@ -87,7 +95,6 @@ do {									\
 #endif				/* (WL_DBG_LEVEL > 0) */
 
 #define WL_SCAN_RETRY_MAX	3	/* used for ibss scan */
-#define WL_NUM_SCAN_MAX		1
 #define WL_NUM_PMKIDS_MAX	MAXPMKID	/* will be used
 						 * for 2.6.33 kernel
 						 * or later
@@ -188,14 +195,6 @@ struct wl_conf {
 typedef s32(*EVENT_HANDLER) (struct wl_priv *wl,
                             struct net_device *ndev, const wl_event_msg_t *e, void *data);
 
-/* representing interface of cfg80211 plane */
-struct wl_iface {
-	struct wl_priv *wl;
-};
-
-struct wl_dev {
-	void *driver_data;	/* to store cfg80211 object information */
-};
 
 /* bss inform structure for cfg80211 interface */
 struct wl_cfg80211_bss_info {
@@ -388,18 +387,11 @@ struct wl_priv {
 	struct p2p_info *p2p;
 	bool p2p_supported;
 	s8 last_eventmask[WL_EVENTING_MASK_LEN];
-	u8 ci[0] __attribute__ ((__aligned__(NETDEV_ALIGN)));
 };
 
-#define wl_to_dev(w) (wiphy_dev(wl->wdev->wiphy))
 #define wl_to_wiphy(w) (w->wdev->wiphy)
-#define wiphy_to_wl(w) ((struct wl_priv *)(wiphy_priv(w)))
-#define wl_to_wdev(w) (w->wdev)
-#define wdev_to_wl(w) ((struct wl_priv *)(wdev_priv(w)))
 #define wl_to_prmry_ndev(w) (w->wdev->netdev)
 #define ndev_to_wl(n) (wdev_to_wl(n->ieee80211_ptr))
-#define ci_to_wl(c) (ci->wl)
-#define wl_to_ci(w) (&w->ci)
 #define wl_to_sr(w) (w->scan_req_int)
 #define wl_to_ie(w) (&w->ie)
 #define iscan_to_wl(i) ((struct wl_priv *)(i->data))

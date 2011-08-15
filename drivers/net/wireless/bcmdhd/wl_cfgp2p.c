@@ -970,8 +970,7 @@ wl_cfgp2p_discover_listen(struct wl_priv *wl, s32 channel, u32 duration_ms)
 	} while (0);
 
 	s32 ret = BCME_OK;
-	CFGP2P_DBG((" Enter\n"));
-	CFGP2P_INFO(("Channel : %d, Duration : %d\n", channel, duration_ms));
+	CFGP2P_DBG((" Enter Channel : %d, Duration : %d\n", channel, duration_ms));
 	if (unlikely(wl_get_p2p_status(wl, DISCOVERY_ON) == 0)) {
 
 		CFGP2P_ERR((" Discovery is not set, so we have noting to do\n"));
@@ -996,9 +995,9 @@ wl_cfgp2p_discover_listen(struct wl_priv *wl, s32 channel, u32 duration_ms)
 	}
 
 	/*  We will wait to receive WLC_E_P2P_DISC_LISTEN_COMPLETE from dongle , 
-	 *  otherwise we will wait up to duration_ms + 10ms
+	 *  otherwise we will wait up to duration_ms + 200ms
 	 */
-	INIT_TIMER(wl->p2p->listen_timer, wl_cfgp2p_listen_expired, duration_ms, 20);
+	INIT_TIMER(wl->p2p->listen_timer, wl_cfgp2p_listen_expired, duration_ms, 200);
 
 #undef INIT_TIMER
 exit:

@@ -140,7 +140,9 @@ typedef bool (*ifpkt_cb_t)(void*, int);
 #define SHARED_POOL		((struct pktpool *)NULL)
 #endif 
 
+#ifndef PKTPOOL_LEN_MAX
 #define PKTPOOL_LEN_MAX		40
+#endif
 #define PKTPOOL_CB_MAX		3
 
 struct pktpool;

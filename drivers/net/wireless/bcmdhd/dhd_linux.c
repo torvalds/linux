@@ -443,11 +443,9 @@ static void dhd_htsf_addrxts(dhd_pub_t *dhdp, void *pktbuf);
 static void dhd_dump_htsfhisto(histo_t *his, char *s);
 #endif /* WLMEDIA_HTSF */
 
-extern s32 wl_cfg80211_ifdel_ops(struct net_device *net);
-
 /* Monitor interface */
-extern int dhd_monitor_init(void *dhd_pub);
-extern int dhd_monitor_uninit(void);
+int dhd_monitor_init(void *dhd_pub);
+int dhd_monitor_uninit(void);
 
 
 #if defined(CONFIG_WIRELESS_EXT)
@@ -2261,7 +2259,6 @@ dhd_open(struct net_device *net)
 	if (ifidx == 0) {
 		atomic_set(&dhd->pend_8021x_cnt, 0);
 #if defined(WL_CFG80211)
-		printf("\n cfg %s\n", dhd_version);
 		wl_android_wifi_on(net);
 #endif
 
