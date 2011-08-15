@@ -46,15 +46,10 @@ ALC260
 ALC262
 ======
   fujitsu	Fujitsu Laptop
-  hp-bpc	HP xw4400/6400/8400/9400 laptops
-  hp-bpc-d7000	HP BPC D7000
-  hp-tc-t5735	HP Thin Client T5735
-  hp-rp5700	HP RP5700
   benq		Benq ED8
   benq-t31	Benq T31
   hippo		Hippo (ATI) with jack detection, Sony UX-90s
   hippo_1	Hippo (Benq) with jack detection
-  sony-assamd	Sony ASSAMD
   toshiba-s06	Toshiba S06
   toshiba-rx1	Toshiba RX1
   tyan		Tyan Thunder n6650W (S2915-E)
