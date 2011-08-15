@@ -2459,6 +2459,21 @@ static int wm8994_set_tristate(struct snd_soc_dai *codec_dai, int tristate)
 	return snd_soc_update_bits(codec, reg, mask, val);
 }
 
+static int wm8994_aif2_probe(struct snd_soc_dai *dai)
+{
+	struct snd_soc_codec *codec = dai->codec;
+
+	/* Disable the pulls on the AIF if we're using it to save power. */
+	snd_soc_update_bits(codec, WM8994_GPIO_3,
+			    WM8994_GPN_PU | WM8994_GPN_PD, 0);
+	snd_soc_update_bits(codec, WM8994_GPIO_4,
+			    WM8994_GPN_PU | WM8994_GPN_PD, 0);
+	snd_soc_update_bits(codec, WM8994_GPIO_5,
+			    WM8994_GPN_PU | WM8994_GPN_PD, 0);
+
+	return 0;
+}
+
 #define WM8994_RATES SNDRV_PCM_RATE_8000_96000
 
 #define WM8994_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
@@ -2526,6 +2541,7 @@ static struct snd_soc_dai_driver wm8994_dai[] = {
 			.rates = WM8994_RATES,
 			.formats = WM8994_FORMATS,
 		},
+		.probe = wm8994_aif2_probe,
 		.ops = &wm8994_aif2_dai_ops,
 	},
 	{
