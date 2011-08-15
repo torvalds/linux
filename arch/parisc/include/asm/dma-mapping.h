@@ -5,7 +5,7 @@
 #include <asm/cacheflush.h>
 #include <asm/scatterlist.h>
 
-/* See Documentation/PCI/PCI-DMA-mapping.txt */
+/* See Documentation/DMA-API-HOWTO.txt */
 struct hppa_dma_ops {
 	int  (*dma_supported)(struct device *dev, u64 mask);
 	void *(*alloc_consistent)(struct device *dev, size_t size, dma_addr_t *iova, gfp_t flag);

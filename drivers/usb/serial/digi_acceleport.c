@@ -227,7 +227,7 @@
 *  - All sleeps use a timeout of DIGI_RETRY_TIMEOUT before looping to
 *    recheck the condition they are sleeping on.  This is defensive,
 *    in case a wake up is lost.
-*  - Following Documentation/DocBook/kernel-locking.pdf no spin locks
+*  - Following Documentation/DocBook/kernel-locking.tmpl no spin locks
 *    are held when calling copy_to/from_user or printk.
 */
 

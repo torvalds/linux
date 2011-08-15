@@ -7,10 +7,7 @@
 	This software may be used and distributed according to the terms
 	of the GNU General Public License, incorporated herein by reference.
 
-	Please refer to Documentation/DocBook/tulip-user.{pdf,ps,html}
-	for more information on this driver.
         Please submit bugs to http://bugzilla.kernel.org/ .
-
 */
 
 #include <linux/pci.h>

@@ -300,7 +300,7 @@
        
      * Title: "The Kernel Hacking HOWTO"
        Author: Various Talented People, and Rusty.
-       Location: in kernel tree, Documentation/DocBook/kernel-hacking/
+       Location: in kernel tree, Documentation/DocBook/kernel-hacking.tmpl
        (must be built as "make {htmldocs | psdocs | pdfdocs})
        Keywords: HOWTO, kernel contexts, deadlock, locking, modules,
        symbols, return conventions.
@@ -351,7 +351,7 @@
        
      * Title: "Linux Kernel Locking HOWTO"
        Author: Various Talented People, and Rusty.
-       Location: in kernel tree, Documentation/DocBook/kernel-locking/
+       Location: in kernel tree, Documentation/DocBook/kernel-locking.tmpl
        (must be built as "make {htmldocs | psdocs | pdfdocs})
        Keywords: locks, locking, spinlock, semaphore, atomic, race
        condition, bottom halves, tasklets, softirqs.

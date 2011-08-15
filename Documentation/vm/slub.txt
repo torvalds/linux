@@ -17,7 +17,7 @@ data and perform operation on the slabs. By default slabinfo only lists
 slabs that have data in them. See "slabinfo -h" for more options when
 running the command. slabinfo can be compiled with
 
-gcc -o slabinfo Documentation/vm/slabinfo.c
+gcc -o slabinfo tools/slub/slabinfo.c
 
 Some of the modes of operation of slabinfo require that slub debugging
 be enabled on the command line. F.e. no tracking information will be

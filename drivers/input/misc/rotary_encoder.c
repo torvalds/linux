@@ -7,7 +7,7 @@
  * state machine code inspired by code from Tim Ruetz
  *
  * A generic driver for rotary encoders connected to GPIO lines.
- * See file:Documentation/input/rotary_encoder.txt for more information
+ * See file:Documentation/input/rotary-encoder.txt for more information
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

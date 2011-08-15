@@ -67,7 +67,7 @@
  *
  * NEC	MegaRAID PCI Express ROMB	1000	0408	1033	8287
  *
- * For history of changes, see Documentation/ChangeLog.megaraid
+ * For history of changes, see Documentation/scsi/ChangeLog.megaraid
  */
 
 #include <linux/slab.h>

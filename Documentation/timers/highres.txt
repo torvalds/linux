@@ -30,7 +30,7 @@ hrtimer base infrastructure
 ---------------------------
 
 The hrtimer base infrastructure was merged into the 2.6.16 kernel. Details of
-the base implementation are covered in Documentation/hrtimers/hrtimer.txt. See
+the base implementation are covered in Documentation/timers/hrtimers.txt. See
 also figure #2 (OLS slides p. 15)
 
 The main differences to the timer wheel, which holds the armed timer_list type

@@ -173,7 +173,7 @@ kernel messages using the serial console.  This may provide you with some
 information about the reasons of the suspend (resume) failure.  Alternatively,
 it may be possible to use a FireWire port for debugging with firescope
 (ftp://ftp.firstfloor.org/pub/ak/firescope/).  On x86 it is also possible to
-use the PM_TRACE mechanism documented in Documentation/s2ram.txt .
+use the PM_TRACE mechanism documented in Documentation/power/s2ram.txt .
 
 2. Testing suspend to RAM (STR)
 

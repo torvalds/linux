@@ -7,9 +7,6 @@
 	This software may be used and distributed according to the terms
 	of the GNU General Public License, incorporated herein by reference.
 
-	Please refer to Documentation/DocBook/tulip-user.{pdf,ps,html}
-	for more information on this driver.
-
 	DC21143 manual "21143 PCI/CardBus 10/100Mb/s Ethernet LAN Controller
 	Hardware Reference Manual" is currently available at :
 	http://developer.intel.com/design/network/manuals/278074.htm

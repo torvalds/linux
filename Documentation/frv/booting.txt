@@ -180,9 +180,3 @@ separated by spaces:
 
       This tells the kernel what program to run initially. By default this is
       /sbin/init, but /sbin/sash or /bin/sh are common alternatives.
-
-  (*) vdc=...
-
-      This option configures the MB93493 companion chip visual display
-      driver. Please see Documentation/frv/mb93493/vdc.txt for more
-      information.
