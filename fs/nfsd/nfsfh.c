@@ -61,7 +61,6 @@ static int nfsd_acceptable(void *expv, struct dentry *dentry)
 static inline __be32
 nfsd_mode_check(struct svc_rqst *rqstp, umode_t mode, int type)
 {
-	/* Type can be negative when creating hardlinks - not to a dir */
 	if (type > 0 && (mode & S_IFMT) != type) {
 		if (rqstp->rq_vers == 4 && (mode & S_IFMT) == S_IFLNK)
 			return nfserr_symlink;
@@ -71,14 +70,6 @@ nfsd_mode_check(struct svc_rqst *rqstp, umode_t mode, int type)
 			return nfserr_isdir;
 		else
 			return nfserr_inval;
-	}
-	if (type < 0 && (mode & S_IFMT) == -type) {
-		if (rqstp->rq_vers == 4 && (mode & S_IFMT) == S_IFLNK)
-			return nfserr_symlink;
-		else if (type == -S_IFDIR)
-			return nfserr_isdir;
-		else
-			return nfserr_notdir;
 	}
 	return 0;
 }

@@ -1632,10 +1632,12 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 	err = fh_verify(rqstp, ffhp, S_IFDIR, NFSD_MAY_CREATE);
 	if (err)
 		goto out;
-	err = fh_verify(rqstp, tfhp, -S_IFDIR, NFSD_MAY_NOP);
+	err = fh_verify(rqstp, tfhp, 0, NFSD_MAY_NOP);
 	if (err)
 		goto out;
-
+	err = nfserr_isdir;
+	if (S_ISDIR(tfhp->fh_dentry->d_inode->i_mode))
+		goto out;
 	err = nfserr_perm;
 	if (!len)
 		goto out;
