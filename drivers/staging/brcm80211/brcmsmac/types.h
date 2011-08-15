@@ -329,28 +329,17 @@ do {						\
  * location are defined in only one spot. This reduces the risk of the
  * programmer trying to use an unsupported transaction size on a register.
  *
- * For big endian operation, a byte swap has to be done. Eg, when attempting
- * to read byte address 0, byte 3 should be read. This is accomplished
- * using an xor ('^') operator.
  */
-
-#ifndef __BIG_ENDIAN
-#define SWP2(r)	(r)
-#define SWP3(r) (r)
-#else
-#define SWP2(r)	((unsigned long)(r)^2)
-#define SWP3(r)	((unsigned long)(r)^3)
-#endif /* __BIG_ENDIAN */
 
 #define R_REG(r) \
 	({ \
 		__typeof(*(r)) __osl_v; \
 		switch (sizeof(*(r))) { \
 		case sizeof(u8): \
-			__osl_v = readb((u8 *)(SWP3(r))); \
+			__osl_v = readb((u8 *)(r)); \
 			break; \
 		case sizeof(u16): \
-			__osl_v = readw((u16 *)(SWP2(r))); \
+			__osl_v = readw((u16 *)(r)); \
 			break; \
 		case sizeof(u32): \
 			__osl_v = readl((u32 *)(r)); \
@@ -362,10 +351,10 @@ do {						\
 #define W_REG(r, v) do { \
 		switch (sizeof(*(r))) { \
 		case sizeof(u8):	\
-			writeb((u8)(v), (u8 *)(SWP3(r))); \
+			writeb((u8)(v), (u8 *)(r)); \
 			break; \
 		case sizeof(u16):	\
-			writew((u16)(v), (u16 *)(SWP2(r))); \
+			writew((u16)(v), (u16 *)(r)); \
 			break; \
 		case sizeof(u32):	\
 			writel((u32)(v), (u32 *)(r)); \
