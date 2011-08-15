@@ -39,3 +39,17 @@ config CARL9170_WPC
 	bool
 	depends on CARL9170 && (INPUT = y || INPUT = CARL9170)
 	default y
+
+config CARL9170_HWRNG
+        bool "Random number generator"
+        depends on CARL9170 && (HW_RANDOM = y || HW_RANDOM = CARL9170)
+        default n
+	help
+	  Provides a hardware random number generator to the kernel.
+
+	  SECURITY WARNING: It's relatively easy to eavesdrop all
+	  generated random numbers from the transport stream with
+	  usbmon [software] or special usb sniffer hardware.
+
+	  Say N, unless your setup[i.e.: embedded system] has no
+	  other rng source and you can afford to take the risk.

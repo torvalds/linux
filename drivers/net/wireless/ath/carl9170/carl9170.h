@@ -43,6 +43,7 @@
 #include <linux/firmware.h>
 #include <linux/completion.h>
 #include <linux/spinlock.h>
+#include <linux/hw_random.h>
 #include <net/cfg80211.h>
 #include <net/mac80211.h>
 #include <linux/usb.h>
@@ -449,6 +450,17 @@ struct ar9170 {
 		unsigned int off_override;
 		bool state;
 	} ps;
+
+#ifdef CONFIG_CARL9170_HWRNG
+# define CARL9170_HWRNG_CACHE_SIZE	CARL9170_MAX_CMD_PAYLOAD_LEN
+	struct {
+		struct hwrng rng;
+		bool initialized;
+		char name[30 + 1];
+		u16 cache[CARL9170_HWRNG_CACHE_SIZE / sizeof(u16)];
+		unsigned int cache_idx;
+	} rng;
+#endif /* CONFIG_CARL9170_HWRNG */
 };
 
 enum carl9170_ps_off_override_reasons {
