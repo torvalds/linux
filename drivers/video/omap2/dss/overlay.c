@@ -211,16 +211,17 @@ static ssize_t overlay_enabled_show(struct omap_overlay *ovl, char *buf)
 static ssize_t overlay_enabled_store(struct omap_overlay *ovl, const char *buf,
 		size_t size)
 {
-	int r, enable;
+	int r;
+	bool enable;
 	struct omap_overlay_info info;
 
 	ovl->get_overlay_info(ovl, &info);
 
-	r = kstrtoint(buf, 0, &enable);
+	r = strtobool(buf, &enable);
 	if (r)
 		return r;
 
-	info.enabled = !!enable;
+	info.enabled = enable;
 
 	r = ovl->set_overlay_info(ovl, &info);
 	if (r)

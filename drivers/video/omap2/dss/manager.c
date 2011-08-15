@@ -106,7 +106,7 @@ put_device:
 static ssize_t manager_default_color_show(struct omap_overlay_manager *mgr,
 					  char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", mgr->info.default_color);
+	return snprintf(buf, PAGE_SIZE, "%#x\n", mgr->info.default_color);
 }
 
 static ssize_t manager_default_color_store(struct omap_overlay_manager *mgr,
@@ -116,8 +116,9 @@ static ssize_t manager_default_color_store(struct omap_overlay_manager *mgr,
 	u32 color;
 	int r;
 
-	if (sscanf(buf, "%d", &color) != 1)
-		return -EINVAL;
+	r = kstrtouint(buf, 0, &color);
+	if (r)
+		return r;
 
 	mgr->get_manager_info(mgr, &info);
 
@@ -184,7 +185,7 @@ static ssize_t manager_trans_key_type_store(struct omap_overlay_manager *mgr,
 static ssize_t manager_trans_key_value_show(struct omap_overlay_manager *mgr,
 					    char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", mgr->info.trans_key);
+	return snprintf(buf, PAGE_SIZE, "%#x\n", mgr->info.trans_key);
 }
 
 static ssize_t manager_trans_key_value_store(struct omap_overlay_manager *mgr,
@@ -194,8 +195,9 @@ static ssize_t manager_trans_key_value_store(struct omap_overlay_manager *mgr,
 	u32 key_value;
 	int r;
 
-	if (sscanf(buf, "%d", &key_value) != 1)
-		return -EINVAL;
+	r = kstrtouint(buf, 0, &key_value);
+	if (r)
+		return r;
 
 	mgr->get_manager_info(mgr, &info);
 
@@ -222,15 +224,16 @@ static ssize_t manager_trans_key_enabled_store(struct omap_overlay_manager *mgr,
 					       const char *buf, size_t size)
 {
 	struct omap_overlay_manager_info info;
-	int enable;
+	bool enable;
 	int r;
 
-	if (sscanf(buf, "%d", &enable) != 1)
-		return -EINVAL;
+	r = strtobool(buf, &enable);
+	if (r)
+		return r;
 
 	mgr->get_manager_info(mgr, &info);
 
-	info.trans_enabled = enable ? true : false;
+	info.trans_enabled = enable;
 
 	r = mgr->set_manager_info(mgr, &info);
 	if (r)
@@ -254,15 +257,16 @@ static ssize_t manager_alpha_blending_enabled_store(
 		const char *buf, size_t size)
 {
 	struct omap_overlay_manager_info info;
-	int enable;
+	bool enable;
 	int r;
 
-	if (sscanf(buf, "%d", &enable) != 1)
-		return -EINVAL;
+	r = strtobool(buf, &enable);
+	if (r)
+		return r;
 
 	mgr->get_manager_info(mgr, &info);
 
-	info.alpha_enabled = enable ? true : false;
+	info.alpha_enabled = enable;
 
 	r = mgr->set_manager_info(mgr, &info);
 	if (r)
@@ -285,18 +289,15 @@ static ssize_t manager_cpr_enable_store(struct omap_overlay_manager *mgr,
 		const char *buf, size_t size)
 {
 	struct omap_overlay_manager_info info;
-	int v;
 	int r;
 	bool enable;
 
 	if (!dss_has_feature(FEAT_CPR))
 		return -ENODEV;
 
-	r = kstrtoint(buf, 0, &v);
+	r = strtobool(buf, &enable);
 	if (r)
 		return r;
-
-	enable = !!v;
 
 	mgr->get_manager_info(mgr, &info);
 
