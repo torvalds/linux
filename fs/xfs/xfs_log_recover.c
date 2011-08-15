@@ -147,7 +147,7 @@ xlog_align(
 	xfs_daddr_t	offset = blk_no & ((xfs_daddr_t)log->l_sectBBsize - 1);
 
 	ASSERT(BBTOB(offset + nbblks) <= XFS_BUF_SIZE(bp));
-	return XFS_BUF_PTR(bp) + BBTOB(offset);
+	return bp->b_addr + BBTOB(offset);
 }
 
 
@@ -178,9 +178,7 @@ xlog_bread_noalign(
 
 	XFS_BUF_SET_ADDR(bp, log->l_logBBstart + blk_no);
 	XFS_BUF_READ(bp);
-	XFS_BUF_BUSY(bp);
 	XFS_BUF_SET_COUNT(bp, BBTOB(nbblks));
-	XFS_BUF_SET_TARGET(bp, log->l_mp->m_logdev_targp);
 
 	xfsbdstrat(log->l_mp, bp);
 	error = xfs_buf_iowait(bp);
@@ -220,18 +218,18 @@ xlog_bread_offset(
 	xfs_buf_t	*bp,
 	xfs_caddr_t	offset)
 {
-	xfs_caddr_t	orig_offset = XFS_BUF_PTR(bp);
+	xfs_caddr_t	orig_offset = bp->b_addr;
 	int		orig_len = bp->b_buffer_length;
 	int		error, error2;
 
-	error = XFS_BUF_SET_PTR(bp, offset, BBTOB(nbblks));
+	error = xfs_buf_associate_memory(bp, offset, BBTOB(nbblks));
 	if (error)
 		return error;
 
 	error = xlog_bread_noalign(log, blk_no, nbblks, bp);
 
 	/* must reset buffer pointer even on error */
-	error2 = XFS_BUF_SET_PTR(bp, orig_offset, orig_len);
+	error2 = xfs_buf_associate_memory(bp, orig_offset, orig_len);
 	if (error)
 		return error;
 	return error2;
@@ -266,11 +264,9 @@ xlog_bwrite(
 
 	XFS_BUF_SET_ADDR(bp, log->l_logBBstart + blk_no);
 	XFS_BUF_ZEROFLAGS(bp);
-	XFS_BUF_BUSY(bp);
-	XFS_BUF_HOLD(bp);
+	xfs_buf_hold(bp);
 	xfs_buf_lock(bp);
 	XFS_BUF_SET_COUNT(bp, BBTOB(nbblks));
-	XFS_BUF_SET_TARGET(bp, log->l_mp->m_logdev_targp);
 
 	if ((error = xfs_bwrite(log->l_mp, bp)))
 		xfs_ioerror_alert("xlog_bwrite", log->l_mp,
@@ -360,7 +356,7 @@ STATIC void
 xlog_recover_iodone(
 	struct xfs_buf	*bp)
 {
-	if (XFS_BUF_GETERROR(bp)) {
+	if (bp->b_error) {
 		/*
 		 * We're not going to bother about retrying
 		 * this during recovery. One strike!
@@ -1262,7 +1258,7 @@ xlog_write_log_records(
 		 */
 		ealign = round_down(end_block, sectbb);
 		if (j == 0 && (start_block + endcount > ealign)) {
-			offset = XFS_BUF_PTR(bp) + BBTOB(ealign - start_block);
+			offset = bp->b_addr + BBTOB(ealign - start_block);
 			error = xlog_bread_offset(log, ealign, sectbb,
 							bp, offset);
 			if (error)
@@ -2135,15 +2131,16 @@ xlog_recover_buffer_pass2(
 
 	bp = xfs_buf_read(mp->m_ddev_targp, buf_f->blf_blkno, buf_f->blf_len,
 			  buf_flags);
-	if (XFS_BUF_ISERROR(bp)) {
+	if (!bp)
+		return XFS_ERROR(ENOMEM);
+	error = bp->b_error;
+	if (error) {
 		xfs_ioerror_alert("xlog_recover_do..(read#1)", mp,
 				  bp, buf_f->blf_blkno);
-		error = XFS_BUF_GETERROR(bp);
 		xfs_buf_relse(bp);
 		return error;
 	}
 
-	error = 0;
 	if (buf_f->blf_flags & XFS_BLF_INODE_BUF) {
 		error = xlog_recover_do_inode_buffer(mp, item, bp, buf_f);
 	} else if (buf_f->blf_flags &
@@ -2227,14 +2224,17 @@ xlog_recover_inode_pass2(
 
 	bp = xfs_buf_read(mp->m_ddev_targp, in_f->ilf_blkno, in_f->ilf_len,
 			  XBF_LOCK);
-	if (XFS_BUF_ISERROR(bp)) {
+	if (!bp) {
+		error = ENOMEM;
+		goto error;
+	}
+	error = bp->b_error;
+	if (error) {
 		xfs_ioerror_alert("xlog_recover_do..(read#2)", mp,
 				  bp, in_f->ilf_blkno);
-		error = XFS_BUF_GETERROR(bp);
 		xfs_buf_relse(bp);
 		goto error;
 	}
-	error = 0;
 	ASSERT(in_f->ilf_fields & XFS_ILOG_CORE);
 	dip = (xfs_dinode_t *)xfs_buf_offset(bp, in_f->ilf_boffset);
 
@@ -3437,7 +3437,7 @@ xlog_do_recovery_pass(
 			/*
 			 * Check for header wrapping around physical end-of-log
 			 */
-			offset = XFS_BUF_PTR(hbp);
+			offset = hbp->b_addr;
 			split_hblks = 0;
 			wrapped_hblks = 0;
 			if (blk_no + hblks <= log->l_logBBsize) {
@@ -3497,7 +3497,7 @@ xlog_do_recovery_pass(
 			} else {
 				/* This log record is split across the
 				 * physical end of log */
-				offset = XFS_BUF_PTR(dbp);
+				offset = dbp->b_addr;
 				split_bblks = 0;
 				if (blk_no != log->l_logBBsize) {
 					/* some data is before the physical

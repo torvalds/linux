@@ -2625,16 +2625,19 @@ snd_azf3328_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	int err;
 
 	snd_azf3328_dbgcallenter();
-	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+	if (dev >= SNDRV_CARDS) {
+		err = -ENODEV;
+		goto out;
+	}
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		err = -ENOENT;
+		goto out;
 	}
 
 	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
 	if (err < 0)
-		return err;
+		goto out;
 
 	strcpy(card->driver, "AZF3328");
 	strcpy(card->shortname, "Aztech AZF3328 (PCI168)");

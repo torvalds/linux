@@ -722,7 +722,7 @@ static inline bool compare_hash_inputs(const struct rtable *rt1,
 {
 	return ((((__force u32)rt1->rt_key_dst ^ (__force u32)rt2->rt_key_dst) |
 		((__force u32)rt1->rt_key_src ^ (__force u32)rt2->rt_key_src) |
-		(rt1->rt_iif ^ rt2->rt_iif)) == 0);
+		(rt1->rt_route_iif ^ rt2->rt_route_iif)) == 0);
 }
 
 static inline int compare_keys(struct rtable *rt1, struct rtable *rt2)
@@ -731,8 +731,8 @@ static inline int compare_keys(struct rtable *rt1, struct rtable *rt2)
 		((__force u32)rt1->rt_key_src ^ (__force u32)rt2->rt_key_src) |
 		(rt1->rt_mark ^ rt2->rt_mark) |
 		(rt1->rt_key_tos ^ rt2->rt_key_tos) |
-		(rt1->rt_oif ^ rt2->rt_oif) |
-		(rt1->rt_iif ^ rt2->rt_iif)) == 0;
+		(rt1->rt_route_iif ^ rt2->rt_route_iif) |
+		(rt1->rt_oif ^ rt2->rt_oif)) == 0;
 }
 
 static inline int compare_netns(struct rtable *rt1, struct rtable *rt2)
@@ -2320,8 +2320,7 @@ int ip_route_input_common(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	     rth = rcu_dereference(rth->dst.rt_next)) {
 		if ((((__force u32)rth->rt_key_dst ^ (__force u32)daddr) |
 		     ((__force u32)rth->rt_key_src ^ (__force u32)saddr) |
-		     (rth->rt_iif ^ iif) |
-		     rth->rt_oif |
+		     (rth->rt_route_iif ^ iif) |
 		     (rth->rt_key_tos ^ tos)) == 0 &&
 		    rth->rt_mark == skb->mark &&
 		    net_eq(dev_net(rth->dst.dev), net) &&

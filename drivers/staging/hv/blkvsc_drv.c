@@ -325,7 +325,7 @@ static int blkvsc_do_operation(struct block_device_context *blkdev,
 
 	page_buf = alloc_page(GFP_KERNEL);
 	if (!page_buf) {
-		kmem_cache_free(blkvsc_req->dev->request_pool, blkvsc_req);
+		kmem_cache_free(blkdev->request_pool, blkvsc_req);
 		return -ENOMEM;
 	}
 
@@ -422,7 +422,7 @@ cleanup:
 
 	__free_page(page_buf);
 
-	kmem_cache_free(blkvsc_req->dev->request_pool, blkvsc_req);
+	kmem_cache_free(blkdev->request_pool, blkvsc_req);
 
 	return ret;
 }

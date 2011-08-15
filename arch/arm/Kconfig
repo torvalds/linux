@@ -195,8 +195,7 @@ config VECTORS_BASE
 	  The base address of exception vectors.
 
 config ARM_PATCH_PHYS_VIRT
-	bool "Patch physical to virtual translations at runtime (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "Patch physical to virtual translations at runtime"
 	depends on !XIP_KERNEL && MMU
 	depends on !ARCH_REALVIEW || !SPARSEMEM
 	help

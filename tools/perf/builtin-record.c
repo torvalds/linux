@@ -30,8 +30,6 @@
 #include <sched.h>
 #include <sys/mman.h>
 
-#define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
-
 enum write_mode_t {
 	WRITE_FORCE,
 	WRITE_APPEND
@@ -438,7 +436,6 @@ static void mmap_read_all(void)
 
 static int __cmd_record(int argc, const char **argv)
 {
-	int i;
 	struct stat st;
 	int flags;
 	int err;
@@ -682,7 +679,6 @@ static int __cmd_record(int argc, const char **argv)
 
 	for (;;) {
 		int hits = samples;
-		int thread;
 
 		mmap_read_all();
 
@@ -693,19 +689,8 @@ static int __cmd_record(int argc, const char **argv)
 			waking++;
 		}
 
-		if (done) {
-			for (i = 0; i < evsel_list->cpus->nr; i++) {
-				struct perf_evsel *pos;
-
-				list_for_each_entry(pos, &evsel_list->entries, node) {
-					for (thread = 0;
-						thread < evsel_list->threads->nr;
-						thread++)
-						ioctl(FD(pos, i, thread),
-							PERF_EVENT_IOC_DISABLE);
-				}
-			}
-		}
+		if (done)
+			perf_evlist__disable(evsel_list);
 	}
 
 	if (quiet || signr == SIGUSR1)

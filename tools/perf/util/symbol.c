@@ -1504,6 +1504,17 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 	dso->adjust_symbols = 0;
 
 	if (strncmp(dso->name, "/tmp/perf-", 10) == 0) {
+		struct stat st;
+
+		if (stat(dso->name, &st) < 0)
+			return -1;
+
+		if (st.st_uid && (st.st_uid != geteuid())) {
+			pr_warning("File %s not owned by current user or root, "
+				"ignoring it.\n", dso->name);
+			return -1;
+		}
+
 		ret = dso__load_perf_map(dso, map, filter);
 		dso->symtab_type = ret > 0 ? SYMTAB__JAVA_JIT :
 					      SYMTAB__NOT_FOUND;

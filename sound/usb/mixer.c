@@ -1191,6 +1191,11 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid, void 
 
 	if (state->mixer->protocol == UAC_VERSION_1) {
 		csize = hdr->bControlSize;
+		if (!csize) {
+			snd_printdd(KERN_ERR "usbaudio: unit %u: "
+				    "invalid bControlSize == 0\n", unitid);
+			return -EINVAL;
+		}
 		channels = (hdr->bLength - 7) / csize - 1;
 		bmaControls = hdr->bmaControls;
 	} else {
@@ -1934,15 +1939,13 @@ static int snd_usb_mixer_controls(struct usb_mixer_interface *mixer)
 	struct mixer_build state;
 	int err;
 	const struct usbmix_ctl_map *map;
-	struct usb_host_interface *hostif;
 	void *p;
 
-	hostif = mixer->chip->ctrl_intf;
 	memset(&state, 0, sizeof(state));
 	state.chip = mixer->chip;
 	state.mixer = mixer;
-	state.buffer = hostif->extra;
-	state.buflen = hostif->extralen;
+	state.buffer = mixer->hostif->extra;
+	state.buflen = mixer->hostif->extralen;
 
 	/* check the mapping table */
 	for (map = usbmix_ctl_maps; map->id; map++) {
@@ -1955,7 +1958,8 @@ static int snd_usb_mixer_controls(struct usb_mixer_interface *mixer)
 	}
 
 	p = NULL;
-	while ((p = snd_usb_find_csint_desc(hostif->extra, hostif->extralen, p, UAC_OUTPUT_TERMINAL)) != NULL) {
+	while ((p = snd_usb_find_csint_desc(mixer->hostif->extra, mixer->hostif->extralen,
+					    p, UAC_OUTPUT_TERMINAL)) != NULL) {
 		if (mixer->protocol == UAC_VERSION_1) {
 			struct uac1_output_terminal_descriptor *desc = p;
 
@@ -2162,17 +2166,15 @@ int snd_usb_mixer_activate(struct usb_mixer_interface *mixer)
 /* create the handler for the optional status interrupt endpoint */
 static int snd_usb_mixer_status_create(struct usb_mixer_interface *mixer)
 {
-	struct usb_host_interface *hostif;
 	struct usb_endpoint_descriptor *ep;
 	void *transfer_buffer;
 	int buffer_length;
 	unsigned int epnum;
 
-	hostif = mixer->chip->ctrl_intf;
 	/* we need one interrupt input endpoint */
-	if (get_iface_desc(hostif)->bNumEndpoints < 1)
+	if (get_iface_desc(mixer->hostif)->bNumEndpoints < 1)
 		return 0;
-	ep = get_endpoint(hostif, 0);
+	ep = get_endpoint(mixer->hostif, 0);
 	if (!usb_endpoint_dir_in(ep) || !usb_endpoint_xfer_int(ep))
 		return 0;
 
@@ -2202,7 +2204,6 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 	};
 	struct usb_mixer_interface *mixer;
 	struct snd_info_entry *entry;
-	struct usb_host_interface *host_iface;
 	int err;
 
 	strcpy(chip->card->mixername, "USB Mixer");
@@ -2219,8 +2220,8 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 		return -ENOMEM;
 	}
 
-	host_iface = &usb_ifnum_to_if(chip->dev, ctrlif)->altsetting[0];
-	switch (get_iface_desc(host_iface)->bInterfaceProtocol) {
+	mixer->hostif = &usb_ifnum_to_if(chip->dev, ctrlif)->altsetting[0];
+	switch (get_iface_desc(mixer->hostif)->bInterfaceProtocol) {
 	case UAC_VERSION_1:
 	default:
 		mixer->protocol = UAC_VERSION_1;

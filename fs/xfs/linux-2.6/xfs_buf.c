@@ -596,7 +596,7 @@ _xfs_buf_read(
 	bp->b_flags |= flags & (XBF_READ | XBF_ASYNC | XBF_READ_AHEAD);
 
 	status = xfs_buf_iorequest(bp);
-	if (status || XFS_BUF_ISERROR(bp) || (flags & XBF_ASYNC))
+	if (status || bp->b_error || (flags & XBF_ASYNC))
 		return status;
 	return xfs_buf_iowait(bp);
 }
@@ -679,7 +679,6 @@ xfs_buf_read_uncached(
 	/* set up the buffer for a read IO */
 	XFS_BUF_SET_ADDR(bp, daddr);
 	XFS_BUF_READ(bp);
-	XFS_BUF_BUSY(bp);
 
 	xfsbdstrat(mp, bp);
 	error = xfs_buf_iowait(bp);
@@ -1069,7 +1068,7 @@ xfs_bioerror(
 	/*
 	 * No need to wait until the buffer is unpinned, we aren't flushing it.
 	 */
-	XFS_BUF_ERROR(bp, EIO);
+	xfs_buf_ioerror(bp, EIO);
 
 	/*
 	 * We're calling xfs_buf_ioend, so delete XBF_DONE flag.
@@ -1094,7 +1093,7 @@ STATIC int
 xfs_bioerror_relse(
 	struct xfs_buf	*bp)
 {
-	int64_t		fl = XFS_BUF_BFLAGS(bp);
+	int64_t		fl = bp->b_flags;
 	/*
 	 * No need to wait until the buffer is unpinned.
 	 * We aren't flushing it.
@@ -1115,7 +1114,7 @@ xfs_bioerror_relse(
 		 * There's no reason to mark error for
 		 * ASYNC buffers.
 		 */
-		XFS_BUF_ERROR(bp, EIO);
+		xfs_buf_ioerror(bp, EIO);
 		XFS_BUF_FINISH_IOWAIT(bp);
 	} else {
 		xfs_buf_relse(bp);
@@ -1324,7 +1323,7 @@ xfs_buf_offset(
 	struct page		*page;
 
 	if (bp->b_flags & XBF_MAPPED)
-		return XFS_BUF_PTR(bp) + offset;
+		return bp->b_addr + offset;
 
 	offset += bp->b_offset;
 	page = bp->b_pages[offset >> PAGE_SHIFT];
@@ -1484,7 +1483,7 @@ xfs_setsize_buftarg_flags(
 	if (set_blocksize(btp->bt_bdev, sectorsize)) {
 		xfs_warn(btp->bt_mount,
 			"Cannot set_blocksize to %u on device %s\n",
-			sectorsize, XFS_BUFTARG_NAME(btp));
+			sectorsize, xfs_buf_target_name(btp));
 		return EINVAL;
 	}
 
@@ -1681,7 +1680,7 @@ xfs_buf_delwri_split(
 	list_for_each_entry_safe(bp, n, dwq, b_list) {
 		ASSERT(bp->b_flags & XBF_DELWRI);
 
-		if (!XFS_BUF_ISPINNED(bp) && xfs_buf_trylock(bp)) {
+		if (!xfs_buf_ispinned(bp) && xfs_buf_trylock(bp)) {
 			if (!force &&
 			    time_before(jiffies, bp->b_queuetime + age)) {
 				xfs_buf_unlock(bp);

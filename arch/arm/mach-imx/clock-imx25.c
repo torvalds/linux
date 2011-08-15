@@ -331,6 +331,9 @@ int __init mx25_clocks_init(void)
 	__raw_writel(__raw_readl(CRM_BASE+0x64) | (1 << 7) | (1 << 0),
 			CRM_BASE + 0x64);
 
+	/* Clock source for gpt is ahb_div */
+	__raw_writel(__raw_readl(CRM_BASE+0x64) & ~(1 << 5), CRM_BASE + 0x64);
+
 	mxc_timer_init(&gpt_clk, MX25_IO_ADDRESS(MX25_GPT1_BASE_ADDR), 54);
 
 	return 0;
