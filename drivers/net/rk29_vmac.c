@@ -1029,6 +1029,8 @@ int vmac_open(struct net_device *dev)
 	struct clk *arm_clk = NULL;
 	struct rk29_vmac_platform_data *pdata = ap->pdev->dev.platform_data;
 
+	printk("enter func %s...\n", __func__);
+
 	if (ap == NULL)
 		return -ENODEV;
 
@@ -1042,6 +1044,7 @@ int vmac_open(struct net_device *dev)
 		wake_lock(&idlelock);
 	
 	clk_set_rate(mac_clk, 50000000);
+	clk_enable(mac_clk);
 	clk_enable(clk_get(NULL,"mii_rx"));
 	clk_enable(clk_get(NULL,"mii_tx"));
 	clk_enable(clk_get(NULL,"hclk_mac"));
@@ -1131,6 +1134,8 @@ int vmac_close(struct net_device *dev)
 	struct clk *mac_parent = NULL;
 	struct rk29_vmac_platform_data *pdata = ap->pdev->dev.platform_data;
 
+	printk("enter func %s...\n", __func__);
+
 	netif_stop_queue(dev);
 	napi_disable(&ap->napi);
 
@@ -1171,6 +1176,7 @@ int vmac_close(struct net_device *dev)
 	if (arm_clk && mac_parent && (arm_clk == mac_parent))
 		wake_unlock(&idlelock);
 	
+	clk_disable(mac_clk);
 	clk_disable(clk_get(NULL,"mii_rx"));
 	clk_disable(clk_get(NULL,"mii_tx"));
 	clk_disable(clk_get(NULL,"hclk_mac"));
@@ -1178,6 +1184,68 @@ int vmac_close(struct net_device *dev)
 
 	return 0;
 }
+
+static void rk29_init_vmac(struct net_device *dev)
+{
+	struct vmac_priv *ap = netdev_priv(dev);
+	unsigned int temp;
+	struct clk *mac_clk = NULL;
+	struct rk29_vmac_platform_data *pdata = ap->pdev->dev.platform_data;
+
+	printk("enter func %s...\n", __func__);
+		
+	//set rmii ref clock 50MHz
+	mac_clk = clk_get(NULL, "mac_ref_div");	
+	clk_set_rate(mac_clk, 50000000);
+	clk_enable(mac_clk);
+	clk_enable(clk_get(NULL,"mii_rx"));
+	clk_enable(clk_get(NULL,"mii_tx"));
+	clk_enable(clk_get(NULL,"hclk_mac"));
+	clk_enable(clk_get(NULL,"mac_ref"));
+
+	//phy power on
+	if (pdata && pdata->rmii_power_control)
+		pdata->rmii_power_control(1);
+
+	msleep(1000);
+
+	/* IRQ mask */
+	temp = RXINT_MASK | ERR_MASK | TXCH_MASK | MDIO_MASK;
+	vmac_writel(ap, temp, ENABLE);
+
+	/* Set control */
+	temp = (RX_BDT_LEN << 24) | (TX_BDT_LEN << 16) | TXRN_MASK | RXRN_MASK;
+	vmac_writel(ap, temp, CONTROL);
+
+	/* enable, after all other bits are set */
+	vmac_writel(ap, temp | EN_MASK, CONTROL);
+}
+
+static void rk29_vmac_shutdown(struct net_device *dev)
+{
+	struct vmac_priv *ap = netdev_priv(dev);
+	struct rk29_vmac_platform_data *pdata = ap->pdev->dev.platform_data;
+	
+	printk("enter func %s...\n", __func__);
+					
+	/* disable interrupts */
+	vmac_writel(ap, 0, ENABLE);
+	
+	/* turn off vmac */
+	vmac_writel(ap, 0, CONTROL);
+			
+	//phy power off
+	if (pdata && pdata->rmii_power_control)
+		pdata->rmii_power_control(0);
+	
+	//clock close
+	clk_disable(clk_get(NULL, "mac_ref_div"));		
+	clk_disable(clk_get(NULL,"mii_rx"));
+	clk_disable(clk_get(NULL,"mii_tx"));
+	clk_disable(clk_get(NULL,"hclk_mac"));
+	clk_disable(clk_get(NULL,"mac_ref"));
+}
+
 
 void vmac_update_stats(struct vmac_priv *ap)
 {
@@ -1538,11 +1606,49 @@ static int __devexit vmac_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int
+rk29_vmac_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct net_device *ndev = platform_get_drvdata(pdev);
+
+	if (ndev) {
+		if (netif_running(ndev)) {
+			netif_device_detach(ndev);
+			rk29_vmac_shutdown(ndev);
+		}
+	}
+	return 0;
+}
+
+static int
+rk29_vmac_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct net_device *ndev = platform_get_drvdata(pdev);
+
+	if (ndev) {
+		if (netif_running(ndev)) {
+			rk29_init_vmac(ndev);
+			netif_device_attach(ndev);
+		}
+	}
+	return 0;
+}
+
+static struct dev_pm_ops rk29_vmac_pm_ops = {
+	.suspend	= rk29_vmac_suspend,
+	.resume 	= rk29_vmac_resume,
+};
+
+
 static struct platform_driver rk29_vmac_driver = {
 	.probe		= vmac_probe,
 	.remove		= __devexit_p(vmac_remove),
 	.driver		= {
 		.name		= "rk29 vmac",
+		.owner	 = THIS_MODULE,
+		.pm  = &rk29_vmac_pm_ops,
 	},
 };
 
