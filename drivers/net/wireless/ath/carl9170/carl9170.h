@@ -282,6 +282,7 @@ struct ar9170 {
 		bool rx_stream;
 		bool tx_stream;
 		bool rx_filter;
+		bool hw_counters;
 		unsigned int mem_blocks;
 		unsigned int mem_block_size;
 		unsigned int rx_size;

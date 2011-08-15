@@ -578,11 +578,10 @@ static int carl9170_init_phy(struct ar9170 *ar, enum ieee80211_band band)
 	if (err)
 		return err;
 
-	/* XXX: remove magic! */
-	if (is_2ghz)
-		err = carl9170_write_reg(ar, AR9170_PWR_REG_PLL_ADDAC, 0x5163);
-	else
-		err = carl9170_write_reg(ar, AR9170_PWR_REG_PLL_ADDAC, 0x5143);
+	if (!ar->fw.hw_counters) {
+		err = carl9170_write_reg(ar, AR9170_PWR_REG_PLL_ADDAC,
+					 is_2ghz ? 0x5163 : 0x5143);
+	}
 
 	return err;
 }
