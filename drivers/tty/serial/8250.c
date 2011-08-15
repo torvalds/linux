@@ -509,6 +509,8 @@ static void io_serial_out(struct uart_port *p, int offset, int value)
 	outb(value, p->iobase + offset);
 }
 
+static int serial8250_default_handle_irq(struct uart_port *port);
+
 static void set_io_from_upio(struct uart_port *p)
 {
 	struct uart_8250_port *up =
@@ -557,6 +559,7 @@ static void set_io_from_upio(struct uart_port *p)
 	}
 	/* Remember loaded iotype */
 	up->cur_iotype = p->iotype;
+	p->handle_irq = serial8250_default_handle_irq;
 }
 
 static void
@@ -1621,6 +1624,28 @@ static void serial8250_handle_port(struct uart_8250_port *up)
 	spin_unlock_irqrestore(&up->port.lock, flags);
 }
 
+int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
+{
+	struct uart_8250_port *up =
+		container_of(port, struct uart_8250_port, port);
+
+	if (!(iir & UART_IIR_NO_INT)) {
+		serial8250_handle_port(up);
+		return 1;
+	}
+
+	return 0;
+}
+
+static int serial8250_default_handle_irq(struct uart_port *port)
+{
+	struct uart_8250_port *up =
+		container_of(port, struct uart_8250_port, port);
+	unsigned int iir = serial_in(up, UART_IIR);
+
+	return serial8250_handle_irq(port, iir);
+}
+
 /*
  * This is the serial driver's interrupt routine.
  *
@@ -1648,13 +1673,12 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 	l = i->head;
 	do {
 		struct uart_8250_port *up;
-		unsigned int iir;
+		struct uart_port *port;
 
 		up = list_entry(l, struct uart_8250_port, list);
+		port = &up->port;
 
-		iir = serial_in(up, UART_IIR);
-		if (!(iir & UART_IIR_NO_INT)) {
-			serial8250_handle_port(up);
+		if (port->handle_irq(port)) {
 
 			handled = 1;
 
@@ -3048,6 +3072,10 @@ int __init early_serial_setup(struct uart_port *port)
 		p->serial_in = port->serial_in;
 	if (port->serial_out)
 		p->serial_out = port->serial_out;
+	if (port->handle_irq)
+		p->handle_irq = port->handle_irq;
+	else
+		p->handle_irq = serial8250_default_handle_irq;
 
 	return 0;
 }
@@ -3116,6 +3144,7 @@ static int __devinit serial8250_probe(struct platform_device *dev)
 		port.type		= p->type;
 		port.serial_in		= p->serial_in;
 		port.serial_out		= p->serial_out;
+		port.handle_irq		= p->handle_irq;
 		port.set_termios	= p->set_termios;
 		port.pm			= p->pm;
 		port.dev		= &dev->dev;
@@ -3281,6 +3310,8 @@ int serial8250_register_port(struct uart_port *port)
 			uart->port.serial_in = port->serial_in;
 		if (port->serial_out)
 			uart->port.serial_out = port->serial_out;
+		if (port->handle_irq)
+			uart->port.handle_irq = port->handle_irq;
 		/*  Possibly override set_termios call */
 		if (port->set_termios)
 			uart->port.set_termios = port->set_termios;
