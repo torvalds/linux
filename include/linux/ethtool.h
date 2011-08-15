@@ -118,7 +118,7 @@ struct ethtool_eeprom {
 };
 
 /**
- * struct ethtool_coalesce - coalescing parameters of chip
+ * struct ethtool_coalesce - coalescing parameters for IRQs and stats updates
  * @cmd: ETHTOOL_{G,S}COALESCE
  * @rx_coalesce_usecs: How many usecs to delay an RX interrupt after
  *	a packet arrives.  If 0, only @rx_max_coalesced_frames is used.
