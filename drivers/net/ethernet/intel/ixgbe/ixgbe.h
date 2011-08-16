@@ -491,6 +491,7 @@ struct ixgbe_adapter {
 	u64 rsc_total_flush;
 	u32 wol;
 	u16 eeprom_version;
+	u16 eeprom_cap;
 
 	int node;
 	u32 led_reg;

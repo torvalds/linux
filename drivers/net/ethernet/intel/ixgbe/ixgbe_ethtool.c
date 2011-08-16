@@ -1888,6 +1888,7 @@ static int ixgbe_wol_exclusion(struct ixgbe_adapter *adapter,
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	int retval = 1;
+	u16 wol_cap = adapter->eeprom_cap & IXGBE_DEVICE_CAPS_WOL_MASK;
 
 	/* WOL not supported except for the following */
 	switch(hw->device_id) {
@@ -1910,6 +1911,18 @@ static int ixgbe_wol_exclusion(struct ixgbe_adapter *adapter,
 		break;
 	case IXGBE_DEV_ID_82599_KX4:
 		retval = 0;
+		break;
+	case IXGBE_DEV_ID_X540T:
+		/* check eeprom to see if enabled wol */
+		if ((wol_cap == IXGBE_DEVICE_CAPS_WOL_PORT0_1) ||
+		    ((wol_cap == IXGBE_DEVICE_CAPS_WOL_PORT0) &&
+		     (hw->bus.func == 0))) {
+			retval = 0;
+			break;
+		}
+
+		/* All others not supported */
+		wol->supported = 0;
 		break;
 	default:
 		wol->supported = 0;

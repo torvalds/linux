@@ -1754,6 +1754,10 @@ enum {
 #define IXGBE_ALT_SAN_MAC_ADDR_CAPS_SANMAC  0x0 /* Alt. SAN MAC exists */
 #define IXGBE_ALT_SAN_MAC_ADDR_CAPS_ALTWWN  0x1 /* Alt. WWN base exists */
 
+#define IXGBE_DEVICE_CAPS_WOL_PORT0_1  0x4 /* WoL supported on ports 0 & 1 */
+#define IXGBE_DEVICE_CAPS_WOL_PORT0    0x8 /* WoL supported on port 0 */
+#define IXGBE_DEVICE_CAPS_WOL_MASK     0xC /* Mask for WoL capabilities */
+
 /* PCI Bus Info */
 #define IXGBE_PCI_DEVICE_STATUS   0xAA
 #define IXGBE_PCI_DEVICE_STATUS_TRANSACTION_PENDING   0x0020
