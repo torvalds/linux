@@ -3539,7 +3539,8 @@ qla82xx_dev_failed_handler(scsi_qla_host_t *vha)
 static void
 qla82xx_need_reset_handler(scsi_qla_host_t *vha)
 {
-	uint32_t dev_state, drv_state, drv_active, active_mask;
+	uint32_t dev_state, drv_state, drv_active;
+	uint32_t active_mask = 0;
 	unsigned long reset_timeout;
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
