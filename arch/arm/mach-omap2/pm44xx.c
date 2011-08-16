@@ -258,6 +258,8 @@ static int __init omap4_pm_init(void)
 	/* Overwrite the default arch_idle() */
 	pm_idle = omap_default_idle;
 
+	omap4_idle_init();
+
 err2:
 	return ret;
 }
