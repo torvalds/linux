@@ -425,6 +425,9 @@ struct wl1271 {
 	u32 tx_allocated_blocks;
 	u32 tx_results_count;
 
+	/* amount of spare TX blocks to use */
+	u32 tx_spare_blocks;
+
 	/* Accounting for allocated / available Tx packets in HW */
 	u32 tx_pkts_freed[NUM_TX_QUEUES];
 	u32 tx_allocated_pkts[NUM_TX_QUEUES];
