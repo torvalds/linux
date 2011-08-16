@@ -2540,7 +2540,7 @@ static struct platform_device bfin_ac97_pcm = {
 };
 #endif
 
-#if defined(CONFIG_SND_BF5XX_SOC_AD73311) || defined(CONFIG_SND_BF5XX_SOC_AD73311_MODULE)
+#if defined(CONFIG_SND_SOC_AD73311) || defined(CONFIG_SND_SOC_AD73311_MODULE)
 static struct platform_device bfin_ad73311_codec_device = {
 	.name = "ad73311",
 	.id = -1,
@@ -2782,7 +2782,7 @@ static struct platform_device *stamp_devices[] __initdata = {
 	&bfin_ac97_pcm,
 #endif
 
-#if defined(CONFIG_SND_BF5XX_SOC_AD73311) || defined(CONFIG_SND_BF5XX_SOC_AD73311_MODULE)
+#if defined(CONFIG_SND_SOC_AD73311) || defined(CONFIG_SND_SOC_AD73311_MODULE)
 	&bfin_ad73311_codec_device,
 #endif
 
