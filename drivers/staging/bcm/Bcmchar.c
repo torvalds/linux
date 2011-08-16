@@ -1974,8 +1974,6 @@ static const struct file_operations bcm_fops = {
 	.llseek = no_llseek,
 };
 
-extern struct class *bcm_class;
-
 int register_control_device_interface(PMINI_ADAPTER Adapter)
 {
 
