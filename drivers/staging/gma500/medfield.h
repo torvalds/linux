@@ -21,8 +21,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#define DRM_MODE_ENCODER_MIPI  5
-
 /* Medfield DSI controller registers */
 
 #define MIPIA_DEVICE_READY_REG				0xb000

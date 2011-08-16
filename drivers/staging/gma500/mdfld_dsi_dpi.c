@@ -777,10 +777,15 @@ struct mdfld_dsi_encoder *mdfld_dsi_dpi_init(struct drm_device *dev,
 	/* Create drm encoder object */
 	connector = &dsi_connector->base.base;
 	encoder = &dpi_output->base.base;
+	/*
+	 * On existing hardware this will be a panel of some form,
+	 * if future devices also have HDMI bridges this will need
+	 * revisiting
+	 */
 	drm_encoder_init(dev,
 			encoder,
 			p_funcs->encoder_funcs,
-			DRM_MODE_ENCODER_MIPI);
+			DRM_MODE_ENCODER_LVDS);
 	drm_encoder_helper_add(encoder,
 				p_funcs->encoder_helper_funcs);
 	

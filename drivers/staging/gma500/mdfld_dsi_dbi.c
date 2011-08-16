@@ -711,10 +711,11 @@ struct mdfld_dsi_encoder *mdfld_dsi_dbi_init(struct drm_device *dev,
 	/* Create drm encoder object */
 	connector = &dsi_connector->base.base;
 	encoder = &dbi_output->base.base;
+	/* Review this if we ever get MIPI-HDMI bridges or similar */
 	drm_encoder_init(dev,
 			encoder,
 			p_funcs->encoder_funcs,
-			DRM_MODE_ENCODER_MIPI);
+			DRM_MODE_ENCODER_LVDS);
 	drm_encoder_helper_add(encoder, p_funcs->encoder_helper_funcs);
 
 	/* Attach to given connector */
