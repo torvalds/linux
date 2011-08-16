@@ -2111,6 +2111,9 @@ static int wm8996_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 
 	snd_soc_write(codec, WM8996_FLL_EFS_1, fll_div.lambda);
 
+	/* Clear any pending completions (eg, from failed startups) */
+	try_wait_for_completion(&wm8996->fll_lock);
+
 	snd_soc_update_bits(codec, WM8996_FLL_CONTROL_1,
 			    WM8996_FLL_ENA, WM8996_FLL_ENA);
 
