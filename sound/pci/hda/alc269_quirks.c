@@ -12,9 +12,7 @@ enum {
 	ALC269_DMIC,
 	ALC269VB_AMIC,
 	ALC269VB_DMIC,
-	ALC269_FUJITSU,
 	ALC269_LIFEBOOK,
-	ALC271_ACER,
 	ALC269_MODEL_LAST /* last tag */
 };
 
@@ -173,9 +171,6 @@ static const struct snd_kcontrol_new alc269vb_laptop_digital_capture_mixer[] = {
 	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0, HDA_INPUT),
 	{ } /* end */
 };
-
-/* FSC amilo */
-#define alc269_fujitsu_mixer	alc269_laptop_mixer
 
 static const struct hda_verb alc269_quanta_fl1_verbs[] = {
 	{0x15, AC_VERB_SET_CONNECT_SEL, 0x01},
@@ -341,20 +336,6 @@ static const struct hda_verb alc269vb_laptop_amic_init_verbs[] = {
 	{}
 };
 
-static const struct hda_verb alc271_acer_dmic_verbs[] = {
-	{0x20, AC_VERB_SET_COEF_INDEX, 0x0d},
-	{0x20, AC_VERB_SET_PROC_COEF, 0x4000},
-	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x21, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x21, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x21, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_MIC_EVENT},
-	{0x22, AC_VERB_SET_CONNECT_SEL, 6},
-	{ }
-};
-
 static void alc269_laptop_amic_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -504,14 +485,12 @@ static const char * const alc269_models[ALC269_MODEL_LAST] = {
 	[ALC269_QUANTA_FL1]		= "quanta",
 	[ALC269_AMIC]			= "laptop-amic",
 	[ALC269_DMIC]			= "laptop-dmic",
-	[ALC269_FUJITSU]		= "fujitsu",
 	[ALC269_LIFEBOOK]		= "lifebook",
 	[ALC269_AUTO]			= "auto",
 };
 
 static const struct snd_pci_quirk alc269_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x3bf8, "Quanta FL1", ALC269_QUANTA_FL1),
-	SND_PCI_QUIRK(0x1025, 0x047c, "ACER ZGA", ALC271_ACER),
 	SND_PCI_QUIRK(0x1043, 0x8330, "ASUS Eeepc P703 P900A",
 		      ALC269_AMIC),
 	SND_PCI_QUIRK(0x1043, 0x1013, "ASUS N61Da", ALC269VB_AMIC),
@@ -552,7 +531,6 @@ static const struct snd_pci_quirk alc269_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x104d, 0x9071, "Sony VAIO", ALC269_AUTO),
 	SND_PCI_QUIRK(0x10cf, 0x1475, "Lifebook ICH9M-based", ALC269_LIFEBOOK),
 	SND_PCI_QUIRK(0x152d, 0x1778, "Quanta ON1", ALC269_DMIC),
-	SND_PCI_QUIRK(0x1734, 0x115d, "FSC Amilo", ALC269_FUJITSU),
 	SND_PCI_QUIRK(0x17aa, 0x3be9, "Quanta Wistron", ALC269_AMIC),
 	SND_PCI_QUIRK(0x17aa, 0x3bf8, "Quanta FL1", ALC269_AMIC),
 	SND_PCI_QUIRK(0x17ff, 0x059a, "Quanta EL3", ALC269_DMIC),
@@ -640,20 +618,6 @@ static const struct alc_config_preset alc269_presets[] = {
 		.setup = alc269vb_laptop_dmic_setup,
 		.init_hook = alc_inithook,
 	},
-	[ALC269_FUJITSU] = {
-		.mixers = { alc269_fujitsu_mixer },
-		.cap_mixer = alc269_laptop_digital_capture_mixer,
-		.init_verbs = { alc269_init_verbs,
-				alc269_laptop_dmic_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc269_dac_nids),
-		.dac_nids = alc269_dac_nids,
-		.hp_nid = 0x03,
-		.num_channel_mode = ARRAY_SIZE(alc269_modes),
-		.channel_mode = alc269_modes,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc269_laptop_dmic_setup,
-		.init_hook = alc_inithook,
-	},
 	[ALC269_LIFEBOOK] = {
 		.mixers = { alc269_lifebook_mixer },
 		.init_verbs = { alc269_init_verbs, alc269_lifebook_verbs },
@@ -666,23 +630,6 @@ static const struct alc_config_preset alc269_presets[] = {
 		.unsol_event = alc269_lifebook_unsol_event,
 		.setup = alc269_lifebook_setup,
 		.init_hook = alc269_lifebook_init_hook,
-	},
-	[ALC271_ACER] = {
-		.mixers = { alc269_asus_mixer },
-		.cap_mixer = alc269vb_laptop_digital_capture_mixer,
-		.init_verbs = { alc269_init_verbs, alc271_acer_dmic_verbs },
-		.num_dacs = ARRAY_SIZE(alc269_dac_nids),
-		.dac_nids = alc269_dac_nids,
-		.adc_nids = alc262_dmic_adc_nids,
-		.num_adc_nids = ARRAY_SIZE(alc262_dmic_adc_nids),
-		.capsrc_nids = alc262_dmic_capsrc_nids,
-		.num_channel_mode = ARRAY_SIZE(alc269_modes),
-		.channel_mode = alc269_modes,
-		.input_mux = &alc269_capture_source,
-		.dig_out_nid = ALC880_DIGOUT_NID,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc269vb_laptop_dmic_setup,
-		.init_hook = alc_inithook,
 	},
 };
 

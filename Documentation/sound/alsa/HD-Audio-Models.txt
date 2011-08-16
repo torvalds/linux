@@ -71,7 +71,6 @@ ALC269
   quanta	Quanta FL1
   laptop-amic	Laptops with analog-mic input
   laptop-dmic	Laptops with digital-mic input
-  fujitsu	FSC Amilo
   lifebook	Fujitsu Lifebook S6420
   auto		auto-config reading BIOS (default)
 
