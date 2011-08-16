@@ -1713,15 +1713,19 @@ static void __init xen_map_identity_early(pmd_t *pmd, unsigned long max_pfn)
 void __init xen_setup_machphys_mapping(void)
 {
 	struct xen_machphys_mapping mapping;
-	unsigned long machine_to_phys_nr_ents;
 
 	if (HYPERVISOR_memory_op(XENMEM_machphys_mapping, &mapping) == 0) {
 		machine_to_phys_mapping = (unsigned long *)mapping.v_start;
-		machine_to_phys_nr_ents = mapping.max_mfn + 1;
+		machine_to_phys_nr = mapping.max_mfn + 1;
 	} else {
-		machine_to_phys_nr_ents = MACH2PHYS_NR_ENTRIES;
+		machine_to_phys_nr = MACH2PHYS_NR_ENTRIES;
 	}
-	machine_to_phys_order = fls(machine_to_phys_nr_ents - 1);
+#ifdef CONFIG_X86_32
+	if ((machine_to_phys_mapping + machine_to_phys_nr)
+	    < machine_to_phys_mapping)
+		machine_to_phys_nr = (unsigned long *)NULL
+				     - machine_to_phys_mapping;
+#endif
 }
 
 #ifdef CONFIG_X86_64

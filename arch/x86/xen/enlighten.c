@@ -77,8 +77,8 @@ EXPORT_SYMBOL_GPL(xen_domain_type);
 
 unsigned long *machine_to_phys_mapping = (void *)MACH2PHYS_VIRT_START;
 EXPORT_SYMBOL(machine_to_phys_mapping);
-unsigned int   machine_to_phys_order;
-EXPORT_SYMBOL(machine_to_phys_order);
+unsigned long  machine_to_phys_nr;
+EXPORT_SYMBOL(machine_to_phys_nr);
 
 struct start_info *xen_start_info;
 EXPORT_SYMBOL_GPL(xen_start_info);
