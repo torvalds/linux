@@ -812,7 +812,7 @@ static void aggr_slice_amsdu(struct aggr_info *p_aggr,
 		/* Add the length of A-MSDU subframe padding bytes -
 		 * Round to nearest word.
 		 */
-		frame_8023_len = ALIGN(frame_8023_len + 3, 3);
+		frame_8023_len = ALIGN(frame_8023_len, 4);
 
 		framep += frame_8023_len;
 		amsdu_len -= frame_8023_len;
