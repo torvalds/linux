@@ -171,11 +171,10 @@ static inline struct cr_regs *iotlb_alloc_cr(struct iommu *obj,
 	return arch_iommu->alloc_cr(obj, e);
 }
 
-u32 iotlb_cr_to_virt(struct cr_regs *cr)
+static u32 iotlb_cr_to_virt(struct cr_regs *cr)
 {
 	return arch_iommu->cr_to_virt(cr);
 }
-EXPORT_SYMBOL_GPL(iotlb_cr_to_virt);
 
 static u32 get_iopte_attr(struct iotlb_entry *e)
 {
@@ -254,7 +253,7 @@ static struct cr_regs __iotlb_read_cr(struct iommu *obj, int n)
  * @obj:	target iommu
  * @e:		an iommu tlb entry info
  **/
-int load_iotlb_entry(struct iommu *obj, struct iotlb_entry *e)
+static int load_iotlb_entry(struct iommu *obj, struct iotlb_entry *e)
 {
 	int err = 0;
 	struct iotlb_lock l;
@@ -310,7 +309,6 @@ out:
 	clk_disable(obj->clk);
 	return err;
 }
-EXPORT_SYMBOL_GPL(load_iotlb_entry);
 
 /**
  * flush_iotlb_page - Clear an iommu tlb entry
@@ -319,7 +317,7 @@ EXPORT_SYMBOL_GPL(load_iotlb_entry);
  *
  * Clear an iommu tlb entry which includes 'da' address.
  **/
-void flush_iotlb_page(struct iommu *obj, u32 da)
+static void flush_iotlb_page(struct iommu *obj, u32 da)
 {
 	int i;
 	struct cr_regs cr;
@@ -348,7 +346,6 @@ void flush_iotlb_page(struct iommu *obj, u32 da)
 	if (i == obj->nr_tlb_entries)
 		dev_dbg(obj->dev, "%s: no page for %08x\n", __func__, da);
 }
-EXPORT_SYMBOL_GPL(flush_iotlb_page);
 
 /**
  * flush_iotlb_range - Clear an iommu tlb entries
@@ -374,7 +371,7 @@ EXPORT_SYMBOL_GPL(flush_iotlb_range);
  * flush_iotlb_all - Clear all iommu tlb entries
  * @obj:	target iommu
  **/
-void flush_iotlb_all(struct iommu *obj)
+static void flush_iotlb_all(struct iommu *obj)
 {
 	struct iotlb_lock l;
 
@@ -388,7 +385,6 @@ void flush_iotlb_all(struct iommu *obj)
 
 	clk_disable(obj->clk);
 }
-EXPORT_SYMBOL_GPL(flush_iotlb_all);
 
 /**
  * iommu_set_twl - enable/disable table walking logic
@@ -682,7 +678,8 @@ EXPORT_SYMBOL_GPL(iopgtable_store_entry);
  * @ppgd:	iommu pgd entry pointer to be returned
  * @ppte:	iommu pte entry pointer to be returned
  **/
-void iopgtable_lookup_entry(struct iommu *obj, u32 da, u32 **ppgd, u32 **ppte)
+static void
+iopgtable_lookup_entry(struct omap_iommu *obj, u32 da, u32 **ppgd, u32 **ppte)
 {
 	u32 *iopgd, *iopte = NULL;
 
@@ -696,7 +693,6 @@ out:
 	*ppgd = iopgd;
 	*ppte = iopte;
 }
-EXPORT_SYMBOL_GPL(iopgtable_lookup_entry);
 
 static size_t iopgtable_clear_entry_core(struct iommu *obj, u32 da)
 {
@@ -751,7 +747,7 @@ out:
  * @obj:	target iommu
  * @da:		iommu device virtual address
  **/
-size_t iopgtable_clear_entry(struct iommu *obj, u32 da)
+static size_t iopgtable_clear_entry(struct iommu *obj, u32 da)
 {
 	size_t bytes;
 
@@ -764,7 +760,6 @@ size_t iopgtable_clear_entry(struct iommu *obj, u32 da)
 
 	return bytes;
 }
-EXPORT_SYMBOL_GPL(iopgtable_clear_entry);
 
 static void iopgtable_clear_entry_all(struct iommu *obj)
 {
