@@ -825,6 +825,7 @@ static int v9fs_vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 				      struct nameidata *nameidata)
 {
+	struct dentry *res;
 	struct super_block *sb;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *dfid, *fid;
@@ -856,22 +857,35 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 
 		return ERR_PTR(result);
 	}
-
-	inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
+	/*
+	 * Make sure we don't use a wrong inode due to parallel
+	 * unlink. For cached mode create calls request for new
+	 * inode. But with cache disabled, lookup should do this.
+	 */
+	if (v9ses->cache)
+		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
+	else
+		inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
 	if (IS_ERR(inode)) {
 		result = PTR_ERR(inode);
 		inode = NULL;
 		goto error;
 	}
-
 	result = v9fs_fid_add(dentry, fid);
 	if (result < 0)
 		goto error_iput;
-
 inst_out:
-	d_add(dentry, inode);
-	return NULL;
-
+	/*
+	 * If we had a rename on the server and a parallel lookup
+	 * for the new name, then make sure we instantiate with
+	 * the new name. ie look up for a/b, while on server somebody
+	 * moved b under k and client parallely did a lookup for
+	 * k/b.
+	 */
+	res = d_materialise_unique(dentry, inode);
+	if (!IS_ERR(res))
+		return res;
+	result = PTR_ERR(res);
 error_iput:
 	iput(inode);
 error:
