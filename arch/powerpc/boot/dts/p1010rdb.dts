@@ -23,6 +23,8 @@
 		ethernet2 = &enet2;
 		pci0 = &pci0;
 		pci1 = &pci1;
+		can0 = &can0;
+		can1 = &can1;
 	};
 
 	memory {
@@ -167,14 +169,6 @@
 					label = "SPI Flash JFFS2 RFS";
 				};
 			};
-		};
-
-		can0@1c000 {
-			fsl,flexcan-clock-source = "platform";
-		};
-
-		can1@1d000 {
-			fsl,flexcan-clock-source = "platform";
 		};
 
 		usb@22000 {
