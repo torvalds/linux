@@ -2839,6 +2839,16 @@ sufficient_dsds:
 		int_to_scsilun(sp->cmd->device->lun, &cmd_pkt->lun);
 		host_to_fcp_swap((uint8_t *)&cmd_pkt->lun, sizeof(cmd_pkt->lun));
 
+		/* build FCP_CMND IU */
+		memset(ctx->fcp_cmnd, 0, sizeof(struct fcp_cmnd));
+		int_to_scsilun(sp->cmd->device->lun, &ctx->fcp_cmnd->lun);
+		ctx->fcp_cmnd->additional_cdb_len = additional_cdb_len;
+
+		if (cmd->sc_data_direction == DMA_TO_DEVICE)
+			ctx->fcp_cmnd->additional_cdb_len |= 1;
+		else if (cmd->sc_data_direction == DMA_FROM_DEVICE)
+			ctx->fcp_cmnd->additional_cdb_len |= 2;
+
 		/*
 		 * Update tagged queuing modifier -- default is TSK_SIMPLE (0).
 		 */
@@ -2854,16 +2864,6 @@ sufficient_dsds:
 				break;
 			}
 		}
-
-		/* build FCP_CMND IU */
-		memset(ctx->fcp_cmnd, 0, sizeof(struct fcp_cmnd));
-		int_to_scsilun(sp->cmd->device->lun, &ctx->fcp_cmnd->lun);
-		ctx->fcp_cmnd->additional_cdb_len = additional_cdb_len;
-
-		if (cmd->sc_data_direction == DMA_TO_DEVICE)
-			ctx->fcp_cmnd->additional_cdb_len |= 1;
-		else if (cmd->sc_data_direction == DMA_FROM_DEVICE)
-			ctx->fcp_cmnd->additional_cdb_len |= 2;
 
 		memcpy(ctx->fcp_cmnd->cdb, cmd->cmnd, cmd->cmd_len);
 
