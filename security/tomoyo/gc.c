@@ -660,7 +660,7 @@ static int tomoyo_gc_thread(void *unused)
 	static DEFINE_MUTEX(tomoyo_gc_mutex);
 	if (!mutex_trylock(&tomoyo_gc_mutex))
 		goto out;
-	daemonize("GC for TOMOYO");
+
 	do {
 		tomoyo_collect_entry();
 		if (list_empty(&tomoyo_gc_list))
