@@ -1737,7 +1737,7 @@ static u8 il4965_find_station(struct il_priv *il, const u8 *addr)
 			goto out;
 		}
 
-	IL_DEBUG_ASSOC_LIMIT(il, "can not find STA %pM total %d\n",
+	IL_DEBUG_ASSOC(il, "can not find STA %pM total %d\n",
 			      addr, il->num_stations);
 
  out:

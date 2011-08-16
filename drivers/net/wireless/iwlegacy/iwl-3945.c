@@ -477,7 +477,7 @@ static void il3945_pass_packet_to_mac80211(struct il_priv *il,
 
 	/* We only process data packets if the interface is open */
 	if (unlikely(!il->is_open)) {
-		IL_DEBUG_DROP_LIMIT(il,
+		IL_DEBUG_DROP(il,
 			"Dropping packet while interface is not open.\n");
 		return;
 	}
@@ -563,7 +563,7 @@ static void il3945_rx_reply_rx(struct il_priv *il,
 
 	network_packet = il3945_is_network_packet(il, header);
 
-	IL_DEBUG_STATS_LIMIT(il, "[%c] %d RSSI:%d Signal:%u, Rate:%u\n",
+	IL_DEBUG_STATS(il, "[%c] %d RSSI:%d Signal:%u, Rate:%u\n",
 			      network_packet ? '*' : ' ',
 			      le16_to_cpu(rx_hdr->channel),
 			      rx_status.signal, rx_status.signal,

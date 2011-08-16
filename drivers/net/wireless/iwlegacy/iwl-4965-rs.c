@@ -817,7 +817,7 @@ il4965_rs_tx_status(void *il_r, struct ieee80211_supported_band *sband,
 	struct il_station_priv *sta_priv = (void *)sta->drv_priv;
 	struct il_rxon_context *ctx = sta_priv->common.ctx;
 
-	IL_DEBUG_RATE_LIMIT(il,
+	IL_DEBUG_RATE(il,
 		"get frame ack response, update rate scale window\n");
 
 	/* Treat uninitialized rate scaling data same as non-existing. */
@@ -2251,7 +2251,7 @@ il4965_rs_get_rate(void *il_r, struct ieee80211_sta *sta, void *il_sta,
 	struct il_lq_sta *lq_sta = il_sta;
 	int rate_idx;
 
-	IL_DEBUG_RATE_LIMIT(il, "rate scale calculate new rate for skb\n");
+	IL_DEBUG_RATE(il, "rate scale calculate new rate for skb\n");
 
 	/* Get max rate if user set max rate */
 	if (lq_sta) {

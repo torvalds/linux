@@ -52,14 +52,6 @@ do {									\
 			__func__ , ## args);				\
 } while (0)
 
-#define IL_DEBUG_LIMIT(__priv, level, fmt, args...)			\
-do {									\
-	if ((il_get_debug_level(__priv) & (level)) && net_ratelimit())	\
-		dev_printk(KERN_ERR, &(__priv->hw->wiphy->dev),		\
-			"%c %s " fmt, in_interrupt() ? 'I' : 'U',	\
-			 __func__ , ## args);				\
-} while (0)
-
 #define il_print_hex_dump(il, level, p, len) 			\
 do {									\
 	if (il_get_debug_level(il) & level)				\
@@ -69,7 +61,6 @@ do {									\
 
 #else
 #define IL_DEBUG(__priv, level, fmt, args...)
-#define IL_DEBUG_LIMIT(__priv, level, fmt, args...)
 static inline void il_print_hex_dump(struct il_priv *il, int level,
 				      const void *p, u32 len)
 {}
@@ -169,25 +160,14 @@ static inline void il_dbgfs_unregister(struct il_priv *il)
 #define IL_DEBUG_FW(p, f, a...)	IL_DEBUG(p, IL_DL_FW, f, ## a)
 #define IL_DEBUG_RF_KILL(p, f, a...)	IL_DEBUG(p, IL_DL_RF_KILL, f, ## a)
 #define IL_DEBUG_DROP(p, f, a...)	IL_DEBUG(p, IL_DL_DROP, f, ## a)
-#define IL_DEBUG_DROP_LIMIT(p, f, a...)	\
-		IL_DEBUG_LIMIT(p, IL_DL_DROP, f, ## a)
 #define IL_DEBUG_AP(p, f, a...)	IL_DEBUG(p, IL_DL_AP, f, ## a)
 #define IL_DEBUG_TXPOWER(p, f, a...)	IL_DEBUG(p, IL_DL_TXPOWER, f, ## a)
 #define IL_DEBUG_RATE(p, f, a...)	IL_DEBUG(p, IL_DL_RATE, f, ## a)
-#define IL_DEBUG_RATE_LIMIT(p, f, a...)	\
-		IL_DEBUG_LIMIT(p, IL_DL_RATE, f, ## a)
 #define IL_DEBUG_NOTIF(p, f, a...)	IL_DEBUG(p, IL_DL_NOTIF, f, ## a)
-#define IL_DEBUG_ASSOC(p, f, a...)	\
-		IL_DEBUG(p, IL_DL_ASSOC | IL_DL_INFO, f, ## a)
-#define IL_DEBUG_ASSOC_LIMIT(p, f, a...)	\
-		IL_DEBUG_LIMIT(p, IL_DL_ASSOC | IL_DL_INFO, f, ## a)
+#define IL_DEBUG_ASSOC(p, f, a...)	IL_DEBUG(p, IL_DL_ASSOC, f, ## a)
 #define IL_DEBUG_HT(p, f, a...)	IL_DEBUG(p, IL_DL_HT, f, ## a)
 #define IL_DEBUG_STATS(p, f, a...)	IL_DEBUG(p, IL_DL_STATS, f, ## a)
-#define IL_DEBUG_STATS_LIMIT(p, f, a...)	\
-		IL_DEBUG_LIMIT(p, IL_DL_STATS, f, ## a)
 #define IL_DEBUG_TX_REPLY(p, f, a...)	IL_DEBUG(p, IL_DL_TX_REPLY, f, ## a)
-#define IL_DEBUG_TX_REPLY_LIMIT(p, f, a...) \
-		IL_DEBUG_LIMIT(p, IL_DL_TX_REPLY, f, ## a)
 #define IL_DEBUG_QOS(p, f, a...)	IL_DEBUG(p, IL_DL_QOS, f, ## a)
 #define IL_DEBUG_RADIO(p, f, a...)	IL_DEBUG(p, IL_DL_RADIO, f, ## a)
 #define IL_DEBUG_POWER(p, f, a...)	IL_DEBUG(p, IL_DL_POWER, f, ## a)

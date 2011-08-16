@@ -537,7 +537,7 @@ static void il4965_pass_packet_to_mac80211(struct il_priv *il,
 
 	/* We only process data packets if the interface is open */
 	if (unlikely(!il->is_open)) {
-		IL_DEBUG_DROP_LIMIT(il,
+		IL_DEBUG_DROP(il,
 		    "Dropping packet while interface is not open.\n");
 		return;
 	}
@@ -647,7 +647,7 @@ void il4965_rx_reply_rx(struct il_priv *il,
 	rx_status.signal = il4965_calc_rssi(il, phy_res);
 
 	il_dbg_log_rx_data_frame(il, len, header);
-	IL_DEBUG_STATS_LIMIT(il, "Rssi %d, TSF %llu\n",
+	IL_DEBUG_STATS(il, "Rssi %d, TSF %llu\n",
 		rx_status.signal, (unsigned long long)rx_status.mactime);
 
 	/*
