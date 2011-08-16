@@ -2388,15 +2388,6 @@ out:
 	return 0;
 }
 
-static int drbd_bmio_set_susp_al(struct drbd_conf *mdev)
-{
-	int rv;
-
-	rv = drbd_bmio_set_n_write(mdev);
-	drbd_suspend_al(mdev);
-	return rv;
-}
-
 static int drbd_adm_simple_request_state(struct sk_buff *skb, struct genl_info *info,
 		union drbd_state mask, union drbd_state val)
 {
