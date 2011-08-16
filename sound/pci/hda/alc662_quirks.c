@@ -26,9 +26,6 @@ enum {
 	ALC663_ASUS_MODE6,
 	ALC663_ASUS_MODE7,
 	ALC663_ASUS_MODE8,
-	ALC272_DELL,
-	ALC272_DELL_ZM1,
-	ALC272_SAMSUNG_NC10,
 	ALC662_MODEL_LAST,
 };
 
@@ -86,30 +83,6 @@ static const struct hda_input_mux alc663_capture_source = {
 		{ "Line", 0x2 },
 	},
 };
-
-#if 0 /* set to 1 for testing other input sources below */
-static const struct hda_input_mux alc272_nc10_capture_source = {
-	.num_items = 16,
-	.items = {
-		{ "Autoselect Mic", 0x0 },
-		{ "Internal Mic", 0x1 },
-		{ "In-0x02", 0x2 },
-		{ "In-0x03", 0x3 },
-		{ "In-0x04", 0x4 },
-		{ "In-0x05", 0x5 },
-		{ "In-0x06", 0x6 },
-		{ "In-0x07", 0x7 },
-		{ "In-0x08", 0x8 },
-		{ "In-0x09", 0x9 },
-		{ "In-0x0a", 0x0a },
-		{ "In-0x0b", 0x0b },
-		{ "In-0x0c", 0x0c },
-		{ "In-0x0d", 0x0d },
-		{ "In-0x0e", 0x0e },
-		{ "In-0x0f", 0x0f },
-	},
-};
-#endif
 
 /*
  * 2ch mode
@@ -666,36 +639,6 @@ static const struct hda_verb alc662_ecs_init_verbs[] = {
 	{}
 };
 
-static const struct hda_verb alc272_dell_zm1_init_verbs[] = {
-	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x13, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x21, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x21, AC_VERB_SET_CONNECT_SEL, 0x01},	/* Headphone */
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(9)},
-	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_MIC_EVENT},
-	{0x21, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{}
-};
-
-static const struct hda_verb alc272_dell_init_verbs[] = {
-	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x13, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x21, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x21, AC_VERB_SET_CONNECT_SEL, 0x01},	/* Headphone */
-	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(9)},
-	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_MIC_EVENT},
-	{0x21, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{}
-};
-
 static const struct hda_verb alc663_mode7_init_verbs[] = {
 	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
 	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
@@ -942,24 +885,6 @@ static const struct snd_kcontrol_new alc662_ecs_mixer[] = {
 	{ } /* end */
 };
 
-static const struct snd_kcontrol_new alc272_nc10_mixer[] = {
-	/* Master Playback automatically created from Speaker and Headphone */
-	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x02, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Speaker Playback Switch", 0x14, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x03, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x21, 0x0, HDA_OUTPUT),
-
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0, HDA_INPUT),
-
-	HDA_CODEC_VOLUME("Internal Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
-	HDA_CODEC_MUTE("Internal Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
-	HDA_CODEC_VOLUME("Internal Mic Boost Volume", 0x19, 0, HDA_INPUT),
-	{ } /* end */
-};
-
-
 /*
  * configuration and preset
  */
@@ -984,16 +909,11 @@ static const char * const alc662_models[ALC662_MODEL_LAST] = {
 	[ALC663_ASUS_MODE6] = "asus-mode6",
 	[ALC663_ASUS_MODE7] = "asus-mode7",
 	[ALC663_ASUS_MODE8] = "asus-mode8",
-	[ALC272_DELL]		= "dell",
-	[ALC272_DELL_ZM1]	= "dell-zm1",
-	[ALC272_SAMSUNG_NC10]	= "samsung-nc10",
 	[ALC662_AUTO]		= "auto",
 };
 
 static const struct snd_pci_quirk alc662_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1019, 0x9087, "ECS", ALC662_ECS),
-	SND_PCI_QUIRK(0x1028, 0x02d6, "DELL", ALC272_DELL),
-	SND_PCI_QUIRK(0x1028, 0x02f4, "DELL ZM1", ALC272_DELL_ZM1),
 	SND_PCI_QUIRK(0x1043, 0x1000, "ASUS N50Vm", ALC663_ASUS_MODE1),
 	SND_PCI_QUIRK(0x1043, 0x1092, "ASUS NB", ALC663_ASUS_MODE3),
 	SND_PCI_QUIRK(0x1043, 0x1173, "ASUS K73Jn", ALC663_ASUS_MODE1),
@@ -1057,7 +977,6 @@ static const struct snd_pci_quirk alc662_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x105b, 0x0d47, "Foxconn 45CMX/45GMX/45CMX-K",
 		      ALC662_3ST_6ch_DIG),
 	SND_PCI_QUIRK(0x1179, 0xff6e, "Toshiba NB20x", ALC662_AUTO),
-	SND_PCI_QUIRK(0x144d, 0xca00, "Samsung NC10", ALC272_SAMSUNG_NC10),
 	SND_PCI_QUIRK(0x1458, 0xa002, "Gigabyte 945GCM-S2L",
 		      ALC662_3ST_6ch_DIG),
 	SND_PCI_QUIRK(0x152d, 0x2304, "Quanta WH1", ALC663_ASUS_H13),
@@ -1355,54 +1274,4 @@ static const struct alc_config_preset alc662_presets[] = {
 		.setup = alc663_mode8_setup,
 		.init_hook = alc_inithook,
 	},
-	[ALC272_DELL] = {
-		.mixers = { alc663_m51va_mixer },
-		.cap_mixer = alc272_auto_capture_mixer,
-		.init_verbs = { alc662_init_verbs,
-				alc662_eapd_init_verbs,
-				alc272_dell_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc272_dac_nids),
-		.dac_nids = alc272_dac_nids,
-		.num_channel_mode = ARRAY_SIZE(alc662_3ST_2ch_modes),
-		.adc_nids = alc272_adc_nids,
-		.num_adc_nids = ARRAY_SIZE(alc272_adc_nids),
-		.capsrc_nids = alc272_capsrc_nids,
-		.channel_mode = alc662_3ST_2ch_modes,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc663_m51va_setup,
-		.init_hook = alc_inithook,
-	},
-	[ALC272_DELL_ZM1] = {
-		.mixers = { alc663_m51va_mixer },
-		.cap_mixer = alc662_auto_capture_mixer,
-		.init_verbs = { alc662_init_verbs,
-				alc662_eapd_init_verbs,
-				alc272_dell_zm1_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc272_dac_nids),
-		.dac_nids = alc272_dac_nids,
-		.num_channel_mode = ARRAY_SIZE(alc662_3ST_2ch_modes),
-		.adc_nids = alc662_adc_nids,
-		.num_adc_nids = 1,
-		.capsrc_nids = alc662_capsrc_nids,
-		.channel_mode = alc662_3ST_2ch_modes,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc663_m51va_setup,
-		.init_hook = alc_inithook,
-	},
-	[ALC272_SAMSUNG_NC10] = {
-		.mixers = { alc272_nc10_mixer },
-		.init_verbs = { alc662_init_verbs,
-				alc662_eapd_init_verbs,
-				alc663_21jd_amic_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc272_dac_nids),
-		.dac_nids = alc272_dac_nids,
-		.num_channel_mode = ARRAY_SIZE(alc662_3ST_2ch_modes),
-		.channel_mode = alc662_3ST_2ch_modes,
-		/*.input_mux = &alc272_nc10_capture_source,*/
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc663_mode4_setup,
-		.init_hook = alc_inithook,
-	},
 };
-
-
