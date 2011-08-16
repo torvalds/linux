@@ -1721,7 +1721,7 @@ static void gem_init_phy(struct gem *gp)
 	if (gp->phy_type == phy_mii_mdio0 ||
 	    gp->phy_type == phy_mii_mdio1) {
 		/* Reset and detect MII PHY */
-		mii_phy_probe(&gp->phy_mii, gp->mii_phy_addr);
+		sungem_phy_probe(&gp->phy_mii, gp->mii_phy_addr);
 
 		/* Init PHY */
 		if (gp->phy_mii.def && gp->phy_mii.def->ops->init)

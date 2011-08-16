@@ -196,7 +196,7 @@ spider_net_setup_aneg(struct spider_net_card *card)
 	if ((bmsr & BMSR_ESTATEN) && (estat & ESTATUS_1000_THALF))
 		advertise |= SUPPORTED_1000baseT_Half;
 
-	mii_phy_probe(phy, phy->mii_id);
+	sungem_phy_probe(phy, phy->mii_id);
 	phy->def->ops->setup_aneg(phy, advertise);
 
 }
@@ -2120,7 +2120,7 @@ spider_net_setup_phy(struct spider_net_card *card)
 		unsigned short id;
 		id = spider_net_read_phy(card->netdev, phy->mii_id, MII_BMSR);
 		if (id != 0x0000 && id != 0xffff) {
-			if (!mii_phy_probe(phy, phy->mii_id)) {
+			if (!sungem_phy_probe(phy, phy->mii_id)) {
 				pr_info("Found %s.\n", phy->def->name);
 				break;
 			}

@@ -1156,7 +1156,7 @@ static struct mii_phy_def* mii_phy_table[] = {
 	NULL
 };
 
-int mii_phy_probe(struct mii_phy *phy, int mii_id)
+int sungem_phy_probe(struct mii_phy *phy, int mii_id)
 {
 	int rc;
 	u32 id;
@@ -1195,6 +1195,5 @@ fail:
 	return -ENODEV;
 }
 
-EXPORT_SYMBOL(mii_phy_probe);
+EXPORT_SYMBOL(sungem_phy_probe);
 MODULE_LICENSE("GPL");
-

@@ -186,6 +186,9 @@ config MII
 
 source "drivers/net/phy/Kconfig"
 
+config SUNGEM_PHY
+	tristate
+
 #
 #	Ethernet
 #

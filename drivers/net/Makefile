@@ -75,3 +75,5 @@ obj-$(CONFIG_VIRTIO_NET) += virtio_net.o
 
 obj-$(CONFIG_WIMAX) += wimax/
 obj-$(CONFIG_CAIF) += caif/
+
+obj-$(CONFIG_SUNGEM_PHY) += sungem_phy.o
