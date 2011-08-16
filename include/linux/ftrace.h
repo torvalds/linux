@@ -133,6 +133,8 @@ struct ftrace_func_command {
 int ftrace_arch_code_modify_prepare(void);
 int ftrace_arch_code_modify_post_process(void);
 
+void ftrace_bug(int err, unsigned long ip);
+
 struct seq_file;
 
 struct ftrace_probe_ops {
@@ -189,6 +191,35 @@ void ftrace_set_global_notrace(unsigned char *buf, int len, int reset);
 
 int register_ftrace_command(struct ftrace_func_command *cmd);
 int unregister_ftrace_command(struct ftrace_func_command *cmd);
+
+enum {
+	FTRACE_UPDATE_CALLS		= (1 << 0),
+	FTRACE_DISABLE_CALLS		= (1 << 1),
+	FTRACE_UPDATE_TRACE_FUNC	= (1 << 2),
+	FTRACE_START_FUNC_RET		= (1 << 3),
+	FTRACE_STOP_FUNC_RET		= (1 << 4),
+};
+
+enum {
+	FTRACE_UPDATE_IGNORE,
+	FTRACE_UPDATE_MAKE_CALL,
+	FTRACE_UPDATE_MAKE_NOP,
+};
+
+void arch_ftrace_update_code(int command);
+
+struct ftrace_rec_iter;
+
+struct ftrace_rec_iter *ftrace_rec_iter_start(void);
+struct ftrace_rec_iter *ftrace_rec_iter_next(struct ftrace_rec_iter *iter);
+struct dyn_ftrace *ftrace_rec_iter_record(struct ftrace_rec_iter *iter);
+
+int ftrace_update_record(struct dyn_ftrace *rec, int enable);
+int ftrace_test_record(struct dyn_ftrace *rec, int enable);
+void ftrace_run_stop_machine(int command);
+int ftrace_location(unsigned long ip);
+
+extern ftrace_func_t ftrace_trace_function;
 
 /* defined in arch */
 extern int ftrace_ip_converted(unsigned long ip);

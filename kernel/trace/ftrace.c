@@ -947,13 +947,6 @@ struct ftrace_func_probe {
 	struct rcu_head		rcu;
 };
 
-enum {
-	FTRACE_UPDATE_CALLS		= (1 << 0),
-	FTRACE_DISABLE_CALLS		= (1 << 1),
-	FTRACE_UPDATE_TRACE_FUNC	= (1 << 2),
-	FTRACE_START_FUNC_RET		= (1 << 3),
-	FTRACE_STOP_FUNC_RET		= (1 << 4),
-};
 struct ftrace_func_entry {
 	struct hlist_node hlist;
 	unsigned long ip;
@@ -1307,6 +1300,28 @@ ftrace_ops_test(struct ftrace_ops *ops, unsigned long ip)
 		}				\
 	}
 
+/**
+ * ftrace_location - return true if the ip giving is a traced location
+ * @ip: the instruction pointer to check
+ *
+ * Returns 1 if @ip given is a pointer to a ftrace location.
+ * That is, the instruction that is either a NOP or call to
+ * the function tracer. It checks the ftrace internal tables to
+ * determine if the address belongs or not.
+ */
+int ftrace_location(unsigned long ip)
+{
+	struct ftrace_page *pg;
+	struct dyn_ftrace *rec;
+
+	do_for_each_ftrace_rec(pg, rec) {
+		if (rec->ip == ip)
+			return 1;
+	} while_for_each_ftrace_rec();
+
+	return 0;
+}
+
 static void __ftrace_hash_rec_update(struct ftrace_ops *ops,
 				     int filter_hash,
 				     bool inc)
@@ -1475,7 +1490,19 @@ static void print_ip_ins(const char *fmt, unsigned char *p)
 		printk(KERN_CONT "%s%02x", i ? ":" : "", p[i]);
 }
 
-static void ftrace_bug(int failed, unsigned long ip)
+/**
+ * ftrace_bug - report and shutdown function tracer
+ * @failed: The failed type (EFAULT, EINVAL, EPERM)
+ * @ip: The address that failed
+ *
+ * The arch code that enables or disables the function tracing
+ * can call ftrace_bug() when it has detected a problem in
+ * modifying the code. @failed should be one of either:
+ * EFAULT - if the problem happens on reading the @ip address
+ * EINVAL - if what is read at @ip is not what was expected
+ * EPERM - if the problem happens on writting to the @ip address
+ */
+void ftrace_bug(int failed, unsigned long ip)
 {
 	switch (failed) {
 	case -EFAULT:
@@ -1517,14 +1544,9 @@ int ftrace_text_reserved(void *start, void *end)
 	return 0;
 }
 
-
-static int
-__ftrace_replace_code(struct dyn_ftrace *rec, int update)
+static int ftrace_check_record(struct dyn_ftrace *rec, int enable, int update)
 {
-	unsigned long ftrace_addr;
 	unsigned long flag = 0UL;
-
-	ftrace_addr = (unsigned long)FTRACE_ADDR;
 
 	/*
 	 * If we are updating calls:
@@ -1537,20 +1559,74 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int update)
 	 * If we are disabling calls, then disable all records that
 	 * are enabled.
 	 */
-	if (update && (rec->flags & ~FTRACE_FL_MASK))
+	if (enable && (rec->flags & ~FTRACE_FL_MASK))
 		flag = FTRACE_FL_ENABLED;
 
 	/* If the state of this record hasn't changed, then do nothing */
 	if ((rec->flags & FTRACE_FL_ENABLED) == flag)
-		return 0;
+		return FTRACE_UPDATE_IGNORE;
 
 	if (flag) {
-		rec->flags |= FTRACE_FL_ENABLED;
-		return ftrace_make_call(rec, ftrace_addr);
+		if (update)
+			rec->flags |= FTRACE_FL_ENABLED;
+		return FTRACE_UPDATE_MAKE_CALL;
 	}
 
-	rec->flags &= ~FTRACE_FL_ENABLED;
-	return ftrace_make_nop(NULL, rec, ftrace_addr);
+	if (update)
+		rec->flags &= ~FTRACE_FL_ENABLED;
+
+	return FTRACE_UPDATE_MAKE_NOP;
+}
+
+/**
+ * ftrace_update_record, set a record that now is tracing or not
+ * @rec: the record to update
+ * @enable: set to 1 if the record is tracing, zero to force disable
+ *
+ * The records that represent all functions that can be traced need
+ * to be updated when tracing has been enabled.
+ */
+int ftrace_update_record(struct dyn_ftrace *rec, int enable)
+{
+	return ftrace_check_record(rec, enable, 1);
+}
+
+/**
+ * ftrace_test_record, check if the record has been enabled or not
+ * @rec: the record to test
+ * @enable: set to 1 to check if enabled, 0 if it is disabled
+ *
+ * The arch code may need to test if a record is already set to
+ * tracing to determine how to modify the function code that it
+ * represents.
+ */
+int ftrace_test_record(struct dyn_ftrace *rec, int enable)
+{
+	return ftrace_check_record(rec, enable, 0);
+}
+
+static int
+__ftrace_replace_code(struct dyn_ftrace *rec, int enable)
+{
+	unsigned long ftrace_addr;
+	int ret;
+
+	ftrace_addr = (unsigned long)FTRACE_ADDR;
+
+	ret = ftrace_update_record(rec, enable);
+
+	switch (ret) {
+	case FTRACE_UPDATE_IGNORE:
+		return 0;
+
+	case FTRACE_UPDATE_MAKE_CALL:
+		return ftrace_make_call(rec, ftrace_addr);
+
+	case FTRACE_UPDATE_MAKE_NOP:
+		return ftrace_make_nop(NULL, rec, ftrace_addr);
+	}
+
+	return -1; /* unknow ftrace bug */
 }
 
 static void ftrace_replace_code(int update)
@@ -1574,6 +1650,78 @@ static void ftrace_replace_code(int update)
 			return;
 		}
 	} while_for_each_ftrace_rec();
+}
+
+struct ftrace_rec_iter {
+	struct ftrace_page	*pg;
+	int			index;
+};
+
+/**
+ * ftrace_rec_iter_start, start up iterating over traced functions
+ *
+ * Returns an iterator handle that is used to iterate over all
+ * the records that represent address locations where functions
+ * are traced.
+ *
+ * May return NULL if no records are available.
+ */
+struct ftrace_rec_iter *ftrace_rec_iter_start(void)
+{
+	/*
+	 * We only use a single iterator.
+	 * Protected by the ftrace_lock mutex.
+	 */
+	static struct ftrace_rec_iter ftrace_rec_iter;
+	struct ftrace_rec_iter *iter = &ftrace_rec_iter;
+
+	iter->pg = ftrace_pages_start;
+	iter->index = 0;
+
+	/* Could have empty pages */
+	while (iter->pg && !iter->pg->index)
+		iter->pg = iter->pg->next;
+
+	if (!iter->pg)
+		return NULL;
+
+	return iter;
+}
+
+/**
+ * ftrace_rec_iter_next, get the next record to process.
+ * @iter: The handle to the iterator.
+ *
+ * Returns the next iterator after the given iterator @iter.
+ */
+struct ftrace_rec_iter *ftrace_rec_iter_next(struct ftrace_rec_iter *iter)
+{
+	iter->index++;
+
+	if (iter->index >= iter->pg->index) {
+		iter->pg = iter->pg->next;
+		iter->index = 0;
+
+		/* Could have empty pages */
+		while (iter->pg && !iter->pg->index)
+			iter->pg = iter->pg->next;
+	}
+
+	if (!iter->pg)
+		return NULL;
+
+	return iter;
+}
+
+/**
+ * ftrace_rec_iter_record, get the record at the iterator location
+ * @iter: The current iterator location
+ *
+ * Returns the record that the current @iter is at.
+ */
+struct dyn_ftrace *ftrace_rec_iter_record(struct ftrace_rec_iter *iter)
+{
+	return &iter->pg->records[iter->index];
 }
 
 static int
@@ -1617,12 +1765,6 @@ static int __ftrace_modify_code(void *data)
 {
 	int *command = data;
 
-	/*
-	 * Do not call function tracer while we update the code.
-	 * We are in stop machine, no worrying about races.
-	 */
-	function_trace_stop++;
-
 	if (*command & FTRACE_UPDATE_CALLS)
 		ftrace_replace_code(1);
 	else if (*command & FTRACE_DISABLE_CALLS)
@@ -1636,6 +1778,55 @@ static int __ftrace_modify_code(void *data)
 	else if (*command & FTRACE_STOP_FUNC_RET)
 		ftrace_disable_ftrace_graph_caller();
 
+	return 0;
+}
+
+/**
+ * ftrace_run_stop_machine, go back to the stop machine method
+ * @command: The command to tell ftrace what to do
+ *
+ * If an arch needs to fall back to the stop machine method, the
+ * it can call this function.
+ */
+void ftrace_run_stop_machine(int command)
+{
+	stop_machine(__ftrace_modify_code, &command, NULL);
+}
+
+/**
+ * arch_ftrace_update_code, modify the code to trace or not trace
+ * @command: The command that needs to be done
+ *
+ * Archs can override this function if it does not need to
+ * run stop_machine() to modify code.
+ */
+void __weak arch_ftrace_update_code(int command)
+{
+	ftrace_run_stop_machine(command);
+}
+
+static void ftrace_run_update_code(int command)
+{
+	int ret;
+
+	ret = ftrace_arch_code_modify_prepare();
+	FTRACE_WARN_ON(ret);
+	if (ret)
+		return;
+	/*
+	 * Do not call function tracer while we update the code.
+	 * We are in stop machine.
+	 */
+	function_trace_stop++;
+
+	/*
+	 * By default we use stop_machine() to modify the code.
+	 * But archs can do what ever they want as long as it
+	 * is safe. The stop_machine() is the safest, but also
+	 * produces the most overhead.
+	 */
+	arch_ftrace_update_code(command);
+
 #ifndef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	/*
 	 * For archs that call ftrace_test_stop_func(), we must
@@ -1647,20 +1838,6 @@ static int __ftrace_modify_code(void *data)
 	__ftrace_trace_function = __ftrace_trace_function_delay;
 #endif
 	function_trace_stop--;
-
-	return 0;
-}
-
-static void ftrace_run_update_code(int command)
-{
-	int ret;
-
-	ret = ftrace_arch_code_modify_prepare();
-	FTRACE_WARN_ON(ret);
-	if (ret)
-		return;
-
-	stop_machine(__ftrace_modify_code, &command, NULL);
 
 	ret = ftrace_arch_code_modify_post_process();
 	FTRACE_WARN_ON(ret);
