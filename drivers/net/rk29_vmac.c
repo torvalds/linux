@@ -1207,7 +1207,7 @@ static void rk29_init_vmac(struct net_device *dev)
 	if (pdata && pdata->rmii_power_control)
 		pdata->rmii_power_control(1);
 
-	msleep(1000);
+	//msleep(1000);
 
 	/* IRQ mask */
 	temp = RXINT_MASK | ERR_MASK | TXCH_MASK | MDIO_MASK;
