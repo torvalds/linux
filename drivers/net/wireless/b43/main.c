@@ -4654,8 +4654,13 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	b43_shm_write16(dev, B43_SHM_SCRATCH, B43_SHM_SC_MAXCONT, 0x3FF);
 
 	if (b43_bus_host_is_pcmcia(dev->dev) ||
-	    b43_bus_host_is_sdio(dev->dev) ||
-	    dev->use_pio) {
+	    b43_bus_host_is_sdio(dev->dev)) {
+		dev->__using_pio_transfers = 1;
+		err = b43_pio_init(dev);
+	} else if (dev->use_pio) {
+		b43warn(dev->wl, "Forced PIO by use_pio module parameter. "
+			"This should not be needed and will result in lower "
+			"performance.\n");
 		dev->__using_pio_transfers = 1;
 		err = b43_pio_init(dev);
 	} else {
