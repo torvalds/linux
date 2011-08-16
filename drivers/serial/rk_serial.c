@@ -944,8 +944,13 @@ static void serial_rk_handle_port(struct uart_rk_port *up)
 		 */
 
 		if (status & UART_LSR_RFE) {
-			status = serial_in(up, UART_LSR);
-			dev_info(up->port.dev, "error:lsr=0x%x\n", status);
+			
+			if(up->port.line != DBG_PORT){
+				status = serial_in(up, UART_LSR);
+				dev_info(up->port.dev, "error:lsr=0x%x\n", status);
+			}
+			
+			
 		//	rk29_uart_dump_register(up);
 		}
 
