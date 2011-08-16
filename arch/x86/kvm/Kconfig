@@ -22,6 +22,8 @@ config KVM
 	depends on HAVE_KVM
 	# for device assignment:
 	depends on PCI
+	# for TASKSTATS/TASK_DELAY_ACCT:
+	depends on NET
 	select PREEMPT_NOTIFIERS
 	select MMU_NOTIFIER
 	select ANON_INODES
@@ -31,6 +33,7 @@ config KVM
 	select KVM_ASYNC_PF
 	select USER_RETURN_NOTIFIER
 	select KVM_MMIO
+	select TASKSTATS
 	select TASK_DELAY_ACCT
 	---help---
 	  Support hosting fully virtualized guest machines using hardware
