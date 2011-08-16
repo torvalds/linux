@@ -203,7 +203,7 @@ static void il4965_tx_cmd_build_rate(struct il_priv *il,
 	if (info->band == IEEE80211_BAND_5GHZ)
 		rate_idx += IL_FIRST_OFDM_RATE;
 	/* Get PLCP rate for tx_cmd->rate_n_flags */
-	rate_plcp = iwlegacy_rates[rate_idx].plcp;
+	rate_plcp = il_rates[rate_idx].plcp;
 	/* Zero out flags for this packet */
 	rate_flags = 0;
 

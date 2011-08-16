@@ -705,7 +705,7 @@ static ssize_t il_dbgfs_traffic_log_read(struct file *file,
 				"q[%d]: read_ptr: %u, write_ptr: %u\n",
 				cnt, q->read_ptr, q->write_ptr);
 	}
-	if (il->tx_traffic && (iwlegacy_debug_level & IL_DL_TX)) {
+	if (il->tx_traffic && (il_debug_level & IL_DL_TX)) {
 		ptr = il->tx_traffic;
 		pos += scnprintf(buf + pos, bufsz - pos,
 				"Tx Traffic idx: %u\n",	il->tx_traffic_idx);
@@ -728,7 +728,7 @@ static ssize_t il_dbgfs_traffic_log_read(struct file *file,
 			"read: %u, write: %u\n",
 			 rxq->read, rxq->write);
 
-	if (il->rx_traffic && (iwlegacy_debug_level & IL_DL_RX)) {
+	if (il->rx_traffic && (il_debug_level & IL_DL_RX)) {
 		ptr = il->rx_traffic;
 		pos += scnprintf(buf + pos, bufsz - pos,
 				"Rx Traffic idx: %u\n",	il->rx_traffic_idx);

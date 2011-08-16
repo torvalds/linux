@@ -68,11 +68,11 @@ static bool bt_coex_active = true;
 module_param(bt_coex_active, bool, S_IRUGO);
 MODULE_PARM_DESC(bt_coex_active, "enable wifi/bluetooth co-exist");
 
-u32 iwlegacy_debug_level;
-EXPORT_SYMBOL(iwlegacy_debug_level);
+u32 il_debug_level;
+EXPORT_SYMBOL(il_debug_level);
 
-const u8 iwlegacy_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-EXPORT_SYMBOL(iwlegacy_bcast_addr);
+const u8 il_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+EXPORT_SYMBOL(il_bcast_addr);
 
 
 /* This function both allocates and initializes hw and il. */
@@ -183,7 +183,7 @@ int il_init_geos(struct il_priv *il)
 
 	/* 5.2GHz channels start after the 2.4GHz channels */
 	sband = &il->bands[IEEE80211_BAND_5GHZ];
-	sband->channels = &channels[ARRAY_SIZE(iwlegacy_eeprom_band_1)];
+	sband->channels = &channels[ARRAY_SIZE(il_eeprom_band_1)];
 	/* just OFDM */
 	sband->bitrates = &rates[IL_FIRST_OFDM_RATE];
 	sband->n_bitrates = IL_RATE_COUNT_LEGACY - IL_FIRST_OFDM_RATE;
@@ -1486,7 +1486,7 @@ int il_alloc_traffic_mem(struct il_priv *il)
 {
 	u32 traffic_size = IL_TRAFFIC_DUMP_SIZE;
 
-	if (iwlegacy_debug_level & IL_DL_TX) {
+	if (il_debug_level & IL_DL_TX) {
 		if (!il->tx_traffic) {
 			il->tx_traffic =
 				kzalloc(traffic_size, GFP_KERNEL);
@@ -1494,7 +1494,7 @@ int il_alloc_traffic_mem(struct il_priv *il)
 				return -ENOMEM;
 		}
 	}
-	if (iwlegacy_debug_level & IL_DL_RX) {
+	if (il_debug_level & IL_DL_RX) {
 		if (!il->rx_traffic) {
 			il->rx_traffic =
 				kzalloc(traffic_size, GFP_KERNEL);
@@ -1523,7 +1523,7 @@ void il_dbg_log_tx_data_frame(struct il_priv *il,
 	__le16 fc;
 	u16 len;
 
-	if (likely(!(iwlegacy_debug_level & IL_DL_TX)))
+	if (likely(!(il_debug_level & IL_DL_TX)))
 		return;
 
 	if (!il->tx_traffic)
@@ -1548,7 +1548,7 @@ void il_dbg_log_rx_data_frame(struct il_priv *il,
 	__le16 fc;
 	u16 len;
 
-	if (likely(!(iwlegacy_debug_level & IL_DL_RX)))
+	if (likely(!(il_debug_level & IL_DL_RX)))
 		return;
 
 	if (!il->rx_traffic)

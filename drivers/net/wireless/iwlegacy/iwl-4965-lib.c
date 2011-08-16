@@ -424,7 +424,7 @@ int il4965_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band)
 		if (band == IEEE80211_BAND_5GHZ)
 			band_offset = IL_FIRST_OFDM_RATE;
 		for (idx = band_offset; idx < IL_RATE_COUNT_LEGACY; idx++)
-			if (iwlegacy_rates[idx].plcp == (rate_n_flags & 0xFF))
+			if (il_rates[idx].plcp == (rate_n_flags & 0xFF))
 				return idx - band_offset;
 	}
 

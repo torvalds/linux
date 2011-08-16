@@ -2712,7 +2712,7 @@ static void il4965_init_hw_rates(struct il_priv *il,
 	int i;
 
 	for (i = 0; i < IL_RATE_COUNT_LEGACY; i++) {
-		rates[i].bitrate = iwlegacy_rates[i].ieee * 5;
+		rates[i].bitrate = il_rates[i].ieee * 5;
 		rates[i].hw_value = i; /* Rate scaling will work on indexes */
 		rates[i].hw_value_short = i;
 		rates[i].flags = 0;
@@ -2721,7 +2721,7 @@ static void il4965_init_hw_rates(struct il_priv *il,
 			 * If CCK != 1M then set short preamble rate flag.
 			 */
 			rates[i].flags |=
-				(iwlegacy_rates[i].plcp == IL_RATE_1M_PLCP) ?
+				(il_rates[i].plcp == IL_RATE_1M_PLCP) ?
 					0 : IEEE80211_RATE_SHORT_PREAMBLE;
 		}
 	}
@@ -3259,7 +3259,7 @@ module_exit(il4965_exit);
 module_init(il4965_init);
 
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
-module_param_named(debug, iwlegacy_debug_level, uint, S_IRUGO | S_IWUSR);
+module_param_named(debug, il_debug_level, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif
 

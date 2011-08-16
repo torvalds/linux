@@ -2378,7 +2378,7 @@ static int il3945_alloc_bcast_station(struct il_priv *il)
 
 	spin_lock_irqsave(&il->sta_lock, flags);
 	sta_id = il_prep_station(il, ctx,
-					iwlegacy_bcast_addr, false, NULL);
+					il_bcast_addr, false, NULL);
 	if (sta_id == IL_INVALID_STATION) {
 		IL_ERR(il, "Unable to prepare broadcast station\n");
 		spin_unlock_irqrestore(&il->sta_lock, flags);
@@ -4003,7 +4003,7 @@ module_param_named(disable_hw_scan, il3945_mod_params.disable_hw_scan,
 		int, S_IRUGO);
 MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 1)");
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
-module_param_named(debug, iwlegacy_debug_level, uint, S_IRUGO | S_IWUSR);
+module_param_named(debug, il_debug_level, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif
 module_param_named(fw_restart, il3945_mod_params.restart_fw, int, S_IRUGO);

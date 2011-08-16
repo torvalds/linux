@@ -96,7 +96,7 @@ static const u8 ant_toggle_lookup[] = {
  * maps to IL_RATE_INVALID
  *
  */
-const struct il_rate_info iwlegacy_rates[IL_RATE_COUNT] = {
+const struct il_rate_info il_rates[IL_RATE_COUNT] = {
 	IL_DECLARE_RATE_INFO(1, INV, INV, 2, INV, 2, INV, 2),    /*  1mbps */
 	IL_DECLARE_RATE_INFO(2, INV, 1, 5, 1, 5, 1, 5),          /*  2mbps */
 	IL_DECLARE_RATE_INFO(5, INV, 2, 6, 2, 11, 2, 11),        /*5.5mbps */
@@ -132,8 +132,8 @@ static int il4965_hwrate_to_plcp_idx(u32 rate_n_flags)
 
 	/* legacy rate format, search for match in table */
 	} else {
-		for (idx = 0; idx < ARRAY_SIZE(iwlegacy_rates); idx++)
-			if (iwlegacy_rates[idx].plcp == (rate_n_flags & 0xFF))
+		for (idx = 0; idx < ARRAY_SIZE(il_rates); idx++)
+			if (il_rates[idx].plcp == (rate_n_flags & 0xFF))
 				return idx;
 	}
 
@@ -499,7 +499,7 @@ static u32 il4965_rate_n_flags_from_tbl(struct il_priv *il,
 	u32 rate_n_flags = 0;
 
 	if (is_legacy(tbl->lq_type)) {
-		rate_n_flags = iwlegacy_rates[index].plcp;
+		rate_n_flags = il_rates[index].plcp;
 		if (index >= IL_FIRST_CCK_RATE && index <= IL_LAST_CCK_RATE)
 			rate_n_flags |= RATE_MCS_CCK_MSK;
 
@@ -511,9 +511,9 @@ static u32 il4965_rate_n_flags_from_tbl(struct il_priv *il,
 		rate_n_flags = RATE_MCS_HT_MSK;
 
 		if (is_siso(tbl->lq_type))
-			rate_n_flags |=	iwlegacy_rates[index].plcp_siso;
+			rate_n_flags |=	il_rates[index].plcp_siso;
 		else
-			rate_n_flags |=	iwlegacy_rates[index].plcp_mimo2;
+			rate_n_flags |=	il_rates[index].plcp_mimo2;
 	} else {
 		IL_ERR(il, "Invalid tbl->lq_type %d\n", tbl->lq_type);
 	}
@@ -702,7 +702,7 @@ il4965_rs_get_adjacent_rate(struct il_priv *il, u8 index, u16 rate_mask,
 
 	low = index;
 	while (low != IL_RATE_INVALID) {
-		low = iwlegacy_rates[low].prev_rs;
+		low = il_rates[low].prev_rs;
 		if (low == IL_RATE_INVALID)
 			break;
 		if (rate_mask & (1 << low))
@@ -712,7 +712,7 @@ il4965_rs_get_adjacent_rate(struct il_priv *il, u8 index, u16 rate_mask,
 
 	high = index;
 	while (high != IL_RATE_INVALID) {
-		high = iwlegacy_rates[high].next_rs;
+		high = il_rates[high].next_rs;
 		if (high == IL_RATE_INVALID)
 			break;
 		if (rate_mask & (1 << high))
@@ -2220,7 +2220,7 @@ static void il4965_rs_initialize_lq(struct il_priv *il,
 	if ((i < 0) || (i >= IL_RATE_COUNT))
 		i = 0;
 
-	rate = iwlegacy_rates[i].plcp;
+	rate = il_rates[i].plcp;
 	tbl->ant_type = il4965_first_antenna(valid_tx_ant);
 	rate |= tbl->ant_type << RATE_MCS_ANT_POS;
 
@@ -2793,7 +2793,7 @@ static ssize_t il4965_rs_sta_dbgfs_rate_scale_data_read(struct file *file,
 	else
 		desc += sprintf(buff+desc,
 				"Bit Rate= %d Mb/s\n",
-				iwlegacy_rates[lq_sta->last_txrate_idx].ieee >> 1);
+				il_rates[lq_sta->last_txrate_idx].ieee >> 1);
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buff, desc);
 	return ret;

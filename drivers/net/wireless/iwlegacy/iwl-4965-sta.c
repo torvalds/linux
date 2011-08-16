@@ -59,7 +59,7 @@ il4965_sta_alloc_lq(struct il_priv *il, u8 sta_id)
 
 	rate_flags |= il4965_first_antenna(il->hw_params.valid_tx_ant) <<
 				RATE_MCS_ANT_POS;
-	rate_n_flags = il4965_hw_set_rate_n_flags(iwlegacy_rates[r].plcp,
+	rate_n_flags = il4965_hw_set_rate_n_flags(il_rates[r].plcp,
 						   rate_flags);
 	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++)
 		link_cmd->rs_table[i].rate_n_flags = rate_n_flags;
@@ -554,7 +554,7 @@ int il4965_alloc_bcast_station(struct il_priv *il,
 	u8 sta_id;
 
 	spin_lock_irqsave(&il->sta_lock, flags);
-	sta_id = il_prep_station(il, ctx, iwlegacy_bcast_addr,
+	sta_id = il_prep_station(il, ctx, il_bcast_addr,
 								false, NULL);
 	if (sta_id == IL_INVALID_STATION) {
 		IL_ERR(il, "Unable to prepare broadcast station\n");

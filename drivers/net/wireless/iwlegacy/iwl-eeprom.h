@@ -144,7 +144,7 @@ struct il_eeprom_channel {
 #define EEPROM_4965_BOARD_PBA                  (2*0x56+1) /* 9 bytes */
 
 /* 2.4 GHz */
-extern const u8 iwlegacy_eeprom_band_1[14];
+extern const u8 il_eeprom_band_1[14];
 
 /*
  * factory calibration data for one txpower level, on one channel,

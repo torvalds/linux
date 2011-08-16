@@ -442,9 +442,9 @@ il_fill_probe_req(struct il_priv *il, struct ieee80211_mgmt *frame,
 		return 0;
 
 	frame->frame_control = cpu_to_le16(IEEE80211_STYPE_PROBE_REQ);
-	memcpy(frame->da, iwlegacy_bcast_addr, ETH_ALEN);
+	memcpy(frame->da, il_bcast_addr, ETH_ALEN);
 	memcpy(frame->sa, ta, ETH_ALEN);
-	memcpy(frame->bssid, iwlegacy_bcast_addr, ETH_ALEN);
+	memcpy(frame->bssid, il_bcast_addr, ETH_ALEN);
 	frame->seq_ctrl = 0;
 
 	len += 24;

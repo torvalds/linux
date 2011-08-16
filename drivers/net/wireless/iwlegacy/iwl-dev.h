@@ -626,7 +626,7 @@ struct il_hw_params {
  *
  ****************************************************************************/
 extern void il4965_update_chain_flags(struct il_priv *il);
-extern const u8 iwlegacy_bcast_addr[ETH_ALEN];
+extern const u8 il_bcast_addr[ETH_ALEN];
 extern int il_queue_space(const struct il_queue *q);
 static inline int il_queue_used(const struct il_queue *q, int i)
 {
@@ -1220,7 +1220,7 @@ struct il_priv {
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
 	/* debugging info */
 	u32 debug_level; /* per device debugging will override global
-			    iwlegacy_debug_level if set */
+			    il_debug_level if set */
 #endif /* CONFIG_IWLWIFI_LEGACY_DEBUG */
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
 	/* debugfs */
@@ -1270,12 +1270,12 @@ static inline u32 il_get_debug_level(struct il_priv *il)
 	if (il->debug_level)
 		return il->debug_level;
 	else
-		return iwlegacy_debug_level;
+		return il_debug_level;
 }
 #else
 static inline u32 il_get_debug_level(struct il_priv *il)
 {
-	return iwlegacy_debug_level;
+	return il_debug_level;
 }
 #endif
 

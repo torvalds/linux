@@ -30,7 +30,7 @@
 #define __il_debug_h__
 
 struct il_priv;
-extern u32 iwlegacy_debug_level;
+extern u32 il_debug_level;
 
 #define IL_ERR(p, f, a...) dev_err(&((p)->pci_dev->dev), f, ## a)
 #define IL_WARN(p, f, a...) dev_warn(&((p)->pci_dev->dev), f, ## a)
