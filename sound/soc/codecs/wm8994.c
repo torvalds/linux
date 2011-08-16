@@ -3045,6 +3045,24 @@ static irqreturn_t wm8994_fifo_error(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t wm8994_temp_warn(int irq, void *data)
+{
+	struct snd_soc_codec *codec = data;
+
+	dev_err(codec->dev, "Thermal warning\n");
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t wm8994_temp_shut(int irq, void *data)
+{
+	struct snd_soc_codec *codec = data;
+
+	dev_crit(codec->dev, "Thermal shutdown\n");
+
+	return IRQ_HANDLED;
+}
+
 static int wm8994_codec_probe(struct snd_soc_codec *codec)
 {
 	struct wm8994 *control;
@@ -3123,6 +3141,10 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 
 	wm8994_request_irq(codec->control_data, WM8994_IRQ_FIFOS_ERR,
 			   wm8994_fifo_error, "FIFO error", codec);
+	wm8994_request_irq(wm8994->wm8994, WM8994_IRQ_TEMP_WARN,
+			   wm8994_temp_warn, "Thermal warning", codec);
+	wm8994_request_irq(wm8994->wm8994, WM8994_IRQ_TEMP_SHUT,
+			   wm8994_temp_shut, "Thermal shutdown", codec);
 
 	ret = wm8994_request_irq(codec->control_data, WM8994_IRQ_DCS_DONE,
 				 wm_hubs_dcs_done, "DC servo done",
@@ -3387,6 +3409,8 @@ err_irq:
 	wm8994_free_irq(codec->control_data, WM8994_IRQ_DCS_DONE,
 			&wm8994->hubs);
 	wm8994_free_irq(codec->control_data, WM8994_IRQ_FIFOS_ERR, codec);
+	wm8994_free_irq(codec->control_data, WM8994_IRQ_TEMP_SHUT, codec);
+	wm8994_free_irq(codec->control_data, WM8994_IRQ_TEMP_WARN, codec);
 err:
 	kfree(wm8994);
 	return ret;
@@ -3409,6 +3433,8 @@ static int  wm8994_codec_remove(struct snd_soc_codec *codec)
 	wm8994_free_irq(codec->control_data, WM8994_IRQ_DCS_DONE,
 			&wm8994->hubs);
 	wm8994_free_irq(codec->control_data, WM8994_IRQ_FIFOS_ERR, codec);
+	wm8994_free_irq(codec->control_data, WM8994_IRQ_TEMP_SHUT, codec);
+	wm8994_free_irq(codec->control_data, WM8994_IRQ_TEMP_WARN, codec);
 
 	switch (control->type) {
 	case WM8994:
