@@ -516,6 +516,7 @@ static int omap_dss_set_manager(struct omap_overlay *ovl,
 	}
 
 	ovl->manager = mgr;
+	ovl->manager_changed = true;
 
 	/* XXX: When there is an overlay on a DSI manual update display, and
 	 * the overlay is first disabled, then moved to tv, and enabled, we
@@ -529,15 +530,12 @@ static int omap_dss_set_manager(struct omap_overlay *ovl,
 	 * Userspace workaround for this is to update the LCD after disabling
 	 * the overlay, but before moving the overlay to TV.
 	 */
-	dispc_set_channel_out(ovl->id, mgr->id);
 
 	return 0;
 }
 
 static int omap_dss_unset_manager(struct omap_overlay *ovl)
 {
-	int r;
-
 	if (!ovl->manager) {
 		DSSERR("failed to detach overlay: manager not set\n");
 		return -EINVAL;
@@ -548,11 +546,8 @@ static int omap_dss_unset_manager(struct omap_overlay *ovl)
 		return -EINVAL;
 	}
 
-	r = ovl->wait_for_go(ovl);
-	if (r)
-		return r;
-
 	ovl->manager = NULL;
+	ovl->manager_changed = true;
 
 	return 0;
 }

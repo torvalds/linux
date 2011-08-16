@@ -1338,6 +1338,11 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 
 		oc = &dss_cache.overlay_cache[ovl->id];
 
+		if (ovl->manager_changed) {
+			ovl->manager_changed = false;
+			ovl->info_dirty  = true;
+		}
+
 		if (!overlay_enabled(ovl)) {
 			if (oc->enabled) {
 				oc->enabled = false;
