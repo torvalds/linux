@@ -996,7 +996,7 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 		slottime = 21;
 		sifstime = 64;
 	} else {
-		eifs = REG_READ(ah, AR_D_GBL_IFS_EIFS);
+		eifs = REG_READ(ah, AR_D_GBL_IFS_EIFS)/common->clockrate;
 		reg = REG_READ(ah, AR_USEC);
 		rx_lat = MS(reg, AR_USEC_RX_LAT);
 		tx_lat = MS(reg, AR_USEC_TX_LAT);
