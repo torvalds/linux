@@ -726,9 +726,6 @@ struct netdev_tc_txq {
  *	If driver handles unicast address filtering, it should set
  *	IFF_UNICAST_FLT to its priv_flags.
  *
- * void (*ndo_set_multicast_list)(struct net_device *dev);
- *	This function is called when the multicast address list changes.
- *
  * int (*ndo_set_mac_address)(struct net_device *dev, void *addr);
  *	This function  is called when the Media Access Control address
  *	needs to be changed. If this interface is not defined, the
@@ -870,7 +867,6 @@ struct net_device_ops {
 	void			(*ndo_change_rx_flags)(struct net_device *dev,
 						       int flags);
 	void			(*ndo_set_rx_mode)(struct net_device *dev);
-	void			(*ndo_set_multicast_list)(struct net_device *dev);
 	int			(*ndo_set_mac_address)(struct net_device *dev,
 						       void *addr);
 	int			(*ndo_validate_addr)(struct net_device *dev);
