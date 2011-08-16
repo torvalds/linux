@@ -1019,6 +1019,29 @@ static int is_legacy_delivery_system(fe_delivery_system_t s)
 	return 0;
 }
 
+/* Initialize the cache with some default values derived from the
+ * legacy frontend_info structure.
+ */
+static void dtv_property_cache_init(struct dvb_frontend *fe,
+				    struct dtv_frontend_properties *c)
+{
+	switch (fe->ops.info.type) {
+	case FE_QPSK:
+		c->modulation = QPSK;   /* implied for DVB-S in legacy API */
+		c->rolloff = ROLLOFF_35;/* implied for DVB-S */
+		c->delivery_system = SYS_DVBS;
+		break;
+	case FE_QAM:
+		c->delivery_system = SYS_DVBC_ANNEX_AC;
+		break;
+	case FE_OFDM:
+		c->delivery_system = SYS_DVBT;
+		break;
+	case FE_ATSC:
+		break;
+	}
+}
+
 /* Synchronise the legacy tuning parameters into the cache, so that demodulator
  * drivers can use a single set_frontend tuning function, regardless of whether
  * it's being used for the legacy or new API, reducing code and complexity.
@@ -1032,17 +1055,13 @@ static void dtv_property_cache_sync(struct dvb_frontend *fe,
 
 	switch (fe->ops.info.type) {
 	case FE_QPSK:
-		c->modulation = QPSK;   /* implied for DVB-S in legacy API */
-		c->rolloff = ROLLOFF_35;/* implied for DVB-S */
 		c->symbol_rate = p->u.qpsk.symbol_rate;
 		c->fec_inner = p->u.qpsk.fec_inner;
-		c->delivery_system = SYS_DVBS;
 		break;
 	case FE_QAM:
 		c->symbol_rate = p->u.qam.symbol_rate;
 		c->fec_inner = p->u.qam.fec_inner;
 		c->modulation = p->u.qam.modulation;
-		c->delivery_system = SYS_DVBC_ANNEX_AC;
 		break;
 	case FE_OFDM:
 		if (p->u.ofdm.bandwidth == BANDWIDTH_6_MHZ)
@@ -1060,7 +1079,6 @@ static void dtv_property_cache_sync(struct dvb_frontend *fe,
 		c->transmission_mode = p->u.ofdm.transmission_mode;
 		c->guard_interval = p->u.ofdm.guard_interval;
 		c->hierarchy = p->u.ofdm.hierarchy_information;
-		c->delivery_system = SYS_DVBT;
 		break;
 	case FE_ATSC:
 		c->modulation = p->u.vsb.modulation;
@@ -1821,6 +1839,7 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 
 			memcpy (&fepriv->parameters_in, parg,
 				sizeof (struct dvb_frontend_parameters));
+			dtv_property_cache_init(fe, c);
 			dtv_property_cache_sync(fe, c, &fepriv->parameters_in);
 		}
 
