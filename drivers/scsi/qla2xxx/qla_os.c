@@ -918,6 +918,10 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	qla2x00_sp_compl(ha, sp);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
+	/* Did the command return during mailbox execution? */
+	if (ret == FAILED && !CMD_SP(cmd))
+		ret = SUCCESS;
+
 	/* Wait for the command to be returned. */
 	if (wait) {
 		if (qla2x00_eh_wait_on_command(cmd) != QLA_SUCCESS) {
