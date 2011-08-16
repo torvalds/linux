@@ -289,16 +289,6 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 	 */
 	if (!ssi_private->playback && !ssi_private->capture) {
 		struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
-		int ret;
-
-		/* The 'name' should not have any slashes in it. */
-		ret = request_irq(ssi_private->irq, fsl_ssi_isr, 0,
-				  ssi_private->name, ssi_private);
-		if (ret < 0) {
-			dev_err(substream->pcm->card->dev,
-				"could not claim irq %u\n", ssi_private->irq);
-			return ret;
-		}
 
 		/*
 		 * Section 16.5 of the MPC8610 reference manual says that the
@@ -522,15 +512,12 @@ static void fsl_ssi_shutdown(struct snd_pcm_substream *substream,
 	ssi_private->second_stream = NULL;
 
 	/*
-	 * If this is the last active substream, disable the SSI and release
-	 * the IRQ.
+	 * If this is the last active substream, disable the SSI.
 	 */
 	if (!ssi_private->playback && !ssi_private->capture) {
 		struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
 
 		clrbits32(&ssi->scr, CCSR_SSI_SCR_SSIEN);
-
-		free_irq(ssi_private->irq, ssi_private);
 	}
 }
 
@@ -675,17 +662,30 @@ static int __devinit fsl_ssi_probe(struct platform_device *pdev)
 	ret = of_address_to_resource(np, 0, &res);
 	if (ret) {
 		dev_err(&pdev->dev, "could not determine device resources\n");
-		kfree(ssi_private);
-		return ret;
+		goto error_kmalloc;
 	}
 	ssi_private->ssi = of_iomap(np, 0);
 	if (!ssi_private->ssi) {
 		dev_err(&pdev->dev, "could not map device resources\n");
-		kfree(ssi_private);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto error_kmalloc;
 	}
 	ssi_private->ssi_phys = res.start;
+
 	ssi_private->irq = irq_of_parse_and_map(np, 0);
+	if (ssi_private->irq == NO_IRQ) {
+		dev_err(&pdev->dev, "no irq for node %s\n", np->full_name);
+		ret = -ENXIO;
+		goto error_iomap;
+	}
+
+	/* The 'name' should not have any slashes in it. */
+	ret = request_irq(ssi_private->irq, fsl_ssi_isr, 0, ssi_private->name,
+			  ssi_private);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "could not claim irq %u\n", ssi_private->irq);
+		goto error_irqmap;
+	}
 
 	/* Are the RX and the TX clocks locked? */
 	if (of_find_property(np, "fsl,ssi-asynchronous", NULL))
@@ -711,7 +711,7 @@ static int __devinit fsl_ssi_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "could not create sysfs %s file\n",
 			ssi_private->dev_attr.attr.name);
-		goto error;
+		goto error_irq;
 	}
 
 	/* Register with ASoC */
@@ -720,7 +720,7 @@ static int __devinit fsl_ssi_probe(struct platform_device *pdev)
 	ret = snd_soc_register_dai(&pdev->dev, &ssi_private->cpu_dai_drv);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register DAI: %d\n", ret);
-		goto error;
+		goto error_dev;
 	}
 
 	/* Trigger the machine driver's probe function.  The platform driver
@@ -741,18 +741,28 @@ static int __devinit fsl_ssi_probe(struct platform_device *pdev)
 	if (IS_ERR(ssi_private->pdev)) {
 		ret = PTR_ERR(ssi_private->pdev);
 		dev_err(&pdev->dev, "failed to register platform: %d\n", ret);
-		goto error;
+		goto error_dai;
 	}
 
 	return 0;
 
-error:
+error_dai:
 	snd_soc_unregister_dai(&pdev->dev);
+
+error_dev:
 	dev_set_drvdata(&pdev->dev, NULL);
-	if (dev_attr)
-		device_remove_file(&pdev->dev, dev_attr);
+	device_remove_file(&pdev->dev, dev_attr);
+
+error_irq:
+	free_irq(ssi_private->irq, ssi_private);
+
+error_irqmap:
 	irq_dispose_mapping(ssi_private->irq);
+
+error_iomap:
 	iounmap(ssi_private->ssi);
+
+error_kmalloc:
 	kfree(ssi_private);
 
 	return ret;
@@ -765,6 +775,9 @@ static int fsl_ssi_remove(struct platform_device *pdev)
 	platform_device_unregister(ssi_private->pdev);
 	snd_soc_unregister_dai(&pdev->dev);
 	device_remove_file(&pdev->dev, &ssi_private->dev_attr);
+
+	free_irq(ssi_private->irq, ssi_private);
+	irq_dispose_mapping(ssi_private->irq);
 
 	kfree(ssi_private);
 	dev_set_drvdata(&pdev->dev, NULL);
