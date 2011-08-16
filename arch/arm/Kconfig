@@ -215,6 +215,10 @@ config ARM_PATCH_PHYS_VIRT_16BIT
 	  to allow physical memory down to a theoretical minimum of 64K
 	  boundaries.
 
+config GENERIC_BUG
+	def_bool y
+	depends on BUG
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
