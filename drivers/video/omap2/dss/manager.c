@@ -823,7 +823,7 @@ static int configure_overlay(enum omap_plane plane)
 	oi = &c->info;
 
 	if (!c->enabled) {
-		dispc_enable_plane(plane, 0);
+		dispc_ovl_enable(plane, 0);
 		return 0;
 	}
 
@@ -851,7 +851,7 @@ static int configure_overlay(enum omap_plane plane)
 		/* If the overlay is outside the update region, disable it */
 		if (!rectangle_intersects(mc->x, mc->y, mc->w, mc->h,
 					x, y, outw, outh)) {
-			dispc_enable_plane(plane, 0);
+			dispc_ovl_enable(plane, 0);
 			return 0;
 		}
 
@@ -929,7 +929,7 @@ static int configure_overlay(enum omap_plane plane)
 		}
 	}
 
-	r = dispc_setup_plane(plane,
+	r = dispc_ovl_setup(plane,
 			paddr,
 			oi->screen_width,
 			x, y,
@@ -947,16 +947,16 @@ static int configure_overlay(enum omap_plane plane)
 
 	if (r) {
 		/* this shouldn't happen */
-		DSSERR("dispc_setup_plane failed for ovl %d\n", plane);
-		dispc_enable_plane(plane, 0);
+		DSSERR("dispc_ovl_setup failed for ovl %d\n", plane);
+		dispc_ovl_enable(plane, 0);
 		return r;
 	}
 
-	dispc_enable_replication(plane, c->replication);
+	dispc_ovl_enable_replication(plane, c->replication);
 
-	dispc_set_fifo_threshold(plane, c->fifo_low, c->fifo_high);
+	dispc_ovl_set_fifo_threshold(plane, c->fifo_low, c->fifo_high);
 
-	dispc_enable_plane(plane, 1);
+	dispc_ovl_enable(plane, 1);
 
 	return 0;
 }
@@ -1437,11 +1437,11 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 
 		dssdev = ovl->manager->device;
 
-		size = dispc_get_plane_fifo_size(ovl->id);
+		size = dispc_ovl_get_fifo_size(ovl->id);
 		if (use_fifomerge)
 			size *= 3;
 
-		burst_size = dispc_get_burst_size(ovl->id);
+		burst_size = dispc_ovl_get_burst_size(ovl->id);
 
 		switch (dssdev->type) {
 		case OMAP_DISPLAY_TYPE_DPI:

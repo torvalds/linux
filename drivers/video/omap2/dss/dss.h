@@ -387,16 +387,16 @@ void dispc_enable_fifohandcheck(enum omap_channel channel, bool enable);
 
 void dispc_set_lcd_size(enum omap_channel channel, u16 width, u16 height);
 void dispc_set_digit_size(u16 width, u16 height);
-u32 dispc_get_plane_fifo_size(enum omap_plane plane);
-void dispc_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high);
+u32 dispc_ovl_get_fifo_size(enum omap_plane plane);
+void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high);
 void dispc_enable_fifomerge(bool enable);
-u32 dispc_get_burst_size(enum omap_plane plane);
+u32 dispc_ovl_get_burst_size(enum omap_plane plane);
 void dispc_enable_cpr(enum omap_channel channel, bool enable);
 void dispc_set_cpr_coef(enum omap_channel channel,
 		struct omap_dss_cpr_coefs *coefs);
 
 void dispc_enable_gamma_table(bool enable);
-int dispc_setup_plane(enum omap_plane plane,
+int dispc_ovl_setup(enum omap_plane plane,
 		      u32 paddr, u16 screen_width,
 		      u16 pos_x, u16 pos_y,
 		      u16 width, u16 height,
@@ -413,8 +413,8 @@ bool dispc_go_busy(enum omap_channel channel);
 void dispc_go(enum omap_channel channel);
 void dispc_enable_channel(enum omap_channel channel, bool enable);
 bool dispc_is_channel_enabled(enum omap_channel channel);
-int dispc_enable_plane(enum omap_plane plane, bool enable);
-void dispc_enable_replication(enum omap_plane plane, bool enable);
+int dispc_ovl_enable(enum omap_plane plane, bool enable);
+void dispc_ovl_enable_replication(enum omap_plane plane, bool enable);
 
 void dispc_set_parallel_interface_mode(enum omap_channel channel,
 		enum omap_parallel_interface_mode mode);
