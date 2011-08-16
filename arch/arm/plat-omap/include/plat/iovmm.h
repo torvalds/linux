@@ -81,14 +81,6 @@ extern u32 iommu_vmalloc(struct iommu_domain *domain, struct iommu *obj,
 				u32 da, size_t bytes, u32 flags);
 extern void iommu_vfree(struct iommu_domain *domain, struct iommu *obj,
 				const u32 da);
-extern u32 iommu_kmap(struct iommu_domain *domain, struct iommu *obj, u32 da,
-				u32 pa, size_t bytes, u32 flags);
-extern void iommu_kunmap(struct iommu_domain *domain, struct iommu *obj,
-				u32 da);
-extern u32 iommu_kmalloc(struct iommu_domain *domain, struct iommu *obj,
-				u32 da, size_t bytes, u32 flags);
-extern void iommu_kfree(struct iommu_domain *domain, struct iommu *obj, u32 da);
-
 extern void *da_to_va(struct iommu *obj, u32 da);
 
 #endif /* __IOMMU_MMAP_H */
