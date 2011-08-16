@@ -1283,7 +1283,7 @@ static int dsi_calc_clock_rates(struct omap_dss_device *dssdev,
 		 * with DSS_SYS_CLK source also */
 		cinfo->highfreq = 0;
 	} else {
-		cinfo->clkin = dispc_pclk_rate(dssdev->manager->id);
+		cinfo->clkin = dispc_mgr_pclk_rate(dssdev->manager->id);
 
 		if (cinfo->clkin < 32000000)
 			cinfo->highfreq = 0;
@@ -3817,7 +3817,7 @@ int omap_dsi_prepare_update(struct omap_dss_device *dssdev,
 
 	dss_setup_partial_planes(dssdev, x, y, w, h,
 			enlarge_update_area);
-	dispc_set_lcd_size(dssdev->manager->id, *w, *h);
+	dispc_mgr_set_lcd_size(dssdev->manager->id, *w, *h);
 
 	return 0;
 }
@@ -3871,14 +3871,15 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 		return r;
 	}
 
-	dispc_set_lcd_display_type(dssdev->manager->id,
+	dispc_mgr_set_lcd_display_type(dssdev->manager->id,
 			OMAP_DSS_LCD_DISPLAY_TFT);
 
-	dispc_set_parallel_interface_mode(dssdev->manager->id,
+	dispc_mgr_set_parallel_interface_mode(dssdev->manager->id,
 			OMAP_DSS_PARALLELMODE_DSI);
-	dispc_enable_fifohandcheck(dssdev->manager->id, 1);
+	dispc_mgr_enable_fifohandcheck(dssdev->manager->id, 1);
 
-	dispc_set_tft_data_lines(dssdev->manager->id, dssdev->ctrl.pixel_size);
+	dispc_mgr_set_tft_data_lines(dssdev->manager->id,
+			dssdev->ctrl.pixel_size);
 
 	{
 		struct omap_video_timings timings = {
@@ -3890,7 +3891,7 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 			.vbp		= 0,
 		};
 
-		dispc_set_lcd_timings(dssdev->manager->id, &timings);
+		dispc_mgr_set_lcd_timings(dssdev->manager->id, &timings);
 	}
 
 	return 0;
@@ -3952,7 +3953,7 @@ static int dsi_configure_dispc_clocks(struct omap_dss_device *dssdev)
 		return r;
 	}
 
-	r = dispc_set_clock_div(dssdev->manager->id, &dispc_cinfo);
+	r = dispc_mgr_set_clock_div(dssdev->manager->id, &dispc_cinfo);
 	if (r) {
 		DSSERR("Failed to set dispc clocks\n");
 		return r;

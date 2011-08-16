@@ -419,7 +419,7 @@ void dispc_runtime_put(void)
 }
 
 
-bool dispc_go_busy(enum omap_channel channel)
+bool dispc_mgr_go_busy(enum omap_channel channel)
 {
 	int bit;
 
@@ -435,7 +435,7 @@ bool dispc_go_busy(enum omap_channel channel)
 		return REG_GET(DISPC_CONTROL, bit, bit) == 1;
 }
 
-void dispc_go(enum omap_channel channel)
+void dispc_mgr_go(enum omap_channel channel)
 {
 	int bit;
 	bool enable_bit, go_bit;
@@ -926,7 +926,7 @@ void dispc_enable_gamma_table(bool enable)
 	REG_FLD_MOD(DISPC_CONFIG, enable, 9, 9);
 }
 
-void dispc_enable_cpr(enum omap_channel channel, bool enable)
+void dispc_mgr_enable_cpr(enum omap_channel channel, bool enable)
 {
 	u16 reg;
 
@@ -940,7 +940,7 @@ void dispc_enable_cpr(enum omap_channel channel, bool enable)
 	REG_FLD_MOD(reg, enable, 15, 15);
 }
 
-void dispc_set_cpr_coef(enum omap_channel channel,
+void dispc_mgr_set_cpr_coef(enum omap_channel channel,
 		struct omap_dss_cpr_coefs *coefs)
 {
 	u32 coef_r, coef_g, coef_b;
@@ -980,7 +980,7 @@ void dispc_ovl_enable_replication(enum omap_plane plane, bool enable)
 	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), enable, shift, shift);
 }
 
-void dispc_set_lcd_size(enum omap_channel channel, u16 width, u16 height)
+void dispc_mgr_set_lcd_size(enum omap_channel channel, u16 width, u16 height)
 {
 	u32 val;
 	BUG_ON((width > (1 << 11)) || (height > (1 << 11)));
@@ -1614,7 +1614,7 @@ static unsigned long calc_fclk_five_taps(enum omap_channel channel, u16 width,
 {
 	u32 fclk = 0;
 	/* FIXME venc pclk? */
-	u64 tmp, pclk = dispc_pclk_rate(channel);
+	u64 tmp, pclk = dispc_mgr_pclk_rate(channel);
 
 	if (height > out_height) {
 		/* FIXME get real display PPL */
@@ -1671,7 +1671,7 @@ static unsigned long calc_fclk(enum omap_channel channel, u16 width,
 		vf = 1;
 
 	/* FIXME venc pclk? */
-	return dispc_pclk_rate(channel) * vf * hf;
+	return dispc_mgr_pclk_rate(channel) * vf * hf;
 }
 
 int dispc_ovl_setup(enum omap_plane plane,
@@ -1874,7 +1874,7 @@ static void _enable_lcd_out(enum omap_channel channel, bool enable)
 		REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 0, 0);
 }
 
-static void dispc_enable_lcd_out(enum omap_channel channel, bool enable)
+static void dispc_mgr_enable_lcd_out(enum omap_channel channel, bool enable)
 {
 	struct completion frame_done_completion;
 	bool is_on;
@@ -1921,7 +1921,7 @@ static void _enable_digit_out(bool enable)
 	REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 1, 1);
 }
 
-static void dispc_enable_digit_out(bool enable)
+static void dispc_mgr_enable_digit_out(bool enable)
 {
 	struct completion frame_done_completion;
 	int r;
@@ -1981,7 +1981,7 @@ static void dispc_enable_digit_out(bool enable)
 	}
 }
 
-bool dispc_is_channel_enabled(enum omap_channel channel)
+bool dispc_mgr_is_enabled(enum omap_channel channel)
 {
 	if (channel == OMAP_DSS_CHANNEL_LCD)
 		return !!REG_GET(DISPC_CONTROL, 0, 0);
@@ -1993,13 +1993,13 @@ bool dispc_is_channel_enabled(enum omap_channel channel)
 		BUG();
 }
 
-void dispc_enable_channel(enum omap_channel channel, bool enable)
+void dispc_mgr_enable(enum omap_channel channel, bool enable)
 {
 	if (channel == OMAP_DSS_CHANNEL_LCD ||
 			channel == OMAP_DSS_CHANNEL_LCD2)
-		dispc_enable_lcd_out(channel, enable);
+		dispc_mgr_enable_lcd_out(channel, enable);
 	else if (channel == OMAP_DSS_CHANNEL_DIGIT)
-		dispc_enable_digit_out(enable);
+		dispc_mgr_enable_digit_out(enable);
 	else
 		BUG();
 }
@@ -2028,7 +2028,7 @@ void dispc_pck_free_enable(bool enable)
 	REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 27, 27);
 }
 
-void dispc_enable_fifohandcheck(enum omap_channel channel, bool enable)
+void dispc_mgr_enable_fifohandcheck(enum omap_channel channel, bool enable)
 {
 	if (channel == OMAP_DSS_CHANNEL_LCD2)
 		REG_FLD_MOD(DISPC_CONFIG2, enable ? 1 : 0, 16, 16);
@@ -2037,7 +2037,7 @@ void dispc_enable_fifohandcheck(enum omap_channel channel, bool enable)
 }
 
 
-void dispc_set_lcd_display_type(enum omap_channel channel,
+void dispc_mgr_set_lcd_display_type(enum omap_channel channel,
 		enum omap_lcd_display_type type)
 {
 	int mode;
@@ -2068,12 +2068,12 @@ void dispc_set_loadmode(enum omap_dss_load_mode mode)
 }
 
 
-void dispc_set_default_color(enum omap_channel channel, u32 color)
+void dispc_mgr_set_default_color(enum omap_channel channel, u32 color)
 {
 	dispc_write_reg(DISPC_DEFAULT_COLOR(channel), color);
 }
 
-u32 dispc_get_default_color(enum omap_channel channel)
+u32 dispc_mgr_get_default_color(enum omap_channel channel)
 {
 	u32 l;
 
@@ -2086,7 +2086,7 @@ u32 dispc_get_default_color(enum omap_channel channel)
 	return l;
 }
 
-void dispc_set_trans_key(enum omap_channel ch,
+void dispc_mgr_set_trans_key(enum omap_channel ch,
 		enum omap_dss_trans_key_type type,
 		u32 trans_key)
 {
@@ -2100,7 +2100,7 @@ void dispc_set_trans_key(enum omap_channel ch,
 	dispc_write_reg(DISPC_TRANS_COLOR(ch), trans_key);
 }
 
-void dispc_get_trans_key(enum omap_channel ch,
+void dispc_mgr_get_trans_key(enum omap_channel ch,
 		enum omap_dss_trans_key_type *type,
 		u32 *trans_key)
 {
@@ -2119,7 +2119,7 @@ void dispc_get_trans_key(enum omap_channel ch,
 		*trans_key = dispc_read_reg(DISPC_TRANS_COLOR(ch));
 }
 
-void dispc_enable_trans_key(enum omap_channel ch, bool enable)
+void dispc_mgr_enable_trans_key(enum omap_channel ch, bool enable)
 {
 	if (ch == OMAP_DSS_CHANNEL_LCD)
 		REG_FLD_MOD(DISPC_CONFIG, enable, 10, 10);
@@ -2128,7 +2128,7 @@ void dispc_enable_trans_key(enum omap_channel ch, bool enable)
 	else /* OMAP_DSS_CHANNEL_LCD2 */
 		REG_FLD_MOD(DISPC_CONFIG2, enable, 10, 10);
 }
-void dispc_enable_alpha_blending(enum omap_channel ch, bool enable)
+void dispc_mgr_enable_alpha_blending(enum omap_channel ch, bool enable)
 {
 	if (!dss_has_feature(FEAT_GLOBAL_ALPHA))
 		return;
@@ -2140,7 +2140,7 @@ void dispc_enable_alpha_blending(enum omap_channel ch, bool enable)
 	else /* OMAP_DSS_CHANNEL_LCD2 */
 		REG_FLD_MOD(DISPC_CONFIG2, enable, 18, 18);
 }
-bool dispc_alpha_blending_enabled(enum omap_channel ch)
+bool dispc_mgr_alpha_blending_enabled(enum omap_channel ch)
 {
 	bool enabled;
 
@@ -2160,7 +2160,7 @@ bool dispc_alpha_blending_enabled(enum omap_channel ch)
 }
 
 
-bool dispc_trans_key_enabled(enum omap_channel ch)
+bool dispc_mgr_trans_key_enabled(enum omap_channel ch)
 {
 	bool enabled;
 
@@ -2177,7 +2177,7 @@ bool dispc_trans_key_enabled(enum omap_channel ch)
 }
 
 
-void dispc_set_tft_data_lines(enum omap_channel channel, u8 data_lines)
+void dispc_mgr_set_tft_data_lines(enum omap_channel channel, u8 data_lines)
 {
 	int code;
 
@@ -2205,7 +2205,7 @@ void dispc_set_tft_data_lines(enum omap_channel channel, u8 data_lines)
 		REG_FLD_MOD(DISPC_CONTROL, code, 9, 8);
 }
 
-void dispc_set_parallel_interface_mode(enum omap_channel channel,
+void dispc_mgr_set_parallel_interface_mode(enum omap_channel channel,
 		enum omap_parallel_interface_mode mode)
 {
 	u32 l;
@@ -2278,7 +2278,7 @@ bool dispc_lcd_timings_ok(struct omap_video_timings *timings)
 			timings->vfp, timings->vbp);
 }
 
-static void _dispc_set_lcd_timings(enum omap_channel channel, int hsw,
+static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 		int hfp, int hbp, int vsw, int vfp, int vbp)
 {
 	u32 timing_h, timing_v;
@@ -2302,7 +2302,7 @@ static void _dispc_set_lcd_timings(enum omap_channel channel, int hsw,
 }
 
 /* change name to mode? */
-void dispc_set_lcd_timings(enum omap_channel channel,
+void dispc_mgr_set_lcd_timings(enum omap_channel channel,
 		struct omap_video_timings *timings)
 {
 	unsigned xtot, ytot;
@@ -2313,11 +2313,11 @@ void dispc_set_lcd_timings(enum omap_channel channel,
 				timings->vfp, timings->vbp))
 		BUG();
 
-	_dispc_set_lcd_timings(channel, timings->hsw, timings->hfp,
+	_dispc_mgr_set_lcd_timings(channel, timings->hsw, timings->hfp,
 			timings->hbp, timings->vsw, timings->vfp,
 			timings->vbp);
 
-	dispc_set_lcd_size(channel, timings->x_res, timings->y_res);
+	dispc_mgr_set_lcd_size(channel, timings->x_res, timings->y_res);
 
 	xtot = timings->x_res + timings->hfp + timings->hsw + timings->hbp;
 	ytot = timings->y_res + timings->vfp + timings->vsw + timings->vbp;
@@ -2335,7 +2335,7 @@ void dispc_set_lcd_timings(enum omap_channel channel,
 	DSSDBG("hsync %luHz, vsync %luHz\n", ht, vt);
 }
 
-static void dispc_set_lcd_divisor(enum omap_channel channel, u16 lck_div,
+static void dispc_mgr_set_lcd_divisor(enum omap_channel channel, u16 lck_div,
 		u16 pck_div)
 {
 	BUG_ON(lck_div < 1);
@@ -2345,7 +2345,7 @@ static void dispc_set_lcd_divisor(enum omap_channel channel, u16 lck_div,
 			FLD_VAL(lck_div, 23, 16) | FLD_VAL(pck_div, 7, 0));
 }
 
-static void dispc_get_lcd_divisor(enum omap_channel channel, int *lck_div,
+static void dispc_mgr_get_lcd_divisor(enum omap_channel channel, int *lck_div,
 		int *pck_div)
 {
 	u32 l;
@@ -2378,7 +2378,7 @@ unsigned long dispc_fclk_rate(void)
 	return r;
 }
 
-unsigned long dispc_lclk_rate(enum omap_channel channel)
+unsigned long dispc_mgr_lclk_rate(enum omap_channel channel)
 {
 	struct platform_device *dsidev;
 	int lcd;
@@ -2408,7 +2408,7 @@ unsigned long dispc_lclk_rate(enum omap_channel channel)
 	return r / lcd;
 }
 
-unsigned long dispc_pclk_rate(enum omap_channel channel)
+unsigned long dispc_mgr_pclk_rate(enum omap_channel channel)
 {
 	int pcd;
 	unsigned long r;
@@ -2418,7 +2418,7 @@ unsigned long dispc_pclk_rate(enum omap_channel channel)
 
 	pcd = FLD_GET(l, 7, 0);
 
-	r = dispc_lclk_rate(channel);
+	r = dispc_mgr_lclk_rate(channel);
 
 	return r / pcd;
 }
@@ -2457,12 +2457,12 @@ void dispc_dump_clocks(struct seq_file *s)
 		dss_get_generic_clk_source_name(lcd_clk_src),
 		dss_feat_get_clk_source_name(lcd_clk_src));
 
-	dispc_get_lcd_divisor(OMAP_DSS_CHANNEL_LCD, &lcd, &pcd);
+	dispc_mgr_get_lcd_divisor(OMAP_DSS_CHANNEL_LCD, &lcd, &pcd);
 
 	seq_printf(s, "lck\t\t%-16lulck div\t%u\n",
-			dispc_lclk_rate(OMAP_DSS_CHANNEL_LCD), lcd);
+			dispc_mgr_lclk_rate(OMAP_DSS_CHANNEL_LCD), lcd);
 	seq_printf(s, "pck\t\t%-16lupck div\t%u\n",
-			dispc_pclk_rate(OMAP_DSS_CHANNEL_LCD), pcd);
+			dispc_mgr_pclk_rate(OMAP_DSS_CHANNEL_LCD), pcd);
 	if (dss_has_feature(FEAT_MGR_LCD2)) {
 		seq_printf(s, "- LCD2 -\n");
 
@@ -2472,12 +2472,12 @@ void dispc_dump_clocks(struct seq_file *s)
 			dss_get_generic_clk_source_name(lcd_clk_src),
 			dss_feat_get_clk_source_name(lcd_clk_src));
 
-		dispc_get_lcd_divisor(OMAP_DSS_CHANNEL_LCD2, &lcd, &pcd);
+		dispc_mgr_get_lcd_divisor(OMAP_DSS_CHANNEL_LCD2, &lcd, &pcd);
 
 		seq_printf(s, "lck\t\t%-16lulck div\t%u\n",
-				dispc_lclk_rate(OMAP_DSS_CHANNEL_LCD2), lcd);
+				dispc_mgr_lclk_rate(OMAP_DSS_CHANNEL_LCD2), lcd);
 		seq_printf(s, "pck\t\t%-16lupck div\t%u\n",
-				dispc_pclk_rate(OMAP_DSS_CHANNEL_LCD2), pcd);
+				dispc_mgr_pclk_rate(OMAP_DSS_CHANNEL_LCD2), pcd);
 	}
 
 	dispc_runtime_put();
@@ -2689,8 +2689,9 @@ void dispc_dump_regs(struct seq_file *s)
 #undef DUMPREG
 }
 
-static void _dispc_set_pol_freq(enum omap_channel channel, bool onoff, bool rf,
-		bool ieo, bool ipc, bool ihs, bool ivs, u8 acbi, u8 acb)
+static void _dispc_mgr_set_pol_freq(enum omap_channel channel, bool onoff,
+		bool rf, bool ieo, bool ipc, bool ihs, bool ivs, u8 acbi,
+		u8 acb)
 {
 	u32 l = 0;
 
@@ -2709,10 +2710,10 @@ static void _dispc_set_pol_freq(enum omap_channel channel, bool onoff, bool rf,
 	dispc_write_reg(DISPC_POL_FREQ(channel), l);
 }
 
-void dispc_set_pol_freq(enum omap_channel channel,
+void dispc_mgr_set_pol_freq(enum omap_channel channel,
 		enum omap_panel_config config, u8 acbi, u8 acb)
 {
-	_dispc_set_pol_freq(channel, (config & OMAP_DSS_LCD_ONOFF) != 0,
+	_dispc_mgr_set_pol_freq(channel, (config & OMAP_DSS_LCD_ONOFF) != 0,
 			(config & OMAP_DSS_LCD_RF) != 0,
 			(config & OMAP_DSS_LCD_IEO) != 0,
 			(config & OMAP_DSS_LCD_IPC) != 0,
@@ -2781,18 +2782,18 @@ int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
 	return 0;
 }
 
-int dispc_set_clock_div(enum omap_channel channel,
+int dispc_mgr_set_clock_div(enum omap_channel channel,
 		struct dispc_clock_info *cinfo)
 {
 	DSSDBG("lck = %lu (%u)\n", cinfo->lck, cinfo->lck_div);
 	DSSDBG("pck = %lu (%u)\n", cinfo->pck, cinfo->pck_div);
 
-	dispc_set_lcd_divisor(channel, cinfo->lck_div, cinfo->pck_div);
+	dispc_mgr_set_lcd_divisor(channel, cinfo->lck_div, cinfo->pck_div);
 
 	return 0;
 }
 
-int dispc_get_clock_div(enum omap_channel channel,
+int dispc_mgr_get_clock_div(enum omap_channel channel,
 		struct dispc_clock_info *cinfo)
 {
 	unsigned long fck;
@@ -3060,7 +3061,7 @@ static void dispc_error_worker(struct work_struct *work)
 			DSSERR("FIFO UNDERFLOW on %s, disabling the overlay\n",
 					ovl->name);
 			dispc_ovl_enable(ovl->id, false);
-			dispc_go(ovl->manager->id);
+			dispc_mgr_go(ovl->manager->id);
 			mdelay(50);
 		}
 	}
@@ -3092,7 +3093,7 @@ static void dispc_error_worker(struct work_struct *work)
 					dispc_ovl_enable(ovl->id, false);
 			}
 
-			dispc_go(mgr->id);
+			dispc_mgr_go(mgr->id);
 			mdelay(50);
 
 			if (enable)

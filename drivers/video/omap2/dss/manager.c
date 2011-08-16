@@ -970,13 +970,13 @@ static void configure_manager(enum omap_channel channel)
 	/* picking info from the cache */
 	mi = &dss_cache.manager_cache[channel].info;
 
-	dispc_set_default_color(channel, mi->default_color);
-	dispc_set_trans_key(channel, mi->trans_key_type, mi->trans_key);
-	dispc_enable_trans_key(channel, mi->trans_enabled);
-	dispc_enable_alpha_blending(channel, mi->alpha_enabled);
+	dispc_mgr_set_default_color(channel, mi->default_color);
+	dispc_mgr_set_trans_key(channel, mi->trans_key_type, mi->trans_key);
+	dispc_mgr_enable_trans_key(channel, mi->trans_enabled);
+	dispc_mgr_enable_alpha_blending(channel, mi->alpha_enabled);
 	if (dss_has_feature(FEAT_CPR)) {
-		dispc_enable_cpr(channel, mi->cpr_enable);
-		dispc_set_cpr_coef(channel, &mi->cpr_coefs);
+		dispc_mgr_enable_cpr(channel, mi->cpr_enable);
+		dispc_mgr_set_cpr_coef(channel, &mi->cpr_coefs);
 	}
 }
 
@@ -1000,7 +1000,7 @@ static int configure_dispc(void)
 	busy = false;
 
 	for (i = 0; i < num_mgrs; i++) {
-		mgr_busy[i] = dispc_go_busy(i);
+		mgr_busy[i] = dispc_mgr_go_busy(i);
 		mgr_go[i] = false;
 	}
 
@@ -1061,7 +1061,7 @@ static int configure_dispc(void)
 		 * always be turned off after frame, and new settings will be
 		 * taken in to use at next update */
 		if (!mc->manual_update)
-			dispc_go(i);
+			dispc_mgr_go(i);
 	}
 
 	if (busy)
@@ -1266,7 +1266,7 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 	u32 irq_mask;
 
 	for (i = 0; i < num_mgrs; i++)
-		mgr_busy[i] = dispc_go_busy(i);
+		mgr_busy[i] = dispc_mgr_go_busy(i);
 
 	spin_lock(&dss_cache.lock);
 
@@ -1288,7 +1288,7 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 
 	/* re-read busy flags */
 	for (i = 0; i < num_mgrs; i++)
-		mgr_busy[i] = dispc_go_busy(i);
+		mgr_busy[i] = dispc_mgr_go_busy(i);
 
 	/* keep running as long as there are busy managers, so that
 	 * we can collect overlay-applied information */
@@ -1526,13 +1526,13 @@ static void omap_dss_mgr_get_info(struct omap_overlay_manager *mgr,
 
 static int dss_mgr_enable(struct omap_overlay_manager *mgr)
 {
-	dispc_enable_channel(mgr->id, 1);
+	dispc_mgr_enable(mgr->id, 1);
 	return 0;
 }
 
 static int dss_mgr_disable(struct omap_overlay_manager *mgr)
 {
-	dispc_enable_channel(mgr->id, 0);
+	dispc_mgr_enable(mgr->id, 0);
 	return 0;
 }
 

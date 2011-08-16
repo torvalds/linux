@@ -309,9 +309,9 @@ static void rfbi_transfer_area(struct omap_dss_device *dssdev, u16 width,
 
 	DSSDBG("rfbi_transfer_area %dx%d\n", width, height);
 
-	dispc_set_lcd_size(dssdev->manager->id, width, height);
+	dispc_mgr_set_lcd_size(dssdev->manager->id, width, height);
 
-	dispc_enable_channel(dssdev->manager->id, true);
+	dispc_mgr_enable(dssdev->manager->id, true);
 
 	rfbi.framedone_callback = callback;
 	rfbi.framedone_callback_data = data;
@@ -784,7 +784,7 @@ int omap_rfbi_prepare_update(struct omap_dss_device *dssdev,
 		return -EINVAL;
 
 	dss_setup_partial_planes(dssdev, x, y, w, h, true);
-	dispc_set_lcd_size(dssdev->manager->id, *w, *h);
+	dispc_mgr_set_lcd_size(dssdev->manager->id, *w, *h);
 
 	return 0;
 }
@@ -865,13 +865,13 @@ int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 		goto err1;
 	}
 
-	dispc_set_lcd_display_type(dssdev->manager->id,
+	dispc_mgr_set_lcd_display_type(dssdev->manager->id,
 			OMAP_DSS_LCD_DISPLAY_TFT);
 
-	dispc_set_parallel_interface_mode(dssdev->manager->id,
+	dispc_mgr_set_parallel_interface_mode(dssdev->manager->id,
 			OMAP_DSS_PARALLELMODE_RFBI);
 
-	dispc_set_tft_data_lines(dssdev->manager->id, dssdev->ctrl.pixel_size);
+	dispc_mgr_set_tft_data_lines(dssdev->manager->id, dssdev->ctrl.pixel_size);
 
 	rfbi_configure(dssdev->phy.rfbi.channel,
 			       dssdev->ctrl.pixel_size,
