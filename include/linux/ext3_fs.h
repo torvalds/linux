@@ -381,7 +381,7 @@ struct ext3_inode {
  * Mount flags
  */
 #define EXT3_MOUNT_CHECK		0x00001	/* Do mount-time checks */
-#define EXT3_MOUNT_OLDALLOC		0x00002  /* Don't use the new Orlov allocator */
+/* EXT3_MOUNT_OLDALLOC was there */
 #define EXT3_MOUNT_GRPID		0x00004	/* Create files with directory's group */
 #define EXT3_MOUNT_DEBUG		0x00008	/* Some debugging messages */
 #define EXT3_MOUNT_ERRORS_CONT		0x00010	/* Continue on errors */
