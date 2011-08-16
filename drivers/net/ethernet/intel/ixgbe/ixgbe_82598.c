@@ -759,7 +759,9 @@ static s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw)
 	u8  analog_val;
 
 	/* Call adapter stop to disable tx/rx and clear interrupts */
-	hw->mac.ops.stop_adapter(hw);
+	status = hw->mac.ops.stop_adapter(hw);
+	if (status != 0)
+		goto reset_hw_out;
 
 	/*
 	 * Power up the Atlas Tx lanes if they are currently powered down.
@@ -802,18 +804,11 @@ static s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw)
 		phy_status = hw->phy.ops.init(hw);
 		if (phy_status == IXGBE_ERR_SFP_NOT_SUPPORTED)
 			goto reset_hw_out;
-		else if (phy_status == IXGBE_ERR_SFP_NOT_PRESENT)
-			goto no_phy_reset;
+		if (phy_status == IXGBE_ERR_SFP_NOT_PRESENT)
+			goto mac_reset_top;
 
 		hw->phy.ops.reset(hw);
 	}
-
-no_phy_reset:
-	/*
-	 * Prevent the PCI-E bus from from hanging by disabling PCI-E master
-	 * access and verify no pending requests before reset
-	 */
-	ixgbe_disable_pcie_master(hw);
 
 mac_reset_top:
 	/*

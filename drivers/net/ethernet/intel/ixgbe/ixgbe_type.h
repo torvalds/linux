@@ -770,6 +770,7 @@
 #define IXGBE_GCR_CAP_VER2              0x00040000
 
 #define IXGBE_GCR_EXT_MSIX_EN           0x80000000
+#define IXGBE_GCR_EXT_BUFFERS_CLEAR     0x40000000
 #define IXGBE_GCR_EXT_VT_MODE_16        0x00000001
 #define IXGBE_GCR_EXT_VT_MODE_32        0x00000002
 #define IXGBE_GCR_EXT_VT_MODE_64        0x00000003
@@ -1822,6 +1823,7 @@ enum {
 #define IXGBE_RXCTRL_RXEN       0x00000001  /* Enable Receiver */
 #define IXGBE_RXCTRL_DMBYPS     0x00000002  /* Descriptor Monitor Bypass */
 #define IXGBE_RXDCTL_ENABLE     0x02000000  /* Enable specific Rx Queue */
+#define IXGBE_RXDCTL_SWFLSH     0x04000000  /* Rx Desc. write-back flushing */
 #define IXGBE_RXDCTL_RLPMLMASK  0x00003FFF  /* Only supported on the X540 */
 #define IXGBE_RXDCTL_RLPML_EN   0x00008000
 #define IXGBE_RXDCTL_VME        0x40000000  /* VLAN mode enable */

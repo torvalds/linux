@@ -61,6 +61,7 @@ static s32 ixgbe_write_eeprom_buffer_bit_bang(struct ixgbe_hw *hw, u16 offset,
 					     u16 words, u16 *data);
 static s32 ixgbe_detect_eeprom_page_size_generic(struct ixgbe_hw *hw,
 						 u16 offset);
+static s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw);
 
 /**
  *  ixgbe_start_hw_generic - Prepare hardware for Tx/Rx
@@ -496,7 +497,6 @@ void ixgbe_set_lan_id_multi_port_pcie(struct ixgbe_hw *hw)
  **/
 s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw)
 {
-	u32 number_of_queues;
 	u32 reg_val;
 	u16 i;
 
@@ -507,35 +507,35 @@ s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw)
 	hw->adapter_stopped = true;
 
 	/* Disable the receive unit */
-	reg_val = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
-	reg_val &= ~(IXGBE_RXCTRL_RXEN);
-	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, reg_val);
-	IXGBE_WRITE_FLUSH(hw);
-	usleep_range(2000, 4000);
+	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, 0);
 
-	/* Clear interrupt mask to stop from interrupts being generated */
+	/* Clear interrupt mask to stop interrupts from being generated */
 	IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_IRQ_CLEAR_MASK);
 
-	/* Clear any pending interrupts */
+	/* Clear any pending interrupts, flush previous writes */
 	IXGBE_READ_REG(hw, IXGBE_EICR);
 
 	/* Disable the transmit unit.  Each queue must be disabled. */
-	number_of_queues = hw->mac.max_tx_queues;
-	for (i = 0; i < number_of_queues; i++) {
-		reg_val = IXGBE_READ_REG(hw, IXGBE_TXDCTL(i));
-		if (reg_val & IXGBE_TXDCTL_ENABLE) {
-			reg_val &= ~IXGBE_TXDCTL_ENABLE;
-			IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(i), reg_val);
-		}
+	for (i = 0; i < hw->mac.max_tx_queues; i++)
+		IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(i), IXGBE_TXDCTL_SWFLSH);
+
+	/* Disable the receive unit by stopping each queue */
+	for (i = 0; i < hw->mac.max_rx_queues; i++) {
+		reg_val = IXGBE_READ_REG(hw, IXGBE_RXDCTL(i));
+		reg_val &= ~IXGBE_RXDCTL_ENABLE;
+		reg_val |= IXGBE_RXDCTL_SWFLSH;
+		IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(i), reg_val);
 	}
+
+	/* flush all queues disables */
+	IXGBE_WRITE_FLUSH(hw);
+	usleep_range(1000, 2000);
 
 	/*
 	 * Prevent the PCI-E bus from from hanging by disabling PCI-E master
 	 * access and verify no pending requests
 	 */
-	ixgbe_disable_pcie_master(hw);
-
-	return 0;
+	return ixgbe_disable_pcie_master(hw);
 }
 
 /**
@@ -2458,74 +2458,56 @@ out:
  *  bit hasn't caused the master requests to be disabled, else 0
  *  is returned signifying master requests disabled.
  **/
-s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
+static s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
 {
 	struct ixgbe_adapter *adapter = hw->back;
-	u32 i;
-	u32 reg_val;
-	u32 number_of_queues;
 	s32 status = 0;
-	u16 dev_status = 0;
+	u32 i;
+	u16 value;
 
-	/* Just jump out if bus mastering is already disabled */
+	/* Always set this bit to ensure any future transactions are blocked */
+	IXGBE_WRITE_REG(hw, IXGBE_CTRL, IXGBE_CTRL_GIO_DIS);
+
+	/* Exit if master requests are blocked */
 	if (!(IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_GIO))
 		goto out;
 
-	/* Disable the receive unit by stopping each queue */
-	number_of_queues = hw->mac.max_rx_queues;
-	for (i = 0; i < number_of_queues; i++) {
-		reg_val = IXGBE_READ_REG(hw, IXGBE_RXDCTL(i));
-		if (reg_val & IXGBE_RXDCTL_ENABLE) {
-			reg_val &= ~IXGBE_RXDCTL_ENABLE;
-			IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(i), reg_val);
-		}
-	}
-
-	reg_val = IXGBE_READ_REG(hw, IXGBE_CTRL);
-	reg_val |= IXGBE_CTRL_GIO_DIS;
-	IXGBE_WRITE_REG(hw, IXGBE_CTRL, reg_val);
-
+	/* Poll for master request bit to clear */
 	for (i = 0; i < IXGBE_PCI_MASTER_DISABLE_TIMEOUT; i++) {
+		udelay(100);
 		if (!(IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_GIO))
-			goto check_device_status;
-		udelay(100);
+			goto out;
 	}
-
-	hw_dbg(hw, "GIO Master Disable bit didn't clear - requesting resets\n");
-	status = IXGBE_ERR_MASTER_REQUESTS_PENDING;
-
-	/*
-	 * Before proceeding, make sure that the PCIe block does not have
-	 * transactions pending.
-	 */
-check_device_status:
-	for (i = 0; i < IXGBE_PCI_MASTER_DISABLE_TIMEOUT; i++) {
-		pci_read_config_word(adapter->pdev, IXGBE_PCI_DEVICE_STATUS,
-							 &dev_status);
-		if (!(dev_status & IXGBE_PCI_DEVICE_STATUS_TRANSACTION_PENDING))
-			break;
-		udelay(100);
-	}
-
-	if (i == IXGBE_PCI_MASTER_DISABLE_TIMEOUT)
-		hw_dbg(hw, "PCIe transaction pending bit also did not clear.\n");
-	else
-		goto out;
 
 	/*
 	 * Two consecutive resets are required via CTRL.RST per datasheet
 	 * 5.2.5.3.2 Master Disable.  We set a flag to inform the reset routine
 	 * of this need.  The first reset prevents new master requests from
-	 * being issued by our device.  We then must wait 1usec for any
+	 * being issued by our device.  We then must wait 1usec or more for any
 	 * remaining completions from the PCIe bus to trickle in, and then reset
 	 * again to clear out any effects they may have had on our device.
 	 */
-	 hw->mac.flags |= IXGBE_FLAGS_DOUBLE_RESET_REQUIRED;
+	hw_dbg(hw, "GIO Master Disable bit didn't clear - requesting resets\n");
+	hw->mac.flags |= IXGBE_FLAGS_DOUBLE_RESET_REQUIRED;
+
+	/*
+	 * Before proceeding, make sure that the PCIe block does not have
+	 * transactions pending.
+	 */
+	for (i = 0; i < IXGBE_PCI_MASTER_DISABLE_TIMEOUT; i++) {
+		udelay(100);
+		pci_read_config_word(adapter->pdev, IXGBE_PCI_DEVICE_STATUS,
+							 &value);
+		if (!(value & IXGBE_PCI_DEVICE_STATUS_TRANSACTION_PENDING))
+			goto out;
+	}
+
+	hw_dbg(hw, "PCIe transaction pending bit also did not clear.\n");
+	status = IXGBE_ERR_MASTER_REQUESTS_PENDING;
 
 out:
 	return status;
 }
-
 
 /**
  *  ixgbe_acquire_swfw_sync - Acquire SWFW semaphore
@@ -3508,4 +3490,45 @@ s32 ixgbe_set_fw_drv_ver_generic(struct ixgbe_hw *hw, u8 maj, u8 min,
 	hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_SW_MNG_SM);
 out:
 	return ret_val;
+}
+
+/**
+ * ixgbe_clear_tx_pending - Clear pending TX work from the PCIe fifo
+ * @hw: pointer to the hardware structure
+ *
+ * The 82599 and x540 MACs can experience issues if TX work is still pending
+ * when a reset occurs.  This function prevents this by flushing the PCIe
+ * buffers on the system.
+ **/
+void ixgbe_clear_tx_pending(struct ixgbe_hw *hw)
+{
+	u32 gcr_ext, hlreg0;
+
+	/*
+	 * If double reset is not requested then all transactions should
+	 * already be clear and as such there is no work to do
+	 */
+	if (!(hw->mac.flags & IXGBE_FLAGS_DOUBLE_RESET_REQUIRED))
+		return;
+
+	/*
+	 * Set loopback enable to prevent any transmits from being sent
+	 * should the link come up.  This assumes that the RXCTRL.RXEN bit
+	 * has already been cleared.
+	 */
+	hlreg0 = IXGBE_READ_REG(hw, IXGBE_HLREG0);
+	IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hlreg0 | IXGBE_HLREG0_LPBK);
+
+	/* initiate cleaning flow for buffers in the PCIe transaction layer */
+	gcr_ext = IXGBE_READ_REG(hw, IXGBE_GCR_EXT);
+	IXGBE_WRITE_REG(hw, IXGBE_GCR_EXT,
+			gcr_ext | IXGBE_GCR_EXT_BUFFERS_CLEAR);
+
+	/* Flush all writes and allow 20usec for all transactions to clear */
+	IXGBE_WRITE_FLUSH(hw);
+	udelay(20);
+
+	/* restore previous register values */
+	IXGBE_WRITE_REG(hw, IXGBE_GCR_EXT, gcr_ext);
+	IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hlreg0);
 }

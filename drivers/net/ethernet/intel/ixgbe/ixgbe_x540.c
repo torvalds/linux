@@ -99,13 +99,12 @@ static s32 ixgbe_reset_hw_X540(struct ixgbe_hw *hw)
 	bool link_up = false;
 
 	/* Call adapter stop to disable tx/rx and clear interrupts */
-	hw->mac.ops.stop_adapter(hw);
+	status = hw->mac.ops.stop_adapter(hw);
+	if (status != 0)
+		goto reset_hw_out;
 
-	/*
-	 * Prevent the PCI-E bus from from hanging by disabling PCI-E master
-	 * access and verify no pending requests before reset
-	 */
-	ixgbe_disable_pcie_master(hw);
+	/* flush pending Tx transactions */
+	ixgbe_clear_tx_pending(hw);
 
 mac_reset_top:
 	/*
@@ -180,6 +179,7 @@ mac_reset_top:
 	hw->mac.ops.get_wwn_prefix(hw, &hw->mac.wwnn_prefix,
 	                           &hw->mac.wwpn_prefix);
 
+reset_hw_out:
 	return status;
 }
 
