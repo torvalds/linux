@@ -8,9 +8,6 @@ enum {
 	ALC268_AUTO,
 	ALC267_QUANTA_IL1,
 	ALC268_3ST,
-	ALC268_ACER,
-	ALC268_ACER_DMIC,
-	ALC268_ACER_ASPIRE_ONE,
 #ifdef CONFIG_SND_DEBUG
 	ALC268_TEST,
 #endif
@@ -57,111 +54,6 @@ static const struct hda_verb alc268_eapd_verbs[] = {
 	{0x15, AC_VERB_SET_EAPD_BTLENABLE, 2},
 	{ }
 };
-
-/* Acer specific */
-/* bind volumes of both NID 0x02 and 0x03 */
-static const struct hda_bind_ctls alc268_acer_bind_master_vol = {
-	.ops = &snd_hda_bind_vol,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x02, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x03, 3, 0, HDA_OUTPUT),
-		0
-	},
-};
-
-static void alc268_acer_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x14;
-	spec->autocfg.speaker_pins[0] = 0x15;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_AMP;
-}
-
-#define alc268_acer_master_sw_get	alc262_hp_master_sw_get
-#define alc268_acer_master_sw_put	alc262_hp_master_sw_put
-
-static const struct snd_kcontrol_new alc268_acer_aspire_one_mixer[] = {
-	/* output mixer control */
-	HDA_BIND_VOL("Master Playback Volume", &alc268_acer_bind_master_vol),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Switch",
-		.subdevice = HDA_SUBDEV_NID_FLAG | 0x15,
-		.info = snd_ctl_boolean_mono_info,
-		.get = alc268_acer_master_sw_get,
-		.put = alc268_acer_master_sw_put,
-	},
-	HDA_CODEC_VOLUME("Mic Boost Capture Volume", 0x18, 0, HDA_INPUT),
-	{ }
-};
-
-static const struct snd_kcontrol_new alc268_acer_mixer[] = {
-	/* output mixer control */
-	HDA_BIND_VOL("Master Playback Volume", &alc268_acer_bind_master_vol),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Switch",
-		.subdevice = HDA_SUBDEV_NID_FLAG | 0x14,
-		.info = snd_ctl_boolean_mono_info,
-		.get = alc268_acer_master_sw_get,
-		.put = alc268_acer_master_sw_put,
-	},
-	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Internal Mic Boost Volume", 0x19, 0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Line In Boost Volume", 0x1a, 0, HDA_INPUT),
-	{ }
-};
-
-static const struct snd_kcontrol_new alc268_acer_dmic_mixer[] = {
-	/* output mixer control */
-	HDA_BIND_VOL("Master Playback Volume", &alc268_acer_bind_master_vol),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Switch",
-		.subdevice = HDA_SUBDEV_NID_FLAG | 0x14,
-		.info = snd_ctl_boolean_mono_info,
-		.get = alc268_acer_master_sw_get,
-		.put = alc268_acer_master_sw_put,
-	},
-	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Line In Boost Volume", 0x1a, 0, HDA_INPUT),
-	{ }
-};
-
-static const struct hda_verb alc268_acer_aspire_one_verbs[] = {
-	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, ALC_HP_EVENT | AC_USRSP_EN},
-	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_MIC_EVENT},
-	{0x23, AC_VERB_SET_CONNECT_SEL, 0x06},
-	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, 0xa017},
-	{ }
-};
-
-static const struct hda_verb alc268_acer_verbs[] = {
-	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN}, /* internal dmic? */
-	{0x13, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
-	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
-	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, ALC_HP_EVENT | AC_USRSP_EN},
-	{ }
-};
-
-static void alc268_acer_lc_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	spec->autocfg.hp_pins[0] = 0x15;
-	spec->autocfg.speaker_pins[0] = 0x14;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_AMP;
-	spec->ext_mic_pin = 0x18;
-	spec->int_mic_pin = 0x12;
-	spec->auto_mic = 1;
-}
 
 static const struct snd_kcontrol_new alc267_quanta_il1_mixer[] = {
 	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x2, 0x0, HDA_OUTPUT),
@@ -299,24 +191,6 @@ static const struct hda_input_mux alc268_capture_source = {
 	},
 };
 
-static const struct hda_input_mux alc268_acer_capture_source = {
-	.num_items = 3,
-	.items = {
-		{ "Mic", 0x0 },
-		{ "Internal Mic", 0x1 },
-		{ "Line", 0x2 },
-	},
-};
-
-static const struct hda_input_mux alc268_acer_dmic_capture_source = {
-	.num_items = 3,
-	.items = {
-		{ "Mic", 0x0 },
-		{ "Internal Mic", 0x6 },
-		{ "Line", 0x2 },
-	},
-};
-
 #ifdef CONFIG_SND_DEBUG
 static const struct snd_kcontrol_new alc268_test_mixer[] = {
 	/* Volume widgets */
@@ -373,9 +247,6 @@ static const struct snd_kcontrol_new alc268_test_mixer[] = {
 static const char * const alc268_models[ALC268_MODEL_LAST] = {
 	[ALC267_QUANTA_IL1]	= "quanta-il1",
 	[ALC268_3ST]		= "3stack",
-	[ALC268_ACER]		= "acer",
-	[ALC268_ACER_DMIC]	= "acer-dmic",
-	[ALC268_ACER_ASPIRE_ONE]	= "acer-aspire",
 #ifdef CONFIG_SND_DEBUG
 	[ALC268_TEST]		= "test",
 #endif
@@ -383,13 +254,6 @@ static const char * const alc268_models[ALC268_MODEL_LAST] = {
 };
 
 static const struct snd_pci_quirk alc268_cfg_tbl[] = {
-	SND_PCI_QUIRK(0x1025, 0x011e, "Acer Aspire 5720z", ALC268_ACER),
-	SND_PCI_QUIRK(0x1025, 0x0126, "Acer", ALC268_ACER),
-	SND_PCI_QUIRK(0x1025, 0x012e, "Acer Aspire 5310", ALC268_ACER),
-	SND_PCI_QUIRK(0x1025, 0x0130, "Acer Extensa 5210", ALC268_ACER),
-	SND_PCI_QUIRK(0x1025, 0x0136, "Acer Aspire 5315", ALC268_ACER),
-	SND_PCI_QUIRK(0x1025, 0x015b, "Acer Aspire One",
-						ALC268_ACER_ASPIRE_ONE),
 	SND_PCI_QUIRK(0x1043, 0x1205, "ASUS W7J", ALC268_3ST),
 	SND_PCI_QUIRK(0x152d, 0x0771, "Quanta IL1", ALC267_QUANTA_IL1),
 	{}
@@ -426,59 +290,6 @@ static const struct alc_config_preset alc268_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc268_modes),
 		.channel_mode = alc268_modes,
 		.input_mux = &alc268_capture_source,
-	},
-	[ALC268_ACER] = {
-		.mixers = { alc268_acer_mixer, alc268_beep_mixer },
-		.cap_mixer = alc268_capture_alt_mixer,
-		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
-				alc268_acer_verbs },
-		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
-		.dac_nids = alc268_dac_nids,
-		.num_adc_nids = ARRAY_SIZE(alc268_adc_nids_alt),
-		.adc_nids = alc268_adc_nids_alt,
-		.capsrc_nids = alc268_capsrc_nids,
-		.hp_nid = 0x02,
-		.num_channel_mode = ARRAY_SIZE(alc268_modes),
-		.channel_mode = alc268_modes,
-		.input_mux = &alc268_acer_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc268_acer_setup,
-		.init_hook = alc_inithook,
-	},
-	[ALC268_ACER_DMIC] = {
-		.mixers = { alc268_acer_dmic_mixer, alc268_beep_mixer },
-		.cap_mixer = alc268_capture_alt_mixer,
-		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
-				alc268_acer_verbs },
-		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
-		.dac_nids = alc268_dac_nids,
-		.num_adc_nids = ARRAY_SIZE(alc268_adc_nids_alt),
-		.adc_nids = alc268_adc_nids_alt,
-		.capsrc_nids = alc268_capsrc_nids,
-		.hp_nid = 0x02,
-		.num_channel_mode = ARRAY_SIZE(alc268_modes),
-		.channel_mode = alc268_modes,
-		.input_mux = &alc268_acer_dmic_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc268_acer_setup,
-		.init_hook = alc_inithook,
-	},
-	[ALC268_ACER_ASPIRE_ONE] = {
-		.mixers = { alc268_acer_aspire_one_mixer, alc268_beep_mixer},
-		.cap_mixer = alc268_capture_nosrc_mixer,
-		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
-				alc268_acer_aspire_one_verbs },
-		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
-		.dac_nids = alc268_dac_nids,
-		.num_adc_nids = ARRAY_SIZE(alc268_adc_nids_alt),
-		.adc_nids = alc268_adc_nids_alt,
-		.capsrc_nids = alc268_capsrc_nids,
-		.hp_nid = 0x03,
-		.num_channel_mode = ARRAY_SIZE(alc268_modes),
-		.channel_mode = alc268_modes,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc268_acer_lc_setup,
-		.init_hook = alc_inithook,
 	},
 #ifdef CONFIG_SND_DEBUG
 	[ALC268_TEST] = {

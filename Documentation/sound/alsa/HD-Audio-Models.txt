@@ -60,12 +60,6 @@ ALC267/268
 ==========
   quanta-il1	Quanta IL1 mini-notebook
   3stack	3-stack model
-  toshiba	Toshiba A205
-  acer		Acer laptops
-  acer-dmic	Acer laptops with digital-mic
-  acer-aspire	Acer Aspire One
-  dell		Dell OEM laptops (Vostro 1200)
-  zepto		Zepto laptops
   test		for testing/debugging purpose, almost all controls can
 		adjusted.  Appearing only when compiled with
 		$CONFIG_SND_DEBUG=y

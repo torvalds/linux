@@ -62,6 +62,20 @@ static const struct snd_kcontrol_new alc269_base_mixer[] = {
 	{ } /* end */
 };
 
+/* Acer specific */
+/* bind volumes of both NID 0x02 and 0x03 */
+static const struct hda_bind_ctls alc268_acer_bind_master_vol = {
+	.ops = &snd_hda_bind_vol,
+	.values = {
+		HDA_COMPOSE_AMP_VAL(0x02, 3, 0, HDA_OUTPUT),
+		HDA_COMPOSE_AMP_VAL(0x03, 3, 0, HDA_OUTPUT),
+		0
+	},
+};
+
+#define alc268_acer_master_sw_get	alc262_hp_master_sw_get
+#define alc268_acer_master_sw_put	alc262_hp_master_sw_put
+
 static const struct snd_kcontrol_new alc269_quanta_fl1_mixer[] = {
 	/* output mixer control */
 	HDA_BIND_VOL("Master Playback Volume", &alc268_acer_bind_master_vol),
