@@ -140,7 +140,6 @@ static int ppro_check_ctrs(struct pt_regs * const regs,
 		wrmsrl(msrs->counters[i].addr, -reset_value[i]);
 	}
 
-out:
 	/* Only P6 based Pentium M need to re-unmask the apic vector but it
 	 * doesn't hurt other P6 variant */
 	apic_write(APIC_LVTPC, apic_read(APIC_LVTPC) & ~APIC_LVT_MASKED);
@@ -220,7 +219,7 @@ static void arch_perfmon_setup_counters(void)
 		eax.split.bit_width = 40;
 	}
 
-	num_counters = eax.split.num_counters;
+	num_counters = min((int)eax.split.num_counters, OP_MAX_COUNTER);
 
 	op_arch_perfmon_spec.num_counters = num_counters;
 	op_arch_perfmon_spec.num_controls = num_counters;
