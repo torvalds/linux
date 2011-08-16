@@ -148,13 +148,10 @@ static const struct ieee80211_regdomain brcm_regdom = {
 		NL80211_RRF_PASSIVE_SCAN |
 		NL80211_RRF_NO_IBSS |
 		NL80211_RRF_NO_OFDM),
-		/* IEEE 802.11a, channel 36..48 */
-		REG_RULE(5180-10, 5240+10, 40, 6, 20, 0),
-
-		/* NB: 5260 MHz - 5700 MHz requies DFS */
-
-		/* IEEE 802.11a, channel 149..165 */
-		REG_RULE(5745-10, 5825+10, 40, 6, 20, 0), }
+		/* IEEE 802.11a, channel 36..64 */
+		REG_RULE(5150-10, 5350+10, 40, 6, 20, 0),
+		/* IEEE 802.11a, channel 100..165 */
+		REG_RULE(5470-10, 5850+10, 40, 6, 20, 0), }
 };
 
 
@@ -590,70 +587,7 @@ static struct ieee80211_channel __wl_5ghz_a_channels[] = {
 	CHAN5G(132, 0), CHAN5G(136, 0),
 	CHAN5G(140, 0), CHAN5G(149, 0),
 	CHAN5G(153, 0), CHAN5G(157, 0),
-	CHAN5G(161, 0), CHAN5G(165, 0),
-	CHAN5G(184, 0), CHAN5G(188, 0),
-	CHAN5G(192, 0), CHAN5G(196, 0),
-	CHAN5G(200, 0), CHAN5G(204, 0),
-	CHAN5G(208, 0), CHAN5G(212, 0),
-	CHAN5G(216, 0)
-};
-
-static struct ieee80211_channel __wl_5ghz_n_channels[] = {
-	CHAN5G(32, 0), CHAN5G(34, 0),
-	CHAN5G(36, 0), CHAN5G(38, 0),
-	CHAN5G(40, 0), CHAN5G(42, 0),
-	CHAN5G(44, 0), CHAN5G(46, 0),
-	CHAN5G(48, 0), CHAN5G(50, 0),
-	CHAN5G(52, 0), CHAN5G(54, 0),
-	CHAN5G(56, 0), CHAN5G(58, 0),
-	CHAN5G(60, 0), CHAN5G(62, 0),
-	CHAN5G(64, 0), CHAN5G(66, 0),
-	CHAN5G(68, 0), CHAN5G(70, 0),
-	CHAN5G(72, 0), CHAN5G(74, 0),
-	CHAN5G(76, 0), CHAN5G(78, 0),
-	CHAN5G(80, 0), CHAN5G(82, 0),
-	CHAN5G(84, 0), CHAN5G(86, 0),
-	CHAN5G(88, 0), CHAN5G(90, 0),
-	CHAN5G(92, 0), CHAN5G(94, 0),
-	CHAN5G(96, 0), CHAN5G(98, 0),
-	CHAN5G(100, 0), CHAN5G(102, 0),
-	CHAN5G(104, 0), CHAN5G(106, 0),
-	CHAN5G(108, 0), CHAN5G(110, 0),
-	CHAN5G(112, 0), CHAN5G(114, 0),
-	CHAN5G(116, 0), CHAN5G(118, 0),
-	CHAN5G(120, 0), CHAN5G(122, 0),
-	CHAN5G(124, 0), CHAN5G(126, 0),
-	CHAN5G(128, 0), CHAN5G(130, 0),
-	CHAN5G(132, 0), CHAN5G(134, 0),
-	CHAN5G(136, 0), CHAN5G(138, 0),
-	CHAN5G(140, 0), CHAN5G(142, 0),
-	CHAN5G(144, 0), CHAN5G(145, 0),
-	CHAN5G(146, 0), CHAN5G(147, 0),
-	CHAN5G(148, 0), CHAN5G(149, 0),
-	CHAN5G(150, 0), CHAN5G(151, 0),
-	CHAN5G(152, 0), CHAN5G(153, 0),
-	CHAN5G(154, 0), CHAN5G(155, 0),
-	CHAN5G(156, 0), CHAN5G(157, 0),
-	CHAN5G(158, 0), CHAN5G(159, 0),
-	CHAN5G(160, 0), CHAN5G(161, 0),
-	CHAN5G(162, 0), CHAN5G(163, 0),
-	CHAN5G(164, 0), CHAN5G(165, 0),
-	CHAN5G(166, 0), CHAN5G(168, 0),
-	CHAN5G(170, 0), CHAN5G(172, 0),
-	CHAN5G(174, 0), CHAN5G(176, 0),
-	CHAN5G(178, 0), CHAN5G(180, 0),
-	CHAN5G(182, 0), CHAN5G(184, 0),
-	CHAN5G(186, 0), CHAN5G(188, 0),
-	CHAN5G(190, 0), CHAN5G(192, 0),
-	CHAN5G(194, 0), CHAN5G(196, 0),
-	CHAN5G(198, 0), CHAN5G(200, 0),
-	CHAN5G(202, 0), CHAN5G(204, 0),
-	CHAN5G(206, 0), CHAN5G(208, 0),
-	CHAN5G(210, 0), CHAN5G(212, 0),
-	CHAN5G(214, 0), CHAN5G(216, 0),
-	CHAN5G(218, 0), CHAN5G(220, 0),
-	CHAN5G(222, 0), CHAN5G(224, 0),
-	CHAN5G(226, 0), CHAN5G(228, 0)
+	CHAN5G(161, 0), CHAN5G(165, 0)
 };
 
 static struct ieee80211_supported_band __wl_band_2ghz = {
@@ -668,14 +602,6 @@ static struct ieee80211_supported_band __wl_band_5ghz_a = {
 	.band = IEEE80211_BAND_5GHZ,
 	.channels = __wl_5ghz_a_channels,
 	.n_channels = ARRAY_SIZE(__wl_5ghz_a_channels),
-	.bitrates = wl_a_rates,
-	.n_bitrates = wl_a_rates_size
-};
-
-static struct ieee80211_supported_band __wl_band_5ghz_n = {
-	.band = IEEE80211_BAND_5GHZ,
-	.channels = __wl_5ghz_n_channels,
-	.n_channels = ARRAY_SIZE(__wl_5ghz_n_channels),
 	.bitrates = wl_a_rates,
 	.n_bitrates = wl_a_rates_size
 };
@@ -1271,7 +1197,8 @@ static void wl_scan_prep(struct wl_scan_params *params, struct cfg80211_scan_req
 			params->channel_list[i] = channel;
 			params->channel_list[i] &= WL_CHANSPEC_CHAN_MASK;
 			params->channel_list[i] |= chanspec;
-			WL_SCAN(("%d Channel spec: %x \n", i, params->channel_list[i]));
+			WL_SCAN(("Chan : %d, Channel spec: %x \n",
+			channel, params->channel_list[i]));
 			params->channel_list[i] = htod16(params->channel_list[i]);
 		}
 	} else {
@@ -2208,6 +2135,9 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 				wpaie_len += WPA_RSN_IE_TAG_FIXED_LEN;
 				wldev_iovar_setbuf(dev, "wpaie", wpaie, wpaie_len,
 				ioctlbuf, sizeof(ioctlbuf));
+			} else {
+				wldev_iovar_setbuf(dev, "wpaie", NULL, 0,
+				ioctlbuf, sizeof(ioctlbuf));
 			}
 
 	}
@@ -2267,13 +2197,13 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		WL_INFO(("ssid \"%s\", len (%d)\n", join_params.ssid.SSID,
 			join_params.ssid.SSID_len));
 	}
+	wl_set_drv_status(wl, CONNECTING);
 	err = wldev_ioctl(dev, WLC_SET_SSID, &join_params, join_params_size, false);
 	if (unlikely(err)) {
 		WL_ERR(("error (%d)\n", err));
+		wl_clr_drv_status(wl, CONNECTING);
 		return err;
 	}
-	wl_set_drv_status(wl, CONNECTING);
-
 	return err;
 }
 
@@ -4275,13 +4205,16 @@ wl_notify_connect_status(struct wl_priv *wl, struct net_device *ndev,
 		} else if (wl_is_linkdown(wl, e)) {
 			if (wl_get_drv_status(wl, CONNECTED)) {
 				printk("link down, call cfg80211_disconnected ");
-				cfg80211_disconnected(ndev, 0, NULL, 0, GFP_KERNEL);
 				wl_clr_drv_status(wl, CONNECTED);
+				cfg80211_disconnected(ndev, 0, NULL, 0, GFP_KERNEL);
 				wl_link_down(wl);
 				wl_init_prof(wl->profile);
 			} else if (wl_get_drv_status(wl, CONNECTING)) {
 				printk("link down, during connecting");
 				wl_bss_connect_done(wl, ndev, e, data, false);
+			}
+			if (wl->scan_request) {
+				wl_cfg80211_scan_abort(wl, ndev);
 			}
 		} else if (wl_is_nonetwork(wl, e)) {
 			printk("connect failed e->status 0x%x", (int)ntoh32(e->status));
@@ -6095,27 +6028,25 @@ default_conf_out:
 static s32 wl_update_wiphybands(struct wl_priv *wl)
 {
 	struct wiphy *wiphy;
-	s32 phy_list;
-	s8 phy;
+	s8 phylist_buf[128];
+	s8 *phy;
 	s32 err = 0;
 
-	err = wldev_ioctl(wl_to_prmry_ndev(wl), WLC_GET_PHYLIST, &phy_list,
-		sizeof(phy_list), false);
+	err = wldev_ioctl(wl_to_prmry_ndev(wl), WLC_GET_PHYLIST, phylist_buf,
+		sizeof(phylist_buf), false);
 	if (unlikely(err)) {
 		WL_ERR(("error (%d)\n", err));
 		return err;
 	}
-
-	phy = ((char *)&phy_list)[1];
-	WL_DBG(("%c phy\n", phy));
-	if (phy == 'a') {
-		wiphy = wl_to_wiphy(wl);
-		wiphy->bands[IEEE80211_BAND_5GHZ] = &__wl_band_5ghz_a;
-	} else if (phy == 'n') {
-		wiphy = wl_to_wiphy(wl);
-		wiphy->bands[IEEE80211_BAND_5GHZ] = &__wl_band_5ghz_n;
+	phy = phylist_buf;
+	for (; *phy; phy++) {
+	WL_ERR(("%c phy\n", *phy));
+		if (*phy == 'a' || *phy == 'n') {
+			wiphy = wl_to_wiphy(wl);
+			wiphy->bands[IEEE80211_BAND_5GHZ] =
+				&__wl_band_5ghz_a;
+		}
 	}
-
 	return err;
 }
 
