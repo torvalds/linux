@@ -159,6 +159,7 @@ struct alc_spec {
 	void (*power_hook)(struct hda_codec *codec);
 #endif
 	void (*shutup)(struct hda_codec *codec);
+	void (*automute_hook)(struct hda_codec *codec);
 
 	/* for pin sensing */
 	unsigned int jack_present: 1;
@@ -560,6 +561,15 @@ static void update_speakers(struct hda_codec *codec)
 		    spec->autocfg.line_out_pins, on, false);
 }
 
+static void call_update_speakers(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	if (spec->automute_hook)
+		spec->automute_hook(codec);
+	else
+		update_speakers(codec);
+}
+
 /* standard HP-automute helper */
 static void alc_hp_automute(struct hda_codec *codec)
 {
@@ -570,7 +580,7 @@ static void alc_hp_automute(struct hda_codec *codec)
 	spec->jack_present =
 		detect_jacks(codec, ARRAY_SIZE(spec->autocfg.hp_pins),
 			     spec->autocfg.hp_pins);
-	update_speakers(codec);
+	call_update_speakers(codec);
 }
 
 /* standard line-out-automute helper */
@@ -583,7 +593,7 @@ static void alc_line_automute(struct hda_codec *codec)
 	spec->line_jack_present =
 		detect_jacks(codec, ARRAY_SIZE(spec->autocfg.line_out_pins),
 			     spec->autocfg.line_out_pins);
-	update_speakers(codec);
+	call_update_speakers(codec);
 }
 
 #define get_connection_index(codec, mux, nid) \
@@ -840,7 +850,7 @@ static int alc_automute_mode_put(struct snd_kcontrol *kcontrol,
 	default:
 		return -EINVAL;
 	}
-	update_speakers(codec);
+	call_update_speakers(codec);
 	return 1;
 }
 
@@ -4500,6 +4510,30 @@ static void alc269_fixup_stereo_dmic(struct hda_codec *codec,
 	alc_write_coef_idx(codec, 0x07, coef | 0x80);
 }
 
+static void alc269_quanta_automute(struct hda_codec *codec)
+{
+	update_speakers(codec);
+
+	snd_hda_codec_write(codec, 0x20, 0,
+			AC_VERB_SET_COEF_INDEX, 0x0c);
+	snd_hda_codec_write(codec, 0x20, 0,
+			AC_VERB_SET_PROC_COEF, 0x680);
+
+	snd_hda_codec_write(codec, 0x20, 0,
+			AC_VERB_SET_COEF_INDEX, 0x0c);
+	snd_hda_codec_write(codec, 0x20, 0,
+			AC_VERB_SET_PROC_COEF, 0x480);
+}
+
+static void alc269_fixup_quanta_mute(struct hda_codec *codec,
+				     const struct alc_fixup *fix, int action)
+{
+	struct alc_spec *spec = codec->spec;
+	if (action != ALC_FIXUP_ACT_PROBE)
+		return;
+	spec->automute_hook = alc269_quanta_automute;
+}
+
 enum {
 	ALC269_FIXUP_SONY_VAIO,
 	ALC275_FIXUP_SONY_VAIO_GPIO2,
@@ -4511,6 +4545,8 @@ enum {
 	ALC271_FIXUP_DMIC,
 	ALC269_FIXUP_PCM_44K,
 	ALC269_FIXUP_STEREO_DMIC,
+	ALC269_FIXUP_QUANTA_MUTE,
+	ALC269_FIXUP_LIFEBOOK,
 };
 
 static const struct alc_fixup alc269_fixups[] = {
@@ -4577,6 +4613,20 @@ static const struct alc_fixup alc269_fixups[] = {
 		.type = ALC_FIXUP_FUNC,
 		.v.func = alc269_fixup_stereo_dmic,
 	},
+	[ALC269_FIXUP_QUANTA_MUTE] = {
+		.type = ALC_FIXUP_FUNC,
+		.v.func = alc269_fixup_quanta_mute,
+	},
+	[ALC269_FIXUP_LIFEBOOK] = {
+		.type = ALC_FIXUP_PINS,
+		.v.pins = (const struct alc_pincfg[]) {
+			{ 0x1a, 0x2101103f }, /* dock line-out */
+			{ 0x1b, 0x23a11040 }, /* dock mic-in */
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC269_FIXUP_QUANTA_MUTE
+	},
 };
 
 static const struct snd_pci_quirk alc269_fixup_tbl[] = {
@@ -4592,11 +4642,13 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK_VENDOR(0x104d, "Sony VAIO", ALC269_FIXUP_SONY_VAIO),
 	SND_PCI_QUIRK(0x1028, 0x0470, "Dell M101z", ALC269_FIXUP_DELL_M101Z),
 	SND_PCI_QUIRK_VENDOR(0x1025, "Acer Aspire", ALC271_FIXUP_DMIC),
+	SND_PCI_QUIRK(0x10cf, 0x1475, "Lifebook", ALC269_FIXUP_LIFEBOOK),
 	SND_PCI_QUIRK(0x17aa, 0x20f2, "Thinkpad SL410/510", ALC269_FIXUP_SKU_IGNORE),
 	SND_PCI_QUIRK(0x17aa, 0x215e, "Thinkpad L512", ALC269_FIXUP_SKU_IGNORE),
 	SND_PCI_QUIRK(0x17aa, 0x21b8, "Thinkpad Edge 14", ALC269_FIXUP_SKU_IGNORE),
 	SND_PCI_QUIRK(0x17aa, 0x21ca, "Thinkpad L412", ALC269_FIXUP_SKU_IGNORE),
 	SND_PCI_QUIRK(0x17aa, 0x21e9, "Thinkpad Edge 15", ALC269_FIXUP_SKU_IGNORE),
+	SND_PCI_QUIRK(0x17aa, 0x3bf8, "Quanta FL1", ALC269_FIXUP_QUANTA_MUTE),
 	SND_PCI_QUIRK(0x17aa, 0x3bf8, "Lenovo Ideapd", ALC269_FIXUP_PCM_44K),
 	SND_PCI_QUIRK(0x17aa, 0x9e54, "LENOVO NB", ALC269_FIXUP_LENOVO_EAPD),
 	{}

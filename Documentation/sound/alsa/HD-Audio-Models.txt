@@ -68,10 +68,8 @@ ALC267/268
 ALC269
 ======
   basic		Basic preset
-  quanta	Quanta FL1
   laptop-amic	Laptops with analog-mic input
   laptop-dmic	Laptops with digital-mic input
-  lifebook	Fujitsu Lifebook S6420
   auto		auto-config reading BIOS (default)
 
 ALC662/663/272
