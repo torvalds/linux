@@ -4232,14 +4232,9 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 
 /*
  */
-#ifdef CONFIG_SND_HDA_ENABLE_REALTEK_QUIRKS
-#include "alc268_quirks.c"
-#endif
-
 static int patch_alc268(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
-	int board_config;
 	int i, has_beep, err;
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
@@ -4250,38 +4245,12 @@ static int patch_alc268(struct hda_codec *codec)
 
 	/* ALC268 has no aa-loopback mixer */
 
-	board_config = alc_board_config(codec, ALC268_MODEL_LAST,
-					alc268_models, alc268_cfg_tbl);
-
-	if (board_config < 0)
-		board_config = alc_board_codec_sid_config(codec,
-			ALC268_MODEL_LAST, alc268_models, NULL);
-
-	if (board_config < 0) {
-		printk(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
-		       codec->chip_name);
-		board_config = ALC_MODEL_AUTO;
+	/* automatic parse from the BIOS config */
+	err = alc268_parse_auto_config(codec);
+	if (err < 0) {
+		alc_free(codec);
+		return err;
 	}
-
-	if (board_config == ALC_MODEL_AUTO) {
-		/* automatic parse from the BIOS config */
-		err = alc268_parse_auto_config(codec);
-		if (err < 0) {
-			alc_free(codec);
-			return err;
-		}
-#ifdef CONFIG_SND_HDA_ENABLE_REALTEK_QUIRKS
-		else if (!err) {
-			printk(KERN_INFO
-			       "hda_codec: Cannot set up configuration "
-			       "from BIOS.  Using base mode...\n");
-			board_config = ALC268_3ST;
-		}
-#endif
-	}
-
-	if (board_config != ALC_MODEL_AUTO)
-		setup_preset(codec, &alc268_presets[board_config]);
 
 	has_beep = 0;
 	for (i = 0; i < spec->num_mixers; i++) {
@@ -4318,8 +4287,7 @@ static int patch_alc268(struct hda_codec *codec)
 	spec->vmaster_nid = 0x02;
 
 	codec->patch_ops = alc_patch_ops;
-	if (board_config == ALC_MODEL_AUTO)
-		spec->init_hook = alc_auto_init_std;
+	spec->init_hook = alc_auto_init_std;
 	spec->shutup = alc_eapd_shutup;
 
 	alc_init_jacks(codec);

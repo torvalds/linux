@@ -58,12 +58,7 @@ ALC262
 
 ALC267/268
 ==========
-  quanta-il1	Quanta IL1 mini-notebook
-  3stack	3-stack model
-  test		for testing/debugging purpose, almost all controls can
-		adjusted.  Appearing only when compiled with
-		$CONFIG_SND_DEBUG=y
-  auto		auto-config reading BIOS (default)
+  N/A
 
 ALC269
 ======
