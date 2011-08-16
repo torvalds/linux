@@ -395,11 +395,6 @@ void dispc_enable_cpr(enum omap_channel channel, bool enable);
 void dispc_set_cpr_coef(enum omap_channel channel,
 		struct omap_dss_cpr_coefs *coefs);
 
-void dispc_set_plane_ba0(enum omap_plane plane, u32 paddr);
-void dispc_set_plane_ba1(enum omap_plane plane, u32 paddr);
-void dispc_set_plane_pos(enum omap_plane plane, u16 x, u16 y);
-void dispc_set_plane_size(enum omap_plane plane, u16 width, u16 height);
-
 void dispc_enable_gamma_table(bool enable);
 int dispc_setup_plane(enum omap_plane plane,
 		      u32 paddr, u16 screen_width,
