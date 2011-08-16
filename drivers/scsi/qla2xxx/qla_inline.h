@@ -104,9 +104,17 @@ qla2x00_set_fcport_state(fc_port_t *fcport, int state)
 }
 
 static inline int
-qla2x00_hba_err_chk_enabled(unsigned char op)
+qla2x00_hba_err_chk_enabled(srb_t *sp)
 {
-	switch (op) {
+	/*
+	 * Uncomment when corresponding SCSI changes are done.
+	 *
+	if (!sp->cmd->prot_chk)
+		return 0;
+	 *
+	 */
+
+	switch (scsi_get_prot_op(sp->cmd)) {
 	case SCSI_PROT_READ_STRIP:
 	case SCSI_PROT_WRITE_INSERT:
 		if (ql2xenablehba_err_chk >= 1)

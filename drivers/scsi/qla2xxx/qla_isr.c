@@ -1534,6 +1534,16 @@ qla2x00_handle_dif_error(srb_t *sp, struct sts_entry_24xx *sts24)
 		return 1;
 	}
 
+	/* check ref tag */
+	if (e_ref_tag != a_ref_tag) {
+		scsi_build_sense_buffer(1, cmd->sense_buffer, ILLEGAL_REQUEST,
+		    0x10, 0x3);
+		set_driver_byte(cmd, DRIVER_SENSE);
+		set_host_byte(cmd, DID_ABORT);
+		cmd->result |= SAM_STAT_CHECK_CONDITION << 1;
+		return 1;
+	}
+
 	/* check appl tag */
 	if (e_app_tag != a_app_tag) {
 		scsi_build_sense_buffer(1, cmd->sense_buffer, ILLEGAL_REQUEST,
@@ -1544,15 +1554,6 @@ qla2x00_handle_dif_error(srb_t *sp, struct sts_entry_24xx *sts24)
 		return 1;
 	}
 
-	/* check ref tag */
-	if (e_ref_tag != a_ref_tag) {
-		scsi_build_sense_buffer(1, cmd->sense_buffer, ILLEGAL_REQUEST,
-		    0x10, 0x3);
-		set_driver_byte(cmd, DRIVER_SENSE);
-		set_host_byte(cmd, DID_ABORT);
-		cmd->result |= SAM_STAT_CHECK_CONDITION << 1;
-		return 1;
-	}
 	return 1;
 }
 

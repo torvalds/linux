@@ -709,12 +709,11 @@ struct fw_dif_context {
  *
  */
 static inline void
-qla24xx_set_t10dif_tags(struct scsi_cmnd *cmd, struct fw_dif_context *pkt,
+qla24xx_set_t10dif_tags(srb_t *sp, struct fw_dif_context *pkt,
     unsigned int protcnt)
 {
-	struct sd_dif_tuple *spt;
+	struct scsi_cmnd *cmd = sp->cmd;
 	scsi_qla_host_t *vha = shost_priv(cmd->device->host);
-	unsigned char op = scsi_get_prot_op(cmd);
 
 	switch (scsi_get_prot_type(cmd)) {
 	case SCSI_PROT_DIF_TYPE0:
@@ -724,6 +723,10 @@ qla24xx_set_t10dif_tags(struct scsi_cmnd *cmd, struct fw_dif_context *pkt,
 		 */
 		pkt->ref_tag = cpu_to_le32((uint32_t)
 		    (0xffffffff & scsi_get_lba(cmd)));
+
+		if (!qla2x00_hba_err_chk_enabled(sp))
+			break;
+
 		pkt->ref_tag_mask[0] = 0xff;
 		pkt->ref_tag_mask[1] = 0xff;
 		pkt->ref_tag_mask[2] = 0xff;
@@ -735,19 +738,15 @@ qla24xx_set_t10dif_tags(struct scsi_cmnd *cmd, struct fw_dif_context *pkt,
 	 * match LBA in CDB + N
 	 */
 	case SCSI_PROT_DIF_TYPE2:
-		if (!qla2x00_hba_err_chk_enabled(op))
-			break;
-
-		if (scsi_prot_sg_count(cmd)) {
-			spt = page_address(sg_page(scsi_prot_sglist(cmd))) +
-			    scsi_prot_sglist(cmd)[0].offset;
-			pkt->app_tag = swab32(spt->app_tag);
-			pkt->app_tag_mask[0] =  0xff;
-			pkt->app_tag_mask[1] =  0xff;
-		}
+		pkt->app_tag = __constant_cpu_to_le16(0);
+		pkt->app_tag_mask[0] = 0x0;
+		pkt->app_tag_mask[1] = 0x0;
 
 		pkt->ref_tag = cpu_to_le32((uint32_t)
 		    (0xffffffff & scsi_get_lba(cmd)));
+
+		if (!qla2x00_hba_err_chk_enabled(sp))
+			break;
 
 		/* enable ALL bytes of the ref tag */
 		pkt->ref_tag_mask[0] = 0xff;
@@ -768,26 +767,15 @@ qla24xx_set_t10dif_tags(struct scsi_cmnd *cmd, struct fw_dif_context *pkt,
 	 * 16 bit app tag.
 	 */
 	case SCSI_PROT_DIF_TYPE1:
-		if (!qla2x00_hba_err_chk_enabled(op))
+		pkt->ref_tag = cpu_to_le32((uint32_t)
+		    (0xffffffff & scsi_get_lba(cmd)));
+		pkt->app_tag = __constant_cpu_to_le16(0);
+		pkt->app_tag_mask[0] = 0x0;
+		pkt->app_tag_mask[1] = 0x0;
+
+		if (!qla2x00_hba_err_chk_enabled(sp))
 			break;
 
-		if (protcnt && (op == SCSI_PROT_WRITE_STRIP ||
-		    op == SCSI_PROT_WRITE_PASS)) {
-			spt = page_address(sg_page(scsi_prot_sglist(cmd))) +
-			    scsi_prot_sglist(cmd)[0].offset;
-			ql_dbg(ql_dbg_io, vha, 0x3008,
-			    "LBA from user %p, lba = 0x%x for cmd=%p.\n",
-			    spt, (int)spt->ref_tag, cmd);
-			pkt->ref_tag = swab32(spt->ref_tag);
-			pkt->app_tag_mask[0] = 0x0;
-			pkt->app_tag_mask[1] = 0x0;
-		} else {
-			pkt->ref_tag = cpu_to_le32((uint32_t)
-			    (0xffffffff & scsi_get_lba(cmd)));
-			pkt->app_tag = __constant_cpu_to_le16(0);
-			pkt->app_tag_mask[0] = 0x0;
-			pkt->app_tag_mask[1] = 0x0;
-		}
 		/* enable ALL bytes of the ref tag */
 		pkt->ref_tag_mask[0] = 0xff;
 		pkt->ref_tag_mask[1] = 0xff;
@@ -1208,7 +1196,7 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 
 	INIT_LIST_HEAD(&crc_ctx_pkt->dsd_list);
 
-	qla24xx_set_t10dif_tags(cmd, (struct fw_dif_context *)
+	qla24xx_set_t10dif_tags(sp, (struct fw_dif_context *)
 	    &crc_ctx_pkt->ref_tag, tot_prot_dsds);
 
 	cmd_pkt->crc_context_address[0] = cpu_to_le32(LSD(crc_ctx_dma));
@@ -1237,7 +1225,6 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 		fcp_cmnd->additional_cdb_len |= 2;
 
 	int_to_scsilun(sp->cmd->device->lun, &fcp_cmnd->lun);
-	host_to_fcp_swap((uint8_t *)&fcp_cmnd->lun, sizeof(fcp_cmnd->lun));
 	memcpy(fcp_cmnd->cdb, cmd->cmnd, cmd->cmd_len);
 	cmd_pkt->fcp_cmnd_dseg_len = cpu_to_le16(fcp_cmnd_len);
 	cmd_pkt->fcp_cmnd_dseg_address[0] = cpu_to_le32(
@@ -1289,7 +1276,7 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	    BUG();
 	}
 
-	if (!qla2x00_hba_err_chk_enabled(scsi_get_prot_op(cmd)))
+	if (!qla2x00_hba_err_chk_enabled(sp))
 		fw_prot_opts |= 0x10; /* Disable Guard tag checking */
 
 	if (!bundling) {
