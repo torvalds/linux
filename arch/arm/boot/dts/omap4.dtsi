@@ -23,12 +23,35 @@
 	aliases {
 	};
 
+	cpus {
+		cpu@0 {
+			compatible = "arm,cortex-a9";
+		};
+		cpu@1 {
+			compatible = "arm,cortex-a9";
+		};
+	};
+
 	/*
 	 * The soc node represents the soc top level view. It is uses for IPs
 	 * that are not memory mapped in the MPU view or for the MPU itself.
 	 */
 	soc {
 		compatible = "ti,omap-infra";
+		mpu {
+			compatible = "ti,omap4-mpu";
+			ti,hwmods = "mpu";
+		};
+
+		dsp {
+			compatible = "ti,omap3-c64";
+			ti,hwmods = "dsp";
+		};
+
+		iva {
+			compatible = "ti,ivahd";
+			ti,hwmods = "iva";
+		};
 	};
 
 	/*

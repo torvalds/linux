@@ -215,7 +215,8 @@ static void __init omap4_init_voltages(void)
 
 static int __init omap2_common_pm_init(void)
 {
-	omap2_init_processor_devices();
+	if (!of_have_populated_dt())
+		omap2_init_processor_devices();
 	omap_pm_if_init();
 
 	return 0;
