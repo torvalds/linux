@@ -326,25 +326,14 @@ int lcd_standby(u8 enable)	//***enable =1 means suspend, 0 means resume
 	rk29_lcd_spim_spin_lock();
 	if(gLcd_info)
        gLcd_info->io_init();
-	printk("lcd standby\n");
+
 	if(enable) {
-		printk("lcd standby...enable =1 means suspend\n");
+		//printk("lcd suspend\n");
 		spi_screenreg_set(0x10, 0xffff, 0xffff);
 		mdelay(120);
 		spi_screenreg_set(0x28, 0xffff, 0xffff);
 	} else { 
-		printk("lcd standby...0 means resume\n");
-		
-		/* reinit, changed by phc */
-#ifdef RESET_PORT
-    gpio_request(RESET_PORT, NULL);
-    gpio_direction_output(RESET_PORT, 0);
-    mdelay(2);
-    gpio_set_value(RESET_PORT, 1);
-    mdelay(10);
-    gpio_free(RESET_PORT);
-#endif
-		
+		//printk("lcd resume\n");
 		spi_screenreg_set(0x29, 0xffff, 0xffff);
 		spi_screenreg_set(0x11, 0xffff, 0xffff);
 		mdelay(130);

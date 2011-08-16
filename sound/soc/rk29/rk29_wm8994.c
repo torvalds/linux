@@ -180,7 +180,11 @@ static struct snd_soc_ops rk29_ops = {
 static struct snd_soc_dai_link rk29_dai = {
 	  .name = "WM8994",
 	  .stream_name = "WM8994 PCM",
-	  .cpu_dai = &rk29_i2s_dai[0],
+#ifdef CONFIG_MACH_RK29_PHONEPADSDK
+	  .cpu_dai = &rk29_i2s_dai[1],
+#else
+          .cpu_dai = &rk29_i2s_dai[0],
+#endif
 	  .codec_dai = &wm8994_dai,
 	  .init = rk29_wm8994_init,
 	  .ops = &rk29_ops,

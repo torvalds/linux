@@ -439,4 +439,12 @@ typedef volatile struct tagLCDC_REG
 extern void __init rk29_add_device_lcdc(void);
 extern int mcu_ioctl(unsigned int cmd, unsigned long arg);
 
+#define RK29FB_EVENT_HDMI_ON	1
+#define RK29FB_EVENT_HDMI_OFF	2
+#define RK29FB_EVENT_FB1_ON	3
+#define RK29FB_EVENT_FB1_OFF	4
+#include <linux/notifier.h>
+int rk29fb_register_notifier(struct notifier_block *nb);
+int rk29fb_unregister_notifier(struct notifier_block *nb);
+
 #endif

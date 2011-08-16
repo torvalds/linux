@@ -49,7 +49,7 @@ KERN_INFO "ASIX USB Ethernet Adapter:v" DRV_VERSION
 KERN_INFO "    http://www.asix.com.tw\n";
 
 /* configuration of maximum bulk in size */
-static int bsize = AX88772B_MAX_BULKIN_16K;
+static int bsize = AX88772B_MAX_BULKIN_2K;
 module_param (bsize, int, 0);
 MODULE_PARM_DESC (bsize, "Maximum transfer size per bulk");
 
@@ -63,7 +63,6 @@ static void ax88772a_link_reset (struct work_struct *work);
 static void ax88772_link_reset (struct work_struct *work);
 #endif
 static int ax88772a_phy_powerup (struct usbnet *dev);
-
 #define  TAG "AX88xx------>"
 
 /* ASIX AX8817X based USB 2.0 Ethernet Devices */
@@ -230,7 +229,6 @@ static void ax88772a_status(struct usbnet *dev, struct urb *urb)
 			netif_carrier_off(dev->net);
 			ax772a_data->Event = AX_NOP;
 		}
-		devdbg(dev, "link is %d PowSave %d ax772a_data->Event %d \n",link, PowSave,ax772a_data->Event);
 
 		devwarn(dev, "ax88772a - Link status is: %d", link);
 	}
@@ -593,18 +591,15 @@ static int ax88772_suspend (struct usb_interface *intf,
 	struct usbnet *dev = usb_get_intfdata(intf);
 	u16 *medium;
 
-#if 0
 	medium = kmalloc (2, GFP_ATOMIC);
 	if (!medium)
 		return axusbnet_suspend (intf, message);
-
+/*
 	ax8817x_read_cmd (dev, AX_CMD_READ_MEDIUM_MODE, 0, 0, 2, medium);
 	ax8817x_write_cmd (dev, AX_CMD_WRITE_MEDIUM_MODE,
-			(*medium & ~AX88772_MEDIUM_RX_ENABLE), 0, 0, NULL);
+			(*medium & ~AX88772_MEDIUM_RX_ENABLE), 0, 0, NULL);*/
 
 	kfree (medium);
-#endif
-
 	return axusbnet_suspend (intf, message);
 }
 
@@ -620,12 +615,11 @@ static int ax88772b_suspend (struct usb_interface *intf,
 	u16 *tmp16;
 	u8 *opt;
 
-#if 0
 	tmp16 = kmalloc (2, GFP_ATOMIC);
 	if (!tmp16)
 		return axusbnet_suspend (intf, message);
 	opt = (u8 *)tmp16;
-
+       #if 0
 	ax8817x_read_cmd (dev, AX_CMD_READ_MEDIUM_MODE, 0, 0, 2, tmp16);
 	ax8817x_write_cmd (dev, AX_CMD_WRITE_MEDIUM_MODE,
 			(*tmp16 & ~AX88772_MEDIUM_RX_ENABLE), 0, 0, NULL);
@@ -653,10 +647,8 @@ static int ax88772b_suspend (struct usb_interface *intf,
 					*opt, 0, 0, NULL);
 		}
 	}
-
-	kfree (tmp16);
 #endif
-
+	kfree (tmp16);
 	return axusbnet_suspend (intf, message);
 }
 
@@ -664,7 +656,7 @@ static int ax88772_resume (struct usb_interface *intf)
 {
 	struct usbnet *dev = usb_get_intfdata(intf);
 
-	//netif_carrier_off (dev->net);
+	netif_carrier_off (dev->net);
 
 	return axusbnet_resume (intf);
 }
@@ -676,7 +668,6 @@ static int ax88772b_resume (struct usb_interface *intf)
 	int ret;
 	void *buf;
 
-#if 0
 	buf = kmalloc (6, GFP_KERNEL);
 
 	/* Initialize MII structure */
@@ -685,7 +676,7 @@ static int ax88772b_resume (struct usb_interface *intf)
 	dev->mii.mdio_write = ax88772b_mdio_write_le;
 	dev->mii.phy_id_mask = 0xff;
 	dev->mii.reg_num_mask = 0xff;
-
+       #if 0
 	/* Get the PHY id */
 	if ((ret = ax8817x_read_cmd(dev, AX_CMD_READ_PHY_ID,
 			0, 0, 2, buf)) < 0) {
@@ -705,7 +696,7 @@ static int ax88772b_resume (struct usb_interface *intf)
 		ret = -EIO;
 		goto err_out;
 	}
-
+       #endif
 	/* select the embedded 10/100 Ethernet PHY */
 	if ((ret = ax8817x_write_cmd(dev, AX_CMD_SW_PHY_SELECT,
 			AX_PHYSEL_SSEN | AX_PHYSEL_PSEL | AX_PHYSEL_SSMII,
@@ -716,7 +707,7 @@ static int ax88772b_resume (struct usb_interface *intf)
 
 	if ((ret = ax88772a_phy_powerup (dev)) < 0)
 		goto err_out;
-
+      #if 0
 	/* stop MAC operation */
 	if ((ret = ax8817x_write_cmd(dev, AX_CMD_WRITE_RX_CTL,
 			AX_RX_CTL_STOP, 0, 0, NULL)) < 0) {
@@ -730,6 +721,7 @@ static int ax88772b_resume (struct usb_interface *intf)
 		deverr(dev, "Enabling software MII failed: %d", ret);
 		goto err_out;
 	}
+	#endif
 	/* Get the PHY id */
 /*	ret = ax8817x_read_cmd(dev, AX_CMD_READ_PHY_ID,0, 0, 2, buf);
 	devwarn(dev, "reading PHY ID: %02x", ret);
@@ -748,8 +740,6 @@ static int ax88772b_resume (struct usb_interface *intf)
 */
 	kfree (buf);
 	netif_carrier_off (dev->net);
-#endif
-	
 	return axusbnet_resume (intf);
 
 err_out:
@@ -1662,6 +1652,7 @@ static int ax88772b_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* End of get EEPROM data */
 
 	/* Get the MAC address from EEPROM */
+	#if 0
 	memset(buf, 0, ETH_ALEN);
 	for (i = 0; i < (ETH_ALEN >> 1); i++) {
 		if ((ret = ax8817x_read_cmd (dev, AX_CMD_READ_EEPROM,
@@ -1671,14 +1662,31 @@ static int ax88772b_bind(struct usbnet *dev, struct usb_interface *intf)
 		}
 	}
 	memcpy(dev->net->dev_addr, buf, ETH_ALEN);
+		for(i=0;i<ETH_ALEN;i++){
+           deverr(dev, "yyz________________read mac addr0: 0x%x", *((char *)buf+i));
+	}
+       #endif
+		/* Get the MAC address */
+	memset(buf, 0, ETH_ALEN);
+	if ((ret = ax8817x_read_cmd(dev, AX88772_CMD_READ_NODE_ID,
+				0, 0, ETH_ALEN, buf)) < 0) {
+		deverr(dev, "Failed to read MAC address: %d", ret);
+		goto err_out;
+	}
+	memcpy(dev->net->dev_addr, buf, ETH_ALEN);
 
+	//for(i=0;i<ETH_ALEN;i++){
+           //deverr(dev, "yyz________________read mac addr1: 0x%x", *((char *)buf+i));
+	//}
+	
+	#if 0
 	/* Set the MAC address */
 	if ((ret = ax8817x_write_cmd (dev, AX88772_CMD_WRITE_NODE_ID,
 			0, 0, ETH_ALEN, buf)) < 0) {
 		deverr(dev, "set MAC address failed: %d", ret);
 		goto err_out;
 	}
-
+	#endif
 	/* Initialize MII structure */
 	dev->mii.dev = dev->net;
 	dev->mii.mdio_read = ax8817x_mdio_read_le;
@@ -3509,7 +3517,7 @@ static struct usb_driver asix_driver = {
 	.id_table =	products,
 	.probe =	axusbnet_probe,
 	.suspend =	ax_suspend,
-	.resume =	ax_resume,
+       .resume =	ax_resume,
 	.disconnect =	axusbnet_disconnect,
 };
 
@@ -3528,5 +3536,4 @@ module_exit(asix_exit);
 MODULE_AUTHOR("David Hollis");
 MODULE_DESCRIPTION("ASIX AX8817X based USB 2.0 Ethernet Devices");
 MODULE_LICENSE("GPL");
-
 

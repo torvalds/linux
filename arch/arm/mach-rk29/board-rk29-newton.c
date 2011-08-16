@@ -76,8 +76,8 @@
 #define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_0 RK29_CAM_POWERDNACTIVE_H
 #define CONFIG_SENSOR_FLASHACTIVE_LEVEL_0 RK29_CAM_FLASHACTIVE_L
 
-#define CONFIG_SENSOR_1                   RK29_CAM_SENSOR_OV2655                      /* front camera sensor */
-#define CONFIG_SENSOR_IIC_ADDR_1 	      0x60
+#define CONFIG_SENSOR_1                   RK29_CAM_SENSOR_OV3640                     /* front camera sensor */
+#define CONFIG_SENSOR_IIC_ADDR_1 	      0x78
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_1    1
 #define CONFIG_SENSOR_POWER_PIN_1         INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_1         INVALID_GPIO
@@ -2193,8 +2193,24 @@ static struct cpufreq_frequency_table freq_table[] = {
 	{ .frequency = CPUFREQ_TABLE_END },
 };
 
+#define BAT_LOW	RK29_PIN4_PA2
+#define POWER_ON_PIN	RK29_PIN4_PA4
 static void __init machine_rk29_board_init(void)
 {
+	int val =0;
+	gpio_request(BAT_LOW, NULL);
+	gpio_direction_input(BAT_LOW);
+	val = gpio_get_value(BAT_LOW);
+	if (val == 0){
+		printk("no battery, no power up\n");
+		gpio_request(POWER_ON_PIN, "poweronpin");
+		gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
+		while(1){
+			gpio_set_value(POWER_ON_PIN, GPIO_LOW);
+			mdelay(100);
+		}
+	}
+	gpio_free(BAT_LOW);
 	rk29_board_iomux_init();
 
 	board_power_init();

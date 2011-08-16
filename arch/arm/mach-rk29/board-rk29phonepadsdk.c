@@ -44,6 +44,7 @@
 #include <mach/vpu_mem.h>
 #include <mach/sram.h>
 #include <mach/ddr.h>
+#include <mach/cpufreq.h>
 
 #include <linux/regulator/rk29-pwm-regulator.h>
 #include <linux/regulator/machine.h>
@@ -1456,7 +1457,13 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	rk29_mux_api_set(GPIO1D3_SDMMC0DATA1_NAME, GPIO1H_SDMMC0_DATA1);
 	rk29_mux_api_set(GPIO1D4_SDMMC0DATA2_NAME, GPIO1H_SDMMC0_DATA2);
 	rk29_mux_api_set(GPIO1D5_SDMMC0DATA3_NAME, GPIO1H_SDMMC0_DATA3);
+
+#ifdef CONFIG_SDMMC_RK29_OLD	
 	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_GPIO2A2);
+#else
+	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);//Modifyed by xbw.
+#endif
+
 	rk29_mux_api_set(GPIO5D5_SDMMC0PWREN_NAME, GPIO5H_GPIO5D5);   ///GPIO5H_SDMMC0_PWR_EN);  ///GPIO5H_GPIO5D5);
 	gpio_request(RK29_PIN5_PD5,"sdmmc");
 #if 0
@@ -1713,6 +1720,8 @@ static struct platform_device rk29sdk_rfkill = {
 
 
 #ifdef CONFIG_VIVANTE
+#define GPU_HIGH_CLOCK        552
+#define GPU_LOW_CLOCK         (periph_pll_default / 1000000) /* same as general pll clock rate below */
 static struct resource resources_gpu[] = {
     [0] = {
 		.name 	= "gpu_irq",
@@ -1731,6 +1740,12 @@ static struct resource resources_gpu[] = {
         .start  = PMEM_GPU_BASE,
         .end    = PMEM_GPU_BASE + PMEM_GPU_SIZE - 1,
         .flags  = IORESOURCE_MEM,
+    },
+    [3] = {
+		.name 	= "gpu_clk",
+        .start 	= GPU_LOW_CLOCK,
+        .end    = GPU_HIGH_CLOCK,
+        .flags  = IORESOURCE_IO,
     },
 };
 static struct platform_device rk29_device_gpu = {
@@ -2129,11 +2144,19 @@ static void __init machine_rk29_init_irq(void)
 	rk29_gpio_init();
 }
 
+static struct cpufreq_frequency_table freq_table[] = {
+	{ .index = 1200000, .frequency =  408000 },
+	{ .index = 1200000, .frequency =  816000 },
+	{ .index = 1300000, .frequency = 1008000 },
+	{ .frequency = CPUFREQ_TABLE_END },
+};
+
 static void __init machine_rk29_board_init(void)
 {
 	rk29_board_iomux_init();
 
 	board_power_init();
+	board_update_cpufreq_table(freq_table);
 
 		platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29
@@ -2182,7 +2205,7 @@ static void __init machine_rk29_mapio(void)
 	rk29_map_common_io();
 	rk29_setup_early_printk();
 	rk29_sram_init();
-	rk29_clock_init(periph_pll_288mhz);
+	rk29_clock_init(periph_pll_default);
 	rk29_iomux_init();
     ddr_init(DDR_TYPE,DDR_FREQ);  // DDR3_1333H, 400
 }

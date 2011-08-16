@@ -2586,6 +2586,26 @@ static void __init rk29_board_iomux_init(void)
 
 }
 
+// For phone,just a disk only, add by phc,20110816
+#ifdef CONFIG_USB_ANDROID
+struct usb_mass_storage_platform_data phone_mass_storage_pdata = {
+	.nluns		= 1,  
+	.vendor		= "RockChip",
+	.product	= "rk29 sdk",
+	.release	= 0x0100,
+};
+
+//static 
+struct platform_device phone_usb_mass_storage_device = {
+	.name	= "usb_mass_storage",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &phone_mass_storage_pdata,
+	},
+};
+#endif
+
+
 static struct platform_device *devices[] __initdata = {
 
 #ifdef CONFIG_RK29_WATCHDOG
@@ -2704,7 +2724,7 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_USB_ANDROID
 	&android_usb_device,
-	&usb_mass_storage_device,
+	&phone_usb_mass_storage_device,
 #endif
 #ifdef CONFIG_RK29_IPP
 	&rk29_device_ipp,
