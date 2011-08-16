@@ -4056,6 +4056,8 @@ tracing_stats_read(struct file *filp, char __user *ubuf,
 	struct trace_array *tr = &global_trace;
 	struct trace_seq *s;
 	unsigned long cnt;
+	unsigned long long t;
+	unsigned long usec_rem;
 
 	s = kmalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
@@ -4071,6 +4073,17 @@ tracing_stats_read(struct file *filp, char __user *ubuf,
 
 	cnt = ring_buffer_commit_overrun_cpu(tr->buffer, cpu);
 	trace_seq_printf(s, "commit overrun: %ld\n", cnt);
+
+	cnt = ring_buffer_bytes_cpu(tr->buffer, cpu);
+	trace_seq_printf(s, "bytes: %ld\n", cnt);
+
+	t = ns2usecs(ring_buffer_oldest_event_ts(tr->buffer, cpu));
+	usec_rem = do_div(t, USEC_PER_SEC);
+	trace_seq_printf(s, "oldest event ts: %5llu.%06lu\n", t, usec_rem);
+
+	t = ns2usecs(ring_buffer_time_stamp(tr->buffer, cpu));
+	usec_rem = do_div(t, USEC_PER_SEC);
+	trace_seq_printf(s, "now ts: %5llu.%06lu\n", t, usec_rem);
 
 	count = simple_read_from_buffer(ubuf, count, ppos, s->buffer, s->len);
 
