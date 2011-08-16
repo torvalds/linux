@@ -44,6 +44,7 @@
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
 #include <linux/ethtool.h>
+#include <linux/if.h>
 #include <linux/if_vlan.h>
 #include <linux/prefetch.h>
 
@@ -3357,6 +3358,8 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
+
+	netdev->priv_flags |= IFF_UNICAST_FLT;
 
 	/* The HW MAC address was set and/or determined in sw_init */
 	memcpy(netdev->dev_addr, adapter->hw.mac.addr, netdev->addr_len);

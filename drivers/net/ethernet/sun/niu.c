@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/bitops.h>
 #include <linux/mii.h>
+#include <linux/if.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/ip.h>
@@ -9716,7 +9717,7 @@ static const struct net_device_ops niu_netdev_ops = {
 	.ndo_stop		= niu_close,
 	.ndo_start_xmit		= niu_start_xmit,
 	.ndo_get_stats64	= niu_get_stats,
-	.ndo_set_multicast_list	= niu_set_rx_mode,
+	.ndo_set_rx_mode	= niu_set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= niu_set_mac_addr,
 	.ndo_do_ioctl		= niu_ioctl,
@@ -9851,6 +9852,8 @@ static int __devinit niu_pci_init_one(struct pci_dev *pdev,
 	}
 
 	niu_set_basic_features(dev);
+
+	dev->priv_flags |= IFF_UNICAST_FLT;
 
 	np->regs = pci_ioremap_bar(pdev, 0);
 	if (!np->regs) {

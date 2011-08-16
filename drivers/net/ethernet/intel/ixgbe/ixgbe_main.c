@@ -42,6 +42,7 @@
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
 #include <linux/ethtool.h>
+#include <linux/if.h>
 #include <linux/if_vlan.h>
 #include <linux/prefetch.h>
 #include <scsi/fc/fc_fcoe.h>
@@ -7526,6 +7527,8 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	netdev->vlan_features |= NETIF_F_IP_CSUM;
 	netdev->vlan_features |= NETIF_F_IPV6_CSUM;
 	netdev->vlan_features |= NETIF_F_SG;
+
+	netdev->priv_flags |= IFF_UNICAST_FLT;
 
 	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
 		adapter->flags &= ~(IXGBE_FLAG_RSS_ENABLED |

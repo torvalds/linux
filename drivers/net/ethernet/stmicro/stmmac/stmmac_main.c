@@ -42,6 +42,7 @@
 #include <linux/crc32.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
+#include <linux/if.h>
 #include <linux/if_vlan.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
@@ -1284,7 +1285,7 @@ static int stmmac_config(struct net_device *dev, struct ifmap *map)
 }
 
 /**
- *  stmmac_multicast_list - entry point for multicast addressing
+ *  stmmac_set_rx_mode - entry point for multicast addressing
  *  @dev : pointer to the device structure
  *  Description:
  *  This function is a driver entry point which gets called by the kernel
@@ -1292,7 +1293,7 @@ static int stmmac_config(struct net_device *dev, struct ifmap *map)
  *  Return value:
  *  void.
  */
-static void stmmac_multicast_list(struct net_device *dev)
+static void stmmac_set_rx_mode(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
@@ -1421,7 +1422,7 @@ static const struct net_device_ops stmmac_netdev_ops = {
 	.ndo_stop = stmmac_release,
 	.ndo_change_mtu = stmmac_change_mtu,
 	.ndo_fix_features = stmmac_fix_features,
-	.ndo_set_multicast_list = stmmac_multicast_list,
+	.ndo_set_rx_mode = stmmac_set_rx_mode,
 	.ndo_tx_timeout = stmmac_tx_timeout,
 	.ndo_do_ioctl = stmmac_ioctl,
 	.ndo_set_config = stmmac_config,
@@ -1498,10 +1499,12 @@ static int stmmac_mac_device_setup(struct net_device *dev)
 
 	struct mac_device_info *device;
 
-	if (priv->plat->has_gmac)
+	if (priv->plat->has_gmac) {
+		dev->priv_flags |= IFF_UNICAST_FLT;
 		device = dwmac1000_setup(priv->ioaddr);
-	else
+	} else {
 		device = dwmac100_setup(priv->ioaddr);
+	}
 
 	if (!device)
 		return -ENOMEM;

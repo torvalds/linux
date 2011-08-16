@@ -28,6 +28,7 @@
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/if.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/ethtool.h>
@@ -2441,6 +2442,8 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 
 	if (using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
+
+	netdev->priv_flags |= IFF_UNICAST_FLT;
 
 	err = register_netdev(netdev);
 	if (err) {

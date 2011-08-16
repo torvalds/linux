@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/if.h>
 #include <linux/if_vlan.h>
 #include <linux/slab.h>
 #include <linux/phy.h>
@@ -1101,6 +1102,8 @@ static int __devinit octeon_mgmt_probe(struct platform_device *pdev)
 	skb_queue_head_init(&p->rx_list);
 	tasklet_init(&p->tx_clean_tasklet,
 		     octeon_mgmt_clean_tx_tasklet, (unsigned long)p);
+
+	netdev->priv_flags |= IFF_UNICAST_FLT;
 
 	netdev->netdev_ops = &octeon_mgmt_ops;
 	netdev->ethtool_ops = &octeon_mgmt_ethtool_ops;

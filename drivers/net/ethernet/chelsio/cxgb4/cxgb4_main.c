@@ -41,6 +41,7 @@
 #include <linux/err.h>
 #include <linux/etherdevice.h>
 #include <linux/firmware.h>
+#include <linux/if.h>
 #include <linux/if_vlan.h>
 #include <linux/init.h>
 #include <linux/log2.h>
@@ -3638,6 +3639,8 @@ static int __devinit init_one(struct pci_dev *pdev,
 			NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 		netdev->features |= netdev->hw_features | highdma;
 		netdev->vlan_features = netdev->features & VLAN_FEAT;
+
+		netdev->priv_flags |= IFF_UNICAST_FLT;
 
 		netdev->netdev_ops = &cxgb4_netdev_ops;
 		SET_ETHTOOL_OPS(netdev, &cxgb_ethtool_ops);

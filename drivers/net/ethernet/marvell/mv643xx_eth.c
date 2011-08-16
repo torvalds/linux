@@ -2923,6 +2923,8 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
 	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM;
 
+	dev->priv_flags |= IFF_UNICAST_FLT;
+
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	if (mp->shared->win_protect)

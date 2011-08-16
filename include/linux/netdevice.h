@@ -723,6 +723,8 @@ struct netdev_tc_txq {
  *
  * void (*ndo_set_rx_mode)(struct net_device *dev);
  *	This function is called device changes address list filtering.
+ *	If driver handles unicast address filtering, it should set
+ *	IFF_UNICAST_FLT to its priv_flags.
  *
  * void (*ndo_set_multicast_list)(struct net_device *dev);
  *	This function is called when the multicast address list changes.
