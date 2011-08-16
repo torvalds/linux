@@ -320,23 +320,25 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 	int limit = 0, report_id = 2;
 	int error = -ENOMEM;
 
-	rep_data = kmalloc(2, GFP_KERNEL);
+	rep_data = kmalloc(4, GFP_KERNEL);
 	if (!rep_data)
 		return error;
 
-	/* ask to report tablet data if it is 2FGT Tablet PC or
+	/* ask to report tablet data if it is MT Tablet PC or
 	 * not a Tablet PC */
 	if (features->type == TABLETPC2FG) {
 		do {
 			rep_data[0] = 3;
 			rep_data[1] = 4;
+			rep_data[2] = 0;
+			rep_data[3] = 0;
 			report_id = 3;
 			error = usb_set_report(intf, WAC_HID_FEATURE_REPORT,
-				report_id, rep_data, 2);
+				report_id, rep_data, 4);
 			if (error >= 0)
 				error = usb_get_report(intf,
 					WAC_HID_FEATURE_REPORT, report_id,
-					rep_data, 3);
+					rep_data, 4);
 		} while ((error < 0 || rep_data[1] != 4) && limit++ < WAC_MSG_RETRIES);
 	} else if (features->type != TABLETPC) {
 		do {
