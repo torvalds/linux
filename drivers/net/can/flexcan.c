@@ -33,6 +33,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 
 #define DRV_NAME			"flexcan"
@@ -925,16 +926,29 @@ static int __devinit flexcan_probe(struct platform_device *pdev)
 	struct net_device *dev;
 	struct flexcan_priv *priv;
 	struct resource *mem;
-	struct clk *clk;
+	struct clk *clk = NULL;
 	void __iomem *base;
 	resource_size_t mem_size;
 	int err, irq;
+	u32 clock_freq = 0;
 
-	clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(clk)) {
-		dev_err(&pdev->dev, "no clock defined\n");
-		err = PTR_ERR(clk);
-		goto failed_clock;
+	if (pdev->dev.of_node) {
+		const u32 *clock_freq_p;
+
+		clock_freq_p = of_get_property(pdev->dev.of_node,
+						"clock-frequency", NULL);
+		if (clock_freq_p)
+			clock_freq = *clock_freq_p;
+	}
+
+	if (!clock_freq) {
+		clk = clk_get(&pdev->dev, NULL);
+		if (IS_ERR(clk)) {
+			dev_err(&pdev->dev, "no clock defined\n");
+			err = PTR_ERR(clk);
+			goto failed_clock;
+		}
+		clock_freq = clk_get_rate(clk);
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -967,7 +981,7 @@ static int __devinit flexcan_probe(struct platform_device *pdev)
 	dev->flags |= IFF_ECHO; /* we support local echo in hardware */
 
 	priv = netdev_priv(dev);
-	priv->can.clock.freq = clk_get_rate(clk);
+	priv->can.clock.freq = clock_freq;
 	priv->can.bittiming_const = &flexcan_bittiming_const;
 	priv->can.do_set_mode = flexcan_set_mode;
 	priv->can.do_get_berr_counter = flexcan_get_berr_counter;
@@ -1002,7 +1016,8 @@ static int __devinit flexcan_probe(struct platform_device *pdev)
  failed_map:
 	release_mem_region(mem->start, mem_size);
  failed_get:
-	clk_put(clk);
+	if (clk)
+		clk_put(clk);
  failed_clock:
 	return err;
 }
@@ -1020,7 +1035,8 @@ static int __devexit flexcan_remove(struct platform_device *pdev)
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(mem->start, resource_size(mem));
 
-	clk_put(priv->clk);
+	if (priv->clk)
+		clk_put(priv->clk);
 
 	free_candev(dev);
 

@@ -11,6 +11,7 @@ Required properties:
 
 - reg : Offset and length of the register set for this device
 - interrupts : Interrupt tuple for this device
+- clock-frequency : The oscillator frequency driving the flexcan device
 
 Example:
 
@@ -19,4 +20,5 @@ Example:
 		reg = <0x1c000 0x1000>;
 		interrupts = <48 0x2>;
 		interrupt-parent = <&mpic>;
+		clock-frequency = <200000000>; // filled in by bootloader
 	};
