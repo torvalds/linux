@@ -35,7 +35,7 @@ NLS ?=		true
 
 # Set the following to 'true' to build/install the
 # cpufreq-bench benchmarking tool
-CPUFRQ_BENCH ?= true
+CPUFREQ_BENCH ?= true
 
 # Prefix to the directories we're installing to
 DESTDIR ?=
@@ -139,7 +139,7 @@ ifeq ($(strip $(NLS)),true)
 	COMPILE_NLS += create-gmo
 endif
 
-ifeq ($(strip $(CPUFRQ_BENCH)),true)
+ifeq ($(strip $(CPUFREQ_BENCH)),true)
 	INSTALL_BENCH += install-bench
 	COMPILE_BENCH += compile-bench
 endif
