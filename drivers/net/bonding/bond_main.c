@@ -3686,43 +3686,26 @@ static bool bond_addr_in_mc_list(unsigned char *addr,
 	return false;
 }
 
+static void bond_change_rx_flags(struct net_device *bond_dev, int change)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+
+	if (change & IFF_PROMISC)
+		bond_set_promiscuity(bond,
+				     bond_dev->flags & IFF_PROMISC ? 1 : -1);
+
+	if (change & IFF_ALLMULTI)
+		bond_set_allmulti(bond,
+				  bond_dev->flags & IFF_ALLMULTI ? 1 : -1);
+}
+
 static void bond_set_multicast_list(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct netdev_hw_addr *ha;
 	bool found;
 
-	/*
-	 * Do promisc before checking multicast_mode
-	 */
-	if ((bond_dev->flags & IFF_PROMISC) && !(bond->flags & IFF_PROMISC))
-		/*
-		 * FIXME: Need to handle the error when one of the multi-slaves
-		 * encounters error.
-		 */
-		bond_set_promiscuity(bond, 1);
-
-
-	if (!(bond_dev->flags & IFF_PROMISC) && (bond->flags & IFF_PROMISC))
-		bond_set_promiscuity(bond, -1);
-
-
-	/* set allmulti flag to slaves */
-	if ((bond_dev->flags & IFF_ALLMULTI) && !(bond->flags & IFF_ALLMULTI))
-		/*
-		 * FIXME: Need to handle the error when one of the multi-slaves
-		 * encounters error.
-		 */
-		bond_set_allmulti(bond, 1);
-
-
-	if (!(bond_dev->flags & IFF_ALLMULTI) && (bond->flags & IFF_ALLMULTI))
-		bond_set_allmulti(bond, -1);
-
-
 	read_lock(&bond->lock);
-
-	bond->flags = bond_dev->flags;
 
 	/* looking for addresses to add to slaves' mc list */
 	netdev_for_each_mc_addr(ha, bond_dev) {
@@ -4282,6 +4265,7 @@ static const struct net_device_ops bond_netdev_ops = {
 	.ndo_select_queue	= bond_select_queue,
 	.ndo_get_stats64	= bond_get_stats,
 	.ndo_do_ioctl		= bond_do_ioctl,
+	.ndo_change_rx_flags	= bond_change_rx_flags,
 	.ndo_set_multicast_list	= bond_set_multicast_list,
 	.ndo_change_mtu		= bond_change_mtu,
 	.ndo_set_mac_address	= bond_set_mac_address,
