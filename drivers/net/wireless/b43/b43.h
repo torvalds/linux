@@ -970,12 +970,6 @@ static inline bool b43_using_pio_transfers(struct b43_wldev *dev)
 	return dev->__using_pio_transfers;
 }
 
-#ifdef CONFIG_B43_FORCE_PIO
-# define B43_PIO_DEFAULT 1
-#else
-# define B43_PIO_DEFAULT 0
-#endif
-
 /* Message printing */
 void b43info(struct b43_wl *wl, const char *fmt, ...)
     __attribute__ ((format(printf, 2, 3)));

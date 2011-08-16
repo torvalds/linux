@@ -169,13 +169,3 @@ config B43_DEBUG
 	  Say N, if you are a distributor or user building a release kernel
 	  for production use.
 	  Only say Y, if you are debugging a problem in the b43 driver sourcecode.
-
-config B43_FORCE_PIO
-	bool "Force usage of PIO instead of DMA"
-	depends on B43 && B43_DEBUG
-	---help---
-	  This will disable DMA and always enable PIO instead.
-
-	  Say N!
-	  This is only for debugging the PIO engine code. You do
-	  _NOT_ want to enable this.
