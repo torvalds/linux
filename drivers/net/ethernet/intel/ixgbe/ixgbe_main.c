@@ -7205,7 +7205,6 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_start_xmit		= ixgbe_xmit_frame,
 	.ndo_select_queue	= ixgbe_select_queue,
 	.ndo_set_rx_mode        = ixgbe_set_rx_mode,
-	.ndo_set_multicast_list	= ixgbe_set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= ixgbe_set_mac,
 	.ndo_change_mtu		= ixgbe_change_mtu,

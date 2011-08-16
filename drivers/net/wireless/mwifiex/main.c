@@ -627,7 +627,7 @@ static const struct net_device_ops mwifiex_netdev_ops = {
 	.ndo_set_mac_address = mwifiex_set_mac_address,
 	.ndo_tx_timeout = mwifiex_tx_timeout,
 	.ndo_get_stats = mwifiex_get_stats,
-	.ndo_set_multicast_list = mwifiex_set_multicast_list,
+	.ndo_set_rx_mode = mwifiex_set_multicast_list,
 };
 
 /*

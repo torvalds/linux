@@ -3623,7 +3623,7 @@ static const struct net_device_ops smctr_netdev_ops = {
 	.ndo_start_xmit    = smctr_send_packet,
 	.ndo_tx_timeout	   = smctr_timeout,
 	.ndo_get_stats     = smctr_get_stats,
-	.ndo_set_multicast_list = smctr_set_multicast_list,
+	.ndo_set_rx_mode   = smctr_set_multicast_list,
 };
 
 static int __init smctr_probe1(struct net_device *dev, int ioaddr)

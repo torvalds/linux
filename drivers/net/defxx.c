@@ -483,7 +483,7 @@ static const struct net_device_ops dfx_netdev_ops = {
 	.ndo_stop		= dfx_close,
 	.ndo_start_xmit		= dfx_xmt_queue_pkt,
 	.ndo_get_stats		= dfx_ctl_get_stats,
-	.ndo_set_multicast_list	= dfx_ctl_set_multicast_list,
+	.ndo_set_rx_mode	= dfx_ctl_set_multicast_list,
 	.ndo_set_mac_address	= dfx_ctl_set_mac_address,
 };
 

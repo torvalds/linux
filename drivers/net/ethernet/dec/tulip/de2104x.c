@@ -1956,7 +1956,7 @@ bad_srom:
 static const struct net_device_ops de_netdev_ops = {
 	.ndo_open		= de_open,
 	.ndo_stop		= de_close,
-	.ndo_set_multicast_list = de_set_rx_mode,
+	.ndo_set_rx_mode	= de_set_rx_mode,
 	.ndo_start_xmit		= de_start_xmit,
 	.ndo_get_stats		= de_get_stats,
 	.ndo_tx_timeout 	= de_tx_timeout,

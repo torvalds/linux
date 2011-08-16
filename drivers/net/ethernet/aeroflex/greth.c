@@ -1539,7 +1539,7 @@ static int __devinit greth_of_probe(struct platform_device *ofdev)
 	}
 
 	if (greth->multicast) {
-		greth_netdev_ops.ndo_set_multicast_list = greth_set_multicast_list;
+		greth_netdev_ops.ndo_set_rx_mode = greth_set_multicast_list;
 		dev->flags |= IFF_MULTICAST;
 	} else {
 		dev->flags &= ~IFF_MULTICAST;

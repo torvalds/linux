@@ -2957,7 +2957,6 @@ static const struct net_device_ops bnad_netdev_ops = {
 	.ndo_start_xmit		= bnad_start_xmit,
 	.ndo_get_stats64		= bnad_get_stats64,
 	.ndo_set_rx_mode	= bnad_set_rx_mode,
-	.ndo_set_multicast_list = bnad_set_rx_mode,
 	.ndo_validate_addr      = eth_validate_addr,
 	.ndo_set_mac_address    = bnad_set_mac_address,
 	.ndo_change_mtu		= bnad_change_mtu,

@@ -5208,7 +5208,7 @@ static const struct net_device_ops nv_netdev_ops = {
 	.ndo_set_features	= nv_set_features,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= nv_set_mac_address,
-	.ndo_set_multicast_list	= nv_set_multicast,
+	.ndo_set_rx_mode	= nv_set_multicast,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= nv_poll_controller,
 #endif
@@ -5225,7 +5225,7 @@ static const struct net_device_ops nv_netdev_ops_optimized = {
 	.ndo_set_features	= nv_set_features,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= nv_set_mac_address,
-	.ndo_set_multicast_list	= nv_set_multicast,
+	.ndo_set_rx_mode	= nv_set_multicast,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= nv_poll_controller,
 #endif

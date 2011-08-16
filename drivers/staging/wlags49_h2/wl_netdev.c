@@ -1179,7 +1179,7 @@ static const struct net_device_ops wl_netdev_ops =
 
     .ndo_set_config         = &wl_config,
     .ndo_get_stats          = &wl_stats,
-    .ndo_set_multicast_list = &wl_multicast,
+    .ndo_set_rx_mode        = &wl_multicast,
 
     .ndo_init               = &wl_insert,
     .ndo_open               = &wl_adapter_open,

@@ -749,7 +749,7 @@ static const struct net_device_ops catc_netdev_ops = {
 	.ndo_start_xmit		= catc_start_xmit,
 
 	.ndo_tx_timeout		= catc_tx_timeout,
-	.ndo_set_multicast_list = catc_set_multicast_list,
+	.ndo_set_rx_mode	= catc_set_multicast_list,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,

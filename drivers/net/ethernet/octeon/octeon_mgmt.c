@@ -1060,7 +1060,6 @@ static const struct net_device_ops octeon_mgmt_ops = {
 	.ndo_stop =			octeon_mgmt_stop,
 	.ndo_start_xmit =		octeon_mgmt_xmit,
 	.ndo_set_rx_mode = 		octeon_mgmt_set_rx_filtering,
-	.ndo_set_multicast_list =	octeon_mgmt_set_rx_filtering,
 	.ndo_set_mac_address =		octeon_mgmt_set_mac_address,
 	.ndo_do_ioctl = 		octeon_mgmt_ioctl,
 	.ndo_change_mtu =		octeon_mgmt_change_mtu,

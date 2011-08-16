@@ -872,7 +872,7 @@ static const struct net_device_ops ax88172_netdev_ops = {
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= asix_ioctl,
-	.ndo_set_multicast_list = ax88172_set_multicast,
+	.ndo_set_rx_mode	= ax88172_set_multicast,
 };
 
 static int ax88172_bind(struct usbnet *dev, struct usb_interface *intf)
@@ -975,7 +975,7 @@ static const struct net_device_ops ax88772_netdev_ops = {
 	.ndo_set_mac_address 	= asix_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= asix_ioctl,
-	.ndo_set_multicast_list = asix_set_multicast,
+	.ndo_set_rx_mode	= asix_set_multicast,
 };
 
 static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
@@ -1270,7 +1270,7 @@ static const struct net_device_ops ax88178_netdev_ops = {
 	.ndo_tx_timeout		= usbnet_tx_timeout,
 	.ndo_set_mac_address 	= asix_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_multicast_list = asix_set_multicast,
+	.ndo_set_rx_mode	= asix_set_multicast,
 	.ndo_do_ioctl 		= asix_ioctl,
 	.ndo_change_mtu 	= ax88178_change_mtu,
 };

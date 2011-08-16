@@ -3762,7 +3762,7 @@ static const struct net_device_ops skge_netdev_ops = {
 	.ndo_tx_timeout		= skge_tx_timeout,
 	.ndo_change_mtu		= skge_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_multicast_list	= skge_set_multicast,
+	.ndo_set_rx_mode	= skge_set_multicast,
 	.ndo_set_mac_address	= skge_set_mac_address,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= skge_netpoll,

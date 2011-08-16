@@ -1758,7 +1758,7 @@ static const struct net_device_ops sh_eth_netdev_ops = {
 	.ndo_start_xmit		= sh_eth_start_xmit,
 	.ndo_get_stats		= sh_eth_get_stats,
 #if defined(SH_ETH_HAS_TSU)
-	.ndo_set_multicast_list	= sh_eth_set_multicast_list,
+	.ndo_set_rx_mode	= sh_eth_set_multicast_list,
 #endif
 	.ndo_tx_timeout		= sh_eth_tx_timeout,
 	.ndo_do_ioctl		= sh_eth_do_ioctl,

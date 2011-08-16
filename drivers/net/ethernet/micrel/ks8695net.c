@@ -1333,7 +1333,7 @@ static const struct net_device_ops ks8695_netdev_ops = {
 	.ndo_tx_timeout		= ks8695_timeout,
 	.ndo_set_mac_address	= ks8695_set_mac,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_multicast_list	= ks8695_set_multicast,
+	.ndo_set_rx_mode	= ks8695_set_multicast,
 };
 
 /**

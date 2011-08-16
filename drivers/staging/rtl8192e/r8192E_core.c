@@ -4519,7 +4519,7 @@ static const struct net_device_ops rtl8192_netdev_ops = {
 	.ndo_stop =			rtl8192_close,
 	.ndo_tx_timeout =		tx_timeout,
 	.ndo_do_ioctl =			rtl8192_ioctl,
-	.ndo_set_multicast_list =	r8192_set_multicast,
+	.ndo_set_rx_mode =		r8192_set_multicast,
 	.ndo_set_mac_address =		r8192_set_mac_adr,
 	.ndo_start_xmit = 		ieee80211_rtl_xmit,
 };

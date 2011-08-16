@@ -1790,7 +1790,6 @@ static const struct net_device_ops igb_netdev_ops = {
 	.ndo_start_xmit		= igb_xmit_frame_adv,
 	.ndo_get_stats64	= igb_get_stats64,
 	.ndo_set_rx_mode	= igb_set_rx_mode,
-	.ndo_set_multicast_list	= igb_set_rx_mode,
 	.ndo_set_mac_address	= igb_set_mac,
 	.ndo_change_mtu		= igb_change_mtu,
 	.ndo_do_ioctl		= igb_ioctl,

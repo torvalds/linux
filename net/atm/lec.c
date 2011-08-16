@@ -643,7 +643,7 @@ static const struct net_device_ops lec_netdev_ops = {
 	.ndo_start_xmit		= lec_start_xmit,
 	.ndo_change_mtu		= lec_change_mtu,
 	.ndo_tx_timeout		= lec_tx_timeout,
-	.ndo_set_multicast_list	= lec_set_multicast_list,
+	.ndo_set_rx_mode	= lec_set_multicast_list,
 };
 
 static const unsigned char lec_ctrl_magic[] = {

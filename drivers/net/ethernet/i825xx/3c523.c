@@ -409,7 +409,7 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_start_xmit		= elmc_send_packet,
 	.ndo_tx_timeout		= elmc_timeout,
 #ifdef ELMC_MULTICAST
-	.ndo_set_multicast_list = set_multicast_list,
+	.ndo_set_rx_mode	= set_multicast_list,
 #endif
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,

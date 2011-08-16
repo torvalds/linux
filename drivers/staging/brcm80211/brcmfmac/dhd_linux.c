@@ -1437,7 +1437,7 @@ static struct net_device_ops brcmf_netdev_ops_pri = {
 	.ndo_do_ioctl = brcmf_netdev_ioctl_entry,
 	.ndo_start_xmit = brcmf_netdev_start_xmit,
 	.ndo_set_mac_address = brcmf_netdev_set_mac_address,
-	.ndo_set_multicast_list = brcmf_netdev_set_multicast_list
+	.ndo_set_rx_mode = brcmf_netdev_set_multicast_list,
 };
 
 int brcmf_net_attach(struct brcmf_pub *drvr, int ifidx)

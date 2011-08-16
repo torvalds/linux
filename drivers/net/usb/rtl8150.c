@@ -899,7 +899,7 @@ static const struct net_device_ops rtl8150_netdev_ops = {
 	.ndo_do_ioctl		= rtl8150_ioctl,
 	.ndo_start_xmit		= rtl8150_start_xmit,
 	.ndo_tx_timeout 	= rtl8150_tx_timeout,
-	.ndo_set_multicast_list = rtl8150_set_multicast,
+	.ndo_set_rx_mode	= rtl8150_set_multicast,
 	.ndo_set_mac_address	= rtl8150_set_mac_address,
 
 	.ndo_change_mtu		= eth_change_mtu,

@@ -488,7 +488,7 @@ static const struct net_device_ops net_ops = {
 	.ndo_tx_timeout		= net_timeout,
 	.ndo_start_xmit 	= net_send_packet,
 	.ndo_get_stats		= net_get_stats,
-	.ndo_set_multicast_list = set_multicast_list,
+	.ndo_set_rx_mode	= set_multicast_list,
 	.ndo_set_mac_address 	= set_mac_address,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= net_poll_controller,

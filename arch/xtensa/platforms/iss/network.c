@@ -633,7 +633,7 @@ static const struct net_device_ops iss_netdev_ops = {
 	.ndo_set_mac_address	= iss_net_set_mac,
 	//.ndo_do_ioctl		= iss_net_ioctl,
 	.ndo_tx_timeout		= iss_net_tx_timeout,
-	.ndo_set_multicast_list = iss_net_set_multicast_list,
+	.ndo_set_rx_mode	= iss_net_set_multicast_list,
 };
 
 static int iss_net_configure(int index, char *init)

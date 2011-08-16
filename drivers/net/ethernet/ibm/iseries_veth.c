@@ -1009,7 +1009,7 @@ static const struct net_device_ops veth_netdev_ops = {
 	.ndo_stop		= veth_close,
 	.ndo_start_xmit		= veth_start_xmit,
 	.ndo_change_mtu		= veth_change_mtu,
-	.ndo_set_multicast_list	= veth_set_multicast_list,
+	.ndo_set_rx_mode	= veth_set_multicast_list,
 	.ndo_set_mac_address	= NULL,
 	.ndo_validate_addr	= eth_validate_addr,
 };
