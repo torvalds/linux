@@ -282,6 +282,7 @@ static const DECLARE_TLV_DB_SCALE(digital_tlv, -7200, 75, 1);
 static const DECLARE_TLV_DB_SCALE(st_tlv, -3600, 300, 0);
 static const DECLARE_TLV_DB_SCALE(wm8994_3d_tlv, -1600, 183, 0);
 static const DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
+static const DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 
 #define WM8994_DRC_SWITCH(xname, reg, shift) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
@@ -661,8 +662,45 @@ SOC_SINGLE_TLV("AIF2 EQ5 Volume", WM8994_AIF2_EQ_GAINS_2, 6, 31, 0,
 	       eq_tlv),
 };
 
+static const char *wm8958_ng_text[] = {
+	"30ms", "125ms", "250ms", "500ms",
+};
+
+static const struct soc_enum wm8958_aif1dac1_ng_hold =
+	SOC_ENUM_SINGLE(WM8958_AIF1_DAC1_NOISE_GATE,
+			WM8958_AIF1DAC1_NG_THR_SHIFT, 4, wm8958_ng_text);
+
+static const struct soc_enum wm8958_aif1dac2_ng_hold =
+	SOC_ENUM_SINGLE(WM8958_AIF1_DAC2_NOISE_GATE,
+			WM8958_AIF1DAC2_NG_THR_SHIFT, 4, wm8958_ng_text);
+
+static const struct soc_enum wm8958_aif2dac_ng_hold =
+	SOC_ENUM_SINGLE(WM8958_AIF2_DAC_NOISE_GATE,
+			WM8958_AIF2DAC_NG_THR_SHIFT, 4, wm8958_ng_text);
+
 static const struct snd_kcontrol_new wm8958_snd_controls[] = {
 SOC_SINGLE_TLV("AIF3 Boost Volume", WM8958_AIF3_CONTROL_2, 10, 3, 0, aif_tlv),
+
+SOC_SINGLE("AIF1DAC1 Noise Gate Switch", WM8958_AIF1_DAC1_NOISE_GATE,
+	   WM8958_AIF1DAC1_NG_ENA_SHIFT, 1, 0),
+SOC_ENUM("AIF1DAC1 Noise Gate Hold Time", wm8958_aif1dac1_ng_hold),
+SOC_SINGLE_TLV("AIF1DAC1 Noise Gate Threshold Volume",
+	       WM8958_AIF1_DAC1_NOISE_GATE, WM8958_AIF1DAC1_NG_THR_SHIFT,
+	       7, 1, ng_tlv),
+
+SOC_SINGLE("AIF1DAC2 Noise Gate Switch", WM8958_AIF1_DAC2_NOISE_GATE,
+	   WM8958_AIF1DAC2_NG_ENA_SHIFT, 1, 0),
+SOC_ENUM("AIF1DAC2 Noise Gate Hold Time", wm8958_aif1dac2_ng_hold),
+SOC_SINGLE_TLV("AIF1DAC2 Noise Gate Threshold Volume",
+	       WM8958_AIF1_DAC2_NOISE_GATE, WM8958_AIF1DAC2_NG_THR_SHIFT,
+	       7, 1, ng_tlv),
+
+SOC_SINGLE("AIF2DAC Noise Gate Switch", WM8958_AIF2_DAC_NOISE_GATE,
+	   WM8958_AIF2DAC_NG_ENA_SHIFT, 1, 0),
+SOC_ENUM("AIF2DAC Noise Gate Hold Time", wm8958_aif2dac_ng_hold),
+SOC_SINGLE_TLV("AIF2DAC Noise Gate Threshold Volume",
+	       WM8958_AIF2_DAC_NOISE_GATE, WM8958_AIF2DAC_NG_THR_SHIFT,
+	       7, 1, ng_tlv),
 };
 
 static int clk_sys_event(struct snd_soc_dapm_widget *w,
