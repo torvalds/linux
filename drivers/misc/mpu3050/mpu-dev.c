@@ -1069,7 +1069,7 @@ int mpu3050_probe(struct i2c_client *client,
 				if (res)
 					goto out_accelirq_failed;
 			} else {
-				dev_WARN(&this_client->adapter->dev,
+				dev_warn(&this_client->adapter->dev,
 					"WARNING: Accel irq not assigned\n");
 			}
 		} else {
