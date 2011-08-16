@@ -28,13 +28,13 @@ static int speyside_wm8962_set_bias_level(struct snd_soc_card *card,
 		if (dapm->bias_level == SND_SOC_BIAS_STANDBY) {
 			ret = snd_soc_dai_set_pll(codec_dai, WM8962_FLL,
 						  WM8962_FLL_MCLK, 32768,
-						  44100 * 256);
+						  44100 * 512);
 			if (ret < 0)
 				pr_err("Failed to start FLL: %d\n", ret);
 
 			ret = snd_soc_dai_set_sysclk(codec_dai,
 						     WM8962_SYSCLK_FLL,
-						     44100 * 256,
+						     44100 * 512,
 						     SND_SOC_CLOCK_IN);
 			if (ret < 0) {
 				pr_err("Failed to set SYSCLK: %d\n", ret);
