@@ -913,7 +913,10 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 		    "Abort command mbx success.\n");
 		wait = 1;
 	}
+
+	spin_lock_irqsave(&ha->hardware_lock, flags);
 	qla2x00_sp_compl(ha, sp);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	/* Wait for the command to be returned. */
 	if (wait) {
