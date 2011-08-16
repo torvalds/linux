@@ -381,7 +381,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 		if (p_child->dvo_port != DEVICE_PORT_DVOB &&
 			p_child->dvo_port != DEVICE_PORT_DVOC) {
 			/* skip the incorrect SDVO port */
-			DRM_DEBUG_KMS("Incorrect SDVO port. Skip it \n");
+			DRM_DEBUG_KMS("Incorrect SDVO port. Skip it\n");
 			continue;
 		}
 		DRM_DEBUG_KMS("the SDVO device with slave addr %2x is found on"
@@ -564,7 +564,7 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 		count++;
 	}
 	if (!count) {
-		DRM_DEBUG_KMS("no child dev is parsed from VBT \n");
+		DRM_DEBUG_KMS("no child dev is parsed from VBT\n");
 		return;
 	}
 	dev_priv->child_dev = kzalloc(sizeof(*p_child) * count, GFP_KERNEL);

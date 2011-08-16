@@ -2,10 +2,10 @@
 #define _INTEL_RINGBUFFER_H_
 
 enum {
-    RCS = 0x0,
-    VCS,
-    BCS,
-    I915_NUM_RINGS,
+	RCS = 0x0,
+	VCS,
+	BCS,
+	I915_NUM_RINGS,
 };
 
 struct  intel_hw_status_page {

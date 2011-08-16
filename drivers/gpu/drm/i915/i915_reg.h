@@ -156,7 +156,7 @@
 #define MI_SUSPEND_FLUSH	MI_INSTR(0x0b, 0)
 #define   MI_SUSPEND_FLUSH_EN	(1<<0)
 #define MI_REPORT_HEAD		MI_INSTR(0x07, 0)
-#define MI_OVERLAY_FLIP		MI_INSTR(0x11,0)
+#define MI_OVERLAY_FLIP		MI_INSTR(0x11, 0)
 #define   MI_OVERLAY_CONTINUE	(0x0<<21)
 #define   MI_OVERLAY_ON		(0x1<<21)
 #define   MI_OVERLAY_OFF	(0x2<<21)
@@ -470,7 +470,7 @@
 
 /* Enables non-sequential data reads through arbiter
  */
-#define   MI_ARB_DUAL_DATA_PHASE_DISABLE       	(1 << 9)
+#define   MI_ARB_DUAL_DATA_PHASE_DISABLE	(1 << 9)
 
 /* Disable FSB snooping of cacheable write cycles from binner/render
  * command stream
@@ -626,7 +626,7 @@
 
 #define ILK_DISPLAY_CHICKEN1	0x42000
 #define   ILK_FBCQ_DIS		(1<<22)
-#define   ILK_PABSTRETCH_DIS 	(1<<21)
+#define	  ILK_PABSTRETCH_DIS	(1<<21)
 
 
 /*
@@ -2358,7 +2358,7 @@
 
 #define DSPFW1			0x70034
 #define   DSPFW_SR_SHIFT	23
-#define   DSPFW_SR_MASK 	(0x1ff<<23)
+#define   DSPFW_SR_MASK		(0x1ff<<23)
 #define   DSPFW_CURSORB_SHIFT	16
 #define   DSPFW_CURSORB_MASK	(0x3f<<16)
 #define   DSPFW_PLANEB_SHIFT	8

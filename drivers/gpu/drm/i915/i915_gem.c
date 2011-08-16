@@ -179,7 +179,7 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 	mutex_unlock(&dev->struct_mutex);
 
 	args->aper_size = dev_priv->mm.gtt_total;
-	args->aper_available_size = args->aper_size -pinned;
+	args->aper_available_size = args->aper_size - pinned;
 
 	return 0;
 }
@@ -1856,7 +1856,7 @@ void i915_gem_reset(struct drm_device *dev)
 	 * lost bo to the inactive list.
 	 */
 	while (!list_empty(&dev_priv->mm.flushing_list)) {
-		obj= list_first_entry(&dev_priv->mm.flushing_list,
+		obj = list_first_entry(&dev_priv->mm.flushing_list,
 				      struct drm_i915_gem_object,
 				      mm_list);
 
@@ -1922,7 +1922,7 @@ i915_gem_retire_requests_ring(struct intel_ring_buffer *ring)
 	while (!list_empty(&ring->active_list)) {
 		struct drm_i915_gem_object *obj;
 
-		obj= list_first_entry(&ring->active_list,
+		obj = list_first_entry(&ring->active_list,
 				      struct drm_i915_gem_object,
 				      ring_list);
 
@@ -2882,7 +2882,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 
 	fenceable =
 		obj->gtt_space->size == fence_size &&
-		(obj->gtt_space->start & (fence_alignment -1)) == 0;
+		(obj->gtt_space->start & (fence_alignment - 1)) == 0;
 
 	mappable =
 		obj->gtt_offset + obj->base.size <= dev_priv->mm.gtt_mappable_end;
@@ -3598,7 +3598,7 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 			 */
 			request = kzalloc(sizeof(*request), GFP_KERNEL);
 			if (request)
-				ret = i915_add_request(obj->ring, NULL,request);
+				ret = i915_add_request(obj->ring, NULL, request);
 			else
 				ret = -ENOMEM;
 		}
@@ -3623,7 +3623,7 @@ int
 i915_gem_throttle_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
-    return i915_gem_ring_throttle(dev, file_priv);
+	return i915_gem_ring_throttle(dev, file_priv);
 }
 
 int

@@ -1026,7 +1026,7 @@ static const struct intel_ring_buffer render_ring = {
 	.irq_get		= render_ring_get_irq,
 	.irq_put		= render_ring_put_irq,
 	.dispatch_execbuffer	= render_ring_dispatch_execbuffer,
-       .cleanup			= render_ring_cleanup,
+	.cleanup		= render_ring_cleanup,
 };
 
 /* ring buffer for bit-stream decoder */
@@ -1050,23 +1050,23 @@ static const struct intel_ring_buffer bsd_ring = {
 static void gen6_bsd_ring_write_tail(struct intel_ring_buffer *ring,
 				     u32 value)
 {
-       drm_i915_private_t *dev_priv = ring->dev->dev_private;
+	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 
        /* Every tail move must follow the sequence below */
-       I915_WRITE(GEN6_BSD_SLEEP_PSMI_CONTROL,
-	       GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_MODIFY_MASK |
-	       GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_DISABLE);
-       I915_WRITE(GEN6_BSD_RNCID, 0x0);
+	I915_WRITE(GEN6_BSD_SLEEP_PSMI_CONTROL,
+		GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_MODIFY_MASK |
+		GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_DISABLE);
+	I915_WRITE(GEN6_BSD_RNCID, 0x0);
 
-       if (wait_for((I915_READ(GEN6_BSD_SLEEP_PSMI_CONTROL) &
-                               GEN6_BSD_SLEEP_PSMI_CONTROL_IDLE_INDICATOR) == 0,
-                       50))
-               DRM_ERROR("timed out waiting for IDLE Indicator\n");
+	if (wait_for((I915_READ(GEN6_BSD_SLEEP_PSMI_CONTROL) &
+		GEN6_BSD_SLEEP_PSMI_CONTROL_IDLE_INDICATOR) == 0,
+		50))
+	DRM_ERROR("timed out waiting for IDLE Indicator\n");
 
-       I915_WRITE_TAIL(ring, value);
-       I915_WRITE(GEN6_BSD_SLEEP_PSMI_CONTROL,
-	       GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_MODIFY_MASK |
-	       GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_ENABLE);
+	I915_WRITE_TAIL(ring, value);
+	I915_WRITE(GEN6_BSD_SLEEP_PSMI_CONTROL,
+		GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_MODIFY_MASK |
+		GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_ENABLE);
 }
 
 static int gen6_ring_flush(struct intel_ring_buffer *ring,
@@ -1094,18 +1094,18 @@ static int
 gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 			      u32 offset, u32 len)
 {
-       int ret;
+	int ret;
 
-       ret = intel_ring_begin(ring, 2);
-       if (ret)
-	       return ret;
+	ret = intel_ring_begin(ring, 2);
+	if (ret)
+		return ret;
 
-       intel_ring_emit(ring, MI_BATCH_BUFFER_START | MI_BATCH_NON_SECURE_I965);
-       /* bit0-7 is the length on GEN6+ */
-       intel_ring_emit(ring, offset);
-       intel_ring_advance(ring);
+	intel_ring_emit(ring, MI_BATCH_BUFFER_START | MI_BATCH_NON_SECURE_I965);
+	/* bit0-7 is the length on GEN6+ */
+	intel_ring_emit(ring, offset);
+	intel_ring_advance(ring);
 
-       return 0;
+	return 0;
 }
 
 static bool
@@ -1272,19 +1272,19 @@ static void blt_ring_cleanup(struct intel_ring_buffer *ring)
 }
 
 static const struct intel_ring_buffer gen6_blt_ring = {
-       .name			= "blt ring",
-       .id			= RING_BLT,
-       .mmio_base		= BLT_RING_BASE,
-       .size			= 32 * PAGE_SIZE,
-       .init			= blt_ring_init,
-       .write_tail		= ring_write_tail,
-       .flush			= blt_ring_flush,
-       .add_request		= gen6_add_request,
-       .get_seqno		= ring_get_seqno,
-       .irq_get			= blt_ring_get_irq,
-       .irq_put			= blt_ring_put_irq,
-       .dispatch_execbuffer	= gen6_ring_dispatch_execbuffer,
-       .cleanup			= blt_ring_cleanup,
+	.name			= "blt ring",
+	.id			= RING_BLT,
+	.mmio_base		= BLT_RING_BASE,
+	.size			= 32 * PAGE_SIZE,
+	.init			= blt_ring_init,
+	.write_tail		= ring_write_tail,
+	.flush			= blt_ring_flush,
+	.add_request		= gen6_add_request,
+	.get_seqno		= ring_get_seqno,
+	.irq_get			= blt_ring_get_irq,
+	.irq_put			= blt_ring_put_irq,
+	.dispatch_execbuffer	= gen6_ring_dispatch_execbuffer,
+	.cleanup			= blt_ring_cleanup,
 };
 
 int intel_init_render_ring_buffer(struct drm_device *dev)

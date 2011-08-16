@@ -42,39 +42,39 @@
 
 #define HAS_eDP (intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP))
 
-bool intel_pipe_has_type (struct drm_crtc *crtc, int type);
+bool intel_pipe_has_type(struct drm_crtc *crtc, int type);
 static void intel_update_watermarks(struct drm_device *dev);
 static void intel_increase_pllclock(struct drm_crtc *crtc);
 static void intel_crtc_update_cursor(struct drm_crtc *crtc, bool on);
 
 typedef struct {
-    /* given values */
-    int n;
-    int m1, m2;
-    int p1, p2;
-    /* derived values */
-    int	dot;
-    int	vco;
-    int	m;
-    int	p;
+	/* given values */
+	int n;
+	int m1, m2;
+	int p1, p2;
+	/* derived values */
+	int	dot;
+	int	vco;
+	int	m;
+	int	p;
 } intel_clock_t;
 
 typedef struct {
-    int	min, max;
+	int	min, max;
 } intel_range_t;
 
 typedef struct {
-    int	dot_limit;
-    int	p2_slow, p2_fast;
+	int	dot_limit;
+	int	p2_slow, p2_fast;
 } intel_p2_t;
 
 #define INTEL_P2_NUM		      2
 typedef struct intel_limit intel_limit_t;
 struct intel_limit {
-    intel_range_t   dot, vco, n, m, m1, m2, p, p1;
-    intel_p2_t	    p2;
-    bool (* find_pll)(const intel_limit_t *, struct drm_crtc *,
-		      int, int, intel_clock_t *);
+	intel_range_t   dot, vco, n, m, m1, m2, p, p1;
+	intel_p2_t	    p2;
+	bool (* find_pll)(const intel_limit_t *, struct drm_crtc *,
+			int, int, intel_clock_t *);
 };
 
 /* FDI */
@@ -105,56 +105,56 @@ intel_fdi_link_freq(struct drm_device *dev)
 }
 
 static const intel_limit_t intel_limits_i8xx_dvo = {
-        .dot = { .min = 25000, .max = 350000 },
-        .vco = { .min = 930000, .max = 1400000 },
-        .n = { .min = 3, .max = 16 },
-        .m = { .min = 96, .max = 140 },
-        .m1 = { .min = 18, .max = 26 },
-        .m2 = { .min = 6, .max = 16 },
-        .p = { .min = 4, .max = 128 },
-        .p1 = { .min = 2, .max = 33 },
+	.dot = { .min = 25000, .max = 350000 },
+	.vco = { .min = 930000, .max = 1400000 },
+	.n = { .min = 3, .max = 16 },
+	.m = { .min = 96, .max = 140 },
+	.m1 = { .min = 18, .max = 26 },
+	.m2 = { .min = 6, .max = 16 },
+	.p = { .min = 4, .max = 128 },
+	.p1 = { .min = 2, .max = 33 },
 	.p2 = { .dot_limit = 165000,
 		.p2_slow = 4, .p2_fast = 2 },
 	.find_pll = intel_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_i8xx_lvds = {
-        .dot = { .min = 25000, .max = 350000 },
-        .vco = { .min = 930000, .max = 1400000 },
-        .n = { .min = 3, .max = 16 },
-        .m = { .min = 96, .max = 140 },
-        .m1 = { .min = 18, .max = 26 },
-        .m2 = { .min = 6, .max = 16 },
-        .p = { .min = 4, .max = 128 },
-        .p1 = { .min = 1, .max = 6 },
+	.dot = { .min = 25000, .max = 350000 },
+	.vco = { .min = 930000, .max = 1400000 },
+	.n = { .min = 3, .max = 16 },
+	.m = { .min = 96, .max = 140 },
+	.m1 = { .min = 18, .max = 26 },
+	.m2 = { .min = 6, .max = 16 },
+	.p = { .min = 4, .max = 128 },
+	.p1 = { .min = 1, .max = 6 },
 	.p2 = { .dot_limit = 165000,
 		.p2_slow = 14, .p2_fast = 7 },
 	.find_pll = intel_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_i9xx_sdvo = {
-        .dot = { .min = 20000, .max = 400000 },
-        .vco = { .min = 1400000, .max = 2800000 },
-        .n = { .min = 1, .max = 6 },
-        .m = { .min = 70, .max = 120 },
-        .m1 = { .min = 10, .max = 22 },
-        .m2 = { .min = 5, .max = 9 },
-        .p = { .min = 5, .max = 80 },
-        .p1 = { .min = 1, .max = 8 },
+	.dot = { .min = 20000, .max = 400000 },
+	.vco = { .min = 1400000, .max = 2800000 },
+	.n = { .min = 1, .max = 6 },
+	.m = { .min = 70, .max = 120 },
+	.m1 = { .min = 10, .max = 22 },
+	.m2 = { .min = 5, .max = 9 },
+	.p = { .min = 5, .max = 80 },
+	.p1 = { .min = 1, .max = 8 },
 	.p2 = { .dot_limit = 200000,
 		.p2_slow = 10, .p2_fast = 5 },
 	.find_pll = intel_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_i9xx_lvds = {
-        .dot = { .min = 20000, .max = 400000 },
-        .vco = { .min = 1400000, .max = 2800000 },
-        .n = { .min = 1, .max = 6 },
-        .m = { .min = 70, .max = 120 },
-        .m1 = { .min = 10, .max = 22 },
-        .m2 = { .min = 5, .max = 9 },
-        .p = { .min = 7, .max = 98 },
-        .p1 = { .min = 1, .max = 8 },
+	.dot = { .min = 20000, .max = 400000 },
+	.vco = { .min = 1400000, .max = 2800000 },
+	.n = { .min = 1, .max = 6 },
+	.m = { .min = 70, .max = 120 },
+	.m1 = { .min = 10, .max = 22 },
+	.m2 = { .min = 5, .max = 9 },
+	.p = { .min = 7, .max = 98 },
+	.p1 = { .min = 1, .max = 8 },
 	.p2 = { .dot_limit = 112000,
 		.p2_slow = 14, .p2_fast = 7 },
 	.find_pll = intel_find_best_PLL,
@@ -222,44 +222,44 @@ static const intel_limit_t intel_limits_g4x_dual_channel_lvds = {
 };
 
 static const intel_limit_t intel_limits_g4x_display_port = {
-        .dot = { .min = 161670, .max = 227000 },
-        .vco = { .min = 1750000, .max = 3500000},
-        .n = { .min = 1, .max = 2 },
-        .m = { .min = 97, .max = 108 },
-        .m1 = { .min = 0x10, .max = 0x12 },
-        .m2 = { .min = 0x05, .max = 0x06 },
-        .p = { .min = 10, .max = 20 },
-        .p1 = { .min = 1, .max = 2},
-        .p2 = { .dot_limit = 0,
+	.dot = { .min = 161670, .max = 227000 },
+	.vco = { .min = 1750000, .max = 3500000},
+	.n = { .min = 1, .max = 2 },
+	.m = { .min = 97, .max = 108 },
+	.m1 = { .min = 0x10, .max = 0x12 },
+	.m2 = { .min = 0x05, .max = 0x06 },
+	.p = { .min = 10, .max = 20 },
+	.p1 = { .min = 1, .max = 2},
+	.p2 = { .dot_limit = 0,
 		.p2_slow = 10, .p2_fast = 10 },
-        .find_pll = intel_find_pll_g4x_dp,
+	.find_pll = intel_find_pll_g4x_dp,
 };
 
 static const intel_limit_t intel_limits_pineview_sdvo = {
-        .dot = { .min = 20000, .max = 400000},
-        .vco = { .min = 1700000, .max = 3500000 },
+	.dot = { .min = 20000, .max = 400000},
+	.vco = { .min = 1700000, .max = 3500000 },
 	/* Pineview's Ncounter is a ring counter */
-        .n = { .min = 3, .max = 6 },
-        .m = { .min = 2, .max = 256 },
+	.n = { .min = 3, .max = 6 },
+	.m = { .min = 2, .max = 256 },
 	/* Pineview only has one combined m divider, which we treat as m2. */
-        .m1 = { .min = 0, .max = 0 },
-        .m2 = { .min = 0, .max = 254 },
-        .p = { .min = 5, .max = 80 },
-        .p1 = { .min = 1, .max = 8 },
+	.m1 = { .min = 0, .max = 0 },
+	.m2 = { .min = 0, .max = 254 },
+	.p = { .min = 5, .max = 80 },
+	.p1 = { .min = 1, .max = 8 },
 	.p2 = { .dot_limit = 200000,
 		.p2_slow = 10, .p2_fast = 5 },
 	.find_pll = intel_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_pineview_lvds = {
-        .dot = { .min = 20000, .max = 400000 },
-        .vco = { .min = 1700000, .max = 3500000 },
-        .n = { .min = 3, .max = 6 },
-        .m = { .min = 2, .max = 256 },
-        .m1 = { .min = 0, .max = 0 },
-        .m2 = { .min = 0, .max = 254 },
-        .p = { .min = 7, .max = 112 },
-        .p1 = { .min = 1, .max = 8 },
+	.dot = { .min = 20000, .max = 400000 },
+	.vco = { .min = 1700000, .max = 3500000 },
+	.n = { .min = 3, .max = 6 },
+	.m = { .min = 2, .max = 256 },
+	.m1 = { .min = 0, .max = 0 },
+	.m2 = { .min = 0, .max = 254 },
+	.p = { .min = 7, .max = 112 },
+	.p1 = { .min = 1, .max = 8 },
 	.p2 = { .dot_limit = 112000,
 		.p2_slow = 14, .p2_fast = 14 },
 	.find_pll = intel_find_best_PLL,
@@ -321,7 +321,7 @@ static const intel_limit_t intel_limits_ironlake_single_lvds_100m = {
 	.m1 = { .min = 12, .max = 22 },
 	.m2 = { .min = 5, .max = 9 },
 	.p = { .min = 28, .max = 112 },
-	.p1 = { .min = 2,.max = 8 },
+	.p1 = { .min = 2, .max = 8 },
 	.p2 = { .dot_limit = 225000,
 		.p2_slow = 14, .p2_fast = 14 },
 	.find_pll = intel_g4x_find_best_PLL,
@@ -335,24 +335,24 @@ static const intel_limit_t intel_limits_ironlake_dual_lvds_100m = {
 	.m1 = { .min = 12, .max = 22 },
 	.m2 = { .min = 5, .max = 9 },
 	.p = { .min = 14, .max = 42 },
-	.p1 = { .min = 2,.max = 6 },
+	.p1 = { .min = 2, .max = 6 },
 	.p2 = { .dot_limit = 225000,
 		.p2_slow = 7, .p2_fast = 7 },
 	.find_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_ironlake_display_port = {
-        .dot = { .min = 25000, .max = 350000 },
-        .vco = { .min = 1760000, .max = 3510000},
-        .n = { .min = 1, .max = 2 },
-        .m = { .min = 81, .max = 90 },
-        .m1 = { .min = 12, .max = 22 },
-        .m2 = { .min = 5, .max = 9 },
-        .p = { .min = 10, .max = 20 },
-        .p1 = { .min = 1, .max = 2},
-        .p2 = { .dot_limit = 0,
+	.dot = { .min = 25000, .max = 350000 },
+	.vco = { .min = 1760000, .max = 3510000},
+	.n = { .min = 1, .max = 2 },
+	.m = { .min = 81, .max = 90 },
+	.m1 = { .min = 12, .max = 22 },
+	.m2 = { .min = 5, .max = 9 },
+	.p = { .min = 10, .max = 20 },
+	.p1 = { .min = 1, .max = 2},
+	.p2 = { .dot_limit = 0,
 		.p2_slow = 10, .p2_fast = 10 },
-        .find_pll = intel_find_pll_ironlake_dp,
+	.find_pll = intel_find_pll_ironlake_dp,
 };
 
 static const intel_limit_t *intel_ironlake_limit(struct drm_crtc *crtc,
@@ -404,7 +404,7 @@ static const intel_limit_t *intel_g4x_limit(struct drm_crtc *crtc)
 		limit = &intel_limits_g4x_hdmi;
 	} else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_SDVO)) {
 		limit = &intel_limits_g4x_sdvo;
-	} else if (intel_pipe_has_type (crtc, INTEL_OUTPUT_DISPLAYPORT)) {
+	} else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT)) {
 		limit = &intel_limits_g4x_display_port;
 	} else /* The option is for other outputs */
 		limit = &intel_limits_i9xx_sdvo;
@@ -488,26 +488,26 @@ static bool intel_PLL_is_valid(struct drm_device *dev,
 			       const intel_clock_t *clock)
 {
 	if (clock->p1  < limit->p1.min  || limit->p1.max  < clock->p1)
-		INTELPllInvalid ("p1 out of range\n");
+		INTELPllInvalid("p1 out of range\n");
 	if (clock->p   < limit->p.min   || limit->p.max   < clock->p)
-		INTELPllInvalid ("p out of range\n");
+		INTELPllInvalid("p out of range\n");
 	if (clock->m2  < limit->m2.min  || limit->m2.max  < clock->m2)
-		INTELPllInvalid ("m2 out of range\n");
+		INTELPllInvalid("m2 out of range\n");
 	if (clock->m1  < limit->m1.min  || limit->m1.max  < clock->m1)
-		INTELPllInvalid ("m1 out of range\n");
+		INTELPllInvalid("m1 out of range\n");
 	if (clock->m1 <= clock->m2 && !IS_PINEVIEW(dev))
-		INTELPllInvalid ("m1 <= m2\n");
+		INTELPllInvalid("m1 <= m2\n");
 	if (clock->m   < limit->m.min   || limit->m.max   < clock->m)
-		INTELPllInvalid ("m out of range\n");
+		INTELPllInvalid("m out of range\n");
 	if (clock->n   < limit->n.min   || limit->n.max   < clock->n)
-		INTELPllInvalid ("n out of range\n");
+		INTELPllInvalid("n out of range\n");
 	if (clock->vco < limit->vco.min || limit->vco.max < clock->vco)
-		INTELPllInvalid ("vco out of range\n");
+		INTELPllInvalid("vco out of range\n");
 	/* XXX: We may need to be checking "Dot clock" depending on the multiplier,
 	 * connector, etc., rather than just a single range.
 	 */
 	if (clock->dot < limit->dot.min || limit->dot.max < clock->dot)
-		INTELPllInvalid ("dot out of range\n");
+		INTELPllInvalid("dot out of range\n");
 
 	return true;
 }
@@ -542,7 +542,7 @@ intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 			clock.p2 = limit->p2.p2_fast;
 	}
 
-	memset (best_clock, 0, sizeof (*best_clock));
+	memset(best_clock, 0, sizeof(*best_clock));
 
 	for (clock.m1 = limit->m1.min; clock.m1 <= limit->m1.max;
 	     clock.m1++) {
@@ -2432,7 +2432,7 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 
 }
 
-static const int snb_b_fdi_train_param [] = {
+static const int snb_b_fdi_train_param[] = {
 	FDI_LINK_TRAIN_400MV_0DB_SNB_B,
 	FDI_LINK_TRAIN_400MV_6DB_SNB_B,
 	FDI_LINK_TRAIN_600MV_3_5DB_SNB_B,
@@ -2488,7 +2488,7 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 	if (HAS_PCH_CPT(dev))
 		cpt_phase_pointer_enable(dev, pipe);
 
-	for (i = 0; i < 4; i++ ) {
+	for (i = 0; i < 4; i++) {
 		reg = FDI_TX_CTL(pipe);
 		temp = I915_READ(reg);
 		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
@@ -2537,7 +2537,7 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 	POSTING_READ(reg);
 	udelay(150);
 
-	for (i = 0; i < 4; i++ ) {
+	for (i = 0; i < 4; i++) {
 		reg = FDI_TX_CTL(pipe);
 		temp = I915_READ(reg);
 		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
@@ -2607,7 +2607,7 @@ static void ivb_manual_fdi_link_train(struct drm_crtc *crtc)
 	if (HAS_PCH_CPT(dev))
 		cpt_phase_pointer_enable(dev, pipe);
 
-	for (i = 0; i < 4; i++ ) {
+	for (i = 0; i < 4; i++) {
 		reg = FDI_TX_CTL(pipe);
 		temp = I915_READ(reg);
 		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
@@ -2649,7 +2649,7 @@ static void ivb_manual_fdi_link_train(struct drm_crtc *crtc)
 	POSTING_READ(reg);
 	udelay(150);
 
-	for (i = 0; i < 4; i++ ) {
+	for (i = 0; i < 4; i++) {
 		reg = FDI_TX_CTL(pipe);
 		temp = I915_READ(reg);
 		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
@@ -3285,14 +3285,14 @@ static void ironlake_crtc_commit(struct drm_crtc *crtc)
 	ironlake_crtc_enable(crtc);
 }
 
-void intel_encoder_prepare (struct drm_encoder *encoder)
+void intel_encoder_prepare(struct drm_encoder *encoder)
 {
 	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
 	/* lvds has its own version of prepare see intel_lvds_prepare */
 	encoder_funcs->dpms(encoder, DRM_MODE_DPMS_OFF);
 }
 
-void intel_encoder_commit (struct drm_encoder *encoder)
+void intel_encoder_commit(struct drm_encoder *encoder)
 {
 	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
 	/* lvds has its own version of commit see intel_lvds_commit */
@@ -8144,7 +8144,7 @@ static void intel_init_display(struct drm_device *dev)
 	}
 
 	/* Returns the core display clock speed */
-	if (IS_I945G(dev) || (IS_G33(dev) && ! IS_PINEVIEW_M(dev)))
+	if (IS_I945G(dev) || (IS_G33(dev) && !IS_PINEVIEW_M(dev)))
 		dev_priv->display.get_display_clock_speed =
 			i945_get_display_clock_speed;
 	else if (IS_I915G(dev))
@@ -8215,7 +8215,7 @@ static void intel_init_display(struct drm_device *dev)
 			DRM_INFO("failed to find known CxSR latency "
 				 "(found ddr%s fsb freq %d, mem freq %d), "
 				 "disabling CxSR\n",
-				 (dev_priv->is_ddr3 == 1) ? "3": "2",
+				 (dev_priv->is_ddr3 == 1) ? "3" : "2",
 				 dev_priv->fsb_freq, dev_priv->mem_freq);
 			/* Disable CxSR and never update its watermark again */
 			pineview_disable_cxsr(dev);
@@ -8284,7 +8284,7 @@ static void intel_init_display(struct drm_device *dev)
  * resume, or other times.  This quirk makes sure that's the case for
  * affected systems.
  */
-static void quirk_pipea_force (struct drm_device *dev)
+static void quirk_pipea_force(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -8312,7 +8312,7 @@ struct intel_quirk intel_quirks[] = {
 	/* HP Compaq 2730p needs pipe A force quirk (LP: #291555) */
 	{ 0x2a42, 0x103c, 0x30eb, quirk_pipea_force },
 	/* HP Mini needs pipe A force quirk (LP: #322104) */
-	{ 0x27ae,0x103c, 0x361a, quirk_pipea_force },
+	{ 0x27ae, 0x103c, 0x361a, quirk_pipea_force },
 
 	/* Thinkpad R31 needs pipe A force quirk */
 	{ 0x3577, 0x1014, 0x0505, quirk_pipea_force },
@@ -8563,7 +8563,7 @@ struct intel_display_error_state {
 struct intel_display_error_state *
 intel_display_capture_error_state(struct drm_device *dev)
 {
-        drm_i915_private_t *dev_priv = dev->dev_private;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_display_error_state *error;
 	int i;
 
@@ -8579,7 +8579,7 @@ intel_display_capture_error_state(struct drm_device *dev)
 		error->plane[i].control = I915_READ(DSPCNTR(i));
 		error->plane[i].stride = I915_READ(DSPSTRIDE(i));
 		error->plane[i].size = I915_READ(DSPSIZE(i));
-		error->plane[i].pos= I915_READ(DSPPOS(i));
+		error->plane[i].pos = I915_READ(DSPPOS(i));
 		error->plane[i].addr = I915_READ(DSPADDR(i));
 		if (INTEL_INFO(dev)->gen >= 4) {
 			error->plane[i].surface = I915_READ(DSPSURF(i));
