@@ -1235,7 +1235,8 @@ static int option_probe(struct usb_serial *serial,
 		(serial->dev->descriptor.idProduct == HUAWEI_PRODUCT_K3765 ||
 			serial->dev->descriptor.idProduct == HUAWEI_PRODUCT_K4505 ||
 			serial->dev->descriptor.idProduct == HUAWEI_PRODUCT_K4605) &&
-		serial->interface->cur_altsetting->desc.bInterfaceNumber == 1)
+		(serial->interface->cur_altsetting->desc.bInterfaceNumber == 1 ||
+			serial->interface->cur_altsetting->desc.bInterfaceNumber == 2))
 		return -ENODEV;
 
 	/* Don't bind network interface on Samsung GT-B3730, it is handled by a separate module */
