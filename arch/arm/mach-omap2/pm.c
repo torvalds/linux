@@ -169,15 +169,23 @@ err:
  * in the opp entry
  */
 static int __init omap2_set_init_voltage(char *vdd_name, char *clk_name,
-						struct device *dev)
+					 const char *oh_name)
 {
 	struct voltagedomain *voltdm;
 	struct clk *clk;
 	struct opp *opp;
 	unsigned long freq, bootup_volt;
+	struct device *dev;
 
-	if (!vdd_name || !clk_name || !dev) {
+	if (!vdd_name || !clk_name || !oh_name) {
 		pr_err("%s: invalid parameters\n", __func__);
+		goto exit;
+	}
+
+	dev = omap_device_get_by_hwmod_name(oh_name);
+	if (IS_ERR(dev)) {
+		pr_err("%s: Unable to get dev pointer for hwmod %s\n",
+			__func__, oh_name);
 		goto exit;
 	}
 
@@ -224,8 +232,8 @@ static void __init omap3_init_voltages(void)
 	if (!cpu_is_omap34xx())
 		return;
 
-	omap2_set_init_voltage("mpu_iva", "dpll1_ck", mpu_dev);
-	omap2_set_init_voltage("core", "l3_ick", l3_dev);
+	omap2_set_init_voltage("mpu_iva", "dpll1_ck", "mpu");
+	omap2_set_init_voltage("core", "l3_ick", "l3_main");
 }
 
 static void __init omap4_init_voltages(void)
@@ -233,9 +241,9 @@ static void __init omap4_init_voltages(void)
 	if (!cpu_is_omap44xx())
 		return;
 
-	omap2_set_init_voltage("mpu", "dpll_mpu_ck", mpu_dev);
-	omap2_set_init_voltage("core", "l3_div_ck", l3_dev);
-	omap2_set_init_voltage("iva", "dpll_iva_m5x2_ck", iva_dev);
+	omap2_set_init_voltage("mpu", "dpll_mpu_ck", "mpu");
+	omap2_set_init_voltage("core", "l3_div_ck", "l3_main_1");
+	omap2_set_init_voltage("iva", "dpll_iva_m5x2_ck", "iva");
 }
 
 static int __init omap2_common_pm_init(void)
