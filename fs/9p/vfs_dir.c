@@ -231,7 +231,7 @@ static int v9fs_dir_readdir_dotl(struct file *filp, void *dirent,
 	while (err == 0) {
 		if (rdir->tail == rdir->head) {
 			err = p9_client_readdir(fid, rdir->buf, buflen,
-								filp->f_pos);
+						filp->f_pos);
 			if (err <= 0)
 				goto unlock_and_exit;
 
