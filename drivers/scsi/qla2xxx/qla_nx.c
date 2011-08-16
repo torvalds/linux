@@ -4874,3 +4874,43 @@ qla82xx_md_prep(scsi_qla_host_t *vha)
 		}
 	}
 }
+
+int
+qla82xx_beacon_on(struct scsi_qla_host *vha)
+{
+
+	int rval;
+	struct qla_hw_data *ha = vha->hw;
+	qla82xx_idc_lock(ha);
+	rval = qla82xx_mbx_beacon_ctl(vha, 1);
+
+	if (rval) {
+		ql_log(ql_log_warn, vha, 0xb050,
+		    "mbx set led config failed in %s\n", __func__);
+		goto exit;
+	}
+	ha->beacon_blink_led = 1;
+exit:
+	qla82xx_idc_unlock(ha);
+	return rval;
+}
+
+int
+qla82xx_beacon_off(struct scsi_qla_host *vha)
+{
+
+	int rval;
+	struct qla_hw_data *ha = vha->hw;
+	qla82xx_idc_lock(ha);
+	rval = qla82xx_mbx_beacon_ctl(vha, 0);
+
+	if (rval) {
+		ql_log(ql_log_warn, vha, 0xb051,
+		    "mbx set led config failed in %s\n", __func__);
+		goto exit;
+	}
+	ha->beacon_blink_led = 0;
+exit:
+	qla82xx_idc_unlock(ha);
+	return rval;
+}

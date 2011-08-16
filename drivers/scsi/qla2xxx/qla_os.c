@@ -1762,9 +1762,9 @@ static struct isp_operations qla82xx_isp_ops = {
 	.read_nvram		= qla24xx_read_nvram_data,
 	.write_nvram		= qla24xx_write_nvram_data,
 	.fw_dump		= qla24xx_fw_dump,
-	.beacon_on		= qla24xx_beacon_on,
-	.beacon_off		= qla24xx_beacon_off,
-	.beacon_blink		= qla24xx_beacon_blink,
+	.beacon_on		= qla82xx_beacon_on,
+	.beacon_off		= qla82xx_beacon_off,
+	.beacon_blink		= NULL,
 	.read_optrom		= qla82xx_read_optrom_data,
 	.write_optrom		= qla82xx_write_optrom_data,
 	.get_flash_version	= qla24xx_get_flash_version,
@@ -3917,8 +3917,11 @@ qla2x00_timer(scsi_qla_host_t *vha)
 
 	/* Check if beacon LED needs to be blinked for physical host only */
 	if (!vha->vp_idx && (ha->beacon_blink_led == 1)) {
-		set_bit(BEACON_BLINK_NEEDED, &vha->dpc_flags);
-		start_dpc++;
+		/* There is no beacon_blink function for ISP82xx */
+		if (!IS_QLA82XX(ha)) {
+			set_bit(BEACON_BLINK_NEEDED, &vha->dpc_flags);
+			start_dpc++;
+		}
 	}
 
 	/* Process any deferred work. */

@@ -4275,3 +4275,41 @@ qla82xx_md_get_template(scsi_qla_host_t *vha)
 		ql_dbg(ql_dbg_mbx, vha, 0x1126, "Done %s.\n", __func__);
 	return rval;
 }
+
+int
+qla82xx_mbx_beacon_ctl(scsi_qla_host_t *vha, int enable)
+{
+	int rval;
+	struct qla_hw_data *ha = vha->hw;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	if (!IS_QLA82XX(ha))
+		return QLA_FUNCTION_FAILED;
+
+	ql_dbg(ql_dbg_mbx, vha, 0x1127,
+		"Entered %s.\n", __func__);
+
+	memset(mcp, 0, sizeof(mbx_cmd_t));
+	mcp->mb[0] = MBC_SET_LED_CONFIG;
+	if (enable)
+		mcp->mb[7] = 0xE;
+	else
+		mcp->mb[7] = 0xD;
+
+	mcp->out_mb = MBX_7|MBX_0;
+	mcp->in_mb = MBX_0;
+	mcp->tov = 30;
+	mcp->flags = 0;
+
+	rval = qla2x00_mailbox_command(vha, mcp);
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x1128,
+		    "Failed=%x mb[0]=%x.\n", rval, mcp->mb[0]);
+	} else {
+		ql_dbg(ql_dbg_mbx, vha, 0x1129,
+		    "Done %s.\n", __func__);
+	}
+
+	return rval;
+}
