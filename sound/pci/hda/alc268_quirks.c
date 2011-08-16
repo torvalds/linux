@@ -476,8 +476,8 @@ static const struct snd_pci_quirk alc268_ssid_cfg_tbl[] = {
 
 static const struct alc_config_preset alc268_presets[] = {
 	[ALC267_QUANTA_IL1] = {
-		.mixers = { alc267_quanta_il1_mixer, alc268_beep_mixer,
-			    alc268_capture_nosrc_mixer },
+		.mixers = { alc267_quanta_il1_mixer, alc268_beep_mixer },
+		.cap_mixer = alc268_capture_nosrc_mixer,
 		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
 				alc267_quanta_il1_verbs },
 		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
@@ -492,8 +492,8 @@ static const struct alc_config_preset alc268_presets[] = {
 		.init_hook = alc_inithook,
 	},
 	[ALC268_3ST] = {
-		.mixers = { alc268_base_mixer, alc268_capture_alt_mixer,
-			    alc268_beep_mixer },
+		.mixers = { alc268_base_mixer, alc268_beep_mixer },
+		.cap_mixer = alc268_capture_alt_mixer,
 		.init_verbs = { alc268_base_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
 		.dac_nids = alc268_dac_nids,
@@ -507,8 +507,8 @@ static const struct alc_config_preset alc268_presets[] = {
 		.input_mux = &alc268_capture_source,
 	},
 	[ALC268_TOSHIBA] = {
-		.mixers = { alc268_toshiba_mixer, alc268_capture_alt_mixer,
-			    alc268_beep_mixer },
+		.mixers = { alc268_toshiba_mixer, alc268_beep_mixer },
+		.cap_mixer = alc268_capture_alt_mixer,
 		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
 				alc268_toshiba_verbs },
 		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
@@ -525,8 +525,8 @@ static const struct alc_config_preset alc268_presets[] = {
 		.init_hook = alc_inithook,
 	},
 	[ALC268_ACER] = {
-		.mixers = { alc268_acer_mixer, alc268_capture_alt_mixer,
-			    alc268_beep_mixer },
+		.mixers = { alc268_acer_mixer, alc268_beep_mixer },
+		.cap_mixer = alc268_capture_alt_mixer,
 		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
 				alc268_acer_verbs },
 		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
@@ -543,8 +543,8 @@ static const struct alc_config_preset alc268_presets[] = {
 		.init_hook = alc_inithook,
 	},
 	[ALC268_ACER_DMIC] = {
-		.mixers = { alc268_acer_dmic_mixer, alc268_capture_alt_mixer,
-			    alc268_beep_mixer },
+		.mixers = { alc268_acer_dmic_mixer, alc268_beep_mixer },
+		.cap_mixer = alc268_capture_alt_mixer,
 		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
 				alc268_acer_verbs },
 		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
@@ -561,9 +561,8 @@ static const struct alc_config_preset alc268_presets[] = {
 		.init_hook = alc_inithook,
 	},
 	[ALC268_ACER_ASPIRE_ONE] = {
-		.mixers = { alc268_acer_aspire_one_mixer,
-			    alc268_beep_mixer,
-			    alc268_capture_nosrc_mixer },
+		.mixers = { alc268_acer_aspire_one_mixer, alc268_beep_mixer},
+		.cap_mixer = alc268_capture_nosrc_mixer,
 		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
 				alc268_acer_aspire_one_verbs },
 		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
@@ -579,8 +578,8 @@ static const struct alc_config_preset alc268_presets[] = {
 		.init_hook = alc_inithook,
 	},
 	[ALC268_DELL] = {
-		.mixers = { alc268_dell_mixer, alc268_beep_mixer,
-			    alc268_capture_nosrc_mixer },
+		.mixers = { alc268_dell_mixer, alc268_beep_mixer},
+		.cap_mixer = alc268_capture_nosrc_mixer,
 		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
 				alc268_dell_verbs },
 		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
@@ -596,8 +595,8 @@ static const struct alc_config_preset alc268_presets[] = {
 		.init_hook = alc_inithook,
 	},
 	[ALC268_ZEPTO] = {
-		.mixers = { alc268_base_mixer, alc268_capture_alt_mixer,
-			    alc268_beep_mixer },
+		.mixers = { alc268_base_mixer, alc268_beep_mixer },
+		.cap_mixer = alc268_capture_alt_mixer,
 		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
 				alc268_toshiba_verbs },
 		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
@@ -616,7 +615,8 @@ static const struct alc_config_preset alc268_presets[] = {
 	},
 #ifdef CONFIG_SND_DEBUG
 	[ALC268_TEST] = {
-		.mixers = { alc268_test_mixer, alc268_capture_mixer },
+		.mixers = { alc268_test_mixer },
+		.cap_mixer = alc268_capture_mixer,
 		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
 				alc268_volume_init_verbs,
 				alc268_beep_init_verbs },
