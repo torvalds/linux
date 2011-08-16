@@ -102,12 +102,8 @@ int il4965_eeprom_acquire_semaphore(struct il_priv *il)
 				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
 				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
 				EEPROM_SEM_TIMEOUT);
-		if (ret >= 0) {
-			IL_DEBUG_IO(il,
-				"Acquired semaphore after %d tries.\n",
-				count+1);
+		if (ret >= 0)
 			return ret;
-		}
 	}
 
 	return ret;
