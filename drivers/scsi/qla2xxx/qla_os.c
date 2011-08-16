@@ -160,9 +160,9 @@ MODULE_PARM_DESC(ql2xetsenable,
 int ql2xdbwr = 1;
 module_param(ql2xdbwr, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xdbwr,
-	"Option to specify scheme for request queue posting.\n"
-	" 0 -- Regular doorbell.\n"
-	" 1 -- CAMRAM doorbell (faster).\n");
+		"Option to specify scheme for request queue posting.\n"
+		" 0 -- Regular doorbell.\n"
+		" 1 -- CAMRAM doorbell (faster).\n");
 
 int ql2xtargetreset = 1;
 module_param(ql2xtargetreset, int, S_IRUGO);
@@ -185,15 +185,28 @@ MODULE_PARM_DESC(ql2xasynctmfenable,
 int ql2xdontresethba;
 module_param(ql2xdontresethba, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xdontresethba,
-	"Option to specify reset behaviour.\n"
-	" 0 (Default) -- Reset on failure.\n"
-	" 1 -- Do not reset on failure.\n");
+		"Option to specify reset behaviour.\n"
+		" 0 (Default) -- Reset on failure.\n"
+		" 1 -- Do not reset on failure.\n");
 
 uint ql2xmaxlun = MAX_LUNS;
 module_param(ql2xmaxlun, uint, S_IRUGO);
 MODULE_PARM_DESC(ql2xmaxlun,
 		"Defines the maximum LU number to register with the SCSI "
 		"midlayer. Default is 65535.");
+
+int ql2xmdcapmask = 0x1F;
+module_param(ql2xmdcapmask, int, S_IRUGO);
+MODULE_PARM_DESC(ql2xmdcapmask,
+		"Set the Minidump driver capture mask level. "
+		"Default is 0x7F - Can be set to 0x3, 0x7, 0xF, 0x1F, 0x7F.");
+
+int ql2xmdenable;
+module_param(ql2xmdenable, int, S_IRUGO);
+MODULE_PARM_DESC(ql2xmdenable,
+		"Enable/disable MiniDump. "
+		"0 (Default) - MiniDump disabled. "
+		"1 - MiniDump enabled.");
 
 /*
  * SCSI host template entry points
@@ -2668,6 +2681,8 @@ qla2x00_free_device(scsi_qla_host_t *vha)
 	qla2x00_free_fcports(vha);
 
 	qla2x00_mem_free(ha);
+
+	qla82xx_md_free(vha);
 
 	qla2x00_free_queues(ha);
 }

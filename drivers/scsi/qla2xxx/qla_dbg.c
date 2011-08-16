@@ -403,7 +403,7 @@ qla25xx_copy_mq(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 	return ptr + sizeof(struct qla2xxx_mq_chain);
 }
 
-static void
+void
 qla2xxx_dump_post_process(scsi_qla_host_t *vha, int rval)
 {
 	struct qla_hw_data *ha = vha->hw;
