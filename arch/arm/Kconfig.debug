@@ -161,6 +161,22 @@ choice
 		  The uncompressor code port configuration is now handled
 		  by CONFIG_S3C_LOWLEVEL_UART_PORT.
 
+	config DEBUG_REALVIEW_STD_PORT
+		bool "RealView Default UART"
+		depends on ARCH_REALVIEW
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the serial port on RealView EB, PB11MP, PBA8
+		  and PBX platforms.
+
+	config DEBUG_REALVIEW_PB1176_PORT
+		bool "RealView PB1176 UART"
+		depends on MACH_REALVIEW_PB1176
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the standard serial port on the RealView
+		  PB1176 platform.
+
 endchoice
 
 config EARLY_PRINTK
