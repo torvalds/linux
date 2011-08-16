@@ -304,6 +304,8 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "RDM Done On invalid Address : %x Access Denied.\n",
 					(int)sRdmBuffer.Register);
+
+			kfree(temp_buff);
 			return -EINVAL;
 		}
 
