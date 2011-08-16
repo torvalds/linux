@@ -33,7 +33,7 @@
 #include <asm/prom.h>
 #endif
 
-#include "sungem_phy.h"
+#include <linux/sungem_phy.h>
 
 /* Link modes of the BCM5400 PHY */
 static const int phy_BCM5400_link_table[8][3] = {
