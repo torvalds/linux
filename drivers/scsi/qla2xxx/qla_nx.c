@@ -3619,44 +3619,52 @@ qla82xx_need_reset_handler(scsi_qla_host_t *vha)
 	}
 }
 
-static void
+int
 qla82xx_check_md_needed(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
 	uint16_t fw_major_version, fw_minor_version, fw_subminor_version;
-	uint16_t fw_attributes;
-	uint32_t fw_memory_size, mpi_capabilities;
-	uint8_t	mpi_version[3], phy_version[3];
+	int rval = QLA_SUCCESS;
 
-	if (!ha->fw_dumped) {
-		qla2x00_get_fw_version(vha,
-		    &fw_major_version,
-		    &fw_minor_version,
-		    &fw_subminor_version,
-		    &fw_attributes, &fw_memory_size,
-		    mpi_version, &mpi_capabilities,
-		    phy_version);
+	fw_major_version = ha->fw_major_version;
+	fw_minor_version = ha->fw_minor_version;
+	fw_subminor_version = ha->fw_subminor_version;
 
-		if (fw_major_version != ha->fw_major_version ||
-		    fw_minor_version != ha->fw_minor_version ||
-		    fw_subminor_version != ha->fw_subminor_version) {
-			ql_log(ql_log_info, vha, 0xb02d,
-			    "Firmware version differs "
-			    "Previous version: %d:%d:%d - "
-			    "New version: %d:%d:%d\n",
-			    ha->fw_major_version,
-			    ha->fw_minor_version, ha->fw_subminor_version,
-			    fw_major_version, fw_minor_version,
-			    fw_subminor_version);
-			/* Release MiniDump resources */
-			qla82xx_md_free(vha);
-			/* ALlocate MiniDump resources */
-			qla82xx_md_prep(vha);
+	rval = qla2x00_get_fw_version(vha, &ha->fw_major_version,
+	    &ha->fw_minor_version, &ha->fw_subminor_version,
+	    &ha->fw_attributes, &ha->fw_memory_size,
+	    ha->mpi_version, &ha->mpi_capabilities,
+	    ha->phy_version);
+
+	if (rval != QLA_SUCCESS)
+		return rval;
+
+	if (ql2xmdenable) {
+		if (!ha->fw_dumped) {
+			if (fw_major_version != ha->fw_major_version ||
+			    fw_minor_version != ha->fw_minor_version ||
+			    fw_subminor_version != ha->fw_subminor_version) {
+
+				ql_log(ql_log_info, vha, 0xb02d,
+				    "Firmware version differs "
+				    "Previous version: %d:%d:%d - "
+				    "New version: %d:%d:%d\n",
+				    ha->fw_major_version,
+				    ha->fw_minor_version,
+				    ha->fw_subminor_version,
+				    fw_major_version, fw_minor_version,
+				    fw_subminor_version);
+				/* Release MiniDump resources */
+				qla82xx_md_free(vha);
+				/* ALlocate MiniDump resources */
+				qla82xx_md_prep(vha);
+			} else
+				ql_log(ql_log_info, vha, 0xb02e,
+				    "Firmware dump available to retrieve\n",
+				    vha->host_no);
 		}
-	} else
-		ql_log(ql_log_info, vha, 0xb02e,
-		    "Firmware dump available to retrieve\n",
-		    vha->host_no);
+	}
+	return rval;
 }
 
 

@@ -1480,13 +1480,19 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 			if (rval == QLA_SUCCESS) {
 enable_82xx_npiv:
 				fw_major_version = ha->fw_major_version;
-				rval = qla2x00_get_fw_version(vha,
-				    &ha->fw_major_version,
-				    &ha->fw_minor_version,
-				    &ha->fw_subminor_version,
-				    &ha->fw_attributes, &ha->fw_memory_size,
-				    ha->mpi_version, &ha->mpi_capabilities,
-				    ha->phy_version);
+				if (IS_QLA82XX(ha))
+					qla82xx_check_md_needed(vha);
+				else {
+					rval = qla2x00_get_fw_version(vha,
+					    &ha->fw_major_version,
+					    &ha->fw_minor_version,
+					    &ha->fw_subminor_version,
+					    &ha->fw_attributes,
+					    &ha->fw_memory_size,
+					    ha->mpi_version,
+					    &ha->mpi_capabilities,
+					    ha->phy_version);
+				}
 				if (rval != QLA_SUCCESS)
 					goto failed;
 				ha->flags.npiv_supported = 0;
@@ -5441,11 +5447,7 @@ qla82xx_restart_isp(scsi_qla_host_t *vha)
 		clear_bit(ISP_ABORT_RETRY, &vha->dpc_flags);
 
 		/* Update the firmware version */
-		qla2x00_get_fw_version(vha, &ha->fw_major_version,
-		    &ha->fw_minor_version, &ha->fw_subminor_version,
-		    &ha->fw_attributes, &ha->fw_memory_size,
-		    ha->mpi_version, &ha->mpi_capabilities,
-		    ha->phy_version);
+		status = qla82xx_check_md_needed(vha);
 
 		if (ha->fce) {
 			ha->flags.fce_enabled = 1;
