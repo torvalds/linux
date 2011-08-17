@@ -292,13 +292,12 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 
 	if ((s & RQ_NET_MASK) == 0 || (s & RQ_NET_DONE)) {
 		/* this is disconnected (local only) operation,
-		 * or protocol C P_WRITE_ACK,
-		 * or protocol A or B P_BARRIER_ACK,
+		 * or protocol A, B, or C P_BARRIER_ACK,
 		 * or killed from the transfer log due to connection loss. */
 		_req_is_done(mdev, req, rw);
 	}
 	/* else: network part and not DONE yet. that is
-	 * protocol A or B, barrier ack still pending... */
+	 * protocol A, B, or C, barrier ack still pending... */
 }
 
 static void _req_may_be_done_not_susp(struct drbd_request *req, struct bio_and_error *m)
@@ -668,7 +667,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 			break;
 
 		if (req->rq_state & RQ_NET_PENDING) {
-			/* barrier came in before all requests have been acked.
+			/* barrier came in before all requests were acked.
 			 * this is bad, because if the connection is lost now,
 			 * we won't be able to clean them up... */
 			dev_err(DEV, "FIXME (BARRIER_ACKED but pending)\n");

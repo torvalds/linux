@@ -389,8 +389,8 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
 
 	/* Trying kmalloc first, falling back to vmalloc.
 	 * GFP_KERNEL is ok, as this is done when a lower level disk is
-	 * "attached" to the drbd.  Context is receiver thread or cqueue
-	 * thread.  As we have no disk yet, we are not in the IO path,
+	 * "attached" to the drbd.  Context is receiver thread or drbdsetup /
+	 * netlink process.  As we have no disk yet, we are not in the IO path,
 	 * not even the IO path of the peer. */
 	bytes = sizeof(struct page *)*want;
 	new_pages = kmalloc(bytes, GFP_KERNEL);

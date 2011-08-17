@@ -2038,7 +2038,7 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 		goto fail;
 	}
 
-	/* allocation not in the IO path, cqueue thread context */
+	/* allocation not in the IO path, drbdsetup / netlink process context */
 	new_conf = kzalloc(sizeof(*new_conf), GFP_KERNEL);
 	if (!new_conf) {
 		retcode = ERR_NOMEM;

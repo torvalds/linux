@@ -969,7 +969,7 @@ int w_e_end_data_req(struct drbd_work *w, int cancel)
 }
 
 /**
- * w_e_end_rsdata_req() - Worker callback to send a P_RS_DATA_REPLY packet in response to a P_RS_DATA_REQUESTRS
+ * w_e_end_rsdata_req() - Worker callback to send a P_RS_DATA_REPLY packet in response to a P_RS_DATA_REQUEST
  * @mdev:	DRBD device.
  * @w:		work object.
  * @cancel:	The connection will be closed anyways
