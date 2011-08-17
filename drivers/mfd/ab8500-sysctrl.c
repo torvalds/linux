@@ -23,6 +23,10 @@ void ab8500_power_off(void)
 	sigset_t all;
 	static char *pss[] = {"ab8500_ac", "ab8500_usb"};
 	int i;
+	bool charger_present = false;
+	union power_supply_propval val;
+	struct power_supply *psy;
+	int ret;
 
 	/*
 	 * If we have a charger connected and we're powering off,
@@ -30,23 +34,36 @@ void ab8500_power_off(void)
 	 */
 
 	for (i = 0; i < ARRAY_SIZE(pss); i++) {
-		union power_supply_propval val;
-		struct power_supply *psy;
-		int ret;
-
 		psy = power_supply_get_by_name(pss[i]);
 		if (!psy)
 			continue;
+
 		ret = psy->get_property(psy, POWER_SUPPLY_PROP_ONLINE, &val);
 
 		if (!ret && val.intval) {
+			charger_present = true;
+			break;
+		}
+	}
+
+	if (!charger_present)
+		goto shutdown;
+
+	/* Check if battery is known */
+	psy = power_supply_get_by_name("ab8500_btemp");
+	if (psy) {
+		ret = psy->get_property(psy, POWER_SUPPLY_PROP_TECHNOLOGY,
+					&val);
+		if (!ret && val.intval != POWER_SUPPLY_TECHNOLOGY_UNKNOWN) {
 			printk(KERN_INFO
-			       "Charger \"%s\" is connected. Rebooting.\n",
+			       "Charger \"%s\" is connected with known battery."
+			       " Rebooting.\n",
 			       pss[i]);
 			machine_restart(NULL);
 		}
 	}
 
+shutdown:
 	sigfillset(&all);
 
 	if (!sigprocmask(SIG_BLOCK, &all, &old)) {
