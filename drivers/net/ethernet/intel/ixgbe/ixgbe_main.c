@@ -3680,8 +3680,18 @@ static void ixgbe_setup_gpie(struct ixgbe_adapter *adapter)
 	}
 
 	/* Enable Thermal over heat sensor interrupt */
-	if (adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE)
-		gpie |= IXGBE_SDP0_GPIEN;
+	if (adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) {
+		switch (adapter->hw.mac.type) {
+		case ixgbe_mac_82599EB:
+			gpie |= IXGBE_SDP0_GPIEN;
+			break;
+		case ixgbe_mac_X540:
+			gpie |= IXGBE_EIMS_TS;
+			break;
+		default:
+			break;
+		}
+	}
 
 	/* Enable fan failure interrupt */
 	if (adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE)
