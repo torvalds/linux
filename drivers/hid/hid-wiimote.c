@@ -57,7 +57,9 @@ struct wiimote_data {
 #define WIIPROTO_FLAG_LED(num) (WIIPROTO_FLAG_LED1 << (num - 1))
 
 enum wiiproto_reqs {
+	WIIPROTO_REQ_NULL = 0x0,
 	WIIPROTO_REQ_LED = 0x11,
+	WIIPROTO_REQ_DRM = 0x12,
 	WIIPROTO_REQ_DRM_K = 0x30,
 };
 
@@ -188,6 +190,30 @@ static void wiiproto_req_leds(struct wiimote_data *wdata, int leds)
 		cmd[1] |= 0x40;
 	if (leds & WIIPROTO_FLAG_LED4)
 		cmd[1] |= 0x80;
+
+	wiimote_queue(wdata, cmd, sizeof(cmd));
+}
+
+/*
+ * Check what peripherals of the wiimote are currently
+ * active and select a proper DRM that supports all of
+ * the requested data inputs.
+ */
+static __u8 select_drm(struct wiimote_data *wdata)
+{
+	return WIIPROTO_REQ_DRM_K;
+}
+
+static void wiiproto_req_drm(struct wiimote_data *wdata, __u8 drm)
+{
+	__u8 cmd[3];
+
+	if (drm == WIIPROTO_REQ_NULL)
+		drm = select_drm(wdata);
+
+	cmd[0] = WIIPROTO_REQ_DRM;
+	cmd[1] = 0;
+	cmd[2] = drm;
 
 	wiimote_queue(wdata, cmd, sizeof(cmd));
 }
