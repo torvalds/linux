@@ -452,7 +452,25 @@ static const struct arm_pll_set* arm_pll_clk_get_best_pll_set(unsigned long rate
 static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	unsigned long flags;
-	const struct arm_pll_set *ps = arm_pll_clk_get_best_pll_set(rate);
+	const struct arm_pll_set *ps;
+	u32 clksel0_con;
+	bool aclk_limit = rate & 1;
+
+	rate &= ~1;
+	ps = arm_pll_clk_get_best_pll_set(rate);
+	clksel0_con = ps->clksel0_con;
+
+	if (aclk_limit) {
+		u32 aclk_div = clksel0_con & CORE_ACLK_MASK;
+		if (rate > 408 * MHZ && aclk_div < CORE_ACLK_41)
+			aclk_div = CORE_ACLK_41;
+		clksel0_con = (clksel0_con & ~CORE_ACLK_MASK) | aclk_div;
+	}
+
+	if (ps->apll_con == cru_readl(CRU_APLL_CON)) {
+		cru_writel((cru_readl(CRU_CLKSEL0_CON) & ~(CORE_ACLK_MASK | ACLK_HCLK_MASK | ACLK_PCLK_MASK)) | clksel0_con, CRU_CLKSEL0_CON);
+		return 0;
+	}
 
 	local_irq_save(flags);
 	/* make aclk safe & reparent to general pll */
@@ -484,7 +502,7 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 
 	loops_per_jiffy = ps->lpj;
 	/* reparent to arm pll & set aclk/hclk/pclk */
-	cru_writel((cru_readl(CRU_CLKSEL0_CON) & ~(CORE_PARENT_MASK | CORE_ACLK_MASK | ACLK_HCLK_MASK | ACLK_PCLK_MASK)) | CORE_PARENT_ARM_PLL | ps->clksel0_con, CRU_CLKSEL0_CON);
+	cru_writel((cru_readl(CRU_CLKSEL0_CON) & ~(CORE_PARENT_MASK | CORE_ACLK_MASK | ACLK_HCLK_MASK | ACLK_PCLK_MASK)) | CORE_PARENT_ARM_PLL | clksel0_con, CRU_CLKSEL0_CON);
 	local_irq_restore(flags);
 
 	return 0;
@@ -2677,7 +2695,7 @@ void __init rk29_clock_init2(enum periph_pll ppll_rate, enum codec_pll cpll_rate
 	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/gpll/core/aclk_cpu/hclk_cpu/pclk_cpu/aclk_periph/hclk_periph/pclk_periph): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz",
 	       arm_pll_clk.rate / MHZ, ddr_pll_clk.rate / MHZ, codec_pll_clk.rate / MHZ, general_pll_clk.rate / MHZ, clk_core.rate / MHZ,
 	       aclk_cpu.rate / MHZ, hclk_cpu.rate / MHZ, pclk_cpu.rate / MHZ, aclk_periph.rate / MHZ, hclk_periph.rate / MHZ, pclk_periph.rate / MHZ);
-	printk(KERN_CONT " (20110729)\n");
+	printk(KERN_CONT " (20110812)\n");
 
 	preset_lpj = loops_per_jiffy;
 }

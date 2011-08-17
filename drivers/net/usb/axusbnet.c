@@ -374,7 +374,7 @@ static void rx_submit (struct usbnet *dev, struct urb *urb, gfp_t flags)
 		}
 	} else {
 		if (netif_msg_ifdown (dev))
-			devdbg (dev, "rx: stopped");
+			deverr (dev, "rx: stopped");
 		retval = -ENOLINK;
 	}
 	spin_unlock_irqrestore (&dev->rxq.lock, lockflags);
@@ -430,7 +430,7 @@ static void rx_complete (struct urb *urb)
 			dev->stats.rx_errors++;
 			dev->stats.rx_length_errors++;
 			if (netif_msg_rx_err (dev))
-				devdbg (dev, "rx length %d", skb->len);
+		       ;//	deverr (dev, "rx length %d", skb->len);
 		}
 		break;
 
@@ -448,7 +448,7 @@ static void rx_complete (struct urb *urb)
 	case -ECONNRESET:		/* async unlink */
 	case -ESHUTDOWN:		/* hardware gone */
 		if (netif_msg_ifdown (dev))
-			devdbg (dev, "rx shutdown, code %d", urb_status);
+		;//	deverr (dev, "rx shutdown, code %d", urb_status);
 		goto block;
 
 	/* we get controller i/o faults during khubd disconnect() delays.
@@ -462,7 +462,7 @@ static void rx_complete (struct urb *urb)
 		if (!timer_pending (&dev->delay)) {
 			mod_timer (&dev->delay, jiffies + THROTTLE_JIFFIES);
 			if (netif_msg_link (dev))
-				devdbg (dev, "rx throttle %d", urb_status);
+			;//	deverr (dev, "rx throttle %d", urb_status);
 		}
 block:
 		entry->state = rx_cleanup;
@@ -479,7 +479,7 @@ block:
 		entry->state = rx_cleanup;
 		dev->stats.rx_errors++;
 		if (netif_msg_rx_err (dev))
-			devdbg (dev, "rx status %d", urb_status);
+	;//		deverr (dev, "rx status %d", urb_status);
 		break;
 	}
 
@@ -494,9 +494,9 @@ block:
 		usb_free_urb (urb);
 	}
 	if (netif_msg_rx_err (dev))
-		devdbg (dev, "no read resubmitted");
+		deverr (dev, "no read resubmitted");
 }
-
+extern void dwc_otg_clear_halt(struct urb *_urb);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
 static void intr_complete (struct urb *urb, struct pt_regs *regs)
 #else
@@ -517,13 +517,16 @@ static void intr_complete (struct urb *urb)
 	case -ESHUTDOWN:	/* hardware gone */
 		if (netif_msg_ifdown (dev))
 			devdbg (dev, "intr shutdown, code %d", status);
-		return;
+		break;
+	//	return;
 
 	/* NOTE:  not throttling like RX/TX, since this endpoint
 	 * already polls infrequently
 	 */
 	default:
 		devdbg (dev, "intr status %d", status);
+		if(status < 0)
+			dwc_otg_clear_halt(urb);
 		break;
 	}
 
@@ -597,7 +600,6 @@ int axusbnet_stop (struct net_device *net)
 #endif
 	DECLARE_WAITQUEUE (wait, current);
 
-	devdbg(dev," %s %d\n",__FUNCTION__,__LINE__);
 	netif_stop_queue (net);
 
 	if (netif_msg_ifdown (dev))
@@ -663,7 +665,7 @@ int axusbnet_open (struct net_device *net)
 	struct usbnet		*dev = netdev_priv(net);
 	int			retval = 0;
 	struct driver_info	*info = dev->driver_info;
-	devdbg(dev, " %s %d\n",__FUNCTION__,__LINE__);
+
 	// put into "known safe" state
 	if (info->reset && (retval = info->reset (dev)) < 0) {
 		if (netif_msg_ifup (dev))
@@ -1080,6 +1082,7 @@ static void axusbnet_bh (unsigned long param)
 	struct usbnet		*dev = (struct usbnet *) param;
 	struct sk_buff		*skb;
 	struct skb_data		*entry;
+
 	while ((skb = skb_dequeue (&dev->done))) {
 		entry = (struct skb_data *) skb->cb;
 		switch (entry->state) {

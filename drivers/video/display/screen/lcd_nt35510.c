@@ -1,5 +1,6 @@
 #include <linux/fb.h>
 #include <linux/delay.h>
+#include <linux/earlysuspend.h>
 #include "../../rk29_fb.h"
 #include <mach/gpio.h>
 #include <mach/iomux.h>
@@ -317,7 +318,7 @@ void WriteParameter(char DH)
 void init_nt35510(void)
 {
 	WriteCommand(0X1100); 
-	msleep(10);
+	usleep_range(10*1000, 10*1000);
 
 	WriteCommand(0X1300); 
 
@@ -1431,11 +1432,11 @@ else if(OUT_FACE == OUT_P666)
 	WriteCommand(0X2000); //
 
 	WriteCommand(0X1100); 
-	msleep(120);
+	usleep_range(120*1000, 120*1000);
 
 	WriteCommand(0X2900); 
 
-	msleep(100);
+	usleep_range(100*1000, 100*1000);
 	WriteCommand(0X2C00); 
 }
 
@@ -1586,6 +1587,49 @@ else if(OUT_FACE == OUT_P666)
 	WriteCommand(0X2C00); 
 }
 
+static DEFINE_MUTEX(lcd_mutex);
+extern void rk29_lcd_spim_spin_lock(void);
+extern void rk29_lcd_spim_spin_unlock(void);
+
+static void lcd_resume(struct work_struct *work)
+{
+	mutex_lock(&lcd_mutex);
+	rk29_lcd_spim_spin_lock();
+	if(gLcd_info)
+		gLcd_info->io_init();
+
+	gpio_request(RK29_PIN6_PC6, NULL);
+	gpio_direction_output(RK29_PIN6_PC6, 1);
+	gpio_direction_output(RK29_PIN6_PC6, 0);
+	usleep_range(5*1000, 5*1000);
+	gpio_set_value(RK29_PIN6_PC6, 1);
+	usleep_range(50*1000, 50*1000);
+	gpio_free(RK29_PIN6_PC6);
+	init_nt35510();
+	//set_backlight(255);
+	//resume_nt35510();//may be fail to wake up LCD some time,so change to init lcd again
+	printk(KERN_DEBUG "%s\n",__FUNCTION__);
+
+	if(gLcd_info)
+		gLcd_info->io_deinit();
+
+	rk29_lcd_spim_spin_unlock();
+	mutex_unlock(&lcd_mutex);
+}
+
+static DECLARE_WORK(lcd_resume_work, lcd_resume);
+static struct workqueue_struct *lcd_resume_wq;
+
+static void lcd_late_resume(struct early_suspend *h)
+{
+	queue_work(lcd_resume_wq, &lcd_resume_work);
+}
+
+static struct early_suspend lcd_early_suspend_desc = {
+	.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 1, // before fb resume
+	.resume = lcd_late_resume,
+};
+
 int init(void)
 { 
 	volatile u32 data;
@@ -1608,43 +1652,34 @@ int init(void)
 
 	//set_backlight(255);
 
+	lcd_resume_wq = create_singlethread_workqueue("lcd");
+	register_early_suspend(&lcd_early_suspend_desc);
     return 0;
 }
-extern void rk29_lcd_spim_spin_lock(void);
-extern void rk29_lcd_spim_spin_unlock(void);
+
 int standby(u8 enable)	//***enable =1 means suspend, 0 means resume 
 {
-	rk29_lcd_spim_spin_lock();
-	if(gLcd_info)
-        gLcd_info->io_init();
+	if (enable) {
+		mutex_lock(&lcd_mutex);
+		rk29_lcd_spim_spin_lock();
+		if(gLcd_info)
+			gLcd_info->io_init();
 
-	if(enable) {
 		WriteCommand(0X2800); 
 		//set_backlight(0);
 		WriteCommand(0X1100); 
 		msleep(5);
 		WriteCommand(0X4f00); 
 		WriteParameter(0x01);
-	} else { 
-		gpio_request(RK29_PIN6_PC6, NULL);
-		gpio_direction_output(RK29_PIN6_PC6, 1);
-		gpio_direction_output(RK29_PIN6_PC6, 0);
-		msleep(5);
-		gpio_set_value(RK29_PIN6_PC6, 1);
-		msleep(50);
-		gpio_free(RK29_PIN6_PC6);
-		init_nt35510();
-		//set_backlight(255);
-		//resume_nt35510();//may be fail to wake up LCD some time,so change to init lcd again
-		printk("%s\n",__FUNCTION__);
+		if(gLcd_info)
+			gLcd_info->io_deinit();
+
+		rk29_lcd_spim_spin_unlock();
+		mutex_unlock(&lcd_mutex);
+	} else {
+		flush_workqueue(lcd_resume_wq);
 	}
-
-    if(gLcd_info)
-        gLcd_info->io_deinit();
-
-	rk29_lcd_spim_spin_unlock();
-
-    return 0;
+	return 0;
 }
 
 

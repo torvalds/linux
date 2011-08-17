@@ -7,6 +7,7 @@
 #include <linux/interrupt.h>
 #include <mach/gpio.h>
 #include <mach/iomux.h>
+#include <mach/board.h>
 
 
 
@@ -159,10 +160,10 @@ static int anx7150_i2c_probe(struct i2c_client *client,const struct i2c_device_i
 	struct hdmi *hdmi = NULL;
 	struct anx7150_pdata *anx = NULL;
 
-	gpio_request(HDMI_VDD_CTL, "hdmi pwr ctl");
-	gpio_direction_output(HDMI_VDD_CTL, GPIO_HIGH);
-	//gpio_set_value(HDMI_VDD_CTL, GPIO_HIGH); 
-	mdelay(10);
+	struct hdmi_platform_data *pdata = client->dev.platform_data;
+
+	if(pdata && pdata->io_init)
+		pdata->io_init();
 
 	hdmi = hdmi_register(sizeof(struct anx7150_pdata), &client->dev);
     if (!hdmi)

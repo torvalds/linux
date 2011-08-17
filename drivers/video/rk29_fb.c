@@ -271,6 +271,37 @@ static bool has_set_rotate;
 static u32 last_yuv_phy[2] = {0,0};
 #endif
 
+static BLOCKING_NOTIFIER_HEAD(rk29fb_notifier_list);
+int rk29fb_register_notifier(struct notifier_block *nb)
+{
+	int ret = 0;
+	if (g_pdev) {
+		struct rk29fb_inf *inf = platform_get_drvdata(g_pdev);
+		if (inf) {
+			if (inf->cur_screen && inf->cur_screen->type == SCREEN_HDMI)
+				nb->notifier_call(nb, RK29FB_EVENT_HDMI_ON, inf->cur_screen);
+			if (inf->fb1 && inf->fb1->par) {
+				struct win0_par *par = inf->fb1->par;
+				if (par->refcount)
+					nb->notifier_call(nb, RK29FB_EVENT_FB1_ON, inf->cur_screen);
+			}
+		}
+	}
+	ret = blocking_notifier_chain_register(&rk29fb_notifier_list, nb);
+
+	return ret;
+}
+
+int rk29fb_unregister_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&rk29fb_notifier_list, nb);
+}
+
+static int rk29fb_notify(struct rk29fb_inf *inf, unsigned long event)
+{
+	return blocking_notifier_call_chain(&rk29fb_notifier_list, event, inf->cur_screen);
+}
+
 int mcu_do_refresh(struct rk29fb_inf *inf)
 {
     if(inf->mcu_stopflush)  return 0;
@@ -2040,6 +2071,7 @@ int fb1_open(struct fb_info *info, int user)
         fb0_set_par(inf->fb0);
         fb0_pan_display(&inf->fb0->var, inf->fb0);
         win0_blank(FB_BLANK_POWERDOWN, info);
+	rk29fb_notify(inf, RK29FB_EVENT_FB1_ON);
         return 0;
     }
 }
@@ -2073,6 +2105,7 @@ int fb1_release(struct fb_info *info, int user)
         info->fix.smem_len = 0;
 		// clean the var param
 		memset(var0, 0, sizeof(struct fb_var_screeninfo));
+	rk29fb_notify(inf, RK29FB_EVENT_FB1_OFF);
     }
 
     return 0;
@@ -2299,6 +2332,7 @@ int FB_Switch_Screen( struct rk29fb_screen *screen, u32 enable )
     fb0_set_par(inf->fb0);
     LcdMskReg(inf, DSP_CTRL1, m_BLACK_MODE,  v_BLACK_MODE(0));
     LcdWrReg(inf, REG_CFG_DONE, 0x01);
+    rk29fb_notify(inf, enable ? RK29FB_EVENT_HDMI_ON : RK29FB_EVENT_HDMI_OFF);
     return 0;
 }
 
@@ -2501,7 +2535,7 @@ static void rk29fb_early_resume(struct early_suspend *h)
         if(inf->clk){
             clk_enable(inf->aclk);
         }
-        msleep(100);
+        usleep_range(100*1000, 100*1000);
 	}
     LcdMskReg(inf, DSP_CTRL1, m_BLANK_MODE , v_BLANK_MODE(0));
     LcdMskReg(inf, SYS_CONFIG, m_STANDBY, v_STANDBY(0));
@@ -2515,9 +2549,9 @@ static void rk29fb_early_resume(struct early_suspend *h)
 		fbprintk(">>>>>> power on the screen! \n");
 		inf->cur_screen->standby(0);
 	}
-    msleep(10);
+    usleep_range(10*1000, 10*1000);
     memcpy((u8*)inf->preg, (u8*)&inf->regbak, 0xa4);  //resume reg
-    msleep(40);
+    usleep_range(40*1000, 40*1000);
     
     if((inf->cur_screen != &inf->panel2_info) && mach_info->io_enable)  // open lcd pwr when output screen is lcd
        mach_info->io_enable();  //close lcd out 

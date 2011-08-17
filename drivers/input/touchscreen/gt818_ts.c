@@ -100,6 +100,7 @@ static int i2c_read_bytes(struct i2c_client *client, u8 *buf, int len)
 	ret = i2c_transfer(client->adapter, msgs, 2);
 	if(ret < 0)
 		printk("%s:i2c_transfer fail =%d\n",__func__, ret);
+
 	return ret;
 }
 
@@ -108,16 +109,18 @@ static int i2c_write_bytes(struct i2c_client *client,u8 *data,int len)
 {
 	struct i2c_msg msg;
 	int ret = -1;
-	//鍙戦�璁惧鍦板潃
+
 	msg.addr = client->addr;
-	msg.flags = client->flags;   //鍐欐秷鎭�
+	msg.flags = client->flags;
 	msg.len = len;
 	msg.buf = data;
 	msg.scl_rate = GT818_I2C_SCL;
 	msg.udelay = client->udelay;
+
 	ret = i2c_transfer(client->adapter, &msg, 1);
 	if(ret < 0)
 		printk("%s:i2c_transfer fail =%d\n",__func__, ret);
+
 	return ret;
 }
 
@@ -141,7 +144,7 @@ static int i2c_end_cmd(struct gt818_ts_data *ts)
 	end_cmd_data[0] = 0x80;
 	end_cmd_data[1] = 0x00;
 	ret = i2c_write_bytes(ts->client,end_cmd_data,2);
-	//msleep(2);
+	udelay(20);
 	return ret;
 }
 
@@ -150,7 +153,7 @@ static int i2c_end_cmd(struct gt818_ts_data *ts)
 static int goodix_init_panel(struct gt818_ts_data *ts)
 {
 	int ret = -1;
-
+	int i = 0;
 #if 1
 	u8 config_info[] = {
 	0x06,0xA2,
@@ -170,16 +173,33 @@ static int goodix_init_panel(struct gt818_ts_data *ts)
 	0x00,0x01
 	};
 #endif
+	u8 read_config_info[sizeof(config_info)] = {0};
+	read_config_info[0] = 0x06;
+	read_config_info[1] = 0xa2;
 
 	ret = i2c_write_bytes(ts->client, config_info, (sizeof(config_info)/sizeof(config_info[0])));
-	if (ret < 0) 
+	if (ret < 0) {
+		printk("config gt818 fail\n");
 		return ret;
+	}
+
+	ret = i2c_read_bytes(ts->client, read_config_info, (sizeof(config_info)/sizeof(config_info[0])));
+	if (ret < 0){
+		printk("read gt818 config fail\n");
+		return ret;
+	}
+
+	for(i = 2; i < 106; i++){
+		if(read_config_info[i] != config_info[i]){
+			printk("write gt818 config error\n");
+			ret = -1;
+			return ret;
+		}
+	}
 	msleep(10);
 	return 0;
 
 }
-
-
 
 static int  goodix_read_version(struct gt818_ts_data *ts)
 {
@@ -318,10 +338,10 @@ static void goodix_ts_work_func(struct work_struct *work)
 
 
 #ifdef HAVE_TOUCH_KEY
-	if((last_key == 0) && (key == 0))
+	if((last_key == 0) && (key == 0)){
 		goto NO_KEY_PRESS;
-	else
-	{
+	}
+	else{
 		syn_flag = 1;
 		switch(key){
 			case 1:
@@ -370,6 +390,16 @@ XFER_ERROR:
 
 }
 
+static int test_suspend_resume(struct gt818_ts_data *ts){
+	while(1){
+		ts->power(ts, 0);
+		msleep(5000);
+		ts->power(ts, 1);
+		msleep(5000);
+	}
+	return 0;
+}
+
 
 static enum hrtimer_restart goodix_ts_timer_func(struct hrtimer *timer)
 {
@@ -410,7 +440,7 @@ static int goodix_ts_power(struct gt818_ts_data * ts, int on)
 			}
 			else
 			{
-				printk(KERN_INFO"**gt818 suspend**\n");
+				//printk(KERN_INFO"**gt818 suspend**\n");
 				ret = 0;
 			}
 //			i2c_end_cmd(ts);
@@ -425,21 +455,21 @@ static int goodix_ts_power(struct gt818_ts_data * ts, int on)
 			msleep(1);
 			gpio_direction_input(pdata->gpio_pendown);
 			gpio_pull_updown(pdata->gpio_pendown, 0);
+
+/*
 			msleep(2);
+			gpio_pull_updown(pdata->gpio_reset, 1);
 			gpio_direction_output(pdata->gpio_reset, 0);
 			msleep(2);
 			gpio_direction_input(pdata->gpio_reset);
 			gpio_pull_updown(pdata->gpio_reset, 0);
 			msleep(30);
-
+*/
+			msleep(1);
 			ret = i2c_pre_cmd(ts);
-			if(ret > 0){
-				printk(KERN_INFO"**gt818 resume**\n");
-			}
-			else{
-				printk(KERN_INFO"**gt818 resume fail**\n");
-			}
-			i2c_end_cmd(ts);
+			//printk(KERN_INFO"**gt818 reusme**\n");
+			ret = i2c_end_cmd(ts);
+
 			return ret;
 				
 		default:
@@ -495,15 +525,16 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		goto err_gpio_request_failed;
 	}
 	rk29_mux_api_set(pdata->resetpin_iomux_name, pdata->resetpin_iomux_mode);
+
 #if 1
 	for(retry = 0; retry < 4; retry++)
 	{
 		gpio_pull_updown(pdata->gpio_reset, 1);
 		gpio_direction_output(pdata->gpio_reset, 0);
-		msleep(2);
+		msleep(1);     //delay at least 1ms
 		gpio_direction_input(pdata->gpio_reset);
 		gpio_pull_updown(pdata->gpio_reset, 0);
-		msleep(30);
+		msleep(25);   //delay at least 20ms
 		ret = i2c_pre_cmd(ts);
 		if (ret > 0)
 			break;
@@ -515,11 +546,12 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		dev_err(&client->dev, "Warnning: I2C communication might be ERROR!\n");
 		goto err_i2c_failed;
 	}	
-
 #endif
+
 	for(retry = 0; retry < 3; retry++)
 	{
 		ret = goodix_init_panel(ts);
+
 		dev_info(&client->dev,"the config ret is :%d\n", ret);
 		msleep(20);
 		if(ret < 0)	//Initiall failed
@@ -532,9 +564,10 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		ts->bad_data = 1;
 		goto err_init_godix_ts;
 	}
+
 	goodix_read_version(ts);
 
-	i2c_end_cmd(ts);
+
 	INIT_WORK(&ts->work, goodix_ts_work_func);		//init work_struct
 	ts->input_dev = input_allocate_device();
 	if (ts->input_dev == NULL) {
@@ -639,6 +672,8 @@ err_gpio_request_failed:
 		ts->timer.function = goodix_ts_timer_func;
 		hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);
 	}
+
+	i2c_end_cmd(ts);
 	return 0;
 
 err_init_godix_ts:

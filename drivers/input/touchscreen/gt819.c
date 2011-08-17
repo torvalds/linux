@@ -471,8 +471,12 @@ static void gt819_queue_work(struct work_struct *work)
 		check_sum += point_data[count];
 	if(check_sum  != 0)			//checksum verify error
 		{
-			printk("coor checksum error!\n");
+			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
+			input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0);
+			//input_mt_sync(data->input_dev);
+			input_sync(ts->input_dev);
 			enable_irq(ts->irq);
+			dev_info(&ts->client->dev, "coor checksum error!touch release\n");
 			return;
 		}
 		
